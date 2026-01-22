@@ -60,10 +60,10 @@ void ExtBcc(Handler handler, typename Handler::Context ctx, ByteReader stream);
 
 template <typename Enum, typename Enum::Value First, typename Enum::Value Last, typename F>
 constexpr void ForRange(F f) {
-	if constexpr (First <= Last) {
-		f(std::integral_constant<typename Enum::Value, First>{});
-		ForRange<Enum, typename Enum::Value(First + 1), Last>(f);
-	}
+    if constexpr (First <= Last) {
+        f(std::integral_constant<typename Enum::Value, First>{});
+        ForRange<Enum, typename Enum::Value(First + 1), Last>(f);
+    }
 }
 
 template <auto... Vs, typename F>
@@ -73,102 +73,102 @@ constexpr void ForValues(F f) {
 
 template <typename Handler>
 static constexpr auto table = [] {
-	using namespace Cbc;
+    using namespace Cbc;
 
-	Table<Handler> arr{};
+    Table<Handler> arr{};
 
-	TableFunction<Handler> invalid = &Unreachable;
+    TableFunction<Handler> invalid = &Unreachable;
 
-	for (auto &x : arr) {
-		x = invalid;
-	}
+    for (auto &x : arr) {
+        x = invalid;
+    }
 
-	auto table_put = [&](uint32_t location, TableFunction<Handler> func) {
-		ASSERTION(arr[location] == invalid, "Location is already initialized");
-		arr[location] = func;
-	};
+    auto table_put = [&](uint32_t location, TableFunction<Handler> func) {
+        ASSERTION(arr[location] == invalid, "Location is already initialized");
+        arr[location] = func;
+    };
 
-	// B2rr common operations
-	ForRange<Width, Width::W32, Width::W64>([&](auto width) {
-		ForRange<Common, Common::ADD, Common::XOR>([&](auto arithOp) {
-			table_put(Format::B2rr::Fmt(arithOp, width), B2rrCommon<arithOp, width, Handler>);
-		});
-		table_put(Format::B2rr::Fmt(Common::MOV, width), B2rrCommon<Common::MOV, width, Handler>);
-	});
+    // B2rr common operations
+    ForRange<Width, Width::W32, Width::W64>([&](auto width) {
+        ForRange<Common, Common::ADD, Common::XOR>([&](auto arithOp) {
+            table_put(Format::B2rr::Fmt(arithOp, width), B2rrCommon<arithOp, width, Handler>);
+        });
+        table_put(Format::B2rr::Fmt(Common::MOV, width), B2rrCommon<Common::MOV, width, Handler>);
+    });
 
-	table_put(Format::B2rr::Fmt(Common::MVST, Width::W32), B2rrMovVST);
-	table_put(Format::B2rr::Fmt(Common::MREF, Width::W64), B2rrMovRef);
+    table_put(Format::B2rr::Fmt(Common::MVST, Width::W32), B2rrMovVST);
+    table_put(Format::B2rr::Fmt(Common::MREF, Width::W64), B2rrMovRef);
 
-	// B2rrd8 branch operations
-	ForRange<Width, Width::W32, Width::W64>([&](auto width) {
-		ForRange<CC, CC::EQ, CC::RNE>([&](auto cc) {
-			table_put(Format::B2rrd8::Fmt(cc, width), B2rrd8BranchIf<cc, width, Handler>);
-		});
-	});
+    // B2rrd8 branch operations
+    ForRange<Width, Width::W32, Width::W64>([&](auto width) {
+        ForRange<CC, CC::EQ, CC::RNE>([&](auto cc) {
+            table_put(Format::B2rrd8::Fmt(cc, width), B2rrd8BranchIf<cc, width, Handler>);
+        });
+    });
 
     // ExtBcc operations
-	ForRange<Width, Width::W32, Width::W64>([&](auto width) {
-		ForRange<ImmKind, ImmKind::VALUE, ImmKind::LITERAL>([&](auto immKind) {
-			table_put(Format::ExtBrr::Fmt(immKind, width), ExtBcc<immKind, width, Handler>);
-		});
-	});
+    ForRange<Width, Width::W32, Width::W64>([&](auto width) {
+        ForRange<ImmKind, ImmKind::VALUE, ImmKind::LITERAL>([&](auto immKind) {
+            table_put(Format::ExtBrr::Fmt(immKind, width), ExtBcc<immKind, width, Handler>);
+        });
+    });
 
-	return arr;
+    return arr;
 }();
 
 template <typename Handler, Width::Value width>
 void B2rrMovPrimitive(Handler handler, typename Handler::Context ctx, ByteReader stream) {
-	auto args = B2rr::Decode(&stream);
-	handler.StorePos(stream.Cursor());
-	handler.template Mov<width>(ctx, args.dst, args.src);
-	NEXT;
+    auto args = B2rr::Decode(&stream);
+    handler.StorePos(stream.Cursor());
+    handler.template Mov<width>(ctx, args.dst, args.src);
+    NEXT;
 }
 
 template <typename Handler>
 void B2rrMovRef(Handler handler, typename Handler::Context ctx, ByteReader stream) {
-	auto args = B2rr::Decode(&stream);
-	handler.StorePos(stream.Cursor());
-	handler.MovRef(ctx, args.dst, args.src);
-	NEXT;
+    auto args = B2rr::Decode(&stream);
+    handler.StorePos(stream.Cursor());
+    handler.MovRef(ctx, args.dst, args.src);
+    NEXT;
 }
 
 template <typename Handler>
 void B2rrMovVST(Handler handler, typename Handler::Context ctx, ByteReader stream) {
-	auto args = B2rr::Decode(&stream);
-	handler.StorePos(stream.Cursor());
-	handler.MovVST(ctx, args.dst, args.src);
-	NEXT;
+    auto args = B2rr::Decode(&stream);
+    handler.StorePos(stream.Cursor());
+    handler.MovVST(ctx, args.dst, args.src);
+    NEXT;
 }
 
 template <Common::Value arithOp, Width::Value width, typename Handler>
 void B2rrCommon(Handler handler, typename Handler::Context ctx, ByteReader stream) {
-	auto args = B2rr::Decode(&stream);
-	handler.StorePos(stream.Cursor());
-	handler.template Common<width, arithOp>(ctx, args.Idst(), args.Isrc());
-	NEXT;
+    auto args = B2rr::Decode(&stream);
+    handler.StorePos(stream.Cursor());
+    handler.template Common<width, arithOp>(ctx, args.Idst(), args.Isrc());
+    NEXT;
 }
 
 template <CC::Value cc, Width::Value width, typename Handler>
 void B2rrd8BranchIf(Handler handler, typename Handler::Context ctx, ByteReader stream) {
-	auto args = B2rr::Decode(&stream);
-	handler.StorePos(stream.Cursor());
-	int32_t delta = handler.template B2rrd8BranchIf<cc, width>(ctx, args.IX(), args.IY());
-	stream.Advance(delta);
-	NEXT;
+    auto args = B2rr::Decode(&stream);
+    handler.StorePos(stream.Cursor());
+    int32_t delta = handler.template B2rrd8BranchIf<cc, width>(ctx, args.IX(), args.IY());
+    stream.Advance(delta);
+    NEXT;
 }
 
 template <ImmKind::Value immKind, Width::Value width, typename Handler>
 void ExtBcc(Handler handler, typename Handler::Context ctx, ByteReader stream) {
-	auto args = ExtBrr::Decode(&stream);
-	handler.StorePos(stream.Cursor());
-	int32_t delta = handler.template ExtBcc<immKind, width>(ctx, args.cc, args.rr.IX(), args.rr.IY(), args.offsetValue);
-	stream.Advance(delta);
-	NEXT;
+    auto args = ExtBrr::Decode(&stream);
+    handler.StorePos(stream.Cursor());
+    int32_t delta = handler.template ExtBcc<immKind, width>(ctx, args.cc, args.rr.IX(), args.rr.IY(), args.offsetValue);
+    stream.Advance(delta);
+    NEXT;
 }
 
 template <typename Handler>
 void Unreachable(Handler handler, typename Handler::Context ctx, ByteReader stream) {
-	// TODO: fatal error
+    // TODO: fatal error
 }
 
 }
