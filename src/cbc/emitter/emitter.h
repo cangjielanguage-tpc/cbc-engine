@@ -1,14 +1,16 @@
 #ifndef CBC_EMITTER_EMITTER_H
 #define CBC_EMITTER_EMITTER_H
 
-#include <unordered_map>
 #include <vector>
 #include <functional>
 #include <cstdint>
 #include <memory_resource>
+#include <memory>
 
 #include "utils/assertion.h"
 #include "cbc/isa.h"
+#include "cbc/emitter/symbols.h"
+#include "cbc/emitter/segment.h"
 
 namespace Cbc {
 namespace Emitter {
@@ -16,81 +18,15 @@ namespace Emitter {
 class CbcEmitter;
 class Symbols;
 
-enum class SymbolKind {
-    LABEL,
-    ADDRESS,
-    VALUE,
-};
-
-struct Symbol {
-    SymbolKind kind;
-    uint32_t id;
-};
-
-struct Fixup {
-    Symbol symbol;
-    size_t position;
-};
-
-struct SegmentSnapshot {
-    size_t dataSize;
-};
-
 struct EmitterSnapshot {
     SegmentSnapshot segmentSnapshot;
-    size_t addressFixupsCount;
-    size_t jumpFixupsCount;
-};
-
-class SymbolHash {
-public:
-    size_t operator()(const Symbol& s);
-};
-
-class Symbols {
-public:
-    Symbols() = default;
-    Symbol Address(uintptr_t ptr);
-    Symbol NewLabel();
-    void Bind(Symbol label, size_t position);
-private:
-    std::unordered_map<uintptr_t, uint32_t> ptrToSym;
-    std::vector<uintptr_t> symToPtr;
-    uint32_t ptrSymCount = 0;
-
-    std::vector<size_t> labelToPosition;
-    uint32_t labelCount = 0;
-};
-
-class LiteralTable {
-    size_t literal_count;
-    uintptr_t *literals;
-
-    // TODO: reference offsets
-};
-
-class Segment {
-public:
-    Segment() = default;
-    size_t Position() const;
-    void AddW8(uint32_t value);
-    void AddW16(uint32_t value);
-    void AddW32(uint32_t value);
-    void AddW64(uint64_t value);
-
-    SegmentSnapshot Snapshot() const;
-    void Apply(SegmentSnapshot snapshot);
-
-    std::vector<uint8_t> Finish();
-private:
-    std::vector<uint8_t> data;
+    size_t fixupCount;
 };
 
 struct Code {
     size_t bytecodeSize;
     uint8_t* bytecode;
-    size_t literalTableSize;
-    size_t* literalTable;
+    LiteralTable literals;
 };
 
 class Emitter {
@@ -102,7 +38,7 @@ public:
 
     Emitter() = default;
 
-    Symbol Address(uintptr_t ptr);
+    Symbol NewAddressSym(uintptr_t ptr);
     Symbol NewLabel();
     void Bind(Symbol label);
     // TODO: add symbol kind to store arbitrary-size values.
@@ -133,7 +69,7 @@ public:
     void Mov(IReg d, IReg s, Width width);
     void MovRef(IReg d, IReg s);
 
-    void Bcc(CC cc, Width width, IReg l, IReg r, Symbol label);
+    void Bcc(CC cc, Width width, IReg l, IReg r, Label label);
 
 
 private:
@@ -147,13 +83,12 @@ private:
     void GenCommon(Common common, Width width, IReg d, IReg l, IReg r, bool prohibitB2r = false);
     void GenB2rr(IReg d, IReg r, Common common, Width width);
     void GenB3xrrr(IReg d, IReg l, IReg r, B3xrr_parts parts);
-
+    void AddFixup(std::unique_ptr<Fixup> fixup);
 
     Symbols symbols;
     Segment segment;
 
-    std::vector<Fixup> addressFixups;
-    std::vector<Fixup> jumpFixups;
+    std::vector<std::unique_ptr<Fixup>> fixups;
 };
 
 } // namespace Emitter

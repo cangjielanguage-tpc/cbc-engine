@@ -80,7 +80,7 @@ static constexpr auto table = [] {
 	}
 
 	auto table_put = [&](uint32_t location, TableFunction<Handler> func) {
-		assertion(arr[location] == invalid, "Location is already initialized");
+		ASSERTION(arr[location] == invalid, "Location is already initialized");
 		arr[location] = func;
 	};
 

@@ -63,7 +63,7 @@ public:
 	constexpr Bits operator|(Bits other) const {
 		auto lhs = this->_value;
 		auto rhs = other._value;
-		assertion((lhs & rhs) == 0, "Expected to be disjoint");
+		ASSERTION((lhs & rhs) == 0, "Expected to be disjoint");
 		return lhs | rhs;
 	}
 
@@ -92,18 +92,18 @@ public:
     }
 
 	constexpr Bits Out(uint32_t n) const {
-		assertion((*this & mask_bits(n)).IsEmpty(), "Low `n` bits are non-empty");
+		ASSERTION((*this & mask_bits(n)).IsEmpty(), "Low `n` bits are non-empty");
 		return *this;
 	}
 
 	constexpr Bits In(uint32_t n) const {
-		assertion((*this & mask_bits(n)) == *this, "Has bits set outside of low `n` bits");
+		ASSERTION((*this & mask_bits(n)) == *this, "Has bits set outside of low `n` bits");
 		return *this;
 	}
 
 	constexpr Bits Shift(uint32_t n) const {
 		auto res = _value << n;
-		assertion(Bits(res >> n) == *this, "Shift overflowed");
+		ASSERTION(Bits(res >> n) == *this, "Shift overflowed");
 		return res;
 	}
 
@@ -189,12 +189,12 @@ public:
 	constexpr Bits ToBits() const { return _value; }
 
 	constexpr Bits Common() const {
-		assertion(_value == W32 || _value == W64, "TODO: format description");
+		ASSERTION(_value == W32 || _value == W64, "TODO: format description");
 		return _value & 1;
 	}
 
 	constexpr Bits FloatCast() const {
-		assertion(_value == W16 || _value == W64, "TODO: format description");
+		ASSERTION(_value == W16 || _value == W64, "TODO: format description");
 		return (_value & 0b10) >> 1;
 	}
 
@@ -251,8 +251,23 @@ private:
 	Bits bits;
 };
 
+class ImmKind {
+public:
+	enum Value : uint32_t {
+		VALUE = 0b00,
+		LITERAL = 0b01,
+	};
+
+	constexpr ImmKind(const Value raw) : _value(raw) {}
+	constexpr operator Value() const { return _value; }
+	constexpr Bits ToBits() const { return _value; }
+
+private:
+	Value _value;
+};
+
 constexpr Bits mask_bits(uint32_t b) {
-	assertion(1 <= b && b <= 32, "Shift overflow");
+	ASSERTION(1 <= b && b <= 32, "Shift overflow");
 	return 0xffffffff >> b;
 }
 
@@ -333,6 +348,15 @@ namespace B3xrrr {
 	}
 
 }
+
+namespace ExtBrr {
+    constexpr uint32_t OPCODE_START = 178;
+
+    constexpr Bits Fmt(ImmKind immKind, Width width) {
+        auto bits = width.Common().In(1).Shift(1) | immKind.ToBits().In(1);
+        return Bits(bits.Raw() + OPCODE_START);
+    }
+};
 
 } // namespace Format
 } // namespace Cbc

@@ -10,7 +10,7 @@ using Width = Format::Width;
 using CC = Format::CC;
 using Common = Format::Common;
 
-Symbol Emitter::Address(uintptr_t ptr) {
+Symbol Emitter::NewAddressSym(uintptr_t ptr) {
     return symbols.Address(ptr);
 }
 
@@ -19,36 +19,57 @@ Symbol Emitter::NewLabel() {
 }
 
 void Emitter::Bind(Symbol label) {
-    symbols.Bind(label, segment.Position());
+    symbols.Bind(label, segment.Pos());
 }
 
 EmitterSnapshot Emitter::Snapshot() {
     return EmitterSnapshot {
         .segmentSnapshot = segment.Snapshot(),
-        .addressFixupsCount = addressFixups.size(),
-        .jumpFixupsCount = jumpFixups.size()
+        .fixupCount = fixups.size(),
     };
 }
 
 void Emitter::Apply(EmitterSnapshot snapshot) {
     segment.Apply(snapshot.segmentSnapshot);
-    addressFixups.resize(snapshot.addressFixupsCount);
-    jumpFixups.resize(snapshot.jumpFixupsCount);
+    fixups.resize(snapshot.fixupCount);
+}
+
+void Emitter::AddFixup(std::unique_ptr<Fixup> fixup) {
+    auto size = fixup->Size();
+    fixup->position = segment.Pos();
+    fixups.push_back(std::move(fixup));
+    // Fill the fixup position with zeroes.
+    for (size_t i = 0; i < size; i++) {
+        segment.AddW8(0);
+    }
 }
 
 Code Emitter::Build(std::pmr::memory_resource& heap) {
-    auto segment = this->segment.Finish();
-    auto addressFixups = std::exchange(this->addressFixups, {});
-    auto jumpFixups = std::exchange(this->jumpFixups, {});
+    auto segment = std::exchange(this->segment, {});
+    auto fixups = std::exchange(this->fixups, {});
 
-    auto bytecode = (uint8_t*) heap.allocate(segment.size());
-    auto bytecodeSize = segment.size();
-    std::memcpy(bytecode, &segment[0], bytecodeSize);
+    LiteralTableBuilder litBuilder(std::exchange(this->symbols, {}));
 
-    // TODO: apply fixups
+    auto relocationConverter = [&litBuilder, &segment](size_t position, Symbol sym) {
+        ASSERTION(sym.kind != SymbolKind::LABEL, "Labels should be processed as part of fixup resolution");
+        uint16_t value = litBuilder.UseSymbol(sym);
+        segment.SetW16(position, value);
+    };
+
+    for (auto &fixup : fixups) {
+        fixup->Resolve(segment, litBuilder.symbols, relocationConverter);
+    }
+
+    auto segmentCode = segment.Finish();
+
+    auto bytecode = (uint8_t*) heap.allocate(segmentCode.size());
+    auto bytecodeSize = segmentCode.size();
+    std::memcpy(bytecode, &segmentCode[0], bytecodeSize);
 
     return Code {
         .bytecodeSize = bytecodeSize,
+        .bytecode = bytecode,
+        .literals = litBuilder.BuildTable(heap),
     };
 }
 
@@ -56,20 +77,36 @@ Code Emitter::Build(std::pmr::memory_resource& heap) {
 
 using namespace Format;
 
-Bits pack8(Bits low4, Bits high4) {
+Bits Pack8(Bits low4, Bits high4) {
     return high4.In(4).Shift(4) | low4.In(4);
 }
 
-Bits pack8(IReg r1, IReg r2) {
-    return pack8(r1, r2);
+Bits Pack8(IReg r1, IReg r2) {
+    return Pack8(r1, r2);
 }
 
-Bits pack8(Bits v1, IReg r2) {
-    return pack8(v1, r2);
+Bits Pack8(Bits v1, IReg r2) {
+    return Pack8(v1, r2);
 }
 
-Bits pack8(IReg r1, Bits v2) {
-    return pack8(r1, v2);
+Bits Pack8(IReg r1, Bits v2) {
+    return Pack8(r1, v2);
+}
+
+bool IsNBitsSigned(int32_t value, uint32_t bits) {
+    if (bits == 32) {
+        return true;
+    } else {
+        // C++ have implementation-defined right shift for signed numbers until C++20.
+        // We expect arithmetic shift.
+        static_assert((-1 >> 16) == -1);
+        auto extension = value >> (bits - 1);
+        return (extension == 0) || (extension == -1);
+    }
+}
+
+ImmKind ImmKindOf(int32_t value) {
+    return IsNBitsSigned(value, 16) ? ImmKind::VALUE : ImmKind::LITERAL;
 }
 
 Emitter::B3xrr_parts Emitter::PrepareBitsForB3Formats(Common op, Width width) {
@@ -83,6 +120,50 @@ Emitter::B3xrr_parts Emitter::PrepareBitsForB3Formats(Common op, Bits b1) {
         .low4BitsOfSecondByte = (Bits(op) & 0x7).Shift(1) | b1.In(1),
     };
 }
+
+// region fixups
+
+class BccFixup : public Fixup {
+public:
+    static constexpr int32_t INSTRUCTION_SIZE = 5;
+
+    BccFixup(Symbol _sym, CC _cc, Width _width, IReg _left, IReg _right)
+        : Fixup(_sym), cc(_cc), width(_width), left(_left), right(_right) {}
+
+    int32_t Size() const {
+        return INSTRUCTION_SIZE;
+    }
+
+    virtual void Resolve(Segment& segment, Symbols& symbols,
+            std::function<void(size_t, Symbol)> const& relocationConverter) const
+    {
+        int32_t distance = Distance(symbols, this->symbol);
+        auto immKind = ImmKindOf(distance);
+        uint16_t offsetValue = (uint16_t) distance;
+
+        // TODO: Remove B2rrd8 formats in main byte-size opcode space.
+        //       Use freed locations for these runtime-specific instructions
+        //       to avoid double-dispatch.
+        auto opcode = Format::ExtBrr::Fmt(immKind, width);
+        auto pos = (size_t) position;
+        segment.SetW8(pos + 0, opcode.Raw());
+        segment.SetW8(pos + 1, cc);
+        segment.SetW8(pos + 2, Pack8(left, right).Raw());
+        if (immKind == ImmKind::LITERAL) {
+            relocationConverter(pos + 3, symbols.Value(distance));
+        } else {
+            segment.SetW16(pos + 3, offsetValue);
+        }
+    }
+
+private:
+    CC cc;
+    Width width;
+    IReg left;
+    IReg right;
+};
+
+// region instructions
 
 void Emitter::Add (Width width, IReg d, IReg l, IReg r) { GenCommon(Common::ADD,  width, d, l, r); }
 void Emitter::Sub (Width width, IReg d, IReg l, IReg r) { GenCommon(Common::SUB,  width, d, l, r); }
@@ -98,24 +179,28 @@ void Emitter::Lsl (Width width, IReg d, IReg l, IReg r) { GenCommon(Common::LSL,
 void Emitter::Lsr (Width width, IReg d, IReg l, IReg r) { GenCommon(Common::LSR,  width, d, l, r); }
 void Emitter::Asr (Width width, IReg d, IReg l, IReg r) { GenCommon(Common::ASR,  width, d, l, r); }
 
-
-void Emitter::GenCommon(Common op, Width width, IReg d, IReg l, IReg r, bool prohibitB2r) {
-    if (d == l && op.B2rAllowed() && !prohibitB2r) {
-        GenB2rr(d, r, op, width);
+void Emitter::GenCommon(Common common, Width width, IReg d, IReg l, IReg r, bool prohibitB2r) {
+    if (d == l) {
+        GenB2rr(d, r, common, width);
     } else {
-        GenB3xrrr(d, l, r, PrepareBitsForB3Formats(op, width));
+        GenB3xrrr(d, l, r, PrepareBitsForB3Formats(common, width));
     }
 }
 
 void Emitter::GenB2rr(IReg d, IReg r, Common common, Width width) {
     segment.AddW8(Format::B2rr::Fmt(common, width).Raw());
-    segment.AddW8(pack8(d, r).Raw());
+    segment.AddW8(Pack8(d, r).Raw());
 }
 
 void Emitter::GenB3xrrr(IReg d, IReg l, IReg r, B3xrr_parts parts) {
     segment.AddW8(Format::B3xrrr::Fmt(parts.low3BitsOfFormatByte).Raw());
-    segment.AddW8(pack8(parts.low4BitsOfSecondByte, d).Raw());
-    segment.AddW8(pack8(l, r).Raw());
+    segment.AddW8(Pack8(parts.low4BitsOfSecondByte, d).Raw());
+    segment.AddW8(Pack8(l, r).Raw());
+}
+
+void Emitter::Bcc(CC cc, Width width, IReg l, IReg r, Label label) {
+    ASSERT(width == Width::W32 || width == Width::W64);
+    AddFixup(std::make_unique<BccFixup>(label, cc, width, l, r));
 }
 
 // endregion isa12

@@ -28,14 +28,14 @@ public:
 		BoundCheck(cursor);
 	}
 
-	template <typename T> 
+	template <typename T>
 	inline void ReadTo(T *target) {
 		BoundCheck(cursor + sizeof(T));
 		memcpy(target, cursor, sizeof(T));
 		cursor += sizeof(T);
 	}
 
-	template <typename T> 
+	template <typename T>
 	inline T Read() {
 		T v;
 		ReadTo(&v);
@@ -70,15 +70,15 @@ public:
 private:
 #if defined(NDEBUG)
 	void BoundCheck(uint8_t *p) {
-		assertion(this->start <= p, "underflow");
-		assertion(p <= this->end, "overflow");
+		ASSERTION(this->start <= p, "underflow");
+		ASSERTION(p <= this->end, "overflow");
 	}
 
 	void StrictBoundCheck(uint8_t *p) {
-		assertion(this->start <= p, "underflow");
-		assertion(p < this->end, "overflow");
+		ASSERTION(this->start <= p, "underflow");
+		ASSERTION(p < this->end, "overflow");
 	}
-#else 
+#else
 	inline void BoundCheck(uint8_t *p) {}
 	inline void StrictBoundCheck(uint8_t *p) {}
 #endif // defined(NDEBUG)
