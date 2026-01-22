@@ -223,6 +223,7 @@ public:
 		TESTNZ = 0b1111,
 	};
 
+	constexpr CC(const uint32_t raw) : _value((Value) raw) {}
 	constexpr CC(const Value raw) : _value(raw) {}
 	constexpr operator Value() const { return _value; }
 	constexpr Bits ToBits() const { return _value; }
@@ -355,6 +356,10 @@ namespace ExtBrr {
     constexpr Bits Fmt(ImmKind immKind, Width width) {
         auto bits = width.Common().In(1).Shift(1) | immKind.ToBits().In(1);
         return Bits(bits.Raw() + OPCODE_START);
+    }
+
+    constexpr uint32_t Fmt(ImmKind::Value immKind, Width::Value width) {
+        return Fmt(ImmKind(immKind), Width(width)).Raw();
     }
 };
 

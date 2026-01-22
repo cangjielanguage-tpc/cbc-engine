@@ -147,8 +147,8 @@ public:
         auto opcode = Format::ExtBrr::Fmt(immKind, width);
         auto pos = (size_t) position;
         segment.SetW8(pos + 0, opcode.Raw());
-        segment.SetW8(pos + 1, cc);
-        segment.SetW8(pos + 2, Pack8(left, right).Raw());
+        segment.SetW8(pos + 1, Pack8(left, right).Raw());
+        segment.SetW8(pos + 2, cc);
         if (immKind == ImmKind::LITERAL) {
             relocationConverter(pos + 3, symbols.Value(distance));
         } else {

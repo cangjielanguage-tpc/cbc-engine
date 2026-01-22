@@ -42,9 +42,18 @@ struct Interpreter {
 		(void)r;
 		return 0;
 	}
+
+	template <ImmKind::Value immKind, Width::Value width>
+	inline int32_t ExtBcc(Context ctx, CC cc, IReg l, IReg r, uint16_t offsetValue) {
+        (void)cc;
+		(void)l;
+		(void)r;
+        (void)offsetValue;
+		return 0;
+	}
 };
 
-// Stub entry-point 
+// Stub entry-point
 template <typename Handler = Interpreter>
 void Entry(Handler handler, Interpreter::Context ctx, Decoder::ByteReader stream) {
 	using namespace Decoder;

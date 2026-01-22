@@ -35,6 +35,7 @@ using Table = std::array<TableFunction<Handler>, TABLE_SIZE>;
 using Width = Cbc::Format::Width;
 using Common = Cbc::Format::Common;
 using CC = Cbc::Format::CC;
+using ImmKind = Cbc::Format::ImmKind;
 
 template <typename Handler>
 void Unreachable(Handler handler, typename Handler::Context ctx, ByteReader stream);
@@ -53,6 +54,9 @@ void B2rrCommon(Handler handler, typename Handler::Context ctx, ByteReader strea
 
 template <CC::Value cc, Width::Value width, typename Handler>
 void B2rrd8BranchIf(Handler handler, typename Handler::Context ctx, ByteReader stream);
+
+template <ImmKind::Value immKind, Width::Value width, typename Handler>
+void ExtBcc(Handler handler, typename Handler::Context ctx, ByteReader stream);
 
 template <typename Enum, typename Enum::Value First, typename Enum::Value Last, typename F>
 constexpr void ForRange(F f) {
@@ -102,6 +106,13 @@ static constexpr auto table = [] {
 		});
 	});
 
+    // ExtBcc operations
+	ForRange<Width, Width::W32, Width::W64>([&](auto width) {
+		ForRange<ImmKind, ImmKind::VALUE, ImmKind::LITERAL>([&](auto immKind) {
+			table_put(Format::ExtBrr::Fmt(immKind, width), ExtBcc<immKind, width, Handler>);
+		});
+	});
+
 	return arr;
 }();
 
@@ -142,6 +153,15 @@ void B2rrd8BranchIf(Handler handler, typename Handler::Context ctx, ByteReader s
 	auto args = B2rr::Decode(&stream);
 	handler.StorePos(stream.Cursor());
 	int32_t delta = handler.template B2rrd8BranchIf<cc, width>(ctx, args.IX(), args.IY());
+	stream.Advance(delta);
+	NEXT;
+}
+
+template <ImmKind::Value immKind, Width::Value width, typename Handler>
+void ExtBcc(Handler handler, typename Handler::Context ctx, ByteReader stream) {
+	auto args = ExtBrr::Decode(&stream);
+	handler.StorePos(stream.Cursor());
+	int32_t delta = handler.template ExtBcc<immKind, width>(ctx, args.cc, args.rr.IX(), args.rr.IY(), args.offsetValue);
 	stream.Advance(delta);
 	NEXT;
 }

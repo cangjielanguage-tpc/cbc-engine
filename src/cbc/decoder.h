@@ -141,6 +141,24 @@ struct B2rrd8 {
 	}
 };
 
+struct ExtBrr {
+    using CC = Cbc::Format::CC;
+    B2rr rr;
+    CC cc;
+    uint16_t offsetValue;
+
+	static inline ExtBrr Decode(ByteReader *stream) {
+		B2rr rr = B2rr::Decode(stream);
+        auto cc = CC(stream->Read8());
+        uint16_t offsetVal = stream->Read16();
+		return ExtBrr {
+            .rr = rr,
+            .cc = cc,
+            .offsetValue = offsetVal,
+        };
+	}
+};
+
 } // namespace Decoder
 
 
