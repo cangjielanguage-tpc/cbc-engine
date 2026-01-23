@@ -82,15 +82,15 @@ Bits Pack8(Bits low4, Bits high4) {
 }
 
 Bits Pack8(IReg r1, IReg r2) {
-    return Pack8(r1, r2);
+    return Pack8(Bits(r1), Bits(r2));
 }
 
 Bits Pack8(Bits v1, IReg r2) {
-    return Pack8(v1, r2);
+    return Pack8(v1, Bits(r2));
 }
 
 Bits Pack8(IReg r1, Bits v2) {
-    return Pack8(r1, v2);
+    return Pack8(Bits(r1), v2);
 }
 
 bool IsNBitsSigned(int32_t value, uint32_t bits) {

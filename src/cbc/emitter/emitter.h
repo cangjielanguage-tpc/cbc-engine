@@ -39,8 +39,8 @@ public:
     Emitter() = default;
 
     Symbol NewAddressSym(uintptr_t ptr);
-    Symbol NewLabel();
-    void Bind(Symbol label);
+    Label NewLabel();
+    void Bind(Label label);
     // TODO: add symbol kind to store arbitrary-size values.
 
     /// Build `Code` in given `heap`.

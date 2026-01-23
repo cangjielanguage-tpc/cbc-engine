@@ -40,7 +40,7 @@ Symbol Symbols::NewLabel() {
 
 void Symbols::Bind(Label label, int32_t position) {
     ASSERTION(label.kind == SymbolKind::LABEL, "Expected label");
-    ASSERTION(labelPositions.at(label.id) != INVALID_POSITION, "Already initialized");
+    ASSERTION(labelPositions.at(label.id) == INVALID_POSITION, "Already initialized");
     labelPositions.at(label.id) = position;
 }
 
