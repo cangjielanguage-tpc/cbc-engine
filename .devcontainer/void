@@ -1,0 +1,32 @@
+# =============================================================================
+# Stage 1: Builder - Install build tools and compile everything
+# =============================================================================
+FROM ghcr.io/void-linux/void-glibc:20260101r1 AS base
+
+RUN xbps-install -Syu \
+    # Core tools
+    git \
+    curl \
+    gzip \
+    tar \
+    zip \
+    wget \
+    tar
+
+RUN xbps-install -Syu \
+    bash \
+    fish-shell \
+    ccls \
+    libstdc++ \
+    gdb \
+    lldb \
+    llvm21-devel \
+    cmake \
+    make
+
+# Verify LSPs are available
+RUN ccls --version
+
+ENV CXX=/usr/sbin/clang++
+ENV CC=/usr/sbin/clang
+

@@ -1,0 +1,35 @@
+FROM alpine:3.23 AS base
+
+RUN apk update && apk add \
+    git \
+    neovim \
+    curl \
+    wget \
+    gcc \
+    g++ \
+    jemalloc \
+    lua5.4
+
+ENV LD_PRELOAD=/usr/lib/libjemalloc.so.2
+
+RUN apk add --no-cache \
+    unzip \
+    lazygit \
+    gzip \
+    unzip \
+    musl-dev \
+    make \
+    cmake \
+    bash \
+    fish \
+    clang21 \
+    llvm \
+    ccls \
+    lldb \
+    make \
+    cmake \
+    gdb
+
+ENV CXX=/usr/bin/clang++
+ENV CC=/usr/bin/clang
+

@@ -1,0 +1,18 @@
+{
+	"build": {
+		"dockerfile": "alpine"
+	},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-vscode.cpptools",
+        "ms-vscode.cmake-tools",
+				"ccls-project.ccls"
+			],
+			"settings": {
+				"C_Cpp.errorSquiggles": "disabled"
+			}
+		}
+	},
+	"forwardPorts": [3000]
+}
