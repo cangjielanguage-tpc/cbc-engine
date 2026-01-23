@@ -30,21 +30,21 @@ if(ENABLE_LTO)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
 endif()
 
-file(GLOB_RECURSE MAIN_SOURCES CONFIGURE_DEPENDS "src/*.cpp")
+file(GLOB_RECURSE LIB_SOURCES CONFIGURE_DEPENDS "src/*.cpp")
+list(FILTER LIB_SOURCES EXCLUDE REGEX ".*entrypoint\\.cpp$")
 
-add_executable(Engine ${MAIN_SOURCES})
+add_library(cbc_lib STATIC ${LIB_SOURCES})
 
-target_compile_options(Engine PRIVATE
+target_compile_options(cbc_lib PRIVATE
     ${PROJECT_WARNINGS}
     $<$<C_COMPILER_ID:GNU,Clang>:-fvisibility=hidden>
 )
 
-target_include_directories(Engine PRIVATE "src")
+target_include_directories(cbc_lib PUBLIC "src")
+
+add_executable(Engine src/engine/entrypoint.cpp)
+target_link_libraries(Engine PRIVATE cbc_lib)
 
 # 6. Testing Subdirectory
-# Option to enable building of tests
-# option(BUILD_TESTING "Build the tests for the project" ON)
-# if(BUILD_TESTING)
-#     enable_testing() # Enable CTest discovery
-#     add_subdirectory(test)
-# endif()
+enable_testing() # Enable CTest discovery
+add_subdirectory(test)

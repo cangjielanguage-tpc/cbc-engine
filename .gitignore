@@ -1,4 +1,4 @@
 .ccls-cache
-build-debug
-build-release
 compile_commands.json
+build/
+.gitconfig
