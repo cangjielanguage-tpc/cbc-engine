@@ -7,7 +7,7 @@
 
 #include "testutils.h"
 
-static LimitedHeap<4096> heap;
+static LimitedHeap<16384> heap;
 
 class EmitTest : public testing::Test {
     void SetUp() override {
@@ -82,12 +82,57 @@ TEST(EmitTest, Simple_ArithB3xrrr) {
 TEST(EmitTest, Literals_None) {
     Emitter e;
     auto label = e.NewLabel();
+    e.Bcc(CC::EQ, Width::W32, IReg::IR1, IReg::IR1, label);
+    for (int i = 0; i < INT16_MAX; ++i) {
+        e.Ret();
+    }
     e.Bind(label);
+
+    LimitedHeap<INT16_MAX + 40> h;
+    auto code = e.Build(h);
+    EXPECT_EQ(code.literals->size, 0);
+}
+
+TEST(EmitTest, Literals_Label) {
+    Emitter e;
+    auto label = e.NewLabel();
+    e.Bcc(CC::EQ, Width::W32, IReg::IR1, IReg::IR1, label);
+    for (int i = 0; i < INT16_MAX + 1; ++i) {
+        e.Ret();
+    }
+    e.Bind(label);
+
+    LimitedHeap<INT16_MAX + 40> h;
+    auto code = e.Build(h);
+    EXPECT_EQ(code.literals->size, 1);
+}
+
+TEST(EmitTest, Literals_NoneBackEdge) {
+    Emitter e;
+    auto label = e.NewLabel();
+    e.Bind(label);
+    for (int i = 0; i < -INT16_MIN - Format::ExtBrr::INSTRUCTION_SIZE; ++i) {
+        e.Ret();
+    }
     e.Bcc(CC::EQ, Width::W32, IReg::IR1, IReg::IR1, label);
 
-    auto code = e.Build(heap);
-    EXPECT_EQ(4, code.bytecodeSize);
-    EXPECT_EQ(0, code.literals->size);
+    LimitedHeap<INT16_MAX + 40> h;
+    auto code = e.Build(h);
+    EXPECT_EQ(code.literals->size, 0);
+}
+
+TEST(EmitTest, Literals_LabelBackEdge) {
+    Emitter e;
+    auto label = e.NewLabel();
+    e.Bind(label);
+    for (int i = 0; i < -INT16_MIN - Format::ExtBrr::INSTRUCTION_SIZE + 1; ++i) {
+        e.Ret();
+    }
+    e.Bcc(CC::EQ, Width::W32, IReg::IR1, IReg::IR1, label);
+
+    LimitedHeap<INT16_MAX + 40> h;
+    auto code = e.Build(h);
+    EXPECT_EQ(code.literals->size, 1);
 }
 
 TEST(EmitTest, Simple_Bcc) {

@@ -125,13 +125,13 @@ Emitter::B3xrr_parts Emitter::PrepareBitsForB3Formats(Common op, Bits b1) {
 
 class BccFixup : public Fixup {
 public:
-    static constexpr int32_t INSTRUCTION_SIZE = 4;
+    static_assert(Format::ExtBrr::INSTRUCTION_SIZE == 4);
 
     BccFixup(Symbol _sym, CC _cc, Width _width, IReg _left, IReg _right)
         : Fixup(_sym), cc(_cc), width(_width), left(_left), right(_right) {}
 
     int32_t Size() const {
-        return INSTRUCTION_SIZE;
+        return Format::ExtBrr::INSTRUCTION_SIZE;
     }
 
     virtual void Resolve(Segment& segment, Symbols& symbols,
@@ -139,7 +139,6 @@ public:
     {
         int32_t distance = Distance(symbols, this->symbol);
         auto immKind = ImmKindOf(distance);
-        uint16_t offsetValue = (uint16_t) distance;
 
         // TODO: Remove B2rrd8 formats in main byte-size opcode space.
         //       Use freed locations for these runtime-specific instructions
@@ -151,6 +150,7 @@ public:
         if (immKind == ImmKind::LITERAL) {
             relocationConverter(pos + 2, symbols.Value(distance));
         } else {
+            uint16_t offsetValue = (uint16_t) distance;
             segment.SetW16(pos + 2, offsetValue);
         }
     }

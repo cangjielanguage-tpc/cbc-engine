@@ -356,6 +356,7 @@ namespace B3xrrr {
 
 namespace ExtBrr {
     constexpr uint32_t OPCODE_START = 178;
+    constexpr uint32_t INSTRUCTION_SIZE = 4;
 
     constexpr Bits Fmt(ImmKind immKind, Width width, CC cc) {
         auto bits = width.Common().In(1).Shift(1)
