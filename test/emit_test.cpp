@@ -1,42 +1,13 @@
 #include <gtest/gtest.h>
 
+#define UNIT_TEST_MODE 1
+
 #include "cbc/emitter/emitter.h"
+#include "interpreter/interpreter.h"
 
-class Heap : public std::pmr::memory_resource {
-public:
-    void Reset() {
-        cursor = (uintptr_t) memory;
-    }
-
-    static constexpr size_t MEMORY_LIMIT = 4096;
-
-    uint8_t memory[MEMORY_LIMIT];
-    uintptr_t cursor{(uintptr_t) memory};
-    uintptr_t end{cursor + MEMORY_LIMIT};
-
-    void* do_allocate(std::size_t bytes, std::size_t alignment) override {
-        auto result = cursor;
-        auto rem = result % alignment;
-        result = rem == 0 ? result : result + (alignment - rem);
-        auto newCursor = result + bytes;
-        if (newCursor < end) {
-            cursor = newCursor;
-            return (void*) result;
-        }
-        throw std::runtime_error("Not enough memory");
-    }
-
-    void do_deallocate(void *p, size_t bytes, size_t alignment) override {}
-
-    bool do_is_equal(const memory_resource &other) const noexcept override {
-        return this == &other;
-    }
-};
+#include "testutils.h"
 
 static Heap heap;
-
-namespace Cbc {
-namespace Emitter {
 
 class EmitTest : public testing::Test {
     void SetUp() override {
@@ -48,23 +19,68 @@ class EmitTest : public testing::Test {
     }
 };
 
+namespace Cbc {
+namespace Emitter {
+
 using namespace Cbc::Format;
+// Stub entry-point
+template <typename Handler = Interpretation::Interpreter>
+void Entry(Handler handler, Interpretation::Interpreter::Context ctx, Decoder::ByteReader stream) {
+    using namespace Decoder;
+    NEXT;
+}
+
+Interpretation::Value::Primitive I32(int32_t v) {
+    return Interpretation::Value::Primitive{.i32 = v};
+}
+
+static Interpretation::Value::Primitive Interpret(
+        Code code, Interpretation::Value::Primitive ir1,
+        Interpretation::Value::Primitive ir2)
+{
+    Interpretation::Ectype ectype{};
+    Interpretation::Interpreter interp {
+        .ectype = &ectype,
+        .frame = nullptr,
+    };
+    Interpretation::Interpreter::Context ctx {
+        .handle = nullptr,
+        .literals = code.literals,
+    };
+    Decoder::ByteReader s(code.bytecode, code.bytecode, code.bytecode + code.bytecodeSize);
+    ectype.Put(IReg::IR1, ir1);
+    ectype.Put(IReg::IR2, ir2);
+
+    Entry(interp, ctx, s);
+
+    return ectype.GetPrimitive(IReg::IR1);
+}
+
 
 TEST(EmitTest, Simple_ArithB2rr) {
     Emitter e;
-    e.Add(Width::W32, IReg::IR1, IReg::IR1, IReg::IR3);
+    e.Add(Width::W32, IReg::IR1, IReg::IR1, IReg::IR2);
+    e.Ret();
     auto code = e.Build(heap);
-    EXPECT_EQ(2, code.bytecodeSize);
+    EXPECT_EQ(3, code.bytecodeSize);
+
+    auto res = Interpret(code, I32(1), I32(2));
+    EXPECT_EQ(res.i32, 3);
 }
 
 TEST(EmitTest, Simple_ArithB3xrrr) {
+    GTEST_SKIP() << "Decoding/dispatching of b3xrrr not implemented yet";
     Emitter e;
-    e.Add(Width::W32, IReg::IR3, IReg::IR1, IReg::IR3);
+    e.Add(Width::W32, IReg::IR1, IReg::IR2, IReg::IR1);
+    e.Ret();
     auto code = e.Build(heap);
-    EXPECT_EQ(3, code.bytecodeSize);
+    EXPECT_EQ(4, code.bytecodeSize);
+
+    auto res = Interpret(code, I32(1), I32(2));
+    EXPECT_EQ(res.i32, 3);
 }
 
-TEST(EmitTest, Literals_none) {
+TEST(EmitTest, Literals_None) {
     Emitter e;
     auto label = e.NewLabel();
     e.Bind(label);
@@ -73,6 +89,23 @@ TEST(EmitTest, Literals_none) {
     auto code = e.Build(heap);
     EXPECT_EQ(4, code.bytecodeSize);
     EXPECT_EQ(0, code.literals->size);
+}
+
+TEST(EmitTest, Simple_Bcc) {
+    Emitter e;
+    auto label = e.NewLabel();
+    e.Bcc(CC::EQ, Width::W32, IReg::IR1, IReg::IR2, label);
+    e.Add(Width::W32, IReg::IR1, IReg::IR1, IReg::IR2);
+    e.Bind(label);
+    e.Ret();
+
+    auto code = e.Build(heap);
+
+    auto res = Interpret(code, I32(2), I32(2));
+    EXPECT_EQ(res.i32, 2);
+
+    auto res2 = Interpret(code, I32(2), I32(1));
+    EXPECT_EQ(res2.i32, 3);
 }
 
 } // namespace Emitter

@@ -59,6 +59,9 @@ void B2rrd8BranchIf(Handler handler, typename Handler::Context ctx, ByteReader s
 template <CC::Value cc, ImmKind::Value immKind, Width::Value width, typename Handler>
 void ExtBcc(Handler handler, typename Handler::Context ctx, ByteReader stream);
 
+template <typename Handler>
+void ExtRet(Handler handler, typename Handler::Context ctx, ByteReader stream);
+
 template <typename Enum, typename Enum::Value First, typename Enum::Value Last, typename F>
 constexpr void ForRange(F f) {
     if constexpr (First <= Last) {
@@ -88,6 +91,8 @@ static constexpr auto table = [] {
         ASSERTION(arr[location] == invalid, "Location is already initialized");
         arr[location] = func;
     };
+
+    table_put(Format::ExtRet::OPCODE, &ExtRet);
 
     // B2rr common operations
     ForRange<Width, Width::W32, Width::W64>([&](auto width) {
@@ -167,6 +172,12 @@ void ExtBcc(Handler handler, typename Handler::Context ctx, ByteReader stream) {
     int32_t delta = handler.template ExtBcc<cc, immKind, width>(ctx, args.rr.IX(), args.rr.IY(), args.offsetValue);
     stream.Advance(delta);
     NEXT;
+}
+
+template <typename Handler>
+void ExtRet(Handler handler, typename Handler::Context ctx, ByteReader stream) {
+    handler.ExtRet(ctx);
+    return;
 }
 
 template <typename Handler>

@@ -66,6 +66,7 @@ public:
     void Lsr (Width width, IReg d, IReg l, IReg r);
     void Asr (Width width, IReg d, IReg l, IReg r);
 
+    void Ret();
     void Mov(IReg d, IReg s, Width width);
     void MovRef(IReg d, IReg s);
 

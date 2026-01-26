@@ -369,6 +369,14 @@ namespace ExtBrr {
     }
 };
 
+namespace ExtRet {
+    constexpr uint32_t OPCODE = 254;
+
+    constexpr Bits Fmt() {
+        return Bits(OPCODE);
+    }
+};
+
 } // namespace Format
 } // namespace Cbc
 

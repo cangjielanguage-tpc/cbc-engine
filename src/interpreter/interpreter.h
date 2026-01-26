@@ -1,3 +1,6 @@
+#ifndef INTERPRETER_INTERPRETER_H
+#define INTERPRETER_INTERPRETER_H
+
 #include "cbc/isa.h"
 #include "cbc/dispatcher.h"
 #include "ectype.h"
@@ -7,7 +10,7 @@
 
 namespace Interpretation {
 
-using namespace Cbc::Format;
+// TODO: use real thread handle
 using ThreadHandle = void*;
 
 struct InterpreterContext {
@@ -57,21 +60,9 @@ struct Interpreter {
         }
         return shouldJump ? JumpOffset<immKind>(ctx.literals, offsetValue) : 0;
     }
+
+    inline void ExtRet(Context ctx) { }
 };
 
-// Stub entry-point
-template <typename Handler = Interpreter>
-void Entry(Handler handler, Interpreter::Context ctx, Decoder::ByteReader stream) {
-    using namespace Decoder;
-    NEXT;
-}
-
-// Stub for template instantiation
-void stub() {
-    Interpreter i{};
-    Decoder::ByteReader s(0,0,0);
-    Interpreter::Context ctx;
-    Entry(i, ctx, s);
-}
-
 } // namespace Interpretation
+#endif // INTERPRETER_INTERPRETER_H

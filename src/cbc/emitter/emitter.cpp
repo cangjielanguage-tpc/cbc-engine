@@ -202,6 +202,10 @@ void Emitter::Bcc(CC cc, Width width, IReg l, IReg r, Label label) {
     AddFixup(std::make_unique<BccFixup>(label, cc, width, l, r));
 }
 
+void Emitter::Ret () {
+    segment.AddW8(Format::ExtRet::Fmt().Raw());
+}
+
 // endregion isa12
 
 } // namespace Emitter
