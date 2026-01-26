@@ -22,6 +22,7 @@
 #endif
 
 #define NEXT MUSTTAIL return table<Handler>[stream.PeekOpcode()](handler, ctx, stream)
+#define NEXT_COND(successful) MUSTTAIL return table<Handler>[successful ? stream.PeekOpcode() : 255](handler, ctx, stream)
 
 namespace Decoder {
 constexpr size_t TABLE_SIZE = 256;
@@ -144,15 +145,15 @@ template <Common::Value arithOp, Width::Value width, typename Handler>
 void B2rrCommon(Handler handler, typename Handler::Context ctx, ByteReader stream) {
     auto args = B2rr::Decode(&stream);
     handler.StorePos(stream.Cursor());
-    handler.template Common<width, arithOp>(ctx, args.Idst(), args.Isrc());
-    NEXT;
+    bool successful = handler.template Common<width, arithOp>(ctx, args.Idst(), args.Isrc());
+    NEXT_COND(successful);
 }
 
 template <CC::Value cc, Width::Value width, typename Handler>
 void B2rrd8BranchIf(Handler handler, typename Handler::Context ctx, ByteReader stream) {
-    auto args = B2rr::Decode(&stream);
+    auto args = B2rrd8::Decode(&stream);
     handler.StorePos(stream.Cursor());
-    int32_t delta = handler.template B2rrd8BranchIf<cc, width>(ctx, args.IX(), args.IY());
+    int32_t delta = handler.template B2rrd8BranchIf<cc, width>(ctx, args.rr.IX(), args.rr.IY(), (int8_t) args.byte);
     stream.Advance(delta);
     NEXT;
 }

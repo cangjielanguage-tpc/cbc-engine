@@ -7,6 +7,7 @@
 
 #include "utils/span.h"
 #include "cbc/emitter/segment.h"
+#include "interpreter/literals.h"
 
 namespace Cbc {
 namespace Emitter {
@@ -47,11 +48,6 @@ private:
     static_assert(sizeof(uintptr_t) == sizeof(int64_t));
 };
 
-struct LiteralTable {
-    size_t size;
-    uintptr_t* table;
-};
-
 class LiteralTableBuilder {
 public:
     LiteralTableBuilder(Symbols _symbols)
@@ -62,8 +58,10 @@ public:
     /// using same indicies.
     uint16_t UseSymbol(Symbol symbol);
 
-    LiteralTable BuildTable(std::pmr::memory_resource& heap);
+    Interpretation::LiteralTable *BuildTable(std::pmr::memory_resource& heap);
 
+    // TODO: table should be managed as uint8_t vector, so the content could be
+    //       safely reinterpreted.
     std::vector<uintptr_t> table;
     Symbols symbols;
 };

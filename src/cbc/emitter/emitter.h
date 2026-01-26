@@ -26,7 +26,7 @@ struct EmitterSnapshot {
 struct Code {
     size_t bytecodeSize;
     uint8_t* bytecode;
-    LiteralTable literals;
+    Interpretation::LiteralTable *literals;
 };
 
 class Emitter {

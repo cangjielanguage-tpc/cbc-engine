@@ -72,7 +72,7 @@ TEST(EmitTest, Literals_none) {
 
     auto code = e.Build(heap);
     EXPECT_EQ(5, code.bytecodeSize);
-    EXPECT_EQ(0, code.literals.size);
+    EXPECT_EQ(0, code.literals->size);
 }
 
 } // namespace Emitter

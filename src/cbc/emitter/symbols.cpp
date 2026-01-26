@@ -71,15 +71,17 @@ uint16_t LiteralTableBuilder::UseSymbol(Symbol symbol) {
     }
 }
 
-LiteralTable LiteralTableBuilder::BuildTable(std::pmr::memory_resource &heap) {
+Interpretation::LiteralTable *LiteralTableBuilder::BuildTable(std::pmr::memory_resource &heap) {
     auto size = table.size();
     ASSERT(size < UINT16_MAX);
 
-    auto table = (uintptr_t*) heap.allocate(size * sizeof(uintptr_t));
-    return LiteralTable {
-        .size = size,
-        .table = table,
-    };
+    auto litTable = (Interpretation::LiteralTable*) heap.allocate(size * sizeof(uintptr_t) + sizeof(Interpretation::LiteralTable));
+    litTable->size = size;
+    for (size_t i = 0; i < size; i++) {
+        // TODO: rework it when big literals would be added.
+        litTable->table[i].uintptr = table[i];
+    }
+    return litTable;
 }
 
 } // namespace Emitter

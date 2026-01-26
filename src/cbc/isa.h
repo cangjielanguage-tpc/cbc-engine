@@ -18,6 +18,8 @@ public:
         IR7, IR8, IR9, IR10, IR11, IR12, IR13,
     };
 
+    static constexpr int COUNT = 14;
+
     constexpr IReg(const Value raw) : _value(raw) {}
     constexpr operator Value() const { return _value; }
     constexpr IReg(const uint32_t raw) : _value((Value) raw) {}
@@ -38,6 +40,8 @@ public:
         FR7, FR8, FR9, FR10, FR11, FR12, FR13,
         FR14, FR15
     };
+
+    static constexpr int COUNT = 16;
 
     constexpr FReg(const Value raw) : _value(raw) {}
     constexpr operator Value() const { return _value; }
