@@ -7,7 +7,7 @@
 
 #include "testutils.h"
 
-static Heap heap;
+static LimitedHeap<4096> heap;
 
 class EmitTest : public testing::Test {
     void SetUp() override {
@@ -55,7 +55,6 @@ static Interpretation::Value::Primitive Interpret(
 
     return ectype.GetPrimitive(IReg::IR1);
 }
-
 
 TEST(EmitTest, Simple_ArithB2rr) {
     Emitter e;

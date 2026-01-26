@@ -4,17 +4,16 @@
 #include <memory_resource>
 #include <stdexcept>
 
-class Heap : public std::pmr::memory_resource {
+template <size_t limit>
+class LimitedHeap : public std::pmr::memory_resource {
 public:
     void Reset() {
         cursor = (uintptr_t) memory;
     }
 
-    static constexpr size_t MEMORY_LIMIT = 4096;
-
-    uint8_t memory[MEMORY_LIMIT];
+    uint8_t memory[limit];
     uintptr_t cursor{(uintptr_t) memory};
-    uintptr_t end{cursor + MEMORY_LIMIT};
+    uintptr_t end{cursor + limit};
 
     void* do_allocate(std::size_t bytes, std::size_t alignment) override {
         auto result = cursor;
