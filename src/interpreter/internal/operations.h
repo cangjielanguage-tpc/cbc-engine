@@ -75,9 +75,9 @@ inline ArithmeticResult Arith<Width::W32>(Common::Value op, Value::Primitive l, 
         case Common::AND:  return {Value::Primitive{ .u32 = l.u32 & r.u32 }, true};
         case Common::OR:   return {Value::Primitive{ .u32 = l.u32 | r.u32 }, true};
         case Common::XOR:  return {Value::Primitive{ .u32 = l.u32 & r.u32 }, true};
-        case Common::ASR:  return {Value::Primitive{ .i32 = l.i32 >> (r.u32 & 0x3F) }, true};
-        case Common::LSR:  return {Value::Primitive{ .u32 = l.u32 >> (r.u32 & 0x3F) }, true};
-        case Common::LSL:  return {Value::Primitive{ .u32 = l.u32 << (r.u32 & 0x3F) }, true};
+        case Common::ASR:  return {Value::Primitive{ .i32 = l.i32 >> (r.u32 & 0x1F) }, true};
+        case Common::LSR:  return {Value::Primitive{ .u32 = l.u32 >> (r.u32 & 0x1F) }, true};
+        case Common::LSL:  return {Value::Primitive{ .u32 = l.u32 << (r.u32 & 0x1F) }, true};
 
         case Common::UDIV: {
             if (r.u32 == 0) {
@@ -112,6 +112,32 @@ inline ArithmeticResult Arith<Width::W32>(Common::Value op, Value::Primitive l, 
         }
     }
 }
+
+template <CC::Value cc, Width::Value width>
+inline static bool Compare(Value::Primitive l, Value::Primitive r);
+
+template <> inline bool Compare<CC::EQ, Width::W32>(Value::Primitive l, Value::Primitive r) { return l.i32 == r.i32; }
+template <> inline bool Compare<CC::NE, Width::W32>(Value::Primitive l, Value::Primitive r) { return l.i32 != r.i32; }
+template <> inline bool Compare<CC::LT, Width::W32>(Value::Primitive l, Value::Primitive r) { return l.i32 < r.i32; }
+template <> inline bool Compare<CC::GE, Width::W32>(Value::Primitive l, Value::Primitive r) { return l.i32 >= r.i32; }
+template <> inline bool Compare<CC::ULT, Width::W32>(Value::Primitive l, Value::Primitive r) { return l.u32 < r.u32; }
+template <> inline bool Compare<CC::UGE, Width::W32>(Value::Primitive l, Value::Primitive r) { return l.u32 >= r.u32; }
+template <> inline bool Compare<CC::TESTZ, Width::W32>(Value::Primitive l, Value::Primitive r) { return (l.u32 & r.u32) == 0; }
+template <> inline bool Compare<CC::TESTNZ, Width::W32>(Value::Primitive l, Value::Primitive r) { return (l.u32 & r.u32) != 0; }
+template <> inline bool Compare<CC::EQ, Width::W64>(Value::Primitive l, Value::Primitive r) { return l.i64 == r.i64; }
+template <> inline bool Compare<CC::NE, Width::W64>(Value::Primitive l, Value::Primitive r) { return l.i64 != r.i64; }
+template <> inline bool Compare<CC::LT, Width::W64>(Value::Primitive l, Value::Primitive r) { return l.i64 < r.i64; }
+template <> inline bool Compare<CC::GE, Width::W64>(Value::Primitive l, Value::Primitive r) { return l.i64 >= r.i64; }
+template <> inline bool Compare<CC::ULT, Width::W64>(Value::Primitive l, Value::Primitive r) { return l.u64 < r.u64; }
+template <> inline bool Compare<CC::UGE, Width::W64>(Value::Primitive l, Value::Primitive r) { return l.u64 >= r.u64; }
+template <> inline bool Compare<CC::TESTZ, Width::W64>(Value::Primitive l, Value::Primitive r) { return (l.u64 & r.u64) == 0; }
+template <> inline bool Compare<CC::TESTNZ, Width::W64>(Value::Primitive l, Value::Primitive r) { return (l.u64 & r.u64) != 0; }
+
+
+template <CC::Value cc>
+inline static bool Compare(Value::Reference l, Value::Reference r);
+template <> inline bool Compare<CC::REQ>(Value::Reference l, Value::Reference r) { return l.value == r.value; }
+template <> inline bool Compare<CC::RNE>(Value::Reference l, Value::Reference r) { return l.value != r.value; }
 
 template <ImmKind::Value immKind>
 static inline int32_t JumpOffset(LiteralTable* literals, uint16_t value);

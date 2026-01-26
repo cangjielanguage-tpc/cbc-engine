@@ -71,7 +71,7 @@ TEST(EmitTest, Literals_none) {
     e.Bcc(CC::EQ, Width::W32, IReg::IR1, IReg::IR1, label);
 
     auto code = e.Build(heap);
-    EXPECT_EQ(5, code.bytecodeSize);
+    EXPECT_EQ(4, code.bytecodeSize);
     EXPECT_EQ(0, code.literals->size);
 }
 

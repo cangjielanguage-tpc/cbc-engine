@@ -10,7 +10,7 @@ using namespace Cbc;
 
 namespace Value {
     struct Reference {
-        uint64_t value;
+        uintptr_t value;
     };
     union Primitive {
         uint64_t u64;
@@ -58,7 +58,7 @@ public:
         fregs[reg].primitive = primitive;
     }
 
-    inline Value::Reference GetRefence(IReg reg) {
+    inline Value::Reference GetReference(IReg reg) {
         ASSERT(iregMarks[reg] == Mark::REFERENCE);
         return iregs[reg].reference;
     }

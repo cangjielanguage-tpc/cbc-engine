@@ -56,7 +56,7 @@ void B2rrCommon(Handler handler, typename Handler::Context ctx, ByteReader strea
 template <CC::Value cc, Width::Value width, typename Handler>
 void B2rrd8BranchIf(Handler handler, typename Handler::Context ctx, ByteReader stream);
 
-template <ImmKind::Value immKind, Width::Value width, typename Handler>
+template <CC::Value cc, ImmKind::Value immKind, Width::Value width, typename Handler>
 void ExtBcc(Handler handler, typename Handler::Context ctx, ByteReader stream);
 
 template <typename Enum, typename Enum::Value First, typename Enum::Value Last, typename F>
@@ -110,7 +110,9 @@ static constexpr auto table = [] {
     // ExtBcc operations
     ForRange<Width, Width::W32, Width::W64>([&](auto width) {
         ForRange<ImmKind, ImmKind::VALUE, ImmKind::LITERAL>([&](auto immKind) {
-            table_put(Format::ExtBrr::Fmt(immKind, width), ExtBcc<immKind, width, Handler>);
+            ForRange<CC, CC::EQ, CC::RNE>([&](auto cc) {
+                table_put(Format::ExtBrr::Fmt(immKind, width, cc), ExtBcc<cc, immKind, width, Handler>);
+            });
         });
     });
 
@@ -158,11 +160,11 @@ void B2rrd8BranchIf(Handler handler, typename Handler::Context ctx, ByteReader s
     NEXT;
 }
 
-template <ImmKind::Value immKind, Width::Value width, typename Handler>
+template <CC::Value cc, ImmKind::Value immKind, Width::Value width, typename Handler>
 void ExtBcc(Handler handler, typename Handler::Context ctx, ByteReader stream) {
     auto args = ExtBrr::Decode(&stream);
     handler.StorePos(stream.Cursor());
-    int32_t delta = handler.template ExtBcc<immKind, width>(ctx, args.cc, args.rr.IX(), args.rr.IY(), args.offsetValue);
+    int32_t delta = handler.template ExtBcc<cc, immKind, width>(ctx, args.rr.IX(), args.rr.IY(), args.offsetValue);
     stream.Advance(delta);
     NEXT;
 }

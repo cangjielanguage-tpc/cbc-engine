@@ -357,13 +357,15 @@ namespace B3xrrr {
 namespace ExtBrr {
     constexpr uint32_t OPCODE_START = 178;
 
-    constexpr Bits Fmt(ImmKind immKind, Width width) {
-        auto bits = width.Common().In(1).Shift(1) | immKind.ToBits().In(1);
+    constexpr Bits Fmt(ImmKind immKind, Width width, CC cc) {
+        auto bits = width.Common().In(1).Shift(1)
+                  | immKind.ToBits().In(1)
+                  | cc.ToBits().In(3).Shift(2);
         return Bits(bits.Raw() + OPCODE_START);
     }
 
-    constexpr uint32_t Fmt(ImmKind::Value immKind, Width::Value width) {
-        return Fmt(ImmKind(immKind), Width(width)).Raw();
+    constexpr uint32_t Fmt(ImmKind::Value immKind, Width::Value width, CC::Value cc) {
+        return Fmt(ImmKind(immKind), Width(width), CC(cc)).Raw();
     }
 };
 
