@@ -88,9 +88,9 @@ TEST(EmitTest, Literals_None) {
     }
     e.Bind(label);
 
-    LimitedHeap<INT16_MAX + 40> h;
+    LimitedHeap<INT16_MAX + 400> h;
     auto code = e.Build(h);
-    EXPECT_EQ(code.literals->size, 0);
+    EXPECT_EQ(code.literals->size(), 0);
 }
 
 TEST(EmitTest, Literals_Label) {
@@ -102,9 +102,9 @@ TEST(EmitTest, Literals_Label) {
     }
     e.Bind(label);
 
-    LimitedHeap<INT16_MAX + 40> h;
+    LimitedHeap<INT16_MAX + 400> h;
     auto code = e.Build(h);
-    EXPECT_EQ(code.literals->size, 1);
+    EXPECT_EQ(code.literals->size(), 1);
 }
 
 TEST(EmitTest, Literals_NoneBackEdge) {
@@ -116,9 +116,9 @@ TEST(EmitTest, Literals_NoneBackEdge) {
     }
     e.Bcc(CC::EQ, Width::W32, IReg::IR1, IReg::IR1, label);
 
-    LimitedHeap<INT16_MAX + 40> h;
+    LimitedHeap<INT16_MAX + 400> h;
     auto code = e.Build(h);
-    EXPECT_EQ(code.literals->size, 0);
+    EXPECT_EQ(code.literals->size(), 0);
 }
 
 TEST(EmitTest, Literals_LabelBackEdge) {
@@ -130,9 +130,9 @@ TEST(EmitTest, Literals_LabelBackEdge) {
     }
     e.Bcc(CC::EQ, Width::W32, IReg::IR1, IReg::IR1, label);
 
-    LimitedHeap<INT16_MAX + 40> h;
+    LimitedHeap<INT16_MAX + 400> h;
     auto code = e.Build(h);
-    EXPECT_EQ(code.literals->size, 1);
+    EXPECT_EQ(code.literals->size(), 1);
 }
 
 TEST(EmitTest, Simple_Bcc) {

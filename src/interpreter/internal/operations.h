@@ -165,7 +165,7 @@ inline int32_t JumpOffset<ImmKind::VALUE>(LiteralTable* literals, uint16_t value
 
 template <>
 inline int32_t JumpOffset<ImmKind::LITERAL>(LiteralTable* literals, uint16_t value) {
-    return literals->table[value].i32;
+    return literals->at(value).i32;
 }
 
 } // namespace Interpretation

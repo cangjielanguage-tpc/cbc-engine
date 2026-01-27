@@ -11,11 +11,22 @@ union Literal {
     uintptr_t uintptr;
     uint32_t u32;
     uint64_t u64;
+
+    uint8_t raw[8];
 };
 
+constexpr auto LITERAL_SIZE = sizeof(Literal);
+
 struct LiteralTable {
-    std::size_t size;
-    Literal table[]; // tail array
+    std::size_t _byteSize;
+    uint8_t _table[]; // tail array
+
+    std::size_t size() const {
+        return _byteSize / LITERAL_SIZE;
+    }
+
+    Literal const& operator[](std::size_t i) const;
+    Literal const& at(std::size_t i) const;
 };
 
 } // Interpretation

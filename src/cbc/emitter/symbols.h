@@ -8,6 +8,7 @@
 #include "utils/span.h"
 #include "cbc/emitter/segment.h"
 #include "interpreter/literals.h"
+#include "utils/assertion.h"
 
 namespace Cbc {
 namespace Emitter {
@@ -17,13 +18,35 @@ enum class SymbolKind {
     PLAIN_VALUE,
 };
 
-struct Symbol {
-    SymbolKind kind;
-    uint32_t id;
+class Symbol {
+public:
+    SymbolKind const kind;
+    uint32_t const id;
+
+private:
+    friend class Label;
+    friend class Symbols;
+    inline Symbol(SymbolKind _kind, uint32_t _id)
+        : kind(_kind), id(_id) {}
 };
 
-// TODO: introduce struct Label { uint32_t id; } + Sym <-> Label conversions
-using Label = Symbol;
+class Label {
+public:
+    uint32_t const id;
+
+    inline Label(Symbol sym) : id(sym.id) {
+        ASSERT(sym.kind == SymbolKind::LABEL);
+    }
+
+    inline operator Symbol() const {
+        return Symbol (SymbolKind::LABEL, id);
+    }
+
+private:
+    friend class Symbols;
+
+    inline Label(uint32_t _id) : id(_id) {}
+};
 
 /// This class is used in two different scenarios:
 /// - As part of emitter, to reference labels or data.
@@ -32,7 +55,11 @@ class Symbols {
 public:
     Symbols() = default;
 
+    Symbol Value(uint64_t value);
     Symbol Value(int64_t value);
+    Symbol Value(int32_t value);
+    Symbol Value(uint32_t value);
+
     Symbol Address(uintptr_t ptr);
     Label NewLabel();
     void Bind(Label label, int32_t position);
@@ -41,8 +68,11 @@ public:
 private:
     friend class LiteralTableBuilder;
 
+    // Symbols (and their storage) are separated by kinds.
+    // Big value symbols are stored separately from plain values,
+    // to reduce memory overhead (since they are not that frequent).
     std::vector<int32_t> labelPositions;
-    std::vector<uintptr_t> plainValues;
+    std::vector<uint64_t> plainValues;
 
     // TODO: remove constraint
     static_assert(sizeof(uintptr_t) == sizeof(int64_t));
@@ -60,9 +90,7 @@ public:
 
     Interpretation::LiteralTable *BuildTable(std::pmr::memory_resource& heap);
 
-    // TODO: table should be managed as uint8_t vector, so the content could be
-    //       safely reinterpreted.
-    std::vector<uintptr_t> table;
+    std::vector<uint8_t> table;
     Symbols symbols;
 };
 

@@ -14,11 +14,11 @@ Symbol Emitter::NewAddressSym(uintptr_t ptr) {
     return symbols.Address(ptr);
 }
 
-Symbol Emitter::NewLabel() {
+Label Emitter::NewLabel() {
     return symbols.NewLabel();
 }
 
-void Emitter::Bind(Symbol label) {
+void Emitter::Bind(Label label) {
     symbols.Bind(label, segment.Pos());
 }
 
