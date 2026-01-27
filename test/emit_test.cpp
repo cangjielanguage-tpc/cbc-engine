@@ -30,8 +30,8 @@ void Entry(Handler handler, Interpretation::Interpreter::Context ctx, Decoder::B
     NEXT;
 }
 
-Interpretation::Value::Primitive I32(int32_t v) {
-    return Interpretation::Value::Primitive{.i32 = v};
+Interpretation::Value::Primitive U32(uint32_t v) {
+    return Interpretation::Value::Primitive{.u32 = v};
 }
 
 static Interpretation::Value::Primitive Interpret(
@@ -63,8 +63,8 @@ TEST(EmitTest, Simple_ArithB2rr) {
     auto code = e.Build(heap);
     EXPECT_EQ(3, code.bytecodeSize);
 
-    auto res = Interpret(code, I32(1), I32(2));
-    EXPECT_EQ(res.i32, 3);
+    auto res = Interpret(code, U32(1), U32(2));
+    EXPECT_EQ(res.u32, 3);
 }
 
 TEST(EmitTest, Simple_ArithB3xrrr) {
@@ -75,8 +75,8 @@ TEST(EmitTest, Simple_ArithB3xrrr) {
     auto code = e.Build(heap);
     EXPECT_EQ(4, code.bytecodeSize);
 
-    auto res = Interpret(code, I32(1), I32(2));
-    EXPECT_EQ(res.i32, 3);
+    auto res = Interpret(code, U32(1), U32(2));
+    EXPECT_EQ(res.u32, 3);
 }
 
 TEST(EmitTest, Literals_None) {
@@ -145,11 +145,11 @@ TEST(EmitTest, Simple_Bcc) {
 
     auto code = e.Build(heap);
 
-    auto res = Interpret(code, I32(2), I32(2));
-    EXPECT_EQ(res.i32, 2);
+    auto res = Interpret(code, U32(2), U32(2));
+    EXPECT_EQ(res.u32, 2);
 
-    auto res2 = Interpret(code, I32(2), I32(1));
-    EXPECT_EQ(res2.i32, 3);
+    auto res2 = Interpret(code, U32(2), U32(1));
+    EXPECT_EQ(res2.u32, 3);
 }
 
 } // namespace Emitter

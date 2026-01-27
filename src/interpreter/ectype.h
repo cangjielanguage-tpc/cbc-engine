@@ -12,13 +12,13 @@ namespace Value {
     struct Reference {
         uintptr_t value;
     };
+
+    /// Type-punning using union is not allowed in C++ as in C.
+    /// So, adding other values here, like i32 or i64 can cause bugs.
+    /// Instead, we need to cast values.
     union Primitive {
         uint64_t u64;
-        int64_t i64;
         uint32_t u32;
-        int32_t i32;
-        uint16_t u16;
-        uint8_t u8;
     };
 };
 
