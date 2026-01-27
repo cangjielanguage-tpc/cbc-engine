@@ -92,30 +92,24 @@ private:
 };
 
 struct B2rr {
-    uint32_t opcode;
-    union {
-        uint32_t xreg;
-        uint32_t dst;
-    };
-    union {
-        uint32_t yreg;
-        uint32_t src;
-    };
+    uint32_t const opcode;
+    uint32_t const xreg : 4;
+    uint32_t const yreg : 4;
 
-    inline Cbc::IReg IX() {
+    inline Cbc::IReg IX() const {
         return Cbc::IReg(xreg);
     }
 
-    inline Cbc::IReg IY() {
+    inline Cbc::IReg IY() const {
         return Cbc::IReg(yreg);
     }
 
-    inline Cbc::IReg Idst() {
-        return Cbc::IReg(dst);
+    inline Cbc::IReg Idst() const {
+        return Cbc::IReg(xreg);
     }
 
-    inline Cbc::IReg Isrc() {
-        return Cbc::IReg(src);
+    inline Cbc::IReg Isrc() const {
+        return Cbc::IReg(yreg);
     }
 
     static inline B2rr Decode(ByteReader *stream) {
@@ -130,21 +124,46 @@ struct B2rr {
 };
 
 struct B2rrd8 {
-    B2rr rr;
-    uint8_t byte;
+    B2rr const rr;
+    uint8_t const imm;
 
     static inline B2rrd8 Decode(ByteReader *stream) {
-        B2rrd8 res;
-        res.rr = B2rr::Decode(stream);
-        stream->ReadTo(&res.byte);
-        return res;
+        auto rr = B2rr::Decode(stream);
+        auto byte = stream->Read8();
+        return B2rrd8 {
+            .rr = rr,
+            .imm = byte
+        };
+    }
+};
+
+struct B2xrI {
+    uint32_t const opcode;
+    uint32_t const opx : 4;
+    uint32_t const reg : 4;
+    uint16_t const imm;
+
+    inline Cbc::IReg Ireg() const {
+        return Cbc::IReg(reg);
+    }
+
+    static inline B2xrI Decode(ByteReader *stream) {
+        uint32_t opcode = (uint32_t) stream->Read8();
+        uint32_t b = (uint32_t) stream->Read8();
+        uint16_t imm = stream->Read16();
+        return B2xrI {
+            .opcode = opcode,
+            .opx = b & 0xf,
+            .reg = (b >> 4) & 0xf,
+            .imm = imm,
+        };
     }
 };
 
 struct ExtBrr {
     using CC = Cbc::Format::CC;
-    B2rr rr;
-    uint16_t offsetValue;
+    B2rr const rr;
+    uint16_t const offsetValue;
 
     static inline ExtBrr Decode(ByteReader *stream) {
         B2rr rr = B2rr::Decode(stream);

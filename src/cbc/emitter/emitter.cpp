@@ -123,6 +123,21 @@ Emitter::B3xrr_parts Emitter::PrepareBitsForB3Formats(Common op, Bits b1) {
 
 // region fixups
 
+class LiteralFixup : public Fixup {
+public:
+    LiteralFixup(Symbol _sym)
+        : Fixup(_sym) {}
+
+    int32_t Size() const override {
+        return 2;
+    }
+
+    void Resolve(Segment& segment, Symbols& symbols,
+            std::function<void(size_t, Symbol)> const& relocationConverter) const override {
+        relocationConverter((size_t) position, symbol);
+    }
+};
+
 class BccFixup : public Fixup {
 public:
     static_assert(Format::ExtBrr::INSTRUCTION_SIZE == 4);
@@ -130,13 +145,12 @@ public:
     BccFixup(Symbol _sym, CC _cc, Width _width, IReg _left, IReg _right)
         : Fixup(_sym), cc(_cc), width(_width), left(_left), right(_right) {}
 
-    int32_t Size() const {
+    int32_t Size() const override {
         return Format::ExtBrr::INSTRUCTION_SIZE;
     }
 
-    virtual void Resolve(Segment& segment, Symbols& symbols,
-            std::function<void(size_t, Symbol)> const& relocationConverter) const
-    {
+    void Resolve(Segment& segment, Symbols& symbols,
+            std::function<void(size_t, Symbol)> const& relocationConverter) const override {
         int32_t distance = Distance(symbols, this->symbol);
         auto immKind = ImmKindOf(distance);
 
@@ -204,6 +218,13 @@ void Emitter::Bcc(CC cc, Width width, IReg l, IReg r, Label label) {
 
 void Emitter::Ret () {
     segment.AddW8(Format::ExtRet::Fmt().Raw());
+}
+
+
+void Emitter::NewObj(IReg d, Symbol sym) {
+    segment.AddW8(Format::B2xrI::Opc1011::OPCODE.Raw());
+    segment.AddW8(Pack8(Bits(Format::B2xrI::Opc1011::NEWOBJ), d).Raw());
+    AddFixup(std::make_unique<LiteralFixup>(sym));
 }
 
 // endregion isa12

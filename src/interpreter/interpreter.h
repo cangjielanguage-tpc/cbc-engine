@@ -36,6 +36,11 @@ struct Interpreter {
         return false;
     }
 
+    inline bool NewObj(Context ctx, IReg d, uint16_t imm) {
+        ectype->Put(d, Value::Reference{0});
+        return true;
+    }
+
     inline void MovRef(Context ctx, IReg d, IReg s) {
         ectype->Put(d, ectype->GetReference(s));
     }

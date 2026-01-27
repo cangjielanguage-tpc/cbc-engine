@@ -72,6 +72,7 @@ public:
 
     void Bcc(CC cc, Width width, IReg l, IReg r, Label label);
 
+    void NewObj(IReg d, Symbol sym);
 
 private:
     struct B3xrr_parts {

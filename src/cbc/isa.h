@@ -344,6 +344,35 @@ namespace B2rrd8 {
     }
 }
 
+namespace SymbolicObjectControl {
+    constexpr Bits FORMAT_BITS = 0b1010;
+    constexpr Bits BYTE_MASK = FORMAT_BITS.Shift(4);
+
+    constexpr Bits Fmt(uint32_t opc) {
+        return BYTE_MASK | Bits(opc).In(4);
+    }
+}
+
+namespace B2xrI {
+    class Opc1011 {
+    public:
+        enum Value : uint32_t {
+            NEWOBJ     = 0b0000,
+            NEWOBJ_VST = 0b0001,
+            NEWOBJ_R   = 0b0010, // TODO: not needed
+        };
+
+        constexpr static Bits OPCODE = SymbolicObjectControl::Fmt(0b1011);
+
+        constexpr Opc1011(const Value raw) : _value(raw) {}
+        constexpr operator Value() const { return _value; }
+        constexpr Bits ToBits() const { return _value; }
+
+    private:
+        Value _value;
+    };
+}
+
 namespace B3xrrr {
     constexpr Bits FORMAT_BITS = 0b01000;
     constexpr Bits BYTE_MASK = FORMAT_BITS.Shift(3);

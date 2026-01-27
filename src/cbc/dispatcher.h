@@ -56,6 +56,12 @@ void B2rrCommon(Handler handler, typename Handler::Context ctx, ByteReader strea
 template <CC::Value cc, Width::Value width, typename Handler>
 void B2rrd8BranchIf(Handler handler, typename Handler::Context ctx, ByteReader stream);
 
+template <typename Handler>
+void B2xrIOpc1011SOC(Handler handler, typename Handler::Context ctx, ByteReader stream);
+
+template <typename Handler>
+bool B2xrIOpc1011SOCInternal(Handler handler, typename Handler::Context ctx, B2xrI args);
+
 template <CC::Value cc, ImmKind::Value immKind, Width::Value width, typename Handler>
 void ExtBcc(Handler handler, typename Handler::Context ctx, ByteReader stream);
 
@@ -121,6 +127,9 @@ static constexpr auto table = [] {
         });
     });
 
+    // Symbolic opc1011
+    table_put(Format::B2xrI::Opc1011::OPCODE.Raw(), B2xrIOpc1011SOC<Handler>);
+
     return arr;
 }();
 
@@ -128,7 +137,7 @@ template <typename Handler, Width::Value width>
 void B2rrMovPrimitive(Handler handler, typename Handler::Context ctx, ByteReader stream) {
     auto args = B2rr::Decode(&stream);
     handler.StorePos(stream.Cursor());
-    handler.template Mov<width>(ctx, args.dst, args.src);
+    handler.template Mov<width>(ctx, args.xreg, args.yreg);
     NEXT;
 }
 
@@ -136,7 +145,7 @@ template <typename Handler>
 void B2rrMovRef(Handler handler, typename Handler::Context ctx, ByteReader stream) {
     auto args = B2rr::Decode(&stream);
     handler.StorePos(stream.Cursor());
-    handler.MovRef(ctx, args.dst, args.src);
+    handler.MovRef(ctx, args.Idst(), args.Isrc());
     NEXT;
 }
 
@@ -144,7 +153,7 @@ template <typename Handler>
 void B2rrMovVST(Handler handler, typename Handler::Context ctx, ByteReader stream) {
     auto args = B2rr::Decode(&stream);
     handler.StorePos(stream.Cursor());
-    handler.MovVST(ctx, args.dst, args.src);
+    handler.MovVST(ctx, args.Idst(), args.Isrc());
     NEXT;
 }
 
@@ -160,9 +169,17 @@ template <CC::Value cc, Width::Value width, typename Handler>
 void B2rrd8BranchIf(Handler handler, typename Handler::Context ctx, ByteReader stream) {
     auto args = B2rrd8::Decode(&stream);
     handler.StorePos(stream.Cursor());
-    int32_t delta = handler.template B2rrd8BranchIf<cc, width>(ctx, args.rr.IX(), args.rr.IY(), (int8_t) args.byte);
+    int32_t delta = handler.template B2rrd8BranchIf<cc, width>(ctx, args.rr.IX(), args.rr.IY(), (int8_t) args.imm);
     stream.Advance(delta);
     NEXT;
+}
+
+template <typename Handler>
+void B2xrIOpc1011SOC(Handler handler, typename Handler::Context ctx, ByteReader stream) {
+    auto args = B2xrI::Decode(&stream);
+    handler.StorePos(stream.Cursor());
+    bool successful = B2xrIOpc1011SOCInternal(handler, ctx, args);
+    NEXT_COND(successful);
 }
 
 template <CC::Value cc, ImmKind::Value immKind, Width::Value width, typename Handler>
@@ -184,6 +201,22 @@ template <typename Handler>
 void Unreachable(Handler handler, typename Handler::Context ctx, ByteReader stream) {
     // TODO: fatal error
 }
+
+/// Switch tables
+
+template <typename Handler>
+bool B2xrIOpc1011SOCInternal(Handler handler, typename Handler::Context ctx, B2xrI args) {
+    switch (args.opx) {
+        case Cbc::Format::B2xrI::Opc1011::NEWOBJ:
+            return handler.NewObj(ctx, args.Ireg(), args.imm);
+        case Cbc::Format::B2xrI::Opc1011::NEWOBJ_VST:
+            ASSERTION(false, "Not implemented");
+        default:
+            ASSERTION(false, "Unexpected opx");
+    }
+    return true;
+}
+
 
 }
 
