@@ -37,8 +37,19 @@ TEST(EmitTest, Simple_ArithB2rr) {
     EXPECT_EQ(res.u32, 3);
 }
 
+TEST(EmitTest, Simple_Mov) {
+    Emitter e;
+    e.MovI64(IReg::IR2, 0x7);
+    e.Mov(Width::W64, IReg::IR1, IReg::IR2);
+    e.Ret();
+    auto code = e.Build(heap);
+    EXPECT_EQ(5, code.bytecodeSize);
+
+    auto res = Interpret(code, U32(0), U32(0));
+    EXPECT_EQ(res.u64, 0x7);
+}
+
 TEST(EmitTest, Simple_ArithB3xrrr) {
-    GTEST_SKIP() << "Decoding/dispatching of b3xrrr not implemented yet";
     Emitter e;
     e.Add(Width::W32, IReg::IR1, IReg::IR2, IReg::IR1);
     e.Ret();
@@ -47,6 +58,17 @@ TEST(EmitTest, Simple_ArithB3xrrr) {
 
     auto res = Interpret(code, U32(1), U32(2));
     EXPECT_EQ(res.u32, 3);
+}
+
+TEST(EmitTest, Simple_ArithB3xrrtiK) {
+    Emitter e;
+    e.AddI(Width::W32, IReg::IR1, IReg::IR2, 42);
+    e.Ret();
+    auto code = e.Build(heap);
+    EXPECT_EQ(6, code.bytecodeSize);
+
+    auto res = Interpret(code, U32(1), U32(2));
+    EXPECT_EQ(res.u32, 44);
 }
 
 TEST(EmitTest, Literals_None) {

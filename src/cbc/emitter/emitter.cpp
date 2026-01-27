@@ -22,6 +22,10 @@ void Emitter::Bind(Label label) {
     symbols.Bind(label, segment.Pos());
 }
 
+Symbol Emitter::NewLiteral(uint64_t data) {
+    return symbols.Value(static_cast<int64_t>(data));
+}
+
 EmitterSnapshot Emitter::Snapshot() {
     return EmitterSnapshot {
         .segmentSnapshot = segment.Snapshot(),
@@ -105,7 +109,27 @@ bool IsNBitsSigned(int32_t value, uint32_t bits) {
     }
 }
 
-ImmKind ImmKindOf(int32_t value) {
+bool IsNBitsSigned(uint32_t value, uint32_t bits) {
+    return IsNBitsSigned(static_cast<int32_t>(value), bits);
+}
+
+bool IsNBitsSigned(int64_t value, uint32_t bits) {
+    if (bits == 64) {
+        return true;
+    } else {
+        // C++ have implementation-defined right shift for signed numbers until C++20.
+        // We expect arithmetic shift.
+        static_assert((-1 >> 16) == -1);
+        auto extension = value >> (bits - 1);
+        return (extension == 0) || (extension == -1L);
+    }
+}
+
+bool IsNBitsSigned(uint64_t value, uint32_t bits) {
+    return IsNBitsSigned(static_cast<int64_t>(value), bits);
+}
+
+ImmKind ImmKindOf(int64_t value) {
     return IsNBitsSigned(value, 16) ? ImmKind::VALUE : ImmKind::LITERAL;
 }
 
@@ -125,6 +149,8 @@ Emitter::B3xrr_parts Emitter::PrepareBitsForB3Formats(Common op, Bits b1) {
 
 class LiteralFixup : public Fixup {
 public:
+    static_assert(LiteralTableBuilder::MAX_SIZE == UINT16_MAX);
+
     LiteralFixup(Symbol _sym)
         : Fixup(_sym) {}
 
@@ -192,11 +218,39 @@ void Emitter::Lsl (Width width, IReg d, IReg l, IReg r) { GenCommon(Common::LSL,
 void Emitter::Lsr (Width width, IReg d, IReg l, IReg r) { GenCommon(Common::LSR,  width, d, l, r); }
 void Emitter::Asr (Width width, IReg d, IReg l, IReg r) { GenCommon(Common::ASR,  width, d, l, r); }
 
+void Emitter::AddI (Width width, IReg d, IReg l, uint64_t imm) { GenCommon(Common::ADD,  width, d, l, imm); }
+void Emitter::SubI (Width width, IReg d, IReg l, uint64_t imm) { GenCommon(Common::SUB,  width, d, l, imm); }
+void Emitter::MulI (Width width, IReg d, IReg l, uint64_t imm) { GenCommon(Common::MUL,  width, d, l, imm); }
+void Emitter::AndI (Width width, IReg d, IReg l, uint64_t imm) { GenCommon(Common::AND,  width, d, l, imm); }
+void Emitter::OrI  (Width width, IReg d, IReg l, uint64_t imm) { GenCommon(Common::OR,   width, d, l, imm); }
+void Emitter::XorI (Width width, IReg d, IReg l, uint64_t imm) { GenCommon(Common::XOR,  width, d, l, imm); }
+void Emitter::DivI (Width width, IReg d, IReg l, uint64_t imm) { GenCommon(Common::SDIV, width, d, l, imm); }
+void Emitter::RemI (Width width, IReg d, IReg l, uint64_t imm) { GenCommon(Common::SREM, width, d, l, imm); }
+void Emitter::UDivI(Width width, IReg d, IReg l, uint64_t imm) { GenCommon(Common::UDIV, width, d, l, imm); }
+void Emitter::URemI(Width width, IReg d, IReg l, uint64_t imm) { GenCommon(Common::UREM, width, d, l, imm); }
+void Emitter::LslI (Width width, IReg d, IReg l, uint64_t imm) { GenCommon(Common::LSL,  width, d, l, imm); }
+void Emitter::LsrI (Width width, IReg d, IReg l, uint64_t imm) { GenCommon(Common::LSR,  width, d, l, imm); }
+void Emitter::AsrI (Width width, IReg d, IReg l, uint64_t imm) { GenCommon(Common::ASR,  width, d, l, imm); }
+
+void Emitter::Mov(Width width, IReg d, IReg s) { GenB2rr(d, s, Common::MOV, width); }
+
+void Emitter::MovI32(IReg d, uint32_t imm) { if (IsNBitsSigned(imm, 4)) { GenB2hr(d, imm, Common::MOV, Width::W32); } else { AddI(Width::W32, d, IReg::IRZ, imm); } }
+void Emitter::MovI64(IReg d, uint64_t imm) { if (IsNBitsSigned(imm, 4)) { GenB2hr(d, imm, Common::MOV, Width::W64); } else { AddI(Width::W64, d, IReg::IRZ, imm); } }
+
 void Emitter::GenCommon(Common common, Width width, IReg d, IReg l, IReg r, bool prohibitB2r) {
     if (d == l) {
         GenB2rr(d, r, common, width);
     } else {
         GenB3xrrr(d, l, r, PrepareBitsForB3Formats(common, width));
+    }
+}
+
+void Emitter::GenCommon(Common common, Width width, IReg d, IReg l, uint64_t imm) {
+    auto parts = PrepareBitsForB3Formats(common, width);
+    if (IsNBitsSigned(imm, 16)) {
+        GenB3xrrt4i16(d, l, imm, parts);
+    } else {
+        GenB3xrrkI(d, l, 0, imm, parts);
     }
 }
 
@@ -209,6 +263,28 @@ void Emitter::GenB3xrrr(IReg d, IReg l, IReg r, B3xrr_parts parts) {
     segment.AddW8(Format::B3xrrr::Fmt(parts.low3BitsOfFormatByte).Raw());
     segment.AddW8(Pack8(parts.low4BitsOfSecondByte, d).Raw());
     segment.AddW8(Pack8(l, r).Raw());
+}
+
+void Emitter::GenB3xrrt4i16(IReg d, IReg l, uint64_t imm, B3xrr_parts parts) {
+    segment.AddW8(Format::B3xrrt4i16::Fmt(parts.low3BitsOfFormatByte).Raw());
+    segment.AddW8(Pack8(parts.low4BitsOfSecondByte, d).Raw());
+    auto t4 = Bits(0);
+    segment.AddW8(Pack8(l, t4).Raw());
+    segment.AddW16(static_cast<uint32_t>(imm));
+}
+
+void Emitter::GenB3xrrkI(IReg d, IReg l, uint32_t k4, uint64_t imm, B3xrr_parts parts) {
+    segment.AddW8(Format::B3xrrkI::Fmt(parts.low3BitsOfFormatByte).Raw());
+    segment.AddW8(Pack8(parts.low4BitsOfSecondByte, d).Raw());
+    segment.AddW8(Pack8(l, Bits(k4)).Raw());
+    auto immKind = ImmKindOf(static_cast<int64_t>(imm));
+    ASSERTION(immKind == ImmKind::LITERAL, "Too small immediate value for literal");
+    AddFixup(std::make_unique<LiteralFixup>(this -> NewLiteral(imm)));
+}
+
+void Emitter::GenB2hr(IReg d, uint64_t imm, Common common, Width width) {
+    segment.AddW8(Format::B2hr::Fmt(common, width).Raw());
+    segment.AddW8(Pack8(Bits(static_cast<uint32_t>(imm)), d).Raw());
 }
 
 void Emitter::Bcc(CC cc, Width width, IReg l, IReg r, Label label) {

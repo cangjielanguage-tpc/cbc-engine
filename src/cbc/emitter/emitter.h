@@ -36,7 +36,7 @@ public:
     Symbol NewAddressSym(uintptr_t ptr);
     Label NewLabel();
     void Bind(Label label);
-    // TODO: add symbol kind to store arbitrary-size values.
+    Symbol NewLiteral(uint64_t data); // TODO: add symbol kind to store arbitrary-size values.
 
     /// Build `Code` in given `heap`.
     ///
@@ -61,8 +61,25 @@ public:
     void Lsr (Width width, IReg d, IReg l, IReg r);
     void Asr (Width width, IReg d, IReg l, IReg r);
 
+
+    void AddI (Width width, IReg d, IReg l, uint64_t imm);
+    void SubI (Width width, IReg d, IReg l, uint64_t imm);
+    void MulI (Width width, IReg d, IReg l, uint64_t imm);
+    void AndI (Width width, IReg d, IReg l, uint64_t imm);
+    void OrI  (Width width, IReg d, IReg l, uint64_t imm);
+    void XorI (Width width, IReg d, IReg l, uint64_t imm);
+    void DivI (Width width, IReg d, IReg l, uint64_t imm);
+    void RemI (Width width, IReg d, IReg l, uint64_t imm);
+    void UDivI(Width width, IReg d, IReg l, uint64_t imm);
+    void URemI(Width width, IReg d, IReg l, uint64_t imm);
+    void LslI (Width width, IReg d, IReg l, uint64_t imm);
+    void LsrI (Width width, IReg d, IReg l, uint64_t imm);
+    void AsrI (Width width, IReg d, IReg l, uint64_t imm);
+
     void Ret();
-    void Mov(IReg d, IReg s, Width width);
+    void Mov(Width width, IReg d, IReg s);
+    void MovI32(IReg d, uint32_t imm);
+    void MovI64(IReg d, uint64_t imm);
     void MovRef(IReg d, IReg s);
 
     void Bcc(CC cc, Width width, IReg l, IReg r, Label label);
@@ -78,8 +95,12 @@ private:
     static B3xrr_parts PrepareBitsForB3Formats(Common op, Bits b1);
     static B3xrr_parts PrepareBitsForB3Formats(Common op, Width width);
     void GenCommon(Common common, Width width, IReg d, IReg l, IReg r, bool prohibitB2r = false);
+    void GenCommon(Common common, Width width, IReg d, IReg l, uint64_t imm);
+    void GenB2hr(IReg d, uint64_t imm, Common common, Width width);
     void GenB2rr(IReg d, IReg r, Common common, Width width);
     void GenB3xrrr(IReg d, IReg l, IReg r, B3xrr_parts parts);
+    void GenB3xrrt4i16(IReg d, IReg l, uint64_t imm, B3xrr_parts parts);
+    void GenB3xrrkI(IReg d, IReg l, uint32_t k4, uint64_t imm, B3xrr_parts parts);
     void AddFixup(std::unique_ptr<Fixup> fixup);
 
     Symbols symbols;

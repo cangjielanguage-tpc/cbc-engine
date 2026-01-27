@@ -34,6 +34,7 @@ template <typename Handler>
 using Table = std::array<TableFunction<Handler>, TABLE_SIZE>;
 
 using Width = Cbc::Format::Width;
+using Sign = Cbc::Format::Sign;
 using Common = Cbc::Format::Common;
 using CC = Cbc::Format::CC;
 using ImmKind = Cbc::Format::ImmKind;
@@ -41,8 +42,8 @@ using ImmKind = Cbc::Format::ImmKind;
 template <typename Handler>
 void Unreachable(Handler handler, typename Handler::Context ctx, ByteReader stream);
 
-template <typename Handler, Width::Value width>
-void B2rrMovPrimitive(Handler handler, typename Handler::Context ctx, ByteReader stream);
+template <Width::Value width, typename Handler>
+void B2rrMov(Handler handler, typename Handler::Context ctx, ByteReader stream);
 
 template <typename Handler>
 void B2rrMovRef(Handler handler, typename Handler::Context ctx, ByteReader stream);
@@ -53,6 +54,9 @@ void B2rrMovVST(Handler handler, typename Handler::Context ctx, ByteReader strea
 template <Common::Value arithOp, Width::Value width, typename Handler>
 void B2rrCommon(Handler handler, typename Handler::Context ctx, ByteReader stream);
 
+template <Width::Value width, typename Handler>
+void B2hrMovI(Handler handler, typename Handler::Context ctx, ByteReader stream);
+
 template <CC::Value cc, Width::Value width, typename Handler>
 void B2rrd8BranchIf(Handler handler, typename Handler::Context ctx, ByteReader stream);
 
@@ -61,6 +65,18 @@ void B2xrIOpc1011SOC(Handler handler, typename Handler::Context ctx, ByteReader 
 
 template <typename Handler>
 bool B2xrIOpc1011SOCInternal(Handler handler, typename Handler::Context ctx, B2xrI args);
+
+template <Cbc::Format::OP7A::Value op7a, Cbc::Format::Sign::Value sign, typename Handler>
+void B3xrrrCommon(Handler handler, typename Handler::Context ctx, ByteReader stream);
+
+template <Cbc::Format::OP7A::Value op7a, Cbc::Format::Sign::Value sign, typename Handler>
+void B3xrrtiKCommon(Handler handler, typename Handler::Context ctx, ByteReader stream);
+
+template <Cbc::Format::OP7A::Value op7a, Cbc::Format::Sign::Value sign, typename Handler>
+bool B3xrrrOp7AInternal(Handler handler, typename Handler::Context ctx, B3xrrr args);
+
+template <Cbc::Format::OP7A::Value op7a, Cbc::Format::Sign::Value sign, typename Handler>
+bool B3xrrtiKOp7AInternal(Handler handler, typename Handler::Context ctx, B3xrrtiK args);
 
 template <CC::Value cc, ImmKind::Value immKind, Width::Value width, typename Handler>
 void ExtBcc(Handler handler, typename Handler::Context ctx, ByteReader stream);
@@ -105,11 +121,21 @@ static constexpr auto table = [] {
         ForRange<Common, Common::ADD, Common::XOR>([&](auto arithOp) {
             table_put(Format::B2rr::Fmt(arithOp, width), B2rrCommon<arithOp, width, Handler>);
         });
-        table_put(Format::B2rr::Fmt(Common::MOV, width), B2rrCommon<Common::MOV, width, Handler>);
+        table_put(Format::B2rr::Fmt(Common::MOV, width), B2rrMov<width, Handler>);
+        table_put(Format::B2hr::Fmt(Common::MOV, width), B2hrMovI<width, Handler>);
     });
 
     table_put(Format::B2rr::Fmt(Common::MVST, Width::W32), B2rrMovVST);
     table_put(Format::B2rr::Fmt(Common::MREF, Width::W64), B2rrMovRef);
+
+    // B3x common operations
+    ForRange<Sign, Sign::SIGNED, Sign::UNSIGNED>([&](auto sign) {
+        ForRange<Format::OP7A, Format::OP7A::COMMON, Format::OP7A::FLOAT>([&](auto op7a) {
+            constexpr auto B3xLow3Bits = Format::Bits(op7a).In(2).Shift(1) | (Format::Bits(sign).In(1));
+            table_put(Format::B3xrrr::Fmt(B3xLow3Bits).Raw(), B3xrrrCommon<op7a, sign, Handler>);
+            table_put(Format::B3xrrt4i16::Fmt(B3xLow3Bits).Raw(), B3xrrtiKCommon<op7a, sign, Handler>);
+        });
+    });
 
     // B2rrd8 branch operations
     ForRange<Width, Width::W32, Width::W64>([&](auto width) {
@@ -133,11 +159,19 @@ static constexpr auto table = [] {
     return arr;
 }();
 
-template <typename Handler, Width::Value width>
-void B2rrMovPrimitive(Handler handler, typename Handler::Context ctx, ByteReader stream) {
+template <Width::Value width, typename Handler>
+void B2rrMov(Handler handler, typename Handler::Context ctx, ByteReader stream) {
     auto args = B2rr::Decode(&stream);
     handler.StorePos(stream.Cursor());
-    handler.template Mov<width>(ctx, args.xreg, args.yreg);
+    handler.template Mov<width>(ctx, args.Idst(), args.Isrc());
+    NEXT;
+}
+
+template <Width::Value width, typename Handler>
+void B2hrMovI(Handler handler, typename Handler::Context ctx, ByteReader stream) {
+    auto args = B2hr::Decode(&stream);
+    handler.StorePos(stream.Cursor());
+    handler.template MovI<width>(ctx, args.Idst(), args.imm);
     NEXT;
 }
 
@@ -161,7 +195,23 @@ template <Common::Value arithOp, Width::Value width, typename Handler>
 void B2rrCommon(Handler handler, typename Handler::Context ctx, ByteReader stream) {
     auto args = B2rr::Decode(&stream);
     handler.StorePos(stream.Cursor());
-    bool successful = handler.template Common<width, arithOp>(ctx, args.Idst(), args.Isrc());
+    bool successful = handler.template Common2R<width, arithOp>(ctx, args.Idst(), args.Isrc());
+    NEXT_COND(successful);
+}
+
+template <Cbc::Format::OP7A::Value op7a, Cbc::Format::Sign::Value sign, typename Handler>
+void B3xrrrCommon(Handler handler, typename Handler::Context ctx, ByteReader stream) {
+    auto args = B3xrrr::Decode(&stream);
+    handler.StorePos(stream.Cursor());
+    bool successful = B3xrrrOp7AInternal<op7a, sign>(handler, ctx, args);
+    NEXT_COND(successful);
+}
+
+template <Cbc::Format::OP7A::Value op7a, Cbc::Format::Sign::Value sign, typename Handler>
+void B3xrrtiKCommon(Handler handler, typename Handler::Context ctx, ByteReader stream) {
+    auto args = B3xrrtiK::Decode(&stream);
+    handler.StorePos(stream.Cursor());
+    bool successful = B3xrrtiKOp7AInternal<op7a, sign>(handler, ctx, args);
     NEXT_COND(successful);
 }
 
@@ -217,6 +267,77 @@ bool B2xrIOpc1011SOCInternal(Handler handler, typename Handler::Context ctx, B2x
     return true;
 }
 
+template <Cbc::Format::OP7A::Value op7a, Cbc::Format::Sign::Value sign, typename Handler>
+bool B3xrrrOp7AInternal(Handler handler, typename Handler::Context ctx, B3xrrr args) {
+    using namespace Cbc::Format;
+    ASSERTION(op7a == OP7A::COMMON, "Not implemented OP7A encoding");
+
+    auto arithOp = (Bits(sign).Shift(4) | args.opx).Raw();
+    switch (arithOp) {
+        case (Bits(Common::ADD ).Shift(1) | (Width::W32 & 0b1)).Raw(): return handler.template Common3R<Width::W32, Common::ADD >(ctx, args.IRegX(), args.IRegY(), args.IRegW());
+        case (Bits(Common::ADD ).Shift(1) | (Width::W64 & 0b1)).Raw(): return handler.template Common3R<Width::W64, Common::ADD >(ctx, args.IRegX(), args.IRegY(), args.IRegW());
+        case (Bits(Common::SUB ).Shift(1) | (Width::W32 & 0b1)).Raw(): return handler.template Common3R<Width::W32, Common::SUB >(ctx, args.IRegX(), args.IRegY(), args.IRegW());
+        case (Bits(Common::SUB ).Shift(1) | (Width::W64 & 0b1)).Raw(): return handler.template Common3R<Width::W64, Common::SUB >(ctx, args.IRegX(), args.IRegY(), args.IRegW());
+        case (Bits(Common::MUL ).Shift(1) | (Width::W32 & 0b1)).Raw(): return handler.template Common3R<Width::W32, Common::MUL >(ctx, args.IRegX(), args.IRegY(), args.IRegW());
+        case (Bits(Common::MUL ).Shift(1) | (Width::W64 & 0b1)).Raw(): return handler.template Common3R<Width::W64, Common::MUL >(ctx, args.IRegX(), args.IRegY(), args.IRegW());
+        case (Bits(Common::AND ).Shift(1) | (Width::W32 & 0b1)).Raw(): return handler.template Common3R<Width::W32, Common::AND >(ctx, args.IRegX(), args.IRegY(), args.IRegW());
+        case (Bits(Common::AND ).Shift(1) | (Width::W64 & 0b1)).Raw(): return handler.template Common3R<Width::W64, Common::AND >(ctx, args.IRegX(), args.IRegY(), args.IRegW());
+        case (Bits(Common::OR  ).Shift(1) | (Width::W32 & 0b1)).Raw(): return handler.template Common3R<Width::W32, Common::OR  >(ctx, args.IRegX(), args.IRegY(), args.IRegW());
+        case (Bits(Common::OR  ).Shift(1) | (Width::W64 & 0b1)).Raw(): return handler.template Common3R<Width::W64, Common::OR  >(ctx, args.IRegX(), args.IRegY(), args.IRegW());
+        case (Bits(Common::XOR ).Shift(1) | (Width::W32 & 0b1)).Raw(): return handler.template Common3R<Width::W32, Common::XOR >(ctx, args.IRegX(), args.IRegY(), args.IRegW());
+        case (Bits(Common::XOR ).Shift(1) | (Width::W64 & 0b1)).Raw(): return handler.template Common3R<Width::W64, Common::XOR >(ctx, args.IRegX(), args.IRegY(), args.IRegW());
+        case (Bits(Common::UDIV).Shift(1) | (Width::W32 & 0b1)).Raw(): return handler.template Common3R<Width::W32, Common::UDIV>(ctx, args.IRegX(), args.IRegY(), args.IRegW());
+        case (Bits(Common::UDIV).Shift(1) | (Width::W64 & 0b1)).Raw(): return handler.template Common3R<Width::W64, Common::UDIV>(ctx, args.IRegX(), args.IRegY(), args.IRegW());
+        case (Bits(Common::UREM).Shift(1) | (Width::W32 & 0b1)).Raw(): return handler.template Common3R<Width::W32, Common::UREM>(ctx, args.IRegX(), args.IRegY(), args.IRegW());
+        case (Bits(Common::UREM).Shift(1) | (Width::W64 & 0b1)).Raw(): return handler.template Common3R<Width::W64, Common::UREM>(ctx, args.IRegX(), args.IRegY(), args.IRegW());
+        case (Bits(Common::LSR ).Shift(1) | (Width::W32 & 0b1)).Raw(): return handler.template Common3R<Width::W32, Common::LSR >(ctx, args.IRegX(), args.IRegY(), args.IRegW());
+        case (Bits(Common::LSR ).Shift(1) | (Width::W64 & 0b1)).Raw(): return handler.template Common3R<Width::W64, Common::LSR >(ctx, args.IRegX(), args.IRegY(), args.IRegW());
+        case (Bits(Common::ASR ).Shift(1) | (Width::W32 & 0b1)).Raw(): return handler.template Common3R<Width::W32, Common::ASR >(ctx, args.IRegX(), args.IRegY(), args.IRegW());
+        case (Bits(Common::ASR ).Shift(1) | (Width::W64 & 0b1)).Raw(): return handler.template Common3R<Width::W64, Common::ASR >(ctx, args.IRegX(), args.IRegY(), args.IRegW());
+        case (Bits(Common::LSL ).Shift(1) | (Width::W32 & 0b1)).Raw(): return handler.template Common3R<Width::W32, Common::LSL >(ctx, args.IRegX(), args.IRegY(), args.IRegW());
+        case (Bits(Common::LSL ).Shift(1) | (Width::W64 & 0b1)).Raw(): return handler.template Common3R<Width::W64, Common::LSL >(ctx, args.IRegX(), args.IRegY(), args.IRegW());
+        
+        default:
+            ASSERTION(false, "Unexpected op");
+    }
+    return true;
+}
+
+template <Cbc::Format::OP7A::Value op7a, Cbc::Format::Sign::Value sign, typename Handler>
+bool B3xrrtiKOp7AInternal(Handler handler, typename Handler::Context ctx, B3xrrtiK args) {
+    using namespace Cbc::Format;
+    ASSERTION(op7a == OP7A::COMMON, "Not implemented OP7A encoding");
+
+    auto arithOp = (Bits(sign).Shift(4) | args.opx).Raw();
+    switch (arithOp) {
+        case (Bits(Common::ADD ).Shift(1) | (Width::W32 & 0b1)).Raw(): return handler.template Common3I<Width::W32, Common::ADD >(ctx, args.IRegX(), args.IRegY(), args.Imm());
+        case (Bits(Common::ADD ).Shift(1) | (Width::W64 & 0b1)).Raw(): return handler.template Common3I<Width::W64, Common::ADD >(ctx, args.IRegX(), args.IRegY(), args.Imm());
+        case (Bits(Common::SUB ).Shift(1) | (Width::W32 & 0b1)).Raw(): return handler.template Common3I<Width::W32, Common::SUB >(ctx, args.IRegX(), args.IRegY(), args.Imm());
+        case (Bits(Common::SUB ).Shift(1) | (Width::W64 & 0b1)).Raw(): return handler.template Common3I<Width::W64, Common::SUB >(ctx, args.IRegX(), args.IRegY(), args.Imm());
+        case (Bits(Common::MUL ).Shift(1) | (Width::W32 & 0b1)).Raw(): return handler.template Common3I<Width::W32, Common::MUL >(ctx, args.IRegX(), args.IRegY(), args.Imm());
+        case (Bits(Common::MUL ).Shift(1) | (Width::W64 & 0b1)).Raw(): return handler.template Common3I<Width::W64, Common::MUL >(ctx, args.IRegX(), args.IRegY(), args.Imm());
+        case (Bits(Common::AND ).Shift(1) | (Width::W32 & 0b1)).Raw(): return handler.template Common3I<Width::W32, Common::AND >(ctx, args.IRegX(), args.IRegY(), args.Imm());
+        case (Bits(Common::AND ).Shift(1) | (Width::W64 & 0b1)).Raw(): return handler.template Common3I<Width::W64, Common::AND >(ctx, args.IRegX(), args.IRegY(), args.Imm());
+        case (Bits(Common::OR  ).Shift(1) | (Width::W32 & 0b1)).Raw(): return handler.template Common3I<Width::W32, Common::OR  >(ctx, args.IRegX(), args.IRegY(), args.Imm());
+        case (Bits(Common::OR  ).Shift(1) | (Width::W64 & 0b1)).Raw(): return handler.template Common3I<Width::W64, Common::OR  >(ctx, args.IRegX(), args.IRegY(), args.Imm());
+        case (Bits(Common::XOR ).Shift(1) | (Width::W32 & 0b1)).Raw(): return handler.template Common3I<Width::W32, Common::XOR >(ctx, args.IRegX(), args.IRegY(), args.Imm());
+        case (Bits(Common::XOR ).Shift(1) | (Width::W64 & 0b1)).Raw(): return handler.template Common3I<Width::W64, Common::XOR >(ctx, args.IRegX(), args.IRegY(), args.Imm());
+        case (Bits(Common::UDIV).Shift(1) | (Width::W32 & 0b1)).Raw(): return handler.template Common3I<Width::W32, Common::UDIV>(ctx, args.IRegX(), args.IRegY(), args.Imm());
+        case (Bits(Common::UDIV).Shift(1) | (Width::W64 & 0b1)).Raw(): return handler.template Common3I<Width::W64, Common::UDIV>(ctx, args.IRegX(), args.IRegY(), args.Imm());
+        case (Bits(Common::UREM).Shift(1) | (Width::W32 & 0b1)).Raw(): return handler.template Common3I<Width::W32, Common::UREM>(ctx, args.IRegX(), args.IRegY(), args.Imm());
+        case (Bits(Common::UREM).Shift(1) | (Width::W64 & 0b1)).Raw(): return handler.template Common3I<Width::W64, Common::UREM>(ctx, args.IRegX(), args.IRegY(), args.Imm());
+        case (Bits(Common::LSR ).Shift(1) | (Width::W32 & 0b1)).Raw(): return handler.template Common3I<Width::W32, Common::LSR >(ctx, args.IRegX(), args.IRegY(), args.Imm());
+        case (Bits(Common::LSR ).Shift(1) | (Width::W64 & 0b1)).Raw(): return handler.template Common3I<Width::W64, Common::LSR >(ctx, args.IRegX(), args.IRegY(), args.Imm());
+        case (Bits(Common::ASR ).Shift(1) | (Width::W32 & 0b1)).Raw(): return handler.template Common3I<Width::W32, Common::ASR >(ctx, args.IRegX(), args.IRegY(), args.Imm());
+        case (Bits(Common::ASR ).Shift(1) | (Width::W64 & 0b1)).Raw(): return handler.template Common3I<Width::W64, Common::ASR >(ctx, args.IRegX(), args.IRegY(), args.Imm());
+        case (Bits(Common::LSL ).Shift(1) | (Width::W32 & 0b1)).Raw(): return handler.template Common3I<Width::W32, Common::LSL >(ctx, args.IRegX(), args.IRegY(), args.Imm());
+        case (Bits(Common::LSL ).Shift(1) | (Width::W64 & 0b1)).Raw(): return handler.template Common3I<Width::W64, Common::LSL >(ctx, args.IRegX(), args.IRegY(), args.Imm());
+
+        default:
+            ASSERTION(false, "Unexpected op");
+    }
+    return true;
+}
 
 }
 

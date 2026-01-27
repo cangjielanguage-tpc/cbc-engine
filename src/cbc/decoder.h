@@ -123,6 +123,30 @@ struct B2rr {
     }
 };
 
+struct B2hr {
+    uint32_t const opcode;
+    uint32_t const imm : 4;
+    uint32_t const xreg : 4;
+
+    inline Cbc::IReg IX() const {
+        return Cbc::IReg(xreg);
+    }
+
+    inline Cbc::IReg Idst() const {
+        return Cbc::IReg(xreg);
+    }
+
+    static inline B2hr Decode(ByteReader *stream) {
+        uint32_t opcode = (uint32_t) stream->Read8();
+        uint32_t b = (uint32_t) stream->Read8();
+        return B2hr {
+            .opcode = opcode,
+            .imm = b & 0xf,
+            .xreg = (b >> 4) & 0xf
+        };
+    }
+};
+
 struct B2rrd8 {
     B2rr const rr;
     uint8_t const imm;
@@ -156,6 +180,116 @@ struct B2xrI {
             .opx = b & 0xf,
             .reg = (b >> 4) & 0xf,
             .imm = imm,
+        };
+    }
+};
+
+struct B3xrrr {
+    uint32_t const opcode;
+    uint32_t const opx : 4;
+    uint32_t const regx : 4;
+    uint32_t const regy : 4;
+    uint32_t const regw : 4;
+
+    inline Cbc::IReg IRegX() const {
+        return Cbc::IReg(regx);
+    }
+
+    inline Cbc::IReg IRegY() const {
+        return Cbc::IReg(regy);
+    }
+
+    inline Cbc::IReg IRegW() const {
+        return Cbc::IReg(regw);
+    }
+
+    static inline B3xrrr Decode(ByteReader *stream) {
+        uint32_t opcode = (uint32_t) stream->Read8();
+        uint32_t xr = (uint32_t) stream->Read8();
+        uint32_t rr = (uint32_t) stream->Read8();
+        return B3xrrr {
+            .opcode = opcode,
+            .opx = xr & 0xf,
+            .regx = (xr >> 4) & 0xf,
+            .regy = rr & 0xf,
+            .regw = (rr >> 4) & 0xf
+        };
+    }
+};
+
+struct B3xrrtiK {
+    uint32_t const opcode;
+    uint32_t const opx : 4;
+    uint32_t const regx : 4;
+    uint32_t const regy : 4;
+    uint32_t const t4 : 4;
+    uint16_t const imm;
+
+    inline Cbc::IReg IRegX() const {
+        return Cbc::IReg(regx);
+    }
+
+    inline Cbc::IReg IRegY() const {
+        return Cbc::IReg(regy);
+    }
+
+    inline uint64_t Imm() const {
+        ASSERTION(t4 == 0, "Decoding imm with ival(t4, imm) not implemented");
+        return imm;
+    }
+
+    static inline B3xrrtiK Decode(ByteReader *stream) {
+        uint32_t opcode = (uint32_t) stream->Read8();
+        uint32_t xr = (uint32_t) stream->Read8();
+        uint32_t rt = (uint32_t) stream->Read8();
+        uint16_t imm = 0;
+        auto kk = (opcode >> 3) & 0b11;
+        switch (kk)
+        {
+            case 0b00: break;
+            case 0b01: imm = (uint16_t) stream->Read8(); break;
+            case 0b10: imm = stream->Read16(); break;
+            default: ASSERTION(false, "Unexpected kk"); break;
+        }
+        return B3xrrtiK {
+            .opcode = opcode,
+            .opx = xr & 0xf,
+            .regx = (xr >> 4) & 0xf,
+            .regy = rt & 0xf,
+            .t4 = (rt >> 4) & 0xf,
+            .imm = imm
+        };
+    }
+};
+
+struct B3xrrkI {
+    uint32_t const opcode;
+    uint32_t const opx : 4;
+    uint32_t const regx : 4;
+    uint32_t const regy : 4;
+    uint32_t const k4 : 4;
+    uint16_t const imm;
+
+    inline Cbc::IReg IRegX() const {
+        return Cbc::IReg(regx);
+    }
+
+    inline Cbc::IReg IRegY() const {
+        return Cbc::IReg(regy);
+    }
+
+    static inline B3xrrkI Decode(ByteReader *stream) {
+        uint32_t opcode = (uint32_t) stream->Read8();
+        uint32_t xr = (uint32_t) stream->Read8();
+        uint32_t rk = (uint32_t) stream->Read8();
+        uint16_t imm = stream->Read16();
+        return B3xrrkI {
+            .opcode = opcode,
+            .opx = xr & 0xf,
+            .regx = (xr >> 4) & 0xf,
+            .regy = rk & 0xf,
+            .k4 = (rk >> 4) & 0xf,
+            .imm = imm
         };
     }
 };

@@ -30,13 +30,38 @@ public:
     inline void StorePos(uint8_t *c) { /* no-op */ }
 
     template <Width::Value width, Common::Value arithOp>
-    inline bool Common(Context ctx, IReg l, IReg r) {
-        auto res = Arith<width>(arithOp, ectype->GetPrimitive(l), ectype->GetPrimitive(r));
+    inline bool Common2R(Context ctx, IReg l, IReg r) {
+        return Common3R<width, arithOp>(ctx, l, l, r);
+    }
+
+    template <Width::Value width, Common::Value arithOp>
+    inline bool Common3R(Context ctx, IReg dst, IReg l, IReg r) {
+        return Common3I<width, arithOp>(ctx, dst, l, ectype->GetPrimitive(r));
+    }
+
+    template <Width::Value width, Common::Value arithOp>
+    inline bool Common3I(Context ctx, IReg dst, IReg l, uint64_t imm) {
+        return Common3I<width, arithOp>(ctx, dst, l, Value::Primitive{ .u64 = imm });
+    }
+
+    template <Width::Value width, Common::Value arithOp>
+    inline bool Common3I(Context ctx, IReg dst, IReg l, Value::Primitive val) {
+        auto res = Arith<width>(arithOp, ectype->GetPrimitive(l), val);
         if (res.successful) {
-            ectype->Put(l, res.result);
+            ectype->Put(dst, res.result);
             return true;
         }
         return false;
+    }
+
+    template <Width::Value width>
+    inline void Mov(Context ctx, IReg d, IReg s) {
+        ectype->Put(d, ectype->GetPrimitive(s));
+    }
+
+    template <Width::Value width>
+    inline void MovI(Context ctx, IReg d, uint64_t imm) {
+        ectype->Put(d, Value::Primitive{ .u64 = imm });
     }
 
     inline bool NewObj(Context ctx, IReg d, uint16_t imm) {
