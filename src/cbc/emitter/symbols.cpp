@@ -82,7 +82,8 @@ Interpretation::LiteralTable *LiteralTableBuilder::BuildTable(std::pmr::memory_r
 
     auto litTable = (Interpretation::LiteralTable*) heap.allocate(sizeof(Interpretation::LiteralTable) + size);
     litTable->_byteSize = size;
-    std::memcpy(litTable->_table, &table[0], size);
+
+    std::copy(table.begin(), table.end(), litTable->_table);
     return litTable;
 }
 
