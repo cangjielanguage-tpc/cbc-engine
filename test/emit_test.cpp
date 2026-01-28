@@ -3,8 +3,8 @@
 #define UNIT_TEST_MODE 1
 
 #include "cbc/emitter/emitter.h"
-#include "interpreter/interpreter.h"
 
+#include "mock/interpreter.h"
 #include "testutils.h"
 
 static LimitedHeap<16384> heap;
@@ -22,39 +22,9 @@ class EmitTest : public testing::Test {
 namespace Cbc {
 namespace Emitter {
 
+struct Test;
+
 using namespace Cbc::Format;
-// Stub entry-point
-template <typename Handler = Interpretation::Interpreter>
-void Entry(Handler handler, Interpretation::Interpreter::Context ctx, Decoder::ByteReader stream) {
-    using namespace Decoder;
-    NEXT;
-}
-
-Interpretation::Value::Primitive U32(uint32_t v) {
-    return Interpretation::Value::Primitive{.u32 = v};
-}
-
-static Interpretation::Value::Primitive Interpret(
-        Code code, Interpretation::Value::Primitive ir1,
-        Interpretation::Value::Primitive ir2)
-{
-    Interpretation::Ectype ectype{};
-    Interpretation::Interpreter interp {
-        .ectype = &ectype,
-        .frame = nullptr,
-    };
-    Interpretation::Interpreter::Context ctx {
-        .handle = nullptr,
-        .literals = code.literals,
-    };
-    Decoder::ByteReader s(code.bytecode, code.bytecode, code.bytecode + code.bytecodeSize);
-    ectype.Put(IReg::IR1, ir1);
-    ectype.Put(IReg::IR2, ir2);
-
-    Entry(interp, ctx, s);
-
-    return ectype.GetPrimitive(IReg::IR1);
-}
 
 TEST(EmitTest, Simple_ArithB2rr) {
     Emitter e;

@@ -11,6 +11,7 @@
 #include "cbc/isa.h"
 #include "cbc/emitter/symbols.h"
 #include "cbc/emitter/segment.h"
+#include "interpreter/code.h"
 
 namespace Cbc {
 namespace Emitter {
@@ -21,12 +22,6 @@ class Symbols;
 struct EmitterSnapshot {
     SegmentSnapshot segmentSnapshot;
     size_t fixupCount;
-};
-
-struct Code {
-    size_t bytecodeSize;
-    uint8_t* bytecode;
-    Interpretation::LiteralTable *literals;
 };
 
 class Emitter {
@@ -47,7 +42,7 @@ public:
     ///
     /// This procedure resolves all existring fixups and
     /// creates literal table (unused symbols or fixups will be discarded).
-    Code Build(std::pmr::memory_resource& heap);
+    Interpretation::Code Build(std::pmr::memory_resource& heap);
 
     EmitterSnapshot Snapshot();
     void Apply(EmitterSnapshot snapshot);

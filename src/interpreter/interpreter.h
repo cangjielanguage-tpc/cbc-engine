@@ -6,23 +6,26 @@
 #include "ectype.h"
 #include "frame.h"
 #include "literals.h"
+#include "runtime.h"
+
 #include "internal/operations.h"
 
 namespace Interpretation {
-
-// TODO: use real thread handle
-using ThreadHandle = void*;
 
 struct InterpreterContext {
     ThreadHandle handle;
     LiteralTable *literals;
 };
 
-struct Interpreter {
-    using Context = InterpreterContext;
+template <typename RT>
+class Interpreter {
     using IReg = Cbc::IReg;
-    Ectype* ectype;
-    Frame* frame;
+
+public:
+    using Context = InterpreterContext;
+
+    Interpreter(Ectype* _ectype, Frame* _frame)
+        : ectype(_ectype), frame(_frame) {}
 
     inline void StorePos(uint8_t *c) { /* no-op */ }
 
@@ -37,7 +40,9 @@ struct Interpreter {
     }
 
     inline bool NewObj(Context ctx, IReg d, uint16_t imm) {
-        ectype->Put(d, Value::Reference{0});
+        TypeInfo<RT> type = ctx.literals->at(imm).uintptr;
+        auto obj = RuntimeInterface<RT>::NewObj(type, ctx.handle);
+        ectype->Put(d, Value::Reference{obj});
         return true;
     }
 
@@ -67,6 +72,9 @@ struct Interpreter {
     }
 
     inline void ExtRet(Context ctx) { }
+private:
+    Ectype* ectype;
+    Frame* frame;
 };
 
 } // namespace Interpretation

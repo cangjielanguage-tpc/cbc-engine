@@ -44,7 +44,7 @@ void Emitter::AddFixup(std::unique_ptr<Fixup> fixup) {
     }
 }
 
-Code Emitter::Build(std::pmr::memory_resource& heap) {
+Interpretation::Code Emitter::Build(std::pmr::memory_resource& heap) {
     auto segment = std::exchange(this->segment, {});
     auto fixups = std::exchange(this->fixups, {});
 
@@ -66,7 +66,7 @@ Code Emitter::Build(std::pmr::memory_resource& heap) {
     auto bytecodeSize = segmentCode.size();
     std::memcpy(bytecode, &segmentCode[0], bytecodeSize);
 
-    return Code {
+    return Interpretation::Code {
         .bytecodeSize = bytecodeSize,
         .bytecode = bytecode,
         .literals = litBuilder.BuildTable(heap),

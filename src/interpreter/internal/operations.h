@@ -7,7 +7,6 @@
 namespace Interpretation {
 
 using namespace Cbc::Format;
-using ThreadHandle = void*;
 
 struct ArithmeticResult {
     Value::Primitive result;
