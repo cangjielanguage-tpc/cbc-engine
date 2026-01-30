@@ -73,16 +73,16 @@ public:
 
     static constexpr int BIT_COUNT = 3;
 
-    constexpr TypeKind(const Value raw) : _value(raw) {}
+    constexpr TypeKind(const Value value) : value(value) {}
 
     constexpr operator Value() const
     {
-        return  _value;
+        return value;
     }
 
     constexpr std::string_view const ToString()
     {
-        switch (_value) {
+        switch (value) {
             case INVALID:   return "INVALID";
             case CLASS:     return "CLASS";
             case ARRAY:     return "ARRAY";
@@ -94,7 +94,7 @@ public:
     }
 
 private:
-    Value _value;
+    Value value;
 };
 
 
@@ -111,16 +111,16 @@ public:
         FINAL, ABSTRACT, SEALED
     };
 
-    constexpr TypeFlag(const Value raw) : _value(raw) {}
+    constexpr TypeFlag(const Value value) : value(value) {}
 
     constexpr operator Value() const
     {
-        return  _value;
+        return  value;
     }
 
     constexpr std::string_view const ToString()
     {
-        switch (_value) {
+        switch (value) {
             case FINAL:    return "FINAL";
             case ABSTRACT: return "ABSTRACT";
             case SEALED:   return "SEALED";
@@ -130,7 +130,7 @@ public:
     }
 
 private:
-    Value _value;
+    Value value;
 };
 
 

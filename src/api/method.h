@@ -79,16 +79,16 @@ public:
         HAS_RET_BY_VAL_PARAM, HAS_C_FUNC_RET_BY_VAL_PARAM, HAS_RECEIVER
     };
 
-    constexpr MethodFlag(const Value raw) : _value(raw) {}
+    constexpr MethodFlag(const Value value) : value(value) {}
 
     constexpr operator Value() const
     {
-        return  _value;
+        return  value;
     }
 
     constexpr std::string_view const ToString()
     {
-        switch (_value) {
+        switch (value) {
             case FINAL: return "FINAL";
             case OPEN: return "OPEN";
             case STATIC: return "STATIC";
@@ -111,7 +111,7 @@ public:
     }
 
 private:
-    Value _value;
+    Value value;
 };
 
 

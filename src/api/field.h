@@ -132,16 +132,16 @@ public:
         FINAL, STATIC, VOLATILE
     };
 
-    constexpr FieldFlag(const Value raw) : _value(raw) {}
+    constexpr FieldFlag(const Value value) : value(value) {}
 
     constexpr operator Value() const
     {
-        return  _value;
+        return  value;
     }
 
     constexpr std::string_view const ToString()
     {
-        switch (_value) {
+        switch (value) {
             case FINAL:    return "FINAL";
             case STATIC:   return "STATIC";
             case VOLATILE: return "VOLATILE";
@@ -151,7 +151,7 @@ public:
     }
 
 private:
-    Value _value;
+    Value value;
 };
 
 

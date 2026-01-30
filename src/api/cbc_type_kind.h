@@ -37,21 +37,21 @@ public:
     static_assert(INVALID == 0);
 
 
-    constexpr CbcTypeKind(const Value raw) : _value(raw) {}
+    constexpr CbcTypeKind(const Value value) : value(value) {}
 
     inline constexpr bool IsFloatingPoint() const
     {
-        return _value == F32 || _value == F64;
+        return value == F32 || value == F64;
     }
 
     inline constexpr bool IsNullableReference() const
     {
-        return _value == REF;
+        return value == REF;
     }
 
     inline constexpr bool IsNonNullableReference() const
     {
-        return _value == NNREF;
+        return value == NNREF;
     }
 
     inline constexpr bool IsReference() const
@@ -61,17 +61,17 @@ public:
 
     inline constexpr bool IsVArray() const
     {
-        return _value == VA;
+        return value == VA;
     }
 
     inline constexpr bool IsRecord() const
     {
-        return _value == REC || IsVArray();
+        return value == REC || IsVArray();
     }
 
     constexpr bool IsPrimitive() const
     {
-        switch (_value) {
+        switch (value) {
             case VOID:
             case U1:
             case I8:
@@ -97,13 +97,13 @@ public:
 
     bool IsSigned() const
     {
-        switch (_value) {
+        switch (value) {
             case I8: case I16: case I32: case I64: case IN: return true;
             case U8: case U16: case U32: case U64: case UN: return false;
 
             default: {
                 std::stringstream msg;
-                msg <<  "Should not reach here: unexpected type kind " << _value;
+                msg <<  "Should not reach here: unexpected type kind " << value;
                 throw std::runtime_error(msg.str());
             }
         }
@@ -111,7 +111,7 @@ public:
 
     int PrimSizeInBytes() const
     {
-        switch (_value) {
+        switch (value) {
             case VOID: {
                 return 0;
             }
@@ -145,7 +145,7 @@ public:
 
             default: {
                 std::stringstream msg;
-                msg <<  "Should not reach here: unexpected type kind " << _value;
+                msg <<  "Should not reach here: unexpected type kind " << value;
                 throw std::runtime_error(msg.str());
             }
 
@@ -154,12 +154,12 @@ public:
 
     inline constexpr operator Value() const
     {
-        return  _value;
+        return  value;
     }
 
     std::string_view ToString() const
     {
-        switch (_value) {
+        switch (value) {
             case INVALID: return "invalid";
             case VOID:    return "void";
             case U1:      return "i1";
@@ -185,7 +185,7 @@ public:
 
             default: {
                 std::stringstream msg;
-                msg <<  "Should not reach here: unexpected type kind " << _value;
+                msg <<  "Should not reach here: unexpected type kind " << value;
                 throw std::runtime_error(msg.str());
             }
         }
@@ -195,7 +195,7 @@ private:
 
    static constexpr Value LAST = TTI;
 
-   Value _value;
+   Value value;
 
 };
 
