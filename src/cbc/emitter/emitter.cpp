@@ -2,6 +2,7 @@
 #include <cstring>
 
 #include "emitter.h"
+#include "cbc/isa_rt.h"
 
 namespace Cbc {
 namespace Emitter {
@@ -50,10 +51,9 @@ Interpretation::Code Emitter::Build(std::pmr::memory_resource& heap) {
 
     LiteralTableBuilder litBuilder(std::exchange(this->symbols, {}));
 
-    auto relocationConverter = [&litBuilder, &segment](size_t position, Symbol sym) {
+    auto relocationConverter = [&litBuilder, &segment](Symbol sym) {
         ASSERTION(sym.kind != SymbolKind::LABEL, "Labels should be processed as part of fixup resolution");
-        uint16_t value = litBuilder.UseSymbol(sym);
-        segment.SetW16(position, value);
+        return litBuilder.UseSymbol(sym);
     };
 
     for (auto &fixup : fixups) {
@@ -71,6 +71,49 @@ Interpretation::Code Emitter::Build(std::pmr::memory_resource& heap) {
         .bytecode = bytecode,
         .literals = litBuilder.BuildTable(heap),
     };
+}
+
+// region encoding
+
+void Encode(Segment& segment, RT::Opcode opc) {
+    segment.AddW8(opc);
+}
+
+void Encode(Segment& segment, RT::RR rr) {
+    segment.AddW8(static_cast<uint32_t>(rr.x | (rr.y << 4)));
+}
+
+void Encode(Segment& segment, RT::XR xr) {
+    segment.AddW8(static_cast<uint32_t>(xr.imm | (xr.r << 4)));
+}
+
+void Encode(Segment& segment, RT::Imm16 i16) {
+    segment.AddW16(i16.imm);
+}
+
+void Encode(Segment& segment, RT::XImm12 xi12) {
+    segment.AddW16(static_cast<uint16_t>(xi12.imm4 | (xi12.imm12 << 4)));
+}
+
+void Encode(Segment& segment, RT::B1 command) {
+    Encode(segment, command.opc);
+}
+
+void Encode(Segment& segment, RT::B2rr command) {
+    Encode(segment, command.opc);
+    Encode(segment, command.rr);
+}
+
+void Encode(Segment& segment, RT::B3xrrr command) {
+    Encode(segment, command.opc);
+    Encode(segment, command.xr);
+    Encode(segment, command.rr);
+}
+
+void Encode(Segment& segment, RT::B4xi12rr command) {
+    Encode(segment, command.opc);
+    Encode(segment, command.xi12);
+    Encode(segment, command.rr);
 }
 
 // region isa12
@@ -109,33 +152,29 @@ ImmKind ImmKindOf(int32_t value) {
     return IsNBitsSigned(value, 16) ? ImmKind::VALUE : ImmKind::LITERAL;
 }
 
-Emitter::B3xrr_parts Emitter::PrepareBitsForB3Formats(Common op, Width width) {
-    return PrepareBitsForB3Formats(op, width.Common());
-}
-
-Emitter::B3xrr_parts Emitter::PrepareBitsForB3Formats(Common op, Bits b1) {
-    auto page = Bits(op >> 3);
-    return B3xrr_parts {
-        .low3BitsOfFormatByte = Bits(OP7A::COMMON).In(2).Shift(1) | page.In(1),
-        .low4BitsOfSecondByte = (Bits(op) & 0x7).Shift(1) | b1.In(1),
-    };
-}
-
 // region fixups
 
-class LiteralFixup : public Fixup {
+class Literal12Fixup : public Fixup {
 public:
-    LiteralFixup(Symbol _sym)
-        : Fixup(_sym) {}
+    Literal12Fixup(RT::Imm4 _i4, Symbol _sym)
+        : Fixup(_sym), i4(_i4) {}
 
     int32_t Size() const override {
         return 2;
     }
 
     void Resolve(Segment& segment, Symbols& symbols,
-            std::function<void(size_t, Symbol)> const& relocationConverter) const override {
-        relocationConverter((size_t) position, symbol);
+            std::function<uint16_t(Symbol)> const& relocationConverter) const override {
+        assert(position >= 0);
+        RT::XImm12 value {
+            .imm4 = i4,
+            .imm12 = relocationConverter(symbol),
+        };
+        segment.SetW16(static_cast<size_t>(position), relocationConverter(symbol));
     }
+
+private:
+    RT::Imm4 i4;
 };
 
 class BccFixup : public Fixup {
@@ -149,24 +188,34 @@ public:
         return Format::ExtBrr::INSTRUCTION_SIZE;
     }
 
-    void Resolve(Segment& segment, Symbols& symbols,
-            std::function<void(size_t, Symbol)> const& relocationConverter) const override {
-        int32_t distance = Distance(symbols, this->symbol);
-        auto immKind = ImmKindOf(distance);
-
-        // TODO: Remove B2rrd8 formats in main byte-size opcode space.
-        //       Use freed locations for these runtime-specific instructions
-        //       to avoid double-dispatch.
-        auto opcode = Format::ExtBrr::Fmt(immKind, width, cc);
-        auto pos = (size_t) position;
-        segment.SetW8(pos + 0, opcode.Raw());
-        segment.SetW8(pos + 1, Pack8(left, right).Raw());
-        if (immKind == ImmKind::LITERAL) {
-            relocationConverter(pos + 2, symbols.Value(distance));
-        } else {
-            uint16_t offsetValue = (uint16_t) distance;
-            segment.SetW16(pos + 2, offsetValue);
+    static RT::Opcode opcode(bool isImm, Format::Width width) {
+        switch (width) {
+            case Format::Width::W32: return isImm ? RT::Opcode::BCC32I : RT::Opcode::BCC32L;
+            case Format::Width::W64: return isImm ? RT::Opcode::BCC64I : RT::Opcode::BCC64L;
+            default: assert(false); return RT::Opcode::BCC32I;
         }
+    }
+
+    void Resolve(Segment& segment, Symbols& symbols,
+            std::function<uint16_t(Symbol)> const& relocationConverter) const override {
+        int32_t distance = Distance(symbols, this->symbol);
+
+        bool isImm = IsNBitsSigned(distance, 12);
+        uint16_t immediate = isImm
+            ? static_cast<uint16_t>(distance)
+            : relocationConverter(symbols.Value(distance));
+
+        Encode(segment, RT::B4xi12rr {
+            .opc = opcode(isImm, width),
+            .xi12 = {
+                .imm4 = cc,
+                .imm12 = immediate,
+            },
+            .rr = {
+                .x = left,
+                .y = right
+            },
+        });
     }
 
 private:
@@ -178,53 +227,53 @@ private:
 
 // region instructions
 
-void Emitter::Add (Width width, IReg d, IReg l, IReg r) { GenCommon(Common::ADD,  width, d, l, r); }
-void Emitter::Sub (Width width, IReg d, IReg l, IReg r) { GenCommon(Common::SUB,  width, d, l, r); }
-void Emitter::Mul (Width width, IReg d, IReg l, IReg r) { GenCommon(Common::MUL,  width, d, l, r); }
-void Emitter::And (Width width, IReg d, IReg l, IReg r) { GenCommon(Common::AND,  width, d, l, r); }
-void Emitter::Or  (Width width, IReg d, IReg l, IReg r) { GenCommon(Common::OR,   width, d, l, r); }
-void Emitter::Xor (Width width, IReg d, IReg l, IReg r) { GenCommon(Common::XOR,  width, d, l, r); }
-void Emitter::Div (Width width, IReg d, IReg l, IReg r) { GenCommon(Common::SDIV, width, d, l, r, true); }
-void Emitter::Rem (Width width, IReg d, IReg l, IReg r) { GenCommon(Common::SREM, width, d, l, r, true); }
-void Emitter::UDiv(Width width, IReg d, IReg l, IReg r) { GenCommon(Common::UDIV, width, d, l, r); }
-void Emitter::URem(Width width, IReg d, IReg l, IReg r) { GenCommon(Common::UREM, width, d, l, r); }
-void Emitter::Lsl (Width width, IReg d, IReg l, IReg r) { GenCommon(Common::LSL,  width, d, l, r); }
-void Emitter::Lsr (Width width, IReg d, IReg l, IReg r) { GenCommon(Common::LSR,  width, d, l, r); }
-void Emitter::Asr (Width width, IReg d, IReg l, IReg r) { GenCommon(Common::ASR,  width, d, l, r); }
+void Emitter::Binary(Format::Common op, Format::Width width, IReg d, IReg l, IReg r) {
+    assert(width == Format::Width::W32 || width == Format::Width::W64);
+    auto opcode = width == Format::Width::W32
+        ? RT::Opcode::BIN32
+        : RT::Opcode::BIN64;
 
-void Emitter::GenCommon(Common common, Width width, IReg d, IReg l, IReg r, bool prohibitB2r) {
-    if (d == l) {
-        GenB2rr(d, r, common, width);
-    } else {
-        GenB3xrrr(d, l, r, PrepareBitsForB3Formats(common, width));
-    }
+    Encode(segment, RT::B3xrrr {
+        .opc = opcode,
+        .xr = RT::XR {
+            .imm = RT::Imm4(op),
+            .r = d,
+        },
+        .rr = {
+            .x = l,
+            .y = r
+        },
+    });
 }
 
-void Emitter::GenB2rr(IReg d, IReg r, Common common, Width width) {
-    segment.AddW8(Format::B2rr::Fmt(common, width).Raw());
-    segment.AddW8(Pack8(d, r).Raw());
-}
-
-void Emitter::GenB3xrrr(IReg d, IReg l, IReg r, B3xrr_parts parts) {
-    segment.AddW8(Format::B3xrrr::Fmt(parts.low3BitsOfFormatByte).Raw());
-    segment.AddW8(Pack8(parts.low4BitsOfSecondByte, d).Raw());
-    segment.AddW8(Pack8(l, r).Raw());
-}
+void Emitter::Add (Width width, IReg d, IReg l, IReg r) { Binary(Common::ADD,  width, d, l, r); }
+void Emitter::Sub (Width width, IReg d, IReg l, IReg r) { Binary(Common::SUB,  width, d, l, r); }
+void Emitter::Mul (Width width, IReg d, IReg l, IReg r) { Binary(Common::MUL,  width, d, l, r); }
+void Emitter::And (Width width, IReg d, IReg l, IReg r) { Binary(Common::AND,  width, d, l, r); }
+void Emitter::Or  (Width width, IReg d, IReg l, IReg r) { Binary(Common::OR,   width, d, l, r); }
+void Emitter::Xor (Width width, IReg d, IReg l, IReg r) { Binary(Common::XOR,  width, d, l, r); }
+void Emitter::Div (Width width, IReg d, IReg l, IReg r) { Binary(Common::SDIV, width, d, l, r); }
+void Emitter::Rem (Width width, IReg d, IReg l, IReg r) { Binary(Common::SREM, width, d, l, r); }
+void Emitter::UDiv(Width width, IReg d, IReg l, IReg r) { Binary(Common::UDIV, width, d, l, r); }
+void Emitter::URem(Width width, IReg d, IReg l, IReg r) { Binary(Common::UREM, width, d, l, r); }
+void Emitter::Lsl (Width width, IReg d, IReg l, IReg r) { Binary(Common::LSL,  width, d, l, r); }
+void Emitter::Lsr (Width width, IReg d, IReg l, IReg r) { Binary(Common::LSR,  width, d, l, r); }
+void Emitter::Asr (Width width, IReg d, IReg l, IReg r) { Binary(Common::ASR,  width, d, l, r); }
 
 void Emitter::Bcc(CC cc, Width width, IReg l, IReg r, Label label) {
     ASSERT(width == Width::W32 || width == Width::W64);
     AddFixup(std::make_unique<BccFixup>(label, cc, width, l, r));
 }
 
-void Emitter::Ret () {
-    segment.AddW8(Format::ExtRet::Fmt().Raw());
+void Emitter::Ret() {
+    Encode(segment, RT::B1{RT::Opcode::RET});
 }
 
 
 void Emitter::NewObj(IReg d, Symbol sym) {
-    segment.AddW8(Format::B2xrI::Opc1011::OPCODE.Raw());
-    segment.AddW8(Pack8(Bits(Format::B2xrI::Opc1011::NEWOBJ), d).Raw());
-    AddFixup(std::make_unique<LiteralFixup>(sym));
+    segment.AddW8(RT::Opcode::NEWOBJ);
+    RT::Imm4 i4(d);
+    AddFixup(std::make_unique<Literal12Fixup>(i4, sym));
 }
 
 // endregion isa12

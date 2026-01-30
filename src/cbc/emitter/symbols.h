@@ -105,7 +105,7 @@ public:
     int32_t Distance(Symbols const& symbols, Label label) const;
 
     virtual int32_t Size() const = 0;
-    virtual void Resolve(Segment &segment, Symbols& symbols, std::function<void(size_t, Symbol)> const& relocationConverter) const = 0;
+    virtual void Resolve(Segment &segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter) const = 0;
 
 protected:
     friend class Emitter;

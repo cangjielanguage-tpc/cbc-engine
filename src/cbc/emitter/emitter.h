@@ -70,17 +70,8 @@ public:
     void NewObj(IReg d, Symbol sym);
 
 private:
-    struct B3xrr_parts {
-        Bits low3BitsOfFormatByte;
-        Bits low4BitsOfSecondByte;
-    };
-
-    static B3xrr_parts PrepareBitsForB3Formats(Common op, Bits b1);
-    static B3xrr_parts PrepareBitsForB3Formats(Common op, Width width);
-    void GenCommon(Common common, Width width, IReg d, IReg l, IReg r, bool prohibitB2r = false);
-    void GenB2rr(IReg d, IReg r, Common common, Width width);
-    void GenB3xrrr(IReg d, IReg l, IReg r, B3xrr_parts parts);
     void AddFixup(std::unique_ptr<Fixup> fixup);
+    void Binary(Format::Common op, Format::Width width, IReg d, IReg l, IReg r);
 
     Symbols symbols;
     Segment segment;
