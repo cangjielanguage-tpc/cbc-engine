@@ -47,8 +47,6 @@ private:
     Value _value;
 };
 
-namespace Encoding {
-
 /// 4 bit; register
 class Reg {
 public:
@@ -63,11 +61,11 @@ public:
     }
 
     inline IReg IR() const {
-        return IReg(*this);
+        return IReg::From(*this);
     }
 
     inline FReg FR() const {
-        return FReg(*this);
+        return FReg::From(*this);
     }
 
 private:
@@ -91,19 +89,50 @@ struct RR {
 /// 4 bit; immediate or enumerations
 class Imm4 {
 public:
-    inline Imm4(uint8_t imm) : _imm(imm) {} // TODO: checks
-    inline Imm4() : _imm(0) {}
+    inline Imm4(uint8_t _imm) : imm(_imm) {} // TODO: checks
+    inline Imm4() : imm(0) {}
+
+    constexpr Imm4(Format::CC cc)
+        : imm(static_cast<uint8_t>(cc)) {}
+
+    constexpr Imm4(Format::Common common)
+        : imm(static_cast<uint8_t>(common)) {}
 
     inline operator uint8_t() const {
-        return static_cast<uint8_t>(_imm);
+        return imm;
     }
 
     inline Format::CC CC() const {
-        return Format::CC(*this);
+        return Format::CC(imm);
+    }
+
+    inline Format::Common Common() const {
+        return Format::Common(imm);
+    }
+
+    inline IReg IR() const {
+        return IReg::From(imm);
     }
 
 private:
-    uint8_t _imm;
+    uint8_t imm;
+};
+
+/// 12 bit; immediate or literal
+class Imm12 {
+public:
+    inline Imm12(uint16_t _imm) : imm(_imm) {
+        assert((_imm & 0xfff) == _imm);
+    }
+
+    inline Imm12() : imm(0) {}
+
+    inline operator uint16_t() const {
+        return imm;
+    }
+
+private:
+    uint16_t imm;
 };
 
 /// 8 bit; Imm4 and register
@@ -132,22 +161,16 @@ struct Imm16 {
 /// 16 bit; Imm4 and 12-bit immediate
 struct XImm12 {
     Imm4 imm4;
-    Imm16 imm12;
+    Imm12 imm12;
 
     inline static XImm12 Decode(Decoder::ByteReader& reader) {
         uint16_t b2 = reader.Read16();
         return XImm12{
             .imm4 = b2 & 0xf,
-            .imm12 = Imm16{static_cast<uint16_t>(b2 >> 4)},
+            .imm12 = Imm12{static_cast<uint16_t>(b2 >> 4)},
         };
     }
 };
-
-} // namespace Encoding
-
-namespace Commands {
-
-using namespace Encoding;
 
 struct B1 {
     Opcode opc;
@@ -182,6 +205,17 @@ struct B3xrrr {
     }
 };
 
+struct B3xi12 {
+    Opcode opc;
+    XImm12 xi12;
+
+    static B3xi12 Decode(Decoder::ByteReader& reader) {
+        auto opc = Opcode::Decode(reader);
+        auto xi12 = XImm12::Decode(reader);
+        return B3xi12{opc, xi12};
+    }
+};
+
 struct B4xi12rr {
     Opcode opc;
     XImm12 xi12;
@@ -208,7 +242,6 @@ struct B4xi12xr {
     }
 };
 
-} // namespace Commands
 } // namespace RT
 } // namespace Cbc
 
