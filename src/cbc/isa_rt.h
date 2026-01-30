@@ -1,0 +1,215 @@
+#ifndef CBC_ISA_RT_H
+#define CBC_ISA_RT_H
+
+#include "isa.h"
+#include "decoder.h"
+
+namespace Cbc {
+namespace RT {
+
+class Opcode {
+public:
+    enum Value : uint32_t {
+        HALT, // B1 TODO merge rare commands
+        RET,  // B1 TODO merge rare commands
+        MOV,  // B2rr
+        MOVR, // B2rr
+        BCC32I, // B4xi12rr
+        BCC64I, // B4xi12rr
+        BCC32L, // B4xi12rr
+        BCC64L, // B4xi12rr
+        BCCI, // B4xi12xr
+
+        BIN32, // B3xrrr
+        BIN64, // B3xrrr
+        BINI32I, // B3xi12rr
+        BINI64I, // B3xi12rr
+        BINI32L, // B3xi12rr
+        BINI64L, // B3xi12rr
+
+        NEWOBJ, // B3xri16,
+
+        OPCODE_NUM,
+    };
+    static_assert(OPCODE_NUM <= 256);
+
+    inline constexpr Opcode(const Value value) : _value(value) {}
+    inline constexpr Opcode(const uint32_t raw) : _value(static_cast<Value>(raw)) {}
+    inline constexpr Opcode() : _value(HALT) {}
+    inline constexpr operator Value() const { return _value; }
+
+    inline static Opcode Decode(Decoder::ByteReader& reader) {
+        uint8_t b = reader.Read8();
+        return Opcode(b);
+    }
+
+private:
+    Value _value;
+};
+
+namespace Encoding {
+
+/// 4 bit; register
+class Reg {
+public:
+    constexpr Reg(IReg r) : _value(r) {}
+    constexpr Reg(FReg r) : _value(r) {}
+    constexpr Reg(uint8_t value) : _value(value) {
+        assert((_value & 0xff) == _value);
+    }
+
+    inline operator uint8_t() const {
+        return static_cast<uint8_t>(_value);
+    }
+
+    inline IReg IR() const {
+        return IReg(*this);
+    }
+
+    inline FReg FR() const {
+        return FReg(*this);
+    }
+
+private:
+    uint32_t _value;
+};
+
+/// 8 bit; two registers
+struct RR {
+    Reg x;
+    Reg y;
+
+    inline static RR Decode(Decoder::ByteReader& reader) {
+        uint8_t b = reader.Read8();
+        return RR {
+            .x = b & 0xf,
+            .y = b >> 4,
+        };
+    }
+};
+
+/// 4 bit; immediate or enumerations
+class Imm4 {
+public:
+    inline Imm4(uint8_t imm) : _imm(imm) {} // TODO: checks
+    inline Imm4() : _imm(0) {}
+
+    inline operator uint8_t() const {
+        return static_cast<uint8_t>(_imm);
+    }
+
+    inline Format::CC CC() const {
+        return Format::CC(*this);
+    }
+
+private:
+    uint8_t _imm;
+};
+
+/// 8 bit; Imm4 and register
+struct XR {
+    Imm4 imm;
+    Reg r;
+
+    inline static XR Decode(Decoder::ByteReader& reader) {
+        uint8_t b = reader.Read8();
+        return XR {
+            .imm = b & 0xf,
+            .r = b >> 4,
+        };
+    }
+};
+
+/// 16 bit; immediate or literal
+struct Imm16 {
+    uint16_t imm;
+
+    inline static Imm16 Decode(Decoder::ByteReader& reader) {
+        return Imm16{reader.Read16()};
+    }
+};
+
+/// 16 bit; Imm4 and 12-bit immediate
+struct XImm12 {
+    Imm4 imm4;
+    Imm16 imm12;
+
+    inline static XImm12 Decode(Decoder::ByteReader& reader) {
+        uint16_t b2 = reader.Read16();
+        return XImm12{
+            .imm4 = b2 & 0xf,
+            .imm12 = Imm16{static_cast<uint16_t>(b2 >> 4)},
+        };
+    }
+};
+
+} // namespace Encoding
+
+namespace Commands {
+
+using namespace Encoding;
+
+struct B1 {
+    Opcode opc;
+
+    static B1 Decode(Decoder::ByteReader& reader) {
+        return B1{Opcode::Decode(reader)};
+    }
+};
+
+struct B2rr {
+    Opcode opc;
+    RR rr;
+
+    inline static B2rr Decode(Decoder::ByteReader& reader) {
+        auto opc = Opcode::Decode(reader);
+        auto rr = RR::Decode(reader);
+        return B2rr{opc, rr};
+    }
+};
+
+
+struct B3xrrr {
+    Opcode opc;
+    XR xr;
+    RR rr;
+
+    static B3xrrr Decode(Decoder::ByteReader& reader) {
+        auto opc = Opcode::Decode(reader);
+        auto xr = XR::Decode(reader);
+        auto rr = RR::Decode(reader);
+        return B3xrrr{opc, xr, rr};
+    }
+};
+
+struct B4xi12rr {
+    Opcode opc;
+    XImm12 xi12;
+    RR rr;
+
+    static B4xi12rr Decode(Decoder::ByteReader& reader) {
+        auto opc = Opcode::Decode(reader);
+        auto xi12 = XImm12::Decode(reader);
+        auto rr = RR::Decode(reader);
+        return B4xi12rr{opc, xi12, rr};
+    }
+};
+
+struct B4xi12xr {
+    Opcode opc;
+    XImm12 xi12;
+    XR xr;
+
+    static B4xi12xr Decode(Decoder::ByteReader& reader) {
+        auto opc = Opcode::Decode(reader);
+        auto xi12 = XImm12::Decode(reader);
+        auto xr = XR::Decode(reader);
+        return B4xi12xr{opc, xi12, xr};
+    }
+};
+
+} // namespace Commands
+} // namespace RT
+} // namespace Cbc
+
+#endif // CBC_ISA_RT_H

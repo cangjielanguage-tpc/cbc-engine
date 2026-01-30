@@ -45,6 +45,7 @@ public:
 
     constexpr FReg(const Value raw) : _value(raw) {}
     constexpr operator Value() const { return _value; }
+    constexpr FReg(const uint32_t raw) : _value((Value) raw) {}
 
 private:
     Value _value;

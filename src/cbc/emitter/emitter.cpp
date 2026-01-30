@@ -2,6 +2,7 @@
 #include <cstring>
 
 #include "emitter.h"
+#include "cbc/isa_rt.h"
 
 namespace Cbc {
 namespace Emitter {
@@ -71,6 +72,49 @@ Interpretation::Code Emitter::Build(std::pmr::memory_resource& heap) {
         .bytecode = bytecode,
         .literals = litBuilder.BuildTable(heap),
     };
+}
+
+// region encoding
+
+void Encode(Segment& segment, RT::Opcode opc) {
+    segment.AddW8(opc);
+}
+
+void Encode(Segment& segment, RT::Encoding::RR rr) {
+    segment.AddW8(static_cast<uint32_t>(rr.x | (rr.y << 4)));
+}
+
+void Encode(Segment& segment, RT::Encoding::XR xr) {
+    segment.AddW8(static_cast<uint32_t>(xr.imm | (xr.r << 4)));
+}
+
+void Encode(Segment& segment, RT::Encoding::Imm16 i16) {
+    segment.AddW16(i16.imm);
+}
+
+void Encode(Segment& segment, RT::Encoding::XImm12 xi12) {
+    segment.AddW16(static_cast<uint16_t>(xi12.imm4 | (xi12.imm12.imm << 4)));
+}
+
+void Encode(Segment& segment, RT::Commands::B1 command) {
+    Encode(segment, command.opc);
+}
+
+void Encode(Segment& segment, RT::Commands::B2rr command) {
+    Encode(segment, command.opc);
+    Encode(segment, command.rr);
+}
+
+void Encode(Segment& segment, RT::Commands::B3xrrr command) {
+    Encode(segment, command.opc);
+    Encode(segment, command.xr);
+    Encode(segment, command.rr);
+}
+
+void Encode(Segment& segment, RT::Commands::B4xi12rr command) {
+    Encode(segment, command.opc);
+    Encode(segment, command.xi12);
+    Encode(segment, command.rr);
 }
 
 // region isa12
