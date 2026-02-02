@@ -281,6 +281,58 @@ private:
     Value _value;
 };
 
+class StoreAccessKind {
+public:
+    enum Value : uint8_t {
+        ST_8    = 0b0000,
+        ST_16   = 0b0001,
+        ST_32   = 0b0010,
+        ST_64   = 0b0011,
+        ST_REF  = 0b0100,
+        SPECIAL = 0b0101,
+        ST_F32  = 0b0110,
+        ST_F64  = 0b0111,
+    };
+
+    constexpr StoreAccessKind(const uint8_t raw) : _value((Value) raw) {}
+    constexpr StoreAccessKind(const Value raw) : _value(raw) {}
+    constexpr operator Value() const { return _value; }
+    constexpr Bits ToBits() const { return _value; }
+
+private:
+    Value _value;
+};
+
+class LoadAccessKind {
+public:
+    enum Value : uint8_t {
+        LD_U8      = 0b0000,
+        LD_U16     = 0b0001,
+        LD_32      = 0b0010,
+        SPECIAL    = 0b0011,
+        LD_S8      = 0b0100,
+        LD_S16     = 0b0101,
+        LD_F32     = 0b0110,
+        LD_F64     = 0b0111,
+        LD_U8TO64  = 0b1000,
+        LD_U16TO64 = 0b1001,
+        LD_U32TO64 = 0b1010,
+        LD_64      = 0b1011,
+        LD_S8TO64  = 0b1100,
+        LD_S16TO64 = 0b1101,
+        LD_S32TO64 = 0b1110,
+        LD_REF     = 0b1111,
+    };
+
+    constexpr LoadAccessKind(const uint8_t raw) : _value((Value) raw) {}
+    constexpr LoadAccessKind(const Value raw) : _value(raw) {}
+    constexpr operator Value() const { return _value; }
+    constexpr Bits ToBits() const { return _value; }
+
+private:
+    Value _value;
+};
+
 constexpr Bits mask_bits(uint32_t b) {
     ASSERTION(1 <= b && b <= 32, "Shift overflow");
     return 0xffffffff >> b;
