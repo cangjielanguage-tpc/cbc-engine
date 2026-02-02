@@ -217,6 +217,8 @@ struct B3xi12 {
 };
 
 struct B4xi12rr {
+    static constexpr int SIZE = 4;
+
     Opcode opc;
     XImm12 xi12;
     RR rr;

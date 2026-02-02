@@ -91,5 +91,29 @@ std::vector<uint8_t> Segment::Finish() {
     return std::exchange(this->data, {});
 }
 
+Segment::View Segment::At(size_t pos) {
+    return View(*this, pos);
+}
+
+void Segment::View::AddW8(uint32_t value) {
+    segment.SetW8(position, value);
+    position += 1;
+}
+
+void Segment::View::AddW16(uint32_t value) {
+    segment.SetW16(position, value);
+    position += 2;
+}
+
+void Segment::View::AddW32(uint32_t value) {
+    segment.SetW32(position, value);
+    position += 4;
+}
+
+void Segment::View::AddW64(uint64_t value) {
+    segment.SetW64(position, value);
+    position += 8;
+}
+
 } // namespace Emitter
 } // namespace Cbc

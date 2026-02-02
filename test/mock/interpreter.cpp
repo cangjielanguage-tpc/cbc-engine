@@ -1,3 +1,7 @@
+#include <cstring>
+
+#include "cbc/decoder.h"
+#include "cbc/dispatcher_rt.h"
 #include "interpreter/interpreter.h"
 #include "interpreter.h"
 #include "../testutils.h"
@@ -34,26 +38,17 @@ public:
     }
 };
 
-template <typename Handler = Interpreter<Test>>
-void Entry(Handler handler, Interpreter<Test>::Context ctx, Decoder::ByteReader stream) {
-    using namespace Decoder;
-    NEXT;
-}
-
 Value::Primitive Interpret(Code code, Value::Primitive ir1, Value::Primitive ir2) {
     heap.Reset();
 
     Interpretation::Ectype ectype{};
-    Interpreter<Test> interp(&ectype, nullptr);
-    Interpreter<Test>::Context ctx {
-        .handle = nullptr,
-        .literals = code.literals,
-    };
+    Interpreter<Test> interp(&ectype, nullptr, nullptr, code.literals);
     Decoder::ByteReader s(code.bytecode, code.bytecode, code.bytecode + code.bytecodeSize);
     ectype.Put(IReg::IR1, ir1);
     ectype.Put(IReg::IR2, ir2);
 
-    Entry(interp, ctx, s);
+    Cbc::RT::InterpretationLoop(interp, s);
+    //Entry(interp, ctx, s);
 
     return ectype.GetPrimitive(IReg::IR1);
 }
