@@ -22,12 +22,14 @@ public:
 
         BIN32, // B3xrrr
         BIN64, // B3xrrr
-        BINI32I, // B3xi12rr
-        BINI64I, // B3xi12rr
-        BINI32L, // B3xi12rr
-        BINI64L, // B3xi12rr
+        BINI32I, // B4xi12rr
+        BINI64I, // B4xi12rr
+        BINI32L, // B4xi12rr
+        BINI64L, // B4xi12rr
 
-        NEWOBJ, // B3xri16,
+        NEWOBJ, // B3xi12,
+        LOAD_OBJ, // B4xi12rr
+        STORE_OBJ, // B4xi12rr
 
         OPCODE_NUM,
     };
@@ -108,6 +110,14 @@ public:
 
     inline Format::Common Common() const {
         return Format::Common(imm);
+    }
+
+    inline Format::StoreAccessKind STK() const {
+        return Format::StoreAccessKind(imm);
+    }
+
+    inline Format::LoadAccessKind LDK() const {
+        return Format::LoadAccessKind(imm);
     }
 
     inline IReg IR() const {

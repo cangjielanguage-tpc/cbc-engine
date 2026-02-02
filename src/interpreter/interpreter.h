@@ -8,10 +8,11 @@
 #include "runtime.h"
 
 #include "internal/operations.h"
+#include "cbc/isa_rt.h"
 
 namespace Interpretation {
 
-template <typename RT>
+template <typename RTI>
 class Interpreter {
     using IReg = Cbc::IReg;
 
@@ -31,9 +32,35 @@ public:
         return false;
     }
 
+    inline bool LoadObj(Format::LoadAccessKind ldk, RT::Reg dst, IReg base, uint32_t offset) {
+        auto obj = ectype->GetReference(base);
+        if (!NullCheck(obj)) {
+            return false;
+        }
+
+        assert(ldk == LoadAccessKind::LD_64);
+        auto ptr = obj.value + offset;
+        auto value = *reinterpret_cast<uint64_t*>(ptr);
+        ectype->Put(dst.IR(), Value::Primitive{.u64 = value});
+        return true;
+    }
+
+
+    inline bool StoreObj(Format::StoreAccessKind stk, RT::Reg src, IReg base, uint32_t offset) {
+        auto obj = ectype->GetReference(base);
+        if (!NullCheck(obj)) {
+            return false;
+        }
+
+        assert(stk == StoreAccessKind::ST_64);
+        auto ptr = obj.value + offset;
+        *reinterpret_cast<uint64_t*>(ptr) = ectype->GetPrimitive(src.IR()).u64;
+        return true;
+    }
+
     inline bool NewObj(IReg d, uint16_t imm) {
-        TypeInfo<RT> type = literals->at(imm).uintptr;
-        auto obj = RuntimeInterface<RT>::NewObj(type, handle);
+        TypeInfo<RTI> type = literals->at(imm).uintptr;
+        auto obj = RuntimeInterface<RTI>::NewObj(type, handle);
         ectype->Put(d, Value::Reference{obj});
         return true;
     }
@@ -47,7 +74,7 @@ public:
     }
 
     template <Width::Value width>
-    bool Cmp(CC cc, IReg l, IReg r) {
+    inline bool Cmp(CC cc, IReg l, IReg r) {
         switch (cc) {
             case CC::EQ    : return Compare<CC::EQ, width>(ectype->GetPrimitive(l), ectype->GetPrimitive(r));
             case CC::NE    : return Compare<CC::NE, width>(ectype->GetPrimitive(l), ectype->GetPrimitive(r));
@@ -69,7 +96,12 @@ public:
     }
 
     inline void ExtRet() { }
+
 private:
+    inline bool NullCheck(Value::Reference obj) {
+        return true;
+    }
+
     Ectype* ectype;
     Frame* frame;
     ThreadHandle handle;

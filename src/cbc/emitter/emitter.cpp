@@ -120,22 +120,6 @@ void Encode(ByteBuffer& buf, RT::B4xi12rr command) {
 
 using namespace Format;
 
-Bits Pack8(Bits low4, Bits high4) {
-    return high4.In(4).Shift(4) | low4.In(4);
-}
-
-Bits Pack8(IReg r1, IReg r2) {
-    return Pack8(Bits(r1), Bits(r2));
-}
-
-Bits Pack8(Bits v1, IReg r2) {
-    return Pack8(v1, Bits(r2));
-}
-
-Bits Pack8(IReg r1, Bits v2) {
-    return Pack8(Bits(r1), v2);
-}
-
 bool IsNBitsSigned(int32_t value, uint32_t bits) {
     if (bits == 32) {
         return true;
@@ -273,6 +257,36 @@ void Emitter::NewObj(IReg d, Symbol sym) {
     segment.AddW8(RT::Opcode::NEWOBJ);
     RT::Imm4 i4(d);
     AddFixup(std::make_unique<Literal12Fixup>(i4, sym));
+}
+
+void Emitter::LoadObj(Format::LoadAccessKind ldk, IReg dst, IReg base, uint32_t offset) {
+    ASSERTION((offset & 0xfff) == offset, "Offset is too big. >12bit is not supported");
+    Encode(segment, RT::B4xi12rr {
+        .opc = RT::Opcode::LOAD_OBJ,
+        .xi12 = {
+            .imm4 = RT::Imm4(ldk),
+            .imm12 = static_cast<uint16_t>(offset),
+        },
+        .rr = {
+            .x = dst,
+            .y = base,
+        }
+    });
+}
+
+void Emitter::StoreObj(Format::StoreAccessKind stk, IReg src, IReg base, uint32_t offset) {
+    ASSERTION((offset & 0xfff) == offset, "Offset is too big. >12bit is not supported");
+    Encode(segment, RT::B4xi12rr {
+        .opc = RT::Opcode::STORE_OBJ,
+        .xi12 = {
+            .imm4 = RT::Imm4(stk),
+            .imm12 = static_cast<uint16_t>(offset),
+        },
+        .rr = {
+            .x = src,
+            .y = base,
+        }
+    });
 }
 
 // endregion isa12

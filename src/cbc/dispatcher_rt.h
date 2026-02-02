@@ -14,6 +14,7 @@ using Width = Cbc::Format::Width;
 
 template <typename Handler>
 void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
+
 #define NEXT goto *MAIN_TABLE[reader.PeekOpcode()]
 #define NEXT_COND(successful) goto *MAIN_TABLE[(successful) ? reader.PeekOpcode() : 0]
 
@@ -36,6 +37,8 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
         &&BINI64L, // B3xi12rr
 
         &&NEWOBJ, // B3xri16,
+        &&LOAD_OBJ, // B4xi12rr
+        &&STORE_OBJ, // B4xi12rr
     };
 
     NEXT;
@@ -116,8 +119,19 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
         return;
     }
     NEWOBJ: {
-        ASSERTION(false, "not implemented");
-        return;
+        auto args = B3xi12::Decode(reader);
+        bool successful = handler.NewObj(args.xi12.imm4.IR(), args.xi12.imm12);
+        NEXT_COND(successful);
+    }
+    LOAD_OBJ: {
+        auto args = B4xi12rr::Decode(reader);
+        bool successful = handler.LoadObj(args.xi12.imm4.LDK(), args.rr.x, args.rr.y.IR(), args.xi12.imm12);
+        NEXT_COND(successful);
+    }
+    STORE_OBJ: {
+        auto args = B4xi12rr::Decode(reader);
+        bool successful = handler.StoreObj(args.xi12.imm4.STK(), args.rr.x, args.rr.y.IR(), args.xi12.imm12);
+        NEXT_COND(successful);
     }
 #undef NEXT
 #undef NEXT_COND
