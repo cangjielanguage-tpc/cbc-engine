@@ -75,45 +75,45 @@ Interpretation::Code Emitter::Build(std::pmr::memory_resource& heap) {
 
 // region encoding
 
-void Encode(Segment& segment, RT::Opcode opc) {
-    segment.AddW8(opc);
+void Encode(ByteBuffer& buf, RT::Opcode opc) {
+    buf.AddW8(opc);
 }
 
-void Encode(Segment& segment, RT::RR rr) {
-    segment.AddW8(static_cast<uint32_t>(rr.x | (rr.y << 4)));
+void Encode(ByteBuffer& buf, RT::RR rr) {
+    buf.AddW8(static_cast<uint32_t>(rr.x | (rr.y << 4)));
 }
 
-void Encode(Segment& segment, RT::XR xr) {
-    segment.AddW8(static_cast<uint32_t>(xr.imm | (xr.r << 4)));
+void Encode(ByteBuffer& buf, RT::XR xr) {
+    buf.AddW8(static_cast<uint32_t>(xr.imm | (xr.r << 4)));
 }
 
-void Encode(Segment& segment, RT::Imm16 i16) {
-    segment.AddW16(i16.imm);
+void Encode(ByteBuffer& buf, RT::Imm16 i16) {
+    buf.AddW16(i16.imm);
 }
 
-void Encode(Segment& segment, RT::XImm12 xi12) {
-    segment.AddW16(static_cast<uint16_t>(xi12.imm4 | (xi12.imm12 << 4)));
+void Encode(ByteBuffer& buf, RT::XImm12 xi12) {
+    buf.AddW16(static_cast<uint16_t>(xi12.imm4 | (xi12.imm12 << 4)));
 }
 
-void Encode(Segment& segment, RT::B1 command) {
-    Encode(segment, command.opc);
+void Encode(ByteBuffer& buf, RT::B1 command) {
+    Encode(buf, command.opc);
 }
 
-void Encode(Segment& segment, RT::B2rr command) {
-    Encode(segment, command.opc);
-    Encode(segment, command.rr);
+void Encode(ByteBuffer& buf, RT::B2rr command) {
+    Encode(buf, command.opc);
+    Encode(buf, command.rr);
 }
 
-void Encode(Segment& segment, RT::B3xrrr command) {
-    Encode(segment, command.opc);
-    Encode(segment, command.xr);
-    Encode(segment, command.rr);
+void Encode(ByteBuffer& buf, RT::B3xrrr command) {
+    Encode(buf, command.opc);
+    Encode(buf, command.xr);
+    Encode(buf, command.rr);
 }
 
-void Encode(Segment& segment, RT::B4xi12rr command) {
-    Encode(segment, command.opc);
-    Encode(segment, command.xi12);
-    Encode(segment, command.rr);
+void Encode(ByteBuffer& buf, RT::B4xi12rr command) {
+    Encode(buf, command.opc);
+    Encode(buf, command.xi12);
+    Encode(buf, command.rr);
 }
 
 // region isa12
@@ -179,13 +179,11 @@ private:
 
 class BccFixup : public Fixup {
 public:
-    static_assert(Format::ExtBrr::INSTRUCTION_SIZE == 4);
-
     BccFixup(Symbol _sym, CC _cc, Width _width, IReg _left, IReg _right)
         : Fixup(_sym), cc(_cc), width(_width), left(_left), right(_right) {}
 
     int32_t Size() const override {
-        return Format::ExtBrr::INSTRUCTION_SIZE;
+        return RT::B4xi12rr::SIZE;
     }
 
     static RT::Opcode opcode(bool isImm, Format::Width width) {
@@ -202,10 +200,11 @@ public:
 
         bool isImm = IsNBitsSigned(distance, 12);
         uint16_t immediate = isImm
-            ? static_cast<uint16_t>(distance)
+            ? static_cast<uint16_t>(distance & 0xfff)
             : relocationConverter(symbols.Value(distance));
 
-        Encode(segment, RT::B4xi12rr {
+        Segment::View buf = segment.At(static_cast<size_t>(position));
+        Encode(buf, RT::B4xi12rr {
             .opc = opcode(isImm, width),
             .xi12 = {
                 .imm4 = cc,
