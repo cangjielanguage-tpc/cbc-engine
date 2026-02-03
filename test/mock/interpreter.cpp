@@ -32,6 +32,14 @@ public:
 
         return Value::Reference{.value = reinterpret_cast<uintptr_t>(mem) };
     }
+
+    static Reference ReadObjectInstance(Reference base, size_t offset, ThreadHandle th) {
+        return Reference{ .value = *reinterpret_cast<uintptr_t*>(base.value + offset) };
+    }
+
+    static void WriteObjectInstance(Reference base, size_t offset, Reference object, ThreadHandle th) {
+        *reinterpret_cast<uintptr_t*>(base.value + offset) = object.value;
+    }
 };
 
 Value::Primitive Interpret(Code code, Value::Primitive ir1, Value::Primitive ir2) {
