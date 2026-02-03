@@ -61,10 +61,6 @@ private:
 
 namespace Format {
 
-enum Sign : uint32_t {
-    SIGNED, UNSIGNED
-};
-
 class Bits;
 constexpr Bits mask_bits(uint32_t b);
 
@@ -126,6 +122,21 @@ public:
 
 private:
     uint32_t _value;
+};
+
+class Sign {
+public:
+    enum Value : uint32_t {
+        SIGNED = 0b0,
+        UNSIGNED = 0b1,
+    };
+
+    constexpr Sign(const Value raw) : _value(raw) {}
+    constexpr operator Value() const { return _value; }
+    constexpr Bits ToBits() const { return _value; }
+
+private:
+    Value _value;
 };
 
 class Common {
@@ -316,6 +327,7 @@ namespace B2rr {
     constexpr Bits BYTE_MASK = FORMAT_BITS.Shift(4);
 
     constexpr Bits Fmt(Common op, Width width) {
+        ASSERTION(op.B2rAllowed(), "not allowed in B2r format");
         return BYTE_MASK | OPC(op, width).ToBits().In(4);
     }
 
@@ -324,16 +336,21 @@ namespace B2rr {
     }
 }
 
-namespace B2ri4 {
+namespace B2hr {
     constexpr Bits FORMAT_BITS = 0b0001;
     constexpr Bits BYTE_MASK = FORMAT_BITS.Shift(4);
 
     constexpr Bits Fmt(Common op, Bits b) {
+        ASSERTION(op.B2rAllowed(), "not allowed in B2r format");
         return BYTE_MASK | OPC(op, b).ToBits().In(4);
     }
 
     constexpr Bits Fmt(Common op, Width width) {
         return Fmt(op, width.Common());
+    }
+
+    constexpr uint32_t Fmt(Common::Value op, Width::Value width) {
+        return Fmt(Common(op), Width(width)).Raw();
     }
 
     constexpr Bits Fmt(Common op, Sign sign) {
@@ -391,6 +408,25 @@ namespace B3xrrr {
         return BYTE_MASK | low3Bits.In(3);
     }
 
+}
+
+namespace B3xrrt4i16 {
+    constexpr Bits FORMAT_BITS = 0b001;
+    constexpr Bits K_BITS = 0b10; // for i16 imm
+    constexpr Bits BYTE_MASK = FORMAT_BITS.Shift(5) | K_BITS.Shift(3);
+
+    constexpr Bits Fmt(Bits low3Bits) {
+        return BYTE_MASK | low3Bits.In(3);
+    }
+}
+
+namespace B3xrrkI {
+    constexpr Bits FORMAT_BITS = 0b00111;
+    constexpr Bits BYTE_MASK = FORMAT_BITS.Shift(3);
+
+    constexpr Bits Fmt(Bits low3Bits) {
+        return BYTE_MASK | low3Bits.In(3);
+    }
 }
 
 namespace ExtBrr {

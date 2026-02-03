@@ -176,4 +176,8 @@ inline int32_t JumpOffset<ImmKind::LITERAL>(LiteralTable* literals, uint16_t val
     return literals->at(value).i32;
 }
 
+inline uint64_t Immediate(LiteralTable* literals, uint16_t value) {
+    return literals->at(value).u64;
+}
+
 } // namespace Interpretation

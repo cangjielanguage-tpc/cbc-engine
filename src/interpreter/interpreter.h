@@ -23,7 +23,22 @@ public:
 
     template <Width::Value width>
     inline bool Binary(Common::Value arithOp, IReg d, IReg l, IReg r) {
-        auto res = Arith<width>(arithOp, ectype->GetPrimitive(l), ectype->GetPrimitive(r));
+        return Binary<width>(arithOp, d, l, ectype->GetPrimitive(r));
+    }
+
+    template <Width::Value width>
+    inline bool BinaryImm(Common::Value arithOp, IReg d, IReg l, uint64_t imm) {
+        return Binary<width>(arithOp, d, l, Value::Primitive{ .u64 = imm });
+    }
+
+    template <Width::Value width>
+    inline bool BinaryImmLit(Common::Value arithOp, IReg d, IReg l, uint16_t litId) {
+        return BinaryImm<width>(arithOp, d, l, Immediate(literals, litId));
+    }
+
+    template <Width::Value width>
+    inline bool Binary(Common::Value arithOp, IReg d, IReg l, Value::Primitive val) {
+        auto res = Arith<width>(arithOp, ectype->GetPrimitive(l), val);
         if (res.successful) {
             ectype->Put(d, res.result);
             return true;
@@ -43,7 +58,11 @@ public:
     }
 
     inline void Mov(IReg d, IReg s) {
-        ectype->Put(d, ectype->GetReference(s));
+        ectype->Put(d, ectype->GetPrimitive(s));
+    }
+
+    inline void MovI(IReg d, uint64_t imm) {
+        ectype->Put(d, Value::Primitive{ .u64 = imm });
     }
 
     template <Width::Value width>

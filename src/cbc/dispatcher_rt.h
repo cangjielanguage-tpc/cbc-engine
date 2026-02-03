@@ -21,6 +21,7 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
         &&HALT, // B1 TODO merge rare commands
         &&RET,  // B1 TODO merge rare commands
         &&MOV,  // B2rr
+        &&MOVI,  // B2xr
         &&MOVR, // B2rr
         &&BCC32I, // B4xi12rr
         &&BCC64I, // B4xi12rr
@@ -30,10 +31,10 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
 
         &&BIN32, // B3xrrr
         &&BIN64, // B3xrrr
-        &&BINI32I, // B3xi12rr
-        &&BINI64I, // B3xi12rr
-        &&BINI32L, // B3xi12rr
-        &&BINI64L, // B3xi12rr
+        &&BINI32I, // B4xi12rr
+        &&BINI64I, // B4xi12rr
+        &&BINI32L, // B4xi12rr
+        &&BINI64L, // B4xi12rr
 
         &&NEWOBJ, // B3xri16,
     };
@@ -50,6 +51,11 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
     MOV: {
         auto args = B2rr::Decode(reader);
         handler.Mov(args.rr.x.IR(), args.rr.y.IR());
+        NEXT;
+    }
+    MOVI: {
+        auto args = B2xr::Decode(reader);
+        handler.MovI(args.xr.r.IR(), args.xr.imm);
         NEXT;
     }
     MOVR: {
@@ -100,20 +106,32 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
         NEXT_COND(successful);
     }
     BINI32I: {
-        ASSERTION(false, "not implemented");
-        return;
+        auto args = B4xi12rr::Decode(reader);
+        bool successful = handler.template BinaryImm<Width::W32>(
+                args.xi12.imm4.Common(), args.rr.x.IR(),
+                args.rr.y.IR(), args.xi12.imm12);
+        NEXT_COND(successful);
     }
     BINI64I: {
-        ASSERTION(false, "not implemented");
-        return;
+        auto args = B4xi12rr::Decode(reader);
+        bool successful = handler.template BinaryImmLit<Width::W64>(
+                args.xi12.imm4.Common(), args.rr.x.IR(),
+                args.rr.y.IR(), args.xi12.imm12);
+        NEXT_COND(successful);
     }
     BINI32L: {
-        ASSERTION(false, "not implemented");
-        return;
+        auto args = B4xi12rr::Decode(reader);
+        bool successful = handler.template BinaryImmLit<Width::W32>(
+                args.xi12.imm4.Common(), args.rr.x.IR(),
+                args.rr.y.IR(), args.xi12.imm12);
+        NEXT_COND(successful);
     }
     BINI64L: {
-        ASSERTION(false, "not implemented");
-        return;
+        auto args = B4xi12rr::Decode(reader);
+        bool successful = handler.template BinaryImmLit<Width::W64>(
+                args.xi12.imm4.Common(), args.rr.x.IR(),
+                args.rr.y.IR(), args.xi12.imm12);
+        NEXT_COND(successful);
     }
     NEWOBJ: {
         ASSERTION(false, "not implemented");
