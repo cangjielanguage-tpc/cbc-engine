@@ -26,14 +26,9 @@ public:
         return Binary<width>(arithOp, d, l, ectype->GetPrimitive(r));
     }
 
-    template <Width::Value width>
-    inline bool BinaryImm(Common::Value arithOp, IReg d, IReg l, uint64_t imm) {
-        return Binary<width>(arithOp, d, l, Value::Primitive{ .u64 = imm });
-    }
-
-    template <Width::Value width>
-    inline bool BinaryImmLit(Common::Value arithOp, IReg d, IReg l, uint16_t litId) {
-        return BinaryImm<width>(arithOp, d, l, Immediate(literals, litId));
+    template <ImmKind::Value immKind, Width::Value width>
+    inline bool BinaryImm(Common::Value arithOp, IReg d, IReg l, uint16_t imm) {
+        return Binary<width>(arithOp, d, l, Value::Primitive{ .u64 = DecodeImmediate<immKind>(literals, imm) });
     }
 
     template <Width::Value width>
@@ -83,8 +78,8 @@ public:
     }
 
     template <ImmKind::Value immKind, Width::Value width>
-    inline int32_t Bcc(CC cc, IReg l, IReg r, uint16_t offsetValue) {
-        return Cmp<width>(cc, l, r) ? JumpOffset<immKind>(literals, offsetValue) : 0;
+    inline int64_t Bcc(CC cc, IReg l, IReg r, uint16_t offsetValue) {
+        return Cmp<width>(cc, l, r) ? DecodeImmediate<immKind>(literals, offsetValue) : 0;
     }
 
     inline void ExtRet() { }

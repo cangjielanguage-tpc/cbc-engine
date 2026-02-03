@@ -3,6 +3,7 @@
 #include "cbc/isa.h"
 #include "interpreter/ectype.h"
 #include "interpreter/literals.h"
+#include "utils/math.h"
 
 namespace Interpretation {
 
@@ -164,19 +165,15 @@ static inline bool Compare(CC cc, Value::Primitive l, Value::Primitive r) {
 }
 
 template <ImmKind::Value immKind>
-static inline int32_t JumpOffset(LiteralTable* literals, uint16_t value);
+static inline uint64_t DecodeImmediate(LiteralTable* literals, uint16_t value);
 
 template <>
-inline int32_t JumpOffset<ImmKind::VALUE>(LiteralTable* literals, uint16_t value) {
-    return (int32_t) ((int16_t) value);
+inline uint64_t DecodeImmediate<ImmKind::VALUE>(LiteralTable* literals, uint16_t value) {
+    return MathUtils::SignExtend(value, 12);
 }
 
 template <>
-inline int32_t JumpOffset<ImmKind::LITERAL>(LiteralTable* literals, uint16_t value) {
-    return literals->at(value).i32;
-}
-
-inline uint64_t Immediate(LiteralTable* literals, uint16_t value) {
+inline uint64_t DecodeImmediate<ImmKind::LITERAL>(LiteralTable* literals, uint16_t value) {
     return literals->at(value).u64;
 }
 

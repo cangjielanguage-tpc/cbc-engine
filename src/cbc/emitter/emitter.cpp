@@ -3,6 +3,7 @@
 
 #include "emitter.h"
 #include "cbc/isa_rt.h"
+#include "utils/math.h"
 
 namespace Cbc {
 namespace Emitter {
@@ -141,40 +142,8 @@ Bits Pack8(IReg r1, Bits v2) {
     return Pack8(Bits(r1), v2);
 }
 
-bool IsNBitsSigned(int32_t value, uint32_t bits) {
-    if (bits == 32) {
-        return true;
-    } else {
-        // C++ have implementation-defined right shift for signed numbers until C++20.
-        // We expect arithmetic shift.
-        static_assert((-1 >> 16) == -1);
-        auto extension = value >> (bits - 1);
-        return (extension == 0) || (extension == -1);
-    }
-}
-
-bool IsNBitsSigned(uint32_t value, uint32_t bits) {
-    return IsNBitsSigned(static_cast<int32_t>(value), bits);
-}
-
-bool IsNBitsSigned(int64_t value, uint32_t bits) {
-    if (bits == 64) {
-        return true;
-    } else {
-        // C++ have implementation-defined right shift for signed numbers until C++20.
-        // We expect arithmetic shift.
-        static_assert((-1 >> 16) == -1);
-        auto extension = value >> (bits - 1);
-        return (extension == 0) || (extension == -1L);
-    }
-}
-
-bool IsNBitsSigned(uint64_t value, uint32_t bits) {
-    return IsNBitsSigned(static_cast<int64_t>(value), bits);
-}
-
 ImmKind ImmKindOf(int64_t value) {
-    return IsNBitsSigned(value, 16) ? ImmKind::VALUE : ImmKind::LITERAL;
+    return MathUtils::IsNBitsSigned(value, 16) ? ImmKind::VALUE : ImmKind::LITERAL;
 }
 
 // region fixups
@@ -225,7 +194,7 @@ public:
             std::function<uint16_t(Symbol)> const& relocationConverter) const override {
         int32_t distance = Distance(symbols, this->symbol);
 
-        bool isImm = IsNBitsSigned(distance, 12);
+        bool isImm = MathUtils::IsNBitsSigned(distance, 12);
         uint16_t immediate = isImm
             ? static_cast<uint16_t>(distance & 0xfff)
             : relocationConverter(symbols.Value(distance));
@@ -289,7 +258,7 @@ void Emitter::Asr (Width width, IReg d, IReg l, IReg r) { Binary(Common::ASR,  w
 void Emitter::BinaryImm(Format::Common op, Format::Width width, IReg d, IReg l, uint64_t imm) {
     assert(width == Format::Width::W32 || width == Format::Width::W64);
 
-    bool isImm = IsNBitsSigned(imm, 12);
+    bool isImm = MathUtils::IsNBitsSigned(imm, 12);
     if (isImm) {
         uint16_t immediate = static_cast<uint16_t>(imm & 0xfff);
 
@@ -352,7 +321,7 @@ void Emitter::Mov(IReg d, IReg s) {
 void Emitter::MovImm(Width width, IReg d, uint64_t imm) {
     assert(width == Format::Width::W32 || width == Format::Width::W64);
 
-    bool isImm = IsNBitsSigned(imm, 4);
+    bool isImm = MathUtils::IsNBitsSigned(imm, 4);
     if (isImm) {
         uint8_t immediate = static_cast<uint8_t>(imm & 0xf);
 

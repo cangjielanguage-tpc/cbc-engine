@@ -3,6 +3,7 @@
 #include <type_traits>
 
 #include "utils/assertion.h"
+#include "utils/math.h"
 #include "decoder.h"
 #include "isa_rt.h"
 
@@ -55,7 +56,7 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
     }
     MOVI: {
         auto args = B2xr::Decode(reader);
-        handler.MovI(args.xr.r.IR(), args.xr.imm);
+        handler.MovI(args.xr.r.IR(), MathUtils::SignExtend(args.xr.imm, 4));
         NEXT;
     }
     MOVR: {
@@ -65,13 +66,13 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
     }
     BCC32I: {
         auto args = B4xi12rr::Decode(reader);
-        int32_t delta = handler.template Bcc<ImmKind::VALUE, Width::W32>(args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12);
+        int64_t delta = handler.template Bcc<ImmKind::VALUE, Width::W32>(args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12);
         reader.Advance(delta);
         NEXT;
     }
     BCC32L: {
         auto args = B4xi12rr::Decode(reader);
-        int32_t delta = handler.template Bcc<ImmKind::LITERAL, Width::W32>(args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12);
+        int64_t delta = handler.template Bcc<ImmKind::LITERAL, Width::W32>(args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12);
         reader.Advance(delta);
         NEXT;
     }
@@ -107,28 +108,28 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
     }
     BINI32I: {
         auto args = B4xi12rr::Decode(reader);
-        bool successful = handler.template BinaryImm<Width::W32>(
+        bool successful = handler.template BinaryImm<ImmKind::VALUE, Width::W32>(
                 args.xi12.imm4.Common(), args.rr.x.IR(),
                 args.rr.y.IR(), args.xi12.imm12);
         NEXT_COND(successful);
     }
     BINI64I: {
         auto args = B4xi12rr::Decode(reader);
-        bool successful = handler.template BinaryImmLit<Width::W64>(
+        bool successful = handler.template BinaryImm<ImmKind::VALUE, Width::W64>(
                 args.xi12.imm4.Common(), args.rr.x.IR(),
                 args.rr.y.IR(), args.xi12.imm12);
         NEXT_COND(successful);
     }
     BINI32L: {
         auto args = B4xi12rr::Decode(reader);
-        bool successful = handler.template BinaryImmLit<Width::W32>(
+        bool successful = handler.template BinaryImm<ImmKind::LITERAL, Width::W32>(
                 args.xi12.imm4.Common(), args.rr.x.IR(),
                 args.rr.y.IR(), args.xi12.imm12);
         NEXT_COND(successful);
     }
     BINI64L: {
         auto args = B4xi12rr::Decode(reader);
-        bool successful = handler.template BinaryImmLit<Width::W64>(
+        bool successful = handler.template BinaryImm<ImmKind::LITERAL, Width::W64>(
                 args.xi12.imm4.Common(), args.rr.x.IR(),
                 args.rr.y.IR(), args.xi12.imm12);
         NEXT_COND(successful);

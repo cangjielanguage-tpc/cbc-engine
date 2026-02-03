@@ -14,7 +14,7 @@ Symbol Symbols::Address(uintptr_t ptr) {
 }
 
 Symbol Symbols::Value(int32_t val) {
-    return Value(static_cast<uint64_t>(val));
+    return Value(static_cast<int64_t>(val));
 }
 
 Symbol Symbols::Value(uint32_t val) {
