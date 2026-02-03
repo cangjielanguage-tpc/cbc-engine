@@ -2,6 +2,7 @@
 #include <utility>
 #include "symbols.h"
 
+#include "cbc/isa_rt.h"
 #include "utils/assertion.h"
 
 namespace Cbc {
@@ -59,14 +60,14 @@ uint16_t LiteralTableBuilder::UseSymbol(Symbol symbol) {
             auto size = table.size();
             auto step = Interpretation::LITERAL_SIZE;
             ASSERT(size % step == 0);
-            ASSERT(size < UINT16_MAX * step);
+            ASSERT(size < Cbc::RT::LIT_TABLE_SIZE * step);
 
             auto lit = Interpretation::Literal {
                 .u64 = symbols.plainValues.at(symbol.id),
             };
 
             table.insert(table.end(), &lit.raw[0], &lit.raw[sizeof(lit)]);
-            return (uint16_t) size / step;
+            return static_cast<uint16_t>(size / step);
         }
         default:
             ASSERT(false);
@@ -78,7 +79,7 @@ Interpretation::LiteralTable *LiteralTableBuilder::BuildTable(std::pmr::memory_r
     auto size = table.size();
     auto step = Interpretation::LITERAL_SIZE;
     ASSERT(size % step == 0);
-    ASSERT(size < UINT16_MAX * step);
+    ASSERT(size < Cbc::RT::LIT_TABLE_SIZE * step);
 
     auto litTable = (Interpretation::LiteralTable*) heap.allocate(sizeof(Interpretation::LiteralTable) + size);
     litTable->_byteSize = size;

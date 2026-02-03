@@ -158,11 +158,6 @@ inline static bool Compare(Value::Reference l, Value::Reference r) {
 template <> inline bool Compare<CC::REQ, Width::W64>(Value::Reference l, Value::Reference r) { return l.value == r.value; }
 template <> inline bool Compare<CC::RNE, Width::W32>(Value::Reference l, Value::Reference r) { return l.value != r.value; }
 
-
-template <Width::Value width>
-static inline bool Compare(CC cc, Value::Primitive l, Value::Primitive r) {
-}
-
 template <ImmKind::Value immKind>
 static inline int32_t JumpOffset(LiteralTable* literals, uint16_t value);
 

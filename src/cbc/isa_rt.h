@@ -7,6 +7,8 @@
 namespace Cbc {
 namespace RT {
 
+constexpr int LIT_TABLE_SIZE = 4096;
+
 class Opcode {
 public:
     enum Value : uint32_t {
