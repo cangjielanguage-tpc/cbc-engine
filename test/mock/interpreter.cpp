@@ -13,10 +13,6 @@ static LimitedHeap<HEAP_SIZE> heap;
 
 struct Test {};
 
-struct TestTypeInfo {
-    int size;
-};
-
 template <>
 class RuntimeInterface<Test> {
     using Reference = Value::Reference;
