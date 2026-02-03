@@ -97,19 +97,19 @@ struct B2rr {
     uint32_t const yreg : 4;
 
     inline Cbc::IReg IX() const {
-        return Cbc::IReg(xreg);
+        return Cbc::IReg::From(xreg);
     }
 
     inline Cbc::IReg IY() const {
-        return Cbc::IReg(yreg);
+        return Cbc::IReg::From(yreg);
     }
 
     inline Cbc::IReg Idst() const {
-        return Cbc::IReg(xreg);
+        return Cbc::IReg::From(xreg);
     }
 
     inline Cbc::IReg Isrc() const {
-        return Cbc::IReg(yreg);
+        return Cbc::IReg::From(yreg);
     }
 
     static inline B2rr Decode(ByteReader *stream) {
@@ -144,7 +144,7 @@ struct B2xrI {
     uint16_t const imm;
 
     inline Cbc::IReg Ireg() const {
-        return Cbc::IReg(reg);
+        return Cbc::IReg::From(reg);
     }
 
     static inline B2xrI Decode(ByteReader *stream) {

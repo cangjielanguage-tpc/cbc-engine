@@ -3,6 +3,7 @@
 #define UNIT_TEST_MODE 1
 
 #include "cbc/emitter/emitter.h"
+#include "cbc/isa_rt.h"
 
 #include "mock/interpreter.h"
 #include "testutils.h"
@@ -24,6 +25,9 @@ namespace Emitter {
 
 struct Test;
 
+static constexpr int MAX_I12 = 2047;
+static constexpr int MIN_I12 = -2048;
+
 using namespace Cbc::Format;
 
 TEST(EmitTest, Simple_ArithB2rr) {
@@ -31,14 +35,13 @@ TEST(EmitTest, Simple_ArithB2rr) {
     e.Add(Width::W32, IReg::IR1, IReg::IR1, IReg::IR2);
     e.Ret();
     auto code = e.Build(heap);
-    EXPECT_EQ(3, code.bytecodeSize);
+    EXPECT_EQ(4, code.bytecodeSize);
 
     auto res = Interpret(code, U32(1), U32(2));
     EXPECT_EQ(res.u32, 3);
 }
 
 TEST(EmitTest, Simple_ArithB3xrrr) {
-    GTEST_SKIP() << "Decoding/dispatching of b3xrrr not implemented yet";
     Emitter e;
     e.Add(Width::W32, IReg::IR1, IReg::IR2, IReg::IR1);
     e.Ret();
@@ -53,7 +56,7 @@ TEST(EmitTest, Literals_None) {
     Emitter e;
     auto label = e.NewLabel();
     e.Bcc(CC::EQ, Width::W32, IReg::IR1, IReg::IR1, label);
-    for (int i = 0; i < INT16_MAX; ++i) {
+    for (int i = 0; i < MAX_I12; ++i) {
         e.Ret();
     }
     e.Bind(label);
@@ -67,7 +70,7 @@ TEST(EmitTest, Literals_Label) {
     Emitter e;
     auto label = e.NewLabel();
     e.Bcc(CC::EQ, Width::W32, IReg::IR1, IReg::IR1, label);
-    for (int i = 0; i < INT16_MAX + 1; ++i) {
+    for (int i = 0; i < MAX_I12 + 1; ++i) {
         e.Ret();
     }
     e.Bind(label);
@@ -81,7 +84,7 @@ TEST(EmitTest, Literals_NoneBackEdge) {
     Emitter e;
     auto label = e.NewLabel();
     e.Bind(label);
-    for (int i = 0; i < -INT16_MIN - Format::ExtBrr::INSTRUCTION_SIZE; ++i) {
+    for (int i = 0; i < -MIN_I12 - Cbc::RT::B4xi12rr::SIZE; ++i) {
         e.Ret();
     }
     e.Bcc(CC::EQ, Width::W32, IReg::IR1, IReg::IR1, label);
@@ -95,7 +98,7 @@ TEST(EmitTest, Literals_LabelBackEdge) {
     Emitter e;
     auto label = e.NewLabel();
     e.Bind(label);
-    for (int i = 0; i < -INT16_MIN - Format::ExtBrr::INSTRUCTION_SIZE + 1; ++i) {
+    for (int i = 0; i < -INT16_MIN - Cbc::RT::B4xi12rr::SIZE + 1; ++i) {
         e.Ret();
     }
     e.Bcc(CC::EQ, Width::W32, IReg::IR1, IReg::IR1, label);

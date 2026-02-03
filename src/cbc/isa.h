@@ -9,7 +9,7 @@
 namespace Cbc {
 class IReg {
 public:
-    enum Value : uint32_t {
+    enum Value : uint8_t {
         IRZ, IR1, IR2, IR3, IR4, IR5, IR6,
         IR7, IR8, IR9, IR10, IR11, IR12, IR13,
     };
@@ -22,7 +22,11 @@ public:
 
     constexpr IReg(const Value raw) : _value(raw) {}
     constexpr operator Value() const { return _value; }
-    constexpr IReg(const uint32_t raw) : _value((Value) raw) {}
+
+    inline static IReg From(const uint32_t raw) {
+        assert(raw < COUNT);
+        return IReg(static_cast<Value>(raw));
+    }
 
 private:
     Value _value;
@@ -45,6 +49,11 @@ public:
 
     constexpr FReg(const Value raw) : _value(raw) {}
     constexpr operator Value() const { return _value; }
+
+    inline static FReg From(const uint32_t raw) {
+        assert(raw < COUNT);
+        return FReg(static_cast<Value>(raw));
+    }
 
 private:
     Value _value;
@@ -146,6 +155,7 @@ public:
 
     constexpr Common(const Value raw) : _value(raw) {}
     constexpr Common(const Bits bits) : _value(Value(bits.Raw())) {}
+    constexpr Common(const uint32_t bits) : _value(Value(bits)) {}
     constexpr operator Value() const { return _value; }
     constexpr Bits ToBits() const { return _value; }
 

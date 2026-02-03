@@ -149,10 +149,19 @@ template <> inline bool Compare<CC::TESTZ, Width::W64>(Value::Primitive l, Value
 template <> inline bool Compare<CC::TESTNZ, Width::W64>(Value::Primitive l, Value::Primitive r) { return (l.u64 & r.u64) != 0; }
 
 
-template <CC::Value cc>
-inline static bool Compare(Value::Reference l, Value::Reference r);
-template <> inline bool Compare<CC::REQ>(Value::Reference l, Value::Reference r) { return l.value == r.value; }
-template <> inline bool Compare<CC::RNE>(Value::Reference l, Value::Reference r) { return l.value != r.value; }
+template <CC::Value cc, Width::Value width>
+inline static bool Compare(Value::Reference l, Value::Reference r) {
+    ASSERTION(false, "Unreachable");
+    return false;
+}
+
+template <> inline bool Compare<CC::REQ, Width::W64>(Value::Reference l, Value::Reference r) { return l.value == r.value; }
+template <> inline bool Compare<CC::RNE, Width::W32>(Value::Reference l, Value::Reference r) { return l.value != r.value; }
+
+
+template <Width::Value width>
+static inline bool Compare(CC cc, Value::Primitive l, Value::Primitive r) {
+}
 
 template <ImmKind::Value immKind>
 static inline int32_t JumpOffset(LiteralTable* literals, uint16_t value);
