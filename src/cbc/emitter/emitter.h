@@ -83,6 +83,8 @@ public:
     void Bcc(CC cc, Width width, IReg l, IReg r, Label label);
 
     void NewObj(IReg d, Symbol sym);
+    void LoadObj(Format::LoadAccessKind ldk, IReg dst, IReg base, uint32_t offset);
+    void StoreObj(Format::StoreAccessKind stk, IReg src, IReg base, uint32_t offset);
 
 private:
     void AddFixup(std::unique_ptr<Fixup> fixup);

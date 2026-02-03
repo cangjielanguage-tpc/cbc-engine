@@ -17,7 +17,7 @@ namespace Decoder {
 class ByteReader {
 public:
 
-#if defined(NDEBUG)
+#if !defined(NDEBUG)
     ByteReader(uint8_t* _cursor, uint8_t* _start, uint8_t* _end) : cursor(_cursor), start(_start), end(_end) {}
 #else
     ByteReader(uint8_t* _cursor, uint8_t* _start, uint8_t* _end) : cursor(_cursor) {}
@@ -68,7 +68,7 @@ public:
     }
 
 private:
-#if defined(NDEBUG)
+#if !defined(NDEBUG)
     void BoundCheck(uint8_t *p) {
         ASSERTION(this->start <= p, "underflow");
         ASSERTION(p <= this->end, "overflow");
@@ -85,7 +85,7 @@ private:
              //
     uint8_t* cursor;
 
-#if defined(NDEBUG)
+#if !defined(NDEBUG)
     uint8_t* start;
     uint8_t* end;
 #endif // defined(NDEBUG)

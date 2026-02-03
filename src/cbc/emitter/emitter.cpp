@@ -126,26 +126,6 @@ void Encode(ByteBuffer& buf, RT::B4xi12rr command) {
 
 using namespace Format;
 
-Bits Pack8(Bits low4, Bits high4) {
-    return high4.In(4).Shift(4) | low4.In(4);
-}
-
-Bits Pack8(IReg r1, IReg r2) {
-    return Pack8(Bits(r1), Bits(r2));
-}
-
-Bits Pack8(Bits v1, IReg r2) {
-    return Pack8(v1, Bits(r2));
-}
-
-Bits Pack8(IReg r1, Bits v2) {
-    return Pack8(Bits(r1), v2);
-}
-
-ImmKind ImmKindOf(int64_t value) {
-    return MathUtils::IsNBitsSigned(value, 16) ? ImmKind::VALUE : ImmKind::LITERAL;
-}
-
 // region fixups
 
 class Literal12Fixup : public Fixup {
@@ -153,7 +133,7 @@ public:
     Literal12Fixup(RT::Imm4 _i4, Symbol _sym)
         : Fixup(_sym), i4(_i4) {}
 
-    static_assert(LiteralTableBuilder::MAX_SIZE == UINT16_MAX);
+    static_assert(LiteralTableBuilder::MAX_SIZE == RT::LIT_TABLE_SIZE);
 
     int32_t Size() const override {
         return 2;
@@ -162,11 +142,11 @@ public:
     void Resolve(Segment& segment, Symbols& symbols,
             std::function<uint16_t(Symbol)> const& relocationConverter) const override {
         assert(position >= 0);
-        RT::XImm12 value {
+        Segment::View buf = segment.At(static_cast<size_t>(position));
+        Encode(buf, RT::XImm12 {
             .imm4 = i4,
             .imm12 = relocationConverter(symbol),
-        };
-        segment.SetW16(static_cast<size_t>(position), RT::XImm12::Raw(value));
+        });
     }
 
 private:
@@ -363,6 +343,36 @@ void Emitter::NewObj(IReg d, Symbol sym) {
     segment.AddW8(RT::Opcode::NEWOBJ);
     RT::Imm4 i4(d);
     AddFixup(std::make_unique<Literal12Fixup>(i4, sym));
+}
+
+void Emitter::LoadObj(Format::LoadAccessKind ldk, IReg dst, IReg base, uint32_t offset) {
+    ASSERTION((offset & 0xfff) == offset, "Offset is too big. >12bit is not supported");
+    Encode(segment, RT::B4xi12rr {
+        .opc = RT::Opcode::LOAD_OBJ,
+        .xi12 = {
+            .imm4 = RT::Imm4(ldk),
+            .imm12 = static_cast<uint16_t>(offset),
+        },
+        .rr = {
+            .x = dst,
+            .y = base,
+        }
+    });
+}
+
+void Emitter::StoreObj(Format::StoreAccessKind stk, IReg src, IReg base, uint32_t offset) {
+    ASSERTION((offset & 0xfff) == offset, "Offset is too big. >12bit is not supported");
+    Encode(segment, RT::B4xi12rr {
+        .opc = RT::Opcode::STORE_OBJ,
+        .xi12 = {
+            .imm4 = RT::Imm4(stk),
+            .imm12 = static_cast<uint16_t>(offset),
+        },
+        .rr = {
+            .x = src,
+            .y = base,
+        }
+    });
 }
 
 // endregion isa12

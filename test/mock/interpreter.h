@@ -5,8 +5,16 @@
 #include "interpreter/code.h"
 #include "interpreter/interpreter.h"
 
+struct TestTypeInfo {
+    size_t size;
+};
+
 static Interpretation::Value::Primitive U32(uint32_t v) {
     return Interpretation::Value::Primitive{.u32 = v};
+}
+
+static Interpretation::Value::Primitive U64(uint64_t v) {
+    return Interpretation::Value::Primitive{.u64 = v};
 }
 
 Interpretation::Value::Primitive Interpret(

@@ -66,7 +66,7 @@ uint16_t LiteralTableBuilder::UseSymbol(Symbol symbol) {
             };
 
             table.insert(table.end(), &lit.raw[0], &lit.raw[sizeof(lit)]);
-            return (uint16_t) size / step;
+            return static_cast<uint16_t>(size / step);
         }
         default:
             ASSERT(false);

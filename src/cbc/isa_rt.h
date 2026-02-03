@@ -2,10 +2,13 @@
 #define CBC_ISA_RT_H
 
 #include "isa.h"
+#include "cbc/isa_rt.h"
 #include "decoder.h"
 
 namespace Cbc {
 namespace RT {
+
+constexpr int LIT_TABLE_SIZE = 4096;
 
 class Opcode {
 public:
@@ -28,7 +31,9 @@ public:
         BINI32L, // B4xi12rr
         BINI64L, // B4xi12rr
 
-        NEWOBJ, // B3xri16,
+        NEWOBJ, // B3xi12,
+        LOAD_OBJ, // B4xi12rr
+        STORE_OBJ, // B4xi12rr
 
         OPCODE_NUM,
     };
@@ -109,6 +114,14 @@ public:
 
     inline Format::Common Common() const {
         return Format::Common(imm);
+    }
+
+    inline Format::StoreAccessKind STK() const {
+        return Format::StoreAccessKind(imm);
+    }
+
+    inline Format::LoadAccessKind LDK() const {
+        return Format::LoadAccessKind(imm);
     }
 
     inline IReg IR() const {
