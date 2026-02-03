@@ -150,11 +150,11 @@ public:
     void Resolve(Segment& segment, Symbols& symbols,
             std::function<uint16_t(Symbol)> const& relocationConverter) const override {
         assert(position >= 0);
-        RT::XImm12 value {
+        Segment::View buf = segment.At(static_cast<size_t>(position));
+        Encode(buf, RT::XImm12 {
             .imm4 = i4,
             .imm12 = relocationConverter(symbol),
-        };
-        segment.SetW16(static_cast<size_t>(position), relocationConverter(symbol));
+        });
     }
 
 private:
