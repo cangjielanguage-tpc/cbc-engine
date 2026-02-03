@@ -7,6 +7,7 @@
 
 #include "utils/span.h"
 #include "cbc/emitter/segment.h"
+#include "cbc/isa_rt.h"
 #include "interpreter/literals.h"
 #include "utils/assertion.h"
 
@@ -80,6 +81,8 @@ private:
 
 class LiteralTableBuilder {
 public:
+    static constexpr size_t MAX_SIZE = RT::LIT_TABLE_SIZE;
+
     LiteralTableBuilder(Symbols _symbols)
         : symbols(_symbols) {}
 

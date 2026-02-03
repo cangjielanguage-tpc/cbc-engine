@@ -3,6 +3,7 @@
 #include <type_traits>
 
 #include "utils/assertion.h"
+#include "utils/math.h"
 #include "decoder.h"
 #include "isa_rt.h"
 
@@ -22,6 +23,7 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
         &&HALT, // B1 TODO merge rare commands
         &&RET,  // B1 TODO merge rare commands
         &&MOV,  // B2rr
+        &&MOVI,  // B2xr
         &&MOVR, // B2rr
         &&BCC32I, // B4xi12rr
         &&BCC64I, // B4xi12rr
@@ -31,10 +33,10 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
 
         &&BIN32, // B3xrrr
         &&BIN64, // B3xrrr
-        &&BINI32I, // B3xi12rr
-        &&BINI64I, // B3xi12rr
-        &&BINI32L, // B3xi12rr
-        &&BINI64L, // B3xi12rr
+        &&BINI32I, // B4xi12rr
+        &&BINI64I, // B4xi12rr
+        &&BINI32L, // B4xi12rr
+        &&BINI64L, // B4xi12rr
 
         &&NEWOBJ, // B3xri16,
         &&LOAD_OBJ, // B4xi12rr
@@ -55,6 +57,11 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
         handler.Mov(args.rr.x.IR(), args.rr.y.IR());
         NEXT;
     }
+    MOVI: {
+        auto args = B2xr::Decode(reader);
+        handler.MovI(args.xr.r.IR(), MathUtils::SignExtend(args.xr.imm, 4));
+        NEXT;
+    }
     MOVR: {
         auto args = B2rr::Decode(reader);
         handler.MovRef(args.rr.x.IR(), args.rr.y.IR());
@@ -62,13 +69,13 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
     }
     BCC32I: {
         auto args = B4xi12rr::Decode(reader);
-        int32_t delta = handler.template Bcc<ImmKind::VALUE, Width::W32>(args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12);
+        int64_t delta = handler.template Bcc<ImmKind::VALUE, Width::W32>(args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12);
         reader.Advance(delta);
         NEXT;
     }
     BCC32L: {
         auto args = B4xi12rr::Decode(reader);
-        int32_t delta = handler.template Bcc<ImmKind::LITERAL, Width::W32>(args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12);
+        int64_t delta = handler.template Bcc<ImmKind::LITERAL, Width::W32>(args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12);
         reader.Advance(delta);
         NEXT;
     }
@@ -103,20 +110,32 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
         NEXT_COND(successful);
     }
     BINI32I: {
-        ASSERTION(false, "not implemented");
-        return;
+        auto args = B4xi12rr::Decode(reader);
+        bool successful = handler.template BinaryImm<ImmKind::VALUE, Width::W32>(
+                args.xi12.imm4.Common(), args.rr.x.IR(),
+                args.rr.y.IR(), args.xi12.imm12);
+        NEXT_COND(successful);
     }
     BINI64I: {
-        ASSERTION(false, "not implemented");
-        return;
+        auto args = B4xi12rr::Decode(reader);
+        bool successful = handler.template BinaryImm<ImmKind::VALUE, Width::W64>(
+                args.xi12.imm4.Common(), args.rr.x.IR(),
+                args.rr.y.IR(), args.xi12.imm12);
+        NEXT_COND(successful);
     }
     BINI32L: {
-        ASSERTION(false, "not implemented");
-        return;
+        auto args = B4xi12rr::Decode(reader);
+        bool successful = handler.template BinaryImm<ImmKind::LITERAL, Width::W32>(
+                args.xi12.imm4.Common(), args.rr.x.IR(),
+                args.rr.y.IR(), args.xi12.imm12);
+        NEXT_COND(successful);
     }
     BINI64L: {
-        ASSERTION(false, "not implemented");
-        return;
+        auto args = B4xi12rr::Decode(reader);
+        bool successful = handler.template BinaryImm<ImmKind::LITERAL, Width::W64>(
+                args.xi12.imm4.Common(), args.rr.x.IR(),
+                args.rr.y.IR(), args.xi12.imm12);
+        NEXT_COND(successful);
     }
     NEWOBJ: {
         auto args = B3xi12::Decode(reader);
