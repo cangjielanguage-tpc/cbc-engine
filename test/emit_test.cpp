@@ -41,6 +41,18 @@ TEST(EmitTest, Simple_ArithB2rr) {
     EXPECT_EQ(res.u32, 3);
 }
 
+TEST(EmitTest, Simple_Mov) {
+    Emitter e;
+    e.MovImm(Width::W64, IReg::IR2, 0x7);
+    e.Mov(IReg::IR1, IReg::IR2);
+    e.Ret();
+    auto code = e.Build(heap);
+    EXPECT_EQ(5, code.bytecodeSize);
+
+    auto res = Interpret(code, U32(0), U32(0));
+    EXPECT_EQ(res.u64, 0x7);
+}
+
 TEST(EmitTest, Simple_ArithB3xrrr) {
     Emitter e;
     e.Add(Width::W32, IReg::IR1, IReg::IR2, IReg::IR1);
@@ -50,6 +62,19 @@ TEST(EmitTest, Simple_ArithB3xrrr) {
 
     auto res = Interpret(code, U32(1), U32(2));
     EXPECT_EQ(res.u32, 3);
+}
+
+TEST(EmitTest, Simple_ArithB4xi12rr) {
+    Emitter e;
+    e.AddI(Width::W32, IReg::IR1, IReg::IR2, 0xff);
+    e.AddI(Width::W32, IReg::IR1, IReg::IR1, 0xff00); // through literal
+    e.SubI(Width::W32, IReg::IR1, IReg::IR1, 0xfff);
+    e.Ret();
+    auto code = e.Build(heap);
+    EXPECT_EQ(13, code.bytecodeSize);
+
+    auto res = Interpret(code, U32(0), U32(1));
+    EXPECT_EQ(res.u32, 0xf001);
 }
 
 TEST(EmitTest, Literals_None) {
@@ -123,6 +148,20 @@ TEST(EmitTest, Simple_Bcc) {
 
     auto res2 = Interpret(code, U32(2), U32(1));
     EXPECT_EQ(res2.u32, 3);
+}
+
+TEST(EmitTest, Simple_Bcc_Loop) {
+    Emitter e;
+    auto loop = e.NewLabel();
+    e.Bind(loop);
+    e.AddI(Width::W32, IReg::IR1, IReg::IR1, 100);
+    e.Bcc(CC::LT, Width::W32, IReg::IR1, IReg::IR2, loop);
+    e.Ret();
+
+    auto code = e.Build(heap);
+
+    auto res = Interpret(code, U32(0), U32(100));
+    EXPECT_EQ(res.u32, 100);
 }
 
 } // namespace Emitter

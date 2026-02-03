@@ -13,6 +13,7 @@ public:
         HALT, // B1 TODO merge rare commands
         RET,  // B1 TODO merge rare commands
         MOV,  // B2rr
+        MOVI, // B2xr
         MOVR, // B2rr
         BCC32I, // B4xi12rr
         BCC64I, // B4xi12rr
@@ -22,10 +23,10 @@ public:
 
         BIN32, // B3xrrr
         BIN64, // B3xrrr
-        BINI32I, // B3xi12rr
-        BINI64I, // B3xi12rr
-        BINI32L, // B3xi12rr
-        BINI64L, // B3xi12rr
+        BINI32I, // B4xi12rr
+        BINI64I, // B4xi12rr
+        BINI32L, // B4xi12rr
+        BINI64L, // B4xi12rr
 
         NEWOBJ, // B3xri16,
 
@@ -170,6 +171,10 @@ struct XImm12 {
             .imm12 = Imm12{static_cast<uint16_t>(b2 >> 4)},
         };
     }
+
+    inline static uint16_t Raw(XImm12 xi12) {
+        return static_cast<uint16_t>(xi12.imm4 | (xi12.imm12 << 4));
+    }
 };
 
 struct B1 {
@@ -191,6 +196,16 @@ struct B2rr {
     }
 };
 
+struct B2xr {
+    Opcode opc;
+    XR xr;
+
+    inline static B2xr Decode(Decoder::ByteReader& reader) {
+        auto opc = Opcode::Decode(reader);
+        auto xr = XR::Decode(reader);
+        return B2xr{opc, xr};
+    }
+};
 
 struct B3xrrr {
     Opcode opc;

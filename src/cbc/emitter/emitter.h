@@ -61,8 +61,23 @@ public:
     void Lsr (Width width, IReg d, IReg l, IReg r);
     void Asr (Width width, IReg d, IReg l, IReg r);
 
+    void AddI (Width width, IReg d, IReg l, uint64_t imm);
+    void SubI (Width width, IReg d, IReg l, uint64_t imm);
+    void MulI (Width width, IReg d, IReg l, uint64_t imm);
+    void AndI (Width width, IReg d, IReg l, uint64_t imm);
+    void OrI  (Width width, IReg d, IReg l, uint64_t imm);
+    void XorI (Width width, IReg d, IReg l, uint64_t imm);
+    void DivI (Width width, IReg d, IReg l, uint64_t imm);
+    void RemI (Width width, IReg d, IReg l, uint64_t imm);
+    void UDivI(Width width, IReg d, IReg l, uint64_t imm);
+    void URemI(Width width, IReg d, IReg l, uint64_t imm);
+    void LslI (Width width, IReg d, IReg l, uint64_t imm);
+    void LsrI (Width width, IReg d, IReg l, uint64_t imm);
+    void AsrI (Width width, IReg d, IReg l, uint64_t imm);
+
     void Ret();
-    void Mov(IReg d, IReg s, Width width);
+    void Mov(IReg d, IReg s);
+    void MovImm(Width width, IReg d, uint64_t imm);
     void MovRef(IReg d, IReg s);
 
     void Bcc(CC cc, Width width, IReg l, IReg r, Label label);
@@ -72,6 +87,7 @@ public:
 private:
     void AddFixup(std::unique_ptr<Fixup> fixup);
     void Binary(Format::Common op, Format::Width width, IReg d, IReg l, IReg r);
+    void BinaryImm(Format::Common op, Format::Width width, IReg d, IReg l, uint64_t imm);
 
     Symbols symbols;
     Segment segment;

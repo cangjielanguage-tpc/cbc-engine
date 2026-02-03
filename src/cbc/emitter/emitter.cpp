@@ -3,6 +3,7 @@
 
 #include "emitter.h"
 #include "cbc/isa_rt.h"
+#include "utils/math.h"
 
 namespace Cbc {
 namespace Emitter {
@@ -92,7 +93,7 @@ void Encode(ByteBuffer& buf, RT::Imm16 i16) {
 }
 
 void Encode(ByteBuffer& buf, RT::XImm12 xi12) {
-    buf.AddW16(static_cast<uint16_t>(xi12.imm4 | (xi12.imm12 << 4)));
+    buf.AddW16(RT::XImm12::Raw(xi12));
 }
 
 void Encode(ByteBuffer& buf, RT::B1 command) {
@@ -102,6 +103,11 @@ void Encode(ByteBuffer& buf, RT::B1 command) {
 void Encode(ByteBuffer& buf, RT::B2rr command) {
     Encode(buf, command.opc);
     Encode(buf, command.rr);
+}
+
+void Encode(ByteBuffer& buf, RT::B2xr command) {
+    Encode(buf, command.opc);
+    Encode(buf, command.xr);
 }
 
 void Encode(ByteBuffer& buf, RT::B3xrrr command) {
@@ -136,20 +142,8 @@ Bits Pack8(IReg r1, Bits v2) {
     return Pack8(Bits(r1), v2);
 }
 
-bool IsNBitsSigned(int32_t value, uint32_t bits) {
-    if (bits == 32) {
-        return true;
-    } else {
-        // C++ have implementation-defined right shift for signed numbers until C++20.
-        // We expect arithmetic shift.
-        static_assert((-1 >> 16) == -1);
-        auto extension = value >> (bits - 1);
-        return (extension == 0) || (extension == -1);
-    }
-}
-
-ImmKind ImmKindOf(int32_t value) {
-    return IsNBitsSigned(value, 16) ? ImmKind::VALUE : ImmKind::LITERAL;
+ImmKind ImmKindOf(int64_t value) {
+    return MathUtils::IsNBitsSigned(value, 16) ? ImmKind::VALUE : ImmKind::LITERAL;
 }
 
 // region fixups
@@ -158,6 +152,8 @@ class Literal12Fixup : public Fixup {
 public:
     Literal12Fixup(RT::Imm4 _i4, Symbol _sym)
         : Fixup(_sym), i4(_i4) {}
+
+    static_assert(LiteralTableBuilder::MAX_SIZE == UINT16_MAX);
 
     int32_t Size() const override {
         return 2;
@@ -170,7 +166,7 @@ public:
             .imm4 = i4,
             .imm12 = relocationConverter(symbol),
         };
-        segment.SetW16(static_cast<size_t>(position), relocationConverter(symbol));
+        segment.SetW16(static_cast<size_t>(position), RT::XImm12::Raw(value));
     }
 
 private:
@@ -198,7 +194,7 @@ public:
             std::function<uint16_t(Symbol)> const& relocationConverter) const override {
         int32_t distance = Distance(symbols, this->symbol);
 
-        bool isImm = IsNBitsSigned(distance, 12);
+        bool isImm = MathUtils::IsNBitsSigned(distance, 12);
         uint16_t immediate = isImm
             ? static_cast<uint16_t>(distance & 0xfff)
             : relocationConverter(symbols.Value(distance));
@@ -258,6 +254,100 @@ void Emitter::URem(Width width, IReg d, IReg l, IReg r) { Binary(Common::UREM, w
 void Emitter::Lsl (Width width, IReg d, IReg l, IReg r) { Binary(Common::LSL,  width, d, l, r); }
 void Emitter::Lsr (Width width, IReg d, IReg l, IReg r) { Binary(Common::LSR,  width, d, l, r); }
 void Emitter::Asr (Width width, IReg d, IReg l, IReg r) { Binary(Common::ASR,  width, d, l, r); }
+
+void Emitter::BinaryImm(Format::Common op, Format::Width width, IReg d, IReg l, uint64_t imm) {
+    assert(width == Format::Width::W32 || width == Format::Width::W64);
+
+    bool isImm = MathUtils::IsNBitsSigned(imm, 12);
+    if (isImm) {
+        uint16_t immediate = static_cast<uint16_t>(imm & 0xfff);
+
+        auto opcode = width == Format::Width::W32
+            ? RT::Opcode::BINI32I
+            : RT::Opcode::BINI64I;
+
+        Encode(segment, RT::B4xi12rr {
+            .opc = opcode,
+            .xi12 = RT::XImm12 {
+                .imm4 = RT::Imm4(op),
+                .imm12 = RT::Imm12(immediate & 0xfff),
+            },
+            .rr = {
+                .x = d,
+                .y = l
+            },
+        });
+
+    } else {
+        Symbol immediate = symbols.Value(imm);
+
+        auto opcode = width == Format::Width::W32
+            ? RT::Opcode::BINI32L
+            : RT::Opcode::BINI64L;
+
+        Encode(segment, opcode);
+        AddFixup(std::make_unique<Literal12Fixup>(RT::Imm4(op), immediate));
+        Encode(segment, RT::RR {
+            .x = d,
+            .y = l
+        });
+    }
+}
+
+void Emitter::AddI (Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common::ADD,  width, d, l, imm); }
+void Emitter::SubI (Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common::SUB,  width, d, l, imm); }
+void Emitter::MulI (Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common::MUL,  width, d, l, imm); }
+void Emitter::AndI (Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common::AND,  width, d, l, imm); }
+void Emitter::OrI  (Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common::OR,   width, d, l, imm); }
+void Emitter::XorI (Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common::XOR,  width, d, l, imm); }
+void Emitter::DivI (Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common::SDIV, width, d, l, imm); }
+void Emitter::RemI (Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common::SREM, width, d, l, imm); }
+void Emitter::UDivI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common::UDIV, width, d, l, imm); }
+void Emitter::URemI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common::UREM, width, d, l, imm); }
+void Emitter::LslI (Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common::LSL,  width, d, l, imm); }
+void Emitter::LsrI (Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common::LSR,  width, d, l, imm); }
+void Emitter::AsrI (Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common::ASR,  width, d, l, imm); }
+
+void Emitter::Mov(IReg d, IReg s) {
+    Encode(segment, RT::B2rr {
+        .opc = RT::Opcode::MOV,
+        .rr = RT::RR {
+            .x = d,
+            .y = s
+        }
+    });
+}
+
+void Emitter::MovImm(Width width, IReg d, uint64_t imm) {
+    assert(width == Format::Width::W32 || width == Format::Width::W64);
+
+    bool isImm = MathUtils::IsNBitsSigned(imm, 4);
+    if (isImm) {
+        uint8_t immediate = static_cast<uint8_t>(imm & 0xf);
+
+        Encode(segment, RT::B2xr {
+            .opc = RT::Opcode::MOVI,
+            .xr = RT::XR {
+                .imm = RT::Imm4(immediate),
+                .r = d
+            }
+        });
+
+    } else {
+        AddI(width, d, IReg::IRZ, imm);
+    }
+}
+
+void Emitter::MovRef(IReg d, IReg s) {
+    Encode(segment, RT::B2rr {
+        .opc = RT::Opcode::MOVR,
+        .rr = RT::RR {
+            .x = d,
+            .y = s
+        }
+    });
+}
+
 
 void Emitter::Bcc(CC cc, Width width, IReg l, IReg r, Label label) {
     ASSERT(width == Width::W32 || width == Width::W64);

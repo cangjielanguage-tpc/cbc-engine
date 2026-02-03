@@ -80,6 +80,8 @@ private:
 
 class LiteralTableBuilder {
 public:
+    static constexpr size_t MAX_SIZE = UINT16_MAX;
+
     LiteralTableBuilder(Symbols _symbols)
         : symbols(_symbols) {}
 
