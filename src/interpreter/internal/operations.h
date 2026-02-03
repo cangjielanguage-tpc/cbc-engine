@@ -1,9 +1,11 @@
 // is not supposed to be included anywhere outside interpreter.cpp
 
 #include "cbc/isa.h"
+#include "cbc/isa_rt.h"
 #include "interpreter/ectype.h"
 #include "interpreter/literals.h"
 #include "utils/math.h"
+#include "interpreter/runtime.h"
 
 namespace Interpretation {
 
@@ -171,5 +173,84 @@ template <>
 inline uint64_t DecodeImmediate<ImmKind::LITERAL>(LiteralTable* literals, uint16_t value) {
     return literals->at(value).u64;
 }
+
+template <typename RTI>
+class MemoryLocation {
+public:
+
+    inline MemoryLocation(uint8_t* _base, size_t _offset) : base(_base), offset(_offset) {}
+    inline MemoryLocation(uintptr_t _base, size_t _offset)
+        : base(reinterpret_cast<uint8_t*>(_base)), offset(_offset) {}
+
+    inline void StorePrim(StoreAccessKind::Value stk, RT::Reg src, Ectype* ectype) {
+        switch (stk) {
+            case StoreAccessKind::ST_8: Store<uint8_t>(src, ectype); return;
+            case StoreAccessKind::ST_16: Store<uint16_t>(src, ectype); return;
+            case StoreAccessKind::ST_32: Store<uint32_t>(src, ectype); return;
+            case StoreAccessKind::ST_64: Store<uint64_t>(src, ectype); return;
+            case StoreAccessKind::ST_F32: Store<float>(src, ectype); return;
+            case StoreAccessKind::ST_F64: Store<double>(src, ectype); return;
+            default: ASSERTION(false, "Unexpected stk");
+        }
+    }
+
+    inline void LoadPrim(LoadAccessKind::Value ldk, RT::Reg dst, Ectype* ectype) {
+        switch (ldk) {
+            case LoadAccessKind::LD_U8:  Load<uint8_t>(dst, ectype); return;
+            case LoadAccessKind::LD_U16: Load<uint16_t>(dst, ectype); return;
+            case LoadAccessKind::LD_32: Load<uint32_t>(dst, ectype); return;
+            case LoadAccessKind::LD_64: Load<uint64_t>(dst, ectype); return;
+            case LoadAccessKind::LD_S8:  Load<int8_t>(dst, ectype); return;
+            case LoadAccessKind::LD_S16: Load<int16_t>(dst, ectype); return;
+            case LoadAccessKind::LD_S32TO64: Load<int32_t>(dst, ectype); return;
+            case LoadAccessKind::LD_F32: Load<float>(dst, ectype); return;
+            case LoadAccessKind::LD_F64: Load<double>(dst, ectype); return;
+            default: ASSERTION(false, "Unexpected ldk");
+        }
+    }
+
+private:
+    template <typename P>
+    inline void Store(RT::Reg src, Ectype* ectype) {
+        *reinterpret_cast<P*>(base + offset) = static_cast<P>(ectype->GetPrimitive(src.IR()).u64);
+    }
+
+    template <>
+    inline void Store<float>(RT::Reg src, Ectype* ectype) {
+        *reinterpret_cast<float*>(base + offset) = static_cast<float>(ectype->GetPrimitive(src.FR()).f32);
+    }
+
+    template <>
+    inline void Store<double>(RT::Reg src, Ectype* ectype) {
+        *reinterpret_cast<double*>(base + offset) = static_cast<double>(ectype->GetPrimitive(src.FR()).f32);
+    }
+
+    template <typename P>
+    inline void Load(RT::Reg dst, Ectype* ectype) {
+        auto value = *reinterpret_cast<P*>(base + offset);
+        ectype->Put(dst.IR(), Value::Primitive {
+            .u64 = static_cast<uint64_t>(value)
+        });
+    }
+
+    template <>
+    inline void Load<float>(RT::Reg dst, Ectype* ectype) {
+        auto value = *reinterpret_cast<float*>(base + offset);
+        ectype->Put(dst.FR(), Value::Primitive {
+            .f32 = value
+        });
+    }
+
+    template <>
+    inline void Load<double>(RT::Reg dst, Ectype* ectype) {
+        auto value = *reinterpret_cast<double*>(base + offset);
+        ectype->Put(dst.FR(), Value::Primitive {
+            .f64 = value
+        });
+    }
+
+    uint8_t* base;
+    size_t offset;
+};
 
 } // namespace Interpretation

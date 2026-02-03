@@ -320,17 +320,17 @@ public:
         LD_U8      = 0b0000,
         LD_U16     = 0b0001,
         LD_32      = 0b0010,
-        SPECIAL    = 0b0011,
+        SPECIAL    = 0b0011, // unused in interpreter
         LD_S8      = 0b0100,
         LD_S16     = 0b0101,
         LD_F32     = 0b0110,
         LD_F64     = 0b0111,
-        LD_U8TO64  = 0b1000,
-        LD_U16TO64 = 0b1001,
-        LD_U32TO64 = 0b1010,
+        LD_U8TO64  = 0b1000, // unused in interpreter
+        LD_U16TO64 = 0b1001, // unused in interpreter
+        LD_U32TO64 = 0b1010, // unused in interpreter
         LD_64      = 0b1011,
-        LD_S8TO64  = 0b1100,
-        LD_S16TO64 = 0b1101,
+        LD_S8TO64  = 0b1100, // unused in interpreter
+        LD_S16TO64 = 0b1101, // unused in interpreter
         LD_S32TO64 = 0b1110,
         LD_REF     = 0b1111,
     };
