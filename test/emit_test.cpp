@@ -68,12 +68,13 @@ TEST(EmitTest, Simple_ArithB4xi12rr) {
     Emitter e;
     e.AddI(Width::W32, IReg::IR1, IReg::IR2, 0xff);
     e.AddI(Width::W32, IReg::IR1, IReg::IR1, 0xff00); // through literal
+    e.SubI(Width::W32, IReg::IR1, IReg::IR1, 0xfff);
     e.Ret();
     auto code = e.Build(heap);
-    EXPECT_EQ(9, code.bytecodeSize);
+    EXPECT_EQ(13, code.bytecodeSize);
 
     auto res = Interpret(code, U32(0), U32(1));
-    EXPECT_EQ(res.u32, 0x10000);
+    EXPECT_EQ(res.u32, 0xf001);
 }
 
 TEST(EmitTest, Literals_None) {
@@ -147,6 +148,20 @@ TEST(EmitTest, Simple_Bcc) {
 
     auto res2 = Interpret(code, U32(2), U32(1));
     EXPECT_EQ(res2.u32, 3);
+}
+
+TEST(EmitTest, Simple_Bcc_Loop) {
+    Emitter e;
+    auto loop = e.NewLabel();
+    e.Bind(loop);
+    e.AddI(Width::W32, IReg::IR1, IReg::IR1, 100);
+    e.Bcc(CC::LT, Width::W32, IReg::IR1, IReg::IR2, loop);
+    e.Ret();
+
+    auto code = e.Build(heap);
+
+    auto res = Interpret(code, U32(0), U32(100));
+    EXPECT_EQ(res.u32, 100);
 }
 
 } // namespace Emitter
