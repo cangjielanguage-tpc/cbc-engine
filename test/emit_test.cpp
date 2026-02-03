@@ -42,7 +42,6 @@ TEST(EmitTest, Simple_ArithB2rr) {
 }
 
 TEST(EmitTest, Simple_ArithB3xrrr) {
-    GTEST_SKIP() << "Decoding/dispatching of b3xrrr not implemented yet";
     Emitter e;
     e.Add(Width::W32, IReg::IR1, IReg::IR2, IReg::IR1);
     e.Ret();
