@@ -25,8 +25,8 @@ namespace Emitter {
 
 struct Test;
 
-static constexpr int MAX_I12 = 2047;
-static constexpr int MIN_I12 = -2048;
+static constexpr int MAX_I12 = Cbc::RT::LIT_TABLE_SIZE / 2 - 1;
+static constexpr int MIN_I12 = -Cbc::RT::LIT_TABLE_SIZE / 2;
 
 using namespace Cbc::Format;
 
