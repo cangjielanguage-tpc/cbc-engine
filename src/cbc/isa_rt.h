@@ -94,14 +94,17 @@ struct RR {
 /// 4 bit; immediate or enumerations
 class Imm4 {
 public:
-    inline Imm4(uint8_t _imm) : imm(_imm) {} // TODO: checks
+    constexpr inline Imm4(uint8_t _imm) : imm(_imm) {
+        ASSERT((_imm & 0xf) == _imm);
+    }
+
     inline Imm4() : imm(0) {}
 
     constexpr Imm4(Format::CC cc)
-        : imm(static_cast<uint8_t>(cc)) {}
+        : Imm4(static_cast<uint8_t>(cc)) {}
 
     constexpr Imm4(Format::Common common)
-        : imm(static_cast<uint8_t>(common)) {}
+        : Imm4(static_cast<uint8_t>(common)) {}
 
     inline operator uint8_t() const {
         return imm;
