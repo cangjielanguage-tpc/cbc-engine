@@ -2,7 +2,6 @@
 #define CBC_ISA_RT_H
 
 #include "isa.h"
-#include "cbc/isa_rt.h"
 #include "decoder.h"
 
 namespace Cbc {
