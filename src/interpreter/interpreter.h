@@ -88,6 +88,14 @@ public:
         ectype->Put(d, Value::Primitive{ .u64 = imm });
     }
 
+    inline void MovI(FReg d, float imm) {
+        ectype->Put(d, Value::Primitive{ .f32 = imm });
+    }
+
+    inline void MovI(FReg d, double imm) {
+        ectype->Put(d, Value::Primitive{ .f64 = imm });
+    }
+
     template <Width::Value width>
     inline bool Cmp(CC cc, IReg l, IReg r) {
         if (cc.isRef()) {

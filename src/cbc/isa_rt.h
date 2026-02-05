@@ -17,6 +17,8 @@ public:
         MOV,  // B2rr
         MOVI, // B2xr
         MOVR, // B2rr
+        FMOVI32, // B5i32
+        FMOVI64, // B9i64
         BCC32I, // B4xi12rr
         BCC64I, // B4xi12rr
         BCC32L, // B4xi12rr
@@ -180,11 +182,22 @@ struct Imm16 {
 };
 
 /// 32 bit; immediate
-struct Imm32 {
+union Imm32 {
     uint32_t imm;
+    float fimm;
 
     inline static Imm32 Decode(Decoder::ByteReader& reader) {
         return Imm32{reader.Read32()};
+    }
+};
+
+/// 64 bit; immediate
+union Imm64 {
+    uint64_t imm;
+    double dimm;
+
+    inline static Imm64 Decode(Decoder::ByteReader& reader) {
+        return Imm64{reader.Read64()};
     }
 };
 
@@ -331,6 +344,36 @@ struct B5i32 {
         auto opc = Opcode::Decode(reader);
         auto imm32 = Imm32::Decode(reader);
         return B5i32{opc, imm32};
+    }
+};
+
+struct B6xri32 {
+    static constexpr int SIZE = 6;
+
+    Opcode opc;
+    XR xr;
+    Imm32 imm32;
+
+    static B6xri32 Decode(Decoder::ByteReader& reader) {
+        auto opc = Opcode::Decode(reader);
+        auto xr = XR::Decode(reader);
+        auto imm32 = Imm32::Decode(reader);
+        return B6xri32{opc, xr, imm32};
+    }
+};
+
+struct B10xri64 {
+    static constexpr int SIZE = 9;
+
+    Opcode opc;
+    XR xr;
+    Imm64 imm64;
+
+    static B10xri64 Decode(Decoder::ByteReader& reader) {
+        auto opc = Opcode::Decode(reader);
+        auto xr = XR::Decode(reader);
+        auto imm64 = Imm64::Decode(reader);
+        return B10xri64{opc, xr, imm64};
     }
 };
 

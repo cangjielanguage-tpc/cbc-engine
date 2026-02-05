@@ -78,6 +78,8 @@ public:
     void Ret();
     void Mov(IReg d, IReg s);
     void MovImm(Width width, IReg d, uint64_t imm);
+    void FMovI32(FReg d, float imm);
+    void FMovI64(FReg d, double imm);
     void MovRef(IReg d, IReg s);
 
     void Bcc(CC cc, Width width, IReg l, IReg r, Label label);

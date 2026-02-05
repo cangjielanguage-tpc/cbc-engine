@@ -25,6 +25,8 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
         &&MOV,  // B2rr
         &&MOVI,  // B2xr
         &&MOVR, // B2rr
+        &&FMOVI32, //B6xri32
+        &&FMOVI64, //B10xri64
         &&BCC32I, // B4xi12rr
         &&BCC64I, // B4xi12rr
         &&BCC32L, // B4xi12rr
@@ -73,6 +75,16 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
     MOVR: {
         auto args = B2rr::Decode(reader);
         handler.MovRef(args.rr.x.IR(), args.rr.y.IR());
+        NEXT;
+    }
+    FMOVI32: {
+        auto args = B6xri32::Decode(reader);
+        handler.MovI(args.xr.r.FR(), args.imm32.fimm);
+        NEXT;
+    }
+    FMOVI64: {
+        auto args = B10xri64::Decode(reader);
+        handler.MovI(args.xr.r.FR(), args.imm64.dimm);
         NEXT;
     }
     BCC32I: {

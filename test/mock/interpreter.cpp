@@ -42,7 +42,8 @@ public:
     }
 };
 
-Value::Primitive Interpret(Code code, Value::Primitive ir1, Value::Primitive ir2) {
+template <typename RegType>
+Value::Primitive Interpret(Code code, Value::Primitive ir1, Value::Primitive ir2, RegType resReg) {
     heap.Reset();
 
     Interpretation::Ectype ectype{};
@@ -54,7 +55,7 @@ Value::Primitive Interpret(Code code, Value::Primitive ir1, Value::Primitive ir2
     Cbc::RT::InterpretationLoop(interp, s);
     //Entry(interp, ctx, s);
 
-    return ectype.GetPrimitive(IReg::IR1);
+    return ectype.GetPrimitive(resReg);
 }
 
 } // namespace Interpretation
@@ -65,5 +66,13 @@ Interpretation::Value::Primitive Interpret(
         Interpretation::Value::Primitive ir1,
         Interpretation::Value::Primitive ir2)
 {
-    return Interpretation::Interpret(code, ir1, ir2);
+    return Interpretation::Interpret<Cbc::IReg>(code, ir1, ir2, Cbc::IReg::IR1);
+}
+
+Interpretation::Value::Primitive InterpretFPRes(
+        Interpretation::Code code,
+        Interpretation::Value::Primitive ir1,
+        Interpretation::Value::Primitive ir2)
+{
+    return Interpretation::Interpret<Cbc::FReg>(code, ir1, ir2, Cbc::FReg::FR0);
 }

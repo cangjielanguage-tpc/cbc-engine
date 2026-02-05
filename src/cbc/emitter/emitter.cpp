@@ -96,6 +96,10 @@ void Encode(ByteBuffer& buf, RT::Imm32 i32) {
     buf.AddW32(i32.imm);
 }
 
+void Encode(ByteBuffer& buf, RT::Imm64 i64) {
+    buf.AddW64(i64.imm);
+}
+
 void Encode(ByteBuffer& buf, RT::XImm12 xi12) {
     buf.AddW16(RT::XImm12::Raw(xi12));
 }
@@ -139,6 +143,18 @@ void Encode(ByteBuffer& buf, RT::B5xi12ri12 command) {
 void Encode(ByteBuffer& buf, RT::B5i32 command) {
     Encode(buf, command.opc);
     Encode(buf, command.imm32);
+}
+
+void Encode(ByteBuffer& buf, RT::B6xri32 command) {
+    Encode(buf, command.opc);
+    Encode(buf, command.xr);
+    Encode(buf, command.imm32);
+}
+
+void Encode(ByteBuffer& buf, RT::B10xri64 command) {
+    Encode(buf, command.opc);
+    Encode(buf, command.xr);
+    Encode(buf, command.imm64);
 }
 
 // region isa12
@@ -413,6 +429,32 @@ void Emitter::MovImm(Width width, IReg d, uint64_t imm) {
         AddI(width, d, IReg::IRZ, imm);
     }
 }
+
+void Emitter::FMovI32(FReg d, float imm) {
+    Encode(segment, RT::B6xri32 {
+        .opc = RT::Opcode::FMOVI32,
+        .xr = RT::XR {
+            .imm = 0,
+            .r = d
+        },
+        .imm32 = RT::Imm32 {
+            .fimm = imm
+        }
+    });
+}
+void Emitter::FMovI64(FReg d, double imm) {
+    Encode(segment, RT::B10xri64 {
+        .opc = RT::Opcode::FMOVI64,
+        .xr = RT::XR {
+            .imm = 0,
+            .r = d
+        },
+        .imm64 = RT::Imm64 {
+            .dimm = imm
+        }
+    });
+}
+
 
 void Emitter::MovRef(IReg d, IReg s) {
     Encode(segment, RT::B2rr {

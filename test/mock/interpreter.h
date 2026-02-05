@@ -22,5 +22,10 @@ Interpretation::Value::Primitive Interpret(
         Interpretation::Value::Primitive ir1,
         Interpretation::Value::Primitive ir2);
 
+Interpretation::Value::Primitive InterpretFPRes(
+        Interpretation::Code code,
+        Interpretation::Value::Primitive ir1,
+        Interpretation::Value::Primitive ir2);
+
 #endif // MOCK_INTERPRETER_H
 

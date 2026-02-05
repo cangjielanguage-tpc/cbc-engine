@@ -53,6 +53,28 @@ TEST(EmitTest, Simple_Mov) {
     EXPECT_EQ(res.u64, 0x7);
 }
 
+TEST(EmitTest, Simple_FMovI32) {
+    Emitter e;
+    e.FMovI32(FReg::FR0, 0.5);
+    e.Ret();
+    auto code = e.Build(heap);
+    EXPECT_EQ(7, code.bytecodeSize);
+
+    auto res = InterpretFPRes(code, U32(0), U32(0));
+    EXPECT_EQ(res.f32, 0.5);
+}
+
+TEST(EmitTest, Simple_FMovI64) {
+    Emitter e;
+    e.FMovI64(FReg::FR0, 0.25);
+    e.Ret();
+    auto code = e.Build(heap);
+    EXPECT_EQ(11, code.bytecodeSize);
+
+    auto res = InterpretFPRes(code, U32(0), U32(0));
+    EXPECT_EQ(res.f64, 0.25);
+}
+
 TEST(EmitTest, Simple_ArithB3xrrr) {
     Emitter e;
     e.Add(Width::W32, IReg::IR1, IReg::IR2, IReg::IR1);
