@@ -42,6 +42,16 @@ public:
         return false;
     }
 
+    template <Width::Value width>
+    inline bool Binary(FloatOperations::Value fpOp, FReg d, FReg l, FReg r) {
+        auto res = ArithFP<width>(fpOp, ectype->GetPrimitive(l), ectype->GetPrimitive(r));
+        if (res.successful) {
+            ectype->Put(d, res.result);
+            return true;
+        }
+        return false;
+    }
+
     inline bool LoadObj(Format::LoadAccessKind ldk, RT::Reg dst, IReg base, uint32_t offset) {
         auto obj = ectype->GetReference(base);
         if (!NullCheck(obj)) {
@@ -81,6 +91,10 @@ public:
     }
 
     inline void Mov(IReg d, IReg s) {
+        ectype->Put(d, ectype->GetPrimitive(s));
+    }
+
+    inline void Mov(FReg d, FReg s) {
         ectype->Put(d, ectype->GetPrimitive(s));
     }
 

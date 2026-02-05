@@ -17,8 +17,9 @@ public:
         MOV,  // B2rr
         MOVI, // B2xr
         MOVR, // B2rr
-        FMOVI32, // B5i32
-        FMOVI64, // B9i64
+        FMOV, // B2rr
+        FMOVI32, // B6xri32
+        FMOVI64, // B10xri64
         BCC32I, // B4xi12rr
         BCC64I, // B4xi12rr
         BCC32L, // B4xi12rr
@@ -39,6 +40,8 @@ public:
         BINI64I, // B4xi12rr
         BINI32L, // B4xi12rr
         BINI64L, // B4xi12rr
+        FBIN32, // B3xrrr
+        FBIN64, // B3xrrr
 
         NEWOBJ, // B3xi12,
         LOAD_OBJ, // B4xi12rr
@@ -113,6 +116,9 @@ public:
     constexpr Imm4(Format::Common common)
         : imm(static_cast<uint8_t>(common)) {}
 
+    constexpr Imm4(Format::FloatOperations fpOps)
+        : imm(static_cast<uint8_t>(fpOps)) {}
+
     inline operator uint8_t() const {
         return imm;
     }
@@ -123,6 +129,10 @@ public:
 
     inline Format::Common Common() const {
         return Format::Common(imm);
+    }
+
+    inline Format::FloatOperations FloatOperations() const {
+        return Format::FloatOperations(imm);
     }
 
     inline Format::StoreAccessKind STK() const {

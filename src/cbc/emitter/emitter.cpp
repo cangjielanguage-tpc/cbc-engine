@@ -400,9 +400,45 @@ void Emitter::LslI (Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Commo
 void Emitter::LsrI (Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common::LSR,  width, d, l, imm); }
 void Emitter::AsrI (Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common::ASR,  width, d, l, imm); }
 
+void Emitter::Binary(Format::FloatOperations op, Format::Width width, FReg d, FReg l, FReg r) {
+    assert(width == Format::Width::W32 || width == Format::Width::W64);
+    assert(op.IsBasic());
+
+    auto opcode = width == Format::Width::W32
+        ? RT::Opcode::FBIN32
+        : RT::Opcode::FBIN64;
+
+    Encode(segment, RT::B3xrrr {
+        .opc = opcode,
+        .xr = RT::XR {
+            .imm = RT::Imm4(op),
+            .r = d,
+        },
+        .rr = {
+            .x = l,
+            .y = r
+        },
+    });
+}
+
+void Emitter::Add(Width width, FReg d, FReg l, FReg r) { Binary(FloatOperations::FADD, width, d, l, r); }
+void Emitter::Sub(Width width, FReg d, FReg l, FReg r) { Binary(FloatOperations::FSUB, width, d, l, r); }
+void Emitter::Mul(Width width, FReg d, FReg l, FReg r) { Binary(FloatOperations::FMUL, width, d, l, r); }
+void Emitter::Div(Width width, FReg d, FReg l, FReg r) { Binary(FloatOperations::FDIV, width, d, l, r); }
+
 void Emitter::Mov(IReg d, IReg s) {
     Encode(segment, RT::B2rr {
         .opc = RT::Opcode::MOV,
+        .rr = RT::RR {
+            .x = d,
+            .y = s
+        }
+    });
+}
+
+void Emitter::Mov(FReg d, FReg s) {
+    Encode(segment, RT::B2rr {
+        .opc = RT::Opcode::FMOV,
         .rr = RT::RR {
             .x = d,
             .y = s
@@ -492,7 +528,7 @@ void Emitter::NewObj(IReg d, Symbol sym) {
     AddFixup(std::make_unique<Literal12Fixup>(i4, sym));
 }
 
-void Emitter::LoadObj(Format::LoadAccessKind ldk, IReg dst, IReg base, uint32_t offset) {
+void Emitter::LoadObj(Format::LoadAccessKind ldk, RT::Reg dst, IReg base, uint32_t offset) {
     ASSERTION((offset & 0xfff) == offset, "Offset is too big. >12bit is not supported");
     Encode(segment, RT::B4xi12rr {
         .opc = RT::Opcode::LOAD_OBJ,
@@ -507,7 +543,7 @@ void Emitter::LoadObj(Format::LoadAccessKind ldk, IReg dst, IReg base, uint32_t 
     });
 }
 
-void Emitter::StoreObj(Format::StoreAccessKind stk, IReg src, IReg base, uint32_t offset) {
+void Emitter::StoreObj(Format::StoreAccessKind stk, RT::Reg src, IReg base, uint32_t offset) {
     ASSERTION((offset & 0xfff) == offset, "Offset is too big. >12bit is not supported");
     Encode(segment, RT::B4xi12rr {
         .opc = RT::Opcode::STORE_OBJ,

@@ -66,10 +66,11 @@ TEST(EmitTest, Simple_FMovI32) {
 
 TEST(EmitTest, Simple_FMovI64) {
     Emitter e;
-    e.FMovI64(FReg::FR0, 0.25);
+    e.FMovI64(FReg::FR10, 0.25);
+    e.Mov(FReg::FR0, FReg::FR10);
     e.Ret();
     auto code = e.Build(heap);
-    EXPECT_EQ(11, code.bytecodeSize);
+    EXPECT_EQ(13, code.bytecodeSize);
 
     auto res = InterpretFPRes(code, U32(0), U32(0));
     EXPECT_EQ(res.f64, 0.25);
@@ -97,6 +98,24 @@ TEST(EmitTest, Simple_ArithB4xi12rr) {
 
     auto res = Interpret(code, U32(0), U32(1));
     EXPECT_EQ(res.u32, 0xf001);
+}
+
+TEST(EmitTest, Simple_ArithFP) {
+    Emitter e;
+    e.FMovI32(FReg::FR0, 12.5);
+    e.FMovI32(FReg::FR1, 2.5);
+    e.FMovI32(FReg::FR2, 1.25);
+    e.FMovI32(FReg::FR3, 0.25);
+    e.Add(Width::W32, FReg::FR0, FReg::FR0, FReg::FR1);
+    e.Sub(Width::W32, FReg::FR0, FReg::FR0, FReg::FR2);
+    e.Div(Width::W32, FReg::FR0, FReg::FR0, FReg::FR2);
+    e.Mul(Width::W32, FReg::FR0, FReg::FR0, FReg::FR3);
+    e.Ret();
+    auto code = e.Build(heap);
+    EXPECT_EQ(6*4 + 3*4 + 1, code.bytecodeSize);
+
+    auto res = InterpretFPRes(code, U32(1), U32(2));
+    EXPECT_EQ(res.f32, 2.75);
 }
 
 TEST(EmitTest, Literals_None) {

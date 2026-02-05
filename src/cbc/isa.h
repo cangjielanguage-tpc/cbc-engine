@@ -178,6 +178,37 @@ private:
     Value _value;
 };
 
+class FloatOperations {
+public:
+    enum Value : uint32_t {
+        FADD  = 0b0000,
+        FSUB  = 0b0001,
+        FMUL  = 0b0010,
+        FDIV  = 0b0011,
+        FMOV  = 0b0100,
+        FNEG  = 0b0101,
+        FABS  = 0b0110,
+        FQSRT = 0b0111,
+        MVI2F = 0b1000,
+        MVF2I = 0b1001,
+    };
+    static constexpr Value values[] = {
+        FADD, FSUB, FMUL, FDIV, FMOV, FNEG, FABS, FQSRT, MVI2F, MVF2I,
+    };
+
+    constexpr FloatOperations(const Value raw) : _value(raw) {}
+    constexpr FloatOperations(const Bits bits) : _value(Value(bits.Raw())) {}
+    constexpr FloatOperations(const uint32_t bits) : _value(Value(bits)) {}
+    constexpr operator Value() const { return _value; }
+    constexpr Bits ToBits() const { return _value; }
+
+    constexpr bool IsBasic() {
+        return (_value >> 2u) == 0;
+    }
+
+private:
+    Value _value;
+};
 
 class OP7A {
 public:

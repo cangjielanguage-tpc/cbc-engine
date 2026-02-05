@@ -23,8 +23,9 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
         &&HALT, // B1 TODO merge rare commands
         &&RET,  // B1 TODO merge rare commands
         &&MOV,  // B2rr
-        &&MOVI,  // B2xr
+        &&MOVI, // B2xr
         &&MOVR, // B2rr
+        &&FMOV, // B2rr
         &&FMOVI32, //B6xri32
         &&FMOVI64, //B10xri64
         &&BCC32I, // B4xi12rr
@@ -47,6 +48,8 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
         &&BINI64I, // B4xi12rr
         &&BINI32L, // B4xi12rr
         &&BINI64L, // B4xi12rr
+        &&FBIN32, // B3xrrr
+        &&FBIN64, // B3xrrr
 
         &&NEWOBJ, // B3xri16,
         &&LOAD_OBJ, // B4xi12rr
@@ -75,6 +78,11 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
     MOVR: {
         auto args = B2rr::Decode(reader);
         handler.MovRef(args.rr.x.IR(), args.rr.y.IR());
+        NEXT;
+    }
+    FMOV: {
+        auto args = B2rr::Decode(reader);
+        handler.Mov(args.rr.x.FR(), args.rr.y.FR());
         NEXT;
     }
     FMOVI32: {
@@ -205,6 +213,20 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
         bool successful = handler.template BinaryImm<ImmKind::LITERAL, Width::W64>(
                 args.xi12.imm4.Common(), args.rr.x.IR(),
                 args.rr.y.IR(), args.xi12.imm12);
+        NEXT_COND(successful);
+    }
+    FBIN32: {
+        auto args = B3xrrr::Decode(reader);
+        bool successful = handler.template Binary<Width::W32>(
+                args.xr.imm.FloatOperations(), args.xr.r.FR(),
+                args.rr.x.FR(), args.rr.y.FR());
+        NEXT_COND(successful);
+    }
+    FBIN64: {
+        auto args = B3xrrr::Decode(reader);
+        bool successful = handler.template Binary<Width::W64>(
+                args.xr.imm.FloatOperations(), args.xr.r.FR(),
+                args.rr.x.FR(), args.rr.y.FR());
         NEXT_COND(successful);
     }
     NEWOBJ: {

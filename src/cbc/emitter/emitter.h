@@ -75,8 +75,14 @@ public:
     void LsrI (Width width, IReg d, IReg l, uint64_t imm);
     void AsrI (Width width, IReg d, IReg l, uint64_t imm);
 
+    void Add(Width width, FReg d, FReg l, FReg r);
+    void Sub(Width width, FReg d, FReg l, FReg r);
+    void Mul(Width width, FReg d, FReg l, FReg r);
+    void Div(Width width, FReg d, FReg l, FReg r);
+
     void Ret();
     void Mov(IReg d, IReg s);
+    void Mov(FReg d, FReg s);
     void MovImm(Width width, IReg d, uint64_t imm);
     void FMovI32(FReg d, float imm);
     void FMovI64(FReg d, double imm);
@@ -87,12 +93,13 @@ public:
     void Jmp(Label label);
 
     void NewObj(IReg d, Symbol sym);
-    void LoadObj(Format::LoadAccessKind ldk, IReg dst, IReg base, uint32_t offset);
-    void StoreObj(Format::StoreAccessKind stk, IReg src, IReg base, uint32_t offset);
+    void LoadObj(Format::LoadAccessKind ldk, RT::Reg dst, IReg base, uint32_t offset);
+    void StoreObj(Format::StoreAccessKind stk, RT::Reg src, IReg base, uint32_t offset);
 
 private:
     void AddFixup(std::unique_ptr<Fixup> fixup);
     void Binary(Format::Common op, Format::Width width, IReg d, IReg l, IReg r);
+    void Binary(Format::FloatOperations op, Format::Width width, FReg d, FReg l, FReg r);
     void BinaryImm(Format::Common op, Format::Width width, IReg d, IReg l, uint64_t imm);
 
     Symbols symbols;

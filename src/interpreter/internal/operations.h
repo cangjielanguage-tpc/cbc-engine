@@ -131,6 +131,33 @@ inline ArithmeticResult Arith<Width::W32>(Common::Value op, Value::Primitive l, 
     }
 }
 
+template <Width::Value width>
+static inline ArithmeticResult ArithFP(FloatOperations::Value op, Value::Primitive l, Value::Primitive r);
+
+template <>
+inline ArithmeticResult ArithFP<Width::W64>(FloatOperations::Value op, Value::Primitive l, Value::Primitive r) {
+    using namespace Cbc::Format;
+    switch (op) {
+        case FloatOperations::FADD: return {Value::Primitive{ .f64 = l.f64 + r.f64 }, true};
+        case FloatOperations::FSUB: return {Value::Primitive{ .f64 = l.f64 - r.f64 }, true};
+        case FloatOperations::FMUL: return {Value::Primitive{ .f64 = l.f64 * r.f64 }, true};
+        case FloatOperations::FDIV: return {Value::Primitive{ .f64 = l.f64 / r.f64 }, true};
+        default: ASSERTION(false, "Unexpected FP op");
+    }
+}
+
+template <>
+inline ArithmeticResult ArithFP<Width::W32>(FloatOperations::Value op, Value::Primitive l, Value::Primitive r) {
+    using namespace Cbc::Format;
+    switch (op) {
+        case FloatOperations::FADD: return {Value::Primitive{ .f32 = l.f32 + r.f32 }, true};
+        case FloatOperations::FSUB: return {Value::Primitive{ .f32 = l.f32 - r.f32 }, true};
+        case FloatOperations::FMUL: return {Value::Primitive{ .f32 = l.f32 * r.f32 }, true};
+        case FloatOperations::FDIV: return {Value::Primitive{ .f32 = l.f32 / r.f32 }, true};
+        default: ASSERTION(false, "Unexpected FP op");
+    }
+}
+
 template <CC::Value cc, Width::Value width>
 inline static bool Compare(Value::Primitive l, Value::Primitive r);
 
