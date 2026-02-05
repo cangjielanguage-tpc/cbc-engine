@@ -222,7 +222,7 @@ private:
 
     template <>
     inline void Store<double>(RT::Reg src, Ectype* ectype) {
-        *reinterpret_cast<double*>(base + offset) = static_cast<double>(ectype->GetPrimitive(src.FR()).f32);
+        *reinterpret_cast<double*>(base + offset) = static_cast<double>(ectype->GetPrimitive(src.FR()).f64);
     }
 
     template <typename P>
