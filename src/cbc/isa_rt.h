@@ -11,7 +11,7 @@ constexpr int LIT_TABLE_SIZE = 4096;
 
 class Opcode {
 public:
-    enum Value : uint32_t {
+    enum Value : uint8_t {
         HALT, // B1 TODO merge rare commands
         RET,  // B1 TODO merge rare commands
         MOV,  // B2rr
@@ -34,18 +34,103 @@ public:
         LOAD_OBJ, // B4xi12rr
         STORE_OBJ, // B4xi12rr
 
+        MEMSPACE, // B1. See `MemOpcode`
+
         OPCODE_NUM,
     };
     static_assert(OPCODE_NUM <= 256);
 
     inline constexpr Opcode(const Value value) : _value(value) {}
-    inline constexpr Opcode(const uint32_t raw) : _value(static_cast<Value>(raw)) {}
+    inline constexpr Opcode(const uint8_t raw) : _value(static_cast<Value>(raw)) {}
     inline constexpr Opcode() : _value(HALT) {}
     inline constexpr operator Value() const { return _value; }
 
     inline static Opcode Decode(Decoder::ByteReader& reader) {
         uint8_t b = reader.Read8();
         return Opcode(b);
+    }
+
+private:
+    Value _value;
+};
+
+/// ISA12 is encoding a number of different mem.head operations
+/// which are describing the kind of a base.
+/// This is not convenient for interpretation,
+/// since the actual value is only needed at the tail of memspace
+/// in the operation itself (and sometimes it is not needed at all).
+///
+/// So, the ISA12 would require from memspace interpreter to store
+/// the state of a head all the way to the tail.
+///
+/// Instead, we will encode memspace command as one `MEMSPACE` opcode,
+/// which will enter the memspace, accumulate the offset and
+/// use it to perform the actual operation.
+///
+/// Additionally, we would expect that the whole MEMSPACE instruction
+/// will not throw any exception and must execute without errors from start to finish.
+class MemOpcode {
+public:
+    enum Value : uint8_t {
+        MEM_HALT, // M1
+
+        OFFS16, // M2i16
+        OFFS32, // M2i32
+        OFFS64, // M2i64
+        OFFS_REG, // M2xr
+
+        RLD_START_OPCODE,
+        RLD_U8 = RLD_START_OPCODE,  // M2rr
+        RLD_U16, // M2rr
+        RLD_32,  // M2rr
+        RLD_S8,  // M2rr
+        RLD_S16, // M2rr
+        RLD_F32, // M2rr
+        RLD_F64, // M2rr
+        RLD_64,  // M2rr
+        RLD_S32TO64, // M2rr
+        RLD_REF, // M2rr
+        RLD_END_OPCODE = RLD_REF,
+        RST_START_OPCODE,
+        RST_8 = RST_START_OPCODE,   // M2rr
+        RST_16,  // M2rr
+        RST_32,  // M2rr
+        RST_64,  // M2rr
+        RST_REF, // M2rr
+        RST_F32, // M2rr
+        RST_F64, // M2rr
+        RST_END_OPCODE = RST_F64,
+
+        // TODO: Add following opcodes.
+        // SLD_*, <- struct
+        // SST_*,
+        // GLD_*, <- global
+        // GST_*,
+        // ULD_*, <- uts needed for marking (otherwise, use FLD)
+        // UST_*, <- uts needed for marking (otherwise, use FST)
+        // FLD_*, <- frame
+        // FST_*,
+
+        // TODO: Discuss which copy operations are needed,
+        //       since there is up to N^2 possible combinations.
+        // COPY,
+
+        // TODO: Discuss how to implement index operation properly:
+        //       handle OOB exception and different kinds of Array type.
+        // INDEX
+
+        OPCODE_NUM,
+    };
+    static_assert(OPCODE_NUM <= 256);
+
+    inline constexpr MemOpcode(const Value value) : _value(value) {}
+    inline constexpr MemOpcode(const uint32_t raw) : _value(static_cast<Value>(raw)) {}
+    inline constexpr MemOpcode() : _value(MEM_HALT) {}
+    inline constexpr operator Value() const { return _value; }
+
+    inline static MemOpcode Decode(Decoder::ByteReader& reader) {
+        uint8_t b = reader.Read8();
+        return MemOpcode(b);
     }
 
 private:
@@ -273,6 +358,62 @@ struct B4xi12xr {
         return B4xi12xr{opc, xi12, xr};
     }
 };
+
+struct M2i16 {
+    MemOpcode opc;
+    uint16_t imm16;
+
+    inline static M2i16 Decode(Decoder::ByteReader& reader) {
+        auto opc = MemOpcode::Decode(reader);
+        auto imm16 = reader.Read16();
+        return M2i16{opc, imm16};
+    }
+};
+
+struct M2i32 {
+    MemOpcode opc;
+    uint32_t imm32;
+
+    inline static M2i32 Decode(Decoder::ByteReader& reader) {
+        auto opc = MemOpcode::Decode(reader);
+        auto imm32 = reader.Read32();
+        return M2i32{opc, imm32};
+    }
+};
+
+struct M2i64 {
+    MemOpcode opc;
+    uint64_t imm64;
+
+    inline static M2i64 Decode(Decoder::ByteReader& reader) {
+        auto opc = MemOpcode::Decode(reader);
+        auto imm64 = reader.Read64();
+        return M2i64{opc, imm64};
+    }
+};
+
+struct M2rr {
+    MemOpcode opc;
+    RR rr;
+
+    inline static M2rr Decode(Decoder::ByteReader& reader) {
+        auto opc = MemOpcode::Decode(reader);
+        auto rr = RR::Decode(reader);
+        return M2rr{opc, rr};
+    }
+};
+
+struct M2xr {
+    MemOpcode opc;
+    XR xr;
+
+    inline static M2xr Decode(Decoder::ByteReader& reader) {
+        auto opc = MemOpcode::Decode(reader);
+        auto xr = XR::Decode(reader);
+        return M2xr{opc, xr};
+    }
+};
+
 
 } // namespace RT
 } // namespace Cbc

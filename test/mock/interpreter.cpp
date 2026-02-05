@@ -8,7 +8,7 @@
 
 namespace Interpretation {
 
-static constexpr int HEAP_SIZE = 4096;
+static constexpr int HEAP_SIZE = 16384;
 static LimitedHeap<HEAP_SIZE> heap;
 
 struct Test {};
@@ -52,7 +52,6 @@ Value::Primitive Interpret(Code code, Value::Primitive ir1, Value::Primitive ir2
     ectype.Put(IReg::IR2, ir2);
 
     Cbc::RT::InterpretationLoop(interp, s);
-    //Entry(interp, ctx, s);
 
     return ectype.GetPrimitive(IReg::IR1);
 }

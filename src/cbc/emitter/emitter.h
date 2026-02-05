@@ -31,6 +31,24 @@ public:
     using Common = Format::Common;
     using Bits = Format::Bits;
 
+    class MemSpace {
+    public:
+        MemSpace(Emitter& _emitter)
+            : segment(_emitter.segment), symbols(_emitter.symbols), emitter(_emitter) {}
+
+        void Offset(uint64_t offset);
+        void OffsetReg(IReg reg);
+
+        // tail instructions
+        void LoadObj(Format::LoadAccessKind ldk, RT::Reg dst, IReg base);
+        void StoreObj(Format::StoreAccessKind stk, RT::Reg src, IReg base);
+
+    private:
+        Segment& segment;
+        Symbols& symbols;
+        Emitter& emitter;
+    };
+
     Emitter() = default;
 
     Symbol NewAddressSym(uintptr_t ptr);
@@ -85,6 +103,8 @@ public:
     void NewObj(IReg d, Symbol sym);
     void LoadObj(Format::LoadAccessKind ldk, IReg dst, IReg base, uint32_t offset);
     void StoreObj(Format::StoreAccessKind stk, IReg src, IReg base, uint32_t offset);
+
+    MemSpace OpenMemSpace();
 
 private:
     void AddFixup(std::unique_ptr<Fixup> fixup);
