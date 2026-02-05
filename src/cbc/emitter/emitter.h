@@ -81,6 +81,8 @@ public:
     void MovRef(IReg d, IReg s);
 
     void Bcc(CC cc, Width width, IReg l, IReg r, Label label);
+    void BccImm(CC cc, Width width, IReg l, uint64_t r, Label label);
+    void Jmp(Label label);
 
     void NewObj(IReg d, Symbol sym);
     void LoadObj(Format::LoadAccessKind ldk, IReg dst, IReg base, uint32_t offset);

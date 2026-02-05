@@ -252,6 +252,7 @@ public:
     constexpr CC(const Value raw) : _value(raw) {}
     constexpr operator Value() const { return _value; }
     constexpr Bits ToBits() const { return _value; }
+    constexpr bool isRef() const { return _value == REQ || _value == RNE; }
 
 private:
     Value _value;

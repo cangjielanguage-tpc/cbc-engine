@@ -154,7 +154,7 @@ TEST(EmitTest, Simple_Bcc_Loop) {
     Emitter e;
     auto loop = e.NewLabel();
     e.Bind(loop);
-    e.AddI(Width::W32, IReg::IR1, IReg::IR1, 100);
+    e.AddI(Width::W32, IReg::IR1, IReg::IR1, 1);
     e.Bcc(CC::LT, Width::W32, IReg::IR1, IReg::IR2, loop);
     e.Ret();
 
@@ -162,6 +162,58 @@ TEST(EmitTest, Simple_Bcc_Loop) {
 
     auto res = Interpret(code, U32(0), U32(100));
     EXPECT_EQ(res.u32, 100);
+}
+
+TEST(EmitTest, Simple_Jmp) {
+    Emitter e;
+    auto l1 = e.NewLabel();
+    auto l2 = e.NewLabel();
+    auto l3 = e.NewLabel();
+    e.Jmp(l2);
+    e.MovImm(Width::W32, IReg::IR1, 1);
+    e.Bind(l1);
+    e.AddI(Width::W32, IReg::IR1, IReg::IR1, 10);
+    e.Jmp(l3);
+    e.MovImm(Width::W32, IReg::IR1, 2);
+    e.Bind(l2);
+    e.AddI(Width::W32, IReg::IR1, IReg::IR1, 20);
+    e.Jmp(l1);
+    e.MovImm(Width::W32, IReg::IR1, 3);
+    e.Bind(l3);
+    e.AddI(Width::W32, IReg::IR1, IReg::IR1, 30);
+    e.Ret();
+
+    auto code = e.Build(heap);
+
+    auto res = Interpret(code, U32(100), U32(0));
+    EXPECT_EQ(res.u32, 160);
+}
+
+TEST(EmitTest, Simple_BccImm) {
+    Emitter e;
+    auto loop = e.NewLabel();
+    auto fwd = e.NewLabel();
+    auto end = e.NewLabel();
+    e.Bind(loop);
+    e.AddI(Width::W32, IReg::IR1, IReg::IR1, 1);
+    e.BccImm(CC::NE, Width::W32, IReg::IR1, 0xffff, fwd); // lit value, lit offset
+    for (int i = 0; i < INT16_MAX / 8; ++i) {
+        e.Ret();
+    }
+    e.Bind(fwd);
+    e.BccImm(CC::LT, Width::W32, IReg::IR1, 100, loop); // lit neg offset
+    e.BccImm(CC::LT, Width::W32, IReg::IR1, -0xffff, end); // lit neg value, false res
+    e.AddI(Width::W32, IReg::IR1, IReg::IR1, 1);
+    e.BccImm(CC::GE, Width::W32, IReg::IR1, -5, end); // neg value
+    e.Ret();
+    e.AddI(Width::W32, IReg::IR1, IReg::IR1, 2);
+    e.Bind(end);
+    e.Ret();
+
+    auto code = e.Build(heap);
+
+    auto res = Interpret(code, U32(0), U32(10));
+    EXPECT_EQ(res.u32, 101);
 }
 
 } // namespace Emitter

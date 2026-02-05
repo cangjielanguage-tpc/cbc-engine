@@ -21,7 +21,15 @@ public:
         BCC64I, // B4xi12rr
         BCC32L, // B4xi12rr
         BCC64L, // B4xi12rr
-        BCCI, // B4xi12xr
+        BCCI32I, // B5xi12ri12
+        BCCI64I, // B5xi12ri12
+        BCCI32L, // B5xi12ri12
+        BCCI64L, // B5xi12ri12
+        BCCL32I, // B5xi12ri12
+        BCCL64I, // B5xi12ri12
+        BCCL32L, // B5xi12ri12
+        BCCL64L, // B5xi12ri12
+        JMP32, // B5i32
 
         BIN32, // B3xrrr
         BIN64, // B3xrrr
@@ -171,6 +179,15 @@ struct Imm16 {
     }
 };
 
+/// 32 bit; immediate
+struct Imm32 {
+    uint32_t imm;
+
+    inline static Imm32 Decode(Decoder::ByteReader& reader) {
+        return Imm32{reader.Read32()};
+    }
+};
+
 /// 16 bit; Imm4 and 12-bit immediate
 struct XImm12 {
     Imm4 imm4;
@@ -186,6 +203,24 @@ struct XImm12 {
 
     inline static uint16_t Raw(XImm12 xi12) {
         return static_cast<uint16_t>(xi12.imm4 | (xi12.imm12 << 4));
+    }
+};
+
+/// 16 bit; Imm4 and 12-bit immediate
+struct RImm12 {
+    Reg r;
+    Imm12 imm12;
+
+    inline static RImm12 Decode(Decoder::ByteReader& reader) {
+        uint16_t b2 = reader.Read16();
+        return RImm12{
+            .r = b2 & 0xf,
+            .imm12 = Imm12{static_cast<uint16_t>(b2 >> 4)},
+        };
+    }
+
+    inline static uint16_t Raw(RImm12 xi12) {
+        return static_cast<uint16_t>(xi12.r | (xi12.imm12 << 4));
     }
 };
 
@@ -268,6 +303,34 @@ struct B4xi12xr {
         auto xi12 = XImm12::Decode(reader);
         auto xr = XR::Decode(reader);
         return B4xi12xr{opc, xi12, xr};
+    }
+};
+
+struct B5xi12ri12 {
+    static constexpr int SIZE = 5;
+
+    Opcode opc;
+    XImm12 xi12;
+    RImm12 ri12;
+
+    static B5xi12ri12 Decode(Decoder::ByteReader& reader) {
+        auto opc = Opcode::Decode(reader);
+        auto xi12 = XImm12::Decode(reader);
+        auto ri12 = RImm12::Decode(reader);
+        return B5xi12ri12{opc, xi12, ri12};
+    }
+};
+
+struct B5i32 {
+    static constexpr int SIZE = 5;
+
+    Opcode opc;
+    Imm32 imm32;
+
+    static B5i32 Decode(Decoder::ByteReader& reader) {
+        auto opc = Opcode::Decode(reader);
+        auto imm32 = Imm32::Decode(reader);
+        return B5i32{opc, imm32};
     }
 };
 

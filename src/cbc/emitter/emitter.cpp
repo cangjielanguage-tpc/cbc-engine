@@ -92,8 +92,16 @@ void Encode(ByteBuffer& buf, RT::Imm16 i16) {
     buf.AddW16(i16.imm);
 }
 
+void Encode(ByteBuffer& buf, RT::Imm32 i32) {
+    buf.AddW32(i32.imm);
+}
+
 void Encode(ByteBuffer& buf, RT::XImm12 xi12) {
     buf.AddW16(RT::XImm12::Raw(xi12));
+}
+
+void Encode(ByteBuffer& buf, RT::RImm12 ri12) {
+    buf.AddW16(RT::RImm12::Raw(ri12));
 }
 
 void Encode(ByteBuffer& buf, RT::B1 command) {
@@ -120,6 +128,17 @@ void Encode(ByteBuffer& buf, RT::B4xi12rr command) {
     Encode(buf, command.opc);
     Encode(buf, command.xi12);
     Encode(buf, command.rr);
+}
+
+void Encode(ByteBuffer& buf, RT::B5xi12ri12 command) {
+    Encode(buf, command.opc);
+    Encode(buf, command.xi12);
+    Encode(buf, command.ri12);
+}
+
+void Encode(ByteBuffer& buf, RT::B5i32 command) {
+    Encode(buf, command.opc);
+    Encode(buf, command.imm32);
 }
 
 // region isa12
@@ -151,6 +170,28 @@ public:
 
 private:
     RT::Imm4 i4;
+};
+
+class JmpFixup : public Fixup {
+public:
+    JmpFixup(Symbol _sym): Fixup(_sym) {}
+
+    int32_t Size() const override {
+        return RT::B5i32::SIZE;
+    }
+
+    void Resolve(Segment& segment, Symbols& symbols,
+            std::function<uint16_t(Symbol)> const& relocationConverter) const override {
+        int32_t distance = Distance(symbols, this->symbol);
+
+        Segment::View buf = segment.At(static_cast<size_t>(position));
+        Encode(buf, RT::B5i32 {
+            .opc = RT::Opcode::JMP32, // TODO: support short jump instruction
+            .imm32 = RT::Imm32 {
+                .imm = static_cast<uint32_t>(distance)
+            }
+        });
+    }
 };
 
 class BccFixup : public Fixup {
@@ -198,6 +239,61 @@ private:
     Width width;
     IReg left;
     IReg right;
+};
+
+class BccImmFixup : public Fixup {
+public:
+    BccImmFixup(Symbol _sym, CC _cc, Width _width, IReg _left, uint64_t _right)
+        : Fixup(_sym), cc(_cc), width(_width), left(_left), right(_right) {}
+
+    int32_t Size() const override {
+        return RT::B5xi12ri12::SIZE;
+    }
+
+    static RT::Opcode opcode(bool isImmOffset, bool isImmValue, Format::Width width) {
+        if (width == Format::Width::W32) {
+            return isImmOffset ? (isImmValue ? RT::Opcode::BCCI32I : RT::Opcode::BCCL32I)
+                               : (isImmValue ? RT::Opcode::BCCI32L : RT::Opcode::BCCL32L);
+        } else {
+            ASSERTION(width == Format::Width::W64, "Unexpected width");
+            return isImmOffset ? (isImmValue ? RT::Opcode::BCCI64I : RT::Opcode::BCCL64I)
+                               : (isImmValue ? RT::Opcode::BCCI64L : RT::Opcode::BCCL64L);
+        }
+    }
+
+    void Resolve(Segment& segment, Symbols& symbols,
+            std::function<uint16_t(Symbol)> const& relocationConverter) const override {
+        int32_t distance = Distance(symbols, this->symbol);
+
+        bool isImmOffset = MathUtils::IsNBitsSigned(distance, 12);
+        uint16_t immOffset = isImmOffset
+            ? static_cast<uint16_t>(distance & 0xfff)
+            : relocationConverter(symbols.Value(distance));
+
+        bool isImmValue = MathUtils::IsNBitsSigned(right, 12);
+        uint16_t immValue = isImmValue
+            ? static_cast<uint16_t>(right & 0xfff)
+            : relocationConverter(symbols.Value(right));
+
+        Segment::View buf = segment.At(static_cast<size_t>(position));
+        Encode(buf, RT::B5xi12ri12 {
+            .opc = opcode(isImmOffset, isImmValue, width),
+            .xi12 = {
+                .imm4 = cc,
+                .imm12 = immOffset,
+            },
+            .ri12 = {
+                .r = left,
+                .imm12 = immValue
+            },
+        });
+    }
+
+private:
+    CC cc;
+    Width width;
+    IReg left;
+    uint64_t right;
 };
 
 // region instructions
@@ -332,6 +428,15 @@ void Emitter::MovRef(IReg d, IReg s) {
 void Emitter::Bcc(CC cc, Width width, IReg l, IReg r, Label label) {
     ASSERT(width == Width::W32 || width == Width::W64);
     AddFixup(std::make_unique<BccFixup>(label, cc, width, l, r));
+}
+
+void Emitter::BccImm(CC cc, Width width, IReg l, uint64_t r, Label label) {
+    ASSERT(width == Width::W32 || width == Width::W64);
+    AddFixup(std::make_unique<BccImmFixup>(label, cc, width, l, r));
+}
+
+void Emitter::Jmp(Label label) {
+    AddFixup(std::make_unique<JmpFixup>(label));
 }
 
 void Emitter::Ret() {

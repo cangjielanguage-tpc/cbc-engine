@@ -29,7 +29,15 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
         &&BCC64I, // B4xi12rr
         &&BCC32L, // B4xi12rr
         &&BCC64L, // B4xi12rr
-        &&BCCI, // B4xi12xr
+        &&BCCI32I, // B5xi12ri12
+        &&BCCI64I, // B5xi12ri12
+        &&BCCI32L, // B5xi12ri12
+        &&BCCI64L, // B5xi12ri12
+        &&BCCL32I, // B5xi12ri12
+        &&BCCL64I, // B5xi12ri12
+        &&BCCL32L, // B5xi12ri12
+        &&BCCL64L, // B5xi12ri12
+        &&JMP32, // B5i32
 
         &&BIN32, // B3xrrr
         &&BIN64, // B3xrrr
@@ -91,9 +99,59 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
         reader.Advance(delta);
         NEXT;
     }
-    BCCI: {
-        ASSERTION(false, "not implemented");
-        return;
+    BCCI32I: {
+        auto args = B5xi12ri12::Decode(reader);
+        int64_t delta = handler.template BccImm<ImmKind::VALUE, ImmKind::VALUE, Width::W32>(args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12);
+        reader.Advance(delta);
+        NEXT;
+    }
+    BCCI64I: {
+        auto args = B5xi12ri12::Decode(reader);
+        int64_t delta = handler.template BccImm<ImmKind::VALUE, ImmKind::VALUE, Width::W64>(args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12);
+        reader.Advance(delta);
+        NEXT;
+    }
+    BCCI32L: {
+        auto args = B5xi12ri12::Decode(reader);
+        int64_t delta = handler.template BccImm<ImmKind::VALUE, ImmKind::LITERAL, Width::W32>(args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12);
+        reader.Advance(delta);
+        NEXT;
+    }
+    BCCI64L: {
+        auto args = B5xi12ri12::Decode(reader);
+        int64_t delta = handler.template BccImm<ImmKind::VALUE, ImmKind::LITERAL, Width::W64>(args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12);
+        reader.Advance(delta);
+        NEXT;
+    }
+    BCCL32I: {
+        auto args = B5xi12ri12::Decode(reader);
+        int64_t delta = handler.template BccImm<ImmKind::LITERAL, ImmKind::VALUE, Width::W32>(args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12);
+        reader.Advance(delta);
+        NEXT;
+    }
+    BCCL64I: {
+        auto args = B5xi12ri12::Decode(reader);
+        int64_t delta = handler.template BccImm<ImmKind::LITERAL, ImmKind::VALUE, Width::W64>(args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12);
+        reader.Advance(delta);
+        NEXT;
+    }
+    BCCL32L: {
+        auto args = B5xi12ri12::Decode(reader);
+        int64_t delta = handler.template BccImm<ImmKind::LITERAL, ImmKind::LITERAL, Width::W32>(args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12);
+        reader.Advance(delta);
+        NEXT;
+    }
+    BCCL64L: {
+        auto args = B5xi12ri12::Decode(reader);
+        int64_t delta = handler.template BccImm<ImmKind::LITERAL, ImmKind::LITERAL, Width::W64>(args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12);
+        reader.Advance(delta);
+        NEXT;
+    }
+    JMP32: {
+        auto args = B5i32::Decode(reader);
+        int64_t delta = handler.Jmp(args.imm32.imm);
+        reader.Advance(delta);
+        NEXT;
     }
     BIN32: {
         auto args = B3xrrr::Decode(reader);
