@@ -47,11 +47,11 @@ public:
         if (!NullCheck(obj)) {
             return false;
         }
-
-        assert(ldk == LoadAccessKind::LD_64);
-        auto ptr = obj.value + offset;
-        auto value = *reinterpret_cast<uint64_t*>(ptr);
-        ectype->Put(dst.IR(), Value::Primitive{.u64 = value});
+        if (ldk == LoadAccessKind::LD_REF) {
+            ectype->Put(dst.IR(), RuntimeInterface<RTI>::ReadObjectInstance(obj, offset, handle));
+        } else {
+            MemoryLocation<RTI>(obj.value, offset).LoadPrim(ldk, dst, ectype);
+        }
         return true;
     }
 
@@ -61,10 +61,11 @@ public:
         if (!NullCheck(obj)) {
             return false;
         }
-
-        assert(stk == StoreAccessKind::ST_64);
-        auto ptr = obj.value + offset;
-        *reinterpret_cast<uint64_t*>(ptr) = ectype->GetPrimitive(src.IR()).u64;
+        if (stk == StoreAccessKind::ST_REF) {
+            RuntimeInterface<RTI>::WriteObjectInstance(obj, offset, ectype->GetReference(src.IR()), handle);
+        } else {
+            MemoryLocation<RTI>(obj.value, offset).StorePrim(stk, src, ectype);
+        }
         return true;
     }
 

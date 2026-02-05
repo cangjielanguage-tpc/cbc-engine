@@ -19,7 +19,12 @@ namespace Value {
     union Primitive {
         uint64_t u64;
         uint32_t u32;
+        float f32;
+        double f64;
     };
+
+    static_assert(sizeof(float) == 4);
+    static_assert(sizeof(double) == 8);
 };
 
 union IRegContainer {
@@ -59,12 +64,12 @@ public:
     }
 
     inline Value::Reference GetReference(IReg reg) {
-        ASSERT(iregMarks[reg] == Mark::REFERENCE);
+        ASSERT(iregMarks[reg] == Mark::REFERENCE || reg == IReg::IRZ);
         return iregs[reg].reference;
     }
 
     inline Value::Primitive GetPrimitive(IReg reg) {
-        ASSERT(iregMarks[reg] == Mark::PRIMITIVE);
+        ASSERT(iregMarks[reg] == Mark::PRIMITIVE || reg == IReg::IRZ);
         return iregs[reg].primitive;
     }
 
