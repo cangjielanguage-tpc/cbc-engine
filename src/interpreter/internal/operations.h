@@ -51,9 +51,9 @@ inline ArithmeticResult Arith<Width::W64>(Common::Value op, Value::Primitive l, 
         }
 
         case Common::SDIV: {
-            int64_t left = (int64_t) l.u64;
-            int64_t right = (int64_t) l.u64;
-            if (left == 0) {
+            int64_t left = static_cast<int64_t>(l.u64);
+            int64_t right = static_cast<int64_t>(r.u64);
+            if (right == 0) {
                 return {l, false};
             }
             if (left == INT64_MIN && right == -1) {
@@ -62,9 +62,9 @@ inline ArithmeticResult Arith<Width::W64>(Common::Value op, Value::Primitive l, 
             return {Value::Primitive{ .u64 = static_cast<uint64_t>(left / right) }, true};
         }
         case Common::SREM: {
-            int64_t left = (int64_t) l.u64;
-            int64_t right = (int64_t) l.u64;
-            if (left == 0) {
+            int64_t left = static_cast<int64_t>(l.u64);
+            int64_t right = static_cast<int64_t>(r.u64);
+            if (right == 0) {
                 return {l, false};
             }
             if (left == INT64_MIN && right == -1) {
@@ -107,9 +107,9 @@ inline ArithmeticResult Arith<Width::W32>(Common::Value op, Value::Primitive l, 
         }
 
         case Common::SDIV: {
-            int32_t left = (int32_t) l.u32;
-            int32_t right = (int32_t) l.u32;
-            if (left == 0) {
+            int32_t left = static_cast<int32_t>(l.u32);
+            int32_t right = static_cast<int32_t>(r.u32);
+            if (right == 0) {
                 return {l, false};
             }
             if (left == INT32_MIN && right == -1) {
@@ -118,9 +118,9 @@ inline ArithmeticResult Arith<Width::W32>(Common::Value op, Value::Primitive l, 
             return {Value::Primitive{ .u32 = static_cast<uint32_t>(left / right) }, true};
         }
         case Common::SREM: {
-            int32_t left = (int32_t) l.u32;
-            int32_t right = (int32_t) l.u32;
-            if (left == 0) {
+            int32_t left = static_cast<int32_t>(l.u32);
+            int32_t right = static_cast<int32_t>(r.u32);
+            if (right == 0) {
                 return {l, false};
             }
             if (left == INT32_MIN && right == -1) {
