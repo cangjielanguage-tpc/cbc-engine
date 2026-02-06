@@ -53,6 +53,18 @@ TEST(EmitTest, Simple_Mov) {
     EXPECT_EQ(res.u64, 0x7);
 }
 
+TEST(EmitTest, Simple_MovF2I) {
+    Emitter e;
+    e.FMovI32(FReg::FR0, 12345.678);
+    e.Mov(IReg::IR1, FReg::FR0);
+    e.Ret();
+    auto code = e.Build(heap);
+    EXPECT_EQ(9, code.bytecodeSize);
+
+    auto res = Interpret(code, U32(0), U32(0));
+    EXPECT_EQ(res.u32, 0x4640e6b6);
+}
+
 TEST(EmitTest, Simple_FMovI32) {
     Emitter e;
     e.FMovI32(FReg::FR0, 0.5);

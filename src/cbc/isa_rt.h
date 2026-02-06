@@ -18,8 +18,11 @@ public:
         MOVI, // B2xr
         MOVR, // B2rr
         FMOV, // B2rr
+        MOVI2F, // B2rr
+        MOVF2I, // B2rr
         FMOVI32, // B6xri32
         FMOVI64, // B10xri64
+
         BCC32I, // B4xi12rr
         BCC64I, // B4xi12rr
         BCC32L, // B4xi12rr

@@ -83,6 +83,8 @@ public:
     void Ret();
     void Mov(IReg d, IReg s);
     void Mov(FReg d, FReg s);
+    void Mov(IReg d, FReg s);
+    void Mov(FReg d, IReg s);
     void MovImm(Width width, IReg d, uint64_t imm);
     void FMovI32(FReg d, float imm);
     void FMovI64(FReg d, double imm);
@@ -101,6 +103,7 @@ private:
     void Binary(Format::Common op, Format::Width width, IReg d, IReg l, IReg r);
     void Binary(Format::FloatOperations op, Format::Width width, FReg d, FReg l, FReg r);
     void BinaryImm(Format::Common op, Format::Width width, IReg d, IReg l, uint64_t imm);
+    void Mov(RT::Opcode opcode, RT::Reg d, RT::Reg s);
 
     Symbols symbols;
     Segment segment;

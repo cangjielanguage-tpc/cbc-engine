@@ -426,9 +426,9 @@ void Emitter::Sub(Width width, FReg d, FReg l, FReg r) { Binary(FloatOperations:
 void Emitter::Mul(Width width, FReg d, FReg l, FReg r) { Binary(FloatOperations::FMUL, width, d, l, r); }
 void Emitter::Div(Width width, FReg d, FReg l, FReg r) { Binary(FloatOperations::FDIV, width, d, l, r); }
 
-void Emitter::Mov(IReg d, IReg s) {
+void Emitter::Mov(RT::Opcode opcode, RT::Reg d, RT::Reg s) {
     Encode(segment, RT::B2rr {
-        .opc = RT::Opcode::MOV,
+        .opc = opcode,
         .rr = RT::RR {
             .x = d,
             .y = s
@@ -436,15 +436,10 @@ void Emitter::Mov(IReg d, IReg s) {
     });
 }
 
-void Emitter::Mov(FReg d, FReg s) {
-    Encode(segment, RT::B2rr {
-        .opc = RT::Opcode::FMOV,
-        .rr = RT::RR {
-            .x = d,
-            .y = s
-        }
-    });
-}
+void Emitter::Mov(IReg d, IReg s) { Emitter::Mov(RT::Opcode::MOV, d, s); }
+void Emitter::Mov(FReg d, FReg s) { Emitter::Mov(RT::Opcode::FMOV, d, s); }
+void Emitter::Mov(FReg d, IReg s) { Emitter::Mov(RT::Opcode::MOVI2F, d, s); }
+void Emitter::Mov(IReg d, FReg s) { Emitter::Mov(RT::Opcode::MOVF2I, d, s); }
 
 void Emitter::MovImm(Width width, IReg d, uint64_t imm) {
     assert(width == Format::Width::W32 || width == Format::Width::W64);

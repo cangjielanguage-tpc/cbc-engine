@@ -26,6 +26,8 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
         &&MOVI, // B2xr
         &&MOVR, // B2rr
         &&FMOV, // B2rr
+        &&MOVI2F, // B2rr
+        &&MOVF2I, // B2rr
         &&FMOVI32, //B6xri32
         &&FMOVI64, //B10xri64
         &&BCC32I, // B4xi12rr
@@ -67,7 +69,7 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
     }
     MOV: {
         auto args = B2rr::Decode(reader);
-        handler.Mov(args.rr.x.IR(), args.rr.y.IR());
+        handler.template Mov<IReg, IReg>(args.rr.x.IR(), args.rr.y.IR());
         NEXT;
     }
     MOVI: {
@@ -82,7 +84,17 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
     }
     FMOV: {
         auto args = B2rr::Decode(reader);
-        handler.Mov(args.rr.x.FR(), args.rr.y.FR());
+        handler.template Mov<FReg, FReg>(args.rr.x.FR(), args.rr.y.FR());
+        NEXT;
+    }
+    MOVI2F: {
+        auto args = B2rr::Decode(reader);
+        handler.template Mov<FReg, IReg>(args.rr.x.FR(), args.rr.y.IR());
+        NEXT;
+    }
+    MOVF2I: {
+        auto args = B2rr::Decode(reader);
+        handler.template Mov<IReg, FReg>(args.rr.x.IR(), args.rr.y.FR());
         NEXT;
     }
     FMOVI32: {

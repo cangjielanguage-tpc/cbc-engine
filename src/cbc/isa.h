@@ -189,11 +189,17 @@ public:
         FNEG  = 0b0101,
         FABS  = 0b0110,
         FQSRT = 0b0111,
-        MVI2F = 0b1000,
-        MVF2I = 0b1001,
+        I32_TO_F = 0b1000,
+        F_TO_I32 = 0b1001,
+        I64_TO_F = 0b1010,
+        F_TO_I64 = 0b1011,
+        U32_TO_F = 0b1100,
+        F_TO_U32 = 0b1101,
+        U64_TO_F = 0b1110,
+        F_TO_U64 = 0b1111,
     };
     static constexpr Value values[] = {
-        FADD, FSUB, FMUL, FDIV, FMOV, FNEG, FABS, FQSRT, MVI2F, MVF2I,
+        FADD, FSUB, FMUL, FDIV, FMOV, FNEG, FABS, FQSRT, I32_TO_F, F_TO_I32, I64_TO_F, F_TO_I64, U32_TO_F, F_TO_U32, U64_TO_F, F_TO_U64,
     };
 
     constexpr FloatOperations(const Value raw) : _value(raw) {}

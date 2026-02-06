@@ -90,11 +90,8 @@ public:
         ectype->Put(d, ectype->GetReference(s));
     }
 
-    inline void Mov(IReg d, IReg s) {
-        ectype->Put(d, ectype->GetPrimitive(s));
-    }
-
-    inline void Mov(FReg d, FReg s) {
+    template <typename ToType, typename FromType>
+    inline void Mov(ToType d, FromType s) {
         ectype->Put(d, ectype->GetPrimitive(s));
     }
 
