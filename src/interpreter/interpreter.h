@@ -42,6 +42,16 @@ public:
         return false;
     }
 
+    template <Width::Value width>
+    inline bool Binary(FloatOperations::Value fpOp, FReg d, FReg l, FReg r) {
+        auto res = ArithFP<width>(fpOp, ectype->GetPrimitive(l), ectype->GetPrimitive(r));
+        if (res.successful) {
+            ectype->Put(d, res.result);
+            return true;
+        }
+        return false;
+    }
+
     inline bool LoadObj(Format::LoadAccessKind ldk, RT::Reg dst, IReg base, uint32_t offset) {
         auto obj = ectype->GetReference(base);
         if (!NullCheck(obj)) {
@@ -80,7 +90,8 @@ public:
         ectype->Put(d, ectype->GetReference(s));
     }
 
-    inline void Mov(IReg d, IReg s) {
+    template <typename ToType, typename FromType>
+    inline void Mov(ToType d, FromType s) {
         ectype->Put(d, ectype->GetPrimitive(s));
     }
 
@@ -88,19 +99,43 @@ public:
         ectype->Put(d, Value::Primitive{ .u64 = imm });
     }
 
+    inline void MovI(FReg d, float imm) {
+        ectype->Put(d, Value::Primitive{ .f32 = imm });
+    }
+
+    inline void MovI(FReg d, double imm) {
+        ectype->Put(d, Value::Primitive{ .f64 = imm });
+    }
+
     template <Width::Value width>
     inline bool Cmp(CC cc, IReg l, IReg r) {
+        if (cc.isRef()) {
+            return CmpRef<width>(cc, l, ectype->GetReference(r));
+        } else {
+            return CmpPrim<width>(cc, l, ectype->GetPrimitive(r));
+        }
+    }
+
+    template <Width::Value width>
+    inline bool CmpPrim(CC cc, IReg l, Value::Primitive r) {
         switch (cc) {
-            case CC::EQ    : return Compare<CC::EQ, width>(ectype->GetPrimitive(l), ectype->GetPrimitive(r));
-            case CC::NE    : return Compare<CC::NE, width>(ectype->GetPrimitive(l), ectype->GetPrimitive(r));
-            case CC::LT    : return Compare<CC::LT, width>(ectype->GetPrimitive(l), ectype->GetPrimitive(r));
-            case CC::GE    : return Compare<CC::GE, width>(ectype->GetPrimitive(l), ectype->GetPrimitive(r));
-            case CC::ULT   : return Compare<CC::ULT, width>(ectype->GetPrimitive(l), ectype->GetPrimitive(r));
-            case CC::UGE   : return Compare<CC::UGE, width>(ectype->GetPrimitive(l), ectype->GetPrimitive(r));
-            case CC::REQ   : return Compare<CC::REQ, width>(ectype->GetReference(l), ectype->GetReference(r));
-            case CC::RNE   : return Compare<CC::RNE, width>(ectype->GetReference(l), ectype->GetReference(r));
-            case CC::TESTZ : return Compare<CC::TESTZ, width>(ectype->GetPrimitive(l), ectype->GetPrimitive(r));
-            case CC::TESTNZ: return Compare<CC::TESTNZ, width>(ectype->GetPrimitive(l), ectype->GetPrimitive(r));
+            case CC::EQ    : return Compare<CC::EQ, width>(ectype->GetPrimitive(l), r);
+            case CC::NE    : return Compare<CC::NE, width>(ectype->GetPrimitive(l), r);
+            case CC::LT    : return Compare<CC::LT, width>(ectype->GetPrimitive(l), r);
+            case CC::GE    : return Compare<CC::GE, width>(ectype->GetPrimitive(l), r);
+            case CC::ULT   : return Compare<CC::ULT, width>(ectype->GetPrimitive(l), r);
+            case CC::UGE   : return Compare<CC::UGE, width>(ectype->GetPrimitive(l), r);
+            case CC::TESTZ : return Compare<CC::TESTZ, width>(ectype->GetPrimitive(l), r);
+            case CC::TESTNZ: return Compare<CC::TESTNZ, width>(ectype->GetPrimitive(l), r);
+            default: ASSERTION(false, "Unreachable"); return false;
+        }
+    }
+
+    template <Width::Value width>
+    inline bool CmpRef(CC cc, IReg l, Value::Reference r) {
+        switch (cc) {
+            case CC::REQ   : return Compare<CC::REQ, width>(ectype->GetReference(l), r);
+            case CC::RNE   : return Compare<CC::RNE, width>(ectype->GetReference(l), r);
             default: ASSERTION(false, "Unreachable"); return false;
         }
     }
@@ -108,6 +143,16 @@ public:
     template <ImmKind::Value immKind, Width::Value width>
     inline int64_t Bcc(CC cc, IReg l, IReg r, uint16_t offsetValue) {
         return Cmp<width>(cc, l, r) ? DecodeImmediate<immKind>(literals, offsetValue) : 0;
+    }
+
+    template <ImmKind::Value immValueKind, ImmKind::Value immOffsetKind, Width::Value width>
+    inline int64_t BccImm(CC cc, IReg l, uint16_t r, uint16_t offsetValue) {
+        uint64_t rValue = DecodeImmediate<immValueKind>(literals, r);
+        return CmpPrim<width>(cc, l, Value::Primitive{ .u64 = rValue }) ? DecodeImmediate<immOffsetKind>(literals, offsetValue) : 0;
+    }
+
+    inline int64_t Jmp(uint32_t offsetValue) {
+        return static_cast<int32_t>(offsetValue);
     }
 
     inline void ExtRet() { }

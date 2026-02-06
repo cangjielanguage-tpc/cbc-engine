@@ -137,6 +137,36 @@ TEST(MemoryAccess, TestU32) {
     EXPECT_EQ(res.u64, 2147483647L + 1 + 9);
 }
 
+TEST(MemoryAccess, TestF32) {
+    Cbc::Emitter::Emitter e;
+    auto ti = NewTypeInfo(16);
+    auto sym = e.NewAddressSym(reinterpret_cast<uintptr_t>(ti));
+    e.NewObj(IReg::IR5, sym);
+    e.FMovI32(FReg::FR0, 0.25);
+    e.StoreObj(Format::StoreAccessKind::ST_F32, FReg::FR0, IReg::IR5, 8);
+    e.LoadObj(Format::LoadAccessKind::LD_F32, FReg::FR3, IReg::IR5, 8);
+    e.Add(Width::W32, FReg::FR0, FReg::FR0, FReg::FR3);
+    e.Ret();
+
+    auto res = InterpretFPRes(e.Build(heap), U64(1), U64(2));
+    EXPECT_EQ(res.f32, 0.5);
+}
+
+TEST(MemoryAccess, TestF64) {
+    Cbc::Emitter::Emitter e;
+    auto ti = NewTypeInfo(16);
+    auto sym = e.NewAddressSym(reinterpret_cast<uintptr_t>(ti));
+    e.NewObj(IReg::IR5, sym);
+    e.FMovI64(FReg::FR0, 0.25);
+    e.StoreObj(Format::StoreAccessKind::ST_F64, FReg::FR0, IReg::IR5, 8);
+    e.LoadObj(Format::LoadAccessKind::LD_F64, FReg::FR3, IReg::IR5, 8);
+    e.Add(Width::W64, FReg::FR0, FReg::FR0, FReg::FR3);
+    e.Ret();
+
+    auto res = InterpretFPRes(e.Build(heap), U64(1), U64(2));
+    EXPECT_EQ(res.f64, 0.5);
+}
+
 TEST(MemoryAccess, LinkedStack) {
     Cbc::Emitter::Emitter e;
     auto ti = NewTypeInfo(24);

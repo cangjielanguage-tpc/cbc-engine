@@ -53,6 +53,41 @@ TEST(EmitTest, Simple_Mov) {
     EXPECT_EQ(res.u64, 0x7);
 }
 
+TEST(EmitTest, Simple_MovF2I) {
+    Emitter e;
+    e.FMovI32(FReg::FR0, 12345.678);
+    e.Mov(IReg::IR1, FReg::FR0);
+    e.Ret();
+    auto code = e.Build(heap);
+    EXPECT_EQ(9, code.bytecodeSize);
+
+    auto res = Interpret(code, U32(0), U32(0));
+    EXPECT_EQ(res.u32, 0x4640e6b6);
+}
+
+TEST(EmitTest, Simple_FMovI32) {
+    Emitter e;
+    e.FMovI32(FReg::FR0, 0.5);
+    e.Ret();
+    auto code = e.Build(heap);
+    EXPECT_EQ(7, code.bytecodeSize);
+
+    auto res = InterpretFPRes(code, U32(0), U32(0));
+    EXPECT_EQ(res.f32, 0.5);
+}
+
+TEST(EmitTest, Simple_FMovI64) {
+    Emitter e;
+    e.FMovI64(FReg::FR10, 0.25);
+    e.Mov(FReg::FR0, FReg::FR10);
+    e.Ret();
+    auto code = e.Build(heap);
+    EXPECT_EQ(13, code.bytecodeSize);
+
+    auto res = InterpretFPRes(code, U32(0), U32(0));
+    EXPECT_EQ(res.f64, 0.25);
+}
+
 TEST(EmitTest, Simple_ArithB3xrrr) {
     Emitter e;
     e.Add(Width::W32, IReg::IR1, IReg::IR2, IReg::IR1);
@@ -75,6 +110,24 @@ TEST(EmitTest, Simple_ArithB4xi12rr) {
 
     auto res = Interpret(code, U32(0), U32(1));
     EXPECT_EQ(res.u32, 0xf001);
+}
+
+TEST(EmitTest, Simple_ArithFP) {
+    Emitter e;
+    e.FMovI32(FReg::FR0, 12.5);
+    e.FMovI32(FReg::FR1, 2.5);
+    e.FMovI32(FReg::FR2, 1.25);
+    e.FMovI32(FReg::FR3, 0.25);
+    e.Add(Width::W32, FReg::FR0, FReg::FR0, FReg::FR1);
+    e.Sub(Width::W32, FReg::FR0, FReg::FR0, FReg::FR2);
+    e.Div(Width::W32, FReg::FR0, FReg::FR0, FReg::FR2);
+    e.Mul(Width::W32, FReg::FR0, FReg::FR0, FReg::FR3);
+    e.Ret();
+    auto code = e.Build(heap);
+    EXPECT_EQ(6*4 + 3*4 + 1, code.bytecodeSize);
+
+    auto res = InterpretFPRes(code, U32(1), U32(2));
+    EXPECT_EQ(res.f32, 2.75);
 }
 
 TEST(EmitTest, Literals_None) {
@@ -154,7 +207,7 @@ TEST(EmitTest, Simple_Bcc_Loop) {
     Emitter e;
     auto loop = e.NewLabel();
     e.Bind(loop);
-    e.AddI(Width::W32, IReg::IR1, IReg::IR1, 100);
+    e.AddI(Width::W32, IReg::IR1, IReg::IR1, 1);
     e.Bcc(CC::LT, Width::W32, IReg::IR1, IReg::IR2, loop);
     e.Ret();
 
@@ -162,6 +215,58 @@ TEST(EmitTest, Simple_Bcc_Loop) {
 
     auto res = Interpret(code, U32(0), U32(100));
     EXPECT_EQ(res.u32, 100);
+}
+
+TEST(EmitTest, Simple_Jmp) {
+    Emitter e;
+    auto l1 = e.NewLabel();
+    auto l2 = e.NewLabel();
+    auto l3 = e.NewLabel();
+    e.Jmp(l2);
+    e.MovImm(Width::W32, IReg::IR1, 1);
+    e.Bind(l1);
+    e.AddI(Width::W32, IReg::IR1, IReg::IR1, 10);
+    e.Jmp(l3);
+    e.MovImm(Width::W32, IReg::IR1, 2);
+    e.Bind(l2);
+    e.AddI(Width::W32, IReg::IR1, IReg::IR1, 20);
+    e.Jmp(l1);
+    e.MovImm(Width::W32, IReg::IR1, 3);
+    e.Bind(l3);
+    e.AddI(Width::W32, IReg::IR1, IReg::IR1, 30);
+    e.Ret();
+
+    auto code = e.Build(heap);
+
+    auto res = Interpret(code, U32(100), U32(0));
+    EXPECT_EQ(res.u32, 160);
+}
+
+TEST(EmitTest, Simple_BccImm) {
+    Emitter e;
+    auto loop = e.NewLabel();
+    auto fwd = e.NewLabel();
+    auto end = e.NewLabel();
+    e.Bind(loop);
+    e.AddI(Width::W32, IReg::IR1, IReg::IR1, 1);
+    e.BccImm(CC::NE, Width::W32, IReg::IR1, 0xffff, fwd); // lit value, lit offset
+    for (int i = 0; i < INT16_MAX / 8; ++i) {
+        e.Ret();
+    }
+    e.Bind(fwd);
+    e.BccImm(CC::LT, Width::W32, IReg::IR1, 100, loop); // lit neg offset
+    e.BccImm(CC::LT, Width::W32, IReg::IR1, -0xffff, end); // lit neg value, false res
+    e.AddI(Width::W32, IReg::IR1, IReg::IR1, 1);
+    e.BccImm(CC::GE, Width::W32, IReg::IR1, -5, end); // neg value
+    e.Ret();
+    e.AddI(Width::W32, IReg::IR1, IReg::IR1, 2);
+    e.Bind(end);
+    e.Ret();
+
+    auto code = e.Build(heap);
+
+    auto res = Interpret(code, U32(0), U32(10));
+    EXPECT_EQ(res.u32, 101);
 }
 
 } // namespace Emitter

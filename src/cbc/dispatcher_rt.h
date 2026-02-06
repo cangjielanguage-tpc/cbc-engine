@@ -23,13 +23,26 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
         &&HALT, // B1 TODO merge rare commands
         &&RET,  // B1 TODO merge rare commands
         &&MOV,  // B2rr
-        &&MOVI,  // B2xr
+        &&MOVI, // B2xr
         &&MOVR, // B2rr
+        &&FMOV, // B2rr
+        &&MOVI2F, // B2rr
+        &&MOVF2I, // B2rr
+        &&FMOVI32, //B6xri32
+        &&FMOVI64, //B10xri64
         &&BCC32I, // B4xi12rr
         &&BCC64I, // B4xi12rr
         &&BCC32L, // B4xi12rr
         &&BCC64L, // B4xi12rr
-        &&BCCI, // B4xi12xr
+        &&BCCI32I, // B5xi12ri12
+        &&BCCI64I, // B5xi12ri12
+        &&BCCI32L, // B5xi12ri12
+        &&BCCI64L, // B5xi12ri12
+        &&BCCL32I, // B5xi12ri12
+        &&BCCL64I, // B5xi12ri12
+        &&BCCL32L, // B5xi12ri12
+        &&BCCL64L, // B5xi12ri12
+        &&JMP32, // B5i32
 
         &&BIN32, // B3xrrr
         &&BIN64, // B3xrrr
@@ -37,6 +50,8 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
         &&BINI64I, // B4xi12rr
         &&BINI32L, // B4xi12rr
         &&BINI64L, // B4xi12rr
+        &&FBIN32, // B3xrrr
+        &&FBIN64, // B3xrrr
 
         &&NEWOBJ, // B3xri16,
         &&LOAD_OBJ, // B4xi12rr
@@ -54,7 +69,7 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
     }
     MOV: {
         auto args = B2rr::Decode(reader);
-        handler.Mov(args.rr.x.IR(), args.rr.y.IR());
+        handler.template Mov<IReg, IReg>(args.rr.x.IR(), args.rr.y.IR());
         NEXT;
     }
     MOVI: {
@@ -65,6 +80,31 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
     MOVR: {
         auto args = B2rr::Decode(reader);
         handler.MovRef(args.rr.x.IR(), args.rr.y.IR());
+        NEXT;
+    }
+    FMOV: {
+        auto args = B2rr::Decode(reader);
+        handler.template Mov<FReg, FReg>(args.rr.x.FR(), args.rr.y.FR());
+        NEXT;
+    }
+    MOVI2F: {
+        auto args = B2rr::Decode(reader);
+        handler.template Mov<FReg, IReg>(args.rr.x.FR(), args.rr.y.IR());
+        NEXT;
+    }
+    MOVF2I: {
+        auto args = B2rr::Decode(reader);
+        handler.template Mov<IReg, FReg>(args.rr.x.IR(), args.rr.y.FR());
+        NEXT;
+    }
+    FMOVI32: {
+        auto args = B6xri32::Decode(reader);
+        handler.MovI(args.xr.r.FR(), args.imm32.fimm);
+        NEXT;
+    }
+    FMOVI64: {
+        auto args = B10xri64::Decode(reader);
+        handler.MovI(args.xr.r.FR(), args.imm64.dimm);
         NEXT;
     }
     BCC32I: {
@@ -91,9 +131,59 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
         reader.Advance(delta);
         NEXT;
     }
-    BCCI: {
-        ASSERTION(false, "not implemented");
-        return;
+    BCCI32I: {
+        auto args = B5xi12ri12::Decode(reader);
+        int64_t delta = handler.template BccImm<ImmKind::VALUE, ImmKind::VALUE, Width::W32>(args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12);
+        reader.Advance(delta);
+        NEXT;
+    }
+    BCCI64I: {
+        auto args = B5xi12ri12::Decode(reader);
+        int64_t delta = handler.template BccImm<ImmKind::VALUE, ImmKind::VALUE, Width::W64>(args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12);
+        reader.Advance(delta);
+        NEXT;
+    }
+    BCCI32L: {
+        auto args = B5xi12ri12::Decode(reader);
+        int64_t delta = handler.template BccImm<ImmKind::VALUE, ImmKind::LITERAL, Width::W32>(args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12);
+        reader.Advance(delta);
+        NEXT;
+    }
+    BCCI64L: {
+        auto args = B5xi12ri12::Decode(reader);
+        int64_t delta = handler.template BccImm<ImmKind::VALUE, ImmKind::LITERAL, Width::W64>(args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12);
+        reader.Advance(delta);
+        NEXT;
+    }
+    BCCL32I: {
+        auto args = B5xi12ri12::Decode(reader);
+        int64_t delta = handler.template BccImm<ImmKind::LITERAL, ImmKind::VALUE, Width::W32>(args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12);
+        reader.Advance(delta);
+        NEXT;
+    }
+    BCCL64I: {
+        auto args = B5xi12ri12::Decode(reader);
+        int64_t delta = handler.template BccImm<ImmKind::LITERAL, ImmKind::VALUE, Width::W64>(args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12);
+        reader.Advance(delta);
+        NEXT;
+    }
+    BCCL32L: {
+        auto args = B5xi12ri12::Decode(reader);
+        int64_t delta = handler.template BccImm<ImmKind::LITERAL, ImmKind::LITERAL, Width::W32>(args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12);
+        reader.Advance(delta);
+        NEXT;
+    }
+    BCCL64L: {
+        auto args = B5xi12ri12::Decode(reader);
+        int64_t delta = handler.template BccImm<ImmKind::LITERAL, ImmKind::LITERAL, Width::W64>(args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12);
+        reader.Advance(delta);
+        NEXT;
+    }
+    JMP32: {
+        auto args = B5i32::Decode(reader);
+        int64_t delta = handler.Jmp(args.imm32.imm);
+        reader.Advance(delta);
+        NEXT;
     }
     BIN32: {
         auto args = B3xrrr::Decode(reader);
@@ -135,6 +225,20 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
         bool successful = handler.template BinaryImm<ImmKind::LITERAL, Width::W64>(
                 args.xi12.imm4.Common(), args.rr.x.IR(),
                 args.rr.y.IR(), args.xi12.imm12);
+        NEXT_COND(successful);
+    }
+    FBIN32: {
+        auto args = B3xrrr::Decode(reader);
+        bool successful = handler.template Binary<Width::W32>(
+                args.xr.imm.FloatOperations(), args.xr.r.FR(),
+                args.rr.x.FR(), args.rr.y.FR());
+        NEXT_COND(successful);
+    }
+    FBIN64: {
+        auto args = B3xrrr::Decode(reader);
+        bool successful = handler.template Binary<Width::W64>(
+                args.xr.imm.FloatOperations(), args.xr.r.FR(),
+                args.rr.x.FR(), args.rr.y.FR());
         NEXT_COND(successful);
     }
     NEWOBJ: {

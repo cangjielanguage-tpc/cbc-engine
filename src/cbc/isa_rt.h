@@ -17,11 +17,25 @@ public:
         MOV,  // B2rr
         MOVI, // B2xr
         MOVR, // B2rr
+        FMOV, // B2rr
+        MOVI2F, // B2rr
+        MOVF2I, // B2rr
+        FMOVI32, // B6xri32
+        FMOVI64, // B10xri64
+
         BCC32I, // B4xi12rr
         BCC64I, // B4xi12rr
         BCC32L, // B4xi12rr
         BCC64L, // B4xi12rr
-        BCCI, // B4xi12xr
+        BCCI32I, // B5xi12ri12
+        BCCI64I, // B5xi12ri12
+        BCCI32L, // B5xi12ri12
+        BCCI64L, // B5xi12ri12
+        BCCL32I, // B5xi12ri12
+        BCCL64I, // B5xi12ri12
+        BCCL32L, // B5xi12ri12
+        BCCL64L, // B5xi12ri12
+        JMP32, // B5i32
 
         BIN32, // B3xrrr
         BIN64, // B3xrrr
@@ -29,6 +43,8 @@ public:
         BINI64I, // B4xi12rr
         BINI32L, // B4xi12rr
         BINI64L, // B4xi12rr
+        FBIN32, // B3xrrr
+        FBIN64, // B3xrrr
 
         NEWOBJ, // B3xi12,
         LOAD_OBJ, // B4xi12rr
@@ -103,6 +119,9 @@ public:
     constexpr Imm4(Format::Common common)
         : imm(static_cast<uint8_t>(common)) {}
 
+    constexpr Imm4(Format::FloatOperations fpOps)
+        : imm(static_cast<uint8_t>(fpOps)) {}
+
     inline operator uint8_t() const {
         return imm;
     }
@@ -113,6 +132,10 @@ public:
 
     inline Format::Common Common() const {
         return Format::Common(imm);
+    }
+
+    inline Format::FloatOperations FloatOperations() const {
+        return Format::FloatOperations(imm);
     }
 
     inline Format::StoreAccessKind STK() const {
@@ -171,6 +194,26 @@ struct Imm16 {
     }
 };
 
+/// 32 bit; immediate
+union Imm32 {
+    uint32_t imm;
+    float fimm;
+
+    inline static Imm32 Decode(Decoder::ByteReader& reader) {
+        return Imm32{reader.Read32()};
+    }
+};
+
+/// 64 bit; immediate
+union Imm64 {
+    uint64_t imm;
+    double dimm;
+
+    inline static Imm64 Decode(Decoder::ByteReader& reader) {
+        return Imm64{reader.Read64()};
+    }
+};
+
 /// 16 bit; Imm4 and 12-bit immediate
 struct XImm12 {
     Imm4 imm4;
@@ -186,6 +229,24 @@ struct XImm12 {
 
     inline static uint16_t Raw(XImm12 xi12) {
         return static_cast<uint16_t>(xi12.imm4 | (xi12.imm12 << 4));
+    }
+};
+
+/// 16 bit; Imm4 and 12-bit immediate
+struct RImm12 {
+    Reg r;
+    Imm12 imm12;
+
+    inline static RImm12 Decode(Decoder::ByteReader& reader) {
+        uint16_t b2 = reader.Read16();
+        return RImm12{
+            .r = b2 & 0xf,
+            .imm12 = Imm12{static_cast<uint16_t>(b2 >> 4)},
+        };
+    }
+
+    inline static uint16_t Raw(RImm12 xi12) {
+        return static_cast<uint16_t>(xi12.r | (xi12.imm12 << 4));
     }
 };
 
@@ -268,6 +329,64 @@ struct B4xi12xr {
         auto xi12 = XImm12::Decode(reader);
         auto xr = XR::Decode(reader);
         return B4xi12xr{opc, xi12, xr};
+    }
+};
+
+struct B5xi12ri12 {
+    static constexpr int SIZE = 5;
+
+    Opcode opc;
+    XImm12 xi12;
+    RImm12 ri12;
+
+    static B5xi12ri12 Decode(Decoder::ByteReader& reader) {
+        auto opc = Opcode::Decode(reader);
+        auto xi12 = XImm12::Decode(reader);
+        auto ri12 = RImm12::Decode(reader);
+        return B5xi12ri12{opc, xi12, ri12};
+    }
+};
+
+struct B5i32 {
+    static constexpr int SIZE = 5;
+
+    Opcode opc;
+    Imm32 imm32;
+
+    static B5i32 Decode(Decoder::ByteReader& reader) {
+        auto opc = Opcode::Decode(reader);
+        auto imm32 = Imm32::Decode(reader);
+        return B5i32{opc, imm32};
+    }
+};
+
+struct B6xri32 {
+    static constexpr int SIZE = 6;
+
+    Opcode opc;
+    XR xr;
+    Imm32 imm32;
+
+    static B6xri32 Decode(Decoder::ByteReader& reader) {
+        auto opc = Opcode::Decode(reader);
+        auto xr = XR::Decode(reader);
+        auto imm32 = Imm32::Decode(reader);
+        return B6xri32{opc, xr, imm32};
+    }
+};
+
+struct B10xri64 {
+    static constexpr int SIZE = 9;
+
+    Opcode opc;
+    XR xr;
+    Imm64 imm64;
+
+    static B10xri64 Decode(Decoder::ByteReader& reader) {
+        auto opc = Opcode::Decode(reader);
+        auto xr = XR::Decode(reader);
+        auto imm64 = Imm64::Decode(reader);
+        return B10xri64{opc, xr, imm64};
     }
 };
 
