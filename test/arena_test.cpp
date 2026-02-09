@@ -1,0 +1,33 @@
+#include <gtest/gtest.h>
+
+#include "context/arena.h"
+
+TEST(Arena, SmallAllocs) {
+    Contexts::Arena arena;
+    auto mem1 = arena.do_allocate(1, 1);
+    auto mem2 = arena.do_allocate(1, 1);
+    auto mem3 = arena.do_allocate(1, 1);
+    ASSERT_NE(mem1, mem2);
+    ASSERT_NE(mem1, mem3);
+    ASSERT_NE(mem3, mem2);
+}
+
+TEST(Arena, ImplAware1) {
+    Contexts::Arena arena;
+    auto mem1 = reinterpret_cast<uintptr_t>(arena.do_allocate(1, 1));
+    auto mem2 = reinterpret_cast<uintptr_t>(arena.do_allocate(1, 1));
+    auto mem3 = reinterpret_cast<uintptr_t>(arena.do_allocate(1, 1));
+    ASSERT_EQ(mem1 + alignof(std::max_align_t), mem2);
+    ASSERT_EQ(mem2 + alignof(std::max_align_t), mem3);
+}
+
+TEST(Arena, ImplAware2) {
+    Contexts::Arena arena;
+    auto mem1 = reinterpret_cast<uintptr_t>(arena.do_allocate(1, 1));
+    auto mem2 = reinterpret_cast<uintptr_t>(arena.do_allocate(1, 1));
+    auto bigMem = reinterpret_cast<char*>(arena.do_allocate(1024, 1));
+    auto mem3 = reinterpret_cast<uintptr_t>(arena.do_allocate(1, 1));
+    ASSERT_EQ(mem1 + alignof(std::max_align_t), mem2);
+    ASSERT_EQ(mem2 + alignof(std::max_align_t), mem3);
+    bigMem[1023] = 0;
+}
