@@ -4,6 +4,14 @@
 #include <cstdint>
 
 namespace MathUtils {
+    static bool IsNBits(uint64_t value, uint32_t bits) {
+        if (bits == 64) {
+            return true;
+        } else {
+            return ((value >> (bits - 1)) == 0);
+        }
+    }
+
     static bool IsNBitsSigned(int32_t value, uint32_t bits) {
         if (bits == 32) {
             return true;

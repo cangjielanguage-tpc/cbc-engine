@@ -4,6 +4,7 @@
 #include "emitter.h"
 #include "cbc/isa_rt.h"
 #include "utils/math.h"
+#include "encoding_rt.h"
 
 namespace Cbc {
 namespace Emitter {
@@ -73,91 +74,6 @@ Interpretation::Code Emitter::Build(std::pmr::memory_resource& heap) {
         .literals = litBuilder.BuildTable(heap),
     };
 }
-
-// region encoding
-
-void Encode(ByteBuffer& buf, RT::Opcode opc) {
-    buf.AddW8(opc);
-}
-
-void Encode(ByteBuffer& buf, RT::RR rr) {
-    buf.AddW8(static_cast<uint32_t>(rr.x | (rr.y << 4)));
-}
-
-void Encode(ByteBuffer& buf, RT::XR xr) {
-    buf.AddW8(static_cast<uint32_t>(xr.imm | (xr.r << 4)));
-}
-
-void Encode(ByteBuffer& buf, RT::Imm16 i16) {
-    buf.AddW16(i16.imm);
-}
-
-void Encode(ByteBuffer& buf, RT::Imm32 i32) {
-    buf.AddW32(i32.imm);
-}
-
-void Encode(ByteBuffer& buf, RT::Imm64 i64) {
-    buf.AddW64(i64.imm);
-}
-
-void Encode(ByteBuffer& buf, RT::XImm12 xi12) {
-    buf.AddW16(RT::XImm12::Raw(xi12));
-}
-
-void Encode(ByteBuffer& buf, RT::RImm12 ri12) {
-    buf.AddW16(RT::RImm12::Raw(ri12));
-}
-
-void Encode(ByteBuffer& buf, RT::B1 command) {
-    Encode(buf, command.opc);
-}
-
-void Encode(ByteBuffer& buf, RT::B2rr command) {
-    Encode(buf, command.opc);
-    Encode(buf, command.rr);
-}
-
-void Encode(ByteBuffer& buf, RT::B2xr command) {
-    Encode(buf, command.opc);
-    Encode(buf, command.xr);
-}
-
-void Encode(ByteBuffer& buf, RT::B3xrrr command) {
-    Encode(buf, command.opc);
-    Encode(buf, command.xr);
-    Encode(buf, command.rr);
-}
-
-void Encode(ByteBuffer& buf, RT::B4xi12rr command) {
-    Encode(buf, command.opc);
-    Encode(buf, command.xi12);
-    Encode(buf, command.rr);
-}
-
-void Encode(ByteBuffer& buf, RT::B5xi12ri12 command) {
-    Encode(buf, command.opc);
-    Encode(buf, command.xi12);
-    Encode(buf, command.ri12);
-}
-
-void Encode(ByteBuffer& buf, RT::B5i32 command) {
-    Encode(buf, command.opc);
-    Encode(buf, command.imm32);
-}
-
-void Encode(ByteBuffer& buf, RT::B6xri32 command) {
-    Encode(buf, command.opc);
-    Encode(buf, command.xr);
-    Encode(buf, command.imm32);
-}
-
-void Encode(ByteBuffer& buf, RT::B10xri64 command) {
-    Encode(buf, command.opc);
-    Encode(buf, command.xr);
-    Encode(buf, command.imm64);
-}
-
-// region isa12
 
 using namespace Format;
 
@@ -373,7 +289,7 @@ void Emitter::BinaryImm(Format::Common op, Format::Width width, IReg d, IReg l, 
     } else {
         Symbol immediate = symbols.Value(imm);
 
-        auto opcode = width == Format::Width::W32
+        RT::Opcode opcode = width == Format::Width::W32
             ? RT::Opcode::BINI32L
             : RT::Opcode::BINI64L;
 
@@ -524,36 +440,44 @@ void Emitter::NewObj(IReg d, Symbol sym) {
 }
 
 void Emitter::LoadObj(Format::LoadAccessKind ldk, RT::Reg dst, IReg base, uint32_t offset) {
-    ASSERTION((offset & 0xfff) == offset, "Offset is too big. >12bit is not supported");
-    Encode(segment, RT::B4xi12rr {
-        .opc = RT::Opcode::LOAD_OBJ,
-        .xi12 = {
-            .imm4 = RT::Imm4(ldk),
-            .imm12 = static_cast<uint16_t>(offset),
-        },
-        .rr = {
-            .x = dst,
-            .y = base,
-        }
-    });
+    if (MathUtils::IsNBits(offset, 12)) {
+        Encode(segment, RT::B4xi12rr {
+            .opc = RT::Opcode::LOAD_OBJ,
+            .xi12 = {
+                .imm4 = RT::Imm4(ldk),
+                .imm12 = static_cast<uint16_t>(offset),
+            },
+            .rr = {
+                .x = dst,
+                .y = base,
+            }
+        });
+    } else {
+        auto ms = OpenMemSpace();
+        ms.Offset(offset);
+        ms.LoadObj(ldk, dst, base);
+    }
 }
 
 void Emitter::StoreObj(Format::StoreAccessKind stk, RT::Reg src, IReg base, uint32_t offset) {
-    ASSERTION((offset & 0xfff) == offset, "Offset is too big. >12bit is not supported");
-    Encode(segment, RT::B4xi12rr {
-        .opc = RT::Opcode::STORE_OBJ,
-        .xi12 = {
-            .imm4 = RT::Imm4(stk),
-            .imm12 = static_cast<uint16_t>(offset),
-        },
-        .rr = {
-            .x = src,
-            .y = base,
-        }
-    });
+    if (MathUtils::IsNBits(offset, 12)) {
+        Encode(segment, RT::B4xi12rr {
+            .opc = RT::Opcode::STORE_OBJ,
+            .xi12 = {
+                .imm4 = RT::Imm4(stk),
+                .imm12 = static_cast<uint16_t>(offset),
+            },
+            .rr = {
+                .x = src,
+                .y = base,
+            }
+        });
+    } else {
+        auto ms = OpenMemSpace();
+        ms.Offset(offset);
+        ms.StoreObj(stk, src, base);
+    }
 }
-
-// endregion isa12
 
 } // namespace Emitter
 } // namespace Cbc

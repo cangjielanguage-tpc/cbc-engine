@@ -19,6 +19,8 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
 #define NEXT goto *MAIN_TABLE[reader.PeekOpcode()]
 #define NEXT_COND(successful) goto *MAIN_TABLE[(successful) ? reader.PeekOpcode() : 0]
 
+#define MEM_NEXT goto *MEMSPACE_TABLE[reader.PeekOpcode()]
+
     static void* MAIN_TABLE[] = {
         &&HALT, // B1 TODO merge rare commands
         &&RET,  // B1 TODO merge rare commands
@@ -56,10 +58,45 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
         &&NEWOBJ, // B3xri16,
         &&LOAD_OBJ, // B4xi12rr
         &&STORE_OBJ, // B4xi12rr
+
+        &&MEMSPACE, // B1. See `MemOpcode`
     };
 
+    static void* MEMSPACE_TABLE[] = {
+        &&MEM_HALT, // M1
+
+        &&OFFS16, // M2i16
+        &&OFFS32, // M2i32
+        &&OFFS64, // M2i64
+        &&OFFS_REG, // M2xr
+
+        &&RLD_U8,  // M2rr
+        &&RLD_U16, // M2rr
+        &&RLD_32,  // M2rr
+        &&RLD_S8,  // M2rr
+        &&RLD_S16, // M2rr
+        &&RLD_F32, // M2rr
+        &&RLD_F64, // M2rr
+        &&RLD_64,  // M2rr
+        &&RLD_S32TO64, // M2rr
+        &&RLD_REF, // M2rr
+
+        &&RST_8,   // M2rr
+        &&RST_16,  // M2rr
+        &&RST_32,  // M2rr
+        &&RST_64,  // M2rr
+        &&RST_REF, // M2rr
+        &&RST_F32, // M2rr
+        &&RST_F64, // M2rr
+
+    };
+
+    uint64_t memspaceOffsetAcc = 0;
+
+    // jump to the instruction handler.
     NEXT;
 
+    // -- Main opcode table --
     HALT: {
         ASSERTION(false, "halt");
         return;
@@ -256,6 +293,64 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
         bool successful = handler.StoreObj(args.xi12.imm4.STK(), args.rr.x, args.rr.y.IR(), args.xi12.imm12);
         NEXT_COND(successful);
     }
+    MEMSPACE: {
+        B1::Decode(reader);
+        memspaceOffsetAcc = 0;
+        MEM_NEXT;
+    }
+
+    // -- MemSpace opcode table --
+
+    MEM_HALT: {
+        ASSERTION(false, "halt");
+        return;
+    }
+
+    OFFS16: {
+        auto args = M3i16::Decode(reader);
+        memspaceOffsetAcc += handler.MemOffset(args.imm16);
+        MEM_NEXT;
+    }
+    OFFS32: {
+        auto args = M5i32::Decode(reader);
+        memspaceOffsetAcc += handler.MemOffset(args.imm32);
+        MEM_NEXT;
+    }
+    OFFS64: {
+        auto args = M9i64::Decode(reader);
+        memspaceOffsetAcc += handler.MemOffset(args.imm64);
+        MEM_NEXT;
+    }
+    OFFS_REG: {
+        auto args = M2xr::Decode(reader);
+        memspaceOffsetAcc += handler.MemOffsetReg(args.xr.r.IR());
+        MEM_NEXT;
+    }
+#define RLD(ldk) \
+    RLD_##ldk: {                                        \
+        auto args = M2rr::Decode(reader);               \
+        bool successful = handler.LoadObj(              \
+                Format::LoadAccessKind::LD_##ldk,       \
+                args.rr.x, args.rr.y.IR(),              \
+                memspaceOffsetAcc);                     \
+        NEXT_COND(successful);                          \
+    }
+    RLD(U8) RLD(U16) RLD(32) RLD(S8) RLD(S16) RLD(F32) RLD(F64) RLD(64) RLD(S32TO64) RLD(REF)
+#undef RLD
+
+#define RST(stk) \
+    RST_##stk: {                                        \
+        auto args = M2rr::Decode(reader);               \
+        bool successful = handler.StoreObj(             \
+                Format::StoreAccessKind::ST_##stk,      \
+                args.rr.x, args.rr.y.IR(),              \
+                memspaceOffsetAcc);                     \
+        NEXT_COND(successful);                          \
+    }
+    RST(8) RST(16) RST(32) RST(64) RST(REF) RST(F32) RST(F64)
+#undef RST
+
+#undef MEM_NEXT
 #undef NEXT
 #undef NEXT_COND
 }
