@@ -23,17 +23,17 @@ MemSpaceEmitter Emitter::OpenMemSpace() {
 
 void MemSpaceEmitter::Offset(uint64_t offset) {
     if (MathUtils::IsNBits(offset, 16)) {
-        Encode(segment, RT::M2i16 {
+        Encode(segment, RT::M3i16 {
             .opc = RT::MemOpcode::OFFS16,
             .imm16 = static_cast<uint16_t>(offset),
         });
     } else if (MathUtils::IsNBits(offset, 32)) {
-        Encode(segment, RT::M2i32 {
+        Encode(segment, RT::M5i32 {
             .opc = RT::MemOpcode::OFFS32,
             .imm32 = static_cast<uint32_t>(offset),
         });
     } else {
-        Encode(segment, RT::M2i64 {
+        Encode(segment, RT::M9i64 {
             .opc = RT::MemOpcode::OFFS64,
             .imm64 = static_cast<uint64_t>(offset),
         });

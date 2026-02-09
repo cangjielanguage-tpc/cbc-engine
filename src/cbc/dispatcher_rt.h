@@ -307,17 +307,17 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
     }
 
     OFFS16: {
-        auto args = M2i16::Decode(reader);
+        auto args = M3i16::Decode(reader);
         memspaceOffsetAcc += handler.MemOffset(args.imm16);
         MEM_NEXT;
     }
     OFFS32: {
-        auto args = M2i32::Decode(reader);
+        auto args = M5i32::Decode(reader);
         memspaceOffsetAcc += handler.MemOffset(args.imm32);
         MEM_NEXT;
     }
     OFFS64: {
-        auto args = M2i64::Decode(reader);
+        auto args = M9i64::Decode(reader);
         memspaceOffsetAcc += handler.MemOffset(args.imm64);
         MEM_NEXT;
     }

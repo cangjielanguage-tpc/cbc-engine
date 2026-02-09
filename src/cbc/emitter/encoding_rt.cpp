@@ -54,17 +54,17 @@ void Encode(ByteBuffer& buf, RT::MemOpcode opc) {
     buf.AddW8(opc);
 }
 
-void Encode(ByteBuffer& buf, RT::M2i16 command) {
+void Encode(ByteBuffer& buf, RT::M3i16 command) {
     Encode(buf, command.opc);
     buf.AddW16(command.imm16);
 }
 
-void Encode(ByteBuffer& buf, RT::M2i32 command) {
+void Encode(ByteBuffer& buf, RT::M5i32 command) {
     Encode(buf, command.opc);
     buf.AddW32(command.imm32);
 }
 
-void Encode(ByteBuffer& buf, RT::M2i64 command) {
+void Encode(ByteBuffer& buf, RT::M9i64 command) {
     Encode(buf, command.opc);
     buf.AddW64(command.imm64);
 }

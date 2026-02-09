@@ -478,36 +478,36 @@ struct B10xri64 {
     }
 };
 
-struct M2i16 {
+struct M3i16 {
     MemOpcode opc;
     uint16_t imm16;
 
-    inline static M2i16 Decode(Decoder::ByteReader& reader) {
+    inline static M3i16 Decode(Decoder::ByteReader& reader) {
         auto opc = MemOpcode::Decode(reader);
         auto imm16 = reader.Read16();
-        return M2i16{opc, imm16};
+        return M3i16{opc, imm16};
     }
 };
 
-struct M2i32 {
+struct M5i32 {
     MemOpcode opc;
     uint32_t imm32;
 
-    inline static M2i32 Decode(Decoder::ByteReader& reader) {
+    inline static M5i32 Decode(Decoder::ByteReader& reader) {
         auto opc = MemOpcode::Decode(reader);
         auto imm32 = reader.Read32();
-        return M2i32{opc, imm32};
+        return M5i32{opc, imm32};
     }
 };
 
-struct M2i64 {
+struct M9i64 {
     MemOpcode opc;
     uint64_t imm64;
 
-    inline static M2i64 Decode(Decoder::ByteReader& reader) {
+    inline static M9i64 Decode(Decoder::ByteReader& reader) {
         auto opc = MemOpcode::Decode(reader);
         auto imm64 = reader.Read64();
-        return M2i64{opc, imm64};
+        return M9i64{opc, imm64};
     }
 };
 
