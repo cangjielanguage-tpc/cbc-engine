@@ -2,9 +2,9 @@
 #define CBC_DECODER_H
 
 #include <cstring>
+#include <cstdint>
 #include <type_traits>
-
-#include "isa.h"
+#include "utils/assertion.h"
 
 namespace Decoder {
 
@@ -67,6 +67,10 @@ public:
         return cursor;
     }
 
+    inline bool hasNext() {
+        return cursor < end;
+    }
+
 private:
 #if !defined(NDEBUG)
     void BoundCheck(uint8_t *p) {
@@ -89,90 +93,6 @@ private:
     uint8_t* start;
     uint8_t* end;
 #endif // defined(NDEBUG)
-};
-
-struct B2rr {
-    uint32_t const opcode;
-    uint32_t const xreg : 4;
-    uint32_t const yreg : 4;
-
-    inline Cbc::IReg IX() const {
-        return Cbc::IReg::From(xreg);
-    }
-
-    inline Cbc::IReg IY() const {
-        return Cbc::IReg::From(yreg);
-    }
-
-    inline Cbc::IReg Idst() const {
-        return Cbc::IReg::From(xreg);
-    }
-
-    inline Cbc::IReg Isrc() const {
-        return Cbc::IReg::From(yreg);
-    }
-
-    static inline B2rr Decode(ByteReader *stream) {
-        uint32_t opcode = (uint32_t) stream->Read8();
-        uint32_t b = (uint32_t) stream->Read8();
-        return B2rr {
-            .opcode = opcode,
-            .xreg = b & 0xf,
-            .yreg = (b >> 4) & 0xf,
-        };
-    }
-};
-
-struct B2rrd8 {
-    B2rr const rr;
-    uint8_t const imm;
-
-    static inline B2rrd8 Decode(ByteReader *stream) {
-        auto rr = B2rr::Decode(stream);
-        auto byte = stream->Read8();
-        return B2rrd8 {
-            .rr = rr,
-            .imm = byte
-        };
-    }
-};
-
-struct B2xrI {
-    uint32_t const opcode;
-    uint32_t const opx : 4;
-    uint32_t const reg : 4;
-    uint16_t const imm;
-
-    inline Cbc::IReg Ireg() const {
-        return Cbc::IReg::From(reg);
-    }
-
-    static inline B2xrI Decode(ByteReader *stream) {
-        uint32_t opcode = (uint32_t) stream->Read8();
-        uint32_t b = (uint32_t) stream->Read8();
-        uint16_t imm = stream->Read16();
-        return B2xrI {
-            .opcode = opcode,
-            .opx = b & 0xf,
-            .reg = (b >> 4) & 0xf,
-            .imm = imm,
-        };
-    }
-};
-
-struct ExtBrr {
-    using CC = Cbc::Format::CC;
-    B2rr const rr;
-    uint16_t const offsetValue;
-
-    static inline ExtBrr Decode(ByteReader *stream) {
-        B2rr rr = B2rr::Decode(stream);
-        uint16_t offsetVal = stream->Read16();
-        return ExtBrr {
-            .rr = rr,
-            .offsetValue = offsetVal,
-        };
-    }
 };
 
 } // namespace Decoder

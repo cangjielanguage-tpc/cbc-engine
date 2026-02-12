@@ -52,7 +52,7 @@ public:
         return false;
     }
 
-    inline bool LoadObj(Format::LoadAccessKind ldk, RT::Reg dst, IReg base, uint64_t offset) {
+    inline bool LoadObj(Format::LoadAccessKind ldk, Format::Reg dst, IReg base, uint64_t offset) {
         auto obj = ectype->GetReference(base);
         if (!NullCheck(obj)) {
             return false;
@@ -65,7 +65,7 @@ public:
         return true;
     }
 
-    inline bool StoreObj(Format::StoreAccessKind stk, RT::Reg src, IReg base, uint64_t offset) {
+    inline bool StoreObj(Format::StoreAccessKind stk, Format::Reg src, IReg base, uint64_t offset) {
         auto obj = ectype->GetReference(base);
         if (!NullCheck(obj)) {
             return false;

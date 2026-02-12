@@ -43,7 +43,7 @@ void MemSpaceEmitter::Offset(uint64_t offset) {
 void MemSpaceEmitter::OffsetReg(IReg reg) {
     Encode(segment, RT::M2xr {
         .opc = RT::MemOpcode::OFFS_REG,
-        .xr = RT::XR {
+        .xr = Format::XR {
             .imm = 0,
             .r = reg
         },
@@ -87,24 +87,24 @@ static RT::MemOpcode ComputeStoreAccessKind(Format::StoreAccessKind stk, RT::Mem
     return RT::MemOpcode(start + delta);
 }
 
-void MemSpaceEmitter::LoadObj(Format::LoadAccessKind ldk, RT::Reg dst, IReg base) {
+void MemSpaceEmitter::LoadObj(Format::LoadAccessKind ldk, Format::Reg dst, IReg base) {
     RT::MemOpcode opc = ComputeLoadAccessKind(ldk, RT::MemOpcode::RLD_START_OPCODE);
     ASSERT(opc <= RT::MemOpcode::RLD_END_OPCODE);
     Encode(segment, RT::M2rr {
         .opc = opc,
-        .rr = RT::RR {
+        .rr = Format::RR {
             .x = dst,
             .y = base
         },
     });
 }
 
-void MemSpaceEmitter::StoreObj(Format::StoreAccessKind stk, RT::Reg src, IReg base) {
+void MemSpaceEmitter::StoreObj(Format::StoreAccessKind stk, Format::Reg src, IReg base) {
     RT::MemOpcode opc = ComputeStoreAccessKind(stk, RT::MemOpcode::RST_START_OPCODE);
     ASSERT(opc <= RT::MemOpcode::RST_END_OPCODE);
     Encode(segment, RT::M2rr {
         .opc = opc,
-        .rr = RT::RR {
+        .rr = Format::RR {
             .x = src,
             .y = base
         },

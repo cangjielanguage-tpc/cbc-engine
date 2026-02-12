@@ -5,6 +5,7 @@
 #include <array>
 
 #include "utils/assertion.h"
+#include "cbc/decoder.h"
 
 namespace Cbc {
 class IReg {
@@ -139,6 +140,41 @@ private:
     Value _value;
 };
 
+class CbcTypeKind {
+public:
+    enum Value : uint32_t {
+        INVALID = 0x00,
+        VOID    = 0x01,
+        U1      = 0x02,
+        I8      = 0x03,
+        U8      = 0x04,
+        CHAR    = 0x05,
+        I32     = 0x06,
+        U32     = 0x07,
+        F32     = 0x08,
+        F64     = 0x09,
+        I64     = 0x0a,
+        U64     = 0x0b,
+        NNREF   = 0x0c, // non-nullable ref
+        REF     = 0x0d,
+        REC     = 0x0e,
+        I16     = 0x0f,
+        U16     = 0x10,
+        F16     = 0x11,
+        IN      = 0x12, // int native
+        UN      = 0x13, // uint native
+        VA      = 0x14, // varray
+        TTI     = 0x15, // ThisTypeInfo
+    };
+
+    constexpr CbcTypeKind(const Value raw) : _value(raw) {}
+    constexpr operator Value() const { return _value; }
+    constexpr Bits ToBits() const { return _value; }
+
+private:
+    Value _value;
+};
+
 class Common {
 public:
     enum Value : uint32_t {
@@ -258,6 +294,19 @@ public:
     constexpr Bits FloatCast() const {
         ASSERTION(_value == W16 || _value == W64, "TODO: format description");
         return (_value & 0b10) >> 1;
+    }
+
+    static constexpr Width FromCbcTypeKind(CbcTypeKind tkind) {
+        switch (tkind) {
+            case CbcTypeKind::I32: return Width::W32;
+            case CbcTypeKind::U32: return Width::W32;
+            case CbcTypeKind::F32: return Width::W32;
+            case CbcTypeKind::F64: return Width::W64;
+            case CbcTypeKind::I64: return Width::W64;
+            case CbcTypeKind::U64: return Width::W64;
+            
+            default: assert(false); return Width::W64;
+        }
     }
 
 private:
@@ -387,6 +436,200 @@ constexpr Bits mask_bits(uint32_t b) {
     return 0xffffffff >> b;
 }
 
+/// 4 bit; register
+class Reg {
+public:
+    constexpr Reg(IReg r) : _value(r) {}
+    constexpr Reg(FReg r) : _value(r) {}
+    constexpr Reg(uint8_t value) : _value(value) {
+        assert((_value & 0xff) == _value);
+    }
+
+    inline operator uint8_t() const {
+        return static_cast<uint8_t>(_value);
+    }
+
+    inline IReg IR() const {
+        return IReg::From(*this);
+    }
+
+    inline FReg FR() const {
+        return FReg::From(*this);
+    }
+
+private:
+    uint32_t _value;
+};
+
+/// 8 bit; two registers
+struct RR {
+    Reg x;
+    Reg y;
+
+    inline static RR Decode(Decoder::ByteReader& reader) {
+        uint8_t b = reader.Read8();
+        return RR {
+            .x = b & 0xf,
+            .y = b >> 4,
+        };
+    }
+};
+
+/// 4 bit; immediate or enumerations
+class Imm4 {
+public:
+    constexpr inline Imm4(uint8_t _imm) : imm(_imm) {
+        ASSERT((_imm & 0xf) == _imm);
+    }
+
+    inline Imm4() : imm(0) {}
+
+    constexpr Imm4(Format::CC cc)
+        : Imm4(static_cast<uint8_t>(cc)) {}
+
+    constexpr Imm4(Format::Common common)
+        : Imm4(static_cast<uint8_t>(common)) {}
+
+    constexpr Imm4(Format::FloatOperations fpOps)
+        : imm(static_cast<uint8_t>(fpOps)) {}
+
+    inline operator uint8_t() const {
+        return imm;
+    }
+
+    inline Format::CC CC() const {
+        return Format::CC(imm);
+    }
+
+    inline Format::Common Common() const {
+        return Format::Common(imm);
+    }
+
+    inline Format::FloatOperations FloatOperations() const {
+        return Format::FloatOperations(imm);
+    }
+
+    inline Format::StoreAccessKind STK() const {
+        return Format::StoreAccessKind(imm);
+    }
+
+    inline Format::LoadAccessKind LDK() const {
+        return Format::LoadAccessKind(imm);
+    }
+
+    inline IReg IR() const {
+        return IReg::From(imm);
+    }
+
+private:
+    uint8_t imm;
+};
+
+/// 8 bit; immediate
+struct Imm8 {
+    uint8_t imm;
+
+    inline static Imm8 Decode(Decoder::ByteReader& reader) {
+        return Imm8{reader.Read8()};
+    }
+};
+
+/// 12 bit; immediate or literal
+class Imm12 {
+public:
+    inline Imm12(uint16_t _imm) : imm(_imm) {
+        assert((_imm & 0xfff) == _imm);
+    }
+
+    inline Imm12() : imm(0) {}
+
+    inline operator uint16_t() const {
+        return imm;
+    }
+
+private:
+    uint16_t imm;
+};
+
+/// 8 bit; Imm4 and register
+struct XR {
+    Imm4 imm;
+    Reg r;
+
+    inline static XR Decode(Decoder::ByteReader& reader) {
+        uint8_t b = reader.Read8();
+        return XR {
+            .imm = b & 0xf,
+            .r = b >> 4,
+        };
+    }
+};
+
+/// 16 bit; immediate or literal
+struct Imm16 {
+    uint16_t imm;
+
+    inline static Imm16 Decode(Decoder::ByteReader& reader) {
+        return Imm16{reader.Read16()};
+    }
+};
+
+/// 32 bit; immediate
+union Imm32 {
+    uint32_t imm;
+    float fimm;
+
+    inline static Imm32 Decode(Decoder::ByteReader& reader) {
+        return Imm32{reader.Read32()};
+    }
+};
+
+/// 64 bit; immediate
+union Imm64 {
+    uint64_t imm;
+    double dimm;
+
+    inline static Imm64 Decode(Decoder::ByteReader& reader) {
+        return Imm64{reader.Read64()};
+    }
+};
+
+/// 16 bit; Imm4 and 12-bit immediate
+struct XImm12 {
+    Imm4 imm4;
+    Imm12 imm12;
+
+    inline static XImm12 Decode(Decoder::ByteReader& reader) {
+        uint16_t b2 = reader.Read16();
+        return XImm12{
+            .imm4 = b2 & 0xf,
+            .imm12 = Imm12{static_cast<uint16_t>(b2 >> 4)},
+        };
+    }
+
+    inline static uint16_t Raw(XImm12 xi12) {
+        return static_cast<uint16_t>(xi12.imm4 | (xi12.imm12 << 4));
+    }
+};
+
+/// 16 bit; Imm4 and 12-bit immediate
+struct RImm12 {
+    Reg r;
+    Imm12 imm12;
+
+    inline static RImm12 Decode(Decoder::ByteReader& reader) {
+        uint16_t b2 = reader.Read16();
+        return RImm12{
+            .r = b2 & 0xf,
+            .imm12 = Imm12{static_cast<uint16_t>(b2 >> 4)},
+        };
+    }
+
+    inline static uint16_t Raw(RImm12 xi12) {
+        return static_cast<uint16_t>(xi12.r | (xi12.imm12 << 4));
+    }
+};
+
 namespace B1 {
     constexpr Bits FORMAT_BITS = 0b01001;
     constexpr Bits MASK = FORMAT_BITS.Shift(3);
@@ -412,54 +655,87 @@ namespace B1piN {
     }
 }
 
-namespace B2rr {
-    constexpr Bits FORMAT_BITS = 0b0000;
-    constexpr Bits BYTE_MASK = FORMAT_BITS.Shift(4);
+struct B2rr {
+    Imm8 firstByte;
+    RR rr;
 
-    constexpr Bits Fmt(Common op, Width width) {
+    static inline B2rr Decode(Decoder::ByteReader &reader) {
+        auto fb = Imm8::Decode(reader);
+        auto rr = Format::RR::Decode(reader);
+        return B2rr{fb, rr};
+    }
+
+    static constexpr Bits FORMAT_BITS = 0b0000;
+    static constexpr Bits BYTE_MASK = FORMAT_BITS.Shift(4);
+
+    static constexpr Bits Fmt(Common op, Width width) {
         ASSERTION(op.B2rAllowed(), "not allowed in B2r format");
         return BYTE_MASK | OPC(op, width).ToBits().In(4);
     }
 
-    constexpr uint32_t Fmt(Common::Value op, Width::Value width) {
+    static constexpr uint32_t Fmt(Common::Value op, Width::Value width) {
         return Fmt(Common(op), Width(width)).Raw();
     }
-}
+};
 
-namespace B2hr {
-    constexpr Bits FORMAT_BITS = 0b0001;
-    constexpr Bits BYTE_MASK = FORMAT_BITS.Shift(4);
+struct B2hr {
+    Imm8 firstByte;
+    XR xr;
+    static inline B2hr Decode(Decoder::ByteReader &reader) {
+        auto fb = Imm8::Decode(reader);
+        auto xr = Format::XR::Decode(reader);
+        return B2hr{fb, xr};
+    }
 
-    constexpr Bits Fmt(Common op, Bits b) {
+    static constexpr Bits FORMAT_BITS = 0b0001;
+    static constexpr Bits BYTE_MASK = FORMAT_BITS.Shift(4);
+
+    static constexpr Bits Fmt(Common op, Bits b) {
         ASSERTION(op.B2rAllowed(), "not allowed in B2r format");
         return BYTE_MASK | OPC(op, b).ToBits().In(4);
     }
 
-    constexpr Bits Fmt(Common op, Width width) {
+    static constexpr Bits Fmt(Common op, Width width) {
         return Fmt(op, width.Common());
     }
 
-    constexpr uint32_t Fmt(Common::Value op, Width::Value width) {
+    static constexpr uint32_t Fmt(Common::Value op, Width::Value width) {
         return Fmt(Common(op), Width(width)).Raw();
     }
 
-    constexpr Bits Fmt(Common op, Sign sign) {
-        return Fmt(op, sign);
+    static constexpr Bits Fmt(Common op, Sign sign) {
+        return Fmt(op, sign.ToBits());
     }
-}
 
-namespace B2rrd8 {
-    constexpr Bits FORMAT_BITS = 0b0101;
-    constexpr Bits BYTE_MASK = FORMAT_BITS.Shift(4);
+    static constexpr uint32_t Fmt(Common::Value op, Sign::Value sign) {
+        return Fmt(Common(op), Sign(sign)).Raw();
+    }
+};
 
-    constexpr Bits Fmt(CC cc, Width w) {
+struct B2rrd8 {
+    B2rr b2rr;
+    Imm8 imm;
+
+    static inline B2rrd8 Decode(Decoder::ByteReader &reader) {
+        auto b2rr = B2rr::Decode(reader);
+        auto imm = Imm8::Decode(reader);
+        return B2rrd8 {
+            .b2rr = b2rr,
+            .imm = imm
+        };
+    }
+
+    static constexpr Bits FORMAT_BITS = 0b0101;
+    static constexpr Bits BYTE_MASK = FORMAT_BITS.Shift(4);
+
+    static constexpr Bits Fmt(CC cc, Width w) {
         return BYTE_MASK | cc.ToBits().In(3).Shift(1) | w.Common();
     }
 
-    constexpr uint32_t Fmt(CC::Value cc, Width::Value w) {
+    static constexpr uint32_t Fmt(CC::Value cc, Width::Value w) {
         return Fmt(CC(cc), Width(w)).Raw();
     }
-}
+};
 
 namespace SymbolicObjectControl {
     constexpr Bits FORMAT_BITS = 0b1010;
@@ -468,9 +744,69 @@ namespace SymbolicObjectControl {
     constexpr Bits Fmt(uint32_t opc) {
         return BYTE_MASK | Bits(opc).In(4);
     }
+
+    struct B2xr {
+        Imm8 fb;
+        XR xr;
+
+        static inline B2xr Decode(Decoder::ByteReader &reader) {
+            auto fb = Imm8::Decode(reader);
+            auto xr = XR::Decode(reader);
+            return B2xr {
+                .fb = fb,
+                .xr = xr,
+            };
+        }
+    };
+
+    class Opc0100 {
+    public:
+        enum Value : uint32_t {
+            CMP_RICH_IOF      = 0b0000,
+            CMP_NOT_RICH_IOF  = 0b0001,
+            CMP_RICH_EOP      = 0b0010,
+            CMP_NOT_RICH_EOP  = 0b0011,
+            CMP_CHA_TEST      = 0b0100,
+            CMP_NOT_CHA_TEST  = 0b0101,
+            THROW             = 0b0110,
+            CATCH             = 0b0111,
+            RET_32            = 0b1000,
+            RET_64            = 0b1001,
+            FRET_32           = 0b1010,
+            FRET_64           = 0b1011,
+            CHECK_DIV_ZERO_32 = 0b1100,
+            CHECK_DIV_ZERO_64 = 0b1101,
+            CHECK_NULL        = 0b1110,
+        };
+
+        constexpr static uint32_t OPCODE = SymbolicObjectControl::Fmt(0b0100).Raw();
+
+        constexpr Opc0100(const uint8_t raw) : _value((Value) raw) {}
+        constexpr Opc0100(const Value raw) : _value(raw) {}
+        constexpr operator Value() const { return _value; }
+        constexpr Bits ToBits() const { return _value; }
+
+    private:
+        Value _value;
+    };
 }
 
-namespace B2xrI {
+struct B2xrI {
+    Imm8 fb;
+    XR xr;
+    Imm16 imm;
+
+    static inline B2xrI Decode(Decoder::ByteReader &reader) {
+        auto fb = Imm8::Decode(reader);
+        auto xr = XR::Decode(reader);
+        auto imm = Imm16::Decode(reader);
+        return B2xrI {
+            .fb = fb,
+            .xr = xr,
+            .imm = imm
+        };
+    }
+
     class Opc1011 {
     public:
         enum Value : uint32_t {
@@ -481,6 +817,7 @@ namespace B2xrI {
 
         constexpr static Bits OPCODE = SymbolicObjectControl::Fmt(0b1011);
 
+        constexpr Opc1011(const uint8_t raw) : _value((Value) raw) {}
         constexpr Opc1011(const Value raw) : _value(raw) {}
         constexpr operator Value() const { return _value; }
         constexpr Bits ToBits() const { return _value; }
@@ -488,17 +825,35 @@ namespace B2xrI {
     private:
         Value _value;
     };
-}
+};
 
-namespace B3xrrr {
-    constexpr Bits FORMAT_BITS = 0b01000;
-    constexpr Bits BYTE_MASK = FORMAT_BITS.Shift(3);
+struct B3xrrr {
+    Imm8 fb;
+    XR xr;
+    RR rr;
 
-    constexpr Bits Fmt(Bits low3Bits) {
-        return BYTE_MASK | low3Bits.In(3);
+    static inline B3xrrr Decode(Decoder::ByteReader &reader) {
+        auto fb = Imm8::Decode(reader);
+        auto xr = XR::Decode(reader);
+        auto rr = RR::Decode(reader);
+        return B3xrrr {
+            .fb = fb,
+            .xr = xr,
+            .rr = rr
+        };
     }
 
-}
+    static constexpr Bits FORMAT_BITS = 0b01000;
+    static constexpr Bits BYTE_MASK = FORMAT_BITS.Shift(3);
+
+    static constexpr Bits Fmt(OP7A::Value op7a, Bits lowBit) {
+        return BYTE_MASK | OP7A(op7a).ToBits().In(2).Shift(1) | lowBit.In(1);
+    }
+
+    static constexpr uint32_t Fmt(OP7A::Value op7a, Sign::Value sign) {
+        return Fmt(op7a, Sign(sign).ToBits()).Raw();
+    }
+};
 
 namespace B3xrrt4i16 {
     constexpr Bits FORMAT_BITS = 0b001;
@@ -518,30 +873,6 @@ namespace B3xrrkI {
         return BYTE_MASK | low3Bits.In(3);
     }
 }
-
-namespace ExtBrr {
-    constexpr uint32_t OPCODE_START = 178;
-    constexpr uint32_t INSTRUCTION_SIZE = 4;
-
-    constexpr Bits Fmt(ImmKind immKind, Width width, CC cc) {
-        auto bits = width.Common().In(1).Shift(1)
-                  | immKind.ToBits().In(1)
-                  | cc.ToBits().In(3).Shift(2);
-        return Bits(bits.Raw() + OPCODE_START);
-    }
-
-    constexpr uint32_t Fmt(ImmKind::Value immKind, Width::Value width, CC::Value cc) {
-        return Fmt(ImmKind(immKind), Width(width), CC(cc)).Raw();
-    }
-};
-
-namespace ExtRet {
-    constexpr uint32_t OPCODE = 254;
-
-    constexpr Bits Fmt() {
-        return Bits(OPCODE);
-    }
-};
 
 } // namespace Format
 } // namespace Cbc

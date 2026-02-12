@@ -209,7 +209,7 @@ public:
     inline MemoryLocation(uintptr_t _base, size_t _offset)
         : base(reinterpret_cast<uint8_t*>(_base)), offset(_offset) {}
 
-    inline void StorePrim(StoreAccessKind::Value stk, RT::Reg src, Ectype* ectype) {
+    inline void StorePrim(StoreAccessKind::Value stk, Format::Reg src, Ectype* ectype) {
         switch (stk) {
             case StoreAccessKind::ST_8: Store<uint8_t>(src, ectype); return;
             case StoreAccessKind::ST_16: Store<uint16_t>(src, ectype); return;
@@ -221,7 +221,7 @@ public:
         }
     }
 
-    inline void LoadPrim(LoadAccessKind::Value ldk, RT::Reg dst, Ectype* ectype) {
+    inline void LoadPrim(LoadAccessKind::Value ldk, Format::Reg dst, Ectype* ectype) {
         switch (ldk) {
             case LoadAccessKind::LD_U8:  Load<uint8_t>(dst, ectype); return;
             case LoadAccessKind::LD_U16: Load<uint16_t>(dst, ectype); return;
@@ -238,22 +238,22 @@ public:
 
 private:
     template <typename P>
-    inline void Store(RT::Reg src, Ectype* ectype) {
+    inline void Store(Format::Reg src, Ectype* ectype) {
         *reinterpret_cast<P*>(base + offset) = static_cast<P>(ectype->GetPrimitive(src.IR()).u64);
     }
 
     template <>
-    inline void Store<float>(RT::Reg src, Ectype* ectype) {
+    inline void Store<float>(Format::Reg src, Ectype* ectype) {
         *reinterpret_cast<float*>(base + offset) = static_cast<float>(ectype->GetPrimitive(src.FR()).f32);
     }
 
     template <>
-    inline void Store<double>(RT::Reg src, Ectype* ectype) {
+    inline void Store<double>(Format::Reg src, Ectype* ectype) {
         *reinterpret_cast<double*>(base + offset) = static_cast<double>(ectype->GetPrimitive(src.FR()).f64);
     }
 
     template <typename P>
-    inline void Load(RT::Reg dst, Ectype* ectype) {
+    inline void Load(Format::Reg dst, Ectype* ectype) {
         auto value = *reinterpret_cast<P*>(base + offset);
         ectype->Put(dst.IR(), Value::Primitive {
             .u64 = static_cast<uint64_t>(value)
@@ -261,7 +261,7 @@ private:
     }
 
     template <>
-    inline void Load<float>(RT::Reg dst, Ectype* ectype) {
+    inline void Load<float>(Format::Reg dst, Ectype* ectype) {
         auto value = *reinterpret_cast<float*>(base + offset);
         ectype->Put(dst.FR(), Value::Primitive {
             .f32 = value
@@ -269,7 +269,7 @@ private:
     }
 
     template <>
-    inline void Load<double>(RT::Reg dst, Ectype* ectype) {
+    inline void Load<double>(Format::Reg dst, Ectype* ectype) {
         auto value = *reinterpret_cast<double*>(base + offset);
         ectype->Put(dst.FR(), Value::Primitive {
             .f64 = value

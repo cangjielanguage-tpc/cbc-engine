@@ -7,19 +7,19 @@
 namespace Cbc {
 namespace Emitter {
 
+void Encode(ByteBuffer& buf, Format::RR rr);
+void Encode(ByteBuffer& buf, Format::XR xr);
+void Encode(ByteBuffer& buf, Format::XImm12 xi12);
+void Encode(ByteBuffer& buf, Format::Imm16 i16);
+void Encode(ByteBuffer& buf, Format::Imm32 i32);
+void Encode(ByteBuffer& buf, Format::Imm64 i64);
+void Encode(ByteBuffer& buf, Format::RImm12 ri12);
 void Encode(ByteBuffer& buf, RT::Opcode opc);
-void Encode(ByteBuffer& buf, RT::RR rr);
-void Encode(ByteBuffer& buf, RT::XR xr);
-void Encode(ByteBuffer& buf, RT::Imm16 i16);
-void Encode(ByteBuffer& buf, RT::XImm12 xi12);
 void Encode(ByteBuffer& buf, RT::B1 command);
 void Encode(ByteBuffer& buf, RT::B2rr command);
 void Encode(ByteBuffer& buf, RT::B2xr command);
 void Encode(ByteBuffer& buf, RT::B3xrrr command);
 void Encode(ByteBuffer& buf, RT::B4xi12rr command);
-void Encode(ByteBuffer& buf, RT::Imm32 i32);
-void Encode(ByteBuffer& buf, RT::Imm64 i64);
-void Encode(ByteBuffer& buf, RT::RImm12 ri12);
 void Encode(ByteBuffer& buf, RT::B5xi12ri12 command);
 void Encode(ByteBuffer& buf, RT::B5i32 command);
 void Encode(ByteBuffer& buf, RT::B6xri32 command);

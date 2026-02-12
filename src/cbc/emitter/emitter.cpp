@@ -81,7 +81,7 @@ using namespace Format;
 
 class Literal12Fixup : public Fixup {
 public:
-    Literal12Fixup(RT::Imm4 _i4, Symbol _sym)
+    Literal12Fixup(Format::Imm4 _i4, Symbol _sym)
         : Fixup(_sym), i4(_i4) {}
 
     static_assert(LiteralTableBuilder::MAX_SIZE == RT::LIT_TABLE_SIZE);
@@ -94,14 +94,14 @@ public:
             std::function<uint16_t(Symbol)> const& relocationConverter) const override {
         assert(position >= 0);
         Segment::View buf = segment.At(static_cast<size_t>(position));
-        Encode(buf, RT::XImm12 {
+        Encode(buf, Format::XImm12 {
             .imm4 = i4,
             .imm12 = relocationConverter(symbol),
         });
     }
 
 private:
-    RT::Imm4 i4;
+    Format::Imm4 i4;
 };
 
 class JmpFixup : public Fixup {
@@ -119,7 +119,7 @@ public:
         Segment::View buf = segment.At(static_cast<size_t>(position));
         Encode(buf, RT::B5i32 {
             .opc = RT::Opcode::JMP32, // TODO: support short jump instruction
-            .imm32 = RT::Imm32 {
+            .imm32 = Format::Imm32 {
                 .imm = static_cast<uint32_t>(distance)
             }
         });
@@ -238,8 +238,8 @@ void Emitter::Binary(Format::Common op, Format::Width width, IReg d, IReg l, IRe
 
     Encode(segment, RT::B3xrrr {
         .opc = opcode,
-        .xr = RT::XR {
-            .imm = RT::Imm4(op),
+        .xr = Format::XR {
+            .imm = Format::Imm4(op),
             .r = d,
         },
         .rr = {
@@ -276,9 +276,9 @@ void Emitter::BinaryImm(Format::Common op, Format::Width width, IReg d, IReg l, 
 
         Encode(segment, RT::B4xi12rr {
             .opc = opcode,
-            .xi12 = RT::XImm12 {
-                .imm4 = RT::Imm4(op),
-                .imm12 = RT::Imm12(immediate & 0xfff),
+            .xi12 = Format::XImm12 {
+                .imm4 = Format::Imm4(op),
+                .imm12 = Format::Imm12(immediate & 0xfff),
             },
             .rr = {
                 .x = d,
@@ -294,8 +294,8 @@ void Emitter::BinaryImm(Format::Common op, Format::Width width, IReg d, IReg l, 
             : RT::Opcode::BINI64L;
 
         Encode(segment, opcode);
-        AddFixup(std::make_unique<Literal12Fixup>(RT::Imm4(op), immediate));
-        Encode(segment, RT::RR {
+        AddFixup(std::make_unique<Literal12Fixup>(Format::Imm4(op), immediate));
+        Encode(segment, Format::RR {
             .x = d,
             .y = l
         });
@@ -326,8 +326,8 @@ void Emitter::Binary(Format::FloatOperations op, Format::Width width, FReg d, FR
 
     Encode(segment, RT::B3xrrr {
         .opc = opcode,
-        .xr = RT::XR {
-            .imm = RT::Imm4(op),
+        .xr = Format::XR {
+            .imm = Format::Imm4(op),
             .r = d,
         },
         .rr = {
@@ -342,10 +342,10 @@ void Emitter::Sub(Width width, FReg d, FReg l, FReg r) { Binary(FloatOperations:
 void Emitter::Mul(Width width, FReg d, FReg l, FReg r) { Binary(FloatOperations::FMUL, width, d, l, r); }
 void Emitter::Div(Width width, FReg d, FReg l, FReg r) { Binary(FloatOperations::FDIV, width, d, l, r); }
 
-void Emitter::Mov(RT::Opcode opcode, RT::Reg d, RT::Reg s) {
+void Emitter::Mov(RT::Opcode opcode, Format::Reg d, Format::Reg s) {
     Encode(segment, RT::B2rr {
         .opc = opcode,
-        .rr = RT::RR {
+        .rr = Format::RR {
             .x = d,
             .y = s
         }
@@ -366,8 +366,8 @@ void Emitter::MovImm(Width width, IReg d, uint64_t imm) {
 
         Encode(segment, RT::B2xr {
             .opc = RT::Opcode::MOVI,
-            .xr = RT::XR {
-                .imm = RT::Imm4(immediate),
+            .xr = Format::XR {
+                .imm = Format::Imm4(immediate),
                 .r = d
             }
         });
@@ -380,11 +380,11 @@ void Emitter::MovImm(Width width, IReg d, uint64_t imm) {
 void Emitter::FMovI32(FReg d, float imm) {
     Encode(segment, RT::B6xri32 {
         .opc = RT::Opcode::FMOVI32,
-        .xr = RT::XR {
+        .xr = Format::XR {
             .imm = 0,
             .r = d
         },
-        .imm32 = RT::Imm32 {
+        .imm32 = Format::Imm32 {
             .fimm = imm
         }
     });
@@ -392,11 +392,11 @@ void Emitter::FMovI32(FReg d, float imm) {
 void Emitter::FMovI64(FReg d, double imm) {
     Encode(segment, RT::B10xri64 {
         .opc = RT::Opcode::FMOVI64,
-        .xr = RT::XR {
+        .xr = Format::XR {
             .imm = 0,
             .r = d
         },
-        .imm64 = RT::Imm64 {
+        .imm64 = Format::Imm64 {
             .dimm = imm
         }
     });
@@ -406,7 +406,7 @@ void Emitter::FMovI64(FReg d, double imm) {
 void Emitter::MovRef(IReg d, IReg s) {
     Encode(segment, RT::B2rr {
         .opc = RT::Opcode::MOVR,
-        .rr = RT::RR {
+        .rr = Format::RR {
             .x = d,
             .y = s
         }
@@ -435,16 +435,16 @@ void Emitter::Ret() {
 
 void Emitter::NewObj(IReg d, Symbol sym) {
     segment.AddW8(RT::Opcode::NEWOBJ);
-    RT::Imm4 i4(d);
+    Format::Imm4 i4(d);
     AddFixup(std::make_unique<Literal12Fixup>(i4, sym));
 }
 
-void Emitter::LoadObj(Format::LoadAccessKind ldk, RT::Reg dst, IReg base, uint32_t offset) {
+void Emitter::LoadObj(Format::LoadAccessKind ldk, Format::Reg dst, IReg base, uint32_t offset) {
     if (MathUtils::IsNBits(offset, 12)) {
         Encode(segment, RT::B4xi12rr {
             .opc = RT::Opcode::LOAD_OBJ,
             .xi12 = {
-                .imm4 = RT::Imm4(ldk),
+                .imm4 = Format::Imm4(ldk),
                 .imm12 = static_cast<uint16_t>(offset),
             },
             .rr = {
@@ -459,12 +459,12 @@ void Emitter::LoadObj(Format::LoadAccessKind ldk, RT::Reg dst, IReg base, uint32
     }
 }
 
-void Emitter::StoreObj(Format::StoreAccessKind stk, RT::Reg src, IReg base, uint32_t offset) {
+void Emitter::StoreObj(Format::StoreAccessKind stk, Format::Reg src, IReg base, uint32_t offset) {
     if (MathUtils::IsNBits(offset, 12)) {
         Encode(segment, RT::B4xi12rr {
             .opc = RT::Opcode::STORE_OBJ,
             .xi12 = {
-                .imm4 = RT::Imm4(stk),
+                .imm4 = Format::Imm4(stk),
                 .imm12 = static_cast<uint16_t>(offset),
             },
             .rr = {
