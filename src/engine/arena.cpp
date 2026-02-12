@@ -4,7 +4,7 @@
 
 #include "arena.h"
 
-namespace Contexts {
+namespace Session {
 
 static uintptr_t Align(uintptr_t value) {
     auto alignment = alignof(std::max_align_t);

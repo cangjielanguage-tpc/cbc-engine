@@ -2,7 +2,7 @@
 
 #include <memory_resource>
 
-namespace Contexts {
+namespace Session {
 
 /// Thread-unsafe growable memory arena.
 class Arena : public std::pmr::memory_resource {
