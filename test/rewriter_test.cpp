@@ -12,7 +12,7 @@
 
 static LimitedHeap<16384> heap;
 
-class EmitTest : public testing::Test {
+class RewriterTest : public testing::Test {
     void SetUp() override {
         heap.Reset();
     }
@@ -28,15 +28,16 @@ struct Test;
 
 using namespace Cbc::Format;
 
-TEST(EmitTest, Rewriter_Simple) {
+TEST(RewriterTest, Rewriter_Simple) {
+    uint32_t isa12CodeSize = 4;
     uint8_t isa12Bytes[] = {0b00000000, 0b00100001, // Add IR1, IR2
                             0b10100100, 0b00011000  // Ret IR1
                             };
-    Decoder::ByteReader isa12stream(isa12Bytes, isa12Bytes, isa12Bytes + 4);
+    MethodCode methodCode = {isa12Bytes, isa12CodeSize};
     
     API::Fake::Method fakeMethod;
     Emitter::Emitter e;
-    Rewriter rw(&fakeMethod, isa12stream, e);
+    Rewriter rw(&fakeMethod, methodCode, e);
     rw.Interpret();
     auto code = e.Build(heap);
     EXPECT_EQ(4, code.bytecodeSize);

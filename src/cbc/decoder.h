@@ -67,8 +67,8 @@ public:
         return cursor;
     }
 
-    inline bool hasNext() {
-        return cursor < end;
+    inline bool EndOfMem(uint8_t* memEnd) {
+        return cursor >= memEnd;
     }
 
 private:
