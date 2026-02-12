@@ -11,8 +11,12 @@ class Session {
 public:
     IO::RandomAccessFile* FileOf(IO::FileId fileId);
 
+    static Session NewSession();
+
 private:
+    Session() = default;
+
     Arena arena;
 };
 
-} // namespace Contexts
+} // namespace Session

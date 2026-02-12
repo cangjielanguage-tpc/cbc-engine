@@ -38,4 +38,4 @@ private:
     Chunk *chunks;
 };
 
-} // namespace Contexts
+} // namespace Session

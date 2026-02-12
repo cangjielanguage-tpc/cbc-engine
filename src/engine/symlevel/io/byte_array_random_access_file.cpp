@@ -1,5 +1,6 @@
-#include "byte_array_random_access_file.h"
+#include <cstring>
 
+#include "byte_array_random_access_file.h"
 
 namespace IO {
 

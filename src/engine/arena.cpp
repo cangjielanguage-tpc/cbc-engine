@@ -74,4 +74,4 @@ Arena::~Arena() {
     }
 }
 
-} // namespace Contexts
+} // namespace Session
