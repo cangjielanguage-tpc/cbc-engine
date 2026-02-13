@@ -6,18 +6,19 @@
 
 namespace Engine {
 
-class _Loader;
-
 class Loader {
 public:
     static Loader New();
 
     bool Load(std::unique_ptr<IO::RandomAccessFile> file, std::string_view name);
-    Engine* Build();
-private:
-    Loader(std::unique_ptr<_Loader> loader) : loader(std::move(loader)) {}
+    Engine Build();
 
-    std::unique_ptr<_Loader> loader;
+    ~Loader();
+private:
+    class Impl;
+    Loader(Impl* loader) : loader(loader) {}
+
+    Impl* loader;
 };
 
 } // namespace Engine

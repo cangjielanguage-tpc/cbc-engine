@@ -5,15 +5,6 @@
 
 namespace Engine {
 
-class _Loader {
-public:
-    _Loader() : fileCounter(0) {}
-
-    int fileCounter;
-    std::vector<Symlevel::CbcFile> files;
-    std::vector<std::unique_ptr<IO::RandomAccessFile>> rafs;
-};
-
 class Engine {
 public:
     Engine(std::vector<Symlevel::CbcFile> files,
@@ -28,6 +19,17 @@ private:
     std::vector<std::unique_ptr<IO::RandomAccessFile>> rafs;
 };
 
+class Loader::Impl {
+public:
+    Impl() : fileCounter(0) {}
+
+    int fileCounter;
+    std::vector<Symlevel::CbcFile> files;
+    std::vector<std::unique_ptr<IO::RandomAccessFile>> rafs;
+};
+
+/////////////////////////////////////////////////////////////////
+
 IO::RandomAccessFile* Session::FileOf(IO::FileId fileId)
 {
     // TODO: add session-scoped buffered rafs.
@@ -40,7 +42,11 @@ Session Session::NewSession(Engine& engine)
 }
 
 Loader Loader::New() {
-    return Loader(std::make_unique<_Loader>());
+    return Loader(new Impl());
+}
+
+Loader::~Loader() {
+    delete loader;
 }
 
 bool Loader::Load(std::unique_ptr<IO::RandomAccessFile> file, std::string_view name)
@@ -58,8 +64,8 @@ bool Loader::Load(std::unique_ptr<IO::RandomAccessFile> file, std::string_view n
     return true;
 }
 
-Engine* Loader::Build() {
-    return new Engine(
+Engine Loader::Build() {
+    return Engine(
         std::move(loader->files),
         std::move(loader->rafs)
     );
