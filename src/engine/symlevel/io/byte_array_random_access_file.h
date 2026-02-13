@@ -14,7 +14,7 @@ namespace IO {
 class ByteArrayRandomAccessFile : public RandomAccessFile {
 public:
 
-    ByteArrayRandomAccessFile(char* data, size_t fileLength) : data(data), fileLength(fileLength) {}
+    ByteArrayRandomAccessFile(const char* data, size_t fileLength) : data(data), fileLength(fileLength) {}
 
     virtual ~ByteArrayRandomAccessFile()
     {

@@ -5,9 +5,9 @@
 
 namespace Engine {
 
-class Engine {
+class Engine::Impl {
 public:
-    Engine(std::vector<Symlevel::CbcFile> files,
+    Impl(std::vector<Symlevel::CbcFile> files,
            std::vector<std::unique_ptr<IO::RandomAccessFile>> rafs)
         : files(std::move(files)), rafs(std::move(rafs)) {}
 
@@ -33,12 +33,17 @@ public:
 IO::RandomAccessFile* Session::FileOf(IO::FileId fileId)
 {
     // TODO: add session-scoped buffered rafs.
-    return engine.rafs.at(fileId).get();
+    return engine.impl->rafs.at(fileId).get();
 }
 
 Session Session::NewSession(Engine& engine)
 {
     return Session(engine);
+}
+
+Arena& Session::Allocator()
+{
+    return arena;
 }
 
 Loader Loader::New() {
@@ -65,10 +70,14 @@ bool Loader::Load(std::unique_ptr<IO::RandomAccessFile> file, std::string_view n
 }
 
 Engine Loader::Build() {
-    return Engine(
+    return Engine(new Engine::Impl(
         std::move(loader->files),
         std::move(loader->rafs)
-    );
+    ));
+}
+
+Engine::~Engine() {
+    delete impl;
 }
 
 } // namespace Engine

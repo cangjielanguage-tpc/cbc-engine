@@ -13,6 +13,7 @@ public:
     IO::RandomAccessFile* FileOf(IO::FileId fileId);
 
     static Session NewSession(Engine& engine);
+    Arena& Allocator();
 
 private:
     Session(Engine& engine) : engine(engine), arena() {}

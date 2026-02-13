@@ -6,7 +6,6 @@
 #include "io/stream_file_reader.h"
 #include "offset.h"
 
-
 namespace Symlevel {
 
 template <typename T> class Reader {
