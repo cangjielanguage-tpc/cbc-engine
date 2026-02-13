@@ -14,17 +14,12 @@ namespace IO {
 class ByteArrayRandomAccessFile : public RandomAccessFile {
 public:
 
-    ByteArrayRandomAccessFile(std::filesystem::path path): ByteArrayRandomAccessFile(path, OpenFile(path)) {}
+    ByteArrayRandomAccessFile(char* data, size_t fileLength) : data(data), fileLength(fileLength) {}
 
     virtual ~ByteArrayRandomAccessFile()
     {
         RandomAccessFile::~RandomAccessFile();
         delete data;
-    }
-
-    virtual std::filesystem::path Path() const override
-    {
-        return path;
     }
 
     virtual size_t FileLength() const override
@@ -36,16 +31,8 @@ public:
 
 private:
 
-    ByteArrayRandomAccessFile(std::filesystem::path path, std::tuple<char*, size_t> data):
-        path(std::move(path)),
-        data(std::get<0>(data)),
-        fileLength(std::get<1>(data)) {}
-
-    const std::filesystem::path path;
     const char* data;
     const size_t fileLength;
-
-    static std::tuple<char*, size_t> OpenFile(std::filesystem::path path);
 };
 
 } // namespace IO

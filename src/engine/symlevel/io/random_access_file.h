@@ -17,11 +17,6 @@ public:
     virtual ~RandomAccessFile() = default;
 
     /**
-     * @brief Path to file.
-     */
-    virtual std::filesystem::path Path() const = 0;
-
-    /**
      * @brief File length.
      */
     virtual size_t FileLength() const = 0;
