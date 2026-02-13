@@ -1,6 +1,7 @@
 #pragma once
 
 #include "cbc_type_kind.h"
+#include "engine/symlevel/term.h"
 
 
 namespace API {
@@ -11,26 +12,16 @@ namespace API {
 class Term {
 public:
 
-    CbcTypeKind Kind()
-    {
-        // TODO: implement me
-        return CbcTypeKind::INVALID;
-    }
+    Term(Symlevel::TermValue term): term(term) {}
 
-    Term* Subterm(int idx)
-    {
-        // TODO: implement me
-        return nullptr;
-    }
+    CbcTypeKind Kind();
 
-    int Length()
-    {
-        // TODO: implement me
-        return 0;
-    }
+    Term* Subterm(int idx);
+
+    int Length();
 
 private:
-    // term: Sym::Term;
+    Symlevel::TermValue term;
 };
 
 

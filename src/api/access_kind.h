@@ -6,7 +6,6 @@
 
 namespace API {
 
-
 struct AccessKind {
 public:
 
@@ -19,16 +18,16 @@ public:
 
     static constexpr int BIT_COUNT = 2;
 
-    constexpr AccessKind(const Value raw) : _value(raw) {}
+    constexpr AccessKind(const Value value) : value(value) {}
 
     constexpr operator Value() const
     {
-        return  _value;
+        return  value;
     }
 
     constexpr std::string_view const ToString()
     {
-        switch (_value) {
+        switch (value) {
             case INVALID:   return "INVALID";
             case PUBLIC:    return "PUBLIC";
             case PRIVATE:   return "PRIVATE";
@@ -38,7 +37,7 @@ public:
     }
 
 private:
-    Value _value;
+    Value value;
 };
 
 
