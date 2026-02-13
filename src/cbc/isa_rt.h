@@ -53,6 +53,9 @@ public:
         LOAD_REC, // B4xi12rr
         STORE_REC, // B4xi12rr
 
+        LOAD_FRAME, // B4xi12rr
+        STORE_FRAME, // B4xi12rr
+
         MEMSPACE, // B1. See `MemOpcode`
 
         OPCODE_NUM,
@@ -141,6 +144,28 @@ public:
         SST_F32, // M2rr
         SST_F64, // M2rr
         SST_END_OPCODE = SST_F64,
+
+        FLD_START_OPCODE,
+        FLD_U8 = FLD_START_OPCODE,  // M2rr
+        FLD_U16, // M2rr
+        FLD_32,  // M2rr
+        FLD_S8,  // M2rr
+        FLD_S16, // M2rr
+        FLD_F32, // M2rr
+        FLD_F64, // M2rr
+        FLD_64,  // M2rr
+        FLD_S32TO64, // M2rr
+        FLD_REF, // M2rr
+        FLD_END_OPCODE = FLD_REF,
+        FST_START_OPCODE,
+        FST_8 = FST_START_OPCODE,   // M2rr
+        FST_16,  // M2rr
+        FST_32,  // M2rr
+        FST_64,  // M2rr
+        FST_REF, // M2rr
+        FST_F32, // M2rr
+        FST_F64, // M2rr
+        FST_END_OPCODE = FST_F64,
 
         // TODO: Add following opcodes.
         // GLD_*, <- global

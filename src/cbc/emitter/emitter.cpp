@@ -528,5 +528,28 @@ void Emitter::StoreRec(Format::StoreAccessKind stk, Format::Reg src, IReg base, 
     }
 }
 
+
+void Emitter::LoadFrame(Format::LoadAccessKind ldk, RT::Reg dst, uint32_t offset)
+{
+    if (MathUtils::IsNBits(offset, 12)) {
+        Load(ldk, dst, IReg::IRZ, offset, RT::Opcode::LOAD_FRAME);
+    } else {
+        auto ms = OpenMemSpace();
+        ms.Offset(offset);
+        ms.LoadFrame(ldk, dst);
+    }
+}
+
+void Emitter::StoreFrame(Format::StoreAccessKind stk, RT::Reg src, uint32_t offset)
+{
+    if (MathUtils::IsNBits(offset, 12)) {
+        Store(stk, src, IReg::IRZ, offset, RT::Opcode::STORE_FRAME);
+    } else {
+        auto ms = OpenMemSpace();
+        ms.Offset(offset);
+        ms.StoreFrame(stk, src);
+    }
+}
+
 } // namespace Emitter
 } // namespace Cbc

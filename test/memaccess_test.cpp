@@ -391,3 +391,62 @@ TEST(MemoryAccess, TestStruct) {
     EXPECT_EQ(structTest.u32, 34);
     EXPECT_EQ(res.u64, 76);
 }
+
+TEST(MemoryAccess, TestFrameSpace) {
+
+    char frameSlots[32];
+    auto frameStart = reinterpret_cast<uintptr_t>(&frameSlots);
+    Interpretation::Frame frame(frameStart);
+
+    Cbc::Emitter::Emitter e;
+
+    e.MovImm(Width::W64, IReg::IR4, 42);
+    auto mspace1 = e.OpenMemSpace();
+    mspace1.StoreFrame(Format::StoreAccessKind::ST_64, IReg::IR4);
+
+    e.MovImm(Width::W32, IReg::IR5, 34);
+    auto mspace2 = e.OpenMemSpace();
+    mspace2.Offset(16);
+    mspace2.StoreFrame(Format::StoreAccessKind::ST_32, IReg::IR5);
+
+    auto mspace3 = e.OpenMemSpace();
+    mspace3.LoadFrame(Format::LoadAccessKind::LD_64, IReg::IR6);
+
+    auto mspace4 = e.OpenMemSpace();
+    mspace2.Offset(16);
+    mspace4.LoadFrame(Format::LoadAccessKind::LD_32, IReg::IR7);
+
+    e.Add(Width::W64, IReg::IR1, IReg::IR6, IReg::IR7);
+    e.Ret();
+
+    auto res = Interpret(e.Build(heap), &frame, U32(0), U64(0));
+    EXPECT_EQ(*reinterpret_cast<long*>(frameSlots), 42);
+    EXPECT_EQ(*reinterpret_cast<int*>(frameSlots + 16), 34);
+    EXPECT_EQ(res.u64, 76);
+}
+
+
+TEST(MemoryAccess, TestFrame) {
+
+    char frameSlots[32];
+    auto frameStart = reinterpret_cast<uintptr_t>(&frameSlots);
+    Interpretation::Frame frame(frameStart);
+
+    Cbc::Emitter::Emitter e;
+
+    e.MovImm(Width::W64, IReg::IR4, 42);
+    e.StoreFrame(Format::StoreAccessKind::ST_64, IReg::IR4, 0);
+    e.LoadFrame(Format::LoadAccessKind::LD_64, IReg::IR6, 0);
+
+    e.MovImm(Width::W32, IReg::IR5, 34);
+    e.StoreFrame(Format::StoreAccessKind::ST_32, IReg::IR5, 16);
+    e.LoadFrame(Format::LoadAccessKind::LD_32, IReg::IR7, 16);
+
+    e.Add(Width::W64, IReg::IR1, IReg::IR6, IReg::IR7);
+    e.Ret();
+
+    auto res = Interpret(e.Build(heap), &frame, U32(0), U64(0));
+    EXPECT_EQ(*reinterpret_cast<long*>(frameSlots), 42);
+    EXPECT_EQ(*reinterpret_cast<int*>(frameSlots + 16), 34);
+    EXPECT_EQ(res.u64, 76);
+}

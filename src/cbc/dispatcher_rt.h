@@ -62,6 +62,9 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
         &&LOAD_REC, // B4xi12rr
         &&STORE_REC, // B4xi12rr
 
+        &&LOAD_FRAME, // B4xi12rr
+        &&STORE_FRAME, // B4xi12rr
+
         &&MEMSPACE, // B1. See `MemOpcode`
     };
 
@@ -110,6 +113,25 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
         &&SST_REF, // M2rr
         &&SST_F32, // M2rr
         &&SST_F64, // M2rr
+
+        &&FLD_U8,  // M2rr
+        &&FLD_U16, // M2rr
+        &&FLD_32,  // M2rr
+        &&FLD_S8,  // M2rr
+        &&FLD_S16, // M2rr
+        &&FLD_F32, // M2rr
+        &&FLD_F64, // M2rr
+        &&FLD_64,  // M2rr
+        &&FLD_S32TO64, // M2rr
+        &&FLD_REF, // M2rr
+
+        &&FST_8,   // M2rr
+        &&FST_16,  // M2rr
+        &&FST_32,  // M2rr
+        &&FST_64,  // M2rr
+        &&FST_REF, // M2rr
+        &&FST_F32, // M2rr
+        &&FST_F64, // M2rr
 
     };
 
@@ -325,6 +347,16 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
         bool successful = handler.StoreRec(args.xi12.imm4.STK(), args.rr.x, args.rr.y.IR(), args.xi12.imm12);
         NEXT_COND(successful);
     }
+    LOAD_FRAME: {
+        auto args = B4xi12rr::Decode(reader);
+        bool successful = handler.LoadFrame(args.xi12.imm4.LDK(), args.rr.x, args.xi12.imm12);
+        NEXT_COND(successful);
+    }
+    STORE_FRAME: {
+        auto args = B4xi12rr::Decode(reader);
+        bool successful = handler.StoreFrame(args.xi12.imm4.STK(), args.rr.x, args.xi12.imm12);
+        NEXT_COND(successful);
+    }
     MEMSPACE: {
         B1::Decode(reader);
         memspaceOffsetAcc = 0;
@@ -385,7 +417,7 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
 #define SLD(ldk) \
     SLD_##ldk: {                                        \
         auto args = M2rr::Decode(reader);               \
-        bool successful = handler.LoadRec(             \
+        bool successful = handler.LoadRec(              \
                 Format::LoadAccessKind::LD_##ldk,       \
                 args.rr.x, args.rr.y.IR(),              \
                 memspaceOffsetAcc);                     \
@@ -397,7 +429,7 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
 #define SST(stk) \
     SST_##stk: {                                        \
         auto args = M2rr::Decode(reader);               \
-        bool successful = handler.StoreRec(            \
+        bool successful = handler.StoreRec(             \
                 Format::StoreAccessKind::ST_##stk,      \
                 args.rr.x, args.rr.y.IR(),              \
                 memspaceOffsetAcc);                     \
@@ -405,6 +437,30 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
     }
     SST(8) SST(16) SST(32) SST(64) SST(REF) SST(F32) SST(F64)
 #undef SST
+
+#define FLD(ldk) \
+    FLD_##ldk: {                                        \
+        auto args = M2rr::Decode(reader);               \
+        bool successful = handler.LoadFrame(            \
+                Format::LoadAccessKind::LD_##ldk,       \
+                args.rr.x,                              \
+                memspaceOffsetAcc);                     \
+        NEXT_COND(successful);                          \
+    }
+    FLD(U8) FLD(U16) FLD(32) FLD(S8) FLD(S16) FLD(F32) FLD(F64) FLD(64) FLD(S32TO64) FLD(REF)
+#undef FLD
+
+#define FST(stk) \
+    FST_##stk: {                                        \
+        auto args = M2rr::Decode(reader);               \
+        bool successful = handler.StoreFrame(           \
+                Format::StoreAccessKind::ST_##stk,      \
+                args.rr.x,                              \
+                memspaceOffsetAcc);                     \
+        NEXT_COND(successful);                          \
+    }
+    FST(8) FST(16) FST(32) FST(64) FST(REF) FST(F32) FST(F64)
+#undef FST
 
 
 #undef MEM_NEXT
