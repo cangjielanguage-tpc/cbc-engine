@@ -12,7 +12,7 @@ namespace API {
 class Term {
 public:
 
-    Term(Symlevel::Term term): term(term) {}
+    Term(Symlevel::TermValue term): term(term) {}
 
     CbcTypeKind Kind();
 
@@ -21,7 +21,7 @@ public:
     int Length();
 
 private:
-    Symlevel::Term term;
+    Symlevel::TermValue term;
 };
 
 

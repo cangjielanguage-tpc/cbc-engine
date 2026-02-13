@@ -10,19 +10,19 @@
 
 namespace Symlevel {
 
-class Term {
+class TermValue {
 public:
-    static Term* Parse(IO::FileId fileId, IO::StreamFileReader& reader);
+    static TermValue Parse(IO::FileId fileId, IO::StreamFileReader& reader);
 
-    const String* GetTermStr() const { return termStr; }
+    const Offset<String> GetTermStr() const { return termStr; }
     uint32_t GetIdx() const { return idx; }
 
 private:
-    Term(IO::FileId fileId, String* termStr, uint32_t idx): fileId(fileId), termStr(termStr), idx(idx) {}
+    TermValue(IO::FileId fileId, Offset<String> termStr, uint32_t idx): fileId(fileId), termStr(termStr), idx(idx) {}
 
     const IO::FileId fileId;
 
-    const String* termStr;
+    const Offset<String> termStr;
     const uint32_t idx;
 };
 

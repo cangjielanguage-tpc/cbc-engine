@@ -1,6 +1,8 @@
 #include "cbc_file.h"
 #include "reader.h"
 
+#include "io/stream_file_reader.h"
+
 
 inline constexpr uint32_t MAGIC = 0xCBCDAFF0;
 
@@ -9,13 +11,17 @@ int curFileId = 0;
 
 namespace Symlevel {
 
-template <typename T> void ReadEntries(IO::StreamFileReader& reader, IO::FileId fileId, std::vector<std::unique_ptr<T>>& vector) {
+template <typename T> std::vector<T> ReadEntries(
+        IO::StreamFileReader& reader,
+        IO::FileId fileId)
+{
+    std::vector<T> vector;
     auto count = reader.ReadU32();
     vector.reserve(count);
     for (uint32_t i = 0; i < count; i++) {
-        T* parsed = T::Parse(fileId, reader);
-        vector.push_back(std::unique_ptr<T>(parsed));
+        vector.push_back(T::Parse(fileId, reader));
     }
+    return vector;
 }
 
 CbcFile* CbcFile::Create(IO::RandomAccessFile* file)
@@ -33,24 +39,12 @@ CbcFile* CbcFile::Create(IO::RandomAccessFile* file)
         throw std::runtime_error(msg.str());
     }
 
-    std::vector<std::unique_ptr<Term>> terms;
-    ReadEntries(reader, fileId, terms);
-
-    std::vector<std::unique_ptr<TypeDefinition>> typeDefs;
-    ReadEntries(reader, fileId, typeDefs);
-
-    std::vector<std::unique_ptr<MethodDefinition>> methodDefs;
-    ReadEntries(reader, fileId, methodDefs);
-
-    std::vector<std::unique_ptr<MethodReference>> methodRefs;
-    ReadEntries(reader, fileId, methodRefs);
-
-    std::vector<std::unique_ptr<FieldDefinition>> fieldDefs;
-    ReadEntries(reader, fileId, fieldDefs);
-
-    std::vector<std::unique_ptr<Code>> codes;
-    ReadEntries(reader, fileId, codes);
-
+    auto terms = ReadEntries<TermValue>(reader, fileId);
+    auto typeDefs = ReadEntries<TypeDefinition>(reader, fileId);
+    auto methodDefs = ReadEntries<MethodDefinition>(reader, fileId);
+    auto methodRefs = ReadEntries<MethodReference>(reader, fileId);
+    auto fieldDefs = ReadEntries<FieldDefinition>(reader, fileId);
+    auto codes = ReadEntries<Code>(reader, fileId);
 
     return new CbcFile(
         fileId,

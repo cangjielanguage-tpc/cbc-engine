@@ -3,14 +3,14 @@
 
 namespace Symlevel {
 
-MethodDefinition* MethodDefinition::Parse(IO::FileId fileId, IO::StreamFileReader& reader)
+MethodDefinition MethodDefinition::Parse(IO::FileId fileId, IO::StreamFileReader& reader)
 {
-    auto name = String::Parse(fileId, reader);
+    auto name = String::ParseOffset(reader);
     auto idx = reader.ReadU32();
     auto sigIdx = reader.ReadU32();
     auto declIdx = reader.ReadU32();
 
-    return new MethodDefinition(fileId, name, idx, sigIdx, declIdx);
+    return MethodDefinition(fileId, name, idx, sigIdx, declIdx);
 }
 
 } // namespace Symlevel

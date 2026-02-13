@@ -2,9 +2,8 @@
 
 #include <vector>
 #include "io/random_access_file.h"
-#include "io/stream_file_reader.h"
 #include "io/file_id.h"
-#include "term.h"
+#include "term_val.h"
 #include "type_definition.h"
 #include "method_definition.h"
 #include "field_definition.h"
@@ -22,12 +21,12 @@ public:
 private:
     CbcFile(
         IO::FileId fileId,
-        std::vector<std::unique_ptr<Term>> terms,
-        std::vector<std::unique_ptr<TypeDefinition>> typeDefs,
-        std::vector<std::unique_ptr<MethodDefinition>> methodDefs,
-        std::vector<std::unique_ptr<MethodReference>> methodRefs,
-        std::vector<std::unique_ptr<FieldDefinition>> fieldDefs,
-        std::vector<std::unique_ptr<Code>> codes
+        std::vector<TermValue> terms,
+        std::vector<TypeDefinition> typeDefs,
+        std::vector<MethodDefinition> methodDefs,
+        std::vector<MethodReference> methodRefs,
+        std::vector<FieldDefinition> fieldDefs,
+        std::vector<Code> codes
     ):
         fileId    (fileId),
         terms     (std::move(terms)),
@@ -40,12 +39,12 @@ private:
 
     const IO::FileId fileId;
 
-    const std::vector<std::unique_ptr<Term>> terms;
-    const std::vector<std::unique_ptr<TypeDefinition>> typeDefs;
-    const std::vector<std::unique_ptr<MethodDefinition>> methodDefs;
-    const std::vector<std::unique_ptr<MethodReference>> methodRefs;
-    const std::vector<std::unique_ptr<FieldDefinition>> fieldDefs;
-    const std::vector<std::unique_ptr<Code>> codes;
+    const std::vector<TermValue> terms;
+    const std::vector<TypeDefinition> typeDefs;
+    const std::vector<MethodDefinition> methodDefs;
+    const std::vector<MethodReference> methodRefs;
+    const std::vector<FieldDefinition> fieldDefs;
+    const std::vector<Code> codes;
 
 };
 

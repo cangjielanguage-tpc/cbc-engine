@@ -14,9 +14,9 @@ namespace Symlevel {
 
 class TypeDefinition {
 public:
-    static TypeDefinition* Parse(IO::FileId fileId, IO::StreamFileReader& reader);
+    static TypeDefinition Parse(IO::FileId fileId, IO::StreamFileReader& reader);
 
-    inline const String* Name() const { return name; }
+    inline const Offset<String> Name() const { return name; }
 
     inline uint32_t GetIdx() const { return  idx; }
 
@@ -26,7 +26,7 @@ public:
 
 private:
 
-    TypeDefinition(IO::FileId fileId, String* name, uint32_t idx, TypeKind typeKind, std::vector<uint32_t> supers):
+    TypeDefinition(IO::FileId fileId, Offset<String> name, uint32_t idx, TypeKind typeKind, std::vector<uint32_t> supers):
         fileId(fileId),
         name(name),
         idx(idx),
@@ -36,7 +36,7 @@ private:
 
     const IO::FileId fileId;
 
-    const String* name;
+    const Offset<String> name;
     const uint32_t idx;
     const TypeKind typeKind;
     const std::vector<uint32_t> supers;

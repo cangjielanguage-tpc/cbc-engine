@@ -3,19 +3,16 @@
 #include <string>
 #include "io/stream_file_reader.h"
 #include "io/file_id.h"
-
+#include "offset.h"
 
 namespace Symlevel {
 
-class String {
+class String : public std::string_view {
 public:
-    static String* Parse(IO::FileId fileId, IO::StreamFileReader &reader);
+    static Offset<String> ParseOffset(IO::StreamFileReader &reader);
+    static String Parse(IO::FileId fileId, IO::StreamFileReader &reader);
 
-private:
-    String(IO::FileId fileId, std::string content) : fileId(fileId), content(std::move(content)) {}
-
-    IO::FileId fileId;
-    std::string content;
+    String(std::string_view view) : std::string_view(std::move(view)) {}
 };
 
 }; // namespace Symlevel
