@@ -330,3 +330,64 @@ TEST(MemoryAccess, Fallback) {
     auto res = Interpret(code, U64(16), U64(expected));
     EXPECT_EQ(res.u64, expected);
 }
+
+struct StructTest {
+    uint64_t u64;
+    uint32_t u32;
+};
+
+TEST(MemoryAccess, TestStructSpace) {
+    Cbc::Emitter::Emitter e;
+    StructTest structTest {
+        .u64 = 0,
+        .u32 = 0
+    };
+
+    e.MovImm(Width::W64, IReg::IR4, 42);
+    auto mspace1 = e.OpenMemSpace();
+    mspace1.StoreRec(Format::StoreAccessKind::ST_64, IReg::IR4, IReg::IR2);
+
+    e.MovImm(Width::W32, IReg::IR5, 34);
+    auto mspace2 = e.OpenMemSpace();
+    mspace2.Offset(sizeof(uint64_t));
+    mspace2.StoreRec(Format::StoreAccessKind::ST_32, IReg::IR5, IReg::IR2);
+
+    auto mspace3 = e.OpenMemSpace();
+    mspace3.LoadRec(Format::LoadAccessKind::LD_64, IReg::IR6, IReg::IR2);
+
+    auto mspace4 = e.OpenMemSpace();
+    mspace2.Offset(sizeof(uint64_t));
+    mspace4.LoadRec(Format::LoadAccessKind::LD_32, IReg::IR7, IReg::IR2);
+
+    e.Add(Width::W64, IReg::IR1, IReg::IR6, IReg::IR7);
+    e.Ret();
+
+    auto res = Interpret(e.Build(heap), U32(0), U64(reinterpret_cast<uint64_t>(&structTest)));
+    EXPECT_EQ(structTest.u64, 42);
+    EXPECT_EQ(structTest.u32, 34);
+    EXPECT_EQ(res.u64, 76);
+}
+
+TEST(MemoryAccess, TestStruct) {
+    Cbc::Emitter::Emitter e;
+    StructTest structTest {
+        .u64 = 0,
+        .u32 = 0
+    };
+
+    e.MovImm(Width::W64, IReg::IR4, 42);
+    e.StoreRec(Format::StoreAccessKind::ST_64, IReg::IR4, IReg::IR2, 0);
+    e.LoadRec(Format::LoadAccessKind::LD_64, IReg::IR6, IReg::IR2, 0);
+
+    e.MovImm(Width::W32, IReg::IR5, 34);
+    e.StoreRec(Format::StoreAccessKind::ST_32, IReg::IR5, IReg::IR2, sizeof(uint64_t));
+    e.LoadRec(Format::LoadAccessKind::LD_32, IReg::IR7, IReg::IR2, sizeof(uint64_t));
+
+    e.Add(Width::W64, IReg::IR1, IReg::IR6, IReg::IR7);
+    e.Ret();
+
+    auto res = Interpret(e.Build(heap), U32(0), U64(reinterpret_cast<uint64_t>(&structTest)));
+    EXPECT_EQ(structTest.u64, 42);
+    EXPECT_EQ(structTest.u32, 34);
+    EXPECT_EQ(res.u64, 76);
+}

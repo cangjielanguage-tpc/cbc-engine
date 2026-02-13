@@ -1,5 +1,4 @@
-#ifndef CBC_EMITTER_EMITTER_H
-#define CBC_EMITTER_EMITTER_H
+#pragma once
 
 #include <vector>
 #include <functional>
@@ -12,6 +11,7 @@
 #include "cbc/emitter/symbols.h"
 #include "cbc/emitter/segment.h"
 #include "interpreter/code.h"
+#include "encoding_rt.h"
 
 namespace Cbc {
 namespace Emitter {
@@ -40,10 +40,26 @@ public:
         void OffsetReg(IReg reg);
 
         // tail instructions
-        void LoadObj(Format::LoadAccessKind ldk, Format::Reg dst, IReg base);
+        void LoadObj (Format::LoadAccessKind  ldk, Format::Reg dst, IReg base);
         void StoreObj(Format::StoreAccessKind stk, Format::Reg src, IReg base);
 
+        void LoadRec (Format::LoadAccessKind  ldk, Format::Reg dst, IReg base);
+        void StoreRec(Format::StoreAccessKind stk, Format::Reg src, IReg base);
+
     private:
+
+        template <typename AccessKind>
+        void LoadStore(AccessKind akind, Format::Reg v, IReg base, RT::MemOpcode opc)
+        {
+            Encode(segment, RT::M2rr {
+                .opc = opc,
+                .rr = Format::RR {
+                    .x = v,
+                    .y = base
+                },
+            });
+        }
+
         Segment& segment;
         Symbols& symbols;
         Emitter& emitter;
@@ -115,8 +131,11 @@ public:
     void Jmp(Label label);
 
     void NewObj(IReg d, Symbol sym);
-    void LoadObj(Format::LoadAccessKind ldk, Format::Reg dst, IReg base, uint32_t offset);
+    void LoadObj (Format::LoadAccessKind  ldk, Format::Reg dst, IReg base, uint32_t offset);
     void StoreObj(Format::StoreAccessKind stk, Format::Reg src, IReg base, uint32_t offset);
+
+    void LoadRec (Format::LoadAccessKind  ldk, Format::Reg dst, IReg base, uint32_t offset);
+    void StoreRec(Format::StoreAccessKind stk, Format::Reg src, IReg base, uint32_t offset);
 
     MemSpace OpenMemSpace();
 
@@ -124,6 +143,22 @@ private:
     void AddFixup(std::unique_ptr<Fixup> fixup);
     void Mov(RT::Opcode opcode, Format::Reg d, Format::Reg s);
     void Binary(Format::FloatOperations op, Format::Width width, FReg d, FReg l, FReg r);
+
+    template <typename AccessKind>
+    void LoadStore(AccessKind akind, Format::Reg v, IReg base, uint32_t offset, RT::Opcode opc)
+    {
+        Encode(segment, RT::B4xi12rr {
+            .opc = opc,
+            .xi12 = {
+                .imm4 = Format::Imm4(akind),
+                .imm12 = static_cast<uint16_t>(offset),
+            },
+            .rr = {
+                .x = v,
+                .y = base,
+            }
+        });
+    }
 
     Symbols symbols;
     Segment segment;
@@ -133,4 +168,3 @@ private:
 
 } // namespace Emitter
 } // namespace Cbc
-#endif // CBC_EMITTER_EMITTER_H

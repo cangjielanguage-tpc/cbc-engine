@@ -4,7 +4,6 @@
 #include "emitter.h"
 #include "cbc/isa_rt.h"
 #include "utils/math.h"
-#include "encoding_rt.h"
 
 namespace Cbc {
 namespace Emitter {
@@ -13,31 +12,37 @@ using Width = Format::Width;
 using CC = Format::CC;
 using Common = Format::Common;
 
-Symbol Emitter::NewAddressSym(uintptr_t ptr) {
+Symbol Emitter::NewAddressSym(uintptr_t ptr)
+{
     return symbols.Address(ptr);
 }
 
-Label Emitter::NewLabel() {
+Label Emitter::NewLabel()
+{
     return symbols.NewLabel();
 }
 
-void Emitter::Bind(Label label) {
+void Emitter::Bind(Label label)
+{
     symbols.Bind(label, segment.Pos());
 }
 
-EmitterSnapshot Emitter::Snapshot() {
+EmitterSnapshot Emitter::Snapshot()
+{
     return EmitterSnapshot {
         .segmentSnapshot = segment.Snapshot(),
         .fixupCount = fixups.size(),
     };
 }
 
-void Emitter::Apply(EmitterSnapshot snapshot) {
+void Emitter::Apply(EmitterSnapshot snapshot)
+{
     segment.Apply(snapshot.segmentSnapshot);
     fixups.resize(snapshot.fixupCount);
 }
 
-void Emitter::AddFixup(std::unique_ptr<Fixup> fixup) {
+void Emitter::AddFixup(std::unique_ptr<Fixup> fixup)
+{
     auto size = fixup->Size();
     fixup->position = segment.Pos();
     fixups.push_back(std::move(fixup));
@@ -47,7 +52,8 @@ void Emitter::AddFixup(std::unique_ptr<Fixup> fixup) {
     }
 }
 
-Interpretation::Code Emitter::Build(std::pmr::memory_resource& heap) {
+Interpretation::Code Emitter::Build(std::pmr::memory_resource& heap)
+{
     auto segment = std::exchange(this->segment, {});
     auto fixups = std::exchange(this->fixups, {});
 
@@ -86,12 +92,13 @@ public:
 
     static_assert(LiteralTableBuilder::MAX_SIZE == RT::LIT_TABLE_SIZE);
 
-    int32_t Size() const override {
-        return 2;
-    }
+    int32_t Size() const override { return 2; }
 
-    void Resolve(Segment& segment, Symbols& symbols,
-            std::function<uint16_t(Symbol)> const& relocationConverter) const override {
+    void Resolve(
+        Segment& segment, Symbols& symbols,
+        std::function<uint16_t(Symbol)> const& relocationConverter
+    ) const override
+    {
         assert(position >= 0);
         Segment::View buf = segment.At(static_cast<size_t>(position));
         Encode(buf, Format::XImm12 {
@@ -108,12 +115,13 @@ class JmpFixup : public Fixup {
 public:
     JmpFixup(Symbol _sym): Fixup(_sym) {}
 
-    int32_t Size() const override {
-        return RT::B5i32::SIZE;
-    }
+    int32_t Size() const override { return RT::B5i32::SIZE; }
 
-    void Resolve(Segment& segment, Symbols& symbols,
-            std::function<uint16_t(Symbol)> const& relocationConverter) const override {
+    void Resolve(
+        Segment& segment, Symbols& symbols,
+        std::function<uint16_t(Symbol)> const& relocationConverter
+    ) const override
+    {
         int32_t distance = Distance(symbols, this->symbol);
 
         Segment::View buf = segment.At(static_cast<size_t>(position));
@@ -131,11 +139,10 @@ public:
     BccFixup(Symbol _sym, CC _cc, Width _width, IReg _left, IReg _right)
         : Fixup(_sym), cc(_cc), width(_width), left(_left), right(_right) {}
 
-    int32_t Size() const override {
-        return RT::B4xi12rr::SIZE;
-    }
+    int32_t Size() const override { return RT::B4xi12rr::SIZE; }
 
-    static RT::Opcode opcode(bool isImm, Format::Width width) {
+    static RT::Opcode opcode(bool isImm, Format::Width width)
+    {
         switch (width) {
             case Format::Width::W32: return isImm ? RT::Opcode::BCC32I : RT::Opcode::BCC32L;
             case Format::Width::W64: return isImm ? RT::Opcode::BCC64I : RT::Opcode::BCC64L;
@@ -143,8 +150,11 @@ public:
         }
     }
 
-    void Resolve(Segment& segment, Symbols& symbols,
-            std::function<uint16_t(Symbol)> const& relocationConverter) const override {
+    void Resolve(
+        Segment& segment, Symbols& symbols,
+        std::function<uint16_t(Symbol)> const& relocationConverter
+    ) const override
+    {
         int32_t distance = Distance(symbols, this->symbol);
 
         bool isImm = MathUtils::IsNBitsSigned(distance, 12);
@@ -178,11 +188,10 @@ public:
     BccImmFixup(Symbol _sym, CC _cc, Width _width, IReg _left, uint64_t _right)
         : Fixup(_sym), cc(_cc), width(_width), left(_left), right(_right) {}
 
-    int32_t Size() const override {
-        return RT::B5xi12ri12::SIZE;
-    }
+    int32_t Size() const override { return RT::B5xi12ri12::SIZE; }
 
-    static RT::Opcode opcode(bool isImmOffset, bool isImmValue, Format::Width width) {
+    static RT::Opcode opcode(bool isImmOffset, bool isImmValue, Format::Width width)
+    {
         if (width == Format::Width::W32) {
             return isImmOffset ? (isImmValue ? RT::Opcode::BCCI32I : RT::Opcode::BCCL32I)
                                : (isImmValue ? RT::Opcode::BCCI32L : RT::Opcode::BCCL32L);
@@ -193,8 +202,11 @@ public:
         }
     }
 
-    void Resolve(Segment& segment, Symbols& symbols,
-            std::function<uint16_t(Symbol)> const& relocationConverter) const override {
+    void Resolve(
+        Segment& segment, Symbols& symbols,
+        std::function<uint16_t(Symbol)> const& relocationConverter
+    ) const override
+    {
         int32_t distance = Distance(symbols, this->symbol);
 
         bool isImmOffset = MathUtils::IsNBitsSigned(distance, 12);
@@ -230,7 +242,8 @@ private:
 
 // region instructions
 
-void Emitter::Binary(Format::Common op, Format::Width width, IReg d, IReg l, IReg r) {
+void Emitter::Binary(Format::Common op, Format::Width width, IReg d, IReg l, IReg r)
+{
     assert(width == Format::Width::W32 || width == Format::Width::W64);
     auto opcode = width == Format::Width::W32
         ? RT::Opcode::BIN32
@@ -263,7 +276,8 @@ void Emitter::Lsl (Width width, IReg d, IReg l, IReg r) { Binary(Common::LSL,  w
 void Emitter::Lsr (Width width, IReg d, IReg l, IReg r) { Binary(Common::LSR,  width, d, l, r); }
 void Emitter::Asr (Width width, IReg d, IReg l, IReg r) { Binary(Common::ASR,  width, d, l, r); }
 
-void Emitter::BinaryImm(Format::Common op, Format::Width width, IReg d, IReg l, uint64_t imm) {
+void Emitter::BinaryImm(Format::Common op, Format::Width width, IReg d, IReg l, uint64_t imm)
+{
     assert(width == Format::Width::W32 || width == Format::Width::W64);
 
     bool isImm = MathUtils::IsNBitsSigned(imm, 12);
@@ -316,7 +330,8 @@ void Emitter::LslI (Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Commo
 void Emitter::LsrI (Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common::LSR,  width, d, l, imm); }
 void Emitter::AsrI (Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common::ASR,  width, d, l, imm); }
 
-void Emitter::Binary(Format::FloatOperations op, Format::Width width, FReg d, FReg l, FReg r) {
+void Emitter::Binary(Format::FloatOperations op, Format::Width width, FReg d, FReg l, FReg r)
+{
     assert(width == Format::Width::W32 || width == Format::Width::W64);
     assert(op.IsBasic());
 
@@ -342,7 +357,8 @@ void Emitter::Sub(Width width, FReg d, FReg l, FReg r) { Binary(FloatOperations:
 void Emitter::Mul(Width width, FReg d, FReg l, FReg r) { Binary(FloatOperations::FMUL, width, d, l, r); }
 void Emitter::Div(Width width, FReg d, FReg l, FReg r) { Binary(FloatOperations::FDIV, width, d, l, r); }
 
-void Emitter::Mov(RT::Opcode opcode, Format::Reg d, Format::Reg s) {
+void Emitter::Mov(RT::Opcode opcode, Format::Reg d, Format::Reg s)
+{
     Encode(segment, RT::B2rr {
         .opc = opcode,
         .rr = Format::RR {
@@ -357,7 +373,8 @@ void Emitter::Mov(FReg d, FReg s) { Emitter::Mov(RT::Opcode::FMOV, d, s); }
 void Emitter::Mov(FReg d, IReg s) { Emitter::Mov(RT::Opcode::MOVI2F, d, s); }
 void Emitter::Mov(IReg d, FReg s) { Emitter::Mov(RT::Opcode::MOVF2I, d, s); }
 
-void Emitter::MovImm(Width width, IReg d, uint64_t imm) {
+void Emitter::MovImm(Width width, IReg d, uint64_t imm)
+{
     assert(width == Format::Width::W32 || width == Format::Width::W64);
 
     bool isImm = MathUtils::IsNBitsSigned(imm, 4);
@@ -377,7 +394,8 @@ void Emitter::MovImm(Width width, IReg d, uint64_t imm) {
     }
 }
 
-void Emitter::FMovI32(FReg d, float imm) {
+void Emitter::FMovI32(FReg d, float imm)
+{
     Encode(segment, RT::B6xri32 {
         .opc = RT::Opcode::FMOVI32,
         .xr = Format::XR {
@@ -389,7 +407,9 @@ void Emitter::FMovI32(FReg d, float imm) {
         }
     });
 }
-void Emitter::FMovI64(FReg d, double imm) {
+
+void Emitter::FMovI64(FReg d, double imm)
+{
     Encode(segment, RT::B10xri64 {
         .opc = RT::Opcode::FMOVI64,
         .xr = Format::XR {
@@ -402,8 +422,8 @@ void Emitter::FMovI64(FReg d, double imm) {
     });
 }
 
-
-void Emitter::MovRef(IReg d, IReg s) {
+void Emitter::MovRef(IReg d, IReg s)
+{
     Encode(segment, RT::B2rr {
         .opc = RT::Opcode::MOVR,
         .rr = Format::RR {
@@ -414,32 +434,38 @@ void Emitter::MovRef(IReg d, IReg s) {
 }
 
 
-void Emitter::Bcc(CC cc, Width width, IReg l, IReg r, Label label) {
+void Emitter::Bcc(CC cc, Width width, IReg l, IReg r, Label label)
+{
     ASSERT(width == Width::W32 || width == Width::W64);
     AddFixup(std::make_unique<BccFixup>(label, cc, width, l, r));
 }
 
-void Emitter::BccImm(CC cc, Width width, IReg l, uint64_t r, Label label) {
+void Emitter::BccImm(CC cc, Width width, IReg l, uint64_t r, Label label)
+{
     ASSERT(width == Width::W32 || width == Width::W64);
     AddFixup(std::make_unique<BccImmFixup>(label, cc, width, l, r));
 }
 
-void Emitter::Jmp(Label label) {
+void Emitter::Jmp(Label label)
+{
     AddFixup(std::make_unique<JmpFixup>(label));
 }
 
-void Emitter::Ret() {
+void Emitter::Ret()
+{
     Encode(segment, RT::B1{RT::Opcode::RET});
 }
 
 
-void Emitter::NewObj(IReg d, Symbol sym) {
+void Emitter::NewObj(IReg d, Symbol sym)
+{
     segment.AddW8(RT::Opcode::NEWOBJ);
     Format::Imm4 i4(d);
     AddFixup(std::make_unique<Literal12Fixup>(i4, sym));
 }
 
-void Emitter::LoadObj(Format::LoadAccessKind ldk, Format::Reg dst, IReg base, uint32_t offset) {
+void Emitter::LoadObj(Format::LoadAccessKind ldk, Format::Reg dst, IReg base, uint32_t offset)
+{
     if (MathUtils::IsNBits(offset, 12)) {
         Encode(segment, RT::B4xi12rr {
             .opc = RT::Opcode::LOAD_OBJ,
@@ -459,7 +485,8 @@ void Emitter::LoadObj(Format::LoadAccessKind ldk, Format::Reg dst, IReg base, ui
     }
 }
 
-void Emitter::StoreObj(Format::StoreAccessKind stk, Format::Reg src, IReg base, uint32_t offset) {
+void Emitter::StoreObj(Format::StoreAccessKind stk, Format::Reg src, IReg base, uint32_t offset)
+{
     if (MathUtils::IsNBits(offset, 12)) {
         Encode(segment, RT::B4xi12rr {
             .opc = RT::Opcode::STORE_OBJ,
@@ -476,6 +503,28 @@ void Emitter::StoreObj(Format::StoreAccessKind stk, Format::Reg src, IReg base, 
         auto ms = OpenMemSpace();
         ms.Offset(offset);
         ms.StoreObj(stk, src, base);
+    }
+}
+
+void Emitter::LoadRec(Format::LoadAccessKind ldk, Format::Reg dst, IReg base, uint32_t offset)
+{
+    if (MathUtils::IsNBits(offset, 12)) {
+        LoadStore(ldk, dst, base, offset, RT::Opcode::LOAD_REC);
+    } else {
+        auto ms = OpenMemSpace();
+        ms.Offset(offset);
+        ms.LoadRec(ldk, dst, base);
+    }
+}
+
+void Emitter::StoreRec(Format::StoreAccessKind stk, Format::Reg src, IReg base, uint32_t offset)
+{
+    if (MathUtils::IsNBits(offset, 12)) {
+        LoadStore(stk, src, base, offset, RT::Opcode::STORE_REC);
+    } else {
+        auto ms = OpenMemSpace();
+        ms.Offset(offset);
+        ms.StoreRec(stk, src, base);
     }
 }
 
