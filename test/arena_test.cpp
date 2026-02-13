@@ -3,7 +3,7 @@
 #include "engine/arena.h"
 
 TEST(Arena, SmallAllocs) {
-    Session::Arena arena;
+    Engine::Arena arena;
     auto mem1 = arena.do_allocate(1, 1);
     auto mem2 = arena.do_allocate(1, 1);
     auto mem3 = arena.do_allocate(1, 1);
@@ -13,7 +13,7 @@ TEST(Arena, SmallAllocs) {
 }
 
 TEST(Arena, ImplAware1) {
-    Session::Arena arena;
+    Engine::Arena arena;
     auto mem1 = reinterpret_cast<uintptr_t>(arena.do_allocate(1, 1));
     auto mem2 = reinterpret_cast<uintptr_t>(arena.do_allocate(1, 1));
     auto mem3 = reinterpret_cast<uintptr_t>(arena.do_allocate(1, 1));
@@ -22,7 +22,7 @@ TEST(Arena, ImplAware1) {
 }
 
 TEST(Arena, ImplAware2) {
-    Session::Arena arena;
+    Engine::Arena arena;
     auto mem1 = reinterpret_cast<uintptr_t>(arena.do_allocate(1, 1));
     auto mem2 = reinterpret_cast<uintptr_t>(arena.do_allocate(1, 1));
     auto bigMem = reinterpret_cast<char*>(arena.do_allocate(1024, 1));

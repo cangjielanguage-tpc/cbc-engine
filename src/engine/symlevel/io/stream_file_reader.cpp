@@ -26,7 +26,7 @@ uint64_t StreamFileReader::ReadLongULEB()
 {
     char buffer[BUFFER_SIZE];
 
-    size_t peekLength = file->Peek(buffer, position, BUFFER_SIZE);
+    size_t peekLength = file.Peek(buffer, position, BUFFER_SIZE);
 
     uint64_t result = 0;
 
@@ -50,7 +50,7 @@ int64_t StreamFileReader::ReadLongSLEB()
 {
     char buffer[BUFFER_SIZE];
 
-    size_t peekLength = file->Peek(buffer, position, BUFFER_SIZE);
+    size_t peekLength = file.Peek(buffer, position, BUFFER_SIZE);
 
     uint64_t result = 0;
 

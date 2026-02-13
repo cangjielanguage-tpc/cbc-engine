@@ -3,12 +3,6 @@
 
 #include "io/stream_file_reader.h"
 
-
-inline constexpr uint32_t MAGIC = 0xCBCDAFF0;
-
-int curFileId = 0;
-
-
 namespace Symlevel {
 
 template <typename T> std::vector<T> ReadEntries(
@@ -24,20 +18,9 @@ template <typename T> std::vector<T> ReadEntries(
     return vector;
 }
 
-CbcFile* CbcFile::Create(IO::RandomAccessFile* file)
+CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::string_view name)
 {
-    IO::StreamFileReader reader(file, 0);
-
-    IO::FileId fileId(curFileId);
-    curFileId += 1;
-
-    uint32_t magic = reader.ReadU32();
-    if (magic != MAGIC) {
-        std::filesystem::path path = file->Path();
-        std::stringstream msg;
-        msg << "Invalid CBC file @ " << path.c_str() << ": wrong magic";
-        throw std::runtime_error(msg.str());
-    }
+    IO::StreamFileReader reader(file, sizeof(CbcFile::MAGIC));
 
     auto terms = ReadEntries<TermValue>(reader, fileId);
     auto typeDefs = ReadEntries<TypeDefinition>(reader, fileId);
@@ -46,14 +29,15 @@ CbcFile* CbcFile::Create(IO::RandomAccessFile* file)
     auto fieldDefs = ReadEntries<FieldDefinition>(reader, fileId);
     auto codes = ReadEntries<Code>(reader, fileId);
 
-    return new CbcFile(
+    return CbcFile(
         fileId,
         std::move(terms),
         std::move(typeDefs),
         std::move(methodDefs),
         std::move(methodRefs),
         std::move(fieldDefs),
-        std::move(codes)
+        std::move(codes),
+        std::move(std::string(name))
     );
 }
 

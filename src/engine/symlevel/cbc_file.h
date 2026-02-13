@@ -16,7 +16,9 @@ namespace Symlevel {
 class CbcFile {
 public:
 
-    static CbcFile* Create(IO::RandomAccessFile* file);
+    static constexpr uint32_t MAGIC = 0xCBCDAFF0;
+
+    static CbcFile Create(IO::FileId fileId, IO::RandomAccessFile& file, std::string_view name);
 
 private:
     CbcFile(
@@ -26,7 +28,8 @@ private:
         std::vector<MethodDefinition> methodDefs,
         std::vector<MethodReference> methodRefs,
         std::vector<FieldDefinition> fieldDefs,
-        std::vector<Code> codes
+        std::vector<Code> codes,
+        std::string name
     ):
         fileId    (fileId),
         terms     (std::move(terms)),
@@ -34,7 +37,8 @@ private:
         methodDefs(std::move(methodDefs)),
         methodRefs(std::move(methodRefs)),
         fieldDefs (std::move(fieldDefs)),
-        codes     (std::move(codes))
+        codes     (std::move(codes)),
+        name      (std::move(name))
     {}
 
     const IO::FileId fileId;
@@ -45,7 +49,7 @@ private:
     const std::vector<MethodReference> methodRefs;
     const std::vector<FieldDefinition> fieldDefs;
     const std::vector<Code> codes;
-
+    const std::string name;
 };
 
 } // namespace Symlevel

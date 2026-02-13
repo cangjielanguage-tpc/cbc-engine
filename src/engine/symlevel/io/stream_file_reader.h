@@ -17,9 +17,8 @@ namespace IO {
 class StreamFileReader {
 public:
 
-    StreamFileReader(RandomAccessFile* file, size_t position): file(file), position(position) {}
-
-    ~StreamFileReader() {};
+    StreamFileReader(RandomAccessFile& file, size_t position): file(file), position(position) {}
+    StreamFileReader(RandomAccessFile* file, size_t position): file(*file), position(position) {}
 
     /**
      * @brief Returns current stream position.
@@ -38,17 +37,9 @@ public:
         position += value;
     }
 
-    /**
-     * @brief Return underlying file.
-     */
-    constexpr const RandomAccessFile* File() const
-    {
-        return file;
-    }
-
     void Read(char* array, size_t length)
     {
-        file->Read(array, position, length);
+        file.Read(array, position, length);
         position += length;
     }
 
@@ -72,7 +63,7 @@ public:
 
 
 private:
-    const RandomAccessFile* file;
+    RandomAccessFile& file;
     size_t position;
 
     template <typename T> T ReadValue()
