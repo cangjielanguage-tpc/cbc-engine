@@ -8,20 +8,20 @@ void Encode(ByteBuffer& buf, RT::Opcode opc) {
     buf.AddW8(opc);
 }
 
-void Encode(ByteBuffer& buf, RT::RR rr) {
+void Encode(ByteBuffer& buf, Format::RR rr) {
     buf.AddW8(static_cast<uint32_t>(rr.x | (rr.y << 4)));
 }
 
-void Encode(ByteBuffer& buf, RT::XR xr) {
+void Encode(ByteBuffer& buf, Format::XR xr) {
     buf.AddW8(static_cast<uint32_t>(xr.imm | (xr.r << 4)));
 }
 
-void Encode(ByteBuffer& buf, RT::Imm16 i16) {
+void Encode(ByteBuffer& buf, Format::Imm16 i16) {
     buf.AddW16(i16.imm);
 }
 
-void Encode(ByteBuffer& buf, RT::XImm12 xi12) {
-    buf.AddW16(RT::XImm12::Raw(xi12));
+void Encode(ByteBuffer& buf, Format::XImm12 xi12) {
+    buf.AddW16(Format::XImm12::Raw(xi12));
 }
 
 void Encode(ByteBuffer& buf, RT::B1 command) {
@@ -79,16 +79,16 @@ void Encode(ByteBuffer& buf, RT::M2xr command) {
     Encode(buf, command.xr);
 }
 
-void Encode(ByteBuffer& buf, RT::Imm32 i32) {
+void Encode(ByteBuffer& buf, Format::Imm32 i32) {
     buf.AddW32(i32.imm);
 }
 
-void Encode(ByteBuffer& buf, RT::Imm64 i64) {
+void Encode(ByteBuffer& buf, Format::Imm64 i64) {
     buf.AddW64(i64.imm);
 }
 
-void Encode(ByteBuffer& buf, RT::RImm12 ri12) {
-    buf.AddW16(RT::RImm12::Raw(ri12));
+void Encode(ByteBuffer& buf, Format::RImm12 ri12) {
+    buf.AddW16(Format::RImm12::Raw(ri12));
 }
 
 void Encode(ByteBuffer& buf, RT::B5xi12ri12 command) {

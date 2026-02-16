@@ -40,8 +40,8 @@ public:
         void OffsetReg(IReg reg);
 
         // tail instructions
-        void LoadObj(Format::LoadAccessKind ldk, RT::Reg dst, IReg base);
-        void StoreObj(Format::StoreAccessKind stk, RT::Reg src, IReg base);
+        void LoadObj(Format::LoadAccessKind ldk, Format::Reg dst, IReg base);
+        void StoreObj(Format::StoreAccessKind stk, Format::Reg src, IReg base);
 
     private:
         Segment& segment;
@@ -65,6 +65,7 @@ public:
     EmitterSnapshot Snapshot();
     void Apply(EmitterSnapshot snapshot);
 
+    void Binary(Format::Common op, Format::Width width, IReg d, IReg l, IReg r);
     void Add (Width width, IReg d, IReg l, IReg r);
     void Sub (Width width, IReg d, IReg l, IReg r);
     void Mul (Width width, IReg d, IReg l, IReg r);
@@ -79,6 +80,7 @@ public:
     void Lsr (Width width, IReg d, IReg l, IReg r);
     void Asr (Width width, IReg d, IReg l, IReg r);
 
+    void BinaryImm(Format::Common op, Format::Width width, IReg d, IReg l, uint64_t imm);
     void AddI (Width width, IReg d, IReg l, uint64_t imm);
     void SubI (Width width, IReg d, IReg l, uint64_t imm);
     void MulI (Width width, IReg d, IReg l, uint64_t imm);
@@ -113,17 +115,15 @@ public:
     void Jmp(Label label);
 
     void NewObj(IReg d, Symbol sym);
-    void LoadObj(Format::LoadAccessKind ldk, RT::Reg dst, IReg base, uint32_t offset);
-    void StoreObj(Format::StoreAccessKind stk, RT::Reg src, IReg base, uint32_t offset);
+    void LoadObj(Format::LoadAccessKind ldk, Format::Reg dst, IReg base, uint32_t offset);
+    void StoreObj(Format::StoreAccessKind stk, Format::Reg src, IReg base, uint32_t offset);
 
     MemSpace OpenMemSpace();
 
 private:
     void AddFixup(std::unique_ptr<Fixup> fixup);
-    void Binary(Format::Common op, Format::Width width, IReg d, IReg l, IReg r);
+    void Mov(RT::Opcode opcode, Format::Reg d, Format::Reg s);
     void Binary(Format::FloatOperations op, Format::Width width, FReg d, FReg l, FReg r);
-    void BinaryImm(Format::Common op, Format::Width width, IReg d, IReg l, uint64_t imm);
-    void Mov(RT::Opcode opcode, RT::Reg d, RT::Reg s);
 
     Symbols symbols;
     Segment segment;
