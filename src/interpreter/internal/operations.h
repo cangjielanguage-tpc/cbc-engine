@@ -188,16 +188,16 @@ inline static bool Compare(Value::Reference l, Value::Reference r) {
 template <> inline bool Compare<CC::REQ, Width::W64>(Value::Reference l, Value::Reference r) { return l.value == r.value; }
 template <> inline bool Compare<CC::RNE, Width::W32>(Value::Reference l, Value::Reference r) { return l.value != r.value; }
 
-template <ImmKind::Value immKind>
+template <RT::ImmKind::Value immKind>
 static inline uint64_t DecodeImmediate(LiteralTable* literals, uint16_t value);
 
 template <>
-inline uint64_t DecodeImmediate<ImmKind::VALUE>(LiteralTable* literals, uint16_t value) {
-    return MathUtils::SignExtend(value, 12);
+inline uint64_t DecodeImmediate<RT::ImmKind::VALUE>(LiteralTable* literals, uint16_t value) {
+    return MathUtils::SignExtend(static_cast<uint64_t>(value), 12);
 }
 
 template <>
-inline uint64_t DecodeImmediate<ImmKind::LITERAL>(LiteralTable* literals, uint16_t value) {
+inline uint64_t DecodeImmediate<RT::ImmKind::LITERAL>(LiteralTable* literals, uint16_t value) {
     return literals->at(value).u64;
 }
 

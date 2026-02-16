@@ -201,6 +201,20 @@ private:
     Value _value;
 };
 
+class ImmKind {
+public:
+    enum Value : uint32_t {
+        VALUE = 0b00,
+        LITERAL = 0b01,
+    };
+
+    constexpr ImmKind(const Value raw) : _value(raw) {}
+    constexpr operator Value() const { return _value; }
+
+private:
+    Value _value;
+};
+
 struct B1 {
     Opcode opc;
 

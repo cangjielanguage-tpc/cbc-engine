@@ -65,4 +65,28 @@ void Rewriter::DoReturn(Width width, FReg dst) {
     e.Ret();
 }
 
+void Rewriter::DoBranchIf(CC op, Width width, IReg l, IReg r, uint8_t* target) {
+    e.Bcc(op, width, l, r, InstructionLabel(target));
+}
+void Rewriter::DoBranchIf(CC op, Width width, FReg l, FReg r, uint8_t* target) {
+    ASSERTION(false, "Not implemented");
+}
+void Rewriter::DoBranchIfImm(CC op, Width width, IReg l, uint64_t r, uint8_t* target) {
+    e.BccImm(op, width, l, r, InstructionLabel(target));
+}
+
+void Rewriter::BeforeInterpretOne(uint8_t* position) {
+    e.Bind(InstructionLabel(position));
+}
+
+Emitter::Label Rewriter::InstructionLabel(uint8_t* position) {
+    if (auto existing = instructionLabel.find(position); existing != instructionLabel.end()) {
+        return existing->second;
+    } else {
+        auto label = e.NewLabel();
+        instructionLabel.insert({position, label});
+        return label;
+    }
+}
+
 } // namespace Cbc
