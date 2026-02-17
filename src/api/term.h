@@ -1,7 +1,7 @@
 #pragma once
 
 #include "cbc_type_kind.h"
-#include "engine/symlevel/term.h"
+#include "engine/symlevel/term_val.h"
 
 
 namespace API {
