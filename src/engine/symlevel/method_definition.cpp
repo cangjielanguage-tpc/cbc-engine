@@ -1,6 +1,5 @@
 #include "method_definition.h"
 
-
 namespace Symlevel {
 
 MethodDefinition MethodDefinition::Parse(IO::FileId fileId, IO::StreamFileReader& reader)
@@ -9,8 +8,10 @@ MethodDefinition MethodDefinition::Parse(IO::FileId fileId, IO::StreamFileReader
     auto idx = reader.ReadU32();
     auto sigIdx = reader.ReadU32();
     auto declIdx = reader.ReadU32();
+    //uint32_t codeOffs = reader.ReadU32();
+    uint32_t codeOffs = 0;
 
-    return MethodDefinition(fileId, name, idx, sigIdx, declIdx);
+    return MethodDefinition(fileId, name, idx, sigIdx, declIdx, codeOffs);
 }
 
 } // namespace Symlevel

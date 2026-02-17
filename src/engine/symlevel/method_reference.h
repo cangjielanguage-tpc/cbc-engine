@@ -3,8 +3,6 @@
 #include "offset.h"
 #include "string.h"
 #include "io/file_id.h"
-#include "reader.h"
-
 
 namespace Symlevel {
 

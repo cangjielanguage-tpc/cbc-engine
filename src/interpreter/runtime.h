@@ -5,7 +5,6 @@
 /// interpreter and the runtime.
 
 #include "interpreter/ectype.h"
-#include "interpreter/interpreter.h"
 
 namespace Interpretation {
 

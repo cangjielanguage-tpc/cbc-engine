@@ -7,7 +7,6 @@
 #include "type_kind.h"
 #include "io/file_id.h"
 #include "engine/engine.h"
-#include "reader.h"
 
 
 namespace Symlevel {

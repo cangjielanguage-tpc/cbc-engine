@@ -10,7 +10,6 @@
 #include "method_reference.h"
 #include "code.h"
 
-
 namespace Symlevel {
 
 class CbcFile {
@@ -20,6 +19,8 @@ public:
 
     static CbcFile Create(IO::FileId fileId, IO::RandomAccessFile& file, std::string_view name);
 
+    inline IO::FileId Id() const { return fileId; }
+
 private:
     CbcFile(
         IO::FileId fileId,
@@ -28,8 +29,8 @@ private:
         std::vector<MethodDefinition> methodDefs,
         std::vector<MethodReference> methodRefs,
         std::vector<FieldDefinition> fieldDefs,
-        std::vector<Code> codes,
-        std::string name
+        std::string name,
+        uint32_t codeSectionOffset
     ):
         fileId    (fileId),
         terms     (std::move(terms)),
@@ -37,8 +38,8 @@ private:
         methodDefs(std::move(methodDefs)),
         methodRefs(std::move(methodRefs)),
         fieldDefs (std::move(fieldDefs)),
-        codes     (std::move(codes)),
-        name      (std::move(name))
+        name      (std::move(name)),
+        codeSectionOffset(codeSectionOffset)
     {}
 
     const IO::FileId fileId;
@@ -48,8 +49,8 @@ private:
     const std::vector<MethodDefinition> methodDefs;
     const std::vector<MethodReference> methodRefs;
     const std::vector<FieldDefinition> fieldDefs;
-    const std::vector<Code> codes;
     const std::string name;
+    const uint32_t codeSectionOffset;
 };
 
 } // namespace Symlevel

@@ -4,8 +4,7 @@
 #include "string.h"
 #include "io/file_id.h"
 #include "engine/engine.h"
-#include "reader.h"
-
+#include "code.h"
 
 namespace Symlevel {
 
@@ -17,10 +16,11 @@ public:
     inline uint32_t GetIdx()     const { return idx;     }
     inline uint32_t GetSigIdx()  const { return sigIdx;  }
     inline uint32_t GetDeclIdx() const { return declIdx; }
+    inline Offset<Code> GetCodeOffs() const { return codeOffs; }
 
 private:
-    MethodDefinition(IO::FileId fileId, Offset<String> name, uint32_t idx, uint32_t sigIdx, uint32_t declIdx):
-        fileId(fileId), name(name), idx(idx), sigIdx(sigIdx), declIdx(declIdx)
+    MethodDefinition(IO::FileId fileId, Offset<String> name, uint32_t idx, uint32_t sigIdx, uint32_t declIdx, Offset<Code> codeOffs):
+        fileId(fileId), name(name), idx(idx), sigIdx(sigIdx), declIdx(declIdx), codeOffs(codeOffs)
     {}
 
     const IO::FileId fileId;
@@ -29,6 +29,7 @@ private:
     const uint32_t idx;
     const uint32_t sigIdx;
     const uint32_t declIdx;
+    const Offset<Code> codeOffs;
 };
 
 } // namespace Symlevel

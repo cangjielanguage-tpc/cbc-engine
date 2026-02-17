@@ -1,5 +1,4 @@
 #include "cbc_file.h"
-#include "reader.h"
 
 #include "io/stream_file_reader.h"
 
@@ -27,7 +26,9 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
     auto methodDefs = ReadEntries<MethodDefinition>(reader, fileId);
     auto methodRefs = ReadEntries<MethodReference>(reader, fileId);
     auto fieldDefs = ReadEntries<FieldDefinition>(reader, fileId);
-    auto codes = ReadEntries<Code>(reader, fileId);
+    /// TODO: code section
+    auto codeSectionOffset = static_cast<uint32_t>(reader.Position());
+    auto codeSectionSize = reader.ReadU32();
 
     return CbcFile(
         fileId,
@@ -36,8 +37,8 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
         std::move(methodDefs),
         std::move(methodRefs),
         std::move(fieldDefs),
-        std::move(codes),
-        std::move(std::string(name))
+        std::move(std::string(name)),
+        codeSectionOffset
     );
 }
 

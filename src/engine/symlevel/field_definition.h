@@ -5,7 +5,6 @@
 #include "io/stream_file_reader.h"
 #include "string.h"
 #include "offset.h"
-#include "reader.h"
 
 
 namespace Symlevel {
