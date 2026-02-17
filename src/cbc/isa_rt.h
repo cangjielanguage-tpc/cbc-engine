@@ -50,6 +50,9 @@ public:
         LOAD_OBJ, // B4xi12rr
         STORE_OBJ, // B4xi12rr
 
+        LOAD_REC, // B4xi12rr
+        STORE_REC, // B4xi12rr
+
         MEMSPACE, // B1. See `MemOpcode`
 
         OPCODE_NUM,
@@ -117,9 +120,29 @@ public:
         RST_F64, // M2rr
         RST_END_OPCODE = RST_F64,
 
+        SLD_START_OPCODE,
+        SLD_U8 = SLD_START_OPCODE,  // M2rr
+        SLD_U16, // M2rr
+        SLD_32,  // M2rr
+        SLD_S8,  // M2rr
+        SLD_S16, // M2rr
+        SLD_F32, // M2rr
+        SLD_F64, // M2rr
+        SLD_64,  // M2rr
+        SLD_S32TO64, // M2rr
+        SLD_REF, // M2rr
+        SLD_END_OPCODE = SLD_REF,
+        SST_START_OPCODE,
+        SST_8 = SST_START_OPCODE,   // M2rr
+        SST_16,  // M2rr
+        SST_32,  // M2rr
+        SST_64,  // M2rr
+        SST_REF, // M2rr
+        SST_F32, // M2rr
+        SST_F64, // M2rr
+        SST_END_OPCODE = SST_F64,
+
         // TODO: Add following opcodes.
-        // SLD_*, <- struct
-        // SST_*,
         // GLD_*, <- global
         // GST_*,
         // ULD_*, <- uts needed for marking (otherwise, use FLD)

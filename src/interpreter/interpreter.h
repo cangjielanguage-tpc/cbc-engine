@@ -78,6 +78,34 @@ public:
         return true;
     }
 
+    inline bool LoadRec(Format::LoadAccessKind ldk, Format::Reg dst, IReg base, size_t offset) {
+        auto ptr = static_cast<uintptr_t>(ectype->GetPrimitive(base).u64);
+        if (ptr == 0) {
+            return false;
+        }
+        if (ldk == LoadAccessKind::LD_REF) {
+            auto ref = Value::Reference { .value = *reinterpret_cast<uintptr_t*> (base + offset) };
+            ectype->Put(dst.IR(), ref);
+        } else {
+            MemoryLocation<RTI>(ptr, offset).LoadPrim(ldk, dst, ectype);
+        }
+        return true;
+    }
+
+    inline bool StoreRec(Format::StoreAccessKind stk, Format::Reg src, IReg base, uint64_t offset) {
+        auto ptr = static_cast<uintptr_t>(ectype->GetPrimitive(base).u64);
+        if (ptr == 0) {
+            return false;
+        }
+        if (stk == StoreAccessKind::ST_REF) {
+            auto ref = ectype->GetReference(src.IR()).value;
+            *reinterpret_cast<uintptr_t*>(base  + offset) = ref;
+        } else {
+            MemoryLocation<RTI>(ptr, offset).StorePrim(stk, src, ectype);
+        }
+        return true;
+    }
+
     inline bool NewObj(IReg d, uint16_t imm) {
         TypeInfo<RTI> type = literals->at(imm).uintptr;
         auto obj = RuntimeInterface<RTI>::NewObj(type, handle);

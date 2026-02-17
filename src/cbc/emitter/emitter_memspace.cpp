@@ -87,28 +87,31 @@ static RT::MemOpcode ComputeStoreAccessKind(Format::StoreAccessKind stk, RT::Mem
     return RT::MemOpcode(start + delta);
 }
 
-void MemSpaceEmitter::LoadObj(Format::LoadAccessKind ldk, Format::Reg dst, IReg base) {
+void MemSpaceEmitter::LoadObj(Format::LoadAccessKind ldk, Format::Reg dst, IReg base)
+{
     RT::MemOpcode opc = ComputeLoadAccessKind(ldk, RT::MemOpcode::RLD_START_OPCODE);
     ASSERT(opc <= RT::MemOpcode::RLD_END_OPCODE);
-    Encode(segment, RT::M2rr {
-        .opc = opc,
-        .rr = Format::RR {
-            .x = dst,
-            .y = base
-        },
-    });
+    LoadStore(ldk, dst, base, opc);
 }
 
 void MemSpaceEmitter::StoreObj(Format::StoreAccessKind stk, Format::Reg src, IReg base) {
     RT::MemOpcode opc = ComputeStoreAccessKind(stk, RT::MemOpcode::RST_START_OPCODE);
     ASSERT(opc <= RT::MemOpcode::RST_END_OPCODE);
-    Encode(segment, RT::M2rr {
-        .opc = opc,
-        .rr = Format::RR {
-            .x = src,
-            .y = base
-        },
-    });
+    LoadStore(stk, src, base, opc);
+}
+
+void MemSpaceEmitter::LoadRec(Format::LoadAccessKind ldk, Format::Reg dst, IReg base)
+{
+    RT::MemOpcode opc = ComputeLoadAccessKind(ldk, RT::MemOpcode::SLD_START_OPCODE);
+    ASSERT(opc <= RT::MemOpcode::SLD_END_OPCODE);
+    LoadStore(ldk, dst, base, opc);
+}
+
+void MemSpaceEmitter::StoreRec(Format::StoreAccessKind stk, Format::Reg src, IReg base)
+{
+    RT::MemOpcode opc = ComputeStoreAccessKind(stk, RT::MemOpcode::SST_START_OPCODE);
+    ASSERT(opc <= RT::MemOpcode::SST_END_OPCODE);
+    LoadStore(stk, src, base, opc);
 }
 
 } // namespace Emitter
