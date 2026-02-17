@@ -106,6 +106,32 @@ public:
         return true;
     }
 
+    inline bool LoadFrame(Format::LoadAccessKind ldk, Format::Reg dst, size_t offset) {
+        auto ptr = frame->start;
+        if (ptr == 0) {
+            return false;
+        }
+        if (ldk == LoadAccessKind::LD_REF) {
+            ectype->Put(dst.IR(), RuntimeInterface<RTI>::ReadObject(ptr, offset, handle));
+        } else {
+            MemoryLocation<RTI>(ptr, offset).LoadPrim(ldk, dst, ectype);
+        }
+        return true;
+    }
+
+    inline bool StoreFrame(Format::StoreAccessKind stk, Format::Reg src, uint64_t offset) {
+        auto ptr = frame->start;
+        if (ptr == 0) {
+            return false;
+        }
+        if (stk == StoreAccessKind::ST_REF) {
+            RuntimeInterface<RTI>::WriteObject(ptr, offset, ectype->GetReference(src.IR()), handle);
+        } else {
+            MemoryLocation<RTI>(ptr, offset).StorePrim(stk, src, ectype);
+        }
+        return true;
+    }
+
     inline bool NewObj(IReg d, uint16_t imm) {
         TypeInfo<RTI> type = literals->at(imm).uintptr;
         auto obj = RuntimeInterface<RTI>::NewObj(type, handle);

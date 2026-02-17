@@ -51,11 +51,11 @@ public:
 };
 
 template <typename RegType>
-Value::Primitive Interpret(Code code, Value::Primitive ir1, Value::Primitive ir2, RegType resReg) {
+Value::Primitive Interpret(Code code, Frame* frame, Value::Primitive ir1, Value::Primitive ir2, RegType resReg) {
     heap.Reset();
 
     Interpretation::Ectype ectype{};
-    Interpreter<Test> interp(&ectype, nullptr, nullptr, code.literals);
+    Interpreter<Test> interp(&ectype, frame, nullptr, code.literals);
     Decoder::ByteReader s(code.bytecode, code.bytecode, code.bytecode + code.bytecodeSize);
     ectype.Put(IReg::IR1, ir1);
     ectype.Put(IReg::IR2, ir2);
@@ -73,7 +73,7 @@ Interpretation::Value::Primitive Interpret(
         Interpretation::Value::Primitive ir1,
         Interpretation::Value::Primitive ir2)
 {
-    return Interpretation::Interpret<Cbc::IReg>(code, ir1, ir2, Cbc::IReg::IR1);
+    return Interpretation::Interpret<Cbc::IReg>(code, nullptr, ir1, ir2, Cbc::IReg::IR1);
 }
 
 Interpretation::Value::Primitive InterpretFPRes(
@@ -81,5 +81,23 @@ Interpretation::Value::Primitive InterpretFPRes(
         Interpretation::Value::Primitive ir1,
         Interpretation::Value::Primitive ir2)
 {
-    return Interpretation::Interpret<Cbc::FReg>(code, ir1, ir2, Cbc::FReg::FR0);
+    return Interpretation::Interpret<Cbc::FReg>(code, nullptr, ir1, ir2, Cbc::FReg::FR0);
+}
+
+Interpretation::Value::Primitive Interpret(
+        Interpretation::Code code,
+        Interpretation::Frame* frame,
+        Interpretation::Value::Primitive ir1,
+        Interpretation::Value::Primitive ir2)
+{
+    return Interpretation::Interpret<Cbc::IReg>(code, frame, ir1, ir2, Cbc::IReg::IR1);
+}
+
+Interpretation::Value::Primitive InterpretFPRes(
+        Interpretation::Code code,
+        Interpretation::Frame* frame,
+        Interpretation::Value::Primitive ir1,
+        Interpretation::Value::Primitive ir2)
+{
+    return Interpretation::Interpret<Cbc::FReg>(code, frame, ir1, ir2, Cbc::FReg::FR0);
 }

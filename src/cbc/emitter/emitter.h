@@ -46,6 +46,9 @@ public:
         void LoadRec (Format::LoadAccessKind  ldk, Format::Reg dst, IReg base);
         void StoreRec(Format::StoreAccessKind stk, Format::Reg src, IReg base);
 
+        void LoadFrame (Format::LoadAccessKind  ldk, Format::Reg dst);
+        void StoreFrame(Format::StoreAccessKind stk, Format::Reg src);
+
     private:
 
         template <typename AccessKind>
@@ -136,6 +139,9 @@ public:
 
     void LoadRec (Format::LoadAccessKind  ldk, Format::Reg dst, IReg base, uint32_t offset);
     void StoreRec(Format::StoreAccessKind stk, Format::Reg src, IReg base, uint32_t offset);
+
+    void LoadFrame (Format::LoadAccessKind  ldk, Format::Reg dst, uint32_t offset);
+    void StoreFrame(Format::StoreAccessKind stk, Format::Reg src, uint32_t offset);
 
     MemSpace OpenMemSpace();
 

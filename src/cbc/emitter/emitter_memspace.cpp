@@ -114,5 +114,19 @@ void MemSpaceEmitter::StoreRec(Format::StoreAccessKind stk, Format::Reg src, IRe
     LoadStore(stk, src, base, opc);
 }
 
+void MemSpaceEmitter::LoadFrame(Format::LoadAccessKind ldk, Format::Reg dst)
+{
+    RT::MemOpcode opc = ComputeLoadAccessKind(ldk, RT::MemOpcode::FLD_START_OPCODE);
+    ASSERT(opc <= RT::MemOpcode::FLD_END_OPCODE);
+    LoadStore(ldk, dst, IReg::IRZ, opc);
+}
+
+void MemSpaceEmitter::StoreFrame(Format::StoreAccessKind stk, Format::Reg src)
+{
+    RT::MemOpcode opc = ComputeStoreAccessKind(stk, RT::MemOpcode::FST_START_OPCODE);
+    ASSERT(opc <= RT::MemOpcode::FST_END_OPCODE);
+    LoadStore(stk, src, IReg::IRZ, opc);
+}
+
 } // namespace Emitter
 } // namespace Cbc
