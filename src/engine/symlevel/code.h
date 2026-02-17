@@ -1,6 +1,6 @@
 #pragma once
 
-#include "engine/engine.h"
+#include <cstdint>
 
 namespace Symlevel {
 

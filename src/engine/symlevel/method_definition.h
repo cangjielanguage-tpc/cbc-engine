@@ -18,6 +18,8 @@ public:
     inline uint32_t GetDeclIdx() const { return declIdx; }
     inline Offset<Code> GetCodeOffs() const { return codeOffs; }
 
+    inline IO::FileId FileId() const { return fileId; }
+
 private:
     MethodDefinition(IO::FileId fileId, Offset<String> name, uint32_t idx, uint32_t sigIdx, uint32_t declIdx, Offset<Code> codeOffs):
         fileId(fileId), name(name), idx(idx), sigIdx(sigIdx), declIdx(declIdx), codeOffs(codeOffs)

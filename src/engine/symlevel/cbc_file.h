@@ -3,54 +3,40 @@
 #include <vector>
 #include "io/random_access_file.h"
 #include "io/file_id.h"
-#include "term_val.h"
-#include "type_definition.h"
-#include "method_definition.h"
-#include "field_definition.h"
-#include "method_reference.h"
 #include "code.h"
+#include "offset.h"
 
 namespace Symlevel {
 
-class CbcFile {
-public:
+class MethodDefinition;
+class TypeDefinition;
+class FieldDefinition;
+class MethodReference;
+class TermVal;
 
+class CbcFile {
+private:
+    struct Impl;
+    friend struct Impl;
+
+public:
     static constexpr uint32_t MAGIC = 0xCBCDAFF0;
 
     static CbcFile Create(IO::FileId fileId, IO::RandomAccessFile& file, std::string_view name);
 
-    inline IO::FileId Id() const { return fileId; }
+    CbcFile(std::unique_ptr<Impl> impl);
+    CbcFile(CbcFile&& other);
+    ~CbcFile();
+
+    IO::FileId Id() const;
+    Offset<Code> GetCodeSectionOffs() const;
+    Offset<TypeDefinition> GetTypeDefSectionOffs() const;
+    Offset<MethodDefinition> GetMethodDefSectionOffs() const;
+    Offset<FieldDefinition> GetFieldDefSectionOffs() const;
+    Offset<TermVal> GetTermSectionOffs() const;
 
 private:
-    CbcFile(
-        IO::FileId fileId,
-        std::vector<TermValue> terms,
-        std::vector<TypeDefinition> typeDefs,
-        std::vector<MethodDefinition> methodDefs,
-        std::vector<MethodReference> methodRefs,
-        std::vector<FieldDefinition> fieldDefs,
-        std::string name,
-        uint32_t codeSectionOffset
-    ):
-        fileId    (fileId),
-        terms     (std::move(terms)),
-        typeDefs  (std::move(typeDefs)),
-        methodDefs(std::move(methodDefs)),
-        methodRefs(std::move(methodRefs)),
-        fieldDefs (std::move(fieldDefs)),
-        name      (std::move(name)),
-        codeSectionOffset(codeSectionOffset)
-    {}
-
-    const IO::FileId fileId;
-
-    const std::vector<TermValue> terms;
-    const std::vector<TypeDefinition> typeDefs;
-    const std::vector<MethodDefinition> methodDefs;
-    const std::vector<MethodReference> methodRefs;
-    const std::vector<FieldDefinition> fieldDefs;
-    const std::string name;
-    const uint32_t codeSectionOffset;
+    std::unique_ptr<Impl> impl;
 };
 
 } // namespace Symlevel

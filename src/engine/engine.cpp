@@ -30,10 +30,16 @@ public:
 
 /////////////////////////////////////////////////////////////////
 
-IO::RandomAccessFile* Session::FileOf(IO::FileId fileId)
+std::unique_ptr<IO::RandomAccessFile>& Session::FileOf(IO::FileId fileId) const
 {
     // TODO: add session-scoped buffered rafs.
-    return engine.impl->rafs.at(fileId).get();
+    return engine.impl->rafs.at(fileId);
+}
+
+Symlevel::CbcFile& Session::CbcFileOf(IO::FileId fileId) const
+{
+    // TODO: add session-scoped buffered rafs.
+    return engine.impl->files.at(fileId);
 }
 
 Session Session::NewSession(Engine& engine)
@@ -63,8 +69,8 @@ bool Loader::Load(std::unique_ptr<IO::RandomAccessFile> file, std::string_view n
     }
 
     auto id = loader->fileCounter++;
-    auto cbcFile = Symlevel::CbcFile::Create(IO::FileId(id), *file, name);
-    loader->files.emplace_back(std::move(cbcFile));
+    //auto cbcFile = Symlevel::CbcFile::Create(IO::FileId(id), *file, name);
+    loader->files.emplace_back(std::move(Symlevel::CbcFile::Create(IO::FileId(id), *file, name)));
     loader->rafs.emplace_back(std::move(file));
     return true;
 }

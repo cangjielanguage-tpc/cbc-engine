@@ -1,6 +1,8 @@
 #pragma once
 
+#include <functional>
 #include "arena.h"
+#include "symlevel/cbc_file.h"
 #include "symlevel/io/file_id.h"
 #include "symlevel/io/random_access_file.h"
 
@@ -10,7 +12,8 @@ class Engine;
 
 class Session {
 public:
-    IO::RandomAccessFile* FileOf(IO::FileId fileId);
+    std::unique_ptr<IO::RandomAccessFile>& FileOf(IO::FileId fileId) const;
+    Symlevel::CbcFile& CbcFileOf(IO::FileId fileId) const;
 
     static Session NewSession(Engine& engine);
     Arena& Allocator();

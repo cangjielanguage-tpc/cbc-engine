@@ -3,6 +3,7 @@
 
 #include "function_handle.h"
 #include "engine/symlevel/method_definition.h"
+#include "engine/symlevel/reader.h"
 
 namespace Interpretation {
 
@@ -35,8 +36,9 @@ FuHDescriptor* PrepareDynamicFuH(Engine::Session& session, DynamicFunctionHandle
         return desc;
     }
     auto offset = def->GetCodeOffs();
-
-    return desc;
+    auto code = Symlevel::Reader::Read(session, def->FileId(), offset);
+    // TODO: rewrite code and construct descriptor
+    return nullptr;
 }
 
 } // namespace Interpretation
