@@ -106,7 +106,7 @@ public:
         return true;
     }
 
-    inline bool LoadFrame(Format::LoadAccessKind ldk, RT::Reg dst, size_t offset) {
+    inline bool LoadFrame(Format::LoadAccessKind ldk, Format::Reg dst, size_t offset) {
         auto ptr = frame->start;
         if (ptr == 0) {
             return false;
@@ -119,7 +119,7 @@ public:
         return true;
     }
 
-    inline bool StoreFrame(Format::StoreAccessKind stk, RT::Reg src, uint64_t offset) {
+    inline bool StoreFrame(Format::StoreAccessKind stk, Format::Reg src, uint64_t offset) {
         auto ptr = frame->start;
         if (ptr == 0) {
             return false;
