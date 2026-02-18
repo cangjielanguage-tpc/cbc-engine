@@ -49,6 +49,36 @@ namespace MathUtils {
         value = value & ((1UL << bits) - 1); // zero high bits
         return (value ^ m) - m;
     }
+
+    static inline uint32_t SignExtend(uint32_t value, uint32_t bits) {
+        uint32_t const m = 1U << (bits - 1); // sign bit mask
+        value = value & ((1U << bits) - 1); // zero high bits
+        return (value ^ m) - m;
+    }
+
+    static inline uint32_t RightNBits32(uint32_t n) {
+        return static_cast<uint32_t>(n == 32 ? -1 : ((1L << n) - 1));
+    }
+
+    static inline uint64_t RightNBits64(uint32_t n) {
+        return static_cast<uint64_t>(n == 64 ? -1L : ((1L << n) - 1));
+    }
+
+    static inline uint32_t ZeroExtend(uint32_t value, uint32_t bits) {
+        return value & RightNBits32(bits);
+    }
+
+    static inline uint64_t ZeroExtend(uint64_t value, uint32_t bits) {
+        return value & RightNBits64(bits);
+    }
+
+    static inline uint32_t RotateRight32(uint32_t value, uint32_t dist) {
+        return ((value >> dist) & RightNBits32(32 - dist)) | (value << (32 - dist));
+    }
+
+    static inline uint64_t RotateRight64(uint64_t value, uint32_t dist) {
+        return ((value >> dist) & RightNBits64(64 - dist)) | (value << (64 - dist));
+    }
 }
 
 #endif // MATH_H

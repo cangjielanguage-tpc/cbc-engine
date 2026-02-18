@@ -10,7 +10,6 @@
 namespace Cbc {
 namespace RT {
 
-using ImmKind = Cbc::Format::ImmKind;
 using Width = Cbc::Format::Width;
 
 template <typename Handler>
@@ -155,7 +154,7 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
     }
     MOVI: {
         auto args = B2xr::Decode(reader);
-        handler.MovI(args.xr.r.IR(), MathUtils::SignExtend(args.xr.imm, 4));
+        handler.MovI(args.xr.r.IR(), MathUtils::SignExtend(static_cast<uint64_t>(args.xr.imm), 4));
         NEXT;
     }
     MOVR: {

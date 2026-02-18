@@ -1,7 +1,6 @@
 #ifndef INTERPRETER_INTERPRETER_H
 #define INTERPRETER_INTERPRETER_H
 
-#include "cbc/isa.h"
 #include "ectype.h"
 #include "frame.h"
 #include "literals.h"
@@ -27,7 +26,7 @@ public:
         return Binary<width>(arithOp, d, l, ectype->GetPrimitive(r));
     }
 
-    template <ImmKind::Value immKind, Width::Value width>
+    template <RT::ImmKind::Value immKind, Width::Value width>
     inline bool BinaryImm(Common::Value arithOp, IReg d, IReg l, uint16_t imm) {
         return Binary<width>(arithOp, d, l, Value::Primitive{ .u64 = DecodeImmediate<immKind>(literals, imm) });
     }
@@ -162,7 +161,7 @@ public:
 
     template <Width::Value width>
     inline bool Cmp(CC cc, IReg l, IReg r) {
-        if (cc.isRef()) {
+        if (cc.IsRef()) {
             return CmpRef<width>(cc, l, ectype->GetReference(r));
         } else {
             return CmpPrim<width>(cc, l, ectype->GetPrimitive(r));
@@ -193,12 +192,12 @@ public:
         }
     }
 
-    template <ImmKind::Value immKind, Width::Value width>
+    template <RT::ImmKind::Value immKind, Width::Value width>
     inline int64_t Bcc(CC cc, IReg l, IReg r, uint16_t offsetValue) {
         return Cmp<width>(cc, l, r) ? DecodeImmediate<immKind>(literals, offsetValue) : 0;
     }
 
-    template <ImmKind::Value immValueKind, ImmKind::Value immOffsetKind, Width::Value width>
+    template <RT::ImmKind::Value immValueKind, RT::ImmKind::Value immOffsetKind, Width::Value width>
     inline int64_t BccImm(CC cc, IReg l, uint16_t r, uint16_t offsetValue) {
         uint64_t rValue = DecodeImmediate<immValueKind>(literals, r);
         return CmpPrim<width>(cc, l, Value::Primitive{ .u64 = rValue }) ? DecodeImmediate<immOffsetKind>(literals, offsetValue) : 0;
