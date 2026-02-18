@@ -14,9 +14,6 @@ namespace Interpretation {
 class FunctionHandle;
 class DynamicFunctionHandle;
 
-/// An opaque handle to symlevel method definition.
-using MethodDefIdentifier = void*;
-
 using ABIDesc = void*;
 
 /// The function that would be called to perform a FuH invocation from interpreted code.
@@ -48,7 +45,7 @@ struct FunctionHandle {
 
 /// Function handle of cbc-provided function.
 struct DynamicFunctionHandle : public FunctionHandle {
-    DynamicFunctionHandle(I2Call i2Call, C2Call c2call, ABIDesc desc, MethodDefIdentifier methodDef) :
+    DynamicFunctionHandle(I2Call i2Call, C2Call c2call, ABIDesc desc, Engine::MethodDefIdentifier methodDef) :
         FunctionHandle(i2Call),
         c2call(c2call),
         desc(desc),
@@ -68,7 +65,7 @@ struct DynamicFunctionHandle : public FunctionHandle {
     std::atomic<FuHDescriptor*> descriptor;
     std::mutex lock;
 
-    MethodDefIdentifier const methodDef;
+    Engine::MethodDefIdentifier const methodDef;
 };
 
 
@@ -82,7 +79,7 @@ struct StaticFunctionHandle : public FunctionHandle {
 };
 
 /// Acquires an FunctionHandle for given method definition.
-FunctionHandle* AcquireFunctionHandle(MethodDefIdentifier methodDef);
+FunctionHandle* AcquireFunctionHandle(Engine::MethodDefIdentifier methodDef);
 
 /// Performs lazy initialization of a DynamicFunctionHandle.
 FuHDescriptor* PrepareDynamicFuH(Engine::Session& session, DynamicFunctionHandle* fuh);

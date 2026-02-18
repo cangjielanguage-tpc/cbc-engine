@@ -8,9 +8,9 @@
 namespace Interpretation {
 
 std::mutex g_methodDefsLock;
-std::unordered_map<MethodDefIdentifier, FunctionHandle*> g_handleMap;
+std::unordered_map<Engine::MethodDefIdentifier, FunctionHandle*> g_handleMap;
 
-FunctionHandle* AcquireFunctionHandle(Engine::Session& session, MethodDefIdentifier methodDef)
+FunctionHandle* AcquireFunctionHandle(Engine::Session& session, Engine::MethodDefIdentifier methodDef)
 {
     std::lock_guard guard(g_methodDefsLock);
     auto res = g_handleMap.find(methodDef);

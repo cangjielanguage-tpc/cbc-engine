@@ -7,6 +7,10 @@
 
 namespace Engine {
 
+/// An opaque handle to symlevel definitions.
+using MethodDefIdentifier = void*;
+using TypeDefIdentifier   = void*;
+
 class Loader;
 
 /// The main instance of cbc engine.
@@ -43,6 +47,7 @@ private:
     Engine& engine;
 };
 
+/// Builder of an engine.
 class Loader {
 public:
     Loader();
