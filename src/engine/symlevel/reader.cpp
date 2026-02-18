@@ -9,10 +9,13 @@ Code Reader::Read(Engine::Session& session, IO::FileId fileId, Offset<Code> offs
 
     auto methodIdx = reader.ReadU32();
     auto codeSize = reader.ReadU32();
-    auto bytecode = static_cast<char*>(session.Allocator().do_allocate(codeSize, alignof(char)));
+    auto bytecode = static_cast<uint8_t*>(session.Allocator().do_allocate(codeSize, alignof(uint8_t)));
 
     reader.Read(bytecode, codeSize);
-    return Code{codeSize, bytecode};
+    return Code {
+        .codePtr = bytecode,
+        .codeSize = codeSize,
+    };
 }
 
 String Reader::Read(Engine::Session& session, IO::FileId fileId, Offset<String> offset)

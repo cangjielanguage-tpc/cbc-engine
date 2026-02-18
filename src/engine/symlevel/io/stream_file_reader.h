@@ -37,6 +37,11 @@ public:
         position += value;
     }
 
+    void Read(uint8_t* array, size_t length)
+    {
+        Read(reinterpret_cast<char*>(array), length);
+    }
+
     void Read(char* array, size_t length)
     {
         file.Read(array, position, length);

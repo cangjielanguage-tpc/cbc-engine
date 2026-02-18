@@ -5,8 +5,8 @@
 namespace Symlevel {
 
 struct Code {
+    uint8_t* codePtr;
     uint32_t codeSize;
-    char* code;
 };
 
 } // namespace Symlevel

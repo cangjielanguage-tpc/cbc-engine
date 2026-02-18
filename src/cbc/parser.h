@@ -3,23 +3,17 @@
 #include "api/method.h"
 #include "cbc/decoder.h"
 #include "cbc/isa.h"
+#include "engine/symlevel/code.h"
 
 namespace Cbc {
 
 using namespace Format;
 
-struct MethodCode { // TODO: move to Method's API
-    uint8_t* codePtr;
-    uint32_t codeSize;
-
-    inline uint8_t* GetCodeEnd() { return codePtr + codeSize; }
-    inline Decoder::ByteReader GetReader() { return Decoder::ByteReader(codePtr, codePtr, GetCodeEnd()); }
-};
+using MethodCode = Symlevel::Code;
 
 class Parser {
 public:
-    Parser(API::Method* _method, MethodCode _code) : // TODO: get method's code from Method object
-        method(_method), codeReader(_code.GetReader()), codeEnd(_code.GetCodeEnd()) {}
+    Parser(API::Method* _method, MethodCode _code); // TODO: get method's code from Method object
     void Interpret();
 
 protected:
@@ -61,5 +55,5 @@ private:
     Decoder::ByteReader codeReader;
     uint8_t* codeEnd;
 };
-    
+
 } // namespace Cbc

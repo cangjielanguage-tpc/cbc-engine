@@ -4,6 +4,17 @@
 
 namespace Cbc {
 
+static uint8_t* GetCodeEnd(MethodCode code) {
+    return code.codePtr + code.codeSize;
+}
+
+static Decoder::ByteReader ReaderOf(MethodCode code) {
+    return Decoder::ByteReader(code.codePtr, code.codePtr, GetCodeEnd(code));
+}
+
+Parser::Parser(API::Method* _method, MethodCode _code) :
+    method(_method), codeReader(ReaderOf(_code)), codeEnd(GetCodeEnd(_code)) {}
+
 void Parser::Interpret() {
     while (!codeReader.EndOfMem(codeEnd)) {
         auto opcode = codeReader.PeekOpcode();
@@ -17,7 +28,7 @@ void Parser::InterpretOne(uint32_t opcode) {
         case B2rr::Fmt(Common::MOV, Width::W64):  B2rrMov(B2rr::Decode(codeReader), Width::W64, false); break;
         case B2rr::Fmt(Common::MVST, Width::W32): B2rrMovVST(B2rr::Decode(codeReader)); break;
         case B2rr::Fmt(Common::MREF, Width::W64): B2rrMov(B2rr::Decode(codeReader), Width::W64, true); break;
-        
+
         case B2rr::Fmt(Common::ADD, Width::W32):  B2rrCommon(B2rr::Decode(codeReader), Common::ADD, CbcTypeKind::I32); break;
         case B2rr::Fmt(Common::ADD, Width::W64):  B2rrCommon(B2rr::Decode(codeReader), Common::ADD, CbcTypeKind::I64); break;
         case B2rr::Fmt(Common::SUB, Width::W32):  B2rrSub(B2rr::Decode(codeReader), CbcTypeKind::I32); break;
@@ -109,7 +120,7 @@ void Parser::B2xrOpc0100SOC(SymbolicObjectControl::B2xr args) {
         case SymbolicObjectControl::Opc0100::RET_64:  DoReturn(Width::W64, args.xr.r.IR()); break;
         case SymbolicObjectControl::Opc0100::FRET_32: DoReturn(Width::W32, args.xr.r.FR()); break;
         case SymbolicObjectControl::Opc0100::FRET_64: DoReturn(Width::W64, args.xr.r.FR()); break;
-        
+
         default: ASSERTION(false, "Not implemented"); break;
     }
 }
