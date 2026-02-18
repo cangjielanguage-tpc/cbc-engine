@@ -6,7 +6,7 @@
 		"vscode": {
 			"extensions": [
 				"ms-vscode.cpptools",
-        "ms-vscode.cmake-tools",
+				"ms-vscode.cmake-tools",
 				"ccls-project.ccls"
 			],
 			"settings": {
@@ -14,5 +14,6 @@
 			}
 		}
 	},
+	"postCreateCommand": "git config core.hooksPath .githooks",
 	"forwardPorts": [3000]
 }
