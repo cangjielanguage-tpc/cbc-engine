@@ -14,4 +14,9 @@ MethodDefinition MethodDefinition::Parse(IO::FileId fileId, IO::StreamFileReader
     return MethodDefinition(fileId, name, idx, sigIdx, declIdx, codeOffs);
 }
 
+MethodDefinition& MethodDefinition::Resolve(Engine::Session& session, Engine::MethodDefIdentifier identifier)
+{
+    return *static_cast<MethodDefinition*>(identifier);
+}
+
 } // namespace Symlevel

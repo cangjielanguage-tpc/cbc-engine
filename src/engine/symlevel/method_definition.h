@@ -11,6 +11,7 @@ namespace Symlevel {
 class MethodDefinition {
 public:
     static MethodDefinition Parse(IO::FileId fileId, IO::StreamFileReader& reader);
+    static MethodDefinition& Resolve(Engine::Session& session, Engine::MethodDefIdentifier identifier);
 
     inline const Offset<String> Name()  const { return name; }
     inline uint32_t GetIdx()     const { return idx;     }

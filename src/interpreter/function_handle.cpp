@@ -29,15 +29,16 @@ FunctionHandle* AcquireFunctionHandle(Engine::Session& session, Engine::MethodDe
 
 __attribute__((visibility ("default"))) FuHDescriptor* PrepareDynamicFuH(Engine::Session& session, DynamicFunctionHandle* fuh)
 {
-    auto def = static_cast<Symlevel::MethodDefinition*>(fuh->methodDef);
+    auto& def = Symlevel::MethodDefinition::Resolve(session, fuh->methodDef);
 
     std::lock_guard guard(fuh->lock);
+
     auto desc = fuh->descriptor.load();
     if (desc) {
         return desc;
     }
-    auto offset = def->GetCodeOffs();
-    auto code = Symlevel::Reader::Read(session, def->FileId(), offset);
+    auto offset = def.GetCodeOffs();
+    auto code = Symlevel::Reader::Read(session, def.FileId(), offset);
 
     Emitter::Emitter emitter;
     Cbc::Rewriter rewriter(nullptr, code, emitter);

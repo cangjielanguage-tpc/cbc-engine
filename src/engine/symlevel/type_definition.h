@@ -14,6 +14,7 @@ namespace Symlevel {
 class TypeDefinition {
 public:
     static TypeDefinition Parse(IO::FileId fileId, IO::StreamFileReader& reader);
+    static TypeDefinition& Resolve(Engine::Session& session, Engine::TypeDefIdentifier identifier);
 
     inline const Offset<String> Name() const { return name; }
 

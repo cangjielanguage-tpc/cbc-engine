@@ -26,4 +26,9 @@ TypeDefinition TypeDefinition::Parse(IO::FileId fileId, IO::StreamFileReader& re
     );
 }
 
+TypeDefinition& TypeDefinition::Resolve(Engine::Session& session, Engine::TypeDefIdentifier identifier)
+{
+    return *static_cast<TypeDefinition*>(identifier);
+}
+
 } // namespace Symlevel
