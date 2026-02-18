@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <atomic>
 #include <mutex>
+#include <memory>
 
 #include "code.h"
 #include "ectype.h"
@@ -78,10 +79,24 @@ struct StaticFunctionHandle : public FunctionHandle {
     void* const function;
 };
 
-/// Acquires an FunctionHandle for given method definition.
-FunctionHandle* AcquireFunctionHandle(Engine::MethodDefIdentifier methodDef);
+class FunctionHandleManager {
+public:
+    static FunctionHandleManager& Of(Engine::Engine& engine);
+    FunctionHandleManager();
+    FunctionHandleManager(FunctionHandleManager&& manager);
+    ~FunctionHandleManager();
 
-/// Performs lazy initialization of a DynamicFunctionHandle.
-FuHDescriptor* PrepareDynamicFuH(Engine::Session& session, DynamicFunctionHandle* fuh);
+    /// Acquires an FunctionHandle for given method definition.
+    FunctionHandle* Acquire(Engine::Session& session, Engine::MethodDefIdentifier methodDef);
+
+    /// Performs lazy initialization of a DynamicFunctionHandle.
+    FuHDescriptor* Prepare(Engine::Session& session, DynamicFunctionHandle* fuh);
+
+private:
+    class Impl;
+    friend class Impl;
+
+    std::unique_ptr<Impl> impl;
+};
 
 } // namespace Interpretation

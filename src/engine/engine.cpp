@@ -1,21 +1,25 @@
 #include "engine.h"
 #include "symlevel/cbc_file.h"
 #include "symlevel/io/stream_file_reader.h"
+#include "interpreter/function_handle.h"
 
 namespace Engine {
 
 class Engine::Impl {
 public:
-    Impl(std::vector<Symlevel::CbcFile> files,
-           std::vector<std::unique_ptr<IO::RandomAccessFile>> rafs)
-        : files(std::move(files)), rafs(std::move(rafs)) {}
+    Impl(std::vector<Symlevel::CbcFile> files, std::vector<std::unique_ptr<IO::RandomAccessFile>> rafs) :
+        files(std::move(files)),
+        rafs(std::move(rafs)),
+        fuhManager()
+    {}
 
-    static Engine& Instance();
+    static Engine::Impl& Of(Engine& engine) { return *engine.impl; }
 
-private:
     friend class Session;
     std::vector<Symlevel::CbcFile> files;
     std::vector<std::unique_ptr<IO::RandomAccessFile>> rafs;
+
+    Interpretation::FunctionHandleManager fuhManager;
 };
 
 class Loader::Impl {
@@ -50,10 +54,6 @@ Loader::Loader() : loader(std::move(std::make_unique<Loader::Impl>())) {}
 Loader::Loader(Loader&& other) = default;
 Loader::~Loader() = default;
 
-Engine::Engine(std::unique_ptr<Engine::Impl>&& impl) : impl(std::move(impl)) {}
-Engine::Engine(Engine&& other) = default;
-Engine::~Engine() = default;
-
 std::pmr::memory_resource& Engine::CodeHeap() const
 {
     return *std::pmr::new_delete_resource();
@@ -80,4 +80,16 @@ Engine Loader::Build() {
     )));
 }
 
+Engine::Engine(std::unique_ptr<Engine::Impl>&& impl) : impl(std::move(impl)) {}
+Engine::Engine(Engine&& other) = default;
+Engine::~Engine() = default;
+
 } // namespace Engine
+
+namespace Interpretation {
+
+FunctionHandleManager& FunctionHandleManager::Of(Engine::Engine& engine) {
+    return Engine::Engine::Impl::Of(engine).fuhManager;
+}
+
+} // namespace Interpretation

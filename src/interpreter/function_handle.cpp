@@ -8,14 +8,21 @@
 
 namespace Interpretation {
 
-std::mutex g_methodDefsLock;
-std::unordered_map<Engine::MethodDefIdentifier, FunctionHandle*> g_handleMap;
+class FunctionHandleManager::Impl {
+public:
+    std::mutex lock;
+    std::unordered_map<Engine::MethodDefIdentifier, FunctionHandle*> fuhMap;
+};
 
-FunctionHandle* AcquireFunctionHandle(Engine::Session& session, Engine::MethodDefIdentifier methodDef)
+FunctionHandleManager::FunctionHandleManager() : impl(std::move(std::make_unique<FunctionHandleManager::Impl>())) {}
+FunctionHandleManager::~FunctionHandleManager() = default;
+FunctionHandleManager::FunctionHandleManager(FunctionHandleManager&& manager) = default;
+
+FunctionHandle* FunctionHandleManager::Acquire(Engine::Session& session, Engine::MethodDefIdentifier methodDef)
 {
-    std::lock_guard guard(g_methodDefsLock);
-    auto res = g_handleMap.find(methodDef);
-    if (res != g_handleMap.end()) {
+    std::lock_guard guard(impl->lock);
+    auto res = impl->fuhMap.find(methodDef);
+    if (res != impl->fuhMap.end()) {
         return res->second;
     }
     auto fuh = new DynamicFunctionHandle(
@@ -23,20 +30,20 @@ FunctionHandle* AcquireFunctionHandle(Engine::Session& session, Engine::MethodDe
             nullptr,
             nullptr,
             methodDef);
-    g_handleMap[methodDef] = fuh;
+    impl->fuhMap[methodDef] = fuh;
     return fuh;
 }
 
-__attribute__((visibility ("default"))) FuHDescriptor* PrepareDynamicFuH(Engine::Session& session, DynamicFunctionHandle* fuh)
+FuHDescriptor* FunctionHandleManager::Prepare(Engine::Session& session, DynamicFunctionHandle* fuh)
 {
     auto& def = Symlevel::MethodDefinition::Resolve(session, fuh->methodDef);
 
     std::lock_guard guard(fuh->lock);
 
-    auto desc = fuh->descriptor.load();
-    if (desc) {
+    if (auto desc = fuh->descriptor.load(); desc != nullptr) {
         return desc;
     }
+
     auto offset = def.GetCodeOffs();
     auto code = Symlevel::Reader::Read(session, def.FileId(), offset);
 
@@ -52,8 +59,7 @@ __attribute__((visibility ("default"))) FuHDescriptor* PrepareDynamicFuH(Engine:
         // TODO: initialize rest
     };
 
-    desc = new FuHDescriptor(newDesc);
-    fuh->descriptor.store(desc);
+    fuh->descriptor.store(new FuHDescriptor(newDesc));
 
     // Return via reload from `fuh->descriptor` to guarantee proper memory-model semantics:
     // fields (and fields of fields) would be visible from other threads

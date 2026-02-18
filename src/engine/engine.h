@@ -19,14 +19,15 @@ class Loader;
 /// - (TODO) locating the resources, and providing access to cbc-defined types;
 class Engine {
 public:
+    class Impl;
+    friend class Loader;
+    friend class Session;
+    friend class Impl;
+
     ~Engine();
     std::pmr::memory_resource& CodeHeap() const;
 
 private:
-    friend class Loader;
-    friend class Session;
-    class Impl;
-
     Engine(std::unique_ptr<Impl>&& impl);
     Engine(Engine&& other);
 
