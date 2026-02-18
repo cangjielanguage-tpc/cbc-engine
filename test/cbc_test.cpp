@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "engine/loader.h"
+#include "engine/engine.h"
 #include "engine/symlevel/io/byte_array_random_access_file.h"
 #include "engine/symlevel/string.h"
 #include "engine/symlevel/reader.h"
@@ -16,7 +16,7 @@ static std::unique_ptr<IO::ByteArrayRandomAccessFile> FromString(std::string_vie
 }
 
 TEST(CbcTest, Empty) {
-    auto loader = Engine::Loader::New();
+    Engine::Loader loader;
     constexpr auto buf_size = 128;
     uint8_t buf[buf_size] = {0xf0, 0xaf, 0xcd, 0xcb, 0};
 
@@ -33,7 +33,7 @@ TEST(CbcTest, Empty) {
     ASSERT_TRUE(successful);
 
     auto engine = loader.Build();
-    auto session = Engine::Session::NewSession(engine);
+    Engine::Session session(engine);
     auto strOffs = Symlevel::Offset<Symlevel::String>(offs);
     auto str = Symlevel::Reader::Read(session, IO::FileId(0), strOffs);
 

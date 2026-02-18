@@ -1,7 +1,6 @@
 #include "engine.h"
-#include "loader.h"
-
 #include "symlevel/cbc_file.h"
+#include "symlevel/io/stream_file_reader.h"
 
 namespace Engine {
 
@@ -42,23 +41,18 @@ Symlevel::CbcFile& Session::CbcFileOf(IO::FileId fileId) const
     return engine.impl->files.at(fileId);
 }
 
-Session Session::NewSession(Engine& engine)
-{
-    return Session(engine);
-}
-
 Arena& Session::Allocator()
 {
     return arena;
 }
 
-Loader Loader::New() {
-    return Loader(new Impl());
-}
+Loader::Loader() : loader(std::move(std::make_unique<Loader::Impl>())) {}
+Loader::Loader(Loader&& other) = default;
+Loader::~Loader() = default;
 
-Loader::~Loader() {
-    delete loader;
-}
+Engine::Engine(std::unique_ptr<Engine::Impl>&& impl) : impl(std::move(impl)) {}
+Engine::Engine(Engine&& other) = default;
+Engine::~Engine() = default;
 
 bool Loader::Load(std::unique_ptr<IO::RandomAccessFile> file, std::string_view name)
 {
@@ -69,21 +63,16 @@ bool Loader::Load(std::unique_ptr<IO::RandomAccessFile> file, std::string_view n
     }
 
     auto id = loader->fileCounter++;
-    //auto cbcFile = Symlevel::CbcFile::Create(IO::FileId(id), *file, name);
     loader->files.emplace_back(std::move(Symlevel::CbcFile::Create(IO::FileId(id), *file, name)));
     loader->rafs.emplace_back(std::move(file));
     return true;
 }
 
 Engine Loader::Build() {
-    return Engine(new Engine::Impl(
+    return Engine(std::move(std::make_unique<Engine::Impl>(
         std::move(loader->files),
         std::move(loader->rafs)
-    ));
-}
-
-Engine::~Engine() {
-    delete impl;
+    )));
 }
 
 } // namespace Engine
