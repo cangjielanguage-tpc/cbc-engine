@@ -57,9 +57,10 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
 }
 
 IO::FileId CbcFile::Id() const { return impl->id; }
-Offset<Code> CbcFile::GetCodeSectionOffs() const { return impl->codeSectionOffs; }
-Offset<TypeDefinition> CbcFile::GetTypeDefSectionOffs() const { return impl->typeDefSectionOffs; }
-Offset<MethodDefinition> CbcFile::GetMethodDefSectionOffs() const { return impl->methodDefSectionOffs; }
-Offset<FieldDefinition> CbcFile::GetFieldDefSectionOffs() const { return impl->fieldDefSectionOffs; }
-Offset<TermVal> CbcFile::GetTermSectionOffs() const { return impl->termSectionOffs; }
+
+uint32_t CbcFile::GetCodeOffs(Offset<Code> offs) const { return offs + impl->codeSectionOffs; }
+uint32_t CbcFile::GetTypeDefOffs(Offset<TypeDefinition> offs) const { return offs + impl->typeDefSectionOffs; }
+uint32_t CbcFile::GetMethodDefOffs(Offset<MethodDefinition> offs) const { return offs + impl->methodDefSectionOffs; }
+uint32_t CbcFile::GetFieldDefOffs(Offset<FieldDefinition> offs) const { return offs + impl->fieldDefSectionOffs; }
+uint32_t CbcFile::GetTermOffs(Offset<TermVal> offs) const { return offs + impl->termSectionOffs; }
 } // namespace Symlevel

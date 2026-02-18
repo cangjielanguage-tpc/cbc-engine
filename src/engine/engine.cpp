@@ -2,6 +2,7 @@
 #include "symlevel/cbc_file.h"
 #include "symlevel/io/stream_file_reader.h"
 #include "interpreter/function_handle.h"
+#include "symlevel/definitions.h"
 
 namespace Engine {
 
@@ -20,13 +21,14 @@ public:
     std::vector<std::unique_ptr<IO::RandomAccessFile>> rafs;
 
     Interpretation::FunctionHandleManager fuhManager;
+    Symlevel::DefinitionsManager defsManager;
 };
 
 class Loader::Impl {
 public:
     Impl() : fileCounter(0) {}
 
-    int fileCounter;
+    uint32_t fileCounter;
     std::vector<Symlevel::CbcFile> files;
     std::vector<std::unique_ptr<IO::RandomAccessFile>> rafs;
 };
@@ -88,8 +90,17 @@ Engine::~Engine() = default;
 
 namespace Interpretation {
 
-FunctionHandleManager& FunctionHandleManager::Of(Engine::Engine& engine) {
+FunctionHandleManager& FunctionHandleManager::Of(Engine::Engine& engine)
+{
     return Engine::Engine::Impl::Of(engine).fuhManager;
 }
 
 } // namespace Interpretation
+
+namespace Symlevel {
+
+DefinitionsManager& DefinitionsManager::Of(Engine::Engine& engine)
+{
+    return Engine::Engine::Impl::Of(engine).defsManager;
+}
+}

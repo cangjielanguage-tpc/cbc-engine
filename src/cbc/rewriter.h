@@ -37,5 +37,5 @@ protected:
 private:
     Emitter::Emitter& e;
 };
-    
+
 } // namespace Cbc

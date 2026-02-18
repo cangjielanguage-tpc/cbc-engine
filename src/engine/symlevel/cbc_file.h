@@ -29,11 +29,11 @@ public:
     ~CbcFile();
 
     IO::FileId Id() const;
-    Offset<Code> GetCodeSectionOffs() const;
-    Offset<TypeDefinition> GetTypeDefSectionOffs() const;
-    Offset<MethodDefinition> GetMethodDefSectionOffs() const;
-    Offset<FieldDefinition> GetFieldDefSectionOffs() const;
-    Offset<TermVal> GetTermSectionOffs() const;
+    uint32_t GetCodeOffs(Offset<Code> offs) const;
+    uint32_t GetTypeDefOffs(Offset<TypeDefinition> offs) const;
+    uint32_t GetMethodDefOffs(Offset<MethodDefinition> offs) const;
+    uint32_t GetFieldDefOffs(Offset<FieldDefinition> offs) const;
+    uint32_t GetTermOffs(Offset<TermVal> offs) const;
 
 private:
     std::unique_ptr<Impl> impl;

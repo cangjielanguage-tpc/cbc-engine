@@ -9,6 +9,11 @@
 #include "ectype.h"
 #include "runtime.h"
 #include "engine/engine.h"
+#include "engine/identifiers.h"
+
+namespace Symlevel {
+class MethodDefinition;
+}
 
 namespace Interpretation {
 
@@ -46,7 +51,7 @@ struct FunctionHandle {
 
 /// Function handle of cbc-provided function.
 struct DynamicFunctionHandle : public FunctionHandle {
-    DynamicFunctionHandle(I2Call i2Call, C2Call c2call, ABIDesc desc, Engine::MethodDefIdentifier methodDef) :
+    DynamicFunctionHandle(I2Call i2Call, C2Call c2call, ABIDesc desc, Engine::Identifier<Symlevel::MethodDefinition> methodDef) :
         FunctionHandle(i2Call),
         c2call(c2call),
         desc(desc),
@@ -66,7 +71,7 @@ struct DynamicFunctionHandle : public FunctionHandle {
     std::atomic<FuHDescriptor*> descriptor;
     std::mutex lock;
 
-    Engine::MethodDefIdentifier const methodDef;
+    Engine::Identifier<Symlevel::MethodDefinition> const methodDef;
 };
 
 
@@ -87,7 +92,7 @@ public:
     ~FunctionHandleManager();
 
     /// Acquires an FunctionHandle for given method definition.
-    FunctionHandle* Acquire(Engine::Session& session, Engine::MethodDefIdentifier methodDef);
+    FunctionHandle* Acquire(Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> methodDef);
 
     /// Performs lazy initialization of a DynamicFunctionHandle.
     FuHDescriptor* Prepare(Engine::Session& session, DynamicFunctionHandle* fuh);

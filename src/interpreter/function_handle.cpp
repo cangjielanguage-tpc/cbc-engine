@@ -2,7 +2,7 @@
 #include <mutex>
 
 #include "function_handle.h"
-#include "engine/symlevel/method_definition.h"
+#include "engine/symlevel/definitions.h"
 #include "engine/symlevel/reader.h"
 #include "cbc/rewriter.h"
 
@@ -11,14 +11,14 @@ namespace Interpretation {
 class FunctionHandleManager::Impl {
 public:
     std::mutex lock;
-    std::unordered_map<Engine::MethodDefIdentifier, FunctionHandle*> fuhMap;
+    std::unordered_map<Engine::Identifier<Symlevel::MethodDefinition>, FunctionHandle*> fuhMap;
 };
 
 FunctionHandleManager::FunctionHandleManager() : impl(std::move(std::make_unique<FunctionHandleManager::Impl>())) {}
 FunctionHandleManager::~FunctionHandleManager() = default;
 FunctionHandleManager::FunctionHandleManager(FunctionHandleManager&& manager) = default;
 
-FunctionHandle* FunctionHandleManager::Acquire(Engine::Session& session, Engine::MethodDefIdentifier methodDef)
+FunctionHandle* FunctionHandleManager::Acquire(Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> methodDef)
 {
     std::lock_guard guard(impl->lock);
     auto res = impl->fuhMap.find(methodDef);
@@ -36,7 +36,7 @@ FunctionHandle* FunctionHandleManager::Acquire(Engine::Session& session, Engine:
 
 FuHDescriptor* FunctionHandleManager::Prepare(Engine::Session& session, DynamicFunctionHandle* fuh)
 {
-    auto& def = Symlevel::MethodDefinition::Resolve(session, fuh->methodDef);
+    auto def = Symlevel::MethodDefinition::Resolve(session, fuh->methodDef);
 
     std::lock_guard guard(fuh->lock);
 

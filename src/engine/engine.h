@@ -1,15 +1,12 @@
 #pragma once
 
 #include "arena.h"
+#include "identifiers.h"
 #include "symlevel/cbc_file.h"
 #include "symlevel/io/file_id.h"
 #include "symlevel/io/random_access_file.h"
 
 namespace Engine {
-
-/// An opaque handle to symlevel definitions.
-using MethodDefIdentifier = void*;
-using TypeDefIdentifier   = void*;
 
 class Loader;
 
