@@ -20,6 +20,7 @@ class Loader;
 class Engine {
 public:
     ~Engine();
+    std::pmr::memory_resource& CodeHeap() const;
 
 private:
     friend class Loader;
@@ -40,6 +41,8 @@ public:
     Symlevel::CbcFile& CbcFileOf(IO::FileId fileId) const;
 
     Session(Engine& engine) : engine(engine), arena() {}
+
+    Engine& GetEngine() const { return engine; }
     Arena& Allocator();
 
 private:

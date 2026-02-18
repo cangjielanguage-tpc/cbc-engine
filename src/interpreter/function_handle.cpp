@@ -4,6 +4,7 @@
 #include "function_handle.h"
 #include "engine/symlevel/method_definition.h"
 #include "engine/symlevel/reader.h"
+#include "cbc/rewriter.h"
 
 namespace Interpretation {
 
@@ -26,7 +27,7 @@ FunctionHandle* AcquireFunctionHandle(Engine::Session& session, Engine::MethodDe
     return fuh;
 }
 
-FuHDescriptor* PrepareDynamicFuH(Engine::Session& session, DynamicFunctionHandle* fuh)
+__attribute__((visibility ("default"))) FuHDescriptor* PrepareDynamicFuH(Engine::Session& session, DynamicFunctionHandle* fuh)
 {
     auto def = static_cast<Symlevel::MethodDefinition*>(fuh->methodDef);
 
@@ -37,8 +38,27 @@ FuHDescriptor* PrepareDynamicFuH(Engine::Session& session, DynamicFunctionHandle
     }
     auto offset = def->GetCodeOffs();
     auto code = Symlevel::Reader::Read(session, def->FileId(), offset);
-    // TODO: rewrite code and construct descriptor
-    return nullptr;
+
+    Emitter::Emitter emitter;
+    Cbc::Rewriter rewriter(nullptr, code, emitter);
+    rewriter.Interpret();
+
+    auto& heap = session.GetEngine().CodeHeap();
+    auto rewrittenCode = emitter.Build(heap);
+
+    FuHDescriptor newDesc = {
+        .code = rewrittenCode,
+        // TODO: initialize rest
+    };
+
+    desc = new FuHDescriptor(newDesc);
+    fuh->descriptor.store(desc);
+
+    // Return via reload from `fuh->descriptor` to guarantee proper memory-model semantics:
+    // fields (and fields of fields) would be visible from other threads
+    // if the content of desc or desc itself would be published through "relaxed" (or race) stores
+    // (explicitly in the codebase, or implictly in ASM or interpreter).
+    return fuh->descriptor.load();
 }
 
 } // namespace Interpretation

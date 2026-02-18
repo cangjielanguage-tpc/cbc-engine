@@ -54,6 +54,11 @@ Engine::Engine(std::unique_ptr<Engine::Impl>&& impl) : impl(std::move(impl)) {}
 Engine::Engine(Engine&& other) = default;
 Engine::~Engine() = default;
 
+std::pmr::memory_resource& Engine::CodeHeap() const
+{
+    return *std::pmr::new_delete_resource();
+}
+
 bool Loader::Load(std::unique_ptr<IO::RandomAccessFile> file, std::string_view name)
 {
     IO::StreamFileReader reader(*file, 0);
