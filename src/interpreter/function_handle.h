@@ -1,15 +1,15 @@
 #pragma once
 
-#include <cstddef>
 #include <atomic>
-#include <mutex>
+#include <cstddef>
 #include <memory>
+#include <mutex>
 
 #include "code.h"
 #include "ectype.h"
-#include "runtime.h"
 #include "engine/engine.h"
 #include "engine/identifiers.h"
+#include "runtime.h"
 
 namespace Symlevel {
 class MethodDefinition;
@@ -43,21 +43,22 @@ using C2Call = void*;
 /// which contains all the necessary information about the method.
 /// Preparation of function handle (especially dynamic version) is performed lazily.
 struct FunctionHandle {
-    FunctionHandle(I2Call i2call)
-        : i2call(i2call) {};
+    FunctionHandle(I2Call i2call) : i2call(i2call) {};
 
     I2Call i2call;
 };
 
 /// Function handle of cbc-provided function.
 struct DynamicFunctionHandle : public FunctionHandle {
-    DynamicFunctionHandle(I2Call i2Call, C2Call c2call, ABIDesc desc, Engine::Identifier<Symlevel::MethodDefinition> methodDef) :
-        FunctionHandle(i2Call),
-        c2call(c2call),
-        desc(desc),
-        descriptor(nullptr),
-        lock(),
-        methodDef(methodDef)
+    DynamicFunctionHandle(
+        I2Call i2Call, C2Call c2call, ABIDesc desc, Engine::Identifier<Symlevel::MethodDefinition> methodDef
+    )
+        : FunctionHandle(i2Call),
+          c2call(c2call),
+          desc(desc),
+          descriptor(nullptr),
+          lock(),
+          methodDef(methodDef)
     {}
 
     C2Call c2call;
@@ -73,7 +74,6 @@ struct DynamicFunctionHandle : public FunctionHandle {
 
     Engine::Identifier<Symlevel::MethodDefinition> const methodDef;
 };
-
 
 /// Represents AOT compiled function.
 ///

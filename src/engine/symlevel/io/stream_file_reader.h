@@ -16,6 +16,7 @@ namespace IO {
 class StreamFileReader {
 public:
     StreamFileReader(RandomAccessFile& file, uint32_t position) : file(file), position(position) {}
+
     StreamFileReader(RandomAccessFile* file, uint32_t position) : file(*file), position(position) {}
 
     /**
@@ -32,10 +33,7 @@ public:
         position += value;
     }
 
-    void Read(uint8_t* array, size_t length)
-    {
-        Read(reinterpret_cast<char*>(array), length);
-    }
+    void Read(uint8_t* array, size_t length) { Read(reinterpret_cast<char*>(array), length); }
 
     void Read(char* array, size_t length)
     {

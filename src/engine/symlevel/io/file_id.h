@@ -11,17 +11,11 @@ struct FileId {
 
     const uint32_t id;
 
-    FileId(uint32_t id): id(id) {
-        ASSERT(id < MAX_SIZE);
-    }
+    FileId(uint32_t id) : id(id) { ASSERT(id < MAX_SIZE); }
 
-    operator std::uint32_t() const {
-        return id;
-    }
+    operator std::uint32_t() const { return id; }
 
-    operator std::size_t() const {
-        return id;
-    }
+    operator std::size_t() const { return id; }
 };
 
 } // namespace IO

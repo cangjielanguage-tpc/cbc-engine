@@ -1,13 +1,12 @@
 #pragma once
 
-#include <vector>
+#include "engine/engine.h"
+#include "io/file_id.h"
 #include "io/stream_file_reader.h"
 #include "offset.h"
 #include "string.h"
 #include "type_kind.h"
-#include "io/file_id.h"
-#include "engine/engine.h"
-
+#include <vector>
 
 namespace Symlevel {
 
@@ -32,18 +31,22 @@ public:
     static TypeDefinition Resolve(Engine::Session& session, Engine::Identifier<TypeDefinition> identifier);
 
     inline const Offset<String> Name() const { return name; }
-    inline uint32_t GetIdx() const { return  idx; }
+
+    inline uint32_t GetIdx() const { return idx; }
+
     inline TypeKind GetTypeKind() const { return typeKind; }
+
     inline std::vector<uint32_t> GetSupers() const { return supers; }
 
 private:
-
-    TypeDefinition(IO::FileId fileId, Offset<String> name, uint32_t idx, TypeKind typeKind, std::vector<uint32_t> supers):
-        fileId(fileId),
-        name(name),
-        idx(idx),
-        typeKind(typeKind),
-        supers(std::move(supers))
+    TypeDefinition(
+        IO::FileId fileId, Offset<String> name, uint32_t idx, TypeKind typeKind, std::vector<uint32_t> supers
+    )
+        : fileId(fileId),
+          name(name),
+          idx(idx),
+          typeKind(typeKind),
+          supers(std::move(supers))
     {}
 
     const IO::FileId fileId;
@@ -58,15 +61,21 @@ class FieldDefinition {
 public:
     static FieldDefinition Parse(IO::FileId fileId, IO::StreamFileReader& reader);
 
-    inline const Offset<String> Name()  const { return name; }
-    inline uint32_t GetIdx()     const { return idx; }
+    inline const Offset<String> Name() const { return name; }
+
+    inline uint32_t GetIdx() const { return idx; }
+
     inline uint32_t GetDeclIdx() const { return declIdx; }
+
     inline uint32_t GetTypeIdx() const { return typeIdx; }
 
-
 private:
-    FieldDefinition(IO::FileId fileId, Offset<String> name, uint32_t idx, uint32_t declIdx, uint32_t typeIdx):
-        fileId(fileId), name(name), idx(idx), declIdx(declIdx), typeIdx(typeIdx)
+    FieldDefinition(IO::FileId fileId, Offset<String> name, uint32_t idx, uint32_t declIdx, uint32_t typeIdx)
+        : fileId(fileId),
+          name(name),
+          idx(idx),
+          declIdx(declIdx),
+          typeIdx(typeIdx)
     {}
 
     const IO::FileId fileId;
@@ -83,17 +92,28 @@ public:
     static MethodDefinition Parse(Engine::Session& session, IO::FileId fileId, Offset<MethodDefinition> offset);
     static MethodDefinition Resolve(Engine::Session& session, Engine::Identifier<MethodDefinition> identifier);
 
-    inline const Offset<String> Name()  const { return name; }
-    inline uint32_t GetIdx()     const { return idx;     }
-    inline uint32_t GetSigIdx()  const { return sigIdx;  }
+    inline const Offset<String> Name() const { return name; }
+
+    inline uint32_t GetIdx() const { return idx; }
+
+    inline uint32_t GetSigIdx() const { return sigIdx; }
+
     inline uint32_t GetDeclIdx() const { return declIdx; }
+
     inline Offset<Code> GetCodeOffs() const { return codeOffs; }
 
     inline IO::FileId FileId() const { return fileId; }
 
 private:
-    MethodDefinition(IO::FileId fileId, Offset<String> name, uint32_t idx, uint32_t sigIdx, uint32_t declIdx, Offset<Code> codeOffs) :
-        fileId(fileId), name(name), idx(idx), sigIdx(sigIdx), declIdx(declIdx), codeOffs(codeOffs)
+    MethodDefinition(
+        IO::FileId fileId, Offset<String> name, uint32_t idx, uint32_t sigIdx, uint32_t declIdx, Offset<Code> codeOffs
+    )
+        : fileId(fileId),
+          name(name),
+          idx(idx),
+          sigIdx(sigIdx),
+          declIdx(declIdx),
+          codeOffs(codeOffs)
     {}
 
     const IO::FileId fileId;

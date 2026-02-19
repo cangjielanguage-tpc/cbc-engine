@@ -41,6 +41,7 @@ public:
     Session(Engine& engine) : engine(engine), arena() {}
 
     Engine& GetEngine() const { return engine; }
+
     Arena& Allocator();
 
 private:
@@ -57,6 +58,7 @@ public:
 
     bool Load(std::unique_ptr<IO::RandomAccessFile> file, std::string_view name);
     Engine Build();
+
 private:
     class Impl;
 

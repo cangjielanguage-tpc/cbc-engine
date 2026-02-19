@@ -1,7 +1,3 @@
 #pragma once
 
-namespace Engine {
-
-
-
-} // namespace Engine
+namespace Engine {} // namespace Engine

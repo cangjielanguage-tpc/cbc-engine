@@ -1,10 +1,10 @@
-#include <unordered_map>
 #include <mutex>
+#include <unordered_map>
 
-#include "function_handle.h"
+#include "cbc/rewriter.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/reader.h"
-#include "cbc/rewriter.h"
+#include "function_handle.h"
 
 namespace Interpretation {
 
@@ -15,21 +15,19 @@ public:
 };
 
 FunctionHandleManager::FunctionHandleManager() : impl(std::move(std::make_unique<FunctionHandleManager::Impl>())) {}
-FunctionHandleManager::~FunctionHandleManager() = default;
+
+FunctionHandleManager::~FunctionHandleManager()                               = default;
 FunctionHandleManager::FunctionHandleManager(FunctionHandleManager&& manager) = default;
 
-FunctionHandle* FunctionHandleManager::Acquire(Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> methodDef)
+FunctionHandle*
+FunctionHandleManager::Acquire(Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> methodDef)
 {
     std::lock_guard guard(impl->lock);
     auto res = impl->fuhMap.find(methodDef);
     if (res != impl->fuhMap.end()) {
         return res->second;
     }
-    auto fuh = new DynamicFunctionHandle(
-            nullptr,
-            nullptr,
-            nullptr,
-            methodDef);
+    auto fuh                = new DynamicFunctionHandle(nullptr, nullptr, nullptr, methodDef);
     impl->fuhMap[methodDef] = fuh;
     return fuh;
 }
@@ -45,13 +43,13 @@ FuHDescriptor* FunctionHandleManager::Prepare(Engine::Session& session, DynamicF
     }
 
     auto offset = def.GetCodeOffs();
-    auto code = Symlevel::Reader::Read(session, def.FileId(), offset);
+    auto code   = Symlevel::Reader::Read(session, def.FileId(), offset);
 
     Emitter::Emitter emitter;
     Cbc::Rewriter rewriter(nullptr, code, emitter);
     rewriter.Interpret();
 
-    auto& heap = session.GetEngine().CodeHeap();
+    auto& heap         = session.GetEngine().CodeHeap();
     auto rewrittenCode = emitter.Build(heap);
 
     FuHDescriptor newDesc = {

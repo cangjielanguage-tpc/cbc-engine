@@ -1,8 +1,8 @@
 #pragma once
 
+#include "code.h"
 #include "io/file_id.h"
 #include "io/stream_file_reader.h"
-#include "code.h"
 #include "offset.h"
 
 namespace Symlevel {
