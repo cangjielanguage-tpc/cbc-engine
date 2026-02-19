@@ -32,7 +32,7 @@ FunctionHandleManager::Acquire(Engine::Session& session, Engine::Identifier<Syml
     return fuh;
 }
 
-FuHDescriptor* FunctionHandleManager::Prepare(Engine::Session& session, DynamicFunctionHandle* fuh)
+ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, DynamicFunctionHandle* fuh)
 {
     auto def = Symlevel::MethodDefinition::Resolve(session, fuh->methodDef);
 
@@ -52,12 +52,12 @@ FuHDescriptor* FunctionHandleManager::Prepare(Engine::Session& session, DynamicF
     auto& heap         = session.GetEngine().CodeHeap();
     auto rewrittenCode = emitter.Build(heap);
 
-    FuHDescriptor newDesc = {
+    ExecBytecodeInfo newDesc = {
         .code = rewrittenCode,
         // TODO: initialize rest
     };
 
-    fuh->descriptor.store(new FuHDescriptor(newDesc));
+    fuh->descriptor.store(new ExecBytecodeInfo(newDesc));
 
     // Return via reload from `fuh->descriptor` to guarantee proper memory-model semantics:
     // fields (and fields of fields) would be visible from other threads

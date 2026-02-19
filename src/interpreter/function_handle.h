@@ -69,7 +69,7 @@ struct DynamicFunctionHandle : public FunctionHandle {
 
     /// Lazily initialized.
     /// Holds the information about a frame of interpreted method and bytecode itself.
-    std::atomic<FuHDescriptor*> descriptor;
+    std::atomic<ExecBytecodeInfo*> descriptor;
     std::mutex lock;
 
     Engine::Identifier<Symlevel::MethodDefinition> const methodDef;
@@ -95,7 +95,7 @@ public:
     FunctionHandle* Acquire(Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> methodDef);
 
     /// Performs lazy initialization of a DynamicFunctionHandle.
-    FuHDescriptor* Prepare(Engine::Session& session, DynamicFunctionHandle* fuh);
+    ExecBytecodeInfo* Prepare(Engine::Session& session, DynamicFunctionHandle* fuh);
 
 private:
     class Impl;

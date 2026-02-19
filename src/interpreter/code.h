@@ -15,12 +15,13 @@ struct Code {
 
 struct ReferenceSlots {}; // TODO: implement reference maps
 
-struct FuHDescriptor {
+struct ExecBytecodeInfo {
     Code const code;
-    uint16_t const usedNonVolIRegs;
-    uint16_t const usedNonVolIFegs;
+    uint16_t const savedIRegs;
+    uint16_t const savedFRegs;
     uint16_t const untypedSlotCount;
-    uint16_t const typedPartSizeInSlots; // TODO: make it bigger?
+    uint32_t const frameSize;
+    ReferenceSlots references;
 };
 
 } // namespace Interpretation
