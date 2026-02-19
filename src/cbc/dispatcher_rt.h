@@ -2,40 +2,38 @@
 
 #include <type_traits>
 
-#include "utils/assertion.h"
-#include "utils/math.h"
 #include "decoder.h"
 #include "isa_rt.h"
+#include "utils/assertion.h"
+#include "utils/math.h"
 
 namespace Cbc {
 namespace RT {
 
-using ImmKind = Cbc::Format::ImmKind;
 using Width = Cbc::Format::Width;
 
-template <typename Handler>
-void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
+template <typename Handler> void InterpretationLoop(Handler handler, Decoder::ByteReader reader)
+{
+#define NEXT goto* MAIN_TABLE[reader.PeekOpcode()]
+#define NEXT_COND(successful) goto* MAIN_TABLE[(successful) ? reader.PeekOpcode() : 0]
 
-#define NEXT goto *MAIN_TABLE[reader.PeekOpcode()]
-#define NEXT_COND(successful) goto *MAIN_TABLE[(successful) ? reader.PeekOpcode() : 0]
-
-#define MEM_NEXT goto *MEMSPACE_TABLE[reader.PeekOpcode()]
+#define MEM_NEXT goto* MEMSPACE_TABLE[reader.PeekOpcode()]
 
     static void* MAIN_TABLE[] = {
-        &&HALT, // B1 TODO merge rare commands
-        &&RET,  // B1 TODO merge rare commands
-        &&MOV,  // B2rr
-        &&MOVI, // B2xr
-        &&MOVR, // B2rr
-        &&FMOV, // B2rr
-        &&MOVI2F, // B2rr
-        &&MOVF2I, // B2rr
-        &&FMOVI32, //B6xri32
-        &&FMOVI64, //B10xri64
-        &&BCC32I, // B4xi12rr
-        &&BCC64I, // B4xi12rr
-        &&BCC32L, // B4xi12rr
-        &&BCC64L, // B4xi12rr
+        &&HALT,    // B1 TODO merge rare commands
+        &&RET,     // B1 TODO merge rare commands
+        &&MOV,     // B2rr
+        &&MOVI,    // B2xr
+        &&MOVR,    // B2rr
+        &&FMOV,    // B2rr
+        &&MOVI2F,  // B2rr
+        &&MOVF2I,  // B2rr
+        &&FMOVI32, // B6xri32
+        &&FMOVI64, // B10xri64
+        &&BCC32I,  // B4xi12rr
+        &&BCC64I,  // B4xi12rr
+        &&BCC32L,  // B4xi12rr
+        &&BCC64L,  // B4xi12rr
         &&BCCI32I, // B5xi12ri12
         &&BCCI64I, // B5xi12ri12
         &&BCCI32L, // B5xi12ri12
@@ -44,25 +42,25 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
         &&BCCL64I, // B5xi12ri12
         &&BCCL32L, // B5xi12ri12
         &&BCCL64L, // B5xi12ri12
-        &&JMP32, // B5i32
+        &&JMP32,   // B5i32
 
-        &&BIN32, // B3xrrr
-        &&BIN64, // B3xrrr
+        &&BIN32,   // B3xrrr
+        &&BIN64,   // B3xrrr
         &&BINI32I, // B4xi12rr
         &&BINI64I, // B4xi12rr
         &&BINI32L, // B4xi12rr
         &&BINI64L, // B4xi12rr
-        &&FBIN32, // B3xrrr
-        &&FBIN64, // B3xrrr
+        &&FBIN32,  // B3xrrr
+        &&FBIN64,  // B3xrrr
 
-        &&NEWOBJ, // B3xri16,
-        &&LOAD_OBJ, // B4xi12rr
+        &&NEWOBJ,    // B3xri16,
+        &&LOAD_OBJ,  // B4xi12rr
         &&STORE_OBJ, // B4xi12rr
 
-        &&LOAD_REC, // B4xi12rr
+        &&LOAD_REC,  // B4xi12rr
         &&STORE_REC, // B4xi12rr
 
-        &&LOAD_FRAME, // B4xi12rr
+        &&LOAD_FRAME,  // B4xi12rr
         &&STORE_FRAME, // B4xi12rr
 
         &&MEMSPACE, // B1. See `MemOpcode`
@@ -71,21 +69,21 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
     static void* MEMSPACE_TABLE[] = {
         &&MEM_HALT, // M1
 
-        &&OFFS16, // M2i16
-        &&OFFS32, // M2i32
-        &&OFFS64, // M2i64
+        &&OFFS16,   // M2i16
+        &&OFFS32,   // M2i32
+        &&OFFS64,   // M2i64
         &&OFFS_REG, // M2xr
 
-        &&RLD_U8,  // M2rr
-        &&RLD_U16, // M2rr
-        &&RLD_32,  // M2rr
-        &&RLD_S8,  // M2rr
-        &&RLD_S16, // M2rr
-        &&RLD_F32, // M2rr
-        &&RLD_F64, // M2rr
-        &&RLD_64,  // M2rr
+        &&RLD_U8,      // M2rr
+        &&RLD_U16,     // M2rr
+        &&RLD_32,      // M2rr
+        &&RLD_S8,      // M2rr
+        &&RLD_S16,     // M2rr
+        &&RLD_F32,     // M2rr
+        &&RLD_F64,     // M2rr
+        &&RLD_64,      // M2rr
         &&RLD_S32TO64, // M2rr
-        &&RLD_REF, // M2rr
+        &&RLD_REF,     // M2rr
 
         &&RST_8,   // M2rr
         &&RST_16,  // M2rr
@@ -95,16 +93,16 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
         &&RST_F32, // M2rr
         &&RST_F64, // M2rr
 
-        &&SLD_U8,  // M2rr
-        &&SLD_U16, // M2rr
-        &&SLD_32,  // M2rr
-        &&SLD_S8,  // M2rr
-        &&SLD_S16, // M2rr
-        &&SLD_F32, // M2rr
-        &&SLD_F64, // M2rr
-        &&SLD_64,  // M2rr
+        &&SLD_U8,      // M2rr
+        &&SLD_U16,     // M2rr
+        &&SLD_32,      // M2rr
+        &&SLD_S8,      // M2rr
+        &&SLD_S16,     // M2rr
+        &&SLD_F32,     // M2rr
+        &&SLD_F64,     // M2rr
+        &&SLD_64,      // M2rr
         &&SLD_S32TO64, // M2rr
-        &&SLD_REF, // M2rr
+        &&SLD_REF,     // M2rr
 
         &&SST_8,   // M2rr
         &&SST_16,  // M2rr
@@ -114,16 +112,16 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
         &&SST_F32, // M2rr
         &&SST_F64, // M2rr
 
-        &&FLD_U8,  // M2rr
-        &&FLD_U16, // M2rr
-        &&FLD_32,  // M2rr
-        &&FLD_S8,  // M2rr
-        &&FLD_S16, // M2rr
-        &&FLD_F32, // M2rr
-        &&FLD_F64, // M2rr
-        &&FLD_64,  // M2rr
+        &&FLD_U8,      // M2rr
+        &&FLD_U16,     // M2rr
+        &&FLD_32,      // M2rr
+        &&FLD_S8,      // M2rr
+        &&FLD_S16,     // M2rr
+        &&FLD_F32,     // M2rr
+        &&FLD_F64,     // M2rr
+        &&FLD_64,      // M2rr
         &&FLD_S32TO64, // M2rr
-        &&FLD_REF, // M2rr
+        &&FLD_REF,     // M2rr
 
         &&FST_8,   // M2rr
         &&FST_16,  // M2rr
@@ -140,328 +138,379 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
     // jump to the instruction handler.
     NEXT;
 
-    // -- Main opcode table --
-    HALT: {
-        ASSERTION(false, "halt");
-        return;
-    }
-    RET: {
-        return;
-    }
-    MOV: {
-        auto args = B2rr::Decode(reader);
-        handler.template Mov<IReg, IReg>(args.rr.x.IR(), args.rr.y.IR());
-        NEXT;
-    }
-    MOVI: {
-        auto args = B2xr::Decode(reader);
-        handler.MovI(args.xr.r.IR(), MathUtils::SignExtend(args.xr.imm, 4));
-        NEXT;
-    }
-    MOVR: {
-        auto args = B2rr::Decode(reader);
-        handler.MovRef(args.rr.x.IR(), args.rr.y.IR());
-        NEXT;
-    }
-    FMOV: {
-        auto args = B2rr::Decode(reader);
-        handler.template Mov<FReg, FReg>(args.rr.x.FR(), args.rr.y.FR());
-        NEXT;
-    }
-    MOVI2F: {
-        auto args = B2rr::Decode(reader);
-        handler.template Mov<FReg, IReg>(args.rr.x.FR(), args.rr.y.IR());
-        NEXT;
-    }
-    MOVF2I: {
-        auto args = B2rr::Decode(reader);
-        handler.template Mov<IReg, FReg>(args.rr.x.IR(), args.rr.y.FR());
-        NEXT;
-    }
-    FMOVI32: {
-        auto args = B6xri32::Decode(reader);
-        handler.MovI(args.xr.r.FR(), args.imm32.fimm);
-        NEXT;
-    }
-    FMOVI64: {
-        auto args = B10xri64::Decode(reader);
-        handler.MovI(args.xr.r.FR(), args.imm64.dimm);
-        NEXT;
-    }
-    BCC32I: {
-        auto args = B4xi12rr::Decode(reader);
-        int64_t delta = handler.template Bcc<ImmKind::VALUE, Width::W32>(args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12);
-        reader.Advance(delta);
-        NEXT;
-    }
-    BCC32L: {
-        auto args = B4xi12rr::Decode(reader);
-        int64_t delta = handler.template Bcc<ImmKind::LITERAL, Width::W32>(args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12);
-        reader.Advance(delta);
-        NEXT;
-    }
-    BCC64I: {
-        auto args = B4xi12rr::Decode(reader);
-        int64_t delta = handler.template Bcc<ImmKind::VALUE, Width::W64>(args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12);
-        reader.Advance(delta);
-        NEXT;
-    }
-    BCC64L: {
-        auto args = B4xi12rr::Decode(reader);
-        int64_t delta = handler.template Bcc<ImmKind::LITERAL, Width::W64>(args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12);
-        reader.Advance(delta);
-        NEXT;
-    }
-    BCCI32I: {
-        auto args = B5xi12ri12::Decode(reader);
-        int64_t delta = handler.template BccImm<ImmKind::VALUE, ImmKind::VALUE, Width::W32>(args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12);
-        reader.Advance(delta);
-        NEXT;
-    }
-    BCCI64I: {
-        auto args = B5xi12ri12::Decode(reader);
-        int64_t delta = handler.template BccImm<ImmKind::VALUE, ImmKind::VALUE, Width::W64>(args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12);
-        reader.Advance(delta);
-        NEXT;
-    }
-    BCCI32L: {
-        auto args = B5xi12ri12::Decode(reader);
-        int64_t delta = handler.template BccImm<ImmKind::VALUE, ImmKind::LITERAL, Width::W32>(args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12);
-        reader.Advance(delta);
-        NEXT;
-    }
-    BCCI64L: {
-        auto args = B5xi12ri12::Decode(reader);
-        int64_t delta = handler.template BccImm<ImmKind::VALUE, ImmKind::LITERAL, Width::W64>(args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12);
-        reader.Advance(delta);
-        NEXT;
-    }
-    BCCL32I: {
-        auto args = B5xi12ri12::Decode(reader);
-        int64_t delta = handler.template BccImm<ImmKind::LITERAL, ImmKind::VALUE, Width::W32>(args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12);
-        reader.Advance(delta);
-        NEXT;
-    }
-    BCCL64I: {
-        auto args = B5xi12ri12::Decode(reader);
-        int64_t delta = handler.template BccImm<ImmKind::LITERAL, ImmKind::VALUE, Width::W64>(args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12);
-        reader.Advance(delta);
-        NEXT;
-    }
-    BCCL32L: {
-        auto args = B5xi12ri12::Decode(reader);
-        int64_t delta = handler.template BccImm<ImmKind::LITERAL, ImmKind::LITERAL, Width::W32>(args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12);
-        reader.Advance(delta);
-        NEXT;
-    }
-    BCCL64L: {
-        auto args = B5xi12ri12::Decode(reader);
-        int64_t delta = handler.template BccImm<ImmKind::LITERAL, ImmKind::LITERAL, Width::W64>(args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12);
-        reader.Advance(delta);
-        NEXT;
-    }
-    JMP32: {
-        auto args = B5i32::Decode(reader);
-        int64_t delta = handler.Jmp(args.imm32.imm);
-        reader.Advance(delta);
-        NEXT;
-    }
-    BIN32: {
-        auto args = B3xrrr::Decode(reader);
-        bool successful = handler.template Binary<Width::W32>(
-                args.xr.imm.Common(), args.xr.r.IR(),
-                args.rr.x.IR(), args.rr.y.IR());
-        NEXT_COND(successful);
-    }
-    BIN64: {
-        auto args = B3xrrr::Decode(reader);
-        bool successful = handler.template Binary<Width::W64>(
-                args.xr.imm.Common(), args.xr.r.IR(),
-                args.rr.x.IR(), args.rr.y.IR());
-        NEXT_COND(successful);
-    }
-    BINI32I: {
-        auto args = B4xi12rr::Decode(reader);
-        bool successful = handler.template BinaryImm<ImmKind::VALUE, Width::W32>(
-                args.xi12.imm4.Common(), args.rr.x.IR(),
-                args.rr.y.IR(), args.xi12.imm12);
-        NEXT_COND(successful);
-    }
-    BINI64I: {
-        auto args = B4xi12rr::Decode(reader);
-        bool successful = handler.template BinaryImm<ImmKind::VALUE, Width::W64>(
-                args.xi12.imm4.Common(), args.rr.x.IR(),
-                args.rr.y.IR(), args.xi12.imm12);
-        NEXT_COND(successful);
-    }
-    BINI32L: {
-        auto args = B4xi12rr::Decode(reader);
-        bool successful = handler.template BinaryImm<ImmKind::LITERAL, Width::W32>(
-                args.xi12.imm4.Common(), args.rr.x.IR(),
-                args.rr.y.IR(), args.xi12.imm12);
-        NEXT_COND(successful);
-    }
-    BINI64L: {
-        auto args = B4xi12rr::Decode(reader);
-        bool successful = handler.template BinaryImm<ImmKind::LITERAL, Width::W64>(
-                args.xi12.imm4.Common(), args.rr.x.IR(),
-                args.rr.y.IR(), args.xi12.imm12);
-        NEXT_COND(successful);
-    }
-    FBIN32: {
-        auto args = B3xrrr::Decode(reader);
-        bool successful = handler.template Binary<Width::W32>(
-                args.xr.imm.FloatOperations(), args.xr.r.FR(),
-                args.rr.x.FR(), args.rr.y.FR());
-        NEXT_COND(successful);
-    }
-    FBIN64: {
-        auto args = B3xrrr::Decode(reader);
-        bool successful = handler.template Binary<Width::W64>(
-                args.xr.imm.FloatOperations(), args.xr.r.FR(),
-                args.rr.x.FR(), args.rr.y.FR());
-        NEXT_COND(successful);
-    }
-    NEWOBJ: {
-        auto args = B3xi12::Decode(reader);
-        bool successful = handler.NewObj(args.xi12.imm4.IR(), args.xi12.imm12);
-        NEXT_COND(successful);
-    }
-    LOAD_OBJ: {
-        auto args = B4xi12rr::Decode(reader);
-        bool successful = handler.LoadObj(args.xi12.imm4.LDK(), args.rr.x, args.rr.y.IR(), args.xi12.imm12);
-        NEXT_COND(successful);
-    }
-    STORE_OBJ: {
-        auto args = B4xi12rr::Decode(reader);
-        bool successful = handler.StoreObj(args.xi12.imm4.STK(), args.rr.x, args.rr.y.IR(), args.xi12.imm12);
-        NEXT_COND(successful);
-    }
-    LOAD_REC: {
-        auto args = B4xi12rr::Decode(reader);
-        bool successful = handler.LoadRec(args.xi12.imm4.LDK(), args.rr.x, args.rr.y.IR(), args.xi12.imm12);
-        NEXT_COND(successful);
-    }
-    STORE_REC: {
-        auto args = B4xi12rr::Decode(reader);
-        bool successful = handler.StoreRec(args.xi12.imm4.STK(), args.rr.x, args.rr.y.IR(), args.xi12.imm12);
-        NEXT_COND(successful);
-    }
-    LOAD_FRAME: {
-        auto args = B4xi12rr::Decode(reader);
-        bool successful = handler.LoadFrame(args.xi12.imm4.LDK(), args.rr.x, args.xi12.imm12);
-        NEXT_COND(successful);
-    }
-    STORE_FRAME: {
-        auto args = B4xi12rr::Decode(reader);
-        bool successful = handler.StoreFrame(args.xi12.imm4.STK(), args.rr.x, args.xi12.imm12);
-        NEXT_COND(successful);
-    }
-    MEMSPACE: {
-        B1::Decode(reader);
-        memspaceOffsetAcc = 0;
-        MEM_NEXT;
-    }
+// -- Main opcode table --
+HALT: {
+    ASSERTION(false, "halt");
+    return;
+}
+RET: {
+    return;
+}
+MOV: {
+    auto args = B2rr::Decode(reader);
+    handler.template Mov<IReg, IReg>(args.rr.x.IR(), args.rr.y.IR());
+    NEXT;
+}
+MOVI: {
+    auto args = B2xr::Decode(reader);
+    handler.MovI(args.xr.r.IR(), MathUtils::SignExtend(static_cast<uint64_t>(args.xr.imm), 4));
+    NEXT;
+}
+MOVR: {
+    auto args = B2rr::Decode(reader);
+    handler.MovRef(args.rr.x.IR(), args.rr.y.IR());
+    NEXT;
+}
+FMOV: {
+    auto args = B2rr::Decode(reader);
+    handler.template Mov<FReg, FReg>(args.rr.x.FR(), args.rr.y.FR());
+    NEXT;
+}
+MOVI2F: {
+    auto args = B2rr::Decode(reader);
+    handler.template Mov<FReg, IReg>(args.rr.x.FR(), args.rr.y.IR());
+    NEXT;
+}
+MOVF2I: {
+    auto args = B2rr::Decode(reader);
+    handler.template Mov<IReg, FReg>(args.rr.x.IR(), args.rr.y.FR());
+    NEXT;
+}
+FMOVI32: {
+    auto args = B6xri32::Decode(reader);
+    handler.MovI(args.xr.r.FR(), args.imm32.fimm);
+    NEXT;
+}
+FMOVI64: {
+    auto args = B10xri64::Decode(reader);
+    handler.MovI(args.xr.r.FR(), args.imm64.dimm);
+    NEXT;
+}
+BCC32I: {
+    auto args     = B4xi12rr::Decode(reader);
+    int64_t delta = handler.template Bcc<ImmKind::VALUE, Width::W32>(
+        args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
+    );
+    reader.Advance(delta);
+    NEXT;
+}
+BCC32L: {
+    auto args     = B4xi12rr::Decode(reader);
+    int64_t delta = handler.template Bcc<ImmKind::LITERAL, Width::W32>(
+        args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
+    );
+    reader.Advance(delta);
+    NEXT;
+}
+BCC64I: {
+    auto args     = B4xi12rr::Decode(reader);
+    int64_t delta = handler.template Bcc<ImmKind::VALUE, Width::W64>(
+        args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
+    );
+    reader.Advance(delta);
+    NEXT;
+}
+BCC64L: {
+    auto args     = B4xi12rr::Decode(reader);
+    int64_t delta = handler.template Bcc<ImmKind::LITERAL, Width::W64>(
+        args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
+    );
+    reader.Advance(delta);
+    NEXT;
+}
+BCCI32I: {
+    auto args     = B5xi12ri12::Decode(reader);
+    int64_t delta = handler.template BccImm<ImmKind::VALUE, ImmKind::VALUE, Width::W32>(
+        args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
+    );
+    reader.Advance(delta);
+    NEXT;
+}
+BCCI64I: {
+    auto args     = B5xi12ri12::Decode(reader);
+    int64_t delta = handler.template BccImm<ImmKind::VALUE, ImmKind::VALUE, Width::W64>(
+        args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
+    );
+    reader.Advance(delta);
+    NEXT;
+}
+BCCI32L: {
+    auto args     = B5xi12ri12::Decode(reader);
+    int64_t delta = handler.template BccImm<ImmKind::VALUE, ImmKind::LITERAL, Width::W32>(
+        args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
+    );
+    reader.Advance(delta);
+    NEXT;
+}
+BCCI64L: {
+    auto args     = B5xi12ri12::Decode(reader);
+    int64_t delta = handler.template BccImm<ImmKind::VALUE, ImmKind::LITERAL, Width::W64>(
+        args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
+    );
+    reader.Advance(delta);
+    NEXT;
+}
+BCCL32I: {
+    auto args     = B5xi12ri12::Decode(reader);
+    int64_t delta = handler.template BccImm<ImmKind::LITERAL, ImmKind::VALUE, Width::W32>(
+        args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
+    );
+    reader.Advance(delta);
+    NEXT;
+}
+BCCL64I: {
+    auto args     = B5xi12ri12::Decode(reader);
+    int64_t delta = handler.template BccImm<ImmKind::LITERAL, ImmKind::VALUE, Width::W64>(
+        args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
+    );
+    reader.Advance(delta);
+    NEXT;
+}
+BCCL32L: {
+    auto args     = B5xi12ri12::Decode(reader);
+    int64_t delta = handler.template BccImm<ImmKind::LITERAL, ImmKind::LITERAL, Width::W32>(
+        args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
+    );
+    reader.Advance(delta);
+    NEXT;
+}
+BCCL64L: {
+    auto args     = B5xi12ri12::Decode(reader);
+    int64_t delta = handler.template BccImm<ImmKind::LITERAL, ImmKind::LITERAL, Width::W64>(
+        args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
+    );
+    reader.Advance(delta);
+    NEXT;
+}
+JMP32: {
+    auto args     = B5i32::Decode(reader);
+    int64_t delta = handler.Jmp(args.imm32.imm);
+    reader.Advance(delta);
+    NEXT;
+}
+BIN32: {
+    auto args = B3xrrr::Decode(reader);
+    bool successful =
+        handler.template Binary<Width::W32>(args.xr.imm.Common(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
+    NEXT_COND(successful);
+}
+BIN64: {
+    auto args = B3xrrr::Decode(reader);
+    bool successful =
+        handler.template Binary<Width::W64>(args.xr.imm.Common(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
+    NEXT_COND(successful);
+}
+BINI32I: {
+    auto args       = B4xi12rr::Decode(reader);
+    bool successful = handler.template BinaryImm<ImmKind::VALUE, Width::W32>(
+        args.xi12.imm4.Common(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
+    );
+    NEXT_COND(successful);
+}
+BINI64I: {
+    auto args       = B4xi12rr::Decode(reader);
+    bool successful = handler.template BinaryImm<ImmKind::VALUE, Width::W64>(
+        args.xi12.imm4.Common(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
+    );
+    NEXT_COND(successful);
+}
+BINI32L: {
+    auto args       = B4xi12rr::Decode(reader);
+    bool successful = handler.template BinaryImm<ImmKind::LITERAL, Width::W32>(
+        args.xi12.imm4.Common(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
+    );
+    NEXT_COND(successful);
+}
+BINI64L: {
+    auto args       = B4xi12rr::Decode(reader);
+    bool successful = handler.template BinaryImm<ImmKind::LITERAL, Width::W64>(
+        args.xi12.imm4.Common(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
+    );
+    NEXT_COND(successful);
+}
+FBIN32: {
+    auto args       = B3xrrr::Decode(reader);
+    bool successful = handler.template Binary<Width::W32>(
+        args.xr.imm.FloatOperations(), args.xr.r.FR(), args.rr.x.FR(), args.rr.y.FR()
+    );
+    NEXT_COND(successful);
+}
+FBIN64: {
+    auto args       = B3xrrr::Decode(reader);
+    bool successful = handler.template Binary<Width::W64>(
+        args.xr.imm.FloatOperations(), args.xr.r.FR(), args.rr.x.FR(), args.rr.y.FR()
+    );
+    NEXT_COND(successful);
+}
+NEWOBJ: {
+    auto args       = B3xi12::Decode(reader);
+    bool successful = handler.NewObj(args.xi12.imm4.IR(), args.xi12.imm12);
+    NEXT_COND(successful);
+}
+LOAD_OBJ: {
+    auto args       = B4xi12rr::Decode(reader);
+    bool successful = handler.LoadObj(args.xi12.imm4.LDK(), args.rr.x, args.rr.y.IR(), args.xi12.imm12);
+    NEXT_COND(successful);
+}
+STORE_OBJ: {
+    auto args       = B4xi12rr::Decode(reader);
+    bool successful = handler.StoreObj(args.xi12.imm4.STK(), args.rr.x, args.rr.y.IR(), args.xi12.imm12);
+    NEXT_COND(successful);
+}
+LOAD_REC: {
+    auto args       = B4xi12rr::Decode(reader);
+    bool successful = handler.LoadRec(args.xi12.imm4.LDK(), args.rr.x, args.rr.y.IR(), args.xi12.imm12);
+    NEXT_COND(successful);
+}
+STORE_REC: {
+    auto args       = B4xi12rr::Decode(reader);
+    bool successful = handler.StoreRec(args.xi12.imm4.STK(), args.rr.x, args.rr.y.IR(), args.xi12.imm12);
+    NEXT_COND(successful);
+}
+LOAD_FRAME: {
+    auto args       = B4xi12rr::Decode(reader);
+    bool successful = handler.LoadFrame(args.xi12.imm4.LDK(), args.rr.x, args.xi12.imm12);
+    NEXT_COND(successful);
+}
+STORE_FRAME: {
+    auto args       = B4xi12rr::Decode(reader);
+    bool successful = handler.StoreFrame(args.xi12.imm4.STK(), args.rr.x, args.xi12.imm12);
+    NEXT_COND(successful);
+}
+MEMSPACE: {
+    B1::Decode(reader);
+    memspaceOffsetAcc = 0;
+    MEM_NEXT;
+}
 
     // -- MemSpace opcode table --
 
-    MEM_HALT: {
-        ASSERTION(false, "halt");
-        return;
-    }
+MEM_HALT: {
+    ASSERTION(false, "halt");
+    return;
+}
 
-    OFFS16: {
-        auto args = M3i16::Decode(reader);
-        memspaceOffsetAcc += handler.MemOffset(args.imm16);
-        MEM_NEXT;
+OFFS16: {
+    auto args          = M3i16::Decode(reader);
+    memspaceOffsetAcc += handler.MemOffset(args.imm16);
+    MEM_NEXT;
+}
+OFFS32: {
+    auto args          = M5i32::Decode(reader);
+    memspaceOffsetAcc += handler.MemOffset(args.imm32);
+    MEM_NEXT;
+}
+OFFS64: {
+    auto args          = M9i64::Decode(reader);
+    memspaceOffsetAcc += handler.MemOffset(args.imm64);
+    MEM_NEXT;
+}
+OFFS_REG: {
+    auto args          = M2xr::Decode(reader);
+    memspaceOffsetAcc += handler.MemOffsetReg(args.xr.r.IR());
+    MEM_NEXT;
+}
+#define RLD(ldk)                                                                                                       \
+    RLD_##ldk:                                                                                                         \
+    {                                                                                                                  \
+        auto args = M2rr::Decode(reader);                                                                              \
+        bool successful =                                                                                              \
+            handler.LoadObj(Format::LoadAccessKind::LD_##ldk, args.rr.x, args.rr.y.IR(), memspaceOffsetAcc);           \
+        NEXT_COND(successful);                                                                                         \
     }
-    OFFS32: {
-        auto args = M5i32::Decode(reader);
-        memspaceOffsetAcc += handler.MemOffset(args.imm32);
-        MEM_NEXT;
-    }
-    OFFS64: {
-        auto args = M9i64::Decode(reader);
-        memspaceOffsetAcc += handler.MemOffset(args.imm64);
-        MEM_NEXT;
-    }
-    OFFS_REG: {
-        auto args = M2xr::Decode(reader);
-        memspaceOffsetAcc += handler.MemOffsetReg(args.xr.r.IR());
-        MEM_NEXT;
-    }
-#define RLD(ldk) \
-    RLD_##ldk: {                                        \
-        auto args = M2rr::Decode(reader);               \
-        bool successful = handler.LoadObj(              \
-                Format::LoadAccessKind::LD_##ldk,       \
-                args.rr.x, args.rr.y.IR(),              \
-                memspaceOffsetAcc);                     \
-        NEXT_COND(successful);                          \
-    }
-    RLD(U8) RLD(U16) RLD(32) RLD(S8) RLD(S16) RLD(F32) RLD(F64) RLD(64) RLD(S32TO64) RLD(REF)
+    RLD(U8)
+    RLD(U16)
+    RLD(32)
+    RLD(S8)
+    RLD(S16)
+    RLD(F32)
+    RLD(F64)
+    RLD(64)
+    RLD(S32TO64)
+    RLD(REF)
 #undef RLD
 
-#define RST(stk) \
-    RST_##stk: {                                        \
-        auto args = M2rr::Decode(reader);               \
-        bool successful = handler.StoreObj(             \
-                Format::StoreAccessKind::ST_##stk,      \
-                args.rr.x, args.rr.y.IR(),              \
-                memspaceOffsetAcc);                     \
-        NEXT_COND(successful);                          \
+#define RST(stk)                                                                                                       \
+    RST_##stk:                                                                                                         \
+    {                                                                                                                  \
+        auto args = M2rr::Decode(reader);                                                                              \
+        bool successful =                                                                                              \
+            handler.StoreObj(Format::StoreAccessKind::ST_##stk, args.rr.x, args.rr.y.IR(), memspaceOffsetAcc);         \
+        NEXT_COND(successful);                                                                                         \
     }
-    RST(8) RST(16) RST(32) RST(64) RST(REF) RST(F32) RST(F64)
+    RST(8)
+    RST(16)
+    RST(32)
+    RST(64)
+    RST(REF)
+    RST(F32)
+    RST(F64)
 #undef RST
 
-#define SLD(ldk) \
-    SLD_##ldk: {                                        \
-        auto args = M2rr::Decode(reader);               \
-        bool successful = handler.LoadRec(              \
-                Format::LoadAccessKind::LD_##ldk,       \
-                args.rr.x, args.rr.y.IR(),              \
-                memspaceOffsetAcc);                     \
-        NEXT_COND(successful);                          \
+#define SLD(ldk)                                                                                                       \
+    SLD_##ldk:                                                                                                         \
+    {                                                                                                                  \
+        auto args = M2rr::Decode(reader);                                                                              \
+        bool successful =                                                                                              \
+            handler.LoadRec(Format::LoadAccessKind::LD_##ldk, args.rr.x, args.rr.y.IR(), memspaceOffsetAcc);           \
+        NEXT_COND(successful);                                                                                         \
     }
-    SLD(U8) SLD(U16) SLD(32) SLD(S8) SLD(S16) SLD(F32) SLD(F64) SLD(64) SLD(S32TO64) SLD(REF)
+    SLD(U8)
+    SLD(U16)
+    SLD(32)
+    SLD(S8)
+    SLD(S16)
+    SLD(F32)
+    SLD(F64)
+    SLD(64)
+    SLD(S32TO64)
+    SLD(REF)
 #undef SLD
 
-#define SST(stk) \
-    SST_##stk: {                                        \
-        auto args = M2rr::Decode(reader);               \
-        bool successful = handler.StoreRec(             \
-                Format::StoreAccessKind::ST_##stk,      \
-                args.rr.x, args.rr.y.IR(),              \
-                memspaceOffsetAcc);                     \
-        NEXT_COND(successful);                          \
+#define SST(stk)                                                                                                       \
+    SST_##stk:                                                                                                         \
+    {                                                                                                                  \
+        auto args = M2rr::Decode(reader);                                                                              \
+        bool successful =                                                                                              \
+            handler.StoreRec(Format::StoreAccessKind::ST_##stk, args.rr.x, args.rr.y.IR(), memspaceOffsetAcc);         \
+        NEXT_COND(successful);                                                                                         \
     }
-    SST(8) SST(16) SST(32) SST(64) SST(REF) SST(F32) SST(F64)
+    SST(8)
+    SST(16)
+    SST(32)
+    SST(64)
+    SST(REF)
+    SST(F32)
+    SST(F64)
 #undef SST
 
-#define FLD(ldk) \
-    FLD_##ldk: {                                        \
-        auto args = M2rr::Decode(reader);               \
-        bool successful = handler.LoadFrame(            \
-                Format::LoadAccessKind::LD_##ldk,       \
-                args.rr.x,                              \
-                memspaceOffsetAcc);                     \
-        NEXT_COND(successful);                          \
+#define FLD(ldk)                                                                                                       \
+    FLD_##ldk:                                                                                                         \
+    {                                                                                                                  \
+        auto args       = M2rr::Decode(reader);                                                                        \
+        bool successful = handler.LoadFrame(Format::LoadAccessKind::LD_##ldk, args.rr.x, memspaceOffsetAcc);           \
+        NEXT_COND(successful);                                                                                         \
     }
-    FLD(U8) FLD(U16) FLD(32) FLD(S8) FLD(S16) FLD(F32) FLD(F64) FLD(64) FLD(S32TO64) FLD(REF)
+    FLD(U8)
+    FLD(U16)
+    FLD(32) FLD(S8) FLD(S16) FLD(F32) FLD(F64) FLD(64) FLD(S32TO64) FLD(REF)
 #undef FLD
 
-#define FST(stk) \
-    FST_##stk: {                                        \
-        auto args = M2rr::Decode(reader);               \
-        bool successful = handler.StoreFrame(           \
-                Format::StoreAccessKind::ST_##stk,      \
-                args.rr.x,                              \
-                memspaceOffsetAcc);                     \
-        NEXT_COND(successful);                          \
+#define FST(stk)                                                                                                       \
+    FST_##stk:                                                                                                         \
+    {                                                                                                                  \
+        auto args       = M2rr::Decode(reader);                                                                        \
+        bool successful = handler.StoreFrame(Format::StoreAccessKind::ST_##stk, args.rr.x, memspaceOffsetAcc);         \
+        NEXT_COND(successful);                                                                                         \
     }
-    FST(8) FST(16) FST(32) FST(64) FST(REF) FST(F32) FST(F64)
+    FST(8)
+    FST(16)
+    FST(32)
+    FST(64)
+    FST(REF)
+    FST(F32)
+    FST(F64)
 #undef FST
-
 
 #undef MEM_NEXT
 #undef NEXT
@@ -469,4 +518,3 @@ void InterpretationLoop(Handler handler, Decoder::ByteReader reader) {
 }
 } // namespace RT
 } // namespace Cbc
-

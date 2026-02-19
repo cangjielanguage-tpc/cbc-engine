@@ -1,5 +1,7 @@
 #pragma once
 
+#include <map>
+
 #include "api/method.h"
 #include "cbc/emitter/emitter.h"
 #include "cbc/parser.h"
@@ -34,8 +36,16 @@ protected:
     void DoReturn(Width width, IReg dst) override;
     void DoReturn(Width width, FReg dst) override;
 
+    void DoBranchIf(CC op, Width width, IReg l, IReg r, uint8_t* target) override;
+    void DoBranchIf(CC op, Width width, FReg l, FReg r, uint8_t* target) override;
+    void DoBranchIfImm(CC op, Width width, IReg l, uint64_t r, uint8_t* target) override;
+
 private:
+    void BeforeInterpretOne(uint8_t* position) override;
+    Emitter::Label InstructionLabel(uint8_t* position);
+
     Emitter::Emitter& e;
+    std::unordered_map<uint8_t*, Emitter::Label> instructionLabel;
 };
 
 } // namespace Cbc

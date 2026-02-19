@@ -1,8 +1,7 @@
 #pragma once
 
-#include <vector>
-#include "io/random_access_file.h"
 #include "io/file_id.h"
+#include "io/stream_file_reader.h"
 #include "code.h"
 #include "offset.h"
 

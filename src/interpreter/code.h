@@ -1,8 +1,8 @@
 #ifndef INTERPRETER_CODE_H
 #define INTERPRETER_CODE_H
 
-#include <cstdint>
 #include "literals.h"
+#include <cstdint>
 
 namespace Interpretation {
 
@@ -23,6 +23,6 @@ struct FuHDescriptor {
     uint16_t const typedPartSizeInSlots; // TODO: make it bigger?
 };
 
-} // Interpretation
+} // namespace Interpretation
 
 #endif // INTERPRETER_CODE_H

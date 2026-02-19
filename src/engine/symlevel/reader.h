@@ -14,7 +14,8 @@ class Reader {
 public:
 
     template <typename T>
-    static T Read(Engine::Session& session, IO::FileId fileId, Offset<T> offset) {
+    static T Read(Engine::Session& session, IO::FileId fileId, Offset<T> offset)
+    {
         IO::StreamFileReader reader(*session.FileOf(fileId), offset.value);
         return T::Parse(fileId, reader);
     }

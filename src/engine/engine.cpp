@@ -47,10 +47,7 @@ Symlevel::CbcFile& Session::CbcFileOf(IO::FileId fileId) const
     return engine.impl->files.at(fileId);
 }
 
-Arena& Session::Allocator()
-{
-    return arena;
-}
+Arena& Session::Allocator() { return arena; }
 
 Loader::Loader() : loader(std::move(std::make_unique<Loader::Impl>())) {}
 Loader::Loader(Loader&& other) = default;

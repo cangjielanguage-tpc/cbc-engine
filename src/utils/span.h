@@ -5,21 +5,18 @@
 
 namespace Collections {
 
-template <typename T>
-class Span {
+template <typename T> class Span {
 public:
     Span(size_t size) : vector(size) {}
+
     Span(std::vector<T> v) : vector(v) {}
 
-    inline T& operator[](size_t idx) const {
-        return vector[idx];
-    }
+    inline T& operator[](size_t idx) const { return vector[idx]; }
 
-    inline size_t Size() const {
-        return vector.size();
-    }
+    inline size_t Size() const { return vector.size(); }
 
-    bool Equals(Span const& another) const {
+    bool Equals(Span const& another) const
+    {
         if (Size() != another.Size()) {
             return false;
         }
@@ -31,10 +28,11 @@ public:
         }
         return true;
     }
+
 private:
     std::vector<T> vector;
 };
 
-}
+} // namespace Collections
 
 #endif // SPAN_H
