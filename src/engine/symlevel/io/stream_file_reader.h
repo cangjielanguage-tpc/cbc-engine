@@ -5,7 +5,6 @@
 #include <cassert>
 #include <cstdint>
 
-
 namespace IO {
 
 /**
@@ -16,17 +15,14 @@ namespace IO {
  */
 class StreamFileReader {
 public:
+    StreamFileReader(RandomAccessFile& file, size_t position) : file(file), position(position) {}
 
-    StreamFileReader(RandomAccessFile& file, size_t position): file(file), position(position) {}
-    StreamFileReader(RandomAccessFile* file, size_t position): file(*file), position(position) {}
+    StreamFileReader(RandomAccessFile* file, size_t position) : file(*file), position(position) {}
 
     /**
      * @brief Returns current stream position.
      */
-    size_t Position() const
-    {
-        return position;
-    }
+    size_t Position() const { return position; }
 
     /**
      * @brief Advance current stream position by @p values bytes.
@@ -43,24 +39,23 @@ public:
         position += length;
     }
 
-    void Read(char* array, uint32_t length)
-    {
-        Read(array, static_cast<size_t>(length));
-    }
+    void Read(char* array, uint32_t length) { Read(array, static_cast<size_t>(length)); }
 
-    size_t   ReadPtr() { return ReadValue<size_t>();   }
+    size_t ReadPtr() { return ReadValue<size_t>(); }
 
-    uint8_t  ReadU8()  { return ReadValue<uint8_t>();  }
+    uint8_t ReadU8() { return ReadValue<uint8_t>(); }
+
     uint16_t ReadU16() { return ReadValue<uint16_t>(); }
+
     uint32_t ReadU32() { return ReadValue<uint32_t>(); }
+
     uint64_t ReadU64() { return ReadValue<uint64_t>(); }
 
     uint32_t ReadULEB();
-    int32_t  ReadSLEB();
+    int32_t ReadSLEB();
 
     uint64_t ReadLongULEB();
-    int64_t  ReadLongSLEB();
-
+    int64_t ReadLongSLEB();
 
 private:
     RandomAccessFile& file;
@@ -73,6 +68,5 @@ private:
         return value;
     }
 };
-
 
 } // namespace IO

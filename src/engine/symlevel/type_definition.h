@@ -1,14 +1,13 @@
 #pragma once
 
-#include <vector>
+#include "engine/engine.h"
+#include "io/file_id.h"
 #include "io/stream_file_reader.h"
 #include "offset.h"
+#include "reader.h"
 #include "string.h"
 #include "type_kind.h"
-#include "io/file_id.h"
-#include "engine/engine.h"
-#include "reader.h"
-
+#include <vector>
 
 namespace Symlevel {
 
@@ -18,20 +17,21 @@ public:
 
     inline const Offset<String> Name() const { return name; }
 
-    inline uint32_t GetIdx() const { return  idx; }
+    inline uint32_t GetIdx() const { return idx; }
 
     inline TypeKind GetTypeKind() const { return typeKind; }
 
     inline std::vector<uint32_t> GetSupers() const { return supers; }
 
 private:
-
-    TypeDefinition(IO::FileId fileId, Offset<String> name, uint32_t idx, TypeKind typeKind, std::vector<uint32_t> supers):
-        fileId(fileId),
-        name(name),
-        idx(idx),
-        typeKind(typeKind),
-        supers(std::move(supers))
+    TypeDefinition(
+        IO::FileId fileId, Offset<String> name, uint32_t idx, TypeKind typeKind, std::vector<uint32_t> supers
+    )
+        : fileId(fileId),
+          name(name),
+          idx(idx),
+          typeKind(typeKind),
+          supers(std::move(supers))
     {}
 
     const IO::FileId fileId;

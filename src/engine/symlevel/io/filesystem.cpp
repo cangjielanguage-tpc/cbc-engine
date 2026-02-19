@@ -21,7 +21,7 @@ RandomAccessFile* OpenFile(std::filesystem::path path)
 
     size_t fileLength = static_cast<size_t>(rawLength);
 
-    char* data = new char[fileLength];
+    char* data       = new char[fileLength];
     size_t bytesRead = fread(data, 1, fileLength, file);
 
     fclose(file);

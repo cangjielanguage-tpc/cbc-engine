@@ -7,9 +7,10 @@ namespace Engine {
 
 class Engine::Impl {
 public:
-    Impl(std::vector<Symlevel::CbcFile> files,
-           std::vector<std::unique_ptr<IO::RandomAccessFile>> rafs)
-        : files(std::move(files)), rafs(std::move(rafs)) {}
+    Impl(std::vector<Symlevel::CbcFile> files, std::vector<std::unique_ptr<IO::RandomAccessFile>> rafs)
+        : files(std::move(files)),
+          rafs(std::move(rafs))
+    {}
 
     static Engine& Instance();
 
@@ -36,23 +37,13 @@ IO::RandomAccessFile* Session::FileOf(IO::FileId fileId)
     return engine.impl->rafs.at(fileId).get();
 }
 
-Session Session::NewSession(Engine& engine)
-{
-    return Session(engine);
-}
+Session Session::NewSession(Engine& engine) { return Session(engine); }
 
-Arena& Session::Allocator()
-{
-    return arena;
-}
+Arena& Session::Allocator() { return arena; }
 
-Loader Loader::New() {
-    return Loader(new Impl());
-}
+Loader Loader::New() { return Loader(new Impl()); }
 
-Loader::~Loader() {
-    delete loader;
-}
+Loader::~Loader() { delete loader; }
 
 bool Loader::Load(std::unique_ptr<IO::RandomAccessFile> file, std::string_view name)
 {
@@ -62,22 +53,15 @@ bool Loader::Load(std::unique_ptr<IO::RandomAccessFile> file, std::string_view n
         return false;
     }
 
-    auto id = loader->fileCounter++;
+    auto id      = loader->fileCounter++;
     auto cbcFile = Symlevel::CbcFile::Create(IO::FileId(id), *file, name);
     loader->files.emplace_back(std::move(cbcFile));
     loader->rafs.emplace_back(std::move(file));
     return true;
 }
 
-Engine Loader::Build() {
-    return Engine(new Engine::Impl(
-        std::move(loader->files),
-        std::move(loader->rafs)
-    ));
-}
+Engine Loader::Build() { return Engine(new Engine::Impl(std::move(loader->files), std::move(loader->rafs))); }
 
-Engine::~Engine() {
-    delete impl;
-}
+Engine::~Engine() { delete impl; }
 
 } // namespace Engine

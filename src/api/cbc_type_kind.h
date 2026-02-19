@@ -1,10 +1,9 @@
 #pragma once
 
 #include <cstdint>
-#include <string_view>
-#include <stdexcept>
 #include <sstream>
-
+#include <stdexcept>
+#include <string_view>
 
 namespace API {
 
@@ -34,40 +33,22 @@ public:
         VA,      // 0x14
         TTI,     // 0x15
     };
-    static_assert(INVALID == 0);
 
+    static_assert(INVALID == 0);
 
     constexpr CbcTypeKind(const Value value) : value(value) {}
 
-    inline constexpr bool IsFloatingPoint() const
-    {
-        return value == F32 || value == F64;
-    }
+    inline constexpr bool IsFloatingPoint() const { return value == F32 || value == F64; }
 
-    inline constexpr bool IsNullableReference() const
-    {
-        return value == REF;
-    }
+    inline constexpr bool IsNullableReference() const { return value == REF; }
 
-    inline constexpr bool IsNonNullableReference() const
-    {
-        return value == NNREF;
-    }
+    inline constexpr bool IsNonNullableReference() const { return value == NNREF; }
 
-    inline constexpr bool IsReference() const
-    {
-        return IsNullableReference() || IsNonNullableReference();
-    }
+    inline constexpr bool IsReference() const { return IsNullableReference() || IsNonNullableReference(); }
 
-    inline constexpr bool IsVArray() const
-    {
-        return value == VA;
-    }
+    inline constexpr bool IsVArray() const { return value == VA; }
 
-    inline constexpr bool IsRecord() const
-    {
-        return value == REC || IsVArray();
-    }
+    inline constexpr bool IsRecord() const { return value == REC || IsVArray(); }
 
     constexpr bool IsPrimitive() const
     {
@@ -87,23 +68,29 @@ public:
             case U64:
             case IN:
             case UN:
-            case F64:
-                return true;
+            case F64:  return true;
 
-            default:
-                return false;
+            default: return false;
         }
     }
 
     bool IsSigned() const
     {
         switch (value) {
-            case I8: case I16: case I32: case I64: case IN: return true;
-            case U8: case U16: case U32: case U64: case UN: return false;
+            case I8:
+            case I16:
+            case I32:
+            case I64:
+            case IN:  return true;
+            case U8:
+            case U16:
+            case U32:
+            case U64:
+            case UN:  return false;
 
             default: {
                 std::stringstream msg;
-                msg <<  "Should not reach here: unexpected type kind " << value;
+                msg << "Should not reach here: unexpected type kind " << value;
                 throw std::runtime_error(msg.str());
             }
         }
@@ -145,17 +132,13 @@ public:
 
             default: {
                 std::stringstream msg;
-                msg <<  "Should not reach here: unexpected type kind " << value;
+                msg << "Should not reach here: unexpected type kind " << value;
                 throw std::runtime_error(msg.str());
             }
-
         }
     }
 
-    inline constexpr operator Value() const
-    {
-        return  value;
-    }
+    inline constexpr operator Value() const { return value; }
 
     std::string_view ToString() const
     {
@@ -185,18 +168,16 @@ public:
 
             default: {
                 std::stringstream msg;
-                msg <<  "Should not reach here: unexpected type kind " << value;
+                msg << "Should not reach here: unexpected type kind " << value;
                 throw std::runtime_error(msg.str());
             }
         }
     }
 
 private:
+    static constexpr Value LAST = TTI;
 
-   static constexpr Value LAST = TTI;
-
-   Value value;
-
+    Value value;
 };
 
 } // namespace API

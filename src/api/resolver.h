@@ -1,18 +1,16 @@
 #pragma once
 
-#include "type.h"
-#include "term.h"
 #include "field.h"
-#include "method.h"
 #include "index.h"
+#include "method.h"
+#include "term.h"
+#include "type.h"
 #include <optional>
-
 
 namespace API {
 
 class Resolver {
 public:
-
     virtual Type* Resolve(Index<Type> index) = 0;
 
     virtual Term* Resolve(Index<Term> index) = 0;
@@ -27,6 +25,5 @@ public:
 
     virtual std::optional<Type*> TypeOf(Term* term) = 0;
 };
-
 
 } // namespace API

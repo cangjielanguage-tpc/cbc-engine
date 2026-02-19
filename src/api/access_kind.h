@@ -3,12 +3,10 @@
 #include <cstdint>
 #include <string_view>
 
-
 namespace API {
 
 struct AccessKind {
 public:
-
     enum Value : uint8_t {
         INVALID,
         PUBLIC,
@@ -20,10 +18,7 @@ public:
 
     constexpr AccessKind(const Value value) : value(value) {}
 
-    constexpr operator Value() const
-    {
-        return  value;
-    }
+    constexpr operator Value() const { return value; }
 
     constexpr std::string_view const ToString()
     {
@@ -39,6 +34,5 @@ public:
 private:
     Value value;
 };
-
 
 } // namespace API

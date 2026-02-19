@@ -21,14 +21,12 @@ struct LiteralTable {
     std::size_t _byteSize;
     uint8_t _table[]; // tail array
 
-    std::size_t size() const {
-        return _byteSize / LITERAL_SIZE;
-    }
+    std::size_t size() const { return _byteSize / LITERAL_SIZE; }
 
     Literal const& operator[](std::size_t i) const;
     Literal const& at(std::size_t i) const;
 };
 
-} // Interpretation
+} // namespace Interpretation
 
 #endif // INTERPRETER_LITERALS_H

@@ -1,17 +1,17 @@
 #pragma once
 
-#include <vector>
-#include <functional>
 #include <cstdint>
-#include <memory_resource>
+#include <functional>
 #include <memory>
+#include <memory_resource>
+#include <vector>
 
-#include "utils/assertion.h"
-#include "cbc/isa.h"
-#include "cbc/emitter/symbols.h"
 #include "cbc/emitter/segment.h"
-#include "interpreter/code.h"
+#include "cbc/emitter/symbols.h"
+#include "cbc/isa.h"
 #include "encoding_rt.h"
+#include "interpreter/code.h"
+#include "utils/assertion.h"
 
 namespace Cbc {
 namespace Emitter {
@@ -26,41 +26,38 @@ struct EmitterSnapshot {
 
 class Emitter {
 public:
-    using Width = Format::Width;
-    using CC = Format::CC;
+    using Width  = Format::Width;
+    using CC     = Format::CC;
     using Common = Format::Common;
-    using Bits = Format::Bits;
+    using Bits   = Format::Bits;
 
     class MemSpace {
     public:
-        MemSpace(Emitter& _emitter)
-            : segment(_emitter.segment), symbols(_emitter.symbols), emitter(_emitter) {}
+        MemSpace(Emitter& _emitter) : segment(_emitter.segment), symbols(_emitter.symbols), emitter(_emitter) {}
 
         void Offset(uint64_t offset);
         void OffsetReg(IReg reg);
 
         // tail instructions
-        void LoadObj (Format::LoadAccessKind  ldk, Format::Reg dst, IReg base);
+        void LoadObj(Format::LoadAccessKind ldk, Format::Reg dst, IReg base);
         void StoreObj(Format::StoreAccessKind stk, Format::Reg src, IReg base);
 
-        void LoadRec (Format::LoadAccessKind  ldk, Format::Reg dst, IReg base);
+        void LoadRec(Format::LoadAccessKind ldk, Format::Reg dst, IReg base);
         void StoreRec(Format::StoreAccessKind stk, Format::Reg src, IReg base);
 
-        void LoadFrame (Format::LoadAccessKind  ldk, Format::Reg dst);
+        void LoadFrame(Format::LoadAccessKind ldk, Format::Reg dst);
         void StoreFrame(Format::StoreAccessKind stk, Format::Reg src);
 
     private:
-
-        template <typename AccessKind>
-        void LoadStore(AccessKind akind, Format::Reg v, IReg base, RT::MemOpcode opc)
+        template <typename AccessKind> void LoadStore(AccessKind akind, Format::Reg v, IReg base, RT::MemOpcode opc)
         {
-            Encode(segment, RT::M2rr {
-                .opc = opc,
-                .rr = Format::RR {
-                    .x = v,
-                    .y = base
-                },
-            });
+            Encode(
+                segment,
+                RT::M2rr {
+                    .opc = opc,
+                    .rr  = Format::RR { .x = v, .y = base },
+                }
+            );
         }
 
         Segment& segment;
@@ -85,34 +82,34 @@ public:
     void Apply(EmitterSnapshot snapshot);
 
     void Binary(Format::Common op, Format::Width width, IReg d, IReg l, IReg r);
-    void Add (Width width, IReg d, IReg l, IReg r);
-    void Sub (Width width, IReg d, IReg l, IReg r);
-    void Mul (Width width, IReg d, IReg l, IReg r);
-    void And (Width width, IReg d, IReg l, IReg r);
-    void Or  (Width width, IReg d, IReg l, IReg r);
-    void Xor (Width width, IReg d, IReg l, IReg r);
-    void Div (Width width, IReg d, IReg l, IReg r);
-    void Rem (Width width, IReg d, IReg l, IReg r);
+    void Add(Width width, IReg d, IReg l, IReg r);
+    void Sub(Width width, IReg d, IReg l, IReg r);
+    void Mul(Width width, IReg d, IReg l, IReg r);
+    void And(Width width, IReg d, IReg l, IReg r);
+    void Or(Width width, IReg d, IReg l, IReg r);
+    void Xor(Width width, IReg d, IReg l, IReg r);
+    void Div(Width width, IReg d, IReg l, IReg r);
+    void Rem(Width width, IReg d, IReg l, IReg r);
     void UDiv(Width width, IReg d, IReg l, IReg r);
     void URem(Width width, IReg d, IReg l, IReg r);
-    void Lsl (Width width, IReg d, IReg l, IReg r);
-    void Lsr (Width width, IReg d, IReg l, IReg r);
-    void Asr (Width width, IReg d, IReg l, IReg r);
+    void Lsl(Width width, IReg d, IReg l, IReg r);
+    void Lsr(Width width, IReg d, IReg l, IReg r);
+    void Asr(Width width, IReg d, IReg l, IReg r);
 
     void BinaryImm(Format::Common op, Format::Width width, IReg d, IReg l, uint64_t imm);
-    void AddI (Width width, IReg d, IReg l, uint64_t imm);
-    void SubI (Width width, IReg d, IReg l, uint64_t imm);
-    void MulI (Width width, IReg d, IReg l, uint64_t imm);
-    void AndI (Width width, IReg d, IReg l, uint64_t imm);
-    void OrI  (Width width, IReg d, IReg l, uint64_t imm);
-    void XorI (Width width, IReg d, IReg l, uint64_t imm);
-    void DivI (Width width, IReg d, IReg l, uint64_t imm);
-    void RemI (Width width, IReg d, IReg l, uint64_t imm);
+    void AddI(Width width, IReg d, IReg l, uint64_t imm);
+    void SubI(Width width, IReg d, IReg l, uint64_t imm);
+    void MulI(Width width, IReg d, IReg l, uint64_t imm);
+    void AndI(Width width, IReg d, IReg l, uint64_t imm);
+    void OrI(Width width, IReg d, IReg l, uint64_t imm);
+    void XorI(Width width, IReg d, IReg l, uint64_t imm);
+    void DivI(Width width, IReg d, IReg l, uint64_t imm);
+    void RemI(Width width, IReg d, IReg l, uint64_t imm);
     void UDivI(Width width, IReg d, IReg l, uint64_t imm);
     void URemI(Width width, IReg d, IReg l, uint64_t imm);
-    void LslI (Width width, IReg d, IReg l, uint64_t imm);
-    void LsrI (Width width, IReg d, IReg l, uint64_t imm);
-    void AsrI (Width width, IReg d, IReg l, uint64_t imm);
+    void LslI(Width width, IReg d, IReg l, uint64_t imm);
+    void LsrI(Width width, IReg d, IReg l, uint64_t imm);
+    void AsrI(Width width, IReg d, IReg l, uint64_t imm);
 
     void Add(Width width, FReg d, FReg l, FReg r);
     void Sub(Width width, FReg d, FReg l, FReg r);
@@ -134,13 +131,13 @@ public:
     void Jmp(Label label);
 
     void NewObj(IReg d, Symbol sym);
-    void LoadObj (Format::LoadAccessKind  ldk, Format::Reg dst, IReg base, uint32_t offset);
+    void LoadObj(Format::LoadAccessKind ldk, Format::Reg dst, IReg base, uint32_t offset);
     void StoreObj(Format::StoreAccessKind stk, Format::Reg src, IReg base, uint32_t offset);
 
-    void LoadRec (Format::LoadAccessKind  ldk, Format::Reg dst, IReg base, uint32_t offset);
+    void LoadRec(Format::LoadAccessKind ldk, Format::Reg dst, IReg base, uint32_t offset);
     void StoreRec(Format::StoreAccessKind stk, Format::Reg src, IReg base, uint32_t offset);
 
-    void LoadFrame (Format::LoadAccessKind  ldk, Format::Reg dst, uint32_t offset);
+    void LoadFrame(Format::LoadAccessKind ldk, Format::Reg dst, uint32_t offset);
     void StoreFrame(Format::StoreAccessKind stk, Format::Reg src, uint32_t offset);
 
     MemSpace OpenMemSpace();

@@ -3,7 +3,6 @@
 #include "cbc_type_kind.h"
 #include "engine/symlevel/term_val.h"
 
-
 namespace API {
 
 /**
@@ -11,8 +10,7 @@ namespace API {
  */
 class Term {
 public:
-
-    Term(Symlevel::TermValue term): term(term) {}
+    Term(Symlevel::TermValue term) : term(term) {}
 
     CbcTypeKind Kind();
 
@@ -23,6 +21,5 @@ public:
 private:
     Symlevel::TermValue term;
 };
-
 
 } // namespace API

@@ -12,26 +12,28 @@ namespace Interpretation {
 class ThreadHandle {
 public:
     ThreadHandle(void* _value) : value(_value) {}
+
     operator void*() const { return value; }
 
 private:
     void* const value;
 };
 
-template <typename RT>
-class TypeInfo {
+template <typename RT> class TypeInfo {
 public:
-    TypeInfo(uintptr_t _value) : value((void *)_value) {}
+    TypeInfo(uintptr_t _value) : value((void*)_value) {}
+
     TypeInfo(void* _value) : value(_value) {}
+
     operator void*() const { return value; }
 
 private:
     void* const value;
 };
 
-template <typename RT>
-class RuntimeInterface {
+template <typename RT> class RuntimeInterface {
     using Reference = Value::Reference;
+
 public:
     static Reference NewObj(TypeInfo<RT> type, ThreadHandle th);
     static Reference NewArray(TypeInfo<RT> type, size_t count, ThreadHandle th);
@@ -47,5 +49,5 @@ public:
     static Ectype* GetEctype(ThreadHandle th);
 };
 
-}
+} // namespace Interpretation
 #endif // INTERPRETATION_RUNTIME_H

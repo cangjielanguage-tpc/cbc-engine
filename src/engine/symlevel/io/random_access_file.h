@@ -1,10 +1,9 @@
 #pragma once
 
 #include <cstdint>
-#include <vector>
 #include <filesystem>
 #include <stdexcept>
-
+#include <vector>
 
 namespace IO {
 
@@ -13,7 +12,6 @@ namespace IO {
  */
 class RandomAccessFile {
 public:
-
     virtual ~RandomAccessFile() = default;
 
     /**
