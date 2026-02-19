@@ -47,5 +47,5 @@ private:
     Emitter::Emitter& e;
     std::unordered_map<uint8_t*, Emitter::Label> instructionLabel;
 };
-    
+
 } // namespace Cbc

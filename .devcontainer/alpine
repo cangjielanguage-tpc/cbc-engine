@@ -28,7 +28,8 @@ RUN apk add --no-cache \
     lldb \
     make \
     cmake \
-    gdb
+    gdb \
+    clang21-extra-tools
 
 ENV CXX=/usr/bin/clang++
 ENV CC=/usr/bin/clang

@@ -1,0 +1,11 @@
+#!/bin/bash
+
+if ! git clang-format --quiet --staged; then
+    echo "ERROR. Staged files are not formatted."
+    echo "Please, format staged files with clang-format."
+    echo "You can do it by:"
+    echo "    1. Running \"git clang-format\" to format only staged changes."
+    echo "    2. Running \"./format.sh\" to format every single file."
+    echo "    3. Using IDE"
+    exit 1
+fi

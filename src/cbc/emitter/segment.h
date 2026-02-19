@@ -13,7 +13,7 @@ struct SegmentSnapshot {
 
 class ByteBuffer {
 public:
-    virtual void AddW8(uint32_t value) = 0;
+    virtual void AddW8(uint32_t value)  = 0;
     virtual void AddW16(uint32_t value) = 0;
     virtual void AddW32(uint32_t value) = 0;
     virtual void AddW64(uint64_t value) = 0;
@@ -24,10 +24,12 @@ public:
     class View : public ByteBuffer {
     public:
         View(Segment& _segment, size_t _position) : segment(_segment), position(_position) {}
+
         void AddW8(uint32_t value);
         void AddW16(uint32_t value);
         void AddW32(uint32_t value);
         void AddW64(uint64_t value);
+
     private:
         Segment& segment;
         size_t position;
@@ -50,11 +52,12 @@ public:
     void Apply(SegmentSnapshot snapshot);
 
     std::vector<uint8_t> Finish();
+
 private:
     std::vector<uint8_t> data;
 };
 
-}
-}
+} // namespace Emitter
+} // namespace Cbc
 
 #endif // CBC_EMITTER_SEGMENT_H

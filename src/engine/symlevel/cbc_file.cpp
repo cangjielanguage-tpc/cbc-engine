@@ -5,9 +5,7 @@
 
 namespace Symlevel {
 
-template <typename T> std::vector<T> ReadEntries(
-        IO::StreamFileReader& reader,
-        IO::FileId fileId)
+template <typename T> std::vector<T> ReadEntries(IO::StreamFileReader& reader, IO::FileId fileId)
 {
     std::vector<T> vector;
     auto count = reader.ReadU32();
@@ -22,12 +20,12 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
 {
     IO::StreamFileReader reader(file, sizeof(CbcFile::MAGIC));
 
-    auto terms = ReadEntries<TermValue>(reader, fileId);
-    auto typeDefs = ReadEntries<TypeDefinition>(reader, fileId);
+    auto terms      = ReadEntries<TermValue>(reader, fileId);
+    auto typeDefs   = ReadEntries<TypeDefinition>(reader, fileId);
     auto methodDefs = ReadEntries<MethodDefinition>(reader, fileId);
     auto methodRefs = ReadEntries<MethodReference>(reader, fileId);
-    auto fieldDefs = ReadEntries<FieldDefinition>(reader, fileId);
-    auto codes = ReadEntries<Code>(reader, fileId);
+    auto fieldDefs  = ReadEntries<FieldDefinition>(reader, fileId);
+    auto codes      = ReadEntries<Code>(reader, fileId);
 
     return CbcFile(
         fileId,

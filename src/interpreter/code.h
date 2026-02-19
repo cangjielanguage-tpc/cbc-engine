@@ -1,17 +1,17 @@
 #ifndef INTERPRETER_CODE_H
 #define INTERPRETER_CODE_H
 
-#include <cstdint>
 #include "literals.h"
+#include <cstdint>
 
 namespace Interpretation {
 
 struct Code {
     std::size_t bytecodeSize;
     uint8_t* bytecode;
-    Interpretation::LiteralTable *literals;
+    Interpretation::LiteralTable* literals;
 };
 
-} // Interpretation
+} // namespace Interpretation
 
 #endif // INTERPRETER_CODE_H

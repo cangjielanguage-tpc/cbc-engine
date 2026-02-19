@@ -10,7 +10,8 @@ namespace Symlevel {
 
 template <typename T> class Reader {
 public:
-    static T Read(Engine::Session &session, IO::FileId fileId, Offset<T> offset) {
+    static T Read(Engine::Session& session, IO::FileId fileId, Offset<T> offset)
+    {
         IO::RandomAccessFile* raf = session.FileOf(fileId);
         IO::StreamFileReader reader(raf, offset.value);
         return T::Parse(fileId, reader);

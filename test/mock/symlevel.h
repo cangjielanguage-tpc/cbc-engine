@@ -17,7 +17,6 @@ public:
     MethodFlags Flags() override { return MethodFlags(); }
 
     std::string_view FullName() override { return "fake_method"; }
-
 };
 
 } // namespace Fake

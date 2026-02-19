@@ -11,13 +11,9 @@
 static LimitedHeap<16384> heap;
 
 class EmitTest : public testing::Test {
-    void SetUp() override {
-        heap.Reset();
-    }
+    void SetUp() override { heap.Reset(); }
 
-    void TearDown() override {
-
-    }
+    void TearDown() override {}
 };
 
 namespace Cbc {
@@ -30,7 +26,8 @@ static constexpr int MIN_I12 = -Cbc::RT::LIT_TABLE_SIZE / 2;
 
 using namespace Cbc::Format;
 
-TEST(EmitTest, Simple_ArithB2rr) {
+TEST(EmitTest, Simple_ArithB2rr)
+{
     Emitter e;
     e.Add(Width::W32, IReg::IR1, IReg::IR1, IReg::IR2);
     e.Ret();
@@ -41,7 +38,8 @@ TEST(EmitTest, Simple_ArithB2rr) {
     EXPECT_EQ(res.u32, 3);
 }
 
-TEST(EmitTest, Simple_Mov) {
+TEST(EmitTest, Simple_Mov)
+{
     Emitter e;
     e.MovImm(Width::W64, IReg::IR2, 0x7);
     e.Mov(IReg::IR1, IReg::IR2);
@@ -53,7 +51,8 @@ TEST(EmitTest, Simple_Mov) {
     EXPECT_EQ(res.u64, 0x7);
 }
 
-TEST(EmitTest, Simple_MovF2I) {
+TEST(EmitTest, Simple_MovF2I)
+{
     Emitter e;
     e.FMovI32(FReg::FR0, 12345.678);
     e.Mov(IReg::IR1, FReg::FR0);
@@ -65,7 +64,8 @@ TEST(EmitTest, Simple_MovF2I) {
     EXPECT_EQ(res.u32, 0x4640e6b6);
 }
 
-TEST(EmitTest, Simple_FMovI32) {
+TEST(EmitTest, Simple_FMovI32)
+{
     Emitter e;
     e.FMovI32(FReg::FR0, 0.5);
     e.Ret();
@@ -76,7 +76,8 @@ TEST(EmitTest, Simple_FMovI32) {
     EXPECT_EQ(res.f32, 0.5);
 }
 
-TEST(EmitTest, Simple_FMovI64) {
+TEST(EmitTest, Simple_FMovI64)
+{
     Emitter e;
     e.FMovI64(FReg::FR10, 0.25);
     e.Mov(FReg::FR0, FReg::FR10);
@@ -88,7 +89,8 @@ TEST(EmitTest, Simple_FMovI64) {
     EXPECT_EQ(res.f64, 0.25);
 }
 
-TEST(EmitTest, Simple_ArithB3xrrr) {
+TEST(EmitTest, Simple_ArithB3xrrr)
+{
     Emitter e;
     e.Add(Width::W32, IReg::IR1, IReg::IR2, IReg::IR1);
     e.Ret();
@@ -99,7 +101,8 @@ TEST(EmitTest, Simple_ArithB3xrrr) {
     EXPECT_EQ(res.u32, 3);
 }
 
-TEST(EmitTest, Simple_ArithB4xi12rr) {
+TEST(EmitTest, Simple_ArithB4xi12rr)
+{
     Emitter e;
     e.AddI(Width::W32, IReg::IR1, IReg::IR2, 0xff);
     e.AddI(Width::W32, IReg::IR1, IReg::IR1, 0xff00); // through literal
@@ -112,7 +115,8 @@ TEST(EmitTest, Simple_ArithB4xi12rr) {
     EXPECT_EQ(res.u32, 0xf001);
 }
 
-TEST(EmitTest, Simple_ArithFP) {
+TEST(EmitTest, Simple_ArithFP)
+{
     Emitter e;
     e.FMovI32(FReg::FR0, 12.5);
     e.FMovI32(FReg::FR1, 2.5);
@@ -124,13 +128,14 @@ TEST(EmitTest, Simple_ArithFP) {
     e.Mul(Width::W32, FReg::FR0, FReg::FR0, FReg::FR3);
     e.Ret();
     auto code = e.Build(heap);
-    EXPECT_EQ(6*4 + 3*4 + 1, code.bytecodeSize);
+    EXPECT_EQ(6 * 4 + 3 * 4 + 1, code.bytecodeSize);
 
     auto res = InterpretFPRes(code, U32(1), U32(2));
     EXPECT_EQ(res.f32, 2.75);
 }
 
-TEST(EmitTest, Literals_None) {
+TEST(EmitTest, Literals_None)
+{
     Emitter e;
     auto label = e.NewLabel();
     e.Bcc(CC::EQ, Width::W32, IReg::IR1, IReg::IR1, label);
@@ -144,7 +149,8 @@ TEST(EmitTest, Literals_None) {
     EXPECT_EQ(code.literals->size(), 0);
 }
 
-TEST(EmitTest, Literals_Label) {
+TEST(EmitTest, Literals_Label)
+{
     Emitter e;
     auto label = e.NewLabel();
     e.Bcc(CC::EQ, Width::W32, IReg::IR1, IReg::IR1, label);
@@ -158,7 +164,8 @@ TEST(EmitTest, Literals_Label) {
     EXPECT_EQ(code.literals->size(), 1);
 }
 
-TEST(EmitTest, Literals_NoneBackEdge) {
+TEST(EmitTest, Literals_NoneBackEdge)
+{
     Emitter e;
     auto label = e.NewLabel();
     e.Bind(label);
@@ -172,7 +179,8 @@ TEST(EmitTest, Literals_NoneBackEdge) {
     EXPECT_EQ(code.literals->size(), 0);
 }
 
-TEST(EmitTest, Literals_LabelBackEdge) {
+TEST(EmitTest, Literals_LabelBackEdge)
+{
     Emitter e;
     auto label = e.NewLabel();
     e.Bind(label);
@@ -186,7 +194,8 @@ TEST(EmitTest, Literals_LabelBackEdge) {
     EXPECT_EQ(code.literals->size(), 1);
 }
 
-TEST(EmitTest, Simple_Bcc) {
+TEST(EmitTest, Simple_Bcc)
+{
     Emitter e;
     auto label = e.NewLabel();
     e.Bcc(CC::EQ, Width::W32, IReg::IR1, IReg::IR2, label);
@@ -203,7 +212,8 @@ TEST(EmitTest, Simple_Bcc) {
     EXPECT_EQ(res2.u32, 3);
 }
 
-TEST(EmitTest, Simple_Bcc_Loop) {
+TEST(EmitTest, Simple_Bcc_Loop)
+{
     Emitter e;
     auto loop = e.NewLabel();
     e.Bind(loop);
@@ -217,7 +227,8 @@ TEST(EmitTest, Simple_Bcc_Loop) {
     EXPECT_EQ(res.u32, 100);
 }
 
-TEST(EmitTest, Simple_Jmp) {
+TEST(EmitTest, Simple_Jmp)
+{
     Emitter e;
     auto l1 = e.NewLabel();
     auto l2 = e.NewLabel();
@@ -242,11 +253,12 @@ TEST(EmitTest, Simple_Jmp) {
     EXPECT_EQ(res.u32, 160);
 }
 
-TEST(EmitTest, Simple_BccImm) {
+TEST(EmitTest, Simple_BccImm)
+{
     Emitter e;
     auto loop = e.NewLabel();
-    auto fwd = e.NewLabel();
-    auto end = e.NewLabel();
+    auto fwd  = e.NewLabel();
+    auto end  = e.NewLabel();
     e.Bind(loop);
     e.AddI(Width::W32, IReg::IR1, IReg::IR1, 1);
     e.BccImm(CC::NE, Width::W32, IReg::IR1, 0xffff, fwd); // lit value, lit offset
@@ -254,7 +266,7 @@ TEST(EmitTest, Simple_BccImm) {
         e.Ret();
     }
     e.Bind(fwd);
-    e.BccImm(CC::LT, Width::W32, IReg::IR1, 100, loop); // lit neg offset
+    e.BccImm(CC::LT, Width::W32, IReg::IR1, 100, loop);    // lit neg offset
     e.BccImm(CC::LT, Width::W32, IReg::IR1, -0xffff, end); // lit neg value, false res
     e.AddI(Width::W32, IReg::IR1, IReg::IR1, 1);
     e.BccImm(CC::GE, Width::W32, IReg::IR1, -5, end); // neg value

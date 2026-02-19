@@ -2,10 +2,9 @@
 
 #include <cstdint>
 
-
 namespace API {
 
-template<typename  T> struct Index {
+template <typename T> struct Index {
     int16_t index;
 };
 

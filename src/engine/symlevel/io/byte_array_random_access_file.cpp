@@ -18,5 +18,4 @@ size_t ByteArrayRandomAccessFile::Peek(char* array, size_t position, size_t leng
     return realLen;
 };
 
-
 } // namespace IO

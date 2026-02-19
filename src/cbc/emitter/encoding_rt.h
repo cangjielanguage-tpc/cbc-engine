@@ -1,8 +1,8 @@
 #ifndef CBC_EMITTER_ENCODING_RT
 #define CBC_EMITTER_ENCODING_RT
 
-#include "segment.h"
 #include "cbc/isa_rt.h"
+#include "segment.h"
 
 namespace Cbc {
 namespace Emitter {

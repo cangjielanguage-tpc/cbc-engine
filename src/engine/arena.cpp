@@ -1,20 +1,22 @@
-#include <cstdlib>
-#include <cstddef>
 #include "utils/assertion.h"
+#include <cstddef>
+#include <cstdlib>
 
 #include "arena.h"
 
 namespace Engine {
 
-static uintptr_t Align(uintptr_t value) {
+static uintptr_t Align(uintptr_t value)
+{
     auto alignment = alignof(std::max_align_t);
-    auto rem = value % alignment;
-    auto result = rem == 0 ? value : value + (alignment - rem);
+    auto rem       = value % alignment;
+    auto result    = rem == 0 ? value : value + (alignment - rem);
     ASSERT((result % alignment) == 0);
     return result;
 }
 
-void* Arena::DoAllocateSlow(size_t bytes) {
+void* Arena::DoAllocateSlow(size_t bytes)
+{
     static_assert(CHUNK_SIZE > sizeof(Chunk));
     static_assert(MAX_ALLOC_SIZE < CHUNK_SIZE);
 
@@ -24,8 +26,8 @@ void* Arena::DoAllocateSlow(size_t bytes) {
             throw std::bad_alloc();
         }
         Chunk* newChunk = reinterpret_cast<Chunk*>(mem);
-        newChunk->next = chunks;
-        this->chunks = newChunk;
+        newChunk->next  = chunks;
+        this->chunks    = newChunk;
 
         auto memoryStart = reinterpret_cast<uintptr_t>(newChunk->memory);
         ASSERT(memoryStart == Align(memoryStart));
@@ -38,21 +40,22 @@ void* Arena::DoAllocateSlow(size_t bytes) {
         throw std::bad_alloc();
     }
     Chunk* newChunk = reinterpret_cast<Chunk*>(mem);
-    uintptr_t end = reinterpret_cast<uintptr_t>(mem) + CHUNK_SIZE;
+    uintptr_t end   = reinterpret_cast<uintptr_t>(mem) + CHUNK_SIZE;
 
     newChunk->next = this->chunks;
-    this->chunks = newChunk;
-    this->end = end;
+    this->chunks   = newChunk;
+    this->end      = end;
 
     auto cursor = reinterpret_cast<uintptr_t>(newChunk->memory);
     ASSERT(cursor == Align(cursor));
     auto newCursor = Align(cursor + bytes);
-    this->cursor = newCursor;
+    this->cursor   = newCursor;
 
     return reinterpret_cast<void*>(cursor);
 }
 
-void* Arena::do_allocate(size_t bytes, size_t alignment) {
+void* Arena::do_allocate(size_t bytes, size_t alignment)
+{
     ASSERT(this->cursor == Align(this->cursor));
 
     auto newCursor = Align(this->cursor + bytes);
@@ -60,12 +63,13 @@ void* Arena::do_allocate(size_t bytes, size_t alignment) {
         return DoAllocateSlow(bytes);
     }
 
-    auto result = reinterpret_cast<void*>(cursor);
+    auto result  = reinterpret_cast<void*>(cursor);
     this->cursor = newCursor;
     return result;
 }
 
-Arena::~Arena() {
+Arena::~Arena()
+{
     auto chunk = chunks;
     while (chunk) {
         auto next = chunk->next;
@@ -74,4 +78,4 @@ Arena::~Arena() {
     }
 }
 
-} // namespace Session
+} // namespace Engine

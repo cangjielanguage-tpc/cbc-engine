@@ -1,8 +1,8 @@
 #pragma once
 
+#include "engine.h"
 #include "symlevel/io/random_access_file.h"
 #include "symlevel/string.h"
-#include "engine.h"
 
 namespace Engine {
 
@@ -27,8 +27,10 @@ public:
 
     bool Load(std::unique_ptr<IO::RandomAccessFile> file, std::string_view name);
     Engine Build();
+
 private:
     class Impl;
+
     Loader(Impl* loader) : loader(loader) {}
 
     Impl* loader;
