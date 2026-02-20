@@ -4,6 +4,7 @@
 #include "engine/symlevel/io/byte_array_random_access_file.h"
 #include "engine/symlevel/reader.h"
 #include "engine/symlevel/string.h"
+#include "testutils.h"
 
 #define UNIT_TEST_MODE 1
 
@@ -41,3 +42,5 @@ TEST(CbcTest, Empty)
 
     ASSERT_EQ(str, "abc");
 }
+
+TEST_ASM(CbcTest, Simple) { auto file = OpenAsm("simple.asm"); }

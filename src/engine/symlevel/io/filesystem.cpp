@@ -3,7 +3,7 @@
 
 namespace IO {
 
-RandomAccessFile* OpenFile(std::filesystem::path path)
+std::unique_ptr<RandomAccessFile> OpenFile(std::filesystem::path path)
 {
     FILE* file = fopen(path.c_str(), "rb");
     if (!file) {
@@ -31,7 +31,7 @@ RandomAccessFile* OpenFile(std::filesystem::path path)
         throw std::runtime_error("read error " + path.string());
     }
 
-    return new ByteArrayRandomAccessFile(data, fileLength);
+    return std::make_unique<ByteArrayRandomAccessFile>(data, fileLength);
 };
 
 } // namespace IO
