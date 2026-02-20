@@ -281,5 +281,17 @@ TEST(EmitTest, Simple_BccImm)
     EXPECT_EQ(res.u32, 101);
 }
 
+TEST(EmitTest, Simple_Neg)
+{
+    Emitter e;
+    e.Neg(Width::W32, IReg::IR1, IReg::IR2);
+    e.Ret();
+
+    auto code = e.Build(heap);
+
+    auto res = Interpret(code, U32(0), U32(10));
+    EXPECT_EQ(res.u32, -10);
+}
+
 } // namespace Emitter
 } // namespace Cbc

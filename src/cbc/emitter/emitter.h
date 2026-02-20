@@ -96,6 +96,8 @@ public:
     void Lsr(Width width, IReg d, IReg l, IReg r);
     void Asr(Width width, IReg d, IReg l, IReg r);
 
+    void Neg(Width width, IReg d, IReg s);
+
     void BinaryImm(Format::Common op, Format::Width width, IReg d, IReg l, uint64_t imm);
     void AddI(Width width, IReg d, IReg l, uint64_t imm);
     void SubI(Width width, IReg d, IReg l, uint64_t imm);

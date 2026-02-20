@@ -282,6 +282,8 @@ void Emitter::Lsr(Width width, IReg d, IReg l, IReg r) { Binary(Common::LSR, wid
 
 void Emitter::Asr(Width width, IReg d, IReg l, IReg r) { Binary(Common::ASR, width, d, l, r); }
 
+void Emitter::Neg(Width width, IReg d, IReg s) { Binary(Common::SUB, width, d, IReg::IRZ, s); }
+
 void Emitter::BinaryImm(Format::Common op, Format::Width width, IReg d, IReg l, uint64_t imm)
 {
     assert(width == Format::Width::W32 || width == Format::Width::W64);
