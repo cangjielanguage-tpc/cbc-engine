@@ -15,7 +15,7 @@ set(TEST_RESOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/resources")
 
 add_executable(cbc_test "${TEST_SOURCES}")
 
-if (HAVE_ASM)
+if(HAVE_ASM)
   target_compile_definitions(cbc_test PRIVATE HAVE_ASM)
 endif()
 
