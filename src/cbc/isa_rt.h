@@ -1,5 +1,4 @@
-#ifndef CBC_ISA_RT_H
-#define CBC_ISA_RT_H
+#pragma once
 
 #include "decoder.h"
 #include "isa.h"
@@ -45,6 +44,8 @@ public:
         BINI64L, // B4xi12rr
         FBIN32,  // B3xrrr
         FBIN64,  // B3xrrr
+        FUN32,   // B3xrrr
+        FUN64,   // B3xrrr
 
         NEWOBJ,    // B3xi12,
         LOAD_OBJ,  // B4xi12rr
@@ -436,5 +437,3 @@ struct M2xr {
 
 } // namespace RT
 } // namespace Cbc
-
-#endif // CBC_ISA_RT_H

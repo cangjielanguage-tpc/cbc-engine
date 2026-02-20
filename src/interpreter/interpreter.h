@@ -1,5 +1,4 @@
-#ifndef INTERPRETER_INTERPRETER_H
-#define INTERPRETER_INTERPRETER_H
+#pragma once
 
 #include "ectype.h"
 #include "frame.h"
@@ -48,6 +47,16 @@ public:
     template <Width::Value width> inline bool Binary(FloatOperations::Value fpOp, FReg d, FReg l, FReg r)
     {
         auto res = ArithFP<width>(fpOp, ectype->GetPrimitive(l), ectype->GetPrimitive(r));
+        if (res.successful) {
+            ectype->Put(d, res.result);
+            return true;
+        }
+        return false;
+    }
+
+    template <Width::Value width> inline bool Unary(FloatOperations::Value fpOp, FReg d, FReg s)
+    {
+        auto res = ArithFP<width>(fpOp, ectype->GetPrimitive(s));
         if (res.successful) {
             ectype->Put(d, res.result);
             return true;
@@ -228,4 +237,3 @@ private:
 };
 
 } // namespace Interpretation
-#endif // INTERPRETER_INTERPRETER_H

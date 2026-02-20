@@ -373,6 +373,32 @@ void Emitter::Mul(Width width, FReg d, FReg l, FReg r) { Binary(FloatOperations:
 
 void Emitter::Div(Width width, FReg d, FReg l, FReg r) { Binary(FloatOperations::FDIV, width, d, l, r); }
 
+void Emitter::Unary(Format::FloatOperations op, Format::Width width, FReg d, FReg s)
+{
+    assert(width == Format::Width::W32 || width == Format::Width::W64);
+
+    auto opcode = width == Format::Width::W32 ? RT::Opcode::FUN32 : RT::Opcode::FUN64;
+
+    Encode(
+        segment,
+        RT::B3xrrr {
+            .opc = opcode,
+            .xr =
+                Format::XR {
+                    .imm = Format::Imm4(op),
+                    .r   = d,
+                },
+            .rr = { .x = d, .y = s },
+        }
+    );
+}
+
+void Emitter::Sqrt(Width width, FReg d, FReg s) { Unary(FloatOperations::FSQRT, width, d, s); }
+
+void Emitter::Abs(Width width, FReg d, FReg s) { Unary(FloatOperations::FABS, width, d, s); }
+
+void Emitter::Neg(Width width, FReg d, FReg s) { Unary(FloatOperations::FNEG, width, d, s); }
+
 void Emitter::Mov(RT::Opcode opcode, Format::Reg d, Format::Reg s)
 {
     Encode(segment, RT::B2rr { .opc = opcode, .rr = Format::RR { .x = d, .y = s } });

@@ -72,7 +72,7 @@ TEST(EmitTest, Simple_FMovI32)
     auto code = e.Build(heap);
     EXPECT_EQ(7, code.bytecodeSize);
 
-    auto res = InterpretFPRes(code, U32(0), U32(0));
+    auto res = InterpretFPRes(code, F32(0), F32(0));
     EXPECT_EQ(res.f32, 0.5);
 }
 
@@ -85,7 +85,7 @@ TEST(EmitTest, Simple_FMovI64)
     auto code = e.Build(heap);
     EXPECT_EQ(13, code.bytecodeSize);
 
-    auto res = InterpretFPRes(code, U32(0), U32(0));
+    auto res = InterpretFPRes(code, F32(0), F32(0));
     EXPECT_EQ(res.f64, 0.25);
 }
 
@@ -130,7 +130,7 @@ TEST(EmitTest, Simple_ArithFP)
     auto code = e.Build(heap);
     EXPECT_EQ(6 * 4 + 3 * 4 + 1, code.bytecodeSize);
 
-    auto res = InterpretFPRes(code, U32(1), U32(2));
+    auto res = InterpretFPRes(code, F32(0), F32(0));
     EXPECT_EQ(res.f32, 2.75);
 }
 
@@ -291,6 +291,53 @@ TEST(EmitTest, Simple_Neg)
 
     auto res = Interpret(code, U32(0), U32(10));
     EXPECT_EQ(res.u32, -10);
+}
+
+TEST(EmitTest, Simple_FNeg)
+{
+    Emitter e;
+    e.Neg(Width::W32, FReg::FR0, FReg::FR1);
+    e.Ret();
+
+    auto code = e.Build(heap);
+
+    float arg1 = 1.2;
+    auto res1  = InterpretFPRes(code, F32(0), F32(arg1));
+    EXPECT_EQ(res1.f32, -arg1);
+
+    float arg2 = +0.0;
+    auto res2  = InterpretFPRes(code, F32(0), F32(arg2));
+    EXPECT_EQ(res2.f32, -arg2);
+}
+
+TEST(EmitTest, Simple_FSqrt)
+{
+    Emitter e;
+    e.Sqrt(Width::W64, FReg::FR0, FReg::FR1);
+    e.Ret();
+
+    auto code = e.Build(heap);
+
+    double arg = 16.81;
+    auto res   = InterpretFPRes(code, F64(0), F64(arg));
+    EXPECT_EQ(res.f64, std::sqrt(arg));
+}
+
+TEST(EmitTest, Simple_FAbs)
+{
+    Emitter e;
+    e.Abs(Width::W64, FReg::FR0, FReg::FR1);
+    e.Ret();
+
+    auto code = e.Build(heap);
+
+    double arg1 = -1.2;
+    auto res1   = InterpretFPRes(code, F64(0), F64(arg1));
+    EXPECT_EQ(res1.f64, std::fabs(arg1));
+
+    double arg2 = -0.0;
+    auto res2   = InterpretFPRes(code, F64(0), F64(arg2));
+    EXPECT_EQ(res2.f64, +0.0);
 }
 
 } // namespace Emitter

@@ -1,6 +1,6 @@
-#ifndef MATH_H
-#define MATH_H
+#pragma once
 
+#include <cmath>
 #include <cstdint>
 
 namespace MathUtils {
@@ -75,5 +75,3 @@ static inline uint64_t RotateRight64(uint64_t value, uint32_t dist)
     return ((value >> dist) & RightNBits64(64 - dist)) | (value << (64 - dist));
 }
 } // namespace MathUtils
-
-#endif // MATH_H
