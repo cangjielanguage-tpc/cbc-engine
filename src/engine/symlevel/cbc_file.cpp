@@ -5,6 +5,7 @@
 namespace Symlevel {
 
 struct CbcFile::Impl {
+    uint32_t stringOffs;
     uint32_t fieldRefsOffs;
     uint32_t signatureOffs;
     uint32_t codeOffs;
@@ -37,6 +38,7 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
     // FIXME: offset from file start
     uint32_t addend = 12 * sizeof(uint32_t);
 
+    auto stringOffs          = addend;
     auto fieldRefsOffs       = addend + reader.ReadU32();
     auto methodRefsOffs      = addend + reader.ReadU32();
     auto signatureOffs       = addend + reader.ReadU32();
@@ -50,6 +52,7 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
     auto termTableOffs       = addend + reader.ReadU32();
 
     CbcFile::Impl impl {
+        .stringOffs          = stringOffs,
         .fieldRefsOffs       = fieldRefsOffs,
         .signatureOffs       = signatureOffs,
         .codeOffs            = codeOffs,
@@ -70,7 +73,7 @@ IO::FileId CbcFile::Id() const { return impl->id; }
 
 uint32_t CbcFile::GetCodeOffs(Offset<Code> offs) const { return offs + impl->codeOffs; }
 
-uint32_t CbcFile::GetStringOffs(Offset<String> offs) const { return offs + impl->codeOffs; }
+uint32_t CbcFile::GetStringOffs(Offset<String> offs) const { return offs + impl->stringOffs; }
 
 uint32_t CbcFile::GetTypeDefOffs(Offset<TypeDefinition> offs) const { return offs + impl->typesOffs; }
 
