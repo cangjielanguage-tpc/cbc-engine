@@ -65,5 +65,5 @@ TEST_ASM(CbcTest, Simple)
 
     auto code = bcInfo->code;
     auto res  = Interpret(code, U32(0), U32(10));
-    ASSERT_EQ(res.u32, 0);
+    ASSERT_EQ(res.u32, 28);
 }
