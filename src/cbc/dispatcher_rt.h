@@ -65,6 +65,15 @@ template <typename Handler> void InterpretationLoop(Handler handler, Decoder::By
         &&LOAD_FRAME,  // B4xi12rr
         &&STORE_FRAME, // B4xi12rr
 
+        &&SCC32,   // B3xrrr
+        &&SCC64,   // B3xrrr
+        &&FSCC32,  // B3xrrr
+        &&FSCC64,  // B3xrrr
+        &&SCCI32I, // B4xi12rr
+        &&SCCI64I, // B4xi12rr
+        &&SCCI32L, // B4xi12rr
+        &&SCCI64L, // B4xi12rr
+
         &&MEMSPACE, // B1. See `MemOpcode`
     };
 
@@ -389,6 +398,55 @@ STORE_FRAME: {
     bool successful = handler.StoreFrame(args.xi12.imm4.STK(), args.rr.x, args.xi12.imm12);
     NEXT_COND(successful);
 }
+SCC32: {
+    auto args = B3xrrr::Decode(reader);
+    handler.template SCC<Width::W32>(args.xr.imm.CC(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
+    NEXT;
+}
+SCC64: {
+    auto args = B3xrrr::Decode(reader);
+    handler.template SCC<Width::W64>(args.xr.imm.CC(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
+    NEXT;
+}
+FSCC32: {
+    auto args = B3xrrr::Decode(reader);
+    handler.template SCC<Width::W32>(args.xr.imm.CC(), args.xr.r.IR(), args.rr.x.FR(), args.rr.y.FR());
+    NEXT;
+}
+FSCC64: {
+    auto args = B3xrrr::Decode(reader);
+    handler.template SCC<Width::W64>(args.xr.imm.CC(), args.xr.r.IR(), args.rr.x.FR(), args.rr.y.FR());
+    NEXT;
+}
+SCCI32I: {
+    auto args = B4xi12rr::Decode(reader);
+    handler.template SCCImm<ImmKind::VALUE, Width::W32>(
+        args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
+    );
+    NEXT;
+}
+SCCI64I: {
+    auto args = B4xi12rr::Decode(reader);
+    handler.template SCCImm<ImmKind::VALUE, Width::W64>(
+        args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
+    );
+    NEXT;
+}
+SCCI32L: {
+    auto args = B4xi12rr::Decode(reader);
+    handler.template SCCImm<ImmKind::LITERAL, Width::W32>(
+        args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
+    );
+    NEXT;
+}
+SCCI64L: {
+    auto args = B4xi12rr::Decode(reader);
+    handler.template SCCImm<ImmKind::LITERAL, Width::W64>(
+        args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
+    );
+    NEXT;
+}
+
 MEMSPACE: {
     B1::Decode(reader);
     memspaceOffsetAcc = 0;

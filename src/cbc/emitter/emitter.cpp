@@ -284,8 +284,7 @@ void Emitter::BinaryImm(Common op, Width width, IReg d, IReg l, uint64_t imm)
 {
     assert(width == Width::W32 || width == Width::W64);
 
-    bool isImm = MathUtils::IsNBitsSigned(imm, 12);
-    if (isImm) {
+    if (MathUtils::IsNBitsSigned(imm, 12)) {
         uint16_t immediate = static_cast<uint16_t>(imm & 0xfff);
 
         auto opcode = width == Width::W32 ? RT::Opcode::BINI32I : RT::Opcode::BINI64I;
@@ -297,7 +296,7 @@ void Emitter::BinaryImm(Common op, Width width, IReg d, IReg l, uint64_t imm)
                 .xi12 =
                     XImm12 {
                         .imm4  = Imm4(op),
-                        .imm12 = Imm12(immediate & 0xfff),
+                        .imm12 = Imm12(immediate),
                     },
                 .rr = { .x = d, .y = l },
             }
@@ -550,6 +549,74 @@ void Emitter::StoreFrame(StoreAccessKind stk, Reg src, uint32_t offset)
         auto ms = OpenMemSpace();
         ms.Offset(offset);
         ms.StoreFrame(stk, src);
+    }
+}
+
+void Emitter::SCC(CC cc, Width width, IReg d, IReg l, IReg r)
+{
+    ASSERT(width == Width::W32 || width == Width::W64);
+    auto opc = width == Width::W32 ? RT::Opcode::SCC32 : RT::Opcode::SCC64;
+    Encode(segment, RT::B3xrrr {
+        .opc = opc,
+        .xr = {
+            .imm = cc,
+            .r = d,
+        },
+        .rr = {
+            .x = l,
+            .y = r,
+        },
+    });
+}
+
+void Emitter::SCC(CC cc, Width width, IReg d, FReg l, FReg r)
+{
+    ASSERT(width == Width::W32 || width == Width::W64);
+    auto opc = width == Width::W32 ? RT::Opcode::FSCC32 : RT::Opcode::FSCC64;
+    Encode(segment, RT::B3xrrr {
+        .opc = opc,
+        .xr = {
+            .imm = cc,
+            .r = d,
+        },
+        .rr = {
+            .x = l,
+            .y = r,
+        },
+    });
+}
+
+void Emitter::SCCImm(CC cc, Width width, IReg d, IReg l, uint64_t imm)
+{
+    assert(width == Width::W32 || width == Width::W64);
+
+    bool isImm = MathUtils::IsNBitsSigned(imm, 12);
+    if (isImm) {
+        uint16_t immediate = static_cast<uint16_t>(imm & 0xfff);
+
+        auto opcode = width == Width::W32 ? RT::Opcode::SCCI32I : RT::Opcode::SCCI64I;
+
+        Encode(
+            segment,
+            RT::B4xi12rr {
+                .opc = opcode,
+                .xi12 =
+                    XImm12 {
+                        .imm4  = Imm4(cc),
+                        .imm12 = Imm12(immediate),
+                    },
+                .rr = { .x = d, .y = l },
+            }
+        );
+
+    } else {
+        Symbol immediate = symbols.Value(imm);
+
+        RT::Opcode opcode = width == Width::W32 ? RT::Opcode::SCCI32L : RT::Opcode::SCCI64L;
+
+        Encode(segment, opcode);
+        AddFixup(std::make_unique<Literal12Fixup>(Imm4(cc), immediate));
+        Encode(segment, RR { .x = d, .y = l });
     }
 }
 
