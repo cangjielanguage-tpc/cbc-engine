@@ -4,12 +4,11 @@ namespace Symlevel {
 
 MethodReference MethodReference::Parse(IO::FileId fileId, IO::StreamFileReader& reader)
 {
-    auto name       = String::ParseOffset(reader);
-    auto idx        = reader.ReadU32();
-    auto methodIdx  = reader.ReadU32();
-    auto refTypeIdx = reader.ReadU32();
+    auto name         = Offset<String>(reader.ReadU32());
+    auto refTypeName  = Offset<String>(reader.ReadU32()); // FIXME: use type term
+    auto signatureIdx = 0;                                // FIXME: add signature id
 
-    return MethodReference(fileId, name, idx, methodIdx, refTypeIdx);
+    return MethodReference(fileId, name, 0);
 }
 
 } // namespace Symlevel

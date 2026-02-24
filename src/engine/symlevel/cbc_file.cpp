@@ -5,11 +5,15 @@
 namespace Symlevel {
 
 struct CbcFile::Impl {
-    uint32_t typeDefSectionOffs;
-    uint32_t methodDefSectionOffs;
-    uint32_t fieldDefSectionOffs;
-    uint32_t codeSectionOffs;
-    uint32_t termSectionOffs;
+    uint32_t fieldRefsOffs;
+    uint32_t signatureOffs;
+    uint32_t codeOffs;
+    uint32_t methodsOffs;
+    uint32_t fieldOffs;
+    uint32_t typeOffs;
+    uint32_t fieldRefsTableOffs;
+    uint32_t methodRefsTableOffs;
+    uint32_t termTableOffs;
     IO::FileId id;
 };
 
@@ -28,44 +32,46 @@ static uint32_t ReadU32AndAdvance(IO::StreamFileReader& reader)
 CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::string_view name)
 {
     IO::StreamFileReader reader(file, sizeof(CbcFile::MAGIC));
-    auto termsOffs = reader.Position();
-    ReadU32AndAdvance(reader);
 
-    auto typeDefOffs = reader.Position();
-    ReadU32AndAdvance(reader);
+    // FIXME: offset from file start
+    uint32_t addend = 11 * sizeof(uint32_t);
 
-    auto methodDefOffs = reader.Position();
-    ReadU32AndAdvance(reader);
-
-    auto methodRefOffs = reader.Position();
-    ReadU32AndAdvance(reader);
-
-    auto fieldDefOffs = reader.Position();
-    ReadU32AndAdvance(reader);
-
-    auto codeOffs = reader.Position();
-    ReadU32AndAdvance(reader);
+    auto fieldRefsOffs       = addend + reader.ReadU32();
+    auto methodRefsOffs      = addend + reader.ReadU32();
+    auto signatureOffs       = addend + reader.ReadU32();
+    auto codeOffs            = addend + reader.ReadU32();
+    auto methodsOffs         = addend + reader.ReadU32();
+    auto fieldOffs           = addend + reader.ReadU32();
+    auto typeOffs            = addend + reader.ReadU32();
+    auto fieldRefsTableOffs  = addend + reader.ReadU32();
+    auto methodRefsTableOffs = addend + reader.ReadU32();
+    auto termTableOffs       = addend + reader.ReadU32();
 
     CbcFile::Impl impl {
-        .typeDefSectionOffs   = typeDefOffs,
-        .methodDefSectionOffs = methodDefOffs,
-        .fieldDefSectionOffs  = fieldDefOffs,
-        .codeSectionOffs      = codeOffs,
-        .termSectionOffs      = termsOffs,
-        .id                   = fileId,
+        .fieldRefsOffs       = fieldRefsOffs,
+        .signatureOffs       = signatureOffs,
+        .codeOffs            = codeOffs,
+        .methodsOffs         = methodsOffs,
+        .fieldOffs           = fieldOffs,
+        .typeOffs            = typeOffs,
+        .fieldRefsTableOffs  = fieldRefsTableOffs,
+        .methodRefsTableOffs = methodRefsTableOffs,
+        .termTableOffs       = termTableOffs,
+        .id                  = fileId,
     };
+
     return CbcFile(std::move(std::make_unique<CbcFile::Impl>(impl)));
 }
 
 IO::FileId CbcFile::Id() const { return impl->id; }
 
-uint32_t CbcFile::GetCodeOffs(Offset<Code> offs) const { return offs + impl->codeSectionOffs; }
+uint32_t CbcFile::GetCodeOffs(Offset<Code> offs) const { return offs + impl->codeOffs; }
 
-uint32_t CbcFile::GetTypeDefOffs(Offset<TypeDefinition> offs) const { return offs + impl->typeDefSectionOffs; }
+uint32_t CbcFile::GetTypeDefOffs(Offset<TypeDefinition> offs) const { return offs + impl->typeOffs; }
 
-uint32_t CbcFile::GetMethodDefOffs(Offset<MethodDefinition> offs) const { return offs + impl->methodDefSectionOffs; }
+uint32_t CbcFile::GetMethodDefOffs(Offset<MethodDefinition> offs) const { return offs + impl->methodsOffs; }
 
-uint32_t CbcFile::GetFieldDefOffs(Offset<FieldDefinition> offs) const { return offs + impl->fieldDefSectionOffs; }
+uint32_t CbcFile::GetFieldDefOffs(Offset<FieldDefinition> offs) const { return offs + impl->fieldOffs; }
 
-uint32_t CbcFile::GetTermOffs(Offset<TermVal> offs) const { return offs + impl->termSectionOffs; }
+uint32_t CbcFile::GetTermOffs(Offset<TermVal> offs) const { return offs + impl->termTableOffs; }
 } // namespace Symlevel

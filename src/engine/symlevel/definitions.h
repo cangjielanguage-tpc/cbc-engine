@@ -32,29 +32,18 @@ public:
 
     inline const Offset<String> Name() const { return name; }
 
-    inline uint32_t GetIdx() const { return idx; }
-
-    inline TypeKind GetTypeKind() const { return typeKind; }
-
-    inline std::vector<uint32_t> GetSupers() const { return supers; }
-
 private:
-    TypeDefinition(
-        IO::FileId fileId, Offset<String> name, uint32_t idx, TypeKind typeKind, std::vector<uint32_t> supers
-    )
+    TypeDefinition(IO::FileId fileId, Offset<String> name, uint32_t methodsCount, uint32_t methodsOffset)
         : fileId(fileId),
           name(name),
-          idx(idx),
-          typeKind(typeKind),
-          supers(std::move(supers))
+          methodsCount(methodsCount),
+          methodsOffset(methodsOffset)
     {}
 
-    const IO::FileId fileId;
-
-    const Offset<String> name;
-    const uint32_t idx;
-    const TypeKind typeKind;
-    const std::vector<uint32_t> supers;
+    IO::FileId fileId;
+    Offset<String> name;
+    uint32_t methodsCount;
+    uint32_t methodsOffset;
 };
 
 class FieldDefinition {
@@ -62,12 +51,6 @@ public:
     static FieldDefinition Parse(IO::FileId fileId, IO::StreamFileReader& reader);
 
     inline const Offset<String> Name() const { return name; }
-
-    inline uint32_t GetIdx() const { return idx; }
-
-    inline uint32_t GetDeclIdx() const { return declIdx; }
-
-    inline uint32_t GetTypeIdx() const { return typeIdx; }
 
 private:
     FieldDefinition(IO::FileId fileId, Offset<String> name, uint32_t idx, uint32_t declIdx, uint32_t typeIdx)
@@ -94,34 +77,28 @@ public:
 
     inline const Offset<String> Name() const { return name; }
 
-    inline uint32_t GetIdx() const { return idx; }
-
-    inline uint32_t GetSigIdx() const { return sigIdx; }
-
-    inline uint32_t GetDeclIdx() const { return declIdx; }
+    inline uint32_t GetSigIdx() const
+    {
+        ASSERTION(false, "implement terms"); // FIXME
+        return sigIdx;
+    }
 
     inline Offset<Code> GetCodeOffs() const { return codeOffs; }
 
     inline IO::FileId FileId() const { return fileId; }
 
 private:
-    MethodDefinition(
-        IO::FileId fileId, Offset<String> name, uint32_t idx, uint32_t sigIdx, uint32_t declIdx, Offset<Code> codeOffs
-    )
+    MethodDefinition(IO::FileId fileId, Offset<String> name, uint32_t sigIdx, Offset<Code> codeOffs)
         : fileId(fileId),
           name(name),
-          idx(idx),
           sigIdx(sigIdx),
-          declIdx(declIdx),
           codeOffs(codeOffs)
     {}
 
     const IO::FileId fileId;
 
     const Offset<String> name;
-    const uint32_t idx;
     const uint32_t sigIdx;
-    const uint32_t declIdx;
     const Offset<Code> codeOffs;
 };
 

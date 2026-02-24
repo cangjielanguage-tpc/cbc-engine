@@ -13,14 +13,11 @@ DefinitionsManager::~DefinitionsManager()                            = default;
 
 MethodDefinition MethodDefinition::Parse(IO::FileId fileId, IO::StreamFileReader& reader)
 {
-    auto name    = String::ParseOffset(reader);
-    auto idx     = reader.ReadU32();
-    auto sigIdx  = reader.ReadU32();
-    auto declIdx = reader.ReadU32();
-    // uint32_t codeOffs = reader.ReadU32();
-    uint32_t codeOffs = 0;
+    auto nameOffs = Offset<String>(reader.ReadU32());
+    auto _        = Offset<String>(reader.ReadU32()); // FIXME: signature encoding
+    auto codeOffs = Offset<Code>(reader.ReadU32());
 
-    return MethodDefinition(fileId, name, idx, sigIdx, declIdx, codeOffs);
+    return MethodDefinition(fileId, nameOffs, 0, codeOffs);
 }
 
 MethodDefinition MethodDefinition::Parse(Engine::Session& session, IO::FileId fileId, Offset<MethodDefinition> offset)
@@ -44,19 +41,15 @@ TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId
 
 TypeDefinition TypeDefinition::Parse(IO::FileId fileId, IO::StreamFileReader& reader)
 {
-    auto name = String::ParseOffset(reader);
-    auto idx  = reader.ReadU32();
-    auto tk   = reader.ReadU32();
+    auto name       = Offset<String>(reader.ReadU32());
+    auto _kind      = reader.ReadU32();
+    auto _superName = reader.ReadU32();
 
-    auto superCount = reader.ReadU32();
+    auto methodsLength = reader.ReadU32();
+    auto methodsOffset = reader.Position();
+    reader.Advance(methodsLength);
 
-    std::vector<uint32_t> supers;
-    supers.reserve(superCount);
-
-    char* supersRaw = reinterpret_cast<char*>(supers.data());
-    reader.Read(supersRaw, superCount * sizeof(uint32_t));
-
-    return TypeDefinition(fileId, name, idx, TypeKind(static_cast<TypeKind::Value>(tk)), std::move(supers));
+    return TypeDefinition(fileId, name, methodsLength, methodsOffset);
 }
 
 TypeDefinition TypeDefinition::Resolve(Engine::Session& session, Engine::Identifier<TypeDefinition> identifier)
@@ -66,7 +59,7 @@ TypeDefinition TypeDefinition::Resolve(Engine::Session& session, Engine::Identif
 
 FieldDefinition FieldDefinition::Parse(IO::FileId fileId, IO::StreamFileReader& reader)
 {
-    auto name    = String::ParseOffset(reader);
+    auto name    = Offset<String>(reader.ReadU32());
     auto idx     = reader.ReadU32();
     auto declIdx = reader.ReadU32();
     auto typeIdx = reader.ReadU32();

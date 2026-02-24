@@ -43,4 +43,14 @@ TEST(CbcTest, Empty)
     ASSERT_EQ(str, "abc");
 }
 
-TEST_ASM(CbcTest, Simple) { auto file = OpenAsm("simple.asm"); }
+TEST_ASM(CbcTest, Simple)
+{
+    Engine::Loader loader;
+
+    auto file       = OpenAsm("simple.asm");
+    bool successful = loader.Load(std::move(file), "hello.cbc");
+    ASSERT_TRUE(successful);
+
+    auto engine = loader.Build();
+    Engine::Session session(engine);
+}
