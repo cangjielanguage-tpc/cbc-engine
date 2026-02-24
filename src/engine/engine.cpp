@@ -1,7 +1,8 @@
 #include "engine.h"
-#include "loader.h"
-
+#include "interpreter/function_handle.h"
 #include "symlevel/cbc_file.h"
+#include "symlevel/definitions.h"
+#include "symlevel/io/stream_file_reader.h"
 
 namespace Engine {
 
@@ -9,41 +10,51 @@ class Engine::Impl {
 public:
     Impl(std::vector<Symlevel::CbcFile> files, std::vector<std::unique_ptr<IO::RandomAccessFile>> rafs)
         : files(std::move(files)),
-          rafs(std::move(rafs))
+          rafs(std::move(rafs)),
+          fuhManager()
     {}
 
-    static Engine& Instance();
+    static Engine::Impl& Of(Engine& engine) { return *engine.impl; }
 
-private:
     friend class Session;
     std::vector<Symlevel::CbcFile> files;
     std::vector<std::unique_ptr<IO::RandomAccessFile>> rafs;
+
+    Interpretation::FunctionHandleManager fuhManager;
+    Symlevel::DefinitionsManager defsManager;
 };
 
 class Loader::Impl {
 public:
     Impl() : fileCounter(0) {}
 
-    int fileCounter;
+    uint32_t fileCounter;
     std::vector<Symlevel::CbcFile> files;
     std::vector<std::unique_ptr<IO::RandomAccessFile>> rafs;
 };
 
 /////////////////////////////////////////////////////////////////
 
-IO::RandomAccessFile* Session::FileOf(IO::FileId fileId)
+std::unique_ptr<IO::RandomAccessFile>& Session::FileOf(IO::FileId fileId) const
 {
     // TODO: add session-scoped buffered rafs.
-    return engine.impl->rafs.at(fileId).get();
+    return engine.impl->rafs.at(fileId);
 }
 
-Session Session::NewSession(Engine& engine) { return Session(engine); }
+Symlevel::CbcFile& Session::CbcFileOf(IO::FileId fileId) const
+{
+    // TODO: add session-scoped buffered rafs.
+    return engine.impl->files.at(fileId);
+}
 
 Arena& Session::Allocator() { return arena; }
 
-Loader Loader::New() { return Loader(new Impl()); }
+Loader::Loader() : loader(std::move(std::make_unique<Loader::Impl>())) {}
 
-Loader::~Loader() { delete loader; }
+Loader::Loader(Loader&& other) = default;
+Loader::~Loader()              = default;
+
+std::pmr::memory_resource& Engine::CodeHeap() const { return *std::pmr::new_delete_resource(); }
 
 bool Loader::Load(std::unique_ptr<IO::RandomAccessFile> file, std::string_view name)
 {
@@ -53,15 +64,37 @@ bool Loader::Load(std::unique_ptr<IO::RandomAccessFile> file, std::string_view n
         return false;
     }
 
-    auto id      = loader->fileCounter++;
-    auto cbcFile = Symlevel::CbcFile::Create(IO::FileId(id), *file, name);
-    loader->files.emplace_back(std::move(cbcFile));
+    auto id = loader->fileCounter++;
+    loader->files.emplace_back(std::move(Symlevel::CbcFile::Create(IO::FileId(id), *file, name)));
     loader->rafs.emplace_back(std::move(file));
     return true;
 }
 
-Engine Loader::Build() { return Engine(new Engine::Impl(std::move(loader->files), std::move(loader->rafs))); }
+Engine Loader::Build()
+{
+    return Engine(std::move(std::make_unique<Engine::Impl>(std::move(loader->files), std::move(loader->rafs))));
+}
 
-Engine::~Engine() { delete impl; }
+Engine::Engine(std::unique_ptr<Engine::Impl>&& impl) : impl(std::move(impl)) {}
+
+Engine::Engine(Engine&& other) = default;
+Engine::~Engine()              = default;
 
 } // namespace Engine
+
+namespace Interpretation {
+
+FunctionHandleManager& FunctionHandleManager::Of(Engine::Engine& engine)
+{
+    return Engine::Engine::Impl::Of(engine).fuhManager;
+}
+
+} // namespace Interpretation
+
+namespace Symlevel {
+
+DefinitionsManager& DefinitionsManager::Of(Engine::Engine& engine)
+{
+    return Engine::Engine::Impl::Of(engine).defsManager;
+}
+} // namespace Symlevel

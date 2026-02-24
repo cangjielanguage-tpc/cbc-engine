@@ -28,10 +28,10 @@ TEST(RewriterTest, Rewriter_Simple)
 {
     uint32_t isa12CodeSize = 4;
     uint8_t isa12Bytes[]   = {
-        0b00000000,
+        0b00000000, //
         0b00100001, // Add IR1, IR2
-        0b10100100,
-        0b00011000 // Ret IR1
+        0b10100100, //
+        0b00011000  // Ret IR1
     };
     MethodCode methodCode = { isa12Bytes, isa12CodeSize };
 

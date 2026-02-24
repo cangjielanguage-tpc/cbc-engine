@@ -15,14 +15,14 @@ namespace IO {
  */
 class StreamFileReader {
 public:
-    StreamFileReader(RandomAccessFile& file, size_t position) : file(file), position(position) {}
+    StreamFileReader(RandomAccessFile& file, uint32_t position) : file(file), position(position) {}
 
-    StreamFileReader(RandomAccessFile* file, size_t position) : file(*file), position(position) {}
+    StreamFileReader(RandomAccessFile* file, uint32_t position) : file(*file), position(position) {}
 
     /**
      * @brief Returns current stream position.
      */
-    size_t Position() const { return position; }
+    uint32_t Position() const { return position; }
 
     /**
      * @brief Advance current stream position by @p values bytes.
@@ -32,6 +32,8 @@ public:
         ASSERT(value >= 0);
         position += value;
     }
+
+    void Read(uint8_t* array, size_t length) { Read(reinterpret_cast<char*>(array), length); }
 
     void Read(char* array, size_t length)
     {
@@ -59,7 +61,7 @@ public:
 
 private:
     RandomAccessFile& file;
-    size_t position;
+    uint32_t position;
 
     template <typename T> T ReadValue()
     {

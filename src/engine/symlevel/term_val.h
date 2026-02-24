@@ -4,7 +4,6 @@
 #include "io/file_id.h"
 #include "io/stream_file_reader.h"
 #include "offset.h"
-#include "reader.h"
 #include "string.h"
 
 namespace Symlevel {
