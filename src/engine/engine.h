@@ -27,7 +27,7 @@ public:
     ~Engine();
     std::pmr::memory_resource& CodeHeap() const;
 
-    std::optional<Identifier<Symlevel::MethodDefinition>> FindMain(Session& session);
+    std::optional<Identifier<Symlevel::MethodDefinition>> FindMain(Session& session, std::string_view fileName);
     std::optional<Identifier<Symlevel::TypeDefinition>>
     FindType(Session& session, IO::FileId fileId, std::string_view name);
 

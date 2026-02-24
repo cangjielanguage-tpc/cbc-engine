@@ -51,13 +51,14 @@ TEST_ASM(CbcTest, Simple)
 {
     Engine::Loader loader;
 
+    auto pkgName    = "simple";
     auto file       = OpenAsm("simple.asm");
-    bool successful = loader.Load(std::move(file), "hello.cbc");
+    bool successful = loader.Load(std::move(file), pkgName);
     ASSERT_TRUE(successful);
 
     auto engine = loader.Build();
     Engine::Session session(engine);
-    auto mainId      = engine.FindMain(session);
+    auto mainId      = engine.FindMain(session, pkgName);
     auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
 
     auto fuh    = static_cast<Interpretation::DynamicFunctionHandle*>(fuhManager.Acquire(session, mainId.value()));

@@ -101,10 +101,13 @@ Engine::FindType(Session& session, IO::FileId fileId, std::string_view name)
     return std::nullopt;
 }
 
-std::optional<Identifier<Symlevel::MethodDefinition>> Engine::FindMain(Session& session)
+std::optional<Identifier<Symlevel::MethodDefinition>> Engine::FindMain(Session& session, std::string_view name)
 {
     // FIXME: search for proper enclosing type and method name
     for (auto& file : impl->files) {
+        if (file.GetName() != name) {
+            continue;
+        }
         auto id          = file.Id();
         auto& raf        = session.FileOf(id);
         auto defaultType = FindType(session, id, "default");

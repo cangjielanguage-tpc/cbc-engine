@@ -36,6 +36,7 @@ public:
     uint32_t GetFieldDefOffs(Offset<FieldDefinition> offs) const;
     uint32_t GetTermOffs(Offset<TermVal> offs) const;
     uint32_t GetTypesTableOffs() const;
+    String GetName() const;
 
 private:
     std::unique_ptr<Impl> impl;

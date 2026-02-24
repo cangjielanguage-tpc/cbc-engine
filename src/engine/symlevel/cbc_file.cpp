@@ -17,6 +17,7 @@ struct CbcFile::Impl {
     uint32_t methodRefsTableOffs;
     uint32_t termTableOffs;
     IO::FileId id;
+    std::string name;
 };
 
 CbcFile::CbcFile(std::unique_ptr<CbcFile::Impl> impl) : impl(std::move(impl)) {}
@@ -64,6 +65,7 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
         .methodRefsTableOffs = methodRefsTableOffs,
         .termTableOffs       = termTableOffs,
         .id                  = fileId,
+        .name                = std::string(name),
     };
 
     return CbcFile(std::move(std::make_unique<CbcFile::Impl>(impl)));
@@ -82,7 +84,8 @@ uint32_t CbcFile::GetMethodDefOffs(Offset<MethodDefinition> offs) const { return
 uint32_t CbcFile::GetFieldDefOffs(Offset<FieldDefinition> offs) const { return offs + impl->fieldOffs; }
 
 uint32_t CbcFile::GetTermOffs(Offset<TermVal> offs) const { return offs + impl->termTableOffs; }
-
 uint32_t CbcFile::GetTypesTableOffs() const { return impl->typesTableOffs; }
+
+String CbcFile::GetName() const { return String(impl->name); }
 
 } // namespace Symlevel
