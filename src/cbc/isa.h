@@ -1,5 +1,4 @@
-#ifndef CBC_ISA_H
-#define CBC_ISA_H
+#pragma once
 
 #include <array>
 #include <cstdint>
@@ -258,7 +257,7 @@ public:
         FMOV     = 0b0100,
         FNEG     = 0b0101,
         FABS     = 0b0110,
-        FQSRT    = 0b0111,
+        FSQRT    = 0b0111,
         I32_TO_F = 0b1000,
         F_TO_I32 = 0b1001,
         I64_TO_F = 0b1010,
@@ -270,7 +269,7 @@ public:
     };
 
     static constexpr Value values[] = {
-        FADD,     FSUB,     FMUL,     FDIV,     FMOV,     FNEG,     FABS,     FQSRT,
+        FADD,     FSUB,     FMUL,     FDIV,     FMOV,     FNEG,     FABS,     FSQRT,
         I32_TO_F, F_TO_I32, I64_TO_F, F_TO_I64, U32_TO_F, F_TO_U32, U64_TO_F, F_TO_U64,
     };
 
@@ -1101,5 +1100,3 @@ struct Decoding {
 
 } // namespace Format
 } // namespace Cbc
-
-#endif // CBC_ISA_H

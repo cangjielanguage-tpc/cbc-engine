@@ -143,7 +143,8 @@ inline ArithmeticResult ArithFP<Width::W64>(FloatOperations::Value op, Value::Pr
         case FloatOperations::FSUB: return { Value::Primitive { .f64 = l.f64 - r.f64 }, true };
         case FloatOperations::FMUL: return { Value::Primitive { .f64 = l.f64 * r.f64 }, true };
         case FloatOperations::FDIV: return { Value::Primitive { .f64 = l.f64 / r.f64 }, true };
-        default:                    ASSERTION(false, "Unexpected FP op");
+
+        default: ASSERTION(false, "Unexpected FP op");
     }
 }
 
@@ -156,7 +157,34 @@ inline ArithmeticResult ArithFP<Width::W32>(FloatOperations::Value op, Value::Pr
         case FloatOperations::FSUB: return { Value::Primitive { .f32 = l.f32 - r.f32 }, true };
         case FloatOperations::FMUL: return { Value::Primitive { .f32 = l.f32 * r.f32 }, true };
         case FloatOperations::FDIV: return { Value::Primitive { .f32 = l.f32 / r.f32 }, true };
-        default:                    ASSERTION(false, "Unexpected FP op");
+
+        default: ASSERTION(false, "Unexpected FP op");
+    }
+}
+
+template <Width::Value width> static inline ArithmeticResult ArithFP(FloatOperations::Value op, Value::Primitive s);
+
+template <> inline ArithmeticResult ArithFP<Width::W64>(FloatOperations::Value op, Value::Primitive s)
+{
+    using namespace Cbc::Format;
+    switch (op) {
+        case FloatOperations::FSQRT: return { Value::Primitive { .f64 = std::sqrt(s.f64) }, true };
+        case FloatOperations::FABS:  return { Value::Primitive { .f64 = std::fabs(s.f64) }, true };
+        case FloatOperations::FNEG:  return { Value::Primitive { .f64 = -s.f64 }, true };
+
+        default: ASSERTION(false, "Unexpected FP op");
+    }
+}
+
+template <> inline ArithmeticResult ArithFP<Width::W32>(FloatOperations::Value op, Value::Primitive s)
+{
+    using namespace Cbc::Format;
+    switch (op) {
+        case FloatOperations::FSQRT: return { Value::Primitive { .f32 = std::sqrt(s.f32) }, true };
+        case FloatOperations::FABS:  return { Value::Primitive { .f32 = std::fabs(s.f32) }, true };
+        case FloatOperations::FNEG:  return { Value::Primitive { .f32 = -s.f32 }, true };
+
+        default: ASSERTION(false, "Unexpected FP op");
     }
 }
 
