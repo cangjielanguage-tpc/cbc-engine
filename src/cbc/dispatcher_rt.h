@@ -494,7 +494,13 @@ OFFS_REG: {
     FLD(U8)
     FLD(U16)
     FLD(32)
-    FLD(S8) FLD(S16) FLD(F32) FLD(F64) FLD(64) FLD(S32TO64) FLD(REF)
+    FLD(S8)
+    FLD(S16)
+    FLD(F32)
+    FLD(F64)
+    FLD(64)
+    FLD(S32TO64)
+    FLD(REF)
 #undef FLD
 
 #define FST(stk)                                                                                                       \
@@ -504,7 +510,13 @@ OFFS_REG: {
         bool successful = handler.StoreFrame(Format::StoreAccessKind::ST_##stk, args.rr.x, memspaceOffsetAcc);         \
         NEXT_COND(successful);                                                                                         \
     }
-        FST(8) FST(16) FST(32) FST(64) FST(REF) FST(F32) FST(F64)
+    FST(8)
+    FST(16)
+    FST(32)
+    FST(64)
+    FST(REF)
+    FST(F32)
+    FST(F64)
 #undef FST
 
 #undef MEM_NEXT
