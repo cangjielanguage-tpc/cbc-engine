@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include "arena.h"
 #include "identifiers.h"
 #include "symlevel/cbc_file.h"
@@ -9,6 +11,7 @@
 namespace Engine {
 
 class Loader;
+class Session;
 
 /// The main instance of cbc engine.
 /// Mainly the engine is responsible for:
@@ -23,6 +26,10 @@ public:
 
     ~Engine();
     std::pmr::memory_resource& CodeHeap() const;
+
+    std::optional<Identifier<Symlevel::MethodDefinition>> FindMain(Session& session);
+    std::optional<Identifier<Symlevel::TypeDefinition>>
+    FindType(Session& session, IO::FileId fileId, std::string_view name);
 
 private:
     Engine(std::unique_ptr<Impl>&& impl);

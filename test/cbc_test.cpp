@@ -4,6 +4,9 @@
 #include "engine/symlevel/io/byte_array_random_access_file.h"
 #include "engine/symlevel/reader.h"
 #include "engine/symlevel/string.h"
+#include "interpreter/function_handle.h"
+
+#include "mock/interpreter.h"
 #include "testutils.h"
 
 #define UNIT_TEST_MODE 1
@@ -53,4 +56,13 @@ TEST_ASM(CbcTest, Simple)
 
     auto engine = loader.Build();
     Engine::Session session(engine);
+    auto mainId      = engine.FindMain(session);
+    auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
+
+    auto fuh    = static_cast<Interpretation::DynamicFunctionHandle*>(fuhManager.Acquire(session, mainId.value()));
+    auto bcInfo = fuhManager.Prepare(session, fuh);
+
+    auto code = bcInfo->code;
+    auto res  = Interpret(code, U32(0), U32(10));
+    ASSERT_EQ(res.u32, 0);
 }

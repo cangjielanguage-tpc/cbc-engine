@@ -33,6 +33,7 @@ public:
     uint32_t GetMethodDefOffs(Offset<MethodDefinition> offs) const;
     uint32_t GetFieldDefOffs(Offset<FieldDefinition> offs) const;
     uint32_t GetTermOffs(Offset<TermVal> offs) const;
+    uint32_t GetTypesTableOffs() const;
 
 private:
     std::unique_ptr<Impl> impl;

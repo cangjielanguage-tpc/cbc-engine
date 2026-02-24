@@ -11,20 +11,15 @@ DefinitionsManager::DefinitionsManager() : impl(std::make_unique<DefinitionsMana
 DefinitionsManager::DefinitionsManager(DefinitionsManager&& manager) = default;
 DefinitionsManager::~DefinitionsManager()                            = default;
 
-MethodDefinition MethodDefinition::Parse(IO::FileId fileId, IO::StreamFileReader& reader)
-{
-    auto nameOffs = Offset<String>(reader.ReadU32());
-    auto _        = Offset<String>(reader.ReadU32()); // FIXME: signature encoding
-    auto codeOffs = Offset<Code>(reader.ReadU32());
-
-    return MethodDefinition(fileId, nameOffs, 0, codeOffs);
-}
-
 MethodDefinition MethodDefinition::Parse(Engine::Session& session, IO::FileId fileId, Offset<MethodDefinition> offset)
 {
     auto position = session.CbcFileOf(fileId).GetMethodDefOffs(offset);
     IO::StreamFileReader reader(*session.FileOf(fileId), position);
-    return Parse(fileId, reader);
+    auto nameOffs = Offset<String>(reader.ReadU32());
+    auto _        = Offset<String>(reader.ReadU32()); // FIXME: signature encoding
+    auto codeOffs = Offset<Code>(reader.ReadU32());
+
+    return MethodDefinition(Engine::Identifier<MethodDefinition>(offset, fileId), nameOffs, 0, codeOffs);
 }
 
 MethodDefinition MethodDefinition::Resolve(Engine::Session& session, Engine::Identifier<MethodDefinition> identifier)
@@ -36,11 +31,6 @@ TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId
 {
     auto position = session.CbcFileOf(fileId).GetTypeDefOffs(offset);
     IO::StreamFileReader reader(*session.FileOf(fileId), position);
-    return Parse(fileId, reader);
-}
-
-TypeDefinition TypeDefinition::Parse(IO::FileId fileId, IO::StreamFileReader& reader)
-{
     auto name       = Offset<String>(reader.ReadU32());
     auto _kind      = reader.ReadU32();
     auto _superName = reader.ReadU32();
@@ -49,7 +39,7 @@ TypeDefinition TypeDefinition::Parse(IO::FileId fileId, IO::StreamFileReader& re
     auto methodsOffset = reader.Position();
     reader.Advance(methodsLength);
 
-    return TypeDefinition(fileId, name, methodsLength, methodsOffset);
+    return TypeDefinition(Engine::Identifier<TypeDefinition>(offset, fileId), name, methodsLength, methodsOffset);
 }
 
 TypeDefinition TypeDefinition::Resolve(Engine::Session& session, Engine::Identifier<TypeDefinition> identifier)

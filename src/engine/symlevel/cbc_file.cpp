@@ -10,7 +10,8 @@ struct CbcFile::Impl {
     uint32_t codeOffs;
     uint32_t methodsOffs;
     uint32_t fieldOffs;
-    uint32_t typeOffs;
+    uint32_t typesOffs;
+    uint32_t typesTableOffs;
     uint32_t fieldRefsTableOffs;
     uint32_t methodRefsTableOffs;
     uint32_t termTableOffs;
@@ -34,7 +35,7 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
     IO::StreamFileReader reader(file, sizeof(CbcFile::MAGIC));
 
     // FIXME: offset from file start
-    uint32_t addend = 11 * sizeof(uint32_t);
+    uint32_t addend = 12 * sizeof(uint32_t);
 
     auto fieldRefsOffs       = addend + reader.ReadU32();
     auto methodRefsOffs      = addend + reader.ReadU32();
@@ -42,7 +43,8 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
     auto codeOffs            = addend + reader.ReadU32();
     auto methodsOffs         = addend + reader.ReadU32();
     auto fieldOffs           = addend + reader.ReadU32();
-    auto typeOffs            = addend + reader.ReadU32();
+    auto typesOffs           = addend + reader.ReadU32();
+    auto typesTableOffs      = addend + reader.ReadU32();
     auto fieldRefsTableOffs  = addend + reader.ReadU32();
     auto methodRefsTableOffs = addend + reader.ReadU32();
     auto termTableOffs       = addend + reader.ReadU32();
@@ -53,7 +55,8 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
         .codeOffs            = codeOffs,
         .methodsOffs         = methodsOffs,
         .fieldOffs           = fieldOffs,
-        .typeOffs            = typeOffs,
+        .typesOffs           = typesOffs,
+        .typesTableOffs      = typesTableOffs,
         .fieldRefsTableOffs  = fieldRefsTableOffs,
         .methodRefsTableOffs = methodRefsTableOffs,
         .termTableOffs       = termTableOffs,
@@ -67,11 +70,14 @@ IO::FileId CbcFile::Id() const { return impl->id; }
 
 uint32_t CbcFile::GetCodeOffs(Offset<Code> offs) const { return offs + impl->codeOffs; }
 
-uint32_t CbcFile::GetTypeDefOffs(Offset<TypeDefinition> offs) const { return offs + impl->typeOffs; }
+uint32_t CbcFile::GetTypeDefOffs(Offset<TypeDefinition> offs) const { return offs + impl->typesOffs; }
 
 uint32_t CbcFile::GetMethodDefOffs(Offset<MethodDefinition> offs) const { return offs + impl->methodsOffs; }
 
 uint32_t CbcFile::GetFieldDefOffs(Offset<FieldDefinition> offs) const { return offs + impl->fieldOffs; }
 
 uint32_t CbcFile::GetTermOffs(Offset<TermVal> offs) const { return offs + impl->termTableOffs; }
+
+uint32_t CbcFile::GetTypesTableOffs() const { return impl->typesTableOffs; }
+
 } // namespace Symlevel

@@ -3,6 +3,7 @@
 #include "symlevel/cbc_file.h"
 #include "symlevel/definitions.h"
 #include "symlevel/io/stream_file_reader.h"
+#include "symlevel/reader.h"
 
 namespace Engine {
 
@@ -79,6 +80,51 @@ Engine::Engine(std::unique_ptr<Engine::Impl>&& impl) : impl(std::move(impl)) {}
 
 Engine::Engine(Engine&& other) = default;
 Engine::~Engine()              = default;
+
+std::optional<Identifier<Symlevel::TypeDefinition>>
+Engine::FindType(Session& session, IO::FileId fileId, std::string_view name)
+{
+    auto& file     = session.CbcFileOf(fileId);
+    auto& raf      = session.FileOf(fileId);
+    auto tableOffs = file.GetTypesTableOffs();
+    IO::StreamFileReader reader(*raf, tableOffs);
+
+    uint32_t entryCount = reader.ReadU32();
+    for (uint32_t i = 0; i < entryCount; i++) {
+        auto typeOffs = Symlevel::Offset<Symlevel::TypeDefinition>(reader.ReadU32());
+        auto typeDef  = Symlevel::TypeDefinition::Parse(session, fileId, typeOffs);
+        auto typeName = Symlevel::Reader::Read(session, fileId, typeDef.Name());
+        if (typeName.compare(name) == 0) {
+            return typeDef.GetIdentifier();
+        }
+    }
+    return std::nullopt;
+}
+
+std::optional<Identifier<Symlevel::MethodDefinition>> Engine::FindMain(Session& session)
+{
+    // FIXME: search for proper enclosing type and method name
+    for (auto& file : impl->files) {
+        auto id          = file.Id();
+        auto& raf        = session.FileOf(id);
+        auto defaultType = FindType(session, id, "default");
+        if (!defaultType.has_value()) {
+            continue;
+        }
+        auto typeDef = Symlevel::TypeDefinition::Resolve(session, defaultType.value());
+        IO::StreamFileReader reader(*raf, typeDef.GetMethodsTableOffs());
+        auto methodCount = typeDef.GetMethodCount();
+        for (uint32_t i = 0; i < methodCount; i++) {
+            auto offset     = Symlevel::Offset<Symlevel::MethodDefinition>(reader.ReadU32());
+            auto def        = Symlevel::MethodDefinition::Parse(session, id, offset);
+            auto methodName = Symlevel::Reader::Read(session, id, def.Name());
+            if (methodName.compare("main") == 0) {
+                return def.GetIdentifier();
+            }
+        }
+    }
+    return std::nullopt;
+}
 
 } // namespace Engine
 

@@ -1,9 +1,10 @@
 #pragma once
 
-#include "stdint.h"
+#include <functional>
+#include <stdint.h>
+
 #include "symlevel/io/file_id.h"
 #include "symlevel/offset.h"
-#include <functional>
 
 namespace Engine {
 /// An opaque handle to symlevel definitions.
@@ -26,16 +27,6 @@ template <typename T> struct Identifier {
 private:
     uint64_t value;
 };
-
-class MethodDefIdentifier {
-public:
-    operator uint64_t() const { return value; }
-
-private:
-    uint64_t value;
-};
-
-using TypeDefIdentifier = void*;
 
 } // namespace Engine
 

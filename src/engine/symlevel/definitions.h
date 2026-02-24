@@ -1,12 +1,14 @@
 #pragma once
 
+#include <vector>
+
 #include "engine/engine.h"
+#include "engine/identifiers.h"
 #include "io/file_id.h"
 #include "io/stream_file_reader.h"
 #include "offset.h"
 #include "string.h"
 #include "type_kind.h"
-#include <vector>
 
 namespace Symlevel {
 
@@ -26,21 +28,31 @@ private:
 
 class TypeDefinition {
 public:
-    static TypeDefinition Parse(IO::FileId fileId, IO::StreamFileReader& reader);
     static TypeDefinition Parse(Engine::Session& session, IO::FileId fileId, Offset<TypeDefinition> offset);
     static TypeDefinition Resolve(Engine::Session& session, Engine::Identifier<TypeDefinition> identifier);
 
     inline const Offset<String> Name() const { return name; }
 
+    Engine::Identifier<TypeDefinition> GetIdentifier() const { return identifier; }
+
+    uint32_t GetMethodCount() const { return methodsCount; }
+
+    uint32_t GetMethodsTableOffs() const { return methodsOffset; }
+
 private:
-    TypeDefinition(IO::FileId fileId, Offset<String> name, uint32_t methodsCount, uint32_t methodsOffset)
-        : fileId(fileId),
+    TypeDefinition(
+        Engine::Identifier<TypeDefinition> identifier,
+        Offset<String> name,
+        uint32_t methodsCount,
+        uint32_t methodsOffset
+    )
+        : identifier(identifier),
           name(name),
           methodsCount(methodsCount),
           methodsOffset(methodsOffset)
     {}
 
-    IO::FileId fileId;
+    Engine::Identifier<TypeDefinition> identifier;
     Offset<String> name;
     uint32_t methodsCount;
     uint32_t methodsOffset;
@@ -71,7 +83,6 @@ private:
 
 class MethodDefinition {
 public:
-    static MethodDefinition Parse(IO::FileId fileId, IO::StreamFileReader& reader);
     static MethodDefinition Parse(Engine::Session& session, IO::FileId fileId, Offset<MethodDefinition> offset);
     static MethodDefinition Resolve(Engine::Session& session, Engine::Identifier<MethodDefinition> identifier);
 
@@ -85,21 +96,24 @@ public:
 
     inline Offset<Code> GetCodeOffs() const { return codeOffs; }
 
-    inline IO::FileId FileId() const { return fileId; }
+    inline IO::FileId FileId() const { return identifier.GetFileId(); }
+
+    Engine::Identifier<MethodDefinition> GetIdentifier() const { return identifier; }
 
 private:
-    MethodDefinition(IO::FileId fileId, Offset<String> name, uint32_t sigIdx, Offset<Code> codeOffs)
-        : fileId(fileId),
+    MethodDefinition(
+        Engine::Identifier<MethodDefinition> identifier, Offset<String> name, uint32_t sigIdx, Offset<Code> codeOffs
+    )
+        : identifier(identifier),
           name(name),
           sigIdx(sigIdx),
           codeOffs(codeOffs)
     {}
 
-    const IO::FileId fileId;
-
-    const Offset<String> name;
-    const uint32_t sigIdx;
-    const Offset<Code> codeOffs;
+    Engine::Identifier<MethodDefinition> identifier;
+    Offset<String> name;
+    uint32_t sigIdx;
+    Offset<Code> codeOffs;
 };
 
 } // namespace Symlevel
