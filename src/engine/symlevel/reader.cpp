@@ -26,7 +26,7 @@ String Reader::Read(Engine::Session& session, IO::FileId fileId, Offset<String> 
         *session.FileOf(fileId), session.CbcFileOf(fileId).GetStringOffs(offset)
     ); // TODO: use file to access code section offset.
 
-    uint32_t size = reader.ReadU32();
+    uint32_t size = reader.ReadULEB();
     auto mem      = static_cast<char*>(session.Allocator().do_allocate(size, alignof(char)));
     reader.Read(mem, size);
     return String(std::string_view(mem, size));
