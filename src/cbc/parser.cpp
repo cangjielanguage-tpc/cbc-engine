@@ -256,7 +256,7 @@ void Parser::B3xrrrCommon(B3xrrr args, Sign sign)
 
 void Parser::B2rrd8BranchIf(ConditionalBranch::B2rrd8 args, CC cc, Width width)
 {
-    int32_t offset  = args.imm.imm;
+    int32_t offset  = static_cast<int32_t>(MathUtils::SignExtend(static_cast<uint32_t>(args.imm.imm), 8));
     uint8_t* target = codeReader.Cursor() + offset;
     DoBranchIf(cc, width, args.b2rr.rr.x.IR(), args.b2rr.rr.y.IR(), target);
 }
