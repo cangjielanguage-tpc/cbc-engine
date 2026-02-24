@@ -56,7 +56,15 @@ public:
 };
 
 template <typename RegType>
-Value::Primitive Interpret(Code code, Frame* frame, Value::Primitive ir1, Value::Primitive ir2, RegType resReg)
+Value::Primitive Interpret(
+    Code code,
+    Frame* frame,
+    Value::Primitive ir1,
+    Value::Primitive ir2,
+    Value::Primitive fr0,
+    Value::Primitive fr1,
+    RegType resReg
+)
 {
     heap.Reset();
 
@@ -65,6 +73,8 @@ Value::Primitive Interpret(Code code, Frame* frame, Value::Primitive ir1, Value:
     Decoder::ByteReader s(code.bytecode, code.bytecode, code.bytecode + code.bytecodeSize);
     ectype.Put(IReg::IR1, ir1);
     ectype.Put(IReg::IR2, ir2);
+    ectype.Put(FReg::FR0, fr0);
+    ectype.Put(FReg::FR1, fr1);
 
     Cbc::RT::InterpretationLoop(interp, s);
 
@@ -76,13 +86,13 @@ Value::Primitive Interpret(Code code, Frame* frame, Value::Primitive ir1, Value:
 Interpretation::Value::Primitive
 Interpret(Interpretation::Code code, Interpretation::Value::Primitive ir1, Interpretation::Value::Primitive ir2)
 {
-    return Interpretation::Interpret<Cbc::IReg>(code, nullptr, ir1, ir2, Cbc::IReg::IR1);
+    return Interpretation::Interpret<Cbc::IReg>(code, nullptr, ir1, ir2, F32(0), F32(0), Cbc::IReg::IR1);
 }
 
 Interpretation::Value::Primitive
-InterpretFPRes(Interpretation::Code code, Interpretation::Value::Primitive ir1, Interpretation::Value::Primitive ir2)
+InterpretFPRes(Interpretation::Code code, Interpretation::Value::Primitive fr0, Interpretation::Value::Primitive fr1)
 {
-    return Interpretation::Interpret<Cbc::FReg>(code, nullptr, ir1, ir2, Cbc::FReg::FR0);
+    return Interpretation::Interpret<Cbc::FReg>(code, nullptr, U32(0), U32(0), fr0, fr1, Cbc::FReg::FR0);
 }
 
 Interpretation::Value::Primitive Interpret(
@@ -92,15 +102,15 @@ Interpretation::Value::Primitive Interpret(
     Interpretation::Value::Primitive ir2
 )
 {
-    return Interpretation::Interpret<Cbc::IReg>(code, frame, ir1, ir2, Cbc::IReg::IR1);
+    return Interpretation::Interpret<Cbc::IReg>(code, frame, ir1, ir2, F32(0), F32(0), Cbc::IReg::IR1);
 }
 
 Interpretation::Value::Primitive InterpretFPRes(
     Interpretation::Code code,
     Interpretation::Frame* frame,
-    Interpretation::Value::Primitive ir1,
-    Interpretation::Value::Primitive ir2
+    Interpretation::Value::Primitive fr0,
+    Interpretation::Value::Primitive fr1
 )
 {
-    return Interpretation::Interpret<Cbc::FReg>(code, frame, ir1, ir2, Cbc::FReg::FR0);
+    return Interpretation::Interpret<Cbc::FReg>(code, frame, U32(0), U32(0), fr0, fr1, Cbc::FReg::FR0);
 }

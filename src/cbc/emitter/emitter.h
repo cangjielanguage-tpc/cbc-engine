@@ -95,6 +95,7 @@ public:
     void Lsl(Width width, IReg d, IReg l, IReg r);
     void Lsr(Width width, IReg d, IReg l, IReg r);
     void Asr(Width width, IReg d, IReg l, IReg r);
+    void Neg(Width width, IReg d, IReg s);
 
     void BinaryImm(Format::Common op, Format::Width width, IReg d, IReg l, uint64_t imm);
     void AddI(Width width, IReg d, IReg l, uint64_t imm);
@@ -111,10 +112,16 @@ public:
     void LsrI(Width width, IReg d, IReg l, uint64_t imm);
     void AsrI(Width width, IReg d, IReg l, uint64_t imm);
 
+    void Binary(Format::FloatOperations op, Format::Width width, FReg d, FReg l, FReg r);
     void Add(Width width, FReg d, FReg l, FReg r);
     void Sub(Width width, FReg d, FReg l, FReg r);
     void Mul(Width width, FReg d, FReg l, FReg r);
     void Div(Width width, FReg d, FReg l, FReg r);
+
+    void Unary(Format::FloatOperations op, Format::Width Width, FReg d, FReg s);
+    void Sqrt(Width width, FReg d, FReg s);
+    void Abs(Width width, FReg d, FReg s);
+    void Neg(Width width, FReg d, FReg s);
 
     void Ret();
     void Mov(IReg d, IReg s);
@@ -145,7 +152,6 @@ public:
 private:
     void AddFixup(std::unique_ptr<Fixup> fixup);
     void Mov(RT::Opcode opcode, Format::Reg d, Format::Reg s);
-    void Binary(Format::FloatOperations op, Format::Width width, FReg d, FReg l, FReg r);
 
     template <typename AccessKind>
     void LoadStore(AccessKind akind, Format::Reg v, IReg base, uint32_t offset, RT::Opcode opc)

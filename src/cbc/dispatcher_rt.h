@@ -52,6 +52,8 @@ template <typename Handler> void InterpretationLoop(Handler handler, Decoder::By
         &&BINI64L, // B4xi12rr
         &&FBIN32,  // B3xrrr
         &&FBIN64,  // B3xrrr
+        &&FUN32,   // B3xrrr
+        &&FUN64,   // B3xrrr
 
         &&NEWOBJ,    // B3xri16,
         &&LOAD_OBJ,  // B4xi12rr
@@ -342,6 +344,16 @@ FBIN64: {
     );
     NEXT_COND(successful);
 }
+FUN32: {
+    auto args       = B3xrrr::Decode(reader);
+    bool successful = handler.template Unary<Width::W32>(args.xr.imm.FloatOperations(), args.xr.r.FR(), args.rr.y.FR());
+    NEXT_COND(successful);
+}
+FUN64: {
+    auto args       = B3xrrr::Decode(reader);
+    bool successful = handler.template Unary<Width::W64>(args.xr.imm.FloatOperations(), args.xr.r.FR(), args.rr.y.FR());
+    NEXT_COND(successful);
+}
 NEWOBJ: {
     auto args       = B3xi12::Decode(reader);
     bool successful = handler.NewObj(args.xi12.imm4.IR(), args.xi12.imm12);
@@ -494,7 +506,13 @@ OFFS_REG: {
     FLD(U8)
     FLD(U16)
     FLD(32)
-    FLD(S8) FLD(S16) FLD(F32) FLD(F64) FLD(64) FLD(S32TO64) FLD(REF)
+    FLD(S8)
+    FLD(S16)
+    FLD(F32)
+    FLD(F64)
+    FLD(64)
+    FLD(S32TO64)
+    FLD(REF)
 #undef FLD
 
 #define FST(stk)                                                                                                       \
@@ -504,7 +522,13 @@ OFFS_REG: {
         bool successful = handler.StoreFrame(Format::StoreAccessKind::ST_##stk, args.rr.x, memspaceOffsetAcc);         \
         NEXT_COND(successful);                                                                                         \
     }
-        FST(8) FST(16) FST(32) FST(64) FST(REF) FST(F32) FST(F64)
+    FST(8)
+    FST(16)
+    FST(32)
+    FST(64)
+    FST(REF)
+    FST(F32)
+    FST(F64)
 #undef FST
 
 #undef MEM_NEXT
