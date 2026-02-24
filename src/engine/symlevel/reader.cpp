@@ -5,7 +5,9 @@ namespace Symlevel {
 
 Code Reader::Read(Engine::Session& session, IO::FileId fileId, Offset<Code> offset)
 {
-    IO::StreamFileReader reader(*session.FileOf(fileId), offset.value); // TODO: use file to access code section offset.
+    IO::StreamFileReader reader(
+        *session.FileOf(fileId), session.CbcFileOf(fileId).GetCodeOffs(offset)
+    ); // TODO: use file to access code section offset.
 
     auto methodIdx = reader.ReadU32();
     auto codeSize  = reader.ReadU32();
@@ -20,7 +22,9 @@ Code Reader::Read(Engine::Session& session, IO::FileId fileId, Offset<Code> offs
 
 String Reader::Read(Engine::Session& session, IO::FileId fileId, Offset<String> offset)
 {
-    IO::StreamFileReader reader(*session.FileOf(fileId), offset.value); // TODO: use file to access code section offset.
+    IO::StreamFileReader reader(
+        *session.FileOf(fileId), session.CbcFileOf(fileId).GetStringOffs(offset)
+    ); // TODO: use file to access code section offset.
 
     uint32_t size = reader.ReadU32();
     auto mem      = static_cast<char*>(session.Allocator().do_allocate(size, alignof(char)));

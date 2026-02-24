@@ -4,6 +4,7 @@
 #include "io/file_id.h"
 #include "io/stream_file_reader.h"
 #include "offset.h"
+#include "string.h"
 
 namespace Symlevel {
 
@@ -29,6 +30,7 @@ public:
 
     IO::FileId Id() const;
     uint32_t GetCodeOffs(Offset<Code> offs) const;
+    uint32_t GetStringOffs(Offset<String> offs) const;
     uint32_t GetTypeDefOffs(Offset<TypeDefinition> offs) const;
     uint32_t GetMethodDefOffs(Offset<MethodDefinition> offs) const;
     uint32_t GetFieldDefOffs(Offset<FieldDefinition> offs) const;

@@ -70,6 +70,8 @@ IO::FileId CbcFile::Id() const { return impl->id; }
 
 uint32_t CbcFile::GetCodeOffs(Offset<Code> offs) const { return offs + impl->codeOffs; }
 
+uint32_t CbcFile::GetStringOffs(Offset<String> offs) const { return offs + impl->codeOffs; }
+
 uint32_t CbcFile::GetTypeDefOffs(Offset<TypeDefinition> offs) const { return offs + impl->typesOffs; }
 
 uint32_t CbcFile::GetMethodDefOffs(Offset<MethodDefinition> offs) const { return offs + impl->methodsOffs; }
