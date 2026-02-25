@@ -4,6 +4,6 @@
 
 namespace IO {
 
-RandomAccessFile* OpenFile(std::filesystem::path path);
+std::unique_ptr<RandomAccessFile> OpenFile(std::filesystem::path path);
 
 } // namespace IO

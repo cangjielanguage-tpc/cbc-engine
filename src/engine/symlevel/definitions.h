@@ -1,12 +1,14 @@
 #pragma once
 
+#include <vector>
+
 #include "engine/engine.h"
+#include "engine/identifiers.h"
 #include "io/file_id.h"
 #include "io/stream_file_reader.h"
 #include "offset.h"
 #include "string.h"
 #include "type_kind.h"
-#include <vector>
 
 namespace Symlevel {
 
@@ -26,35 +28,34 @@ private:
 
 class TypeDefinition {
 public:
-    static TypeDefinition Parse(IO::FileId fileId, IO::StreamFileReader& reader);
     static TypeDefinition Parse(Engine::Session& session, IO::FileId fileId, Offset<TypeDefinition> offset);
     static TypeDefinition Resolve(Engine::Session& session, Engine::Identifier<TypeDefinition> identifier);
 
     inline const Offset<String> Name() const { return name; }
 
-    inline uint32_t GetIdx() const { return idx; }
+    Engine::Identifier<TypeDefinition> GetIdentifier() const { return identifier; }
 
-    inline TypeKind GetTypeKind() const { return typeKind; }
+    uint32_t GetMethodCount() const { return methodsCount; }
 
-    inline std::vector<uint32_t> GetSupers() const { return supers; }
+    uint32_t GetMethodsTableOffs() const { return methodsOffset; }
 
 private:
     TypeDefinition(
-        IO::FileId fileId, Offset<String> name, uint32_t idx, TypeKind typeKind, std::vector<uint32_t> supers
+        Engine::Identifier<TypeDefinition> identifier,
+        Offset<String> name,
+        uint32_t methodsCount,
+        uint32_t methodsOffset
     )
-        : fileId(fileId),
+        : identifier(identifier),
           name(name),
-          idx(idx),
-          typeKind(typeKind),
-          supers(std::move(supers))
+          methodsCount(methodsCount),
+          methodsOffset(methodsOffset)
     {}
 
-    const IO::FileId fileId;
-
-    const Offset<String> name;
-    const uint32_t idx;
-    const TypeKind typeKind;
-    const std::vector<uint32_t> supers;
+    Engine::Identifier<TypeDefinition> identifier;
+    Offset<String> name;
+    uint32_t methodsCount;
+    uint32_t methodsOffset;
 };
 
 class FieldDefinition {
@@ -62,12 +63,6 @@ public:
     static FieldDefinition Parse(IO::FileId fileId, IO::StreamFileReader& reader);
 
     inline const Offset<String> Name() const { return name; }
-
-    inline uint32_t GetIdx() const { return idx; }
-
-    inline uint32_t GetDeclIdx() const { return declIdx; }
-
-    inline uint32_t GetTypeIdx() const { return typeIdx; }
 
 private:
     FieldDefinition(IO::FileId fileId, Offset<String> name, uint32_t idx, uint32_t declIdx, uint32_t typeIdx)
@@ -88,41 +83,37 @@ private:
 
 class MethodDefinition {
 public:
-    static MethodDefinition Parse(IO::FileId fileId, IO::StreamFileReader& reader);
     static MethodDefinition Parse(Engine::Session& session, IO::FileId fileId, Offset<MethodDefinition> offset);
     static MethodDefinition Resolve(Engine::Session& session, Engine::Identifier<MethodDefinition> identifier);
 
     inline const Offset<String> Name() const { return name; }
 
-    inline uint32_t GetIdx() const { return idx; }
-
-    inline uint32_t GetSigIdx() const { return sigIdx; }
-
-    inline uint32_t GetDeclIdx() const { return declIdx; }
+    inline uint32_t GetSigIdx() const
+    {
+        ASSERTION(false, "implement terms"); // FIXME
+        return sigIdx;
+    }
 
     inline Offset<Code> GetCodeOffs() const { return codeOffs; }
 
-    inline IO::FileId FileId() const { return fileId; }
+    inline IO::FileId FileId() const { return identifier.GetFileId(); }
+
+    Engine::Identifier<MethodDefinition> GetIdentifier() const { return identifier; }
 
 private:
     MethodDefinition(
-        IO::FileId fileId, Offset<String> name, uint32_t idx, uint32_t sigIdx, uint32_t declIdx, Offset<Code> codeOffs
+        Engine::Identifier<MethodDefinition> identifier, Offset<String> name, uint32_t sigIdx, Offset<Code> codeOffs
     )
-        : fileId(fileId),
+        : identifier(identifier),
           name(name),
-          idx(idx),
           sigIdx(sigIdx),
-          declIdx(declIdx),
           codeOffs(codeOffs)
     {}
 
-    const IO::FileId fileId;
-
-    const Offset<String> name;
-    const uint32_t idx;
-    const uint32_t sigIdx;
-    const uint32_t declIdx;
-    const Offset<Code> codeOffs;
+    Engine::Identifier<MethodDefinition> identifier;
+    Offset<String> name;
+    uint32_t sigIdx;
+    Offset<Code> codeOffs;
 };
 
 } // namespace Symlevel

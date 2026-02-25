@@ -9,8 +9,6 @@ namespace Symlevel {
 
 class String : public std::string_view {
 public:
-    static Offset<String> ParseOffset(IO::StreamFileReader& reader);
-
     String(std::string_view view) : std::string_view(std::move(view)) {}
 };
 

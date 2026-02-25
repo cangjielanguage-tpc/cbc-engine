@@ -1036,8 +1036,9 @@ enum ImmKind : uint32_t {
     FloatingPoint,
 };
 
-struct Decoding {
-    uint64_t immext;
+class Decoding {
+public:
+    Decoding() : immext(0) {}
 
     void Reset() { immext = 0; }
 
@@ -1094,6 +1095,9 @@ struct Decoding {
         uint64_t ival = StartDecoding(immKind, width, 16, i16);
         return FinishDecoding(width.NBits(), 16, ival, 0);
     }
+
+private:
+    uint64_t immext;
 };
 
 } // namespace Immediate

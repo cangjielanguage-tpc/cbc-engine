@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include "arena.h"
 #include "identifiers.h"
 #include "symlevel/cbc_file.h"
@@ -9,6 +11,7 @@
 namespace Engine {
 
 class Loader;
+class Session;
 
 /// The main instance of cbc engine.
 /// Mainly the engine is responsible for:
@@ -16,6 +19,9 @@ class Loader;
 /// - (TODO) locating the resources, and providing access to cbc-defined types;
 class Engine {
 public:
+    using MethodDefinition = Symlevel::MethodDefinition;
+    using TypeDefinition   = Symlevel::TypeDefinition;
+
     class Impl;
     friend class Loader;
     friend class Session;
@@ -23,6 +29,9 @@ public:
 
     ~Engine();
     std::pmr::memory_resource& CodeHeap() const;
+
+    std::optional<Identifier<MethodDefinition>> FindMain(Session& session, std::string_view fileName);
+    std::optional<Identifier<TypeDefinition>> FindType(Session& session, IO::FileId fileId, std::string_view name);
 
 private:
     Engine(std::unique_ptr<Impl>&& impl);
@@ -56,7 +65,7 @@ public:
     Loader(Loader&& other);
     ~Loader();
 
-    bool Load(std::unique_ptr<IO::RandomAccessFile> file, std::string_view name);
+    bool Load(std::unique_ptr<IO::RandomAccessFile> file, std::string_view fileName);
     Engine Build();
 
 private:
