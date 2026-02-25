@@ -63,7 +63,7 @@ public:
     Loader(Loader&& other);
     ~Loader();
 
-    bool Load(std::unique_ptr<IO::RandomAccessFile> file, std::string_view name);
+    bool Load(std::unique_ptr<IO::RandomAccessFile> file, std::string_view fileName);
     Engine Build();
 
 private:

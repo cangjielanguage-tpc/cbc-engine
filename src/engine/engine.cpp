@@ -57,7 +57,7 @@ Loader::~Loader()              = default;
 
 std::pmr::memory_resource& Engine::CodeHeap() const { return *std::pmr::new_delete_resource(); }
 
-bool Loader::Load(std::unique_ptr<IO::RandomAccessFile> file, std::string_view name)
+bool Loader::Load(std::unique_ptr<IO::RandomAccessFile> file, std::string_view fileName)
 {
     IO::StreamFileReader reader(*file, 0);
     uint32_t magic = reader.ReadU32();
@@ -66,7 +66,7 @@ bool Loader::Load(std::unique_ptr<IO::RandomAccessFile> file, std::string_view n
     }
 
     auto id = loader->fileCounter++;
-    loader->files.emplace_back(std::move(Symlevel::CbcFile::Create(IO::FileId(id), *file, name)));
+    loader->files.emplace_back(std::move(Symlevel::CbcFile::Create(IO::FileId(id), *file, fileName)));
     loader->rafs.emplace_back(std::move(file));
     return true;
 }
@@ -101,11 +101,11 @@ Engine::FindType(Session& session, IO::FileId fileId, std::string_view name)
     return std::nullopt;
 }
 
-std::optional<Identifier<Symlevel::MethodDefinition>> Engine::FindMain(Session& session, std::string_view name)
+std::optional<Identifier<Symlevel::MethodDefinition>> Engine::FindMain(Session& session, std::string_view fileName)
 {
     // FIXME: search for proper enclosing type and method name
     for (auto& file : impl->files) {
-        if (file.GetName() != name) {
+        if (file.GetName() != fileName) {
             continue;
         }
         auto id          = file.Id();
