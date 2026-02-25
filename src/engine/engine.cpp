@@ -7,9 +7,11 @@
 
 namespace Engine {
 
+using namespace Symlevel;
+
 class Engine::Impl {
 public:
-    Impl(std::vector<Symlevel::CbcFile> files, std::vector<std::unique_ptr<IO::RandomAccessFile>> rafs)
+    Impl(std::vector<CbcFile> files, std::vector<std::unique_ptr<IO::RandomAccessFile>> rafs)
         : files(std::move(files)),
           rafs(std::move(rafs)),
           fuhManager()
@@ -18,11 +20,11 @@ public:
     static Engine::Impl& Of(Engine& engine) { return *engine.impl; }
 
     friend class Session;
-    std::vector<Symlevel::CbcFile> files;
+    std::vector<CbcFile> files;
     std::vector<std::unique_ptr<IO::RandomAccessFile>> rafs;
 
     Interpretation::FunctionHandleManager fuhManager;
-    Symlevel::DefinitionsManager defsManager;
+    DefinitionsManager defsManager;
 };
 
 class Loader::Impl {
@@ -30,7 +32,7 @@ public:
     Impl() : fileCounter(0) {}
 
     uint32_t fileCounter;
-    std::vector<Symlevel::CbcFile> files;
+    std::vector<CbcFile> files;
     std::vector<std::unique_ptr<IO::RandomAccessFile>> rafs;
 };
 
@@ -42,7 +44,7 @@ std::unique_ptr<IO::RandomAccessFile>& Session::FileOf(IO::FileId fileId) const
     return engine.impl->rafs.at(fileId);
 }
 
-Symlevel::CbcFile& Session::CbcFileOf(IO::FileId fileId) const
+CbcFile& Session::CbcFileOf(IO::FileId fileId) const
 {
     // TODO: add session-scoped buffered rafs.
     return engine.impl->files.at(fileId);
@@ -61,12 +63,12 @@ bool Loader::Load(std::unique_ptr<IO::RandomAccessFile> file, std::string_view f
 {
     IO::StreamFileReader reader(*file, 0);
     uint32_t magic = reader.ReadU32();
-    if (magic != Symlevel::CbcFile::MAGIC) {
+    if (magic != CbcFile::MAGIC) {
         return false;
     }
 
     auto id = loader->fileCounter++;
-    loader->files.emplace_back(std::move(Symlevel::CbcFile::Create(IO::FileId(id), *file, fileName)));
+    loader->files.emplace_back(std::move(CbcFile::Create(IO::FileId(id), *file, fileName)));
     loader->rafs.emplace_back(std::move(file));
     return true;
 }
@@ -81,8 +83,7 @@ Engine::Engine(std::unique_ptr<Engine::Impl>&& impl) : impl(std::move(impl)) {}
 Engine::Engine(Engine&& other) = default;
 Engine::~Engine()              = default;
 
-std::optional<Identifier<Symlevel::TypeDefinition>>
-Engine::FindType(Session& session, IO::FileId fileId, std::string_view name)
+std::optional<Identifier<TypeDefinition>> Engine::FindType(Session& session, IO::FileId fileId, std::string_view name)
 {
     auto& file     = session.CbcFileOf(fileId);
     auto& raf      = session.FileOf(fileId);
@@ -91,9 +92,9 @@ Engine::FindType(Session& session, IO::FileId fileId, std::string_view name)
 
     uint32_t entryCount = reader.ReadU32();
     for (uint32_t i = 0; i < entryCount; i++) {
-        auto typeOffs = Symlevel::Offset<Symlevel::TypeDefinition>(reader.ReadU32());
-        auto typeDef  = Symlevel::TypeDefinition::Parse(session, fileId, typeOffs);
-        auto typeName = Symlevel::Reader::Read(session, fileId, typeDef.Name());
+        auto typeOffs = Offset<TypeDefinition>(reader.ReadU32());
+        auto typeDef  = TypeDefinition::Parse(session, fileId, typeOffs);
+        auto typeName = Reader::Read(session, fileId, typeDef.Name());
         if (typeName.compare(name) == 0) {
             return typeDef.GetIdentifier();
         }
@@ -101,7 +102,7 @@ Engine::FindType(Session& session, IO::FileId fileId, std::string_view name)
     return std::nullopt;
 }
 
-std::optional<Identifier<Symlevel::MethodDefinition>> Engine::FindMain(Session& session, std::string_view fileName)
+std::optional<Identifier<MethodDefinition>> Engine::FindMain(Session& session, std::string_view fileName)
 {
     // FIXME: search for proper enclosing type and method name
     for (auto& file : impl->files) {
@@ -114,13 +115,13 @@ std::optional<Identifier<Symlevel::MethodDefinition>> Engine::FindMain(Session& 
         if (!defaultType.has_value()) {
             continue;
         }
-        auto typeDef = Symlevel::TypeDefinition::Resolve(session, defaultType.value());
+        auto typeDef = TypeDefinition::Resolve(session, defaultType.value());
         IO::StreamFileReader reader(*raf, typeDef.GetMethodsTableOffs());
         auto methodCount = typeDef.GetMethodCount();
         for (uint32_t i = 0; i < methodCount; i++) {
-            auto offset     = Symlevel::Offset<Symlevel::MethodDefinition>(reader.ReadU32());
-            auto def        = Symlevel::MethodDefinition::Parse(session, id, offset);
-            auto methodName = Symlevel::Reader::Read(session, id, def.Name());
+            auto offset     = Offset<MethodDefinition>(reader.ReadU32());
+            auto def        = MethodDefinition::Parse(session, id, offset);
+            auto methodName = Reader::Read(session, id, def.Name());
             if (methodName.compare("main") == 0) {
                 return def.GetIdentifier();
             }

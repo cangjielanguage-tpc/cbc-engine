@@ -19,6 +19,9 @@ class Session;
 /// - (TODO) locating the resources, and providing access to cbc-defined types;
 class Engine {
 public:
+    using MethodDefinition = Symlevel::MethodDefinition;
+    using TypeDefinition   = Symlevel::TypeDefinition;
+
     class Impl;
     friend class Loader;
     friend class Session;
@@ -27,9 +30,8 @@ public:
     ~Engine();
     std::pmr::memory_resource& CodeHeap() const;
 
-    std::optional<Identifier<Symlevel::MethodDefinition>> FindMain(Session& session, std::string_view fileName);
-    std::optional<Identifier<Symlevel::TypeDefinition>>
-    FindType(Session& session, IO::FileId fileId, std::string_view name);
+    std::optional<Identifier<MethodDefinition>> FindMain(Session& session, std::string_view fileName);
+    std::optional<Identifier<TypeDefinition>> FindType(Session& session, IO::FileId fileId, std::string_view name);
 
 private:
     Engine(std::unique_ptr<Impl>&& impl);
