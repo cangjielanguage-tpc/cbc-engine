@@ -288,7 +288,6 @@ TEST(EmitTest, Simple_BccImm)
     e.Ret();
 
     auto code = e.Build(heap);
-    Cbc::RT::Log(code, std::cerr);
 
     auto res = Interpret(code, U32(0), U32(10));
     EXPECT_EQ(res.u32, 101);

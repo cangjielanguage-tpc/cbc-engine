@@ -213,19 +213,19 @@ private:
 class Common {
 public:
 #define CommonValue(X)                                                                                                 \
-    X(ADD, 0b0000, "")                                                                                                 \
-    X(SUB, 0b0001, "")                                                                                                 \
-    X(MUL, 0b0010, "")                                                                                                 \
-    X(AND, 0b0011, "")                                                                                                 \
-    X(OR, 0b0100, "")                                                                                                  \
-    X(XOR, 0b0101, "")                                                                                                 \
-    X(SDIV, 0b0110, "")                                                                                                \
-    X(SREM, 0b0111, "")                                                                                                \
-    X(UDIV, 0b1000, "")                                                                                                \
-    X(UREM, 0b1001, "")                                                                                                \
-    X(LSR, 0b1010, "")                                                                                                 \
-    X(ASR, 0b1011, "")                                                                                                 \
-    X(LSL, 0b1100, "")
+    X(ADD, 0b0000, "add")                                                                                              \
+    X(SUB, 0b0001, "sub")                                                                                              \
+    X(MUL, 0b0010, "mul")                                                                                              \
+    X(AND, 0b0011, "and")                                                                                              \
+    X(OR, 0b0100, "or")                                                                                                \
+    X(XOR, 0b0101, "xor")                                                                                              \
+    X(SDIV, 0b0110, "sdiv")                                                                                            \
+    X(SREM, 0b0111, "srem")                                                                                            \
+    X(UDIV, 0b1000, "udiv")                                                                                            \
+    X(UREM, 0b1001, "urem")                                                                                            \
+    X(LSR, 0b1010, "lsr")                                                                                              \
+    X(ASR, 0b1011, "asr")                                                                                              \
+    X(LSL, 0b1100, "lsl")
 
     enum Value : uint32_t {
 #define CommonEnum(opc, value, str) opc = value,

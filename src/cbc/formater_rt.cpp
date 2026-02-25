@@ -324,7 +324,7 @@ void Log(Interpretation::Code code, std::ostream& stream)
         auto opc      = reader.PeekOpcode();
         auto position = reader.Cursor() - bytecode;
         // TODO: alignment for bytecode position that depends on total bytecode length.
-        stream << "0x" << std::hex << position << ": " << std::dec;
+        stream << position << ": " << std::dec;
 
         // TODO: support memspaces
 #define FMT_LOGGER(opcode, fmt, sfmt)                                                                                  \
