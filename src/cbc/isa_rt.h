@@ -97,98 +97,83 @@ private:
 /// will not throw any exception and must execute without errors from start to finish.
 class MemOpcode {
 public:
+#define CBC_RT_MEMOPCODES(X)                                                                                           \
+    X(MEM_HALT, M1, "halt", true)                                                                                      \
+    X(OFFS16, M3i16, "offs.16 $0U16", false)                                                                           \
+    X(OFFS32, M5i32, "offs.32 $0U32", false)                                                                           \
+    X(OFFS64, M9i64, "offs.64 $0U64", false)                                                                           \
+    X(OFFS_REG, M2xr, "offs.r $1ir", false)                                                                            \
+    X(RLD_U8, M2rr, "rld.u8 $0ir $1ir }", true)                                                                        \
+    X(RLD_U16, M2rr, "rld.u16 $0ir $1ir }", true)                                                                      \
+    X(RLD_32, M2rr, "rld.u32 $0ir $1ir }", true)                                                                       \
+    X(RLD_S8, M2rr, "rld.s8 $0ir $1ir }", true)                                                                        \
+    X(RLD_S16, M2rr, "rld.s16 $0ir $1ir }", true)                                                                      \
+    X(RLD_F32, M2rr, "rld.f32 $0fr $1ir }", true)                                                                      \
+    X(RLD_F64, M2rr, "rld.f64 $0fr $1ir }", true)                                                                      \
+    X(RLD_64, M2rr, "rld.64 $0ir $1ir }", true)                                                                        \
+    X(RLD_S32TO64, M2rr, "rld.s32to64 $0ir $1ir }", true)                                                              \
+    X(RLD_REF, M2rr, "rld.ref $0ir $1ir }", true)                                                                      \
+    X(RST_8, M2rr, "rst.8 $0ir $1ir }", true)                                                                          \
+    X(RST_16, M2rr, "rst.16 $0ir $1ir }", true)                                                                        \
+    X(RST_32, M2rr, "rst.32 $0ir $1ir }", true)                                                                        \
+    X(RST_64, M2rr, "rst.64 $0ir $1ir }", true)                                                                        \
+    X(RST_REF, M2rr, "rst.ref $0ir $1ir }", true)                                                                      \
+    X(RST_F32, M2rr, "rst.f32 $0fr $1ir }", true)                                                                      \
+    X(RST_F64, M2rr, "rst.f64 $0fr $1ir }", true)                                                                      \
+    X(SLD_U8, M2rr, "sld.u8 $0ir $1ir }", true)                                                                        \
+    X(SLD_U16, M2rr, "sld.u16 $0ir $1ir }", true)                                                                      \
+    X(SLD_32, M2rr, "sld.u32 $0ir $1ir }", true)                                                                       \
+    X(SLD_S8, M2rr, "sld.s8 $0ir $1ir }", true)                                                                        \
+    X(SLD_S16, M2rr, "sld.s16 $0ir $1ir }", true)                                                                      \
+    X(SLD_F32, M2rr, "sld.f32 $0fr $1ir }", true)                                                                      \
+    X(SLD_F64, M2rr, "sld.f64 $0fr $1ir }", true)                                                                      \
+    X(SLD_64, M2rr, "sld.64 $0ir $1ir }", true)                                                                        \
+    X(SLD_S32TO64, M2rr, "sld.s32to64 $0ir $1ir }", true)                                                              \
+    X(SLD_REF, M2rr, "sld.ref $0ir $1ir }", true)                                                                      \
+    X(SST_8, M2rr, "sst.8 $0ir $1ir }", true)                                                                          \
+    X(SST_16, M2rr, "sst.16 $0ir $1ir }", true)                                                                        \
+    X(SST_32, M2rr, "sst.32 $0ir $1ir }", true)                                                                        \
+    X(SST_64, M2rr, "sst.64 $0ir $1ir }", true)                                                                        \
+    X(SST_REF, M2rr, "sst.ref $0ir $1ir }", true)                                                                      \
+    X(SST_F32, M2rr, "sst.f32 $0fr $1ir }", true)                                                                      \
+    X(SST_F64, M2rr, "sst.f64 $0fr $1ir }", true)                                                                      \
+    X(FLD_U8, M2rr, "fld.u8 $0ir $1ir }", true)                                                                        \
+    X(FLD_U16, M2rr, "fld.u16 $0ir $1ir }", true)                                                                      \
+    X(FLD_32, M2rr, "fld.u32 $0ir $1ir }", true)                                                                       \
+    X(FLD_S8, M2rr, "fld.s8 $0ir $1ir }", true)                                                                        \
+    X(FLD_S16, M2rr, "fld.s16 $0ir $1ir }", true)                                                                      \
+    X(FLD_F32, M2rr, "fld.f32 $0fr $1ir }", true)                                                                      \
+    X(FLD_F64, M2rr, "fld.f64 $0fr $1ir }", true)                                                                      \
+    X(FLD_64, M2rr, "fld.64 $0ir $1ir }", true)                                                                        \
+    X(FLD_S32TO64, M2rr, "fld.s32to64 $0ir $1ir }", true)                                                              \
+    X(FLD_REF, M2rr, "fld.ref $0ir $1ir }", true)                                                                      \
+    X(FST_8, M2rr, "fst.8 $0ir $1ir }", true)                                                                          \
+    X(FST_16, M2rr, "fst.16 $0ir $1ir }", true)                                                                        \
+    X(FST_32, M2rr, "fst.32 $0ir $1ir }", true)                                                                        \
+    X(FST_64, M2rr, "fst.64 $0ir $1ir }", true)                                                                        \
+    X(FST_REF, M2rr, "fst.ref $0ir $1ir }", true)                                                                      \
+    X(FST_F32, M2rr, "fst.f32 $0fr $1ir }", true)                                                                      \
+    X(FST_F64, M2rr, "fst.f64 $0fr $1ir }", true)
+
     enum Value : uint8_t {
-        MEM_HALT, // M1
-
-        OFFS16,   // M2i16
-        OFFS32,   // M2i32
-        OFFS64,   // M2i64
-        OFFS_REG, // M2xr
-
-        RLD_START_OPCODE,
-        RLD_U8 = RLD_START_OPCODE, // M2rr
-        RLD_U16,                   // M2rr
-        RLD_32,                    // M2rr
-        RLD_S8,                    // M2rr
-        RLD_S16,                   // M2rr
-        RLD_F32,                   // M2rr
-        RLD_F64,                   // M2rr
-        RLD_64,                    // M2rr
-        RLD_S32TO64,               // M2rr
-        RLD_REF,                   // M2rr
-        RLD_END_OPCODE = RLD_REF,
-        RST_START_OPCODE,
-        RST_8 = RST_START_OPCODE, // M2rr
-        RST_16,                   // M2rr
-        RST_32,                   // M2rr
-        RST_64,                   // M2rr
-        RST_REF,                  // M2rr
-        RST_F32,                  // M2rr
-        RST_F64,                  // M2rr
-        RST_END_OPCODE = RST_F64,
-
-        SLD_START_OPCODE,
-        SLD_U8 = SLD_START_OPCODE, // M2rr
-        SLD_U16,                   // M2rr
-        SLD_32,                    // M2rr
-        SLD_S8,                    // M2rr
-        SLD_S16,                   // M2rr
-        SLD_F32,                   // M2rr
-        SLD_F64,                   // M2rr
-        SLD_64,                    // M2rr
-        SLD_S32TO64,               // M2rr
-        SLD_REF,                   // M2rr
-        SLD_END_OPCODE = SLD_REF,
-        SST_START_OPCODE,
-        SST_8 = SST_START_OPCODE, // M2rr
-        SST_16,                   // M2rr
-        SST_32,                   // M2rr
-        SST_64,                   // M2rr
-        SST_REF,                  // M2rr
-        SST_F32,                  // M2rr
-        SST_F64,                  // M2rr
-        SST_END_OPCODE = SST_F64,
-
-        FLD_START_OPCODE,
-        FLD_U8 = FLD_START_OPCODE, // M2rr
-        FLD_U16,                   // M2rr
-        FLD_32,                    // M2rr
-        FLD_S8,                    // M2rr
-        FLD_S16,                   // M2rr
-        FLD_F32,                   // M2rr
-        FLD_F64,                   // M2rr
-        FLD_64,                    // M2rr
-        FLD_S32TO64,               // M2rr
-        FLD_REF,                   // M2rr
-        FLD_END_OPCODE = FLD_REF,
-        FST_START_OPCODE,
-        FST_8 = FST_START_OPCODE, // M2rr
-        FST_16,                   // M2rr
-        FST_32,                   // M2rr
-        FST_64,                   // M2rr
-        FST_REF,                  // M2rr
-        FST_F32,                  // M2rr
-        FST_F64,                  // M2rr
-        FST_END_OPCODE = FST_F64,
-
-        // TODO: Add following opcodes.
-        // GLD_*, <- global
-        // GST_*,
-        // ULD_*, <- uts needed for marking (otherwise, use FLD)
-        // UST_*, <- uts needed for marking (otherwise, use FST)
-        // FLD_*, <- frame
-        // FST_*,
-
-        // TODO: Discuss which copy operations are needed,
-        //       since there is up to N^2 possible combinations.
-        // COPY,
-
-        // TODO: Discuss how to implement index operation properly:
-        //       handle OOB exception and different kinds of Array type.
-        // INDEX
-
+#define DEFINE_OPCODE(opc, dfmt, sfmt, isTail) opc,
+        CBC_RT_MEMOPCODES(DEFINE_OPCODE)
+#undef DEFINE_OPCODE
         OPCODE_NUM,
     };
+
+    static constexpr auto RLD_START_OPCODE = RLD_U8;
+    static constexpr auto RLD_END_OPCODE   = RLD_REF;
+    static constexpr auto SLD_START_OPCODE = SLD_U8;
+    static constexpr auto SLD_END_OPCODE   = SLD_REF;
+    static constexpr auto FLD_START_OPCODE = FLD_U8;
+    static constexpr auto FLD_END_OPCODE   = FLD_REF;
+    static constexpr auto RST_START_OPCODE = RST_8;
+    static constexpr auto RST_END_OPCODE   = RST_F64;
+    static constexpr auto SST_START_OPCODE = SST_8;
+    static constexpr auto SST_END_OPCODE   = SST_F64;
+    static constexpr auto FST_START_OPCODE = FST_8;
+    static constexpr auto FST_END_OPCODE   = FST_F64;
 
     static_assert(OPCODE_NUM <= 256);
 
@@ -371,6 +356,12 @@ struct B10xri64 {
         auto imm64 = Format::Imm64::Decode(reader);
         return B10xri64 { opc, xr, imm64 };
     }
+};
+
+struct M1 {
+    MemOpcode opc;
+
+    static M1 Decode(Decoder::ByteReader& reader) { return M1 { MemOpcode::Decode(reader) }; }
 };
 
 struct M3i16 {
