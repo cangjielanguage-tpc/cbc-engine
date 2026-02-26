@@ -30,6 +30,8 @@ BraceWrapping:
   SplitEmptyRecord: false
   SplitEmptyNamespace: false
 
+AlwaysBreakAfterReturnType: None
+PenaltyReturnTypeOnItsOwnLine: 100000
 Cpp11BracedListStyle: false
 SpaceBeforeCpp11BracedList: true
 AllowShortFunctionsOnASingleLine: All
