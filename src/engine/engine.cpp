@@ -118,6 +118,11 @@ FunctionHandleManager& FunctionHandleManager::Of(Engine::Engine& engine)
     return Engine::Engine::Impl::Of(engine).fuhManager;
 }
 
+FunctionHandleManager& FunctionHandleManager::Of(Engine::Session& session)
+{
+    return FunctionHandleManager::Of(session.GetEngine());
+}
+
 } // namespace Interpretation
 
 namespace Symlevel {
