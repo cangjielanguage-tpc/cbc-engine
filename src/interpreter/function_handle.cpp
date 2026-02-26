@@ -19,8 +19,9 @@ FunctionHandleManager::FunctionHandleManager() : impl(std::move(std::make_unique
 FunctionHandleManager::~FunctionHandleManager()                               = default;
 FunctionHandleManager::FunctionHandleManager(FunctionHandleManager&& manager) = default;
 
-FunctionHandle*
-FunctionHandleManager::Acquire(Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> methodDef)
+FunctionHandle* FunctionHandleManager::Acquire(
+    Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> methodDef
+)
 {
     std::lock_guard guard(impl->lock);
     auto res = impl->fuhMap.find(methodDef);

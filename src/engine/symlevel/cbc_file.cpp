@@ -84,6 +84,7 @@ uint32_t CbcFile::GetMethodDefOffs(Offset<MethodDefinition> offs) const { return
 uint32_t CbcFile::GetFieldDefOffs(Offset<FieldDefinition> offs) const { return offs + impl->fieldOffs; }
 
 uint32_t CbcFile::GetTermOffs(Offset<TermVal> offs) const { return offs + impl->termTableOffs; }
+
 uint32_t CbcFile::GetTypesTableOffs() const { return impl->typesTableOffs; }
 
 String CbcFile::GetName() const { return String(impl->name); }
