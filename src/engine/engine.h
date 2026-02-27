@@ -31,7 +31,7 @@ public:
     std::pmr::memory_resource& CodeHeap() const;
 
     std::optional<Identifier<MethodDefinition>> FindMain(Session& session, std::string_view fileName);
-    std::optional<Identifier<TypeDefinition>> FindType(Session& session, IO::FileId fileId, std::string_view name);
+    std::optional<TypeDefinition> FindType(Session& session, std::string_view typeName);
 
 private:
     Engine(std::unique_ptr<Impl>&& impl);

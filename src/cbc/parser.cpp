@@ -11,10 +11,10 @@ static Decoder::ByteReader ReaderOf(MethodCode code)
     return Decoder::ByteReader(code.codePtr, code.codePtr, GetCodeEnd(code));
 }
 
-Parser::Parser(API::Method* _method, MethodCode _code)
-    : method(_method),
-      codeReader(ReaderOf(_code)),
-      codeEnd(GetCodeEnd(_code))
+Parser::Parser(API::Resolver* resolver, MethodCode code)
+    : resolver(resolver),
+      codeReader(ReaderOf(code)),
+      codeEnd(GetCodeEnd(code))
 {}
 
 void Parser::Interpret()

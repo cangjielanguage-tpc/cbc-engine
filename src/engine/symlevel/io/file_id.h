@@ -7,11 +7,11 @@
 namespace IO {
 
 struct FileId {
-    static constexpr auto MAX_SIZE = (1 << 24);
+    static constexpr auto MAX_ID = (1 << 24) - 1;
 
     const uint32_t id;
 
-    FileId(uint32_t id) : id(id) { ASSERT(id < MAX_SIZE); }
+    FileId(uint32_t id) : id(id) { ASSERT(id <= MAX_ID); }
 
     operator std::uint32_t() const { return id; }
 
