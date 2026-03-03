@@ -262,6 +262,42 @@ template <> inline bool Compare<CC::RNE, Width::W32>(Value::Reference l, Value::
     return l.value != r.value;
 }
 
+template <> inline bool Compare<CC::FEQ, Width::W32>(Value::Primitive l, Value::Primitive r) { return l.f32 == r.f32; }
+
+template <> inline bool Compare<CC::FNE, Width::W32>(Value::Primitive l, Value::Primitive r) { return l.f32 != r.f32; }
+
+template <> inline bool Compare<CC::FGE, Width::W32>(Value::Primitive l, Value::Primitive r) { return l.f32 >= r.f32; }
+
+template <> inline bool Compare<CC::FNGE, Width::W32>(Value::Primitive l, Value::Primitive r)
+{
+    return !(l.f32 >= r.f32);
+}
+
+template <> inline bool Compare<CC::FLT, Width::W32>(Value::Primitive l, Value::Primitive r) { return l.f32 < r.f32; }
+
+template <> inline bool Compare<CC::FNLT, Width::W32>(Value::Primitive l, Value::Primitive r)
+{
+    return !(l.f32 < r.f32);
+}
+
+template <> inline bool Compare<CC::FEQ, Width::W64>(Value::Primitive l, Value::Primitive r) { return l.f64 == r.f64; }
+
+template <> inline bool Compare<CC::FNE, Width::W64>(Value::Primitive l, Value::Primitive r) { return l.f64 != r.f64; }
+
+template <> inline bool Compare<CC::FGE, Width::W64>(Value::Primitive l, Value::Primitive r) { return l.f64 >= r.f64; }
+
+template <> inline bool Compare<CC::FNGE, Width::W64>(Value::Primitive l, Value::Primitive r)
+{
+    return !(l.f64 >= r.f64);
+}
+
+template <> inline bool Compare<CC::FLT, Width::W64>(Value::Primitive l, Value::Primitive r) { return l.f64 < r.f64; }
+
+template <> inline bool Compare<CC::FNLT, Width::W64>(Value::Primitive l, Value::Primitive r)
+{
+    return !(l.f64 < r.f64);
+}
+
 template <RT::ImmKind::Value immKind> static inline uint64_t DecodeImmediate(LiteralTable* literals, uint16_t value);
 
 template <> inline uint64_t DecodeImmediate<RT::ImmKind::VALUE>(LiteralTable* literals, uint16_t value)

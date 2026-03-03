@@ -356,5 +356,142 @@ TEST(EmitTest, Simple_FAbs)
     EXPECT_EQ(res2.f64, +0.0);
 }
 
+TEST(EmitTest, SSC)
+{
+    struct {
+        CC cc;
+        Width width;
+        uint32_t expected;
+    } cases[] = {
+        { CC::EQ, Width::W32, 0 },    { CC::NE, Width::W32, 1 },     { CC::LT, Width::W32, 0 },
+        { CC::GE, Width::W32, 1 },    { CC::ULT, Width::W32, 0 },    { CC::UGE, Width::W32, 1 },
+        { CC::TESTZ, Width::W32, 1 }, { CC::TESTNZ, Width::W32, 0 },
+
+        { CC::EQ, Width::W64, 0 },    { CC::NE, Width::W64, 1 },     { CC::LT, Width::W64, 0 },
+        { CC::GE, Width::W64, 1 },    { CC::ULT, Width::W64, 0 },    { CC::UGE, Width::W64, 1 },
+        { CC::TESTZ, Width::W64, 1 }, { CC::TESTNZ, Width::W64, 0 },
+    };
+
+    for (const auto& test : cases) {
+        Emitter e;
+        e.SCC(test.cc, test.width, IReg::IR1, IReg::IR1, IReg::IR2);
+        e.Ret();
+
+        auto code = e.Build(heap);
+        Cbc::RT::Log(code, std::cerr);
+
+        auto res = Interpret(code, U64(4), U64(3));
+        EXPECT_EQ(res.u32, test.expected);
+    }
+}
+
+TEST(EmitTest, FSSC32)
+{
+    struct {
+        CC cc;
+        float l;
+        float r;
+        uint32_t expected;
+    } cases[] = {
+        { CC::FEQ, 4.2, 3.1, 0 },           { CC::FNE, 4.2, 3.1, 1 },
+        { CC::FLT, 4.2, 3.1, 0 },           { CC::FNLT, 4.2, 3.1, 1 },
+        { CC::FGE, 4.2, 3.1, 1 },           { CC::FNGE, 4.2, 3.1, 0 },
+
+        { CC::FEQ, NAN, NAN, 0 },           { CC::FNE, NAN, NAN, 1 },
+        { CC::FLT, NAN, NAN, 0 },           { CC::FNLT, NAN, NAN, 1 },
+        { CC::FGE, NAN, NAN, 0 },           { CC::FNGE, NAN, NAN, 1 },
+
+        { CC::FEQ, INFINITY, INFINITY, 1 }, { CC::FNE, INFINITY, INFINITY, 0 },
+        { CC::FLT, INFINITY, INFINITY, 0 }, { CC::FNLT, INFINITY, INFINITY, 1 },
+        { CC::FGE, INFINITY, INFINITY, 1 }, { CC::FNGE, INFINITY, INFINITY, 0 },
+    };
+
+    for (const auto& test : cases) {
+        Emitter e;
+        e.SCC(test.cc, Width::W32, IReg::IR1, FReg::FR0, FReg::FR1);
+        e.Mov(FReg::FR0, IReg::IR1);
+        e.Ret();
+
+        auto code = e.Build(heap);
+        Cbc::RT::Log(code, std::cerr);
+
+        auto res = InterpretFPRes(code, F32(test.l), F32(test.r));
+        EXPECT_EQ(res.u32, test.expected);
+    }
+}
+
+TEST(EmitTest, FSSC64)
+{
+    struct {
+        CC cc;
+        double l;
+        double r;
+        uint32_t expected;
+    } cases[] = {
+        { CC::FEQ, 4.2, 3.1, 0 },           { CC::FNE, 4.2, 3.1, 1 },
+        { CC::FLT, 4.2, 3.1, 0 },           { CC::FNLT, 4.2, 3.1, 1 },
+        { CC::FGE, 4.2, 3.1, 1 },           { CC::FNGE, 4.2, 3.1, 0 },
+
+        { CC::FEQ, NAN, NAN, 0 },           { CC::FNE, NAN, NAN, 1 },
+        { CC::FLT, NAN, NAN, 0 },           { CC::FNLT, NAN, NAN, 1 },
+        { CC::FGE, NAN, NAN, 0 },           { CC::FNGE, NAN, NAN, 1 },
+
+        { CC::FEQ, INFINITY, INFINITY, 1 }, { CC::FNE, INFINITY, INFINITY, 0 },
+        { CC::FLT, INFINITY, INFINITY, 0 }, { CC::FNLT, INFINITY, INFINITY, 1 },
+        { CC::FGE, INFINITY, INFINITY, 1 }, { CC::FNGE, INFINITY, INFINITY, 0 },
+    };
+
+    for (const auto& test : cases) {
+        Emitter e;
+        e.SCC(test.cc, Width::W64, IReg::IR1, FReg::FR0, FReg::FR1);
+        e.Mov(FReg::FR0, IReg::IR1);
+        e.Ret();
+
+        auto code = e.Build(heap);
+        Cbc::RT::Log(code, std::cerr);
+
+        auto res = InterpretFPRes(code, F64(test.l), F64(test.r));
+        EXPECT_EQ(res.u32, test.expected);
+    }
+}
+
+TEST(EmitTest, SSCI32)
+{
+    struct {
+        CC cc;
+        Width width;
+        uint64_t imm;
+        uint32_t expected;
+    } cases[] = {
+        { CC::EQ, Width::W32, 0xff, 0 },      { CC::NE, Width::W32, 0xff, 1 },       { CC::LT, Width::W32, 0xff, 0 },
+        { CC::GE, Width::W32, 0xff, 1 },      { CC::ULT, Width::W32, 0xff, 0 },      { CC::UGE, Width::W32, 0xff, 1 },
+        { CC::TESTZ, Width::W32, 0xff, 0 },   { CC::TESTNZ, Width::W32, 0xff, 1 },
+
+        { CC::EQ, Width::W64, 0xff, 0 },      { CC::NE, Width::W64, 0xff, 1 },       { CC::LT, Width::W64, 0xff, 0 },
+        { CC::GE, Width::W64, 0xff, 1 },      { CC::ULT, Width::W64, 0xff, 0 },      { CC::UGE, Width::W64, 0xff, 1 },
+        { CC::TESTZ, Width::W64, 0xff, 0 },   { CC::TESTNZ, Width::W64, 0xff, 1 },
+
+        { CC::EQ, Width::W32, 0xff00, 0 },    { CC::NE, Width::W32, 0xff00, 1 },     { CC::LT, Width::W32, 0xff00, 0 },
+        { CC::GE, Width::W32, 0xff00, 1 },    { CC::ULT, Width::W32, 0xff00, 0 },    { CC::UGE, Width::W32, 0xff00, 1 },
+        { CC::TESTZ, Width::W32, 0xff00, 0 }, { CC::TESTNZ, Width::W32, 0xff00, 1 },
+
+        { CC::EQ, Width::W64, 0xff00, 0 },    { CC::NE, Width::W64, 0xff00, 1 },     { CC::LT, Width::W64, 0xff00, 0 },
+        { CC::GE, Width::W64, 0xff00, 1 },    { CC::ULT, Width::W64, 0xff00, 0 },    { CC::UGE, Width::W64, 0xff00, 1 },
+        { CC::TESTZ, Width::W64, 0xff00, 0 }, { CC::TESTNZ, Width::W64, 0xff00, 1 },
+    };
+
+    for (const auto& test : cases) {
+        Emitter e;
+        e.SCCImm(test.cc, test.width, IReg::IR1, IReg::IR2, test.imm);
+        e.Ret();
+
+        auto code = e.Build(heap);
+        Cbc::RT::Log(code, std::cerr);
+
+        auto res = Interpret(code, U64(0), U64(0xffff));
+        EXPECT_EQ(res.u32, test.expected);
+    }
+}
+
 } // namespace Emitter
 } // namespace Cbc

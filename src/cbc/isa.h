@@ -411,22 +411,22 @@ private:
 class CC {
 public:
 #define CCValue(X)                                                                                                     \
-    X(EQ, 0b0000, "")                                                                                                  \
-    X(NE, 0b0001, "")                                                                                                  \
-    X(LT, 0b0010, "")                                                                                                  \
-    X(GE, 0b0011, "")                                                                                                  \
-    X(ULT, 0b0100, "")                                                                                                 \
-    X(UGE, 0b0101, "")                                                                                                 \
-    X(REQ, 0b0110, "")                                                                                                 \
-    X(RNE, 0b0111, "")                                                                                                 \
-    X(FEQ, 0b1000, "")                                                                                                 \
-    X(FNE, 0b1001, "")                                                                                                 \
-    X(FLT, 0b1010, "")                                                                                                 \
-    X(FNLT, 0b1011, "")                                                                                                \
-    X(FGE, 0b1100, "")                                                                                                 \
-    X(FNGE, 0b1101, "")                                                                                                \
-    X(TESTZ, 0b1110, "")                                                                                               \
-    X(TESTNZ, 0b1111, "")
+    X(EQ, 0b0000, "eq")                                                                                                \
+    X(NE, 0b0001, "ne")                                                                                                \
+    X(LT, 0b0010, "lt")                                                                                                \
+    X(GE, 0b0011, "ge")                                                                                                \
+    X(ULT, 0b0100, "ult")                                                                                              \
+    X(UGE, 0b0101, "uge")                                                                                              \
+    X(REQ, 0b0110, "req")                                                                                              \
+    X(RNE, 0b0111, "rne")                                                                                              \
+    X(FEQ, 0b1000, "feq")                                                                                              \
+    X(FNE, 0b1001, "fne")                                                                                              \
+    X(FLT, 0b1010, "flt")                                                                                              \
+    X(FNLT, 0b1011, "fnlt")                                                                                            \
+    X(FGE, 0b1100, "fge")                                                                                              \
+    X(FNGE, 0b1101, "fnge")                                                                                            \
+    X(TESTZ, 0b1110, "z")                                                                                              \
+    X(TESTNZ, 0b1111, "nz")
 
 #define CCEnum(opc, value, str) opc = value,
 

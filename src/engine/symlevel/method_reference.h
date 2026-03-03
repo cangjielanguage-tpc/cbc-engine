@@ -12,6 +12,7 @@ public:
     static MethodReference Parse(IO::FileId fileId, IO::StreamFileReader& reader);
 
     inline const Offset<String> Name() const { return name; }
+
     inline uint32_t GetRefTypeIdx() const { return refTypeIdx; }
 
 private:
