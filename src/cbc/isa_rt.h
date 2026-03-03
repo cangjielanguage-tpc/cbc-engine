@@ -3,6 +3,7 @@
 #include "decoder.h"
 #include "isa.h"
 
+// X parameters: opcode, encoding format, string format
 #define CBC_RT_OPCODES(X)                                                                                              \
     X(HALT, B1, "halt")                                                                                                \
     X(RET, B1, "ret")                                                                                                  \
@@ -46,58 +47,7 @@
     X(STORE_FRAME, B4xi12rr, "st.frame.$0stk $2r:$0stk [$3ir $1U12]")                                                  \
     X(MEMSPACE, B1, "memspace {")
 
-namespace Cbc {
-namespace RT {
-
-constexpr int LIT_TABLE_SIZE = 4096;
-
-class Opcode {
-public:
-#define DEFINE_OPCODE(opc, dfmt, sfmt) opc,
-
-    enum Value : uint8_t {
-        CBC_RT_OPCODES(DEFINE_OPCODE) OPCODE_NUM
-    };
-
-#undef DEFINE_OPCODE
-
-    static_assert(OPCODE_NUM <= 256);
-
-    inline constexpr Opcode(const Value value) : _value(value) {}
-
-    inline constexpr Opcode(const uint8_t raw) : _value(static_cast<Value>(raw)) {}
-
-    inline constexpr Opcode() : _value(HALT) {}
-
-    inline constexpr operator Value() const { return _value; }
-
-    inline static Opcode Decode(Decoder::ByteReader& reader)
-    {
-        uint8_t b = reader.Read8();
-        return Opcode(b);
-    }
-
-private:
-    Value _value;
-};
-
-/// ISA12 is encoding a number of different mem.head operations
-/// which are describing the kind of a base.
-/// This is not convenient for interpretation,
-/// since the actual value is only needed at the tail of memspace
-/// in the operation itself (and sometimes it is not needed at all).
-///
-/// So, the ISA12 would require from memspace interpreter to store
-/// the state of a head all the way to the tail.
-///
-/// Instead, we will encode memspace command as one `MEMSPACE` opcode,
-/// which will enter the memspace, accumulate the offset and
-/// use it to perform the actual operation.
-///
-/// Additionally, we would expect that the whole MEMSPACE instruction
-/// will not throw any exception and must execute without errors from start to finish.
-class MemOpcode {
-public:
+// X parameters: opcode, encoding format, string format, is tail
 #define CBC_RT_MEMOPCODES(X)                                                                                           \
     X(MEM_HALT, M1, "halt", true)                                                                                      \
     X(OFFS16, M3i16, "offs.16 $0U16", false)                                                                           \
@@ -156,12 +106,65 @@ public:
     X(FST_F32, M2rr, "fst.f32 $0fr $1ir }", true)                                                                      \
     X(FST_F64, M2rr, "fst.f64 $0fr $1ir }", true)
 
+namespace Cbc {
+namespace RT {
+
+constexpr int LIT_TABLE_SIZE = 4096;
+
+class Opcode {
+public:
+#define DEFINE_OPCODE(opc, dfmt, sfmt) opc,
+
     enum Value : uint8_t {
-#define DEFINE_OPCODE(opc, dfmt, sfmt, isTail) opc,
-        CBC_RT_MEMOPCODES(DEFINE_OPCODE)
-#undef DEFINE_OPCODE
-        OPCODE_NUM,
+        CBC_RT_OPCODES(DEFINE_OPCODE) OPCODE_NUM
     };
+
+#undef DEFINE_OPCODE
+
+    static_assert(OPCODE_NUM <= 256);
+
+    inline constexpr Opcode(const Value value) : _value(value) {}
+
+    inline constexpr Opcode(const uint8_t raw) : _value(static_cast<Value>(raw)) {}
+
+    inline constexpr Opcode() : _value(HALT) {}
+
+    inline constexpr operator Value() const { return _value; }
+
+    inline static Opcode Decode(Decoder::ByteReader& reader)
+    {
+        uint8_t b = reader.Read8();
+        return Opcode(b);
+    }
+
+private:
+    Value _value;
+};
+
+/// ISA12 is encoding a number of different mem.head operations
+/// which are describing the kind of a base.
+/// This is not convenient for interpretation,
+/// since the actual value is only needed at the tail of memspace
+/// in the operation itself (and sometimes it is not needed at all).
+///
+/// So, the ISA12 would require from memspace interpreter to store
+/// the state of a head all the way to the tail.
+///
+/// Instead, we will encode memspace command as one `MEMSPACE` opcode,
+/// which will enter the memspace, accumulate the offset and
+/// use it to perform the actual operation.
+///
+/// Additionally, we would expect that the whole MEMSPACE instruction
+/// will not throw any exception and must execute without errors from start to finish.
+class MemOpcode {
+public:
+#define DEFINE_OPCODE(opc, dfmt, sfmt, isTail) opc,
+
+    enum Value : uint8_t {
+        CBC_RT_MEMOPCODES(DEFINE_OPCODE) OPCODE_NUM
+    };
+
+#undef DEFINE_OPCODE
 
     static constexpr auto RLD_START_OPCODE = RLD_U8;
     static constexpr auto RLD_END_OPCODE   = RLD_REF;
