@@ -129,12 +129,12 @@ public:
 
     inline constexpr bool Is(TypeKind kind) const { return GetTypeKind() == kind; }
 
-    inline constexpr bool Is(TypeFlag flag) const { return flagsRaw & (1 << static_cast<TypeFlag::Value>(flag)); }
+    inline constexpr bool Is(TypeFlag flag) const { return flagsRaw & (1u << static_cast<TypeFlag::Value>(flag)); }
 
     inline constexpr TypeFlags Or(TypeFlag flag) const
     {
         TypeFlags copy  = *this;
-        copy.flagsRaw  |= 1 << flag;
+        copy.flagsRaw   |= 1u << flag;
         return copy;
     }
 

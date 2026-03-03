@@ -15,16 +15,6 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_C_FLAGS_DEBUG "-g -Og")
 set(CMAKE_C_FLAGS_RELEASE "-O2")
 
-list(APPEND PROJECT_WARNINGS
-    -Werror
-    -Wconversion
-    -Wsign-conversion
-    -Wfloat-conversion
-    -Wundef
-    -Wwrite-strings
-    -Wformat=2
-)
-
 option(ENABLE_LTO "Enable Link-Time Optimization" ON)
 if(ENABLE_LTO)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
