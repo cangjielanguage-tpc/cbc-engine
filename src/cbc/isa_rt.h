@@ -57,6 +57,15 @@ public:
         LOAD_FRAME,  // B4xi12rr
         STORE_FRAME, // B4xi12rr
 
+        SCC32,   // B3xrrr
+        SCC64,   // B3xrrr
+        FSCC32,  // B3xrrr
+        FSCC64,  // B3xrrr
+        SCCI32I, // B4xi12rr
+        SCCI64I, // B4xi12rr
+        SCCI32L, // B4xi12rr
+        SCCI64L, // B4xi12rr
+
         MEMSPACE, // B1. See `MemOpcode`
 
         OPCODE_NUM,
