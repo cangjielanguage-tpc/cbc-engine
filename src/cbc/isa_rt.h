@@ -53,12 +53,13 @@ constexpr int LIT_TABLE_SIZE = 4096;
 
 class Opcode {
 public:
-    enum Value : uint8_t {
 #define DEFINE_OPCODE(opc, dfmt, sfmt) opc,
-        CBC_RT_OPCODES(DEFINE_OPCODE)
-#undef DEFINE_OPCODE
-        OPCODE_NUM,
+
+    enum Value : uint8_t {
+        CBC_RT_OPCODES(DEFINE_OPCODE) OPCODE_NUM
     };
+
+#undef DEFINE_OPCODE
 
     static_assert(OPCODE_NUM <= 256);
 

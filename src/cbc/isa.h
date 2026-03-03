@@ -227,11 +227,13 @@ public:
     X(ASR, 0b1011, "asr")                                                                                              \
     X(LSL, 0b1100, "lsl")
 
-    enum Value : uint32_t {
 #define CommonEnum(opc, value, str) opc = value,
+
+    enum Value : uint32_t {
         CommonValue(CommonEnum)
-#undef CommonEnum
     };
+
+#undef CommonEnum
 
     static constexpr auto EXT  = SUB;
     static constexpr auto MOV  = SDIV;
@@ -289,11 +291,13 @@ public:
     X(U64_TO_F, 0b1110, "u64tof")                                                                                      \
     X(F_TO_U64, 0b1111, "ftou64")
 
-    enum Value : uint32_t {
 #define FloatOperationsEnum(opc, value, str) opc = value,
+
+    enum Value : uint32_t {
         FloatOperationsValue(FloatOperationsEnum)
-#undef FloatOperationsEnum
     };
+
+#undef FloatOperationsEnum
 
     static constexpr Value values[] = {
         FADD,     FSUB,     FMUL,     FDIV,     FMOV,     FNEG,     FABS,     FSQRT,
@@ -424,11 +428,13 @@ public:
     X(TESTZ, 0b1110, "")                                                                                               \
     X(TESTNZ, 0b1111, "")
 
-    enum Value : uint32_t {
 #define CCEnum(opc, value, str) opc = value,
+
+    enum Value : uint32_t {
         CCValue(CCEnum)
-#undef CCEnum
     };
+
+#undef CCEnum
 
     constexpr CC(const uint32_t raw) : _value((Value)raw) {}
 
@@ -491,11 +497,13 @@ public:
     X(ST_F32, 0b0110, "f32")                                                                                           \
     X(ST_F64, 0b0111, "f64")
 
-    enum Value : uint8_t {
 #define StoreAccessKindEnum(opc, value, str) opc = value,
+
+    enum Value : uint8_t {
         StoreAccessKindValue(StoreAccessKindEnum)
-#undef StoreAccessKindEnum
     };
+
+#undef StoreAccessKindEnum
 
     constexpr StoreAccessKind(const uint8_t raw) : _value((Value)raw) {}
 
@@ -541,11 +549,13 @@ public:
     X(LD_S32TO64, 0b1110, "s32to64")                                                                                   \
     X(LD_REF, 0b1111, "ref")
 
-    enum Value : uint8_t {
 #define LoadAccessKindEnum(opc, value, str) opc = value,
+
+    enum Value : uint8_t {
         LoadAccessKindValue(LoadAccessKindEnum)
-#undef LoadAccessKindEnum
     };
+
+#undef LoadAccessKindEnum
 
     constexpr LoadAccessKind(const uint8_t raw) : _value((Value)raw) {}
 
