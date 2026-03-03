@@ -73,7 +73,7 @@ public:
         if (ldk == LoadAccessKind::LD_REF) {
             ectype->Put(dst.IR(), RuntimeInterface<RTI>::ReadObjectInstance(obj, offset, handle));
         } else {
-            MemoryLocation<RTI>(obj.value, offset).LoadPrim(ldk, dst, ectype);
+            MemoryLocation(obj.value, offset).LoadPrim(ldk, dst, ectype);
         }
         return true;
     }
@@ -87,7 +87,7 @@ public:
         if (stk == StoreAccessKind::ST_REF) {
             RuntimeInterface<RTI>::WriteObjectInstance(obj, offset, ectype->GetReference(src.IR()), handle);
         } else {
-            MemoryLocation<RTI>(obj.value, offset).StorePrim(stk, src, ectype);
+            MemoryLocation(obj.value, offset).StorePrim(stk, src, ectype);
         }
         return true;
     }
@@ -102,7 +102,7 @@ public:
             auto ref = Value::Reference { .value = *reinterpret_cast<uintptr_t*>(base + offset) };
             ectype->Put(dst.IR(), ref);
         } else {
-            MemoryLocation<RTI>(ptr, offset).LoadPrim(ldk, dst, ectype);
+            MemoryLocation(ptr, offset).LoadPrim(ldk, dst, ectype);
         }
         return true;
     }
@@ -117,7 +117,7 @@ public:
             auto ref                                     = ectype->GetReference(src.IR()).value;
             *reinterpret_cast<uintptr_t*>(base + offset) = ref;
         } else {
-            MemoryLocation<RTI>(ptr, offset).StorePrim(stk, src, ectype);
+            MemoryLocation(ptr, offset).StorePrim(stk, src, ectype);
         }
         return true;
     }
@@ -131,7 +131,7 @@ public:
         if (ldk == LoadAccessKind::LD_REF) {
             ectype->Put(dst.IR(), RuntimeInterface<RTI>::ReadObject(ptr, offset, handle));
         } else {
-            MemoryLocation<RTI>(ptr, offset).LoadPrim(ldk, dst, ectype);
+            MemoryLocation(ptr, offset).LoadPrim(ldk, dst, ectype);
         }
         return true;
     }
@@ -145,7 +145,7 @@ public:
         if (stk == StoreAccessKind::ST_REF) {
             RuntimeInterface<RTI>::WriteObject(ptr, offset, ectype->GetReference(src.IR()), handle);
         } else {
-            MemoryLocation<RTI>(ptr, offset).StorePrim(stk, src, ectype);
+            MemoryLocation(ptr, offset).StorePrim(stk, src, ectype);
         }
         return true;
     }

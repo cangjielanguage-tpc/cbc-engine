@@ -310,7 +310,7 @@ template <> inline uint64_t DecodeImmediate<RT::ImmKind::LITERAL>(LiteralTable* 
     return literals->at(value).u64;
 }
 
-template <typename RTI> class MemoryLocation {
+class MemoryLocation {
 public:
     inline MemoryLocation(uint8_t* _base, size_t _offset) : base(_base), offset(_offset) {}
 
