@@ -27,21 +27,19 @@ public:
     /**
      * @brief Advance current stream position by @p values bytes.
      */
-    void Advance(size_t value)
+    void Advance(uint32_t value)
     {
         ASSERT(value >= 0);
         position += value;
     }
 
-    void Read(uint8_t* array, size_t length) { Read(reinterpret_cast<char*>(array), length); }
+    void Read(uint8_t* array, uint32_t length) { Read(reinterpret_cast<char*>(array), length); }
 
-    void Read(char* array, size_t length)
+    void Read(char* array, uint32_t length)
     {
         file.Read(array, position, length);
         position += length;
     }
-
-    void Read(char* array, uint32_t length) { Read(array, static_cast<size_t>(length)); }
 
     size_t ReadPtr() { return ReadValue<size_t>(); }
 
