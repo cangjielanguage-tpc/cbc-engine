@@ -26,10 +26,15 @@ struct EmitterSnapshot {
 
 class Emitter {
 public:
+    using Reg    = Format::Reg;
     using Width  = Format::Width;
     using CC     = Format::CC;
     using Common = Format::Common;
     using Bits   = Format::Bits;
+
+    using FloatOperations = Format::FloatOperations;
+    using LoadAccessKind  = Format::LoadAccessKind;
+    using StoreAccessKind = Format::StoreAccessKind;
 
     class MemSpace {
     public:
@@ -39,17 +44,17 @@ public:
         void OffsetReg(IReg reg);
 
         // tail instructions
-        void LoadObj(Format::LoadAccessKind ldk, Format::Reg dst, IReg base);
-        void StoreObj(Format::StoreAccessKind stk, Format::Reg src, IReg base);
+        void LoadObj(LoadAccessKind ldk, Reg dst, IReg base);
+        void StoreObj(StoreAccessKind stk, Reg src, IReg base);
 
-        void LoadRec(Format::LoadAccessKind ldk, Format::Reg dst, IReg base);
-        void StoreRec(Format::StoreAccessKind stk, Format::Reg src, IReg base);
+        void LoadRec(LoadAccessKind ldk, Reg dst, IReg base);
+        void StoreRec(StoreAccessKind stk, Reg src, IReg base);
 
-        void LoadFrame(Format::LoadAccessKind ldk, Format::Reg dst);
-        void StoreFrame(Format::StoreAccessKind stk, Format::Reg src);
+        void LoadFrame(LoadAccessKind ldk, Reg dst);
+        void StoreFrame(StoreAccessKind stk, Reg src);
 
     private:
-        template <typename AccessKind> void LoadStore(AccessKind akind, Format::Reg v, IReg base, RT::MemOpcode opc)
+        template <typename AccessKind> void LoadStore(AccessKind akind, Reg v, IReg base, RT::MemOpcode opc)
         {
             Encode(
                 segment,
@@ -81,7 +86,7 @@ public:
     EmitterSnapshot Snapshot();
     void Apply(EmitterSnapshot snapshot);
 
-    void Binary(Format::Common op, Format::Width width, IReg d, IReg l, IReg r);
+    void Binary(Common op, Width width, IReg d, IReg l, IReg r);
     void Add(Width width, IReg d, IReg l, IReg r);
     void Sub(Width width, IReg d, IReg l, IReg r);
     void Mul(Width width, IReg d, IReg l, IReg r);
@@ -97,7 +102,7 @@ public:
     void Asr(Width width, IReg d, IReg l, IReg r);
     void Neg(Width width, IReg d, IReg s);
 
-    void BinaryImm(Format::Common op, Format::Width width, IReg d, IReg l, uint64_t imm);
+    void BinaryImm(Common op, Width width, IReg d, IReg l, uint64_t imm);
     void AddI(Width width, IReg d, IReg l, uint64_t imm);
     void SubI(Width width, IReg d, IReg l, uint64_t imm);
     void MulI(Width width, IReg d, IReg l, uint64_t imm);
@@ -112,13 +117,13 @@ public:
     void LsrI(Width width, IReg d, IReg l, uint64_t imm);
     void AsrI(Width width, IReg d, IReg l, uint64_t imm);
 
-    void Binary(Format::FloatOperations op, Format::Width width, FReg d, FReg l, FReg r);
+    void Binary(FloatOperations op, Width width, FReg d, FReg l, FReg r);
     void Add(Width width, FReg d, FReg l, FReg r);
     void Sub(Width width, FReg d, FReg l, FReg r);
     void Mul(Width width, FReg d, FReg l, FReg r);
     void Div(Width width, FReg d, FReg l, FReg r);
 
-    void Unary(Format::FloatOperations op, Format::Width Width, FReg d, FReg s);
+    void Unary(FloatOperations op, Width Width, FReg d, FReg s);
     void Sqrt(Width width, FReg d, FReg s);
     void Abs(Width width, FReg d, FReg s);
     void Neg(Width width, FReg d, FReg s);
@@ -138,23 +143,25 @@ public:
     void Jmp(Label label);
 
     void NewObj(IReg d, Symbol sym);
-    void LoadObj(Format::LoadAccessKind ldk, Format::Reg dst, IReg base, uint32_t offset);
-    void StoreObj(Format::StoreAccessKind stk, Format::Reg src, IReg base, uint32_t offset);
+    void LoadObj(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset);
+    void StoreObj(StoreAccessKind stk, Reg src, IReg base, uint32_t offset);
+    void LoadRec(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset);
+    void StoreRec(StoreAccessKind stk, Reg src, IReg base, uint32_t offset);
 
-    void LoadRec(Format::LoadAccessKind ldk, Format::Reg dst, IReg base, uint32_t offset);
-    void StoreRec(Format::StoreAccessKind stk, Format::Reg src, IReg base, uint32_t offset);
+    void LoadFrame(LoadAccessKind ldk, Reg dst, uint32_t offset);
+    void StoreFrame(StoreAccessKind stk, Reg src, uint32_t offset);
 
-    void LoadFrame(Format::LoadAccessKind ldk, Format::Reg dst, uint32_t offset);
-    void StoreFrame(Format::StoreAccessKind stk, Format::Reg src, uint32_t offset);
+    void SCC(CC cc, Width width, IReg d, IReg l, IReg r);
+    void SCC(CC cc, Width width, IReg d, FReg l, FReg r);
+    void SCCImm(CC cc, Width width, IReg d, IReg l, uint64_t imm);
 
     MemSpace OpenMemSpace();
 
 private:
     void AddFixup(std::unique_ptr<Fixup> fixup);
-    void Mov(RT::Opcode opcode, Format::Reg d, Format::Reg s);
+    void Mov(RT::Opcode opcode, Reg d, Reg s);
 
-    template <typename AccessKind>
-    void LoadStore(AccessKind akind, Format::Reg v, IReg base, uint32_t offset, RT::Opcode opc)
+    template <typename AccessKind> void LoadStore(AccessKind akind, Reg v, IReg base, uint32_t offset, RT::Opcode opc)
     {
         Encode(segment, RT::B4xi12rr {
             .opc = opc,

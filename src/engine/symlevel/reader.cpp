@@ -9,8 +9,8 @@ Code Reader::Read(Engine::Session& session, IO::FileId fileId, Offset<Code> offs
         *session.FileOf(fileId), session.CbcFileOf(fileId).GetCodeOffs(offset)
     ); // TODO: use file to access code section offset.
 
-    auto codeSize  = reader.ReadU32();
-    auto bytecode  = static_cast<uint8_t*>(session.Allocator().do_allocate(codeSize, alignof(uint8_t)));
+    auto codeSize = reader.ReadU32();
+    auto bytecode = static_cast<uint8_t*>(session.Allocator().do_allocate(codeSize, alignof(uint8_t)));
 
     reader.Read(bytecode, codeSize);
     return Code {

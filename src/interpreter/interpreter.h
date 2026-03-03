@@ -204,6 +204,24 @@ public:
         }
     }
 
+    template <Width::Value width> inline bool Cmp(CC cc, FReg l, FReg r)
+    {
+        return FCmpPrim<width>(cc, l, ectype->GetPrimitive(r));
+    }
+
+    template <Width::Value width> inline bool FCmpPrim(CC cc, FReg l, Value::Primitive r)
+    {
+        switch (cc) {
+            case CC::FEQ:  return Compare<CC::FEQ, width>(ectype->GetPrimitive(l), r);
+            case CC::FNE:  return Compare<CC::FNE, width>(ectype->GetPrimitive(l), r);
+            case CC::FGE:  return Compare<CC::FGE, width>(ectype->GetPrimitive(l), r);
+            case CC::FNGE: return Compare<CC::FNGE, width>(ectype->GetPrimitive(l), r);
+            case CC::FLT:  return Compare<CC::FLT, width>(ectype->GetPrimitive(l), r);
+            case CC::FNLT: return Compare<CC::FNLT, width>(ectype->GetPrimitive(l), r);
+            default:       ASSERTION(false, "Unreachable"); return false;
+        }
+    }
+
     template <RT::ImmKind::Value immKind, Width::Value width>
     inline int64_t Bcc(CC cc, IReg l, IReg r, uint16_t offsetValue)
     {
@@ -226,6 +244,25 @@ public:
     inline uint64_t MemOffset(uint64_t offset) { return offset; }
 
     inline uint64_t MemOffsetReg(IReg reg) { return ectype->GetPrimitive(reg).u64; }
+
+    template <Width::Value width> inline void SCC(CC cc, IReg d, IReg l, IReg r)
+    {
+        uint32_t res = Cmp<width>(cc, l, r) ? 1 : 0;
+        ectype->Put(d, Value::Primitive { .u32 = res });
+    }
+
+    template <Width::Value width> inline void SCC(CC cc, IReg d, FReg l, FReg r)
+    {
+        uint32_t res = Cmp<width>(cc, l, r) ? 1 : 0;
+        ectype->Put(d, Value::Primitive { .u32 = res });
+    }
+
+    template <RT::ImmKind::Value immKind, Width::Value width> inline void SCCImm(CC cc, IReg d, IReg l, uint16_t imm)
+    {
+        uint32_t res =
+            CmpPrim<width>(cc, l, Value::Primitive { .u64 = DecodeImmediate<immKind>(literals, imm) }) ? 1 : 0;
+        ectype->Put(d, Value::Primitive { .u32 = res });
+    }
 
 private:
     inline bool NullCheck(Value::Reference obj) { return true; }

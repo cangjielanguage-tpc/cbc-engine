@@ -83,14 +83,16 @@ Value::Primitive Interpret(
 
 } // namespace Interpretation
 
-Interpretation::Value::Primitive
-Interpret(Interpretation::Code code, Interpretation::Value::Primitive ir1, Interpretation::Value::Primitive ir2)
+Interpretation::Value::Primitive Interpret(
+    Interpretation::Code code, Interpretation::Value::Primitive ir1, Interpretation::Value::Primitive ir2
+)
 {
     return Interpretation::Interpret<Cbc::IReg>(code, nullptr, ir1, ir2, F32(0), F32(0), Cbc::IReg::IR1);
 }
 
-Interpretation::Value::Primitive
-InterpretFPRes(Interpretation::Code code, Interpretation::Value::Primitive fr0, Interpretation::Value::Primitive fr1)
+Interpretation::Value::Primitive InterpretFPRes(
+    Interpretation::Code code, Interpretation::Value::Primitive fr0, Interpretation::Value::Primitive fr1
+)
 {
     return Interpretation::Interpret<Cbc::FReg>(code, nullptr, U32(0), U32(0), fr0, fr1, Cbc::FReg::FR0);
 }

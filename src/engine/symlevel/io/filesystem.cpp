@@ -26,8 +26,8 @@ std::unique_ptr<RandomAccessFile> OpenFile(std::filesystem::path path)
 
     size_t fileLength = static_cast<size_t>(rawLength);
 
-    char* data       = new char[fileLength];
-    ssize_t n        = read(fd, data, fileLength);
+    char* data = new char[fileLength];
+    ssize_t n  = read(fd, data, fileLength);
 
     close(fd);
 

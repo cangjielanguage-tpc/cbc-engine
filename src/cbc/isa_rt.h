@@ -45,6 +45,14 @@
     X(STORE_REC, B4xi12rr, "st.rec.$0stk $2r:$0stk [$3ir $1U12]")                                                      \
     X(LOAD_FRAME, B4xi12rr, "ld.frame.$0ldk $2r:$0ldk [$3ir $1U12]")                                                   \
     X(STORE_FRAME, B4xi12rr, "st.frame.$0stk $2r:$0stk [$3ir $1U12]")                                                  \
+    X(SCC32, B3xrrr, "scc.32 $0cc $1ir $2ir $3ir")                                                                     \
+    X(SCC64, B3xrrr, "scc.64 $0cc $1ir $2ir $3ir")                                                                     \
+    X(FSCC32, B3xrrr, "fscc.32 $0cc $1ir $2fr $3fr")                                                                   \
+    X(FSCC64, B3xrrr, "fscc.64 $0cc $1ir $2fr $3fr")                                                                   \
+    X(SCCI32I, B4xi12rr, "scci.32 $0cc $2ir $3ir $1I12")                                                               \
+    X(SCCI64I, B4xi12rr, "scci.64 $0cc $2ir $3ir $1I12")                                                               \
+    X(SCCI32L, B4xi12rr, "scci.32 $0cc $2ir $3ir $1I12L")                                                              \
+    X(SCCI64L, B4xi12rr, "scci.64 $0cc $2ir $3ir $1I12L")                                                              \
     X(MEMSPACE, B1, "memspace {")
 
 // X parameters: opcode, encoding format, string format, is tail

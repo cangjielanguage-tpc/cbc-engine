@@ -16,11 +16,13 @@ static Interpretation::Value::Primitive F32(float v) { return Interpretation::Va
 
 static Interpretation::Value::Primitive F64(double v) { return Interpretation::Value::Primitive { .f64 = v }; }
 
-Interpretation::Value::Primitive
-Interpret(Interpretation::Code code, Interpretation::Value::Primitive ir1, Interpretation::Value::Primitive ir2);
+Interpretation::Value::Primitive Interpret(
+    Interpretation::Code code, Interpretation::Value::Primitive ir1, Interpretation::Value::Primitive ir2
+);
 
-Interpretation::Value::Primitive
-InterpretFPRes(Interpretation::Code code, Interpretation::Value::Primitive fr0, Interpretation::Value::Primitive fr1);
+Interpretation::Value::Primitive InterpretFPRes(
+    Interpretation::Code code, Interpretation::Value::Primitive fr0, Interpretation::Value::Primitive fr1
+);
 
 Interpretation::Value::Primitive Interpret(
     Interpretation::Code code,
