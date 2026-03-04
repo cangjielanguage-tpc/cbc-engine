@@ -27,11 +27,7 @@ public:
     /**
      * @brief Advance current stream position by @p values bytes.
      */
-    void Advance(uint32_t value)
-    {
-        ASSERT(value >= 0);
-        position += value;
-    }
+    void Advance(uint32_t value) { position += value; }
 
     void Read(uint8_t* array, uint32_t length) { Read(reinterpret_cast<char*>(array), length); }
 
