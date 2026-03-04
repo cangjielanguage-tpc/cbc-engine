@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "cbc/emitter/emitter.h"
+#include "cbc/formater_rt.h"
 #include "cbc/isa_rt.h"
 
 #include "mock/interpreter.h"
@@ -53,7 +54,10 @@ TEST(MemoryAccess, TestAlloc2)
     e.Add(Width::W64, IReg::IR1, IReg::IR9, IReg::IR10);
     e.Ret();
 
-    auto res = Interpret(e.Build(heap), U64(77), U64(91));
+    auto code = e.Build(heap);
+    Cbc::RT::Log(code, std::cerr);
+
+    auto res = Interpret(code, U64(77), U64(91));
     EXPECT_EQ(res.u64, 77 + 91);
 }
 
@@ -211,7 +215,10 @@ TEST(MemoryAccess, LinkedStack)
     e.Mov(IReg::IR1, IReg::IR4);
     e.Ret();
 
-    auto res = Interpret(e.Build(heap), U64(77), U64(91));
+    auto code = e.Build(heap);
+    Cbc::RT::Log(code, std::cerr);
+
+    auto res = Interpret(code, U64(77), U64(91));
     EXPECT_EQ(res.u32, 1 + 2 + 3 + 4 + 5);
 }
 
@@ -251,7 +258,10 @@ static void testInteger(IntegerTest desc)
     e.Div(Width::W64, IReg::IR1, IReg::IR3, IReg::IR4);
     e.Ret();
 
-    auto res = Interpret(e.Build(heap), U64(desc.ir1), U64(desc.ir2));
+    auto code = e.Build(heap);
+    Cbc::RT::Log(code, std::cerr);
+
+    auto res = Interpret(code, U64(desc.ir1), U64(desc.ir2));
     EXPECT_EQ(res.u64, desc.expect);
 }
 

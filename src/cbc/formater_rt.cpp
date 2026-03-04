@@ -1,3 +1,5 @@
+#include <cmath>
+#include <iomanip>
 #include <ostream>
 #include <string>
 #include <vector>
@@ -19,9 +21,13 @@ constexpr static std::string_view delimiters(" .]");
 struct Operand {
     uint64_t const value;
 
+    uint8_t U8() { return static_cast<uint8_t>(value); }
+
+    uint16_t U16() { return static_cast<uint16_t>(value); }
+
     uint32_t U32() { return static_cast<uint32_t>(value); }
 
-    uint8_t U8() { return static_cast<uint8_t>(value); }
+    uint64_t U64() { return static_cast<uint32_t>(value); }
 
     Cbc::Format::LoadAccessKind Ldk() { return Cbc::Format::LoadAccessKind(U8()); }
 
@@ -150,12 +156,12 @@ private:
     {
         // Separator found.
         // This operand is needed for proper register kind formatting, which depends on ldk/stk)
-        ASSERT(sepId + 2 < type.size());
-        auto rightArgIdx = GetArgIdx(type, sepId + 1);
+        ASSERT(sepId + 3 < type.size());
+        auto rightArgIdx = GetArgIdx(type, sepId + 2);
         ASSERT(argIdx < operandCount);
         ASSERT(rightArgIdx < operandCount);
         auto leftType     = type.substr(0, sepId);
-        auto rightType    = type.substr(sepId + 2, std::string_view::npos);
+        auto rightType    = type.substr(sepId + 3, std::string_view::npos);
         auto leftOperand  = operands[argIdx];
         auto rightOperand = operands[rightArgIdx];
 
@@ -187,6 +193,14 @@ private:
             Write(operand.I4());
         } else if (type == "I32") {
             Write(operand.I32());
+        } else if (type == "U8") {
+            Write(static_cast<uint64_t>(operand.U8()));
+        } else if (type == "U16") {
+            Write(static_cast<uint64_t>(operand.U16()));
+        } else if (type == "U32") {
+            Write(static_cast<uint64_t>(operand.U32()));
+        } else if (type == "U64") {
+            Write(operand.U64());
         } else if (type == "I12") {
             Write(operand.I12());
         } else if (type == "U12") {
@@ -232,6 +246,11 @@ private:
 static constexpr std::string_view format_strings[] = {
 #define CBC_RT_OPCODE_FMT_STR(opcode, fmt, sfmt) std::string_view(sfmt),
     CBC_RT_OPCODES(CBC_RT_OPCODE_FMT_STR)
+};
+
+static constexpr std::string_view memspace_format_strings[] = {
+#define CBC_RT_MEMOPCODE_FMT_STR(opcode, fmt, sfmt, isTail) std::string_view(sfmt),
+    CBC_RT_MEMOPCODES(CBC_RT_MEMOPCODE_FMT_STR)
 };
 
 template <size_t N> static size_t Length(Operand (&)[N]) { return N; }
@@ -312,6 +331,74 @@ void Log(Interpretation::LiteralTable* table, std::ostream& stream, B3xi12 args)
     formatter.Format();
 }
 
+void Log(Interpretation::LiteralTable* table, std::ostream& stream, M1 args)
+{
+    Formatter formatter(table, stream, memspace_format_strings[args.opc], nullptr, 0);
+    formatter.Format();
+}
+
+void Log(Interpretation::LiteralTable* table, std::ostream& stream, M2rr args)
+{
+    Operand operands[] = { args.rr.x, args.rr.y };
+    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
+    formatter.Format();
+}
+
+void Log(Interpretation::LiteralTable* table, std::ostream& stream, M2xr args)
+{
+    Operand operands[] = { args.xr.imm, args.xr.r };
+    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
+    formatter.Format();
+}
+
+void Log(Interpretation::LiteralTable* table, std::ostream& stream, M3i16 args)
+{
+    Operand operands[] = { args.imm16 };
+    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
+    formatter.Format();
+}
+
+void Log(Interpretation::LiteralTable* table, std::ostream& stream, M5i32 args)
+{
+    Operand operands[] = { args.imm32 };
+    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
+    formatter.Format();
+}
+
+void Log(Interpretation::LiteralTable* table, std::ostream& stream, M9i64 args)
+{
+    Operand operands[] = { args.imm64 };
+    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
+    formatter.Format();
+}
+
+void LogBaseSpaceInstruction(
+    uint32_t opc, Interpretation::LiteralTable* table, std::ostream& stream, Decoder::ByteReader& reader
+)
+{
+#define FMT_LOGGER(opcode, fmt, sfmt)                                                                                  \
+    case Opcode::opcode: Log(table, stream, fmt::Decode(reader)); break;
+    switch (opc) {
+        CBC_RT_OPCODES(FMT_LOGGER)
+    }
+#undef FMT_LOGGER
+}
+
+bool LogMemSpaceInstruction(
+    uint32_t opc, Interpretation::LiteralTable* table, std::ostream& stream, Decoder::ByteReader& reader
+)
+{
+    stream << "  ";
+#define FMT_LOGGER(opcode, fmt, sfmt, isTail)                                                                          \
+    case MemOpcode::opcode: Log(table, stream, fmt::Decode(reader)); return isTail;
+
+    switch (opc) {
+        CBC_RT_MEMOPCODES(FMT_LOGGER)
+    }
+#undef FMT_LOGGER
+    return true;
+}
+
 void Log(Interpretation::Code code, std::ostream& stream)
 {
     using namespace Cbc::RT;
@@ -319,18 +406,29 @@ void Log(Interpretation::Code code, std::ostream& stream)
     auto end      = bytecode + code.bytecodeSize;
     auto table    = code.literals;
 
+    auto log10size = static_cast<int>(1.0 + std::log10(code.bytecodeSize));
+    log10size      = std::max(log10size, 1);
+
+    bool inMemspace = false;
+
     Decoder::ByteReader reader(bytecode, bytecode, end);
     while (!reader.EndOfMem(end)) {
         auto opc      = reader.PeekOpcode();
         auto position = reader.Cursor() - bytecode;
-        // TODO: alignment for bytecode position that depends on total bytecode length.
-        stream << position << ": " << std::dec;
+        stream << std::setfill('0') << std::setw(log10size) << position << ": " << std::setfill(' ');
 
-        // TODO: support memspaces
-#define FMT_LOGGER(opcode, fmt, sfmt)                                                                                  \
-    case Opcode::opcode: Log(table, stream, fmt::Decode(reader)); break;
-        switch (opc) {
-            CBC_RT_OPCODES(FMT_LOGGER)
+        if (inMemspace) {
+            bool isTail = LogMemSpaceInstruction(opc, table, stream, reader);
+
+            if (isTail) {
+                inMemspace = false;
+            }
+        } else {
+            LogBaseSpaceInstruction(opc, table, stream, reader);
+
+            if (opc == Opcode::MEMSPACE) {
+                inMemspace = true;
+            }
         }
     }
 }
