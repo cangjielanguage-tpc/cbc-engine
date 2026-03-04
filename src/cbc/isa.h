@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <string>
 
 #include "cbc/decoder.h"
 #include "utils/assertion.h"
@@ -36,6 +37,8 @@ public:
     constexpr IReg(const Value raw) : _value(raw) {}
 
     constexpr operator Value() const { return _value; }
+
+    constexpr uint32_t Raw() const { return _value; }
 
     inline static IReg From(const uint32_t raw)
     {
@@ -76,6 +79,8 @@ public:
     constexpr FReg(const Value raw) : _value(raw) {}
 
     constexpr operator Value() const { return _value; }
+
+    constexpr uint32_t Raw() const { return _value; }
 
     inline static FReg From(const uint32_t raw)
     {
@@ -207,25 +212,33 @@ private:
 
 class Common {
 public:
+#define CommonValue(X)                                                                                                 \
+    X(ADD, 0b0000, "add")                                                                                              \
+    X(SUB, 0b0001, "sub")                                                                                              \
+    X(MUL, 0b0010, "mul")                                                                                              \
+    X(AND, 0b0011, "and")                                                                                              \
+    X(OR, 0b0100, "or")                                                                                                \
+    X(XOR, 0b0101, "xor")                                                                                              \
+    X(SDIV, 0b0110, "sdiv")                                                                                            \
+    X(SREM, 0b0111, "srem")                                                                                            \
+    X(UDIV, 0b1000, "udiv")                                                                                            \
+    X(UREM, 0b1001, "urem")                                                                                            \
+    X(LSR, 0b1010, "lsr")                                                                                              \
+    X(ASR, 0b1011, "asr")                                                                                              \
+    X(LSL, 0b1100, "lsl")
+
+#define CommonEnum(opc, value, str) opc = value,
+
     enum Value : uint32_t {
-        ADD  = 0b0000,
-        SUB  = 0b0001,
-        EXT  = SUB,
-        MUL  = 0b0010,
-        AND  = 0b0011,
-        OR   = 0b0100,
-        XOR  = 0b0101,
-        SDIV = 0b0110,
-        MOV  = SDIV,
-        SREM = 0b0111,
-        MVST = SREM,
-        MREF = MVST,
-        UDIV = 0b1000,
-        UREM = 0b1001,
-        LSR  = 0b1010,
-        ASR  = 0b1011,
-        LSL  = 0b1100,
+        CommonValue(CommonEnum)
     };
+
+#undef CommonEnum
+
+    static constexpr auto EXT  = SUB;
+    static constexpr auto MOV  = SDIV;
+    static constexpr auto MVST = SREM;
+    static constexpr auto MREF = MVST;
 
     static constexpr Value values[] = {
         ADD, SUB, MUL, AND, OR, XOR, SDIV, SREM, UDIV, UREM, LSR, ASR, LSL,
@@ -243,30 +256,48 @@ public:
 
     constexpr bool B2rAllowed() { return (_value >> 3u) == 0; }
 
+    constexpr std::string_view ToStr()
+    {
+#define CommonStr(opc, value, str)                                                                                     \
+    case opc: return std::string_view(str);
+        switch (_value) {
+            CommonValue(CommonStr);
+        }
+        return std::string_view("<invalid>");
+#undef CommonStr
+    }
+
 private:
     Value _value;
 };
 
 class FloatOperations {
 public:
+#define FloatOperationsValue(X)                                                                                        \
+    X(FADD, 0b0000, "fadd")                                                                                            \
+    X(FSUB, 0b0001, "fsub")                                                                                            \
+    X(FMUL, 0b0010, "fmul")                                                                                            \
+    X(FDIV, 0b0011, "fdiv")                                                                                            \
+    X(FMOV, 0b0100, "fmov")                                                                                            \
+    X(FNEG, 0b0101, "fneg")                                                                                            \
+    X(FABS, 0b0110, "fabs")                                                                                            \
+    X(FSQRT, 0b0111, "fsqrt")                                                                                          \
+    X(I32_TO_F, 0b1000, "i32tof")                                                                                      \
+    X(F_TO_I32, 0b1001, "ftoi32")                                                                                      \
+    X(I64_TO_F, 0b1010, "i64tof")                                                                                      \
+    X(F_TO_I64, 0b1011, "ftoi64")                                                                                      \
+    X(U32_TO_F, 0b1100, "u32tof")                                                                                      \
+    X(F_TO_U32, 0b1101, "ftou32")                                                                                      \
+    X(U64_TO_F, 0b1110, "u64tof")                                                                                      \
+    X(F_TO_U64, 0b1111, "ftou64")
+
+#define FloatOperationsEnum(opc, value, str) opc = value,
+
     enum Value : uint32_t {
-        FADD     = 0b0000,
-        FSUB     = 0b0001,
-        FMUL     = 0b0010,
-        FDIV     = 0b0011,
-        FMOV     = 0b0100,
-        FNEG     = 0b0101,
-        FABS     = 0b0110,
-        FSQRT    = 0b0111,
-        I32_TO_F = 0b1000,
-        F_TO_I32 = 0b1001,
-        I64_TO_F = 0b1010,
-        F_TO_I64 = 0b1011,
-        U32_TO_F = 0b1100,
-        F_TO_U32 = 0b1101,
-        U64_TO_F = 0b1110,
-        F_TO_U64 = 0b1111,
+        FloatOperationsValue(FloatOperationsEnum)
     };
+
+#undef FloatOperationsEnum
 
     static constexpr Value values[] = {
         FADD,     FSUB,     FMUL,     FDIV,     FMOV,     FNEG,     FABS,     FSQRT,
@@ -284,6 +315,17 @@ public:
     constexpr Bits ToBits() const { return _value; }
 
     constexpr bool IsBasic() { return (_value >> 2u) == 0; }
+
+    constexpr std::string_view ToStr()
+    {
+#define FloatOperationsStr(opc, value, str)                                                                            \
+    case opc: return std::string_view(str);
+        switch (_value) {
+            FloatOperationsValue(FloatOperationsStr);
+        }
+        return std::string_view("<invalid>");
+#undef FloatOperationsStr
+    }
 
 private:
     Value _value;
@@ -368,24 +410,31 @@ private:
 
 class CC {
 public:
+#define CCValue(X)                                                                                                     \
+    X(EQ, 0b0000, "eq")                                                                                                \
+    X(NE, 0b0001, "ne")                                                                                                \
+    X(LT, 0b0010, "lt")                                                                                                \
+    X(GE, 0b0011, "ge")                                                                                                \
+    X(ULT, 0b0100, "ult")                                                                                              \
+    X(UGE, 0b0101, "uge")                                                                                              \
+    X(REQ, 0b0110, "req")                                                                                              \
+    X(RNE, 0b0111, "rne")                                                                                              \
+    X(FEQ, 0b1000, "feq")                                                                                              \
+    X(FNE, 0b1001, "fne")                                                                                              \
+    X(FLT, 0b1010, "flt")                                                                                              \
+    X(FNLT, 0b1011, "fnlt")                                                                                            \
+    X(FGE, 0b1100, "fge")                                                                                              \
+    X(FNGE, 0b1101, "fnge")                                                                                            \
+    X(TESTZ, 0b1110, "z")                                                                                              \
+    X(TESTNZ, 0b1111, "nz")
+
+#define CCEnum(opc, value, str) opc = value,
+
     enum Value : uint32_t {
-        EQ     = 0b0000,
-        NE     = 0b0001,
-        LT     = 0b0010,
-        GE     = 0b0011,
-        ULT    = 0b0100,
-        UGE    = 0b0101,
-        REQ    = 0b0110,
-        RNE    = 0b0111,
-        FEQ    = 0b1000,
-        FNE    = 0b1001,
-        FLT    = 0b1010,
-        FNLT   = 0b1011,
-        FGE    = 0b1100,
-        FNGE   = 0b1101,
-        TESTZ  = 0b1110,
-        TESTNZ = 0b1111,
+        CCValue(CCEnum)
     };
+
+#undef CCEnum
 
     constexpr CC(const uint32_t raw) : _value((Value)raw) {}
 
@@ -402,6 +451,17 @@ public:
     constexpr bool IsSigned() const { return _value < ULT || _value > RNE; }
 
     constexpr CC Negated(const uint32_t negated) const { return _value ^ negated; }
+
+    constexpr std::string_view ToStr()
+    {
+#define CCStr(opc, value, str)                                                                                         \
+    case opc: return std::string_view(str);
+        switch (_value) {
+            CCValue(CCStr);
+        }
+        return std::string_view("<invalid>");
+#undef CCStr
+    }
 
 private:
     Value _value;
@@ -427,24 +487,43 @@ private:
 
 class StoreAccessKind {
 public:
+#define StoreAccessKindValue(X)                                                                                        \
+    X(ST_8, 0b0000, "8")                                                                                               \
+    X(ST_16, 0b0001, "16")                                                                                             \
+    X(ST_32, 0b0010, "32")                                                                                             \
+    X(ST_64, 0b0011, "64")                                                                                             \
+    X(ST_REF, 0b0100, "ref")                                                                                           \
+    X(SPECIAL, 0b0101, "special")                                                                                      \
+    X(ST_F32, 0b0110, "f32")                                                                                           \
+    X(ST_F64, 0b0111, "f64")
+
+#define StoreAccessKindEnum(opc, value, str) opc = value,
+
     enum Value : uint8_t {
-        ST_8    = 0b0000,
-        ST_16   = 0b0001,
-        ST_32   = 0b0010,
-        ST_64   = 0b0011,
-        ST_REF  = 0b0100,
-        SPECIAL = 0b0101,
-        ST_F32  = 0b0110,
-        ST_F64  = 0b0111,
+        StoreAccessKindValue(StoreAccessKindEnum)
     };
+
+#undef StoreAccessKindEnum
 
     constexpr StoreAccessKind(const uint8_t raw) : _value((Value)raw) {}
 
     constexpr StoreAccessKind(const Value raw) : _value(raw) {}
 
     constexpr operator Value() const { return _value; }
-
     constexpr Bits ToBits() const { return _value; }
+
+    constexpr bool IsFloat() const { return _value == ST_F32 || _value == ST_F64; }
+
+    constexpr std::string_view ToStr()
+    {
+#define StoreAccessKindStr(opc, value, str)                                                                            \
+    case opc: return std::string_view(str);
+        switch (_value) {
+            StoreAccessKindValue(StoreAccessKindStr);
+        }
+        return std::string_view("<invalid>");
+#undef StoreAccessKindStr
+    }
 
 private:
     Value _value;
@@ -452,32 +531,51 @@ private:
 
 class LoadAccessKind {
 public:
+#define LoadAccessKindValue(X)                                                                                         \
+    X(LD_U8, 0b0000, "u8")                                                                                             \
+    X(LD_U16, 0b0001, "u16")                                                                                           \
+    X(LD_32, 0b0010, "32")                                                                                             \
+    X(SPECIAL, 0b0011, "special") /* unused in interpreter */                                                          \
+    X(LD_S8, 0b0100, "s8")                                                                                             \
+    X(LD_S16, 0b0101, "s16")                                                                                           \
+    X(LD_F32, 0b0110, "f32")                                                                                           \
+    X(LD_F64, 0b0111, "f64")                                                                                           \
+    X(LD_U8TO64, 0b1000, "u8to64")   /* unused in interpreter */                                                       \
+    X(LD_U16TO64, 0b1001, "u16to64") /* unused in interpreter */                                                       \
+    X(LD_U32TO64, 0b1010, "u32to64") /* unused in interpreter */                                                       \
+    X(LD_64, 0b1011, "64")                                                                                             \
+    X(LD_S8TO64, 0b1100, "s8to64")   /* unused in interpreter */                                                       \
+    X(LD_S16TO64, 0b1101, "s16to64") /* unused in interpreter */                                                       \
+    X(LD_S32TO64, 0b1110, "s32to64")                                                                                   \
+    X(LD_REF, 0b1111, "ref")
+
+#define LoadAccessKindEnum(opc, value, str) opc = value,
+
     enum Value : uint8_t {
-        LD_U8      = 0b0000,
-        LD_U16     = 0b0001,
-        LD_32      = 0b0010,
-        SPECIAL    = 0b0011, // unused in interpreter
-        LD_S8      = 0b0100,
-        LD_S16     = 0b0101,
-        LD_F32     = 0b0110,
-        LD_F64     = 0b0111,
-        LD_U8TO64  = 0b1000, // unused in interpreter
-        LD_U16TO64 = 0b1001, // unused in interpreter
-        LD_U32TO64 = 0b1010, // unused in interpreter
-        LD_64      = 0b1011,
-        LD_S8TO64  = 0b1100, // unused in interpreter
-        LD_S16TO64 = 0b1101, // unused in interpreter
-        LD_S32TO64 = 0b1110,
-        LD_REF     = 0b1111,
+        LoadAccessKindValue(LoadAccessKindEnum)
     };
+
+#undef LoadAccessKindEnum
 
     constexpr LoadAccessKind(const uint8_t raw) : _value((Value)raw) {}
 
     constexpr LoadAccessKind(const Value raw) : _value(raw) {}
 
     constexpr operator Value() const { return _value; }
-
     constexpr Bits ToBits() const { return _value; }
+
+    constexpr bool IsFloat() const { return _value == LD_F32 || _value == LD_F64; }
+
+    constexpr std::string_view ToStr()
+    {
+#define LoadAccessKindStr(opc, value, str)                                                                             \
+    case opc: return std::string_view(str);
+        switch (_value) {
+            LoadAccessKindValue(LoadAccessKindStr);
+        }
+        return std::string_view("<invalid>");
+#undef LoadAccessKindStr
+    }
 
 private:
     Value _value;

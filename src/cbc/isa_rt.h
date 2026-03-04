@@ -3,6 +3,57 @@
 #include "decoder.h"
 #include "isa.h"
 
+#define CBC_RT_OPCODES(X)                                                                                              \
+    X(HALT, B1, "halt")                                                                                                \
+    X(RET, B1, "ret")                                                                                                  \
+    X(MOV, B2rr, "mov $0ir $1ir")                                                                                      \
+    X(MOVI, B2xr, "movi $1ir $0I4")                                                                                    \
+    X(MOVR, B2rr, "movr $0ir $1ir")                                                                                    \
+    X(FMOV, B2rr, "fmov $0fr $1fr")                                                                                    \
+    X(MOVI2F, B2rr, "i2f $0fr $1ir")                                                                                   \
+    X(MOVF2I, B2rr, "f2i $0ir $1fr")                                                                                   \
+    X(FMOVI32, B6xri32, "fmovi.32 $0fr $2F32")                                                                         \
+    X(FMOVI64, B10xri64, "fmovi.64 $0fr $2F64")                                                                        \
+    X(BCC32I, B4xi12rr, "bcc.32 $0cc $2ir $3ir $1I12")                                                                 \
+    X(BCC64I, B4xi12rr, "bcc.64 $0cc $2ir $3ir $1I12L")                                                                \
+    X(BCC32L, B4xi12rr, "bcc.32 $0cc $2ir $3ir $1I12")                                                                 \
+    X(BCC64L, B4xi12rr, "bcc.64 $0cc $2ir $3ir $1I12L")                                                                \
+    X(BCCI32I, B5xi12ri12, "bcc.32 $0cc $2ir $3I12 $1I12")                                                             \
+    X(BCCI64I, B5xi12ri12, "bcc.64 $0cc $2ir $3I12 $1I12")                                                             \
+    X(BCCI32L, B5xi12ri12, "bcc.32 $0cc $2ir $3I12 $1I12L")                                                            \
+    X(BCCI64L, B5xi12ri12, "bcc.64 $0cc $2ir $3I12 $1I12L")                                                            \
+    X(BCCL32I, B5xi12ri12, "bcc.32 $0cc $2ir $3I12L $1I12")                                                            \
+    X(BCCL64I, B5xi12ri12, "bcc.64 $0cc $2ir $3I12L $1I12")                                                            \
+    X(BCCL32L, B5xi12ri12, "bcc.32 $0cc $2ir $3I12L $1I12L")                                                           \
+    X(BCCL64L, B5xi12ri12, "bcc.64 $0cc $2ir $3I12L $1I12L")                                                           \
+    X(JMP32, B5i32, "jmp $0I32")                                                                                       \
+    X(BIN32, B3xrrr, "$0bin.32 $1ir $2ir $3ir")                                                                        \
+    X(BIN64, B3xrrr, "$0bin.64 $1ir $2ir $3ir")                                                                        \
+    X(BINI32I, B4xi12rr, "$0bin.32 $2ir $3ir $1I12")                                                                   \
+    X(BINI64I, B4xi12rr, "$0bin.64 $2ir $3ir $1I12")                                                                   \
+    X(BINI32L, B4xi12rr, "$0bin.32 $2ir $3ir $1I12L")                                                                  \
+    X(BINI64L, B4xi12rr, "$0bin.64 $2ir $3ir $1I12L")                                                                  \
+    X(FBIN32, B3xrrr, "$0fop.32 $1fr $2fr $3fr")                                                                       \
+    X(FBIN64, B3xrrr, "$0fop.64 $1fr $2fr $3fr")                                                                       \
+    X(FUN32, B3xrrr, "$0fop.32 $1fr $3fr")                                                                             \
+    X(FUN64, B3xrrr, "$0fop.64 $1fr $3fr")                                                                             \
+    X(NEWOBJ, B3xi12, "newobj $0ir $1U12L")                                                                            \
+    X(LOAD_OBJ, B4xi12rr, "ld.$0ldk $2r:$0ldk [$3ir $1U12]")                                                           \
+    X(STORE_OBJ, B4xi12rr, "st.$0stk $2r:$0stk [$3ir $1U12]")                                                          \
+    X(LOAD_REC, B4xi12rr, "ld.rec.$0ldk $2r:$0ldk [$3ir $1U12]")                                                       \
+    X(STORE_REC, B4xi12rr, "st.rec.$0stk $2r:$0stk [$3ir $1U12]")                                                      \
+    X(LOAD_FRAME, B4xi12rr, "ld.frame.$0ldk $2r:$0ldk [$3ir $1U12]")                                                   \
+    X(STORE_FRAME, B4xi12rr, "st.frame.$0stk $2r:$0stk [$3ir $1U12]")                                                  \
+    X(SCC32, B3xrrr, "scc.32 $0cc $1ir $2ir $3ir")                                                                     \
+    X(SCC64, B3xrrr, "scc.64 $0cc $1ir $2ir $3ir")                                                                     \
+    X(FSCC32, B3xrrr, "fscc.32 $0cc $1ir $2fr $3fr")                                                                   \
+    X(FSCC64, B3xrrr, "fscc.64 $0cc $1ir $2fr $3fr")                                                                   \
+    X(SCCI32I, B4xi12rr, "scci.32 $0cc $2ir $3ir $1I12")                                                               \
+    X(SCCI64I, B4xi12rr, "scci.64 $0cc $2ir $3ir $1I12")                                                               \
+    X(SCCI32L, B4xi12rr, "scci.32 $0cc $2ir $3ir $1I12L")                                                              \
+    X(SCCI64L, B4xi12rr, "scci.64 $0cc $2ir $3ir $1I12L")                                                              \
+    X(MEMSPACE, B1, "memspace {")
+
 namespace Cbc {
 namespace RT {
 
@@ -10,66 +61,13 @@ constexpr int LIT_TABLE_SIZE = 4096;
 
 class Opcode {
 public:
+#define DEFINE_OPCODE(opc, dfmt, sfmt) opc,
+
     enum Value : uint8_t {
-        HALT,    // B1 TODO merge rare commands
-        RET,     // B1 TODO merge rare commands
-        MOV,     // B2rr
-        MOVI,    // B2xr
-        MOVR,    // B2rr
-        FMOV,    // B2rr
-        MOVI2F,  // B2rr
-        MOVF2I,  // B2rr
-        FMOVI32, // B6xri32
-        FMOVI64, // B10xri64
-
-        BCC32I,  // B4xi12rr
-        BCC64I,  // B4xi12rr
-        BCC32L,  // B4xi12rr
-        BCC64L,  // B4xi12rr
-        BCCI32I, // B5xi12ri12
-        BCCI64I, // B5xi12ri12
-        BCCI32L, // B5xi12ri12
-        BCCI64L, // B5xi12ri12
-        BCCL32I, // B5xi12ri12
-        BCCL64I, // B5xi12ri12
-        BCCL32L, // B5xi12ri12
-        BCCL64L, // B5xi12ri12
-        JMP32,   // B5i32
-
-        BIN32,   // B3xrrr
-        BIN64,   // B3xrrr
-        BINI32I, // B4xi12rr
-        BINI64I, // B4xi12rr
-        BINI32L, // B4xi12rr
-        BINI64L, // B4xi12rr
-        FBIN32,  // B3xrrr
-        FBIN64,  // B3xrrr
-        FUN32,   // B3xrrr
-        FUN64,   // B3xrrr
-
-        NEWOBJ,    // B3xi12,
-        LOAD_OBJ,  // B4xi12rr
-        STORE_OBJ, // B4xi12rr
-
-        LOAD_REC,  // B4xi12rr
-        STORE_REC, // B4xi12rr
-
-        LOAD_FRAME,  // B4xi12rr
-        STORE_FRAME, // B4xi12rr
-
-        SCC32,   // B3xrrr
-        SCC64,   // B3xrrr
-        FSCC32,  // B3xrrr
-        FSCC64,  // B3xrrr
-        SCCI32I, // B4xi12rr
-        SCCI64I, // B4xi12rr
-        SCCI32L, // B4xi12rr
-        SCCI64L, // B4xi12rr
-
-        MEMSPACE, // B1. See `MemOpcode`
-
-        OPCODE_NUM,
+        CBC_RT_OPCODES(DEFINE_OPCODE) OPCODE_NUM
     };
+
+#undef DEFINE_OPCODE
 
     static_assert(OPCODE_NUM <= 256);
 
