@@ -431,6 +431,7 @@ void Log(Interpretation::Code code, std::ostream& stream)
             }
         }
     }
+#undef FMT_LOGGER
 }
 
 } // namespace RT

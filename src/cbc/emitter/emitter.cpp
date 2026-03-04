@@ -620,5 +620,12 @@ void Emitter::SCCImm(CC cc, Width width, IReg d, IReg l, uint64_t imm)
     }
 }
 
+void Emitter::DirectCall(IReg d, Symbol fuh)
+{
+    segment.AddW8(RT::Opcode::DIRECT_CALL);
+    Imm4 i4(d);
+    AddFixup(std::make_unique<Literal12Fixup>(i4, fuh));
+}
+
 } // namespace Emitter
 } // namespace Cbc
