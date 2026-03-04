@@ -4,7 +4,6 @@
 #include "cbc/decoder.h"
 #include "cbc/dispatcher_rt.h"
 #include "interpreter.h"
-#include "interpreter/interpreter.h"
 
 namespace Interpretation {
 
