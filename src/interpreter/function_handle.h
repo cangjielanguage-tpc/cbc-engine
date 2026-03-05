@@ -87,6 +87,7 @@ struct StaticFunctionHandle : public FunctionHandle {
 class FunctionHandleManager {
 public:
     static FunctionHandleManager& Of(Engine::Engine& engine);
+    static FunctionHandleManager& Of(Engine::Session& session);
     FunctionHandleManager();
     FunctionHandleManager(FunctionHandleManager&& manager);
     ~FunctionHandleManager();

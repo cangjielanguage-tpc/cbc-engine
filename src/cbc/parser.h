@@ -1,6 +1,6 @@
 #pragma once
 
-#include "api/method.h"
+#include "api/resolver.h"
 #include "cbc/decoder.h"
 #include "cbc/isa.h"
 #include "engine/symlevel/code.h"
@@ -13,7 +13,7 @@ using MethodCode = Symlevel::Code;
 
 class Parser {
 public:
-    Parser(API::Method* _method, MethodCode _code); // TODO: get method's code from Method object
+    Parser(API::Resolver* resolver, MethodCode code); // TODO: get method's code from Method object
     void Interpret();
 
 protected:
@@ -68,7 +68,7 @@ private:
 
     void B2xrOpc0100SOC(SymbolicObjectControl::B2xr args);
 
-    API::Method* method;
+    API::Resolver* resolver;
     Decoder::ByteReader codeReader;
     uint8_t* codeEnd;
     Immediate::Decoding immDecoder;

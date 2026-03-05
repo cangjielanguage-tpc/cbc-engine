@@ -1,25 +1,32 @@
 #pragma once
 
+#include "engine/symlevel/index.h"
 #include "field.h"
-#include "index.h"
 #include "method.h"
 #include "term.h"
 #include "type.h"
 #include <optional>
 
+namespace Symlevel {
+
+class MethodReference;
+class FieldReference;
+
+} // namespace Symlevel
+
 namespace API {
 
 class Resolver {
 public:
-    virtual Type* Resolve(Index<Type> index) = 0;
+    virtual Type* Resolve(Symlevel::Index<Type> index) = 0;
 
-    virtual Term* Resolve(Index<Term> index) = 0;
+    virtual Term* Resolve(Symlevel::Index<Term> index) = 0;
 
-    virtual Method* Resolve(Index<Method> index) = 0;
+    virtual Method* Resolve(Symlevel::Index<Symlevel::MethodReference> index) = 0;
 
-    virtual InstanceField* Resolve(Index<InstanceField> index) = 0;
+    virtual InstanceField* Resolve(Symlevel::Index<InstanceField> index) = 0;
 
-    virtual StaticField* Resolve(Index<StaticField> index) = 0;
+    virtual StaticField* Resolve(Symlevel::Index<StaticField> index) = 0;
 
     virtual std::optional<Type*> Resolve(Term* term) = 0;
 

@@ -1,21 +1,17 @@
 #include "cbc_file.h"
 
 #include "io/stream_file_reader.h"
+#include "member_index.h"
+#include "region_data.h"
+#include "version_metadata.h"
 
 namespace Symlevel {
 
 struct CbcFile::Impl {
-    uint32_t stringOffs;
-    uint32_t fieldRefsOffs;
-    uint32_t signatureOffs;
-    uint32_t codeOffs;
-    uint32_t methodsOffs;
-    uint32_t fieldOffs;
-    uint32_t typesOffs;
-    uint32_t typesTableOffs;
-    uint32_t fieldRefsTableOffs;
-    uint32_t methodRefsTableOffs;
-    uint32_t termTableOffs;
+    VersionMetadata versionMetadata;
+    TypeIndex typeIndex;
+    uint32_t poolOffset;
+    RegionData regionData;
     IO::FileId id;
     std::string name;
 };
@@ -25,68 +21,74 @@ CbcFile::CbcFile(std::unique_ptr<CbcFile::Impl> impl) : impl(std::move(impl)) {}
 CbcFile::CbcFile(CbcFile&& other) = default;
 CbcFile::~CbcFile()               = default;
 
-static uint32_t ReadU32AndAdvance(IO::StreamFileReader& reader)
-{
-    auto length = reader.ReadU32();
-    reader.Advance(length);
-    return length;
-}
-
 CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::string_view name)
 {
-    IO::StreamFileReader reader(file, sizeof(CbcFile::MAGIC));
+    IO::StreamFileReader reader(file, 0);
 
-    // FIXME: offset from file start
-    uint32_t addend = 12 * sizeof(uint32_t);
+    static const uint32_t MAGIC              = 0x00434243; // 'C', 'B', 'C' \0
+    static const uint32_t MAGIC_MASK         = 0x00FFFFFF;
+    static const uint32_t FILE_VERSION_SHIFT = 24;
 
-    auto stringOffs          = addend;
-    auto fieldRefsOffs       = addend + reader.ReadU32();
-    auto methodRefsOffs      = addend + reader.ReadU32();
-    auto signatureOffs       = addend + reader.ReadU32();
-    auto codeOffs            = addend + reader.ReadU32();
-    auto methodsOffs         = addend + reader.ReadU32();
-    auto fieldOffs           = addend + reader.ReadU32();
-    auto typesOffs           = addend + reader.ReadU32();
-    auto typesTableOffs      = addend + reader.ReadU32();
-    auto fieldRefsTableOffs  = addend + reader.ReadU32();
-    auto methodRefsTableOffs = addend + reader.ReadU32();
-    auto termTableOffs       = addend + reader.ReadU32();
+    auto magicAndVersion = reader.ReadU32();
+
+    auto magic = magicAndVersion & MAGIC_MASK;
+    if (magic != MAGIC) {
+        // TODO: throw proper exception
+        ASSERTION(false, "invalid magic");
+    }
+
+    auto fileVersion     = static_cast<uint8_t>(magicAndVersion >> FILE_VERSION_SHIFT);
+    auto bytecodeVersion = reader.ReadU8();
+    VersionMetadata versionMetadata(fileVersion, bytecodeVersion);
+
+    auto fileProperties = reader.ReadU8();
+
+    auto typeIndexOffset = reader.ReadU32();
+    auto poolOffset      = reader.ReadU32();
+
+    auto regionNum = reader.ReadU16();
+    if (regionNum != 1) {
+        // TODO: throw proper exception
+        ASSERTION(false, "unsupported region num");
+    }
+    auto regionOffset = reader.ReadU32();
+
+    auto mainType    = reader.ReadU32();
+    auto foreignLibs = reader.ReadU32();
+    auto coverageId  = reader.ReadULEB();
 
     CbcFile::Impl impl {
-        .stringOffs          = stringOffs,
-        .fieldRefsOffs       = fieldRefsOffs,
-        .signatureOffs       = signatureOffs,
-        .codeOffs            = codeOffs,
-        .methodsOffs         = methodsOffs,
-        .fieldOffs           = fieldOffs,
-        .typesOffs           = typesOffs,
-        .typesTableOffs      = typesTableOffs,
-        .fieldRefsTableOffs  = fieldRefsTableOffs,
-        .methodRefsTableOffs = methodRefsTableOffs,
-        .termTableOffs       = termTableOffs,
-        .id                  = fileId,
-        .name                = std::string(name),
+        .versionMetadata = versionMetadata,
+        .typeIndex       = TypeIndex::Read(fileId, file, typeIndexOffset),
+        .poolOffset      = poolOffset,
+        .regionData      = RegionData::Read(fileId, file, regionOffset),
+        .id              = fileId,
+        .name            = std::string(name),
     };
 
-    return CbcFile(std::move(std::make_unique<CbcFile::Impl>(impl)));
+    return CbcFile(std::make_unique<CbcFile::Impl>(std::move(impl)));
 }
 
 IO::FileId CbcFile::Id() const { return impl->id; }
 
-uint32_t CbcFile::GetCodeOffs(Offset<Code> offs) const { return offs + impl->codeOffs; }
+uint32_t CbcFile::GetCodeOffs(Offset<Code> offs) const { return offs + impl->poolOffset; }
 
-uint32_t CbcFile::GetStringOffs(Offset<String> offs) const { return offs + impl->stringOffs; }
+uint32_t CbcFile::GetStringOffs(Offset<String> offs) const { return offs + impl->poolOffset; }
 
-uint32_t CbcFile::GetTypeDefOffs(Offset<TypeDefinition> offs) const { return offs + impl->typesOffs; }
+uint32_t CbcFile::GetTypeDefOffs(Offset<TypeDefinition> offs) const { return offs + impl->poolOffset; }
 
-uint32_t CbcFile::GetMethodDefOffs(Offset<MethodDefinition> offs) const { return offs + impl->methodsOffs; }
+uint32_t CbcFile::GetMethodDefOffs(Offset<MethodDefinition> offs) const { return offs + impl->poolOffset; }
 
-uint32_t CbcFile::GetFieldDefOffs(Offset<FieldDefinition> offs) const { return offs + impl->fieldOffs; }
+uint32_t CbcFile::GetFieldDefOffs(Offset<FieldDefinition> offs) const { return offs + impl->poolOffset; }
 
-uint32_t CbcFile::GetTermOffs(Offset<TermVal> offs) const { return offs + impl->termTableOffs; }
+uint32_t CbcFile::GetTermOffs(Offset<TermVal> offs) const { return offs + impl->poolOffset; }
 
-uint32_t CbcFile::GetTypesTableOffs() const { return impl->typesTableOffs; }
+uint32_t CbcFile::GetMethodRefOffset(Offset<MethodReference> offs) const { return offs + impl->poolOffset; }
 
 String CbcFile::GetName() const { return String(impl->name); }
+
+const RegionData& CbcFile::GetRegionData() const { return impl->regionData; }
+
+const TypeIndex& CbcFile::GetTypeIndex() const { return impl->typeIndex; }
 
 } // namespace Symlevel

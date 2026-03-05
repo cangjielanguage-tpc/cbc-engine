@@ -13,6 +13,10 @@ class TypeDefinition;
 class FieldDefinition;
 class MethodReference;
 class TermVal;
+class MethodReference;
+class FieldReference;
+class RegionData;
+class TypeIndex;
 
 class CbcFile {
 private:
@@ -20,8 +24,6 @@ private:
     friend struct Impl;
 
 public:
-    static constexpr uint32_t MAGIC = 0xCBCDAFF0;
-
     static CbcFile Create(IO::FileId fileId, IO::RandomAccessFile& file, std::string_view name);
 
     CbcFile(std::unique_ptr<Impl> impl);
@@ -35,8 +37,11 @@ public:
     uint32_t GetMethodDefOffs(Offset<MethodDefinition> offs) const;
     uint32_t GetFieldDefOffs(Offset<FieldDefinition> offs) const;
     uint32_t GetTermOffs(Offset<TermVal> offs) const;
-    uint32_t GetTypesTableOffs() const;
+    uint32_t GetMethodRefOffset(Offset<MethodReference> offs) const;
     String GetName() const;
+
+    const RegionData& GetRegionData() const;
+    const TypeIndex& GetTypeIndex() const;
 
 private:
     std::unique_ptr<Impl> impl;

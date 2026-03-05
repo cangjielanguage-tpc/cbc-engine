@@ -2,7 +2,7 @@
 
 #include <map>
 
-#include "api/method.h"
+#include "api/resolver.h"
 #include "cbc/emitter/emitter.h"
 #include "cbc/parser.h"
 
@@ -12,7 +12,7 @@ using namespace Format;
 
 class Rewriter : public Parser {
 public:
-    Rewriter(API::Method* _method, MethodCode _code, Emitter::Emitter& _e) : Parser(_method, _code), e(_e) {}
+    Rewriter(API::Resolver* resolver, MethodCode code, Emitter::Emitter& e) : Parser(resolver, code), e(e) {}
 
 protected:
     void DoExtend(Sign sign, IReg dst, IReg src, uint64_t imm) override;

@@ -10,22 +10,31 @@ namespace Engine {
 /// An opaque handle to symlevel definitions.
 
 template <typename T> struct Identifier {
-    static constexpr uint64_t OFFSET_MASK = (1lu << 24) - 1;
-    static constexpr uint64_t FILEID_MASK = ((1lu << 48) - 1) ^ OFFSET_MASK;
-
-    Identifier(Symlevel::Offset<T> offs, IO::FileId fileId) : value(offs.value | (fileId.id << 24)) {}
+    Identifier(Symlevel::Offset<T> offs, IO::FileId fileId) : raw(0)
+    {
+        packed.offset = offs;
+        packed.fileId = fileId;
+    }
 
     // Identifier(Identifier&& another) = default;
     // Identifier(Identifier const& another) = default;
 
-    operator uint64_t() const { return value; }
+    operator uint64_t() const { return raw; }
 
-    Symlevel::Offset<T> GetOffset() const { return value & OFFSET_MASK; }
+    Symlevel::Offset<T> GetOffset() const { return packed.offset; }
 
-    IO::FileId GetFileId() const { return (value & FILEID_MASK) >> 24; }
+    IO::FileId GetFileId() const { return packed.fileId; }
 
 private:
-    uint64_t value;
+    union {
+        struct {
+            uint64_t unused : 16;
+            uint64_t offset : 24;
+            uint64_t fileId : 24;
+        } packed;
+
+        uint64_t raw;
+    };
 };
 
 } // namespace Engine

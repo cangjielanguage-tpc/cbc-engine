@@ -11,35 +11,20 @@ DefinitionsManager::DefinitionsManager() : impl(std::make_unique<DefinitionsMana
 DefinitionsManager::DefinitionsManager(DefinitionsManager&& manager) = default;
 DefinitionsManager::~DefinitionsManager()                            = default;
 
-MethodDefinition MethodDefinition::Parse(Engine::Session& session, IO::FileId fileId, Offset<MethodDefinition> offset)
-{
-    auto position = session.CbcFileOf(fileId).GetMethodDefOffs(offset);
-    IO::StreamFileReader reader(*session.FileOf(fileId), position);
-    auto nameOffs = Offset<String>(reader.ReadU32());
-    auto _        = Offset<String>(reader.ReadU32()); // FIXME: signature encoding
-    auto codeOffs = Offset<Code>(reader.ReadU32());
-
-    return MethodDefinition(Engine::Identifier<MethodDefinition>(offset, fileId), nameOffs, 0, codeOffs);
-}
-
-MethodDefinition MethodDefinition::Resolve(Engine::Session& session, Engine::Identifier<MethodDefinition> identifier)
-{
-    return MethodDefinition::Parse(session, identifier.GetFileId(), identifier.GetOffset());
-}
-
 TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId, Offset<TypeDefinition> offset)
 {
-    auto position = session.CbcFileOf(fileId).GetTypeDefOffs(offset);
-    IO::StreamFileReader reader(*session.FileOf(fileId), position);
-    auto name       = Offset<String>(reader.ReadU32());
-    auto _kind      = reader.ReadU32();
-    auto _superName = reader.ReadU32();
+    auto& raf = *session.FileOf(fileId);
+    IO::StreamFileReader reader(raf, offset);
 
-    auto methodsLength = reader.ReadU32();
-    auto methodsOffset = reader.Position();
-    reader.Advance(methodsLength);
+    auto name         = Offset<String>(reader.ReadU32());
+    auto flags        = reader.ReadULEB();
+    auto importTable  = reader.ReadU32();
+    auto pkgIndex     = reader.ReadU16();
+    auto superTypeIdx = reader.ReadULEB();
 
-    return TypeDefinition(Engine::Identifier<TypeDefinition>(offset, fileId), name, methodsLength, methodsOffset);
+    auto methodIndex = MethodIndex::Read(fileId, raf, offset);
+
+    return TypeDefinition(Engine::Identifier<TypeDefinition>(offset, fileId), name, std::move(methodIndex));
 }
 
 TypeDefinition TypeDefinition::Resolve(Engine::Session& session, Engine::Identifier<TypeDefinition> identifier)
@@ -47,14 +32,56 @@ TypeDefinition TypeDefinition::Resolve(Engine::Session& session, Engine::Identif
     return Parse(session, identifier.GetFileId(), identifier.GetOffset());
 }
 
-FieldDefinition FieldDefinition::Parse(IO::FileId fileId, IO::StreamFileReader& reader)
+FieldDefinition FieldDefinition::Parse(Engine::Session& session, IO::FileId fileId, Offset<FieldDefinition> offset)
 {
+    auto& raf = *session.FileOf(fileId);
+    IO::StreamFileReader reader(raf, offset);
+
     auto name    = Offset<String>(reader.ReadU32());
     auto idx     = reader.ReadU32();
     auto declIdx = reader.ReadU32();
     auto typeIdx = reader.ReadU32();
 
-    return FieldDefinition(fileId, name, idx, declIdx, typeIdx);
+    return FieldDefinition(Engine::Identifier<FieldDefinition>(offset, fileId), name, idx, declIdx, typeIdx);
+}
+
+FieldDefinition FieldDefinition::Resolve(Engine::Session& session, Engine::Identifier<FieldDefinition> identifier)
+{
+    return Parse(session, identifier.GetFileId(), identifier.GetOffset());
+}
+
+MethodDefinition MethodDefinition::Parse(Engine::Session& session, IO::FileId fileId, Offset<MethodDefinition> offset)
+{
+    auto& raf = *session.FileOf(fileId);
+    IO::StreamFileReader reader(raf, offset);
+
+    auto nameOffset   = Offset<String>(reader.ReadU32());
+    auto methodSigIdx = reader.ReadU32();
+    auto specialFlags = reader.ReadU8();
+    auto flags        = reader.ReadULEB();
+    auto methodIdx    = reader.ReadSLEB();
+
+    std::optional<Offset<Code>> codeOffs;
+
+    // TODO: use enum and support all tags
+    while (true) {
+        auto tag = reader.ReadU8();
+        switch (tag) {
+            case 0: goto tags_end;
+            case 1: codeOffs.emplace(Offset<Code>(reader.ReadU32())); break;
+
+            default: ASSERT(false); std::exit(1);
+        }
+    }
+
+tags_end:
+
+    return MethodDefinition(Engine::Identifier<MethodDefinition>(offset, fileId), nameOffset, 0, codeOffs);
+}
+
+MethodDefinition MethodDefinition::Resolve(Engine::Session& session, Engine::Identifier<MethodDefinition> identifier)
+{
+    return Parse(session, identifier.GetFileId(), identifier.GetOffset());
 }
 
 } // namespace Symlevel

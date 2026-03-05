@@ -7,7 +7,6 @@
 #include "cbc/rewriter.h"
 
 #include "mock/interpreter.h"
-#include "mock/symlevel.h"
 #include "testutils.h"
 
 static LimitedHeap<16384> heap;
@@ -35,9 +34,8 @@ TEST(RewriterTest, Rewriter_Simple)
     };
     MethodCode methodCode = { isa12Bytes, isa12CodeSize };
 
-    API::Fake::Method fakeMethod;
     Emitter::Emitter e;
-    Rewriter rw(&fakeMethod, methodCode, e);
+    Rewriter rw(nullptr, methodCode, e);
     rw.Interpret();
     auto code = e.Build(heap);
     EXPECT_EQ(4, code.bytecodeSize);

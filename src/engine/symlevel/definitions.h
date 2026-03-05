@@ -6,6 +6,7 @@
 #include "engine/identifiers.h"
 #include "io/file_id.h"
 #include "io/stream_file_reader.h"
+#include "member_index.h"
 #include "offset.h"
 #include "string.h"
 #include "type_kind.h"
@@ -35,50 +36,47 @@ public:
 
     Engine::Identifier<TypeDefinition> GetIdentifier() const { return identifier; }
 
-    uint32_t GetMethodCount() const { return methodsCount; }
-
-    uint32_t GetMethodsTableOffs() const { return methodsOffset; }
+    const MethodIndex& GetMethodIndex() const { return methods; }
 
 private:
-    TypeDefinition(
-        Engine::Identifier<TypeDefinition> identifier,
-        Offset<String> name,
-        uint32_t methodsCount,
-        uint32_t methodsOffset
-    )
+    TypeDefinition(Engine::Identifier<TypeDefinition> identifier, Offset<String> name, MethodIndex methods)
         : identifier(identifier),
           name(name),
-          methodsCount(methodsCount),
-          methodsOffset(methodsOffset)
+          methods(std::move(methods))
     {}
 
     Engine::Identifier<TypeDefinition> identifier;
     Offset<String> name;
-    uint32_t methodsCount;
-    uint32_t methodsOffset;
+    MethodIndex methods;
 };
 
 class FieldDefinition {
 public:
-    static FieldDefinition Parse(IO::FileId fileId, IO::StreamFileReader& reader);
+    static FieldDefinition Parse(Engine::Session& session, IO::FileId fileId, Offset<FieldDefinition> offset);
+    static FieldDefinition Resolve(Engine::Session& session, Engine::Identifier<FieldDefinition> identifier);
 
     inline const Offset<String> Name() const { return name; }
 
 private:
-    FieldDefinition(IO::FileId fileId, Offset<String> name, uint32_t idx, uint32_t declIdx, uint32_t typeIdx)
-        : fileId(fileId),
+    FieldDefinition(
+        Engine::Identifier<FieldDefinition> identifier,
+        Offset<String> name,
+        uint32_t idx,
+        uint32_t declIdx,
+        uint32_t typeIdx
+    )
+        : identifier(identifier),
           name(name),
           idx(idx),
           declIdx(declIdx),
           typeIdx(typeIdx)
     {}
 
-    const IO::FileId fileId;
-
-    const Offset<String> name;
-    const uint32_t idx;
-    const uint32_t declIdx;
-    const uint32_t typeIdx;
+    Engine::Identifier<FieldDefinition> identifier;
+    Offset<String> name;
+    uint32_t idx;
+    uint32_t declIdx;
+    uint32_t typeIdx;
 };
 
 class MethodDefinition {
@@ -94,7 +92,7 @@ public:
         return sigIdx;
     }
 
-    inline Offset<Code> GetCodeOffs() const { return codeOffs; }
+    inline Offset<Code> GetCodeOffs() const { return *codeOffs; }
 
     inline IO::FileId FileId() const { return identifier.GetFileId(); }
 
@@ -102,7 +100,10 @@ public:
 
 private:
     MethodDefinition(
-        Engine::Identifier<MethodDefinition> identifier, Offset<String> name, uint32_t sigIdx, Offset<Code> codeOffs
+        Engine::Identifier<MethodDefinition> identifier,
+        Offset<String> name,
+        uint32_t sigIdx,
+        std::optional<Offset<Code>> codeOffs
     )
         : identifier(identifier),
           name(name),
@@ -113,7 +114,7 @@ private:
     Engine::Identifier<MethodDefinition> identifier;
     Offset<String> name;
     uint32_t sigIdx;
-    Offset<Code> codeOffs;
+    std::optional<Offset<Code>> codeOffs;
 };
 
 } // namespace Symlevel

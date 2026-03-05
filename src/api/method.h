@@ -1,5 +1,6 @@
 #pragma once
 
+#include "interpreter/function_handle.h"
 #include "term.h"
 #include "type.h"
 #include <optional>
@@ -31,7 +32,7 @@ public:
      */
     virtual std::optional<Type*> RefType() = 0;
 
-    // virtual std::optional<FunctionHandle*> FUH() = 0;
+    virtual std::optional<Interpretation::FunctionHandle*> FUH() = 0;
 
     /**
      * @brief The flags of the method.
@@ -65,25 +66,27 @@ public:
         HAS_THIS_TYPE_INFO_PARAM,
         HAS_RET_BY_VAL_PARAM,
         HAS_C_FUNC_RET_BY_VAL_PARAM,
-        HAS_RECEIVER
+        HAS_RECEIVER,
     };
 
-    static constexpr Value values[] = { FINAL,
-                                        OPEN,
-                                        STATIC,
-                                        ABSTRACT,
-                                        RTS_PROC,
-                                        C_ANNOTATED,
-                                        FOREIGN,
-                                        MUT,
-                                        REDEF,
-                                        OVERRIDE,
-                                        HAS_MUT_PARAM,
-                                        HAS_UG_DESC_PARAM,
-                                        HAS_THIS_TYPE_INFO_PARAM,
-                                        HAS_RET_BY_VAL_PARAM,
-                                        HAS_C_FUNC_RET_BY_VAL_PARAM,
-                                        HAS_RECEIVER };
+    static constexpr Value values[] = {
+        FINAL,
+        OPEN,
+        STATIC,
+        ABSTRACT,
+        RTS_PROC,
+        C_ANNOTATED,
+        FOREIGN,
+        MUT,
+        REDEF,
+        OVERRIDE,
+        HAS_MUT_PARAM,
+        HAS_UG_DESC_PARAM,
+        HAS_THIS_TYPE_INFO_PARAM,
+        HAS_RET_BY_VAL_PARAM,
+        HAS_C_FUNC_RET_BY_VAL_PARAM,
+        HAS_RECEIVER,
+    };
 
     constexpr MethodFlag(const Value value) : value(value) {}
 
