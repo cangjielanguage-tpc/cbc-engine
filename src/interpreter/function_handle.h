@@ -105,6 +105,10 @@ public:
     /// Performs lazy initialization of a DynamicFunctionHandle.
     ExecBytecodeInfo* Prepare(Engine::Session& session, DynamicFunctionHandle* fuh);
 
+    // Acquires a function pointer that could be invoked from compiled code
+    // to invoke the method referenced by `fuh`.
+    //
+    // Note that it is neither `I2Call` nor `C2Call`.
     void* GetFunctionPtr(TaggedFunctionHandle fuh);
 
 private:

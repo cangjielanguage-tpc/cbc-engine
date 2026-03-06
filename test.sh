@@ -9,7 +9,7 @@ mkdir -p "$BUILD_DIR"
 
 # Configure and build
 cd "$BUILD_DIR"
-cmake .. -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+cmake .. -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DUNIT_TEST_MODE=1
 make -j$(nproc)
 
 # Run tests

@@ -9,8 +9,6 @@
 #include "mock/interpreter.h"
 #include "testutils.h"
 
-#define UNIT_TEST_MODE 1
-
 static std::unique_ptr<IO::ByteArrayRandomAccessFile> FromString(std::string_view view)
 {
     char* data        = new char[view.size() + 1];

@@ -33,6 +33,10 @@ target_compile_options(cbc_lib PRIVATE
 target_include_directories(cbc_lib PUBLIC "src")
 target_include_directories(cbc_lib PUBLIC "include")
 
+if(UNIT_TEST_MODE)
+  target_compile_definitions(cbc_lib PRIVATE UNIT_TEST_MODE)
+endif()
+
 add_executable(Engine src/engine/entrypoint.cpp)
 target_link_libraries(Engine PRIVATE cbc_lib)
 

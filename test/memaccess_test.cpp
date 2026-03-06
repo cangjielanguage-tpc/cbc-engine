@@ -7,8 +7,6 @@
 #include "mock/interpreter.h"
 #include "testutils.h"
 
-#define UNIT_TEST_MODE 1
-
 static LimitedHeap<16384> heap;
 
 class EmitTest : public testing::Test {

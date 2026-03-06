@@ -37,3 +37,5 @@ Interpretation::Value::Primitive InterpretFPRes(
     Interpretation::Value::Primitive fr0,
     Interpretation::Value::Primitive fr1
 );
+
+void InitializeMockInterpreter();

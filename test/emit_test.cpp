@@ -1,7 +1,5 @@
 #include <gtest/gtest.h>
 
-#define UNIT_TEST_MODE 1
-
 #include "cbc/emitter/emitter.h"
 #include "cbc/formater_rt.h"
 #include "cbc/isa_rt.h"

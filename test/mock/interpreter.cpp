@@ -4,6 +4,7 @@
 #include "cbc/decoder.h"
 #include "cbc/dispatcher_rt.h"
 #include "interpreter.h"
+#include "interpreter/adapters.h"
 
 namespace Interpretation {
 
@@ -80,6 +81,22 @@ Value::Primitive Interpret(
     return ectype.GetPrimitive(resReg);
 }
 
+static void InterpreterI2CallTest(FunctionHandle* fuh, ABIDesc abiDesc, Ectype* ectype, ThreadHandle th)
+{
+    auto dynFuh   = static_cast<DynamicFunctionHandle*>(fuh);
+    auto bytecode = dynFuh->bytecode.load();
+    if (!bytecode) {
+        Engine::Session session(Engine::GetEngineInstance());
+        auto& manager = FunctionHandleManager::Of(session);
+        bytecode      = manager.Prepare(session, dynFuh);
+    }
+    auto code = bytecode->code;
+
+    Interpreter<Test> interp(ectype, nullptr, fuh, code.literals);
+    Decoder::ByteReader s(code.bytecode, code.bytecode, code.bytecode + code.bytecodeSize);
+    Cbc::RT::InterpretationLoop(interp, s);
+}
+
 } // namespace Interpretation
 
 Interpretation::Value::Primitive Interpret(
@@ -115,3 +132,5 @@ Interpretation::Value::Primitive InterpretFPRes(
 {
     return Interpretation::Interpret<Cbc::FReg>(code, frame, U32(0), U32(0), fr0, fr1, Cbc::FReg::FR0);
 }
+
+void InitializeMockInterpreter() { Interpretation::SetI2CallForInterpreter(&Interpretation::InterpreterI2CallTest); }
