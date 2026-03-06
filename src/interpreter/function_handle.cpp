@@ -11,6 +11,8 @@
 
 namespace Interpretation {
 
+static_assert(offsetof(DynamicFunctionHandle, c2call) == FUNCTION_HANDLE_C2CALL_OFFSET);
+
 class FunctionHandleManager::Impl {
 public:
     std::mutex lock;
@@ -44,9 +46,9 @@ FunctionHandle* FunctionHandleManager::Acquire(
 {
     auto fuh = AcquireTagged(session, methodDef);
     if (std::holds_alternative<DynamicFunctionHandle*>(fuh)) {
-        return std::get<DynamicFunctionHandle*>(fuh);
+        return &std::get<DynamicFunctionHandle*>(fuh)->base;
     } else {
-        return std::get<StaticFunctionHandle*>(fuh);
+        return &std::get<StaticFunctionHandle*>(fuh)->base;
     }
 }
 

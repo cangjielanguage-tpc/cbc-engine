@@ -28,5 +28,3 @@ CBC_EXPORT void engine_set_cbcpath(char const* cbcPath) { g_cbcPath = cbcPath; }
 CBC_EXPORT void engine_set_main_cbc(char const* mainCbc) { g_mainCbc = mainCbc; }
 
 } // extern "C"
-
-int main() { return 0; }

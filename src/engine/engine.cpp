@@ -10,6 +10,8 @@ namespace Engine {
 
 using namespace Symlevel;
 
+static Engine* g_engineInstance;
+
 /////////////////////////////////////////////////////////////////
 // Impl definitions
 
@@ -20,8 +22,6 @@ public:
           rafs(std::move(rafs)),
           fuhManager()
     {}
-
-    static Engine* g_engineInstance;
 
     static Engine::Impl& Of(Engine& engine) { return *engine.impl; }
 
@@ -85,7 +85,7 @@ Engine& Loader::Build()
 {
     auto engineInstance =
         new Engine(std::move(std::make_unique<Engine::Impl>(std::move(loader->files), std::move(loader->rafs))));
-    Engine::Impl::g_engineInstance = engineInstance;
+    g_engineInstance = engineInstance;
     return *engineInstance;
 }
 
@@ -99,8 +99,8 @@ Engine::~Engine()              = default;
 
 Engine& GetEngineInstance()
 {
-    ASSERTION(Engine::Impl::g_engineInstance != nullptr, "engine is not initialized");
-    return *Engine::Impl::g_engineInstance;
+    ASSERTION(g_engineInstance != nullptr, "engine is not initialized");
+    return *g_engineInstance;
 }
 
 std::optional<CbcFile*> Engine::Impl::FindCbcFile(std::string_view filePath)

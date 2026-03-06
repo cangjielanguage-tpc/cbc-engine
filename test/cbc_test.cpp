@@ -71,7 +71,7 @@ TEST_ASM(CbcTest, Simple)
     auto mainId      = engine.FindMain(session, pkgName);
     auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
 
-    auto fuh    = static_cast<Interpretation::DynamicFunctionHandle*>(fuhManager.Acquire(session, mainId.value()));
+    auto fuh    = std::get<Interpretation::DynamicFunctionHandle*>(fuhManager.AcquireTagged(session, mainId.value()));
     auto bcInfo = fuhManager.Prepare(session, fuh);
 
     auto code = bcInfo->code;

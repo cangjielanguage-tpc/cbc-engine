@@ -83,7 +83,7 @@ Value::Primitive Interpret(
 
 static void InterpreterI2CallTest(FunctionHandle* fuh, Ectype* ectype, ThreadHandle th)
 {
-    auto dynFuh   = static_cast<DynamicFunctionHandle*>(fuh);
+    auto dynFuh   = reinterpret_cast<DynamicFunctionHandle*>(fuh);
     auto bytecode = dynFuh->bytecode.load();
     if (!bytecode) {
         Engine::Session session(Engine::GetEngineInstance());

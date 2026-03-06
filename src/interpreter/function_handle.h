@@ -3,7 +3,6 @@
 #include <atomic>
 #include <cstddef>
 #include <memory>
-#include <mutex>
 #include <variant>
 
 #include "code.h"
@@ -50,14 +49,17 @@ struct FunctionHandle {
 };
 
 /// Function handle of cbc-provided function.
-struct DynamicFunctionHandle : public FunctionHandle {
+struct DynamicFunctionHandle {
     DynamicFunctionHandle(I2Call i2Call, C2Call c2call, Engine::Identifier<Symlevel::MethodDefinition> methodDef)
-        : FunctionHandle(i2Call),
+        : base(i2Call),
           c2call(c2call),
           bytecode(nullptr),
           lock(),
           methodDef(methodDef)
     {}
+
+    // Can not use inheritance because of standard layout rules.
+    FunctionHandle base;
 
     C2Call c2call;
 
@@ -74,7 +76,9 @@ struct DynamicFunctionHandle : public FunctionHandle {
 /// Note that not all AOT functions may be called using `StaticFunctionHandle`.
 /// This kind of `FunctionHandle` is mainly needed to work with methods of
 /// dynamically created `TypeInfo` in the similar way, both for cbc and aot functions.
-struct StaticFunctionHandle : public FunctionHandle {
+struct StaticFunctionHandle {
+    // Can not use inheritance because of standard layout rules.
+    FunctionHandle base;
     void* const function;
 };
 

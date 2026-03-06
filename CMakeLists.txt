@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(cbc-engine CXX)
+project(cbc-engine CXX ASM)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -20,15 +20,14 @@ if(ENABLE_LTO)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
 endif()
 
-file(GLOB_RECURSE LIB_SOURCES CONFIGURE_DEPENDS "src/*.cpp")
+# FIXME: make source search platform-aware
+file(GLOB_RECURSE LIB_SOURCES CONFIGURE_DEPENDS "src/*.cpp" "src/*.S")
 list(FILTER LIB_SOURCES EXCLUDE REGEX ".*entrypoint\\.cpp$")
 
 add_library(cbc_lib STATIC ${LIB_SOURCES})
-
-target_compile_options(cbc_lib PRIVATE
-    ${PROJECT_WARNINGS}
-    $<$<C_COMPILER_ID:GNU,Clang>:-fvisibility=hidden>
-)
+set_target_properties(cbc_lib PROPERTIES
+  CXX_VISIBILITY_PRESET hidden
+  POSITION_INDEPENDENT_CODE ON)
 
 target_include_directories(cbc_lib PUBLIC "src")
 target_include_directories(cbc_lib PUBLIC "include")
@@ -37,8 +36,12 @@ if(UNIT_TEST_MODE)
   target_compile_definitions(cbc_lib PRIVATE UNIT_TEST_MODE)
 endif()
 
-add_executable(Engine src/engine/entrypoint.cpp)
-target_link_libraries(Engine PRIVATE cbc_lib)
+add_library(cbcengine SHARED src/engine/entrypoint.cpp)
+target_link_libraries(cbcengine PRIVATE cbc_lib)
+set_target_properties(cbcengine PROPERTIES
+    POSITION_INDEPENDENT_CODE ON
+    INTERPROCEDURAL_OPTIMIZATION ON  # Enables LTO explicitly for this target
+)
 
 # 6. Testing Subdirectory
 enable_testing() # Enable CTest discovery
