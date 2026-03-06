@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <memory>
 #include <mutex>
+#include <variant>
 
 #include "code.h"
 #include "ectype.h"
@@ -19,6 +20,9 @@ namespace Interpretation {
 
 class FunctionHandle;
 class DynamicFunctionHandle;
+class StaticFunctionHandle;
+
+using TaggedFunctionHandle = std::variant<DynamicFunctionHandle*, StaticFunctionHandle*>;
 
 using ABIDesc = void*;
 
@@ -56,7 +60,7 @@ struct DynamicFunctionHandle : public FunctionHandle {
         : FunctionHandle(i2Call),
           c2call(c2call),
           desc(desc),
-          descriptor(nullptr),
+          bytecode(nullptr),
           lock(),
           methodDef(methodDef)
     {}
@@ -69,7 +73,7 @@ struct DynamicFunctionHandle : public FunctionHandle {
 
     /// Lazily initialized.
     /// Holds the information about a frame of interpreted method and bytecode itself.
-    std::atomic<ExecBytecodeInfo*> descriptor;
+    std::atomic<ExecBytecodeInfo*> bytecode;
     std::mutex lock;
 
     Engine::Identifier<Symlevel::MethodDefinition> const methodDef;
@@ -94,9 +98,14 @@ public:
 
     /// Acquires an FunctionHandle for given method definition.
     FunctionHandle* Acquire(Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> methodDef);
+    TaggedFunctionHandle AcquireTagged(
+        Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> methodDef
+    );
 
     /// Performs lazy initialization of a DynamicFunctionHandle.
     ExecBytecodeInfo* Prepare(Engine::Session& session, DynamicFunctionHandle* fuh);
+
+    void* GetFunctionPtr(TaggedFunctionHandle fuh);
 
 private:
     class Impl;

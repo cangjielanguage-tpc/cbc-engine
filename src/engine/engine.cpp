@@ -10,6 +10,9 @@ namespace Engine {
 
 using namespace Symlevel;
 
+/////////////////////////////////////////////////////////////////
+// Impl definitions
+
 class Engine::Impl {
 public:
     Impl(std::vector<CbcFile> files, std::vector<std::unique_ptr<IO::RandomAccessFile>> rafs)
@@ -18,7 +21,12 @@ public:
           fuhManager()
     {}
 
+    static Engine* g_engineInstance;
+
     static Engine::Impl& Of(Engine& engine) { return *engine.impl; }
+
+    std::optional<CbcFile*> FindCbcFile(std::string_view filePath);
+    std::optional<TypeDefinition> FindType(Session& session, CbcFile& file, std::string_view typeName);
 
     friend class Session;
     std::vector<CbcFile> files;
@@ -38,6 +46,7 @@ public:
 };
 
 /////////////////////////////////////////////////////////////////
+// Session implementation
 
 std::unique_ptr<IO::RandomAccessFile>& Session::FileOf(IO::FileId fileId) const
 {
@@ -60,6 +69,9 @@ Loader::~Loader()              = default;
 
 std::pmr::memory_resource& Engine::CodeHeap() const { return *std::pmr::new_delete_resource(); }
 
+/////////////////////////////////////////////////////////////////
+// Loader implementation
+
 bool Loader::Load(std::unique_ptr<IO::RandomAccessFile> file, std::string_view fileName)
 {
     IO::StreamFileReader reader(*file, 0);
@@ -69,34 +81,65 @@ bool Loader::Load(std::unique_ptr<IO::RandomAccessFile> file, std::string_view f
     return true;
 }
 
-Engine Loader::Build()
+Engine& Loader::Build()
 {
-    return Engine(std::move(std::make_unique<Engine::Impl>(std::move(loader->files), std::move(loader->rafs))));
+    auto engineInstance =
+        new Engine(std::move(std::make_unique<Engine::Impl>(std::move(loader->files), std::move(loader->rafs))));
+    Engine::Impl::g_engineInstance = engineInstance;
+    return *engineInstance;
 }
+
+/////////////////////////////////////////////////////////////////
+// Engine implementation
 
 Engine::Engine(std::unique_ptr<Engine::Impl>&& impl) : impl(std::move(impl)) {}
 
 Engine::Engine(Engine&& other) = default;
 Engine::~Engine()              = default;
 
+Engine& GetEngineInstance()
+{
+    ASSERTION(Engine::Impl::g_engineInstance != nullptr, "engine is not initialized");
+    return *Engine::Impl::g_engineInstance;
+}
+
+std::optional<CbcFile*> Engine::Impl::FindCbcFile(std::string_view filePath)
+{
+    for (auto& file : this->files) {
+        if (file.GetPath() == filePath) {
+            return &file;
+        }
+    }
+    return std::nullopt;
+}
+
+std::optional<TypeDefinition> Engine::Impl::FindType(Session& session, CbcFile& file, std::string_view typeName)
+{
+    auto& typeIndex = file.GetTypeIndex();
+    auto typeDef    = typeIndex.FindType(session, typeName);
+
+    if (typeDef) {
+        return typeDef;
+    }
+    return std::nullopt;
+}
+
 std::optional<TypeDefinition> Engine::FindType(Session& session, std::string_view typeName)
 {
-    // TODO: cache?
-
     for (auto& file : impl->files) {
-        auto& typeIndex = file.GetTypeIndex();
-        auto typeDef    = typeIndex.FindType(session, typeName);
-
-        if (typeDef) {
-            return typeDef;
+        auto res = impl->FindType(session, file, typeName);
+        if (res.has_value()) {
+            return res;
         }
     }
 
     return std::nullopt;
 }
 
-std::optional<Identifier<MethodDefinition>> Engine::FindMain(Session& session, std::string_view fileName)
+std::optional<Identifier<MethodDefinition>> Engine::FindMain(Session& session, std::string_view filePath)
 {
+    auto file = impl->FindCbcFile(filePath);
+
     auto declType = FindType(session, std::string_view("default"));
     if (declType) {
         const auto& methodIndex = (*declType).GetMethodIndex();
@@ -110,6 +153,9 @@ std::optional<Identifier<MethodDefinition>> Engine::FindMain(Session& session, s
 }
 
 } // namespace Engine
+
+/////////////////////////////////////////////////////////////////
+// Engine accessors
 
 namespace Interpretation {
 

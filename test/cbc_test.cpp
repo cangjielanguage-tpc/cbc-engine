@@ -39,7 +39,7 @@ TEST(CbcTest, Empty)
     bool successful = loader.Load(std::move(file), "hello.cbc");
     ASSERT_TRUE(successful);
 
-    auto engine = loader.Build();
+    auto& engine = loader.Build();
     Engine::Session session(engine);
     auto strOffs = Symlevel::Offset<Symlevel::String>(offs);
     auto str     = Symlevel::Reader::Read(session, IO::FileId(0), strOffs);
@@ -56,7 +56,7 @@ TEST_ASM(CbcTest, Simple)
     bool successful = loader.Load(std::move(file), pkgName);
     ASSERT_TRUE(successful);
 
-    auto engine = loader.Build();
+    auto& engine = loader.Build();
     Engine::Session session(engine);
     auto mainId      = engine.FindMain(session, pkgName);
     auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);

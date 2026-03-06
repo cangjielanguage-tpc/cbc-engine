@@ -30,7 +30,7 @@ public:
     ~Engine();
     std::pmr::memory_resource& CodeHeap() const;
 
-    std::optional<Identifier<MethodDefinition>> FindMain(Session& session, std::string_view fileName);
+    std::optional<Identifier<MethodDefinition>> FindMain(Session& session, std::string_view filePath);
     std::optional<TypeDefinition> FindType(Session& session, std::string_view typeName);
 
 private:
@@ -39,6 +39,8 @@ private:
 
     std::unique_ptr<Impl> impl;
 };
+
+Engine& GetEngineInstance();
 
 /// Temporal context for `Engine` usage.
 /// Almost all accesses to the engine is performed in the presence of `Session`.
@@ -66,7 +68,7 @@ public:
     ~Loader();
 
     bool Load(std::unique_ptr<IO::RandomAccessFile> file, std::string_view fileName);
-    Engine Build();
+    Engine& Build();
 
 private:
     class Impl;

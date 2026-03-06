@@ -39,6 +39,7 @@ public:
     uint32_t GetTermOffs(Offset<TermVal> offs) const;
     uint32_t GetMethodRefOffset(Offset<MethodReference> offs) const;
     String GetName() const;
+    String GetPath() const;
 
     const RegionData& GetRegionData() const;
     const TypeIndex& GetTypeIndex() const;

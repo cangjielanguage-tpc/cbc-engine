@@ -31,6 +31,7 @@ target_compile_options(cbc_lib PRIVATE
 )
 
 target_include_directories(cbc_lib PUBLIC "src")
+target_include_directories(cbc_lib PUBLIC "include")
 
 add_executable(Engine src/engine/entrypoint.cpp)
 target_link_libraries(Engine PRIVATE cbc_lib)
