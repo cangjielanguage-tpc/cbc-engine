@@ -10,7 +10,11 @@
 static LimitedHeap<16384> heap;
 
 class RewriterTest : public testing::Test {
-    void SetUp() override { heap.Reset(); }
+    void SetUp() override
+    {
+        InitializeMockInterpreter();
+        heap.Reset();
+    }
 
     void TearDown() override {}
 };

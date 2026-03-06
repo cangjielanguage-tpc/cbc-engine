@@ -9,6 +9,18 @@
 #include "mock/interpreter.h"
 #include "testutils.h"
 
+static LimitedHeap<16384> heap;
+
+class CbcTest : public testing::Test {
+    void SetUp() override
+    {
+        InitializeMockInterpreter();
+        heap.Reset();
+    }
+
+    void TearDown() override {}
+};
+
 static std::unique_ptr<IO::ByteArrayRandomAccessFile> FromString(std::string_view view)
 {
     char* data        = new char[view.size() + 1];
