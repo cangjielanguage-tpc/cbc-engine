@@ -81,7 +81,7 @@ Value::Primitive Interpret(
     return ectype.GetPrimitive(resReg);
 }
 
-static void InterpreterI2CallTest(FunctionHandle* fuh, ABIDesc abiDesc, Ectype* ectype, ThreadHandle th)
+static void InterpreterI2CallTest(FunctionHandle* fuh, Ectype* ectype, ThreadHandle th)
 {
     auto dynFuh   = static_cast<DynamicFunctionHandle*>(fuh);
     auto bytecode = dynFuh->bytecode.load();

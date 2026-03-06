@@ -33,7 +33,7 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
     }
     auto i2Call             = PrepareI2Call(session, methodDef);
     auto c2Call             = PrepareC2Call(session, methodDef);
-    auto fuh                = new DynamicFunctionHandle(i2Call, c2Call, nullptr, methodDef);
+    auto fuh                = new DynamicFunctionHandle(i2Call, c2Call, methodDef);
     impl->fuhMap[methodDef] = fuh;
     return fuh;
 }

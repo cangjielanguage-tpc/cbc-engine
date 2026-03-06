@@ -24,11 +24,8 @@ class StaticFunctionHandle;
 
 using TaggedFunctionHandle = std::variant<DynamicFunctionHandle*, StaticFunctionHandle*>;
 
-using ABIDesc = void*;
-
 /// The function that would be called to perform a FuH invocation from interpreted code.
-/// The ABI is passed from the callsite.
-using I2Call = void (*)(FunctionHandle*, ABIDesc, Ectype*, ThreadHandle);
+using I2Call = void (*)(FunctionHandle*, Ectype*, ThreadHandle);
 
 /// The function that would be called to perform a FuH invocation from compiled code.
 /// The ABI of this function is custom and only used in hand-written assembly.
@@ -54,22 +51,15 @@ struct FunctionHandle {
 
 /// Function handle of cbc-provided function.
 struct DynamicFunctionHandle : public FunctionHandle {
-    DynamicFunctionHandle(
-        I2Call i2Call, C2Call c2call, ABIDesc desc, Engine::Identifier<Symlevel::MethodDefinition> methodDef
-    )
+    DynamicFunctionHandle(I2Call i2Call, C2Call c2call, Engine::Identifier<Symlevel::MethodDefinition> methodDef)
         : FunctionHandle(i2Call),
           c2call(c2call),
-          desc(desc),
           bytecode(nullptr),
           lock(),
           methodDef(methodDef)
     {}
 
     C2Call c2call;
-
-    /// Eagerly initialized.
-    /// Holds the information about an ABI conversions to make a C2I invocation.
-    ABIDesc const desc;
 
     /// Lazily initialized.
     /// Holds the information about a frame of interpreted method and bytecode itself.
