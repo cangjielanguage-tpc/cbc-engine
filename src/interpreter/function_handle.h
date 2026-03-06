@@ -1,7 +1,6 @@
 #pragma once
 
 #include <atomic>
-#include <cstddef>
 #include <memory>
 #include <variant>
 
@@ -9,6 +8,7 @@
 #include "ectype.h"
 #include "engine/engine.h"
 #include "engine/identifiers.h"
+#include "frame.h"
 #include "runtime.h"
 
 namespace Symlevel {
@@ -24,7 +24,7 @@ class StaticFunctionHandle;
 using TaggedFunctionHandle = std::variant<DynamicFunctionHandle*, StaticFunctionHandle*>;
 
 /// The function that would be called to perform a FuH invocation from interpreted code.
-using I2Call = void (*)(FunctionHandle*, Ectype*, ThreadHandle);
+using I2Call = void (*)(Ectype* ectype, Frame* oldFrame, ThreadHandle handle, FunctionHandle* fuh);
 
 /// The function that would be called to perform a FuH invocation from compiled code.
 /// The ABI of this function is custom and only used in hand-written assembly.

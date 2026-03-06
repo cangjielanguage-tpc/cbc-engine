@@ -1,8 +1,11 @@
 #ifndef INTERPRETER_CODE_H
 #define INTERPRETER_CODE_H
 
-#include "literals.h"
+#include <cstddef>
 #include <cstdint>
+
+#include "asm_export.h"
+#include "literals.h"
 
 namespace Interpretation {
 
@@ -23,6 +26,12 @@ struct ExecBytecodeInfo {
     uint32_t const frameSize;
     ReferenceSlots references;
 };
+
+static_assert(
+    offsetof(ExecBytecodeInfo, code) + offsetof(Code, bytecodeSize) == EXEC_BYTECODE_INFO_BYTECODE_SIZE_OFFSET
+);
+static_assert(offsetof(ExecBytecodeInfo, code) + offsetof(Code, bytecode) == EXEC_BYTECODE_INFO_BYTECODE_OFFSET);
+static_assert(offsetof(ExecBytecodeInfo, code) + offsetof(Code, literals) == EXEC_BYTECODE_INFO_LITERALS_OFFSET);
 
 } // namespace Interpretation
 

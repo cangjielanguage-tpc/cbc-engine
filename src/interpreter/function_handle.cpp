@@ -11,6 +11,7 @@
 namespace Interpretation {
 
 static_assert(offsetof(DynamicFunctionHandle, c2call) == FUNCTION_HANDLE_C2CALL_OFFSET);
+static_assert(offsetof(DynamicFunctionHandle, bytecode) == FUNCTION_HANDLE_BYTECODE_OFFSET);
 
 class FunctionHandleManager::Impl {
 public:

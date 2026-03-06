@@ -1,3 +1,4 @@
+// FIXME: use ifdef include platform specific header
 #include "arch_os/x86_64_linux/platform_asm_export.h"
 
 #define TRAMPOLINE_COUNT 1024
@@ -9,3 +10,8 @@
 #define ECTYPE_FREGS_OFFSET 128
 
 #define FUNCTION_HANDLE_C2CALL_OFFSET 8
+#define FUNCTION_HANDLE_BYTECODE_OFFSET 16
+
+#define EXEC_BYTECODE_INFO_BYTECODE_SIZE_OFFSET 0
+#define EXEC_BYTECODE_INFO_BYTECODE_OFFSET 8
+#define EXEC_BYTECODE_INFO_LITERALS_OFFSET 16

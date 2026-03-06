@@ -1,7 +1,5 @@
 #pragma once
 
-#include <type_traits>
-
 #include "decoder.h"
 #include "isa_rt.h"
 #include "utils/assertion.h"
@@ -13,14 +11,18 @@ namespace Cbc {
 namespace RT {
 
 using Width = Cbc::Format::Width;
+using namespace Interpretation;
 
 template <typename RTI>
-void InterpretationLoop(Interpretation::Interpreter<RTI> interpreter, Decoder::ByteReader reader)
+void InterpretationLoop(
+    Ectype* ectype, Frame* frame, ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
+)
 {
 #define NEXT goto* MAIN_TABLE[reader.PeekOpcode()]
 #define NEXT_COND(successful) goto* MAIN_TABLE[(successful) ? reader.PeekOpcode() : 0]
-
 #define MEM_NEXT goto* MEMSPACE_TABLE[reader.PeekOpcode()]
+    Interpretation::Interpreter<RTI> interpreter(ectype, frame, handle, literals);
+    Decoder::ByteReader reader = reader0;
 
     static void* MAIN_TABLE[] = {
         &&HALT,    // B1 TODO merge rare commands

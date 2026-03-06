@@ -69,19 +69,18 @@ Value::Primitive Interpret(
     heap.Reset();
 
     Interpretation::Ectype ectype {};
-    Interpreter<Test> interp(&ectype, frame, nullptr, code.literals);
     Decoder::ByteReader s(code.bytecode, code.bytecode, code.bytecode + code.bytecodeSize);
     ectype.Put(IReg::IR1, ir1);
     ectype.Put(IReg::IR2, ir2);
     ectype.Put(FReg::FR0, fr0);
     ectype.Put(FReg::FR1, fr1);
 
-    Cbc::RT::InterpretationLoop(interp, s);
+    Cbc::RT::InterpretationLoop<Test>(&ectype, frame, nullptr, code.literals, s);
 
     return ectype.GetPrimitive(resReg);
 }
 
-static void InterpreterI2CallTest(FunctionHandle* fuh, Ectype* ectype, ThreadHandle th)
+static void InterpreterI2CallTest(Ectype* ectype, Frame* oldFrame, ThreadHandle handle, FunctionHandle* fuh)
 {
     auto dynFuh   = reinterpret_cast<DynamicFunctionHandle*>(fuh);
     auto bytecode = dynFuh->bytecode.load();
@@ -92,9 +91,8 @@ static void InterpreterI2CallTest(FunctionHandle* fuh, Ectype* ectype, ThreadHan
     }
     auto code = bytecode->code;
 
-    Interpreter<Test> interp(ectype, nullptr, fuh, code.literals);
     Decoder::ByteReader s(code.bytecode, code.bytecode, code.bytecode + code.bytecodeSize);
-    Cbc::RT::InterpretationLoop(interp, s);
+    Cbc::RT::InterpretationLoop<Test>(ectype, nullptr, fuh, code.literals, s);
 }
 
 } // namespace Interpretation

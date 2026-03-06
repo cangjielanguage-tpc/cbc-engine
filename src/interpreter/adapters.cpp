@@ -2,6 +2,8 @@
 
 #include "adapters.h"
 #include "asm_export.h"
+#include "code.h"
+#include "function_handle.h"
 
 namespace Interpretation {
 
@@ -12,19 +14,20 @@ extern "C" {
 
 typedef char DirectTrampolineText[DIRECT_CALL_TRAMPOLINE_SIZE];
 
+extern void engine_iregs_only_c2i_call();
 extern DirectTrampolineText engine_trampolines_direct_start[];
 DynamicFunctionHandle* engine_universal_direct_function_handles[TRAMPOLINE_COUNT];
-}
-
-static I2Call g_overridenI2Call;
 
 // TODO: Never inline
-static ExecBytecodeInfo* PrepareBytecode(DynamicFunctionHandle* fuh)
+extern ExecBytecodeInfo* engine_prepare_bytecode(DynamicFunctionHandle* fuh)
 {
     Engine::Session session(Engine::GetEngineInstance());
     auto& manager = FunctionHandleManager::Of(session);
     return manager.Prepare(session, fuh);
 }
+}
+
+static I2Call g_overridenI2Call;
 
 void* GetDirectCallTrampoline(DynamicFunctionHandle* fuh)
 {
@@ -53,7 +56,7 @@ I2Call PrepareI2Call(Engine::Session& session, Engine::Identifier<Symlevel::Meth
 
 C2Call PrepareC2Call(Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> methodDef)
 {
-    return nullptr;
+    return reinterpret_cast<C2Call>(&engine_iregs_only_c2i_call);
 }
 
 void SetI2CallForInterpreter(I2Call i2call)
