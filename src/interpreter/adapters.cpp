@@ -9,8 +9,10 @@ std::mutex g_directCallFuhsMutex;
 static size_t directCallFuhsCount;
 
 extern "C" {
-extern char engine_trampolines_direct_start[];
-extern char engine_trampolines_direct_end[];
+
+typedef char DirectTrampolineText[DIRECT_CALL_TRAMPOLINE_SIZE];
+
+extern DirectTrampolineText engine_trampolines_direct_start[];
 DynamicFunctionHandle* engine_universal_direct_function_handles[TRAMPOLINE_COUNT];
 }
 
@@ -24,32 +26,13 @@ static ExecBytecodeInfo* PrepareBytecode(DynamicFunctionHandle* fuh)
     return manager.Prepare(session, fuh);
 }
 
-static uint64_t FakeTrampoline0()
-{
-    DynamicFunctionHandle* fuh = engine_universal_direct_function_handles[0];
-    auto bytecode              = fuh->bytecode.load();
-    if (!bytecode) {
-        bytecode = PrepareBytecode(fuh);
-    }
-
-    printf("Hello from trampoline 0\n");
-    return 0;
-}
-
-static void* GetDirectCallTrampolineByIdx(int i)
-{
-    auto sectionSize    = engine_trampolines_direct_end - engine_trampolines_direct_start;
-    auto trampolineSize = sectionSize / TRAMPOLINE_COUNT;
-    return engine_trampolines_direct_start + trampolineSize * i;
-}
-
 void* GetDirectCallTrampoline(DynamicFunctionHandle* fuh)
 {
     std::lock_guard guard(g_directCallFuhsMutex);
     int i = 0;
     for (; i < directCallFuhsCount; i++) {
         if (engine_universal_direct_function_handles[i] == fuh) {
-            return GetDirectCallTrampolineByIdx(i);
+            return &engine_trampolines_direct_start[i];
         }
     }
     if (i == TRAMPOLINE_COUNT) {
@@ -57,7 +40,7 @@ void* GetDirectCallTrampoline(DynamicFunctionHandle* fuh)
     }
     engine_universal_direct_function_handles[i] = fuh;
     directCallFuhsCount                         = i + 1;
-    return GetDirectCallTrampolineByIdx(i);
+    return &engine_trampolines_direct_start[i];
 }
 
 I2Call PrepareI2Call(Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> methodDef)

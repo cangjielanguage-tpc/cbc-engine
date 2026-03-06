@@ -1,3 +1,5 @@
+#include "arch_os/x86_64_linux/platform_asm_export.h"
+
 #define TRAMPOLINE_COUNT 1024
 
 #define TLS_FIBER_DATA_OFFSET 16

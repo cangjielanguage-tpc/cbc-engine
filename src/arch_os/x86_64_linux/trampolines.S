@@ -7,7 +7,7 @@
 
 .text
 .align 16
-.global engine_universal_direct_call
+.local engine_universal_direct_call
 .hidden engine_universal_direct_call
 engine_universal_direct_call:
   lea   r10, [rip + engine_universal_direct_function_handles]
@@ -16,26 +16,27 @@ engine_universal_direct_call:
 
 .text
 .align 16
-.global engine_trampolines_direct_start
-.global engine_trampolines_direct_end
+.local engine_trampolines_direct_start
 .hidden engine_trampolines_direct_start
-.hidden engine_trampolines_direct_end
 engine_trampolines_direct_start:
 .macro repeat_call count
   .set i, 0
   .rept \count
-      mov   rax, i
-      jmp   engine_universal_direct_call
+      mov.d32 eax, i
+      jmp.d32 engine_universal_direct_call
       .set i, i + 1
   .endr
 .endm
   repeat_call TRAMPOLINE_COUNT
-engine_trampolines_direct_end:
-  nop
+.Lend:
+  .set SECTION_SIZE, .Lend - engine_trampolines_direct_start
+  .if SECTION_SIZE != (DIRECT_CALL_TRAMPOLINE_SIZE * TRAMPOLINE_COUNT)
+    .error "wrong trampoline size"
+  .endif
 
 .text
 .align 16
-.global engine_iregs_only_i2c_call
+.local engine_iregs_only_i2c_call
 .hidden engine_iregs_only_i2c_call
 engine_iregs_only_i2c_call:
   push  rbp

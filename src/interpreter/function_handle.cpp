@@ -3,7 +3,6 @@
 #include <variant>
 
 #include "adapters.h"
-#include "cbc/dispatcher_rt.h"
 #include "cbc/rewriter.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/reader.h"
