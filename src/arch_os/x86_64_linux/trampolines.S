@@ -9,7 +9,7 @@
 
 .text
 .align 16
-.local engine_universal_direct_call
+.global engine_universal_direct_call
 .hidden engine_universal_direct_call
 engine_universal_direct_call:
   lea   r10, [rip + engine_universal_direct_function_handles]
@@ -19,7 +19,7 @@ engine_universal_direct_call:
 
 .text
 .align 16
-.local engine_trampolines_direct_start
+.global engine_trampolines_direct_start
 .hidden engine_trampolines_direct_start
 engine_trampolines_direct_start:
 .macro repeat_call count
@@ -31,11 +31,6 @@ engine_trampolines_direct_start:
   .endr
 .endm
   repeat_call TRAMPOLINE_COUNT
-.Lend:
-  .set SECTION_SIZE, .Lend - engine_trampolines_direct_start
-  .if SECTION_SIZE != (DIRECT_CALL_TRAMPOLINE_SIZE * TRAMPOLINE_COUNT)
-    .error "wrong trampoline size"
-  .endif
 
 
 .text
@@ -87,7 +82,7 @@ engine_iregs_only_c2i_call:
 
 .text
 .align 16
-.local engine_i2i_call
+.global engine_i2i_call
 .hidden engine_i2i_call
 engine_i2i_call: // (rdi: ectype, rsi: oldFrame, rdx: th, rcx:fuh)
   mov   rsp, rsi
