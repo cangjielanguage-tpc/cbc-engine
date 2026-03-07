@@ -2,9 +2,9 @@
 
 #include "asm_export.h"
 
-.hidden engine_universal_direct_function_handles
-.hidden engine_prepare_bytecode
-.hidden engine_interpretation_loop
+.global engine_universal_direct_function_handles
+.global engine_prepare_bytecode
+.global engine_interpretation_loop
 
 
 .text
@@ -142,14 +142,14 @@ perform_2i_call:  // (rdi: ectype, rdx: th, rcx: fuh)
 
   mov   rcx, [rax + EXEC_BYTECODE_INFO_LITERALS_OFFSET]
   mov   rsi, [rax + EXEC_BYTECODE_INFO_BYTECODE_OFFSET]
-  mov   [rbp - READER_SLOT], rsi
-  mov   [rbp - LITERALS_SLOT], rcx
 #ifndef NDEBUG
-  mov   [rbp - READER_SLOT + 0x8], rsi
   mov   r8, [rax + EXEC_BYTECODE_INFO_BYTECODE_SIZE_OFFSET]
   add   r8, rsi
   mov   [rbp - READER_SLOT + 0x10], r8
+  mov   [rbp - READER_SLOT + 0x8], rsi
 #endif
+  mov   [rbp - READER_SLOT], rsi
+  mov   [rbp - LITERALS_SLOT], rcx
 
   // FIXME: init frame here (prepare frame metadata to be 16-byte aligned!)
 
