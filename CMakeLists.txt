@@ -12,9 +12,9 @@ execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink
 
 set(CMAKE_CXX_STANDARD 17)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fomit-frame-pointer")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-stack-protector -fomit-frame-pointer")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -Og")
-set(CMAKE_CXX_FLAGS_RELEASE "-O2")
+set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
 
 option(ENABLE_LTO "Enable Link-Time Optimization" ON)
 if(ENABLE_LTO)
@@ -39,6 +39,12 @@ endif()
 
 add_library(cbcengine SHARED src/engine/entrypoint.cpp)
 target_link_libraries(cbcengine PRIVATE cbc_lib)
+
+target_link_options(cbcengine PRIVATE
+  "-Wl,-z,noexecstack"
+  "-Wl,-z,relro"
+  "-Wl,-z,now")
+
 set_target_properties(cbcengine PROPERTIES
     POSITION_INDEPENDENT_CODE ON
     INTERPROCEDURAL_OPTIMIZATION ON  # Enables LTO explicitly for this target
