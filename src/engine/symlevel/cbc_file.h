@@ -1,22 +1,28 @@
 #pragma once
 
-#include "code.h"
 #include "io/file_id.h"
 #include "io/stream_file_reader.h"
 #include "offset.h"
-#include "string.h"
 
 namespace Symlevel {
 
-class MethodDefinition;
+// defs
 class TypeDefinition;
+class MethodDefinition;
 class FieldDefinition;
-class MethodReference;
 class TermVal;
+
+// refs
 class MethodReference;
 class FieldReference;
-class RegionData;
+
+// metadata
 class TypeIndex;
+class RegionData;
+
+// misc
+class Code;
+class String;
 
 class CbcFile {
 private:
