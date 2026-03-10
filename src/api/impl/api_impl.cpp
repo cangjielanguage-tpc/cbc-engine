@@ -21,7 +21,7 @@ Term* ResolverImpl::Resolve(Symlevel::Index<Term> index)
 
 Method* ResolverImpl::Resolve(Symlevel::Index<Symlevel::MethodReference> index)
 {
-    auto& regionData = session.CbcFileOf(fileId).GetRegionData();
+    auto& regionData = session.CbcFileOf(method.GetFileId()).GetRegionData();
 
     auto methodRef = regionData.queryMethod(session, index);
 
@@ -61,6 +61,8 @@ std::optional<Type*> ResolverImpl::TypeOf(Term* term)
     ASSERTION(false, "not implemented yet");
     return nullptr;
 }
+
+ResolverImpl::~ResolverImpl() = default;
 
 // Method
 

@@ -96,7 +96,7 @@ public:
     FunctionHandle* Acquire(Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> methodDef);
 
     /// Performs lazy initialization of a DynamicFunctionHandle.
-    ExecBytecodeInfo* Prepare(API::Resolver* resolver, Engine::Session& session, DynamicFunctionHandle* fuh);
+    ExecBytecodeInfo* Prepare(Engine::Session& session, DynamicFunctionHandle* fuh);
 
 private:
     class Impl;

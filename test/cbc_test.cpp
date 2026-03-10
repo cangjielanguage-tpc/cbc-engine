@@ -64,7 +64,7 @@ TEST_ASM(CbcTest, Simple)
     auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
 
     auto fuh    = static_cast<Interpretation::DynamicFunctionHandle*>(fuhManager.Acquire(session, mainId.value()));
-    auto bcInfo = fuhManager.Prepare(nullptr, session, fuh);
+    auto bcInfo = fuhManager.Prepare(session, fuh);
 
     auto code = bcInfo->code;
     auto res  = Interpret(code, U32(0), U32(10));
@@ -86,8 +86,7 @@ TEST_ASM(CbcTest, DirectCall)
     auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
 
     auto fuh      = static_cast<Interpretation::DynamicFunctionHandle*>(fuhManager.Acquire(session, mainId.value()));
-    auto resolver = API::Resolver::Create(session, IO::FileId(0));
-    auto bcInfo   = fuhManager.Prepare(resolver, session, fuh);
+    auto bcInfo   = fuhManager.Prepare(session, fuh);
 
     auto code = bcInfo->code;
 

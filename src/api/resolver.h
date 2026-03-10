@@ -1,12 +1,14 @@
 #pragma once
 
+#include <optional>
+
 #include "engine/engine.h"
+#include "engine/identifiers.h"
 #include "engine/symlevel/index.h"
 #include "field.h"
 #include "method.h"
 #include "term.h"
 #include "type.h"
-#include <optional>
 
 namespace Symlevel {
 
@@ -19,7 +21,9 @@ namespace API {
 
 class Resolver {
 public:
-    static Resolver* Create(Engine::Session& session, IO::FileId fileId);
+    static std::unique_ptr<Resolver> Create(
+        Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> method
+    );
 
     virtual Type* Resolve(Symlevel::Index<Type> index) = 0;
 
@@ -34,6 +38,8 @@ public:
     virtual std::optional<Type*> Resolve(Term* term) = 0;
 
     virtual std::optional<Type*> TypeOf(Term* term) = 0;
+
+    virtual ~Resolver() = default;
 };
 
 } // namespace API

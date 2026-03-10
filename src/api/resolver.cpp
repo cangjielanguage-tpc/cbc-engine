@@ -3,9 +3,11 @@
 
 namespace API {
 
-Resolver* Resolver::Create(Engine::Session& session, IO::FileId fileId)
+std::unique_ptr<Resolver> Resolver::Create(
+    Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> method
+)
 {
-    return new Impl::ResolverImpl(session, fileId);
+    return std::make_unique<Impl::ResolverImpl>(session, method);
 }
 
 } // namespace API
