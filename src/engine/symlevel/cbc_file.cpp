@@ -71,21 +71,21 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
 
 IO::FileId CbcFile::Id() const { return impl->id; }
 
-Offset<Code> CbcFile::GetCodeSectionOffs() const { return impl->poolOffset; }
+uint32_t CbcFile::GetCodeSectionOffs() const { return impl->poolOffset; }
 
-Offset<String> CbcFile::GetStringSectionOffs() const { return impl->poolOffset; }
+uint32_t CbcFile::GetStringSectionOffs() const { return impl->poolOffset; }
 
-Offset<TypeDefinition> CbcFile::GetTypeDefSectionOffs() const { return impl->poolOffset; }
+uint32_t CbcFile::GetTypeDefSectionOffs() const { return impl->poolOffset; }
 
-Offset<MethodDefinition> CbcFile::GetMethodDefSectionOffs() const { return impl->poolOffset; }
+uint32_t CbcFile::GetMethodDefSectionOffs() const { return impl->poolOffset; }
 
-Offset<FieldDefinition> CbcFile::GetFieldDefSectionOffs() const { return impl->poolOffset; }
+uint32_t CbcFile::GetFieldDefSectionOffs() const { return impl->poolOffset; }
 
-Offset<TermVal> CbcFile::GetTermSectionOffs() const { return impl->poolOffset; }
+uint32_t CbcFile::GetTermSectionOffs() const { return impl->poolOffset; }
 
-Offset<MethodReference> CbcFile::GetMethodRefSectionOffs() const { return impl->poolOffset; }
+uint32_t CbcFile::GetMethodRefSectionOffs() const { return impl->poolOffset; }
 
-Offset<FieldReference> CbcFile::GetFieldRefSectionOffs() const { return impl->poolOffset; }
+uint32_t CbcFile::GetFieldRefSectionOffs() const { return impl->poolOffset; }
 
 String CbcFile::GetName() const { return String(impl->name); }
 

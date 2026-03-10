@@ -1,5 +1,6 @@
 #pragma once
 
+#include "engine/engine.h"
 #include "engine/symlevel/index.h"
 #include "field.h"
 #include "method.h"
@@ -18,6 +19,8 @@ namespace API {
 
 class Resolver {
 public:
+    static Resolver* Create(Engine::Session& session, IO::FileId fileId);
+
     virtual Type* Resolve(Symlevel::Index<Type> index) = 0;
 
     virtual Term* Resolve(Symlevel::Index<Term> index) = 0;

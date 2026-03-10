@@ -49,12 +49,12 @@ MethodReference RegionData::queryMethod(Engine::Session& session, Index<MethodRe
 
     auto& raf = session.FileOf(fileId);
     auto offs = static_cast<uint32_t>(methodIndexOffset + index.index * sizeof(uint32_t));
+
     IO::StreamFileReader reader(*raf, offs);
 
-    auto sectionOffset = session.CbcFileOf(fileId).GetMethodRefSectionOffs();
-    auto refOffset     = reader.ReadU32();
+    auto refOffset = Offset<MethodReference>(reader.ReadU32());
 
-    return Reader::Read(session, fileId, sectionOffset + refOffset);
+    return Reader::Read(session, fileId, refOffset);
 }
 
 } // namespace Symlevel

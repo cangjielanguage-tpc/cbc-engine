@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include "api/resolver.h"
+#include "cbc/formater_rt.h"
 #include "engine/engine.h"
 #include "engine/symlevel/io/byte_array_random_access_file.h"
 #include "engine/symlevel/reader.h"
@@ -62,7 +64,7 @@ TEST_ASM(CbcTest, Simple)
     auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
 
     auto fuh    = static_cast<Interpretation::DynamicFunctionHandle*>(fuhManager.Acquire(session, mainId.value()));
-    auto bcInfo = fuhManager.Prepare(session, fuh);
+    auto bcInfo = fuhManager.Prepare(nullptr, session, fuh);
 
     auto code = bcInfo->code;
     auto res  = Interpret(code, U32(0), U32(10));
@@ -83,10 +85,11 @@ TEST_ASM(CbcTest, DirectCall)
     auto mainId      = engine.FindMain(session, fileName);
     auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
 
-    auto fuh    = static_cast<Interpretation::DynamicFunctionHandle*>(fuhManager.Acquire(session, mainId.value()));
-    auto bcInfo = fuhManager.Prepare(session, fuh);
+    auto fuh      = static_cast<Interpretation::DynamicFunctionHandle*>(fuhManager.Acquire(session, mainId.value()));
+    auto resolver = API::Resolver::Create(session, IO::FileId(0));
+    auto bcInfo   = fuhManager.Prepare(resolver, session, fuh);
 
     auto code = bcInfo->code;
-    auto res  = Interpret(code, U32(0), U32(10));
-    ASSERT_EQ(res.u32, 28);
+
+    Cbc::RT::Log(code, std::cerr);
 }

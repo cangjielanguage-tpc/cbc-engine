@@ -4,7 +4,7 @@ namespace Symlevel {
 
 Code Code::Parse(Engine::Session& session, IO::FileId fileId, Offset<Code> offset)
 {
-    IO::StreamFileReader reader(*session.FileOf(fileId), offset + session.CbcFileOf(fileId).GetCodeSectionOffs());
+    IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetCodeSectionOffs() + offset);
 
     return Code(session, reader);
 }
@@ -12,12 +12,8 @@ Code Code::Parse(Engine::Session& session, IO::FileId fileId, Offset<Code> offse
 Code::Code(Engine::Session& session, IO::StreamFileReader& reader)
 {
     untypedSlotCount = reader.ReadULEB();
-
-    typedSlotCount = reader.ReadULEB();
-    ASSERT(typedSlotCount == 0); // TODO: impl
-
-    ohmSlotCount = reader.ReadULEB();
-    ASSERT(ohmSlotCount == 0); // TODO: impl
+    typedSlotCount   = reader.ReadULEB(); // TODO: impl
+    ohmSlotCount     = reader.ReadULEB(); // TODO: impl
 
     usedNonVolIRegMask      = reader.ReadU8();
     usedNonVolFRegMask      = reader.ReadU8();

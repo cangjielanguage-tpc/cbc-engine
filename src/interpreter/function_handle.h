@@ -11,9 +11,9 @@
 #include "engine/identifiers.h"
 #include "runtime.h"
 
-namespace Symlevel {
-class MethodDefinition;
-}
+namespace API {
+class Resolver;
+} // namespace API
 
 namespace Interpretation {
 
@@ -96,7 +96,7 @@ public:
     FunctionHandle* Acquire(Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> methodDef);
 
     /// Performs lazy initialization of a DynamicFunctionHandle.
-    ExecBytecodeInfo* Prepare(Engine::Session& session, DynamicFunctionHandle* fuh);
+    ExecBytecodeInfo* Prepare(API::Resolver* resolver, Engine::Session& session, DynamicFunctionHandle* fuh);
 
 private:
     class Impl;

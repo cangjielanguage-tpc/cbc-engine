@@ -33,7 +33,9 @@ FunctionHandle* FunctionHandleManager::Acquire(
     return fuh;
 }
 
-ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, DynamicFunctionHandle* fuh)
+ExecBytecodeInfo* FunctionHandleManager::Prepare(
+    API::Resolver* resolver, Engine::Session& session, DynamicFunctionHandle* fuh
+)
 {
     auto def = Symlevel::MethodDefinition::Resolve(session, fuh->methodDef);
 
@@ -47,7 +49,7 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, Dynam
     auto code   = Symlevel::Reader::Read(session, def.FileId(), offset);
 
     Emitter::Emitter emitter;
-    Cbc::Rewriter rewriter(nullptr, code, emitter);
+    Cbc::Rewriter rewriter(resolver, code, emitter);
     rewriter.Interpret();
 
     auto& heap         = session.GetEngine().CodeHeap();
