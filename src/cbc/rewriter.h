@@ -40,6 +40,8 @@ protected:
     void DoBranchIf(CC op, Width width, FReg l, FReg r, uint8_t* target) override;
     void DoBranchIfImm(CC op, Width width, IReg l, uint64_t r, uint8_t* target) override;
 
+    void DoCallDirect(IReg rd, uint16_t methodIndex) override;
+
 private:
     void BeforeInterpretOne(uint8_t* position) override;
     Emitter::Label InstructionLabel(uint8_t* position);

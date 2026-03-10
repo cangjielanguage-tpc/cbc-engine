@@ -357,13 +357,13 @@ FBIN64: {
     NEXT_COND(successful);
 }
 FUN32: {
-    auto args       = B3xrrr::Decode(reader);
+    auto args = B3xrrr::Decode(reader);
     bool successful =
         interpreter.template Unary<Width::W32>(args.xr.imm.FloatOperations(), args.xr.r.FR(), args.rr.y.FR());
     NEXT_COND(successful);
 }
 FUN64: {
-    auto args       = B3xrrr::Decode(reader);
+    auto args = B3xrrr::Decode(reader);
     bool successful =
         interpreter.template Unary<Width::W64>(args.xr.imm.FloatOperations(), args.xr.r.FR(), args.rr.y.FR());
     NEXT_COND(successful);
