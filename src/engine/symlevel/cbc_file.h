@@ -31,13 +31,14 @@ public:
     ~CbcFile();
 
     IO::FileId Id() const;
-    uint32_t GetCodeOffs(Offset<Code> offs) const;
-    uint32_t GetStringOffs(Offset<String> offs) const;
-    uint32_t GetTypeDefOffs(Offset<TypeDefinition> offs) const;
-    uint32_t GetMethodDefOffs(Offset<MethodDefinition> offs) const;
-    uint32_t GetFieldDefOffs(Offset<FieldDefinition> offs) const;
-    uint32_t GetTermOffs(Offset<TermVal> offs) const;
-    uint32_t GetMethodRefOffset(Offset<MethodReference> offs) const;
+    Offset<Code> GetCodeSectionOffs() const;
+    Offset<String> GetStringSectionOffs() const;
+    Offset<TypeDefinition> GetTypeDefSectionOffs() const;
+    Offset<MethodDefinition> GetMethodDefSectionOffs() const;
+    Offset<FieldDefinition> GetFieldDefSectionOffs() const;
+    Offset<TermVal> GetTermSectionOffs() const;
+    Offset<MethodReference> GetMethodRefSectionOffs() const;
+    Offset<FieldReference> GetFieldRefSectionOffs() const;
     String GetName() const;
 
     const RegionData& GetRegionData() const;
