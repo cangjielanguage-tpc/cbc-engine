@@ -35,8 +35,8 @@ Method* ResolverImpl::Resolve(Symlevel::Index<Symlevel::MethodReference> index)
     ASSERT(defs.size() == 1);
 
     auto def = defs[0];
-    // return new MethodImpl(session, def);
-    return nullptr; // FIXME: full implementation is needed to generate MethodImpl vtable
+    void* memory = session.Allocator().do_allocate(sizeof(MethodImpl), alignof(MethodImpl));
+    return new (memory) MethodImpl(session, def);
 }
 
 InstanceField* ResolverImpl::Resolve(Symlevel::Index<InstanceField> index)
