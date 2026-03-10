@@ -61,7 +61,7 @@ Interpretation::Code Emitter::Build(std::pmr::memory_resource& heap)
 
     auto bytecode     = (uint8_t*)heap.allocate(segmentCode.size());
     auto bytecodeSize = segmentCode.size();
-    std::memcpy(bytecode, &segmentCode[0], bytecodeSize);
+    std::copy(segmentCode.begin(), segmentCode.end(), bytecode);
 
     return Interpretation::Code {
         .bytecodeSize = bytecodeSize,
