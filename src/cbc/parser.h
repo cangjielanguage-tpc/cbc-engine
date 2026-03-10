@@ -72,6 +72,7 @@ private:
     void B2xri16d16BranchIf(ConditionalBranch::B2xri16dM args, uint32_t page);
 
     void B2xrOpc0100SOC(SymbolicObjectControl::B2xr args);
+    void B2xrOpc1000SOC(SymbolicObjectControl::B2xrI args);
 
     Decoder::ByteReader codeReader;
     uint8_t* codeEnd;
