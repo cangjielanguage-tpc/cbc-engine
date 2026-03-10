@@ -19,22 +19,22 @@ private:
 
     Code(Engine::Session& session, IO::StreamFileReader& reader);
 
-    uint32_t untypedSlotCount;
-    uint32_t typedSlotCount;
-    uint32_t ohmSlotCount;
+    uint32_t untypedSlotCount = 0;
+    uint32_t typedSlotCount   = 0;
+    uint32_t ohmSlotCount     = 0;
 
-    uint8_t usedNonVolIRegMask;
-    uint8_t usedNonVolFRegMask;
-    uint32_t maxCalleeStackArgsCount;
+    uint8_t usedNonVolIRegMask       = 0;
+    uint8_t usedNonVolFRegMask       = 0;
+    uint32_t maxCalleeStackArgsCount = 0;
 
-    bool mayHaveNativeCalls;
-    bool hasTrivialXHandler;
+    bool mayHaveNativeCalls = false;
+    bool hasTrivialXHandler = true;
 
     uint32_t codeSize;
     uint8_t* codePtr;
 
-    uint32_t xInfoSize;
-    uint8_t* xInfoPtr;
+    uint32_t xInfoSize = 0;
+    uint8_t* xInfoPtr  = nullptr;
 };
 
 } // namespace Symlevel
