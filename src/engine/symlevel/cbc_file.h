@@ -1,22 +1,28 @@
 #pragma once
 
-#include "code.h"
 #include "io/file_id.h"
 #include "io/stream_file_reader.h"
 #include "offset.h"
-#include "string.h"
 
 namespace Symlevel {
 
-class MethodDefinition;
+// defs
 class TypeDefinition;
+class MethodDefinition;
 class FieldDefinition;
-class MethodReference;
 class TermVal;
+
+// refs
 class MethodReference;
 class FieldReference;
-class RegionData;
+
+// metadata
 class TypeIndex;
+class RegionData;
+
+// misc
+class Code;
+class String;
 
 class CbcFile {
 private:
@@ -31,13 +37,14 @@ public:
     ~CbcFile();
 
     IO::FileId Id() const;
-    uint32_t GetCodeOffs(Offset<Code> offs) const;
-    uint32_t GetStringOffs(Offset<String> offs) const;
-    uint32_t GetTypeDefOffs(Offset<TypeDefinition> offs) const;
-    uint32_t GetMethodDefOffs(Offset<MethodDefinition> offs) const;
-    uint32_t GetFieldDefOffs(Offset<FieldDefinition> offs) const;
-    uint32_t GetTermOffs(Offset<TermVal> offs) const;
-    uint32_t GetMethodRefOffset(Offset<MethodReference> offs) const;
+    uint32_t GetCodeSectionOffs() const;
+    uint32_t GetStringSectionOffs() const;
+    uint32_t GetTypeDefSectionOffs() const;
+    uint32_t GetMethodDefSectionOffs() const;
+    uint32_t GetFieldDefSectionOffs() const;
+    uint32_t GetTermSectionOffs() const;
+    uint32_t GetMethodRefSectionOffs() const;
+    uint32_t GetFieldRefSectionOffs() const;
     String GetName() const;
     String GetPath() const;
 

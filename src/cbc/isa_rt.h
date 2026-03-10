@@ -53,6 +53,7 @@
     X(SCCI64I, B4xi12rr, "scci.64 $0cc $2ir $3ir $1I12")                                                               \
     X(SCCI32L, B4xi12rr, "scci.32 $0cc $2ir $3ir $1I12L")                                                              \
     X(SCCI64L, B4xi12rr, "scci.64 $0cc $2ir $3ir $1I12L")                                                              \
+    X(DIRECT_CALL, B3xi12, "direct.call $1I12L (, mov $0ir )")                                                         \
     X(MEMSPACE, B1, "memspace {")
 
 // X parameters: opcode, encoding format, string format, is tail

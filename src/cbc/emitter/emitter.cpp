@@ -61,7 +61,7 @@ Interpretation::Code Emitter::Build(std::pmr::memory_resource& heap)
 
     auto bytecode     = (uint8_t*)heap.allocate(segmentCode.size());
     auto bytecodeSize = segmentCode.size();
-    std::memcpy(bytecode, &segmentCode[0], bytecodeSize);
+    std::copy(segmentCode.begin(), segmentCode.end(), bytecode);
 
     return Interpretation::Code {
         .bytecodeSize = bytecodeSize,
@@ -618,6 +618,13 @@ void Emitter::SCCImm(CC cc, Width width, IReg d, IReg l, uint64_t imm)
         AddFixup(std::make_unique<Literal12Fixup>(Imm4(cc), immediate));
         Encode(segment, RR { .x = d, .y = l });
     }
+}
+
+void Emitter::DirectCall(IReg d, Symbol fuh)
+{
+    segment.AddW8(RT::Opcode::DIRECT_CALL);
+    Imm4 i4(d);
+    AddFixup(std::make_unique<Literal12Fixup>(i4, fuh));
 }
 
 } // namespace Emitter

@@ -10,7 +10,11 @@ namespace Impl {
 
 class ResolverImpl final : public Resolver {
 public:
-    ResolverImpl(Engine::Session& session, IO::FileId fileId) : Resolver(), session(session), fileId(fileId) {}
+    ResolverImpl(Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> method)
+        : Resolver(),
+          session(session),
+          method(method)
+    {}
 
     Type* Resolve(Symlevel::Index<Type> index) override;
 
@@ -26,9 +30,11 @@ public:
 
     std::optional<Type*> TypeOf(Term* term) override;
 
+    ~ResolverImpl() override;
+
 private:
     Engine::Session& session;
-    IO::FileId fileId;
+    Engine::Identifier<Symlevel::MethodDefinition> method;
 };
 
 class MethodImpl final : public Method {

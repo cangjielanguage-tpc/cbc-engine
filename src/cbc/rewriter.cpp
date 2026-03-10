@@ -1,4 +1,5 @@
 #include "cbc/rewriter.h"
+#include "engine/symlevel/references.h"
 
 namespace Cbc {
 
@@ -84,6 +85,20 @@ void Rewriter::DoBranchIf(CC op, Width width, FReg l, FReg r, uint8_t* target) {
 void Rewriter::DoBranchIfImm(CC op, Width width, IReg l, uint64_t r, uint8_t* target)
 {
     e.BccImm(op, width, l, r, InstructionLabel(target));
+}
+
+void Rewriter::DoCallDirect(IReg d, uint16_t methodIndex)
+{
+    Symlevel::Index<Symlevel::MethodReference> index {
+        .region = 0, // TODO: use region
+        .index  = methodIndex,
+    };
+
+    auto* method = resolver->Resolve(index);
+    auto* fuh    = method->FUH().value();
+
+    auto sym = e.NewAddressSym(reinterpret_cast<uintptr_t>(fuh));
+    e.DirectCall(d, sym);
 }
 
 void Rewriter::BeforeInterpretOne(uint8_t* position) { e.Bind(InstructionLabel(position)); }

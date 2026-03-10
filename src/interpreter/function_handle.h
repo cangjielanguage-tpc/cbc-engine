@@ -11,9 +11,9 @@
 #include "frame.h"
 #include "runtime.h"
 
-namespace Symlevel {
-class MethodDefinition;
-}
+namespace API {
+class Resolver;
+} // namespace API
 
 namespace Interpretation {
 

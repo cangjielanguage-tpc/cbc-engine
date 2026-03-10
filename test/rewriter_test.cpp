@@ -34,7 +34,7 @@ TEST(RewriterTest, Rewriter_Simple)
         0b10100100, //
         0b00011000  // Ret IR1
     };
-    MethodCode methodCode = { isa12Bytes, isa12CodeSize };
+    MethodCode methodCode = MethodCode::Mock(isa12Bytes, isa12CodeSize);
 
     Emitter::Emitter e;
     Rewriter rw(nullptr, methodCode, e);

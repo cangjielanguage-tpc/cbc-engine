@@ -14,7 +14,7 @@ DefinitionsManager::~DefinitionsManager()                            = default;
 TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId, Offset<TypeDefinition> offset)
 {
     auto& raf = *session.FileOf(fileId);
-    IO::StreamFileReader reader(raf, offset);
+    IO::StreamFileReader reader(raf, session.CbcFileOf(fileId).GetMethodDefSectionOffs() + offset);
 
     auto name         = Offset<String>(reader.ReadU32());
     auto flags        = reader.ReadULEB();
@@ -22,7 +22,7 @@ TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId
     auto pkgIndex     = reader.ReadU16();
     auto superTypeIdx = reader.ReadULEB();
 
-    auto methodIndex = MethodIndex::Read(fileId, raf, offset);
+    auto methodIndex = MethodIndex::Read(fileId, raf, reader.Position());
 
     return TypeDefinition(Engine::Identifier<TypeDefinition>(offset, fileId), name, std::move(methodIndex));
 }
@@ -35,7 +35,7 @@ TypeDefinition TypeDefinition::Resolve(Engine::Session& session, Engine::Identif
 FieldDefinition FieldDefinition::Parse(Engine::Session& session, IO::FileId fileId, Offset<FieldDefinition> offset)
 {
     auto& raf = *session.FileOf(fileId);
-    IO::StreamFileReader reader(raf, offset);
+    IO::StreamFileReader reader(raf, session.CbcFileOf(fileId).GetFieldDefSectionOffs() + offset);
 
     auto name    = Offset<String>(reader.ReadU32());
     auto idx     = reader.ReadU32();
@@ -53,7 +53,7 @@ FieldDefinition FieldDefinition::Resolve(Engine::Session& session, Engine::Ident
 MethodDefinition MethodDefinition::Parse(Engine::Session& session, IO::FileId fileId, Offset<MethodDefinition> offset)
 {
     auto& raf = *session.FileOf(fileId);
-    IO::StreamFileReader reader(raf, offset);
+    IO::StreamFileReader reader(raf, session.CbcFileOf(fileId).GetMethodDefSectionOffs() + offset);
 
     auto nameOffset   = Offset<String>(reader.ReadU32());
     auto methodSigIdx = reader.ReadU32();
