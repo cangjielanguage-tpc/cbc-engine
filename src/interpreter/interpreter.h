@@ -2,6 +2,7 @@
 
 #include "ectype.h"
 #include "frame.h"
+#include "function_handle.h"
 #include "literals.h"
 #include "runtime.h"
 
@@ -262,6 +263,13 @@ public:
         uint32_t res =
             CmpPrim<width>(cc, l, Value::Primitive { .u64 = DecodeImmediate<immKind>(literals, imm) }) ? 1 : 0;
         ectype->Put(d, Value::Primitive { .u32 = res });
+    }
+
+    inline bool DirectCall(IReg d, uint16_t imm)
+    {
+        auto* fuh = reinterpret_cast<DynamicFunctionHandle*>(literals->at(imm).uintptr);
+        ASSERTION(false, "not implemented");
+        return true;
     }
 
 private:

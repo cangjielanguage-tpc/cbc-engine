@@ -510,6 +510,7 @@ public:
     constexpr StoreAccessKind(const Value raw) : _value(raw) {}
 
     constexpr operator Value() const { return _value; }
+
     constexpr Bits ToBits() const { return _value; }
 
     constexpr bool IsFloat() const { return _value == ST_F32 || _value == ST_F64; }
@@ -562,6 +563,7 @@ public:
     constexpr LoadAccessKind(const Value raw) : _value(raw) {}
 
     constexpr operator Value() const { return _value; }
+
     constexpr Bits ToBits() const { return _value; }
 
     constexpr bool IsFloat() const { return _value == LD_F32 || _value == LD_F64; }

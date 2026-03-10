@@ -11,6 +11,7 @@
 #include "cbc/isa.h"
 #include "encoding_rt.h"
 #include "interpreter/code.h"
+#include "interpreter/function_handle.h"
 #include "utils/assertion.h"
 
 namespace Cbc {
@@ -154,6 +155,8 @@ public:
     void SCC(CC cc, Width width, IReg d, IReg l, IReg r);
     void SCC(CC cc, Width width, IReg d, FReg l, FReg r);
     void SCCImm(CC cc, Width width, IReg d, IReg l, uint64_t imm);
+
+    void DirectCall(IReg d, Symbol fuh);
 
     MemSpace OpenMemSpace();
 

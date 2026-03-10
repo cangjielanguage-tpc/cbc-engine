@@ -77,6 +77,8 @@ void InterpretationLoop(Interpretation::Interpreter<RTI> interpreter, Decoder::B
         &&SCCI32L, // B4xi12rr
         &&SCCI64L, // B4xi12rr
 
+        &&DIRECT_CALL, // B3xi12
+
         &&MEMSPACE, // B1. See `MemOpcode`
     };
 
@@ -357,13 +359,13 @@ FBIN64: {
     NEXT_COND(successful);
 }
 FUN32: {
-    auto args       = B3xrrr::Decode(reader);
+    auto args = B3xrrr::Decode(reader);
     bool successful =
         interpreter.template Unary<Width::W32>(args.xr.imm.FloatOperations(), args.xr.r.FR(), args.rr.y.FR());
     NEXT_COND(successful);
 }
 FUN64: {
-    auto args       = B3xrrr::Decode(reader);
+    auto args = B3xrrr::Decode(reader);
     bool successful =
         interpreter.template Unary<Width::W64>(args.xr.imm.FloatOperations(), args.xr.r.FR(), args.rr.y.FR());
     NEXT_COND(successful);
@@ -452,6 +454,12 @@ SCCI64L: {
     NEXT;
 }
 
+DIRECT_CALL: {
+    auto args       = B3xi12::Decode(reader);
+    bool successful = interpreter.DirectCall(args.xi12.imm4.IR(), args.xi12.imm12);
+    NEXT_COND(successful);
+}
+
 MEMSPACE: {
     B1::Decode(reader);
     memspaceOffsetAcc = 0;
@@ -467,22 +475,22 @@ MEM_HALT: {
 
 OFFS16: {
     auto args          = M3i16::Decode(reader);
-    memspaceOffsetAcc  += interpreter.MemOffset(args.imm16);
+    memspaceOffsetAcc += interpreter.MemOffset(args.imm16);
     MEM_NEXT;
 }
 OFFS32: {
     auto args          = M5i32::Decode(reader);
-    memspaceOffsetAcc  += interpreter.MemOffset(args.imm32);
+    memspaceOffsetAcc += interpreter.MemOffset(args.imm32);
     MEM_NEXT;
 }
 OFFS64: {
     auto args          = M9i64::Decode(reader);
-    memspaceOffsetAcc  += interpreter.MemOffset(args.imm64);
+    memspaceOffsetAcc += interpreter.MemOffset(args.imm64);
     MEM_NEXT;
 }
 OFFS_REG: {
     auto args          = M2xr::Decode(reader);
-    memspaceOffsetAcc  += interpreter.MemOffsetReg(args.xr.r.IR());
+    memspaceOffsetAcc += interpreter.MemOffsetReg(args.xr.r.IR());
     MEM_NEXT;
 }
 #define RLD(ldk)                                                                                                       \
