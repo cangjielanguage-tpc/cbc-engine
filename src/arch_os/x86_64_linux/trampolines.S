@@ -143,7 +143,7 @@ perform_2i_call:  // (rdi: ectype, rdx: th, rcx: fuh)
   mov   rax, [rcx + FUNCTION_HANDLE_BYTECODE_OFFSET]
   test  rax, rax
   jnz   .Lhave_bytecode
-  mov   rdi, rax
+  mov   rdi, rcx
   call  engine_prepare_bytecode
 .Lhave_bytecode:
 
