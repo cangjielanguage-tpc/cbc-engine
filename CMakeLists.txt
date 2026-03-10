@@ -13,7 +13,7 @@ execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink
 set(CMAKE_CXX_STANDARD 17)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-stack-protector -fomit-frame-pointer")
-set(CMAKE_CXX_FLAGS_DEBUG "-g -Og")
+set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
 
 option(ENABLE_LTO "Enable Link-Time Optimization" ON)

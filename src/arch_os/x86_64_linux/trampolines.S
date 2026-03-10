@@ -6,6 +6,13 @@
 .global engine_prepare_bytecode
 .global engine_interpretation_loop
 
+// Fake Ectype* instance represented as global
+// FIXME: get Ectype* instance from ThreadHandle
+.bss
+.align 16
+.local engine_fake_ectype
+engine_fake_ectype:
+  .skip 1024
 
 .text
 .align 16
@@ -13,7 +20,7 @@
 .hidden engine_universal_direct_call
 engine_universal_direct_call:
   lea   r10, [rip + engine_universal_direct_function_handles]
-  mov   rax, [r10 + rax * 8]
+  mov   rax, [r10 + rax * 8] // put FuH on rax
   jmp   [rax + FUNCTION_HANDLE_C2CALL_OFFSET]
 
 
@@ -50,8 +57,10 @@ engine_iregs_only_c2i_call:
 #define TLS r15
 #define ECTYPE_REG rbx
 
-  mov   rbx, [TLS + TLS_FIBER_DATA_OFFSET]
-  mov   ECTYPE_REG, [ECTYPE_REG + FIBER_DATA_ECTYPE_OFFSET]
+// FIXME: get Ectype* from ThreadHandle
+//  mov   rbx, [TLS + TLS_FIBER_DATA_OFFSET]
+//  mov   ECTYPE_REG, [ECTYPE_REG + FIBER_DATA_ECTYPE_OFFSET]
+  lea   ECTYPE_REG, [rip + engine_fake_ectype]
   push  ECTYPE_REG // rbp - 0x30
 
   mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8],  rdi
@@ -69,7 +78,6 @@ engine_iregs_only_c2i_call:
   pop   ECTYPE_REG
   mov   rax,  [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8]
 
-  pop   rbx
   pop   rbx
   pop   r12
   pop   r13
@@ -108,7 +116,6 @@ perform_2i_call:  // (rdi: ectype, rdx: th, rcx: fuh)
 .endm
 
   declare_slot LITERALS_SLOT, 0x8
-  declare_slot ECTYPE_SLOT, 0x8
 #ifndef NDEBUG
   declare_slot READER_SLOT, 0x18
 #else
