@@ -51,14 +51,36 @@ TEST_ASM(CbcTest, Simple)
 {
     Engine::Loader loader;
 
-    auto pkgName    = "simple";
+    auto fileName   = "simple";
     auto file       = OpenAsm("simple.asm");
-    bool successful = loader.Load(std::move(file), pkgName);
+    bool successful = loader.Load(std::move(file), fileName);
     ASSERT_TRUE(successful);
 
     auto engine = loader.Build();
     Engine::Session session(engine);
-    auto mainId      = engine.FindMain(session, pkgName);
+    auto mainId      = engine.FindMain(session, fileName);
+    auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
+
+    auto fuh    = static_cast<Interpretation::DynamicFunctionHandle*>(fuhManager.Acquire(session, mainId.value()));
+    auto bcInfo = fuhManager.Prepare(session, fuh);
+
+    auto code = bcInfo->code;
+    auto res  = Interpret(code, U32(0), U32(10));
+    ASSERT_EQ(res.u32, 28);
+}
+
+TEST_ASM(CbcTest, DirectCall)
+{
+    Engine::Loader loader;
+
+    auto fileName   = "direct-call";
+    auto file       = OpenAsm("direct-call.asm");
+    bool successful = loader.Load(std::move(file), fileName);
+    ASSERT_TRUE(successful);
+
+    auto engine = loader.Build();
+    Engine::Session session(engine);
+    auto mainId      = engine.FindMain(session, fileName);
     auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
 
     auto fuh    = static_cast<Interpretation::DynamicFunctionHandle*>(fuhManager.Acquire(session, mainId.value()));
