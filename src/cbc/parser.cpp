@@ -4,11 +4,11 @@
 
 namespace Cbc {
 
-static uint8_t* GetCodeEnd(MethodCode code) { return code.codePtr + code.codeSize; }
+static uint8_t* GetCodeEnd(MethodCode code) { return code.CodePtr() + code.CodeSize(); }
 
 static Decoder::ByteReader ReaderOf(MethodCode code)
 {
-    return Decoder::ByteReader(code.codePtr, code.codePtr, GetCodeEnd(code));
+    return Decoder::ByteReader(code.CodePtr(), code.CodePtr(), GetCodeEnd(code));
 }
 
 Parser::Parser(API::Resolver* resolver, MethodCode code)
