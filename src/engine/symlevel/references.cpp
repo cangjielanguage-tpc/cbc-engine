@@ -6,7 +6,7 @@ namespace Symlevel {
 
 MethodReference MethodReference::Parse(Engine::Session& session, IO::FileId fileId, Offset<MethodReference> offset)
 {
-    IO::StreamFileReader reader(*session.FileOf(fileId), offset);
+    IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetMethodRefSectionOffs() + offset);
 
     auto nameOffset   = reader.ReadU32();
     auto refTypeIdx   = reader.ReadULEB();
@@ -24,7 +24,7 @@ MethodReference MethodReference::Parse(Engine::Session& session, IO::FileId file
 
 FieldReference FieldReference::Parse(Engine::Session& session, IO::FileId fileId, Offset<FieldReference> offset)
 {
-    IO::StreamFileReader reader(*session.FileOf(fileId), offset);
+    IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetFieldRefSectionOffs() + offset);
 
     auto nameOffset   = reader.ReadU32();
     auto refTypeIdx   = reader.ReadULEB();

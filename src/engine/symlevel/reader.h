@@ -16,9 +16,6 @@ public:
     {
         return T::Parse(session, fileId, offset);
     }
-
-    static Code Read(Engine::Session& session, IO::FileId fileId, Offset<Code> offset);
-    static String Read(Engine::Session& session, IO::FileId fileId, Offset<String> offset);
 };
 
 } // namespace Symlevel

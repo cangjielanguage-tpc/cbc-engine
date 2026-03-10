@@ -46,8 +46,9 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, Dynam
     auto offset = def.GetCodeOffs();
     auto code   = Symlevel::Reader::Read(session, def.FileId(), offset);
 
+    auto resolver = API::Resolver::Create(session, fuh->methodDef);
     Emitter::Emitter emitter;
-    Cbc::Rewriter rewriter(nullptr, code, emitter);
+    Cbc::Rewriter rewriter(resolver.get(), code, emitter);
     rewriter.Interpret();
 
     auto& heap         = session.GetEngine().CodeHeap();
