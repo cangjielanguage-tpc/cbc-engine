@@ -75,6 +75,13 @@ void Rewriter::DoReturn(Width width, FReg dst)
     e.Ret();
 }
 
+void Rewriter::DoCallDirect(IReg rd, uint16_t methodIndex)
+{
+    auto index  = Symlevel::Index<Symlevel::MethodReference> { .index = methodIndex };
+    auto method = resolver->Resolve(index);
+    e.CallDirect(rd, method);
+}
+
 void Rewriter::DoBranchIf(CC op, Width width, IReg l, IReg r, uint8_t* target)
 {
     e.Bcc(op, width, l, r, InstructionLabel(target));

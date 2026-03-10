@@ -196,6 +196,10 @@ void Parser::InterpretOne(uint32_t opcode)
             B2xrOpc0100SOC(SymbolicObjectControl::B2xr::Decode(codeReader));
             break;
 
+        case SymbolicObjectControl::Opc1000::OPCODE:
+            B2xrOpc1000SOC(SymbolicObjectControl::B2xrI::Decode(codeReader));
+            break;
+
         default: ASSERTION(false, "Unexpected opcode"); break;
     }
 }
@@ -344,6 +348,15 @@ void Parser::B2xrOpc0100SOC(SymbolicObjectControl::B2xr args)
         case SymbolicObjectControl::Opc0100::RET_64:  DoReturn(Width::W64, args.xr.r.IR()); break;
         case SymbolicObjectControl::Opc0100::FRET_32: DoReturn(Width::W32, args.xr.r.FR()); break;
         case SymbolicObjectControl::Opc0100::FRET_64: DoReturn(Width::W64, args.xr.r.FR()); break;
+
+        default: ASSERTION(false, "Not implemented"); break;
+    }
+}
+
+void Parser::B2xrOpc1000SOC(SymbolicObjectControl::B2xrI args)
+{
+    switch (SymbolicObjectControl::Opc1000(args.xr.imm)) {
+        case SymbolicObjectControl::Opc1000::CALL_DIRECT: DoCallDirect(args.xr.r.IR(), args.imm.imm); break;
 
         default: ASSERTION(false, "Not implemented"); break;
     }

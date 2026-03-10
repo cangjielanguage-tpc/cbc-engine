@@ -1067,6 +1067,35 @@ private:
     Value _value;
 };
 
+class Opc1000 {
+public:
+    enum Value : uint32_t {
+        CALL_DIRECT       = 0b0000,
+        CALL_VIRT         = 0b0001,
+        CALL_INTERF_PLAIN = 0b0010,
+        CALL_INTERF_RICH  = 0b0011,
+        CALL_INTERF_EOP   = 0b0100,
+        CALL_INDIRECT     = 0b0101,
+
+        CALL_DIRECT_RESOLVED   = 0b0110,
+        CALL_VIRT_RESOLVED     = 0b0111,
+        CALL_INDIRECT_RESOLVED = 0b1000,
+    };
+
+    constexpr static uint32_t OPCODE = SymbolicObjectControl::Fmt(0b1000).Raw();
+
+    constexpr Opc1000(const uint8_t raw) : _value((Value)raw) {}
+
+    constexpr Opc1000(const Value raw) : _value(raw) {}
+
+    constexpr operator Value() const { return _value; }
+
+    constexpr Bits ToBits() const { return _value; }
+
+private:
+    Value _value;
+};
+
 class Opc1011 {
 public:
     enum Value : uint32_t {
