@@ -93,7 +93,8 @@ engine_iregs_only_c2i_call:
 .global engine_i2i_call
 .hidden engine_i2i_call
 engine_i2i_call: // (rdi: ectype, rsi: oldFrame, rdx: th, rcx:fuh)
-  mov   rsp, rsi
+  mov   rsp, rsi // forcefully drop previous C++ frame
+  mov   r15, rdx // INVARIANT: preserve tls on r15
   lea   rax, [rip + restart_interpretation]
   push  rax
   // jmp   perform_2i_call
@@ -158,12 +159,13 @@ perform_2i_call:  // (rdi: ectype, rdx: th, rcx: fuh)
   mov   [rbp - READER_SLOT], rsi
   mov   [rbp - LITERALS_SLOT], rcx
 
+  // current rsp is 16-byte aligned
   // FIXME: init frame here (prepare frame metadata to be 16-byte aligned!)
 
 restart_interpretation:
   mov   rdi, [rbp - ECTYPE_SLOT]
   mov   rsi, rsp
-  mov   rdx, r15
+  mov   rdx, r15 // INVARIANT: TLS register always contains instance of thread handle here.
   lea   r8, [rbp - READER_SLOT]
 
   // the pushed return address could be:
@@ -171,6 +173,11 @@ restart_interpretation:
   // - patched to `restart_interpretation`;
   // - patched to exception throw;
   call  engine_interpretation_loop
+
+  mov   rax, [rbp - READER_SLOT]
+  test  rax, rax
+  jnz   restart_interpretation
+
   mov   rsp, rbp
   pop   rbp
   ret

@@ -22,6 +22,10 @@ public:
     ByteReader(uint8_t* _cursor, uint8_t* _start, uint8_t* _end) : cursor(_cursor) {}
 #endif // defined(NDEBUG)
 
+    bool IsNullified() { return cursor == nullptr; }
+
+    void Nullify() { cursor = nullptr; }
+
     void Advance(int64_t delta)
     {
         cursor += delta;

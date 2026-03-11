@@ -75,7 +75,9 @@ Value::Primitive Interpret(
     ectype.Put(FReg::FR0, fr0);
     ectype.Put(FReg::FR1, fr1);
 
-    Cbc::RT::InterpretationLoop<Test>(&ectype, frame, nullptr, code.literals, s);
+    while (!s.IsNullified()) {
+        Cbc::RT::InterpretationLoop<Test>(&ectype, frame, nullptr, code.literals, s);
+    }
 
     return ectype.GetPrimitive(resReg);
 }
@@ -92,7 +94,9 @@ static void InterpreterI2CallTest(Ectype* ectype, Frame* oldFrame, ThreadHandle 
     auto code = bytecode->code;
 
     Decoder::ByteReader s(code.bytecode, code.bytecode, code.bytecode + code.bytecodeSize);
-    Cbc::RT::InterpretationLoop<Test>(ectype, nullptr, fuh, code.literals, s);
+    while (!s.IsNullified()) {
+        Cbc::RT::InterpretationLoop<Test>(ectype, nullptr, handle, code.literals, s);
+    }
 }
 
 } // namespace Interpretation

@@ -159,9 +159,11 @@ void InterpretationLoop(
 // -- Main opcode table --
 HALT: {
     ASSERTION(false, "halt");
+    reader0.Nullify();
     return;
 }
 RET: {
+    reader0.Nullify();
     return;
 }
 MOV: {
@@ -455,13 +457,20 @@ SCCI64L: {
     );
     NEXT;
 }
-
 DIRECT_CALL: {
-    auto args       = B3xi12::Decode(reader);
-    bool successful = interpreter.DirectCall(args.xi12.imm4.IR(), args.xi12.imm12);
-    NEXT_COND(successful);
+    auto args    = B3xi12::Decode(reader);
+    IReg dst     = args.xi12.imm4.IR();
+    uint16_t imm = args.xi12.imm12;
+    auto fuh     = reinterpret_cast<FunctionHandle*>(literals->at(imm).uintptr);
+    // For proper support of fibers, the following call MUST drop the current frame.
+    // This can not be guaranteed by C++ compiler consistently, because TCO
+    // is not guaranteed and `mustcall` attribute is not supported
+    // fully by gcc/clang compilers.
+    //
+    // Instead, the following call will drop the current frame manually
+    // (outside of unit-test framework).
+    return fuh->i2call(ectype, frame, handle, fuh);
 }
-
 MEMSPACE: {
     B1::Decode(reader);
     memspaceOffsetAcc = 0;
