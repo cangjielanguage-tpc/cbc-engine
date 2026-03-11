@@ -68,7 +68,7 @@ engine_iregs_only_c2i_call:
   mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x20], rdx
   mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x28], rcx
   mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x30], r8
-  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x48], r9
+  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x38], r9
 
   mov   rdi, ECTYPE_REG
   mov   rcx, rax
