@@ -180,7 +180,7 @@ perform_2i_call:  // (rdi: ectype, rdx: th, rcx: fuh)
   call  engine_interpretation_loop
 .Linterpret_loop_retaddr:
 
-  cmp   qword [rbp - READER_SLOT], 0
+  cmp   qword ptr [rbp - READER_SLOT], 0
   jne   .Lrestart_interpretation
 
   mov   rsp, rbp
