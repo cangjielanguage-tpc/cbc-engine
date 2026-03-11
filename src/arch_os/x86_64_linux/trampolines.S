@@ -93,12 +93,17 @@ engine_iregs_only_c2i_call:
 .global engine_i2i_call
 .hidden engine_i2i_call
 engine_i2i_call: // (rdi: ectype, rsi: oldFrame, rdx: th, rcx:fuh)
-  mov   rsp, rsi // forcefully drop previous C++ frame
+  lea   rsp, [rsi - 0x8] // forcefully drop previous C++ frame, preserve old return address
   mov   r15, rdx // INVARIANT: preserve tls on r15
-  lea   rax, [rip + restart_interpretation]
-  push  rax
-  // jmp   perform_2i_call
-  // fall through
+#ifndef NDEBUG
+  lea   r10, [rip + .Linterpret_loop_retaddr]
+  cmp   r10, [rsp]
+  je    .Lretaddr_assertion_success
+  ud2
+.Lretaddr_assertion_success:
+#endif
+
+  // jmp   perform_2i_call, instead fall through
 perform_2i_call:  // (rdi: ectype, rdx: th, rcx: fuh)
   push  rbp
   mov   rbp, rsp
@@ -162,7 +167,7 @@ perform_2i_call:  // (rdi: ectype, rdx: th, rcx: fuh)
   // current rsp is 16-byte aligned
   // FIXME: init frame here (prepare frame metadata to be 16-byte aligned!)
 
-restart_interpretation:
+.Lrestart_interpretation:
   mov   rdi, [rbp - ECTYPE_SLOT]
   mov   rsi, rsp
   mov   rdx, r15 // INVARIANT: TLS register always contains instance of thread handle here.
@@ -173,10 +178,10 @@ restart_interpretation:
   // - patched to `restart_interpretation`;
   // - patched to exception throw;
   call  engine_interpretation_loop
+.Linterpret_loop_retaddr:
 
-  mov   rax, [rbp - READER_SLOT]
-  test  rax, rax
-  jnz   restart_interpretation
+  cmp   qword [rbp - READER_SLOT], 0
+  jne   .Lrestart_interpretation
 
   mov   rsp, rbp
   pop   rbp
