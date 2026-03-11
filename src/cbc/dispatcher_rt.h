@@ -469,6 +469,7 @@ DIRECT_CALL: {
     //
     // Instead, the following call will drop the current frame manually
     // (outside of unit-test framework).
+    reader0 = reader; // save current pc
     return fuh->i2call(ectype, frame, handle, fuh);
 }
 MEMSPACE: {

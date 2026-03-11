@@ -32,7 +32,7 @@ static std::unique_ptr<IO::ByteArrayRandomAccessFile> FromString(std::string_vie
     return std::make_unique<IO::ByteArrayRandomAccessFile>(data, view.size());
 }
 
-TEST(CbcTest, Empty)
+TEST_F(CbcTest, Empty)
 {
     GTEST_SKIP() << "WIP";
     Engine::Loader loader;
@@ -101,4 +101,6 @@ TEST_ASM(CbcTest, DirectCall)
     auto code = bcInfo->code;
 
     Cbc::RT::Log(code, std::cerr);
+    auto res = Interpret(code, U32(0), U32(0));
+    ASSERT_EQ(res.u32, 28);
 }

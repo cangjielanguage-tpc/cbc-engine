@@ -34,7 +34,7 @@ public:
 std::unique_ptr<IO::RandomAccessFile> OpenAsm(std::string_view file_name);
 
 #ifdef HAVE_ASM
-    #define TEST_ASM(test_suite_name, test_name) GTEST_TEST(test_suite_name, test_name)
+    #define TEST_ASM(test_suite_name, test_name) GTEST_TEST_F(test_suite_name, test_name)
 #else
     #define TEST_ASM(test_suite_name, test_name) static void _skip_##test_suite_name##_##test_name()
 #endif // HAVE_ASM
