@@ -26,7 +26,7 @@ extern ExecBytecodeInfo* engine_prepare_bytecode(DynamicFunctionHandle* fuh)
     auto& manager = FunctionHandleManager::Of(session);
     return manager.Prepare(session, fuh);
 }
-}
+} // extern "C"
 
 static I2Call g_overridenI2Call;
 

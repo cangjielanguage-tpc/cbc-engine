@@ -26,7 +26,6 @@ public:
     static Engine::Impl& Of(Engine& engine) { return *engine.impl; }
 
     std::optional<CbcFile*> FindCbcFile(std::string_view filePath);
-    std::optional<TypeDefinition> FindType(Session& session, CbcFile& file, std::string_view typeName);
 
     friend class Session;
     std::vector<CbcFile> files;
@@ -113,21 +112,10 @@ std::optional<CbcFile*> Engine::Impl::FindCbcFile(std::string_view filePath)
     return std::nullopt;
 }
 
-std::optional<TypeDefinition> Engine::Impl::FindType(Session& session, CbcFile& file, std::string_view typeName)
-{
-    auto& typeIndex = file.GetTypeIndex();
-    auto typeDef    = typeIndex.FindType(session, typeName);
-
-    if (typeDef) {
-        return typeDef;
-    }
-    return std::nullopt;
-}
-
 std::optional<TypeDefinition> Engine::FindType(Session& session, std::string_view typeName)
 {
     for (auto& file : impl->files) {
-        auto res = impl->FindType(session, file, typeName);
+        auto res = file.GetTypeIndex().FindType(session, typeName);
         if (res.has_value()) {
             return res;
         }
@@ -139,8 +127,11 @@ std::optional<TypeDefinition> Engine::FindType(Session& session, std::string_vie
 std::optional<Identifier<MethodDefinition>> Engine::FindMain(Session& session, std::string_view filePath)
 {
     auto file = impl->FindCbcFile(filePath);
-
-    auto declType = FindType(session, std::string_view("default"));
+    if (!file.has_value()) {
+        return std::nullopt;
+    }
+    auto f        = file.value();
+    auto declType = f->GetTypeIndex().FindType(session, std::string_view("default"));
     if (declType) {
         const auto& methodIndex = (*declType).GetMethodIndex();
         auto methods            = methodIndex.FindMethods(session, std::string_view("main"));
