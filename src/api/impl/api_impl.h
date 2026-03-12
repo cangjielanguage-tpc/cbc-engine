@@ -2,11 +2,14 @@
 
 #include "api/method.h"
 #include "api/resolver.h"
+#include "api/term.h"
 #include "engine/engine.h"
 #include "engine/symlevel/definitions.h"
 
 namespace API {
 namespace Impl {
+
+class TermImpl;
 
 class ResolverImpl final : public Resolver {
 public:
@@ -18,7 +21,7 @@ public:
 
     Type* Resolve(Symlevel::Index<Type> index) override;
 
-    Term* Resolve(Symlevel::Index<Term> index) override;
+    Term* Resolve(Symlevel::Index<Symlevel::Terms::Term> index) override;
 
     Method* Resolve(Symlevel::Index<Symlevel::MethodReference> index) override;
 
