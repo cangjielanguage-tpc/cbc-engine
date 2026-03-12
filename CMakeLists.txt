@@ -16,16 +16,18 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-stack-protector -fomit-frame-pointe
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
 
-option(ENABLE_LTO "Enable Link-Time Optimization" ON)
-if(ENABLE_LTO)
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
-endif()
+include(CheckIPOSupported)
+check_ipo_supported(RESULT ipo_supported)
 
 # FIXME: make source search platform-aware
 file(GLOB_RECURSE LIB_SOURCES CONFIGURE_DEPENDS "src/*.cpp" "src/*.S")
 list(FILTER LIB_SOURCES EXCLUDE REGEX ".*entrypoint\\.cpp$")
 
-add_library(cbc_lib STATIC ${LIB_SOURCES})
+add_library(cbc_lib OBJECT ${LIB_SOURCES})
+if(ipo_supported)
+  set_target_properties(cbc_lib PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+endif()
+
 set_target_properties(cbc_lib PROPERTIES
   CXX_VISIBILITY_PRESET hidden
   POSITION_INDEPENDENT_CODE ON)
@@ -45,11 +47,10 @@ target_link_options(cbcengine PRIVATE
   "-Wl,-z,relro"
   "-Wl,-z,now")
 
-set_target_properties(cbcengine PROPERTIES
-    POSITION_INDEPENDENT_CODE ON
-    INTERPROCEDURAL_OPTIMIZATION ON  # Enables LTO explicitly for this target
-)
+set_target_properties(cbcengine PROPERTIES POSITION_INDEPENDENT_CODE ON)
+if(ipo_supported)
+  set_target_properties(cbcengine PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+endif()
 
-# 6. Testing Subdirectory
-enable_testing() # Enable CTest discovery
+enable_testing()
 add_subdirectory(test)
