@@ -265,13 +265,6 @@ public:
         ectype->Put(d, Value::Primitive { .u32 = res });
     }
 
-    inline bool DirectCall(IReg d, uint16_t imm)
-    {
-        auto* fuh = reinterpret_cast<DynamicFunctionHandle*>(literals->at(imm).uintptr);
-        ASSERTION(false, "not implemented");
-        return true;
-    }
-
 private:
     inline bool NullCheck(Value::Reference obj) { return true; }
 
