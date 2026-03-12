@@ -1,6 +1,8 @@
 #include <mutex>
 #include <unordered_map>
+#include <variant>
 
+#include "adapters.h"
 #include "cbc/rewriter.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/reader.h"
@@ -8,10 +10,13 @@
 
 namespace Interpretation {
 
+static_assert(offsetof(DynamicFunctionHandle, c2call) == FUNCTION_HANDLE_C2CALL_OFFSET);
+static_assert(offsetof(DynamicFunctionHandle, bytecode) == FUNCTION_HANDLE_BYTECODE_OFFSET);
+
 class FunctionHandleManager::Impl {
 public:
     std::mutex lock;
-    std::unordered_map<Engine::Identifier<Symlevel::MethodDefinition>, FunctionHandle*> fuhMap;
+    std::unordered_map<Engine::Identifier<Symlevel::MethodDefinition>, TaggedFunctionHandle> fuhMap;
 };
 
 FunctionHandleManager::FunctionHandleManager() : impl(std::move(std::make_unique<FunctionHandleManager::Impl>())) {}
@@ -19,7 +24,7 @@ FunctionHandleManager::FunctionHandleManager() : impl(std::move(std::make_unique
 FunctionHandleManager::~FunctionHandleManager()                               = default;
 FunctionHandleManager::FunctionHandleManager(FunctionHandleManager&& manager) = default;
 
-FunctionHandle* FunctionHandleManager::Acquire(
+TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
     Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> methodDef
 )
 {
@@ -28,9 +33,23 @@ FunctionHandle* FunctionHandleManager::Acquire(
     if (res != impl->fuhMap.end()) {
         return res->second;
     }
-    auto fuh                = new DynamicFunctionHandle(nullptr, nullptr, nullptr, methodDef);
+    auto i2Call             = PrepareI2Call(session, methodDef);
+    auto c2Call             = PrepareC2Call(session, methodDef);
+    auto fuh                = new DynamicFunctionHandle(i2Call, c2Call, methodDef);
     impl->fuhMap[methodDef] = fuh;
     return fuh;
+}
+
+FunctionHandle* FunctionHandleManager::Acquire(
+    Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> methodDef
+)
+{
+    auto fuh = AcquireTagged(session, methodDef);
+    if (std::holds_alternative<DynamicFunctionHandle*>(fuh)) {
+        return &std::get<DynamicFunctionHandle*>(fuh)->base;
+    } else {
+        return &std::get<StaticFunctionHandle*>(fuh)->base;
+    }
 }
 
 ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, DynamicFunctionHandle* fuh)
@@ -39,8 +58,8 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, Dynam
 
     std::lock_guard guard(fuh->lock);
 
-    if (auto desc = fuh->descriptor.load(); desc != nullptr) {
-        return desc;
+    if (auto bytecode = fuh->bytecode.load(); bytecode != nullptr) {
+        return bytecode;
     }
 
     auto offset = def.GetCodeOffs();
@@ -54,18 +73,28 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, Dynam
     auto& heap         = session.GetEngine().CodeHeap();
     auto rewrittenCode = emitter.Build(heap);
 
-    ExecBytecodeInfo newDesc = {
+    ExecBytecodeInfo bytecode = {
         .code = rewrittenCode,
         // TODO: initialize rest
     };
 
-    fuh->descriptor.store(new ExecBytecodeInfo(newDesc));
+    fuh->bytecode.store(new ExecBytecodeInfo(bytecode));
 
     // Return via reload from `fuh->descriptor` to guarantee proper memory-model semantics:
     // fields (and fields of fields) would be visible from other threads
     // if the content of desc or desc itself would be published through "relaxed" (or race) stores
     // (explicitly in the codebase, or implictly in ASM or interpreter).
-    return fuh->descriptor.load();
+    return fuh->bytecode.load();
+}
+
+void* FunctionHandleManager::GetFunctionPtr(TaggedFunctionHandle fuh)
+{
+    if (auto* staticFuh = std::get_if<StaticFunctionHandle*>(&fuh)) {
+        return (*staticFuh)->function;
+    } else {
+        auto dynFuh = std::get<DynamicFunctionHandle*>(fuh);
+        return GetDirectCallTrampoline(dynFuh);
+    }
 }
 
 } // namespace Interpretation

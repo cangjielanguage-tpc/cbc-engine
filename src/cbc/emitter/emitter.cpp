@@ -84,7 +84,7 @@ public:
         Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter
     ) const override
     {
-        assert(position >= 0);
+        ASSERT(position >= 0);
         Segment::View buf = segment.At(static_cast<size_t>(position));
         Encode(
             buf,
@@ -137,7 +137,7 @@ public:
         switch (width) {
             case Width::W32: return isImm ? RT::Opcode::BCC32I : RT::Opcode::BCC32L;
             case Width::W64: return isImm ? RT::Opcode::BCC64I : RT::Opcode::BCC64L;
-            default:         assert(false); return RT::Opcode::BCC32I;
+            default:         ASSERT(false); return RT::Opcode::BCC32I;
         }
     }
 
@@ -235,7 +235,7 @@ private:
 
 void Emitter::Binary(Common op, Width width, IReg d, IReg l, IReg r)
 {
-    assert(width == Width::W32 || width == Width::W64);
+    ASSERT(width == Width::W32 || width == Width::W64);
     auto opcode = width == Width::W32 ? RT::Opcode::BIN32 : RT::Opcode::BIN64;
 
     Encode(
@@ -282,7 +282,7 @@ void Emitter::Neg(Width width, IReg d, IReg s) { Binary(Common::SUB, width, d, I
 
 void Emitter::BinaryImm(Common op, Width width, IReg d, IReg l, uint64_t imm)
 {
-    assert(width == Width::W32 || width == Width::W64);
+    ASSERT(width == Width::W32 || width == Width::W64);
 
     if (MathUtils::IsNBitsSigned(imm, 12)) {
         uint16_t immediate = static_cast<uint16_t>(imm & 0xfff);
@@ -341,8 +341,8 @@ void Emitter::AsrI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common
 
 void Emitter::Binary(FloatOperations op, Width width, FReg d, FReg l, FReg r)
 {
-    assert(width == Width::W32 || width == Width::W64);
-    assert(op.IsBasic());
+    ASSERT(width == Width::W32 || width == Width::W64);
+    ASSERT(op.IsBasic());
 
     auto opcode = width == Width::W32 ? RT::Opcode::FBIN32 : RT::Opcode::FBIN64;
 
@@ -370,7 +370,7 @@ void Emitter::Div(Width width, FReg d, FReg l, FReg r) { Binary(FloatOperations:
 
 void Emitter::Unary(FloatOperations op, Width width, FReg d, FReg s)
 {
-    assert(width == Width::W32 || width == Width::W64);
+    ASSERT(width == Width::W32 || width == Width::W64);
 
     auto opcode = width == Width::W32 ? RT::Opcode::FUN32 : RT::Opcode::FUN64;
 
@@ -409,7 +409,7 @@ void Emitter::Mov(IReg d, FReg s) { Emitter::Mov(RT::Opcode::MOVF2I, d, s); }
 
 void Emitter::MovImm(Width width, IReg d, uint64_t imm)
 {
-    assert(width == Width::W32 || width == Width::W64);
+    ASSERT(width == Width::W32 || width == Width::W64);
 
     bool isImm = MathUtils::IsNBitsSigned(imm, 4);
     if (isImm) {
@@ -588,7 +588,7 @@ void Emitter::SCC(CC cc, Width width, IReg d, FReg l, FReg r)
 
 void Emitter::SCCImm(CC cc, Width width, IReg d, IReg l, uint64_t imm)
 {
-    assert(width == Width::W32 || width == Width::W64);
+    ASSERT(width == Width::W32 || width == Width::W64);
 
     bool isImm = MathUtils::IsNBitsSigned(imm, 12);
     if (isImm) {

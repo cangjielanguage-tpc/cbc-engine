@@ -46,6 +46,7 @@ public:
     uint32_t GetMethodRefSectionOffs() const;
     uint32_t GetFieldRefSectionOffs() const;
     String GetName() const;
+    String GetPath() const;
 
     const RegionData& GetRegionData() const;
     const TypeIndex& GetTypeIndex() const;

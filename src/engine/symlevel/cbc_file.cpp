@@ -89,6 +89,9 @@ uint32_t CbcFile::GetFieldRefSectionOffs() const { return impl->poolOffset; }
 
 String CbcFile::GetName() const { return String(impl->name); }
 
+// FIXME:store path and name of cbc file.
+String CbcFile::GetPath() const { return String(impl->name); }
+
 const RegionData& CbcFile::GetRegionData() const { return impl->regionData; }
 
 const TypeIndex& CbcFile::GetTypeIndex() const { return impl->typeIndex; }

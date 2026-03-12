@@ -1,6 +1,7 @@
 #ifndef INTERPRETER_ECTYPE_H
 #define INTERPRETER_ECTYPE_H
 
+#include "asm_export.h"
 #include "cbc/isa.h"
 #include "functional"
 
@@ -79,10 +80,16 @@ public:
     void VisitReferences(std::function<void(Value::Reference*)> visitor);
 
 private:
+    friend class EctypeInvariants;
     IRegContainer iregs[IReg::COUNT];
     Mark iregMarks[IReg::COUNT];
 
     FRegContainer fregs[FReg::COUNT];
+};
+
+class EctypeInvariants {
+    static_assert(offsetof(Ectype, iregs) == ECTYPE_IREGS_OFFSET);
+    static_assert(offsetof(Ectype, fregs) == ECTYPE_FREGS_OFFSET);
 };
 
 } // namespace Interpretation

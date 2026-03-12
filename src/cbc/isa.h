@@ -42,7 +42,7 @@ public:
 
     inline static IReg From(const uint32_t raw)
     {
-        assert(raw < COUNT);
+        ASSERT(raw < COUNT);
         return IReg(static_cast<Value>(raw));
     }
 
@@ -84,7 +84,7 @@ public:
 
     inline static FReg From(const uint32_t raw)
     {
-        assert(raw < COUNT);
+        ASSERT(raw < COUNT);
         return FReg(static_cast<Value>(raw));
     }
 
@@ -400,7 +400,7 @@ public:
             case CbcTypeKind::I64: return Width::W64;
             case CbcTypeKind::U64: return Width::W64;
 
-            default: assert(false); return Width::W64;
+            default: ASSERT(false); return Width::W64;
         }
     }
 
@@ -596,7 +596,7 @@ public:
 
     constexpr Reg(FReg r) : _value(r) {}
 
-    constexpr Reg(uint8_t value) : _value(value) { assert((_value & 0xff) == _value); }
+    constexpr Reg(uint8_t value) : _value(value) { ASSERT((_value & 0xff) == _value); }
 
     inline operator uint8_t() const { return static_cast<uint8_t>(_value); }
 
@@ -666,7 +666,7 @@ struct Imm8 {
 /// 12 bit; immediate or literal
 class Imm12 {
 public:
-    inline Imm12(uint16_t _imm) : imm(_imm) { assert((_imm & 0xfff) == _imm); }
+    inline Imm12(uint16_t _imm) : imm(_imm) { ASSERT((_imm & 0xfff) == _imm); }
 
     inline Imm12() : imm(0) {}
 

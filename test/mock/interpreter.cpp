@@ -4,6 +4,7 @@
 #include "cbc/decoder.h"
 #include "cbc/dispatcher_rt.h"
 #include "interpreter.h"
+#include "interpreter/adapters.h"
 
 namespace Interpretation {
 
@@ -68,16 +69,34 @@ Value::Primitive Interpret(
     heap.Reset();
 
     Interpretation::Ectype ectype {};
-    Interpreter<Test> interp(&ectype, frame, nullptr, code.literals);
     Decoder::ByteReader s(code.bytecode, code.bytecode, code.bytecode + code.bytecodeSize);
     ectype.Put(IReg::IR1, ir1);
     ectype.Put(IReg::IR2, ir2);
     ectype.Put(FReg::FR0, fr0);
     ectype.Put(FReg::FR1, fr1);
 
-    Cbc::RT::InterpretationLoop(interp, s);
+    while (!s.IsNullified()) {
+        Cbc::RT::InterpretationLoop<Test>(&ectype, frame, nullptr, code.literals, s);
+    }
 
     return ectype.GetPrimitive(resReg);
+}
+
+static void InterpreterI2CallTest(Ectype* ectype, Frame* oldFrame, ThreadHandle handle, FunctionHandle* fuh)
+{
+    auto dynFuh   = reinterpret_cast<DynamicFunctionHandle*>(fuh);
+    auto bytecode = dynFuh->bytecode.load();
+    if (!bytecode) {
+        Engine::Session session(Engine::GetEngineInstance());
+        auto& manager = FunctionHandleManager::Of(session);
+        bytecode      = manager.Prepare(session, dynFuh);
+    }
+    auto code = bytecode->code;
+
+    Decoder::ByteReader s(code.bytecode, code.bytecode, code.bytecode + code.bytecodeSize);
+    while (!s.IsNullified()) {
+        Cbc::RT::InterpretationLoop<Test>(ectype, nullptr, handle, code.literals, s);
+    }
 }
 
 } // namespace Interpretation
@@ -115,3 +134,5 @@ Interpretation::Value::Primitive InterpretFPRes(
 {
     return Interpretation::Interpret<Cbc::FReg>(code, frame, U32(0), U32(0), fr0, fr1, Cbc::FReg::FR0);
 }
+
+void InitializeMockInterpreter() { Interpretation::SetI2CallForInterpreter(&Interpretation::InterpreterI2CallTest); }

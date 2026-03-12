@@ -174,7 +174,7 @@ private:
                 Write(leftOperand.IR());
             }
         } else {
-            assert(false && "unexpected format type");
+            ASSERTION(false, "unexpected format type");
         }
     }
 

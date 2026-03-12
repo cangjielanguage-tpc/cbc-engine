@@ -1,14 +1,14 @@
 #pragma once
 
 #include <atomic>
-#include <cstddef>
 #include <memory>
-#include <mutex>
+#include <variant>
 
 #include "code.h"
 #include "ectype.h"
 #include "engine/engine.h"
 #include "engine/identifiers.h"
+#include "frame.h"
 #include "runtime.h"
 
 namespace API {
@@ -19,12 +19,12 @@ namespace Interpretation {
 
 class FunctionHandle;
 class DynamicFunctionHandle;
+class StaticFunctionHandle;
 
-using ABIDesc = void*;
+using TaggedFunctionHandle = std::variant<DynamicFunctionHandle*, StaticFunctionHandle*>;
 
 /// The function that would be called to perform a FuH invocation from interpreted code.
-/// The ABI is passed from the callsite.
-using I2Call = void (*)(FunctionHandle*, ABIDesc, Ectype*, ThreadHandle);
+using I2Call = void (*)(Ectype* ectype, Frame* oldFrame, ThreadHandle handle, FunctionHandle* fuh);
 
 /// The function that would be called to perform a FuH invocation from compiled code.
 /// The ABI of this function is custom and only used in hand-written assembly.
@@ -49,27 +49,23 @@ struct FunctionHandle {
 };
 
 /// Function handle of cbc-provided function.
-struct DynamicFunctionHandle : public FunctionHandle {
-    DynamicFunctionHandle(
-        I2Call i2Call, C2Call c2call, ABIDesc desc, Engine::Identifier<Symlevel::MethodDefinition> methodDef
-    )
-        : FunctionHandle(i2Call),
+struct DynamicFunctionHandle {
+    DynamicFunctionHandle(I2Call i2Call, C2Call c2call, Engine::Identifier<Symlevel::MethodDefinition> methodDef)
+        : base(i2Call),
           c2call(c2call),
-          desc(desc),
-          descriptor(nullptr),
+          bytecode(nullptr),
           lock(),
           methodDef(methodDef)
     {}
 
-    C2Call c2call;
+    // Can not use inheritance because of standard layout rules.
+    FunctionHandle base;
 
-    /// Eagerly initialized.
-    /// Holds the information about an ABI conversions to make a C2I invocation.
-    ABIDesc const desc;
+    C2Call c2call;
 
     /// Lazily initialized.
     /// Holds the information about a frame of interpreted method and bytecode itself.
-    std::atomic<ExecBytecodeInfo*> descriptor;
+    std::atomic<ExecBytecodeInfo*> bytecode;
     std::mutex lock;
 
     Engine::Identifier<Symlevel::MethodDefinition> const methodDef;
@@ -80,7 +76,9 @@ struct DynamicFunctionHandle : public FunctionHandle {
 /// Note that not all AOT functions may be called using `StaticFunctionHandle`.
 /// This kind of `FunctionHandle` is mainly needed to work with methods of
 /// dynamically created `TypeInfo` in the similar way, both for cbc and aot functions.
-struct StaticFunctionHandle : public FunctionHandle {
+struct StaticFunctionHandle {
+    // Can not use inheritance because of standard layout rules.
+    FunctionHandle base;
     void* const function;
 };
 
@@ -94,9 +92,18 @@ public:
 
     /// Acquires an FunctionHandle for given method definition.
     FunctionHandle* Acquire(Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> methodDef);
+    TaggedFunctionHandle AcquireTagged(
+        Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> methodDef
+    );
 
     /// Performs lazy initialization of a DynamicFunctionHandle.
     ExecBytecodeInfo* Prepare(Engine::Session& session, DynamicFunctionHandle* fuh);
+
+    // Acquires a function pointer that could be invoked from compiled code
+    // to invoke the method referenced by `fuh`.
+    //
+    // Note that it is neither `I2Call` nor `C2Call`.
+    void* GetFunctionPtr(TaggedFunctionHandle fuh);
 
 private:
     class Impl;

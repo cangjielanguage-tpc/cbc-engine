@@ -1,7 +1,5 @@
 #pragma once
 
-#include <type_traits>
-
 #include "decoder.h"
 #include "isa_rt.h"
 #include "utils/assertion.h"
@@ -13,14 +11,18 @@ namespace Cbc {
 namespace RT {
 
 using Width = Cbc::Format::Width;
+using namespace Interpretation;
 
 template <typename RTI>
-void InterpretationLoop(Interpretation::Interpreter<RTI> interpreter, Decoder::ByteReader reader)
+void InterpretationLoop(
+    Ectype* ectype, Frame* frame, ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
+)
 {
 #define NEXT goto* MAIN_TABLE[reader.PeekOpcode()]
 #define NEXT_COND(successful) goto* MAIN_TABLE[(successful) ? reader.PeekOpcode() : 0]
-
 #define MEM_NEXT goto* MEMSPACE_TABLE[reader.PeekOpcode()]
+    Interpretation::Interpreter<RTI> interpreter(ectype, frame, handle, literals);
+    Decoder::ByteReader reader = reader0;
 
     static void* MAIN_TABLE[] = {
         &&HALT,    // B1 TODO merge rare commands
@@ -157,9 +159,11 @@ void InterpretationLoop(Interpretation::Interpreter<RTI> interpreter, Decoder::B
 // -- Main opcode table --
 HALT: {
     ASSERTION(false, "halt");
+    reader0.Nullify();
     return;
 }
 RET: {
+    reader0.Nullify();
     return;
 }
 MOV: {
@@ -453,13 +457,21 @@ SCCI64L: {
     );
     NEXT;
 }
-
 DIRECT_CALL: {
-    auto args       = B3xi12::Decode(reader);
-    bool successful = interpreter.DirectCall(args.xi12.imm4.IR(), args.xi12.imm12);
-    NEXT_COND(successful);
+    auto args    = B3xi12::Decode(reader);
+    IReg dst     = args.xi12.imm4.IR();
+    uint16_t imm = args.xi12.imm12;
+    auto fuh     = reinterpret_cast<FunctionHandle*>(literals->at(imm).uintptr);
+    // For proper support of fibers, the following call MUST drop the current frame.
+    // This can not be guaranteed by C++ compiler consistently, because TCO
+    // is not guaranteed and `mustcall` attribute is not supported
+    // fully by gcc/clang compilers.
+    //
+    // Instead, the following call will drop the current frame manually
+    // (outside of unit-test framework).
+    reader0 = reader; // save current pc
+    return fuh->i2call(ectype, frame, handle, fuh);
 }
-
 MEMSPACE: {
     B1::Decode(reader);
     memspaceOffsetAcc = 0;
