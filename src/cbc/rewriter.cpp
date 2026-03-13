@@ -10,7 +10,7 @@ void Rewriter::DoBFX(Sign sign, Width res_width, Width arg_width, IReg dst, IReg
     ASSERTION(false, "Not implmeneted");
 }
 
-void Rewriter::DoMov(Width width, IReg dst, IReg src, bool isReference)
+void Rewriter::DoMov(IReg dst, IReg src, bool isReference)
 {
     if (isReference) {
         e.MovRef(dst, src);
@@ -25,40 +25,42 @@ void Rewriter::DoMovImm(Width width, IReg dst, uint64_t imm) { e.MovImm(width, d
 
 void Rewriter::DoINeg(CbcTypeKind tkind, IReg dst, IReg src) { ASSERTION(false, "Not implmeneted"); }
 
-void Rewriter::DoCommonOp(Common op, CbcTypeKind tkind, IReg dst, IReg src1, IReg src2)
+void Rewriter::DoINeg(CbcTypeKind tkind, IReg dst, uint64_t imm) { ASSERTION(false, "Not implmeneted"); }
+
+void Rewriter::DoCommonOp(InputCommonOpc op, CbcTypeKind tkind, IReg dst, IReg src1, IReg src2)
 {
     e.Binary(op, Width::FromCbcTypeKind(tkind), dst, src1, src2);
 }
 
-void Rewriter::DoCommonOp(Common op, CbcTypeKind tkind, IReg dst, IReg src1, uint64_t src2)
+void Rewriter::DoCommonOp(InputCommonOpc op, CbcTypeKind tkind, IReg dst, IReg src1, uint64_t src2)
 {
     e.BinaryImm(op, Width::FromCbcTypeKind(tkind), dst, src1, src2);
 }
 
-void Rewriter::DoCheckedOp(Common op, CbcTypeKind tkind, IReg dst, IReg src1, IReg src2)
+void Rewriter::DoCheckedOp(InputCheckedOpc op, CbcTypeKind tkind, IReg dst, IReg src1, IReg src2)
 {
     ASSERTION(false, "Not implmeneted");
 }
 
-void Rewriter::DoCheckedOp(Common op, CbcTypeKind tkind, IReg dst, IReg src1, uint64_t src2)
+void Rewriter::DoCheckedOp(InputCheckedOpc op, CbcTypeKind tkind, IReg dst, IReg src1, uint64_t src2)
 {
     ASSERTION(false, "Not implmeneted");
 }
 
-void Rewriter::DoBinaryFloatOp(Common op, CbcTypeKind tkind, FReg dst, FReg src1, FReg src2)
+void Rewriter::DoBinaryFloatOp(InputFloatOpc op, CbcTypeKind tkind, FReg dst, FReg src1, FReg src2)
 {
     auto width = Width::FromCbcTypeKind(tkind);
-    switch (op) {
-        case Common::ADD:  e.Add(width, dst, src1, src2); break;
-        case Common::SUB:  e.Sub(width, dst, src1, src2); break;
-        case Common::MUL:  e.Mul(width, dst, src1, src2); break;
-        case Common::SDIV: e.Div(width, dst, src1, src2); break;
+    switch (static_cast<Opcode_t>(op)) {
+        case static_cast<Opcode_t>(InputFloatOpc::Add): e.Add(width, dst, src1, src2); break;
+        case static_cast<Opcode_t>(InputFloatOpc::Sub): e.Sub(width, dst, src1, src2); break;
+        case static_cast<Opcode_t>(InputFloatOpc::Mul): e.Mul(width, dst, src1, src2); break;
+        case static_cast<Opcode_t>(InputFloatOpc::Div): e.Div(width, dst, src1, src2); break;
 
         default: ASSERTION(false, "Unexpected op"); break;
     }
 }
 
-void Rewriter::DoBinaryFloatOp(Common op, CbcTypeKind tkind, FReg dst, FReg src1, uint64_t src2)
+void Rewriter::DoBinaryFloatOp(InputFloatOpc op, CbcTypeKind tkind, FReg dst, FReg src1, uint64_t src2)
 {
     ASSERTION(false, "Not implmeneted");
 }
@@ -75,16 +77,19 @@ void Rewriter::DoReturn(Width width, FReg dst)
     e.Ret();
 }
 
-void Rewriter::DoBranchIf(CC op, Width width, IReg l, IReg r, uint8_t* target)
+void Rewriter::DoBranchIf(InputCcOpc op, Width width, IReg l, IReg r, uint8_t* target)
 {
-    e.Bcc(op, width, l, r, InstructionLabel(target));
+    e.Bcc(CC::Value(op), width, l, r, InstructionLabel(target));
 }
 
-void Rewriter::DoBranchIf(CC op, Width width, FReg l, FReg r, uint8_t* target) { ASSERTION(false, "Not implemented"); }
-
-void Rewriter::DoBranchIfImm(CC op, Width width, IReg l, uint64_t r, uint8_t* target)
+void Rewriter::DoBranchIf(InputCcOpc op, Width width, FReg l, FReg r, uint8_t* target)
 {
-    e.BccImm(op, width, l, r, InstructionLabel(target));
+    ASSERTION(false, "Not implemented");
+}
+
+void Rewriter::DoBranchIfImm(InputCcOpc op, Width width, IReg l, uint64_t r, uint8_t* target)
+{
+    e.BccImm(CC::Value(op), width, l, r, InstructionLabel(target));
 }
 
 void Rewriter::DoCallDirect(IReg d, uint16_t methodIndex)

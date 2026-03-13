@@ -1,14 +1,174 @@
 #pragma once
 
-#include <array>
 #include <cstdint>
-#include <string>
+#include <string_view>
 
 #include "cbc/decoder.h"
 #include "utils/assertion.h"
-#include "utils/math.h"
 
 namespace Cbc {
+
+typedef uint8_t Opcode_t;
+
+enum class InputOpcode : Opcode_t {
+    Mov32,
+    Mov64,
+    Mov32i,
+    Mov64i,
+    MovVst,
+    MovRef,
+    ExtendSigned,
+    ExtendUnsigned,
+    Add32,
+    Sub32,
+    Mul32,
+    And32,
+    Or32,
+    Xor32,
+    DivSigned32,
+    RemSigned32,
+    DivUnsigned32,
+    RemUnsigned32,
+    Lsr32,
+    Asr32,
+    Lsl32,
+    Add64,
+    Sub64,
+    Mul64,
+    And64,
+    Or64,
+    Xor64,
+    DivSigned64,
+    RemSigned64,
+    DivUnsigned64,
+    RemUnsigned64,
+    Lsr64,
+    Asr64,
+    Lsl64,
+    Add32Imm,
+    Sub32Imm,
+    Mul32Imm,
+    And32Imm,
+    Or32Imm,
+    Xor32Imm,
+    DivSigned32Imm,
+    RemSigned32Imm,
+    DivUnsigned32Imm,
+    RemUnsigned32Imm,
+    Lsr32Imm,
+    Asr32Imm,
+    Lsl32Imm,
+    Add64Imm,
+    Sub64Imm,
+    Mul64Imm,
+    And64Imm,
+    Or64Imm,
+    Xor64Imm,
+    DivSigned64Imm,
+    RemSigned64Imm,
+    DivUnsigned64Imm,
+    RemUnsigned64Imm,
+    Lsr64Imm,
+    Asr64Imm,
+    Lsl64Imm,
+    Neg32,
+    Neg64,
+    Neg32Imm,
+    Neg64Imm,
+    IntegerCommon32,
+    IntegerCommon64,
+    IntegerCommon32K16,
+    IntegerCommon64K16,
+    CheckedAdd,
+    CheckedSub,
+    CheckedMul,
+    CheckedDiv,
+    CheckedAddImm,
+    CheckedSubImm,
+    CheckedMulImm,
+    CheckedDivImm,
+    Bfx,
+    FloatCommon,
+    FloatCommonImm,
+    FloatIntegerConversions,
+    FloatFloatConversions,
+    Bcc,
+    BccImm,
+    Jump32,
+    CallDirect,
+    Ret32,
+    Ret64,
+    Ret32F,
+    Ret64F,
+    ImmPrefix32,
+    ImmPrefix64,
+    ___LAST
+};
+
+constexpr Opcode_t Opc(const InputOpcode opc) { return static_cast<Opcode_t>(opc); }
+
+enum class InputCommonOpc : Opcode_t {
+    Add,
+    Sub,
+    Mul,
+    And,
+    Or,
+    Xor,
+    DivSigned,
+    RemSigned,
+    DivUnsigned,
+    RemUnsigned,
+    Lsr,
+    Asr,
+    Lsl,
+    ___LAST
+};
+
+enum class InputCheckedOpc : Opcode_t {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    ___LAST
+};
+
+enum class InputFloatOpc : Opcode_t {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mov,
+    Neg,
+    Abs,
+    Sqrt,
+    ___LAST
+};
+
+enum class InputImmPrefix : Opcode_t {
+    ImmPrefix32,
+    ImmPrefix64,
+    __LAST /* not set */
+};
+
+enum class InputCcOpc : Opcode_t {
+    EQ,
+    NE,
+    LT,
+    GE,
+    ULT,
+    UGE,
+    REQ,
+    RNE,
+    FEQ,
+    FNE,
+    FLT,
+    FNLT,
+    FGE,
+    FNGE,
+    TESTZ,
+    TESTNZ
+};
+
 class IReg {
 public:
     enum Value : uint8_t {
@@ -247,8 +407,6 @@ public:
     constexpr Common(const Value raw) : _value(raw) {}
 
     constexpr Common(const Bits bits) : _value(Value(bits.Raw())) {}
-
-    constexpr Common(const uint32_t bits) : _value(Value(bits)) {}
 
     constexpr operator Value() const { return _value; }
 
@@ -592,9 +750,9 @@ constexpr Bits mask_bits(uint32_t b)
 /// 4 bit; register
 class Reg {
 public:
-    constexpr Reg(IReg r) : _value(r) {}
+    constexpr Reg(IReg r) : _value(r.Raw()) {}
 
-    constexpr Reg(FReg r) : _value(r) {}
+    constexpr Reg(FReg r) : _value(r.Raw()) {}
 
     constexpr Reg(uint8_t value) : _value(value) { ASSERT((_value & 0xff) == _value); }
 
@@ -640,11 +798,11 @@ public:
 
     inline Format::CC CC() const { return Format::CC(imm); }
 
-    inline Format::Common Common() const { return Format::Common(imm); }
+    inline Format::Common Common() const { return Format::Common::Value(imm); }
 
     inline Format::FloatOperations FloatOperations() const { return Format::FloatOperations(imm); }
 
-    inline Format::StoreAccessKind STK() const { return Format::StoreAccessKind(imm); }
+    inline Format::StoreAccessKind STK() const { return Format::StoreAccessKind::Value(imm); }
 
     inline Format::LoadAccessKind LDK() const { return Format::LoadAccessKind(imm); }
 
@@ -1163,70 +1321,6 @@ enum ImmKind : uint32_t {
     Signed,
     Unsigned,
     FloatingPoint,
-};
-
-class Decoding {
-public:
-    Decoding() : immext(0) {}
-
-    void Reset() { immext = 0; }
-
-    void SetImmExt(uint64_t v, uint32_t bits, Sign sign)
-    {
-        uint64_t extended = sign == Sign::SIGNED ? MathUtils::SignExtend(v, bits) : MathUtils::ZeroExtend(v, bits);
-        immext            = extended << 16;
-    }
-
-    uint64_t StartDecoding(ImmKind kind, Width width, uint32_t N, uint64_t iN)
-    {
-        switch (kind) {
-            case ImmKind::Signed:   return MathUtils::SignExtend(iN, N);
-            case ImmKind::Unsigned: return MathUtils::ZeroExtend(iN, N);
-            case ImmKind::FloatingPoint:
-                if (width == Width::W32) {
-                    return N < 16 ? Imm32 { .fimm = (float)MathUtils::SignExtend(static_cast<uint32_t>(iN), N) }.imm
-                                  : MathUtils::ZeroExtend(iN, N);
-                } else {
-                    ASSERTION(width == Width::W64, "Unexpected width");
-                    return N < 16 ? Imm64 { .dimm = (double)MathUtils::SignExtend(iN, N) }.imm
-                                  : MathUtils::ZeroExtend(iN, N);
-                }
-            default: ASSERTION(false, "Unexpected imm kind"); return 0;
-        }
-    }
-
-    uint64_t FinishDecoding(uint32_t W, uint32_t N, uint64_t ival, uint32_t rotCnt)
-    {
-        if (W == 32 || W == 64) {
-            ival += immext & MathUtils::RightNBits64(W);
-        }
-
-        if (W >= 32 && W > N) {
-            ival = W == 32 ? MathUtils::RotateRight32(static_cast<uint32_t>(ival), rotCnt)
-                           : MathUtils::RotateRight64(ival, rotCnt);
-        } else {
-            ASSERTION(rotCnt == 0, "Invalid rotation count");
-        }
-
-        Reset();
-        return ival;
-    }
-
-    uint64_t DecodeB2ri4(Width width, uint32_t i4)
-    {
-        uint64_t ival = StartDecoding(ImmKind::Signed, width, 4, i4);
-        return FinishDecoding(width.NBits(), 4, ival, 0);
-    }
-
-    uint64_t DecodeIntegralBCCi16(Sign sign, Width width, uint32_t i16)
-    {
-        auto immKind  = sign == Sign::SIGNED ? ImmKind::Signed : ImmKind::Unsigned;
-        uint64_t ival = StartDecoding(immKind, width, 16, i16);
-        return FinishDecoding(width.NBits(), 16, ival, 0);
-    }
-
-private:
-    uint64_t immext;
 };
 
 } // namespace Immediate
