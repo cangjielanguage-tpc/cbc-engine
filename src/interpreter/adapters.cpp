@@ -15,7 +15,8 @@ extern "C" {
 typedef char DirectTrampolineText[DIRECT_CALL_TRAMPOLINE_SIZE];
 
 extern void engine_iregs_only_c2i_call();
-extern void engine_i2i_call(Ectype* ectype, Frame* oldFrame, ThreadHandle handle, FunctionHandle* fuh);
+extern void engine_i2i_call();
+
 extern DirectTrampolineText engine_trampolines_direct_start[];
 DynamicFunctionHandle* engine_universal_direct_function_handles[TRAMPOLINE_COUNT];
 
@@ -52,7 +53,7 @@ I2Call PrepareI2Call(Engine::Session& session, Engine::Identifier<Symlevel::Meth
     if (g_overridenI2Call) {
         return g_overridenI2Call;
     }
-    return &engine_i2i_call;
+    return reinterpret_cast<void*>(&engine_i2i_call);
 }
 
 C2Call PrepareC2Call(Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> methodDef)

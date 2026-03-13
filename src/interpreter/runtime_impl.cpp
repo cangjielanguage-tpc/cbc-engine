@@ -40,14 +40,14 @@ public:
 
 namespace Cbc::RT {
 using namespace Interpretation;
-template __attribute__((used)) void InterpretationLoop<Impl>(
+template __attribute__((used)) Thunk InterpretationLoop<Impl>(
     Ectype* ectype, Frame* frame, ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
 );
 } // namespace Cbc::RT
 
 extern "C" {
 void engine_interpretation_loop() __attribute__((alias(
-    "_ZN3Cbc2RT18InterpretationLoopIN14Interpretation4ImplEEEvPNS2_6EctypeEPNS2_5FrameENS2_12ThreadHandleEPNS2_"
-    "12LiteralTableERN7Decoder10ByteReaderE"
+    "_ZN3Cbc2RT18InterpretationLoopIN14Interpretation4ImplEEENS0_5ThunkEPNS2_6EctypeEPNS2_5FrameENS2_"
+    "12ThreadHandleEPNS2_12LiteralTableERN7Decoder10ByteReaderE"
 )));
 } // extern "C"

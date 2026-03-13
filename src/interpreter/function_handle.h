@@ -24,7 +24,7 @@ class StaticFunctionHandle;
 using TaggedFunctionHandle = std::variant<DynamicFunctionHandle*, StaticFunctionHandle*>;
 
 /// The function that would be called to perform a FuH invocation from interpreted code.
-using I2Call = void (*)(Ectype* ectype, Frame* oldFrame, ThreadHandle handle, FunctionHandle* fuh);
+using I2Call = void*;
 
 /// The function that would be called to perform a FuH invocation from compiled code.
 /// The ABI of this function is custom and only used in hand-written assembly.
