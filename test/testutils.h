@@ -35,14 +35,14 @@ bool CheckForAssembler();
 std::unique_ptr<IO::RandomAccessFile> OpenAsm(std::string_view file_name);
 
 #define TEST_ASM(test_suite_name, test_name)                                                                           \
-    static void _skip_##test_suite_name##_##test_name();                                                               \
+    static void test_suite_name##_##test_name();                                                                       \
     GTEST_TEST_F(test_suite_name, test_name)                                                                           \
     {                                                                                                                  \
         if (!CheckForAssembler()) {                                                                                    \
             GTEST_SKIP() << "Assembler is not present";                                                                \
         }                                                                                                              \
-        _skip_##test_suite_name##_##test_name();                                                                       \
+        test_suite_name##_##test_name();                                                                               \
     }                                                                                                                  \
-    static void _skip_##test_suite_name##_##test_name()
+    static void test_suite_name##_##test_name()
 
 #endif

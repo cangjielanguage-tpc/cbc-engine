@@ -168,7 +168,7 @@ RET: {
 }
 MOV: {
     auto args = B2rr::Decode(reader);
-    interpreter.template Mov<IReg, IReg>(args.rr.x.IR(), args.rr.y.IR());
+    interpreter.Mov(args.rr.x.IR(), args.rr.y.IR());
     NEXT;
 }
 MOVI: {
@@ -183,17 +183,17 @@ MOVR: {
 }
 FMOV: {
     auto args = B2rr::Decode(reader);
-    interpreter.template Mov<FReg, FReg>(args.rr.x.FR(), args.rr.y.FR());
+    interpreter.Mov(args.rr.x.FR(), args.rr.y.FR());
     NEXT;
 }
 MOVI2F: {
     auto args = B2rr::Decode(reader);
-    interpreter.template Mov<FReg, IReg>(args.rr.x.FR(), args.rr.y.IR());
+    interpreter.Mov(args.rr.x.FR(), args.rr.y.IR());
     NEXT;
 }
 MOVF2I: {
     auto args = B2rr::Decode(reader);
-    interpreter.template Mov<IReg, FReg>(args.rr.x.IR(), args.rr.y.FR());
+    interpreter.Mov(args.rr.x.IR(), args.rr.y.FR());
     NEXT;
 }
 FMOVI32: {
