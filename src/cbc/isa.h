@@ -1,14 +1,28 @@
 #pragma once
 
-#include <array>
 #include <cstdint>
-#include <string>
+#include <string_view>
 
 #include "cbc/decoder.h"
 #include "utils/assertion.h"
 #include "utils/math.h"
 
 namespace Cbc {
+
+typedef uint8_t opcode_t;
+
+#include "isa_opcode_def.h"
+GEN_ENUM(opcode,DO_WITH_ALL_OPCODES(GET_OPC))
+#include "isa_opcode_undef.h"
+
+opcode_t bits(opcode opc);
+
+#include "isa_opcode_def.h"
+GEN_ENUM(common_opc,DO_WITH_COMMON_OPCODES(GET_OPS))
+GEN_ENUM(checked_opc,DO_WITH_CHECKED_OPCODES(GET_OPS))
+GEN_ENUM(float_opc,DO_WITH_FLOAT_OPCODES(GET_OPC))
+#include "isa_opcode_undef.h"
+
 class IReg {
 public:
     enum Value : uint8_t {
@@ -247,8 +261,6 @@ public:
     constexpr Common(const Value raw) : _value(raw) {}
 
     constexpr Common(const Bits bits) : _value(Value(bits.Raw())) {}
-
-    constexpr Common(const uint32_t bits) : _value(Value(bits)) {}
 
     constexpr operator Value() const { return _value; }
 
@@ -592,9 +604,9 @@ constexpr Bits mask_bits(uint32_t b)
 /// 4 bit; register
 class Reg {
 public:
-    constexpr Reg(IReg r) : _value(r) {}
+    constexpr Reg(IReg r) : _value(r.Raw()) {}
 
-    constexpr Reg(FReg r) : _value(r) {}
+    constexpr Reg(FReg r) : _value(r.Raw()) {}
 
     constexpr Reg(uint8_t value) : _value(value) { ASSERT((_value & 0xff) == _value); }
 
@@ -640,11 +652,11 @@ public:
 
     inline Format::CC CC() const { return Format::CC(imm); }
 
-    inline Format::Common Common() const { return Format::Common(imm); }
+    inline Format::Common Common() const { return Format::Common::Value(imm); }
 
     inline Format::FloatOperations FloatOperations() const { return Format::FloatOperations(imm); }
 
-    inline Format::StoreAccessKind STK() const { return Format::StoreAccessKind(imm); }
+    inline Format::StoreAccessKind STK() const { return Format::StoreAccessKind::Value(imm); }
 
     inline Format::LoadAccessKind LDK() const { return Format::LoadAccessKind(imm); }
 
@@ -1212,11 +1224,22 @@ public:
         return ival;
     }
 
-    uint64_t DecodeB2ri4(Width width, uint32_t i4)
+    uint64_t DecodeB2Imm(Width width, uint32_t i4)
     {
         uint64_t ival = StartDecoding(ImmKind::Signed, width, 4, i4);
         return FinishDecoding(width.NBits(), 4, ival, 0);
     }
+
+    uint64_t DecodeB3ImmInteger(Width width, Sign sign, uint32_t t4, uint32_t imm16)
+    {
+        return FinishDecoding(width.NBits(), 16, imm16, t4 * (width.NBits() / 16));
+    }
+
+    uint64_t DecodeB3ImmFloat(Width width, uint32_t t4, uint32_t imm16)
+    {
+        return FinishDecoding(width.NBits(), 16, imm16, t4 * (width.NBits() / 16));
+    }
+
 
     uint64_t DecodeIntegralBCCi16(Sign sign, Width width, uint32_t i16)
     {
