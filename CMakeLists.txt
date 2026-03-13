@@ -18,15 +18,15 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
 
 include(CheckIPOSupported)
 check_ipo_supported(RESULT ipo_supported)
+if(ipo_supported)
+  set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+endif()
 
 # FIXME: make source search platform-aware
 file(GLOB_RECURSE LIB_SOURCES CONFIGURE_DEPENDS "src/*.cpp" "src/*.S")
 list(FILTER LIB_SOURCES EXCLUDE REGEX ".*entrypoint\\.cpp$")
 
 add_library(cbc_lib OBJECT ${LIB_SOURCES})
-if(ipo_supported)
-  set_target_properties(cbc_lib PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
-endif()
 
 set_target_properties(cbc_lib PROPERTIES
   CXX_VISIBILITY_PRESET hidden
@@ -48,9 +48,6 @@ target_link_options(cbcengine PRIVATE
   "-Wl,-z,now")
 
 set_target_properties(cbcengine PROPERTIES POSITION_INDEPENDENT_CODE ON)
-if(ipo_supported)
-  set_target_properties(cbcengine PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
-endif()
 
 enable_testing()
 add_subdirectory(test)
