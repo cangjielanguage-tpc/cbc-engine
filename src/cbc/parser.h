@@ -1,5 +1,7 @@
 #pragma once
 
+#include <type_traits>
+
 #include "api/resolver.h"
 #include "cbc/decoder.h"
 #include "cbc/isa.h"
@@ -22,7 +24,7 @@ protected:
     virtual void DoExtend(Sign sign, IReg dst, IReg src, uint64_t imm)                                = 0;
     virtual void DoBFX(Sign sign, Width res_width, Width arg_width, IReg dst, IReg src, uint64_t imm) = 0;
 
-    virtual void DoMov(Width width, IReg dst, IReg src, bool isReference) = 0;
+    virtual void DoMov(IReg dst, IReg src, bool isReference) = 0;
     virtual void DoMovVST(IReg dst, IReg src)                             = 0;
     virtual void DoMovImm(Width width, IReg dst, uint64_t imm)            = 0;
 
@@ -31,11 +33,11 @@ protected:
     virtual void DoCommonOp(Common op, CbcTypeKind tkind, IReg dst, IReg src1, IReg src2)     = 0;
     virtual void DoCommonOp(Common op, CbcTypeKind tkind, IReg dst, IReg src1, uint64_t src2) = 0;
 
-    virtual void DoCheckedOp(Common op, CbcTypeKind tkind, IReg dst, IReg src1, IReg src2)     = 0;
-    virtual void DoCheckedOp(Common op, CbcTypeKind tkind, IReg dst, IReg src1, uint64_t src2) = 0;
+    virtual void DoCheckedOp(checked_opc op, CbcTypeKind tkind, IReg dst, IReg src1, IReg src2)     = 0;
+    virtual void DoCheckedOp(checked_opc op, CbcTypeKind tkind, IReg dst, IReg src1, uint64_t src2) = 0;
 
-    virtual void DoBinaryFloatOp(Common op, CbcTypeKind tkind, FReg dst, FReg src1, FReg src2)     = 0;
-    virtual void DoBinaryFloatOp(Common op, CbcTypeKind tkind, FReg dst, FReg src1, uint64_t src2) = 0;
+    virtual void DoBinaryFloatOp(float_opc op, CbcTypeKind tkind, FReg dst, FReg src1, FReg src2)     = 0;
+    virtual void DoBinaryFloatOp(float_opc op, CbcTypeKind tkind, FReg dst, FReg src1, uint64_t src2) = 0;
 
     virtual void DoReturn(Width width, IReg dst) = 0;
     virtual void DoReturn(Width width, FReg dst) = 0;
@@ -51,6 +53,9 @@ protected:
 
 private:
     void InterpretOne(uint32_t first_byte);
+
+    template<opcode opc, typename I = ::std::enable_if<0 <= static_cast<opcode_t>(opc) && static_cast<opcode_t>(opc) <= static_cast<opcode_t>(opcode::SetIf64Float), bool>>
+    void decode(Decoder::ByteReader& codeReader);
 
     void InterpretImmExt(uint64_t imm, uint32_t bits, Sign sign);
 
@@ -78,5 +83,8 @@ private:
     uint8_t* codeEnd;
     Immediate::Decoding immDecoder;
 };
+
+    template<opcode opc, typename I = ::std::enable_if<0 <= static_cast<opcode_t>(opc) && static_cast<opcode_t>(opc) <= static_cast<opcode_t>(opcode::SetIf64Float), bool>>
+    void decode(Decoder::ByteReader& codeReader) {}
 
 } // namespace Cbc

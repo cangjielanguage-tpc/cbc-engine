@@ -27,180 +27,95 @@ void Parser::Interpret()
 
 void Parser::InterpretOne(uint32_t opcode)
 {
-    switch (opcode) {
-        case B2rr::Fmt(Common::MOV, Width::W32):  B2rrMov(B2rr::Decode(codeReader), Width::W32, false); break;
-        case B2rr::Fmt(Common::MOV, Width::W64):  B2rrMov(B2rr::Decode(codeReader), Width::W64, false); break;
-        case B2rr::Fmt(Common::MVST, Width::W32): B2rrMovVST(B2rr::Decode(codeReader)); break;
-        case B2rr::Fmt(Common::MREF, Width::W64): B2rrMov(B2rr::Decode(codeReader), Width::W64, true); break;
-
-        case B2rr::Fmt(Common::ADD, Width::W32):
-            B2rrCommon(B2rr::Decode(codeReader), Common::ADD, CbcTypeKind::I32);
-            break;
-        case B2rr::Fmt(Common::ADD, Width::W64):
-            B2rrCommon(B2rr::Decode(codeReader), Common::ADD, CbcTypeKind::I64);
-            break;
-        case B2rr::Fmt(Common::SUB, Width::W32): B2rrSub(B2rr::Decode(codeReader), CbcTypeKind::I32); break;
-        case B2rr::Fmt(Common::SUB, Width::W64): B2rrSub(B2rr::Decode(codeReader), CbcTypeKind::I64); break;
-        case B2rr::Fmt(Common::MUL, Width::W32):
-            B2rrCommon(B2rr::Decode(codeReader), Common::MUL, CbcTypeKind::I32);
-            break;
-        case B2rr::Fmt(Common::MUL, Width::W64):
-            B2rrCommon(B2rr::Decode(codeReader), Common::MUL, CbcTypeKind::I64);
-            break;
-        case B2rr::Fmt(Common::AND, Width::W32):
-            B2rrCommon(B2rr::Decode(codeReader), Common::AND, CbcTypeKind::I32);
-            break;
-        case B2rr::Fmt(Common::AND, Width::W64):
-            B2rrCommon(B2rr::Decode(codeReader), Common::AND, CbcTypeKind::I64);
-            break;
-        case B2rr::Fmt(Common::OR, Width::W32):
-            B2rrCommon(B2rr::Decode(codeReader), Common::OR, CbcTypeKind::I32);
-            break;
-        case B2rr::Fmt(Common::OR, Width::W64):
-            B2rrCommon(B2rr::Decode(codeReader), Common::OR, CbcTypeKind::I64);
-            break;
-        case B2rr::Fmt(Common::XOR, Width::W32):
-            B2rrCommon(B2rr::Decode(codeReader), Common::XOR, CbcTypeKind::I32);
-            break;
-        case B2rr::Fmt(Common::XOR, Width::W64):
-            B2rrCommon(B2rr::Decode(codeReader), Common::XOR, CbcTypeKind::I64);
-            break;
-
-        case B2hr::Fmt(Common::MOV, Width::W32): B2hrMov(B2hr::Decode(codeReader), Width::W32); break;
-        case B2hr::Fmt(Common::MOV, Width::W64): B2hrMov(B2hr::Decode(codeReader), Width::W64); break;
-        case B2hr::Fmt(Common::ADD, Width::W32):
-            B2hrCommon(B2hr::Decode(codeReader), Common::ADD, CbcTypeKind::I32);
-            break;
-        case B2hr::Fmt(Common::ADD, Width::W64):
-            B2hrCommon(B2hr::Decode(codeReader), Common::ADD, CbcTypeKind::I64);
-            break;
-        case B2hr::Fmt(Common::MUL, Width::W32):
-            B2hrCommon(B2hr::Decode(codeReader), Common::MUL, CbcTypeKind::I32);
-            break;
-        case B2hr::Fmt(Common::MUL, Width::W64):
-            B2hrCommon(B2hr::Decode(codeReader), Common::MUL, CbcTypeKind::I64);
-            break;
-        case B2hr::Fmt(Common::AND, Width::W32):
-            B2hrCommon(B2hr::Decode(codeReader), Common::AND, CbcTypeKind::I32);
-            break;
-        case B2hr::Fmt(Common::AND, Width::W64):
-            B2hrCommon(B2hr::Decode(codeReader), Common::AND, CbcTypeKind::I64);
-            break;
-        case B2hr::Fmt(Common::OR, Width::W32):
-            B2hrCommon(B2hr::Decode(codeReader), Common::OR, CbcTypeKind::I32);
-            break;
-        case B2hr::Fmt(Common::OR, Width::W64):
-            B2hrCommon(B2hr::Decode(codeReader), Common::OR, CbcTypeKind::I64);
-            break;
-        case B2hr::Fmt(Common::XOR, Width::W32):
-            B2hrCommon(B2hr::Decode(codeReader), Common::XOR, CbcTypeKind::I32);
-            break;
-        case B2hr::Fmt(Common::XOR, Width::W64):
-            B2hrCommon(B2hr::Decode(codeReader), Common::XOR, CbcTypeKind::I64);
-            break;
-        case B2hr::Fmt(Common::EXT, Sign::SIGNED):   B2hrExtend(B2hr::Decode(codeReader), Sign::SIGNED); break;
-        case B2hr::Fmt(Common::EXT, Sign::UNSIGNED): B2hrExtend(B2hr::Decode(codeReader), Sign::UNSIGNED); break;
-
-        case B3xrrr::Fmt(OP7A::COMMON, Sign::SIGNED): B3xrrrCommon(B3xrrr::Decode(codeReader), Sign::SIGNED); break;
-
-        case B1piN::Fmt(B1piN::Size::SZ_8, Sign::SIGNED):
-            InterpretImmExt(Imm8::Decode(codeReader).imm, 8, Sign::SIGNED);
-            break;
-        case B1piN::Fmt(B1piN::Size::SZ_16, Sign::SIGNED):
-            InterpretImmExt(Imm16::Decode(codeReader).imm, 16, Sign::SIGNED);
-            break;
-        case B1piN::Fmt(B1piN::Size::SZ_32, Sign::SIGNED):
-            InterpretImmExt(Imm32::Decode(codeReader).imm, 32, Sign::SIGNED);
-            break;
-        case B1piN::Fmt(B1piN::Size::SZ_48, Sign::SIGNED):
-            InterpretImmExt(Imm48::Decode(codeReader).imm, 48, Sign::SIGNED);
-            break;
-        case B1piN::Fmt(B1piN::Size::SZ_8, Sign::UNSIGNED):
-            InterpretImmExt(Imm8::Decode(codeReader).imm, 8, Sign::UNSIGNED);
-            break;
-        case B1piN::Fmt(B1piN::Size::SZ_16, Sign::UNSIGNED):
-            InterpretImmExt(Imm16::Decode(codeReader).imm, 16, Sign::UNSIGNED);
-            break;
-        case B1piN::Fmt(B1piN::Size::SZ_32, Sign::UNSIGNED):
-            InterpretImmExt(Imm32::Decode(codeReader).imm, 32, Sign::UNSIGNED);
-            break;
-
-        case ConditionalBranch::B2rrd8::Fmt(CC::EQ, Width::W32):
-            B2rrd8BranchIf(ConditionalBranch::B2rrd8::Decode(codeReader), CC::EQ, Width::W32);
-            break;
-        case ConditionalBranch::B2rrd8::Fmt(CC::EQ, Width::W64):
-            B2rrd8BranchIf(ConditionalBranch::B2rrd8::Decode(codeReader), CC::EQ, Width::W64);
-            break;
-        case ConditionalBranch::B2rrd8::Fmt(CC::NE, Width::W32):
-            B2rrd8BranchIf(ConditionalBranch::B2rrd8::Decode(codeReader), CC::NE, Width::W32);
-            break;
-        case ConditionalBranch::B2rrd8::Fmt(CC::NE, Width::W64):
-            B2rrd8BranchIf(ConditionalBranch::B2rrd8::Decode(codeReader), CC::NE, Width::W64);
-            break;
-        case ConditionalBranch::B2rrd8::Fmt(CC::LT, Width::W32):
-            B2rrd8BranchIf(ConditionalBranch::B2rrd8::Decode(codeReader), CC::LT, Width::W32);
-            break;
-        case ConditionalBranch::B2rrd8::Fmt(CC::LT, Width::W64):
-            B2rrd8BranchIf(ConditionalBranch::B2rrd8::Decode(codeReader), CC::LT, Width::W64);
-            break;
-        case ConditionalBranch::B2rrd8::Fmt(CC::GE, Width::W32):
-            B2rrd8BranchIf(ConditionalBranch::B2rrd8::Decode(codeReader), CC::GE, Width::W32);
-            break;
-        case ConditionalBranch::B2rrd8::Fmt(CC::GE, Width::W64):
-            B2rrd8BranchIf(ConditionalBranch::B2rrd8::Decode(codeReader), CC::GE, Width::W64);
-            break;
-        case ConditionalBranch::B2rrd8::Fmt(CC::ULT, Width::W32):
-            B2rrd8BranchIf(ConditionalBranch::B2rrd8::Decode(codeReader), CC::ULT, Width::W32);
-            break;
-        case ConditionalBranch::B2rrd8::Fmt(CC::ULT, Width::W64):
-            B2rrd8BranchIf(ConditionalBranch::B2rrd8::Decode(codeReader), CC::ULT, Width::W64);
-            break;
-        case ConditionalBranch::B2rrd8::Fmt(CC::UGE, Width::W32):
-            B2rrd8BranchIf(ConditionalBranch::B2rrd8::Decode(codeReader), CC::UGE, Width::W32);
-            break;
-        case ConditionalBranch::B2rrd8::Fmt(CC::UGE, Width::W64):
-            B2rrd8BranchIf(ConditionalBranch::B2rrd8::Decode(codeReader), CC::UGE, Width::W64);
-            break;
-        case ConditionalBranch::B2rrd8::Fmt(CC::REQ, Width::W64):
-            B2rrd8BranchIf(ConditionalBranch::B2rrd8::Decode(codeReader), CC::REQ, Width::W64);
-            break;
-        case ConditionalBranch::B2rrd8::Fmt(CC::RNE, Width::W64):
-            B2rrd8BranchIf(ConditionalBranch::B2rrd8::Decode(codeReader), CC::RNE, Width::W64);
-            break;
-
-        case ConditionalBranch::B3xrrdT::BranchIf(ConditionalBranch::B3xrrdT::T::T8, 0):
-            B3xrrdTBranchIf(ConditionalBranch::B3xrrdT::Decode(codeReader), ConditionalBranch::B3xrrdT::T::T8, 0);
-        case ConditionalBranch::B3xrrdT::BranchIf(ConditionalBranch::B3xrrdT::T::T8, 1):
-            B3xrrdTBranchIf(ConditionalBranch::B3xrrdT::Decode(codeReader), ConditionalBranch::B3xrrdT::T::T8, 1);
-        case ConditionalBranch::B3xrrdT::BranchIf(ConditionalBranch::B3xrrdT::T::T16, 0):
-            B3xrrdTBranchIf(ConditionalBranch::B3xrrdT::Decode(codeReader), ConditionalBranch::B3xrrdT::T::T16, 0);
-        case ConditionalBranch::B3xrrdT::BranchIf(ConditionalBranch::B3xrrdT::T::T16, 1):
-            B3xrrdTBranchIf(ConditionalBranch::B3xrrdT::Decode(codeReader), ConditionalBranch::B3xrrdT::T::T16, 1);
-        case ConditionalBranch::B3xrrdT::BranchIf(ConditionalBranch::B3xrrdT::T::T0, 0):
-            B3xrrdTBranchIf(ConditionalBranch::B3xrrdT::Decode(codeReader), ConditionalBranch::B3xrrdT::T::T0, 0);
-        case ConditionalBranch::B3xrrdT::BranchIf(ConditionalBranch::B3xrrdT::T::T0, 1):
-            B3xrrdTBranchIf(ConditionalBranch::B3xrrdT::Decode(codeReader), ConditionalBranch::B3xrrdT::T::T0, 1);
-
-        case ConditionalBranch::B2xri8d8::Fmt(0): B2xri8d8BranchIf(ConditionalBranch::B2xri8d8::Decode(codeReader), 0);
-        case ConditionalBranch::B2xri8d8::Fmt(1): B2xri8d8BranchIf(ConditionalBranch::B2xri8d8::Decode(codeReader), 1);
-        case ConditionalBranch::B2xri16dM::BranchIf(ConditionalBranch::B2xri16dM::M::M0, 0):
-            B2xri16d0BranchIf(ConditionalBranch::B2xri16dM::Decode(codeReader), 0);
-        case ConditionalBranch::B2xri16dM::BranchIf(ConditionalBranch::B2xri16dM::M::M0, 1):
-            B2xri16d0BranchIf(ConditionalBranch::B2xri16dM::Decode(codeReader), 1);
-        case ConditionalBranch::B2xri16dM::BranchIf(ConditionalBranch::B2xri16dM::M::M16, 0):
-            B2xri16d16BranchIf(ConditionalBranch::B2xri16dM::Decode(codeReader), 0);
-        case ConditionalBranch::B2xri16dM::BranchIf(ConditionalBranch::B2xri16dM::M::M16, 1):
-            B2xri16d16BranchIf(ConditionalBranch::B2xri16dM::Decode(codeReader), 1);
-
-        case SymbolicObjectControl::Opc0100::OPCODE:
-            B2xrOpc0100SOC(SymbolicObjectControl::B2xr::Decode(codeReader));
-            break;
-
-        case SymbolicObjectControl::Opc1000::OPCODE:
-            B2xrOpc1000SOC(SymbolicObjectControl::B2xrI::Decode(codeReader));
-            break;
-
-        default: ASSERTION(false, "Unexpected opcode"); break;
+    switch(opcode) {
+    case static_cast<opcode_t>(opcode::Mov32): { decode<opcode::Mov32, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Mov64): { decode<opcode::Mov64, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Mov32i): { decode<opcode::Mov32i, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Mov64i): { decode<opcode::Mov64i, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::MovVst): { decode<opcode::MovVst, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::MovRef): { decode<opcode::MovRef, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::ExtendSigned): { decode<opcode::ExtendSigned, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::ExtendUnsigned): { decode<opcode::ExtendUnsigned, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Add32): { decode<opcode::Add32, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Sub32): { decode<opcode::Sub32, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Mul32): { decode<opcode::Mul32, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::And32): { decode<opcode::And32, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Or32): { decode<opcode::Or32, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Xor32): { decode<opcode::Xor32, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Div32Signed): { decode<opcode::Div32Signed, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Rem32Signed): { decode<opcode::Rem32Signed, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Div32Unsigned): { decode<opcode::Div32Unsigned, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Rem32Unsigned): { decode<opcode::Rem32Unsigned, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Lsr32): { decode<opcode::Lsr32, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Asr32): { decode<opcode::Asr32, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Lsl32): { decode<opcode::Lsl32, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Neg32): { decode<opcode::Neg32, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Add64): { decode<opcode::Add64, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Sub64): { decode<opcode::Sub64, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Mul64): { decode<opcode::Mul64, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::And64): { decode<opcode::And64, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Or64): { decode<opcode::Or64, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Xor64): { decode<opcode::Xor64, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Div64Signed): { decode<opcode::Div64Signed, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Rem64Signed): { decode<opcode::Rem64Signed, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Div64Unsigned): { decode<opcode::Div64Unsigned, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Rem64Unsigned): { decode<opcode::Rem64Unsigned, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Lsr64): { decode<opcode::Lsr64, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Asr64): { decode<opcode::Asr64, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Lsl64): { decode<opcode::Lsl64, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Neg64): { decode<opcode::Neg64, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Add32Imm): { decode<opcode::Add32Imm, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Sub32Imm): { decode<opcode::Sub32Imm, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Mul32Imm): { decode<opcode::Mul32Imm, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::And32Imm): { decode<opcode::And32Imm, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Or32Imm): { decode<opcode::Or32Imm, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Xor32Imm): { decode<opcode::Xor32Imm, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Div32SignedImm): { decode<opcode::Div32SignedImm, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Rem32SignedImm): { decode<opcode::Rem32SignedImm, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Div32UnsignedImm): { decode<opcode::Div32UnsignedImm, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Rem32UnsignedImm): { decode<opcode::Rem32UnsignedImm, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Lsr32Imm): { decode<opcode::Lsr32Imm, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Asr32Imm): { decode<opcode::Asr32Imm, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Lsl32Imm): { decode<opcode::Lsl32Imm, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Neg32Imm): { decode<opcode::Neg32Imm, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Add64Imm): { decode<opcode::Add64Imm, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Sub64Imm): { decode<opcode::Sub64Imm, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Mul64Imm): { decode<opcode::Mul64Imm, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::And64Imm): { decode<opcode::And64Imm, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Or64Imm): { decode<opcode::Or64Imm, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Xor64Imm): { decode<opcode::Xor64Imm, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Div64SignedImm): { decode<opcode::Div64SignedImm, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Rem64SignedImm): { decode<opcode::Rem64SignedImm, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Div64UnsignedImm): { decode<opcode::Div64UnsignedImm, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Rem64UnsignedImm): { decode<opcode::Rem64UnsignedImm, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Lsr64Imm): { decode<opcode::Lsr64Imm, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Asr64Imm): { decode<opcode::Asr64Imm, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Lsl64Imm): { decode<opcode::Lsl64Imm, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Neg64Imm): { decode<opcode::Neg64Imm, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::IntegerCommon32): { decode<opcode::IntegerCommon32, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::IntegerCommon64): { decode<opcode::IntegerCommon64, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::IntegerCommon32K0): { decode<opcode::IntegerCommon32K0, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::IntegerCommon64K0): { decode<opcode::IntegerCommon64K0, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::IntegerCommon32K8): { decode<opcode::IntegerCommon32K8, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::IntegerCommon64K8): { decode<opcode::IntegerCommon64K8, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::IntegerCommon32K16): { decode<opcode::IntegerCommon32K16, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::IntegerCommon64K16): { decode<opcode::IntegerCommon64K16, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::CheckedAdd): { decode<opcode::CheckedAdd, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::CheckedSub): { decode<opcode::CheckedSub, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::CheckedMul): { decode<opcode::CheckedMul, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::CheckedDiv): { decode<opcode::CheckedDiv, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::CheckedAddImm): { decode<opcode::CheckedAddImm, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::CheckedSubImm): { decode<opcode::CheckedSubImm, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::CheckedMulImm): { decode<opcode::CheckedMulImm, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::CheckedDivImm): { decode<opcode::CheckedDivImm, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::Bfx): { decode<opcode::Bfx, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::FloatCommon): { decode<opcode::FloatCommon, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::FloatMisc): { decode<opcode::FloatMisc, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::SetIf32): { decode<opcode::SetIf32, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::SetIf64): { decode<opcode::SetIf64, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::SetIf32Float): { decode<opcode::SetIf32Float, void>(codeReader); break; }
+    case static_cast<opcode_t>(opcode::SetIf64Float): { decode<opcode::SetIf64Float, void>(codeReader); break; }
+    default: ASSERTION(false, "Unexpected opcode"); break;
     }
 }
 
@@ -208,7 +123,7 @@ void Parser::InterpretImmExt(uint64_t imm, uint32_t bits, Sign sign) { immDecode
 
 void Parser::B2rrMov(B2rr args, Width width, bool isReference)
 {
-    DoMov(width, args.rr.x.IR(), args.rr.y.IR(), isReference);
+    DoMov(args.rr.x.IR(), args.rr.y.IR(), isReference);
 }
 
 void Parser::B2rrMovVST(B2rr args) { DoMovVST(args.rr.x.IR(), args.rr.y.IR()); }
@@ -221,7 +136,7 @@ void Parser::B2rrCommon(B2rr args, Common op, CbcTypeKind tkind)
 void Parser::B2rrSub(B2rr args, CbcTypeKind tkind)
 {
     auto rx = args.rr.x.IR(), ry = args.rr.y.IR();
-    if (rx == IReg::IRZ) {
+    if (rx.Raw() == IReg::IRZ) {
         DoINeg(tkind, ry, ry);
     } else {
         DoCommonOp(Common::SUB, tkind, rx, rx, ry);
@@ -362,4 +277,4 @@ void Parser::B2xrOpc1000SOC(SymbolicObjectControl::B2xrI args)
     }
 }
 
-} // namespace Cbc
+} // namespace Cb

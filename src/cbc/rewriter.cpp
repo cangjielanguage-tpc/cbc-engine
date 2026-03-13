@@ -10,7 +10,7 @@ void Rewriter::DoBFX(Sign sign, Width res_width, Width arg_width, IReg dst, IReg
     ASSERTION(false, "Not implmeneted");
 }
 
-void Rewriter::DoMov(Width width, IReg dst, IReg src, bool isReference)
+void Rewriter::DoMov(IReg dst, IReg src, bool isReference)
 {
     if (isReference) {
         e.MovRef(dst, src);
@@ -35,30 +35,30 @@ void Rewriter::DoCommonOp(Common op, CbcTypeKind tkind, IReg dst, IReg src1, uin
     e.BinaryImm(op, Width::FromCbcTypeKind(tkind), dst, src1, src2);
 }
 
-void Rewriter::DoCheckedOp(Common op, CbcTypeKind tkind, IReg dst, IReg src1, IReg src2)
+void Rewriter::DoCheckedOp(checked_opc op, CbcTypeKind tkind, IReg dst, IReg src1, IReg src2)
 {
     ASSERTION(false, "Not implmeneted");
 }
 
-void Rewriter::DoCheckedOp(Common op, CbcTypeKind tkind, IReg dst, IReg src1, uint64_t src2)
+void Rewriter::DoCheckedOp(checked_opc op, CbcTypeKind tkind, IReg dst, IReg src1, uint64_t src2)
 {
     ASSERTION(false, "Not implmeneted");
 }
 
-void Rewriter::DoBinaryFloatOp(Common op, CbcTypeKind tkind, FReg dst, FReg src1, FReg src2)
+void Rewriter::DoBinaryFloatOp(float_opc op, CbcTypeKind tkind, FReg dst, FReg src1, FReg src2)
 {
     auto width = Width::FromCbcTypeKind(tkind);
-    switch (op) {
-        case Common::ADD:  e.Add(width, dst, src1, src2); break;
-        case Common::SUB:  e.Sub(width, dst, src1, src2); break;
-        case Common::MUL:  e.Mul(width, dst, src1, src2); break;
-        case Common::SDIV: e.Div(width, dst, src1, src2); break;
+    switch (static_cast<opcode_t>(op)) {
+        case static_cast<opcode_t>(float_opc::Add):  e.Add(width, dst, src1, src2); break;
+        case static_cast<opcode_t>(float_opc::Sub):  e.Sub(width, dst, src1, src2); break;
+        case static_cast<opcode_t>(float_opc::Mul):  e.Mul(width, dst, src1, src2); break;
+        case static_cast<opcode_t>(float_opc::Div): e.Div(width, dst, src1, src2); break;
 
         default: ASSERTION(false, "Unexpected op"); break;
     }
 }
 
-void Rewriter::DoBinaryFloatOp(Common op, CbcTypeKind tkind, FReg dst, FReg src1, uint64_t src2)
+void Rewriter::DoBinaryFloatOp(float_opc op, CbcTypeKind tkind, FReg dst, FReg src1, uint64_t src2)
 {
     ASSERTION(false, "Not implmeneted");
 }
