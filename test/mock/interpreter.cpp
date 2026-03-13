@@ -55,6 +55,22 @@ public:
     }
 };
 
+static void InterpreterI2CallTest(Ectype* ectype, ThreadHandle handle, FunctionHandle* fuh);
+
+static void InterpretationLoop(
+    Ectype* ectype, Frame* frame, ThreadHandle th, LiteralTable* literals, Decoder::ByteReader& reader
+)
+{
+    while (true) {
+        auto thunk = Cbc::RT::InterpretationLoop<Test>(ectype, frame, th, literals, reader);
+        if (!thunk.function) {
+            break;
+        }
+        ASSERT(thunk.function == &InterpreterI2CallTest);
+        InterpreterI2CallTest(ectype, th, reinterpret_cast<FunctionHandle*>(thunk.arg));
+    }
+}
+
 template <typename RegType>
 Value::Primitive Interpret(
     Code code,
@@ -75,14 +91,12 @@ Value::Primitive Interpret(
     ectype.Put(FReg::FR0, fr0);
     ectype.Put(FReg::FR1, fr1);
 
-    while (!s.IsNullified()) {
-        Cbc::RT::InterpretationLoop<Test>(&ectype, frame, nullptr, code.literals, s);
-    }
+    InterpretationLoop(&ectype, frame, nullptr, code.literals, s);
 
     return ectype.GetPrimitive(resReg);
 }
 
-static void InterpreterI2CallTest(Ectype* ectype, Frame* oldFrame, ThreadHandle handle, FunctionHandle* fuh)
+static void InterpreterI2CallTest(Ectype* ectype, ThreadHandle handle, FunctionHandle* fuh)
 {
     auto dynFuh   = reinterpret_cast<DynamicFunctionHandle*>(fuh);
     auto bytecode = dynFuh->bytecode.load();
@@ -94,9 +108,7 @@ static void InterpreterI2CallTest(Ectype* ectype, Frame* oldFrame, ThreadHandle 
     auto code = bytecode->code;
 
     Decoder::ByteReader s(code.bytecode, code.bytecode, code.bytecode + code.bytecodeSize);
-    while (!s.IsNullified()) {
-        Cbc::RT::InterpretationLoop<Test>(ectype, nullptr, handle, code.literals, s);
-    }
+    InterpretationLoop(ectype, nullptr, handle, code.literals, s);
 }
 
 } // namespace Interpretation
@@ -135,4 +147,8 @@ Interpretation::Value::Primitive InterpretFPRes(
     return Interpretation::Interpret<Cbc::FReg>(code, frame, U32(0), U32(0), fr0, fr1, Cbc::FReg::FR0);
 }
 
-void InitializeMockInterpreter() { Interpretation::SetI2CallForInterpreter(&Interpretation::InterpreterI2CallTest); }
+void InitializeMockInterpreter()
+{
+    auto i2call = reinterpret_cast<Interpretation::I2Call>(&Interpretation::InterpreterI2CallTest);
+    Interpretation::SetI2CallForInterpreter(i2call);
+}

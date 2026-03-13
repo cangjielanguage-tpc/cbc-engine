@@ -13,8 +13,13 @@ namespace RT {
 using Width = Cbc::Format::Width;
 using namespace Interpretation;
 
+struct Thunk {
+    void* function;
+    void* arg;
+};
+
 template <typename RTI>
-void InterpretationLoop(
+Thunk InterpretationLoop(
     Ectype* ectype, Frame* frame, ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
 )
 {
@@ -159,12 +164,10 @@ void InterpretationLoop(
 // -- Main opcode table --
 HALT: {
     ASSERTION(false, "halt");
-    reader0.Nullify();
-    return;
+    return {};
 }
 RET: {
-    reader0.Nullify();
-    return;
+    return {};
 }
 MOV: {
     auto args = B2rr::Decode(reader);
@@ -469,8 +472,10 @@ DIRECT_CALL: {
     //
     // Instead, the following call will drop the current frame manually
     // (outside of unit-test framework).
+
     reader0 = reader; // save current pc
-    return fuh->i2call(ectype, frame, handle, fuh);
+
+    return { fuh->i2call, reinterpret_cast<void*>(fuh) };
 }
 MEMSPACE: {
     B1::Decode(reader);
@@ -482,7 +487,7 @@ MEMSPACE: {
 
 MEM_HALT: {
     ASSERTION(false, "halt");
-    return;
+    return {};
 }
 
 OFFS16: {
