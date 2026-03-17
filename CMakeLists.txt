@@ -34,6 +34,7 @@ set_target_properties(cbc_lib PROPERTIES
 
 target_include_directories(cbc_lib PUBLIC "src")
 target_include_directories(cbc_lib PUBLIC "include")
+target_include_directories(cbc_lib PUBLIC "third_party/mrt/include")
 
 if(UNIT_TEST_MODE)
   target_compile_definitions(cbc_lib PRIVATE UNIT_TEST_MODE)

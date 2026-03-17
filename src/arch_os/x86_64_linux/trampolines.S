@@ -6,6 +6,26 @@
 .global engine_prepare_bytecode
 .global engine_interpretation_loop
 
+// exported
+.global engine_c2i_call_pc_start
+.hidden engine_c2i_call_pc_start
+
+.global engine_c2i_call_pc_end
+.hidden engine_c2i_call_pc_end
+
+.global engine_universal_direct_call
+.hidden engine_universal_direct_call
+
+.global engine_trampolines_direct_start
+.hidden engine_trampolines_direct_start
+
+.global engine_iregs_only_c2i_call
+.hidden engine_iregs_only_c2i_call
+
+.global engine_i2i_call
+.hidden engine_i2i_call
+
+
 // Fake Ectype* instance represented as global
 // FIXME: get Ectype* instance from ThreadHandle
 .bss
@@ -16,8 +36,6 @@ engine_fake_ectype:
 
 .text
 .align 16
-.global engine_universal_direct_call
-.hidden engine_universal_direct_call
 engine_universal_direct_call:
   lea   r10, [rip + engine_universal_direct_function_handles]
   mov   rax, [r10 + rax * 8] // put FuH on rax
@@ -26,8 +44,6 @@ engine_universal_direct_call:
 
 .text
 .align 16
-.global engine_trampolines_direct_start
-.hidden engine_trampolines_direct_start
 engine_trampolines_direct_start:
 .macro repeat_call count
   .set i, 0
@@ -44,9 +60,8 @@ engine_trampolines_direct_start:
 
 .text
 .align 16
-.global engine_iregs_only_c2i_call
-.hidden engine_iregs_only_c2i_call
 // System-V abi, except r15 can be changed after context-switches
+engine_c2i_call_pc_start:
 engine_iregs_only_c2i_call:
   push  rbp
   mov   rbp, rsp
@@ -85,12 +100,12 @@ engine_iregs_only_c2i_call:
 
   pop   rbp
   ret
+engine_c2i_call_pc_end:
+  ud2
 
 
 .text
 .align 16
-.global engine_i2i_call
-.hidden engine_i2i_call
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: fuh)
 // preserved: TLS_REG, ECTYPE_REG, rbp
 engine_i2i_call:
