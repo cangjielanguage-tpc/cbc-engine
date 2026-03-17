@@ -1,8 +1,10 @@
 #include "terms.h"
 #include "definitions.h"
 #include "engine/identifiers.h"
+#include "index.h"
 #include "io/stream_file_reader.h"
 #include "reader.h"
+#include "region_data.h"
 
 namespace Symlevel {
 namespace Terms {
@@ -33,16 +35,17 @@ std::optional<Term> Term::ParseAndResolve(Engine::Session& session, IO::FileId f
             }
         }
 
-        case 0x0d: {
-            auto len = reader.ReadU8();
+        case 0x0c: {
+            auto len = reader.ReadU8() + 1; // +1 for ret type
 
             auto* data = static_cast<TermData*>(
                 session.Allocator().do_allocate(sizeof(TermData) + len * sizeof(Term), alignof(TermData))
             );
 
+            auto& regionData = session.CbcFileOf(fileId).GetRegionData();
             for (int i = 0; i < len; i++) {
-                auto subtermOffs = Offset<Term>(reader.ReadULEB());
-                auto subterm     = ParseAndResolve(session, fileId, subtermOffs);
+                auto subtermIdx = reader.ReadULEB();
+                auto subterm = regionData.queryTerm(session, { .region = 0, .index = subtermIdx }); // TODO: use region
                 if (subterm.has_value()) {
                     data->subterms[i] = subterm.value();
                 } else {

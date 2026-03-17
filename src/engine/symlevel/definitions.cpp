@@ -22,9 +22,12 @@ TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId
     auto pkgIndex     = reader.ReadU16();
     auto superTypeIdx = reader.ReadULEB();
 
-    auto methodIndex = MethodIndex::Read(fileId, raf, reader.Position());
+    auto methodIndex = MethodIndex::Read(reader, fileId);
+    auto fieldIndex  = FieldIndex::Read(reader, fileId);
 
-    return TypeDefinition(Engine::Identifier<TypeDefinition>(offset, fileId), name, std::move(methodIndex));
+    return TypeDefinition(
+        Engine::Identifier<TypeDefinition>(offset, fileId), name, std::move(methodIndex), std::move(fieldIndex)
+    );
 }
 
 TypeDefinition TypeDefinition::Resolve(Engine::Session& session, Engine::Identifier<TypeDefinition> identifier)
