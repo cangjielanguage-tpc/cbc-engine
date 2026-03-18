@@ -27,7 +27,7 @@ public:
 
     virtual Type* Resolve(Symlevel::Index<Type> index) = 0;
 
-    virtual Term* Resolve(Symlevel::Index<Term> index) = 0;
+    virtual Term* Resolve(Symlevel::Index<Symlevel::Terms::Term> index) = 0;
 
     virtual Method* Resolve(Symlevel::Index<Symlevel::MethodReference> index) = 0;
 

@@ -3,6 +3,7 @@
 #include "index.h"
 #include "offset.h"
 #include "references.h"
+#include "terms.h"
 
 namespace Symlevel {
 
@@ -10,8 +11,9 @@ class RegionData {
 public:
     static RegionData Read(IO::FileId fileId, IO::RandomAccessFile& file, uint32_t offset);
 
-    MethodReference queryMethod(Engine::Session& session, Index<MethodReference> index) const;
-    FieldReference queryField(Engine::Session& session, Index<FieldReference> index) const;
+    std::optional<MethodReference> queryMethod(Engine::Session& session, Index<MethodReference> index) const;
+    std::optional<FieldReference> queryField(Engine::Session& session, Index<FieldReference> index) const;
+    std::optional<Terms::Term> queryTerm(Engine::Session& session, Index<Terms::Term> index) const;
 
 private:
     RegionData(

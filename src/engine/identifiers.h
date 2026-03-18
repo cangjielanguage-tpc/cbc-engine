@@ -16,6 +16,8 @@ template <typename T> struct Identifier {
         packed.fileId = fileId;
     }
 
+    Identifier(uint64_t raw) : raw(raw) {}
+
     // Identifier(Identifier&& another) = default;
     // Identifier(Identifier const& another) = default;
 

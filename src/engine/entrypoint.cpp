@@ -5,14 +5,14 @@
 #include "engine/symlevel/io/filesystem.h"
 #include "interpreter/function_handle.h"
 
-
 static std::mutex g_InitializationGuard;
 static bool g_Initialized;
 static char const* g_cbcPath;
 static char const* g_mainCbc;
 
 // TODO: init runtime interface
-void EnsureEngineInitialized() {
+void EnsureEngineInitialized()
+{
     std::lock_guard guard(g_InitializationGuard);
     if (g_Initialized) {
         return;
