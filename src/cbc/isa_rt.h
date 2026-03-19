@@ -132,13 +132,13 @@ public:
 
     static_assert(OPCODE_NUM <= 256);
 
-    inline constexpr Opcode(const Value value) : _value(value) {}
+    constexpr Opcode(const Value value) : _value(value) {}
 
-    inline constexpr Opcode(const uint8_t raw) : _value(static_cast<Value>(raw)) {}
+    constexpr Opcode(const uint8_t raw) : _value(static_cast<Value>(raw)) {}
 
-    inline constexpr Opcode() : _value(HALT) {}
+    constexpr Opcode() : _value(HALT) {}
 
-    inline constexpr operator Value() const { return _value; }
+    constexpr operator Value() const { return _value; }
 
     inline static Opcode Decode(Decoder::ByteReader& reader)
     {
@@ -190,13 +190,13 @@ public:
 
     static_assert(OPCODE_NUM <= 256);
 
-    inline constexpr MemOpcode(const Value value) : _value(value) {}
+    constexpr MemOpcode(const Value value) : _value(value) {}
 
-    inline constexpr MemOpcode(const uint32_t raw) : _value(static_cast<Value>(raw)) {}
+    constexpr MemOpcode(const uint32_t raw) : _value(static_cast<Value>(raw)) {}
 
-    inline constexpr MemOpcode() : _value(MEM_HALT) {}
+    constexpr MemOpcode() : _value(MEM_HALT) {}
 
-    inline constexpr operator Value() const { return _value; }
+    constexpr operator Value() const { return _value; }
 
     inline static MemOpcode Decode(Decoder::ByteReader& reader)
     {
