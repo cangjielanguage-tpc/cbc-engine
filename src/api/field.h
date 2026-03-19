@@ -146,22 +146,22 @@ struct FieldFlags {
 public:
     constexpr FieldFlags() : accessRaw(0), flagsRaw(0) {}
 
-    inline constexpr AccessKind GetAccessKind() const { return static_cast<AccessKind::Value>(accessRaw); }
+    constexpr AccessKind GetAccessKind() const { return static_cast<AccessKind::Value>(accessRaw); }
 
-    inline constexpr bool Is(AccessKind kind) const { return GetAccessKind() == kind; }
+    constexpr bool Is(AccessKind kind) const { return GetAccessKind() == kind; }
 
-    inline constexpr bool Is(FieldFlag flag) const { return flagsRaw & (1 << static_cast<FieldFlag::Value>(flag)); }
+    constexpr bool Is(FieldFlag flag) const { return flagsRaw & (1 << static_cast<FieldFlag::Value>(flag)); }
 
-    inline constexpr FieldFlags Or(FieldFlag flag) const
+    constexpr FieldFlags Or(FieldFlag flag) const
     {
         FieldFlags copy  = *this;
         copy.flagsRaw   |= 1 << flag;
         return copy;
     }
 
-    inline constexpr FieldFlags Or(FieldFlag flag, bool shouldAdd) const { return shouldAdd ? Or(flag) : *this; }
+    constexpr FieldFlags Or(FieldFlag flag, bool shouldAdd) const { return shouldAdd ? Or(flag) : *this; }
 
-    inline constexpr FieldFlags With(AccessKind kind) const
+    constexpr FieldFlags With(AccessKind kind) const
     {
         FieldFlags copy = *this;
         copy.accessRaw  = kind;

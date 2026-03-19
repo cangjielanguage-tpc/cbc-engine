@@ -124,22 +124,22 @@ struct MethodFlags {
 public:
     constexpr MethodFlags() : accessRaw(0), flagsRaw(0) {}
 
-    inline constexpr AccessKind GetAccessKind() const { return static_cast<AccessKind::Value>(accessRaw); }
+    constexpr AccessKind GetAccessKind() const { return static_cast<AccessKind::Value>(accessRaw); }
 
-    inline constexpr bool Is(AccessKind kind) const { return GetAccessKind() == kind; }
+    constexpr bool Is(AccessKind kind) const { return GetAccessKind() == kind; }
 
-    inline constexpr bool Is(MethodFlag flag) const { return flagsRaw & (1 << static_cast<MethodFlag::Value>(flag)); }
+    constexpr bool Is(MethodFlag flag) const { return flagsRaw & (1 << static_cast<MethodFlag::Value>(flag)); }
 
-    inline constexpr MethodFlags Or(MethodFlag flag) const
+    constexpr MethodFlags Or(MethodFlag flag) const
     {
         MethodFlags copy  = *this;
         copy.flagsRaw    |= 1 << flag;
         return copy;
     }
 
-    inline constexpr MethodFlags Or(MethodFlag flag, bool shouldAdd) const { return shouldAdd ? Or(flag) : *this; }
+    constexpr MethodFlags Or(MethodFlag flag, bool shouldAdd) const { return shouldAdd ? Or(flag) : *this; }
 
-    inline constexpr MethodFlags With(AccessKind kind) const
+    constexpr MethodFlags With(AccessKind kind) const
     {
         MethodFlags copy = *this;
         copy.accessRaw   = kind;

@@ -38,17 +38,17 @@ public:
 
     constexpr CbcTypeKind(const Value value) : value(value) {}
 
-    inline constexpr bool IsFloatingPoint() const { return value == F32 || value == F64; }
+    constexpr bool IsFloatingPoint() const { return value == F32 || value == F64; }
 
-    inline constexpr bool IsNullableReference() const { return value == REF; }
+    constexpr bool IsNullableReference() const { return value == REF; }
 
-    inline constexpr bool IsNonNullableReference() const { return value == NNREF; }
+    constexpr bool IsNonNullableReference() const { return value == NNREF; }
 
-    inline constexpr bool IsReference() const { return IsNullableReference() || IsNonNullableReference(); }
+    constexpr bool IsReference() const { return IsNullableReference() || IsNonNullableReference(); }
 
-    inline constexpr bool IsVArray() const { return value == VA; }
+    constexpr bool IsVArray() const { return value == VA; }
 
-    inline constexpr bool IsRecord() const { return value == REC || IsVArray(); }
+    constexpr bool IsRecord() const { return value == REC || IsVArray(); }
 
     constexpr bool IsPrimitive() const
     {
@@ -138,7 +138,7 @@ public:
         }
     }
 
-    inline constexpr operator Value() const { return value; }
+    constexpr operator Value() const { return value; }
 
     std::string_view ToString() const
     {
