@@ -7,7 +7,7 @@
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
 
-static cjnative_interface_t cjnative_interface_instance;
+static cjnative_interface_t g_CJNativeInterfaceInstance;
 static std::mutex g_InitializationGuard;
 static bool g_Initialized;
 static char const* g_cbcPath;
@@ -93,7 +93,7 @@ CBC_EXPORT void engine_runtime_bridge_initialize(
     (void)size;
     (void)options;
 
-    cjnative_interface_instance             = *rtInterf;
+    g_CJNativeInterfaceInstance             = *rtInterf;
     interpInterf->version                   = 1;
     interpInterf->fiber_specific_data_size  = sizeof(Interpretation::Ectype);
     interpInterf->iterator_size             = 0; // FIXME: remove
