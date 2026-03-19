@@ -18,27 +18,27 @@ struct Thunk {
     void* arg;
 };
 
-/// The interpretation loop can be used in two scenarious:
-/// - (main scenario) as interpreter for real runtime;
-/// - as part of unit test framework;
+/// The interpretation loop can be used in two scenarios:
+/// - (Main scenario) As an interpreter for the real runtime.
+/// - As part of a unit test framework.
 ///
-/// To share the code, an actual RuntimeInterface that is being used from interpreter is injected
-/// as template parameter.
+/// To share code, the actual `RuntimeInterface` used by the interpreter is injected
+/// as a template parameter.
 ///
-/// For the main scenario the layout of the stack MUST avoid non-leaf C++ frames
+/// For the main scenario, the stack layout MUST avoid non-leaf C++ frames
 /// to handle fiber stack expansion properly.
-/// To achieve that, any compiled code invocation (and similar calls) is called not from
-/// interpreter loop (this function) itself, but from assembly-written function `perform_2i_call`
-/// that strictly tracks the frame layout.
+/// To achieve this, any compiled code invocation (or similar call) is not executed directly
+/// from the interpreter loop (this function) itself, but rather from an assembly-written
+/// function, `perform_2i_call`, that strictly tracks the frame layout.
 ///
-/// So, to perform an invocation from `perform_2i_call` we are returning by value a `Thunk`,
-/// that contains both function to call and one argument.
+/// Therefore, to perform an invocation from `perform_2i_call`, we return a `Thunk` by value,
+/// which contains both the function to call and a single argument.
 ///
-/// We are restricting an number of arguments in `Thunk` structure to 1, to allow passing the structure
-/// by value on registers on System-V x64 or AArch64 ABIs.
+/// We restrict the number of arguments in the `Thunk` structure to 1 to allow passing the
+/// structure by value via registers in the System V x64 and AArch64 ABIs.
 ///
-/// Note, that an actual calling convention of `thunk.function`
-/// is different from ASM in unit-test framework.
+/// Note that the actual calling convention of `thunk.function`
+/// differs from the ASM in the unit test framework.
 template <typename RTI>
 Thunk InterpretationLoop(
     Ectype* ectype, Frame* frame, ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
