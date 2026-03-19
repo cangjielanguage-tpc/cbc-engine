@@ -8,7 +8,7 @@
 
 namespace Interpretation {
 
-static constexpr int HEAP_SIZE = 1024 * 1024;
+static constexpr int HEAP_SIZE = 16384;
 static LimitedHeap<HEAP_SIZE> heap;
 
 struct Test {};
