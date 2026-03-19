@@ -378,9 +378,13 @@ FUN64: {
     NEXT_COND(successful);
 }
 NEWOBJ: {
-    auto args       = B3xi12::Decode(reader);
-    bool successful = interpreter.NewObj(args.xi12.imm4.IR(), args.xi12.imm12);
-    NEXT_COND(successful);
+    auto args          = B3xi12::Decode(reader);
+    TypeInfo<RTI> type = literals->at(args.xi12.imm12).uintptr;
+    auto func          = RuntimeInterface<RTI>::AllocateObject[args.xi12.imm4.IR()];
+
+    reader0 = reader; // save current pc
+
+    return { func, type };
 }
 LOAD_OBJ: {
     auto args       = B4xi12rr::Decode(reader);

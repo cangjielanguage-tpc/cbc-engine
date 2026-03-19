@@ -1,29 +1,21 @@
 #include <filesystem>
 
-#include "RTInterface.h"
 #include "cbc_engine.h"
+#include "cjnative.h"
 #include "engine/engine.h"
 #include "engine/symlevel/io/filesystem.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
 
-static cjnative_interface_t g_CJNativeInterfaceInstance;
+cjnative_interface_t g_CJNativeInterfaceInstance; // declared in "cjnative.h"
+
 static std::mutex g_InitializationGuard;
 static bool g_Initialized;
 static char const* g_cbcPath;
 static char const* g_mainCbc;
 
 extern "C" {
-/// Exported symbols from the cbc engine shared library.
-CBC_EXPORT void* engine_get_entrypoint_trampoline(void);
-CBC_EXPORT void engine_set_cbcpath(char const* cbcPath);
-CBC_EXPORT void engine_set_main_cbc(char const* mainCbc);
-CBC_EXPORT void engine_bridge_init(
-    size_t size,
-    char const** options,
-    struct interpreter_interface_t* interpInterf,
-    struct cjnative_interface_t* rtInterf
-);
+/// These symbols are exported to the runtime, which would initialize engine.
 CBC_EXPORT void interpreter_bridge_init(
     size_t size,
     char const** options,
@@ -37,7 +29,8 @@ void engine_c2i_call_pc_end();
 } // extern "C"
 
 // TODO: init runtime interface
-void EnsureEngineInitialized() {
+void EnsureEngineInitialized()
+{
     std::lock_guard guard(g_InitializationGuard);
     if (g_Initialized) {
         return;
@@ -82,7 +75,7 @@ CBC_EXPORT void engine_set_cbcpath(char const* cbcPath) { g_cbcPath = cbcPath; }
 
 CBC_EXPORT void engine_set_main_cbc(char const* mainCbc) { g_mainCbc = mainCbc; }
 
-CBC_EXPORT void engine_runtime_bridge_initialize(
+CBC_EXPORT void interpreter_bridge_init(
     size_t size,
     char const** options,
     struct interpreter_interface_t* interpInterf,
@@ -100,16 +93,6 @@ CBC_EXPORT void engine_runtime_bridge_initialize(
     interpInterf->c2iVirtualExecutorEndAddr = reinterpret_cast<uintptr_t>(&engine_c2i_call_pc_end);
     interpInterf->fiber_destroy             = &FiberDestroy;
     interpInterf->fiber_start               = &FiberStart;
-}
-
-CBC_EXPORT void interpreter_bridge_init(
-    size_t size,
-    char const** options,
-    struct interpreter_interface_t* interpInterf,
-    struct cjnative_interface_t* rtInterf
-)
-{
-    engine_runtime_bridge_initialize(size, options, interpInterf, rtInterf);
 }
 
 } // extern "C"

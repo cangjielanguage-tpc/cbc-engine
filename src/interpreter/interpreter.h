@@ -151,14 +151,6 @@ public:
         return true;
     }
 
-    inline bool NewObj(IReg d, uint16_t imm)
-    {
-        TypeInfo<RTI> type = literals->at(imm).uintptr;
-        auto obj           = RuntimeInterface<RTI>::NewObj(type, handle);
-        ectype->Put(d, Value::Reference { obj });
-        return true;
-    }
-
     inline void MovRef(IReg d, IReg s) { ectype->Put(d, ectype->GetReference(s)); }
 
     template <typename ToType, typename FromType> inline void Mov(ToType d, FromType s)

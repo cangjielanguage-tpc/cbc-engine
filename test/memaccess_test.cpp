@@ -9,7 +9,7 @@
 
 static LimitedHeap<16384> heap;
 
-class EmitTest : public testing::Test {
+class MemoryAccess : public testing::Test {
     void SetUp() override
     {
         InitializeMockInterpreter();
@@ -30,7 +30,7 @@ static TestTypeInfo* NewTypeInfo(size_t objectSize)
     return new (mem) TestTypeInfo { objectSize };
 }
 
-TEST(MemoryAccess, TestAlloc)
+TEST_F(MemoryAccess, TestAlloc)
 {
     Cbc::Emitter::Emitter e;
     auto ti  = NewTypeInfo(16);
@@ -43,7 +43,7 @@ TEST(MemoryAccess, TestAlloc)
     EXPECT_EQ(res.u32, 2);
 }
 
-TEST(MemoryAccess, TestAlloc2)
+TEST_F(MemoryAccess, TestAlloc2)
 {
     Cbc::Emitter::Emitter e;
     auto ti  = NewTypeInfo(24);
@@ -63,7 +63,7 @@ TEST(MemoryAccess, TestAlloc2)
     EXPECT_EQ(res.u64, 77 + 91);
 }
 
-TEST(MemoryAccess, TestU8)
+TEST_F(MemoryAccess, TestU8)
 {
     Cbc::Emitter::Emitter e;
     auto ti  = NewTypeInfo(16);
@@ -80,7 +80,7 @@ TEST(MemoryAccess, TestU8)
     EXPECT_EQ(res.u32, 77 + 91);
 }
 
-TEST(MemoryAccess, TestI8)
+TEST_F(MemoryAccess, TestI8)
 {
     Cbc::Emitter::Emitter e;
     auto ti  = NewTypeInfo(16);
@@ -98,7 +98,7 @@ TEST(MemoryAccess, TestI8)
     EXPECT_EQ(i64, -128 + 2);
 }
 
-TEST(MemoryAccess, TestI16)
+TEST_F(MemoryAccess, TestI16)
 {
     Cbc::Emitter::Emitter e;
     auto ti  = NewTypeInfo(16);
@@ -113,7 +113,7 @@ TEST(MemoryAccess, TestI16)
     EXPECT_EQ(i64, -1);
 }
 
-TEST(MemoryAccess, TestI32)
+TEST_F(MemoryAccess, TestI32)
 {
     Cbc::Emitter::Emitter e;
     auto ti  = NewTypeInfo(16);
@@ -131,7 +131,7 @@ TEST(MemoryAccess, TestI32)
     EXPECT_EQ(i64, INT32_MIN + 9);
 }
 
-TEST(MemoryAccess, TestU32)
+TEST_F(MemoryAccess, TestU32)
 {
     Cbc::Emitter::Emitter e;
     auto ti  = NewTypeInfo(16);
@@ -148,7 +148,7 @@ TEST(MemoryAccess, TestU32)
     EXPECT_EQ(res.u64, 2147483647L + 1 + 9);
 }
 
-TEST(MemoryAccess, TestF32)
+TEST_F(MemoryAccess, TestF32)
 {
     Cbc::Emitter::Emitter e;
     auto ti  = NewTypeInfo(16);
@@ -164,7 +164,7 @@ TEST(MemoryAccess, TestF32)
     EXPECT_EQ(res.f32, 0.5);
 }
 
-TEST(MemoryAccess, TestF64)
+TEST_F(MemoryAccess, TestF64)
 {
     Cbc::Emitter::Emitter e;
     auto ti  = NewTypeInfo(16);
@@ -180,7 +180,7 @@ TEST(MemoryAccess, TestF64)
     EXPECT_EQ(res.f64, 0.5);
 }
 
-TEST(MemoryAccess, LinkedStack)
+TEST_F(MemoryAccess, LinkedStack)
 {
     Cbc::Emitter::Emitter e;
     auto ti        = NewTypeInfo(24);
@@ -267,7 +267,7 @@ static void testInteger(IntegerTest desc)
     EXPECT_EQ(res.u64, desc.expect);
 }
 
-TEST(MemoryAccess, SpaceS8)
+TEST_F(MemoryAccess, SpaceS8)
 {
     testInteger(
         IntegerTest { .ldk    = Format::LoadAccessKind::LD_S8,
@@ -279,7 +279,7 @@ TEST(MemoryAccess, SpaceS8)
     );
 }
 
-TEST(MemoryAccess, SpaceS16)
+TEST_F(MemoryAccess, SpaceS16)
 {
     testInteger(
         IntegerTest { .ldk    = Format::LoadAccessKind::LD_S16,
@@ -291,7 +291,7 @@ TEST(MemoryAccess, SpaceS16)
     );
 }
 
-TEST(MemoryAccess, SpaceS32)
+TEST_F(MemoryAccess, SpaceS32)
 {
     testInteger(
         IntegerTest { .ldk    = Format::LoadAccessKind::LD_S32TO64,
@@ -303,7 +303,7 @@ TEST(MemoryAccess, SpaceS32)
     );
 }
 
-TEST(MemoryAccess, SpaceU8)
+TEST_F(MemoryAccess, SpaceU8)
 {
     auto lhs = static_cast<uint64_t>(-6);
     auto rhs = static_cast<uint64_t>(-3);
@@ -317,7 +317,7 @@ TEST(MemoryAccess, SpaceU8)
     );
 }
 
-TEST(MemoryAccess, Space64)
+TEST_F(MemoryAccess, Space64)
 {
     testInteger(
         IntegerTest { .ldk    = Format::LoadAccessKind::LD_64,
@@ -329,7 +329,7 @@ TEST(MemoryAccess, Space64)
     );
 }
 
-TEST(MemoryAccess, SpaceU32)
+TEST_F(MemoryAccess, SpaceU32)
 {
     uint64_t lhs = static_cast<uint32_t>(-300000000);
     auto rhs     = static_cast<uint64_t>(40);
@@ -343,7 +343,7 @@ TEST(MemoryAccess, SpaceU32)
     );
 }
 
-TEST(MemoryAccess, Fallback)
+TEST_F(MemoryAccess, Fallback)
 {
     Cbc::Emitter::Emitter e;
     auto ti  = NewTypeInfo(5000);
@@ -364,7 +364,7 @@ struct StructTest {
     uint32_t u32;
 };
 
-TEST(MemoryAccess, TestStructSpace)
+TEST_F(MemoryAccess, TestStructSpace)
 {
     Cbc::Emitter::Emitter e;
     StructTest structTest { .u64 = 0, .u32 = 0 };
@@ -394,7 +394,7 @@ TEST(MemoryAccess, TestStructSpace)
     EXPECT_EQ(res.u64, 76);
 }
 
-TEST(MemoryAccess, TestStruct)
+TEST_F(MemoryAccess, TestStruct)
 {
     Cbc::Emitter::Emitter e;
     StructTest structTest { .u64 = 0, .u32 = 0 };
@@ -416,7 +416,7 @@ TEST(MemoryAccess, TestStruct)
     EXPECT_EQ(res.u64, 76);
 }
 
-TEST(MemoryAccess, TestFrameSpace)
+TEST_F(MemoryAccess, TestFrameSpace)
 {
     char frameSlots[32];
     auto frameStart = reinterpret_cast<uintptr_t>(&frameSlots);
@@ -449,7 +449,7 @@ TEST(MemoryAccess, TestFrameSpace)
     EXPECT_EQ(res.u64, 76);
 }
 
-TEST(MemoryAccess, TestFrame)
+TEST_F(MemoryAccess, TestFrame)
 {
     char frameSlots[32];
     auto frameStart = reinterpret_cast<uintptr_t>(&frameSlots);
