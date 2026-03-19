@@ -5,9 +5,8 @@
 
 extern "C" { // exported to ASM
 void* (*engine_newobject_function)(void*);
-}
 
-extern "C" { // declared in ASM
+// declared in ASM
 void engine_i2_newobject_0();
 void engine_i2_newobject_1();
 void engine_i2_newobject_2();

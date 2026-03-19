@@ -13,22 +13,8 @@ static bool g_Initialized;
 static char const* g_cbcPath;
 static char const* g_mainCbc;
 
-extern "C" {
-/// These symbols are exported to the runtime, which would initialize engine.
-CBC_EXPORT void interpreter_bridge_init(
-    size_t size,
-    char const** options,
-    struct interpreter_interface_t* interpInterf,
-    struct cjnative_interface_t* rtInterf
-);
-
-/// Internal engine symbols.
-void engine_c2i_call_pc_start();
-void engine_c2i_call_pc_end();
-} // extern "C"
-
-// TODO: init runtime interface
-void EnsureEngineInitialized()
+/// Initialize engine from launcher.
+static void EnsureEngineInitialized()
 {
     std::lock_guard guard(g_InitializationGuard);
     if (g_Initialized) {
@@ -41,17 +27,26 @@ void EnsureEngineInitialized()
     g_Initialized = true;
 }
 
-static void FiberStart(fiber_specific_data_t* data)
-{
-    // FIXME: remove from interface?
-}
+static void FiberStart(fiber_specific_data_t* data) { /* no-op */ }
 
-static void FiberDestroy(fiber_specific_data_t* data)
-{
-    // FIXME: ectype cleanup
-}
+static void FiberDestroy(fiber_specific_data_t* data) { /* TODO: ectype cleanup */ }
 
 extern "C" {
+/// This symbol is exported to the runtime, which would initialize engine.
+CBC_EXPORT void interpreter_bridge_init(
+    size_t size,
+    char const** options,
+    struct interpreter_interface_t* interpInterf,
+    struct cjnative_interface_t* rtInterf
+);
+
+/// Internal engine symbols declared in ASM.
+void engine_c2i_call_pc_start();
+void engine_c2i_call_pc_end();
+
+CBC_EXPORT void engine_set_cbcpath(char const* cbcPath) { g_cbcPath = cbcPath; }
+
+CBC_EXPORT void engine_set_main_cbc(char const* mainCbc) { g_mainCbc = mainCbc; }
 
 CBC_EXPORT void* engine_get_entrypoint_trampoline(void)
 {
@@ -69,10 +64,6 @@ CBC_EXPORT void* engine_get_entrypoint_trampoline(void)
     auto fuh = fuhManager.AcquireTagged(session, main.value());
     return fuhManager.GetFunctionPtr(fuh);
 }
-
-CBC_EXPORT void engine_set_cbcpath(char const* cbcPath) { g_cbcPath = cbcPath; }
-
-CBC_EXPORT void engine_set_main_cbc(char const* mainCbc) { g_mainCbc = mainCbc; }
 
 CBC_EXPORT void interpreter_bridge_init(
     size_t size,
