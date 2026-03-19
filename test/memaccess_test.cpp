@@ -31,8 +31,9 @@ TEST_F(MemoryAccess, TestAlloc)
     Cbc::Emitter::Emitter e;
     auto ti  = NewTypeInfo(16);
     auto sym = e.NewAddressSym(reinterpret_cast<uintptr_t>(ti));
+    e.Mov(IReg::IR10, IReg::IR2);
     e.NewObj(IReg::IR1, sym);
-    e.StoreObj(Format::StoreAccessKind::ST_64, IReg::IR2, IReg::IR1, 8);
+    e.StoreObj(Format::StoreAccessKind::ST_64, IReg::IR10, IReg::IR1, 8);
     e.LoadObj(Format::LoadAccessKind::LD_64, IReg::IR1, IReg::IR1, 8);
     e.Ret();
     auto res = Interpret(e.Build(heap), U32(0), U64(2));
@@ -44,9 +45,11 @@ TEST_F(MemoryAccess, TestAlloc2)
     Cbc::Emitter::Emitter e;
     auto ti  = NewTypeInfo(24);
     auto sym = e.NewAddressSym(reinterpret_cast<uintptr_t>(ti));
+    e.Mov(IReg::IR11, IReg::IR1);
+    e.Mov(IReg::IR12, IReg::IR2);
     e.NewObj(IReg::IR5, sym);
-    e.StoreObj(Format::StoreAccessKind::ST_64, IReg::IR2, IReg::IR5, 8);
-    e.StoreObj(Format::StoreAccessKind::ST_64, IReg::IR1, IReg::IR5, 16);
+    e.StoreObj(Format::StoreAccessKind::ST_64, IReg::IR12, IReg::IR5, 8);
+    e.StoreObj(Format::StoreAccessKind::ST_64, IReg::IR11, IReg::IR5, 16);
     e.LoadObj(Format::LoadAccessKind::LD_64, IReg::IR9, IReg::IR5, 8);
     e.LoadObj(Format::LoadAccessKind::LD_64, IReg::IR10, IReg::IR5, 16);
     e.Add(Width::W64, IReg::IR1, IReg::IR9, IReg::IR10);
@@ -64,9 +67,11 @@ TEST_F(MemoryAccess, TestU8)
     Cbc::Emitter::Emitter e;
     auto ti  = NewTypeInfo(16);
     auto sym = e.NewAddressSym(reinterpret_cast<uintptr_t>(ti));
+    e.Mov(IReg::IR11, IReg::IR1);
+    e.Mov(IReg::IR12, IReg::IR2);
     e.NewObj(IReg::IR5, sym);
-    e.StoreObj(Format::StoreAccessKind::ST_8, IReg::IR1, IReg::IR5, 8);
-    e.StoreObj(Format::StoreAccessKind::ST_8, IReg::IR2, IReg::IR5, 9);
+    e.StoreObj(Format::StoreAccessKind::ST_8, IReg::IR11, IReg::IR5, 8);
+    e.StoreObj(Format::StoreAccessKind::ST_8, IReg::IR12, IReg::IR5, 9);
     e.LoadObj(Format::LoadAccessKind::LD_U8, IReg::IR9, IReg::IR5, 8);
     e.LoadObj(Format::LoadAccessKind::LD_U8, IReg::IR10, IReg::IR5, 9);
     e.Add(Width::W32, IReg::IR1, IReg::IR9, IReg::IR10);
@@ -81,9 +86,11 @@ TEST_F(MemoryAccess, TestI8)
     Cbc::Emitter::Emitter e;
     auto ti  = NewTypeInfo(16);
     auto sym = e.NewAddressSym(reinterpret_cast<uintptr_t>(ti));
+    e.Mov(IReg::IR11, IReg::IR1);
+    e.Mov(IReg::IR12, IReg::IR2);
     e.NewObj(IReg::IR5, sym);
-    e.StoreObj(Format::StoreAccessKind::ST_8, IReg::IR1, IReg::IR5, 8);
-    e.StoreObj(Format::StoreAccessKind::ST_8, IReg::IR2, IReg::IR5, 9);
+    e.StoreObj(Format::StoreAccessKind::ST_8, IReg::IR11, IReg::IR5, 8);
+    e.StoreObj(Format::StoreAccessKind::ST_8, IReg::IR12, IReg::IR5, 9);
     e.LoadObj(Format::LoadAccessKind::LD_S8, IReg::IR9, IReg::IR5, 8);
     e.LoadObj(Format::LoadAccessKind::LD_S8, IReg::IR10, IReg::IR5, 9);
     e.Add(Width::W64, IReg::IR1, IReg::IR9, IReg::IR10);
@@ -99,8 +106,9 @@ TEST_F(MemoryAccess, TestI16)
     Cbc::Emitter::Emitter e;
     auto ti  = NewTypeInfo(16);
     auto sym = e.NewAddressSym(reinterpret_cast<uintptr_t>(ti));
+    e.Mov(IReg::IR11, IReg::IR1);
     e.NewObj(IReg::IR5, sym);
-    e.StoreObj(Format::StoreAccessKind::ST_16, IReg::IR1, IReg::IR5, 8);
+    e.StoreObj(Format::StoreAccessKind::ST_16, IReg::IR11, IReg::IR5, 8);
     e.LoadObj(Format::LoadAccessKind::LD_S16, IReg::IR1, IReg::IR5, 8);
     e.Ret();
 
@@ -114,9 +122,11 @@ TEST_F(MemoryAccess, TestI32)
     Cbc::Emitter::Emitter e;
     auto ti  = NewTypeInfo(16);
     auto sym = e.NewAddressSym(reinterpret_cast<uintptr_t>(ti));
+    e.Mov(IReg::IR11, IReg::IR1);
+    e.Mov(IReg::IR12, IReg::IR2);
     e.NewObj(IReg::IR5, sym);
-    e.StoreObj(Format::StoreAccessKind::ST_32, IReg::IR1, IReg::IR5, 8);
-    e.StoreObj(Format::StoreAccessKind::ST_32, IReg::IR2, IReg::IR5, 12);
+    e.StoreObj(Format::StoreAccessKind::ST_32, IReg::IR11, IReg::IR5, 8);
+    e.StoreObj(Format::StoreAccessKind::ST_32, IReg::IR12, IReg::IR5, 12);
     e.LoadObj(Format::LoadAccessKind::LD_S32TO64, IReg::IR9, IReg::IR5, 8);
     e.LoadObj(Format::LoadAccessKind::LD_S32TO64, IReg::IR10, IReg::IR5, 12);
     e.Add(Width::W64, IReg::IR1, IReg::IR9, IReg::IR10);
@@ -132,9 +142,11 @@ TEST_F(MemoryAccess, TestU32)
     Cbc::Emitter::Emitter e;
     auto ti  = NewTypeInfo(16);
     auto sym = e.NewAddressSym(reinterpret_cast<uintptr_t>(ti));
+    e.Mov(IReg::IR11, IReg::IR1);
+    e.Mov(IReg::IR12, IReg::IR2);
     e.NewObj(IReg::IR5, sym);
-    e.StoreObj(Format::StoreAccessKind::ST_32, IReg::IR1, IReg::IR5, 8);
-    e.StoreObj(Format::StoreAccessKind::ST_32, IReg::IR2, IReg::IR5, 12);
+    e.StoreObj(Format::StoreAccessKind::ST_32, IReg::IR11, IReg::IR5, 8);
+    e.StoreObj(Format::StoreAccessKind::ST_32, IReg::IR12, IReg::IR5, 12);
     e.LoadObj(Format::LoadAccessKind::LD_32, IReg::IR9, IReg::IR5, 8);
     e.LoadObj(Format::LoadAccessKind::LD_32, IReg::IR10, IReg::IR5, 12);
     e.Add(Width::W64, IReg::IR1, IReg::IR9, IReg::IR10);
@@ -187,12 +199,12 @@ TEST_F(MemoryAccess, LinkedStack)
     e.MovImm(Width::W32, IReg::IR11, 10);
     e.Mov(IReg::IR10, IReg::IR11);
 
-    e.MovRef(IReg::IR2, IReg::IRZ);
+    e.MovRef(IReg::IR12, IReg::IRZ);
     e.Bind(fillStack);
     e.NewObj(IReg::IR1, sym);
-    e.StoreObj(Format::StoreAccessKind::ST_REF, IReg::IR2, IReg::IR1, 8);
+    e.StoreObj(Format::StoreAccessKind::ST_REF, IReg::IR12, IReg::IR1, 8);
     e.StoreObj(Format::StoreAccessKind::ST_64, IReg::IR10, IReg::IR1, 16);
-    e.MovRef(IReg::IR2, IReg::IR1);
+    e.MovRef(IReg::IR12, IReg::IR1);
     e.AddI(Width::W32, IReg::IR10, IReg::IR10, static_cast<uint64_t>(-1));
     e.Bcc(CC::LT, Width::W32, IReg::IRZ, IReg::IR10, fillStack);
 
@@ -201,11 +213,11 @@ TEST_F(MemoryAccess, LinkedStack)
 
     e.Bind(dropStack);
 
-    e.LoadObj(Format::LoadAccessKind::LD_64, IReg::IR3, IReg::IR2, 16);
+    e.LoadObj(Format::LoadAccessKind::LD_64, IReg::IR3, IReg::IR12, 16);
     e.Add(Width::W32, IReg::IR4, IReg::IR4, IReg::IR3);
 
-    e.LoadObj(Format::LoadAccessKind::LD_REF, IReg::IR1, IReg::IR2, 8);
-    e.MovRef(IReg::IR2, IReg::IR1);
+    e.LoadObj(Format::LoadAccessKind::LD_REF, IReg::IR1, IReg::IR12, 8);
+    e.MovRef(IReg::IR12, IReg::IR1);
 
     e.AddI(Width::W32, IReg::IR10, IReg::IR10, static_cast<uint64_t>(-2));
     e.Bcc(CC::LT, Width::W32, IReg::IRZ, IReg::IR10, dropStack);
@@ -235,6 +247,8 @@ static void testInteger(IntegerTest desc)
     auto ti  = NewTypeInfo(512);
     auto sym = e.NewAddressSym(reinterpret_cast<uintptr_t>(ti));
     e.MovImm(Width::W64, IReg::IR4, 2);
+    e.Mov(IReg::IR11, IReg::IR1);
+    e.Mov(IReg::IR12, IReg::IR2);
     e.NewObj(IReg::IR5, sym);
 
     auto mspace = e.OpenMemSpace();
@@ -242,18 +256,21 @@ static void testInteger(IntegerTest desc)
     mspace.Offset(47);           // = 78
     mspace.OffsetReg(IReg::IR4); // + 2 = 80
     mspace.StoreObj(desc.stk, IReg::IR2, IReg::IR5);
-    e.StoreObj(desc.stk, IReg::IR1, IReg::IR5, 80 + desc.size);
+    e.StoreObj(desc.stk, IReg::IR11, IReg::IR5, 80 + desc.size);
 
     auto mspace2 = e.OpenMemSpace();
     mspace.Offset(31);           // = 31
     mspace.Offset(47);           // = 78
     mspace.OffsetReg(IReg::IR4); // + 2 = 80
-    mspace.LoadObj(desc.ldk, IReg::IR1, IReg::IR5);
-    e.LoadObj(desc.ldk, IReg::IR2, IReg::IR5, 80 + desc.size);
+    mspace.LoadObj(desc.ldk, IReg::IR11, IReg::IR5);
+    e.LoadObj(desc.ldk, IReg::IR12, IReg::IR5, 80 + desc.size);
 
-    e.Mov(IReg::IR3, IReg::IR1);
-    e.Mov(IReg::IR4, IReg::IR2);
-    e.Div(Width::W64, IReg::IR1, IReg::IR3, IReg::IR4);
+    e.Mov(IReg::IR3, IReg::IR11);
+    e.Mov(IReg::IR4, IReg::IR12);
+    e.Div(Width::W64, IReg::IR11, IReg::IR3, IReg::IR4);
+
+    e.Mov(IReg::IR1, IReg::IR11);
+    e.Mov(IReg::IR2, IReg::IR12);
     e.Ret();
 
     auto code = e.Build(heap);

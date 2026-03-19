@@ -7,20 +7,7 @@ extern "C" { // exported to ASM
 void* (*engine_newobject_function)(void*);
 
 // declared in ASM
-void engine_i2_newobject_0();
-void engine_i2_newobject_1();
-void engine_i2_newobject_2();
-void engine_i2_newobject_3();
-void engine_i2_newobject_4();
-void engine_i2_newobject_5();
-void engine_i2_newobject_6();
-void engine_i2_newobject_7();
-void engine_i2_newobject_8();
-void engine_i2_newobject_9();
-void engine_i2_newobject_10();
-void engine_i2_newobject_11();
-void engine_i2_newobject_12();
-void engine_i2_newobject_13();
+void engine_i2_newobject();
 }
 
 namespace Interpretation {
@@ -32,7 +19,7 @@ template <> class RuntimeInterface<Impl> {
     using Reference = Value::Reference;
 
 public:
-    inline static void* AllocateObject[IReg::COUNT];
+    inline static void* AllocateObject;
 
     static Reference ReadObjectInstance(Reference base, size_t offset, ThreadHandle th)
     {
@@ -57,21 +44,8 @@ public:
 
 void InitializeRuntimeInterface()
 {
-    engine_newobject_function                  = g_CJNativeInterfaceInstance.object_alloc;
-    RuntimeInterface<Impl>::AllocateObject[0]  = reinterpret_cast<void*>(&engine_i2_newobject_0);
-    RuntimeInterface<Impl>::AllocateObject[1]  = reinterpret_cast<void*>(&engine_i2_newobject_1);
-    RuntimeInterface<Impl>::AllocateObject[2]  = reinterpret_cast<void*>(&engine_i2_newobject_2);
-    RuntimeInterface<Impl>::AllocateObject[3]  = reinterpret_cast<void*>(&engine_i2_newobject_3);
-    RuntimeInterface<Impl>::AllocateObject[4]  = reinterpret_cast<void*>(&engine_i2_newobject_4);
-    RuntimeInterface<Impl>::AllocateObject[5]  = reinterpret_cast<void*>(&engine_i2_newobject_5);
-    RuntimeInterface<Impl>::AllocateObject[6]  = reinterpret_cast<void*>(&engine_i2_newobject_6);
-    RuntimeInterface<Impl>::AllocateObject[7]  = reinterpret_cast<void*>(&engine_i2_newobject_7);
-    RuntimeInterface<Impl>::AllocateObject[8]  = reinterpret_cast<void*>(&engine_i2_newobject_8);
-    RuntimeInterface<Impl>::AllocateObject[9]  = reinterpret_cast<void*>(&engine_i2_newobject_9);
-    RuntimeInterface<Impl>::AllocateObject[10] = reinterpret_cast<void*>(&engine_i2_newobject_10);
-    RuntimeInterface<Impl>::AllocateObject[11] = reinterpret_cast<void*>(&engine_i2_newobject_11);
-    RuntimeInterface<Impl>::AllocateObject[12] = reinterpret_cast<void*>(&engine_i2_newobject_12);
-    RuntimeInterface<Impl>::AllocateObject[13] = reinterpret_cast<void*>(&engine_i2_newobject_13);
+    engine_newobject_function              = g_CJNativeInterfaceInstance.object_alloc;
+    RuntimeInterface<Impl>::AllocateObject = reinterpret_cast<void*>(&engine_i2_newobject);
 }
 
 } // namespace Interpretation

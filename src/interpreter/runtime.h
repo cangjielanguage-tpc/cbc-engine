@@ -38,7 +38,7 @@ public:
     /// and puts result in IReg(idx) register.
     ///
     /// This specialization is needed to allow Thunk usage.
-    inline static void* AllocateObject[IReg::COUNT];
+    inline static void* AllocateObject;
 
     static Reference NewArray(TypeInfo<RT> type, size_t count, ThreadHandle th);
     static size_t ArrayLength(Reference array);
@@ -49,8 +49,6 @@ public:
     static void WriteObjectStatic(void* location, Reference object, ThreadHandle th);
     static Reference ReadObject(uintptr_t base, size_t offset, ThreadHandle th);
     static void WriteObject(uintptr_t base, size_t offset, Reference object, ThreadHandle th);
-
-    static Ectype* GetEctype(ThreadHandle th);
 };
 
 } // namespace Interpretation
