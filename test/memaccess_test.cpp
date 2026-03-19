@@ -26,7 +26,7 @@ using namespace Cbc;
 /// Allocate type info that describes object of size `objectSize` (including header).
 static TestTypeInfo* NewTypeInfo(size_t objectSize)
 {
-    void* mem = heap.do_allocate(sizeof(TestTypeInfo), alignof(TestTypeInfo));
+    void* mem = heap.Allocate(sizeof(TestTypeInfo), alignof(TestTypeInfo));
     return new (mem) TestTypeInfo { objectSize };
 }
 

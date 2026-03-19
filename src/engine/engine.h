@@ -7,6 +7,7 @@
 #include "symlevel/cbc_file.h"
 #include "symlevel/io/file_id.h"
 #include "symlevel/io/random_access_file.h"
+#include "utils/heap.h"
 
 namespace Engine {
 
@@ -28,7 +29,7 @@ public:
     friend class Impl;
 
     ~Engine();
-    std::pmr::memory_resource& CodeHeap() const;
+    Memory::Heap& CodeHeap() const;
 
     std::optional<Identifier<MethodDefinition>> FindMain(Session& session, std::string_view filePath);
     std::optional<TypeDefinition> FindType(Session& session, std::string_view typeName);

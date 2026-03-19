@@ -10,6 +10,7 @@ namespace Terms {
 std::optional<Term> Term::ParseAndResolve(Engine::Session& session, IO::FileId fileId, Offset<Term> offset)
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetTermSectionOffs() + offset);
+    auto& allocator = session.Allocator();
 
     // TODO: introduce tags
     auto tag = reader.ReadU8();
@@ -20,8 +21,7 @@ std::optional<Term> Term::ParseAndResolve(Engine::Session& session, IO::FileId f
             std::optional<TypeDefinition> type = session.GetEngine().FindType(session, name);
             if (type.has_value()) {
                 auto identifier = type.value().GetIdentifier();
-                auto* data =
-                    static_cast<TermData*>(session.Allocator().do_allocate(sizeof(TermData), alignof(TermData)));
+                auto* data      = static_cast<TermData*>(allocator.Allocate(sizeof(TermData), alignof(TermData)));
 
                 data->identifier = TemplateIdentifier(TemplateKind::TYPE, identifier);
                 data->hash       = 0;
@@ -36,9 +36,8 @@ std::optional<Term> Term::ParseAndResolve(Engine::Session& session, IO::FileId f
         case 0x0d: {
             auto len = reader.ReadU8();
 
-            auto* data = static_cast<TermData*>(
-                session.Allocator().do_allocate(sizeof(TermData) + len * sizeof(Term), alignof(TermData))
-            );
+            auto* data =
+                static_cast<TermData*>(allocator.Allocate(sizeof(TermData) + len * sizeof(Term), alignof(TermData)));
 
             for (int i = 0; i < len; i++) {
                 auto subtermOffs = Offset<Term>(reader.ReadULEB());
@@ -46,7 +45,7 @@ std::optional<Term> Term::ParseAndResolve(Engine::Session& session, IO::FileId f
                 if (subterm.has_value()) {
                     data->subterms[i] = subterm.value();
                 } else {
-                    session.Allocator().do_deallocate(data, sizeof(TermData) + len * sizeof(Term), alignof(TermData));
+                    allocator.Free(data, sizeof(TermData) + len * sizeof(Term), alignof(TermData));
                     return std::nullopt;
                 }
             }
@@ -67,7 +66,7 @@ std::optional<Term> Term::ParseAndResolve(Engine::Session& session, IO::FileId f
 
 Term Term::Builtin(Engine::Session& session, TemplateKind kind)
 {
-    auto* data = static_cast<TermData*>(session.Allocator().do_allocate(sizeof(TermData), alignof(TermData)));
+    auto* data = static_cast<TermData*>(session.Allocator().Allocate(sizeof(TermData), alignof(TermData)));
 
     data->identifier = TemplateKind(kind);
     data->hash       = 0;

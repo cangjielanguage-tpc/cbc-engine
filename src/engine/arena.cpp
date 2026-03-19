@@ -1,6 +1,7 @@
 #include "utils/assertion.h"
 #include <cstddef>
 #include <cstdlib>
+#include <new>
 
 #include "arena.h"
 
@@ -54,7 +55,7 @@ void* Arena::DoAllocateSlow(size_t bytes)
     return reinterpret_cast<void*>(cursor);
 }
 
-void* Arena::do_allocate(size_t bytes, size_t alignment)
+void* Arena::Allocate(size_t bytes, size_t alignment)
 {
     ASSERT(this->cursor == Align(this->cursor));
 
@@ -67,6 +68,8 @@ void* Arena::do_allocate(size_t bytes, size_t alignment)
     this->cursor = newCursor;
     return result;
 }
+
+void Arena::Free(void* memory, size_t bytes, size_t alignment) {}
 
 Arena::~Arena()
 {

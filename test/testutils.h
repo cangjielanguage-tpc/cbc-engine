@@ -2,10 +2,10 @@
 #define TESTUTILS_H
 
 #include "engine/symlevel/io/random_access_file.h"
-#include <memory_resource>
+#include "utils/heap.h"
 #include <stdexcept>
 
-template <size_t limit> class LimitedHeap : public std::pmr::memory_resource {
+template <size_t limit> class LimitedHeap : public Memory::Heap {
 public:
     void Reset() { cursor = (uintptr_t)memory; }
 
@@ -13,7 +13,7 @@ public:
     uintptr_t cursor { (uintptr_t)memory };
     uintptr_t end { cursor + limit };
 
-    void* do_allocate(std::size_t bytes, std::size_t alignment) override
+    void* Allocate(std::size_t bytes, std::size_t alignment) override
     {
         auto result    = cursor;
         auto rem       = result % alignment;
@@ -26,9 +26,9 @@ public:
         throw std::runtime_error("Not enough memory");
     }
 
-    void do_deallocate(void* p, size_t bytes, size_t alignment) override {}
+    void Free(void* p, size_t bytes, size_t alignment) override {}
 
-    bool do_is_equal(const memory_resource& other) const noexcept override { return this == &other; }
+    ~LimitedHeap() override {}
 };
 
 bool CheckForAssembler();

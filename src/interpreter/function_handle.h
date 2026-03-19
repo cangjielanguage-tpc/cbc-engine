@@ -2,14 +2,12 @@
 
 #include <atomic>
 #include <memory>
+#include <mutex>
 #include <variant>
 
 #include "code.h"
-#include "ectype.h"
 #include "engine/engine.h"
 #include "engine/identifiers.h"
-#include "frame.h"
-#include "runtime.h"
 
 namespace API {
 class Resolver;
