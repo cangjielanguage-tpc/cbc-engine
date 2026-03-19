@@ -1,4 +1,5 @@
 #include "definitions.h"
+#include "reader.h"
 
 namespace Symlevel {
 
@@ -13,10 +14,9 @@ DefinitionsManager::~DefinitionsManager()                            = default;
 
 TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId, Offset<TypeDefinition> offset)
 {
-    auto& raf = *session.FileOf(fileId);
-    IO::StreamFileReader reader(raf, session.CbcFileOf(fileId).GetMethodDefSectionOffs() + offset);
+    IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetMethodDefSectionOffs() + offset);
 
-    auto name         = Offset<String>(reader.ReadU32());
+    auto nameOffset   = Offset<String>(reader.ReadU32());
     auto flags        = reader.ReadULEB();
     auto importTable  = reader.ReadU32();
     auto pkgIndex     = reader.ReadU16();
@@ -26,7 +26,7 @@ TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId
     auto fieldIndex  = FieldIndex::Read(reader, fileId);
 
     return TypeDefinition(
-        Engine::Identifier<TypeDefinition>(offset, fileId), name, std::move(methodIndex), std::move(fieldIndex)
+        Engine::Identifier<TypeDefinition>(offset, fileId), nameOffset, std::move(methodIndex), std::move(fieldIndex)
     );
 }
 
@@ -35,17 +35,24 @@ TypeDefinition TypeDefinition::Resolve(Engine::Session& session, Engine::Identif
     return Parse(session, identifier.GetFileId(), identifier.GetOffset());
 }
 
+String TypeDefinition::ParseName(Engine::Session& session, IO::FileId fileId, Offset<TypeDefinition> offset)
+{
+    IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetMethodDefSectionOffs() + offset);
+
+    auto nameOffset = Offset<String>(reader.ReadU32());
+    return Reader::Read(session, fileId, nameOffset);
+}
+
 FieldDefinition FieldDefinition::Parse(Engine::Session& session, IO::FileId fileId, Offset<FieldDefinition> offset)
 {
-    auto& raf = *session.FileOf(fileId);
-    IO::StreamFileReader reader(raf, session.CbcFileOf(fileId).GetFieldDefSectionOffs() + offset);
+    IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetFieldDefSectionOffs() + offset);
 
-    auto name    = Offset<String>(reader.ReadU32());
-    auto idx     = reader.ReadU32();
-    auto declIdx = reader.ReadU32();
-    auto typeIdx = reader.ReadU32();
+    auto nameOffset = Offset<String>(reader.ReadU32());
+    auto idx        = reader.ReadU32();
+    auto declIdx    = reader.ReadU32();
+    auto typeIdx    = reader.ReadU32();
 
-    return FieldDefinition(Engine::Identifier<FieldDefinition>(offset, fileId), name, idx, declIdx, typeIdx);
+    return FieldDefinition(Engine::Identifier<FieldDefinition>(offset, fileId), nameOffset, idx, declIdx, typeIdx);
 }
 
 FieldDefinition FieldDefinition::Resolve(Engine::Session& session, Engine::Identifier<FieldDefinition> identifier)
@@ -53,10 +60,16 @@ FieldDefinition FieldDefinition::Resolve(Engine::Session& session, Engine::Ident
     return Parse(session, identifier.GetFileId(), identifier.GetOffset());
 }
 
+String FieldDefinition::ParseName(Engine::Session& session, IO::FileId fileId, Offset<FieldDefinition> offset) {
+    IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetFieldDefSectionOffs() + offset);
+
+    auto nameOffset   = Offset<String>(reader.ReadU32());
+    return Reader::Read(session, fileId, Offset<String>(nameOffset));
+}
+
 MethodDefinition MethodDefinition::Parse(Engine::Session& session, IO::FileId fileId, Offset<MethodDefinition> offset)
 {
-    auto& raf = *session.FileOf(fileId);
-    IO::StreamFileReader reader(raf, session.CbcFileOf(fileId).GetMethodDefSectionOffs() + offset);
+    IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetMethodDefSectionOffs() + offset);
 
     auto nameOffset   = Offset<String>(reader.ReadU32());
     auto methodSigIdx = reader.ReadU32();
@@ -85,6 +98,13 @@ tags_end:
 MethodDefinition MethodDefinition::Resolve(Engine::Session& session, Engine::Identifier<MethodDefinition> identifier)
 {
     return Parse(session, identifier.GetFileId(), identifier.GetOffset());
+}
+
+String MethodDefinition::ParseName(Engine::Session& session, IO::FileId fileId, Offset<MethodDefinition> offset) {
+    IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetMethodDefSectionOffs() + offset);
+
+    auto nameOffset   = Offset<String>(reader.ReadU32());
+    return Reader::Read(session, fileId, Offset<String>(nameOffset));
 }
 
 } // namespace Symlevel
