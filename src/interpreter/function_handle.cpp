@@ -62,7 +62,7 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, Dynam
         return bytecode;
     }
 
-    auto offset = def.GetCodeOffs();
+    auto offset = def.GetCodeOffset();
     auto code   = Symlevel::Reader::Read(session, def.FileId(), offset);
 
     auto resolver = API::Resolver::Create(session, fuh->methodDef);

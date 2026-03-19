@@ -1,5 +1,6 @@
 #include "cbc_file.h"
 
+#include "aot_table.h"
 #include "io/stream_file_reader.h"
 #include "member_index.h"
 #include "region_data.h"
@@ -10,8 +11,15 @@ namespace Symlevel {
 struct CbcFile::Impl {
     VersionMetadata versionMetadata;
     TypeIndex typeIndex;
-    uint32_t poolOffset;
     RegionData regionData;
+
+    DirectCallAotTable directCallAotTable;
+    VirtualCallAotTable virtualCallAotTable;
+    InterfaceCallAotTable interfaceCallAotTable;
+    StaticFieldAotTable staticFieldAotTable;
+    InstanceFieldAotTable instanceFieldAotTable;
+
+    uint32_t poolOffset;
     IO::FileId id;
     std::string name;
 };
@@ -46,6 +54,12 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
     auto typeIndexOffset = reader.ReadU32();
     auto poolOffset      = reader.ReadU32();
 
+    auto directCallAotTableOffset    = reader.ReadU32();
+    auto virtualCallAotTableOffset   = reader.ReadU32();
+    auto interfaceCallAotTableOffset = reader.ReadU32();
+    auto staticFieldAotTableOffset   = reader.ReadU32();
+    auto instanceFieldAotTableOffset = reader.ReadU32();
+
     auto regionNum = reader.ReadU16();
     if (regionNum != 1) {
         // TODO: throw proper exception
@@ -58,12 +72,17 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
     auto coverageId  = reader.ReadULEB();
 
     CbcFile::Impl impl {
-        .versionMetadata = versionMetadata,
-        .typeIndex       = TypeIndex::Read(fileId, file, typeIndexOffset),
-        .poolOffset      = poolOffset,
-        .regionData      = RegionData::Read(fileId, file, regionOffset),
-        .id              = fileId,
-        .name            = std::string(name),
+        .versionMetadata       = versionMetadata,
+        .typeIndex             = TypeIndex::Read(fileId, file, typeIndexOffset),
+        .regionData            = RegionData::Read(fileId, file, regionOffset),
+        .directCallAotTable    = DirectCallAotTable::Read(fileId, file, directCallAotTableOffset),
+        .virtualCallAotTable   = VirtualCallAotTable::Read(fileId, file, virtualCallAotTableOffset),
+        .interfaceCallAotTable = InterfaceCallAotTable::Read(fileId, file, interfaceCallAotTableOffset),
+        .staticFieldAotTable   = StaticFieldAotTable::Read(fileId, file, staticFieldAotTableOffset),
+        .instanceFieldAotTable = InstanceFieldAotTable::Read(fileId, file, instanceFieldAotTableOffset),
+        .poolOffset            = poolOffset,
+        .id                    = fileId,
+        .name                  = std::string(name),
     };
 
     return CbcFile(std::make_unique<CbcFile::Impl>(std::move(impl)));
@@ -87,6 +106,8 @@ uint32_t CbcFile::GetMethodRefSectionOffs() const { return impl->poolOffset; }
 
 uint32_t CbcFile::GetFieldRefSectionOffs() const { return impl->poolOffset; }
 
+uint32_t CbcFile::GetAotDataSectionOffs() const { return impl->poolOffset; }
+
 String CbcFile::GetName() const { return String(impl->name); }
 
 // FIXME:store path and name of cbc file.
@@ -95,5 +116,15 @@ String CbcFile::GetPath() const { return String(impl->name); }
 const RegionData& CbcFile::GetRegionData() const { return impl->regionData; }
 
 const TypeIndex& CbcFile::GetTypeIndex() const { return impl->typeIndex; }
+
+const DirectCallAotTable& CbcFile::GetDirectCallAotTable() const { return impl->directCallAotTable; }
+
+const VirtualCallAotTable& CbcFile::GetVirtualCallAotTable() const { return impl->virtualCallAotTable; }
+
+const InterfaceCallAotTable& CbcFile::GetInterfaceCallAotTable() const { return impl->interfaceCallAotTable; }
+
+const StaticFieldAotTable& CbcFile::GetStaticFieldAotTable() const { return impl->staticFieldAotTable; }
+
+const InstanceFieldAotTable& CbcFile::GetInstanceFieldAotTable() const { return impl->instanceFieldAotTable; }
 
 } // namespace Symlevel

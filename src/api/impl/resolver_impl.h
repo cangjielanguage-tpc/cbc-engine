@@ -9,8 +9,6 @@
 namespace API {
 namespace Impl {
 
-class TermImpl;
-
 class ResolverImpl final : public Resolver {
 public:
     ResolverImpl(Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> method)
@@ -38,25 +36,6 @@ public:
 private:
     Engine::Session& session;
     Engine::Identifier<Symlevel::MethodDefinition> method;
-};
-
-class MethodImpl final : public Method {
-public:
-    MethodImpl(Engine::Session& session, Symlevel::MethodDefinition def) : session(session), def(def) {}
-
-    Term* ABISignature() override;
-
-    std::optional<Type*> RefType() override;
-
-    std::optional<Interpretation::FunctionHandle*> FUH() override;
-
-    MethodFlags Flags() override;
-
-    std::string_view FullName() override;
-
-private:
-    Engine::Session& session;
-    Symlevel::MethodDefinition def;
 };
 
 } // namespace Impl

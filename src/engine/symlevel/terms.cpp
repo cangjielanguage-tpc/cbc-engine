@@ -9,15 +9,38 @@
 namespace Symlevel {
 namespace Terms {
 
+enum Tag : uint8_t {
+    NIL,                      // 0x00
+    RECORD,                   // 0x01
+    REFERENCE,                // 0x02
+    CANGJIE_ARRAY,            // 0x03
+    VARRAY,                   // 0x04
+    ENUM_WRAPPER,             // 0x05
+    C_POINTER,                // 0x06
+    GENERIC_TYPE_TERM,        // 0x07
+    GENERIC_TYPE_VAR,         // 0x08
+    GENERIC_RECORD,           // 0x09
+    GENERIC_REFERENCE,        // 0x0a
+    NULLABLE,                 // 0x0b
+    METHOD_SIGNATURE,         // 0x0c
+    GENERIC_METHOD,           // 0x0d
+    CONSTRAINT,               // 0x0e
+    PARAMETERIZED_CONSTRAINT, // 0x0f
+    JAVA_REFERENCE,           // 0x10
+    JAVA_ARRAY,               // 0x11
+    NON_NULLABLE,             // 0x12
+    AOT_TYPE                  // 0x13
+};
+
 std::optional<Term> Term::ParseAndResolve(Engine::Session& session, IO::FileId fileId, Offset<Term> offset)
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetTermSectionOffs() + offset);
     auto& allocator = session.Allocator();
 
-    // TODO: introduce tags
-    auto tag = reader.ReadU8();
+    auto tag = static_cast<Tag>(reader.ReadU8());
     switch (tag) {
-        case 0x02: {
+        case REFERENCE:
+        case AOT_TYPE:  {
             auto nameOffs                      = Offset<String>(reader.ReadULEB());
             auto name                          = Reader::Read(session, fileId, nameOffs);
             std::optional<TypeDefinition> type = session.GetEngine().FindType(session, name);
@@ -25,9 +48,10 @@ std::optional<Term> Term::ParseAndResolve(Engine::Session& session, IO::FileId f
                 auto identifier = type.value().GetIdentifier();
                 auto* data      = static_cast<TermData*>(allocator.Allocate(sizeof(TermData), alignof(TermData)));
 
-                data->identifier = TemplateIdentifier(TemplateKind::TYPE, identifier);
-                data->hash       = 0;
-                data->length     = 0;
+                TemplateKind kind = tag == REFERENCE ? TemplateKind::TYPE : TemplateKind::AOT_TYPE;
+                data->identifier  = TemplateIdentifier(kind, identifier);
+                data->hash        = 0;
+                data->length      = 0;
 
                 return Term(LocalTerm(data));
             } else {
@@ -35,7 +59,7 @@ std::optional<Term> Term::ParseAndResolve(Engine::Session& session, IO::FileId f
             }
         }
 
-        case 0x0c: {
+        case METHOD_SIGNATURE: {
             auto len = reader.ReadU8() + 1; // +1 for ret type
 
             auto* data =
@@ -44,7 +68,7 @@ std::optional<Term> Term::ParseAndResolve(Engine::Session& session, IO::FileId f
             auto& regionData = session.CbcFileOf(fileId).GetRegionData();
             for (int i = 0; i < len; i++) {
                 auto subtermIdx = reader.ReadULEB();
-                auto subterm = regionData.queryTerm(session, { .region = 0, .index = subtermIdx }); // TODO: use region
+                auto subterm    = regionData.queryTerm(session, { .region = 0, .index = subtermIdx });
                 if (subterm.has_value()) {
                     data->subterms[i] = subterm.value();
                 } else {

@@ -116,16 +116,16 @@ public:
             return std::nullopt;
         }
 
-        auto& raf = *session.FileOf(fileId);
+        auto& file = *session.FileOf(fileId);
 
         uint32_t startIdx = Hash(name) % bucketCount;
 
-        auto start = bucketTable.QueryOffset(raf, startIdx);
-        auto end   = bucketTable.QueryOffset(raf, startIdx + 1);
+        auto start = bucketTable.QueryOffset(file, startIdx);
+        auto end   = bucketTable.QueryOffset(file, startIdx + 1);
         ASSERT(start <= end);
 
         for (auto i = start; i < end; i++) {
-            auto entityOffs = Offset<T>(buckets.QueryOffset(raf, i));
+            auto entityOffs = Offset<T>(buckets.QueryOffset(file, i));
             auto entityName = Reader::ReadName(session, fileId, entityOffs);
             if (entityName.compare(name) == 0) {
                 return entityOffs;
@@ -141,17 +141,17 @@ public:
             return {};
         }
 
-        auto& raf = *session.FileOf(fileId);
+        auto& file = *session.FileOf(fileId);
 
         uint32_t startIdx = Hash(name) % bucketCount;
 
-        auto start = bucketTable.QueryOffset(raf, startIdx);
-        auto end   = bucketTable.QueryOffset(raf, startIdx + 1);
+        auto start = bucketTable.QueryOffset(file, startIdx);
+        auto end   = bucketTable.QueryOffset(file, startIdx + 1);
         ASSERT(start <= end);
 
         std::vector<Offset<T>> offsets;
         for (auto i = start; i < end; i++) {
-            auto entityOffs = Offset<T>(buckets.QueryOffset(raf, i));
+            auto entityOffs = Offset<T>(buckets.QueryOffset(file, i));
             auto entityName = Reader::ReadName(session, fileId, entityOffs);
             if (entityName.compare(name) == 0) {
                 offsets.push_back(entityOffs);
@@ -175,7 +175,7 @@ TypeIndex TypeIndex::Read(IO::FileId fileId, IO::RandomAccessFile& file, uint32_
 
 std::optional<TypeDefinition> TypeIndex::FindType(Engine::Session& session, String typeName) const
 {
-    std::optional<Offset<TypeDefinition>> offset = index->FindOffset<TypeDefinition>(session, typeName);
+    auto offset = index->FindOffset<TypeDefinition>(session, typeName);
 
     if (offset) {
         return Reader::Read(session, index->fileId, *offset);
@@ -196,7 +196,7 @@ FieldIndex FieldIndex::Read(IO::StreamFileReader& reader, IO::FileId fileId)
 
 std::optional<FieldDefinition> FieldIndex::FindField(Engine::Session& session, String fieldName) const
 {
-    std::optional<Offset<FieldDefinition>> offset = index->FindOffset<FieldDefinition>(session, fieldName);
+    auto offset = index->FindOffset<FieldDefinition>(session, fieldName);
 
     if (offset) {
         return Reader::Read(session, index->fileId, *offset);
@@ -217,7 +217,7 @@ MethodIndex MethodIndex::Read(IO::StreamFileReader& reader, IO::FileId fileId)
 
 std::vector<MethodDefinition> MethodIndex::FindMethods(Engine::Session& session, String methodName) const
 {
-    std::vector<Offset<MethodDefinition>> offsets = index->FindOffsets<MethodDefinition>(session, methodName);
+    auto offsets = index->FindOffsets<MethodDefinition>(session, methodName);
 
     if (offsets.empty()) {
         return {};

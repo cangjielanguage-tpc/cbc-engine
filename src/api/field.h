@@ -64,15 +64,9 @@ public:
      */
     virtual std::optional<int> Offset() = 0;
 
-    /**
-     * @brief Flags of the field.
-     */
     virtual FieldFlags Flags() = 0;
 
-    /**
-     * @brief Full name of the field.
-     */
-    virtual std::string_view FullName() = 0;
+    virtual Symlevel::String Name() = 0;
 
 protected:
     virtual ~InstanceField() = default;
