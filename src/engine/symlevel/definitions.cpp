@@ -60,10 +60,11 @@ FieldDefinition FieldDefinition::Resolve(Engine::Session& session, Engine::Ident
     return Parse(session, identifier.GetFileId(), identifier.GetOffset());
 }
 
-String FieldDefinition::ParseName(Engine::Session& session, IO::FileId fileId, Offset<FieldDefinition> offset) {
+String FieldDefinition::ParseName(Engine::Session& session, IO::FileId fileId, Offset<FieldDefinition> offset)
+{
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetFieldDefSectionOffs() + offset);
 
-    auto nameOffset   = Offset<String>(reader.ReadU32());
+    auto nameOffset = Offset<String>(reader.ReadU32());
     return Reader::Read(session, fileId, Offset<String>(nameOffset));
 }
 
@@ -100,10 +101,11 @@ MethodDefinition MethodDefinition::Resolve(Engine::Session& session, Engine::Ide
     return Parse(session, identifier.GetFileId(), identifier.GetOffset());
 }
 
-String MethodDefinition::ParseName(Engine::Session& session, IO::FileId fileId, Offset<MethodDefinition> offset) {
+String MethodDefinition::ParseName(Engine::Session& session, IO::FileId fileId, Offset<MethodDefinition> offset)
+{
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetMethodDefSectionOffs() + offset);
 
-    auto nameOffset   = Offset<String>(reader.ReadU32());
+    auto nameOffset = Offset<String>(reader.ReadU32());
     return Reader::Read(session, fileId, Offset<String>(nameOffset));
 }
 

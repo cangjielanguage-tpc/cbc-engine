@@ -22,20 +22,8 @@ std::optional<MethodReference> MethodReference::ParseAndResolve(
 
     auto regionData = session.CbcFileOf(fileId).GetRegionData();
 
-    auto refType = regionData.queryTerm(
-        session,
-        Index<Terms::Term> {
-            .region = 0, // TODO: use region
-            .index  = refTypeIdx,
-        }
-    );
-    auto methodSig = regionData.queryTerm(
-        session,
-        Index<Terms::Term> {
-            .region = 0, // TODO: use region
-            .index  = methodSigIdx,
-        }
-    );
+    auto refType   = regionData.queryTerm(session, { .region = 0, .index = refTypeIdx });
+    auto methodSig = regionData.queryTerm(session, { .region = 0, .index = methodSigIdx });
 
     if (refType.has_value() && methodSig.has_value()) {
         return MethodReference(name, refType.value(), methodSig.value());
@@ -60,20 +48,8 @@ std::optional<FieldReference> FieldReference::ParseAndResolve(
 
     auto regionData = session.CbcFileOf(fileId).GetRegionData();
 
-    auto refType = regionData.queryTerm(
-        session,
-        Index<Terms::Term> {
-            .region = 0, // TODO: use region
-            .index  = refTypeIdx,
-        }
-    );
-    auto fieldType = regionData.queryTerm(
-        session,
-        Index<Terms::Term> {
-            .region = 0, // TODO: use region
-            .index  = fieldTypeIdx,
-        }
-    );
+    auto refType   = regionData.queryTerm(session, Index<Terms::Term> { .region = 0, .index = refTypeIdx });
+    auto fieldType = regionData.queryTerm(session, Index<Terms::Term> { .region = 0, .index = fieldTypeIdx });
 
     if (refType.has_value() && fieldType.has_value()) {
         return FieldReference(name, refType.value(), fieldType.value());

@@ -34,15 +34,9 @@ public:
 
     virtual std::optional<Interpretation::FunctionHandle*> FUH() = 0;
 
-    /**
-     * @brief The flags of the method.
-     */
     virtual MethodFlags Flags() = 0;
 
-    /**
-     * @brief Full name of the field.
-     */
-    virtual std::string_view FullName() = 0;
+    virtual Symlevel::String Name() = 0;
 
 protected:
     virtual ~Method() = default;
