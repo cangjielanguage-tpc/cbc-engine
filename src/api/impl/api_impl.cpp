@@ -5,6 +5,7 @@
 namespace API {
 namespace Impl {
 
+//////////////////////////////////
 // Resolver
 
 Type* ResolverImpl::Resolve(Symlevel::Index<Type> index)
@@ -13,7 +14,7 @@ Type* ResolverImpl::Resolve(Symlevel::Index<Type> index)
     return nullptr;
 }
 
-Term* ResolverImpl::Resolve(Symlevel::Index<Term> index)
+Term* ResolverImpl::Resolve(Symlevel::Index<Symlevel::Terms::Term> index)
 {
     ASSERTION(false, "not implemented yet");
     return nullptr;
@@ -23,20 +24,20 @@ Method* ResolverImpl::Resolve(Symlevel::Index<Symlevel::MethodReference> index)
 {
     auto& regionData = session.CbcFileOf(method.GetFileId()).GetRegionData();
 
-    auto methodRef = regionData.queryMethod(session, index);
+    auto methodRefOpt = regionData.queryMethod(session, index);
+    ASSERTION(methodRefOpt.has_value(), "cannot resolve method ref");
+    auto methodRef = methodRefOpt.value();
 
-    // TODO: use term for resolving
-    // TODO: class name
-    auto refTypeOpt = session.GetEngine().FindType(session, std::string_view("default"));
-    ASSERT(refTypeOpt);
+    Engine::Identifier<Symlevel::TypeDefinition> typeId(methodRef.RefType().GetIdentifier().GetNum());
+    auto refTypeDef = Symlevel::TypeDefinition::Resolve(session, typeId);
 
-    auto& refType = *refTypeOpt;
-    auto defs     = refType.GetMethodIndex().FindMethods(session, methodRef.Name());
-    ASSERT(defs.size() == 1);
+    auto candidates = refTypeDef.GetMethodIndex().FindMethods(session, methodRef.Name());
 
-    auto def = defs[0];
+    ASSERTION(candidates.size() == 1, "not implemented yet");
+    auto target = candidates[0];
+
     void* memory = session.Allocator().do_allocate(sizeof(MethodImpl), alignof(MethodImpl));
-    return new (memory) MethodImpl(session, def);
+    return new (memory) MethodImpl(session, target);
 }
 
 InstanceField* ResolverImpl::Resolve(Symlevel::Index<InstanceField> index)
@@ -65,6 +66,7 @@ std::optional<Type*> ResolverImpl::TypeOf(Term* term)
 
 ResolverImpl::~ResolverImpl() = default;
 
+//////////////////////////////////
 // Method
 
 Term* MethodImpl::ABISignature()

@@ -43,7 +43,7 @@ RegionData::RegionData(
       termIndexOffset(termIndexOffset)
 {}
 
-MethodReference RegionData::queryMethod(Engine::Session& session, Index<MethodReference> index) const
+std::optional<MethodReference> RegionData::queryMethod(Engine::Session& session, Index<MethodReference> index) const
 {
     ASSERTION(index.index < methodIndexSize, "index is out of range");
 
@@ -54,7 +54,27 @@ MethodReference RegionData::queryMethod(Engine::Session& session, Index<MethodRe
 
     auto refOffset = Offset<MethodReference>(reader.ReadU32());
 
-    return Reader::Read(session, fileId, refOffset);
+    return Reader::ReadAndResolve(session, fileId, refOffset);
+}
+
+std::optional<Terms::Term> RegionData::queryTerm(Engine::Session& session, Index<Terms::Term> index) const
+{
+    ASSERTION(index.index < termIndexSize, "index is out of range");
+
+    if (Terms::IsBuiltin(index.index)) {
+        return Terms::Term::Builtin(session, Terms::TemplateKind(index.index));
+    } else {
+        auto& raf = session.FileOf(fileId);
+
+        auto start = Terms::FirstNonBuiltIn();
+        auto offs  = static_cast<uint32_t>(termIndexOffset + (index.index - start) * sizeof(uint32_t));
+
+        IO::StreamFileReader reader(*raf, offs);
+
+        auto refOffset = Offset<Terms::Term>(reader.ReadU32());
+
+        return Reader::ReadAndResolve(session, fileId, refOffset);
+    }
 }
 
 } // namespace Symlevel

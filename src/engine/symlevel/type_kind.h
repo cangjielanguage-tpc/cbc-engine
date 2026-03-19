@@ -14,9 +14,9 @@ public:
         RECORD
     };
 
-    inline constexpr TypeKind(const Value value) : value(value) {};
+    constexpr TypeKind(const Value value) : value(value) {};
 
-    inline constexpr operator Value() const { return value; }
+    constexpr operator Value() const { return value; }
 
     constexpr std::string_view const ToString()
     {

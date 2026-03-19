@@ -1,10 +1,13 @@
 #include "references.h"
 #include "io/stream_file_reader.h"
 #include "reader.h"
+#include "region_data.h"
 
 namespace Symlevel {
 
-MethodReference MethodReference::Parse(Engine::Session& session, IO::FileId fileId, Offset<MethodReference> offset)
+std::optional<MethodReference> MethodReference::ParseAndResolve(
+    Engine::Session& session, IO::FileId fileId, Offset<MethodReference> offset
+)
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetMethodRefSectionOffs() + offset);
 
@@ -16,13 +19,34 @@ MethodReference MethodReference::Parse(Engine::Session& session, IO::FileId file
     auto accessKind   = reader.ReadU16(); // TODO: remove
 
     auto name = Reader::Read(session, fileId, Offset<String>(nameOffset));
-    Term refType;   // TODO: impl
-    Term methodSig; // TODO: impl
 
-    return MethodReference(name, refType, methodSig);
+    auto regionData = session.CbcFileOf(fileId).GetRegionData();
+
+    auto refType = regionData.queryTerm(
+        session,
+        Index<Terms::Term> {
+            .region = 0, // TODO: use region
+            .index  = refTypeIdx,
+        }
+    );
+    auto methodSig = regionData.queryTerm(
+        session,
+        Index<Terms::Term> {
+            .region = 0, // TODO: use region
+            .index  = methodSigIdx,
+        }
+    );
+
+    if (refType.has_value() && methodSig.has_value()) {
+        return MethodReference(name, refType.value(), methodSig.value());
+    } else {
+        return std::nullopt;
+    }
 }
 
-FieldReference FieldReference::Parse(Engine::Session& session, IO::FileId fileId, Offset<FieldReference> offset)
+std::optional<FieldReference> FieldReference::ParseAndResolve(
+    Engine::Session& session, IO::FileId fileId, Offset<FieldReference> offset
+)
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetFieldRefSectionOffs() + offset);
 
@@ -33,10 +57,29 @@ FieldReference FieldReference::Parse(Engine::Session& session, IO::FileId fileId
     auto accessKind = reader.ReadU16(); // TODO: remove
 
     auto name = Reader::Read(session, fileId, Offset<String>(nameOffset));
-    Term refType;   // TODO: impl
-    Term fieldType; // TODO: impl
 
-    return FieldReference(name, refType, fieldType);
+    auto regionData = session.CbcFileOf(fileId).GetRegionData();
+
+    auto refType = regionData.queryTerm(
+        session,
+        Index<Terms::Term> {
+            .region = 0, // TODO: use region
+            .index  = refTypeIdx,
+        }
+    );
+    auto fieldType = regionData.queryTerm(
+        session,
+        Index<Terms::Term> {
+            .region = 0, // TODO: use region
+            .index  = fieldTypeIdx,
+        }
+    );
+
+    if (refType.has_value() && fieldType.has_value()) {
+        return FieldReference(name, refType.value(), fieldType.value());
+    } else {
+        return std::nullopt;
+    }
 }
 
 } // namespace Symlevel
