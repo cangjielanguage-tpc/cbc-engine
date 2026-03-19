@@ -11,14 +11,14 @@ std::optional<MethodReference> MethodReference::ParseAndResolve(
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetMethodRefSectionOffs() + offset);
 
-    auto nameOffset   = reader.ReadU32();
+    auto nameOffset   = Offset<String>(reader.ReadU32());
     auto refTypeIdx   = reader.ReadULEB();
     auto methodSigIdx = reader.ReadULEB();
 
     auto specialFlags = reader.ReadU8();  // TODO: remove
     auto accessKind   = reader.ReadU16(); // TODO: remove
 
-    auto name = Reader::Read(session, fileId, Offset<String>(nameOffset));
+    auto name = Reader::Read(session, fileId, nameOffset);
 
     auto regionData = session.CbcFileOf(fileId).GetRegionData();
 
@@ -50,13 +50,13 @@ std::optional<FieldReference> FieldReference::ParseAndResolve(
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetFieldRefSectionOffs() + offset);
 
-    auto nameOffset   = reader.ReadU32();
+    auto nameOffset   = Offset<String>(reader.ReadU32());
     auto refTypeIdx   = reader.ReadULEB();
     auto fieldTypeIdx = reader.ReadULEB();
 
     auto accessKind = reader.ReadU16(); // TODO: remove
 
-    auto name = Reader::Read(session, fileId, Offset<String>(nameOffset));
+    auto name = Reader::Read(session, fileId, nameOffset);
 
     auto regionData = session.CbcFileOf(fileId).GetRegionData();
 

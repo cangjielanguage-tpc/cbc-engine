@@ -31,6 +31,7 @@ class TypeDefinition {
 public:
     static TypeDefinition Parse(Engine::Session& session, IO::FileId fileId, Offset<TypeDefinition> offset);
     static TypeDefinition Resolve(Engine::Session& session, Engine::Identifier<TypeDefinition> identifier);
+    static String ParseName(Engine::Session& session, IO::FileId fileId, Offset<TypeDefinition> offset);
 
     inline const Offset<String> Name() const { return name; }
 
@@ -60,6 +61,7 @@ class FieldDefinition {
 public:
     static FieldDefinition Parse(Engine::Session& session, IO::FileId fileId, Offset<FieldDefinition> offset);
     static FieldDefinition Resolve(Engine::Session& session, Engine::Identifier<FieldDefinition> identifier);
+    static String ParseName(Engine::Session& session, IO::FileId fileId, Offset<FieldDefinition> offset);
 
     inline const Offset<String> Name() const { return name; }
 
@@ -89,6 +91,7 @@ class MethodDefinition {
 public:
     static MethodDefinition Parse(Engine::Session& session, IO::FileId fileId, Offset<MethodDefinition> offset);
     static MethodDefinition Resolve(Engine::Session& session, Engine::Identifier<MethodDefinition> identifier);
+    static String ParseName(Engine::Session& session, IO::FileId fileId, Offset<MethodDefinition> offset);
 
     inline const Offset<String> Name() const { return name; }
 

@@ -126,8 +126,7 @@ public:
 
         for (auto i = start; i < end; i++) {
             auto entityOffs = Offset<T>(buckets.QueryOffset(raf, i));
-            auto entityDef  = Reader::Read(session, fileId, entityOffs); // TODO: avoid reading whole def
-            auto entityName = Reader::Read(session, fileId, entityDef.Name());
+            auto entityName = Reader::ReadName(session, fileId, entityOffs);
             if (entityName.compare(name) == 0) {
                 return entityOffs;
             }
@@ -153,8 +152,7 @@ public:
         std::vector<Offset<T>> offsets;
         for (auto i = start; i < end; i++) {
             auto entityOffs = Offset<T>(buckets.QueryOffset(raf, i));
-            auto entityDef  = Reader::Read(session, fileId, entityOffs); // TODO: avoid reading whole def
-            auto entityName = Reader::Read(session, fileId, entityDef.Name());
+            auto entityName = Reader::ReadName(session, fileId, entityOffs);
             if (entityName.compare(name) == 0) {
                 offsets.push_back(entityOffs);
             }

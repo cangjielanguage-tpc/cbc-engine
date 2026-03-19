@@ -22,6 +22,10 @@ public:
     {
         return T::ParseAndResolve(session, fileId, offset);
     }
+
+    template <typename T> static String ReadName(Engine::Session& session, IO::FileId fileId, Offset<T> offset) {
+        return T::ParseName(session, fileId, offset);
+    }
 };
 
 } // namespace Symlevel
