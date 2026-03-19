@@ -1,5 +1,6 @@
 #include "cbc/dispatcher_rt.h"
-#include "runtime.h"
+#include "cjnative.h"
+#include "interpreter/runtime.h"
 
 namespace Interpretation {
 
@@ -10,10 +11,7 @@ template <> class RuntimeInterface<Impl> {
     using Reference = Value::Reference;
 
 public:
-    inline static Reference NewObj(TypeInfo<Impl> type, ThreadHandle th)
-    {
-        return Value::Reference { .value = reinterpret_cast<uintptr_t>(nullptr) };
-    }
+    inline static void* AllocateObject[IReg::COUNT];
 
     static Reference ReadObjectInstance(Reference base, size_t offset, ThreadHandle th)
     {

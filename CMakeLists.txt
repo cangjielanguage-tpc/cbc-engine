@@ -40,7 +40,7 @@ if(UNIT_TEST_MODE)
   target_compile_definitions(cbc_lib PRIVATE UNIT_TEST_MODE)
 endif()
 
-add_library(cbcengine SHARED src/engine/entrypoint.cpp)
+add_library(cbcengine SHARED src/runtimesupport/entrypoint.cpp)
 target_link_libraries(cbcengine PRIVATE cbc_lib)
 
 target_link_options(cbcengine PRIVATE

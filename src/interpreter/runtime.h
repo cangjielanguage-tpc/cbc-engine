@@ -34,7 +34,12 @@ template <typename RT> class RuntimeInterface {
     using Reference = Value::Reference;
 
 public:
-    static Reference NewObj(TypeInfo<RT> type, ThreadHandle th);
+    /// Each element represent an function that accepts (Ectype, ThreadHandle, TypeInfo)
+    /// and puts result in IReg(idx) register.
+    ///
+    /// This specialization is needed to allow Thunk usage.
+    inline static void* AllocateObject[IReg::COUNT];
+
     static Reference NewArray(TypeInfo<RT> type, size_t count, ThreadHandle th);
     static size_t ArrayLength(Reference array);
 

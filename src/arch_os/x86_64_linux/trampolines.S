@@ -66,12 +66,13 @@ engine_iregs_only_c2i_call:
   push  rbp
   mov   rbp, rsp
 
-  push  r14 // rbp - 0x8
-  push  r13 // rbp - 0x10
-  push  r12 // rbp - 0x18
-  push  rbx // rbp - 0x20
-  push  rax // rbp - 0x28 : FunctionHandle that will help to scan saved regs
-  push  rax // rbp - 0x30 alignment
+  push  r15 // rbp - 0x8 -- unused
+  push  r14 // rbp - 0x10
+  push  r13 // rbp - 0x18
+  push  r12 // rbp - 0x20
+  push  rbx // rbp - 0x28
+
+  push  rax // rbp - 0x30 : FunctionHandle that will help to scan saved regs
 
 
 // FIXME: get Ectype* from ThreadHandle
@@ -91,12 +92,12 @@ engine_iregs_only_c2i_call:
 
   mov   rax,  [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8]
 
-  pop   rbx
   pop   rbx // remove FunctionHandle
   pop   rbx
   pop   r12
   pop   r13
   pop   r14
+  pop   rbp // do not restore r15
 
   pop   rbp
   ret
@@ -109,7 +110,8 @@ engine_c2i_call_pc_end:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: fuh)
 // preserved: TLS_REG, ECTYPE_REG, rbp
 engine_i2i_call:
-  jmp perform_2i_call
+  // jmp perform_2i_call
+  // fall-through
 
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: fuh)
 // preserved: TLS_REG, ECTYPE_REG, rbp
