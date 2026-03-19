@@ -5,6 +5,7 @@
 .global engine_universal_direct_function_handles
 .global engine_prepare_bytecode
 .global engine_interpretation_loop
+.global engine_newobject_function
 
 // exported
 .global engine_c2i_call_pc_start
@@ -24,7 +25,6 @@
 
 .global engine_i2i_call
 .hidden engine_i2i_call
-
 
 // Fake Ectype* instance represented as global
 // FIXME: get Ectype* instance from ThreadHandle
@@ -110,8 +110,33 @@ engine_c2i_call_pc_end:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: fuh)
 // preserved: TLS_REG, ECTYPE_REG, rbp
 engine_i2i_call:
-  // jmp perform_2i_call
-  // fall-through
+  // jumped from .Linterpreter_call without return address to return
+  call  perform_2i_call
+  jmp   .Lrestart_interpretation
+
+
+.altmacro
+.macro gen_new_object i
+  .text
+  .align 16
+  .global engine_i2_newobject_\i
+  .hidden engine_i2_newobject_\i
+  // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: fuh)
+  // preserved: ECTYPE_REG, rbp
+  // TLS_REG can be set to new value after context-switch
+  engine_i2_newobject_\i:
+    // jumped from .Linterpreter_call without return address to return
+    call.d32  [rip + engine_newobject_function]
+    mov.d32   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8 + 0x8 * \i], rax
+    jmp.d32   .Lrestart_interpretation
+.endm
+
+.set i, 0
+.rept ECTYPE_IREGS_COUNT
+  gen_new_object %i
+  .set i, i + 1
+.endr
+
 
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: fuh)
 // preserved: TLS_REG, ECTYPE_REG, rbp
@@ -189,8 +214,8 @@ perform_2i_call:
   jz    .Lend_interpretation
 
   mov   rdi, rdx
-  call  rax
-  jmp   .Lrestart_interpretation
+.Linterpreter_call:
+  jmp   rax
 
 .Lend_interpretation:
   mov   rsp, rbp
