@@ -401,7 +401,17 @@ FUN64: {
 NEWOBJ: {
     auto args          = B3xi12::Decode(reader);
     TypeInfo<RTI> type = literals->at(args.xi12.imm12).uintptr;
-    auto func          = RuntimeInterface<RTI>::AllocateObject[args.xi12.imm4.IR()];
+
+    // To invoke an `newobj` we need to "return" three values
+    // - function to invoke,
+    // - type info,
+    // - destination register,
+    // which is more than Thunk can fit.
+    //
+    // To pass an extra element we will store
+    // it in volatile-register in Ectype;
+    auto func = RuntimeInterface<RTI>::AllocateObject;
+    ectype->Put(IReg::IR1, Value::Primitive { .u32 = args.xi12.imm4.IR() });
 
     reader0 = reader; // save current pc
 

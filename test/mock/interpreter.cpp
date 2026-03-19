@@ -17,7 +17,7 @@ template <> class RuntimeInterface<Test> {
     using Reference = Value::Reference;
 
 public:
-    inline static void* AllocateObject[IReg::COUNT];
+    inline static void* AllocateObject;
 
     static Reference ReadObjectInstance(Reference base, size_t offset, ThreadHandle th)
     {
@@ -40,7 +40,7 @@ public:
     }
 };
 
-template <uint32_t N> static void MockNewObj(Ectype* ectype, ThreadHandle th, TypeInfo<Test> type);
+static void MockNewObj(Ectype* ectype, ThreadHandle th, TypeInfo<Test> type);
 static void InterpreterI2CallTest(Ectype* ectype, ThreadHandle handle, FunctionHandle* fuh);
 
 static TestTypeInfo* Extract(TypeInfo<Test> type)
@@ -49,7 +49,7 @@ static TestTypeInfo* Extract(TypeInfo<Test> type)
     return (TestTypeInfo*)p;
 }
 
-template <uint32_t N> static void MockNewObj(Ectype* ectype, ThreadHandle th, TypeInfo<Test> type)
+static void MockNewObj(Ectype* ectype, ThreadHandle th, TypeInfo<Test> type)
 {
     auto typeInfo = Extract(type);
     auto mem      = heap.do_allocate(typeInfo->size, 16);
@@ -57,7 +57,8 @@ template <uint32_t N> static void MockNewObj(Ectype* ectype, ThreadHandle th, Ty
     TestTypeInfo** header = (TestTypeInfo**)mem;
     *header               = typeInfo;
 
-    ectype->Put(IReg::From(N), Value::Reference { .value = reinterpret_cast<uintptr_t>(mem) });
+    auto dst = ectype->GetPrimitive(IReg::IR1);
+    ectype->Put(IReg::From(dst.u32), Value::Reference { .value = reinterpret_cast<uintptr_t>(mem) });
 }
 
 static void InterpretationLoop(
@@ -155,19 +156,6 @@ void InitializeMockInterpreter()
     using namespace Interpretation;
     auto i2call = reinterpret_cast<Interpretation::I2Call>(&Interpretation::InterpreterI2CallTest);
     SetI2CallForInterpreter(i2call);
-    RuntimeInterface<Test>::AllocateObject[0]  = reinterpret_cast<void*>(&MockNewObj<0>);
-    RuntimeInterface<Test>::AllocateObject[1]  = reinterpret_cast<void*>(&MockNewObj<1>);
-    RuntimeInterface<Test>::AllocateObject[2]  = reinterpret_cast<void*>(&MockNewObj<2>);
-    RuntimeInterface<Test>::AllocateObject[3]  = reinterpret_cast<void*>(&MockNewObj<3>);
-    RuntimeInterface<Test>::AllocateObject[4]  = reinterpret_cast<void*>(&MockNewObj<4>);
-    RuntimeInterface<Test>::AllocateObject[5]  = reinterpret_cast<void*>(&MockNewObj<5>);
-    RuntimeInterface<Test>::AllocateObject[6]  = reinterpret_cast<void*>(&MockNewObj<6>);
-    RuntimeInterface<Test>::AllocateObject[7]  = reinterpret_cast<void*>(&MockNewObj<7>);
-    RuntimeInterface<Test>::AllocateObject[8]  = reinterpret_cast<void*>(&MockNewObj<8>);
-    RuntimeInterface<Test>::AllocateObject[9]  = reinterpret_cast<void*>(&MockNewObj<9>);
-    RuntimeInterface<Test>::AllocateObject[10] = reinterpret_cast<void*>(&MockNewObj<10>);
-    RuntimeInterface<Test>::AllocateObject[11] = reinterpret_cast<void*>(&MockNewObj<11>);
-    RuntimeInterface<Test>::AllocateObject[12] = reinterpret_cast<void*>(&MockNewObj<12>);
-    RuntimeInterface<Test>::AllocateObject[13] = reinterpret_cast<void*>(&MockNewObj<13>);
+    RuntimeInterface<Test>::AllocateObject = reinterpret_cast<void*>(&MockNewObj);
     static_assert(IReg::COUNT == 14);
 }
