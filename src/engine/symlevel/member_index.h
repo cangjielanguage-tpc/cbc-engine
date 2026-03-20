@@ -30,19 +30,21 @@ private:
 
 class FieldIndex final {
 public:
-    static FieldIndex Read(IO::FileId fileId, IO::RandomAccessFile& file, uint32_t offset);
+    static FieldIndex Read(IO::StreamFileReader& reader, IO::FileId fileId);
 
     FieldIndex(std::unique_ptr<MemberIndex> index);
     FieldIndex(FieldIndex&&);
     ~FieldIndex();
 
+    std::optional<FieldDefinition> FindField(Engine::Session& session, String fieldName) const;
+
 private:
-    const std::unique_ptr<MemberIndex> index;
+    std::unique_ptr<MemberIndex> index;
 };
 
 class MethodIndex final {
 public:
-    static MethodIndex Read(IO::FileId fileId, IO::RandomAccessFile& file, uint32_t offset);
+    static MethodIndex Read(IO::StreamFileReader& reader, IO::FileId fileId);
 
     MethodIndex(std::unique_ptr<MemberIndex>);
     MethodIndex(MethodIndex&&);

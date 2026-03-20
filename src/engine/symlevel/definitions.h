@@ -38,16 +38,22 @@ public:
 
     const MethodIndex& GetMethodIndex() const { return methods; }
 
+    const FieldIndex& GetFieldIndex() const { return fields; }
+
 private:
-    TypeDefinition(Engine::Identifier<TypeDefinition> identifier, Offset<String> name, MethodIndex methods)
+    TypeDefinition(
+        Engine::Identifier<TypeDefinition> identifier, Offset<String> name, MethodIndex methods, FieldIndex fields
+    )
         : identifier(identifier),
           name(name),
-          methods(std::move(methods))
+          methods(std::move(methods)),
+          fields(std::move(fields))
     {}
 
     Engine::Identifier<TypeDefinition> identifier;
     Offset<String> name;
     MethodIndex methods;
+    FieldIndex fields;
 };
 
 class FieldDefinition {
