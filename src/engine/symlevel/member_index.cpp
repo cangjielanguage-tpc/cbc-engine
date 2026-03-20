@@ -98,10 +98,11 @@ public:
           buckets(buckets)
     {}
 
-    static uint32_t Hash(String name)
+    static int Hash(String name)
     {
         const uint8_t* data = reinterpret_cast<const uint8_t*>(name.data());
-        uint32_t hash       = 0;
+
+        int hash = 0;
         for (size_t i = 0; i < name.size(); i++) {
             hash = (hash << 5) - hash + (data[i] & 0xFF);
         }
@@ -118,7 +119,7 @@ public:
 
         auto& raf = *session.FileOf(fileId);
 
-        uint32_t startIdx = Hash(name) % bucketCount;
+        uint32_t startIdx = abs(Hash(name) % (int)bucketCount);
 
         auto start = bucketTable.QueryOffset(raf, startIdx);
         auto end   = bucketTable.QueryOffset(raf, startIdx + 1);
@@ -144,7 +145,7 @@ public:
 
         auto& raf = *session.FileOf(fileId);
 
-        uint32_t startIdx = Hash(name) % bucketCount;
+        uint32_t startIdx = abs(Hash(name) % (int) bucketCount);
 
         auto start = bucketTable.QueryOffset(raf, startIdx);
         auto end   = bucketTable.QueryOffset(raf, startIdx + 1);
