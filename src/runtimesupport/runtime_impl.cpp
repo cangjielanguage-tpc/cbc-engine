@@ -1,14 +1,8 @@
+#include "asm_trampolines.h"
 #include "cbc/dispatcher_rt.h"
 #include "cbc_engine.h"
 #include "cjnative.h"
 #include "interpreter/runtime.h"
-
-extern "C" { // exported to ASM
-void* (*engine_newobject_function)(void*);
-
-// declared in ASM
-void engine_i2_newobject();
-}
 
 namespace Interpretation {
 
@@ -44,8 +38,8 @@ public:
 
 void InitializeRuntimeInterface()
 {
-    engine_newobject_function              = g_CJNativeInterfaceInstance.object_alloc;
-    RuntimeInterface<Impl>::AllocateObject = reinterpret_cast<void*>(&engine_i2_newobject);
+    Asm::engine_newobject_function         = g_CJNativeInterfaceInstance.object_alloc;
+    RuntimeInterface<Impl>::AllocateObject = reinterpret_cast<void*>(&Asm::engine_i2_newobject);
 }
 
 } // namespace Interpretation
