@@ -24,9 +24,10 @@ protected:
     void DoMovImm(Width width, IReg dst, uint64_t imm) override;
 
     void DoINeg(CbcTypeKind tkind, IReg dst, IReg src) override;
+    void DoINeg(CbcTypeKind tkind, IReg dst, uint64_t imm) override;
 
-    void DoCommonOp(Common op, CbcTypeKind tkind, IReg dst, IReg src1, IReg src2) override;
-    void DoCommonOp(Common op, CbcTypeKind tkind, IReg dst, IReg src1, uint64_t src2) override;
+    void DoCommonOp(common_opc op, CbcTypeKind tkind, IReg dst, IReg src1, IReg src2) override;
+    void DoCommonOp(common_opc op, CbcTypeKind tkind, IReg dst, IReg src1, uint64_t src2) override;
 
     void DoCheckedOp(checked_opc op, CbcTypeKind tkind, IReg dst, IReg src1, IReg src2) override;
     void DoCheckedOp(checked_opc op, CbcTypeKind tkind, IReg dst, IReg src1, uint64_t src2) override;

@@ -55,7 +55,9 @@ auto read_xrri(Decoder::ByteReader& codeReader) -> decltype(auto)
 
 // using namespace opcodes;
 
-constexpr Common common(opcode opc, opcode base) { return Common::Value(((opcode_t) opc - (opcode_t) base) % common_opc_sz); }
+// constexpr opcode_t local_opcode(opcode opc, opcode base, size_t module) { return ((opcode_t) opc - (opcode_t) base) % module; }
+// constexpr common_opc common(opcode opc, opcode base) { return common_opc(local_opcode(opc, base, common_opc_sz)); }
+// constexpr checked_opc checked(opcode opc, opcode base) { return checked_opc(local_opcode(opc, base, checked_opc_sz)); }
 
 constexpr CbcTypeKind common(Width w, Sign s)
 {
@@ -78,29 +80,33 @@ constexpr CbcTypeKind common(Width w, Sign s)
 
 constexpr CbcTypeKind checked(uint8_t x)
 {
-    switch (x & 0b1) {
-    case 0: {
-        switch ((x >> 1) & 0b11) {
-        case 0b00: { return CbcTypeKind::Value::I8; }
-        case 0b01: { return CbcTypeKind::Value::I16; }
-        case 0b10: { return CbcTypeKind::Value::I32; }
-        case 0b11: { return CbcTypeKind::Value::I64; }
+    switch ((x >> 1) & 0b1) {
+    case SIGN: {
+        switch ((x >> 2) & 0b11) {
+        case W8: { return CbcTypeKind::Value::I8; }
+        case W16: { return CbcTypeKind::Value::I16; }
+        case W32: { return CbcTypeKind::Value::I32; }
+        case W64: { return CbcTypeKind::Value::I64; }
         };
     }
-    case 1: {
-        switch ((x >> 1) & 0b11) {
-        case 0b00: { return CbcTypeKind::Value::U8; }
-        case 0b01: { return CbcTypeKind::Value::U16; }
-        case 0b10: { return CbcTypeKind::Value::U32; }
-        case 0b11: { return CbcTypeKind::Value::U64; }
+    case USIGN: {
+        switch ((x >> 2) & 0b11) {
+        case W8: { return CbcTypeKind::Value::U8; }
+        case W16: { return CbcTypeKind::Value::U16; }
+        case W32: { return CbcTypeKind::Value::U32; }
+        case W64: { return CbcTypeKind::Value::U64; }
         };
     }
+    default: ASSERTION(false, "unknown encoding");
     };
 }
 
 #include "isa_opcode_def.h"
 GEN_OPCODE_DECODER_MOV_EXTEND(GEN_B2_MANUAL)
 GEN_OPCODE_DECODER_COMMON(GEN_B2_COMMON)
+GEN_OPCODE_DECODER_NEG(GEN_B2_MANUAL)
+GEN_OPCODE_DECODER_INTEGER_COMMON(GEN_B3_COMMON)
+GEN_OPCODE_DECODER_CHECKED(GEN_B3_CHECKED)
 #include "isa_opcode_undef.h"
 
 // template<>
@@ -250,12 +256,12 @@ GEN_OPCODE_DECODER_COMMON(GEN_B2_COMMON)
 //     DoCommonOp(common(opcode::Lsl32, opcode::ExtendUnsigned), common(W32, SIGN), d, d, r);
 // }
 
-template<>
-void Parser::decode<opcode::Neg32, void>(Decoder::ByteReader& codeReader)
-{
-    auto [d, r] = read_rr(codeReader);
-    DoINeg(common(W32, SIGN), d, r);
-}
+// template<>
+// void Parser::decode<opcode::Neg32, void>(Decoder::ByteReader& codeReader)
+// {
+//     auto [d, r] = read_rr(codeReader);
+//     DoINeg(common(W32, SIGN), d, r);
+// }
 
 // template<>
 // void Parser::decode<opcode::Add64, void>(Decoder::ByteReader& codeReader)
@@ -348,12 +354,12 @@ void Parser::decode<opcode::Neg32, void>(Decoder::ByteReader& codeReader)
 //     DoCommonOp(common(opcode::Add64, opcode::Neg32), common(W64, SIGN), d, d, r);
 // }
 
-template<>
-void Parser::decode<opcode::Neg64, void>(Decoder::ByteReader& codeReader)
-{
-    auto [d, r] = read_rr(codeReader);
-    DoINeg(common(W64, SIGN), d, r);
-}
+// template<>
+// void Parser::decode<opcode::Neg64, void>(Decoder::ByteReader& codeReader)
+// {
+//     auto [d, r] = read_rr(codeReader);
+//     DoINeg(common(W64, SIGN), d, r);
+// }
 
 // template<>
 // void Parser::decode<opcode::Add32Imm, void>(Decoder::ByteReader& codeReader)
@@ -447,12 +453,12 @@ void Parser::decode<opcode::Neg64, void>(Decoder::ByteReader& codeReader)
 //     DoCommonOp(common(opcode::Lsl32Imm, opcode::Neg64), common(W32, SIGN), d, d, r);
 // }
 
-template<>
-void Parser::decode<opcode::Neg32Imm, void>(Decoder::ByteReader& codeReader)
-{
-    auto [d, r] = read_rr(codeReader);
-    DoINeg(common(W32, SIGN), d, r);
-}
+// template<>
+// void Parser::decode<opcode::Neg32Imm, void>(Decoder::ByteReader& codeReader)
+// {
+//     auto [d, r] = read_rr(codeReader);
+//     DoINeg(common(W32, SIGN), d, r);
+// }
 
 // template<>
 // void Parser::decode<opcode::Add64Imm, void>(Decoder::ByteReader& codeReader)
@@ -545,137 +551,137 @@ void Parser::decode<opcode::Neg32Imm, void>(Decoder::ByteReader& codeReader)
 //     DoCommonOp(common(opcode::Lsl64Imm, opcode::Neg32Imm), common(W64, SIGN), d, d, r);
 // }
 
-template<>
-void Parser::decode<opcode::Neg64Imm, void>(Decoder::ByteReader& codeReader)
-{
-    auto [d, r] = read_rr(codeReader);
-    DoINeg(common(W64, SIGN), d, r);
-}
+// template<>
+// void Parser::decode<opcode::Neg64Imm, void>(Decoder::ByteReader& codeReader)
+// {
+//     auto [d, r] = read_rr(codeReader);
+//     DoINeg(common(W64, SIGN), d, r);
+// }
 
-template<>
-void Parser::decode<opcode::IntegerCommon32, void>(Decoder::ByteReader& codeReader)
-{
-    auto [x, d, l, r] = read_xrrr(codeReader);
-    DoCommonOp(Common::Value(x), common(W32, SIGN), d, l, r);
-}
+// template<>
+// void Parser::decode<opcode::IntegerCommon32, void>(Decoder::ByteReader& codeReader)
+// {
+//     auto [x, d, l, r] = read_xrrr(codeReader);
+//     DoCommonOp(Common::Value(x), common(W32, SIGN), d, l, r);
+// }
+//
+// template<>
+// void Parser::decode<opcode::IntegerCommon64, void>(Decoder::ByteReader& codeReader)
+// {
+//     auto [x, d, l, r] = read_xrrr(codeReader);
+//     DoCommonOp(Common::Value(x), common(W64, SIGN), d, l, r);
+// }
+//
+// template<>
+// void Parser::decode<opcode::IntegerCommon32K0, void>(Decoder::ByteReader& codeReader)
+// {
+//     auto [x, d, l, r] = read_xrri(codeReader);
+//     DoCommonOp(Common::Value(x), common(W32, SIGN), d, l, r);
+// }
+//
+// template<>
+// void Parser::decode<opcode::IntegerCommon64K0, void>(Decoder::ByteReader& codeReader)
+// {
+//     auto [x, d, l, r] = read_xrri(codeReader);
+//     DoCommonOp(Common::Value(x), common(W64, SIGN), d, l, r);
+// }
+//
+// template<>
+// void Parser::decode<opcode::IntegerCommon32K8, void>(Decoder::ByteReader& codeReader)
+// {
+//     auto [x, d, l, r] = read_xrri(codeReader);
+//     DoCommonOp(Common::Value(x), common(W32, SIGN), d, l, r);
+// }
+//
+// template<>
+// void Parser::decode<opcode::IntegerCommon64K8, void>(Decoder::ByteReader& codeReader)
+// {
+//     auto [x, d, l, r] = read_xrri(codeReader);
+//     DoCommonOp(Common::Value(x), common(W64, SIGN), d, l, r);
+// }
+//
+// template<>
+// void Parser::decode<opcode::IntegerCommon32K16, void>(Decoder::ByteReader& codeReader)
+// {
+//     auto [x, d, l, r] = read_xrri(codeReader);
+//     DoCommonOp(Common::Value(x), common(W32, SIGN), d, l, r);
+// }
+//
+// template<>
+// void Parser::decode<opcode::IntegerCommon64K16, void>(Decoder::ByteReader& codeReader)
+// {
+//     auto [x, d, l, r] = read_xrri(codeReader);
+//     DoCommonOp(Common::Value(x), common(W64, SIGN), d, l, r);
+// }
 
-template<>
-void Parser::decode<opcode::IntegerCommon64, void>(Decoder::ByteReader& codeReader)
-{
-    auto [x, d, l, r] = read_xrrr(codeReader);
-    DoCommonOp(Common::Value(x), common(W64, SIGN), d, l, r);
-}
-
-template<>
-void Parser::decode<opcode::IntegerCommon32K0, void>(Decoder::ByteReader& codeReader)
-{
-    auto [x, d, l, r] = read_xrri(codeReader);
-    DoCommonOp(Common::Value(x), common(W32, SIGN), d, l, r);
-}
-
-template<>
-void Parser::decode<opcode::IntegerCommon64K0, void>(Decoder::ByteReader& codeReader)
-{
-    auto [x, d, l, r] = read_xrri(codeReader);
-    DoCommonOp(Common::Value(x), common(W64, SIGN), d, l, r);
-}
-
-template<>
-void Parser::decode<opcode::IntegerCommon32K8, void>(Decoder::ByteReader& codeReader)
-{
-    auto [x, d, l, r] = read_xrri(codeReader);
-    DoCommonOp(Common::Value(x), common(W32, SIGN), d, l, r);
-}
-
-template<>
-void Parser::decode<opcode::IntegerCommon64K8, void>(Decoder::ByteReader& codeReader)
-{
-    auto [x, d, l, r] = read_xrri(codeReader);
-    DoCommonOp(Common::Value(x), common(W64, SIGN), d, l, r);
-}
-
-template<>
-void Parser::decode<opcode::IntegerCommon32K16, void>(Decoder::ByteReader& codeReader)
-{
-    auto [x, d, l, r] = read_xrri(codeReader);
-    DoCommonOp(Common::Value(x), common(W32, SIGN), d, l, r);
-}
-
-template<>
-void Parser::decode<opcode::IntegerCommon64K16, void>(Decoder::ByteReader& codeReader)
-{
-    auto [x, d, l, r] = read_xrri(codeReader);
-    DoCommonOp(Common::Value(x), common(W64, SIGN), d, l, r);
-}
-
-template<>
-void Parser::decode<opcode::CheckedAdd, void>(Decoder::ByteReader& codeReader)
-{
-    auto [x, d, l, r] = read_xrrr(codeReader);
-    DoCheckedOp(checked_opc::Add, checked(x), d, l, r);
-}
-
-template<>
-void Parser::decode<opcode::CheckedSub, void>(Decoder::ByteReader& codeReader)
-{
-    auto [x, d, l, r] = read_xrrr(codeReader);
-    DoCheckedOp(checked_opc::Sub, checked(x), d, l, r);
-}
-
-template<>
-void Parser::decode<opcode::CheckedMul, void>(Decoder::ByteReader& codeReader)
-{
-    auto [x, d, l, r] = read_xrrr(codeReader);
-    DoCheckedOp(checked_opc::Mul, checked(x), d, l, r);
-}
-
-template<>
-void Parser::decode<opcode::CheckedDiv, void>(Decoder::ByteReader& codeReader)
-{
-    auto [x, d, l, r] = read_xrrr(codeReader);
-    DoCheckedOp(checked_opc::Div, checked(x), d, l, r);
-}
-
-template<>
-void Parser::decode<opcode::CheckedAddImm, void>(Decoder::ByteReader& codeReader)
-{
-    auto [x, d, l, r] = read_xrri(codeReader);
-    DoCheckedOp(checked_opc::Add, checked(x), d, l, r);
-}
-
-template<>
-void Parser::decode<opcode::CheckedSubImm, void>(Decoder::ByteReader& codeReader)
-{
-    auto [x, d, l, r] = read_xrri(codeReader);
-    DoCheckedOp(checked_opc::Sub, checked(x), d, l, r);
-}
-
-template<>
-void Parser::decode<opcode::CheckedMulImm, void>(Decoder::ByteReader& codeReader)
-{
-    auto [x, d, l, r] = read_xrri(codeReader);
-    DoCheckedOp(checked_opc::Mul, checked(x), d, l, r);
-}
-
-template<>
-void Parser::decode<opcode::CheckedDivImm, void>(Decoder::ByteReader& codeReader)
-{
-    auto [x, d, l, r] = read_xrri(codeReader);
-    DoCheckedOp(checked_opc::Div, checked(x), d, l, r);
-}
+// template<>
+// void Parser::decode<opcode::CheckedAdd, void>(Decoder::ByteReader& codeReader)
+// {
+//     auto [x, d, l, r] = read_xrrr(codeReader);
+//     DoCheckedOp(checked_opc::Add, checked(x), d, l, r);
+// }
+//
+// template<>
+// void Parser::decode<opcode::CheckedSub, void>(Decoder::ByteReader& codeReader)
+// {
+//     auto [x, d, l, r] = read_xrrr(codeReader);
+//     DoCheckedOp(checked_opc::Sub, checked(x), d, l, r);
+// }
+//
+// template<>
+// void Parser::decode<opcode::CheckedMul, void>(Decoder::ByteReader& codeReader)
+// {
+//     auto [x, d, l, r] = read_xrrr(codeReader);
+//     DoCheckedOp(checked_opc::Mul, checked(x), d, l, r);
+// }
+//
+// template<>
+// void Parser::decode<opcode::CheckedDiv, void>(Decoder::ByteReader& codeReader)
+// {
+//     auto [x, d, l, r] = read_xrrr(codeReader);
+//     DoCheckedOp(checked_opc::Div, checked(x), d, l, r);
+// }
+//
+// template<>
+// void Parser::decode<opcode::CheckedAddImm, void>(Decoder::ByteReader& codeReader)
+// {
+//     auto [x, d, l, r] = read_xrri(codeReader);
+//     DoCheckedOp(checked_opc::Add, checked(x), d, l, r);
+// }
+//
+// template<>
+// void Parser::decode<opcode::CheckedSubImm, void>(Decoder::ByteReader& codeReader)
+// {
+//     auto [x, d, l, r] = read_xrri(codeReader);
+//     DoCheckedOp(checked_opc::Sub, checked(x), d, l, r);
+// }
+//
+// template<>
+// void Parser::decode<opcode::CheckedMulImm, void>(Decoder::ByteReader& codeReader)
+// {
+//     auto [x, d, l, r] = read_xrri(codeReader);
+//     DoCheckedOp(checked_opc::Mul, checked(x), d, l, r);
+// }
+//
+// template<>
+// void Parser::decode<opcode::CheckedDivImm, void>(Decoder::ByteReader& codeReader)
+// {
+//     auto [x, d, l, r] = read_xrri(codeReader);
+//     DoCheckedOp(checked_opc::Div, checked(x), d, l, r);
+// }
 
 template<>
 void Parser::decode<opcode::Bfx, void>(Decoder::ByteReader& codeReader)
 {
     auto [x, d, l, r] = read_xrri(codeReader);
-    DoBFX(x & 0b1, (x >> 1) & 0x1, (x >> 2) & 0b1, d, l, r);
+    // DoBFX(x & 0b1, (x >> 1) & 0x1, (x >> 2) & 0b1, d, l, r);
 }
 
 template<>
 void Parser::decode<opcode::FloatCommon, void>(Decoder::ByteReader& codeReader)
 {
     auto [x, d, l, r] = read_xrrr(codeReader);
-    DoBinaryFloatOp(float_opc(x), CbcTypeKind tkind, FReg dst, FReg src1, FReg src2)
+    // DoBinaryFloatOp(float_opc(x), CbcTypeKind tkind, FReg dst, FReg src1, FReg src2)
 }
 
 template<>
@@ -707,4 +713,5 @@ void Parser::decode<opcode::SetIf64Float, void>(Decoder::ByteReader& codeReader)
 {
     auto [d, r] = read_rr(codeReader);
 }
-}
+
+} // namespace Cbc

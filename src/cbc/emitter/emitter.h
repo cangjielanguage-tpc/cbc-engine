@@ -87,7 +87,7 @@ public:
     EmitterSnapshot Snapshot();
     void Apply(EmitterSnapshot snapshot);
 
-    void Binary(Common op, Width width, IReg d, IReg l, IReg r);
+    void Binary(common_opc op, Width width, IReg d, IReg l, IReg r);
     void Add(Width width, IReg d, IReg l, IReg r);
     void Sub(Width width, IReg d, IReg l, IReg r);
     void Mul(Width width, IReg d, IReg l, IReg r);
@@ -103,7 +103,7 @@ public:
     void Asr(Width width, IReg d, IReg l, IReg r);
     void Neg(Width width, IReg d, IReg s);
 
-    void BinaryImm(Common op, Width width, IReg d, IReg l, uint64_t imm);
+    void BinaryImm(common_opc op, Width width, IReg d, IReg l, uint64_t imm);
     void AddI(Width width, IReg d, IReg l, uint64_t imm);
     void SubI(Width width, IReg d, IReg l, uint64_t imm);
     void MulI(Width width, IReg d, IReg l, uint64_t imm);

@@ -25,12 +25,14 @@ void Rewriter::DoMovImm(Width width, IReg dst, uint64_t imm) { e.MovImm(width, d
 
 void Rewriter::DoINeg(CbcTypeKind tkind, IReg dst, IReg src) { ASSERTION(false, "Not implmeneted"); }
 
-void Rewriter::DoCommonOp(Common op, CbcTypeKind tkind, IReg dst, IReg src1, IReg src2)
+void Rewriter::DoINeg(CbcTypeKind tkind, IReg dst, uint64_t imm) { ASSERTION(false, "Not implmeneted"); }
+
+void Rewriter::DoCommonOp(common_opc op, CbcTypeKind tkind, IReg dst, IReg src1, IReg src2)
 {
     e.Binary(op, Width::FromCbcTypeKind(tkind), dst, src1, src2);
 }
 
-void Rewriter::DoCommonOp(Common op, CbcTypeKind tkind, IReg dst, IReg src1, uint64_t src2)
+void Rewriter::DoCommonOp(common_opc op, CbcTypeKind tkind, IReg dst, IReg src1, uint64_t src2)
 {
     e.BinaryImm(op, Width::FromCbcTypeKind(tkind), dst, src1, src2);
 }

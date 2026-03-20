@@ -10,9 +10,10 @@
 
 namespace Cbc {
 
-#include "isa_opcode_def.h"
 typedef int opcode_t;
-GEN_ENUM(DO_WITH_OPCODES(GET_OPC,GET_OPC,GET_OPC,GET_OPC,GET_OPC,GET_OPC,GET_OPC,GET_OPC))
+
+#include "isa_opcode_def.h"
+GEN_ENUM(opcode,DO_WITH_ALL_OPCODES(GET_OPC,GET_OPC,GET_OPC,GET_OPC,GET_OPC,GET_OPC,GET_OPC,GET_OPC))
 #include "isa_opcode_undef.h"
 
 //
@@ -105,28 +106,33 @@ GEN_ENUM(DO_WITH_OPCODES(GET_OPC,GET_OPC,GET_OPC,GET_OPC,GET_OPC,GET_OPC,GET_OPC
 //     SetIf32Float,
 //     SetIf64Float
 // };
-constexpr size_t opcode_sz = static_cast<size_t>(opcode::SetIf64Float);
-constexpr opcode common32_base = opcode::ExtendUnsigned;
-constexpr opcode common64_base = opcode::Neg32;
-constexpr opcode common32imm_base = opcode::Neg64;
-constexpr opcode common64imm_base = opcode::Neg32Imm;
+// constexpr size_t opcode_sz = static_cast<size_t>(opcode::SetIf64Float);
+// constexpr opcode common32_base = opcode::ExtendUnsigned;
+// constexpr opcode common64_base = opcode::Neg32;
+// constexpr opcode common32imm_base = opcode::Neg64;
+// constexpr opcode common64imm_base = opcode::Neg32Imm;
 
-enum class common_opc : opcode_t {
-    Add,
-    Sub,
-    Mul,
-    And,
-    Or,
-    Xor,
-    DivSigned,
-    RemSigned,
-    DivUnsigned,
-    RemUnsigned,
-    Lsr,
-    Asr,
-    Lsl,
-};
-constexpr size_t common_opc_sz = static_cast<size_t>(common_opc::Lsl);
+#include "isa_opcode_def.h"
+GEN_ENUM(common_opc,DO_WITH_COMMON_OPCODES(GET_OPS))
+GEN_ENUM(checked_opc,DO_WITH_CHECKED_OPCODES(GET_OPS))
+#include "isa_opcode_undef.h"
+
+// enum class common_opc : opcode_t {
+//     Add,
+//     Sub,
+//     Mul,
+//     And,
+//     Or,
+//     Xor,
+//     DivSigned,
+//     RemSigned,
+//     DivUnsigned,
+//     RemUnsigned,
+//     Lsr,
+//     Asr,
+//     Lsl,
+// };
+// constexpr size_t common_opc_sz = static_cast<size_t>(common_opc::Lsl);
 
 enum class float_opc : opcode_t {
     Add = 0,
@@ -142,20 +148,20 @@ enum class float_opc : opcode_t {
     FloatToFloat32,
     Float32ToFloat
 };
-constexpr size_t float_opc_sz = static_cast<size_t>(float_opc::Float32ToFloat);
+// constexpr size_t float_opc_sz = static_cast<size_t>(float_opc::Float32ToFloat);
 
 enum class float_misc : opcode_t {
     ToInteger = 0,
     FromInteger
 };
 
-enum class checked_opc : opcode_t {
-    Add = 0,
-    Sub,
-    Mul,
-    Div
-};
-constexpr size_t checked_opc_sz = static_cast<size_t>(checked_opc::Div);
+// enum class checked_opc : opcode_t {
+//     Add = 0,
+//     Sub,
+//     Mul,
+//     Div
+// };
+// constexpr size_t checked_opc_sz = static_cast<size_t>(checked_opc::Div);
 
 class IReg {
 public:

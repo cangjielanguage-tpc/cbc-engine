@@ -29,9 +29,10 @@ protected:
     virtual void DoMovImm(Width width, IReg dst, uint64_t imm)            = 0;
 
     virtual void DoINeg(CbcTypeKind tkind, IReg dst, IReg src) = 0;
+    virtual void DoINeg(CbcTypeKind tkind, IReg dst, uint64_t imm) = 0;
 
-    virtual void DoCommonOp(Common op, CbcTypeKind tkind, IReg dst, IReg src1, IReg src2)     = 0;
-    virtual void DoCommonOp(Common op, CbcTypeKind tkind, IReg dst, IReg src1, uint64_t src2) = 0;
+    virtual void DoCommonOp(common_opc op, CbcTypeKind tkind, IReg dst, IReg src1, IReg src2)     = 0;
+    virtual void DoCommonOp(common_opc op, CbcTypeKind tkind, IReg dst, IReg src1, uint64_t src2) = 0;
 
     virtual void DoCheckedOp(checked_opc op, CbcTypeKind tkind, IReg dst, IReg src1, IReg src2)     = 0;
     virtual void DoCheckedOp(checked_opc op, CbcTypeKind tkind, IReg dst, IReg src1, uint64_t src2) = 0;
@@ -58,15 +59,6 @@ private:
     void decode(Decoder::ByteReader& codeReader);
 
     void InterpretImmExt(uint64_t imm, uint32_t bits, Sign sign);
-
-    void B2rrMov(B2rr args, Width width, bool isReference);
-    void B2rrMovVST(B2rr args);
-    void B2rrCommon(B2rr args, Common op, CbcTypeKind tkind);
-    void B2rrSub(B2rr args, CbcTypeKind tkind);
-    void B2hrMov(B2hr args, Width width);
-    void B2hrCommon(B2hr args, Common op, CbcTypeKind tkind);
-    void B2hrExtend(B2hr args, Sign sign);
-    void B3xrrrCommon(B3xrrr args, Sign sign);
 
     void B2rrd8BranchIf(ConditionalBranch::B2rrd8 args, CC cc, Width width);
     void DoBranchIf(CC op, Width width, Reg l, Reg r, uint8_t* target);

@@ -25,153 +25,105 @@ void Parser::Interpret()
     }
 }
 
-void Parser::InterpretOne(uint32_t opcode)
-{
-    switch(opcode) {
-    case static_cast<opcode_t>(opcode::Mov32): { decode<opcode::Mov32, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Mov64): { decode<opcode::Mov64, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Mov32i): { decode<opcode::Mov32i, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Mov64i): { decode<opcode::Mov64i, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::MovVst): { decode<opcode::MovVst, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::MovRef): { decode<opcode::MovRef, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::ExtendSigned): { decode<opcode::ExtendSigned, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::ExtendUnsigned): { decode<opcode::ExtendUnsigned, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Add32): { decode<opcode::Add32, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Sub32): { decode<opcode::Sub32, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Mul32): { decode<opcode::Mul32, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::And32): { decode<opcode::And32, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Or32): { decode<opcode::Or32, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Xor32): { decode<opcode::Xor32, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Div32Signed): { decode<opcode::Div32Signed, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Rem32Signed): { decode<opcode::Rem32Signed, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Div32Unsigned): { decode<opcode::Div32Unsigned, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Rem32Unsigned): { decode<opcode::Rem32Unsigned, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Lsr32): { decode<opcode::Lsr32, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Asr32): { decode<opcode::Asr32, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Lsl32): { decode<opcode::Lsl32, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Neg32): { decode<opcode::Neg32, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Add64): { decode<opcode::Add64, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Sub64): { decode<opcode::Sub64, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Mul64): { decode<opcode::Mul64, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::And64): { decode<opcode::And64, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Or64): { decode<opcode::Or64, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Xor64): { decode<opcode::Xor64, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Div64Signed): { decode<opcode::Div64Signed, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Rem64Signed): { decode<opcode::Rem64Signed, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Div64Unsigned): { decode<opcode::Div64Unsigned, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Rem64Unsigned): { decode<opcode::Rem64Unsigned, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Lsr64): { decode<opcode::Lsr64, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Asr64): { decode<opcode::Asr64, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Lsl64): { decode<opcode::Lsl64, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Neg64): { decode<opcode::Neg64, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Add32Imm): { decode<opcode::Add32Imm, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Sub32Imm): { decode<opcode::Sub32Imm, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Mul32Imm): { decode<opcode::Mul32Imm, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::And32Imm): { decode<opcode::And32Imm, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Or32Imm): { decode<opcode::Or32Imm, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Xor32Imm): { decode<opcode::Xor32Imm, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Div32SignedImm): { decode<opcode::Div32SignedImm, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Rem32SignedImm): { decode<opcode::Rem32SignedImm, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Div32UnsignedImm): { decode<opcode::Div32UnsignedImm, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Rem32UnsignedImm): { decode<opcode::Rem32UnsignedImm, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Lsr32Imm): { decode<opcode::Lsr32Imm, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Asr32Imm): { decode<opcode::Asr32Imm, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Lsl32Imm): { decode<opcode::Lsl32Imm, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Neg32Imm): { decode<opcode::Neg32Imm, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Add64Imm): { decode<opcode::Add64Imm, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Sub64Imm): { decode<opcode::Sub64Imm, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Mul64Imm): { decode<opcode::Mul64Imm, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::And64Imm): { decode<opcode::And64Imm, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Or64Imm): { decode<opcode::Or64Imm, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Xor64Imm): { decode<opcode::Xor64Imm, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Div64SignedImm): { decode<opcode::Div64SignedImm, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Rem64SignedImm): { decode<opcode::Rem64SignedImm, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Div64UnsignedImm): { decode<opcode::Div64UnsignedImm, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Rem64UnsignedImm): { decode<opcode::Rem64UnsignedImm, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Lsr64Imm): { decode<opcode::Lsr64Imm, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Asr64Imm): { decode<opcode::Asr64Imm, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Lsl64Imm): { decode<opcode::Lsl64Imm, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Neg64Imm): { decode<opcode::Neg64Imm, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::IntegerCommon32): { decode<opcode::IntegerCommon32, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::IntegerCommon64): { decode<opcode::IntegerCommon64, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::IntegerCommon32K0): { decode<opcode::IntegerCommon32K0, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::IntegerCommon64K0): { decode<opcode::IntegerCommon64K0, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::IntegerCommon32K8): { decode<opcode::IntegerCommon32K8, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::IntegerCommon64K8): { decode<opcode::IntegerCommon64K8, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::IntegerCommon32K16): { decode<opcode::IntegerCommon32K16, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::IntegerCommon64K16): { decode<opcode::IntegerCommon64K16, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::CheckedAdd): { decode<opcode::CheckedAdd, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::CheckedSub): { decode<opcode::CheckedSub, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::CheckedMul): { decode<opcode::CheckedMul, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::CheckedDiv): { decode<opcode::CheckedDiv, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::CheckedAddImm): { decode<opcode::CheckedAddImm, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::CheckedSubImm): { decode<opcode::CheckedSubImm, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::CheckedMulImm): { decode<opcode::CheckedMulImm, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::CheckedDivImm): { decode<opcode::CheckedDivImm, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::Bfx): { decode<opcode::Bfx, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::FloatCommon): { decode<opcode::FloatCommon, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::FloatMisc): { decode<opcode::FloatMisc, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::SetIf32): { decode<opcode::SetIf32, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::SetIf64): { decode<opcode::SetIf64, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::SetIf32Float): { decode<opcode::SetIf32Float, void>(codeReader); break; }
-    case static_cast<opcode_t>(opcode::SetIf64Float): { decode<opcode::SetIf64Float, void>(codeReader); break; }
-    default: ASSERTION(false, "Unexpected opcode"); break;
-    }
-}
+#include "isa_opcode_def.h"
+GEN_JUMP_TABLE(DO_WITH_ALL_OPCODES(GEN_JUMP_TABLE_ENTRY,GEN_JUMP_TABLE_ENTRY,GEN_JUMP_TABLE_ENTRY,GEN_JUMP_TABLE_ENTRY,GEN_JUMP_TABLE_ENTRY,GEN_JUMP_TABLE_ENTRY,GEN_JUMP_TABLE_ENTRY,GEN_JUMP_TABLE_ENTRY))
+#include "isa_opcode_undef.h"
+
+// void Parser::InterpretOne(uint32_t opcode)
+// {
+//     switch(opcode) {
+//     case static_cast<opcode_t>(opcode::Mov32): { decode<opcode::Mov32, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Mov64): { decode<opcode::Mov64, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Mov32i): { decode<opcode::Mov32i, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Mov64i): { decode<opcode::Mov64i, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::MovVst): { decode<opcode::MovVst, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::MovRef): { decode<opcode::MovRef, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::ExtendSigned): { decode<opcode::ExtendSigned, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::ExtendUnsigned): { decode<opcode::ExtendUnsigned, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Add32): { decode<opcode::Add32, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Sub32): { decode<opcode::Sub32, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Mul32): { decode<opcode::Mul32, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::And32): { decode<opcode::And32, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Or32): { decode<opcode::Or32, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Xor32): { decode<opcode::Xor32, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::DivSigned32): { decode<opcode::DivSigned32, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::RemSigned32): { decode<opcode::RemSigned32, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::DivUnsigned32): { decode<opcode::DivUnsigned32, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::RemUnsigned32): { decode<opcode::RemUnsigned32, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Lsr32): { decode<opcode::Lsr32, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Asr32): { decode<opcode::Asr32, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Lsl32): { decode<opcode::Lsl32, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Neg32): { decode<opcode::Neg32, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Add64): { decode<opcode::Add64, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Sub64): { decode<opcode::Sub64, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Mul64): { decode<opcode::Mul64, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::And64): { decode<opcode::And64, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Or64): { decode<opcode::Or64, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Xor64): { decode<opcode::Xor64, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::DivSigned64): { decode<opcode::DivSigned64, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::RemSigned64): { decode<opcode::RemSigned64, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::DivUnsigned64): { decode<opcode::DivUnsigned64, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::RemUnsigned64): { decode<opcode::RemUnsigned64, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Lsr64): { decode<opcode::Lsr64, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Asr64): { decode<opcode::Asr64, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Lsl64): { decode<opcode::Lsl64, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Neg64): { decode<opcode::Neg64, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Add32Imm): { decode<opcode::Add32Imm, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Sub32Imm): { decode<opcode::Sub32Imm, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Mul32Imm): { decode<opcode::Mul32Imm, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::And32Imm): { decode<opcode::And32Imm, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Or32Imm): { decode<opcode::Or32Imm, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Xor32Imm): { decode<opcode::Xor32Imm, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::DivSigned32Imm): { decode<opcode::DivSigned32Imm, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::RemSigned32Imm): { decode<opcode::RemSigned32Imm, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::DivUnsigned32Imm): { decode<opcode::DivUnsigned32Imm, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::RemUnsigned32Imm): { decode<opcode::RemUnsigned32Imm, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Lsr32Imm): { decode<opcode::Lsr32Imm, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Asr32Imm): { decode<opcode::Asr32Imm, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Lsl32Imm): { decode<opcode::Lsl32Imm, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Neg32Imm): { decode<opcode::Neg32Imm, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Add64Imm): { decode<opcode::Add64Imm, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Sub64Imm): { decode<opcode::Sub64Imm, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Mul64Imm): { decode<opcode::Mul64Imm, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::And64Imm): { decode<opcode::And64Imm, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Or64Imm): { decode<opcode::Or64Imm, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Xor64Imm): { decode<opcode::Xor64Imm, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::DivSigned64Imm): { decode<opcode::DivSigned64Imm, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::RemSigned64Imm): { decode<opcode::RemSigned64Imm, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::DivUnsigned64Imm): { decode<opcode::DivUnsigned64Imm, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::RemUnsigned64Imm): { decode<opcode::RemUnsigned64Imm, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Lsr64Imm): { decode<opcode::Lsr64Imm, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Asr64Imm): { decode<opcode::Asr64Imm, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Lsl64Imm): { decode<opcode::Lsl64Imm, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Neg64Imm): { decode<opcode::Neg64Imm, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::IntegerCommon32): { decode<opcode::IntegerCommon32, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::IntegerCommon64): { decode<opcode::IntegerCommon64, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::IntegerCommon32K0): { decode<opcode::IntegerCommon32K0, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::IntegerCommon64K0): { decode<opcode::IntegerCommon64K0, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::IntegerCommon32K8): { decode<opcode::IntegerCommon32K8, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::IntegerCommon64K8): { decode<opcode::IntegerCommon64K8, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::IntegerCommon32K16): { decode<opcode::IntegerCommon32K16, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::IntegerCommon64K16): { decode<opcode::IntegerCommon64K16, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::CheckedAdd): { decode<opcode::CheckedAdd, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::CheckedSub): { decode<opcode::CheckedSub, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::CheckedMul): { decode<opcode::CheckedMul, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::CheckedDiv): { decode<opcode::CheckedDiv, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::CheckedAddImm): { decode<opcode::CheckedAddImm, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::CheckedSubImm): { decode<opcode::CheckedSubImm, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::CheckedMulImm): { decode<opcode::CheckedMulImm, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::CheckedDivImm): { decode<opcode::CheckedDivImm, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::Bfx): { decode<opcode::Bfx, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::FloatCommon): { decode<opcode::FloatCommon, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::FloatMisc): { decode<opcode::FloatMisc, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::SetIf32): { decode<opcode::SetIf32, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::SetIf64): { decode<opcode::SetIf64, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::SetIf32Float): { decode<opcode::SetIf32Float, void>(codeReader); break; }
+//     case static_cast<opcode_t>(opcode::SetIf64Float): { decode<opcode::SetIf64Float, void>(codeReader); break; }
+//     default: ASSERTION(false, "Unexpected opcode"); break;
+//     }
+// }
 
 void Parser::InterpretImmExt(uint64_t imm, uint32_t bits, Sign sign) { immDecoder.SetImmExt(imm, bits, sign); }
-
-void Parser::B2rrMov(B2rr args, Width width, bool isReference)
-{
-    DoMov(args.rr.x.IR(), args.rr.y.IR(), isReference);
-}
-
-void Parser::B2rrMovVST(B2rr args) { DoMovVST(args.rr.x.IR(), args.rr.y.IR()); }
-
-void Parser::B2rrCommon(B2rr args, Common op, CbcTypeKind tkind)
-{
-    DoCommonOp(op, tkind, args.rr.x.IR(), args.rr.x.IR(), args.rr.y.IR());
-}
-
-void Parser::B2rrSub(B2rr args, CbcTypeKind tkind)
-{
-    auto rx = args.rr.x.IR(), ry = args.rr.y.IR();
-    if (rx.Raw() == IReg::IRZ) {
-        DoINeg(tkind, ry, ry);
-    } else {
-        DoCommonOp(Common::SUB, tkind, rx, rx, ry);
-    }
-}
-
-void Parser::B2hrMov(B2hr args, Width width)
-{
-    DoMovImm(width, args.xr.r.IR(), immDecoder.DecodeB2ri4(width, args.xr.imm));
-}
-
-void Parser::B2hrCommon(B2hr args, Common op, CbcTypeKind tkind)
-{
-    auto dst = args.xr.r.IR();
-    Width::Value width;
-    if (tkind == CbcTypeKind::I32) {
-        width = Width::W32;
-    } else {
-        assert(tkind == CbcTypeKind::I64);
-        width = Width::W64;
-    }
-    DoCommonOp(op, tkind, dst, dst, immDecoder.DecodeB2ri4(width, args.xr.imm));
-}
-
-void Parser::B2hrExtend(B2hr args, Sign sign)
-{
-    DoExtend(sign, args.xr.r.IR(), args.xr.r.IR(), args.xr.imm); // TODO: decode imm
-}
-
-void Parser::B3xrrrCommon(B3xrrr args, Sign sign)
-{
-    auto op    = Common(sign.ToBits().Shift(3) | (args.xr.imm >> 1));
-    auto tkind = (args.xr.imm & 0b1) ? CbcTypeKind::I64 : CbcTypeKind::I32;
-    DoCommonOp(op, tkind, args.rr.x.IR(), args.rr.x.IR(), args.rr.y.IR());
-}
 
 void Parser::B2rrd8BranchIf(ConditionalBranch::B2rrd8 args, CC cc, Width width)
 {
