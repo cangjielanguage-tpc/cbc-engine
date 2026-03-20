@@ -129,6 +129,19 @@ public:
         return ByteReaderM_(reader, 0, ::std::move(new_data));
     }
 
+    template<typename T = uint32_t>
+    auto read32() && -> decltype(auto) {
+        auto val = T(reader.Read32());
+        auto new_data = ::std::tuple_cat(data, ::std::make_tuple(val));
+        return ByteReaderM_(reader, 0, ::std::move(new_data));
+    }
+    template<typename T = uint64_t>
+    auto read64() && -> decltype(auto) {
+        auto val = T(reader.Read64());
+        auto new_data = ::std::tuple_cat(data, ::std::make_tuple(val));
+        return ByteReaderM_(reader, 0, ::std::move(new_data));
+    }
+
 	auto get() && -> decltype(auto) {
 		return ::std::move(data);
 	}
@@ -151,27 +164,6 @@ public:
     auto read4() && -> decltype(auto) {
         auto new_data = ::std::tuple_cat(data, ::std::make_tuple(T(last)));
 		return ByteReaderM(reader, ::std::move(new_data));
-    }
-
-    template<typename T = uint8_t>
-    auto read8() && -> decltype(auto) {
-        auto val = T(reader.Read8());
-        auto new_data = ::std::tuple_cat(data, ::std::make_tuple(val));
-		return ByteReaderM(reader, ::std::move(new_data));
-    }
-
-    template<typename T = uint16_t>
-    auto read12() && -> decltype(auto) {
-        auto val = reader.Read8();
-        auto new_data = ::std::tuple_cat(data, ::std::make_tuple(T((static_cast<uint16_t>(last) << 8) | val)));
-		return ByteReaderM(reader, ::std::move(new_data));
-    }
-
-    template<typename T = uint16_t>
-    auto read16() && -> decltype(auto) {
-        auto val = T(reader.Read16());
-        auto new_data = ::std::tuple_cat(data, ::std::make_tuple(val));
-        return ByteReaderM(reader, ::std::move(new_data));
     }
 
 	auto get() && -> decltype(auto) {

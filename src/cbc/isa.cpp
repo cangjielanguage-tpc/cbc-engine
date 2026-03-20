@@ -4,6 +4,8 @@
 
 namespace Cbc {
 
+opcode_t bits(opcode opc) { return static_cast<opcode_t>(opc); }
+
 using W = Width::Value;
 using S = Sign::Value;
 using IR = IReg::Value;
@@ -30,6 +32,15 @@ auto read_ri(Decoder::ByteReader& codeReader) -> decltype(auto)
     ::std::tuple<IReg, uint8_t> res = Decoder::ByteReaderM(codeReader)
         .read4<IReg::Value>()
         .read4()
+        .get();
+    return res;
+}
+
+auto read_wr(Decoder::ByteReader& codeReader) -> decltype(auto)
+{
+    ::std::tuple<Width, IReg> res = Decoder::ByteReaderM(codeReader)
+        .read4<Width::Value>()
+        .read4<IReg::Value>()
         .get();
     return res;
 }

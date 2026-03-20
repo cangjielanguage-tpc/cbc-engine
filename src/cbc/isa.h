@@ -10,11 +10,13 @@
 
 namespace Cbc {
 
-typedef int opcode_t;
+typedef uint8_t opcode_t;
 
 #include "isa_opcode_def.h"
 GEN_ENUM(opcode,DO_WITH_ALL_OPCODES(GET_OPC))
 #include "isa_opcode_undef.h"
+
+opcode_t bits(opcode opc);
 
 //
 // enum class opcode : opcode_t {

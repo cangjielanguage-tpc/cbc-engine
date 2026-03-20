@@ -240,7 +240,6 @@ void Emitter::Binary(common_opc op, Width width, IReg d, IReg l, IReg r)
     ASSERT(width == Width::W32 || width == Width::W64);
     auto opcode = width == Width::W32 ? RT::Opcode::BIN32 : RT::Opcode::BIN64;
 
-    // Encode_t::enc(segment) << opcode << XR{op, d} << RR{l, r};
     Encode(
         segment,
         RT::B3xrrr {

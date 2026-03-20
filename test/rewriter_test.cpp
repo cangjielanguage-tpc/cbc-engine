@@ -27,13 +27,13 @@ using namespace Cbc::Format;
 
 TEST_F(RewriterTest, Rewriter_Simple)
 {
-    GTEST_SKIP() << "Isa12 bytecode changed";
+    // GTEST_SKIP() << "Isa12 bytecode changed";
     uint32_t isa12CodeSize = 4;
     uint8_t isa12Bytes[]   = {
-        0b00000000, //
-        0b00100001, // Add IR1, IR2
-        0b10100100, //
-        0b00011000  // Ret IR1
+        bits(opcode::Add32), //
+        static_cast<uint8_t>(IReg::IR1 << 4) | IReg::IR2, // Add IR1, IR2
+        bits(opcode::Ret), //
+        static_cast<uint8_t>(Width::W32 << 4) | IReg::IR1 // Ret IR1
     };
     MethodCode methodCode = MethodCode::Mock(isa12Bytes, isa12CodeSize);
 

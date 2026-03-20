@@ -7,59 +7,6 @@
 namespace Cbc {
 namespace Emitter {
 
-struct Encode_t {
-    ByteBuffer& buf;
-
-    Encode_t(ByteBuffer& buf) : buf(buf) {}
-
-    static auto enc(ByteBuffer& buf) -> decltype(auto)
-    {
-        return Encode_t(buf);
-    }
-
-    auto operator<<(RT::Opcode opc) && -> decltype(auto)
-    {
-        buf.AddW8(opc);
-        return ::std::move(*this);
-    }
-
-    auto operator<<(Format::RR rr) && -> decltype(auto)
-    {
-        buf.AddW8(static_cast<uint32_t>(rr.x | (rr.y << 4)));
-        return ::std::move(*this);
-    }
-
-    auto operator<<(Format::XR xr) && -> decltype(auto)
-    {
-        buf.AddW8(static_cast<uint32_t>(xr.imm | (xr.r << 4)));
-        return ::std::move(*this);
-    }
-
-    auto operator<<(Format::Imm16 i16) && -> decltype(auto)
-    {
-        buf.AddW16(i16.imm);
-        return ::std::move(*this);
-    }
-
-    auto operator<<(Format::XImm12 xi12) && -> decltype(auto)
-    {
-        buf.AddW16(Format::XImm12::Raw(xi12));
-        return ::std::move(*this);
-    }
-
-    auto operator<<(RT::Opcode opc) & -> decltype(auto) = delete;
-    auto operator<<(Format::RR rr) & -> decltype(auto) = delete;
-    auto operator<<(Format::XR xr) & -> decltype(auto) = delete;
-    auto operator<<(Format::Imm16 i16) & -> decltype(auto) = delete;
-    auto operator<<(Format::XImm12 xi12) & -> decltype(auto) = delete;
-
-    // auto operator<<(RT::B1 command) && -> decltype(auto)
-    // {
-    //     return (this << command.opc);
-    // }
-
-};
-
 void Encode(ByteBuffer& buf, Format::RR rr);
 void Encode(ByteBuffer& buf, Format::XR xr);
 void Encode(ByteBuffer& buf, Format::XImm12 xi12);

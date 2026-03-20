@@ -51,9 +51,10 @@
         GEN_B3_READER(RR_TYPE) \
         DoCheckedOp(checked_opc::OPS, checked(x), d, l, r); \
     }
-#define GEN_RET(OPC,WIDTH,DST) \
+#define GEN_RET(OPC,RR_TYPE) \
     GEN_DECODER_HEADER(OPC) \
-        DoReturn(WIDTH, DST); \
+        GEN_B2_READER(RR_TYPE) \
+        DoReturn(d, r); \
     }
 #define EMPTY_IMPL(OPC,_) \
     GEN_DECODER_HEADER(OPC) \
@@ -129,8 +130,7 @@
     X(SetIf32Float,) \
     X(SetIf64Float,)
 #define GEN_OPCODE_RET(X) \
-    X(Ret32,W32,IR1) \
-    X(Ret64,W64,IR1)
+    X(Ret,wr)
 
 // END OF OPCODES DEFINITION
 
