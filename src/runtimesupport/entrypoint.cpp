@@ -1,5 +1,6 @@
 #include <filesystem>
 
+#include "asm_trampolines.h"
 #include "cbc_engine.h"
 #include "cjnative.h"
 #include "engine/engine.h"
@@ -40,10 +41,6 @@ CBC_EXPORT void interpreter_bridge_init(
     struct cjnative_interface_t* rtInterf
 );
 
-/// Internal engine symbols declared in ASM.
-void engine_c2i_call_pc_start();
-void engine_c2i_call_pc_end();
-
 CBC_EXPORT void engine_set_cbcpath(char const* cbcPath) { g_cbcPath = cbcPath; }
 
 CBC_EXPORT void engine_set_main_cbc(char const* mainCbc) { g_mainCbc = mainCbc; }
@@ -79,8 +76,8 @@ CBC_EXPORT void interpreter_bridge_init(
     interpInterf->version                   = 1;
     interpInterf->fiber_specific_data_size  = sizeof(Interpretation::Ectype);
     interpInterf->iterator_size             = 0; // FIXME: remove
-    interpInterf->c2iVirtualExecutorAddr    = reinterpret_cast<uintptr_t>(&engine_c2i_call_pc_start);
-    interpInterf->c2iVirtualExecutorEndAddr = reinterpret_cast<uintptr_t>(&engine_c2i_call_pc_end);
+    interpInterf->c2iVirtualExecutorAddr    = reinterpret_cast<uintptr_t>(&Asm::engine_c2i_call_pc_start);
+    interpInterf->c2iVirtualExecutorEndAddr = reinterpret_cast<uintptr_t>(&Asm::engine_c2i_call_pc_end);
     interpInterf->fiber_destroy             = &FiberDestroy;
     interpInterf->fiber_start               = &FiberStart;
 
