@@ -13,7 +13,7 @@ namespace Cbc {
 typedef int opcode_t;
 
 #include "isa_opcode_def.h"
-GEN_ENUM(opcode,DO_WITH_ALL_OPCODES(GET_OPC,GET_OPC,GET_OPC,GET_OPC,GET_OPC,GET_OPC,GET_OPC,GET_OPC))
+GEN_ENUM(opcode,DO_WITH_ALL_OPCODES(GET_OPC))
 #include "isa_opcode_undef.h"
 
 //

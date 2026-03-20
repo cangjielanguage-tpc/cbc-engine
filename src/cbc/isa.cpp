@@ -6,12 +6,15 @@ namespace Cbc {
 
 using W = Width::Value;
 using S = Sign::Value;
+using IR = IReg::Value;
+using FR = FReg::Value;
 static constexpr W W8 = W::W8;
 static constexpr W W16 = W::W16;
 static constexpr W W32 = W::W32;
 static constexpr W W64 = W::W64;
 static constexpr S SIGN = S::SIGNED;
 static constexpr S USIGN = S::UNSIGNED;
+static constexpr IR IR1 = IR::IR1;
 
 auto read_rr(Decoder::ByteReader& codeReader) -> decltype(auto)
 {
@@ -107,6 +110,7 @@ GEN_OPCODE_DECODER_COMMON(GEN_B2_COMMON)
 GEN_OPCODE_DECODER_NEG(GEN_B2_MANUAL)
 GEN_OPCODE_DECODER_INTEGER_COMMON(GEN_B3_COMMON)
 GEN_OPCODE_DECODER_CHECKED(GEN_B3_CHECKED)
+GEN_OPCODE_RET(GEN_RET)
 #include "isa_opcode_undef.h"
 
 // template<>

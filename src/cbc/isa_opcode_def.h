@@ -18,7 +18,7 @@
     { \
         switch(opcode) { \
         ENTRIES \
-        default: ASSERTION(false, "Unexpected opcode"); break; \
+            default: ASSERTION(false, "Unexpected opcode"); ::std::printf("%d", opcode); break; \
         } \
     }
 
@@ -51,7 +51,12 @@
         GEN_B3_READER(RR_TYPE) \
         DoCheckedOp(checked_opc::OPS, checked(x), d, l, r); \
     }
+#define GEN_RET(OPC,WIDTH,DST) \
+    GEN_DECODER_HEADER(OPC) \
+        DoReturn(WIDTH, DST); \
+    }
 #define EMPTY_IMPL(OPC,_) \
+    GEN_DECODER_HEADER(OPC) \
     }
 
 // OPCODES DEFINITION
@@ -123,6 +128,9 @@
     X(SetIf64,) \
     X(SetIf32Float,) \
     X(SetIf64Float,)
+#define GEN_OPCODE_RET(X) \
+    X(Ret32,W32,IR1) \
+    X(Ret64,W64,IR1)
 
 // END OF OPCODES DEFINITION
 
@@ -135,15 +143,16 @@
 #define DO_WITH_CHECKED_OPCODES(A) \
     GEN_OPCODE_DECODER_CHECKED_OPS(A,,)
 
-#define DO_WITH_ALL_OPCODES(A,B,C,D,E,F,G,H) \
+#define DO_WITH_ALL_OPCODES(A) \
     GEN_OPCODE_DECODER_MOV_EXTEND(A) \
-    GEN_OPCODE_DECODER_COMMON(B) \
-    GEN_OPCODE_DECODER_NEG(C) \
-    GEN_OPCODE_DECODER_INTEGER_COMMON(D) \
-    GEN_OPCODE_DECODER_CHECKED(E) \
-    GEN_OPCODE_BFX(F) \
-    GEN_OPCODE_FLOAT(G) \
-    GEN_OPCODE_SETIF(H)
+    GEN_OPCODE_DECODER_COMMON(A) \
+    GEN_OPCODE_DECODER_NEG(A) \
+    GEN_OPCODE_DECODER_INTEGER_COMMON(A) \
+    GEN_OPCODE_DECODER_CHECKED(A) \
+    GEN_OPCODE_BFX(A) \
+    GEN_OPCODE_FLOAT(A) \
+    GEN_OPCODE_SETIF(A) \
+    GEN_OPCODE_RET(A)
 
 #define GEN_JUMP_TABLE_ENTRY(OPC,x...) \
     case static_cast<opcode_t>(opcode::OPC): { decode<opcode::OPC, void>(codeReader); break; }
