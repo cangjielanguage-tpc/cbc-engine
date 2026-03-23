@@ -15,7 +15,10 @@ typedef uint8_t Opcode_t;
 GEN_ENUM(InputOpcode,DO_WITH_ALL_OPCODES(GET_OPC))
 #include "isa_opcode_undef.h"
 
-Opcode_t opc(InputOpcode opc);
+constexpr Opcode_t Opc(const InputOpcode opc) { return static_cast<Opcode_t>(opc); }
+
+template<InputOpcode opcode>
+using _with_valid_def = typename ::std::enable_if_t<0 <= Opc(opcode) && Opc(opcode) < Opc(InputOpcode::___LAST), Decoder::ByteReader>;
 
 #include "isa_opcode_def.h"
 GEN_ENUM(CommonOpc,DO_WITH_COMMON_OPCODES(GET_OPS))

@@ -9,31 +9,31 @@
 #define GET_OPS(x,y,...) y,
 
 #define GEN_ENUM(NAME,DEF) \
-    enum class NAME : Opcode_t { \
+    enum class NAME : ::Cbc::Opcode_t { \
     DEF \
     ___LAST \
     };
 #define GEN_JUMP_TABLE(ENTRIES) \
-    void ::Cbc::Parser::InterpretOne(uint32_t opcode) \
+    inline void ::Cbc::Parser::InterpretOne(uint32_t opcode) \
     { \
         switch(opcode) { \
         ENTRIES \
-            default: ASSERTION(false, "Unexpected opcode"); ::std::printf("%d", opcode); break; \
+            default: ASSERTION(false, "Unexpected opcode"); break; \
         } \
     }
 
 #define GEN_DECODER_HEADER(OPC) \
     template<> \
-    void Parser::Decode<InputOpcode::OPC, void>(Decoder::ByteReader& codeReader) \
+    void ::Cbc::Parser::Decode<::Cbc::InputOpcode::OPC>(::Decoder::ByteReader& codeReader) \
     {
 #define GEN_B2_READER(RR_TYPE) \
-        auto [d, r] = Read##RR_TYPE(codeReader);
+        auto [d, r] = ::Cbc::Read##RR_TYPE(codeReader);
 #define GEN_B3_READER(RR_TYPE) \
-        auto [x, d, l, r] = Read##RR_TYPE(codeReader);
+        auto [x, d, l, r] = ::Cbc::Read##RR_TYPE(codeReader);
 #define GEN_READ_IMM16_HEADER(NEEDED) \
     uint64_t r_or_imm = static_cast<uint64_t>(r); \
     if constexpr (NEEDED) { \
-        auto [imm16] = ReadImm16(codeReader);
+        auto [imm16] = ::Cbc::ReadImm16(codeReader);
 #define GEN_READ_IMM16_INTEGER(NEEDED,WIDTH,SIGN) \
     GEN_READ_IMM16_HEADER(NEEDED) \
         r_or_imm = immDecoder.DecodeB3ImmInteger(WIDTH,SIGN,r,imm16); \
@@ -51,25 +51,25 @@
 #define GEN_B2_COMMON(OPC,OPS,RR_TYPE,BASE,WIDTH) \
     GEN_DECODER_HEADER(OPC) \
         GEN_B2_READER(RR_TYPE) \
-        DoCommonOp(CommonOpc::OPS, GetCommonType(WIDTH, SIGN), d, d, r); \
+        DoCommonOp(::Cbc::CommonOpc::OPS, ::Cbc::GetCommonType(WIDTH, SIGN), d, d, r); \
     }
 #define GEN_B3_COMMON(OPC,RR_TYPE,WIDTH,WITH_IMM) \
     GEN_DECODER_HEADER(OPC) \
         GEN_B3_READER(RR_TYPE) \
         GEN_READ_IMM16_INTEGER(WITH_IMM,WIDTH,SIGN) \
-        DoCommonOp(CommonOpc(x), GetCommonType(WIDTH, SIGN), d, l, r_or_imm); \
+        DoCommonOp(::Cbc::CommonOpc(x), ::Cbc::GetCommonType(WIDTH, SIGN), d, l, r_or_imm); \
     }
 #define GEN_B3_CHECKED(OPC,OPS,RR_TYPE,WITH_IMM) \
     GEN_DECODER_HEADER(OPC) \
         GEN_B3_READER(RR_TYPE) \
-        GEN_READ_IMM16_INTEGER(WITH_IMM,GetCheckedWidth(x),GetCheckedSign(x)) \
-        DoCheckedOp(CheckedOpc::OPS, GetCheckedType(x), d, l, r_or_imm); \
+        GEN_READ_IMM16_INTEGER(WITH_IMM,::Cbc::GetCheckedWidth(x),::Cbc::GetCheckedSign(x)) \
+        DoCheckedOp(::Cbc::CheckedOpc::OPS, ::Cbc::GetCheckedType(x), d, l, r_or_imm); \
     }
 #define GEN_B3_FLOAT(OPC,RR_TYPE,WITH_IMM) \
     GEN_DECODER_HEADER(OPC) \
         GEN_B3_READER(RR_TYPE) \
-        GEN_READ_IMM16_FLOAT(WITH_IMM,GetFloatWidth(x)) \
-        DoBinaryFloatOp(FloatOpc(x), GetFloatType(x), d, l, r_or_imm); \
+        GEN_READ_IMM16_FLOAT(WITH_IMM,::Cbc::GetFloatWidth(x)) \
+        DoBinaryFloatOp(::Cbc::FloatOpc(x), ::Cbc::GetFloatType(x), d, l, r_or_imm); \
     }
 #define GEN_RET(OPC,RR_TYPE,WIDTH) \
     GEN_DECODER_HEADER(OPC) \
@@ -135,10 +135,10 @@
     GEN_OPCODE_DECODER_COMMON_OPS(X,RI,32,Imm) \
     GEN_OPCODE_DECODER_COMMON_OPS(X,RI,64,Imm)
 #define GEN_OPCODE_DECODER_NEG(X) \
-    X(Neg32,RR,DoINeg,FIRST(GetCommonType(W32,SIGN)),) \
-    X(Neg64,RR,DoINeg,FIRST(GetCommonType(W64,SIGN)),) \
-    X(Neg32Imm,RI,DoINeg,FIRST(GetCommonType(W32,SIGN)),) \
-    X(Neg64Imm,RI,DoINeg,FIRST(GetCommonType(W64,SIGN)),)
+    X(Neg32,RR,DoINeg,FIRST(::Cbc::GetCommonType(W32,SIGN)),) \
+    X(Neg64,RR,DoINeg,FIRST(::Cbc::GetCommonType(W64,SIGN)),) \
+    X(Neg32Imm,RI,DoINeg,FIRST(::Cbc::GetCommonType(W32,SIGN)),) \
+    X(Neg64Imm,RI,DoINeg,FIRST(::Cbc::GetCommonType(W64,SIGN)),)
 #define GEN_OPCODE_DECODER_INTEGER_COMMON(X) \
     GEN_OPCODE_DECODER_INTEGER_COMMON_OPS(X,XRRR,32,false,) \
     GEN_OPCODE_DECODER_INTEGER_COMMON_OPS(X,XRRR,64,false,) \
@@ -189,4 +189,4 @@
     GEN_OPCODE_DECODER_RET(A)
 
 #define GEN_JUMP_TABLE_ENTRY(OPC,x...) \
-    case static_cast<Opcode_t>(InputOpcode::OPC): { Decode<InputOpcode::OPC, void>(codeReader); break; }
+case ::Cbc::Opc(::Cbc::InputOpcode::OPC): { ::Cbc::Parser::Decode<::Cbc::InputOpcode::OPC>(codeReader); break; }

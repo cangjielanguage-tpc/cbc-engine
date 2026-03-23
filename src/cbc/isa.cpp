@@ -4,8 +4,6 @@
 
 namespace Cbc {
 
-Opcode_t opc(InputOpcode opc) { return static_cast<Opcode_t>(opc); }
-
 using W = Width::Value;
 using S = Sign::Value;
 using IR = IReg::Value;
