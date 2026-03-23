@@ -30,6 +30,18 @@
         auto [d, r] = read_##RR_TYPE(codeReader);
 #define GEN_B3_READER(RR_TYPE) \
         auto [x, d, l, r] = read_##RR_TYPE(codeReader);
+#define GEN_READ_IMM16_INTEGER(NEEDED,T4,WIDTH,SIGN) \
+    uint64_t imm = static_cast<uint64_t>(r); \
+    if constexpr (NEEDED) { \
+        auto [imm16] = read_imm16(codeReader); \
+        imm = DecodeB3ImmInteger(WIDTH,SIGN,r,imm16); \
+    }
+#define GEN_READ_IMM16_FLOAT(NEEDED,T4,WIDTH) \
+    uint64_t imm = static_cast<uint64_t>(r); \
+    if constexpr (NEEDED) { \
+        auto [imm16] = read_imm16(codeReader); \
+        imm = DecodeB3ImmFloat(WIDTH,r,imm16); \
+    }
 
 #define GEN_B2_MANUAL(OPC,RR_TYPE,IMPL_FUNC_NAME,FIRST_ARGS,LAST_ARGS) \
     GEN_DECODER_HEADER(OPC) \
@@ -39,17 +51,19 @@
 #define GEN_B2_COMMON(OPC,OPS,RR_TYPE,BASE,WIDTH) \
     GEN_DECODER_HEADER(OPC) \
         GEN_B2_READER(RR_TYPE) \
-        DoCommonOp(common_opc::OPS, common(WIDTH, SIGN), d, d, r); \
+        DoCommonOp(common_opc::OPS, common_type(WIDTH, SIGN), d, d, r); \
     }
-#define GEN_B3_COMMON(OPC,RR_TYPE,WIDTH) \
+#define GEN_B3_COMMON(OPC,RR_TYPE,WIDTH,WITH_IMM) \
     GEN_DECODER_HEADER(OPC) \
         GEN_B3_READER(RR_TYPE) \
-        DoCommonOp(common_opc(x), common(WIDTH, SIGN), d, l, r); \
+        GEN_READ_IMM16_INTEGER(WITH_IMM,r,WIDTH,SIGN) \
+        DoCommonOp(common_opc(x), common_type(WIDTH, SIGN), d, l, imm); \
     }
-#define GEN_B3_CHECKED(OPC,OPS,RR_TYPE) \
+#define GEN_B3_CHECKED(OPC,OPS,RR_TYPE,WITH_IMM) \
     GEN_DECODER_HEADER(OPC) \
         GEN_B3_READER(RR_TYPE) \
-        DoCheckedOp(checked_opc::OPS, checked(x), d, l, r); \
+        GEN_READ_IMM16_INTEGER(WITH_IMM,r,checked_width(x),checked_sign(x)) \
+        DoCheckedOp(checked_opc::OPS, checked_type(x), d, l, imm); \
     }
 #define GEN_RET(OPC,RR_TYPE,WIDTH) \
     GEN_DECODER_HEADER(OPC) \
@@ -78,13 +92,13 @@
     X(Lsr##WIDTH_N##IMM,Lsr,RR_TYPE,common##WIDTH_N##_base,W##WIDTH_N) \
     X(Asr##WIDTH_N##IMM,Asr,RR_TYPE,common##WIDTH_N##_base,W##WIDTH_N) \
     X(Lsl##WIDTH_N##IMM,Lsl,RR_TYPE,common##WIDTH_N##_base,W##WIDTH_N)
-#define GEN_OPCODE_DECODER_INTEGER_COMMON_OPS(X,RR_TYPE,WIDTH_N,K) \
-    X(IntegerCommon##WIDTH_N##K,RR_TYPE,W##WIDTH_N)
-#define GEN_OPCODE_DECODER_CHECKED_OPS(X,RR_TYPE,IMM) \
-    X(CheckedAdd##IMM,Add,RR_TYPE) \
-    X(CheckedSub##IMM,Sub,RR_TYPE) \
-    X(CheckedMul##IMM,Mul,RR_TYPE) \
-    X(CheckedDiv##IMM,Div,RR_TYPE)
+#define GEN_OPCODE_DECODER_INTEGER_COMMON_OPS(X,RR_TYPE,WIDTH_N,WITH_IMM,K) \
+    X(IntegerCommon##WIDTH_N##K,RR_TYPE,W##WIDTH_N,WITH_IMM)
+#define GEN_OPCODE_DECODER_CHECKED_OPS(X,RR_TYPE,WITH_IMM,IMM) \
+    X(CheckedAdd##IMM,Add,RR_TYPE,WITH_IMM) \
+    X(CheckedSub##IMM,Sub,RR_TYPE,WITH_IMM) \
+    X(CheckedMul##IMM,Mul,RR_TYPE,WITH_IMM) \
+    X(CheckedDiv##IMM,Div,RR_TYPE,WITH_IMM)
 
 // OPCODES SEMANTIC
 
@@ -103,22 +117,18 @@
     GEN_OPCODE_DECODER_COMMON_OPS(X,ri,32,Imm) \
     GEN_OPCODE_DECODER_COMMON_OPS(X,ri,64,Imm)
 #define GEN_OPCODE_DECODER_NEG(X) \
-    X(Neg32,rr,DoINeg,FIRST(common(W32,SIGN)),) \
-    X(Neg64,rr,DoINeg,FIRST(common(W64,SIGN)),) \
-    X(Neg32Imm,ri,DoINeg,FIRST(common(W32,SIGN)),) \
-    X(Neg64Imm,ri,DoINeg,FIRST(common(W64,SIGN)),)
+    X(Neg32,rr,DoINeg,FIRST(common_type(W32,SIGN)),) \
+    X(Neg64,rr,DoINeg,FIRST(common_type(W64,SIGN)),) \
+    X(Neg32Imm,ri,DoINeg,FIRST(common_type(W32,SIGN)),) \
+    X(Neg64Imm,ri,DoINeg,FIRST(common_type(W64,SIGN)),)
 #define GEN_OPCODE_DECODER_INTEGER_COMMON(X) \
-    GEN_OPCODE_DECODER_INTEGER_COMMON_OPS(X,xrrr,32,) \
-    GEN_OPCODE_DECODER_INTEGER_COMMON_OPS(X,xrrr,64,) \
-    GEN_OPCODE_DECODER_INTEGER_COMMON_OPS(X,xrri,32,K0) \
-    GEN_OPCODE_DECODER_INTEGER_COMMON_OPS(X,xrri,64,K0) \
-    GEN_OPCODE_DECODER_INTEGER_COMMON_OPS(X,xrri,32,K8) \
-    GEN_OPCODE_DECODER_INTEGER_COMMON_OPS(X,xrri,64,K8) \
-    GEN_OPCODE_DECODER_INTEGER_COMMON_OPS(X,xrri,32,K16) \
-    GEN_OPCODE_DECODER_INTEGER_COMMON_OPS(X,xrri,64,K16)
+    GEN_OPCODE_DECODER_INTEGER_COMMON_OPS(X,xrrr,32,false,) \
+    GEN_OPCODE_DECODER_INTEGER_COMMON_OPS(X,xrrr,64,false,) \
+    GEN_OPCODE_DECODER_INTEGER_COMMON_OPS(X,xrri,32,true,K16) \
+    GEN_OPCODE_DECODER_INTEGER_COMMON_OPS(X,xrri,64,true,K16)
 #define GEN_OPCODE_DECODER_CHECKED(X) \
-    GEN_OPCODE_DECODER_CHECKED_OPS(X,xrrr,) \
-    GEN_OPCODE_DECODER_CHECKED_OPS(X,xrri,Imm)
+    GEN_OPCODE_DECODER_CHECKED_OPS(X,xrrr,false,) \
+    GEN_OPCODE_DECODER_CHECKED_OPS(X,xrri,true,Imm)
 #define GEN_OPCODE_BFX(X) \
     X(Bfx,)
 #define GEN_OPCODE_FLOAT(X) \
@@ -141,7 +151,7 @@
     GEN_OPCODE_DECODER_COMMON_OPS(A,,,)
 
 #define DO_WITH_CHECKED_OPCODES(A) \
-    GEN_OPCODE_DECODER_CHECKED_OPS(A,,)
+    GEN_OPCODE_DECODER_CHECKED_OPS(A,,,)
 
 #define DO_WITH_ALL_OPCODES(A) \
     GEN_OPCODE_DECODER_MOV_EXTEND(A) \

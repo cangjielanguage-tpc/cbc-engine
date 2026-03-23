@@ -5,6 +5,7 @@
 #include <string>
 
 #include "cbc/decoder.h"
+#include "cbc/isa_rt.h"
 #include "utils/assertion.h"
 #include "utils/math.h"
 
@@ -1366,11 +1367,22 @@ public:
         return ival;
     }
 
-    uint64_t DecodeB2ri4(Width width, uint32_t i4)
+    uint64_t DecodeB2Imm(Width width, uint32_t i4)
     {
         uint64_t ival = StartDecoding(ImmKind::Signed, width, 4, i4);
         return FinishDecoding(width.NBits(), 4, ival, 0);
     }
+
+    uint64_t DecodeB3ImmInteger(Width width, Sign sign, uint32_t t4, uint32_t imm16)
+    {
+        return FinishDecoding(width.NBits(), 16, imm16, t4 * (width.NBits() / 16));
+    }
+
+    uint64_t DecodeB3ImmFloat(Width width, uint32_t t4, uint32_t imm16)
+    {
+        return FinishDecoding(width.NBits(), 16, imm16, t4 * (width.NBits() / 16));
+    }
+
 
     uint64_t DecodeIntegralBCCi16(Sign sign, Width width, uint32_t i16)
     {

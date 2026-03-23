@@ -67,13 +67,20 @@ auto read_xrri(Decoder::ByteReader& codeReader) -> decltype(auto)
     return res;
 }
 
+auto read_imm16(Decoder::ByteReader& codeReader) -> decltype(auto)
+{
+    Decoder::ByteReaderM(codeReader)
+        .read16()
+        .get();
+}
+
 // using namespace opcodes;
 
 // constexpr opcode_t local_opcode(opcode opc, opcode base, size_t module) { return ((opcode_t) opc - (opcode_t) base) % module; }
 // constexpr common_opc common(opcode opc, opcode base) { return common_opc(local_opcode(opc, base, common_opc_sz)); }
 // constexpr checked_opc checked(opcode opc, opcode base) { return checked_opc(local_opcode(opc, base, checked_opc_sz)); }
 
-constexpr CbcTypeKind common(Width w, Sign s)
+constexpr CbcTypeKind common_type(Width w, Sign s)
 {
     switch(s) {
         case Sign::SIGNED: switch (w) {
@@ -92,11 +99,21 @@ constexpr CbcTypeKind common(Width w, Sign s)
     }
 }
 
-constexpr CbcTypeKind checked(uint8_t x)
+constexpr Sign checked_sign(uint8_t x)
 {
-    switch ((x >> 1) & 0b1) {
+    return Sign::Value(x & 0b1);
+}
+
+constexpr Width checked_width(uint8_t x)
+{
+    return Width::Value((x >> 1) & 0b11);
+}
+
+constexpr CbcTypeKind checked_type(uint8_t x)
+{
+    switch (x & 0b1) {
     case SIGN: {
-        switch ((x >> 2) & 0b11) {
+        switch ((x >> 1) & 0b11) {
         case W8: { return CbcTypeKind::Value::I8; }
         case W16: { return CbcTypeKind::Value::I16; }
         case W32: { return CbcTypeKind::Value::I32; }
@@ -104,7 +121,7 @@ constexpr CbcTypeKind checked(uint8_t x)
         };
     }
     case USIGN: {
-        switch ((x >> 2) & 0b11) {
+        switch ((x >> 1) & 0b11) {
         case W8: { return CbcTypeKind::Value::U8; }
         case W16: { return CbcTypeKind::Value::U16; }
         case W32: { return CbcTypeKind::Value::U32; }
@@ -119,8 +136,8 @@ constexpr CbcTypeKind checked(uint8_t x)
 GEN_OPCODE_DECODER_MOV_EXTEND(GEN_B2_MANUAL)
 GEN_OPCODE_DECODER_COMMON(GEN_B2_COMMON)
 GEN_OPCODE_DECODER_NEG(GEN_B2_MANUAL)
-GEN_OPCODE_DECODER_INTEGER_COMMON(GEN_B3_COMMON)
-GEN_OPCODE_DECODER_CHECKED(GEN_B3_CHECKED)
+// GEN_OPCODE_DECODER_INTEGER_COMMON(GEN_B3_COMMON)
+// GEN_OPCODE_DECODER_CHECKED(GEN_B3_CHECKED)
 GEN_OPCODE_RET(GEN_RET)
 #include "isa_opcode_undef.h"
 
