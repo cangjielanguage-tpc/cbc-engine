@@ -21,79 +21,79 @@ static constexpr IR IR1 = IR::IR1;
 auto ReadRR(Decoder::ByteReader& codeReader) -> decltype(auto)
 {
     ::std::tuple<IReg, IReg> res = Decoder::ByteReaderM(codeReader)
-        .read4<IReg::Value>()
-        .read4<IReg::Value>()
-        .get();
+        .Read4<IReg::Value>()
+        .Read4<IReg::Value>()
+        .Get();
     return res;
 }
 
 auto ReadRI(Decoder::ByteReader& codeReader) -> decltype(auto)
 {
     ::std::tuple<IReg, uint8_t> res = Decoder::ByteReaderM(codeReader)
-        .read4<IReg::Value>()
-        .read4()
-        .get();
+        .Read4<IReg::Value>()
+        .Read4()
+        .Get();
     return res;
 }
 
 auto ReadZR(Decoder::ByteReader& codeReader) -> decltype(auto)
 {
     ::std::tuple<uint8_t, IReg> res = Decoder::ByteReaderM(codeReader)
-        .read4()
-        .read4<IReg::Value>()
-        .get();
+        .Read4()
+        .Read4<IReg::Value>()
+        .Get();
     return res;
 }
 
 auto ReadXRRR(Decoder::ByteReader& codeReader) -> decltype(auto)
 {
     ::std::tuple<uint8_t, IReg, IReg, IReg> res =  Decoder::ByteReaderM(codeReader)
-        .read4()
-        .read4<IReg::Value>()
-        .read4<IReg::Value>()
-        .read4<IReg::Value>()
-        .get();
+        .Read4()
+        .Read4<IReg::Value>()
+        .Read4<IReg::Value>()
+        .Read4<IReg::Value>()
+        .Get();
     return res;
 }
 
 auto ReadXFFF(Decoder::ByteReader& codeReader) -> decltype(auto)
 {
     ::std::tuple<uint8_t, FReg, FReg, FReg> res =  Decoder::ByteReaderM(codeReader)
-        .read4()
-        .read4<FReg::Value>()
-        .read4<FReg::Value>()
-        .read4<FReg::Value>()
-        .get();
+        .Read4()
+        .Read4<FReg::Value>()
+        .Read4<FReg::Value>()
+        .Read4<FReg::Value>()
+        .Get();
     return res;
 }
 
 auto ReadXRRI(Decoder::ByteReader& codeReader) -> decltype(auto)
 {
     ::std::tuple<uint8_t, IReg, IReg, uint8_t> res =  Decoder::ByteReaderM(codeReader)
-        .read4()
-        .read4<IReg::Value>()
-        .read4<IReg::Value>()
-        .read4()
-        .get();
+        .Read4()
+        .Read4<IReg::Value>()
+        .Read4<IReg::Value>()
+        .Read4()
+        .Get();
     return res;
 }
 
 auto ReadXFFI(Decoder::ByteReader& codeReader) -> decltype(auto)
 {
     ::std::tuple<uint8_t, FReg, FReg, uint8_t> res =  Decoder::ByteReaderM(codeReader)
-        .read4()
-        .read4<FReg::Value>()
-        .read4<FReg::Value>()
-        .read4()
-        .get();
+        .Read4()
+        .Read4<FReg::Value>()
+        .Read4<FReg::Value>()
+        .Read4()
+        .Get();
     return res;
 }
 
 auto ReadImm16(Decoder::ByteReader& codeReader) -> decltype(auto)
 {
     return Decoder::ByteReaderM(codeReader)
-        .read16()
-        .get();
+        .Read16()
+        .Get();
 }
 
 constexpr CbcTypeKind GetCommonType(Width w, Sign s)
