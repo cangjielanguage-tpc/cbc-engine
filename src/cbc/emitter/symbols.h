@@ -3,13 +3,12 @@
 
 #include <cstdint>
 #include <functional>
-#include <unordered_map>
 
 #include "cbc/emitter/segment.h"
 #include "cbc/isa_rt.h"
 #include "interpreter/literals.h"
 #include "utils/assertion.h"
-#include "utils/span.h"
+#include "utils/heap.h"
 
 namespace Cbc {
 namespace Emitter {
@@ -86,7 +85,7 @@ public:
     /// using same indicies.
     uint16_t UseSymbol(Symbol symbol);
 
-    Interpretation::LiteralTable* BuildTable(std::pmr::memory_resource& heap);
+    Interpretation::LiteralTable* BuildTable(Memory::Heap& heap);
 
     std::vector<uint8_t> table;
     Symbols symbols;

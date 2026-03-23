@@ -26,7 +26,7 @@ public:
     inline static Reference NewObj(TypeInfo<Test> type, ThreadHandle th)
     {
         auto typeInfo = Extract(type);
-        auto mem      = heap.do_allocate(typeInfo->size, 16);
+        auto mem      = heap.Allocate(typeInfo->size, 16);
         memset(mem, 0, typeInfo->size);
         TestTypeInfo** header = (TestTypeInfo**)mem;
         *header               = typeInfo;

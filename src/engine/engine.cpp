@@ -5,6 +5,7 @@
 #include "symlevel/io/stream_file_reader.h"
 #include "symlevel/member_index.h"
 #include "symlevel/reader.h"
+#include "utils/heap.h"
 
 namespace Engine {
 
@@ -66,7 +67,7 @@ Loader::Loader() : loader(std::move(std::make_unique<Loader::Impl>())) {}
 Loader::Loader(Loader&& other) = default;
 Loader::~Loader()              = default;
 
-std::pmr::memory_resource& Engine::CodeHeap() const { return *std::pmr::new_delete_resource(); }
+Memory::Heap& Engine::CodeHeap() const { return Memory::Heap::SharedHeap(); }
 
 /////////////////////////////////////////////////////////////////
 // Loader implementation

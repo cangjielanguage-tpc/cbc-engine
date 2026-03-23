@@ -3,6 +3,7 @@
 #include <utility>
 
 #include "utils/assertion.h"
+#include "utils/heap.h"
 
 namespace Cbc {
 namespace Emitter {
@@ -67,14 +68,14 @@ uint16_t LiteralTableBuilder::UseSymbol(Symbol symbol)
     }
 }
 
-Interpretation::LiteralTable* LiteralTableBuilder::BuildTable(std::pmr::memory_resource& heap)
+Interpretation::LiteralTable* LiteralTableBuilder::BuildTable(Memory::Heap& heap)
 {
     auto size = table.size();
     auto step = Interpretation::LITERAL_SIZE;
     ASSERT(size % step == 0);
     ASSERT(size < MAX_SIZE * step);
 
-    auto litTable       = (Interpretation::LiteralTable*)heap.allocate(sizeof(Interpretation::LiteralTable) + size);
+    auto litTable       = (Interpretation::LiteralTable*)heap.Allocate(sizeof(Interpretation::LiteralTable) + size);
     litTable->_byteSize = size;
 
     std::copy(table.begin(), table.end(), litTable->_table);

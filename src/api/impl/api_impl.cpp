@@ -36,8 +36,7 @@ Method* ResolverImpl::Resolve(Symlevel::Index<Symlevel::MethodReference> index)
     ASSERTION(candidates.size() == 1, "not implemented yet");
     auto target = candidates[0];
 
-    void* memory = session.Allocator().do_allocate(sizeof(MethodImpl), alignof(MethodImpl));
-    return new (memory) MethodImpl(session, target);
+    return session.Allocator().New<MethodImpl>(session, target);
 }
 
 InstanceField* ResolverImpl::Resolve(Symlevel::Index<InstanceField> index)

@@ -25,12 +25,12 @@ Code::Code(Engine::Session& session, IO::StreamFileReader& reader)
     auto literalsOffset = reader.ReadULEB(); // TODO: remove
     xInfoSize           = reader.ReadULEB();
 
-    codePtr = static_cast<uint8_t*>(session.Allocator().do_allocate(codeSize, alignof(uint8_t)));
+    codePtr = static_cast<uint8_t*>(session.Allocator().Allocate(codeSize, alignof(uint8_t)));
     reader.Read(codePtr, codeSize);
 
     hasTrivialXHandler = static_cast<bool>(reader.ReadU8());
 
-    xInfoPtr = static_cast<uint8_t*>(session.Allocator().do_allocate(xInfoSize, alignof(uint8_t)));
+    xInfoPtr = static_cast<uint8_t*>(session.Allocator().Allocate(xInfoSize, alignof(uint8_t)));
     reader.Read(xInfoPtr, xInfoSize);
 }
 

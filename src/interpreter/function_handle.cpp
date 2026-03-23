@@ -66,7 +66,7 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, Dynam
     auto code   = Symlevel::Reader::Read(session, def.FileId(), offset);
 
     auto resolver = API::Resolver::Create(session, fuh->methodDef);
-    Emitter::Emitter emitter;
+    Cbc::Emitter::Emitter emitter;
     Cbc::Rewriter rewriter(resolver.get(), code, emitter);
     rewriter.Interpret();
 
