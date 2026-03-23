@@ -4,8 +4,8 @@
 #include <string>
 #include <vector>
 
-#include "formater_rt.h"
 #include "cbc/isa.h"
+#include "formater_rt.h"
 
 namespace Cbc {
 namespace RT {

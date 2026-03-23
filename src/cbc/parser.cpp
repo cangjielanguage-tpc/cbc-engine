@@ -135,4 +135,4 @@ void Parser::B2xrOpc1000SOC(SymbolicObjectControl::B2xrI args)
     }
 }
 
-} // namespace Cb
+} // namespace Cbc

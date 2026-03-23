@@ -24,11 +24,11 @@ protected:
     virtual void DoExtend(Sign sign, IReg dst, IReg src, uint64_t imm)                                = 0;
     virtual void DoBFX(Sign sign, Width res_width, Width arg_width, IReg dst, IReg src, uint64_t imm) = 0;
 
-    virtual void DoMov(IReg dst, IReg src, bool isReference) = 0;
-    virtual void DoMovVST(IReg dst, IReg src)                             = 0;
-    virtual void DoMovImm(Width width, IReg dst, uint64_t imm)            = 0;
+    virtual void DoMov(IReg dst, IReg src, bool isReference)   = 0;
+    virtual void DoMovVST(IReg dst, IReg src)                  = 0;
+    virtual void DoMovImm(Width width, IReg dst, uint64_t imm) = 0;
 
-    virtual void DoINeg(CbcTypeKind tkind, IReg dst, IReg src) = 0;
+    virtual void DoINeg(CbcTypeKind tkind, IReg dst, IReg src)     = 0;
     virtual void DoINeg(CbcTypeKind tkind, IReg dst, uint64_t imm) = 0;
 
     virtual void DoCommonOp(CommonOpc op, CbcTypeKind tkind, IReg dst, IReg src1, IReg src2)     = 0;
@@ -55,11 +55,9 @@ protected:
 private:
     void InterpretOne(uint32_t first_byte);
 
-    template<InputOpcode opcode>
-    inline void Decode(_with_valid_def<opcode>& codeReader) {}
+    template <InputOpcode opcode> inline void Decode(_with_valid_def<opcode>& codeReader) {}
 
-    template<InputOpcode opcode>
-    inline void Decode(...)
+    template <InputOpcode opcode> inline void Decode(...)
     {
         static_assert(false, "[ERR] Attempt to implement decoder for unknown InputOpcode!");
     }

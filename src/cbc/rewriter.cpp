@@ -51,9 +51,9 @@ void Rewriter::DoBinaryFloatOp(FloatOpc op, CbcTypeKind tkind, FReg dst, FReg sr
 {
     auto width = Width::FromCbcTypeKind(tkind);
     switch (static_cast<Opcode_t>(op)) {
-        case static_cast<Opcode_t>(FloatOpc::Add):  e.Add(width, dst, src1, src2); break;
-        case static_cast<Opcode_t>(FloatOpc::Sub):  e.Sub(width, dst, src1, src2); break;
-        case static_cast<Opcode_t>(FloatOpc::Mul):  e.Mul(width, dst, src1, src2); break;
+        case static_cast<Opcode_t>(FloatOpc::Add): e.Add(width, dst, src1, src2); break;
+        case static_cast<Opcode_t>(FloatOpc::Sub): e.Sub(width, dst, src1, src2); break;
+        case static_cast<Opcode_t>(FloatOpc::Mul): e.Mul(width, dst, src1, src2); break;
         case static_cast<Opcode_t>(FloatOpc::Div): e.Div(width, dst, src1, src2); break;
 
         default: ASSERTION(false, "Unexpected op"); break;
