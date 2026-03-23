@@ -56,6 +56,17 @@ auto read_xrrr(Decoder::ByteReader& codeReader) -> decltype(auto)
     return res;
 }
 
+auto read_xfff(Decoder::ByteReader& codeReader) -> decltype(auto)
+{
+    ::std::tuple<uint8_t, FReg, FReg, FReg> res =  Decoder::ByteReaderM(codeReader)
+        .read4()
+        .read4<FReg::Value>()
+        .read4<FReg::Value>()
+        .read4<FReg::Value>()
+        .get();
+    return res;
+}
+
 auto read_xrri(Decoder::ByteReader& codeReader) -> decltype(auto)
 {
     ::std::tuple<uint8_t, IReg, IReg, uint8_t> res =  Decoder::ByteReaderM(codeReader)
@@ -67,9 +78,20 @@ auto read_xrri(Decoder::ByteReader& codeReader) -> decltype(auto)
     return res;
 }
 
+auto read_xffi(Decoder::ByteReader& codeReader) -> decltype(auto)
+{
+    ::std::tuple<uint8_t, FReg, FReg, uint8_t> res =  Decoder::ByteReaderM(codeReader)
+        .read4()
+        .read4<FReg::Value>()
+        .read4<FReg::Value>()
+        .read4()
+        .get();
+    return res;
+}
+
 auto read_imm16(Decoder::ByteReader& codeReader) -> decltype(auto)
 {
-    Decoder::ByteReaderM(codeReader)
+    return Decoder::ByteReaderM(codeReader)
         .read16()
         .get();
 }
@@ -128,17 +150,34 @@ constexpr CbcTypeKind checked_type(uint8_t x)
         case W64: { return CbcTypeKind::Value::U64; }
         };
     }
-    default: ASSERTION(false, "unknown encoding");
     };
+}
+
+constexpr Width float_width(uint8_t x)
+{
+    return Width::Value(((x >> 3) & 0b1) + W32); // opcCommon
+}
+
+constexpr CbcTypeKind float_type(uint8_t x)
+{
+    switch (float_width(x)) {
+        case W32: { return CbcTypeKind::Value::F32; }
+        case W64: { return CbcTypeKind::Value::F64; }
+        default: ASSERTION(false, "unknown encoding");
+    }
 }
 
 #include "isa_opcode_def.h"
 GEN_OPCODE_DECODER_MOV_EXTEND(GEN_B2_MANUAL)
 GEN_OPCODE_DECODER_COMMON(GEN_B2_COMMON)
 GEN_OPCODE_DECODER_NEG(GEN_B2_MANUAL)
-// GEN_OPCODE_DECODER_INTEGER_COMMON(GEN_B3_COMMON)
-// GEN_OPCODE_DECODER_CHECKED(GEN_B3_CHECKED)
-GEN_OPCODE_RET(GEN_RET)
+GEN_OPCODE_DECODER_INTEGER_COMMON(GEN_B3_COMMON)
+GEN_OPCODE_DECODER_CHECKED(GEN_B3_CHECKED)
+GEN_OPCODE_DECODER_BFX(EMPTY_IMPL)
+GEN_OPCODE_DECODER_FLOAT_COMMON(GEN_B3_FLOAT)
+GEN_OPCODE_DECODER_FLOAT_MISC(EMPTY_IMPL)
+GEN_OPCODE_DECODER_SETIF(EMPTY_IMPL)
+GEN_OPCODE_DECODER_RET(GEN_RET)
 #include "isa_opcode_undef.h"
 
 // template<>
@@ -702,48 +741,48 @@ GEN_OPCODE_RET(GEN_RET)
 //     DoCheckedOp(checked_opc::Div, checked(x), d, l, r);
 // }
 
-template<>
-void Parser::decode<opcode::Bfx, void>(Decoder::ByteReader& codeReader)
-{
-    auto [x, d, l, r] = read_xrri(codeReader);
-    // DoBFX(x & 0b1, (x >> 1) & 0x1, (x >> 2) & 0b1, d, l, r);
-}
+// template<>
+// void Parser::decode<opcode::Bfx, void>(Decoder::ByteReader& codeReader)
+// {
+//     auto [x, d, l, r] = read_xrri(codeReader);
+//     // DoBFX(x & 0b1, (x >> 1) & 0x1, (x >> 2) & 0b1, d, l, r);
+// }
 
-template<>
-void Parser::decode<opcode::FloatCommon, void>(Decoder::ByteReader& codeReader)
-{
-    auto [x, d, l, r] = read_xrrr(codeReader);
-    // DoBinaryFloatOp(float_opc(x), CbcTypeKind tkind, FReg dst, FReg src1, FReg src2)
-}
+// template<>
+// void Parser::decode<opcode::FloatCommon, void>(Decoder::ByteReader& codeReader)
+// {
+//     auto [x, d, l, r] = read_xrrr(codeReader);
+//     // DoBinaryFloatOp(float_opc(x), CbcTypeKind tkind, FReg dst, FReg src1, FReg src2)
+// }
 
-template<>
-void Parser::decode<opcode::FloatMisc, void>(Decoder::ByteReader& codeReader)
-{
-    auto [d, r] = read_rr(codeReader);
-}
-
-template<>
-void Parser::decode<opcode::SetIf32, void>(Decoder::ByteReader& codeReader)
-{
-    auto [d, r] = read_rr(codeReader);
-}
-
-template<>
-void Parser::decode<opcode::SetIf64, void>(Decoder::ByteReader& codeReader)
-{
-    auto [d, r] = read_rr(codeReader);
-}
-
-template<>
-void Parser::decode<opcode::SetIf32Float, void>(Decoder::ByteReader& codeReader)
-{
-    auto [d, r] = read_rr(codeReader);
-}
-
-template<>
-void Parser::decode<opcode::SetIf64Float, void>(Decoder::ByteReader& codeReader)
-{
-    auto [d, r] = read_rr(codeReader);
-}
+// template<>
+// void Parser::decode<opcode::FloatMisc, void>(Decoder::ByteReader& codeReader)
+// {
+//     auto [d, r] = read_rr(codeReader);
+// }
+//
+// template<>
+// void Parser::decode<opcode::SetIf32, void>(Decoder::ByteReader& codeReader)
+// {
+//     auto [d, r] = read_rr(codeReader);
+// }
+//
+// template<>
+// void Parser::decode<opcode::SetIf64, void>(Decoder::ByteReader& codeReader)
+// {
+//     auto [d, r] = read_rr(codeReader);
+// }
+//
+// template<>
+// void Parser::decode<opcode::SetIf32Float, void>(Decoder::ByteReader& codeReader)
+// {
+//     auto [d, r] = read_rr(codeReader);
+// }
+//
+// template<>
+// void Parser::decode<opcode::SetIf64Float, void>(Decoder::ByteReader& codeReader)
+// {
+//     auto [d, r] = read_rr(codeReader);
+// }
 
 } // namespace Cbc

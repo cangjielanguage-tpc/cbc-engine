@@ -32,8 +32,8 @@ TEST_F(RewriterTest, Rewriter_Simple)
     uint8_t isa12Bytes[]   = {
         bits(opcode::Add32), //
         static_cast<uint8_t>(IReg::IR1 << 4) | IReg::IR2, // Add IR1, IR2
-        bits(opcode::Ret), //
-        static_cast<uint8_t>(Width::W32 << 4) | IReg::IR1 // Ret IR1
+        bits(opcode::Ret32), //
+        IReg::IR1 // Ret IR1
     };
     MethodCode methodCode = MethodCode::Mock(isa12Bytes, isa12CodeSize);
 

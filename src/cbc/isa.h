@@ -5,7 +5,6 @@
 #include <string>
 
 #include "cbc/decoder.h"
-#include "cbc/isa_rt.h"
 #include "utils/assertion.h"
 #include "utils/math.h"
 
@@ -118,6 +117,7 @@ opcode_t bits(opcode opc);
 #include "isa_opcode_def.h"
 GEN_ENUM(common_opc,DO_WITH_COMMON_OPCODES(GET_OPS))
 GEN_ENUM(checked_opc,DO_WITH_CHECKED_OPCODES(GET_OPS))
+GEN_ENUM(float_opc,DO_WITH_FLOAT_OPCODES(GET_OPC))
 #include "isa_opcode_undef.h"
 
 // enum class common_opc : opcode_t {
@@ -137,27 +137,6 @@ GEN_ENUM(checked_opc,DO_WITH_CHECKED_OPCODES(GET_OPS))
 // };
 // constexpr size_t common_opc_sz = static_cast<size_t>(common_opc::Lsl);
 
-enum class float_opc : opcode_t {
-    Add = 0,
-    Sub,
-    Mul,
-    Div,
-    Mov,
-    Neg,
-    Abs,
-    Sqrt,
-    Movi2f,
-    Movf2i,
-    FloatToFloat32,
-    Float32ToFloat
-};
-// constexpr size_t float_opc_sz = static_cast<size_t>(float_opc::Float32ToFloat);
-
-enum class float_misc : opcode_t {
-    ToInteger = 0,
-    FromInteger
-};
-
 // enum class checked_opc : opcode_t {
 //     Add = 0,
 //     Sub,
@@ -165,6 +144,22 @@ enum class float_misc : opcode_t {
 //     Div
 // };
 // constexpr size_t checked_opc_sz = static_cast<size_t>(checked_opc::Div);
+
+// enum class float_opc : opcode_t {
+//     Add = 0,
+//     Sub,
+//     Mul,
+//     Div,
+//     Mov,
+//     Neg,
+//     Abs,
+//     Sqrt,
+//     Movi2f,
+//     Movf2i,
+//     FloatToFloat32,
+//     Float32ToFloat
+// };
+// constexpr size_t float_opc_sz = static_cast<size_t>(float_opc::Float32ToFloat);
 
 class IReg {
 public:
