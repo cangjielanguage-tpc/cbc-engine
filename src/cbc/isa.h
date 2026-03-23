@@ -1,8 +1,7 @@
 #pragma once
 
-#include <array>
 #include <cstdint>
-#include <string>
+#include <string_view>
 
 #include "cbc/decoder.h"
 #include "utils/assertion.h"
@@ -18,148 +17,11 @@ GEN_ENUM(opcode,DO_WITH_ALL_OPCODES(GET_OPC))
 
 opcode_t bits(opcode opc);
 
-//
-// enum class opcode : opcode_t {
-//     Mov32 = 0,
-//     Mov64,
-//     Mov32i,
-//     Mov64i,
-//     MovVst,
-//     MovRef,
-//     ExtendSigned,
-//     ExtendUnsigned,
-//     Add32,
-//     Sub32,
-//     Mul32,
-//     And32,
-//     Or32,
-//     Xor32,
-//     Div32Signed,
-//     Rem32Signed,
-//     Div32Unsigned,
-//     Rem32Unsigned,
-//     Lsr32,
-//     Asr32,
-//     Lsl32,
-//     Neg32,
-//     Add64,
-//     Sub64,
-//     Mul64,
-//     And64,
-//     Or64,
-//     Xor64,
-//     Div64Signed,
-//     Rem64Signed,
-//     Div64Unsigned,
-//     Rem64Unsigned,
-//     Lsr64,
-//     Asr64,
-//     Lsl64,
-//     Neg64,
-//     Add32Imm,
-//     Sub32Imm,
-//     Mul32Imm,
-//     And32Imm,
-//     Or32Imm,
-//     Xor32Imm,
-//     Div32SignedImm,
-//     Rem32SignedImm,
-//     Div32UnsignedImm,
-//     Rem32UnsignedImm,
-//     Lsr32Imm,
-//     Asr32Imm,
-//     Lsl32Imm,
-//     Neg32Imm,
-//     Add64Imm,
-//     Sub64Imm,
-//     Mul64Imm,
-//     And64Imm,
-//     Or64Imm,
-//     Xor64Imm,
-//     Div64SignedImm,
-//     Rem64SignedImm,
-//     Div64UnsignedImm,
-//     Rem64UnsignedImm,
-//     Lsr64Imm,
-//     Asr64Imm,
-//     Lsl64Imm,
-//     Neg64Imm,
-//     IntegerCommon32,
-//     IntegerCommon64,
-//     IntegerCommon32K0,
-//     IntegerCommon64K0,
-//     IntegerCommon32K8,
-//     IntegerCommon64K8,
-//     IntegerCommon32K16,
-//     IntegerCommon64K16,
-//     CheckedAdd,
-//     CheckedSub,
-//     CheckedMul,
-//     CheckedDiv,
-//     CheckedAddImm,
-//     CheckedSubImm,
-//     CheckedMulImm,
-//     CheckedDivImm,
-//     Bfx,
-//     FloatCommon,
-//     FloatMisc,
-//     SetIf32,
-//     SetIf64,
-//     SetIf32Float,
-//     SetIf64Float
-// };
-// constexpr size_t opcode_sz = static_cast<size_t>(opcode::SetIf64Float);
-// constexpr opcode common32_base = opcode::ExtendUnsigned;
-// constexpr opcode common64_base = opcode::Neg32;
-// constexpr opcode common32imm_base = opcode::Neg64;
-// constexpr opcode common64imm_base = opcode::Neg32Imm;
-
 #include "isa_opcode_def.h"
 GEN_ENUM(common_opc,DO_WITH_COMMON_OPCODES(GET_OPS))
 GEN_ENUM(checked_opc,DO_WITH_CHECKED_OPCODES(GET_OPS))
 GEN_ENUM(float_opc,DO_WITH_FLOAT_OPCODES(GET_OPC))
 #include "isa_opcode_undef.h"
-
-// enum class common_opc : opcode_t {
-//     Add,
-//     Sub,
-//     Mul,
-//     And,
-//     Or,
-//     Xor,
-//     DivSigned,
-//     RemSigned,
-//     DivUnsigned,
-//     RemUnsigned,
-//     Lsr,
-//     Asr,
-//     Lsl,
-// };
-// constexpr size_t common_opc_sz = static_cast<size_t>(common_opc::Lsl);
-
-// enum class checked_opc : opcode_t {
-//     Add = 0,
-//     Sub,
-//     Mul,
-//     Div
-// };
-// constexpr size_t checked_opc_sz = static_cast<size_t>(checked_opc::Div);
-
-// enum class float_opc : opcode_t {
-//     Add = 0,
-//     Sub,
-//     Mul,
-//     Div,
-//     Mov,
-//     Neg,
-//     Abs,
-//     Sqrt,
-//     Movi2f,
-//     Movf2i,
-//     FloatToFloat32,
-//     Float32ToFloat
-// };
-// constexpr size_t float_opc_sz = static_cast<size_t>(float_opc::Float32ToFloat);
 
 class IReg {
 public:
