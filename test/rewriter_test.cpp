@@ -30,9 +30,9 @@ using namespace Cbc::Format;
     { \
         uint32_t isa12CodeSize = 4; \
         uint8_t isa12Bytes[]   = { \
-            bits(opcode::Add32), \
+            opc(InputOpcode::Add32), \
             (IReg::IR1 << 4) | IReg::IR2, /* Add IR1, IR2 */ \
-            bits(opcode::Ret32), \
+            opc(InputOpcode::Ret32), \
             IReg::IR1 /* Ret IR1 */\
         }; \
         MethodCode methodCode = MethodCode::Mock(isa12Bytes, isa12CodeSize); \

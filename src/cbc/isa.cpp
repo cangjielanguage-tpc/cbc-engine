@@ -1,9 +1,10 @@
 #include "cbc/decoder.h"
 #include "cbc/isa.h"
+#include "cbc/parser.h"
 
 namespace Cbc {
 
-opcode_t bits(opcode opc) { return static_cast<opcode_t>(opc); }
+Opcode_t opc(InputOpcode opc) { return static_cast<Opcode_t>(opc); }
 
 using W = Width::Value;
 using S = Sign::Value;
@@ -17,7 +18,7 @@ static constexpr S SIGN = S::SIGNED;
 static constexpr S USIGN = S::UNSIGNED;
 static constexpr IR IR1 = IR::IR1;
 
-auto read_rr(Decoder::ByteReader& codeReader) -> decltype(auto)
+auto ReadRR(Decoder::ByteReader& codeReader) -> decltype(auto)
 {
     ::std::tuple<IReg, IReg> res = Decoder::ByteReaderM(codeReader)
         .read4<IReg::Value>()
@@ -26,7 +27,7 @@ auto read_rr(Decoder::ByteReader& codeReader) -> decltype(auto)
     return res;
 }
 
-auto read_ri(Decoder::ByteReader& codeReader) -> decltype(auto)
+auto ReadRI(Decoder::ByteReader& codeReader) -> decltype(auto)
 {
     ::std::tuple<IReg, uint8_t> res = Decoder::ByteReaderM(codeReader)
         .read4<IReg::Value>()
@@ -35,7 +36,7 @@ auto read_ri(Decoder::ByteReader& codeReader) -> decltype(auto)
     return res;
 }
 
-auto read_zr(Decoder::ByteReader& codeReader) -> decltype(auto)
+auto ReadZR(Decoder::ByteReader& codeReader) -> decltype(auto)
 {
     ::std::tuple<uint8_t, IReg> res = Decoder::ByteReaderM(codeReader)
         .read4()
@@ -44,7 +45,7 @@ auto read_zr(Decoder::ByteReader& codeReader) -> decltype(auto)
     return res;
 }
 
-auto read_xrrr(Decoder::ByteReader& codeReader) -> decltype(auto)
+auto ReadXRRR(Decoder::ByteReader& codeReader) -> decltype(auto)
 {
     ::std::tuple<uint8_t, IReg, IReg, IReg> res =  Decoder::ByteReaderM(codeReader)
         .read4()
@@ -55,7 +56,7 @@ auto read_xrrr(Decoder::ByteReader& codeReader) -> decltype(auto)
     return res;
 }
 
-auto read_xfff(Decoder::ByteReader& codeReader) -> decltype(auto)
+auto ReadXFFF(Decoder::ByteReader& codeReader) -> decltype(auto)
 {
     ::std::tuple<uint8_t, FReg, FReg, FReg> res =  Decoder::ByteReaderM(codeReader)
         .read4()
@@ -66,7 +67,7 @@ auto read_xfff(Decoder::ByteReader& codeReader) -> decltype(auto)
     return res;
 }
 
-auto read_xrri(Decoder::ByteReader& codeReader) -> decltype(auto)
+auto ReadXRRI(Decoder::ByteReader& codeReader) -> decltype(auto)
 {
     ::std::tuple<uint8_t, IReg, IReg, uint8_t> res =  Decoder::ByteReaderM(codeReader)
         .read4()
@@ -77,7 +78,7 @@ auto read_xrri(Decoder::ByteReader& codeReader) -> decltype(auto)
     return res;
 }
 
-auto read_xffi(Decoder::ByteReader& codeReader) -> decltype(auto)
+auto ReadXFFI(Decoder::ByteReader& codeReader) -> decltype(auto)
 {
     ::std::tuple<uint8_t, FReg, FReg, uint8_t> res =  Decoder::ByteReaderM(codeReader)
         .read4()
@@ -88,14 +89,14 @@ auto read_xffi(Decoder::ByteReader& codeReader) -> decltype(auto)
     return res;
 }
 
-auto read_imm16(Decoder::ByteReader& codeReader) -> decltype(auto)
+auto ReadImm16(Decoder::ByteReader& codeReader) -> decltype(auto)
 {
     return Decoder::ByteReaderM(codeReader)
         .read16()
         .get();
 }
 
-constexpr CbcTypeKind common_type(Width w, Sign s)
+constexpr CbcTypeKind GetCommonType(Width w, Sign s)
 {
     switch(s) {
         case Sign::SIGNED: switch (w) {
@@ -114,17 +115,17 @@ constexpr CbcTypeKind common_type(Width w, Sign s)
     }
 }
 
-constexpr Sign checked_sign(uint8_t x)
+constexpr Sign GetCheckedSign(uint8_t x)
 {
     return Sign::Value(x & 0b1);
 }
 
-constexpr Width checked_width(uint8_t x)
+constexpr Width GetCheckedWidth(uint8_t x)
 {
     return Width::Value((x >> 1) & 0b11);
 }
 
-constexpr CbcTypeKind checked_type(uint8_t x)
+constexpr CbcTypeKind GetCheckedType(uint8_t x)
 {
     switch (x & 0b1) {
     case SIGN: {
@@ -146,14 +147,14 @@ constexpr CbcTypeKind checked_type(uint8_t x)
     };
 }
 
-constexpr Width float_width(uint8_t x)
+constexpr Width GetFloatWidth(uint8_t x)
 {
     return Width::Value(((x >> 3) & 0b1) + W32); // opcCommon
 }
 
-constexpr CbcTypeKind float_type(uint8_t x)
+constexpr CbcTypeKind GetFloatType(uint8_t x)
 {
-    switch (float_width(x)) {
+    switch (GetFloatWidth(x)) {
         case W32: { return CbcTypeKind::Value::F32; }
         case W64: { return CbcTypeKind::Value::F64; }
         default: ASSERTION(false, "unknown encoding");

@@ -9,18 +9,18 @@
 
 namespace Cbc {
 
-typedef uint8_t opcode_t;
+typedef uint8_t Opcode_t;
 
 #include "isa_opcode_def.h"
-GEN_ENUM(opcode,DO_WITH_ALL_OPCODES(GET_OPC))
+GEN_ENUM(InputOpcode,DO_WITH_ALL_OPCODES(GET_OPC))
 #include "isa_opcode_undef.h"
 
-opcode_t bits(opcode opc);
+Opcode_t opc(InputOpcode opc);
 
 #include "isa_opcode_def.h"
-GEN_ENUM(common_opc,DO_WITH_COMMON_OPCODES(GET_OPS))
-GEN_ENUM(checked_opc,DO_WITH_CHECKED_OPCODES(GET_OPS))
-GEN_ENUM(float_opc,DO_WITH_FLOAT_OPCODES(GET_OPC))
+GEN_ENUM(CommonOpc,DO_WITH_COMMON_OPCODES(GET_OPS))
+GEN_ENUM(CheckedOpc,DO_WITH_CHECKED_OPCODES(GET_OPS))
+GEN_ENUM(FloatOpc,DO_WITH_FLOAT_OPCODES(GET_OPC))
 #include "isa_opcode_undef.h"
 
 class IReg {

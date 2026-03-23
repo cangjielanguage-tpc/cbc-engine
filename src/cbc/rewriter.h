@@ -26,14 +26,14 @@ protected:
     void DoINeg(CbcTypeKind tkind, IReg dst, IReg src) override;
     void DoINeg(CbcTypeKind tkind, IReg dst, uint64_t imm) override;
 
-    void DoCommonOp(common_opc op, CbcTypeKind tkind, IReg dst, IReg src1, IReg src2) override;
-    void DoCommonOp(common_opc op, CbcTypeKind tkind, IReg dst, IReg src1, uint64_t src2) override;
+    void DoCommonOp(CommonOpc op, CbcTypeKind tkind, IReg dst, IReg src1, IReg src2) override;
+    void DoCommonOp(CommonOpc op, CbcTypeKind tkind, IReg dst, IReg src1, uint64_t src2) override;
 
-    void DoCheckedOp(checked_opc op, CbcTypeKind tkind, IReg dst, IReg src1, IReg src2) override;
-    void DoCheckedOp(checked_opc op, CbcTypeKind tkind, IReg dst, IReg src1, uint64_t src2) override;
+    void DoCheckedOp(CheckedOpc op, CbcTypeKind tkind, IReg dst, IReg src1, IReg src2) override;
+    void DoCheckedOp(CheckedOpc op, CbcTypeKind tkind, IReg dst, IReg src1, uint64_t src2) override;
 
-    void DoBinaryFloatOp(float_opc op, CbcTypeKind tkind, FReg dst, FReg src1, FReg src2) override;
-    void DoBinaryFloatOp(float_opc op, CbcTypeKind tkind, FReg dst, FReg src1, uint64_t src2) override;
+    void DoBinaryFloatOp(FloatOpc op, CbcTypeKind tkind, FReg dst, FReg src1, FReg src2) override;
+    void DoBinaryFloatOp(FloatOpc op, CbcTypeKind tkind, FReg dst, FReg src1, uint64_t src2) override;
 
     void DoReturn(Width width, IReg dst) override;
     void DoReturn(Width width, FReg dst) override;
