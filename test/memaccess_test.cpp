@@ -24,11 +24,7 @@ using namespace Cbc::Format;
 using namespace Cbc;
 
 /// Allocate type info that describes object of size `objectSize` (including header).
-static TestTypeInfo* NewTypeInfo(size_t objectSize)
-{
-    void* mem = heap.do_allocate(sizeof(TestTypeInfo), alignof(TestTypeInfo));
-    return new (mem) TestTypeInfo { objectSize };
-}
+static TestTypeInfo* NewTypeInfo(size_t objectSize) { return heap.New<TestTypeInfo>(objectSize); }
 
 TEST_F(MemoryAccess, TestAlloc)
 {

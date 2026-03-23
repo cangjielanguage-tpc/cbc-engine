@@ -20,60 +20,33 @@ RegionData RegionData::Read(IO::FileId fileId, IO::RandomAccessFile& file, uint3
     uint32_t termIndexSize = reader.ReadULEB();
     uint32_t termIndexOffs = reader.ReadU32();
 
-    return RegionData(
-        fileId, methodIndexSize, methodIndexOffs, fieldIndexSize, fieldIndexOffs, termIndexSize, termIndexOffs
-    );
+    IO::OffsetPool methods(methodIndexOffs, methodIndexSize);
+    IO::OffsetPool fields(fieldIndexOffs, fieldIndexSize);
+    IO::OffsetPool terms(termIndexOffs, termIndexSize, Terms::FirstNonBuiltIn());
+
+    return RegionData(fileId, methods, fields, terms);
 }
 
-RegionData::RegionData(
-    IO::FileId fileId,
-    uint16_t methodIndexSize,
-    uint32_t methodIndexOffset,
-    uint16_t fieldIndexSize,
-    uint32_t fieldIndexOffset,
-    uint32_t termIndexSize,
-    uint32_t termIndexOffset
-)
+RegionData::RegionData(IO::FileId fileId, IO::OffsetPool methods, IO::OffsetPool fields, IO::OffsetPool terms)
     : fileId(fileId),
-      methodIndexSize(methodIndexSize),
-      methodIndexOffset(methodIndexOffset),
-      fieldIndexSize(fieldIndexSize),
-      fieldIndexOffset(fieldIndexOffset),
-      termIndexSize(termIndexSize),
-      termIndexOffset(termIndexOffset)
+      methods(methods),
+      fields(fields),
+      terms(terms)
 {}
 
 std::optional<MethodReference> RegionData::queryMethod(Engine::Session& session, Index<MethodReference> index) const
 {
-    ASSERTION(index.index < methodIndexSize, "index is out of range");
-
-    auto& raf = session.FileOf(fileId);
-    auto offs = static_cast<uint32_t>(methodIndexOffset + index.index * sizeof(uint32_t));
-
-    IO::StreamFileReader reader(*raf, offs);
-
-    auto refOffset = Offset<MethodReference>(reader.ReadU32());
-
-    return Reader::ReadAndResolve(session, fileId, refOffset);
+    auto offs = methods.QueryOffset(*session.FileOf(fileId), index);
+    return Reader::ReadAndResolve(session, fileId, offs);
 }
 
 std::optional<Terms::Term> RegionData::queryTerm(Engine::Session& session, Index<Terms::Term> index) const
 {
-    ASSERTION(index.index < termIndexSize, "index is out of range");
-
     if (Terms::IsBuiltin(index.index)) {
         return Terms::Term::Builtin(session, Terms::TemplateKind(index.index));
     } else {
-        auto& raf = session.FileOf(fileId);
-
-        auto start = Terms::FirstNonBuiltIn();
-        auto offs  = static_cast<uint32_t>(termIndexOffset + (index.index - start) * sizeof(uint32_t));
-
-        IO::StreamFileReader reader(*raf, offs);
-
-        auto refOffset = Offset<Terms::Term>(reader.ReadU32());
-
-        return Reader::ReadAndResolve(session, fileId, refOffset);
+        auto offs = terms.QueryOffset(*session.FileOf(fileId), index);
+        return Reader::ReadAndResolve(session, fileId, offs);
     }
 }
 

@@ -1,11 +1,12 @@
 #pragma once
 
-#include <memory_resource>
+#include "utils/heap.h"
+#include <cstdint>
 
 namespace Engine {
 
 /// Thread-unsafe growable memory arena.
-class Arena : public std::pmr::memory_resource {
+class Arena : public Memory::Heap {
 public:
     static constexpr size_t CHUNK_SIZE     = 2048;
     static constexpr size_t MAX_ALLOC_SIZE = 256;
@@ -13,12 +14,8 @@ public:
     Arena() : cursor(0), end(0), chunks(nullptr) {}
 
     ~Arena();
-
-    void* do_allocate(size_t bytes, size_t alignment) override;
-
-    void do_deallocate(void* p, size_t bytes, size_t alignment) override { return; }
-
-    bool do_is_equal(const memory_resource& other) const noexcept override { return false; }
+    void* Allocate(size_t bytes, size_t alignment) override;
+    void Free(void* memory, size_t bytes, size_t alignment) override;
 
 private:
     void* DoAllocateSlow(size_t bytes);

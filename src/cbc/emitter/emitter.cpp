@@ -3,6 +3,7 @@
 
 #include "cbc/isa_rt.h"
 #include "emitter.h"
+#include "utils/heap.h"
 #include "utils/math.h"
 
 namespace Cbc {
@@ -41,7 +42,7 @@ void Emitter::AddFixup(std::unique_ptr<Fixup> fixup)
     }
 }
 
-Interpretation::Code Emitter::Build(std::pmr::memory_resource& heap)
+Interpretation::Code Emitter::Build(Memory::Heap& heap)
 {
     auto segment = std::exchange(this->segment, {});
     auto fixups  = std::exchange(this->fixups, {});
@@ -59,7 +60,7 @@ Interpretation::Code Emitter::Build(std::pmr::memory_resource& heap)
 
     auto segmentCode = segment.Finish();
 
-    auto bytecode     = (uint8_t*)heap.allocate(segmentCode.size());
+    auto bytecode     = (uint8_t*)heap.Allocate(segmentCode.size());
     auto bytecodeSize = segmentCode.size();
     std::copy(segmentCode.begin(), segmentCode.end(), bytecode);
 

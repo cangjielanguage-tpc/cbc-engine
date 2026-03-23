@@ -6,6 +6,8 @@
 
 struct TestTypeInfo {
     size_t size;
+
+    TestTypeInfo(size_t size) : size(size) {}
 };
 
 static Interpretation::Value::Primitive U32(uint32_t v) { return Interpretation::Value::Primitive { .u32 = v }; }

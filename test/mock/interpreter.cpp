@@ -52,7 +52,7 @@ static TestTypeInfo* Extract(TypeInfo<Test> type)
 static void MockNewObj(Ectype* ectype, ThreadHandle th, TypeInfo<Test> type)
 {
     auto typeInfo = Extract(type);
-    auto mem      = heap.do_allocate(typeInfo->size, 16);
+    auto mem      = heap.Allocate(typeInfo->size, alignof(std::max_align_t));
     memset(mem, 0, typeInfo->size);
     TestTypeInfo** header = (TestTypeInfo**)mem;
     *header               = typeInfo;

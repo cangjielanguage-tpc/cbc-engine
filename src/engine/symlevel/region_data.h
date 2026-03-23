@@ -1,7 +1,6 @@
 #pragma once
 
-#include "index.h"
-#include "offset.h"
+#include "io/offset_pool.h"
 #include "references.h"
 #include "terms.h"
 
@@ -16,26 +15,13 @@ public:
     std::optional<Terms::Term> queryTerm(Engine::Session& session, Index<Terms::Term> index) const;
 
 private:
-    RegionData(
-        IO::FileId fileId,
-        uint16_t methodIndexSize,
-        uint32_t methodIndexOffset,
-        uint16_t fieldIndexSize,
-        uint32_t fieldIndexOffset,
-        uint32_t termIndexSize,
-        uint32_t termIndexOffset
-    );
+    RegionData(IO::FileId fileId, IO::OffsetPool methods, IO::OffsetPool fields, IO::OffsetPool terms);
 
     IO::FileId fileId;
 
-    uint16_t methodIndexSize;
-    uint32_t methodIndexOffset;
-
-    uint16_t fieldIndexSize;
-    uint32_t fieldIndexOffset;
-
-    uint32_t termIndexSize;
-    uint32_t termIndexOffset;
+    IO::OffsetPool methods;
+    IO::OffsetPool fields;
+    IO::OffsetPool terms;
 };
 
 } // namespace Symlevel

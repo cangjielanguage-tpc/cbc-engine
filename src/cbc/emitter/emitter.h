@@ -1,9 +1,7 @@
 #pragma once
 
 #include <cstdint>
-#include <functional>
 #include <memory>
-#include <memory_resource>
 #include <vector>
 
 #include "cbc/emitter/segment.h"
@@ -11,8 +9,7 @@
 #include "cbc/isa.h"
 #include "encoding_rt.h"
 #include "interpreter/code.h"
-#include "interpreter/function_handle.h"
-#include "utils/assertion.h"
+#include "utils/heap.h"
 
 namespace Cbc {
 namespace Emitter {
@@ -82,7 +79,7 @@ public:
     ///
     /// This procedure resolves all existring fixups and
     /// creates literal table (unused symbols or fixups will be discarded).
-    Interpretation::Code Build(std::pmr::memory_resource& heap);
+    Interpretation::Code Build(Memory::Heap& heap);
 
     EmitterSnapshot Snapshot();
     void Apply(EmitterSnapshot snapshot);
