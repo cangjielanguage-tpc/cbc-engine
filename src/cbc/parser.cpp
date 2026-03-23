@@ -21,7 +21,7 @@ void Parser::Interpret()
 {
     while (!codeReader.EndOfMem(codeEnd)) {
         BeforeInterpretOne(codeReader.Cursor());
-        InterpretOne(codeReader.PeekOpcode());
+        InterpretOne(codeReader.Read8());
     }
 }
 
