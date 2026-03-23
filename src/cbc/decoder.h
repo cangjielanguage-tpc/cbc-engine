@@ -131,6 +131,7 @@ public:
         auto new_data = ::std::tuple_cat(data, ::std::make_tuple(val));
         return ByteReaderM_(reader, 0, ::std::move(new_data));
     }
+
     template<typename T = uint64_t>
     auto Read64() && -> decltype(auto) {
         auto val = T(reader.Read64());

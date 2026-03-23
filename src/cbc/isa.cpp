@@ -142,6 +142,7 @@ constexpr CbcTypeKind GetCheckedType(uint8_t x)
         case W64: { return CbcTypeKind::Value::U64; }
         };
     }
+    default: ASSERT(false && "unexpected format type");
     };
 }
 

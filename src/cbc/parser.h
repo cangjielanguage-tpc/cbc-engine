@@ -58,6 +58,12 @@ private:
     template<InputOpcode opcode>
     inline void Decode(_with_valid_def<opcode>& codeReader) {}
 
+    template<InputOpcode opcode>
+    inline void Decode(...)
+    {
+        static_assert(false, "[ERR] Attempt to implement decoder for unknown InputOpcode!");
+    }
+
     void InterpretImmExt(uint64_t imm, uint32_t bits, Sign sign);
 
     void B2rrd8BranchIf(ConditionalBranch::B2rrd8 args, CC cc, Width width);
