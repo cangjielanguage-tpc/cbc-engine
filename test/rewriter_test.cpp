@@ -26,7 +26,7 @@ struct Test;
 using namespace Cbc::Format;
 
 #define TEST_REWRITER_SIMPLE(REG1, REG2, OP, NAME)                                                                     \
-    TEST_F(RewriterTest, Rewriter_Simple##NAME)                                                                        \
+    TEST_F(RewriterTest, Rewriter_Simple_##NAME)                                                                        \
     {                                                                                                                  \
         uint32_t isa12CodeSize = 4;                                                                                    \
         uint8_t isa12Bytes[]   = {                                                                                     \
@@ -45,18 +45,18 @@ using namespace Cbc::Format;
         EXPECT_EQ(res.u32, REG1 + REG2);                                                                               \
     }
 
-TEST_REWRITER_SIMPLE(1, 2, +, plus)
-TEST_REWRITER_SIMPLE(1, 2, -, minus)
-TEST_REWRITER_SIMPLE(1, 2, *, mul)
-TEST_REWRITER_SIMPLE(1, 2, &, and)
-TEST_REWRITER_SIMPLE(1, 2, |, or)
-TEST_REWRITER_SIMPLE(1, 2, ^, xor)
-TEST_REWRITER_SIMPLE(1, 2, /, divSigned)
-TEST_REWRITER_SIMPLE(1, 2, %, remSigned)
-TEST_REWRITER_SIMPLE(1, 2, /, divUnsigned)
-TEST_REWRITER_SIMPLE(1, 2, %, remUnsigned)
-TEST_REWRITER_SIMPLE(1, 2, >>, lsr)
-TEST_REWRITER_SIMPLE(1, 2, >>, asr)
-TEST_REWRITER_SIMPLE(1, 2, <<, lsl)
+TEST_REWRITER_SIMPLE(1, 2, +, Plus)
+TEST_REWRITER_SIMPLE(1, 2, -, Minus)
+TEST_REWRITER_SIMPLE(1, 2, *, Mul)
+TEST_REWRITER_SIMPLE(1, 2, &, And)
+TEST_REWRITER_SIMPLE(1, 2, |, Or)
+TEST_REWRITER_SIMPLE(1, 2, ^, Xor)
+TEST_REWRITER_SIMPLE(1, 2, /, DivSigned)
+TEST_REWRITER_SIMPLE(1, 2, %, RemSigned)
+TEST_REWRITER_SIMPLE(1, 2, /, DivUnsigned)
+TEST_REWRITER_SIMPLE(1, 2, %, RemUnsigned)
+TEST_REWRITER_SIMPLE(1, 2, >>, Lsr)
+TEST_REWRITER_SIMPLE(1, 2, >>, Asr)
+TEST_REWRITER_SIMPLE(1, 2, <<, Lsl)
 
 } // namespace Cbc
