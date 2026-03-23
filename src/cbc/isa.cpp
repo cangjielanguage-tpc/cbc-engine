@@ -36,10 +36,10 @@ auto read_ri(Decoder::ByteReader& codeReader) -> decltype(auto)
     return res;
 }
 
-auto read_wr(Decoder::ByteReader& codeReader) -> decltype(auto)
+auto read_zr(Decoder::ByteReader& codeReader) -> decltype(auto)
 {
-    ::std::tuple<Width, IReg> res = Decoder::ByteReaderM(codeReader)
-        .read4<Width::Value>()
+    ::std::tuple<uint8_t, IReg> res = Decoder::ByteReaderM(codeReader)
+        .read4()
         .read4<IReg::Value>()
         .get();
     return res;
