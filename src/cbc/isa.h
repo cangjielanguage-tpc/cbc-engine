@@ -11,9 +11,101 @@ namespace Cbc {
 
 typedef uint8_t Opcode_t;
 
-#include "isa_opcode_def.h"
-GEN_ENUM(InputOpcode, DO_WITH_ALL_OPCODES(GET_OPC))
-#include "isa_opcode_undef.h"
+// #include "isa_opcode_def.h"
+// GEN_ENUM(InputOpcode, DO_WITH_ALL_OPCODES(GET_OPC))
+// #include "isa_opcode_undef.h"
+
+enum class InputOpcode : Opcode_t {
+    Mov32,
+    Mov64,
+    Mov32i,
+    Mov64i,
+    MovVst,
+    MovRef,
+    ExtendSigned,
+    ExtendUnsigned,
+    Add32,
+    Sub32,
+    Mul32,
+    And32,
+    Or32,
+    Xor32,
+    DivSigned32,
+    RemSigned32,
+    DivUnsigned32,
+    RemUnsigned32,
+    Lsr32,
+    Asr32,
+    Lsl32,
+    Add64,
+    Sub64,
+    Mul64,
+    And64,
+    Or64,
+    Xor64,
+    DivSigned64,
+    RemSigned64,
+    DivUnsigned64,
+    RemUnsigned64,
+    Lsr64,
+    Asr64,
+    Lsl64,
+    Add32Imm,
+    Sub32Imm,
+    Mul32Imm,
+    And32Imm,
+    Or32Imm,
+    Xor32Imm,
+    DivSigned32Imm,
+    RemSigned32Imm,
+    DivUnsigned32Imm,
+    RemUnsigned32Imm,
+    Lsr32Imm,
+    Asr32Imm,
+    Lsl32Imm,
+    Add64Imm,
+    Sub64Imm,
+    Mul64Imm,
+    And64Imm,
+    Or64Imm,
+    Xor64Imm,
+    DivSigned64Imm,
+    RemSigned64Imm,
+    DivUnsigned64Imm,
+    RemUnsigned64Imm,
+    Lsr64Imm,
+    Asr64Imm,
+    Lsl64Imm,
+    Neg32,
+    Neg64,
+    Neg32Imm,
+    Neg64Imm,
+    IntegerCommon32,
+    IntegerCommon64,
+    IntegerCommon32K16,
+    IntegerCommon64K16,
+    CheckedAdd,
+    CheckedSub,
+    CheckedMul,
+    CheckedDiv,
+    CheckedAddImm,
+    CheckedSubImm,
+    CheckedMulImm,
+    CheckedDivImm,
+    Bfx,
+    FloatCommon,
+    FloatCommonImm,
+    FloatMisc,
+    SetIf32,
+    SetIf64,
+    SetIf32Float,
+    SetIf64Float,
+    Ret32,
+    Ret64,
+    Ret32F,
+    Ret64F,
+    ___LAST
+};
 
 constexpr Opcode_t Opc(const InputOpcode opc) { return static_cast<Opcode_t>(opc); }
 
@@ -21,11 +113,48 @@ template <InputOpcode opcode>
 using _with_valid_def =
     typename ::std::enable_if_t<0 <= Opc(opcode) && Opc(opcode) < Opc(InputOpcode::___LAST), Decoder::ByteReader>;
 
-#include "isa_opcode_def.h"
-GEN_ENUM(CommonOpc, DO_WITH_COMMON_OPCODES(GET_OPS))
-GEN_ENUM(CheckedOpc, DO_WITH_CHECKED_OPCODES(GET_OPS))
-GEN_ENUM(FloatOpc, DO_WITH_FLOAT_OPCODES(GET_OPC))
-#include "isa_opcode_undef.h"
+// #include "isa_opcode_def.h"
+// GEN_ENUM(CommonOpc, DO_WITH_COMMON_OPCODES(GET_OPS))
+// GEN_ENUM(CheckedOpc, DO_WITH_CHECKED_OPCODES(GET_OPS))
+// GEN_ENUM(FloatOpc, DO_WITH_FLOAT_OPCODES(GET_OPC))
+// #include "isa_opcode_undef.h"
+
+enum class CommonOpc : Opcode_t {
+    Add,
+    Sub,
+    Mul,
+    And,
+    Or,
+    Xor,
+    DivSigned,
+    RemSigned,
+    DivUnsigned,
+    RemUnsigned,
+    Lsr,
+    Asr,
+    Lsl,
+    ___LAST
+};
+
+enum class CheckedOpc : Opcode_t {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    ___LAST
+};
+
+enum class FloatOpc : Opcode_t {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mov,
+    Neg,
+    Abs,
+    Sqrt,
+    ___LAST
+};
 
 class IReg {
 public:

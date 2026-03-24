@@ -24,7 +24,7 @@ protected:
     virtual void DoExtend(Sign sign, IReg dst, IReg src, uint64_t imm)                                = 0;
     virtual void DoBFX(Sign sign, Width res_width, Width arg_width, IReg dst, IReg src, uint64_t imm) = 0;
 
-    virtual void DoMov(IReg dst, IReg src, bool isReference)   = 0;
+    static void DoMov(IReg dst, IReg src, bool isReference)   {};
     virtual void DoMovVST(IReg dst, IReg src)                  = 0;
     virtual void DoMovImm(Width width, IReg dst, uint64_t imm) = 0;
 
