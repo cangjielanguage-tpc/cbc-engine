@@ -4,12 +4,12 @@
 #include <stdint.h>
 #include <stddef.h>
 
-// This file exposes the internal structure of TypoeInfo, so it can be constructed externally.
+// This file exposes the internal structure of TypeInfo, so it can be constructed externally.
 
 #ifdef __cplusplus
 extern "C" {
 namespace MRTExport {
-#endif // _cplusplus
+#endif // __cplusplus
 
 #define ATTR_PACKED(x) __attribute__((__aligned__(x), __packed__))
 
@@ -22,14 +22,14 @@ namespace MRTExport {
 #define EXTENSION_DATA_ATTRS ATTR_PACKED(4)
 
 struct TYPE_INFO_ATTRS type_info_t;
-struct EXTENSION_DATA_ATTRS extension_data_t;
+struct TYPE_INFO_ATTRS extension_data_t;
 
 typedef void* mtable_desc_t;
 typedef void* func_ptr_t;
 
 union gc_tib_t {
     uintptr_t raw;
-    void* ptr;
+    void *ptr;
 };
 
 struct TYPE_INFO_ATTRS type_info_t {
@@ -38,10 +38,10 @@ struct TYPE_INFO_ATTRS type_info_t {
     uint8_t flag;
     uint16_t field_num;
     union {
-        uint32_t intance_size;
+        uint32_t instance_size;
         uint32_t component_size;
     };
-    union gc_tib_t gc_tib;
+    union gc_tib_t gctib;
     uint32_t uuid;
     uint8_t align;
     int8_t type_args_num;
@@ -54,6 +54,7 @@ struct TYPE_INFO_ATTRS type_info_t {
         struct type_info_t* super_type_info;
         struct type_info_t* component_type_info;
     };
+    struct extension_data_t** v_extension_data_start;
     mtable_desc_t* mtable_desc;
     void* reflect_or_debug_info;
 };
@@ -77,7 +78,7 @@ struct EXTENSION_DATA_ATTRS extension_data_t {
 
 #ifdef __cplusplus
 } // namespace MRTExport
-} // export "C"
-#endif // _cplusplus
+} // extern "C"
+#endif // __cplusplus
 
 #endif // RT_TYPES_H
