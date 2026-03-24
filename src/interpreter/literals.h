@@ -1,6 +1,7 @@
 #ifndef INTERPRETER_LITERALS_H
 #define INTERPRETER_LITERALS_H
 
+#include <cstddef>
 #include <cstdint>
 
 namespace Interpretation {
