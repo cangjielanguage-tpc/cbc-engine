@@ -40,8 +40,6 @@ protected:
     virtual void DoBinaryFloatOp(FloatOpc op, CbcTypeKind tkind, FReg dst, FReg src1, FReg src2)     = 0;
     virtual void DoBinaryFloatOp(FloatOpc op, CbcTypeKind tkind, FReg dst, FReg src1, uint64_t src2) = 0;
 
-    virtual void DoImmPrefix() = 0;
-
     virtual void DoReturn(Width width, IReg dst) = 0;
     virtual void DoReturn(Width width, FReg dst) = 0;
 
@@ -53,6 +51,7 @@ protected:
 
 protected:
     API::Resolver* resolver;
+    ImmPrefix immPrefix;
 
 private:
     void InterpretOne(uint32_t first_byte);
@@ -79,7 +78,6 @@ private:
 
     Decoder::ByteReader codeReader;
     uint8_t* codeEnd;
-    ImmPrefix immPrefix;
 };
 
 } // namespace Cbc

@@ -1,4 +1,5 @@
 #include "cbc/rewriter.h"
+#include "cbc/decoder.h"
 #include "engine/symlevel/references.h"
 
 namespace Cbc {

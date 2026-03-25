@@ -2,6 +2,7 @@
 #include "cbc/decoder.h"
 #include "cbc/parser.h"
 #include <tuple>
+#include <type_traits>
 
 namespace Cbc {
 
@@ -77,6 +78,17 @@ auto ReadImm32(Decoder::ByteReader& codeReader) -> decltype(auto)
 auto ReadImm64(Decoder::ByteReader& codeReader) -> decltype(auto)
 {
     return ::std::move(Decoder::ByteReaderM(codeReader).Read64().Get());
+}
+
+uint64_t ReadImmPrefix(Decoder::ByteReader& codeReader, ImmPrefix immPrefix)
+{
+    if (immPrefix == ImmPrefix::ImmPrefix32) {
+        auto [x] = ReadImm32(codeReader);
+        return ::std::move(x);
+    } else { /* ImmPrefix64 */
+        auto [x] = ReadImm64(codeReader);
+        return ::std::move(x);
+    }
 }
 
 constexpr CbcTypeKind GetCommonType(Width w, Sign s)
@@ -176,434 +188,401 @@ constexpr CbcTypeKind GetFloatType(uint8_t x)
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Mov32>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRR(codeReader);
-    DoMov( d, r , false);
+    auto [d, r] = ::Cbc::ReadRR(codeReader); DoMov( d, r , false);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Mov64>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRR(codeReader);
-    DoMov( d, r , false);
+    auto [d, r] = ::Cbc::ReadRR(codeReader); DoMov( d, r , false);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Mov32i>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRI(codeReader);
-    DoMovImm(W32, d, r );
+    auto [d, r] = ::Cbc::ReadRI(codeReader); DoMovImm(W32, d, r );
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Mov64i>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRI(codeReader);
-    DoMovImm(W64, d, r );
+    auto [d, r] = ::Cbc::ReadRI(codeReader); DoMovImm(W64, d, r );
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::MovVst>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRR(codeReader);
-    DoMovVST( d, r );
+    auto [d, r] = ::Cbc::ReadRR(codeReader); DoMovVST( d, r );
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::MovRef>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRR(codeReader);
-    DoMov( d, r , true);
+    auto [d, r] = ::Cbc::ReadRR(codeReader); DoMov( d, r , true);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::ExtendSigned>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRI(codeReader);
-    DoExtend(SIGN, d, d, r );
+    auto [d, r] = ::Cbc::ReadRI(codeReader); DoExtend(SIGN, d, d, r );
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::ExtendUnsigned>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRI(codeReader);
-    DoExtend(USIGN, d, d, r );
+    auto [d, r] = ::Cbc::ReadRI(codeReader); DoExtend(USIGN, d, d, r );
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Add32>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRR(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::Add, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRR(codeReader); DoCommonOp(::Cbc::CommonOpc::Add, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Sub32>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRR(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::Sub, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRR(codeReader); DoCommonOp(::Cbc::CommonOpc::Sub, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Mul32>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRR(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::Mul, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRR(codeReader); DoCommonOp(::Cbc::CommonOpc::Mul, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::And32>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRR(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::And, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRR(codeReader); DoCommonOp(::Cbc::CommonOpc::And, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Or32>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRR(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::Or, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRR(codeReader); DoCommonOp(::Cbc::CommonOpc::Or, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Xor32>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRR(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::Xor, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRR(codeReader); DoCommonOp(::Cbc::CommonOpc::Xor, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::DivSigned32>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRR(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::DivSigned, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRR(codeReader); DoCommonOp(::Cbc::CommonOpc::DivSigned, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::RemSigned32>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRR(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::RemSigned, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRR(codeReader); DoCommonOp(::Cbc::CommonOpc::RemSigned, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::DivUnsigned32>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRR(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::DivUnsigned, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRR(codeReader); DoCommonOp(::Cbc::CommonOpc::DivUnsigned, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::RemUnsigned32>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRR(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::RemUnsigned, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRR(codeReader); DoCommonOp(::Cbc::CommonOpc::RemUnsigned, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Lsr32>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRR(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::Lsr, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRR(codeReader); DoCommonOp(::Cbc::CommonOpc::Lsr, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Asr32>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRR(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::Asr, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRR(codeReader); DoCommonOp(::Cbc::CommonOpc::Asr, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Lsl32>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRR(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::Lsl, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRR(codeReader); DoCommonOp(::Cbc::CommonOpc::Lsl, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Add64>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRR(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::Add, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRR(codeReader); DoCommonOp(::Cbc::CommonOpc::Add, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Sub64>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRR(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::Sub, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRR(codeReader); DoCommonOp(::Cbc::CommonOpc::Sub, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Mul64>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRR(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::Mul, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRR(codeReader); DoCommonOp(::Cbc::CommonOpc::Mul, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::And64>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRR(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::And, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRR(codeReader); DoCommonOp(::Cbc::CommonOpc::And, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Or64>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRR(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::Or, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRR(codeReader); DoCommonOp(::Cbc::CommonOpc::Or, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Xor64>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRR(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::Xor, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRR(codeReader); DoCommonOp(::Cbc::CommonOpc::Xor, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::DivSigned64>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRR(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::DivSigned, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRR(codeReader); DoCommonOp(::Cbc::CommonOpc::DivSigned, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::RemSigned64>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRR(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::RemSigned, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRR(codeReader); DoCommonOp(::Cbc::CommonOpc::RemSigned, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::DivUnsigned64>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRR(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::DivUnsigned, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRR(codeReader); DoCommonOp(::Cbc::CommonOpc::DivUnsigned, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::RemUnsigned64>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRR(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::RemUnsigned, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRR(codeReader); DoCommonOp(::Cbc::CommonOpc::RemUnsigned, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Lsr64>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRR(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::Lsr, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRR(codeReader); DoCommonOp(::Cbc::CommonOpc::Lsr, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Asr64>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRR(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::Asr, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRR(codeReader); DoCommonOp(::Cbc::CommonOpc::Asr, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Lsl64>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRR(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::Lsl, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRR(codeReader); DoCommonOp(::Cbc::CommonOpc::Lsl, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Add32Imm>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRI(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::Add, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRI(codeReader); DoCommonOp(::Cbc::CommonOpc::Add, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Sub32Imm>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRI(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::Sub, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRI(codeReader); DoCommonOp(::Cbc::CommonOpc::Sub, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Mul32Imm>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRI(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::Mul, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRI(codeReader); DoCommonOp(::Cbc::CommonOpc::Mul, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::And32Imm>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRI(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::And, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRI(codeReader); DoCommonOp(::Cbc::CommonOpc::And, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Or32Imm>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRI(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::Or, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRI(codeReader); DoCommonOp(::Cbc::CommonOpc::Or, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Xor32Imm>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRI(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::Xor, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRI(codeReader); DoCommonOp(::Cbc::CommonOpc::Xor, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::DivSigned32Imm>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRI(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::DivSigned, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRI(codeReader); DoCommonOp(::Cbc::CommonOpc::DivSigned, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::RemSigned32Imm>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRI(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::RemSigned, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRI(codeReader); DoCommonOp(::Cbc::CommonOpc::RemSigned, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::DivUnsigned32Imm>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRI(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::DivUnsigned, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRI(codeReader); DoCommonOp(::Cbc::CommonOpc::DivUnsigned, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::RemUnsigned32Imm>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRI(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::RemUnsigned, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRI(codeReader); DoCommonOp(::Cbc::CommonOpc::RemUnsigned, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Lsr32Imm>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRI(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::Lsr, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRI(codeReader); DoCommonOp(::Cbc::CommonOpc::Lsr, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Asr32Imm>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRI(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::Asr, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRI(codeReader); DoCommonOp(::Cbc::CommonOpc::Asr, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Lsl32Imm>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRI(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::Lsl, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRI(codeReader); DoCommonOp(::Cbc::CommonOpc::Lsl, ::Cbc::GetCommonType(W32, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Add64Imm>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRI(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::Add, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRI(codeReader); DoCommonOp(::Cbc::CommonOpc::Add, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Sub64Imm>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRI(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::Sub, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRI(codeReader); DoCommonOp(::Cbc::CommonOpc::Sub, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Mul64Imm>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRI(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::Mul, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRI(codeReader); DoCommonOp(::Cbc::CommonOpc::Mul, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::And64Imm>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRI(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::And, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRI(codeReader); DoCommonOp(::Cbc::CommonOpc::And, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Or64Imm>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRI(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::Or, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRI(codeReader); DoCommonOp(::Cbc::CommonOpc::Or, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Xor64Imm>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRI(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::Xor, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRI(codeReader); DoCommonOp(::Cbc::CommonOpc::Xor, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::DivSigned64Imm>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRI(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::DivSigned, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRI(codeReader); DoCommonOp(::Cbc::CommonOpc::DivSigned, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::RemSigned64Imm>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRI(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::RemSigned, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRI(codeReader); DoCommonOp(::Cbc::CommonOpc::RemSigned, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::DivUnsigned64Imm>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRI(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::DivUnsigned, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRI(codeReader); DoCommonOp(::Cbc::CommonOpc::DivUnsigned, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::RemUnsigned64Imm>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRI(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::RemUnsigned, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRI(codeReader); DoCommonOp(::Cbc::CommonOpc::RemUnsigned, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Lsr64Imm>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRI(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::Lsr, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRI(codeReader); DoCommonOp(::Cbc::CommonOpc::Lsr, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Asr64Imm>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRI(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::Asr, ::Cbc::GetCommonType(W64, SIGN), d, d, r); } template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Lsl64Imm>(::Decoder::ByteReader & codeReader) { auto [d, r] = ::Cbc::ReadRI(codeReader);
-    DoCommonOp(::Cbc::CommonOpc::Lsl, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
+    auto [d, r] = ::Cbc::ReadRI(codeReader); DoCommonOp(::Cbc::CommonOpc::Asr, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
 }
 
-template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Neg32>(::Decoder::ByteReader & codeReader) { auto [d, r] = ::Cbc::ReadRR(codeReader);
-    DoINeg(::Cbc::GetCommonType(W32, SIGN), d, r ); } template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Neg64>(::Decoder::ByteReader & codeReader) { auto [d, r] = ::Cbc::ReadRR(codeReader);
-    DoINeg(::Cbc::GetCommonType(W64, SIGN), d, r ); } template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Neg32Imm>(::Decoder::ByteReader & codeReader) { auto [d, r] = ::Cbc::ReadRI(codeReader);
-    DoINeg(::Cbc::GetCommonType(W32, SIGN), d, r ); } template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Neg64Imm>(::Decoder::ByteReader & codeReader) { auto [d, r] = ::Cbc::ReadRI(codeReader);
-    DoINeg(::Cbc::GetCommonType(W64, SIGN), d, r ); }
+template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Lsl64Imm>(::Decoder::ByteReader & codeReader)
+{
+    auto [d, r] = ::Cbc::ReadRI(codeReader); DoCommonOp(::Cbc::CommonOpc::Lsl, ::Cbc::GetCommonType(W64, SIGN), d, d, r);
+}
+
+template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Neg32>(::Decoder::ByteReader & codeReader)
+{
+    auto [d, r] = ::Cbc::ReadRR(codeReader); DoINeg(::Cbc::GetCommonType(W32, SIGN), d, r );
+}
+
+template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Neg64>(::Decoder::ByteReader & codeReader)
+{
+    auto [d, r] = ::Cbc::ReadRR(codeReader); DoINeg(::Cbc::GetCommonType(W64, SIGN), d, r );
+}
+
+template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Neg32Imm>(::Decoder::ByteReader & codeReader)
+{
+    auto [d, r] = ::Cbc::ReadRI(codeReader); DoINeg(::Cbc::GetCommonType(W32, SIGN), d, r );
+}
+
+template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Neg64Imm>(::Decoder::ByteReader & codeReader)
+{
+    auto [d, r] = ::Cbc::ReadRI(codeReader); DoINeg(::Cbc::GetCommonType(W64, SIGN), d, r );
+}
+
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::IntegerCommon32>(::Decoder::ByteReader & codeReader)
 {
-    auto [x, d, l, r] = ::Cbc::ReadXRRR(codeReader); uint64_t r_or_imm = static_cast<uint64_t>(r); if constexpr (false) { if (immPrefix == ImmPrefix::ImmPrefix32) { auto [x] = ::Cbc::ReadImm32(codeReader); r_or_imm = ::std::move(x); } else { auto [x] = ::Cbc::ReadImm64(codeReader); r_or_imm = ::std::move(x); } }
-    DoCommonOp(::Cbc::CommonOpc(x), ::Cbc::GetCommonType(W32, SIGN), d, l, r_or_imm);
+    auto [x, d, l, r] = ::Cbc::ReadXRRR(codeReader);
+    DoCommonOp(::Cbc::CommonOpc(x), ::Cbc::GetCommonType(W32, SIGN), d, l, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::IntegerCommon64>(::Decoder::ByteReader & codeReader)
 {
-    auto [x, d, l, r] = ::Cbc::ReadXRRR(codeReader); uint64_t r_or_imm = static_cast<uint64_t>(r); if constexpr (false) { if (immPrefix == ImmPrefix::ImmPrefix32) { auto [x] = ::Cbc::ReadImm32(codeReader); r_or_imm = ::std::move(x); } else { auto [x] = ::Cbc::ReadImm64(codeReader); r_or_imm = ::std::move(x); } }
-    DoCommonOp(::Cbc::CommonOpc(x), ::Cbc::GetCommonType(W64, SIGN), d, l, r_or_imm);
+    auto [x, d, l, r] = ::Cbc::ReadXRRR(codeReader);
+    DoCommonOp(::Cbc::CommonOpc(x), ::Cbc::GetCommonType(W64, SIGN), d, l, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::IntegerCommon32K16>(::Decoder::ByteReader & codeReader)
 {
-    auto [x, d, l, r] = ::Cbc::ReadXRRI(codeReader); uint64_t r_or_imm = static_cast<uint64_t>(r); if constexpr (true) { if (immPrefix == ImmPrefix::ImmPrefix32) { auto [x] = ::Cbc::ReadImm32(codeReader); r_or_imm = ::std::move(x); } else { auto [x] = ::Cbc::ReadImm64(codeReader); r_or_imm = ::std::move(x); } }
-    DoCommonOp(::Cbc::CommonOpc(x), ::Cbc::GetCommonType(W32, SIGN), d, l, r_or_imm);
+    auto [x, d, l, r] = ::Cbc::ReadXRRI(codeReader);
+    uint64_t imm = ReadImmPrefix(codeReader, immPrefix);
+    DoCommonOp(::Cbc::CommonOpc(x), ::Cbc::GetCommonType(W32, SIGN), d, l, imm);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::IntegerCommon64K16>(::Decoder::ByteReader & codeReader)
 {
-    auto [x, d, l, r] = ::Cbc::ReadXRRI(codeReader); uint64_t r_or_imm = static_cast<uint64_t>(r); if constexpr (true) { if (immPrefix == ImmPrefix::ImmPrefix32) { auto [x] = ::Cbc::ReadImm32(codeReader); r_or_imm = ::std::move(x); } else { auto [x] = ::Cbc::ReadImm64(codeReader); r_or_imm = ::std::move(x); } }
-    DoCommonOp(::Cbc::CommonOpc(x), ::Cbc::GetCommonType(W64, SIGN), d, l, r_or_imm);
+    auto [x, d, l, r] = ::Cbc::ReadXRRI(codeReader);
+    uint64_t imm = ReadImmPrefix(codeReader, immPrefix);
+    DoCommonOp(::Cbc::CommonOpc(x), ::Cbc::GetCommonType(W64, SIGN), d, l, imm);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::CheckedAdd>(::Decoder::ByteReader & codeReader)
 {
-    auto [x, d, l, r] = ::Cbc::ReadXRRR(codeReader); uint64_t r_or_imm = static_cast<uint64_t>(r); if constexpr (false) { if (immPrefix == ImmPrefix::ImmPrefix32) { auto [x] = ::Cbc::ReadImm32(codeReader); r_or_imm = ::std::move(x); } else { auto [x] = ::Cbc::ReadImm64(codeReader); r_or_imm = ::std::move(x); } }
-    DoCheckedOp(::Cbc::CheckedOpc::Add, ::Cbc::GetCheckedType(x), d, l, r_or_imm);
+    auto [x, d, l, r] = ::Cbc::ReadXRRR(codeReader);
+    DoCheckedOp(::Cbc::CheckedOpc::Add, ::Cbc::GetCheckedType(x), d, l, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::CheckedSub>(::Decoder::ByteReader & codeReader)
 {
-    auto [x, d, l, r] = ::Cbc::ReadXRRR(codeReader); uint64_t r_or_imm = static_cast<uint64_t>(r); if constexpr (false) { if (immPrefix == ImmPrefix::ImmPrefix32) { auto [x] = ::Cbc::ReadImm32(codeReader); r_or_imm = ::std::move(x); } else { auto [x] = ::Cbc::ReadImm64(codeReader); r_or_imm = ::std::move(x); } }
-    DoCheckedOp(::Cbc::CheckedOpc::Sub, ::Cbc::GetCheckedType(x), d, l, r_or_imm);
+    auto [x, d, l, r] = ::Cbc::ReadXRRR(codeReader);
+    DoCheckedOp(::Cbc::CheckedOpc::Sub, ::Cbc::GetCheckedType(x), d, l, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::CheckedMul>(::Decoder::ByteReader & codeReader)
 {
-    auto [x, d, l, r] = ::Cbc::ReadXRRR(codeReader); uint64_t r_or_imm = static_cast<uint64_t>(r); if constexpr (false) { if (immPrefix == ImmPrefix::ImmPrefix32) { auto [x] = ::Cbc::ReadImm32(codeReader); r_or_imm = ::std::move(x); } else { auto [x] = ::Cbc::ReadImm64(codeReader); r_or_imm = ::std::move(x); } }
-    DoCheckedOp(::Cbc::CheckedOpc::Mul, ::Cbc::GetCheckedType(x), d, l, r_or_imm);
+    auto [x, d, l, r] = ::Cbc::ReadXRRR(codeReader);
+    DoCheckedOp(::Cbc::CheckedOpc::Mul, ::Cbc::GetCheckedType(x), d, l, r);
 }
+
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::CheckedDiv>(::Decoder::ByteReader & codeReader)
 {
-    auto [x, d, l, r] = ::Cbc::ReadXRRR(codeReader); uint64_t r_or_imm = static_cast<uint64_t>(r); if constexpr (false) { if (immPrefix == ImmPrefix::ImmPrefix32) { auto [x] = ::Cbc::ReadImm32(codeReader); r_or_imm = ::std::move(x); } else { auto [x] = ::Cbc::ReadImm64(codeReader); r_or_imm = ::std::move(x); } }
-    DoCheckedOp(::Cbc::CheckedOpc::Div, ::Cbc::GetCheckedType(x), d, l, r_or_imm);
+    auto [x, d, l, r] = ::Cbc::ReadXRRR(codeReader);
+    DoCheckedOp(::Cbc::CheckedOpc::Div, ::Cbc::GetCheckedType(x), d, l, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::CheckedAddImm>(::Decoder::ByteReader & codeReader)
 {
-    auto [x, d, l, r] = ::Cbc::ReadXRRI(codeReader); uint64_t r_or_imm = static_cast<uint64_t>(r); if constexpr (true) { if (immPrefix == ImmPrefix::ImmPrefix32) { auto [x] = ::Cbc::ReadImm32(codeReader); r_or_imm = ::std::move(x); } else { auto [x] = ::Cbc::ReadImm64(codeReader); r_or_imm = ::std::move(x); } }
-    DoCheckedOp(::Cbc::CheckedOpc::Add, ::Cbc::GetCheckedType(x), d, l, r_or_imm);
+    auto [x, d, l, r] = ::Cbc::ReadXRRI(codeReader);
+    uint64_t imm = ReadImmPrefix(codeReader, immPrefix);
+    DoCheckedOp(::Cbc::CheckedOpc::Add, ::Cbc::GetCheckedType(x), d, l, imm);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::CheckedSubImm>(::Decoder::ByteReader & codeReader)
 {
-    auto [x, d, l, r] = ::Cbc::ReadXRRI(codeReader); uint64_t r_or_imm = static_cast<uint64_t>(r); if constexpr (true) { if (immPrefix == ImmPrefix::ImmPrefix32) { auto [x] = ::Cbc::ReadImm32(codeReader); r_or_imm = ::std::move(x); } else { auto [x] = ::Cbc::ReadImm64(codeReader); r_or_imm = ::std::move(x); } }
-    DoCheckedOp(::Cbc::CheckedOpc::Sub, ::Cbc::GetCheckedType(x), d, l, r_or_imm);
+    auto [x, d, l, r] = ::Cbc::ReadXRRI(codeReader);
+    uint64_t imm = ReadImmPrefix(codeReader, immPrefix);
+    DoCheckedOp(::Cbc::CheckedOpc::Sub, ::Cbc::GetCheckedType(x), d, l, imm);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::CheckedMulImm>(::Decoder::ByteReader & codeReader)
 {
-    auto [x, d, l, r] = ::Cbc::ReadXRRI(codeReader); uint64_t r_or_imm = static_cast<uint64_t>(r); if constexpr (true) { if (immPrefix == ImmPrefix::ImmPrefix32) { auto [x] = ::Cbc::ReadImm32(codeReader); r_or_imm = ::std::move(x); } else { auto [x] = ::Cbc::ReadImm64(codeReader); r_or_imm = ::std::move(x); } }
-    DoCheckedOp(::Cbc::CheckedOpc::Mul, ::Cbc::GetCheckedType(x), d, l, r_or_imm);
+    auto [x, d, l, r] = ::Cbc::ReadXRRI(codeReader);
+    uint64_t imm = ReadImmPrefix(codeReader, immPrefix);
+    DoCheckedOp(::Cbc::CheckedOpc::Mul, ::Cbc::GetCheckedType(x), d, l, imm);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::CheckedDivImm>(::Decoder::ByteReader & codeReader)
 {
-    auto [x, d, l, r] = ::Cbc::ReadXRRI(codeReader); uint64_t r_or_imm = static_cast<uint64_t>(r); if constexpr (true) { if (immPrefix == ImmPrefix::ImmPrefix32) { auto [x] = ::Cbc::ReadImm32(codeReader); r_or_imm = ::std::move(x); } else { auto [x] = ::Cbc::ReadImm64(codeReader); r_or_imm = ::std::move(x); } }
-    DoCheckedOp(::Cbc::CheckedOpc::Div, ::Cbc::GetCheckedType(x), d, l, r_or_imm);
+    auto [x, d, l, r] = ::Cbc::ReadXRRI(codeReader);
+    uint64_t imm = ReadImmPrefix(codeReader, immPrefix);
+    DoCheckedOp(::Cbc::CheckedOpc::Div, ::Cbc::GetCheckedType(x), d, l, imm);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Bfx>(::Decoder::ByteReader & codeReader)
@@ -613,14 +592,15 @@ template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Bfx>(::Decoder::ByteR
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::FloatCommon>(::Decoder::ByteReader & codeReader)
 {
-    auto [x, d, l, r] = ::Cbc::ReadXFFF(codeReader); uint64_t r_or_imm = static_cast<uint64_t>(r); if constexpr (false) { if (immPrefix == ImmPrefix::ImmPrefix32) { auto [x] = ::Cbc::ReadImm32(codeReader); r_or_imm = ::std::move(x); } else { auto [x] = ::Cbc::ReadImm64(codeReader); r_or_imm = ::std::move(x); } }
-    DoBinaryFloatOp(::Cbc::FloatOpc(x), ::Cbc::GetFloatType(x), d, l, r_or_imm);
+    auto [x, d, l, r] = ::Cbc::ReadXFFF(codeReader);
+    DoBinaryFloatOp(::Cbc::FloatOpc(x), ::Cbc::GetFloatType(x), d, l, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::FloatCommonImm>(::Decoder::ByteReader & codeReader)
 {
-    auto [x, d, l, r] = ::Cbc::ReadXFFI(codeReader); uint64_t r_or_imm = static_cast<uint64_t>(r); if constexpr (true) { if (immPrefix == ImmPrefix::ImmPrefix32) { auto [x] = ::Cbc::ReadImm32(codeReader); r_or_imm = ::std::move(x); } else { auto [x] = ::Cbc::ReadImm64(codeReader); r_or_imm = ::std::move(x); } }
-    DoBinaryFloatOp(::Cbc::FloatOpc(x), ::Cbc::GetFloatType(x), d, l, r_or_imm);
+    auto [x, d, l, r] = ::Cbc::ReadXFFI(codeReader);
+    uint64_t imm = ReadImmPrefix(codeReader, immPrefix);
+    DoBinaryFloatOp(::Cbc::FloatOpc(x), ::Cbc::GetFloatType(x), d, l, imm);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::FloatMisc>(::Decoder::ByteReader & codeReader)
@@ -650,27 +630,22 @@ template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::SetIf64Float>(::Decod
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Ret32>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadZR(codeReader);
-    DoReturn(W32, r);
+    auto [d, r] = ::Cbc::ReadZR(codeReader); DoReturn(W32, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Ret64>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadZR(codeReader);
-    DoReturn(W64, r);
+    auto [d, r] = ::Cbc::ReadZR(codeReader); DoReturn(W64, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Ret32F>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadZR(codeReader);
-    DoReturn(W32, r);
+    auto [d, r] = ::Cbc::ReadZR(codeReader); DoReturn(W32, r);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Ret64F>(::Decoder::ByteReader & codeReader)
 {
-        auto [d, r] = ::Cbc::ReadZR(codeReader);
-    DoReturn(W64, r);
+    auto [d, r] = ::Cbc::ReadZR(codeReader); DoReturn(W64, r);
 }
-
 
 } // namespace Cbc

@@ -162,6 +162,7 @@ enum class FloatOpc : Opcode_t {
 enum class ImmPrefix : Opcode_t {
     ImmPrefix32,
     ImmPrefix64,
+    __LAST /* not set */
 };
 
 class IReg {

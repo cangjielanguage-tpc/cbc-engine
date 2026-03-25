@@ -29,13 +29,7 @@
 #define GEN_READ_IMM64(NEEDED)                                                                                  \
     uint64_t r_or_imm = static_cast<uint64_t>(r);                                                                      \
     if constexpr (NEEDED) {                                                                                            \
-        if (immPrefix == ImmPrefix::ImmPrefix32) { \
-            auto [x] = ::Cbc::ReadImm32(codeReader); \
-            r_or_imm = ::std::move(x);\
-        } else { /* ImmPrefix64 */ \
-            auto [x] = ::Cbc::ReadImm64(codeReader); \
-            r_or_imm = ::std::move(x);\
-        } \
+        r_or_imm = DoImmPrefix(codeReader); \
     }
 
 #define GEN_B2_MANUAL(OPC, RR_TYPE, IMPL_FUNC_NAME, FIRST_ARGS, LAST_ARGS)                                             \

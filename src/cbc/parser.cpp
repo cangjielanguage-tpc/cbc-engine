@@ -13,6 +13,7 @@ static Decoder::ByteReader ReaderOf(MethodCode code)
 
 Parser::Parser(API::Resolver* resolver, MethodCode code)
     : resolver(resolver),
+      immPrefix(ImmPrefix::__LAST),
       codeReader(ReaderOf(code)),
       codeEnd(GetCodeEnd(code))
 {}
@@ -123,6 +124,7 @@ inline void ::Cbc::Parser::InterpretOne(uint32_t opcode)
     case ::Cbc::Opc(::Cbc::InputOpcode::ImmPrefix32): { ::Cbc::Parser::Decode<::Cbc::InputOpcode::ImmPrefix32>(codeReader); break; }
     case ::Cbc::Opc(::Cbc::InputOpcode::ImmPrefix64): { ::Cbc::Parser::Decode<::Cbc::InputOpcode::ImmPrefix64>(codeReader); break; }
     default: ASSERTION(false, "Unexpected opcode"); break;
+    }
 }
 
 // void Parser::InterpretImmExt(uint64_t imm, uint32_t bits, Sign sign) { immDecoder.SetImmExt(imm, bits, sign); }
