@@ -72,12 +72,12 @@ auto ReadXFFI(Decoder::ByteReader& codeReader) -> decltype(auto)
 
 auto ReadImm32(Decoder::ByteReader& codeReader) -> decltype(auto)
 {
-    return ::std::move(Decoder::ByteReaderM(codeReader).Read32().Get());
+    return ::std::move(Decoder::ByteReaderM(codeReader).Read32<int64_t>().Get());
 }
 
 auto ReadImm64(Decoder::ByteReader& codeReader) -> decltype(auto)
 {
-    return ::std::move(Decoder::ByteReaderM(codeReader).Read64().Get());
+    return ::std::move(Decoder::ByteReaderM(codeReader).Read64<int64_t>().Get());
 }
 
 uint64_t ReadImmPrefix(Decoder::ByteReader& codeReader, ImmPrefix immPrefix)
