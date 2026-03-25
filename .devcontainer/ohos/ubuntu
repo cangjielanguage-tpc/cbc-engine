@@ -1,0 +1,32 @@
+FROM ubuntu:22.04
+
+RUN apt-get update && apt-get install -y \
+    git \
+    neovim \
+    curl \
+    wget \
+    build-essential \
+    libjemalloc-dev \
+    lua5.4 \
+    unzip \
+    gzip \
+    cmake \
+    bash \
+    fish \
+    clang \
+    llvm \
+    lldb \
+    gdb \
+    ccls
+
+COPY ./ohos/native-linux-x64-5.1.0.107-Release.zip /tmp/ndk.zip
+
+RUN mkdir -p /opt/ohos \
+    && unzip -q /tmp/ndk.zip -d /opt/ohos \
+    && rm /tmp/ndk.zip
+
+ENV OHOS_SDK_HOME=/opt/ohos
+ENV OHOS_NATIVE_HOME=$OHOS_SDK_HOME/native
+
+ENV CXX=/usr/bin/clang++
+ENV CC=/usr/bin/clang
