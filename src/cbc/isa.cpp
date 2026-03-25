@@ -84,10 +84,14 @@ uint64_t ReadImmPrefix(Decoder::ByteReader& codeReader, ImmPrefix immPrefix)
 {
     if (immPrefix == ImmPrefix::ImmPrefix32) {
         auto [x] = ReadImm32(codeReader);
+        immPrefix = ImmPrefix::__LAST;
         return ::std::move(x);
-    } else { /* ImmPrefix64 */
+    } else if (immPrefix == ImmPrefix::ImmPrefix64) { /* ImmPrefix64 */
         auto [x] = ReadImm64(codeReader);
+        immPrefix = ImmPrefix::__LAST;
         return ::std::move(x);
+    } else {
+        return 0;
     }
 }
 
