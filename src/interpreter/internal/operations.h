@@ -28,7 +28,7 @@ template <> inline ArithmeticResult Arith<Width::W64>(Common::Value op, Value::P
         case Common::MUL: return { Value::Primitive { .u64 = l.u64 * r.u64 }, true };
         case Common::AND: return { Value::Primitive { .u64 = l.u64 & r.u64 }, true };
         case Common::OR:  return { Value::Primitive { .u64 = l.u64 | r.u64 }, true };
-        case Common::XOR: return { Value::Primitive { .u64 = l.u64 & r.u64 }, true };
+        case Common::XOR: return { Value::Primitive { .u64 = l.u64 ^ r.u64 }, true };
         case Common::LSR: return { Value::Primitive { .u64 = l.u64 >> (r.u64 & 0x3F) }, true };
         case Common::LSL: return { Value::Primitive { .u64 = l.u64 << (r.u64 & 0x3F) }, true };
 
@@ -70,7 +70,7 @@ template <> inline ArithmeticResult Arith<Width::W64>(Common::Value op, Value::P
             if (left == INT64_MIN && right == -1) {
                 return { Value::Primitive { .u64 = 0 }, true };
             }
-            return { Value::Primitive { .u64 = static_cast<uint64_t>(left / right) }, true };
+            return { Value::Primitive { .u64 = static_cast<uint64_t>(left % right) }, true };
         }
     }
 }
@@ -84,7 +84,7 @@ template <> inline ArithmeticResult Arith<Width::W32>(Common::Value op, Value::P
         case Common::MUL: return { Value::Primitive { .u32 = l.u32 * r.u32 }, true };
         case Common::AND: return { Value::Primitive { .u32 = l.u32 & r.u32 }, true };
         case Common::OR:  return { Value::Primitive { .u32 = l.u32 | r.u32 }, true };
-        case Common::XOR: return { Value::Primitive { .u32 = l.u32 & r.u32 }, true };
+        case Common::XOR: return { Value::Primitive { .u32 = l.u32 ^ r.u32 }, true };
         case Common::LSR: return { Value::Primitive { .u32 = l.u32 >> (r.u32 & 0x1F) }, true };
         case Common::LSL: return { Value::Primitive { .u32 = l.u32 << (r.u32 & 0x1F) }, true };
 
@@ -126,7 +126,7 @@ template <> inline ArithmeticResult Arith<Width::W32>(Common::Value op, Value::P
             if (left == INT32_MIN && right == -1) {
                 return { Value::Primitive { .u32 = 0 }, true };
             }
-            return { Value::Primitive { .u32 = static_cast<uint32_t>(left / right) }, true };
+            return { Value::Primitive { .u32 = static_cast<uint32_t>(left % right) }, true };
         }
     }
 }
