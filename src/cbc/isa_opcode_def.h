@@ -147,7 +147,9 @@
 #define GEN_OPCODE_DECODER_FLOAT_COMMON(X)                                                                             \
     X(FloatCommon, XFFF, false)                                                                                        \
     X(FloatCommonImm, XFFI, true)
-#define GEN_OPCODE_DECODER_FLOAT_MISC(X) X(FloatMisc, )
+#define GEN_OPCODE_DECODER_FLOAT_MISC(X) \
+    X(FloatIntegerConversions, ) \
+    X(FloatFloatConversions, )
 #define GEN_OPCODE_DECODER_SETIF(X)                                                                                    \
     X(SetIf32, )                                                                                                       \
     X(SetIf64, )                                                                                                       \

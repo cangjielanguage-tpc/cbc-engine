@@ -603,7 +603,12 @@ template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::FloatCommonImm>(::Dec
     DoBinaryFloatOp(::Cbc::FloatOpc(x), ::Cbc::GetFloatType(x), d, l, imm);
 }
 
-template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::FloatMisc>(::Decoder::ByteReader & codeReader)
+template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::FloatIntegerConversions>(::Decoder::ByteReader & codeReader)
+{
+
+}
+
+template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::FloatFloatConversions>(::Decoder::ByteReader & codeReader)
 {
 
 }

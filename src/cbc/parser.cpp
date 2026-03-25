@@ -112,7 +112,8 @@ inline void ::Cbc::Parser::InterpretOne(uint32_t opcode)
     case ::Cbc::Opc(::Cbc::InputOpcode::Bfx): { ::Cbc::Parser::Decode<::Cbc::InputOpcode::Bfx>(codeReader); break; }
     case ::Cbc::Opc(::Cbc::InputOpcode::FloatCommon): { ::Cbc::Parser::Decode<::Cbc::InputOpcode::FloatCommon>(codeReader); break; }
     case ::Cbc::Opc(::Cbc::InputOpcode::FloatCommonImm): { ::Cbc::Parser::Decode<::Cbc::InputOpcode::FloatCommonImm>(codeReader); break; }
-    case ::Cbc::Opc(::Cbc::InputOpcode::FloatMisc): { ::Cbc::Parser::Decode<::Cbc::InputOpcode::FloatMisc>(codeReader); break; }
+    case ::Cbc::Opc(::Cbc::InputOpcode::FloatIntegerConversions): { ::Cbc::Parser::Decode<::Cbc::InputOpcode::FloatIntegerConversions>(codeReader); break; }
+    case ::Cbc::Opc(::Cbc::InputOpcode::FloatFloatConversions): { ::Cbc::Parser::Decode<::Cbc::InputOpcode::FloatFloatConversions>(codeReader); break; }
     case ::Cbc::Opc(::Cbc::InputOpcode::SetIf32): { ::Cbc::Parser::Decode<::Cbc::InputOpcode::SetIf32>(codeReader); break; }
     case ::Cbc::Opc(::Cbc::InputOpcode::SetIf64): { ::Cbc::Parser::Decode<::Cbc::InputOpcode::SetIf64>(codeReader); break; }
     case ::Cbc::Opc(::Cbc::InputOpcode::SetIf32Float): { ::Cbc::Parser::Decode<::Cbc::InputOpcode::SetIf32Float>(codeReader); break; }
