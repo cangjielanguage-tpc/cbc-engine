@@ -653,4 +653,14 @@ template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Ret64F>(::Decoder::By
     auto [d, r] = ::Cbc::ReadZR(codeReader); DoReturn(W64, r);
 }
 
+template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::ImmPrefix32>(::Decoder::ByteReader & codeReader)
+{
+    immPrefix = ImmPrefix::ImmPrefix32;
+}
+
+template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::ImmPrefix64>(::Decoder::ByteReader & codeReader)
+{
+    immPrefix = ImmPrefix::ImmPrefix64;
+}
+
 } // namespace Cbc
