@@ -192,32 +192,40 @@ constexpr CbcTypeKind GetFloatType(uint8_t x)
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Mov32>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRR(codeReader); DoMov( d, r , false);
+    auto [d, r] = ::Cbc::ReadRR(codeReader);
+    DoMov( d, r , false);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Mov64>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRR(codeReader); DoMov( d, r , false);
+    auto [d, r] = ::Cbc::ReadRR(codeReader);
+    DoMov( d, r , false);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Mov32i>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRI(codeReader); DoMovImm(W32, d, r );
+    auto [d, r] = ::Cbc::ReadRI(codeReader);
+    uint64_t imm = ReadImmPrefix(codeReader, immPrefix);
+    DoMovImm(W32, d, imm);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::Mov64i>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRI(codeReader); DoMovImm(W64, d, r );
+    auto [d, r] = ::Cbc::ReadRI(codeReader);
+    uint64_t imm = ReadImmPrefix(codeReader, immPrefix);
+    DoMovImm(W64, d, imm);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::MovVst>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRR(codeReader); DoMovVST( d, r );
+    auto [d, r] = ::Cbc::ReadRR(codeReader);
+    DoMovVST( d, r );
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::MovRef>(::Decoder::ByteReader & codeReader)
 {
-    auto [d, r] = ::Cbc::ReadRR(codeReader); DoMov( d, r , true);
+    auto [d, r] = ::Cbc::ReadRR(codeReader);
+    DoMov( d, r , true);
 }
 
 template <> void ::Cbc::Parser::Decode<::Cbc::InputOpcode::ExtendSigned>(::Decoder::ByteReader & codeReader)
