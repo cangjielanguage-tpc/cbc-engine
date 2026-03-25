@@ -104,6 +104,8 @@ enum class InputOpcode : Opcode_t {
     Ret64,
     Ret32F,
     Ret64F,
+    ImmPrefix32,
+    ImmPrefix64,
     ___LAST
 };
 
@@ -117,6 +119,7 @@ using _with_valid_def =
 // GEN_ENUM(CommonOpc, DO_WITH_COMMON_OPCODES(GET_OPS))
 // GEN_ENUM(CheckedOpc, DO_WITH_CHECKED_OPCODES(GET_OPS))
 // GEN_ENUM(FloatOpc, DO_WITH_FLOAT_OPCODES(GET_OPC))
+// GEN_ENUM(ImmPrefix, DO_WITH_IMM_PREFIX_OPCODES(GET_OPC))
 // #include "isa_opcode_undef.h"
 
 enum class CommonOpc : Opcode_t {
@@ -154,6 +157,11 @@ enum class FloatOpc : Opcode_t {
     Abs,
     Sqrt,
     ___LAST
+};
+
+enum class ImmPrefix : Opcode_t {
+    ImmPrefix32,
+    ImmPrefix64,
 };
 
 class IReg {
@@ -1308,80 +1316,6 @@ enum ImmKind : uint32_t {
     Signed,
     Unsigned,
     FloatingPoint,
-};
-
-class Decoding {
-public:
-    Decoding() : immext(0) {}
-
-    void Reset() { immext = 0; }
-
-    void SetImmExt(uint64_t v, uint32_t bits, Sign sign)
-    {
-        uint64_t extended = sign == Sign::SIGNED ? MathUtils::SignExtend(v, bits) : MathUtils::ZeroExtend(v, bits);
-        immext            = extended << 16;
-    }
-
-    uint64_t StartDecoding(ImmKind kind, Width width, uint32_t N, uint64_t iN)
-    {
-        switch (kind) {
-            case ImmKind::Signed:   return MathUtils::SignExtend(iN, N);
-            case ImmKind::Unsigned: return MathUtils::ZeroExtend(iN, N);
-            case ImmKind::FloatingPoint:
-                if (width == Width::W32) {
-                    return N < 16 ? Imm32 { .fimm = (float)MathUtils::SignExtend(static_cast<uint32_t>(iN), N) }.imm
-                                  : MathUtils::ZeroExtend(iN, N);
-                } else {
-                    ASSERTION(width == Width::W64, "Unexpected width");
-                    return N < 16 ? Imm64 { .dimm = (double)MathUtils::SignExtend(iN, N) }.imm
-                                  : MathUtils::ZeroExtend(iN, N);
-                }
-            default: ASSERTION(false, "Unexpected imm kind"); return 0;
-        }
-    }
-
-    uint64_t FinishDecoding(uint32_t W, uint32_t N, uint64_t ival, uint32_t rotCnt)
-    {
-        if (W == 32 || W == 64) {
-            ival += immext & MathUtils::RightNBits64(W);
-        }
-
-        if (W >= 32 && W > N) {
-            ival = W == 32 ? MathUtils::RotateRight32(static_cast<uint32_t>(ival), rotCnt)
-                           : MathUtils::RotateRight64(ival, rotCnt);
-        } else {
-            ASSERTION(rotCnt == 0, "Invalid rotation count");
-        }
-
-        Reset();
-        return ival;
-    }
-
-    uint64_t DecodeB2Imm(Width width, uint32_t i4)
-    {
-        uint64_t ival = StartDecoding(ImmKind::Signed, width, 4, i4);
-        return FinishDecoding(width.NBits(), 4, ival, 0);
-    }
-
-    uint64_t DecodeB3ImmInteger(Width width, Sign sign, uint32_t t4, uint32_t imm16)
-    {
-        return FinishDecoding(width.NBits(), 16, imm16, t4 * (width.NBits() / 16));
-    }
-
-    uint64_t DecodeB3ImmFloat(Width width, uint32_t t4, uint32_t imm16)
-    {
-        return FinishDecoding(width.NBits(), 16, imm16, t4 * (width.NBits() / 16));
-    }
-
-    uint64_t DecodeIntegralBCCi16(Sign sign, Width width, uint32_t i16)
-    {
-        auto immKind  = sign == Sign::SIGNED ? ImmKind::Signed : ImmKind::Unsigned;
-        uint64_t ival = StartDecoding(immKind, width, 16, i16);
-        return FinishDecoding(width.NBits(), 16, ival, 0);
-    }
-
-private:
-    uint64_t immext;
 };
 
 } // namespace Immediate

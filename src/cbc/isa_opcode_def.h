@@ -26,17 +26,16 @@
     {
 #define GEN_B2_READER(RR_TYPE) auto [d, r] = ::Cbc::Read##RR_TYPE(codeReader);
 #define GEN_B3_READER(RR_TYPE) auto [x, d, l, r] = ::Cbc::Read##RR_TYPE(codeReader);
-#define GEN_READ_IMM16_HEADER(NEEDED)                                                                                  \
+#define GEN_READ_IMM64(NEEDED)                                                                                  \
     uint64_t r_or_imm = static_cast<uint64_t>(r);                                                                      \
     if constexpr (NEEDED) {                                                                                            \
-        auto [imm16] = ::Cbc::ReadImm16(codeReader);
-#define GEN_READ_IMM16_INTEGER(NEEDED, WIDTH, SIGN)                                                                    \
-    GEN_READ_IMM16_HEADER(NEEDED)                                                                                      \
-    r_or_imm = immDecoder.DecodeB3ImmInteger(WIDTH, SIGN, r, imm16);                                                   \
-    }
-#define GEN_READ_IMM16_FLOAT(NEEDED, WIDTH)                                                                            \
-    GEN_READ_IMM16_HEADER(NEEDED)                                                                                      \
-    r_or_imm = immDecoder.DecodeB3ImmFloat(WIDTH, r, imm16);                                                           \
+        if (immPrefix == ImmPrefix::ImmPrefix32) { \
+            auto [x] = ::Cbc::ReadImm32(codeReader); \
+            r_or_imm = ::std::move(x);\
+        } else { /* ImmPrefix64 */ \
+            auto [x] = ::Cbc::ReadImm64(codeReader); \
+            r_or_imm = ::std::move(x);\
+        } \
     }
 
 #define GEN_B2_MANUAL(OPC, RR_TYPE, IMPL_FUNC_NAME, FIRST_ARGS, LAST_ARGS)                                             \
@@ -52,25 +51,29 @@
 #define GEN_B3_COMMON(OPC, RR_TYPE, WIDTH, WITH_IMM)                                                                   \
     GEN_DECODER_HEADER(OPC)                                                                                            \
     GEN_B3_READER(RR_TYPE)                                                                                             \
-    GEN_READ_IMM16_INTEGER(WITH_IMM, WIDTH, SIGN)                                                                      \
+    GEN_READ_IMM64(WITH_IMM)                                                                      \
     DoCommonOp(::Cbc::CommonOpc(x), ::Cbc::GetCommonType(WIDTH, SIGN), d, l, r_or_imm);                                \
     }
 #define GEN_B3_CHECKED(OPC, OPS, RR_TYPE, WITH_IMM)                                                                    \
     GEN_DECODER_HEADER(OPC)                                                                                            \
     GEN_B3_READER(RR_TYPE)                                                                                             \
-    GEN_READ_IMM16_INTEGER(WITH_IMM, ::Cbc::GetCheckedWidth(x), ::Cbc::GetCheckedSign(x))                              \
+    GEN_READ_IMM64(WITH_IMM)                              \
     DoCheckedOp(::Cbc::CheckedOpc::OPS, ::Cbc::GetCheckedType(x), d, l, r_or_imm);                                     \
     }
 #define GEN_B3_FLOAT(OPC, RR_TYPE, WITH_IMM)                                                                           \
     GEN_DECODER_HEADER(OPC)                                                                                            \
     GEN_B3_READER(RR_TYPE)                                                                                             \
-    GEN_READ_IMM16_FLOAT(WITH_IMM, ::Cbc::GetFloatWidth(x))                                                            \
+    GEN_READ_IMM64(WITH_IMM)                                                            \
     DoBinaryFloatOp(::Cbc::FloatOpc(x), ::Cbc::GetFloatType(x), d, l, r_or_imm);                                       \
     }
 #define GEN_RET(OPC, RR_TYPE, WIDTH)                                                                                   \
     GEN_DECODER_HEADER(OPC)                                                                                            \
     GEN_B2_READER(RR_TYPE)                                                                                             \
     DoReturn(WIDTH, r);                                                                                                \
+    }
+#define GEN_IMM_PREFIX(OPC, RR_TYPE)                                                                                   \
+    GEN_DECODER_HEADER(OPC)                                                                                            \
+    immPrefix = ReadOp(codeReader); \
     }
 #define EMPTY_IMPL(OPC, _)                                                                                             \
     GEN_DECODER_HEADER(OPC)                                                                                            \
@@ -113,6 +116,9 @@
 #define GEN_OPCODE_DECODER_FLOAT_FLOAT_CONVERSIONS_OPS(X, RR_TYPE)                                                     \
     X(FloatToFloat32, RR_TYPE)                                                                                         \
     X(Float32ToFloat, RR_TYPE)
+#define GEN_OPCODE_DECODER_IMM_PREFIX_OPS(X, RR_TYPE)                                                                  \
+    X(ImmPrefix32, RR_TYPE)                                                                                            \
+    X(ImmPrefix64, RR_TYPE)                                                                                            \
 
 // OPCODES SEMANTIC
 
@@ -158,6 +164,8 @@
     X(Ret64, ZR, W64)                                                                                                  \
     X(Ret32F, ZR, W32)                                                                                                 \
     X(Ret64F, ZR, W64)
+#define GEN_OPCODE_DECODER_IMM_PREFIX(X)                                                                               \
+    GEN_OPCODE_DECODER_IMM_PREFIX_OPS(X, Op)                                                                \
 
 // END OF OPCODES DEFINITION
 
@@ -166,6 +174,8 @@
 #define DO_WITH_CHECKED_OPCODES(A) GEN_OPCODE_DECODER_CHECKED_OPS(A, , , )
 
 #define DO_WITH_FLOAT_OPCODES(A) GEN_OPCODE_DECODER_FLOAT_OPS(A)
+
+#define DO_WITH_IMM_PREFIX_OPCODES(A) GEN_OPCODE_DECODER_IMM_PREFIX_OPS(A,)
 
 #define DO_WITH_ALL_OPCODES(A)                                                                                         \
     GEN_OPCODE_DECODER_MOV_EXTEND(A)                                                                                   \
@@ -177,7 +187,8 @@
     GEN_OPCODE_DECODER_FLOAT_COMMON(A)                                                                                 \
     GEN_OPCODE_DECODER_FLOAT_MISC(A)                                                                                   \
     GEN_OPCODE_DECODER_SETIF(A)                                                                                        \
-    GEN_OPCODE_DECODER_RET(A)
+    GEN_OPCODE_DECODER_RET(A) \
+    GEN_OPCODE_DECODER_IMM_PREFIX(A)
 
 #define GEN_JUMP_TABLE_ENTRY(OPC, x...)                                                                                \
     case ::Cbc::Opc(::Cbc::InputOpcode::OPC): {                                                                        \

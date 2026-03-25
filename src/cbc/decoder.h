@@ -107,35 +107,35 @@ public:
     {
         auto val      = reader.Read8();
         auto new_data = ::std::tuple_cat(data, ::std::make_tuple(T(static_cast<uint8_t>((val >> 4) & 0xF))));
-        return ByteReaderM_(reader, ::std::move(val & 0xF), ::std::move(new_data));
+        return ByteReaderM_<Ts..., T>(reader, ::std::move(val & 0xF), ::std::move(new_data));
     }
 
     template <typename T = uint8_t> auto Read8() && -> decltype(auto)
     {
         auto val      = T(reader.Read8());
         auto new_data = ::std::tuple_cat(data, ::std::make_tuple(val));
-        return ByteReaderM_(reader, 0, ::std::move(new_data));
+        return ByteReaderM<Ts..., T>(reader, ::std::move(new_data));
     }
 
     template <typename T = uint16_t> auto Read16() && -> decltype(auto)
     {
         auto val      = T(reader.Read16());
         auto new_data = ::std::tuple_cat(data, ::std::make_tuple(val));
-        return ByteReaderM_(reader, 0, ::std::move(new_data));
+        return ByteReaderM<Ts..., T>(reader, ::std::move(new_data));
     }
 
     template <typename T = uint32_t> auto Read32() && -> decltype(auto)
     {
         auto val      = T(reader.Read32());
         auto new_data = ::std::tuple_cat(data, ::std::make_tuple(val));
-        return ByteReaderM_(reader, 0, ::std::move(new_data));
+        return ByteReaderM<Ts..., T>(reader, ::std::move(new_data));
     }
 
     template <typename T = uint64_t> auto Read64() && -> decltype(auto)
     {
         auto val      = T(reader.Read64());
         auto new_data = ::std::tuple_cat(data, ::std::make_tuple(val));
-        return ByteReaderM_(reader, 0, ::std::move(new_data));
+        return ByteReaderM<Ts..., T>(reader, ::std::move(new_data));
     }
 
     auto Get() && -> decltype(auto) { return ::std::move(data); }
@@ -161,7 +161,7 @@ public:
     template <typename T = uint8_t> auto Read4() && -> decltype(auto)
     {
         auto new_data = ::std::tuple_cat(data, ::std::make_tuple(T(last)));
-        return ByteReaderM(reader, ::std::move(new_data));
+        return ByteReaderM<Ts..., T>(reader, ::std::move(new_data));
     }
 
     auto Get() && -> decltype(auto) { return ::std::move(data); }
