@@ -97,10 +97,9 @@ enum class InputOpcode : Opcode_t {
     FloatCommonImm,
     FloatIntegerConversions,
     FloatFloatConversions,
-    SetIf32,
-    SetIf64,
-    SetIf32Float,
-    SetIf64Float,
+    Bcc,
+    BccImm,
+    Jump32,
     Ret32,
     Ret64,
     Ret32F,
@@ -123,7 +122,7 @@ using _with_valid_def =
 // GEN_ENUM(ImmPrefix, DO_WITH_IMM_PREFIX_OPCODES(GET_OPC))
 // #include "isa_opcode_undef.h"
 
-enum class CommonOpc : Opcode_t {
+enum class InputCommonOpc : Opcode_t {
     Add,
     Sub,
     Mul,
@@ -140,7 +139,7 @@ enum class CommonOpc : Opcode_t {
     ___LAST
 };
 
-enum class CheckedOpc : Opcode_t {
+enum class InputCheckedOpc : Opcode_t {
     Add,
     Sub,
     Mul,
@@ -148,7 +147,7 @@ enum class CheckedOpc : Opcode_t {
     ___LAST
 };
 
-enum class FloatOpc : Opcode_t {
+enum class InputFloatOpc : Opcode_t {
     Add,
     Sub,
     Mul,
@@ -160,10 +159,29 @@ enum class FloatOpc : Opcode_t {
     ___LAST
 };
 
-enum class ImmPrefix : Opcode_t {
+enum class InputImmPrefix : Opcode_t {
     ImmPrefix32,
     ImmPrefix64,
     __LAST /* not set */
+};
+
+enum class InputCcOpc : Opcode_t {
+    EQ,
+    NE,
+    LT,
+    GE,
+    ULT,
+    UGE,
+    REQ,
+    RNE,
+    FEQ,
+    FNE,
+    FLT,
+    FNLT,
+    FGE,
+    FNGE,
+    TESTZ,
+    TESTNZ,
 };
 
 class IReg {
