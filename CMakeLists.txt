@@ -22,9 +22,13 @@ if(ipo_supported)
   set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 endif()
 
-# FIXME: make source search platform-aware
-file(GLOB_RECURSE LIB_SOURCES CONFIGURE_DEPENDS "src/*.cpp" "src/*.S")
-list(FILTER LIB_SOURCES EXCLUDE REGEX ".*entrypoint\\.cpp$")
+file(GLOB_RECURSE COMMON_LIB_SOURCES CONFIGURE_DEPENDS "src/*.cpp")
+list(FILTER COMMON_LIB_SOURCES EXCLUDE REGEX ".*entrypoint\\.cpp$")
+list(FILTER COMMON_LIB_SOURCES EXCLUDE REGEX "src/arch_os/.*")
+
+add_subdirectory(src/arch_os/)
+
+set(LIB_SOURCES ${COMMON_LIB_SOURCES} ${PLATFORM_SOURCES})
 
 add_library(cbc_lib OBJECT ${LIB_SOURCES})
 
@@ -35,6 +39,7 @@ set_target_properties(cbc_lib PROPERTIES
 target_include_directories(cbc_lib PUBLIC "src")
 target_include_directories(cbc_lib PUBLIC "include")
 target_include_directories(cbc_lib PUBLIC "third_party/mrt/include")
+target_include_directories(cbc_lib PRIVATE "${PLATFORM_DIR}")
 
 if(UNIT_TEST_MODE)
   target_compile_definitions(cbc_lib PRIVATE UNIT_TEST_MODE)

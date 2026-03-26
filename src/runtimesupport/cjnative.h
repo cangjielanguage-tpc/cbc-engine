@@ -2,4 +2,4 @@
 
 #include "RTInterface.h"
 
-inline cjnative_interface_t g_CJNativeInterfaceInstance;
+inline MRTExport::cjnative_interface_t g_CJNativeInterfaceInstance;
