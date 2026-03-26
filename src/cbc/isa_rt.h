@@ -16,8 +16,8 @@
     X(FMOVI32, B6xri32, "fmovi.32 $0fr $2F32")                                                                         \
     X(FMOVI64, B10xri64, "fmovi.64 $0fr $2F64")                                                                        \
     X(BCC32I, B4xi12rr, "bcc.32 $0cc $2ir $3ir $1I12")                                                                 \
-    X(BCC64I, B4xi12rr, "bcc.64 $0cc $2ir $3ir $1I12L")                                                                \
-    X(BCC32L, B4xi12rr, "bcc.32 $0cc $2ir $3ir $1I12")                                                                 \
+    X(BCC64I, B4xi12rr, "bcc.64 $0cc $2ir $3ir $1I12I")                                                                \
+    X(BCC32L, B4xi12rr, "bcc.32 $0cc $2ir $3ir $1I12L")                                                                 \
     X(BCC64L, B4xi12rr, "bcc.64 $0cc $2ir $3ir $1I12L")                                                                \
     X(BCCI32I, B5xi12ri12, "bcc.32 $0cc $2ir $3I12 $1I12")                                                             \
     X(BCCI64I, B5xi12ri12, "bcc.64 $0cc $2ir $3I12 $1I12")                                                             \

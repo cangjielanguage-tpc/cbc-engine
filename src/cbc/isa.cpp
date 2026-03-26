@@ -756,9 +756,9 @@ template <> void Parser::Decode<InputOpcode::Bcc>(::Decoder::ByteReader& codeRea
         .Read4<Width::Value>()
         .Read4<IReg::Value>()
         .Read4<IReg::Value>()
-        .Read32<int64_t>()
+        .Read32<int32_t>()
         .Get();
-    DoBranchIf(cc, w, l, r, (uint8_t*)target);
+    DoBranchIf(cc, w, l, r, codeReader.Cursor() + target);
 }
 
 template <> void Parser::Decode<InputOpcode::BccImm>(::Decoder::ByteReader& codeReader)
@@ -768,9 +768,9 @@ template <> void Parser::Decode<InputOpcode::BccImm>(::Decoder::ByteReader& code
         .Read4<Width::Value>()
         .Read4<IReg::Value>()
         .Read4<uint64_t>()
-        .Read32<int64_t>()
+        .Read32<int32_t>()
         .Get();
-    DoBranchIfImm(cc, w, l, imm64, (uint8_t*)target);
+    DoBranchIfImm(cc, w, l, imm64, codeReader.Cursor() + target);
 }
 
 template <> void Parser::Decode<InputOpcode::Jump32>(::Decoder::ByteReader& codeReader)
