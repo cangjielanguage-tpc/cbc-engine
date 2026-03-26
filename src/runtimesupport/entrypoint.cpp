@@ -1,5 +1,6 @@
 #include <filesystem>
 
+#include "RTInterface.h"
 #include "asm_trampolines.h"
 #include "cbc_engine.h"
 #include "cjnative.h"
@@ -28,17 +29,17 @@ static void EnsureEngineInitialized()
     g_Initialized = true;
 }
 
-static void FiberStart(fiber_specific_data_t* data) { /* no-op */ }
+static void FiberStart(MRTExport::fiber_specific_data_t* data) { /* no-op */ }
 
-static void FiberDestroy(fiber_specific_data_t* data) { /* TODO: ectype cleanup */ }
+static void FiberDestroy(MRTExport::fiber_specific_data_t* data) { /* TODO: ectype cleanup */ }
 
 extern "C" {
 /// This symbol is exported to the runtime, which would initialize engine.
 CBC_EXPORT void interpreter_bridge_init(
     size_t size,
     char const** options,
-    struct interpreter_interface_t* interpInterf,
-    struct cjnative_interface_t* rtInterf
+    struct MRTExport::interpreter_interface_t* interpInterf,
+    struct MRTExport::cjnative_interface_t* rtInterf
 );
 
 CBC_EXPORT void engine_set_cbcpath(char const* cbcPath) { g_cbcPath = cbcPath; }
@@ -65,8 +66,8 @@ CBC_EXPORT void* engine_get_entrypoint_trampoline(void)
 CBC_EXPORT void interpreter_bridge_init(
     size_t size,
     char const** options,
-    struct interpreter_interface_t* interpInterf,
-    struct cjnative_interface_t* rtInterf
+    struct MRTExport::interpreter_interface_t* interpInterf,
+    struct MRTExport::cjnative_interface_t* rtInterf
 )
 {
     (void)size;
@@ -76,8 +77,8 @@ CBC_EXPORT void interpreter_bridge_init(
     interpInterf->version                   = 1;
     interpInterf->fiber_specific_data_size  = sizeof(Interpretation::Ectype);
     interpInterf->iterator_size             = 0; // FIXME: remove
-    interpInterf->c2iVirtualExecutorAddr    = reinterpret_cast<uintptr_t>(&Asm::engine_c2i_call_pc_start);
-    interpInterf->c2iVirtualExecutorEndAddr = reinterpret_cast<uintptr_t>(&Asm::engine_c2i_call_pc_end);
+    interpInterf->c2iStubStartAddr          = reinterpret_cast<uintptr_t>(&Asm::engine_c2i_call_pc_start);
+    interpInterf->c2iStubEndAddr            = reinterpret_cast<uintptr_t>(&Asm::engine_c2i_call_pc_end);
     interpInterf->fiber_destroy             = &FiberDestroy;
     interpInterf->fiber_start               = &FiberStart;
 
