@@ -181,7 +181,7 @@ enum class InputCcOpc : Opcode_t {
     FGE,
     FNGE,
     TESTZ,
-    TESTNZ,
+    TESTNZ
 };
 
 class IReg {
