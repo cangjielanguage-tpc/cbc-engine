@@ -1,6 +1,7 @@
 #include "cbc/isa.h"
 #include "cbc/decoder.h"
 #include "cbc/parser.h"
+#include <bits/types/cookie_io_functions_t.h>
 #include <tuple>
 #include <type_traits>
 
@@ -58,38 +59,44 @@ auto ReadXFFF(Decoder::ByteReader& codeReader) -> decltype(auto)
 
 auto ReadXRRI(Decoder::ByteReader& codeReader) -> decltype(auto)
 {
-    ::std::tuple<uint8_t, IReg, IReg, uint8_t> res =
-        Decoder::ByteReaderM(codeReader).Read4().Read4<IReg::Value>().Read4<IReg::Value>().Read4().Get();
+    ::std::tuple<uint8_t, IReg, IReg, uint8_t> res = Decoder::ByteReaderM(codeReader)
+        .Read4()
+        .Read4<IReg::Value>()
+        .Read4<IReg::Value>()
+        .Read4()
+        .Get();
     return res;
 }
 
 auto ReadXFFI(Decoder::ByteReader& codeReader) -> decltype(auto)
 {
-    ::std::tuple<uint8_t, FReg, FReg, uint8_t> res =
-        Decoder::ByteReaderM(codeReader).Read4().Read4<FReg::Value>().Read4<FReg::Value>().Read4().Get();
+    ::std::tuple<uint8_t, FReg, FReg, uint8_t> res = Decoder::ByteReaderM(codeReader)
+        .Read4()
+        .Read4<FReg::Value>()
+        .Read4<FReg::Value>()
+        .Read4()
+        .Get();
     return res;
 }
 
 auto ReadImm32(Decoder::ByteReader& codeReader) -> decltype(auto)
 {
-    return ::std::move(Decoder::ByteReaderM(codeReader).Read32<int64_t>().Get());
+    return codeReader.Read32();
 }
 
 auto ReadImm64(Decoder::ByteReader& codeReader) -> decltype(auto)
 {
-    return ::std::move(Decoder::ByteReaderM(codeReader).Read64<int64_t>().Get());
+    return codeReader.Read64();
 }
 
 uint64_t ReadImmPrefix(Decoder::ByteReader& codeReader, ImmPrefix immPrefix)
 {
     if (immPrefix == ImmPrefix::ImmPrefix32) {
-        auto [x] = ReadImm32(codeReader);
         immPrefix = ImmPrefix::__LAST;
-        return ::std::move(x);
-    } else if (immPrefix == ImmPrefix::ImmPrefix64) { /* ImmPrefix64 */
-        auto [x] = ReadImm64(codeReader);
+        return ReadImm32(codeReader);
+    } else if (immPrefix == ImmPrefix::ImmPrefix64) {
         immPrefix = ImmPrefix::__LAST;
-        return ::std::move(x);
+        return ReadImm64(codeReader);
     } else {
         return 0;
     }
