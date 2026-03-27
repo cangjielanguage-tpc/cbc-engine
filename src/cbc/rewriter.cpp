@@ -50,12 +50,15 @@ void Rewriter::DoCheckedOp(InputCheckedOpc op, CbcTypeKind tkind, IReg dst, IReg
 void Rewriter::DoBinaryFloatOp(InputFloatOpc op, CbcTypeKind tkind, FReg dst, FReg src1, FReg src2)
 {
     auto width = Width::FromCbcTypeKind(tkind);
-    switch (static_cast<Opcode_t>(op)) {
-        case static_cast<Opcode_t>(InputFloatOpc::Add): e.Add(width, dst, src1, src2); break;
-        case static_cast<Opcode_t>(InputFloatOpc::Sub): e.Sub(width, dst, src1, src2); break;
-        case static_cast<Opcode_t>(InputFloatOpc::Mul): e.Mul(width, dst, src1, src2); break;
-        case static_cast<Opcode_t>(InputFloatOpc::Div): e.Div(width, dst, src1, src2); break;
-
+    switch (Opc(op)) {
+        case Opc(InputFloatOpc::Add): e.Add(width, dst, src1, src2); break;
+        case Opc(InputFloatOpc::Sub): e.Sub(width, dst, src1, src2); break;
+        case Opc(InputFloatOpc::Mul): e.Mul(width, dst, src1, src2); break;
+        case Opc(InputFloatOpc::Div): e.Div(width, dst, src1, src2); break;
+        case Opc(InputFloatOpc::Mov): e.Mov(width, dst, src1, src2); break;
+        case Opc(InputFloatOpc::Neg): e.Neg(width, dst, src1, src2); break;
+        case Opc(InputFloatOpc::Abs): e.Abs(width, dst, src1, src2); break;
+        case Opc(InputFloatOpc::Sqrt): e.Sqrt(width, dst, src1, src2); break;
         default: ASSERTION(false, "Unexpected op"); break;
     }
 }

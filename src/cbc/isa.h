@@ -105,8 +105,6 @@ enum class InputOpcode : Opcode_t {
     ___LAST
 };
 
-constexpr Opcode_t Opc(const InputOpcode opc) { return static_cast<Opcode_t>(opc); }
-
 enum class InputCommonOpc : Opcode_t {
     Add,
     Sub,
@@ -168,6 +166,13 @@ enum class InputCcOpc : Opcode_t {
     TESTZ,
     TESTNZ
 };
+
+constexpr Opcode_t Opc(const InputOpcode opc) { return static_cast<Opcode_t>(opc); }
+constexpr Opcode_t Opc(const InputCommonOpc opc) { return static_cast<Opcode_t>(opc); }
+constexpr Opcode_t Opc(const InputCheckedOpc opc) { return static_cast<Opcode_t>(opc); }
+constexpr Opcode_t Opc(const InputFloatOpc opc) { return static_cast<Opcode_t>(opc); }
+constexpr Opcode_t Opc(const InputImmPrefix opc) { return static_cast<Opcode_t>(opc); }
+constexpr Opcode_t Opc(const InputCcOpc opc) { return static_cast<Opcode_t>(opc); }
 
 class IReg {
 public:

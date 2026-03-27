@@ -120,6 +120,10 @@ public:
     void Sub(Width width, FReg d, FReg l, FReg r);
     void Mul(Width width, FReg d, FReg l, FReg r);
     void Div(Width width, FReg d, FReg l, FReg r);
+    void Mov(Width width, FReg d, FReg l, FReg r);
+    void Neg(Width width, FReg d, FReg l, FReg r);
+    void Abs(Width width, FReg d, FReg l, FReg r);
+    void Sqrt(Width width, FReg d, FReg l, FReg r);
 
     void Unary(FloatOperations op, Width Width, FReg d, FReg s);
     void Sqrt(Width width, FReg d, FReg s);

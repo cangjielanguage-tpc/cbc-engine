@@ -1,7 +1,5 @@
 #pragma once
 
-#include <map>
-
 #include "api/resolver.h"
 #include "cbc/emitter/emitter.h"
 #include "cbc/isa.h"

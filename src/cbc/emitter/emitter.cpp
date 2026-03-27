@@ -247,7 +247,7 @@ void Emitter::Binary(InputCommonOpc op, Width width, IReg d, IReg l, IReg r)
             .opc = opcode,
             .xr =
                 XR {
-                    .imm = Imm4(static_cast<Opcode_t>(op)),
+                    .imm = Imm4(Opc(op)),
                     .r   = d,
                 },
             .rr = { .x = l, .y = r },
@@ -298,7 +298,7 @@ void Emitter::BinaryImm(InputCommonOpc op, Width width, IReg d, IReg l, uint64_t
                 .opc = opcode,
                 .xi12 =
                     XImm12 {
-                        .imm4  = Imm4(static_cast<Opcode_t>(op)),
+                        .imm4  = Imm4(Opc(op)),
                         .imm12 = Imm12(immediate),
                     },
                 .rr = { .x = d, .y = l },
@@ -311,7 +311,7 @@ void Emitter::BinaryImm(InputCommonOpc op, Width width, IReg d, IReg l, uint64_t
         RT::Opcode opcode = width == Width::W32 ? RT::Opcode::BINI32L : RT::Opcode::BINI64L;
 
         Encode(segment, opcode);
-        AddFixup(std::make_unique<Literal12Fixup>(Imm4(static_cast<Opcode_t>(op)), immediate));
+        AddFixup(std::make_unique<Literal12Fixup>(Imm4(Opc(op)), immediate));
         Encode(segment, RR { .x = d, .y = l });
     }
 }
@@ -382,6 +382,14 @@ void Emitter::Sub(Width width, FReg d, FReg l, FReg r) { Binary(FloatOperations:
 void Emitter::Mul(Width width, FReg d, FReg l, FReg r) { Binary(FloatOperations::FMUL, width, d, l, r); }
 
 void Emitter::Div(Width width, FReg d, FReg l, FReg r) { Binary(FloatOperations::FDIV, width, d, l, r); }
+
+void Emitter::Mov(Width width, FReg d, FReg l, FReg r) { Binary(FloatOperations::FMOV, width, d, l, r); }
+
+void Emitter::Neg(Width width, FReg d, FReg l, FReg r) { Binary(FloatOperations::FNEG, width, d, l, r); }
+
+void Emitter::Abs(Width width, FReg d, FReg l, FReg r) { Binary(FloatOperations::FABS, width, d, l, r); }
+
+void Emitter::Sqrt(Width width, FReg d, FReg l, FReg r) { Binary(FloatOperations::FSQRT, width, d, l, r); }
 
 void Emitter::Unary(FloatOperations op, Width width, FReg d, FReg s)
 {
