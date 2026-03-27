@@ -17,22 +17,7 @@ template <> class RuntimeInterface<Test> {
     using Reference = Value::Reference;
 
 public:
-    static TestTypeInfo* Extract(TypeInfo<Test> type)
-    {
-        void* p = type;
-        return (TestTypeInfo*)p;
-    }
-
-    inline static Reference NewObj(TypeInfo<Test> type, ThreadHandle th)
-    {
-        auto typeInfo = Extract(type);
-        auto mem      = heap.Allocate(typeInfo->size, 16);
-        memset(mem, 0, typeInfo->size);
-        TestTypeInfo** header = (TestTypeInfo**)mem;
-        *header               = typeInfo;
-
-        return Value::Reference { .value = reinterpret_cast<uintptr_t>(mem) };
-    }
+    inline static void* AllocateObject;
 
     static Reference ReadObjectInstance(Reference base, size_t offset, ThreadHandle th)
     {
@@ -55,7 +40,26 @@ public:
     }
 };
 
+static void MockNewObj(Ectype* ectype, ThreadHandle th, TypeInfo<Test> type);
 static void InterpreterI2CallTest(Ectype* ectype, ThreadHandle handle, FunctionHandle* fuh);
+
+static TestTypeInfo* Extract(TypeInfo<Test> type)
+{
+    void* p = type;
+    return (TestTypeInfo*)p;
+}
+
+static void MockNewObj(Ectype* ectype, ThreadHandle th, TypeInfo<Test> type)
+{
+    auto typeInfo = Extract(type);
+    auto mem      = heap.Allocate(typeInfo->size, alignof(std::max_align_t));
+    memset(mem, 0, typeInfo->size);
+    TestTypeInfo** header = (TestTypeInfo**)mem;
+    *header               = typeInfo;
+
+    auto dst = ectype->GetPrimitive(IReg::IR1);
+    ectype->Put(IReg::From(dst.u32), Value::Reference { .value = reinterpret_cast<uintptr_t>(mem) });
+}
 
 static void InterpretationLoop(
     Ectype* ectype, Frame* frame, ThreadHandle th, LiteralTable* literals, Decoder::ByteReader& reader
@@ -66,8 +70,8 @@ static void InterpretationLoop(
         if (!thunk.function) {
             break;
         }
-        ASSERT(thunk.function == &InterpreterI2CallTest);
-        InterpreterI2CallTest(ectype, th, reinterpret_cast<FunctionHandle*>(thunk.arg));
+        auto func = reinterpret_cast<void (*)(Ectype*, ThreadHandle, void*)>(thunk.function);
+        func(ectype, th, thunk.arg);
     }
 }
 
@@ -149,6 +153,9 @@ Interpretation::Value::Primitive InterpretFPRes(
 
 void InitializeMockInterpreter()
 {
+    using namespace Interpretation;
     auto i2call = reinterpret_cast<Interpretation::I2Call>(&Interpretation::InterpreterI2CallTest);
-    Interpretation::SetI2CallForInterpreter(i2call);
+    SetI2CallForInterpreter(i2call);
+    RuntimeInterface<Test>::AllocateObject = reinterpret_cast<void*>(&MockNewObj);
+    static_assert(IReg::COUNT == 14);
 }

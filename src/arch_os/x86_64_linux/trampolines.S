@@ -2,32 +2,55 @@
 
 #include "asm_export.h"
 
-.global engine_universal_direct_function_handles
-.global engine_prepare_bytecode
-.global engine_interpretation_loop
+.macro declare_hidden sym
+  .global \sym
+  .hidden \sym
+.endm
+
+.extern engine_prepare_bytecode
+.extern engine_interpretation_loop
+
+// exported
+declare_hidden engine_c2i_call_pc_start
+declare_hidden engine_c2i_call_pc_end
+declare_hidden engine_universal_direct_call
+declare_hidden engine_trampolines_direct_start
+declare_hidden engine_iregs_only_c2i_call
+declare_hidden engine_i2i_call
+declare_hidden engine_i2_newobject
+declare_hidden engine_universal_direct_function_handles
+declare_hidden engine_newobject_function
+
+
+// --- SECTION BSS ---
+.section .bss
 
 // Fake Ectype* instance represented as global
 // FIXME: get Ectype* instance from ThreadHandle
-.bss
 .align 16
 .local engine_fake_ectype
 engine_fake_ectype:
   .skip 1024
 
-.text
 .align 16
-.global engine_universal_direct_call
-.hidden engine_universal_direct_call
+engine_universal_direct_function_handles:
+  .skip 8 * TRAMPOLINE_COUNT
+
+.align 16
+engine_newobject_function:
+  .skip 8
+
+// --- SECTION TEXT ---
+.section .text
+
+.align 16
 engine_universal_direct_call:
   lea   r10, [rip + engine_universal_direct_function_handles]
   mov   rax, [r10 + rax * 8] // put FuH on rax
   jmp   [rax + FUNCTION_HANDLE_C2CALL_OFFSET]
 
 
-.text
 .align 16
-.global engine_trampolines_direct_start
-.hidden engine_trampolines_direct_start
 engine_trampolines_direct_start:
 .macro repeat_call count
   .set i, 0
@@ -42,21 +65,20 @@ engine_trampolines_direct_start:
 #define TLS_REG r15
 #define ECTYPE_REG rbx
 
-.text
 .align 16
-.global engine_iregs_only_c2i_call
-.hidden engine_iregs_only_c2i_call
 // System-V abi, except r15 can be changed after context-switches
+engine_c2i_call_pc_start:
 engine_iregs_only_c2i_call:
   push  rbp
   mov   rbp, rsp
 
-  push  r14 // rbp - 0x8
-  push  r13 // rbp - 0x10
-  push  r12 // rbp - 0x18
-  push  rbx // rbp - 0x20
-  push  rax // rbp - 0x28 : FunctionHandle that will help to scan saved regs
-  push  rax // rbp - 0x30 alignment
+  push  r15 // rbp - 0x8 -- unused
+  push  r14 // rbp - 0x10
+  push  r13 // rbp - 0x18
+  push  r12 // rbp - 0x20
+  push  rbx // rbp - 0x28
+
+  push  rax // rbp - 0x30 : FunctionHandle that will help to scan saved regs
 
 
 // FIXME: get Ectype* from ThreadHandle
@@ -76,26 +98,42 @@ engine_iregs_only_c2i_call:
 
   mov   rax,  [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8]
 
-  pop   rbx
   pop   rbx // remove FunctionHandle
   pop   rbx
   pop   r12
   pop   r13
   pop   r14
+  pop   rbp // do not restore r15
 
   pop   rbp
   ret
+engine_c2i_call_pc_end:
+  ud2
 
 
-.text
 .align 16
-.global engine_i2i_call
-.hidden engine_i2i_call
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: fuh)
-// preserved: TLS_REG, ECTYPE_REG, rbp
+// preserved: ECTYPE_REG, rbp
+// TLS_REG can be changed after context-switch
 engine_i2i_call:
-  jmp perform_2i_call
+  // jumped from .Linterpreter_call without return address to return
+  call  perform_2i_call
+  jmp   .Lrestart_interpretation
 
+
+.align 16
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
+// preserved: ECTYPE_REG, rbp
+// TLS_REG can be changed after context-switch
+engine_i2_newobject:
+  // jumped from .Linterpreter_call without return address to return
+  call  [rip + engine_newobject_function]
+  mov   rdi, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8]
+  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8 + rdi], rax
+  jmp   .Lrestart_interpretation
+
+
+.align 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: fuh)
 // preserved: TLS_REG, ECTYPE_REG, rbp
 perform_2i_call:
@@ -172,8 +210,8 @@ perform_2i_call:
   jz    .Lend_interpretation
 
   mov   rdi, rdx
-  call  rax
-  jmp   .Lrestart_interpretation
+.Linterpreter_call:
+  jmp   rax
 
 .Lend_interpretation:
   mov   rsp, rbp

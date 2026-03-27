@@ -18,6 +18,27 @@ struct Thunk {
     void* arg;
 };
 
+/// The interpretation loop can be used in two scenarios:
+/// - (Main scenario) As an interpreter for the real runtime.
+/// - As part of a unit test framework.
+///
+/// To share code, the actual `RuntimeInterface` used by the interpreter is injected
+/// as a template parameter.
+///
+/// For the main scenario, the stack layout MUST avoid non-leaf C++ frames
+/// to handle fiber stack expansion properly.
+/// To achieve this, any compiled code invocation (or similar call) is not executed directly
+/// from the interpreter loop (this function) itself, but rather from an assembly-written
+/// function, `perform_2i_call`, that strictly tracks the frame layout.
+///
+/// Therefore, to perform an invocation from `perform_2i_call`, we return a `Thunk` by value,
+/// which contains both the function to call and a single argument.
+///
+/// We restrict the number of arguments in the `Thunk` structure to 1 to allow passing the
+/// structure by value via registers in the System V x64 and AArch64 ABIs.
+///
+/// Note that the actual calling convention of `thunk.function`
+/// differs from the ASM in the unit test framework.
 template <typename RTI>
 Thunk InterpretationLoop(
     Ectype* ectype, Frame* frame, ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
@@ -378,9 +399,23 @@ FUN64: {
     NEXT_COND(successful);
 }
 NEWOBJ: {
-    auto args       = B3xi12::Decode(reader);
-    bool successful = interpreter.NewObj(args.xi12.imm4.IR(), args.xi12.imm12);
-    NEXT_COND(successful);
+    auto args          = B3xi12::Decode(reader);
+    TypeInfo<RTI> type = literals->at(args.xi12.imm12).uintptr;
+
+    // To invoke an `newobj` we need to "return" three values
+    // - function to invoke,
+    // - type info,
+    // - destination register,
+    // which is more than Thunk can fit.
+    //
+    // To pass an extra element we will store
+    // it in volatile-register in Ectype;
+    auto func = RuntimeInterface<RTI>::AllocateObject;
+    ectype->Put(IReg::IR1, Value::Primitive { .u32 = args.xi12.imm4.IR() });
+
+    reader0 = reader; // save current pc
+
+    return { func, type };
 }
 LOAD_OBJ: {
     auto args       = B4xi12rr::Decode(reader);

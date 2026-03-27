@@ -1,7 +1,7 @@
 #ifndef CBC_ENGINE_H
 #define CBC_ENGINE_H
 
-#define CBC_EXPORT __attribute__((visibility("default")))
+#define CBC_EXPORT __attribute__((visibility("default"), used))
 
 /// This file define C-API exposed to the cbc engine library users.
 

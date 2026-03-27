@@ -1,5 +1,8 @@
+#include "asm_trampolines.h"
 #include "cbc/dispatcher_rt.h"
-#include "runtime.h"
+#include "cbc_engine.h"
+#include "cjnative.h"
+#include "interpreter/runtime.h"
 
 namespace Interpretation {
 
@@ -10,10 +13,7 @@ template <> class RuntimeInterface<Impl> {
     using Reference = Value::Reference;
 
 public:
-    inline static Reference NewObj(TypeInfo<Impl> type, ThreadHandle th)
-    {
-        return Value::Reference { .value = reinterpret_cast<uintptr_t>(nullptr) };
-    }
+    inline static void* AllocateObject;
 
     static Reference ReadObjectInstance(Reference base, size_t offset, ThreadHandle th)
     {
@@ -35,6 +35,12 @@ public:
         *reinterpret_cast<uintptr_t*>(base + offset) = object.value;
     }
 };
+
+void InitializeRuntimeInterface()
+{
+    Asm::engine_newobject_function         = g_CJNativeInterfaceInstance.object_alloc;
+    RuntimeInterface<Impl>::AllocateObject = reinterpret_cast<void*>(&Asm::engine_i2_newobject);
+}
 
 } // namespace Interpretation
 

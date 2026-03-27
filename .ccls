@@ -1,3 +1,5 @@
 g++
 %c -std=c++17
 -Isrc/
+-Ithird_party/mrt/include/
+-Iinclude/
