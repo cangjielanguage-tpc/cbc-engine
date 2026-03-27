@@ -100,6 +100,7 @@ enum class InputOpcode : Opcode_t {
     Bcc,
     BccImm,
     Jump32,
+    CallDirect,
     Ret32,
     Ret64,
     Ret32F,

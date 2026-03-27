@@ -30,6 +30,12 @@ auto ReadRR(Decoder::ByteReader& codeReader) -> decltype(auto)
     return res;
 }
 
+auto ReadRZI16(Decoder::ByteReader& codeReader) -> decltype(auto)
+{
+    ::std::tuple<IReg, uint8_t, uint32_t> res = Decoder::ByteReaderM(codeReader).Read4<IReg::Value>().Read4().Read16().Get();
+    return res;
+}
+
 auto ReadRZI32(Decoder::ByteReader& codeReader) -> decltype(auto)
 {
     ::std::tuple<IReg, uint8_t, uint32_t> res = Decoder::ByteReaderM(codeReader).Read4<IReg::Value>().Read4().Read32().Get();
@@ -777,6 +783,12 @@ template <> void Parser::Decode<InputOpcode::Jump32>(::Decoder::ByteReader& code
 {
     auto imm32 = ReadImm32(codeReader);
     /* not implemented */
+}
+
+template <> void Parser::Decode<InputOpcode::CallDirect>(::Decoder::ByteReader& codeReader)
+{
+    auto [d, z, id16] = ReadRZI16(codeReader);
+    DoCallDirect(d, id16);
 }
 
 template <> void Parser::Decode<InputOpcode::Ret32>(::Decoder::ByteReader& codeReader)
