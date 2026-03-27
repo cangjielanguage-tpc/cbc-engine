@@ -117,6 +117,7 @@ inline void ::Cbc::Parser::InterpretOne(uint32_t opcode)
     case ::Cbc::Opc(::Cbc::InputOpcode::Bcc): { ::Cbc::Parser::Decode<::Cbc::InputOpcode::Bcc>(codeReader); break; }
     case ::Cbc::Opc(::Cbc::InputOpcode::BccImm): { ::Cbc::Parser::Decode<::Cbc::InputOpcode::BccImm>(codeReader); break; }
     case ::Cbc::Opc(::Cbc::InputOpcode::Jump32): { ::Cbc::Parser::Decode<::Cbc::InputOpcode::Jump32>(codeReader); break; }
+    case ::Cbc::Opc(::Cbc::InputOpcode::CallDirect): { ::Cbc::Parser::Decode<::Cbc::InputOpcode::CallDirect>(codeReader); break; }
     case ::Cbc::Opc(::Cbc::InputOpcode::Ret32): { ::Cbc::Parser::Decode<::Cbc::InputOpcode::Ret32>(codeReader); break; }
     case ::Cbc::Opc(::Cbc::InputOpcode::Ret64): { ::Cbc::Parser::Decode<::Cbc::InputOpcode::Ret64>(codeReader); break; }
     case ::Cbc::Opc(::Cbc::InputOpcode::Ret32F): { ::Cbc::Parser::Decode<::Cbc::InputOpcode::Ret32F>(codeReader); break; }
