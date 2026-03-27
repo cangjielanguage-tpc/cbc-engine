@@ -21,14 +21,10 @@ protected:
     void DoMovVST(IReg dst, IReg src) override;
     void DoMovImm(Width width, IReg dst, uint64_t imm) override;
 
-    void DoINeg(CbcTypeKind tkind, IReg dst, IReg src) override;
-    void DoINeg(CbcTypeKind tkind, IReg dst, uint64_t imm) override;
+    void DoINeg(Width width, IReg dst, IReg src) override;
 
-    void DoCommonOp(InputCommonOpc op, CbcTypeKind tkind, IReg dst, IReg src1, IReg src2) override;
-    void DoCommonOp(InputCommonOpc op, CbcTypeKind tkind, IReg dst, IReg src1, uint64_t src2) override;
-
-    void DoCheckedOp(InputCheckedOpc op, CbcTypeKind tkind, IReg dst, IReg src1, IReg src2) override;
-    void DoCheckedOp(InputCheckedOpc op, CbcTypeKind tkind, IReg dst, IReg src1, uint64_t src2) override;
+    void DoBinary(InputCommonOpc op, Width width, IReg dst, IReg src1, IReg src2) override;
+    void DoBinaryImm(InputCommonOpc op, Width width, IReg dst, IReg src1, uint64_t src2) override;
 
     void DoBinaryFloatOp(InputFloatOpc op, CbcTypeKind tkind, FReg dst, FReg src1, FReg src2) override;
     void DoBinaryFloatOp(InputFloatOpc op, CbcTypeKind tkind, FReg dst, FReg src1, uint64_t src2) override;

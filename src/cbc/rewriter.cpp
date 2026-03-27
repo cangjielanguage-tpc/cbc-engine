@@ -23,28 +23,16 @@ void Rewriter::DoMovVST(IReg dst, IReg src) { ASSERTION(false, "Not implmeneted"
 
 void Rewriter::DoMovImm(Width width, IReg dst, uint64_t imm) { e.MovImm(width, dst, imm); }
 
-void Rewriter::DoINeg(CbcTypeKind tkind, IReg dst, IReg src) { ASSERTION(false, "Not implmeneted"); }
+void Rewriter::DoINeg(Width width, IReg dst, IReg src) { ASSERTION(false, "Not implmeneted"); }
 
-void Rewriter::DoINeg(CbcTypeKind tkind, IReg dst, uint64_t imm) { ASSERTION(false, "Not implmeneted"); }
-
-void Rewriter::DoCommonOp(InputCommonOpc op, CbcTypeKind tkind, IReg dst, IReg src1, IReg src2)
+void Rewriter::DoBinary(InputCommonOpc op, Width w, IReg dst, IReg src1, IReg src2)
 {
-    e.Binary(op, Width::FromCbcTypeKind(tkind), dst, src1, src2);
+    e.Binary(op, w, dst, src1, src2);
 }
 
-void Rewriter::DoCommonOp(InputCommonOpc op, CbcTypeKind tkind, IReg dst, IReg src1, uint64_t src2)
+void Rewriter::DoBinaryImm(InputCommonOpc op, Width w, IReg dst, IReg src1, uint64_t src2)
 {
-    e.BinaryImm(op, Width::FromCbcTypeKind(tkind), dst, src1, src2);
-}
-
-void Rewriter::DoCheckedOp(InputCheckedOpc op, CbcTypeKind tkind, IReg dst, IReg src1, IReg src2)
-{
-    ASSERTION(false, "Not implmeneted");
-}
-
-void Rewriter::DoCheckedOp(InputCheckedOpc op, CbcTypeKind tkind, IReg dst, IReg src1, uint64_t src2)
-{
-    ASSERTION(false, "Not implmeneted");
+    e.BinaryImm(op, w, dst, src1, src2);
 }
 
 void Rewriter::DoBinaryFloatOp(InputFloatOpc op, CbcTypeKind tkind, FReg dst, FReg src1, FReg src2)

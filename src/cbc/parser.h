@@ -11,6 +11,8 @@ using namespace Format;
 
 using MethodCode = Symlevel::Code;
 
+struct ParserTableGenerator;
+
 class Parser {
 public:
     Parser(API::Resolver* resolver, MethodCode code); // TODO: get method's code from Method object
@@ -26,14 +28,10 @@ protected:
     virtual void DoMovVST(IReg dst, IReg src)                  = 0;
     virtual void DoMovImm(Width width, IReg dst, uint64_t imm) = 0;
 
-    virtual void DoINeg(CbcTypeKind tkind, IReg dst, IReg src)     = 0;
-    virtual void DoINeg(CbcTypeKind tkind, IReg dst, uint64_t imm) = 0;
+    virtual void DoINeg(Width width, IReg dst, IReg src) = 0;
 
-    virtual void DoCommonOp(InputCommonOpc op, CbcTypeKind tkind, IReg dst, IReg src1, IReg src2)     = 0;
-    virtual void DoCommonOp(InputCommonOpc op, CbcTypeKind tkind, IReg dst, IReg src1, uint64_t src2) = 0;
-
-    virtual void DoCheckedOp(InputCheckedOpc op, CbcTypeKind tkind, IReg dst, IReg src1, IReg src2)     = 0;
-    virtual void DoCheckedOp(InputCheckedOpc op, CbcTypeKind tkind, IReg dst, IReg src1, uint64_t src2) = 0;
+    virtual void DoBinary(InputCommonOpc op, Width w, IReg dst, IReg src1, IReg src2)        = 0;
+    virtual void DoBinaryImm(InputCommonOpc op, Width w, IReg dst, IReg src1, uint64_t src2) = 0;
 
     virtual void DoBinaryFloatOp(InputFloatOpc op, CbcTypeKind tkind, FReg dst, FReg src1, FReg src2)     = 0;
     virtual void DoBinaryFloatOp(InputFloatOpc op, CbcTypeKind tkind, FReg dst, FReg src1, uint64_t src2) = 0;
@@ -49,24 +47,15 @@ protected:
 
 protected:
     API::Resolver* resolver;
-    InputImmPrefix immPrefix;
 
 private:
     void InterpretOne(uint32_t first_byte);
 
-    template <InputOpcode opcode>
-    using _with_valid_def =
-        typename ::std::enable_if_t<0 <= Opc(opcode) && Opc(opcode) < Opc(InputOpcode::___LAST), Decoder::ByteReader>;
-
-    template <InputOpcode opcode> inline void Decode(_with_valid_def<opcode>& codeReader) {}
-
-    template <InputOpcode opcode> inline void Decode(...)
-    {
-        static_assert(false, "[ERR] Attempt to implement decoder for unknown InputOpcode!");
-    }
+    template <InputOpcode opcode> void Decode();
 
     Decoder::ByteReader codeReader;
     uint8_t* codeEnd;
+    friend class ParserTableGenerator;
 };
 
 } // namespace Cbc
