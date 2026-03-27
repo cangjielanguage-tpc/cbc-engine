@@ -121,7 +121,7 @@ TEST_ASM(CbcTest, SimpleArithFloat)
     auto bcInfo = fuhManager.Prepare(session, fuh);
 
     auto code = bcInfo->code;
-    auto res  = Interpret(code, F64(256.75), F64(100.25));
+    auto res  = InterpretFPRes(code, F64(256.75), F64(100.25));
     ASSERT_EQ(res.f64, 357);
 }
 
