@@ -728,7 +728,7 @@ template <> void Parser::Decode<InputOpcode::FloatCommon>(::Decoder::ByteReader&
 template <> void Parser::Decode<InputOpcode::FloatCommonImm>(::Decoder::ByteReader& codeReader)
 {
     auto [x, d, l, z] = ReadXFFZ(codeReader);
-    uint64_t imm      = ReadImmPrefix(codeReader, immPrefix);
+    uint64_t imm      = ReadImmPrefix(codeReader, GetFloatWidth(x));
     DoBinaryFloatOp(InputFloatOpc(x & 0b111), GetFloatType(x), d, l, imm);
 }
 
