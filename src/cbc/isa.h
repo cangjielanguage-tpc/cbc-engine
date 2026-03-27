@@ -5,15 +5,10 @@
 
 #include "cbc/decoder.h"
 #include "utils/assertion.h"
-#include "utils/math.h"
 
 namespace Cbc {
 
 typedef uint8_t Opcode_t;
-
-// #include "isa_opcode_def.h"
-// GEN_ENUM(InputOpcode, DO_WITH_ALL_OPCODES(GET_OPC))
-// #include "isa_opcode_undef.h"
 
 enum class InputOpcode : Opcode_t {
     Mov32,
@@ -111,17 +106,6 @@ enum class InputOpcode : Opcode_t {
 };
 
 constexpr Opcode_t Opc(const InputOpcode opc) { return static_cast<Opcode_t>(opc); }
-
-template <InputOpcode opcode>
-using _with_valid_def =
-    typename ::std::enable_if_t<0 <= Opc(opcode) && Opc(opcode) < Opc(InputOpcode::___LAST), Decoder::ByteReader>;
-
-// #include "isa_opcode_def.h"
-// GEN_ENUM(CommonOpc, DO_WITH_COMMON_OPCODES(GET_OPS))
-// GEN_ENUM(CheckedOpc, DO_WITH_CHECKED_OPCODES(GET_OPS))
-// GEN_ENUM(FloatOpc, DO_WITH_FLOAT_OPCODES(GET_OPC))
-// GEN_ENUM(ImmPrefix, DO_WITH_IMM_PREFIX_OPCODES(GET_OPC))
-// #include "isa_opcode_undef.h"
 
 enum class InputCommonOpc : Opcode_t {
     Add,

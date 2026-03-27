@@ -1,7 +1,5 @@
 #pragma once
 
-#include <type_traits>
-
 #include "api/resolver.h"
 #include "cbc/decoder.h"
 #include "cbc/isa.h"
@@ -55,6 +53,10 @@ protected:
 
 private:
     void InterpretOne(uint32_t first_byte);
+
+    template <InputOpcode opcode>
+    using _with_valid_def =
+        typename ::std::enable_if_t<0 <= Opc(opcode) && Opc(opcode) < Opc(InputOpcode::___LAST), Decoder::ByteReader>;
 
     template <InputOpcode opcode> inline void Decode(_with_valid_def<opcode>& codeReader) {}
 

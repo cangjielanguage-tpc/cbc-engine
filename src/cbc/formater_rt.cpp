@@ -1,11 +1,10 @@
 #include <cmath>
 #include <iomanip>
 #include <ostream>
-#include <string>
-#include <vector>
 
 #include "cbc/isa.h"
 #include "formater_rt.h"
+#include "utils/math.h"
 
 namespace Cbc {
 namespace RT {
