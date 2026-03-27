@@ -1,6 +1,6 @@
 {
 	"build": {
-		"dockerfile": "alpine_amd64"
+		"dockerfile": "debian"
 	},
 	"customizations": {
 		"vscode": {

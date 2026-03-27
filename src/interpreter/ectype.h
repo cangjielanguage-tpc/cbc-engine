@@ -1,6 +1,7 @@
 #ifndef INTERPRETER_ECTYPE_H
 #define INTERPRETER_ECTYPE_H
 
+#include <cstddef>
 #include "asm_export.h"
 #include "cbc/isa.h"
 #include "functional"
