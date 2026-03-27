@@ -722,14 +722,14 @@ template <> void Parser::Decode<InputOpcode::Bfx>(::Decoder::ByteReader& codeRea
 template <> void Parser::Decode<InputOpcode::FloatCommon>(::Decoder::ByteReader& codeReader)
 {
     auto [x, d, l, r] = ReadXFFF(codeReader);
-    DoBinaryFloatOp(InputFloatOpc(x), GetFloatType(x), d, l, r);
+    DoBinaryFloatOp(InputFloatOpc(x & 0b111), GetFloatType(x), d, l, r);
 }
 
 template <> void Parser::Decode<InputOpcode::FloatCommonImm>(::Decoder::ByteReader& codeReader)
 {
     auto [x, d, l, z] = ReadXFFZ(codeReader);
     uint64_t imm      = ReadImmPrefix(codeReader, immPrefix);
-    DoBinaryFloatOp(InputFloatOpc(x), GetFloatType(x), d, l, imm);
+    DoBinaryFloatOp(InputFloatOpc(x & 0b111), GetFloatType(x), d, l, imm);
 }
 
 template <> void Parser::Decode<InputOpcode::FloatIntegerConversions>(::Decoder::ByteReader& codeReader) {}
