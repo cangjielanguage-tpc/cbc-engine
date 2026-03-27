@@ -25,15 +25,15 @@ struct Test;
 
 using namespace Cbc::Format;
 
-#define TEST_REWRITER_SIMPLE(REG1, REG2, OP, NAME_OP)                                                                     \
-    TEST_F(RewriterTest, RewriterSimple##NAME_OP)                                                                       \
+#define TEST_REWRITER_SIMPLE(REG1, REG2, OP, NAME_OP)                                                                  \
+    TEST_F(RewriterTest, RewriterSimple##NAME_OP)                                                                      \
     {                                                                                                                  \
         uint32_t isa12CodeSize = 4;                                                                                    \
         uint8_t isa12Bytes[]   = {                                                                                     \
-            Opc(InputOpcode::NAME_OP##32),                                                                                   \
-            (IReg::IR1 << 4) | IReg::IR2, /* Add IR1, IR2 */                                                           \
-            Opc(InputOpcode::Ret32),                                                                                   \
-            IReg::IR1 /* Ret IR1 */                                                                                    \
+            Opc(InputOpcode::NAME_OP##32),                                                                           \
+            (IReg::IR1 << 4) | IReg::IR2, /* Add IR1, IR2 */                                                         \
+            Opc(InputOpcode::Ret32),                                                                                 \
+            IReg::IR1 /* Ret IR1 */                                                                                  \
         };                                                                                                             \
         MethodCode methodCode = MethodCode::Mock(isa12Bytes, isa12CodeSize);                                           \
         Emitter::Emitter e;                                                                                            \
@@ -42,7 +42,7 @@ using namespace Cbc::Format;
         auto code = e.Build(heap);                                                                                     \
         EXPECT_EQ(4, code.bytecodeSize);                                                                               \
         auto res = Interpret(code, U32(REG1), U32(REG2));                                                              \
-        EXPECT_EQ(res.u32, REG1 OP REG2);                                                                               \
+        EXPECT_EQ(res.u32, REG1 OP REG2);                                                                              \
     }
 
 TEST_REWRITER_SIMPLE(1, 2, +, Add)

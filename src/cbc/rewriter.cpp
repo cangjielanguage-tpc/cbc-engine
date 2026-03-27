@@ -82,7 +82,10 @@ void Rewriter::DoBranchIf(InputCcOpc op, Width width, IReg l, IReg r, uint8_t* t
     e.Bcc(CC::Value(op), width, l, r, InstructionLabel(target));
 }
 
-void Rewriter::DoBranchIf(InputCcOpc op, Width width, FReg l, FReg r, uint8_t* target) { ASSERTION(false, "Not implemented"); }
+void Rewriter::DoBranchIf(InputCcOpc op, Width width, FReg l, FReg r, uint8_t* target)
+{
+    ASSERTION(false, "Not implemented");
+}
 
 void Rewriter::DoBranchIfImm(InputCcOpc op, Width width, IReg l, uint64_t r, uint8_t* target)
 {

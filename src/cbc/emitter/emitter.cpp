@@ -328,13 +328,25 @@ void Emitter::OrI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(InputCo
 
 void Emitter::XorI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(InputCommonOpc::Xor, width, d, l, imm); }
 
-void Emitter::DivI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(InputCommonOpc::DivSigned, width, d, l, imm); }
+void Emitter::DivI(Width width, IReg d, IReg l, uint64_t imm)
+{
+    BinaryImm(InputCommonOpc::DivSigned, width, d, l, imm);
+}
 
-void Emitter::RemI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(InputCommonOpc::RemSigned, width, d, l, imm); }
+void Emitter::RemI(Width width, IReg d, IReg l, uint64_t imm)
+{
+    BinaryImm(InputCommonOpc::RemSigned, width, d, l, imm);
+}
 
-void Emitter::UDivI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(InputCommonOpc::DivUnsigned, width, d, l, imm); }
+void Emitter::UDivI(Width width, IReg d, IReg l, uint64_t imm)
+{
+    BinaryImm(InputCommonOpc::DivUnsigned, width, d, l, imm);
+}
 
-void Emitter::URemI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(InputCommonOpc::RemUnsigned, width, d, l, imm); }
+void Emitter::URemI(Width width, IReg d, IReg l, uint64_t imm)
+{
+    BinaryImm(InputCommonOpc::RemUnsigned, width, d, l, imm);
+}
 
 void Emitter::LslI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(InputCommonOpc::Lsl, width, d, l, imm); }
 
