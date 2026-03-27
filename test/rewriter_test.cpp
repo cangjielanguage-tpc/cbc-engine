@@ -26,7 +26,7 @@ struct Test;
 using namespace Cbc::Format;
 
 #define TEST_REWRITER_SIMPLE(REG1, REG2, OP, NAME_OP)                                                                     \
-    TEST_F(RewriterTest, Rewriter_Simple_##NAME_OP)                                                                       \
+    TEST_F(RewriterTest, RewriterSimple##NAME_OP)                                                                       \
     {                                                                                                                  \
         uint32_t isa12CodeSize = 4;                                                                                    \
         uint8_t isa12Bytes[]   = {                                                                                     \
