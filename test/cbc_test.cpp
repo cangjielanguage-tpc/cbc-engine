@@ -103,6 +103,28 @@ TEST_ASM(CbcTest, SimpleArith)
     ASSERT_EQ(res.u32, 36);
 }
 
+TEST_ASM(CbcTest, SimpleArithFloat)
+{
+    Engine::Loader loader;
+
+    auto fileName   = "simple_arith_float";
+    auto file       = OpenAsm("simple_arith_float.asm");
+    bool successful = loader.Load(std::move(file), fileName);
+    ASSERT_TRUE(successful);
+
+    auto& engine = loader.Build();
+    Engine::Session session(engine);
+    auto mainId      = engine.FindMain(session, fileName);
+    auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
+
+    auto fuh    = std::get<Interpretation::DynamicFunctionHandle*>(fuhManager.AcquireTagged(session, mainId.value()));
+    auto bcInfo = fuhManager.Prepare(session, fuh);
+
+    auto code = bcInfo->code;
+    auto res  = Interpret(code, F64(256.75), F64(100.25));
+    ASSERT_EQ(res.f64, 357);
+}
+
 TEST_ASM(CbcTest, SimpleArithImm)
 {
     Engine::Loader loader;
