@@ -83,6 +83,10 @@ void Rewriter::DoBranchIfImm(InputCcOpc op, Width width, IReg l, uint64_t r, uin
     e.BccImm(CC::Value(op), width, l, r, InstructionLabel(target));
 }
 
+void Rewriter::DoJmp(uint8_t* target) {
+    e.Jmp(InstructionLabel(target));
+}
+
 void Rewriter::DoCallDirect(IReg d, uint16_t methodIndex)
 {
     Symlevel::Index<Symlevel::MethodReference> index {

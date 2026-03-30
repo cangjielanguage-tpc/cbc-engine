@@ -43,6 +43,8 @@ protected:
     virtual void DoBranchIf(InputCcOpc op, Width width, FReg l, FReg r, uint8_t* target)        = 0;
     virtual void DoBranchIfImm(InputCcOpc op, Width width, IReg l, uint64_t r, uint8_t* target) = 0;
 
+    virtual void DoJmp(uint8_t* target) = 0;
+
     virtual void DoCallDirect(IReg d, uint16_t methodIndex) = 0;
 
 protected:

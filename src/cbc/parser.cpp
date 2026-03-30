@@ -375,8 +375,10 @@ template <> void Parser::Decode<InputOpcode::BccImm>()
 
 template <> void Parser::Decode<InputOpcode::Jump32>()
 {
-    auto imm32 = ReadImm32(codeReader);
-    /* not implemented */
+    auto [target] = Decoder::ByteReaderM(codeReader)
+                    .Read32<int32_t>()
+                    .Get();
+    DoJmp(codeReader.Cursor() + target);
 }
 
 template <> void Parser::Decode<InputOpcode::CallDirect>()

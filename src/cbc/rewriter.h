@@ -36,6 +36,8 @@ protected:
     void DoBranchIf(InputCcOpc op, Width width, FReg l, FReg r, uint8_t* target) override;
     void DoBranchIfImm(InputCcOpc op, Width width, IReg l, uint64_t r, uint8_t* target) override;
 
+    void DoJmp(uint8_t* target) override;
+
     void DoCallDirect(IReg d, uint16_t methodIndex) override;
 
 private:
