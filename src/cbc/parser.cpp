@@ -362,11 +362,12 @@ template <> void Parser::Decode<InputOpcode::Bcc>()
 
 template <> void Parser::Decode<InputOpcode::BccImm>()
 {
-    auto [cc, w, l, imm64, target] = Decoder::ByteReaderM(codeReader)
+    auto [cc, w, z, l, imm64, target] = Decoder::ByteReaderM(codeReader)
                                          .Read4<InputCcOpc>()
                                          .Read4<Width::Value>()
+                                         .Read4()
                                          .Read4<IReg::Value>()
-                                         .Read4<uint64_t>()
+                                         .Read64<uint64_t>()
                                          .Read32<int32_t>()
                                          .Get();
     DoBranchIfImm(cc, w, l, imm64, codeReader.Cursor() + target);
