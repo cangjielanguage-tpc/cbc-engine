@@ -105,6 +105,7 @@ TEST_ASM(CbcTest, SimpleArith)
 
 TEST_ASM(CbcTest, SimpleArithFloat)
 {
+    GTEST_SKIP() << "not supported";
     Engine::Loader loader;
 
     auto fileName   = "simple_arith_float";

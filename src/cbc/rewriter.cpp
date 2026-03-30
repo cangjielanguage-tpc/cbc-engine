@@ -1,4 +1,5 @@
 #include "cbc/rewriter.h"
+#include "cbc/isa.h"
 #include "engine/symlevel/references.h"
 
 namespace Cbc {
@@ -58,7 +59,7 @@ void Rewriter::DoBinaryFloatOp(InputFloatOpc op, CbcTypeKind tkind, FReg dst, FR
 
 void Rewriter::DoReturn(Width width, IReg dst)
 {
-    // TODO: mov
+    e.Mov(IReg::IR1, dst);
     e.Ret();
 }
 
