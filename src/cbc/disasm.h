@@ -1,7 +1,5 @@
 #pragma once
 
-#include "api/resolver.h"
-#include "cbc/emitter/emitter.h"
 #include "cbc/isa.h"
 #include "cbc/parser.h"
 
@@ -9,9 +7,9 @@ namespace Cbc {
 
 using namespace Format;
 
-class Rewriter : public Parser {
+class Disassembler : public Parser {
 public:
-    Rewriter(API::Resolver* resolver, MethodCode code, Emitter::Emitter& e) : Parser(resolver, code), e(e) {}
+    Disassembler(API::Resolver* resolver, MethodCode code);
 
 protected:
     void DoExtend(Sign sign, IReg dst, IReg src, uint64_t imm) override;
@@ -41,11 +39,19 @@ protected:
     void DoCallDirect(IReg d, uint16_t methodIndex) override;
 
 private:
-    void BeforeInterpretOne(uint8_t* position) override;
-    Emitter::Label InstructionLabel(uint8_t* position);
+    template<typename T>
+    constexpr void print_it(const T arg, const char delim);
 
-    Emitter::Emitter& e;
-    std::unordered_map<uint8_t*, Emitter::Label> instructionLabel;
+    template<typename T, typename... Ts>
+    constexpr void print0(const T arg, const Ts... tail);
+
+    template<typename T, typename... Ts>
+    constexpr void print(const T arg, const Ts... tail);
+
+private:
+    int log10size;
 };
 
 } // namespace Cbc
+
+#include "disasm.ipp"

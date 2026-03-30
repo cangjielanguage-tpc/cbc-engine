@@ -39,13 +39,16 @@ protected:
     virtual void DoReturn(Width width, IReg dst) = 0;
     virtual void DoReturn(Width width, FReg dst) = 0;
 
-    virtual void DoBranchIf(InputCcOpc op, Width width, IReg l, IReg r, uint8_t* target)        = 0;
-    virtual void DoBranchIf(InputCcOpc op, Width width, FReg l, FReg r, uint8_t* target)        = 0;
-    virtual void DoBranchIfImm(InputCcOpc op, Width width, IReg l, uint64_t r, uint8_t* target) = 0;
+    virtual void DoBranchIf(InputCcOpc op, Width width, IReg l, IReg r, int32_t target)        = 0;
+    virtual void DoBranchIf(InputCcOpc op, Width width, FReg l, FReg r, int32_t target)        = 0;
+    virtual void DoBranchIfImm(InputCcOpc op, Width width, IReg l, uint64_t r, int32_t target) = 0;
 
-    virtual void DoJmp(uint8_t* target) = 0;
+    virtual void DoJmp(int32_t target) = 0;
 
     virtual void DoCallDirect(IReg d, uint16_t methodIndex) = 0;
+
+    uint8_t* resolveOffset(int32_t offset);
+    ::std::ptrdiff_t CurrentOffset();
 
 protected:
     API::Resolver* resolver;

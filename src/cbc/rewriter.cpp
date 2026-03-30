@@ -69,23 +69,23 @@ void Rewriter::DoReturn(Width width, FReg dst)
     e.Ret();
 }
 
-void Rewriter::DoBranchIf(InputCcOpc op, Width width, IReg l, IReg r, uint8_t* target)
+void Rewriter::DoBranchIf(InputCcOpc op, Width width, IReg l, IReg r, int32_t target)
 {
-    e.Bcc(CC::Value(op), width, l, r, InstructionLabel(target));
+    e.Bcc(CC::Value(op), width, l, r, InstructionLabel(resolveOffset(target)));
 }
 
-void Rewriter::DoBranchIf(InputCcOpc op, Width width, FReg l, FReg r, uint8_t* target)
+void Rewriter::DoBranchIf(InputCcOpc op, Width width, FReg l, FReg r, int32_t target)
 {
     ASSERTION(false, "Not implemented");
 }
 
-void Rewriter::DoBranchIfImm(InputCcOpc op, Width width, IReg l, uint64_t r, uint8_t* target)
+void Rewriter::DoBranchIfImm(InputCcOpc op, Width width, IReg l, uint64_t r, int32_t target)
 {
-    e.BccImm(CC::Value(op), width, l, r, InstructionLabel(target));
+    e.BccImm(CC::Value(op), width, l, r, InstructionLabel(resolveOffset(target)));
 }
 
-void Rewriter::DoJmp(uint8_t* target) {
-    e.Jmp(InstructionLabel(target));
+void Rewriter::DoJmp(int32_t target) {
+    e.Jmp(InstructionLabel(resolveOffset(target)));
 }
 
 void Rewriter::DoCallDirect(IReg d, uint16_t methodIndex)

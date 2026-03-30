@@ -58,6 +58,8 @@ public:
 
     inline uint8_t* Cursor() { return cursor; }
 
+    inline ::std::ptrdiff_t CurrentOffset() { return (uint64_t)cursor - (uint64_t)start; }
+
     inline bool EndOfMem(uint8_t* memEnd) { return cursor >= memEnd; }
 
 private:

@@ -17,6 +17,16 @@ Parser::Parser(API::Resolver* resolver, MethodCode code)
       codeEnd(GetCodeEnd(code))
 {}
 
+uint8_t* Parser::resolveOffset(int32_t offset)
+{
+    return codeReader.Cursor() + offset;
+}
+
+::std::ptrdiff_t Parser::CurrentOffset()
+{
+    return codeReader.CurrentOffset();
+}
+
 void Parser::Interpret()
 {
     while (!codeReader.EndOfMem(codeEnd)) {
@@ -357,7 +367,7 @@ template <> void Parser::Decode<InputOpcode::Bcc>()
                                      .Read4<IReg::Value>()
                                      .Read32<int32_t>()
                                      .Get();
-    DoBranchIf(cc, w, l, r, codeReader.Cursor() + target);
+    DoBranchIf(cc, w, l, r, target);
 }
 
 template <> void Parser::Decode<InputOpcode::BccImm>()
@@ -370,7 +380,7 @@ template <> void Parser::Decode<InputOpcode::BccImm>()
                                          .Read64<uint64_t>()
                                          .Read32<int32_t>()
                                          .Get();
-    DoBranchIfImm(cc, w, l, imm64, codeReader.Cursor() + target);
+    DoBranchIfImm(cc, w, l, imm64, target);
 }
 
 template <> void Parser::Decode<InputOpcode::Jump32>()
@@ -378,7 +388,7 @@ template <> void Parser::Decode<InputOpcode::Jump32>()
     auto [target] = Decoder::ByteReaderM(codeReader)
                     .Read32<int32_t>()
                     .Get();
-    DoJmp(codeReader.Cursor() + target);
+    DoJmp(target);
 }
 
 template <> void Parser::Decode<InputOpcode::CallDirect>()
