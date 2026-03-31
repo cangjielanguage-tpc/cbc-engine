@@ -21,6 +21,10 @@ class AotTable;
 
 class DirectCallAotData {
 public:
+    static Index<MethodReference> ParseIndex(
+        Engine::Session& session, IO::FileId fileId, Offset<DirectCallAotData> offset
+    );
+
     static DirectCallAotData ParseAndResolve(
         Engine::Session& session, IO::FileId fileId, Offset<DirectCallAotData> offset
     );
@@ -50,6 +54,10 @@ private:
 
 class VirtualCallAotData {
 public:
+    static Index<MethodReference> ParseIndex(
+        Engine::Session& session, IO::FileId fileId, Offset<VirtualCallAotData> offset
+    );
+
     static VirtualCallAotData ParseAndResolve(
         Engine::Session& session, IO::FileId fileId, Offset<VirtualCallAotData> offset
     );
@@ -82,6 +90,10 @@ private:
 
 class InterfaceCallAotData {
 public:
+    static Index<MethodReference> ParseIndex(
+        Engine::Session& session, IO::FileId fileId, Offset<InterfaceCallAotData> offset
+    );
+
     static InterfaceCallAotData ParseAndResolve(
         Engine::Session& session, IO::FileId fileId, Offset<InterfaceCallAotData> offset
     );
@@ -111,6 +123,10 @@ private:
 
 class StaticFieldAotData {
 public:
+    static Index<FieldReference> ParseIndex(
+        Engine::Session& session, IO::FileId fileId, Offset<StaticFieldAotData> offset
+    );
+
     static StaticFieldAotData ParseAndResolve(
         Engine::Session& session, IO::FileId fileId, Offset<StaticFieldAotData> offset
     );
@@ -140,6 +156,10 @@ private:
 
 class InstanceFieldAotData {
 public:
+    static Index<FieldReference> ParseIndex(
+        Engine::Session& session, IO::FileId fileId, Offset<InstanceFieldAotData> offset
+    );
+
     static InstanceFieldAotData ParseAndResolve(
         Engine::Session& session, IO::FileId fileId, Offset<InstanceFieldAotData> offset
     );

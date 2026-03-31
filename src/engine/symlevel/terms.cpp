@@ -11,8 +11,8 @@ namespace Terms {
 
 enum Tag : uint8_t {
     NIL,                      // 0x00
-    RECORD,                   // 0x01
-    REFERENCE,                // 0x02
+    TYPE,                     // 0x01
+    AOT_TYPE,                 // 0x02
     CANGJIE_ARRAY,            // 0x03
     VARRAY,                   // 0x04
     ENUM_WRAPPER,             // 0x05
@@ -29,7 +29,6 @@ enum Tag : uint8_t {
     JAVA_REFERENCE,           // 0x10
     JAVA_ARRAY,               // 0x11
     NON_NULLABLE,             // 0x12
-    AOT_TYPE                  // 0x13
 };
 
 std::optional<Term> Term::ParseAndResolve(Engine::Session& session, IO::FileId fileId, Offset<Term> offset)
@@ -39,24 +38,34 @@ std::optional<Term> Term::ParseAndResolve(Engine::Session& session, IO::FileId f
 
     auto tag = static_cast<Tag>(reader.ReadU8());
     switch (tag) {
-        case REFERENCE:
-        case AOT_TYPE:  {
-            auto nameOffs                      = Offset<String>(reader.ReadULEB());
-            auto name                          = Reader::Read(session, fileId, nameOffs);
-            std::optional<TypeDefinition> type = session.GetEngine().FindType(session, name);
+        case TYPE: {
+            auto nameOffs = Offset<String>(reader.ReadULEB());
+            auto name     = Reader::Read(session, fileId, nameOffs);
+            auto type     = session.GetEngine().FindType(session, name);
             if (type.has_value()) {
                 auto identifier = type.value().GetIdentifier();
-                auto* data      = static_cast<TermData*>(allocator.Allocate(sizeof(TermData), alignof(TermData)));
 
-                TemplateKind kind = tag == REFERENCE ? TemplateKind::TYPE : TemplateKind::AOT_TYPE;
-                data->identifier  = TemplateIdentifier(kind, identifier);
-                data->hash        = 0;
-                data->length      = 0;
+                auto* data       = static_cast<TermData*>(allocator.Allocate(sizeof(TermData), alignof(TermData)));
+                data->identifier = TemplateIdentifier(TemplateKind::TYPE, identifier);
+                data->hash       = 0;
+                data->length     = 0;
 
                 return Term(LocalTerm(data));
             } else {
                 return std::nullopt;
             }
+        }
+
+        case AOT_TYPE: {
+            auto nameOffs = Offset<String>(reader.ReadULEB());
+            auto name     = Reader::Read(session, fileId, nameOffs);
+
+            auto* data       = static_cast<TermData*>(allocator.Allocate(sizeof(TermData), alignof(TermData)));
+            data->identifier = TemplateIdentifier(TemplateKind::AOT_TYPE, 0);
+            data->hash       = 0;
+            data->length     = 0;
+
+            return Term(LocalTerm(data));
         }
 
         case METHOD_SIGNATURE: {

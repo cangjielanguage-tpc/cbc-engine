@@ -111,10 +111,13 @@ enum class InputCcOpc : Opcode_t {
 };
 
 constexpr Opcode_t Opc(const InputOpcode opc) { return static_cast<Opcode_t>(opc); }
+
 constexpr Opcode_t Opc(const InputCommonOpc opc) { return static_cast<Opcode_t>(opc); }
+
 constexpr Opcode_t Opc(const InputCheckedOpc opc) { return static_cast<Opcode_t>(opc); }
 
 constexpr Opcode_t Opc(const InputFloatOpc opc) { return static_cast<Opcode_t>(opc); }
+
 constexpr Opcode_t Opc(const InputCcOpc opc) { return static_cast<Opcode_t>(opc); }
 
 class IReg {

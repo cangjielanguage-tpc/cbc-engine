@@ -44,11 +44,12 @@ public:
           buckets(buckets)
     {}
 
-    template <typename T> static uint32_t Hash(Index<T> index) { return index.raw; }
+    template <typename Ref> static uint32_t Hash(Index<Ref> index) { return index.index; }
 
     bool IsEmpty() const { return memberCount == 0; }
 
-    template <typename T> std::optional<uint32_t> FindData(Engine::Session& session, Index<T> idx)
+    template <typename Ref, typename Data>
+    std::optional<Offset<Data>> FindData(Engine::Session& session, Index<Ref> idx)
     {
         if (IsEmpty()) {
             return std::nullopt;
@@ -63,10 +64,9 @@ public:
         ASSERT(start <= end);
 
         for (auto i = start; i < end; i++) {
-            auto dataOffs = buckets.QueryOffset(file, i);
-
-            IO::StreamFileReader reader(file, dataOffs);
-            if (idx.index == reader.ReadU32()) {
+            auto dataOffs = Offset<Data>(buckets.QueryOffset(file, i));
+            auto dataIdx  = Reader::ReadIndex<Ref, Data>(session, fileId, dataOffs);
+            if (idx.raw == dataIdx.raw) {
                 return dataOffs;
             }
         }
@@ -76,6 +76,15 @@ public:
 
 ///////////////////////////////
 // DirectCall
+
+Index<MethodReference> DirectCallAotData::ParseIndex(
+    Engine::Session& session, IO::FileId fileId, Offset<DirectCallAotData> offset
+)
+{
+    IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetAotDataSectionOffs() + offset);
+    auto index = reader.ReadU32();
+    return { .region = 0, .index = index };
+}
 
 DirectCallAotData DirectCallAotData::ParseAndResolve(
     Engine::Session& session, IO::FileId fileId, Offset<DirectCallAotData> offset
@@ -103,7 +112,7 @@ std::optional<DirectCallAotData> DirectCallAotTable::GetData(
     Engine::Session& session, Index<MethodReference> index
 ) const
 {
-    auto offset = aotTable->FindData(session, index);
+    auto offset = aotTable->FindData<MethodReference, DirectCallAotData>(session, index);
 
     if (offset.has_value()) {
         return Reader::ReadAndResolve(session, aotTable->fileId, Offset<DirectCallAotData>(offset.value()));
@@ -114,6 +123,15 @@ std::optional<DirectCallAotData> DirectCallAotTable::GetData(
 
 ///////////////////////////////
 // VirtualCall
+
+Index<MethodReference> VirtualCallAotData::ParseIndex(
+    Engine::Session& session, IO::FileId fileId, Offset<VirtualCallAotData> offset
+)
+{
+    IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetAotDataSectionOffs() + offset);
+    auto index = reader.ReadU32();
+    return { .region = 0, .index = index };
+}
 
 VirtualCallAotData VirtualCallAotData::ParseAndResolve(
     Engine::Session& session, IO::FileId fileId, Offset<VirtualCallAotData> offset
@@ -142,7 +160,7 @@ std::optional<VirtualCallAotData> VirtualCallAotTable::GetData(
     Engine::Session& session, Index<MethodReference> index
 ) const
 {
-    auto offset = aotTable->FindData(session, index);
+    auto offset = aotTable->FindData<MethodReference, VirtualCallAotData>(session, index);
 
     if (offset.has_value()) {
         return Reader::ReadAndResolve(session, aotTable->fileId, Offset<VirtualCallAotData>(offset.value()));
@@ -153,6 +171,15 @@ std::optional<VirtualCallAotData> VirtualCallAotTable::GetData(
 
 ///////////////////////////////
 // IntefaceCall
+
+Index<MethodReference> InterfaceCallAotData::ParseIndex(
+    Engine::Session& session, IO::FileId fileId, Offset<InterfaceCallAotData> offset
+)
+{
+    IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetAotDataSectionOffs() + offset);
+    auto index = reader.ReadU32();
+    return { .region = 0, .index = index };
+}
 
 InterfaceCallAotData InterfaceCallAotData::ParseAndResolve(
     Engine::Session& session, IO::FileId fileId, Offset<InterfaceCallAotData> offset
@@ -180,7 +207,7 @@ std::optional<InterfaceCallAotData> InterfaceCallAotTable::GetData(
     Engine::Session& session, Index<MethodReference> index
 ) const
 {
-    auto offset = aotTable->FindData(session, index);
+    auto offset = aotTable->FindData<MethodReference, InterfaceCallAotData>(session, index);
 
     if (offset.has_value()) {
         return Reader::ReadAndResolve(session, aotTable->fileId, Offset<InterfaceCallAotData>(offset.value()));
@@ -191,6 +218,15 @@ std::optional<InterfaceCallAotData> InterfaceCallAotTable::GetData(
 
 ///////////////////////////////
 // StaticField
+
+Index<FieldReference> StaticFieldAotData::ParseIndex(
+    Engine::Session& session, IO::FileId fileId, Offset<StaticFieldAotData> offset
+)
+{
+    IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetAotDataSectionOffs() + offset);
+    auto index = reader.ReadU32();
+    return { .region = 0, .index = index };
+}
 
 StaticFieldAotData StaticFieldAotData::ParseAndResolve(
     Engine::Session& session, IO::FileId fileId, Offset<StaticFieldAotData> offset
@@ -218,7 +254,7 @@ std::optional<StaticFieldAotData> StaticFieldAotTable::GetData(
     Engine::Session& session, Index<FieldReference> index
 ) const
 {
-    auto offset = aotTable->FindData(session, index);
+    auto offset = aotTable->FindData<FieldReference, StaticFieldAotData>(session, index);
 
     if (offset.has_value()) {
         return Reader::ReadAndResolve(session, aotTable->fileId, Offset<StaticFieldAotData>(offset.value()));
@@ -229,6 +265,15 @@ std::optional<StaticFieldAotData> StaticFieldAotTable::GetData(
 
 ///////////////////////////////
 // InstanceField
+
+Index<FieldReference> InstanceFieldAotData::ParseIndex(
+    Engine::Session& session, IO::FileId fileId, Offset<InstanceFieldAotData> offset
+)
+{
+    IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetAotDataSectionOffs() + offset);
+    auto index = reader.ReadU32();
+    return { .region = 0, .index = index };
+}
 
 InstanceFieldAotData InstanceFieldAotData::ParseAndResolve(
     Engine::Session& session, IO::FileId fileId, Offset<InstanceFieldAotData> offset
@@ -256,7 +301,7 @@ std::optional<InstanceFieldAotData> InstanceFieldAotTable::GetData(
     Engine::Session& session, Index<FieldReference> index
 ) const
 {
-    auto offset = aotTable->FindData(session, index);
+    auto offset = aotTable->FindData<FieldReference, InstanceFieldAotData>(session, index);
 
     if (offset.has_value()) {
         return Reader::ReadAndResolve(session, aotTable->fileId, Offset<InstanceFieldAotData>(offset.value()));
