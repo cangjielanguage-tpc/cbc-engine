@@ -1,10 +1,10 @@
 #include <cmath>
 #include <iomanip>
 #include <ostream>
-#include <string>
-#include <vector>
 
+#include "cbc/isa.h"
 #include "formater_rt.h"
+#include "utils/math.h"
 
 namespace Cbc {
 namespace RT {
@@ -29,19 +29,19 @@ struct Operand {
 
     uint64_t U64() { return static_cast<uint32_t>(value); }
 
-    Cbc::Format::LoadAccessKind Ldk() { return Cbc::Format::LoadAccessKind(U8()); }
+    Format::LoadAccessKind Ldk() { return Format::LoadAccessKind(U8()); }
 
-    Cbc::Format::StoreAccessKind Stk() { return Cbc::Format::StoreAccessKind(U8()); }
+    Cbc::Format::StoreAccessKind Stk() { return Format::StoreAccessKind::Value(U8()); }
 
-    Cbc::Format::Common Bin() { return Cbc::Format::Common(U8()); }
+    Format::Common Bin() { return Format::Common::Value(U8()); }
 
-    Cbc::Format::FloatOperations Fop() { return Cbc::Format::FloatOperations(U8()); }
+    Format::FloatOperations Fop() { return Format::FloatOperations(U8()); }
 
-    Cbc::Format::CC CC() { return Cbc::Format::CC(U8()); }
+    Format::CC CC() { return Format::CC(U8()); }
 
-    Cbc::IReg IR() { return Cbc::IReg::From(U32() & 0xf); }
+    IReg IR() { return IReg::From(U32() & 0xf); }
 
-    Cbc::FReg FR() { return Cbc::FReg::From(U32() & 0xf); }
+    FReg FR() { return FReg::From(U32() & 0xf); }
 
     int64_t I4() { return static_cast<int64_t>(MathUtils::SignExtend(value, 4)); }
 
@@ -121,15 +121,15 @@ private:
 
     void Write(double v) { stream << v; }
 
-    void Write(Cbc::Format::LoadAccessKind v) { stream << v.ToStr(); }
+    void Write(Format::LoadAccessKind v) { stream << v.ToStr(); }
 
-    void Write(Cbc::Format::StoreAccessKind v) { stream << v.ToStr(); }
+    void Write(Format::StoreAccessKind v) { stream << v.ToStr(); }
 
-    void Write(Cbc::Format::CC v) { stream << v.ToStr(); }
+    void Write(Format::CC v) { stream << v.ToStr(); }
 
-    void Write(Cbc::Format::Common v) { stream << v.ToStr(); }
+    void Write(Format::Common v) { stream << v.ToStr(); }
 
-    void Write(Cbc::Format::FloatOperations v) { stream << v.ToStr(); }
+    void Write(Format::FloatOperations v) { stream << v.ToStr(); }
 
     void FormatArg(size_t& cursor, size_t fmtSize)
     {
@@ -401,7 +401,7 @@ bool LogMemSpaceInstruction(
 
 void Log(Interpretation::Code code, std::ostream& stream)
 {
-    using namespace Cbc::RT;
+    using namespace RT;
     auto bytecode = code.bytecode;
     auto end      = bytecode + code.bytecodeSize;
     auto table    = code.literals;

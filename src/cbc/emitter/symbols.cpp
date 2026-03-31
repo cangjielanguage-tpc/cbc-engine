@@ -38,7 +38,12 @@ void Symbols::Bind(Label label, int32_t position)
     labelPositions.at(label.id) = position;
 }
 
-int32_t Symbols::LabelPosition(Label label) const { return labelPositions.at(label.id); }
+int32_t Symbols::LabelPosition(Label label) const
+{
+    auto position = labelPositions.at(label.id);
+    ASSERTION(position != INVALID_POSITION, "Label is not bound");
+    return position;
+}
 
 int32_t Fixup::Distance(Symbols const& symbols, Label label) const
 {

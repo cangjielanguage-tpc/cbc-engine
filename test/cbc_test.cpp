@@ -81,6 +81,73 @@ TEST_ASM(CbcTest, Simple)
     ASSERT_EQ(res.u32, 28);
 }
 
+TEST_ASM(CbcTest, SimpleArith)
+{
+    Engine::Loader loader;
+
+    auto fileName   = "simple_arith";
+    auto file       = OpenAsm("simple_arith.asm");
+    bool successful = loader.Load(std::move(file), fileName);
+    ASSERT_TRUE(successful);
+
+    auto& engine = loader.Build();
+    Engine::Session session(engine);
+    auto mainId      = engine.FindMain(session, fileName);
+    auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
+
+    auto fuh    = std::get<Interpretation::DynamicFunctionHandle*>(fuhManager.AcquireTagged(session, mainId.value()));
+    auto bcInfo = fuhManager.Prepare(session, fuh);
+
+    auto code = bcInfo->code;
+    auto res  = Interpret(code, U32(0), U32(10));
+    ASSERT_EQ(res.u32, 36);
+}
+
+TEST_ASM(CbcTest, SimpleArithFloat)
+{
+    GTEST_SKIP() << "not supported";
+    Engine::Loader loader;
+
+    auto fileName   = "simple_arith_float";
+    auto file       = OpenAsm("simple_arith_float.asm");
+    bool successful = loader.Load(std::move(file), fileName);
+    ASSERT_TRUE(successful);
+
+    auto& engine = loader.Build();
+    Engine::Session session(engine);
+    auto mainId      = engine.FindMain(session, fileName);
+    auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
+
+    auto fuh    = std::get<Interpretation::DynamicFunctionHandle*>(fuhManager.AcquireTagged(session, mainId.value()));
+    auto bcInfo = fuhManager.Prepare(session, fuh);
+
+    auto code = bcInfo->code;
+    auto res  = InterpretFPRes(code, F64(256.75), F64(100.25));
+    ASSERT_EQ(res.f64, 357);
+}
+
+TEST_ASM(CbcTest, SimpleArithImm)
+{
+    Engine::Loader loader;
+
+    auto fileName   = "simple_arith_imm";
+    auto file       = OpenAsm("simple_arith_imm.asm");
+    bool successful = loader.Load(std::move(file), fileName);
+    ASSERT_TRUE(successful);
+
+    auto& engine = loader.Build();
+    Engine::Session session(engine);
+    auto mainId      = engine.FindMain(session, fileName);
+    auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
+
+    auto fuh    = std::get<Interpretation::DynamicFunctionHandle*>(fuhManager.AcquireTagged(session, mainId.value()));
+    auto bcInfo = fuhManager.Prepare(session, fuh);
+
+    auto code = bcInfo->code;
+    auto res  = Interpret(code, U32(0), U32(10));
+    ASSERT_EQ(res.u32, 1);
+}
+
 TEST_ASM(CbcTest, DirectCall)
 {
     Engine::Loader loader;

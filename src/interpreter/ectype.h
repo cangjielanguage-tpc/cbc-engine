@@ -62,7 +62,7 @@ public:
         iregMarks[reg]       = Mark::REFERENCE;
     }
 
-    inline void Put(FReg reg, Value::Primitive primitive) { fregs[reg].primitive = primitive; }
+    inline void Put(FReg reg, Value::Primitive primitive) { fregs[reg.Raw()].primitive = primitive; }
 
     inline Value::Reference GetReference(IReg reg)
     {
@@ -76,7 +76,7 @@ public:
         return iregs[reg].primitive;
     }
 
-    inline Value::Primitive GetPrimitive(FReg reg) { return fregs[reg].primitive; }
+    inline Value::Primitive GetPrimitive(FReg reg) { return fregs[reg.Raw()].primitive; }
 
     void VisitReferences(std::function<void(Value::Reference*)> visitor);
 
