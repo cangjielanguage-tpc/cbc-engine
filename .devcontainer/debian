@@ -1,0 +1,39 @@
+FROM --platform=linux/amd64 debian:stable-slim AS base
+
+RUN apt update && apt install -y \
+    git \
+    neovim \
+    curl \
+    wget \
+    gcc \
+    g++ \
+    libjemalloc-dev \
+    libjemalloc2 \
+    lua5.4 \
+    unzip \
+    lazygit \
+    gzip \
+    unzip \
+    make \
+    cmake \
+    bash \
+    fish \
+    ccls \
+    gdb
+
+RUN dpkg --add-architecture arm64 && \
+    apt update && apt install -y \
+    libc6-dev:arm64 \
+    linux-libc-dev:arm64 \
+    libstdc++-12-dev:arm64
+
+RUN apt update && apt install -y lsb-release gnupg2 && \
+    wget -qO- https://apt.llvm.org/llvm.sh | bash -s -- 21 all
+    
+ENV LLVM_BIN="/usr/lib/llvm-21/bin/"
+ENV PATH="${LLVM_BIN}:${PATH}"
+
+ENV CC=${LLVM_BIN}/clang
+ENV CXX=${LLVM_BIN}/clang++
+
+ENV LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2

@@ -1,5 +1,8 @@
-// FIXME: use ifdef include platform specific header
+#if defined(__x86_64__) || defined(_M_X64)
 #include "arch_os/x86_64_linux/platform_asm_export.h"
+#elif defined(__aarch64__) || defined(_M_ARM64)
+#include "arch_os/aarch64_linux/platform_asm_export.h"
+#endif
 
 #define TRAMPOLINE_COUNT 1024
 
