@@ -40,7 +40,7 @@ protected:
 
 private:
     template<typename T>
-    constexpr void print_it(const T arg, const char delim);
+    constexpr void print_it(const T arg, const char head_delim = ' ', const char tail_delim = '\0');
 
     template<typename T, typename... Ts>
     constexpr void print0(const T arg, const Ts... tail);
