@@ -68,14 +68,14 @@ void Disassembler::DoReturn(Width width, IReg dst)
 {
     // cout << "ret." << width.Name() << ' ' << dst.Name() << '\n';
     Print(stream_pos, "ret.", concat, width, dst);
-    Print("");
+    Print(concat, "");
 }
 
 void Disassembler::DoReturn(Width width, FReg dst)
 {
     // cout << "fret." << width.Name() << ' ' << dst.Name() << '\n';
     Print(stream_pos, "fret.", concat, width, dst);
-    Print("");
+    Print(concat, "");
 }
 
 void Disassembler::DoBranchIf(InputCcOpc op, Width width, IReg l, IReg r, int32_t target)

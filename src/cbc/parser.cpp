@@ -391,25 +391,25 @@ template <> void Parser::Decode<InputOpcode::CallDirect>()
 
 template <> void Parser::Decode<InputOpcode::Ret32>()
 {
-    auto [d, r] = ReadZR(codeReader);
+    auto [z, r] = ReadZR(codeReader);
     DoReturn(W32, r);
 }
 
 template <> void Parser::Decode<InputOpcode::Ret64>()
 {
-    auto [d, r] = ReadZR(codeReader);
+    auto [z, r] = ReadZR(codeReader);
     DoReturn(W64, r);
 }
 
 template <> void Parser::Decode<InputOpcode::Ret32F>()
 {
-    auto [d, r] = ReadZR(codeReader);
+    auto [z, r] = ReadZR(codeReader);
     DoReturn(W32, r);
 }
 
 template <> void Parser::Decode<InputOpcode::Ret64F>()
 {
-    auto [d, r] = ReadZR(codeReader);
+    auto [z, r] = ReadZR(codeReader);
     DoReturn(W64, r);
 }
 
