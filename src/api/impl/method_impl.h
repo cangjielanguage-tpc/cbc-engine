@@ -18,6 +18,8 @@ public:
 
     std::optional<Interpretation::FunctionHandle*> FUH() override;
 
+    void* TargetAddr() override;
+
     MethodFlags Flags() override;
 
     Symlevel::String Name() override;
@@ -40,6 +42,8 @@ public:
     std::optional<Type*> RefType() override;
 
     std::optional<Interpretation::FunctionHandle*> FUH() override;
+
+    void* TargetAddr() override;
 
     MethodFlags Flags() override;
 

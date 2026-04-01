@@ -15,6 +15,7 @@ declare_hidden engine_universal_direct_call
 declare_hidden engine_trampolines_direct_start
 declare_hidden engine_iregs_only_c2i_call
 declare_hidden engine_i2i_call
+declare_hidden engine_i2c_call
 declare_hidden engine_i2_newobject
 declare_hidden engine_universal_direct_function_handles
 declare_hidden engine_newobject_function
@@ -118,6 +119,29 @@ engine_c2i_call_pc_end:
 engine_i2i_call:
   // jumped from .Linterpreter_call without return address to return
   bl    perform_2i_call
+  b     .Lrestart_interpretation
+
+.align 16
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: fuh)
+// preserved: ECTYPE_REG, x29
+// TLS_REG can be changed after context-switch
+engine_i2c_call:
+  // jumped from .Linterpreter_call without return address to return
+  mov   x9, x0
+
+  ldr   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8 )]
+  ldr   x1, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x10)]
+  ldr   x2, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x18)]
+  ldr   x3, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x20)]
+  ldr   x4, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x28)]
+  ldr   x5, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x30)]
+  ldr   x6, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x38)]
+  ldr   x7, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x40)]
+
+  bl    x9
+
+  str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8)]
+
   b     .Lrestart_interpretation
 
 

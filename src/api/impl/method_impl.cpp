@@ -3,6 +3,8 @@
 #include "engine/symlevel/reader.h"
 #include "engine/symlevel/region_data.h"
 
+#include <dlfcn.h>
+
 namespace API {
 namespace Impl {
 
@@ -27,6 +29,8 @@ std::optional<Interpretation::FunctionHandle*> DirectMethodCbc::FUH()
     return manager.Acquire(session, def.GetIdentifier());
 }
 
+void* DirectMethodCbc::TargetAddr() { return nullptr; }
+
 MethodFlags DirectMethodCbc::Flags()
 {
     ASSERTION(false, "not implemented yet");
@@ -46,16 +50,27 @@ Term* DirectMethodAot::ABISignature()
 
 std::optional<Type*> DirectMethodAot::RefType()
 {
-    auto refType = ref.RefType();
     ASSERTION(false, "not implemented yet");
     return nullptr;
 }
 
-std::optional<Interpretation::FunctionHandle*> DirectMethodAot::FUH()
+std::optional<Interpretation::FunctionHandle*> DirectMethodAot::FUH() { return std::nullopt; }
+
+void* DirectMethodAot::TargetAddr()
 {
-    auto& manager = Interpretation::FunctionHandleManager::Of(session);
-    ASSERTION(false, "not implemented yet");
-    return std::nullopt;
+    auto linkageName = aotData.GetLinkageName();
+
+    // TODO: manage libs
+    void* handler = dlopen("libcangjie-std-core.so", RTLD_NOW);
+    ASSERTION(handler != nullptr, "cannot open \"libcangjie-std-core.so\"");
+
+    // TODO: manage nullptr
+    void* target = dlsym(handler, std::string(linkageName).c_str());
+    ASSERTION(target != nullptr, "cannot resolve target addt for direct aot call");
+
+    dlclose(handler);
+
+    return target;
 }
 
 MethodFlags DirectMethodAot::Flags()

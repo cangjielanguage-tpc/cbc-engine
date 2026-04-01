@@ -94,10 +94,19 @@ void Rewriter::DoCallDirect(IReg d, uint16_t methodIndex)
     };
 
     auto* method = resolver->Resolve(index);
-    auto* fuh    = method->FUH().value();
 
-    auto sym = e.NewAddressSym(reinterpret_cast<uintptr_t>(fuh));
-    e.DirectCall(d, sym);
+    auto fuh = method->FUH();
+    if (fuh.has_value()) {
+        // i2i call
+        auto sym = e.NewAddressSym(reinterpret_cast<uintptr_t>(fuh.value()));
+        e.DirectCall2i(d, sym);
+    } else {
+        // i2c call
+        void* target = method->TargetAddr();
+        ASSERT(target != nullptr);
+        auto sym = e.NewAddressSym(reinterpret_cast<uintptr_t>(target));
+        e.DirectCall2c(d, sym);
+    }
 }
 
 void Rewriter::BeforeInterpretOne(uint8_t* position) { e.Bind(InstructionLabel(position)); }

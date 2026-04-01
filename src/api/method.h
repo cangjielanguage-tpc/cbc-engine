@@ -34,6 +34,8 @@ public:
 
     virtual std::optional<Interpretation::FunctionHandle*> FUH() = 0;
 
+    virtual void* TargetAddr() = 0;
+
     virtual MethodFlags Flags() = 0;
 
     virtual Symlevel::String Name() = 0;
