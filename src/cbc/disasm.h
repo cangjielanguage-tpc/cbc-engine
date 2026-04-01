@@ -40,13 +40,13 @@ protected:
 
 private:
     template<typename T>
-    constexpr void print_it(const T arg, const char head_delim = '\0', const char tail_delim = '\0');
+    constexpr void PrintIt(const T arg, const char head_delim = '\0', const char tail_delim = '\0');
 
     template<typename T, typename... Ts>
-    constexpr void print_concat(const T arg, const Ts... tail);
+    constexpr void PrintConcat(const T arg, const Ts... tail);
 
     template<typename T, typename... Ts>
-    constexpr void print(const T arg, const Ts... tail);
+    constexpr void Print(const T arg, const Ts... tail);
 
 private:
     int log10size;

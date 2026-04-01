@@ -118,7 +118,7 @@ constexpr Opcode_t Opc(const InputCheckedOpc opc) { return static_cast<Opcode_t>
 constexpr Opcode_t Opc(const InputFloatOpc opc) { return static_cast<Opcode_t>(opc); }
 constexpr Opcode_t Opc(const InputCcOpc opc) { return static_cast<Opcode_t>(opc); }
 
-constexpr ::std::string_view name(const InputCommonOpc opc)
+constexpr ::std::string_view Name(const InputCommonOpc opc)
 {
     switch (opc) {
         case InputCommonOpc::Add: { return "add"; }
@@ -138,7 +138,7 @@ constexpr ::std::string_view name(const InputCommonOpc opc)
     }
 }
 
-constexpr ::std::string_view name(const InputCheckedOpc opc)
+constexpr ::std::string_view Name(const InputCheckedOpc opc)
 {
     switch (opc) {
         case InputCheckedOpc::Add: { return "add"; }
@@ -149,7 +149,7 @@ constexpr ::std::string_view name(const InputCheckedOpc opc)
     }
 }
 
-constexpr ::std::string_view name(const InputFloatOpc opc)
+constexpr ::std::string_view Name(const InputFloatOpc opc)
 {
     switch (opc) {
         case InputFloatOpc::Add: { return "Add"; }
@@ -164,7 +164,7 @@ constexpr ::std::string_view name(const InputFloatOpc opc)
     }
 }
 
-constexpr ::std::string_view name(const InputCcOpc opc)
+constexpr ::std::string_view Name(const InputCcOpc opc)
 {
     switch (opc) {
         case InputCcOpc::EQ: { return "EQ"; }
@@ -224,7 +224,7 @@ public:
         return IReg(static_cast<Value>(raw));
     }
 
-    constexpr ::std::string_view name() const {
+    constexpr ::std::string_view Name() const {
         switch (_value) {
             case IRZ: { return "IRZ"; }
             case IR1: { return "IR1"; }
@@ -286,7 +286,7 @@ public:
         return FReg(static_cast<Value>(raw));
     }
 
-    constexpr ::std::string_view name() const {
+    constexpr ::std::string_view Name() const {
         switch (_value) {
             case FR0: { return "FR0"; }
             case FR1: { return "FR1"; }
@@ -389,7 +389,7 @@ public:
 
     constexpr Bits ToBits() const { return _value; }
 
-    constexpr ::std::string_view name() const {
+    constexpr ::std::string_view Name() const {
         switch (_value) {
             case SIGNED: { return "SIGNED"; }
             case UNSIGNED: { return "UNSIGNED"; }
@@ -434,7 +434,7 @@ public:
 
     constexpr Bits ToBits() const { return _value; }
 
-    constexpr ::std::string_view name() const {
+    constexpr ::std::string_view Name() const {
         switch (_value) {
             case INVALID: { return "INVALID"; }
             case VOID: { return "VOID"; }
@@ -658,7 +658,7 @@ public:
         }
     }
 
-    constexpr ::std::string_view name() const {
+    constexpr ::std::string_view Name() const {
         switch (_value) {
             case W8: { return "W8"; }
             case W16: { return "W16"; }
