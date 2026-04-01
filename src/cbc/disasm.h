@@ -39,14 +39,12 @@ protected:
     void DoCallDirect(IReg d, uint16_t methodIndex) override;
 
 private:
-    template<typename T>
+    template <typename T>
     constexpr void PrintIt(const T arg, const char head_delim = '\0', const char tail_delim = '\0');
 
-    template<typename T, typename... Ts>
-    constexpr void PrintConcat(const T arg, const Ts... tail);
+    template <typename T, typename... Ts> constexpr void PrintConcat(const T arg, const Ts... tail);
 
-    template<typename T, typename... Ts>
-    constexpr void Print(const T arg, const Ts... tail);
+    template <typename T, typename... Ts> constexpr void Print(const T arg, const Ts... tail);
 
 private:
     int log10size;

@@ -5,7 +5,10 @@
 
 namespace Cbc {
 
-Disassembler::Disassembler(API::Resolver* resolver, MethodCode code) : Parser(resolver, code), log10size{std::max(static_cast<int>(1. + std::log10(code.CodeSize())), 1)} {}
+Disassembler::Disassembler(API::Resolver* resolver, MethodCode code)
+    : Parser(resolver, code),
+      log10size { std::max(static_cast<int>(1. + std::log10(code.CodeSize())), 1) }
+{}
 
 void Disassembler::DoExtend(Sign sign, IReg dst, IReg src, uint64_t imm)
 {
@@ -13,10 +16,7 @@ void Disassembler::DoExtend(Sign sign, IReg dst, IReg src, uint64_t imm)
     Print(stream_pos, "ext.", sign, dst, src, imm);
 }
 
-void Disassembler::DoBFX(Sign sign, Width res_width, Width arg_width, IReg dst, IReg src, uint64_t imm)
-{
-
-}
+void Disassembler::DoBFX(Sign sign, Width res_width, Width arg_width, IReg dst, IReg src, uint64_t imm) {}
 
 void Disassembler::DoMov(IReg dst, IReg src, bool isReference)
 {
@@ -25,10 +25,7 @@ void Disassembler::DoMov(IReg dst, IReg src, bool isReference)
     Print(stream_pos, "mov", concat, refPrefix, dst, src);
 }
 
-void Disassembler::DoMovVST(IReg dst, IReg src)
-{
-
-}
+void Disassembler::DoMovVST(IReg dst, IReg src) {}
 
 void Disassembler::DoMovImm(Width width, IReg dst, uint64_t imm)
 {
@@ -82,13 +79,15 @@ void Disassembler::DoReturn(Width width, FReg dst)
 
 void Disassembler::DoBranchIf(InputCcOpc op, Width width, IReg l, IReg r, int32_t target)
 {
-    // cout << "branchif." << Name(op) << '.' << width.Name() << ' ' << l.Name() << ' ' << r.Name() << ' ' << target << '\n';
+    // cout << "branchif." << Name(op) << '.' << width.Name() << ' ' << l.Name() << ' ' << r.Name() << ' ' << target <<
+    // '\n';
     Print(stream_pos, "branchif.", concat, op, concat, '.', concat, width, l, r, target);
 }
 
 void Disassembler::DoBranchIf(InputCcOpc op, Width width, FReg l, FReg r, int32_t target)
 {
-    // cout << "branchif." << Name(op) << '.' << width.Name() << ' ' << l.Name() << ' ' << r.Name() << ' ' << target << '\n';
+    // cout << "branchif." << Name(op) << '.' << width.Name() << ' ' << l.Name() << ' ' << r.Name() << ' ' << target <<
+    // '\n';
     Print(stream_pos, "branchif.", concat, op, concat, '.', concat, width, l, r, target);
 }
 

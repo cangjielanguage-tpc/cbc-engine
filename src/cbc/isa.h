@@ -113,77 +113,171 @@ enum class InputCcOpc : Opcode_t {
 };
 
 constexpr Opcode_t Opc(const InputOpcode opc) { return static_cast<Opcode_t>(opc); }
+
 constexpr Opcode_t Opc(const InputCommonOpc opc) { return static_cast<Opcode_t>(opc); }
+
 constexpr Opcode_t Opc(const InputCheckedOpc opc) { return static_cast<Opcode_t>(opc); }
+
 constexpr Opcode_t Opc(const InputFloatOpc opc) { return static_cast<Opcode_t>(opc); }
+
 constexpr Opcode_t Opc(const InputCcOpc opc) { return static_cast<Opcode_t>(opc); }
 
 constexpr ::std::string_view Name(const InputCommonOpc opc)
 {
     switch (opc) {
-        case InputCommonOpc::Add: { return "add"; }
-        case InputCommonOpc::Sub: { return "sub"; }
-        case InputCommonOpc::Mul: { return "mul"; }
-        case InputCommonOpc::And: { return "and"; }
-        case InputCommonOpc::Or: { return "or"; }
-        case InputCommonOpc::Xor: { return "xor"; }
-        case InputCommonOpc::DivSigned: { return "sdiv"; }
-        case InputCommonOpc::RemSigned: { return "srem"; }
-        case InputCommonOpc::DivUnsigned: { return "udiv"; }
-        case InputCommonOpc::RemUnsigned: { return "urem"; }
-        case InputCommonOpc::Lsr: { return "lsr"; }
-        case InputCommonOpc::Asr: { return "asr"; }
-        case InputCommonOpc::Lsl: { return "lsl"; }
-        default: { return "<unknown InputCommonOpc"; }
+        case InputCommonOpc::Add: {
+            return "add";
+        }
+        case InputCommonOpc::Sub: {
+            return "sub";
+        }
+        case InputCommonOpc::Mul: {
+            return "mul";
+        }
+        case InputCommonOpc::And: {
+            return "and";
+        }
+        case InputCommonOpc::Or: {
+            return "or";
+        }
+        case InputCommonOpc::Xor: {
+            return "xor";
+        }
+        case InputCommonOpc::DivSigned: {
+            return "sdiv";
+        }
+        case InputCommonOpc::RemSigned: {
+            return "srem";
+        }
+        case InputCommonOpc::DivUnsigned: {
+            return "udiv";
+        }
+        case InputCommonOpc::RemUnsigned: {
+            return "urem";
+        }
+        case InputCommonOpc::Lsr: {
+            return "lsr";
+        }
+        case InputCommonOpc::Asr: {
+            return "asr";
+        }
+        case InputCommonOpc::Lsl: {
+            return "lsl";
+        }
+        default: {
+            return "<unknown InputCommonOpc";
+        }
     }
 }
 
 constexpr ::std::string_view Name(const InputCheckedOpc opc)
 {
     switch (opc) {
-        case InputCheckedOpc::Add: { return "add"; }
-        case InputCheckedOpc::Sub: { return "sub"; }
-        case InputCheckedOpc::Mul: { return "mul"; }
-        case InputCheckedOpc::Div: { return "div"; }
-        default: { return "<unknown InputCheckedOpc"; }
+        case InputCheckedOpc::Add: {
+            return "add";
+        }
+        case InputCheckedOpc::Sub: {
+            return "sub";
+        }
+        case InputCheckedOpc::Mul: {
+            return "mul";
+        }
+        case InputCheckedOpc::Div: {
+            return "div";
+        }
+        default: {
+            return "<unknown InputCheckedOpc";
+        }
     }
 }
 
 constexpr ::std::string_view Name(const InputFloatOpc opc)
 {
     switch (opc) {
-        case InputFloatOpc::Add: { return "Add"; }
-        case InputFloatOpc::Sub: { return "Sub"; }
-        case InputFloatOpc::Mul: { return "Mul"; }
-        case InputFloatOpc::Div: { return "Div"; }
-        case InputFloatOpc::Mov: { return "Mov"; }
-        case InputFloatOpc::Neg: { return "Neg"; }
-        case InputFloatOpc::Abs: { return "Abs"; }
-        case InputFloatOpc::Sqrt: { return "Sqrt"; }
-        default: { return "<unknown InputFloatOpc"; }
+        case InputFloatOpc::Add: {
+            return "Add";
+        }
+        case InputFloatOpc::Sub: {
+            return "Sub";
+        }
+        case InputFloatOpc::Mul: {
+            return "Mul";
+        }
+        case InputFloatOpc::Div: {
+            return "Div";
+        }
+        case InputFloatOpc::Mov: {
+            return "Mov";
+        }
+        case InputFloatOpc::Neg: {
+            return "Neg";
+        }
+        case InputFloatOpc::Abs: {
+            return "Abs";
+        }
+        case InputFloatOpc::Sqrt: {
+            return "Sqrt";
+        }
+        default: {
+            return "<unknown InputFloatOpc";
+        }
     }
 }
 
 constexpr ::std::string_view Name(const InputCcOpc opc)
 {
     switch (opc) {
-        case InputCcOpc::EQ: { return "EQ"; }
-        case InputCcOpc::NE: { return "NE"; }
-        case InputCcOpc::LT: { return "LT"; }
-        case InputCcOpc::GE: { return "GE"; }
-        case InputCcOpc::ULT: { return "ULT"; }
-        case InputCcOpc::UGE: { return "UGE"; }
-        case InputCcOpc::REQ: { return "REQ"; }
-        case InputCcOpc::RNE: { return "RNE"; }
-        case InputCcOpc::FEQ: { return "FEQ"; }
-        case InputCcOpc::FNE: { return "FNE"; }
-        case InputCcOpc::FLT: { return "FLT"; }
-        case InputCcOpc::FNLT: { return "FNLT"; }
-        case InputCcOpc::FGE: { return "FGE"; }
-        case InputCcOpc::FNGE: { return "FNGE"; }
-        case InputCcOpc::TESTZ: { return "TESTZ"; }
-        case InputCcOpc::TESTNZ: { return "TESTNZ"; }
-        default: { return "<unknown InputCcOpc"; }
+        case InputCcOpc::EQ: {
+            return "EQ";
+        }
+        case InputCcOpc::NE: {
+            return "NE";
+        }
+        case InputCcOpc::LT: {
+            return "LT";
+        }
+        case InputCcOpc::GE: {
+            return "GE";
+        }
+        case InputCcOpc::ULT: {
+            return "ULT";
+        }
+        case InputCcOpc::UGE: {
+            return "UGE";
+        }
+        case InputCcOpc::REQ: {
+            return "REQ";
+        }
+        case InputCcOpc::RNE: {
+            return "RNE";
+        }
+        case InputCcOpc::FEQ: {
+            return "FEQ";
+        }
+        case InputCcOpc::FNE: {
+            return "FNE";
+        }
+        case InputCcOpc::FLT: {
+            return "FLT";
+        }
+        case InputCcOpc::FNLT: {
+            return "FNLT";
+        }
+        case InputCcOpc::FGE: {
+            return "FGE";
+        }
+        case InputCcOpc::FNGE: {
+            return "FNGE";
+        }
+        case InputCcOpc::TESTZ: {
+            return "TESTZ";
+        }
+        case InputCcOpc::TESTNZ: {
+            return "TESTNZ";
+        }
+        default: {
+            return "<unknown InputCcOpc";
+        }
     }
 }
 
@@ -224,23 +318,54 @@ public:
         return IReg(static_cast<Value>(raw));
     }
 
-    constexpr ::std::string_view Name() const {
+    constexpr ::std::string_view Name() const
+    {
         switch (_value) {
-            case IRZ: { return "IRZ"; }
-            case IR1: { return "IR1"; }
-            case IR2: { return "IR2"; }
-            case IR3: { return "IR3"; }
-            case IR4: { return "IR4"; }
-            case IR5: { return "IR5"; }
-            case IR6: { return "IR6"; }
-            case IR7: { return "IR7"; }
-            case IR8: { return "IR8"; }
-            case IR9: { return "IR9"; }
-            case IR10: { return "IR10"; }
-            case IR11: { return "IR11"; }
-            case IR12: { return "IR12"; }
-            case IR13: { return "IR13"; }
-            default: { return "<unknown IReg>"; }
+            case IRZ: {
+                return "IRZ";
+            }
+            case IR1: {
+                return "IR1";
+            }
+            case IR2: {
+                return "IR2";
+            }
+            case IR3: {
+                return "IR3";
+            }
+            case IR4: {
+                return "IR4";
+            }
+            case IR5: {
+                return "IR5";
+            }
+            case IR6: {
+                return "IR6";
+            }
+            case IR7: {
+                return "IR7";
+            }
+            case IR8: {
+                return "IR8";
+            }
+            case IR9: {
+                return "IR9";
+            }
+            case IR10: {
+                return "IR10";
+            }
+            case IR11: {
+                return "IR11";
+            }
+            case IR12: {
+                return "IR12";
+            }
+            case IR13: {
+                return "IR13";
+            }
+            default: {
+                return "<unknown IReg>";
+            }
         }
     }
 
@@ -286,25 +411,60 @@ public:
         return FReg(static_cast<Value>(raw));
     }
 
-    constexpr ::std::string_view Name() const {
+    constexpr ::std::string_view Name() const
+    {
         switch (_value) {
-            case FR0: { return "FR0"; }
-            case FR1: { return "FR1"; }
-            case FR2: { return "FR2"; }
-            case FR3: { return "FR3"; }
-            case FR4: { return "FR4"; }
-            case FR5: { return "FR5"; }
-            case FR6: { return "FR6"; }
-            case FR7: { return "FR7"; }
-            case FR8: { return "FR8"; }
-            case FR9: { return "FR9"; }
-            case FR10: { return "FR10"; }
-            case FR11: { return "FR11"; }
-            case FR12: { return "FR12"; }
-            case FR13: { return "FR13"; }
-            case FR14: { return "FR14"; }
-            case FR15: { return "FR15"; }
-            default: { return "<unknown FReg>"; }
+            case FR0: {
+                return "FR0";
+            }
+            case FR1: {
+                return "FR1";
+            }
+            case FR2: {
+                return "FR2";
+            }
+            case FR3: {
+                return "FR3";
+            }
+            case FR4: {
+                return "FR4";
+            }
+            case FR5: {
+                return "FR5";
+            }
+            case FR6: {
+                return "FR6";
+            }
+            case FR7: {
+                return "FR7";
+            }
+            case FR8: {
+                return "FR8";
+            }
+            case FR9: {
+                return "FR9";
+            }
+            case FR10: {
+                return "FR10";
+            }
+            case FR11: {
+                return "FR11";
+            }
+            case FR12: {
+                return "FR12";
+            }
+            case FR13: {
+                return "FR13";
+            }
+            case FR14: {
+                return "FR14";
+            }
+            case FR15: {
+                return "FR15";
+            }
+            default: {
+                return "<unknown FReg>";
+            }
         }
     }
 
@@ -389,11 +549,18 @@ public:
 
     constexpr Bits ToBits() const { return _value; }
 
-    constexpr ::std::string_view Name() const {
+    constexpr ::std::string_view Name() const
+    {
         switch (_value) {
-            case SIGNED: { return "SIGNED"; }
-            case UNSIGNED: { return "UNSIGNED"; }
-            default: { return "<unknown Sign>"; }
+            case SIGNED: {
+                return "SIGNED";
+            }
+            case UNSIGNED: {
+                return "UNSIGNED";
+            }
+            default: {
+                return "<unknown Sign>";
+            }
         }
     }
 
@@ -434,31 +601,78 @@ public:
 
     constexpr Bits ToBits() const { return _value; }
 
-    constexpr ::std::string_view Name() const {
+    constexpr ::std::string_view Name() const
+    {
         switch (_value) {
-            case INVALID: { return "INVALID"; }
-            case VOID: { return "VOID"; }
-            case U1: { return "U1"; }
-            case I8: { return "I8"; }
-            case U8: { return "U8"; }
-            case CHAR: { return "CHAR"; }
-            case I32: { return "I32"; }
-            case U32: { return "U32"; }
-            case F32: { return "F32"; }
-            case F64: { return "F64"; }
-            case I64: { return "I64"; }
-            case U64: { return "U64"; }
-            case NNREF: { return "NNREF"; }
-            case REF: { return "REF"; }
-            case REC: { return "REC"; }
-            case I16: { return "I16"; }
-            case U16: { return "U16"; }
-            case F16: { return "F16"; }
-            case IN: { return "IN"; }
-            case UN: { return "UN"; }
-            case VA: { return "VA"; }
-            case TTI: { return "TTI"; }
-            default: { return "<unknown CbcTypeKind>"; }
+            case INVALID: {
+                return "INVALID";
+            }
+            case VOID: {
+                return "VOID";
+            }
+            case U1: {
+                return "U1";
+            }
+            case I8: {
+                return "I8";
+            }
+            case U8: {
+                return "U8";
+            }
+            case CHAR: {
+                return "CHAR";
+            }
+            case I32: {
+                return "I32";
+            }
+            case U32: {
+                return "U32";
+            }
+            case F32: {
+                return "F32";
+            }
+            case F64: {
+                return "F64";
+            }
+            case I64: {
+                return "I64";
+            }
+            case U64: {
+                return "U64";
+            }
+            case NNREF: {
+                return "NNREF";
+            }
+            case REF: {
+                return "REF";
+            }
+            case REC: {
+                return "REC";
+            }
+            case I16: {
+                return "I16";
+            }
+            case U16: {
+                return "U16";
+            }
+            case F16: {
+                return "F16";
+            }
+            case IN: {
+                return "IN";
+            }
+            case UN: {
+                return "UN";
+            }
+            case VA: {
+                return "VA";
+            }
+            case TTI: {
+                return "TTI";
+            }
+            default: {
+                return "<unknown CbcTypeKind>";
+            }
         }
     }
 
@@ -658,13 +872,24 @@ public:
         }
     }
 
-    constexpr ::std::string_view Name() const {
+    constexpr ::std::string_view Name() const
+    {
         switch (_value) {
-            case W8: { return "W8"; }
-            case W16: { return "W16"; }
-            case W32: { return "W32"; }
-            case W64: { return "W64"; }
-            default: { return "<unknown Width>"; }
+            case W8: {
+                return "W8";
+            }
+            case W16: {
+                return "W16";
+            }
+            case W32: {
+                return "W32";
+            }
+            case W64: {
+                return "W64";
+            }
+            default: {
+                return "<unknown Width>";
+            }
         }
     }
 

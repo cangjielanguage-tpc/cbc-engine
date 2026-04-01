@@ -40,15 +40,15 @@ void Rewriter::DoBinaryFloatOp(InputFloatOpc op, CbcTypeKind tkind, FReg dst, FR
 {
     auto width = Width::FromCbcTypeKind(tkind);
     switch (Opc(op)) {
-        case Opc(InputFloatOpc::Add): e.Add(width, dst, src1, src2); break;
-        case Opc(InputFloatOpc::Sub): e.Sub(width, dst, src1, src2); break;
-        case Opc(InputFloatOpc::Mul): e.Mul(width, dst, src1, src2); break;
-        case Opc(InputFloatOpc::Div): e.Div(width, dst, src1, src2); break;
-        case Opc(InputFloatOpc::Mov): e.Mov(width, dst, src1, src2); break;
-        case Opc(InputFloatOpc::Neg): e.Neg(width, dst, src1, src2); break;
-        case Opc(InputFloatOpc::Abs): e.Abs(width, dst, src1, src2); break;
+        case Opc(InputFloatOpc::Add):  e.Add(width, dst, src1, src2); break;
+        case Opc(InputFloatOpc::Sub):  e.Sub(width, dst, src1, src2); break;
+        case Opc(InputFloatOpc::Mul):  e.Mul(width, dst, src1, src2); break;
+        case Opc(InputFloatOpc::Div):  e.Div(width, dst, src1, src2); break;
+        case Opc(InputFloatOpc::Mov):  e.Mov(width, dst, src1, src2); break;
+        case Opc(InputFloatOpc::Neg):  e.Neg(width, dst, src1, src2); break;
+        case Opc(InputFloatOpc::Abs):  e.Abs(width, dst, src1, src2); break;
         case Opc(InputFloatOpc::Sqrt): e.Sqrt(width, dst, src1, src2); break;
-        default: ASSERTION(false, "Unexpected op"); break;
+        default:                       ASSERTION(false, "Unexpected op"); break;
     }
 }
 
@@ -71,7 +71,7 @@ void Rewriter::DoReturn(Width width, FReg dst)
 
 void Rewriter::DoBranchIf(InputCcOpc op, Width width, IReg l, IReg r, int32_t target)
 {
-    e.Bcc(CC::Value(op), width, l, r, InstructionLabel(resolveOffset(target)));
+    e.Bcc(CC::Value(op), width, l, r, InstructionLabel(ResolveOffset(target)));
 }
 
 void Rewriter::DoBranchIf(InputCcOpc op, Width width, FReg l, FReg r, int32_t target)
@@ -81,12 +81,10 @@ void Rewriter::DoBranchIf(InputCcOpc op, Width width, FReg l, FReg r, int32_t ta
 
 void Rewriter::DoBranchIfImm(InputCcOpc op, Width width, IReg l, uint64_t r, int32_t target)
 {
-    e.BccImm(CC::Value(op), width, l, r, InstructionLabel(resolveOffset(target)));
+    e.BccImm(CC::Value(op), width, l, r, InstructionLabel(ResolveOffset(target)));
 }
 
-void Rewriter::DoJmp(int32_t target) {
-    e.Jmp(InstructionLabel(resolveOffset(target)));
-}
+void Rewriter::DoJmp(int32_t target) { e.Jmp(InstructionLabel(ResolveOffset(target))); }
 
 void Rewriter::DoCallDirect(IReg d, uint16_t methodIndex)
 {
