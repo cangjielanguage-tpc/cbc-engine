@@ -134,7 +134,6 @@ R"(10: movi.W64 IR1 0
 78: branchif.LT.W64 IR1 10 -43
 80: mov IR1 IR3
 82: ret.W64 IR1
-
 )");
 }
 

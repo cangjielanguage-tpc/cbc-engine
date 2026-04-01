@@ -44,9 +44,11 @@ private:
     template <typename T>
     constexpr void PrintIt(const T arg, const char* head_delim = "", const char* tail_delim = "");
 
-    template <typename T, typename... Ts> constexpr void PrintConcat(const T arg, const Ts... tail);
+    template <typename T, typename... Ts> constexpr void PrintConcat0(const T arg, const Ts... tail);
 
-    template <typename T, typename... Ts> constexpr void Print(const T arg, const Ts... tail);
+    template <typename T, typename... Ts> constexpr void Print0(const T arg, const Ts... tail);
+
+    template<typename T, typename... Ts> constexpr void Print(const T arg, const Ts... tail);
 
 private:
     int log10size;

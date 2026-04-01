@@ -49,19 +49,19 @@ constexpr void Disassembler::PrintIt(const T arg, const char* head_delim, const 
 }
 
 template<typename T, typename... Ts>
-constexpr void Disassembler::PrintConcat(const T arg, const Ts... tail)
+constexpr void Disassembler::PrintConcat0(const T arg, const Ts... tail)
 {
     if constexpr (sizeof...(Ts) > 0) {
         if constexpr (::std::is_same_v<T, concat_t>) {
-            PrintConcat(tail...);
+            PrintConcat0(tail...);
         }
         else if constexpr (::std::is_same_v<T, stream_pos_t>) {
             out << std::setw(log10size) << (uint64_t)CurrentOffset() << ::std::setw(0) << ':';
-            Print(tail...);
+            Print0(tail...);
         }
         else {
             PrintIt(arg);
-            Print(tail...);
+            Print0(tail...);
         }
     }
     else {
@@ -70,24 +70,30 @@ constexpr void Disassembler::PrintConcat(const T arg, const Ts... tail)
 }
 
 template<typename T, typename... Ts>
-constexpr void Disassembler::Print(const T arg, const Ts... tail)
+constexpr void Disassembler::Print0(const T arg, const Ts... tail)
 {
     if constexpr (sizeof...(Ts) > 0) {
         if constexpr (::std::is_same_v<T, concat_t>) {
-            PrintConcat(tail...);
+            PrintConcat0(tail...);
         }
         else if constexpr (::std::is_same_v<T, stream_pos_t>) {
             out << std::setw(log10size) << (uint64_t)CurrentOffset() << ::std::setw(0) << ':';
-            Print(tail...);
+            Print0(tail...);
         }
         else {
             PrintIt(arg, " ");
-            Print(tail...);
+            Print0(tail...);
         }
     }
     else {
         PrintIt(arg, " ", "\n");
     }
+}
+
+template<typename T, typename... Ts>
+constexpr void Disassembler::Print(const T arg, const Ts... tail)
+{
+    Print0(concat, arg, tail...);
 }
 
 }; // namespace Cbc
