@@ -3,8 +3,6 @@
 
 namespace Cbc {
 
-using ::std::cout;
-
 template<typename T, typename I = void>
 struct has_name : ::std::false_type {};
 
@@ -30,23 +28,23 @@ struct stream_pos_t {};
 constexpr stream_pos_t stream_pos;
 
 template<typename T>
-constexpr void Disassembler::PrintIt(const T arg, const char head_delim, const char tail_delim)
+constexpr void Disassembler::PrintIt(const T arg, const char* head_delim, const char* tail_delim)
 {
     if constexpr (::std::is_arithmetic_v<T> ||
         ::std::is_convertible_v<T, ::std::string_view>) {
-        cout << head_delim << arg << tail_delim;
+        out << head_delim << arg << tail_delim;
     }
     else if constexpr (::std::is_pointer_v<T>) {
-        cout << head_delim << ::std::hex << (uint64_t)arg << ::std::dec << tail_delim;
+        out << head_delim << ::std::hex << (uint64_t)arg << ::std::dec << tail_delim;
     }
     else if constexpr (has_name_v<T>) {
-        cout << head_delim << arg.Name() << tail_delim;
+        out << head_delim << arg.Name() << tail_delim;
     }
     else if constexpr (name_conformal_v<T>) {
-        cout << head_delim << Name(arg) << tail_delim;
+        out << head_delim << Name(arg) << tail_delim;
     }
     else {
-        cout << head_delim << "<cannot Name given type>" << tail_delim;
+        out << head_delim << "<cannot Name given type>" << tail_delim;
     }
 }
 
@@ -58,7 +56,7 @@ constexpr void Disassembler::PrintConcat(const T arg, const Ts... tail)
             PrintConcat(tail...);
         }
         else if constexpr (::std::is_same_v<T, stream_pos_t>) {
-            cout << std::setw(log10size) << (uint64_t)CurrentOffset() << ::std::setw(0) << ':';
+            out << std::setw(log10size) << (uint64_t)CurrentOffset() << ::std::setw(0) << ':';
             Print(tail...);
         }
         else {
@@ -67,7 +65,7 @@ constexpr void Disassembler::PrintConcat(const T arg, const Ts... tail)
         }
     }
     else {
-        PrintIt(arg, '\0', '\n');
+        PrintIt(arg, "", "\n");
     }
 }
 
@@ -79,16 +77,16 @@ constexpr void Disassembler::Print(const T arg, const Ts... tail)
             PrintConcat(tail...);
         }
         else if constexpr (::std::is_same_v<T, stream_pos_t>) {
-            cout << std::setw(log10size) << (uint64_t)CurrentOffset() << ::std::setw(0) << ':';
+            out << std::setw(log10size) << (uint64_t)CurrentOffset() << ::std::setw(0) << ':';
             Print(tail...);
         }
         else {
-            PrintIt(arg, ' ');
+            PrintIt(arg, " ");
             Print(tail...);
         }
     }
     else {
-        PrintIt(arg, ' ', '\n');
+        PrintIt(arg, " ", "\n");
     }
 }
 

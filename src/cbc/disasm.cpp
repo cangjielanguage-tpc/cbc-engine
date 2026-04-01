@@ -5,9 +5,10 @@
 
 namespace Cbc {
 
-Disassembler::Disassembler(API::Resolver* resolver, MethodCode code)
+Disassembler::Disassembler(API::Resolver* resolver, MethodCode code, ::std::ostream& out)
     : Parser(resolver, code),
-      log10size { std::max(static_cast<int>(1. + std::log10(code.CodeSize())), 1) }
+      log10size { std::max(static_cast<int>(1. + std::log10(code.CodeSize())), 1) },
+      out(out)
 {}
 
 void Disassembler::DoExtend(Sign sign, IReg dst, IReg src, uint64_t imm)
@@ -67,14 +68,14 @@ void Disassembler::DoReturn(Width width, IReg dst)
 {
     // cout << "ret." << width.Name() << ' ' << dst.Name() << '\n';
     Print(stream_pos, "ret.", concat, width, dst);
-    Print('\0');
+    Print("");
 }
 
 void Disassembler::DoReturn(Width width, FReg dst)
 {
     // cout << "fret." << width.Name() << ' ' << dst.Name() << '\n';
     Print(stream_pos, "fret.", concat, width, dst);
-    Print('\0');
+    Print("");
 }
 
 void Disassembler::DoBranchIf(InputCcOpc op, Width width, IReg l, IReg r, int32_t target)

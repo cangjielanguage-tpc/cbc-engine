@@ -3,13 +3,15 @@
 #include "cbc/isa.h"
 #include "cbc/parser.h"
 
+#include <ostream>
+
 namespace Cbc {
 
 using namespace Format;
 
 class Disassembler : public Parser {
 public:
-    Disassembler(API::Resolver* resolver, MethodCode code);
+    Disassembler(API::Resolver* resolver, MethodCode code, ::std::ostream& out);
 
 protected:
     void DoExtend(Sign sign, IReg dst, IReg src, uint64_t imm) override;
@@ -40,7 +42,7 @@ protected:
 
 private:
     template <typename T>
-    constexpr void PrintIt(const T arg, const char head_delim = '\0', const char tail_delim = '\0');
+    constexpr void PrintIt(const T arg, const char* head_delim = "", const char* tail_delim = "");
 
     template <typename T, typename... Ts> constexpr void PrintConcat(const T arg, const Ts... tail);
 
@@ -48,6 +50,7 @@ private:
 
 private:
     int log10size;
+    ::std::ostream& out;
 };
 
 } // namespace Cbc
