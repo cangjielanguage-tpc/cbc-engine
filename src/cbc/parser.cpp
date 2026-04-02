@@ -318,69 +318,6 @@ template <> void Parser::Decode<InputOpcode::BinaryImm64>()
     DoBinaryImm(InputCommonOpc(x), W64, d, l, imm64);
 }
 
-template <> void Parser::Decode<InputOpcode::Bcc>()
-{
-    auto [cc, w, l, r, target] = Decoder::ByteReaderM(codeReader)
-                                     .Read4<InputCcOpc>()
-                                     .Read4<Width::Value>()
-                                     .Read4<IReg::Value>()
-                                     .Read4<IReg::Value>()
-                                     .Read32<int32_t>()
-                                     .Get();
-    DoBranchIf(cc, w, l, r, codeReader.Cursor() + target);
-}
-
-template <> void Parser::Decode<InputOpcode::BccImm>()
-{
-    auto [cc, w, z, l, imm64, target] = Decoder::ByteReaderM(codeReader)
-                                         .Read4<InputCcOpc>()
-                                         .Read4<Width::Value>()
-                                         .Read4()
-                                         .Read4<IReg::Value>()
-                                         .Read64<uint64_t>()
-                                         .Read32<int32_t>()
-                                         .Get();
-    DoBranchIfImm(cc, w, l, imm64, codeReader.Cursor() + target);
-}
-
-template <> void Parser::Decode<InputOpcode::Jump32>()
-{
-    auto [target] = Decoder::ByteReaderM(codeReader)
-                    .Read32<int32_t>()
-                    .Get();
-    DoJmp(codeReader.Cursor() + target);
-}
-
-template <> void Parser::Decode<InputOpcode::CallDirect>()
-{
-    auto [d, z, id16] = ReadRZI16(codeReader);
-    DoCallDirect(d, id16);
-}
-
-template <> void Parser::Decode<InputOpcode::Ret32>()
-{
-    auto [d, r] = ReadZR(codeReader);
-    DoReturn(W32, r);
-}
-
-template <> void Parser::Decode<InputOpcode::Ret64>()
-{
-    auto [d, r] = ReadZR(codeReader);
-    DoReturn(W64, r);
-}
-
-template <> void Parser::Decode<InputOpcode::Ret32F>()
-{
-    auto [d, r] = ReadZR(codeReader);
-    DoReturn(W32, r);
-}
-
-template <> void Parser::Decode<InputOpcode::Ret64F>()
-{
-    auto [d, r] = ReadZR(codeReader);
-    DoReturn(W64, r);
-}
-
 static void UnexpectedOpcode(uint32_t opcode)
 {
     // FIXME: verbose error reporting.
