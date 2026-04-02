@@ -1,8 +1,10 @@
+#include <iostream>
 #include <mutex>
 #include <unordered_map>
 #include <variant>
 
 #include "adapters.h"
+#include "cbc/isa_disasm.h"
 #include "cbc/rewriter.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/reader.h"
@@ -64,6 +66,8 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, Dynam
 
     auto offset = def.GetCodeOffs();
     auto code   = Symlevel::Reader::Read(session, def.FileId(), offset);
+    auto disasm = Cbc::RawDisasm(std::cerr, code);
+    disasm->ParseAll();
 
     auto resolver = API::Resolver::Create(session, fuh->methodDef);
     Cbc::Emitter::Emitter emitter;

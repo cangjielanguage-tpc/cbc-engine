@@ -449,4 +449,10 @@ void IsaParser::ParseAll()
     }
 }
 
+IsaParser::IsaParser(Decoder::FatByteReader reader) : reader(reader) {}
+
+IsaParser::IsaParser(uint8_t* start, uint8_t* end) : reader(start, start, end) {}
+
+IsaParser::IsaParser(Cbc::MethodCode code) : IsaParser(code.CodePtr(), code.CodePtr() + code.CodeSize()) {}
+
 } // namespace Cbc

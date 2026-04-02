@@ -1,11 +1,21 @@
+#include "cbc/decoder.h"
 #include "cbc/isa.h"
+#include "cbc/parser.h"
 #include "isa_parser.h"
 #include <ostream>
 
 namespace Cbc {
 
+/// Disasm implementation for CBC bytecode.
+/// This implementation doesn't rely on resolution.
 struct IsaDisasm : public IsaParser {
-    std::ostream stream;
+    IsaDisasm(std::ostream& stream, Cbc::MethodCode code) : stream(stream), IsaParser(code) {}
+
+    IsaDisasm(std::ostream& stream, Decoder::FatByteReader reader) : stream(stream), IsaParser(reader) {}
+
+    IsaDisasm(std::ostream& stream, uint8_t* start, uint8_t* end) : stream(stream), IsaParser(start, end) {}
+
+    std::ostream& stream;
 
     void Bcc(Format::Width width, Format::CC cc, AnyReg l, AnyReg r, int64_t delta) override
     {
@@ -179,5 +189,20 @@ struct IsaDisasm : public IsaParser {
         stream << "AIC" << " " << length.ToStr() << " " << index.ToStr() << std::endl;
     }
 };
+
+std::unique_ptr<IsaParser> RawDisasm(std::ostream& stream, Cbc::MethodCode code)
+{
+    return std::make_unique<IsaDisasm>(stream, code);
+}
+
+std::unique_ptr<IsaParser> RawDisasm(std::ostream& stream, Decoder::FatByteReader reader)
+{
+    return std::make_unique<IsaDisasm>(stream, reader);
+}
+
+std::unique_ptr<IsaParser> RawDisasm(std::ostream& stream, uint8_t* start, uint8_t* end)
+{
+    return std::make_unique<IsaDisasm>(stream, start, end);
+}
 
 } // namespace Cbc

@@ -5,11 +5,16 @@
 
 #include "cbc/decoder.h"
 #include "cbc/isa.h"
+#include "cbc/parser.h"
 
 namespace Cbc {
 
 class IsaParser {
 public:
+    IsaParser(Cbc::MethodCode code);
+    IsaParser(Decoder::FatByteReader reader);
+    IsaParser(uint8_t* start, uint8_t* end);
+
     using AnyReg = uint8_t;
 
     virtual void ParseOne();
