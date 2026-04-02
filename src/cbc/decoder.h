@@ -70,6 +70,10 @@ public:
 
     inline bool IsEndReached() { return cursor >= end; }
 
+    uint8_t* Start() { return start; }
+
+    uint8_t* End() { return end; }
+
 private:
     void BoundCheck(uint8_t* p)
     {

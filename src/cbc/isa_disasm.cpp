@@ -2,6 +2,9 @@
 #include "cbc/isa.h"
 #include "cbc/parser.h"
 #include "isa_parser.h"
+#include <cmath>
+#include <cstdint>
+#include <iomanip>
 #include <ostream>
 
 namespace Cbc {
@@ -16,16 +19,32 @@ static std::string_view Sz(Format::Width w)
     }
 }
 
+static uint32_t SizeOfOffset(uint8_t* start, uint8_t* end)
+{
+    auto log10size = static_cast<int>(1.0 + std::log10(end - start));
+    log10size      = std::max(log10size, 1);
+    return log10size;
+}
+
 /// Disasm implementation for CBC bytecode.
 /// This implementation doesn't rely on resolution.
 struct IsaDisasm : public IsaParser {
-    IsaDisasm(std::ostream& stream, Cbc::MethodCode code) : stream(stream), IsaParser(code) {}
+    IsaDisasm(std::ostream& stream, Decoder::FatByteReader reader)
+        : stream(stream),
+          IsaParser(reader),
+          log10Size(SizeOfOffset(reader.Start(), reader.End()))
+    {}
 
-    IsaDisasm(std::ostream& stream, Decoder::FatByteReader reader) : stream(stream), IsaParser(reader) {}
+    IsaDisasm(std::ostream& stream, Cbc::MethodCode code)
+        : IsaDisasm(stream, code.CodePtr(), code.CodePtr() + code.CodeSize())
+    {}
 
-    IsaDisasm(std::ostream& stream, uint8_t* start, uint8_t* end) : stream(stream), IsaParser(start, end) {}
+    IsaDisasm(std::ostream& stream, uint8_t* start, uint8_t* end)
+        : IsaDisasm(stream, Decoder::FatByteReader(start, start, end))
+    {}
 
     std::ostream& stream;
+    uint32_t log10Size;
 
     void Bcc(Format::Width width, Format::CC cc, AnyReg l, AnyReg r, int64_t delta) override
     {
@@ -203,6 +222,13 @@ struct IsaDisasm : public IsaParser {
     void ArrayIndexCheck(IReg length, IReg index) override
     {
         stream << "aic" << " " << length.ToStr() << ", " << index.ToStr() << std::endl;
+    }
+
+    void ParseOne() override
+    {
+        auto position = reader.Cursor() - reader.Start();
+        stream << std::setfill('0') << std::setw(log10Size) << position << ": " << std::setfill(' ');
+        IsaParser::ParseOne();
     }
 };
 
