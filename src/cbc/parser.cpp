@@ -132,36 +132,6 @@ auto ReadXFFZI64(Decoder::ByteReader& codeReader) -> decltype(auto)
     return res;
 }
 
-auto ReadImm8(Decoder::ByteReader& codeReader) -> decltype(auto) { return codeReader.Read8(); }
-
-auto ReadImm16(Decoder::ByteReader& codeReader) -> decltype(auto) { return codeReader.Read16(); }
-
-auto ReadImm32(Decoder::ByteReader& codeReader) -> decltype(auto) { return codeReader.Read32(); }
-
-auto ReadImm64(Decoder::ByteReader& codeReader) -> decltype(auto) { return codeReader.Read64(); }
-
-constexpr Sign GetCheckedSign(uint8_t x) { return Sign::Value(x & 0b1); }
-
-constexpr Width GetCheckedWidth(uint8_t x) { return Width::Value((x >> 1) & 0b11); }
-
-constexpr Width GetFloatWidth(uint8_t x)
-{
-    return Width::Value(((x >> 3) & 0b1) + W32); // opcCommon
-}
-
-constexpr CbcTypeKind GetFloatType(uint8_t x)
-{
-    switch (GetFloatWidth(x)) {
-        case W32: {
-            return CbcTypeKind::Value::F32;
-        }
-        case W64: {
-            return CbcTypeKind::Value::F64;
-        }
-        default: ASSERTION(false, "unknown encoding");
-    }
-}
-
 template <> void Parser::Decode<InputOpcode::Mov32>()
 {
     auto [d, r] = ReadRR(codeReader);

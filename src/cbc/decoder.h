@@ -50,6 +50,8 @@ public:
 
     inline uint64_t Read64() { return Read<uint64_t>(); }
 
+    inline uint64_t ReadSLEB() { return Read<uint64_t>(); }
+
     inline uint32_t PeekOpcode()
     {
         StrictBoundCheck(cursor);
@@ -134,6 +136,13 @@ public:
     template <typename T = uint64_t> auto Read64() && -> decltype(auto)
     {
         auto val      = T(reader.Read64());
+        auto new_data = ::std::tuple_cat(data, ::std::make_tuple(val));
+        return ByteReaderM<Ts..., T>(reader, ::std::move(new_data));
+    }
+
+    template <typename T = uint64_t> auto ReadSLEB() && -> decltype(auto)
+    {
+        auto val      = T(reader.ReadSLEB());
         auto new_data = ::std::tuple_cat(data, ::std::make_tuple(val));
         return ByteReaderM<Ts..., T>(reader, ::std::move(new_data));
     }
