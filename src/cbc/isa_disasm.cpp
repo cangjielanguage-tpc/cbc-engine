@@ -63,6 +63,11 @@ struct IsaDisasm : public IsaParser {
         stream << "MOVI." << " " << width.ToStr() << " " << d.ToStr() << " " << value << std::endl;
     }
 
+    virtual void FMovImm(Format::Width width, FReg d, double value) override
+    {
+        stream << "FMOVI." << width.ToStr() << " " << d.ToStr() << " " << value << std::endl;
+    }
+
     void Binary(Format::Common op, Format::Width width, IReg d, IReg l, IReg r) override
     {
         stream << op.ToStr() << "." << " " << width.ToStr() << " " << d.ToStr() << " " << l.ToStr() << " " << r.ToStr()

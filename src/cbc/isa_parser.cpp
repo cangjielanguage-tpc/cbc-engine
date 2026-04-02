@@ -49,6 +49,23 @@ public:
         return static_cast<uint16_t>(value);
     }
 
+    inline operator double()
+    {
+        double mem;
+        static_assert(sizeof(mem) == 8);
+        std::memcpy(&mem, &value, sizeof(mem));
+        return mem;
+    }
+
+    inline operator float()
+    {
+        ASSERT(MathUtils::IsNBits(value, 32));
+        float mem;
+        static_assert(sizeof(mem) == 4);
+        std::memcpy(&mem, &value, sizeof(mem));
+        return mem;
+    }
+
     inline operator uint8_t()
     {
         ASSERT(MathUtils::IsNBits(value, 8));
@@ -314,6 +331,19 @@ struct IsaParserImpl {
     {
         auto [dst, len, id] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
         parser.NewArr(dst, len, id);
+    }
+
+    template <Width::Value width> static void FMovImm(IsaParser& parser)
+    {
+        if constexpr (width == Width::W32) {
+            auto [unused, dst, imm] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU32().Get();
+            float fimm              = imm;
+            parser.FMovImm(width, dst, fimm);
+        } else {
+            auto [unused, dst, imm] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU64().Get();
+            double fimm             = imm;
+            parser.FMovImm(width, dst, fimm);
+        }
     }
 
     static void GcPoint(IsaParser& parser) { parser.GcPoint(); }
