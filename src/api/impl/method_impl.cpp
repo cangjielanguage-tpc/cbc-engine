@@ -1,5 +1,6 @@
 #include "method_impl.h"
 #include "api/term.h"
+#include "engine/symlevel/dynlibs.h"
 #include "engine/symlevel/reader.h"
 #include "engine/symlevel/region_data.h"
 
@@ -58,19 +59,10 @@ std::optional<Interpretation::FunctionHandle*> DirectMethodAot::FUH() { return s
 
 void* DirectMethodAot::TargetAddr()
 {
+    auto& dynlibs    = session.CbcFileOf(ref.FileId()).GetDynlibs();
     auto linkageName = aotData.GetLinkageName();
 
-    // TODO: manage libs
-    void* handler = dlopen("libcangjie-std-core.so", RTLD_NOW);
-    ASSERTION(handler != nullptr, "cannot open \"libcangjie-std-core.so\"");
-
-    // TODO: manage nullptr
-    void* target = dlsym(handler, std::string(linkageName).c_str());
-    ASSERTION(target != nullptr, "cannot resolve target addt for direct aot call");
-
-    dlclose(handler);
-
-    return target;
+    return dynlibs.FindTarget(linkageName);
 }
 
 MethodFlags DirectMethodAot::Flags()

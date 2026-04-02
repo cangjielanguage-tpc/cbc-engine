@@ -18,6 +18,7 @@ class FieldReference;
 // metadata
 class TypeIndex;
 class RegionData;
+class Dynlibs;
 
 // aot tables
 class DirectCallAotTable;
@@ -53,6 +54,7 @@ public:
 
     const RegionData& GetRegionData() const;
     const TypeIndex& GetTypeIndex() const;
+    const Dynlibs& GetDynlibs() const;
 
     const DirectCallAotTable& GetDirectCallAotTable() const;
     const VirtualCallAotTable& GetVirtualCallAotTable() const;

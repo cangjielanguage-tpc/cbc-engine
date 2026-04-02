@@ -650,7 +650,6 @@ void Emitter::DirectCall2i(IReg d, Symbol fuh)
     AddFixup(std::make_unique<Literal12Fixup>(i4, fuh));
 }
 
-
 void Emitter::DirectCall2c(IReg d, Symbol target)
 {
     segment.AddW8(RT::Opcode::DIRECT_CALL_2C);

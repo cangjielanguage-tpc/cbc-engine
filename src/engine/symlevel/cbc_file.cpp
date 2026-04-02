@@ -1,6 +1,7 @@
 #include "cbc_file.h"
 
 #include "aot_table.h"
+#include "dynlibs.h"
 #include "io/stream_file_reader.h"
 #include "member_index.h"
 #include "region_data.h"
@@ -18,6 +19,8 @@ struct CbcFile::Impl {
     InterfaceCallAotTable interfaceCallAotTable;
     StaticFieldAotTable staticFieldAotTable;
     InstanceFieldAotTable instanceFieldAotTable;
+
+    Dynlibs dynlibs;
 
     uint32_t poolOffset;
     IO::FileId id;
@@ -67,9 +70,14 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
     }
     auto regionOffset = reader.ReadU32();
 
-    auto mainType    = reader.ReadU32();
-    auto foreignLibs = reader.ReadU32();
-    auto coverageId  = reader.ReadULEB();
+    auto mainType      = reader.ReadU32();
+    auto foreignLibs   = reader.ReadU32();
+    auto dynlibsOffset = reader.ReadU32();
+    auto coverageId    = reader.ReadULEB();
+
+    auto dynlibs = dynlibsOffset != 0
+                       ? Dynlibs::Read(fileId, file, dynlibsOffset + poolOffset) // stringOffset + StringSectionOffset
+                       : Dynlibs::Empty();
 
     CbcFile::Impl impl {
         .versionMetadata       = versionMetadata,
@@ -80,6 +88,7 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
         .interfaceCallAotTable = InterfaceCallAotTable::Read(fileId, file, interfaceCallAotTableOffset),
         .staticFieldAotTable   = StaticFieldAotTable::Read(fileId, file, staticFieldAotTableOffset),
         .instanceFieldAotTable = InstanceFieldAotTable::Read(fileId, file, instanceFieldAotTableOffset),
+        .dynlibs               = std::move(dynlibs),
         .poolOffset            = poolOffset,
         .id                    = fileId,
         .name                  = std::string(name),
@@ -116,6 +125,8 @@ String CbcFile::GetPath() const { return String(impl->name); }
 const RegionData& CbcFile::GetRegionData() const { return impl->regionData; }
 
 const TypeIndex& CbcFile::GetTypeIndex() const { return impl->typeIndex; }
+
+const Dynlibs& CbcFile::GetDynlibs() const { return impl->dynlibs; }
 
 const DirectCallAotTable& CbcFile::GetDirectCallAotTable() const { return impl->directCallAotTable; }
 
