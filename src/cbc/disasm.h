@@ -11,7 +11,7 @@ using namespace Format;
 
 class Disassembler : public Parser {
 public:
-    Disassembler(API::Resolver* resolver, MethodCode code, ::std::ostream& out);
+    Disassembler(API::Resolver* resolver, MethodCode code, std::ostream& out);
 
 protected:
     void DoExtend(Sign sign, IReg dst, IReg src, uint64_t imm) override;
@@ -41,20 +41,11 @@ protected:
     void DoCallDirect(IReg d, uint16_t methodIndex) override;
 
 private:
-    template <typename T>
-    constexpr void PrintIt(const T arg, const char* head_delim = "", const char* tail_delim = "");
-
-    template <typename T, typename... Ts> constexpr void PrintConcat0(const T arg, const Ts... tail);
-
-    template <typename T, typename... Ts> constexpr void Print0(const T arg, const Ts... tail);
-
-    template<typename T, typename... Ts> constexpr void Print(const T arg, const Ts... tail);
+    std::ostream& PrintOpcode();
 
 private:
     int log10size;
-    ::std::ostream& out;
+    std::ostream& out;
 };
 
 } // namespace Cbc
-
-#include "disasm.ipp"

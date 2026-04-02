@@ -19,7 +19,7 @@ Parser::Parser(API::Resolver* resolver, MethodCode code)
 
 uint8_t* Parser::ResolveOffset(int32_t offset) { return codeReader.Cursor() + offset; }
 
-::std::ptrdiff_t Parser::CurrentOffset() { return codeReader.CurrentOffset(); }
+std::ptrdiff_t Parser::CurrentOffset() { return codeReader.CurrentOffset(); }
 
 void Parser::Interpret()
 {

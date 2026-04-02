@@ -48,7 +48,7 @@ protected:
     virtual void DoCallDirect(IReg d, uint16_t methodIndex) = 0;
 
     uint8_t* ResolveOffset(int32_t offset);
-    ::std::ptrdiff_t CurrentOffset();
+    std::ptrdiff_t CurrentOffset();
 
 protected:
     API::Resolver* resolver;

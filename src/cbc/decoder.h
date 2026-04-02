@@ -58,7 +58,7 @@ public:
 
     inline uint8_t* Cursor() { return cursor; }
 
-    inline ::std::ptrdiff_t CurrentOffset() { return (uint64_t)cursor - (uint64_t)start; }
+    inline std::ptrdiff_t CurrentOffset() { return (uint64_t)cursor - (uint64_t)start; }
 
     inline bool EndOfMem(uint8_t* memEnd) { return cursor >= memEnd; }
 
@@ -96,11 +96,11 @@ template <typename... Ts> struct ByteReaderM_;
 template <typename... Ts> struct ByteReaderM {
 public:
     ByteReader& reader;
-    ::std::tuple<Ts...> data;
+    std::tuple<Ts...> data;
 
     ByteReaderM(ByteReader& rreader) : reader(rreader), data() {}
 
-    ByteReaderM(ByteReader& rreader, ::std::tuple<Ts...>&& base) : reader(rreader), data(::std::move(base)) {}
+    ByteReaderM(ByteReader& rreader, std::tuple<Ts...>&& base) : reader(rreader), data(std::move(base)) {}
 
     ByteReaderM(const ByteReaderM<Ts...>&)                   = delete;
     ByteReaderM<Ts...>& operator=(const ByteReaderM<Ts...>&) = delete;
@@ -108,53 +108,53 @@ public:
     template <typename T = uint8_t> auto Read4() && -> decltype(auto)
     {
         auto val      = reader.Read8();
-        auto new_data = ::std::tuple_cat(data, ::std::make_tuple(T(static_cast<uint8_t>((val >> 4) & 0xF))));
-        return ByteReaderM_<Ts..., T>(reader, ::std::move(val & 0xF), ::std::move(new_data));
+        auto new_data = std::tuple_cat(data, std::make_tuple(T(static_cast<uint8_t>((val >> 4) & 0xF))));
+        return ByteReaderM_<Ts..., T>(reader, std::move(val & 0xF), std::move(new_data));
     }
 
     template <typename T = uint8_t> auto Read8() && -> decltype(auto)
     {
         auto val      = T(reader.Read8());
-        auto new_data = ::std::tuple_cat(data, ::std::make_tuple(val));
-        return ByteReaderM<Ts..., T>(reader, ::std::move(new_data));
+        auto new_data = std::tuple_cat(data, std::make_tuple(val));
+        return ByteReaderM<Ts..., T>(reader, std::move(new_data));
     }
 
     template <typename T = uint16_t> auto Read16() && -> decltype(auto)
     {
         auto val      = T(reader.Read16());
-        auto new_data = ::std::tuple_cat(data, ::std::make_tuple(val));
-        return ByteReaderM<Ts..., T>(reader, ::std::move(new_data));
+        auto new_data = std::tuple_cat(data, std::make_tuple(val));
+        return ByteReaderM<Ts..., T>(reader, std::move(new_data));
     }
 
     template <typename T = uint32_t> auto Read32() && -> decltype(auto)
     {
         auto val      = T(reader.Read32());
-        auto new_data = ::std::tuple_cat(data, ::std::make_tuple(val));
-        return ByteReaderM<Ts..., T>(reader, ::std::move(new_data));
+        auto new_data = std::tuple_cat(data, std::make_tuple(val));
+        return ByteReaderM<Ts..., T>(reader, std::move(new_data));
     }
 
     template <typename T = uint64_t> auto Read64() && -> decltype(auto)
     {
         auto val      = T(reader.Read64());
-        auto new_data = ::std::tuple_cat(data, ::std::make_tuple(val));
-        return ByteReaderM<Ts..., T>(reader, ::std::move(new_data));
+        auto new_data = std::tuple_cat(data, std::make_tuple(val));
+        return ByteReaderM<Ts..., T>(reader, std::move(new_data));
     }
 
-    auto Get() && -> decltype(auto) { return ::std::move(data); }
+    auto Get() && -> decltype(auto) { return std::move(data); }
 };
 
 template <typename... Ts> struct ByteReaderM_ {
 public:
     ByteReader& reader;
     uint8_t last;
-    ::std::tuple<Ts...> data;
+    std::tuple<Ts...> data;
 
     ByteReaderM_(ByteReader& rreader) : reader(rreader) {}
 
-    ByteReaderM_(ByteReader& rreader, uint8_t alast, ::std::tuple<Ts...>&& base)
+    ByteReaderM_(ByteReader& rreader, uint8_t alast, std::tuple<Ts...>&& base)
         : reader(rreader),
-          last(::std::move(alast)),
-          data(::std::move(base))
+          last(std::move(alast)),
+          data(std::move(base))
     {}
 
     ByteReaderM_(const ByteReaderM_<Ts...>&)                   = delete;
@@ -162,11 +162,11 @@ public:
 
     template <typename T = uint8_t> auto Read4() && -> decltype(auto)
     {
-        auto new_data = ::std::tuple_cat(data, ::std::make_tuple(T(last)));
-        return ByteReaderM<Ts..., T>(reader, ::std::move(new_data));
+        auto new_data = std::tuple_cat(data, std::make_tuple(T(last)));
+        return ByteReaderM<Ts..., T>(reader, std::move(new_data));
     }
 
-    auto Get() && -> decltype(auto) { return ::std::move(data); }
+    auto Get() && -> decltype(auto) { return std::move(data); }
 };
 
 } // namespace Decoder

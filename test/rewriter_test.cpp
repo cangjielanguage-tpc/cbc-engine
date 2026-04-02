@@ -40,7 +40,7 @@ using namespace Cbc::Format;
         Rewriter rw(nullptr, methodCode, e);                                                                           \
         rw.Interpret();                                                                                                \
         auto code = e.Build(heap);                                                                                     \
-        auto res = Interpret(code, U32(REG1), U32(REG2));                                                              \
+        auto res  = Interpret(code, U32(REG1), U32(REG2));                                                             \
         EXPECT_EQ(res.u32, REG1 OP REG2);                                                                              \
     }
 
