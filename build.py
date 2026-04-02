@@ -34,7 +34,8 @@ def build(args, project_dir, build_dir):
     cmake_cmd = (
         f"cmake {project_dir} "
         f"-DCMAKE_BUILD_TYPE={args.build_type.capitalize()} "
-        f"-DCMAKE_TOOLCHAIN_FILE={toolchain_path}"
+        f"-DCMAKE_TOOLCHAIN_FILE={toolchain_path} "
+        f"-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/third-party/googletest-1.14.0 "
     )
 
     make_cmd = f"make -j{args.jobs}"

@@ -7,8 +7,6 @@ RUN apt update && apt install -y \
     wget \
     gcc \
     g++ \
-    libjemalloc-dev \
-    libjemalloc2 \
     lua5.4 \
     unzip \
     lazygit \
@@ -19,6 +17,9 @@ RUN apt update && apt install -y \
     bash \
     fish \
     ccls \
+    clang-19 \
+    lld-19 \
+    lldb-19 \
     gdb
 
 RUN dpkg --add-architecture arm64 && \
@@ -27,13 +28,12 @@ RUN dpkg --add-architecture arm64 && \
     linux-libc-dev:arm64 \
     libstdc++-12-dev:arm64
 
-RUN apt update && apt install -y lsb-release gnupg2 && \
-    wget -qO- https://apt.llvm.org/llvm.sh | bash -s -- 21 all
+RUN mkdir -p /third-party && cd /third-party && \
+    wget --no-check-certificate https://github.com/google/googletest/archive/refs/tags/v1.14.0.tar.gz && \
+    tar -xvzf v1.14.0.tar.gz
     
-ENV LLVM_BIN="/usr/lib/llvm-21/bin/"
+ENV LLVM_BIN="/usr/lib/llvm-19/bin/"
 ENV PATH="${LLVM_BIN}:${PATH}"
 
 ENV CC=${LLVM_BIN}/clang
 ENV CXX=${LLVM_BIN}/clang++
-
-ENV LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2
