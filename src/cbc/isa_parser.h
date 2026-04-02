@@ -15,6 +15,8 @@ public:
     IsaParser(Decoder::FatByteReader reader);
     IsaParser(uint8_t* start, uint8_t* end);
 
+    virtual ~IsaParser() = default;
+
     using AnyReg = uint8_t;
 
     virtual void ParseOne();
@@ -68,8 +70,6 @@ protected:
 
     virtual void ArrayLength(IReg dst, IReg arr)          = 0;
     virtual void ArrayIndexCheck(IReg length, IReg index) = 0;
-
-    virtual ~IsaParser() = default;
 
     friend class IsaParserImpl;
     Decoder::FatByteReader reader;
