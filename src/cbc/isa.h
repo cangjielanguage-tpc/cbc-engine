@@ -262,25 +262,26 @@ constexpr Opcode_t Opc(const InputCcOpc opc) { return static_cast<Opcode_t>(opc)
 
 class IReg {
 public:
-    enum Value : uint8_t {
-        IRZ,
-        IR1,
-        IR2,
-        IR3,
-        IR4,
-        IR5,
-        IR6,
-        IR7,
-        IR8,
-        IR9,
-        IR10,
-        IR11,
-        IR12,
-        IR13,
-    };
+#define IREG_VALUES(X)                                                                                                 \
+    X(IRZ)                                                                                                             \
+    X(IR1)                                                                                                             \
+    X(IR2)                                                                                                             \
+    X(IR3)                                                                                                             \
+    X(IR4)                                                                                                             \
+    X(IR5)                                                                                                             \
+    X(IR6)                                                                                                             \
+    X(IR7)                                                                                                             \
+    X(IR8)                                                                                                             \
+    X(IR9)                                                                                                             \
+    X(IR10)                                                                                                            \
+    X(IR11)                                                                                                            \
+    X(IR12)                                                                                                            \
+    X(IR13)
 
-    static constexpr Value values[] = {
-        IRZ, IR1, IR2, IR3, IR4, IR5, IR6, IR7, IR8, IR9, IR10, IR11, IR12, IR13,
+#define IREG_ENUM(opc) opc,
+
+    enum Value : uint8_t {
+        IREG_VALUES(IREG_ENUM)
     };
 
     static constexpr int COUNT = 14;
@@ -291,11 +292,25 @@ public:
 
     constexpr uint32_t Raw() const { return _value; }
 
+#define IREG_TO_STR(opc)                                                                                               \
+    case opc: return #opc;
+
+    constexpr std::string_view ToStr() const
+    {
+        switch (_value) {
+            IREG_VALUES(IREG_TO_STR)
+        }
+        return "<invalid>";
+    }
+
     inline static IReg From(const uint32_t raw)
     {
         ASSERT(raw < COUNT);
         return IReg(static_cast<Value>(raw));
     }
+
+#undef IREG_TO_STR
+#undef IREG_VALUES
 
 private:
     Value _value;
@@ -303,27 +318,28 @@ private:
 
 class FReg {
 public:
-    enum Value : uint32_t {
-        FR0,
-        FR1,
-        FR2,
-        FR3,
-        FR4,
-        FR5,
-        FR6,
-        FR7,
-        FR8,
-        FR9,
-        FR10,
-        FR11,
-        FR12,
-        FR13,
-        FR14,
-        FR15
-    };
+#define FREG_VALUES(X)                                                                                                 \
+    X(FR0)                                                                                                             \
+    X(FR1)                                                                                                             \
+    X(FR2)                                                                                                             \
+    X(FR3)                                                                                                             \
+    X(FR4)                                                                                                             \
+    X(FR5)                                                                                                             \
+    X(FR6)                                                                                                             \
+    X(FR7)                                                                                                             \
+    X(FR8)                                                                                                             \
+    X(FR9)                                                                                                             \
+    X(FR10)                                                                                                            \
+    X(FR11)                                                                                                            \
+    X(FR12)                                                                                                            \
+    X(FR13)                                                                                                            \
+    X(FR14)                                                                                                            \
+    X(FR15)
 
-    static constexpr Value values[] = { FR0, FR1, FR2,  FR3,  FR4,  FR5,  FR6,  FR7,
-                                        FR8, FR9, FR10, FR11, FR12, FR13, FR14, FR15 };
+#define FREG_ENUM(opc) opc,
+    enum Value : uint32_t {
+        FREG_VALUES(FREG_ENUM)
+    };
 
     static constexpr int COUNT = 16;
 
@@ -333,11 +349,25 @@ public:
 
     constexpr uint32_t Raw() const { return _value; }
 
+#define FREG_TO_STR(opc)                                                                                               \
+    case opc: return #opc;
+
+    constexpr std::string_view ToStr() const
+    {
+        switch (_value) {
+            FREG_VALUES(FREG_TO_STR)
+        }
+        return "<invalid>";
+    }
+
     inline static FReg From(const uint32_t raw)
     {
         ASSERT(raw < COUNT);
         return FReg(static_cast<Value>(raw));
     }
+
+#undef FREG_TO_STR
+#undef FREG_VALUES
 
 private:
     Value _value;
@@ -614,13 +644,6 @@ public:
         W64 = 0b11,
     };
 
-    static constexpr Value values[] = {
-        W8,
-        W16,
-        W32,
-        W64,
-    };
-
     constexpr Width(const Value raw) : _value(raw) {}
 
     constexpr operator Value() const { return _value; }
@@ -641,6 +664,17 @@ public:
     {
         ASSERTION(_value == W16 || _value == W64, "TODO: format description");
         return (_value & 0b10) >> 1;
+    }
+
+    constexpr std::string_view ToStr()
+    {
+        switch (_value) {
+            case W8:  return "W8";
+            case W16: return "W16";
+            case W32: return "W32";
+            case W64: return "W64";
+        }
+        return "<invalid>";
     }
 
     static constexpr Width FromCbcTypeKind(CbcTypeKind tkind)

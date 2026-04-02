@@ -1,5 +1,6 @@
 #include <cstdint>
 
+#include "cbc/parser.h"
 #include "isa.h"
 #include "isa_opcodes.h"
 #include "isa_parser.h"
@@ -440,5 +441,12 @@ struct IsaParserImpl {
 };
 
 void IsaParser::ParseOne() { IsaParserImpl::ParseOne(*this); }
+
+void IsaParser::ParseAll()
+{
+    while (!reader.IsEndReached()) {
+        ParseOne();
+    }
+}
 
 } // namespace Cbc

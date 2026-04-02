@@ -68,6 +68,8 @@ public:
 
     inline bool EndOfMem(uint8_t* memEnd) { return cursor >= memEnd; }
 
+    inline bool IsEndReached() { return cursor >= end; }
+
 private:
     void BoundCheck(uint8_t* p)
     {

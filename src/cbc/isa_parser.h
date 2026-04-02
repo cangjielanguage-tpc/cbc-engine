@@ -13,6 +13,7 @@ public:
     using AnyReg = uint8_t;
 
     virtual void ParseOne();
+    void ParseAll();
 
 protected:
     virtual void Bcc(Format::Width width, Format::CC cc, AnyReg l, AnyReg r, int64_t delta)      = 0;
@@ -25,13 +26,13 @@ protected:
     virtual void MovRef(IReg d, IReg s)                                                          = 0;
     virtual void MovImm(Format::Width width, IReg d, uint64_t value)                             = 0;
     virtual void Binary(Format::Common op, Format::Width width, IReg d, IReg l, IReg r)          = 0;
-    virtual void BinaryImm(Format::Common op, Format::Width width, IReg d, IReg l, uint64_t)     = 0;
+    virtual void BinaryImm(Format::Common op, Format::Width width, IReg d, IReg l, uint64_t value) = 0;
 
     // TODO: add enum
-    virtual void FloatBinary(uint8_t op, Format::Width width, IReg d, IReg l, IReg r) = 0;
+    virtual void FloatBinary(uint8_t op, Format::Width width, FReg d, FReg l, FReg r) = 0;
 
     // TODO: add enum
-    virtual void Cast(int8_t fromType, int8_t toType, IReg d, IReg s) = 0;
+    virtual void Cast(int8_t fromType, int8_t toType, AnyReg d, AnyReg s) = 0;
     virtual void PrepareRecord(uint16_t ts)                           = 0;
     virtual void NewArr(IReg dst, IReg len, uint16_t type)            = 0;
 
@@ -65,9 +66,8 @@ protected:
 
     virtual ~IsaParser() = default;
 
-private:
     friend class IsaParserImpl;
-    Decoder::ByteReader reader;
+    Decoder::FatByteReader reader;
 };
 
 } // namespace Cbc
