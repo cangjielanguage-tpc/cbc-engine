@@ -20,9 +20,6 @@
 !./include/
 !./include/*
 !./include/**/*
-!./output/
-!./output/*
-!./output/**/*
 !./test/
 !./test/*
 !./test/**/*
