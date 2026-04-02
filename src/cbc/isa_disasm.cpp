@@ -29,133 +29,135 @@ struct IsaDisasm : public IsaParser {
 
     void Bcc(Format::Width width, Format::CC cc, AnyReg l, AnyReg r, int64_t delta) override
     {
-        stream << "bcc." << Sz(width) << " " << cc.ToStr() << " ";
+        stream << "bcc." << Sz(width) << " " << cc.ToStr() << ", ";
         if (cc.IsFloatingPoint()) {
-            stream << FReg::From(l).ToStr() << " " << FReg::From(r).ToStr();
+            stream << FReg::From(l).ToStr() << ", " << FReg::From(r).ToStr();
         } else {
-            stream << IReg::From(l).ToStr() << " " << IReg::From(r).ToStr();
+            stream << IReg::From(l).ToStr() << ", " << IReg::From(r).ToStr();
         }
-        stream << " " << delta << std::endl;
+        stream << ", " << delta << std::endl;
     }
 
     void BccImm(Format::Width width, Format::CC cc, IReg l, uint64_t imm, int64_t delta) override
     {
         stream << "bcci." << Sz(width) << " " << cc.ToStr() << " ";
-        stream << IReg::From(l).ToStr() << " " << imm << " " << delta << std::endl;
+        stream << IReg::From(l).ToStr() << ", " << imm << ", " << delta << std::endl;
     }
 
-    void Jump(int64_t delta) override { stream << "JMP" << delta << std::endl; }
+    void Jump(int64_t delta) override { stream << "jmp" << " " << delta << std::endl; }
 
     void Mov(Format::Width width, IReg d, IReg s) override
     {
-        stream << "mov." << Sz(width) << " " << d.ToStr() << " " << s.ToStr() << std::endl;
+        stream << "mov." << Sz(width) << " " << d.ToStr() << ", " << s.ToStr() << std::endl;
     }
 
     void FMov(Format::Width width, FReg d, FReg s) override
     {
-        stream << "fmov." << Sz(width) << " " << d.ToStr() << " " << s.ToStr() << std::endl;
+        stream << "fmov." << Sz(width) << " " << d.ToStr() << ", " << s.ToStr() << std::endl;
     }
 
     void FloatToInt(Format::Width width, IReg d, FReg s) override
     {
-        stream << "f2i." << Sz(width) << " " << d.ToStr() << " " << s.ToStr() << std::endl;
+        stream << "f2i." << Sz(width) << " " << d.ToStr() << ", " << s.ToStr() << std::endl;
     }
 
     void IntToFloat(Format::Width width, FReg d, IReg s) override
     {
-        stream << "i2f." << Sz(width) << " " << d.ToStr() << " " << s.ToStr() << std::endl;
+        stream << "i2f." << Sz(width) << " " << d.ToStr() << ", " << s.ToStr() << std::endl;
     }
 
-    void MovRef(IReg d, IReg s) override { stream << "MOV.REF" << " " << d.ToStr() << " " << s.ToStr() << std::endl; }
+    void MovRef(IReg d, IReg s) override { stream << "mov.ref" << " " << d.ToStr() << ", " << s.ToStr() << std::endl; }
 
     void MovImm(Format::Width width, IReg d, uint64_t value) override
     {
-        stream << "movi." << Sz(width) << " " << d.ToStr() << " " << value << std::endl;
+        stream << "mov." << Sz(width) << " " << d.ToStr() << ", " << value << std::endl;
     }
 
     virtual void FMovImm(Format::Width width, FReg d, double value) override
     {
-        stream << "fmovi." << Sz(width) << " " << d.ToStr() << " " << value << std::endl;
+        stream << "fmov." << Sz(width) << " " << d.ToStr() << ", " << value << std::endl;
     }
 
     void Binary(Format::Common op, Format::Width width, IReg d, IReg l, IReg r) override
     {
-        stream << op.ToStr() << Sz(width) << " " << d.ToStr() << " " << l.ToStr() << " " << r.ToStr() << std::endl;
+        stream << op.ToStr() << Sz(width) << " " << d.ToStr() << ", ";
+        stream << l.ToStr() << ", " << r.ToStr() << std::endl;
     }
 
     void BinaryImm(Format::Common op, Format::Width width, IReg d, IReg l, uint64_t value) override
     {
-        stream << op.ToStr() << "i" << " " << Sz(width) << " " << d.ToStr() << " " << l.ToStr() << " " << value
-               << std::endl;
+        stream << op.ToStr() << "i" << "." << Sz(width) << " " << d.ToStr();
+        stream << ", " << l.ToStr() << ", " << value << std::endl;
     }
 
     // TODO: add enum
     void FloatBinary(uint8_t op, Format::Width width, FReg d, FReg l, FReg r) override
     {
-        stream << "fbin" << op << " " << Sz(width) << " " << d.ToStr() << " " << l.ToStr() << " " << r.ToStr()
-               << std::endl;
+        stream << "fbin" << op << " " << Sz(width) << " " << d.ToStr();
+        stream << " " << l.ToStr() << " " << r.ToStr() << std::endl;
     }
 
     // TODO: add enum
     void Cast(int8_t fromType, int8_t toType, AnyReg d, AnyReg s) override
     {
-        stream << "cast" << " " << fromType << " " << toType << " " << d << " " << s << std::endl;
+        stream << "cast" << " " << fromType << "_" << toType;
+        stream << ", " << d << ", " << s << std::endl;
     }
 
     void PrepareRecord(uint16_t ts) override { stream << "prepare.record" << " " << ts << std::endl; }
 
     void NewArr(IReg dst, IReg len, uint16_t type) override
     {
-        stream << "newarr" << " " << dst.ToStr() << " " << len.ToStr() << " " << type << std::endl;
+        stream << "newarr" << " " << dst.ToStr() << ", " << len.ToStr() << ", " << type << std::endl;
     }
 
     void GcPoint() override { stream << "gcpoint" << std::endl; }
 
     void LoadTypeInfoFtc(IReg dst, uint16_t ftc) override
     {
-        stream << "load.typeinfo.ftc" << " " << dst.ToStr() << " " << ftc << std::endl;
+        stream << "load.typeinfo.ftc" << " " << dst.ToStr() << ", " << ftc << std::endl;
     }
 
     void LoadTypeInfoSig(IReg dst, uint16_t type) override
     {
-        stream << "load.typeinfo.sig" << " " << dst.ToStr() << " " << type << std::endl;
+        stream << "load.typeinfo.sig" << " " << dst.ToStr() << ", " << type << std::endl;
     }
 
     void NewObj(IReg dst, uint16_t type) override
     {
-        stream << "newobj" << " " << dst.ToStr() << " " << type << std::endl;
+        stream << "newobj" << " " << dst.ToStr() << ", " << type << std::endl;
     }
 
     void CallDirect(IReg dst, uint16_t method) override
     {
-        stream << "call.direct" << " " << dst.ToStr() << " " << method << std::endl;
+        stream << "call.direct" << " " << dst.ToStr() << ", " << method << std::endl;
     }
 
     void CallVirtual(IReg dst, uint16_t method) override
     {
-        stream << "call.virtual" << " " << dst.ToStr() << " " << method << std::endl;
+        stream << "call.virtual" << " " << dst.ToStr() << ", " << method << std::endl;
     }
 
     void CallInterf(IReg dst, uint16_t method) override
     {
-        stream << "call.interf" << " " << dst.ToStr() << " " << method << std::endl;
+        stream << "call.interf" << " " << dst.ToStr() << ", " << method << std::endl;
     }
 
     void Scc(Format::Width width, Format::CC cc, IReg d, AnyReg l, AnyReg r) override
     {
-        stream << "scc." << Sz(width) << " " << cc.ToStr() << " " << d.ToStr() << " ";
+        stream << "scc." << Sz(width) << " " << cc.ToStr() << ", " << d.ToStr() << ", ";
         if (cc.IsFloatingPoint()) {
-            stream << FReg::From(l).ToStr() << " " << FReg::From(r).ToStr();
+            stream << FReg::From(l).ToStr() << ", " << FReg::From(r).ToStr();
         } else {
-            stream << IReg::From(l).ToStr() << " " << IReg::From(r).ToStr();
+            stream << IReg::From(l).ToStr() << ", " << IReg::From(r).ToStr();
         }
         stream << std::endl;
     }
 
     void SccImm(Format::Width width, Format::CC cc, IReg d, IReg l, uint64_t imm) override
     {
-        stream << "scci." << Sz(width) << " " << cc.ToStr() << " ";
-        stream << d.ToStr() << " " << l.ToStr() << " " << imm << std::endl;
+        stream << "scci." << Sz(width) << " " << cc.ToStr() << ", ";
+        stream << d.ToStr() << ", " << l.ToStr() << ", " << imm << std::endl;
     }
 
     void Ret(Format::Width width, IReg dst) override
@@ -178,29 +180,29 @@ struct IsaDisasm : public IsaParser {
 
     void InstanceOf(IReg dst, IReg obj, uint16_t type) override
     {
-        stream << "iof" << " " << dst.ToStr() << " " << obj.ToStr() << " " << type << std::endl;
+        stream << "iof" << " " << dst.ToStr() << ", " << obj.ToStr() << ", " << type << std::endl;
     }
 
     void LoadTypeInfoObj(IReg dst, IReg obj) override
     {
-        stream << "load.typeinfo" << " " << dst.ToStr() << " " << obj.ToStr() << std::endl;
+        stream << "load.typeinfo" << " " << dst.ToStr() << ", " << obj.ToStr() << std::endl;
     }
 
     void InitObj(uint16_t ts) override { stream << "initobj" << " " << ts << std::endl; }
 
     void InitString(uint16_t ts, uint32_t offset) override
     {
-        stream << "initstr" << " " << ts << " " << offset << std::endl;
+        stream << "initstr" << " " << ts << ", " << offset << std::endl;
     }
 
     void ArrayLength(IReg dst, IReg arr) override
     {
-        stream << "arrlen" << " " << dst.ToStr() << " " << arr.ToStr() << std::endl;
+        stream << "arrlen" << " " << dst.ToStr() << ", " << arr.ToStr() << std::endl;
     }
 
     void ArrayIndexCheck(IReg length, IReg index) override
     {
-        stream << "aic" << " " << length.ToStr() << " " << index.ToStr() << std::endl;
+        stream << "aic" << " " << length.ToStr() << ", " << index.ToStr() << std::endl;
     }
 };
 

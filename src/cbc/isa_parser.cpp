@@ -405,7 +405,7 @@ struct IsaParserImpl {
         class RegGroup opc = opc_;
         switch (opc) {
             case Cbc::RegGroup::Ret32:    parser.Ret(Width::W32, reg); break;
-            case Cbc::RegGroup::Ret64:    parser.Ret(Width::W32, reg); break;
+            case Cbc::RegGroup::Ret64:    parser.Ret(Width::W64, reg); break;
             case Cbc::RegGroup::FRet32:   parser.FRet(Width::W32, reg); break;
             case Cbc::RegGroup::FRet64:   parser.FRet(Width::W64, reg); break;
             case Cbc::RegGroup::DivCheck: parser.DivCheck(reg); break;
