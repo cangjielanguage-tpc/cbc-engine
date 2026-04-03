@@ -6,7 +6,7 @@
     divi.64 IR1, IR1, 0x30000
     muli.64 IR1, IR1, -0x40000
     divi.64 IR1, IR1, -0x40000
-    umuli.64 IR1, IR1, 0x4000000
+    muli.64 IR1, IR1, 0x4000000
     udivi.64 IR1, IR1, 0x4000000
     ret.64 IR1
   }
