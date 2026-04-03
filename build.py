@@ -34,8 +34,13 @@ def build(args, project_dir, build_dir):
     cmake_cmd = (
         f"cmake {project_dir} "
         f"-DCMAKE_BUILD_TYPE={args.build_type.capitalize()} "
-        f"-DCMAKE_TOOLCHAIN_FILE={toolchain_path}"
+        f"-DCMAKE_TOOLCHAIN_FILE={toolchain_path} "
     )
+
+    local_googletests_path = os.environ.get("LOCAL_GOOGLETESTS_PATH")
+    if local_googletests_path is not None:
+        assert os.path.isdir(local_googletests_path)
+        cmake_cmd += f"-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST={local_googletests_path} "
 
     make_cmd = f"make -j{args.jobs}"
 
