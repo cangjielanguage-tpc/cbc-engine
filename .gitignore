@@ -5,3 +5,5 @@ build/
 .gitconfig
 .vscode
 output/
+test/resources/*.obj
+test/resources/*.cbc
