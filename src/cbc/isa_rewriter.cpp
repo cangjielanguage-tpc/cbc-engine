@@ -2,6 +2,9 @@
 #include "api/resolver.h"
 #include "cbc/emitter/emitter.h"
 #include "cbc/isa.h"
+#include "engine/symlevel/index.h"
+#include "engine/symlevel/references.h"
+#include "engine/symlevel/terms.h"
 #include "utils/assertion.h"
 #include <cstddef>
 #include <cstdint>
@@ -9,6 +12,10 @@
 #include <sys/types.h>
 
 namespace Cbc {
+
+using MethodIndex = Symlevel::Index<Symlevel::MethodReference>;
+using FieldIndex  = Symlevel::Index<Symlevel::FieldReference>;
+using TermIndex   = Symlevel::Index<Symlevel::Terms::Term>;
 
 struct IsaRewriter : public IsaParser {
     IsaRewriter(API::Resolver& resolver, MethodCode code, Emitter::Emitter& emit)
@@ -45,6 +52,12 @@ struct IsaRewriter : public IsaParser {
         auto cursor = reader.Cursor();
         return cursor - start;
     }
+
+    TermIndex Term(uint16_t index) { return TermIndex { .region = 0, .index = index }; }
+
+    MethodIndex Method(uint16_t index) { return MethodIndex { .region = 0, .index = index }; }
+
+    FieldIndex Field(uint16_t index) { return FieldIndex { .region = 0, .index = index }; }
 
     void Bcc(Format::Width width, Format::CC cc, AnyReg l, AnyReg r, int64_t delta) override
     {
@@ -109,9 +122,19 @@ struct IsaRewriter : public IsaParser {
 
     void LoadTypeInfoSig(IReg dst, uint16_t type) override { ASSERTION(false, "not implemented"); }
 
-    void NewObj(IReg dst, uint16_t type) override {}
+    void NewObj(IReg dst, uint16_t typeIdx) override {}
 
-    void CallDirect(IReg dst, uint16_t method) override {}
+    void CallDirect(IReg dst, uint16_t method) override
+    {
+        auto m   = resolver.Resolve(Method(method));
+        auto fuh = m->FUH();
+        if (fuh.has_value()) {
+            auto sym = emit.NewAddressSym(reinterpret_cast<uintptr_t>(fuh.value()));
+            emit.DirectCall(dst, sym);
+        } else {
+            ASSERTION(false, "not implemented");
+        }
+    }
 
     void CallVirtual(IReg dst, uint16_t method) override { ASSERTION(false, "not implemented"); }
 
