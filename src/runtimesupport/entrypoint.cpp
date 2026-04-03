@@ -73,14 +73,14 @@ CBC_EXPORT void interpreter_bridge_init(
     (void)size;
     (void)options;
 
-    g_CJNativeInterfaceInstance             = *rtInterf;
-    interpInterf->version                   = 1;
-    interpInterf->fiber_specific_data_size  = sizeof(Interpretation::Ectype);
-    interpInterf->iterator_size             = 0; // FIXME: remove
-    interpInterf->c2iStubStartAddr          = reinterpret_cast<uintptr_t>(&Asm::engine_c2i_call_pc_start);
-    interpInterf->c2iStubEndAddr            = reinterpret_cast<uintptr_t>(&Asm::engine_c2i_call_pc_end);
-    interpInterf->fiber_destroy             = &FiberDestroy;
-    interpInterf->fiber_start               = &FiberStart;
+    g_CJNativeInterfaceInstance            = *rtInterf;
+    interpInterf->version                  = 1;
+    interpInterf->fiber_specific_data_size = sizeof(Interpretation::Ectype);
+    interpInterf->iterator_size            = 0; // FIXME: remove
+    interpInterf->c2iStubStartAddr         = reinterpret_cast<uintptr_t>(&Asm::engine_c2i_call_pc_start);
+    interpInterf->c2iStubEndAddr           = reinterpret_cast<uintptr_t>(&Asm::engine_c2i_call_pc_end);
+    interpInterf->fiber_destroy            = &FiberDestroy;
+    interpInterf->fiber_start              = &FiberStart;
 
     Interpretation::InitializeRuntimeInterface();
 }

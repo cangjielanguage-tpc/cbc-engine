@@ -1,5 +1,5 @@
 @type default {
-  @method default.main()V {
+  @method default main [ ] I64 {
     mov.64 IR3, 0x1
     mov.64 IR1, 0x0
     mov.64 IR2, 0x7

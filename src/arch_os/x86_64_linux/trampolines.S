@@ -17,6 +17,7 @@ declare_hidden engine_universal_direct_call
 declare_hidden engine_trampolines_direct_start
 declare_hidden engine_iregs_only_c2i_call
 declare_hidden engine_i2i_call
+declare_hidden engine_i2c_call
 declare_hidden engine_i2_newobject
 declare_hidden engine_universal_direct_function_handles
 declare_hidden engine_newobject_function
@@ -118,6 +119,28 @@ engine_c2i_call_pc_end:
 engine_i2i_call:
   // jumped from .Linterpreter_call without return address to return
   call  perform_2i_call
+  jmp   .Lrestart_interpretation
+
+
+.align 16
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: target)
+// preserved: ECTYPE_REG, rbp
+// TLS_REG can be changed after context-switch
+engine_i2c_call:
+  // jumped from .Linterpreter_call without return address to return
+  mov   r10, rdi
+
+  mov   rdi, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8]
+  mov   rsi, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x10]
+  mov   rdx, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x18]
+  mov   rcx, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x20]
+  mov   r8,  [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x28]
+  mov   r9,  [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x30]
+
+  call  r10
+
+  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8], rax
+
   jmp   .Lrestart_interpretation
 
 

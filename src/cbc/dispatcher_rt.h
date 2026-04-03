@@ -1,11 +1,11 @@
 #pragma once
 
+#include "asm_trampolines.h"
 #include "decoder.h"
+#include "interpreter/interpreter.h"
 #include "isa_rt.h"
 #include "utils/assertion.h"
 #include "utils/math.h"
-
-#include "interpreter/interpreter.h"
 
 namespace Cbc {
 namespace RT {
@@ -105,7 +105,8 @@ Thunk InterpretationLoop(
         &&SCCI32L, // B4xi12rr
         &&SCCI64L, // B4xi12rr
 
-        &&DIRECT_CALL, // B3xi12
+        &&DIRECT_CALL_2I, // B3xi12
+        &&DIRECT_CALL_2C, // B3xi12
 
         &&MEMSPACE, // B1. See `MemOpcode`
     };
@@ -495,7 +496,7 @@ SCCI64L: {
     );
     NEXT;
 }
-DIRECT_CALL: {
+DIRECT_CALL_2I: {
     auto args    = B3xi12::Decode(reader);
     IReg dst     = args.xi12.imm4.IR();
     uint16_t imm = args.xi12.imm12;
@@ -511,6 +512,23 @@ DIRECT_CALL: {
     reader0 = reader; // save current pc
 
     return { fuh->i2call, reinterpret_cast<void*>(fuh) };
+}
+DIRECT_CALL_2C: {
+    auto args    = B3xi12::Decode(reader);
+    IReg dst     = args.xi12.imm4.IR();
+    uint16_t imm = args.xi12.imm12;
+    auto target  = literals->at(imm).uintptr;
+    // For proper support of fibers, the following call MUST drop the current frame.
+    // This can not be guaranteed by C++ compiler consistently, because TCO
+    // is not guaranteed and `mustcall` attribute is not supported
+    // fully by gcc/clang compilers.
+    //
+    // Instead, the following call will drop the current frame manually
+    // (outside of unit-test framework).
+
+    reader0 = reader; // save current pc
+
+    return { reinterpret_cast<void*>(&Asm::engine_i2c_call), reinterpret_cast<void*>(target) };
 }
 MEMSPACE: {
     B1::Decode(reader);

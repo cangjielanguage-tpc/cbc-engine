@@ -40,15 +40,15 @@ void Rewriter::DoBinaryFloatOp(InputFloatOpc op, CbcTypeKind tkind, FReg dst, FR
 {
     auto width = Width::FromCbcTypeKind(tkind);
     switch (Opc(op)) {
-        case Opc(InputFloatOpc::Add): e.Add(width, dst, src1, src2); break;
-        case Opc(InputFloatOpc::Sub): e.Sub(width, dst, src1, src2); break;
-        case Opc(InputFloatOpc::Mul): e.Mul(width, dst, src1, src2); break;
-        case Opc(InputFloatOpc::Div): e.Div(width, dst, src1, src2); break;
-        case Opc(InputFloatOpc::Mov): e.Mov(width, dst, src1, src2); break;
-        case Opc(InputFloatOpc::Neg): e.Neg(width, dst, src1, src2); break;
-        case Opc(InputFloatOpc::Abs): e.Abs(width, dst, src1, src2); break;
+        case Opc(InputFloatOpc::Add):  e.Add(width, dst, src1, src2); break;
+        case Opc(InputFloatOpc::Sub):  e.Sub(width, dst, src1, src2); break;
+        case Opc(InputFloatOpc::Mul):  e.Mul(width, dst, src1, src2); break;
+        case Opc(InputFloatOpc::Div):  e.Div(width, dst, src1, src2); break;
+        case Opc(InputFloatOpc::Mov):  e.Mov(width, dst, src1, src2); break;
+        case Opc(InputFloatOpc::Neg):  e.Neg(width, dst, src1, src2); break;
+        case Opc(InputFloatOpc::Abs):  e.Abs(width, dst, src1, src2); break;
         case Opc(InputFloatOpc::Sqrt): e.Sqrt(width, dst, src1, src2); break;
-        default: ASSERTION(false, "Unexpected op"); break;
+        default:                       ASSERTION(false, "Unexpected op"); break;
     }
 }
 
@@ -84,9 +84,7 @@ void Rewriter::DoBranchIfImm(InputCcOpc op, Width width, IReg l, uint64_t r, uin
     e.BccImm(CC::Value(op), width, l, r, InstructionLabel(target));
 }
 
-void Rewriter::DoJmp(uint8_t* target) {
-    e.Jmp(InstructionLabel(target));
-}
+void Rewriter::DoJmp(uint8_t* target) { e.Jmp(InstructionLabel(target)); }
 
 void Rewriter::DoCallDirect(IReg d, uint16_t methodIndex)
 {
@@ -96,10 +94,19 @@ void Rewriter::DoCallDirect(IReg d, uint16_t methodIndex)
     };
 
     auto* method = resolver->Resolve(index);
-    auto* fuh    = method->FUH().value();
 
-    auto sym = e.NewAddressSym(reinterpret_cast<uintptr_t>(fuh));
-    e.DirectCall(d, sym);
+    auto fuh = method->FUH();
+    if (fuh.has_value()) {
+        // i2i call
+        auto sym = e.NewAddressSym(reinterpret_cast<uintptr_t>(fuh.value()));
+        e.DirectCall2i(d, sym);
+    } else {
+        // i2c call
+        void* target = method->TargetAddr();
+        ASSERT(target != nullptr);
+        auto sym = e.NewAddressSym(reinterpret_cast<uintptr_t>(target));
+        e.DirectCall2c(d, sym);
+    }
 }
 
 void Rewriter::BeforeInterpretOne(uint8_t* position) { e.Bind(InstructionLabel(position)); }
