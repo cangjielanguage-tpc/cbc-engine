@@ -61,7 +61,7 @@ std::optional<Term> Term::ParseAndResolve(Engine::Session& session, IO::FileId f
         }
 
         default: {
-            ASSERTION(false, "not implemented");
+            FATAL("not implemented");
             return std::nullopt;
         }
     }

@@ -158,7 +158,7 @@ constexpr CbcTypeKind GetFloatType(uint8_t x)
         case W64: {
             return CbcTypeKind::Value::F64;
         }
-        default: ASSERTION(false, "unknown encoding");
+        default: FATAL("unknown encoding");
     }
 }
 
@@ -414,7 +414,7 @@ template <> void Parser::Decode<InputOpcode::Ret64F>()
 static void UnexpectedOpcode(uint32_t opcode)
 {
     // FIXME: verbose error reporting.
-    ASSERTION(false, "unexpected opcode");
+    FATAL("unexpected opcode");
 }
 
 template <InputOpcode opcode> void Parser::Decode() { UnexpectedOpcode(static_cast<uint32_t>(opcode)); }

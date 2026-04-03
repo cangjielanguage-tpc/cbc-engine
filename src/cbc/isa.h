@@ -1015,7 +1015,7 @@ struct C1dM {
             case Fmt(M::M32, 0): return Continue { d32.imm, 0 };
             case Fmt(M::M32, 1): return Continue { d32.imm, 1 };
 
-            default: ASSERTION(false, "Unexpected format"); return Continue { 0, 0 };
+            default: FATAL("Unexpected format"); return Continue { 0, 0 };
         }
     }
 };

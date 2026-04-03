@@ -10,13 +10,13 @@ namespace Impl {
 
 Type* ResolverImpl::Resolve(Symlevel::Index<Type> index)
 {
-    ASSERTION(false, "not implemented yet");
+    FATAL("not implemented yet");
     return nullptr;
 }
 
 Term* ResolverImpl::Resolve(Symlevel::Index<Symlevel::Terms::Term> index)
 {
-    ASSERTION(false, "not implemented yet");
+    FATAL("not implemented yet");
     return nullptr;
 }
 
@@ -41,25 +41,25 @@ Method* ResolverImpl::Resolve(Symlevel::Index<Symlevel::MethodReference> index)
 
 InstanceField* ResolverImpl::Resolve(Symlevel::Index<InstanceField> index)
 {
-    ASSERTION(false, "not implemented yet");
+    FATAL("not implemented yet");
     return nullptr;
 }
 
 StaticField* ResolverImpl::Resolve(Symlevel::Index<StaticField> index)
 {
-    ASSERTION(false, "not implemented yet");
+    FATAL("not implemented yet");
     return nullptr;
 }
 
 std::optional<Type*> ResolverImpl::Resolve(Term* term)
 {
-    ASSERTION(false, "not implemented yet");
+    FATAL("not implemented yet");
     return nullptr;
 }
 
 std::optional<Type*> ResolverImpl::TypeOf(Term* term)
 {
-    ASSERTION(false, "not implemented yet");
+    FATAL("not implemented yet");
     return nullptr;
 }
 
@@ -70,13 +70,13 @@ ResolverImpl::~ResolverImpl() = default;
 
 Term* MethodImpl::ABISignature()
 {
-    ASSERTION(false, "not implemented yet");
+    FATAL("not implemented yet");
     return nullptr;
 }
 
 std::optional<Type*> MethodImpl::RefType()
 {
-    ASSERTION(false, "not implemented yet");
+    FATAL("not implemented yet");
     return nullptr;
 }
 
@@ -88,13 +88,13 @@ std::optional<Interpretation::FunctionHandle*> MethodImpl::FUH()
 
 MethodFlags MethodImpl::Flags()
 {
-    ASSERTION(false, "not implemented yet");
+    FATAL("not implemented yet");
     return MethodFlags();
 }
 
 std::string_view MethodImpl::FullName()
 {
-    ASSERTION(false, "not implemented yet");
+    FATAL("not implemented yet");
     return "<empty>";
 }
 

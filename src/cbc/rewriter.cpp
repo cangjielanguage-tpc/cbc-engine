@@ -4,11 +4,11 @@
 
 namespace Cbc {
 
-void Rewriter::DoExtend(Sign sign, IReg dst, IReg src, uint64_t imm) { ASSERTION(false, "Not implmeneted"); }
+void Rewriter::DoExtend(Sign sign, IReg dst, IReg src, uint64_t imm) { FATAL("Not implmeneted"); }
 
 void Rewriter::DoBFX(Sign sign, Width res_width, Width arg_width, IReg dst, IReg src, uint64_t imm)
 {
-    ASSERTION(false, "Not implmeneted");
+    FATAL("Not implmeneted");
 }
 
 void Rewriter::DoMov(IReg dst, IReg src, bool isReference)
@@ -20,11 +20,11 @@ void Rewriter::DoMov(IReg dst, IReg src, bool isReference)
     }
 }
 
-void Rewriter::DoMovVST(IReg dst, IReg src) { ASSERTION(false, "Not implmeneted"); }
+void Rewriter::DoMovVST(IReg dst, IReg src) { FATAL("Not implmeneted"); }
 
 void Rewriter::DoMovImm(Width width, IReg dst, uint64_t imm) { e.MovImm(width, dst, imm); }
 
-void Rewriter::DoINeg(Width width, IReg dst, IReg src) { ASSERTION(false, "Not implmeneted"); }
+void Rewriter::DoINeg(Width width, IReg dst, IReg src) { FATAL("Not implmeneted"); }
 
 void Rewriter::DoBinary(InputCommonOpc op, Width w, IReg dst, IReg src1, IReg src2)
 {
@@ -48,13 +48,13 @@ void Rewriter::DoBinaryFloatOp(InputFloatOpc op, CbcTypeKind tkind, FReg dst, FR
         case Opc(InputFloatOpc::Neg): e.Neg(width, dst, src1, src2); break;
         case Opc(InputFloatOpc::Abs): e.Abs(width, dst, src1, src2); break;
         case Opc(InputFloatOpc::Sqrt): e.Sqrt(width, dst, src1, src2); break;
-        default: ASSERTION(false, "Unexpected op"); break;
+        default: FATAL("Unexpected op"); break;
     }
 }
 
 void Rewriter::DoBinaryFloatOp(InputFloatOpc op, CbcTypeKind tkind, FReg dst, FReg src1, uint64_t src2)
 {
-    ASSERTION(false, "Not implmeneted");
+    FATAL("Not implmeneted");
 }
 
 void Rewriter::DoReturn(Width width, IReg dst)
@@ -76,7 +76,7 @@ void Rewriter::DoBranchIf(InputCcOpc op, Width width, IReg l, IReg r, uint8_t* t
 
 void Rewriter::DoBranchIf(InputCcOpc op, Width width, FReg l, FReg r, uint8_t* target)
 {
-    ASSERTION(false, "Not implemented");
+    FATAL("Not implemented");
 }
 
 void Rewriter::DoBranchIfImm(InputCcOpc op, Width width, IReg l, uint64_t r, uint8_t* target)

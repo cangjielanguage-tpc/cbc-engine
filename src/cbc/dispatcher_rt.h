@@ -184,7 +184,7 @@ Thunk InterpretationLoop(
 
 // -- Main opcode table --
 HALT: {
-    ASSERTION(false, "halt");
+    FATAL("halt");
     return {};
 }
 RET: {
@@ -521,7 +521,7 @@ MEMSPACE: {
     // -- MemSpace opcode table --
 
 MEM_HALT: {
-    ASSERTION(false, "halt");
+    FATAL("halt");
     return {};
 }
 
