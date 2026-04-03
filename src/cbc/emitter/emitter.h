@@ -156,7 +156,8 @@ public:
     void SCC(CC cc, Width width, IReg d, FReg l, FReg r);
     void SCCImm(CC cc, Width width, IReg d, IReg l, uint64_t imm);
 
-    void DirectCall(IReg d, Symbol fuh);
+    void DirectCall2i(IReg d, Symbol fuh);
+    void DirectCall2c(IReg d, Symbol target);
 
     MemSpace OpenMemSpace();
 

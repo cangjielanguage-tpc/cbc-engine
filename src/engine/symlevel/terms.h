@@ -47,6 +47,7 @@ public:
         // builtin types end
 
         TYPE,
+        AOT_TYPE,
         TYPE_VAR,
         GENERIC_METHOD,
     };
@@ -84,23 +85,25 @@ struct TermData;
 
 class LocalTerm {
 public:
-    friend class Term;
     Term Subterm(uint32_t i) const;
 
     // TODO: implement
     // GlobalTerm Publish(Engine::Session& session);
 
 private:
+    friend class Term;
+
     LocalTerm(TermData* data) : data(data) {};
     TermData* data;
 };
 
 class GlobalTerm {
 public:
-    friend class Term;
     GlobalTerm Subterm(uint32_t i) const;
 
 private:
+    friend class Term;
+
     GlobalTerm(TermData* data) : data(data) {};
     TermData* data;
 };

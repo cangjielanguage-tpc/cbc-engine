@@ -631,11 +631,18 @@ void Emitter::SCCImm(CC cc, Width width, IReg d, IReg l, uint64_t imm)
     }
 }
 
-void Emitter::DirectCall(IReg d, Symbol fuh)
+void Emitter::DirectCall2i(IReg d, Symbol fuh)
 {
-    segment.AddW8(RT::Opcode::DIRECT_CALL);
+    segment.AddW8(RT::Opcode::DIRECT_CALL_2I);
     Imm4 i4(d);
     AddFixup(std::make_unique<Literal12Fixup>(i4, fuh));
+}
+
+void Emitter::DirectCall2c(IReg d, Symbol target)
+{
+    segment.AddW8(RT::Opcode::DIRECT_CALL_2C);
+    Imm4 i4(d);
+    AddFixup(std::make_unique<Literal12Fixup>(i4, target));
 }
 
 } // namespace Emitter

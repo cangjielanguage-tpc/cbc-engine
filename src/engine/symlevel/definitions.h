@@ -31,27 +31,28 @@ class TypeDefinition {
 public:
     static TypeDefinition Parse(Engine::Session& session, IO::FileId fileId, Offset<TypeDefinition> offset);
     static TypeDefinition Resolve(Engine::Session& session, Engine::Identifier<TypeDefinition> identifier);
+    static String ParseName(Engine::Session& session, IO::FileId fileId, Offset<TypeDefinition> offset);
 
-    inline const Offset<String> Name() const { return name; }
+    inline Offset<String> NameOffset() const { return nameOffset; }
 
-    Engine::Identifier<TypeDefinition> GetIdentifier() const { return identifier; }
+    inline Engine::Identifier<TypeDefinition> GetIdentifier() const { return identifier; }
 
-    const MethodIndex& GetMethodIndex() const { return methods; }
+    inline const MethodIndex& GetMethodIndex() const { return methods; }
 
-    const FieldIndex& GetFieldIndex() const { return fields; }
+    inline const FieldIndex& GetFieldIndex() const { return fields; }
 
 private:
     TypeDefinition(
-        Engine::Identifier<TypeDefinition> identifier, Offset<String> name, MethodIndex methods, FieldIndex fields
+        Engine::Identifier<TypeDefinition> identifier, Offset<String> nameOffset, MethodIndex methods, FieldIndex fields
     )
         : identifier(identifier),
-          name(name),
+          nameOffset(nameOffset),
           methods(std::move(methods)),
           fields(std::move(fields))
     {}
 
     Engine::Identifier<TypeDefinition> identifier;
-    Offset<String> name;
+    Offset<String> nameOffset;
     MethodIndex methods;
     FieldIndex fields;
 };
@@ -60,26 +61,27 @@ class FieldDefinition {
 public:
     static FieldDefinition Parse(Engine::Session& session, IO::FileId fileId, Offset<FieldDefinition> offset);
     static FieldDefinition Resolve(Engine::Session& session, Engine::Identifier<FieldDefinition> identifier);
+    static String ParseName(Engine::Session& session, IO::FileId fileId, Offset<FieldDefinition> offset);
 
-    inline const Offset<String> Name() const { return name; }
+    inline Offset<String> NameOffset() const { return nameOffset; }
 
 private:
     FieldDefinition(
         Engine::Identifier<FieldDefinition> identifier,
-        Offset<String> name,
+        Offset<String> nameOffset,
         uint32_t idx,
         uint32_t declIdx,
         uint32_t typeIdx
     )
         : identifier(identifier),
-          name(name),
+          nameOffset(nameOffset),
           idx(idx),
           declIdx(declIdx),
           typeIdx(typeIdx)
     {}
 
     Engine::Identifier<FieldDefinition> identifier;
-    Offset<String> name;
+    Offset<String> nameOffset;
     uint32_t idx;
     uint32_t declIdx;
     uint32_t typeIdx;
@@ -89,8 +91,9 @@ class MethodDefinition {
 public:
     static MethodDefinition Parse(Engine::Session& session, IO::FileId fileId, Offset<MethodDefinition> offset);
     static MethodDefinition Resolve(Engine::Session& session, Engine::Identifier<MethodDefinition> identifier);
+    static String ParseName(Engine::Session& session, IO::FileId fileId, Offset<MethodDefinition> offset);
 
-    inline const Offset<String> Name() const { return name; }
+    inline Offset<String> NameOffset() const { return nameOffset; }
 
     inline uint32_t GetSigIdx() const
     {
@@ -98,7 +101,7 @@ public:
         return sigIdx;
     }
 
-    inline Offset<Code> GetCodeOffs() const { return *codeOffs; }
+    inline Offset<Code> GetCodeOffset() const { return *codeOffs; }
 
     inline IO::FileId FileId() const { return identifier.GetFileId(); }
 
@@ -107,18 +110,18 @@ public:
 private:
     MethodDefinition(
         Engine::Identifier<MethodDefinition> identifier,
-        Offset<String> name,
+        Offset<String> nameOffset,
         uint32_t sigIdx,
         std::optional<Offset<Code>> codeOffs
     )
         : identifier(identifier),
-          name(name),
+          nameOffset(nameOffset),
           sigIdx(sigIdx),
           codeOffs(codeOffs)
     {}
 
     Engine::Identifier<MethodDefinition> identifier;
-    Offset<String> name;
+    Offset<String> nameOffset;
     uint32_t sigIdx;
     std::optional<Offset<Code>> codeOffs;
 };

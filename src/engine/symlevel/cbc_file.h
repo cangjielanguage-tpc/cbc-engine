@@ -10,7 +10,6 @@ namespace Symlevel {
 class TypeDefinition;
 class MethodDefinition;
 class FieldDefinition;
-class TermVal;
 
 // refs
 class MethodReference;
@@ -20,19 +19,21 @@ class FieldReference;
 class TypeIndex;
 class RegionData;
 
+// aot tables
+class DirectCallAotTable;
+class VirtualCallAotTable;
+class InterfaceCallAotTable;
+class StaticFieldAotTable;
+class InstanceFieldAotTable;
+
 // misc
 class Code;
 class String;
 
 class CbcFile {
-private:
-    struct Impl;
-    friend struct Impl;
-
 public:
     static CbcFile Create(IO::FileId fileId, IO::RandomAccessFile& file, std::string_view name);
 
-    CbcFile(std::unique_ptr<Impl> impl);
     CbcFile(CbcFile&& other);
     ~CbcFile();
 
@@ -45,13 +46,25 @@ public:
     uint32_t GetTermSectionOffs() const;
     uint32_t GetMethodRefSectionOffs() const;
     uint32_t GetFieldRefSectionOffs() const;
+    uint32_t GetAotDataSectionOffs() const;
+
     String GetName() const;
     String GetPath() const;
 
     const RegionData& GetRegionData() const;
     const TypeIndex& GetTypeIndex() const;
 
+    const DirectCallAotTable& GetDirectCallAotTable() const;
+    const VirtualCallAotTable& GetVirtualCallAotTable() const;
+    const InterfaceCallAotTable& GetInterfaceCallAotTable() const;
+    const StaticFieldAotTable& GetStaticFieldAotTable() const;
+    const InstanceFieldAotTable& GetInstanceFieldAotTable() const;
+
 private:
+    struct Impl;
+    friend struct Impl;
+
+    CbcFile(std::unique_ptr<Impl> impl);
     std::unique_ptr<Impl> impl;
 };
 

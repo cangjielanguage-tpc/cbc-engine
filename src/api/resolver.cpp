@@ -1,5 +1,5 @@
 #include "resolver.h"
-#include "impl/api_impl.h"
+#include "impl/resolver_impl.h"
 
 namespace API {
 

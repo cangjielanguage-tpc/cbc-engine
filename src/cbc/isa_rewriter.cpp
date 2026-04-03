@@ -130,9 +130,12 @@ struct IsaRewriter : public IsaParser {
         auto fuh = m->FUH();
         if (fuh.has_value()) {
             auto sym = emit.NewAddressSym(reinterpret_cast<uintptr_t>(fuh.value()));
-            emit.DirectCall(dst, sym);
+            emit.DirectCall2i(dst, sym);
         } else {
-            ASSERTION(false, "not implemented");
+            void* target = m->TargetAddr();
+            ASSERT(target != nullptr);
+            auto sym = emit.NewAddressSym(reinterpret_cast<uintptr_t>(target));
+            emit.DirectCall2c(dst, sym);
         }
     }
 
