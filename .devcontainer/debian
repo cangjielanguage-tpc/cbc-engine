@@ -37,3 +37,5 @@ ENV PATH="${LLVM_BIN}:${PATH}"
 
 ENV CC=${LLVM_BIN}/clang
 ENV CXX=${LLVM_BIN}/clang++
+
+ENV LOCAL_GOOGLETESTS_PATH="/third-party/googletest-1.14.0/"
