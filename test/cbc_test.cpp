@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
-#include "api/resolver.h"
 #include "cbc/formater_rt.h"
+#include "cbc/isa_disasm.h"
 #include "engine/engine.h"
 #include "engine/symlevel/io/byte_array_random_access_file.h"
 #include "engine/symlevel/reader.h"
@@ -16,6 +16,7 @@ static LimitedHeap<16384> heap;
 class CbcTest : public testing::Test {
     void SetUp() override
     {
+        Cbc::EnableRawDisasm();
         InitializeMockInterpreter();
         heap.Reset();
     }

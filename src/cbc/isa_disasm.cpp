@@ -231,6 +231,12 @@ struct IsaDisasm : public IsaParser {
     }
 };
 
+static bool g_IsRawDisasmEnabled;
+
+void EnableRawDisasm() { g_IsRawDisasmEnabled = true; }
+
+bool IsRawDisasmEnabled() { return g_IsRawDisasmEnabled; }
+
 std::unique_ptr<IsaParser> RawDisasm(std::ostream& stream, Cbc::MethodCode code)
 {
     return std::make_unique<IsaDisasm>(stream, code);

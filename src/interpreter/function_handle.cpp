@@ -66,8 +66,10 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, Dynam
 
     auto offset = def.GetCodeOffs();
     auto code   = Symlevel::Reader::Read(session, def.FileId(), offset);
-    auto disasm = Cbc::RawDisasm(std::cerr, code);
-    disasm->ParseAll();
+
+    if (Cbc::IsRawDisasmEnabled()) {
+        Cbc::RawDisasm(std::cerr, code)->ParseAll();
+    }
 
     auto resolver = API::Resolver::Create(session, fuh->methodDef);
     Cbc::Emitter::Emitter emitter;
