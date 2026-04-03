@@ -228,68 +228,6 @@ private:
 
 namespace Format {
 
-class Bits;
-constexpr Bits mask_bits(uint32_t b);
-
-class Bits {
-public:
-    constexpr Bits(const uint32_t value) : _value(value) {}
-
-    constexpr uint32_t Raw() const { return _value; }
-
-    constexpr Bits operator|(Bits other) const
-    {
-        auto lhs = this->_value;
-        auto rhs = other._value;
-        ASSERTION((lhs & rhs) == 0, "Expected to be disjoint");
-        return lhs | rhs;
-    }
-
-    constexpr Bits operator&(Bits other) const
-    {
-        auto lhs = this->_value;
-        auto rhs = other._value;
-        return lhs & rhs;
-    }
-
-    constexpr bool operator==(Bits other) const
-    {
-        auto lhs = this->_value;
-        auto rhs = other._value;
-        return lhs == rhs;
-    }
-
-    inline static Bits P(Bits bits, uint32_t freeBits) { return bits.Shift(freeBits); }
-
-    inline static Bits S(Bits bits, uint32_t n) { return bits.In(n); }
-
-    inline static Bits E(Bits bits, uint32_t n) { return bits.Out(n); }
-
-    constexpr Bits Out(uint32_t n) const
-    {
-        ASSERTION((*this & mask_bits(n)).IsEmpty(), "Low `n` bits are non-empty");
-        return *this;
-    }
-
-    constexpr Bits In(uint32_t n) const
-    {
-        ASSERTION((*this & mask_bits(n)) == *this, "Has bits set outside of low `n` bits");
-        return *this;
-    }
-
-    constexpr Bits Shift(uint32_t n) const
-    {
-        auto res = _value << n;
-        ASSERTION(Bits(res >> n) == *this, "Shift overflowed");
-        return res;
-    }
-
-    constexpr bool IsEmpty() const { return _value == 0; }
-
-private:
-    uint32_t _value;
-};
-
 class Sign {
 public:
     enum Value : uint32_t {
@@ -300,8 +238,6 @@ public:
     constexpr Sign(const Value raw) : _value(raw) {}
 
     constexpr operator Value() const { return _value; }
-
-    constexpr Bits ToBits() const { return _value; }
 
 private:
     Value _value;
@@ -337,8 +273,6 @@ public:
     constexpr CbcTypeKind(const Value raw) : _value(raw) {}
 
     constexpr operator Value() const { return _value; }
-
-    constexpr Bits ToBits() const { return _value; }
 
 private:
     Value _value;
@@ -380,8 +314,6 @@ public:
 
     constexpr Common(const Value raw) : _value(raw) {}
 
-    constexpr Common(const Bits bits) : _value(Value(bits.Raw())) {}
-
     constexpr operator Value() const { return _value; }
 
     constexpr static Common From(uint8_t value)
@@ -389,8 +321,6 @@ public:
         ASSERT(value <= LAST);
         return Value(value);
     }
-
-    constexpr Bits ToBits() const { return _value; }
 
     constexpr std::string_view ToStr()
     {
@@ -442,13 +372,9 @@ public:
 
     constexpr FloatOperations(const Value raw) : _value(raw) {}
 
-    constexpr FloatOperations(const Bits bits) : _value(Value(bits.Raw())) {}
-
     constexpr FloatOperations(const uint32_t bits) : _value(Value(bits)) {}
 
     constexpr operator Value() const { return _value; }
-
-    constexpr Bits ToBits() const { return _value; }
 
     constexpr bool IsBasic() { return (_value >> 2u) == 0; }
 
@@ -467,27 +393,6 @@ private:
     Value _value;
 };
 
-class OP7A {
-public:
-    enum Value : uint32_t {
-        COMMON,
-        CHECKED,
-        SETIF,
-        FLOAT
-    };
-
-    constexpr OP7A(const Value raw) : _value(raw) {}
-
-    constexpr OP7A(const Bits bits) : _value(Value(bits.Raw())) {}
-
-    constexpr operator Value() const { return _value; }
-
-    constexpr Bits ToBits() const { return _value; }
-
-private:
-    Value _value;
-};
-
 class Width {
 public:
     enum Value : uint32_t {
@@ -501,23 +406,9 @@ public:
 
     constexpr operator Value() const { return _value; }
 
-    constexpr Bits ToBits() const { return _value; }
-
     constexpr uint32_t NBytes() const { return 1 << _value; }
 
     constexpr uint32_t NBits() const { return NBytes() * 8; }
-
-    constexpr Bits Common() const
-    {
-        ASSERTION(_value == W32 || _value == W64, "TODO: format description");
-        return _value & 1;
-    }
-
-    constexpr Bits FloatCast() const
-    {
-        ASSERTION(_value == W16 || _value == W64, "TODO: format description");
-        return (_value & 0b10) >> 1;
-    }
 
     constexpr std::string_view ToStr()
     {
@@ -584,8 +475,6 @@ public:
 
     constexpr static CC From(uint8_t value) { return Value(value); }
 
-    constexpr Bits ToBits() const { return _value; }
-
     constexpr bool IsRef() const { return _value == REQ || _value == RNE; }
 
     constexpr bool IsFloatingPoint() const { return _value >= FEQ && _value <= FNGE; }
@@ -607,24 +496,6 @@ public:
 
 private:
     Value _value;
-};
-
-class OPC {
-public:
-    constexpr OPC(Sign sign, Bits b) : bits(Bits(sign).In(1).Shift(4) | b.In(4)) {}
-
-    constexpr OPC(Common op, Bits b) : bits(op.ToBits().In(4).Shift(1) | b.In(1)) {}
-
-    constexpr OPC(Common op, Width w) : OPC(op, w.Common()) {}
-
-    constexpr OPC(Common op, Sign s) : OPC(op, Bits(s)) {}
-
-    constexpr operator Bits() const { return bits; }
-
-    constexpr Bits ToBits() const { return *this; }
-
-private:
-    Bits bits;
 };
 
 class StoreAccessKind {
@@ -652,8 +523,6 @@ public:
     constexpr StoreAccessKind(const Value raw) : _value(raw) {}
 
     constexpr operator Value() const { return _value; }
-
-    constexpr Bits ToBits() const { return _value; }
 
     constexpr bool IsFloat() const { return _value == ST_F32 || _value == ST_F64; }
 
@@ -706,8 +575,6 @@ public:
 
     constexpr operator Value() const { return _value; }
 
-    constexpr Bits ToBits() const { return _value; }
-
     constexpr bool IsFloat() const { return _value == LD_F32 || _value == LD_F64; }
 
     constexpr std::string_view ToStr()
@@ -724,12 +591,6 @@ public:
 private:
     Value _value;
 };
-
-constexpr Bits mask_bits(uint32_t b)
-{
-    ASSERTION(1 <= b && b <= 32, "Shift overflow");
-    return 0xffffffff >> b;
-}
 
 /// 4 bit; register
 class Reg {

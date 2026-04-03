@@ -28,7 +28,6 @@ public:
     using Width  = Format::Width;
     using CC     = Format::CC;
     using Common = Format::Common;
-    using Bits   = Format::Bits;
 
     using FloatOperations = Format::FloatOperations;
     using LoadAccessKind  = Format::LoadAccessKind;
