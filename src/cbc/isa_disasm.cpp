@@ -1,6 +1,5 @@
 #include "cbc/decoder.h"
 #include "cbc/isa.h"
-#include "cbc/parser.h"
 #include "isa_parser.h"
 #include <cmath>
 #include <cstdint>

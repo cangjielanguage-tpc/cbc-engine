@@ -1,6 +1,5 @@
 #include <cstdint>
 
-#include "cbc/parser.h"
 #include "isa.h"
 #include "isa_opcodes.h"
 #include "isa_parser.h"
