@@ -21,20 +21,21 @@
     #define CBC_ENGINE_FUNC_NAME __func__
 #endif
     #include <stdio.h>
-    inline void assertion_failure_report(const char* file, int line, const char* func, const char* msg)
-    {
-        fprintf(stderr, "%s:%d: assertion failed in %s: %s\n", file, line, func, msg);
-        fflush(stderr);
-    }
-    #define ASSERT(...) \
-        do { \
-            if (__VA_ARGS__) { \
-            } \
-            else { \
-                fprintf(stderr, "%s:%d: assertion failed in %s: %s\n", __FILE__, __LINE__, CBC_ENGINE_FUNC_NAME, #__VA_ARGS__); \
-                fflush(stderr); \
-                ASSERTION_TRAP(); \
-            } \
+    #define ASSERT(...)                                                                                                \
+        do {                                                                                                           \
+            if (__VA_ARGS__) {                                                                                         \
+            } else {                                                                                                   \
+                fprintf(                                                                                               \
+                    stderr,                                                                                            \
+                    "%s:%d: assertion failed in %s: %s\n",                                                             \
+                    __FILE__,                                                                                          \
+                    __LINE__,                                                                                          \
+                    CBC_ENGINE_FUNC_NAME,                                                                              \
+                    #__VA_ARGS__                                                                                       \
+                );                                                                                                     \
+                fflush(stderr);                                                                                        \
+                ASSERTION_TRAP();                                                                                      \
+            }                                                                                                          \
         } while (false)
     #define ASSERTION(cond, ...) \
         do { \

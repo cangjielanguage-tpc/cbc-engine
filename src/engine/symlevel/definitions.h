@@ -97,7 +97,7 @@ public:
 
     inline uint32_t GetSigIdx() const
     {
-        ASSERTION(false, "implement terms"); // FIXME
+        FATAL("implement terms"); // FIXME
         return sigIdx;
     }
 

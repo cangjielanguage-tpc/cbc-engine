@@ -184,7 +184,7 @@ public:
             case CC::UGE:    return Compare<CC::UGE, width>(ectype->GetPrimitive(l), r);
             case CC::TESTZ:  return Compare<CC::TESTZ, width>(ectype->GetPrimitive(l), r);
             case CC::TESTNZ: return Compare<CC::TESTNZ, width>(ectype->GetPrimitive(l), r);
-            default:         ASSERTION(false, "Unreachable"); return false;
+            default:         FATAL("Unreachable"); return false;
         }
     }
 
@@ -193,7 +193,7 @@ public:
         switch (cc) {
             case CC::REQ: return Compare<CC::REQ, width>(ectype->GetReference(l), r);
             case CC::RNE: return Compare<CC::RNE, width>(ectype->GetReference(l), r);
-            default:      ASSERTION(false, "Unreachable"); return false;
+            default:      FATAL("Unreachable"); return false;
         }
     }
 
@@ -211,7 +211,7 @@ public:
             case CC::FNGE: return Compare<CC::FNGE, width>(ectype->GetPrimitive(l), r);
             case CC::FLT:  return Compare<CC::FLT, width>(ectype->GetPrimitive(l), r);
             case CC::FNLT: return Compare<CC::FNLT, width>(ectype->GetPrimitive(l), r);
-            default:       ASSERTION(false, "Unreachable"); return false;
+            default:       FATAL("Unreachable"); return false;
         }
     }
 
