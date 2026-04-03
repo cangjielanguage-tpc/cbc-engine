@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <sys/types.h>
 
 namespace Cbc {
 
@@ -13,18 +14,22 @@ struct IsaRewriter : public IsaParser {
     IsaRewriter(API::Resolver& resolver, MethodCode code, Emitter::Emitter& emit)
         : IsaParser(code),
           resolver(resolver),
-          emit(emit)
+          emit(emit),
+          startPosition(0),
+          bytecodeSize(reader.End() - reader.Start())
     {}
 
     API::Resolver& resolver;
     Emitter::Emitter& emit;
-    size_t startPosition;
-    std::unordered_map<uint8_t*, Emitter::Label> instructionLabel;
+    size_t bytecodeSize;
 
-    Emitter::Label InstructionLabel(uint8_t* position)
+    size_t startPosition;
+    std::unordered_map<ssize_t, Emitter::Label> instructionLabel;
+
+    Emitter::Label InstructionLabel(ssize_t position)
     {
-        ASSERTION(position <= reader.End(), "out of bounds");
-        ASSERTION(position >= reader.Start(), "out of bounds");
+        ASSERTION(position >= 0, "label position is negative");
+        ASSERTION(position < bytecodeSize, "label position is negative");
         if (auto existing = instructionLabel.find(position); existing != instructionLabel.end()) {
             return existing->second;
         } else {
@@ -34,7 +39,12 @@ struct IsaRewriter : public IsaParser {
         }
     }
 
-    uint8_t* Pos() { return reader.Cursor(); }
+    ssize_t Pos()
+    {
+        auto start  = reader.Start();
+        auto cursor = reader.Cursor();
+        return cursor - start;
+    }
 
     void Bcc(Format::Width width, Format::CC cc, AnyReg l, AnyReg r, int64_t delta) override
     {
@@ -159,7 +169,7 @@ struct IsaRewriter : public IsaParser {
     {
         auto position = reader.Cursor() - reader.Start();
         startPosition = position;
-        emit.Bind(InstructionLabel(reader.Cursor()));
+        emit.Bind(InstructionLabel(Pos()));
         IsaParser::ParseOne();
     }
 };
