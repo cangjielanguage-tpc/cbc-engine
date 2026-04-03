@@ -4,9 +4,11 @@
 
 #include "cbc/decoder.h"
 #include "cbc/isa.h"
-#include "cbc/parser.h"
+#include "engine/symlevel/code.h"
 
 namespace Cbc {
+
+using MethodCode = Symlevel::Code;
 
 class IsaParser {
 public:

@@ -28,12 +28,12 @@ void Rewriter::DoINeg(Width width, IReg dst, IReg src) { ASSERTION(false, "Not i
 
 void Rewriter::DoBinary(InputCommonOpc op, Width w, IReg dst, IReg src1, IReg src2)
 {
-    e.Binary(op, w, dst, src1, src2);
+    // e.Binary(op, w, dst, src1, src2);
 }
 
 void Rewriter::DoBinaryImm(InputCommonOpc op, Width w, IReg dst, IReg src1, uint64_t src2)
 {
-    e.BinaryImm(op, w, dst, src1, src2);
+    // e.BinaryImm(op, w, dst, src1, src2);
 }
 
 void Rewriter::DoBinaryFloatOp(InputFloatOpc op, CbcTypeKind tkind, FReg dst, FReg src1, FReg src2)
