@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <gtest/gtest.h>
 
 #include "cbc/formater_rt.h"
@@ -125,3 +126,93 @@ TEST_ASM(CbcTest, ArithSpecialized2)
     auto res = Interpret(OpenAndRewrite("arith_specialized2", "arith_specialized2.asm")->code, U64(0), U64(0));
     ASSERT_EQ(res.u64, 0x7000000000000000 ^ 0xff00);
 }
+
+#define SIMPLE_ARITH_VALUES(X)                                                                                         \
+    X(0x1)                                                                                                             \
+    X(0x10)                                                                                                            \
+    X(0x100)                                                                                                           \
+    X(0x1020)                                                                                                          \
+    X(0x10000)                                                                                                         \
+    X(0x100200)                                                                                                        \
+    X(0x1000020)                                                                                                       \
+    X(0x7000000000000000)                                                                                              \
+    X(0x7000000010000001)                                                                                              \
+    X(0xf000100000000001)                                                                                              \
+    X(0xf000000100000001)
+
+static uint64_t Add(uint64_t lhs, uint64_t rhs) { return lhs + rhs; }
+
+static uint64_t Sub(uint64_t lhs, uint64_t rhs) { return lhs - rhs; }
+
+static uint64_t Mul(uint64_t lhs, uint64_t rhs) { return lhs * rhs; }
+
+static uint64_t And(uint64_t lhs, uint64_t rhs) { return lhs & rhs; }
+
+static uint64_t Or(uint64_t lhs, uint64_t rhs) { return lhs | rhs; }
+
+static uint64_t Xor(uint64_t lhs, uint64_t rhs) { return lhs ^ rhs; }
+
+static uint64_t UDiv(uint64_t lhs, uint64_t rhs) { return lhs / rhs; }
+
+static uint64_t Div(uint64_t lhs, uint64_t rhs)
+{
+    auto left  = static_cast<int64_t>(lhs);
+    auto right = static_cast<int64_t>(rhs);
+    return static_cast<uint64_t>(left / right);
+}
+
+static uint64_t Rem(uint64_t lhs, uint64_t rhs)
+{
+    auto left  = static_cast<int64_t>(lhs);
+    auto right = static_cast<int64_t>(rhs);
+    return static_cast<uint64_t>(left % right);
+}
+
+static uint64_t URem(uint64_t lhs, uint64_t rhs) { return lhs % rhs; }
+
+static uint64_t LSL(uint64_t lhs, uint64_t rhs) { return lhs << (rhs & 0x3f); }
+
+static uint64_t LSR(uint64_t lhs, uint64_t rhs) { return lhs >> (rhs & 0x3f); }
+
+static uint64_t ASR(uint64_t lhs, uint64_t rhs)
+{
+    auto left = static_cast<int64_t>(lhs);
+    return static_cast<int64_t>(left >> (rhs & 0x3f));
+}
+
+#define SIMPLE_ARITH_SPECIALIZED_CASE(opc, left, right)                                                                \
+    {                                                                                                                  \
+        auto res = Interpret(code, U64(left), U64(0));                                                                 \
+        EXPECT_EQ(res.u64, (opc)((left), (right)));                                                                    \
+    }
+
+#define SIMPLE_ARITH_SPECIALIZED(opc, value)                                                                           \
+    TEST_ASM(CbcTest, SimpleArithSpecialized##opc##_##value)                                                           \
+    {                                                                                                                  \
+        auto code = OpenAndRewrite("arith", "simple_arith_specialized_" #opc "_" #value ".asm")->code;                 \
+        SIMPLE_ARITH_SPECIALIZED_CASE(opc, 1, value);                                                                  \
+        SIMPLE_ARITH_SPECIALIZED_CASE(opc, 20, value);                                                                 \
+        SIMPLE_ARITH_SPECIALIZED_CASE(opc, 301, value);                                                                \
+        SIMPLE_ARITH_SPECIALIZED_CASE(opc, 402, value);                                                                \
+        SIMPLE_ARITH_SPECIALIZED_CASE(opc, 0x3311, value);                                                             \
+        SIMPLE_ARITH_SPECIALIZED_CASE(opc, 0x7222222222222222, value);                                                 \
+        SIMPLE_ARITH_SPECIALIZED_CASE(opc, 0xf111111111111111, value);                                                 \
+        SIMPLE_ARITH_SPECIALIZED_CASE(opc, 0xffffffffffffffff, value);                                                 \
+    }
+
+#define GEN_SIMPLE_ARITH_SPECIALIZED(value)                                                                            \
+    SIMPLE_ARITH_SPECIALIZED(Add, value)                                                                               \
+    SIMPLE_ARITH_SPECIALIZED(Sub, value)                                                                               \
+    SIMPLE_ARITH_SPECIALIZED(Mul, value)                                                                               \
+    SIMPLE_ARITH_SPECIALIZED(And, value)                                                                               \
+    SIMPLE_ARITH_SPECIALIZED(Or, value)                                                                                \
+    SIMPLE_ARITH_SPECIALIZED(Xor, value)                                                                               \
+    SIMPLE_ARITH_SPECIALIZED(UDiv, value)                                                                              \
+    SIMPLE_ARITH_SPECIALIZED(Div, value)                                                                               \
+    SIMPLE_ARITH_SPECIALIZED(Rem, value)                                                                               \
+    SIMPLE_ARITH_SPECIALIZED(URem, value)                                                                              \
+    SIMPLE_ARITH_SPECIALIZED(LSL, value)                                                                               \
+    SIMPLE_ARITH_SPECIALIZED(LSR, value)                                                                               \
+    SIMPLE_ARITH_SPECIALIZED(ASR, value)
+
+SIMPLE_ARITH_VALUES(GEN_SIMPLE_ARITH_SPECIALIZED)
