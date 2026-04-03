@@ -30,13 +30,13 @@ def build(args, project_dir, build_dir):
 
     toolchain_files_dir = f"{project_dir}/cmake/toolchains"
     toolchain_path = f"{toolchain_files_dir}/{args.target_platform}-linux-gnu-clang.cmake"
-    
+
     cmake_cmd = (
         f"cmake {project_dir} "
         f"-DCMAKE_BUILD_TYPE={args.build_type.capitalize()} "
         f"-DCMAKE_TOOLCHAIN_FILE={toolchain_path}"
     )
-    
+
     make_cmd = f"make -j{args.jobs}"
 
     print(f"--- Configuring ({args.build_type}) for {args.target_platform} ---")
@@ -49,7 +49,7 @@ def build(args, project_dir, build_dir):
         print("------------------------------------------------")
         print("Running tests via CTest...")
         print("------------------------------------------------")
-        run_command("ctest --output-on-failure", cwd=build_dir)
+        run_command(f"ctest --output-on-failure -j{args.jobs}", cwd=build_dir)
 
 
 def main():
@@ -65,19 +65,19 @@ def main():
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     build_parser = subparsers.add_parser("build", help="build the project")
-    build_parser.add_argument("--target-platform", 
-                              choices=["x86_64", "aarch64"], 
+    build_parser.add_argument("--target-platform",
+                              choices=["x86_64", "aarch64"],
                               default=default_platform,
                               help=f"Target platform (default: {default_platform})")
-    build_parser.add_argument("-t", "--build-type", 
-                              choices=["debug", "release"], 
+    build_parser.add_argument("-t", "--build-type",
+                              choices=["debug", "release"],
                               default="debug",
                               help="Build configuration (default: debug)")
-    build_parser.add_argument("--run-tests", 
-                              action="store_true", 
+    build_parser.add_argument("--run-tests",
+                              action="store_true",
                               help="Run CTest after successful build")
-    build_parser.add_argument("-j", "--jobs", 
-                              type=int, 
+    build_parser.add_argument("-j", "--jobs",
+                              type=int,
                               default=multiprocessing.cpu_count(),
                               help=f"Number of parallel jobs (default: {multiprocessing.cpu_count()})")
 
