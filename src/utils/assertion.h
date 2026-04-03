@@ -1,5 +1,4 @@
-#ifndef UTILS_ASSERTION_H
-#define UTILS_ASSERTION_H
+#pragma once
 
 #if defined(UNIT_TEST_MODE)
     #include <stdexcept>
@@ -10,9 +9,49 @@
         } while (0)
     #define ASSERT(cond) ASSERTION(cond, "")
 #else
-    #include <cassert>
-    #define ASSERT(cond) assert(cond)
-    #define ASSERTION(cond, msg) assert((cond) && (msg))
+#ifdef CBC_ENGINE_IMMEDIATE_ASSERTION
+    #define ASSERTION_TRAP() __builtin_trap()
+#else
+    #include <cstdlib>
+    #define ASSERTION_TRAP() std::abort()
+#endif
+#ifdef CBC_ENGINE_PRETTY_FUNC_NAME
+    #define CBC_ENGINE_FUNC_NAME __PRETTY_FUNCTION__
+#else
+    #define CBC_ENGINE_FUNC_NAME __func__
+#endif
+    #include <stdio.h>
+    inline void assertion_failure_report(const char* file, int line, const char* func, const char* msg)
+    {
+        fprintf(stderr, "%s:%d: assertion failed in %s: %s\n", file, line, func, msg);
+        fflush(stderr);
+    }
+    #define ASSERT(...) \
+        do { \
+            if (__VA_ARGS__) { \
+            } \
+            else { \
+                fprintf(stderr, "%s:%d: assertion failed in %s: %s\n", __FILE__, __LINE__, CBC_ENGINE_FUNC_NAME, #__VA_ARGS__); \
+                fflush(stderr); \
+                ASSERTION_TRAP(); \
+            } \
+        } while (false)
+    #define ASSERTION(cond, ...) \
+        do { \
+            if (cond) { \
+            } \
+            else { \
+                fprintf(stderr, "%s:%d: assertion failed in %s: ", __FILE__, __LINE__, CBC_ENGINE_FUNC_NAME); \
+                fprintf(stderr, __VA_ARGS__); \
+                fprintf(stderr, "\n"); \
+                fflush(stderr); \
+                ASSERTION_TRAP(); \
+            } \
+        } while (false)
+    #define FATAL(...) \
+        fprintf(stderr, "%s:%d: fatal error in %s: ", __FILE__, __LINE__, CBC_ENGINE_FUNC_NAME); \
+        fprintf(stderr, __VA_ARGS__); \
+        fprintf(stderr, "\n"); \
+        fflush(stderr); \
+        ASSERTION_TRAP()
 #endif // defined(UNIT_TEST_MODE)
-
-#endif // UTILS_ASSERTION_H
