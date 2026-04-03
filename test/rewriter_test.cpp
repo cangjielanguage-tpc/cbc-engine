@@ -39,7 +39,7 @@ using namespace Cbc::Format;
         MethodCode methodCode = MethodCode::Mock(isa12Bytes, isa12CodeSize);                                           \
         RawDisasm(std::cerr, methodCode)->ParseAll();                                                                  \
         Emitter::Emitter e;                                                                                            \
-        Rewriter(nullptr, methodCode, e)->ParseAll();                                                                  \
+        Rewriter(*MockResolver(), methodCode, e)->ParseAll();                                                          \
         auto code = e.Build(heap);                                                                                     \
         auto res  = Interpret(code, U32(REG1), U32(REG2));                                                             \
         EXPECT_EQ(res.u32, REG1 OP REG2);                                                                              \

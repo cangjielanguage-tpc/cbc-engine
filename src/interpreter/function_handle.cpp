@@ -5,7 +5,7 @@
 
 #include "adapters.h"
 #include "cbc/isa_disasm.h"
-#include "cbc/rewriter.h"
+#include "cbc/isa_rewriter.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/reader.h"
 #include "function_handle.h"
@@ -71,8 +71,7 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, Dynam
 
     auto resolver = API::Resolver::Create(session, fuh->methodDef);
     Cbc::Emitter::Emitter emitter;
-    Cbc::Rewriter rewriter(resolver.get(), code, emitter);
-    rewriter.Interpret();
+    Cbc::Rewriter(*resolver, code, emitter)->ParseAll();
 
     auto& heap         = session.GetEngine().CodeHeap();
     auto rewrittenCode = emitter.Build(heap);

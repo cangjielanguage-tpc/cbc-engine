@@ -5,17 +5,18 @@
 #include "utils/assertion.h"
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 
 namespace Cbc {
 
 struct IsaRewriter : public IsaParser {
-    IsaRewriter(API::Resolver* resolver, MethodCode code, Emitter::Emitter& emit)
+    IsaRewriter(API::Resolver& resolver, MethodCode code, Emitter::Emitter& emit)
         : IsaParser(code),
           resolver(resolver),
           emit(emit)
     {}
 
-    API::Resolver* resolver;
+    API::Resolver& resolver;
     Emitter::Emitter& emit;
     size_t startPosition;
     std::unordered_map<uint8_t*, Emitter::Label> instructionLabel;
@@ -160,7 +161,7 @@ struct IsaRewriter : public IsaParser {
     }
 };
 
-std::unique_ptr<IsaParser> Rewriter(API::Resolver* resolver, MethodCode code, Emitter::Emitter& e)
+std::unique_ptr<IsaParser> Rewriter(API::Resolver& resolver, MethodCode code, Emitter::Emitter& e)
 {
     return std::make_unique<IsaRewriter>(resolver, code, e);
 }
