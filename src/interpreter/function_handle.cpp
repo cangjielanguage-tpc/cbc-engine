@@ -1,9 +1,11 @@
+#include <iostream>
 #include <mutex>
 #include <unordered_map>
 #include <variant>
 
 #include "adapters.h"
-#include "cbc/rewriter.h"
+#include "cbc/isa_disasm.h"
+#include "cbc/isa_rewriter.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/reader.h"
 #include "function_handle.h"
@@ -65,10 +67,13 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, Dynam
     auto offset = def.GetCodeOffset();
     auto code   = Symlevel::Reader::Read(session, def.FileId(), offset);
 
+    if (Cbc::IsRawDisasmEnabled()) {
+        Cbc::RawDisasm(std::cerr, code)->ParseAll();
+    }
+
     auto resolver = API::Resolver::Create(session, fuh->methodDef);
     Cbc::Emitter::Emitter emitter;
-    Cbc::Rewriter rewriter(resolver.get(), code, emitter);
-    rewriter.Interpret();
+    Cbc::Rewriter(*resolver, code, emitter)->ParseAll();
 
     auto& heap         = session.GetEngine().CodeHeap();
     auto rewrittenCode = emitter.Build(heap);

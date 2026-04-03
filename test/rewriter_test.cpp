@@ -2,7 +2,8 @@
 
 #include "cbc/emitter/emitter.h"
 #include "cbc/isa.h"
-#include "cbc/rewriter.h"
+#include "cbc/isa_disasm.h"
+#include "cbc/isa_rewriter.h"
 
 #include "mock/interpreter.h"
 #include "testutils.h"
@@ -30,15 +31,15 @@ using namespace Cbc::Format;
     {                                                                                                                  \
         uint32_t isa12CodeSize = 4;                                                                                    \
         uint8_t isa12Bytes[]   = {                                                                                     \
-            Opc(InputOpcode::NAME_OP##32),                                                                           \
+            Opcode::NAME_OP##32,                                                                                     \
             (IReg::IR1 << 4) | IReg::IR2, /* Add IR1, IR2 */                                                         \
-            Opc(InputOpcode::Ret32),                                                                                 \
-            IReg::IR1 /* Ret IR1 */                                                                                  \
+            Opcode::RegGroup,                                                                                        \
+            (RegGroup::Ret32 << 4) | IReg::IR1 /* Ret IR1 */                                                         \
         };                                                                                                             \
         MethodCode methodCode = MethodCode::Mock(isa12Bytes, isa12CodeSize);                                           \
+        RawDisasm(std::cerr, methodCode)->ParseAll();                                                                  \
         Emitter::Emitter e;                                                                                            \
-        Rewriter rw(nullptr, methodCode, e);                                                                           \
-        rw.Interpret();                                                                                                \
+        Rewriter(*MockResolver(), methodCode, e)->ParseAll();                                                          \
         auto code = e.Build(heap);                                                                                     \
         auto res  = Interpret(code, U32(REG1), U32(REG2));                                                             \
         EXPECT_EQ(res.u32, REG1 OP REG2);                                                                              \

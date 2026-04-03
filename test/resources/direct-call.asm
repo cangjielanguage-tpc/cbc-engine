@@ -8,7 +8,7 @@
     ret.64 IR1
   }
 
-  @method default foo [ I64, I64] I64 {
+  @method default foo [ I64, I64 ] I64 {
     branch.if EQ, IR1, IRZ, r
     add.64 IR2, IR2, IR1
     mov.64 IR3, 0x1

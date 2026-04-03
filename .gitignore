@@ -4,3 +4,6 @@ compile_commands.json
 build/
 .gitconfig
 .vscode
+output/
+test/resources/*.obj
+test/resources/*.cbc

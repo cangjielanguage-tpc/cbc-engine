@@ -2,6 +2,7 @@
 #define CBC_DECODER_H
 
 #include "utils/assertion.h"
+#include "utils/lebencodings.h"
 #include <cstdint>
 #include <cstring>
 #include <tuple>
@@ -14,13 +15,10 @@ namespace Decoder {
 /// buffer overflows in Debug builds.
 ///
 /// \note This class does not own the memory it reads.
-class ByteReader {
+
+class FatByteReader {
 public:
-#if !defined(NDEBUG)
-    ByteReader(uint8_t* _cursor, uint8_t* _start, uint8_t* _end) : cursor(_cursor), start(_start), end(_end) {}
-#else
-    ByteReader(uint8_t* _cursor, uint8_t* _start, uint8_t* _end) : cursor(_cursor) {}
-#endif // defined(NDEBUG)
+    FatByteReader(uint8_t* _cursor, uint8_t* _start, uint8_t* _end) : cursor(_cursor), start(_start), end(_end) {}
 
     void Advance(int64_t delta)
     {
@@ -50,6 +48,16 @@ public:
 
     inline uint64_t Read64() { return Read<uint64_t>(); }
 
+    inline uint64_t ReadSLEB()
+    {
+        return static_cast<uint64_t>(LEB::DecodeSLEB(reinterpret_cast<char**>(&cursor), reinterpret_cast<char*>(end)));
+    }
+
+    inline uint64_t ReadULEB()
+    {
+        return static_cast<uint64_t>(LEB::DecodeULEB(reinterpret_cast<char**>(&cursor), reinterpret_cast<char*>(end)));
+    }
+
     inline uint32_t PeekOpcode()
     {
         StrictBoundCheck(cursor);
@@ -60,8 +68,13 @@ public:
 
     inline bool EndOfMem(uint8_t* memEnd) { return cursor >= memEnd; }
 
+    inline bool IsEndReached() { return cursor >= end; }
+
+    uint8_t* Start() { return start; }
+
+    uint8_t* End() { return end; }
+
 private:
-#if !defined(NDEBUG)
     void BoundCheck(uint8_t* p)
     {
         ASSERTION(this->start <= p, "underflow");
@@ -73,19 +86,58 @@ private:
         ASSERTION(this->start <= p, "underflow");
         ASSERTION(p < this->end, "overflow");
     }
-#else
-    inline void BoundCheck(uint8_t* p) {}
 
-    inline void StrictBoundCheck(uint8_t* p) {}
-#endif // defined(NDEBUG)
-       //
     uint8_t* cursor;
-
-#if !defined(NDEBUG)
     uint8_t* start;
     uint8_t* end;
-#endif // defined(NDEBUG)
 };
+
+class UncheckedByteReader {
+public:
+    UncheckedByteReader(uint8_t* _cursor) : cursor(_cursor) {}
+
+    void Advance(int64_t delta) { cursor += delta; }
+
+    template <typename T> inline void ReadTo(T* target)
+    {
+        memcpy(target, cursor, sizeof(T));
+        cursor += sizeof(T);
+    }
+
+    template <typename T> inline T Read()
+    {
+        T v;
+        ReadTo(&v);
+        return v;
+    }
+
+    inline uint8_t Read8() { return Read<uint8_t>(); }
+
+    inline uint16_t Read16() { return Read<uint16_t>(); }
+
+    inline uint32_t Read32() { return Read<uint32_t>(); }
+
+    inline uint64_t Read64() { return Read<uint64_t>(); }
+
+    inline uint32_t PeekOpcode() { return (uint32_t)*cursor; }
+
+    inline uint8_t* Cursor() { return cursor; }
+
+    inline bool EndOfMem(uint8_t* memEnd) { return cursor >= memEnd; }
+
+private:
+    uint8_t* cursor;
+};
+
+#if !defined(NDEBUG)
+struct ByteReader : public FatByteReader {
+    ByteReader(uint8_t* cursor, uint8_t* start, uint8_t* end) : FatByteReader(cursor, start, end) {}
+};
+#else
+struct ByteReader : public UncheckedByteReader {
+    ByteReader(uint8_t* cursor, uint8_t* start, uint8_t* end) : UncheckedByteReader(cursor) {}
+};
+#endif // defined(NDEBUG)
 
 template <typename... ts> struct ByteReaderM;
 
