@@ -167,7 +167,7 @@ TEST_ASM(CbcTest, DirectCall)
 
     auto code = bcInfo->code;
 
-    Cbc::RT::Log(code, std::cerr);
+    Cbc::RT::Log(code, stderr);
     auto res = Interpret(code, U32(0), U32(0));
     ASSERT_EQ(res.u32, 28);
 }
