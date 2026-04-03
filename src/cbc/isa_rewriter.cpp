@@ -23,6 +23,8 @@ struct IsaRewriter : public IsaParser {
 
     Emitter::Label InstructionLabel(uint8_t* position)
     {
+        ASSERTION(position <= reader.End(), "out of bounds");
+        ASSERTION(position >= reader.Start(), "out of bounds");
         if (auto existing = instructionLabel.find(position); existing != instructionLabel.end()) {
             return existing->second;
         } else {
@@ -157,6 +159,7 @@ struct IsaRewriter : public IsaParser {
     {
         auto position = reader.Cursor() - reader.Start();
         startPosition = position;
+        emit.Bind(InstructionLabel(reader.Cursor()));
         IsaParser::ParseOne();
     }
 };
