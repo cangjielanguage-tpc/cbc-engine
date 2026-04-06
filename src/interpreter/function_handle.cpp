@@ -68,7 +68,7 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, Dynam
     auto code   = Symlevel::Reader::Read(session, def.FileId(), offset);
 
     if (Cbc::IsRawDisasmEnabled()) {
-        Cbc::RawDisasm(std::cerr, code)->ParseAll();
+        Cbc::RawDisasm(stderr, code)->ParseAll();
     }
 
     auto resolver = API::Resolver::Create(session, fuh->methodDef);
