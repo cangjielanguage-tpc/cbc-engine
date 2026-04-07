@@ -18,6 +18,10 @@ CBC_EXPORT void* engine_get_entrypoint_trampoline(void);
 /// The string passed is expected to live as long, as engine lives.
 CBC_EXPORT void engine_set_cbcpath(char const* cbc_path);
 
+/// Prepare for interpretation.
+/// Load provided main cbc and open needed AOT dynamic libraries.
+CBC_EXPORT void engine_initialize();
+
 /// Set the path to main cbc that contains `main` function.
 ///
 /// The string passed is expected to live as long, as engine lives.

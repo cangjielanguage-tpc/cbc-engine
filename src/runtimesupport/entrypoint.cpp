@@ -46,9 +46,12 @@ CBC_EXPORT void engine_set_cbcpath(char const* cbcPath) { g_cbcPath = cbcPath; }
 
 CBC_EXPORT void engine_set_main_cbc(char const* mainCbc) { g_mainCbc = mainCbc; }
 
+CBC_EXPORT void engine_initialize() { EnsureEngineInitialized(); }
+
 CBC_EXPORT void* engine_get_entrypoint_trampoline(void)
 {
-    EnsureEngineInitialized();
+    ASSERTION(g_Initialized, "Engine is not initialized");
+    
     auto& engine = Engine::GetEngineInstance();
 
     Engine::Session session(engine);
