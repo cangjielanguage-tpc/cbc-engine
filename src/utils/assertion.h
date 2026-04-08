@@ -20,52 +20,44 @@
     #else
         #define CBC_ENGINE_FUNC_NAME __func__
     #endif
+    #include <stdarg.h>
     #include <stdio.h>
-    static void ReportFailure(const char* filename, int line, const char* func)
-    {
-        fprintf(stderr, "%s:%d: assertion failed in %s: ", __FILE__, __LINE__, CBC_ENGINE_FUNC_NAME);
-    }
-    #define ASSERT(cond)                                                                                                \
+
+static void ReportFailure(const char* filename, int line, const char* func)
+{
+    fprintf(stderr, "%s:%d: assertion failed in %s: ", __FILE__, __LINE__, CBC_ENGINE_FUNC_NAME);
+}
+
+static void ReportFailureDescription(const char* fmt...)
+{
+    va_list args;
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    va_end(args);
+    fprintf(stderr, "\n");
+    fflush(stderr);
+}
+
+    #define ASSERT(cond)                                                                                               \
         do {                                                                                                           \
-            if (cond) {                                                                                         \
+            if (cond) {                                                                                                \
             } else {                                                                                                   \
-                ReportFailure(                                                                                               \
-                    __FILE__,                                                                                          \
-                    __LINE__,                                                                                          \
-                    CBC_ENGINE_FUNC_NAME                                                                              \
-                );                                                                                                     \
-                fprintf(                                                                                               \
-                    stderr,                                                                                            \
-                    "%s\n",                                                             \
-                    #cond                                                                                       \
-                );                                                                                                     \
-                fflush(stderr); \
-                ASSERTION_TRAP(); \
+                ReportFailure(__FILE__, __LINE__, CBC_ENGINE_FUNC_NAME);                                               \
+                ReportFailureDescription("%s", #cond);                                                                 \
+                ASSERTION_TRAP();                                                                                      \
             }                                                                                                          \
         } while (false)
     #define ASSERTION(cond, ...)                                                                                       \
         do {                                                                                                           \
             if (cond) {                                                                                                \
             } else {                                                                                                   \
-                ReportFailure(                                                                                               \
-                    __FILE__,                                                                                          \
-                    __LINE__,                                                                                          \
-                    CBC_ENGINE_FUNC_NAME                                                                              \
-                );                                                                                                     \
-                fprintf(stderr, __VA_ARGS__);                                                                          \
-                fprintf(stderr, "\n");                                                                                 \
-                fflush(stderr); \
-                ASSERTION_TRAP(); \
+                ReportFailure(__FILE__, __LINE__, CBC_ENGINE_FUNC_NAME);                                               \
+                ReportFailureDescription(__VA_ARGS__);                                                                 \
+                ASSERTION_TRAP();                                                                                      \
             }                                                                                                          \
         } while (false)
     #define FATAL(...)                                                                                                 \
-        ReportFailure(                                                                                               \
-            __FILE__,                                                                                          \
-            __LINE__,                                                                                          \
-            CBC_ENGINE_FUNC_NAME                                                                              \
-        );                                                                                                     \
-        fprintf(stderr, __VA_ARGS__);                                                                                  \
-        fprintf(stderr, "\n");                                                                                         \
-        fflush(stderr); \
+        ReportFailure(__FILE__, __LINE__, CBC_ENGINE_FUNC_NAME);                                                       \
+        ReportFailureDescription(__VA_ARGS__);                                                                         \
         ASSERTION_TRAP()
 #endif // defined(UNIT_TEST_MODE)
