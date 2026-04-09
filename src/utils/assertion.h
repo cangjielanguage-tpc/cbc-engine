@@ -23,41 +23,33 @@
     #include <stdarg.h>
     #include <stdio.h>
 
-static void ReportFailure(const char* filename, int line, const char* func)
+[[noreturn]]
+static void ReportFailure(const char* filename, int line, const char* func, const char* fmt...)
 {
-    fprintf(stderr, "%s:%d: assertion failed in %s: ", __FILE__, __LINE__, CBC_ENGINE_FUNC_NAME);
-}
-
-static void ReportFailureDescription(const char* fmt...)
-{
+    fprintf(stderr, "%s:%d: assertion failed in %s: ", filename, line, func);
     va_list args;
     va_start(args, fmt);
     vfprintf(stderr, fmt, args);
     va_end(args);
     fprintf(stderr, "\n");
     fflush(stderr);
+    ASSERTION_TRAP();
 }
 
     #define ASSERT(cond)                                                                                               \
         do {                                                                                                           \
             if (cond) {                                                                                                \
             } else {                                                                                                   \
-                ReportFailure(__FILE__, __LINE__, CBC_ENGINE_FUNC_NAME);                                               \
-                ReportFailureDescription("%s", #cond);                                                                 \
-                ASSERTION_TRAP();                                                                                      \
+                ReportFailure(__FILE__, __LINE__, CBC_ENGINE_FUNC_NAME, "%s", #cond);                                                                 \
             }                                                                                                          \
         } while (false)
     #define ASSERTION(cond, ...)                                                                                       \
         do {                                                                                                           \
             if (cond) {                                                                                                \
             } else {                                                                                                   \
-                ReportFailure(__FILE__, __LINE__, CBC_ENGINE_FUNC_NAME);                                               \
-                ReportFailureDescription(__VA_ARGS__);                                                                 \
-                ASSERTION_TRAP();                                                                                      \
+                ReportFailure(__FILE__, __LINE__, CBC_ENGINE_FUNC_NAME, __VA_ARGS__);                                                                 \
             }                                                                                                          \
         } while (false)
     #define FATAL(...)                                                                                                 \
-        ReportFailure(__FILE__, __LINE__, CBC_ENGINE_FUNC_NAME);                                                       \
-        ReportFailureDescription(__VA_ARGS__);                                                                         \
-        ASSERTION_TRAP()
+        ReportFailure(__FILE__, __LINE__, CBC_ENGINE_FUNC_NAME, __VA_ARGS__)
 #endif // defined(UNIT_TEST_MODE)
