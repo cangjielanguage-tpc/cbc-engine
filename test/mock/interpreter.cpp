@@ -133,6 +133,28 @@ Interpretation::Value::Primitive InterpretFPRes(
 
 Interpretation::Value::Primitive Interpret(
     Interpretation::Code code,
+    Interpretation::Value::Primitive ir1,
+    Interpretation::Value::Primitive ir2,
+    Interpretation::Value::Primitive fr0,
+    Interpretation::Value::Primitive fr1
+)
+{
+    return Interpretation::Interpret<Cbc::IReg>(code, nullptr, ir1, ir2, fr0, fr1, Cbc::IReg::IR1);
+}
+
+Interpretation::Value::Primitive InterpretFPRes(
+    Interpretation::Code code,
+    Interpretation::Value::Primitive ir1,
+    Interpretation::Value::Primitive ir2,
+    Interpretation::Value::Primitive fr0,
+    Interpretation::Value::Primitive fr1
+)
+{
+    return Interpretation::Interpret<Cbc::FReg>(code, nullptr, ir1, ir2, fr0, fr1, Cbc::FReg::FR0);
+}
+
+Interpretation::Value::Primitive Interpret(
+    Interpretation::Code code,
     Interpretation::Frame* frame,
     Interpretation::Value::Primitive ir1,
     Interpretation::Value::Primitive ir2
