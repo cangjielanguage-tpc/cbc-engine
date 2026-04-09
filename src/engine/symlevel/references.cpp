@@ -26,7 +26,7 @@ std::optional<MethodReference> MethodReference::ParseAndResolve(
     auto methodSig = regionData.queryTerm(session, { .region = 0, .index = methodSigIdx });
 
     if (refType.has_value() && methodSig.has_value()) {
-        return MethodReference(name, refType.value(), methodSig.value());
+        return MethodReference(fileId, name, refType.value(), methodSig.value());
     } else {
         return std::nullopt;
     }

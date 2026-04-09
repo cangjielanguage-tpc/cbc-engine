@@ -121,6 +121,7 @@ engine_i2i_call:
   bl    perform_2i_call
   b     .Lrestart_interpretation
 
+
 .align 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: fuh)
 // preserved: ECTYPE_REG, x29
@@ -138,7 +139,7 @@ engine_i2c_call:
   ldr   x6, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x38)]
   ldr   x7, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x40)]
 
-  bl    x9
+  blr    x9
 
   str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8)]
 
