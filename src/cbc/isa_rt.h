@@ -53,6 +53,7 @@
     X(SCCI64I, B4xi12rr, "scci.64 $0cc $2ir $3ir $1I12")                                                               \
     X(SCCI32L, B4xi12rr, "scci.32 $0cc $2ir $3ir $1I12L")                                                              \
     X(SCCI64L, B4xi12rr, "scci.64 $0cc $2ir $3ir $1I12L")                                                              \
+    X(CONVERT, B3xxrr, "convert $0ct $1ct $2ir $3ir") /* FIXME: ir/fr */                                               \
     X(DIRECT_CALL_2I, B3xi12, "direct.call.2i $1I12L (, mov $0ir )")                                                   \
     X(DIRECT_CALL_2C, B3xi12, "direct.call.2c $1I12L (, mov $0ir )")                                                   \
     X(MEMSPACE, B1, "memspace {")
@@ -265,6 +266,20 @@ struct B3xrrr {
         auto xr  = Format::XR::Decode(reader);
         auto rr  = Format::RR::Decode(reader);
         return B3xrrr { opc, xr, rr };
+    }
+};
+
+struct B3xxrr {
+    Opcode opc;
+    Format::XX xx;
+    Format::RR rr;
+
+    static B3xxrr Decode(Decoder::ByteReader& reader)
+    {
+        auto opc = Opcode::Decode(reader);
+        auto xx  = Format::XX::Decode(reader);
+        auto rr  = Format::RR::Decode(reader);
+        return B3xxrr { opc, xx, rr };
     }
 };
 

@@ -19,6 +19,7 @@ void Log(Interpretation::LiteralTable* table, std::ostream& stream, B4xi12rr arg
 void Log(Interpretation::LiteralTable* table, std::ostream& stream, B5xi12ri12 args);
 void Log(Interpretation::LiteralTable* table, std::ostream& stream, B5i32 args);
 void Log(Interpretation::LiteralTable* table, std::ostream& stream, B3xrrr args);
+void Log(Interpretation::LiteralTable* table, std::ostream& stream, B3xxrr args);
 void Log(Interpretation::LiteralTable* table, std::ostream& stream, B4xi12xr args);
 void Log(Interpretation::LiteralTable* table, std::ostream& stream, B3xi12 args);
 

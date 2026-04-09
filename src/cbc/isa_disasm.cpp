@@ -115,11 +115,10 @@ struct IsaDisasm : public IsaParser {
         stream << " " << l.ToStr() << " " << r.ToStr() << std::endl;
     }
 
-    // TODO: add enum
-    void Cast(int8_t fromType, int8_t toType, AnyReg d, AnyReg s) override
+    void Convert(Format::ConvertType toType, Format::ConvertType fromType, AnyReg to, AnyReg from) override
     {
-        stream << "cast" << " " << fromType << "_" << toType;
-        stream << ", " << d << ", " << s << std::endl;
+        stream << "convert" << " " << toType.ToStr() << "_" << fromType.ToStr();
+        stream << ", " << to << ", " << from << std::endl;
     }
 
     void PrepareRecord(uint16_t ts) override { stream << "prepare.record" << " " << ts << std::endl; }

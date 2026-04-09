@@ -627,6 +627,21 @@ void Emitter::SCCImm(CC cc, Width width, IReg d, IReg l, uint64_t imm)
     }
 }
 
+void Emitter::Convert(ConvertType toType, ConvertType fromType, Reg to, Reg from)
+{
+    Encode(segment, RT::B3xxrr {
+        .opc = RT::Opcode::CONVERT,
+        .xx = {
+            .imm1 = Imm4(toType),
+            .imm2 = Imm4(fromType),
+        },
+        .rr = {
+            .x = to,
+            .y = from,
+        },
+    });
+}
+
 void Emitter::DirectCall2i(IReg d, Symbol fuh)
 {
     segment.AddW8(RT::Opcode::DIRECT_CALL_2I);
