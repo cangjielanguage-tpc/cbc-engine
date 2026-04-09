@@ -14,7 +14,13 @@ namespace Symlevel {
 
 class Dependencies {
 public:
-    static Dependencies Read(IO::FileId fileId, IO::RandomAccessFile& file, uint32_t poolOffset, uint32_t cbcDepsOffset, uint32_t aotDepsOffset);
+    static Dependencies Read(
+        IO::FileId fileId,
+        IO::RandomAccessFile& file,
+        uint32_t poolOffset,
+        uint32_t cbcDepsOffset,
+        uint32_t aotDepsOffset
+    );
 
     explicit Dependencies(std::vector<std::string> cbcDeps, std::vector<LibHandle> handles);
     ~Dependencies();
