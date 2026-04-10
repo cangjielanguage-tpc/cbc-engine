@@ -222,7 +222,7 @@ private:
         } else if (type == "U12L") {
             Write(table->at(operand.U12()).u64);
         } else {
-            ASSERT(false && "unexpected format type");
+            FATAL("unexpected format type %.*s", static_cast<int>(type.length()), type.data());
         }
     }
 

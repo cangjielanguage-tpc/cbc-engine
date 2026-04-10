@@ -69,7 +69,7 @@ uint16_t LiteralTableBuilder::UseSymbol(Symbol symbol)
             table.insert(table.end(), &lit.raw[0], &lit.raw[sizeof(lit)]);
             return static_cast<uint16_t>(size / step);
         }
-        default: ASSERT(false); return MAX_SIZE;
+        default: FATAL("unexpected SymbolKind"); return MAX_SIZE;
     }
 }
 

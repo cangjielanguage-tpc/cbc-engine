@@ -432,7 +432,7 @@ public:
             case CbcTypeKind::I64: return Width::W64;
             case CbcTypeKind::U64: return Width::W64;
 
-            default: ASSERT(false); return Width::W64;
+            default: FATAL("unknown CbcTypeKind: %d", tkind); return Width::W64;
         }
     }
 

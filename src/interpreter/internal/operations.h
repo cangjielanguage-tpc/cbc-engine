@@ -144,7 +144,7 @@ inline ArithmeticResult ArithFP<Width::W64>(FloatOperations::Value op, Value::Pr
         case FloatOperations::FMUL: return { Value::Primitive { .f64 = l.f64 * r.f64 }, true };
         case FloatOperations::FDIV: return { Value::Primitive { .f64 = l.f64 / r.f64 }, true };
 
-        default: FATAL("Unexpected FP op");
+        default: FATAL("Unexpected FP op: %d", op);
     }
 }
 
@@ -158,7 +158,7 @@ inline ArithmeticResult ArithFP<Width::W32>(FloatOperations::Value op, Value::Pr
         case FloatOperations::FMUL: return { Value::Primitive { .f32 = l.f32 * r.f32 }, true };
         case FloatOperations::FDIV: return { Value::Primitive { .f32 = l.f32 / r.f32 }, true };
 
-        default: FATAL("Unexpected FP op");
+        default: FATAL("Unexpected FP op: %d", op);
     }
 }
 
@@ -172,7 +172,7 @@ template <> inline ArithmeticResult ArithFP<Width::W64>(FloatOperations::Value o
         case FloatOperations::FABS:  return { Value::Primitive { .f64 = std::fabs(s.f64) }, true };
         case FloatOperations::FNEG:  return { Value::Primitive { .f64 = -s.f64 }, true };
 
-        default: FATAL("Unexpected FP op");
+        default: FATAL("Unexpected FP op: %d", op);
     }
 }
 
@@ -184,7 +184,7 @@ template <> inline ArithmeticResult ArithFP<Width::W32>(FloatOperations::Value o
         case FloatOperations::FABS:  return { Value::Primitive { .f32 = std::fabs(s.f32) }, true };
         case FloatOperations::FNEG:  return { Value::Primitive { .f32 = -s.f32 }, true };
 
-        default: FATAL("Unexpected FP op");
+        default: FATAL("Unexpected FP op: %d", op);
     }
 }
 
