@@ -40,16 +40,15 @@ static void ReportFailure(const char* filename, int line, const char* func, cons
         do {                                                                                                           \
             if (cond) {                                                                                                \
             } else {                                                                                                   \
-                ReportFailure(__FILE__, __LINE__, CBC_ENGINE_FUNC_NAME, "%s", #cond);                                                                 \
+                ReportFailure(__FILE__, __LINE__, CBC_ENGINE_FUNC_NAME, "%s", #cond);                                  \
             }                                                                                                          \
         } while (false)
     #define ASSERTION(cond, ...)                                                                                       \
         do {                                                                                                           \
             if (cond) {                                                                                                \
             } else {                                                                                                   \
-                ReportFailure(__FILE__, __LINE__, CBC_ENGINE_FUNC_NAME, __VA_ARGS__);                                                                 \
+                ReportFailure(__FILE__, __LINE__, CBC_ENGINE_FUNC_NAME, __VA_ARGS__);                                  \
             }                                                                                                          \
         } while (false)
-    #define FATAL(...)                                                                                                 \
-        ReportFailure(__FILE__, __LINE__, CBC_ENGINE_FUNC_NAME, __VA_ARGS__)
+    #define FATAL(...) ReportFailure(__FILE__, __LINE__, CBC_ENGINE_FUNC_NAME, __VA_ARGS__)
 #endif // defined(UNIT_TEST_MODE)
