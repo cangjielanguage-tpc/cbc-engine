@@ -4,7 +4,7 @@
 #include "frame.h"
 #include "function_handle.h"
 #include "literals.h"
-#include "runtime.h"
+#include "runtimesupport/runtime.h"
 
 #include "cbc/isa_rt.h"
 #include "internal/operations.h"
@@ -15,7 +15,7 @@ template <typename RTI> class Interpreter {
     using IReg = Cbc::IReg;
 
 public:
-    Interpreter(Ectype* _ectype, Frame* _frame, ThreadHandle _handle, LiteralTable* _literals)
+    Interpreter(Ectype* _ectype, Frame* _frame, RTSupport::ThreadHandle _handle, LiteralTable* _literals)
         : ectype(_ectype),
           frame(_frame),
           handle(_handle),
@@ -72,7 +72,7 @@ public:
             return false;
         }
         if (ldk == LoadAccessKind::LD_REF) {
-            ectype->Put(dst.IR(), RuntimeInterface<RTI>::ReadObjectInstance(obj, offset, handle));
+            ectype->Put(dst.IR(), RTSupport::RuntimeInterface<RTI>::ReadObjectInstance(obj, offset, handle));
         } else {
             MemoryLocation(obj.value, offset).LoadPrim(ldk, dst, ectype);
         }
@@ -86,7 +86,7 @@ public:
             return false;
         }
         if (stk == StoreAccessKind::ST_REF) {
-            RuntimeInterface<RTI>::WriteObjectInstance(obj, offset, ectype->GetReference(src.IR()), handle);
+            RTSupport::RuntimeInterface<RTI>::WriteObjectInstance(obj, offset, ectype->GetReference(src.IR()), handle);
         } else {
             MemoryLocation(obj.value, offset).StorePrim(stk, src, ectype);
         }
@@ -130,7 +130,7 @@ public:
             return false;
         }
         if (ldk == LoadAccessKind::LD_REF) {
-            ectype->Put(dst.IR(), RuntimeInterface<RTI>::ReadObject(ptr, offset, handle));
+            ectype->Put(dst.IR(), RTSupport::RuntimeInterface<RTI>::ReadObject(ptr, offset, handle));
         } else {
             MemoryLocation(ptr, offset).LoadPrim(ldk, dst, ectype);
         }
@@ -144,7 +144,7 @@ public:
             return false;
         }
         if (stk == StoreAccessKind::ST_REF) {
-            RuntimeInterface<RTI>::WriteObject(ptr, offset, ectype->GetReference(src.IR()), handle);
+            RTSupport::RuntimeInterface<RTI>::WriteObject(ptr, offset, ectype->GetReference(src.IR()), handle);
         } else {
             MemoryLocation(ptr, offset).StorePrim(stk, src, ectype);
         }
@@ -378,7 +378,7 @@ private:
 
     Ectype* ectype;
     Frame* frame;
-    ThreadHandle handle;
+    RTSupport::ThreadHandle handle;
     LiteralTable* literals;
 };
 

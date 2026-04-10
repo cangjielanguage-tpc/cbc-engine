@@ -2,7 +2,9 @@
 #include "engine/symlevel/aot_table.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/region_data.h"
+#include "engine/symlevel/reader.h"
 #include "method_impl.h"
+#include "type_impl.h"
 
 namespace API {
 namespace Impl {
@@ -10,15 +12,38 @@ namespace Impl {
 //////////////////////////////////
 // Resolver
 
-Type* ResolverImpl::Resolve(Symlevel::Index<Type> index)
+Type* ResolverImpl::Resolve(Symlevel::Index<Symlevel::Terms::Term> index)
 {
-    ASSERTION(false, "not implemented yet");
-    return nullptr;
-}
+    using namespace Symlevel;
 
-Term* ResolverImpl::Resolve(Symlevel::Index<Symlevel::Terms::Term> index)
-{
-    ASSERTION(false, "not implemented yet");
+    auto fileId = method.GetFileId();
+    auto& cbcFile = session.CbcFileOf(fileId);
+
+    auto termOpt = cbcFile.GetRegionData().queryTerm(session, index);
+    if (!termOpt) {
+        // TODO: handle this case
+        throw std::runtime_error("cannot resolve term");
+    }
+
+    auto term = termOpt.value();
+
+    auto termKind = term.GetIdentifier().GetKind();
+    switch (termKind) {
+        case Terms::TemplateKind::AOT_TYPE: {
+            auto typeNameOffset = static_cast<uint32_t>(term.GetIdentifier().GetNum());
+            auto typeName = Reader::Read(session, fileId, Offset<String>(typeNameOffset));
+            auto typeInfo = RTSupport::RuntimeInterface<RTSupport::Impl>::GetTypeInfo(std::string(typeName).c_str());
+
+            ASSERTION(typeInfo != nullptr, "Couldn't resolve AOT type");
+
+            return session.Allocator().New<TypeImpl>(term, typeInfo);
+        }
+        default: {
+            ASSERTION(false, "Not supported yet");
+            break;
+        }
+    }
+
     return nullptr;
 }
 
@@ -72,12 +97,6 @@ InstanceField* ResolverImpl::Resolve(Symlevel::Index<InstanceField> index)
 }
 
 StaticField* ResolverImpl::Resolve(Symlevel::Index<StaticField> index)
-{
-    ASSERTION(false, "not implemented yet");
-    return nullptr;
-}
-
-std::optional<Type*> ResolverImpl::Resolve(Term* term)
 {
     ASSERTION(false, "not implemented yet");
     return nullptr;

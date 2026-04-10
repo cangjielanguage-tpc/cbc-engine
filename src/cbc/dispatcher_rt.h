@@ -41,7 +41,7 @@ struct Thunk {
 /// differs from the ASM in the unit test framework.
 template <typename RTI>
 Thunk InterpretationLoop(
-    Ectype* ectype, Frame* frame, ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
+    Ectype* ectype, Frame* frame, RTSupport::ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
 )
 {
 #define NEXT goto* MAIN_TABLE[reader.PeekOpcode()]
@@ -403,7 +403,7 @@ FUN64: {
 }
 NEWOBJ: {
     auto args          = B3xi12::Decode(reader);
-    TypeInfo<RTI> type = literals->at(args.xi12.imm12).uintptr;
+    RTSupport::TypeInfo<RTI> type = literals->at(args.xi12.imm12).uintptr;
 
     // To invoke an `newobj` we need to "return" three values
     // - function to invoke,
@@ -413,8 +413,8 @@ NEWOBJ: {
     //
     // To pass an extra element we will store
     // it in volatile-register in Ectype;
-    auto func = RuntimeInterface<RTI>::AllocateObject;
-    ectype->Put(IReg::IR1, Value::Primitive { .u32 = args.xi12.imm4.IR() });
+    auto func = RTSupport::RuntimeInterface<RTI>::AllocateObject;
+    ectype->Put(IReg::IR1, Value::Primitive { .u64 = args.xi12.imm4.IR() });
 
     reader0 = reader; // save current pc
 
