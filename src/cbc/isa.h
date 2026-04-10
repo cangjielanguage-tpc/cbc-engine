@@ -190,6 +190,7 @@ public:
     X(FR15)
 
 #define FREG_ENUM(opc) opc,
+
     enum Value : uint32_t {
         FREG_VALUES(FREG_ENUM)
     };

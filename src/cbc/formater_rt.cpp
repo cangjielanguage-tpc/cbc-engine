@@ -236,8 +236,7 @@ private:
 
 private:
     Interpretation::LiteralTable* table;
-    ::std::shared_ptr<char[]> buf;
-    const Stream::Out stream;
+    const Stream::Out& stream;
     std::string_view formatString;
     Operand* operands;
     size_t operandCount;
@@ -389,10 +388,13 @@ bool LogMemSpaceInstruction(
 )
 {
     static constexpr size_t BUF_SIZE = 1024ull;
-    ::std::shared_ptr<char[]> buf(new char[BUF_SIZE]);
-    Stream::Out bufStream(buf.get(), ::std::make_shared<Stream::ToIndentedBuffer>(BUF_SIZE));
+    std::shared_ptr<char[]> buf(new char[BUF_SIZE]);
+    Stream::Out bufStream(buf.get(), std::make_shared<Stream::ToIndentedBuffer>(BUF_SIZE));
 #define FMT_LOGGER(opcode, fmt, sfmt, isTail)                                                                          \
-    case MemOpcode::opcode: Log(table, bufStream, fmt::Decode(reader)); stream << (const char*) bufStream.Flush(); return isTail;
+    case MemOpcode::opcode:                                                                                            \
+        Log(table, bufStream, fmt::Decode(reader));                                                                    \
+        stream << (const char*)bufStream.Flush();                                                                      \
+        return isTail;
 
     switch (opc) {
         CBC_RT_MEMOPCODES(FMT_LOGGER)

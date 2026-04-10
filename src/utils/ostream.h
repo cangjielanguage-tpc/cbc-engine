@@ -1,52 +1,53 @@
 #pragma once
 
-#include <stdio.h>
-#include <string>
 #include <memory>
 #include <stdarg.h>
+#include <stdio.h>
+#include <string>
 
 namespace Stream {
 
 struct endl_t {};
+
 constexpr endl_t endl;
 
 class OutputStrategy {
 public:
     virtual ~OutputStrategy() = default;
 
-    virtual const void* Flush(void* dest) const = 0;
-    virtual void NewLine(void* dest) = 0;
-    virtual void BeforePrint(void* dest) = 0;
-    virtual void AfterPrint(void* dest) = 0;
-    virtual void Print(void* dest, const float v) = 0;
-    virtual void Print(void* dest, const double v) = 0;
-    virtual void Print(void* dest, const long double v) = 0;
-    virtual void Print(void* dest, const bool v) = 0;
-    virtual void Print(void* dest, const signed char v) = 0;
-    virtual void Print(void* dest, const unsigned char v) = 0;
-    virtual void Print(void* dest, const short v) = 0;
-    virtual void Print(void* dest, const unsigned short v) = 0;
-    virtual void Print(void* dest, const int v) = 0;
-    virtual void Print(void* dest, const unsigned int v) = 0;
-    virtual void Print(void* dest, const long v) = 0;
-    virtual void Print(void* dest, const unsigned long v) = 0;
-    virtual void Print(void* dest, const long long v) = 0;
-    virtual void Print(void* dest, const unsigned long long v) = 0;
-    virtual void Print(void* dest, const char c) = 0;
-    virtual void Print(void* dest, const char* cstr) = 0;
-    virtual void Print(void* dest, const std::string_view strv) = 0;
-    virtual void Print(void* dest, const std::string str) = 0;
-    virtual void Print(void* dest, const signed char* p) = 0;
-    virtual void Print(void* dest, const unsigned char* p) = 0;
-    virtual void Print(void* dest, const short* p) = 0;
-    virtual void Print(void* dest, const unsigned short* p) = 0;
-    virtual void Print(void* dest, const int* p) = 0;
-    virtual void Print(void* dest, const unsigned int* p) = 0;
-    virtual void Print(void* dest, const long* p) = 0;
-    virtual void Print(void* dest, const unsigned long* p) = 0;
-    virtual void Print(void* dest, const long long* p) = 0;
-    virtual void Print(void* dest, const unsigned long long* p) = 0;
-    virtual void Print(void* dest, const void* p) = 0;
+    virtual const void* Flush(void* dest) const                      = 0;
+    virtual void NewLine(void* dest)                                 = 0;
+    virtual void BeforePrint(void* dest)                             = 0;
+    virtual void AfterPrint(void* dest)                              = 0;
+    virtual void Print(void* dest, const float v)                    = 0;
+    virtual void Print(void* dest, const double v)                   = 0;
+    virtual void Print(void* dest, const long double v)              = 0;
+    virtual void Print(void* dest, const bool v)                     = 0;
+    virtual void Print(void* dest, const signed char v)              = 0;
+    virtual void Print(void* dest, const unsigned char v)            = 0;
+    virtual void Print(void* dest, const short v)                    = 0;
+    virtual void Print(void* dest, const unsigned short v)           = 0;
+    virtual void Print(void* dest, const int v)                      = 0;
+    virtual void Print(void* dest, const unsigned int v)             = 0;
+    virtual void Print(void* dest, const long v)                     = 0;
+    virtual void Print(void* dest, const unsigned long v)            = 0;
+    virtual void Print(void* dest, const long long v)                = 0;
+    virtual void Print(void* dest, const unsigned long long v)       = 0;
+    virtual void Print(void* dest, const char c)                     = 0;
+    virtual void Print(void* dest, const char* cstr)                 = 0;
+    virtual void Print(void* dest, const std::string_view strv)      = 0;
+    virtual void Print(void* dest, const std::string str)            = 0;
+    virtual void Print(void* dest, const signed char* p)             = 0;
+    virtual void Print(void* dest, const unsigned char* p)           = 0;
+    virtual void Print(void* dest, const short* p)                   = 0;
+    virtual void Print(void* dest, const unsigned short* p)          = 0;
+    virtual void Print(void* dest, const int* p)                     = 0;
+    virtual void Print(void* dest, const unsigned int* p)            = 0;
+    virtual void Print(void* dest, const long* p)                    = 0;
+    virtual void Print(void* dest, const unsigned long* p)           = 0;
+    virtual void Print(void* dest, const long long* p)               = 0;
+    virtual void Print(void* dest, const unsigned long long* p)      = 0;
+    virtual void Print(void* dest, const void* p)                    = 0;
     virtual void PrintFmt(void* dest, const char* fmt, va_list argp) = 0;
 };
 
@@ -133,17 +134,15 @@ public:
 protected:
     void BoundCheck(int requestedSize);
     void AdvanceDest(int printedSz);
-
 };
 
 class ToIndentedBuffer : public ToBuffer {
 public:
     unsigned int indentationSize;
 
-    ToIndentedBuffer(const size_t bufSize, const unsigned int indentSize = 4);
+    ToIndentedBuffer(const size_t bufSize, const unsigned int indentSize = 2);
 
     void BeforePrint(void* dest) override;
-
 };
 
 class Out {
@@ -153,8 +152,7 @@ public:
 
     const Out& operator<<(const endl_t&) const;
 
-    template<typename T>
-    const Out& operator<<(const T v) const
+    template <typename T> const Out& operator<<(const T v) const
     {
         outputStrategy->BeforePrint(dest);
         outputStrategy->Print(dest, v);
@@ -168,7 +166,6 @@ public:
 private:
     void* dest;
     std::shared_ptr<OutputStrategy> outputStrategy;
-
 };
 
-}; // namespace OutStream
+}; // namespace Stream
