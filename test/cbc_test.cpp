@@ -75,7 +75,7 @@ static Interpretation::ExecBytecodeInfo* OpenAndRewrite(std::string_view name, s
     auto mainId      = engine.FindMain(session, fileName);
     auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
 
-    auto fuh    = std::get<Interpretation::DynamicFunctionHandle*>(fuhManager.AcquireTagged(session, mainId.value()));
+    auto fuh = std::get<Interpretation::DynamicFunctionHandle*>(fuhManager.AcquireTagged(session, mainId.value()));
     return fuhManager.Prepare(session, fuh);
 }
 

@@ -144,10 +144,7 @@ struct IsaDisasm : public IsaParser {
         stream << "load.typeinfo.sig" << " " << dst.ToStr() << ", " << type << endl;
     }
 
-    void NewObj(IReg dst, uint16_t type) override
-    {
-        stream << "newobj" << " " << dst.ToStr() << ", " << type << endl;
-    }
+    void NewObj(IReg dst, uint16_t type) override { stream << "newobj" << " " << dst.ToStr() << ", " << type << endl; }
 
     void CallDirect(IReg dst, uint16_t method) override
     {
@@ -181,15 +178,9 @@ struct IsaDisasm : public IsaParser {
         stream << d.ToStr() << ", " << l.ToStr() << ", " << imm << endl;
     }
 
-    void Ret(Format::Width width, IReg dst) override
-    {
-        stream << "ret." << Sz(width) << " " << dst.ToStr() << endl;
-    }
+    void Ret(Format::Width width, IReg dst) override { stream << "ret." << Sz(width) << " " << dst.ToStr() << endl; }
 
-    void FRet(Format::Width width, FReg dst) override
-    {
-        stream << "fret." << Sz(width) << " " << dst.ToStr() << endl;
-    }
+    void FRet(Format::Width width, FReg dst) override { stream << "fret." << Sz(width) << " " << dst.ToStr() << endl; }
 
     void DivCheck(IReg reg) override { stream << "divcheck" << " " << reg.ToStr() << endl; }
 

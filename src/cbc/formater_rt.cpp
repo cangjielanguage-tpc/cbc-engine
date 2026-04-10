@@ -392,7 +392,10 @@ bool LogMemSpaceInstruction(
     ::std::shared_ptr<char[]> buf(new char[BUF_SIZE]);
     Stream::Out bufStream(buf.get(), ::std::make_shared<Stream::ToIndentedBuffer>(BUF_SIZE));
 #define FMT_LOGGER(opcode, fmt, sfmt, isTail)                                                                          \
-    case MemOpcode::opcode: Log(table, bufStream, fmt::Decode(reader)); stream << (const char*) bufStream.Flush(); return isTail;
+    case MemOpcode::opcode:                                                                                            \
+        Log(table, bufStream, fmt::Decode(reader));                                                                    \
+        stream << (const char*)bufStream.Flush();                                                                      \
+        return isTail;
 
     switch (opc) {
         CBC_RT_MEMOPCODES(FMT_LOGGER)
