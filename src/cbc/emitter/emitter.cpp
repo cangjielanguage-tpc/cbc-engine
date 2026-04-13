@@ -140,7 +140,7 @@ public:
         switch (width) {
             case Width::W32: return isImm ? RT::Opcode::BCC32I : RT::Opcode::BCC32L;
             case Width::W64: return isImm ? RT::Opcode::BCC64I : RT::Opcode::BCC64L;
-            default:         FATAL("unexpected Width: %.*s", static_cast<int>(width.ToStr().length()), width.ToStr().data()); return RT::Opcode::BCC32I;
+            default:         FATAL("unexpected Width: %s", width.CStr()); return RT::Opcode::BCC32I;
         }
     }
 
@@ -193,7 +193,7 @@ public:
             return isImmOffset ? (isImmValue ? RT::Opcode::BCCI32I : RT::Opcode::BCCL32I)
                                : (isImmValue ? RT::Opcode::BCCI32L : RT::Opcode::BCCL32L);
         } else {
-            ASSERTION(width == Width::W64, "Unexpected width: %.*s", static_cast<int>(width.ToStr().length()), width.ToStr().data());
+            ASSERTION(width == Width::W64, "Unexpected width: %s", width.CStr());
             return isImmOffset ? (isImmValue ? RT::Opcode::BCCI64I : RT::Opcode::BCCL64I)
                                : (isImmValue ? RT::Opcode::BCCI64L : RT::Opcode::BCCL64L);
         }

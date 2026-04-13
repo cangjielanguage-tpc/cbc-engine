@@ -13,7 +13,7 @@ class Opcode {
 public:
 #define DECLARE_OPCODE(opc, func) opc,
 #define OPCODE_STR(opc, func)                                                                                          \
-    case opc: return std::string_view(#opc);
+    case opc: return #opc;
 
     enum Value : uint8_t {
         ISA_OPCODES(DECLARE_OPCODE)
@@ -25,13 +25,15 @@ public:
 
     constexpr uint32_t Raw() const { return _value; }
 
-    constexpr std::string_view ToStr()
+    constexpr const char* CStr()
     {
         switch (_value) {
             ISA_OPCODES(OPCODE_STR);
         }
-        return std::string_view("<invalid>");
+        return "<invalid>";
     }
+
+    constexpr std::string_view ToStr() { return std::string_view(CStr()); }
 
 #undef OPCODE_STR
 #undef DECLARE_OPCODE
@@ -43,7 +45,7 @@ class RegSymGroup {
 public:
 #define DECLARE_OPCODE(opc) opc,
 #define OPCODE_STR(opc)                                                                                                \
-    case opc: return std::string_view(#opc);
+    case opc: return #opc;
 
     enum Value : uint8_t {
         ISA_REG_SYM_GROUP_OPCODES(DECLARE_OPCODE) LAST = CallInterf
@@ -61,13 +63,15 @@ public:
         return Value(value);
     }
 
-    constexpr std::string_view ToStr()
+    constexpr const char* CStr()
     {
         switch (_value) {
             ISA_REG_SYM_GROUP_OPCODES(OPCODE_STR);
         }
-        return std::string_view("<invalid>");
+        return "<invalid>";
     }
+
+    constexpr std::string_view ToStr() { return std::string_view(CStr()); }
 
 #undef OPCODE_STR
 #undef DECLARE_OPCODE
@@ -79,7 +83,7 @@ class RegGroup {
 public:
 #define DECLARE_OPCODE(opc) opc,
 #define OPCODE_STR(opc)                                                                                                \
-    case opc: return std::string_view(#opc);
+    case opc: return #opc;
 
     enum Value : uint8_t {
         ISA_REG_GROUP_OPCODES(DECLARE_OPCODE) LAST = Throw
@@ -97,13 +101,15 @@ public:
         return Value(value);
     }
 
-    constexpr std::string_view ToStr()
+    constexpr const char* CStr()
     {
         switch (_value) {
             ISA_REG_GROUP_OPCODES(OPCODE_STR);
         }
-        return std::string_view("<invalid>");
+        return "<invalid>";
     }
+
+    constexpr std::string_view ToStr() { return std::string_view(CStr()); }
 
 #undef OPCODE_STR
 #undef DECLARE_OPCODE
@@ -148,13 +154,15 @@ public:
 #define IREG_TO_STR(opc)                                                                                               \
     case opc: return #opc;
 
-    constexpr std::string_view ToStr() const
+    constexpr const char* CStr() const
     {
         switch (_value) {
             IREG_VALUES(IREG_TO_STR)
         }
         return "<invalid>";
     }
+
+    constexpr std::string_view ToStr() { return std::string_view(CStr()); }
 
     inline static IReg From(const uint32_t raw)
     {
@@ -206,13 +214,15 @@ public:
 #define FREG_TO_STR(opc)                                                                                               \
     case opc: return #opc;
 
-    constexpr std::string_view ToStr() const
+    constexpr const char* CStr() const
     {
         switch (_value) {
             FREG_VALUES(FREG_TO_STR)
         }
         return "<invalid>";
     }
+
+    constexpr std::string_view ToStr() { return std::string_view(CStr()); }
 
     inline static FReg From(const uint32_t raw)
     {
@@ -323,16 +333,18 @@ public:
         return Value(value);
     }
 
-    constexpr std::string_view ToStr()
+    constexpr const char* CStr()
     {
 #define CommonStr(opc, value, str)                                                                                     \
-    case opc: return std::string_view(str);
+    case opc: return str;
         switch (_value) {
             CommonValue(CommonStr);
         }
-        return std::string_view("<invalid>");
+        return "<invalid>";
 #undef CommonStr
     }
+
+    constexpr std::string_view ToStr() { return std::string_view(CStr()); }
 
 private:
     Value _value;
@@ -379,16 +391,18 @@ public:
 
     constexpr bool IsBasic() { return (_value >> 2u) == 0; }
 
-    constexpr std::string_view ToStr()
+    constexpr const char* CStr()
     {
 #define FloatOperationsStr(opc, value, str)                                                                            \
-    case opc: return std::string_view(str);
+    case opc: return str;
         switch (_value) {
             FloatOperationsValue(FloatOperationsStr);
         }
-        return std::string_view("<invalid>");
+        return "<invalid>";
 #undef FloatOperationsStr
     }
+
+    constexpr std::string_view ToStr() { return std::string_view(CStr()); }
 
 private:
     Value _value;
@@ -411,7 +425,7 @@ public:
 
     constexpr uint32_t NBits() const { return NBytes() * 8; }
 
-    constexpr std::string_view ToStr()
+    constexpr const char* CStr()
     {
         switch (_value) {
             case W8:  return "W8";
@@ -421,6 +435,8 @@ public:
         }
         return "<invalid>";
     }
+
+    constexpr std::string_view ToStr() { return std::string_view(CStr()); }
 
     static constexpr Width FromCbcTypeKind(CbcTypeKind tkind)
     {
@@ -484,16 +500,18 @@ public:
 
     constexpr CC Negated(const uint32_t negated) const { return _value ^ negated; }
 
-    constexpr std::string_view ToStr()
+    constexpr const char* CStr()
     {
 #define CCStr(opc, value, str)                                                                                         \
-    case opc: return std::string_view(str);
+    case opc: return str;
         switch (_value) {
             CCValue(CCStr);
         }
-        return std::string_view("<invalid>");
+        return "<invalid>";
 #undef CCStr
     }
+
+    constexpr std::string_view ToStr() { return std::string_view(CStr()); }
 
 private:
     Value _value;
@@ -527,16 +545,18 @@ public:
 
     constexpr bool IsFloat() const { return _value == ST_F32 || _value == ST_F64; }
 
-    constexpr std::string_view ToStr()
+    constexpr const char* CStr()
     {
 #define StoreAccessKindStr(opc, value, str)                                                                            \
-    case opc: return std::string_view(str);
+    case opc: return str;
         switch (_value) {
             StoreAccessKindValue(StoreAccessKindStr);
         }
-        return std::string_view("<invalid>");
+        return "<invalid>";
 #undef StoreAccessKindStr
     }
+
+    constexpr std::string_view ToStr() { return std::string_view(CStr()); }
 
 private:
     Value _value;
@@ -578,16 +598,18 @@ public:
 
     constexpr bool IsFloat() const { return _value == LD_F32 || _value == LD_F64; }
 
-    constexpr std::string_view ToStr()
+    constexpr const char* CStr()
     {
 #define LoadAccessKindStr(opc, value, str)                                                                             \
-    case opc: return std::string_view(str);
+    case opc: return str;
         switch (_value) {
             LoadAccessKindValue(LoadAccessKindStr);
         }
-        return std::string_view("<invalid>");
+        return "<invalid>";
 #undef LoadAccessKindStr
     }
+
+    constexpr std::string_view ToStr() { return std::string_view(CStr()); }
 
 private:
     Value _value;

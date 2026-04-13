@@ -18,19 +18,19 @@
 
 #else
 
-#ifdef CBC_ENGINE_IMMEDIATE_ASSERTION
-    #define ASSERTION_TRAP() __builtin_trap()
-#else
-    #include <cstdlib>
-    #define ASSERTION_TRAP() std::abort()
-#endif
-#ifdef CBC_ENGINE_PRETTY_FUNC_NAME
-    #define CBC_ENGINE_FUNC_NAME __PRETTY_FUNCTION__
-#else
-    #define CBC_ENGINE_FUNC_NAME __func__
-#endif
-#include <stdarg.h>
-#include <stdio.h>
+    #ifdef CBC_ENGINE_IMMEDIATE_ASSERTION
+        #define ASSERTION_TRAP() __builtin_trap()
+    #else
+        #include <cstdlib>
+        #define ASSERTION_TRAP() std::abort()
+    #endif
+    #ifdef CBC_ENGINE_PRETTY_FUNC_NAME
+        #define CBC_ENGINE_FUNC_NAME __PRETTY_FUNCTION__
+    #else
+        #define CBC_ENGINE_FUNC_NAME __func__
+    #endif
+    #include <stdarg.h>
+    #include <stdio.h>
 
 [[noreturn]]
 static void ReportFailure(const char* filename, int line, const char* func, const char* fmt, ...)
