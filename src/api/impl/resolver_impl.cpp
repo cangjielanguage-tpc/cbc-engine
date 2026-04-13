@@ -30,8 +30,9 @@ Type* ResolverImpl::Resolve(Symlevel::Index<Symlevel::Terms::Term> index)
     auto termKind = term.GetIdentifier().GetKind();
     switch (termKind) {
         case Terms::TemplateKind::AOT_TYPE: {
-            auto typeNameOffset = static_cast<uint32_t>(term.GetIdentifier().GetNum());
-            auto typeName       = Reader::Read(session, fileId, Offset<String>(typeNameOffset));
+            auto nameFileId     = term.GetIdentifier().GetFileId();
+            auto typeNameOffset = term.GetIdentifier().GetOffset();
+            auto typeName       = Reader::Read(session, nameFileId, Offset<String>(typeNameOffset));
             auto typeInfo = RTSupport::RuntimeInterface<RTSupport::Impl>::GetTypeInfo(std::string(typeName).c_str());
 
             ASSERTION(typeInfo != nullptr, "Couldn't resolve AOT type");
