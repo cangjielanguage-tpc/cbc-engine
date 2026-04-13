@@ -3,8 +3,8 @@
 /// This file defines Runtime specific interface for communication between
 /// interpreter and the runtime.
 
-#include "interpreter/ectype.h"
 #include "RuntimeTypes.h"
+#include "interpreter/ectype.h"
 
 namespace RTSupport {
 
@@ -20,7 +20,7 @@ private:
 
 template <typename RT> class TypeInfo {
 public:
-    TypeInfo(uintptr_t _value) : value((MRTExport::type_info_t*) _value) {}
+    TypeInfo(uintptr_t _value) : value((MRTExport::type_info_t*)_value) {}
 
     TypeInfo(MRTExport::type_info_t* _value) : value(_value) {}
 
@@ -52,7 +52,7 @@ public:
     static Reference ReadObject(uintptr_t base, size_t offset, ThreadHandle th);
     static void WriteObject(uintptr_t base, size_t offset, Reference object, ThreadHandle th);
 
-    static TypeInfo<RT> GetTypeInfo(const char *typeName);
+    static TypeInfo<RT> GetTypeInfo(const char* typeName);
 };
 
 } // namespace RTSupport

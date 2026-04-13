@@ -32,10 +32,7 @@ public:
         *reinterpret_cast<uintptr_t*>(base + offset) = object.value;
     }
 
-    static TypeInfo<Test> GetTypeInfo(const char *typeName) 
-    {
-        return TypeInfo<Test>(nullptr);
-    }
+    static TypeInfo<Test> GetTypeInfo(const char* typeName) { return TypeInfo<Test>(nullptr); }
 };
 
 } // namespace RTSupport

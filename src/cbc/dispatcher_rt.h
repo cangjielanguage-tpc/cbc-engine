@@ -402,7 +402,7 @@ FUN64: {
     NEXT_COND(successful);
 }
 NEWOBJ: {
-    auto args          = B3xi12::Decode(reader);
+    auto args                     = B3xi12::Decode(reader);
     RTSupport::TypeInfo<RTI> type = literals->at(args.xi12.imm12).uintptr;
 
     // To invoke an `newobj` we need to "return" three values

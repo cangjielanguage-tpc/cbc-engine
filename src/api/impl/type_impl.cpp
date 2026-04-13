@@ -2,28 +2,21 @@
 
 using namespace Symlevel::Terms;
 
-namespace API
-{
+namespace API {
 
-TypeImpl::TypeImpl(Term term): term(term), typeInfo(std::nullopt)
+TypeImpl::TypeImpl(Term term) : term(term), typeInfo(std::nullopt)
 {
     ASSERTION(term.GetLength() != 0, "Use only for generic types");
 }
 
-TypeImpl::TypeImpl(Term term, TypeInfo typeInfo): term(term), typeInfo(typeInfo)
+TypeImpl::TypeImpl(Term term, TypeInfo typeInfo) : term(term), typeInfo(typeInfo)
 {
     ASSERTION(term.GetLength() == 0, "Use only for non-generic types");
 }
 
-Term* TypeImpl::AsTerm() 
-{
-    return &term;
-}
+Term* TypeImpl::AsTerm() { return &term; }
 
-std::optional<TypeInfo> TypeImpl::GetTypeInfo()
-{
-    return typeInfo;
-}
+std::optional<TypeInfo> TypeImpl::GetTypeInfo() { return typeInfo; }
 
 int TypeImpl::FieldSize()
 {

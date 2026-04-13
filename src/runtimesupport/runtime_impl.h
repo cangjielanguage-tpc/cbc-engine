@@ -20,7 +20,7 @@ public:
 
     static void WriteObject(uintptr_t base, size_t offset, Reference object, ThreadHandle th);
 
-    static TypeInfo<Impl> GetTypeInfo(const char *typeName);
+    static TypeInfo<Impl> GetTypeInfo(const char* typeName);
 };
 
 void InitializeRuntimeInterface();

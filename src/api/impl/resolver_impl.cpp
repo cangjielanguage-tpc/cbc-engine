@@ -1,8 +1,8 @@
 #include "resolver_impl.h"
 #include "engine/symlevel/aot_table.h"
 #include "engine/symlevel/definitions.h"
-#include "engine/symlevel/region_data.h"
 #include "engine/symlevel/reader.h"
+#include "engine/symlevel/region_data.h"
 #include "method_impl.h"
 #include "type_impl.h"
 
@@ -16,7 +16,7 @@ Type* ResolverImpl::Resolve(Symlevel::Index<Symlevel::Terms::Term> index)
 {
     using namespace Symlevel;
 
-    auto fileId = method.GetFileId();
+    auto fileId   = method.GetFileId();
     auto& cbcFile = session.CbcFileOf(fileId);
 
     auto termOpt = cbcFile.GetRegionData().queryTerm(session, index);
@@ -31,7 +31,7 @@ Type* ResolverImpl::Resolve(Symlevel::Index<Symlevel::Terms::Term> index)
     switch (termKind) {
         case Terms::TemplateKind::AOT_TYPE: {
             auto typeNameOffset = static_cast<uint32_t>(term.GetIdentifier().GetNum());
-            auto typeName = Reader::Read(session, fileId, Offset<String>(typeNameOffset));
+            auto typeName       = Reader::Read(session, fileId, Offset<String>(typeNameOffset));
             auto typeInfo = RTSupport::RuntimeInterface<RTSupport::Impl>::GetTypeInfo(std::string(typeName).c_str());
 
             ASSERTION(typeInfo != nullptr, "Couldn't resolve AOT type");

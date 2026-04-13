@@ -1,11 +1,11 @@
 #include <cstring>
 
-#include "runtime.h"
 #include "../testutils.h"
 #include "cbc/decoder.h"
 #include "cbc/dispatcher_rt.h"
 #include "interpreter.h"
 #include "interpreter/adapters.h"
+#include "runtime.h"
 
 static constexpr int HEAP_SIZE = 16384;
 static LimitedHeap<HEAP_SIZE> heap;
