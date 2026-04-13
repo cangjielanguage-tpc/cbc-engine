@@ -1,30 +1,39 @@
 #pragma once
 
-#if defined(UNIT_TEST_MODE)
-    #include <stdexcept>
-    #define ASSERTION(cond, msg)                                                                                       \
+#ifdef NDEBUG
+    #define ASSERT(cond)                                                                                               \
         do {                                                                                                           \
-            if (!(cond))                                                                                               \
-                throw std::runtime_error(msg);                                                                         \
-        } while (0)
-    #define ASSERT(cond) ASSERTION(cond, "")
+            if (false) {                                                                                               \
+                if (cond) {}                                                                                           \
+            }                                                                                                          \
+        } while (false)
+    #define ASSERTION(cond, ...)                                                                                       \
+        do {                                                                                                           \
+            if (false) {                                                                                               \
+                if (cond) {}                                                                                           \
+            }                                                                                                          \
+        } while (false)
+    #define FATAL(...)                                                                                                 \
+        if (false) {}
+
 #else
-    #ifdef CBC_ENGINE_IMMEDIATE_ASSERTION
-        #define ASSERTION_TRAP() __builtin_trap()
-    #else
-        #include <cstdlib>
-        #define ASSERTION_TRAP() std::abort()
-    #endif
-    #ifdef CBC_ENGINE_PRETTY_FUNC_NAME
-        #define CBC_ENGINE_FUNC_NAME __PRETTY_FUNCTION__
-    #else
-        #define CBC_ENGINE_FUNC_NAME __func__
-    #endif
-    #include <stdarg.h>
-    #include <stdio.h>
+
+#ifdef CBC_ENGINE_IMMEDIATE_ASSERTION
+    #define ASSERTION_TRAP() __builtin_trap()
+#else
+    #include <cstdlib>
+    #define ASSERTION_TRAP() std::abort()
+#endif
+#ifdef CBC_ENGINE_PRETTY_FUNC_NAME
+    #define CBC_ENGINE_FUNC_NAME __PRETTY_FUNCTION__
+#else
+    #define CBC_ENGINE_FUNC_NAME __func__
+#endif
+#include <stdarg.h>
+#include <stdio.h>
 
 [[noreturn]]
-static void ReportFailure(const char* filename, int line, const char* func, const char* fmt...)
+static void ReportFailure(const char* filename, int line, const char* func, const char* fmt, ...)
 {
     fprintf(stderr, "%s:%d: assertion failed in %s: ", filename, line, func);
     va_list args;
@@ -51,4 +60,4 @@ static void ReportFailure(const char* filename, int line, const char* func, cons
             }                                                                                                          \
         } while (false)
     #define FATAL(...) ReportFailure(__FILE__, __LINE__, CBC_ENGINE_FUNC_NAME, __VA_ARGS__)
-#endif // defined(UNIT_TEST_MODE)
+#endif // ifdef NDEBUG
