@@ -51,7 +51,7 @@ CBC_EXPORT void engine_initialize() { EnsureEngineInitialized(); }
 CBC_EXPORT void* engine_get_entrypoint_trampoline(void)
 {
     ASSERTION(g_Initialized, "Engine is not initialized");
-    
+
     auto& engine = Engine::GetEngineInstance();
 
     Engine::Session session(engine);

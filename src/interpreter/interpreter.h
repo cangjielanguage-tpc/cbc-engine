@@ -257,6 +257,122 @@ public:
         ectype->Put(d, Value::Primitive { .u32 = res });
     }
 
+    void Convert(ConvertType toType, ConvertType fromType, Reg to, Reg from)
+    {
+        auto val = fromType.IsFloatingPoint() ? ectype->GetPrimitive(from.FR()) : ectype->GetPrimitive(from.IR());
+        Value::Primitive res = { .u64 = 0 };
+
+        switch (fromType) {
+            case ConvertType::I32: {
+                auto i32 = static_cast<int32_t>(val.u32);
+                switch (toType) {
+                    case ConvertType::I8:  res.u64 = (uint64_t)(int8_t)i32; break;
+                    case ConvertType::U8:  res.u64 = (uint8_t)i32; break;
+                    case ConvertType::I16: res.u64 = (uint64_t)(int16_t)i32; break;
+                    case ConvertType::U16: res.u64 = (uint16_t)i32; break;
+                    case ConvertType::I64: res.u64 = (uint64_t)(int64_t)i32; break;
+                    case ConvertType::F32: res.f32 = (float)i32; break;
+                    case ConvertType::F64: res.f64 = (double)i32; break;
+
+                    default: {
+                        ASSERTION(false, "unsupported cast");
+                    }
+                }
+                break;
+            }
+
+            case ConvertType::U32: {
+                auto u32 = val.u32;
+                switch (toType) {
+                    case ConvertType::I8:  res.u64 = (uint64_t)(int8_t)u32; break;
+                    case ConvertType::U8:  res.u64 = (uint8_t)u32; break;
+                    case ConvertType::I16: res.u64 = (uint64_t)(int16_t)u32; break;
+                    case ConvertType::U16: res.u64 = (uint16_t)u32; break;
+                    case ConvertType::I64: res.u64 = (uint64_t)(int64_t)u32; break;
+                    case ConvertType::F32: res.f32 = (float)u32; break;
+                    case ConvertType::F64: res.f64 = (double)u32; break;
+
+                    default: {
+                        ASSERTION(false, "unsupported cast");
+                    }
+                }
+                break;
+            }
+
+            case ConvertType::I64: {
+                auto i64 = static_cast<int64_t>(val.u64);
+                switch (toType) {
+                    case ConvertType::I32: res.u64 = (uint64_t)(int32_t)i64; break;
+                    case ConvertType::F32: res.f32 = (float)i64; break;
+                    case ConvertType::F64: res.f64 = (double)i64; break;
+
+                    default: {
+                        ASSERTION(false, "unsupported cast");
+                    }
+                }
+                break;
+            }
+            case ConvertType::U64: {
+                auto u64 = val.u64;
+                switch (toType) {
+                    case ConvertType::I32: res.u64 = (uint64_t)(int32_t)u64; break;
+                    case ConvertType::U32: res.u64 = (uint32_t)u64; break;
+                    case ConvertType::F32: res.f32 = (float)u64; break;
+                    case ConvertType::F64: res.f64 = (double)u64; break;
+
+                    default: {
+                        ASSERTION(false, "unsupported cast");
+                    }
+                }
+                break;
+            }
+            case ConvertType::F16: {
+                ASSERTION(false, "halfs not supported yet");
+            }
+            case ConvertType::F32: {
+                auto f32 = val.f32;
+                switch (toType) {
+                    case ConvertType::I32: res.u64 = (uint64_t)(int32_t)f32; break;
+                    case ConvertType::U32: res.u64 = (uint32_t)f32; break;
+                    case ConvertType::I64: res.u64 = (uint64_t)(int64_t)f32; break;
+                    case ConvertType::U64: res.u64 = (uint64_t)f32; break;
+                    case ConvertType::F16: ASSERTION(false, "halfs not supported yet"); break;
+                    case ConvertType::F64: res.f64 = (double)f32; break;
+
+                    default: {
+                        ASSERTION(false, "unsupported cast");
+                    }
+                }
+                break;
+            }
+            case ConvertType::F64: {
+                auto f64 = val.f64;
+                switch (toType) {
+                    case ConvertType::I32: res.u64 = (uint64_t)(int32_t)f64; break;
+                    case ConvertType::U32: res.u64 = (uint32_t)f64; break;
+                    case ConvertType::I64: res.u64 = (uint64_t)(int64_t)f64; break;
+                    case ConvertType::U64: res.u64 = (uint64_t)f64; break;
+                    case ConvertType::F32: res.f32 = (float)f64; break;
+
+                    default: {
+                        ASSERTION(false, "unsupported cast");
+                    }
+                }
+                break;
+            }
+
+            default: {
+                ASSERTION(false, "unsupported cast");
+            }
+        }
+
+        if (toType.IsFloatingPoint()) {
+            ectype->Put(to.FR(), res);
+        } else {
+            ectype->Put(to.IR(), res);
+        }
+    }
+
 private:
     inline bool NullCheck(Value::Reference obj) { return true; }
 

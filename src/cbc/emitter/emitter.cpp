@@ -83,9 +83,8 @@ public:
 
     int32_t Size() const override { return 2; }
 
-    void Resolve(
-        Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter
-    ) const override
+    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+        const override
     {
         ASSERT(position >= 0);
         Segment::View buf = segment.At(static_cast<size_t>(position));
@@ -108,9 +107,8 @@ public:
 
     int32_t Size() const override { return RT::B5i32::SIZE; }
 
-    void Resolve(
-        Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter
-    ) const override
+    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+        const override
     {
         int32_t distance = Distance(symbols, this->symbol);
 
@@ -144,9 +142,8 @@ public:
         }
     }
 
-    void Resolve(
-        Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter
-    ) const override
+    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+        const override
     {
         int32_t distance = Distance(symbols, this->symbol);
 
@@ -199,9 +196,8 @@ public:
         }
     }
 
-    void Resolve(
-        Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter
-    ) const override
+    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+        const override
     {
         int32_t distance = Distance(symbols, this->symbol);
 
@@ -629,6 +625,21 @@ void Emitter::SCCImm(CC cc, Width width, IReg d, IReg l, uint64_t imm)
         AddFixup(std::make_unique<Literal12Fixup>(Imm4(cc), immediate));
         Encode(segment, RR { .x = d, .y = l });
     }
+}
+
+void Emitter::Convert(ConvertType toType, ConvertType fromType, Reg to, Reg from)
+{
+    Encode(segment, RT::B3xxrr {
+        .opc = RT::Opcode::CONVERT,
+        .xx = {
+            .imm1 = Imm4(toType),
+            .imm2 = Imm4(fromType),
+        },
+        .rr = {
+            .x = to,
+            .y = from,
+        },
+    });
 }
 
 void Emitter::DirectCall2i(IReg d, Symbol fuh)

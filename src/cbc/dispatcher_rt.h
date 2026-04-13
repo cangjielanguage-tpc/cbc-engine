@@ -105,6 +105,8 @@ Thunk InterpretationLoop(
         &&SCCI32L, // B4xi12rr
         &&SCCI64L, // B4xi12rr
 
+        &&CONVERT, // B3xxrr
+
         &&DIRECT_CALL_2I, // B3xi12
         &&DIRECT_CALL_2C, // B3xi12
 
@@ -494,6 +496,11 @@ SCCI64L: {
     interpreter.template SCCImm<ImmKind::LITERAL, Width::W64>(
         args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
     );
+    NEXT;
+}
+CONVERT: {
+    auto args = B3xxrr::Decode(reader);
+    interpreter.Convert(args.xx.imm1.ConvertType(), args.xx.imm2.ConvertType(), args.rr.x, args.rr.y);
     NEXT;
 }
 DIRECT_CALL_2I: {

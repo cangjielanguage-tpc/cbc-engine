@@ -58,7 +58,7 @@
     X(Binary64, BinaryGeneric<Width::W64>)                                                                             \
     X(BinaryImm32, BinaryImm<Width::W32>)                                                                              \
     X(BinaryImm64, BinaryImm<Width::W64>)                                                                              \
-    X(Cast, Cast)                                                                                                      \
+    X(Convert, Convert)                                                                                                \
     X(NewArr, NewArr)                                                                                                  \
     X(GcPoint, GcPoint)                                                                                                \
     X(PrepareRecord, PrepareRecord)                                                                                    \

@@ -109,8 +109,10 @@ struct IsaRewriter : public IsaParser {
     // TODO: add enum
     void FloatBinary(uint8_t op, Format::Width width, FReg d, FReg l, FReg r) override {}
 
-    // TODO: add enum
-    void Cast(int8_t fromType, int8_t toType, AnyReg d, AnyReg s) override {}
+    void Convert(Format::ConvertType toType, Format::ConvertType fromType, AnyReg to, AnyReg from) override
+    {
+        emit.Convert(toType, fromType, to, from);
+    }
 
     void PrepareRecord(uint16_t ts) override {}
 

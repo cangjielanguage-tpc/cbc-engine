@@ -28,6 +28,22 @@ Interpretation::Value::Primitive InterpretFPRes(
 
 Interpretation::Value::Primitive Interpret(
     Interpretation::Code code,
+    Interpretation::Value::Primitive ir1,
+    Interpretation::Value::Primitive ir2,
+    Interpretation::Value::Primitive fr0,
+    Interpretation::Value::Primitive fr1
+);
+
+Interpretation::Value::Primitive InterpretFPRes(
+    Interpretation::Code code,
+    Interpretation::Value::Primitive ir1,
+    Interpretation::Value::Primitive ir2,
+    Interpretation::Value::Primitive fr0,
+    Interpretation::Value::Primitive fr1
+);
+
+Interpretation::Value::Primitive Interpret(
+    Interpretation::Code code,
     Interpretation::Frame* frame,
     Interpretation::Value::Primitive ir1,
     Interpretation::Value::Primitive ir2

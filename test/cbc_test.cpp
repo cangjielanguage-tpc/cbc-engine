@@ -75,7 +75,7 @@ static Interpretation::ExecBytecodeInfo* OpenAndRewrite(std::string_view name, s
     auto mainId      = engine.FindMain(session, fileName);
     auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
 
-    auto fuh    = std::get<Interpretation::DynamicFunctionHandle*>(fuhManager.AcquireTagged(session, mainId.value()));
+    auto fuh = std::get<Interpretation::DynamicFunctionHandle*>(fuhManager.AcquireTagged(session, mainId.value()));
     return fuhManager.Prepare(session, fuh);
 }
 
@@ -189,7 +189,8 @@ static uint64_t ASR(uint64_t lhs, uint64_t rhs)
 #define SIMPLE_ARITH_SPECIALIZED(opc, value)                                                                           \
     TEST_ASM(CbcTest, SimpleArithSpecialized##opc##_##value)                                                           \
     {                                                                                                                  \
-        auto code = OpenAndRewrite("arith", "simple_arith_specialized_" #opc "_" #value ".asm")->code;                 \
+        auto path = "./simple_arith_specialized/simple_arith_specialized_" #opc "_" #value ".asm";                     \
+        auto code = OpenAndRewrite("arith", path)->code;                                                               \
         SIMPLE_ARITH_SPECIALIZED_CASE(opc, 1, value);                                                                  \
         SIMPLE_ARITH_SPECIALIZED_CASE(opc, 20, value);                                                                 \
         SIMPLE_ARITH_SPECIALIZED_CASE(opc, 301, value);                                                                \
@@ -216,3 +217,49 @@ static uint64_t ASR(uint64_t lhs, uint64_t rhs)
     SIMPLE_ARITH_SPECIALIZED(ASR, value)
 
 SIMPLE_ARITH_VALUES(GEN_SIMPLE_ARITH_SPECIALIZED)
+
+#define SIMPLE_CONVERT_CASES(X)                                                                                        \
+    X(F32_F64, true, true, F32(1.0f), F64(1.0))                                                                        \
+    X(F32_I32, true, false, F32(1.0f), U64(1))                                                                         \
+    X(F32_I64, true, false, F32(1.0f), U64(1))                                                                         \
+    X(F32_U32, true, false, F32(1.0f), U64(1))                                                                         \
+    X(F32_U64, true, false, F32(1.0f), U64(1))                                                                         \
+    X(F64_F32, true, true, F64(1.0), F32(1.0f))                                                                        \
+    X(F64_I32, true, false, F64(1.0), U64(1))                                                                          \
+    X(F64_I64, true, false, F64(1.0), U64(1))                                                                          \
+    X(F64_U32, true, false, F64(1.0), U64(1))                                                                          \
+    X(F64_U64, true, false, F64(1.0), U64(1))                                                                          \
+    X(I8_I32, false, false, U64(-128), U64(32896))                                                                     \
+    X(I8_U32, false, false, U64(-128), U64(32896))                                                                     \
+    X(I16_I32, false, false, U64(-32640), U64(32896))                                                                  \
+    X(I16_U32, false, false, U64(-32640), U64(32896))                                                                  \
+    X(I32_F32, false, true, U64(1), F32(1.0f))                                                                         \
+    X(I32_F64, false, true, U64(1), F64(1.0))                                                                          \
+    X(I32_I64, false, false, U64(1), U64(1))                                                                           \
+    X(I32_U64, false, false, U64(1), U64(1))                                                                           \
+    X(I64_F32, false, true, U64(1), F32(1.0f))                                                                         \
+    X(I64_F64, false, true, U64(1), F64(1.0))                                                                          \
+    X(I64_I32, false, false, U64(1), U32(1))                                                                           \
+    X(I64_U32, false, false, U64(1), U32(1))                                                                           \
+    X(U8_I32, false, false, U64(128), U32(32896))                                                                      \
+    X(U8_U32, false, false, U64(128), U32(32896))                                                                      \
+    X(U16_I32, false, false, U64(32896), U32(32896))                                                                   \
+    X(U16_U32, false, false, U64(32896), U32(32896))                                                                   \
+    X(U32_F32, false, true, U64(1), F32(1.0f))                                                                         \
+    X(U32_F64, false, true, U64(1), F64(1.0))                                                                          \
+    X(U32_U64, false, false, U64(1), U32(1))                                                                           \
+    X(U64_F32, false, true, U64(1), F32(1.0f))                                                                         \
+    X(U64_F64, false, true, U64(1), F64(1.0))
+
+#define SIMPLE_CONVERT(opc, toFP, fromFP, expected, val)                                                               \
+    TEST_ASM(CbcTest, SimpleConvert##opc)                                                                              \
+    {                                                                                                                  \
+        auto path = "./simple_convert/simple_convert_" #opc ".asm";                                                    \
+        auto code = OpenAndRewrite("arith", path)->code;                                                               \
+        auto ir1  = fromFP ? U64(0) : val;                                                                             \
+        auto fr0  = fromFP ? val : F64(0);                                                                             \
+        auto res  = toFP ? InterpretFPRes(code, ir1, U64(0), fr0, F64(0)) : Interpret(code, ir1, U64(0), fr0, F64(0)); \
+        EXPECT_EQ(res.u64, expected.u64);                                                                              \
+    }
+
+SIMPLE_CONVERT_CASES(SIMPLE_CONVERT)
