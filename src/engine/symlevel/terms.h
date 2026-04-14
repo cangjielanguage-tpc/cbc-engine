@@ -8,6 +8,7 @@
 #include "io/stream_file_reader.h"
 #include "offset.h"
 #include "string.h"
+#include "utils/assertion.h"
 
 namespace Symlevel {
 namespace Terms {
@@ -80,9 +81,17 @@ public:
 
     uint64_t GetNum() { return num; }
 
-    uint32_t GetOffset() { return static_cast<uint32_t>(aotData.offset); }
+    uint32_t GetOffset() 
+    {
+        ASSERTION(kind == TemplateKind::AOT_TYPE, "aot type kind expected"); 
+        return static_cast<uint32_t>(aotData.offset); 
+    }
 
-    uint32_t GetFileId() { return static_cast<uint32_t>(aotData.fileId); }
+    uint32_t GetFileId() 
+    {
+        ASSERTION(kind == TemplateKind::AOT_TYPE, "aot type kind expected");
+        return static_cast<uint32_t>(aotData.fileId);
+    }
 
 private:
     TemplateKind kind;
