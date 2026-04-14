@@ -83,7 +83,7 @@ class ToIndentedBuffer : public ToBuffer {
 public:
     unsigned int indentationSize;
 
-    ToIndentedBuffer(const size_t bufSize, const unsigned int indentSize = 2);
+    ToIndentedBuffer(const size_t bufSize, const unsigned int indentSize = 4);
 
     void BeforePrint(void* dest) override;
 };
