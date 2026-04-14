@@ -46,45 +46,31 @@ enum class Mark : uint8_t {
 class Ectype {
 public:
     // zero-initialize everything (including marks)
-    Ectype() : iregs {}, iregMarks {}, fregs {} {}
+    Ectype() : iregs {}, fregs {} {}
 
     inline void Put(IReg reg, Value::Primitive primitive)
     {
         ASSERT(reg != IReg::IRZ);
         iregs[reg].primitive = primitive;
-        iregMarks[reg]       = Mark::PRIMITIVE;
     }
 
     inline void Put(IReg reg, Value::Reference reference)
     {
         ASSERT(reg != IReg::IRZ);
         iregs[reg].reference = reference;
-        iregMarks[reg]       = Mark::REFERENCE;
     }
 
-    inline void Put(FReg reg, Value::Primitive primitive) { fregs[reg.Raw()].primitive = primitive; }
+    inline void Put(FReg reg, Value::Primitive primitive) { fregs[reg].primitive = primitive; }
 
-    inline Value::Reference GetReference(IReg reg)
-    {
-        ASSERT(iregMarks[reg] == Mark::REFERENCE || reg == IReg::IRZ);
-        return iregs[reg].reference;
-    }
+    inline Value::Reference GetReference(IReg reg) { return iregs[reg].reference; }
 
-    inline Value::Primitive GetPrimitive(IReg reg)
-    {
-        ASSERT(iregMarks[reg] == Mark::PRIMITIVE || reg == IReg::IRZ);
-        return iregs[reg].primitive;
-    }
+    inline Value::Primitive GetPrimitive(IReg reg) { return iregs[reg].primitive; }
 
-    inline Value::Primitive GetPrimitive(FReg reg) { return fregs[reg.Raw()].primitive; }
-
-    void VisitReferences(std::function<void(Value::Reference*)> visitor);
+    inline Value::Primitive GetPrimitive(FReg reg) { return fregs[reg].primitive; }
 
 private:
     friend class EctypeInvariants;
     IRegContainer iregs[IReg::COUNT];
-    Mark iregMarks[IReg::COUNT];
-
     FRegContainer fregs[FReg::COUNT];
 };
 
