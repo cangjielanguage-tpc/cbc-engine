@@ -3,73 +3,72 @@
 #include "engine/engine.h"
 #include "io/file_id.h"
 #include "offset.h"
+#include "utils/assertion.h"
+#include "utils/math.h"
+#include <cstdint>
 
 namespace Symlevel {
 
-struct TemplateKind {
-public:
-    enum Value : uint8_t {
-        // primitives start
-        NIL,
-        VOID,
-        UNIT,
-        NOTHING,
-        BOOLEAN,
-        I8,
-        U8,
-        I16,
-        U16,
-        I32,
-        U32,
-        UCHAR32,
-        I64,
-        U64,
-        IADDR,
-        UADDR,
-        BSTRING,
-        F16,
-        F32,
-        F64,
-        // primitives end
+enum class TemplateKind : uint16_t {
+    // primitives start
+    NIL,
+    VOID,
+    UNIT,
+    NOTHING,
+    BOOLEAN,
+    I8,
+    U8,
+    I16,
+    U16,
+    I32,
+    U32,
+    UCHAR32,
+    I64,
+    U64,
+    IADDR,
+    UADDR,
+    BSTRING,
+    F16,
+    F32,
+    F64,
+    // primitives end
 
-        // builtin types start
-        C_POINTER,
-        NULLABLE,
-        NON_NULLABLE,
-        CANGJIE_ARRAY,
-        METHOD,
-        // builtin types end
+    // builtin types start
+    C_POINTER,
+    NULLABLE,
+    NON_NULLABLE,
+    CANGJIE_ARRAY,
+    METHOD,
+    // builtin types end
 
-        TYPE,
-        AOT_TYPE,
-        TYPE_VAR,
-        GENERIC_METHOD,
-    };
-
-    constexpr TemplateKind(uint8_t value) : value(static_cast<Value>(value)) {}
-
-    constexpr TemplateKind(const Value value) : value(value) {}
-
-    constexpr operator Value() const { return value; }
-
-private:
-    Value value;
+    TYPE,
+    AOT_TYPE,
+    TYPE_VAR,
+    GENERIC_METHOD,
+    LAST
 };
 
-// TODO: encode as 64-bit map to reduce size
+static constexpr auto FIRST_NON_PRIMITIVE = static_cast<uint16_t>(TemplateKind::C_POINTER);
+
 class TemplateIdentifier {
+    static constexpr uint64_t KIND_MASK = 0xFFFFlu;
+    static constexpr uint64_t NUM_MASK  = ~KIND_MASK;
+
 public:
-    TemplateIdentifier(TemplateKind kind, uint64_t num) : kind(kind), num(num) {}
+    TemplateIdentifier(TemplateKind kind, uint64_t num) : raw(static_cast<uint64_t>(kind) | (num << 16))
+    {
+        ASSERT(kind < TemplateKind::LAST);
+        ASSERT(MathUtils::IsNBits(num, 48));
+    }
 
-    TemplateIdentifier(TemplateKind kind) : kind(kind), num(0) {}
+    TemplateIdentifier(TemplateKind kind) : TemplateIdentifier(kind, 0) {}
 
-    TemplateKind GetKind() { return kind; }
+    TemplateKind GetKind() { return TemplateKind(raw & KIND_MASK); }
 
-    uint64_t GetNum() { return num; }
+    uint64_t GetNum() { return (raw & NUM_MASK) >> 16; }
 
 private:
-    TemplateKind kind;
-    uint64_t num;
+    uint64_t raw;
 };
 
 class Term;
@@ -122,19 +121,6 @@ private:
     TermData* data;
 };
 
-struct TermData {
-    TemplateIdentifier identifier;
-    uint32_t hash;
-    uint16_t length;
-    bool isLocal;
-    Term subterms[];
-};
-
-static const uint32_t RESERVED_SIZE = 20;
-static_assert(RESERVED_SIZE == TemplateKind::F64 + 1);
-
-static constexpr bool IsBuiltin(uint32_t idx) { return idx < RESERVED_SIZE; }
-
-static constexpr uint32_t FirstNonBuiltIn() { return RESERVED_SIZE; }
+static constexpr bool IsBuiltin(uint32_t idx) { return idx < FIRST_NON_PRIMITIVE; }
 
 } // namespace Symlevel

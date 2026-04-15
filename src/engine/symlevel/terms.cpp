@@ -7,6 +7,14 @@
 
 namespace Symlevel {
 
+struct TermData {
+    TemplateIdentifier identifier;
+    uint32_t hash;
+    uint16_t length;
+    bool isLocal;
+    Term subterms[];
+};
+
 enum Tag : uint8_t {
     NIL,                      // 0x00
     TYPE,                     // 0x01

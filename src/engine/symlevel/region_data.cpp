@@ -1,4 +1,5 @@
 #include "region_data.h"
+#include "engine/symlevel/terms.h"
 #include "io/stream_file_reader.h"
 #include "reader.h"
 
@@ -22,7 +23,7 @@ RegionData RegionData::Read(IO::FileId fileId, IO::RandomAccessFile& file, uint3
 
     IO::OffsetPool methods(methodIndexOffs, methodIndexSize);
     IO::OffsetPool fields(fieldIndexOffs, fieldIndexSize);
-    IO::OffsetPool terms(termIndexOffs, termIndexSize, FirstNonBuiltIn());
+    IO::OffsetPool terms(termIndexOffs, termIndexSize, FIRST_NON_PRIMITIVE);
 
     return RegionData(fileId, methods, fields, terms);
 }
