@@ -1,16 +1,10 @@
 #pragma once
 
-#include <variant>
-
 #include "engine/engine.h"
-#include "index.h"
 #include "io/file_id.h"
-#include "io/stream_file_reader.h"
 #include "offset.h"
-#include "string.h"
 
 namespace Symlevel {
-namespace Terms {
 
 struct TemplateKind {
 public:
@@ -121,17 +115,18 @@ public:
     GlobalTerm AsGlobal();
 
 private:
-    Term(LocalTerm local) : term(local) {}
+    Term(LocalTerm local) : data(local.data) {}
 
-    Term(GlobalTerm global) : term(global) {}
+    Term(GlobalTerm global) : data(global.data) {}
 
-    std::variant<LocalTerm, GlobalTerm> term;
+    TermData* data;
 };
 
 struct TermData {
     TemplateIdentifier identifier;
     uint32_t hash;
-    uint32_t length;
+    uint16_t length;
+    bool isLocal;
     Term subterms[];
 };
 
@@ -142,5 +137,4 @@ static constexpr bool IsBuiltin(uint32_t idx) { return idx < RESERVED_SIZE; }
 
 static constexpr uint32_t FirstNonBuiltIn() { return RESERVED_SIZE; }
 
-} // namespace Terms
 } // namespace Symlevel

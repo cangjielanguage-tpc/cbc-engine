@@ -16,7 +16,7 @@ Type* ResolverImpl::Resolve(Symlevel::Index<Type> index)
     return nullptr;
 }
 
-Term* ResolverImpl::Resolve(Symlevel::Index<Symlevel::Terms::Term> index)
+Term* ResolverImpl::Resolve(Symlevel::Index<Symlevel::Term> index)
 {
     ASSERTION(false, "not implemented yet");
     return nullptr;
@@ -36,7 +36,7 @@ Method* ResolverImpl::Resolve(Symlevel::Index<Symlevel::MethodReference> index)
 
     auto refTypeId = methodRef.RefType().GetIdentifier();
     switch (refTypeId.GetKind()) {
-        case Symlevel::Terms::TemplateKind::TYPE: {
+        case Symlevel::TemplateKind::TYPE: {
             Engine::Identifier<Symlevel::TypeDefinition> typeId(refTypeId.GetNum());
             auto refTypeDef = Symlevel::TypeDefinition::Resolve(session, typeId);
 
@@ -48,7 +48,7 @@ Method* ResolverImpl::Resolve(Symlevel::Index<Symlevel::MethodReference> index)
             return session.Allocator().New<DirectMethodCbc>(session, target);
         }
 
-        case Symlevel::Terms::TemplateKind::AOT_TYPE: {
+        case Symlevel::TemplateKind::AOT_TYPE: {
             auto data = cbcFile.GetDirectCallAotTable().GetData(session, index);
             if (!data.has_value()) {
                 // TODO: handle this case

@@ -15,7 +15,7 @@ namespace Cbc {
 
 using MethodIndex = Symlevel::Index<Symlevel::MethodReference>;
 using FieldIndex  = Symlevel::Index<Symlevel::FieldReference>;
-using TermIndex   = Symlevel::Index<Symlevel::Terms::Term>;
+using TermIndex   = Symlevel::Index<Symlevel::Term>;
 
 struct IsaRewriter : public IsaParser {
     IsaRewriter(API::Resolver& resolver, MethodCode code, Emitter::Emitter& emit)

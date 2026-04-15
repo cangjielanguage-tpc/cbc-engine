@@ -19,7 +19,7 @@ public:
 
     Type* Resolve(Symlevel::Index<Type> index) override;
 
-    Term* Resolve(Symlevel::Index<Symlevel::Terms::Term> index) override;
+    Term* Resolve(Symlevel::Index<Symlevel::Term> index) override;
 
     Method* Resolve(Symlevel::Index<Symlevel::MethodReference> index) override;
 

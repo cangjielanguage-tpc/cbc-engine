@@ -1,13 +1,11 @@
 #include "terms.h"
 #include "definitions.h"
-#include "engine/identifiers.h"
-#include "index.h"
 #include "io/stream_file_reader.h"
 #include "reader.h"
 #include "region_data.h"
+#include "string.h"
 
 namespace Symlevel {
-namespace Terms {
 
 enum Tag : uint8_t {
     NIL,                      // 0x00
@@ -115,30 +113,23 @@ Term Term::Builtin(Engine::Session& session, TemplateKind kind)
 LocalTerm Term::AsLocal()
 {
     ASSERT(IsLocal());
-    return std::get<LocalTerm>(this->term);
+    return LocalTerm(data);
 }
 
 GlobalTerm Term::AsGlobal()
 {
     ASSERT(!IsLocal());
-    return std::get<GlobalTerm>(this->term);
+    return GlobalTerm(data);
 }
 
-TemplateIdentifier Term::GetIdentifier() const
-{
-    return std::visit([](auto&& t) { return t.data->identifier; }, term);
-}
+TemplateIdentifier Term::GetIdentifier() const { return data->identifier; }
 
-uint32_t Term::GetLength() const
-{
-    return std::visit([](auto&& t) { return t.data->length; }, term);
-}
+uint32_t Term::GetLength() const { return data->length; }
 
-bool Term::IsLocal() const { return std::holds_alternative<LocalTerm>(term); }
+bool Term::IsLocal() const { return data->isLocal; }
 
 Term LocalTerm::Subterm(uint32_t i) const { return this->data->subterms[i]; }
 
 GlobalTerm GlobalTerm::Subterm(uint32_t i) const { return this->data->subterms[i].AsGlobal(); }
 
-} // namespace Terms
 } // namespace Symlevel

@@ -20,12 +20,12 @@ public:
 
     inline const String Name() const { return name; }
 
-    inline const Terms::Term RefType() const { return refType; }
+    inline const Term RefType() const { return refType; }
 
-    inline const Terms::Term MethodSig() const { return methodSig; }
+    inline const Term MethodSig() const { return methodSig; }
 
 private:
-    MethodReference(IO::FileId fileId, String name, Terms::Term refType, Terms::Term methodSig)
+    MethodReference(IO::FileId fileId, String name, Term refType, Term methodSig)
         : fileId(fileId),
           name(name),
           refType(refType),
@@ -34,8 +34,8 @@ private:
 
     IO::FileId fileId;
     String name;
-    Terms::Term refType;
-    Terms::Term methodSig;
+    Term refType;
+    Term methodSig;
 };
 
 class FieldReference {
@@ -46,20 +46,16 @@ public:
 
     inline const String Name() const { return name; }
 
-    inline const Terms::Term RefType() const { return refType; }
+    inline const Term RefType() const { return refType; }
 
-    inline const Terms::Term FieldType() const { return fieldType; }
+    inline const Term FieldType() const { return fieldType; }
 
 private:
-    FieldReference(String name, Terms::Term refType, Terms::Term fieldType)
-        : name(name),
-          refType(refType),
-          fieldType(fieldType)
-    {}
+    FieldReference(String name, Term refType, Term fieldType) : name(name), refType(refType), fieldType(fieldType) {}
 
     String name;
-    Terms::Term refType;
-    Terms::Term fieldType;
+    Term refType;
+    Term fieldType;
 };
 
 } // namespace Symlevel
