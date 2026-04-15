@@ -1,5 +1,6 @@
 #include "isa_rewriter.h"
 #include "api/resolver.h"
+#include "api/type.h"
 #include "cbc/emitter/emitter.h"
 #include "cbc/isa.h"
 #include "engine/symlevel/index.h"
@@ -124,7 +125,17 @@ struct IsaRewriter : public IsaParser {
 
     void LoadTypeInfoSig(IReg dst, uint16_t type) override { ASSERTION(false, "not implemented"); }
 
-    void NewObj(IReg dst, uint16_t typeIdx) override {}
+    void NewObj(IReg dst, uint16_t typeIdx) override
+    {
+        auto type        = resolver.Resolve(Term(typeIdx));
+        auto typeInfoOpt = type->GetTypeInfo();
+
+        ASSERTION(typeInfoOpt.has_value(), "Cannot find type info for newobj");
+        void* typeInfo = typeInfoOpt.value(); // get raw value
+
+        auto sym = emit.NewAddressSym(reinterpret_cast<uintptr_t>(typeInfo));
+        emit.NewObj(dst, sym);
+    }
 
     void CallDirect(IReg dst, uint16_t method) override
     {

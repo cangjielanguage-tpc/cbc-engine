@@ -58,10 +58,9 @@ std::optional<Term> Term::ParseAndResolve(Engine::Session& session, IO::FileId f
 
         case AOT_TYPE: {
             auto nameOffs = Offset<String>(reader.ReadULEB());
-            auto name     = Reader::Read(session, fileId, nameOffs);
 
             auto* data       = static_cast<TermData*>(allocator.Allocate(sizeof(TermData), alignof(TermData)));
-            data->identifier = TemplateIdentifier(TemplateKind::AOT_TYPE, 0);
+            data->identifier = TemplateIdentifier(TemplateKind::AOT_TYPE, nameOffs, fileId);
             data->hash       = 0;
             data->length     = 0;
 
