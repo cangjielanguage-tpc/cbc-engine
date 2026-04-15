@@ -66,7 +66,7 @@ private:
 // TODO: encode as 64-bit map to reduce size
 class TemplateIdentifier {
 public:
-    TemplateIdentifier(TemplateKind kind, Offset<String> offset, IO::FileId fileId): kind(kind)
+    TemplateIdentifier(TemplateKind kind, Offset<String> offset, IO::FileId fileId): kind(kind), num(0)
     {
         aotData.offset = offset;
         aotData.fileId = fileId;
