@@ -1,5 +1,5 @@
 @type default {
-  @methodref default.foo, default foo [ I64, I64 ] I64
+  @methodref default.foo, DIRECT default foo [ I64, I64 ] I64
 
   @method default main [ ] I64 {
     mov.64 IR1, 0x7

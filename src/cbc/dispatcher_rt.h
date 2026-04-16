@@ -1,5 +1,6 @@
 #pragma once
 
+#include "RuntimeTypes.h"
 #include "asm_trampolines.h"
 #include "decoder.h"
 #include "interpreter/interpreter.h"
@@ -109,6 +110,8 @@ Thunk InterpretationLoop(
 
         &&DIRECT_CALL_2I, // B3xi12
         &&DIRECT_CALL_2C, // B3xi12
+
+        &&VIRTUAL_CALL_2C, // [opc, r, i32, i32]
 
         &&MEMSPACE, // B1. See `MemOpcode`
     };
@@ -505,7 +508,6 @@ CONVERT: {
 }
 DIRECT_CALL_2I: {
     auto args    = B3xi12::Decode(reader);
-    IReg dst     = args.xi12.imm4.IR();
     uint16_t imm = args.xi12.imm12;
     auto fuh     = reinterpret_cast<FunctionHandle*>(literals->at(imm).uintptr);
     // For proper support of fibers, the following call MUST drop the current frame.
@@ -522,7 +524,6 @@ DIRECT_CALL_2I: {
 }
 DIRECT_CALL_2C: {
     auto args    = B3xi12::Decode(reader);
-    IReg dst     = args.xi12.imm4.IR();
     uint16_t imm = args.xi12.imm12;
     auto target  = literals->at(imm).uintptr;
     // For proper support of fibers, the following call MUST drop the current frame.
@@ -537,6 +538,30 @@ DIRECT_CALL_2C: {
 
     return { reinterpret_cast<void*>(&Asm::engine_i2c_call), reinterpret_cast<void*>(target) };
 }
+VIRTUAL_CALL_2C: {
+    auto args      = B5i16i16::Decode(reader);
+    auto vnum      = args.imm1.imm;
+    auto extDefNum = args.imm2.imm;
+
+    size_t extDefArrayOffset = offsetof(MRTExport::type_info_t, v_extension_data_start);
+
+    auto* receiver     = reinterpret_cast<uintptr_t*>(ectype->GetReference(IReg::IR1).value);
+    auto* thisTypeInfo = reinterpret_cast<MRTExport::type_info_t*>(*receiver);
+    auto* target       = thisTypeInfo->v_extension_data_start[extDefNum]->func_table[vnum];
+
+    // For proper support of fibers, the following call MUST drop the current frame.
+    // This can not be guaranteed by C++ compiler consistently, because TCO
+    // is not guaranteed and `mustcall` attribute is not supported
+    // fully by gcc/clang compilers.
+    //
+    // Instead, the following call will drop the current frame manually
+    // (outside of unit-test framework).
+
+    reader0 = reader; // save current pc
+
+    return { reinterpret_cast<void*>(&Asm::engine_i2c_call), target };
+}
+
 MEMSPACE: {
     B1::Decode(reader);
     memspaceOffsetAcc = 0;

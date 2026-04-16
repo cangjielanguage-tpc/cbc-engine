@@ -71,5 +71,34 @@ MethodFlags DirectMethodAot::Flags()
 
 Symlevel::String DirectMethodAot::Name() { return ref.Name(); }
 
+//////////////////////////////////
+// VirtualMethodAot
+
+Term* VirtualMethodAot::ABISignature()
+{
+    ASSERTION(false, "not implemented yet");
+    return nullptr;
+}
+
+std::optional<Type*> VirtualMethodAot::RefType()
+{
+    ASSERTION(false, "not implemented yet");
+    return nullptr;
+}
+
+std::optional<Interpretation::FunctionHandle*> VirtualMethodAot::FUH() { return std::nullopt; }
+
+uint16_t VirtualMethodAot::VNum() { return aotData.GetVNum(); }
+
+uint16_t VirtualMethodAot::ExtDefNum() { return aotData.GetExtDefNum(); }
+
+MethodFlags VirtualMethodAot::Flags()
+{
+    ASSERTION(false, "not implemented yet");
+    return MethodFlags();
+}
+
+Symlevel::String VirtualMethodAot::Name() { return ref.Name(); }
+
 } // namespace Impl
 } // namespace API

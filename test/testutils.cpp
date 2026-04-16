@@ -30,7 +30,15 @@ struct Resolver : public API::Resolver {
 
     API::Type* Resolve(Symlevel::Index<Symlevel::Terms::Term> index) override { return nullptr; }
 
-    API::Method* Resolve(Symlevel::Index<Symlevel::MethodReference> index) override { return nullptr; }
+    API::DirectMethod* ResolveDirectMethod(Symlevel::Index<Symlevel::MethodReference> index) override
+    {
+        return nullptr;
+    }
+
+    API::VirtualMethod* ResolveVirtualMethod(Symlevel::Index<Symlevel::MethodReference> index) override
+    {
+        return nullptr;
+    }
 
     API::InstanceField* Resolve(Symlevel::Index<API::InstanceField> index) override { return nullptr; }
 

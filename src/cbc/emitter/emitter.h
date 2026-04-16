@@ -159,8 +159,10 @@ public:
 
     void Convert(ConvertType toType, ConvertType fromType, Reg to, Reg from);
 
-    void DirectCall2i(IReg d, Symbol fuh);
-    void DirectCall2c(IReg d, Symbol target);
+    void DirectCall2i(Symbol fuh);
+    void DirectCall2c(Symbol target);
+
+    void VirtualCall2c(uint16_t vnum, uint16_t extDefNum);
 
     MemSpace OpenMemSpace();
 

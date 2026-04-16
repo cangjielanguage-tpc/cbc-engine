@@ -19,7 +19,9 @@ public:
 
     Type* Resolve(Symlevel::Index<Symlevel::Terms::Term> index) override;
 
-    Method* Resolve(Symlevel::Index<Symlevel::MethodReference> index) override;
+    DirectMethod* ResolveDirectMethod(Symlevel::Index<Symlevel::MethodReference> index) override;
+
+    VirtualMethod* ResolveVirtualMethod(Symlevel::Index<Symlevel::MethodReference> index) override;
 
     InstanceField* Resolve(Symlevel::Index<InstanceField> index) override;
 

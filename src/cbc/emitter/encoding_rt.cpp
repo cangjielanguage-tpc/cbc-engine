@@ -96,6 +96,13 @@ void Encode(ByteBuffer& buf, RT::B5xi12ri12 command)
     Encode(buf, command.ri12);
 }
 
+void Encode(ByteBuffer& buf, RT::B5i16i16 command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.imm1);
+    Encode(buf, command.imm2);
+}
+
 void Encode(ByteBuffer& buf, RT::B5i32 command)
 {
     Encode(buf, command.opc);
