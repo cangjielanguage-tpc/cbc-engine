@@ -108,8 +108,9 @@ DirectCallAotTable::DirectCallAotTable(std::unique_ptr<AotTable> aotTable) : aot
 DirectCallAotTable::DirectCallAotTable(DirectCallAotTable&& other) = default;
 DirectCallAotTable::~DirectCallAotTable()                          = default;
 
-std::optional<DirectCallAotData> DirectCallAotTable::GetData(Engine::Session& session, Index<MethodReference> index)
-    const
+std::optional<DirectCallAotData> DirectCallAotTable::GetData(
+    Engine::Session& session, Index<MethodReference> index
+) const
 {
     auto offset = aotTable->FindData<MethodReference, DirectCallAotData>(session, index);
 
@@ -155,8 +156,9 @@ VirtualCallAotTable::VirtualCallAotTable(std::unique_ptr<AotTable> aotTable) : a
 VirtualCallAotTable::VirtualCallAotTable(VirtualCallAotTable&& other) = default;
 VirtualCallAotTable::~VirtualCallAotTable()                           = default;
 
-std::optional<VirtualCallAotData> VirtualCallAotTable::GetData(Engine::Session& session, Index<MethodReference> index)
-    const
+std::optional<VirtualCallAotData> VirtualCallAotTable::GetData(
+    Engine::Session& session, Index<MethodReference> index
+) const
 {
     auto offset = aotTable->FindData<MethodReference, VirtualCallAotData>(session, index);
 
@@ -248,8 +250,9 @@ StaticFieldAotTable::StaticFieldAotTable(std::unique_ptr<AotTable> aotTable) : a
 StaticFieldAotTable::StaticFieldAotTable(StaticFieldAotTable&& other) = default;
 StaticFieldAotTable::~StaticFieldAotTable()                           = default;
 
-std::optional<StaticFieldAotData> StaticFieldAotTable::GetData(Engine::Session& session, Index<FieldReference> index)
-    const
+std::optional<StaticFieldAotData> StaticFieldAotTable::GetData(
+    Engine::Session& session, Index<FieldReference> index
+) const
 {
     auto offset = aotTable->FindData<FieldReference, StaticFieldAotData>(session, index);
 
