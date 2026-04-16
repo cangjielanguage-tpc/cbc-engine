@@ -12,18 +12,18 @@
 
 namespace Symlevel {
 
-struct Entry {
+struct CacheEntry {
     Engine::Identifier<MethodDefinition> method;
     Term declaringType;
 
-    Entry(Engine::Identifier<MethodDefinition> method, Term declaringType)
+    CacheEntry(Engine::Identifier<MethodDefinition> method, Term declaringType)
         : method(method),
           declaringType(declaringType)
     {}
 };
 
 struct MethodSubTable::Impl {
-    Impl(std::vector<Entry>& allEntries, Term declaringType, int num, size_t start, size_t end)
+    Impl(std::vector<CacheEntry>& allEntries, Term declaringType, int num, size_t start, size_t end)
         : allEntries(allEntries),
           declaringType(declaringType),
           subTableNum(num),
@@ -35,7 +35,7 @@ struct MethodSubTable::Impl {
 
     Impl(Impl const& impl) : Impl(impl.allEntries, impl.declaringType, impl.subTableNum, impl.start, impl.end) {}
 
-    std::vector<Entry>& allEntries;
+    std::vector<CacheEntry>& allEntries;
     Term declaringType;
     size_t start;
     size_t end;
@@ -43,7 +43,7 @@ struct MethodSubTable::Impl {
 };
 
 struct MethodTable::Impl {
-    std::vector<Entry> allEntries;
+    std::vector<CacheEntry> allEntries;
     std::vector<MethodSubTable> classTables;
     std::vector<MethodSubTable> interfaceTables;
 };
@@ -141,6 +141,7 @@ static std::shared_ptr<MethodTable::Impl> BuildTable(Engine::Session& session, E
     // TODO: fixup declaring type term if it is references aot type.
     // TODO: make term with type variables
     auto declaringTypeTerm = Term::Definition(session, type);
+    declaringTypeTerm      = TermManager::Of(session).Globalize(declaringTypeTerm);
 
     // TODO: support hierarchy
     //       1. get tables for all super-types;
@@ -151,7 +152,7 @@ static std::shared_ptr<MethodTable::Impl> BuildTable(Engine::Session& session, E
     //       6. patch entries in copied subtables with overriden methods;
     //       7. append newly declared methods to `allEntries`;
     //       8. introduce new class/interface table with newly declared methods;
-    std::vector<Entry> allEntries;
+    std::vector<CacheEntry> allEntries;
     for (auto offs : methods) {
         Engine::Identifier<MethodDefinition> def(offs, methodSeq.FileId());
         allEntries.emplace_back(def, declaringTypeTerm);

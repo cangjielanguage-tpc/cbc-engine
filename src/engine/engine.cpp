@@ -1,11 +1,11 @@
 #include "engine.h"
 #include "engine/symlevel/method_table.h"
+#include "engine/symlevel/terms.h"
 #include "interpreter/function_handle.h"
 #include "symlevel/cbc_file.h"
 #include "symlevel/definitions.h"
 #include "symlevel/io/stream_file_reader.h"
 #include "symlevel/member_index.h"
-#include "symlevel/reader.h"
 #include "utils/heap.h"
 
 namespace Engine {
@@ -36,6 +36,7 @@ public:
     Interpretation::FunctionHandleManager fuhManager;
     DefinitionsManager defsManager;
     MethodTableManager mtManager;
+    TermManager termManager;
 };
 
 class Loader::Impl {
@@ -167,19 +168,19 @@ FunctionHandleManager& FunctionHandleManager::Of(Engine::Session& session)
 
 namespace Symlevel {
 
-DefinitionsManager& DefinitionsManager::Of(Engine::Engine& engine)
-{
-    return Engine::Engine::Impl::Of(engine).defsManager;
-}
+using EngineImpl = Engine::Engine::Impl;
 
-MethodTableManager& MethodTableManager::Of(Engine::Engine& engine)
-{
-    return Engine::Engine::Impl::Of(engine).mtManager;
-}
+DefinitionsManager& DefinitionsManager::Of(Engine::Engine& engine) { return EngineImpl::Of(engine).defsManager; }
+
+MethodTableManager& MethodTableManager::Of(Engine::Engine& engine) { return EngineImpl::Of(engine).mtManager; }
 
 MethodTableManager& MethodTableManager::Of(Engine::Session& session)
 {
     return MethodTableManager::Of(session.GetEngine());
 }
+
+TermManager& TermManager::Of(Engine::Engine& engine) { return EngineImpl::Of(engine).termManager; }
+
+TermManager& TermManager::Of(Engine::Session& session) { return TermManager::Of(session.GetEngine()); }
 
 } // namespace Symlevel

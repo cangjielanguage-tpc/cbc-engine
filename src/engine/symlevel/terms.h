@@ -69,6 +69,12 @@ public:
 
     uint64_t GetNum() { return (raw & NUM_MASK) >> 16; }
 
+    uint32_t Hash() { return static_cast<uint32_t>(raw ^ (raw >> 32)); }
+
+    bool operator==(const TemplateIdentifier& another) const { return raw == another.raw; }
+
+    bool operator!=(const TemplateIdentifier& another) const { return raw != another.raw; }
+
 private:
     uint64_t raw;
 };
@@ -80,51 +86,71 @@ struct TermData;
 
 class LocalTerm {
 public:
+    LocalTerm(TermData* data);
     Term Subterm(uint32_t i) const;
 
-    // TODO: implement
-    // GlobalTerm Publish(Engine::Session& session);
+    GlobalTerm Publish(Engine::Session& session);
 
 private:
     friend class Term;
-
-    LocalTerm(TermData* data);
     TermData* data;
 };
 
 class GlobalTerm {
 public:
+    GlobalTerm(TermData* data) : data(data) {}
     GlobalTerm Subterm(uint32_t i) const;
 
 private:
     friend class Term;
-
-    GlobalTerm(TermData* data) : data(data) {};
     TermData* data;
 };
 
-class Term {
-public:
+struct Term {
+    TermData* data;
+
     static std::optional<Term> ParseAndResolve(Engine::Session& session, IO::FileId fileId, Offset<Term> offset);
     static Term Builtin(Engine::Session& session, TemplateKind kind);
 
     static Term Definition(Engine::Session& session, Engine::Identifier<TypeDefinition> type);
 
+    Term(LocalTerm local) : data(local.data) {}
+
+    Term(GlobalTerm global) : data(global.data) {}
+
     TemplateIdentifier GetIdentifier() const;
     uint32_t GetLength() const;
+    uint32_t Hash() const;
 
     bool IsLocal() const;
     LocalTerm AsLocal();
     GlobalTerm AsGlobal();
 
-private:
-    Term(LocalTerm local) : data(local.data) {}
+    bool operator==(const Term& another) const;
+    bool operator!=(const Term& another) const;
 
-    Term(GlobalTerm global) : data(global.data) {}
-
-    TermData* data;
+    Term Subterm(uint32_t i) const;
 };
 
 static constexpr bool IsBuiltin(uint32_t idx) { return idx < FIRST_NON_PRIMITIVE; }
 
+class TermManager {
+public:
+    class Impl;
+    friend class Impl;
+
+    static TermManager& Of(Engine::Engine& engine);
+    static TermManager& Of(Engine::Session& session);
+
+    TermManager();
+    TermManager(TermManager&& manager);
+    ~TermManager();
+
+    /// Globalize given term.
+    /// The function performs in-place modification of `Term` structure.
+    GlobalTerm Globalize(Term& term);
+
+private:
+    std::unique_ptr<Impl> impl;
+};
 } // namespace Symlevel
