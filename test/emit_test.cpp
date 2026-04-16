@@ -495,5 +495,18 @@ TEST(EmitTest, SSCI32)
     }
 }
 
+TEST(EmitTest, Simple_Convert)
+{
+    Emitter e;
+    e.Convert(ConvertType::U8, ConvertType::U32, IReg::IR1, IReg::IR1);
+    e.Ret();
+
+    auto code = e.Build(heap);
+    Cbc::RT::Log(code, std::cerr);
+
+    auto res = Interpret(code, U32(32896), U32(0), F32(0), F32(0));
+    EXPECT_EQ(res.u64, U64(128).u64);
+}
+
 } // namespace Emitter
 } // namespace Cbc

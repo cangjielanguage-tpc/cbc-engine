@@ -41,7 +41,7 @@ struct Thunk {
 /// differs from the ASM in the unit test framework.
 template <typename RTI>
 Thunk InterpretationLoop(
-    Ectype* ectype, Frame* frame, ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
+    Ectype* ectype, Frame* frame, RTSupport::ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
 )
 {
 #define NEXT goto* MAIN_TABLE[reader.PeekOpcode()]
@@ -104,6 +104,8 @@ Thunk InterpretationLoop(
         &&SCCI64I, // B4xi12rr
         &&SCCI32L, // B4xi12rr
         &&SCCI64L, // B4xi12rr
+
+        &&CONVERT, // B3xxrr
 
         &&DIRECT_CALL_2I, // B3xi12
         &&DIRECT_CALL_2C, // B3xi12
@@ -400,8 +402,8 @@ FUN64: {
     NEXT_COND(successful);
 }
 NEWOBJ: {
-    auto args          = B3xi12::Decode(reader);
-    TypeInfo<RTI> type = literals->at(args.xi12.imm12).uintptr;
+    auto args                     = B3xi12::Decode(reader);
+    RTSupport::TypeInfo<RTI> type = literals->at(args.xi12.imm12).uintptr;
 
     // To invoke an `newobj` we need to "return" three values
     // - function to invoke,
@@ -411,8 +413,8 @@ NEWOBJ: {
     //
     // To pass an extra element we will store
     // it in volatile-register in Ectype;
-    auto func = RuntimeInterface<RTI>::AllocateObject;
-    ectype->Put(IReg::IR1, Value::Primitive { .u32 = args.xi12.imm4.IR() });
+    auto func = RTSupport::RuntimeInterface<RTI>::AllocateObject;
+    ectype->Put(IReg::IR1, Value::Primitive { .u64 = args.xi12.imm4.IR() });
 
     reader0 = reader; // save current pc
 
@@ -494,6 +496,11 @@ SCCI64L: {
     interpreter.template SCCImm<ImmKind::LITERAL, Width::W64>(
         args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
     );
+    NEXT;
+}
+CONVERT: {
+    auto args = B3xxrr::Decode(reader);
+    interpreter.Convert(args.xx.imm1.ConvertType(), args.xx.imm2.ConvertType(), args.rr.x, args.rr.y);
     NEXT;
 }
 DIRECT_CALL_2I: {

@@ -16,6 +16,8 @@ public:
         Engine::Session& session, IO::FileId fileId, Offset<MethodReference> offset
     );
 
+    inline const IO::FileId FileId() const { return fileId; }
+
     inline const String Name() const { return name; }
 
     inline const Terms::Term RefType() const { return refType; }
@@ -23,12 +25,14 @@ public:
     inline const Terms::Term MethodSig() const { return methodSig; }
 
 private:
-    MethodReference(String name, Terms::Term refType, Terms::Term methodSig)
-        : name(name),
+    MethodReference(IO::FileId fileId, String name, Terms::Term refType, Terms::Term methodSig)
+        : fileId(fileId),
+          name(name),
           refType(refType),
           methodSig(methodSig)
     {}
 
+    IO::FileId fileId;
     String name;
     Terms::Term refType;
     Terms::Term methodSig;

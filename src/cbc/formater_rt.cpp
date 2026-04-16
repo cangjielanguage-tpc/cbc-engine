@@ -39,6 +39,8 @@ struct Operand {
 
     Format::CC CC() { return Format::CC(U8()); }
 
+    Format::ConvertType Ct() { return Format::ConvertType(U8()); }
+
     IReg IR() { return IReg::From(U32() & 0xf); }
 
     FReg FR() { return FReg::From(U32() & 0xf); }
@@ -131,6 +133,8 @@ private:
 
     void Write(Format::FloatOperations v) { stream << v.ToStr(); }
 
+    void Write(Format::ConvertType v) { stream << v.ToStr(); }
+
     void FormatArg(size_t& cursor, size_t fmtSize)
     {
         size_t start     = cursor;
@@ -221,6 +225,8 @@ private:
             Write(table->at(operand.U12()).i64);
         } else if (type == "U12L") {
             Write(table->at(operand.U12()).u64);
+        } else if (type == "ct") {
+            Write(operand.Ct());
         } else {
             FATAL("unexpected format type: %.*s", static_cast<int>(type.length()), type.data());
         }
@@ -313,6 +319,13 @@ void Log(Interpretation::LiteralTable* table, std::ostream& stream, B5i32 args)
 void Log(Interpretation::LiteralTable* table, std::ostream& stream, B3xrrr args)
 {
     Operand operands[] = { args.xr.imm, args.xr.r, args.rr.x, args.rr.y };
+    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    formatter.Format();
+}
+
+void Log(Interpretation::LiteralTable* table, std::ostream& stream, B3xxrr args)
+{
+    Operand operands[] = { args.xx.imm1, args.xx.imm2, args.rr.x, args.rr.y };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }

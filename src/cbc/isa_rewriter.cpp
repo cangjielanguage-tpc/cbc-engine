@@ -1,5 +1,6 @@
 #include "isa_rewriter.h"
 #include "api/resolver.h"
+#include "api/type.h"
 #include "cbc/emitter/emitter.h"
 #include "cbc/isa.h"
 #include "engine/symlevel/index.h"
@@ -109,8 +110,10 @@ struct IsaRewriter : public IsaParser {
     // TODO: add enum
     void FloatBinary(uint8_t op, Format::Width width, FReg d, FReg l, FReg r) override {}
 
-    // TODO: add enum
-    void Cast(int8_t fromType, int8_t toType, AnyReg d, AnyReg s) override {}
+    void Convert(Format::ConvertType toType, Format::ConvertType fromType, AnyReg to, AnyReg from) override
+    {
+        emit.Convert(toType, fromType, to, from);
+    }
 
     void PrepareRecord(uint16_t ts) override {}
 
@@ -122,7 +125,17 @@ struct IsaRewriter : public IsaParser {
 
     void LoadTypeInfoSig(IReg dst, uint16_t type) override { FATAL("not implemented"); }
 
-    void NewObj(IReg dst, uint16_t typeIdx) override {}
+    void NewObj(IReg dst, uint16_t typeIdx) override
+    {
+        auto type        = resolver.Resolve(Term(typeIdx));
+        auto typeInfoOpt = type->GetTypeInfo();
+
+        ASSERTION(typeInfoOpt.has_value(), "Cannot find type info for newobj");
+        void* typeInfo = typeInfoOpt.value(); // get raw value
+
+        auto sym = emit.NewAddressSym(reinterpret_cast<uintptr_t>(typeInfo));
+        emit.NewObj(dst, sym);
+    }
 
     void CallDirect(IReg dst, uint16_t method) override
     {

@@ -254,41 +254,6 @@ private:
     Value _value;
 };
 
-class CbcTypeKind {
-public:
-    enum Value : uint32_t {
-        INVALID = 0x00,
-        VOID    = 0x01,
-        U1      = 0x02,
-        I8      = 0x03,
-        U8      = 0x04,
-        CHAR    = 0x05,
-        I32     = 0x06,
-        U32     = 0x07,
-        F32     = 0x08,
-        F64     = 0x09,
-        I64     = 0x0a,
-        U64     = 0x0b,
-        NNREF   = 0x0c, // non-nullable ref
-        REF     = 0x0d,
-        REC     = 0x0e,
-        I16     = 0x0f,
-        U16     = 0x10,
-        F16     = 0x11,
-        IN      = 0x12, // int native
-        UN      = 0x13, // uint native
-        VA      = 0x14, // varray
-        TTI     = 0x15, // ThisTypeInfo
-    };
-
-    constexpr CbcTypeKind(const Value raw) : _value(raw) {}
-
-    constexpr operator Value() const { return _value; }
-
-private:
-    Value _value;
-};
-
 class Common {
 public:
 #define CommonValue(X)                                                                                                 \
@@ -350,6 +315,68 @@ private:
     Value _value;
 };
 
+class ConvertType {
+public:
+#define ConvertTypeValue(X)                                                                                            \
+    X(I8, 0x0, "I8", false)                                                                                            \
+    X(U8, 0x1, "U8", false)                                                                                            \
+    X(I16, 0x2, "I16", false)                                                                                          \
+    X(U16, 0x3, "U16", false)                                                                                          \
+    X(I32, 0x4, "I32", false)                                                                                          \
+    X(U32, 0x5, "U32", false)                                                                                          \
+    X(I64, 0x6, "I64", false)                                                                                          \
+    X(U64, 0x7, "U64", false)                                                                                          \
+    X(F16, 0x8, "F16", true)                                                                                           \
+    X(F32, 0x9, "F32", true)                                                                                           \
+    X(F64, 0xa, "F64", true)
+
+#define ConvertTypeEnum(opc, value, str, fp) opc = value,
+
+    enum Value : uint8_t {
+        ConvertTypeValue(ConvertTypeEnum) LAST = F64
+    };
+
+#undef ConvertTypeEnum
+
+    constexpr ConvertType(const uint8_t raw) : _value((Value)raw) {}
+
+    constexpr operator Value() const { return _value; }
+
+    constexpr static ConvertType From(uint8_t value)
+    {
+        ASSERT(value <= LAST);
+        return Value(value);
+    }
+
+    constexpr std::string_view ToStr()
+    {
+#define ConvertTypeStr(opc, value, str, fp)                                                                            \
+    case opc: return std::string_view(str);
+
+        switch (_value) {
+            ConvertTypeValue(ConvertTypeStr);
+        }
+        return std::string_view("<invalid>");
+
+#undef ConvertTypeStr
+    }
+
+    constexpr bool IsFloatingPoint() const
+    {
+#define ConvertTypeFP(opc, value, str, fp)                                                                             \
+    case opc: return fp;
+
+        switch (_value) {
+            ConvertTypeValue(ConvertTypeFP)
+        }
+
+#undef ConvertTypeFP
+    }
+
+private:
+    Value _value;
+};
+
 class FloatOperations {
 public:
 #define FloatOperationsValue(X)                                                                                        \
@@ -360,15 +387,7 @@ public:
     X(FMOV, 0b0100, "fmov")                                                                                            \
     X(FNEG, 0b0101, "fneg")                                                                                            \
     X(FABS, 0b0110, "fabs")                                                                                            \
-    X(FSQRT, 0b0111, "fsqrt")                                                                                          \
-    X(I32_TO_F, 0b1000, "i32tof")                                                                                      \
-    X(F_TO_I32, 0b1001, "ftoi32")                                                                                      \
-    X(I64_TO_F, 0b1010, "i64tof")                                                                                      \
-    X(F_TO_I64, 0b1011, "ftoi64")                                                                                      \
-    X(U32_TO_F, 0b1100, "u32tof")                                                                                      \
-    X(F_TO_U32, 0b1101, "ftou32")                                                                                      \
-    X(U64_TO_F, 0b1110, "u64tof")                                                                                      \
-    X(F_TO_U64, 0b1111, "ftou64")
+    X(FSQRT, 0b0111, "fsqrt")
 
 #define FloatOperationsEnum(opc, value, str) opc = value,
 
@@ -378,10 +397,7 @@ public:
 
 #undef FloatOperationsEnum
 
-    static constexpr Value values[] = {
-        FADD,     FSUB,     FMUL,     FDIV,     FMOV,     FNEG,     FABS,     FSQRT,
-        I32_TO_F, F_TO_I32, I64_TO_F, F_TO_I64, U32_TO_F, F_TO_U32, U64_TO_F, F_TO_U64,
-    };
+    static constexpr Value values[] = { FADD, FSUB, FMUL, FDIV, FMOV, FNEG, FABS, FSQRT };
 
     constexpr FloatOperations(const Value raw) : _value(raw) {}
 
@@ -434,22 +450,6 @@ public:
             case W64: return "W64";
         }
         return "<invalid>";
-    }
-
-    constexpr std::string_view ToStr() { return std::string_view(CStr()); }
-
-    static constexpr Width FromCbcTypeKind(CbcTypeKind tkind)
-    {
-        switch (tkind) {
-            case CbcTypeKind::I32: return Width::W32;
-            case CbcTypeKind::U32: return Width::W32;
-            case CbcTypeKind::F32: return Width::W32;
-            case CbcTypeKind::F64: return Width::W64;
-            case CbcTypeKind::I64: return Width::W64;
-            case CbcTypeKind::U64: return Width::W64;
-
-            default: FATAL("unknown CbcTypeKind: %d", tkind); return Width::W64;
-        }
     }
 
 private:
@@ -668,6 +668,8 @@ public:
 
     inline Format::Common Common() const { return Format::Common::Value(imm); }
 
+    inline Format::ConvertType ConvertType() const { return Format::ConvertType::Value(imm); }
+
     inline Format::FloatOperations FloatOperations() const { return Format::FloatOperations(imm); }
 
     inline Format::StoreAccessKind STK() const { return Format::StoreAccessKind::Value(imm); }
@@ -713,6 +715,21 @@ struct XR {
         return XR {
             .imm = b & 0xf,
             .r   = b >> 4,
+        };
+    }
+};
+
+/// 8 bit; two Imm4
+struct XX {
+    Imm4 imm1;
+    Imm4 imm2;
+
+    inline static XX Decode(Decoder::ByteReader& reader)
+    {
+        uint8_t b = reader.Read8();
+        return XX {
+            .imm1 = b & 0xf,
+            .imm2 = b >> 4,
         };
     }
 };
