@@ -4,6 +4,7 @@
 #include "reader.h"
 #include "region_data.h"
 #include "string.h"
+#include "utils/assertion.h"
 
 namespace Symlevel {
 
@@ -55,6 +56,7 @@ std::optional<Term> Term::ParseAndResolve(Engine::Session& session, IO::FileId f
                 data->identifier = TemplateIdentifier(TemplateKind::TYPE, identifier);
                 data->hash       = 0;
                 data->length     = 0;
+                data->isLocal    = true;
 
                 return Term(LocalTerm(data));
             } else {
@@ -70,6 +72,7 @@ std::optional<Term> Term::ParseAndResolve(Engine::Session& session, IO::FileId f
             data->identifier = TemplateIdentifier(TemplateKind::AOT_TYPE, 0);
             data->hash       = 0;
             data->length     = 0;
+            data->isLocal    = true;
 
             return Term(LocalTerm(data));
         }
@@ -95,6 +98,7 @@ std::optional<Term> Term::ParseAndResolve(Engine::Session& session, IO::FileId f
             data->identifier = TemplateIdentifier(TemplateKind::METHOD);
             data->hash       = 0;
             data->length     = len;
+            data->isLocal    = true;
 
             return Term(LocalTerm(data));
         }
@@ -106,15 +110,32 @@ std::optional<Term> Term::ParseAndResolve(Engine::Session& session, IO::FileId f
     }
 }
 
+static TermData builtins[] = {
+    { TemplateKind::NIL, 0xa0, 0, false },     { TemplateKind::VOID, 0xa1, 0, false },
+    { TemplateKind::UNIT, 0xa2, 0, false },    { TemplateKind::NOTHING, 0xb3, 0, false },
+    { TemplateKind::BOOLEAN, 0xb4, 0, false }, { TemplateKind::I8, 0xb5, 0, false },
+    { TemplateKind::U8, 0xc6, 0, false },      { TemplateKind::I16, 0xc7, 0, false },
+    { TemplateKind::U16, 0xd8, 0, false },     { TemplateKind::I32, 0xd9, 0, false },
+    { TemplateKind::U32, 0x10, 0, false },     { TemplateKind::UCHAR32, 0x41, 0, false },
+    { TemplateKind::I64, 0x32, 0, false },     { TemplateKind::U64, 0x23, 0, false },
+    { TemplateKind::IADDR, 0x14, 0, false },   { TemplateKind::UADDR, 0x45, 0, false },
+    { TemplateKind::BSTRING, 0x16, 0, false }, { TemplateKind::F16, 0x87, 0, false },
+    { TemplateKind::F32, 0x98, 0, false },     { TemplateKind::F64, 0x29, 0, false },
+};
+
 Term Term::Builtin(Engine::Session& session, TemplateKind kind)
+{
+    return GlobalTerm(&builtins[static_cast<int>(kind)]);
+}
+
+Term Term::Definition(Engine::Session& session, Engine::Identifier<TypeDefinition> type)
 {
     auto* data = static_cast<TermData*>(session.Allocator().Allocate(sizeof(TermData), alignof(TermData)));
 
-    data->identifier = TemplateKind(kind);
+    data->identifier = TemplateKind::TYPE;
     data->hash       = 0;
     data->length     = 0;
 
-    // TODO: Global?
     return LocalTerm(data);
 }
 
@@ -137,6 +158,8 @@ uint32_t Term::GetLength() const { return data->length; }
 bool Term::IsLocal() const { return data->isLocal; }
 
 Term LocalTerm::Subterm(uint32_t i) const { return this->data->subterms[i]; }
+
+LocalTerm::LocalTerm(TermData* data) : data(data) { ASSERT(data->isLocal); }
 
 GlobalTerm GlobalTerm::Subterm(uint32_t i) const { return this->data->subterms[i].AsGlobal(); }
 

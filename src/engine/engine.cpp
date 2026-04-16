@@ -1,4 +1,5 @@
 #include "engine.h"
+#include "engine/symlevel/method_table.h"
 #include "interpreter/function_handle.h"
 #include "symlevel/cbc_file.h"
 #include "symlevel/definitions.h"
@@ -34,6 +35,7 @@ public:
 
     Interpretation::FunctionHandleManager fuhManager;
     DefinitionsManager defsManager;
+    MethodTableManager mtManager;
 };
 
 class Loader::Impl {
@@ -169,4 +171,15 @@ DefinitionsManager& DefinitionsManager::Of(Engine::Engine& engine)
 {
     return Engine::Engine::Impl::Of(engine).defsManager;
 }
+
+MethodTableManager& MethodTableManager::Of(Engine::Engine& engine)
+{
+    return Engine::Engine::Impl::Of(engine).mtManager;
+}
+
+MethodTableManager& MethodTableManager::Of(Engine::Session& session)
+{
+    return MethodTableManager::Of(session.GetEngine());
+}
+
 } // namespace Symlevel

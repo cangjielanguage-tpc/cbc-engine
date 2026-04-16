@@ -1,6 +1,8 @@
 #pragma once
 
 #include "engine/engine.h"
+#include "engine/identifiers.h"
+#include "engine/symlevel/definitions.h"
 #include "io/file_id.h"
 #include "offset.h"
 #include "utils/assertion.h"
@@ -86,7 +88,7 @@ public:
 private:
     friend class Term;
 
-    LocalTerm(TermData* data) : data(data) {};
+    LocalTerm(TermData* data);
     TermData* data;
 };
 
@@ -105,6 +107,8 @@ class Term {
 public:
     static std::optional<Term> ParseAndResolve(Engine::Session& session, IO::FileId fileId, Offset<Term> offset);
     static Term Builtin(Engine::Session& session, TemplateKind kind);
+
+    static Term Definition(Engine::Session& session, Engine::Identifier<TypeDefinition> type);
 
     TemplateIdentifier GetIdentifier() const;
     uint32_t GetLength() const;

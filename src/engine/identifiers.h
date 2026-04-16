@@ -18,6 +18,8 @@ template <typename T> struct Identifier {
 
     Identifier(uint64_t raw) : raw(raw) {}
 
+    Identifier(Identifier<T> const& another) : raw(another.raw) {}
+
     // Identifier(Identifier&& another) = default;
     // Identifier(Identifier const& another) = default;
 
@@ -26,6 +28,8 @@ template <typename T> struct Identifier {
     Symlevel::Offset<T> GetOffset() const { return packed.offset; }
 
     IO::FileId GetFileId() const { return packed.fileId; }
+
+    bool operator==(const Identifier<T>& another) const { return raw == another.raw; }
 
 private:
     union {
