@@ -2,7 +2,6 @@
 
 #include "api/method.h"
 #include "api/resolver.h"
-#include "api/term.h"
 #include "engine/engine.h"
 #include "engine/symlevel/definitions.h"
 
@@ -23,17 +22,17 @@ public:
 
     VirtualMethod* ResolveVirtualMethod(Symlevel::Index<Symlevel::MethodReference> index) override;
 
-    InstanceField* Resolve(Symlevel::Index<InstanceField> index) override;
+    Field* Resolve(Symlevel::Index<Symlevel::FieldReference> index) override;
 
-    StaticField* Resolve(Symlevel::Index<StaticField> index) override;
-
-    std::optional<Type*> TypeOf(Term* term) override;
+    std::optional<Type*> TypeOf(Symlevel::Terms::Term* term) override;
 
     ~ResolverImpl() override;
 
 private:
     Engine::Session& session;
     Engine::Identifier<Symlevel::MethodDefinition> method;
+
+    Type* Resolve(Symlevel::Terms::Term index);
 };
 
 } // namespace Impl

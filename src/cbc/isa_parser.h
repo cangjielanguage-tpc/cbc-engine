@@ -47,6 +47,13 @@ protected:
 
     virtual void GcPoint() = 0;
 
+    virtual void LoadStatic(AnyReg r, uint16_t field) = 0;
+    virtual void StoreStatic(AnyReg r, uint16_t field) = 0;
+    virtual void LoadObj(IReg rb, AnyReg rs, uint16_t field) = 0;
+    virtual void StoreObj(IReg rb, AnyReg rd, uint16_t field) = 0;
+    virtual void LoadRec(IReg rb, AnyReg rs, uint16_t field) = 0;
+    virtual void StoreRec(IReg rb, AnyReg rd, uint16_t field) = 0;
+
     virtual void LoadTypeInfoFtc(IReg dst, uint16_t ftc)  = 0;
     virtual void LoadTypeInfoSig(IReg dst, uint16_t type) = 0;
     virtual void NewObj(IReg dst, uint16_t type)          = 0;

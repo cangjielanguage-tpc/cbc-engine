@@ -58,16 +58,25 @@ public:
 
     inline const Terms::Term FieldType() const { return fieldType; }
 
+    inline const uint8_t Flags() const { return flags; }
+
+    inline const uint8_t AccessKind() const { return accessKind; }
+
 private:
-    FieldReference(String name, Terms::Term refType, Terms::Term fieldType)
+    FieldReference(String name, Terms::Term refType, Terms::Term fieldType, uint8_t flags, uint8_t accessKind)
         : name(name),
           refType(refType),
-          fieldType(fieldType)
+          fieldType(fieldType),
+          flags(flags),
+          accessKind(accessKind)
     {}
 
     String name;
     Terms::Term refType;
     Terms::Term fieldType;
+
+    uint8_t flags;
+    uint8_t accessKind;
 };
 
 enum MethodAccessKind : uint16_t {

@@ -40,6 +40,12 @@ std::optional<MethodReference> RegionData::queryMethod(Engine::Session& session,
     return Reader::ReadAndResolve(session, fileId, offs);
 }
 
+std::optional<FieldReference> RegionData::queryField(Engine::Session& session, Index<FieldReference> index) const
+{
+    auto offs = fields.QueryOffset(*session.FileOf(fileId), index);
+    return Reader::ReadAndResolve(session, fileId, offs);
+}
+
 std::optional<Terms::Term> RegionData::queryTerm(Engine::Session& session, Index<Terms::Term> index) const
 {
     if (Terms::IsBuiltin(index.index)) {
