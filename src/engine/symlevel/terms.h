@@ -110,7 +110,7 @@ struct Term {
     TermData* data;
 
     static std::optional<Term> ParseAndResolve(Engine::Session& session, IO::FileId fileId, Offset<Term> offset);
-    static Term Builtin(Engine::Session& session, TemplateKind kind);
+    static Term Primitive(Engine::Session& session, TemplateKind kind);
 
     static Term Definition(Engine::Session& session, Engine::Identifier<TypeDefinition> type);
 

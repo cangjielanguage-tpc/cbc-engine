@@ -140,9 +140,13 @@ static TermData builtins[] = {
     { TemplateKind::F32, 0x98, 0, false },     { TemplateKind::F64, 0x29, 0, false },
 };
 
-Term Term::Builtin(Engine::Session& session, TemplateKind kind)
+Term Term::Primitive(Engine::Session& session, TemplateKind kind)
 {
-    return GlobalTerm(&builtins[static_cast<int>(kind)]);
+    int num = static_cast<int>(kind);
+    ASSERT(num < FIRST_NON_PRIMITIVE);
+    auto data = &builtins[static_cast<int>(kind)];
+    ASSERT(data->identifier.GetKind() == kind);
+    return GlobalTerm(data);
 }
 
 Term Term::Definition(Engine::Session& session, Engine::Identifier<TypeDefinition> type)

@@ -44,7 +44,7 @@ std::optional<MethodReference> RegionData::queryMethod(Engine::Session& session,
 std::optional<Term> RegionData::queryTerm(Engine::Session& session, Index<Term> index) const
 {
     if (IsBuiltin(index.index)) {
-        return Term::Builtin(session, TemplateKind(index.index));
+        return Term::Primitive(session, TemplateKind(index.index));
     } else {
         auto offs = terms.QueryOffset(*session.FileOf(fileId), index);
         return Reader::ReadAndResolve(session, fileId, offs);
