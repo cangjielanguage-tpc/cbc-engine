@@ -16,7 +16,8 @@
     sub.64 IR1, IR1, IR3
     dead [ IR3 ]
     call.direct Method(default.foo), IR1
-r:  mov.64 IR1, IR2
+r:  dead [ IR1 ]
+    mov.64 IR1, IR2
     ret.64 IR1
   }
 }
