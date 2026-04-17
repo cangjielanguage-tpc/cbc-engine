@@ -5,6 +5,7 @@
 #include "engine/symlevel/definitions.h"
 #include "io/file_id.h"
 #include "offset.h"
+#include "string.h"
 #include "utils/assertion.h"
 #include "utils/math.h"
 #include <cstdint>
@@ -34,6 +35,9 @@
 /// builtin type, so `num` part is not needed, but in case of user defined types,
 /// `num` stores information that identifies the type being referefenced.
 namespace Symlevel {
+
+// Custom identifiers
+using AotTypeIdentifier = Engine::Identifier<String>;
 
 enum class TemplateKind : uint16_t {
     // primitives start
@@ -87,6 +91,10 @@ public:
         ASSERT(MathUtils::IsNBits(num, 48));
     }
 
+    TemplateIdentifier(AotTypeIdentifier identifier) : TemplateIdentifier(TemplateKind::AOT_TYPE, identifier) {}
+
+    TemplateIdentifier(TemplateKind kind, Offset<String> offset, IO::FileId fileId) {}
+
     TemplateIdentifier(TemplateKind kind) : TemplateIdentifier(kind, 0) {}
 
     TemplateKind GetKind() { return TemplateKind(raw & KIND_MASK); }
@@ -98,6 +106,12 @@ public:
     bool operator==(const TemplateIdentifier& another) const { return raw == another.raw; }
 
     bool operator!=(const TemplateIdentifier& another) const { return raw != another.raw; }
+
+    AotTypeIdentifier AsAotType()
+    {
+        ASSERTION(GetKind() == TemplateKind::AOT_TYPE, "aot type kind expected");
+        return AotTypeIdentifier(GetNum());
+    }
 
 private:
     uint64_t raw;
@@ -178,4 +192,5 @@ private:
     std::mutex lock;
     std::unordered_set<TermData*, Hasher> cache;
 };
+
 } // namespace Symlevel

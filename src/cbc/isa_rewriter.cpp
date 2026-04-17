@@ -1,5 +1,6 @@
 #include "isa_rewriter.h"
 #include "api/resolver.h"
+#include "api/type.h"
 #include "cbc/emitter/emitter.h"
 #include "cbc/isa.h"
 #include "engine/symlevel/index.h"
@@ -124,24 +125,44 @@ struct IsaRewriter : public IsaParser {
 
     void LoadTypeInfoSig(IReg dst, uint16_t type) override { ASSERTION(false, "not implemented"); }
 
-    void NewObj(IReg dst, uint16_t typeIdx) override {}
+    void NewObj(IReg dst, uint16_t typeIdx) override
+    {
+        auto type        = resolver.Resolve(Term(typeIdx));
+        auto typeInfoOpt = type->GetTypeInfo();
+
+        ASSERTION(typeInfoOpt.has_value(), "Cannot find type info for newobj");
+        void* typeInfo = typeInfoOpt.value(); // get raw value
+
+        auto sym = emit.NewAddressSym(reinterpret_cast<uintptr_t>(typeInfo));
+        emit.NewObj(dst, sym);
+    }
 
     void CallDirect(IReg dst, uint16_t method) override
     {
-        auto m   = resolver.Resolve(Method(method));
+        auto m   = resolver.ResolveDirectMethod(Method(method));
         auto fuh = m->FUH();
         if (fuh.has_value()) {
             auto sym = emit.NewAddressSym(reinterpret_cast<uintptr_t>(fuh.value()));
-            emit.DirectCall2i(dst, sym);
+            emit.DirectCall2i(sym);
         } else {
             void* target = m->TargetAddr();
             ASSERT(target != nullptr);
             auto sym = emit.NewAddressSym(reinterpret_cast<uintptr_t>(target));
-            emit.DirectCall2c(dst, sym);
+            emit.DirectCall2c(sym);
+        }
+        if (dst != IReg::IR1) {
+            emit.Mov(dst, IReg::IR1);
         }
     }
 
-    void CallVirtual(IReg dst, uint16_t method) override { ASSERTION(false, "not implemented"); }
+    void CallVirtual(IReg dst, uint16_t method) override
+    {
+        auto m = resolver.ResolveVirtualMethod(Method(method));
+        emit.VirtualCall2c(m->VNum(), m->ExtDefNum());
+        if (dst != IReg::IR1) {
+            emit.Mov(dst, IReg::IR1);
+        }
+    }
 
     void CallInterf(IReg dst, uint16_t method) override { ASSERTION(false, "not implemented"); }
 

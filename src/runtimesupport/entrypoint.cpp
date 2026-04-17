@@ -85,7 +85,7 @@ CBC_EXPORT void interpreter_bridge_init(
     interpInterf->fiber_destroy            = &FiberDestroy;
     interpInterf->fiber_start              = &FiberStart;
 
-    Interpretation::InitializeRuntimeInterface();
+    RTSupport::InitializeRuntimeInterface();
 }
 
 } // extern "C"

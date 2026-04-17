@@ -10,6 +10,8 @@ namespace Symlevel {
 class MethodReference;
 class FieldReference;
 
+enum MethodAccessKind : uint16_t;
+
 class MethodReference {
 public:
     static std::optional<MethodReference> ParseAndResolve(
@@ -24,18 +26,22 @@ public:
 
     inline const Term MethodSig() const { return methodSig; }
 
+    inline const MethodAccessKind AccessKind() const { return accessKind; }
+
 private:
-    MethodReference(IO::FileId fileId, String name, Term refType, Term methodSig)
+    MethodReference(IO::FileId fileId, String name, Term refType, Term methodSig, MethodAccessKind accessKind)
         : fileId(fileId),
           name(name),
           refType(refType),
-          methodSig(methodSig)
+          methodSig(methodSig),
+          accessKind(accessKind)
     {}
 
     IO::FileId fileId;
     String name;
     Term refType;
     Term methodSig;
+    MethodAccessKind accessKind;
 };
 
 class FieldReference {
@@ -56,6 +62,11 @@ private:
     String name;
     Term refType;
     Term fieldType;
+};
+
+enum MethodAccessKind : uint16_t {
+    DIRECT,
+    VIRTUAL,
 };
 
 } // namespace Symlevel

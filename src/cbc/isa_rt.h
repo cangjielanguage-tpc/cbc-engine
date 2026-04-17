@@ -54,8 +54,9 @@
     X(SCCI32L, B4xi12rr, "scci.32 $0cc $2ir $3ir $1I12L")                                                              \
     X(SCCI64L, B4xi12rr, "scci.64 $0cc $2ir $3ir $1I12L")                                                              \
     X(CONVERT, B3xxrr, "convert $0ct $1ct $2ir $3ir") /* FIXME: ir/fr */                                               \
-    X(DIRECT_CALL_2I, B3xi12, "direct.call.2i $1I12L (, mov $0ir )")                                                   \
-    X(DIRECT_CALL_2C, B3xi12, "direct.call.2c $1I12L (, mov $0ir )")                                                   \
+    X(DIRECT_CALL_2I, B3xi12, "direct.call.2i $1I12L")                                                                 \
+    X(DIRECT_CALL_2C, B3xi12, "direct.call.2c $1I12L")                                                                 \
+    X(VIRTUAL_CALL_2C, B5i16i16, "virtual.call.2c $0U16L $1U16L")                                                      \
     X(MEMSPACE, B1, "memspace {")
 
 // X parameters: opcode, encoding format, string format, is tail
@@ -338,6 +339,22 @@ struct B5xi12ri12 {
         auto xi12 = Format::XImm12::Decode(reader);
         auto ri12 = Format::RImm12::Decode(reader);
         return B5xi12ri12 { opc, xi12, ri12 };
+    }
+};
+
+struct B5i16i16 {
+    static constexpr int SIZE = 5;
+
+    Opcode opc;
+    Format::Imm16 imm1;
+    Format::Imm16 imm2;
+
+    static B5i16i16 Decode(Decoder::ByteReader& reader)
+    {
+        auto opc  = Opcode::Decode(reader);
+        auto imm1 = Format::Imm16::Decode(reader);
+        auto imm2 = Format::Imm16::Decode(reader);
+        return B5i16i16 { opc, imm1, imm2 };
     }
 };
 

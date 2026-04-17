@@ -8,7 +8,7 @@
 namespace API {
 namespace Impl {
 
-class DirectMethodCbc final : public Method {
+class DirectMethodCbc final : public DirectMethod {
 public:
     DirectMethodCbc(Engine::Session& session, Symlevel::MethodDefinition def) : session(session), def(def) {}
 
@@ -29,7 +29,7 @@ private:
     Symlevel::MethodDefinition def;
 };
 
-class DirectMethodAot final : public Method {
+class DirectMethodAot final : public DirectMethod {
 public:
     DirectMethodAot(Engine::Session& session, Symlevel::MethodReference ref, Symlevel::DirectCallAotData aotData)
         : session(session),
@@ -53,6 +53,34 @@ private:
     Engine::Session& session;
     Symlevel::MethodReference ref;
     Symlevel::DirectCallAotData aotData;
+};
+
+class VirtualMethodAot final : public VirtualMethod {
+public:
+    VirtualMethodAot(Engine::Session& session, Symlevel::MethodReference ref, Symlevel::VirtualCallAotData aotData)
+        : session(session),
+          ref(ref),
+          aotData(aotData)
+    {}
+
+    Term* ABISignature() override;
+
+    std::optional<Type*> RefType() override;
+
+    std::optional<Interpretation::FunctionHandle*> FUH() override;
+
+    uint16_t VNum() override;
+
+    uint16_t ExtDefNum() override;
+
+    MethodFlags Flags() override;
+
+    Symlevel::String Name() override;
+
+private:
+    Engine::Session& session;
+    Symlevel::MethodReference ref;
+    Symlevel::VirtualCallAotData aotData;
 };
 
 } // namespace Impl

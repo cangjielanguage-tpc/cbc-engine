@@ -92,10 +92,9 @@ std::optional<Term> Term::ParseAndResolve(Engine::Session& session, IO::FileId f
 
         case AOT_TYPE: {
             auto nameOffs = Offset<String>(reader.ReadULEB());
-            auto name     = Reader::Read(session, fileId, nameOffs);
 
             auto* data = AllocateTerm(allocator);
-            data->InitAfterSubterms(TemplateIdentifier(TemplateKind::AOT_TYPE, 0), 0, true);
+            data->InitAfterSubterms(TemplateIdentifier(AotTypeIdentifier(nameOffs, fileId)), 0, true);
 
             return Term(LocalTerm(data));
         }

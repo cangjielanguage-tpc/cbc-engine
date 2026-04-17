@@ -4,7 +4,7 @@
 #include "cbc/isa_rt.h"
 #include "interpreter/ectype.h"
 #include "interpreter/literals.h"
-#include "interpreter/runtime.h"
+#include "runtimesupport/runtime.h"
 #include "utils/math.h"
 
 namespace Interpretation {

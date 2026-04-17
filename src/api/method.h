@@ -8,19 +8,20 @@
 
 namespace API {
 
-class Method;
+class DirectMethod;
+class VirtualMethod;
 
 struct MethodFlag;
 struct MethodFlags;
 
 /**
- * @class Method
- * @brief Method representation.
+ * @class DirectMethod
+ * @brief Direct method representation.
  *
  * @see Term
  * @see Type
  */
-class Method {
+class DirectMethod {
 public:
     /**
      * @brief The signature used for actual ABI of a method invocation.
@@ -41,7 +42,40 @@ public:
     virtual Symlevel::String Name() = 0;
 
 protected:
-    virtual ~Method() = default;
+    virtual ~DirectMethod() = default;
+};
+
+/**
+ * @class VirtualMethod
+ * @brief Virtual method representation.
+ *
+ * @see Term
+ * @see Type
+ */
+class VirtualMethod {
+public:
+    /**
+     * @brief The signature used for actual ABI of a method invocation.
+     */
+    virtual Term* ABISignature() = 0;
+
+    /**
+     * @brief The ref type.
+     */
+    virtual std::optional<Type*> RefType() = 0;
+
+    virtual std::optional<Interpretation::FunctionHandle*> FUH() = 0;
+
+    virtual uint16_t VNum() = 0;
+
+    virtual uint16_t ExtDefNum() = 0;
+
+    virtual MethodFlags Flags() = 0;
+
+    virtual Symlevel::String Name() = 0;
+
+protected:
+    virtual ~VirtualMethod() = default;
 };
 
 struct MethodFlag {

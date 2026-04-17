@@ -12,6 +12,7 @@ namespace Engine {
 template <typename T> struct Identifier {
     Identifier(Symlevel::Offset<T> offs, IO::FileId fileId) : raw(0)
     {
+        packed.unused = 0;
         packed.offset = offs;
         packed.fileId = fileId;
     }
@@ -19,9 +20,6 @@ template <typename T> struct Identifier {
     Identifier(uint64_t raw) : raw(raw) {}
 
     Identifier(Identifier<T> const& another) : raw(another.raw) {}
-
-    // Identifier(Identifier&& another) = default;
-    // Identifier(Identifier const& another) = default;
 
     operator uint64_t() const { return raw; }
 

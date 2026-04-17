@@ -1,8 +1,11 @@
 #pragma once
 
 #include "access_kind.h"
-#include "term.h"
+#include "engine/symlevel/terms.h"
+#include "runtimesupport/runtime.h"
+#include "runtimesupport/runtime_impl.h"
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -15,6 +18,8 @@ struct TypeKind;
 struct TypeFlag;
 struct TypeFlags;
 
+using TypeInfo = RTSupport::TypeInfo<RTSupport::Impl>;
+
 /**
  * @class Type
  * @brief Root of hierarchy of all concrete types.
@@ -22,11 +27,18 @@ struct TypeFlags;
  * @see Term
  */
 class Type {
+    using Term = Symlevel::Term;
+
 public:
     /**
      * @brief The closed term representation of the type.
      */
     virtual Term* AsTerm() = 0;
+
+    /**
+     * @brief Runtime information about type. Absent if type is generic.
+     */
+    virtual std::optional<TypeInfo> GetTypeInfo() = 0;
 
     /**
      * @brief The size of a field of the given type.
@@ -37,8 +49,6 @@ public:
      * @brief Offsets to reference fields of the type.
      */
     virtual std::vector<int> RefOffsets() = 0;
-
-    // virtual TypeInfo TypeInfo() = 0;
 
     /**
      * @brief Flags of the type.
