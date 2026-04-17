@@ -10,20 +10,39 @@
 #include <unordered_map>
 #include <vector>
 
+/// Each method table can be constructed for some type definition or term that instantiates type definition.
+/// The method table is needed for virtual and interface method resolution (including dynamic "static" methods).
+///
+/// The table consists of two layers, so any entry could be referenced by two indexes or actual type + method index.
+/// To perform an method reference resolution of form `(ref type, method name, signature)` we need to:
+/// 1. Find a sub-table that corresponds to `ref type`;
+/// 2. Find entry that corresponds to `method name; signature` (can require generic instantiation).
+/// The entry found is resolution result.
+///
+/// The table is structured as an array of all entries, where each sub table is a view to the array,
+/// so intersections are allowed.
+/// This layout can help to abstract away an actual data needed in run time to perform dynamic call.
+/// E.g. if VMT is structured as:
+/// - flat array of methods
+/// - mapping: interface type info -> offset in the flat array
+/// so virtual methods could be referenced by one number, we can map our method table to this kind of layout easily.
+///
+/// A new table of class `A <: C & I & J` will look like as table for `C` with added interface sub tables from `I` and
+/// `J`, where entries for overridden methods are patched. New methods would be addede as new class sub table.
 namespace Symlevel {
 
-struct CacheEntry {
+struct TableEntry {
     Engine::Identifier<MethodDefinition> method;
     Term declaringType;
 
-    CacheEntry(Engine::Identifier<MethodDefinition> method, Term declaringType)
+    TableEntry(Engine::Identifier<MethodDefinition> method, Term declaringType)
         : method(method),
           declaringType(declaringType)
     {}
 };
 
 struct MethodSubTable::Impl {
-    Impl(std::vector<CacheEntry>& allEntries, Term declaringType, int num, size_t start, size_t end)
+    Impl(std::vector<TableEntry>& allEntries, Term declaringType, int num, size_t start, size_t end)
         : allEntries(allEntries),
           declaringType(declaringType),
           subTableNum(num),
@@ -35,7 +54,7 @@ struct MethodSubTable::Impl {
 
     Impl(Impl const& impl) : Impl(impl.allEntries, impl.declaringType, impl.subTableNum, impl.start, impl.end) {}
 
-    std::vector<CacheEntry>& allEntries;
+    std::vector<TableEntry>& allEntries;
     Term declaringType;
     size_t start;
     size_t end;
@@ -43,17 +62,12 @@ struct MethodSubTable::Impl {
 };
 
 struct MethodTable::Impl {
-    std::vector<CacheEntry> allEntries;
+    std::vector<TableEntry> allEntries;
     std::vector<MethodSubTable> classTables;
     std::vector<MethodSubTable> interfaceTables;
 };
 
-struct MethodTableManager::Impl {
-    std::mutex lock;
-    std::unordered_map<Engine::Identifier<TypeDefinition>, MethodTable> tables;
-};
-
-void MethodTable::Find(Engine::Session& session, String name, std::vector<MethodTableEntry>& candidates)
+void MethodTable::Find(Engine::Session& session, String name, std::vector<MethodTableEntry>& candidates) const
 {
     auto checkAndAdd = [&name, &candidates, &session](MethodTableEntry entry) -> void {
         auto def        = MethodDefinition::Resolve(session, entry.method);
@@ -72,21 +86,21 @@ void MethodTable::Find(Engine::Session& session, String name, std::vector<Method
     }
 }
 
-void MethodTable::ForEachClassSubTable(std::function<void(MethodSubTable&)> const& f)
+void MethodTable::ForEachClassSubTable(std::function<void(MethodSubTable const&)> const& f) const
 {
     for (auto& t : impl->classTables)
         f(t);
 }
 
-void MethodTable::ForEachInterfaceSubTable(std::function<void(MethodSubTable&)> const& f)
+void MethodTable::ForEachInterfaceSubTable(std::function<void(MethodSubTable const&)> const& f) const
 {
     for (auto& t : impl->interfaceTables)
         f(t);
 }
 
-size_t MethodTable::ClassSubTableCount() { return impl->classTables.size(); }
+size_t MethodTable::ClassSubTableCount() const { return impl->classTables.size(); }
 
-size_t MethodTable::InterfaceSubTableCount() { return impl->interfaceTables.size(); }
+size_t MethodTable::InterfaceSubTableCount() const { return impl->interfaceTables.size(); }
 
 MethodTable::~MethodTable() = default;
 
@@ -100,9 +114,9 @@ MethodSubTable::MethodSubTable(std::unique_ptr<Impl> impl) : impl(std::move(impl
 MethodSubTable::MethodSubTable(MethodSubTable&& other) = default;
 MethodSubTable::~MethodSubTable()                      = default;
 
-Term MethodSubTable::DeclaringType() { return impl->declaringType; }
+Term MethodSubTable::DeclaringType() const { return impl->declaringType; }
 
-void MethodSubTable::ForEach(std::function<void(MethodTableEntry)> const& f)
+void MethodSubTable::ForEach(std::function<void(MethodTableEntry const)> const& f) const
 {
     auto start         = impl->start;
     auto end           = impl->end;
@@ -122,15 +136,9 @@ void MethodSubTable::ForEach(std::function<void(MethodTableEntry)> const& f)
     }
 }
 
-size_t MethodSubTable::Size() { return impl->end - impl->start; }
+size_t MethodSubTable::Size() const { return impl->end - impl->start; }
 
-MethodTableManager::MethodTableManager() : impl(std::make_unique<MethodTableManager::Impl>()) {}
-
-MethodTableManager::MethodTableManager(MethodTableManager&& manager) : impl(std::move(manager.impl)) {}
-
-MethodTableManager::~MethodTableManager() = default;
-
-static std::shared_ptr<MethodTable::Impl> BuildTable(Engine::Session& session, Engine::Identifier<TypeDefinition> type)
+static MethodTable BuildTable(Engine::Session& session, Engine::Identifier<TypeDefinition> type)
 {
     auto def       = TypeDefinition::Resolve(session, type);
     auto methodSeq = def.GetVirtualMethods();
@@ -152,7 +160,7 @@ static std::shared_ptr<MethodTable::Impl> BuildTable(Engine::Session& session, E
     //       6. patch entries in copied subtables with overriden methods;
     //       7. append newly declared methods to `allEntries`;
     //       8. introduce new class/interface table with newly declared methods;
-    std::vector<CacheEntry> allEntries;
+    std::vector<TableEntry> allEntries;
     for (auto offs : methods) {
         Engine::Identifier<MethodDefinition> def(offs, methodSeq.FileId());
         allEntries.emplace_back(def, declaringTypeTerm);
@@ -164,23 +172,22 @@ static std::shared_ptr<MethodTable::Impl> BuildTable(Engine::Session& session, E
         std::make_unique<MethodSubTable::Impl>(table->allEntries, declaringTypeTerm, 0, 0, allEntries.size());
 
     table->classTables.emplace_back(std::move(classTable));
-
-    return table;
+    return MethodTable(table);
 }
 
 MethodTable MethodTableManager::GetMethodTable(Engine::Session& session, Engine::Identifier<TypeDefinition> type)
 {
     auto& manager = MethodTableManager::Of(session);
-    std::lock_guard guard(manager.impl->lock);
+    std::lock_guard guard(manager.lock);
 
-    auto& tables = manager.impl->tables;
+    auto& tables = manager.tables;
 
     auto it = tables.find(type);
     if (it != tables.end()) {
         return it->second;
     }
 
-    MethodTable mt(std::move(BuildTable(session, type)));
+    MethodTable mt = BuildTable(session, type);
     tables.insert({ type, mt });
 
     return mt;

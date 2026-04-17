@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <unordered_set>
 
@@ -218,30 +219,13 @@ GlobalTerm LocalTerm::Publish(Engine::Session& session)
 
 GlobalTerm GlobalTerm::Subterm(uint32_t i) const { return this->data->subterms[i].AsGlobal(); }
 
-TermManager::TermManager() : impl(std::make_unique<Impl>()) {}
-
-TermManager::TermManager(TermManager&& manager) = default;
-TermManager::~TermManager()                     = default;
-
-struct CacheEntry {
-    TermData* data;
-
-    bool operator==(const CacheEntry& another) const { return CompareTermData(data, another.data, true); }
-};
-
-struct TermManager::Impl {
-    struct Hasher {
-        uint64_t operator()(CacheEntry const& entry) const { return entry.data->hash; }
-    };
-
-    std::unordered_set<CacheEntry, Hasher> set;
-};
-
 GlobalTerm TermManager::Globalize(Term& term)
 {
     if (!term.IsLocal()) {
         return term.AsGlobal();
     }
+
+    std::lock_guard guard(lock);
 
     // globalize terms in-place
     auto termData = term.data;
@@ -250,11 +234,9 @@ GlobalTerm TermManager::Globalize(Term& term)
     }
 
     // query cache without allocating a new term
-    CacheEntry findEntry { termData };
-
-    auto it = impl->set.find(findEntry);
-    if (it != impl->set.end()) {
-        return GlobalTerm(it->data);
+    auto it = cache.find(termData);
+    if (it != cache.end()) {
+        return GlobalTerm(*it);
     }
 
     // cache miss; evacuate term and update cache
@@ -268,9 +250,11 @@ GlobalTerm TermManager::Globalize(Term& term)
     }
     data->Init(termData->identifier, termData->hash, termData->length, false);
 
-    impl->set.insert(CacheEntry { data });
+    cache.insert(data);
     term.data = data;
     return term.AsGlobal();
 }
+
+uint64_t TermManager::Hasher::operator()(TermData* const& data) const { return data->hash; }
 
 } // namespace Symlevel

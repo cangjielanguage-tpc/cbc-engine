@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <vector>
 
 namespace Symlevel {
@@ -29,9 +30,9 @@ public:
     MethodSubTable(std::unique_ptr<Impl> impl);
     MethodSubTable(MethodSubTable&& other);
 
-    Term DeclaringType();
-    void ForEach(std::function<void(MethodTableEntry)> const& f);
-    size_t Size();
+    Term DeclaringType() const;
+    void ForEach(std::function<void(MethodTableEntry const)> const& f) const;
+    size_t Size() const;
 
     ~MethodSubTable();
 
@@ -47,13 +48,12 @@ public:
     MethodTable(std::shared_ptr<Impl> impl);
     MethodTable(MethodTable&& other);
     MethodTable(MethodTable const& other);
-    // virtual MethodTable& Instantiate(targs) = 0;
 
-    void Find(Engine::Session& session, String name, std::vector<MethodTableEntry>& candidates);
-    void ForEachClassSubTable(std::function<void(MethodSubTable&)> const& f);
-    void ForEachInterfaceSubTable(std::function<void(MethodSubTable&)> const& f);
-    size_t ClassSubTableCount();
-    size_t InterfaceSubTableCount();
+    void Find(Engine::Session& session, String name, std::vector<MethodTableEntry>& candidates) const;
+    void ForEachClassSubTable(std::function<void(MethodSubTable const&)> const& f) const;
+    void ForEachInterfaceSubTable(std::function<void(MethodSubTable const&)> const& f) const;
+    size_t ClassSubTableCount() const;
+    size_t InterfaceSubTableCount() const;
     ~MethodTable();
 
 private:
@@ -66,18 +66,15 @@ public:
     static MethodTableManager& Of(Engine::Engine& engine);
     static MethodTableManager& Of(Engine::Session& session);
 
-    MethodTableManager();
-    MethodTableManager(MethodTableManager&& manager);
-    ~MethodTableManager();
-
     /// Returns an method table for the given type definition.
     MethodTable GetMethodTable(Engine::Session& session, Engine::Identifier<TypeDefinition> type);
 
-private:
-    class Impl;
-    friend class Impl;
+    /// Returns an method table for the given type.
+    // MethodTable GetMethodTable(Engine::Session& session, Term term);
 
-    std::unique_ptr<Impl> impl;
+private:
+    std::mutex lock;
+    std::unordered_map<Engine::Identifier<TypeDefinition>, MethodTable> tables;
 };
 
 } // namespace Symlevel

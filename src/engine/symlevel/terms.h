@@ -8,7 +8,31 @@
 #include "utils/assertion.h"
 #include "utils/math.h"
 #include <cstdint>
+#include <mutex>
+#include <unordered_set>
 
+/// `Term` is an symbolic representation of any type that is supported in CBC.
+/// It can represent primitives (e.g. I32), builtins (e.g. ARRAY) or user-defined types (e.g. TYPE).
+///
+/// Each term is represented as pointer to the structure:
+/// ```c
+/// struct TermData {
+///     TemplateIdentifier identifier;
+///     uint32_t hash;
+///     uint16_t length;
+///     bool isLocal;
+///     Term subterms[];
+/// };
+/// ```
+/// Depending on the location, where this structure is allocated, the term could be "global" or "local".
+///
+/// Local terms are being created as part of `Session` in its arena, while global terms are stored permanently.
+/// To reduce memory usage, global terms are interned.
+///
+/// The most important part of Term structure is `identifier` and `subterms[]`.
+/// The identifier consists of two parts: `kind` and `num`. Most of the times, `kind` is representing
+/// builtin type, so `num` part is not needed, but in case of user defined types,
+/// `num` stores information that identifies the type being referefenced.
 namespace Symlevel {
 
 enum class TemplateKind : uint16_t {
@@ -142,15 +166,16 @@ public:
     static TermManager& Of(Engine::Engine& engine);
     static TermManager& Of(Engine::Session& session);
 
-    TermManager();
-    TermManager(TermManager&& manager);
-    ~TermManager();
-
     /// Globalize given term.
     /// The function performs in-place modification of `Term` structure.
     GlobalTerm Globalize(Term& term);
 
 private:
-    std::unique_ptr<Impl> impl;
+    struct Hasher {
+        uint64_t operator()(TermData* const& data) const;
+    };
+
+    std::mutex lock;
+    std::unordered_set<TermData*, Hasher> cache;
 };
 } // namespace Symlevel
