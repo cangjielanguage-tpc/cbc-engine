@@ -10,6 +10,8 @@ namespace API {
 namespace Impl {
 
 class DirectMethodCbc final : public DirectMethod {
+    using Term = Symlevel::Terms::Term;
+
 public:
     DirectMethodCbc(Engine::Session& session, Symlevel::MethodDefinition def) : session(session), def(def) {}
 
@@ -31,6 +33,8 @@ private:
 };
 
 class DirectMethodAot final : public DirectMethod {
+    using Term = Symlevel::Terms::Term;
+
 public:
     DirectMethodAot(Engine::Session& session, Symlevel::MethodReference ref, Symlevel::DirectCallAotData aotData)
         : session(session),
@@ -57,6 +61,8 @@ private:
 };
 
 class VirtualMethodImpl final : public VirtualMethod {
+    using Term = Symlevel::Terms::Term;
+
 public:
     VirtualMethodImpl(Engine::Session& session, Symlevel::MethodReference ref, uint16_t vnum, uint16_t extDefNum)
         : session(session),

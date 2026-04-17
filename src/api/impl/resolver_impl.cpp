@@ -3,9 +3,11 @@
 #include "engine/symlevel/aot_table.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/method_table.h"
+#include "engine/symlevel/dependencies.h"
 #include "engine/symlevel/reader.h"
 #include "engine/symlevel/references.h"
 #include "engine/symlevel/region_data.h"
+#include "field_impl.h"
 #include "method_impl.h"
 #include "type_impl.h"
 #include "utils/assertion.h"
@@ -19,10 +21,7 @@ namespace Impl {
 
 Type* ResolverImpl::Resolve(Symlevel::Index<Symlevel::Term> index)
 {
-    using namespace Symlevel;
-
-    auto fileId   = method.GetFileId();
-    auto& cbcFile = session.CbcFileOf(fileId);
+    auto& cbcFile = session.CbcFileOf(method.GetFileId());
 
     auto termOpt = cbcFile.GetRegionData().queryTerm(session, index);
     if (!termOpt) {
@@ -30,7 +29,12 @@ Type* ResolverImpl::Resolve(Symlevel::Index<Symlevel::Term> index)
         throw std::runtime_error("cannot resolve term");
     }
 
-    auto term = termOpt.value();
+    return Resolve(termOpt.value());
+}
+
+Type* ResolverImpl::Resolve(Symlevel::Terms::Term term)
+{
+    using namespace Symlevel;
 
     auto termKind = term.GetIdentifier().GetKind();
     switch (termKind) {
@@ -40,6 +44,12 @@ Type* ResolverImpl::Resolve(Symlevel::Index<Symlevel::Term> index)
             auto typeName       = Reader::Read(session, nameFileId, Offset<String>(typeNameOffset));
             auto typeInfo = RTSupport::RuntimeInterface<RTSupport::Impl>::GetTypeInfo(std::string(typeName).c_str());
 
+            ASSERTION(typeInfo != nullptr, "Couldn't resolve AOT type");
+
+            return session.Allocator().New<TypeImpl>(term, typeInfo);
+        }
+        case TemplateKind::I64: { // TODO support other built-in types
+            auto typeInfo = RTSupport::RuntimeInterface<RTSupport::Impl>::GetTypeInfo(std::string("Int64").c_str());
             ASSERTION(typeInfo != nullptr, "Couldn't resolve AOT type");
 
             return session.Allocator().New<TypeImpl>(term, typeInfo);
@@ -153,19 +163,69 @@ DirectMethod* ResolverImpl::ResolveDirectMethod(Symlevel::Index<Symlevel::Method
     }
 }
 
-InstanceField* ResolverImpl::Resolve(Symlevel::Index<InstanceField> index)
+template <typename T>
+T* ResolverImpl::ResolveField(Symlevel::Index<Symlevel::FieldReference> index)
 {
-    FATAL("not implemented yet");
-    return nullptr;
+    static_assert(std::is_same_v<T, InstanceFieldImpl> || std::is_same_v<T, StaticFieldImpl>);
+    using namespace Symlevel;
+
+    auto& cbcFile = session.CbcFileOf(method.GetFileId());
+
+    auto fieldRefOpt = cbcFile.GetRegionData().queryField(session, index);
+    if (!fieldRefOpt.has_value()) {
+        // TODO: handle this case
+        throw std::runtime_error("cannot resolve method ref");
+    }
+
+    auto fieldRef = fieldRefOpt.value();
+
+    Type* fieldType  = Resolve(fieldRef.FieldType());
+    Type* refType    = Resolve(fieldRef.RefType());
+    FieldFlags flags = fieldRef.IsRecord() ? FieldFlags(FieldFlag::Shift::RECORD) : FieldFlags();
+
+    switch (fieldRef.RefType().GetIdentifier().GetKind()) {
+        case TemplateKind::AOT_TYPE: {
+            ASSERTION(
+                fieldRef.FieldType().GetIdentifier().GetKind() != TemplateKind::TYPE,
+                "aot types cannot have fields of cbc type"
+            );
+
+            if constexpr (std::is_same_v<T, InstanceFieldImpl>) {
+                InstanceFieldAotData data = cbcFile.GetInstanceFieldAotTable().GetData(session, index).value();
+
+                return session.Allocator().New<InstanceFieldImpl>(
+                    fieldRef.Name(), data.GetOrdinal(), flags, fieldType, refType
+                );
+            } else {
+                static_assert(std::is_same_v<T, StaticFieldImpl>);
+                StaticFieldAotData data = cbcFile.GetStaticFieldAotTable().GetData(session, index).value();
+
+                String linkageName = data.GetLinkageName();
+                auto location      = cbcFile.GetDependencies().FindTarget(linkageName);
+
+                return session.Allocator().New<StaticFieldImpl>(
+                    reinterpret_cast<uintptr_t>(location), fieldRef.Name(), flags, fieldType, refType
+                );
+            }
+        }
+        default: {
+            FATAL("Not supported yet");
+            return nullptr;
+        }
+    }
 }
 
-StaticField* ResolverImpl::Resolve(Symlevel::Index<StaticField> index)
+InstanceField* ResolverImpl::ResolveInstanceField(Symlevel::Index<Symlevel::FieldReference> index)
 {
-    FATAL("not implemented yet");
-    return nullptr;
+    return ResolveField<InstanceFieldImpl>(index);
 }
 
-std::optional<Type*> ResolverImpl::TypeOf(Term* term)
+StaticField* ResolverImpl::ResolveStaticField(Symlevel::Index<Symlevel::FieldReference> index)
+{
+    return ResolveField<StaticFieldImpl>(index);
+}
+
+std::optional<Type*> ResolverImpl::TypeOf(Symlevel::Terms::Term* term)
 {
     FATAL("not implemented yet");
     return nullptr;

@@ -127,6 +127,36 @@ struct IsaDisasm : public IsaParser {
 
     void GcPoint() override { stream << "gcpoint" << endl; }
 
+    void LoadStatic(AnyReg r, uint16_t field) override
+    {
+        stream << "ld.static" << " " << r << ", " << field << std::endl;
+    }
+
+    void StoreStatic(AnyReg r, uint16_t field) override
+    {
+        stream << "st.static" << " " << r << ", " << field << std::endl;
+    }
+
+    void LoadObj(IReg rb, AnyReg rs, uint16_t field) override
+    {
+        stream << "ld.obj" << " " << rb.ToStr() << ", " << rs << ", " << field << std::endl;
+    }
+
+    void StoreObj(IReg rb, AnyReg rd, uint16_t field) override
+    {
+        stream << "st.obj" << " " << rb.ToStr() << ", " << rd << ", " << field << std::endl;
+    }
+
+    void LoadRec(IReg rb, AnyReg rs, uint16_t field) override
+    {
+        stream << "ld.rec" << " " << rb.ToStr() << ", " << rs << ", " << field << std::endl;
+    }
+
+    void StoreRec(IReg rb, AnyReg rd, uint16_t field) override
+    {
+        stream << "st.rec" << " " << rb.ToStr() << ", " << rd << ", " << field << std::endl;
+    }
+
     void LoadTypeInfoFtc(IReg dst, uint16_t ftc) override
     {
         stream << "load.typeinfo.ftc" << " " << dst.ToStr() << ", " << ftc << endl;

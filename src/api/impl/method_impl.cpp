@@ -1,11 +1,12 @@
 #include "method_impl.h"
-#include "api/term.h"
 #include "engine/symlevel/dependencies.h"
 #include "engine/symlevel/reader.h"
 #include "engine/symlevel/region_data.h"
 
 namespace API {
 namespace Impl {
+
+using Term = Symlevel::Terms::Term;
 
 //////////////////////////////////
 // DirectMethodCbc
