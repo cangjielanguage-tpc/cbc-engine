@@ -88,6 +88,7 @@ Engine& Loader::Build()
 {
     auto engineInstance =
         new Engine(std::move(std::make_unique<Engine::Impl>(std::move(loader->files), std::move(loader->rafs))));
+
     g_engineInstance = engineInstance;
     return *engineInstance;
 }

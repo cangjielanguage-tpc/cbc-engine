@@ -2,6 +2,7 @@
 #include "engine/identifiers.h"
 #include "engine/symlevel/aot_table.h"
 #include "engine/symlevel/definitions.h"
+#include "engine/symlevel/dependencies.h"
 #include "engine/symlevel/method_table.h"
 #include "engine/symlevel/reader.h"
 #include "engine/symlevel/references.h"
@@ -30,14 +31,26 @@ Type* ResolverImpl::Resolve(Symlevel::Index<Symlevel::Term> index)
         throw std::runtime_error("cannot resolve term");
     }
 
-    auto term = termOpt.value();
+    return Resolve(termOpt.value());
+}
 
-    auto termKind = term.GetIdentifier().GetKind();
-    switch (termKind) {
+Type* ResolverImpl::Resolve(Symlevel::Term term)
+{
+    using namespace Symlevel;
+
+    auto termIdent = term.GetIdentifier();
+    switch (termIdent.GetKind()) {
+        case TemplateKind::TYPE: {
+            // TODO: provide type info
+            return session.Allocator().New<TypeImpl>(term);
+        }
+
         case TemplateKind::AOT_TYPE: {
-            auto nameFileId     = term.GetIdentifier().AsAotIdent().GetFile();
-            auto typeNameOffset = term.GetIdentifier().AsAotIdent().GetOffset();
+            auto aotIdent       = termIdent.AsAotIdent();
+            auto nameFileId     = aotIdent.GetFile();
+            auto typeNameOffset = aotIdent.GetOffset();
             auto typeName       = Reader::Read(session, nameFileId, Offset<String>(typeNameOffset));
+
             auto typeInfo = RTSupport::RuntimeInterface<RTSupport::Impl>::GetTypeInfo(std::string(typeName).c_str());
 
             ASSERTION(typeInfo != nullptr, "Couldn't resolve AOT type");
@@ -53,101 +66,150 @@ Type* ResolverImpl::Resolve(Symlevel::Index<Symlevel::Term> index)
     return nullptr;
 }
 
-VirtualMethod* ResolverImpl::ResolveVirtualMethod(Symlevel::Index<Symlevel::MethodReference> index)
-{
-    auto& cbcFile = session.CbcFileOf(method.GetFileId());
-
-    auto methodRef = cbcFile.GetRegionData().queryMethod(session, index);
-    if (!methodRef.has_value()) {
-        // TODO: handle this case
-        throw std::runtime_error("cannot resolve method ref");
-    }
-
-    auto ref = methodRef.value();
-    ASSERTION(ref.AccessKind() == Symlevel::MethodAccessKind::VIRTUAL, "resolving virtual method is not virtual");
-
-    auto refType   = ref.RefType();
-    auto refTypeId = refType.GetIdentifier();
-    switch (refTypeId.GetKind()) {
-        case Symlevel::TemplateKind::TYPE: {
-            auto& manager = Symlevel::MethodTableManager::Of(session);
-            auto mt       = manager.GetMethodTable(session, refType);
-
-            std::vector<Symlevel::MethodTableEntry> entries;
-            mt.Find(session, ref.Name(), entries);
-
-            if (entries.size() != 1) {
-                // TODO: - implement signature comparison
-                //       - proper error handling
-                ASSERTION(false, "failed to resolve virtual method");
-            }
-
-            auto methodInfo = entries.at(0);
-            return session.Allocator().New<VirtualMethodImpl>(
-                session, ref, methodInfo.methodNum, methodInfo.subTableNum
-            );
-        }
-
-        case Symlevel::TemplateKind::AOT_TYPE: {
-            auto data = session.CbcFileOf(method.GetFileId()).GetVirtualCallAotTable().GetData(session, index);
-            if (!data.has_value()) {
-                // TODO: handle this case
-                throw std::runtime_error("aot method ref has no aot data");
-            }
-
-            auto methodInfo = data.value();
-            return session.Allocator().New<VirtualMethodImpl>(
-                session, ref, methodInfo.GetVNum(), methodInfo.GetExtDefNum()
-            );
-        }
-
-        default: {
-            ASSERTION(false, "should not reach here");
-            return nullptr;
-        }
-    }
-}
-
 DirectMethod* ResolverImpl::ResolveDirectMethod(Symlevel::Index<Symlevel::MethodReference> index)
 {
     auto& cbcFile = session.CbcFileOf(method.GetFileId());
 
-    auto methodRef = cbcFile.GetRegionData().queryMethod(session, index);
-    if (!methodRef.has_value()) {
-        // TODO: handle this case
-        throw std::runtime_error("cannot resolve method ref");
+    auto methodRefOpt = cbcFile.GetRegionData().queryMethod(session, index);
+    if (!methodRefOpt.has_value()) {
+        FATAL("cannot resolve method ref");
     }
 
-    auto ref = methodRef.value();
-    ASSERTION(ref.AccessKind() == Symlevel::MethodAccessKind::DIRECT, "resolving direct method is not static");
+    auto methodRef = methodRefOpt.value();
+    ASSERTION(methodRef.AccessKind() == Symlevel::MethodAccessKind::DIRECT, "resolving direct method is not static");
 
-    auto refTypeId = ref.RefType().GetIdentifier();
+    auto* refType = Resolve(methodRef.RefType());
+    auto name     = methodRef.Name();
+
+    auto refTypeId = methodRef.RefType().GetIdentifier();
     switch (refTypeId.GetKind()) {
         case Symlevel::TemplateKind::TYPE: {
             auto ident = refTypeId.AsTypeIdent();
             Engine::Identifier<Symlevel::TypeDefinition> typeId(ident.GetOffset(), ident.GetFile());
             auto refTypeDef = Symlevel::TypeDefinition::Resolve(session, typeId);
 
-            auto candidates = refTypeDef.GetMethodIndex().FindMethods(session, ref.Name());
+            auto methodDefs = refTypeDef.GetMethodIndex().FindMethods(session, name);
+            ASSERTION(methodDefs.size() == 1, "not implemented yet");
+            auto methodDef = methodDefs[0];
 
-            ASSERTION(candidates.size() == 1, "not implemented yet");
-            auto target = candidates[0];
+            auto& fuhManager = Interpretation::FunctionHandleManager::Of(session);
+            auto* fuh        = fuhManager.Acquire(session, methodDef.GetIdentifier());
 
-            return session.Allocator().New<DirectMethodCbc>(session, target);
+            return session.Allocator().New<DirectMethodCbc>(refType, fuh, name);
         }
 
         case Symlevel::TemplateKind::AOT_TYPE: {
-            auto data = session.CbcFileOf(method.GetFileId()).GetDirectCallAotTable().GetData(session, index);
+            auto data = cbcFile.GetDirectCallAotTable().GetData(session, index);
             if (!data.has_value()) {
-                // TODO: handle this case
-                throw std::runtime_error("aot method ref has no aot data");
+                FATAL("aot method ref has no aot data");
             }
 
-            return session.Allocator().New<DirectMethodAot>(session, ref, data.value());
+            auto linkageName   = data->GetLinkageName();
+            auto targetAddress = cbcFile.GetDependencies().FindTarget(linkageName);
+
+            return session.Allocator().New<DirectMethodAot>(refType, targetAddress, name);
         }
 
         default: {
             FATAL("should not reach here");
+            return nullptr;
+        }
+    }
+}
+
+VirtualMethod* ResolverImpl::ResolveVirtualMethod(Symlevel::Index<Symlevel::MethodReference> index)
+{
+    auto& cbcFile = session.CbcFileOf(method.GetFileId());
+
+    auto methodRefOpt = cbcFile.GetRegionData().queryMethod(session, index);
+    if (!methodRefOpt.has_value()) {
+        FATAL("cannot resolve method ref");
+    }
+
+    auto methodRef = methodRefOpt.value();
+    ASSERTION(methodRef.AccessKind() == Symlevel::MethodAccessKind::VIRTUAL, "resolving virtual method is not virtual");
+
+    auto* refType = Resolve(methodRef.RefType());
+    auto name     = methodRef.Name();
+
+    auto refTypeId = methodRef.RefType().GetIdentifier();
+    switch (refTypeId.GetKind()) {
+        case Symlevel::TemplateKind::TYPE: {
+            auto& mtManager  = Symlevel::MethodTableManager::Of(session);
+            auto methodTable = mtManager.GetMethodTable(session, methodRef.RefType());
+
+            std::vector<Symlevel::MethodTableEntry> entries;
+            methodTable.Find(session, name, entries);
+            if (entries.size() != 1) {
+                // TODO: - implement signature comparison
+                //       - proper error handling
+                ASSERTION(false, "failed to resolve virtual method");
+            }
+            auto methodInfo = entries.at(0);
+
+            auto vnum      = methodInfo.methodNum;
+            auto extDefNum = methodInfo.subTableNum;
+
+            return session.Allocator().New<VirtualMethodImpl>(refType, vnum, extDefNum, name);
+        }
+
+        case Symlevel::TemplateKind::AOT_TYPE: {
+            auto data = cbcFile.GetVirtualCallAotTable().GetData(session, index);
+            if (!data.has_value()) {
+                FATAL("aot method ref has no aot data");
+            }
+
+            auto vnum      = data->GetVNum();
+            auto extDefNum = data->GetExtDefNum();
+
+            return session.Allocator().New<VirtualMethodImpl>(refType, vnum, extDefNum, name);
+        }
+
+        default: {
+            FATAL("should not reach here");
+            return nullptr;
+        }
+    }
+}
+
+InterfaceMethod* ResolverImpl::ResolveInterfaceMethod(Symlevel::Index<Symlevel::MethodReference> index)
+{
+    auto& cbcFile = session.CbcFileOf(method.GetFileId());
+
+    auto methodRefOpt = cbcFile.GetRegionData().queryMethod(session, index);
+    if (!methodRefOpt.has_value()) {
+        FATAL("cannot resolve method ref");
+    }
+
+    auto methodRef = methodRefOpt.value();
+    ASSERTION(
+        methodRef.AccessKind() == Symlevel::MethodAccessKind::INTERFACE, "resolving interface method is not interface"
+    );
+
+    auto* refType = Resolve(methodRef.RefType());
+    auto name     = methodRef.Name();
+
+    auto refTypeId = methodRef.RefType().GetIdentifier();
+
+    switch (refTypeId.GetKind()) {
+        case Symlevel::TemplateKind::TYPE: {
+            FATAL("not implemented yet");
+            return nullptr;
+        }
+
+        case Symlevel::TemplateKind::AOT_TYPE: {
+            auto data = cbcFile.GetInterfaceCallAotTable().GetData(session, index);
+            if (!data.has_value()) {
+                FATAL("aot method ref has no aot data");
+            }
+
+            auto inum = data->GetINum();
+
+            return session.Allocator().New<InterfaceMethodImpl>(refType, inum, name);
+        }
+
+        default: {
+            ASSERTION(false, "should not reach here");
             return nullptr;
         }
     }
@@ -160,12 +222,6 @@ InstanceField* ResolverImpl::Resolve(Symlevel::Index<InstanceField> index)
 }
 
 StaticField* ResolverImpl::Resolve(Symlevel::Index<StaticField> index)
-{
-    FATAL("not implemented yet");
-    return nullptr;
-}
-
-std::optional<Type*> ResolverImpl::TypeOf(Term* term)
 {
     FATAL("not implemented yet");
     return nullptr;

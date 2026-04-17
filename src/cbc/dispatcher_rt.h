@@ -5,6 +5,7 @@
 #include "decoder.h"
 #include "interpreter/interpreter.h"
 #include "isa_rt.h"
+#include "runtimesupport/runtime_methods.h"
 #include "utils/assertion.h"
 #include "utils/math.h"
 
@@ -111,7 +112,9 @@ Thunk InterpretationLoop(
         &&DIRECT_CALL_2I, // B3xi12
         &&DIRECT_CALL_2C, // B3xi12
 
-        &&VIRTUAL_CALL_2C, // [opc, r, i32, i32]
+        &&VIRTUAL_CALL_2C, // B5i16i16
+
+        &&INTERFACE_CALL_2C, // B5xi12i16
 
         &&MEMSPACE, // B1. See `MemOpcode`
     };
@@ -545,9 +548,33 @@ VIRTUAL_CALL_2C: {
 
     size_t extDefArrayOffset = offsetof(MRTExport::type_info_t, v_extension_data_start);
 
+    auto* receiver    = reinterpret_cast<uintptr_t*>(ectype->GetReference(IReg::IR1).value);
+    auto thisTypeInfo = RTSupport::TypeInfo<RTI>(*receiver);
+    auto* target      = thisTypeInfo->v_extension_data_start[extDefNum]->func_table[vnum];
+
+    // For proper support of fibers, the following call MUST drop the current frame.
+    // This can not be guaranteed by C++ compiler consistently, because TCO
+    // is not guaranteed and `mustcall` attribute is not supported
+    // fully by gcc/clang compilers.
+    //
+    // Instead, the following call will drop the current frame manually
+    // (outside of unit-test framework).
+
+    reader0 = reader; // save current pc
+
+    return { reinterpret_cast<void*>(&Asm::engine_i2c_call), target };
+}
+INTERFACE_CALL_2C: {
+    auto args     = B5xi12i16::Decode(reader);
+    uint16_t imm  = args.xi12.imm12;
+    uint16_t inum = args.imm16.imm;
+
     auto* receiver     = reinterpret_cast<uintptr_t*>(ectype->GetReference(IReg::IR1).value);
-    auto* thisTypeInfo = reinterpret_cast<MRTExport::type_info_t*>(*receiver);
-    auto* target       = thisTypeInfo->v_extension_data_start[extDefNum]->func_table[vnum];
+    auto thisTypeInfo  = RTSupport::TypeInfo<RTI>(*receiver);
+    auto interfaceType = RTSupport::TypeInfo<RTI>(literals->at(imm).uintptr);
+
+    auto* func_table = RTMethods::GetMTable()(thisTypeInfo, interfaceType);
+    auto* target     = func_table[inum];
 
     // For proper support of fibers, the following call MUST drop the current frame.
     // This can not be guaranteed by C++ compiler consistently, because TCO

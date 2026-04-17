@@ -1,7 +1,6 @@
 #pragma once
 
 #include "interpreter/function_handle.h"
-#include "term.h"
 #include "type.h"
 #include <optional>
 #include <string>
@@ -10,9 +9,38 @@ namespace API {
 
 class DirectMethod;
 class VirtualMethod;
+class InterfaceMethod;
 
 struct MethodFlag;
 struct MethodFlags;
+
+/**
+ * @class Method
+ * @brief Base class for method representation.
+ *
+ * @see DirectMethod
+ * @see VirtualMethod
+ * @see InterfaceMethod
+ */
+class Method {
+public:
+    /**
+     * @brief The signature used for actual ABI of a method invocation.
+     */
+    virtual Symlevel::Term* ABISignature() const = 0;
+
+    /**
+     * @brief The ref type.
+     */
+    virtual Type* RefType() const = 0;
+
+    virtual MethodFlags Flags() const = 0;
+
+    virtual Symlevel::String Name() const = 0;
+
+protected:
+    virtual ~Method() = default;
+};
 
 /**
  * @class DirectMethod
@@ -21,25 +49,11 @@ struct MethodFlags;
  * @see Term
  * @see Type
  */
-class DirectMethod {
+class DirectMethod : public Method {
 public:
-    /**
-     * @brief The signature used for actual ABI of a method invocation.
-     */
-    virtual Term* ABISignature() = 0;
+    virtual Interpretation::FunctionHandle* FUH() const = 0;
 
-    /**
-     * @brief The ref type.
-     */
-    virtual std::optional<Type*> RefType() = 0;
-
-    virtual std::optional<Interpretation::FunctionHandle*> FUH() = 0;
-
-    virtual void* TargetAddr() = 0;
-
-    virtual MethodFlags Flags() = 0;
-
-    virtual Symlevel::String Name() = 0;
+    virtual AotCodeAddr TargetAddr() const = 0;
 
 protected:
     virtual ~DirectMethod() = default;
@@ -52,30 +66,29 @@ protected:
  * @see Term
  * @see Type
  */
-class VirtualMethod {
+class VirtualMethod : public Method {
 public:
-    /**
-     * @brief The signature used for actual ABI of a method invocation.
-     */
-    virtual Term* ABISignature() = 0;
+    virtual uint16_t VNum() const = 0;
 
-    /**
-     * @brief The ref type.
-     */
-    virtual std::optional<Type*> RefType() = 0;
-
-    virtual std::optional<Interpretation::FunctionHandle*> FUH() = 0;
-
-    virtual uint16_t VNum() = 0;
-
-    virtual uint16_t ExtDefNum() = 0;
-
-    virtual MethodFlags Flags() = 0;
-
-    virtual Symlevel::String Name() = 0;
+    virtual uint16_t ExtDefNum() const = 0;
 
 protected:
     virtual ~VirtualMethod() = default;
+};
+
+/**
+ * @class InterfaceMethod
+ * @brief Interface method representation.
+ *
+ * @see Term
+ * @see Type
+ */
+class InterfaceMethod : public Method {
+public:
+    virtual uint16_t INum() const = 0;
+
+protected:
+    virtual ~InterfaceMethod() = default;
 };
 
 struct MethodFlag {

@@ -8,6 +8,7 @@
 #include "symlevel/io/file_id.h"
 #include "symlevel/io/random_access_file.h"
 #include "utils/heap.h"
+#include "utils/lib_handle.h"
 
 namespace Engine {
 

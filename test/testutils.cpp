@@ -29,6 +29,8 @@ struct Resolver : public API::Resolver {
 
     API::Type* Resolve(Symlevel::Index<Symlevel::Term> index) override { return nullptr; }
 
+    API::Type* Resolve(Symlevel::Term term) override { return nullptr; }
+
     API::DirectMethod* ResolveDirectMethod(Symlevel::Index<Symlevel::MethodReference> index) override
     {
         return nullptr;
@@ -39,11 +41,14 @@ struct Resolver : public API::Resolver {
         return nullptr;
     }
 
+    API::InterfaceMethod* ResolveInterfaceMethod(Symlevel::Index<Symlevel::MethodReference> index) override
+    {
+        return nullptr;
+    }
+
     API::InstanceField* Resolve(Symlevel::Index<API::InstanceField> index) override { return nullptr; }
 
     API::StaticField* Resolve(Symlevel::Index<API::StaticField> index) override { return nullptr; }
-
-    std::optional<API::Type*> TypeOf(API::Term* term) override { return std::nullopt; }
 
     ~Resolver() override = default;
 };

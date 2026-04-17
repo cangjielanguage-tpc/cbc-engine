@@ -141,8 +141,8 @@ struct IsaRewriter : public IsaParser {
     {
         auto m   = resolver.ResolveDirectMethod(Method(method));
         auto fuh = m->FUH();
-        if (fuh.has_value()) {
-            auto sym = emit.NewAddressSym(reinterpret_cast<uintptr_t>(fuh.value()));
+        if (fuh != nullptr) {
+            auto sym = emit.NewAddressSym(reinterpret_cast<uintptr_t>(fuh));
             emit.DirectCall2i(sym);
         } else {
             void* target = m->TargetAddr();
@@ -150,21 +150,31 @@ struct IsaRewriter : public IsaParser {
             auto sym = emit.NewAddressSym(reinterpret_cast<uintptr_t>(target));
             emit.DirectCall2c(sym);
         }
-        if (dst != IReg::IR1) {
-            emit.Mov(dst, IReg::IR1);
-        }
+        emit.Mov(dst, IReg::IR1);
     }
 
     void CallVirtual(IReg dst, uint16_t method) override
     {
         auto m = resolver.ResolveVirtualMethod(Method(method));
         emit.VirtualCall2c(m->VNum(), m->ExtDefNum());
-        if (dst != IReg::IR1) {
-            emit.Mov(dst, IReg::IR1);
-        }
+        emit.Mov(dst, IReg::IR1);
     }
 
-    void CallInterf(IReg dst, uint16_t method) override { FATAL("not implemented"); }
+    void CallInterf(IReg dst, uint16_t method) override
+    {
+        auto m = resolver.ResolveInterfaceMethod(Method(method));
+
+        auto* refType = m->RefType();
+        ASSERT(refType != nullptr);
+
+        auto typeInfoOpt = refType->GetTypeInfo();
+        ASSERTION(typeInfoOpt.has_value(), "Cannot find type info for call.interf");
+        void* typeInfo = typeInfoOpt.value(); // get raw value
+
+        auto sym = emit.NewAddressSym(reinterpret_cast<uintptr_t>(typeInfo));
+        emit.InterfaceCall2c(m->INum(), sym);
+        emit.Mov(dst, IReg::IR1);
+    }
 
     void Scc(Format::Width width, Format::CC cc, IReg d, AnyReg l, AnyReg r) override
     {

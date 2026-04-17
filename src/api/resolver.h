@@ -7,7 +7,6 @@
 #include "engine/symlevel/index.h"
 #include "field.h"
 #include "method.h"
-#include "term.h"
 #include "type.h"
 
 namespace Symlevel {
@@ -27,15 +26,17 @@ public:
 
     virtual Type* Resolve(Symlevel::Index<Symlevel::Term> index) = 0;
 
+    virtual Type* Resolve(Symlevel::Term term) = 0;
+
     virtual DirectMethod* ResolveDirectMethod(Symlevel::Index<Symlevel::MethodReference> index) = 0;
 
     virtual VirtualMethod* ResolveVirtualMethod(Symlevel::Index<Symlevel::MethodReference> index) = 0;
 
+    virtual InterfaceMethod* ResolveInterfaceMethod(Symlevel::Index<Symlevel::MethodReference> index) = 0;
+
     virtual InstanceField* Resolve(Symlevel::Index<InstanceField> index) = 0;
 
     virtual StaticField* Resolve(Symlevel::Index<StaticField> index) = 0;
-
-    virtual std::optional<Type*> TypeOf(Term* term) = 0;
 
     virtual ~Resolver() = default;
 };

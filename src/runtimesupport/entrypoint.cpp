@@ -9,6 +9,7 @@
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
 #include "runtime_impl.h"
+#include "runtime_methods.h"
 
 static std::mutex g_InitializationGuard;
 static bool g_Initialized;
@@ -86,6 +87,7 @@ CBC_EXPORT void interpreter_bridge_init(
     interpInterf->fiber_start              = &FiberStart;
 
     RTSupport::InitializeRuntimeInterface();
+    RTMethods::Init();
 }
 
 } // extern "C"

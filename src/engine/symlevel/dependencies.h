@@ -1,13 +1,12 @@
 #pragma once
 
-#include <dlfcn.h>
 #include <vector>
 
 #include "io/file_id.h"
 #include "io/random_access_file.h"
 #include "string.h"
+#include "utils/lib_handle.h"
 
-using LibHandle   = void*;
 using AotCodeAddr = void*;
 
 namespace Symlevel {
@@ -22,23 +21,19 @@ public:
         uint32_t aotDepsOffset
     );
 
-    explicit Dependencies(std::vector<std::string> cbcDeps, std::vector<LibHandle> handles);
-    ~Dependencies();
-
     Dependencies(const Dependencies&) = delete;
     Dependencies(Dependencies&& other) noexcept;
 
-    Dependencies& operator=(const Dependencies&) = delete;
-    Dependencies& operator=(Dependencies&& other) noexcept;
+    Dependencies& operator=(const Dependencies&)  = delete;
+    Dependencies& operator=(Dependencies&& other) = delete;
 
     AotCodeAddr FindTarget(String linkageName) const;
 
 private:
+    Dependencies(std::vector<std::string> cbcDeps, std::vector<LibHandle> handles);
+
     std::vector<std::string> cbcDeps;
     std::vector<LibHandle> aotHandles;
-
-    static std::string convertToLibName(const std::string& name);
-    static std::vector<std::string> parse(IO::FileId fileId, IO::RandomAccessFile& file, uint32_t offset);
 };
 
 } // namespace Symlevel

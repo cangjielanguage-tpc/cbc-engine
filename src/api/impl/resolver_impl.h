@@ -2,7 +2,6 @@
 
 #include "api/method.h"
 #include "api/resolver.h"
-#include "api/term.h"
 #include "engine/engine.h"
 #include "engine/symlevel/definitions.h"
 
@@ -19,15 +18,17 @@ public:
 
     Type* Resolve(Symlevel::Index<Symlevel::Term> index) override;
 
+    Type* Resolve(Symlevel::Term term) override;
+
     DirectMethod* ResolveDirectMethod(Symlevel::Index<Symlevel::MethodReference> index) override;
 
     VirtualMethod* ResolveVirtualMethod(Symlevel::Index<Symlevel::MethodReference> index) override;
 
+    InterfaceMethod* ResolveInterfaceMethod(Symlevel::Index<Symlevel::MethodReference> index) override;
+
     InstanceField* Resolve(Symlevel::Index<InstanceField> index) override;
 
     StaticField* Resolve(Symlevel::Index<StaticField> index) override;
-
-    std::optional<Type*> TypeOf(Term* term) override;
 
     ~ResolverImpl() override;
 

@@ -67,6 +67,7 @@ private:
 enum MethodAccessKind : uint16_t {
     DIRECT,
     VIRTUAL,
+    INTERFACE,
 };
 
 } // namespace Symlevel

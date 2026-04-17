@@ -57,6 +57,7 @@
     X(DIRECT_CALL_2I, B3xi12, "direct.call.2i $1I12L")                                                                 \
     X(DIRECT_CALL_2C, B3xi12, "direct.call.2c $1I12L")                                                                 \
     X(VIRTUAL_CALL_2C, B5i16i16, "virtual.call.2c $0U16L $1U16L")                                                      \
+    X(INTERFACE_CALL_2C, B5xi12i16, "interface.call.2c $1I12L $2U16L")                                                 \
     X(MEMSPACE, B1, "memspace {")
 
 // X parameters: opcode, encoding format, string format, is tail
@@ -339,6 +340,22 @@ struct B5xi12ri12 {
         auto xi12 = Format::XImm12::Decode(reader);
         auto ri12 = Format::RImm12::Decode(reader);
         return B5xi12ri12 { opc, xi12, ri12 };
+    }
+};
+
+struct B5xi12i16 {
+    static constexpr int SIZE = 5;
+
+    Opcode opc;
+    Format::XImm12 xi12;
+    Format::Imm16 imm16;
+
+    static B5xi12i16 Decode(Decoder::ByteReader& reader)
+    {
+        auto opc   = Opcode::Decode(reader);
+        auto xi12  = Format::XImm12::Decode(reader);
+        auto imm16 = Format::Imm16::Decode(reader);
+        return B5xi12i16 { opc, xi12, imm16 };
     }
 };
 

@@ -6,7 +6,7 @@
 
 namespace Symlevel {
 
-std::vector<std::string> Dependencies::parse(IO::FileId fileId, IO::RandomAccessFile& file, uint32_t offset)
+std::vector<std::string> ReadDependencies(IO::FileId fileId, IO::RandomAccessFile& file, uint32_t offset)
 {
     IO::StreamFileReader reader(file, offset);
 
@@ -37,7 +37,7 @@ std::vector<std::string> Dependencies::parse(IO::FileId fileId, IO::RandomAccess
     return results;
 }
 
-std::string Dependencies::convertToLibName(const std::string& name)
+std::string ConvertToLibName(const std::string& name)
 {
 #if defined(_WIN32) || defined(_WIN64)
     return name + ".dll";
@@ -54,24 +54,18 @@ Dependencies Dependencies::Read(
 {
     std::vector<std::string> cbcDeps;
     if (cbcDepsOffset != 0) {
-        cbcDeps = parse(fileId, file, poolOffset + cbcDepsOffset);
+        cbcDeps = ReadDependencies(fileId, file, poolOffset + cbcDepsOffset);
     } else {
         cbcDeps = std::vector<std::string>();
     }
 
     std::vector<LibHandle> handles;
     if (aotDepsOffset != 0) {
-        auto aotDeps = parse(fileId, file, poolOffset + aotDepsOffset);
-        handles      = std::vector<LibHandle>(aotDeps.size());
-
-        std::transform(aotDeps.begin(), aotDeps.end(), std::back_inserter(handles), [](std::string dep) {
-            std::string libName = convertToLibName(dep);
-            LibHandle handle    = dlopen(libName.c_str(), RTLD_LAZY);
-            if (!handle) {
-                ASSERTION(false, dlerror());
-            }
-            return handle;
-        });
+        auto aotDeps = ReadDependencies(fileId, file, poolOffset + aotDepsOffset);
+        handles.reserve(aotDeps.size());
+        for (const auto& dep : aotDeps) {
+            handles.emplace_back(ConvertToLibName(dep));
+        }
     } else {
         handles = std::vector<LibHandle>();
     }
@@ -84,29 +78,12 @@ Dependencies::Dependencies(std::vector<std::string> cbcDeps, std::vector<LibHand
       aotHandles(std::move(handles))
 {}
 
-Dependencies::~Dependencies()
-{
-    for (LibHandle handle : aotHandles) {
-        if (!dlclose(handle)) {
-            ASSERTION(false, dlerror());
-        }
-    }
-}
-
 Dependencies::Dependencies(Dependencies&& other) noexcept : aotHandles(std::move(other.aotHandles)) {}
-
-Dependencies& Dependencies::operator=(Dependencies&& other) noexcept
-{
-    if (this != &other) {
-        this->aotHandles = std::move(other.aotHandles);
-    }
-    return *this;
-}
 
 AotCodeAddr Dependencies::FindTarget(String linkageName) const
 {
-    for (LibHandle handle : aotHandles) {
-        AotCodeAddr codeAddr = dlsym(handle, std::string(linkageName).c_str());
+    for (const LibHandle& handle : aotHandles) {
+        AotCodeAddr codeAddr = handle.FindTarget(std::string(linkageName));
         if (codeAddr != nullptr) {
             return codeAddr;
         }

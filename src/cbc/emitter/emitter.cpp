@@ -410,9 +410,19 @@ void Emitter::Mov(RT::Opcode opcode, Reg d, Reg s)
     Encode(segment, RT::B2rr { .opc = opcode, .rr = RR { .x = d, .y = s } });
 }
 
-void Emitter::Mov(IReg d, IReg s) { Emitter::Mov(RT::Opcode::MOV, d, s); }
+void Emitter::Mov(IReg d, IReg s)
+{
+    if (d != s) {
+        Emitter::Mov(RT::Opcode::MOV, d, s);
+    }
+}
 
-void Emitter::Mov(FReg d, FReg s) { Emitter::Mov(RT::Opcode::FMOV, d, s); }
+void Emitter::Mov(FReg d, FReg s)
+{
+    if (d != s) {
+        Emitter::Mov(RT::Opcode::FMOV, d, s);
+    }
+}
 
 void Emitter::Mov(FReg d, IReg s) { Emitter::Mov(RT::Opcode::MOVI2F, d, s); }
 
@@ -670,6 +680,14 @@ void Emitter::VirtualCall2c(uint16_t vnum, uint16_t extDefNum)
             .imm2 = Imm16 { .imm = extDefNum },
         }
     );
+}
+
+void Emitter::InterfaceCall2c(uint16_t inum, Symbol sym)
+{
+    segment.AddW8(RT::Opcode::INTERFACE_CALL_2C);
+    Imm4 i4(0);
+    AddFixup(std::make_unique<Literal12Fixup>(i4, sym));
+    segment.AddW16(inum);
 }
 
 } // namespace Emitter

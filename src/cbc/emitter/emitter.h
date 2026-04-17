@@ -164,6 +164,8 @@ public:
 
     void VirtualCall2c(uint16_t vnum, uint16_t extDefNum);
 
+    void InterfaceCall2c(uint16_t inum, Symbol sym);
+
     MemSpace OpenMemSpace();
 
 private:

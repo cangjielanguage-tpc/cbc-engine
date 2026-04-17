@@ -1,6 +1,5 @@
 #pragma once
 
-#include "term.h"
 #include "type.h"
 #include <cstdint>
 #include <optional>
@@ -26,12 +25,12 @@ public:
     /**
      * @brief The term representation of the field.
      */
-    virtual Term* FieldTerm() = 0;
+    virtual Symlevel::Term* FieldTerm() = 0;
 
     /**
      * @brief The term representation of the ref type.
      */
-    virtual Term* RefTypeTerm() = 0;
+    virtual Symlevel::Term* RefTypeTerm() = 0;
 
     /**
      * @brief The index of the field in total field numbering.
@@ -86,7 +85,7 @@ public:
     /**
      * @brief The term representation of the field.
      */
-    virtual Term* FieldTerm() = 0;
+    virtual Symlevel::Term* FieldTerm() = 0;
 
     /**
      * @brief Static field location.

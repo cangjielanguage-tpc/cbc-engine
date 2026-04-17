@@ -4,6 +4,7 @@
 #include "engine/symlevel/aot_table.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/references.h"
+#include "resolver_impl.h"
 #include <cstdint>
 
 namespace API {
@@ -11,79 +12,135 @@ namespace Impl {
 
 class DirectMethodCbc final : public DirectMethod {
 public:
-    DirectMethodCbc(Engine::Session& session, Symlevel::MethodDefinition def) : session(session), def(def) {}
+    DirectMethodCbc(Type* refType, Interpretation::FunctionHandle* fuh, Symlevel::String name)
+        : refType(refType),
+          fuh(fuh),
+          name(name)
+    {}
 
-    Term* ABISignature() override;
+    Symlevel::Term* ABISignature() const override
+    {
+        FATAL("not implemented yet");
+        return nullptr;
+    };
 
-    std::optional<Type*> RefType() override;
+    Type* RefType() const override { return refType; }
 
-    std::optional<Interpretation::FunctionHandle*> FUH() override;
+    Interpretation::FunctionHandle* FUH() const override { return fuh; }
 
-    void* TargetAddr() override;
+    AotCodeAddr TargetAddr() const override { return nullptr; }
 
-    MethodFlags Flags() override;
+    MethodFlags Flags() const override
+    {
+        FATAL("not implemented yet");
+        return MethodFlags();
+    }
 
-    Symlevel::String Name() override;
+    Symlevel::String Name() const override { return name; }
 
 private:
-    Engine::Session& session;
-    Symlevel::MethodDefinition def;
+    Type* refType;
+    Interpretation::FunctionHandle* fuh;
+    Symlevel::String name;
 };
 
 class DirectMethodAot final : public DirectMethod {
 public:
-    DirectMethodAot(Engine::Session& session, Symlevel::MethodReference ref, Symlevel::DirectCallAotData aotData)
-        : session(session),
-          ref(ref),
-          aotData(aotData)
+    DirectMethodAot(Type* refType, AotCodeAddr targetAddress, Symlevel::String name)
+        : refType(refType),
+          targetAddress(targetAddress),
+          name(name)
     {}
 
-    Term* ABISignature() override;
+    Symlevel::Term* ABISignature() const override
+    {
+        FATAL("not implemented yet");
+        return nullptr;
+    }
 
-    std::optional<Type*> RefType() override;
+    Type* RefType() const override { return refType; }
 
-    std::optional<Interpretation::FunctionHandle*> FUH() override;
+    Interpretation::FunctionHandle* FUH() const override { return nullptr; }
 
-    void* TargetAddr() override;
+    AotCodeAddr TargetAddr() const override { return targetAddress; }
 
-    MethodFlags Flags() override;
+    MethodFlags Flags() const override
+    {
+        FATAL("not implemented yet");
+        return MethodFlags();
+    }
 
-    Symlevel::String Name() override;
+    Symlevel::String Name() const override { return name; }
 
 private:
-    Engine::Session& session;
-    Symlevel::MethodReference ref;
-    Symlevel::DirectCallAotData aotData;
+    Type* refType;
+    AotCodeAddr targetAddress;
+    Symlevel::String name;
 };
 
 class VirtualMethodImpl final : public VirtualMethod {
 public:
-    VirtualMethodImpl(Engine::Session& session, Symlevel::MethodReference ref, uint16_t vnum, uint16_t extDefNum)
-        : session(session),
-          ref(ref),
+    VirtualMethodImpl(Type* refType, uint16_t vnum, uint16_t extDefNum, Symlevel::String name)
+        : refType(refType),
           vnum(vnum),
-          extDefNum(extDefNum)
+          extDefNum(extDefNum),
+          name(name)
     {}
 
-    Term* ABISignature() override;
+    Symlevel::Term* ABISignature() const override
+    {
+        FATAL("not implemented yet");
+        return nullptr;
+    }
 
-    std::optional<Type*> RefType() override;
+    Type* RefType() const override { return refType; }
 
-    std::optional<Interpretation::FunctionHandle*> FUH() override;
+    uint16_t VNum() const override { return vnum; }
 
-    uint16_t VNum() override;
+    uint16_t ExtDefNum() const override { return extDefNum; }
 
-    uint16_t ExtDefNum() override;
+    MethodFlags Flags() const override
+    {
+        FATAL("not implemented yet");
+        return MethodFlags();
+    }
 
-    MethodFlags Flags() override;
-
-    Symlevel::String Name() override;
+    Symlevel::String Name() const override { return name; }
 
 private:
-    Engine::Session& session;
-    Symlevel::MethodReference ref;
+    Type* refType;
+    Symlevel::String name;
     uint16_t vnum;
     uint16_t extDefNum;
+};
+
+class InterfaceMethodImpl final : public InterfaceMethod {
+public:
+    InterfaceMethodImpl(Type* refType, uint16_t inum, Symlevel::String name) : refType(refType), inum(inum), name(name)
+    {}
+
+    Symlevel::Term* ABISignature() const override
+    {
+        FATAL("not implemented yet");
+        return nullptr;
+    }
+
+    Type* RefType() const override { return refType; }
+
+    uint16_t INum() const override { return inum; }
+
+    MethodFlags Flags() const override
+    {
+        FATAL("not implemented yet");
+        return MethodFlags();
+    }
+
+    Symlevel::String Name() const override { return name; }
+
+private:
+    Type* refType;
+    Symlevel::String name;
+    uint16_t inum;
 };
 
 } // namespace Impl

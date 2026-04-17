@@ -28,6 +28,8 @@ public:
 
     operator MRTExport::type_info_t*() { return value; }
 
+    MRTExport::type_info_t* operator->() const { return value; }
+
 private:
     MRTExport::type_info_t* const value;
 };
