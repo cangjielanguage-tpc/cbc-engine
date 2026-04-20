@@ -10,25 +10,6 @@
 #include <unordered_map>
 #include <vector>
 
-/// Each method table can be constructed for some type definition or term that instantiates type definition.
-/// The method table is needed for virtual and interface method resolution (including dynamic "static" methods).
-///
-/// The table consists of two layers, so any entry could be referenced by two indexes or actual type + method index.
-/// To perform an method reference resolution of form `(ref type, method name, signature)` we need to:
-/// 1. Find a sub-table that corresponds to `ref type`;
-/// 2. Find entry that corresponds to `method name; signature` (can require generic instantiation).
-/// The entry found is resolution result.
-///
-/// The table is structured as an array of all entries, where each sub table is a view to the array,
-/// so intersections are allowed.
-/// This layout can help to abstract away an actual data needed in run time to perform dynamic call.
-/// E.g. if VMT is structured as:
-/// - flat array of methods
-/// - mapping: interface type info -> offset in the flat array
-/// so virtual methods could be referenced by one number, we can map our method table to this kind of layout easily.
-///
-/// A new table of class `A <: C & I & J` will look like as table for `C` with added interface sub tables from `I` and
-/// `J`, where entries for overridden methods are patched. New methods would be addede as new class sub table.
 namespace Symlevel {
 
 struct TableEntry {
