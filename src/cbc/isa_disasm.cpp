@@ -1,11 +1,11 @@
 #include "api/resolver.h"
 #include "cbc/decoder.h"
 #include "cbc/isa.h"
-#include "engine/symlevel/member_index.h"
 #include "isa_parser.h"
 #include <cmath>
 #include <cstdint>
 #include <iomanip>
+#include <iostream>
 #include <ostream>
 
 namespace Cbc {
@@ -252,6 +252,7 @@ struct IsaResolvingDisasm : IsaDisasm {
 
 static bool g_IsRawDisasmEnabled;
 static bool g_IsDisasmEnabled;
+static std::ostream* g_OutputStream = &std::cerr;
 
 void EnableRawDisasm() { g_IsRawDisasmEnabled = true; }
 
@@ -260,6 +261,8 @@ void EnableDisasm() { g_IsDisasmEnabled = true; }
 bool IsRawDisasmEnabled() { return g_IsRawDisasmEnabled; }
 
 bool IsDisasmEnabled() { return g_IsRawDisasmEnabled || g_IsDisasmEnabled; }
+
+void SetOutputStream(std::ostream& stream) { g_OutputStream = &stream; }
 
 std::unique_ptr<IsaParser> RawDisasm(std::ostream& stream, Decoder::FatByteReader reader)
 {
@@ -280,10 +283,10 @@ std::unique_ptr<IsaParser> RawDisasm(std::ostream& stream, uint8_t* start, uint8
 
 std::unique_ptr<IsaParser> Disasm(std::ostream& stream, Decoder::FatByteReader reader, API::Resolver* resolver)
 {
-    if (IsRawDisasmEnabled() || resolver == nullptr) {
-        return RawDisasm(stream, reader);
-    } else {
+    if (!IsRawDisasmEnabled() && resolver != nullptr) {
         return std::make_unique<IsaResolvingDisasm>(stream, reader, *resolver);
+    } else {
+        return RawDisasm(stream, reader);
     }
 }
 
