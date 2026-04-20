@@ -24,7 +24,7 @@ struct PackedIdentifier {
         uint64_t t = tag;
         uint64_t h = high;
         uint64_t l = low;
-        raw        = (t < TAG_SHIFT) | (l << LOW_SHIFT) | (h << HIGH_SHIFT);
+        raw        = (t << TAG_SHIFT) | (l << LOW_SHIFT) | (h << HIGH_SHIFT);
     }
 
     constexpr PackedIdentifier(uint64_t raw) : raw(raw) {}

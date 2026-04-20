@@ -78,7 +78,7 @@ enum class TemplateKind : uint8_t {
     LAST
 };
 
-static constexpr auto FIRST_NON_PRIMITIVE = static_cast<uint16_t>(TemplateKind::C_POINTER);
+static constexpr auto FIRST_NON_PRIMITIVE = static_cast<uint16_t>(TemplateKind::UNDEFINED);
 
 struct AotTypeTemplateIdentifier;
 struct TagTemplateIdentifier;
@@ -112,7 +112,9 @@ protected:
 struct TagTemplateIdentifier : public TemplateIdentifier {
     constexpr TagTemplateIdentifier(TemplateKind kind)
         : TemplateIdentifier(Engine::PackedIdentifier(static_cast<uint8_t>(kind), 0, 0))
-    {}
+    {
+        ASSERT(kind == GetKind());
+    }
 
     friend class TemplateIdentifier;
 
@@ -123,7 +125,9 @@ protected:
 struct AotTypeTemplateIdentifier : public TemplateIdentifier {
     AotTypeTemplateIdentifier(Offset<String> offs, IO::FileId file)
         : TemplateIdentifier(Engine::PackedIdentifier(static_cast<uint8_t>(TemplateKind::AOT_TYPE), offs, file))
-    {}
+    {
+        ASSERT(TemplateKind::AOT_TYPE == GetKind());
+    }
 
     Offset<String> GetOffset() { return TemplateIdentifier::ident.GetHigh(); }
 
@@ -138,7 +142,9 @@ protected:
 struct TypeTemplateIdentifier : public TemplateIdentifier {
     TypeTemplateIdentifier(Offset<TypeDefinition> offs, IO::FileId file)
         : TemplateIdentifier(Engine::PackedIdentifier(static_cast<uint8_t>(TemplateKind::TYPE), offs, file))
-    {}
+    {
+        ASSERT(TemplateKind::TYPE == GetKind());
+    }
 
     TypeTemplateIdentifier(Engine::Identifier<TypeDefinition> type)
         : TypeTemplateIdentifier(type.GetOffset(), type.GetFileId())
