@@ -117,13 +117,13 @@ struct IsaRewriter : public IsaParser {
 
     void PrepareRecord(uint16_t ts) override {}
 
-    void NewArr(IReg dst, IReg len, uint16_t type) override { ASSERTION(false, "not implemented"); }
+    void NewArr(IReg dst, IReg len, uint16_t type) override { FATAL("not implemented"); }
 
-    void GcPoint() override { ASSERTION(false, "not implemented"); }
+    void GcPoint() override { FATAL("not implemented"); }
 
-    void LoadTypeInfoFtc(IReg dst, uint16_t ftc) override { ASSERTION(false, "not implemented"); }
+    void LoadTypeInfoFtc(IReg dst, uint16_t ftc) override { FATAL("not implemented"); }
 
-    void LoadTypeInfoSig(IReg dst, uint16_t type) override { ASSERTION(false, "not implemented"); }
+    void LoadTypeInfoSig(IReg dst, uint16_t type) override { FATAL("not implemented"); }
 
     void NewObj(IReg dst, uint16_t typeIdx) override
     {
@@ -164,13 +164,13 @@ struct IsaRewriter : public IsaParser {
         }
     }
 
-    void CallInterf(IReg dst, uint16_t method) override { ASSERTION(false, "not implemented"); }
+    void CallInterf(IReg dst, uint16_t method) override { FATAL("not implemented"); }
 
     void Scc(Format::Width width, Format::CC cc, IReg d, AnyReg l, AnyReg r) override
     {
         if (cc.IsFloatingPoint()) {
             // FIXME: support for floats
-            ASSERTION(false, "not implemented");
+            FATAL("not implemented");
         } else {
             emit.SCC(cc, width, d, IReg::From(l), IReg::From(r));
         }
@@ -194,25 +194,25 @@ struct IsaRewriter : public IsaParser {
         emit.Ret();
     }
 
-    void DivCheck(IReg reg) override { ASSERTION(false, "not implemented"); }
+    void DivCheck(IReg reg) override { FATAL("not implemented"); }
 
-    void Catch(IReg reg) override { ASSERTION(false, "not implemented"); }
+    void Catch(IReg reg) override { FATAL("not implemented"); }
 
-    void Throw(IReg reg) override { ASSERTION(false, "not implemented"); }
+    void Throw(IReg reg) override { FATAL("not implemented"); }
 
-    void ZeroRefs(uint16_t ts) override { ASSERTION(false, "not implemented"); }
+    void ZeroRefs(uint16_t ts) override { FATAL("not implemented"); }
 
-    void InstanceOf(IReg dst, IReg obj, uint16_t type) override { ASSERTION(false, "not implemented"); }
+    void InstanceOf(IReg dst, IReg obj, uint16_t type) override { FATAL("not implemented"); }
 
-    void LoadTypeInfoObj(IReg dst, IReg obj) override { ASSERTION(false, "not implemented"); }
+    void LoadTypeInfoObj(IReg dst, IReg obj) override { FATAL("not implemented"); }
 
-    void InitObj(uint16_t ts) override { ASSERTION(false, "not implemented"); }
+    void InitObj(uint16_t ts) override { FATAL("not implemented"); }
 
-    void InitString(uint16_t ts, uint32_t offset) override { ASSERTION(false, "not implemented"); }
+    void InitString(uint16_t ts, uint32_t offset) override { FATAL("not implemented"); }
 
-    void ArrayLength(IReg dst, IReg arr) override { ASSERTION(false, "not implemented"); }
+    void ArrayLength(IReg dst, IReg arr) override { FATAL("not implemented"); }
 
-    void ArrayIndexCheck(IReg length, IReg index) override { ASSERTION(false, "not implemented"); }
+    void ArrayIndexCheck(IReg length, IReg index) override { FATAL("not implemented"); }
 
     void ParseOne() override
     {

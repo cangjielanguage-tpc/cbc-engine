@@ -66,12 +66,11 @@ private:
 // TODO: encode as 64-bit map to reduce size
 class TemplateIdentifier {
 public:
-    TemplateIdentifier(TemplateKind kind, Offset<String> offset, IO::FileId fileId): kind(kind), num(0)
+    TemplateIdentifier(TemplateKind kind, Offset<String> offset, IO::FileId fileId) : kind(kind), num(0)
     {
         aotData.offset = offset;
         aotData.fileId = fileId;
     }
-         
 
     TemplateIdentifier(TemplateKind kind, uint64_t num) : kind(kind), num(num) {}
 
@@ -81,13 +80,13 @@ public:
 
     uint64_t GetNum() { return num; }
 
-    uint32_t GetOffset() 
+    uint32_t GetOffset()
     {
-        ASSERTION(kind == TemplateKind::AOT_TYPE, "aot type kind expected"); 
-        return static_cast<uint32_t>(aotData.offset); 
+        ASSERTION(kind == TemplateKind::AOT_TYPE, "aot type kind expected");
+        return static_cast<uint32_t>(aotData.offset);
     }
 
-    uint32_t GetFileId() 
+    uint32_t GetFileId()
     {
         ASSERTION(kind == TemplateKind::AOT_TYPE, "aot type kind expected");
         return static_cast<uint32_t>(aotData.fileId);
@@ -98,9 +97,9 @@ private:
 
     union {
         struct {
-                uint64_t unused : 16;
-                uint64_t offset : 24;
-                uint64_t fileId : 24;
+            uint64_t unused : 16;
+            uint64_t offset : 24;
+            uint64_t fileId : 24;
         } aotData;
 
         uint64_t num;

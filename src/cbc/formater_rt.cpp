@@ -178,7 +178,7 @@ private:
                 Write(leftOperand.IR());
             }
         } else {
-            ASSERTION(false, "unexpected format type");
+            FATAL("unexpected format type");
         }
     }
 
@@ -232,7 +232,7 @@ private:
         } else if (type == "ct") {
             Write(operand.Ct());
         } else {
-            ASSERT(false && "unexpected format type");
+            FATAL("unexpected format type: %.*s", static_cast<int>(type.length()), type.data());
         }
     }
 

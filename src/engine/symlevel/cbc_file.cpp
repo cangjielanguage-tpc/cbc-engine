@@ -45,7 +45,7 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
     auto magic = magicAndVersion & MAGIC_MASK;
     if (magic != MAGIC) {
         // TODO: throw proper exception
-        ASSERTION(false, "invalid magic");
+        FATAL("invalid magic: %d", magic);
     }
 
     auto fileVersion     = static_cast<uint8_t>(magicAndVersion >> FILE_VERSION_SHIFT);
@@ -66,7 +66,7 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
     auto regionNum = reader.ReadU16();
     if (regionNum != 1) {
         // TODO: throw proper exception
-        ASSERTION(false, "unsupported region num");
+        FATAL("unsupported region num: %d", regionNum);
     }
     auto regionOffset = reader.ReadU32();
 

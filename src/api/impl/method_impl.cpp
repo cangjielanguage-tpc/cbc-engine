@@ -12,13 +12,13 @@ namespace Impl {
 
 Term* DirectMethodCbc::ABISignature()
 {
-    ASSERTION(false, "not implemented yet");
+    FATAL("not implemented yet");
     return nullptr;
 }
 
 std::optional<Type*> DirectMethodCbc::RefType()
 {
-    ASSERTION(false, "not implemented yet");
+    FATAL("not implemented yet");
     return nullptr;
 }
 
@@ -32,7 +32,7 @@ void* DirectMethodCbc::TargetAddr() { return nullptr; }
 
 MethodFlags DirectMethodCbc::Flags()
 {
-    ASSERTION(false, "not implemented yet");
+    FATAL("not implemented yet");
     return MethodFlags();
 }
 
@@ -43,13 +43,13 @@ Symlevel::String DirectMethodCbc::Name() { return Symlevel::Reader::Read(session
 
 Term* DirectMethodAot::ABISignature()
 {
-    ASSERTION(false, "not implemented yet");
+    FATAL("not implemented yet");
     return nullptr;
 }
 
 std::optional<Type*> DirectMethodAot::RefType()
 {
-    ASSERTION(false, "not implemented yet");
+    FATAL("not implemented yet");
     return nullptr;
 }
 
@@ -65,7 +65,7 @@ void* DirectMethodAot::TargetAddr()
 
 MethodFlags DirectMethodAot::Flags()
 {
-    ASSERTION(false, "not implemented yet");
+    FATAL("not implemented yet");
     return MethodFlags();
 }
 

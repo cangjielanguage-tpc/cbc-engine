@@ -10,12 +10,10 @@ using Reference = Interpretation::Value::Reference;
 
 Reference RuntimeInterface<Impl>::ReadObjectInstance(Reference base, size_t offset, ThreadHandle th)
 {
-    return Reference {
-        .value = reinterpret_cast<uintptr_t>(g_CJNativeInterfaceInstance.read_instance_field(
-            reinterpret_cast<MRTExport::obj_ref_t>(base.value),
-            reinterpret_cast<MRTExport::field_ref_t>(base.value + offset)
-        ))
-    };
+    return Reference { .value = reinterpret_cast<uintptr_t>(g_CJNativeInterfaceInstance.read_instance_field(
+                           reinterpret_cast<MRTExport::obj_ref_t>(base.value),
+                           reinterpret_cast<MRTExport::field_ref_t>(base.value + offset)
+                       )) };
 }
 
 void RuntimeInterface<Impl>::WriteObjectInstance(Reference base, size_t offset, Reference object, ThreadHandle th)
@@ -29,18 +27,15 @@ void RuntimeInterface<Impl>::WriteObjectInstance(Reference base, size_t offset, 
 
 Reference RuntimeInterface<Impl>::ReadObject(uintptr_t base, size_t offset, ThreadHandle th)
 {
-    return Reference {
-        .value = reinterpret_cast<uintptr_t>(g_CJNativeInterfaceInstance.read_static_field(
-            reinterpret_cast<MRTExport::field_ref_t>(base + offset)
-        ))
-    };
+    return Reference { .value = reinterpret_cast<uintptr_t>(g_CJNativeInterfaceInstance.read_static_field(
+                           reinterpret_cast<MRTExport::field_ref_t>(base + offset)
+                       )) };
 }
 
 void RuntimeInterface<Impl>::WriteObject(uintptr_t base, size_t offset, Reference object, ThreadHandle th)
 {
     g_CJNativeInterfaceInstance.write_static_field(
-        reinterpret_cast<MRTExport::field_ref_t>(base + offset),
-        reinterpret_cast<MRTExport::obj_ref_t>(object.value)
+        reinterpret_cast<MRTExport::field_ref_t>(base + offset), reinterpret_cast<MRTExport::obj_ref_t>(object.value)
     );
 }
 
@@ -66,8 +61,8 @@ template __attribute__((used)) Thunk InterpretationLoop<Impl>(
 } // namespace Cbc::RT
 
 extern "C" {
-void engine_interpretation_loop() __attribute__((
-    alias("_ZN3Cbc2RT18InterpretationLoopIN9RTSupport4ImplEEENS0_5ThunkEPN14Interpretation6EctypeEPNS5_5FrameENS2_"
-          "12ThreadHandleEPNS5_12LiteralTableERN7Decoder10ByteReaderE")
-));
+void engine_interpretation_loop() __attribute__((alias(
+    "_ZN3Cbc2RT18InterpretationLoopIN9RTSupport4ImplEEENS0_5ThunkEPN14Interpretation6EctypeEPNS5_5FrameENS2_"
+    "12ThreadHandleEPNS5_12LiteralTableERN7Decoder10ByteReaderE"
+)));
 } // extern "C"
