@@ -16,7 +16,7 @@ struct PackedIdentifier {
     static constexpr uint64_t HIGH_MASK = 0xffff'fff;                   // [36..63] bits
     static constexpr uint64_t NUM_MASK  = (HIGH_MASK << 28) | LOW_MASK; // [8..63] bits
 
-    PackedIdentifier(uint8_t tag, uint32_t high, uint32_t low) : raw(0)
+    constexpr PackedIdentifier(uint8_t tag, uint32_t high, uint32_t low) : raw(0)
     {
         ASSERT((low & LOW_MASK) == low);
         ASSERT((high & HIGH_MASK) == high);
@@ -27,9 +27,9 @@ struct PackedIdentifier {
         raw        = (t < TAG_SHIFT) | (l << LOW_SHIFT) | (h << HIGH_SHIFT);
     }
 
-    PackedIdentifier(uint64_t raw) : raw(raw) {}
+    constexpr PackedIdentifier(uint64_t raw) : raw(raw) {}
 
-    PackedIdentifier(PackedIdentifier const& another) : raw(another.raw) {}
+    constexpr PackedIdentifier(PackedIdentifier const& another) : raw(another.raw) {}
 
     operator uint64_t() const { return raw; }
 

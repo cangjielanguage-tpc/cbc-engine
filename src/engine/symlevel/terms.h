@@ -86,7 +86,7 @@ struct TypeTemplateIdentifier;
 
 class TemplateIdentifier {
 protected:
-    TemplateIdentifier(Engine::PackedIdentifier identifier) : ident(identifier) {}
+    constexpr TemplateIdentifier(Engine::PackedIdentifier identifier) : ident(identifier) {}
 
 public:
     TemplateKind GetKind() { return TemplateKind(ident.GetTag()); }
@@ -110,7 +110,7 @@ protected:
 };
 
 struct TagTemplateIdentifier : public TemplateIdentifier {
-    TagTemplateIdentifier(TemplateKind kind)
+    constexpr TagTemplateIdentifier(TemplateKind kind)
         : TemplateIdentifier(Engine::PackedIdentifier(static_cast<uint8_t>(kind), 0, 0))
     {}
 
