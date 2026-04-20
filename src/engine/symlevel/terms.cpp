@@ -82,7 +82,7 @@ std::optional<Term> Term::ParseAndResolve(Engine::Session& session, IO::FileId f
                 auto identifier = type.value().GetIdentifier();
 
                 auto* data = AllocateTerm(allocator);
-                data->InitAfterSubterms(TemplateIdentifier(TemplateKind::TYPE, identifier), 0, true);
+                data->InitAfterSubterms(TypeTemplateIdentifier(identifier), 0, true);
 
                 return Term(LocalTerm(data));
             } else {
@@ -94,7 +94,7 @@ std::optional<Term> Term::ParseAndResolve(Engine::Session& session, IO::FileId f
             auto nameOffs = Offset<String>(reader.ReadULEB());
 
             auto* data = AllocateTerm(allocator);
-            data->InitAfterSubterms(TemplateIdentifier(AotTypeIdentifier(nameOffs, fileId)), 0, true);
+            data->InitAfterSubterms(AotTypeTemplateIdentifier(nameOffs, fileId), 0, true);
 
             return Term(LocalTerm(data));
         }
@@ -115,7 +115,7 @@ std::optional<Term> Term::ParseAndResolve(Engine::Session& session, IO::FileId f
                 }
             }
 
-            data->InitAfterSubterms(TemplateIdentifier(TemplateKind::METHOD), len, true);
+            data->InitAfterSubterms(TagTemplateIdentifier(TemplateKind::METHOD), len, true);
 
             return Term(LocalTerm(data));
         }
@@ -127,17 +127,33 @@ std::optional<Term> Term::ParseAndResolve(Engine::Session& session, IO::FileId f
     }
 }
 
+TypeTemplateIdentifier TemplateIdentifier::AsTypeIdent() { return TypeTemplateIdentifier(ident); }
+
+AotTypeTemplateIdentifier TemplateIdentifier::AsAotIdent() { return AotTypeTemplateIdentifier(ident); }
+
+TagTemplateIdentifier TemplateIdentifier::AsTagIdent() { return TagTemplateIdentifier(ident); }
+
 static TermData builtins[] = {
-    { TemplateKind::NIL, 0xa0, 0, false },     { TemplateKind::VOID, 0xa1, 0, false },
-    { TemplateKind::UNIT, 0xa2, 0, false },    { TemplateKind::NOTHING, 0xb3, 0, false },
-    { TemplateKind::BOOLEAN, 0xb4, 0, false }, { TemplateKind::I8, 0xb5, 0, false },
-    { TemplateKind::U8, 0xc6, 0, false },      { TemplateKind::I16, 0xc7, 0, false },
-    { TemplateKind::U16, 0xd8, 0, false },     { TemplateKind::I32, 0xd9, 0, false },
-    { TemplateKind::U32, 0x10, 0, false },     { TemplateKind::UCHAR32, 0x41, 0, false },
-    { TemplateKind::I64, 0x32, 0, false },     { TemplateKind::U64, 0x23, 0, false },
-    { TemplateKind::IADDR, 0x14, 0, false },   { TemplateKind::UADDR, 0x45, 0, false },
-    { TemplateKind::BSTRING, 0x16, 0, false }, { TemplateKind::F16, 0x87, 0, false },
-    { TemplateKind::F32, 0x98, 0, false },     { TemplateKind::F64, 0x29, 0, false },
+    { TagTemplateIdentifier(TemplateKind::NIL), 0xa0, 0, false },
+    { TagTemplateIdentifier(TemplateKind::VOID), 0xa1, 0, false },
+    { TagTemplateIdentifier(TemplateKind::UNIT), 0xa2, 0, false },
+    { TagTemplateIdentifier(TemplateKind::NOTHING), 0xb3, 0, false },
+    { TagTemplateIdentifier(TemplateKind::BOOLEAN), 0xb4, 0, false },
+    { TagTemplateIdentifier(TemplateKind::I8), 0xb5, 0, false },
+    { TagTemplateIdentifier(TemplateKind::U8), 0xc6, 0, false },
+    { TagTemplateIdentifier(TemplateKind::I16), 0xc7, 0, false },
+    { TagTemplateIdentifier(TemplateKind::U16), 0xd8, 0, false },
+    { TagTemplateIdentifier(TemplateKind::I32), 0xd9, 0, false },
+    { TagTemplateIdentifier(TemplateKind::U32), 0x10, 0, false },
+    { TagTemplateIdentifier(TemplateKind::UCHAR32), 0x41, 0, false },
+    { TagTemplateIdentifier(TemplateKind::I64), 0x32, 0, false },
+    { TagTemplateIdentifier(TemplateKind::U64), 0x23, 0, false },
+    { TagTemplateIdentifier(TemplateKind::IADDR), 0x14, 0, false },
+    { TagTemplateIdentifier(TemplateKind::UADDR), 0x45, 0, false },
+    { TagTemplateIdentifier(TemplateKind::BSTRING), 0x16, 0, false },
+    { TagTemplateIdentifier(TemplateKind::F16), 0x87, 0, false },
+    { TagTemplateIdentifier(TemplateKind::F32), 0x98, 0, false },
+    { TagTemplateIdentifier(TemplateKind::F64), 0x29, 0, false },
 };
 
 Term Term::Primitive(Engine::Session& session, TemplateKind kind)
@@ -153,7 +169,7 @@ Term Term::Definition(Engine::Session& session, Engine::Identifier<TypeDefinitio
 {
     // TODO: assertions for length
     auto* data = AllocateTerm(session.Allocator());
-    data->InitAfterSubterms(TemplateIdentifier(TemplateKind::TYPE, type), 0, true);
+    data->InitAfterSubterms(TypeTemplateIdentifier(type), 0, true);
 
     return LocalTerm(data);
 }

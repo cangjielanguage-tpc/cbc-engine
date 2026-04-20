@@ -31,8 +31,8 @@ Type* ResolverImpl::Resolve(Symlevel::Index<Symlevel::Term> index)
     auto termKind = term.GetIdentifier().GetKind();
     switch (termKind) {
         case TemplateKind::AOT_TYPE: {
-            auto nameFileId     = term.GetIdentifier().AsAotType().GetFileId();
-            auto typeNameOffset = term.GetIdentifier().AsAotType().GetOffset();
+            auto nameFileId     = term.GetIdentifier().AsAotIdent().GetFile();
+            auto typeNameOffset = term.GetIdentifier().AsAotIdent().GetOffset();
             auto typeName       = Reader::Read(session, nameFileId, Offset<String>(typeNameOffset));
             auto typeInfo = RTSupport::RuntimeInterface<RTSupport::Impl>::GetTypeInfo(std::string(typeName).c_str());
 
@@ -102,7 +102,8 @@ DirectMethod* ResolverImpl::ResolveDirectMethod(Symlevel::Index<Symlevel::Method
     auto refTypeId = ref.RefType().GetIdentifier();
     switch (refTypeId.GetKind()) {
         case Symlevel::TemplateKind::TYPE: {
-            Engine::Identifier<Symlevel::TypeDefinition> typeId(refTypeId.GetNum());
+            auto ident = refTypeId.AsTypeIdent();
+            Engine::Identifier<Symlevel::TypeDefinition> typeId(ident.GetOffset(), ident.GetFile());
             auto refTypeDef = Symlevel::TypeDefinition::Resolve(session, typeId);
 
             auto candidates = refTypeDef.GetMethodIndex().FindMethods(session, ref.Name());

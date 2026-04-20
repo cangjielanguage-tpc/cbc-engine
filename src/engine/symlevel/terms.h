@@ -2,6 +2,7 @@
 
 #include "engine/engine.h"
 #include "engine/identifiers.h"
+#include "engine/packed_identifier.h"
 #include "engine/symlevel/definitions.h"
 #include "io/file_id.h"
 #include "offset.h"
@@ -36,10 +37,7 @@
 /// `num` stores information that identifies the type being referefenced.
 namespace Symlevel {
 
-// Custom identifiers
-using AotTypeIdentifier = Engine::Identifier<String>;
-
-enum class TemplateKind : uint16_t {
+enum class TemplateKind : uint8_t {
     // primitives start
     NIL,
     VOID,
@@ -80,41 +78,78 @@ enum class TemplateKind : uint16_t {
 
 static constexpr auto FIRST_NON_PRIMITIVE = static_cast<uint16_t>(TemplateKind::C_POINTER);
 
+struct AotTypeTemplateIdentifier;
+struct TagTemplateIdentifier;
+struct TypeTemplateIdentifier;
+
 class TemplateIdentifier {
-    static constexpr uint64_t KIND_MASK = 0xFFFFlu;
-    static constexpr uint64_t NUM_MASK  = ~KIND_MASK;
+protected:
+    TemplateIdentifier(Engine::PackedIdentifier identifier) : ident(identifier) {}
 
 public:
-    TemplateIdentifier(TemplateKind kind, uint64_t num) : raw(static_cast<uint64_t>(kind) | (num << 16))
+    TemplateKind GetKind() { return TemplateKind(ident.GetTag()); }
+
+    uint32_t Hash()
     {
-        ASSERT(kind < TemplateKind::LAST);
-        ASSERT(MathUtils::IsNBits(num, 48));
+        auto v = static_cast<uint64_t>(ident);
+        return (v >> 32) ^ v;
     }
 
-    TemplateIdentifier(AotTypeIdentifier identifier) : TemplateIdentifier(TemplateKind::AOT_TYPE, identifier) {}
+    bool operator==(const TemplateIdentifier& another) const { return ident == another.ident; }
 
-    TemplateIdentifier(TemplateKind kind, Offset<String> offset, IO::FileId fileId) {}
+    bool operator!=(const TemplateIdentifier& another) const { return ident != another.ident; }
 
-    TemplateIdentifier(TemplateKind kind) : TemplateIdentifier(kind, 0) {}
+    TypeTemplateIdentifier AsTypeIdent();
+    AotTypeTemplateIdentifier AsAotIdent();
+    TagTemplateIdentifier AsTagIdent();
 
-    TemplateKind GetKind() { return TemplateKind(raw & KIND_MASK); }
+protected:
+    Engine::PackedIdentifier ident;
+};
 
-    uint64_t GetNum() { return (raw & NUM_MASK) >> 16; }
+struct TagTemplateIdentifier : public TemplateIdentifier {
+    TagTemplateIdentifier(TemplateKind kind)
+        : TemplateIdentifier(Engine::PackedIdentifier(static_cast<uint8_t>(kind), 0, 0))
+    {}
 
-    uint32_t Hash() { return static_cast<uint32_t>(raw ^ (raw >> 32)); }
+    friend class TemplateIdentifier;
 
-    bool operator==(const TemplateIdentifier& another) const { return raw == another.raw; }
+protected:
+    TagTemplateIdentifier(Engine::PackedIdentifier identifier) : TemplateIdentifier(identifier) {}
+};
 
-    bool operator!=(const TemplateIdentifier& another) const { return raw != another.raw; }
+struct AotTypeTemplateIdentifier : public TemplateIdentifier {
+    AotTypeTemplateIdentifier(Offset<String> offs, IO::FileId file)
+        : TemplateIdentifier(Engine::PackedIdentifier(static_cast<uint8_t>(TemplateKind::AOT_TYPE), offs, file))
+    {}
 
-    AotTypeIdentifier AsAotType()
-    {
-        ASSERTION(GetKind() == TemplateKind::AOT_TYPE, "aot type kind expected");
-        return AotTypeIdentifier(GetNum());
-    }
+    Offset<String> GetOffset() { return TemplateIdentifier::ident.GetHigh(); }
 
-private:
-    uint64_t raw;
+    IO::FileId GetFile() { return TemplateIdentifier::ident.GetLow(); }
+
+    friend class TemplateIdentifier;
+
+protected:
+    AotTypeTemplateIdentifier(Engine::PackedIdentifier identifier) : TemplateIdentifier(identifier) {}
+};
+
+struct TypeTemplateIdentifier : public TemplateIdentifier {
+    TypeTemplateIdentifier(Offset<TypeDefinition> offs, IO::FileId file)
+        : TemplateIdentifier(Engine::PackedIdentifier(static_cast<uint8_t>(TemplateKind::TYPE), offs, file))
+    {}
+
+    TypeTemplateIdentifier(Engine::Identifier<TypeDefinition> type)
+        : TypeTemplateIdentifier(type.GetOffset(), type.GetFileId())
+    {}
+
+    Offset<TypeDefinition> GetOffset() { return TemplateIdentifier::ident.GetHigh(); }
+
+    IO::FileId GetFile() { return TemplateIdentifier::ident.GetLow(); }
+
+    friend class TemplateIdentifier;
+
+protected:
+    TypeTemplateIdentifier(Engine::PackedIdentifier identifier) : TemplateIdentifier(identifier) {}
 };
 
 class Term;
