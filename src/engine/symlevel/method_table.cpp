@@ -106,7 +106,8 @@ void MethodSubTable::ForEach(std::function<void(MethodTableEntry const)> const& 
     auto subTableNum   = impl->subTableNum;
 
     for (auto p = start; p < end; p++) {
-        auto entry              = allEntries.at(p);
+        auto entry = allEntries.at(p);
+
         MethodTableEntry mEntry = {
             .method        = entry.method,
             .declaringType = declaringType,
@@ -132,6 +133,9 @@ static MethodTable BuildTable(Engine::Session& session, Engine::Identifier<TypeD
     auto declaringTypeTerm = Term::Definition(session, type);
     declaringTypeTerm      = TermManager::Of(session).Globalize(declaringTypeTerm);
 
+    // table with only one class.
+    auto table = std::make_shared<MethodTable::Impl>();
+
     // TODO: support hierarchy
     //       1. get tables for all super-types;
     //       2. appropriately instantiate tables;
@@ -141,16 +145,13 @@ static MethodTable BuildTable(Engine::Session& session, Engine::Identifier<TypeD
     //       6. patch entries in copied subtables with overriden methods;
     //       7. append newly declared methods to `allEntries`;
     //       8. introduce new class/interface table with newly declared methods;
-    std::vector<TableEntry> allEntries;
     for (auto offs : methods) {
         Engine::Identifier<MethodDefinition> def(offs, methodSeq.FileId());
-        allEntries.emplace_back(def, declaringTypeTerm);
+        table->allEntries.emplace_back(def, declaringTypeTerm);
     }
 
-    // table with only one class.
-    auto table = std::make_shared<MethodTable::Impl>();
     auto classTable =
-        std::make_unique<MethodSubTable::Impl>(table->allEntries, declaringTypeTerm, 0, 0, allEntries.size());
+        std::make_unique<MethodSubTable::Impl>(table->allEntries, declaringTypeTerm, 0, 0, table->allEntries.size());
 
     table->classTables.emplace_back(std::move(classTable));
     return MethodTable(table);
