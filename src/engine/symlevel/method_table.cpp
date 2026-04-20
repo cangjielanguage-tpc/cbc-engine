@@ -193,4 +193,14 @@ MethodTable MethodTableManager::GetMethodTable(Engine::Session& session, Engine:
     return mt;
 }
 
+MethodTable MethodTableManager::GetMethodTable(Engine::Session& session, Term term)
+{
+    auto ident    = term.GetIdentifier().AsTypeIdent();
+    auto type     = Engine::Identifier<Symlevel::TypeDefinition>(ident.GetOffset(), ident.GetFile());
+    auto& manager = Symlevel::MethodTableManager::Of(session);
+
+    // FIXME: instantiate!
+    return manager.GetMethodTable(session, type);
+}
+
 } // namespace Symlevel

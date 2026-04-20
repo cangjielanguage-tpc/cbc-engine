@@ -70,7 +70,7 @@ public:
     MethodTable GetMethodTable(Engine::Session& session, Engine::Identifier<TypeDefinition> type);
 
     /// Returns an method table for the given type.
-    // MethodTable GetMethodTable(Engine::Session& session, Term term);
+    MethodTable GetMethodTable(Engine::Session& session, Term term);
 
 private:
     std::mutex lock;

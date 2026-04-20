@@ -61,6 +61,8 @@ enum class TemplateKind : uint8_t {
     F64,
     // primitives end
 
+    UNDEFINED, // resolution error
+
     // builtin types start
     C_POINTER,
     NULLABLE,

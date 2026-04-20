@@ -1,11 +1,15 @@
 #include "resolver_impl.h"
+#include "engine/identifiers.h"
 #include "engine/symlevel/aot_table.h"
 #include "engine/symlevel/definitions.h"
+#include "engine/symlevel/method_table.h"
 #include "engine/symlevel/reader.h"
 #include "engine/symlevel/references.h"
 #include "engine/symlevel/region_data.h"
 #include "method_impl.h"
 #include "type_impl.h"
+#include "utils/assertion.h"
+#include <vector>
 
 namespace API {
 namespace Impl {
@@ -62,11 +66,26 @@ VirtualMethod* ResolverImpl::ResolveVirtualMethod(Symlevel::Index<Symlevel::Meth
     auto ref = methodRef.value();
     ASSERTION(ref.AccessKind() == Symlevel::MethodAccessKind::VIRTUAL, "resolving virtual method is not virtual");
 
-    auto refTypeId = ref.RefType().GetIdentifier();
+    auto refType   = ref.RefType();
+    auto refTypeId = refType.GetIdentifier();
     switch (refTypeId.GetKind()) {
         case Symlevel::TemplateKind::TYPE: {
-            ASSERTION(false, "cbc virtual calls are not supported yet");
-            return nullptr;
+            auto& manager = Symlevel::MethodTableManager::Of(session);
+            auto mt       = manager.GetMethodTable(session, refType);
+
+            std::vector<Symlevel::MethodTableEntry> entries;
+            mt.Find(session, ref.Name(), entries);
+
+            if (entries.size() != 1) {
+                // TODO: - implement signature comparison
+                //       - proper error handling
+                ASSERTION(false, "failed to resolve virtual method");
+            }
+
+            auto methodInfo = entries.at(0);
+            return session.Allocator().New<VirtualMethodImpl>(
+                session, ref, methodInfo.methodNum, methodInfo.subTableNum
+            );
         }
 
         case Symlevel::TemplateKind::AOT_TYPE: {
@@ -76,7 +95,10 @@ VirtualMethod* ResolverImpl::ResolveVirtualMethod(Symlevel::Index<Symlevel::Meth
                 throw std::runtime_error("aot method ref has no aot data");
             }
 
-            return session.Allocator().New<VirtualMethodAot>(session, ref, data.value());
+            auto methodInfo = data.value();
+            return session.Allocator().New<VirtualMethodImpl>(
+                session, ref, methodInfo.GetVNum(), methodInfo.GetExtDefNum()
+            );
         }
 
         default: {
