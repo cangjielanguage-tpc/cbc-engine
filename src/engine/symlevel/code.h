@@ -33,8 +33,8 @@ private:
     uint32_t codeSize;
     uint8_t* codePtr;
 
-    uint32_t xInfoSize = 0;
-    uint8_t* xInfoPtr  = nullptr;
+    uint32_t livenessInfoSize = 0;
+    uint8_t* livenessInfoPtr  = nullptr;
 };
 
 } // namespace Symlevel

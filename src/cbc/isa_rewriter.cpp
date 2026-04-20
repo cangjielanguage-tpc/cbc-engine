@@ -139,20 +139,30 @@ struct IsaRewriter : public IsaParser {
 
     void CallDirect(IReg dst, uint16_t method) override
     {
-        auto m   = resolver.Resolve(Method(method));
+        auto m   = resolver.ResolveDirectMethod(Method(method));
         auto fuh = m->FUH();
         if (fuh.has_value()) {
             auto sym = emit.NewAddressSym(reinterpret_cast<uintptr_t>(fuh.value()));
-            emit.DirectCall2i(dst, sym);
+            emit.DirectCall2i(sym);
         } else {
             void* target = m->TargetAddr();
             ASSERT(target != nullptr);
             auto sym = emit.NewAddressSym(reinterpret_cast<uintptr_t>(target));
-            emit.DirectCall2c(dst, sym);
+            emit.DirectCall2c(sym);
+        }
+        if (dst != IReg::IR1) {
+            emit.Mov(dst, IReg::IR1);
         }
     }
 
-    void CallVirtual(IReg dst, uint16_t method) override { FATAL("not implemented"); }
+    void CallVirtual(IReg dst, uint16_t method) override
+    {
+        auto m = resolver.ResolveVirtualMethod(Method(method));
+        emit.VirtualCall2c(m->VNum(), m->ExtDefNum());
+        if (dst != IReg::IR1) {
+            emit.Mov(dst, IReg::IR1);
+        }
+    }
 
     void CallInterf(IReg dst, uint16_t method) override { FATAL("not implemented"); }
 

@@ -27,7 +27,9 @@ public:
 
     virtual Type* Resolve(Symlevel::Index<Symlevel::Terms::Term> index) = 0;
 
-    virtual Method* Resolve(Symlevel::Index<Symlevel::MethodReference> index) = 0;
+    virtual DirectMethod* ResolveDirectMethod(Symlevel::Index<Symlevel::MethodReference> index) = 0;
+
+    virtual VirtualMethod* ResolveVirtualMethod(Symlevel::Index<Symlevel::MethodReference> index) = 0;
 
     virtual InstanceField* Resolve(Symlevel::Index<InstanceField> index) = 0;
 

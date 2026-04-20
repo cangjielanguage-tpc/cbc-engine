@@ -225,6 +225,10 @@ private:
             Write(table->at(operand.U12()).i64);
         } else if (type == "U12L") {
             Write(table->at(operand.U12()).u64);
+        } else if (type == "I16L") {
+            Write(table->at(operand.U16()).i64);
+        } else if (type == "U16L") {
+            Write(table->at(operand.U16()).u64);
         } else if (type == "ct") {
             Write(operand.Ct());
         } else {
@@ -305,6 +309,13 @@ void Log(Interpretation::LiteralTable* table, std::ostream& stream, B4xi12rr arg
 void Log(Interpretation::LiteralTable* table, std::ostream& stream, B5xi12ri12 args)
 {
     Operand operands[] = { args.xi12.imm4, args.xi12.imm12, args.ri12.r, args.ri12.imm12 };
+    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    formatter.Format();
+}
+
+void Log(Interpretation::LiteralTable* table, std::ostream& stream, B5i16i16 args)
+{
+    Operand operands[] = { args.imm1.imm, args.imm2.imm };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }

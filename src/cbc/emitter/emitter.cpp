@@ -646,18 +646,27 @@ void Emitter::Convert(ConvertType toType, ConvertType fromType, Reg to, Reg from
     });
 }
 
-void Emitter::DirectCall2i(IReg d, Symbol fuh)
+void Emitter::DirectCall2i(Symbol fuh)
 {
     segment.AddW8(RT::Opcode::DIRECT_CALL_2I);
-    Imm4 i4(d);
+    Imm4 i4(0);
     AddFixup(std::make_unique<Literal12Fixup>(i4, fuh));
 }
 
-void Emitter::DirectCall2c(IReg d, Symbol target)
+void Emitter::DirectCall2c(Symbol target)
 {
     segment.AddW8(RT::Opcode::DIRECT_CALL_2C);
-    Imm4 i4(d);
+    Imm4 i4(0);
     AddFixup(std::make_unique<Literal12Fixup>(i4, target));
+}
+
+void Emitter::VirtualCall2c(uint16_t vnum, uint16_t extDefNum)
+{
+    Encode(segment, RT::B5i16i16 {
+        .opc = RT::Opcode::VIRTUAL_CALL_2C,
+        .imm1 = Imm16 { .imm = vnum },
+        .imm2 = Imm16 { .imm = extDefNum },
+    });
 }
 
 } // namespace Emitter
