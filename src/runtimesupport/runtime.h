@@ -25,8 +25,6 @@ public:
 
     void* Raw() const { return value; }
 
-    operator void*() const { return value; }
-
 private:
     void* value;
 };

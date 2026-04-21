@@ -413,7 +413,7 @@ NEWOBJ: {
 
     reader0 = reader; // save current pc
 
-    return { func, type };
+    return { func, type.Raw() };
 }
 LOAD_OBJ: {
     auto args       = B4xi12rr::Decode(reader);
