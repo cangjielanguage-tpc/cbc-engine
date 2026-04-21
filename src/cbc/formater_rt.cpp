@@ -411,7 +411,6 @@ bool LogMemSpaceInstruction(
     uint32_t opc, Interpretation::LiteralTable* table, Stream::Out& stream, Decoder::ByteReader& reader
 )
 {
-    static constexpr size_t BUF_SIZE = 1024ull;
     Stream::OutIndented streamIndented(stream);
 #define FMT_LOGGER(opcode, fmt, sfmt, isTail)                                                                          \
     case MemOpcode::opcode:                                                                                            \
