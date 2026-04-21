@@ -1,9 +1,11 @@
+#include "api/resolver.h"
 #include "cbc/decoder.h"
 #include "cbc/isa.h"
 #include "isa_parser.h"
 #include <cmath>
 #include <cstdint>
 #include <iomanip>
+#include <iostream>
 #include <ostream>
 
 namespace Cbc {
@@ -28,22 +30,14 @@ static uint32_t SizeOfOffset(uint8_t* start, uint8_t* end)
 /// Disasm implementation for CBC bytecode.
 /// This implementation doesn't rely on resolution.
 struct IsaDisasm : public IsaParser {
+    std::ostream& stream;
+    uint32_t log10Size;
+
     IsaDisasm(std::ostream& stream, Decoder::FatByteReader reader)
         : stream(stream),
           IsaParser(reader),
           log10Size(SizeOfOffset(reader.Start(), reader.End()))
     {}
-
-    IsaDisasm(std::ostream& stream, Cbc::MethodCode code)
-        : IsaDisasm(stream, code.CodePtr(), code.CodePtr() + code.CodeSize())
-    {}
-
-    IsaDisasm(std::ostream& stream, uint8_t* start, uint8_t* end)
-        : IsaDisasm(stream, Decoder::FatByteReader(start, start, end))
-    {}
-
-    std::ostream& stream;
-    uint32_t log10Size;
 
     void Bcc(Format::Width width, Format::CC cc, AnyReg l, AnyReg r, int64_t delta) override
     {
@@ -230,25 +224,82 @@ struct IsaDisasm : public IsaParser {
     }
 };
 
+struct IsaResolvingDisasm : IsaDisasm {
+    API::Resolver& resolver;
+
+    using MethodIndex = Symlevel::Index<Symlevel::MethodReference>;
+
+    IsaResolvingDisasm(std::ostream& stream, Decoder::FatByteReader reader, API::Resolver& resolver)
+        : IsaDisasm(stream, reader),
+          resolver(resolver)
+    {}
+
+    /// FIXME:
+    ///  - remove duplication between rewriter and disasm.
+    ///  - MethodIndex and others MUST HAVE separate representation for API users
+    ///    and API implementation. Knowledge about region is known only resolver.
+    ///  - Usage of Symlevel::XYZIndex here do not make sense.
+    MethodIndex Method(uint16_t index) { return MethodIndex { .region = 0, .index = index }; }
+
+    void CallVirtual(IReg dst, uint16_t method) override
+    {
+        auto m = resolver.ResolveVirtualMethod(Method(method));
+        stream << "call.virtual" << " " << dst.ToStr() << ", " << m->ExtDefNum() << ", " << m->VNum() << std::endl;
+    }
+
+    // TODO: implement rest.
+};
+
 static bool g_IsRawDisasmEnabled;
+static bool g_IsDisasmEnabled;
+static std::ostream* g_OutputStream = &std::cerr;
 
 void EnableRawDisasm() { g_IsRawDisasmEnabled = true; }
 
+void EnableDisasm() { g_IsDisasmEnabled = true; }
+
 bool IsRawDisasmEnabled() { return g_IsRawDisasmEnabled; }
 
-std::unique_ptr<IsaParser> RawDisasm(std::ostream& stream, Cbc::MethodCode code)
-{
-    return std::make_unique<IsaDisasm>(stream, code);
-}
+bool IsDisasmEnabled() { return g_IsRawDisasmEnabled || g_IsDisasmEnabled; }
+
+void SetOutputStream(std::ostream& stream) { g_OutputStream = &stream; }
 
 std::unique_ptr<IsaParser> RawDisasm(std::ostream& stream, Decoder::FatByteReader reader)
 {
     return std::make_unique<IsaDisasm>(stream, reader);
 }
 
+std::unique_ptr<IsaParser> RawDisasm(std::ostream& stream, Cbc::MethodCode code)
+{
+    auto start = code.CodePtr();
+    auto end   = start + code.CodeSize();
+    return RawDisasm(stream, Decoder::FatByteReader(start, start, end));
+}
+
 std::unique_ptr<IsaParser> RawDisasm(std::ostream& stream, uint8_t* start, uint8_t* end)
 {
-    return std::make_unique<IsaDisasm>(stream, start, end);
+    return RawDisasm(stream, Decoder::FatByteReader(start, start, end));
+}
+
+std::unique_ptr<IsaParser> Disasm(std::ostream& stream, Decoder::FatByteReader reader, API::Resolver* resolver)
+{
+    if (!IsRawDisasmEnabled() && resolver != nullptr) {
+        return std::make_unique<IsaResolvingDisasm>(stream, reader, *resolver);
+    } else {
+        return RawDisasm(stream, reader);
+    }
+}
+
+std::unique_ptr<IsaParser> Disasm(std::ostream& stream, Cbc::MethodCode code, API::Resolver* resolver)
+{
+    auto start = code.CodePtr();
+    auto end   = start + code.CodeSize();
+    return Disasm(stream, Decoder::FatByteReader(start, start, end), resolver);
+}
+
+std::unique_ptr<IsaParser> Disasm(std::ostream& stream, uint8_t* start, uint8_t* end, API::Resolver* resolver)
+{
+    return Disasm(stream, Decoder::FatByteReader(start, start, end), resolver);
 }
 
 } // namespace Cbc

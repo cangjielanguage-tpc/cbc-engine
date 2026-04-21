@@ -1,4 +1,5 @@
 #include "definitions.h"
+#include "engine/symlevel/offset_sequence.h"
 #include "reader.h"
 
 namespace Symlevel {
@@ -23,10 +24,17 @@ TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId
     auto superTypeIdx = reader.ReadULEB();
 
     auto methodIndex = MethodIndex::Read(reader, fileId);
+
+    auto dynMethods = OffsetSequence<MethodDefinition>::Parse(reader, fileId);
+
     auto fieldIndex  = FieldIndex::Read(reader, fileId);
 
     return TypeDefinition(
-        Engine::Identifier<TypeDefinition>(offset, fileId), nameOffset, std::move(methodIndex), std::move(fieldIndex)
+        Engine::Identifier<TypeDefinition>(offset, fileId),
+        nameOffset,
+        std::move(methodIndex),
+        std::move(fieldIndex),
+        dynMethods
     );
 }
 

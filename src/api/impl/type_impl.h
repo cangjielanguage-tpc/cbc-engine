@@ -7,7 +7,7 @@
 
 namespace API {
 class TypeImpl : public Type {
-    using Term = Symlevel::Terms::Term;
+    using Term = Symlevel::Term;
 
 public:
     TypeImpl(Term term);

@@ -27,7 +27,7 @@ using TypeInfo = RTSupport::TypeInfo<RTSupport::Impl>;
  * @see Term
  */
 class Type {
-    using Term = Symlevel::Terms::Term;
+    using Term = Symlevel::Term;
 
 public:
     /**
