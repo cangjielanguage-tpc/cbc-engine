@@ -1,12 +1,12 @@
 #pragma once
 
-#include "api/type.h"
 #include "api/field.h"
+#include "api/type.h"
 #include "engine/symlevel/terms.h"
 
 namespace API {
 
-class InstanceFieldImpl: public InstanceField {
+class InstanceFieldImpl : public InstanceField {
     using Term = Symlevel::Terms::Term;
 
 public:
@@ -27,13 +27,13 @@ public:
 private:
     Symlevel::String name;
     std::optional<Type*> fieldType; // TODO should it be optional?
-    std::optional<Type*> refType; // TODO should it be optional?
+    std::optional<Type*> refType;   // TODO should it be optional?
     int ordinal;
     std::optional<uint32_t> offset;
     FieldFlags flags;
 };
 
-class StaticFieldImpl: public StaticField {
+class StaticFieldImpl : public StaticField {
     using Term = Symlevel::Terms::Term;
 
 public:
@@ -52,7 +52,7 @@ public:
 private:
     Symlevel::String name;
     std::optional<Type*> fieldType; // TODO should it be optional?
-    std::optional<Type*> refType; // TODO should it be optional?
+    std::optional<Type*> refType;   // TODO should it be optional?
     uintptr_t location;
     FieldFlags flags;
 };

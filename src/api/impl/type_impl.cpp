@@ -27,7 +27,7 @@ int TypeImpl::FieldsNum()
 uint32_t TypeImpl::GetFieldOffset(int ordinal)
 {
     ASSERTION(typeInfo.has_value(), "cannot get field offset");
-    
+
     MRTExport::type_info_t* ti = typeInfo.value();
     return ti->field_offsets[ordinal] + sizeof(MRTExport::type_info_t*);
 }

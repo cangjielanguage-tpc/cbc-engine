@@ -360,7 +360,7 @@ struct IsaParserImpl {
         parser.LoadStatic(r, id);
     }
 
-    static void StoreStatic(IsaParser& parser) 
+    static void StoreStatic(IsaParser& parser)
     {
         auto [r, id] = ByteReaderM(parser.reader).ReadU4Skip4().ReadU16().Get();
         parser.StoreStatic(r, id);

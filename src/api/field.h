@@ -18,7 +18,7 @@ struct FieldFlags;
 /**
  * @class Field
  * @brief Base class for field representation.
- * 
+ *
  * @see InstanceField
  * @see StaticField
  */
@@ -54,11 +54,10 @@ public:
  * @see Type
  * @see Term
  */
-class InstanceField: public Field {
+class InstanceField : public Field {
     using Term = Symlevel::Terms::Term;
 
 public:
-
     /**
      * @brief The index of the field in total field numbering.
      *
@@ -98,9 +97,8 @@ protected:
  * @see Type
  * @see Term
  */
-class StaticField: public Field {
+class StaticField : public Field {
 public:
-
     /**
      * @brief Static field location.
      */
@@ -143,7 +141,8 @@ private:
 
 struct FieldFlags {
 public:
-    constexpr FieldFlags(uint8_t accessKind, uint8_t flags): accessKindRaw(accessKind), flagsRaw(flags) {
+    constexpr FieldFlags(uint8_t accessKind, uint8_t flags) : accessKindRaw(accessKind), flagsRaw(flags)
+    {
         ASSERTION(accessKind >> 2 == 0, "Wrong access kind value");
     }
 
@@ -155,7 +154,7 @@ public:
 
     constexpr bool Is(FieldFlag flag) const { return flagsRaw & (1 << static_cast<FieldFlag::Shift>(flag)); }
 
-    constexpr bool IsNot(FieldFlag flag) const { return !Is(flag); } 
+    constexpr bool IsNot(FieldFlag flag) const { return !Is(flag); }
 
     constexpr FieldFlags Or(FieldFlag flag) const
     {
@@ -168,8 +167,8 @@ public:
 
     constexpr FieldFlags With(AccessKind kind) const
     {
-        FieldFlags copy = *this;
-        copy.accessKindRaw  = kind;
+        FieldFlags copy    = *this;
+        copy.accessKindRaw = kind;
         return copy;
     }
 

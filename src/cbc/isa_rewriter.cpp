@@ -51,7 +51,7 @@ struct IsaRewriter : public IsaParser {
             case TemplateKind::I64: return LoadAccessKind::LD_64;
             case TemplateKind::F32: return LoadAccessKind::LD_F32;
             case TemplateKind::F64: return LoadAccessKind::LD_F64;
-            default: {
+            default:                {
                 FATAL("Not supported template kind");
                 return TemplateKind::VOID;
             }
@@ -74,7 +74,7 @@ struct IsaRewriter : public IsaParser {
             case TemplateKind::I64: return StoreAccessKind::ST_64;
             case TemplateKind::F32: return StoreAccessKind::ST_F32;
             case TemplateKind::F64: return StoreAccessKind::ST_F64;
-            default: {
+            default:                {
                 FATAL("Not supported template kind");
                 return TemplateKind::VOID;
             }
@@ -186,9 +186,9 @@ struct IsaRewriter : public IsaParser {
     {
         API::StaticField* resolvedField = resolvedStaticField(field);
 
-        auto fieldTerm = resolvedField->FieldType().value()->AsTerm();
+        auto fieldTerm       = resolvedField->FieldType().value()->AsTerm();
         auto fieldAccessKind = fieldTerm->GetIdentifier().GetKind();
-        auto symbol = emit.NewAddressSym(resolvedField->Location());
+        auto symbol          = emit.NewAddressSym(resolvedField->Location());
         emit.LoadStatic(typeToLoadAccessKind(fieldAccessKind), r, symbol);
     }
 
@@ -196,9 +196,9 @@ struct IsaRewriter : public IsaParser {
     {
         API::StaticField* resolvedField = resolvedStaticField(field);
 
-        auto fieldTerm = resolvedField->FieldType().value()->AsTerm();
+        auto fieldTerm       = resolvedField->FieldType().value()->AsTerm();
         auto fieldAccessKind = fieldTerm->GetIdentifier().GetKind();
-        auto symbol = emit.NewAddressSym(resolvedField->Location());
+        auto symbol          = emit.NewAddressSym(resolvedField->Location());
         emit.StoreStatic(typeToStoreAccessKind(fieldAccessKind), r, symbol);
     }
 
@@ -206,7 +206,7 @@ struct IsaRewriter : public IsaParser {
     {
         API::InstanceField* resolvedField = resolvedInstanceField(field);
 
-        auto fieldTerm = resolvedField->FieldType().value()->AsTerm();
+        auto fieldTerm       = resolvedField->FieldType().value()->AsTerm();
         auto fieldAccessKind = fieldTerm->GetIdentifier().GetKind();
         emit.LoadObj(typeToLoadAccessKind(fieldAccessKind), rd, rb, resolvedField->Offset().value());
     }
@@ -215,7 +215,7 @@ struct IsaRewriter : public IsaParser {
     {
         API::InstanceField* resolvedField = resolvedInstanceField(field);
 
-        auto fieldTerm = resolvedField->FieldType().value()->AsTerm();
+        auto fieldTerm       = resolvedField->FieldType().value()->AsTerm();
         auto fieldAccessKind = fieldTerm->GetIdentifier().GetKind();
         emit.StoreObj(typeToStoreAccessKind(fieldAccessKind), rs, rb, resolvedField->Offset().value());
     }

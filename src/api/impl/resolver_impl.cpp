@@ -1,10 +1,10 @@
 #include "resolver_impl.h"
 #include "engine/symlevel/aot_table.h"
 #include "engine/symlevel/definitions.h"
+#include "engine/symlevel/dependencies.h"
 #include "engine/symlevel/reader.h"
 #include "engine/symlevel/references.h"
 #include "engine/symlevel/region_data.h"
-#include "engine/symlevel/dependencies.h"
 #include "field_impl.h"
 #include "method_impl.h"
 #include "type_impl.h"
@@ -152,7 +152,7 @@ Field* ResolverImpl::Resolve(Symlevel::Index<Symlevel::FieldReference> index)
         throw std::runtime_error("cannot resolve method ref");
     }
 
-    auto fieldRef    = fieldRefOpt.value();
+    auto fieldRef = fieldRefOpt.value();
 
     Type* fieldType  = Resolve(fieldRef.FieldType());
     Type* refType    = Resolve(fieldRef.RefType());
@@ -160,35 +160,25 @@ Field* ResolverImpl::Resolve(Symlevel::Index<Symlevel::FieldReference> index)
 
     switch (fieldRef.RefType().GetIdentifier().GetKind()) {
         case Terms::TemplateKind::AOT_TYPE: {
-            ASSERTION(fieldRef.FieldType().GetIdentifier().GetKind() != Terms::TemplateKind::TYPE,
-                "aot types cannot have fields of cbc type");
+            ASSERTION(
+                fieldRef.FieldType().GetIdentifier().GetKind() != Terms::TemplateKind::TYPE,
+                "aot types cannot have fields of cbc type"
+            );
 
             if (flags.IsNot(FieldFlag(FieldFlag::Shift::STATIC))) {
-                InstanceFieldAotData data = cbcFile.GetInstanceFieldAotTable()
-                    .GetData(session, index)
-                    .value();
+                InstanceFieldAotData data = cbcFile.GetInstanceFieldAotTable().GetData(session, index).value();
 
                 return session.Allocator().New<InstanceFieldImpl>(
-                    fieldRef.Name(),
-                    data.GetOrdinal(),
-                    flags,
-                    fieldType,
-                    refType
+                    fieldRef.Name(), data.GetOrdinal(), flags, fieldType, refType
                 );
             } else {
-                StaticFieldAotData data = cbcFile.GetStaticFieldAotTable()
-                    .GetData(session, index)
-                    .value();
+                StaticFieldAotData data = cbcFile.GetStaticFieldAotTable().GetData(session, index).value();
 
                 String linkageName = data.GetLinkageName();
-                auto location = cbcFile.GetDependencies().FindTarget(linkageName);
+                auto location      = cbcFile.GetDependencies().FindTarget(linkageName);
 
                 return session.Allocator().New<StaticFieldImpl>(
-                    reinterpret_cast<uintptr_t>(location),
-                    fieldRef.Name(),
-                    flags,
-                    fieldType,
-                    refType
+                    reinterpret_cast<uintptr_t>(location), fieldRef.Name(), flags, fieldType, refType
                 );
             }
         }
@@ -197,7 +187,6 @@ Field* ResolverImpl::Resolve(Symlevel::Index<Symlevel::FieldReference> index)
             return nullptr;
         }
     }
-
 }
 
 std::optional<Type*> ResolverImpl::TypeOf(Symlevel::Terms::Term* term)

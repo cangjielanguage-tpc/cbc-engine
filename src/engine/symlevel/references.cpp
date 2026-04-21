@@ -42,7 +42,7 @@ std::optional<FieldReference> FieldReference::ParseAndResolve(
     auto refTypeIdx   = reader.ReadULEB();
     auto fieldTypeIdx = reader.ReadULEB();
 
-    auto flags = reader.ReadU8();
+    auto flags      = reader.ReadU8();
     auto accessKind = reader.ReadU8();
 
     auto name = Reader::Read(session, fileId, nameOffset);

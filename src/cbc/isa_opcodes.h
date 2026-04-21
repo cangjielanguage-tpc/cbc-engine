@@ -84,7 +84,6 @@
     X(LoadRec, LoadRec)                                                                                                \
     X(StoreRec, StoreRec)
 
-
 #define ISA_REG_SYM_GROUP_OPCODES(X)                                                                                   \
     X(LoadTypeInfoSig)                                                                                                 \
     X(LoadTypeInfoFtc)                                                                                                 \
