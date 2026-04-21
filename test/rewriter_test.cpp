@@ -31,10 +31,10 @@ using namespace Cbc::Format;
     {                                                                                                                  \
         uint32_t isa12CodeSize = 4;                                                                                    \
         uint8_t isa12Bytes[]   = {                                                                                     \
-            Opcode::NAME_OP##32,                                                                                       \
-            (IReg::IR1 << 4) | IReg::IR2, /* Add IR1, IR2 */                                                           \
-            Opcode::RegGroup,                                                                                          \
-            (RegGroup::Ret32 << 4) | IReg::IR1 /* Ret IR1 */                                                           \
+            Opcode::NAME_OP##32,                                                                                     \
+            (IReg::IR1 << 4) | IReg::IR2, /* Add IR1, IR2 */                                                         \
+            Opcode::RegGroup,                                                                                        \
+            (RegGroup::Ret32 << 4) | IReg::IR1 /* Ret IR1 */                                                         \
         };                                                                                                             \
         MethodCode methodCode = MethodCode::Mock(isa12Bytes, isa12CodeSize);                                           \
         RawDisasm(std::cerr, methodCode)->ParseAll();                                                                  \

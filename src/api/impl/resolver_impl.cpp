@@ -1,11 +1,15 @@
 #include "resolver_impl.h"
+#include "engine/identifiers.h"
 #include "engine/symlevel/aot_table.h"
 #include "engine/symlevel/definitions.h"
+#include "engine/symlevel/method_table.h"
 #include "engine/symlevel/reader.h"
 #include "engine/symlevel/references.h"
 #include "engine/symlevel/region_data.h"
 #include "method_impl.h"
 #include "type_impl.h"
+#include "utils/assertion.h"
+#include <vector>
 
 namespace API {
 namespace Impl {
@@ -13,7 +17,7 @@ namespace Impl {
 //////////////////////////////////
 // Resolver
 
-Type* ResolverImpl::Resolve(Symlevel::Index<Symlevel::Terms::Term> index)
+Type* ResolverImpl::Resolve(Symlevel::Index<Symlevel::Term> index)
 {
     using namespace Symlevel;
 
@@ -30,9 +34,9 @@ Type* ResolverImpl::Resolve(Symlevel::Index<Symlevel::Terms::Term> index)
 
     auto termKind = term.GetIdentifier().GetKind();
     switch (termKind) {
-        case Terms::TemplateKind::AOT_TYPE: {
-            auto nameFileId     = term.GetIdentifier().GetFileId();
-            auto typeNameOffset = term.GetIdentifier().GetOffset();
+        case TemplateKind::AOT_TYPE: {
+            auto nameFileId     = term.GetIdentifier().AsAotIdent().GetFile();
+            auto typeNameOffset = term.GetIdentifier().AsAotIdent().GetOffset();
             auto typeName       = Reader::Read(session, nameFileId, Offset<String>(typeNameOffset));
             auto typeInfo = RTSupport::RuntimeInterface<RTSupport::Impl>::GetTypeInfo(std::string(typeName).c_str());
 
@@ -62,21 +66,39 @@ VirtualMethod* ResolverImpl::ResolveVirtualMethod(Symlevel::Index<Symlevel::Meth
     auto ref = methodRef.value();
     ASSERTION(ref.AccessKind() == Symlevel::MethodAccessKind::VIRTUAL, "resolving virtual method is not virtual");
 
-    auto refTypeId = ref.RefType().GetIdentifier();
+    auto refType   = ref.RefType();
+    auto refTypeId = refType.GetIdentifier();
     switch (refTypeId.GetKind()) {
-        case Symlevel::Terms::TemplateKind::TYPE: {
-            ASSERTION(false, "cbc virtual calls are not supported yet");
-            return nullptr;
+        case Symlevel::TemplateKind::TYPE: {
+            auto& manager = Symlevel::MethodTableManager::Of(session);
+            auto mt       = manager.GetMethodTable(session, refType);
+
+            std::vector<Symlevel::MethodTableEntry> entries;
+            mt.Find(session, ref.Name(), entries);
+
+            if (entries.size() != 1) {
+                // TODO: - implement signature comparison
+                //       - proper error handling
+                ASSERTION(false, "failed to resolve virtual method");
+            }
+
+            auto methodInfo = entries.at(0);
+            return session.Allocator().New<VirtualMethodImpl>(
+                session, ref, methodInfo.methodNum, methodInfo.subTableNum
+            );
         }
 
-        case Symlevel::Terms::TemplateKind::AOT_TYPE: {
+        case Symlevel::TemplateKind::AOT_TYPE: {
             auto data = session.CbcFileOf(method.GetFileId()).GetVirtualCallAotTable().GetData(session, index);
             if (!data.has_value()) {
                 // TODO: handle this case
                 throw std::runtime_error("aot method ref has no aot data");
             }
 
-            return session.Allocator().New<VirtualMethodAot>(session, ref, data.value());
+            auto methodInfo = data.value();
+            return session.Allocator().New<VirtualMethodImpl>(
+                session, ref, methodInfo.GetVNum(), methodInfo.GetExtDefNum()
+            );
         }
 
         default: {
@@ -101,8 +123,9 @@ DirectMethod* ResolverImpl::ResolveDirectMethod(Symlevel::Index<Symlevel::Method
 
     auto refTypeId = ref.RefType().GetIdentifier();
     switch (refTypeId.GetKind()) {
-        case Symlevel::Terms::TemplateKind::TYPE: {
-            Engine::Identifier<Symlevel::TypeDefinition> typeId(refTypeId.GetNum());
+        case Symlevel::TemplateKind::TYPE: {
+            auto ident = refTypeId.AsTypeIdent();
+            Engine::Identifier<Symlevel::TypeDefinition> typeId(ident.GetOffset(), ident.GetFile());
             auto refTypeDef = Symlevel::TypeDefinition::Resolve(session, typeId);
 
             auto candidates = refTypeDef.GetMethodIndex().FindMethods(session, ref.Name());
@@ -113,7 +136,7 @@ DirectMethod* ResolverImpl::ResolveDirectMethod(Symlevel::Index<Symlevel::Method
             return session.Allocator().New<DirectMethodCbc>(session, target);
         }
 
-        case Symlevel::Terms::TemplateKind::AOT_TYPE: {
+        case Symlevel::TemplateKind::AOT_TYPE: {
             auto data = session.CbcFileOf(method.GetFileId()).GetDirectCallAotTable().GetData(session, index);
             if (!data.has_value()) {
                 // TODO: handle this case
