@@ -11,10 +11,10 @@ struct endl_t {};
 
 constexpr endl_t endl;
 
-class OutputStrategy {
+class Out {
 public:
-    OutputStrategy(void* destStream);
-    virtual ~OutputStrategy() = default;
+    Out(void* destStream);
+    virtual ~Out() = default;
 
     virtual const void* Flush() const                      = 0;
     virtual void BeforePrint()                             = 0;
@@ -52,12 +52,22 @@ public:
     virtual void PrintFmt(const char* fmt, ...) = 0;
     virtual void PrintFmt(const char* fmt, va_list argp) = 0;
 
+    Out& operator<<(const endl_t&);
+
+    template <typename T> Out& operator<<(const T v)
+    {
+        BeforePrint();
+        Print(v);
+        AfterPrint();
+        return *this;
+    }
+
 protected:
     void* dest;
 
 };
 
-class ToFile : public OutputStrategy {
+class ToFile : public Out {
 public:
     ToFile(void* destStream);
 
@@ -68,7 +78,7 @@ public:
     void PrintFmt(const char* fmt, va_list argp) override;
 };
 
-class ToBuffer : public OutputStrategy {
+class ToBuffer : public Out {
 public:
     size_t printed;
     size_t size;
@@ -95,27 +105,8 @@ public:
     void BeforePrint() override;
 };
 
-class Out {
-public:
-    Out(void* destStream);
-    Out(std::shared_ptr<OutputStrategy> strategy);
-
-    const Out& operator<<(const endl_t&) const;
-
-    template <typename T> const Out& operator<<(const T v) const
-    {
-        outputStrategy->BeforePrint();
-        outputStrategy->Print(v);
-        outputStrategy->AfterPrint();
-        return *this;
-    }
-
-    const void PrintFmt(const char* fmt, ...) const;
-    const void* Flush() const;
-
-private:
-    std::shared_ptr<OutputStrategy> outputStrategy;
-};
+inline ToFile cout(stdout);
+inline ToFile cerr(stderr);
 
 std::pair<std::shared_ptr<char[]>, std::shared_ptr<ToBuffer>> createBuffer(size_t bufSize);
 std::pair<std::shared_ptr<char[]>, std::shared_ptr<ToIndentedBuffer>> createIndentedBuffer(size_t bufSize);

@@ -4,73 +4,89 @@
 
 namespace Stream {
 
-OutputStrategy::OutputStrategy(void* destStream) : dest(destStream) {}
+Out::Out(void* destStream) : dest(destStream) {}
 
-void OutputStrategy::NewLine() { PrintFmt("\n"); }
+void Out::NewLine() { PrintFmt("\n"); }
 
-void OutputStrategy::Print(const float v) { PrintFmt("%f", v); }
+void Out::Print(const float v) { PrintFmt("%f", v); }
 
-void OutputStrategy::Print(const double v) { PrintFmt("%f", v); }
+void Out::Print(const double v) { PrintFmt("%f", v); }
 
-void OutputStrategy::Print(const long double v) { PrintFmt("%Lf", v); }
+void Out::Print(const long double v) { PrintFmt("%Lf", v); }
 
-void OutputStrategy::Print(const bool v) { PrintFmt("%s", v ? "true" : "false"); }
+void Out::Print(const bool v) { PrintFmt("%s", v ? "true" : "false"); }
 
-void OutputStrategy::Print(const signed char v) { PrintFmt("%d", v); }
+void Out::Print(const signed char v) { PrintFmt("%d", v); }
 
-void OutputStrategy::Print(const unsigned char v) { PrintFmt("%u", v); }
+void Out::Print(const unsigned char v) { PrintFmt("%u", v); }
 
-void OutputStrategy::Print(const short v) { PrintFmt("%d", v); }
+void Out::Print(const short v) { PrintFmt("%d", v); }
 
-void OutputStrategy::Print(const unsigned short v) { PrintFmt("%u", v); }
+void Out::Print(const unsigned short v) { PrintFmt("%u", v); }
 
-void OutputStrategy::Print(const int v) { PrintFmt("%d", v); }
+void Out::Print(const int v) { PrintFmt("%d", v); }
 
-void OutputStrategy::Print(const unsigned int v) { PrintFmt("%u", v); }
+void Out::Print(const unsigned int v) { PrintFmt("%u", v); }
 
-void OutputStrategy::Print(const long v) { PrintFmt("%ld", v); }
+void Out::Print(const long v) { PrintFmt("%ld", v); }
 
-void OutputStrategy::Print(const unsigned long v) { PrintFmt("%ld", v); }
+void Out::Print(const unsigned long v) { PrintFmt("%ld", v); }
 
-void OutputStrategy::Print(const long long v) { PrintFmt("%lld", v); }
+void Out::Print(const long long v) { PrintFmt("%lld", v); }
 
-void OutputStrategy::Print(const unsigned long long v) { PrintFmt("%llu", v); }
+void Out::Print(const unsigned long long v) { PrintFmt("%llu", v); }
 
-void OutputStrategy::Print(const char c) { PrintFmt("%c", c); }
+void Out::Print(const char c) { PrintFmt("%c", c); }
 
-void OutputStrategy::Print(const char* cstr) { PrintFmt("%s", cstr); }
+void Out::Print(const char* cstr) { PrintFmt("%s", cstr); }
 
-void OutputStrategy::Print(const std::string_view strv)
+void Out::Print(const std::string_view strv)
 {
     PrintFmt("%.*s", static_cast<int>(strv.length()), strv.data());
 }
 
-void OutputStrategy::Print(const std::string str) { PrintFmt("%s", str.c_str()); }
+void Out::Print(const std::string str) { PrintFmt("%s", str.c_str()); }
 
-void OutputStrategy::Print(const signed char* p) { PrintFmt("%p", p); }
+void Out::Print(const signed char* p) { PrintFmt("%p", p); }
 
-void OutputStrategy::Print(const unsigned char* p) { PrintFmt("%p", p); }
+void Out::Print(const unsigned char* p) { PrintFmt("%p", p); }
 
-void OutputStrategy::Print(const short* p) { PrintFmt("%p", p); }
+void Out::Print(const short* p) { PrintFmt("%p", p); }
 
-void OutputStrategy::Print(const unsigned short* p) { PrintFmt("%p", p); }
+void Out::Print(const unsigned short* p) { PrintFmt("%p", p); }
 
-void OutputStrategy::Print(const int* p) { PrintFmt("%p", p); }
+void Out::Print(const int* p) { PrintFmt("%p", p); }
 
-void OutputStrategy::Print(const unsigned int* p) { PrintFmt("%p", p); }
+void Out::Print(const unsigned int* p) { PrintFmt("%p", p); }
 
-void OutputStrategy::Print(const long* p) { PrintFmt("%p", p); }
+void Out::Print(const long* p) { PrintFmt("%p", p); }
 
-void OutputStrategy::Print(const unsigned long* p) { PrintFmt("%p", p); }
+void Out::Print(const unsigned long* p) { PrintFmt("%p", p); }
 
-void OutputStrategy::Print(const long long* p) { PrintFmt("%p", p); }
+void Out::Print(const long long* p) { PrintFmt("%p", p); }
 
-void OutputStrategy::Print(const unsigned long long* p) { PrintFmt("%p", p); }
+void Out::Print(const unsigned long long* p) { PrintFmt("%p", p); }
 
-void OutputStrategy::Print(const void* p) { PrintFmt("%p", p); }
+void Out::Print(const void* p) { PrintFmt("%p", p); }
+
+void Out::PrintFmt(const char* fmt, ...)
+{
+    BeforePrint();
+    va_list args;
+    va_start(args, fmt);
+    PrintFmt(fmt, args);
+    va_end(args);
+    AfterPrint();
+}
+
+Out& Out::operator<<(const endl_t&)
+{
+    NewLine();
+    return *this;
+}
 
 
-ToFile::ToFile(void* destStream) : OutputStrategy(destStream) {}
+ToFile::ToFile(void* destStream) : Out(destStream) {}
 
 const void* ToFile::Flush() const
 {
@@ -93,7 +109,7 @@ void ToFile::PrintFmt(const char* fmt, ...)
 void ToFile::PrintFmt(const char* fmt, va_list argp) { vfprintf((FILE*)dest, fmt, argp); }
 
 
-ToBuffer::ToBuffer(void* destStream, size_t bufSize) : OutputStrategy(destStream), printed(0ull), size(bufSize) {}
+ToBuffer::ToBuffer(void* destStream, size_t bufSize) : Out(destStream), printed(0ull), size(bufSize) {}
 
 void ToBuffer::BoundCheck(int requestedSize)
 {
@@ -154,44 +170,19 @@ void ToIndentedBuffer::BeforePrint()
     }
 }
 
-Out::Out(void* destStream) : outputStrategy(nullptr)
-{
-    static std::shared_ptr<OutputStrategy> toFile = std::make_shared<ToFile>(destStream);
-    outputStrategy                                = toFile;
-}
-
-Out::Out(std::shared_ptr<OutputStrategy> strategy) : outputStrategy(strategy) {}
-
-const Out& Out::operator<<(const endl_t&) const
-{
-    outputStrategy->NewLine();
-    return *this;
-}
-
-const void Out::PrintFmt(const char* fmt, ...) const
-{
-    outputStrategy->BeforePrint();
-    va_list args;
-    va_start(args, fmt);
-    outputStrategy->PrintFmt(fmt, args);
-    va_end(args);
-    outputStrategy->AfterPrint();
-}
-
-const void* Out::Flush() const { return outputStrategy->Flush(); }
 
 std::pair<std::shared_ptr<char[]>, std::shared_ptr<ToBuffer>> createBuffer(size_t bufSize)
 {
     std::shared_ptr<char[]> buf(new char[bufSize]);
-    std::shared_ptr<ToBuffer> bufStrategy = std::make_shared<ToBuffer>(buf.get(), bufSize);
-    return std::make_pair(buf, bufStrategy);
+    std::shared_ptr<ToBuffer> stream = std::make_shared<ToBuffer>(buf.get(), bufSize);
+    return std::make_pair(buf, stream);
 }
 
 std::pair<std::shared_ptr<char[]>, std::shared_ptr<ToIndentedBuffer>> createIndentedBuffer(size_t bufSize)
 {
     std::shared_ptr<char[]> buf(new char[bufSize]);
-    std::shared_ptr<ToIndentedBuffer> bufStrategy = std::make_shared<ToIndentedBuffer>(buf.get(), bufSize);
-    return std::make_pair(buf, bufStrategy);
+    std::shared_ptr<ToIndentedBuffer> stream = std::make_shared<ToIndentedBuffer>(buf.get(), bufSize);
+    return std::make_pair(buf, stream);
 }
 
 }; // namespace Stream

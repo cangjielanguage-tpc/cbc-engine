@@ -70,7 +70,7 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, Dynam
     auto resolver = API::Resolver::Create(session, fuh->methodDef);
 
     if (Cbc::IsDisasmEnabled()) {
-        Cbc::Disasm(stderr, code, resolver.get())->ParseAll();
+        Cbc::Disasm(Stream::cout, code, resolver.get())->ParseAll();
     }
 
     Cbc::Emitter::Emitter emitter;

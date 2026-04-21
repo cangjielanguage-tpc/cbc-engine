@@ -37,7 +37,7 @@ TEST(EmitTest, Simple_ArithB2rr)
     auto code = e.Build(heap);
     EXPECT_EQ(4, code.bytecodeSize);
 
-    Cbc::RT::Log(code, stderr);
+    Cbc::RT::Log(code, Stream::cout);
     auto res = Interpret(code, U32(1), U32(2));
     EXPECT_EQ(res.u32, 3);
 }
@@ -51,7 +51,7 @@ TEST(EmitTest, Simple_Mov)
     auto code = e.Build(heap);
     EXPECT_EQ(5, code.bytecodeSize);
 
-    Cbc::RT::Log(code, stderr);
+    Cbc::RT::Log(code, Stream::cout);
     auto res = Interpret(code, U32(0), U32(0));
     EXPECT_EQ(res.u64, 0x7);
 }
@@ -65,7 +65,7 @@ TEST(EmitTest, Simple_MovF2I)
     auto code = e.Build(heap);
     EXPECT_EQ(9, code.bytecodeSize);
 
-    Cbc::RT::Log(code, stderr);
+    Cbc::RT::Log(code, Stream::cout);
     auto res = Interpret(code, U32(0), U32(0));
     EXPECT_EQ(res.u32, 0x4640e6b6);
 }
@@ -78,7 +78,7 @@ TEST(EmitTest, Simple_FMovI32)
     auto code = e.Build(heap);
     EXPECT_EQ(7, code.bytecodeSize);
 
-    Cbc::RT::Log(code, stderr);
+    Cbc::RT::Log(code, Stream::cout);
     auto res = InterpretFPRes(code, F32(0), F32(0));
     EXPECT_EQ(res.f32, 0.5);
 }
@@ -92,7 +92,7 @@ TEST(EmitTest, Simple_FMovI64)
     auto code = e.Build(heap);
     EXPECT_EQ(13, code.bytecodeSize);
 
-    Cbc::RT::Log(code, stderr);
+    Cbc::RT::Log(code, Stream::cout);
     auto res = InterpretFPRes(code, F32(0), F32(0));
     EXPECT_EQ(res.f64, 0.25);
 }
@@ -105,7 +105,7 @@ TEST(EmitTest, Simple_ArithB3xrrr)
     auto code = e.Build(heap);
     EXPECT_EQ(4, code.bytecodeSize);
 
-    Cbc::RT::Log(code, stderr);
+    Cbc::RT::Log(code, Stream::cout);
     auto res = Interpret(code, U32(1), U32(2));
     EXPECT_EQ(res.u32, 3);
 }
@@ -120,7 +120,7 @@ TEST(EmitTest, Simple_ArithB4xi12rr)
     auto code = e.Build(heap);
     EXPECT_EQ(13, code.bytecodeSize);
 
-    Cbc::RT::Log(code, stderr);
+    Cbc::RT::Log(code, Stream::cout);
     auto res = Interpret(code, U32(0), U32(1));
     EXPECT_EQ(res.u32, 0xf001);
 }
@@ -140,7 +140,7 @@ TEST(EmitTest, Simple_ArithFP)
     auto code = e.Build(heap);
     EXPECT_EQ(6 * 4 + 3 * 4 + 1, code.bytecodeSize);
 
-    Cbc::RT::Log(code, stderr);
+    Cbc::RT::Log(code, Stream::cout);
     auto res = InterpretFPRes(code, F32(0), F32(0));
     EXPECT_EQ(res.f32, 2.75);
 }
@@ -215,7 +215,7 @@ TEST(EmitTest, Simple_Bcc)
     e.Ret();
 
     auto code = e.Build(heap);
-    Cbc::RT::Log(code, stderr);
+    Cbc::RT::Log(code, Stream::cout);
 
     auto res = Interpret(code, U32(2), U32(2));
     EXPECT_EQ(res.u32, 2);
@@ -234,7 +234,7 @@ TEST(EmitTest, Simple_Bcc_Loop)
     e.Ret();
 
     auto code = e.Build(heap);
-    Cbc::RT::Log(code, stderr);
+    Cbc::RT::Log(code, Stream::cout);
 
     auto res = Interpret(code, U32(0), U32(100));
     EXPECT_EQ(res.u32, 100);
@@ -261,7 +261,7 @@ TEST(EmitTest, Simple_Jmp)
     e.Ret();
 
     auto code = e.Build(heap);
-    Cbc::RT::Log(code, stderr);
+    Cbc::RT::Log(code, Stream::cout);
 
     auto res = Interpret(code, U32(100), U32(0));
     EXPECT_EQ(res.u32, 160);
@@ -302,7 +302,7 @@ TEST(EmitTest, Simple_Neg)
     e.Ret();
 
     auto code = e.Build(heap);
-    Cbc::RT::Log(code, stderr);
+    Cbc::RT::Log(code, Stream::cout);
 
     auto res = Interpret(code, U32(0), U32(10));
     EXPECT_EQ(res.u32, -10);
@@ -315,7 +315,7 @@ TEST(EmitTest, Simple_FNeg)
     e.Ret();
 
     auto code = e.Build(heap);
-    Cbc::RT::Log(code, stderr);
+    Cbc::RT::Log(code, Stream::cout);
 
     float arg1 = 1.2;
     auto res1  = InterpretFPRes(code, F32(0), F32(arg1));
@@ -333,7 +333,7 @@ TEST(EmitTest, Simple_FSqrt)
     e.Ret();
 
     auto code = e.Build(heap);
-    Cbc::RT::Log(code, stderr);
+    Cbc::RT::Log(code, Stream::cout);
 
     double arg = 16.81;
     auto res   = InterpretFPRes(code, F64(0), F64(arg));
@@ -347,7 +347,7 @@ TEST(EmitTest, Simple_FAbs)
     e.Ret();
 
     auto code = e.Build(heap);
-    Cbc::RT::Log(code, stderr);
+    Cbc::RT::Log(code, Stream::cout);
 
     double arg1 = -1.2;
     auto res1   = InterpretFPRes(code, F64(0), F64(arg1));
@@ -380,7 +380,7 @@ TEST(EmitTest, SSC)
         e.Ret();
 
         auto code = e.Build(heap);
-        Cbc::RT::Log(code, stderr);
+        Cbc::RT::Log(code, Stream::cout);
 
         auto res = Interpret(code, U64(4), U64(3));
         EXPECT_EQ(res.u32, test.expected);
@@ -415,7 +415,7 @@ TEST(EmitTest, FSSC32)
         e.Ret();
 
         auto code = e.Build(heap);
-        Cbc::RT::Log(code, stderr);
+        Cbc::RT::Log(code, Stream::cout);
 
         auto res = InterpretFPRes(code, F32(test.l), F32(test.r));
         EXPECT_EQ(res.u32, test.expected);
@@ -450,7 +450,7 @@ TEST(EmitTest, FSSC64)
         e.Ret();
 
         auto code = e.Build(heap);
-        Cbc::RT::Log(code, stderr);
+        Cbc::RT::Log(code, Stream::cout);
 
         auto res = InterpretFPRes(code, F64(test.l), F64(test.r));
         EXPECT_EQ(res.u32, test.expected);
@@ -488,7 +488,7 @@ TEST(EmitTest, SSCI32)
         e.Ret();
 
         auto code = e.Build(heap);
-        Cbc::RT::Log(code, stderr);
+        Cbc::RT::Log(code, Stream::cout);
 
         auto res = Interpret(code, U64(0), U64(0xffff));
         EXPECT_EQ(res.u32, test.expected);
@@ -502,7 +502,7 @@ TEST(EmitTest, Simple_Convert)
     e.Ret();
 
     auto code = e.Build(heap);
-    Cbc::RT::Log(code, stderr);
+    Cbc::RT::Log(code, Stream::cout);
 
     auto res = Interpret(code, U32(32896), U32(0), F32(0), F32(0));
     EXPECT_EQ(res.u64, U64(128).u64);

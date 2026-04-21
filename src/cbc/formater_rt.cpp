@@ -72,7 +72,7 @@ class Formatter {
 public:
     Formatter(
         Interpretation::LiteralTable* table,
-        const Stream::Out& stream,
+        Stream::Out& stream,
         std::string_view formatString,
         Operand* operands,
         size_t operandCount
@@ -246,7 +246,7 @@ private:
 
 private:
     Interpretation::LiteralTable* table;
-    const Stream::Out& stream;
+    Stream::Out& stream;
     std::string_view formatString;
     Operand* operands;
     size_t operandCount;
@@ -264,131 +264,131 @@ static constexpr std::string_view memspace_format_strings[] = {
 
 template <size_t N> static size_t Length(Operand (&)[N]) { return N; }
 
-void Log(Interpretation::LiteralTable* table, const Stream::Out& stream, B1 args)
+void Log(Interpretation::LiteralTable* table, Stream::Out& stream, B1 args)
 {
     Formatter formatter(table, stream, format_strings[args.opc], nullptr, 0);
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, const Stream::Out& stream, B2rr args)
+void Log(Interpretation::LiteralTable* table, Stream::Out& stream, B2rr args)
 {
     Operand operands[] = { args.rr.x, args.rr.y };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, const Stream::Out& stream, B2xr args)
+void Log(Interpretation::LiteralTable* table, Stream::Out& stream, B2xr args)
 {
     Operand operands[] = { args.xr.imm, args.xr.r };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, const Stream::Out& stream, B6xri32 args)
+void Log(Interpretation::LiteralTable* table, Stream::Out& stream, B6xri32 args)
 {
     Operand operands[] = { args.xr.imm, args.xr.r, args.imm32.imm };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, const Stream::Out& stream, B10xri64 args)
+void Log(Interpretation::LiteralTable* table, Stream::Out& stream, B10xri64 args)
 {
     Operand operands[] = { args.xr.imm, args.xr.r, args.imm64.imm };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, const Stream::Out& stream, B4xi12rr args)
+void Log(Interpretation::LiteralTable* table, Stream::Out& stream, B4xi12rr args)
 {
     Operand operands[] = { args.xi12.imm4, args.xi12.imm12, args.rr.x, args.rr.y };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, const Stream::Out& stream, B5xi12ri12 args)
+void Log(Interpretation::LiteralTable* table, Stream::Out& stream, B5xi12ri12 args)
 {
     Operand operands[] = { args.xi12.imm4, args.xi12.imm12, args.ri12.r, args.ri12.imm12 };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, const Stream::Out& stream, B5i16i16 args)
+void Log(Interpretation::LiteralTable* table, Stream::Out& stream, B5i16i16 args)
 {
     Operand operands[] = { args.imm1.imm, args.imm2.imm };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, const Stream::Out& stream, B5i32 args)
+void Log(Interpretation::LiteralTable* table, Stream::Out& stream, B5i32 args)
 {
     Operand operands[] = { args.imm32.imm };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, const Stream::Out& stream, B3xrrr args)
+void Log(Interpretation::LiteralTable* table, Stream::Out& stream, B3xrrr args)
 {
     Operand operands[] = { args.xr.imm, args.xr.r, args.rr.x, args.rr.y };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, const Stream::Out& stream, B3xxrr args)
+void Log(Interpretation::LiteralTable* table, Stream::Out& stream, B3xxrr args)
 {
     Operand operands[] = { args.xx.imm1, args.xx.imm2, args.rr.x, args.rr.y };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, const Stream::Out& stream, B4xi12xr args)
+void Log(Interpretation::LiteralTable* table, Stream::Out& stream, B4xi12xr args)
 {
     Operand operands[] = { args.xi12.imm4, args.xi12.imm12, args.xr.imm, args.xr.r };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, const Stream::Out& stream, B3xi12 args)
+void Log(Interpretation::LiteralTable* table, Stream::Out& stream, B3xi12 args)
 {
     Operand operands[] = { args.xi12.imm4, args.xi12.imm12 };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, const Stream::Out& stream, M1 args)
+void Log(Interpretation::LiteralTable* table, Stream::Out& stream, M1 args)
 {
     Formatter formatter(table, stream, memspace_format_strings[args.opc], nullptr, 0);
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, const Stream::Out& stream, M2rr args)
+void Log(Interpretation::LiteralTable* table, Stream::Out& stream, M2rr args)
 {
     Operand operands[] = { args.rr.x, args.rr.y };
     Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, const Stream::Out& stream, M2xr args)
+void Log(Interpretation::LiteralTable* table, Stream::Out& stream, M2xr args)
 {
     Operand operands[] = { args.xr.imm, args.xr.r };
     Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, const Stream::Out& stream, M3i16 args)
+void Log(Interpretation::LiteralTable* table, Stream::Out& stream, M3i16 args)
 {
     Operand operands[] = { args.imm16 };
     Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, const Stream::Out& stream, M5i32 args)
+void Log(Interpretation::LiteralTable* table, Stream::Out& stream, M5i32 args)
 {
     Operand operands[] = { args.imm32 };
     Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, const Stream::Out& stream, M9i64 args)
+void Log(Interpretation::LiteralTable* table, Stream::Out& stream, M9i64 args)
 {
     Operand operands[] = { args.imm64 };
     Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
@@ -396,7 +396,7 @@ void Log(Interpretation::LiteralTable* table, const Stream::Out& stream, M9i64 a
 }
 
 void LogBaseSpaceInstruction(
-    uint32_t opc, Interpretation::LiteralTable* table, const Stream::Out& stream, Decoder::ByteReader& reader
+    uint32_t opc, Interpretation::LiteralTable* table, Stream::Out& stream, Decoder::ByteReader& reader
 )
 {
 #define FMT_LOGGER(opcode, fmt, sfmt)                                                                                  \
@@ -408,16 +408,15 @@ void LogBaseSpaceInstruction(
 }
 
 bool LogMemSpaceInstruction(
-    uint32_t opc, Interpretation::LiteralTable* table, const Stream::Out& stream, Decoder::ByteReader& reader
+    uint32_t opc, Interpretation::LiteralTable* table, Stream::Out& stream, Decoder::ByteReader& reader
 )
 {
     static constexpr size_t BUF_SIZE = 1024ull;
-    auto [buf, strategy] = Stream::createIndentedBuffer(BUF_SIZE);
-    Stream::Out bufStream(strategy);
+    auto [buf, bufStream] = Stream::createIndentedBuffer(BUF_SIZE);
 #define FMT_LOGGER(opcode, fmt, sfmt, isTail)                                                                          \
     case MemOpcode::opcode:                                                                                            \
-        Log(table, bufStream, fmt::Decode(reader));                                                                    \
-        stream << (const char*)bufStream.Flush();                                                                      \
+        Log(table, *bufStream.get(), fmt::Decode(reader));                                                                    \
+        stream << (const char*)bufStream.get()->Flush();                                                                      \
         return isTail;
 
     switch (opc) {
@@ -427,7 +426,7 @@ bool LogMemSpaceInstruction(
     return true;
 }
 
-void Log(Interpretation::Code code, const Stream::Out& stream)
+void Log(Interpretation::Code code, Stream::Out& stream)
 {
     using namespace RT;
     auto bytecode = code.bytecode;

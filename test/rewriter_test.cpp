@@ -37,7 +37,7 @@ using namespace Cbc::Format;
             (RegGroup::Ret32 << 4) | IReg::IR1 /* Ret IR1 */                                                           \
         };                                                                                                             \
         MethodCode methodCode = MethodCode::Mock(isa12Bytes, isa12CodeSize);                                           \
-        RawDisasm(stderr, methodCode)->ParseAll();                                                                     \
+        RawDisasm(Stream::cout, methodCode)->ParseAll();                                                                     \
         Emitter::Emitter e;                                                                                            \
         Rewriter(*MockResolver(), methodCode, e)->ParseAll();                                                          \
         auto code = e.Build(heap);                                                                                     \
