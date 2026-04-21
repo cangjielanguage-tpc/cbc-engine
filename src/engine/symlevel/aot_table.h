@@ -15,7 +15,7 @@ namespace Symlevel {
  * In case of static fields each entry contains @c linkageName of the corresponding field.
  * In case of intstance fields each entry contains @c oridinal of the corresponding field.
  *
- * Resolving of aot-compiled entytity is proceed by @c refType of the entity ref, @see TemplateKind::AotType
+ * Resolving of aot-compiled entytity is proceed by @c refType of the entity ref, @see Terms::TemplateKind::AotType
  */
 class AotTable;
 

@@ -4,7 +4,6 @@
 #include "engine/symlevel/aot_table.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/references.h"
-#include <cstdint>
 
 namespace API {
 namespace Impl {
@@ -56,13 +55,12 @@ private:
     Symlevel::DirectCallAotData aotData;
 };
 
-class VirtualMethodImpl final : public VirtualMethod {
+class VirtualMethodAot final : public VirtualMethod {
 public:
-    VirtualMethodImpl(Engine::Session& session, Symlevel::MethodReference ref, uint16_t vnum, uint16_t extDefNum)
+    VirtualMethodAot(Engine::Session& session, Symlevel::MethodReference ref, Symlevel::VirtualCallAotData aotData)
         : session(session),
           ref(ref),
-          vnum(vnum),
-          extDefNum(extDefNum)
+          aotData(aotData)
     {}
 
     Term* ABISignature() override;
@@ -82,8 +80,7 @@ public:
 private:
     Engine::Session& session;
     Symlevel::MethodReference ref;
-    uint16_t vnum;
-    uint16_t extDefNum;
+    Symlevel::VirtualCallAotData aotData;
 };
 
 } // namespace Impl

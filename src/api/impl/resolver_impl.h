@@ -17,7 +17,7 @@ public:
           method(method)
     {}
 
-    Type* Resolve(Symlevel::Index<Symlevel::Term> index) override;
+    Type* Resolve(Symlevel::Index<Symlevel::Terms::Term> index) override;
 
     DirectMethod* ResolveDirectMethod(Symlevel::Index<Symlevel::MethodReference> index) override;
 

@@ -1,5 +1,4 @@
 #include "region_data.h"
-#include "engine/symlevel/terms.h"
 #include "io/stream_file_reader.h"
 #include "reader.h"
 
@@ -23,7 +22,7 @@ RegionData RegionData::Read(IO::FileId fileId, IO::RandomAccessFile& file, uint3
 
     IO::OffsetPool methods(methodIndexOffs, methodIndexSize);
     IO::OffsetPool fields(fieldIndexOffs, fieldIndexSize);
-    IO::OffsetPool terms(termIndexOffs, termIndexSize, FIRST_NON_PRIMITIVE);
+    IO::OffsetPool terms(termIndexOffs, termIndexSize, Terms::FirstNonBuiltIn());
 
     return RegionData(fileId, methods, fields, terms);
 }
@@ -41,10 +40,10 @@ std::optional<MethodReference> RegionData::queryMethod(Engine::Session& session,
     return Reader::ReadAndResolve(session, fileId, offs);
 }
 
-std::optional<Term> RegionData::queryTerm(Engine::Session& session, Index<Term> index) const
+std::optional<Terms::Term> RegionData::queryTerm(Engine::Session& session, Index<Terms::Term> index) const
 {
-    if (IsBuiltin(index.index)) {
-        return Term::Primitive(session, TemplateKind(index.index));
+    if (Terms::IsBuiltin(index.index)) {
+        return Terms::Term::Builtin(session, Terms::TemplateKind(index.index));
     } else {
         auto offs = terms.QueryOffset(*session.FileOf(fileId), index);
         return Reader::ReadAndResolve(session, fileId, offs);

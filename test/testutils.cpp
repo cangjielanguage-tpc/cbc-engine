@@ -2,6 +2,7 @@
 #include "api/resolver.h"
 #include "engine/symlevel/io/filesystem.h"
 #include "stdio.h"
+#include <cstddef>
 #include <gtest/gtest.h>
 #include <memory>
 #include <optional>
@@ -27,7 +28,7 @@ std::unique_ptr<IO::RandomAccessFile> OpenAsm(std::string file_name)
 struct Resolver : public API::Resolver {
     Resolver() {}
 
-    API::Type* Resolve(Symlevel::Index<Symlevel::Term> index) override { return nullptr; }
+    API::Type* Resolve(Symlevel::Index<Symlevel::Terms::Term> index) override { return nullptr; }
 
     API::DirectMethod* ResolveDirectMethod(Symlevel::Index<Symlevel::MethodReference> index) override
     {

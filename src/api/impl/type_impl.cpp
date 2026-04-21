@@ -1,6 +1,6 @@
 #include "type_impl.h"
 
-using namespace Symlevel;
+using namespace Symlevel::Terms;
 
 namespace API {
 

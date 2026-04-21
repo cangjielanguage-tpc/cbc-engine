@@ -48,8 +48,8 @@ std::optional<FieldReference> FieldReference::ParseAndResolve(
 
     auto regionData = session.CbcFileOf(fileId).GetRegionData();
 
-    auto refType   = regionData.queryTerm(session, Index<Term> { .region = 0, .index = refTypeIdx });
-    auto fieldType = regionData.queryTerm(session, Index<Term> { .region = 0, .index = fieldTypeIdx });
+    auto refType   = regionData.queryTerm(session, Index<Terms::Term> { .region = 0, .index = refTypeIdx });
+    auto fieldType = regionData.queryTerm(session, Index<Terms::Term> { .region = 0, .index = fieldTypeIdx });
 
     if (refType.has_value() && fieldType.has_value()) {
         return FieldReference(name, refType.value(), fieldType.value());
