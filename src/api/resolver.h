@@ -25,7 +25,7 @@ public:
         Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> method
     );
 
-    virtual Type* Resolve(Symlevel::Index<Symlevel::Terms::Term> index) = 0;
+    virtual Type* Resolve(Symlevel::Index<Symlevel::Term> index) = 0;
 
     virtual DirectMethod* ResolveDirectMethod(Symlevel::Index<Symlevel::MethodReference> index) = 0;
 

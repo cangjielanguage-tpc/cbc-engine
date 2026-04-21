@@ -12,7 +12,7 @@ public:
 
     std::optional<MethodReference> queryMethod(Engine::Session& session, Index<MethodReference> index) const;
     std::optional<FieldReference> queryField(Engine::Session& session, Index<FieldReference> index) const;
-    std::optional<Terms::Term> queryTerm(Engine::Session& session, Index<Terms::Term> index) const;
+    std::optional<Term> queryTerm(Engine::Session& session, Index<Term> index) const;
 
 private:
     RegionData(IO::FileId fileId, IO::OffsetPool methods, IO::OffsetPool fields, IO::OffsetPool terms);

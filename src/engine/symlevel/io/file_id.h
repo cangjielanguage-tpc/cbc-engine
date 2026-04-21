@@ -8,7 +8,7 @@
 namespace IO {
 
 struct FileId {
-    static constexpr auto MAX_ID = (1 << 24) - 1;
+    static constexpr auto MAX_ID = (1 << 28) - 1;
 
     const uint32_t id;
 

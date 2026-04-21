@@ -662,11 +662,14 @@ void Emitter::DirectCall2c(Symbol target)
 
 void Emitter::VirtualCall2c(uint16_t vnum, uint16_t extDefNum)
 {
-    Encode(segment, RT::B5i16i16 {
-        .opc = RT::Opcode::VIRTUAL_CALL_2C,
-        .imm1 = Imm16 { .imm = vnum },
-        .imm2 = Imm16 { .imm = extDefNum },
-    });
+    Encode(
+        segment,
+        RT::B5i16i16 {
+            .opc  = RT::Opcode::VIRTUAL_CALL_2C,
+            .imm1 = Imm16 { .imm = vnum },
+            .imm2 = Imm16 { .imm = extDefNum },
+        }
+    );
 }
 
 } // namespace Emitter
