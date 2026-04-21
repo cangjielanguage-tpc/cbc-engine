@@ -1,7 +1,6 @@
-#include "dispatcher_rt.h"
+#include "interpretation_loop.h"
 #include "RuntimeTypes.h"
-#include "asm_trampolines.h"
-#include "interpreter/interpreter.h"
+#include "interpreter.h"
 #include "runtimesupport/adapters.h"
 #include "runtimesupport/runtime.h"
 #include "utils/assertion.h"
@@ -34,7 +33,7 @@ extern "C" {
 ///
 /// Note that the actual calling convention of `thunk.function`
 /// differs from the ASM in the unit test framework.
-Cbc::RT::Thunk engine_interpretation_loop(
+Interpretation::Thunk engine_interpretation_loop(
     Ectype* ectype, Frame* frame, RTSupport::ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
 )
 {
@@ -703,6 +702,6 @@ OFFS_REG: {
 }
 }
 
-Thunk Cbc::RT::InterpretationLoop(
+Thunk Interpretation::InterpretationLoop(
     Ectype* ectype, Frame* frame, RTSupport::ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
 ) __attribute__((alias("engine_interpretation_loop")));

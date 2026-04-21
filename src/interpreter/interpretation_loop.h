@@ -1,16 +1,12 @@
 #pragma once
 
-#include "decoder.h"
-#include "interpreter/ectype.h"
-#include "interpreter/frame.h"
-#include "interpreter/literals.h"
+#include "cbc/decoder.h"
+#include "ectype.h"
+#include "frame.h"
+#include "literals.h"
 #include "runtimesupport/runtime.h"
 
-namespace Cbc {
-namespace RT {
-
-using Width = Cbc::Format::Width;
-using namespace Interpretation;
+namespace Interpretation {
 
 struct Thunk {
     void* function;
@@ -21,5 +17,4 @@ Thunk InterpretationLoop(
     Ectype* ectype, Frame* frame, RTSupport::ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
 );
 
-} // namespace RT
-} // namespace Cbc
+} // namespace Interpretation

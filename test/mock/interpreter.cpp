@@ -2,8 +2,8 @@
 
 #include "../testutils.h"
 #include "cbc/decoder.h"
-#include "cbc/dispatcher_rt.h"
 #include "interpreter.h"
+#include "interpreter/interpretation_loop.h"
 #include "runtimesupport/adapters.h"
 #include "utils/assertion.h"
 
@@ -35,12 +35,12 @@ static void MockNewObj(Ectype* ectype, ThreadHandle th, TypeInfo type)
     ectype->Put(IReg::From(dst.u32), Value::Reference { .value = reinterpret_cast<uintptr_t>(mem) });
 }
 
-static void InterpretationLoop(
+static void DoInterpretationLoop(
     Ectype* ectype, Frame* frame, ThreadHandle th, LiteralTable* literals, Decoder::ByteReader& reader
 )
 {
     while (true) {
-        auto thunk = Cbc::RT::InterpretationLoop(ectype, frame, th, literals, reader);
+        auto thunk = InterpretationLoop(ectype, frame, th, literals, reader);
         if (!thunk.function) {
             break;
         }
@@ -69,7 +69,7 @@ Value::Primitive Interpret(
     ectype.Put(FReg::FR0, fr0);
     ectype.Put(FReg::FR1, fr1);
 
-    InterpretationLoop(&ectype, frame, nullptr, code.literals, s);
+    DoInterpretationLoop(&ectype, frame, nullptr, code.literals, s);
 
     return ectype.GetPrimitive(resReg);
 }
@@ -86,7 +86,7 @@ static void InterpreterI2CallTest(Ectype* ectype, ThreadHandle handle, FunctionH
     auto code = bytecode->code;
 
     Decoder::ByteReader s(code.bytecode, code.bytecode, code.bytecode + code.bytecodeSize);
-    InterpretationLoop(ectype, nullptr, handle, code.literals, s);
+    DoInterpretationLoop(ectype, nullptr, handle, code.literals, s);
 }
 
 } // namespace Interpretation

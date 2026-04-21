@@ -2,7 +2,6 @@
 
 #include "ectype.h"
 #include "frame.h"
-#include "function_handle.h"
 #include "literals.h"
 #include "runtimesupport/runtime.h"
 
