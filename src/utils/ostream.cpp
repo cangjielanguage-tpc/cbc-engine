@@ -4,81 +4,85 @@
 
 namespace Stream {
 
-void OutputStrategy::NewLine(void* dest) { PrintFmt(dest, "\n"); }
+OutputStrategy::OutputStrategy(void* destStream) : dest(destStream) {}
 
-void OutputStrategy::Print(void* dest, const float v) { PrintFmt(dest, "%f", v); }
+void OutputStrategy::NewLine() { PrintFmt("\n"); }
 
-void OutputStrategy::Print(void* dest, const double v) { PrintFmt(dest, "%f", v); }
+void OutputStrategy::Print(const float v) { PrintFmt("%f", v); }
 
-void OutputStrategy::Print(void* dest, const long double v) { PrintFmt(dest, "%Lf", v); }
+void OutputStrategy::Print(const double v) { PrintFmt("%f", v); }
 
-void OutputStrategy::Print(void* dest, const bool v) { PrintFmt(dest, "%s", v ? "true" : "false"); }
+void OutputStrategy::Print(const long double v) { PrintFmt("%Lf", v); }
 
-void OutputStrategy::Print(void* dest, const signed char v) { PrintFmt(dest, "%d", v); }
+void OutputStrategy::Print(const bool v) { PrintFmt("%s", v ? "true" : "false"); }
 
-void OutputStrategy::Print(void* dest, const unsigned char v) { PrintFmt(dest, "%u", v); }
+void OutputStrategy::Print(const signed char v) { PrintFmt("%d", v); }
 
-void OutputStrategy::Print(void* dest, const short v) { PrintFmt(dest, "%d", v); }
+void OutputStrategy::Print(const unsigned char v) { PrintFmt("%u", v); }
 
-void OutputStrategy::Print(void* dest, const unsigned short v) { PrintFmt(dest, "%u", v); }
+void OutputStrategy::Print(const short v) { PrintFmt("%d", v); }
 
-void OutputStrategy::Print(void* dest, const int v) { PrintFmt(dest, "%d", v); }
+void OutputStrategy::Print(const unsigned short v) { PrintFmt("%u", v); }
 
-void OutputStrategy::Print(void* dest, const unsigned int v) { PrintFmt(dest, "%u", v); }
+void OutputStrategy::Print(const int v) { PrintFmt("%d", v); }
 
-void OutputStrategy::Print(void* dest, const long v) { PrintFmt(dest, "%ld", v); }
+void OutputStrategy::Print(const unsigned int v) { PrintFmt("%u", v); }
 
-void OutputStrategy::Print(void* dest, const unsigned long v) { PrintFmt(dest, "%ld", v); }
+void OutputStrategy::Print(const long v) { PrintFmt("%ld", v); }
 
-void OutputStrategy::Print(void* dest, const long long v) { PrintFmt(dest, "%lld", v); }
+void OutputStrategy::Print(const unsigned long v) { PrintFmt("%ld", v); }
 
-void OutputStrategy::Print(void* dest, const unsigned long long v) { PrintFmt(dest, "%llu", v); }
+void OutputStrategy::Print(const long long v) { PrintFmt("%lld", v); }
 
-void OutputStrategy::Print(void* dest, const char c) { PrintFmt(dest, "%c", c); }
+void OutputStrategy::Print(const unsigned long long v) { PrintFmt("%llu", v); }
 
-void OutputStrategy::Print(void* dest, const char* cstr) { PrintFmt(dest, "%s", cstr); }
+void OutputStrategy::Print(const char c) { PrintFmt("%c", c); }
 
-void OutputStrategy::Print(void* dest, const std::string_view strv)
+void OutputStrategy::Print(const char* cstr) { PrintFmt("%s", cstr); }
+
+void OutputStrategy::Print(const std::string_view strv)
 {
-    PrintFmt(dest, "%.*s", static_cast<int>(strv.length()), strv.data());
+    PrintFmt("%.*s", static_cast<int>(strv.length()), strv.data());
 }
 
-void OutputStrategy::Print(void* dest, const std::string str) { PrintFmt(dest, "%s", str.c_str()); }
+void OutputStrategy::Print(const std::string str) { PrintFmt("%s", str.c_str()); }
 
-void OutputStrategy::Print(void* dest, const signed char* p) { PrintFmt(dest, "%p", p); }
+void OutputStrategy::Print(const signed char* p) { PrintFmt("%p", p); }
 
-void OutputStrategy::Print(void* dest, const unsigned char* p) { PrintFmt(dest, "%p", p); }
+void OutputStrategy::Print(const unsigned char* p) { PrintFmt("%p", p); }
 
-void OutputStrategy::Print(void* dest, const short* p) { PrintFmt(dest, "%p", p); }
+void OutputStrategy::Print(const short* p) { PrintFmt("%p", p); }
 
-void OutputStrategy::Print(void* dest, const unsigned short* p) { PrintFmt(dest, "%p", p); }
+void OutputStrategy::Print(const unsigned short* p) { PrintFmt("%p", p); }
 
-void OutputStrategy::Print(void* dest, const int* p) { PrintFmt(dest, "%p", p); }
+void OutputStrategy::Print(const int* p) { PrintFmt("%p", p); }
 
-void OutputStrategy::Print(void* dest, const unsigned int* p) { PrintFmt(dest, "%p", p); }
+void OutputStrategy::Print(const unsigned int* p) { PrintFmt("%p", p); }
 
-void OutputStrategy::Print(void* dest, const long* p) { PrintFmt(dest, "%p", p); }
+void OutputStrategy::Print(const long* p) { PrintFmt("%p", p); }
 
-void OutputStrategy::Print(void* dest, const unsigned long* p) { PrintFmt(dest, "%p", p); }
+void OutputStrategy::Print(const unsigned long* p) { PrintFmt("%p", p); }
 
-void OutputStrategy::Print(void* dest, const long long* p) { PrintFmt(dest, "%p", p); }
+void OutputStrategy::Print(const long long* p) { PrintFmt("%p", p); }
 
-void OutputStrategy::Print(void* dest, const unsigned long long* p) { PrintFmt(dest, "%p", p); }
+void OutputStrategy::Print(const unsigned long long* p) { PrintFmt("%p", p); }
 
-void OutputStrategy::Print(void* dest, const void* p) { PrintFmt(dest, "%p", p); }
+void OutputStrategy::Print(const void* p) { PrintFmt("%p", p); }
 
 
-const void* ToFile::Flush(void* file) const
+ToFile::ToFile(void* destStream) : OutputStrategy(destStream) {}
+
+const void* ToFile::Flush() const
 {
-    fflush((FILE*)file);
-    return file;
+    fflush((FILE*)dest);
+    return dest;
 }
 
-void ToFile::BeforePrint(void* file) {}
+void ToFile::BeforePrint() {}
 
-void ToFile::AfterPrint(void* file) {}
+void ToFile::AfterPrint() {}
 
-void ToFile::PrintFmt(void* dest, const char* fmt, ...)
+void ToFile::PrintFmt(const char* fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
@@ -86,10 +90,10 @@ void ToFile::PrintFmt(void* dest, const char* fmt, ...)
     va_end(args);
 }
 
-void ToFile::PrintFmt(void* dest, const char* fmt, va_list argp) { vfprintf((FILE*)dest, fmt, argp); }
+void ToFile::PrintFmt(const char* fmt, va_list argp) { vfprintf((FILE*)dest, fmt, argp); }
 
 
-ToBuffer::ToBuffer(size_t bufSize) : OutputStrategy(), printed(0ull), size(bufSize) {}
+ToBuffer::ToBuffer(void* destStream, size_t bufSize) : OutputStrategy(destStream), printed(0ull), size(bufSize) {}
 
 void ToBuffer::BoundCheck(int requestedSize)
 {
@@ -103,13 +107,13 @@ void ToBuffer::AdvanceDest(int printedSz)
     printed += printedSz;
 }
 
-const void* ToBuffer::Flush(void* dest) const { return dest; }
+const void* ToBuffer::Flush() const { return dest; }
 
-void ToBuffer::BeforePrint(void* file) {}
+void ToBuffer::BeforePrint() {}
 
-void ToBuffer::AfterPrint(void* file) {}
+void ToBuffer::AfterPrint() {}
 
-void ToBuffer::PrintFmt(void* dest, const char* fmt, ...)
+void ToBuffer::PrintFmt(const char* fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
@@ -123,7 +127,7 @@ void ToBuffer::PrintFmt(void* dest, const char* fmt, ...)
     AdvanceDest(printedsz);
 }
 
-void ToBuffer::PrintFmt(void* dest, const char* fmt, va_list argp)
+void ToBuffer::PrintFmt(const char* fmt, va_list argp)
 {
     va_list copied;
     va_copy(copied, argp);
@@ -135,12 +139,12 @@ void ToBuffer::PrintFmt(void* dest, const char* fmt, va_list argp)
 }
 
 
-ToIndentedBuffer::ToIndentedBuffer(const size_t bufSize, const unsigned int indentSize)
-    : ToBuffer(bufSize),
+ToIndentedBuffer::ToIndentedBuffer(void* destStream, const size_t bufSize, const unsigned int indentSize)
+    : ToBuffer(destStream, bufSize),
       indentationSize(indentSize)
 {}
 
-void ToIndentedBuffer::BeforePrint(void* dest)
+void ToIndentedBuffer::BeforePrint()
 {
     if (indentationSize) {
         BoundCheck(indentationSize);
@@ -150,30 +154,30 @@ void ToIndentedBuffer::BeforePrint(void* dest)
     }
 }
 
-Out::Out(void* destStream) : dest(destStream), outputStrategy(nullptr)
+Out::Out(void* destStream) : outputStrategy(nullptr)
 {
-    static std::shared_ptr<OutputStrategy> toFile = std::make_shared<ToFile>();
+    static std::shared_ptr<OutputStrategy> toFile = std::make_shared<ToFile>(destStream);
     outputStrategy                                = toFile;
 }
 
-Out::Out(void* destStream, std::shared_ptr<OutputStrategy> strategy) : dest(destStream), outputStrategy(strategy) {}
+Out::Out(std::shared_ptr<OutputStrategy> strategy) : outputStrategy(strategy) {}
 
 const Out& Out::operator<<(const endl_t&) const
 {
-    outputStrategy->NewLine(dest);
+    outputStrategy->NewLine();
     return *this;
 }
 
 const void Out::PrintFmt(const char* fmt, ...) const
 {
-    outputStrategy->BeforePrint(dest);
+    outputStrategy->BeforePrint();
     va_list args;
     va_start(args, fmt);
-    outputStrategy->PrintFmt(dest, fmt, args);
+    outputStrategy->PrintFmt(fmt, args);
     va_end(args);
-    outputStrategy->AfterPrint(dest);
+    outputStrategy->AfterPrint();
 }
 
-const void* Out::Flush() const { return outputStrategy->Flush(dest); }
+const void* Out::Flush() const { return outputStrategy->Flush(); }
 
 }; // namespace Stream

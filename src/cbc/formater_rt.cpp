@@ -389,7 +389,7 @@ bool LogMemSpaceInstruction(
 {
     static constexpr size_t BUF_SIZE = 1024ull;
     std::shared_ptr<char[]> buf(new char[BUF_SIZE]);
-    Stream::Out bufStream(buf.get(), std::make_shared<Stream::ToIndentedBuffer>(BUF_SIZE));
+    Stream::Out bufStream(std::make_shared<Stream::ToIndentedBuffer>(buf.get(), BUF_SIZE));
 #define FMT_LOGGER(opcode, fmt, sfmt, isTail)                                                                          \
     case MemOpcode::opcode:                                                                                            \
         Log(table, bufStream, fmt::Decode(reader));                                                                    \
