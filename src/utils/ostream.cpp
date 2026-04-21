@@ -180,4 +180,18 @@ const void Out::PrintFmt(const char* fmt, ...) const
 
 const void* Out::Flush() const { return outputStrategy->Flush(); }
 
+std::pair<std::shared_ptr<char[]>, std::shared_ptr<ToBuffer>> createBuffer(size_t bufSize)
+{
+    std::shared_ptr<char[]> buf(new char[bufSize]);
+    std::shared_ptr<ToBuffer> bufStrategy = std::make_shared<ToBuffer>(buf.get(), bufSize);
+    return std::make_pair(buf, bufStrategy);
+}
+
+std::pair<std::shared_ptr<char[]>, std::shared_ptr<ToIndentedBuffer>> createIndentedBuffer(size_t bufSize)
+{
+    std::shared_ptr<char[]> buf(new char[bufSize]);
+    std::shared_ptr<ToIndentedBuffer> bufStrategy = std::make_shared<ToIndentedBuffer>(buf.get(), bufSize);
+    return std::make_pair(buf, bufStrategy);
+}
+
 }; // namespace Stream

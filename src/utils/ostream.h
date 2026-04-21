@@ -117,4 +117,7 @@ private:
     std::shared_ptr<OutputStrategy> outputStrategy;
 };
 
+std::pair<std::shared_ptr<char[]>, std::shared_ptr<ToBuffer>> createBuffer(size_t bufSize);
+std::pair<std::shared_ptr<char[]>, std::shared_ptr<ToIndentedBuffer>> createIndentedBuffer(size_t bufSize);
+
 }; // namespace Stream

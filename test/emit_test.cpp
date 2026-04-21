@@ -502,7 +502,7 @@ TEST(EmitTest, Simple_Convert)
     e.Ret();
 
     auto code = e.Build(heap);
-    Cbc::RT::Log(code, std::cerr);
+    Cbc::RT::Log(code, stderr);
 
     auto res = Interpret(code, U32(32896), U32(0), F32(0), F32(0));
     EXPECT_EQ(res.u64, U64(128).u64);
