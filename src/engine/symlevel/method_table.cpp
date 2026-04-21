@@ -157,6 +157,12 @@ static MethodTable BuildTable(Engine::Session& session, Engine::Identifier<TypeD
     return MethodTable(table);
 }
 
+/// Caching policy notice.
+///
+/// Each method table can be build from the ground-up without side effects, using simple procedure
+/// that involves only read-only data from cbc files. So any caching of result
+/// is not functionally required.
+
 MethodTable MethodTableManager::GetMethodTable(Engine::Session& session, Engine::Identifier<TypeDefinition> type)
 {
     auto& manager = MethodTableManager::Of(session);
