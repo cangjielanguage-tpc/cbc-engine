@@ -1,6 +1,7 @@
 #include "cbc_file.h"
 
 #include "aot_table.h"
+#include "dependencies.h"
 #include "io/stream_file_reader.h"
 #include "member_index.h"
 #include "region_data.h"
@@ -18,6 +19,8 @@ struct CbcFile::Impl {
     InterfaceCallAotTable interfaceCallAotTable;
     StaticFieldAotTable staticFieldAotTable;
     InstanceFieldAotTable instanceFieldAotTable;
+
+    Dependencies dependencies;
 
     uint32_t poolOffset;
     IO::FileId id;
@@ -42,7 +45,7 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
     auto magic = magicAndVersion & MAGIC_MASK;
     if (magic != MAGIC) {
         // TODO: throw proper exception
-        ASSERTION(false, "invalid magic");
+        FATAL("invalid magic: %d", magic);
     }
 
     auto fileVersion     = static_cast<uint8_t>(magicAndVersion >> FILE_VERSION_SHIFT);
@@ -63,11 +66,13 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
     auto regionNum = reader.ReadU16();
     if (regionNum != 1) {
         // TODO: throw proper exception
-        ASSERTION(false, "unsupported region num");
+        FATAL("unsupported region num: %d", regionNum);
     }
     auto regionOffset = reader.ReadU32();
 
     auto mainType    = reader.ReadU32();
+    auto cbcDeps     = reader.ReadU32();
+    auto aotDeps     = reader.ReadU32();
     auto foreignLibs = reader.ReadU32();
     auto coverageId  = reader.ReadULEB();
 
@@ -80,6 +85,7 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
         .interfaceCallAotTable = InterfaceCallAotTable::Read(fileId, file, interfaceCallAotTableOffset),
         .staticFieldAotTable   = StaticFieldAotTable::Read(fileId, file, staticFieldAotTableOffset),
         .instanceFieldAotTable = InstanceFieldAotTable::Read(fileId, file, instanceFieldAotTableOffset),
+        .dependencies          = Dependencies::Read(fileId, file, poolOffset, cbcDeps, aotDeps),
         .poolOffset            = poolOffset,
         .id                    = fileId,
         .name                  = std::string(name),
@@ -116,6 +122,8 @@ String CbcFile::GetPath() const { return String(impl->name); }
 const RegionData& CbcFile::GetRegionData() const { return impl->regionData; }
 
 const TypeIndex& CbcFile::GetTypeIndex() const { return impl->typeIndex; }
+
+const Dependencies& CbcFile::GetDependencies() const { return impl->dependencies; }
 
 const DirectCallAotTable& CbcFile::GetDirectCallAotTable() const { return impl->directCallAotTable; }
 

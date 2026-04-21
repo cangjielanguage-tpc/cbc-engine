@@ -5,40 +5,14 @@
 #include "cbc/dispatcher_rt.h"
 #include "interpreter.h"
 #include "interpreter/adapters.h"
-
-namespace Interpretation {
+#include "runtime.h"
 
 static constexpr int HEAP_SIZE = 16384;
 static LimitedHeap<HEAP_SIZE> heap;
 
-struct Test {};
+namespace Interpretation {
 
-template <> class RuntimeInterface<Test> {
-    using Reference = Value::Reference;
-
-public:
-    inline static void* AllocateObject;
-
-    static Reference ReadObjectInstance(Reference base, size_t offset, ThreadHandle th)
-    {
-        return Reference { .value = *reinterpret_cast<uintptr_t*>(base.value + offset) };
-    }
-
-    static void WriteObjectInstance(Reference base, size_t offset, Reference object, ThreadHandle th)
-    {
-        *reinterpret_cast<uintptr_t*>(base.value + offset) = object.value;
-    }
-
-    static Reference ReadObject(uintptr_t base, size_t offset, ThreadHandle th)
-    {
-        return Reference { .value = *reinterpret_cast<uintptr_t*>(base + offset) };
-    }
-
-    static void WriteObject(uintptr_t base, size_t offset, Reference object, ThreadHandle th)
-    {
-        *reinterpret_cast<uintptr_t*>(base + offset) = object.value;
-    }
-};
+using namespace RTSupport;
 
 static void MockNewObj(Ectype* ectype, ThreadHandle th, TypeInfo<Test> type);
 static void InterpreterI2CallTest(Ectype* ectype, ThreadHandle handle, FunctionHandle* fuh);
@@ -133,6 +107,28 @@ Interpretation::Value::Primitive InterpretFPRes(
 
 Interpretation::Value::Primitive Interpret(
     Interpretation::Code code,
+    Interpretation::Value::Primitive ir1,
+    Interpretation::Value::Primitive ir2,
+    Interpretation::Value::Primitive fr0,
+    Interpretation::Value::Primitive fr1
+)
+{
+    return Interpretation::Interpret<Cbc::IReg>(code, nullptr, ir1, ir2, fr0, fr1, Cbc::IReg::IR1);
+}
+
+Interpretation::Value::Primitive InterpretFPRes(
+    Interpretation::Code code,
+    Interpretation::Value::Primitive ir1,
+    Interpretation::Value::Primitive ir2,
+    Interpretation::Value::Primitive fr0,
+    Interpretation::Value::Primitive fr1
+)
+{
+    return Interpretation::Interpret<Cbc::FReg>(code, nullptr, ir1, ir2, fr0, fr1, Cbc::FReg::FR0);
+}
+
+Interpretation::Value::Primitive Interpret(
+    Interpretation::Code code,
     Interpretation::Frame* frame,
     Interpretation::Value::Primitive ir1,
     Interpretation::Value::Primitive ir2
@@ -156,6 +152,6 @@ void InitializeMockInterpreter()
     using namespace Interpretation;
     auto i2call = reinterpret_cast<Interpretation::I2Call>(&Interpretation::InterpreterI2CallTest);
     SetI2CallForInterpreter(i2call);
-    RuntimeInterface<Test>::AllocateObject = reinterpret_cast<void*>(&MockNewObj);
+    RuntimeInterface<RTSupport::Test>::AllocateObject = reinterpret_cast<void*>(&MockNewObj);
     static_assert(IReg::COUNT == 14);
 }

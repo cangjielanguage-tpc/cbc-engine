@@ -4,7 +4,7 @@
 #include "cbc/isa_rt.h"
 #include "interpreter/ectype.h"
 #include "interpreter/literals.h"
-#include "interpreter/runtime.h"
+#include "runtimesupport/runtime.h"
 #include "utils/math.h"
 
 namespace Interpretation {
@@ -144,7 +144,7 @@ inline ArithmeticResult ArithFP<Width::W64>(FloatOperations::Value op, Value::Pr
         case FloatOperations::FMUL: return { Value::Primitive { .f64 = l.f64 * r.f64 }, true };
         case FloatOperations::FDIV: return { Value::Primitive { .f64 = l.f64 / r.f64 }, true };
 
-        default: ASSERTION(false, "Unexpected FP op");
+        default: FATAL("Unexpected FP op: %d", op);
     }
 }
 
@@ -158,7 +158,7 @@ inline ArithmeticResult ArithFP<Width::W32>(FloatOperations::Value op, Value::Pr
         case FloatOperations::FMUL: return { Value::Primitive { .f32 = l.f32 * r.f32 }, true };
         case FloatOperations::FDIV: return { Value::Primitive { .f32 = l.f32 / r.f32 }, true };
 
-        default: ASSERTION(false, "Unexpected FP op");
+        default: FATAL("Unexpected FP op: %d", op);
     }
 }
 
@@ -172,7 +172,7 @@ template <> inline ArithmeticResult ArithFP<Width::W64>(FloatOperations::Value o
         case FloatOperations::FABS:  return { Value::Primitive { .f64 = std::fabs(s.f64) }, true };
         case FloatOperations::FNEG:  return { Value::Primitive { .f64 = -s.f64 }, true };
 
-        default: ASSERTION(false, "Unexpected FP op");
+        default: FATAL("Unexpected FP op: %d", op);
     }
 }
 
@@ -184,7 +184,7 @@ template <> inline ArithmeticResult ArithFP<Width::W32>(FloatOperations::Value o
         case FloatOperations::FABS:  return { Value::Primitive { .f32 = std::fabs(s.f32) }, true };
         case FloatOperations::FNEG:  return { Value::Primitive { .f32 = -s.f32 }, true };
 
-        default: ASSERTION(false, "Unexpected FP op");
+        default: FATAL("Unexpected FP op: %d", op);
     }
 }
 
@@ -248,7 +248,7 @@ template <> inline bool Compare<CC::TESTNZ, Width::W64>(Value::Primitive l, Valu
 
 template <CC::Value cc, Width::Value width> inline static bool Compare(Value::Reference l, Value::Reference r)
 {
-    ASSERTION(false, "Unreachable");
+    FATAL("Unreachable");
     return false;
 }
 
@@ -369,7 +369,7 @@ inline void MemoryLocation::StorePrim(StoreAccessKind::Value stk, Format::Reg sr
         case StoreAccessKind::ST_64:  Store<uint64_t>(src, ectype); return;
         case StoreAccessKind::ST_F32: Store<float>(src, ectype); return;
         case StoreAccessKind::ST_F64: Store<double>(src, ectype); return;
-        default:                      ASSERTION(false, "Unexpected stk");
+        default:                      FATAL("Unexpected stk");
     }
 }
 
@@ -385,7 +385,7 @@ inline void MemoryLocation::LoadPrim(LoadAccessKind::Value ldk, Format::Reg dst,
         case LoadAccessKind::LD_S32TO64: Load<int32_t>(dst, ectype); return;
         case LoadAccessKind::LD_F32:     Load<float>(dst, ectype); return;
         case LoadAccessKind::LD_F64:     Load<double>(dst, ectype); return;
-        default:                         ASSERTION(false, "Unexpected ldk");
+        default:                         FATAL("Unexpected ldk");
     }
 }
 

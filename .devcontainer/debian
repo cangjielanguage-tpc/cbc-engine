@@ -20,7 +20,8 @@ RUN apt update && apt install -y \
     clang-19 \
     lld-19 \
     lldb-19 \
-    gdb
+    gdb \
+    clang-format
 
 RUN dpkg --add-architecture arm64 && \
     apt update && apt install -y \

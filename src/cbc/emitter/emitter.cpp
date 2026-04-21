@@ -140,7 +140,7 @@ public:
         switch (width) {
             case Width::W32: return isImm ? RT::Opcode::BCC32I : RT::Opcode::BCC32L;
             case Width::W64: return isImm ? RT::Opcode::BCC64I : RT::Opcode::BCC64L;
-            default:         ASSERT(false); return RT::Opcode::BCC32I;
+            default:         FATAL("unexpected Width: %s", width.CStr()); return RT::Opcode::BCC32I;
         }
     }
 
@@ -193,7 +193,7 @@ public:
             return isImmOffset ? (isImmValue ? RT::Opcode::BCCI32I : RT::Opcode::BCCL32I)
                                : (isImmValue ? RT::Opcode::BCCI32L : RT::Opcode::BCCL32L);
         } else {
-            ASSERTION(width == Width::W64, "Unexpected width");
+            ASSERTION(width == Width::W64, "Unexpected width: %s", width.CStr());
             return isImmOffset ? (isImmValue ? RT::Opcode::BCCI64I : RT::Opcode::BCCL64I)
                                : (isImmValue ? RT::Opcode::BCCI64L : RT::Opcode::BCCL64L);
         }
@@ -631,18 +631,45 @@ void Emitter::SCCImm(CC cc, Width width, IReg d, IReg l, uint64_t imm)
     }
 }
 
-void Emitter::DirectCall2i(IReg d, Symbol fuh)
+void Emitter::Convert(ConvertType toType, ConvertType fromType, Reg to, Reg from)
+{
+    Encode(segment, RT::B3xxrr {
+        .opc = RT::Opcode::CONVERT,
+        .xx = {
+            .imm1 = Imm4(toType),
+            .imm2 = Imm4(fromType),
+        },
+        .rr = {
+            .x = to,
+            .y = from,
+        },
+    });
+}
+
+void Emitter::DirectCall2i(Symbol fuh)
 {
     segment.AddW8(RT::Opcode::DIRECT_CALL_2I);
-    Imm4 i4(d);
+    Imm4 i4(0);
     AddFixup(std::make_unique<Literal12Fixup>(i4, fuh));
 }
 
-void Emitter::DirectCall2c(IReg d, Symbol target)
+void Emitter::DirectCall2c(Symbol target)
 {
     segment.AddW8(RT::Opcode::DIRECT_CALL_2C);
-    Imm4 i4(d);
+    Imm4 i4(0);
     AddFixup(std::make_unique<Literal12Fixup>(i4, target));
+}
+
+void Emitter::VirtualCall2c(uint16_t vnum, uint16_t extDefNum)
+{
+    Encode(
+        segment,
+        RT::B5i16i16 {
+            .opc  = RT::Opcode::VIRTUAL_CALL_2C,
+            .imm1 = Imm16 { .imm = vnum },
+            .imm2 = Imm16 { .imm = extDefNum },
+        }
+    );
 }
 
 } // namespace Emitter

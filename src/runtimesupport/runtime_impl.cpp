@@ -1,40 +1,48 @@
+#include "runtime_impl.h"
 #include "asm_trampolines.h"
-#include "cbc/dispatcher_rt.h"
 #include "cbc_engine.h"
 #include "cjnative.h"
-#include "interpreter/runtime.h"
+#include "runtime.h"
 
-namespace Interpretation {
+namespace RTSupport {
 
-struct Impl {};
+using Reference = Interpretation::Value::Reference;
 
-// FIXME: real implementation
-template <> class RuntimeInterface<Impl> {
-    using Reference = Value::Reference;
+Reference RuntimeInterface<Impl>::ReadObjectInstance(Reference base, size_t offset, ThreadHandle th)
+{
+    return Reference { .value = reinterpret_cast<uintptr_t>(g_CJNativeInterfaceInstance.read_instance_field(
+                           reinterpret_cast<MRTExport::obj_ref_t>(base.value),
+                           reinterpret_cast<MRTExport::field_ref_t>(base.value + offset)
+                       )) };
+}
 
-public:
-    inline static void* AllocateObject;
+void RuntimeInterface<Impl>::WriteObjectInstance(Reference base, size_t offset, Reference object, ThreadHandle th)
+{
+    g_CJNativeInterfaceInstance.write_instance_field(
+        reinterpret_cast<MRTExport::obj_ref_t>(base.value),
+        reinterpret_cast<MRTExport::field_ref_t>(base.value + offset),
+        reinterpret_cast<MRTExport::obj_ref_t>(object.value)
+    );
+}
 
-    static Reference ReadObjectInstance(Reference base, size_t offset, ThreadHandle th)
-    {
-        return Reference { .value = *reinterpret_cast<uintptr_t*>(base.value + offset) };
-    }
+Reference RuntimeInterface<Impl>::ReadObject(uintptr_t base, size_t offset, ThreadHandle th)
+{
+    return Reference { .value = reinterpret_cast<uintptr_t>(g_CJNativeInterfaceInstance.read_static_field(
+                           reinterpret_cast<MRTExport::field_ref_t>(base + offset)
+                       )) };
+}
 
-    static void WriteObjectInstance(Reference base, size_t offset, Reference object, ThreadHandle th)
-    {
-        *reinterpret_cast<uintptr_t*>(base.value + offset) = object.value;
-    }
+void RuntimeInterface<Impl>::WriteObject(uintptr_t base, size_t offset, Reference object, ThreadHandle th)
+{
+    g_CJNativeInterfaceInstance.write_static_field(
+        reinterpret_cast<MRTExport::field_ref_t>(base + offset), reinterpret_cast<MRTExport::obj_ref_t>(object.value)
+    );
+}
 
-    static Reference ReadObject(uintptr_t base, size_t offset, ThreadHandle th)
-    {
-        return Reference { .value = *reinterpret_cast<uintptr_t*>(base + offset) };
-    }
-
-    static void WriteObject(uintptr_t base, size_t offset, Reference object, ThreadHandle th)
-    {
-        *reinterpret_cast<uintptr_t*>(base + offset) = object.value;
-    }
-};
+TypeInfo<Impl> RuntimeInterface<Impl>::GetTypeInfo(const char* typeName)
+{
+    return g_CJNativeInterfaceInstance.type_info(typeName);
+}
 
 void InitializeRuntimeInterface()
 {
@@ -42,9 +50,10 @@ void InitializeRuntimeInterface()
     RuntimeInterface<Impl>::AllocateObject = reinterpret_cast<void*>(&Asm::engine_i2_newobject);
 }
 
-} // namespace Interpretation
+} // namespace RTSupport
 
 namespace Cbc::RT {
+using namespace RTSupport;
 using namespace Interpretation;
 template __attribute__((used)) Thunk InterpretationLoop<Impl>(
     Ectype* ectype, Frame* frame, ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
@@ -53,7 +62,7 @@ template __attribute__((used)) Thunk InterpretationLoop<Impl>(
 
 extern "C" {
 void engine_interpretation_loop() __attribute__((alias(
-    "_ZN3Cbc2RT18InterpretationLoopIN14Interpretation4ImplEEENS0_5ThunkEPNS2_6EctypeEPNS2_5FrameENS2_"
-    "12ThreadHandleEPNS2_12LiteralTableERN7Decoder10ByteReaderE"
+    "_ZN3Cbc2RT18InterpretationLoopIN9RTSupport4ImplEEENS0_5ThunkEPN14Interpretation6EctypeEPNS5_5FrameENS2_"
+    "12ThreadHandleEPNS5_12LiteralTableERN7Decoder10ByteReaderE"
 )));
 } // extern "C"

@@ -10,28 +10,38 @@ namespace Symlevel {
 class MethodReference;
 class FieldReference;
 
+enum MethodAccessKind : uint16_t;
+
 class MethodReference {
 public:
     static std::optional<MethodReference> ParseAndResolve(
         Engine::Session& session, IO::FileId fileId, Offset<MethodReference> offset
     );
 
+    inline const IO::FileId FileId() const { return fileId; }
+
     inline const String Name() const { return name; }
 
-    inline const Terms::Term RefType() const { return refType; }
+    inline const Term RefType() const { return refType; }
 
-    inline const Terms::Term MethodSig() const { return methodSig; }
+    inline const Term MethodSig() const { return methodSig; }
+
+    inline const MethodAccessKind AccessKind() const { return accessKind; }
 
 private:
-    MethodReference(String name, Terms::Term refType, Terms::Term methodSig)
-        : name(name),
+    MethodReference(IO::FileId fileId, String name, Term refType, Term methodSig, MethodAccessKind accessKind)
+        : fileId(fileId),
+          name(name),
           refType(refType),
-          methodSig(methodSig)
+          methodSig(methodSig),
+          accessKind(accessKind)
     {}
 
+    IO::FileId fileId;
     String name;
-    Terms::Term refType;
-    Terms::Term methodSig;
+    Term refType;
+    Term methodSig;
+    MethodAccessKind accessKind;
 };
 
 class FieldReference {
@@ -42,20 +52,21 @@ public:
 
     inline const String Name() const { return name; }
 
-    inline const Terms::Term RefType() const { return refType; }
+    inline const Term RefType() const { return refType; }
 
-    inline const Terms::Term FieldType() const { return fieldType; }
+    inline const Term FieldType() const { return fieldType; }
 
 private:
-    FieldReference(String name, Terms::Term refType, Terms::Term fieldType)
-        : name(name),
-          refType(refType),
-          fieldType(fieldType)
-    {}
+    FieldReference(String name, Term refType, Term fieldType) : name(name), refType(refType), fieldType(fieldType) {}
 
     String name;
-    Terms::Term refType;
-    Terms::Term fieldType;
+    Term refType;
+    Term fieldType;
+};
+
+enum MethodAccessKind : uint16_t {
+    DIRECT,
+    VIRTUAL,
 };
 
 } // namespace Symlevel

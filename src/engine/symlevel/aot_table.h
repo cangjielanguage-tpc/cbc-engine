@@ -15,7 +15,7 @@ namespace Symlevel {
  * In case of static fields each entry contains @c linkageName of the corresponding field.
  * In case of intstance fields each entry contains @c oridinal of the corresponding field.
  *
- * Resolving of aot-compiled entytity is proceed by @c refType of the entity ref, @see Terms::TemplateKind::AotType
+ * Resolving of aot-compiled entytity is proceed by @c refType of the entity ref, @see TemplateKind::AotType
  */
 class AotTable;
 
@@ -62,15 +62,15 @@ public:
         Engine::Session& session, IO::FileId fileId, Offset<VirtualCallAotData> offset
     );
 
-    uint32_t GetVNum() const { return vnum; }
+    uint16_t GetVNum() const { return vnum; }
 
-    uint32_t GetExtDefNum() const { return extDefNum; }
+    uint16_t GetExtDefNum() const { return extDefNum; }
 
 private:
-    VirtualCallAotData(uint32_t vnum, uint32_t extDefNum) : vnum(vnum), extDefNum(extDefNum) {}
+    VirtualCallAotData(uint16_t vnum, uint16_t extDefNum) : vnum(vnum), extDefNum(extDefNum) {}
 
-    uint32_t vnum;
-    uint32_t extDefNum;
+    uint16_t vnum;
+    uint16_t extDefNum;
 };
 
 class VirtualCallAotTable {

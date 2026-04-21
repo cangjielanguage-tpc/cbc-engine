@@ -140,8 +140,8 @@ VirtualCallAotData VirtualCallAotData::ParseAndResolve(
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetAotDataSectionOffs() + offset);
 
     auto index     = reader.ReadU32();
-    auto vnum      = reader.ReadU32();
-    auto extDefNum = reader.ReadU32();
+    auto vnum      = reader.ReadU16();
+    auto extDefNum = reader.ReadU16();
 
     return VirtualCallAotData(vnum, extDefNum);
 }

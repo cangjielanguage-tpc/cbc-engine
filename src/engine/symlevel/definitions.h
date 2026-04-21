@@ -1,15 +1,12 @@
 #pragma once
 
-#include <vector>
-
 #include "engine/engine.h"
 #include "engine/identifiers.h"
+#include "engine/symlevel/offset_sequence.h"
 #include "io/file_id.h"
-#include "io/stream_file_reader.h"
 #include "member_index.h"
 #include "offset.h"
 #include "string.h"
-#include "type_kind.h"
 
 namespace Symlevel {
 
@@ -41,20 +38,28 @@ public:
 
     inline const FieldIndex& GetFieldIndex() const { return fields; }
 
+    inline const OffsetSequence<MethodDefinition>& GetVirtualMethods() const { return virtualMethods; }
+
 private:
     TypeDefinition(
-        Engine::Identifier<TypeDefinition> identifier, Offset<String> nameOffset, MethodIndex methods, FieldIndex fields
+        Engine::Identifier<TypeDefinition> identifier,
+        Offset<String> nameOffset,
+        MethodIndex methods,
+        FieldIndex fields,
+        OffsetSequence<MethodDefinition> virtualMethods
     )
         : identifier(identifier),
           nameOffset(nameOffset),
           methods(std::move(methods)),
-          fields(std::move(fields))
+          fields(std::move(fields)),
+          virtualMethods(virtualMethods)
     {}
 
     Engine::Identifier<TypeDefinition> identifier;
     Offset<String> nameOffset;
     MethodIndex methods;
     FieldIndex fields;
+    OffsetSequence<MethodDefinition> virtualMethods;
 };
 
 class FieldDefinition {
@@ -97,7 +102,7 @@ public:
 
     inline uint32_t GetSigIdx() const
     {
-        ASSERTION(false, "implement terms"); // FIXME
+        FATAL("implement terms"); // FIXME
         return sigIdx;
     }
 

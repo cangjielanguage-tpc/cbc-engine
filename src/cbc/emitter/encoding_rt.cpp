@@ -10,6 +10,8 @@ void Encode(ByteBuffer& buf, Format::RR rr) { buf.AddW8(static_cast<uint32_t>(rr
 
 void Encode(ByteBuffer& buf, Format::XR xr) { buf.AddW8(static_cast<uint32_t>(xr.imm | (xr.r << 4))); }
 
+void Encode(ByteBuffer& buf, Format::XX xx) { buf.AddW8(static_cast<uint32_t>(xx.imm1 | (xx.imm2 << 4))); }
+
 void Encode(ByteBuffer& buf, Format::Imm16 i16) { buf.AddW16(i16.imm); }
 
 void Encode(ByteBuffer& buf, Format::XImm12 xi12) { buf.AddW16(Format::XImm12::Raw(xi12)); }
@@ -32,6 +34,13 @@ void Encode(ByteBuffer& buf, RT::B3xrrr command)
 {
     Encode(buf, command.opc);
     Encode(buf, command.xr);
+    Encode(buf, command.rr);
+}
+
+void Encode(ByteBuffer& buf, RT::B3xxrr command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.xx);
     Encode(buf, command.rr);
 }
 
@@ -85,6 +94,13 @@ void Encode(ByteBuffer& buf, RT::B5xi12ri12 command)
     Encode(buf, command.opc);
     Encode(buf, command.xi12);
     Encode(buf, command.ri12);
+}
+
+void Encode(ByteBuffer& buf, RT::B5i16i16 command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.imm1);
+    Encode(buf, command.imm2);
 }
 
 void Encode(ByteBuffer& buf, RT::B5i32 command)

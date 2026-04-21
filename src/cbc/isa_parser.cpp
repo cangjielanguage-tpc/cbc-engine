@@ -320,10 +320,10 @@ struct IsaParserImpl {
         parser.BinaryImm(op, width, dst, lhs, static_cast<uint64_t>(MergeLowHi(low4, hibits)));
     }
 
-    static void Cast(IsaParser& parser)
+    static void Convert(IsaParser& parser)
     {
-        auto [fromType, toType, dst, src] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
-        parser.Cast(fromType, toType, dst, src);
+        auto [toType, fromType, to, from] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
+        parser.Convert(Format::ConvertType(toType), Format::ConvertType(fromType), to, from);
     }
 
     static void NewArr(IsaParser& parser)

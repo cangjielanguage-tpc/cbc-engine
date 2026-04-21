@@ -24,10 +24,11 @@ struct EmitterSnapshot {
 
 class Emitter {
 public:
-    using Reg    = Format::Reg;
-    using Width  = Format::Width;
-    using CC     = Format::CC;
-    using Common = Format::Common;
+    using Reg         = Format::Reg;
+    using Width       = Format::Width;
+    using CC          = Format::CC;
+    using Common      = Format::Common;
+    using ConvertType = Format::ConvertType;
 
     using FloatOperations = Format::FloatOperations;
     using LoadAccessKind  = Format::LoadAccessKind;
@@ -156,8 +157,12 @@ public:
     void SCC(CC cc, Width width, IReg d, FReg l, FReg r);
     void SCCImm(CC cc, Width width, IReg d, IReg l, uint64_t imm);
 
-    void DirectCall2i(IReg d, Symbol fuh);
-    void DirectCall2c(IReg d, Symbol target);
+    void Convert(ConvertType toType, ConvertType fromType, Reg to, Reg from);
+
+    void DirectCall2i(Symbol fuh);
+    void DirectCall2c(Symbol target);
+
+    void VirtualCall2c(uint16_t vnum, uint16_t extDefNum);
 
     MemSpace OpenMemSpace();
 

@@ -36,19 +36,22 @@ static void FiberDestroy(MRTExport::fiber_specific_data_t* data) { /* TODO: ecty
 extern "C" {
 /// This symbol is exported to the runtime, which would initialize engine.
 CBC_EXPORT void interpreter_bridge_init(
-    size_t size,
-    char const** options,
     struct MRTExport::interpreter_interface_t* interpInterf,
-    struct MRTExport::cjnative_interface_t* rtInterf
+    struct MRTExport::cjnative_interface_t* rtInterf,
+    int size,
+    char const** options
 );
 
 CBC_EXPORT void engine_set_cbcpath(char const* cbcPath) { g_cbcPath = cbcPath; }
 
 CBC_EXPORT void engine_set_main_cbc(char const* mainCbc) { g_mainCbc = mainCbc; }
 
+CBC_EXPORT void engine_initialize() { EnsureEngineInitialized(); }
+
 CBC_EXPORT void* engine_get_entrypoint_trampoline(void)
 {
-    EnsureEngineInitialized();
+    ASSERTION(g_Initialized, "Engine is not initialized");
+
     auto& engine = Engine::GetEngineInstance();
 
     Engine::Session session(engine);
@@ -64,10 +67,10 @@ CBC_EXPORT void* engine_get_entrypoint_trampoline(void)
 }
 
 CBC_EXPORT void interpreter_bridge_init(
-    size_t size,
-    char const** options,
     struct MRTExport::interpreter_interface_t* interpInterf,
-    struct MRTExport::cjnative_interface_t* rtInterf
+    struct MRTExport::cjnative_interface_t* rtInterf,
+    int size,
+    char const** options
 )
 {
     (void)size;
@@ -82,7 +85,7 @@ CBC_EXPORT void interpreter_bridge_init(
     interpInterf->fiber_destroy            = &FiberDestroy;
     interpInterf->fiber_start              = &FiberStart;
 
-    Interpretation::InitializeRuntimeInterface();
+    RTSupport::InitializeRuntimeInterface();
 }
 
 } // extern "C"

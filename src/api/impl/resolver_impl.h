@@ -17,17 +17,15 @@ public:
           method(method)
     {}
 
-    Type* Resolve(Symlevel::Index<Type> index) override;
+    Type* Resolve(Symlevel::Index<Symlevel::Term> index) override;
 
-    Term* Resolve(Symlevel::Index<Symlevel::Terms::Term> index) override;
+    DirectMethod* ResolveDirectMethod(Symlevel::Index<Symlevel::MethodReference> index) override;
 
-    Method* Resolve(Symlevel::Index<Symlevel::MethodReference> index) override;
+    VirtualMethod* ResolveVirtualMethod(Symlevel::Index<Symlevel::MethodReference> index) override;
 
     InstanceField* Resolve(Symlevel::Index<InstanceField> index) override;
 
     StaticField* Resolve(Symlevel::Index<StaticField> index) override;
-
-    std::optional<Type*> Resolve(Term* term) override;
 
     std::optional<Type*> TypeOf(Term* term) override;
 

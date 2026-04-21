@@ -40,10 +40,10 @@ protected:
     // TODO: add enum
     virtual void FloatBinary(uint8_t op, Format::Width width, FReg d, FReg l, FReg r) = 0;
 
-    // TODO: add enum
-    virtual void Cast(int8_t fromType, int8_t toType, AnyReg d, AnyReg s) = 0;
-    virtual void PrepareRecord(uint16_t ts)                               = 0;
-    virtual void NewArr(IReg dst, IReg len, uint16_t type)                = 0;
+    virtual void Convert(Format::ConvertType toType, Format::ConvertType fromType, AnyReg to, AnyReg from) = 0;
+
+    virtual void PrepareRecord(uint16_t ts)                = 0;
+    virtual void NewArr(IReg dst, IReg len, uint16_t type) = 0;
 
     virtual void GcPoint() = 0;
 

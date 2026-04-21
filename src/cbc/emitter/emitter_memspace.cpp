@@ -76,7 +76,7 @@ static RT::MemOpcode ComputeLoadAccessKind(LoadAccessKind ldk, RT::MemOpcode sta
         case LoadAccessKind::LD_64:      delta = 7; break;
         case LoadAccessKind::LD_S32TO64: delta = 8; break;
         case LoadAccessKind::LD_REF:     delta = 9; break;
-        default:                         ASSERTION(false, "unexpected ldk");
+        default:                         FATAL("unexpected ldk: %d", ldk);
     }
     return RT::MemOpcode(start + delta);
 }
@@ -94,7 +94,7 @@ static RT::MemOpcode ComputeStoreAccessKind(Format::StoreAccessKind stk, RT::Mem
         case StoreAccessKind::ST_REF: delta = 4; break;
         case StoreAccessKind::ST_F32: delta = 5; break;
         case StoreAccessKind::ST_F64: delta = 6; break;
-        default:                      ASSERTION(false, "unexpected ldk");
+        default:                      FATAL("unexpected stk: %d", stk);
     }
     return RT::MemOpcode(start + delta);
 }
