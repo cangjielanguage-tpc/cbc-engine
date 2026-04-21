@@ -222,7 +222,8 @@ perform_2i_call:
   str   x1, [x10]
 
   // current sp is 16-byte aligned
-  // FIXME: init frame here (prepare frame metadata to be 16-byte aligned!)
+  ldr   x8, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
+  sub   sp, sp, x8
 
 .Lrestart_interpretation:
   mov   x0, ECTYPE_REG

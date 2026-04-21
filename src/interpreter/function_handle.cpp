@@ -8,7 +8,9 @@
 #include "cbc/isa_rewriter.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/reader.h"
+#include "frame.h"
 #include "function_handle.h"
+#include "utils/math.h"
 
 namespace Interpretation {
 
@@ -79,8 +81,15 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, Dynam
     auto& heap         = session.GetEngine().CodeHeap();
     auto rewrittenCode = emitter.Build(heap);
 
+    auto stackAllocSize = STACK_SLOT_SIZE * (code.UntypedSlotCount() + code.TypedSlotCount());
+    auto frameSize      = MathUtils::AlignUp(stackAllocSize, FRAME_ALIGNMENT);
+
     ExecBytecodeInfo bytecode = {
-        .code = rewrittenCode,
+        .code             = rewrittenCode,
+        .savedIRegs       = code.UsedNonVolIRegMask(),
+        .savedFRegs       = code.UsedNonVolFRegMask(),
+        .untypedSlotCount = static_cast<uint16_t>(code.UntypedSlotCount()),
+        .frameSize        = stackAllocSize,
         // TODO: initialize rest
     };
 

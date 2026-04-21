@@ -151,6 +151,17 @@ public:
         return true;
     }
 
+    inline bool StoreFrameImm(Format::StoreAccessKind stk, uint64_t imm, uint64_t offset)
+    {
+        auto ptr = frame->start;
+        if (ptr == 0) {
+            return false;
+        }
+        ASSERTION(stk <= 3, "Unexpected stk");
+        MemoryLocation(ptr, offset).StoreImm(stk, imm);
+        return true;
+    }
+
     inline void MovRef(IReg d, IReg s) { ectype->Put(d, ectype->GetReference(s)); }
 
     template <typename ToType, typename FromType> inline void Mov(ToType d, FromType s)

@@ -4,12 +4,21 @@
 #include <cstdint>
 
 namespace MathUtils {
+static bool IsPowerOf2(uint32_t value) { return (value & (value - 1)) == 0; }
+
+static uint32_t AlignDown(uint32_t value, uint32_t alignment)
+{
+    return IsPowerOf2(value) ? (value & ~(alignment - 1)) : ((value / alignment) * alignment);
+}
+
+static uint32_t AlignUp(uint32_t value, uint32_t alignment) { return AlignDown(value + alignment - 1, alignment); }
+
 static bool IsNBits(uint64_t value, uint32_t bits)
 {
     if (bits == 64) {
         return true;
     } else {
-        return ((value >> (bits - 1)) == 0);
+        return (value >> bits) == 0;
     }
 }
 

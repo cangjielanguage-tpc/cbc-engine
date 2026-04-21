@@ -216,6 +216,32 @@ struct IsaDisasm : public IsaParser {
         stream << "aic" << " " << length.ToStr() << ", " << index.ToStr() << std::endl;
     }
 
+    void LoadUntyped(AnyReg dst, Format::LoadAccessKind ldk, uint16_t us) override
+    {
+        stream << "load.untyped." << ldk.ToStr() << " ";
+        if (ldk.IsFloat()) {
+            stream << FReg::From(dst).ToStr();
+        } else {
+            stream << IReg::From(dst).ToStr();
+        }
+        stream << ", " << us << std::endl;
+    }
+
+    void StoreUntyped(AnyReg src, Format::StoreAccessKind stk, uint16_t us) override
+    {
+        stream << "store.untyped." << stk.ToStr() << " " << us << ", ";
+        if (stk.IsFloat()) {
+            stream << FReg::From(src).ToStr() << std::endl;
+        } else {
+            stream << IReg::From(src).ToStr() << std::endl;
+        }
+    }
+
+    void StoreUntypedImm(uint64_t imm, uint16_t us) override
+    {
+        stream << "store.untyped.imm" << " " << us << ", " << imm << std::endl;
+    }
+
     void ParseOne() override
     {
         auto position = reader.Cursor() - reader.Start();

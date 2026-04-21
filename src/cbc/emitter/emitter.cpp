@@ -83,9 +83,8 @@ public:
 
     int32_t Size() const override { return 2; }
 
-    void Resolve(
-        Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter
-    ) const override
+    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+        const override
     {
         ASSERT(position >= 0);
         Segment::View buf = segment.At(static_cast<size_t>(position));
@@ -108,9 +107,8 @@ public:
 
     int32_t Size() const override { return RT::B5i32::SIZE; }
 
-    void Resolve(
-        Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter
-    ) const override
+    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+        const override
     {
         int32_t distance = Distance(symbols, this->symbol);
 
@@ -144,9 +142,8 @@ public:
         }
     }
 
-    void Resolve(
-        Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter
-    ) const override
+    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+        const override
     {
         int32_t distance = Distance(symbols, this->symbol);
 
@@ -199,9 +196,8 @@ public:
         }
     }
 
-    void Resolve(
-        Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter
-    ) const override
+    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+        const override
     {
         int32_t distance = Distance(symbols, this->symbol);
 
@@ -561,6 +557,13 @@ void Emitter::StoreFrame(StoreAccessKind stk, Reg src, uint32_t offset)
         ms.Offset(offset);
         ms.StoreFrame(stk, src);
     }
+}
+
+void Emitter::StoreFrameImm(StoreAccessKind stk, uint64_t imm, uint32_t offset)
+{
+    auto ms = OpenMemSpace();
+    ms.Offset(offset);
+    ms.StoreFrameImm(stk, imm);
 }
 
 void Emitter::SCC(CC cc, Width width, IReg d, IReg l, IReg r)

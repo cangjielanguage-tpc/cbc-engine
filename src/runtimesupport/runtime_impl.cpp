@@ -61,8 +61,8 @@ template __attribute__((used)) Thunk InterpretationLoop<Impl>(
 } // namespace Cbc::RT
 
 extern "C" {
-void engine_interpretation_loop() __attribute__((alias(
-    "_ZN3Cbc2RT18InterpretationLoopIN9RTSupport4ImplEEENS0_5ThunkEPN14Interpretation6EctypeEPNS5_5FrameENS2_"
-    "12ThreadHandleEPNS5_12LiteralTableERN7Decoder10ByteReaderE"
-)));
+void engine_interpretation_loop() __attribute__((
+    alias("_ZN3Cbc2RT18InterpretationLoopIN9RTSupport4ImplEEENS0_5ThunkEPN14Interpretation6EctypeEPNS5_5FrameENS2_"
+          "12ThreadHandleEPNS5_12LiteralTableERN7Decoder10ByteReaderE")
+));
 } // extern "C"

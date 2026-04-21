@@ -541,6 +541,8 @@ public:
 
     constexpr StoreAccessKind(const Value raw) : _value(raw) {}
 
+    constexpr static StoreAccessKind From(uint8_t value) { return Value(value); }
+
     constexpr operator Value() const { return _value; }
 
     constexpr bool IsFloat() const { return _value == ST_F32 || _value == ST_F64; }
@@ -593,6 +595,8 @@ public:
     constexpr LoadAccessKind(const uint8_t raw) : _value((Value)raw) {}
 
     constexpr LoadAccessKind(const Value raw) : _value(raw) {}
+
+    constexpr static LoadAccessKind From(uint8_t value) { return Value(value); }
 
     constexpr operator Value() const { return _value; }
 

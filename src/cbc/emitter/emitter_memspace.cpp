@@ -141,5 +141,61 @@ void MemSpaceEmitter::StoreFrame(StoreAccessKind stk, Reg src)
     LoadStore(stk, src, IReg::IRZ, opc);
 }
 
+void MemSpaceEmitter::StoreFrameImm(StoreAccessKind stk, uint64_t imm)
+{
+    uint8_t delta = 0;
+    switch (stk) {
+        case StoreAccessKind::ST_8:  break;
+        case StoreAccessKind::ST_16: delta = 1; break;
+        case StoreAccessKind::ST_32: delta = 3; break;
+        case StoreAccessKind::ST_64: delta = 6; break;
+        default:                     FATAL("unexpected stk: %d", stk);
+    }
+
+    if (MathUtils::IsNBitsSigned(imm, 8) || MathUtils::IsNBits(imm, 8)) {
+        RT::MemOpcode opc = RT::MemOpcode(RT::MemOpcode::FSTI_START_OPCODE + delta);
+        ASSERT(opc <= RT::MemOpcode::FSTI_END_OPCODE);
+        Encode(
+            segment,
+            RT::M2i8 {
+                .opc  = opc,
+                .imm8 = static_cast<uint8_t>(imm),
+            }
+        );
+    } else if (MathUtils::IsNBitsSigned(imm, 16) || MathUtils::IsNBits(imm, 16)) {
+        RT::MemOpcode opc = RT::MemOpcode(RT::MemOpcode::FSTI_START_OPCODE + delta + 1);
+        ASSERT(stk != StoreAccessKind::ST_8 && opc <= RT::MemOpcode::FSTI_END_OPCODE);
+        Encode(
+            segment,
+            RT::M3i16 {
+                .opc   = opc,
+                .imm16 = static_cast<uint16_t>(imm),
+            }
+        );
+    } else if (MathUtils::IsNBitsSigned(imm, 32) || MathUtils::IsNBits(imm, 32)) {
+        RT::MemOpcode opc = RT::MemOpcode(RT::MemOpcode::FSTI_START_OPCODE + delta + 2);
+        ASSERT(
+            (stk == StoreAccessKind::ST_32 || stk == StoreAccessKind::ST_64) && opc <= RT::MemOpcode::FSTI_END_OPCODE
+        );
+        Encode(
+            segment,
+            RT::M5i32 {
+                .opc   = opc,
+                .imm32 = static_cast<uint32_t>(imm),
+            }
+        );
+    } else {
+        RT::MemOpcode opc = RT::MemOpcode(RT::MemOpcode::FSTI_START_OPCODE + delta + 3);
+        ASSERT(stk == StoreAccessKind::ST_64 && opc <= RT::MemOpcode::FSTI_END_OPCODE);
+        Encode(
+            segment,
+            RT::M9i64 {
+                .opc   = opc,
+                .imm64 = imm,
+            }
+        );
+    }
+}
+
 } // namespace Emitter
 } // namespace Cbc

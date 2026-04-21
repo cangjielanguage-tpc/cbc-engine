@@ -181,6 +181,17 @@ Thunk InterpretationLoop(
         &&FST_F32, // M2rr
         &&FST_F64, // M2rr
 
+        &&FSTI_8_8,   // M2i8
+        &&FSTI_16_8,  // M2i8
+        &&FSTI_16_16, // M3i16
+        &&FSTI_32_8,  // M2i8
+        &&FSTI_32_16, // M3i16
+        &&FSTI_32_32, // M5i32
+        &&FSTI_64_8,  // M2i8
+        &&FSTI_64_16, // M3i16
+        &&FSTI_64_32, // M5i32
+        &&FSTI_64_64, // M9i64
+
     };
 
     uint64_t memspaceOffsetAcc = 0;
@@ -703,6 +714,26 @@ OFFS_REG: {
     FST(F32)
     FST(F64)
 #undef FST
+
+#define FSTI(memSize, immSize, opSize)                                                                                 \
+    FSTI_##memSize##_##immSize:                                                                                        \
+    {                                                                                                                  \
+        auto args = M##opSize##i##immSize::Decode(reader);                                                             \
+        bool successful =                                                                                              \
+            interpreter.StoreFrameImm(Format::StoreAccessKind::ST_##memSize, args.imm##immSize, memspaceOffsetAcc);    \
+        NEXT_COND(successful);                                                                                         \
+    }
+    FSTI(8, 8, 2)
+    FSTI(16, 8, 2)
+    FSTI(16, 16, 3)
+    FSTI(32, 8, 2)
+    FSTI(32, 16, 3)
+    FSTI(32, 32, 5)
+    FSTI(64, 8, 2)
+    FSTI(64, 16, 3)
+    FSTI(64, 32, 5)
+    FSTI(64, 64, 9)
+#undef FSTI
 
 #undef MEM_NEXT
 #undef NEXT

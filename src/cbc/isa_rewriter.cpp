@@ -14,6 +14,8 @@
 
 namespace Cbc {
 
+static uint32_t STACK_SLOT_SIZE = 8; // TODO: get rid of copy in interpreter/frame
+
 using MethodIndex = Symlevel::Index<Symlevel::MethodReference>;
 using FieldIndex  = Symlevel::Index<Symlevel::FieldReference>;
 using TermIndex   = Symlevel::Index<Symlevel::Term>;
@@ -213,6 +215,21 @@ struct IsaRewriter : public IsaParser {
     void ArrayLength(IReg dst, IReg arr) override { FATAL("not implemented"); }
 
     void ArrayIndexCheck(IReg length, IReg index) override { FATAL("not implemented"); }
+
+    void LoadUntyped(AnyReg dst, Format::LoadAccessKind ldk, uint16_t us) override
+    {
+        emit.LoadFrame(ldk, Format::Reg(dst), us * STACK_SLOT_SIZE);
+    }
+
+    void StoreUntyped(AnyReg src, Format::StoreAccessKind stk, uint16_t us) override
+    {
+        emit.StoreFrame(stk, Format::Reg(src), us * STACK_SLOT_SIZE);
+    }
+
+    void StoreUntypedImm(uint64_t imm, uint16_t us) override
+    {
+        emit.StoreFrameImm(Format::StoreAccessKind::ST_64, imm, us * STACK_SLOT_SIZE);
+    }
 
     void ParseOne() override
     {

@@ -317,10 +317,12 @@ public:
     inline MemoryLocation(uintptr_t _base, size_t _offset) : base(reinterpret_cast<uint8_t*>(_base)), offset(_offset) {}
 
     inline void StorePrim(StoreAccessKind::Value stk, Format::Reg src, Ectype* ectype);
+    inline void StoreImm(StoreAccessKind::Value stk, uint64_t imm);
     inline void LoadPrim(LoadAccessKind::Value ldk, Format::Reg dst, Ectype* ectype);
 
 private:
     template <typename P> inline void Store(Format::Reg src, Ectype* ectype);
+    template <typename P> inline void StoreImm(uint64_t imm);
     template <typename P> inline void Load(Format::Reg dst, Ectype* ectype);
 
     uint8_t* base;
@@ -354,6 +356,11 @@ template <typename P> inline void MemoryLocation::Store(Format::Reg src, Ectype*
     *reinterpret_cast<P*>(base + offset) = static_cast<P>(ectype->GetPrimitive(src.IR()).u64);
 }
 
+template <typename P> inline void MemoryLocation::StoreImm(uint64_t imm)
+{
+    *reinterpret_cast<P*>(base + offset) = static_cast<P>(imm);
+}
+
 template <typename P> inline void MemoryLocation::Load(Format::Reg dst, Ectype* ectype)
 {
     auto value = *reinterpret_cast<P*>(base + offset);
@@ -370,6 +377,17 @@ inline void MemoryLocation::StorePrim(StoreAccessKind::Value stk, Format::Reg sr
         case StoreAccessKind::ST_F32: Store<float>(src, ectype); return;
         case StoreAccessKind::ST_F64: Store<double>(src, ectype); return;
         default:                      FATAL("Unexpected stk");
+    }
+}
+
+inline void MemoryLocation::StoreImm(StoreAccessKind::Value stk, uint64_t imm)
+{
+    switch (stk) {
+        case StoreAccessKind::ST_8:  StoreImm<uint8_t>(imm); return;
+        case StoreAccessKind::ST_16: StoreImm<uint16_t>(imm); return;
+        case StoreAccessKind::ST_32: StoreImm<uint32_t>(imm); return;
+        case StoreAccessKind::ST_64: StoreImm<uint64_t>(imm); return;
+        default:                     FATAL("Unexpected stk");
     }
 }
 

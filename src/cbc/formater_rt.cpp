@@ -375,6 +375,13 @@ void Log(Interpretation::LiteralTable* table, std::ostream& stream, M2xr args)
     formatter.Format();
 }
 
+void Log(Interpretation::LiteralTable* table, std::ostream& stream, M2i8 args)
+{
+    Operand operands[] = { args.imm8 };
+    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
+    formatter.Format();
+}
+
 void Log(Interpretation::LiteralTable* table, std::ostream& stream, M3i16 args)
 {
     Operand operands[] = { args.imm16 };

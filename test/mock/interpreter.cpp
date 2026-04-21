@@ -85,8 +85,14 @@ static void InterpreterI2CallTest(Ectype* ectype, ThreadHandle handle, FunctionH
     }
     auto code = bytecode->code;
 
+    constexpr auto stackSlotCount = 100;
+    uint64_t frameSlots[stackSlotCount];
+    ASSERTION(bytecode->frameSize / STACK_SLOT_SIZE < stackSlotCount, "Frame is too big");
+    auto frameStart = reinterpret_cast<uintptr_t>(&frameSlots);
+    Interpretation::Frame frame(frameStart);
+
     Decoder::ByteReader s(code.bytecode, code.bytecode, code.bytecode + code.bytecodeSize);
-    InterpretationLoop(ectype, nullptr, handle, code.literals, s);
+    InterpretationLoop(ectype, &frame, handle, code.literals, s);
 }
 
 } // namespace Interpretation
