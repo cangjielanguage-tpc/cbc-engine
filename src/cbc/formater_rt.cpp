@@ -412,12 +412,10 @@ bool LogMemSpaceInstruction(
 )
 {
     static constexpr size_t BUF_SIZE = 1024ull;
-    auto [buf, bufStream] = Stream::createIndentedBuffer(BUF_SIZE);
+    Stream::OutIndented streamIndented(stream);
 #define FMT_LOGGER(opcode, fmt, sfmt, isTail)                                                                          \
     case MemOpcode::opcode:                                                                                            \
-        Log(table, *bufStream.get(), fmt::Decode(reader));                                                                    \
-        stream << (const char*)bufStream.get()->Flush();                                                                      \
-        return isTail;
+        Log(table, streamIndented, fmt::Decode(reader)); return isTail;
 
     switch (opc) {
         CBC_RT_MEMOPCODES(FMT_LOGGER)

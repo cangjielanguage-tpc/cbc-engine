@@ -16,10 +16,20 @@ public:
     Out(void* destStream);
     virtual ~Out() = default;
 
-    virtual const void* Flush() const                      = 0;
-    virtual void BeforePrint()                             = 0;
-    virtual void AfterPrint()                              = 0;
-    void NewLine();
+    virtual void Flush() const;
+    virtual void NewLine();
+    virtual void PrintFmt(const char* fmt, ...);
+    virtual void PrintFmt(const char* fmt, va_list argp);
+
+    Out& operator<<(const endl_t&);
+
+    template <typename T> Out& operator<<(const T v)
+    {
+        Print(v);
+        return *this;
+    }
+
+private:
     void Print(const float v);
     void Print(const double v);
     void Print(const long double v);
@@ -49,18 +59,6 @@ public:
     void Print(const long long* p);
     void Print(const unsigned long long* p);
     void Print(const void* p);
-    virtual void PrintFmt(const char* fmt, ...) = 0;
-    virtual void PrintFmt(const char* fmt, va_list argp) = 0;
-
-    Out& operator<<(const endl_t&);
-
-    template <typename T> Out& operator<<(const T v)
-    {
-        BeforePrint();
-        Print(v);
-        AfterPrint();
-        return *this;
-    }
 
 protected:
     void* dest;
@@ -71,9 +69,7 @@ class ToFile : public Out {
 public:
     ToFile(void* destStream);
 
-    const void* Flush() const override;
-    void BeforePrint() override;
-    void AfterPrint() override;
+    void Flush() const override;
     void PrintFmt(const char* fmt, ...) override;
     void PrintFmt(const char* fmt, va_list argp) override;
 };
@@ -85,9 +81,6 @@ public:
 
     ToBuffer(void* destStream, size_t bufSize);
 
-    const void* Flush() const override;
-    void BeforePrint() override;
-    void AfterPrint() override;
     void PrintFmt(const char* fmt, ...) override;
     void PrintFmt(const char* fmt, va_list argp) override;
 
@@ -96,19 +89,24 @@ protected:
     void AdvanceDest(int printedSz);
 };
 
-class ToIndentedBuffer : public ToBuffer {
+class OutIndented : public Out {
 public:
+    Out& stream;
     unsigned int indentationSize;
+    bool newLine = true;
 
-    ToIndentedBuffer(void* destStream, const size_t bufSize, const unsigned int indentSize = 4);
+    OutIndented(Out& astream, const unsigned int indentSize = 4);
 
-    void BeforePrint() override;
+    void NewLine() override;
+    void PrintFmt(const char* fmt, ...) override;
+    void PrintFmt(const char* fmt, va_list argp) override;
 };
 
 inline ToFile cout(stdout);
+inline ToFile coutIndented(stdout);
 inline ToFile cerr(stderr);
+inline ToFile cerrIndented(stderr);
 
 std::pair<std::shared_ptr<char[]>, std::shared_ptr<ToBuffer>> createBuffer(size_t bufSize);
-std::pair<std::shared_ptr<char[]>, std::shared_ptr<ToIndentedBuffer>> createIndentedBuffer(size_t bufSize);
 
 }; // namespace Stream
