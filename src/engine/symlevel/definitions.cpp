@@ -95,7 +95,7 @@ MethodDefinition MethodDefinition::Parse(Engine::Session& session, IO::FileId fi
             case 0: goto tags_end;
             case 1: codeOffs.emplace(Offset<Code>(reader.ReadU32())); break;
 
-            default: ASSERT(false); std::exit(1);
+            default: FATAL("unexpected tag: %d", tag); std::exit(2);
         }
     }
 

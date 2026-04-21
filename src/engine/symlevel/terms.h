@@ -8,7 +8,6 @@
 #include "offset.h"
 #include "string.h"
 #include "utils/assertion.h"
-#include "utils/math.h"
 #include <cstdint>
 #include <mutex>
 #include <unordered_set>

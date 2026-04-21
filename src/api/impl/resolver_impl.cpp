@@ -45,7 +45,7 @@ Type* ResolverImpl::Resolve(Symlevel::Index<Symlevel::Term> index)
             return session.Allocator().New<TypeImpl>(term, typeInfo);
         }
         default: {
-            ASSERTION(false, "Not supported yet");
+            FATAL("Not supported yet");
             break;
         }
     }
@@ -147,7 +147,7 @@ DirectMethod* ResolverImpl::ResolveDirectMethod(Symlevel::Index<Symlevel::Method
         }
 
         default: {
-            ASSERTION(false, "should not reach here");
+            FATAL("should not reach here");
             return nullptr;
         }
     }
@@ -155,19 +155,19 @@ DirectMethod* ResolverImpl::ResolveDirectMethod(Symlevel::Index<Symlevel::Method
 
 InstanceField* ResolverImpl::Resolve(Symlevel::Index<InstanceField> index)
 {
-    ASSERTION(false, "not implemented yet");
+    FATAL("not implemented yet");
     return nullptr;
 }
 
 StaticField* ResolverImpl::Resolve(Symlevel::Index<StaticField> index)
 {
-    ASSERTION(false, "not implemented yet");
+    FATAL("not implemented yet");
     return nullptr;
 }
 
 std::optional<Type*> ResolverImpl::TypeOf(Term* term)
 {
-    ASSERTION(false, "not implemented yet");
+    FATAL("not implemented yet");
     return nullptr;
 }
 
