@@ -131,7 +131,7 @@ struct IsaRewriter : public IsaParser {
         auto typeInfoOpt = type->GetTypeInfo();
 
         ASSERTION(typeInfoOpt.has_value(), "Cannot find type info for newobj");
-        void* typeInfo = typeInfoOpt.value(); // get raw value
+        void* typeInfo = typeInfoOpt.value().Raw(); // get raw value
 
         auto sym = emit.NewAddressSym(reinterpret_cast<uintptr_t>(typeInfo));
         emit.NewObj(dst, sym);

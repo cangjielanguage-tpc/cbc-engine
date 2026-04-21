@@ -11,7 +11,7 @@
 
 namespace Interpretation {
 
-template <typename RTI> class Interpreter {
+class Interpreter {
     using IReg = Cbc::IReg;
 
 public:
@@ -72,7 +72,7 @@ public:
             return false;
         }
         if (ldk == LoadAccessKind::LD_REF) {
-            ectype->Put(dst.IR(), RTSupport::RuntimeInterface<RTI>::ReadObjectInstance(obj, offset, handle));
+            ectype->Put(dst.IR(), RTSupport::RuntimeInterface::ReadObjectInstance(obj, offset, handle));
         } else {
             MemoryLocation(obj.value, offset).LoadPrim(ldk, dst, ectype);
         }
@@ -86,7 +86,7 @@ public:
             return false;
         }
         if (stk == StoreAccessKind::ST_REF) {
-            RTSupport::RuntimeInterface<RTI>::WriteObjectInstance(obj, offset, ectype->GetReference(src.IR()), handle);
+            RTSupport::RuntimeInterface::WriteObjectInstance(obj, offset, ectype->GetReference(src.IR()), handle);
         } else {
             MemoryLocation(obj.value, offset).StorePrim(stk, src, ectype);
         }
@@ -130,7 +130,7 @@ public:
             return false;
         }
         if (ldk == LoadAccessKind::LD_REF) {
-            ectype->Put(dst.IR(), RTSupport::RuntimeInterface<RTI>::ReadObject(ptr, offset, handle));
+            ectype->Put(dst.IR(), RTSupport::RuntimeInterface::ReadObject(ptr, offset, handle));
         } else {
             MemoryLocation(ptr, offset).LoadPrim(ldk, dst, ectype);
         }
@@ -144,7 +144,7 @@ public:
             return false;
         }
         if (stk == StoreAccessKind::ST_REF) {
-            RTSupport::RuntimeInterface<RTI>::WriteObject(ptr, offset, ectype->GetReference(src.IR()), handle);
+            RTSupport::RuntimeInterface::WriteObject(ptr, offset, ectype->GetReference(src.IR()), handle);
         } else {
             MemoryLocation(ptr, offset).StorePrim(stk, src, ectype);
         }

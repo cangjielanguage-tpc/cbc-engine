@@ -3,7 +3,6 @@
 /// This file defines Runtime specific interface for communication between
 /// interpreter and the runtime.
 
-#include "RuntimeTypes.h"
 #include "interpreter/ectype.h"
 
 namespace RTSupport {
@@ -18,21 +17,21 @@ private:
     void* const value;
 };
 
-template <typename RT> class TypeInfo {
+class TypeInfo {
 public:
-    TypeInfo(uintptr_t _value) : value((MRTExport::type_info_t*)_value) {}
+    TypeInfo(uintptr_t _value) : value(reinterpret_cast<void*>(_value)) {}
 
-    TypeInfo(MRTExport::type_info_t* _value) : value(_value) {}
+    TypeInfo(void* value) : value(value) {}
+
+    void* Raw() const { return value; }
 
     operator void*() const { return value; }
 
-    operator MRTExport::type_info_t*() { return value; }
-
 private:
-    MRTExport::type_info_t* const value;
+    void* value;
 };
 
-template <typename RT> class RuntimeInterface {
+class RuntimeInterface {
     using Reference = Interpretation::Value::Reference;
 
 public:
@@ -40,9 +39,9 @@ public:
     /// and puts result in IReg(idx) register.
     ///
     /// This specialization is needed to allow Thunk usage.
-    inline static void* AllocateObject;
+    static void* AllocateObjectInstance();
 
-    static Reference NewArray(TypeInfo<RT> type, size_t count, ThreadHandle th);
+    static Reference NewArray(TypeInfo type, size_t count, ThreadHandle th);
     static size_t ArrayLength(Reference array);
 
     static Reference ReadObjectInstance(Reference base, size_t offset, ThreadHandle th);
@@ -52,7 +51,9 @@ public:
     static Reference ReadObject(uintptr_t base, size_t offset, ThreadHandle th);
     static void WriteObject(uintptr_t base, size_t offset, Reference object, ThreadHandle th);
 
-    static TypeInfo<RT> GetTypeInfo(const char* typeName);
+    static TypeInfo GetTypeInfo(const char* typeName);
+
+    static void* GenericI2CCallInstance();
 };
 
 } // namespace RTSupport

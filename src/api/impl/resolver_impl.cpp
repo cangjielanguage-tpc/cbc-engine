@@ -38,9 +38,9 @@ Type* ResolverImpl::Resolve(Symlevel::Index<Symlevel::Term> index)
             auto nameFileId     = term.GetIdentifier().AsAotIdent().GetFile();
             auto typeNameOffset = term.GetIdentifier().AsAotIdent().GetOffset();
             auto typeName       = Reader::Read(session, nameFileId, Offset<String>(typeNameOffset));
-            auto typeInfo = RTSupport::RuntimeInterface<RTSupport::Impl>::GetTypeInfo(std::string(typeName).c_str());
+            auto typeInfo       = RTSupport::RuntimeInterface::GetTypeInfo(std::string(typeName).c_str());
 
-            ASSERTION(typeInfo != nullptr, "Couldn't resolve AOT type");
+            ASSERTION(typeInfo.Raw() != nullptr, "Couldn't resolve AOT type");
 
             return session.Allocator().New<TypeImpl>(term, typeInfo);
         }

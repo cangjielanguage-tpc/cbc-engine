@@ -8,7 +8,6 @@
 #include "engine/symlevel/io/filesystem.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
-#include "runtime_impl.h"
 
 static std::mutex g_InitializationGuard;
 static bool g_Initialized;
@@ -84,8 +83,7 @@ CBC_EXPORT void interpreter_bridge_init(
     interpInterf->c2iStubEndAddr           = reinterpret_cast<uintptr_t>(&Asm::engine_c2i_call_pc_end);
     interpInterf->fiber_destroy            = &FiberDestroy;
     interpInterf->fiber_start              = &FiberStart;
-
-    RTSupport::InitializeRuntimeInterface();
+    Asm::engine_newobject_function         = g_CJNativeInterfaceInstance.object_alloc;
 }
 
 } // extern "C"
