@@ -216,7 +216,7 @@ perform_2i_call:
   mov   [rbp - READER_SLOT], rsi
 
   // current rsp is 16-byte aligned
-  mov   r8, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
+  mov   r8d, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   sub   rsp, r8
 
 .Lrestart_interpretation:

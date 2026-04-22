@@ -39,15 +39,20 @@ struct IsaDisasm : public IsaParser {
           log10Size(SizeOfOffset(reader.Start(), reader.End()))
     {}
 
+    std::string_view Fmt(AnyReg reg, bool isFloat)
+    {
+        if (isFloat) {
+            return FReg::From(reg).ToStr();
+        } else {
+            return IReg::From(reg).ToStr();
+        }
+    }
+
     void Bcc(Format::Width width, Format::CC cc, AnyReg l, AnyReg r, int64_t delta) override
     {
         stream << "bcc." << Sz(width) << " " << cc.ToStr() << ", ";
-        if (cc.IsFloatingPoint()) {
-            stream << FReg::From(l).ToStr() << ", " << FReg::From(r).ToStr();
-        } else {
-            stream << IReg::From(l).ToStr() << ", " << IReg::From(r).ToStr();
-        }
-        stream << ", " << delta << std::endl;
+        auto fp = cc.IsFloatingPoint();
+        stream << Fmt(l, fp) << ", " << Fmt(r, fp) << ", " << delta << std::endl;
     }
 
     void BccImm(Format::Width width, Format::CC cc, IReg l, uint64_t imm, int64_t delta) override
@@ -157,12 +162,8 @@ struct IsaDisasm : public IsaParser {
     void Scc(Format::Width width, Format::CC cc, IReg d, AnyReg l, AnyReg r) override
     {
         stream << "scc." << Sz(width) << " " << cc.ToStr() << ", " << d.ToStr() << ", ";
-        if (cc.IsFloatingPoint()) {
-            stream << FReg::From(l).ToStr() << ", " << FReg::From(r).ToStr();
-        } else {
-            stream << IReg::From(l).ToStr() << ", " << IReg::From(r).ToStr();
-        }
-        stream << std::endl;
+        auto fp = cc.IsFloatingPoint();
+        stream << Fmt(l, fp) << ", " << Fmt(r, fp) << std::endl;
     }
 
     void SccImm(Format::Width width, Format::CC cc, IReg d, IReg l, uint64_t imm) override
@@ -218,23 +219,12 @@ struct IsaDisasm : public IsaParser {
 
     void LoadUntyped(AnyReg dst, Format::LoadAccessKind ldk, uint16_t us) override
     {
-        stream << "load.untyped." << ldk.ToStr() << " ";
-        if (ldk.IsFloat()) {
-            stream << FReg::From(dst).ToStr();
-        } else {
-            stream << IReg::From(dst).ToStr();
-        }
-        stream << ", " << us << std::endl;
+        stream << "load.untyped." << ldk.ToStr() << " " << Fmt(dst, ldk.IsFloat()) << ", " << us << std::endl;
     }
 
     void StoreUntyped(AnyReg src, Format::StoreAccessKind stk, uint16_t us) override
     {
-        stream << "store.untyped." << stk.ToStr() << " " << us << ", ";
-        if (stk.IsFloat()) {
-            stream << FReg::From(src).ToStr() << std::endl;
-        } else {
-            stream << IReg::From(src).ToStr() << std::endl;
-        }
+        stream << "store.untyped." << stk.ToStr() << " " << us << ", " << Fmt(src, stk.IsFloat()) << std::endl;
     }
 
     void StoreUntypedImm(uint64_t imm, uint16_t us) override

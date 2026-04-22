@@ -4,6 +4,7 @@
 #include <variant>
 
 #include "adapters.h"
+#include "cbc/frame.h"
 #include "cbc/isa_disasm.h"
 #include "cbc/isa_rewriter.h"
 #include "engine/symlevel/definitions.h"
@@ -81,8 +82,8 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, Dynam
     auto& heap         = session.GetEngine().CodeHeap();
     auto rewrittenCode = emitter.Build(heap);
 
-    auto stackAllocSize = STACK_SLOT_SIZE * (code.UntypedSlotCount() + code.TypedSlotCount());
-    auto frameSize      = MathUtils::AlignUp(stackAllocSize, FRAME_ALIGNMENT);
+    auto stackAllocSize = Cbc::STACK_SLOT_SIZE * (code.UntypedSlotCount()); // TODO: typed stack slots
+    auto frameSize      = MathUtils::AlignUp(stackAllocSize, Cbc::FRAME_ALIGNMENT);
 
     ExecBytecodeInfo bytecode = {
         .code             = rewrittenCode,

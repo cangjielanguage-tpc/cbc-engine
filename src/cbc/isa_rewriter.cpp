@@ -2,6 +2,7 @@
 #include "api/resolver.h"
 #include "api/type.h"
 #include "cbc/emitter/emitter.h"
+#include "cbc/frame.h"
 #include "cbc/isa.h"
 #include "engine/symlevel/index.h"
 #include "engine/symlevel/references.h"
@@ -13,8 +14,6 @@
 #include <sys/types.h>
 
 namespace Cbc {
-
-static uint32_t STACK_SLOT_SIZE = 8; // TODO: get rid of copy in interpreter/frame
 
 using MethodIndex = Symlevel::Index<Symlevel::MethodReference>;
 using FieldIndex  = Symlevel::Index<Symlevel::FieldReference>;
@@ -216,19 +215,21 @@ struct IsaRewriter : public IsaParser {
 
     void ArrayIndexCheck(IReg length, IReg index) override { FATAL("not implemented"); }
 
+    uint32_t UntypedSlotOffset(uint16_t us) { return us * STACK_SLOT_SIZE; }
+
     void LoadUntyped(AnyReg dst, Format::LoadAccessKind ldk, uint16_t us) override
     {
-        emit.LoadFrame(ldk, Format::Reg(dst), us * STACK_SLOT_SIZE);
+        emit.LoadFrame(ldk, Format::Reg(dst), UntypedSlotOffset(us));
     }
 
     void StoreUntyped(AnyReg src, Format::StoreAccessKind stk, uint16_t us) override
     {
-        emit.StoreFrame(stk, Format::Reg(src), us * STACK_SLOT_SIZE);
+        emit.StoreFrame(stk, Format::Reg(src), UntypedSlotOffset(us));
     }
 
     void StoreUntypedImm(uint64_t imm, uint16_t us) override
     {
-        emit.StoreFrameImm(Format::StoreAccessKind::ST_64, imm, us * STACK_SLOT_SIZE);
+        emit.StoreFrameImm(Format::StoreAccessKind::ST_64, imm, UntypedSlotOffset(us));
     }
 
     void ParseOne() override

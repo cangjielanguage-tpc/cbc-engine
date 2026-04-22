@@ -15,7 +15,7 @@ template <typename RTI> class Interpreter {
     using IReg = Cbc::IReg;
 
 public:
-    Interpreter(Ectype* _ectype, Frame* _frame, RTSupport::ThreadHandle _handle, LiteralTable* _literals)
+    Interpreter(Ectype* _ectype, Frame _frame, RTSupport::ThreadHandle _handle, LiteralTable* _literals)
         : ectype(_ectype),
           frame(_frame),
           handle(_handle),
@@ -125,10 +125,7 @@ public:
 
     inline bool LoadFrame(Format::LoadAccessKind ldk, Format::Reg dst, size_t offset)
     {
-        auto ptr = frame->start;
-        if (ptr == 0) {
-            return false;
-        }
+        auto ptr = frame.start;
         if (ldk == LoadAccessKind::LD_REF) {
             ectype->Put(dst.IR(), RTSupport::RuntimeInterface<RTI>::ReadObject(ptr, offset, handle));
         } else {
@@ -139,10 +136,7 @@ public:
 
     inline bool StoreFrame(Format::StoreAccessKind stk, Format::Reg src, uint64_t offset)
     {
-        auto ptr = frame->start;
-        if (ptr == 0) {
-            return false;
-        }
+        auto ptr = frame.start;
         if (stk == StoreAccessKind::ST_REF) {
             RTSupport::RuntimeInterface<RTI>::WriteObject(ptr, offset, ectype->GetReference(src.IR()), handle);
         } else {
@@ -153,10 +147,7 @@ public:
 
     inline bool StoreFrameImm(Format::StoreAccessKind stk, uint64_t imm, uint64_t offset)
     {
-        auto ptr = frame->start;
-        if (ptr == 0) {
-            return false;
-        }
+        auto ptr = frame.start;
         ASSERTION(stk <= 3, "Unexpected stk");
         MemoryLocation(ptr, offset).StoreImm(stk, imm);
         return true;
@@ -388,7 +379,7 @@ private:
     inline bool NullCheck(Value::Reference obj) { return true; }
 
     Ectype* ectype;
-    Frame* frame;
+    Frame frame;
     RTSupport::ThreadHandle handle;
     LiteralTable* literals;
 };

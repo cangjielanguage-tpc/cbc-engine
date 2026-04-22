@@ -421,7 +421,7 @@ TEST_F(MemoryAccess, TestFrameSpace)
 {
     char frameSlots[32];
     auto frameStart = reinterpret_cast<uintptr_t>(&frameSlots);
-    Interpretation::Frame frame(frameStart);
+    Interpretation::Frame frame { frameStart };
 
     Cbc::Emitter::Emitter e;
 
@@ -444,7 +444,7 @@ TEST_F(MemoryAccess, TestFrameSpace)
     e.Add(Width::W64, IReg::IR1, IReg::IR6, IReg::IR7);
     e.Ret();
 
-    auto res = Interpret(e.Build(heap), &frame, U32(0), U64(0));
+    auto res = Interpret(e.Build(heap), frame, U32(0), U64(0));
     EXPECT_EQ(*reinterpret_cast<long*>(frameSlots), 42);
     EXPECT_EQ(*reinterpret_cast<int*>(frameSlots + 16), 34);
     EXPECT_EQ(res.u64, 76);
@@ -454,7 +454,7 @@ TEST_F(MemoryAccess, TestFrame)
 {
     char frameSlots[32];
     auto frameStart = reinterpret_cast<uintptr_t>(&frameSlots);
-    Interpretation::Frame frame(frameStart);
+    Interpretation::Frame frame { frameStart };
 
     Cbc::Emitter::Emitter e;
 
@@ -469,7 +469,7 @@ TEST_F(MemoryAccess, TestFrame)
     e.Add(Width::W64, IReg::IR1, IReg::IR6, IReg::IR7);
     e.Ret();
 
-    auto res = Interpret(e.Build(heap), &frame, U32(0), U64(0));
+    auto res = Interpret(e.Build(heap), frame, U32(0), U64(0));
     EXPECT_EQ(*reinterpret_cast<long*>(frameSlots), 42);
     EXPECT_EQ(*reinterpret_cast<int*>(frameSlots + 16), 34);
     EXPECT_EQ(res.u64, 76);

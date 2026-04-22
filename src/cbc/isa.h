@@ -532,7 +532,7 @@ public:
 #define StoreAccessKindEnum(opc, value, str) opc = value,
 
     enum Value : uint8_t {
-        StoreAccessKindValue(StoreAccessKindEnum)
+        StoreAccessKindValue(StoreAccessKindEnum) LAST = ST_F64
     };
 
 #undef StoreAccessKindEnum
@@ -541,7 +541,11 @@ public:
 
     constexpr StoreAccessKind(const Value raw) : _value(raw) {}
 
-    constexpr static StoreAccessKind From(uint8_t value) { return Value(value); }
+    constexpr static StoreAccessKind From(uint8_t value)
+    {
+        ASSERT(value <= LAST);
+        return Value(value);
+    }
 
     constexpr operator Value() const { return _value; }
 
@@ -587,7 +591,7 @@ public:
 #define LoadAccessKindEnum(opc, value, str) opc = value,
 
     enum Value : uint8_t {
-        LoadAccessKindValue(LoadAccessKindEnum)
+        LoadAccessKindValue(LoadAccessKindEnum) LAST = LD_REF
     };
 
 #undef LoadAccessKindEnum
@@ -596,7 +600,11 @@ public:
 
     constexpr LoadAccessKind(const Value raw) : _value(raw) {}
 
-    constexpr static LoadAccessKind From(uint8_t value) { return Value(value); }
+    constexpr static LoadAccessKind From(uint8_t value)
+    {
+        ASSERT(value <= LAST);
+        return Value(value);
+    }
 
     constexpr operator Value() const { return _value; }
 
