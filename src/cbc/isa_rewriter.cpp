@@ -35,9 +35,9 @@ struct IsaRewriter : public IsaParser {
     size_t startPosition;
     std::unordered_map<ssize_t, Emitter::Label> instructionLabel;
 
-    Format::LoadAccessKind typeToLoadAccessKind(Symlevel::Terms::TemplateKind typeIdentifier)
+    Format::LoadAccessKind typeToLoadAccessKind(Symlevel::TemplateKind typeIdentifier)
     {
-        using namespace Symlevel::Terms;
+        using namespace Symlevel;
         using namespace Format;
 
         switch (typeIdentifier) {
@@ -53,14 +53,14 @@ struct IsaRewriter : public IsaParser {
             case TemplateKind::F64: return LoadAccessKind::LD_F64;
             default:                {
                 FATAL("Not supported template kind");
-                return TemplateKind::VOID;
+                return LoadAccessKind::SPECIAL;
             }
         }
     }
 
-    Format::StoreAccessKind typeToStoreAccessKind(Symlevel::Terms::TemplateKind typeIdentifier)
+    Format::StoreAccessKind typeToStoreAccessKind(Symlevel::TemplateKind typeIdentifier)
     {
-        using namespace Symlevel::Terms;
+        using namespace Symlevel;
         using namespace Format;
 
         switch (typeIdentifier) {
@@ -76,7 +76,7 @@ struct IsaRewriter : public IsaParser {
             case TemplateKind::F64: return StoreAccessKind::ST_F64;
             default:                {
                 FATAL("Not supported template kind");
-                return TemplateKind::VOID;
+                return StoreAccessKind::SPECIAL;
             }
         }
     }

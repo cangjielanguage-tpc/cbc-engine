@@ -6,7 +6,7 @@
 namespace API {
 namespace Impl {
 
-using Term = Symlevel::Terms::Term;
+using Term = Symlevel::Term;
 
 //////////////////////////////////
 // DirectMethodCbc

@@ -7,7 +7,7 @@
 namespace API {
 
 class InstanceFieldImpl : public InstanceField {
-    using Term = Symlevel::Terms::Term;
+    using Term = Symlevel::Term;
 
 public:
     InstanceFieldImpl(Symlevel::String name, int ordinal, FieldFlags flags, Type* fieldType, Type* refType);
@@ -34,7 +34,7 @@ private:
 };
 
 class StaticFieldImpl : public StaticField {
-    using Term = Symlevel::Terms::Term;
+    using Term = Symlevel::Term;
 
 public:
     StaticFieldImpl(uintptr_t location, Symlevel::String name, FieldFlags flags, Type* fieldType, Type* refType);
@@ -47,7 +47,10 @@ public:
 
     FieldFlags Flags() override { return flags; }
 
-    std::uintptr_t Location() override { return location; }
+    std::uintptr_t Location() override {
+        ASSERTION(location != 0, "static field ref points to incorrect location"); 
+        return location; 
+    }
 
 private:
     Symlevel::String name;

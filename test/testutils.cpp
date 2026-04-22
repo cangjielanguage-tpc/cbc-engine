@@ -49,7 +49,7 @@ struct Resolver : public API::Resolver {
         return nullptr;
     }
 
-    std::optional<API::Type*> TypeOf(Symlevel::Terms::Term* term) override { return std::nullopt; }
+    std::optional<API::Type*> TypeOf(Symlevel::Term* term) override { return std::nullopt; }
 
     ~Resolver() override = default;
 };

@@ -23,7 +23,7 @@ struct FieldFlags;
  * @see StaticField
  */
 class Field {
-    using Term = Symlevel::Terms::Term;
+    using Term = Symlevel::Term;
 
 public:
     /**
@@ -58,7 +58,7 @@ protected:
  * @see Term
  */
 class InstanceField : public Field {
-    using Term = Symlevel::Terms::Term;
+    using Term = Symlevel::Term;
 
 public:
     /**

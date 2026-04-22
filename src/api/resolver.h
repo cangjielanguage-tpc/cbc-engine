@@ -35,7 +35,7 @@ public:
 
     virtual StaticField* ResolveStaticField(Symlevel::Index<Symlevel::FieldReference> index) = 0;
 
-    virtual std::optional<Type*> TypeOf(Symlevel::Terms::Term* term) = 0;
+    virtual std::optional<Type*> TypeOf(Symlevel::Term* term) = 0;
 
     virtual ~Resolver() = default;
 };

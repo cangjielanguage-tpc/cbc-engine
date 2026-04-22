@@ -65,6 +65,26 @@ public:
         return false;
     }
 
+    inline bool LoadAddr(Format::LoadAccessKind ldk, Format::Reg dst, uint64_t location) {
+        if (ldk == LoadAccessKind::LD_REF) {
+            ectype->Put(dst.IR(), RTSupport::RuntimeInterface<RTI>::ReadObjectStatic(
+                reinterpret_cast<void*>(location), handle));
+        } else {
+            MemoryLocation(location).LoadPrim(ldk, dst, ectype);
+        }
+        return true;
+    }
+
+    inline bool StoreAddr(Format::StoreAccessKind stk, Format::Reg src, uint64_t location) {
+        if (stk == StoreAccessKind::ST_REF) {
+            ectype->Put(src.IR(), RTSupport::RuntimeInterface<RTI>::ReadObjectStatic(
+                reinterpret_cast<void*>(location), handle));
+        } else {
+            MemoryLocation(location).StorePrim(stk, src, ectype);
+        }
+        return true;
+    }
+
     inline bool LoadObj(Format::LoadAccessKind ldk, Format::Reg dst, IReg base, uint64_t offset)
     {
         auto obj = ectype->GetReference(base);
@@ -130,7 +150,7 @@ public:
             return false;
         }
         if (ldk == LoadAccessKind::LD_REF) {
-            ectype->Put(dst.IR(), RTSupport::RuntimeInterface<RTI>::ReadObject(ptr, offset, handle));
+            MemoryLocation(ptr, offset).LoadRef(dst, ectype);
         } else {
             MemoryLocation(ptr, offset).LoadPrim(ldk, dst, ectype);
         }
@@ -144,7 +164,7 @@ public:
             return false;
         }
         if (stk == StoreAccessKind::ST_REF) {
-            RTSupport::RuntimeInterface<RTI>::WriteObject(ptr, offset, ectype->GetReference(src.IR()), handle);
+            MemoryLocation(ptr, offset).StoreRef(src, ectype);
         } else {
             MemoryLocation(ptr, offset).StorePrim(stk, src, ectype);
         }

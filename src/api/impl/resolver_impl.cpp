@@ -32,32 +32,47 @@ Type* ResolverImpl::Resolve(Symlevel::Index<Symlevel::Term> index)
     return Resolve(termOpt.value());
 }
 
-Type* ResolverImpl::Resolve(Symlevel::Terms::Term term)
+Type* ResolverImpl::Resolve(Symlevel::Term term)
 {
     using namespace Symlevel;
 
     auto termKind = term.GetIdentifier().GetKind();
+    const char* typeName;
     switch (termKind) {
         case TemplateKind::AOT_TYPE: {
             auto nameFileId     = term.GetIdentifier().AsAotIdent().GetFile();
             auto typeNameOffset = term.GetIdentifier().AsAotIdent().GetOffset();
-            auto typeName       = Reader::Read(session, nameFileId, Offset<String>(typeNameOffset));
-            auto typeInfo = RTSupport::RuntimeInterface<RTSupport::Impl>::GetTypeInfo(std::string(typeName).c_str());
+            auto _typeName      = Reader::Read(session, nameFileId, Offset<String>(typeNameOffset));
 
-            ASSERTION(typeInfo != nullptr, "Couldn't resolve AOT type");
-
-            return session.Allocator().New<TypeImpl>(term, typeInfo);
+            typeName = std::string(_typeName).c_str();
         }
-        case TemplateKind::I64: { // TODO support other built-in types
-            auto typeInfo = RTSupport::RuntimeInterface<RTSupport::Impl>::GetTypeInfo(std::string("Int64").c_str());
-            ASSERTION(typeInfo != nullptr, "Couldn't resolve AOT type");
+        case TemplateKind::U8:
+        case TemplateKind::I8:
+        case TemplateKind::U16:
+        case TemplateKind::I16:
+        case TemplateKind::U32:
+        case TemplateKind::I32:
+        case TemplateKind::U64:
+        case TemplateKind::I64:
+        case TemplateKind::F16:
+        case TemplateKind::F32:
+        case TemplateKind::F64: { // TODO support other built-in types
+            auto _typeName = term.GetIdentifier().GetKindName();
+            if (!_typeName.has_value()) {
+                FATAL("Cannot get type info of template kind: %d", termKind);
+            }
 
-            return session.Allocator().New<TypeImpl>(term, typeInfo);
+            typeName = _typeName.value();
         }
         default: {
             FATAL("Not supported yet");
-            break;
+            return nullptr;;
         }
+
+        TypeInfo typeInfo = RTSupport::RuntimeInterface<RTSupport::Impl>::GetTypeInfo(typeName);
+
+        ASSERTION(typeInfo != nullptr, "Couldn't resolve AOT type");
+        return session.Allocator().New<TypeImpl>(term, typeInfo);
     }
 
     return nullptr;
@@ -225,7 +240,7 @@ StaticField* ResolverImpl::ResolveStaticField(Symlevel::Index<Symlevel::FieldRef
     return ResolveField<StaticFieldImpl>(index);
 }
 
-std::optional<Type*> ResolverImpl::TypeOf(Symlevel::Terms::Term* term)
+std::optional<Type*> ResolverImpl::TypeOf(Symlevel::Term* term)
 {
     FATAL("not implemented yet");
     return nullptr;

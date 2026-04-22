@@ -59,7 +59,7 @@ public:
     inline const bool IsRecord() const { return isRecord; }
 
 private:
-    FieldReference(String name, Term refType, Term fieldType, uint8_t flags, uint8_t accessKind)
+    FieldReference(String name, Term refType, Term fieldType, bool isRecord)
         : name(name),
           refType(refType),
           fieldType(fieldType),
@@ -69,9 +69,7 @@ private:
     String name;
     Term refType;
     Term fieldType;
-
-    uint8_t flags;
-    uint8_t accessKind;
+    bool isRecord;
 };
 
 enum MethodAccessKind : uint16_t {

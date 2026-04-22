@@ -427,10 +427,16 @@ NEWOBJ: {
     return { func, type };
 }
 LOAD_ADDR: {
-    NEXT_COND(true);
+    auto args       = B2xr::Decode(reader);
+    auto location   = reader.Read64();
+    bool successful = interpreter.LoadAddr(args.xr.imm.LDK(), args.xr.r, location);
+    NEXT_COND(successful);
 }
 STORE_ADDR: {
-    NEXT_COND(true);
+    auto args       = B2xr::Decode(reader);
+    auto location   = reader.Read64();
+    bool successful = interpreter.StoreAddr(args.xr.imm.STK(), args.xr.r, location);
+    NEXT_COND(successful);
 }
 LOAD_OBJ: {
     auto args       = B4xi12rr::Decode(reader);

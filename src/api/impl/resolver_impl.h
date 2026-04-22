@@ -26,7 +26,7 @@ public:
 
     StaticField* ResolveStaticField(Symlevel::Index<Symlevel::FieldReference> index) override;
 
-    std::optional<Type*> TypeOf(Symlevel::Terms::Term* term) override;
+    std::optional<Type*> TypeOf(Symlevel::Term* term) override;
 
     ~ResolverImpl() override;
 
@@ -34,7 +34,7 @@ private:
     Engine::Session& session;
     Engine::Identifier<Symlevel::MethodDefinition> method;
 
-    Type* Resolve(Symlevel::Terms::Term index);
+    Type* Resolve(Symlevel::Term index);
     
     template <typename T> T* ResolveField(Symlevel::Index<Symlevel::FieldReference> index);
 };

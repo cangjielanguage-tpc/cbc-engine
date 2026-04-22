@@ -1,7 +1,5 @@
 #include "field_impl.h"
 
-using namespace Symlevel::Terms;
-
 namespace API {
 
 InstanceFieldImpl::InstanceFieldImpl(
