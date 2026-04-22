@@ -107,8 +107,15 @@ struct IsaRewriter : public IsaParser {
         emit.BinaryImm(op, width, d, l, value);
     }
 
-    // TODO: add enum
-    void FloatBinary(uint8_t op, Format::Width width, FReg d, FReg l, FReg r) override {}
+    void FBinary(Format::FloatOperations op, Format::Width width, FReg d, FReg l, FReg r) override
+    {
+        emit.Binary(op, width, d, l, r);
+    }
+
+    void FUnary(Format::FloatOperations op, Format::Width width, FReg d, FReg s) override
+    {
+        emit.Unary(op, width, d, s);
+    }
 
     void Convert(Format::ConvertType toType, Format::ConvertType fromType, AnyReg to, AnyReg from) override
     {

@@ -437,10 +437,26 @@ struct IsaParserImpl {
         parser.ArrayIndexCheck(rl, ri);
     }
 
-    template <Width::Value width> static void FloatBinary(IsaParser& parser)
+    template <Width::Value width> static void FloatOp(IsaParser& parser)
     {
         auto [op, dst, lhs, rhs] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
-        parser.FloatBinary(op, width, dst, lhs, rhs);
+
+        Format::FloatOperations fop(op);
+        switch (fop) {
+            case Format::FloatOperations::FADD: // fallthrough
+            case Format::FloatOperations::FSUB: // fallthrough
+            case Format::FloatOperations::FMUL: // fallthrough
+            case Format::FloatOperations::FDIV: parser.FBinary(fop, width, dst, lhs, rhs); break;
+
+            case Format::FloatOperations::FMOV: parser.FMov(width, dst, rhs); break;
+
+            case Format::FloatOperations::FNEG: // fallthrough
+            case Format::FloatOperations::FABS: // fallthrough
+            case Format::FloatOperations::FSQRT: parser.FUnary(fop, width, dst, rhs); break;
+
+            case Format::FloatOperations::I2F: parser.IntToFloat(width, dst, rhs); break;
+            case Format::FloatOperations::F2I: parser.FloatToInt(width, dst, rhs); break;
+        }
     }
 
     template <Width::Value width, CC::Value value>

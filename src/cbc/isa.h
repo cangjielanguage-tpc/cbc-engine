@@ -387,11 +387,13 @@ public:
     X(FMOV, 0b0100, "fmov")                                                                                            \
     X(FNEG, 0b0101, "fneg")                                                                                            \
     X(FABS, 0b0110, "fabs")                                                                                            \
-    X(FSQRT, 0b0111, "fsqrt")
+    X(FSQRT, 0b0111, "fsqrt")                                                                                          \
+    X(I2F, 0b1000, "i2f")                                                                                              \
+    X(F2I, 0b1001, "f2i")
 
 #define FloatOperationsEnum(opc, value, str) opc = value,
 
-    enum Value : uint32_t {
+    enum Value : uint8_t {
         FloatOperationsValue(FloatOperationsEnum)
     };
 

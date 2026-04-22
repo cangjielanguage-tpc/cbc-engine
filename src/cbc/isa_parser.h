@@ -36,9 +36,8 @@ protected:
     virtual void Binary(Format::Common op, Format::Width width, IReg d, IReg l, IReg r)            = 0;
     virtual void BinaryImm(Format::Common op, Format::Width width, IReg d, IReg l, uint64_t value) = 0;
     virtual void FMovImm(Format::Width width, FReg d, double value)                                = 0;
-
-    // TODO: add enum
-    virtual void FloatBinary(uint8_t op, Format::Width width, FReg d, FReg l, FReg r) = 0;
+    virtual void FBinary(Format::FloatOperations op, Format::Width width, FReg d, FReg l, FReg r)  = 0;
+    virtual void FUnary(Format::FloatOperations op, Format::Width width, FReg d, FReg s)           = 0;
 
     virtual void Convert(Format::ConvertType toType, Format::ConvertType fromType, AnyReg to, AnyReg from) = 0;
 
