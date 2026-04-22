@@ -29,12 +29,12 @@ public:
     /**
      * @brief Type of field.
      */
-    virtual std::optional<Type*> FieldType() = 0;
+    virtual Type* FieldType() = 0;
 
     /**
      * @brief The ref type.
      */
-    virtual std::optional<Type*> RefType() = 0;
+    virtual Type* RefType() = 0;
 
     /**
      * @brief Full name of the field.
@@ -45,6 +45,9 @@ public:
      * @brief Flags of the field.
      */
     virtual FieldFlags Flags() = 0;
+
+protected:
+    virtual ~Field() = default;
 };
 
 /**
@@ -82,7 +85,7 @@ public:
     /**
      * @brief Offset of the field.
      */
-    virtual std::optional<uint32_t> Offset() = 0;
+    virtual uint32_t Offset() = 0;
 
 protected:
     virtual ~InstanceField() = default;
@@ -141,16 +144,11 @@ private:
 
 struct FieldFlags {
 public:
-    constexpr FieldFlags(uint8_t accessKind, uint8_t flags) : accessKindRaw(accessKind), flagsRaw(flags)
-    {
-        ASSERTION(accessKind >> 2 == 0, "Wrong access kind value");
-    }
+    constexpr FieldFlags(uint8_t flags) : flagsRaw(flags) {}
 
-    constexpr FieldFlags() : accessKindRaw(0), flagsRaw(0) {}
+    constexpr FieldFlags() : flagsRaw(0) {}
 
-    constexpr AccessKind GetAccessKind() const { return static_cast<AccessKind::Value>(accessKindRaw); }
-
-    constexpr bool Is(AccessKind kind) const { return GetAccessKind() == kind; }
+    constexpr void With(FieldFlag::Shift pos) { flagsRaw |= 1 << static_cast<FieldFlag::Shift>(pos); }
 
     constexpr bool Is(FieldFlag flag) const { return flagsRaw & (1 << static_cast<FieldFlag::Shift>(flag)); }
 
@@ -165,19 +163,10 @@ public:
 
     constexpr FieldFlags Or(FieldFlag flag, bool shouldAdd) const { return shouldAdd ? Or(flag) : *this; }
 
-    constexpr FieldFlags With(AccessKind kind) const
-    {
-        FieldFlags copy    = *this;
-        copy.accessKindRaw = kind;
-        return copy;
-    }
-
     std::string ToString() const
     {
         std::string result;
         result.reserve(32);
-
-        result += GetAccessKind().ToString();
 
         for (FieldFlag flag : FieldFlag::variants) {
             if (Is(flag)) {
@@ -190,10 +179,7 @@ public:
     }
 
 private:
-    uint16_t accessKindRaw : AccessKind::BIT_COUNT;
     uint16_t flagsRaw : 14;
-
-    static_assert(AccessKind::BIT_COUNT + 14 == sizeof(uint16_t) * 8);
 };
 
 } // namespace API

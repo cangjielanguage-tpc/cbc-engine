@@ -81,20 +81,6 @@ struct IsaRewriter : public IsaParser {
         }
     }
 
-    API::InstanceField* resolvedInstanceField(uint16_t index)
-    {
-        auto resolvedField = resolver.Resolve(Field(index));
-        ASSERTION(resolvedField->Flags().IsNot(API::FieldFlag::Shift::STATIC), "instance field is expected");
-        return dynamic_cast<API::InstanceField*>(resolvedField);
-    }
-
-    API::StaticField* resolvedStaticField(uint16_t index)
-    {
-        auto resolvedField = resolver.Resolve(Field(index));
-        ASSERTION(resolvedField->Flags().Is(API::FieldFlag::Shift::STATIC), "static field is expected");
-        return dynamic_cast<API::StaticField*>(resolvedField);
-    }
-
     Emitter::Label InstructionLabel(ssize_t position)
     {
         ASSERTION(position >= 0, "label position is negative");
@@ -184,9 +170,9 @@ struct IsaRewriter : public IsaParser {
 
     void LoadStatic(AnyReg r, uint16_t field) override
     {
-        API::StaticField* resolvedField = resolvedStaticField(field);
+        API::StaticField* resolvedField = resolver.ResolveStaticField(Field(field));
 
-        auto fieldTerm       = resolvedField->FieldType().value()->AsTerm();
+        auto fieldTerm       = resolvedField->FieldType()->AsTerm();
         auto fieldAccessKind = fieldTerm->GetIdentifier().GetKind();
         auto symbol          = emit.NewAddressSym(resolvedField->Location());
         emit.LoadStatic(typeToLoadAccessKind(fieldAccessKind), r, symbol);
@@ -194,9 +180,9 @@ struct IsaRewriter : public IsaParser {
 
     void StoreStatic(AnyReg r, uint16_t field) override
     {
-        API::StaticField* resolvedField = resolvedStaticField(field);
+        API::StaticField* resolvedField = resolver.ResolveStaticField(Field(field));
 
-        auto fieldTerm       = resolvedField->FieldType().value()->AsTerm();
+        auto fieldTerm       = resolvedField->FieldType()->AsTerm();
         auto fieldAccessKind = fieldTerm->GetIdentifier().GetKind();
         auto symbol          = emit.NewAddressSym(resolvedField->Location());
         emit.StoreStatic(typeToStoreAccessKind(fieldAccessKind), r, symbol);
@@ -204,20 +190,20 @@ struct IsaRewriter : public IsaParser {
 
     void LoadObj(IReg rb, AnyReg rd, uint16_t field) override
     {
-        API::InstanceField* resolvedField = resolvedInstanceField(field);
+        API::InstanceField* resolvedField = resolver.ResolveInstanceField(Field(field));
 
-        auto fieldTerm       = resolvedField->FieldType().value()->AsTerm();
+        auto fieldTerm       = resolvedField->FieldType()->AsTerm();
         auto fieldAccessKind = fieldTerm->GetIdentifier().GetKind();
-        emit.LoadObj(typeToLoadAccessKind(fieldAccessKind), rd, rb, resolvedField->Offset().value());
+        emit.LoadObj(typeToLoadAccessKind(fieldAccessKind), rd, rb, resolvedField->Offset());
     }
 
     void StoreObj(IReg rb, AnyReg rs, uint16_t field) override
     {
-        API::InstanceField* resolvedField = resolvedInstanceField(field);
+        API::InstanceField* resolvedField = resolver.ResolveInstanceField(Field(field));
 
-        auto fieldTerm       = resolvedField->FieldType().value()->AsTerm();
+        auto fieldTerm       = resolvedField->FieldType()->AsTerm();
         auto fieldAccessKind = fieldTerm->GetIdentifier().GetKind();
-        emit.StoreObj(typeToStoreAccessKind(fieldAccessKind), rs, rb, resolvedField->Offset().value());
+        emit.StoreObj(typeToStoreAccessKind(fieldAccessKind), rs, rb, resolvedField->Offset());
     }
 
     void LoadRec(IReg rb, AnyReg rs, uint16_t field) override { FATAL("not implemented"); }

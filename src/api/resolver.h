@@ -31,7 +31,9 @@ public:
 
     virtual VirtualMethod* ResolveVirtualMethod(Symlevel::Index<Symlevel::MethodReference> index) = 0;
 
-    virtual Field* Resolve(Symlevel::Index<Symlevel::FieldReference> index) = 0;
+    virtual InstanceField* ResolveInstanceField(Symlevel::Index<Symlevel::FieldReference> index) = 0;
+
+    virtual StaticField* ResolveStaticField(Symlevel::Index<Symlevel::FieldReference> index) = 0;
 
     virtual std::optional<Type*> TypeOf(Symlevel::Terms::Term* term) = 0;
 

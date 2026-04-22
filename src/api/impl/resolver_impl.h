@@ -22,7 +22,9 @@ public:
 
     VirtualMethod* ResolveVirtualMethod(Symlevel::Index<Symlevel::MethodReference> index) override;
 
-    Field* Resolve(Symlevel::Index<Symlevel::FieldReference> index) override;
+    InstanceField* ResolveInstanceField(Symlevel::Index<Symlevel::FieldReference> index) override;
+
+    StaticField* ResolveStaticField(Symlevel::Index<Symlevel::FieldReference> index) override;
 
     std::optional<Type*> TypeOf(Symlevel::Terms::Term* term) override;
 
@@ -33,6 +35,8 @@ private:
     Engine::Identifier<Symlevel::MethodDefinition> method;
 
     Type* Resolve(Symlevel::Terms::Term index);
+    
+    template <typename T> T* ResolveField(Symlevel::Index<Symlevel::FieldReference> index);
 };
 
 } // namespace Impl

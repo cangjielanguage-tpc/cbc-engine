@@ -140,8 +140,10 @@ DirectMethod* ResolverImpl::ResolveDirectMethod(Symlevel::Index<Symlevel::Method
     }
 }
 
-Field* ResolverImpl::Resolve(Symlevel::Index<Symlevel::FieldReference> index)
+template <typename T>
+T* ResolverImpl::ResolveField(Symlevel::Index<Symlevel::FieldReference> index)
 {
+    static_assert(std::is_same_v<T, InstanceFieldImpl> || std::is_same_v<T, StaticFieldImpl>);
     using namespace Symlevel;
 
     auto& cbcFile = session.CbcFileOf(method.GetFileId());
@@ -156,7 +158,7 @@ Field* ResolverImpl::Resolve(Symlevel::Index<Symlevel::FieldReference> index)
 
     Type* fieldType  = Resolve(fieldRef.FieldType());
     Type* refType    = Resolve(fieldRef.RefType());
-    FieldFlags flags = FieldFlags(fieldRef.AccessKind(), fieldRef.Flags());
+    FieldFlags flags = fieldRef.IsRecord() ? FieldFlags(FieldFlag::Shift::RECORD) : FieldFlags();
 
     switch (fieldRef.RefType().GetIdentifier().GetKind()) {
         case Terms::TemplateKind::AOT_TYPE: {
@@ -165,13 +167,14 @@ Field* ResolverImpl::Resolve(Symlevel::Index<Symlevel::FieldReference> index)
                 "aot types cannot have fields of cbc type"
             );
 
-            if (flags.IsNot(FieldFlag(FieldFlag::Shift::STATIC))) {
+            if constexpr (std::is_same_v<T, InstanceFieldImpl>) {
                 InstanceFieldAotData data = cbcFile.GetInstanceFieldAotTable().GetData(session, index).value();
 
                 return session.Allocator().New<InstanceFieldImpl>(
                     fieldRef.Name(), data.GetOrdinal(), flags, fieldType, refType
                 );
             } else {
+                static_assert(std::is_same_v<T, StaticFieldImpl>);
                 StaticFieldAotData data = cbcFile.GetStaticFieldAotTable().GetData(session, index).value();
 
                 String linkageName = data.GetLinkageName();
@@ -187,6 +190,16 @@ Field* ResolverImpl::Resolve(Symlevel::Index<Symlevel::FieldReference> index)
             return nullptr;
         }
     }
+}
+
+InstanceField* ResolverImpl::ResolveInstanceField(Symlevel::Index<Symlevel::FieldReference> index)
+{
+    return ResolveField<InstanceFieldImpl>(index);
+}
+
+StaticField* ResolverImpl::ResolveStaticField(Symlevel::Index<Symlevel::FieldReference> index)
+{
+    return ResolveField<StaticFieldImpl>(index);
 }
 
 std::optional<Type*> ResolverImpl::TypeOf(Symlevel::Terms::Term* term)

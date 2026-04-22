@@ -16,17 +16,12 @@ InstanceFieldImpl::InstanceFieldImpl(
     ASSERTION(ordinal <= refType->FieldsNum(), "wrong ordinal value");
 }
 
-std::optional<uint32_t> InstanceFieldImpl::Offset()
+uint32_t InstanceFieldImpl::Offset()
 {
-    if (offset.has_value()) {
-        return offset;
+    if (!offset.has_value()) {
+        offset = refType->GetFieldOffset(Ordinal());
     }
-
-    if (refType.has_value()) {
-        offset = refType.value()->GetFieldOffset(Ordinal());
-    }
-
-    return offset;
+    return offset.value();
 }
 
 StaticFieldImpl::StaticFieldImpl(

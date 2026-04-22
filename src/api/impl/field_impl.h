@@ -12,9 +12,9 @@ class InstanceFieldImpl : public InstanceField {
 public:
     InstanceFieldImpl(Symlevel::String name, int ordinal, FieldFlags flags, Type* fieldType, Type* refType);
 
-    std::optional<Type*> FieldType() override { return fieldType; }
+    Type* FieldType() override { return fieldType; }
 
-    std::optional<Type*> RefType() override { return refType; }
+    Type* RefType() override { return refType; }
 
     Symlevel::String Name() override { return name; }
 
@@ -22,12 +22,12 @@ public:
 
     int Ordinal() override { return ordinal; }
 
-    std::optional<uint32_t> Offset() override;
+    uint32_t Offset() override;
 
 private:
     Symlevel::String name;
-    std::optional<Type*> fieldType; // TODO should it be optional?
-    std::optional<Type*> refType;   // TODO should it be optional?
+    Type* fieldType;
+    Type* refType;
     int ordinal;
     std::optional<uint32_t> offset;
     FieldFlags flags;
@@ -39,9 +39,9 @@ class StaticFieldImpl : public StaticField {
 public:
     StaticFieldImpl(uintptr_t location, Symlevel::String name, FieldFlags flags, Type* fieldType, Type* refType);
 
-    std::optional<Type*> FieldType() override { return fieldType; }
+    Type* FieldType() override { return fieldType; }
 
-    std::optional<Type*> RefType() override { return refType; }
+    Type* RefType() override { return refType; }
 
     Symlevel::String Name() override { return name; }
 
@@ -51,8 +51,8 @@ public:
 
 private:
     Symlevel::String name;
-    std::optional<Type*> fieldType; // TODO should it be optional?
-    std::optional<Type*> refType;   // TODO should it be optional?
+    Type* fieldType;
+    Type* refType;
     uintptr_t location;
     FieldFlags flags;
 };
