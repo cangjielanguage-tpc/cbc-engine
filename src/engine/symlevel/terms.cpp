@@ -100,7 +100,7 @@ std::optional<Term> Term::ParseAndResolve(Engine::Session& session, IO::FileId f
         }
 
         case METHOD_SIGNATURE: {
-            auto len = reader.ReadU8() + 1; // +1 for ret type
+            auto len   = reader.ReadU8() + 1; // +1 for ret type
             auto* data = AllocateTerm(allocator, len);
 
             auto& regionData = session.CbcFileOf(fileId).GetRegionData();
@@ -224,6 +224,7 @@ bool Term::operator==(const Term& another) const { return CompareTermData(this->
 bool Term::IsLocal() const { return data->isLocal; }
 
 Term LocalTerm::Subterm(uint32_t i) const { return this->data->subterms[i]; }
+
 LocalTerm::LocalTerm(TermData* data) : data(data) { ASSERT(data->isLocal); }
 
 GlobalTerm LocalTerm::Publish(Engine::Session& session)

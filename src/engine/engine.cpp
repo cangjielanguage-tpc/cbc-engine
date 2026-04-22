@@ -128,20 +128,22 @@ std::optional<TypeDefinition> Engine::FindType(Session& session, std::string_vie
     return std::nullopt;
 }
 
-std::optional<Identifier<MethodDefinition>> Engine::FindMain(Session& session, std::string_view filePath)
+std::optional<Identifier<MethodDefinition>> Engine::FindMethod(
+    Session& session, std::string_view filePath, std::string_view typeName, std::string_view methodName
+)
 {
     auto file = impl->FindCbcFile(filePath);
     if (!file.has_value()) {
         return std::nullopt;
     }
     auto f        = file.value();
-    auto declType = f->GetTypeIndex().FindType(session, std::string_view("default"));
+    auto declType = f->GetTypeIndex().FindType(session, typeName);
     if (declType) {
         const auto& methodIndex = (*declType).GetMethodIndex();
-        auto methods            = methodIndex.FindMethods(session, std::string_view("main"));
+        auto methods            = methodIndex.FindMethods(session, methodName);
 
         // TODO: throw?
-        ASSERTION(methods.size() == 1, "unexpected \"main\" method count");
+        ASSERTION(methodName != "main" || methods.size() == 1, "unexpected \"main\" method count");
         return methods[0].GetIdentifier();
     }
     return std::nullopt;
