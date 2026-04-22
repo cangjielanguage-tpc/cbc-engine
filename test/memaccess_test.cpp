@@ -56,7 +56,7 @@ TEST_F(MemoryAccess, TestAlloc2)
     e.Ret();
 
     auto code = e.Build(heap);
-    Cbc::RT::Log(code, Stream::coutLog);
+    Cbc::RT::Log(code, Stream::Disasm::rt);
 
     auto res = Interpret(code, U64(77), U64(91));
     EXPECT_EQ(res.u64, 77 + 91);
@@ -226,7 +226,7 @@ TEST_F(MemoryAccess, LinkedStack)
     e.Ret();
 
     auto code = e.Build(heap);
-    Cbc::RT::Log(code, Stream::coutLog);
+    Cbc::RT::Log(code, Stream::Disasm::rt);
 
     auto res = Interpret(code, U64(77), U64(91));
     EXPECT_EQ(res.u32, 1 + 2 + 3 + 4 + 5);
@@ -274,7 +274,7 @@ static void testInteger(IntegerTest desc)
     e.Ret();
 
     auto code = e.Build(heap);
-    Cbc::RT::Log(code, Stream::coutLog);
+    Cbc::RT::Log(code, Stream::Disasm::rt);
 
     auto res = Interpret(code, U64(desc.ir1), U64(desc.ir2));
     EXPECT_EQ(res.u64, desc.expect);
@@ -433,7 +433,7 @@ TEST_F(MemoryAccess, TestFrameSpace)
 {
     char frameSlots[32];
     auto frameStart = reinterpret_cast<uintptr_t>(&frameSlots);
-    Interpretation::Frame frame(frameStart);
+    Interpretation::Frame frame { frameStart };
 
     Cbc::Emitter::Emitter e;
 
@@ -466,7 +466,7 @@ TEST_F(MemoryAccess, TestFrame)
 {
     char frameSlots[32];
     auto frameStart = reinterpret_cast<uintptr_t>(&frameSlots);
-    Interpretation::Frame frame(frameStart);
+    Interpretation::Frame frame { frameStart };
 
     Cbc::Emitter::Emitter e;
 

@@ -11,13 +11,13 @@ struct endl_t {};
 
 constexpr endl_t endl;
 
-class Out {
+class Output {
 public:
-    virtual ~Out() = default;
+    virtual ~Output() = default;
 
-    Out& operator<<(const endl_t&);
+    Output& operator<<(const endl_t&);
 
-    template <typename T> Out& operator<<(const T v)
+    template <typename T> Output& operator<<(const T v)
     {
         Print(v);
         return *this;
@@ -25,10 +25,10 @@ public:
 
     virtual void Flush() const;
     virtual void NewLine();
-    virtual void PrintFmt(const char* fmt, ...) = 0;
-    virtual void PrintFmt(const char* fmt, va_list argp) = 0;
+    virtual void VPrintFmt(const char* fmt, va_list argp) = 0;
 
-private:
+    void PrintFmt(const char* fmt, ...);
+
     void Print(const float v);
     void Print(const double v);
     void Print(const long double v);
@@ -58,101 +58,65 @@ private:
     void Print(const long long* p);
     void Print(const unsigned long long* p);
     void Print(const void* p);
-
 };
 
-class ToFile : public Out {
+class FileOutput : public Output {
 public:
-    ToFile(void* destStream);
+    FileOutput(FILE* destStream);
 
     void Flush() const override;
-    void PrintFmt(const char* fmt, ...) override;
-    void PrintFmt(const char* fmt, va_list argp) override;
+    void VPrintFmt(const char* fmt, va_list argp) override;
 
 protected:
-    void* dest;
-
+    FILE* dest;
 };
 
-class ToBuffer : public Out {
+class StringBuffer : public Output {
 public:
-    ToBuffer(void* destStream, size_t bufSize);
+    StringBuffer();
 
-    void PrintFmt(const char* fmt, ...) override;
-    void PrintFmt(const char* fmt, va_list argp) override;
+    void VPrintFmt(const char* fmt, va_list argp) override;
+    std::string ToString();
+    void Clear();
 
-protected:
-    void BoundCheck(int requestedSize);
-    void AdvanceDest(int printedSz);
-
-protected:
-    void* dest;
-
-public:
-    size_t printed;
+private:
+    std::unique_ptr<char[]> data;
     size_t size;
-
+    size_t capacity;
 };
 
-inline ToFile cout(stdout);
-inline ToFile cerr(stderr);
-
-std::pair<std::shared_ptr<char[]>, std::shared_ptr<ToBuffer>> createBuffer(size_t bufSize);
-
-// Decorators
-
-class OutDecorated : public Out {
+class Indented : public Output {
 public:
-    OutDecorated(Out& astream);
-
-    virtual void BeforePrint() = 0;
-    virtual void AfterPrint() = 0;
-
-    void PrintFmt(const char* fmt, ...) override;
-    void PrintFmt(const char* fmt, va_list argp) override;
-
-public:
-    Out& stream;
-
-};
-
-class OutIndented : public OutDecorated {
-public:
-    OutIndented(Out& astream, const unsigned int indentSize = 4);
+    Indented(Output& astream, const unsigned int indentSize = 4);
 
     void NewLine() override;
-    void BeforePrint() override;
-    void AfterPrint() override;
+    void VPrintFmt(const char* fmt, va_list argp) override;
 
-public:
+private:
+    Output& stream;
     unsigned int indentationSize;
     bool newLine = true;
-
 };
 
-typedef const char*(*DescFunc)();
-constexpr DescFunc defaultDescFunc = [](){ return ""; };
-
-class OutDescripted : public OutDecorated {
+class Descripted : public Output {
 public:
-    OutDescripted(Out& astream, DescFunc beforeDescription = defaultDescFunc, DescFunc afterDescription = defaultDescFunc);
+    Descripted(Output& astream, std::string beforeDescription = "");
 
+    void VPrintFmt(const char* fmt, va_list argp) override;
     void NewLine() override;
-    void BeforePrint() override;
-    void AfterPrint() override;
 
-public:
-    DescFunc beforeDesc;
-    DescFunc afterDesc;
+private:
+    Output& stream;
+    std::string beforeDesc;
     bool newLine = true;
-
 };
 
-inline OutIndented coutIndented(cout);
-inline OutIndented cerrIndented(cerr);
-inline Stream::OutDescripted coutDisasm(cout, [](){ return "[disasm] "; });
-inline Stream::OutDescripted coutLog(cout, [](){ return "[log] "; });
-inline Stream::OutDescripted cerrDisasm(cout, [](){ return "[disasm] "; });
-inline Stream::OutDescripted cerrLog(cout, [](){ return "[log] "; });
+extern FileOutput cout;
+extern FileOutput cerr;
+
+namespace Disasm {
+extern Descripted isa;
+extern Descripted rt;
+} // namespace Disasm
 
 }; // namespace Stream

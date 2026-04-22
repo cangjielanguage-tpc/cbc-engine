@@ -1,219 +1,173 @@
 #include "utils/ostream.h"
 
 #include "utils/assertion.h"
+#include <cstddef>
+#include <cstdio>
+#include <memory>
+#include <utility>
 
 namespace Stream {
 
-void Out::Flush() const {}
+FileOutput cout(stdout);
+FileOutput cerr(stderr);
+Descripted Disasm::isa(cerr, "[dis-isa] ");
+Descripted Disasm::rt(cerr, "[dis-rt] ");
 
-void Out::NewLine() { PrintFmt("\n"); }
+void Output::Flush() const {}
 
-void Out::Print(const float v) { PrintFmt("%f", v); }
+void Output::NewLine() { Print("\n"); }
 
-void Out::Print(const double v) { PrintFmt("%f", v); }
-
-void Out::Print(const long double v) { PrintFmt("%Lf", v); }
-
-void Out::Print(const bool v) { PrintFmt("%s", v ? "true" : "false"); }
-
-void Out::Print(const signed char v) { PrintFmt("%d", v); }
-
-void Out::Print(const unsigned char v) { PrintFmt("%u", v); }
-
-void Out::Print(const short v) { PrintFmt("%d", v); }
-
-void Out::Print(const unsigned short v) { PrintFmt("%u", v); }
-
-void Out::Print(const int v) { PrintFmt("%d", v); }
-
-void Out::Print(const unsigned int v) { PrintFmt("%u", v); }
-
-void Out::Print(const long v) { PrintFmt("%ld", v); }
-
-void Out::Print(const unsigned long v) { PrintFmt("%ld", v); }
-
-void Out::Print(const long long v) { PrintFmt("%lld", v); }
-
-void Out::Print(const unsigned long long v) { PrintFmt("%llu", v); }
-
-void Out::Print(const char c) { PrintFmt("%c", c); }
-
-void Out::Print(const char* cstr) { PrintFmt("%s", cstr); }
-
-void Out::Print(const std::string_view strv)
+void Output::PrintFmt(const char* fmt, ...)
 {
-    PrintFmt("%.*s", static_cast<int>(strv.length()), strv.data());
+    va_list args;
+    va_start(args, fmt);
+    VPrintFmt(fmt, args);
+    va_end(args);
 }
 
-void Out::Print(const std::string str) { PrintFmt("%s", str.c_str()); }
+void Output::Print(const float v) { PrintFmt("%f", v); }
 
-void Out::Print(const signed char* p) { PrintFmt("%p", p); }
+void Output::Print(const double v) { PrintFmt("%f", v); }
 
-void Out::Print(const unsigned char* p) { PrintFmt("%p", p); }
+void Output::Print(const long double v) { PrintFmt("%Lf", v); }
 
-void Out::Print(const short* p) { PrintFmt("%p", p); }
+void Output::Print(const bool v) { PrintFmt("%s", v ? "true" : "false"); }
 
-void Out::Print(const unsigned short* p) { PrintFmt("%p", p); }
+void Output::Print(const signed char v) { PrintFmt("%d", v); }
 
-void Out::Print(const int* p) { PrintFmt("%p", p); }
+void Output::Print(const unsigned char v) { PrintFmt("%u", v); }
 
-void Out::Print(const unsigned int* p) { PrintFmt("%p", p); }
+void Output::Print(const short v) { PrintFmt("%d", v); }
 
-void Out::Print(const long* p) { PrintFmt("%p", p); }
+void Output::Print(const unsigned short v) { PrintFmt("%u", v); }
 
-void Out::Print(const unsigned long* p) { PrintFmt("%p", p); }
+void Output::Print(const int v) { PrintFmt("%d", v); }
 
-void Out::Print(const long long* p) { PrintFmt("%p", p); }
+void Output::Print(const unsigned int v) { PrintFmt("%u", v); }
 
-void Out::Print(const unsigned long long* p) { PrintFmt("%p", p); }
+void Output::Print(const long v) { PrintFmt("%ld", v); }
 
-void Out::Print(const void* p) { PrintFmt("%p", p); }
+void Output::Print(const unsigned long v) { PrintFmt("%ld", v); }
 
-Out& Out::operator<<(const endl_t&)
+void Output::Print(const long long v) { PrintFmt("%lld", v); }
+
+void Output::Print(const unsigned long long v) { PrintFmt("%llu", v); }
+
+void Output::Print(const char c) { PrintFmt("%c", c); }
+
+void Output::Print(const char* cstr) { PrintFmt("%s", cstr); }
+
+void Output::Print(const std::string_view strv) { PrintFmt("%.*s", static_cast<int>(strv.length()), strv.data()); }
+
+void Output::Print(const std::string str) { PrintFmt("%s", str.c_str()); }
+
+void Output::Print(const signed char* p) { PrintFmt("%p", p); }
+
+void Output::Print(const unsigned char* p) { PrintFmt("%p", p); }
+
+void Output::Print(const short* p) { PrintFmt("%p", p); }
+
+void Output::Print(const unsigned short* p) { PrintFmt("%p", p); }
+
+void Output::Print(const int* p) { PrintFmt("%p", p); }
+
+void Output::Print(const unsigned int* p) { PrintFmt("%p", p); }
+
+void Output::Print(const long* p) { PrintFmt("%p", p); }
+
+void Output::Print(const unsigned long* p) { PrintFmt("%p", p); }
+
+void Output::Print(const long long* p) { PrintFmt("%p", p); }
+
+void Output::Print(const unsigned long long* p) { PrintFmt("%p", p); }
+
+void Output::Print(const void* p) { PrintFmt("%p", p); }
+
+Output& Output::operator<<(const endl_t&)
 {
     NewLine();
     return *this;
 }
 
+FileOutput::FileOutput(FILE* destStream) : Output(), dest(destStream) {}
 
-ToFile::ToFile(void* destStream) : Out(), dest(destStream)  {}
+void FileOutput::Flush() const { fflush(dest); }
 
-void ToFile::Flush() const
+void FileOutput::VPrintFmt(const char* fmt, va_list argp) { vfprintf(dest, fmt, argp); }
+
+StringBuffer::StringBuffer() : data(nullptr), size(0), capacity(0) {}
+
+void StringBuffer::Clear() { size = 0; }
+
+void StringBuffer::VPrintFmt(const char* fmt, va_list argp)
 {
-    fflush((FILE*)dest);
+    static constexpr size_t INITIAL_CAPACITY = 128;
+
+    va_list copy;
+    va_copy(copy, argp);
+    int required = vsnprintf(0, 0, fmt, copy);
+    va_end(copy);
+    if (required < 0) {
+        // Silently drop the message.
+        // TODO: error message?
+        return;
+    }
+
+    if (required > capacity - size) {
+        // extra zero should be counted
+        auto newCapacity = std::max(INITIAL_CAPACITY, size + required + 1);
+        newCapacity      = std::max(newCapacity, 2 * capacity);
+
+        auto newMem = std::make_unique<char[]>(newCapacity);
+        std::copy(data.get(), data.get() + capacity, newMem.get());
+        capacity = newCapacity;
+        data     = std::move(newMem);
+    }
+
+    auto begin  = data.get() + size;
+    auto left   = capacity - size;
+    int written = vsnprintf(begin, left, fmt, argp);
+    ASSERT(written == required);
+    size += written;
 }
 
-void ToFile::PrintFmt(const char* fmt, ...)
-{
-    va_list args;
-    va_start(args, fmt);
-    vfprintf((FILE*)dest, fmt, args);
-    va_end(args);
-}
-
-void ToFile::PrintFmt(const char* fmt, va_list argp) { vfprintf((FILE*)dest, fmt, argp); }
-
-
-ToBuffer::ToBuffer(void* destStream, size_t bufSize) : Out(), dest(destStream), printed(0ull), size(bufSize) {}
-
-void ToBuffer::BoundCheck(int requestedSize)
-{
-    ASSERTION(requestedSize >= 0, "error during printing length calculation");
-    ASSERTION(printed + requestedSize <= size, "buffer size limit exceeded");
-}
-
-void ToBuffer::AdvanceDest(int printedSz)
-{
-    ASSERTION(printedSz >= 0, "error during printing");
-    printed += printedSz;
-}
-
-void ToBuffer::PrintFmt(const char* fmt, ...)
-{
-    va_list args;
-    va_start(args, fmt);
-    va_list copied;
-    va_copy(copied, args);
-    int sz = vsnprintf(NULL, 0ull, fmt, copied) + 1;
-    va_end(copied);
-    BoundCheck(sz);
-    size_t printedsz = vsnprintf((char*)dest + printed, sz, fmt, args);
-    va_end(args);
-    AdvanceDest(printedsz);
-}
-
-void ToBuffer::PrintFmt(const char* fmt, va_list argp)
-{
-    va_list copied;
-    va_copy(copied, argp);
-    int sz = vsnprintf(NULL, 0ull, fmt, copied) + 1;
-    va_end(copied);
-    BoundCheck(sz);
-    size_t printedsz = vsnprintf((char*)dest + printed, sz, fmt, argp);
-    AdvanceDest(printedsz);
-}
-
-
-std::pair<std::shared_ptr<char[]>, std::shared_ptr<ToBuffer>> createBuffer(size_t bufSize)
-{
-    std::shared_ptr<char[]> buf(new char[bufSize]);
-    std::shared_ptr<ToBuffer> stream(new ToBuffer(buf.get(), bufSize));
-    return {buf, stream };
-}
+std::string StringBuffer::ToString() { return std::string(data.get(), size); }
 
 // Decorators
 
-OutDecorated::OutDecorated(Out& astream)
-    : Out(astream),
-      stream(astream)
-{}
+Indented::Indented(Output& astream, const unsigned int indentSize) : stream(astream), indentationSize(indentSize) {}
 
-void OutDecorated::PrintFmt(const char* fmt, ...)
-{
-    BeforePrint();
-    va_list args;
-    va_start(args, fmt);
-    stream.PrintFmt(fmt, args);
-    va_end(args);
-    AfterPrint();
-}
-
-void OutDecorated::PrintFmt(const char* fmt, va_list argp)
-{
-    BeforePrint();
-    stream.PrintFmt(fmt, argp);
-    AfterPrint();
-}
-
-
-OutIndented::OutIndented(Out& astream, const unsigned int indentSize)
-    : OutDecorated(astream),
-      indentationSize(indentSize)
-{}
-
-void OutIndented::NewLine()
+void Indented::NewLine()
 {
     stream.NewLine();
     newLine = true;
 }
 
-void OutIndented::BeforePrint()
+void Indented::VPrintFmt(const char* fmt, va_list argp)
 {
     if (newLine) {
         stream.PrintFmt("%*s", indentationSize, "");
         newLine = false;
     }
+    stream.VPrintFmt(fmt, argp);
 }
 
-void OutIndented::AfterPrint() {}
-
-
-OutDescripted::OutDescripted(Out& astream, DescFunc beforeDescription, DescFunc afterDescription)
-    : OutDecorated(astream),
-      beforeDesc(beforeDescription),
-      afterDesc(afterDescription)
+Descripted::Descripted(Output& astream, std::string beforeDescription) : stream(astream), beforeDesc(beforeDescription)
 {}
 
-void OutDescripted::NewLine()
+void Descripted::NewLine()
 {
     stream.NewLine();
     newLine = true;
 }
 
-void OutDescripted::BeforePrint()
+void Descripted::VPrintFmt(const char* fmt, va_list argp)
 {
     if (newLine) {
-        stream.PrintFmt("%s", beforeDesc());
+        stream.PrintFmt("%s", beforeDesc.c_str());
         newLine = false;
     }
-}
-
-void OutDescripted::AfterPrint()
-{
-    if (newLine) {
-        stream.PrintFmt("%s", afterDesc());
-        newLine = false;
-    }
+    stream.VPrintFmt(fmt, argp);
 }
 
 }; // namespace Stream

@@ -33,10 +33,10 @@ static uint32_t SizeOfOffset(uint8_t* start, uint8_t* end)
 /// Disasm implementation for CBC bytecode.
 /// This implementation doesn't rely on resolution.
 struct IsaDisasm : public IsaParser {
-    Stream::Out& stream;
+    Stream::Output& stream;
     uint32_t log10Size;
 
-    IsaDisasm(Stream::Out& stream, Decoder::FatByteReader reader)
+    IsaDisasm(Stream::Output& stream, Decoder::FatByteReader reader)
         : IsaParser(reader),
           stream(stream),
           log10Size(SizeOfOffset(reader.Start(), reader.End()))
@@ -223,7 +223,7 @@ struct IsaResolvingDisasm : IsaDisasm {
 
     using MethodIndex = Symlevel::Index<Symlevel::MethodReference>;
 
-    IsaResolvingDisasm(Stream::Out& stream, Decoder::FatByteReader reader, API::Resolver& resolver)
+    IsaResolvingDisasm(Stream::Output& stream, Decoder::FatByteReader reader, API::Resolver& resolver)
         : IsaDisasm(stream, reader),
           resolver(resolver)
     {}
@@ -246,7 +246,7 @@ struct IsaResolvingDisasm : IsaDisasm {
 
 static bool g_IsRawDisasmEnabled;
 static bool g_IsDisasmEnabled;
-static Stream::Out& g_OutputStream = cout;
+static Stream::Output& g_OutputStream = cout;
 
 void EnableRawDisasm() { g_IsRawDisasmEnabled = true; }
 
@@ -256,26 +256,26 @@ bool IsRawDisasmEnabled() { return g_IsRawDisasmEnabled; }
 
 bool IsDisasmEnabled() { return g_IsRawDisasmEnabled || g_IsDisasmEnabled; }
 
-void SetOutputStream(Stream::Out& stream) { g_OutputStream = stream; }
+void SetOutputStream(Stream::Output& stream) { g_OutputStream = stream; }
 
-std::unique_ptr<IsaParser> RawDisasm(Stream::Out& stream, Decoder::FatByteReader reader)
+std::unique_ptr<IsaParser> RawDisasm(Stream::Output& stream, Decoder::FatByteReader reader)
 {
     return std::make_unique<IsaDisasm>(stream, reader);
 }
 
-std::unique_ptr<IsaParser> RawDisasm(Stream::Out& stream, Cbc::MethodCode code)
+std::unique_ptr<IsaParser> RawDisasm(Stream::Output& stream, Cbc::MethodCode code)
 {
     auto start = code.CodePtr();
     auto end   = start + code.CodeSize();
     return RawDisasm(stream, Decoder::FatByteReader(start, start, end));
 }
 
-std::unique_ptr<IsaParser> RawDisasm(Stream::Out& stream, uint8_t* start, uint8_t* end)
+std::unique_ptr<IsaParser> RawDisasm(Stream::Output& stream, uint8_t* start, uint8_t* end)
 {
     return RawDisasm(stream, Decoder::FatByteReader(start, start, end));
 }
 
-std::unique_ptr<IsaParser> Disasm(Stream::Out& stream, Decoder::FatByteReader reader, API::Resolver* resolver)
+std::unique_ptr<IsaParser> Disasm(Stream::Output& stream, Decoder::FatByteReader reader, API::Resolver* resolver)
 {
     if (!IsRawDisasmEnabled() && resolver != nullptr) {
         return std::make_unique<IsaResolvingDisasm>(stream, reader, *resolver);
@@ -284,14 +284,14 @@ std::unique_ptr<IsaParser> Disasm(Stream::Out& stream, Decoder::FatByteReader re
     }
 }
 
-std::unique_ptr<IsaParser> Disasm(Stream::Out& stream, Cbc::MethodCode code, API::Resolver* resolver)
+std::unique_ptr<IsaParser> Disasm(Stream::Output& stream, Cbc::MethodCode code, API::Resolver* resolver)
 {
     auto start = code.CodePtr();
     auto end   = start + code.CodeSize();
     return Disasm(stream, Decoder::FatByteReader(start, start, end), resolver);
 }
 
-std::unique_ptr<IsaParser> Disasm(Stream::Out& stream, uint8_t* start, uint8_t* end, API::Resolver* resolver)
+std::unique_ptr<IsaParser> Disasm(Stream::Output& stream, uint8_t* start, uint8_t* end, API::Resolver* resolver)
 {
     return Disasm(stream, Decoder::FatByteReader(start, start, end), resolver);
 }
