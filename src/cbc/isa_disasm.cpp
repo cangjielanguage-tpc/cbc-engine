@@ -213,7 +213,7 @@ struct IsaDisasm : public IsaParser {
     void ParseOne() override
     {
         auto position = reader.Cursor() - reader.Start();
-        stream << /* std::setfill('0') << std::setw(log10Size) << */ position << ": " /* << std::setfill(' ') */;
+        stream.PrintFmt("%*lld: ", log10Size, position);
         IsaParser::ParseOne();
     }
 };

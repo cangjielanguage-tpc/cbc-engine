@@ -7,6 +7,7 @@
 
 #include "mock/interpreter.h"
 #include "testutils.h"
+#include "utils/ostream.h"
 
 static LimitedHeap<16384> heap;
 
@@ -37,7 +38,7 @@ using namespace Cbc::Format;
             (RegGroup::Ret32 << 4) | IReg::IR1 /* Ret IR1 */                                                           \
         };                                                                                                             \
         MethodCode methodCode = MethodCode::Mock(isa12Bytes, isa12CodeSize);                                           \
-        RawDisasm(Stream::cout, methodCode)->ParseAll();                                                                     \
+        RawDisasm(Stream::coutDisasm, methodCode)->ParseAll();                                                                     \
         Emitter::Emitter e;                                                                                            \
         Rewriter(*MockResolver(), methodCode, e)->ParseAll();                                                          \
         auto code = e.Build(heap);                                                                                     \

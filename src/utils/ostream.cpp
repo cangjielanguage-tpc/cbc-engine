@@ -4,21 +4,9 @@
 
 namespace Stream {
 
-Out::Out(void* destStream) : dest(destStream) {}
-
 void Out::Flush() const {}
 
 void Out::NewLine() { PrintFmt("\n"); }
-
-void Out::PrintFmt(const char* fmt, ...)
-{
-    va_list args;
-    va_start(args, fmt);
-    PrintFmt(fmt, args);
-    va_end(args);
-}
-
-void Out::PrintFmt(const char* fmt, va_list argp) { vfprintf((FILE*)dest, fmt, argp); }
 
 void Out::Print(const float v) { PrintFmt("%f", v); }
 
@@ -88,7 +76,7 @@ Out& Out::operator<<(const endl_t&)
 }
 
 
-ToFile::ToFile(void* destStream) : Out(destStream) {}
+ToFile::ToFile(void* destStream) : Out(), dest(destStream)  {}
 
 void ToFile::Flush() const
 {
@@ -106,7 +94,7 @@ void ToFile::PrintFmt(const char* fmt, ...)
 void ToFile::PrintFmt(const char* fmt, va_list argp) { vfprintf((FILE*)dest, fmt, argp); }
 
 
-ToBuffer::ToBuffer(void* destStream, size_t bufSize) : Out(destStream), printed(0ull), size(bufSize) {}
+ToBuffer::ToBuffer(void* destStream, size_t bufSize) : Out(), dest(destStream), printed(0ull), size(bufSize) {}
 
 void ToBuffer::BoundCheck(int requestedSize)
 {
@@ -146,9 +134,40 @@ void ToBuffer::PrintFmt(const char* fmt, va_list argp)
 }
 
 
-OutIndented::OutIndented(Out& astream, const unsigned int indentSize)
+std::pair<std::shared_ptr<char[]>, std::shared_ptr<ToBuffer>> createBuffer(size_t bufSize)
+{
+    std::shared_ptr<char[]> buf(new char[bufSize]);
+    std::shared_ptr<ToBuffer> stream(new ToBuffer(buf.get(), bufSize));
+    return {buf, stream };
+}
+
+// Decorators
+
+OutDecorated::OutDecorated(Out& astream)
     : Out(astream),
-      stream(astream),
+      stream(astream)
+{}
+
+void OutDecorated::PrintFmt(const char* fmt, ...)
+{
+    BeforePrint();
+    va_list args;
+    va_start(args, fmt);
+    stream.PrintFmt(fmt, args);
+    va_end(args);
+    AfterPrint();
+}
+
+void OutDecorated::PrintFmt(const char* fmt, va_list argp)
+{
+    BeforePrint();
+    stream.PrintFmt(fmt, argp);
+    AfterPrint();
+}
+
+
+OutIndented::OutIndented(Out& astream, const unsigned int indentSize)
+    : OutDecorated(astream),
       indentationSize(indentSize)
 {}
 
@@ -158,32 +177,43 @@ void OutIndented::NewLine()
     newLine = true;
 }
 
-void OutIndented::PrintFmt(const char* fmt, ...)
+void OutIndented::BeforePrint()
 {
     if (newLine) {
         stream.PrintFmt("%*s", indentationSize, "");
-        va_list args;
-        va_start(args, fmt);
-        stream.PrintFmt(fmt, args);
-        va_end(args);
         newLine = false;
     }
 }
 
-void OutIndented::PrintFmt(const char* fmt, va_list argp)
+void OutIndented::AfterPrint() {}
+
+
+OutDescripted::OutDescripted(Out& astream, DescFunc beforeDescription, DescFunc afterDescription)
+    : OutDecorated(astream),
+      beforeDesc(beforeDescription),
+      afterDesc(afterDescription)
+{}
+
+void OutDescripted::NewLine()
+{
+    stream.NewLine();
+    newLine = true;
+}
+
+void OutDescripted::BeforePrint()
 {
     if (newLine) {
-        stream.PrintFmt("%*s", indentationSize, "");
-        stream.PrintFmt(fmt, argp);
+        stream.PrintFmt("%s", beforeDesc());
         newLine = false;
     }
 }
 
-std::pair<std::shared_ptr<char[]>, std::shared_ptr<ToBuffer>> createBuffer(size_t bufSize)
+void OutDescripted::AfterPrint()
 {
-    std::shared_ptr<char[]> buf(new char[bufSize]);
-    std::shared_ptr<ToBuffer> stream(new ToBuffer(buf.get(), bufSize));
-    return {buf, stream };
+    if (newLine) {
+        stream.PrintFmt("%s", afterDesc());
+        newLine = false;
+    }
 }
 
 }; // namespace Stream

@@ -56,7 +56,7 @@ TEST_F(MemoryAccess, TestAlloc2)
     e.Ret();
 
     auto code = e.Build(heap);
-    Cbc::RT::Log(code, Stream::cout);
+    Cbc::RT::Log(code, Stream::coutLog);
 
     auto res = Interpret(code, U64(77), U64(91));
     EXPECT_EQ(res.u64, 77 + 91);
@@ -226,7 +226,7 @@ TEST_F(MemoryAccess, LinkedStack)
     e.Ret();
 
     auto code = e.Build(heap);
-    Cbc::RT::Log(code, Stream::cout);
+    Cbc::RT::Log(code, Stream::coutLog);
 
     auto res = Interpret(code, U64(77), U64(91));
     EXPECT_EQ(res.u32, 1 + 2 + 3 + 4 + 5);
@@ -274,7 +274,7 @@ static void testInteger(IntegerTest desc)
     e.Ret();
 
     auto code = e.Build(heap);
-    Cbc::RT::Log(code, Stream::cout);
+    Cbc::RT::Log(code, Stream::coutLog);
 
     auto res = Interpret(code, U64(desc.ir1), U64(desc.ir2));
     EXPECT_EQ(res.u64, desc.expect);
