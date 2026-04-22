@@ -8,6 +8,7 @@
 #include "cbc/isa_rewriter.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/reader.h"
+#include "utils/ostream.h"
 #include "function_handle.h"
 
 namespace Interpretation {
@@ -70,7 +71,7 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, Dynam
     auto resolver = API::Resolver::Create(session, fuh->methodDef);
 
     if (Cbc::IsDisasmEnabled()) {
-        Cbc::Disasm(std::cerr, code, resolver.get())->ParseAll();
+        Cbc::Disasm(Stream::Disasm::isa, code, resolver.get())->ParseAll();
     }
 
     Cbc::Emitter::Emitter emitter;

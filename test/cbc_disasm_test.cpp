@@ -9,6 +9,7 @@
 #include "interpreter/function_handle.h"
 
 #include "testutils.h"
+#include "utils/ostream.h"
 
 static LimitedHeap<16384> heap;
 
@@ -37,10 +38,10 @@ static void CompareWith(std::string_view fileName, std::string const& expected)
 
     auto resolver = API::Resolver::Create(session, mainId.value());
 
-    std::stringstream stream;
+    Stream::StringBuffer stream;
     Cbc::Disasm(stream, code, resolver.get())->ParseAll();
 
-    ASSERT_EQ(expected, stream.str());
+    ASSERT_EQ(expected, stream.ToString());
 }
 
 TEST_ASM(CbcDisasmTest, VirtCall)

@@ -120,7 +120,7 @@ public:
     {
         auto val      = Value(reader.Read16());
         auto new_data = std::tuple_cat(data, std::make_tuple(val));
-        return ByteReaderM<Ts..., Value>(reader, ::std::move(new_data));
+        return ByteReaderM<Ts..., Value>(reader, std::move(new_data));
     }
 
     auto ReadU32() && -> decltype(auto)
@@ -148,7 +148,7 @@ public:
     {
         auto val      = Value(MathUtils::SignExtend((uint64_t)reader.Read16(), 16));
         auto new_data = std::tuple_cat(data, std::make_tuple(val));
-        return ByteReaderM<Ts..., Value>(reader, ::std::move(new_data));
+        return ByteReaderM<Ts..., Value>(reader, std::move(new_data));
     }
 
     auto ReadS32() && -> decltype(auto)
@@ -176,7 +176,7 @@ public:
 
     ByteReaderHalf(Decoder::FatByteReader& rreader) : reader(rreader) {}
 
-    ByteReaderHalf(Decoder::FatByteReader& rreader, uint8_t alast, ::std::tuple<Ts...>&& base)
+    ByteReaderHalf(Decoder::FatByteReader& rreader, uint8_t alast, std::tuple<Ts...>&& base)
         : reader(rreader),
           last(std::move(alast)),
           data(std::move(base))
