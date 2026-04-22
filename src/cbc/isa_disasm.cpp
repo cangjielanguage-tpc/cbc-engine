@@ -108,11 +108,16 @@ struct IsaDisasm : public IsaParser {
         stream << ", " << l.ToStr() << ", " << value << endl;
     }
 
-    // TODO: add enum
-    void FloatBinary(uint8_t op, Format::Width width, FReg d, FReg l, FReg r) override
+    void FBinary(Format::FloatOperations op, Format::Width width, FReg d, FReg l, FReg r) override
     {
-        stream << "fbin" << op << " " << Sz(width) << " " << d.ToStr();
-        stream << " " << l.ToStr() << " " << r.ToStr() << endl;
+        stream << op.ToStr() << "." << Sz(width) << " ";
+        stream << d.ToStr() << l.ToStr() << r.ToStr() << endl;
+    }
+
+    void FUnary(Format::FloatOperations op, Format::Width width, FReg d, FReg s) override
+    {
+        stream << op.ToStr() << "." << Sz(width) << " ";
+        stream << d.ToStr() << ", " << s.ToStr() << endl;
     }
 
     void Convert(Format::ConvertType toType, Format::ConvertType fromType, AnyReg to, AnyReg from) override
