@@ -143,6 +143,8 @@ void Indented::NewLine()
     newLine = true;
 }
 
+void Indented::Flush() const { stream.Flush(); }
+
 void Indented::VPrintFmt(const char* fmt, va_list argp)
 {
     if (newLine) {
@@ -160,6 +162,8 @@ void Descripted::NewLine()
     stream.NewLine();
     newLine = true;
 }
+
+void Descripted::Flush() const { stream.Flush(); }
 
 void Descripted::VPrintFmt(const char* fmt, va_list argp)
 {

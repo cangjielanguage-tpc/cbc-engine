@@ -1,4 +1,6 @@
+#include <cstdio>
 #include <gtest/gtest.h>
+#include <unistd.h>
 
 #include "utils/ostream.h"
 
@@ -44,4 +46,38 @@ TEST(Stream, indent)
         "--\n",
         buf.ToString()
     );
+}
+
+TEST(Stream, descripted_pipes)
+{
+    int pipes[2];
+    pipe(pipes);
+    int out = pipes[1];
+    int in  = pipes[0];
+
+    FILE* file = fdopen(out, "w");
+
+    Stream::FileOutput fileStream(file);
+    Stream::Descripted stream(fileStream, "[desc] ");
+    stream.PrintFmt("%s %d", "abc", 12);
+    stream.NewLine();
+    stream.PrintFmt("%s %d", "cba", 23);
+    stream.NewLine();
+
+    stream.Flush();
+
+    fclose(file);
+
+    char buf[1024];
+    auto n = read(in, buf, sizeof(buf));
+    buf[n] = 0;
+    close(in);
+
+    auto expected = std::string(
+        "[desc] abc 12\n"
+        "[desc] cba 23\n"
+    );
+
+    ASSERT_EQ(expected.size(), n);
+    ASSERT_EQ(expected, buf);
 }

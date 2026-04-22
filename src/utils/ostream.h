@@ -91,6 +91,7 @@ public:
 
     void NewLine() override;
     void VPrintFmt(const char* fmt, va_list argp) override;
+    void Flush() const override;
 
 private:
     Output& stream;
@@ -104,6 +105,7 @@ public:
 
     void VPrintFmt(const char* fmt, va_list argp) override;
     void NewLine() override;
+    void Flush() const override;
 
 private:
     Output& stream;
