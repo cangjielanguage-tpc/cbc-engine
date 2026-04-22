@@ -56,7 +56,7 @@ CBC_EXPORT void* engine_get_entrypoint_trampoline(void)
 
     Engine::Session session(engine);
 
-    auto main = engine.FindMain(session, g_mainCbc);
+    auto main = engine.FindMethod(session, g_mainCbc, "default", "main");
     if (!main.has_value()) {
         return nullptr;
     }

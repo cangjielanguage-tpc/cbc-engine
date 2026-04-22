@@ -62,7 +62,7 @@ TEST_F(CbcTest, Empty)
     ASSERT_EQ(str, "abc");
 }
 
-static Interpretation::ExecBytecodeInfo* OpenAndRewrite(std::string_view name, std::string_view fileName)
+static Interpretation::ExecBytecodeInfo* OpenAndRewrite(std::string_view name, std::string_view fileName, std::string_view typeName = "default", std::string_view methodName = "main")
 {
     Engine::Loader loader;
 
@@ -72,7 +72,7 @@ static Interpretation::ExecBytecodeInfo* OpenAndRewrite(std::string_view name, s
 
     auto& engine = loader.Build();
     Engine::Session session(engine);
-    auto mainId      = engine.FindMain(session, fileName);
+    auto mainId      = engine.FindMethod(session, fileName, typeName, methodName);
     auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
 
     auto fuh = std::get<Interpretation::DynamicFunctionHandle*>(fuhManager.AcquireTagged(session, mainId.value()));
@@ -187,10 +187,10 @@ static uint64_t ASR(uint64_t lhs, uint64_t rhs)
     }
 
 #define SIMPLE_ARITH_SPECIALIZED(opc, value)                                                                           \
-    TEST_ASM(CbcTest, SimpleArithSpecialized##opc##_##value)                                                           \
+    TEST_ASM(CbcTest, SimpleArithSpecialized##opc##value)                                                           \
     {                                                                                                                  \
-        auto path = "./simple_arith_specialized/simple_arith_specialized_" #opc "_" #value ".asm";                     \
-        auto code = OpenAndRewrite("arith", path)->code;                                                               \
+        auto path = "./simple_arith_specialized/simple_arith_specialized_" #opc "_bulk.asm";                     \
+        auto code = OpenAndRewrite("arith", path, "default", "test_" #value)->code; \
         SIMPLE_ARITH_SPECIALIZED_CASE(opc, 1, value);                                                                  \
         SIMPLE_ARITH_SPECIALIZED_CASE(opc, 20, value);                                                                 \
         SIMPLE_ARITH_SPECIALIZED_CASE(opc, 301, value);                                                                \
