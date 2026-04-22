@@ -38,7 +38,6 @@ static void CompareWith(std::string_view fileName, std::string const& expected)
 
     auto resolver = API::Resolver::Create(session, mainId.value());
 
-    static constexpr size_t BUF_SIZE = 1024ull;
     Stream::StringBuffer stream;
     Cbc::Disasm(stream, code, resolver.get())->ParseAll();
 

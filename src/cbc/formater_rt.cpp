@@ -411,10 +411,8 @@ bool LogMemSpaceInstruction(
     uint32_t opc, Interpretation::LiteralTable* table, Stream::Output& stream, Decoder::ByteReader& reader
 )
 {
-    Stream::Indented streamIndented(stream);
 #define FMT_LOGGER(opcode, fmt, sfmt, isTail)                                                                          \
-    case MemOpcode::opcode:                                                                                            \
-        Log(table, streamIndented, fmt::Decode(reader)); return isTail;
+    case MemOpcode::opcode: Log(table, stream, fmt::Decode(reader)); return isTail;
 
     switch (opc) {
         CBC_RT_MEMOPCODES(FMT_LOGGER)
@@ -425,6 +423,7 @@ bool LogMemSpaceInstruction(
 
 void Log(Interpretation::Code code, Stream::Output& stream)
 {
+    Stream::Indented streamIndented(stream);
     using namespace RT;
     auto bytecode = code.bytecode;
     auto end      = bytecode + code.bytecodeSize;
@@ -442,7 +441,7 @@ void Log(Interpretation::Code code, Stream::Output& stream)
         stream.PrintFmt("%*lld: ", log10size, position);
 
         if (inMemspace) {
-            bool isTail = LogMemSpaceInstruction(opc, table, stream, reader);
+            bool isTail = LogMemSpaceInstruction(opc, table, streamIndented, reader);
 
             if (isTail) {
                 inMemspace = false;

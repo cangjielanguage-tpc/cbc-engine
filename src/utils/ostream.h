@@ -100,7 +100,7 @@ private:
 
 class Descripted : public Output {
 public:
-    Descripted(Output& astream, std::string beforeDescription = "");
+    Descripted(Output& astream, std::string beforeDescription);
 
     void VPrintFmt(const char* fmt, va_list argp) override;
     void NewLine() override;
