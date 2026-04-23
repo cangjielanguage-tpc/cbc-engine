@@ -8,8 +8,8 @@
 #include "cbc/isa_rewriter.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/reader.h"
-#include "utils/ostream.h"
 #include "function_handle.h"
+#include "utils/ostream.h"
 
 namespace Interpretation {
 

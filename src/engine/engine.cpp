@@ -128,7 +128,9 @@ std::optional<TypeDefinition> Engine::FindType(Session& session, std::string_vie
     return std::nullopt;
 }
 
-std::optional<Identifier<MethodDefinition>> Engine::FindMethod(Session& session, std::string_view filePath, std::string_view typeName, std::string_view methodName)
+std::optional<Identifier<MethodDefinition>> Engine::FindMethod(
+    Session& session, std::string_view filePath, std::string_view typeName, std::string_view methodName
+)
 {
     auto file = impl->FindCbcFile(filePath);
     if (!file.has_value()) {
