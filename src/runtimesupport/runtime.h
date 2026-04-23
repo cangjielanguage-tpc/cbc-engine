@@ -65,10 +65,4 @@ struct Execution {
     static MethodTable GetMethodTable(Reference base, int extDefNum, int methodNum);
 };
 
-struct Runtime {
-    static TypeInfo GetTypeInfo(const char* typeName);
-
-    static char const* GetTypeInfoName(TypeInfo typeInfo);
-};
-
 } // namespace RTSupport

@@ -88,11 +88,13 @@ MethodDefinition MethodDefinition::Parse(Engine::Session& session, IO::FileId fi
 
     std::optional<Offset<Code>> codeOffs;
 
+    auto target = &&tags_end;
+
     // TODO: use enum and support all tags
     while (true) {
         auto tag = reader.ReadU8();
         switch (tag) {
-            case 0: goto tags_end;
+            case 0: goto tags_end; // FIXME: C++ semantics
             case 1: codeOffs.emplace(Offset<Code>(reader.ReadU32())); break;
 
             default: FATAL("unexpected tag: %d", tag); std::exit(2);
@@ -101,7 +103,7 @@ MethodDefinition MethodDefinition::Parse(Engine::Session& session, IO::FileId fi
 
 tags_end:
 
-    return MethodDefinition(Engine::Identifier<MethodDefinition>(offset, fileId), nameOffset, 0, codeOffs);
+    return MethodDefinition(Engine::Identifier<MethodDefinition>(offset, fileId), nameOffset, methodSigIdx, codeOffs);
 }
 
 MethodDefinition MethodDefinition::Resolve(Engine::Session& session, Engine::Identifier<MethodDefinition> identifier)

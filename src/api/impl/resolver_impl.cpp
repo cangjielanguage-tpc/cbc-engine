@@ -6,6 +6,7 @@
 #include "engine/symlevel/reader.h"
 #include "engine/symlevel/references.h"
 #include "engine/symlevel/region_data.h"
+#include "engine/typeinfo_manager.h"
 #include "method_impl.h"
 #include "type_impl.h"
 #include "utils/assertion.h"
@@ -35,13 +36,8 @@ Type* ResolverImpl::Resolve(Symlevel::Index<Symlevel::Term> index)
     auto termKind = term.GetIdentifier().GetKind();
     switch (termKind) {
         case TemplateKind::AOT_TYPE: {
-            auto nameFileId     = term.GetIdentifier().AsAotIdent().GetFile();
-            auto typeNameOffset = term.GetIdentifier().AsAotIdent().GetOffset();
-            auto typeName       = Reader::Read(session, nameFileId, Offset<String>(typeNameOffset));
-            auto typeInfo       = RTSupport::Runtime::GetTypeInfo(std::string(typeName).c_str());
-
-            ASSERTION(typeInfo.Raw() != nullptr, "Couldn't resolve AOT type");
-
+            // FIXME: handle errors
+            auto typeInfo = Engine::TypeInfoManager::Of(session).AcquireTypeInfo(session, term).value();
             return session.Allocator().New<TypeImpl>(term, typeInfo);
         }
         default: {

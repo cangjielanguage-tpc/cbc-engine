@@ -40,7 +40,7 @@ TypeFlags TypeImpl::Flags()
 std::string_view TypeImpl::FullName()
 {
     if (term.GetLength() == 0) {
-        return RTSupport::Runtime::GetTypeInfoName(typeInfo.value());
+        return "FIXME: refactor resolver api";
     } else {
         ASSERTION(false, "Support for generic types");
     }

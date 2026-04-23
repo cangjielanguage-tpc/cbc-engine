@@ -164,28 +164,6 @@ class LocalTerm;
 class GlobalTerm;
 struct TermData;
 
-class LocalTerm {
-public:
-    LocalTerm(TermData* data);
-    Term Subterm(uint32_t i) const;
-
-    GlobalTerm Publish(Engine::Session& session);
-
-private:
-    friend class Term;
-    TermData* data;
-};
-
-class GlobalTerm {
-public:
-    GlobalTerm(TermData* data) : data(data) {}
-    GlobalTerm Subterm(uint32_t i) const;
-
-private:
-    friend class Term;
-    TermData* data;
-};
-
 struct Term {
     TermData* data;
 
@@ -194,9 +172,8 @@ struct Term {
 
     static Term Definition(Engine::Session& session, Engine::Identifier<TypeDefinition> type);
 
-    Term(LocalTerm local) : data(local.data) {}
-
-    Term(GlobalTerm global) : data(global.data) {}
+    Term(LocalTerm local);
+    Term(GlobalTerm global);
 
     TemplateIdentifier GetIdentifier() const;
     uint32_t GetLength() const;
@@ -210,6 +187,44 @@ struct Term {
     bool operator!=(const Term& another) const;
 
     Term Subterm(uint32_t i) const;
+};
+
+class LocalTerm {
+public:
+    LocalTerm(TermData* data);
+    Term Subterm(uint32_t i) const;
+
+    GlobalTerm Publish(Engine::Session& session);
+
+    TemplateIdentifier GetIdentifier() const { return Term(*this).GetIdentifier(); }
+
+    uint32_t GetLength() const { return Term(*this).GetLength(); }
+
+    uint32_t Hash() const { return Term(*this).GetLength(); }
+
+private:
+    friend class Term;
+    TermData* data;
+};
+
+class GlobalTerm {
+public:
+    GlobalTerm(TermData* data) : data(data) {}
+
+    GlobalTerm Subterm(uint32_t i) const;
+
+    TemplateIdentifier GetIdentifier() const { return Term(*this).GetIdentifier(); }
+
+    uint32_t GetLength() const { return Term(*this).GetLength(); }
+
+    uint32_t Hash() const { return Term(*this).GetLength(); }
+
+    bool operator==(const GlobalTerm& another) const;
+    bool operator!=(const GlobalTerm& another) const;
+
+private:
+    friend class Term;
+    TermData* data;
 };
 
 static constexpr bool IsBuiltin(uint32_t idx) { return idx < FIRST_NON_PRIMITIVE; }

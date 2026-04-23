@@ -38,6 +38,7 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
     auto i2Call             = PrepareI2Call(session, methodDef);
     auto c2Call             = PrepareC2Call(session, methodDef);
     auto fuh                = new DynamicFunctionHandle(i2Call, c2Call, methodDef);
+    // FIXME: proper publication
     impl->fuhMap[methodDef] = fuh;
     return fuh;
 }
@@ -56,14 +57,13 @@ FunctionHandle* FunctionHandleManager::Acquire(
 
 ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, DynamicFunctionHandle* fuh)
 {
-    auto def = Symlevel::MethodDefinition::Resolve(session, fuh->methodDef);
-
     std::lock_guard guard(fuh->lock);
 
     if (auto bytecode = fuh->bytecode.load(); bytecode != nullptr) {
         return bytecode;
     }
 
+    auto def    = Symlevel::MethodDefinition::Resolve(session, fuh->methodDef);
     auto offset = def.GetCodeOffset();
     auto code   = Symlevel::Reader::Read(session, def.FileId(), offset);
 

@@ -59,11 +59,4 @@ MethodTable Execution::GetMethodTable(Reference base, int extDefNum, int methodN
     return MethodTable(target);
 }
 
-TypeInfo Runtime::GetTypeInfo(const char* typeName)
-{
-    return TypeInfo(g_CJNativeInterfaceInstance.type_info(typeName));
-}
-
-char const* Runtime::GetTypeInfoName(TypeInfo typeInfo) { return MRTTypeInfo(typeInfo)->type_info_name; }
-
 } // namespace RTSupport

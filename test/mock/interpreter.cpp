@@ -2,6 +2,7 @@
 
 #include "../testutils.h"
 #include "cbc/decoder.h"
+#include "engine/typeinfo_manager.h"
 #include "interpreter.h"
 #include "interpreter/interpretation_loop.h"
 #include "runtimesupport/adapters.h"
@@ -159,6 +160,13 @@ namespace RTSupport {
 
 using Reference = Interpretation::Value::Reference;
 
+std::optional<TypeInfo> CreateTypeInfo(
+    Engine::Session& session, Engine::TypeInfoManager& manager, Symlevel::GlobalTerm term
+)
+{
+    return std::nullopt;
+}
+
 Reference Execution::ReadObjectInstance(Reference base, size_t offset, ThreadHandle th)
 {
     return Reference { .value = *reinterpret_cast<uintptr_t*>(base.value + offset) };
@@ -189,10 +197,6 @@ MethodTable Execution::GetMethodTable(Reference base, int extDefNum, int methodN
 {
     FATAL("Should not reach here. I2C virtual call");
 }
-
-TypeInfo Runtime::GetTypeInfo(const char* typeName) { return TypeInfo(nullptr); }
-
-char const* Runtime::GetTypeInfoName(TypeInfo typeInfo) { return "MockTypeInfo"; }
 
 void* Execution::AllocateObjectInstance() { return reinterpret_cast<void*>(&Interpretation::MockNewObj); }
 

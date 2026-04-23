@@ -156,6 +156,10 @@ static TermData builtins[] = {
     { TagTemplateIdentifier(TemplateKind::F64), 0x29, 0, false },
 };
 
+Term::Term(LocalTerm local) : data(local.data) {}
+
+Term::Term(GlobalTerm global) : data(global.data) {}
+
 Term Term::Primitive(Engine::Session& session, TemplateKind kind)
 {
     int num = static_cast<int>(kind);
@@ -234,19 +238,23 @@ GlobalTerm LocalTerm::Publish(Engine::Session& session)
 
 GlobalTerm GlobalTerm::Subterm(uint32_t i) const { return this->data->subterms[i].AsGlobal(); }
 
+bool GlobalTerm::operator==(const GlobalTerm& another) const { return this == &another; }
+
+bool GlobalTerm::operator!=(const GlobalTerm& another) const { return this != &another; }
+
 GlobalTerm TermManager::Globalize(Term& term)
 {
     if (!term.IsLocal()) {
         return term.AsGlobal();
     }
 
-    std::lock_guard guard(lock);
-
     // globalize terms in-place
     auto termData = term.data;
     for (int i = 0; i < term.GetLength(); i++) {
         termData->subterms[i] = Globalize(termData->subterms[i]);
     }
+
+    std::lock_guard guard(lock);
 
     // query cache without allocating a new term
     auto it = cache.find(termData);
