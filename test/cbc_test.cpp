@@ -212,7 +212,7 @@ static uint64_t ASR(uint64_t lhs, uint64_t rhs)
     X(LSR)                                                                                                             \
     X(ASR)
 
-#define SIMPLE_ARITH_VALUES(opc, X)                                                                                    \
+#define SIMPLE_ARITH_VALUES(X, opc)                                                                                    \
     X(opc, 0x1)                                                                                                        \
     X(opc, 0x10)                                                                                                       \
     X(opc, 0x100)                                                                                                      \
@@ -249,22 +249,12 @@ static uint64_t ASR(uint64_t lhs, uint64_t rhs)
     {                                                                                                                  \
         auto path    = "./simple_arith_specialized/simple_arith_specialized_" #opc "_bulk.asm";                        \
         auto& engine = OpenFile(path);                                                                                 \
-        SIMPLE_ARITH_VALUES(opc, SIMPLE_ARITH_SPECIALIZED_VALUE)                                                       \
+        SIMPLE_ARITH_VALUES(SIMPLE_ARITH_SPECIALIZED_VALUE, opc)                                                       \
     }
 
 SIMPLE_ARITH_OPC(SIMPLE_ARITH_SPECIALIZED)
 
-#define SIMPLE_CONVERT_CASES(X)                                                                                        \
-    X(F32_F64, true, true, F32(1.0f), F64(1.0))                                                                        \
-    X(F32_I32, true, false, F32(1.0f), U64(1))                                                                         \
-    X(F32_I64, true, false, F32(1.0f), U64(1))                                                                         \
-    X(F32_U32, true, false, F32(1.0f), U64(1))                                                                         \
-    X(F32_U64, true, false, F32(1.0f), U64(1))                                                                         \
-    X(F64_F32, true, true, F64(1.0), F32(1.0f))                                                                        \
-    X(F64_I32, true, false, F64(1.0), U64(1))                                                                          \
-    X(F64_I64, true, false, F64(1.0), U64(1))                                                                          \
-    X(F64_U32, true, false, F64(1.0), U64(1))                                                                          \
-    X(F64_U64, true, false, F64(1.0), U64(1))                                                                          \
+#define SIMPLE_CONVERT_TO_INTEGER_CASES(X)                                                                             \
     X(I8_I32, false, false, U64(-128), U64(32896))                                                                     \
     X(I8_U32, false, false, U64(-128), U64(32896))                                                                     \
     X(I16_I32, false, false, U64(-32640), U64(32896))                                                                  \
@@ -287,15 +277,37 @@ SIMPLE_ARITH_OPC(SIMPLE_ARITH_SPECIALIZED)
     X(U64_F32, false, true, U64(1), F32(1.0f))                                                                         \
     X(U64_F64, false, true, U64(1), F64(1.0))
 
-#define SIMPLE_CONVERT(opc, toFP, fromFP, expected, val)                                                               \
-    TEST_ASM(CbcTest, SimpleConvert##opc)                                                                              \
+#define SIMPLE_CONVERT_TO_FLOAT_CASES(X)                                                                               \
+    X(F32_F64, true, true, F32(1.0f), F64(1.0))                                                                        \
+    X(F32_I32, true, false, F32(1.0f), U64(1))                                                                         \
+    X(F32_I64, true, false, F32(1.0f), U64(1))                                                                         \
+    X(F32_U32, true, false, F32(1.0f), U64(1))                                                                         \
+    X(F32_U64, true, false, F32(1.0f), U64(1))                                                                         \
+    X(F64_F32, true, true, F64(1.0), F32(1.0f))                                                                        \
+    X(F64_I32, true, false, F64(1.0), U64(1))                                                                          \
+    X(F64_I64, true, false, F64(1.0), U64(1))                                                                          \
+    X(F64_U32, true, false, F64(1.0), U64(1))                                                                          \
+    X(F64_U64, true, false, F64(1.0), U64(1))
+
+#define SIMPLE_CONVERT_CASES(X)                                                                                        \
+    X(to_integer, SIMPLE_CONVERT_TO_INTEGER_CASES)                                                                     \
+    X(to_float, SIMPLE_CONVERT_TO_FLOAT_CASES)
+
+#define SIMPLE_CONVERT_CASES_TEST(opc, toFP, fromFP, expected, val)                                                    \
     {                                                                                                                  \
-        auto path = "./simple_convert/simple_convert_" #opc ".asm";                                                    \
-        auto code = OpenAndRewrite("arith", path, "default", "main")->code;                                            \
+        auto code = RewriteMethod(engine, path, "default", "main")->code;                                              \
         auto ir1  = fromFP ? U64(0) : val;                                                                             \
         auto fr0  = fromFP ? val : F64(0);                                                                             \
         auto res  = toFP ? InterpretFPRes(code, ir1, U64(0), fr0, F64(0)) : Interpret(code, ir1, U64(0), fr0, F64(0)); \
         EXPECT_EQ(res.u64, expected.u64);                                                                              \
     }
 
-SIMPLE_CONVERT_CASES(SIMPLE_CONVERT)
+#define SIMPLE_CONVERT_TEST(toType, CASES)                                                                             \
+    TEST_ASM(CbcTest, SimpleConvert##toType)                                                                           \
+    {                                                                                                                  \
+        auto path    = "./simple_convert/simple_convert_" #toType ".asm";                                              \
+        auto& engine = OpenFile(path);                                                                                 \
+        CASES(SIMPLE_CONVERT_CASES_TEST)                                                                               \
+    }
+
+SIMPLE_CONVERT_CASES(SIMPLE_CONVERT_TEST)
