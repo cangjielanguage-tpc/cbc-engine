@@ -303,7 +303,7 @@ SIMPLE_ARITH_OPC(SIMPLE_ARITH_SPECIALIZED)
     }
 
 #define SIMPLE_CONVERT_TEST(toType, CASES)                                                                             \
-    TEST_ASM(CbcTest, SimpleConvert##toType)                                                                           \
+    TEST_ASM(CbcTest, SimpleConvert_##toType)                                                                           \
     {                                                                                                                  \
         auto path    = "./simple_convert/simple_convert_" #toType ".asm";                                              \
         auto& engine = OpenFile(path);                                                                                 \
