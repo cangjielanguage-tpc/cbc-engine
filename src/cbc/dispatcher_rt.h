@@ -718,9 +718,9 @@ OFFS_REG: {
 #define FSTI(memSize, immSize, encoding)                                                                               \
     FSTI_##memSize##_##immSize:                                                                                        \
     {                                                                                                                  \
-        auto args = encoding::Decode(reader);                                                                          \
-        bool successful =                                                                                              \
-            interpreter.StoreFrameImm(Format::StoreAccessKind::ST_##memSize, args.imm##immSize, memspaceOffsetAcc);    \
+        auto args       = encoding::Decode(reader);                                                                    \
+        uint64_t imm    = MathUtils::SignExtend(static_cast<uint64_t>(args.imm##immSize), immSize);                    \
+        bool successful = interpreter.StoreFrameImm(Format::StoreAccessKind::ST_##memSize, imm, memspaceOffsetAcc);    \
         NEXT_COND(successful);                                                                                         \
     }
     FSTI(8, 8, M2i8)

@@ -57,20 +57,16 @@ FunctionHandle* FunctionHandleManager::Acquire(
     }
 }
 
-ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, DynamicFunctionHandle* fuh)
+static uint32_t CalcFrameSize(Symlevel::Code code)
 {
-    auto def = Symlevel::MethodDefinition::Resolve(session, fuh->methodDef);
+    auto stackAllocSize = Cbc::STACK_SLOT_SIZE * (code.UntypedSlotCount()); // TODO: typed stack slots
+    return MathUtils::AlignUp(stackAllocSize, Cbc::FRAME_ALIGNMENT);
+}
 
-    std::lock_guard guard(fuh->lock);
-
-    if (auto bytecode = fuh->bytecode.load(); bytecode != nullptr) {
-        return bytecode;
-    }
-
-    auto offset = def.GetCodeOffset();
-    auto code   = Symlevel::Reader::Read(session, def.FileId(), offset);
-
-    auto resolver = API::Resolver::Create(session, fuh->methodDef);
+static ExecBytecodeInfo Rewrite(Engine::Session& session, Symlevel::MethodDefinition def)
+{
+    auto code     = Symlevel::Reader::Read(session, def.FileId(), def.GetCodeOffset());
+    auto resolver = API::Resolver::Create(session, def.GetIdentifier());
 
     if (Cbc::IsDisasmEnabled()) {
         Cbc::Disasm(std::cerr, code, resolver.get())->ParseAll();
@@ -82,17 +78,29 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, Dynam
     auto& heap         = session.GetEngine().CodeHeap();
     auto rewrittenCode = emitter.Build(heap);
 
-    auto stackAllocSize = Cbc::STACK_SLOT_SIZE * (code.UntypedSlotCount()); // TODO: typed stack slots
-    auto frameSize      = MathUtils::AlignUp(stackAllocSize, Cbc::FRAME_ALIGNMENT);
+    auto frameSize = CalcFrameSize(code);
 
-    ExecBytecodeInfo bytecode = {
+    return ExecBytecodeInfo {
         .code             = rewrittenCode,
         .savedIRegs       = code.UsedNonVolIRegMask(),
         .savedFRegs       = code.UsedNonVolFRegMask(),
         .untypedSlotCount = static_cast<uint16_t>(code.UntypedSlotCount()),
-        .frameSize        = stackAllocSize,
+        .frameSize        = frameSize,
         // TODO: initialize rest
     };
+}
+
+ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, DynamicFunctionHandle* fuh)
+{
+    auto def = Symlevel::MethodDefinition::Resolve(session, fuh->methodDef);
+
+    std::lock_guard guard(fuh->lock);
+
+    if (auto bytecode = fuh->bytecode.load(); bytecode != nullptr) {
+        return bytecode;
+    }
+
+    auto bytecode = Rewrite(session, def);
 
     fuh->bytecode.store(new ExecBytecodeInfo(bytecode));
 

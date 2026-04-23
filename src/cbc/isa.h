@@ -537,8 +537,6 @@ public:
 
 #undef StoreAccessKindEnum
 
-    constexpr StoreAccessKind(const uint8_t raw) : _value((Value)raw) {}
-
     constexpr StoreAccessKind(const Value raw) : _value(raw) {}
 
     constexpr static StoreAccessKind From(uint8_t value)
@@ -595,8 +593,6 @@ public:
     };
 
 #undef LoadAccessKindEnum
-
-    constexpr LoadAccessKind(const uint8_t raw) : _value((Value)raw) {}
 
     constexpr LoadAccessKind(const Value raw) : _value(raw) {}
 
@@ -686,7 +682,7 @@ public:
 
     inline Format::StoreAccessKind STK() const { return Format::StoreAccessKind::Value(imm); }
 
-    inline Format::LoadAccessKind LDK() const { return Format::LoadAccessKind(imm); }
+    inline Format::LoadAccessKind LDK() const { return Format::LoadAccessKind::Value(imm); }
 
     inline IReg IR() const { return IReg::From(imm); }
 

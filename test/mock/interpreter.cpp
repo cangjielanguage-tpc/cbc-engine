@@ -15,7 +15,7 @@ namespace Interpretation {
 
 using namespace RTSupport;
 
-static Interpretation::Frame zeroFrame { reinterpret_cast<uintptr_t>(nullptr) };
+static Interpretation::Frame zeroFrame { 0 };
 
 static void MockNewObj(Ectype* ectype, ThreadHandle th, TypeInfo<Test> type);
 static void InterpreterI2CallTest(Ectype* ectype, ThreadHandle handle, FunctionHandle* fuh);
