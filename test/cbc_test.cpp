@@ -295,7 +295,7 @@ SIMPLE_ARITH_OPC(SIMPLE_ARITH_SPECIALIZED)
 
 #define SIMPLE_CONVERT_CASES_TEST(opc, toFP, fromFP, expected, val)                                                    \
     {                                                                                                                  \
-        auto code = RewriteMethod(engine, path, "default", "main")->code;                                              \
+        auto code = RewriteMethod(engine, path, "default", "test_" #opc)->code;                                              \
         auto ir1  = fromFP ? U64(0) : val;                                                                             \
         auto fr0  = fromFP ? val : F64(0);                                                                             \
         auto res  = toFP ? InterpretFPRes(code, ir1, U64(0), fr0, F64(0)) : Interpret(code, ir1, U64(0), fr0, F64(0)); \
