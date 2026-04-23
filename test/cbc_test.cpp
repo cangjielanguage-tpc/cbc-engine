@@ -119,15 +119,6 @@ TEST_ASM(CbcTest, SimpleArith)
     ASSERT_EQ(res.u32, 36);
 }
 
-TEST_ASM(CbcTest, SimpleArithFloat)
-{
-    GTEST_SKIP() << "not supported";
-    auto res = InterpretFPRes(
-        OpenAndRewrite("simple_arith_float", "simple_arith_float.asm", "default", "main")->code, U32(0), U32(10)
-    );
-    ASSERT_EQ(res.f64, 357);
-}
-
 TEST_ASM(CbcTest, SimpleArithImm)
 {
     auto res =
@@ -254,6 +245,12 @@ static uint64_t ASR(uint64_t lhs, uint64_t rhs)
 
 SIMPLE_ARITH_OPC(SIMPLE_ARITH_SPECIALIZED)
 
+#undef SIMPLE_ARITH_OPC
+#undef SIMPLE_ARITH_VALUES
+#undef SIMPLE_ARITH_SPECIALIZED_VALUE
+#undef SIMPLE_ARITH_SPECIALIZED_CASE
+#undef SIMPLE_ARITH_SPECIALIZED
+
 #define SIMPLE_CONVERT_TO_INTEGER_CASES(X)                                                                             \
     X(I8_I32, false, false, U64(-128), U64(32896))                                                                     \
     X(I8_U32, false, false, U64(-128), U64(32896))                                                                     \
@@ -311,3 +308,174 @@ SIMPLE_ARITH_OPC(SIMPLE_ARITH_SPECIALIZED)
     }
 
 SIMPLE_CONVERT_CASES(SIMPLE_CONVERT_TEST)
+
+#undef SIMPLE_CONVERT_TO_INTEGER_CASES
+#undef SIMPLE_CONVERT_TO_FLOAT_CASES
+#undef SIMPLE_CONVERT_CASES
+#undef SIMPLE_CONVERT_CASES_TEST
+#undef SIMPLE_CONVERT_TEST
+
+#define SIMPLE_ARITH_FLOAT_BINARY_CASES_32(X, opc, op, type, F)                                                        \
+    X(opc, op, type, F, 4.2f, 7.3f)                                                                                    \
+    X(opc, op, type, F, 0.0f, -0.0f)                                                                                   \
+    X(opc, op, type, F, -0.0f, -0.0f)                                                                                  \
+    X(opc, op, type, F, std::numeric_limits<float>::quiet_NaN(), 12.34f)                                               \
+    X(opc, op, type, F, std::numeric_limits<float>::infinity(), 12.34f)                                                \
+    X(opc, op, type, F, std::numeric_limits<float>::infinity(), 0.0f)                                                  \
+    X(opc, op, type, F, -std::numeric_limits<float>::infinity(), 12.34f)                                               \
+    X(opc, op, type, F, std::numeric_limits<float>::infinity(), -std::numeric_limits<float>::infinity())               \
+    X(opc, op, type, F, std::numeric_limits<float>::infinity(), std::numeric_limits<float>::quiet_NaN())               \
+    X(opc, op, type, F, std::numeric_limits<float>::max(), 2.0f)                                                       \
+    X(opc, op, type, F, std::numeric_limits<float>::max(), -std::numeric_limits<float>::max())                         \
+    X(opc, op, type, F, 16777216.0f, 1.0f)                                                                             \
+    X(opc, op, type, F, 16777216.0f, 2.0f)
+
+#define SIMPLE_ARITH_FLOAT_BINARY_CASES_64(X, opc, op, type, F)                                                        \
+    X(opc, op, type, F, 4.2, 7.3)                                                                                      \
+    X(opc, op, type, F, 0.0, -0.0)                                                                                     \
+    X(opc, op, type, F, -0.0, -0.0)                                                                                    \
+    X(opc, op, type, F, std::numeric_limits<double>::quiet_NaN(), 12.34)                                               \
+    X(opc, op, type, F, std::numeric_limits<double>::infinity(), 12.34)                                                \
+    X(opc, op, type, F, std::numeric_limits<double>::infinity(), 0.0)                                                  \
+    X(opc, op, type, F, -std::numeric_limits<double>::infinity(), 12.34)                                               \
+    X(opc, op, type, F, std::numeric_limits<double>::infinity(), -std::numeric_limits<double>::infinity())             \
+    X(opc, op, type, F, std::numeric_limits<double>::infinity(), std::numeric_limits<double>::quiet_NaN())             \
+    X(opc, op, type, F, std::numeric_limits<double>::max(), 2.0)                                                       \
+    X(opc, op, type, F, std::numeric_limits<double>::max(), -std::numeric_limits<double>::max())                       \
+    X(opc, op, type, F, 9007199254740992.0, 1.0)                                                                       \
+    X(opc, op, type, F, 9007199254740992.0, 2.0)
+
+#define SIMPLE_ARITH_FLOAT_BINARY_CASES(X)                                                                             \
+    X(SIMPLE_ARITH_FLOAT_BINARY_CASES_32, float, F32)                                                                  \
+    X(SIMPLE_ARITH_FLOAT_BINARY_CASES_64, double, F64)
+
+#define SIMPLE_ARITH_FLOAT_BINARY_CASE_TEST(opc, op, type, F, l, r)                                                    \
+    {                                                                                                                  \
+        auto res    = InterpretFPRes(RewriteMethod(engine, path, "default", "test_" #opc)->code, F(l), F(r));          \
+        type resVal = *(reinterpret_cast<const type*>(&res));                                                          \
+        type expVal = (l)op(r);                                                                                        \
+        if (std::isnan(resVal) && std::isnan(expVal)) {                                                                \
+            SUCCEED();                                                                                                 \
+        } else {                                                                                                       \
+            ASSERT_EQ(res.u64, F(expVal).u64);                                                                         \
+        }                                                                                                              \
+    }
+
+#define SIMPLE_ARITH_FLOAT_BINARY_TEST(CASES, type, F)                                                                 \
+    TEST_ASM(CbcTest, SimpleArithFloatBinary##F)                                                                       \
+    {                                                                                                                  \
+        auto path    = "./simple_arith_float/simple_arith_float_binary" #F ".asm";                                     \
+        auto& engine = OpenFile(path);                                                                                 \
+        CASES(SIMPLE_ARITH_FLOAT_BINARY_CASE_TEST, ADD, +, type, F)                                                    \
+        CASES(SIMPLE_ARITH_FLOAT_BINARY_CASE_TEST, SUB, -, type, F)                                                    \
+        CASES(SIMPLE_ARITH_FLOAT_BINARY_CASE_TEST, MUL, *, type, F)                                                    \
+        CASES(SIMPLE_ARITH_FLOAT_BINARY_CASE_TEST, DIV, /, type, F)                                                    \
+    }
+
+SIMPLE_ARITH_FLOAT_BINARY_CASES(SIMPLE_ARITH_FLOAT_BINARY_TEST)
+
+#undef SIMPLE_ARITH_FLOAT_BINARY_CASES_32
+#undef SIMPLE_ARITH_FLOAT_BINARY_CASES_64
+#undef SIMPLE_ARITH_FLOAT_BINARY_CASES
+#undef SIMPLE_ARITH_FLOAT_BINARY_CASE_TEST
+#undef SIMPLE_ARITH_FLOAT_BINARY_TEST
+
+#define SIMPLE_ARITH_FLOAT_UNARY_CASES_32(X, opc, op, type, F)                                                         \
+    X(opc, op, type, F, 4.2f)                                                                                          \
+    X(opc, op, type, F, 0.0f)                                                                                          \
+    X(opc, op, type, F, -0.0f)                                                                                         \
+    X(opc, op, type, F, std::numeric_limits<float>::quiet_NaN())                                                       \
+    X(opc, op, type, F, std::numeric_limits<float>::infinity())                                                        \
+    X(opc, op, type, F, -std::numeric_limits<float>::infinity())                                                       \
+    X(opc, op, type, F, std::numeric_limits<float>::max())                                                             \
+    X(opc, op, type, F, std::numeric_limits<float>::min())                                                             \
+    X(opc, op, type, F, 16777216.0f)
+
+#define SIMPLE_ARITH_FLOAT_UNARY_CASES_64(X, opc, op, type, F)                                                         \
+    X(opc, op, type, F, 4.2)                                                                                           \
+    X(opc, op, type, F, 0.0)                                                                                           \
+    X(opc, op, type, F, -0.0)                                                                                          \
+    X(opc, op, type, F, std::numeric_limits<double>::quiet_NaN())                                                      \
+    X(opc, op, type, F, std::numeric_limits<double>::infinity())                                                       \
+    X(opc, op, type, F, -std::numeric_limits<double>::infinity())                                                      \
+    X(opc, op, type, F, std::numeric_limits<double>::max())                                                            \
+    X(opc, op, type, F, std::numeric_limits<double>::min())                                                            \
+    X(opc, op, type, F, 9007199254740992.0)
+
+#define SIMPLE_ARITH_FLOAT_UNARY_CASES(X)                                                                              \
+    X(SIMPLE_ARITH_FLOAT_UNARY_CASES_32, float, F32)                                                                   \
+    X(SIMPLE_ARITH_FLOAT_UNARY_CASES_64, double, F64)
+
+#define SIMPLE_ARITH_FLOAT_UNARY_CASE_TEST(opc, op, type, F, v)                                                        \
+    {                                                                                                                  \
+        auto res    = InterpretFPRes(RewriteMethod(engine, path, "default", "test_" #opc)->code, F(v), F(0));          \
+        type resVal = *(reinterpret_cast<const type*>(&res));                                                          \
+        type expVal = op(v);                                                                                           \
+        if (std::isnan(resVal) && std::isnan(expVal)) {                                                                \
+            SUCCEED();                                                                                                 \
+        } else {                                                                                                       \
+            ASSERT_EQ(res.u64, F(expVal).u64);                                                                         \
+        }                                                                                                              \
+    }
+
+#define SIMPLE_ARITH_FLOAT_UNARY_TEST(CASES, type, F)                                                                  \
+    TEST_ASM(CbcTest, SimpleArithFloatUnary##F)                                                                        \
+    {                                                                                                                  \
+        auto path    = "./simple_arith_float/simple_arith_float_unary" #F ".asm";                                      \
+        auto& engine = OpenFile(path);                                                                                 \
+        CASES(SIMPLE_ARITH_FLOAT_UNARY_CASE_TEST, NEG, -, type, F)                                                     \
+        CASES(SIMPLE_ARITH_FLOAT_UNARY_CASE_TEST, SQRT, std::sqrt, type, F)                                            \
+        CASES(SIMPLE_ARITH_FLOAT_UNARY_CASE_TEST, ABS, std::abs, type, F)                                              \
+    }
+
+SIMPLE_ARITH_FLOAT_UNARY_CASES(SIMPLE_ARITH_FLOAT_UNARY_TEST)
+
+#undef SIMPLE_ARITH_FLOAT_UNARY_CASES_32
+#undef SIMPLE_ARITH_FLOAT_UNARY_CASES_64
+#undef SIMPLE_ARITH_FLOAT_UNARY_CASES
+#undef SIMPLE_ARITH_FLOAT_UNARY_CASE_TEST
+#undef SIMPLE_ARITH_FLOAT_UNARY_TEST
+
+TEST_ASM(CbcTest, SimpleArithFloatMov32)
+{
+    auto path    = "./simple_arith_float/simple_arith_float_movF32.asm";
+    auto& engine = OpenFile(path);
+
+    {
+        auto res = InterpretFPRes(RewriteMethod(engine, path, "default", "test_MOV")->code, F32(0), F32(2.0f));
+        ASSERT_EQ(res.f32, 2.0f);
+    }
+    {
+        auto res =
+            Interpret(RewriteMethod(engine, path, "default", "test_F2I")->code, U32(0), U32(0), F32(2.5f), F32(0));
+        ASSERT_EQ(res.u32, 0x40200000);
+    }
+    {
+        auto res = InterpretFPRes(
+            RewriteMethod(engine, path, "default", "test_I2F")->code, U32(0x40200000), U32(0), F32(0), F32(0)
+        );
+        ASSERT_EQ(res.f32, 2.5f);
+    }
+}
+
+TEST_ASM(CbcTest, SimpleArithFloatMov64)
+{
+    auto path    = "./simple_arith_float/simple_arith_float_movF64.asm";
+    auto& engine = OpenFile(path);
+
+    {
+        auto res = InterpretFPRes(RewriteMethod(engine, path, "default", "test_MOV")->code, F64(0), F64(2.0));
+        ASSERT_EQ(res.f64, 2.0);
+    }
+    {
+        auto res =
+            Interpret(RewriteMethod(engine, path, "default", "test_F2I")->code, U64(0), U64(0), F64(2.5), F64(0));
+        ASSERT_EQ(res.u64, 0x4004000000000000);
+    }
+    {
+        auto res = InterpretFPRes(
+            RewriteMethod(engine, path, "default", "test_I2F")->code, U64(0x4004000000000000), U64(0), F64(0), F64(0)
+        );
+        ASSERT_EQ(res.f64, 2.5);
+    }
+}
