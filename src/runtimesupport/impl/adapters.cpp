@@ -1,6 +1,6 @@
+#include "runtimesupport/adapters.h"
 #include "asm_trampolines.h"
 #include "interpreter/code.h"
-#include "runtimesupport/adapters.h"
 
 namespace RTSupport {
 

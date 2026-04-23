@@ -1,6 +1,6 @@
+#include "runtimesupport/runtime.h"
 #include "asm_trampolines.h"
 #include "cjnative.h"
-#include "runtime.h"
 
 namespace RTSupport {
 

@@ -11,10 +11,10 @@ class ThreadHandle {
 public:
     ThreadHandle(void* _value) : value(_value) {}
 
-    operator void*() const { return value; }
+    void* Raw() const { return value; }
 
 private:
-    void* const value;
+    void* value;
 };
 
 class TypeInfo {

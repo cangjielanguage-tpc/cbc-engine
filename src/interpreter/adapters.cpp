@@ -1,5 +1,4 @@
 #include "adapters.h"
-#include "asm_export.h"
 #include "function_handle.h"
 
 #include "runtimesupport/adapters.h"
