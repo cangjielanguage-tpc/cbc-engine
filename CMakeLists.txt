@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.16)
 project(cbc-engine CXX ASM)
 
+# Use CMAKE_CXX_COMPILER and CMAKE_C_COMPILER directly - these auto-detect the compiler
+# No explicit clang/gcc dependency - works with any C++ compiler
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink

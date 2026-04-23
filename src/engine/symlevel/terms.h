@@ -88,7 +88,7 @@ protected:
     constexpr TemplateIdentifier(Engine::PackedIdentifier identifier) : ident(identifier) {}
 
 public:
-    TemplateKind GetKind() { return TemplateKind(ident.GetTag()); }
+    constexpr TemplateKind GetKind() { return TemplateKind(ident.GetTag()); }
 
     uint32_t Hash()
     {
@@ -179,6 +179,7 @@ private:
 class GlobalTerm {
 public:
     GlobalTerm(TermData* data) : data(data) {}
+
     GlobalTerm Subterm(uint32_t i) const;
 
 private:

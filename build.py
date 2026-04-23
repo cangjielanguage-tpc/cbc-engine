@@ -30,7 +30,7 @@ def build(args, project_dir, build_dir):
         os.makedirs(build_dir)
 
     toolchain_files_dir = f"{project_dir}/cmake/toolchains"
-    toolchain_path = f"{toolchain_files_dir}/{args.target_platform}-linux-gnu-clang.cmake"
+    toolchain_path = f"{toolchain_files_dir}/{args.target_platform}-linux-gnu.cmake"
 
     cmake_cmd = (
         f"cmake {project_dir} "
@@ -70,11 +70,15 @@ def main():
     parser = argparse.ArgumentParser(description="build / clean")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    build_parser = subparsers.add_parser("build", help="build the project")
+    build_parser =     subparsers.add_parser("build", help="build the project")
     build_parser.add_argument("--target-platform",
                               choices=["x86_64", "aarch64"],
                               default=default_platform,
                               help=f"Target platform (default: {default_platform})")
+    build_parser.add_argument("--use-lld",
+                              action="store_true",
+                              default=False,
+                              help="Use ld.lld linker (default: False - use system linker)")
     build_parser.add_argument("-t", "--build-type",
                               choices=["debug", "release"],
                               default="debug",

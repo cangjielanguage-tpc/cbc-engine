@@ -17,24 +17,28 @@
 
 namespace Symlevel {
 
-struct TermData {
+struct TermDataBase {
     TemplateIdentifier identifier;
     uint32_t hash;
     uint16_t length;
     bool isLocal;
+};
+
+struct TermData {
+    TermDataBase base;
     Term subterms[];
 
     void InitAfterSubterms(TemplateIdentifier identifier, uint16_t length, bool isLocal)
     {
-        Init(identifier, identifier.Hash() ^ hash, length, isLocal);
+        Init(identifier, identifier.Hash() ^ base.hash, length, isLocal);
     }
 
     void Init(TemplateIdentifier identifier, uint32_t hash, uint16_t length, bool isLocal)
     {
-        this->identifier = identifier;
-        this->isLocal    = isLocal;
-        this->length     = length;
-        this->hash       = hash;
+        base.identifier = identifier;
+        base.isLocal    = isLocal;
+        base.length     = length;
+        base.hash       = hash;
     }
 };
 
@@ -100,7 +104,7 @@ std::optional<Term> Term::ParseAndResolve(Engine::Session& session, IO::FileId f
         }
 
         case METHOD_SIGNATURE: {
-            auto len = reader.ReadU8() + 1; // +1 for ret type
+            auto len   = reader.ReadU8() + 1; // +1 for ret type
             auto* data = AllocateTerm(allocator, len);
 
             auto& regionData = session.CbcFileOf(fileId).GetRegionData();
@@ -133,7 +137,7 @@ AotTypeTemplateIdentifier TemplateIdentifier::AsAotIdent() { return AotTypeTempl
 
 TagTemplateIdentifier TemplateIdentifier::AsTagIdent() { return TagTemplateIdentifier(ident); }
 
-static TermData builtins[] = {
+static TermDataBase builtins[] = {
     { TagTemplateIdentifier(TemplateKind::NIL), 0xa0, 0, false },
     { TagTemplateIdentifier(TemplateKind::VOID), 0xa1, 0, false },
     { TagTemplateIdentifier(TemplateKind::UNIT), 0xa2, 0, false },
@@ -162,7 +166,7 @@ Term Term::Primitive(Engine::Session& session, TemplateKind kind)
     ASSERT(num < FIRST_NON_PRIMITIVE);
     auto data = &builtins[static_cast<int>(kind)];
     ASSERT(data->identifier.GetKind() == kind);
-    return GlobalTerm(data);
+    return GlobalTerm(reinterpret_cast<TermData*>(data));
 }
 
 Term Term::Definition(Engine::Session& session, Engine::Identifier<TypeDefinition> type)
@@ -188,11 +192,11 @@ GlobalTerm Term::AsGlobal()
 
 Term Term::Subterm(uint32_t i) const { return data->subterms[i]; }
 
-TemplateIdentifier Term::GetIdentifier() const { return data->identifier; }
+TemplateIdentifier Term::GetIdentifier() const { return data->base.identifier; }
 
-uint32_t Term::GetLength() const { return data->length; }
+uint32_t Term::GetLength() const { return data->base.length; }
 
-uint32_t Term::Hash() const { return data->hash; }
+uint32_t Term::Hash() const { return data->base.hash; }
 
 bool Term::operator!=(const Term& another) const { return !(*this == another); }
 
@@ -200,16 +204,16 @@ static bool CompareTermData(TermData* origin, TermData* another, bool ignoreLoca
 {
     if (another == origin) {
         return true;
-    } else if (another->hash != origin->hash) {
+    } else if (another->base.hash != origin->base.hash) {
         return false;
-    } else if (!ignoreLocal && another->isLocal != origin->isLocal) {
+    } else if (!ignoreLocal && another->base.isLocal != origin->base.isLocal) {
         return false;
-    } else if (another->identifier != origin->identifier) {
+    } else if (another->base.identifier != origin->base.identifier) {
         return false;
-    } else if (another->length != origin->length) {
+    } else if (another->base.length != origin->base.length) {
         return false;
     } else {
-        auto length = origin->length;
+        auto length = origin->base.length;
         for (auto i = 0; i < length; i++) {
             if (!CompareTermData(another->subterms[i].data, origin->subterms[i].data, ignoreLocal)) {
                 return false;
@@ -221,10 +225,11 @@ static bool CompareTermData(TermData* origin, TermData* another, bool ignoreLoca
 
 bool Term::operator==(const Term& another) const { return CompareTermData(this->data, another.data, false); }
 
-bool Term::IsLocal() const { return data->isLocal; }
+bool Term::IsLocal() const { return data->base.isLocal; }
 
 Term LocalTerm::Subterm(uint32_t i) const { return this->data->subterms[i]; }
-LocalTerm::LocalTerm(TermData* data) : data(data) { ASSERT(data->isLocal); }
+
+LocalTerm::LocalTerm(TermData* data) : data(data) { ASSERT(data->base.isLocal); }
 
 GlobalTerm LocalTerm::Publish(Engine::Session& session)
 {
@@ -255,7 +260,7 @@ GlobalTerm TermManager::Globalize(Term& term)
     }
 
     // cache miss; evacuate term and update cache
-    auto data = static_cast<TermData*>(malloc(sizeof(TermData) + termData->length * sizeof(Term)));
+    auto data = static_cast<TermData*>(malloc(sizeof(TermData) + termData->base.length * sizeof(Term)));
     if (data == nullptr) {
         throw std::bad_alloc();
     }
@@ -263,13 +268,13 @@ GlobalTerm TermManager::Globalize(Term& term)
     for (int i = 0; i < term.GetLength(); i++) {
         data->subterms[i] = termData->subterms[i];
     }
-    data->Init(termData->identifier, termData->hash, termData->length, false);
+    data->Init(termData->base.identifier, termData->base.hash, termData->base.length, false);
 
     cache.insert(data);
     term.data = data;
     return term.AsGlobal();
 }
 
-uint64_t TermManager::Hasher::operator()(TermData* const& data) const { return data->hash; }
+uint64_t TermManager::Hasher::operator()(TermData* const& data) const { return data->base.hash; }
 
 } // namespace Symlevel

@@ -31,13 +31,13 @@ struct PackedIdentifier {
 
     constexpr PackedIdentifier(PackedIdentifier const& another) : raw(another.raw) {}
 
-    operator uint64_t() const { return raw; }
+    constexpr operator uint64_t() const { return raw; }
 
-    uint8_t GetTag() const { return (raw >> TAG_SHIFT) & TAG_MASK; }
+    constexpr uint8_t GetTag() const { return (raw >> TAG_SHIFT) & TAG_MASK; }
 
-    uint32_t GetHigh() const { return (raw >> HIGH_SHIFT) & HIGH_MASK; }
+    constexpr uint32_t GetHigh() const { return (raw >> HIGH_SHIFT) & HIGH_MASK; }
 
-    uint32_t GetLow() const { return (raw >> LOW_SHIFT) & LOW_MASK; }
+    constexpr uint32_t GetLow() const { return (raw >> LOW_SHIFT) & LOW_MASK; }
 
     bool operator==(const PackedIdentifier& another) const { return raw == another.raw; }
 
