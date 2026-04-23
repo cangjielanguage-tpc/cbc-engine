@@ -156,7 +156,7 @@ static RT::MemOpcode ComputeStoreImmStart(Format::StoreAccessKind stk, RT::MemOp
 
 void MemSpaceEmitter::StoreFrameImm(StoreAccessKind stk, uint64_t imm)
 {
-    RT::MemOpcode opcStart = ComputeStoreAccessKind(stk, RT::MemOpcode::FSTI_START_OPCODE);
+    RT::MemOpcode opcStart = ComputeStoreImmStart(stk, RT::MemOpcode::FSTI_START_OPCODE);
 
     if (MathUtils::IsNBitsSigned(imm, 8)) {
         ASSERT(opcStart <= RT::MemOpcode::FSTI_END_OPCODE);

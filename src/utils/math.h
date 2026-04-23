@@ -49,6 +49,8 @@ static bool IsNBitsSigned(uint64_t value, uint32_t bits) { return IsNBitsSigned(
 
 static inline uint64_t SignExtend(uint64_t value, uint32_t bits)
 {
+    if (bits == 64)
+        return value;
     uint64_t const m = 1UL << (bits - 1);           // sign bit mask
     value            = value & ((1UL << bits) - 1); // zero high bits
     return (value ^ m) - m;
@@ -56,6 +58,8 @@ static inline uint64_t SignExtend(uint64_t value, uint32_t bits)
 
 static inline uint32_t SignExtend(uint32_t value, uint32_t bits)
 {
+    if (bits == 32)
+        return value;
     uint32_t const m = 1U << (bits - 1);           // sign bit mask
     value            = value & ((1U << bits) - 1); // zero high bits
     return (value ^ m) - m;
