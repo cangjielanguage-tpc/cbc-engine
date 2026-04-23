@@ -62,25 +62,24 @@ TEST_F(CbcTest, Empty)
     ASSERT_EQ(str, "abc");
 }
 
-static Engine::Loader OpenFile(std::string_view fileName)
+static Engine::Engine& OpenFile(std::string_view fileName)
 {
     Engine::Loader loader;
     auto file       = OpenAsm(std::string(fileName));
     bool successful = loader.Load(std::move(file), fileName);
     ASSERT(successful);
-    return loader;
+    return loader.Build();
 }
 
 static Interpretation::ExecBytecodeInfo* RewriteMethod(
-    Engine::Loader& loader, std::string_view fileName, std::string_view typeName, std::string_view methodName
+    Engine::Engine& engine, std::string_view fileName, std::string_view typeName, std::string_view methodName
 )
 {
-    auto& engine = loader.Build();
     Engine::Session session(engine);
-    auto mainId      = engine.FindMethod(session, fileName, typeName, methodName);
+    auto methodId    = engine.FindMethod(session, fileName, typeName, methodName);
     auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
 
-    auto fuh = std::get<Interpretation::DynamicFunctionHandle*>(fuhManager.AcquireTagged(session, mainId.value()));
+    auto fuh = std::get<Interpretation::DynamicFunctionHandle*>(fuhManager.AcquireTagged(session, methodId.value()));
     return fuhManager.Prepare(session, fuh);
 }
 
@@ -96,10 +95,10 @@ static Interpretation::ExecBytecodeInfo* OpenAndRewrite(
 
     auto& engine = loader.Build();
     Engine::Session session(engine);
-    auto mainId      = engine.FindMethod(session, fileName, typeName, methodName);
+    auto mathodId    = engine.FindMethod(session, fileName, typeName, methodName);
     auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
 
-    auto fuh = std::get<Interpretation::DynamicFunctionHandle*>(fuhManager.AcquireTagged(session, mainId.value()));
+    auto fuh = std::get<Interpretation::DynamicFunctionHandle*>(fuhManager.AcquireTagged(session, mathodId.value()));
     return fuhManager.Prepare(session, fuh);
 }
 
@@ -228,7 +227,7 @@ static uint64_t ASR(uint64_t lhs, uint64_t rhs)
 
 #define SIMPLE_ARITH_SPECIALIZED_VALUE(opc, value)                                                                     \
     {                                                                                                                  \
-        auto code = RewriteMethod(builder, path, "default", "test_" #value)->code;                                     \
+        auto code = RewriteMethod(engine, path, "default", "test_" #value)->code;                                      \
         SIMPLE_ARITH_SPECIALIZED_CASE(opc, 1, value);                                                                  \
         SIMPLE_ARITH_SPECIALIZED_CASE(opc, 20, value);                                                                 \
         SIMPLE_ARITH_SPECIALIZED_CASE(opc, 301, value);                                                                \
@@ -246,10 +245,10 @@ static uint64_t ASR(uint64_t lhs, uint64_t rhs)
     }
 
 #define SIMPLE_ARITH_SPECIALIZED(opc)                                                                                  \
-    TEST_ASM(CbcTest, SimpleArithSpecialized##opc##value)                                                              \
+    TEST_ASM(CbcTest, SimpleArithSpecialized##opc)                                                                     \
     {                                                                                                                  \
         auto path    = "./simple_arith_specialized/simple_arith_specialized_" #opc "_bulk.asm";                        \
-        auto builder = OpenFile(path);                                                                                 \
+        auto& engine = OpenFile(path);                                                                                 \
         SIMPLE_ARITH_VALUES(opc, SIMPLE_ARITH_SPECIALIZED_VALUE)                                                       \
     }
 
