@@ -57,39 +57,6 @@ FunctionHandle* FunctionHandleManager::Acquire(
     }
 }
 
-static uint32_t CalcFrameSize(Symlevel::Code code)
-{
-    auto stackAllocSize = Cbc::STACK_SLOT_SIZE * (code.UntypedSlotCount()); // TODO: typed stack slots
-    return MathUtils::AlignUp(stackAllocSize, Cbc::FRAME_ALIGNMENT);
-}
-
-static ExecBytecodeInfo Rewrite(Engine::Session& session, Symlevel::MethodDefinition def)
-{
-    auto code     = Symlevel::Reader::Read(session, def.FileId(), def.GetCodeOffset());
-    auto resolver = API::Resolver::Create(session, def.GetIdentifier());
-
-    if (Cbc::IsDisasmEnabled()) {
-        Cbc::Disasm(std::cerr, code, resolver.get())->ParseAll();
-    }
-
-    Cbc::Emitter::Emitter emitter;
-    Cbc::Rewriter(*resolver, code, emitter)->ParseAll();
-
-    auto& heap         = session.GetEngine().CodeHeap();
-    auto rewrittenCode = emitter.Build(heap);
-
-    auto frameSize = CalcFrameSize(code);
-
-    return ExecBytecodeInfo {
-        .code             = rewrittenCode,
-        .savedIRegs       = code.UsedNonVolIRegMask(),
-        .savedFRegs       = code.UsedNonVolFRegMask(),
-        .untypedSlotCount = static_cast<uint16_t>(code.UntypedSlotCount()),
-        .frameSize        = frameSize,
-        // TODO: initialize rest
-    };
-}
-
 ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, DynamicFunctionHandle* fuh)
 {
     auto def = Symlevel::MethodDefinition::Resolve(session, fuh->methodDef);
@@ -100,7 +67,11 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, Dynam
         return bytecode;
     }
 
-    auto bytecode = Rewrite(session, def);
+    auto code     = Symlevel::Reader::Read(session, def.FileId(), def.GetCodeOffset());
+    auto resolver = API::Resolver::Create(session, def.GetIdentifier());
+    auto& heap    = session.GetEngine().CodeHeap();
+
+    auto bytecode = Cbc::Rewrite(code, *resolver, heap);
 
     fuh->bytecode.store(new ExecBytecodeInfo(bytecode));
 
