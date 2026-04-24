@@ -10,6 +10,7 @@
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
 #include "runtime_impl.h"
+#include "utils/options.h"
 
 static std::mutex g_InitializationGuard;
 static bool g_Initialized;
@@ -43,9 +44,9 @@ CBC_EXPORT void interpreter_bridge_init(
     char const** options
 );
 
-CBC_EXPORT void engine_set_cbcpath(char const* cbcPath) { g_cbcPath = cbcPath; }
+CBC_EXPORT void engine_set_cbcpath(char const* cbcPath) { Options::SetOption("cbc_path", cbcPath); }
 
-CBC_EXPORT void engine_set_main_cbc(char const* mainCbc) { g_mainCbc = mainCbc; }
+CBC_EXPORT void engine_set_main_cbc(char const* mainCbc) { Options::SetOption("main_cbc", mainCbc); }
 
 CBC_EXPORT void engine_initialize() { EnsureEngineInitialized(); }
 
