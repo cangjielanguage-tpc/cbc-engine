@@ -41,7 +41,6 @@ set_target_properties(cbc_lib PROPERTIES
   POSITION_INDEPENDENT_CODE ON)
 
 target_include_directories(cbc_lib PUBLIC "src")
-target_include_directories(cbc_lib PUBLIC "third_party/mrt/include")
 
 if(UNIT_TEST_MODE)
   target_compile_definitions(cbc_lib PRIVATE UNIT_TEST_MODE)
@@ -52,6 +51,7 @@ file(GLOB_RECURSE ENGINE_SOURCES CONFIGURE_DEPENDS "src/runtimesupport/*.cpp")
 # NOTE: platform-specific sources are supported only for cbcengine shared lib
 add_library(cbcengine SHARED ${PLATFORM_SOURCES} ${ENGINE_SOURCES})
 target_include_directories(cbcengine PUBLIC "include")
+target_include_directories(cbcengine PUBLIC "third_party/mrt/include")
 target_include_directories(cbc_lib PRIVATE "${PLATFORM_DIR}")
 target_link_libraries(cbcengine PRIVATE cbc_lib)
 

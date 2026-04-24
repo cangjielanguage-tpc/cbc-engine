@@ -5,6 +5,7 @@
 #include "interpreter.h"
 #include "interpreter/interpretation_loop.h"
 #include "runtimesupport/adapters.h"
+#include "runtimesupport/runtime.h"
 #include "utils/assertion.h"
 
 static constexpr int HEAP_SIZE = 16384;
@@ -69,7 +70,7 @@ Value::Primitive Interpret(
     ectype.Put(FReg::FR0, fr0);
     ectype.Put(FReg::FR1, fr1);
 
-    DoInterpretationLoop(&ectype, frame, nullptr, code.literals, s);
+    DoInterpretationLoop(&ectype, frame, ThreadHandle(nullptr), code.literals, s);
 
     return ectype.GetPrimitive(resReg);
 }
@@ -158,29 +159,42 @@ namespace RTSupport {
 
 using Reference = Interpretation::Value::Reference;
 
-Reference RuntimeInterface::ReadObjectInstance(Reference base, size_t offset, ThreadHandle th)
+Reference Execution::ReadObjectInstance(Reference base, size_t offset, ThreadHandle th)
 {
     return Reference { .value = *reinterpret_cast<uintptr_t*>(base.value + offset) };
 }
 
-void RuntimeInterface::WriteObjectInstance(Reference base, size_t offset, Reference object, ThreadHandle th)
+void Execution::WriteObjectInstance(Reference base, size_t offset, Reference object, ThreadHandle th)
 {
     *reinterpret_cast<uintptr_t*>(base.value + offset) = object.value;
 }
 
-Reference RuntimeInterface::ReadObject(uintptr_t base, size_t offset, ThreadHandle th)
+Reference Execution::ReadObject(uintptr_t base, size_t offset, ThreadHandle th)
 {
     return Reference { .value = *reinterpret_cast<uintptr_t*>(base + offset) };
 }
 
-void RuntimeInterface::WriteObject(uintptr_t base, size_t offset, Reference object, ThreadHandle th)
+void Execution::WriteObject(uintptr_t base, size_t offset, Reference object, ThreadHandle th)
 {
     *reinterpret_cast<uintptr_t*>(base + offset) = object.value;
 }
 
-TypeInfo RuntimeInterface::GetTypeInfo(const char* typeName) { return TypeInfo(nullptr); }
+TypeInfo Execution::GetTypeInfo(Reference base)
+{
+    TypeInfo* header = reinterpret_cast<TypeInfo*>(base.value);
+    return *header;
+}
 
-void* RuntimeInterface::AllocateObjectInstance() { return reinterpret_cast<void*>(&Interpretation::MockNewObj); }
+MethodTable Execution::GetMethodTable(Reference base, int extDefNum, int methodNum)
+{
+    FATAL("Should not reach here. I2C virtual call");
+}
+
+TypeInfo Runtime::GetTypeInfo(const char* typeName) { return TypeInfo(nullptr); }
+
+char const* Runtime::GetTypeInfoName(TypeInfo typeInfo) { return "MockTypeInfo"; }
+
+void* Execution::AllocateObjectInstance() { return reinterpret_cast<void*>(&Interpretation::MockNewObj); }
 
 void* Adapters::GenericI2CCallInstance() { FATAL("Should not reach here. Mock i2c"); }
 

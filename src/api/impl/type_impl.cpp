@@ -1,5 +1,5 @@
 #include "type_impl.h"
-#include "RuntimeTypes.h"
+#include "runtimesupport/runtime.h"
 
 using namespace Symlevel;
 
@@ -40,7 +40,7 @@ TypeFlags TypeImpl::Flags()
 std::string_view TypeImpl::FullName()
 {
     if (term.GetLength() == 0) {
-        return static_cast<MRTExport::type_info_t*>(typeInfo.value().Raw())->type_info_name;
+        return RTSupport::Runtime::GetTypeInfoName(typeInfo.value());
     } else {
         ASSERTION(false, "Support for generic types");
     }
