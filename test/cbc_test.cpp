@@ -273,8 +273,7 @@ INSTANTIATE_TEST_SUITE_P(
         ArithTestParams { "LSL", &LSL },
         ArithTestParams { "LSR", &LSR },
         ArithTestParams { "ASR", &ASR }
-    ),
-    [](const ::testing::TestParamInfo<ArithTestParams>& info) { return info.param.name; }
+    )
 );
 
 #define SIMPLE_CONVERT_TO_INTEGER_CASES(X)                                                                             \
