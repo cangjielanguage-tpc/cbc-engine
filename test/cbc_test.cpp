@@ -1,7 +1,6 @@
 #include <cstdint>
 #include <gtest/gtest.h>
 
-#include "cbc/formater_rt.h"
 #include "cbc/isa_disasm.h"
 #include "engine/engine.h"
 #include "engine/symlevel/io/byte_array_random_access_file.h"
@@ -15,13 +14,15 @@
 
 static LimitedHeap<16384> heap;
 
+static void DoSetUp()
+{
+    Cbc::EnableRawDisasm();
+    InitializeMockInterpreter();
+    heap.Reset();
+}
+
 class CbcTest : public testing::Test {
-    void SetUp() override
-    {
-        Cbc::EnableRawDisasm();
-        InitializeMockInterpreter();
-        heap.Reset();
-    }
+    void SetUp() override { DoSetUp(); }
 
     void TearDown() override {}
 };
@@ -188,62 +189,76 @@ static uint64_t ASR(uint64_t lhs, uint64_t rhs)
     return static_cast<int64_t>(left >> (rhs & 0x3f));
 }
 
-#define SIMPLE_ARITH_OPC(X)                                                                                            \
-    X(Add)                                                                                                             \
-    X(Sub)                                                                                                             \
-    X(Mul)                                                                                                             \
-    X(And)                                                                                                             \
-    X(Or)                                                                                                              \
-    X(Xor)                                                                                                             \
-    X(UDiv)                                                                                                            \
-    X(Div)                                                                                                             \
-    X(Rem)                                                                                                             \
-    X(URem)                                                                                                            \
-    X(LSL)                                                                                                             \
-    X(LSR)                                                                                                             \
-    X(ASR)
+using ArithFunction = uint64_t (*)(uint64_t, uint64_t);
 
-#define SIMPLE_ARITH_VALUES(X, opc)                                                                                    \
-    X(opc, 0x1)                                                                                                        \
-    X(opc, 0x10)                                                                                                       \
-    X(opc, 0x100)                                                                                                      \
-    X(opc, 0x1020)                                                                                                     \
-    X(opc, 0x10000)                                                                                                    \
-    X(opc, 0x100200)                                                                                                   \
-    X(opc, 0x1000020)                                                                                                  \
-    X(opc, 0x7000000000000000)                                                                                         \
-    X(opc, 0x7000000010000001)                                                                                         \
-    X(opc, 0xf000100000000001)                                                                                         \
-    X(opc, 0xf000000100000001)
+std::string hex(uint64_t num)
+{
+    std::ostringstream message;
+    message << "0x" << std::hex << num;
+    return message.str();
+}
 
-#define SIMPLE_ARITH_SPECIALIZED_VALUE(opc, value)                                                                     \
-    {                                                                                                                  \
-        auto code = Rewrite(engine, path, "default", "test_" #value)->code;                                            \
-        SIMPLE_ARITH_SPECIALIZED_CASE(opc, 1, value);                                                                  \
-        SIMPLE_ARITH_SPECIALIZED_CASE(opc, 20, value);                                                                 \
-        SIMPLE_ARITH_SPECIALIZED_CASE(opc, 301, value);                                                                \
-        SIMPLE_ARITH_SPECIALIZED_CASE(opc, 402, value);                                                                \
-        SIMPLE_ARITH_SPECIALIZED_CASE(opc, 0x3311, value);                                                             \
-        SIMPLE_ARITH_SPECIALIZED_CASE(opc, 0x7222222222222222, value);                                                 \
-        SIMPLE_ARITH_SPECIALIZED_CASE(opc, 0xf111111111111111, value);                                                 \
-        SIMPLE_ARITH_SPECIALIZED_CASE(opc, 0xffffffffffffffff, value);                                                 \
+struct ArithTestParams {
+    std::string name;
+    ArithFunction arith;
+};
+
+class CbcSpecializedArith : public ::testing::TestWithParam<ArithTestParams> {
+    void SetUp() override { DoSetUp(); }
+};
+
+uint64_t rhsValues[] = {
+    0x1,
+    0x10,
+    0x100,
+    0x1020,
+    0x10000,
+    0x100200,
+    0x1000020,
+    0x7000000000000000,
+    0x7000000010000001,
+    0xf000100000000001,
+    0xf000000100000001,
+};
+
+uint64_t lhsValues[] = {
+    1, 20, 301, 402, 0x3311, 0x7222222222222222, 0xf111111111111111, 0xffffffffffffffff,
+};
+
+TEST_P(CbcSpecializedArith, test)
+{
+    ArithTestParams params = GetParam();
+    auto path              = "./simple_arith_specialized/simple_arith_specialized_" + params.name + "_bulk.asm";
+    auto& engine           = Open(path);
+
+    for (auto rhs : rhsValues) {
+        auto code = Rewrite(engine, path, "default", "test_" + hex(rhs))->code;
+        for (auto lhs : lhsValues) {
+            auto res = Interpret(code, U64(lhs), U64(0));
+            EXPECT_EQ(res.u64, params.arith(lhs, rhs));
+        }
     }
+}
 
-#define SIMPLE_ARITH_SPECIALIZED_CASE(opc, left, right)                                                                \
-    {                                                                                                                  \
-        auto res = Interpret(code, U64(left), U64(0));                                                                 \
-        EXPECT_EQ(res.u64, (opc)((left), (right)));                                                                    \
-    }
-
-#define SIMPLE_ARITH_SPECIALIZED(opc)                                                                                  \
-    TEST_ASM(CbcTest, SimpleArithSpecialized##opc)                                                                     \
-    {                                                                                                                  \
-        auto path    = "./simple_arith_specialized/simple_arith_specialized_" #opc "_bulk.asm";                        \
-        auto& engine = Open(path);                                                                                     \
-        SIMPLE_ARITH_VALUES(SIMPLE_ARITH_SPECIALIZED_VALUE, opc)                                                       \
-    }
-
-SIMPLE_ARITH_OPC(SIMPLE_ARITH_SPECIALIZED)
+INSTANTIATE_TEST_CASE_P(
+    Simple,
+    CbcSpecializedArith,
+    ::testing::Values(
+        ArithTestParams { "Add", &Add },
+        ArithTestParams { "Sub", &Sub },
+        ArithTestParams { "Mul", &Mul },
+        ArithTestParams { "And", &And },
+        ArithTestParams { "Or", &Or },
+        ArithTestParams { "Xor", &Xor },
+        ArithTestParams { "UDiv", &UDiv },
+        ArithTestParams { "Div", &Div },
+        ArithTestParams { "Rem", &Rem },
+        ArithTestParams { "URem", &URem },
+        ArithTestParams { "LSL", &LSL },
+        ArithTestParams { "LSR", &LSR },
+        ArithTestParams { "ASR", &ASR }
+    )
+);
 
 #define SIMPLE_CONVERT_TO_INTEGER_CASES(X)                                                                             \
     X(I8_I32, false, false, U64(-128), U64(32896))                                                                     \
