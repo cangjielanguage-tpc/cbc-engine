@@ -1,3 +1,4 @@
+#include "gtest/gtest.h"
 #include <cstdint>
 #include <gtest/gtest.h>
 
@@ -203,6 +204,8 @@ struct ArithTestParams {
     ArithFunction arith;
 };
 
+static std::ostream& operator<<(std::ostream& os, const ArithTestParams& p) { return os << p.name; }
+
 class CbcSpecializedArith : public ::testing::TestWithParam<ArithTestParams> {
     void SetUp() override { DoSetUp(); }
 };
@@ -227,6 +230,9 @@ uint64_t lhsValues[] = {
 
 TEST_P(CbcSpecializedArith, test)
 {
+    if (!CheckForAssembler()) {
+        GTEST_SKIP() << "Assembler is not present";
+    }
     ArithTestParams params = GetParam();
     auto path              = "./simple_arith_specialized/simple_arith_specialized_" + params.name + "_bulk.asm";
     auto& engine           = Open(path);
@@ -240,8 +246,8 @@ TEST_P(CbcSpecializedArith, test)
     }
 }
 
-INSTANTIATE_TEST_CASE_P(
-    Simple,
+INSTANTIATE_TEST_SUITE_P(
+    CbcTest,
     CbcSpecializedArith,
     ::testing::Values(
         ArithTestParams { "Add", &Add },
@@ -257,7 +263,8 @@ INSTANTIATE_TEST_CASE_P(
         ArithTestParams { "LSL", &LSL },
         ArithTestParams { "LSR", &LSR },
         ArithTestParams { "ASR", &ASR }
-    )
+    ),
+    [](const ::testing::TestParamInfo<ArithTestParams>& info) { return info.param.name; }
 );
 
 #define SIMPLE_CONVERT_TO_INTEGER_CASES(X)                                                                             \
