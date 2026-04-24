@@ -3,6 +3,7 @@
 #include "cbc/isa.h"
 #include "isa_parser.h"
 #include "utils/ostream.h"
+#include "utils/options.h"
 #include <cmath>
 #include <cstdint>
 #include <iomanip>
@@ -252,7 +253,7 @@ void EnableRawDisasm() { g_IsRawDisasmEnabled = true; }
 
 void EnableDisasm() { g_IsDisasmEnabled = true; }
 
-bool IsRawDisasmEnabled() { return g_IsRawDisasmEnabled; }
+bool IsRawDisasmEnabled() { return Options::raw_dasm; }
 
 bool IsDisasmEnabled() { return g_IsRawDisasmEnabled || g_IsDisasmEnabled; }
 

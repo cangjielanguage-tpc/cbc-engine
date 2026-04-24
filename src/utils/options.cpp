@@ -1,28 +1,6 @@
-#include <stddef.h>
+#include "utils/options.h"
 
-// Options data
-
-bool opt_raw_dasm = false;
-bool opt_dasm = false;
-const char* cbc_path = "";
-const char* main_cbc = "";
-
-
-// Options representation
-
-struct Option {
-    const char* name;
-    void* location;
-
-};
-
-Option opts[] = {
-    {"raw_dasm", &opt_raw_dasm },
-    {"dasm", &opt_dasm },
-    {"cbc_path", &cbc_path },
-    {"main_cbc", &main_cbc }
-};
-constexpr size_t OPTS_COUNT = sizeof(opts) / sizeof(Option);
+namespace Options {
 
 void SetOption(const char* name, bool value)
 {
@@ -65,3 +43,5 @@ void SetOption(const char* name, const char* value)
         return;
     }
 }
+
+}; // namespace Options
