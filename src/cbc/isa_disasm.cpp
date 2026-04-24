@@ -3,6 +3,7 @@
 #include "cbc/isa.h"
 #include "isa_parser.h"
 #include "utils/ostream.h"
+#include "utils/options.h"
 #include <cmath>
 #include <cstdint>
 #include <iomanip>
@@ -284,19 +285,13 @@ struct IsaResolvingDisasm : IsaDisasm {
     // TODO: implement rest.
 };
 
-static bool g_IsRawDisasmEnabled;
-static bool g_IsDisasmEnabled;
-static Stream::Output& g_OutputStream = cout;
+void EnableRawDisasm() { Options::SetOption("raw_dasm", true); }
 
-void EnableRawDisasm() { g_IsRawDisasmEnabled = true; }
+void EnableDisasm() { Options::SetOption("dasm", true); }
 
-void EnableDisasm() { g_IsDisasmEnabled = true; }
+bool IsRawDisasmEnabled() { return Options::raw_dasm; }
 
-bool IsRawDisasmEnabled() { return g_IsRawDisasmEnabled; }
-
-bool IsDisasmEnabled() { return g_IsRawDisasmEnabled || g_IsDisasmEnabled; }
-
-void SetOutputStream(Stream::Output& stream) { g_OutputStream = stream; }
+bool IsDisasmEnabled() { return Options::raw_dasm || Options::dasm; }
 
 std::unique_ptr<IsaParser> RawDisasm(Stream::Output& stream, Decoder::FatByteReader reader)
 {
