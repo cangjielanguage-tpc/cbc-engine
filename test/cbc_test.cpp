@@ -62,7 +62,7 @@ TEST_F(CbcTest, Empty)
     ASSERT_EQ(str, "abc");
 }
 
-static Engine::Engine& OpenFile(std::string_view fileName)
+static Engine::Engine& Open(std::string_view fileName)
 {
     Engine::Loader loader;
     auto file       = OpenAsm(std::string(fileName));
@@ -71,7 +71,7 @@ static Engine::Engine& OpenFile(std::string_view fileName)
     return loader.Build();
 }
 
-static Interpretation::ExecBytecodeInfo* RewriteMethod(
+static Interpretation::ExecBytecodeInfo* Rewrite(
     Engine::Engine& engine, std::string_view fileName, std::string_view typeName, std::string_view methodName
 )
 {
@@ -227,7 +227,7 @@ static uint64_t ASR(uint64_t lhs, uint64_t rhs)
 
 #define SIMPLE_ARITH_SPECIALIZED_VALUE(opc, value)                                                                     \
     {                                                                                                                  \
-        auto code = RewriteMethod(engine, path, "default", "test_" #value)->code;                                      \
+        auto code = Rewrite(engine, path, "default", "test_" #value)->code;                                            \
         SIMPLE_ARITH_SPECIALIZED_CASE(opc, 1, value);                                                                  \
         SIMPLE_ARITH_SPECIALIZED_CASE(opc, 20, value);                                                                 \
         SIMPLE_ARITH_SPECIALIZED_CASE(opc, 301, value);                                                                \
@@ -248,7 +248,7 @@ static uint64_t ASR(uint64_t lhs, uint64_t rhs)
     TEST_ASM(CbcTest, SimpleArithSpecialized##opc)                                                                     \
     {                                                                                                                  \
         auto path    = "./simple_arith_specialized/simple_arith_specialized_" #opc "_bulk.asm";                        \
-        auto& engine = OpenFile(path);                                                                                 \
+        auto& engine = Open(path);                                                                                     \
         SIMPLE_ARITH_VALUES(SIMPLE_ARITH_SPECIALIZED_VALUE, opc)                                                       \
     }
 
@@ -295,7 +295,7 @@ SIMPLE_ARITH_OPC(SIMPLE_ARITH_SPECIALIZED)
 
 #define SIMPLE_CONVERT_CASES_TEST(opc, toFP, fromFP, expected, val)                                                    \
     {                                                                                                                  \
-        auto code = RewriteMethod(engine, path, "default", "test_" #opc)->code;                                        \
+        auto code = Rewrite(engine, path, "default", "test_" #opc)->code;                                              \
         auto ir1  = fromFP ? U64(0) : val;                                                                             \
         auto fr0  = fromFP ? val : F64(0);                                                                             \
         auto res  = toFP ? InterpretFPRes(code, ir1, U64(0), fr0, F64(0)) : Interpret(code, ir1, U64(0), fr0, F64(0)); \
@@ -306,7 +306,7 @@ SIMPLE_ARITH_OPC(SIMPLE_ARITH_SPECIALIZED)
     TEST_ASM(CbcTest, SimpleConvert_##toType)                                                                          \
     {                                                                                                                  \
         auto path    = "./simple_convert/simple_convert_" #toType ".asm";                                              \
-        auto& engine = OpenFile(path);                                                                                 \
+        auto& engine = Open(path);                                                                                     \
         CASES(SIMPLE_CONVERT_CASES_TEST)                                                                               \
     }
 
