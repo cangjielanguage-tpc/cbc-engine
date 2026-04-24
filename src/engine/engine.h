@@ -31,6 +31,7 @@ public:
     ~Engine();
     Memory::Heap& CodeHeap() const;
 
+    std::optional<Identifier<MethodDefinition>> FindMain(Session& session, std::string_view filePath);
     std::optional<Identifier<MethodDefinition>> FindMethod(
         Session& session, std::string_view filePath, std::string_view typeName, std::string_view methodName
     );

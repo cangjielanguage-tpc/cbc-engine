@@ -83,9 +83,7 @@ static Interpretation::ExecBytecodeInfo* Rewrite(
     return fuhManager.Prepare(session, fuh);
 }
 
-static Interpretation::ExecBytecodeInfo* OpenAndRewrite(
-    std::string name, std::string_view fileName, std::string_view typeName, std::string_view methodName
-)
+static Interpretation::ExecBytecodeInfo* OpenAndRewrite(std::string name, std::string_view fileName)
 {
     Engine::Loader loader;
 
@@ -95,7 +93,7 @@ static Interpretation::ExecBytecodeInfo* OpenAndRewrite(
 
     auto& engine = loader.Build();
     Engine::Session session(engine);
-    auto methodId    = engine.FindMethod(session, fileName, typeName, methodName);
+    auto methodId    = engine.FindMain(session, fileName);
     auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
 
     auto fuh = std::get<Interpretation::DynamicFunctionHandle*>(fuhManager.AcquireTagged(session, methodId.value()));
@@ -104,56 +102,49 @@ static Interpretation::ExecBytecodeInfo* OpenAndRewrite(
 
 static Interpretation::Value::Primitive Test(std::string name, std::string fileName)
 {
-    return Interpret(OpenAndRewrite(name, fileName, "default", "main")->code, U32(0), U32(10));
+    return Interpret(OpenAndRewrite(name, fileName)->code, U32(0), U32(10));
 }
 
 TEST_ASM(CbcTest, Simple)
 {
-    auto res = Interpret(OpenAndRewrite("simple", "simple.asm", "default", "main")->code, U32(0), U32(10));
+    auto res = Interpret(OpenAndRewrite("simple", "simple.asm")->code, U32(0), U32(10));
     ASSERT_EQ(res.u32, 28);
 }
 
 TEST_ASM(CbcTest, SimpleArith)
 {
-    auto res = Interpret(OpenAndRewrite("simple_arith", "simple_arith.asm", "default", "main")->code, U32(0), U32(10));
+    auto res = Interpret(OpenAndRewrite("simple_arith", "simple_arith.asm")->code, U32(0), U32(10));
     ASSERT_EQ(res.u32, 36);
 }
 
 TEST_ASM(CbcTest, SimpleArithFloat)
 {
     GTEST_SKIP() << "not supported";
-    auto res = InterpretFPRes(
-        OpenAndRewrite("simple_arith_float", "simple_arith_float.asm", "default", "main")->code, U32(0), U32(10)
-    );
+    auto res = InterpretFPRes(OpenAndRewrite("simple_arith_float", "simple_arith_float.asm")->code, U32(0), U32(10));
     ASSERT_EQ(res.f64, 357);
 }
 
 TEST_ASM(CbcTest, SimpleArithImm)
 {
-    auto res =
-        Interpret(OpenAndRewrite("simple_arith_imm", "simple_arith_imm.asm", "default", "main")->code, U32(0), U32(10));
+    auto res = Interpret(OpenAndRewrite("simple_arith_imm", "simple_arith_imm.asm")->code, U32(0), U32(10));
     ASSERT_EQ(res.u32, 1);
 }
 
 TEST_ASM(CbcTest, DirectCall)
 {
-    auto res = Interpret(OpenAndRewrite("direct-call", "direct-call.asm", "default", "main")->code, U32(0), U32(10));
+    auto res = Interpret(OpenAndRewrite("direct-call", "direct-call.asm")->code, U32(0), U32(10));
     ASSERT_EQ(res.u32, 28);
 }
 
 TEST_ASM(CbcTest, ArithSpecialized1)
 {
-    auto res = Interpret(
-        OpenAndRewrite("arith_specialized1", "arith_specialized1.asm", "default", "main")->code, U64(10), U64(0)
-    );
+    auto res = Interpret(OpenAndRewrite("arith_specialized1", "arith_specialized1.asm")->code, U64(10), U64(0));
     ASSERT_EQ(res.u64, 10 - 1);
 }
 
 TEST_ASM(CbcTest, ArithSpecialized2)
 {
-    auto res = Interpret(
-        OpenAndRewrite("arith_specialized2", "arith_specialized2.asm", "default", "main")->code, U64(0), U64(0)
-    );
+    auto res = Interpret(OpenAndRewrite("arith_specialized2", "arith_specialized2.asm")->code, U64(0), U64(0));
     ASSERT_EQ(res.u64, 0x7000000000000000 ^ 0xff00);
 }
 
