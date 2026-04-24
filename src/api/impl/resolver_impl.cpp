@@ -45,6 +45,7 @@ Type* ResolverImpl::Resolve(Symlevel::Term term)
             auto _typeName      = Reader::Read(session, nameFileId, Offset<String>(typeNameOffset));
 
             typeName = std::string(_typeName).c_str();
+            break;
         }
         case TemplateKind::U8:
         case TemplateKind::I8:
@@ -63,19 +64,18 @@ Type* ResolverImpl::Resolve(Symlevel::Term term)
             }
 
             typeName = _typeName.value();
+            break;
         }
         default: {
             FATAL("Not supported yet");
             return nullptr;;
         }
-
-        TypeInfo typeInfo = RTSupport::RuntimeInterface<RTSupport::Impl>::GetTypeInfo(typeName);
-
-        ASSERTION(typeInfo != nullptr, "Couldn't resolve AOT type");
-        return session.Allocator().New<TypeImpl>(term, typeInfo);
     }
 
-    return nullptr;
+    TypeInfo typeInfo = RTSupport::RuntimeInterface<RTSupport::Impl>::GetTypeInfo(typeName);
+
+    ASSERTION(typeInfo != nullptr, "Couldn't resolve AOT type");
+    return session.Allocator().New<TypeImpl>(term, typeInfo);
 }
 
 VirtualMethod* ResolverImpl::ResolveVirtualMethod(Symlevel::Index<Symlevel::MethodReference> index)
@@ -195,7 +195,6 @@ T* ResolverImpl::ResolveField(Symlevel::Index<Symlevel::FieldReference> index)
     auto fieldRef = fieldRefOpt.value();
 
     Type* fieldType  = Resolve(fieldRef.FieldType());
-    Type* refType    = Resolve(fieldRef.RefType());
     FieldFlags flags = fieldRef.IsRecord() ? FieldFlags(FieldFlag::Shift::RECORD) : FieldFlags();
 
     switch (fieldRef.RefType().GetIdentifier().GetKind()) {
@@ -206,6 +205,8 @@ T* ResolverImpl::ResolveField(Symlevel::Index<Symlevel::FieldReference> index)
             );
 
             if constexpr (std::is_same_v<T, InstanceFieldImpl>) {
+                Type* refType    = Resolve(fieldRef.RefType());
+
                 InstanceFieldAotData data = cbcFile.GetInstanceFieldAotTable().GetData(session, index).value();
 
                 return session.Allocator().New<InstanceFieldImpl>(
@@ -219,7 +220,7 @@ T* ResolverImpl::ResolveField(Symlevel::Index<Symlevel::FieldReference> index)
                 auto location      = cbcFile.GetDependencies().FindTarget(linkageName);
 
                 return session.Allocator().New<StaticFieldImpl>(
-                    reinterpret_cast<uintptr_t>(location), fieldRef.Name(), flags, fieldType, refType
+                    reinterpret_cast<uintptr_t>(location), fieldRef.Name(), flags, fieldType
                 );
             }
         }

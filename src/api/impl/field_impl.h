@@ -7,14 +7,12 @@
 namespace API {
 
 class InstanceFieldImpl : public InstanceField {
-    using Term = Symlevel::Term;
-
 public:
     InstanceFieldImpl(Symlevel::String name, int ordinal, FieldFlags flags, Type* fieldType, Type* refType);
 
-    Type* FieldType() override { return fieldType; }
+    std::optional<Type*> FieldType() override { return fieldType; }
 
-    Type* RefType() override { return refType; }
+    std::optional<Type*> RefType() override { return refType; }
 
     Symlevel::String Name() override { return name; }
 
@@ -22,26 +20,25 @@ public:
 
     int Ordinal() override { return ordinal; }
 
-    uint32_t Offset() override;
+    std::optional<uint32_t> Offset() override;
 
 private:
     Symlevel::String name;
-    Type* fieldType;
-    Type* refType;
+    std::optional<Type*> fieldType;
+    std::optional<Type*> refType;
     int ordinal;
     std::optional<uint32_t> offset;
     FieldFlags flags;
 };
 
 class StaticFieldImpl : public StaticField {
-    using Term = Symlevel::Term;
-
 public:
-    StaticFieldImpl(uintptr_t location, Symlevel::String name, FieldFlags flags, Type* fieldType, Type* refType);
+    StaticFieldImpl(uintptr_t location, Symlevel::String name, FieldFlags flags, 
+        std::optional<Type*> fieldType = std::nullopt, std::optional<Type*> refType = std::nullopt);
 
-    Type* FieldType() override { return fieldType; }
+    std::optional<Type*> FieldType() override { return fieldType; }
 
-    Type* RefType() override { return refType; }
+    std::optional<Type*> RefType() override { return refType; }
 
     Symlevel::String Name() override { return name; }
 
@@ -54,8 +51,8 @@ public:
 
 private:
     Symlevel::String name;
-    Type* fieldType;
-    Type* refType;
+    std::optional<Type*> fieldType;
+    std::optional<Type*> refType;
     uintptr_t location;
     FieldFlags flags;
 };

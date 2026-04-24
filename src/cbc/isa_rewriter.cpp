@@ -172,7 +172,7 @@ struct IsaRewriter : public IsaParser {
     {
         API::StaticField* resolvedField = resolver.ResolveStaticField(Field(field));
 
-        auto fieldTerm       = resolvedField->FieldType()->AsTerm();
+        auto fieldTerm       = resolvedField->FieldType().value()->AsTerm();
         auto fieldAccessKind = fieldTerm->GetIdentifier().GetKind();
         auto symbol          = emit.NewAddressSym(resolvedField->Location());
         emit.LoadStatic(typeToLoadAccessKind(fieldAccessKind), r, symbol);
@@ -182,7 +182,7 @@ struct IsaRewriter : public IsaParser {
     {
         API::StaticField* resolvedField = resolver.ResolveStaticField(Field(field));
 
-        auto fieldTerm       = resolvedField->FieldType()->AsTerm();
+        auto fieldTerm       = resolvedField->FieldType().value()->AsTerm();
         auto fieldAccessKind = fieldTerm->GetIdentifier().GetKind();
         auto symbol          = emit.NewAddressSym(resolvedField->Location());
         emit.StoreStatic(typeToStoreAccessKind(fieldAccessKind), r, symbol);
@@ -192,18 +192,18 @@ struct IsaRewriter : public IsaParser {
     {
         API::InstanceField* resolvedField = resolver.ResolveInstanceField(Field(field));
 
-        auto fieldTerm       = resolvedField->FieldType()->AsTerm();
+        auto fieldTerm       = resolvedField->FieldType().value()->AsTerm();
         auto fieldAccessKind = fieldTerm->GetIdentifier().GetKind();
-        emit.LoadObj(typeToLoadAccessKind(fieldAccessKind), rd, rb, resolvedField->Offset());
+        emit.LoadObj(typeToLoadAccessKind(fieldAccessKind), rd, rb, resolvedField->Offset().value());
     }
 
     void StoreObj(IReg rb, AnyReg rs, uint16_t field) override
     {
         API::InstanceField* resolvedField = resolver.ResolveInstanceField(Field(field));
 
-        auto fieldTerm       = resolvedField->FieldType()->AsTerm();
+        auto fieldTerm       = resolvedField->FieldType().value()->AsTerm();
         auto fieldAccessKind = fieldTerm->GetIdentifier().GetKind();
-        emit.StoreObj(typeToStoreAccessKind(fieldAccessKind), rs, rb, resolvedField->Offset());
+        emit.StoreObj(typeToStoreAccessKind(fieldAccessKind), rs, rb, resolvedField->Offset().value());
     }
 
     void LoadRec(IReg rb, AnyReg rs, uint16_t field) override { FATAL("not implemented"); }

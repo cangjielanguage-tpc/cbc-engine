@@ -428,13 +428,13 @@ NEWOBJ: {
 }
 LOAD_ADDR: {
     auto args       = B2xr::Decode(reader);
-    auto location   = reader.Read64();
+    auto location   = literals->at(reader.Read16()).u64;
     bool successful = interpreter.LoadAddr(args.xr.imm.LDK(), args.xr.r, location);
     NEXT_COND(successful);
 }
 STORE_ADDR: {
     auto args       = B2xr::Decode(reader);
-    auto location   = reader.Read64();
+    auto location   = literals->at(reader.Read16()).u64;
     bool successful = interpreter.StoreAddr(args.xr.imm.STK(), args.xr.r, location);
     NEXT_COND(successful);
 }

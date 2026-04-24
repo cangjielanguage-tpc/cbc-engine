@@ -1,6 +1,5 @@
 #pragma once
 
-#include "engine/symlevel/terms.h"
 #include "type.h"
 #include <cstdint>
 #include <optional>
@@ -23,18 +22,16 @@ struct FieldFlags;
  * @see StaticField
  */
 class Field {
-    using Term = Symlevel::Term;
-
 public:
     /**
      * @brief Type of field.
      */
-    virtual Type* FieldType() = 0;
+    virtual std::optional<Type*> FieldType() = 0;
 
     /**
      * @brief The ref type.
      */
-    virtual Type* RefType() = 0;
+    virtual std::optional<Type*> RefType() = 0;
 
     /**
      * @brief Full name of the field.
@@ -55,11 +52,8 @@ protected:
  * @brief Instance field representation of a type.
  *
  * @see Type
- * @see Term
  */
 class InstanceField : public Field {
-    using Term = Symlevel::Term;
-
 public:
     /**
      * @brief The index of the field in total field numbering.
@@ -85,7 +79,7 @@ public:
     /**
      * @brief Offset of the field.
      */
-    virtual uint32_t Offset() = 0;
+    virtual std::optional<uint32_t> Offset() = 0;
 
 protected:
     virtual ~InstanceField() = default;
@@ -98,7 +92,6 @@ protected:
  * @note Static field is always concrete.
  *
  * @see Type
- * @see Term
  */
 class StaticField : public Field {
 public:
