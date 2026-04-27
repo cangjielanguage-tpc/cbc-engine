@@ -7,7 +7,7 @@ Literal const& LiteralTable::operator[](std::size_t i) const { return this->at(i
 
 Literal const& LiteralTable::at(std::size_t i) const
 {
-    ASSERT(i < _byteSize);
+    ASSERT(i < size());
     auto tbl = (Literal const*)_table;
     return tbl[i];
 }

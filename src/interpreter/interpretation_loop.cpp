@@ -359,16 +359,16 @@ NEWOBJ: {
     return { func, type.Raw() };
 }
 LOAD_ADDR: {
-    auto args = B2xr::Decode(reader);
+    auto args       = B10xri64::Decode(reader);
     LOG_INSTR;
-    auto location   = literals->at(reader.Read16()).u64;
+    auto location   = args.imm64.imm;
     bool successful = interpreter.LoadAddr(args.xr.imm.LDK(), args.xr.r, location);
     NEXT_COND(successful);
 }
 STORE_ADDR: {
-    auto args = B2xr::Decode(reader);
+    auto args       = B10xri64::Decode(reader);
     LOG_INSTR;
-    auto location   = literals->at(reader.Read16()).u64;
+    auto location   = args.imm64.imm;
     bool successful = interpreter.StoreAddr(args.xr.imm.STK(), args.xr.r, location);
     NEXT_COND(successful);
 }

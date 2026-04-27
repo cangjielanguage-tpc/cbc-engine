@@ -43,8 +43,8 @@
     X(STORE_OBJ, B4xi12rr, "st.$0stk $2ir [$3ir $1U12]")                                                               \
     X(LOAD_OBJ_F, B4xi12rr, "ld.$0ldk $2fr [$3ir $1U12]")                                                              \
     X(STORE_OBJ_F, B4xi12rr, "st.$0stk $2fr [$3ir $1U12]")                                                             \
-    X(LOAD_ADDR, B2xr, "ld.addr.$0ldk")                                                                                \
-    X(STORE_ADDR, B2xr, "st.addr.$0ldk")                                                                               \
+    X(LOAD_ADDR, B10xri64, "ld.addr.$0ldk $1ir some constant")                                                    \
+    X(STORE_ADDR, B10xri64, "st.addr.$0stk $1ir some constant")
     X(LOAD_REC, B4xi12rr, "ld.rec.$0ldk $2ir [$3ir $1U12]")                                                            \
     X(STORE_REC, B4xi12rr, "st.rec.$0stk $2ir [$3ir $1U12]")                                                           \
     X(LOAD_FRAME, B4xi12rr, "ld.frame.$0ldk $2ir [$3ir $1U12]")                                                        \

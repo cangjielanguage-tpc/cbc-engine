@@ -488,18 +488,24 @@ void Emitter::NewObj(IReg d, Symbol sym)
     AddFixup(std::make_unique<Literal12Fixup>(i4, sym));
 }
 
-void Emitter::LoadStatic(LoadAccessKind ldk, Reg dst, Symbol offSym)
+void Emitter::LoadStatic(LoadAccessKind ldk, Reg dst, uintptr_t offSym)
 {
     LoadAccessKind::Value kind = ldk;
-    Encode(segment, RT::B2xr { .opc = RT::Opcode::LOAD_ADDR, .xr = { .imm = kind, .r = dst } });
-    AddFixup(std::make_unique<LiteralFixup>(offSym));
+    Encode(segment, RT::B10xri64 {
+        .opc = RT::Opcode::LOAD_ADDR,
+        .xr = { .imm = kind, .r = dst },
+        .imm64 = {.imm = offSym}
+    });
 }
 
-void Emitter::StoreStatic(StoreAccessKind sdk, Reg src, Symbol offSym)
+void Emitter::StoreStatic(StoreAccessKind sdk, Reg src, uintptr_t offSym)
 {
     StoreAccessKind::Value kind = sdk;
-    Encode(segment, RT::B2xr { .opc = RT::Opcode::STORE_ADDR, .xr = { .imm = kind, .r = src } });
-    AddFixup(std::make_unique<LiteralFixup>(offSym));
+    Encode(segment, RT::B10xri64 {
+        .opc = RT::Opcode::STORE_ADDR,
+        .xr = { .imm = kind, .r = src },
+        .imm64 = {.imm = offSym}
+    });
 }
 
 void Emitter::LoadObj(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset)

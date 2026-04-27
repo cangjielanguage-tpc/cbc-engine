@@ -3,6 +3,8 @@
 #include <variant>
 
 #include "adapters.h"
+#include "cbc/formater_rt.h"
+#include "cbc/isa_disasm.h"
 #include "cbc/isa_rewriter.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/reader.h"
@@ -92,6 +94,10 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Session& session, DynamicFuncti
 
     auto& heap    = session.GetEngine().CodeHeap();
     auto bytecode = Cbc::Rewrite(fuh, code, resolver, heap);
+
+    if (Cbc::IsDisasmEnabled()) {
+        Cbc::RT::Log(rewrittenCode, Stream::Disasm::rt);
+    }
 
     fuh->bytecode.store(new ExecBytecodeInfo(bytecode));
 
