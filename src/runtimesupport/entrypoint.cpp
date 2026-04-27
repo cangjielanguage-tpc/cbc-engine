@@ -14,8 +14,6 @@
 
 static std::mutex g_InitializationGuard;
 static bool g_Initialized;
-static char const* g_cbcPath;
-static char const* g_mainCbc;
 
 /// Initialize engine from launcher.
 static void EnsureEngineInitialized()
@@ -26,7 +24,7 @@ static void EnsureEngineInitialized()
     }
 
     Engine::Loader loader;
-    loader.Load(IO::OpenFile(std::filesystem::path(g_mainCbc)), g_mainCbc);
+    loader.Load(IO::OpenFile(std::filesystem::path(Options::main_cbc)), Options::main_cbc);
     loader.Build();
     g_Initialized = true;
 }
@@ -62,7 +60,7 @@ CBC_EXPORT void* engine_get_entrypoint_trampoline(void)
 
     Engine::Session session(engine);
 
-    auto main = engine.FindMain(session, g_mainCbc);
+    auto main = engine.FindMain(session, Options::main_cbc);
     if (!main.has_value()) {
         return nullptr;
     }
