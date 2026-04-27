@@ -6,6 +6,7 @@
 #include <optional>
 
 namespace API {
+
 class TypeImpl : public Type {
     using Term = Symlevel::Term;
 
@@ -16,6 +17,10 @@ public:
     Term* AsTerm() override;
 
     std::optional<TypeInfo> GetTypeInfo() override;
+
+    int FieldsNum() override;
+
+    uint32_t GetFieldOffset(int ordinal) override;
 
     int FieldSize() override;
 

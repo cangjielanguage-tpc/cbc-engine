@@ -42,7 +42,7 @@ std::optional<FieldReference> FieldReference::ParseAndResolve(
     auto refTypeIdx   = reader.ReadULEB();
     auto fieldTypeIdx = reader.ReadULEB();
 
-    auto accessKind = reader.ReadU16(); // TODO: remove
+    auto isRecord = static_cast<bool>(reader.ReadU8());
 
     auto name = Reader::Read(session, fileId, nameOffset);
 
@@ -52,8 +52,9 @@ std::optional<FieldReference> FieldReference::ParseAndResolve(
     auto fieldType = regionData.queryTerm(session, Index<Term> { .region = 0, .index = fieldTypeIdx });
 
     if (refType.has_value() && fieldType.has_value()) {
-        return FieldReference(name, refType.value(), fieldType.value());
+        return FieldReference(name, refType.value(), fieldType.value(), isRecord);
     } else {
+        FATAL("Couldn't parse field reference");
         return std::nullopt;
     }
 }

@@ -5,9 +5,9 @@
 #include "engine/engine.h"
 #include "engine/identifiers.h"
 #include "engine/symlevel/index.h"
+#include "engine/symlevel/terms.h"
 #include "field.h"
 #include "method.h"
-#include "term.h"
 #include "type.h"
 
 namespace Symlevel {
@@ -31,11 +31,11 @@ public:
 
     virtual VirtualMethod* ResolveVirtualMethod(Symlevel::Index<Symlevel::MethodReference> index) = 0;
 
-    virtual InstanceField* Resolve(Symlevel::Index<InstanceField> index) = 0;
+    virtual InstanceField* ResolveInstanceField(Symlevel::Index<Symlevel::FieldReference> index) = 0;
 
-    virtual StaticField* Resolve(Symlevel::Index<StaticField> index) = 0;
+    virtual StaticField* ResolveStaticField(Symlevel::Index<Symlevel::FieldReference> index) = 0;
 
-    virtual std::optional<Type*> TypeOf(Term* term) = 0;
+    virtual std::optional<Type*> TypeOf(Symlevel::Term* term) = 0;
 
     virtual ~Resolver() = default;
 };

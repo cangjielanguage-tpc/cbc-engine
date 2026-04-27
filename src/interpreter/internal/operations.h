@@ -312,12 +312,17 @@ template <> inline uint64_t DecodeImmediate<RT::ImmKind::LITERAL>(LiteralTable* 
 
 class MemoryLocation {
 public:
+    inline MemoryLocation(uint64_t location) : base(reinterpret_cast<uint8_t*>(location)), offset(0) {}
+
     inline MemoryLocation(uint8_t* _base, size_t _offset) : base(_base), offset(_offset) {}
 
     inline MemoryLocation(uintptr_t _base, size_t _offset) : base(reinterpret_cast<uint8_t*>(_base)), offset(_offset) {}
 
     inline void StorePrim(StoreAccessKind::Value stk, Format::Reg src, Ectype* ectype);
     inline void LoadPrim(LoadAccessKind::Value ldk, Format::Reg dst, Ectype* ectype);
+
+    inline void StoreRef(Format::Reg src, Ectype* ectype);
+    inline void LoadRef(Format::Reg dst, Ectype* ectype);
 
 private:
     template <typename P> inline void Store(Format::Reg src, Ectype* ectype);
@@ -337,6 +342,11 @@ template <> inline void MemoryLocation::Store<double>(Format::Reg src, Ectype* e
     *reinterpret_cast<double*>(base + offset) = static_cast<double>(ectype->GetPrimitive(src.FR()).f64);
 }
 
+template <> inline void MemoryLocation::Store<Value::Reference>(Format::Reg src, Ectype* ectype)
+{
+    *reinterpret_cast<uintptr_t*>(base + offset) = ectype->GetReference(src.IR()).value;
+}
+
 template <> inline void MemoryLocation::Load<float>(Format::Reg dst, Ectype* ectype)
 {
     auto value = *reinterpret_cast<float*>(base + offset);
@@ -347,6 +357,12 @@ template <> inline void MemoryLocation::Load<double>(Format::Reg dst, Ectype* ec
 {
     auto value = *reinterpret_cast<double*>(base + offset);
     ectype->Put(dst.FR(), Value::Primitive { .f64 = value });
+}
+
+template <> inline void MemoryLocation::Load<Value::Reference>(Format::Reg dst, Ectype* ectype)
+{
+    auto value = *reinterpret_cast<uintptr_t*>(base + offset);
+    ectype->Put(dst.IR(), Value::Reference { .value = value });
 }
 
 template <typename P> inline void MemoryLocation::Store(Format::Reg src, Ectype* ectype)
@@ -387,6 +403,16 @@ inline void MemoryLocation::LoadPrim(LoadAccessKind::Value ldk, Format::Reg dst,
         case LoadAccessKind::LD_F64:     Load<double>(dst, ectype); return;
         default:                         FATAL("Unexpected ldk");
     }
+}
+
+inline void MemoryLocation::StoreRef(Format::Reg src, Ectype* ectype)
+{
+    Store<Value::Reference>(src, ectype);
+}
+
+inline void MemoryLocation::LoadRef(Format::Reg dst, Ectype* ectype)
+{
+    Load<Value::Reference>(dst, ectype);
 }
 
 } // namespace Interpretation
