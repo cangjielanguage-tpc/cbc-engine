@@ -162,6 +162,8 @@ engine_i2_newobject:
 perform_2i_call:
   push  rbp
   mov   rbp, rsp
+  push  r14
+  push  rbx
   push  rdi // rbp - 0x8 : FunctionHandle for frame scanning
   push  rdi // rbp - 0x10 : location for frame base
 
@@ -237,6 +239,8 @@ perform_2i_call:
   jmp   rax
 
 .Lend_interpretation:
+  mov   r14, [rbp - 0x8]
+  mov   rbx, [rbp - 0x10]
   mov   rsp, rbp
   pop   rbp
   ret

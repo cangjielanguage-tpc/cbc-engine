@@ -41,6 +41,7 @@ struct IsaRewriter : public IsaParser {
         using namespace Format;
 
         switch (typeIdentifier) {
+            case TemplateKind::BOOLEAN:
             case TemplateKind::U8:  return LoadAccessKind::LD_U8;
             case TemplateKind::I8:  return LoadAccessKind::LD_S8;
             case TemplateKind::U16: return LoadAccessKind::LD_U16;
@@ -64,6 +65,7 @@ struct IsaRewriter : public IsaParser {
         using namespace Format;
 
         switch (typeIdentifier) {
+            case TemplateKind::BOOLEAN:
             case TemplateKind::U8:
             case TemplateKind::I8:  return StoreAccessKind::ST_8;
             case TemplateKind::U16:
@@ -174,8 +176,7 @@ struct IsaRewriter : public IsaParser {
 
         auto fieldTerm       = resolvedField->FieldType().value()->AsTerm();
         auto fieldAccessKind = fieldTerm->GetIdentifier().GetKind();
-        auto symbol          = emit.NewAddressSym(resolvedField->Location());
-        emit.LoadStatic(typeToLoadAccessKind(fieldAccessKind), r, symbol);
+        emit.LoadStatic(typeToLoadAccessKind(fieldAccessKind), r, resolvedField->Location());
     }
 
     void StoreStatic(AnyReg r, uint16_t field) override
@@ -184,8 +185,7 @@ struct IsaRewriter : public IsaParser {
 
         auto fieldTerm       = resolvedField->FieldType().value()->AsTerm();
         auto fieldAccessKind = fieldTerm->GetIdentifier().GetKind();
-        auto symbol          = emit.NewAddressSym(resolvedField->Location());
-        emit.StoreStatic(typeToStoreAccessKind(fieldAccessKind), r, symbol);
+        emit.StoreStatic(typeToStoreAccessKind(fieldAccessKind), r, resolvedField->Location());
     }
 
     void LoadObj(IReg rb, AnyReg rd, uint16_t field) override

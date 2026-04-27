@@ -4,6 +4,7 @@
 #include <variant>
 
 #include "adapters.h"
+#include "cbc/formater_rt.h"
 #include "cbc/isa_disasm.h"
 #include "cbc/isa_rewriter.h"
 #include "engine/symlevel/definitions.h"
@@ -84,6 +85,10 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, Dynam
         .code = rewrittenCode,
         // TODO: initialize rest
     };
+
+    if (Cbc::IsDisasmEnabled()) {
+        Cbc::RT::Log(rewrittenCode, Stream::Disasm::rt);
+    }
 
     fuh->bytecode.store(new ExecBytecodeInfo(bytecode));
 

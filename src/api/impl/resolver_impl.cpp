@@ -47,6 +47,7 @@ Type* ResolverImpl::Resolve(Symlevel::Term term)
             typeName = std::string(_typeName).c_str();
             break;
         }
+        case TemplateKind::BOOLEAN:
         case TemplateKind::U8:
         case TemplateKind::I8:
         case TemplateKind::U16:
@@ -67,7 +68,7 @@ Type* ResolverImpl::Resolve(Symlevel::Term term)
             break;
         }
         default: {
-            FATAL("Not supported yet");
+            FATAL("Not supported yet %d", termKind);
             return nullptr;;
         }
     }

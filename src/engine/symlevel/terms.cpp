@@ -69,6 +69,7 @@ static TermData* AllocateTerm(Memory::Heap& allocator, size_t subtermCount = 0)
 
 std::optional<const char*> TemplateIdentifier::GetKindName() {
     switch (GetKind()) {
+        case TemplateKind::BOOLEAN: return "Bool";
         case TemplateKind::U8: return "UInt8";
         case TemplateKind::I8: return "Int8";
         case TemplateKind::U16: return "UInt16";
