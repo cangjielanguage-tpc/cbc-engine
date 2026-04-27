@@ -8,6 +8,7 @@
 
 #include "mock/interpreter.h"
 #include "testutils.h"
+#include "utils/ostream.h"
 
 static LimitedHeap<16384> heap;
 

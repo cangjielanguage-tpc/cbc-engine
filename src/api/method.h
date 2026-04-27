@@ -1,7 +1,6 @@
 #pragma once
 
 #include "interpreter/function_handle.h"
-#include "term.h"
 #include "type.h"
 #include <optional>
 #include <string>
@@ -26,7 +25,7 @@ public:
     /**
      * @brief The signature used for actual ABI of a method invocation.
      */
-    virtual Term* ABISignature() = 0;
+    virtual Symlevel::Term* ABISignature() = 0;
 
     /**
      * @brief The ref type.
@@ -57,7 +56,7 @@ public:
     /**
      * @brief The signature used for actual ABI of a method invocation.
      */
-    virtual Term* ABISignature() = 0;
+    virtual Symlevel::Term* ABISignature() = 0;
 
     /**
      * @brief The ref type.

@@ -77,12 +77,12 @@
     X(ArrayIndexCheck, ArrayIndexCheck)                                                                                \
     X(FBinary32, FloatBinary<Width::W32>)                                                                              \
     X(FBinary64, FloatBinary<Width::W64>)                                                                              \
-    X(LoadStatic, Unreachable)                                                                                         \
-    X(StoreStatic, Unreachable)                                                                                        \
-    X(LoadObj, Unreachable)                                                                                            \
-    X(StoreObj, Unreachable)                                                                                           \
-    X(LoadRec, Unreachable)                                                                                            \
-    X(StoreRec, Unreachable)                                                                                           \
+    X(LoadStatic, LoadStatic)                                                                                          \
+    X(StoreStatic, StoreStatic)                                                                                        \
+    X(LoadObj, LoadObj)                                                                                                \
+    X(StoreObj, StoreObj)                                                                                              \
+    X(LoadRec, LoadRec)                                                                                                \
+    X(StoreRec, StoreRec)                                                                                              \
     X(MemHeadReg, Unreachable)                                                                                         \
     X(MemHeadField, Unreachable)                                                                                       \
     X(MemHeadStatic, Unreachable)                                                                                      \

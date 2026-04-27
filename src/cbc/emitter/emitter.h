@@ -148,6 +148,8 @@ public:
     void NewObj(IReg d, Symbol sym);
     void LoadObj(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset);
     void StoreObj(StoreAccessKind stk, Reg src, IReg base, uint32_t offset);
+    void LoadStatic(LoadAccessKind ldk, Reg dst, Symbol offSym);
+    void StoreStatic(StoreAccessKind sdk, Reg src, Symbol offSym);
     void LoadRec(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset);
     void StoreRec(StoreAccessKind stk, Reg src, IReg base, uint32_t offset);
 

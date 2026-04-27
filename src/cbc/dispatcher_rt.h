@@ -91,6 +91,9 @@ Thunk InterpretationLoop(
         &&LOAD_OBJ,  // B4xi12rr
         &&STORE_OBJ, // B4xi12rr
 
+        &&LOAD_ADDR,  // B2xr
+        &&STORE_ADDR, // B2xr
+
         &&LOAD_REC,  // B4xi12rr
         &&STORE_REC, // B4xi12rr
 
@@ -433,6 +436,18 @@ NEWOBJ: {
     reader0 = reader; // save current pc
 
     return { func, type };
+}
+LOAD_ADDR: {
+    auto args       = B2xr::Decode(reader);
+    auto location   = literals->at(reader.Read16()).u64;
+    bool successful = interpreter.LoadAddr(args.xr.imm.LDK(), args.xr.r, location);
+    NEXT_COND(successful);
+}
+STORE_ADDR: {
+    auto args       = B2xr::Decode(reader);
+    auto location   = literals->at(reader.Read16()).u64;
+    bool successful = interpreter.StoreAddr(args.xr.imm.STK(), args.xr.r, location);
+    NEXT_COND(successful);
 }
 LOAD_OBJ: {
     auto args       = B4xi12rr::Decode(reader);

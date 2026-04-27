@@ -1,4 +1,5 @@
 #include "isa_rewriter.h"
+#include "api/field.h"
 #include "api/resolver.h"
 #include "api/type.h"
 #include "cbc/emitter/emitter.h"
@@ -10,6 +11,7 @@
 #include "engine/symlevel/terms.h"
 #include "interpreter/code.h"
 #include "utils/assertion.h"
+#include "utils/ostream.h"
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
@@ -37,6 +39,52 @@ struct IsaRewriter : public IsaParser {
 
     size_t startPosition;
     std::unordered_map<ssize_t, Emitter::Label> instructionLabel;
+
+    Format::LoadAccessKind typeToLoadAccessKind(Symlevel::TemplateKind typeIdentifier)
+    {
+        using namespace Symlevel;
+        using namespace Format;
+
+        switch (typeIdentifier) {
+            case TemplateKind::U8:  return LoadAccessKind::LD_U8;
+            case TemplateKind::I8:  return LoadAccessKind::LD_S8;
+            case TemplateKind::U16: return LoadAccessKind::LD_U16;
+            case TemplateKind::I16: return LoadAccessKind::LD_S16;
+            case TemplateKind::U32:
+            case TemplateKind::I32: return LoadAccessKind::LD_32;
+            case TemplateKind::U64:
+            case TemplateKind::I64: return LoadAccessKind::LD_64;
+            case TemplateKind::F32: return LoadAccessKind::LD_F32;
+            case TemplateKind::F64: return LoadAccessKind::LD_F64;
+            default:                {
+                FATAL("Not supported template kind");
+                return LoadAccessKind::SPECIAL;
+            }
+        }
+    }
+
+    Format::StoreAccessKind typeToStoreAccessKind(Symlevel::TemplateKind typeIdentifier)
+    {
+        using namespace Symlevel;
+        using namespace Format;
+
+        switch (typeIdentifier) {
+            case TemplateKind::U8:
+            case TemplateKind::I8:  return StoreAccessKind::ST_8;
+            case TemplateKind::U16:
+            case TemplateKind::I16: return StoreAccessKind::ST_16;
+            case TemplateKind::U32:
+            case TemplateKind::I32: return StoreAccessKind::ST_32;
+            case TemplateKind::U64:
+            case TemplateKind::I64: return StoreAccessKind::ST_64;
+            case TemplateKind::F32: return StoreAccessKind::ST_F32;
+            case TemplateKind::F64: return StoreAccessKind::ST_F64;
+            default:                {
+                FATAL("Not supported template kind");
+                return StoreAccessKind::SPECIAL;
+            }
+        }
+    }
 
     Emitter::Label InstructionLabel(ssize_t position)
     {
@@ -124,6 +172,48 @@ struct IsaRewriter : public IsaParser {
     void NewArr(IReg dst, IReg len, uint16_t type) override { FATAL("not implemented"); }
 
     void GcPoint() override { FATAL("not implemented"); }
+
+    void LoadStatic(AnyReg r, uint16_t field) override
+    {
+        API::StaticField* resolvedField = resolver.ResolveStaticField(Field(field));
+
+        auto fieldTerm       = resolvedField->FieldType().value()->AsTerm();
+        auto fieldAccessKind = fieldTerm->GetIdentifier().GetKind();
+        auto symbol          = emit.NewAddressSym(resolvedField->Location());
+        emit.LoadStatic(typeToLoadAccessKind(fieldAccessKind), r, symbol);
+    }
+
+    void StoreStatic(AnyReg r, uint16_t field) override
+    {
+        API::StaticField* resolvedField = resolver.ResolveStaticField(Field(field));
+
+        auto fieldTerm       = resolvedField->FieldType().value()->AsTerm();
+        auto fieldAccessKind = fieldTerm->GetIdentifier().GetKind();
+        auto symbol          = emit.NewAddressSym(resolvedField->Location());
+        emit.StoreStatic(typeToStoreAccessKind(fieldAccessKind), r, symbol);
+    }
+
+    void LoadObj(IReg rb, AnyReg rd, uint16_t field) override
+    {
+        API::InstanceField* resolvedField = resolver.ResolveInstanceField(Field(field));
+
+        auto fieldTerm       = resolvedField->FieldType().value()->AsTerm();
+        auto fieldAccessKind = fieldTerm->GetIdentifier().GetKind();
+        emit.LoadObj(typeToLoadAccessKind(fieldAccessKind), rd, rb, resolvedField->Offset().value());
+    }
+
+    void StoreObj(IReg rb, AnyReg rs, uint16_t field) override
+    {
+        API::InstanceField* resolvedField = resolver.ResolveInstanceField(Field(field));
+
+        auto fieldTerm       = resolvedField->FieldType().value()->AsTerm();
+        auto fieldAccessKind = fieldTerm->GetIdentifier().GetKind();
+        emit.StoreObj(typeToStoreAccessKind(fieldAccessKind), rs, rb, resolvedField->Offset().value());
+    }
+
+    void LoadRec(IReg rb, AnyReg rs, uint16_t field) override { FATAL("not implemented"); }
+
+    void StoreRec(IReg rb, AnyReg rd, uint16_t field) override { FATAL("not implemented"); }
 
     void LoadTypeInfoFtc(IReg dst, uint16_t ftc) override { FATAL("not implemented"); }
 
@@ -258,7 +348,7 @@ static uint32_t CalcFrameSize(Symlevel::Code code)
 Interpretation::ExecBytecodeInfo Rewrite(MethodCode code, API::Resolver& resolver, Memory::Heap& heap)
 {
     if (IsDisasmEnabled()) {
-        Disasm(std::cerr, code, &resolver)->ParseAll();
+        Disasm(Stream::Disasm::isa, code, &resolver)->ParseAll();
     }
 
     Emitter::Emitter emitter;

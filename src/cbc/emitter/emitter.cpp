@@ -75,6 +75,21 @@ Interpretation::Code Emitter::Build(Memory::Heap& heap)
 
 // region fixups
 
+class LiteralFixup : public Fixup {
+public:
+    LiteralFixup(Symbol _sym) : Fixup(_sym) {}
+
+    int32_t Size() const override { return 2; }
+
+    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+        const override
+    {
+        ASSERT(position >= 0);
+        Segment::View buf = segment.At(static_cast<size_t>(position));
+        buf.AddW16(relocationConverter(symbol));
+    }
+};
+
 class Literal12Fixup : public Fixup {
 public:
     Literal12Fixup(Imm4 _i4, Symbol _sym) : Fixup(_sym), i4(_i4) {}
@@ -471,6 +486,20 @@ void Emitter::NewObj(IReg d, Symbol sym)
     segment.AddW8(RT::Opcode::NEWOBJ);
     Imm4 i4(d);
     AddFixup(std::make_unique<Literal12Fixup>(i4, sym));
+}
+
+void Emitter::LoadStatic(LoadAccessKind ldk, Reg dst, Symbol offSym)
+{
+    LoadAccessKind::Value kind = ldk;
+    Encode(segment, RT::B2xr { .opc = RT::Opcode::LOAD_ADDR, .xr = { .imm = kind, .r = dst } });
+    AddFixup(std::make_unique<LiteralFixup>(offSym));
+}
+
+void Emitter::StoreStatic(StoreAccessKind sdk, Reg src, Symbol offSym)
+{
+    StoreAccessKind::Value kind = sdk;
+    Encode(segment, RT::B2xr { .opc = RT::Opcode::STORE_ADDR, .xr = { .imm = kind, .r = src } });
+    AddFixup(std::make_unique<LiteralFixup>(offSym));
 }
 
 void Emitter::LoadObj(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset)

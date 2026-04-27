@@ -25,18 +25,14 @@ void RuntimeInterface<Impl>::WriteObjectInstance(Reference base, size_t offset, 
     );
 }
 
-Reference RuntimeInterface<Impl>::ReadObject(uintptr_t base, size_t offset, ThreadHandle th)
+Reference RuntimeInterface<Impl>::ReadObjectStatic(void* location, ThreadHandle th)
 {
-    return Reference { .value = reinterpret_cast<uintptr_t>(g_CJNativeInterfaceInstance.read_static_field(
-                           reinterpret_cast<MRTExport::field_ref_t>(base + offset)
-                       )) };
+    return Reference { .value = reinterpret_cast<uintptr_t>(g_CJNativeInterfaceInstance.read_static_field(location)) };
 }
 
-void RuntimeInterface<Impl>::WriteObject(uintptr_t base, size_t offset, Reference object, ThreadHandle th)
+void RuntimeInterface<Impl>::WriteObjectStatic(void* location, Reference object, ThreadHandle th)
 {
-    g_CJNativeInterfaceInstance.write_static_field(
-        reinterpret_cast<MRTExport::field_ref_t>(base + offset), reinterpret_cast<MRTExport::obj_ref_t>(object.value)
-    );
+    g_CJNativeInterfaceInstance.write_static_field(location, reinterpret_cast<MRTExport::obj_ref_t>(object.value));
 }
 
 TypeInfo<Impl> RuntimeInterface<Impl>::GetTypeInfo(const char* typeName)

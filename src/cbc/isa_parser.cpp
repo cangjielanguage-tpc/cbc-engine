@@ -113,6 +113,13 @@ public:
         return ByteReaderHalf<Ts..., Value>(reader, val & 0xF, std::move(new_data));
     }
 
+    auto ReadU4Skip4() && -> decltype(auto)
+    {
+        auto val      = reader.Read8();
+        auto new_data = std::tuple_cat(data, std::make_tuple(Value(static_cast<uint8_t>((val & 0xF)))));
+        return ByteReaderM<Ts..., Value>(reader, std::move(new_data));
+    }
+
     auto ReadU8() && -> decltype(auto)
     {
         auto val      = Value(reader.Read8());
@@ -124,7 +131,7 @@ public:
     {
         auto val      = Value(reader.Read16());
         auto new_data = std::tuple_cat(data, std::make_tuple(val));
-        return ByteReaderM<Ts..., Value>(reader, ::std::move(new_data));
+        return ByteReaderM<Ts..., Value>(reader, std::move(new_data));
     }
 
     auto ReadU32() && -> decltype(auto)
@@ -152,7 +159,7 @@ public:
     {
         auto val      = Value(MathUtils::SignExtend((uint64_t)reader.Read16(), 16));
         auto new_data = std::tuple_cat(data, std::make_tuple(val));
-        return ByteReaderM<Ts..., Value>(reader, ::std::move(new_data));
+        return ByteReaderM<Ts..., Value>(reader, std::move(new_data));
     }
 
     auto ReadS32() && -> decltype(auto)
@@ -180,7 +187,7 @@ public:
 
     ByteReaderHalf(Decoder::FatByteReader& rreader) : reader(rreader) {}
 
-    ByteReaderHalf(Decoder::FatByteReader& rreader, uint8_t alast, ::std::tuple<Ts...>&& base)
+    ByteReaderHalf(Decoder::FatByteReader& rreader, uint8_t alast, std::tuple<Ts...>&& base)
         : reader(rreader),
           last(std::move(alast)),
           data(std::move(base))
@@ -350,6 +357,42 @@ struct IsaParserImpl {
     }
 
     static void GcPoint(IsaParser& parser) { parser.GcPoint(); }
+
+    static void LoadStatic(IsaParser& parser)
+    {
+        auto [r, id] = ByteReaderM(parser.reader).ReadU4Skip4().ReadU16().Get();
+        parser.LoadStatic(r, id);
+    }
+
+    static void StoreStatic(IsaParser& parser)
+    {
+        auto [r, id] = ByteReaderM(parser.reader).ReadU4Skip4().ReadU16().Get();
+        parser.StoreStatic(r, id);
+    }
+
+    static void LoadObj(IsaParser& parser)
+    {
+        auto [rb, rd, id] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.LoadObj(rb, rd, id);
+    }
+
+    static void StoreObj(IsaParser& parser)
+    {
+        auto [rb, rs, id] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.StoreObj(rb, rs, id);
+    }
+
+    static void LoadRec(IsaParser& parser)
+    {
+        auto [rb, rs, id] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.LoadRec(rb, rs, id);
+    }
+
+    static void StoreRec(IsaParser& parser)
+    {
+        auto [rb, rd, id] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.LoadRec(rb, rd, id);
+    }
 
     static void PrepareRecord(IsaParser& parser)
     {
