@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 
@@ -59,29 +60,47 @@ void MethodTable::Find(Engine::Session& session, String name, std::vector<Method
     };
 
     for (auto& t : impl->classTables) {
-        t.ForEach(checkAndAdd);
+        auto it = t.Iter();
+        while (it.HasNext()) {
+            checkAndAdd(it.Next());
+        }
     }
 
     for (auto& t : impl->interfaceTables) {
-        t.ForEach(checkAndAdd);
+        auto it = t.Iter();
+        while (it.HasNext()) {
+            checkAndAdd(it.Next());
+        }
     }
 }
 
-void MethodTable::ForEachClassSubTable(std::function<void(MethodSubTable const&)> const& f) const
+MethodTable::Iterator MethodTable::EntriesIter() { return Iterator(impl.get()); }
+
+MethodTable::TableIterator MethodTable::ClassSubTableIter() { return TableIterator(impl->classTables); }
+
+MethodTable::TableIterator MethodTable::InterfaceSubTableIter() { return TableIterator(impl->interfaceTables); }
+
+bool MethodTable::TableIterator::HasNext() { return cursor < tables.size(); }
+
+MethodSubTable const& MethodTable::TableIterator::Next()
 {
-    for (auto& t : impl->classTables)
-        f(t);
+    ASSERT(HasNext());
+    return tables[cursor++];
 }
 
-void MethodTable::ForEachInterfaceSubTable(std::function<void(MethodSubTable const&)> const& f) const
+bool MethodTable::Iterator::HasNext() { return cursor < table->allEntries.size(); }
+
+Engine::Identifier<MethodDefinition> MethodTable::Iterator::Next()
 {
-    for (auto& t : impl->interfaceTables)
-        f(t);
+    ASSERT(HasNext());
+    return table->allEntries[cursor].method;
 }
 
 size_t MethodTable::ClassSubTableCount() const { return impl->classTables.size(); }
 
 size_t MethodTable::InterfaceSubTableCount() const { return impl->interfaceTables.size(); }
+
+size_t MethodTable::EntryCount() const { return impl->allEntries.size(); }
 
 MethodTable::~MethodTable() = default;
 
@@ -97,25 +116,22 @@ MethodSubTable::~MethodSubTable()                      = default;
 
 Term MethodSubTable::DeclaringType() const { return impl->declaringType; }
 
-void MethodSubTable::ForEach(std::function<void(MethodTableEntry const)> const& f) const
+MethodSubTable::Iterator MethodSubTable::Iter() const { return Iterator(this->impl.get(), impl->start); }
+
+bool MethodSubTable::Iterator::HasNext() { return cursor < table->end; }
+
+MethodTableEntry MethodSubTable::Iterator::Next()
 {
-    auto start         = impl->start;
-    auto end           = impl->end;
-    auto& allEntries   = impl->allEntries;
-    auto declaringType = impl->declaringType;
-    auto subTableNum   = impl->subTableNum;
-
-    for (auto p = start; p < end; p++) {
-        auto entry = allEntries.at(p);
-
-        MethodTableEntry mEntry = {
-            .method        = entry.method,
-            .declaringType = declaringType,
-            .methodNum     = static_cast<int>(p - start),
-            .subTableNum   = subTableNum,
-        };
-        f(mEntry);
-    }
+    ASSERT(HasNext());
+    auto entry              = table->allEntries[cursor];
+    MethodTableEntry mEntry = {
+        .method        = entry.method,
+        .declaringType = table->declaringType,
+        .methodNum     = static_cast<int>(cursor - table->start),
+        .subTableNum   = table->subTableNum,
+    };
+    cursor++;
+    return mEntry;
 }
 
 size_t MethodSubTable::Size() const { return impl->end - impl->start; }

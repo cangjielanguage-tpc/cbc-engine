@@ -58,11 +58,25 @@ public:
     class Impl;
     friend class Impl;
 
+    class Iterator {
+    public:
+        MethodTableEntry Next();
+        bool HasNext();
+
+    private:
+        friend class MethodSubTable;
+
+        Iterator(Impl const* table, int cursor) : table(table), cursor(cursor) {}
+
+        Impl const* table;
+        int cursor;
+    };
+
     MethodSubTable(std::unique_ptr<Impl> impl);
     MethodSubTable(MethodSubTable&& other);
 
     Term DeclaringType() const;
-    void ForEach(std::function<void(MethodTableEntry const)> const& f) const;
+    Iterator Iter() const;
     size_t Size() const;
 
     ~MethodSubTable();
@@ -77,15 +91,47 @@ public:
     class Impl;
     friend class Impl;
 
+    class Iterator {
+    public:
+        Engine::Identifier<MethodDefinition> Next();
+        bool HasNext();
+
+    private:
+        friend class MethodTable;
+
+        Iterator(Impl const* table) : table(table), cursor(0) {}
+
+        Impl const* table;
+        int cursor;
+    };
+
+    class TableIterator {
+    public:
+        MethodSubTable const& Next();
+        bool HasNext();
+
+    private:
+        friend class MethodTable;
+
+        TableIterator(std::vector<MethodSubTable> const& tables) : tables(tables), cursor(0) {}
+
+        std::vector<MethodSubTable> const& tables;
+        int cursor;
+    };
+
     MethodTable(std::shared_ptr<Impl> impl);
     MethodTable(MethodTable&& other);
     MethodTable(MethodTable const& other);
 
     void Find(Engine::Session& session, String name, std::vector<MethodTableEntry>& candidates) const;
-    void ForEachClassSubTable(std::function<void(MethodSubTable const&)> const& f) const;
-    void ForEachInterfaceSubTable(std::function<void(MethodSubTable const&)> const& f) const;
     size_t ClassSubTableCount() const;
     size_t InterfaceSubTableCount() const;
+    size_t EntryCount() const;
+
+    Iterator EntriesIter();
+    TableIterator ClassSubTableIter();
+    TableIterator InterfaceSubTableIter();
+
     ~MethodTable();
 
 private:
