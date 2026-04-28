@@ -8,7 +8,6 @@
 
 #ifdef __cplusplus
 extern "C" {
-namespace MRTExport {
 #endif // __cplusplus
 
 #define ATTR_PACKED(x) __attribute__((__aligned__(x), __packed__))
@@ -21,63 +20,62 @@ namespace MRTExport {
 
 #define EXTENSION_DATA_ATTRS ATTR_PACKED(4)
 
-struct TYPE_INFO_ATTRS type_info_t;
-struct TYPE_INFO_ATTRS extension_data_t;
+struct TYPE_INFO_ATTRS DYN_TypeInfoT;
+struct TYPE_INFO_ATTRS DYN_ExtensionDataT;
 
-typedef void* mtable_desc_t;
-typedef void* func_ptr_t;
+typedef void* DYN_MTableDescT;
+typedef void* DYN_FuncPtrT;
 
-union gc_tib_t {
-    uintptr_t raw;
+union DYN_GCTibT {
+    uintptr_t raw; // higher bit - 1: raw, 0: ptr
     void *ptr;
 };
 
-struct TYPE_INFO_ATTRS type_info_t {
-    const char* type_info_name;
+struct TYPE_INFO_ATTRS DYN_TypeInfoT {
+    const char* typeInfoName;
     int8_t type;
     uint8_t flag;
-    uint16_t field_num;
+    uint16_t fieldNum;
     union {
-        uint32_t instance_size;
-        uint32_t component_size;
+        uint32_t instanceSize;
+        uint32_t componentSize;
     };
-    union gc_tib_t gctib;
+    union DYN_GCTibT gctib;
     uint32_t uuid;
     uint8_t align;
-    int8_t type_args_num;
-    uint16_t valid_inherit_num;
-    uint32_t* field_offsets;
-    func_ptr_t finalizer_method;
-    struct type_info_t** type_args;
-    struct type_info_t** fields;
+    int8_t typeArgsNum;
+    uint16_t validInheritNum;
+    uint32_t* fieldOffsets;
+    DYN_FuncPtrT finalizerMethod;
+    struct DYN_TypeInfoT** typeArgs;
+    struct DYN_TypeInfoT** fields;
     union {
-        struct type_info_t* super_type_info;
-        struct type_info_t* component_type_info;
+        struct DYN_TypeInfoT* superTypeInfo;
+        struct DYN_TypeInfoT* componentTypeInfo;
     };
-    struct extension_data_t** v_extension_data_start;
-    mtable_desc_t* mtable_desc;
-    void* reflect_or_debug_info;
+    struct DYN_ExtensionDataT** vExtensionDataStart;
+    DYN_MTableDescT* mTableDesc;
+    void* reflectOrDebugInfo;
 };
 
-struct EXTENSION_DATA_ATTRS extension_data_t {
-    uint32_t arg_num;
-    uint8_t is_interface_type_info;
+struct EXTENSION_DATA_ATTRS DYN_ExtensionDataT {
+    uint32_t argNum;
+    uint8_t isInterfaceTypeInfo;
     uint8_t flag;
-    uint16_t func_table_size;
+    uint16_t funcTableSize;
     union {
         void* tt;
-        struct type_info_t* ti;
+        struct DYN_TypeInfoT* ti;
     };
     union {
-        func_ptr_t interface_fn;
-        struct type_info_t* interface_type_info;
+        DYN_FuncPtrT interfaceFn;
+        struct DYN_TypeInfoT* interfaceTypeInfo;
     };
-    func_ptr_t where_cond_fn;
-    func_ptr_t* func_table;
+    DYN_FuncPtrT whereCondFn;
+    DYN_FuncPtrT* funcTable;
 };
 
 #ifdef __cplusplus
-} // namespace MRTExport
 } // extern "C"
 #endif // __cplusplus
 
