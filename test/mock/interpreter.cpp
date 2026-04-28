@@ -219,7 +219,9 @@ void* Adapters::GenericI2CCallInstance() { FATAL("Should not reach here. Mock i2
 
 void* Adapters::I2ICallInstance() { return reinterpret_cast<void*>(&Interpretation::InterpreterI2CallTest); }
 
-void* Adapters::IregOnlyC2ICallInstance() { FATAL("Should not reach here. Mock c2i"); }
+static void C2ICall() { FATAL("Should not reach here. Mock c2i"); }
+
+void* Adapters::IregOnlyC2ICallInstance() { return reinterpret_cast<void*>(&C2ICall); }
 
 void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* fuh) { FATAL("Should not reach here."); }
 
