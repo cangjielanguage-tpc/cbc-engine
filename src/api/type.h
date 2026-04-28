@@ -3,7 +3,6 @@
 #include "access_kind.h"
 #include "engine/symlevel/terms.h"
 #include "runtimesupport/runtime.h"
-#include "runtimesupport/runtime_impl.h"
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -18,7 +17,7 @@ struct TypeKind;
 struct TypeFlag;
 struct TypeFlags;
 
-using TypeInfo = RTSupport::TypeInfo<RTSupport::Impl>;
+using TypeInfo = RTSupport::TypeInfo;
 
 /**
  * @class Type

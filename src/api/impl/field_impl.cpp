@@ -10,9 +10,7 @@ InstanceFieldImpl::InstanceFieldImpl(
       fieldType(fieldType),
       refType(refType),
       flags(flags)
-{
-    ASSERTION(ordinal <= refType->FieldsNum(), "wrong ordinal value");
-}
+{}
 
 std::optional<uint32_t> InstanceFieldImpl::Offset()
 {

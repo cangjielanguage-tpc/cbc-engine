@@ -1,4 +1,5 @@
 #include "type_impl.h"
+#include "runtimesupport/runtime.h"
 
 using namespace Symlevel;
 
@@ -18,18 +19,13 @@ Term* TypeImpl::AsTerm() { return &term; }
 
 std::optional<TypeInfo> TypeImpl::GetTypeInfo() { return typeInfo; }
 
-int TypeImpl::FieldsNum()
-{
-    DYN_TypeInfoT* ti = typeInfo.value();
-    return ti->fieldNum;
-}
+int TypeImpl::FieldsNum() { FATAL("not implemented"); }
 
 uint32_t TypeImpl::GetFieldOffset(int ordinal)
 {
     ASSERTION(typeInfo.has_value(), "cannot get field offset");
-
-    DYN_TypeInfoT* ti = typeInfo.value();
-    return ti->fieldOffsets[ordinal] + sizeof(DYN_TypeInfoT*);
+    bool isRef = true; // FIXME
+    return RTSupport::Execution::GetFieldOffset(typeInfo.value(), ordinal, isRef);
 }
 
 int TypeImpl::FieldSize()
@@ -53,7 +49,7 @@ TypeFlags TypeImpl::Flags()
 std::string_view TypeImpl::FullName()
 {
     if (term.GetLength() == 0) {
-        return static_cast<DYN_TypeInfoT*>(typeInfo.value())->typeInfoName;
+        return "FIXME: refactor resolver api";
     } else {
         ASSERTION(false, "Support for generic types");
     }

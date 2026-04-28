@@ -3,48 +3,54 @@
 /// This file defines Runtime specific interface for communication between
 /// interpreter and the runtime.
 
-#include "RuntimeTypes.h"
 #include "interpreter/ectype.h"
 
 namespace RTSupport {
 
 class ThreadHandle {
 public:
-    ThreadHandle(void* _value) : value(_value) {}
+    explicit ThreadHandle(void* _value) : value(_value) {}
 
-    operator void*() const { return value; }
+    inline void* Raw() const { return value; }
 
 private:
-    void* const value;
+    void* value;
 };
 
-template <typename RT> class TypeInfo {
+class TypeInfo {
 public:
-    TypeInfo() : value(nullptr) {};
+    explicit TypeInfo(uintptr_t _value) : value(reinterpret_cast<void*>(_value)) {}
 
-    TypeInfo(uintptr_t _value) : value((DYN_TypeInfoT*)_value) {}
+    explicit TypeInfo(void* value) : value(value) {}
 
-    TypeInfo(DYN_TypeInfoT* _value) : value(_value) {}
-
-    operator void*() const { return value; }
-
-    operator DYN_TypeInfoT*() { return value; }
+    inline void* Raw() const { return value; }
 
 private:
-    DYN_TypeInfoT* value;
+    void* value;
 };
 
-template <typename RT> class RuntimeInterface {
+class MethodTable {
+public:
+    explicit MethodTable(uintptr_t _value) : value(reinterpret_cast<void*>(_value)) {}
+
+    explicit MethodTable(void* value) : value(value) {}
+
+    inline void* Raw() const { return value; }
+
+private:
+    void* value;
+};
+
+struct Execution {
     using Reference = Interpretation::Value::Reference;
 
-public:
     /// Each element represent an function that accepts (Ectype, ThreadHandle, TypeInfo)
     /// and puts result in IReg(idx) register.
     ///
     /// This specialization is needed to allow Thunk usage.
-    inline static void* AllocateObject;
+    static void* AllocateObjectInstance();
 
-    static Reference NewArray(TypeInfo<RT> type, size_t count, ThreadHandle th);
+    static Reference NewArray(TypeInfo type, size_t count, ThreadHandle th);
     static size_t ArrayLength(Reference array);
 
     static Reference ReadObjectInstance(Reference base, size_t offset, ThreadHandle th);
@@ -52,7 +58,11 @@ public:
     static Reference ReadObjectStatic(void* location, ThreadHandle th);
     static void WriteObjectStatic(void* location, Reference object, ThreadHandle th);
 
-    static TypeInfo<RT> GetTypeInfo(const char* typeName);
+    static TypeInfo GetTypeInfo(Reference base);
+
+    static MethodTable GetMethodTable(Reference base, int extDefNum, int methodNum);
+
+    static int GetFieldOffset(TypeInfo ti, int ordinal, bool isRef);
 };
 
 } // namespace RTSupport

@@ -3,7 +3,6 @@
 
 #include "asm_export.h"
 #include "cbc/isa.h"
-#include "functional"
 #include <cstddef>
 
 namespace Interpretation {

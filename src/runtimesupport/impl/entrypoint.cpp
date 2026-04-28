@@ -9,7 +9,6 @@
 #include "engine/symlevel/io/filesystem.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
-#include "runtime_impl.h"
 
 static std::mutex g_InitializationGuard;
 static bool g_Initialized;
@@ -68,7 +67,7 @@ CBC_EXPORT void* engine_get_entrypoint_trampoline(void)
     auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
 
     auto fuh = fuhManager.AcquireTagged(session, main.value());
-    return fuhManager.GetFunctionPtr(fuh);
+    return fuhManager.GetFunctionPtrForDirectCall(fuh);
 }
 
 CBC_EXPORT void interpreter_bridge_init(
@@ -90,7 +89,7 @@ CBC_EXPORT void interpreter_bridge_init(
     interpInterf->cjThreadStart            = &FiberStart;
     interpInterf->cjThreadDestroy          = &FiberDestroy;
 
-    RTSupport::InitializeRuntimeInterface();
+    Asm::engine_newobject_function = g_CJNativeInterfaceInstance.objectAlloc;
 }
 
 } // extern "C"

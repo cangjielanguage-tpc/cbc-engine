@@ -7,6 +7,7 @@
 #include "engine/symlevel/reader.h"
 #include "engine/symlevel/references.h"
 #include "engine/symlevel/region_data.h"
+#include "engine/typeinfo_manager.h"
 #include "field_impl.h"
 #include "method_impl.h"
 #include "type_impl.h"
@@ -37,45 +38,7 @@ Type* ResolverImpl::Resolve(Symlevel::Term term)
     using namespace Symlevel;
 
     auto termKind = term.GetIdentifier().GetKind();
-    const char* typeName;
-    switch (termKind) {
-        case TemplateKind::AOT_TYPE: {
-            auto nameFileId     = term.GetIdentifier().AsAotIdent().GetFile();
-            auto typeNameOffset = term.GetIdentifier().AsAotIdent().GetOffset();
-            auto _typeName      = Reader::Read(session, nameFileId, Offset<String>(typeNameOffset));
-
-            typeName = std::string(_typeName).c_str();
-            break;
-        }
-        case TemplateKind::U8:
-        case TemplateKind::I8:
-        case TemplateKind::U16:
-        case TemplateKind::I16:
-        case TemplateKind::U32:
-        case TemplateKind::I32:
-        case TemplateKind::U64:
-        case TemplateKind::I64:
-        case TemplateKind::F16:
-        case TemplateKind::F32:
-        case TemplateKind::F64: { // TODO support other built-in types
-            auto _typeName = term.GetIdentifier().GetKindName();
-            if (!_typeName.has_value()) {
-                FATAL("Cannot get type info of template kind: %d", termKind);
-            }
-
-            typeName = _typeName.value();
-            break;
-        }
-        default: {
-            FATAL("Not supported yet");
-            return nullptr;
-            ;
-        }
-    }
-
-    TypeInfo typeInfo = RTSupport::RuntimeInterface<RTSupport::Impl>::GetTypeInfo(typeName);
-
-    ASSERTION(typeInfo != nullptr, "Couldn't resolve AOT type");
+    auto typeInfo = Engine::TypeInfoManager::Of(session).AcquireTypeInfo(session, term).value();
     return session.Allocator().New<TypeImpl>(term, typeInfo);
 }
 

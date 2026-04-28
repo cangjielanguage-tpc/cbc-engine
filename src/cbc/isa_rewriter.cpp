@@ -11,10 +11,10 @@
 #include "engine/symlevel/terms.h"
 #include "interpreter/code.h"
 #include "utils/assertion.h"
+#include "utils/math.h"
 #include "utils/ostream.h"
 #include <cstddef>
 #include <cstdint>
-#include <iostream>
 #include <memory>
 #include <sys/types.h>
 
@@ -225,7 +225,7 @@ struct IsaRewriter : public IsaParser {
         auto typeInfoOpt = type->GetTypeInfo();
 
         ASSERTION(typeInfoOpt.has_value(), "Cannot find type info for newobj");
-        void* typeInfo = typeInfoOpt.value(); // get raw value
+        void* typeInfo = typeInfoOpt.value().Raw(); // get raw value
 
         auto sym = emit.NewAddressSym(reinterpret_cast<uintptr_t>(typeInfo));
         emit.NewObj(dst, sym);

@@ -100,8 +100,11 @@ public:
     // Acquires a function pointer that could be invoked from compiled code
     // to invoke the method referenced by `fuh`.
     //
-    // Note that it is neither `I2Call` nor `C2Call`.
-    void* GetFunctionPtr(TaggedFunctionHandle fuh);
+    // Note that result is neither `I2Call` nor `C2Call` and must be invoked from compiled code
+    // with correspondig ABI.
+    //
+    // This function returns trampoline that is needed for direct call, usually for main method.
+    void* GetFunctionPtrForDirectCall(TaggedFunctionHandle fuh);
 
 private:
     class Impl;
