@@ -114,6 +114,10 @@ MethodSubTable::MethodSubTable(std::unique_ptr<Impl> impl) : impl(std::move(impl
 MethodSubTable::MethodSubTable(MethodSubTable&& other) = default;
 MethodSubTable::~MethodSubTable()                      = default;
 
+int MethodSubTable::StartPos() const { return impl->start; }
+
+int MethodSubTable::EndPos() const { return impl->end; }
+
 Term MethodSubTable::DeclaringType() const { return impl->declaringType; }
 
 MethodSubTable::Iterator MethodSubTable::Iter() const { return Iterator(this->impl.get(), impl->start); }
@@ -129,6 +133,7 @@ MethodTableEntry MethodSubTable::Iterator::Next()
         .declaringType = table->declaringType,
         .methodNum     = static_cast<int>(cursor - table->start),
         .subTableNum   = table->subTableNum,
+        .flatMethodNum = cursor,
     };
     cursor++;
     return mEntry;

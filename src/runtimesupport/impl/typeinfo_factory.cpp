@@ -1,12 +1,18 @@
 #include "runtimesupport/typeinfo_factory.h"
 #include "RuntimeTypes.h"
+#include "engine/engine.h"
+#include "engine/identifiers.h"
 #include "engine/symlevel/definitions.h"
+#include "engine/symlevel/method_table.h"
 #include "engine/symlevel/reader.h"
 #include "engine/symlevel/terms.h"
+#include "interpreter/function_handle.h"
 #include "runtimesupport/impl/cjnative.h"
+#include "runtimesupport/impl/typeinfo_ext.h"
 #include "runtimesupport/runtime.h"
 #include "utils/assertion.h"
 #include <cstdint>
+#include <cstdlib>
 #include <optional>
 #include <utility>
 
@@ -26,6 +32,16 @@ static char* Copy(std::string_view str)
     return cStr;
 }
 
+/// This class is almost 1-to-1 maps to fields of TypeInfo.
+/// The builder is needed mainly to properly manage memory in case of unexpected
+/// errors like resolution failures.
+///
+/// The main building strategy is:
+/// - fill out all fields of builder;
+/// - create an instance of TypeInfo and move everything to the allocated instance.
+///
+/// In case of errors, the fields would be freed in destructor. To avoid use-after-free,
+/// after successful build, fields of builder are zeroed.
 struct TypeInfoBuilder {
     char* name = nullptr;
     int8_t type;
@@ -49,13 +65,17 @@ struct TypeInfoBuilder {
     MRTExport::type_info_t* superTypeInfo     = nullptr;
     MRTExport::type_info_t* componentTypeInfo = nullptr;
 
-    MRTExport::extension_data_t** extDataStart = nullptr;
+    MRTExport::extension_data_t** extDefs      = nullptr;
+    MRTExport::func_ptr_t* flatMethods         = nullptr;
+    MRTExport::extension_data_t* flatExtDefs   = nullptr;
     MRTExport::mtable_desc_t* mtableDesc       = nullptr;
-    void* reflectOrDebugInfo;
+    void* reflectOrDebugInfo                   = nullptr;
+
+    Interpretation::FunctionHandle** dataMT = nullptr;
 
     MRTExport::type_info_t* Build()
     {
-        auto result = reinterpret_cast<MRTExport::type_info_t*>(malloc(sizeof(MRTExport::type_info_t)));
+        auto result = reinterpret_cast<CbcTypeInfo*>(malloc(sizeof(MRTExport::type_info_t)));
         if (!result) {
             return nullptr;
         }
@@ -87,9 +107,12 @@ struct TypeInfoBuilder {
         } else {
             ASSERTION(false, "neither of super type TI or component TI was set");
         }
-        result->v_extension_data_start = std::exchange(extDataStart, nullptr);
+
+        result->v_extension_data_start = std::exchange(extDefs, nullptr);
+        flatExtDefs                    = nullptr;
         result->mtable_desc            = std::exchange(mtableDesc, nullptr);
         result->reflect_or_debug_info  = std::exchange(reflectOrDebugInfo, nullptr);
+        result->dataMT                 = dataMT;
 
         return result;
     }
@@ -103,11 +126,21 @@ struct TypeInfoBuilder {
         std::free(fields);
         std::free(superTypeInfo);
         std::free(componentTypeInfo);
-        std::free(extDataStart);
         std::free(mtableDesc);
         std::free(reflectOrDebugInfo);
+        std::free(dataMT);
+        std::free(flatExtDefs);
+        std::free(extDefs);
+        std::free(flatMethods);
     }
 };
+
+static MRTExport::func_ptr_t GetFunctionOrTrampoline(
+    Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> method
+)
+{
+    return nullptr;
+}
 
 static std::optional<TypeInfo> CreateTypeInfoDyn(
     Engine::Session& session, Engine::TypeInfoManager& manager, Symlevel::GlobalTerm term
@@ -143,7 +176,78 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
     builder.instanceSize = 0;
 
     {
-        // TODO: build method table
+        auto& manager    = Symlevel::MethodTableManager::Of(session);
+        auto& fuhManager = Interpretation::FunctionHandleManager::Of(session);
+        auto mt          = manager.GetMethodTable(session, term);
+
+        auto extDefCount       = mt.ClassSubTableCount() + mt.InterfaceSubTableCount();
+        constexpr auto ptrSize = sizeof(void*);
+
+        // To simplify memory management here, we will preallocate "flat" arrays
+        // where corresponding structures would be filled out.
+        // E.g. function tables are essentionally views in the big array.
+
+        builder.dataMT = reinterpret_cast<Interpretation::FunctionHandle**>(std::calloc(mt.EntryCount(), ptrSize));
+
+        builder.flatMethods = reinterpret_cast<MRTExport::func_ptr_t*>(std::calloc(mt.EntryCount(), ptrSize));
+
+        builder.extDefs = reinterpret_cast<MRTExport::extension_data_t**>(
+            std::calloc(extDefCount + 1, ptrSize) // extra slot for null-terminator
+        );
+
+        builder.flatExtDefs = reinterpret_cast<MRTExport::extension_data_t*>(
+            std::calloc(extDefCount, sizeof(MRTExport::extension_data_t))
+        );
+
+        if (!builder.dataMT || !builder.flatMethods || !builder.extDefs || !builder.flatExtDefs) {
+            return std::nullopt;
+        }
+
+        // fill out flat methods table and data method table
+        int entryIdx = 0;
+        for (auto it = mt.EntriesIter(); it.HasNext(), entryIdx++;) {
+            auto entry                    = it.Next();
+            builder.dataMT[entryIdx]      = fuhManager.Acquire(session, entry);
+            builder.flatMethods[entryIdx] = GetFunctionOrTrampoline(session, entry);
+        }
+
+        // Fill out array of pointers to ext defs.
+        for (auto i = 0; i < extDefCount; i++) {
+            builder.extDefs[i] = &builder.flatExtDefs[i];
+        }
+
+        builder.extDefs[extDefCount] = nullptr;
+
+        // fill out ext defs
+        int extDefIndex = 0;
+        for (auto it = mt.ClassSubTableIter(); it.HasNext();) {
+            auto& smt                     = it.Next();
+            auto funcTableStart           = &builder.flatMethods[smt.StartPos()];
+            auto& extDef                  = builder.flatExtDefs[extDefIndex++];
+            extDef.func_table             = funcTableStart;
+            extDef.func_table_size        = smt.EndPos() - smt.StartPos();
+            extDef.arg_num                = 0;
+            extDef.is_interface_type_info = 0;
+
+            // TODO:
+            extDef.ti                  = nullptr;
+            extDef.interface_type_info = nullptr;
+        }
+
+        // TODO: Intentionally copy-pasted. Should be updated accordingly
+        for (auto it = mt.InterfaceSubTableIter(); it.HasNext();) {
+            auto& smt                     = it.Next();
+            auto funcTableStart           = &builder.flatMethods[smt.StartPos()];
+            auto& extDef                  = builder.flatExtDefs[extDefIndex++];
+            extDef.func_table             = funcTableStart;
+            extDef.func_table_size        = smt.EndPos() - smt.StartPos();
+            extDef.arg_num                = 0;
+            extDef.is_interface_type_info = 1; // TODO: why 1?
+
+            // TODO:
+            extDef.ti                  = nullptr;
+            extDef.interface_type_info = nullptr;
+        }
     }
 
     auto typeInfo = builder.Build();

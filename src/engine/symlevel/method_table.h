@@ -48,7 +48,8 @@ struct MethodTableEntry {
     /// Number of sub table.
     int subTableNum;
 
-    // int flatMethodNum;
+    /// idx in all enties array
+    int flatMethodNum;
 };
 
 /// Second layer of the table. Can query entries in this sub table and type that corresponds to
@@ -75,7 +76,10 @@ public:
     MethodSubTable(std::unique_ptr<Impl> impl);
     MethodSubTable(MethodSubTable&& other);
 
+    int StartPos() const;
+    int EndPos() const;
     Term DeclaringType() const;
+
     Iterator Iter() const;
     size_t Size() const;
 
