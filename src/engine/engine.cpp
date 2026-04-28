@@ -150,7 +150,7 @@ std::optional<Identifier<MethodDefinition>> Engine::FindMain(Session& session, s
     if (declType.has_value()) {
         auto type               = Symlevel::TypeDefinition::Resolve(session, declType.value());
         const auto& methodIndex = type.GetMethodIndex();
-        auto methods            = methodIndex.FindMethods(session, std::string_view("main"));
+        auto methods            = methodIndex.FindMethods(session, std::string_view("_CGP7defaultiiHv"));
 
         // TODO: throw?
         ASSERTION(methods.size() == 1, "unexpected \"main\" method count");
