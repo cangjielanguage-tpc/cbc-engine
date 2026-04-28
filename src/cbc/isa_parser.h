@@ -47,6 +47,13 @@ protected:
 
     virtual void GcPoint() = 0;
 
+    virtual void LoadStatic(AnyReg r, uint16_t field)         = 0;
+    virtual void StoreStatic(AnyReg r, uint16_t field)        = 0;
+    virtual void LoadObj(IReg rb, AnyReg rs, uint16_t field)  = 0;
+    virtual void StoreObj(IReg rb, AnyReg rd, uint16_t field) = 0;
+    virtual void LoadRec(IReg rb, AnyReg rs, uint16_t field)  = 0;
+    virtual void StoreRec(IReg rb, AnyReg rd, uint16_t field) = 0;
+
     virtual void LoadTypeInfoFtc(IReg dst, uint16_t ftc)  = 0;
     virtual void LoadTypeInfoSig(IReg dst, uint16_t type) = 0;
     virtual void NewObj(IReg dst, uint16_t type)          = 0;
@@ -72,6 +79,10 @@ protected:
 
     virtual void ArrayLength(IReg dst, IReg arr)          = 0;
     virtual void ArrayIndexCheck(IReg length, IReg index) = 0;
+
+    virtual void LoadUntyped(AnyReg dst, Format::LoadAccessKind ldk, uint16_t us)   = 0;
+    virtual void StoreUntyped(AnyReg src, Format::StoreAccessKind stk, uint16_t us) = 0;
+    virtual void StoreUntypedImm(uint64_t imm, uint16_t us)                         = 0;
 
     friend class IsaParserImpl;
     Decoder::FatByteReader reader;

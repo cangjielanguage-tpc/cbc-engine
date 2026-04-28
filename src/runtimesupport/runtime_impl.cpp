@@ -25,18 +25,14 @@ void RuntimeInterface<Impl>::WriteObjectInstance(Reference base, size_t offset, 
     );
 }
 
-Reference RuntimeInterface<Impl>::ReadObject(uintptr_t base, size_t offset, ThreadHandle th)
+Reference RuntimeInterface<Impl>::ReadObjectStatic(void* location, ThreadHandle th)
 {
-    return Reference { .value = reinterpret_cast<uintptr_t>(g_CJNativeInterfaceInstance.read_static_field(
-                           reinterpret_cast<MRTExport::field_ref_t>(base + offset)
-                       )) };
+    return Reference { .value = reinterpret_cast<uintptr_t>(g_CJNativeInterfaceInstance.read_static_field(location)) };
 }
 
-void RuntimeInterface<Impl>::WriteObject(uintptr_t base, size_t offset, Reference object, ThreadHandle th)
+void RuntimeInterface<Impl>::WriteObjectStatic(void* location, Reference object, ThreadHandle th)
 {
-    g_CJNativeInterfaceInstance.write_static_field(
-        reinterpret_cast<MRTExport::field_ref_t>(base + offset), reinterpret_cast<MRTExport::obj_ref_t>(object.value)
-    );
+    g_CJNativeInterfaceInstance.write_static_field(location, reinterpret_cast<MRTExport::obj_ref_t>(object.value));
 }
 
 TypeInfo<Impl> RuntimeInterface<Impl>::GetTypeInfo(const char* typeName)
@@ -56,13 +52,13 @@ namespace Cbc::RT {
 using namespace RTSupport;
 using namespace Interpretation;
 template __attribute__((used)) Thunk InterpretationLoop<Impl>(
-    Ectype* ectype, Frame* frame, ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
+    Ectype* ectype, Frame frame, ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
 );
 } // namespace Cbc::RT
 
 extern "C" {
-void engine_interpretation_loop() __attribute__((alias(
-    "_ZN3Cbc2RT18InterpretationLoopIN9RTSupport4ImplEEENS0_5ThunkEPN14Interpretation6EctypeEPNS5_5FrameENS2_"
-    "12ThreadHandleEPNS5_12LiteralTableERN7Decoder10ByteReaderE"
-)));
+void engine_interpretation_loop() __attribute__((
+    alias("_ZN3Cbc2RT18InterpretationLoopIN9RTSupport4ImplEEENS0_5ThunkEPN14Interpretation6EctypeENS5_5FrameENS2_"
+          "12ThreadHandleEPNS5_12LiteralTableERN7Decoder10ByteReaderE")
+));
 } // extern "C"

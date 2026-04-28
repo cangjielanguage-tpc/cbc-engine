@@ -20,6 +20,8 @@ private:
 
 template <typename RT> class TypeInfo {
 public:
+    TypeInfo() : value(nullptr) {};
+
     TypeInfo(uintptr_t _value) : value((MRTExport::type_info_t*)_value) {}
 
     TypeInfo(MRTExport::type_info_t* _value) : value(_value) {}
@@ -29,7 +31,7 @@ public:
     operator MRTExport::type_info_t*() { return value; }
 
 private:
-    MRTExport::type_info_t* const value;
+    MRTExport::type_info_t* value;
 };
 
 template <typename RT> class RuntimeInterface {
@@ -49,8 +51,6 @@ public:
     static void WriteObjectInstance(Reference base, size_t offset, Reference object, ThreadHandle th);
     static Reference ReadObjectStatic(void* location, ThreadHandle th);
     static void WriteObjectStatic(void* location, Reference object, ThreadHandle th);
-    static Reference ReadObject(uintptr_t base, size_t offset, ThreadHandle th);
-    static void WriteObject(uintptr_t base, size_t offset, Reference object, ThreadHandle th);
 
     static TypeInfo<RT> GetTypeInfo(const char* typeName);
 };

@@ -14,6 +14,14 @@ public:
 
     uint32_t CodeSize() { return codeSize; }
 
+    uint32_t UntypedSlotCount() { return untypedSlotCount; }
+
+    uint32_t TypedSlotCount() { return typedSlotCount; }
+
+    uint8_t UsedNonVolIRegMask() { return usedNonVolIRegMask; }
+
+    uint8_t UsedNonVolFRegMask() { return usedNonVolFRegMask; }
+
 private:
     Code(uint8_t* codePtr, uint32_t codeSize) : codePtr(codePtr), codeSize(codeSize) {}
 

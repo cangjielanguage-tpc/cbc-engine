@@ -15,7 +15,7 @@ template <typename RTI> class Interpreter {
     using IReg = Cbc::IReg;
 
 public:
-    Interpreter(Ectype* _ectype, Frame* _frame, RTSupport::ThreadHandle _handle, LiteralTable* _literals)
+    Interpreter(Ectype* _ectype, Frame _frame, RTSupport::ThreadHandle _handle, LiteralTable* _literals)
         : ectype(_ectype),
           frame(_frame),
           handle(_handle),
@@ -63,6 +63,30 @@ public:
             return true;
         }
         return false;
+    }
+
+    inline bool LoadAddr(Format::LoadAccessKind ldk, Format::Reg dst, uint64_t location)
+    {
+        if (ldk == LoadAccessKind::LD_REF) {
+            ectype->Put(
+                dst.IR(), RTSupport::RuntimeInterface<RTI>::ReadObjectStatic(reinterpret_cast<void*>(location), handle)
+            );
+        } else {
+            MemoryLocation(location).LoadPrim(ldk, dst, ectype);
+        }
+        return true;
+    }
+
+    inline bool StoreAddr(Format::StoreAccessKind stk, Format::Reg src, uint64_t location)
+    {
+        if (stk == StoreAccessKind::ST_REF) {
+            ectype->Put(
+                src.IR(), RTSupport::RuntimeInterface<RTI>::ReadObjectStatic(reinterpret_cast<void*>(location), handle)
+            );
+        } else {
+            MemoryLocation(location).StorePrim(stk, src, ectype);
+        }
+        return true;
     }
 
     inline bool LoadObj(Format::LoadAccessKind ldk, Format::Reg dst, IReg base, uint64_t offset)
@@ -125,12 +149,9 @@ public:
 
     inline bool LoadFrame(Format::LoadAccessKind ldk, Format::Reg dst, size_t offset)
     {
-        auto ptr = frame->start;
-        if (ptr == 0) {
-            return false;
-        }
+        auto ptr = frame.start;
         if (ldk == LoadAccessKind::LD_REF) {
-            ectype->Put(dst.IR(), RTSupport::RuntimeInterface<RTI>::ReadObject(ptr, offset, handle));
+            MemoryLocation(ptr, offset).LoadRef(dst, ectype);
         } else {
             MemoryLocation(ptr, offset).LoadPrim(ldk, dst, ectype);
         }
@@ -139,15 +160,20 @@ public:
 
     inline bool StoreFrame(Format::StoreAccessKind stk, Format::Reg src, uint64_t offset)
     {
-        auto ptr = frame->start;
-        if (ptr == 0) {
-            return false;
-        }
+        auto ptr = frame.start;
         if (stk == StoreAccessKind::ST_REF) {
-            RTSupport::RuntimeInterface<RTI>::WriteObject(ptr, offset, ectype->GetReference(src.IR()), handle);
+            MemoryLocation(ptr, offset).StoreRef(src, ectype);
         } else {
             MemoryLocation(ptr, offset).StorePrim(stk, src, ectype);
         }
+        return true;
+    }
+
+    inline bool StoreFrameImm(Format::StoreAccessKind stk, uint64_t imm, uint64_t offset)
+    {
+        auto ptr = frame.start;
+        ASSERTION(stk <= 3, "Unexpected stk");
+        MemoryLocation(ptr, offset).StoreImm(stk, imm);
         return true;
     }
 
@@ -377,7 +403,7 @@ private:
     inline bool NullCheck(Value::Reference obj) { return true; }
 
     Ectype* ectype;
-    Frame* frame;
+    Frame frame;
     RTSupport::ThreadHandle handle;
     LiteralTable* literals;
 };

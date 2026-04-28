@@ -77,6 +77,10 @@ public:
 
     inline operator CC() { return CC::From(*this); }
 
+    inline operator LoadAccessKind() { return LoadAccessKind::From(*this); }
+
+    inline operator StoreAccessKind() { return StoreAccessKind::From(*this); }
+
     inline operator Common() { return Common::From(*this); }
 
     inline operator RegSymGroup() { return RegSymGroup::From(*this); }
@@ -107,6 +111,13 @@ public:
         auto val      = reader.Read8();
         auto new_data = std::tuple_cat(data, std::make_tuple(Value(static_cast<uint8_t>((val >> 4) & 0xF))));
         return ByteReaderHalf<Ts..., Value>(reader, val & 0xF, std::move(new_data));
+    }
+
+    auto ReadU4Skip4() && -> decltype(auto)
+    {
+        auto val      = reader.Read8();
+        auto new_data = std::tuple_cat(data, std::make_tuple(Value(static_cast<uint8_t>((val & 0xF)))));
+        return ByteReaderM<Ts..., Value>(reader, std::move(new_data));
     }
 
     auto ReadU8() && -> decltype(auto)
@@ -347,6 +358,42 @@ struct IsaParserImpl {
 
     static void GcPoint(IsaParser& parser) { parser.GcPoint(); }
 
+    static void LoadStatic(IsaParser& parser)
+    {
+        auto [r, id] = ByteReaderM(parser.reader).ReadU4Skip4().ReadU16().Get();
+        parser.LoadStatic(r, id);
+    }
+
+    static void StoreStatic(IsaParser& parser)
+    {
+        auto [r, id] = ByteReaderM(parser.reader).ReadU4Skip4().ReadU16().Get();
+        parser.StoreStatic(r, id);
+    }
+
+    static void LoadObj(IsaParser& parser)
+    {
+        auto [rb, rd, id] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.LoadObj(rb, rd, id);
+    }
+
+    static void StoreObj(IsaParser& parser)
+    {
+        auto [rb, rs, id] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.StoreObj(rb, rs, id);
+    }
+
+    static void LoadRec(IsaParser& parser)
+    {
+        auto [rb, rs, id] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.LoadRec(rb, rs, id);
+    }
+
+    static void StoreRec(IsaParser& parser)
+    {
+        auto [rb, rd, id] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.LoadRec(rb, rd, id);
+    }
+
     static void PrepareRecord(IsaParser& parser)
     {
         auto [id] = ByteReaderM(parser.reader).ReadU16().Get();
@@ -441,6 +488,24 @@ struct IsaParserImpl {
     {
         auto [op, dst, lhs, rhs] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
         parser.FloatBinary(op, width, dst, lhs, rhs);
+    }
+
+    static void LoadUntyped(IsaParser& parser)
+    {
+        auto [dst, ldk, us] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.LoadUntyped(dst, ldk, us);
+    }
+
+    static void StoreUntyped(IsaParser& parser)
+    {
+        auto [src, stk, us] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.StoreUntyped(src, stk, us);
+    }
+
+    static void StoreUntypedImm(IsaParser& parser)
+    {
+        auto [us, imm] = ByteReaderM(parser.reader).ReadU16().ReadSLEB().Get();
+        parser.StoreUntypedImm(imm, us);
     }
 
     template <Width::Value width, CC::Value value>

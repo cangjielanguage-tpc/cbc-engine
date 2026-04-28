@@ -62,9 +62,29 @@ enum Tag : uint8_t {
 
 static TermData* AllocateTerm(Memory::Heap& allocator, size_t subtermCount = 0)
 {
-    return static_cast<TermData*>(
-        allocator.Allocate(sizeof(TermData) + subtermCount * sizeof(Term), alignof(TermData))
+    return static_cast<TermData*>(allocator.Allocate(sizeof(TermData) + subtermCount * sizeof(Term), alignof(TermData))
     );
+}
+
+std::optional<const char*> TemplateIdentifier::GetKindName()
+{
+    switch (GetKind()) {
+        case TemplateKind::U8:  return "UInt8";
+        case TemplateKind::I8:  return "Int8";
+        case TemplateKind::U16: return "UInt16";
+        case TemplateKind::I16: return "Int16";
+        case TemplateKind::U32: return "UInt32";
+        case TemplateKind::I32: return "Int32";
+        case TemplateKind::U64: return "UInt64";
+        case TemplateKind::I64: return "Int64";
+        case TemplateKind::F16: return "Float16";
+        case TemplateKind::F32: return "Float32";
+        case TemplateKind::F64: return "Float64";
+        // TODO support other cases
+        default: {
+            return std::nullopt;
+        }
+    }
 }
 
 std::optional<Term> Term::ParseAndResolve(Engine::Session& session, IO::FileId fileId, Offset<Term> offset)
