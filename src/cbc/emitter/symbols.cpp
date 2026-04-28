@@ -66,7 +66,9 @@ uint16_t LiteralTableBuilder::UseSymbol(Symbol symbol)
                 .u64 = symbols.plainValues.at(symbol.id),
             };
 
-            table.insert(table.end(), &lit.raw[0], &lit.raw[sizeof(lit)]);
+            for (uint8_t c : lit.raw) {
+                table.push_back(c);
+            }
             return static_cast<uint16_t>(size / step);
         }
         default: FATAL("unexpected SymbolKind"); return MAX_SIZE;
@@ -84,6 +86,7 @@ Interpretation::LiteralTable* LiteralTableBuilder::BuildTable(Memory::Heap& heap
     litTable->_byteSize = size;
 
     std::copy(table.begin(), table.end(), litTable->_table);
+    printf("build table of size %lu at %p\n", size, litTable);
     return litTable;
 }
 

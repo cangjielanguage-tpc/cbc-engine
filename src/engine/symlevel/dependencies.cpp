@@ -66,6 +66,7 @@ Dependencies Dependencies::Read(
 
         std::transform(aotDeps.begin(), aotDeps.end(), std::back_inserter(handles), [](std::string dep) {
             std::string libName = convertToLibName(dep);
+            printf("%s\n", libName.c_str());
             LibHandle handle    = dlopen(libName.c_str(), RTLD_LAZY);
             if (!handle) {
                 ASSERTION(false, dlerror());
@@ -111,8 +112,12 @@ AotCodeAddr Dependencies::FindTarget(String linkageName) const
             return codeAddr;
         }
     }
+    AotCodeAddr codeAddr = dlsym(RTLD_DEFAULT, std::string(linkageName).c_str());
+    if (codeAddr != nullptr) {
+        return codeAddr;
+    }
 
-    ASSERTION(false, "Dependencies: cannot find target lib for method");
+    ASSERTION(false, "Dependencies: cannot find target lib for method %.*s", linkageName.size(), linkageName.data());
     return nullptr;
 }
 

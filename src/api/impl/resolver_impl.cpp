@@ -75,7 +75,7 @@ Type* ResolverImpl::Resolve(Symlevel::Term term)
 
     TypeInfo typeInfo = RTSupport::RuntimeInterface<RTSupport::Impl>::GetTypeInfo(typeName);
 
-    ASSERTION(typeInfo != nullptr, "Couldn't resolve AOT type");
+    ASSERTION(typeInfo != nullptr, "Couldn't resolve AOT type %s", typeName);
     return session.Allocator().New<TypeImpl>(term, typeInfo);
 }
 
@@ -197,6 +197,7 @@ T* ResolverImpl::ResolveField(Symlevel::Index<Symlevel::FieldReference> index)
 
     Type* fieldType  = Resolve(fieldRef.FieldType());
     FieldFlags flags = fieldRef.IsRecord() ? FieldFlags(FieldFlag::Shift::RECORD) : FieldFlags();
+    auto name = fieldRef.Name();
 
     switch (fieldRef.RefType().GetIdentifier().GetKind()) {
         case TemplateKind::AOT_TYPE: {

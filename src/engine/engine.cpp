@@ -138,7 +138,7 @@ std::optional<Identifier<MethodDefinition>> Engine::FindMain(Session& session, s
     auto declType = f->GetTypeIndex().FindType(session, std::string_view("default"));
     if (declType) {
         const auto& methodIndex = (*declType).GetMethodIndex();
-        auto methods            = methodIndex.FindMethods(session, std::string_view("main"));
+        auto methods            = methodIndex.FindMethods(session, std::string_view("_CGP7defaultiiHv"));
 
         // TODO: throw?
         ASSERTION(methods.size() == 1, "unexpected \"main\" method count");

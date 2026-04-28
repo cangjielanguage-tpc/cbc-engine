@@ -53,7 +53,9 @@ Interpretation::Code Emitter::Build(Memory::Heap& heap)
 
     auto relocationConverter = [&litBuilder, &segment](Symbol sym) {
         ASSERTION(sym.kind != SymbolKind::LABEL, "Labels should be processed as part of fixup resolution");
-        return litBuilder.UseSymbol(sym);
+        auto res = litBuilder.UseSymbol(sym);
+        printf("table use %d, size = %lu\n", res, litBuilder.table.size());
+        return res;
     };
 
     for (auto& fixup : fixups) {

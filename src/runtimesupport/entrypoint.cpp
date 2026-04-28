@@ -1,6 +1,8 @@
+#include <dlfcn.h>
 #include <filesystem>
 
 #include "RTInterface.h"
+#include "RuntimeTypes.h"
 #include "asm_trampolines.h"
 #include "cbc_engine.h"
 #include "cbc/isa_disasm.h"
@@ -91,6 +93,32 @@ CBC_EXPORT void interpreter_bridge_init(
     interpInterf->fiber_start              = &FiberStart;
 
     RTSupport::InitializeRuntimeInterface();
+
+    engine_set_main_cbc("./diffdefault2.cbc");
+    EnsureEngineInitialized();
+
+    printf("BEFORE\n");
+    void* flag = dlsym(RTLD_DEFAULT, "$packageInitPatchVarFlag");
+    if (flag != nullptr) {
+        printf("FOUND\n");
+        *(bool*) flag = true;
+        printf("SET\n");
+    }
+    MRTExport::type_info_t* ti = rtInterf->type_info("default:$PackageInitPatch");
+    if (ti != nullptr) {
+        printf("FOUND TI\n");
+        printf("%p\n", ti);
+        printf("%p\n", ti->v_extension_data_start);
+        auto edef = (*(ti->v_extension_data_start + 1));
+        printf("FOUND EDEF\n");
+        printf("%p\n", edef);
+        printf("%p\n", edef->func_table);
+        (*edef->func_table) = engine_get_entrypoint_trampoline();
+        printf("SET TI\n");
+        Cbc::EnableDisasm();
+    }
+
+
 }
 
 } // extern "C"
