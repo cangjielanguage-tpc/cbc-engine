@@ -1,11 +1,13 @@
 #include "utils/options.h"
 
+#include <string.h>
+
 namespace Options {
 
 void SetOption(const char* name, bool value)
 {
     size_t idx = 0;
-    while (idx < OPTS_COUNT && opts[idx].name == name) {
+    while (idx < OPTS_COUNT && !strcmp(opts[idx].name, name)) {
         ++idx;
     }
     if (idx < OPTS_COUNT) {
@@ -19,11 +21,11 @@ void SetOption(const char* name, bool value)
 void SetOption(const char* name, int value)
 {
     size_t idx = 0;
-    while (idx < OPTS_COUNT && opts[idx].name == name) {
+    while (idx < OPTS_COUNT && !strcmp(opts[idx].name, name)) {
         ++idx;
     }
     if (idx < OPTS_COUNT) {
-        *(bool*)(opts[idx].location) = value;
+        *(int*)(opts[idx].location) = value;
     } else {
         // TODO: report not found message
         return;
@@ -33,11 +35,11 @@ void SetOption(const char* name, int value)
 void SetOption(const char* name, const char* value)
 {
     size_t idx = 0;
-    while (idx < OPTS_COUNT && opts[idx].name == name) {
+    while (idx < OPTS_COUNT && !strcmp(opts[idx].name, name)) {
         ++idx;
     }
     if (idx < OPTS_COUNT) {
-        *(bool*)(opts[idx].location) = value;
+        *(const char**)(opts[idx].location) = value;
     } else {
         // TODO: report not found message
         return;
