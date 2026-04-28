@@ -1,14 +1,20 @@
 #include "isa_rewriter.h"
+#include "api/field.h"
 #include "api/resolver.h"
 #include "api/type.h"
 #include "cbc/emitter/emitter.h"
+#include "cbc/frame.h"
 #include "cbc/isa.h"
+#include "cbc/isa_disasm.h"
 #include "engine/symlevel/index.h"
 #include "engine/symlevel/references.h"
 #include "engine/symlevel/terms.h"
+#include "interpreter/code.h"
 #include "utils/assertion.h"
+#include "utils/ostream.h"
 #include <cstddef>
 #include <cstdint>
+#include <iostream>
 #include <memory>
 #include <sys/types.h>
 
@@ -33,6 +39,52 @@ struct IsaRewriter : public IsaParser {
 
     size_t startPosition;
     std::unordered_map<ssize_t, Emitter::Label> instructionLabel;
+
+    Format::LoadAccessKind typeToLoadAccessKind(Symlevel::TemplateKind typeIdentifier)
+    {
+        using namespace Symlevel;
+        using namespace Format;
+
+        switch (typeIdentifier) {
+            case TemplateKind::U8:  return LoadAccessKind::LD_U8;
+            case TemplateKind::I8:  return LoadAccessKind::LD_S8;
+            case TemplateKind::U16: return LoadAccessKind::LD_U16;
+            case TemplateKind::I16: return LoadAccessKind::LD_S16;
+            case TemplateKind::U32:
+            case TemplateKind::I32: return LoadAccessKind::LD_32;
+            case TemplateKind::U64:
+            case TemplateKind::I64: return LoadAccessKind::LD_64;
+            case TemplateKind::F32: return LoadAccessKind::LD_F32;
+            case TemplateKind::F64: return LoadAccessKind::LD_F64;
+            default:                {
+                FATAL("Not supported template kind");
+                return LoadAccessKind::SPECIAL;
+            }
+        }
+    }
+
+    Format::StoreAccessKind typeToStoreAccessKind(Symlevel::TemplateKind typeIdentifier)
+    {
+        using namespace Symlevel;
+        using namespace Format;
+
+        switch (typeIdentifier) {
+            case TemplateKind::U8:
+            case TemplateKind::I8:  return StoreAccessKind::ST_8;
+            case TemplateKind::U16:
+            case TemplateKind::I16: return StoreAccessKind::ST_16;
+            case TemplateKind::U32:
+            case TemplateKind::I32: return StoreAccessKind::ST_32;
+            case TemplateKind::U64:
+            case TemplateKind::I64: return StoreAccessKind::ST_64;
+            case TemplateKind::F32: return StoreAccessKind::ST_F32;
+            case TemplateKind::F64: return StoreAccessKind::ST_F64;
+            default:                {
+                FATAL("Not supported template kind");
+                return StoreAccessKind::SPECIAL;
+            }
+        }
+    }
 
     Emitter::Label InstructionLabel(ssize_t position)
     {
@@ -120,6 +172,48 @@ struct IsaRewriter : public IsaParser {
     void NewArr(IReg dst, IReg len, uint16_t type) override { FATAL("not implemented"); }
 
     void GcPoint() override { FATAL("not implemented"); }
+
+    void LoadStatic(AnyReg r, uint16_t field) override
+    {
+        API::StaticField* resolvedField = resolver.ResolveStaticField(Field(field));
+
+        auto fieldTerm       = resolvedField->FieldType().value()->AsTerm();
+        auto fieldAccessKind = fieldTerm->GetIdentifier().GetKind();
+        auto symbol          = emit.NewAddressSym(resolvedField->Location());
+        emit.LoadStatic(typeToLoadAccessKind(fieldAccessKind), r, symbol);
+    }
+
+    void StoreStatic(AnyReg r, uint16_t field) override
+    {
+        API::StaticField* resolvedField = resolver.ResolveStaticField(Field(field));
+
+        auto fieldTerm       = resolvedField->FieldType().value()->AsTerm();
+        auto fieldAccessKind = fieldTerm->GetIdentifier().GetKind();
+        auto symbol          = emit.NewAddressSym(resolvedField->Location());
+        emit.StoreStatic(typeToStoreAccessKind(fieldAccessKind), r, symbol);
+    }
+
+    void LoadObj(IReg rb, AnyReg rd, uint16_t field) override
+    {
+        API::InstanceField* resolvedField = resolver.ResolveInstanceField(Field(field));
+
+        auto fieldTerm       = resolvedField->FieldType().value()->AsTerm();
+        auto fieldAccessKind = fieldTerm->GetIdentifier().GetKind();
+        emit.LoadObj(typeToLoadAccessKind(fieldAccessKind), rd, rb, resolvedField->Offset().value());
+    }
+
+    void StoreObj(IReg rb, AnyReg rs, uint16_t field) override
+    {
+        API::InstanceField* resolvedField = resolver.ResolveInstanceField(Field(field));
+
+        auto fieldTerm       = resolvedField->FieldType().value()->AsTerm();
+        auto fieldAccessKind = fieldTerm->GetIdentifier().GetKind();
+        emit.StoreObj(typeToStoreAccessKind(fieldAccessKind), rs, rb, resolvedField->Offset().value());
+    }
+
+    void LoadRec(IReg rb, AnyReg rs, uint16_t field) override { FATAL("not implemented"); }
+
+    void StoreRec(IReg rb, AnyReg rd, uint16_t field) override { FATAL("not implemented"); }
 
     void LoadTypeInfoFtc(IReg dst, uint16_t ftc) override { FATAL("not implemented"); }
 
@@ -214,6 +308,23 @@ struct IsaRewriter : public IsaParser {
 
     void ArrayIndexCheck(IReg length, IReg index) override { FATAL("not implemented"); }
 
+    uint32_t UntypedSlotOffset(uint16_t us) { return us * STACK_SLOT_SIZE; }
+
+    void LoadUntyped(AnyReg dst, Format::LoadAccessKind ldk, uint16_t us) override
+    {
+        emit.LoadFrame(ldk, Format::Reg(dst), UntypedSlotOffset(us));
+    }
+
+    void StoreUntyped(AnyReg src, Format::StoreAccessKind stk, uint16_t us) override
+    {
+        emit.StoreFrame(stk, Format::Reg(src), UntypedSlotOffset(us));
+    }
+
+    void StoreUntypedImm(uint64_t imm, uint16_t us) override
+    {
+        emit.StoreFrameImm(Format::StoreAccessKind::ST_64, imm, UntypedSlotOffset(us));
+    }
+
     void ParseOne() override
     {
         auto position = reader.Cursor() - reader.Start();
@@ -223,9 +334,37 @@ struct IsaRewriter : public IsaParser {
     }
 };
 
-std::unique_ptr<IsaParser> Rewriter(API::Resolver& resolver, MethodCode code, Emitter::Emitter& e)
+static std::unique_ptr<IsaParser> Rewriter(API::Resolver& resolver, MethodCode code, Emitter::Emitter& e)
 {
     return std::make_unique<IsaRewriter>(resolver, code, e);
+}
+
+static uint32_t CalcFrameSize(Symlevel::Code code)
+{
+    auto stackAllocSize = Cbc::STACK_SLOT_SIZE * (code.UntypedSlotCount()); // TODO: typed stack slots
+    return MathUtils::AlignUp(stackAllocSize, Cbc::FRAME_ALIGNMENT);
+}
+
+Interpretation::ExecBytecodeInfo Rewrite(MethodCode code, API::Resolver& resolver, Memory::Heap& heap)
+{
+    if (IsDisasmEnabled()) {
+        Disasm(Stream::Disasm::isa, code, &resolver)->ParseAll();
+    }
+
+    Emitter::Emitter emitter;
+    Rewriter(resolver, code, emitter)->ParseAll();
+
+    auto rewrittenCode = emitter.Build(heap);
+    auto frameSize     = CalcFrameSize(code);
+
+    return Interpretation::ExecBytecodeInfo {
+        .code             = rewrittenCode,
+        .savedIRegs       = code.UsedNonVolIRegMask(),
+        .savedFRegs       = code.UsedNonVolFRegMask(),
+        .untypedSlotCount = static_cast<uint16_t>(code.UntypedSlotCount()),
+        .frameSize        = frameSize,
+        // TODO: initialize rest
+    };
 }
 
 } // namespace Cbc

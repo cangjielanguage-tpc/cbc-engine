@@ -109,6 +109,16 @@ TEST_ASM(CbcTest, SimpleArithImm)
     ASSERT_EQ(res.u32, 1);
 }
 
+TEST_ASM(CbcTest, FibRec)
+{
+    uint64_t frameSlots[1];
+    auto frameStart = reinterpret_cast<uintptr_t>(&frameSlots);
+    Interpretation::Frame frame { frameStart };
+
+    auto res = Interpret(OpenAndRewrite("fib-rec", "fib-rec.asm")->code, frame, U32(0), U32(0));
+    ASSERT_EQ(res.u32, 13);
+}
+
 TEST_ASM(CbcTest, DirectCall)
 {
     auto res = Interpret(OpenAndRewrite("direct-call", "direct-call.asm")->code, U32(0), U32(10));

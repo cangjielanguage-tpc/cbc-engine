@@ -4,11 +4,14 @@
 #include <variant>
 
 #include "adapters.h"
+#include "cbc/frame.h"
 #include "cbc/isa_disasm.h"
 #include "cbc/isa_rewriter.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/reader.h"
+#include "frame.h"
 #include "function_handle.h"
+#include "utils/math.h"
 
 namespace Interpretation {
 
@@ -63,26 +66,12 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, Dynam
         return bytecode;
     }
 
-    auto def    = Symlevel::MethodDefinition::Resolve(session, fuh->methodDef);
-    auto offset = def.GetCodeOffset();
-    auto code   = Symlevel::Reader::Read(session, def.FileId(), offset);
+    auto def      = Symlevel::MethodDefinition::Resolve(session, fuh->methodDef);
+    auto code     = Symlevel::Reader::Read(session, def.FileId(), def.GetCodeOffset());
+    auto resolver = API::Resolver::Create(session, def.GetIdentifier());
+    auto& heap    = session.GetEngine().CodeHeap();
 
-    auto resolver = API::Resolver::Create(session, fuh->methodDef);
-
-    if (Cbc::IsDisasmEnabled()) {
-        Cbc::Disasm(std::cerr, code, resolver.get())->ParseAll();
-    }
-
-    Cbc::Emitter::Emitter emitter;
-    Cbc::Rewriter(*resolver, code, emitter)->ParseAll();
-
-    auto& heap         = session.GetEngine().CodeHeap();
-    auto rewrittenCode = emitter.Build(heap);
-
-    ExecBytecodeInfo bytecode = {
-        .code = rewrittenCode,
-        // TODO: initialize rest
-    };
+    auto bytecode = Cbc::Rewrite(code, *resolver, heap);
 
     fuh->bytecode.store(new ExecBytecodeInfo(bytecode));
 

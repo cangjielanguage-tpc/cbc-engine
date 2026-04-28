@@ -90,6 +90,8 @@ protected:
 public:
     TemplateKind GetKind() { return TemplateKind(ident.GetTag()); }
 
+    std::optional<const char*> GetKindName();
+
     uint32_t Hash()
     {
         auto v = static_cast<uint64_t>(ident);

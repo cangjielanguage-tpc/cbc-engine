@@ -2,6 +2,7 @@
 #include "cbc/decoder.h"
 #include "cbc/isa.h"
 #include "isa_parser.h"
+#include "utils/ostream.h"
 #include <cmath>
 #include <cstdint>
 #include <iomanip>
@@ -9,6 +10,8 @@
 #include <ostream>
 
 namespace Cbc {
+
+using namespace Stream;
 
 static std::string_view Sz(Format::Width w)
 {
@@ -30,196 +33,227 @@ static uint32_t SizeOfOffset(uint8_t* start, uint8_t* end)
 /// Disasm implementation for CBC bytecode.
 /// This implementation doesn't rely on resolution.
 struct IsaDisasm : public IsaParser {
-    std::ostream& stream;
+    Stream::Output& stream;
     uint32_t log10Size;
 
-    IsaDisasm(std::ostream& stream, Decoder::FatByteReader reader)
-        : stream(stream),
-          IsaParser(reader),
+    IsaDisasm(Stream::Output& stream, Decoder::FatByteReader reader)
+        : IsaParser(reader),
+          stream(stream),
           log10Size(SizeOfOffset(reader.Start(), reader.End()))
     {}
+
+    std::string_view Fmt(AnyReg reg, bool isFloat)
+    {
+        if (isFloat) {
+            return FReg::From(reg).ToStr();
+        } else {
+            return IReg::From(reg).ToStr();
+        }
+    }
 
     void Bcc(Format::Width width, Format::CC cc, AnyReg l, AnyReg r, int64_t delta) override
     {
         stream << "bcc." << Sz(width) << " " << cc.ToStr() << ", ";
-        if (cc.IsFloatingPoint()) {
-            stream << FReg::From(l).ToStr() << ", " << FReg::From(r).ToStr();
-        } else {
-            stream << IReg::From(l).ToStr() << ", " << IReg::From(r).ToStr();
-        }
-        stream << ", " << delta << std::endl;
+        auto fp = cc.IsFloatingPoint();
+        stream << Fmt(l, fp) << ", " << Fmt(r, fp) << ", " << delta << endl;
     }
 
     void BccImm(Format::Width width, Format::CC cc, IReg l, uint64_t imm, int64_t delta) override
     {
         stream << "bcci." << Sz(width) << " " << cc.ToStr() << " ";
-        stream << IReg::From(l).ToStr() << ", " << imm << ", " << delta << std::endl;
+        stream << IReg::From(l).ToStr() << ", " << imm << ", " << delta << endl;
     }
 
-    void Jump(int64_t delta) override { stream << "jmp" << " " << delta << std::endl; }
+    void Jump(int64_t delta) override { stream << "jmp" << " " << delta << endl; }
 
     void Mov(Format::Width width, IReg d, IReg s) override
     {
-        stream << "mov." << Sz(width) << " " << d.ToStr() << ", " << s.ToStr() << std::endl;
+        stream << "mov." << Sz(width) << " " << d.ToStr() << ", " << s.ToStr() << endl;
     }
 
     void FMov(Format::Width width, FReg d, FReg s) override
     {
-        stream << "fmov." << Sz(width) << " " << d.ToStr() << ", " << s.ToStr() << std::endl;
+        stream << "fmov." << Sz(width) << " " << d.ToStr() << ", " << s.ToStr() << endl;
     }
 
     void FloatToInt(Format::Width width, IReg d, FReg s) override
     {
-        stream << "f2i." << Sz(width) << " " << d.ToStr() << ", " << s.ToStr() << std::endl;
+        stream << "f2i." << Sz(width) << " " << d.ToStr() << ", " << s.ToStr() << endl;
     }
 
     void IntToFloat(Format::Width width, FReg d, IReg s) override
     {
-        stream << "i2f." << Sz(width) << " " << d.ToStr() << ", " << s.ToStr() << std::endl;
+        stream << "i2f." << Sz(width) << " " << d.ToStr() << ", " << s.ToStr() << endl;
     }
 
-    void MovRef(IReg d, IReg s) override { stream << "mov.ref" << " " << d.ToStr() << ", " << s.ToStr() << std::endl; }
+    void MovRef(IReg d, IReg s) override { stream << "mov.ref" << " " << d.ToStr() << ", " << s.ToStr() << endl; }
 
     void MovImm(Format::Width width, IReg d, uint64_t value) override
     {
-        stream << "mov." << Sz(width) << " " << d.ToStr() << ", " << value << std::endl;
+        stream << "mov." << Sz(width) << " " << d.ToStr() << ", " << value << endl;
     }
 
     virtual void FMovImm(Format::Width width, FReg d, double value) override
     {
-        stream << "fmov." << Sz(width) << " " << d.ToStr() << ", " << value << std::endl;
+        stream << "fmov." << Sz(width) << " " << d.ToStr() << ", " << value << endl;
     }
 
     void Binary(Format::Common op, Format::Width width, IReg d, IReg l, IReg r) override
     {
         stream << op.ToStr() << Sz(width) << " " << d.ToStr() << ", ";
-        stream << l.ToStr() << ", " << r.ToStr() << std::endl;
+        stream << l.ToStr() << ", " << r.ToStr() << endl;
     }
 
     void BinaryImm(Format::Common op, Format::Width width, IReg d, IReg l, uint64_t value) override
     {
         stream << op.ToStr() << "i" << "." << Sz(width) << " " << d.ToStr();
-        stream << ", " << l.ToStr() << ", " << value << std::endl;
+        stream << ", " << l.ToStr() << ", " << value << endl;
     }
 
     // TODO: add enum
     void FloatBinary(uint8_t op, Format::Width width, FReg d, FReg l, FReg r) override
     {
         stream << "fbin" << op << " " << Sz(width) << " " << d.ToStr();
-        stream << " " << l.ToStr() << " " << r.ToStr() << std::endl;
+        stream << " " << l.ToStr() << " " << r.ToStr() << endl;
     }
 
     void Convert(Format::ConvertType toType, Format::ConvertType fromType, AnyReg to, AnyReg from) override
     {
         stream << "convert" << " " << toType.ToStr() << "_" << fromType.ToStr();
-        stream << ", " << to << ", " << from << std::endl;
+        stream << ", " << to << ", " << from << endl;
     }
 
-    void PrepareRecord(uint16_t ts) override { stream << "prepare.record" << " " << ts << std::endl; }
+    void PrepareRecord(uint16_t ts) override { stream << "prepare.record" << " " << ts << endl; }
 
     void NewArr(IReg dst, IReg len, uint16_t type) override
     {
-        stream << "newarr" << " " << dst.ToStr() << ", " << len.ToStr() << ", " << type << std::endl;
+        stream << "newarr" << " " << dst.ToStr() << ", " << len.ToStr() << ", " << type << endl;
     }
 
-    void GcPoint() override { stream << "gcpoint" << std::endl; }
+    void GcPoint() override { stream << "gcpoint" << endl; }
+
+    void LoadStatic(AnyReg r, uint16_t field) override { stream << "ld.static" << " " << r << ", " << field << endl; }
+
+    void StoreStatic(AnyReg r, uint16_t field) override { stream << "st.static" << " " << r << ", " << field << endl; }
+
+    void LoadObj(IReg rb, AnyReg rs, uint16_t field) override
+    {
+        stream << "ld.obj" << " " << rb.ToStr() << ", " << rs << ", " << field << endl;
+    }
+
+    void StoreObj(IReg rb, AnyReg rd, uint16_t field) override
+    {
+        stream << "st.obj" << " " << rb.ToStr() << ", " << rd << ", " << field << endl;
+    }
+
+    void LoadRec(IReg rb, AnyReg rs, uint16_t field) override
+    {
+        stream << "ld.rec" << " " << rb.ToStr() << ", " << rs << ", " << field << endl;
+    }
+
+    void StoreRec(IReg rb, AnyReg rd, uint16_t field) override
+    {
+        stream << "st.rec" << " " << rb.ToStr() << ", " << rd << ", " << field << endl;
+    }
 
     void LoadTypeInfoFtc(IReg dst, uint16_t ftc) override
     {
-        stream << "load.typeinfo.ftc" << " " << dst.ToStr() << ", " << ftc << std::endl;
+        stream << "load.typeinfo.ftc" << " " << dst.ToStr() << ", " << ftc << endl;
     }
 
     void LoadTypeInfoSig(IReg dst, uint16_t type) override
     {
-        stream << "load.typeinfo.sig" << " " << dst.ToStr() << ", " << type << std::endl;
+        stream << "load.typeinfo.sig" << " " << dst.ToStr() << ", " << type << endl;
     }
 
-    void NewObj(IReg dst, uint16_t type) override
-    {
-        stream << "newobj" << " " << dst.ToStr() << ", " << type << std::endl;
-    }
+    void NewObj(IReg dst, uint16_t type) override { stream << "newobj" << " " << dst.ToStr() << ", " << type << endl; }
 
     void CallDirect(IReg dst, uint16_t method) override
     {
-        stream << "call.direct" << " " << dst.ToStr() << ", " << method << std::endl;
+        stream << "call.direct" << " " << dst.ToStr() << ", " << method << endl;
     }
 
     void CallVirtual(IReg dst, uint16_t method) override
     {
-        stream << "call.virtual" << " " << dst.ToStr() << ", " << method << std::endl;
+        stream << "call.virtual" << " " << dst.ToStr() << ", " << method << endl;
     }
 
     void CallInterf(IReg dst, uint16_t method) override
     {
-        stream << "call.interf" << " " << dst.ToStr() << ", " << method << std::endl;
+        stream << "call.interf" << " " << dst.ToStr() << ", " << method << endl;
     }
 
     void Scc(Format::Width width, Format::CC cc, IReg d, AnyReg l, AnyReg r) override
     {
         stream << "scc." << Sz(width) << " " << cc.ToStr() << ", " << d.ToStr() << ", ";
-        if (cc.IsFloatingPoint()) {
-            stream << FReg::From(l).ToStr() << ", " << FReg::From(r).ToStr();
-        } else {
-            stream << IReg::From(l).ToStr() << ", " << IReg::From(r).ToStr();
-        }
-        stream << std::endl;
+        auto fp = cc.IsFloatingPoint();
+        stream << Fmt(l, fp) << ", " << Fmt(r, fp) << endl;
     }
 
     void SccImm(Format::Width width, Format::CC cc, IReg d, IReg l, uint64_t imm) override
     {
         stream << "scci." << Sz(width) << " " << cc.ToStr() << ", ";
-        stream << d.ToStr() << ", " << l.ToStr() << ", " << imm << std::endl;
+        stream << d.ToStr() << ", " << l.ToStr() << ", " << imm << endl;
     }
 
-    void Ret(Format::Width width, IReg dst) override
-    {
-        stream << "ret." << Sz(width) << " " << dst.ToStr() << std::endl;
-    }
+    void Ret(Format::Width width, IReg dst) override { stream << "ret." << Sz(width) << " " << dst.ToStr() << endl; }
 
-    void FRet(Format::Width width, FReg dst) override
-    {
-        stream << "fret." << Sz(width) << " " << dst.ToStr() << std::endl;
-    }
+    void FRet(Format::Width width, FReg dst) override { stream << "fret." << Sz(width) << " " << dst.ToStr() << endl; }
 
-    void DivCheck(IReg reg) override { stream << "divcheck" << " " << reg.ToStr() << std::endl; }
+    void DivCheck(IReg reg) override { stream << "divcheck" << " " << reg.ToStr() << endl; }
 
-    void Catch(IReg reg) override { stream << "catch" << " " << reg.ToStr() << std::endl; }
+    void Catch(IReg reg) override { stream << "catch" << " " << reg.ToStr() << endl; }
 
-    void Throw(IReg reg) override { stream << "throw" << " " << reg.ToStr() << std::endl; }
+    void Throw(IReg reg) override { stream << "throw" << " " << reg.ToStr() << endl; }
 
-    void ZeroRefs(uint16_t ts) override { stream << "zerorefs" << " " << ts << std::endl; }
+    void ZeroRefs(uint16_t ts) override { stream << "zerorefs" << " " << ts << endl; }
 
     void InstanceOf(IReg dst, IReg obj, uint16_t type) override
     {
-        stream << "iof" << " " << dst.ToStr() << ", " << obj.ToStr() << ", " << type << std::endl;
+        stream << "iof" << " " << dst.ToStr() << ", " << obj.ToStr() << ", " << type << endl;
     }
 
     void LoadTypeInfoObj(IReg dst, IReg obj) override
     {
-        stream << "load.typeinfo" << " " << dst.ToStr() << ", " << obj.ToStr() << std::endl;
+        stream << "load.typeinfo" << " " << dst.ToStr() << ", " << obj.ToStr() << endl;
     }
 
-    void InitObj(uint16_t ts) override { stream << "initobj" << " " << ts << std::endl; }
+    void InitObj(uint16_t ts) override { stream << "initobj" << " " << ts << endl; }
 
     void InitString(uint16_t ts, uint32_t offset) override
     {
-        stream << "initstr" << " " << ts << ", " << offset << std::endl;
+        stream << "initstr" << " " << ts << ", " << offset << endl;
     }
 
     void ArrayLength(IReg dst, IReg arr) override
     {
-        stream << "arrlen" << " " << dst.ToStr() << ", " << arr.ToStr() << std::endl;
+        stream << "arrlen" << " " << dst.ToStr() << ", " << arr.ToStr() << endl;
     }
 
     void ArrayIndexCheck(IReg length, IReg index) override
     {
-        stream << "aic" << " " << length.ToStr() << ", " << index.ToStr() << std::endl;
+        stream << "aic" << " " << length.ToStr() << ", " << index.ToStr() << endl;
+    }
+
+    void LoadUntyped(AnyReg dst, Format::LoadAccessKind ldk, uint16_t us) override
+    {
+        stream << "load.untyped." << ldk.ToStr() << " " << Fmt(dst, ldk.IsFloat()) << ", " << us << endl;
+    }
+
+    void StoreUntyped(AnyReg src, Format::StoreAccessKind stk, uint16_t us) override
+    {
+        stream << "store.untyped." << stk.ToStr() << " " << us << ", " << Fmt(src, stk.IsFloat()) << endl;
+    }
+
+    void StoreUntypedImm(uint64_t imm, uint16_t us) override
+    {
+        stream << "store.untyped.imm" << " " << us << ", " << imm << endl;
     }
 
     void ParseOne() override
     {
         auto position = reader.Cursor() - reader.Start();
-        stream << std::setfill('0') << std::setw(log10Size) << position << ": " << std::setfill(' ');
+        stream.PrintFmt("%*lld: ", log10Size, position);
         IsaParser::ParseOne();
     }
 };
@@ -229,7 +263,7 @@ struct IsaResolvingDisasm : IsaDisasm {
 
     using MethodIndex = Symlevel::Index<Symlevel::MethodReference>;
 
-    IsaResolvingDisasm(std::ostream& stream, Decoder::FatByteReader reader, API::Resolver& resolver)
+    IsaResolvingDisasm(Stream::Output& stream, Decoder::FatByteReader reader, API::Resolver& resolver)
         : IsaDisasm(stream, reader),
           resolver(resolver)
     {}
@@ -244,7 +278,7 @@ struct IsaResolvingDisasm : IsaDisasm {
     void CallVirtual(IReg dst, uint16_t method) override
     {
         auto m = resolver.ResolveVirtualMethod(Method(method));
-        stream << "call.virtual" << " " << dst.ToStr() << ", " << m->ExtDefNum() << ", " << m->VNum() << std::endl;
+        stream << "call.virtual" << " " << dst.ToStr() << ", " << m->ExtDefNum() << ", " << m->VNum() << endl;
     }
 
     // TODO: implement rest.
@@ -252,7 +286,7 @@ struct IsaResolvingDisasm : IsaDisasm {
 
 static bool g_IsRawDisasmEnabled;
 static bool g_IsDisasmEnabled;
-static std::ostream* g_OutputStream = &std::cerr;
+static Stream::Output& g_OutputStream = cout;
 
 void EnableRawDisasm() { g_IsRawDisasmEnabled = true; }
 
@@ -262,26 +296,26 @@ bool IsRawDisasmEnabled() { return g_IsRawDisasmEnabled; }
 
 bool IsDisasmEnabled() { return g_IsRawDisasmEnabled || g_IsDisasmEnabled; }
 
-void SetOutputStream(std::ostream& stream) { g_OutputStream = &stream; }
+void SetOutputStream(Stream::Output& stream) { g_OutputStream = stream; }
 
-std::unique_ptr<IsaParser> RawDisasm(std::ostream& stream, Decoder::FatByteReader reader)
+std::unique_ptr<IsaParser> RawDisasm(Stream::Output& stream, Decoder::FatByteReader reader)
 {
     return std::make_unique<IsaDisasm>(stream, reader);
 }
 
-std::unique_ptr<IsaParser> RawDisasm(std::ostream& stream, Cbc::MethodCode code)
+std::unique_ptr<IsaParser> RawDisasm(Stream::Output& stream, Cbc::MethodCode code)
 {
     auto start = code.CodePtr();
     auto end   = start + code.CodeSize();
     return RawDisasm(stream, Decoder::FatByteReader(start, start, end));
 }
 
-std::unique_ptr<IsaParser> RawDisasm(std::ostream& stream, uint8_t* start, uint8_t* end)
+std::unique_ptr<IsaParser> RawDisasm(Stream::Output& stream, uint8_t* start, uint8_t* end)
 {
     return RawDisasm(stream, Decoder::FatByteReader(start, start, end));
 }
 
-std::unique_ptr<IsaParser> Disasm(std::ostream& stream, Decoder::FatByteReader reader, API::Resolver* resolver)
+std::unique_ptr<IsaParser> Disasm(Stream::Output& stream, Decoder::FatByteReader reader, API::Resolver* resolver)
 {
     if (!IsRawDisasmEnabled() && resolver != nullptr) {
         return std::make_unique<IsaResolvingDisasm>(stream, reader, *resolver);
@@ -290,14 +324,14 @@ std::unique_ptr<IsaParser> Disasm(std::ostream& stream, Decoder::FatByteReader r
     }
 }
 
-std::unique_ptr<IsaParser> Disasm(std::ostream& stream, Cbc::MethodCode code, API::Resolver* resolver)
+std::unique_ptr<IsaParser> Disasm(Stream::Output& stream, Cbc::MethodCode code, API::Resolver* resolver)
 {
     auto start = code.CodePtr();
     auto end   = start + code.CodeSize();
     return Disasm(stream, Decoder::FatByteReader(start, start, end), resolver);
 }
 
-std::unique_ptr<IsaParser> Disasm(std::ostream& stream, uint8_t* start, uint8_t* end, API::Resolver* resolver)
+std::unique_ptr<IsaParser> Disasm(Stream::Output& stream, uint8_t* start, uint8_t* end, API::Resolver* resolver)
 {
     return Disasm(stream, Decoder::FatByteReader(start, start, end), resolver);
 }

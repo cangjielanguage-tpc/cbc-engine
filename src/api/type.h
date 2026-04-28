@@ -40,6 +40,16 @@ public:
     virtual std::optional<TypeInfo> GetTypeInfo() = 0;
 
     /**
+     * @brief Number of fields in type instance.
+     */
+    virtual int FieldsNum() = 0;
+
+    /**
+     * @brief Offset of field with number `ordinal`.
+     */
+    virtual uint32_t GetFieldOffset(int ordinal) = 0;
+
+    /**
      * @brief The size of a field of the given type.
      */
     virtual int FieldSize() = 0;

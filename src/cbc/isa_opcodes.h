@@ -76,7 +76,20 @@
     X(ArrayLength, ArrayLength)                                                                                        \
     X(ArrayIndexCheck, ArrayIndexCheck)                                                                                \
     X(FBinary32, FloatBinary<Width::W32>)                                                                              \
-    X(FBinary64, FloatBinary<Width::W64>)
+    X(FBinary64, FloatBinary<Width::W64>)                                                                              \
+    X(LoadStatic, LoadStatic)                                                                                          \
+    X(StoreStatic, StoreStatic)                                                                                        \
+    X(LoadObj, LoadObj)                                                                                                \
+    X(StoreObj, StoreObj)                                                                                              \
+    X(LoadRec, LoadRec)                                                                                                \
+    X(StoreRec, StoreRec)                                                                                              \
+    X(MemHeadReg, Unreachable)                                                                                         \
+    X(MemHeadField, Unreachable)                                                                                       \
+    X(MemHeadStatic, Unreachable)                                                                                      \
+    X(MemHeadHandle, Unreachable)                                                                                      \
+    X(LoadUntyped, LoadUntyped)                                                                                        \
+    X(StoreUntyped, StoreUntyped)                                                                                      \
+    X(StoreUntypedImm, StoreUntypedImm)
 
 #define ISA_REG_SYM_GROUP_OPCODES(X)                                                                                   \
     X(LoadTypeInfoSig)                                                                                                 \

@@ -57,8 +57,6 @@ struct Execution {
     static void WriteObjectInstance(Reference base, size_t offset, Reference object, ThreadHandle th);
     static Reference ReadObjectStatic(void* location, ThreadHandle th);
     static void WriteObjectStatic(void* location, Reference object, ThreadHandle th);
-    static Reference ReadObject(uintptr_t base, size_t offset, ThreadHandle th);
-    static void WriteObject(uintptr_t base, size_t offset, Reference object, ThreadHandle th);
 
     static TypeInfo GetTypeInfo(Reference base);
 

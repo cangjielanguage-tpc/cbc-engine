@@ -39,11 +39,14 @@ struct Resolver : public API::Resolver {
         return nullptr;
     }
 
-    API::InstanceField* Resolve(Symlevel::Index<API::InstanceField> index) override { return nullptr; }
+    API::InstanceField* ResolveInstanceField(Symlevel::Index<Symlevel::FieldReference> index) override
+    {
+        return nullptr;
+    }
 
-    API::StaticField* Resolve(Symlevel::Index<API::StaticField> index) override { return nullptr; }
+    API::StaticField* ResolveStaticField(Symlevel::Index<Symlevel::FieldReference> index) override { return nullptr; }
 
-    std::optional<API::Type*> TypeOf(API::Term* term) override { return std::nullopt; }
+    std::optional<API::Type*> TypeOf(Symlevel::Term* term) override { return std::nullopt; }
 
     ~Resolver() override = default;
 };

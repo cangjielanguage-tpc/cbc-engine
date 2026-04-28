@@ -2,6 +2,7 @@
 
 #include "RTInterface.h"
 #include "asm_trampolines.h"
+#include "cbc/isa_disasm.h"
 #include "cbc_engine.h"
 #include "cjnative.h"
 #include "engine/engine.h"
@@ -46,6 +47,10 @@ CBC_EXPORT void engine_set_cbcpath(char const* cbcPath) { g_cbcPath = cbcPath; }
 CBC_EXPORT void engine_set_main_cbc(char const* mainCbc) { g_mainCbc = mainCbc; }
 
 CBC_EXPORT void engine_initialize() { EnsureEngineInitialized(); }
+
+CBC_EXPORT void engine_enable_dasm() { Cbc::EnableDisasm(); }
+
+CBC_EXPORT void engine_enable_raw_dasm() { Cbc::EnableRawDisasm(); }
 
 CBC_EXPORT void* engine_get_entrypoint_trampoline(void)
 {

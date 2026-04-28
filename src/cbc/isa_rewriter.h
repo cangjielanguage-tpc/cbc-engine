@@ -8,6 +8,6 @@
 
 namespace Cbc {
 
-std::unique_ptr<IsaParser> Rewriter(API::Resolver& resolver, MethodCode code, Emitter::Emitter& e);
+Interpretation::ExecBytecodeInfo Rewrite(MethodCode code, API::Resolver& resolver, Memory::Heap& heap);
 
 } // namespace Cbc

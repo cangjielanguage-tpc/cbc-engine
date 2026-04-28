@@ -2,6 +2,7 @@
 
 #include "../testutils.h"
 #include "cbc/decoder.h"
+#include "cbc/frame.h"
 #include "engine/typeinfo_manager.h"
 #include "interpreter.h"
 #include "interpreter/interpretation_loop.h"
@@ -17,6 +18,8 @@ namespace Interpretation {
 using namespace RTSupport;
 
 static void MockNewObj(Ectype* ectype, ThreadHandle th, TypeInfo type);
+static Interpretation::Frame zeroFrame { 0 };
+
 static void InterpreterI2CallTest(Ectype* ectype, ThreadHandle handle, FunctionHandle* fuh);
 
 static TestTypeInfo* Extract(TypeInfo type)
@@ -38,7 +41,7 @@ static void MockNewObj(Ectype* ectype, ThreadHandle th, TypeInfo type)
 }
 
 static void DoInterpretationLoop(
-    Ectype* ectype, Frame* frame, ThreadHandle th, LiteralTable* literals, Decoder::ByteReader& reader
+    Ectype* ectype, Frame frame, ThreadHandle th, LiteralTable* literals, Decoder::ByteReader& reader
 )
 {
     while (true) {
@@ -54,7 +57,7 @@ static void DoInterpretationLoop(
 template <typename RegType>
 Value::Primitive Interpret(
     Code code,
-    Frame* frame,
+    Frame frame,
     Value::Primitive ir1,
     Value::Primitive ir2,
     Value::Primitive fr0,
@@ -87,8 +90,14 @@ static void InterpreterI2CallTest(Ectype* ectype, ThreadHandle handle, FunctionH
     }
     auto code = bytecode->code;
 
+    constexpr auto stackSlotCount = 100;
+    uint64_t frameSlots[stackSlotCount];
+    ASSERTION(bytecode->frameSize / Cbc::STACK_SLOT_SIZE < stackSlotCount, "Frame is too big");
+    auto frameStart = reinterpret_cast<uintptr_t>(&frameSlots);
+    Interpretation::Frame frame { frameStart };
+
     Decoder::ByteReader s(code.bytecode, code.bytecode, code.bytecode + code.bytecodeSize);
-    DoInterpretationLoop(ectype, nullptr, handle, code.literals, s);
+    DoInterpretationLoop(ectype, frame, handle, code.literals, s);
 }
 
 } // namespace Interpretation
@@ -97,14 +106,18 @@ Interpretation::Value::Primitive Interpret(
     Interpretation::Code code, Interpretation::Value::Primitive ir1, Interpretation::Value::Primitive ir2
 )
 {
-    return Interpretation::Interpret<Cbc::IReg>(code, nullptr, ir1, ir2, F32(0), F32(0), Cbc::IReg::IR1);
+    return Interpretation::Interpret<Cbc::IReg>(
+        code, Interpretation::zeroFrame, ir1, ir2, F32(0), F32(0), Cbc::IReg::IR1
+    );
 }
 
 Interpretation::Value::Primitive InterpretFPRes(
     Interpretation::Code code, Interpretation::Value::Primitive fr0, Interpretation::Value::Primitive fr1
 )
 {
-    return Interpretation::Interpret<Cbc::FReg>(code, nullptr, U32(0), U32(0), fr0, fr1, Cbc::FReg::FR0);
+    return Interpretation::Interpret<Cbc::FReg>(
+        code, Interpretation::zeroFrame, U32(0), U32(0), fr0, fr1, Cbc::FReg::FR0
+    );
 }
 
 Interpretation::Value::Primitive Interpret(
@@ -115,7 +128,7 @@ Interpretation::Value::Primitive Interpret(
     Interpretation::Value::Primitive fr1
 )
 {
-    return Interpretation::Interpret<Cbc::IReg>(code, nullptr, ir1, ir2, fr0, fr1, Cbc::IReg::IR1);
+    return Interpretation::Interpret<Cbc::IReg>(code, Interpretation::zeroFrame, ir1, ir2, fr0, fr1, Cbc::IReg::IR1);
 }
 
 Interpretation::Value::Primitive InterpretFPRes(
@@ -126,12 +139,12 @@ Interpretation::Value::Primitive InterpretFPRes(
     Interpretation::Value::Primitive fr1
 )
 {
-    return Interpretation::Interpret<Cbc::FReg>(code, nullptr, ir1, ir2, fr0, fr1, Cbc::FReg::FR0);
+    return Interpretation::Interpret<Cbc::FReg>(code, Interpretation::zeroFrame, ir1, ir2, fr0, fr1, Cbc::FReg::FR0);
 }
 
 Interpretation::Value::Primitive Interpret(
     Interpretation::Code code,
-    Interpretation::Frame* frame,
+    Interpretation::Frame frame,
     Interpretation::Value::Primitive ir1,
     Interpretation::Value::Primitive ir2
 )
@@ -141,7 +154,7 @@ Interpretation::Value::Primitive Interpret(
 
 Interpretation::Value::Primitive InterpretFPRes(
     Interpretation::Code code,
-    Interpretation::Frame* frame,
+    Interpretation::Frame frame,
     Interpretation::Value::Primitive fr0,
     Interpretation::Value::Primitive fr1
 )
@@ -175,16 +188,6 @@ Reference Execution::ReadObjectInstance(Reference base, size_t offset, ThreadHan
 void Execution::WriteObjectInstance(Reference base, size_t offset, Reference object, ThreadHandle th)
 {
     *reinterpret_cast<uintptr_t*>(base.value + offset) = object.value;
-}
-
-Reference Execution::ReadObject(uintptr_t base, size_t offset, ThreadHandle th)
-{
-    return Reference { .value = *reinterpret_cast<uintptr_t*>(base + offset) };
-}
-
-void Execution::WriteObject(uintptr_t base, size_t offset, Reference object, ThreadHandle th)
-{
-    *reinterpret_cast<uintptr_t*>(base + offset) = object.value;
 }
 
 TypeInfo Execution::GetTypeInfo(Reference base)

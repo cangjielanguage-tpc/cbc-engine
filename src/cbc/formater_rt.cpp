@@ -1,10 +1,10 @@
 #include <cmath>
-#include <iomanip>
-#include <ostream>
+#include <memory>
 
 #include "cbc/isa.h"
 #include "formater_rt.h"
 #include "utils/math.h"
+#include "utils/ostream.h"
 
 namespace Cbc {
 namespace RT {
@@ -29,17 +29,17 @@ struct Operand {
 
     uint64_t U64() { return static_cast<uint32_t>(value); }
 
-    Format::LoadAccessKind Ldk() { return Format::LoadAccessKind(U8()); }
+    Format::LoadAccessKind Ldk() { return Format::LoadAccessKind::From(U8()); }
 
-    Cbc::Format::StoreAccessKind Stk() { return Format::StoreAccessKind::Value(U8()); }
+    Format::StoreAccessKind Stk() { return Format::StoreAccessKind::From(U8()); }
 
-    Format::Common Bin() { return Format::Common::Value(U8()); }
+    Format::Common Bin() { return Format::Common::From(U8()); }
 
-    Format::FloatOperations Fop() { return Format::FloatOperations(U8()); }
+    Format::FloatOperations Fop() { return Format::FloatOperations::From(U8()); }
 
-    Format::CC CC() { return Format::CC(U8()); }
+    Format::CC CC() { return Format::CC::From(U8()); }
 
-    Format::ConvertType Ct() { return Format::ConvertType(U8()); }
+    Format::ConvertType Ct() { return Format::ConvertType::From(U8()); }
 
     IReg IR() { return IReg::From(U32() & 0xf); }
 
@@ -72,16 +72,16 @@ class Formatter {
 public:
     Formatter(
         Interpretation::LiteralTable* table,
-        std::ostream& stream,
+        Stream::Output& stream,
         std::string_view formatString,
         Operand* operands,
         size_t operandCount
     )
         : table(table),
           stream(stream),
+          formatString(formatString),
           operands(operands),
-          operandCount(operandCount),
-          formatString(formatString)
+          operandCount(operandCount)
     {}
 
     void Format()
@@ -99,8 +99,7 @@ public:
             FormatArg(cursor, fmtSize);
             oldCursor = cursor; // clear buffer
         }
-        stream << formatString.substr(oldCursor, cursor - oldCursor);
-        stream << std::endl;
+        stream << formatString.substr(oldCursor, cursor - oldCursor) << Stream::endl;
     }
 
 private:
@@ -247,7 +246,7 @@ private:
 
 private:
     Interpretation::LiteralTable* table;
-    std::ostream& stream;
+    Stream::Output& stream;
     std::string_view formatString;
     Operand* operands;
     size_t operandCount;
@@ -265,131 +264,138 @@ static constexpr std::string_view memspace_format_strings[] = {
 
 template <size_t N> static size_t Length(Operand (&)[N]) { return N; }
 
-void Log(Interpretation::LiteralTable* table, std::ostream& stream, B1 args)
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B1 args)
 {
     Formatter formatter(table, stream, format_strings[args.opc], nullptr, 0);
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, std::ostream& stream, B2rr args)
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B2rr args)
 {
     Operand operands[] = { args.rr.x, args.rr.y };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, std::ostream& stream, B2xr args)
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B2xr args)
 {
     Operand operands[] = { args.xr.imm, args.xr.r };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, std::ostream& stream, B6xri32 args)
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B6xri32 args)
 {
     Operand operands[] = { args.xr.imm, args.xr.r, args.imm32.imm };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, std::ostream& stream, B10xri64 args)
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B10xri64 args)
 {
     Operand operands[] = { args.xr.imm, args.xr.r, args.imm64.imm };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, std::ostream& stream, B4xi12rr args)
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B4xi12rr args)
 {
     Operand operands[] = { args.xi12.imm4, args.xi12.imm12, args.rr.x, args.rr.y };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, std::ostream& stream, B5xi12ri12 args)
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B5xi12ri12 args)
 {
     Operand operands[] = { args.xi12.imm4, args.xi12.imm12, args.ri12.r, args.ri12.imm12 };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, std::ostream& stream, B5i16i16 args)
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B5i16i16 args)
 {
     Operand operands[] = { args.imm1.imm, args.imm2.imm };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, std::ostream& stream, B5i32 args)
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B5i32 args)
 {
     Operand operands[] = { args.imm32.imm };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, std::ostream& stream, B3xrrr args)
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3xrrr args)
 {
     Operand operands[] = { args.xr.imm, args.xr.r, args.rr.x, args.rr.y };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, std::ostream& stream, B3xxrr args)
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3xxrr args)
 {
     Operand operands[] = { args.xx.imm1, args.xx.imm2, args.rr.x, args.rr.y };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, std::ostream& stream, B4xi12xr args)
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B4xi12xr args)
 {
     Operand operands[] = { args.xi12.imm4, args.xi12.imm12, args.xr.imm, args.xr.r };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, std::ostream& stream, B3xi12 args)
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3xi12 args)
 {
     Operand operands[] = { args.xi12.imm4, args.xi12.imm12 };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, std::ostream& stream, M1 args)
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M1 args)
 {
     Formatter formatter(table, stream, memspace_format_strings[args.opc], nullptr, 0);
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, std::ostream& stream, M2rr args)
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M2rr args)
 {
     Operand operands[] = { args.rr.x, args.rr.y };
     Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, std::ostream& stream, M2xr args)
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M2xr args)
 {
     Operand operands[] = { args.xr.imm, args.xr.r };
     Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, std::ostream& stream, M3i16 args)
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M2i8 args)
+{
+    Operand operands[] = { args.imm8 };
+    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
+    formatter.Format();
+}
+
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M3i16 args)
 {
     Operand operands[] = { args.imm16 };
     Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, std::ostream& stream, M5i32 args)
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M5i32 args)
 {
     Operand operands[] = { args.imm32 };
     Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, std::ostream& stream, M9i64 args)
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M9i64 args)
 {
     Operand operands[] = { args.imm64 };
     Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
@@ -397,7 +403,7 @@ void Log(Interpretation::LiteralTable* table, std::ostream& stream, M9i64 args)
 }
 
 void LogBaseSpaceInstruction(
-    uint32_t opc, Interpretation::LiteralTable* table, std::ostream& stream, Decoder::ByteReader& reader
+    uint32_t opc, Interpretation::LiteralTable* table, Stream::Output& stream, Decoder::ByteReader& reader
 )
 {
 #define FMT_LOGGER(opcode, fmt, sfmt)                                                                                  \
@@ -409,10 +415,9 @@ void LogBaseSpaceInstruction(
 }
 
 bool LogMemSpaceInstruction(
-    uint32_t opc, Interpretation::LiteralTable* table, std::ostream& stream, Decoder::ByteReader& reader
+    uint32_t opc, Interpretation::LiteralTable* table, Stream::Output& stream, Decoder::ByteReader& reader
 )
 {
-    stream << "  ";
 #define FMT_LOGGER(opcode, fmt, sfmt, isTail)                                                                          \
     case MemOpcode::opcode: Log(table, stream, fmt::Decode(reader)); return isTail;
 
@@ -423,8 +428,9 @@ bool LogMemSpaceInstruction(
     return true;
 }
 
-void Log(Interpretation::Code code, std::ostream& stream)
+void Log(Interpretation::Code code, Stream::Output& stream)
 {
+    Stream::Indented streamIndented(stream);
     using namespace RT;
     auto bytecode = code.bytecode;
     auto end      = bytecode + code.bytecodeSize;
@@ -439,10 +445,10 @@ void Log(Interpretation::Code code, std::ostream& stream)
     while (!reader.EndOfMem(end)) {
         auto opc      = reader.PeekOpcode();
         auto position = reader.Cursor() - bytecode;
-        stream << std::setfill('0') << std::setw(log10size) << position << ": " << std::setfill(' ');
+        stream.PrintFmt("%*lld: ", log10size, position);
 
         if (inMemspace) {
-            bool isTail = LogMemSpaceInstruction(opc, table, stream, reader);
+            bool isTail = LogMemSpaceInstruction(opc, table, streamIndented, reader);
 
             if (isTail) {
                 inMemspace = false;

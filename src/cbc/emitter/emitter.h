@@ -50,6 +50,7 @@ public:
 
         void LoadFrame(LoadAccessKind ldk, Reg dst);
         void StoreFrame(StoreAccessKind stk, Reg src);
+        void StoreFrameImm(StoreAccessKind stk, uint64_t imm);
 
     private:
         template <typename AccessKind> void LoadStore(AccessKind akind, Reg v, IReg base, RT::MemOpcode opc)
@@ -147,11 +148,14 @@ public:
     void NewObj(IReg d, Symbol sym);
     void LoadObj(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset);
     void StoreObj(StoreAccessKind stk, Reg src, IReg base, uint32_t offset);
+    void LoadStatic(LoadAccessKind ldk, Reg dst, Symbol offSym);
+    void StoreStatic(StoreAccessKind sdk, Reg src, Symbol offSym);
     void LoadRec(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset);
     void StoreRec(StoreAccessKind stk, Reg src, IReg base, uint32_t offset);
 
     void LoadFrame(LoadAccessKind ldk, Reg dst, uint32_t offset);
     void StoreFrame(StoreAccessKind stk, Reg src, uint32_t offset);
+    void StoreFrameImm(StoreAccessKind stk, uint64_t imm, uint32_t offset);
 
     void SCC(CC cc, Width width, IReg d, IReg l, IReg r);
     void SCC(CC cc, Width width, IReg d, FReg l, FReg r);

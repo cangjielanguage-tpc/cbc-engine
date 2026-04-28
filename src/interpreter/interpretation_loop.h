@@ -14,7 +14,7 @@ struct Thunk {
 };
 
 Thunk InterpretationLoop(
-    Ectype* ectype, Frame* frame, RTSupport::ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
+    Ectype* ectype, Frame frame, RTSupport::ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
 );
 
 } // namespace Interpretation

@@ -1,15 +1,14 @@
-FROM --platform=linux/amd64 debian:stable-slim AS base
+FROM debian:stable-slim AS base
+
+ARG TARGETARCH
 
 RUN apt update && apt install -y \
     git \
-    neovim \
+    vim \
     curl \
     wget \
     gcc \
     g++ \
-    lua5.4 \
-    unzip \
-    lazygit \
     gzip \
     unzip \
     make \
@@ -21,18 +20,28 @@ RUN apt update && apt install -y \
     lld-19 \
     lldb-19 \
     gdb \
+    rsync \
+    openjdk-21-jre \
     clang-format
 
-RUN dpkg --add-architecture arm64 && \
-    apt update && apt install -y \
-    libc6-dev:arm64 \
-    linux-libc-dev:arm64 \
-    libstdc++-12-dev:arm64
+RUN if [ "$TARGETARCH" = "amd64" ]; then \
+        dpkg --add-architecture arm64 && \
+        apt update && apt install -y \
+            libc6-dev:arm64 \
+            linux-libc-dev:arm64 \
+            libstdc++-12-dev:arm64; \
+    elif [ "$TARGETARCH" = "arm64" ]; then \
+        dpkg --add-architecture amd64 && \
+        apt update && apt install -y \
+            libc6-dev:amd64 \
+            linux-libc-dev:amd64 \
+            libstdc++-12-dev:amd64; \
+    fi
 
 RUN mkdir -p /third-party && cd /third-party && \
     wget --no-check-certificate https://github.com/google/googletest/archive/refs/tags/v1.14.0.tar.gz && \
     tar -xvzf v1.14.0.tar.gz
-    
+
 ENV LLVM_BIN="/usr/lib/llvm-19/bin/"
 ENV PATH="${LLVM_BIN}:${PATH}"
 

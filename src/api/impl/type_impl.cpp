@@ -19,6 +19,20 @@ Term* TypeImpl::AsTerm() { return &term; }
 
 std::optional<TypeInfo> TypeImpl::GetTypeInfo() { return typeInfo; }
 
+int TypeImpl::FieldsNum()
+{
+    MRTExport::type_info_t* ti = typeInfo.value();
+    return ti->field_num;
+}
+
+uint32_t TypeImpl::GetFieldOffset(int ordinal)
+{
+    ASSERTION(typeInfo.has_value(), "cannot get field offset");
+
+    MRTExport::type_info_t* ti = typeInfo.value();
+    return ti->field_offsets[ordinal] + sizeof(MRTExport::type_info_t*);
+}
+
 int TypeImpl::FieldSize()
 {
     ASSERTION(false, "Not implemented yet");

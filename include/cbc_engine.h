@@ -27,6 +27,12 @@ CBC_EXPORT void engine_initialize();
 /// The string passed is expected to live as long, as engine lives.
 CBC_EXPORT void engine_set_main_cbc(char const* main_cbc);
 
+/// Enable CBC disassembly output.
+CBC_EXPORT void engine_enable_dasm();
+
+/// Enable raw CBC disassembly output.
+CBC_EXPORT void engine_enable_raw_dasm();
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

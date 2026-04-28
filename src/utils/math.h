@@ -4,12 +4,16 @@
 #include <cstdint>
 
 namespace MathUtils {
+static uint32_t AlignDown(uint32_t value, uint32_t alignment) { return (value / alignment) * alignment; }
+
+static uint32_t AlignUp(uint32_t value, uint32_t alignment) { return AlignDown(value + alignment - 1, alignment); }
+
 static bool IsNBits(uint64_t value, uint32_t bits)
 {
     if (bits == 64) {
         return true;
     } else {
-        return ((value >> (bits - 1)) == 0);
+        return (value >> bits) == 0;
     }
 }
 
@@ -45,6 +49,8 @@ static bool IsNBitsSigned(uint64_t value, uint32_t bits) { return IsNBitsSigned(
 
 static inline uint64_t SignExtend(uint64_t value, uint32_t bits)
 {
+    if (bits == 64)
+        return value;
     uint64_t const m = 1UL << (bits - 1);           // sign bit mask
     value            = value & ((1UL << bits) - 1); // zero high bits
     return (value ^ m) - m;
@@ -52,6 +58,8 @@ static inline uint64_t SignExtend(uint64_t value, uint32_t bits)
 
 static inline uint32_t SignExtend(uint32_t value, uint32_t bits)
 {
+    if (bits == 32)
+        return value;
     uint32_t const m = 1U << (bits - 1);           // sign bit mask
     value            = value & ((1U << bits) - 1); // zero high bits
     return (value ^ m) - m;

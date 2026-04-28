@@ -33,7 +33,7 @@ extern "C" {
 /// Note that the actual calling convention of `thunk.function`
 /// differs from the ASM in the unit test framework.
 Interpretation::Thunk engine_interpretation_loop(
-    Ectype* ectype, Frame* frame, RTSupport::ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
+    Ectype* ectype, Frame frame, RTSupport::ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
 )
 {
 #define NEXT goto* MAIN_TABLE[reader.PeekOpcode()]
@@ -81,6 +81,9 @@ Interpretation::Thunk engine_interpretation_loop(
         &&NEWOBJ,    // B3xri16,
         &&LOAD_OBJ,  // B4xi12rr
         &&STORE_OBJ, // B4xi12rr
+
+        &&LOAD_ADDR,  // B2xr
+        &&STORE_ADDR, // B2xr
 
         &&LOAD_REC,  // B4xi12rr
         &&STORE_REC, // B4xi12rr
@@ -171,6 +174,17 @@ Interpretation::Thunk engine_interpretation_loop(
         &&FST_REF, // M2rr
         &&FST_F32, // M2rr
         &&FST_F64, // M2rr
+
+        &&FSTI_8_8,   // M2i8
+        &&FSTI_16_8,  // M2i8
+        &&FSTI_16_16, // M3i16
+        &&FSTI_32_8,  // M2i8
+        &&FSTI_32_16, // M3i16
+        &&FSTI_32_32, // M5i32
+        &&FSTI_64_8,  // M2i8
+        &&FSTI_64_16, // M3i16
+        &&FSTI_64_32, // M5i32
+        &&FSTI_64_64, // M9i64
 
     };
 
@@ -413,6 +427,18 @@ NEWOBJ: {
     reader0 = reader; // save current pc
 
     return { func, type.Raw() };
+}
+LOAD_ADDR: {
+    auto args       = B2xr::Decode(reader);
+    auto location   = literals->at(reader.Read16()).u64;
+    bool successful = interpreter.LoadAddr(args.xr.imm.LDK(), args.xr.r, location);
+    NEXT_COND(successful);
+}
+STORE_ADDR: {
+    auto args       = B2xr::Decode(reader);
+    auto location   = literals->at(reader.Read16()).u64;
+    bool successful = interpreter.StoreAddr(args.xr.imm.STK(), args.xr.r, location);
+    NEXT_COND(successful);
 }
 LOAD_OBJ: {
     auto args       = B4xi12rr::Decode(reader);
@@ -690,6 +716,26 @@ OFFS_REG: {
     FST(F32)
     FST(F64)
 #undef FST
+
+#define FSTI(memSize, immSize, encoding)                                                                               \
+    FSTI_##memSize##_##immSize:                                                                                        \
+    {                                                                                                                  \
+        auto args       = encoding::Decode(reader);                                                                    \
+        uint64_t imm    = MathUtils::SignExtend(static_cast<uint64_t>(args.imm##immSize), immSize);                    \
+        bool successful = interpreter.StoreFrameImm(Format::StoreAccessKind::ST_##memSize, imm, memspaceOffsetAcc);    \
+        NEXT_COND(successful);                                                                                         \
+    }
+    FSTI(8, 8, M2i8)
+    FSTI(16, 8, M2i8)
+    FSTI(16, 16, M3i16)
+    FSTI(32, 8, M2i8)
+    FSTI(32, 16, M3i16)
+    FSTI(32, 32, M5i32)
+    FSTI(64, 8, M2i8)
+    FSTI(64, 16, M3i16)
+    FSTI(64, 32, M5i32)
+    FSTI(64, 64, M9i64)
+#undef FSTI
 
 #undef MEM_NEXT
 #undef NEXT
