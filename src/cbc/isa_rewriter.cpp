@@ -56,9 +56,27 @@ struct IsaRewriter : public IsaParser {
             case TemplateKind::I64: return LoadAccessKind::LD_64;
             case TemplateKind::F32: return LoadAccessKind::LD_F32;
             case TemplateKind::F64: return LoadAccessKind::LD_F64;
-            default:                {
+
+            case TemplateKind::BOOLEAN: return LoadAccessKind::LD_U8;
+
+            case TemplateKind::TYPE:
+            case TemplateKind::AOT_TYPE:
+            case TemplateKind::NULLABLE:
+            case TemplateKind::NON_NULLABLE:
+            case TemplateKind::CANGJIE_ARRAY: return LoadAccessKind::LD_REF;
+
+            case TemplateKind::UADDR:
+            case TemplateKind::IADDR:
+            case TemplateKind::BSTRING:
+            case TemplateKind::C_POINTER: return LoadAccessKind::LD_64;
+
+            case TemplateKind::UCHAR32: return LoadAccessKind::LD_32;
+
+            case TemplateKind::F16: return LoadAccessKind::LD_U16;
+
+            default: {
                 FATAL("Not supported template kind");
-                return LoadAccessKind::SPECIAL;
+                return LoadAccessKind::LD_S8;
             }
         }
     }
@@ -79,9 +97,27 @@ struct IsaRewriter : public IsaParser {
             case TemplateKind::I64: return StoreAccessKind::ST_64;
             case TemplateKind::F32: return StoreAccessKind::ST_F32;
             case TemplateKind::F64: return StoreAccessKind::ST_F64;
-            default:                {
+
+            case TemplateKind::BOOLEAN: return StoreAccessKind::ST_8;
+
+            case TemplateKind::TYPE:
+            case TemplateKind::AOT_TYPE:
+            case TemplateKind::NULLABLE:
+            case TemplateKind::NON_NULLABLE:
+            case TemplateKind::CANGJIE_ARRAY: return StoreAccessKind::ST_REF;
+
+            case TemplateKind::UADDR:
+            case TemplateKind::IADDR:
+            case TemplateKind::BSTRING:
+            case TemplateKind::C_POINTER: return StoreAccessKind::ST_64;
+
+            case TemplateKind::UCHAR32: return StoreAccessKind::ST_32;
+
+            case TemplateKind::F16: return StoreAccessKind::ST_16;
+
+            default: {
                 FATAL("Not supported template kind");
-                return StoreAccessKind::SPECIAL;
+                return StoreAccessKind::ST_8;
             }
         }
     }
