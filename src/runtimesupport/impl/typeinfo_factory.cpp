@@ -268,6 +268,16 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
     return TypeInfo(builder.Build());
 }
 
+static std::optional<TypeInfo> QueryTypeInfoAOTByName(char const* str)
+{
+    auto res = g_CJNativeInterfaceInstance.typeInfo(str);
+    if (res != nullptr) {
+        return TypeInfo(res);
+    } else {
+        return std::nullopt;
+    }
+}
+
 static std::optional<TypeInfo> QueryTypeInfoAOT(Engine::Session& session, Symlevel::GlobalTerm term)
 {
     auto termIdent = term.GetIdentifier();
@@ -291,7 +301,21 @@ std::optional<TypeInfo> CreateTypeInfo(
     switch (termIdent.GetKind()) {
         case Symlevel::TemplateKind::AOT_TYPE: return QueryTypeInfoAOT(session, term);
         case Symlevel::TemplateKind::TYPE:     return CreateTypeInfoDyn(session, manager, term);
-        default:                               {
+
+        case Symlevel::TemplateKind::BOOLEAN:  return QueryTypeInfoAOTByName("Bool");
+        case Symlevel::TemplateKind::U8:       return QueryTypeInfoAOTByName("UInt8");
+        case Symlevel::TemplateKind::I8:       return QueryTypeInfoAOTByName("Int8");
+        case Symlevel::TemplateKind::U16:      return QueryTypeInfoAOTByName("UInt16");
+        case Symlevel::TemplateKind::I16:      return QueryTypeInfoAOTByName("Int16");
+        case Symlevel::TemplateKind::U32:      return QueryTypeInfoAOTByName("UInt32");
+        case Symlevel::TemplateKind::I32:      return QueryTypeInfoAOTByName("Int32");
+        case Symlevel::TemplateKind::U64:      return QueryTypeInfoAOTByName("UInt64");
+        case Symlevel::TemplateKind::I64:      return QueryTypeInfoAOTByName("Int64");
+        case Symlevel::TemplateKind::F16:      return QueryTypeInfoAOTByName("Float16");
+        case Symlevel::TemplateKind::F32:      return QueryTypeInfoAOTByName("Float32");
+        case Symlevel::TemplateKind::F64:      return QueryTypeInfoAOTByName("Float64");
+
+        default: {
             FATAL("Not supported yet %d", termIdent.GetKind());
             break;
         }
