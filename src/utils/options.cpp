@@ -7,7 +7,7 @@ namespace Options {
 void SetOption(const char* name, bool value)
 {
     size_t idx = 0;
-    while (idx < OPTS_COUNT && !strcmp(opts[idx].name, name)) {
+    while (idx < OPTS_COUNT && strcmp(opts[idx].name, name)) {
         ++idx;
     }
     if (idx < OPTS_COUNT) {
@@ -21,7 +21,7 @@ void SetOption(const char* name, bool value)
 void SetOption(const char* name, int value)
 {
     size_t idx = 0;
-    while (idx < OPTS_COUNT && !strcmp(opts[idx].name, name)) {
+    while (idx < OPTS_COUNT && strcmp(opts[idx].name, name)) {
         ++idx;
     }
     if (idx < OPTS_COUNT) {
@@ -35,7 +35,7 @@ void SetOption(const char* name, int value)
 void SetOption(const char* name, const char* value)
 {
     size_t idx = 0;
-    while (idx < OPTS_COUNT && !strcmp(opts[idx].name, name)) {
+    while (idx < OPTS_COUNT && strcmp(opts[idx].name, name)) {
         ++idx;
     }
     if (idx < OPTS_COUNT) {
