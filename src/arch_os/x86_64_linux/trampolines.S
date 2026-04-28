@@ -79,7 +79,7 @@ engine_trampolines_dyn_start:
   .set i, 0
   .rept \count
       mov.d32 eax, i
-      jmp.d32 engine_universal_dynamic_call
+      jmp.d32 engine_universal_dyn_call
       .set i, i + 1
   .endr
 .endm
