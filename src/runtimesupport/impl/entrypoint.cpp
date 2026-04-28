@@ -29,15 +29,15 @@ static void EnsureEngineInitialized()
     g_Initialized = true;
 }
 
-static void FiberStart(MRTExport::fiber_specific_data_t* data) { /* no-op */ }
+static void FiberStart(DYN_CJThreadSpecificDataT* data) { /* no-op */ }
 
-static void FiberDestroy(MRTExport::fiber_specific_data_t* data) { /* TODO: ectype cleanup */ }
+static void FiberDestroy(DYN_CJThreadSpecificDataT* data) { /* TODO: ectype cleanup */ }
 
 extern "C" {
 /// This symbol is exported to the runtime, which would initialize engine.
 CBC_EXPORT void interpreter_bridge_init(
-    struct MRTExport::interpreter_interface_t* interpInterf,
-    struct MRTExport::cjnative_interface_t* rtInterf,
+    struct DYN_InterpreterInterfaceT* interpInterf,
+    struct DYN_CJNativeInterfaceT* rtInterf,
     int size,
     char const** options
 );
@@ -71,8 +71,8 @@ CBC_EXPORT void* engine_get_entrypoint_trampoline(void)
 }
 
 CBC_EXPORT void interpreter_bridge_init(
-    struct MRTExport::interpreter_interface_t* interpInterf,
-    struct MRTExport::cjnative_interface_t* rtInterf,
+    struct DYN_InterpreterInterfaceT* interpInterf,
+    struct DYN_CJNativeInterfaceT* rtInterf,
     int size,
     char const** options
 )
@@ -82,13 +82,14 @@ CBC_EXPORT void interpreter_bridge_init(
 
     g_CJNativeInterfaceInstance            = *rtInterf;
     interpInterf->version                  = 1;
-    interpInterf->fiber_specific_data_size = sizeof(Interpretation::Ectype);
-    interpInterf->iterator_size            = 0; // FIXME: remove
+    interpInterf->cjThreadSpecificDataSize = sizeof(Interpretation::Ectype);
+    interpInterf->iteratorSize             = 0; // FIXME: remove
     interpInterf->c2iStubStartAddr         = reinterpret_cast<uintptr_t>(&Asm::engine_c2i_call_pc_start);
     interpInterf->c2iStubEndAddr           = reinterpret_cast<uintptr_t>(&Asm::engine_c2i_call_pc_end);
-    interpInterf->fiber_destroy            = &FiberDestroy;
-    interpInterf->fiber_start              = &FiberStart;
-    Asm::engine_newobject_function         = g_CJNativeInterfaceInstance.object_alloc;
+    interpInterf->cjThreadStart            = &FiberStart;
+    interpInterf->cjThreadDestroy          = &FiberDestroy;
+
+    Asm::engine_newobject_function = g_CJNativeInterfaceInstance.objectAlloc;
 }
 
 } // extern "C"

@@ -55,68 +55,68 @@ struct TypeInfoBuilder {
     int32_t instanceSize  = -1;
     int32_t componentSize = -1;
 
-    MRTExport::gc_tib_t gctib; // TODO: gctib builder
+    DYN_GCTibT gctib; // TODO: gctib builder
     uint32_t uuid;
     uint8_t align;
     int8_t typeArgsNum;
     uint16_t validInheritNum;
     uint32_t* fieldOffsets = nullptr;
-    MRTExport::func_ptr_t finalizerMethod;
-    MRTExport::type_info_t** typeArgs = nullptr;
-    MRTExport::type_info_t** fields   = nullptr;
+    DYN_FuncPtrT finalizerMethod;
+    DYN_TypeInfoT** typeArgs = nullptr;
+    DYN_TypeInfoT** fields   = nullptr;
 
-    MRTExport::type_info_t* superTypeInfo     = nullptr;
-    MRTExport::type_info_t* componentTypeInfo = nullptr;
+    DYN_TypeInfoT* superTypeInfo     = nullptr;
+    DYN_TypeInfoT* componentTypeInfo = nullptr;
 
-    MRTExport::extension_data_t** extDefs      = nullptr;
-    MRTExport::func_ptr_t* flatMethods         = nullptr;
-    MRTExport::extension_data_t* flatExtDefs   = nullptr;
-    MRTExport::mtable_desc_t* mtableDesc       = nullptr;
+    DYN_ExtensionDataT** extDefs               = nullptr;
+    DYN_FuncPtrT* flatMethods                  = nullptr;
+    DYN_ExtensionDataT* flatExtDefs            = nullptr;
+    DYN_MTableDescT* mtableDesc                = nullptr;
     void* reflectOrDebugInfo                   = nullptr;
 
     Interpretation::FunctionHandle** dataMT = nullptr;
 
     CbcTypeInfo* typeInfo;
 
-    TypeInfoBuilder(CbcTypeInfo* typeInfo) : typeInfo(typeInfo) {}
+    TypeInfoBuilder(CbcTypeInfo* typeInfo) : typeInfo(typeInfo), gctib({ .raw = (1lu << 63) }) {}
 
-    MRTExport::type_info_t* Build()
+    DYN_TypeInfoT* Build()
     {
         auto typeInfo = std::exchange(this->typeInfo, nullptr);
         auto result   = &typeInfo->base;
 
-        result->type_info_name = std::exchange(this->name, nullptr);
+        result->typeInfoName   = std::exchange(this->name, nullptr);
         result->type           = type;
         result->flag           = flag;
-        result->field_num      = fieldNum;
+        result->fieldNum       = fieldNum;
         if (instanceSize != -1) {
-            result->instance_size = instanceSize;
+            result->instanceSize = instanceSize;
         } else if (componentSize != -1) {
-            result->component_size = componentSize;
+            result->componentSize = componentSize;
         } else {
             ASSERTION(false, "neither of instance or component size was set");
         }
-        result->gctib             = gctib;
+        result->gctib             = std::exchange(gctib, {}); // FIXME
         result->uuid              = uuid;
         result->align             = align;
-        result->type_args_num     = typeArgsNum;
-        result->valid_inherit_num = validInheritNum;
-        result->field_offsets     = std::exchange(fieldOffsets, nullptr);
-        result->finalizer_method  = finalizerMethod;
-        result->type_args         = std::exchange(typeArgs, nullptr);
+        result->typeArgsNum       = typeArgsNum;
+        result->validInheritNum   = validInheritNum;
+        result->fieldOffsets      = std::exchange(fieldOffsets, nullptr);
+        result->finalizerMethod   = finalizerMethod;
+        result->typeArgs          = std::exchange(typeArgs, nullptr);
         result->fields            = std::exchange(fields, nullptr);
         if (superTypeInfo) {
-            result->super_type_info = std::exchange(superTypeInfo, nullptr);
+            result->superTypeInfo = std::exchange(superTypeInfo, nullptr);
         } else if (componentTypeInfo) {
-            result->component_type_info = std::exchange(componentTypeInfo, nullptr);
+            result->componentTypeInfo = std::exchange(componentTypeInfo, nullptr);
         } else {
             ASSERTION(false, "neither of super type TI or component TI was set");
         }
 
-        result->v_extension_data_start = std::exchange(extDefs, nullptr);
+        result->vExtensionDataStart    = std::exchange(extDefs, nullptr);
         flatExtDefs                    = nullptr;
-        result->mtable_desc            = std::exchange(mtableDesc, nullptr);
-        result->reflect_or_debug_info  = std::exchange(reflectOrDebugInfo, nullptr);
+        result->mTableDesc             = std::exchange(mtableDesc, nullptr);
+        result->reflectOrDebugInfo     = std::exchange(reflectOrDebugInfo, nullptr);
         typeInfo->dataMT               = dataMT;
 
         return result;
@@ -141,7 +141,7 @@ struct TypeInfoBuilder {
     }
 };
 
-static MRTExport::func_ptr_t GetFunctionOrTrampoline(
+static DYN_FuncPtrT GetFunctionOrTrampoline(
     Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> method, int entryIdx
 )
 {
@@ -206,9 +206,9 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         // E.g. function tables are essentionally views in the big array.
 
         builder.dataMT      = Alloc<Interpretation::FunctionHandle*>(mt.EntryCount());
-        builder.flatMethods = Alloc<MRTExport::func_ptr_t>(mt.EntryCount());
-        builder.extDefs     = Alloc<MRTExport::extension_data_t*>(extDefCount);
-        builder.flatExtDefs = Alloc<MRTExport::extension_data_t>(extDefCount);
+        builder.flatMethods = Alloc<DYN_FuncPtrT>(mt.EntryCount());
+        builder.extDefs     = Alloc<DYN_ExtensionDataT*>(extDefCount);
+        builder.flatExtDefs = Alloc<DYN_ExtensionDataT>(extDefCount);
 
         if (!builder.dataMT || !builder.flatMethods || !builder.extDefs || !builder.flatExtDefs) {
             return std::nullopt;
@@ -229,21 +229,21 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
         builder.extDefs[extDefCount] = nullptr;
 
-        auto prepareExtDef = [&builder, currentTypeInfo, &queryTypeInfo](
-                                 MRTExport::extension_data_t& extDef, Symlevel::MethodSubTable const& smt
-                             ) -> bool {
+        auto prepareExtDef = [&builder,
+                              currentTypeInfo,
+                              &queryTypeInfo](DYN_ExtensionDataT& extDef, Symlevel::MethodSubTable const& smt) -> bool {
             auto funcTableStart           = &builder.flatMethods[smt.StartPos()];
-            extDef.func_table             = funcTableStart;
-            extDef.func_table_size        = smt.EndPos() - smt.StartPos();
-            extDef.arg_num                = 0;
-            extDef.is_interface_type_info = 1;
+            extDef.funcTable              = funcTableStart;
+            extDef.funcTableSize          = smt.EndPos() - smt.StartPos();
+            extDef.argNum                 = 0;
+            extDef.isInterfaceTypeInfo    = 1;
             extDef.flag                   = 7; // FIXME: research how to properly implement this.
 
             extDef.ti = &currentTypeInfo->base;
 
             auto declaringTypeInfo = queryTypeInfo(smt.DeclaringType());
             if (declaringTypeInfo.has_value()) {
-                extDef.interface_type_info = UnpackTypeInfo(declaringTypeInfo.value());
+                extDef.interfaceTypeInfo = UnpackTypeInfo(declaringTypeInfo.value());
                 return true;
             } else {
                 return false;
@@ -276,7 +276,7 @@ static std::optional<TypeInfo> QueryTypeInfoAOT(Engine::Session& session, Symlev
     auto ident    = termIdent.AsAotIdent();
     auto typeName = std::string(Symlevel::Reader::Read(session, ident.GetFile(), ident.GetOffset()));
 
-    auto typeInfo = g_CJNativeInterfaceInstance.type_info(typeName.c_str());
+    auto typeInfo = g_CJNativeInterfaceInstance.typeInfo(typeName.c_str());
     if (typeInfo == nullptr) {
         return std::nullopt;
     }

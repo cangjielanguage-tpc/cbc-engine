@@ -16,7 +16,7 @@ extern void engine_trampolines_dyn_start();
 extern void engine_iregs_only_c2i_call();
 extern void engine_i2i_call();
 extern void engine_i2c_call();
-extern void* (*engine_newobject_function)(MRTExport::type_info_t*);
+extern void* (*engine_newobject_function)(DYN_TypeInfoT*);
 extern void* engine_universal_direct_function_handles[TRAMPOLINE_COUNT];
 
 } // extern "C"

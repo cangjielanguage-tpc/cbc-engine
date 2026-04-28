@@ -1,4 +1,5 @@
 #include "runtimesupport/runtime.h"
+#include "RTInterface.h"
 #include "RuntimeTypes.h"
 #include "asm_trampolines.h"
 #include "cjnative.h"
@@ -11,32 +12,32 @@ using Reference = Interpretation::Value::Reference;
 
 Reference Execution::ReadObjectInstance(Reference base, size_t offset, ThreadHandle th)
 {
-    return Reference { .value = reinterpret_cast<uintptr_t>(g_CJNativeInterfaceInstance.read_instance_field(
-                           reinterpret_cast<MRTExport::obj_ref_t>(base.value),
-                           reinterpret_cast<MRTExport::field_ref_t>(base.value + offset)
+    return Reference { .value = reinterpret_cast<uintptr_t>(g_CJNativeInterfaceInstance.readInstanceField(
+                           reinterpret_cast<DYN_ObjRefT>(base.value),
+                           reinterpret_cast<DYN_FieldRefT>(base.value + offset)
                        )) };
 }
 
 void Execution::WriteObjectInstance(Reference base, size_t offset, Reference object, ThreadHandle th)
 {
-    g_CJNativeInterfaceInstance.write_instance_field(
-        reinterpret_cast<MRTExport::obj_ref_t>(base.value),
-        reinterpret_cast<MRTExport::field_ref_t>(base.value + offset),
-        reinterpret_cast<MRTExport::obj_ref_t>(object.value)
+    g_CJNativeInterfaceInstance.writeInstanceField(
+        reinterpret_cast<DYN_ObjRefT>(base.value),
+        reinterpret_cast<DYN_FieldRefT>(base.value + offset),
+        reinterpret_cast<DYN_ObjRefT>(object.value)
     );
 }
 
 Reference Execution::ReadObjectStatic(void* location, ThreadHandle th)
 {
-    return Reference { .value = reinterpret_cast<uintptr_t>(g_CJNativeInterfaceInstance.read_static_field(
-                           reinterpret_cast<MRTExport::field_ref_t>(location)
-                       )) };
+    return Reference { .value = reinterpret_cast<uintptr_t>(
+                           g_CJNativeInterfaceInstance.readStaticField(reinterpret_cast<DYN_FieldRefT>(location))
+                       ) };
 }
 
 void Execution::WriteObjectStatic(void* location, Reference object, ThreadHandle th)
 {
-    g_CJNativeInterfaceInstance.write_static_field(
-        reinterpret_cast<MRTExport::field_ref_t>(location), reinterpret_cast<MRTExport::obj_ref_t>(object.value)
+    g_CJNativeInterfaceInstance.writeStaticField(
+        reinterpret_cast<DYN_FieldRefT>(location), reinterpret_cast<DYN_ObjRefT>(object.value)
     );
 }
 
@@ -50,17 +51,17 @@ TypeInfo Execution::GetTypeInfo(Reference base)
 
 MethodTable Execution::GetMethodTable(Reference base, int extDefNum, int methodNum)
 {
-    MRTExport::type_info_t** header = reinterpret_cast<MRTExport::type_info_t**>(base.value);
+    DYN_TypeInfoT** header          = reinterpret_cast<DYN_TypeInfoT**>(base.value);
     auto typeInfo                   = *header;
-    auto target                     = typeInfo->v_extension_data_start[extDefNum]->func_table[methodNum];
+    auto target                     = typeInfo->vExtensionDataStart[extDefNum]->funcTable[methodNum];
     return MethodTable(target);
 }
 
 int Execution::GetFieldOffset(TypeInfo ti, int ordinal)
 {
     auto mrtti = UnpackTypeInfo(ti);
-    ASSERT(ordinal < mrtti->field_num);
-    return mrtti->field_offsets[ordinal];
+    ASSERT(ordinal < mrtti->fieldNum);
+    return mrtti->fieldOffsets[ordinal];
 }
 
 } // namespace RTSupport

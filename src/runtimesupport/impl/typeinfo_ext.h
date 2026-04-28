@@ -8,15 +8,12 @@
 namespace RTSupport {
 
 struct CbcTypeInfo {
-    MRTExport::type_info_t base;
+    DYN_TypeInfoT base;
     Interpretation::FunctionHandle** dataMT;
 };
 
 static_assert(offsetof(CbcTypeInfo, dataMT) == TYPEINFO_DATA_MT_OFFSET);
 
-static MRTExport::type_info_t* UnpackTypeInfo(TypeInfo ti)
-{
-    return reinterpret_cast<MRTExport::type_info_t*>(ti.Raw());
-}
+static DYN_TypeInfoT* UnpackTypeInfo(TypeInfo ti) { return reinterpret_cast<DYN_TypeInfoT*>(ti.Raw()); }
 
 } // namespace RTSupport
