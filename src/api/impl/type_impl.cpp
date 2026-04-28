@@ -20,16 +20,16 @@ std::optional<TypeInfo> TypeImpl::GetTypeInfo() { return typeInfo; }
 
 int TypeImpl::FieldsNum()
 {
-    MRTExport::type_info_t* ti = typeInfo.value();
-    return ti->field_num;
+    DYN_TypeInfoT* ti = typeInfo.value();
+    return ti->fieldNum;
 }
 
 uint32_t TypeImpl::GetFieldOffset(int ordinal)
 {
     ASSERTION(typeInfo.has_value(), "cannot get field offset");
 
-    MRTExport::type_info_t* ti = typeInfo.value();
-    return ti->field_offsets[ordinal] + sizeof(MRTExport::type_info_t*);
+    DYN_TypeInfoT* ti = typeInfo.value();
+    return ti->fieldOffsets[ordinal] + sizeof(DYN_TypeInfoT*);
 }
 
 int TypeImpl::FieldSize()
@@ -53,7 +53,7 @@ TypeFlags TypeImpl::Flags()
 std::string_view TypeImpl::FullName()
 {
     if (term.GetLength() == 0) {
-        return static_cast<MRTExport::type_info_t*>(typeInfo.value())->type_info_name;
+        return static_cast<DYN_TypeInfoT*>(typeInfo.value())->typeInfoName;
     } else {
         ASSERTION(false, "Support for generic types");
     }

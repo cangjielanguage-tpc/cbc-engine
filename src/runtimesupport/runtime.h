@@ -22,16 +22,16 @@ template <typename RT> class TypeInfo {
 public:
     TypeInfo() : value(nullptr) {};
 
-    TypeInfo(uintptr_t _value) : value((MRTExport::type_info_t*)_value) {}
+    TypeInfo(uintptr_t _value) : value((DYN_TypeInfoT*)_value) {}
 
-    TypeInfo(MRTExport::type_info_t* _value) : value(_value) {}
+    TypeInfo(DYN_TypeInfoT* _value) : value(_value) {}
 
     operator void*() const { return value; }
 
-    operator MRTExport::type_info_t*() { return value; }
+    operator DYN_TypeInfoT*() { return value; }
 
 private:
-    MRTExport::type_info_t* value;
+    DYN_TypeInfoT* value;
 };
 
 template <typename RT> class RuntimeInterface {

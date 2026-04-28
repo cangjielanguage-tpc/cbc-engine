@@ -10,39 +10,39 @@ using Reference = Interpretation::Value::Reference;
 
 Reference RuntimeInterface<Impl>::ReadObjectInstance(Reference base, size_t offset, ThreadHandle th)
 {
-    return Reference { .value = reinterpret_cast<uintptr_t>(g_CJNativeInterfaceInstance.read_instance_field(
-                           reinterpret_cast<MRTExport::obj_ref_t>(base.value),
-                           reinterpret_cast<MRTExport::field_ref_t>(base.value + offset)
+    return Reference { .value = reinterpret_cast<uintptr_t>(g_CJNativeInterfaceInstance.readInstanceField(
+                           reinterpret_cast<DYN_ObjRefT>(base.value),
+                           reinterpret_cast<DYN_FieldRefT>(base.value + offset)
                        )) };
 }
 
 void RuntimeInterface<Impl>::WriteObjectInstance(Reference base, size_t offset, Reference object, ThreadHandle th)
 {
-    g_CJNativeInterfaceInstance.write_instance_field(
-        reinterpret_cast<MRTExport::obj_ref_t>(base.value),
-        reinterpret_cast<MRTExport::field_ref_t>(base.value + offset),
-        reinterpret_cast<MRTExport::obj_ref_t>(object.value)
+    g_CJNativeInterfaceInstance.writeInstanceField(
+        reinterpret_cast<DYN_ObjRefT>(base.value),
+        reinterpret_cast<DYN_FieldRefT>(base.value + offset),
+        reinterpret_cast<DYN_ObjRefT>(object.value)
     );
 }
 
 Reference RuntimeInterface<Impl>::ReadObjectStatic(void* location, ThreadHandle th)
 {
-    return Reference { .value = reinterpret_cast<uintptr_t>(g_CJNativeInterfaceInstance.read_static_field(location)) };
+    return Reference { .value = reinterpret_cast<uintptr_t>(g_CJNativeInterfaceInstance.readStaticField(location)) };
 }
 
 void RuntimeInterface<Impl>::WriteObjectStatic(void* location, Reference object, ThreadHandle th)
 {
-    g_CJNativeInterfaceInstance.write_static_field(location, reinterpret_cast<MRTExport::obj_ref_t>(object.value));
+    g_CJNativeInterfaceInstance.writeStaticField(location, reinterpret_cast<DYN_ObjRefT>(object.value));
 }
 
 TypeInfo<Impl> RuntimeInterface<Impl>::GetTypeInfo(const char* typeName)
 {
-    return g_CJNativeInterfaceInstance.type_info(typeName);
+    return g_CJNativeInterfaceInstance.typeInfo(typeName);
 }
 
 void InitializeRuntimeInterface()
 {
-    Asm::engine_newobject_function         = g_CJNativeInterfaceInstance.object_alloc;
+    Asm::engine_newobject_function         = g_CJNativeInterfaceInstance.objectAlloc;
     RuntimeInterface<Impl>::AllocateObject = reinterpret_cast<void*>(&Asm::engine_i2_newobject);
 }
 

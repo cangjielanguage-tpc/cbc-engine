@@ -569,11 +569,11 @@ VIRTUAL_CALL_2C: {
     auto vnum      = args.imm1.imm;
     auto extDefNum = args.imm2.imm;
 
-    size_t extDefArrayOffset = offsetof(MRTExport::type_info_t, v_extension_data_start);
+    size_t extDefArrayOffset = offsetof(DYN_TypeInfoT, vExtensionDataStart);
 
     auto* receiver     = reinterpret_cast<uintptr_t*>(ectype->GetReference(IReg::IR1).value);
-    auto* thisTypeInfo = reinterpret_cast<MRTExport::type_info_t*>(*receiver);
-    auto* target       = thisTypeInfo->v_extension_data_start[extDefNum]->func_table[vnum];
+    auto* thisTypeInfo = reinterpret_cast<DYN_TypeInfoT*>(*receiver);
+    auto* target       = thisTypeInfo->vExtensionDataStart[extDefNum]->funcTable[vnum];
 
     // For proper support of fibers, the following call MUST drop the current frame.
     // This can not be guaranteed by C++ compiler consistently, because TCO
