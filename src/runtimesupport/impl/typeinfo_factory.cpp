@@ -7,6 +7,7 @@
 #include "engine/symlevel/reader.h"
 #include "engine/symlevel/terms.h"
 #include "interpreter/function_handle.h"
+#include "runtimesupport/adapters.h"
 #include "runtimesupport/impl/cjnative.h"
 #include "runtimesupport/impl/typeinfo_ext.h"
 #include "runtimesupport/runtime.h"
@@ -18,11 +19,13 @@
 
 namespace RTSupport {
 
+template <typename T> static T* Alloc(size_t cnt = 1) { return reinterpret_cast<T*>(std::malloc(sizeof(T) * cnt)); }
+
 static char* Copy(std::string_view str)
 {
     auto size  = str.size();
     auto data  = str.data();
-    char* cStr = reinterpret_cast<char*>(std::malloc(size + 1));
+    char* cStr = Alloc<char>(size + 1);
     if (!cStr) {
         return nullptr;
     }
@@ -73,12 +76,14 @@ struct TypeInfoBuilder {
 
     Interpretation::FunctionHandle** dataMT = nullptr;
 
+    CbcTypeInfo* typeInfo;
+
+    TypeInfoBuilder(CbcTypeInfo* typeInfo) : typeInfo(typeInfo) {}
+
     MRTExport::type_info_t* Build()
     {
-        auto result = reinterpret_cast<CbcTypeInfo*>(malloc(sizeof(MRTExport::type_info_t)));
-        if (!result) {
-            return nullptr;
-        }
+        auto typeInfo = std::exchange(this->typeInfo, nullptr);
+        auto result   = &typeInfo->base;
 
         result->type_info_name = std::exchange(this->name, nullptr);
         result->type           = type;
@@ -112,7 +117,7 @@ struct TypeInfoBuilder {
         flatExtDefs                    = nullptr;
         result->mtable_desc            = std::exchange(mtableDesc, nullptr);
         result->reflect_or_debug_info  = std::exchange(reflectOrDebugInfo, nullptr);
-        result->dataMT                 = dataMT;
+        typeInfo->dataMT               = dataMT;
 
         return result;
     }
@@ -132,14 +137,16 @@ struct TypeInfoBuilder {
         std::free(flatExtDefs);
         std::free(extDefs);
         std::free(flatMethods);
+        std::free(typeInfo);
     }
 };
 
 static MRTExport::func_ptr_t GetFunctionOrTrampoline(
-    Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> method
+    Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> method, int entryIdx
 )
 {
-    return nullptr;
+    // FIXME: expects only CBC methods for now.
+    return Adapters::GetDynCallTrampoline(entryIdx);
 }
 
 static std::optional<TypeInfo> CreateTypeInfoDyn(
@@ -155,17 +162,28 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
     auto type = Symlevel::Reader::Read(session, file, ident.GetOffset());
     auto name = Symlevel::Reader::Read(session, file, type.NameOffset());
 
-    TypeInfoBuilder builder;
-
-    {
-        // TODO: construct proper name
-        auto typeInfoName = Copy(name);
-        if (typeInfoName == nullptr) {
-            return std::nullopt;
-        }
-
-        builder.name = typeInfoName;
+    auto currentTypeInfo = Alloc<CbcTypeInfo>();
+    if (!currentTypeInfo) {
+        return std::nullopt;
     }
+
+    TypeInfoBuilder builder(currentTypeInfo);
+
+    auto queryTypeInfo =
+        [&session, &manager, term, currentTypeInfo](Symlevel::Term t) -> std::optional<RTSupport::TypeInfo> {
+        if (t == term) {
+            return TypeInfo(&currentTypeInfo->base);
+        }
+        return manager.AcquireTypeInfo(session, t);
+    };
+
+    // TODO: construct proper name
+    auto typeInfoName = Copy(name);
+    if (typeInfoName == nullptr) {
+        return std::nullopt;
+    }
+
+    builder.name = typeInfoName;
 
     // FIXME
     builder.type     = -128; // class
@@ -175,7 +193,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
     builder.instanceSize = 0;
 
-    {
+    { // fill out ext defs
         auto& manager    = Symlevel::MethodTableManager::Of(session);
         auto& fuhManager = Interpretation::FunctionHandleManager::Of(session);
         auto mt          = manager.GetMethodTable(session, term);
@@ -187,17 +205,10 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         // where corresponding structures would be filled out.
         // E.g. function tables are essentionally views in the big array.
 
-        builder.dataMT = reinterpret_cast<Interpretation::FunctionHandle**>(std::calloc(mt.EntryCount(), ptrSize));
-
-        builder.flatMethods = reinterpret_cast<MRTExport::func_ptr_t*>(std::calloc(mt.EntryCount(), ptrSize));
-
-        builder.extDefs = reinterpret_cast<MRTExport::extension_data_t**>(
-            std::calloc(extDefCount + 1, ptrSize) // extra slot for null-terminator
-        );
-
-        builder.flatExtDefs = reinterpret_cast<MRTExport::extension_data_t*>(
-            std::calloc(extDefCount, sizeof(MRTExport::extension_data_t))
-        );
+        builder.dataMT      = Alloc<Interpretation::FunctionHandle*>(mt.EntryCount());
+        builder.flatMethods = Alloc<MRTExport::func_ptr_t>(mt.EntryCount());
+        builder.extDefs     = Alloc<MRTExport::extension_data_t*>(extDefCount);
+        builder.flatExtDefs = Alloc<MRTExport::extension_data_t>(extDefCount);
 
         if (!builder.dataMT || !builder.flatMethods || !builder.extDefs || !builder.flatExtDefs) {
             return std::nullopt;
@@ -208,7 +219,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         for (auto it = mt.EntriesIter(); it.HasNext(), entryIdx++;) {
             auto entry                    = it.Next();
             builder.dataMT[entryIdx]      = fuhManager.Acquire(session, entry);
-            builder.flatMethods[entryIdx] = GetFunctionOrTrampoline(session, entry);
+            builder.flatMethods[entryIdx] = GetFunctionOrTrampoline(session, entry, entryIdx);
         }
 
         // Fill out array of pointers to ext defs.
@@ -218,44 +229,43 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
         builder.extDefs[extDefCount] = nullptr;
 
+        auto prepareExtDef = [&builder, currentTypeInfo, &queryTypeInfo](
+                                 MRTExport::extension_data_t& extDef, Symlevel::MethodSubTable const& smt
+                             ) -> bool {
+            auto funcTableStart           = &builder.flatMethods[smt.StartPos()];
+            extDef.func_table             = funcTableStart;
+            extDef.func_table_size        = smt.EndPos() - smt.StartPos();
+            extDef.arg_num                = 0;
+            extDef.is_interface_type_info = 1;
+            extDef.flag                   = 7; // FIXME: research how to properly implement this.
+
+            extDef.ti = &currentTypeInfo->base;
+
+            auto declaringTypeInfo = queryTypeInfo(smt.DeclaringType());
+            if (declaringTypeInfo.has_value()) {
+                extDef.interface_type_info = UnpackTypeInfo(declaringTypeInfo.value());
+                return true;
+            } else {
+                return false;
+            }
+        };
+
         // fill out ext defs
         int extDefIndex = 0;
         for (auto it = mt.ClassSubTableIter(); it.HasNext();) {
-            auto& smt                     = it.Next();
-            auto funcTableStart           = &builder.flatMethods[smt.StartPos()];
-            auto& extDef                  = builder.flatExtDefs[extDefIndex++];
-            extDef.func_table             = funcTableStart;
-            extDef.func_table_size        = smt.EndPos() - smt.StartPos();
-            extDef.arg_num                = 0;
-            extDef.is_interface_type_info = 0;
-
-            // TODO:
-            extDef.ti                  = nullptr;
-            extDef.interface_type_info = nullptr;
+            if (!prepareExtDef(builder.flatExtDefs[extDefIndex++], it.Next())) {
+                return std::nullopt;
+            }
         }
 
-        // TODO: Intentionally copy-pasted. Should be updated accordingly
         for (auto it = mt.InterfaceSubTableIter(); it.HasNext();) {
-            auto& smt                     = it.Next();
-            auto funcTableStart           = &builder.flatMethods[smt.StartPos()];
-            auto& extDef                  = builder.flatExtDefs[extDefIndex++];
-            extDef.func_table             = funcTableStart;
-            extDef.func_table_size        = smt.EndPos() - smt.StartPos();
-            extDef.arg_num                = 0;
-            extDef.is_interface_type_info = 1; // TODO: why 1?
-
-            // TODO:
-            extDef.ti                  = nullptr;
-            extDef.interface_type_info = nullptr;
+            if (!prepareExtDef(builder.flatExtDefs[extDefIndex++], it.Next())) {
+                return std::nullopt;
+            }
         }
     }
 
-    auto typeInfo = builder.Build();
-    if (typeInfo) {
-        return TypeInfo(typeInfo);
-    } else {
-        return std::nullopt;
-    }
+    return TypeInfo(builder.Build());
 }
 
 static std::optional<TypeInfo> QueryTypeInfoAOT(Engine::Session& session, Symlevel::GlobalTerm term)

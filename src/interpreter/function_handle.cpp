@@ -1,17 +1,13 @@
-#include <iostream>
 #include <mutex>
 #include <unordered_map>
 #include <variant>
 
 #include "adapters.h"
-#include "cbc/frame.h"
-#include "cbc/isa_disasm.h"
 #include "cbc/isa_rewriter.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/reader.h"
-#include "frame.h"
 #include "function_handle.h"
-#include "utils/math.h"
+#include "utils/assertion.h"
 
 namespace Interpretation {
 
@@ -82,7 +78,7 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, Dynam
     return fuh->bytecode.load();
 }
 
-void* FunctionHandleManager::GetFunctionPtr(TaggedFunctionHandle fuh)
+void* FunctionHandleManager::GetFunctionPtrForDirectCall(TaggedFunctionHandle fuh)
 {
     if (auto* staticFuh = std::get_if<StaticFunctionHandle*>(&fuh)) {
         return (*staticFuh)->function;

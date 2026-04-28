@@ -2,16 +2,12 @@
 #include "RuntimeTypes.h"
 #include "asm_trampolines.h"
 #include "cjnative.h"
+#include "runtimesupport/impl/typeinfo_ext.h"
 #include "utils/assertion.h"
 
 namespace RTSupport {
 
 using Reference = Interpretation::Value::Reference;
-
-static MRTExport::type_info_t* MRTTypeInfo(TypeInfo typeInfo)
-{
-    return reinterpret_cast<MRTExport::type_info_t*>(typeInfo.Raw());
-}
 
 Reference Execution::ReadObjectInstance(Reference base, size_t offset, ThreadHandle th)
 {
@@ -62,7 +58,7 @@ MethodTable Execution::GetMethodTable(Reference base, int extDefNum, int methodN
 
 int Execution::GetFieldOffset(TypeInfo ti, int ordinal)
 {
-    auto mrtti = MRTTypeInfo(ti);
+    auto mrtti = UnpackTypeInfo(ti);
     ASSERT(ordinal < mrtti->field_num);
     return mrtti->field_offsets[ordinal];
 }

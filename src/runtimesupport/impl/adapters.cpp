@@ -44,4 +44,10 @@ void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* f
     return GetAddressOfDirectCallTrampoline(i);
 }
 
+void* Adapters::GetDynCallTrampoline(int fuhIdx)
+{
+    auto start = reinterpret_cast<char*>(&Asm::engine_trampolines_dyn_start);
+    return start + fuhIdx * DIRECT_CALL_TRAMPOLINE_SIZE;
+}
+
 } // namespace RTSupport

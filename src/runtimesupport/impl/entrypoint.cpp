@@ -67,7 +67,7 @@ CBC_EXPORT void* engine_get_entrypoint_trampoline(void)
     auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
 
     auto fuh = fuhManager.AcquireTagged(session, main.value());
-    return fuhManager.GetFunctionPtr(fuh);
+    return fuhManager.GetFunctionPtrForDirectCall(fuh);
 }
 
 CBC_EXPORT void interpreter_bridge_init(

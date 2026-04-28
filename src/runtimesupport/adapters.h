@@ -10,5 +10,6 @@ struct Adapters {
     static void* I2ICallInstance();
     static void* IregOnlyC2ICallInstance();
     static void* GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* fuh);
+    static void* GetDynCallTrampoline(int fuhIdx);
 };
 } // namespace RTSupport
