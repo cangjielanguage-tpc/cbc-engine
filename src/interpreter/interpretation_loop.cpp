@@ -744,5 +744,5 @@ OFFS_REG: {
 }
 
 Thunk Interpretation::InterpretationLoop(
-    Ectype* ectype, Frame* frame, RTSupport::ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
+    Ectype* ectype, Frame frame, RTSupport::ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
 ) __attribute__((alias("engine_interpretation_loop")));

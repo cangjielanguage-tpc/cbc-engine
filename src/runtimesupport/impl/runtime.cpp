@@ -2,6 +2,7 @@
 #include "RuntimeTypes.h"
 #include "asm_trampolines.h"
 #include "cjnative.h"
+#include "utils/assertion.h"
 
 namespace RTSupport {
 
@@ -29,17 +30,17 @@ void Execution::WriteObjectInstance(Reference base, size_t offset, Reference obj
     );
 }
 
-Reference Execution::ReadObject(uintptr_t base, size_t offset, ThreadHandle th)
+Reference Execution::ReadObjectStatic(void* location, ThreadHandle th)
 {
     return Reference { .value = reinterpret_cast<uintptr_t>(g_CJNativeInterfaceInstance.read_static_field(
-                           reinterpret_cast<MRTExport::field_ref_t>(base + offset)
+                           reinterpret_cast<MRTExport::field_ref_t>(location)
                        )) };
 }
 
-void Execution::WriteObject(uintptr_t base, size_t offset, Reference object, ThreadHandle th)
+void Execution::WriteObjectStatic(void* location, Reference object, ThreadHandle th)
 {
     g_CJNativeInterfaceInstance.write_static_field(
-        reinterpret_cast<MRTExport::field_ref_t>(base + offset), reinterpret_cast<MRTExport::obj_ref_t>(object.value)
+        reinterpret_cast<MRTExport::field_ref_t>(location), reinterpret_cast<MRTExport::obj_ref_t>(object.value)
     );
 }
 
@@ -57,6 +58,13 @@ MethodTable Execution::GetMethodTable(Reference base, int extDefNum, int methodN
     auto typeInfo                   = *header;
     auto target                     = typeInfo->v_extension_data_start[extDefNum]->func_table[methodNum];
     return MethodTable(target);
+}
+
+int Execution::GetFieldOffset(TypeInfo ti, int ordinal)
+{
+    auto mrtti = MRTTypeInfo(ti);
+    ASSERT(ordinal < mrtti->field_num);
+    return mrtti->field_offsets[ordinal];
 }
 
 } // namespace RTSupport

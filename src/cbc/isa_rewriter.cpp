@@ -11,10 +11,10 @@
 #include "engine/symlevel/terms.h"
 #include "interpreter/code.h"
 #include "utils/assertion.h"
+#include "utils/math.h"
 #include "utils/ostream.h"
 #include <cstddef>
 #include <cstdint>
-#include <iostream>
 #include <memory>
 #include <sys/types.h>
 
