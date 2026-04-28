@@ -171,8 +171,11 @@ static MethodTable BuildTable(Engine::Session& session, Engine::Identifier<TypeD
         table->allEntries.emplace_back(def, declaringTypeTerm);
     }
 
+    auto objClassTable = // FIXME: support super types (declaring type term of object is required)
+        std::make_unique<MethodSubTable::Impl>(table->allEntries, declaringTypeTerm, 0, 0, 0);
+
     auto classTable =
-        std::make_unique<MethodSubTable::Impl>(table->allEntries, declaringTypeTerm, 0, 0, table->allEntries.size());
+        std::make_unique<MethodSubTable::Impl>(table->allEntries, declaringTypeTerm, 1, 0, table->allEntries.size());
 
     table->classTables.emplace_back(std::move(classTable));
     return MethodTable(table);
