@@ -200,7 +200,10 @@ void Execution::WriteObjectStatic(void* location, Reference object, ThreadHandle
     *reinterpret_cast<uintptr_t*>(location) = object.value;
 }
 
-int Execution::GetFieldOffset(TypeInfo ti, int ordinal) { FATAL("Should not reach here. Get field offset"); }
+int Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool isRef)
+{
+    FATAL("Should not reach here. Get field offset");
+}
 
 TypeInfo Execution::GetTypeInfo(Reference base)
 {

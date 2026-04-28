@@ -62,7 +62,7 @@ struct Execution {
 
     static MethodTable GetMethodTable(Reference base, int extDefNum, int methodNum);
 
-    static int GetFieldOffset(TypeInfo ti, int ordinal);
+    static int GetFieldOffset(TypeInfo ti, int ordinal, bool isRef);
 };
 
 } // namespace RTSupport

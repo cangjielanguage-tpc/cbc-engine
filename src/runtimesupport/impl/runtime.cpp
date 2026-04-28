@@ -57,7 +57,7 @@ MethodTable Execution::GetMethodTable(Reference base, int extDefNum, int methodN
     return MethodTable(target);
 }
 
-int Execution::GetFieldOffset(TypeInfo ti, int ordinal)
+int Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool isRef)
 {
     auto mrtti = UnpackTypeInfo(ti);
     ASSERT(ordinal < mrtti->fieldNum);
