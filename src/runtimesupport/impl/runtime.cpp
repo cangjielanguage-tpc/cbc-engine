@@ -60,8 +60,9 @@ MethodTable Execution::GetMethodTable(Reference base, int extDefNum, int methodN
 int Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool isRef)
 {
     auto mrtti = UnpackTypeInfo(ti);
+    auto headerOffs = isRef ? 8 : 0;
     ASSERT(ordinal < mrtti->fieldNum);
-    return mrtti->fieldOffsets[ordinal];
+    return mrtti->fieldOffsets[ordinal] + headerOffs;
 }
 
 } // namespace RTSupport

@@ -237,13 +237,17 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             extDef.funcTableSize          = smt.EndPos() - smt.StartPos();
             extDef.argNum                 = 0;
             extDef.isInterfaceTypeInfo    = 1;
-            extDef.flag                   = 7; // FIXME: research how to properly implement this.
+            extDef.flag                   = 0b00000001; // FIXME: research how to properly implement this.
 
             extDef.ti = &currentTypeInfo->base;
 
             auto declaringTypeInfo = queryTypeInfo(smt.DeclaringType());
             if (declaringTypeInfo.has_value()) {
-                extDef.interfaceTypeInfo = UnpackTypeInfo(declaringTypeInfo.value());
+                auto unpacked            = UnpackTypeInfo(declaringTypeInfo.value());
+                extDef.interfaceTypeInfo = unpacked;
+                if (unpacked == &currentTypeInfo->base) {
+                    extDef.flag |= 0b10000000;
+                }
                 return true;
             } else {
                 return false;
