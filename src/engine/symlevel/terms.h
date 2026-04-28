@@ -181,6 +181,7 @@ private:
 class GlobalTerm {
 public:
     GlobalTerm(TermData* data) : data(data) {}
+
     GlobalTerm Subterm(uint32_t i) const;
 
 private:

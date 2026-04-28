@@ -35,7 +35,7 @@ private:
     Engine::Identifier<Symlevel::MethodDefinition> method;
 
     Type* Resolve(Symlevel::Term index);
-    
+
     template <typename T> T* ResolveField(Symlevel::Index<Symlevel::FieldReference> index);
 };
 

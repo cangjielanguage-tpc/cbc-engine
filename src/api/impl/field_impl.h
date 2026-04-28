@@ -33,8 +33,13 @@ private:
 
 class StaticFieldImpl : public StaticField {
 public:
-    StaticFieldImpl(uintptr_t location, Symlevel::String name, FieldFlags flags, 
-        std::optional<Type*> fieldType = std::nullopt, std::optional<Type*> refType = std::nullopt);
+    StaticFieldImpl(
+        uintptr_t location,
+        Symlevel::String name,
+        FieldFlags flags,
+        std::optional<Type*> fieldType = std::nullopt,
+        std::optional<Type*> refType   = std::nullopt
+    );
 
     std::optional<Type*> FieldType() override { return fieldType; }
 
@@ -44,9 +49,10 @@ public:
 
     FieldFlags Flags() override { return flags; }
 
-    std::uintptr_t Location() override {
-        ASSERTION(location != 0, "static field ref points to incorrect location"); 
-        return location; 
+    std::uintptr_t Location() override
+    {
+        ASSERTION(location != 0, "static field ref points to incorrect location");
+        return location;
     }
 
 private:

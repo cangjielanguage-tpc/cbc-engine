@@ -42,7 +42,7 @@ struct Thunk {
 /// differs from the ASM in the unit test framework.
 template <typename RTI>
 Thunk InterpretationLoop(
-    Ectype* ectype, Frame* frame, RTSupport::ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
+    Ectype* ectype, Frame frame, RTSupport::ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
 )
 {
 #define NEXT goto* MAIN_TABLE[reader.PeekOpcode()]
@@ -183,6 +183,17 @@ Thunk InterpretationLoop(
         &&FST_REF, // M2rr
         &&FST_F32, // M2rr
         &&FST_F64, // M2rr
+
+        &&FSTI_8_8,   // M2i8
+        &&FSTI_16_8,  // M2i8
+        &&FSTI_16_16, // M3i16
+        &&FSTI_32_8,  // M2i8
+        &&FSTI_32_16, // M3i16
+        &&FSTI_32_32, // M5i32
+        &&FSTI_64_8,  // M2i8
+        &&FSTI_64_16, // M3i16
+        &&FSTI_64_32, // M5i32
+        &&FSTI_64_64, // M9i64
 
     };
 
@@ -718,6 +729,26 @@ OFFS_REG: {
     FST(F32)
     FST(F64)
 #undef FST
+
+#define FSTI(memSize, immSize, encoding)                                                                               \
+    FSTI_##memSize##_##immSize:                                                                                        \
+    {                                                                                                                  \
+        auto args       = encoding::Decode(reader);                                                                    \
+        uint64_t imm    = MathUtils::SignExtend(static_cast<uint64_t>(args.imm##immSize), immSize);                    \
+        bool successful = interpreter.StoreFrameImm(Format::StoreAccessKind::ST_##memSize, imm, memspaceOffsetAcc);    \
+        NEXT_COND(successful);                                                                                         \
+    }
+    FSTI(8, 8, M2i8)
+    FSTI(16, 8, M2i8)
+    FSTI(16, 16, M3i16)
+    FSTI(32, 8, M2i8)
+    FSTI(32, 16, M3i16)
+    FSTI(32, 32, M5i32)
+    FSTI(64, 8, M2i8)
+    FSTI(64, 16, M3i16)
+    FSTI(64, 32, M5i32)
+    FSTI(64, 64, M9i64)
+#undef FSTI
 
 #undef MEM_NEXT
 #undef NEXT

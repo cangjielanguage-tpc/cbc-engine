@@ -29,17 +29,17 @@ struct Operand {
 
     uint64_t U64() { return static_cast<uint32_t>(value); }
 
-    Format::LoadAccessKind Ldk() { return Format::LoadAccessKind(U8()); }
+    Format::LoadAccessKind Ldk() { return Format::LoadAccessKind::From(U8()); }
 
-    Cbc::Format::StoreAccessKind Stk() { return Format::StoreAccessKind::Value(U8()); }
+    Format::StoreAccessKind Stk() { return Format::StoreAccessKind::From(U8()); }
 
-    Format::Common Bin() { return Format::Common::Value(U8()); }
+    Format::Common Bin() { return Format::Common::From(U8()); }
 
-    Format::FloatOperations Fop() { return Format::FloatOperations(U8()); }
+    Format::FloatOperations Fop() { return Format::FloatOperations::From(U8()); }
 
-    Format::CC CC() { return Format::CC(U8()); }
+    Format::CC CC() { return Format::CC::From(U8()); }
 
-    Format::ConvertType Ct() { return Format::ConvertType(U8()); }
+    Format::ConvertType Ct() { return Format::ConvertType::From(U8()); }
 
     IReg IR() { return IReg::From(U32() & 0xf); }
 
@@ -370,6 +370,13 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M2rr args)
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M2xr args)
 {
     Operand operands[] = { args.xr.imm, args.xr.r };
+    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
+    formatter.Format();
+}
+
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M2i8 args)
+{
+    Operand operands[] = { args.imm8 };
     Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }

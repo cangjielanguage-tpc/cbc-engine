@@ -118,7 +118,17 @@
     X(FST_64, M2rr, "fst.64 $0ir $1ir }", true)                                                                        \
     X(FST_REF, M2rr, "fst.ref $0ir $1ir }", true)                                                                      \
     X(FST_F32, M2rr, "fst.f32 $0fr $1ir }", true)                                                                      \
-    X(FST_F64, M2rr, "fst.f64 $0fr $1ir }", true)
+    X(FST_F64, M2rr, "fst.f64 $0fr $1ir }", true)                                                                      \
+    X(FSTI_8_8, M2i8, "fsti.8.8 $0U8}", true)                                                                          \
+    X(FSTI_16_8, M2i8, "fsti.16.8 $0U8}", true)                                                                        \
+    X(FSTI_16_16, M3i16, "fsti.16.16 $0U16}", true)                                                                    \
+    X(FSTI_32_8, M2i8, "fsti.32.8 $0U8}", true)                                                                        \
+    X(FSTI_32_16, M3i16, "fsti.32.16 $0U16}", true)                                                                    \
+    X(FSTI_32_32, M5i32, "fsti.32.32 $0U32}", true)                                                                    \
+    X(FSTI_64_8, M2i8, "fsti.64.8 $0U8}", true)                                                                        \
+    X(FSTI_64_16, M3i16, "fsti.64.16 $0U16}", true)                                                                    \
+    X(FSTI_64_32, M5i32, "fsti.64.32 $0U32}", true)                                                                    \
+    X(FSTI_64_64, M9i64, "fsti.64.64 $0U64}", true)
 
 namespace Cbc {
 namespace RT {
@@ -180,18 +190,20 @@ public:
 
 #undef DEFINE_OPCODE
 
-    static constexpr auto RLD_START_OPCODE = RLD_U8;
-    static constexpr auto RLD_END_OPCODE   = RLD_REF;
-    static constexpr auto SLD_START_OPCODE = SLD_U8;
-    static constexpr auto SLD_END_OPCODE   = SLD_REF;
-    static constexpr auto FLD_START_OPCODE = FLD_U8;
-    static constexpr auto FLD_END_OPCODE   = FLD_REF;
-    static constexpr auto RST_START_OPCODE = RST_8;
-    static constexpr auto RST_END_OPCODE   = RST_F64;
-    static constexpr auto SST_START_OPCODE = SST_8;
-    static constexpr auto SST_END_OPCODE   = SST_F64;
-    static constexpr auto FST_START_OPCODE = FST_8;
-    static constexpr auto FST_END_OPCODE   = FST_F64;
+    static constexpr auto RLD_START_OPCODE  = RLD_U8;
+    static constexpr auto RLD_END_OPCODE    = RLD_REF;
+    static constexpr auto SLD_START_OPCODE  = SLD_U8;
+    static constexpr auto SLD_END_OPCODE    = SLD_REF;
+    static constexpr auto FLD_START_OPCODE  = FLD_U8;
+    static constexpr auto FLD_END_OPCODE    = FLD_REF;
+    static constexpr auto RST_START_OPCODE  = RST_8;
+    static constexpr auto RST_END_OPCODE    = RST_F64;
+    static constexpr auto SST_START_OPCODE  = SST_8;
+    static constexpr auto SST_END_OPCODE    = SST_F64;
+    static constexpr auto FST_START_OPCODE  = FST_8;
+    static constexpr auto FST_END_OPCODE    = FST_F64;
+    static constexpr auto FSTI_START_OPCODE = FSTI_8_8;
+    static constexpr auto FSTI_END_OPCODE   = FSTI_64_64;
 
     static_assert(OPCODE_NUM <= 256);
 
@@ -410,6 +422,18 @@ struct M1 {
     MemOpcode opc;
 
     static M1 Decode(Decoder::ByteReader& reader) { return M1 { MemOpcode::Decode(reader) }; }
+};
+
+struct M2i8 {
+    MemOpcode opc;
+    uint8_t imm8;
+
+    inline static M2i8 Decode(Decoder::ByteReader& reader)
+    {
+        auto opc  = MemOpcode::Decode(reader);
+        auto imm8 = reader.Read8();
+        return M2i8 { opc, imm8 };
+    }
 };
 
 struct M3i16 {

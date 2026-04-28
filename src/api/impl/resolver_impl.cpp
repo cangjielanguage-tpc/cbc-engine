@@ -2,8 +2,8 @@
 #include "engine/identifiers.h"
 #include "engine/symlevel/aot_table.h"
 #include "engine/symlevel/definitions.h"
-#include "engine/symlevel/method_table.h"
 #include "engine/symlevel/dependencies.h"
+#include "engine/symlevel/method_table.h"
 #include "engine/symlevel/reader.h"
 #include "engine/symlevel/references.h"
 #include "engine/symlevel/region_data.h"
@@ -68,7 +68,8 @@ Type* ResolverImpl::Resolve(Symlevel::Term term)
         }
         default: {
             FATAL("Not supported yet");
-            return nullptr;;
+            return nullptr;
+            ;
         }
     }
 
@@ -178,8 +179,7 @@ DirectMethod* ResolverImpl::ResolveDirectMethod(Symlevel::Index<Symlevel::Method
     }
 }
 
-template <typename T>
-T* ResolverImpl::ResolveField(Symlevel::Index<Symlevel::FieldReference> index)
+template <typename T> T* ResolverImpl::ResolveField(Symlevel::Index<Symlevel::FieldReference> index)
 {
     static_assert(std::is_same_v<T, InstanceFieldImpl> || std::is_same_v<T, StaticFieldImpl>);
     using namespace Symlevel;
@@ -205,7 +205,7 @@ T* ResolverImpl::ResolveField(Symlevel::Index<Symlevel::FieldReference> index)
             );
 
             if constexpr (std::is_same_v<T, InstanceFieldImpl>) {
-                Type* refType    = Resolve(fieldRef.RefType());
+                Type* refType = Resolve(fieldRef.RefType());
 
                 InstanceFieldAotData data = cbcFile.GetInstanceFieldAotTable().GetData(session, index).value();
 

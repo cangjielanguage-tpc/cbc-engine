@@ -2,8 +2,8 @@
 
 #include "RTInterface.h"
 #include "asm_trampolines.h"
-#include "cbc_engine.h"
 #include "cbc/isa_disasm.h"
+#include "cbc_engine.h"
 #include "cjnative.h"
 #include "engine/engine.h"
 #include "engine/symlevel/io/filesystem.h"

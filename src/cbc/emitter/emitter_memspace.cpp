@@ -141,5 +141,66 @@ void MemSpaceEmitter::StoreFrame(StoreAccessKind stk, Reg src)
     LoadStore(stk, src, IReg::IRZ, opc);
 }
 
+static RT::MemOpcode ComputeStoreImmStart(Format::StoreAccessKind stk, RT::MemOpcode start)
+{
+    uint8_t delta = 0;
+    switch (stk) {
+        case StoreAccessKind::ST_8:  break;
+        case StoreAccessKind::ST_16: delta = 1; break;
+        case StoreAccessKind::ST_32: delta = 3; break;
+        case StoreAccessKind::ST_64: delta = 6; break;
+        default:                     FATAL("unexpected stk: %d", stk);
+    }
+    return RT::MemOpcode(start + delta);
+}
+
+void MemSpaceEmitter::StoreFrameImm(StoreAccessKind stk, uint64_t imm)
+{
+    RT::MemOpcode opcStart = ComputeStoreImmStart(stk, RT::MemOpcode::FSTI_START_OPCODE);
+
+    if (MathUtils::IsNBitsSigned(imm, 8)) {
+        ASSERT(opcStart <= RT::MemOpcode::FSTI_END_OPCODE);
+        Encode(
+            segment,
+            RT::M2i8 {
+                .opc  = opcStart,
+                .imm8 = static_cast<uint8_t>(imm),
+            }
+        );
+    } else if (MathUtils::IsNBitsSigned(imm, 16)) {
+        RT::MemOpcode opc = RT::MemOpcode(opcStart + 1);
+        ASSERT(stk != StoreAccessKind::ST_8 && opc <= RT::MemOpcode::FSTI_END_OPCODE);
+        Encode(
+            segment,
+            RT::M3i16 {
+                .opc   = opc,
+                .imm16 = static_cast<uint16_t>(imm),
+            }
+        );
+    } else if (MathUtils::IsNBitsSigned(imm, 32)) {
+        RT::MemOpcode opc = RT::MemOpcode(opcStart + 2);
+        ASSERT(
+            (stk == StoreAccessKind::ST_32 || stk == StoreAccessKind::ST_64) && opc <= RT::MemOpcode::FSTI_END_OPCODE
+        );
+        Encode(
+            segment,
+            RT::M5i32 {
+                .opc   = opc,
+                .imm32 = static_cast<uint32_t>(imm),
+            }
+        );
+    } else {
+        RT::MemOpcode opc = RT::MemOpcode(opcStart + 3);
+        ASSERT(stk == StoreAccessKind::ST_64 && opc <= RT::MemOpcode::FSTI_END_OPCODE);
+        Encode(
+            segment,
+            RT::M9i64 {
+                .opc   = opc,
+                .imm64 = imm,
+            }
+        );
+    }
+}
+
 } // namespace Emitter
 } // namespace Cbc

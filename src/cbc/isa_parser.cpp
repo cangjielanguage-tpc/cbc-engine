@@ -77,6 +77,10 @@ public:
 
     inline operator CC() { return CC::From(*this); }
 
+    inline operator LoadAccessKind() { return LoadAccessKind::From(*this); }
+
+    inline operator StoreAccessKind() { return StoreAccessKind::From(*this); }
+
     inline operator Common() { return Common::From(*this); }
 
     inline operator RegSymGroup() { return RegSymGroup::From(*this); }
@@ -484,6 +488,24 @@ struct IsaParserImpl {
     {
         auto [op, dst, lhs, rhs] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
         parser.FloatBinary(op, width, dst, lhs, rhs);
+    }
+
+    static void LoadUntyped(IsaParser& parser)
+    {
+        auto [dst, ldk, us] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.LoadUntyped(dst, ldk, us);
+    }
+
+    static void StoreUntyped(IsaParser& parser)
+    {
+        auto [src, stk, us] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.StoreUntyped(src, stk, us);
+    }
+
+    static void StoreUntypedImm(IsaParser& parser)
+    {
+        auto [us, imm] = ByteReaderM(parser.reader).ReadU16().ReadSLEB().Get();
+        parser.StoreUntypedImm(imm, us);
     }
 
     template <Width::Value width, CC::Value value>

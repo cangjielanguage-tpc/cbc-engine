@@ -81,7 +81,8 @@ public:
 
     int32_t Size() const override { return 2; }
 
-    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter) const override
+    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+        const override
     {
         ASSERT(position >= 0);
         Segment::View buf = segment.At(static_cast<size_t>(position));
@@ -97,9 +98,8 @@ public:
 
     int32_t Size() const override { return 2; }
 
-    void Resolve(
-        Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter
-    ) const override
+    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+        const override
     {
         ASSERT(position >= 0);
         Segment::View buf = segment.At(static_cast<size_t>(position));
@@ -122,9 +122,8 @@ public:
 
     int32_t Size() const override { return RT::B5i32::SIZE; }
 
-    void Resolve(
-        Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter
-    ) const override
+    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+        const override
     {
         int32_t distance = Distance(symbols, this->symbol);
 
@@ -158,9 +157,8 @@ public:
         }
     }
 
-    void Resolve(
-        Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter
-    ) const override
+    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+        const override
     {
         int32_t distance = Distance(symbols, this->symbol);
 
@@ -213,9 +211,8 @@ public:
         }
     }
 
-    void Resolve(
-        Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter
-    ) const override
+    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+        const override
     {
         int32_t distance = Distance(symbols, this->symbol);
 
@@ -494,20 +491,14 @@ void Emitter::NewObj(IReg d, Symbol sym)
 void Emitter::LoadStatic(LoadAccessKind ldk, Reg dst, Symbol offSym)
 {
     LoadAccessKind::Value kind = ldk;
-    Encode(segment, RT::B2xr {
-        .opc = RT::Opcode::LOAD_ADDR,
-        .xr = { .imm = kind, .r = dst }
-    });
+    Encode(segment, RT::B2xr { .opc = RT::Opcode::LOAD_ADDR, .xr = { .imm = kind, .r = dst } });
     AddFixup(std::make_unique<LiteralFixup>(offSym));
 }
 
 void Emitter::StoreStatic(StoreAccessKind sdk, Reg src, Symbol offSym)
 {
     StoreAccessKind::Value kind = sdk;
-    Encode(segment, RT::B2xr {
-        .opc = RT::Opcode::STORE_ADDR,
-        .xr = { .imm = kind, .r = src }
-    });
+    Encode(segment, RT::B2xr { .opc = RT::Opcode::STORE_ADDR, .xr = { .imm = kind, .r = src } });
     AddFixup(std::make_unique<LiteralFixup>(offSym));
 }
 
@@ -595,6 +586,13 @@ void Emitter::StoreFrame(StoreAccessKind stk, Reg src, uint32_t offset)
         ms.Offset(offset);
         ms.StoreFrame(stk, src);
     }
+}
+
+void Emitter::StoreFrameImm(StoreAccessKind stk, uint64_t imm, uint32_t offset)
+{
+    auto ms = OpenMemSpace();
+    ms.Offset(offset);
+    ms.StoreFrameImm(stk, imm);
 }
 
 void Emitter::SCC(CC cc, Width width, IReg d, IReg l, IReg r)

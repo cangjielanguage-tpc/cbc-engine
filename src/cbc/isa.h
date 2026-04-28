@@ -392,7 +392,7 @@ public:
 #define FloatOperationsEnum(opc, value, str) opc = value,
 
     enum Value : uint32_t {
-        FloatOperationsValue(FloatOperationsEnum)
+        FloatOperationsValue(FloatOperationsEnum) LAST = FSQRT
     };
 
 #undef FloatOperationsEnum
@@ -401,9 +401,13 @@ public:
 
     constexpr FloatOperations(const Value raw) : _value(raw) {}
 
-    constexpr FloatOperations(const uint32_t bits) : _value(Value(bits)) {}
-
     constexpr operator Value() const { return _value; }
+
+    constexpr static FloatOperations From(uint8_t value)
+    {
+        ASSERT(value <= LAST);
+        return Value(value);
+    }
 
     constexpr bool IsBasic() { return (_value >> 2u) == 0; }
 
@@ -532,14 +536,18 @@ public:
 #define StoreAccessKindEnum(opc, value, str) opc = value,
 
     enum Value : uint8_t {
-        StoreAccessKindValue(StoreAccessKindEnum)
+        StoreAccessKindValue(StoreAccessKindEnum) LAST = ST_F64
     };
 
 #undef StoreAccessKindEnum
 
-    constexpr StoreAccessKind(const uint8_t raw) : _value((Value)raw) {}
-
     constexpr StoreAccessKind(const Value raw) : _value(raw) {}
+
+    constexpr static StoreAccessKind From(uint8_t value)
+    {
+        ASSERT(value <= LAST);
+        return Value(value);
+    }
 
     constexpr operator Value() const { return _value; }
 
@@ -585,14 +593,18 @@ public:
 #define LoadAccessKindEnum(opc, value, str) opc = value,
 
     enum Value : uint8_t {
-        LoadAccessKindValue(LoadAccessKindEnum)
+        LoadAccessKindValue(LoadAccessKindEnum) LAST = LD_REF
     };
 
 #undef LoadAccessKindEnum
 
-    constexpr LoadAccessKind(const uint8_t raw) : _value((Value)raw) {}
-
     constexpr LoadAccessKind(const Value raw) : _value(raw) {}
+
+    constexpr static LoadAccessKind From(uint8_t value)
+    {
+        ASSERT(value <= LAST);
+        return Value(value);
+    }
 
     constexpr operator Value() const { return _value; }
 
@@ -664,17 +676,17 @@ public:
 
     inline operator uint8_t() const { return imm; }
 
-    inline Format::CC CC() const { return Format::CC(imm); }
+    inline Format::CC CC() const { return Format::CC::From(imm); }
 
-    inline Format::Common Common() const { return Format::Common::Value(imm); }
+    inline Format::Common Common() const { return Format::Common::From(imm); }
 
-    inline Format::ConvertType ConvertType() const { return Format::ConvertType::Value(imm); }
+    inline Format::ConvertType ConvertType() const { return Format::ConvertType::From(imm); }
 
-    inline Format::FloatOperations FloatOperations() const { return Format::FloatOperations(imm); }
+    inline Format::FloatOperations FloatOperations() const { return Format::FloatOperations::From(imm); }
 
-    inline Format::StoreAccessKind STK() const { return Format::StoreAccessKind::Value(imm); }
+    inline Format::StoreAccessKind STK() const { return Format::StoreAccessKind::From(imm); }
 
-    inline Format::LoadAccessKind LDK() const { return Format::LoadAccessKind(imm); }
+    inline Format::LoadAccessKind LDK() const { return Format::LoadAccessKind::From(imm); }
 
     inline IReg IR() const { return IReg::From(imm); }
 

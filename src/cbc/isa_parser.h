@@ -80,6 +80,10 @@ protected:
     virtual void ArrayLength(IReg dst, IReg arr)          = 0;
     virtual void ArrayIndexCheck(IReg length, IReg index) = 0;
 
+    virtual void LoadUntyped(AnyReg dst, Format::LoadAccessKind ldk, uint16_t us)   = 0;
+    virtual void StoreUntyped(AnyReg src, Format::StoreAccessKind stk, uint16_t us) = 0;
+    virtual void StoreUntypedImm(uint64_t imm, uint16_t us)                         = 0;
+
     friend class IsaParserImpl;
     Decoder::FatByteReader reader;
 };

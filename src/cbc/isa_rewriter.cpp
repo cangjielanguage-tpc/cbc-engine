@@ -3,13 +3,18 @@
 #include "api/resolver.h"
 #include "api/type.h"
 #include "cbc/emitter/emitter.h"
+#include "cbc/frame.h"
 #include "cbc/isa.h"
+#include "cbc/isa_disasm.h"
 #include "engine/symlevel/index.h"
 #include "engine/symlevel/references.h"
 #include "engine/symlevel/terms.h"
+#include "interpreter/code.h"
 #include "utils/assertion.h"
+#include "utils/ostream.h"
 #include <cstddef>
 #include <cstdint>
+#include <iostream>
 #include <memory>
 #include <sys/types.h>
 
@@ -303,6 +308,23 @@ struct IsaRewriter : public IsaParser {
 
     void ArrayIndexCheck(IReg length, IReg index) override { FATAL("not implemented"); }
 
+    uint32_t UntypedSlotOffset(uint16_t us) { return us * STACK_SLOT_SIZE; }
+
+    void LoadUntyped(AnyReg dst, Format::LoadAccessKind ldk, uint16_t us) override
+    {
+        emit.LoadFrame(ldk, Format::Reg(dst), UntypedSlotOffset(us));
+    }
+
+    void StoreUntyped(AnyReg src, Format::StoreAccessKind stk, uint16_t us) override
+    {
+        emit.StoreFrame(stk, Format::Reg(src), UntypedSlotOffset(us));
+    }
+
+    void StoreUntypedImm(uint64_t imm, uint16_t us) override
+    {
+        emit.StoreFrameImm(Format::StoreAccessKind::ST_64, imm, UntypedSlotOffset(us));
+    }
+
     void ParseOne() override
     {
         auto position = reader.Cursor() - reader.Start();
@@ -312,9 +334,37 @@ struct IsaRewriter : public IsaParser {
     }
 };
 
-std::unique_ptr<IsaParser> Rewriter(API::Resolver& resolver, MethodCode code, Emitter::Emitter& e)
+static std::unique_ptr<IsaParser> Rewriter(API::Resolver& resolver, MethodCode code, Emitter::Emitter& e)
 {
     return std::make_unique<IsaRewriter>(resolver, code, e);
+}
+
+static uint32_t CalcFrameSize(Symlevel::Code code)
+{
+    auto stackAllocSize = Cbc::STACK_SLOT_SIZE * (code.UntypedSlotCount()); // TODO: typed stack slots
+    return MathUtils::AlignUp(stackAllocSize, Cbc::FRAME_ALIGNMENT);
+}
+
+Interpretation::ExecBytecodeInfo Rewrite(MethodCode code, API::Resolver& resolver, Memory::Heap& heap)
+{
+    if (IsDisasmEnabled()) {
+        Disasm(Stream::Disasm::isa, code, &resolver)->ParseAll();
+    }
+
+    Emitter::Emitter emitter;
+    Rewriter(resolver, code, emitter)->ParseAll();
+
+    auto rewrittenCode = emitter.Build(heap);
+    auto frameSize     = CalcFrameSize(code);
+
+    return Interpretation::ExecBytecodeInfo {
+        .code             = rewrittenCode,
+        .savedIRegs       = code.UsedNonVolIRegMask(),
+        .savedFRegs       = code.UsedNonVolFRegMask(),
+        .untypedSlotCount = static_cast<uint16_t>(code.UntypedSlotCount()),
+        .frameSize        = frameSize,
+        // TODO: initialize rest
+    };
 }
 
 } // namespace Cbc

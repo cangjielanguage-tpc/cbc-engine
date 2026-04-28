@@ -282,78 +282,66 @@ static void testInteger(IntegerTest desc)
 
 TEST_F(MemoryAccess, SpaceS8)
 {
-    testInteger(
-        IntegerTest { .ldk    = Format::LoadAccessKind::LD_S8,
-                      .stk    = Format::StoreAccessKind::ST_8,
-                      .size   = 1,
-                      .ir1    = static_cast<uint64_t>(-3),
-                      .ir2    = static_cast<uint64_t>(-9),
-                      .expect = 3 }
-    );
+    testInteger(IntegerTest { .ldk    = Format::LoadAccessKind::LD_S8,
+                              .stk    = Format::StoreAccessKind::ST_8,
+                              .size   = 1,
+                              .ir1    = static_cast<uint64_t>(-3),
+                              .ir2    = static_cast<uint64_t>(-9),
+                              .expect = 3 });
 }
 
 TEST_F(MemoryAccess, SpaceS16)
 {
-    testInteger(
-        IntegerTest { .ldk    = Format::LoadAccessKind::LD_S16,
-                      .stk    = Format::StoreAccessKind::ST_16,
-                      .size   = 2,
-                      .ir1    = static_cast<uint64_t>(-3000),
-                      .ir2    = static_cast<uint64_t>(-12000),
-                      .expect = 4 }
-    );
+    testInteger(IntegerTest { .ldk    = Format::LoadAccessKind::LD_S16,
+                              .stk    = Format::StoreAccessKind::ST_16,
+                              .size   = 2,
+                              .ir1    = static_cast<uint64_t>(-3000),
+                              .ir2    = static_cast<uint64_t>(-12000),
+                              .expect = 4 });
 }
 
 TEST_F(MemoryAccess, SpaceS32)
 {
-    testInteger(
-        IntegerTest { .ldk    = Format::LoadAccessKind::LD_S32TO64,
-                      .stk    = Format::StoreAccessKind::ST_32,
-                      .size   = 4,
-                      .ir1    = static_cast<uint64_t>(-30000000),
-                      .ir2    = static_cast<uint64_t>(-60000000),
-                      .expect = 2 }
-    );
+    testInteger(IntegerTest { .ldk    = Format::LoadAccessKind::LD_S32TO64,
+                              .stk    = Format::StoreAccessKind::ST_32,
+                              .size   = 4,
+                              .ir1    = static_cast<uint64_t>(-30000000),
+                              .ir2    = static_cast<uint64_t>(-60000000),
+                              .expect = 2 });
 }
 
 TEST_F(MemoryAccess, SpaceU8)
 {
     auto lhs = static_cast<uint64_t>(-6);
     auto rhs = static_cast<uint64_t>(-3);
-    testInteger(
-        IntegerTest { .ldk    = Format::LoadAccessKind::LD_U8,
-                      .stk    = Format::StoreAccessKind::ST_8,
-                      .size   = 8,
-                      .ir1    = rhs,
-                      .ir2    = lhs,
-                      .expect = lhs / rhs }
-    );
+    testInteger(IntegerTest { .ldk    = Format::LoadAccessKind::LD_U8,
+                              .stk    = Format::StoreAccessKind::ST_8,
+                              .size   = 8,
+                              .ir1    = rhs,
+                              .ir2    = lhs,
+                              .expect = lhs / rhs });
 }
 
 TEST_F(MemoryAccess, Space64)
 {
-    testInteger(
-        IntegerTest { .ldk    = Format::LoadAccessKind::LD_64,
-                      .stk    = Format::StoreAccessKind::ST_64,
-                      .size   = 8,
-                      .ir1    = static_cast<uint64_t>(-3000000000000000l),
-                      .ir2    = static_cast<uint64_t>(-6000000000000000l),
-                      .expect = 2 }
-    );
+    testInteger(IntegerTest { .ldk    = Format::LoadAccessKind::LD_64,
+                              .stk    = Format::StoreAccessKind::ST_64,
+                              .size   = 8,
+                              .ir1    = static_cast<uint64_t>(-3000000000000000l),
+                              .ir2    = static_cast<uint64_t>(-6000000000000000l),
+                              .expect = 2 });
 }
 
 TEST_F(MemoryAccess, SpaceU32)
 {
     uint64_t lhs = static_cast<uint32_t>(-300000000);
     auto rhs     = static_cast<uint64_t>(40);
-    testInteger(
-        IntegerTest { .ldk    = Format::LoadAccessKind::LD_32,
-                      .stk    = Format::StoreAccessKind::ST_32,
-                      .size   = 8,
-                      .ir1    = rhs,
-                      .ir2    = lhs,
-                      .expect = lhs / rhs }
-    );
+    testInteger(IntegerTest { .ldk    = Format::LoadAccessKind::LD_32,
+                              .stk    = Format::StoreAccessKind::ST_32,
+                              .size   = 8,
+                              .ir1    = rhs,
+                              .ir2    = lhs,
+                              .expect = lhs / rhs });
 }
 
 TEST_F(MemoryAccess, Fallback)
@@ -456,7 +444,7 @@ TEST_F(MemoryAccess, TestFrameSpace)
     e.Add(Width::W64, IReg::IR1, IReg::IR6, IReg::IR7);
     e.Ret();
 
-    auto res = Interpret(e.Build(heap), &frame, U32(0), U64(0));
+    auto res = Interpret(e.Build(heap), frame, U32(0), U64(0));
     EXPECT_EQ(*reinterpret_cast<long*>(frameSlots), 42);
     EXPECT_EQ(*reinterpret_cast<int*>(frameSlots + 16), 34);
     EXPECT_EQ(res.u64, 76);
@@ -481,8 +469,51 @@ TEST_F(MemoryAccess, TestFrame)
     e.Add(Width::W64, IReg::IR1, IReg::IR6, IReg::IR7);
     e.Ret();
 
-    auto res = Interpret(e.Build(heap), &frame, U32(0), U64(0));
+    auto res = Interpret(e.Build(heap), frame, U32(0), U64(0));
     EXPECT_EQ(*reinterpret_cast<long*>(frameSlots), 42);
     EXPECT_EQ(*reinterpret_cast<int*>(frameSlots + 16), 34);
     EXPECT_EQ(res.u64, 76);
+}
+
+TEST_F(MemoryAccess, TestFrameImm)
+{
+    uint64_t frameSlots[10];
+    auto frameStart = reinterpret_cast<uintptr_t>(&frameSlots);
+    Interpretation::Frame frame { frameStart };
+
+    Cbc::Emitter::Emitter e;
+
+    e.StoreFrameImm(Format::StoreAccessKind::ST_8, 1, 0);
+    e.StoreFrameImm(Format::StoreAccessKind::ST_8, 2, 1);
+    e.StoreFrameImm(Format::StoreAccessKind::ST_16, 3, 2);
+    e.StoreFrameImm(Format::StoreAccessKind::ST_32, 4, 4);
+    e.StoreFrameImm(Format::StoreAccessKind::ST_64, 8, 8);
+
+    e.StoreFrameImm(Format::StoreAccessKind::ST_16, 0xfffffffffffff000, 16);
+    e.StoreFrameImm(Format::StoreAccessKind::ST_16, 0xfff, 18);
+    e.StoreFrameImm(Format::StoreAccessKind::ST_32, 0x1234, 20);
+    e.StoreFrameImm(Format::StoreAccessKind::ST_64, 0x4321, 24);
+
+    e.StoreFrameImm(Format::StoreAccessKind::ST_32, 0xfffffffff0000000, 32);
+    e.StoreFrameImm(Format::StoreAccessKind::ST_32, 0xfffffff, 36);
+    e.StoreFrameImm(Format::StoreAccessKind::ST_64, 0x1fffffff, 40);
+
+    e.StoreFrameImm(Format::StoreAccessKind::ST_64, 0x1fffffffffffffff, 48);
+
+    e.Ret();
+
+    auto code = e.Build(heap);
+    auto res  = Interpret(code, frame, U32(0), U64(0));
+
+    EXPECT_EQ(
+        code.bytecodeSize, 13 * 4 + 5 * 2 + 4 * 3 + 3 * 5 + 1 * 9 + 1
+    ); // 13x(MemOpen+Offs) + 5xM2i8 + 4xM3i16 + 3xM5i32 + 1xM9i64 + Ret
+
+    EXPECT_EQ(frameSlots[0], 0x0000000400030201);
+    EXPECT_EQ(frameSlots[1], 0x0000000000000008);
+    EXPECT_EQ(frameSlots[2], 0x000012340ffff000);
+    EXPECT_EQ(frameSlots[3], 0x0000000000004321);
+    EXPECT_EQ(frameSlots[4], 0x0ffffffff0000000);
+    EXPECT_EQ(frameSlots[5], 0x000000001fffffff);
+    EXPECT_EQ(frameSlots[6], 0x1fffffffffffffff);
 }
