@@ -134,7 +134,7 @@ std::optional<TypeDefinition> Engine::FindType(Session& session, std::string_vie
 
 std::optional<Identifier<MethodDefinition>> Engine::FindMain(Session& session, std::string_view filePath)
 {
-    return FindMethod(session, filePath, "default", "main");
+    return FindMain(session, filePath);
 }
 
 std::optional<Identifier<MethodDefinition>> Engine::FindMethod(

@@ -30,7 +30,7 @@ static void CompareWith(std::string_view fileName, std::string const& expected)
     auto& engine = loader.Build();
     Engine::Session session(engine);
 
-    auto mainId = engine.FindMethod(session, fileName, "default", "main");
+    auto mainId = engine.FindMain(session, fileName);
     ASSERT_TRUE(mainId.has_value());
 
     auto def  = Symlevel::MethodDefinition::Resolve(session, mainId.value());
