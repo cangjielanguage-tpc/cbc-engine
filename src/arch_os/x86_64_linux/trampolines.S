@@ -87,6 +87,7 @@ engine_trampolines_dyn_start:
 
 #define TLS_REG r15
 #define ECTYPE_REG rbx
+#define LITERALS_REG r14
 
 .align 16
 // System-V abi, except r15 can be changed after context-switches
@@ -185,10 +186,10 @@ perform_2i_call:
   push  rbp
   mov   rbp, rsp
   push  rdi // rbp - 0x8 : FunctionHandle for frame scanning
-  push  rdi // rbp - 0x10 : location for frame base
+  push  ECTYPE_REG // rbp - 0x10
+  push  LITERALS_REG // rbp - 0x18
 
-.set FRAME_BASE_SLOT, 0x10
-.set SLOT_OFFS,   FRAME_BASE_SLOT
+.set SLOT_OFFS,   0x18
 .set OFFS_ADDEND, 0x0
 
 .macro declare_slot var, size
@@ -202,7 +203,7 @@ perform_2i_call:
   declare_slot READER_SLOT, 0x8
 #endif
 
-// align stack
+  // align stack
   .if OFFS_ADDEND % 0x10 != 0
     .set OFFS_ADDEND, OFFS_ADDEND + 0x8
   .endif
@@ -226,7 +227,6 @@ perform_2i_call:
   call  engine_prepare_bytecode
 .Lhave_bytecode:
 
-#define LITERALS_REG r14
   mov   LITERALS_REG, [rax + EXEC_BYTECODE_INFO_LITERALS_OFFSET]
   mov   rsi, [rax + EXEC_BYTECODE_INFO_BYTECODE_OFFSET]
 #ifndef NDEBUG
@@ -260,6 +260,8 @@ perform_2i_call:
   jmp   rax
 
 .Lend_interpretation:
+  mov   LITERALS_REG, [rbp - 0x18]
+  mov   ECTYPE_REG, [rbp - 0x10]
   mov   rsp, rbp
   pop   rbp
   ret
