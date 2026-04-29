@@ -123,6 +123,18 @@ MOVF2I: {
     interpreter.Mov(args.rr.x.IR(), args.rr.y.FR());
     NEXT;
 }
+GC_POINT: {
+    auto args = B1::Decode(reader);
+    LOG_INSTR;
+    bool is_sp = RTSupport::Execution::IsPendingSafePoint();
+    if (!is_sp) {
+        NEXT;
+    }
+
+    reader0 = reader;
+
+    return { RTSupport::Execution::GcPointTrampoline(), RTSupport::Execution::GcPoint() };
+}
 FMOVI32: {
     auto args = B6xri32::Decode(reader);
     LOG_INSTR;

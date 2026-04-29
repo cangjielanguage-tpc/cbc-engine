@@ -11,6 +11,7 @@ extern "C" {
 extern void engine_c2i_call_pc_start();
 extern void engine_c2i_call_pc_end();
 extern void engine_i2_newobject();
+extern void engine_i2_gcpoint();
 extern void engine_trampolines_direct_start();
 extern void engine_trampolines_dyn_start();
 extern void engine_iregs_only_c2i_call();
