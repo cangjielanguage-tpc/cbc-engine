@@ -59,7 +59,7 @@ Interpretation::Thunk engine_interpretation_loop(
 #else
     #define LOG_INSTR Cbc::RT::Log(literals, logger, args)
     // TODO: add ectype ptr as ID of thread.
-    auto& logger = Log::interpretation.Stream(Logging::Level::DEBUG);
+    auto& logger = Log::interpretation.Stream(Logging::Level::TRACE);
 #endif
 
     uint64_t memspaceOffsetAcc = 0;
