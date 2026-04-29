@@ -17,6 +17,7 @@ declare_hidden engine_iregs_only_c2i_call
 declare_hidden engine_i2i_call
 declare_hidden engine_i2c_call
 declare_hidden engine_i2_newobject
+declare_hidden engine_i2_gcpoint
 declare_hidden engine_universal_direct_function_handles
 declare_hidden engine_newobject_function
 
@@ -182,6 +183,11 @@ engine_i2_newobject:
   add   x2, ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 8)
   str   x0, [x2, x1]
   b     .Lrestart_interpretation
+
+.align 16
+engine_i2_gcpoint:
+  blr x0
+  b .Lrestart_interpretation
 
 .align 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: fuh)

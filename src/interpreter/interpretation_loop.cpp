@@ -108,6 +108,7 @@ Interpretation::Thunk engine_interpretation_loop(
         &&VIRTUAL_CALL_2C, // [opc, r, i32, i32]
 
         &&MEMSPACE, // B1. See `MemOpcode`
+        &&GC_POINT, // B1
     };
 
     static void* MEMSPACE_TABLE[] = {
@@ -230,6 +231,17 @@ MOVF2I: {
     auto args = B2rr::Decode(reader);
     interpreter.Mov(args.rr.x.IR(), args.rr.y.FR());
     NEXT;
+}
+GC_POINT: {
+    B1::Decode(reader);
+    bool is_sp = RTSupport::Execution::IsPendingSafePoint();
+    if (!is_sp) {
+        NEXT;
+    }
+
+    reader0 = reader;
+
+    return { RTSupport::Execution::GcPointTrampoline(), RTSupport::Execution::GcPoint() };
 }
 FMOVI32: {
     auto args = B6xri32::Decode(reader);

@@ -59,7 +59,8 @@
     X(DIRECT_CALL_2I, B3xi12, "direct.call.2i $1I12L")                                                                 \
     X(DIRECT_CALL_2C, B3xi12, "direct.call.2c $1I12L")                                                                 \
     X(VIRTUAL_CALL_2C, B5i16i16, "virtual.call.2c $0U16L $1U16L")                                                      \
-    X(MEMSPACE, B1, "memspace {")
+    X(MEMSPACE, B1, "memspace {")                                                                                      \
+    X(GC_POINT, B1, "gcpoint")
 
 // X parameters: opcode, encoding format, string format, is tail
 #define CBC_RT_MEMOPCODES(X)                                                                                           \

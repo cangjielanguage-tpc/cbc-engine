@@ -19,6 +19,7 @@ declare_hidden engine_iregs_only_c2i_call
 declare_hidden engine_i2i_call
 declare_hidden engine_i2c_call
 declare_hidden engine_i2_newobject
+declare_hidden engine_i2_gcpoint
 declare_hidden engine_universal_direct_function_handles
 declare_hidden engine_newobject_function
 
@@ -176,6 +177,12 @@ engine_i2_newobject:
   mov   rdi, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8]
   mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8 + rdi], rax
   jmp   .Lrestart_interpretation
+
+// expects: (ECTYPE_REG: ectype, rdi: safe_point_f)
+.align 16
+engine_i2_gcpoint:
+  call rdi
+  jmp  .Lrestart_interpretation
 
 
 .align 16

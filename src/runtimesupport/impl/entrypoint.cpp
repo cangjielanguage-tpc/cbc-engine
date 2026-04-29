@@ -33,6 +33,37 @@ static void FiberStart(DYN_CJThreadSpecificDataT* data) { /* no-op */ }
 
 static void FiberDestroy(DYN_CJThreadSpecificDataT* data) { /* TODO: ectype cleanup */ }
 
+static void IterateFramesWithState(
+    DYN_CJThreadSpecificDataT threadSpecificData, void (*callback)(DYN_VisitingStateT, void*), void* ctx
+)
+{ /* no-op */
+}
+
+static void VisitFrameRootsMarking(DYN_VisitingStateT state, DYN_FrameDescT frame_desc, DYN_RootVisitorT root_visitor)
+{ /* no-op */
+}
+
+static void VisitFrameRootsAdjusting(
+    DYN_VisitingStateT state,
+    DYN_FrameDescT frame_desc,
+    DYN_RootVisitorT root_visitor,
+    DYN_DerivedPtrVisitorT derived_ptr_visitor
+)
+{ /* no-op */
+}
+
+static void VisitGlobalRoots(DYN_RootVisitorT visitor) { /* no-op */ }
+
+static void VisitFrameRootsExpansion(
+    DYN_VisitingStateT state,
+    DYN_FrameDescT frameDesc,
+    DYN_RootVisitorT stackPtrVisitor,
+    DYN_DerivedPtrVisitorT derivedPtrVisitor
+)
+{
+    /* no-op */
+}
+
 extern "C" {
 /// This symbol is exported to the runtime, which would initialize engine.
 CBC_EXPORT void interpreter_bridge_init(
@@ -88,6 +119,12 @@ CBC_EXPORT void interpreter_bridge_init(
     interpInterf->c2iStubEndAddr           = reinterpret_cast<uintptr_t>(&Asm::engine_c2i_call_pc_end);
     interpInterf->cjThreadStart            = &FiberStart;
     interpInterf->cjThreadDestroy          = &FiberDestroy;
+
+    interpInterf->iterateFramesWithState   = &IterateFramesWithState;
+    interpInterf->visitFrameRootsExpansion = &VisitFrameRootsExpansion;
+    interpInterf->visitFrameRootsMarking   = &VisitFrameRootsMarking;
+    interpInterf->visitFrameRootsAdjusting = &VisitFrameRootsAdjusting;
+    interpInterf->visitGlobalRoots         = &VisitGlobalRoots;
 
     Asm::engine_newobject_function = g_CJNativeInterfaceInstance.objectAlloc;
 }
