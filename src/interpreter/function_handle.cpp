@@ -34,9 +34,9 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
     if (res != impl->fuhMap.end()) {
         return res->second;
     }
-    auto i2Call             = PrepareI2Call(session, methodDef);
-    auto c2Call             = PrepareC2Call(session, methodDef);
-    auto fuh                = new DynamicFunctionHandle(i2Call, c2Call, methodDef);
+    auto i2Call = PrepareI2Call(session, methodDef);
+    auto c2Call = PrepareC2Call(session, methodDef);
+    auto fuh    = new DynamicFunctionHandle(i2Call, c2Call, methodDef);
     // FIXME: proper publication
     impl->fuhMap[methodDef] = fuh;
     return fuh;

@@ -68,11 +68,11 @@ struct TypeInfoBuilder {
     DYN_TypeInfoT* superTypeInfo     = nullptr;
     DYN_TypeInfoT* componentTypeInfo = nullptr;
 
-    DYN_ExtensionDataT** extDefs               = nullptr;
-    DYN_FuncPtrT* flatMethods                  = nullptr;
-    DYN_ExtensionDataT* flatExtDefs            = nullptr;
-    DYN_MTableDescT* mtableDesc                = nullptr;
-    void* reflectOrDebugInfo                   = nullptr;
+    DYN_ExtensionDataT** extDefs    = nullptr;
+    DYN_FuncPtrT* flatMethods       = nullptr;
+    DYN_ExtensionDataT* flatExtDefs = nullptr;
+    DYN_MTableDescT* mtableDesc     = nullptr;
+    void* reflectOrDebugInfo        = nullptr;
 
     Interpretation::FunctionHandle** dataMT = nullptr;
 
@@ -85,10 +85,10 @@ struct TypeInfoBuilder {
         auto typeInfo = std::exchange(this->typeInfo, nullptr);
         auto result   = &typeInfo->base;
 
-        result->typeInfoName   = std::exchange(this->name, nullptr);
-        result->type           = type;
-        result->flag           = flag;
-        result->fieldNum       = fieldNum;
+        result->typeInfoName = std::exchange(this->name, nullptr);
+        result->type         = type;
+        result->flag         = flag;
+        result->fieldNum     = fieldNum;
         if (instanceSize != -1) {
             result->instanceSize = instanceSize;
         } else if (componentSize != -1) {
@@ -96,15 +96,15 @@ struct TypeInfoBuilder {
         } else {
             ASSERTION(false, "neither of instance or component size was set");
         }
-        result->gctib             = std::exchange(gctib, {}); // FIXME
-        result->uuid              = uuid;
-        result->align             = align;
-        result->typeArgsNum       = typeArgsNum;
-        result->validInheritNum   = validInheritNum;
-        result->fieldOffsets      = std::exchange(fieldOffsets, nullptr);
-        result->finalizerMethod   = finalizerMethod;
-        result->typeArgs          = std::exchange(typeArgs, nullptr);
-        result->fields            = std::exchange(fields, nullptr);
+        result->gctib           = std::exchange(gctib, {}); // FIXME
+        result->uuid            = uuid;
+        result->align           = align;
+        result->typeArgsNum     = typeArgsNum;
+        result->validInheritNum = validInheritNum;
+        result->fieldOffsets    = std::exchange(fieldOffsets, nullptr);
+        result->finalizerMethod = finalizerMethod;
+        result->typeArgs        = std::exchange(typeArgs, nullptr);
+        result->fields          = std::exchange(fields, nullptr);
         if (superTypeInfo) {
             result->superTypeInfo = std::exchange(superTypeInfo, nullptr);
         } else if (componentTypeInfo) {
@@ -113,11 +113,11 @@ struct TypeInfoBuilder {
             ASSERTION(false, "neither of super type TI or component TI was set");
         }
 
-        result->vExtensionDataStart    = std::exchange(extDefs, nullptr);
-        flatExtDefs                    = nullptr;
-        result->mTableDesc             = std::exchange(mtableDesc, nullptr);
-        result->reflectOrDebugInfo     = std::exchange(reflectOrDebugInfo, nullptr);
-        typeInfo->dataMT               = dataMT;
+        result->vExtensionDataStart = std::exchange(extDefs, nullptr);
+        flatExtDefs                 = nullptr;
+        result->mTableDesc          = std::exchange(mtableDesc, nullptr);
+        result->reflectOrDebugInfo  = std::exchange(reflectOrDebugInfo, nullptr);
+        typeInfo->dataMT            = dataMT;
 
         return result;
     }
@@ -232,12 +232,12 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         auto prepareExtDef = [&builder,
                               currentTypeInfo,
                               &queryTypeInfo](DYN_ExtensionDataT& extDef, Symlevel::MethodSubTable const& smt) -> bool {
-            auto funcTableStart           = &builder.flatMethods[smt.StartPos()];
-            extDef.funcTable              = funcTableStart;
-            extDef.funcTableSize          = smt.EndPos() - smt.StartPos();
-            extDef.argNum                 = 0;
-            extDef.isInterfaceTypeInfo    = 1;
-            extDef.flag                   = 0b00000001; // FIXME: research how to properly implement this.
+            auto funcTableStart        = &builder.flatMethods[smt.StartPos()];
+            extDef.funcTable           = funcTableStart;
+            extDef.funcTableSize       = smt.EndPos() - smt.StartPos();
+            extDef.argNum              = 0;
+            extDef.isInterfaceTypeInfo = 1;
+            extDef.flag                = 0b00000001; // FIXME: research how to properly implement this.
 
             extDef.ti = &currentTypeInfo->base;
 
@@ -306,18 +306,18 @@ std::optional<TypeInfo> CreateTypeInfo(
         case Symlevel::TemplateKind::AOT_TYPE: return QueryTypeInfoAOT(session, term);
         case Symlevel::TemplateKind::TYPE:     return CreateTypeInfoDyn(session, manager, term);
 
-        case Symlevel::TemplateKind::BOOLEAN:  return QueryTypeInfoAOTByName("Bool");
-        case Symlevel::TemplateKind::U8:       return QueryTypeInfoAOTByName("UInt8");
-        case Symlevel::TemplateKind::I8:       return QueryTypeInfoAOTByName("Int8");
-        case Symlevel::TemplateKind::U16:      return QueryTypeInfoAOTByName("UInt16");
-        case Symlevel::TemplateKind::I16:      return QueryTypeInfoAOTByName("Int16");
-        case Symlevel::TemplateKind::U32:      return QueryTypeInfoAOTByName("UInt32");
-        case Symlevel::TemplateKind::I32:      return QueryTypeInfoAOTByName("Int32");
-        case Symlevel::TemplateKind::U64:      return QueryTypeInfoAOTByName("UInt64");
-        case Symlevel::TemplateKind::I64:      return QueryTypeInfoAOTByName("Int64");
-        case Symlevel::TemplateKind::F16:      return QueryTypeInfoAOTByName("Float16");
-        case Symlevel::TemplateKind::F32:      return QueryTypeInfoAOTByName("Float32");
-        case Symlevel::TemplateKind::F64:      return QueryTypeInfoAOTByName("Float64");
+        case Symlevel::TemplateKind::BOOLEAN: return QueryTypeInfoAOTByName("Bool");
+        case Symlevel::TemplateKind::U8:      return QueryTypeInfoAOTByName("UInt8");
+        case Symlevel::TemplateKind::I8:      return QueryTypeInfoAOTByName("Int8");
+        case Symlevel::TemplateKind::U16:     return QueryTypeInfoAOTByName("UInt16");
+        case Symlevel::TemplateKind::I16:     return QueryTypeInfoAOTByName("Int16");
+        case Symlevel::TemplateKind::U32:     return QueryTypeInfoAOTByName("UInt32");
+        case Symlevel::TemplateKind::I32:     return QueryTypeInfoAOTByName("Int32");
+        case Symlevel::TemplateKind::U64:     return QueryTypeInfoAOTByName("UInt64");
+        case Symlevel::TemplateKind::I64:     return QueryTypeInfoAOTByName("Int64");
+        case Symlevel::TemplateKind::F16:     return QueryTypeInfoAOTByName("Float16");
+        case Symlevel::TemplateKind::F32:     return QueryTypeInfoAOTByName("Float32");
+        case Symlevel::TemplateKind::F64:     return QueryTypeInfoAOTByName("Float64");
 
         default: {
             FATAL("Not supported yet %d", termIdent.GetKind());

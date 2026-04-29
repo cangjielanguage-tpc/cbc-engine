@@ -2,8 +2,8 @@
 #include "cbc/decoder.h"
 #include "cbc/isa.h"
 #include "isa_parser.h"
-#include "utils/ostream.h"
 #include "utils/options.h"
+#include "utils/ostream.h"
 #include <cmath>
 #include <cstdint>
 #include <iomanip>
