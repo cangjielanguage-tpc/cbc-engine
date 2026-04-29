@@ -3,6 +3,7 @@
 #include "api/resolver.h"
 #include "api/type.h"
 #include "cbc/emitter/emitter.h"
+#include "cbc/formater_rt.h"
 #include "cbc/frame.h"
 #include "cbc/isa.h"
 #include "cbc/isa_disasm.h"
@@ -10,7 +11,10 @@
 #include "engine/symlevel/references.h"
 #include "engine/symlevel/terms.h"
 #include "interpreter/code.h"
+#include "interpreter/function_handle.h"
+#include "interpreter/loggers.h"
 #include "utils/assertion.h"
+#include "utils/logger.h"
 #include "utils/math.h"
 #include "utils/ostream.h"
 #include <cstddef>
@@ -57,10 +61,26 @@ struct IsaRewriter : public IsaParser {
             case TemplateKind::F32: return LoadAccessKind::LD_F32;
             case TemplateKind::F64: return LoadAccessKind::LD_F64;
 
-            case TemplateKind::AOT_TYPE: return LoadAccessKind::LD_REF;
-            default:                {
+            case TemplateKind::BOOLEAN: return LoadAccessKind::LD_U8;
+
+            case TemplateKind::TYPE:
+            case TemplateKind::AOT_TYPE:
+            case TemplateKind::NULLABLE:
+            case TemplateKind::NON_NULLABLE:
+            case TemplateKind::CANGJIE_ARRAY: return LoadAccessKind::LD_REF;
+
+            case TemplateKind::UADDR:
+            case TemplateKind::IADDR:
+            case TemplateKind::BSTRING:
+            case TemplateKind::C_POINTER: return LoadAccessKind::LD_64;
+
+            case TemplateKind::UCHAR32: return LoadAccessKind::LD_32;
+
+            case TemplateKind::F16: return LoadAccessKind::LD_U16;
+
+            default: {
                 FATAL("Not supported template kind");
-                return LoadAccessKind::SPECIAL;
+                return LoadAccessKind::LD_S8;
             }
         }
     }
@@ -82,10 +102,26 @@ struct IsaRewriter : public IsaParser {
             case TemplateKind::F32: return StoreAccessKind::ST_F32;
             case TemplateKind::F64: return StoreAccessKind::ST_F64;
 
-            case TemplateKind::AOT_TYPE: return StoreAccessKind::ST_REF;
-            default:                {
+            case TemplateKind::BOOLEAN: return StoreAccessKind::ST_8;
+
+            case TemplateKind::TYPE:
+            case TemplateKind::AOT_TYPE:
+            case TemplateKind::NULLABLE:
+            case TemplateKind::NON_NULLABLE:
+            case TemplateKind::CANGJIE_ARRAY: return StoreAccessKind::ST_REF;
+
+            case TemplateKind::UADDR:
+            case TemplateKind::IADDR:
+            case TemplateKind::BSTRING:
+            case TemplateKind::C_POINTER: return StoreAccessKind::ST_64;
+
+            case TemplateKind::UCHAR32: return StoreAccessKind::ST_32;
+
+            case TemplateKind::F16: return StoreAccessKind::ST_16;
+
+            default: {
                 FATAL("Not supported template kind");
-                return StoreAccessKind::SPECIAL;
+                return StoreAccessKind::ST_8;
             }
         }
     }
@@ -336,6 +372,12 @@ struct IsaRewriter : public IsaParser {
         emit.Bind(InstructionLabel(Pos()));
         IsaParser::ParseOne();
     }
+
+    void StopRewrite()
+    {
+        auto left = reader.End() - reader.Cursor();
+        reader.Advance(left);
+    }
 };
 
 static std::unique_ptr<IsaParser> Rewriter(API::Resolver& resolver, MethodCode code, Emitter::Emitter& e)
@@ -351,10 +393,6 @@ static uint32_t CalcFrameSize(Symlevel::Code code)
 
 Interpretation::ExecBytecodeInfo Rewrite(MethodCode code, API::Resolver& resolver, Memory::Heap& heap)
 {
-    if (IsDisasmEnabled()) {
-        Disasm(Stream::Disasm::isa, code, &resolver)->ParseAll();
-    }
-
     Emitter::Emitter emitter;
     Rewriter(resolver, code, emitter)->ParseAll();
 
@@ -369,6 +407,31 @@ Interpretation::ExecBytecodeInfo Rewrite(MethodCode code, API::Resolver& resolve
         .frameSize        = frameSize,
         // TODO: initialize rest
     };
+}
+
+Interpretation::ExecBytecodeInfo Rewrite(
+    Interpretation::DynamicFunctionHandle* fuh, MethodCode code, API::Resolver& resolver, Memory::Heap& heap
+)
+{
+    Interpretation::Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
+        Stream::StringBuffer buf;
+        buf.PrintFmt("{%p} ", fuh);
+        std::string descriptor = buf.ToString();
+        Stream::Descripted desc(out, std::move(descriptor));
+        Disasm(desc, code, &resolver);
+    });
+
+    auto res = Rewrite(code, resolver, heap);
+
+    Interpretation::Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
+        Stream::StringBuffer buf;
+        buf.PrintFmt("{%p} ", fuh);
+        std::string descriptor = buf.ToString();
+        Stream::Descripted desc(out, std::move(descriptor));
+        Cbc::RT::Log(res.code, desc);
+    });
+
+    return res;
 }
 
 } // namespace Cbc

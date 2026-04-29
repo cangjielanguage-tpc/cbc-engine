@@ -88,6 +88,7 @@ engine_trampolines_dyn_start:
 
 #define TLS_REG x28
 #define ECTYPE_REG x19
+#define LITERALS_REG x20
 
 .align 16
 engine_c2i_call_pc_start:
@@ -195,10 +196,13 @@ engine_i2_gcpoint:
 perform_2i_call:
   stp   x29, x30, [sp, #-16]!
   mov   x29, sp
-  stp   x0, x0, [sp, #-16]! // sp-8: FunctionHandle for frame scanning, sp-16: location for frame base
+  // fp-0x8: FunctionHandle for frame scanning,
+  // fp-0x10: Ectype
+  // fp-0x18: Literals
+  stp   x0, ECTYPE_REG, [sp, #-16]!
+  str   LITERALS_REG, [sp, #-8]!
 
-.set FRAME_BASE_SLOT, 0x10
-.set SLOT_OFFS,   FRAME_BASE_SLOT
+.set SLOT_OFFS,   0x18
 .set OFFS_ADDEND, 0x0
 
 .macro declare_slot var, size
@@ -213,7 +217,7 @@ perform_2i_call:
 #endif
 
 // align stack
-  .if OFFS_ADDEND % 0x10 != 0
+  .if (SLOT_OFFS + OFFS_ADDEND) % 0x10 != 0
     .set OFFS_ADDEND, OFFS_ADDEND + 0x8
   .endif
   sub   sp, sp, OFFS_ADDEND
@@ -237,7 +241,6 @@ perform_2i_call:
   mov   x9, x0
 .Lhave_bytecode:
 
-#define LITERALS_REG x20
   ldr   LITERALS_REG, [x9, #EXEC_BYTECODE_INFO_LITERALS_OFFSET]
   ldr   x1, [x9, #EXEC_BYTECODE_INFO_BYTECODE_OFFSET]
   sub   x10, x29, #READER_SLOT
