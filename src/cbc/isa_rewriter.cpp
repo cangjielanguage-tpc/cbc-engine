@@ -56,6 +56,8 @@ struct IsaRewriter : public IsaParser {
             case TemplateKind::I64: return LoadAccessKind::LD_64;
             case TemplateKind::F32: return LoadAccessKind::LD_F32;
             case TemplateKind::F64: return LoadAccessKind::LD_F64;
+
+            case TemplateKind::AOT_TYPE: return LoadAccessKind::LD_REF;
             default:                {
                 FATAL("Not supported template kind");
                 return LoadAccessKind::SPECIAL;
@@ -79,6 +81,8 @@ struct IsaRewriter : public IsaParser {
             case TemplateKind::I64: return StoreAccessKind::ST_64;
             case TemplateKind::F32: return StoreAccessKind::ST_F32;
             case TemplateKind::F64: return StoreAccessKind::ST_F64;
+
+            case TemplateKind::AOT_TYPE: return StoreAccessKind::ST_REF;
             default:                {
                 FATAL("Not supported template kind");
                 return StoreAccessKind::SPECIAL;
