@@ -51,15 +51,15 @@ TypeInfo Execution::GetTypeInfo(Reference base)
 
 MethodTable Execution::GetMethodTable(Reference base, int extDefNum, int methodNum)
 {
-    DYN_TypeInfoT** header          = reinterpret_cast<DYN_TypeInfoT**>(base.value);
-    auto typeInfo                   = *header;
-    auto target                     = typeInfo->vExtensionDataStart[extDefNum]->funcTable[methodNum];
+    DYN_TypeInfoT** header = reinterpret_cast<DYN_TypeInfoT**>(base.value);
+    auto typeInfo          = *header;
+    auto target            = typeInfo->vExtensionDataStart[extDefNum]->funcTable[methodNum];
     return MethodTable(target);
 }
 
 int Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool isRef)
 {
-    auto mrtti = UnpackTypeInfo(ti);
+    auto mrtti      = UnpackTypeInfo(ti);
     auto headerOffs = isRef ? 8 : 0;
     ASSERT(ordinal < mrtti->fieldNum);
     return mrtti->fieldOffsets[ordinal] + headerOffs;

@@ -284,70 +284,56 @@ struct ConvertCase {
 };
 
 ConvertCase convertToIntegerCases[] = {
-    { "I8_I32", false, U64(-128), U64(32896) },
-    { "I8_U32", false, U64(-128), U64(32896) },
-    { "I16_I32", false, U64(-32640), U64(32896) },
-    { "I16_U32", false, U64(-32640), U64(32896) },
-    { "I32_F32", true, U64(1), F32(1.0f) },
-    { "I32_F64", true, U64(1), F64(1.0) },
-    { "I32_I64", false, U64(1), U64(1) },
-    { "I32_U64", false, U64(1), U64(1) },
-    { "I64_F32", true, U64(1), F32(1.0f) },
-    { "I64_F64", true, U64(1), F64(1.0) },
-    { "I64_I32", false, U64(1), U32(1) },
-    { "I64_U32", false, U64(1), U32(1) },
-    { "U8_I32", false, U64(128), U32(32896) },
-    { "U8_U32", false, U64(128), U32(32896) },
-    { "U16_I32", false, U64(32896), U32(32896) },
-    { "U16_U32", false, U64(32896), U32(32896) },
-    { "U32_F32", true, U64(1), F32(1.0f) },
-    { "U32_F64", true, U64(1), F64(1.0) },
-    { "U32_U64", false, U64(1), U32(1) },
-    { "U64_F32", true, U64(1), F32(1.0f) },
+    { "I8_I32", false, U64(-128), U64(32896) },    { "I8_U32", false, U64(-128), U64(32896) },
+    { "I16_I32", false, U64(-32640), U64(32896) }, { "I16_U32", false, U64(-32640), U64(32896) },
+    { "I32_F32", true, U64(1), F32(1.0f) },        { "I32_F64", true, U64(1), F64(1.0) },
+    { "I32_I64", false, U64(1), U64(1) },          { "I32_U64", false, U64(1), U64(1) },
+    { "I64_F32", true, U64(1), F32(1.0f) },        { "I64_F64", true, U64(1), F64(1.0) },
+    { "I64_I32", false, U64(1), U32(1) },          { "I64_U32", false, U64(1), U32(1) },
+    { "U8_I32", false, U64(128), U32(32896) },     { "U8_U32", false, U64(128), U32(32896) },
+    { "U16_I32", false, U64(32896), U32(32896) },  { "U16_U32", false, U64(32896), U32(32896) },
+    { "U32_F32", true, U64(1), F32(1.0f) },        { "U32_F64", true, U64(1), F64(1.0) },
+    { "U32_U64", false, U64(1), U32(1) },          { "U64_F32", true, U64(1), F32(1.0f) },
     { "U64_F64", true, U64(1), F64(1.0) }
 };
 
-ConvertCase convertToFloat32Cases[] = {
-    { "F32_F64", true, F32(1.0f), F64(1.0) },
-    { "F32_I32", false, F32(1.0f), U64(1) },
-    { "F32_I64", false, F32(1.0f), U64(1) },
-    { "F32_U32", false, F32(1.0f), U64(1) },
-    { "F32_U64", false, F32(1.0f), U64(1) }
-};
+ConvertCase convertToFloat32Cases[] = { { "F32_F64", true, F32(1.0f), F64(1.0) },
+                                        { "F32_I32", false, F32(1.0f), U64(1) },
+                                        { "F32_I64", false, F32(1.0f), U64(1) },
+                                        { "F32_U32", false, F32(1.0f), U64(1) },
+                                        { "F32_U64", false, F32(1.0f), U64(1) } };
 
-ConvertCase convertToFloat64Cases[] = {
-    { "F64_F32", true, F64(1.0), F32(1.0f) },
-    { "F64_I32", false, F64(1.0), U64(1) },
-    { "F64_I64", false, F64(1.0), U64(1) },
-    { "F64_U32", false, F64(1.0), U64(1) },
-    { "F64_U64", false, F64(1.0), U64(1) }
-};
+ConvertCase convertToFloat64Cases[] = { { "F64_F32", true, F64(1.0), F32(1.0f) },
+                                        { "F64_I32", false, F64(1.0), U64(1) },
+                                        { "F64_I64", false, F64(1.0), U64(1) },
+                                        { "F64_U32", false, F64(1.0), U64(1) },
+                                        { "F64_U64", false, F64(1.0), U64(1) } };
 
 static void convertToInteger(Interpretation::Code code, ConvertCase convertCase)
 {
-    auto ir1  = convertCase.fromFP ? U64(0) : convertCase.val;
-    auto fr0  = convertCase.fromFP ? convertCase.val : F64(0);
+    auto ir1 = convertCase.fromFP ? U64(0) : convertCase.val;
+    auto fr0 = convertCase.fromFP ? convertCase.val : F64(0);
     auto res = Interpret(code, ir1, U64(0), fr0, F64(0));
     EXPECT_EQ(res.u64, convertCase.expected.u64);
 }
 
 static void convertToFloat32(Interpretation::Code code, ConvertCase convertCase)
 {
-    auto ir1  = convertCase.fromFP ? U64(0) : convertCase.val;
-    auto fr0  = convertCase.fromFP ? convertCase.val : F64(0);
+    auto ir1 = convertCase.fromFP ? U64(0) : convertCase.val;
+    auto fr0 = convertCase.fromFP ? convertCase.val : F64(0);
     auto res = InterpretFPRes(code, ir1, U64(0), fr0, F64(0));
     EXPECT_EQ(res.u32, convertCase.expected.u32);
 }
 
 static void convertToFloat64(Interpretation::Code code, ConvertCase convertCase)
 {
-    auto ir1  = convertCase.fromFP ? U64(0) : convertCase.val;
-    auto fr0  = convertCase.fromFP ? convertCase.val : F64(0);
+    auto ir1 = convertCase.fromFP ? U64(0) : convertCase.val;
+    auto fr0 = convertCase.fromFP ? convertCase.val : F64(0);
     auto res = InterpretFPRes(code, ir1, U64(0), fr0, F64(0));
     EXPECT_EQ(res.u64, convertCase.expected.u64);
 }
 
-using ConvertTestFunction = void(*)(Interpretation::Code, ConvertCase);
+using ConvertTestFunction = void (*)(Interpretation::Code, ConvertCase);
 
 struct ConvertTestParams {
     std::string name;
@@ -366,12 +352,12 @@ TEST_P(CbcSpecializedConvert, test)
         GTEST_SKIP() << "Assembler is not present";
     }
     ConvertTestParams params = GetParam();
-    auto path    = "./simple_convert/simple_convert_" + params.name +  ".asm";
-    auto& engine = Open(path);
+    auto path                = "./simple_convert/simple_convert_" + params.name + ".asm";
+    auto& engine             = Open(path);
 
-    for (int n {0}; n < params.casesCount; ++n) {
+    for (int n { 0 }; n < params.casesCount; ++n) {
         ConvertCase convertCase = params.convertCases[n];
-        auto code = Rewrite(engine, path, "default", "test_" + convertCase.name)->code;
+        auto code               = Rewrite(engine, path, "default", "test_" + convertCase.name)->code;
         params.testConvert(code, convertCase);
     }
 }
@@ -380,8 +366,13 @@ INSTANTIATE_TEST_SUITE_P(
     CbcTest,
     CbcSpecializedConvert,
     ::testing::Values(
-        ConvertTestParams { "to_integer", sizeof(convertToIntegerCases) / sizeof(ConvertCase), convertToIntegerCases, &convertToInteger },
-        ConvertTestParams { "to_float", sizeof(convertToFloat32Cases) / sizeof(ConvertCase), convertToFloat32Cases, &convertToFloat32 },
-        ConvertTestParams { "to_float", sizeof(convertToFloat64Cases) / sizeof(ConvertCase), convertToFloat64Cases, &convertToFloat64 }
+        ConvertTestParams { "to_integer",
+                            sizeof(convertToIntegerCases) / sizeof(ConvertCase),
+                            convertToIntegerCases,
+                            &convertToInteger },
+        ConvertTestParams {
+            "to_float", sizeof(convertToFloat32Cases) / sizeof(ConvertCase), convertToFloat32Cases, &convertToFloat32 },
+        ConvertTestParams {
+            "to_float", sizeof(convertToFloat64Cases) / sizeof(ConvertCase), convertToFloat64Cases, &convertToFloat64 }
     )
 );
