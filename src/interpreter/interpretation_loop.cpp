@@ -10,6 +10,7 @@
 #include "utils/math.h"
 #include "utils/ostream.h"
 #include <cmath>
+#include <cstdint>
 
 using namespace Interpretation;
 using namespace Cbc::RT;
@@ -57,9 +58,11 @@ Interpretation::Thunk engine_interpretation_loop(
 #ifdef NDEBUG
     #define LOG_INSTR
 #else
+    // Logging format is:
+    // [int] (stack depth) < (bc pos): instruction
     #define LOG_INSTR                                                                                                  \
         do {                                                                                                           \
-            logger.PrintFmt("0x%03lx: ", pos - start);                                                                 \
+            logger.PrintFmt("#0x%x < 0x%03lx: ", (uint32_t)frame.start, pos - start);                                  \
             pos = reader.Cursor();                                                                                     \
             Cbc::RT::Log(literals, logger, args);                                                                      \
         } while (0)
