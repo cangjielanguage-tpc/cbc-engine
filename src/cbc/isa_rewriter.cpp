@@ -368,6 +368,12 @@ struct IsaRewriter : public IsaParser {
         emit.Bind(InstructionLabel(Pos()));
         IsaParser::ParseOne();
     }
+
+    void StopRewrite()
+    {
+        auto left = reader.End() - reader.Cursor();
+        reader.Advance(left);
+    }
 };
 
 static std::unique_ptr<IsaParser> Rewriter(API::Resolver& resolver, MethodCode code, Emitter::Emitter& e)

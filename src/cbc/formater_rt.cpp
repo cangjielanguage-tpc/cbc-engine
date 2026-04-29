@@ -147,38 +147,8 @@ private:
         size_t typeDescEnd    = newCursor;
         size_t typeDescStart  = start + 1;
         std::string_view type = formatString.substr(typeDescStart, typeDescEnd - typeDescStart);
-        if (auto sepId = type.find(':'); sepId != std::string_view::npos) {
-            FormatArgWithSeparator(type, argIdx, sepId);
-        } else {
-            FormatArgWithoutSeparator(type, argIdx);
-        }
+        FormatArgWithoutSeparator(type, argIdx);
         cursor = newCursor;
-    }
-
-    void FormatArgWithSeparator(std::string_view type, int argIdx, size_t sepId)
-    {
-        // Separator found.
-        // This operand is needed for proper register kind formatting, which depends on ldk/stk)
-        ASSERT(sepId + 3 < type.size());
-        auto rightArgIdx = GetArgIdx(type, sepId + 2);
-        ASSERT(argIdx < operandCount);
-        ASSERT(rightArgIdx < operandCount);
-        auto leftType     = type.substr(0, sepId);
-        auto rightType    = type.substr(sepId + 3, std::string_view::npos);
-        auto leftOperand  = operands[argIdx];
-        auto rightOperand = operands[rightArgIdx];
-
-        if (leftType == "r") {
-            bool isFloat =
-                leftType == "ldk" && leftOperand.Ldk().IsFloat() || rightType == "stk" && rightOperand.Stk().IsFloat();
-            if (isFloat) {
-                Write(leftOperand.FR());
-            } else {
-                Write(leftOperand.IR());
-            }
-        } else {
-            FATAL("unexpected format type");
-        }
     }
 
     void FormatArgWithoutSeparator(std::string_view type, int argIdx)
