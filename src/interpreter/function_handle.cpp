@@ -7,6 +7,7 @@
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/reader.h"
 #include "function_handle.h"
+#include "interpreter/loggers.h"
 #include "utils/assertion.h"
 
 namespace Interpretation {
@@ -65,12 +66,27 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, Dynam
         return bytecode;
     }
 
-    auto def      = Symlevel::MethodDefinition::Resolve(session, fuh->methodDef);
-    auto code     = Symlevel::Reader::Read(session, def.FileId(), def.GetCodeOffset());
+    auto& logger = Interpretation::Log::preparation;
+
+    auto def  = Symlevel::MethodDefinition::Resolve(session, fuh->methodDef);
+    auto code = Symlevel::Reader::Read(session, def.FileId(), def.GetCodeOffset());
+
+    logger.Log(Logging::Level::TRACE, [&session, fuh, &def](Stream::Output& out) {
+        auto name = std::string(Symlevel::Reader::Read(session, def.FileId(), def.NameOffset()));
+        // TODO: print signature
+        out.PrintFmt(
+            "Started preparation of method %p (%u;%u) %s",
+            fuh,
+            fuh->methodDef.GetFileId(),
+            fuh->methodDef.GetOffset(),
+            name.c_str()
+        );
+    });
+
     auto resolver = API::Resolver::Create(session, def.GetIdentifier());
     auto& heap    = session.GetEngine().CodeHeap();
 
-    auto bytecode = Cbc::Rewrite(code, *resolver, heap);
+    auto bytecode = Cbc::Rewrite(fuh, code, *resolver, heap);
 
     fuh->bytecode.store(new ExecBytecodeInfo(bytecode));
 

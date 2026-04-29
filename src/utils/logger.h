@@ -2,7 +2,7 @@
 
 #include "utils/ostream.h"
 
-namespace Log {
+namespace Logging {
 
 /// Logging utilities.
 /// The class consist of an base logger class, that provides either direct access or lambda-wrapped to underlying
@@ -29,10 +29,10 @@ public:
     void SetStream(Stream::Output* stream);
     void SetLogLevel(Level level);
 
-    template <typename F> void Log(Level level, F const& logger)
+    template <typename F> inline void Log(Level level, F const& logger)
     {
         if (level <= this->level) {
-            logger(output);
+            logger(*output);
         }
     }
 
@@ -41,4 +41,4 @@ private:
     Level level;
 };
 
-} // namespace Log
+} // namespace Logging

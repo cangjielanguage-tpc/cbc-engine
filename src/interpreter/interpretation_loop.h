@@ -3,9 +3,9 @@
 #include "cbc/decoder.h"
 #include "ectype.h"
 #include "frame.h"
+#include "interpreter/function_handle.h"
 #include "literals.h"
 #include "runtimesupport/runtime.h"
-#include "utils/logger.h"
 
 namespace Interpretation {
 
@@ -14,13 +14,8 @@ struct Thunk {
     void* arg;
 };
 
-/// Logger for interpetation actions.
-/// TRACE - intepretation start and end.
-/// DEBUG - instruction logging.
-///
-/// NOTE: this logger is enabled only in debug builds.
-/// TODO: separate define to enable in release builds.
-extern Log::Logger g_Logger;
+void InterpretationStart(DynamicFunctionHandle* handle, Ectype* ectype);
+void InterpretationEnd(DynamicFunctionHandle* handle, Ectype* ectype);
 
 Thunk InterpretationLoop(
     Ectype* ectype, Frame frame, RTSupport::ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0

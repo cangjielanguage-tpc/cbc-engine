@@ -241,6 +241,12 @@ perform_2i_call:
   mov   r8d, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   sub   rsp, r8
 
+#ifndef NDEBUG
+  mov   rdi, [rbp - 0x8]
+  mov   rsi, ECTYPE_REG
+  call  engine_log_int_start
+#endif
+
 .Lrestart_interpretation:
   mov   rdi, ECTYPE_REG
   mov   rsi, rsp
@@ -260,6 +266,13 @@ perform_2i_call:
   jmp   rax
 
 .Lend_interpretation:
+
+#ifndef NDEBUG
+  mov   rdi, [rbp - 0x8]
+  mov   rsi, ECTYPE_REG
+  call  engine_log_int_end
+#endif
+
   mov   LITERALS_REG, [rbp - 0x18]
   mov   ECTYPE_REG, [rbp - 0x10]
   mov   rsp, rbp

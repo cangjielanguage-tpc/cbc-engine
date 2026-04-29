@@ -3,6 +3,7 @@
 #include "api/resolver.h"
 #include "api/type.h"
 #include "cbc/emitter/emitter.h"
+#include "cbc/formater_rt.h"
 #include "cbc/frame.h"
 #include "cbc/isa.h"
 #include "cbc/isa_disasm.h"
@@ -10,7 +11,10 @@
 #include "engine/symlevel/references.h"
 #include "engine/symlevel/terms.h"
 #include "interpreter/code.h"
+#include "interpreter/function_handle.h"
+#include "interpreter/loggers.h"
 #include "utils/assertion.h"
+#include "utils/logger.h"
 #include "utils/math.h"
 #include "utils/ostream.h"
 #include <cstddef>
@@ -389,10 +393,6 @@ static uint32_t CalcFrameSize(Symlevel::Code code)
 
 Interpretation::ExecBytecodeInfo Rewrite(MethodCode code, API::Resolver& resolver, Memory::Heap& heap)
 {
-    if (IsDisasmEnabled()) {
-        Disasm(Stream::Disasm::isa, code, &resolver);
-    }
-
     Emitter::Emitter emitter;
     Rewriter(resolver, code, emitter)->ParseAll();
 
@@ -407,6 +407,31 @@ Interpretation::ExecBytecodeInfo Rewrite(MethodCode code, API::Resolver& resolve
         .frameSize        = frameSize,
         // TODO: initialize rest
     };
+}
+
+Interpretation::ExecBytecodeInfo Rewrite(
+    Interpretation::DynamicFunctionHandle* fuh, MethodCode code, API::Resolver& resolver, Memory::Heap& heap
+)
+{
+    Interpretation::Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
+        Stream::StringBuffer buf;
+        buf.PrintFmt("[dis-%p]", fuh);
+        std::string descriptor = buf.ToString();
+        Stream::Descripted desc(out, std::move(descriptor));
+        Disasm(desc, code, &resolver);
+    });
+
+    auto res = Rewrite(code, resolver, heap);
+
+    Interpretation::Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
+        Stream::StringBuffer buf;
+        buf.PrintFmt("[dis-rt-%p]", fuh);
+        std::string descriptor = buf.ToString();
+        Stream::Descripted desc(out, std::move(descriptor));
+        Cbc::RT::Log(res.code, desc);
+    });
+
+    return res;
 }
 
 } // namespace Cbc

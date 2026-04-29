@@ -1,7 +1,6 @@
 #include <cstdint>
 #include <gtest/gtest.h>
 
-#include "cbc/formater_rt.h"
 #include "cbc/isa_disasm.h"
 #include "engine/engine.h"
 #include "engine/symlevel/io/byte_array_random_access_file.h"
@@ -10,6 +9,7 @@
 #include "interpreter/code.h"
 #include "interpreter/function_handle.h"
 
+#include "interpreter/loggers.h"
 #include "mock/interpreter.h"
 #include "testutils.h"
 
@@ -18,6 +18,7 @@ static LimitedHeap<16384> heap;
 class CbcTest : public testing::Test {
     void SetUp() override
     {
+        Interpretation::Log::preparation.SetLogLevel(Logging::Level::TRACE);
         Cbc::EnableRawDisasm();
         InitializeMockInterpreter();
         heap.Reset();

@@ -7,9 +7,6 @@
 namespace Cbc {
 
 void EnableRawDisasm();
-void EnableDisasm();
-bool IsRawDisasmEnabled();
-bool IsDisasmEnabled();
 
 void RawDisasm(Stream::Output& stream, Cbc::MethodCode code);
 void RawDisasm(Stream::Output& stream, Decoder::FatByteReader reader);

@@ -1,7 +1,7 @@
 #include "logger.h"
 #include "utils/ostream.h"
 
-namespace Log {
+namespace Logging {
 
 class Blackhole : public Stream::Output {
     virtual void VPrintFmt(const char* fmt, va_list argp) { /* no-op */ }
@@ -26,4 +26,4 @@ void Logger::SetStream(Stream::Output* stream) { this->output = stream; }
 
 void Logger::SetLogLevel(Level level) { this->level = level; }
 
-} // namespace Log
+} // namespace Logging

@@ -9,6 +9,8 @@
 #include "engine/symlevel/io/filesystem.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
+#include "interpreter/loggers.h"
+#include "utils/logger.h"
 
 static std::mutex g_InitializationGuard;
 static bool g_Initialized;
@@ -48,9 +50,13 @@ CBC_EXPORT void engine_set_main_cbc(char const* mainCbc) { g_mainCbc = mainCbc; 
 
 CBC_EXPORT void engine_initialize() { EnsureEngineInitialized(); }
 
-CBC_EXPORT void engine_enable_dasm() { Cbc::EnableDisasm(); }
+CBC_EXPORT void engine_enable_dasm() { Interpretation::Log::preparation.SetLogLevel(Logging::Level::TRACE); }
 
-CBC_EXPORT void engine_enable_raw_dasm() { Cbc::EnableRawDisasm(); }
+CBC_EXPORT void engine_enable_raw_dasm()
+{
+    engine_enable_dasm();
+    Cbc::EnableRawDisasm();
+}
 
 CBC_EXPORT void* engine_get_entrypoint_trampoline(void)
 {

@@ -1,7 +1,9 @@
 #include "api/resolver.h"
 #include "cbc/decoder.h"
 #include "cbc/isa.h"
+#include "interpreter/loggers.h"
 #include "isa_parser.h"
+#include "utils/logger.h"
 #include "utils/ostream.h"
 #include <cmath>
 #include <cstdint>
@@ -285,21 +287,12 @@ struct IsaResolvingDisasm : IsaDisasm {
 };
 
 static bool g_IsRawDisasmEnabled;
-static bool g_IsDisasmEnabled;
 
 void EnableRawDisasm() { g_IsRawDisasmEnabled = true; }
 
-void EnableDisasm() { g_IsDisasmEnabled = true; }
-
 bool IsRawDisasmEnabled() { return g_IsRawDisasmEnabled; }
 
-bool IsDisasmEnabled() { return g_IsRawDisasmEnabled || g_IsDisasmEnabled; }
-
-void RawDisasm(Stream::Output& stream, Decoder::FatByteReader reader)
-{
-    IsaDisasm dis(stream, reader);
-    dis.ParseAll();
-}
+void RawDisasm(Stream::Output& stream, Decoder::FatByteReader reader) { IsaDisasm(stream, reader).ParseAll(); }
 
 void RawDisasm(Stream::Output& stream, Cbc::MethodCode code)
 {
@@ -315,9 +308,8 @@ void RawDisasm(Stream::Output& stream, uint8_t* start, uint8_t* end)
 
 void Disasm(Stream::Output& stream, Decoder::FatByteReader reader, API::Resolver* resolver)
 {
-    if (!IsRawDisasmEnabled() && resolver != nullptr) {
-        IsaResolvingDisasm dis(stream, reader, *resolver);
-        dis.ParseAll();
+    if (!g_IsRawDisasmEnabled && resolver != nullptr) {
+        IsaResolvingDisasm(stream, reader, *resolver).ParseAll();
     } else {
         RawDisasm(stream, reader);
     }
