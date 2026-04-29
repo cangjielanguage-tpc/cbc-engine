@@ -39,7 +39,7 @@ static void CompareWith(std::string_view fileName, std::string const& expected)
     auto resolver = API::Resolver::Create(session, mainId.value());
 
     Stream::StringBuffer stream;
-    Cbc::Disasm(stream, code, resolver.get())->ParseAll();
+    Cbc::Disasm(stream, code, resolver.get());
 
     ASSERT_EQ(expected, stream.ToString());
 }

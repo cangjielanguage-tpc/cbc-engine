@@ -390,7 +390,7 @@ static uint32_t CalcFrameSize(Symlevel::Code code)
 Interpretation::ExecBytecodeInfo Rewrite(MethodCode code, API::Resolver& resolver, Memory::Heap& heap)
 {
     if (IsDisasmEnabled()) {
-        Disasm(Stream::Disasm::isa, code, &resolver)->ParseAll();
+        Disasm(Stream::Disasm::isa, code, &resolver);
     }
 
     Emitter::Emitter emitter;
