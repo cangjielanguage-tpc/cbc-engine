@@ -50,6 +50,12 @@ struct Execution {
     /// This specialization is needed to allow Thunk usage.
     static void* AllocateObjectInstance();
 
+    static void* GcPoint();
+
+    static void* GcPointTrampoline();
+
+    static bool IsPendingSafePoint();
+
     static Reference NewArray(TypeInfo type, size_t count, ThreadHandle th);
     static size_t ArrayLength(Reference array);
 

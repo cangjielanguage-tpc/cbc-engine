@@ -175,7 +175,7 @@ struct IsaRewriter : public IsaParser {
 
     void NewArr(IReg dst, IReg len, uint16_t type) override { FATAL("not implemented"); }
 
-    void GcPoint() override { FATAL("not implemented"); }
+    void GcPoint() override { emit.GcPoint(); }
 
     void LoadStatic(AnyReg r, uint16_t field) override
     {
