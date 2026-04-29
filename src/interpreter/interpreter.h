@@ -77,7 +77,9 @@ public:
     inline bool StoreAddr(Format::StoreAccessKind stk, Format::Reg src, uint64_t location)
     {
         if (stk == StoreAccessKind::ST_REF) {
-            ectype->Put(src.IR(), RTSupport::Execution::ReadObjectStatic(reinterpret_cast<void*>(location), handle));
+            RTSupport::Execution::WriteObjectStatic(
+                reinterpret_cast<void*>(location), ectype->GetReference(src.IR()), handle
+            );
         } else {
             MemoryLocation(location).StorePrim(stk, src, ectype);
         }
