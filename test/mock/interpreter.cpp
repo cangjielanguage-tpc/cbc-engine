@@ -2,11 +2,13 @@
 
 #include "../testutils.h"
 #include "cbc/decoder.h"
-#include "cbc/dispatcher_rt.h"
 #include "cbc/frame.h"
+#include "engine/typeinfo_manager.h"
 #include "interpreter.h"
-#include "interpreter/adapters.h"
-#include "runtime.h"
+#include "interpreter/interpretation_loop.h"
+#include "runtimesupport/adapters.h"
+#include "runtimesupport/runtime.h"
+#include "utils/assertion.h"
 
 static constexpr int HEAP_SIZE = 16384;
 static LimitedHeap<HEAP_SIZE> heap;
@@ -15,18 +17,18 @@ namespace Interpretation {
 
 using namespace RTSupport;
 
+static void MockNewObj(Ectype* ectype, ThreadHandle th, TypeInfo type);
 static Interpretation::Frame zeroFrame { 0 };
 
-static void MockNewObj(Ectype* ectype, ThreadHandle th, TypeInfo<Test> type);
 static void InterpreterI2CallTest(Ectype* ectype, ThreadHandle handle, FunctionHandle* fuh);
 
-static TestTypeInfo* Extract(TypeInfo<Test> type)
+static TestTypeInfo* Extract(TypeInfo type)
 {
-    void* p = type;
+    void* p = type.Raw();
     return (TestTypeInfo*)p;
 }
 
-static void MockNewObj(Ectype* ectype, ThreadHandle th, TypeInfo<Test> type)
+static void MockNewObj(Ectype* ectype, ThreadHandle th, TypeInfo type)
 {
     auto typeInfo = Extract(type);
     auto mem      = heap.Allocate(typeInfo->size, alignof(std::max_align_t));
@@ -38,12 +40,12 @@ static void MockNewObj(Ectype* ectype, ThreadHandle th, TypeInfo<Test> type)
     ectype->Put(IReg::From(dst.u32), Value::Reference { .value = reinterpret_cast<uintptr_t>(mem) });
 }
 
-static void InterpretationLoop(
+static void DoInterpretationLoop(
     Ectype* ectype, Frame frame, ThreadHandle th, LiteralTable* literals, Decoder::ByteReader& reader
 )
 {
     while (true) {
-        auto thunk = Cbc::RT::InterpretationLoop<Test>(ectype, frame, th, literals, reader);
+        auto thunk = InterpretationLoop(ectype, frame, th, literals, reader);
         if (!thunk.function) {
             break;
         }
@@ -72,7 +74,7 @@ Value::Primitive Interpret(
     ectype.Put(FReg::FR0, fr0);
     ectype.Put(FReg::FR1, fr1);
 
-    InterpretationLoop(&ectype, frame, nullptr, code.literals, s);
+    DoInterpretationLoop(&ectype, frame, ThreadHandle(nullptr), code.literals, s);
 
     return ectype.GetPrimitive(resReg);
 }
@@ -95,7 +97,7 @@ static void InterpreterI2CallTest(Ectype* ectype, ThreadHandle handle, FunctionH
     Interpretation::Frame frame { frameStart };
 
     Decoder::ByteReader s(code.bytecode, code.bytecode, code.bytecode + code.bytecodeSize);
-    InterpretationLoop(ectype, frame, handle, code.literals, s);
+    DoInterpretationLoop(ectype, frame, handle, code.literals, s);
 }
 
 } // namespace Interpretation
@@ -164,7 +166,66 @@ void InitializeMockInterpreter()
 {
     using namespace Interpretation;
     auto i2call = reinterpret_cast<Interpretation::I2Call>(&Interpretation::InterpreterI2CallTest);
-    SetI2CallForInterpreter(i2call);
-    RuntimeInterface<RTSupport::Test>::AllocateObject = reinterpret_cast<void*>(&MockNewObj);
     static_assert(IReg::COUNT == 14);
 }
+
+namespace RTSupport {
+
+using Reference = Interpretation::Value::Reference;
+
+std::optional<TypeInfo> CreateTypeInfo(
+    Engine::Session& session, Engine::TypeInfoManager& manager, Symlevel::GlobalTerm term
+)
+{
+    return std::nullopt;
+}
+
+Reference Execution::ReadObjectInstance(Reference base, size_t offset, ThreadHandle th)
+{
+    return Reference { .value = *reinterpret_cast<uintptr_t*>(base.value + offset) };
+}
+
+void Execution::WriteObjectInstance(Reference base, size_t offset, Reference object, ThreadHandle th)
+{
+    *reinterpret_cast<uintptr_t*>(base.value + offset) = object.value;
+}
+
+Reference Execution::ReadObjectStatic(void* location, ThreadHandle th)
+{
+    return Reference { .value = *reinterpret_cast<uintptr_t*>(location) };
+}
+
+void Execution::WriteObjectStatic(void* location, Reference object, ThreadHandle th)
+{
+    *reinterpret_cast<uintptr_t*>(location) = object.value;
+}
+
+int Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool isRef)
+{
+    FATAL("Should not reach here. Get field offset");
+}
+
+TypeInfo Execution::GetTypeInfo(Reference base)
+{
+    TypeInfo* header = reinterpret_cast<TypeInfo*>(base.value);
+    return *header;
+}
+
+MethodTable Execution::GetMethodTable(Reference base, int extDefNum, int methodNum)
+{
+    FATAL("Should not reach here. I2C virtual call");
+}
+
+void* Execution::AllocateObjectInstance() { return reinterpret_cast<void*>(&Interpretation::MockNewObj); }
+
+void* Adapters::GenericI2CCallInstance() { FATAL("Should not reach here. Mock i2c"); }
+
+void* Adapters::I2ICallInstance() { return reinterpret_cast<void*>(&Interpretation::InterpreterI2CallTest); }
+
+static void C2ICall() { FATAL("Should not reach here. Mock c2i"); }
+
+void* Adapters::IregOnlyC2ICallInstance() { return reinterpret_cast<void*>(&C2ICall); }
+
+void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* fuh) { FATAL("Should not reach here."); }
+
+} // namespace RTSupport

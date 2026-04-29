@@ -1,23 +1,15 @@
-#pragma once
-
-#include "RuntimeTypes.h"
-#include "asm_trampolines.h"
-#include "decoder.h"
-#include "interpreter/interpreter.h"
-#include "isa_rt.h"
+#include "interpretation_loop.h"
+#include "interpreter.h"
+#include "runtimesupport/adapters.h"
+#include "runtimesupport/runtime.h"
 #include "utils/assertion.h"
 #include "utils/math.h"
 
-namespace Cbc {
-namespace RT {
-
-using Width = Cbc::Format::Width;
 using namespace Interpretation;
+using namespace Cbc::RT;
+using namespace RTSupport;
 
-struct Thunk {
-    void* function;
-    void* arg;
-};
+extern "C" {
 
 /// The interpretation loop can be used in two scenarios:
 /// - (Main scenario) As an interpreter for the real runtime.
@@ -40,15 +32,14 @@ struct Thunk {
 ///
 /// Note that the actual calling convention of `thunk.function`
 /// differs from the ASM in the unit test framework.
-template <typename RTI>
-Thunk InterpretationLoop(
+Interpretation::Thunk engine_interpretation_loop(
     Ectype* ectype, Frame frame, RTSupport::ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
 )
 {
 #define NEXT goto* MAIN_TABLE[reader.PeekOpcode()]
 #define NEXT_COND(successful) goto* MAIN_TABLE[(successful) ? reader.PeekOpcode() : 0]
 #define MEM_NEXT goto* MEMSPACE_TABLE[reader.PeekOpcode()]
-    Interpretation::Interpreter<RTI> interpreter(ectype, frame, handle, literals);
+    Interpretation::Interpreter interpreter(ectype, frame, handle, literals);
     Decoder::ByteReader reader = reader0;
 
     static void* MAIN_TABLE[] = {
@@ -419,8 +410,8 @@ FUN64: {
     NEXT_COND(successful);
 }
 NEWOBJ: {
-    auto args                     = B3xi12::Decode(reader);
-    RTSupport::TypeInfo<RTI> type = literals->at(args.xi12.imm12).uintptr;
+    auto args = B3xi12::Decode(reader);
+    auto type = TypeInfo(literals->at(args.xi12.imm12).uintptr);
 
     // To invoke an `newobj` we need to "return" three values
     // - function to invoke,
@@ -430,12 +421,12 @@ NEWOBJ: {
     //
     // To pass an extra element we will store
     // it in volatile-register in Ectype;
-    auto func = RTSupport::RuntimeInterface<RTI>::AllocateObject;
+    auto func = RTSupport::Execution::AllocateObjectInstance();
     ectype->Put(IReg::IR1, Value::Primitive { .u64 = args.xi12.imm4.IR() });
 
     reader0 = reader; // save current pc
 
-    return { func, type };
+    return { func, type.Raw() };
 }
 LOAD_ADDR: {
     auto args       = B2xr::Decode(reader);
@@ -562,18 +553,14 @@ DIRECT_CALL_2C: {
 
     reader0 = reader; // save current pc
 
-    return { reinterpret_cast<void*>(&Asm::engine_i2c_call), reinterpret_cast<void*>(target) };
+    return { Adapters::GenericI2CCallInstance(), reinterpret_cast<void*>(target) };
 }
 VIRTUAL_CALL_2C: {
     auto args      = B5i16i16::Decode(reader);
     auto vnum      = args.imm1.imm;
     auto extDefNum = args.imm2.imm;
 
-    size_t extDefArrayOffset = offsetof(MRTExport::type_info_t, v_extension_data_start);
-
-    auto* receiver     = reinterpret_cast<uintptr_t*>(ectype->GetReference(IReg::IR1).value);
-    auto* thisTypeInfo = reinterpret_cast<MRTExport::type_info_t*>(*receiver);
-    auto* target       = thisTypeInfo->v_extension_data_start[extDefNum]->func_table[vnum];
+    auto table = Execution::GetMethodTable(ectype->GetReference(IReg::IR1), extDefNum, vnum);
 
     // For proper support of fibers, the following call MUST drop the current frame.
     // This can not be guaranteed by C++ compiler consistently, because TCO
@@ -585,7 +572,7 @@ VIRTUAL_CALL_2C: {
 
     reader0 = reader; // save current pc
 
-    return { reinterpret_cast<void*>(&Asm::engine_i2c_call), target };
+    return { Adapters::GenericI2CCallInstance(), table.Raw() };
 }
 
 MEMSPACE: {
@@ -754,5 +741,8 @@ OFFS_REG: {
 #undef NEXT
 #undef NEXT_COND
 }
-} // namespace RT
-} // namespace Cbc
+}
+
+Thunk Interpretation::InterpretationLoop(
+    Ectype* ectype, Frame frame, RTSupport::ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
+) __attribute__((alias("engine_interpretation_loop")));

@@ -2,7 +2,6 @@
 
 #include "api/type.h"
 #include "engine/symlevel/terms.h"
-#include "utils/assertion.h"
 #include <optional>
 
 namespace API {

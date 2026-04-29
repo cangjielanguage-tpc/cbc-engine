@@ -14,8 +14,4 @@ I2Call PrepareI2Call(Engine::Session& session, Engine::Identifier<Symlevel::Meth
 /// Expects that method is dynamic (cbc).
 C2Call PrepareC2Call(Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> methodDef);
 
-/// Forcibly sets the value that would be returned on next `PrepareI2Call` invocations.
-/// This method shoudl be used only for unit-testing.
-void SetI2CallForInterpreter(I2Call i2call);
-
 } // namespace Interpretation

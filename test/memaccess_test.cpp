@@ -282,66 +282,78 @@ static void testInteger(IntegerTest desc)
 
 TEST_F(MemoryAccess, SpaceS8)
 {
-    testInteger(IntegerTest { .ldk    = Format::LoadAccessKind::LD_S8,
-                              .stk    = Format::StoreAccessKind::ST_8,
-                              .size   = 1,
-                              .ir1    = static_cast<uint64_t>(-3),
-                              .ir2    = static_cast<uint64_t>(-9),
-                              .expect = 3 });
+    testInteger(
+        IntegerTest { .ldk    = Format::LoadAccessKind::LD_S8,
+                      .stk    = Format::StoreAccessKind::ST_8,
+                      .size   = 1,
+                      .ir1    = static_cast<uint64_t>(-3),
+                      .ir2    = static_cast<uint64_t>(-9),
+                      .expect = 3 }
+    );
 }
 
 TEST_F(MemoryAccess, SpaceS16)
 {
-    testInteger(IntegerTest { .ldk    = Format::LoadAccessKind::LD_S16,
-                              .stk    = Format::StoreAccessKind::ST_16,
-                              .size   = 2,
-                              .ir1    = static_cast<uint64_t>(-3000),
-                              .ir2    = static_cast<uint64_t>(-12000),
-                              .expect = 4 });
+    testInteger(
+        IntegerTest { .ldk    = Format::LoadAccessKind::LD_S16,
+                      .stk    = Format::StoreAccessKind::ST_16,
+                      .size   = 2,
+                      .ir1    = static_cast<uint64_t>(-3000),
+                      .ir2    = static_cast<uint64_t>(-12000),
+                      .expect = 4 }
+    );
 }
 
 TEST_F(MemoryAccess, SpaceS32)
 {
-    testInteger(IntegerTest { .ldk    = Format::LoadAccessKind::LD_S32TO64,
-                              .stk    = Format::StoreAccessKind::ST_32,
-                              .size   = 4,
-                              .ir1    = static_cast<uint64_t>(-30000000),
-                              .ir2    = static_cast<uint64_t>(-60000000),
-                              .expect = 2 });
+    testInteger(
+        IntegerTest { .ldk    = Format::LoadAccessKind::LD_S32TO64,
+                      .stk    = Format::StoreAccessKind::ST_32,
+                      .size   = 4,
+                      .ir1    = static_cast<uint64_t>(-30000000),
+                      .ir2    = static_cast<uint64_t>(-60000000),
+                      .expect = 2 }
+    );
 }
 
 TEST_F(MemoryAccess, SpaceU8)
 {
     auto lhs = static_cast<uint64_t>(-6);
     auto rhs = static_cast<uint64_t>(-3);
-    testInteger(IntegerTest { .ldk    = Format::LoadAccessKind::LD_U8,
-                              .stk    = Format::StoreAccessKind::ST_8,
-                              .size   = 8,
-                              .ir1    = rhs,
-                              .ir2    = lhs,
-                              .expect = lhs / rhs });
+    testInteger(
+        IntegerTest { .ldk    = Format::LoadAccessKind::LD_U8,
+                      .stk    = Format::StoreAccessKind::ST_8,
+                      .size   = 8,
+                      .ir1    = rhs,
+                      .ir2    = lhs,
+                      .expect = lhs / rhs }
+    );
 }
 
 TEST_F(MemoryAccess, Space64)
 {
-    testInteger(IntegerTest { .ldk    = Format::LoadAccessKind::LD_64,
-                              .stk    = Format::StoreAccessKind::ST_64,
-                              .size   = 8,
-                              .ir1    = static_cast<uint64_t>(-3000000000000000l),
-                              .ir2    = static_cast<uint64_t>(-6000000000000000l),
-                              .expect = 2 });
+    testInteger(
+        IntegerTest { .ldk    = Format::LoadAccessKind::LD_64,
+                      .stk    = Format::StoreAccessKind::ST_64,
+                      .size   = 8,
+                      .ir1    = static_cast<uint64_t>(-3000000000000000l),
+                      .ir2    = static_cast<uint64_t>(-6000000000000000l),
+                      .expect = 2 }
+    );
 }
 
 TEST_F(MemoryAccess, SpaceU32)
 {
     uint64_t lhs = static_cast<uint32_t>(-300000000);
     auto rhs     = static_cast<uint64_t>(40);
-    testInteger(IntegerTest { .ldk    = Format::LoadAccessKind::LD_32,
-                              .stk    = Format::StoreAccessKind::ST_32,
-                              .size   = 8,
-                              .ir1    = rhs,
-                              .ir2    = lhs,
-                              .expect = lhs / rhs });
+    testInteger(
+        IntegerTest { .ldk    = Format::LoadAccessKind::LD_32,
+                      .stk    = Format::StoreAccessKind::ST_32,
+                      .size   = 8,
+                      .ir1    = rhs,
+                      .ir2    = lhs,
+                      .expect = lhs / rhs }
+    );
 }
 
 TEST_F(MemoryAccess, Fallback)

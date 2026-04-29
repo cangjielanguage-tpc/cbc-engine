@@ -13,7 +13,7 @@
 // exported
 declare_hidden engine_c2i_call_pc_start
 declare_hidden engine_c2i_call_pc_end
-declare_hidden engine_universal_direct_call
+declare_hidden engine_trampolines_dyn_start
 declare_hidden engine_trampolines_direct_start
 declare_hidden engine_iregs_only_c2i_call
 declare_hidden engine_i2i_call
@@ -53,7 +53,7 @@ engine_universal_direct_call:
 
 .align 16
 engine_trampolines_direct_start:
-.macro repeat_call count
+.macro repeat_trampoline_direct count
   .set i, 0
   .rept \count
       mov.d32 eax, i
@@ -61,7 +61,29 @@ engine_trampolines_direct_start:
       .set i, i + 1
   .endr
 .endm
-  repeat_call TRAMPOLINE_COUNT
+  repeat_trampoline_direct TRAMPOLINE_COUNT
+
+
+.align 16
+engine_universal_dyn_call:
+  mov   r10, [rdi] // get TypeInfo
+  // TODO: consider tail array
+  mov   r10, [r10 + TYPEINFO_DATA_MT_OFFSET] // data mt array
+  mov   rax, [r10 + rax * 0x8] // put FuH on rax
+  jmp   [rax + FUNCTION_HANDLE_C2CALL_OFFSET]
+
+
+.align 16
+engine_trampolines_dyn_start:
+.macro repeat_trampoline_dyn count
+  .set i, 0
+  .rept \count
+      mov.d32 eax, i
+      jmp.d32 engine_universal_dyn_call
+      .set i, i + 1
+  .endr
+.endm
+  repeat_trampoline_dyn TRAMPOLINE_COUNT
 
 #define TLS_REG r15
 #define ECTYPE_REG rbx

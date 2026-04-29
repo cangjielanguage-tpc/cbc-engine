@@ -36,6 +36,7 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
     auto i2Call             = PrepareI2Call(session, methodDef);
     auto c2Call             = PrepareC2Call(session, methodDef);
     auto fuh                = new DynamicFunctionHandle(i2Call, c2Call, methodDef);
+    // FIXME: proper publication
     impl->fuhMap[methodDef] = fuh;
     return fuh;
 }
@@ -54,14 +55,13 @@ FunctionHandle* FunctionHandleManager::Acquire(
 
 ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, DynamicFunctionHandle* fuh)
 {
-    auto def = Symlevel::MethodDefinition::Resolve(session, fuh->methodDef);
-
     std::lock_guard guard(fuh->lock);
 
     if (auto bytecode = fuh->bytecode.load(); bytecode != nullptr) {
         return bytecode;
     }
 
+    auto def      = Symlevel::MethodDefinition::Resolve(session, fuh->methodDef);
     auto code     = Symlevel::Reader::Read(session, def.FileId(), def.GetCodeOffset());
     auto resolver = API::Resolver::Create(session, def.GetIdentifier());
     auto& heap    = session.GetEngine().CodeHeap();
@@ -77,7 +77,7 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, Dynam
     return fuh->bytecode.load();
 }
 
-void* FunctionHandleManager::GetFunctionPtr(TaggedFunctionHandle fuh)
+void* FunctionHandleManager::GetFunctionPtrForDirectCall(TaggedFunctionHandle fuh)
 {
     if (auto* staticFuh = std::get_if<StaticFunctionHandle*>(&fuh)) {
         return (*staticFuh)->function;

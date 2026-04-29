@@ -2,7 +2,6 @@
 
 #include "ectype.h"
 #include "frame.h"
-#include "function_handle.h"
 #include "literals.h"
 #include "runtimesupport/runtime.h"
 
@@ -11,7 +10,7 @@
 
 namespace Interpretation {
 
-template <typename RTI> class Interpreter {
+class Interpreter {
     using IReg = Cbc::IReg;
 
 public:
@@ -68,9 +67,7 @@ public:
     inline bool LoadAddr(Format::LoadAccessKind ldk, Format::Reg dst, uint64_t location)
     {
         if (ldk == LoadAccessKind::LD_REF) {
-            ectype->Put(
-                dst.IR(), RTSupport::RuntimeInterface<RTI>::ReadObjectStatic(reinterpret_cast<void*>(location), handle)
-            );
+            ectype->Put(dst.IR(), RTSupport::Execution::ReadObjectStatic(reinterpret_cast<void*>(location), handle));
         } else {
             MemoryLocation(location).LoadPrim(ldk, dst, ectype);
         }
@@ -80,9 +77,7 @@ public:
     inline bool StoreAddr(Format::StoreAccessKind stk, Format::Reg src, uint64_t location)
     {
         if (stk == StoreAccessKind::ST_REF) {
-            ectype->Put(
-                src.IR(), RTSupport::RuntimeInterface<RTI>::ReadObjectStatic(reinterpret_cast<void*>(location), handle)
-            );
+            ectype->Put(src.IR(), RTSupport::Execution::ReadObjectStatic(reinterpret_cast<void*>(location), handle));
         } else {
             MemoryLocation(location).StorePrim(stk, src, ectype);
         }
@@ -96,7 +91,7 @@ public:
             return false;
         }
         if (ldk == LoadAccessKind::LD_REF) {
-            ectype->Put(dst.IR(), RTSupport::RuntimeInterface<RTI>::ReadObjectInstance(obj, offset, handle));
+            ectype->Put(dst.IR(), RTSupport::Execution::ReadObjectInstance(obj, offset, handle));
         } else {
             MemoryLocation(obj.value, offset).LoadPrim(ldk, dst, ectype);
         }
@@ -110,7 +105,7 @@ public:
             return false;
         }
         if (stk == StoreAccessKind::ST_REF) {
-            RTSupport::RuntimeInterface<RTI>::WriteObjectInstance(obj, offset, ectype->GetReference(src.IR()), handle);
+            RTSupport::Execution::WriteObjectInstance(obj, offset, ectype->GetReference(src.IR()), handle);
         } else {
             MemoryLocation(obj.value, offset).StorePrim(stk, src, ectype);
         }
