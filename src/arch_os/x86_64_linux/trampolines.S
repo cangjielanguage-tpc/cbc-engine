@@ -204,7 +204,7 @@ perform_2i_call:
 #endif
 
   // align stack
-  .if OFFS_ADDEND % 0x10 != 0
+  .if (SLOT_OFFS + OFFS_ADDEND) % 0x10 != 0
     .set OFFS_ADDEND, OFFS_ADDEND + 0x8
   .endif
   sub   rsp, OFFS_ADDEND
