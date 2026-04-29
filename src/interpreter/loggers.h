@@ -15,6 +15,7 @@ extern Logging::Logger interpretation;
 
 /// Logger for bytecode preparation actions.
 /// TRACE - enable disasm for input and rewritten bytecodes
+/// INFO - preparation notifications
 extern Logging::Logger preparation;
 } // namespace Log
 } // namespace Interpretation

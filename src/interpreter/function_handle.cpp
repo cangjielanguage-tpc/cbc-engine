@@ -71,7 +71,7 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, Dynam
     auto def  = Symlevel::MethodDefinition::Resolve(session, fuh->methodDef);
     auto code = Symlevel::Reader::Read(session, def.FileId(), def.GetCodeOffset());
 
-    logger.Log(Logging::Level::TRACE, [&session, fuh, &def](Stream::Output& out) {
+    logger.Log(Logging::Level::INFO, [&session, fuh, &def](Stream::Output& out) {
         auto name = std::string(Symlevel::Reader::Read(session, def.FileId(), def.NameOffset()));
         // TODO: print signature
         out.PrintFmt(
@@ -81,6 +81,7 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, Dynam
             fuh->methodDef.GetOffset(),
             name.c_str()
         );
+        out.NewLine();
     });
 
     auto resolver = API::Resolver::Create(session, def.GetIdentifier());
