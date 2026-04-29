@@ -6,8 +6,8 @@ namespace Interpretation {
 namespace Log {
 
 /// Loggers for interpetation actions.
-/// TRACE - intepretation start and end.
-/// DEBUG - instruction logging.
+/// DEBUG - intepretation start and end.
+/// TRACE - instruction logging.
 ///
 /// NOTE: this logger is enabled only in debug builds.
 /// TODO: separate define to enable in release builds.

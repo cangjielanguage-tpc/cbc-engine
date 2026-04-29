@@ -415,7 +415,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
 {
     Interpretation::Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
         Stream::StringBuffer buf;
-        buf.PrintFmt("[dis-%p]", fuh);
+        buf.PrintFmt("{%p} ", fuh);
         std::string descriptor = buf.ToString();
         Stream::Descripted desc(out, std::move(descriptor));
         Disasm(desc, code, &resolver);
@@ -425,7 +425,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
 
     Interpretation::Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
         Stream::StringBuffer buf;
-        buf.PrintFmt("[dis-rt-%p]", fuh);
+        buf.PrintFmt("{%p} ", fuh);
         std::string descriptor = buf.ToString();
         Stream::Descripted desc(out, std::move(descriptor));
         Cbc::RT::Log(res.code, desc);

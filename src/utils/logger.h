@@ -23,8 +23,8 @@ enum class Level : int {
 
 class Logger {
 public:
-    Logger(Stream::Output* output);
-    Logger();
+    Logger(Stream::Output* output, Level level = Level::NONE);
+    Logger(Level level = Level::NONE);
     Stream::Output& Stream(Level level);
     void SetStream(Stream::Output* stream);
     void SetLogLevel(Level level);

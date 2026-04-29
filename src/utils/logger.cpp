@@ -9,9 +9,9 @@ class Blackhole : public Stream::Output {
 
 Blackhole blackhole;
 
-Logger::Logger(Stream::Output* output) : level(Level::NONE), output(output) {}
+Logger::Logger(Stream::Output* output, Level level) : level(level), output(output) {}
 
-Logger::Logger() : level(Level::NONE), output(&Stream::cerr) {}
+Logger::Logger(Level level) : level(level), output(&Stream::cerr) {}
 
 Stream::Output& Logger::Stream(Level level)
 {

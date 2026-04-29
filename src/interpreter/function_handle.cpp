@@ -75,7 +75,7 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, Dynam
         auto name = std::string(Symlevel::Reader::Read(session, def.FileId(), def.NameOffset()));
         // TODO: print signature
         out.PrintFmt(
-            "Started preparation of method %p (%u;%u) %s",
+            "{%p} Started preparation of method (%u;%u) %s",
             fuh,
             fuh->methodDef.GetFileId(),
             fuh->methodDef.GetOffset(),

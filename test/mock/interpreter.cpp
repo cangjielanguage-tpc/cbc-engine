@@ -5,10 +5,14 @@
 #include "cbc/frame.h"
 #include "engine/typeinfo_manager.h"
 #include "interpreter.h"
+#include "interpreter/function_handle.h"
 #include "interpreter/interpretation_loop.h"
+#include "interpreter/loggers.h"
 #include "runtimesupport/adapters.h"
 #include "runtimesupport/runtime.h"
 #include "utils/assertion.h"
+#include "utils/logger.h"
+#include "utils/options.h"
 
 static constexpr int HEAP_SIZE = 16384;
 static LimitedHeap<HEAP_SIZE> heap;
@@ -20,7 +24,7 @@ using namespace RTSupport;
 static void MockNewObj(Ectype* ectype, ThreadHandle th, TypeInfo type);
 static Interpretation::Frame zeroFrame { 0 };
 
-static void InterpreterI2CallTest(Ectype* ectype, ThreadHandle handle, FunctionHandle* fuh);
+static void InterpreterI2CallTest(Ectype* ectype, ThreadHandle handle, DynamicFunctionHandle* fuh);
 
 static TestTypeInfo* Extract(TypeInfo type)
 {
@@ -44,6 +48,8 @@ static void DoInterpretationLoop(
     Ectype* ectype, Frame frame, ThreadHandle th, LiteralTable* literals, Decoder::ByteReader& reader
 )
 {
+    Log::interpretation.Stream(Logging::Level::DEBUG).PrintFmt("Started interpration of mock method");
+    Log::interpretation.Stream(Logging::Level::DEBUG).NewLine();
     while (true) {
         auto thunk = InterpretationLoop(ectype, frame, th, literals, reader);
         if (!thunk.function) {
@@ -52,6 +58,8 @@ static void DoInterpretationLoop(
         auto func = reinterpret_cast<void (*)(Ectype*, ThreadHandle, void*)>(thunk.function);
         func(ectype, th, thunk.arg);
     }
+    Log::interpretation.Stream(Logging::Level::DEBUG).PrintFmt("Stopped interpration of mock method");
+    Log::interpretation.Stream(Logging::Level::DEBUG).NewLine();
 }
 
 template <typename RegType>
@@ -79,14 +87,13 @@ Value::Primitive Interpret(
     return ectype.GetPrimitive(resReg);
 }
 
-static void InterpreterI2CallTest(Ectype* ectype, ThreadHandle handle, FunctionHandle* fuh)
+static void InterpreterI2CallTest(Ectype* ectype, ThreadHandle handle, DynamicFunctionHandle* fuh)
 {
-    auto dynFuh   = reinterpret_cast<DynamicFunctionHandle*>(fuh);
-    auto bytecode = dynFuh->bytecode.load();
+    auto bytecode = fuh->bytecode.load();
     if (!bytecode) {
         Engine::Session session(Engine::GetEngineInstance());
         auto& manager = FunctionHandleManager::Of(session);
-        bytecode      = manager.Prepare(session, dynFuh);
+        bytecode      = manager.Prepare(session, fuh);
     }
     auto code = bytecode->code;
 
@@ -97,7 +104,9 @@ static void InterpreterI2CallTest(Ectype* ectype, ThreadHandle handle, FunctionH
     Interpretation::Frame frame { frameStart };
 
     Decoder::ByteReader s(code.bytecode, code.bytecode, code.bytecode + code.bytecodeSize);
+    InterpretationStart(fuh, ectype);
     DoInterpretationLoop(ectype, frame, handle, code.literals, s);
+    InterpretationEnd(fuh, ectype);
 }
 
 } // namespace Interpretation
@@ -165,6 +174,7 @@ Interpretation::Value::Primitive InterpretFPRes(
 void InitializeMockInterpreter()
 {
     using namespace Interpretation;
+    Options::InitEnvOptions();
     auto i2call = reinterpret_cast<Interpretation::I2Call>(&Interpretation::InterpreterI2CallTest);
     static_assert(IReg::COUNT == 14);
 }

@@ -11,6 +11,7 @@
 #include "interpreter/function_handle.h"
 #include "interpreter/loggers.h"
 #include "utils/logger.h"
+#include "utils/options.h"
 
 static std::mutex g_InitializationGuard;
 static bool g_Initialized;
@@ -24,6 +25,8 @@ static void EnsureEngineInitialized()
     if (g_Initialized) {
         return;
     }
+
+    Options::InitEnvOptions();
 
     Engine::Loader loader;
     loader.Load(IO::OpenFile(std::filesystem::path(g_mainCbc)), g_mainCbc);

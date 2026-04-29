@@ -59,7 +59,7 @@ Interpretation::Thunk engine_interpretation_loop(
 #else
     #define LOG_INSTR Cbc::RT::Log(literals, logger, args)
     // TODO: add ectype ptr as ID of thread.
-    Stream::Descripted logger(Log::interpretation.Stream(Logging::Level::DEBUG), "[int] ");
+    auto& logger = Log::interpretation.Stream(Logging::Level::DEBUG);
 #endif
 
     uint64_t memspaceOffsetAcc = 0;
@@ -690,7 +690,7 @@ OFFS_REG: {
 
 void engine_log_int_start(DynamicFunctionHandle* handle, Ectype* ectype)
 {
-    Stream::Descripted logger(Log::interpretation.Stream(Logging::Level::DEBUG), "[int] ");
+    auto& logger = Log::interpretation.Stream(Logging::Level::DEBUG);
     auto id   = handle->methodDef.GetFileId().id;
     auto offs = handle->methodDef.GetOffset().value;
     logger.PrintFmt("Started interpretation of %p (%u;%u)", handle, id, offs);
@@ -699,7 +699,7 @@ void engine_log_int_start(DynamicFunctionHandle* handle, Ectype* ectype)
 
 void engine_log_int_end(DynamicFunctionHandle* handle, Ectype* ectype)
 {
-    Stream::Descripted logger(Log::interpretation.Stream(Logging::Level::DEBUG), "[int] ");
+    auto& logger = Log::interpretation.Stream(Logging::Level::DEBUG);
     auto id   = handle->methodDef.GetFileId().id;
     auto offs = handle->methodDef.GetOffset().value;
     logger.PrintFmt("Stopped interpretation of %p (%u;%u)", handle, id, offs);
@@ -712,5 +712,12 @@ Thunk Interpretation::InterpretationLoop(
     Ectype* ectype, Frame frame, RTSupport::ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
 ) __attribute__((alias("engine_interpretation_loop")));
 
-void InterpretationStart(DynamicFunctionHandle* handle, Ectype* ectype) __attribute__((alias("engine_log_int_start")));
-void InterpretationEnd(DynamicFunctionHandle* handle, Ectype* ectype) __attribute__((alias("engine_log_int_end")));
+void Interpretation::InterpretationStart(DynamicFunctionHandle* handle, Ectype* ectype)
+{
+    engine_log_int_start(handle, ectype);
+}
+
+void Interpretation::InterpretationEnd(DynamicFunctionHandle* handle, Ectype* ectype)
+{
+    engine_log_int_end(handle, ectype);
+}
