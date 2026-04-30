@@ -133,10 +133,11 @@ struct TypeInfoBuilder {
         std::free(componentTypeInfo);
         std::free(mtableDesc);
         std::free(reflectOrDebugInfo);
-        std::free(dataMT);
+        // dataMT and flatMethods are referenced from funcTable in extension def!!!
+        //std::free(dataMT);
         std::free(flatExtDefs);
         std::free(extDefs);
-        std::free(flatMethods);
+        //std::free(flatMethods);
         std::free(typeInfo);
     }
 };
@@ -216,7 +217,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
         // fill out flat methods table and data method table
         int entryIdx = 0;
-        for (auto it = mt.EntriesIter(); it.HasNext(), entryIdx++;) {
+        for (auto it = mt.EntriesIter(); it.HasNext(); entryIdx++) {
             auto entry                    = it.Next();
             builder.dataMT[entryIdx]      = fuhManager.Acquire(session, entry);
             builder.flatMethods[entryIdx] = GetFunctionOrTrampoline(session, entry, entryIdx);

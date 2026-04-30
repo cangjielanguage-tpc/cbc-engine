@@ -93,7 +93,7 @@ bool MethodTable::Iterator::HasNext() { return cursor < table->allEntries.size()
 Engine::Identifier<MethodDefinition> MethodTable::Iterator::Next()
 {
     ASSERT(HasNext());
-    return table->allEntries[cursor].method;
+    return table->allEntries[cursor++].method;
 }
 
 size_t MethodTable::ClassSubTableCount() const { return impl->classTables.size(); }
