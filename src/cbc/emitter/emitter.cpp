@@ -684,6 +684,29 @@ void Emitter::Convert(ConvertType toType, ConvertType fromType, Reg to, Reg from
     });
 }
 
+void Emitter::BFXS(IReg dst, IReg src, uint8_t offset, uint8_t size)
+{
+    BFX(RT::Opcode::BFXS, dst, src, offset, size);
+}
+
+void Emitter::BFXZ(IReg dst, IReg src, uint8_t offset, uint8_t size)
+{
+    BFX(RT::Opcode::BFXZ, dst, src, offset, size);
+}
+
+void Emitter::BFX(RT::Opcode opcode, IReg dst, IReg src, uint8_t offset, uint8_t size)
+{
+    Encode(segment, RT::BFX {
+        .opc = opcode,
+        .rr = {
+            .x = dst,
+            .y = src
+        },
+        .offs = offset,
+        .size = size
+    });
+}
+
 void Emitter::GcPoint()
 {
     Encode(

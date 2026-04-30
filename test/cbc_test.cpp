@@ -389,3 +389,25 @@ INSTANTIATE_TEST_SUITE_P(
             "to_float", sizeof(convertToFloat64Cases) / sizeof(ConvertCase), convertToFloat64Cases, &convertToFloat64 }
     )
 );
+
+#define SIMPLE_BFX_CASES(X)                                                                                            \
+    X(signed, 32, 32, U64(0x00000000FF000000L), U64(0x000000FFFF000000L))                                              \
+    X(signed, 64, 32, U64(0xFFFFFFFFFF000000L), U64(0x000000FFFF000000L))                                              \
+    X(signed, 32, 64, U64(0x00000000FF000000L), U64(0x000000FFFF000000L))                                              \
+    X(signed, 64, 64, U64(0xFFFFFFFFFF000000L), U64(0x000000FFFF000000L))                                              \
+    X(zeroed, 32, 32, U64(0x00000000FF000000L), U64(0x000000FFFF000000L))                                              \
+    X(zeroed, 64, 32, U64(0x00000000FF000000L), U64(0x000000FFFF000000L))                                              \
+    X(zeroed, 32, 64, U64(0x00000000FF000000L), U64(0x000000FFFF000000L))                                              \
+    X(zeroed, 64, 64, U64(0x00000000FF000000L), U64(0x000000FFFF000000L))                                              \
+
+#define SIMPLE_BFX(signed, dstBits, srcBits, expected, val)                                                            \
+    TEST_ASM(CbcTest, SimpleBFX##_##signed##_##dstBits##_##srcBits)                                                    \
+    {                                                                                                                  \
+        auto path = "./bfx/simple_bfx_" #signed "_" #dstBits "_" #srcBits ".asm";                                      \
+        auto code = OpenAndRewrite("bfx", path)->code;                                                                 \
+        auto res  = Interpret(code, val, U64(0), F64(0), F64(0));                                                      \
+        if (dstBits == 32) EXPECT_EQ(res.u32, expected.u32);                                          \
+        if (dstBits == 64) EXPECT_EQ(res.u64, expected.u64);                                          \
+    }
+
+SIMPLE_BFX_CASES(SIMPLE_BFX)

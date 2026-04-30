@@ -163,6 +163,9 @@ public:
 
     void Convert(ConvertType toType, ConvertType fromType, Reg to, Reg from);
 
+    void BFXS(IReg dst, IReg src, uint8_t offset, uint8_t size);
+    void BFXZ(IReg dst, IReg src, uint8_t offset, uint8_t size);
+
     void GcPoint();
 
     void DirectCall2i(Symbol fuh);
@@ -175,6 +178,7 @@ public:
 private:
     void AddFixup(std::unique_ptr<Fixup> fixup);
     void Mov(RT::Opcode opcode, Reg d, Reg s);
+    void BFX(RT::Opcode opcode, IReg dst, IReg src, uint8_t offset, uint8_t size);
 
     template <typename AccessKind> void LoadStore(AccessKind akind, Reg v, IReg base, uint32_t offset, RT::Opcode opc)
     {

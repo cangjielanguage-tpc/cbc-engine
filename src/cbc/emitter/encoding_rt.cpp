@@ -51,6 +51,14 @@ void Encode(ByteBuffer& buf, RT::B4xi12rr command)
     Encode(buf, command.rr);
 }
 
+void Encode(ByteBuffer& buf, RT::BFX command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.rr);
+    buf.AddW8(command.offs);
+    buf.AddW8(command.size);
+}
+
 void Encode(ByteBuffer& buf, RT::MemOpcode opc) { buf.AddW8(opc); }
 
 void Encode(ByteBuffer& buf, RT::M2i8 command)

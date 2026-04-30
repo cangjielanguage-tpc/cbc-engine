@@ -66,7 +66,9 @@
     X(DIRECT_CALL_2C, B3xi12, "direct.call.2c $1I12L")                                                                 \
     X(VIRTUAL_CALL_2C, B5i16i16, "virtual.call.2c $0U16L $1U16L")                                                      \
     X(MEMSPACE, B1, "memspace {")                                                                                      \
-    X(GC_POINT, B1, "gcpoint")
+    X(GC_POINT, B1, "gcpoint")                                                                                         \
+    X(BFXS, BFX, "bfxs $0ir $1ir $2U8 $3U8")                                                                           \
+    X(BFXZ, BFX, "bfxz $0ir $1ir $2U8 $3U8")
 
 // X parameters: opcode, encoding format, string format, is tail
 #define CBC_RT_MEMOPCODES(X)                                                                                           \
@@ -344,6 +346,24 @@ struct B4xi12xr {
         auto xi12 = Format::XImm12::Decode(reader);
         auto xr   = Format::XR::Decode(reader);
         return B4xi12xr { opc, xi12, xr };
+    }
+};
+
+struct BFX {
+    static constexpr int SIZE = 4;
+
+    Opcode opc;
+    Format::RR rr;
+    uint8_t offs;
+    uint8_t size;
+
+    static BFX Decode(Decoder::ByteReader& reader)
+    {
+        auto opc  = Opcode::Decode(reader);
+        auto rr   = Format::RR::Decode(reader);
+        auto offs = reader.Read8();
+        auto size = reader.Read8();
+        return BFX { opc, rr, offs, size };
     }
 };
 

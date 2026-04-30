@@ -396,6 +396,17 @@ public:
         }
     }
 
+    inline bool BitFieldExtract(Reg dst, Reg src, uint8_t offset, uint8_t size, bool sx)
+    {
+        auto val = ectype->GetPrimitive(src.IR());
+
+        auto bits = size > 0 ? MathUtils::Bits(val.u64, offset, offset + size - 1) : 0;
+        auto res = sx ? MathUtils::SignExtend(bits, size) : bits;
+
+        ectype->Put(dst.IR(), Value::Primitive { .u64 = res });
+        return true;
+    }
+
 private:
     inline bool NullCheck(Value::Reference obj) { return true; }
 

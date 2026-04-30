@@ -42,6 +42,8 @@ protected:
 
     virtual void Convert(Format::ConvertType toType, Format::ConvertType fromType, AnyReg to, AnyReg from) = 0;
 
+    virtual void BFX(IReg dst, IReg src, Format::Width resW, Format::Width argW, bool sx, uint8_t offset, uint8_t size) = 0;
+
     virtual void PrepareRecord(uint16_t ts)                = 0;
     virtual void NewArr(IReg dst, IReg len, uint16_t type) = 0;
 

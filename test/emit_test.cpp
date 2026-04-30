@@ -509,5 +509,62 @@ TEST(EmitTest, Simple_Convert)
     EXPECT_EQ(res.u64, U64(128).u64);
 }
 
+static void testBFX(bool signExtend)
+{
+    struct {
+        uint64_t value;
+        uint64_t from;
+        uint32_t to;
+    } cases[] = {
+        { 0x3EFL, 3, 5 },
+        { 0x2F0L, 7, 9 },
+
+        { 0x3FCL, 0, 2 },
+        { 0xFFFFFFFFL, 29, 31 },
+
+        { 0x3BCL, 6, 6 },
+        { 0x3BCL, 5, 5 },
+
+        { 0xABCDE3BA29AFCCB7L, 0, 31 },
+        { 0xABCDE3BA29AFCCB7L, 43, 52 },
+
+        { 0xFFFFFFFFL, 0, 31 },
+        { 0xFFFFFFFFFFFFFFFFL, 0, 31 },
+        { 0xFFFFFFFFFFFFFFFFL, 0, 63 },
+    };
+
+    for (const auto& test : cases) {
+        auto size = test.to - test.from + 1;
+        auto expectedBits = MathUtils::Bits(test.value, test.from, test.to);
+        auto expected = signExtend
+            ? MathUtils::SignExtend(expectedBits, size)
+            : MathUtils::ZeroExtend(expectedBits, size);
+
+        Emitter e;
+        if (signExtend) {
+            e.BFXS(IReg::IR1, IReg::IR2, test.from, size);
+        } else {
+            e.BFXZ(IReg::IR1, IReg::IR2, test.from, size);
+        }
+        e.Ret();
+
+        auto code = e.Build(heap);
+        Cbc::RT::Log(code, Stream::Disasm::rt);
+
+        auto res = Interpret(code, U64(0xBAADF00DL), U64(test.value));
+        EXPECT_EQ(res.u64, expected);
+    }
+}
+
+TEST(EmitTest, BFXS)
+{
+    testBFX(true);
+}
+
+TEST(EmitTest, BFXZ)
+{
+    testBFX(false);
+}
+
 } // namespace Emitter
 } // namespace Cbc
