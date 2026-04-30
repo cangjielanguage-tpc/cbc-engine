@@ -391,8 +391,20 @@ struct IsaRewriter : public IsaParser {
 
 static uint32_t CalcFrameSize(Symlevel::Code code)
 {
-    auto stackAllocSize = Cbc::STACK_SLOT_SIZE * (code.UntypedSlotCount()); // TODO: typed stack slots
-    return MathUtils::AlignUp(stackAllocSize, Cbc::FRAME_ALIGNMENT);
+    auto savedRegsCount = 0;
+    auto savedRegs      = code.UsedNonVolIRegMask();
+    for (; savedRegs != 0; savedRegsCount++) {
+        savedRegs &= savedRegs - 1;
+    }
+    savedRegs = code.UsedNonVolFRegMask();
+    for (; savedRegs != 0; savedRegsCount++) {
+        savedRegs &= savedRegs - 1;
+    }
+    auto savedRegsSpace = Cbc::STACK_SLOT_SIZE * savedRegsCount;
+
+    auto stackAllocSize = Cbc::STACK_SLOT_SIZE * code.UntypedSlotCount(); // TODO: typed stack slots
+
+    return MathUtils::AlignUp(savedRegsSpace + stackAllocSize, Cbc::FRAME_ALIGNMENT);
 }
 
 Interpretation::ExecBytecodeInfo Rewrite(MethodCode code, Resolver& resolver, Memory::Heap& heap)

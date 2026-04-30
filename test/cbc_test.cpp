@@ -120,6 +120,12 @@ TEST_ASM(CbcTest, FibRec)
     ASSERT_EQ(res.u32, 13);
 }
 
+TEST_ASM(CbcTest, FibRecRegs)
+{
+    auto res = Interpret(OpenAndRewrite("fib-rec-regs", "fib-rec-regs.asm")->code, U32(0), U32(0));
+    ASSERT_EQ(res.u32, 13);
+}
+
 TEST_ASM(CbcTest, DirectCall)
 {
     auto res = Interpret(OpenAndRewrite("direct-call", "direct-call.asm")->code, U32(0), U32(10));
