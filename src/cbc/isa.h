@@ -394,7 +394,7 @@ public:
 #define FloatOperationsEnum(opc, value, str) opc = value,
 
     enum Value : uint8_t {
-        FloatOperationsValue(FloatOperationsEnum)
+        FloatOperationsValue(FloatOperationsEnum) LAST = F2I
     };
 
 #undef FloatOperationsEnum

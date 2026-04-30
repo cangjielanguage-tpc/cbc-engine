@@ -111,7 +111,7 @@ struct IsaDisasm : public IsaParser {
     void FBinary(Format::FloatOperations op, Format::Width width, FReg d, FReg l, FReg r) override
     {
         stream << op.ToStr() << "." << Sz(width) << " ";
-        stream << d.ToStr() << l.ToStr() << r.ToStr() << endl;
+        stream << d.ToStr() << ", " << l.ToStr() << ", " << r.ToStr() << endl;
     }
 
     void FUnary(Format::FloatOperations op, Format::Width width, FReg d, FReg s) override

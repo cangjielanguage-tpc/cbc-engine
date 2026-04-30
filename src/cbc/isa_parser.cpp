@@ -513,7 +513,7 @@ struct IsaParserImpl {
     {
         auto [op, dst, lhs, rhs] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
 
-        Format::FloatOperations fop(op);
+        Format::FloatOperations fop = Format::FloatOperations::From(op);
         switch (fop) {
             case Format::FloatOperations::FADD: // fallthrough
             case Format::FloatOperations::FSUB: // fallthrough

@@ -75,8 +75,8 @@
     X(InitString, InitString)                                                                                          \
     X(ArrayLength, ArrayLength)                                                                                        \
     X(ArrayIndexCheck, ArrayIndexCheck)                                                                                \
-    X(FBinary32, FloatBinary<Width::W32>)                                                                              \
-    X(FBinary64, FloatBinary<Width::W64>)                                                                              \
+    X(Float32, FloatOp<Width::W32>)                                                                                    \
+    X(Float64, FloatOp<Width::W64>)                                                                                    \
     X(LoadStatic, LoadStatic)                                                                                          \
     X(StoreStatic, StoreStatic)                                                                                        \
     X(LoadObj, LoadObj)                                                                                                \
