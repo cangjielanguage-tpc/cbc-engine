@@ -4,9 +4,8 @@
 #include "engine/identifiers.h"
 #include "engine/packed_identifier.h"
 #include "engine/symlevel/definitions.h"
-#include "io/file_id.h"
-#include "offset.h"
-#include "string.h"
+#include "symlevel/io/file_id.h"
+#include "symlevel/offset.h"
 #include "utils/assertion.h"
 #include <cstdint>
 #include <mutex>
@@ -34,7 +33,12 @@
 /// The identifier consists of two parts: `kind` and `num`. Most of the times, `kind` is representing
 /// builtin type, so `num` part is not needed, but in case of user defined types,
 /// `num` stores information that identifies the type being referefenced.
-namespace Symlevel {
+namespace Engine {
+
+class Term;
+class LocalTerm;
+class GlobalTerm;
+struct TermData;
 
 enum class TemplateKind : uint8_t {
     // primitives start
@@ -82,10 +86,11 @@ static constexpr auto FIRST_NON_PRIMITIVE = static_cast<uint16_t>(TemplateKind::
 struct AotTypeTemplateIdentifier;
 struct TagTemplateIdentifier;
 struct TypeTemplateIdentifier;
+struct UndefinedTemplateIdentifier;
 
 class TemplateIdentifier {
 protected:
-    constexpr TemplateIdentifier(Engine::PackedIdentifier identifier) : ident(identifier) {}
+    constexpr TemplateIdentifier(PackedIdentifier identifier) : ident(identifier) {}
 
 public:
     TemplateKind GetKind() { return TemplateKind(ident.GetTag()); }
@@ -105,14 +110,15 @@ public:
     TypeTemplateIdentifier AsTypeIdent();
     AotTypeTemplateIdentifier AsAotIdent();
     TagTemplateIdentifier AsTagIdent();
+    UndefinedTemplateIdentifier AsUndefinedIdent();
 
 protected:
-    Engine::PackedIdentifier ident;
+    PackedIdentifier ident;
 };
 
 struct TagTemplateIdentifier : public TemplateIdentifier {
     constexpr TagTemplateIdentifier(TemplateKind kind)
-        : TemplateIdentifier(Engine::PackedIdentifier(static_cast<uint8_t>(kind), 0, 0))
+        : TemplateIdentifier(PackedIdentifier(static_cast<uint8_t>(kind), 0, 0))
     {
         ASSERT(kind == GetKind());
     }
@@ -120,59 +126,72 @@ struct TagTemplateIdentifier : public TemplateIdentifier {
     friend class TemplateIdentifier;
 
 protected:
-    TagTemplateIdentifier(Engine::PackedIdentifier identifier) : TemplateIdentifier(identifier) {}
+    TagTemplateIdentifier(PackedIdentifier identifier) : TemplateIdentifier(identifier) {}
 };
 
 struct AotTypeTemplateIdentifier : public TemplateIdentifier {
-    AotTypeTemplateIdentifier(Offset<String> offs, IO::FileId file)
-        : TemplateIdentifier(Engine::PackedIdentifier(static_cast<uint8_t>(TemplateKind::AOT_TYPE), offs, file))
-    {
-        ASSERT(TemplateKind::AOT_TYPE == GetKind());
-    }
+    AotTypeTemplateIdentifier(Symlevel::Offset<Symlevel::String> offs, IO::FileId file)
+        : TemplateIdentifier(PackedIdentifier(static_cast<uint8_t>(TemplateKind::AOT_TYPE), offs, file))
+    {}
 
-    Offset<String> GetOffset() { return TemplateIdentifier::ident.GetHigh(); }
+    Symlevel::Offset<Symlevel::String> GetOffset() { return TemplateIdentifier::ident.GetHigh(); }
 
     IO::FileId GetFile() { return TemplateIdentifier::ident.GetLow(); }
 
     friend class TemplateIdentifier;
 
 protected:
-    AotTypeTemplateIdentifier(Engine::PackedIdentifier identifier) : TemplateIdentifier(identifier) {}
+    AotTypeTemplateIdentifier(PackedIdentifier identifier) : TemplateIdentifier(identifier) {}
 };
 
 struct TypeTemplateIdentifier : public TemplateIdentifier {
-    TypeTemplateIdentifier(Offset<TypeDefinition> offs, IO::FileId file)
-        : TemplateIdentifier(Engine::PackedIdentifier(static_cast<uint8_t>(TemplateKind::TYPE), offs, file))
-    {
-        ASSERT(TemplateKind::TYPE == GetKind());
-    }
+    TypeTemplateIdentifier(Symlevel::Offset<Symlevel::TypeDefinition> offs, IO::FileId file)
+        : TemplateIdentifier(PackedIdentifier(static_cast<uint8_t>(TemplateKind::TYPE), offs, file))
+    {}
 
-    TypeTemplateIdentifier(Engine::Identifier<TypeDefinition> type)
+    TypeTemplateIdentifier(Identifier<Symlevel::TypeDefinition> type)
         : TypeTemplateIdentifier(type.GetOffset(), type.GetFileId())
     {}
 
-    Offset<TypeDefinition> GetOffset() { return TemplateIdentifier::ident.GetHigh(); }
+    Symlevel::Offset<Symlevel::TypeDefinition> GetOffset() { return TemplateIdentifier::ident.GetHigh(); }
 
     IO::FileId GetFile() { return TemplateIdentifier::ident.GetLow(); }
 
     friend class TemplateIdentifier;
 
 protected:
-    TypeTemplateIdentifier(Engine::PackedIdentifier identifier) : TemplateIdentifier(identifier) {}
+    TypeTemplateIdentifier(PackedIdentifier identifier) : TemplateIdentifier(identifier) {}
 };
 
-class Term;
-class LocalTerm;
-class GlobalTerm;
-struct TermData;
+struct UndefinedTemplateIdentifier : public TemplateIdentifier {
+    UndefinedTemplateIdentifier(IndexIdentifier<Term> indexId)
+        : TemplateIdentifier(PackedIdentifier(static_cast<uint8_t>(TemplateKind::UNDEFINED), indexId.GetIndex().Raw(), indexId.GetFileId()))
+    {
+        ASSERT(TemplateKind::UNDEFINED == GetKind());
+    }
 
-struct Term {
+    Symlevel::Offset<Symlevel::TypeDefinition> GetOffset() { return TemplateIdentifier::ident.GetHigh(); }
+
+    IndexIdentifier<Term> GetIndexId()
+    {
+        auto fileId = TemplateIdentifier::ident.GetLow();
+        auto index = Symlevel::Index<Term>(TemplateIdentifier::ident.GetHigh());
+        return IndexIdentifier<Term>(index, fileId);
+    }
+
+    friend class TemplateIdentifier;
+
+protected:
+    UndefinedTemplateIdentifier(PackedIdentifier identifier) : TemplateIdentifier(identifier) {}
+};
+
+class Term {
+public:
+    static constexpr uint16_t FIRST_NON_PRIMITIVE = static_cast<uint16_t>(TemplateKind::UNDEFINED);
+
     TermData* data;
 
-    static std::optional<Term> ParseAndResolve(Engine::Session& session, IO::FileId fileId, Offset<Term> offset);
-    static Term Primitive(Engine::Session& session, TemplateKind kind);
-
-    static Term Definition(Engine::Session& session, Engine::Identifier<TypeDefinition> type);
+    static Term Definition(Session& session, Identifier<Symlevel::TypeDefinition> type);
 
     Term(LocalTerm local);
     Term(GlobalTerm global);
@@ -196,7 +215,7 @@ public:
     LocalTerm(TermData* data);
     Term Subterm(uint32_t i) const;
 
-    GlobalTerm Publish(Engine::Session& session);
+    GlobalTerm Publish(Session& session);
 
     TemplateIdentifier GetIdentifier() const { return Term(*this).GetIdentifier(); }
 
@@ -229,15 +248,20 @@ private:
     TermData* data;
 };
 
-static constexpr bool IsBuiltin(uint32_t idx) { return idx < FIRST_NON_PRIMITIVE; }
-
+/// Term manager provides utilities for caching (and interning) of global terms,
+/// and responsible for resolution of term identifiers.
 class TermManager {
 public:
     class Impl;
     friend class Impl;
 
-    static TermManager& Of(Engine::Engine& engine);
-    static TermManager& Of(Engine::Session& session);
+    static TermManager& Of(Engine& engine);
+    static TermManager& Of(Session& session);
+
+    /// Perform term resolution.
+    /// In case of resolution errors, UNDEFINED term will be returned.
+    // TODO: pass abstract cache inside.
+    static Term Resolve(Session& session, IndexIdentifier<Term> ident);
 
     /// Globalize given term.
     /// The function performs in-place modification of `Term` structure.

@@ -7,7 +7,7 @@
 #include "cbc/isa_disasm.h"
 #include "engine/symlevel/index.h"
 #include "engine/symlevel/references.h"
-#include "engine/symlevel/terms.h"
+#include "engine/terms.h"
 #include "interpreter/code.h"
 #include "interpreter/function_handle.h"
 #include "interpreter/loggers.h"
@@ -24,7 +24,7 @@ namespace Cbc {
 
 using MethodIndex = Symlevel::Index<Symlevel::MethodReference>;
 using FieldIndex  = Symlevel::Index<Symlevel::FieldReference>;
-using TermIndex   = Symlevel::Index<Symlevel::Term>;
+using TermIndex   = Symlevel::Index<Engine::Term>;
 
 struct IsaRewriter : public IsaParser {
     IsaRewriter(API::Resolver& resolver, MethodCode code, Emitter::Emitter& emit)
@@ -42,7 +42,7 @@ struct IsaRewriter : public IsaParser {
     size_t startPosition;
     std::unordered_map<ssize_t, Emitter::Label> instructionLabel;
 
-    using TK = Symlevel::TemplateKind;
+    using TK = Engine::TemplateKind;
     using LDK = Format::LoadAccessKind;
     using STK = Format::StoreAccessKind;
 
@@ -144,11 +144,11 @@ struct IsaRewriter : public IsaParser {
         return cursor - start;
     }
 
-    TermIndex Term(uint16_t index) { return TermIndex { .region = 0, .index = index }; }
+    //TermIndex Term(uint16_t index) { return TermIndex { .region = 0, .index = index }; }
 
-    MethodIndex Method(uint16_t index) { return MethodIndex { .region = 0, .index = index }; }
+    //MethodIndex Method(uint16_t index) { return MethodIndex { .region = 0, .index = index }; }
 
-    FieldIndex Field(uint16_t index) { return FieldIndex { .region = 0, .index = index }; }
+    //FieldIndex Field(uint16_t index) { return FieldIndex { .region = 0, .index = index }; }
 
     void Bcc(Format::Width width, Format::CC cc, AnyReg l, AnyReg r, int64_t delta) override
     {

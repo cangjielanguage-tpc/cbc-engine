@@ -65,8 +65,8 @@ public:
     IO::FileId fileId;
     uint32_t bucketCount;
     uint32_t memberCount;
-    IO::OffsetPool bucketTable;
-    IO::OffsetPool buckets;
+    // IO::OffsetPool bucketTable;
+    // IO::OffsetPool buckets;
 
     static std::unique_ptr<MemberIndex> Read(IO::StreamFileReader& reader, IO::FileId fileId)
     {
@@ -76,26 +76,22 @@ public:
         auto bucketTableOffs = reader.Position();
         auto bucketsOffs     = bucketTableOffs + bucketTableSize * sizeof(uint32_t);
 
-        IO::OffsetPool bucketTable(bucketTableOffs, bucketTableSize);
-        IO::OffsetPool buckets(bucketsOffs, bucketsSize);
+        // IO::OffsetPool bucketTable(bucketTableOffs, bucketTableSize);
+        // IO::OffsetPool buckets(bucketsOffs, bucketsSize);
 
         reader.Advance(bucketTableSize * sizeof(uint32_t) + bucketsSize * sizeof(uint32_t));
 
-        return std::make_unique<MemberIndex>(fileId, bucketTableSize - 1, bucketsSize, bucketTable, buckets);
+        return std::make_unique<MemberIndex>(fileId, bucketTableSize - 1, bucketsSize);
     }
 
     MemberIndex(
         IO::FileId fileId,
         uint32_t bucketCount,
-        uint32_t memberCount,
-        IO::OffsetPool bucketTable,
-        IO::OffsetPool buckets
+        uint32_t memberCount
     )
         : fileId(fileId),
           bucketCount(bucketCount),
-          memberCount(memberCount),
-          bucketTable(bucketTable),
-          buckets(buckets)
+          memberCount(memberCount)
     {}
 
     static uint32_t Hash(String name)
@@ -112,53 +108,54 @@ public:
 
     template <typename T> std::optional<Offset<T>> FindOffset(Engine::Session& session, String name) const
     {
-        if (IsEmpty()) {
-            return std::nullopt;
-        }
-
-        auto& file = *session.FileOf(fileId);
-
-        uint32_t startIdx = Hash(name) % bucketCount;
-
-        auto start = bucketTable.QueryOffset(file, startIdx);
-        auto end   = bucketTable.QueryOffset(file, startIdx + 1);
-        ASSERT(start <= end);
-
-        for (auto i = start; i < end; i++) {
-            auto entityOffs = Offset<T>(buckets.QueryOffset(file, i));
-            auto entityName = Reader::ReadName(session, fileId, entityOffs);
-            if (entityName.compare(name) == 0) {
-                return entityOffs;
-            }
-        }
-
+//        if (IsEmpty()) {
+//            return std::nullopt;
+//        }
+//
+//        auto& file = *session.FileOf(fileId);
+//
+//        uint32_t startIdx = Hash(name) % bucketCount;
+//
+//        // TODO: the same as aot table!
+//        auto start = bucketTable.QueryOffset(file, startIdx);
+//        auto end   = bucketTable.QueryOffset(file, startIdx + 1);
+//        ASSERT(start <= end);
+//
+//        for (auto i = start; i < end; i++) {
+//            auto entityOffs = Offset<T>(buckets.QueryOffset(file, i));
+//            auto entityName = Reader::ReadName(session, fileId, entityOffs);
+//            if (entityName.compare(name) == 0) {
+//                return entityOffs;
+//            }
+//        }
+//
         return std::nullopt;
     }
 
     template <typename T> std::vector<Offset<T>> FindOffsets(Engine::Session& session, String name) const
     {
-        if (IsEmpty()) {
-            return {};
-        }
-
-        auto& file = *session.FileOf(fileId);
-
-        uint32_t startIdx = Hash(name) % bucketCount;
-
-        auto start = bucketTable.QueryOffset(file, startIdx);
-        auto end   = bucketTable.QueryOffset(file, startIdx + 1);
-        ASSERT(start <= end);
-
-        std::vector<Offset<T>> offsets;
-        for (auto i = start; i < end; i++) {
-            auto entityOffs = Offset<T>(buckets.QueryOffset(file, i));
-            auto entityName = Reader::ReadName(session, fileId, entityOffs);
-            if (entityName.compare(name) == 0) {
-                offsets.push_back(entityOffs);
-            }
-        }
-
-        return std::move(offsets);
+//        if (IsEmpty()) {
+//            return {};
+//        }
+//
+//        auto& file = *session.FileOf(fileId);
+//
+//        uint32_t startIdx = Hash(name) % bucketCount;
+//
+//        auto start = bucketTable.QueryOffset(file, startIdx);
+//        auto end   = bucketTable.QueryOffset(file, startIdx + 1);
+//        ASSERT(start <= end);
+//
+//        std::vector<Offset<T>> offsets;
+//        for (auto i = start; i < end; i++) {
+//            auto entityOffs = Offset<T>(buckets.QueryOffset(file, i));
+//            auto entityName = Reader::ReadName(session, fileId, entityOffs);
+//            if (entityName.compare(name) == 0) {
+//                offsets.push_back(entityOffs);
+//            }
+//        }
+//
+        return std::vector<Offset<T>>();
     }
 };
 

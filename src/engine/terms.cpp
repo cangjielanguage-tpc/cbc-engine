@@ -1,12 +1,15 @@
-#include "terms.h"
-#include "definitions.h"
-#include "engine/arena.h"
+#include "engine/terms.h"
+#include "engine/identifiers.h"
+#include "engine/symlevel/cbc_file.h"
+#include "engine/symlevel/definitions.h"
 #include "engine/engine.h"
-#include "io/stream_file_reader.h"
-#include "reader.h"
-#include "region_data.h"
+#include "engine/symlevel/io/file_id.h"
+#include "engine/symlevel/io/stream_file_reader.h"
+#include "engine/symlevel/reader.h"
+#include "engine/symlevel/region_data.h"
 #include "string.h"
 #include "utils/assertion.h"
+#include "utils/heap.h"
 #include <alloca.h>
 #include <cstdint>
 #include <cstdlib>
@@ -15,8 +18,12 @@
 #include <optional>
 #include <unordered_set>
 
-namespace Symlevel {
+namespace Engine {
 
+/// Internal representation of `Term`.
+/// The main things which are needed to represent term is an identifier and subterms.
+/// The length of subterm array is bounded by 2^16, so in the leftover memory
+/// we fit additional fields `hash` and `isLocal`.
 struct TermData {
     TemplateIdentifier identifier;
     uint32_t hash;
@@ -67,72 +74,15 @@ static TermData* AllocateTerm(Memory::Heap& allocator, size_t subtermCount = 0)
     );
 }
 
-std::optional<Term> Term::ParseAndResolve(Engine::Session& session, IO::FileId fileId, Offset<Term> offset)
-{
-    IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetTermSectionOffs() + offset);
-    auto& allocator = session.Allocator();
-
-    auto tag = static_cast<Tag>(reader.ReadU8());
-    switch (tag) {
-        case TYPE: {
-            auto nameOffs = Offset<String>(reader.ReadULEB());
-            auto name     = Reader::Read(session, fileId, nameOffs);
-            auto type     = session.GetEngine().FindType(session, name);
-            if (type.has_value()) {
-                auto identifier = type.value().GetIdentifier();
-
-                auto* data = AllocateTerm(allocator);
-                data->InitAfterSubterms(TypeTemplateIdentifier(identifier), 0, true);
-
-                return Term(LocalTerm(data));
-            } else {
-                return std::nullopt;
-            }
-        }
-
-        case AOT_TYPE: {
-            auto nameOffs = Offset<String>(reader.ReadULEB());
-
-            auto* data = AllocateTerm(allocator);
-            data->InitAfterSubterms(AotTypeTemplateIdentifier(nameOffs, fileId), 0, true);
-
-            return Term(LocalTerm(data));
-        }
-
-        case METHOD_SIGNATURE: {
-            auto len   = reader.ReadU8() + 1; // +1 for ret type
-            auto* data = AllocateTerm(allocator, len);
-
-            auto& regionData = session.CbcFileOf(fileId).GetRegionData();
-            for (int i = 0; i < len; i++) {
-                auto subtermIdx = reader.ReadULEB();
-                auto subterm    = regionData.queryTerm(session, { .region = 0, .index = subtermIdx });
-                if (subterm.has_value()) {
-                    data->subterms[i] = subterm.value();
-                } else {
-                    allocator.Free(data, sizeof(TermData) + len * sizeof(Term), alignof(TermData));
-                    return std::nullopt;
-                }
-            }
-
-            data->InitAfterSubterms(TagTemplateIdentifier(TemplateKind::METHOD), len, true);
-
-            return Term(LocalTerm(data));
-        }
-
-        default: {
-            FATAL("not implemented");
-            return std::nullopt;
-        }
-    }
-}
-
 TypeTemplateIdentifier TemplateIdentifier::AsTypeIdent() { return TypeTemplateIdentifier(ident); }
 
 AotTypeTemplateIdentifier TemplateIdentifier::AsAotIdent() { return AotTypeTemplateIdentifier(ident); }
 
 TagTemplateIdentifier TemplateIdentifier::AsTagIdent() { return TagTemplateIdentifier(ident); }
 
+UndefinedTemplateIdentifier TemplateIdentifier::AsUndefinedIdent() { return UndefinedTemplateIdentifier(ident); }
+
+// NOTE: the order is the same as the order of builtin terms in cbc format.
 static TermData builtins[] = {
     { TagTemplateIdentifier(TemplateKind::NIL), 0xa0, 0, false },
     { TagTemplateIdentifier(TemplateKind::VOID), 0xa1, 0, false },
@@ -156,49 +106,29 @@ static TermData builtins[] = {
     { TagTemplateIdentifier(TemplateKind::F64), 0x29, 0, false },
 };
 
-Term::Term(LocalTerm local) : data(local.data) {}
-
-Term::Term(GlobalTerm global) : data(global.data) {}
-
-Term Term::Primitive(Engine::Session& session, TemplateKind kind)
+static Term Primitive(Session& session, Symlevel::Index<Term> index)
 {
-    int num = static_cast<int>(kind);
+    static_assert(FIRST_NON_PRIMITIVE == sizeof(builtins) / sizeof(builtins[0]));
+    int num = static_cast<int>(index.GetIndex());
     ASSERT(num < FIRST_NON_PRIMITIVE);
-    auto data = &builtins[static_cast<int>(kind)];
-    ASSERT(data->identifier.GetKind() == kind);
-    return GlobalTerm(data);
+    return GlobalTerm(&builtins[num]);
 }
 
-Term Term::Definition(Engine::Session& session, Engine::Identifier<TypeDefinition> type)
+Term Term::Definition(Session& session, Identifier<Symlevel::TypeDefinition> type)
 {
     // TODO: assertions for length
     auto* data = AllocateTerm(session.Allocator());
     data->InitAfterSubterms(TypeTemplateIdentifier(type), 0, true);
-
     return LocalTerm(data);
 }
 
-LocalTerm Term::AsLocal()
+static Term Undefined(Session& session, IndexIdentifier<Term> termId)
 {
-    ASSERT(IsLocal());
+    // TODO: assertions for length
+    auto* data = AllocateTerm(session.Allocator());
+    data->InitAfterSubterms(UndefinedTemplateIdentifier(termId), 0, true);
     return LocalTerm(data);
 }
-
-GlobalTerm Term::AsGlobal()
-{
-    ASSERT(!IsLocal());
-    return GlobalTerm(data);
-}
-
-Term Term::Subterm(uint32_t i) const { return data->subterms[i]; }
-
-TemplateIdentifier Term::GetIdentifier() const { return data->identifier; }
-
-uint32_t Term::GetLength() const { return data->length; }
-
-uint32_t Term::Hash() const { return data->hash; }
-
-bool Term::operator!=(const Term& another) const { return !(*this == another); }
 
 static bool CompareTermData(TermData* origin, TermData* another, bool ignoreLocal)
 {
@@ -223,6 +153,32 @@ static bool CompareTermData(TermData* origin, TermData* another, bool ignoreLoca
     }
 }
 
+Term::Term(LocalTerm local) : data(local.data) {}
+
+Term::Term(GlobalTerm global) : data(global.data) {}
+
+LocalTerm Term::AsLocal()
+{
+    ASSERT(IsLocal());
+    return LocalTerm(data);
+}
+
+GlobalTerm Term::AsGlobal()
+{
+    ASSERT(!IsLocal());
+    return GlobalTerm(data);
+}
+
+Term Term::Subterm(uint32_t i) const { return data->subterms[i]; }
+
+TemplateIdentifier Term::GetIdentifier() const { return data->identifier; }
+
+uint32_t Term::GetLength() const { return data->length; }
+
+uint32_t Term::Hash() const { return data->hash; }
+
+bool Term::operator!=(const Term& another) const { return !(*this == another); }
+
 bool Term::operator==(const Term& another) const { return CompareTermData(this->data, another.data, false); }
 
 bool Term::IsLocal() const { return data->isLocal; }
@@ -231,7 +187,7 @@ Term LocalTerm::Subterm(uint32_t i) const { return this->data->subterms[i]; }
 
 LocalTerm::LocalTerm(TermData* data) : data(data) { ASSERT(data->isLocal); }
 
-GlobalTerm LocalTerm::Publish(Engine::Session& session)
+GlobalTerm LocalTerm::Publish(Session& session)
 {
     Term term(*this);
     return TermManager::Of(session).Globalize(term);
@@ -280,5 +236,83 @@ GlobalTerm TermManager::Globalize(Term& term)
 }
 
 uint64_t TermManager::Hasher::operator()(TermData* const& data) const { return data->hash; }
+
+struct TermResolver {
+    Symlevel::RegionData const& regionData;
+    Session& session;
+    Memory::Heap& heap;
+    IO::FileId fileId;
+    IO::RandomAccessFile& raf;
+    Symlevel::CbcFile& file;
+
+    Term NewUndefined(Symlevel::Index<Term> index) {
+        return Undefined(session, IndexIdentifier(index, fileId));
+    }
+
+    Term Resolve(Symlevel::Index<Term> index)
+    {
+        using namespace Symlevel;
+
+        if (index.GetIndex() < FIRST_NON_PRIMITIVE) {
+            return Primitive(session, index);
+        }
+        auto offset = regionData.Query(session, index);
+        IO::StreamFileReader reader(raf, file.GetTermSectionOffs() + offset);
+
+        auto tag = static_cast<Tag>(reader.ReadU8());
+        switch (tag) {
+            case TYPE: {
+                auto name = Reader::Read(session, fileId, Offset<String>(reader.ReadULEB()));
+                // FIXME: must be option of identifier, not of TypeDefinition itself
+                auto type = session.GetEngine().FindType(session, name);
+                if (!type.has_value()) {
+                    return NewUndefined(index);
+                }
+                auto identifier = type.value().GetIdentifier();
+                auto* data      = AllocateTerm(heap);
+                data->InitAfterSubterms(TypeTemplateIdentifier(identifier), 0, true);
+                return Term(LocalTerm(data));
+            }
+            case AOT_TYPE: {
+                auto nameOffs = Offset<String>(reader.ReadULEB());
+                auto* data    = AllocateTerm(heap);
+                data->InitAfterSubterms(AotTypeTemplateIdentifier(nameOffs, fileId), 0, true);
+                return Term(LocalTerm(data));
+            }
+            case METHOD_SIGNATURE: {
+                auto len   = reader.ReadU8() + 1; // +1 for ret type
+                auto* data = AllocateTerm(heap, len);
+
+                auto& regionData = session.CbcFileOf(fileId).GetRegionData();
+                for (int i = 0; i < len; i++) {
+                    auto subtermIdx = reader.ReadULEB();
+                    auto subterm    = Resolve(Index<Term>(index.GetRegion(), subtermIdx));
+                    if (subterm.GetIdentifier().GetKind() == TemplateKind::UNDEFINED) {
+                        return NewUndefined(index);
+                    }
+                }
+
+                data->InitAfterSubterms(TagTemplateIdentifier(TemplateKind::METHOD), len, true);
+                return Term(LocalTerm(data));
+            }
+            default: {
+                FATAL("Not implemented for tag %d", tag);
+                return NewUndefined(index);
+            }
+        }
+    }
+};
+
+Term TermManager::Resolve(Session& session, IndexIdentifier<Term> ident)
+{
+    auto index = ident.GetIndex();
+    auto region = index.GetRegion();
+    auto& raf = session.FileOf(ident.GetFileId());
+    auto& file = session.CbcFileOf(ident.GetFileId());
+
+    TermResolver resolver { file.GetRegionData(), session, session.Allocator(), ident.GetFileId(), *raf, file };
+
+    return resolver.Resolve(ident.GetIndex());
+}
 
 } // namespace Symlevel

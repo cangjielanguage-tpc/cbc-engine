@@ -270,19 +270,6 @@ struct IsaResolvingDisasm : IsaDisasm {
           resolver(resolver)
     {}
 
-    /// FIXME:
-    ///  - remove duplication between rewriter and disasm.
-    ///  - MethodIndex and others MUST HAVE separate representation for API users
-    ///    and API implementation. Knowledge about region is known only resolver.
-    ///  - Usage of Symlevel::XYZIndex here do not make sense.
-    MethodIndex Method(uint16_t index) { return MethodIndex { .region = 0, .index = index }; }
-
-    void CallVirtual(IReg dst, uint16_t method) override
-    {
-        auto m = resolver.ResolveVirtualMethod(Method(method));
-        stream << "call.virtual" << " " << dst.ToStr() << ", " << m->ExtDefNum() << ", " << m->VNum() << endl;
-    }
-
     // TODO: implement rest.
 };
 

@@ -1,6 +1,6 @@
 #include "engine.h"
 #include "engine/symlevel/method_table.h"
-#include "engine/symlevel/terms.h"
+#include "engine/terms.h"
 #include "engine/typeinfo_manager.h"
 #include "interpreter/function_handle.h"
 #include "symlevel/cbc_file.h"
@@ -183,13 +183,13 @@ MethodTableManager& MethodTableManager::Of(Engine::Session& session)
     return MethodTableManager::Of(session.GetEngine());
 }
 
-TermManager& TermManager::Of(Engine::Engine& engine) { return EngineImpl::Of(engine).termManager; }
-
-TermManager& TermManager::Of(Engine::Session& session) { return TermManager::Of(session.GetEngine()); }
-
 } // namespace Symlevel
 
 namespace Engine {
+
+TermManager& TermManager::Of(Engine& engine) { return EngineImpl::Of(engine).termManager; }
+
+TermManager& TermManager::Of(Session& session) { return TermManager::Of(session.GetEngine()); }
 
 TypeInfoManager& TypeInfoManager::Of(Engine& engine) { return *EngineImpl::Of(engine).typeInfoManager; }
 

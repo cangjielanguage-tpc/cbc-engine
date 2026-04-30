@@ -2,7 +2,7 @@
 
 #include "api/field.h"
 #include "api/type.h"
-#include "engine/symlevel/terms.h"
+#include "engine/terms.h"
 
 namespace API {
 

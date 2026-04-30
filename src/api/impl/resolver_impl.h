@@ -16,7 +16,7 @@ public:
           method(method)
     {}
 
-    Type* Resolve(Symlevel::Index<Symlevel::Term> index) override;
+    Type* Resolve(Symlevel::Index<Engine::Term> index) override;
 
     DirectMethod* ResolveDirectMethod(Symlevel::Index<Symlevel::MethodReference> index) override;
 
@@ -26,7 +26,7 @@ public:
 
     StaticField* ResolveStaticField(Symlevel::Index<Symlevel::FieldReference> index) override;
 
-    std::optional<Type*> TypeOf(Symlevel::Term* term) override;
+    std::optional<Type*> TypeOf(Engine::Term* term) override;
 
     ~ResolverImpl() override;
 
@@ -34,7 +34,7 @@ private:
     Engine::Session& session;
     Engine::Identifier<Symlevel::MethodDefinition> method;
 
-    Type* Resolve(Symlevel::Term index);
+    Type* Resolve(Engine::Term index);
 
     template <typename T> T* ResolveField(Symlevel::Index<Symlevel::FieldReference> index);
 };

@@ -15,8 +15,6 @@ TypeImpl::TypeImpl(Term term, TypeInfo typeInfo) : term(term), typeInfo(typeInfo
     ASSERTION(term.GetLength() == 0, "Use only for non-generic types");
 }
 
-Term* TypeImpl::AsTerm() { return &term; }
-
 std::optional<TypeInfo> TypeImpl::GetTypeInfo() { return typeInfo; }
 
 int TypeImpl::FieldsNum() { FATAL("not implemented"); }

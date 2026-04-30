@@ -1,7 +1,7 @@
 #pragma once
 
 #include "access_kind.h"
-#include "engine/symlevel/terms.h"
+#include "engine/terms.h"
 #include "runtimesupport/runtime.h"
 #include <cstdint>
 #include <optional>
@@ -26,13 +26,9 @@ using TypeInfo = RTSupport::TypeInfo;
  * @see Term
  */
 class Type {
-    using Term = Symlevel::Term;
+    using Term = Engine::Term;
 
 public:
-    /**
-     * @brief The closed term representation of the type.
-     */
-    virtual Term* AsTerm() = 0;
 
     /**
      * @brief Runtime information about type. Absent if type is generic.

@@ -25,7 +25,7 @@ public:
     /**
      * @brief The signature used for actual ABI of a method invocation.
      */
-    virtual Symlevel::Term* ABISignature() = 0;
+    virtual Engine::Term* ABISignature() = 0;
 
     /**
      * @brief The ref type.
@@ -56,7 +56,7 @@ public:
     /**
      * @brief The signature used for actual ABI of a method invocation.
      */
-    virtual Symlevel::Term* ABISignature() = 0;
+    virtual Engine::Term* ABISignature() = 0;
 
     /**
      * @brief The ref type.

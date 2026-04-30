@@ -6,7 +6,7 @@
 namespace API {
 namespace Impl {
 
-using Term = Symlevel::Term;
+using Term = Engine::Term;
 
 //////////////////////////////////
 // DirectMethodCbc
@@ -67,7 +67,7 @@ MethodFlags DirectMethodAot::Flags()
     return MethodFlags();
 }
 
-Symlevel::String DirectMethodAot::Name() { return ref.Name(); }
+Symlevel::String DirectMethodAot::Name() { return std::string_view(""); }
 
 //////////////////////////////////
 // VirtualMethodAot
@@ -96,7 +96,7 @@ MethodFlags VirtualMethodImpl::Flags()
     return MethodFlags();
 }
 
-Symlevel::String VirtualMethodImpl::Name() { return ref.Name(); }
+Symlevel::String VirtualMethodImpl::Name() { return std::string_view(""); }
 
 } // namespace Impl
 } // namespace API

@@ -4,14 +4,13 @@
 #include "engine/identifiers.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/string.h"
-#include "engine/symlevel/terms.h"
+#include "engine/terms.h"
 #include <cstddef>
-#include <functional>
 #include <memory>
 #include <mutex>
 #include <vector>
 
-namespace Symlevel {
+namespace Symlevel { // TODO: move to Engine
 
 /// Each method table can be constructed for some type definition or term that instantiates type definition.
 /// The method table is needed for virtual and interface method resolution (including dynamic "static" methods).
@@ -40,7 +39,7 @@ struct MethodTableEntry {
 
     /// Declaring type, where method is actually declared. Additionally to type definition,
     /// stores an generic variable parameterization.
-    Term declaringType;
+    Engine::Term declaringType;
 
     /// Method number in sub table.
     int methodNum;
@@ -78,7 +77,7 @@ public:
 
     int StartPos() const;
     int EndPos() const;
-    Term DeclaringType() const;
+    Engine::Term DeclaringType() const;
 
     Iterator Iter() const;
     size_t Size() const;
@@ -152,7 +151,7 @@ public:
     MethodTable GetMethodTable(Engine::Session& session, Engine::Identifier<TypeDefinition> type);
 
     /// Returns an method table for the given type.
-    MethodTable GetMethodTable(Engine::Session& session, Term term);
+    MethodTable GetMethodTable(Engine::Session& session, Engine::Term term);
 
 private:
     std::mutex lock;

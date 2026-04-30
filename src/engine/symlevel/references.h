@@ -1,80 +1,67 @@
 #pragma once
 
 #include "engine/engine.h"
+#include "engine/identifiers.h"
 #include "io/file_id.h"
 #include "string.h"
-#include "terms.h"
+#include "term.h"
 
 namespace Symlevel {
 
-class MethodReference;
-class FieldReference;
-
-enum MethodAccessKind : uint16_t;
-
 class MethodReference {
 public:
-    static std::optional<MethodReference> ParseAndResolve(
+    static MethodReference Parse(
         Engine::Session& session, IO::FileId fileId, Offset<MethodReference> offset
     );
 
-    inline const IO::FileId FileId() const { return fileId; }
+    inline const auto Name() const { return Engine::Identifier(name, fileId); }
 
-    inline const String Name() const { return name; }
+    inline const auto RefType() const { return Engine::IndexIdentifier(refType, fileId); }
 
-    inline const Term RefType() const { return refType; }
-
-    inline const Term MethodSig() const { return methodSig; }
-
-    inline const MethodAccessKind AccessKind() const { return accessKind; }
+    inline const auto MethodSig() const { return Engine::IndexIdentifier(methodSig, fileId); }
 
 private:
-    MethodReference(IO::FileId fileId, String name, Term refType, Term methodSig, MethodAccessKind accessKind)
+    MethodReference(IO::FileId fileId, Offset<String> name, Index<Term> refType, Index<Term> methodSig)
         : fileId(fileId),
           name(name),
           refType(refType),
-          methodSig(methodSig),
-          accessKind(accessKind)
+          methodSig(methodSig)
     {}
 
     IO::FileId fileId;
-    String name;
-    Term refType;
-    Term methodSig;
-    MethodAccessKind accessKind;
+    Offset<String> name;
+    Index<Term> refType;
+    Index<Term> methodSig;
 };
 
 class FieldReference {
 public:
-    static std::optional<FieldReference> ParseAndResolve(
+    static FieldReference Parse(
         Engine::Session& session, IO::FileId fileId, Offset<FieldReference> offset
     );
 
-    inline const String Name() const { return name; }
+    inline const auto Name() const { return Engine::Identifier(name, fileId); }
 
-    inline const Term RefType() const { return refType; }
+    inline const auto RefType() const { return Engine::IndexIdentifier(refType, fileId); }
 
-    inline const Term FieldType() const { return fieldType; }
+    inline const auto MethodSig() const { return Engine::IndexIdentifier(fieldType, fileId); }
 
     inline const bool IsRecord() const { return isRecord; }
 
 private:
-    FieldReference(String name, Term refType, Term fieldType, bool isRecord)
-        : name(name),
+    FieldReference(IO::FileId fileId, Offset<String> name, Index<Term> refType, Index<Term> fieldType, bool isRecord)
+        : fileId(fileId),
+          name(name),
           refType(refType),
           fieldType(fieldType),
           isRecord(isRecord)
     {}
 
-    String name;
-    Term refType;
-    Term fieldType;
+    IO::FileId fileId;
+    Offset<String> name;
+    Index<Term> refType;
+    Index<Term> fieldType;
     bool isRecord;
-};
-
-enum MethodAccessKind : uint16_t {
-    DIRECT,
-    VIRTUAL,
 };
 
 } // namespace Symlevel

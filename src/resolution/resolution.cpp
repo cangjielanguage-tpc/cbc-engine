@@ -1,4 +1,4 @@
-#include "resolving.h"
+#include "resolution.h"
 
 namespace Resolution {
 

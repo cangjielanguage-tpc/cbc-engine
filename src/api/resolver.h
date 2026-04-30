@@ -5,7 +5,7 @@
 #include "engine/engine.h"
 #include "engine/identifiers.h"
 #include "engine/symlevel/index.h"
-#include "engine/symlevel/terms.h"
+#include "engine/terms.h"
 #include "field.h"
 #include "method.h"
 #include "type.h"
@@ -25,7 +25,7 @@ public:
         Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> method
     );
 
-    virtual Type* Resolve(Symlevel::Index<Symlevel::Term> index) = 0;
+    virtual Type* Resolve(Symlevel::Index<Engine::Term> index) = 0;
 
     virtual DirectMethod* ResolveDirectMethod(Symlevel::Index<Symlevel::MethodReference> index) = 0;
 
@@ -35,7 +35,7 @@ public:
 
     virtual StaticField* ResolveStaticField(Symlevel::Index<Symlevel::FieldReference> index) = 0;
 
-    virtual std::optional<Type*> TypeOf(Symlevel::Term* term) = 0;
+    virtual std::optional<Type*> TypeOf(Engine::Term* term) = 0;
 
     virtual ~Resolver() = default;
 };

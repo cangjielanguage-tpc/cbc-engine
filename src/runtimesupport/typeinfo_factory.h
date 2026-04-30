@@ -1,7 +1,7 @@
 #pragma once
 
 #include "engine/engine.h"
-#include "engine/symlevel/terms.h"
+#include "engine/terms.h"
 #include "engine/typeinfo_manager.h"
 #include "runtimesupport/runtime.h"
 #include <optional>
@@ -18,7 +18,7 @@ namespace RTSupport {
 /// which must be thread-safe.
 /// To prevent deadlocks on recursive queries, safe implementation of `TypeInfoManager` is passed explicitly.
 std::optional<TypeInfo> CreateTypeInfo(
-    Engine::Session& session, Engine::TypeInfoManager& manager, Symlevel::GlobalTerm term
+    Engine::Session& session, Engine::TypeInfoManager& manager, Engine::GlobalTerm term
 );
 
 } // namespace RTSupport

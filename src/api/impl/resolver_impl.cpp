@@ -9,12 +9,12 @@ namespace Impl {
 //////////////////////////////////
 // Resolver
 
-Type* ResolverImpl::Resolve(Symlevel::Index<Symlevel::Term> index)
+Type* ResolverImpl::Resolve(Symlevel::Index<Engine::Term> index)
 {
     return nullptr;
 }
 
-Type* ResolverImpl::Resolve(Symlevel::Term term)
+Type* ResolverImpl::Resolve(Engine::Term term)
 {
     return nullptr;
 }
@@ -44,7 +44,7 @@ StaticField* ResolverImpl::ResolveStaticField(Symlevel::Index<Symlevel::FieldRef
     return ResolveField<StaticFieldImpl>(index);
 }
 
-std::optional<Type*> ResolverImpl::TypeOf(Symlevel::Term* term)
+std::optional<Type*> ResolverImpl::TypeOf(Engine::Term* term)
 {
     FATAL("not implemented yet");
     return nullptr;

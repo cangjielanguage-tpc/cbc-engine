@@ -5,42 +5,35 @@
 
 namespace Symlevel {
 
-std::optional<MethodReference> MethodReference::ParseAndResolve(
+MethodReference MethodReference::Parse(
     Engine::Session& session, IO::FileId fileId, Offset<MethodReference> offset
 )
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetMethodRefSectionOffs() + offset);
 
     auto nameOffset   = Offset<String>(reader.ReadU32());
-    auto refTypeIdx   = reader.ReadULEB();
-    auto methodSigIdx = reader.ReadULEB();
+    auto refTypeIdx   = Index<Term>(reader.ReadULEB());
+    auto methodSigIdx = Index<Term>(reader.ReadULEB());
 
     auto specialFlags = reader.ReadU8();                    // TODO: remove
-    auto accessKind   = MethodAccessKind(reader.ReadU16()); // TODO: remove
+    auto accessKind   = reader.ReadU16(); // TODO: remove
 
     auto name = Reader::Read(session, fileId, nameOffset);
 
     auto regionData = session.CbcFileOf(fileId).GetRegionData();
 
-    auto refType   = regionData.queryTerm(session, { .region = 0, .index = refTypeIdx });
-    auto methodSig = regionData.queryTerm(session, { .region = 0, .index = methodSigIdx });
-
-    if (refType.has_value() && methodSig.has_value()) {
-        return MethodReference(fileId, name, refType.value(), methodSig.value(), accessKind);
-    } else {
-        return std::nullopt;
-    }
+    return MethodReference(fileId, nameOffset, refTypeIdx, methodSigIdx);
 }
 
-std::optional<FieldReference> FieldReference::ParseAndResolve(
+FieldReference FieldReference::Parse(
     Engine::Session& session, IO::FileId fileId, Offset<FieldReference> offset
 )
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetFieldRefSectionOffs() + offset);
 
     auto nameOffset   = Offset<String>(reader.ReadU32());
-    auto refTypeIdx   = reader.ReadULEB();
-    auto fieldTypeIdx = reader.ReadULEB();
+    auto refTypeIdx   = Index<Term>(reader.ReadULEB());
+    auto fieldTypeIdx = Index<Term>(reader.ReadULEB());
 
     auto isRecord = static_cast<bool>(reader.ReadU8());
 
@@ -48,15 +41,7 @@ std::optional<FieldReference> FieldReference::ParseAndResolve(
 
     auto regionData = session.CbcFileOf(fileId).GetRegionData();
 
-    auto refType   = regionData.queryTerm(session, Index<Term> { .region = 0, .index = refTypeIdx });
-    auto fieldType = regionData.queryTerm(session, Index<Term> { .region = 0, .index = fieldTypeIdx });
-
-    if (refType.has_value() && fieldType.has_value()) {
-        return FieldReference(name, refType.value(), fieldType.value(), isRecord);
-    } else {
-        FATAL("Couldn't parse field reference");
-        return std::nullopt;
-    }
+    return FieldReference(fileId, nameOffset, refTypeIdx, fieldTypeIdx, isRecord);
 }
 
 } // namespace Symlevel

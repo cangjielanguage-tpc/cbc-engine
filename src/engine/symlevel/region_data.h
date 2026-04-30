@@ -1,27 +1,30 @@
 #pragma once
 
+#include "engine/identifiers.h"
 #include "io/offset_pool.h"
 #include "references.h"
-#include "terms.h"
 
 namespace Symlevel {
 
 class RegionData {
+    template <typename T>
+    using OffsetId = Engine::Identifier<T>;
+
 public:
     static RegionData Read(IO::FileId fileId, IO::RandomAccessFile& file, uint32_t offset);
 
-    std::optional<MethodReference> queryMethod(Engine::Session& session, Index<MethodReference> index) const;
-    std::optional<FieldReference> queryField(Engine::Session& session, Index<FieldReference> index) const;
-    std::optional<Term> queryTerm(Engine::Session& session, Index<Term> index) const;
+    Offset<MethodReference> Query(Engine::Session& session, Index<MethodReference> index) const;
+    Offset<FieldReference> Query(Engine::Session& session, Index<FieldReference> index) const;
+    Offset<Term> Query(Engine::Session& session, Index<Term> index) const;
 
 private:
-    RegionData(IO::FileId fileId, IO::OffsetPool methods, IO::OffsetPool fields, IO::OffsetPool terms);
+    RegionData(IO::FileId fileId, IO::OffsetPool<MethodReference> methods, IO::OffsetPool<FieldReference> fields, IO::OffsetPool<Term> terms);
 
     IO::FileId fileId;
 
-    IO::OffsetPool methods;
-    IO::OffsetPool fields;
-    IO::OffsetPool terms;
+    IO::OffsetPool<MethodReference> methods;
+    IO::OffsetPool<FieldReference> fields;
+    IO::OffsetPool<Term> terms;
 };
 
 } // namespace Symlevel

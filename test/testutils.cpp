@@ -27,7 +27,7 @@ std::unique_ptr<IO::RandomAccessFile> OpenAsm(std::string file_name)
 struct Resolver : public API::Resolver {
     Resolver() {}
 
-    API::Type* Resolve(Symlevel::Index<Symlevel::Term> index) override { return nullptr; }
+    API::Type* Resolve(Symlevel::Index<Engine::Term> index) override { return nullptr; }
 
     API::DirectMethod* ResolveDirectMethod(Symlevel::Index<Symlevel::MethodReference> index) override
     {
@@ -46,7 +46,7 @@ struct Resolver : public API::Resolver {
 
     API::StaticField* ResolveStaticField(Symlevel::Index<Symlevel::FieldReference> index) override { return nullptr; }
 
-    std::optional<API::Type*> TypeOf(Symlevel::Term* term) override { return std::nullopt; }
+    std::optional<API::Type*> TypeOf(Engine::Term* term) override { return std::nullopt; }
 
     ~Resolver() override = default;
 };

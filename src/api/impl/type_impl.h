@@ -1,19 +1,17 @@
 #pragma once
 
 #include "api/type.h"
-#include "engine/symlevel/terms.h"
+#include "engine/terms.h"
 #include <optional>
 
 namespace API {
 
 class TypeImpl : public Type {
-    using Term = Symlevel::Term;
+    using Term = Engine::Term;
 
 public:
     TypeImpl(Term term);
     TypeImpl(Term term, TypeInfo ti);
-
-    Term* AsTerm() override;
 
     std::optional<TypeInfo> GetTypeInfo() override;
 
