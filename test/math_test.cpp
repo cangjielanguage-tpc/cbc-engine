@@ -60,38 +60,38 @@ TEST(MathUtils, IsNBits)
 
 TEST(MathUtils, IsNBitsSigned32)
 {
-    ASSERT_TRUE(!MathUtils::IsNBitsSigned(0xF, 2));
-    ASSERT_TRUE(!MathUtils::IsNBitsSigned(0xF, 4));
-    ASSERT_TRUE( MathUtils::IsNBitsSigned(0xF, 5));
+    ASSERT_TRUE(!MathUtils::IsNBitsSigned<int32_t>(0xF, 2));
+    ASSERT_TRUE(!MathUtils::IsNBitsSigned<int32_t>(0xF, 4));
+    ASSERT_TRUE( MathUtils::IsNBitsSigned<int32_t>(0xF, 5));
 
-    ASSERT_TRUE(!MathUtils::IsNBitsSigned(0xFF, 4));
-    ASSERT_TRUE(!MathUtils::IsNBitsSigned(0xFF, 8));
-    ASSERT_TRUE( MathUtils::IsNBitsSigned(0xFF, 9));
+    ASSERT_TRUE(!MathUtils::IsNBitsSigned<int32_t>(0xFF, 4));
+    ASSERT_TRUE(!MathUtils::IsNBitsSigned<int32_t>(0xFF, 8));
+    ASSERT_TRUE( MathUtils::IsNBitsSigned<int32_t>(0xFF, 9));
 
-    ASSERT_TRUE(MathUtils::IsNBitsSigned(0xFFFFFFFF, 2));
-    ASSERT_TRUE(MathUtils::IsNBitsSigned(0xFFFFFFFF, 8));
-    ASSERT_TRUE(MathUtils::IsNBitsSigned(0xFFFFFFFF, 32));
+    ASSERT_TRUE(MathUtils::IsNBitsSigned<int32_t>(0xFFFFFFFF, 2));
+    ASSERT_TRUE(MathUtils::IsNBitsSigned<int32_t>(0xFFFFFFFF, 8));
+    ASSERT_TRUE(MathUtils::IsNBitsSigned<int32_t>(0xFFFFFFFF, 32));
 
-    ASSERT_TRUE(!MathUtils::IsNBitsSigned(0xFFFFFF37, 8));
-    ASSERT_TRUE( MathUtils::IsNBitsSigned(0xFFFFFF37, 9));
+    ASSERT_TRUE(!MathUtils::IsNBitsSigned<int32_t>(0xFFFFFF37, 8));
+    ASSERT_TRUE( MathUtils::IsNBitsSigned<int32_t>(0xFFFFFF37, 9));
 }
 
 TEST(MathUtils, IsNBitsSigned64)
 {
-    ASSERT_TRUE(!MathUtils::IsNBitsSigned(0xFL, 2));
-    ASSERT_TRUE(!MathUtils::IsNBitsSigned(0xFL, 4));
-    ASSERT_TRUE( MathUtils::IsNBitsSigned(0xFL, 5));
+    ASSERT_TRUE(!MathUtils::IsNBitsSigned<int64_t>(0xFL, 2));
+    ASSERT_TRUE(!MathUtils::IsNBitsSigned<int64_t>(0xFL, 4));
+    ASSERT_TRUE( MathUtils::IsNBitsSigned<int64_t>(0xFL, 5));
 
-    ASSERT_TRUE(!MathUtils::IsNBitsSigned(0xFFL, 4));
-    ASSERT_TRUE(!MathUtils::IsNBitsSigned(0xFFL, 8));
-    ASSERT_TRUE( MathUtils::IsNBitsSigned(0xFFL, 9));
+    ASSERT_TRUE(!MathUtils::IsNBitsSigned<int64_t>(0xFFL, 4));
+    ASSERT_TRUE(!MathUtils::IsNBitsSigned<int64_t>(0xFFL, 8));
+    ASSERT_TRUE( MathUtils::IsNBitsSigned<int64_t>(0xFFL, 9));
 
-    ASSERT_TRUE(MathUtils::IsNBitsSigned(0xFFFFFFFFFFFFFFFFL, 2));
-    ASSERT_TRUE(MathUtils::IsNBitsSigned(0xFFFFFFFFFFFFFFFFL, 8));
-    ASSERT_TRUE(MathUtils::IsNBitsSigned(0xFFFFFFFFFFFFFFFFL, 32));
+    ASSERT_TRUE(MathUtils::IsNBitsSigned<int64_t>(0xFFFFFFFFFFFFFFFFL, 2));
+    ASSERT_TRUE(MathUtils::IsNBitsSigned<int64_t>(0xFFFFFFFFFFFFFFFFL, 8));
+    ASSERT_TRUE(MathUtils::IsNBitsSigned<int64_t>(0xFFFFFFFFFFFFFFFFL, 32));
 
-    ASSERT_TRUE(!MathUtils::IsNBitsSigned(0xFFFFFFFFFFFFFF37L, 8));
-    ASSERT_TRUE( MathUtils::IsNBitsSigned(0xFFFFFFFFFFFFFF37L, 9));
+    ASSERT_TRUE(!MathUtils::IsNBitsSigned<int64_t>(0xFFFFFFFFFFFFFF37L, 8));
+    ASSERT_TRUE( MathUtils::IsNBitsSigned<int64_t>(0xFFFFFFFFFFFFFF37L, 9));
 }
 
 TEST(MathUtils, RightNBits32)
