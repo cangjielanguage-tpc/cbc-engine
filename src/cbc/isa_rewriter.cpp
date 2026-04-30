@@ -191,8 +191,7 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto field  = f.value();
-        auto symbol = emit.NewAddressSym(field->location);
-        emit.LoadStatic(Ldk(field->fieldType->GetKind()), r, symbol);
+        emit.LoadStatic(Ldk(field->fieldType->GetKind()), r, field->location);
     }
 
     void StoreStatic(AnyReg r, uint16_t fieldId) override
@@ -203,8 +202,7 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto field  = f.value();
-        auto symbol = emit.NewAddressSym(field->location);
-        emit.StoreStatic(Stk(field->fieldType->GetKind()), r, symbol);
+        emit.StoreStatic(Stk(field->fieldType->GetKind()), r, field->location);
     }
 
     void LoadObj(IReg rb, AnyReg rd, uint16_t fieldId) override

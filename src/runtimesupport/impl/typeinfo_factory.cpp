@@ -19,6 +19,8 @@
 
 namespace RTSupport {
 
+static std::optional<TypeInfo> QueryTypeInfoAOTByName(char const* str);
+
 template <typename T> static T* Alloc(size_t cnt = 1) { return reinterpret_cast<T*>(std::malloc(sizeof(T) * cnt)); }
 
 static char* Copy(std::string_view str)
@@ -225,6 +227,9 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             builder.dataMT[entryIdx]      = fuhManager.Acquire(session, entry);
             builder.flatMethods[entryIdx] = GetFunctionOrTrampoline(session, entry, entryIdx);
         }
+        auto supe = QueryTypeInfoAOTByName("default:$Patch")->Raw();
+        ASSERTION(supe != nullptr, "NPE %s", name);
+        builder.superTypeInfo = (DYN_TypeInfoT*)supe;
 
         // Fill out array of pointers to ext defs.
         for (auto i = 0; i < extDefCount; i++) {
@@ -241,7 +246,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             extDef.funcTableSize       = smt.EndPos() - smt.StartPos();
             extDef.argNum              = 0;
             extDef.isInterfaceTypeInfo = 1;
-            extDef.flag                = 0b00000001; // FIXME: research how to properly implement this.
+            extDef.flag                = 0b00000110; // FIXME: research how to properly implement this.
 
             extDef.ti = &currentTypeInfo->base;
 
