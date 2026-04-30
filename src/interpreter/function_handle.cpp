@@ -95,10 +95,6 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Session& session, DynamicFuncti
     auto& heap    = session.GetEngine().CodeHeap();
     auto bytecode = Cbc::Rewrite(fuh, code, resolver, heap);
 
-    if (Cbc::IsDisasmEnabled()) {
-        Cbc::RT::Log(rewrittenCode, Stream::Disasm::rt);
-    }
-
     fuh->bytecode.store(new ExecBytecodeInfo(bytecode));
 
     // Return via reload from `fuh->descriptor` to guarantee proper memory-model semantics:

@@ -1,3 +1,4 @@
+#include <dlfcn.h>
 #include <filesystem>
 
 #include "RTInterface.h"
@@ -143,6 +144,30 @@ CBC_EXPORT void interpreter_bridge_init(
     interpInterf->visitGlobalRoots         = &VisitGlobalRoots;
 
     Asm::engine_newobject_function = g_CJNativeInterfaceInstance.objectAlloc;
+
+    engine_set_main_cbc("./diffdefault2.cbc");
+    EnsureEngineInitialized();
+
+    printf("BEFORE\n");
+    void* flag = dlsym(RTLD_DEFAULT, "$packageInitPatchVarFlag");
+    if (flag != nullptr) {
+        printf("FOUND\n");
+        *(bool*) flag = true;
+        printf("SET\n");
+    }
+    DYN_TypeInfoT* ti = g_CJNativeInterfaceInstance.typeInfo("default:$PackageInitPatch");
+    if (ti != nullptr) {
+        printf("FOUND TI\n");
+        printf("%p\n", ti);
+        printf("%p\n", ti->vExtensionDataStart);
+        auto edef = (*(ti->vExtensionDataStart + 1));
+        printf("FOUND EDEF\n");
+        printf("%p\n", edef);
+        printf("%p\n", edef->funcTable);
+        (*edef->funcTable) = engine_get_entrypoint_trampoline();
+        printf("SET TI\n");
+        engine_enable_dasm();
+    }
 }
 
 } // extern "C"
