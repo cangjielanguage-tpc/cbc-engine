@@ -3,6 +3,7 @@
 #include "utils/assertion.h"
 #include <cstddef>
 #include <cstdio>
+#include <iostream>
 #include <memory>
 #include <utility>
 
@@ -148,6 +149,8 @@ void Indented::NewLine()
 }
 
 void Indented::Flush() const { stream.Flush(); }
+
+void Indented::SetIndent(std::function<unsigned int(unsigned int)> f) { indentationSize = f(indentationSize); }
 
 void Indented::VPrintFmt(const char* fmt, va_list argp)
 {

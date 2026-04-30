@@ -1,20 +1,21 @@
 #pragma once
 
-#include "engine/identifiers.h"
 #include "io/offset_pool.h"
 #include "references.h"
 
 namespace Symlevel {
 
 class RegionData {
-    template <typename T> using OffsetId = Engine::Identifier<T>;
-
 public:
     static RegionData Read(IO::FileId fileId, IO::RandomAccessFile& file, uint32_t offset);
 
     Offset<MethodReference> Query(Engine::Session& session, RefId<MethodReference> index) const;
     Offset<FieldReference> Query(Engine::Session& session, RefId<FieldReference> index) const;
     Offset<Term> Query(Engine::Session& session, RefId<Term> index) const;
+
+    IO::OffsetPool<MethodReference> const& MethodReferencesOffsets() const;
+    IO::OffsetPool<FieldReference> const& FieldReferencesOffsets() const;
+    IO::OffsetPool<Term> const& TermsOffsets() const;
 
 private:
     RegionData(
