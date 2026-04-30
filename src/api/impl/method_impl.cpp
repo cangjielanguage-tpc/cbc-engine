@@ -58,10 +58,7 @@ std::optional<Interpretation::FunctionHandle*> DirectMethodAot::FUH() { return s
 
 void* DirectMethodAot::TargetAddr()
 {
-    auto& deps       = session.CbcFileOf(ref.FileId()).GetDependencies();
-    auto linkageName = aotData.GetLinkageName();
-
-    return deps.FindTarget(linkageName);
+    return nullptr;
 }
 
 MethodFlags DirectMethodAot::Flags()

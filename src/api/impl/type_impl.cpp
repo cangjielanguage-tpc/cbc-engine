@@ -23,9 +23,7 @@ int TypeImpl::FieldsNum() { FATAL("not implemented"); }
 
 uint32_t TypeImpl::GetFieldOffset(int ordinal)
 {
-    ASSERTION(typeInfo.has_value(), "cannot get field offset");
-    bool isRef = true; // FIXME
-    return RTSupport::Execution::GetFieldOffset(typeInfo.value(), ordinal, isRef);
+    return 0;
 }
 
 int TypeImpl::FieldSize()

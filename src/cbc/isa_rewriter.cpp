@@ -1,7 +1,5 @@
 #include "isa_rewriter.h"
-#include "api/field.h"
 #include "api/resolver.h"
-#include "api/type.h"
 #include "cbc/emitter/emitter.h"
 #include "cbc/formater_rt.h"
 #include "cbc/frame.h"
@@ -44,84 +42,84 @@ struct IsaRewriter : public IsaParser {
     size_t startPosition;
     std::unordered_map<ssize_t, Emitter::Label> instructionLabel;
 
-    Format::LoadAccessKind typeToLoadAccessKind(Symlevel::TemplateKind typeIdentifier)
+    using TK = Symlevel::TemplateKind;
+    using LDK = Format::LoadAccessKind;
+    using STK = Format::StoreAccessKind;
+
+    Format::LoadAccessKind typeToLoadAccessKind(TK typeIdentifier)
     {
-        using namespace Symlevel;
-        using namespace Format;
 
         switch (typeIdentifier) {
-            case TemplateKind::U8:  return LoadAccessKind::LD_U8;
-            case TemplateKind::I8:  return LoadAccessKind::LD_S8;
-            case TemplateKind::U16: return LoadAccessKind::LD_U16;
-            case TemplateKind::I16: return LoadAccessKind::LD_S16;
-            case TemplateKind::U32:
-            case TemplateKind::I32: return LoadAccessKind::LD_32;
-            case TemplateKind::U64:
-            case TemplateKind::I64: return LoadAccessKind::LD_64;
-            case TemplateKind::F32: return LoadAccessKind::LD_F32;
-            case TemplateKind::F64: return LoadAccessKind::LD_F64;
+            case TK::U8:  return LDK::LD_U8;
+            case TK::I8:  return LDK::LD_S8;
+            case TK::U16: return LDK::LD_U16;
+            case TK::I16: return LDK::LD_S16;
+            case TK::U32:
+            case TK::I32: return LDK::LD_32;
+            case TK::U64:
+            case TK::I64: return LDK::LD_64;
+            case TK::F32: return LDK::LD_F32;
+            case TK::F64: return LDK::LD_F64;
 
-            case TemplateKind::BOOLEAN: return LoadAccessKind::LD_U8;
+            case TK::BOOLEAN: return LDK::LD_U8;
 
-            case TemplateKind::TYPE:
-            case TemplateKind::AOT_TYPE:
-            case TemplateKind::NULLABLE:
-            case TemplateKind::NON_NULLABLE:
-            case TemplateKind::CANGJIE_ARRAY: return LoadAccessKind::LD_REF;
+            case TK::TYPE:
+            case TK::AOT_TYPE:
+            case TK::NULLABLE:
+            case TK::NON_NULLABLE:
+            case TK::CANGJIE_ARRAY: return LDK::LD_REF;
 
-            case TemplateKind::UADDR:
-            case TemplateKind::IADDR:
-            case TemplateKind::BSTRING:
-            case TemplateKind::C_POINTER: return LoadAccessKind::LD_64;
+            case TK::UADDR:
+            case TK::IADDR:
+            case TK::BSTRING:
+            case TK::C_POINTER: return LDK::LD_64;
 
-            case TemplateKind::UCHAR32: return LoadAccessKind::LD_32;
+            case TK::UCHAR32: return LDK::LD_32;
 
-            case TemplateKind::F16: return LoadAccessKind::LD_U16;
+            case TK::F16: return LDK::LD_U16;
 
             default: {
                 FATAL("Not supported template kind");
-                return LoadAccessKind::LD_S8;
+                return LDK::LD_S8;
             }
         }
     }
 
-    Format::StoreAccessKind typeToStoreAccessKind(Symlevel::TemplateKind typeIdentifier)
+    Format::StoreAccessKind typeToStoreAccessKind(TK typeIdentifier)
     {
-        using namespace Symlevel;
-        using namespace Format;
 
         switch (typeIdentifier) {
-            case TemplateKind::U8:
-            case TemplateKind::I8:  return StoreAccessKind::ST_8;
-            case TemplateKind::U16:
-            case TemplateKind::I16: return StoreAccessKind::ST_16;
-            case TemplateKind::U32:
-            case TemplateKind::I32: return StoreAccessKind::ST_32;
-            case TemplateKind::U64:
-            case TemplateKind::I64: return StoreAccessKind::ST_64;
-            case TemplateKind::F32: return StoreAccessKind::ST_F32;
-            case TemplateKind::F64: return StoreAccessKind::ST_F64;
+            case TK::U8:
+            case TK::I8:  return STK::ST_8;
+            case TK::U16:
+            case TK::I16: return STK::ST_16;
+            case TK::U32:
+            case TK::I32: return STK::ST_32;
+            case TK::U64:
+            case TK::I64: return STK::ST_64;
+            case TK::F32: return STK::ST_F32;
+            case TK::F64: return STK::ST_F64;
 
-            case TemplateKind::BOOLEAN: return StoreAccessKind::ST_8;
+            case TK::BOOLEAN: return STK::ST_8;
 
-            case TemplateKind::TYPE:
-            case TemplateKind::AOT_TYPE:
-            case TemplateKind::NULLABLE:
-            case TemplateKind::NON_NULLABLE:
-            case TemplateKind::CANGJIE_ARRAY: return StoreAccessKind::ST_REF;
+            case TK::TYPE:
+            case TK::AOT_TYPE:
+            case TK::NULLABLE:
+            case TK::NON_NULLABLE:
+            case TK::CANGJIE_ARRAY: return STK::ST_REF;
 
-            case TemplateKind::UADDR:
-            case TemplateKind::IADDR:
-            case TemplateKind::BSTRING:
-            case TemplateKind::C_POINTER: return StoreAccessKind::ST_64;
+            case TK::UADDR:
+            case TK::IADDR:
+            case TK::BSTRING:
+            case TK::C_POINTER: return STK::ST_64;
 
-            case TemplateKind::UCHAR32: return StoreAccessKind::ST_32;
+            case TK::UCHAR32: return STK::ST_32;
 
-            case TemplateKind::F16: return StoreAccessKind::ST_16;
+            case TK::F16: return STK::ST_16;
 
             default: {
                 FATAL("Not supported template kind");
-                return StoreAccessKind::ST_8;
+                return STK::ST_8;
             }
         }
     }
@@ -215,40 +213,40 @@ struct IsaRewriter : public IsaParser {
 
     void LoadStatic(AnyReg r, uint16_t field) override
     {
-        API::StaticField* resolvedField = resolver.ResolveStaticField(Field(field));
+        //API::StaticField* resolvedField = resolver.ResolveStaticField(Field(field));
 
-        auto fieldTerm       = resolvedField->FieldType().value()->AsTerm();
-        auto fieldAccessKind = fieldTerm->GetIdentifier().GetKind();
-        auto symbol          = emit.NewAddressSym(resolvedField->Location());
-        emit.LoadStatic(typeToLoadAccessKind(fieldAccessKind), r, symbol);
+        //auto fieldTerm       = resolvedField->FieldType().value()->AsTerm();
+        //auto fieldAccessKind = fieldTerm->GetIdentifier().GetKind();
+        //auto symbol          = emit.NewAddressSym(resolvedField->Location());
+        //emit.LoadStatic(typeToLoadAccessKind(fieldAccessKind), r, symbol);
     }
 
     void StoreStatic(AnyReg r, uint16_t field) override
     {
-        API::StaticField* resolvedField = resolver.ResolveStaticField(Field(field));
+        //API::StaticField* resolvedField = resolver.ResolveStaticField(Field(field));
 
-        auto fieldTerm       = resolvedField->FieldType().value()->AsTerm();
-        auto fieldAccessKind = fieldTerm->GetIdentifier().GetKind();
-        auto symbol          = emit.NewAddressSym(resolvedField->Location());
-        emit.StoreStatic(typeToStoreAccessKind(fieldAccessKind), r, symbol);
+        //auto fieldTerm       = resolvedField->FieldType().value()->AsTerm();
+        //auto fieldAccessKind = fieldTerm->GetIdentifier().GetKind();
+        //auto symbol          = emit.NewAddressSym(resolvedField->Location());
+        //emit.StoreStatic(typeToStoreAccessKind(fieldAccessKind), r, symbol);
     }
 
     void LoadObj(IReg rb, AnyReg rd, uint16_t field) override
     {
-        API::InstanceField* resolvedField = resolver.ResolveInstanceField(Field(field));
+        //API::InstanceField* resolvedField = resolver.ResolveInstanceField(Field(field));
 
-        auto fieldTerm       = resolvedField->FieldType().value()->AsTerm();
-        auto fieldAccessKind = fieldTerm->GetIdentifier().GetKind();
-        emit.LoadObj(typeToLoadAccessKind(fieldAccessKind), rd, rb, resolvedField->Offset().value());
+        //auto fieldTerm       = resolvedField->FieldType().value()->AsTerm();
+        //auto fieldAccessKind = fieldTerm->GetIdentifier().GetKind();
+        //emit.LoadObj(typeToLoadAccessKind(fieldAccessKind), rd, rb, resolvedField->Offset().value());
     }
 
     void StoreObj(IReg rb, AnyReg rs, uint16_t field) override
     {
-        API::InstanceField* resolvedField = resolver.ResolveInstanceField(Field(field));
+        //API::InstanceField* resolvedField = resolver.ResolveInstanceField(Field(field));
 
-        auto fieldTerm       = resolvedField->FieldType().value()->AsTerm();
-        auto fieldAccessKind = fieldTerm->GetIdentifier().GetKind();
-        emit.StoreObj(typeToStoreAccessKind(fieldAccessKind), rs, rb, resolvedField->Offset().value());
+        //auto fieldTerm       = resolvedField->FieldType().value()->AsTerm();
+        //auto fieldAccessKind = fieldTerm->GetIdentifier().GetKind();
+        //emit.StoreObj(typeToStoreAccessKind(fieldAccessKind), rs, rb, resolvedField->Offset().value());
     }
 
     void LoadRec(IReg rb, AnyReg rs, uint16_t field) override { FATAL("not implemented"); }
@@ -261,41 +259,41 @@ struct IsaRewriter : public IsaParser {
 
     void NewObj(IReg dst, uint16_t typeIdx) override
     {
-        auto type        = resolver.Resolve(Term(typeIdx));
-        auto typeInfoOpt = type->GetTypeInfo();
+        //auto type        = resolver.Resolve(Term(typeIdx));
+        //auto typeInfoOpt = type->GetTypeInfo();
 
-        ASSERTION(typeInfoOpt.has_value(), "Cannot find type info for newobj");
-        void* typeInfo = typeInfoOpt.value().Raw(); // get raw value
+        //ASSERTION(typeInfoOpt.has_value(), "Cannot find type info for newobj");
+        //void* typeInfo = typeInfoOpt.value().Raw(); // get raw value
 
-        auto sym = emit.NewAddressSym(reinterpret_cast<uintptr_t>(typeInfo));
-        emit.NewObj(dst, sym);
+        //auto sym = emit.NewAddressSym(reinterpret_cast<uintptr_t>(typeInfo));
+        //emit.NewObj(dst, sym);
     }
 
     void CallDirect(IReg dst, uint16_t method) override
     {
-        auto m   = resolver.ResolveDirectMethod(Method(method));
-        auto fuh = m->FUH();
-        if (fuh.has_value()) {
-            auto sym = emit.NewAddressSym(reinterpret_cast<uintptr_t>(fuh.value()));
-            emit.DirectCall2i(sym);
-        } else {
-            void* target = m->TargetAddr();
-            ASSERT(target != nullptr);
-            auto sym = emit.NewAddressSym(reinterpret_cast<uintptr_t>(target));
-            emit.DirectCall2c(sym);
-        }
-        if (dst != IReg::IR1) {
-            emit.Mov(dst, IReg::IR1);
-        }
+        //auto m   = resolver.ResolveDirectMethod(Method(method));
+        //auto fuh = m->FUH();
+        //if (fuh.has_value()) {
+        //    auto sym = emit.NewAddressSym(reinterpret_cast<uintptr_t>(fuh.value()));
+        //    emit.DirectCall2i(sym);
+        //} else {
+        //    void* target = m->TargetAddr();
+        //    ASSERT(target != nullptr);
+        //    auto sym = emit.NewAddressSym(reinterpret_cast<uintptr_t>(target));
+        //    emit.DirectCall2c(sym);
+        //}
+        //if (dst != IReg::IR1) {
+        //    emit.Mov(dst, IReg::IR1);
+        //}
     }
 
     void CallVirtual(IReg dst, uint16_t method) override
     {
-        auto m = resolver.ResolveVirtualMethod(Method(method));
-        emit.VirtualCall2c(m->VNum(), m->ExtDefNum());
-        if (dst != IReg::IR1) {
-            emit.Mov(dst, IReg::IR1);
-        }
+        //auto m = resolver.ResolveVirtualMethod(Method(method));
+        //emit.VirtualCall2c(m->VNum(), m->ExtDefNum());
+        //if (dst != IReg::IR1) {
+        //    emit.Mov(dst, IReg::IR1);
+        //}
     }
 
     void CallInterf(IReg dst, uint16_t method) override { FATAL("not implemented"); }

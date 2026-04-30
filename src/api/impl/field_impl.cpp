@@ -1,4 +1,5 @@
 #include "field_impl.h"
+#include <optional>
 
 namespace API {
 
@@ -14,15 +15,6 @@ InstanceFieldImpl::InstanceFieldImpl(
 
 std::optional<uint32_t> InstanceFieldImpl::Offset()
 {
-    if (offset.has_value()) {
-        return offset.value();
-    }
-
-    if (refType.has_value()) {
-        offset = refType.value()->GetFieldOffset(Ordinal());
-        return offset.value();
-    }
-
     return std::nullopt;
 }
 
