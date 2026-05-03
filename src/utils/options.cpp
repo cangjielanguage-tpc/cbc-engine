@@ -1,4 +1,5 @@
 #include "interpreter/loggers.h"
+#include "resolution/resolution.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
 #include <charconv>
@@ -63,6 +64,7 @@ static bool SetLogLevelOption(Option const& option, std::string_view value)
 }
 
 constexpr Option options[] = {
+    { "cbc.log.resolution", &Resolution::log, &SetLogLevelOption },
     { "cbc.log.int", &Interpretation::Log::interpretation, &SetLogLevelOption },
     { "cbc.log.preparation", &Interpretation::Log::preparation, &SetLogLevelOption },
 };

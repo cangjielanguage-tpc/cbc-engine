@@ -10,6 +10,7 @@
 #include "string.h"
 #include "utils/assertion.h"
 #include "utils/heap.h"
+#include "utils/ostream.h"
 #include <alloca.h>
 #include <cstdint>
 #include <cstdlib>
@@ -173,9 +174,128 @@ Term Term::Subterm(uint32_t i) const { return data->subterms[i]; }
 
 TemplateIdentifier Term::GetIdentifier() const { return data->identifier; }
 
+TemplateKind Term::GetKind() const { return data->identifier.GetKind(); }
+
 uint32_t Term::GetLength() const { return data->length; }
 
 uint32_t Term::Hash() const { return data->hash; }
+
+std::string Term::GetName(Session& session)
+{
+    Stream::StringBuffer buf;
+    GetName(session, buf);
+    return buf.ToString();
+}
+
+void Term::GetName(Session& session, Stream::Output& stream)
+{
+
+    auto printSubTerms = [&](std::string_view prefix, std::string_view suffix, int len)
+    {
+        stream << prefix;
+        auto separator = "";
+        for (int i = 0; i < len; i++) {
+            stream << separator;
+            Subterm(i).GetName(session, stream);
+            separator = ", ";
+        }
+        stream << suffix;
+    };
+
+    using TK = TemplateKind;
+    switch (GetKind()) {
+        case TK::NIL: stream << "nil"; break;
+        case TK::VOID: stream << "void"; break;
+        case TK::UNIT: stream << "unit"; break;
+        case TK::NOTHING: stream << "nothing"; break;
+        case TK::BOOLEAN: stream << "bool"; break;
+        case TK::I8: stream << "i8"; break;
+        case TK::U8: stream << "u8"; break;
+        case TK::I16: stream << "i16"; break;
+        case TK::U16: stream << "u16"; break;
+        case TK::I32: stream << "i32"; break;
+        case TK::U32: stream << "u32"; break;
+        case TK::UCHAR32: stream << "uchar32"; break;
+        case TK::I64: stream << "i64"; break;
+        case TK::U64: stream << "u64"; break;
+        case TK::IADDR: stream << "iaddr"; break;
+        case TK::UADDR: stream << "uaddr"; break;
+        case TK::BSTRING: stream << "bstr"; break;
+        case TK::F16: stream << "f16"; break;
+        case TK::F32: stream << "f32"; break;
+        case TK::F64: stream << "f64"; break;
+
+        case TK::UNDEFINED: {
+            auto undef = GetIdentifier().AsUndefinedIdent();
+            auto indexId = undef.GetIndexId();
+            auto file = indexId.GetFileId();
+            auto region = indexId.GetIndex().GetRegion();
+            auto index = indexId.GetIndex().GetIndex();
+            stream.PrintFmt("$unresolved<%u,%u,%u>", file.id, region, index);
+            break;
+        }
+
+        case TK::C_POINTER: {
+            stream << "$cpointer<";
+            Subterm(0).GetName(session, stream);
+            stream << '>';
+            break;
+        }
+
+        case TK::NULLABLE: {
+            stream << "$nullable<";
+            Subterm(0).GetName(session, stream);
+            stream << '>';
+            break;
+        }
+
+        case TK::CANGJIE_ARRAY: {
+            stream << "$array<";
+            Subterm(0).GetName(session, stream);
+            stream << '>';
+            break;
+        }
+
+        case TK::METHOD: {
+            // FIXME: separate ret type from rest
+            printSubTerms("(", ")", GetLength());
+            break;
+        }
+
+        case TK::TYPE: {
+            auto ident = GetIdentifier().AsTypeIdent().GetIdentifier();
+            auto type  = Symlevel::TypeDefinition::Resolve(session, ident);
+            stream << Symlevel::String::Parse(session, ident.GetFileId(), type.NameOffset());
+            if (int len = GetLength(); len > 0) {
+                printSubTerms("<", ">", len);
+            }
+            break;
+        }
+
+        case TK::AOT_TYPE: {
+            auto ident = GetIdentifier().AsAotIdent();
+            stream << Symlevel::String::Parse(session, ident.GetFile(), ident.GetOffset());
+            if (int len = GetLength(); len > 0) {
+                printSubTerms("<", ">", len);
+            }
+            break;
+        }
+
+        case TK::TYPE_VAR: {
+            stream << "$Tunimplemented";
+            break;
+        }
+
+        case TK::GENERIC_METHOD: {
+            stream << "$GMunimplemented";
+            break;
+        }
+
+        default: {
+            FATAL("Unexpected case %d", GetKind());
+        }
+    }
+}
 
 bool Term::operator!=(const Term& another) const { return !(*this == another); }
 

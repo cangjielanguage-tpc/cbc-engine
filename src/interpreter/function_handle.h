@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <variant>
@@ -8,6 +9,7 @@
 #include "code.h"
 #include "engine/engine.h"
 #include "engine/identifiers.h"
+#include "engine/terms.h"
 
 namespace API {
 class Resolver;
@@ -96,6 +98,8 @@ public:
 
     /// Performs lazy initialization of a DynamicFunctionHandle.
     ExecBytecodeInfo* Prepare(Engine::Session& session, DynamicFunctionHandle* fuh);
+
+    StaticFunctionHandle* AcquireByFuncPtr(Engine::Session& session, Engine::Term methodSignature, void* funcPtr);
 
     // Acquires a function pointer that could be invoked from compiled code
     // to invoke the method referenced by `fuh`.

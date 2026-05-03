@@ -3,10 +3,10 @@
 #include "engine/engine.h"
 #include "interpreter/function_handle.h"
 #include "runtimesupport/runtime.h"
+#include "utils/logger.h"
 #include <cstdint>
 #include <optional>
 #include <string_view>
-#include <vector>
 
 /// This namespace provides an facade to access symlevel from rewriter.
 ///
@@ -27,93 +27,74 @@
 
 namespace Resolution {
 
+extern Logging::Logger log;
+
+class Resolver;
+
 /// The handle that represents a type.
 class Type {
 public:
+    ~Type() = default;
+
     /// Full name of the type.
-    std::string_view GetName();
+    virtual std::string GetName() = 0;
 
     /// Runtime type info.
-    std::optional<RTSupport::TypeInfo> GetTypeInfo();
-
-    /// Number of fields in the given type.
-    std::optional<int> FieldsNum();
-
-    /// The size of a field of the given type.
-    std::optional<int> FieldsSize();
-
-private:
-    class Impl;
-    friend class Impl;
-    Impl* impl;
+    virtual std::optional<RTSupport::TypeInfo> GetTypeInfo() = 0;
 };
 
 struct MethodSignature {
-    std::vector<Type> const& GetParamTypes();
-    Type GetResultType();
-
-private:
-    class Impl;
-    friend class Impl;
-    Impl* impl;
+    std::vector<Type*> params;
+    Type* resType;
 };
 
-/// The handle that represents a method reference (virtual, interface and static).
-class Method {
-public:
-    /// Full name of the method (including signature).
-    std::string_view GetName();
+struct DirectCall {
+    Type* refType;
+    std::string_view name;
+    MethodSignature signature;
+    Interpretation::TaggedFunctionHandle fuh;
 
-    /// The abi signature of the method.
-    std::optional<MethodSignature> GetSignature();
-
-    std::optional<Type> GetRefType();
-
-    /// FunctionHandle of the method, that is needed for execution.
-    std::optional<Interpretation::TaggedFunctionHandle> GetFuH();
-
-    /// The number of the method in the table.
-    std::optional<uint16_t> GetMethodNum();
-
-    /// The number table in ref type.
-    std::optional<uint16_t> ExtDefNum();
-
-private:
-    class Impl;
-    friend class Impl;
-    Impl* impl;
+    std::string GetFullName(Resolver& resolver);
 };
 
-/// The handle that represents a field (instance and static).
-class Field {
-public:
-    /// Full name of the method (including signature).
-    std::string_view GetName();
+struct DynamicCall {
+    Type* refType;
+    std::string_view name;
+    MethodSignature signature;
+    int methodNum;
+    int extDefNum;
 
-    /// Type of the field.
-    std::optional<Type> GetFieldType();
+    std::string GetFullName(Resolver& resolver);
+};
 
-    std::optional<Type> GetRefType();
+struct InstanceField {
+    Type* refType;
+    std::string_view name;
+    Type* fieldType;
+    uint32_t ordinal;
+    std::optional<int> offset;
 
-    /// The index of the field in total field numbering of ref type.
-    int GetOrdinal();
+    std::string GetFullName(Resolver& resolver);
+};
 
-    /// The offset of the field.
-    std::optional<uint32_t> GetOffset();
+struct StaticField {
+    Type* refType;
+    std::string_view name;
+    Type* fieldType;
+    uintptr_t location;
 
-    /// The location of the field.
-    std::optional<std::uintptr_t> GetLocation();
-
-private:
-    class Impl;
-    friend class Impl;
-    Impl* impl;
+    std::string GetFullName(Resolver& resolver);
 };
 
 template <typename T>
 class Index {
-    Index(uint16_t value);
-    uint16_t GetValue();
+public:
+    explicit Index(uint16_t value) : value(value) {}
+    int GetValue() const { return value; }
+    bool operator==(Index const& index) const
+    {
+        return value == index.value;
+    }
 private:
     uint16_t value;
 };
@@ -122,12 +103,18 @@ private:
 class Resolver {
 public:
     Resolver(Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> method);
+    Resolver(Resolver&& another);
+    ~Resolver();
 
-    Type Resolve(Index<Type> id);
-    Method ResolveStatic(Index<Method> id);
-    Method ResolveDynamic(Index<Method> id);
-    Field ResolveInstance(Index<Field> id);
-    Field ResolveStatic(Index<Field> id);
+    std::optional<Type*> Query(Index<Type> id);
+    std::optional<DirectCall const*> Query(Index<DirectCall> id);
+    std::optional<DynamicCall const*> Query(Index<DynamicCall> id);
+    std::optional<InstanceField const*> Query(Index<InstanceField> id);
+    std::optional<StaticField const*> Query(Index<StaticField> id);
+
+    class Impl;
+private:
+    std::unique_ptr<Impl> impl;
 };
 
 }

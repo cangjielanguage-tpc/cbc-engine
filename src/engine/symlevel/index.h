@@ -21,7 +21,7 @@ public:
         raw = (region << REGION_SHIFT) | (index << INDEX_SHIFT);
     }
 
-    explicit constexpr Index(uint64_t raw) : raw(raw) {}
+    explicit constexpr Index(uint32_t raw) : raw(raw) {}
 
     constexpr Index(Index const& another) : raw(another.raw) {}
 

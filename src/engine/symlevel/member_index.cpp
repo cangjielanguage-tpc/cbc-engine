@@ -212,16 +212,16 @@ MethodIndex MethodIndex::Read(IO::StreamFileReader& reader, IO::FileId fileId)
     return MethodIndex(MemberIndex::Read(reader, fileId));
 }
 
-std::vector<MethodDefinition> MethodIndex::FindMethods(Engine::Session& session, String methodName) const
+std::vector<Engine::Identifier<MethodDefinition>> MethodIndex::FindMethods(Engine::Session& session, String methodName) const
 {
     auto offsets = index->FindOffsets<MethodDefinition>(session, methodName);
 
     if (offsets.empty()) {
         return {};
     } else {
-        std::vector<MethodDefinition> defs;
+        std::vector<Engine::Identifier<MethodDefinition>> defs;
         for (auto& offset : offsets) {
-            defs.push_back(Reader::Read(session, index->fileId, offset));
+            defs.push_back(Engine::Identifier<MethodDefinition>(offset, index->fileId));
         }
         return defs;
     }

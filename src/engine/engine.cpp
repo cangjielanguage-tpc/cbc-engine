@@ -66,6 +66,11 @@ CbcFile& Session::CbcFileOf(IO::FileId fileId) const
     return engine.impl->files.at(fileId);
 }
 
+std::tuple<Symlevel::CbcFile&, IO::RandomAccessFile&> Session::File(IO::FileId fileId) const
+{
+    return {engine.impl->files.at(fileId), *engine.impl->rafs.at(fileId) };
+}
+
 Arena& Session::Allocator() { return arena; }
 
 Loader::Loader() : loader(std::move(std::make_unique<Loader::Impl>())) {}
@@ -146,7 +151,7 @@ std::optional<Identifier<MethodDefinition>> Engine::FindMain(Session& session, s
 
         // TODO: throw?
         ASSERTION(methods.size() == 1, "unexpected \"main\" method count");
-        return methods[0].GetIdentifier();
+        return methods[0];
     }
     return std::nullopt;
 }

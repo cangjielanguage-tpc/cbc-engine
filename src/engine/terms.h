@@ -7,6 +7,7 @@
 #include "symlevel/io/file_id.h"
 #include "symlevel/offset.h"
 #include "utils/assertion.h"
+#include "utils/ostream.h"
 #include <cstdint>
 #include <mutex>
 #include <unordered_set>
@@ -157,6 +158,8 @@ struct TypeTemplateIdentifier : public TemplateIdentifier {
 
     IO::FileId GetFile() { return TemplateIdentifier::ident.GetLow(); }
 
+    Identifier<Symlevel::TypeDefinition> GetIdentifier() { return Identifier(GetOffset(), GetFile()); }
+
     friend class TemplateIdentifier;
 
 protected:
@@ -169,8 +172,6 @@ struct UndefinedTemplateIdentifier : public TemplateIdentifier {
     {
         ASSERT(TemplateKind::UNDEFINED == GetKind());
     }
-
-    Symlevel::Offset<Symlevel::TypeDefinition> GetOffset() { return TemplateIdentifier::ident.GetHigh(); }
 
     IndexIdentifier<Term> GetIndexId()
     {
@@ -197,8 +198,12 @@ public:
     Term(GlobalTerm global);
 
     TemplateIdentifier GetIdentifier() const;
+    TemplateKind GetKind() const;
     uint32_t GetLength() const;
     uint32_t Hash() const;
+
+    std::string GetName(Session& session);
+    void GetName(Session& session, Stream::Output& stream);
 
     bool IsLocal() const;
     LocalTerm AsLocal();
@@ -208,6 +213,10 @@ public:
     bool operator!=(const Term& another) const;
 
     Term Subterm(uint32_t i) const;
+
+    struct Hasher {
+        uint64_t operator()(Term const& term) const { return term.Hash(); }
+    };
 };
 
 class LocalTerm {

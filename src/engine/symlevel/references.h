@@ -8,59 +8,32 @@
 
 namespace Symlevel {
 
-class MethodReference {
-public:
+struct MethodReference {
     static MethodReference Parse(
         Engine::Session& session, IO::FileId fileId, Offset<MethodReference> offset
     );
 
-    inline const auto Name() const { return Engine::Identifier(name, fileId); }
+    static MethodReference Parse(
+        Engine::Session& session, Engine::IndexIdentifier<MethodReference> identifier
+    );
 
-    inline const auto RefType() const { return Engine::IndexIdentifier(refType, fileId); }
-
-    inline const auto MethodSig() const { return Engine::IndexIdentifier(methodSig, fileId); }
-
-private:
-    MethodReference(IO::FileId fileId, Offset<String> name, Index<Term> refType, Index<Term> methodSig)
-        : fileId(fileId),
-          name(name),
-          refType(refType),
-          methodSig(methodSig)
-    {}
-
-    IO::FileId fileId;
-    Offset<String> name;
-    Index<Term> refType;
-    Index<Term> methodSig;
+    Engine::Identifier<String> name;
+    Engine::IndexIdentifier<Term> refType;
+    Engine::IndexIdentifier<Term> methodSig;
 };
 
-class FieldReference {
-public:
+struct FieldReference {
     static FieldReference Parse(
         Engine::Session& session, IO::FileId fileId, Offset<FieldReference> offset
     );
 
-    inline const auto Name() const { return Engine::Identifier(name, fileId); }
+    static FieldReference Parse(
+        Engine::Session& session, Engine::IndexIdentifier<FieldReference> identifier
+    );
 
-    inline const auto RefType() const { return Engine::IndexIdentifier(refType, fileId); }
-
-    inline const auto MethodSig() const { return Engine::IndexIdentifier(fieldType, fileId); }
-
-    inline const bool IsRecord() const { return isRecord; }
-
-private:
-    FieldReference(IO::FileId fileId, Offset<String> name, Index<Term> refType, Index<Term> fieldType, bool isRecord)
-        : fileId(fileId),
-          name(name),
-          refType(refType),
-          fieldType(fieldType),
-          isRecord(isRecord)
-    {}
-
-    IO::FileId fileId;
-    Offset<String> name;
-    Index<Term> refType;
-    Index<Term> fieldType;
+    Engine::Identifier<String> name;
+    Engine::IndexIdentifier<Term> refType;
+    Engine::IndexIdentifier<Term> fieldType;
     bool isRecord;
 };
 

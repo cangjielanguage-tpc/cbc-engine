@@ -49,6 +49,7 @@ class Session {
 public:
     std::unique_ptr<IO::RandomAccessFile>& FileOf(IO::FileId fileId) const;
     Symlevel::CbcFile& CbcFileOf(IO::FileId fileId) const;
+    std::tuple<Symlevel::CbcFile&, IO::RandomAccessFile&> File(IO::FileId fileId) const;
 
     Session(Engine& engine) : engine(engine), arena() {}
 

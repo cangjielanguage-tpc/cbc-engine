@@ -50,7 +50,7 @@ public:
     MethodIndex(MethodIndex&&);
     ~MethodIndex();
 
-    std::vector<MethodDefinition> FindMethods(Engine::Session& session, String methodName) const;
+    std::vector<Engine::Identifier<MethodDefinition>> FindMethods(Engine::Session& session, String methodName) const;
 
 private:
     std::unique_ptr<MemberIndex> index;
