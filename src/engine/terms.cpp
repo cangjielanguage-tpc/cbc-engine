@@ -180,14 +180,14 @@ uint32_t Term::GetLength() const { return data->length; }
 
 uint32_t Term::Hash() const { return data->hash; }
 
-std::string Term::GetName(Session& session)
+std::string Term::GetName(Session& session) const
 {
     Stream::StringBuffer buf;
     GetName(session, buf);
     return buf.ToString();
 }
 
-void Term::GetName(Session& session, Stream::Output& stream)
+void Term::GetName(Session& session, Stream::Output& stream) const
 {
 
     auto printSubTerms = [&](std::string_view prefix, std::string_view suffix, int len)

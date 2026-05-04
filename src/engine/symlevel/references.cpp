@@ -1,4 +1,5 @@
 #include "references.h"
+#include "region_data.h"
 #include "io/stream_file_reader.h"
 
 namespace Symlevel {

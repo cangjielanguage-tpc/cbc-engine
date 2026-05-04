@@ -1,15 +1,10 @@
-#include "api/resolver.h"
 #include "cbc/decoder.h"
 #include "cbc/isa.h"
-#include "interpreter/loggers.h"
 #include "isa_parser.h"
-#include "utils/logger.h"
+#include "resolution/resolution.h"
 #include "utils/ostream.h"
 #include <cmath>
 #include <cstdint>
-#include <iomanip>
-#include <iostream>
-#include <ostream>
 
 namespace Cbc {
 
@@ -261,11 +256,11 @@ struct IsaDisasm : public IsaParser {
 };
 
 struct IsaResolvingDisasm : IsaDisasm {
-    API::Resolver& resolver;
+    Resolution::Resolver& resolver;
 
     using MethodIndex = Symlevel::Index<Symlevel::MethodReference>;
 
-    IsaResolvingDisasm(Stream::Output& stream, Decoder::FatByteReader reader, API::Resolver& resolver)
+    IsaResolvingDisasm(Stream::Output& stream, Decoder::FatByteReader reader, Resolution::Resolver& resolver)
         : IsaDisasm(stream, reader),
           resolver(resolver)
     {}
@@ -293,7 +288,7 @@ void RawDisasm(Stream::Output& stream, uint8_t* start, uint8_t* end)
     RawDisasm(stream, Decoder::FatByteReader(start, start, end));
 }
 
-void Disasm(Stream::Output& stream, Decoder::FatByteReader reader, API::Resolver* resolver)
+void Disasm(Stream::Output& stream, Decoder::FatByteReader reader, Resolution::Resolver* resolver)
 {
     if (!g_IsRawDisasmEnabled && resolver != nullptr) {
         IsaResolvingDisasm(stream, reader, *resolver).ParseAll();
@@ -302,14 +297,14 @@ void Disasm(Stream::Output& stream, Decoder::FatByteReader reader, API::Resolver
     }
 }
 
-void Disasm(Stream::Output& stream, Cbc::MethodCode code, API::Resolver* resolver)
+void Disasm(Stream::Output& stream, Cbc::MethodCode code, Resolution::Resolver* resolver)
 {
     auto start = code.CodePtr();
     auto end   = start + code.CodeSize();
     Disasm(stream, Decoder::FatByteReader(start, start, end), resolver);
 }
 
-void Disasm(Stream::Output& stream, uint8_t* start, uint8_t* end, API::Resolver* resolver)
+void Disasm(Stream::Output& stream, uint8_t* start, uint8_t* end, Resolution::Resolver* resolver)
 {
     Disasm(stream, Decoder::FatByteReader(start, start, end), resolver);
 }

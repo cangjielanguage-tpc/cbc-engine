@@ -202,8 +202,8 @@ public:
     uint32_t GetLength() const;
     uint32_t Hash() const;
 
-    std::string GetName(Session& session);
-    void GetName(Session& session, Stream::Output& stream);
+    std::string GetName(Session& session) const;
+    void GetName(Session& session, Stream::Output& stream) const;
 
     bool IsLocal() const;
     LocalTerm AsLocal();

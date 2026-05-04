@@ -4,6 +4,7 @@
 #include "interpreter/function_handle.h"
 #include "runtimesupport/runtime.h"
 #include "utils/logger.h"
+#include "utils/ostream.h"
 #include <cstdint>
 #include <optional>
 #include <string_view>
@@ -31,16 +32,36 @@ extern Logging::Logger log;
 
 class Resolver;
 
+enum class CbcTypeKind {
+    INVALID,
+    VOID,
+    BOOL,
+    I8,
+    U8,
+    I16,
+    U16,
+    I32,
+    U32,
+    I64,
+    U64,
+    REF,
+    REC,
+    F32,
+    F64,
+};
+
 /// The handle that represents a type.
 class Type {
 public:
     ~Type() = default;
 
     /// Full name of the type.
-    virtual std::string GetName() = 0;
+    virtual void GetFullName(Stream::Output& stream) const = 0;
 
     /// Runtime type info.
     virtual std::optional<RTSupport::TypeInfo> GetTypeInfo() = 0;
+
+    virtual CbcTypeKind GetKind() = 0;
 };
 
 struct MethodSignature {
@@ -49,12 +70,17 @@ struct MethodSignature {
 };
 
 struct DirectCall {
+    struct Compiled {
+        uintptr_t funcPtr;
+        Interpretation::I2Call i2cAdapter;
+    };
+
+    using CallData = std::variant<Compiled, Interpretation::DynamicFunctionHandle*>;
+
     Type* refType;
     std::string_view name;
     MethodSignature signature;
-    Interpretation::TaggedFunctionHandle fuh;
-
-    std::string GetFullName(Resolver& resolver);
+    CallData data;
 };
 
 struct DynamicCall {
@@ -63,8 +89,6 @@ struct DynamicCall {
     MethodSignature signature;
     int methodNum;
     int extDefNum;
-
-    std::string GetFullName(Resolver& resolver);
 };
 
 struct InstanceField {
@@ -73,8 +97,6 @@ struct InstanceField {
     Type* fieldType;
     uint32_t ordinal;
     std::optional<int> offset;
-
-    std::string GetFullName(Resolver& resolver);
 };
 
 struct StaticField {
@@ -82,9 +104,14 @@ struct StaticField {
     std::string_view name;
     Type* fieldType;
     uintptr_t location;
-
-    std::string GetFullName(Resolver& resolver);
 };
+
+Stream::Output& operator<<(Stream::Output& stream, Type const& type);
+Stream::Output& operator<<(Stream::Output& stream, MethodSignature const& sig);
+Stream::Output& operator<<(Stream::Output& stream, DirectCall const& call);
+Stream::Output& operator<<(Stream::Output& stream, DynamicCall const& call);
+Stream::Output& operator<<(Stream::Output& stream, InstanceField const& field);
+Stream::Output& operator<<(Stream::Output& stream, StaticField const& field);
 
 template <typename T>
 class Index {
