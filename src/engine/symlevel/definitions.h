@@ -2,6 +2,8 @@
 
 #include "engine/engine.h"
 #include "engine/identifiers.h"
+#include "engine/symlevel/flags.h"
+#include "engine/symlevel/terms.h"
 #include "engine/symlevel/offset_sequence.h"
 #include "io/file_id.h"
 #include "member_index.h"
@@ -69,27 +71,34 @@ public:
     static String ParseName(Engine::Session& session, IO::FileId fileId, Offset<FieldDefinition> offset);
 
     inline Offset<String> NameOffset() const { return nameOffset; }
+    inline Term FieldType() const { return fieldType; }
+    inline Engine::Identifier<FieldDefinition> Identifier() { return identifier; }
+    inline FieldFlags Flags() { return flags; }
 
 private:
     FieldDefinition(
         Engine::Identifier<FieldDefinition> identifier,
         Offset<String> nameOffset,
-        uint32_t idx,
-        uint32_t declIdx,
-        uint32_t typeIdx
+        Term refType,
+        Term fieldType,
+        FieldFlags flags,
+        std::vector<uint64_t> constValue 
     )
         : identifier(identifier),
           nameOffset(nameOffset),
-          idx(idx),
-          declIdx(declIdx),
-          typeIdx(typeIdx)
+          refType(refType),
+          fieldType(fieldType),
+          flags(flags),
+          constValue(constValue)
     {}
 
     Engine::Identifier<FieldDefinition> identifier;
     Offset<String> nameOffset;
-    uint32_t idx;
-    uint32_t declIdx;
-    uint32_t typeIdx;
+    Term refType;
+    Term fieldType;
+    FieldFlags flags;
+    std::vector<uint64_t> constValue;
+
 };
 
 class MethodDefinition {
@@ -100,11 +109,7 @@ public:
 
     inline Offset<String> NameOffset() const { return nameOffset; }
 
-    inline uint32_t GetSigIdx() const
-    {
-        FATAL("implement terms"); // FIXME
-        return sigIdx;
-    }
+    inline Term GetType() const { return type; }
 
     inline Offset<Code> GetCodeOffset() const { return *codeOffs; }
 
@@ -116,18 +121,18 @@ private:
     MethodDefinition(
         Engine::Identifier<MethodDefinition> identifier,
         Offset<String> nameOffset,
-        uint32_t sigIdx,
+        Term type,
         std::optional<Offset<Code>> codeOffs
     )
         : identifier(identifier),
           nameOffset(nameOffset),
-          sigIdx(sigIdx),
+          type(type),
           codeOffs(codeOffs)
     {}
 
     Engine::Identifier<MethodDefinition> identifier;
     Offset<String> nameOffset;
-    uint32_t sigIdx;
+    Term type;
     std::optional<Offset<Code>> codeOffs;
 };
 

@@ -125,6 +125,21 @@ template <typename Data> struct MemberIndexWrapper {
         return std::nullopt;
     }
 
+    template <typename T> void Foreach(Engine::Session& session, std::function<bool(T&)> action) const {
+            static_assert(std::is_same_v<T, FieldDefinition> || std::is_same_v<T, MethodDefinition>);
+
+            auto& file = *session.FileOf(fileId);
+
+            for (uint32_t i = 0; i < memberCount; i++) {
+                auto offset = buckets.QueryOffset(file, i);
+                auto fieldDef = T::Parse(session, fileId, offset);
+
+                if (action(fieldDef)) {
+                    break;
+                }
+            }
+        }
+
     std::vector<Identifier> FindOffsets(Engine::Session& session, String name) const
     {
         if (IsEmpty()) {
@@ -176,6 +191,11 @@ std::optional<Engine::Identifier<FieldDefinition>> FieldIndex::FindField(
 {
     MemberIndexWrapper<FieldDefinition> index { this->index };
     return index.FindOffset(session, typeName);
+}
+
+void FieldIndex::Foreach(Engine::Session& session, std::function<bool(FieldDefinition&)> action) const
+{
+    index->Foreach<FieldDefinition>(session, action);
 }
 
 std::vector<Engine::Identifier<MethodDefinition>> MethodIndex::FindMethods(

@@ -6,6 +6,7 @@
 #include "engine/symlevel/definitions.h"
 #include "symlevel/io/file_id.h"
 #include "symlevel/offset.h"
+#include "symlevel/string.h"
 #include "utils/assertion.h"
 #include "utils/ostream.h"
 #include <cstdint>
@@ -40,6 +41,8 @@ class Term;
 class LocalTerm;
 class GlobalTerm;
 struct TermData;
+
+class TypeDefinition;
 
 enum class TemplateKind : uint8_t {
     // primitives start
@@ -96,7 +99,9 @@ protected:
 public:
     TemplateKind GetKind() { return TemplateKind(ident.GetTag()); }
 
-    std::optional<const char*> GetKindName();
+    bool IsReference();
+
+    int Width();
 
     uint32_t Hash()
     {

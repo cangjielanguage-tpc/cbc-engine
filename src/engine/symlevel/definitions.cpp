@@ -1,6 +1,7 @@
 #include "definitions.h"
 #include "engine/symlevel/offset_sequence.h"
 #include "reader.h"
+#include "region_data.h"
 
 namespace Symlevel {
 
@@ -55,12 +56,23 @@ FieldDefinition FieldDefinition::Parse(Engine::Session& session, IO::FileId file
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetFieldDefSectionOffs() + offset);
 
-    auto nameOffset = Offset<String>(reader.ReadU32());
-    auto idx        = reader.ReadU32();
-    auto declIdx    = reader.ReadU32();
-    auto typeIdx    = reader.ReadU32();
+    auto nameOffset   = Offset<String>(reader.ReadU32());
+    auto refTypeIdx   = reader.ReadULEB();
+    auto fieldTypeIdx = reader.ReadULEB();
+    auto flags        = reader.ReadU8();
 
-    return FieldDefinition(Engine::Identifier<FieldDefinition>(offset, fileId), nameOffset, idx, declIdx, typeIdx);
+    // TODO parse const value
+    auto tag = reader.ReadU8();
+    ASSERTION(tag == 0, "Const value is not supported yet");
+
+    auto regionData = session.CbcFileOf(fileId).GetRegionData();
+    auto refType   = regionData.queryTerm(session, { .region = 0, .index = refTypeIdx });
+    auto fieldType = regionData.queryTerm(session, { .region = 0, .index = fieldTypeIdx });
+
+    ASSERTION(refType.has_value(),   "couldn't parse refType term");
+    ASSERTION(fieldType.has_value(), "couldn't parse fieldType term");
+
+    return FieldDefinition(Engine::Identifier<FieldDefinition>(offset, fileId), nameOffset, refType.value(), fieldType.value(), FieldFlags(flags), {});
 }
 
 FieldDefinition FieldDefinition::Resolve(Engine::Session& session, Engine::Identifier<FieldDefinition> identifier)
@@ -103,7 +115,11 @@ MethodDefinition MethodDefinition::Parse(Engine::Session& session, IO::FileId fi
 
 tags_end:
 
-    return MethodDefinition(Engine::Identifier<MethodDefinition>(offset, fileId), nameOffset, methodSigIdx, codeOffs);
+    auto regionData = session.CbcFileOf(fileId).GetRegionData();
+    auto type       = regionData.queryTerm(session, { .region = 0, .index = methodSigIdx });
+    ASSERTION(type.has_value(), "cannot parse type term");
+
+    return MethodDefinition(Engine::Identifier<MethodDefinition>(offset, fileId), nameOffset, type.value(), codeOffs);
 }
 
 MethodDefinition MethodDefinition::Resolve(Engine::Session& session, Engine::Identifier<MethodDefinition> identifier)
