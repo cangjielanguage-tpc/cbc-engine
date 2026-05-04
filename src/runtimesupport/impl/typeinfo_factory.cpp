@@ -78,17 +78,20 @@ struct TypeInfoBuilder {
 
     CbcTypeInfo* typeInfo;
 
+    bool built = false;
+
     TypeInfoBuilder(CbcTypeInfo* typeInfo) : typeInfo(typeInfo), gctib({ .raw = (1lu << 63) }) {}
 
     DYN_TypeInfoT* Build()
     {
-        auto typeInfo = std::exchange(this->typeInfo, nullptr);
+        auto typeInfo = this->typeInfo;
         auto result   = &typeInfo->base;
 
-        result->typeInfoName = std::exchange(this->name, nullptr);
+        result->typeInfoName = name;
         result->type         = type;
         result->flag         = flag;
         result->fieldNum     = fieldNum;
+
         if (instanceSize != -1) {
             result->instanceSize = instanceSize;
         } else if (componentSize != -1) {
@@ -96,48 +99,52 @@ struct TypeInfoBuilder {
         } else {
             ASSERTION(false, "neither of instance or component size was set");
         }
-        result->gctib           = std::exchange(gctib, {}); // FIXME
+
+        result->gctib           = gctib;
         result->uuid            = uuid;
         result->align           = align;
         result->typeArgsNum     = typeArgsNum;
         result->validInheritNum = validInheritNum;
-        result->fieldOffsets    = std::exchange(fieldOffsets, nullptr);
+        result->fieldOffsets    = fieldOffsets;
         result->finalizerMethod = finalizerMethod;
-        result->typeArgs        = std::exchange(typeArgs, nullptr);
-        result->fields          = std::exchange(fields, nullptr);
+        result->typeArgs        = typeArgs;
+        result->fields          = fields;
+
         if (superTypeInfo) {
-            result->superTypeInfo = std::exchange(superTypeInfo, nullptr);
+            result->superTypeInfo = superTypeInfo;
         } else if (componentTypeInfo) {
-            result->componentTypeInfo = std::exchange(componentTypeInfo, nullptr);
+            result->componentTypeInfo = componentTypeInfo;
         } else {
             ASSERTION(false, "neither of super type TI or component TI was set");
         }
 
-        result->vExtensionDataStart = std::exchange(extDefs, nullptr);
-        flatExtDefs                 = nullptr;
-        result->mTableDesc          = std::exchange(mtableDesc, nullptr);
-        result->reflectOrDebugInfo  = std::exchange(reflectOrDebugInfo, nullptr);
+        result->vExtensionDataStart = extDefs;
+        result->mTableDesc          = mtableDesc;
+        result->reflectOrDebugInfo  = reflectOrDebugInfo;
         typeInfo->dataMT            = dataMT;
 
+        built = true;
         return result;
     }
 
     ~TypeInfoBuilder()
     {
-        // free is no-op on nulls.
-        std::free(fieldOffsets);
-        std::free(name);
-        std::free(typeArgs);
-        std::free(fields);
-        std::free(superTypeInfo);
-        std::free(componentTypeInfo);
-        std::free(mtableDesc);
-        std::free(reflectOrDebugInfo);
-        std::free(dataMT);
-        std::free(flatExtDefs);
-        std::free(extDefs);
-        std::free(flatMethods);
-        std::free(typeInfo);
+        if (!built) {
+            // free is no-op on nulls.
+            std::free(fieldOffsets);
+            std::free(name);
+            std::free(typeArgs);
+            std::free(fields);
+            std::free(superTypeInfo);
+            std::free(componentTypeInfo);
+            std::free(mtableDesc);
+            std::free(reflectOrDebugInfo);
+            std::free(dataMT);
+            std::free(flatExtDefs);
+            std::free(extDefs);
+            std::free(flatMethods);
+            std::free(typeInfo);
+        }
     }
 };
 
@@ -216,7 +223,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
         // fill out flat methods table and data method table
         int entryIdx = 0;
-        for (auto it = mt.EntriesIter(); it.HasNext(), entryIdx++;) {
+        for (auto it = mt.EntriesIter(); it.HasNext(); entryIdx++) {
             auto entry                    = it.Next();
             builder.dataMT[entryIdx]      = fuhManager.Acquire(session, entry);
             builder.flatMethods[entryIdx] = GetFunctionOrTrampoline(session, entry, entryIdx);
