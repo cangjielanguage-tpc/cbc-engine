@@ -78,8 +78,8 @@ void StaticFieldsBundle::VisitRefLocations(std::function<void(RefLocation*)> act
 StaticFieldsBundle StaticsManager::CreateBundle(Session& session, TypeIdent typeIdent)
 {
     // TODO support records
-    uint32_t refFieldsNum;
-    uint32_t primFieldsNum;
+    uint32_t refFieldsNum = 0;
+    uint32_t primFieldsNum = 0;
 
     auto typeDef = Symlevel::TypeDefinition::Resolve(session, typeIdent);
     typeDef.GetFieldIndex().Foreach(session, [&refFieldsNum, &primFieldsNum](Symlevel::FieldDefinition& field) {
