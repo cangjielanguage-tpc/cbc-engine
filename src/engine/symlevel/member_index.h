@@ -35,23 +35,20 @@ public:
 
 class TypeIndex : public MemberIndexBase<TypeIndex> {
 public:
-    std::optional<Engine::Identifier<TypeDefinition>> FindType(
-        Engine::Session& session, std::string_view typeName
-    ) const;
+    std::optional<Engine::Identifier<TypeDefinition>> FindType(Engine::Session& session, std::string_view typeName)
+        const;
 };
 
 class FieldIndex : public MemberIndexBase<FieldIndex> {
 public:
-    std::optional<Engine::Identifier<FieldDefinition>> FindField(
-        Engine::Session& session, std::string_view fieldName
-    ) const;
+    std::optional<Engine::Identifier<FieldDefinition>> FindField(Engine::Session& session, std::string_view fieldName)
+        const;
 };
 
 class MethodIndex : public MemberIndexBase<MethodIndex> {
 public:
-    std::vector<Engine::Identifier<MethodDefinition>> FindMethods(
-        Engine::Session& session, std::string_view methodName
-    ) const;
+    std::vector<Engine::Identifier<MethodDefinition>> FindMethods(Engine::Session& session, std::string_view methodName)
+        const;
 };
 
 } // namespace Symlevel

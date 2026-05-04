@@ -261,7 +261,7 @@ struct IsaRewriter : public IsaParser {
         }
 
         auto typeInfo = type->GetTypeInfo().value().Raw();
-        auto sym = emit.NewAddressSym(reinterpret_cast<uintptr_t>(typeInfo));
+        auto sym      = emit.NewAddressSym(reinterpret_cast<uintptr_t>(typeInfo));
         emit.NewObj(dst, sym);
     }
 
@@ -391,8 +391,20 @@ struct IsaRewriter : public IsaParser {
 
 static uint32_t CalcFrameSize(Symlevel::Code code)
 {
-    auto stackAllocSize = Cbc::STACK_SLOT_SIZE * (code.UntypedSlotCount()); // TODO: typed stack slots
-    return MathUtils::AlignUp(stackAllocSize, Cbc::FRAME_ALIGNMENT);
+    auto savedRegsCount = 0;
+    for (uint8_t i = 0, savedRegs = code.UsedNonVolIRegMask(); i < (IReg::COUNT - IReg::FIRST_NON_VOL); i++) {
+        if ((savedRegs & (1 << i)) != 0)
+            savedRegsCount++;
+    }
+    for (uint8_t i = 0, savedRegs = code.UsedNonVolFRegMask(); i < (FReg::COUNT - FReg::FIRST_NON_VOL); i++) {
+        if ((savedRegs & (1 << i)) != 0)
+            savedRegsCount++;
+    }
+    auto savedRegsSpace = Cbc::STACK_SLOT_SIZE * savedRegsCount;
+
+    auto stackAllocSize = Cbc::STACK_SLOT_SIZE * code.UntypedSlotCount(); // TODO: typed stack slots
+
+    return MathUtils::AlignUp(savedRegsSpace + stackAllocSize, Cbc::FRAME_ALIGNMENT);
 }
 
 Interpretation::ExecBytecodeInfo Rewrite(MethodCode code, Resolver& resolver, Memory::Heap& heap)

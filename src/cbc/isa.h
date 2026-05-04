@@ -140,7 +140,7 @@ public:
 #define IREG_ENUM(opc) opc,
 
     enum Value : uint8_t {
-        IREG_VALUES(IREG_ENUM)
+        IREG_VALUES(IREG_ENUM) FIRST_NON_VOL = IR8
     };
 
     static constexpr int COUNT = 14;
@@ -200,7 +200,7 @@ public:
 #define FREG_ENUM(opc) opc,
 
     enum Value : uint32_t {
-        FREG_VALUES(FREG_ENUM)
+        FREG_VALUES(FREG_ENUM) FIRST_NON_VOL = FR8
     };
 
     static constexpr int COUNT = 16;
