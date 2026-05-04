@@ -392,13 +392,13 @@ struct IsaRewriter : public IsaParser {
 static uint32_t CalcFrameSize(Symlevel::Code code)
 {
     auto savedRegsCount = 0;
-    auto savedRegs      = code.UsedNonVolIRegMask();
-    for (; savedRegs != 0; savedRegsCount++) {
-        savedRegs &= savedRegs - 1;
+    for (uint8_t i = 0, savedRegs = code.UsedNonVolIRegMask(); i < (IReg::COUNT - IReg::FIRST_NON_VOL); i++) {
+        if ((savedRegs & (1 << i)) != 0)
+            savedRegsCount++;
     }
-    savedRegs = code.UsedNonVolFRegMask();
-    for (; savedRegs != 0; savedRegsCount++) {
-        savedRegs &= savedRegs - 1;
+    for (uint8_t i = 0, savedRegs = code.UsedNonVolFRegMask(); i < (FReg::COUNT - FReg::FIRST_NON_VOL); i++) {
+        if ((savedRegs & (1 << i)) != 0)
+            savedRegsCount++;
     }
     auto savedRegsSpace = Cbc::STACK_SLOT_SIZE * savedRegsCount;
 
