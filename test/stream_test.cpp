@@ -73,10 +73,8 @@ TEST(Stream, descripted_pipes)
     buf[n] = 0;
     close(in);
 
-    auto expected = std::string(
-        "[desc] abc 12\n"
-        "[desc] cba 23\n"
-    );
+    auto expected = std::string("[desc] abc 12\n"
+                                "[desc] cba 23\n");
 
     ASSERT_EQ(expected.size(), n);
     ASSERT_EQ(expected, buf);

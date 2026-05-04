@@ -37,9 +37,9 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
     if (res != impl->fuhMap.end()) {
         return res->second;
     }
-    auto i2Call             = PrepareI2Call(session, methodDef);
-    auto c2Call             = PrepareC2Call(session, methodDef);
-    auto fuh                = new DynamicFunctionHandle(i2Call, c2Call, methodDef);
+    auto i2Call = PrepareI2Call(session, methodDef);
+    auto c2Call = PrepareC2Call(session, methodDef);
+    auto fuh    = new DynamicFunctionHandle(i2Call, c2Call, methodDef);
     if (fuh == nullptr) {
         FATAL("out of memory");
     }

@@ -1,8 +1,8 @@
 #pragma once
 
+#include <climits>
 #include <cmath>
 #include <cstdint>
-#include <climits>
 
 namespace MathUtils {
 static uint32_t AlignDown(uint32_t value, uint32_t alignment) { return (value / alignment) * alignment; }
@@ -20,8 +20,7 @@ static bool IsNBits(uint64_t value, uint32_t bits)
 
 static bool IsNBitsSigned(uint32_t value, uint32_t bits) { return IsNBitsSigned(static_cast<int32_t>(value), bits); }
 
-template <typename T>
-static bool IsNBitsSigned(T value, uint32_t bits)
+template <typename T> static bool IsNBitsSigned(T value, uint32_t bits)
 {
     if (bits == sizeof(T) * CHAR_BIT) {
         return true;
@@ -36,14 +35,13 @@ static bool IsNBitsSigned(T value, uint32_t bits)
 
 static bool IsNBitsSigned(uint64_t value, uint32_t bits) { return IsNBitsSigned(static_cast<int64_t>(value), bits); }
 
-template <typename T>
-static inline T SignExtend(T value, uint32_t bits)
+template <typename T> static inline T SignExtend(T value, uint32_t bits)
 {
     if (bits == sizeof(T) * CHAR_BIT)
         return value;
     T const one = static_cast<T>(1);
-    T const m = one << (bits - 1);           // sign bit mask
-    value     = value & ((one << bits) - 1); // zero high bits
+    T const m   = one << (bits - 1);           // sign bit mask
+    value       = value & ((one << bits) - 1); // zero high bits
     return (value ^ m) - m;
 }
 

@@ -261,7 +261,7 @@ struct IsaRewriter : public IsaParser {
         }
 
         auto typeInfo = type->GetTypeInfo().value().Raw();
-        auto sym = emit.NewAddressSym(reinterpret_cast<uintptr_t>(typeInfo));
+        auto sym      = emit.NewAddressSym(reinterpret_cast<uintptr_t>(typeInfo));
         emit.NewObj(dst, sym);
     }
 

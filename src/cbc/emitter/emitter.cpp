@@ -81,9 +81,8 @@ public:
 
     int32_t Size() const override { return 2; }
 
-    void Resolve(
-        Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter
-    ) const override
+    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+        const override
     {
         ASSERT(position >= 0);
         Segment::View buf = segment.At(static_cast<size_t>(position));
