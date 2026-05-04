@@ -52,7 +52,8 @@ struct InstanceFieldAotData {
 };
 
 template <typename Table>
-struct AotDataTable {
+class AotDataTable {
+public:
     AotTable table;
 
     static Table Read(IO::FileId fileId, IO::RandomAccessFile& file, Offset<Table> offset)

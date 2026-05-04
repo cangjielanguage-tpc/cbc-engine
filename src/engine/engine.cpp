@@ -125,7 +125,7 @@ std::optional<CbcFile*> Engine::Impl::FindCbcFile(std::string_view filePath)
     return std::nullopt;
 }
 
-std::optional<TypeDefinition> Engine::FindType(Session& session, std::string_view typeName)
+std::optional<Identifier<TypeDefinition>> Engine::FindType(Session& session, std::string_view typeName)
 {
     for (auto& file : impl->files) {
         auto res = file.GetTypeIndex().FindType(session, typeName);
@@ -145,8 +145,9 @@ std::optional<Identifier<MethodDefinition>> Engine::FindMain(Session& session, s
     }
     auto f        = file.value();
     auto declType = f->GetTypeIndex().FindType(session, std::string_view("default"));
-    if (declType) {
-        const auto& methodIndex = (*declType).GetMethodIndex();
+    if (declType.has_value()) {
+        auto type = Symlevel::TypeDefinition::Resolve(session, declType.value());
+        const auto& methodIndex = type.GetMethodIndex();
         auto methods            = methodIndex.FindMethods(session, std::string_view("main"));
 
         // TODO: throw?

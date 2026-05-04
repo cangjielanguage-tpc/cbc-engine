@@ -383,12 +383,11 @@ struct TermResolver {
         switch (tag) {
             case TYPE: {
                 auto name = Reader::Read(session, fileId, Offset<String>(reader.ReadULEB()));
-                // FIXME: must be option of identifier, not of TypeDefinition itself
                 auto type = session.GetEngine().FindType(session, name);
                 if (!type.has_value()) {
                     return NewUndefined(index);
                 }
-                auto identifier = type.value().GetIdentifier();
+                auto identifier = type.value();
                 auto* data      = AllocateTerm(heap);
                 data->InitAfterSubterms(TypeTemplateIdentifier(identifier), 0, true);
                 return Term(LocalTerm(data));

@@ -1,7 +1,5 @@
-#include <algorithm>
-
 #include "definitions.h"
-#include "io/offset_pool.h"
+#include "engine/identifiers.h"
 #include "io/stream_file_reader.h"
 #include "member_index.h"
 #include "reader.h"
@@ -60,39 +58,27 @@ namespace Symlevel {
  * Note that @c buckets length is @c memberCount
  * Note that @c bucketTable length is @c bucketCount+1
  */
-class MemberIndex final {
-public:
-    IO::FileId fileId;
-    uint32_t bucketCount;
-    uint32_t memberCount;
-    // IO::OffsetPool bucketTable;
-    // IO::OffsetPool buckets;
+MemberIndex MemberIndex::Read(IO::FileId fileId, IO::StreamFileReader& reader)
+{
+    auto bucketTableSize = reader.ReadU32();
+    auto bucketsSize     = reader.ReadU32();
 
-    static std::unique_ptr<MemberIndex> Read(IO::StreamFileReader& reader, IO::FileId fileId)
-    {
-        auto bucketTableSize = reader.ReadU32();
-        auto bucketsSize     = reader.ReadU32();
+    auto bucketTableOffs = reader.Position();
+    uint32_t bucketsOffs = bucketTableOffs + bucketTableSize * sizeof(uint32_t);
 
-        auto bucketTableOffs = reader.Position();
-        auto bucketsOffs     = bucketTableOffs + bucketTableSize * sizeof(uint32_t);
+    reader.Advance(bucketTableSize * sizeof(uint32_t) + bucketsSize * sizeof(uint32_t));
+    return { fileId, bucketTableOffs, bucketTableSize, bucketsOffs, bucketsSize };
+}
 
-        // IO::OffsetPool bucketTable(bucketTableOffs, bucketTableSize);
-        // IO::OffsetPool buckets(bucketsOffs, bucketsSize);
+template <typename Data>
+struct MemberIndexWrapper {
+    using Identifier = Engine::Identifier<Data>;
 
-        reader.Advance(bucketTableSize * sizeof(uint32_t) + bucketsSize * sizeof(uint32_t));
+    MemberIndex const& index;
 
-        return std::make_unique<MemberIndex>(fileId, bucketTableSize - 1, bucketsSize);
-    }
-
-    MemberIndex(
-        IO::FileId fileId,
-        uint32_t bucketCount,
-        uint32_t memberCount
-    )
-        : fileId(fileId),
-          bucketCount(bucketCount),
-          memberCount(memberCount)
-    {}
+    uint32_t MemberCount() const { return index.bucketsSize; }
+    uint32_t BucketCount() const { return index.bucketTableSize - 1; }
+    bool IsEmpty() const { return MemberCount() == 0; }
 
     static uint32_t Hash(String name)
     {
@@ -104,127 +90,87 @@ public:
         return hash;
     }
 
-    bool IsEmpty() const { return memberCount == 0; }
-
-    template <typename T> std::optional<Offset<T>> FindOffset(Engine::Session& session, String name) const
+    std::optional<Identifier> FindOffset(Engine::Session& session, String name) const
     {
-//        if (IsEmpty()) {
-//            return std::nullopt;
-//        }
-//
-//        auto& file = *session.FileOf(fileId);
-//
-//        uint32_t startIdx = Hash(name) % bucketCount;
-//
-//        // TODO: the same as aot table!
-//        auto start = bucketTable.QueryOffset(file, startIdx);
-//        auto end   = bucketTable.QueryOffset(file, startIdx + 1);
-//        ASSERT(start <= end);
-//
-//        for (auto i = start; i < end; i++) {
-//            auto entityOffs = Offset<T>(buckets.QueryOffset(file, i));
-//            auto entityName = Reader::ReadName(session, fileId, entityOffs);
-//            if (entityName.compare(name) == 0) {
-//                return entityOffs;
-//            }
-//        }
-//
+        if (IsEmpty()) {
+            return std::nullopt;
+        }
+
+        auto [_, raf] = session.File(index.fileId);
+
+        uint32_t startIdx = Hash(name) % BucketCount();
+        uint32_t step = sizeof(uint32_t);
+
+        auto bucketStartIdx = index.bucketTableStart + startIdx * step;
+        auto bucketEndIdx = index.bucketTableStart + (startIdx + 1) * step;
+
+        auto dataStartIdx = IO::StreamFileReader(raf, bucketStartIdx).ReadU32();
+        auto dataEndIdx = IO::StreamFileReader(raf, bucketEndIdx).ReadU32();
+
+        ASSERT(dataStartIdx <= dataEndIdx);
+
+        for (auto i = dataStartIdx; i < dataEndIdx; i++) {
+            auto dataOffs = Offset<Data>(index.bucketsStart + i * step);
+            auto dataIdx = IO::StreamFileReader(raf, dataOffs).ReadU32();
+            auto entityName = Reader::ReadName(session, index.fileId, dataOffs);
+
+            if (entityName.compare(name) == 0) {
+                return Identifier(dataOffs, index.fileId);
+            }
+        }
+
         return std::nullopt;
     }
 
-    template <typename T> std::vector<Offset<T>> FindOffsets(Engine::Session& session, String name) const
+    std::vector<Identifier> FindOffsets(Engine::Session& session, String name) const
     {
-//        if (IsEmpty()) {
-//            return {};
-//        }
-//
-//        auto& file = *session.FileOf(fileId);
-//
-//        uint32_t startIdx = Hash(name) % bucketCount;
-//
-//        auto start = bucketTable.QueryOffset(file, startIdx);
-//        auto end   = bucketTable.QueryOffset(file, startIdx + 1);
-//        ASSERT(start <= end);
-//
-//        std::vector<Offset<T>> offsets;
-//        for (auto i = start; i < end; i++) {
-//            auto entityOffs = Offset<T>(buckets.QueryOffset(file, i));
-//            auto entityName = Reader::ReadName(session, fileId, entityOffs);
-//            if (entityName.compare(name) == 0) {
-//                offsets.push_back(entityOffs);
-//            }
-//        }
-//
-        return std::vector<Offset<T>>();
+        if (IsEmpty()) {
+            return {};
+        }
+
+        auto [_, raf] = session.File(index.fileId);
+
+        uint32_t startIdx = Hash(name) % BucketCount();
+        uint32_t step = sizeof(uint32_t);
+
+        auto bucketStartIdx = index.bucketTableStart + startIdx * step;
+        auto bucketEndIdx = index.bucketTableStart + (startIdx + 1) * step;
+
+        auto dataStartIdx = IO::StreamFileReader(raf, bucketStartIdx).ReadU32();
+        auto dataEndIdx = IO::StreamFileReader(raf, bucketEndIdx).ReadU32();
+
+        ASSERT(dataStartIdx <= dataEndIdx);
+        std::vector<Identifier> offsets;
+        for (auto i = dataStartIdx; i < dataEndIdx; i++) {
+            auto dataOffs = Offset<Data>(index.bucketsStart + i * step);
+            auto dataIdx = IO::StreamFileReader(raf, dataOffs).ReadU32();
+            auto entityName = Reader::ReadName(session, index.fileId, dataOffs);
+
+            if (entityName.compare(name) == 0) {
+                offsets.push_back(Identifier(dataOffs, index.fileId));
+            }
+        }
+
+        return offsets;
     }
 };
 
-TypeIndex::TypeIndex(std::unique_ptr<MemberIndex> index) : index(std::move(index)) {}
-
-TypeIndex::TypeIndex(TypeIndex&&) = default;
-TypeIndex::~TypeIndex()           = default;
-
-TypeIndex TypeIndex::Read(IO::FileId fileId, IO::RandomAccessFile& file, uint32_t typeIndexOffset)
+std::optional<Engine::Identifier<TypeDefinition>> TypeIndex::FindType(Engine::Session& session, String typeName) const
 {
-    IO::StreamFileReader reader(file, typeIndexOffset);
-    return TypeIndex(MemberIndex::Read(reader, fileId));
+    MemberIndexWrapper<TypeDefinition> index {this->index};
+    return index.FindOffset(session, typeName);
 }
 
-std::optional<TypeDefinition> TypeIndex::FindType(Engine::Session& session, String typeName) const
+std::optional<Engine::Identifier<FieldDefinition>> FieldIndex::FindField(Engine::Session& session, String typeName) const
 {
-    auto offset = index->FindOffset<TypeDefinition>(session, typeName);
-
-    if (offset) {
-        return Reader::Read(session, index->fileId, *offset);
-    } else {
-        return std::nullopt;
-    }
-}
-
-FieldIndex::FieldIndex(std::unique_ptr<MemberIndex> index) : index(std::move(index)) {}
-
-FieldIndex::FieldIndex(FieldIndex&&) = default;
-FieldIndex::~FieldIndex()            = default;
-
-FieldIndex FieldIndex::Read(IO::StreamFileReader& reader, IO::FileId fileId)
-{
-    return FieldIndex(MemberIndex::Read(reader, fileId));
-}
-
-std::optional<FieldDefinition> FieldIndex::FindField(Engine::Session& session, String fieldName) const
-{
-    auto offset = index->FindOffset<FieldDefinition>(session, fieldName);
-
-    if (offset) {
-        return Reader::Read(session, index->fileId, *offset);
-    } else {
-        return std::nullopt;
-    }
-}
-
-MethodIndex::MethodIndex(std::unique_ptr<MemberIndex> index) : index(std::move(index)) {}
-
-MethodIndex::MethodIndex(MethodIndex&&) = default;
-MethodIndex::~MethodIndex()             = default;
-
-MethodIndex MethodIndex::Read(IO::StreamFileReader& reader, IO::FileId fileId)
-{
-    return MethodIndex(MemberIndex::Read(reader, fileId));
+    MemberIndexWrapper<FieldDefinition> index {this->index};
+    return index.FindOffset(session, typeName);
 }
 
 std::vector<Engine::Identifier<MethodDefinition>> MethodIndex::FindMethods(Engine::Session& session, String methodName) const
 {
-    auto offsets = index->FindOffsets<MethodDefinition>(session, methodName);
-
-    if (offsets.empty()) {
-        return {};
-    } else {
-        std::vector<Engine::Identifier<MethodDefinition>> defs;
-        for (auto& offset : offsets) {
-            defs.push_back(Engine::Identifier<MethodDefinition>(offset, index->fileId));
-        }
-        return defs;
-    }
+    MemberIndexWrapper<MethodDefinition> index {this->index};
+    return index.FindOffsets(session, methodName);
 }
 
 } // namespace Symlevel

@@ -32,7 +32,7 @@ public:
     Memory::Heap& CodeHeap() const;
 
     std::optional<Identifier<MethodDefinition>> FindMain(Session& session, std::string_view filePath);
-    std::optional<TypeDefinition> FindType(Session& session, std::string_view typeName);
+    std::optional<Identifier<TypeDefinition>> FindType(Session& session, std::string_view typeName);
 
 private:
     Engine(std::unique_ptr<Impl>&& impl);
