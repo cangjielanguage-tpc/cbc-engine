@@ -1,12 +1,10 @@
 #include "references.h"
-#include "region_data.h"
 #include "io/stream_file_reader.h"
+#include "region_data.h"
 
 namespace Symlevel {
 
-MethodReference MethodReference::Parse(
-    Engine::Session& session, IO::FileId fileId, Offset<MethodReference> offset
-)
+MethodReference MethodReference::Parse(Engine::Session& session, IO::FileId fileId, Offset<MethodReference> offset)
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetMethodRefSectionOffs() + offset);
 
@@ -19,23 +17,19 @@ MethodReference MethodReference::Parse(
 template <typename Reference>
 inline static Reference ParseReference(Engine::Session& session, Engine::IndexIdentifier<Reference> identifier)
 {
-    auto& file = session.CbcFileOf(identifier.GetFileId());
-    auto& raf = session.FileOf(identifier.GetFileId());
+    auto& file       = session.CbcFileOf(identifier.GetFileId());
+    auto& raf        = session.FileOf(identifier.GetFileId());
     auto& regionData = file.GetRegionData();
-    auto offset = regionData.Query(session, identifier.GetIndex());
+    auto offset      = regionData.Query(session, identifier.GetIndex());
     return Reference::Parse(session, identifier.GetFileId(), offset);
 }
 
-MethodReference MethodReference::Parse(
-    Engine::Session& session, Engine::IndexIdentifier<MethodReference> identifier
-)
+MethodReference MethodReference::Parse(Engine::Session& session, Engine::IndexIdentifier<MethodReference> identifier)
 {
     return ParseReference(session, identifier);
 }
 
-FieldReference FieldReference::Parse(
-    Engine::Session& session, IO::FileId fileId, Offset<FieldReference> offset
-)
+FieldReference FieldReference::Parse(Engine::Session& session, IO::FileId fileId, Offset<FieldReference> offset)
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetFieldRefSectionOffs() + offset);
 
@@ -48,9 +42,7 @@ FieldReference FieldReference::Parse(
     return { nameOffset, refTypeIdx, fieldTypeIdx, isRecord };
 }
 
-FieldReference FieldReference::Parse(
-    Engine::Session& session, Engine::IndexIdentifier<FieldReference> identifier
-)
+FieldReference FieldReference::Parse(Engine::Session& session, Engine::IndexIdentifier<FieldReference> identifier)
 {
     return ParseReference(session, identifier);
 }

@@ -21,7 +21,7 @@ namespace Cbc {
 
 using namespace Resolution;
 
-using TK = CbcTypeKind;
+using TK  = CbcTypeKind;
 using LDK = Format::LoadAccessKind;
 using STK = Format::StoreAccessKind;
 
@@ -40,7 +40,7 @@ static LDK Ldk(CbcTypeKind tk)
         case TK::F64: return LDK::LD_F64;
 
         case TK::BOOL: return LDK::LD_U8;
-        case TK::REF: return LDK::LD_REF;
+        case TK::REF:  return LDK::LD_REF;
 
         default: {
             FATAL("Not supported template kind");
@@ -180,8 +180,8 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
-        auto field = f.value();
-        auto symbol          = emit.NewAddressSym(field->location);
+        auto field  = f.value();
+        auto symbol = emit.NewAddressSym(field->location);
         emit.LoadStatic(Ldk(field->fieldType->GetKind()), r, symbol);
     }
 
@@ -192,8 +192,8 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
-        auto field = f.value();
-        auto symbol          = emit.NewAddressSym(field->location);
+        auto field  = f.value();
+        auto symbol = emit.NewAddressSym(field->location);
         emit.StoreStatic(Stk(field->fieldType->GetKind()), r, symbol);
     }
 
@@ -235,7 +235,8 @@ struct IsaRewriter : public IsaParser {
 
     void LoadTypeInfoFtc(IReg dst, uint16_t ftc) override { FATAL("not implemented"); }
 
-    void LoadTypeInfoSig(IReg dst, uint16_t typeId) override {
+    void LoadTypeInfoSig(IReg dst, uint16_t typeId) override
+    {
         auto t = resolver.Query(Index<Type>(typeId));
         if (!t.has_value()) {
             Fail();
@@ -378,9 +379,7 @@ struct IsaRewriter : public IsaParser {
         IsaParser::ParseOne();
     }
 
-    void Fail() {
-        failed = true;
-    }
+    void Fail() { failed = true; }
 
     void StopRewrite()
     {
@@ -401,9 +400,7 @@ Interpretation::ExecBytecodeInfo Rewrite(MethodCode code, Resolver& resolver, Me
     Emitter::Emitter emitter;
     auto rewriter = IsaRewriter(resolver, code, emitter);
     rewriter.ParseAll();
-    if (rewriter.failed) {
-
-    }
+    if (rewriter.failed) {}
 
     auto rewrittenCode = emitter.Build(heap);
     auto frameSize     = CalcFrameSize(code);

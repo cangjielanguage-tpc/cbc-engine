@@ -68,7 +68,7 @@ CbcFile& Session::CbcFileOf(IO::FileId fileId) const
 
 std::tuple<Symlevel::CbcFile&, IO::RandomAccessFile&> Session::File(IO::FileId fileId) const
 {
-    return {engine.impl->files.at(fileId), *engine.impl->rafs.at(fileId) };
+    return { engine.impl->files.at(fileId), *engine.impl->rafs.at(fileId) };
 }
 
 Arena& Session::Allocator() { return arena; }
@@ -146,7 +146,7 @@ std::optional<Identifier<MethodDefinition>> Engine::FindMain(Session& session, s
     auto f        = file.value();
     auto declType = f->GetTypeIndex().FindType(session, std::string_view("default"));
     if (declType.has_value()) {
-        auto type = Symlevel::TypeDefinition::Resolve(session, declType.value());
+        auto type               = Symlevel::TypeDefinition::Resolve(session, declType.value());
         const auto& methodIndex = type.GetMethodIndex();
         auto methods            = methodIndex.FindMethods(session, std::string_view("main"));
 

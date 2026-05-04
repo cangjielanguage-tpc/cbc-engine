@@ -7,8 +7,7 @@
 namespace Symlevel {
 
 class RegionData {
-    template <typename T>
-    using OffsetId = Engine::Identifier<T>;
+    template <typename T> using OffsetId = Engine::Identifier<T>;
 
 public:
     static RegionData Read(IO::FileId fileId, IO::RandomAccessFile& file, uint32_t offset);
@@ -18,7 +17,12 @@ public:
     Offset<Term> Query(Engine::Session& session, Index<Term> index) const;
 
 private:
-    RegionData(IO::FileId fileId, IO::OffsetPool<MethodReference> methods, IO::OffsetPool<FieldReference> fields, IO::OffsetPool<Term> terms);
+    RegionData(
+        IO::FileId fileId,
+        IO::OffsetPool<MethodReference> methods,
+        IO::OffsetPool<FieldReference> fields,
+        IO::OffsetPool<Term> terms
+    );
 
     IO::FileId fileId;
 

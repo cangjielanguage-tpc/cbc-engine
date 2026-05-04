@@ -27,15 +27,19 @@ RegionData RegionData::Read(IO::FileId fileId, IO::RandomAccessFile& file, uint3
     return RegionData(fileId, methods, fields, terms);
 }
 
-RegionData::RegionData(IO::FileId fileId, IO::OffsetPool<MethodReference> methods, IO::OffsetPool<FieldReference> fields, IO::OffsetPool<Term> terms)
+RegionData::RegionData(
+    IO::FileId fileId,
+    IO::OffsetPool<MethodReference> methods,
+    IO::OffsetPool<FieldReference> fields,
+    IO::OffsetPool<Term> terms
+)
     : fileId(fileId),
       methods(methods),
       fields(fields),
       terms(terms)
 {}
 
-template <typename T>
-using OffsetId = Engine::Identifier<T>;
+template <typename T> using OffsetId = Engine::Identifier<T>;
 
 Offset<MethodReference> RegionData::Query(Engine::Session& session, Index<MethodReference> index) const
 {

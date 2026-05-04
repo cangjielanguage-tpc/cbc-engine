@@ -306,18 +306,18 @@ std::optional<TypeInfo> CreateTypeInfo(
         case Engine::TemplateKind::AOT_TYPE: return QueryTypeInfoAOT(session, term);
         case Engine::TemplateKind::TYPE:     return CreateTypeInfoDyn(session, manager, term);
 
-        case Engine::TemplateKind::BOOLEAN:  return QueryTypeInfoAOTByName("Bool");
-        case Engine::TemplateKind::U8:       return QueryTypeInfoAOTByName("UInt8");
-        case Engine::TemplateKind::I8:       return QueryTypeInfoAOTByName("Int8");
-        case Engine::TemplateKind::U16:      return QueryTypeInfoAOTByName("UInt16");
-        case Engine::TemplateKind::I16:      return QueryTypeInfoAOTByName("Int16");
-        case Engine::TemplateKind::U32:      return QueryTypeInfoAOTByName("UInt32");
-        case Engine::TemplateKind::I32:      return QueryTypeInfoAOTByName("Int32");
-        case Engine::TemplateKind::U64:      return QueryTypeInfoAOTByName("UInt64");
-        case Engine::TemplateKind::I64:      return QueryTypeInfoAOTByName("Int64");
-        case Engine::TemplateKind::F16:      return QueryTypeInfoAOTByName("Float16");
-        case Engine::TemplateKind::F32:      return QueryTypeInfoAOTByName("Float32");
-        case Engine::TemplateKind::F64:      return QueryTypeInfoAOTByName("Float64");
+        case Engine::TemplateKind::BOOLEAN: return QueryTypeInfoAOTByName("Bool");
+        case Engine::TemplateKind::U8:      return QueryTypeInfoAOTByName("UInt8");
+        case Engine::TemplateKind::I8:      return QueryTypeInfoAOTByName("Int8");
+        case Engine::TemplateKind::U16:     return QueryTypeInfoAOTByName("UInt16");
+        case Engine::TemplateKind::I16:     return QueryTypeInfoAOTByName("Int16");
+        case Engine::TemplateKind::U32:     return QueryTypeInfoAOTByName("UInt32");
+        case Engine::TemplateKind::I32:     return QueryTypeInfoAOTByName("Int32");
+        case Engine::TemplateKind::U64:     return QueryTypeInfoAOTByName("UInt64");
+        case Engine::TemplateKind::I64:     return QueryTypeInfoAOTByName("Int64");
+        case Engine::TemplateKind::F16:     return QueryTypeInfoAOTByName("Float16");
+        case Engine::TemplateKind::F32:     return QueryTypeInfoAOTByName("Float32");
+        case Engine::TemplateKind::F64:     return QueryTypeInfoAOTByName("Float64");
 
         default: {
             FATAL("Not supported yet %d", termIdent.GetKind());

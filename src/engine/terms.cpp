@@ -1,8 +1,8 @@
 #include "engine/terms.h"
+#include "engine/engine.h"
 #include "engine/identifiers.h"
 #include "engine/symlevel/cbc_file.h"
 #include "engine/symlevel/definitions.h"
-#include "engine/engine.h"
 #include "engine/symlevel/io/file_id.h"
 #include "engine/symlevel/io/stream_file_reader.h"
 #include "engine/symlevel/reader.h"
@@ -189,9 +189,7 @@ std::string Term::GetName(Session& session) const
 
 void Term::GetName(Session& session, Stream::Output& stream) const
 {
-
-    auto printSubTerms = [&](std::string_view prefix, std::string_view suffix, int len)
-    {
+    auto printSubTerms = [&](std::string_view prefix, std::string_view suffix, int len) {
         stream << prefix;
         auto separator = "";
         for (int i = 0; i < len; i++) {
@@ -204,33 +202,33 @@ void Term::GetName(Session& session, Stream::Output& stream) const
 
     using TK = TemplateKind;
     switch (GetKind()) {
-        case TK::NIL: stream << "nil"; break;
-        case TK::VOID: stream << "void"; break;
-        case TK::UNIT: stream << "unit"; break;
+        case TK::NIL:     stream << "nil"; break;
+        case TK::VOID:    stream << "void"; break;
+        case TK::UNIT:    stream << "unit"; break;
         case TK::NOTHING: stream << "nothing"; break;
         case TK::BOOLEAN: stream << "bool"; break;
-        case TK::I8: stream << "i8"; break;
-        case TK::U8: stream << "u8"; break;
-        case TK::I16: stream << "i16"; break;
-        case TK::U16: stream << "u16"; break;
-        case TK::I32: stream << "i32"; break;
-        case TK::U32: stream << "u32"; break;
+        case TK::I8:      stream << "i8"; break;
+        case TK::U8:      stream << "u8"; break;
+        case TK::I16:     stream << "i16"; break;
+        case TK::U16:     stream << "u16"; break;
+        case TK::I32:     stream << "i32"; break;
+        case TK::U32:     stream << "u32"; break;
         case TK::UCHAR32: stream << "uchar32"; break;
-        case TK::I64: stream << "i64"; break;
-        case TK::U64: stream << "u64"; break;
-        case TK::IADDR: stream << "iaddr"; break;
-        case TK::UADDR: stream << "uaddr"; break;
+        case TK::I64:     stream << "i64"; break;
+        case TK::U64:     stream << "u64"; break;
+        case TK::IADDR:   stream << "iaddr"; break;
+        case TK::UADDR:   stream << "uaddr"; break;
         case TK::BSTRING: stream << "bstr"; break;
-        case TK::F16: stream << "f16"; break;
-        case TK::F32: stream << "f32"; break;
-        case TK::F64: stream << "f64"; break;
+        case TK::F16:     stream << "f16"; break;
+        case TK::F32:     stream << "f32"; break;
+        case TK::F64:     stream << "f64"; break;
 
         case TK::UNDEFINED: {
-            auto undef = GetIdentifier().AsUndefinedIdent();
+            auto undef   = GetIdentifier().AsUndefinedIdent();
             auto indexId = undef.GetIndexId();
-            auto file = indexId.GetFileId();
-            auto region = indexId.GetIndex().GetRegion();
-            auto index = indexId.GetIndex().GetIndex();
+            auto file    = indexId.GetFileId();
+            auto region  = indexId.GetIndex().GetRegion();
+            auto index   = indexId.GetIndex().GetIndex();
             stream.PrintFmt("$unresolved<%u,%u,%u>", file.id, region, index);
             break;
         }
@@ -365,9 +363,7 @@ struct TermResolver {
     IO::RandomAccessFile& raf;
     Symlevel::CbcFile& file;
 
-    Term NewUndefined(Symlevel::Index<Term> index) {
-        return Undefined(session, IndexIdentifier(index, fileId));
-    }
+    Term NewUndefined(Symlevel::Index<Term> index) { return Undefined(session, IndexIdentifier(index, fileId)); }
 
     Term Resolve(Symlevel::Index<Term> index)
     {
@@ -424,14 +420,14 @@ struct TermResolver {
 
 Term TermManager::Resolve(Session& session, IndexIdentifier<Term> ident)
 {
-    auto index = ident.GetIndex();
+    auto index  = ident.GetIndex();
     auto region = index.GetRegion();
-    auto& raf = session.FileOf(ident.GetFileId());
-    auto& file = session.CbcFileOf(ident.GetFileId());
+    auto& raf   = session.FileOf(ident.GetFileId());
+    auto& file  = session.CbcFileOf(ident.GetFileId());
 
     TermResolver resolver { file.GetRegionData(), session, session.Allocator(), ident.GetFileId(), *raf, file };
 
     return resolver.Resolve(ident.GetIndex());
 }
 
-} // namespace Symlevel
+} // namespace Engine

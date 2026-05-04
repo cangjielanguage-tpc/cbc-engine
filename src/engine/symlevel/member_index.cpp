@@ -1,8 +1,8 @@
+#include "member_index.h"
 #include "definitions.h"
 #include "engine/identifiers.h"
 #include "engine/symlevel/io/random_access_file.h"
 #include "io/stream_file_reader.h"
-#include "member_index.h"
 #include "reader.h"
 #include <cstdint>
 #include <string_view>
@@ -73,14 +73,15 @@ MemberIndex MemberIndex::Read(IO::FileId fileId, IO::StreamFileReader& reader)
     return { fileId, bucketTableOffs, bucketTableSize, bucketsOffs, bucketsSize };
 }
 
-template <typename Data>
-struct MemberIndexWrapper {
+template <typename Data> struct MemberIndexWrapper {
     using Identifier = Engine::Identifier<Data>;
 
     MemberIndex const& index;
 
     uint32_t MemberCount() const { return index.bucketsSize; }
+
     uint32_t BucketCount() const { return index.bucketTableSize - 1; }
+
     bool IsEmpty() const { return MemberCount() == 0; }
 
     static uint32_t Hash(String name)
@@ -102,18 +103,18 @@ struct MemberIndexWrapper {
         auto [_, raf] = session.File(index.fileId);
 
         uint32_t startIdx = Hash(name) % BucketCount();
-        uint32_t step = sizeof(uint32_t);
+        uint32_t step     = sizeof(uint32_t);
 
         auto bucketStartOffs = index.bucketTableStart + startIdx * step;
-        auto bucketEndOffs = index.bucketTableStart + (startIdx + 1) * step;
+        auto bucketEndOffs   = index.bucketTableStart + (startIdx + 1) * step;
 
         auto dataStartIdx = ReadAt(raf, bucketStartOffs);
-        auto dataEndIdx = ReadAt(raf, bucketEndOffs);
+        auto dataEndIdx   = ReadAt(raf, bucketEndOffs);
 
         ASSERT(dataStartIdx <= dataEndIdx);
 
         for (auto i = dataStartIdx; i < dataEndIdx; i++) {
-            auto dataOffs = Offset<Data>(ReadAt(raf, index.bucketsStart + i * step));
+            auto dataOffs   = Offset<Data>(ReadAt(raf, index.bucketsStart + i * step));
             auto entityName = Reader::ReadName(session, index.fileId, dataOffs);
 
             if (entityName.compare(name) == 0) {
@@ -133,18 +134,18 @@ struct MemberIndexWrapper {
         auto [_, raf] = session.File(index.fileId);
 
         uint32_t startIdx = Hash(name) % BucketCount();
-        uint32_t step = sizeof(uint32_t);
+        uint32_t step     = sizeof(uint32_t);
 
         auto bucketStartOffs = index.bucketTableStart + startIdx * step;
-        auto bucketEndOffs = index.bucketTableStart + (startIdx + 1) * step;
+        auto bucketEndOffs   = index.bucketTableStart + (startIdx + 1) * step;
 
         auto dataStartIdx = ReadAt(raf, bucketStartOffs);
-        auto dataEndIdx = ReadAt(raf, bucketEndOffs);
+        auto dataEndIdx   = ReadAt(raf, bucketEndOffs);
 
         ASSERT(dataStartIdx <= dataEndIdx);
         std::vector<Identifier> offsets;
         for (auto i = dataStartIdx; i < dataEndIdx; i++) {
-            auto dataOffs = Offset<Data>(ReadAt(raf, index.bucketsStart + i * step));
+            auto dataOffs   = Offset<Data>(ReadAt(raf, index.bucketsStart + i * step));
             auto entityName = Reader::ReadName(session, index.fileId, dataOffs);
 
             if (entityName.compare(name) == 0) {
@@ -161,21 +162,27 @@ struct MemberIndexWrapper {
     }
 };
 
-std::optional<Engine::Identifier<TypeDefinition>> TypeIndex::FindType(Engine::Session& session, std::string_view typeName) const
+std::optional<Engine::Identifier<TypeDefinition>> TypeIndex::FindType(
+    Engine::Session& session, std::string_view typeName
+) const
 {
-    MemberIndexWrapper<TypeDefinition> index {this->index};
+    MemberIndexWrapper<TypeDefinition> index { this->index };
     return index.FindOffset(session, typeName);
 }
 
-std::optional<Engine::Identifier<FieldDefinition>> FieldIndex::FindField(Engine::Session& session, std::string_view typeName) const
+std::optional<Engine::Identifier<FieldDefinition>> FieldIndex::FindField(
+    Engine::Session& session, std::string_view typeName
+) const
 {
-    MemberIndexWrapper<FieldDefinition> index {this->index};
+    MemberIndexWrapper<FieldDefinition> index { this->index };
     return index.FindOffset(session, typeName);
 }
 
-std::vector<Engine::Identifier<MethodDefinition>> MethodIndex::FindMethods(Engine::Session& session, std::string_view methodName) const
+std::vector<Engine::Identifier<MethodDefinition>> MethodIndex::FindMethods(
+    Engine::Session& session, std::string_view methodName
+) const
 {
-    MemberIndexWrapper<MethodDefinition> index {this->index};
+    MemberIndexWrapper<MethodDefinition> index { this->index };
     return index.FindOffsets(session, methodName);
 }
 

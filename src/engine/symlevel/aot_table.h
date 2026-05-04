@@ -51,8 +51,7 @@ struct InstanceFieldAotData {
     uint32_t ordinal;
 };
 
-template <typename Table>
-class AotDataTable {
+template <typename Table> class AotDataTable {
 public:
     AotTable table;
 
@@ -78,7 +77,7 @@ struct StaticFieldAotTable : AotDataTable<StaticFieldAotTable> {
     StaticFieldAotData GetData(Engine::Session& session, Index<FieldReference> index) const;
 };
 
-struct InstanceFieldAotTable : AotDataTable<InstanceFieldAotTable>  {
+struct InstanceFieldAotTable : AotDataTable<InstanceFieldAotTable> {
     InstanceFieldAotData GetData(Engine::Session& session, Index<FieldReference> index) const;
 };
 

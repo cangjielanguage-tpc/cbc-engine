@@ -1,13 +1,13 @@
 #include "resolution.h"
 #include "engine/engine.h"
 #include "engine/identifiers.h"
+#include "engine/symlevel/aot_table.h"
 #include "engine/symlevel/definitions.h"
+#include "engine/symlevel/dependencies.h"
 #include "engine/symlevel/method_table.h"
 #include "engine/symlevel/references.h"
 #include "engine/symlevel/string.h"
-#include "engine/symlevel/dependencies.h"
 #include "engine/terms.h"
-#include "engine/symlevel/aot_table.h"
 #include "engine/typeinfo_manager.h"
 #include "interpreter/function_handle.h"
 #include "runtimesupport/adapters.h"
@@ -33,10 +33,10 @@ using namespace Engine;
 static std::string_view CopyToArena(Session& session, std::string const& str)
 {
     auto& allocator = session.Allocator();
-    auto size = str.size();
+    auto size       = str.size();
 
     if (size > 0) {
-        char* data = (char*) allocator.Allocate(size + 1, 1);
+        char* data = (char*)allocator.Allocate(size + 1, 1);
         data[size] = 0;
         std::copy(str.begin(), str.end(), data);
         return std::string_view(data, size);
@@ -48,12 +48,9 @@ struct Resolver::Impl {
     Session& session;
     Identifier<Symlevel::MethodDefinition> method;
 
-    Impl(Session& session, Identifier<Symlevel::MethodDefinition> method)
-        : session(session), method(method)
-    {}
+    Impl(Session& session, Identifier<Symlevel::MethodDefinition> method) : session(session), method(method) {}
 
-    template <typename T>
-    using Cache = std::unordered_map<int, T*>;
+    template <typename T> using Cache = std::unordered_map<int, T*>;
 
     std::unordered_map<Term, Type*, Term::Hasher> types;
     Cache<DynamicCall> dynamicCalls;
@@ -61,14 +58,15 @@ struct Resolver::Impl {
     Cache<InstanceField> instanceFields;
     Cache<StaticField> staticFields;
 
-    Type* GetType(Term term) {
+    Type* GetType(Term term)
+    {
         ASSERTION(term.GetKind() != TemplateKind::UNDEFINED, "Expects only defined terms");
         if (auto it = types.find(term); it != types.end()) {
             return it->second;
         }
 
         auto type = NewType(term);
-        types.insert({term, type});
+        types.insert({ term, type });
         return type;
     }
 
@@ -82,65 +80,63 @@ struct SimpleType : public Type {
 
     SimpleType(Term term, Resolver::Impl& impl) : term(term), impl(impl) {}
 
-    void GetFullName(Stream::Output& stream) const override {
-        term.GetName(impl.session, stream);
-    }
+    void GetFullName(Stream::Output& stream) const override { term.GetName(impl.session, stream); }
 
-    std::optional<RTSupport::TypeInfo> GetTypeInfo() override {
+    std::optional<RTSupport::TypeInfo> GetTypeInfo() override
+    {
         return TypeInfoManager::Of(impl.session).AcquireTypeInfo(impl.session, term);
     }
 
-    CbcTypeKind GetKind() override {
+    CbcTypeKind GetKind() override
+    {
         using TK = TemplateKind;
         switch (term.GetKind()) {
-            case TK::NIL: return CbcTypeKind::INVALID;
-            case TK::VOID: return CbcTypeKind::VOID;
-            case TK::UNIT: return CbcTypeKind::REC;
-            case TK::NOTHING: return CbcTypeKind::INVALID;
-            case TK::BOOLEAN: return CbcTypeKind::BOOL;
-            case TK::I8: return CbcTypeKind::I8;
-            case TK::U8: return CbcTypeKind::U8;
-            case TK::I16: return CbcTypeKind::I16;
-            case TK::U16: return CbcTypeKind::U16;
-            case TK::I32: return CbcTypeKind::I32;
-            case TK::U32: return CbcTypeKind::U32;
-            case TK::UCHAR32: return CbcTypeKind::U32;
-            case TK::I64: return CbcTypeKind::I64;
-            case TK::U64: return CbcTypeKind::U64;
-            case TK::IADDR: return CbcTypeKind::I64;
-            case TK::UADDR: return CbcTypeKind::U64;
-            case TK::BSTRING: return CbcTypeKind::U64;
-            case TK::F16: return CbcTypeKind::U16;
-            case TK::F32: return CbcTypeKind::F32;
-            case TK::F64: return CbcTypeKind::F64;
-            case TK::UNDEFINED: return CbcTypeKind::INVALID;
-            case TK::C_POINTER: return CbcTypeKind::U64;
-            case TK::NULLABLE: return CbcTypeKind::REF;
-            case TK::NON_NULLABLE: return CbcTypeKind::REF;
-            case TK::CANGJIE_ARRAY: return CbcTypeKind::REF;
-            case TK::METHOD: return CbcTypeKind::INVALID;
-            case TK::TYPE: return CbcTypeKind::REF; // FIXME
-            case TK::AOT_TYPE: return CbcTypeKind::REF; // FIXME
-            case TK::TYPE_VAR: return CbcTypeKind::REF;
+            case TK::NIL:            return CbcTypeKind::INVALID;
+            case TK::VOID:           return CbcTypeKind::VOID;
+            case TK::UNIT:           return CbcTypeKind::REC;
+            case TK::NOTHING:        return CbcTypeKind::INVALID;
+            case TK::BOOLEAN:        return CbcTypeKind::BOOL;
+            case TK::I8:             return CbcTypeKind::I8;
+            case TK::U8:             return CbcTypeKind::U8;
+            case TK::I16:            return CbcTypeKind::I16;
+            case TK::U16:            return CbcTypeKind::U16;
+            case TK::I32:            return CbcTypeKind::I32;
+            case TK::U32:            return CbcTypeKind::U32;
+            case TK::UCHAR32:        return CbcTypeKind::U32;
+            case TK::I64:            return CbcTypeKind::I64;
+            case TK::U64:            return CbcTypeKind::U64;
+            case TK::IADDR:          return CbcTypeKind::I64;
+            case TK::UADDR:          return CbcTypeKind::U64;
+            case TK::BSTRING:        return CbcTypeKind::U64;
+            case TK::F16:            return CbcTypeKind::U16;
+            case TK::F32:            return CbcTypeKind::F32;
+            case TK::F64:            return CbcTypeKind::F64;
+            case TK::UNDEFINED:      return CbcTypeKind::INVALID;
+            case TK::C_POINTER:      return CbcTypeKind::U64;
+            case TK::NULLABLE:       return CbcTypeKind::REF;
+            case TK::NON_NULLABLE:   return CbcTypeKind::REF;
+            case TK::CANGJIE_ARRAY:  return CbcTypeKind::REF;
+            case TK::METHOD:         return CbcTypeKind::INVALID;
+            case TK::TYPE:           return CbcTypeKind::REF; // FIXME
+            case TK::AOT_TYPE:       return CbcTypeKind::REF; // FIXME
+            case TK::TYPE_VAR:       return CbcTypeKind::REF;
             case TK::GENERIC_METHOD: return CbcTypeKind::INVALID;
-            case TK::LAST: return CbcTypeKind::INVALID;
+            case TK::LAST:           return CbcTypeKind::INVALID;
         }
     }
 };
 
-Type* Resolver::Impl::NewType(Term term) {
-    return session.Allocator().New<SimpleType>(term, *this);
-}
+Type* Resolver::Impl::NewType(Term term) { return session.Allocator().New<SimpleType>(term, *this); }
 
 Resolver::Resolver(Session& session, Identifier<Symlevel::MethodDefinition> method)
     : impl(std::make_unique<Impl>(session, method))
 {}
 
 Resolver::Resolver(Resolver&& another) = default;
-Resolver::~Resolver() = default;
+Resolver::~Resolver()                  = default;
 
-template <typename T>
-static std::optional<T*> ProbeCache(Index<T> id, Resolver::Impl::Cache<T>& cache) {
+template <typename T> static std::optional<T*> ProbeCache(Index<T> id, Resolver::Impl::Cache<T>& cache)
+{
     auto it = cache.find(id.GetValue());
     if (it != cache.end()) {
         return it->second;
@@ -175,33 +171,37 @@ struct ResolvedFieldReference {
     }
 };
 
-static ResolvedMethodReference ResolveReference(Session& session, IndexIdentifier<Symlevel::MethodReference> identifier) {
+static ResolvedMethodReference ResolveReference(Session& session, IndexIdentifier<Symlevel::MethodReference> identifier)
+{
     auto parsedRef = Symlevel::MethodReference::Parse(session, identifier);
-    auto& manager = TermManager::Of(session);
-    auto refType = manager.Resolve(session, parsedRef.refType);
-    auto name = Symlevel::String::Parse(session, parsedRef.name);
+    auto& manager  = TermManager::Of(session);
+    auto refType   = manager.Resolve(session, parsedRef.refType);
+    auto name      = Symlevel::String::Parse(session, parsedRef.name);
     auto signature = manager.Resolve(session, parsedRef.methodSig);
     return { refType, name, signature };
 }
 
-static ResolvedFieldReference ResolveReference(Session& session, IndexIdentifier<Symlevel::FieldReference> identifier) {
+static ResolvedFieldReference ResolveReference(Session& session, IndexIdentifier<Symlevel::FieldReference> identifier)
+{
     auto parsedRef = Symlevel::FieldReference::Parse(session, identifier);
-    auto& manager = TermManager::Of(session);
-    auto refType = manager.Resolve(session, parsedRef.refType);
-    auto name = Symlevel::String::Parse(session, parsedRef.name);
+    auto& manager  = TermManager::Of(session);
+    auto refType   = manager.Resolve(session, parsedRef.refType);
+    auto name      = Symlevel::String::Parse(session, parsedRef.name);
     auto fieldType = manager.Resolve(session, parsedRef.fieldType);
     return { refType, name, fieldType, parsedRef.isRecord };
 }
 
-MethodSignature ConstructSignature(Resolver::Impl& resolver, ResolvedMethodReference& ref) {
+MethodSignature ConstructSignature(Resolver::Impl& resolver, ResolvedMethodReference& ref)
+{
     // FIXME
     return {};
 }
 
 template <typename Call> // FIXME: split?
-std::optional<Call> ResolveCall(Resolver::Impl& resolver, Index<Call> id) {
+std::optional<Call> ResolveCall(Resolver::Impl& resolver, Index<Call> id)
+{
     auto& session = resolver.session;
-    auto fileId = resolver.method.GetFileId();
+    auto fileId   = resolver.method.GetFileId();
 
     // FIXME: region num
     auto refId = Symlevel::Index<Symlevel::MethodReference>(0, id.GetValue());
@@ -217,7 +217,7 @@ std::optional<Call> ResolveCall(Resolver::Impl& resolver, Index<Call> id) {
     }
 
     auto [file, raf] = resolver.session.File(fileId);
-    auto refType = resolver.GetType(ref.refType);
+    auto refType     = resolver.GetType(ref.refType);
 
     switch (ref.refType.GetKind()) {
         case TemplateKind::TYPE: {
@@ -230,7 +230,8 @@ std::optional<Call> ResolveCall(Resolver::Impl& resolver, Index<Call> id) {
 
                 if (entries.size() != 1) {
                     log.Log(Logging::Level::ERROR, [&ref, &session](Stream::Output& stream) {
-                        stream << "Failed to resolve method (note, overloading not supported yet) " << ref.GetFullName(session) << Stream::endl;
+                        stream << "Failed to resolve method (note, overloading not supported yet) "
+                               << ref.GetFullName(session) << Stream::endl;
                     });
                     return std::nullopt;
                 }
@@ -243,13 +244,14 @@ std::optional<Call> ResolveCall(Resolver::Impl& resolver, Index<Call> id) {
                 static_assert(std::is_same_v<Call, DirectCall>);
 
                 auto termIdent = ref.refType.GetIdentifier().AsTypeIdent();
-                auto type = Symlevel::TypeDefinition::Resolve(session, termIdent.GetIdentifier());
-                auto methods = type.GetMethodIndex().FindMethods(session, ref.name);
+                auto type      = Symlevel::TypeDefinition::Resolve(session, termIdent.GetIdentifier());
+                auto methods   = type.GetMethodIndex().FindMethods(session, ref.name);
 
                 if (methods.size() != 1) {
                     // FIXME: proper resolution
                     log.Log(Logging::Level::ERROR, [&ref, &session](Stream::Output& stream) {
-                        stream << "Failed to resolve method (note, overloading not supported yet) " << ref.GetFullName(session) << Stream::endl;
+                        stream << "Failed to resolve method (note, overloading not supported yet) "
+                               << ref.GetFullName(session) << Stream::endl;
                     });
                     return std::nullopt;
                 }
@@ -258,16 +260,16 @@ std::optional<Call> ResolveCall(Resolver::Impl& resolver, Index<Call> id) {
                 auto sig = ConstructSignature(resolver, ref);
 
                 if (auto* staticFuh = std::get_if<Interpretation::StaticFunctionHandle*>(&fuh)) {
-                    auto fuh = *staticFuh;
+                    auto fuh                  = *staticFuh;
                     DirectCall::CallData data = DirectCall::Compiled {
-                        .funcPtr = reinterpret_cast<uintptr_t>(fuh->function),
+                        .funcPtr    = reinterpret_cast<uintptr_t>(fuh->function),
                         .i2cAdapter = fuh->base.i2call,
                     };
-                    return DirectCall {refType, ref.name, std::move(sig), data};
+                    return DirectCall { refType, ref.name, std::move(sig), data };
                 } else {
-                    auto dynFuh = std::get<Interpretation::DynamicFunctionHandle*>(fuh);
+                    auto dynFuh               = std::get<Interpretation::DynamicFunctionHandle*>(fuh);
                     DirectCall::CallData data = dynFuh;
-                    return DirectCall {refType, ref.name, std::move(sig), data};
+                    return DirectCall { refType, ref.name, std::move(sig), data };
                 }
             }
         }
@@ -276,7 +278,7 @@ std::optional<Call> ResolveCall(Resolver::Impl& resolver, Index<Call> id) {
             if constexpr (std::is_same_v<Call, DynamicCall>) {
                 /// FIXME: interface calls
                 auto data = file.GetVirtualCallAotTable().GetData(session, refId);
-                auto sig = ConstructSignature(resolver, ref);
+                auto sig  = ConstructSignature(resolver, ref);
                 return DynamicCall { refType, ref.name, std::move(sig), data.methodNum, data.extDefNum };
             } else {
                 static_assert(std::is_same_v<Call, DirectCall>);
@@ -284,7 +286,7 @@ std::optional<Call> ResolveCall(Resolver::Impl& resolver, Index<Call> id) {
                 auto data = file.GetDirectCallAotTable().GetData(session, refId);
 
                 auto linkageName = Symlevel::String::Parse(resolver.session, data.linkangeName);
-                auto funcPtr = file.GetDependencies().FindTarget(linkageName);
+                auto funcPtr     = file.GetDependencies().FindTarget(linkageName);
 
                 if (!funcPtr) {
                     log.Log(Logging::Level::FATAL, [linkageName](Stream::Output& stream) {
@@ -297,11 +299,11 @@ std::optional<Call> ResolveCall(Resolver::Impl& resolver, Index<Call> id) {
 
                 /// FIXME: choose proper adapter
                 DirectCall::CallData callData = DirectCall::Compiled {
-                    .funcPtr = reinterpret_cast<uintptr_t>(funcPtr),
+                    .funcPtr    = reinterpret_cast<uintptr_t>(funcPtr),
                     .i2cAdapter = RTSupport::Adapters::GenericI2CCallInstance(),
                 };
 
-                return DirectCall {refType, ref.name, std::move(sig), callData};
+                return DirectCall { refType, ref.name, std::move(sig), callData };
             }
         }
 
@@ -312,32 +314,33 @@ std::optional<Call> ResolveCall(Resolver::Impl& resolver, Index<Call> id) {
     }
 }
 
-std::optional<DynamicCall const*> Resolver::Query(Index<DynamicCall> id) {
+std::optional<DynamicCall const*> Resolver::Query(Index<DynamicCall> id)
+{
     if (auto opt = ProbeCache(id, impl->dynamicCalls); opt.has_value()) {
         return opt.value();
     }
     if (auto opt = ResolveCall(*impl, id); opt.has_value()) {
         auto res = impl->session.Allocator().New<DynamicCall>(opt.value());
-        impl->dynamicCalls.insert({id.GetValue(), res});
+        impl->dynamicCalls.insert({ id.GetValue(), res });
         return res;
     }
     return std::nullopt;
 }
 
-std::optional<DirectCall const*> Resolver::Query(Index<DirectCall> id) {
+std::optional<DirectCall const*> Resolver::Query(Index<DirectCall> id)
+{
     if (auto opt = ProbeCache(id, impl->directCalls); opt.has_value()) {
         return opt.value();
     }
     if (auto opt = ResolveCall(*impl, id); opt.has_value()) {
         auto res = impl->session.Allocator().New<DirectCall>(opt.value());
-        impl->directCalls.insert({id.GetValue(), res});
+        impl->directCalls.insert({ id.GetValue(), res });
         return res;
     }
     return std::nullopt;
 }
 
-template <typename Field>
-std::optional<Field> ResolveField(Resolver::Impl& resolver, Index<Field> id)
+template <typename Field> std::optional<Field> ResolveField(Resolver::Impl& resolver, Index<Field> id)
 {
     auto fileId = resolver.method.GetFileId();
 
@@ -353,21 +356,22 @@ std::optional<Field> ResolveField(Resolver::Impl& resolver, Index<Field> id)
     }
 
     auto [file, raf] = resolver.session.File(fileId);
-    auto refType = resolver.GetType(ref.refType);
-    auto fieldType = resolver.GetType(ref.fieldType);
+    auto refType     = resolver.GetType(ref.refType);
+    auto fieldType   = resolver.GetType(ref.fieldType);
 
     switch (ref.refType.GetKind()) {
         case TemplateKind::AOT_TYPE: {
             ASSERTION(ref.fieldType.GetKind() != TemplateKind::TYPE, "aot types cannot have fields of cbc type");
             if constexpr (std::is_same_v<Field, InstanceField>) {
                 auto data = file.GetInstanceFieldAotTable().GetData(resolver.session, refId);
-                int offset = RTSupport::Execution::GetFieldOffset(refType->GetTypeInfo().value(), data.ordinal, !ref.isRecord);
-                return InstanceField {refType, ref.name, fieldType, data.ordinal, offset};
+                int offset =
+                    RTSupport::Execution::GetFieldOffset(refType->GetTypeInfo().value(), data.ordinal, !ref.isRecord);
+                return InstanceField { refType, ref.name, fieldType, data.ordinal, offset };
             } else {
                 static_assert(std::is_same_v<Field, StaticField>);
-                auto data = file.GetStaticFieldAotTable().GetData(resolver.session, refId);
+                auto data        = file.GetStaticFieldAotTable().GetData(resolver.session, refId);
                 auto linkageName = Symlevel::String::Parse(resolver.session, data.linkangeName);
-                auto location = file.GetDependencies().FindTarget(linkageName);
+                auto location    = file.GetDependencies().FindTarget(linkageName);
                 if (!location) {
                     log.Log(Logging::Level::FATAL, [linkageName](Stream::Output& stream) {
                         stream << "not found location of static field: " << linkageName << Stream::endl;
@@ -391,7 +395,7 @@ std::optional<InstanceField const*> Resolver::Query(Index<InstanceField> id)
     }
     if (auto opt = ResolveField(*impl, id); opt.has_value()) {
         auto res = impl->session.Allocator().New<InstanceField>(opt.value());
-        impl->instanceFields.insert({id.GetValue(), res});
+        impl->instanceFields.insert({ id.GetValue(), res });
         return res;
     }
     return std::nullopt;
@@ -404,7 +408,7 @@ std::optional<StaticField const*> Resolver::Query(Index<StaticField> id)
     }
     if (auto opt = ResolveField(*impl, id); opt.has_value()) {
         auto res = impl->session.Allocator().New<StaticField>(opt.value());
-        impl->staticFields.insert({id.GetValue(), res});
+        impl->staticFields.insert({ id.GetValue(), res });
         return res;
     }
     return std::nullopt;
@@ -462,4 +466,4 @@ Stream::Output& operator<<(Stream::Output& stream, StaticField const& field)
     return stream;
 }
 
-}
+} // namespace Resolution

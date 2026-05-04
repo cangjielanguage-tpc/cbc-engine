@@ -113,15 +113,14 @@ Stream::Output& operator<<(Stream::Output& stream, DynamicCall const& call);
 Stream::Output& operator<<(Stream::Output& stream, InstanceField const& field);
 Stream::Output& operator<<(Stream::Output& stream, StaticField const& field);
 
-template <typename T>
-class Index {
+template <typename T> class Index {
 public:
     explicit Index(uint16_t value) : value(value) {}
+
     int GetValue() const { return value; }
-    bool operator==(Index const& index) const
-    {
-        return value == index.value;
-    }
+
+    bool operator==(Index const& index) const { return value == index.value; }
+
 private:
     uint16_t value;
 };
@@ -140,8 +139,9 @@ public:
     std::optional<StaticField const*> Query(Index<StaticField> id);
 
     class Impl;
+
 private:
     std::unique_ptr<Impl> impl;
 };
 
-}
+} // namespace Resolution

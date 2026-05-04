@@ -7,8 +7,7 @@
 
 namespace IO {
 
-template <typename T>
-class OffsetPool {
+template <typename T> class OffsetPool {
 public:
     OffsetPool(uint32_t offset, uint32_t size) : offset(offset), size(size) {}
 

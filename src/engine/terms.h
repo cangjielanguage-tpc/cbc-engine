@@ -168,7 +168,9 @@ protected:
 
 struct UndefinedTemplateIdentifier : public TemplateIdentifier {
     UndefinedTemplateIdentifier(IndexIdentifier<Term> indexId)
-        : TemplateIdentifier(PackedIdentifier(static_cast<uint8_t>(TemplateKind::UNDEFINED), indexId.GetIndex().Raw(), indexId.GetFileId()))
+        : TemplateIdentifier(PackedIdentifier(
+              static_cast<uint8_t>(TemplateKind::UNDEFINED), indexId.GetIndex().Raw(), indexId.GetFileId()
+          ))
     {
         ASSERT(TemplateKind::UNDEFINED == GetKind());
     }
@@ -176,7 +178,7 @@ struct UndefinedTemplateIdentifier : public TemplateIdentifier {
     IndexIdentifier<Term> GetIndexId()
     {
         auto fileId = TemplateIdentifier::ident.GetLow();
-        auto index = Symlevel::Index<Term>(TemplateIdentifier::ident.GetHigh());
+        auto index  = Symlevel::Index<Term>(TemplateIdentifier::ident.GetHigh());
         return IndexIdentifier<Term>(index, fileId);
     }
 
@@ -285,4 +287,4 @@ private:
     std::unordered_set<TermData*, Hasher> cache;
 };
 
-} // namespace Symlevel
+} // namespace Engine
