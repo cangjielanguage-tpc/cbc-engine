@@ -68,11 +68,11 @@ struct TypeInfoBuilder {
     DYN_TypeInfoT* superTypeInfo     = nullptr;
     DYN_TypeInfoT* componentTypeInfo = nullptr;
 
-    DYN_ExtensionDataT** extDefs               = nullptr;
-    DYN_FuncPtrT* flatMethods                  = nullptr;
-    DYN_ExtensionDataT* flatExtDefs            = nullptr;
-    DYN_MTableDescT* mtableDesc                = nullptr;
-    void* reflectOrDebugInfo                   = nullptr;
+    DYN_ExtensionDataT** extDefs    = nullptr;
+    DYN_FuncPtrT* flatMethods       = nullptr;
+    DYN_ExtensionDataT* flatExtDefs = nullptr;
+    DYN_MTableDescT* mtableDesc     = nullptr;
+    void* reflectOrDebugInfo        = nullptr;
 
     Interpretation::FunctionHandle** dataMT = nullptr;
 
@@ -87,10 +87,11 @@ struct TypeInfoBuilder {
         auto typeInfo = this->typeInfo;
         auto result   = &typeInfo->base;
 
-        result->typeInfoName   = name;
-        result->type           = type;
-        result->flag           = flag;
-        result->fieldNum       = fieldNum;
+        result->typeInfoName = name;
+        result->type         = type;
+        result->flag         = flag;
+        result->fieldNum     = fieldNum;
+
         if (instanceSize != -1) {
             result->instanceSize = instanceSize;
         } else if (componentSize != -1) {
@@ -98,15 +99,17 @@ struct TypeInfoBuilder {
         } else {
             ASSERTION(false, "neither of instance or component size was set");
         }
-        result->gctib             = gctib;
-        result->uuid              = uuid;
-        result->align             = align;
-        result->typeArgsNum       = typeArgsNum;
-        result->validInheritNum   = validInheritNum;
-        result->fieldOffsets      = fieldOffsets;
-        result->finalizerMethod   = finalizerMethod;
-        result->typeArgs          = typeArgs;
-        result->fields            = fields;
+
+        result->gctib           = gctib;
+        result->uuid            = uuid;
+        result->align           = align;
+        result->typeArgsNum     = typeArgsNum;
+        result->validInheritNum = validInheritNum;
+        result->fieldOffsets    = fieldOffsets;
+        result->finalizerMethod = finalizerMethod;
+        result->typeArgs        = typeArgs;
+        result->fields          = fields;
+
         if (superTypeInfo) {
             result->superTypeInfo = superTypeInfo;
         } else if (componentTypeInfo) {
@@ -115,10 +118,10 @@ struct TypeInfoBuilder {
             ASSERTION(false, "neither of super type TI or component TI was set");
         }
 
-        result->vExtensionDataStart    = extDefs;
-        result->mTableDesc             = mtableDesc;
-        result->reflectOrDebugInfo     = reflectOrDebugInfo;
-        typeInfo->dataMT               = dataMT;
+        result->vExtensionDataStart = extDefs;
+        result->mTableDesc          = mtableDesc;
+        result->reflectOrDebugInfo  = reflectOrDebugInfo;
+        typeInfo->dataMT            = dataMT;
 
         built = true;
         return result;
@@ -173,8 +176,8 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
     TypeInfoBuilder builder(currentTypeInfo);
 
-    auto queryTypeInfo =
-        [&session, &manager, term, currentTypeInfo](Engine::Term t) -> std::optional<RTSupport::TypeInfo> {
+    auto queryTypeInfo = [&session, &manager, term, currentTypeInfo](Engine::Term t
+                         ) -> std::optional<RTSupport::TypeInfo> {
         if (t == term) {
             return TypeInfo(&currentTypeInfo->base);
         }
@@ -236,12 +239,12 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         auto prepareExtDef = [&builder,
                               currentTypeInfo,
                               &queryTypeInfo](DYN_ExtensionDataT& extDef, Symlevel::MethodSubTable const& smt) -> bool {
-            auto funcTableStart           = &builder.flatMethods[smt.StartPos()];
-            extDef.funcTable              = funcTableStart;
-            extDef.funcTableSize          = smt.EndPos() - smt.StartPos();
-            extDef.argNum                 = 0;
-            extDef.isInterfaceTypeInfo    = 1;
-            extDef.flag                   = 0b00000001; // FIXME: research how to properly implement this.
+            auto funcTableStart        = &builder.flatMethods[smt.StartPos()];
+            extDef.funcTable           = funcTableStart;
+            extDef.funcTableSize       = smt.EndPos() - smt.StartPos();
+            extDef.argNum              = 0;
+            extDef.isInterfaceTypeInfo = 1;
+            extDef.flag                = 0b00000001; // FIXME: research how to properly implement this.
 
             extDef.ti = &currentTypeInfo->base;
 

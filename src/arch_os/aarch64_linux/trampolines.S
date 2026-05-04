@@ -252,9 +252,34 @@ perform_2i_call:
 #endif
   str   x1, [x10]
 
+  mov   x1, sp // save current sp for registers saving to the bottom of frame
+
   // current sp is 16-byte aligned
   ldr   w8, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   sub   sp, sp, x8
+
+.macro PUSH_IREGS mask_reg, stack_reg, exec_info_reg
+    ldrh  \mask_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
+    .irp reg, 10,11,12,13
+        tbz \mask_reg, #(\reg-8), saveireg\reg
+        ldr x2, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + \reg*8)]
+        str x2, [\stack_reg, #-0x8]!
+saveireg\reg:
+    .endr
+.endm
+
+.macro PUSH_FREGS mask_reg, stack_reg, exec_info_reg
+    ldrh  \mask_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_FREGS_OFFSET]
+    .irp reg, 8,9,10,11,12,13,14,15
+        tbz \mask_reg, #(\reg-8), savefreg\reg
+        ldr d2, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET + \reg*8)]
+        str d2, [\stack_reg, #-0x8]!
+savefreg\reg:
+    .endr
+.endm
+
+  PUSH_IREGS w8, x1, x9
+  PUSH_FREGS w8, x1, x9
 
 .Lrestart_interpretation:
   mov   x0, ECTYPE_REG
@@ -275,6 +300,37 @@ perform_2i_call:
   br    x9
 
 .Lend_interpretation:
+
+  ldr   x9, [x29, #-0x8] // load Function Handle
+  ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
+
+  ldr   x1, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
+  mov   x2, sp
+  add   x1, x1, x2 // add frame size to locate saved registers
+
+.macro POP_IREGS mask_reg, stack_reg, exec_info_reg
+    ldrh  \mask_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
+    .irp reg, 13,12,11,10
+        tbz \mask_reg, #(\reg-8), loadireg\reg
+        ldr x2, [\stack_reg], #0x8
+        str x2, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + \reg*8)]
+loadireg\reg:
+    .endr
+.endm
+
+.macro POP_FREGS mask_reg, stack_reg, exec_info_reg
+    ldrh  \mask_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_FREGS_OFFSET]
+    .irp reg, 15,14,13,12,11,10,9,8
+        tbz \mask_reg, #(\reg-8), loadfreg\reg
+        ldr d2, [\stack_reg], #0x8
+        str d2, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET + \reg*8)]
+loadfreg\reg:
+    .endr
+.endm
+
+  POP_IREGS w8, x1, x9
+  POP_FREGS w8, x1, x9
+
   mov   sp, x29
   ldp   x29, x30, [sp], #16
   ret

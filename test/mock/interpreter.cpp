@@ -103,10 +103,26 @@ static void InterpreterI2CallTest(Ectype* ectype, ThreadHandle handle, DynamicFu
     auto frameStart = reinterpret_cast<uintptr_t>(&frameSlots);
     Interpretation::Frame frame { frameStart };
 
+    IRegContainer iregs[IReg::COUNT];
+    FRegContainer fregs[FReg::COUNT];
+    for (auto i = 8; i != IReg::COUNT; i++) { // TODO: first non-vol index is arch-dependent
+        iregs[i].primitive = ectype->GetPrimitive(IReg::From(i));
+    }
+    for (auto i = 8; i != FReg::COUNT; i++) {
+        fregs[i].primitive = ectype->GetPrimitive(FReg::From(i));
+    }
+
     Decoder::ByteReader s(code.bytecode, code.bytecode, code.bytecode + code.bytecodeSize);
     InterpretationStart(fuh, ectype);
     DoInterpretationLoop(ectype, frame, handle, code.literals, s);
     InterpretationEnd(fuh, ectype);
+
+    for (auto i = 8; i != IReg::COUNT; i++) {
+        ectype->Put(IReg::From(i), iregs[i].primitive);
+    }
+    for (auto i = 8; i != FReg::COUNT; i++) {
+        ectype->Put(FReg::From(i), fregs[i].primitive);
+    }
 }
 
 } // namespace Interpretation
