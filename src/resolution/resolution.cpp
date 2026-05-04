@@ -1,6 +1,7 @@
 #include "resolution.h"
 #include "engine/engine.h"
 #include "engine/identifiers.h"
+#include "engine/statics_manager.h"
 #include "engine/symlevel/aot_table.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/dependencies.h"
@@ -379,6 +380,30 @@ template <typename Field> std::optional<Field> ResolveField(Resolver::Impl& reso
                     return std::nullopt;
                 }
                 return StaticField { refType, ref.name, fieldType, reinterpret_cast<uintptr_t>(location) };
+            }
+        }
+        case TemplateKind::TYPE: {
+            if constexpr (std::is_same_v<Field, InstanceField>) {
+                FATAL("Not supported yet");
+                return std::nullopt;
+            } else {
+                static_assert(std::is_same_v<Field, StaticField>);
+
+                auto refTypeIdent = ref.refType.GetIdentifier().AsTypeIdent();
+                auto typeDefIdent = Identifier<Symlevel::TypeDefinition>(refTypeIdent.GetOffset(), refTypeIdent.GetFile());
+                auto typeDef      = Symlevel::TypeDefinition::Resolve(resolver.session, typeDefIdent);
+
+                auto fieldDefIdentOpt = typeDef.GetFieldIndex().FindField(resolver.session, ref.name);
+                if (!fieldDefIdentOpt.has_value()) {
+                    log.Stream(Logging::Level::ERROR) << "Field definition search failed " << id.GetValue();
+                    return std::nullopt;
+                }
+
+                uintptr_t location = StaticsManager::Of(resolver.session).GetLocation(
+                    resolver.session, typeDefIdent, fieldDefIdentOpt.value()
+                );
+
+                return StaticField{ refType, ref.name, fieldType, location };
             }
         }
         default: {

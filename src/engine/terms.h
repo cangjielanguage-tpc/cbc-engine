@@ -3,7 +3,6 @@
 #include "engine/engine.h"
 #include "engine/identifiers.h"
 #include "engine/packed_identifier.h"
-#include "engine/symlevel/definitions.h"
 #include "symlevel/io/file_id.h"
 #include "symlevel/offset.h"
 #include "symlevel/string.h"

@@ -125,20 +125,20 @@ template <typename Data> struct MemberIndexWrapper {
         return std::nullopt;
     }
 
-    template <typename T> void Foreach(Engine::Session& session, std::function<bool(T&)> action) const {
-            static_assert(std::is_same_v<T, FieldDefinition> || std::is_same_v<T, MethodDefinition>);
+    void Foreach(Engine::Session& session, std::function<bool(Data&)> action) const {
+        static_assert(std::is_same_v<Data, FieldDefinition> || std::is_same_v<Data, MethodDefinition>);
 
-            auto& file = *session.FileOf(fileId);
+        auto [_, raf] = session.File(index.fileId);
 
-            for (uint32_t i = 0; i < memberCount; i++) {
-                auto offset = buckets.QueryOffset(file, i);
-                auto fieldDef = T::Parse(session, fileId, offset);
+        for (uint32_t i = 0; i < index.bucketsSize; i++) {
+            auto offset = Offset<Data>(ReadAt(raf, index.bucketsStart + i * sizeof(uint32_t)));
+            auto fieldDef = Reader::Read(session, index.fileId, offset);
 
-                if (action(fieldDef)) {
-                    break;
-                }
+            if (action(fieldDef)) {
+                break;
             }
         }
+    }
 
     std::vector<Identifier> FindOffsets(Engine::Session& session, String name) const
     {
@@ -195,7 +195,8 @@ std::optional<Engine::Identifier<FieldDefinition>> FieldIndex::FindField(
 
 void FieldIndex::Foreach(Engine::Session& session, std::function<bool(FieldDefinition&)> action) const
 {
-    index->Foreach<FieldDefinition>(session, action);
+    MemberIndexWrapper<FieldDefinition> index { this->index };
+    index.Foreach(session, action);
 }
 
 std::vector<Engine::Identifier<MethodDefinition>> MethodIndex::FindMethods(

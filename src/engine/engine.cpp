@@ -127,7 +127,7 @@ std::optional<CbcFile*> Engine::Impl::FindCbcFile(std::string_view filePath)
     return std::nullopt;
 }
 
-std::optional<Identifier<TypeDefinition>> Engine::FindType(Session& session, std::string_view typeName)
+std::optional<Identifier<Symlevel::TypeDefinition>> Engine::FindType(Session& session, std::string_view typeName)
 {
     for (auto& file : impl->files) {
         auto res = file.GetTypeIndex().FindType(session, typeName);

@@ -66,13 +66,10 @@ FieldDefinition FieldDefinition::Parse(Engine::Session& session, IO::FileId file
     ASSERTION(tag == 0, "Const value is not supported yet");
 
     auto regionData = session.CbcFileOf(fileId).GetRegionData();
-    auto refType   = regionData.queryTerm(session, { .region = 0, .index = refTypeIdx });
-    auto fieldType = regionData.queryTerm(session, { .region = 0, .index = fieldTypeIdx });
+    auto refType   = Engine::TermManager::Resolve(session, Engine::IndexIdentifier<Term>(Index<Term>(0, refTypeIdx), fileId));
+    auto fieldType = Engine::TermManager::Resolve(session, Engine::IndexIdentifier<Term>(Index<Term>(0, refTypeIdx), fileId));
 
-    ASSERTION(refType.has_value(),   "couldn't parse refType term");
-    ASSERTION(fieldType.has_value(), "couldn't parse fieldType term");
-
-    return FieldDefinition(Engine::Identifier<FieldDefinition>(offset, fileId), nameOffset, refType.value(), fieldType.value(), FieldFlags(flags), {});
+    return FieldDefinition(Engine::Identifier<FieldDefinition>(offset, fileId), nameOffset, refType, fieldType, FieldFlags(flags), {});
 }
 
 FieldDefinition FieldDefinition::Resolve(Engine::Session& session, Engine::Identifier<FieldDefinition> identifier)
@@ -116,10 +113,9 @@ MethodDefinition MethodDefinition::Parse(Engine::Session& session, IO::FileId fi
 tags_end:
 
     auto regionData = session.CbcFileOf(fileId).GetRegionData();
-    auto type       = regionData.queryTerm(session, { .region = 0, .index = methodSigIdx });
-    ASSERTION(type.has_value(), "cannot parse type term");
+    auto type       = Engine::TermManager::Resolve(session, Engine::IndexIdentifier<Term>(Index<Term>(0, methodSigIdx), fileId));
 
-    return MethodDefinition(Engine::Identifier<MethodDefinition>(offset, fileId), nameOffset, type.value(), codeOffs);
+    return MethodDefinition(Engine::Identifier<MethodDefinition>(offset, fileId), nameOffset, type, codeOffs);
 }
 
 MethodDefinition MethodDefinition::Resolve(Engine::Session& session, Engine::Identifier<MethodDefinition> identifier)

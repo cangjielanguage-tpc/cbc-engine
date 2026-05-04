@@ -3,12 +3,12 @@
 #include "engine/engine.h"
 #include "engine/identifiers.h"
 #include "engine/symlevel/flags.h"
-#include "engine/symlevel/terms.h"
 #include "engine/symlevel/offset_sequence.h"
 #include "io/file_id.h"
 #include "member_index.h"
 #include "offset.h"
 #include "string.h"
+#include "term.h"
 
 namespace Symlevel {
 
