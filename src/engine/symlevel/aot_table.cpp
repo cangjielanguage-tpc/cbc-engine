@@ -1,5 +1,6 @@
 #include "aot_table.h"
 #include "engine/engine.h"
+#include "engine/symlevel/cbc_file.h"
 #include "engine/symlevel/io/stream_file_reader.h"
 #include "utils/assertion.h"
 #include <cstdint>
@@ -41,13 +42,13 @@ template <typename Data> struct AotTableWrapper {
     Offset<Data> FindData(Engine::Session& session, uint32_t idx)
     {
         ASSERT(!IsEmpty());
-        auto [_, raf] = session.File(table.fileId);
+        auto [file, raf] = session.File(table.fileId);
 
         uint32_t bucketIdx = Hash(idx) % BucketCount();
+        uint32_t step      = sizeof(uint32_t);
 
-        uint32_t step        = sizeof(uint32_t);
-        auto bucketStartOffs = table.bucketTableStart + idx * step;
-        auto bucketEndOffs   = table.bucketTableStart + (idx + 1) * step;
+        auto bucketStartOffs = table.bucketTableStart + bucketIdx * step;
+        auto bucketEndOffs   = table.bucketTableStart + (bucketIdx + 1) * step;
 
         auto dataStartIdx = ReadAt(raf, bucketStartOffs);
         auto dataEndIdx   = ReadAt(raf, bucketEndOffs);
@@ -55,12 +56,17 @@ template <typename Data> struct AotTableWrapper {
 
         for (auto i = dataStartIdx; i < dataEndIdx; i++) {
             auto dataOffs = Offset<Data>(ReadAt(raf, table.bucketsStart + i * step));
-            auto dataIdx  = ReadAt(raf, dataOffs);
+            auto dataIdx  = ReadDataIndex(file, raf, dataOffs);
             if (idx == dataIdx) {
                 return dataOffs;
             }
         }
         FATAL("AOT data was incorrectly encoded");
+    }
+
+    uint32_t ReadDataIndex(CbcFile& file, IO::RandomAccessFile& raf, uint32_t offs) const
+    {
+        return IO::StreamFileReader(raf, file.GetAotDataSectionOffs() + offs).ReadU32();
     }
 
     uint32_t ReadAt(IO::RandomAccessFile& raf, uint32_t offs) const

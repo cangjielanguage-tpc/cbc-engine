@@ -28,12 +28,6 @@ public:
     {
         return Def::ParseName(session, fileId, offset);
     }
-
-    template <typename Ref, typename Data>
-    static Index<Ref> ReadIndex(Engine::Session& session, IO::FileId fileId, Offset<Data> offset)
-    {
-        return Data::ParseIndex(session, fileId, offset);
-    }
 };
 
 } // namespace Symlevel
