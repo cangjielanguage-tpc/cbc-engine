@@ -45,21 +45,26 @@ struct AotTableWrapper {
         uint32_t bucketIdx = Hash(idx) % BucketCount();
 
         uint32_t step = sizeof(uint32_t);
-        auto bucketStartIdx = table.bucketTableStart + idx * step;
-        auto bucketEndIdx = table.bucketTableStart + (idx + 1) * step;
+        auto bucketStartOffs = table.bucketTableStart + idx * step;
+        auto bucketEndOffs = table.bucketTableStart + (idx + 1) * step;
 
-        auto dataStartIdx = IO::StreamFileReader(raf, bucketStartIdx).ReadU32();
-        auto dataEndIdx = IO::StreamFileReader(raf, bucketEndIdx).ReadU32();
+        auto dataStartIdx = ReadAt(raf, bucketStartOffs);
+        auto dataEndIdx = ReadAt(raf, bucketEndOffs);
         ASSERT(dataStartIdx <= dataEndIdx);
 
         for (auto i = dataStartIdx; i < dataEndIdx; i++) {
-            auto dataOffs = Offset<Data>(table.bucketsStart + i * step);
-            auto dataIdx = IO::StreamFileReader(raf, dataOffs).ReadU32();
+            auto dataOffs = Offset<Data>(ReadAt(raf, table.bucketsStart + i * step));
+            auto dataIdx = ReadAt(raf, dataOffs);
             if (idx == dataIdx) {
                 return dataOffs;
             }
         }
         FATAL("AOT data was incorrectly encoded");
+    }
+
+    uint32_t ReadAt(IO::RandomAccessFile& raf, uint32_t offs) const
+    {
+        return IO::StreamFileReader(raf, offs).ReadU32();
     }
 };
 

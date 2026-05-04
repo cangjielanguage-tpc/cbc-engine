@@ -15,7 +15,7 @@ DefinitionsManager::~DefinitionsManager()                            = default;
 
 TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId, Offset<TypeDefinition> offset)
 {
-    IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetMethodDefSectionOffs() + offset);
+    IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetTypeDefSectionOffs() + offset);
 
     auto nameOffset   = Offset<String>(reader.ReadU32());
     auto flags        = reader.ReadULEB();
@@ -45,7 +45,7 @@ TypeDefinition TypeDefinition::Resolve(Engine::Session& session, Engine::Identif
 
 String TypeDefinition::ParseName(Engine::Session& session, IO::FileId fileId, Offset<TypeDefinition> offset)
 {
-    IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetMethodDefSectionOffs() + offset);
+    IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetTypeDefSectionOffs() + offset);
 
     auto nameOffset = Offset<String>(reader.ReadU32());
     return Reader::Read(session, fileId, nameOffset);

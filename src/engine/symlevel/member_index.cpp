@@ -1,8 +1,11 @@
 #include "definitions.h"
 #include "engine/identifiers.h"
+#include "engine/symlevel/io/random_access_file.h"
 #include "io/stream_file_reader.h"
 #include "member_index.h"
 #include "reader.h"
+#include <cstdint>
+#include <string_view>
 
 namespace Symlevel {
 
@@ -101,17 +104,16 @@ struct MemberIndexWrapper {
         uint32_t startIdx = Hash(name) % BucketCount();
         uint32_t step = sizeof(uint32_t);
 
-        auto bucketStartIdx = index.bucketTableStart + startIdx * step;
-        auto bucketEndIdx = index.bucketTableStart + (startIdx + 1) * step;
+        auto bucketStartOffs = index.bucketTableStart + startIdx * step;
+        auto bucketEndOffs = index.bucketTableStart + (startIdx + 1) * step;
 
-        auto dataStartIdx = IO::StreamFileReader(raf, bucketStartIdx).ReadU32();
-        auto dataEndIdx = IO::StreamFileReader(raf, bucketEndIdx).ReadU32();
+        auto dataStartIdx = ReadAt(raf, bucketStartOffs);
+        auto dataEndIdx = ReadAt(raf, bucketEndOffs);
 
         ASSERT(dataStartIdx <= dataEndIdx);
 
         for (auto i = dataStartIdx; i < dataEndIdx; i++) {
-            auto dataOffs = Offset<Data>(index.bucketsStart + i * step);
-            auto dataIdx = IO::StreamFileReader(raf, dataOffs).ReadU32();
+            auto dataOffs = Offset<Data>(ReadAt(raf, index.bucketsStart + i * step));
             auto entityName = Reader::ReadName(session, index.fileId, dataOffs);
 
             if (entityName.compare(name) == 0) {
@@ -133,17 +135,16 @@ struct MemberIndexWrapper {
         uint32_t startIdx = Hash(name) % BucketCount();
         uint32_t step = sizeof(uint32_t);
 
-        auto bucketStartIdx = index.bucketTableStart + startIdx * step;
-        auto bucketEndIdx = index.bucketTableStart + (startIdx + 1) * step;
+        auto bucketStartOffs = index.bucketTableStart + startIdx * step;
+        auto bucketEndOffs = index.bucketTableStart + (startIdx + 1) * step;
 
-        auto dataStartIdx = IO::StreamFileReader(raf, bucketStartIdx).ReadU32();
-        auto dataEndIdx = IO::StreamFileReader(raf, bucketEndIdx).ReadU32();
+        auto dataStartIdx = ReadAt(raf, bucketStartOffs);
+        auto dataEndIdx = ReadAt(raf, bucketEndOffs);
 
         ASSERT(dataStartIdx <= dataEndIdx);
         std::vector<Identifier> offsets;
         for (auto i = dataStartIdx; i < dataEndIdx; i++) {
-            auto dataOffs = Offset<Data>(index.bucketsStart + i * step);
-            auto dataIdx = IO::StreamFileReader(raf, dataOffs).ReadU32();
+            auto dataOffs = Offset<Data>(ReadAt(raf, index.bucketsStart + i * step));
             auto entityName = Reader::ReadName(session, index.fileId, dataOffs);
 
             if (entityName.compare(name) == 0) {
@@ -153,21 +154,26 @@ struct MemberIndexWrapper {
 
         return offsets;
     }
+
+    uint32_t ReadAt(IO::RandomAccessFile& raf, uint32_t offs) const
+    {
+        return IO::StreamFileReader(raf, offs).ReadU32();
+    }
 };
 
-std::optional<Engine::Identifier<TypeDefinition>> TypeIndex::FindType(Engine::Session& session, String typeName) const
+std::optional<Engine::Identifier<TypeDefinition>> TypeIndex::FindType(Engine::Session& session, std::string_view typeName) const
 {
     MemberIndexWrapper<TypeDefinition> index {this->index};
     return index.FindOffset(session, typeName);
 }
 
-std::optional<Engine::Identifier<FieldDefinition>> FieldIndex::FindField(Engine::Session& session, String typeName) const
+std::optional<Engine::Identifier<FieldDefinition>> FieldIndex::FindField(Engine::Session& session, std::string_view typeName) const
 {
     MemberIndexWrapper<FieldDefinition> index {this->index};
     return index.FindOffset(session, typeName);
 }
 
-std::vector<Engine::Identifier<MethodDefinition>> MethodIndex::FindMethods(Engine::Session& session, String methodName) const
+std::vector<Engine::Identifier<MethodDefinition>> MethodIndex::FindMethods(Engine::Session& session, std::string_view methodName) const
 {
     MemberIndexWrapper<MethodDefinition> index {this->index};
     return index.FindOffsets(session, methodName);
