@@ -36,10 +36,10 @@ static void CompareWith(std::string_view fileName, std::string const& expected)
     auto def  = Symlevel::MethodDefinition::Resolve(session, mainId.value());
     auto code = Symlevel::Reader::Read(session, def.FileId(), def.GetCodeOffset());
 
-    auto resolver = API::Resolver::Create(session, mainId.value());
+    Resolution::Resolver resolver(session, mainId.value());
 
     Stream::StringBuffer stream;
-    Cbc::Disasm(stream, code, resolver.get());
+    Cbc::Disasm(stream, code, &resolver);
 
     ASSERT_EQ(expected, stream.ToString());
 }

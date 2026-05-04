@@ -8,6 +8,8 @@
 #include "engine/symlevel/reader.h"
 #include "function_handle.h"
 #include "interpreter/loggers.h"
+#include "resolution/resolution.h"
+#include "runtimesupport/adapters.h"
 #include "utils/assertion.h"
 
 namespace Interpretation {
@@ -84,10 +86,10 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, Dynam
         out.NewLine();
     });
 
-    auto resolver = API::Resolver::Create(session, def.GetIdentifier());
-    auto& heap    = session.GetEngine().CodeHeap();
+    Resolution::Resolver resolver(session, def.GetIdentifier());
 
-    auto bytecode = Cbc::Rewrite(fuh, code, *resolver, heap);
+    auto& heap    = session.GetEngine().CodeHeap();
+    auto bytecode = Cbc::Rewrite(fuh, code, resolver, heap);
 
     fuh->bytecode.store(new ExecBytecodeInfo(bytecode));
 

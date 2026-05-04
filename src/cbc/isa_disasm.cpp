@@ -1,19 +1,15 @@
-#include "api/resolver.h"
 #include "cbc/decoder.h"
 #include "cbc/isa.h"
-#include "interpreter/loggers.h"
 #include "isa_parser.h"
-#include "utils/logger.h"
+#include "resolution/resolution.h"
 #include "utils/ostream.h"
 #include <cmath>
 #include <cstdint>
-#include <iomanip>
-#include <iostream>
-#include <ostream>
 
 namespace Cbc {
 
 using namespace Stream;
+using namespace Resolution;
 
 static std::string_view Sz(Format::Width w)
 {
@@ -261,26 +257,25 @@ struct IsaDisasm : public IsaParser {
 };
 
 struct IsaResolvingDisasm : IsaDisasm {
-    API::Resolver& resolver;
+    Resolution::Resolver& resolver;
 
     using MethodIndex = Symlevel::Index<Symlevel::MethodReference>;
 
-    IsaResolvingDisasm(Stream::Output& stream, Decoder::FatByteReader reader, API::Resolver& resolver)
+    IsaResolvingDisasm(Stream::Output& stream, Decoder::FatByteReader reader, Resolution::Resolver& resolver)
         : IsaDisasm(stream, reader),
           resolver(resolver)
     {}
 
-    /// FIXME:
-    ///  - remove duplication between rewriter and disasm.
-    ///  - MethodIndex and others MUST HAVE separate representation for API users
-    ///    and API implementation. Knowledge about region is known only resolver.
-    ///  - Usage of Symlevel::XYZIndex here do not make sense.
-    MethodIndex Method(uint16_t index) { return MethodIndex { .region = 0, .index = index }; }
-
-    void CallVirtual(IReg dst, uint16_t method) override
+    void CallVirtual(IReg dst, uint16_t methodId) override
     {
-        auto m = resolver.ResolveVirtualMethod(Method(method));
-        stream << "call.virtual" << " " << dst.ToStr() << ", " << m->ExtDefNum() << ", " << m->VNum() << endl;
+        auto m = resolver.Query(Index<DynamicCall>(methodId));
+        if (!m.has_value()) {
+            return;
+        }
+        auto method = m.value();
+        // TODO: write full reference, when signature construction would be added.
+        stream << "call.virtual " << dst.ToStr() << ", " << method->extDefNum << ", "
+               << method->methodNum /* << " " << *method */ << endl;
     }
 
     // TODO: implement rest.
@@ -306,7 +301,7 @@ void RawDisasm(Stream::Output& stream, uint8_t* start, uint8_t* end)
     RawDisasm(stream, Decoder::FatByteReader(start, start, end));
 }
 
-void Disasm(Stream::Output& stream, Decoder::FatByteReader reader, API::Resolver* resolver)
+void Disasm(Stream::Output& stream, Decoder::FatByteReader reader, Resolution::Resolver* resolver)
 {
     if (!g_IsRawDisasmEnabled && resolver != nullptr) {
         IsaResolvingDisasm(stream, reader, *resolver).ParseAll();
@@ -315,14 +310,14 @@ void Disasm(Stream::Output& stream, Decoder::FatByteReader reader, API::Resolver
     }
 }
 
-void Disasm(Stream::Output& stream, Cbc::MethodCode code, API::Resolver* resolver)
+void Disasm(Stream::Output& stream, Cbc::MethodCode code, Resolution::Resolver* resolver)
 {
     auto start = code.CodePtr();
     auto end   = start + code.CodeSize();
     Disasm(stream, Decoder::FatByteReader(start, start, end), resolver);
 }
 
-void Disasm(Stream::Output& stream, uint8_t* start, uint8_t* end, API::Resolver* resolver)
+void Disasm(Stream::Output& stream, uint8_t* start, uint8_t* end, Resolution::Resolver* resolver)
 {
     Disasm(stream, Decoder::FatByteReader(start, start, end), resolver);
 }

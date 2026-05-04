@@ -1,7 +1,6 @@
 #include "region_data.h"
-#include "engine/symlevel/terms.h"
+#include "engine/symlevel/term.h"
 #include "io/stream_file_reader.h"
-#include "reader.h"
 
 namespace Symlevel {
 
@@ -21,40 +20,44 @@ RegionData RegionData::Read(IO::FileId fileId, IO::RandomAccessFile& file, uint3
     uint32_t termIndexSize = reader.ReadULEB();
     uint32_t termIndexOffs = reader.ReadU32();
 
-    IO::OffsetPool methods(methodIndexOffs, methodIndexSize);
-    IO::OffsetPool fields(fieldIndexOffs, fieldIndexSize);
-    IO::OffsetPool terms(termIndexOffs, termIndexSize, FIRST_NON_PRIMITIVE);
+    IO::OffsetPool<MethodReference> methods(methodIndexOffs, methodIndexSize);
+    IO::OffsetPool<FieldReference> fields(fieldIndexOffs, fieldIndexSize);
+    IO::OffsetPool<Term> terms(termIndexOffs, termIndexSize);
 
     return RegionData(fileId, methods, fields, terms);
 }
 
-RegionData::RegionData(IO::FileId fileId, IO::OffsetPool methods, IO::OffsetPool fields, IO::OffsetPool terms)
+RegionData::RegionData(
+    IO::FileId fileId,
+    IO::OffsetPool<MethodReference> methods,
+    IO::OffsetPool<FieldReference> fields,
+    IO::OffsetPool<Term> terms
+)
     : fileId(fileId),
       methods(methods),
       fields(fields),
       terms(terms)
 {}
 
-std::optional<MethodReference> RegionData::queryMethod(Engine::Session& session, Index<MethodReference> index) const
+template <typename T> using OffsetId = Engine::Identifier<T>;
+
+Offset<MethodReference> RegionData::Query(Engine::Session& session, Index<MethodReference> index) const
 {
-    auto offs = methods.QueryOffset(*session.FileOf(fileId), index);
-    return Reader::ReadAndResolve(session, fileId, offs);
+    // FIXME: use region idx
+    return methods.QueryOffset(*session.FileOf(fileId), index.GetIndex());
 }
 
-std::optional<FieldReference> RegionData::queryField(Engine::Session& session, Index<FieldReference> index) const
+Offset<FieldReference> RegionData::Query(Engine::Session& session, Index<FieldReference> index) const
 {
-    auto offs = fields.QueryOffset(*session.FileOf(fileId), index);
-    return Reader::ReadAndResolve(session, fileId, offs);
+    // FIXME: use region idx
+    return fields.QueryOffset(*session.FileOf(fileId), index.GetIndex());
 }
 
-std::optional<Term> RegionData::queryTerm(Engine::Session& session, Index<Term> index) const
+Offset<Term> RegionData::Query(Engine::Session& session, Index<Term> index) const
 {
-    if (IsBuiltin(index.index)) {
-        return Term::Primitive(session, TemplateKind(index.index));
-    } else {
-        auto offs = terms.QueryOffset(*session.FileOf(fileId), index);
-        return Reader::ReadAndResolve(session, fileId, offs);
-    }
+    // FIXME: use region idx
+    // adjust index by the number of primitive types.
+    return terms.QueryOffset(*session.FileOf(fileId), index.GetIndex() - Term::FIRST_NON_PRIMITIVE);
 }
 
 } // namespace Symlevel

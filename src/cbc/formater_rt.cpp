@@ -1,6 +1,3 @@
-#include <cmath>
-#include <memory>
-
 #include "cbc/isa.h"
 #include "formater_rt.h"
 #include "utils/math.h"
@@ -406,16 +403,13 @@ void Log(Interpretation::Code code, Stream::Output& stream)
     auto end      = bytecode + code.bytecodeSize;
     auto table    = code.literals;
 
-    auto log10size = static_cast<int>(1.0 + std::log10(code.bytecodeSize));
-    log10size      = std::max(log10size, 1);
-
     bool inMemspace = false;
 
     Decoder::ByteReader reader(bytecode, bytecode, end);
     while (!reader.EndOfMem(end)) {
         auto opc      = reader.PeekOpcode();
         auto position = reader.Cursor() - bytecode;
-        stream.PrintFmt("%*lld: ", log10size, position);
+        stream.PrintFmt("0x%03lx: ", position);
 
         if (inMemspace) {
             bool isTail = LogMemSpaceInstruction(opc, table, streamIndented, reader);

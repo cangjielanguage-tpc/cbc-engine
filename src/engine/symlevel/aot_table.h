@@ -1,5 +1,6 @@
 #pragma once
 
+#include "engine/identifiers.h"
 #include "index.h"
 #include "io/file_id.h"
 #include "io/random_access_file.h"
@@ -17,174 +18,67 @@ namespace Symlevel {
  *
  * Resolving of aot-compiled entytity is proceed by @c refType of the entity ref, @see TemplateKind::AotType
  */
-class AotTable;
+struct AotTable {
+    IO::FileId fileId;
 
-class DirectCallAotData {
-public:
-    static Index<MethodReference> ParseIndex(
-        Engine::Session& session, IO::FileId fileId, Offset<DirectCallAotData> offset
-    );
+    uint32_t bucketTableStart;
+    uint32_t bucketTableSize;
 
-    static DirectCallAotData ParseAndResolve(
-        Engine::Session& session, IO::FileId fileId, Offset<DirectCallAotData> offset
-    );
+    uint32_t bucketsStart;
+    uint32_t bucketsSize;
 
-    String GetLinkageName() const { return linkageName; }
-
-private:
-    DirectCallAotData(String linkageName) : linkageName(linkageName) {}
-
-    String linkageName;
+    static AotTable Read(IO::FileId fileId, IO::RandomAccessFile& file, uint32_t offset);
 };
 
-class DirectCallAotTable {
-public:
-    static DirectCallAotTable Read(IO::FileId fileId, IO::RandomAccessFile& file, uint32_t offset);
-
-    DirectCallAotTable(DirectCallAotTable&&);
-    ~DirectCallAotTable();
-
-    std::optional<DirectCallAotData> GetData(Engine::Session& session, Index<MethodReference> index) const;
-
-private:
-    DirectCallAotTable(std::unique_ptr<AotTable> aotTable);
-
-    std::unique_ptr<AotTable> aotTable;
+struct DirectCallAotData {
+    Engine::Identifier<String> linkangeName;
 };
 
-class VirtualCallAotData {
-public:
-    static Index<MethodReference> ParseIndex(
-        Engine::Session& session, IO::FileId fileId, Offset<VirtualCallAotData> offset
-    );
-
-    static VirtualCallAotData ParseAndResolve(
-        Engine::Session& session, IO::FileId fileId, Offset<VirtualCallAotData> offset
-    );
-
-    uint16_t GetVNum() const { return vnum; }
-
-    uint16_t GetExtDefNum() const { return extDefNum; }
-
-private:
-    VirtualCallAotData(uint16_t vnum, uint16_t extDefNum) : vnum(vnum), extDefNum(extDefNum) {}
-
-    uint16_t vnum;
+struct VirtualCallAotData {
+    uint16_t methodNum;
     uint16_t extDefNum;
 };
 
-class VirtualCallAotTable {
-public:
-    static VirtualCallAotTable Read(IO::FileId fileId, IO::RandomAccessFile& file, uint32_t offset);
-
-    VirtualCallAotTable(VirtualCallAotTable&&);
-    ~VirtualCallAotTable();
-
-    std::optional<VirtualCallAotData> GetData(Engine::Session& session, Index<MethodReference> index) const;
-
-private:
-    VirtualCallAotTable(std::unique_ptr<AotTable> aotTable);
-
-    std::unique_ptr<AotTable> aotTable;
-};
-
-class InterfaceCallAotData {
-public:
-    static Index<MethodReference> ParseIndex(
-        Engine::Session& session, IO::FileId fileId, Offset<InterfaceCallAotData> offset
-    );
-
-    static InterfaceCallAotData ParseAndResolve(
-        Engine::Session& session, IO::FileId fileId, Offset<InterfaceCallAotData> offset
-    );
-
-    uint32_t GetINum() const { return inum; }
-
-private:
-    InterfaceCallAotData(uint32_t inum) : inum(inum) {}
-
+struct InterfaceCallAotData {
     uint32_t inum;
 };
 
-class InterfaceCallAotTable {
-public:
-    static InterfaceCallAotTable Read(IO::FileId fileId, IO::RandomAccessFile& file, uint32_t offset);
-
-    InterfaceCallAotTable(InterfaceCallAotTable&&);
-    ~InterfaceCallAotTable();
-
-    std::optional<InterfaceCallAotData> GetData(Engine::Session& session, Index<MethodReference> index) const;
-
-private:
-    InterfaceCallAotTable(std::unique_ptr<AotTable> aotTable);
-
-    std::unique_ptr<AotTable> aotTable;
+struct StaticFieldAotData {
+    Engine::Identifier<String> linkangeName;
 };
 
-class StaticFieldAotData {
-public:
-    static Index<FieldReference> ParseIndex(
-        Engine::Session& session, IO::FileId fileId, Offset<StaticFieldAotData> offset
-    );
-
-    static StaticFieldAotData ParseAndResolve(
-        Engine::Session& session, IO::FileId fileId, Offset<StaticFieldAotData> offset
-    );
-
-    String GetLinkageName() const { return linkageName; }
-
-private:
-    StaticFieldAotData(String linkageName) : linkageName(linkageName) {}
-
-    String linkageName;
-};
-
-class StaticFieldAotTable {
-public:
-    static StaticFieldAotTable Read(IO::FileId fileId, IO::RandomAccessFile& file, uint32_t offset);
-
-    StaticFieldAotTable(StaticFieldAotTable&&);
-    ~StaticFieldAotTable();
-
-    std::optional<StaticFieldAotData> GetData(Engine::Session& session, Index<FieldReference> index) const;
-
-private:
-    StaticFieldAotTable(std::unique_ptr<AotTable> aotTable);
-
-    std::unique_ptr<AotTable> aotTable;
-};
-
-class InstanceFieldAotData {
-public:
-    static Index<FieldReference> ParseIndex(
-        Engine::Session& session, IO::FileId fileId, Offset<InstanceFieldAotData> offset
-    );
-
-    static InstanceFieldAotData ParseAndResolve(
-        Engine::Session& session, IO::FileId fileId, Offset<InstanceFieldAotData> offset
-    );
-
-    uint32_t GetOrdinal() const { return ordinal; }
-
-private:
-    InstanceFieldAotData(uint32_t ordinal) : ordinal(ordinal) {}
-
+struct InstanceFieldAotData {
     uint32_t ordinal;
 };
 
-class InstanceFieldAotTable {
+template <typename Table> class AotDataTable {
 public:
-    static InstanceFieldAotTable Read(IO::FileId fileId, IO::RandomAccessFile& file, uint32_t offset);
+    AotTable table;
 
-    InstanceFieldAotTable(InstanceFieldAotTable&&);
-    ~InstanceFieldAotTable();
+    static Table Read(IO::FileId fileId, IO::RandomAccessFile& file, Offset<Table> offset)
+    {
+        return Table { AotTable::Read(fileId, file, offset) };
+    }
+};
 
-    std::optional<InstanceFieldAotData> GetData(Engine::Session& session, Index<FieldReference> index) const;
+struct VirtualCallAotTable : AotDataTable<VirtualCallAotTable> {
+    VirtualCallAotData GetData(Engine::Session& session, Index<MethodReference> index) const;
+};
 
-private:
-    InstanceFieldAotTable(std::unique_ptr<AotTable> aotTable);
+struct DirectCallAotTable : AotDataTable<DirectCallAotTable> {
+    DirectCallAotData GetData(Engine::Session& session, Index<MethodReference> index) const;
+};
 
-    std::unique_ptr<AotTable> aotTable;
+struct InterfaceCallAotTable : AotDataTable<InterfaceCallAotTable> {
+    InterfaceCallAotData GetData(Engine::Session& session, Index<MethodReference> index) const;
+};
+
+struct StaticFieldAotTable : AotDataTable<StaticFieldAotTable> {
+    StaticFieldAotData GetData(Engine::Session& session, Index<FieldReference> index) const;
+};
+
+struct InstanceFieldAotTable : AotDataTable<InstanceFieldAotTable> {
+    InstanceFieldAotData GetData(Engine::Session& session, Index<FieldReference> index) const;
 };
 
 } // namespace Symlevel

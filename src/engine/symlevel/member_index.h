@@ -1,59 +1,57 @@
 #pragma once
 
 #include "engine/engine.h"
-#include "offset.h"
-#include "string.h"
 #include <optional>
+#include <string_view>
 #include <vector>
 
 namespace Symlevel {
-
-class MemberIndex;
 
 class TypeDefinition;
 class MethodDefinition;
 class FieldDefinition;
 
-class TypeIndex final {
-public:
-    static TypeIndex Read(IO::FileId fileId, IO::RandomAccessFile& file, uint32_t typeIndexOffset);
+struct MemberIndex {
+    IO::FileId fileId;
 
-    TypeIndex(std::unique_ptr<MemberIndex> index);
-    TypeIndex(TypeIndex&&);
-    ~TypeIndex();
+    uint32_t bucketTableStart;
+    uint32_t bucketTableSize;
 
-    std::optional<TypeDefinition> FindType(Engine::Session& session, String typeName) const;
+    uint32_t bucketsStart;
+    uint32_t bucketsSize;
 
-private:
-    std::unique_ptr<MemberIndex> index;
+    static MemberIndex Read(IO::FileId fileId, IO::StreamFileReader& reader);
 };
 
-class FieldIndex final {
+template <typename Index> class MemberIndexBase {
 public:
-    static FieldIndex Read(IO::StreamFileReader& reader, IO::FileId fileId);
+    MemberIndex index;
 
-    FieldIndex(std::unique_ptr<MemberIndex> index);
-    FieldIndex(FieldIndex&&);
-    ~FieldIndex();
-
-    std::optional<FieldDefinition> FindField(Engine::Session& session, String fieldName) const;
-
-private:
-    std::unique_ptr<MemberIndex> index;
+    static Index Read(IO::StreamFileReader& reader, IO::FileId fileId)
+    {
+        return Index { MemberIndex::Read(fileId, reader) };
+    }
 };
 
-class MethodIndex final {
+class TypeIndex : public MemberIndexBase<TypeIndex> {
 public:
-    static MethodIndex Read(IO::StreamFileReader& reader, IO::FileId fileId);
+    std::optional<Engine::Identifier<TypeDefinition>> FindType(
+        Engine::Session& session, std::string_view typeName
+    ) const;
+};
 
-    MethodIndex(std::unique_ptr<MemberIndex>);
-    MethodIndex(MethodIndex&&);
-    ~MethodIndex();
+class FieldIndex : public MemberIndexBase<FieldIndex> {
+public:
+    std::optional<Engine::Identifier<FieldDefinition>> FindField(
+        Engine::Session& session, std::string_view fieldName
+    ) const;
+};
 
-    std::vector<MethodDefinition> FindMethods(Engine::Session& session, String methodName) const;
-
-private:
-    std::unique_ptr<MemberIndex> index;
+class MethodIndex : public MemberIndexBase<MethodIndex> {
+public:
+    std::vector<Engine::Identifier<MethodDefinition>> FindMethods(
+        Engine::Session& session, std::string_view methodName
+    ) const;
 };
 
 } // namespace Symlevel

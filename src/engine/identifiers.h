@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/packed_identifier.h"
+#include "engine/symlevel/index.h"
 #include "symlevel/io/file_id.h"
 #include "symlevel/offset.h"
 #include <cstdint>
@@ -16,6 +17,29 @@ template <typename T> struct Identifier {
     Identifier(Identifier<T> const& another) : ident(another.ident) {}
 
     Symlevel::Offset<T> GetOffset() const { return ident.GetHigh(); }
+
+    IO::FileId GetFileId() const { return ident.GetLow(); }
+
+    bool operator==(const Identifier<T>& another) const { return ident == another.ident; }
+
+    uint64_t GetHash() const
+    {
+        std::hash<Engine::PackedIdentifier> hasher;
+        return hasher(ident);
+    }
+
+private:
+    PackedIdentifier ident;
+};
+
+template <typename T> struct IndexIdentifier {
+    IndexIdentifier(Symlevel::Index<T> index, IO::FileId fileId) : ident(0, index.Raw(), fileId) {}
+
+    IndexIdentifier(uint64_t raw) : ident(raw) {}
+
+    IndexIdentifier(Identifier<T> const& another) : ident(another.ident) {}
+
+    Symlevel::Index<T> GetIndex() const { return Symlevel::Index<T>(ident.GetHigh()); }
 
     IO::FileId GetFileId() const { return ident.GetLow(); }
 

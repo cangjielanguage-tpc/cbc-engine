@@ -1,62 +1,50 @@
 #include "references.h"
 #include "io/stream_file_reader.h"
-#include "reader.h"
 #include "region_data.h"
 
 namespace Symlevel {
 
-std::optional<MethodReference> MethodReference::ParseAndResolve(
-    Engine::Session& session, IO::FileId fileId, Offset<MethodReference> offset
-)
+MethodReference MethodReference::Parse(Engine::Session& session, IO::FileId fileId, Offset<MethodReference> offset)
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetMethodRefSectionOffs() + offset);
 
-    auto nameOffset   = Offset<String>(reader.ReadU32());
-    auto refTypeIdx   = reader.ReadULEB();
-    auto methodSigIdx = reader.ReadULEB();
-
-    auto specialFlags = reader.ReadU8();                    // TODO: remove
-    auto accessKind   = MethodAccessKind(reader.ReadU16()); // TODO: remove
-
-    auto name = Reader::Read(session, fileId, nameOffset);
-
-    auto regionData = session.CbcFileOf(fileId).GetRegionData();
-
-    auto refType   = regionData.queryTerm(session, { .region = 0, .index = refTypeIdx });
-    auto methodSig = regionData.queryTerm(session, { .region = 0, .index = methodSigIdx });
-
-    if (refType.has_value() && methodSig.has_value()) {
-        return MethodReference(fileId, name, refType.value(), methodSig.value(), accessKind);
-    } else {
-        return std::nullopt;
-    }
+    auto nameOffset   = Engine::Identifier<String>(Offset<String>(reader.ReadU32()), fileId);
+    auto refTypeIdx   = Engine::IndexIdentifier(Index<Term>(reader.ReadULEB()), fileId);
+    auto methodSigIdx = Engine::IndexIdentifier(Index<Term>(reader.ReadULEB()), fileId);
+    return { nameOffset, refTypeIdx, methodSigIdx };
 }
 
-std::optional<FieldReference> FieldReference::ParseAndResolve(
-    Engine::Session& session, IO::FileId fileId, Offset<FieldReference> offset
-)
+template <typename Reference>
+inline static Reference ParseReference(Engine::Session& session, Engine::IndexIdentifier<Reference> identifier)
+{
+    auto& file       = session.CbcFileOf(identifier.GetFileId());
+    auto& raf        = session.FileOf(identifier.GetFileId());
+    auto& regionData = file.GetRegionData();
+    auto offset      = regionData.Query(session, identifier.GetIndex());
+    return Reference::Parse(session, identifier.GetFileId(), offset);
+}
+
+MethodReference MethodReference::Parse(Engine::Session& session, Engine::IndexIdentifier<MethodReference> identifier)
+{
+    return ParseReference(session, identifier);
+}
+
+FieldReference FieldReference::Parse(Engine::Session& session, IO::FileId fileId, Offset<FieldReference> offset)
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetFieldRefSectionOffs() + offset);
 
-    auto nameOffset   = Offset<String>(reader.ReadU32());
-    auto refTypeIdx   = reader.ReadULEB();
-    auto fieldTypeIdx = reader.ReadULEB();
+    auto nameOffset   = Engine::Identifier<String>(Offset<String>(reader.ReadU32()), fileId);
+    auto refTypeIdx   = Engine::IndexIdentifier(Index<Term>(reader.ReadULEB()), fileId);
+    auto fieldTypeIdx = Engine::IndexIdentifier(Index<Term>(reader.ReadULEB()), fileId);
 
-    auto isRecord = static_cast<bool>(reader.ReadU8());
+    auto isRecord = reader.ReadU8() != 0;
 
-    auto name = Reader::Read(session, fileId, nameOffset);
+    return { nameOffset, refTypeIdx, fieldTypeIdx, isRecord };
+}
 
-    auto regionData = session.CbcFileOf(fileId).GetRegionData();
-
-    auto refType   = regionData.queryTerm(session, Index<Term> { .region = 0, .index = refTypeIdx });
-    auto fieldType = regionData.queryTerm(session, Index<Term> { .region = 0, .index = fieldTypeIdx });
-
-    if (refType.has_value() && fieldType.has_value()) {
-        return FieldReference(name, refType.value(), fieldType.value(), isRecord);
-    } else {
-        FATAL("Couldn't parse field reference");
-        return std::nullopt;
-    }
+FieldReference FieldReference::Parse(Engine::Session& session, Engine::IndexIdentifier<FieldReference> identifier)
+{
+    return ParseReference(session, identifier);
 }
 
 } // namespace Symlevel
