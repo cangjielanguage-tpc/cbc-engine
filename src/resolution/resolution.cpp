@@ -2,6 +2,7 @@
 #include "engine/engine.h"
 #include "engine/identifiers.h"
 #include "engine/symlevel/definitions.h"
+#include "engine/symlevel/method_table.h"
 #include "engine/symlevel/references.h"
 #include "engine/symlevel/string.h"
 #include "engine/symlevel/dependencies.h"
@@ -221,8 +222,23 @@ std::optional<Call> ResolveCall(Resolver::Impl& resolver, Index<Call> id) {
     switch (ref.refType.GetKind()) {
         case TemplateKind::TYPE: {
             if constexpr (std::is_same_v<Call, DynamicCall>) {
-                // FIXME: method resolution for dynamic calls.
-                FATAL("Not supported yet: cbc dyn calls");
+                auto& manager = Symlevel::MethodTableManager::Of(session);
+                auto mt       = manager.GetMethodTable(session, ref.refType);
+
+                std::vector<Symlevel::MethodTableEntry> entries;
+                mt.Find(session, ref.name, entries);
+
+                if (entries.size() != 1) {
+                    log.Log(Logging::Level::ERROR, [&ref, &session](Stream::Output& stream) {
+                        stream << "Failed to resolve method (note, overloading not supported yet) " << ref.GetFullName(session) << Stream::endl;
+                    });
+                    return std::nullopt;
+                }
+
+                auto sig = ConstructSignature(resolver, ref);
+
+                auto methodInfo = entries.at(0);
+                return DynamicCall { refType, ref.name, std::move(sig), methodInfo.methodNum, methodInfo.subTableNum };
             } else {
                 static_assert(std::is_same_v<Call, DirectCall>);
 

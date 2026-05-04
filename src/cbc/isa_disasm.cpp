@@ -9,6 +9,7 @@
 namespace Cbc {
 
 using namespace Stream;
+using namespace Resolution;
 
 static std::string_view Sz(Format::Width w)
 {
@@ -264,6 +265,17 @@ struct IsaResolvingDisasm : IsaDisasm {
         : IsaDisasm(stream, reader),
           resolver(resolver)
     {}
+
+    void CallVirtual(IReg dst, uint16_t methodId) override
+    {
+        auto m = resolver.Query(Index<DynamicCall>(methodId));
+        if (!m.has_value()) {
+            return;
+        }
+        auto method = m.value();
+        // TODO: write full reference, when signature construction would be added.
+        stream << "call.virtual " << dst.ToStr() << ", " << method->extDefNum << ", " << method->methodNum /* << " " << *method */ << endl;
+    }
 
     // TODO: implement rest.
 };
