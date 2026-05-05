@@ -6,6 +6,7 @@
 #include "cbc_engine.h"
 #include "cjnative.h"
 #include "engine/engine.h"
+#include "engine/statics_manager.h"
 #include "engine/symlevel/io/filesystem.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
@@ -57,7 +58,13 @@ static void VisitFrameRootsAdjusting(
 { /* no-op */
 }
 
-static void VisitGlobalRoots(DYN_RootVisitorT visitor) { /* no-op */ }
+static void VisitGlobalRoots(DYN_RootVisitorT visitor)
+{
+    auto& engine = Engine::GetEngineInstance();
+    Engine::StaticsManager::Of(engine).VisitRefLocations([visitor](Engine::RefLocation* refLocation) {
+        g_CJNativeInterfaceInstance.visitRootFromInterpreter(visitor, refLocation);
+    });
+}
 
 static void VisitFrameRootsExpansion(
     DYN_VisitingStateT state,

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/engine.h"
+#include <functional>
 #include <optional>
 #include <string_view>
 #include <vector>
@@ -43,6 +44,8 @@ class FieldIndex : public MemberIndexBase<FieldIndex> {
 public:
     std::optional<Engine::Identifier<FieldDefinition>> FindField(Engine::Session& session, std::string_view fieldName)
         const;
+
+    void ForEach(Engine::Session& session, std::function<bool(FieldDefinition&)> action) const;
 };
 
 class MethodIndex : public MemberIndexBase<MethodIndex> {

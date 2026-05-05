@@ -1,6 +1,7 @@
 #include "resolution.h"
 #include "engine/engine.h"
 #include "engine/identifiers.h"
+#include "engine/statics_manager.h"
 #include "engine/symlevel/aot_table.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/dependencies.h"
@@ -381,6 +382,37 @@ template <typename Field> std::optional<Field> ResolveField(Resolver::Impl& reso
                 return StaticField { refType, ref.name, fieldType, reinterpret_cast<uintptr_t>(location) };
             }
         }
+        case TermKind::TYPE: {
+            if constexpr (std::is_same_v<Field, InstanceField>) {
+                FATAL("Not supported yet");
+                return std::nullopt;
+            } else {
+                static_assert(std::is_same_v<Field, StaticField>);
+
+                auto typeDefIdent = TypeTermId(ref.refType).GetIdentifier();
+                auto typeDef      = Symlevel::TypeDefinition::Resolve(resolver.session, typeDefIdent);
+
+                auto fieldDefIdentOpt = typeDef.GetFieldIndex().FindField(resolver.session, ref.name);
+                if (!fieldDefIdentOpt.has_value()) {
+                    log.Stream(Logging::Level::ERROR) << "Field definition search failed " << id.GetValue() << Stream::endl;
+                    return std::nullopt;
+                }
+
+                auto fieldDef = Symlevel::FieldDefinition::Resolve(resolver.session, fieldDefIdentOpt.value());
+                auto actualFieldType = TermManager::Resolve(resolver.session, fieldDef.FieldType());
+                if (ref.fieldType != actualFieldType) {
+                    log.Stream(Logging::Level::ERROR) << "Field type mismatch expected:  " << ref.fieldType.GetName(resolver.session)
+                        << ", actual: " << actualFieldType.GetName(resolver.session) << Stream::endl;
+                    return std::nullopt;
+                }
+
+                uintptr_t location = StaticsManager::Of(resolver.session).GetLocation(
+                    resolver.session, typeDefIdent, fieldDefIdentOpt.value()
+                );
+
+                return StaticField{ refType, ref.name, fieldType, location };
+            }
+        }
         default: {
             FATAL("Not supported yet %d", ref.refType.GetKind());
             return std::nullopt;
@@ -417,8 +449,8 @@ std::optional<StaticField const*> Resolver::Query(Index<StaticField> id)
 std::optional<Type*> Resolver::Query(Index<Type> id)
 {
     // terms are being cached on different level
-    auto refId = Symlevel::RefId<Symlevel::Term>(0, id.GetValue());
-    auto ident = RefIdentifier<Symlevel::Term>(refId, impl->method.GetFileId());
+    auto refId = Symlevel::RefId<Term>(0, id.GetValue());
+    auto ident = RefIdentifier<Term>(refId, impl->method.GetFileId());
     auto term  = TermManager::Of(impl->session).Resolve(impl->session, ident);
     return impl->GetType(term);
 }

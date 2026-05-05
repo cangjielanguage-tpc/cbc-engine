@@ -2,7 +2,7 @@
 
 #include "engine/engine.h"
 #include "engine/identifiers.h"
-#include "engine/symlevel/definitions.h"
+#include "symlevel/string.h"
 #include "utils/assertion.h"
 #include "utils/ostream.h"
 #include "utils/reinterpretation.h"
@@ -89,6 +89,9 @@ public:
     static constexpr auto INFO_PART_BIT_SIZE = 64 - KIND_PART_BIT_SIZE;
 
     TermKind GetKind() { return kind; }
+
+    bool IsReference();
+    int Width();
 
     uint32_t Hash()
     {
