@@ -2,7 +2,7 @@
 #include "engine/engine.h"
 #include "engine/identifiers.h"
 #include "engine/symlevel/definitions.h"
-#include "engine/symlevel/terms.h"
+#include "engine/terms.h"
 #include "utils/assertion.h"
 #include <cstddef>
 #include <memory>
@@ -15,16 +15,16 @@ namespace Symlevel {
 
 struct TableEntry {
     Engine::Identifier<MethodDefinition> method;
-    Term declaringType;
+    Engine::Term declaringType;
 
-    TableEntry(Engine::Identifier<MethodDefinition> method, Term declaringType)
+    TableEntry(Engine::Identifier<MethodDefinition> method, Engine::Term declaringType)
         : method(method),
           declaringType(declaringType)
     {}
 };
 
 struct MethodSubTable::Impl {
-    Impl(std::vector<TableEntry>& allEntries, Term declaringType, int num, size_t start, size_t end)
+    Impl(std::vector<TableEntry>& allEntries, Engine::Term declaringType, int num, size_t start, size_t end)
         : allEntries(allEntries),
           declaringType(declaringType),
           subTableNum(num),
@@ -37,7 +37,7 @@ struct MethodSubTable::Impl {
     Impl(Impl const& impl) : Impl(impl.allEntries, impl.declaringType, impl.subTableNum, impl.start, impl.end) {}
 
     std::vector<TableEntry>& allEntries;
-    Term declaringType;
+    Engine::Term declaringType;
     size_t start;
     size_t end;
     int subTableNum;
@@ -93,7 +93,7 @@ bool MethodTable::Iterator::HasNext() { return cursor < table->allEntries.size()
 Engine::Identifier<MethodDefinition> MethodTable::Iterator::Next()
 {
     ASSERT(HasNext());
-    return table->allEntries[cursor].method;
+    return table->allEntries[cursor++].method;
 }
 
 size_t MethodTable::ClassSubTableCount() const { return impl->classTables.size(); }
@@ -118,7 +118,7 @@ int MethodSubTable::StartPos() const { return impl->start; }
 
 int MethodSubTable::EndPos() const { return impl->end; }
 
-Term MethodSubTable::DeclaringType() const { return impl->declaringType; }
+Engine::Term MethodSubTable::DeclaringType() const { return impl->declaringType; }
 
 MethodSubTable::Iterator MethodSubTable::Iter() const { return Iterator(this->impl.get(), impl->start); }
 
@@ -151,8 +151,8 @@ static MethodTable BuildTable(Engine::Session& session, Engine::Identifier<TypeD
 
     // TODO: fixup declaring type term if it is references aot type.
     // TODO: make term with type variables
-    auto declaringTypeTerm = Term::Definition(session, type);
-    declaringTypeTerm      = TermManager::Of(session).Globalize(declaringTypeTerm);
+    auto declaringTypeTerm = Engine::Term::Definition(session, type);
+    declaringTypeTerm      = Engine::TermManager::Of(session).Globalize(declaringTypeTerm);
 
     // table with only one class.
     auto table = std::make_shared<MethodTable::Impl>();
@@ -205,7 +205,7 @@ MethodTable MethodTableManager::GetMethodTable(Engine::Session& session, Engine:
     return mt;
 }
 
-MethodTable MethodTableManager::GetMethodTable(Engine::Session& session, Term term)
+MethodTable MethodTableManager::GetMethodTable(Engine::Session& session, Engine::Term term)
 {
     auto ident    = term.GetIdentifier().AsTypeIdent();
     auto type     = Engine::Identifier<Symlevel::TypeDefinition>(ident.GetOffset(), ident.GetFile());

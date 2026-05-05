@@ -9,6 +9,9 @@
 #include "engine/symlevel/io/filesystem.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
+#include "interpreter/loggers.h"
+#include "utils/logger.h"
+#include "utils/options.h"
 
 static std::mutex g_InitializationGuard;
 static bool g_Initialized;
@@ -23,6 +26,8 @@ static void EnsureEngineInitialized()
         return;
     }
 
+    Options::InitEnvOptions();
+
     Engine::Loader loader;
     loader.Load(IO::OpenFile(std::filesystem::path(g_mainCbc)), g_mainCbc);
     loader.Build();
@@ -32,6 +37,37 @@ static void EnsureEngineInitialized()
 static void FiberStart(DYN_CJThreadSpecificDataT* data) { /* no-op */ }
 
 static void FiberDestroy(DYN_CJThreadSpecificDataT* data) { /* TODO: ectype cleanup */ }
+
+static void IterateFramesWithState(
+    DYN_CJThreadSpecificDataT threadSpecificData, void (*callback)(DYN_VisitingStateT, void*), void* ctx
+)
+{ /* no-op */
+}
+
+static void VisitFrameRootsMarking(DYN_VisitingStateT state, DYN_FrameDescT frame_desc, DYN_RootVisitorT root_visitor)
+{ /* no-op */
+}
+
+static void VisitFrameRootsAdjusting(
+    DYN_VisitingStateT state,
+    DYN_FrameDescT frame_desc,
+    DYN_RootVisitorT root_visitor,
+    DYN_DerivedPtrVisitorT derived_ptr_visitor
+)
+{ /* no-op */
+}
+
+static void VisitGlobalRoots(DYN_RootVisitorT visitor) { /* no-op */ }
+
+static void VisitFrameRootsExpansion(
+    DYN_VisitingStateT state,
+    DYN_FrameDescT frameDesc,
+    DYN_RootVisitorT stackPtrVisitor,
+    DYN_DerivedPtrVisitorT derivedPtrVisitor
+)
+{
+    /* no-op */
+}
 
 extern "C" {
 /// This symbol is exported to the runtime, which would initialize engine.
@@ -48,9 +84,13 @@ CBC_EXPORT void engine_set_main_cbc(char const* mainCbc) { g_mainCbc = mainCbc; 
 
 CBC_EXPORT void engine_initialize() { EnsureEngineInitialized(); }
 
-CBC_EXPORT void engine_enable_dasm() { Cbc::EnableDisasm(); }
+CBC_EXPORT void engine_enable_dasm() { Interpretation::Log::preparation.SetLogLevel(Logging::Level::TRACE); }
 
-CBC_EXPORT void engine_enable_raw_dasm() { Cbc::EnableRawDisasm(); }
+CBC_EXPORT void engine_enable_raw_dasm()
+{
+    engine_enable_dasm();
+    Cbc::EnableRawDisasm();
+}
 
 CBC_EXPORT void* engine_get_entrypoint_trampoline(void)
 {
@@ -88,6 +128,12 @@ CBC_EXPORT void interpreter_bridge_init(
     interpInterf->c2iStubEndAddr           = reinterpret_cast<uintptr_t>(&Asm::engine_c2i_call_pc_end);
     interpInterf->cjThreadStart            = &FiberStart;
     interpInterf->cjThreadDestroy          = &FiberDestroy;
+
+    interpInterf->iterateFramesWithState   = &IterateFramesWithState;
+    interpInterf->visitFrameRootsExpansion = &VisitFrameRootsExpansion;
+    interpInterf->visitFrameRootsMarking   = &VisitFrameRootsMarking;
+    interpInterf->visitFrameRootsAdjusting = &VisitFrameRootsAdjusting;
+    interpInterf->visitGlobalRoots         = &VisitGlobalRoots;
 
     Asm::engine_newobject_function = g_CJNativeInterfaceInstance.objectAlloc;
 }

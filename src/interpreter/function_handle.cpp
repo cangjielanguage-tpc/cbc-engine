@@ -7,6 +7,10 @@
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/reader.h"
 #include "function_handle.h"
+#include "interpreter/loggers.h"
+#include "resolution/resolution.h"
+#include "runtimesupport/adapters.h"
+#include "utils/assertion.h"
 
 namespace Interpretation {
 
@@ -36,6 +40,9 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
     auto i2Call = PrepareI2Call(session, methodDef);
     auto c2Call = PrepareC2Call(session, methodDef);
     auto fuh    = new DynamicFunctionHandle(i2Call, c2Call, methodDef);
+    if (fuh == nullptr) {
+        FATAL("out of memory");
+    }
     // FIXME: proper publication
     impl->fuhMap[methodDef] = fuh;
     return fuh;
@@ -61,12 +68,28 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, Dynam
         return bytecode;
     }
 
-    auto def      = Symlevel::MethodDefinition::Resolve(session, fuh->methodDef);
-    auto code     = Symlevel::Reader::Read(session, def.FileId(), def.GetCodeOffset());
-    auto resolver = API::Resolver::Create(session, def.GetIdentifier());
-    auto& heap    = session.GetEngine().CodeHeap();
+    auto& logger = Interpretation::Log::preparation;
 
-    auto bytecode = Cbc::Rewrite(code, *resolver, heap);
+    auto def  = Symlevel::MethodDefinition::Resolve(session, fuh->methodDef);
+    auto code = Symlevel::Reader::Read(session, def.FileId(), def.GetCodeOffset());
+
+    logger.Log(Logging::Level::INFO, [&session, fuh, &def](Stream::Output& out) {
+        auto name = std::string(Symlevel::Reader::Read(session, def.FileId(), def.NameOffset()));
+        // TODO: print signature
+        out.PrintFmt(
+            "{%p} Started preparation of method (%u;%u) %s",
+            fuh,
+            fuh->methodDef.GetFileId(),
+            fuh->methodDef.GetOffset(),
+            name.c_str()
+        );
+        out.NewLine();
+    });
+
+    Resolution::Resolver resolver(session, def.GetIdentifier());
+
+    auto& heap    = session.GetEngine().CodeHeap();
+    auto bytecode = Cbc::Rewrite(fuh, code, resolver, heap);
 
     fuh->bytecode.store(new ExecBytecodeInfo(bytecode));
 

@@ -39,14 +39,20 @@
     X(FUN32, B3xrrr, "$0fop.32 $1fr $3fr")                                                                             \
     X(FUN64, B3xrrr, "$0fop.64 $1fr $3fr")                                                                             \
     X(NEWOBJ, B3xi12, "newobj $0ir $1U12L")                                                                            \
-    X(LOAD_OBJ, B4xi12rr, "ld.$0ldk $2r:$0ldk [$3ir $1U12]")                                                           \
-    X(STORE_OBJ, B4xi12rr, "st.$0stk $2r:$0stk [$3ir $1U12]")                                                          \
+    X(LOAD_OBJ, B4xi12rr, "ld.$0ldk $2ir [$3ir $1U12]")                                                                \
+    X(STORE_OBJ, B4xi12rr, "st.$0stk $2ir [$3ir $1U12]")                                                               \
+    X(LOAD_OBJ_F, B4xi12rr, "ld.$0ldk $2fr [$3ir $1U12]")                                                              \
+    X(STORE_OBJ_F, B4xi12rr, "st.$0stk $2fr [$3ir $1U12]")                                                             \
     X(LOAD_ADDR, B2xr, "ld.addr.$0ldk")                                                                                \
     X(STORE_ADDR, B2xr, "st.addr.$0ldk")                                                                               \
-    X(LOAD_REC, B4xi12rr, "ld.rec.$0ldk $2r:$0ldk [$3ir $1U12]")                                                       \
-    X(STORE_REC, B4xi12rr, "st.rec.$0stk $2r:$0stk [$3ir $1U12]")                                                      \
-    X(LOAD_FRAME, B4xi12rr, "ld.frame.$0ldk $2r:$0ldk [$3ir $1U12]")                                                   \
-    X(STORE_FRAME, B4xi12rr, "st.frame.$0stk $2r:$0stk [$3ir $1U12]")                                                  \
+    X(LOAD_REC, B4xi12rr, "ld.rec.$0ldk $2ir [$3ir $1U12]")                                                            \
+    X(STORE_REC, B4xi12rr, "st.rec.$0stk $2ir [$3ir $1U12]")                                                           \
+    X(LOAD_FRAME, B4xi12rr, "ld.frame.$0ldk $2ir [$3ir $1U12]")                                                        \
+    X(STORE_FRAME, B4xi12rr, "st.frame.$0stk $2ir [$3ir $1U12]")                                                       \
+    X(LOAD_REC_F, B4xi12rr, "ld.rec.$0ldk $2fr [$3ir $1U12]")                                                          \
+    X(STORE_REC_F, B4xi12rr, "st.rec.$0stk $2fr [$3ir $1U12]")                                                         \
+    X(LOAD_FRAME_F, B4xi12rr, "ld.frame.$0ldk $2fr [$3ir $1U12]")                                                      \
+    X(STORE_FRAME_F, B4xi12rr, "st.frame.$0stk $2fr [$3ir $1U12]")                                                     \
     X(SCC32, B3xrrr, "scc.32 $0cc $1ir $2ir $3ir")                                                                     \
     X(SCC64, B3xrrr, "scc.64 $0cc $1ir $2ir $3ir")                                                                     \
     X(FSCC32, B3xrrr, "fscc.32 $0cc $1ir $2fr $3fr")                                                                   \
@@ -59,7 +65,8 @@
     X(DIRECT_CALL_2I, B3xi12, "direct.call.2i $1I12L")                                                                 \
     X(DIRECT_CALL_2C, B3xi12, "direct.call.2c $1I12L")                                                                 \
     X(VIRTUAL_CALL_2C, B5i16i16, "virtual.call.2c $0U16L $1U16L")                                                      \
-    X(MEMSPACE, B1, "memspace {")
+    X(MEMSPACE, B1, "memspace {")                                                                                      \
+    X(GC_POINT, B1, "gcpoint")
 
 // X parameters: opcode, encoding format, string format, is tail
 #define CBC_RT_MEMOPCODES(X)                                                                                           \
@@ -119,16 +126,16 @@
     X(FST_REF, M2rr, "fst.ref $0ir $1ir }", true)                                                                      \
     X(FST_F32, M2rr, "fst.f32 $0fr $1ir }", true)                                                                      \
     X(FST_F64, M2rr, "fst.f64 $0fr $1ir }", true)                                                                      \
-    X(FSTI_8_8, M2i8, "fsti.8.8 $0U8}", true)                                                                          \
-    X(FSTI_16_8, M2i8, "fsti.16.8 $0U8}", true)                                                                        \
-    X(FSTI_16_16, M3i16, "fsti.16.16 $0U16}", true)                                                                    \
-    X(FSTI_32_8, M2i8, "fsti.32.8 $0U8}", true)                                                                        \
-    X(FSTI_32_16, M3i16, "fsti.32.16 $0U16}", true)                                                                    \
-    X(FSTI_32_32, M5i32, "fsti.32.32 $0U32}", true)                                                                    \
-    X(FSTI_64_8, M2i8, "fsti.64.8 $0U8}", true)                                                                        \
-    X(FSTI_64_16, M3i16, "fsti.64.16 $0U16}", true)                                                                    \
-    X(FSTI_64_32, M5i32, "fsti.64.32 $0U32}", true)                                                                    \
-    X(FSTI_64_64, M9i64, "fsti.64.64 $0U64}", true)
+    X(FSTI_8_8, M2i8, "fsti.8.8 $0U8 }", true)                                                                         \
+    X(FSTI_16_8, M2i8, "fsti.16.8 $0U8 }", true)                                                                       \
+    X(FSTI_16_16, M3i16, "fsti.16.16 $0U16 }", true)                                                                   \
+    X(FSTI_32_8, M2i8, "fsti.32.8 $0U8 }", true)                                                                       \
+    X(FSTI_32_16, M3i16, "fsti.32.16 $0U16 }", true)                                                                   \
+    X(FSTI_32_32, M5i32, "fsti.32.32 $0U32 }", true)                                                                   \
+    X(FSTI_64_8, M2i8, "fsti.64.8 $0U8 }", true)                                                                       \
+    X(FSTI_64_16, M3i16, "fsti.64.16 $0U16 }", true)                                                                   \
+    X(FSTI_64_32, M5i32, "fsti.64.32 $0U32 }", true)                                                                   \
+    X(FSTI_64_64, M9i64, "fsti.64.64 $0U64 }", true)
 
 namespace Cbc {
 namespace RT {

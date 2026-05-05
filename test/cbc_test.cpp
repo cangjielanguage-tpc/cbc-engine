@@ -10,6 +10,7 @@
 #include "interpreter/code.h"
 #include "interpreter/function_handle.h"
 
+#include "interpreter/loggers.h"
 #include "mock/interpreter.h"
 #include "testutils.h"
 
@@ -23,7 +24,13 @@ static void DoSetUp()
 }
 
 class CbcTest : public testing::Test {
-    void SetUp() override { DoSetUp(); }
+    void SetUp() override
+    {
+        Interpretation::Log::preparation.SetLogLevel(Logging::Level::TRACE);
+        Cbc::EnableRawDisasm();
+        InitializeMockInterpreter();
+        heap.Reset();
+    }
 
     void TearDown() override {}
 };
@@ -139,6 +146,12 @@ TEST_ASM(CbcTest, FibRec)
     Interpretation::Frame frame { frameStart };
 
     auto res = Interpret(OpenAndRewrite("fib-rec", "fib-rec.asm")->code, frame, U32(0), U32(0));
+    ASSERT_EQ(res.u32, 13);
+}
+
+TEST_ASM(CbcTest, FibRecRegs)
+{
+    auto res = Interpret(OpenAndRewrite("fib-rec-regs", "fib-rec-regs.asm")->code, U32(0), U32(0));
     ASSERT_EQ(res.u32, 13);
 }
 

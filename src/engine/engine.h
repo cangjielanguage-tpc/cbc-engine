@@ -35,7 +35,7 @@ public:
     std::optional<Identifier<MethodDefinition>> FindMethod(
         Session& session, std::string_view filePath, std::string_view typeName, std::string_view methodName
     );
-    std::optional<TypeDefinition> FindType(Session& session, std::string_view typeName);
+    std::optional<Identifier<TypeDefinition>> FindType(Session& session, std::string_view typeName);
 
 private:
     Engine(std::unique_ptr<Impl>&& impl);
@@ -52,6 +52,7 @@ class Session {
 public:
     std::unique_ptr<IO::RandomAccessFile>& FileOf(IO::FileId fileId) const;
     Symlevel::CbcFile& CbcFileOf(IO::FileId fileId) const;
+    std::tuple<Symlevel::CbcFile&, IO::RandomAccessFile&> File(IO::FileId fileId) const;
 
     Session(Engine& engine) : engine(engine), arena() {}
 

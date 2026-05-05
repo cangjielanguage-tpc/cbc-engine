@@ -56,6 +56,7 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
 
     auto typeIndexOffset = reader.ReadU32();
     auto poolOffset      = reader.ReadU32();
+    IO::StreamFileReader typeIndexReader(file, typeIndexOffset);
 
     auto directCallAotTableOffset    = reader.ReadU32();
     auto virtualCallAotTableOffset   = reader.ReadU32();
@@ -78,7 +79,7 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
 
     CbcFile::Impl impl {
         .versionMetadata       = versionMetadata,
-        .typeIndex             = TypeIndex::Read(fileId, file, typeIndexOffset),
+        .typeIndex             = TypeIndex::Read(typeIndexReader, fileId),
         .regionData            = RegionData::Read(fileId, file, regionOffset),
         .directCallAotTable    = DirectCallAotTable::Read(fileId, file, directCallAotTableOffset),
         .virtualCallAotTable   = VirtualCallAotTable::Read(fileId, file, virtualCallAotTableOffset),

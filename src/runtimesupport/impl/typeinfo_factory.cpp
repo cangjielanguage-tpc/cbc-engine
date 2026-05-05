@@ -5,7 +5,7 @@
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/method_table.h"
 #include "engine/symlevel/reader.h"
-#include "engine/symlevel/terms.h"
+#include "engine/terms.h"
 #include "interpreter/function_handle.h"
 #include "runtimesupport/adapters.h"
 #include "runtimesupport/impl/cjnative.h"
@@ -78,17 +78,20 @@ struct TypeInfoBuilder {
 
     CbcTypeInfo* typeInfo;
 
+    bool built = false;
+
     TypeInfoBuilder(CbcTypeInfo* typeInfo) : typeInfo(typeInfo), gctib({ .raw = (1lu << 63) }) {}
 
     DYN_TypeInfoT* Build()
     {
-        auto typeInfo = std::exchange(this->typeInfo, nullptr);
+        auto typeInfo = this->typeInfo;
         auto result   = &typeInfo->base;
 
-        result->typeInfoName = std::exchange(this->name, nullptr);
+        result->typeInfoName = name;
         result->type         = type;
         result->flag         = flag;
         result->fieldNum     = fieldNum;
+
         if (instanceSize != -1) {
             result->instanceSize = instanceSize;
         } else if (componentSize != -1) {
@@ -96,48 +99,52 @@ struct TypeInfoBuilder {
         } else {
             ASSERTION(false, "neither of instance or component size was set");
         }
-        result->gctib           = std::exchange(gctib, {}); // FIXME
+
+        result->gctib           = gctib;
         result->uuid            = uuid;
         result->align           = align;
         result->typeArgsNum     = typeArgsNum;
         result->validInheritNum = validInheritNum;
-        result->fieldOffsets    = std::exchange(fieldOffsets, nullptr);
+        result->fieldOffsets    = fieldOffsets;
         result->finalizerMethod = finalizerMethod;
-        result->typeArgs        = std::exchange(typeArgs, nullptr);
-        result->fields          = std::exchange(fields, nullptr);
+        result->typeArgs        = typeArgs;
+        result->fields          = fields;
+
         if (superTypeInfo) {
-            result->superTypeInfo = std::exchange(superTypeInfo, nullptr);
+            result->superTypeInfo = superTypeInfo;
         } else if (componentTypeInfo) {
-            result->componentTypeInfo = std::exchange(componentTypeInfo, nullptr);
+            result->componentTypeInfo = componentTypeInfo;
         } else {
             ASSERTION(false, "neither of super type TI or component TI was set");
         }
 
-        result->vExtensionDataStart = std::exchange(extDefs, nullptr);
-        flatExtDefs                 = nullptr;
-        result->mTableDesc          = std::exchange(mtableDesc, nullptr);
-        result->reflectOrDebugInfo  = std::exchange(reflectOrDebugInfo, nullptr);
+        result->vExtensionDataStart = extDefs;
+        result->mTableDesc          = mtableDesc;
+        result->reflectOrDebugInfo  = reflectOrDebugInfo;
         typeInfo->dataMT            = dataMT;
 
+        built = true;
         return result;
     }
 
     ~TypeInfoBuilder()
     {
-        // free is no-op on nulls.
-        std::free(fieldOffsets);
-        std::free(name);
-        std::free(typeArgs);
-        std::free(fields);
-        std::free(superTypeInfo);
-        std::free(componentTypeInfo);
-        std::free(mtableDesc);
-        std::free(reflectOrDebugInfo);
-        std::free(dataMT);
-        std::free(flatExtDefs);
-        std::free(extDefs);
-        std::free(flatMethods);
-        std::free(typeInfo);
+        if (!built) {
+            // free is no-op on nulls.
+            std::free(fieldOffsets);
+            std::free(name);
+            std::free(typeArgs);
+            std::free(fields);
+            std::free(superTypeInfo);
+            std::free(componentTypeInfo);
+            std::free(mtableDesc);
+            std::free(reflectOrDebugInfo);
+            std::free(dataMT);
+            std::free(flatExtDefs);
+            std::free(extDefs);
+            std::free(flatMethods);
+            std::free(typeInfo);
+        }
     }
 };
 
@@ -150,11 +157,11 @@ static DYN_FuncPtrT GetFunctionOrTrampoline(
 }
 
 static std::optional<TypeInfo> CreateTypeInfoDyn(
-    Engine::Session& session, Engine::TypeInfoManager& manager, Symlevel::GlobalTerm term
+    Engine::Session& session, Engine::TypeInfoManager& manager, Engine::GlobalTerm term
 )
 {
     auto termIdent = term.GetIdentifier();
-    ASSERT(termIdent.GetKind() == Symlevel::TemplateKind::TYPE);
+    ASSERT(termIdent.GetKind() == Engine::TemplateKind::TYPE);
 
     auto ident = termIdent.AsTypeIdent();
     auto file  = ident.GetFile();
@@ -169,8 +176,8 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
     TypeInfoBuilder builder(currentTypeInfo);
 
-    auto queryTypeInfo =
-        [&session, &manager, term, currentTypeInfo](Symlevel::Term t) -> std::optional<RTSupport::TypeInfo> {
+    auto queryTypeInfo = [&session, &manager, term, currentTypeInfo](Engine::Term t
+                         ) -> std::optional<RTSupport::TypeInfo> {
         if (t == term) {
             return TypeInfo(&currentTypeInfo->base);
         }
@@ -216,7 +223,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
         // fill out flat methods table and data method table
         int entryIdx = 0;
-        for (auto it = mt.EntriesIter(); it.HasNext(), entryIdx++;) {
+        for (auto it = mt.EntriesIter(); it.HasNext(); entryIdx++) {
             auto entry                    = it.Next();
             builder.dataMT[entryIdx]      = fuhManager.Acquire(session, entry);
             builder.flatMethods[entryIdx] = GetFunctionOrTrampoline(session, entry, entryIdx);
@@ -282,10 +289,10 @@ static std::optional<TypeInfo> QueryTypeInfoAOTByName(char const* str)
     }
 }
 
-static std::optional<TypeInfo> QueryTypeInfoAOT(Engine::Session& session, Symlevel::GlobalTerm term)
+static std::optional<TypeInfo> QueryTypeInfoAOT(Engine::Session& session, Engine::GlobalTerm term)
 {
     auto termIdent = term.GetIdentifier();
-    ASSERT(termIdent.GetKind() == Symlevel::TemplateKind::AOT_TYPE);
+    ASSERT(termIdent.GetKind() == Engine::TemplateKind::AOT_TYPE);
 
     auto ident    = termIdent.AsAotIdent();
     auto typeName = std::string(Symlevel::Reader::Read(session, ident.GetFile(), ident.GetOffset()));
@@ -298,26 +305,26 @@ static std::optional<TypeInfo> QueryTypeInfoAOT(Engine::Session& session, Symlev
 }
 
 std::optional<TypeInfo> CreateTypeInfo(
-    Engine::Session& session, Engine::TypeInfoManager& manager, Symlevel::GlobalTerm term
+    Engine::Session& session, Engine::TypeInfoManager& manager, Engine::GlobalTerm term
 )
 {
     auto termIdent = term.GetIdentifier();
     switch (termIdent.GetKind()) {
-        case Symlevel::TemplateKind::AOT_TYPE: return QueryTypeInfoAOT(session, term);
-        case Symlevel::TemplateKind::TYPE:     return CreateTypeInfoDyn(session, manager, term);
+        case Engine::TemplateKind::AOT_TYPE: return QueryTypeInfoAOT(session, term);
+        case Engine::TemplateKind::TYPE:     return CreateTypeInfoDyn(session, manager, term);
 
-        case Symlevel::TemplateKind::BOOLEAN: return QueryTypeInfoAOTByName("Bool");
-        case Symlevel::TemplateKind::U8:      return QueryTypeInfoAOTByName("UInt8");
-        case Symlevel::TemplateKind::I8:      return QueryTypeInfoAOTByName("Int8");
-        case Symlevel::TemplateKind::U16:     return QueryTypeInfoAOTByName("UInt16");
-        case Symlevel::TemplateKind::I16:     return QueryTypeInfoAOTByName("Int16");
-        case Symlevel::TemplateKind::U32:     return QueryTypeInfoAOTByName("UInt32");
-        case Symlevel::TemplateKind::I32:     return QueryTypeInfoAOTByName("Int32");
-        case Symlevel::TemplateKind::U64:     return QueryTypeInfoAOTByName("UInt64");
-        case Symlevel::TemplateKind::I64:     return QueryTypeInfoAOTByName("Int64");
-        case Symlevel::TemplateKind::F16:     return QueryTypeInfoAOTByName("Float16");
-        case Symlevel::TemplateKind::F32:     return QueryTypeInfoAOTByName("Float32");
-        case Symlevel::TemplateKind::F64:     return QueryTypeInfoAOTByName("Float64");
+        case Engine::TemplateKind::BOOLEAN: return QueryTypeInfoAOTByName("Bool");
+        case Engine::TemplateKind::U8:      return QueryTypeInfoAOTByName("UInt8");
+        case Engine::TemplateKind::I8:      return QueryTypeInfoAOTByName("Int8");
+        case Engine::TemplateKind::U16:     return QueryTypeInfoAOTByName("UInt16");
+        case Engine::TemplateKind::I16:     return QueryTypeInfoAOTByName("Int16");
+        case Engine::TemplateKind::U32:     return QueryTypeInfoAOTByName("UInt32");
+        case Engine::TemplateKind::I32:     return QueryTypeInfoAOTByName("Int32");
+        case Engine::TemplateKind::U64:     return QueryTypeInfoAOTByName("UInt64");
+        case Engine::TemplateKind::I64:     return QueryTypeInfoAOTByName("Int64");
+        case Engine::TemplateKind::F16:     return QueryTypeInfoAOTByName("Float16");
+        case Engine::TemplateKind::F32:     return QueryTypeInfoAOTByName("Float32");
+        case Engine::TemplateKind::F64:     return QueryTypeInfoAOTByName("Float64");
 
         default: {
             FATAL("Not supported yet %d", termIdent.GetKind());

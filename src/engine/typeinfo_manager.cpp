@@ -1,6 +1,6 @@
 #include "typeinfo_manager.h"
 #include "engine/engine.h"
-#include "engine/symlevel/terms.h"
+#include "engine/terms.h"
 #include "runtimesupport/runtime.h"
 #include "runtimesupport/typeinfo_factory.h"
 #include <mutex>
@@ -18,11 +18,11 @@ struct Pending {};
 using ResolutionState = std::variant<TypeInfo, Failed, Pending>;
 
 struct TermHasher {
-    uint64_t operator()(Symlevel::GlobalTerm const& term) const { return term.Hash(); }
+    uint64_t operator()(GlobalTerm const& term) const { return term.Hash(); }
 };
 
 struct BasicTypeInfoManager : public TypeInfoManager {
-    std::optional<RTSupport::TypeInfo> AcquireTypeInfo(Session& session, Symlevel::GlobalTerm term) override
+    std::optional<RTSupport::TypeInfo> AcquireTypeInfo(Session& session, GlobalTerm term) override
     {
         auto it = storage.find(term);
         if (storage.end() != it) {
@@ -51,11 +51,11 @@ struct BasicTypeInfoManager : public TypeInfoManager {
     }
 
 protected:
-    std::unordered_map<Symlevel::GlobalTerm, ResolutionState, TermHasher> storage;
+    std::unordered_map<GlobalTerm, ResolutionState, TermHasher> storage;
 };
 
 struct LockedTypeInfoManager : public TypeInfoManager {
-    std::optional<RTSupport::TypeInfo> AcquireTypeInfo(Session& session, Symlevel::GlobalTerm term) override
+    std::optional<RTSupport::TypeInfo> AcquireTypeInfo(Session& session, GlobalTerm term) override
     {
         std::lock_guard guard(lock);
         return unsafe.AcquireTypeInfo(session, term);
@@ -70,9 +70,9 @@ private:
 
 std::unique_ptr<TypeInfoManager> TypeInfoManager::NewInstance() { return std::make_unique<LockedTypeInfoManager>(); }
 
-std::optional<RTSupport::TypeInfo> TypeInfoManager::AcquireTypeInfo(Session& session, Symlevel::Term& term)
+std::optional<RTSupport::TypeInfo> TypeInfoManager::AcquireTypeInfo(Session& session, Term& term)
 {
-    auto gterm = Symlevel::TermManager::Of(session).Globalize(term);
+    auto gterm = TermManager::Of(session).Globalize(term);
     return AcquireTypeInfo(session, gterm);
 }
 

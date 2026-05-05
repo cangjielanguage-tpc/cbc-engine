@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <variant>
@@ -8,6 +9,7 @@
 #include "code.h"
 #include "engine/engine.h"
 #include "engine/identifiers.h"
+#include "engine/terms.h"
 
 namespace API {
 class Resolver;

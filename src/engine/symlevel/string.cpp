@@ -12,4 +12,9 @@ String String::Parse(Engine::Session& session, IO::FileId fileId, Offset<String>
     return String(std::string_view(mem, size));
 }
 
+String String::Parse(Engine::Session& session, Engine::Identifier<String> ident)
+{
+    return Parse(session, ident.GetFileId(), ident.GetOffset());
+}
+
 } // namespace Symlevel

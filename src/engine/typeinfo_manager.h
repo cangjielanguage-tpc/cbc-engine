@@ -1,7 +1,7 @@
 #pragma once
 
 #include "engine/engine.h"
-#include "engine/symlevel/terms.h"
+#include "engine/terms.h"
 #include "runtimesupport/runtime.h"
 #include <memory>
 
@@ -21,8 +21,8 @@ struct TypeInfoManager {
 
     virtual ~TypeInfoManager() = default;
 
-    std::optional<RTSupport::TypeInfo> AcquireTypeInfo(Session& session, Symlevel::Term& term);
-    virtual std::optional<RTSupport::TypeInfo> AcquireTypeInfo(Session& session, Symlevel::GlobalTerm term) = 0;
+    std::optional<RTSupport::TypeInfo> AcquireTypeInfo(Session& session, Term& term);
+    virtual std::optional<RTSupport::TypeInfo> AcquireTypeInfo(Session& session, GlobalTerm term) = 0;
 };
 
 } // namespace Engine

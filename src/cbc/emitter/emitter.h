@@ -163,6 +163,8 @@ public:
 
     void Convert(ConvertType toType, ConvertType fromType, Reg to, Reg from);
 
+    void GcPoint();
+
     void DirectCall2i(Symbol fuh);
     void DirectCall2c(Symbol target);
 

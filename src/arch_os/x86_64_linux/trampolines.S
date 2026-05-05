@@ -19,6 +19,7 @@ declare_hidden engine_iregs_only_c2i_call
 declare_hidden engine_i2i_call
 declare_hidden engine_i2c_call
 declare_hidden engine_i2_newobject
+declare_hidden engine_i2_gcpoint
 declare_hidden engine_universal_direct_function_handles
 declare_hidden engine_newobject_function
 
@@ -87,6 +88,7 @@ engine_trampolines_dyn_start:
 
 #define TLS_REG r15
 #define ECTYPE_REG rbx
+#define LITERALS_REG r14
 
 .align 16
 // System-V abi, except r15 can be changed after context-switches
@@ -177,6 +179,12 @@ engine_i2_newobject:
   mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8 + rdi], rax
   jmp   .Lrestart_interpretation
 
+// expects: (ECTYPE_REG: ectype, rdi: safe_point_f)
+.align 16
+engine_i2_gcpoint:
+  call rdi
+  jmp  .Lrestart_interpretation
+
 
 .align 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: fuh)
@@ -185,10 +193,10 @@ perform_2i_call:
   push  rbp
   mov   rbp, rsp
   push  rdi // rbp - 0x8 : FunctionHandle for frame scanning
-  push  rdi // rbp - 0x10 : location for frame base
+  push  ECTYPE_REG // rbp - 0x10
+  push  LITERALS_REG // rbp - 0x18
 
-.set FRAME_BASE_SLOT, 0x10
-.set SLOT_OFFS,   FRAME_BASE_SLOT
+.set SLOT_OFFS,   0x18
 .set OFFS_ADDEND, 0x0
 
 .macro declare_slot var, size
@@ -202,8 +210,8 @@ perform_2i_call:
   declare_slot READER_SLOT, 0x8
 #endif
 
-// align stack
-  .if OFFS_ADDEND % 0x10 != 0
+  // align stack
+  .if (SLOT_OFFS + OFFS_ADDEND) % 0x10 != 0
     .set OFFS_ADDEND, OFFS_ADDEND + 0x8
   .endif
   sub   rsp, OFFS_ADDEND
@@ -226,7 +234,6 @@ perform_2i_call:
   call  engine_prepare_bytecode
 .Lhave_bytecode:
 
-#define LITERALS_REG r14
   mov   LITERALS_REG, [rax + EXEC_BYTECODE_INFO_LITERALS_OFFSET]
   mov   rsi, [rax + EXEC_BYTECODE_INFO_BYTECODE_OFFSET]
 #ifndef NDEBUG
@@ -237,9 +244,49 @@ perform_2i_call:
 #endif
   mov   [rbp - READER_SLOT], rsi
 
+#ifndef NDEBUG
+  mov   rdi, [rbp - 0x8]
+  mov   rsi, ECTYPE_REG
+  call  engine_log_int_start
+#endif
+
+  mov   rdx, rsp // save current sp for registers saving to the bottom of frame
+
+  mov   rax, [rbp - 0x8] // load Function Handle
+  mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
+
   // current rsp is 16-byte aligned
   mov   r8d, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   sub   rsp, r8
+
+.macro PUSH_IREGS mask_reg, stack_reg, exec_info_reg
+    movzx   \mask_reg, WORD PTR [\exec_info_reg + EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
+    .irp reg, 8,9,10,11,12,13
+        .set _bit, (\reg - 8)
+        test    \mask_reg, (1 << _bit)
+        jz      saveireg\reg
+        mov     rsi, QWORD PTR [ECTYPE_REG + ECTYPE_IREGS_OFFSET + \reg*8]
+        sub     \stack_reg, 8
+        mov     QWORD PTR [\stack_reg], rsi
+saveireg\reg:
+    .endr
+.endm
+
+.macro PUSH_FREGS mask_reg, stack_reg, exec_info_reg
+    movzx   \mask_reg, WORD PTR [\exec_info_reg + EXEC_BYTECODE_INFO_SAVED_FREGS_OFFSET]
+    .irp reg, 8,9,10,11,12,13,14,15
+        .set _bit, (\reg - 8)
+        test    \mask_reg, (1 << _bit)
+        jz      savefreg\reg
+        mov     rsi, QWORD PTR [ECTYPE_REG + ECTYPE_FREGS_OFFSET + \reg*8]
+        sub     \stack_reg, 8
+        mov     QWORD PTR [\stack_reg], rsi
+savefreg\reg:
+    .endr
+.endm
+
+  PUSH_IREGS ecx, rdx, rax
+  PUSH_FREGS ecx, rdx, rax
 
 .Lrestart_interpretation:
   mov   rdi, ECTYPE_REG
@@ -260,6 +307,51 @@ perform_2i_call:
   jmp   rax
 
 .Lend_interpretation:
+
+#ifndef NDEBUG
+  mov   rdi, [rbp - 0x8]
+  mov   rsi, ECTYPE_REG
+  call  engine_log_int_end
+#endif
+
+  mov   rax, [rbp - 0x8] // load Function Handle
+  mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
+
+  mov   edx, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
+  add   rdx, rsp // add frame size to locate saved registers
+
+.macro POP_IREGS mask_reg, stack_reg, exec_info_reg
+    movzx   \mask_reg, WORD PTR [\exec_info_reg + EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
+    .irp reg, 8,9,10,11,12,13
+        .set _bit, (\reg - 8)
+        test    \mask_reg, (1 << _bit)
+        jz      loadireg\reg
+        sub     \stack_reg, 8
+        mov     rsi, QWORD PTR [\stack_reg]
+        mov     QWORD PTR [ECTYPE_REG + ECTYPE_IREGS_OFFSET + \reg*8], rsi
+loadireg\reg:
+    .endr
+.endm
+
+.macro POP_FREGS mask_reg, stack_reg, exec_info_reg
+    movzx   \mask_reg, WORD PTR [\exec_info_reg + EXEC_BYTECODE_INFO_SAVED_FREGS_OFFSET]
+    .irp reg, 8,9,10,11,12,13,14,15
+        .set _bit, (\reg - 8)
+        test    \mask_reg, (1 << _bit)
+        jz      loadfreg\reg
+        sub     \stack_reg, 8
+        mov     rsi, QWORD PTR [\stack_reg]
+        mov     QWORD PTR [ECTYPE_REG + ECTYPE_FREGS_OFFSET + \reg*8], rsi
+loadfreg\reg:
+    .endr
+.endm
+
+  POP_IREGS ecx, rdx, rax
+  POP_FREGS ecx, rdx, rax
+
+  mov   LITERALS_REG, [rbp - 0x18]
+  mov   ECTYPE_REG, [rbp - 0x10]
+
   mov   rsp, rbp
   pop   rbp
   ret

@@ -15,7 +15,11 @@ Descripted Disasm::rt(cerr, "[dis-rt] ");
 
 void Output::Flush() const {}
 
-void Output::NewLine() { Print("\n"); }
+void Output::NewLine()
+{
+    Print("\n");
+    Flush();
+}
 
 void Output::PrintFmt(const char* fmt, ...)
 {

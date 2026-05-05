@@ -1,7 +1,6 @@
 #ifndef TESTUTILS_H
 #define TESTUTILS_H
 
-#include "api/resolver.h"
 #include "engine/symlevel/io/random_access_file.h"
 #include "utils/heap.h"
 #include <memory>
@@ -32,8 +31,6 @@ public:
 
     ~LimitedHeap() override {}
 };
-
-std::unique_ptr<API::Resolver> MockResolver();
 
 bool CheckForAssembler();
 std::unique_ptr<IO::RandomAccessFile> OpenAsm(std::string file_name);

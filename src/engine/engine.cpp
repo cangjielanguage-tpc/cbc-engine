@@ -1,6 +1,6 @@
 #include "engine.h"
 #include "engine/symlevel/method_table.h"
-#include "engine/symlevel/terms.h"
+#include "engine/terms.h"
 #include "engine/typeinfo_manager.h"
 #include "interpreter/function_handle.h"
 #include "symlevel/cbc_file.h"
@@ -66,6 +66,11 @@ CbcFile& Session::CbcFileOf(IO::FileId fileId) const
     return engine.impl->files.at(fileId);
 }
 
+std::tuple<Symlevel::CbcFile&, IO::RandomAccessFile&> Session::File(IO::FileId fileId) const
+{
+    return { engine.impl->files.at(fileId), *engine.impl->rafs.at(fileId) };
+}
+
 Arena& Session::Allocator() { return arena; }
 
 Loader::Loader() : loader(std::move(std::make_unique<Loader::Impl>())) {}
@@ -120,7 +125,7 @@ std::optional<CbcFile*> Engine::Impl::FindCbcFile(std::string_view filePath)
     return std::nullopt;
 }
 
-std::optional<TypeDefinition> Engine::FindType(Session& session, std::string_view typeName)
+std::optional<Identifier<TypeDefinition>> Engine::FindType(Session& session, std::string_view typeName)
 {
     for (auto& file : impl->files) {
         auto res = file.GetTypeIndex().FindType(session, typeName);
@@ -140,13 +145,14 @@ std::optional<Identifier<MethodDefinition>> Engine::FindMain(Session& session, s
     }
     auto f        = file.value();
     auto declType = f->GetTypeIndex().FindType(session, std::string_view("default"));
-    if (declType) {
-        const auto& methodIndex = (*declType).GetMethodIndex();
+    if (declType.has_value()) {
+        auto type               = Symlevel::TypeDefinition::Resolve(session, declType.value());
+        const auto& methodIndex = type.GetMethodIndex();
         auto methods            = methodIndex.FindMethods(session, std::string_view("main"));
 
         // TODO: throw?
         ASSERTION(methods.size() == 1, "unexpected \"main\" method count");
-        return methods[0].GetIdentifier();
+        return methods[0];
     }
     return std::nullopt;
 }
@@ -161,10 +167,12 @@ std::optional<Identifier<MethodDefinition>> Engine::FindMethod(
     }
     auto f        = file.value();
     auto declType = f->GetTypeIndex().FindType(session, typeName);
-    if (declType) {
-        const auto& methodIndex = (*declType).GetMethodIndex();
+    if (declType.has_value()) {
+        auto type               = Symlevel::TypeDefinition::Resolve(session, declType.value());
+        const auto& methodIndex = type.GetMethodIndex();
         auto methods            = methodIndex.FindMethods(session, methodName);
-        return methods[0].GetIdentifier();
+        ASSERTION(methods.size() == 1, "unexpected \"main\" method count");
+        return methods[0];
     }
     return std::nullopt;
 }
@@ -201,13 +209,13 @@ MethodTableManager& MethodTableManager::Of(Engine::Session& session)
     return MethodTableManager::Of(session.GetEngine());
 }
 
-TermManager& TermManager::Of(Engine::Engine& engine) { return EngineImpl::Of(engine).termManager; }
-
-TermManager& TermManager::Of(Engine::Session& session) { return TermManager::Of(session.GetEngine()); }
-
 } // namespace Symlevel
 
 namespace Engine {
+
+TermManager& TermManager::Of(Engine& engine) { return EngineImpl::Of(engine).termManager; }
+
+TermManager& TermManager::Of(Session& session) { return TermManager::Of(session.GetEngine()); }
 
 TypeInfoManager& TypeInfoManager::Of(Engine& engine) { return *EngineImpl::Of(engine).typeInfoManager; }
 

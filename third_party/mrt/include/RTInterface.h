@@ -48,7 +48,7 @@ typedef const void *DYN_FramePointerT;
 
 // This is alias for instruction pointer. CJNative runtime should pass this pointer to `DYN_FrameInfoProviderFn` function.
 // Interpreter would return description of corresponding frame (e.g. fileName, lineNumber).
-typedef const void *DYN_InstructionPointerT; 
+typedef const void *DYN_InstructionPointerT;
 
 // Visitor of interpreter pointer placeholders.
 // Interpreter cannot use this data directly but should pass it to the callbacks defined in `DYN_CJNativeInterfaceT`.
@@ -116,7 +116,7 @@ struct DYN_CJNativeInterfaceT;
 // - interpreterInterface - Pointer to `DYN_InterpreterInterfaceT` which will be filled.
 // - cjnativeInterface - Pointer to `DYN_CJNativeInterfaceT`. The content will be copied.
 // - interpreterArgsCount - Number of interpreter arguments in `interpreterArgs`.
-// - interpreterArgs - Interpreter arguments array (null-terminated). 
+// - interpreterArgs - Interpreter arguments array (null-terminated).
 //                     Pointer is owned by runtime and will not be freed.
 // return: 0 on success.
 //
@@ -445,7 +445,7 @@ typedef void (*DYN_WriteStaticFieldFn)(DYN_FieldRefT destination, DYN_ObjRefT ne
 // params:
 // - source - object that contains instance field
 // - field - pointer to instance reference field
-// 
+//
 // return: object reference stored in the field
 //
 // Notes:

@@ -81,9 +81,8 @@ public:
 
     int32_t Size() const override { return 2; }
 
-    void Resolve(
-        Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter
-    ) const override
+    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+        const override
     {
         ASSERT(position >= 0);
         Segment::View buf = segment.At(static_cast<size_t>(position));
@@ -99,9 +98,8 @@ public:
 
     int32_t Size() const override { return 2; }
 
-    void Resolve(
-        Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter
-    ) const override
+    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+        const override
     {
         ASSERT(position >= 0);
         Segment::View buf = segment.At(static_cast<size_t>(position));
@@ -124,9 +122,8 @@ public:
 
     int32_t Size() const override { return RT::B5i32::SIZE; }
 
-    void Resolve(
-        Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter
-    ) const override
+    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+        const override
     {
         int32_t distance = Distance(symbols, this->symbol);
 
@@ -160,9 +157,8 @@ public:
         }
     }
 
-    void Resolve(
-        Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter
-    ) const override
+    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+        const override
     {
         int32_t distance = Distance(symbols, this->symbol);
 
@@ -215,9 +211,8 @@ public:
         }
     }
 
-    void Resolve(
-        Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter
-    ) const override
+    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+        const override
     {
         int32_t distance = Distance(symbols, this->symbol);
 
@@ -510,8 +505,9 @@ void Emitter::StoreStatic(StoreAccessKind sdk, Reg src, Symbol offSym)
 void Emitter::LoadObj(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset)
 {
     if (MathUtils::IsNBits(offset, 12)) {
+        auto opc = ldk.IsFloat() ? RT::Opcode::LOAD_OBJ : RT::Opcode::LOAD_OBJ_F;
         Encode(segment, RT::B4xi12rr {
-            .opc = RT::Opcode::LOAD_OBJ,
+            .opc = opc,
             .xi12 = {
                 .imm4 = Imm4(ldk),
                 .imm12 = static_cast<uint16_t>(offset),
@@ -531,8 +527,9 @@ void Emitter::LoadObj(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset)
 void Emitter::StoreObj(StoreAccessKind stk, Reg src, IReg base, uint32_t offset)
 {
     if (MathUtils::IsNBits(offset, 12)) {
+        auto opc = stk.IsFloat() ? RT::Opcode::STORE_OBJ : RT::Opcode::STORE_OBJ_F;
         Encode(segment, RT::B4xi12rr {
-            .opc = RT::Opcode::STORE_OBJ,
+            .opc = opc,
             .xi12 = {
                 .imm4 = Imm4(stk),
                 .imm12 = static_cast<uint16_t>(offset),
@@ -552,7 +549,8 @@ void Emitter::StoreObj(StoreAccessKind stk, Reg src, IReg base, uint32_t offset)
 void Emitter::LoadRec(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset)
 {
     if (MathUtils::IsNBits(offset, 12)) {
-        LoadStore(ldk, dst, base, offset, RT::Opcode::LOAD_REC);
+        auto opc = ldk.IsFloat() ? RT::Opcode::LOAD_REC : RT::Opcode::LOAD_REC_F;
+        LoadStore(ldk, dst, base, offset, opc);
     } else {
         auto ms = OpenMemSpace();
         ms.Offset(offset);
@@ -563,7 +561,8 @@ void Emitter::LoadRec(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset)
 void Emitter::StoreRec(StoreAccessKind stk, Reg src, IReg base, uint32_t offset)
 {
     if (MathUtils::IsNBits(offset, 12)) {
-        LoadStore(stk, src, base, offset, RT::Opcode::STORE_REC);
+        auto opc = stk.IsFloat() ? RT::Opcode::STORE_REC : RT::Opcode::STORE_REC_F;
+        LoadStore(stk, src, base, offset, opc);
     } else {
         auto ms = OpenMemSpace();
         ms.Offset(offset);
@@ -574,6 +573,7 @@ void Emitter::StoreRec(StoreAccessKind stk, Reg src, IReg base, uint32_t offset)
 void Emitter::LoadFrame(LoadAccessKind ldk, Reg dst, uint32_t offset)
 {
     if (MathUtils::IsNBits(offset, 12)) {
+        auto opc = ldk.IsFloat() ? RT::Opcode::LOAD_FRAME : RT::Opcode::LOAD_FRAME_F;
         LoadStore(ldk, dst, IReg::IRZ, offset, RT::Opcode::LOAD_FRAME);
     } else {
         auto ms = OpenMemSpace();
@@ -585,7 +585,8 @@ void Emitter::LoadFrame(LoadAccessKind ldk, Reg dst, uint32_t offset)
 void Emitter::StoreFrame(StoreAccessKind stk, Reg src, uint32_t offset)
 {
     if (MathUtils::IsNBits(offset, 12)) {
-        LoadStore(stk, src, IReg::IRZ, offset, RT::Opcode::STORE_FRAME);
+        auto opc = stk.IsFloat() ? RT::Opcode::STORE_FRAME : RT::Opcode::STORE_FRAME_F;
+        LoadStore(stk, src, IReg::IRZ, offset, opc);
     } else {
         auto ms = OpenMemSpace();
         ms.Offset(offset);
@@ -681,6 +682,16 @@ void Emitter::Convert(ConvertType toType, ConvertType fromType, Reg to, Reg from
             .y = from,
         },
     });
+}
+
+void Emitter::GcPoint()
+{
+    Encode(
+        segment,
+        RT::B1 {
+            .opc = RT::Opcode::GC_POINT,
+        }
+    );
 }
 
 void Emitter::DirectCall2i(Symbol fuh)

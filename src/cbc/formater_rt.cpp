@@ -1,8 +1,5 @@
-#include <cmath>
-#include <memory>
-
-#include "cbc/isa.h"
 #include "formater_rt.h"
+#include "cbc/isa.h"
 #include "utils/math.h"
 #include "utils/ostream.h"
 
@@ -114,7 +111,7 @@ private:
 
     void Write(FReg fr) { stream << "FR" << fr.Raw(); }
 
-    void Write(uint64_t v) { stream << v; }
+    void Write(uint64_t v) { stream.PrintFmt("0x%X", v); }
 
     void Write(int64_t v) { stream << v; }
 
@@ -147,38 +144,8 @@ private:
         size_t typeDescEnd    = newCursor;
         size_t typeDescStart  = start + 1;
         std::string_view type = formatString.substr(typeDescStart, typeDescEnd - typeDescStart);
-        if (auto sepId = type.find(':'); sepId != std::string_view::npos) {
-            FormatArgWithSeparator(type, argIdx, sepId);
-        } else {
-            FormatArgWithoutSeparator(type, argIdx);
-        }
+        FormatArgWithoutSeparator(type, argIdx);
         cursor = newCursor;
-    }
-
-    void FormatArgWithSeparator(std::string_view type, int argIdx, size_t sepId)
-    {
-        // Separator found.
-        // This operand is needed for proper register kind formatting, which depends on ldk/stk)
-        ASSERT(sepId + 3 < type.size());
-        auto rightArgIdx = GetArgIdx(type, sepId + 2);
-        ASSERT(argIdx < operandCount);
-        ASSERT(rightArgIdx < operandCount);
-        auto leftType     = type.substr(0, sepId);
-        auto rightType    = type.substr(sepId + 3, std::string_view::npos);
-        auto leftOperand  = operands[argIdx];
-        auto rightOperand = operands[rightArgIdx];
-
-        if (leftType == "r") {
-            bool isFloat =
-                leftType == "ldk" && leftOperand.Ldk().IsFloat() || rightType == "stk" && rightOperand.Stk().IsFloat();
-            if (isFloat) {
-                Write(leftOperand.FR());
-            } else {
-                Write(leftOperand.IR());
-            }
-        } else {
-            FATAL("unexpected format type");
-        }
     }
 
     void FormatArgWithoutSeparator(std::string_view type, int argIdx)
@@ -436,16 +403,13 @@ void Log(Interpretation::Code code, Stream::Output& stream)
     auto end      = bytecode + code.bytecodeSize;
     auto table    = code.literals;
 
-    auto log10size = static_cast<int>(1.0 + std::log10(code.bytecodeSize));
-    log10size      = std::max(log10size, 1);
-
     bool inMemspace = false;
 
     Decoder::ByteReader reader(bytecode, bytecode, end);
     while (!reader.EndOfMem(end)) {
         auto opc      = reader.PeekOpcode();
         auto position = reader.Cursor() - bytecode;
-        stream.PrintFmt("%*lld: ", log10size, position);
+        stream.PrintFmt("0x%03lx: ", position);
 
         if (inMemspace) {
             bool isTail = LogMemSpaceInstruction(opc, table, streamIndented, reader);

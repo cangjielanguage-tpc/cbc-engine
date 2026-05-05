@@ -6,6 +6,9 @@
 
 namespace Symlevel {
 
+// FIXME: - remove explict cbc file header usages.
+//        - provide implicit cbc file usages via file id.
+
 // defs
 class TypeDefinition;
 class MethodDefinition;
