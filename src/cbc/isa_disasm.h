@@ -6,6 +6,8 @@
 
 namespace Cbc {
 
+extern bool g_IsRawDisasmEnabled;
+
 void EnableRawDisasm();
 
 void RawDisasm(Stream::Output& stream, Cbc::MethodCode code);

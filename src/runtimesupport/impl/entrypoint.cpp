@@ -1,3 +1,5 @@
+#include "runtimesupport/impl/entrypoint.h"
+
 #include <filesystem>
 
 #include "RTInterface.h"
@@ -16,8 +18,6 @@
 
 static std::mutex g_InitializationGuard;
 static bool g_Initialized;
-static char const* g_cbcPath;
-static char const* g_mainCbc;
 
 /// Initialize engine from launcher.
 static void EnsureEngineInitialized()
@@ -124,8 +124,7 @@ CBC_EXPORT void interpreter_bridge_init(
     char const** options
 )
 {
-    (void)size;
-    (void)options;
+    Options::ParseAndSetOptions(size, options);
 
     g_CJNativeInterfaceInstance            = *rtInterf;
     interpInterf->version                  = 1;
