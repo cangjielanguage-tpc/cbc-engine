@@ -2,10 +2,7 @@
 
 #include "engine/engine.h"
 #include "engine/identifiers.h"
-#include "engine/packed_identifier.h"
 #include "engine/symlevel/definitions.h"
-#include "symlevel/io/file_id.h"
-#include "symlevel/offset.h"
 #include "utils/assertion.h"
 #include "utils/ostream.h"
 #include "utils/reinterpretation.h"
@@ -19,7 +16,7 @@
 /// Each term is represented as pointer to the structure:
 /// ```c
 /// struct TermData {
-///     TemplateIdentifier identifier;
+///     TermId identifier;
 ///     uint32_t hash;
 ///     uint16_t length;
 ///     bool isLocal;
@@ -194,15 +191,15 @@ private:
     TermData* data;
 };
 
-template <typename Id, TermKind kind>
+template <typename Id, TermKind tk>
 struct _SpecializedTermId : public TermId {
     _SpecializedTermId(Id identifier)
-        : TermId(kind, Bits::Raw64(identifier.Pack())) {}
+        : TermId(tk, Bits::Raw64(identifier.Pack())) {}
 
     explicit _SpecializedTermId(Term term) : _SpecializedTermId(term.GetIdentifier()) {}
 
     explicit _SpecializedTermId(TermId ident) : TermId(ident) {
-        ASSERT(ident.GetKind() == kind);
+        ASSERT(ident.GetKind() == tk);
     }
 
     Id GetIdentifier()
