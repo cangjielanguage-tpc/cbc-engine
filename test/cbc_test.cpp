@@ -1,3 +1,4 @@
+#include "gtest/gtest.h"
 #include <cstdint>
 #include <gtest/gtest.h>
 
@@ -14,6 +15,13 @@
 #include "testutils.h"
 
 static LimitedHeap<16384> heap;
+
+static void DoSetUp()
+{
+    Cbc::EnableRawDisasm();
+    InitializeMockInterpreter();
+    heap.Reset();
+}
 
 class CbcTest : public testing::Test {
     void SetUp() override
@@ -63,7 +71,28 @@ TEST_F(CbcTest, Empty)
     ASSERT_EQ(str, "abc");
 }
 
-static Interpretation::ExecBytecodeInfo* OpenAndRewrite(std::string_view name, std::string_view fileName)
+static Engine::Engine& Open(std::string_view fileName)
+{
+    Engine::Loader loader;
+    auto file       = OpenAsm(std::string(fileName));
+    bool successful = loader.Load(std::move(file), fileName);
+    ASSERT(successful);
+    return loader.Build();
+}
+
+static Interpretation::ExecBytecodeInfo* Rewrite(
+    Engine::Engine& engine, std::string_view fileName, std::string_view typeName, std::string_view methodName
+)
+{
+    Engine::Session session(engine);
+    auto methodId    = engine.FindMethod(session, fileName, typeName, methodName);
+    auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
+
+    auto fuh = std::get<Interpretation::DynamicFunctionHandle*>(fuhManager.AcquireTagged(session, methodId.value()));
+    return fuhManager.Prepare(session, fuh);
+}
+
+static Interpretation::ExecBytecodeInfo* OpenAndRewrite(std::string name, std::string_view fileName)
 {
     Engine::Loader loader;
 
@@ -73,10 +102,10 @@ static Interpretation::ExecBytecodeInfo* OpenAndRewrite(std::string_view name, s
 
     auto& engine = loader.Build();
     Engine::Session session(engine);
-    auto mainId      = engine.FindMain(session, fileName);
+    auto methodId    = engine.FindMain(session, fileName);
     auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
 
-    auto fuh = std::get<Interpretation::DynamicFunctionHandle*>(fuhManager.AcquireTagged(session, mainId.value()));
+    auto fuh = std::get<Interpretation::DynamicFunctionHandle*>(fuhManager.AcquireTagged(session, methodId.value()));
     return fuhManager.Prepare(session, fuh);
 }
 
@@ -144,19 +173,6 @@ TEST_ASM(CbcTest, ArithSpecialized2)
     ASSERT_EQ(res.u64, 0x7000000000000000 ^ 0xff00);
 }
 
-#define SIMPLE_ARITH_VALUES(X)                                                                                         \
-    X(0x1)                                                                                                             \
-    X(0x10)                                                                                                            \
-    X(0x100)                                                                                                           \
-    X(0x1020)                                                                                                          \
-    X(0x10000)                                                                                                         \
-    X(0x100200)                                                                                                        \
-    X(0x1000020)                                                                                                       \
-    X(0x7000000000000000)                                                                                              \
-    X(0x7000000010000001)                                                                                              \
-    X(0xf000100000000001)                                                                                              \
-    X(0xf000000100000001)
-
 static uint64_t Add(uint64_t lhs, uint64_t rhs) { return lhs + rhs; }
 
 static uint64_t Sub(uint64_t lhs, uint64_t rhs) { return lhs - rhs; }
@@ -197,86 +213,179 @@ static uint64_t ASR(uint64_t lhs, uint64_t rhs)
     return static_cast<int64_t>(left >> (rhs & 0x3f));
 }
 
-#define SIMPLE_ARITH_SPECIALIZED_CASE(opc, left, right)                                                                \
-    {                                                                                                                  \
-        auto res = Interpret(code, U64(left), U64(0));                                                                 \
-        EXPECT_EQ(res.u64, (opc)((left), (right)));                                                                    \
+using ArithFunction = uint64_t (*)(uint64_t, uint64_t);
+
+std::string hex(uint64_t num)
+{
+    std::ostringstream message;
+    message << "0x" << std::hex << num;
+    return message.str();
+}
+
+struct ArithTestParams {
+    std::string name;
+    ArithFunction arith;
+};
+
+static std::ostream& operator<<(std::ostream& os, const ArithTestParams& p) { return os << p.name; }
+
+class CbcSpecializedArith : public ::testing::TestWithParam<ArithTestParams> {
+    void SetUp() override { DoSetUp(); }
+};
+
+uint64_t rhsValues[] = {
+    0x1,
+    0x10,
+    0x100,
+    0x1020,
+    0x10000,
+    0x100200,
+    0x1000020,
+    0x7000000000000000,
+    0x7000000010000001,
+    0xf000100000000001,
+    0xf000000100000001,
+};
+
+uint64_t lhsValues[] = {
+    1, 20, 301, 402, 0x3311, 0x7222222222222222, 0xf111111111111111, 0xffffffffffffffff,
+};
+
+TEST_P(CbcSpecializedArith, test)
+{
+    if (!CheckForAssembler()) {
+        GTEST_SKIP() << "Assembler is not present";
     }
+    ArithTestParams params = GetParam();
+    auto path              = "./simple_arith_specialized/simple_arith_specialized_" + params.name + "_bulk.asm";
+    auto& engine           = Open(path);
 
-#define SIMPLE_ARITH_SPECIALIZED(opc, value)                                                                           \
-    TEST_ASM(CbcTest, SimpleArithSpecialized##opc##_##value)                                                           \
-    {                                                                                                                  \
-        auto path = "./simple_arith_specialized/simple_arith_specialized_" #opc "_" #value ".asm";                     \
-        auto code = OpenAndRewrite("arith", path)->code;                                                               \
-        SIMPLE_ARITH_SPECIALIZED_CASE(opc, 1, value);                                                                  \
-        SIMPLE_ARITH_SPECIALIZED_CASE(opc, 20, value);                                                                 \
-        SIMPLE_ARITH_SPECIALIZED_CASE(opc, 301, value);                                                                \
-        SIMPLE_ARITH_SPECIALIZED_CASE(opc, 402, value);                                                                \
-        SIMPLE_ARITH_SPECIALIZED_CASE(opc, 0x3311, value);                                                             \
-        SIMPLE_ARITH_SPECIALIZED_CASE(opc, 0x7222222222222222, value);                                                 \
-        SIMPLE_ARITH_SPECIALIZED_CASE(opc, 0xf111111111111111, value);                                                 \
-        SIMPLE_ARITH_SPECIALIZED_CASE(opc, 0xffffffffffffffff, value);                                                 \
+    for (auto rhs : rhsValues) {
+        auto code = Rewrite(engine, path, "default", "test_" + hex(rhs))->code;
+        for (auto lhs : lhsValues) {
+            auto res = Interpret(code, U64(lhs), U64(0));
+            EXPECT_EQ(res.u64, params.arith(lhs, rhs));
+        }
     }
+}
 
-#define GEN_SIMPLE_ARITH_SPECIALIZED(value)                                                                            \
-    SIMPLE_ARITH_SPECIALIZED(Add, value)                                                                               \
-    SIMPLE_ARITH_SPECIALIZED(Sub, value)                                                                               \
-    SIMPLE_ARITH_SPECIALIZED(Mul, value)                                                                               \
-    SIMPLE_ARITH_SPECIALIZED(And, value)                                                                               \
-    SIMPLE_ARITH_SPECIALIZED(Or, value)                                                                                \
-    SIMPLE_ARITH_SPECIALIZED(Xor, value)                                                                               \
-    SIMPLE_ARITH_SPECIALIZED(UDiv, value)                                                                              \
-    SIMPLE_ARITH_SPECIALIZED(Div, value)                                                                               \
-    SIMPLE_ARITH_SPECIALIZED(Rem, value)                                                                               \
-    SIMPLE_ARITH_SPECIALIZED(URem, value)                                                                              \
-    SIMPLE_ARITH_SPECIALIZED(LSL, value)                                                                               \
-    SIMPLE_ARITH_SPECIALIZED(LSR, value)                                                                               \
-    SIMPLE_ARITH_SPECIALIZED(ASR, value)
+INSTANTIATE_TEST_SUITE_P(
+    CbcTest,
+    CbcSpecializedArith,
+    ::testing::Values(
+        ArithTestParams { "Add", &Add },
+        ArithTestParams { "Sub", &Sub },
+        ArithTestParams { "Mul", &Mul },
+        ArithTestParams { "And", &And },
+        ArithTestParams { "Or", &Or },
+        ArithTestParams { "Xor", &Xor },
+        ArithTestParams { "UDiv", &UDiv },
+        ArithTestParams { "Div", &Div },
+        ArithTestParams { "Rem", &Rem },
+        ArithTestParams { "URem", &URem },
+        ArithTestParams { "LSL", &LSL },
+        ArithTestParams { "LSR", &LSR },
+        ArithTestParams { "ASR", &ASR }
+    )
+);
 
-SIMPLE_ARITH_VALUES(GEN_SIMPLE_ARITH_SPECIALIZED)
+struct ConvertCase {
+    std::string name;
+    bool fromFP;
+    Interpretation::Value::Primitive expected;
+    Interpretation::Value::Primitive val;
+};
 
-#define SIMPLE_CONVERT_CASES(X)                                                                                        \
-    X(F32_F64, true, true, F32(1.0f), F64(1.0))                                                                        \
-    X(F32_I32, true, false, F32(1.0f), U64(1))                                                                         \
-    X(F32_I64, true, false, F32(1.0f), U64(1))                                                                         \
-    X(F32_U32, true, false, F32(1.0f), U64(1))                                                                         \
-    X(F32_U64, true, false, F32(1.0f), U64(1))                                                                         \
-    X(F64_F32, true, true, F64(1.0), F32(1.0f))                                                                        \
-    X(F64_I32, true, false, F64(1.0), U64(1))                                                                          \
-    X(F64_I64, true, false, F64(1.0), U64(1))                                                                          \
-    X(F64_U32, true, false, F64(1.0), U64(1))                                                                          \
-    X(F64_U64, true, false, F64(1.0), U64(1))                                                                          \
-    X(I8_I32, false, false, U64(-128), U64(32896))                                                                     \
-    X(I8_U32, false, false, U64(-128), U64(32896))                                                                     \
-    X(I16_I32, false, false, U64(-32640), U64(32896))                                                                  \
-    X(I16_U32, false, false, U64(-32640), U64(32896))                                                                  \
-    X(I32_F32, false, true, U64(1), F32(1.0f))                                                                         \
-    X(I32_F64, false, true, U64(1), F64(1.0))                                                                          \
-    X(I32_I64, false, false, U64(1), U64(1))                                                                           \
-    X(I32_U64, false, false, U64(1), U64(1))                                                                           \
-    X(I64_F32, false, true, U64(1), F32(1.0f))                                                                         \
-    X(I64_F64, false, true, U64(1), F64(1.0))                                                                          \
-    X(I64_I32, false, false, U64(1), U32(1))                                                                           \
-    X(I64_U32, false, false, U64(1), U32(1))                                                                           \
-    X(U8_I32, false, false, U64(128), U32(32896))                                                                      \
-    X(U8_U32, false, false, U64(128), U32(32896))                                                                      \
-    X(U16_I32, false, false, U64(32896), U32(32896))                                                                   \
-    X(U16_U32, false, false, U64(32896), U32(32896))                                                                   \
-    X(U32_F32, false, true, U64(1), F32(1.0f))                                                                         \
-    X(U32_F64, false, true, U64(1), F64(1.0))                                                                          \
-    X(U32_U64, false, false, U64(1), U32(1))                                                                           \
-    X(U64_F32, false, true, U64(1), F32(1.0f))                                                                         \
-    X(U64_F64, false, true, U64(1), F64(1.0))
+ConvertCase convertToIntegerCases[] = {
+    { "I8_I32", false, U64(-128), U64(32896) },    { "I8_U32", false, U64(-128), U64(32896) },
+    { "I16_I32", false, U64(-32640), U64(32896) }, { "I16_U32", false, U64(-32640), U64(32896) },
+    { "I32_F32", true, U64(1), F32(1.0f) },        { "I32_F64", true, U64(1), F64(1.0) },
+    { "I32_I64", false, U64(1), U64(1) },          { "I32_U64", false, U64(1), U64(1) },
+    { "I64_F32", true, U64(1), F32(1.0f) },        { "I64_F64", true, U64(1), F64(1.0) },
+    { "I64_I32", false, U64(1), U32(1) },          { "I64_U32", false, U64(1), U32(1) },
+    { "U8_I32", false, U64(128), U32(32896) },     { "U8_U32", false, U64(128), U32(32896) },
+    { "U16_I32", false, U64(32896), U32(32896) },  { "U16_U32", false, U64(32896), U32(32896) },
+    { "U32_F32", true, U64(1), F32(1.0f) },        { "U32_F64", true, U64(1), F64(1.0) },
+    { "U32_U64", false, U64(1), U32(1) },          { "U64_F32", true, U64(1), F32(1.0f) },
+    { "U64_F64", true, U64(1), F64(1.0) }
+};
 
-#define SIMPLE_CONVERT(opc, toFP, fromFP, expected, val)                                                               \
-    TEST_ASM(CbcTest, SimpleConvert##opc)                                                                              \
-    {                                                                                                                  \
-        auto path = "./simple_convert/simple_convert_" #opc ".asm";                                                    \
-        auto code = OpenAndRewrite("arith", path)->code;                                                               \
-        auto ir1  = fromFP ? U64(0) : val;                                                                             \
-        auto fr0  = fromFP ? val : F64(0);                                                                             \
-        auto res  = toFP ? InterpretFPRes(code, ir1, U64(0), fr0, F64(0)) : Interpret(code, ir1, U64(0), fr0, F64(0)); \
-        EXPECT_EQ(res.u64, expected.u64);                                                                              \
+ConvertCase convertToFloat32Cases[] = { { "F32_F64", true, F32(1.0f), F64(1.0) },
+                                        { "F32_I32", false, F32(1.0f), U64(1) },
+                                        { "F32_I64", false, F32(1.0f), U64(1) },
+                                        { "F32_U32", false, F32(1.0f), U64(1) },
+                                        { "F32_U64", false, F32(1.0f), U64(1) } };
+
+ConvertCase convertToFloat64Cases[] = { { "F64_F32", true, F64(1.0), F32(1.0f) },
+                                        { "F64_I32", false, F64(1.0), U64(1) },
+                                        { "F64_I64", false, F64(1.0), U64(1) },
+                                        { "F64_U32", false, F64(1.0), U64(1) },
+                                        { "F64_U64", false, F64(1.0), U64(1) } };
+
+static void convertToInteger(Interpretation::Code code, ConvertCase convertCase)
+{
+    auto ir1 = convertCase.fromFP ? U64(0) : convertCase.val;
+    auto fr0 = convertCase.fromFP ? convertCase.val : F64(0);
+    auto res = Interpret(code, ir1, U64(0), fr0, F64(0));
+    EXPECT_EQ(res.u64, convertCase.expected.u64);
+}
+
+static void convertToFloat32(Interpretation::Code code, ConvertCase convertCase)
+{
+    auto ir1 = convertCase.fromFP ? U64(0) : convertCase.val;
+    auto fr0 = convertCase.fromFP ? convertCase.val : F64(0);
+    auto res = InterpretFPRes(code, ir1, U64(0), fr0, F64(0));
+    EXPECT_EQ(res.u32, convertCase.expected.u32);
+}
+
+static void convertToFloat64(Interpretation::Code code, ConvertCase convertCase)
+{
+    auto ir1 = convertCase.fromFP ? U64(0) : convertCase.val;
+    auto fr0 = convertCase.fromFP ? convertCase.val : F64(0);
+    auto res = InterpretFPRes(code, ir1, U64(0), fr0, F64(0));
+    EXPECT_EQ(res.u64, convertCase.expected.u64);
+}
+
+using ConvertTestFunction = void (*)(Interpretation::Code, ConvertCase);
+
+struct ConvertTestParams {
+    std::string name;
+    int casesCount;
+    ConvertCase* convertCases;
+    ConvertTestFunction testConvert;
+};
+
+class CbcSpecializedConvert : public ::testing::TestWithParam<ConvertTestParams> {
+    void SetUp() override { DoSetUp(); }
+};
+
+TEST_P(CbcSpecializedConvert, test)
+{
+    if (!CheckForAssembler()) {
+        GTEST_SKIP() << "Assembler is not present";
     }
+    ConvertTestParams params = GetParam();
+    auto path                = "./simple_convert/simple_convert_" + params.name + ".asm";
+    auto& engine             = Open(path);
 
-SIMPLE_CONVERT_CASES(SIMPLE_CONVERT)
+    for (int n { 0 }; n < params.casesCount; ++n) {
+        ConvertCase convertCase = params.convertCases[n];
+        auto code               = Rewrite(engine, path, "default", "test_" + convertCase.name)->code;
+        params.testConvert(code, convertCase);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    CbcTest,
+    CbcSpecializedConvert,
+    ::testing::Values(
+        ConvertTestParams { "to_integer",
+                            sizeof(convertToIntegerCases) / sizeof(ConvertCase),
+                            convertToIntegerCases,
+                            &convertToInteger },
+        ConvertTestParams {
+            "to_float", sizeof(convertToFloat32Cases) / sizeof(ConvertCase), convertToFloat32Cases, &convertToFloat32 },
+        ConvertTestParams {
+            "to_float", sizeof(convertToFloat64Cases) / sizeof(ConvertCase), convertToFloat64Cases, &convertToFloat64 }
+    )
+);

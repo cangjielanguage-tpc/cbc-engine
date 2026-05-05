@@ -159,6 +159,26 @@ std::optional<Identifier<MethodDefinition>> Engine::FindMain(Session& session, s
     return std::nullopt;
 }
 
+std::optional<Identifier<MethodDefinition>> Engine::FindMethod(
+    Session& session, std::string_view filePath, std::string_view typeName, std::string_view methodName
+)
+{
+    auto file = impl->FindCbcFile(filePath);
+    if (!file.has_value()) {
+        return std::nullopt;
+    }
+    auto f        = file.value();
+    auto declType = f->GetTypeIndex().FindType(session, typeName);
+    if (declType.has_value()) {
+        auto type               = Symlevel::TypeDefinition::Resolve(session, declType.value());
+        const auto& methodIndex = type.GetMethodIndex();
+        auto methods            = methodIndex.FindMethods(session, methodName);
+        ASSERTION(methods.size() == 1, "unexpected \"main\" method count");
+        return methods[0];
+    }
+    return std::nullopt;
+}
+
 } // namespace Engine
 
 /////////////////////////////////////////////////////////////////
