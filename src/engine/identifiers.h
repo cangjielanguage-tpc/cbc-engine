@@ -1,62 +1,97 @@
 #pragma once
 
-#include "engine/packed_identifier.h"
 #include "engine/symlevel/index.h"
 #include "symlevel/io/file_id.h"
 #include "symlevel/offset.h"
+#include "utils/reinterpretation.h"
 #include <cstdint>
+#include <cstring>
+#include <functional>
 
 namespace Engine {
 /// An opaque handle to symlevel definitions.
 
 template <typename T> struct Identifier {
-    Identifier(Symlevel::Offset<T> offs, IO::FileId fileId) : ident(0, offs, fileId) {}
+    struct Packed {
+        uint64_t const unused : 8;
+        uint64_t const offs : Symlevel::Offset<T>::BIT_SIZE;
+        uint64_t const fileId : IO::FileId::BIT_SIZE;
 
-    Identifier(uint64_t raw) : ident(raw) {}
+        inline bool operator==(const Packed& another) const
+        {
+            return Bits::Raw64(*this) == Bits::Raw64(another);
+        }
+    };
 
-    Identifier(Identifier<T> const& another) : ident(another.ident) {}
+    struct Hasher {
+        inline size_t operator()(Packed const& packed) const {
+            std::hash<uint64_t> hash;
+            return hash(Bits::Raw64(packed));
+        }
+    };
 
-    Symlevel::Offset<T> GetOffset() const { return ident.GetHigh(); }
+    Symlevel::Offset<T> const offs;
+    IO::FileId const fileId;
 
-    IO::FileId GetFileId() const { return ident.GetLow(); }
+    Identifier(Symlevel::Offset<T> offs, IO::FileId fileId) : offs(offs), fileId(fileId) {}
 
-    bool operator==(const Identifier<T>& another) const { return ident == another.ident; }
+    Identifier(Identifier<T> const& another) : Identifier(another.offs, another.fileId) {}
 
-    uint64_t GetHash() const
-    {
-        std::hash<Engine::PackedIdentifier> hasher;
-        return hasher(ident);
+    Identifier(Packed const& packed) : Identifier(Symlevel::Offset<T>(packed.offs), IO::FileId(packed.fileId)) {}
+
+    Symlevel::Offset<T> GetOffset() const { return offs; }
+
+    IO::FileId GetFileId() const { return fileId; }
+
+    bool operator==(const Identifier& another) const {
+        return Pack() == another.Pack();
     }
 
-private:
-    PackedIdentifier ident;
+    inline Packed Pack() const {
+        return { 0, offs, fileId };
+    }
 };
 
 template <typename T> struct IndexIdentifier {
-    IndexIdentifier(Symlevel::Index<T> index, IO::FileId fileId) : ident(0, index.Raw(), fileId) {}
+    struct Packed {
+        uint64_t const unused : 12;
+        uint64_t const region : 8;
+        uint64_t const id     : 16;
+        uint64_t const fileId : IO::FileId::BIT_SIZE;
 
-    IndexIdentifier(uint64_t raw) : ident(raw) {}
+        bool operator==(Packed const& another) const
+        {
+            return Bits::Raw64(*this) == Bits::Raw64(another);
+        }
+    };
 
-    IndexIdentifier(Identifier<T> const& another) : ident(another.ident) {}
+    struct Hasher {
+        inline size_t operator()(Packed const& packed) const {
+            std::hash<uint64_t> hash;
+            return hash(Bits::Raw64(packed));
+        }
+    };
 
-    Symlevel::Index<T> GetIndex() const { return Symlevel::Index<T>(ident.GetHigh()); }
+    Symlevel::Index<T> const index;
+    IO::FileId const fileId;
 
-    IO::FileId GetFileId() const { return ident.GetLow(); }
+    IndexIdentifier(Symlevel::Index<T> index, IO::FileId fileId) : index(index), fileId(fileId) {}
 
-    bool operator==(const Identifier<T>& another) const { return ident == another.ident; }
+    IndexIdentifier(IndexIdentifier const& another) : IndexIdentifier(another.index, another.fileId) {}
 
-    uint64_t GetHash() const
-    {
-        std::hash<Engine::PackedIdentifier> hasher;
-        return hasher(ident);
+    IndexIdentifier(Packed const& packed) : IndexIdentifier(Symlevel::Index<T>(packed.region, packed.id), IO::FileId(packed.fileId)) {}
+
+    Symlevel::Index<T> GetIndex() const { return index; }
+
+    IO::FileId GetFileId() const { return fileId; }
+
+    bool operator==(const IndexIdentifier& another) const {
+        return Pack() == another.Pack();
     }
 
-private:
-    PackedIdentifier ident;
+    inline Packed Pack() const {
+        return { 0, index.GetRegion(), index.GetIndex(), fileId };
+    }
 };
 
 } // namespace Engine
-
-template <typename T> struct std::hash<Engine::Identifier<T>> {
-    uint64_t operator()(Engine::Identifier<T> const& ident) const { return ident.GetHash(); }
-};

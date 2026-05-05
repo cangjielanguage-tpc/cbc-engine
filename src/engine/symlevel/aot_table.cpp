@@ -78,7 +78,7 @@ template <typename Data> struct AotTableWrapper {
 DirectCallAotData DirectCallAotTable::GetData(Engine::Session& session, Index<MethodReference> index) const
 {
     AotTableWrapper<DirectCallAotData> wrapper { table };
-    auto offs = wrapper.FindData(session, index.Raw());
+    auto offs = wrapper.FindData(session, index.GetIndex());
 
     auto [file, raf] = session.File(table.fileId);
     IO::StreamFileReader reader(raf, file.GetAotDataSectionOffs() + offs);
@@ -91,7 +91,7 @@ DirectCallAotData DirectCallAotTable::GetData(Engine::Session& session, Index<Me
 VirtualCallAotData VirtualCallAotTable::GetData(Engine::Session& session, Index<MethodReference> index) const
 {
     AotTableWrapper<VirtualCallAotData> wrapper { table };
-    auto offs = wrapper.FindData(session, index.Raw());
+    auto offs = wrapper.FindData(session, index.GetIndex());
 
     auto [file, raf] = session.File(table.fileId);
     IO::StreamFileReader reader(raf, file.GetAotDataSectionOffs() + offs);
@@ -105,7 +105,7 @@ VirtualCallAotData VirtualCallAotTable::GetData(Engine::Session& session, Index<
 InterfaceCallAotData InterfaceCallAotTable::GetData(Engine::Session& session, Index<MethodReference> index) const
 {
     AotTableWrapper<InterfaceCallAotData> wrapper { table };
-    auto offs = wrapper.FindData(session, index.Raw());
+    auto offs = wrapper.FindData(session, index.GetIndex());
 
     auto [file, raf] = session.File(table.fileId);
     IO::StreamFileReader reader(raf, file.GetAotDataSectionOffs() + offs);
@@ -118,7 +118,7 @@ InterfaceCallAotData InterfaceCallAotTable::GetData(Engine::Session& session, In
 StaticFieldAotData StaticFieldAotTable::GetData(Engine::Session& session, Index<FieldReference> index) const
 {
     AotTableWrapper<StaticFieldAotData> wrapper { table };
-    auto offs = wrapper.FindData(session, index.Raw());
+    auto offs = wrapper.FindData(session, index.GetIndex());
 
     auto [file, raf] = session.File(table.fileId);
     IO::StreamFileReader reader(raf, file.GetAotDataSectionOffs() + offs);
@@ -131,7 +131,7 @@ StaticFieldAotData StaticFieldAotTable::GetData(Engine::Session& session, Index<
 InstanceFieldAotData InstanceFieldAotTable::GetData(Engine::Session& session, Index<FieldReference> index) const
 {
     AotTableWrapper<StaticFieldAotData> wrapper { table };
-    auto offs = wrapper.FindData(session, index.Raw());
+    auto offs = wrapper.FindData(session, index.GetIndex());
 
     auto [file, raf] = session.File(table.fileId);
     IO::StreamFileReader reader(raf, file.GetAotDataSectionOffs() + offs);

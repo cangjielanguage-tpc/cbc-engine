@@ -59,6 +59,7 @@ public:
     const TypeIndex& GetTypeIndex() const;
     const Dependencies& GetDependencies() const;
 
+    /// FIXME: tables should be assigned to corresponding regions.
     const DirectCallAotTable& GetDirectCallAotTable() const;
     const VirtualCallAotTable& GetVirtualCallAotTable() const;
     const InterfaceCallAotTable& GetInterfaceCallAotTable() const;

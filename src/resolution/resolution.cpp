@@ -243,7 +243,7 @@ std::optional<Call> ResolveCall(Resolver::Impl& resolver, Index<Call> id)
             } else {
                 static_assert(std::is_same_v<Call, DirectCall>);
 
-                auto termIdent = ref.refType.GetIdentifier().AsTypeIdent();
+                auto termIdent = TypeTemplateIdentifier(ref.refType);
                 auto type      = Symlevel::TypeDefinition::Resolve(session, termIdent.GetIdentifier());
                 auto methods   = type.GetMethodIndex().FindMethods(session, ref.name);
 

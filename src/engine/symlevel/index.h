@@ -1,40 +1,31 @@
 #pragma once
 
-#include "utils/assertion.h"
 #include <cstdint>
 
 namespace Symlevel {
 
-template <typename T> class Index {
-public:
-    static constexpr uint64_t INDEX_SHIFT  = 0;
-    static constexpr uint64_t REGION_SHIFT = 24;
+/// References and terms in CBC are referenced by index, not offset.
+/// These indicies are usually encoded by 16 bit in bytecode,
+/// which is not enough for some cases.
+///
+/// To allow more references, CBC uses regions that
+/// could implicitly extend 16-bit indicies up to 24 bit.
 
-    static constexpr uint64_t INDEX_MASK  = 0xffff'ff;
-    static constexpr uint64_t REGION_MASK = 0xff;
+template <typename T> struct Index {
+    static constexpr auto BIT_SIZE = 24;
 
-    constexpr Index(uint32_t region, uint32_t index) : raw(0)
-    {
-        ASSERT((region & REGION_MASK) == region);
-        ASSERT((index & INDEX_MASK) == index);
+    uint8_t const region;
+    uint16_t const index;
 
-        raw = (region << REGION_SHIFT) | (index << INDEX_SHIFT);
+    constexpr Index(uint8_t region, uint16_t index) : region(region), index(index) {}
+
+    uint8_t GetRegion() const { return region; }
+
+    uint32_t GetIndex() const { return index; }
+
+    bool operator==(const Index& another) const {
+        return region == another.region && index == another.index;
     }
-
-    explicit constexpr Index(uint32_t raw) : raw(raw) {}
-
-    constexpr Index(Index const& another) : raw(another.raw) {}
-
-    uint32_t Raw() const { return raw; }
-
-    uint32_t GetRegion() const { return (raw >> REGION_SHIFT) & REGION_MASK; }
-
-    uint32_t GetIndex() const { return (raw >> INDEX_SHIFT) & INDEX_MASK; }
-
-    bool operator==(const Index& another) const { return raw == another.raw; }
-
-private:
-    uint32_t raw;
 };
 
 } // namespace Symlevel

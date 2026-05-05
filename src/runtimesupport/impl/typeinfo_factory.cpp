@@ -160,11 +160,8 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
     Engine::Session& session, Engine::TypeInfoManager& manager, Engine::GlobalTerm term
 )
 {
-    auto termIdent = term.GetIdentifier();
-    ASSERT(termIdent.GetKind() == Engine::TemplateKind::TYPE);
-
-    auto ident = termIdent.AsTypeIdent();
-    auto file  = ident.GetFile();
+    auto ident = Engine::TypeTemplateIdentifier(term).GetIdentifier();
+    auto file  = ident.GetFileId();
 
     auto type = Symlevel::Reader::Read(session, file, ident.GetOffset());
     auto name = Symlevel::Reader::Read(session, file, type.NameOffset());
@@ -291,11 +288,8 @@ static std::optional<TypeInfo> QueryTypeInfoAOTByName(char const* str)
 
 static std::optional<TypeInfo> QueryTypeInfoAOT(Engine::Session& session, Engine::GlobalTerm term)
 {
-    auto termIdent = term.GetIdentifier();
-    ASSERT(termIdent.GetKind() == Engine::TemplateKind::AOT_TYPE);
-
-    auto ident    = termIdent.AsAotIdent();
-    auto typeName = std::string(Symlevel::Reader::Read(session, ident.GetFile(), ident.GetOffset()));
+    auto ident = Engine::AotTypeTemplateIdentifier(term).GetIdentifier();
+    auto typeName = std::string(Symlevel::Reader::Read(session, ident.GetFileId(), ident.GetOffset()));
 
     auto typeInfo = g_CJNativeInterfaceInstance.typeInfo(typeName.c_str());
     if (typeInfo == nullptr) {

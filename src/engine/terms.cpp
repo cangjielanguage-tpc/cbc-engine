@@ -74,14 +74,6 @@ static TermData* AllocateTerm(Memory::Heap& allocator, size_t subtermCount = 0)
     );
 }
 
-TypeTemplateIdentifier TemplateIdentifier::AsTypeIdent() { return TypeTemplateIdentifier(ident); }
-
-AotTypeTemplateIdentifier TemplateIdentifier::AsAotIdent() { return AotTypeTemplateIdentifier(ident); }
-
-TagTemplateIdentifier TemplateIdentifier::AsTagIdent() { return TagTemplateIdentifier(ident); }
-
-UndefinedTemplateIdentifier TemplateIdentifier::AsUndefinedIdent() { return UndefinedTemplateIdentifier(ident); }
-
 // NOTE: the order is the same as the order of builtin terms in cbc format.
 static TermData builtins[] = {
     { TagTemplateIdentifier(TemplateKind::NIL), 0xa0, 0, false },
@@ -223,11 +215,10 @@ void Term::GetName(Session& session, Stream::Output& stream) const
         case TK::F64:     stream << "f64"; break;
 
         case TK::UNDEFINED: {
-            auto undef   = GetIdentifier().AsUndefinedIdent();
-            auto indexId = undef.GetIndexId();
-            auto file    = indexId.GetFileId();
-            auto region  = indexId.GetIndex().GetRegion();
-            auto index   = indexId.GetIndex().GetIndex();
+            auto undef   = UndefinedTemplateIdentifier(*this).GetIdentifier();
+            auto file    = undef.GetFileId();
+            auto region  = undef.GetIndex().GetRegion();
+            auto index   = undef.GetIndex().GetIndex();
             stream.PrintFmt("$unresolved<%u,%u,%u>", file.id, region, index);
             break;
         }
@@ -260,7 +251,7 @@ void Term::GetName(Session& session, Stream::Output& stream) const
         }
 
         case TK::TYPE: {
-            auto ident = GetIdentifier().AsTypeIdent().GetIdentifier();
+            auto ident = TypeTemplateIdentifier(*this).GetIdentifier();
             auto type  = Symlevel::TypeDefinition::Resolve(session, ident);
             stream << Symlevel::String::Parse(session, ident.GetFileId(), type.NameOffset());
             if (int len = GetLength(); len > 0) {
@@ -270,8 +261,8 @@ void Term::GetName(Session& session, Stream::Output& stream) const
         }
 
         case TK::AOT_TYPE: {
-            auto ident = GetIdentifier().AsAotIdent();
-            stream << Symlevel::String::Parse(session, ident.GetFile(), ident.GetOffset());
+            auto ident = AotTypeTemplateIdentifier(*this).GetIdentifier();
+            stream << Symlevel::String::Parse(session, ident.GetFileId(), ident.GetOffset());
             if (int len = GetLength(); len > 0) {
                 printSubTerms("<", ">", len);
             }
@@ -390,7 +381,8 @@ struct TermResolver {
             case AOT_TYPE: {
                 auto nameOffs = Offset<String>(reader.ReadULEB());
                 auto* data    = AllocateTerm(heap);
-                data->InitAfterSubterms(AotTypeTemplateIdentifier(nameOffs, fileId), 0, true);
+                auto identifier = Identifier(nameOffs, fileId);
+                data->InitAfterSubterms(AotTypeTemplateIdentifier(identifier), 0, true);
                 return Term(LocalTerm(data));
             }
             case METHOD_SIGNATURE: {

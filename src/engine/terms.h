@@ -8,6 +8,7 @@
 #include "symlevel/offset.h"
 #include "utils/assertion.h"
 #include "utils/ostream.h"
+#include "utils/reinterpretation.h"
 #include <cstdint>
 #include <mutex>
 #include <unordered_set>
@@ -84,108 +85,42 @@ enum class TemplateKind : uint8_t {
 
 static constexpr auto FIRST_NON_PRIMITIVE = static_cast<uint16_t>(TemplateKind::UNDEFINED);
 
-struct AotTypeTemplateIdentifier;
-struct TagTemplateIdentifier;
-struct TypeTemplateIdentifier;
-struct UndefinedTemplateIdentifier;
-
 class TemplateIdentifier {
-protected:
-    constexpr TemplateIdentifier(PackedIdentifier identifier) : ident(identifier) {}
-
 public:
-    TemplateKind GetKind() { return TemplateKind(ident.GetTag()); }
 
-    std::optional<const char*> GetKindName();
+    static constexpr auto KIND_PART_BIT_SIZE = 8 * sizeof(TemplateKind);
+    static constexpr auto INFO_PART_BIT_SIZE = 64 - KIND_PART_BIT_SIZE;
+
+    TemplateKind GetKind() { return kind; }
 
     uint32_t Hash()
     {
-        auto v = static_cast<uint64_t>(ident);
-        return (v >> 32) ^ v;
+        std::hash<uint64_t> hash;
+        return hash(Raw());
     }
 
-    bool operator==(const TemplateIdentifier& another) const { return ident == another.ident; }
+    bool operator==(TemplateIdentifier const& another) const { return Raw() == another.Raw(); }
 
-    bool operator!=(const TemplateIdentifier& another) const { return ident != another.ident; }
-
-    TypeTemplateIdentifier AsTypeIdent();
-    AotTypeTemplateIdentifier AsAotIdent();
-    TagTemplateIdentifier AsTagIdent();
-    UndefinedTemplateIdentifier AsUndefinedIdent();
+    bool operator!=(TemplateIdentifier const& another) const { return !(*this == another); }
 
 protected:
-    PackedIdentifier ident;
+    constexpr TemplateIdentifier(TemplateKind kind, uint64_t info) : kind(kind), info(info)
+    {
+        ASSERT(info < (1lu << INFO_PART_BIT_SIZE));
+    }
+
+    uint64_t Raw() const { return Bits::Raw64(*this); }
+
+    TemplateKind kind : KIND_PART_BIT_SIZE;
+    uint64_t info : INFO_PART_BIT_SIZE;
 };
 
 struct TagTemplateIdentifier : public TemplateIdentifier {
-    constexpr TagTemplateIdentifier(TemplateKind kind)
-        : TemplateIdentifier(PackedIdentifier(static_cast<uint8_t>(kind), 0, 0))
+    constexpr TagTemplateIdentifier(TemplateKind kind) : TemplateIdentifier(kind, 0) {}
+    explicit constexpr TagTemplateIdentifier(TemplateIdentifier ident) : TemplateIdentifier(ident)
     {
-        ASSERT(kind == GetKind());
+        ASSERT(info == 0);
     }
-
-    friend class TemplateIdentifier;
-
-protected:
-    TagTemplateIdentifier(PackedIdentifier identifier) : TemplateIdentifier(identifier) {}
-};
-
-struct AotTypeTemplateIdentifier : public TemplateIdentifier {
-    AotTypeTemplateIdentifier(Symlevel::Offset<Symlevel::String> offs, IO::FileId file)
-        : TemplateIdentifier(PackedIdentifier(static_cast<uint8_t>(TemplateKind::AOT_TYPE), offs, file))
-    {}
-
-    Symlevel::Offset<Symlevel::String> GetOffset() { return TemplateIdentifier::ident.GetHigh(); }
-
-    IO::FileId GetFile() { return TemplateIdentifier::ident.GetLow(); }
-
-    friend class TemplateIdentifier;
-
-protected:
-    AotTypeTemplateIdentifier(PackedIdentifier identifier) : TemplateIdentifier(identifier) {}
-};
-
-struct TypeTemplateIdentifier : public TemplateIdentifier {
-    TypeTemplateIdentifier(Symlevel::Offset<Symlevel::TypeDefinition> offs, IO::FileId file)
-        : TemplateIdentifier(PackedIdentifier(static_cast<uint8_t>(TemplateKind::TYPE), offs, file))
-    {}
-
-    TypeTemplateIdentifier(Identifier<Symlevel::TypeDefinition> type)
-        : TypeTemplateIdentifier(type.GetOffset(), type.GetFileId())
-    {}
-
-    Symlevel::Offset<Symlevel::TypeDefinition> GetOffset() { return TemplateIdentifier::ident.GetHigh(); }
-
-    IO::FileId GetFile() { return TemplateIdentifier::ident.GetLow(); }
-
-    Identifier<Symlevel::TypeDefinition> GetIdentifier() { return Identifier(GetOffset(), GetFile()); }
-
-    friend class TemplateIdentifier;
-
-protected:
-    TypeTemplateIdentifier(PackedIdentifier identifier) : TemplateIdentifier(identifier) {}
-};
-
-struct UndefinedTemplateIdentifier : public TemplateIdentifier {
-    UndefinedTemplateIdentifier(IndexIdentifier<Term> indexId)
-        : TemplateIdentifier(PackedIdentifier(
-              static_cast<uint8_t>(TemplateKind::UNDEFINED), indexId.GetIndex().Raw(), indexId.GetFileId()
-          ))
-    {
-        ASSERT(TemplateKind::UNDEFINED == GetKind());
-    }
-
-    IndexIdentifier<Term> GetIndexId()
-    {
-        auto fileId = TemplateIdentifier::ident.GetLow();
-        auto index  = Symlevel::Index<Term>(TemplateIdentifier::ident.GetHigh());
-        return IndexIdentifier<Term>(index, fileId);
-    }
-
-    friend class TemplateIdentifier;
-
-protected:
-    UndefinedTemplateIdentifier(PackedIdentifier identifier) : TemplateIdentifier(identifier) {}
 };
 
 class Term {
@@ -258,6 +193,29 @@ private:
     friend class Term;
     TermData* data;
 };
+
+template <typename Id, TemplateKind kind>
+struct _SpecializedTemplateIdentifier : public TemplateIdentifier {
+    _SpecializedTemplateIdentifier(Id identifier)
+        : TemplateIdentifier(kind, Bits::Raw64(identifier.Pack())) {}
+
+    explicit _SpecializedTemplateIdentifier(Term term) : _SpecializedTemplateIdentifier(term.GetIdentifier()) {}
+    explicit _SpecializedTemplateIdentifier(TemplateIdentifier ident) : TemplateIdentifier(ident) {
+        ASSERT(ident.GetKind() == kind);
+    }
+
+    Id GetIdentifier()
+    {
+        typename Id::Packed packed{};
+        uint64_t info = this->info;
+        std::memcpy(&packed, &info, sizeof(packed));
+        return Id(packed);
+    }
+};
+
+using AotTypeTemplateIdentifier = _SpecializedTemplateIdentifier<Identifier<Symlevel::String>, TemplateKind::AOT_TYPE>;
+using TypeTemplateIdentifier = _SpecializedTemplateIdentifier<Identifier<Symlevel::TypeDefinition>, TemplateKind::TYPE>;
+using UndefinedTemplateIdentifier = _SpecializedTemplateIdentifier<IndexIdentifier<Term>, TemplateKind::UNDEFINED>;
 
 /// Term manager provides utilities for caching (and interning) of global terms,
 /// and responsible for resolution of term identifiers.
