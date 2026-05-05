@@ -63,11 +63,27 @@ static bool SetLogLevelOption(Option const& option, std::string_view value)
     return false;
 }
 
+static bool SetLogLevelOptionForAll(Option const& option, std::string_view value);
+
 constexpr Option options[] = {
     { "cbc.log.resolution", &Resolution::log, &SetLogLevelOption },
     { "cbc.log.int", &Interpretation::Log::interpretation, &SetLogLevelOption },
     { "cbc.log.preparation", &Interpretation::Log::preparation, &SetLogLevelOption },
+    { "cbc.log.all", nullptr, &SetLogLevelOptionForAll },
 };
+
+static bool SetLogLevelOptionForAll(Option const& option, std::string_view value)
+{
+    for (auto& opt : options) {
+        if (opt.setter != &SetLogLevelOption) {
+            continue;
+        }
+        if (!SetLogLevelOption(opt, value)) {
+            return false;
+        }
+    }
+    return true;
+}
 
 void InitEnvOptions()
 {
