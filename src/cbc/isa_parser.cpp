@@ -99,8 +99,6 @@ private:
 
 template <typename... Ts> struct ByteReaderM;
 template <typename... Ts> struct ByteReaderHalf;
-template <typename... Ts> struct ByteReader7;
-template <typename... Ts> struct ByteReader6;
 
 template <typename... Ts> struct ByteReaderM {
 public:
@@ -113,13 +111,6 @@ public:
 
     ByteReaderM(const ByteReaderM<Ts...>&)                   = delete;
     ByteReaderM<Ts...>& operator=(const ByteReaderM<Ts...>&) = delete;
-
-    auto ReadU1() && -> decltype(auto)
-    {
-        auto val      = reader.Read8();
-        auto new_data = std::tuple_cat(data, std::make_tuple(Value(static_cast<bool>((val >> 7) & 0x1))));
-        return ByteReader7<Ts..., Value>(reader, val & 0x7F, std::move(new_data));
-    }
 
     auto ReadU4() && -> decltype(auto)
     {
@@ -212,64 +203,6 @@ public:
     ByteReaderHalf<Ts...>& operator=(const ByteReaderHalf<Ts...>&) = delete;
 
     auto ReadU4() && -> decltype(auto)
-    {
-        auto new_data = std::tuple_cat(data, std::make_tuple(Value(last)));
-        return ByteReaderM<Ts..., Value>(reader, std::move(new_data));
-    }
-
-    auto Get() && -> decltype(auto) { return std::move(data); }
-};
-
-template <typename... Ts> struct ByteReader7 {
-public:
-    Decoder::FatByteReader& reader;
-    uint8_t last;
-    std::tuple<Ts...> data;
-
-    ByteReader7(Decoder::FatByteReader& rreader) : reader(rreader) {}
-
-    ByteReader7(Decoder::FatByteReader& rreader, uint8_t alast, std::tuple<Ts...>&& base)
-        : reader(rreader),
-          last(std::move(alast)),
-          data(std::move(base))
-    {}
-
-    ByteReader7(const ByteReader7<Ts...>&)                   = delete;
-    ByteReader7<Ts...>& operator=(const ByteReader7<Ts...>&) = delete;
-
-    auto ReadU1() && -> decltype(auto)
-    {
-        auto new_data = std::tuple_cat(data, std::make_tuple(Value(static_cast<bool>((last >> 6) & 0x1))));
-        return ByteReader6<Ts..., Value>(reader, last & 0x3F, std::move(new_data));
-    }
-
-    auto ReadU7() && -> decltype(auto)
-    {
-        auto new_data = std::tuple_cat(data, std::make_tuple(Value(last)));
-        return ByteReaderM<Ts..., Value>(reader, std::move(new_data));
-    }
-
-    auto Get() && -> decltype(auto) { return std::move(data); }
-};
-
-template <typename... Ts> struct ByteReader6 {
-public:
-    Decoder::FatByteReader& reader;
-    uint8_t last;
-    std::tuple<Ts...> data;
-
-    ByteReader6(Decoder::FatByteReader& rreader) : reader(rreader) {}
-
-    ByteReader6(Decoder::FatByteReader& rreader, uint8_t alast, std::tuple<Ts...>&& base)
-        : reader(rreader),
-          last(std::move(alast)),
-          data(std::move(base))
-    {}
-
-    ByteReader6(const ByteReader6<Ts...>&)                   = delete;
-    ByteReader6<Ts...>& operator=(const ByteReader6<Ts...>&) = delete;
-
-    auto ReadU6() && -> decltype(auto)
     {
         auto new_data = std::tuple_cat(data, std::make_tuple(Value(last)));
         return ByteReaderM<Ts..., Value>(reader, std::move(new_data));
@@ -377,8 +310,18 @@ struct IsaParserImpl {
 
     static void BFX(IsaParser& parser)
     {
-        auto [dst, src, res64, arg64, offset, sx, size ] =
-            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU1().ReadU1().ReadU6().ReadU1().ReadU7().Get();
+        auto [dst, src, byte1, byte2 ] =
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU8().ReadU8().Get();
+
+        uint8_t b1  = static_cast<uint8_t>(byte1);
+        auto res64  = b1 & 0b10000000;
+        auto arg64  = b1 & 0b01000000;
+        auto offset = b1 & 0b00111111;
+
+        uint8_t b2  = static_cast<uint8_t>(byte2);
+        auto sx     = b2 & 0b10000000;
+        auto size   = b2 & 0b01111111;
+
         parser.BFX(dst, src, width64Or32(res64), width64Or32(arg64), sx, offset, size);
     }
 
