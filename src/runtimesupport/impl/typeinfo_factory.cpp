@@ -288,7 +288,7 @@ static std::optional<TypeInfo> QueryTypeInfoAOTByName(char const* str)
 
 static std::optional<TypeInfo> QueryTypeInfoAOT(Engine::Session& session, Engine::GlobalTerm term)
 {
-    auto ident = Engine::AotTermId(term).GetIdentifier();
+    auto ident    = Engine::AotTermId(term).GetIdentifier();
     auto typeName = std::string(Symlevel::Reader::Read(session, ident.GetFileId(), ident.GetOffset()));
 
     auto typeInfo = g_CJNativeInterfaceInstance.typeInfo(typeName.c_str());

@@ -5,7 +5,9 @@
 
 namespace Symlevel {
 
-MethodReference ParseReference(Engine::Session& session, IO::FileId fileId, Offset<MethodReference> offset, uint8_t region)
+MethodReference ParseReference(
+    Engine::Session& session, IO::FileId fileId, Offset<MethodReference> offset, uint8_t region
+)
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetMethodRefSectionOffs() + offset);
 
@@ -15,7 +17,9 @@ MethodReference ParseReference(Engine::Session& session, IO::FileId fileId, Offs
     return { nameOffset, refTypeIdx, methodSigIdx };
 }
 
-FieldReference ParseReference(Engine::Session& session, IO::FileId fileId, Offset<FieldReference> offset, uint8_t region)
+FieldReference ParseReference(
+    Engine::Session& session, IO::FileId fileId, Offset<FieldReference> offset, uint8_t region
+)
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetFieldRefSectionOffs() + offset);
 

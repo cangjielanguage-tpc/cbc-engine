@@ -48,13 +48,11 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
         FATAL("out of memory");
     }
     // FIXME: proper publication
-    impl->fuhMap.insert({methodDef.Pack(), fuh});
+    impl->fuhMap.insert({ methodDef.Pack(), fuh });
     return fuh;
 }
 
-FunctionHandle* FunctionHandleManager::Acquire(
-    Session& session, Identifier<Symlevel::MethodDefinition> methodDef
-)
+FunctionHandle* FunctionHandleManager::Acquire(Session& session, Identifier<Symlevel::MethodDefinition> methodDef)
 {
     auto fuh = AcquireTagged(session, methodDef);
     if (std::holds_alternative<DynamicFunctionHandle*>(fuh)) {

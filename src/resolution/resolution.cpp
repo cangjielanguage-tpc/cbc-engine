@@ -394,23 +394,24 @@ template <typename Field> std::optional<Field> ResolveField(Resolver::Impl& reso
 
                 auto fieldDefIdentOpt = typeDef.GetFieldIndex().FindField(resolver.session, ref.name);
                 if (!fieldDefIdentOpt.has_value()) {
-                    log.Stream(Logging::Level::ERROR) << "Field definition search failed " << id.GetValue() << Stream::endl;
+                    log.Stream(Logging::Level::ERROR)
+                        << "Field definition search failed " << id.GetValue() << Stream::endl;
                     return std::nullopt;
                 }
 
-                auto fieldDef = Symlevel::FieldDefinition::Resolve(resolver.session, fieldDefIdentOpt.value());
+                auto fieldDef        = Symlevel::FieldDefinition::Resolve(resolver.session, fieldDefIdentOpt.value());
                 auto actualFieldType = TermManager::Resolve(resolver.session, fieldDef.FieldType());
                 if (ref.fieldType != actualFieldType) {
-                    log.Stream(Logging::Level::ERROR) << "Field type mismatch expected:  " << ref.fieldType.GetName(resolver.session)
+                    log.Stream(Logging::Level::ERROR)
+                        << "Field type mismatch expected:  " << ref.fieldType.GetName(resolver.session)
                         << ", actual: " << actualFieldType.GetName(resolver.session) << Stream::endl;
                     return std::nullopt;
                 }
 
-                uintptr_t location = StaticsManager::Of(resolver.session).GetLocation(
-                    resolver.session, typeDefIdent, fieldDefIdentOpt.value()
-                );
+                uintptr_t location = StaticsManager::Of(resolver.session)
+                                         .GetLocation(resolver.session, typeDefIdent, fieldDefIdentOpt.value());
 
-                return StaticField{ refType, ref.name, fieldType, location };
+                return StaticField { refType, ref.name, fieldType, location };
             }
         }
         default: {

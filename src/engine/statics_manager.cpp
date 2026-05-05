@@ -1,22 +1,24 @@
 #include "statics_manager.h"
-#include "symlevel/flags.h"
 #include "symlevel/definitions.h"
+#include "symlevel/flags.h"
 #include "utils/assertion.h"
 
-namespace Engine
-{
+namespace Engine {
 
-StaticFieldsBundle::StaticFieldsBundle(uint32_t refFieldsNum, uint32_t primFieldsNum): refFieldsNum(refFieldsNum), primFieldsNum(primFieldsNum),
-    rawMemory(refFieldsNum * sizeof(RefLocation) + primFieldsNum * sizeof(PrimLocation), 0)
+StaticFieldsBundle::StaticFieldsBundle(uint32_t refFieldsNum, uint32_t primFieldsNum)
+    : refFieldsNum(refFieldsNum),
+      primFieldsNum(primFieldsNum),
+      rawMemory(refFieldsNum * sizeof(RefLocation) + primFieldsNum * sizeof(PrimLocation), 0)
 {
-    uint8_t* ptr = rawMemory.data();
+    uint8_t* ptr   = rawMemory.data();
     refFieldsStart = reinterpret_cast<RefLocation*>(ptr);
 
-    ptr += refFieldsNum * sizeof(RefLocation);
-    primFieldsStart = reinterpret_cast<PrimLocation*>(ptr);
+    ptr             += refFieldsNum * sizeof(RefLocation);
+    primFieldsStart  = reinterpret_cast<PrimLocation*>(ptr);
 }
 
-SlotKind ComputeSlotKind(Session& session, Symlevel::FieldDefinition& definition) {
+SlotKind ComputeSlotKind(Session& session, Symlevel::FieldDefinition& definition)
+{
     // TODO support records
     auto fieldType = TermManager::Resolve(session, definition.FieldType());
     if (fieldType.GetId().IsReference()) {
@@ -33,36 +35,36 @@ uintptr_t StaticFieldsBundle::GetLocation(Session& session, TypeIdent typeIdent,
     auto fieldDef = Symlevel::FieldDefinition::Resolve(session, fieldIdent);
 
     auto targetKind = ComputeSlotKind(session, fieldDef);
-    uint32_t idx = 0;
+    uint32_t idx    = 0;
 
-    typeDef.GetFieldIndex().ForEach(session, [&idx, &fieldIdent, &targetKind, &session](Symlevel::FieldDefinition& field) {
-        if (field.Flags().IsNot(Symlevel::FieldFlag::STATIC)) {
+    typeDef.GetFieldIndex().ForEach(
+        session,
+        [&idx, &fieldIdent, &targetKind, &session](Symlevel::FieldDefinition& field) {
+            if (field.Flags().IsNot(Symlevel::FieldFlag::STATIC)) {
+                return false;
+            }
+
+            if (targetKind != ComputeSlotKind(session, field)) {
+                return false;
+            }
+
+            if (fieldIdent == field.Identifier()) {
+                return true;
+            }
+
+            idx++;
             return false;
         }
+    );
 
-        if (targetKind != ComputeSlotKind(session, field)) {
-            return false;
-        }
-
-        if (fieldIdent == field.Identifier()) {
-            return true;
-        }
-
-        idx++;
-        return false;
-    });
-
-    switch (targetKind)
-    {
+    switch (targetKind) {
         case REFERENCE:
             ASSERTION(idx < refFieldsNum, "Incorrect static reference field index");
             return reinterpret_cast<uintptr_t>(refFieldsStart + idx);
         case PRIMITIVE:
             ASSERTION(idx < primFieldsNum, "Incorrect static primitive field index");
             return reinterpret_cast<uintptr_t>(primFieldsStart + idx);
-        default:
-            FATAL("Not supported yet");
-            return 0;
+        default: FATAL("Not supported yet"); return 0;
     }
 }
 
@@ -78,7 +80,7 @@ void StaticFieldsBundle::VisitRefLocations(std::function<void(RefLocation*)> act
 StaticFieldsBundle StaticsManager::CreateBundle(Session& session, TypeIdent typeIdent)
 {
     // TODO support records
-    uint32_t refFieldsNum = 0;
+    uint32_t refFieldsNum  = 0;
     uint32_t primFieldsNum = 0;
 
     auto typeDef = Symlevel::TypeDefinition::Resolve(session, typeIdent);

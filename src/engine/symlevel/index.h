@@ -23,9 +23,7 @@ template <typename T> struct RefId {
 
     uint32_t GetIndex() const { return index; }
 
-    bool operator==(const RefId& another) const {
-        return region == another.region && index == another.index;
-    }
+    bool operator==(const RefId& another) const { return region == another.region && index == another.index; }
 };
 
 } // namespace Symlevel

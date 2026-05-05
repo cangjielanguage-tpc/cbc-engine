@@ -9,7 +9,7 @@ namespace IO {
 
 struct FileId {
     static constexpr auto BIT_SIZE = 28;
-    static constexpr auto MAX_ID = (1 << 28) - 1;
+    static constexpr auto MAX_ID   = (1 << 28) - 1;
 
     const uint32_t id;
 
@@ -19,9 +19,7 @@ struct FileId {
 
     inline operator std::size_t() const { return id; }
 
-    inline bool operator==(const FileId& another) const {
-        return id == another.id;
-    }
+    inline bool operator==(const FileId& another) const { return id == another.id; }
 };
 
 } // namespace IO

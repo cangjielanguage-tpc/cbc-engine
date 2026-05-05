@@ -76,66 +76,50 @@ static TermData* AllocateTerm(Memory::Heap& allocator, size_t subtermCount = 0)
 
 // NOTE: the order is the same as the order of builtin terms in cbc format.
 static TermData builtins[] = {
-    { TagTermId(TermKind::NIL), 0xa0, 0, false },
-    { TagTermId(TermKind::VOID), 0xa1, 0, false },
-    { TagTermId(TermKind::UNIT), 0xa2, 0, false },
-    { TagTermId(TermKind::NOTHING), 0xb3, 0, false },
-    { TagTermId(TermKind::BOOLEAN), 0xb4, 0, false },
-    { TagTermId(TermKind::I8), 0xb5, 0, false },
-    { TagTermId(TermKind::U8), 0xc6, 0, false },
-    { TagTermId(TermKind::I16), 0xc7, 0, false },
-    { TagTermId(TermKind::U16), 0xd8, 0, false },
-    { TagTermId(TermKind::I32), 0xd9, 0, false },
-    { TagTermId(TermKind::U32), 0x10, 0, false },
-    { TagTermId(TermKind::UCHAR32), 0x41, 0, false },
-    { TagTermId(TermKind::I64), 0x32, 0, false },
-    { TagTermId(TermKind::U64), 0x23, 0, false },
-    { TagTermId(TermKind::IADDR), 0x14, 0, false },
-    { TagTermId(TermKind::UADDR), 0x45, 0, false },
-    { TagTermId(TermKind::BSTRING), 0x16, 0, false },
-    { TagTermId(TermKind::F16), 0x87, 0, false },
-    { TagTermId(TermKind::F32), 0x98, 0, false },
-    { TagTermId(TermKind::F64), 0x29, 0, false },
+    { TagTermId(TermKind::NIL), 0xa0, 0, false },     { TagTermId(TermKind::VOID), 0xa1, 0, false },
+    { TagTermId(TermKind::UNIT), 0xa2, 0, false },    { TagTermId(TermKind::NOTHING), 0xb3, 0, false },
+    { TagTermId(TermKind::BOOLEAN), 0xb4, 0, false }, { TagTermId(TermKind::I8), 0xb5, 0, false },
+    { TagTermId(TermKind::U8), 0xc6, 0, false },      { TagTermId(TermKind::I16), 0xc7, 0, false },
+    { TagTermId(TermKind::U16), 0xd8, 0, false },     { TagTermId(TermKind::I32), 0xd9, 0, false },
+    { TagTermId(TermKind::U32), 0x10, 0, false },     { TagTermId(TermKind::UCHAR32), 0x41, 0, false },
+    { TagTermId(TermKind::I64), 0x32, 0, false },     { TagTermId(TermKind::U64), 0x23, 0, false },
+    { TagTermId(TermKind::IADDR), 0x14, 0, false },   { TagTermId(TermKind::UADDR), 0x45, 0, false },
+    { TagTermId(TermKind::BSTRING), 0x16, 0, false }, { TagTermId(TermKind::F16), 0x87, 0, false },
+    { TagTermId(TermKind::F32), 0x98, 0, false },     { TagTermId(TermKind::F64), 0x29, 0, false },
 };
 
-bool TermId::IsReference() {
-    switch (GetKind())
-    {
+bool TermId::IsReference()
+{
+    switch (GetKind()) {
         case TermKind::AOT_TYPE:
         case TermKind::TYPE:
         case TermKind::NULLABLE:
         case TermKind::NON_NULLABLE:
         case TermKind::CANGJIE_ARRAY:
-        case TermKind::TYPE_VAR:
-            return true;
-        default:
-            return false;
+        case TermKind::TYPE_VAR:      return true;
+        default:                      return false;
     }
 }
 
-int TermId::Width() {
-    switch (GetKind())
-    {
+int TermId::Width()
+{
+    switch (GetKind()) {
         case TermKind::BOOLEAN:
         case TermKind::U8:
-        case TermKind::I8:
-            return sizeof(uint8_t);
+        case TermKind::I8:        return sizeof(uint8_t);
         case TermKind::U16:
         case TermKind::I16:
-        case TermKind::F16:
-            return sizeof(uint16_t);
+        case TermKind::F16:       return sizeof(uint16_t);
         case TermKind::U32:
         case TermKind::I32:
         case TermKind::F32:
-        case TermKind::UCHAR32:
-            return sizeof(uint32_t);
+        case TermKind::UCHAR32:   return sizeof(uint32_t);
         case TermKind::U64:
         case TermKind::I64:
         case TermKind::F64:
         case TermKind::C_POINTER:
         case TermKind::IADDR:
-        case TermKind::UADDR:
-            return sizeof(uint64_t);
+        case TermKind::UADDR:     return sizeof(uint64_t);
         default:
             if (IsReference()) {
                 return sizeof(uint64_t);
@@ -262,10 +246,10 @@ void Term::GetName(Session& session, Stream::Output& stream) const
         case TK::F64:     stream << "f64"; break;
 
         case TK::UNDEFINED: {
-            auto undef   = UndefTermId(*this).GetIdentifier();
-            auto file    = undef.GetFileId();
-            auto region  = undef.GetIndex().GetRegion();
-            auto index   = undef.GetIndex().GetIndex();
+            auto undef  = UndefTermId(*this).GetIdentifier();
+            auto file   = undef.GetFileId();
+            auto region = undef.GetIndex().GetRegion();
+            auto index  = undef.GetIndex().GetIndex();
             stream.PrintFmt("$unresolved<%u,%u,%u>", file.id, region, index);
             break;
         }
@@ -426,8 +410,8 @@ struct TermResolver {
                 return Term(LocalTerm(data));
             }
             case AOT_TYPE: {
-                auto nameOffs = Offset<String>(reader.ReadULEB());
-                auto* data    = AllocateTerm(heap);
+                auto nameOffs   = Offset<String>(reader.ReadULEB());
+                auto* data      = AllocateTerm(heap);
                 auto identifier = Identifier(nameOffs, fileId);
                 data->InitAfterSubterms(AotTermId(identifier), 0, true);
                 return Term(LocalTerm(data));

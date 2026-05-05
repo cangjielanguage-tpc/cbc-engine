@@ -68,7 +68,9 @@ FieldDefinition FieldDefinition::Parse(Engine::Session& session, IO::FileId file
     auto refType   = Engine::RefIdentifier(RefId<Term>(0, refTypeIdx), fileId);
     auto fieldType = Engine::RefIdentifier(RefId<Term>(0, fieldTypeIdx), fileId);
 
-    return FieldDefinition(Engine::Identifier<FieldDefinition>(offset, fileId), nameOffset, refType, fieldType, FieldFlags(flags), {});
+    return FieldDefinition(
+        Engine::Identifier<FieldDefinition>(offset, fileId), nameOffset, refType, fieldType, FieldFlags(flags), {}
+    );
 }
 
 FieldDefinition FieldDefinition::Resolve(Engine::Session& session, Engine::Identifier<FieldDefinition> identifier)

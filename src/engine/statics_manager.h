@@ -26,7 +26,7 @@ enum SlotKind {
 };
 
 class StaticFieldsBundle {
-    using TypeIdent = struct Identifier<Symlevel::TypeDefinition>;
+    using TypeIdent  = struct Identifier<Symlevel::TypeDefinition>;
     using FieldIdent = struct Identifier<Symlevel::FieldDefinition>;
 
 public:
@@ -47,19 +47,17 @@ private:
     std::vector<uint8_t> rawMemory;
 
     // TODO support record fields
-
 };
 
 class StaticsManager {
-    using TypeIdent = struct Identifier<Symlevel::TypeDefinition>;
+    using TypeIdent  = struct Identifier<Symlevel::TypeDefinition>;
     using FieldIdent = struct Identifier<Symlevel::FieldDefinition>;
 
 public:
-
     static StaticsManager& Of(Engine& engine);
     static StaticsManager& Of(Session& session);
 
-    StaticsManager() = default;
+    StaticsManager()  = default;
     ~StaticsManager() = default;
 
     uintptr_t GetLocation(Session& session, TypeIdent typeIdent, FieldIdent fieldIdent);

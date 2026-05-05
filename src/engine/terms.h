@@ -84,7 +84,6 @@ static constexpr auto FIRST_NON_PRIMITIVE = static_cast<uint16_t>(TermKind::UNDE
 
 class TermId {
 public:
-
     static constexpr auto KIND_PART_BIT_SIZE = 8 * sizeof(TermKind);
     static constexpr auto INFO_PART_BIT_SIZE = 64 - KIND_PART_BIT_SIZE;
 
@@ -117,10 +116,8 @@ protected:
 
 struct TagTermId : public TermId {
     constexpr TagTermId(TermKind kind) : TermId(kind, 0) {}
-    explicit constexpr TagTermId(TermId ident) : TermId(ident)
-    {
-        ASSERT(info == 0);
-    }
+
+    explicit constexpr TagTermId(TermId ident) : TermId(ident) { ASSERT(info == 0); }
 };
 
 class Term {
@@ -194,28 +191,24 @@ private:
     TermData* data;
 };
 
-template <typename Id, TermKind tk>
-struct _SpecializedTermId : public TermId {
-    _SpecializedTermId(Id identifier)
-        : TermId(tk, Bits::Raw64(identifier.Pack())) {}
+template <typename Id, TermKind tk> struct _SpecializedTermId : public TermId {
+    _SpecializedTermId(Id identifier) : TermId(tk, Bits::Raw64(identifier.Pack())) {}
 
     explicit _SpecializedTermId(Term term) : _SpecializedTermId(term.GetId()) {}
 
-    explicit _SpecializedTermId(TermId ident) : TermId(ident) {
-        ASSERT(ident.GetKind() == tk);
-    }
+    explicit _SpecializedTermId(TermId ident) : TermId(ident) { ASSERT(ident.GetKind() == tk); }
 
     Id GetIdentifier()
     {
-        typename Id::Packed packed{};
+        typename Id::Packed packed {};
         uint64_t info = this->info;
         std::memcpy(&packed, &info, sizeof(packed));
         return Id(packed);
     }
 };
 
-using AotTermId = _SpecializedTermId<Identifier<Symlevel::String>, TermKind::AOT_TYPE>;
-using TypeTermId = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::TYPE>;
+using AotTermId   = _SpecializedTermId<Identifier<Symlevel::String>, TermKind::AOT_TYPE>;
+using TypeTermId  = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::TYPE>;
 using UndefTermId = _SpecializedTermId<RefIdentifier<Term>, TermKind::UNDEFINED>;
 
 /// Term manager provides utilities for caching (and interning) of global terms,
