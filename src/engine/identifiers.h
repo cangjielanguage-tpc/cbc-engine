@@ -52,7 +52,7 @@ template <typename T> struct Identifier {
     }
 };
 
-template <typename T> struct IndexIdentifier {
+template <typename T> struct RefIdentifier {
     struct Packed {
         uint64_t const unused : 12;
         uint64_t const region : 8;
@@ -72,20 +72,20 @@ template <typename T> struct IndexIdentifier {
         }
     };
 
-    Symlevel::Index<T> const index;
+    Symlevel::RefId<T> const index;
     IO::FileId const fileId;
 
-    IndexIdentifier(Symlevel::Index<T> index, IO::FileId fileId) : index(index), fileId(fileId) {}
+    RefIdentifier(Symlevel::RefId<T> index, IO::FileId fileId) : index(index), fileId(fileId) {}
 
-    IndexIdentifier(IndexIdentifier const& another) : IndexIdentifier(another.index, another.fileId) {}
+    RefIdentifier(RefIdentifier const& another) : RefIdentifier(another.index, another.fileId) {}
 
-    IndexIdentifier(Packed const& packed) : IndexIdentifier(Symlevel::Index<T>(packed.region, packed.id), IO::FileId(packed.fileId)) {}
+    RefIdentifier(Packed const& packed) : RefIdentifier(Symlevel::RefId<T>(packed.region, packed.id), IO::FileId(packed.fileId)) {}
 
-    Symlevel::Index<T> GetIndex() const { return index; }
+    Symlevel::RefId<T> GetIndex() const { return index; }
 
     IO::FileId GetFileId() const { return fileId; }
 
-    bool operator==(const IndexIdentifier& another) const {
+    bool operator==(const RefIdentifier& another) const {
         return Pack() == another.Pack();
     }
 

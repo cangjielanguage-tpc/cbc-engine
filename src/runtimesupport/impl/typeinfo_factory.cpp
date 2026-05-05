@@ -302,7 +302,7 @@ std::optional<TypeInfo> CreateTypeInfo(
     Engine::Session& session, Engine::TypeInfoManager& manager, Engine::GlobalTerm term
 )
 {
-    auto termIdent = term.GetIdentifier();
+    auto termIdent = term.GetId();
     switch (termIdent.GetKind()) {
         case Engine::TermKind::AOT_TYPE: return QueryTypeInfoAOT(session, term);
         case Engine::TermKind::TYPE:     return CreateTypeInfoDyn(session, manager, term);

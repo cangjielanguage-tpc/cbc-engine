@@ -171,7 +171,7 @@ struct ResolvedFieldReference {
     }
 };
 
-static ResolvedMethodReference ResolveReference(Session& session, IndexIdentifier<Symlevel::MethodReference> identifier)
+static ResolvedMethodReference ResolveReference(Session& session, RefIdentifier<Symlevel::MethodReference> identifier)
 {
     auto parsedRef = Symlevel::MethodReference::Parse(session, identifier);
     auto& manager  = TermManager::Of(session);
@@ -181,7 +181,7 @@ static ResolvedMethodReference ResolveReference(Session& session, IndexIdentifie
     return { refType, name, signature };
 }
 
-static ResolvedFieldReference ResolveReference(Session& session, IndexIdentifier<Symlevel::FieldReference> identifier)
+static ResolvedFieldReference ResolveReference(Session& session, RefIdentifier<Symlevel::FieldReference> identifier)
 {
     auto parsedRef = Symlevel::FieldReference::Parse(session, identifier);
     auto& manager  = TermManager::Of(session);
@@ -204,8 +204,8 @@ std::optional<Call> ResolveCall(Resolver::Impl& resolver, Index<Call> id)
     auto fileId   = resolver.method.GetFileId();
 
     // FIXME: region num
-    auto refId = Symlevel::Index<Symlevel::MethodReference>(0, id.GetValue());
-    auto ident = IndexIdentifier<Symlevel::MethodReference>(refId, fileId);
+    auto refId = Symlevel::RefId<Symlevel::MethodReference>(0, id.GetValue());
+    auto ident = RefIdentifier<Symlevel::MethodReference>(refId, fileId);
     auto ref   = ResolveReference(session, ident);
 
     if (ref.refType.GetKind() == TermKind::UNDEFINED || ref.signature.GetKind() == TermKind::UNDEFINED) {
@@ -345,8 +345,8 @@ template <typename Field> std::optional<Field> ResolveField(Resolver::Impl& reso
     auto fileId = resolver.method.GetFileId();
 
     // FIXME: region num
-    auto refId = Symlevel::Index<Symlevel::FieldReference>(0, id.GetValue());
-    auto ident = IndexIdentifier<Symlevel::FieldReference>(refId, fileId);
+    auto refId = Symlevel::RefId<Symlevel::FieldReference>(0, id.GetValue());
+    auto ident = RefIdentifier<Symlevel::FieldReference>(refId, fileId);
     auto ref   = ResolveReference(resolver.session, ident);
 
     if (ref.refType.GetKind() == TermKind::UNDEFINED || ref.fieldType.GetKind() == TermKind::UNDEFINED) {
@@ -417,8 +417,8 @@ std::optional<StaticField const*> Resolver::Query(Index<StaticField> id)
 std::optional<Type*> Resolver::Query(Index<Type> id)
 {
     // terms are being cached on different level
-    auto refId = Symlevel::Index<Symlevel::Term>(0, id.GetValue());
-    auto ident = IndexIdentifier<Symlevel::Term>(refId, impl->method.GetFileId());
+    auto refId = Symlevel::RefId<Symlevel::Term>(0, id.GetValue());
+    auto ident = RefIdentifier<Symlevel::Term>(refId, impl->method.GetFileId());
     auto term  = TermManager::Of(impl->session).Resolve(impl->session, ident);
     return impl->GetType(term);
 }

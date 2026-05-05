@@ -98,7 +98,7 @@ static TermData builtins[] = {
     { TagTermId(TermKind::F64), 0x29, 0, false },
 };
 
-static Term Primitive(Session& session, Symlevel::Index<Term> index)
+static Term Primitive(Session& session, Symlevel::RefId<Term> index)
 {
     static_assert(FIRST_NON_PRIMITIVE == sizeof(builtins) / sizeof(builtins[0]));
     int num = static_cast<int>(index.GetIndex());
@@ -114,7 +114,7 @@ Term Term::Definition(Session& session, Identifier<Symlevel::TypeDefinition> typ
     return LocalTerm(data);
 }
 
-static Term Undefined(Session& session, IndexIdentifier<Term> termId)
+static Term Undefined(Session& session, RefIdentifier<Term> termId)
 {
     // TODO: assertions for length
     auto* data = AllocateTerm(session.Allocator());
@@ -163,7 +163,7 @@ GlobalTerm Term::AsGlobal()
 
 Term Term::Subterm(uint32_t i) const { return data->subterms[i]; }
 
-TermId Term::GetIdentifier() const { return data->identifier; }
+TermId Term::GetId() const { return data->identifier; }
 
 TermKind Term::GetKind() const { return data->identifier.GetKind(); }
 
@@ -353,9 +353,9 @@ struct TermResolver {
     IO::RandomAccessFile& raf;
     Symlevel::CbcFile& file;
 
-    Term NewUndefined(Symlevel::Index<Term> index) { return Undefined(session, IndexIdentifier(index, fileId)); }
+    Term NewUndefined(Symlevel::RefId<Term> index) { return Undefined(session, RefIdentifier(index, fileId)); }
 
-    Term Resolve(Symlevel::Index<Term> index)
+    Term Resolve(Symlevel::RefId<Term> index)
     {
         using namespace Symlevel;
 
@@ -392,8 +392,8 @@ struct TermResolver {
                 auto& regionData = session.CbcFileOf(fileId).GetRegionData();
                 for (int i = 0; i < len; i++) {
                     auto subtermIdx = reader.ReadULEB();
-                    auto subterm    = Resolve(Index<Term>(index.GetRegion(), subtermIdx));
-                    if (subterm.GetIdentifier().GetKind() == TermKind::UNDEFINED) {
+                    auto subterm    = Resolve(RefId<Term>(index.GetRegion(), subtermIdx));
+                    if (subterm.GetId().GetKind() == TermKind::UNDEFINED) {
                         return NewUndefined(index);
                     }
                 }
@@ -409,7 +409,7 @@ struct TermResolver {
     }
 };
 
-Term TermManager::Resolve(Session& session, IndexIdentifier<Term> ident)
+Term TermManager::Resolve(Session& session, RefIdentifier<Term> ident)
 {
     auto index  = ident.GetIndex();
     auto region = index.GetRegion();

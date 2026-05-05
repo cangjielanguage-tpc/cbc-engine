@@ -131,7 +131,7 @@ public:
     Term(LocalTerm local);
     Term(GlobalTerm global);
 
-    TermId GetIdentifier() const;
+    TermId GetId() const;
     TermKind GetKind() const;
     uint32_t GetLength() const;
     uint32_t Hash() const;
@@ -160,7 +160,7 @@ public:
 
     GlobalTerm Publish(Session& session);
 
-    TermId GetIdentifier() const { return Term(*this).GetIdentifier(); }
+    TermId GetId() const { return Term(*this).GetId(); }
 
     uint32_t GetLength() const { return Term(*this).GetLength(); }
 
@@ -177,7 +177,7 @@ public:
 
     GlobalTerm Subterm(uint32_t i) const;
 
-    TermId GetIdentifier() const { return Term(*this).GetIdentifier(); }
+    TermId GetId() const { return Term(*this).GetId(); }
 
     uint32_t GetLength() const { return Term(*this).GetLength(); }
 
@@ -196,7 +196,7 @@ struct _SpecializedTermId : public TermId {
     _SpecializedTermId(Id identifier)
         : TermId(tk, Bits::Raw64(identifier.Pack())) {}
 
-    explicit _SpecializedTermId(Term term) : _SpecializedTermId(term.GetIdentifier()) {}
+    explicit _SpecializedTermId(Term term) : _SpecializedTermId(term.GetId()) {}
 
     explicit _SpecializedTermId(TermId ident) : TermId(ident) {
         ASSERT(ident.GetKind() == tk);
@@ -213,7 +213,7 @@ struct _SpecializedTermId : public TermId {
 
 using AotTermId = _SpecializedTermId<Identifier<Symlevel::String>, TermKind::AOT_TYPE>;
 using TypeTermId = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::TYPE>;
-using UndefTermId = _SpecializedTermId<IndexIdentifier<Term>, TermKind::UNDEFINED>;
+using UndefTermId = _SpecializedTermId<RefIdentifier<Term>, TermKind::UNDEFINED>;
 
 /// Term manager provides utilities for caching (and interning) of global terms,
 /// and responsible for resolution of term identifiers.
@@ -228,7 +228,7 @@ public:
     /// Perform term resolution.
     /// In case of resolution errors, UNDEFINED term will be returned.
     // TODO: pass abstract cache inside.
-    static Term Resolve(Session& session, IndexIdentifier<Term> ident);
+    static Term Resolve(Session& session, RefIdentifier<Term> ident);
 
     /// Globalize given term.
     /// The function performs in-place modification of `Term` structure.

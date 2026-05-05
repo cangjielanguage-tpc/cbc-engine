@@ -11,19 +11,19 @@ namespace Symlevel {
 /// To allow more references, CBC uses regions that
 /// could implicitly extend 16-bit indicies up to 24 bit.
 
-template <typename T> struct Index {
+template <typename T> struct RefId {
     static constexpr auto BIT_SIZE = 24;
 
     uint8_t const region;
     uint16_t const index;
 
-    constexpr Index(uint8_t region, uint16_t index) : region(region), index(index) {}
+    constexpr RefId(uint8_t region, uint16_t index) : region(region), index(index) {}
 
     uint8_t GetRegion() const { return region; }
 
     uint32_t GetIndex() const { return index; }
 
-    bool operator==(const Index& another) const {
+    bool operator==(const RefId& another) const {
         return region == another.region && index == another.index;
     }
 };

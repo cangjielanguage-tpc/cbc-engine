@@ -10,8 +10,8 @@ MethodReference ParseReference(Engine::Session& session, IO::FileId fileId, Offs
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetMethodRefSectionOffs() + offset);
 
     auto nameOffset   = Engine::Identifier<String>(Offset<String>(reader.ReadU32()), fileId);
-    auto refTypeIdx   = Engine::IndexIdentifier(Index<Term>(region, reader.ReadULEB()), fileId);
-    auto methodSigIdx = Engine::IndexIdentifier(Index<Term>(region, reader.ReadULEB()), fileId);
+    auto refTypeIdx   = Engine::RefIdentifier(RefId<Term>(region, reader.ReadULEB()), fileId);
+    auto methodSigIdx = Engine::RefIdentifier(RefId<Term>(region, reader.ReadULEB()), fileId);
     return { nameOffset, refTypeIdx, methodSigIdx };
 }
 
@@ -20,8 +20,8 @@ FieldReference ParseReference(Engine::Session& session, IO::FileId fileId, Offse
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetFieldRefSectionOffs() + offset);
 
     auto nameOffset   = Engine::Identifier<String>(Offset<String>(reader.ReadU32()), fileId);
-    auto refTypeIdx   = Engine::IndexIdentifier(Index<Term>(region, reader.ReadULEB()), fileId);
-    auto fieldTypeIdx = Engine::IndexIdentifier(Index<Term>(region, reader.ReadULEB()), fileId);
+    auto refTypeIdx   = Engine::RefIdentifier(RefId<Term>(region, reader.ReadULEB()), fileId);
+    auto fieldTypeIdx = Engine::RefIdentifier(RefId<Term>(region, reader.ReadULEB()), fileId);
 
     auto isRecord = reader.ReadU8() != 0;
 
@@ -29,7 +29,7 @@ FieldReference ParseReference(Engine::Session& session, IO::FileId fileId, Offse
 }
 
 template <typename Reference>
-inline static Reference ParseReference(Engine::Session& session, Engine::IndexIdentifier<Reference> identifier)
+inline static Reference ParseReference(Engine::Session& session, Engine::RefIdentifier<Reference> identifier)
 {
     auto& file       = session.CbcFileOf(identifier.GetFileId());
     auto& raf        = session.FileOf(identifier.GetFileId());
@@ -38,12 +38,12 @@ inline static Reference ParseReference(Engine::Session& session, Engine::IndexId
     return ParseReference(session, identifier.GetFileId(), offset, identifier.GetIndex().GetRegion());
 }
 
-MethodReference MethodReference::Parse(Engine::Session& session, Engine::IndexIdentifier<MethodReference> identifier)
+MethodReference MethodReference::Parse(Engine::Session& session, Engine::RefIdentifier<MethodReference> identifier)
 {
     return ParseReference(session, identifier);
 }
 
-FieldReference FieldReference::Parse(Engine::Session& session, Engine::IndexIdentifier<FieldReference> identifier)
+FieldReference FieldReference::Parse(Engine::Session& session, Engine::RefIdentifier<FieldReference> identifier)
 {
     return ParseReference(session, identifier);
 }
