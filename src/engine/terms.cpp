@@ -26,18 +26,18 @@ namespace Engine {
 /// The length of subterm array is bounded by 2^16, so in the leftover memory
 /// we fit additional fields `hash` and `isLocal`.
 struct TermData {
-    TemplateIdentifier identifier;
+    TermId identifier;
     uint32_t hash;
     uint16_t length;
     bool isLocal;
     Term subterms[];
 
-    void InitAfterSubterms(TemplateIdentifier identifier, uint16_t length, bool isLocal)
+    void InitAfterSubterms(TermId identifier, uint16_t length, bool isLocal)
     {
         Init(identifier, identifier.Hash() ^ hash, length, isLocal);
     }
 
-    void Init(TemplateIdentifier identifier, uint32_t hash, uint16_t length, bool isLocal)
+    void Init(TermId identifier, uint32_t hash, uint16_t length, bool isLocal)
     {
         this->identifier = identifier;
         this->isLocal    = isLocal;
@@ -76,26 +76,26 @@ static TermData* AllocateTerm(Memory::Heap& allocator, size_t subtermCount = 0)
 
 // NOTE: the order is the same as the order of builtin terms in cbc format.
 static TermData builtins[] = {
-    { TagTemplateIdentifier(TemplateKind::NIL), 0xa0, 0, false },
-    { TagTemplateIdentifier(TemplateKind::VOID), 0xa1, 0, false },
-    { TagTemplateIdentifier(TemplateKind::UNIT), 0xa2, 0, false },
-    { TagTemplateIdentifier(TemplateKind::NOTHING), 0xb3, 0, false },
-    { TagTemplateIdentifier(TemplateKind::BOOLEAN), 0xb4, 0, false },
-    { TagTemplateIdentifier(TemplateKind::I8), 0xb5, 0, false },
-    { TagTemplateIdentifier(TemplateKind::U8), 0xc6, 0, false },
-    { TagTemplateIdentifier(TemplateKind::I16), 0xc7, 0, false },
-    { TagTemplateIdentifier(TemplateKind::U16), 0xd8, 0, false },
-    { TagTemplateIdentifier(TemplateKind::I32), 0xd9, 0, false },
-    { TagTemplateIdentifier(TemplateKind::U32), 0x10, 0, false },
-    { TagTemplateIdentifier(TemplateKind::UCHAR32), 0x41, 0, false },
-    { TagTemplateIdentifier(TemplateKind::I64), 0x32, 0, false },
-    { TagTemplateIdentifier(TemplateKind::U64), 0x23, 0, false },
-    { TagTemplateIdentifier(TemplateKind::IADDR), 0x14, 0, false },
-    { TagTemplateIdentifier(TemplateKind::UADDR), 0x45, 0, false },
-    { TagTemplateIdentifier(TemplateKind::BSTRING), 0x16, 0, false },
-    { TagTemplateIdentifier(TemplateKind::F16), 0x87, 0, false },
-    { TagTemplateIdentifier(TemplateKind::F32), 0x98, 0, false },
-    { TagTemplateIdentifier(TemplateKind::F64), 0x29, 0, false },
+    { TagTermId(TermKind::NIL), 0xa0, 0, false },
+    { TagTermId(TermKind::VOID), 0xa1, 0, false },
+    { TagTermId(TermKind::UNIT), 0xa2, 0, false },
+    { TagTermId(TermKind::NOTHING), 0xb3, 0, false },
+    { TagTermId(TermKind::BOOLEAN), 0xb4, 0, false },
+    { TagTermId(TermKind::I8), 0xb5, 0, false },
+    { TagTermId(TermKind::U8), 0xc6, 0, false },
+    { TagTermId(TermKind::I16), 0xc7, 0, false },
+    { TagTermId(TermKind::U16), 0xd8, 0, false },
+    { TagTermId(TermKind::I32), 0xd9, 0, false },
+    { TagTermId(TermKind::U32), 0x10, 0, false },
+    { TagTermId(TermKind::UCHAR32), 0x41, 0, false },
+    { TagTermId(TermKind::I64), 0x32, 0, false },
+    { TagTermId(TermKind::U64), 0x23, 0, false },
+    { TagTermId(TermKind::IADDR), 0x14, 0, false },
+    { TagTermId(TermKind::UADDR), 0x45, 0, false },
+    { TagTermId(TermKind::BSTRING), 0x16, 0, false },
+    { TagTermId(TermKind::F16), 0x87, 0, false },
+    { TagTermId(TermKind::F32), 0x98, 0, false },
+    { TagTermId(TermKind::F64), 0x29, 0, false },
 };
 
 static Term Primitive(Session& session, Symlevel::Index<Term> index)
@@ -110,7 +110,7 @@ Term Term::Definition(Session& session, Identifier<Symlevel::TypeDefinition> typ
 {
     // TODO: assertions for length
     auto* data = AllocateTerm(session.Allocator());
-    data->InitAfterSubterms(TypeTemplateIdentifier(type), 0, true);
+    data->InitAfterSubterms(TypeTermId(type), 0, true);
     return LocalTerm(data);
 }
 
@@ -118,7 +118,7 @@ static Term Undefined(Session& session, IndexIdentifier<Term> termId)
 {
     // TODO: assertions for length
     auto* data = AllocateTerm(session.Allocator());
-    data->InitAfterSubterms(UndefinedTemplateIdentifier(termId), 0, true);
+    data->InitAfterSubterms(UndefTermId(termId), 0, true);
     return LocalTerm(data);
 }
 
@@ -163,9 +163,9 @@ GlobalTerm Term::AsGlobal()
 
 Term Term::Subterm(uint32_t i) const { return data->subterms[i]; }
 
-TemplateIdentifier Term::GetIdentifier() const { return data->identifier; }
+TermId Term::GetIdentifier() const { return data->identifier; }
 
-TemplateKind Term::GetKind() const { return data->identifier.GetKind(); }
+TermKind Term::GetKind() const { return data->identifier.GetKind(); }
 
 uint32_t Term::GetLength() const { return data->length; }
 
@@ -191,7 +191,7 @@ void Term::GetName(Session& session, Stream::Output& stream) const
         stream << suffix;
     };
 
-    using TK = TemplateKind;
+    using TK = TermKind;
     switch (GetKind()) {
         case TK::NIL:     stream << "nil"; break;
         case TK::VOID:    stream << "void"; break;
@@ -215,7 +215,7 @@ void Term::GetName(Session& session, Stream::Output& stream) const
         case TK::F64:     stream << "f64"; break;
 
         case TK::UNDEFINED: {
-            auto undef   = UndefinedTemplateIdentifier(*this).GetIdentifier();
+            auto undef   = UndefTermId(*this).GetIdentifier();
             auto file    = undef.GetFileId();
             auto region  = undef.GetIndex().GetRegion();
             auto index   = undef.GetIndex().GetIndex();
@@ -251,7 +251,7 @@ void Term::GetName(Session& session, Stream::Output& stream) const
         }
 
         case TK::TYPE: {
-            auto ident = TypeTemplateIdentifier(*this).GetIdentifier();
+            auto ident = TypeTermId(*this).GetIdentifier();
             auto type  = Symlevel::TypeDefinition::Resolve(session, ident);
             stream << Symlevel::String::Parse(session, ident.GetFileId(), type.NameOffset());
             if (int len = GetLength(); len > 0) {
@@ -261,7 +261,7 @@ void Term::GetName(Session& session, Stream::Output& stream) const
         }
 
         case TK::AOT_TYPE: {
-            auto ident = AotTypeTemplateIdentifier(*this).GetIdentifier();
+            auto ident = AotTermId(*this).GetIdentifier();
             stream << Symlevel::String::Parse(session, ident.GetFileId(), ident.GetOffset());
             if (int len = GetLength(); len > 0) {
                 printSubTerms("<", ">", len);
@@ -375,14 +375,14 @@ struct TermResolver {
                 }
                 auto identifier = type.value();
                 auto* data      = AllocateTerm(heap);
-                data->InitAfterSubterms(TypeTemplateIdentifier(identifier), 0, true);
+                data->InitAfterSubterms(TypeTermId(identifier), 0, true);
                 return Term(LocalTerm(data));
             }
             case AOT_TYPE: {
                 auto nameOffs = Offset<String>(reader.ReadULEB());
                 auto* data    = AllocateTerm(heap);
                 auto identifier = Identifier(nameOffs, fileId);
-                data->InitAfterSubterms(AotTypeTemplateIdentifier(identifier), 0, true);
+                data->InitAfterSubterms(AotTermId(identifier), 0, true);
                 return Term(LocalTerm(data));
             }
             case METHOD_SIGNATURE: {
@@ -393,12 +393,12 @@ struct TermResolver {
                 for (int i = 0; i < len; i++) {
                     auto subtermIdx = reader.ReadULEB();
                     auto subterm    = Resolve(Index<Term>(index.GetRegion(), subtermIdx));
-                    if (subterm.GetIdentifier().GetKind() == TemplateKind::UNDEFINED) {
+                    if (subterm.GetIdentifier().GetKind() == TermKind::UNDEFINED) {
                         return NewUndefined(index);
                     }
                 }
 
-                data->InitAfterSubterms(TagTemplateIdentifier(TemplateKind::METHOD), len, true);
+                data->InitAfterSubterms(TagTermId(TermKind::METHOD), len, true);
                 return Term(LocalTerm(data));
             }
             default: {

@@ -207,7 +207,7 @@ MethodTable MethodTableManager::GetMethodTable(Engine::Session& session, Engine:
 
 MethodTable MethodTableManager::GetMethodTable(Engine::Session& session, Engine::Term term)
 {
-    auto type     = Engine::TypeTemplateIdentifier(term).GetIdentifier();
+    auto type     = Engine::TypeTermId(term).GetIdentifier();
     auto& manager = Symlevel::MethodTableManager::Of(session);
 
     // FIXME: instantiate!

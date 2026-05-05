@@ -42,7 +42,7 @@ class LocalTerm;
 class GlobalTerm;
 struct TermData;
 
-enum class TemplateKind : uint8_t {
+enum class TermKind : uint8_t {
     // primitives start
     NIL,
     VOID,
@@ -83,15 +83,15 @@ enum class TemplateKind : uint8_t {
     LAST
 };
 
-static constexpr auto FIRST_NON_PRIMITIVE = static_cast<uint16_t>(TemplateKind::UNDEFINED);
+static constexpr auto FIRST_NON_PRIMITIVE = static_cast<uint16_t>(TermKind::UNDEFINED);
 
-class TemplateIdentifier {
+class TermId {
 public:
 
-    static constexpr auto KIND_PART_BIT_SIZE = 8 * sizeof(TemplateKind);
+    static constexpr auto KIND_PART_BIT_SIZE = 8 * sizeof(TermKind);
     static constexpr auto INFO_PART_BIT_SIZE = 64 - KIND_PART_BIT_SIZE;
 
-    TemplateKind GetKind() { return kind; }
+    TermKind GetKind() { return kind; }
 
     uint32_t Hash()
     {
@@ -99,25 +99,25 @@ public:
         return hash(Raw());
     }
 
-    bool operator==(TemplateIdentifier const& another) const { return Raw() == another.Raw(); }
+    bool operator==(TermId const& another) const { return Raw() == another.Raw(); }
 
-    bool operator!=(TemplateIdentifier const& another) const { return !(*this == another); }
+    bool operator!=(TermId const& another) const { return !(*this == another); }
 
 protected:
-    constexpr TemplateIdentifier(TemplateKind kind, uint64_t info) : kind(kind), info(info)
+    constexpr TermId(TermKind kind, uint64_t info) : kind(kind), info(info)
     {
         ASSERT(info < (1lu << INFO_PART_BIT_SIZE));
     }
 
     uint64_t Raw() const { return Bits::Raw64(*this); }
 
-    TemplateKind kind : KIND_PART_BIT_SIZE;
+    TermKind kind : KIND_PART_BIT_SIZE;
     uint64_t info : INFO_PART_BIT_SIZE;
 };
 
-struct TagTemplateIdentifier : public TemplateIdentifier {
-    constexpr TagTemplateIdentifier(TemplateKind kind) : TemplateIdentifier(kind, 0) {}
-    explicit constexpr TagTemplateIdentifier(TemplateIdentifier ident) : TemplateIdentifier(ident)
+struct TagTermId : public TermId {
+    constexpr TagTermId(TermKind kind) : TermId(kind, 0) {}
+    explicit constexpr TagTermId(TermId ident) : TermId(ident)
     {
         ASSERT(info == 0);
     }
@@ -125,7 +125,7 @@ struct TagTemplateIdentifier : public TemplateIdentifier {
 
 class Term {
 public:
-    static constexpr uint16_t FIRST_NON_PRIMITIVE = static_cast<uint16_t>(TemplateKind::UNDEFINED);
+    static constexpr uint16_t FIRST_NON_PRIMITIVE = static_cast<uint16_t>(TermKind::UNDEFINED);
 
     TermData* data;
 
@@ -134,8 +134,8 @@ public:
     Term(LocalTerm local);
     Term(GlobalTerm global);
 
-    TemplateIdentifier GetIdentifier() const;
-    TemplateKind GetKind() const;
+    TermId GetIdentifier() const;
+    TermKind GetKind() const;
     uint32_t GetLength() const;
     uint32_t Hash() const;
 
@@ -163,7 +163,7 @@ public:
 
     GlobalTerm Publish(Session& session);
 
-    TemplateIdentifier GetIdentifier() const { return Term(*this).GetIdentifier(); }
+    TermId GetIdentifier() const { return Term(*this).GetIdentifier(); }
 
     uint32_t GetLength() const { return Term(*this).GetLength(); }
 
@@ -180,7 +180,7 @@ public:
 
     GlobalTerm Subterm(uint32_t i) const;
 
-    TemplateIdentifier GetIdentifier() const { return Term(*this).GetIdentifier(); }
+    TermId GetIdentifier() const { return Term(*this).GetIdentifier(); }
 
     uint32_t GetLength() const { return Term(*this).GetLength(); }
 
@@ -194,13 +194,14 @@ private:
     TermData* data;
 };
 
-template <typename Id, TemplateKind kind>
-struct _SpecializedTemplateIdentifier : public TemplateIdentifier {
-    _SpecializedTemplateIdentifier(Id identifier)
-        : TemplateIdentifier(kind, Bits::Raw64(identifier.Pack())) {}
+template <typename Id, TermKind kind>
+struct _SpecializedTermId : public TermId {
+    _SpecializedTermId(Id identifier)
+        : TermId(kind, Bits::Raw64(identifier.Pack())) {}
 
-    explicit _SpecializedTemplateIdentifier(Term term) : _SpecializedTemplateIdentifier(term.GetIdentifier()) {}
-    explicit _SpecializedTemplateIdentifier(TemplateIdentifier ident) : TemplateIdentifier(ident) {
+    explicit _SpecializedTermId(Term term) : _SpecializedTermId(term.GetIdentifier()) {}
+
+    explicit _SpecializedTermId(TermId ident) : TermId(ident) {
         ASSERT(ident.GetKind() == kind);
     }
 
@@ -213,9 +214,9 @@ struct _SpecializedTemplateIdentifier : public TemplateIdentifier {
     }
 };
 
-using AotTypeTemplateIdentifier = _SpecializedTemplateIdentifier<Identifier<Symlevel::String>, TemplateKind::AOT_TYPE>;
-using TypeTemplateIdentifier = _SpecializedTemplateIdentifier<Identifier<Symlevel::TypeDefinition>, TemplateKind::TYPE>;
-using UndefinedTemplateIdentifier = _SpecializedTemplateIdentifier<IndexIdentifier<Term>, TemplateKind::UNDEFINED>;
+using AotTermId = _SpecializedTermId<Identifier<Symlevel::String>, TermKind::AOT_TYPE>;
+using TypeTermId = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::TYPE>;
+using UndefTermId = _SpecializedTermId<IndexIdentifier<Term>, TermKind::UNDEFINED>;
 
 /// Term manager provides utilities for caching (and interning) of global terms,
 /// and responsible for resolution of term identifiers.

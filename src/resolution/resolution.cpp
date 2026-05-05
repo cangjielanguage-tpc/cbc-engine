@@ -60,7 +60,7 @@ struct Resolver::Impl {
 
     Type* GetType(Term term)
     {
-        ASSERTION(term.GetKind() != TemplateKind::UNDEFINED, "Expects only defined terms");
+        ASSERTION(term.GetKind() != TermKind::UNDEFINED, "Expects only defined terms");
         if (auto it = types.find(term); it != types.end()) {
             return it->second;
         }
@@ -89,7 +89,7 @@ struct SimpleType : public Type {
 
     CbcTypeKind GetKind() override
     {
-        using TK = TemplateKind;
+        using TK = TermKind;
         switch (term.GetKind()) {
             case TK::NIL:            return CbcTypeKind::INVALID;
             case TK::VOID:           return CbcTypeKind::VOID;
@@ -208,7 +208,7 @@ std::optional<Call> ResolveCall(Resolver::Impl& resolver, Index<Call> id)
     auto ident = IndexIdentifier<Symlevel::MethodReference>(refId, fileId);
     auto ref   = ResolveReference(session, ident);
 
-    if (ref.refType.GetKind() == TemplateKind::UNDEFINED || ref.signature.GetKind() == TemplateKind::UNDEFINED) {
+    if (ref.refType.GetKind() == TermKind::UNDEFINED || ref.signature.GetKind() == TermKind::UNDEFINED) {
         // undef terms would be reported separately
         log.Log(Logging::Level::ERROR, [id](Stream::Output& stream) {
             stream << "Failed to parse method reference " << id.GetValue() << Stream::endl;
@@ -220,7 +220,7 @@ std::optional<Call> ResolveCall(Resolver::Impl& resolver, Index<Call> id)
     auto refType     = resolver.GetType(ref.refType);
 
     switch (ref.refType.GetKind()) {
-        case TemplateKind::TYPE: {
+        case TermKind::TYPE: {
             if constexpr (std::is_same_v<Call, DynamicCall>) {
                 auto& manager = Symlevel::MethodTableManager::Of(session);
                 auto mt       = manager.GetMethodTable(session, ref.refType);
@@ -243,7 +243,7 @@ std::optional<Call> ResolveCall(Resolver::Impl& resolver, Index<Call> id)
             } else {
                 static_assert(std::is_same_v<Call, DirectCall>);
 
-                auto termIdent = TypeTemplateIdentifier(ref.refType);
+                auto termIdent = TypeTermId(ref.refType);
                 auto type      = Symlevel::TypeDefinition::Resolve(session, termIdent.GetIdentifier());
                 auto methods   = type.GetMethodIndex().FindMethods(session, ref.name);
 
@@ -274,7 +274,7 @@ std::optional<Call> ResolveCall(Resolver::Impl& resolver, Index<Call> id)
             }
         }
 
-        case TemplateKind::AOT_TYPE: {
+        case TermKind::AOT_TYPE: {
             if constexpr (std::is_same_v<Call, DynamicCall>) {
                 /// FIXME: interface calls
                 auto data = file.GetVirtualCallAotTable().GetData(session, refId);
@@ -349,7 +349,7 @@ template <typename Field> std::optional<Field> ResolveField(Resolver::Impl& reso
     auto ident = IndexIdentifier<Symlevel::FieldReference>(refId, fileId);
     auto ref   = ResolveReference(resolver.session, ident);
 
-    if (ref.refType.GetKind() == TemplateKind::UNDEFINED || ref.fieldType.GetKind() == TemplateKind::UNDEFINED) {
+    if (ref.refType.GetKind() == TermKind::UNDEFINED || ref.fieldType.GetKind() == TermKind::UNDEFINED) {
         // undef terms would be reported separately
         log.Stream(Logging::Level::ERROR) << "Failed to parse field reference " << id.GetValue();
         return std::nullopt;
@@ -360,8 +360,8 @@ template <typename Field> std::optional<Field> ResolveField(Resolver::Impl& reso
     auto fieldType   = resolver.GetType(ref.fieldType);
 
     switch (ref.refType.GetKind()) {
-        case TemplateKind::AOT_TYPE: {
-            ASSERTION(ref.fieldType.GetKind() != TemplateKind::TYPE, "aot types cannot have fields of cbc type");
+        case TermKind::AOT_TYPE: {
+            ASSERTION(ref.fieldType.GetKind() != TermKind::TYPE, "aot types cannot have fields of cbc type");
             if constexpr (std::is_same_v<Field, InstanceField>) {
                 auto data = file.GetInstanceFieldAotTable().GetData(resolver.session, refId);
                 int offset =
