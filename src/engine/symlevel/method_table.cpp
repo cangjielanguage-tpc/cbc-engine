@@ -194,21 +194,20 @@ MethodTable MethodTableManager::GetMethodTable(Engine::Session& session, Engine:
 
     auto& tables = manager.tables;
 
-    auto it = tables.find(type);
+    auto it = tables.find(type.Pack());
     if (it != tables.end()) {
         return it->second;
     }
 
     MethodTable mt = BuildTable(session, type);
-    tables.insert({ type, mt });
+    tables.insert({ type.Pack(), mt });
 
     return mt;
 }
 
 MethodTable MethodTableManager::GetMethodTable(Engine::Session& session, Engine::Term term)
 {
-    auto ident    = term.GetIdentifier().AsTypeIdent();
-    auto type     = Engine::Identifier<Symlevel::TypeDefinition>(ident.GetOffset(), ident.GetFile());
+    auto type     = Engine::TypeTermId(term).GetIdentifier();
     auto& manager = Symlevel::MethodTableManager::Of(session);
 
     // FIXME: instantiate!

@@ -160,11 +160,8 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
     Engine::Session& session, Engine::TypeInfoManager& manager, Engine::GlobalTerm term
 )
 {
-    auto termIdent = term.GetIdentifier();
-    ASSERT(termIdent.GetKind() == Engine::TemplateKind::TYPE);
-
-    auto ident = termIdent.AsTypeIdent();
-    auto file  = ident.GetFile();
+    auto ident = Engine::TypeTermId(term).GetIdentifier();
+    auto file  = ident.GetFileId();
 
     auto type = Symlevel::Reader::Read(session, file, ident.GetOffset());
     auto name = Symlevel::Reader::Read(session, file, type.NameOffset());
@@ -291,11 +288,8 @@ static std::optional<TypeInfo> QueryTypeInfoAOTByName(char const* str)
 
 static std::optional<TypeInfo> QueryTypeInfoAOT(Engine::Session& session, Engine::GlobalTerm term)
 {
-    auto termIdent = term.GetIdentifier();
-    ASSERT(termIdent.GetKind() == Engine::TemplateKind::AOT_TYPE);
-
-    auto ident    = termIdent.AsAotIdent();
-    auto typeName = std::string(Symlevel::Reader::Read(session, ident.GetFile(), ident.GetOffset()));
+    auto ident    = Engine::AotTermId(term).GetIdentifier();
+    auto typeName = std::string(Symlevel::Reader::Read(session, ident.GetFileId(), ident.GetOffset()));
 
     auto typeInfo = g_CJNativeInterfaceInstance.typeInfo(typeName.c_str());
     if (typeInfo == nullptr) {
@@ -308,23 +302,23 @@ std::optional<TypeInfo> CreateTypeInfo(
     Engine::Session& session, Engine::TypeInfoManager& manager, Engine::GlobalTerm term
 )
 {
-    auto termIdent = term.GetIdentifier();
+    auto termIdent = term.GetId();
     switch (termIdent.GetKind()) {
-        case Engine::TemplateKind::AOT_TYPE: return QueryTypeInfoAOT(session, term);
-        case Engine::TemplateKind::TYPE:     return CreateTypeInfoDyn(session, manager, term);
+        case Engine::TermKind::AOT_TYPE: return QueryTypeInfoAOT(session, term);
+        case Engine::TermKind::TYPE:     return CreateTypeInfoDyn(session, manager, term);
 
-        case Engine::TemplateKind::BOOLEAN: return QueryTypeInfoAOTByName("Bool");
-        case Engine::TemplateKind::U8:      return QueryTypeInfoAOTByName("UInt8");
-        case Engine::TemplateKind::I8:      return QueryTypeInfoAOTByName("Int8");
-        case Engine::TemplateKind::U16:     return QueryTypeInfoAOTByName("UInt16");
-        case Engine::TemplateKind::I16:     return QueryTypeInfoAOTByName("Int16");
-        case Engine::TemplateKind::U32:     return QueryTypeInfoAOTByName("UInt32");
-        case Engine::TemplateKind::I32:     return QueryTypeInfoAOTByName("Int32");
-        case Engine::TemplateKind::U64:     return QueryTypeInfoAOTByName("UInt64");
-        case Engine::TemplateKind::I64:     return QueryTypeInfoAOTByName("Int64");
-        case Engine::TemplateKind::F16:     return QueryTypeInfoAOTByName("Float16");
-        case Engine::TemplateKind::F32:     return QueryTypeInfoAOTByName("Float32");
-        case Engine::TemplateKind::F64:     return QueryTypeInfoAOTByName("Float64");
+        case Engine::TermKind::BOOLEAN: return QueryTypeInfoAOTByName("Bool");
+        case Engine::TermKind::U8:      return QueryTypeInfoAOTByName("UInt8");
+        case Engine::TermKind::I8:      return QueryTypeInfoAOTByName("Int8");
+        case Engine::TermKind::U16:     return QueryTypeInfoAOTByName("UInt16");
+        case Engine::TermKind::I16:     return QueryTypeInfoAOTByName("Int16");
+        case Engine::TermKind::U32:     return QueryTypeInfoAOTByName("UInt32");
+        case Engine::TermKind::I32:     return QueryTypeInfoAOTByName("Int32");
+        case Engine::TermKind::U64:     return QueryTypeInfoAOTByName("UInt64");
+        case Engine::TermKind::I64:     return QueryTypeInfoAOTByName("Int64");
+        case Engine::TermKind::F16:     return QueryTypeInfoAOTByName("Float16");
+        case Engine::TermKind::F32:     return QueryTypeInfoAOTByName("Float32");
+        case Engine::TermKind::F64:     return QueryTypeInfoAOTByName("Float64");
 
         default: {
             FATAL("Not supported yet %d", termIdent.GetKind());

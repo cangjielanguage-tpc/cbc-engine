@@ -154,8 +154,9 @@ public:
     MethodTable GetMethodTable(Engine::Session& session, Engine::Term term);
 
 private:
+    using Ident = Engine::Identifier<TypeDefinition>;
     std::mutex lock;
-    std::unordered_map<Engine::Identifier<TypeDefinition>, MethodTable> tables;
+    std::unordered_map<Ident::Packed, MethodTable, Ident::Hasher> tables;
 };
 
 } // namespace Symlevel

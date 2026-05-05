@@ -61,7 +61,7 @@ struct Resolver::Impl {
 
     Type* GetType(Term term)
     {
-        ASSERTION(term.GetKind() != TemplateKind::UNDEFINED, "Expects only defined terms");
+        ASSERTION(term.GetKind() != TermKind::UNDEFINED, "Expects only defined terms");
         if (auto it = types.find(term); it != types.end()) {
             return it->second;
         }
@@ -90,7 +90,7 @@ struct SimpleType : public Type {
 
     CbcTypeKind GetKind() override
     {
-        using TK = TemplateKind;
+        using TK = TermKind;
         switch (term.GetKind()) {
             case TK::NIL:            return CbcTypeKind::INVALID;
             case TK::VOID:           return CbcTypeKind::VOID;
@@ -172,7 +172,7 @@ struct ResolvedFieldReference {
     }
 };
 
-static ResolvedMethodReference ResolveReference(Session& session, IndexIdentifier<Symlevel::MethodReference> identifier)
+static ResolvedMethodReference ResolveReference(Session& session, RefIdentifier<Symlevel::MethodReference> identifier)
 {
     auto parsedRef = Symlevel::MethodReference::Parse(session, identifier);
     auto& manager  = TermManager::Of(session);
@@ -182,7 +182,7 @@ static ResolvedMethodReference ResolveReference(Session& session, IndexIdentifie
     return { refType, name, signature };
 }
 
-static ResolvedFieldReference ResolveReference(Session& session, IndexIdentifier<Symlevel::FieldReference> identifier)
+static ResolvedFieldReference ResolveReference(Session& session, RefIdentifier<Symlevel::FieldReference> identifier)
 {
     auto parsedRef = Symlevel::FieldReference::Parse(session, identifier);
     auto& manager  = TermManager::Of(session);
@@ -205,11 +205,11 @@ std::optional<Call> ResolveCall(Resolver::Impl& resolver, Index<Call> id)
     auto fileId   = resolver.method.GetFileId();
 
     // FIXME: region num
-    auto refId = Symlevel::Index<Symlevel::MethodReference>(0, id.GetValue());
-    auto ident = IndexIdentifier<Symlevel::MethodReference>(refId, fileId);
+    auto refId = Symlevel::RefId<Symlevel::MethodReference>(0, id.GetValue());
+    auto ident = RefIdentifier<Symlevel::MethodReference>(refId, fileId);
     auto ref   = ResolveReference(session, ident);
 
-    if (ref.refType.GetKind() == TemplateKind::UNDEFINED || ref.signature.GetKind() == TemplateKind::UNDEFINED) {
+    if (ref.refType.GetKind() == TermKind::UNDEFINED || ref.signature.GetKind() == TermKind::UNDEFINED) {
         // undef terms would be reported separately
         log.Log(Logging::Level::ERROR, [id](Stream::Output& stream) {
             stream << "Failed to parse method reference " << id.GetValue() << Stream::endl;
@@ -221,7 +221,7 @@ std::optional<Call> ResolveCall(Resolver::Impl& resolver, Index<Call> id)
     auto refType     = resolver.GetType(ref.refType);
 
     switch (ref.refType.GetKind()) {
-        case TemplateKind::TYPE: {
+        case TermKind::TYPE: {
             if constexpr (std::is_same_v<Call, DynamicCall>) {
                 auto& manager = Symlevel::MethodTableManager::Of(session);
                 auto mt       = manager.GetMethodTable(session, ref.refType);
@@ -244,7 +244,7 @@ std::optional<Call> ResolveCall(Resolver::Impl& resolver, Index<Call> id)
             } else {
                 static_assert(std::is_same_v<Call, DirectCall>);
 
-                auto termIdent = ref.refType.GetIdentifier().AsTypeIdent();
+                auto termIdent = TypeTermId(ref.refType);
                 auto type      = Symlevel::TypeDefinition::Resolve(session, termIdent.GetIdentifier());
                 auto methods   = type.GetMethodIndex().FindMethods(session, ref.name);
 
@@ -275,7 +275,7 @@ std::optional<Call> ResolveCall(Resolver::Impl& resolver, Index<Call> id)
             }
         }
 
-        case TemplateKind::AOT_TYPE: {
+        case TermKind::AOT_TYPE: {
             if constexpr (std::is_same_v<Call, DynamicCall>) {
                 /// FIXME: interface calls
                 auto data = file.GetVirtualCallAotTable().GetData(session, refId);
@@ -346,11 +346,11 @@ template <typename Field> std::optional<Field> ResolveField(Resolver::Impl& reso
     auto fileId = resolver.method.GetFileId();
 
     // FIXME: region num
-    auto refId = Symlevel::Index<Symlevel::FieldReference>(0, id.GetValue());
-    auto ident = IndexIdentifier<Symlevel::FieldReference>(refId, fileId);
+    auto refId = Symlevel::RefId<Symlevel::FieldReference>(0, id.GetValue());
+    auto ident = RefIdentifier<Symlevel::FieldReference>(refId, fileId);
     auto ref   = ResolveReference(resolver.session, ident);
 
-    if (ref.refType.GetKind() == TemplateKind::UNDEFINED || ref.fieldType.GetKind() == TemplateKind::UNDEFINED) {
+    if (ref.refType.GetKind() == TermKind::UNDEFINED || ref.fieldType.GetKind() == TermKind::UNDEFINED) {
         // undef terms would be reported separately
         log.Stream(Logging::Level::ERROR) << "Failed to parse field reference " << id.GetValue();
         return std::nullopt;
@@ -361,8 +361,8 @@ template <typename Field> std::optional<Field> ResolveField(Resolver::Impl& reso
     auto fieldType   = resolver.GetType(ref.fieldType);
 
     switch (ref.refType.GetKind()) {
-        case TemplateKind::AOT_TYPE: {
-            ASSERTION(ref.fieldType.GetKind() != TemplateKind::TYPE, "aot types cannot have fields of cbc type");
+        case TermKind::AOT_TYPE: {
+            ASSERTION(ref.fieldType.GetKind() != TermKind::TYPE, "aot types cannot have fields of cbc type");
             if constexpr (std::is_same_v<Field, InstanceField>) {
                 auto data = file.GetInstanceFieldAotTable().GetData(resolver.session, refId);
                 int offset =
@@ -382,36 +382,36 @@ template <typename Field> std::optional<Field> ResolveField(Resolver::Impl& reso
                 return StaticField { refType, ref.name, fieldType, reinterpret_cast<uintptr_t>(location) };
             }
         }
-        case TemplateKind::TYPE: {
+        case TermKind::TYPE: {
             if constexpr (std::is_same_v<Field, InstanceField>) {
                 FATAL("Not supported yet");
                 return std::nullopt;
             } else {
                 static_assert(std::is_same_v<Field, StaticField>);
 
-                auto refTypeIdent = ref.refType.GetIdentifier().AsTypeIdent();
-                auto typeDefIdent = Identifier<Symlevel::TypeDefinition>(refTypeIdent.GetOffset(), refTypeIdent.GetFile());
+                auto typeDefIdent = TypeTermId(ref.refType).GetIdentifier();
                 auto typeDef      = Symlevel::TypeDefinition::Resolve(resolver.session, typeDefIdent);
 
                 auto fieldDefIdentOpt = typeDef.GetFieldIndex().FindField(resolver.session, ref.name);
                 if (!fieldDefIdentOpt.has_value()) {
-                    log.Stream(Logging::Level::ERROR) << "Field definition search failed " << id.GetValue() << Stream::endl;
+                    log.Stream(Logging::Level::ERROR)
+                        << "Field definition search failed " << id.GetValue() << Stream::endl;
                     return std::nullopt;
                 }
 
-                auto fieldDef = Symlevel::FieldDefinition::Resolve(resolver.session, fieldDefIdentOpt.value());
+                auto fieldDef        = Symlevel::FieldDefinition::Resolve(resolver.session, fieldDefIdentOpt.value());
                 auto actualFieldType = TermManager::Resolve(resolver.session, fieldDef.FieldType());
                 if (ref.fieldType != actualFieldType) {
-                    log.Stream(Logging::Level::ERROR) << "Field type mismatch expected:  " << ref.fieldType.GetName(resolver.session) 
+                    log.Stream(Logging::Level::ERROR)
+                        << "Field type mismatch expected:  " << ref.fieldType.GetName(resolver.session)
                         << ", actual: " << actualFieldType.GetName(resolver.session) << Stream::endl;
                     return std::nullopt;
                 }
 
-                uintptr_t location = StaticsManager::Of(resolver.session).GetLocation(
-                    resolver.session, typeDefIdent, fieldDefIdentOpt.value()
-                );
+                uintptr_t location = StaticsManager::Of(resolver.session)
+                                         .GetLocation(resolver.session, typeDefIdent, fieldDefIdentOpt.value());
 
-                return StaticField{ refType, ref.name, fieldType, location };
+                return StaticField { refType, ref.name, fieldType, location };
             }
         }
         default: {
@@ -450,8 +450,8 @@ std::optional<StaticField const*> Resolver::Query(Index<StaticField> id)
 std::optional<Type*> Resolver::Query(Index<Type> id)
 {
     // terms are being cached on different level
-    auto refId = Symlevel::Index<Symlevel::Term>(0, id.GetValue());
-    auto ident = IndexIdentifier<Symlevel::Term>(refId, impl->method.GetFileId());
+    auto refId = Symlevel::RefId<Term>(0, id.GetValue());
+    auto ident = RefIdentifier<Term>(refId, impl->method.GetFileId());
     auto term  = TermManager::Of(impl->session).Resolve(impl->session, ident);
     return impl->GetType(term);
 }

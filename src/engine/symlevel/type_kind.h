@@ -14,7 +14,7 @@ public:
         RECORD
     };
 
-    static constexpr int BIT_COUNT = 3; 
+    static constexpr int BIT_COUNT = 3;
 
     constexpr TypeKind(const Value value) : value(value) {};
 

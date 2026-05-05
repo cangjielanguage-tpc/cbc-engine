@@ -41,19 +41,19 @@ RegionData::RegionData(
 
 template <typename T> using OffsetId = Engine::Identifier<T>;
 
-Offset<MethodReference> RegionData::Query(Engine::Session& session, Index<MethodReference> index) const
+Offset<MethodReference> RegionData::Query(Engine::Session& session, RefId<MethodReference> index) const
 {
     // FIXME: use region idx
     return methods.QueryOffset(*session.FileOf(fileId), index.GetIndex());
 }
 
-Offset<FieldReference> RegionData::Query(Engine::Session& session, Index<FieldReference> index) const
+Offset<FieldReference> RegionData::Query(Engine::Session& session, RefId<FieldReference> index) const
 {
     // FIXME: use region idx
     return fields.QueryOffset(*session.FileOf(fileId), index.GetIndex());
 }
 
-Offset<Term> RegionData::Query(Engine::Session& session, Index<Term> index) const
+Offset<Term> RegionData::Query(Engine::Session& session, RefId<Term> index) const
 {
     // FIXME: use region idx
     // adjust index by the number of primitive types.

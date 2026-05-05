@@ -12,9 +12,9 @@ class RegionData {
 public:
     static RegionData Read(IO::FileId fileId, IO::RandomAccessFile& file, uint32_t offset);
 
-    Offset<MethodReference> Query(Engine::Session& session, Index<MethodReference> index) const;
-    Offset<FieldReference> Query(Engine::Session& session, Index<FieldReference> index) const;
-    Offset<Term> Query(Engine::Session& session, Index<Term> index) const;
+    Offset<MethodReference> Query(Engine::Session& session, RefId<MethodReference> index) const;
+    Offset<FieldReference> Query(Engine::Session& session, RefId<FieldReference> index) const;
+    Offset<Term> Query(Engine::Session& session, RefId<Term> index) const;
 
 private:
     RegionData(

@@ -62,23 +62,23 @@ public:
 };
 
 struct VirtualCallAotTable : AotDataTable<VirtualCallAotTable> {
-    VirtualCallAotData GetData(Engine::Session& session, Index<MethodReference> index) const;
+    VirtualCallAotData GetData(Engine::Session& session, RefId<MethodReference> index) const;
 };
 
 struct DirectCallAotTable : AotDataTable<DirectCallAotTable> {
-    DirectCallAotData GetData(Engine::Session& session, Index<MethodReference> index) const;
+    DirectCallAotData GetData(Engine::Session& session, RefId<MethodReference> index) const;
 };
 
 struct InterfaceCallAotTable : AotDataTable<InterfaceCallAotTable> {
-    InterfaceCallAotData GetData(Engine::Session& session, Index<MethodReference> index) const;
+    InterfaceCallAotData GetData(Engine::Session& session, RefId<MethodReference> index) const;
 };
 
 struct StaticFieldAotTable : AotDataTable<StaticFieldAotTable> {
-    StaticFieldAotData GetData(Engine::Session& session, Index<FieldReference> index) const;
+    StaticFieldAotData GetData(Engine::Session& session, RefId<FieldReference> index) const;
 };
 
 struct InstanceFieldAotTable : AotDataTable<InstanceFieldAotTable> {
-    InstanceFieldAotData GetData(Engine::Session& session, Index<FieldReference> index) const;
+    InstanceFieldAotData GetData(Engine::Session& session, RefId<FieldReference> index) const;
 };
 
 } // namespace Symlevel

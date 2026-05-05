@@ -125,13 +125,14 @@ template <typename Data> struct MemberIndexWrapper {
         return std::nullopt;
     }
 
-    void ForEach(Engine::Session& session, std::function<bool(Data&)> action) const {
+    void ForEach(Engine::Session& session, std::function<bool(Data&)> action) const
+    {
         static_assert(std::is_same_v<Data, FieldDefinition> || std::is_same_v<Data, MethodDefinition>);
 
         auto [_, raf] = session.File(index.fileId);
 
         for (uint32_t i = 0; i < index.bucketsSize; i++) {
-            auto offset = Offset<Data>(ReadAt(raf, index.bucketsStart + i * sizeof(uint32_t)));
+            auto offset   = Offset<Data>(ReadAt(raf, index.bucketsStart + i * sizeof(uint32_t)));
             auto fieldDef = Reader::Read(session, index.fileId, offset);
 
             if (action(fieldDef)) {

@@ -17,10 +17,14 @@ namespace Interpretation {
 static_assert(offsetof(DynamicFunctionHandle, c2call) == FUNCTION_HANDLE_C2CALL_OFFSET);
 static_assert(offsetof(DynamicFunctionHandle, bytecode) == FUNCTION_HANDLE_BYTECODE_OFFSET);
 
+using namespace Engine;
+using namespace Symlevel;
+
 class FunctionHandleManager::Impl {
 public:
+    using Ident = Identifier<MethodDefinition>;
     std::mutex lock;
-    std::unordered_map<Engine::Identifier<Symlevel::MethodDefinition>, TaggedFunctionHandle> fuhMap;
+    std::unordered_map<Ident::Packed, TaggedFunctionHandle, Ident::Hasher> fuhMap;
 };
 
 FunctionHandleManager::FunctionHandleManager() : impl(std::move(std::make_unique<FunctionHandleManager::Impl>())) {}
@@ -29,11 +33,11 @@ FunctionHandleManager::~FunctionHandleManager()                               = 
 FunctionHandleManager::FunctionHandleManager(FunctionHandleManager&& manager) = default;
 
 TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
-    Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> methodDef
+    Session& session, Identifier<Symlevel::MethodDefinition> methodDef
 )
 {
     std::lock_guard guard(impl->lock);
-    auto res = impl->fuhMap.find(methodDef);
+    auto res = impl->fuhMap.find(methodDef.Pack());
     if (res != impl->fuhMap.end()) {
         return res->second;
     }
@@ -44,13 +48,11 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
         FATAL("out of memory");
     }
     // FIXME: proper publication
-    impl->fuhMap[methodDef] = fuh;
+    impl->fuhMap.insert({ methodDef.Pack(), fuh });
     return fuh;
 }
 
-FunctionHandle* FunctionHandleManager::Acquire(
-    Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> methodDef
-)
+FunctionHandle* FunctionHandleManager::Acquire(Session& session, Identifier<Symlevel::MethodDefinition> methodDef)
 {
     auto fuh = AcquireTagged(session, methodDef);
     if (std::holds_alternative<DynamicFunctionHandle*>(fuh)) {
@@ -60,7 +62,7 @@ FunctionHandle* FunctionHandleManager::Acquire(
     }
 }
 
-ExecBytecodeInfo* FunctionHandleManager::Prepare(Engine::Session& session, DynamicFunctionHandle* fuh)
+ExecBytecodeInfo* FunctionHandleManager::Prepare(Session& session, DynamicFunctionHandle* fuh)
 {
     std::lock_guard guard(fuh->lock);
 

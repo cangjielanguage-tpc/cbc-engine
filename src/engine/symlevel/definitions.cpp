@@ -65,10 +65,12 @@ FieldDefinition FieldDefinition::Parse(Engine::Session& session, IO::FileId file
     auto tag = reader.ReadU8();
     ASSERTION(tag == 0, "Const value is not supported yet");
 
-    auto refType   = Engine::IndexIdentifier(Index<Term>(0, refTypeIdx), fileId);
-    auto fieldType = Engine::IndexIdentifier(Index<Term>(0, fieldTypeIdx), fileId);
+    auto refType   = Engine::RefIdentifier(RefId<Term>(0, refTypeIdx), fileId);
+    auto fieldType = Engine::RefIdentifier(RefId<Term>(0, fieldTypeIdx), fileId);
 
-    return FieldDefinition(Engine::Identifier<FieldDefinition>(offset, fileId), nameOffset, refType, fieldType, FieldFlags(flags), {});
+    return FieldDefinition(
+        Engine::Identifier<FieldDefinition>(offset, fileId), nameOffset, refType, fieldType, FieldFlags(flags), {}
+    );
 }
 
 FieldDefinition FieldDefinition::Resolve(Engine::Session& session, Engine::Identifier<FieldDefinition> identifier)
@@ -112,7 +114,7 @@ MethodDefinition MethodDefinition::Parse(Engine::Session& session, IO::FileId fi
 tags_end:
 
     // TODO
-    // auto sig = Engine::IndexIdentifier(Index<Term>(0, methodSigIdx), fileId);
+    // auto sig = Engine::RefIdentifier(Index<Term>(0, methodSigIdx), fileId);
 
     return MethodDefinition(Engine::Identifier<MethodDefinition>(offset, fileId), nameOffset, codeOffs);
 }

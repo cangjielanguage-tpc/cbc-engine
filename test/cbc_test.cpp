@@ -355,6 +355,8 @@ struct ConvertTestParams {
     ConvertTestFunction testConvert;
 };
 
+static std::ostream& operator<<(std::ostream& os, const ConvertTestParams& p) { return os << p.name; }
+
 class CbcSpecializedConvert : public ::testing::TestWithParam<ConvertTestParams> {
     void SetUp() override { DoSetUp(); }
 };

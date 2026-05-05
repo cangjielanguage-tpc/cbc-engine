@@ -2,30 +2,25 @@
 
 #include "engine/engine.h"
 #include "engine/identifiers.h"
-#include "io/file_id.h"
 #include "string.h"
 #include "term.h"
 
 namespace Symlevel {
 
 struct MethodReference {
-    static MethodReference Parse(Engine::Session& session, IO::FileId fileId, Offset<MethodReference> offset);
-
-    static MethodReference Parse(Engine::Session& session, Engine::IndexIdentifier<MethodReference> identifier);
+    static MethodReference Parse(Engine::Session& session, Engine::RefIdentifier<MethodReference> identifier);
 
     Engine::Identifier<String> name;
-    Engine::IndexIdentifier<Term> refType;
-    Engine::IndexIdentifier<Term> methodSig;
+    Engine::RefIdentifier<Term> refType;
+    Engine::RefIdentifier<Term> methodSig;
 };
 
 struct FieldReference {
-    static FieldReference Parse(Engine::Session& session, IO::FileId fileId, Offset<FieldReference> offset);
-
-    static FieldReference Parse(Engine::Session& session, Engine::IndexIdentifier<FieldReference> identifier);
+    static FieldReference Parse(Engine::Session& session, Engine::RefIdentifier<FieldReference> identifier);
 
     Engine::Identifier<String> name;
-    Engine::IndexIdentifier<Term> refType;
-    Engine::IndexIdentifier<Term> fieldType;
+    Engine::RefIdentifier<Term> refType;
+    Engine::RefIdentifier<Term> fieldType;
     bool isRecord;
 };
 

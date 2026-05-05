@@ -71,18 +71,21 @@ public:
     static String ParseName(Engine::Session& session, IO::FileId fileId, Offset<FieldDefinition> offset);
 
     inline Offset<String> NameOffset() const { return nameOffset; }
-    inline Engine::IndexIdentifier<Term> FieldType() const { return fieldType; }
+
+    inline Engine::RefIdentifier<Term> FieldType() const { return fieldType; }
+
     inline Engine::Identifier<FieldDefinition> Identifier() { return identifier; }
+
     inline FieldFlags Flags() { return flags; }
 
 private:
     FieldDefinition(
         Engine::Identifier<FieldDefinition> identifier,
         Offset<String> nameOffset,
-        Engine::IndexIdentifier<Term> refType,
-        Engine::IndexIdentifier<Term> fieldType,
+        Engine::RefIdentifier<Term> refType,
+        Engine::RefIdentifier<Term> fieldType,
         FieldFlags flags,
-        std::vector<uint64_t> constValue 
+        std::vector<uint64_t> constValue
     )
         : identifier(identifier),
           nameOffset(nameOffset),
@@ -94,11 +97,10 @@ private:
 
     Engine::Identifier<FieldDefinition> identifier;
     Offset<String> nameOffset;
-    Engine::IndexIdentifier<Term> refType;
-    Engine::IndexIdentifier<Term> fieldType;
+    Engine::RefIdentifier<Term> refType;
+    Engine::RefIdentifier<Term> fieldType;
     FieldFlags flags;
     std::vector<uint64_t> constValue;
-
 };
 
 class MethodDefinition {
@@ -117,9 +119,7 @@ public:
 
 private:
     MethodDefinition(
-        Engine::Identifier<MethodDefinition> identifier,
-        Offset<String> nameOffset,
-        std::optional<Offset<Code>> codeOffs
+        Engine::Identifier<MethodDefinition> identifier, Offset<String> nameOffset, std::optional<Offset<Code>> codeOffs
     )
         : identifier(identifier),
           nameOffset(nameOffset),
@@ -127,7 +127,8 @@ private:
     {}
 
     Engine::Identifier<MethodDefinition> identifier;
-    Offset<String> nameOffset;    std::optional<Offset<Code>> codeOffs;
+    Offset<String> nameOffset;
+    std::optional<Offset<Code>> codeOffs;
 };
 
 } // namespace Symlevel
