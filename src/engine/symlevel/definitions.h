@@ -2,11 +2,13 @@
 
 #include "engine/engine.h"
 #include "engine/identifiers.h"
+#include "engine/symlevel/flags.h"
 #include "engine/symlevel/offset_sequence.h"
 #include "io/file_id.h"
 #include "member_index.h"
 #include "offset.h"
 #include "string.h"
+#include "term.h"
 
 namespace Symlevel {
 
@@ -69,27 +71,34 @@ public:
     static String ParseName(Engine::Session& session, IO::FileId fileId, Offset<FieldDefinition> offset);
 
     inline Offset<String> NameOffset() const { return nameOffset; }
+    inline Engine::IndexIdentifier<Term> FieldType() const { return fieldType; }
+    inline Engine::Identifier<FieldDefinition> Identifier() { return identifier; }
+    inline FieldFlags Flags() { return flags; }
 
 private:
     FieldDefinition(
         Engine::Identifier<FieldDefinition> identifier,
         Offset<String> nameOffset,
-        uint32_t idx,
-        uint32_t declIdx,
-        uint32_t typeIdx
+        Engine::IndexIdentifier<Term> refType,
+        Engine::IndexIdentifier<Term> fieldType,
+        FieldFlags flags,
+        std::vector<uint64_t> constValue 
     )
         : identifier(identifier),
           nameOffset(nameOffset),
-          idx(idx),
-          declIdx(declIdx),
-          typeIdx(typeIdx)
+          refType(refType),
+          fieldType(fieldType),
+          flags(flags),
+          constValue(constValue)
     {}
 
     Engine::Identifier<FieldDefinition> identifier;
     Offset<String> nameOffset;
-    uint32_t idx;
-    uint32_t declIdx;
-    uint32_t typeIdx;
+    Engine::IndexIdentifier<Term> refType;
+    Engine::IndexIdentifier<Term> fieldType;
+    FieldFlags flags;
+    std::vector<uint64_t> constValue;
+
 };
 
 class MethodDefinition {
@@ -99,12 +108,6 @@ public:
     static String ParseName(Engine::Session& session, IO::FileId fileId, Offset<MethodDefinition> offset);
 
     inline Offset<String> NameOffset() const { return nameOffset; }
-
-    inline uint32_t GetSigIdx() const
-    {
-        FATAL("implement terms"); // FIXME
-        return sigIdx;
-    }
 
     inline Offset<Code> GetCodeOffset() const { return *codeOffs; }
 
@@ -116,19 +119,15 @@ private:
     MethodDefinition(
         Engine::Identifier<MethodDefinition> identifier,
         Offset<String> nameOffset,
-        uint32_t sigIdx,
         std::optional<Offset<Code>> codeOffs
     )
         : identifier(identifier),
           nameOffset(nameOffset),
-          sigIdx(sigIdx),
           codeOffs(codeOffs)
     {}
 
     Engine::Identifier<MethodDefinition> identifier;
-    Offset<String> nameOffset;
-    uint32_t sigIdx;
-    std::optional<Offset<Code>> codeOffs;
+    Offset<String> nameOffset;    std::optional<Offset<Code>> codeOffs;
 };
 
 } // namespace Symlevel

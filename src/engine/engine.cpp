@@ -1,4 +1,5 @@
 #include "engine.h"
+#include "engine/statics_manager.h"
 #include "engine/symlevel/method_table.h"
 #include "engine/terms.h"
 #include "engine/typeinfo_manager.h"
@@ -39,6 +40,7 @@ public:
     DefinitionsManager defsManager;
     MethodTableManager mtManager;
     TermManager termManager;
+    StaticsManager staticsManager;
     std::unique_ptr<TypeInfoManager> typeInfoManager;
 };
 
@@ -125,7 +127,7 @@ std::optional<CbcFile*> Engine::Impl::FindCbcFile(std::string_view filePath)
     return std::nullopt;
 }
 
-std::optional<Identifier<TypeDefinition>> Engine::FindType(Session& session, std::string_view typeName)
+std::optional<Identifier<Symlevel::TypeDefinition>> Engine::FindType(Session& session, std::string_view typeName)
 {
     for (auto& file : impl->files) {
         auto res = file.GetTypeIndex().FindType(session, typeName);
@@ -200,4 +202,9 @@ TermManager& TermManager::Of(Session& session) { return TermManager::Of(session.
 TypeInfoManager& TypeInfoManager::Of(Engine& engine) { return *EngineImpl::Of(engine).typeInfoManager; }
 
 TypeInfoManager& TypeInfoManager::Of(Session& session) { return TypeInfoManager::Of(session.GetEngine()); }
+
+StaticsManager& StaticsManager::Of(Engine& engine) { return EngineImpl::Of(engine).staticsManager; }
+
+StaticsManager& StaticsManager::Of(Session& session) { return StaticsManager::Of(session.GetEngine()); }
+
 } // namespace Engine

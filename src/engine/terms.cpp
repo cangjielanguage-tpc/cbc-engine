@@ -106,6 +106,48 @@ static TermData builtins[] = {
     { TagTemplateIdentifier(TemplateKind::F64), 0x29, 0, false },
 };
 
+bool TemplateIdentifier::IsReference() {
+    switch (GetKind())
+    {
+        case TemplateKind::AOT_TYPE:
+        case TemplateKind::TYPE:
+            return true;
+        default:
+            return false;
+    }
+}
+
+int TemplateIdentifier::Width() {
+    switch (GetKind())
+    {
+        case TemplateKind::BOOLEAN:
+        case TemplateKind::U8:
+        case TemplateKind::I8:
+            return sizeof(uint8_t);
+        case TemplateKind::U16:
+        case TemplateKind::I16:
+        case TemplateKind::F16:
+            return sizeof(uint16_t);
+        case TemplateKind::U32:
+        case TemplateKind::I32:
+        case TemplateKind::F32:
+        case TemplateKind::UCHAR32:
+            return sizeof(uint32_t);
+        case TemplateKind::U64:
+        case TemplateKind::I64:
+        case TemplateKind::F64:
+        case TemplateKind::C_POINTER:
+        case TemplateKind::IADDR:
+        case TemplateKind::UADDR:
+        case TemplateKind::TYPE:
+        case TemplateKind::AOT_TYPE:
+            return sizeof(uint64_t);
+        default:
+            FATAL("Not supported yet");
+            return 0;
+    }
+}
+
 static Term Primitive(Session& session, Symlevel::Index<Term> index)
 {
     static_assert(FIRST_NON_PRIMITIVE == sizeof(builtins) / sizeof(builtins[0]));
