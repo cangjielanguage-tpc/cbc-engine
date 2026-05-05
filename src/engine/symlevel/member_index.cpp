@@ -125,7 +125,7 @@ template <typename Data> struct MemberIndexWrapper {
         return std::nullopt;
     }
 
-    void Foreach(Engine::Session& session, std::function<bool(Data&)> action) const {
+    void ForEach(Engine::Session& session, std::function<bool(Data&)> action) const {
         static_assert(std::is_same_v<Data, FieldDefinition> || std::is_same_v<Data, MethodDefinition>);
 
         auto [_, raf] = session.File(index.fileId);
@@ -193,10 +193,10 @@ std::optional<Engine::Identifier<FieldDefinition>> FieldIndex::FindField(
     return index.FindOffset(session, typeName);
 }
 
-void FieldIndex::Foreach(Engine::Session& session, std::function<bool(FieldDefinition&)> action) const
+void FieldIndex::ForEach(Engine::Session& session, std::function<bool(FieldDefinition&)> action) const
 {
     MemberIndexWrapper<FieldDefinition> index { this->index };
-    index.Foreach(session, action);
+    index.ForEach(session, action);
 }
 
 std::vector<Engine::Identifier<MethodDefinition>> MethodIndex::FindMethods(

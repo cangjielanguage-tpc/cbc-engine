@@ -16,11 +16,13 @@ StaticFieldsBundle::StaticFieldsBundle(uint32_t refFieldsNum, uint32_t primField
     primFieldsStart = reinterpret_cast<PrimLocation*>(ptr);
 }
 
-FieldType ComputeFieldType(Symlevel::FieldDefinition& definition) {
+SlotKind ComputeSlotKind(Session& session, Symlevel::FieldDefinition& definition) {
     // TODO support records
-    if (definition.FieldType().GetIdentifier().IsReference()) {
+    auto fieldType = TermManager::Resolve(session, definition.FieldType());
+    if (fieldType.GetIdentifier().IsReference()) {
         return REFERENCE;
     } else {
+        // Consider undefined term as primitive
         return PRIMITIVE;
     }
 }
@@ -30,21 +32,19 @@ uintptr_t StaticFieldsBundle::GetLocation(Session& session, TypeIdent typeIdent,
     auto typeDef  = Symlevel::TypeDefinition::Resolve(session, typeIdent);
     auto fieldDef = Symlevel::FieldDefinition::Resolve(session, fieldIdent);
 
-    auto targetName = Symlevel::String::Parse(session, fieldDef.Identifier().GetFileId(), fieldDef.NameOffset());
-    auto targetType = ComputeFieldType(fieldDef);
+    auto targetKind = ComputeSlotKind(session, fieldDef);
     uint32_t idx = 0;
 
-    typeDef.GetFieldIndex().Foreach(session, [&idx, &targetName, &targetType, &session](Symlevel::FieldDefinition& field) {
+    typeDef.GetFieldIndex().ForEach(session, [&idx, &fieldIdent, &targetKind, &session](Symlevel::FieldDefinition& field) {
         if (field.Flags().IsNot(Symlevel::FieldFlag::STATIC)) {
             return false;
         }
 
-        if (targetType != ComputeFieldType(field)) {
+        if (targetKind != ComputeSlotKind(session, field)) {
             return false;
         }
 
-        auto name = Symlevel::String::Parse(session, field.Identifier().GetFileId(), field.NameOffset());
-        if (targetName.compare(name) == 0) {
+        if (fieldIdent == field.Identifier()) {
             return true;
         }
 
@@ -52,7 +52,7 @@ uintptr_t StaticFieldsBundle::GetLocation(Session& session, TypeIdent typeIdent,
         return false;
     });
 
-    switch (targetType)
+    switch (targetKind)
     {
         case REFERENCE:
             ASSERTION(idx < refFieldsNum, "Incorrect static reference field index"); 
@@ -82,12 +82,12 @@ StaticFieldsBundle StaticsManager::CreateBundle(Session& session, TypeIdent type
     uint32_t primFieldsNum = 0;
 
     auto typeDef = Symlevel::TypeDefinition::Resolve(session, typeIdent);
-    typeDef.GetFieldIndex().Foreach(session, [&refFieldsNum, &primFieldsNum](Symlevel::FieldDefinition& field) {
+    typeDef.GetFieldIndex().ForEach(session, [&](Symlevel::FieldDefinition& field) {
         if (field.Flags().IsNot(Symlevel::FieldFlag::STATIC)) {
             return false;
         }
 
-        if (field.FieldType().GetIdentifier().IsReference()) {
+        if (ComputeSlotKind(session, field) == REFERENCE) {
             refFieldsNum++;
         } else { 
             primFieldsNum++;

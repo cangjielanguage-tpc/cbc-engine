@@ -65,9 +65,8 @@ FieldDefinition FieldDefinition::Parse(Engine::Session& session, IO::FileId file
     auto tag = reader.ReadU8();
     ASSERTION(tag == 0, "Const value is not supported yet");
 
-    auto regionData = session.CbcFileOf(fileId).GetRegionData();
-    auto refType   = Engine::TermManager::Resolve(session, Engine::IndexIdentifier<Term>(Index<Term>(0, refTypeIdx), fileId));
-    auto fieldType = Engine::TermManager::Resolve(session, Engine::IndexIdentifier<Term>(Index<Term>(0, refTypeIdx), fileId));
+    auto refType   = Engine::IndexIdentifier(Index<Term>(0, refTypeIdx), fileId);
+    auto fieldType = Engine::IndexIdentifier(Index<Term>(0, fieldTypeIdx), fileId);
 
     return FieldDefinition(Engine::Identifier<FieldDefinition>(offset, fileId), nameOffset, refType, fieldType, FieldFlags(flags), {});
 }
@@ -112,10 +111,9 @@ MethodDefinition MethodDefinition::Parse(Engine::Session& session, IO::FileId fi
 
 tags_end:
 
-    auto regionData = session.CbcFileOf(fileId).GetRegionData();
-    auto type       = Engine::TermManager::Resolve(session, Engine::IndexIdentifier<Term>(Index<Term>(0, methodSigIdx), fileId));
+    auto sig = Engine::IndexIdentifier(Index<Term>(0, methodSigIdx), fileId); // TODO
 
-    return MethodDefinition(Engine::Identifier<MethodDefinition>(offset, fileId), nameOffset, type, codeOffs);
+    return MethodDefinition(Engine::Identifier<MethodDefinition>(offset, fileId), nameOffset, codeOffs);
 }
 
 MethodDefinition MethodDefinition::Resolve(Engine::Session& session, Engine::Identifier<MethodDefinition> identifier)

@@ -71,7 +71,7 @@ public:
     static String ParseName(Engine::Session& session, IO::FileId fileId, Offset<FieldDefinition> offset);
 
     inline Offset<String> NameOffset() const { return nameOffset; }
-    inline Term FieldType() const { return fieldType; }
+    inline Engine::IndexIdentifier<Term> FieldType() const { return fieldType; }
     inline Engine::Identifier<FieldDefinition> Identifier() { return identifier; }
     inline FieldFlags Flags() { return flags; }
 
@@ -79,8 +79,8 @@ private:
     FieldDefinition(
         Engine::Identifier<FieldDefinition> identifier,
         Offset<String> nameOffset,
-        Term refType,
-        Term fieldType,
+        Engine::IndexIdentifier<Term> refType,
+        Engine::IndexIdentifier<Term> fieldType,
         FieldFlags flags,
         std::vector<uint64_t> constValue 
     )
@@ -94,8 +94,8 @@ private:
 
     Engine::Identifier<FieldDefinition> identifier;
     Offset<String> nameOffset;
-    Term refType;
-    Term fieldType;
+    Engine::IndexIdentifier<Term> refType;
+    Engine::IndexIdentifier<Term> fieldType;
     FieldFlags flags;
     std::vector<uint64_t> constValue;
 
@@ -109,8 +109,6 @@ public:
 
     inline Offset<String> NameOffset() const { return nameOffset; }
 
-    inline Term GetType() const { return type; }
-
     inline Offset<Code> GetCodeOffset() const { return *codeOffs; }
 
     inline IO::FileId FileId() const { return identifier.GetFileId(); }
@@ -121,19 +119,15 @@ private:
     MethodDefinition(
         Engine::Identifier<MethodDefinition> identifier,
         Offset<String> nameOffset,
-        Term type,
         std::optional<Offset<Code>> codeOffs
     )
         : identifier(identifier),
           nameOffset(nameOffset),
-          type(type),
           codeOffs(codeOffs)
     {}
 
     Engine::Identifier<MethodDefinition> identifier;
-    Offset<String> nameOffset;
-    Term type;
-    std::optional<Offset<Code>> codeOffs;
+    Offset<String> nameOffset;    std::optional<Offset<Code>> codeOffs;
 };
 
 } // namespace Symlevel

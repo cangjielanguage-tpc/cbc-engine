@@ -19,7 +19,7 @@ struct PrimLocation {
     uint64_t value;
 };
 
-enum FieldType {
+enum SlotKind {
     PRIMITIVE,
     REFERENCE,
     RECORD
