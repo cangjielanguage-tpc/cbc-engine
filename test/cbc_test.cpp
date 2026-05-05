@@ -390,24 +390,67 @@ INSTANTIATE_TEST_SUITE_P(
     )
 );
 
-#define SIMPLE_BFX_CASES(X)                                                                                            \
-    X(signed, 32, 32, U64(0x00000000FF000000L), U64(0x000000FFFF000000L))                                              \
-    X(signed, 64, 32, U64(0xFFFFFFFFFF000000L), U64(0x000000FFFF000000L))                                              \
-    X(signed, 32, 64, U64(0x00000000FF000000L), U64(0x000000FFFF000000L))                                              \
-    X(signed, 64, 64, U64(0xFFFFFFFFFF000000L), U64(0x000000FFFF000000L))                                              \
-    X(zeroed, 32, 32, U64(0x00000000FF000000L), U64(0x000000FFFF000000L))                                              \
-    X(zeroed, 64, 32, U64(0x00000000FF000000L), U64(0x000000FFFF000000L))                                              \
-    X(zeroed, 32, 64, U64(0x00000000FF000000L), U64(0x000000FFFF000000L))                                              \
-    X(zeroed, 64, 64, U64(0x00000000FF000000L), U64(0x000000FFFF000000L))                                              \
+struct BFXCase {
+    bool signExtend;
+    uint32_t dstBits;
+    uint32_t srcBits;
+    Interpretation::Value::Primitive expected;
+    Interpretation::Value::Primitive val;
+};
 
-#define SIMPLE_BFX(signed, dstBits, srcBits, expected, val)                                                            \
-    TEST_ASM(CbcTest, SimpleBFX##_##signed##_##dstBits##_##srcBits)                                                    \
-    {                                                                                                                  \
-        auto path = "./bfx/simple_bfx_" #signed "_" #dstBits "_" #srcBits ".asm";                                      \
-        auto code = OpenAndRewrite("bfx", path)->code;                                                                 \
-        auto res  = Interpret(code, val, U64(0), F64(0), F64(0));                                                      \
-        if (dstBits == 32) EXPECT_EQ(res.u32, expected.u32);                                          \
-        if (dstBits == 64) EXPECT_EQ(res.u64, expected.u64);                                          \
+BFXCase bfxSignedCases[] = {
+    { true, 32, 32, U64(0x00000000FF000000L), U64(0x000000FFFF000000L) },
+    { true, 64, 32, U64(0xFFFFFFFFFF000000L), U64(0x000000FFFF000000L) },
+    { true, 32, 64, U64(0x00000000FF000000L), U64(0x000000FFFF000000L) },
+    { true, 64, 64, U64(0xFFFFFFFFFF000000L), U64(0x000000FFFF000000L) },
+};
+
+BFXCase bfxZeroedCases[] = {
+    { false, 32, 32, U64(0x00000000FF000000L), U64(0x000000FFFF000000L) },
+    { false, 64, 32, U64(0x00000000FF000000L), U64(0x000000FFFF000000L) },
+    { false, 32, 64, U64(0x00000000FF000000L), U64(0x000000FFFF000000L) },
+    { false, 64, 64, U64(0x00000000FF000000L), U64(0x000000FFFF000000L) },
+};
+
+struct BFXTestParams {
+    std::string name;
+    int casesCount;
+    BFXCase* bfxCases;
+};
+
+static std::ostream& operator<<(std::ostream& os, const BFXTestParams& p) { return os << p.name; }
+
+class BFX : public ::testing::TestWithParam<BFXTestParams> {
+    void SetUp() override { DoSetUp(); }
+};
+
+TEST_P(BFX, test)
+{
+    if (!CheckForAssembler()) {
+        GTEST_SKIP() << "Assembler is not present";
     }
+    BFXTestParams params = GetParam();
 
-SIMPLE_BFX_CASES(SIMPLE_BFX)
+    for (int n { 0 }; n < params.casesCount; ++n) {
+        BFXCase bfxCase = params.bfxCases[n];
+        std::string sign = (bfxCase.signExtend ? "signed" : "zeroed");
+        auto path = "./bfx/simple_bfx_" + sign +
+            "_" + std::to_string(bfxCase.dstBits) +
+            "_" + std::to_string(bfxCase.srcBits) + ".asm";
+        auto code = OpenAndRewrite("bfx", path)->code;
+        auto res  = Interpret(code, bfxCase.val, U64(0), F64(0), F64(0));
+        if (bfxCase.dstBits == 32) EXPECT_EQ(res.u32, bfxCase.expected.u32);
+        if (bfxCase.dstBits == 64) EXPECT_EQ(res.u64, bfxCase.expected.u64);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    CbcTest,
+    BFX,
+    testing::Values(
+        BFXTestParams {
+            "signed", sizeof(bfxSignedCases) / sizeof(BFXCase), bfxSignedCases },
+        BFXTestParams {
+            "zeroed", sizeof(bfxZeroedCases) / sizeof(BFXCase), bfxZeroedCases }
+    )
+);
