@@ -111,7 +111,8 @@ MethodDefinition MethodDefinition::Parse(Engine::Session& session, IO::FileId fi
 
 tags_end:
 
-    auto sig = Engine::IndexIdentifier(Index<Term>(0, methodSigIdx), fileId); // TODO
+    // TODO
+    // auto sig = Engine::IndexIdentifier(Index<Term>(0, methodSigIdx), fileId);
 
     return MethodDefinition(Engine::Identifier<MethodDefinition>(offset, fileId), nameOffset, codeOffs);
 }
