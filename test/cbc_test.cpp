@@ -391,3 +391,68 @@ INSTANTIATE_TEST_SUITE_P(
             "to_float", sizeof(convertToFloat64Cases) / sizeof(ConvertCase), convertToFloat64Cases, &convertToFloat64 }
     )
 );
+
+struct BFXCase {
+    bool signExtend;
+    uint32_t dstBits;
+    uint32_t srcBits;
+    Interpretation::Value::Primitive expected;
+    Interpretation::Value::Primitive val;
+};
+
+BFXCase bfxSignedCases[] = {
+    { true, 32, 32, U64(0x00000000FF000000L), U64(0x000000FFFF000000L) },
+    { true, 64, 32, U64(0xFFFFFFFFFF000000L), U64(0x000000FFFF000000L) },
+    { true, 32, 64, U64(0x00000000FF000000L), U64(0x000000FFFF000000L) },
+    { true, 64, 64, U64(0xFFFFFFFFFF000000L), U64(0x000000FFFF000000L) },
+};
+
+BFXCase bfxZeroedCases[] = {
+    { false, 32, 32, U64(0x00000000FF000000L), U64(0x000000FFFF000000L) },
+    { false, 64, 32, U64(0x00000000FF000000L), U64(0x000000FFFF000000L) },
+    { false, 32, 64, U64(0x00000000FF000000L), U64(0x000000FFFF000000L) },
+    { false, 64, 64, U64(0x00000000FF000000L), U64(0x000000FFFF000000L) },
+};
+
+struct BFXTestParams {
+    std::string name;
+    int casesCount;
+    BFXCase* bfxCases;
+};
+
+static std::ostream& operator<<(std::ostream& os, const BFXTestParams& p) { return os << p.name; }
+
+class BFX : public ::testing::TestWithParam<BFXTestParams> {
+    void SetUp() override { DoSetUp(); }
+};
+
+TEST_P(BFX, test)
+{
+    if (!CheckForAssembler()) {
+        GTEST_SKIP() << "Assembler is not present";
+    }
+    BFXTestParams params = GetParam();
+
+    for (int n { 0 }; n < params.casesCount; ++n) {
+        BFXCase bfxCase = params.bfxCases[n];
+        std::string sign = (bfxCase.signExtend ? "signed" : "zeroed");
+        auto path = "./bfx/simple_bfx_" + sign +
+            "_" + std::to_string(bfxCase.dstBits) +
+            "_" + std::to_string(bfxCase.srcBits) + ".asm";
+        auto code = OpenAndRewrite("bfx", path)->code;
+        auto res  = Interpret(code, bfxCase.val, U64(0), F64(0), F64(0));
+        if (bfxCase.dstBits == 32) EXPECT_EQ(res.u32, bfxCase.expected.u32);
+        if (bfxCase.dstBits == 64) EXPECT_EQ(res.u64, bfxCase.expected.u64);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    CbcTest,
+    BFX,
+    testing::Values(
+        BFXTestParams {
+            "signed", sizeof(bfxSignedCases) / sizeof(BFXCase), bfxSignedCases },
+        BFXTestParams {
+            "zeroed", sizeof(bfxZeroedCases) / sizeof(BFXCase), bfxZeroedCases }
+    )
+);

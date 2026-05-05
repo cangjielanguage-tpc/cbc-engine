@@ -71,6 +71,12 @@ public:
         return static_cast<uint8_t>(value);
     }
 
+    inline operator bool()
+    {
+        ASSERT(MathUtils::IsNBits(value, 1));
+        return static_cast<bool>(value);
+    }
+
     inline operator IReg() { return IReg::From(*this); }
 
     inline operator FReg() { return FReg::From(*this); }
@@ -226,6 +232,8 @@ struct IsaParserImpl {
 
     static int64_t MergeLowHi(uint8_t low4, int64_t hi) { return static_cast<int64_t>((hi << 4) | low4); }
 
+    static Width width64Or32(bool w64) { return w64 ? Width::W64 : Width::W32; }
+
     template <Width::Value width, CC::Value cc> static void BranchSpecializedDefault(IsaParser& parser)
     {
         auto [lhs, rhs, offset] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadS16().Get();
@@ -298,6 +306,23 @@ struct IsaParserImpl {
     {
         auto [dst, low4, hibits] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadSLEB().Get();
         parser.MovImm(width, dst, MergeLowHi(low4, hibits));
+    }
+
+    static void BFX(IsaParser& parser)
+    {
+        auto [dst, src, byte1, byte2 ] =
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU8().ReadU8().Get();
+
+        uint8_t b1  = static_cast<uint8_t>(byte1);
+        auto res64  = b1 & 0b10000000;
+        auto arg64  = b1 & 0b01000000;
+        auto offset = b1 & 0b00111111;
+
+        uint8_t b2  = static_cast<uint8_t>(byte2);
+        auto sx     = b2 & 0b10000000;
+        auto size   = b2 & 0b01111111;
+
+        parser.BFX(dst, src, width64Or32(res64), width64Or32(arg64), sx, offset, size);
     }
 
     template <Width::Value width> static void FloatToInt(IsaParser& parser)

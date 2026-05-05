@@ -476,6 +476,18 @@ CONVERT: {
     interpreter.Convert(args.xx.imm1.ConvertType(), args.xx.imm2.ConvertType(), args.rr.x, args.rr.y);
     NEXT;
 }
+BFXS: {
+    auto args = BFX::Decode(reader);
+    LOG_INSTR;
+    interpreter.BitFieldExtract(args.rr.x, args.rr.y, args.offs, args.size, true);
+    NEXT;
+}
+BFXZ: {
+    auto args = BFX::Decode(reader);
+    LOG_INSTR;
+    interpreter.BitFieldExtract(args.rr.x, args.rr.y, args.offs, args.size, false);
+    NEXT;
+}
 DIRECT_CALL_2I: {
     auto args = B3xi12::Decode(reader);
     LOG_INSTR;

@@ -167,6 +167,16 @@ struct IsaRewriter : public IsaParser {
         emit.Convert(toType, fromType, to, from);
     }
 
+    void BFX(IReg dst, IReg src, Format::Width resW, Format::Width argW, bool sx, uint8_t offset, uint8_t size) override
+    {
+        // We can ignore resW and argW, because interpreter computes the result in 64-bit number anyway.
+        if (sx) {
+            emit.BFXS(dst, src, offset, size);
+        } else {
+            emit.BFXZ(dst, src, offset, size);
+        }
+    }
+
     void PrepareRecord(uint16_t ts) override {}
 
     void NewArr(IReg dst, IReg len, uint16_t type) override { FATAL("not implemented"); }

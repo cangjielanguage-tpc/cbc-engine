@@ -1,5 +1,6 @@
 #pragma once
 
+#include "utils/assertion.h"
 #include <climits>
 #include <cmath>
 #include <cstdint>
@@ -61,5 +62,13 @@ static inline uint32_t RotateRight32(uint32_t value, uint32_t dist)
 static inline uint64_t RotateRight64(uint64_t value, uint32_t dist)
 {
     return ((value >> dist) & RightNBits64(64 - dist)) | (value << (64 - dist));
+}
+
+static inline uint64_t Bits(uint64_t value, uint32_t from, uint32_t to) {
+    ASSERTION(0 <= from && from <= 63, "expected `from` in [0,63], but found %d", from);
+    ASSERTION(0 <= to && to <= 63, "expected `to` in [0,63], but found %d", to);
+    ASSERTION(from <= to, "expected `from` <= `to`, but found from=%d, to=%d", from, to);
+    return (value >> from) & RightNBits64((to - from) + 1);
+
 }
 } // namespace MathUtils

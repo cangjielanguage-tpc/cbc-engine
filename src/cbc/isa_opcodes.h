@@ -28,7 +28,7 @@
     X(FMov64, FMov<Width::W64>)                                                                                        \
     X(FMov32i, FMovImm<Width::W32>)                                                                                    \
     X(FMov64i, FMovImm<Width::W64>)                                                                                    \
-    X(Mov32_FloatToInt, FloatToInt<Width::W32>)                                                                        \
+    X(BFX, BFX)                                                                                                        \
     X(Mov64_FloatToInt, FloatToInt<Width::W64>)                                                                        \
     X(Mov32_IntToFloat, IntToFloat<Width::W32>)                                                                        \
     X(Mov64_IntToFloat, IntToFloat<Width::W64>)                                                                        \

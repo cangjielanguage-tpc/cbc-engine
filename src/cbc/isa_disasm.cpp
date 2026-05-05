@@ -121,6 +121,13 @@ struct IsaDisasm : public IsaParser {
         stream << ", " << to << ", " << from << endl;
     }
 
+    void BFX(IReg dst, IReg src, Format::Width resW, Format::Width argW, bool sx, uint8_t offset, uint8_t size) override
+    {
+        stream << "bfx" << " " << dst.ToStr() << ", " << src.ToStr() << ", ";
+        stream << Sz(resW) << ", " << Sz(argW) << ", " << sx << ", ";
+        stream << offset << ", " << size << endl;
+    }
+
     void PrepareRecord(uint16_t ts) override { stream << "prepare.record" << " " << ts << endl; }
 
     void NewArr(IReg dst, IReg len, uint16_t type) override

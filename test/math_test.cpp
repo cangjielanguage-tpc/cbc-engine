@@ -181,3 +181,17 @@ TEST(MathUtils, ZeroExtend64)
     ASSERT_EQ(0x9, MathUtils::ZeroExtend((uint64_t)0x9, 14));
     ASSERT_EQ(0x9, MathUtils::ZeroExtend((uint64_t)0x9, 4));
 }
+
+TEST(MathUtils, Bits64)
+{
+    ASSERT_EQ(0x5L, MathUtils::Bits(0x3EFL, 3, 5));
+    ASSERT_EQ(0x5L, MathUtils::Bits(0x2F0L, 7, 9));
+
+    ASSERT_EQ(0x4L, MathUtils::Bits(0x3FCL, 0, 2));
+    ASSERT_EQ(0x7L, MathUtils::Bits(0xFFFFFFFFL, 29, 31));
+
+    ASSERT_EQ(0x0L, MathUtils::Bits(0x3BCL, 6, 6));
+    ASSERT_EQ(0x1L, MathUtils::Bits(0x3BCL, 5, 5));
+
+    ASSERT_EQ(0x1BCL, MathUtils::Bits(0xABCDE3BA29AFCCB7L, 43, 52));
+}
