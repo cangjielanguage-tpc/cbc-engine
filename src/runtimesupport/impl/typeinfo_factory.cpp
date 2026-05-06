@@ -202,6 +202,15 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
     builder.instanceSize = 0;
 
+    auto superType = Engine::TermManager::Resolve(session, type.GetSuperType());
+
+    if (auto superTypeInfo = queryTypeInfo(superType); superTypeInfo.has_value()) {
+        builder.superTypeInfo = UnpackTypeInfo(superTypeInfo.value());
+    } else {
+        // TODO: log
+        return std::nullopt;
+    }
+
     { // fill out ext defs
         auto& manager    = Symlevel::MethodTableManager::Of(session);
         auto& fuhManager = Interpretation::FunctionHandleManager::Of(session);
