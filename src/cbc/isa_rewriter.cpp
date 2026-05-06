@@ -8,11 +8,14 @@
 #include "interpreter/code.h"
 #include "interpreter/function_handle.h"
 #include "interpreter/loggers.h"
+#include "offsets_index.h"
 #include "resolution/resolution.h"
 #include "utils/assertion.h"
 #include "utils/logger.h"
 #include "utils/math.h"
 #include "utils/ostream.h"
+
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <sys/types.h>
@@ -90,8 +93,13 @@ struct IsaRewriter : public IsaParser {
 
     size_t startPosition;
     std::unordered_map<ssize_t, Emitter::Label> instructionLabel;
+    InstructionOffsetsIndex offsetsIndex;
 
     bool failed = false;
+
+    void BuildOffsetsIndex() {
+        offsetsIndex.Build(emit, instructionLabel);
+    }
 
     Emitter::Label InstructionLabel(ssize_t position)
     {
@@ -437,12 +445,40 @@ static uint32_t CalcFrameSize(Symlevel::Code code)
     return MathUtils::AlignUp(savedRegsSpace + stackAllocSize, Cbc::FRAME_ALIGNMENT);
 }
 
+static std::vector<Interpretation::ReferenceInfo> CalculateReferencesMap(
+    MethodCode code, 
+    InstructionOffsetsIndex offIndex
+)
+{
+    auto& livenessInfo = code.GetLivenessInfo();
+
+    std::vector<Interpretation::ReferenceInfo> refInfo;
+    refInfo.reserve(livenessInfo.size());
+
+    for (const auto& info : livenessInfo) {
+        refInfo.push_back({
+            .rewrittenPos   = offIndex.FindMappedOffset(CBC, info.cbcPos),
+            .regMask        = info.regMask,
+            .refSlotOffsets = {}
+        });
+
+        refInfo.back().refSlotOffsets.reserve(info.refSlotNums.size());
+        for (const auto& slotN : info.refSlotNums) {
+            refInfo.back().refSlotOffsets.push_back(slotN * STACK_SLOT_SIZE);
+        }
+    }
+
+    return refInfo;
+}
+
 Interpretation::ExecBytecodeInfo Rewrite(MethodCode code, Resolver& resolver, Memory::Heap& heap)
 {
     Emitter::Emitter emitter;
     auto rewriter = IsaRewriter(resolver, code, emitter);
     rewriter.ParseAll();
     if (rewriter.failed) {}
+
+    rewriter.BuildOffsetsIndex();
 
     auto rewrittenCode = emitter.Build(heap);
     auto frameSize     = CalcFrameSize(code);
@@ -453,7 +489,7 @@ Interpretation::ExecBytecodeInfo Rewrite(MethodCode code, Resolver& resolver, Me
         .savedFRegs       = code.UsedNonVolFRegMask(),
         .untypedSlotCount = static_cast<uint16_t>(code.UntypedSlotCount()),
         .frameSize        = frameSize,
-        // TODO: initialize rest
+        .referenceInfos   = CalculateReferencesMap(code, rewriter.offsetsIndex),
     };
 }
 

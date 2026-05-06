@@ -203,11 +203,7 @@ perform_2i_call:
   .set \var, SLOT_OFFS + OFFS_ADDEND
 .endm
 
-#ifndef NDEBUG
-  declare_slot READER_SLOT, 0x18
-#else
-  declare_slot READER_SLOT, 0x8
-#endif
+  declare_slot READER_SLOT, READER_SLOT_OFFSET
 
   // align stack
   .if (SLOT_OFFS + OFFS_ADDEND) % 0x10 != 0
