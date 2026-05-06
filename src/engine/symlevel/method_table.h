@@ -175,6 +175,7 @@ public:
 
 private:
     MethodTable BuildTable(Engine::Session& session, Engine::Identifier<TypeDefinition> type);
+    MethodTable BaseTable();
 
     using Ident = Engine::Identifier<TypeDefinition>;
     std::mutex lock;
