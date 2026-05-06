@@ -34,7 +34,7 @@ struct TermData {
 
     void InitAfterSubterms(TermId identifier, uint16_t length, bool isLocal)
     {
-        uint32_t hash;
+        uint32_t hash = 0;
         for (int i = 0; i < length; i++) {
             hash = 31 * hash + subterms->Hash();
         }

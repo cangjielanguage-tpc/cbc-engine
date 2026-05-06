@@ -2,6 +2,7 @@
 #include "engine/identifiers.h"
 #include "engine/symlevel/offset_sequence.h"
 #include "reader.h"
+#include <optional>
 
 namespace Symlevel {
 
@@ -90,27 +91,26 @@ MethodDefinition MethodDefinition::Parse(Engine::Session& session, IO::FileId fi
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetMethodDefSectionOffs() + offset);
 
     auto nameOffset   = Offset<String>(reader.ReadU32());
-    auto methodSigIdx = reader.ReadU32();
+    auto signature    = Engine::RefIdentifier(RefId<Term>(0, reader.ReadU32()), fileId);
     auto specialFlags = reader.ReadU8();
     auto flags        = reader.ReadULEB();
     auto methodIdx    = reader.ReadSLEB();
 
-    std::optional<Offset<Code>> codeOffs;
+    std::optional<Engine::Identifier<Code>> code = std::nullopt;
 
     // TODO: use enum and support all tags
-    bool stop;
+    bool stop = false;
     while (!stop) {
         auto tag = reader.ReadU8();
         switch (tag) {
             case 0: stop = true; break;
-            case 1: codeOffs.emplace(Offset<Code>(reader.ReadU32())); break;
+            case 1: code = Engine::Identifier(Offset<Code>(reader.ReadU32()), fileId); break;
 
             default: FATAL("unexpected tag: %d", tag); std::exit(2);
         }
     }
 
-    auto sig = Engine::RefIdentifier(RefId<Term>(0, methodSigIdx), fileId);
-    return MethodDefinition(Engine::Identifier(offset, fileId), nameOffset, sig, codeOffs);
+    return MethodDefinition(Engine::Identifier(offset, fileId), nameOffset, signature, code);
 }
 
 MethodDefinition MethodDefinition::Resolve(Engine::Session& session, Engine::Identifier<MethodDefinition> identifier)

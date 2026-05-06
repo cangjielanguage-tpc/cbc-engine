@@ -118,7 +118,7 @@ public:
 
     inline Engine::RefIdentifier<Term> Signature() const { return signature; }
 
-    inline Offset<Code> GetCodeOffset() const { return *codeOffs; }
+    inline std::optional<Engine::Identifier<Code>> MethodCode() const { return codeOffs; }
 
     inline IO::FileId FileId() const { return identifier.GetFileId(); }
 
@@ -129,7 +129,7 @@ private:
         Engine::Identifier<MethodDefinition> identifier,
         Offset<String> nameOffset,
         Engine::RefIdentifier<Term> signature,
-        std::optional<Offset<Code>> codeOffs
+        std::optional<Engine::Identifier<Code>> codeOffs
     )
         : identifier(identifier),
           nameOffset(nameOffset),
@@ -140,7 +140,7 @@ private:
     Engine::Identifier<MethodDefinition> identifier;
     Engine::RefIdentifier<Term> signature;
     Offset<String> nameOffset;
-    std::optional<Offset<Code>> codeOffs;
+    std::optional<Engine::Identifier<Code>> codeOffs;
 };
 
 } // namespace Symlevel
