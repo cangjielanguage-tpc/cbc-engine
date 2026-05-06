@@ -127,9 +127,11 @@ public:
     TermData* data;
 
     static Term Definition(Session& session, Identifier<Symlevel::TypeDefinition> type);
+    static Term Predefined(TermKind tk);
 
     Term(LocalTerm local);
     Term(GlobalTerm global);
+    Term(Term const& term);
 
     TermId GetId() const;
     TermKind GetKind() const;

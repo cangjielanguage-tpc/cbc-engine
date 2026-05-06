@@ -87,6 +87,7 @@ static TermData builtins[] = {
     { TagTermId(TermKind::BSTRING), 0x16, 0, false }, { TagTermId(TermKind::F16), 0x87, 0, false },
     { TagTermId(TermKind::F32), 0x98, 0, false },     { TagTermId(TermKind::F64), 0x29, 0, false },
 };
+static_assert(FIRST_NON_PRIMITIVE == sizeof(builtins) / sizeof(builtins[0]));
 
 bool TermId::IsReference()
 {
@@ -129,10 +130,9 @@ int TermId::Width()
     }
 }
 
-static Term Primitive(Session& session, Symlevel::RefId<Term> index)
+Term Term::Predefined(TermKind tk)
 {
-    static_assert(FIRST_NON_PRIMITIVE == sizeof(builtins) / sizeof(builtins[0]));
-    int num = static_cast<int>(index.GetIndex());
+    int num = static_cast<int>(tk);
     ASSERT(num < FIRST_NON_PRIMITIVE);
     return GlobalTerm(&builtins[num]);
 }
@@ -179,6 +179,8 @@ static bool CompareTermData(TermData* origin, TermData* another, bool ignoreLoca
 Term::Term(LocalTerm local) : data(local.data) {}
 
 Term::Term(GlobalTerm global) : data(global.data) {}
+
+Term::Term(Term const& term) : data(term.data) {}
 
 LocalTerm Term::AsLocal()
 {
@@ -284,7 +286,7 @@ void Term::GetName(Session& session, Stream::Output& stream) const
         case TK::TYPE: {
             auto ident = TypeTermId(*this).GetIdentifier();
             auto type  = Symlevel::TypeDefinition::Resolve(session, ident);
-            stream << Symlevel::String::Parse(session, ident.GetFileId(), type.NameOffset());
+            stream << Symlevel::Reader::Read(session, type.GetName());
             if (int len = GetLength(); len > 0) {
                 printSubTerms("<", ">", len);
             }
@@ -384,16 +386,16 @@ struct TermResolver {
     IO::RandomAccessFile& raf;
     Symlevel::CbcFile& file;
 
-    Term NewUndefined(Symlevel::RefId<Term> index) { return Undefined(session, RefIdentifier(index, fileId)); }
+    Term NewUndefined(Symlevel::RefId<Term> refId) { return Undefined(session, RefIdentifier(refId, fileId)); }
 
-    Term Resolve(Symlevel::RefId<Term> index)
+    Term Resolve(Symlevel::RefId<Term> refId)
     {
         using namespace Symlevel;
 
-        if (index.GetIndex() < FIRST_NON_PRIMITIVE) {
-            return Primitive(session, index);
+        if (refId.GetIndex() < FIRST_NON_PRIMITIVE) {
+            return Term::Predefined(TermKind(refId.GetIndex()));
         }
-        auto offset = regionData.Query(session, index);
+        auto offset = regionData.Query(session, refId);
         IO::StreamFileReader reader(raf, file.GetTermSectionOffs() + offset);
 
         auto tag = static_cast<Tag>(reader.ReadU8());
@@ -402,7 +404,7 @@ struct TermResolver {
                 auto name = Reader::Read(session, fileId, Offset<String>(reader.ReadULEB()));
                 auto type = session.GetEngine().FindType(session, name);
                 if (!type.has_value()) {
-                    return NewUndefined(index);
+                    return NewUndefined(refId);
                 }
                 auto identifier = type.value();
                 auto* data      = AllocateTerm(heap);
@@ -423,9 +425,9 @@ struct TermResolver {
                 auto& regionData = session.CbcFileOf(fileId).GetRegionData();
                 for (int i = 0; i < len; i++) {
                     auto subtermIdx = reader.ReadULEB();
-                    auto subterm    = Resolve(RefId<Term>(index.GetRegion(), subtermIdx));
+                    auto subterm    = Resolve(RefId<Term>(refId.GetRegion(), subtermIdx));
                     if (subterm.GetId().GetKind() == TermKind::UNDEFINED) {
-                        return NewUndefined(index);
+                        return NewUndefined(refId);
                     }
                 }
 
@@ -434,7 +436,7 @@ struct TermResolver {
             }
             default: {
                 FATAL("Not implemented for tag %d", tag);
-                return NewUndefined(index);
+                return NewUndefined(refId);
             }
         }
     }

@@ -161,10 +161,9 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 )
 {
     auto ident = Engine::TypeTermId(term).GetIdentifier();
-    auto file  = ident.GetFileId();
 
-    auto type = Symlevel::Reader::Read(session, file, ident.GetOffset());
-    auto name = Symlevel::Reader::Read(session, file, type.NameOffset());
+    auto type = Symlevel::Reader::Read(session, ident);
+    auto name = Symlevel::Reader::Read(session, type.GetName());
 
     auto currentTypeInfo = Alloc<CbcTypeInfo>();
     if (!currentTypeInfo) {
@@ -202,15 +201,15 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         auto& fuhManager = Interpretation::FunctionHandleManager::Of(session);
         auto mt          = manager.GetMethodTable(session, term);
 
-        auto extDefCount       = mt.ClassSubTableCount() + mt.InterfaceSubTableCount();
+        auto extDefCount       = mt->ClassCount() + mt->InterfaceCount();
         constexpr auto ptrSize = sizeof(void*);
 
         // To simplify memory management here, we will preallocate "flat" arrays
         // where corresponding structures would be filled out.
         // E.g. function tables are essentionally views in the big array.
 
-        builder.dataMT      = Alloc<Interpretation::FunctionHandle*>(mt.EntryCount());
-        builder.flatMethods = Alloc<DYN_FuncPtrT>(mt.EntryCount());
+        builder.dataMT      = Alloc<Interpretation::FunctionHandle*>(mt->EntryCount());
+        builder.flatMethods = Alloc<DYN_FuncPtrT>(mt->EntryCount());
         builder.extDefs     = Alloc<DYN_ExtensionDataT*>(extDefCount);
         builder.flatExtDefs = Alloc<DYN_ExtensionDataT>(extDefCount);
 
@@ -220,10 +219,10 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
         // fill out flat methods table and data method table
         int entryIdx = 0;
-        for (auto it = mt.EntriesIter(); it.HasNext(); entryIdx++) {
-            auto entry                    = it.Next();
-            builder.dataMT[entryIdx]      = fuhManager.Acquire(session, entry);
-            builder.flatMethods[entryIdx] = GetFunctionOrTrampoline(session, entry, entryIdx);
+        for (auto entry : mt->Entries()) {
+            builder.dataMT[entryIdx]      = fuhManager.Acquire(session, entry.method);
+            builder.flatMethods[entryIdx] = GetFunctionOrTrampoline(session, entry.method, entryIdx);
+            entryIdx++;
         }
 
         // Fill out array of pointers to ext defs.
@@ -260,14 +259,14 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
         // fill out ext defs
         int extDefIndex = 0;
-        for (auto it = mt.ClassSubTableIter(); it.HasNext();) {
-            if (!prepareExtDef(builder.flatExtDefs[extDefIndex++], it.Next())) {
+        for (auto st : mt->Classes()) {
+            if (!prepareExtDef(builder.flatExtDefs[extDefIndex++], st)) {
                 return std::nullopt;
             }
         }
 
-        for (auto it = mt.InterfaceSubTableIter(); it.HasNext();) {
-            if (!prepareExtDef(builder.flatExtDefs[extDefIndex++], it.Next())) {
+        for (auto st : mt->Interfaces()) {
+            if (!prepareExtDef(builder.flatExtDefs[extDefIndex++], st)) {
                 return std::nullopt;
             }
         }
@@ -289,7 +288,7 @@ static std::optional<TypeInfo> QueryTypeInfoAOTByName(char const* str)
 static std::optional<TypeInfo> QueryTypeInfoAOT(Engine::Session& session, Engine::GlobalTerm term)
 {
     auto ident    = Engine::AotTermId(term).GetIdentifier();
-    auto typeName = std::string(Symlevel::Reader::Read(session, ident.GetFileId(), ident.GetOffset()));
+    auto typeName = std::string(Symlevel::Reader::Read(session, ident));
 
     auto typeInfo = g_CJNativeInterfaceInstance.typeInfo(typeName.c_str());
     if (typeInfo == nullptr) {

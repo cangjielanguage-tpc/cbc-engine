@@ -37,7 +37,7 @@ uintptr_t StaticFieldsBundle::GetLocation(Session& session, TypeIdent typeIdent,
     auto targetKind = ComputeSlotKind(session, fieldDef);
     uint32_t idx    = 0;
 
-    typeDef.GetFieldIndex().ForEach(
+    typeDef.GetFields().ForEach(
         session,
         [&idx, &fieldIdent, &targetKind, &session](Symlevel::FieldDefinition& field) {
             if (field.Flags().IsNot(Symlevel::FieldFlag::STATIC)) {
@@ -84,7 +84,7 @@ StaticFieldsBundle StaticsManager::CreateBundle(Session& session, TypeIdent type
     uint32_t primFieldsNum = 0;
 
     auto typeDef = Symlevel::TypeDefinition::Resolve(session, typeIdent);
-    typeDef.GetFieldIndex().ForEach(session, [&](Symlevel::FieldDefinition& field) {
+    typeDef.GetFields().ForEach(session, [&](Symlevel::FieldDefinition& field) {
         if (field.Flags().IsNot(Symlevel::FieldFlag::STATIC)) {
             return false;
         }

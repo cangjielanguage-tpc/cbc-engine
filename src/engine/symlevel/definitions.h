@@ -32,36 +32,34 @@ public:
     static TypeDefinition Resolve(Engine::Session& session, Engine::Identifier<TypeDefinition> identifier);
     static String ParseName(Engine::Session& session, IO::FileId fileId, Offset<TypeDefinition> offset);
 
-    inline Offset<String> NameOffset() const { return nameOffset; }
+    Engine::Identifier<TypeDefinition> const GetIdentifier() { return identifier; }
 
-    inline Engine::Identifier<TypeDefinition> GetIdentifier() const { return identifier; }
+    Engine::Identifier<String> const GetName() { return name; }
 
-    inline const MethodIndex& GetMethodIndex() const { return methods; }
+    MethodIndex const GetMethods() { return methods; }
 
-    inline const FieldIndex& GetFieldIndex() const { return fields; }
+    FieldIndex const GetFields() { return fields; }
 
-    inline const OffsetSequence<MethodDefinition>& GetVirtualMethods() const { return virtualMethods; }
+    OffsetSequence<MethodDefinition> const GetVirtualMethods() { return virtualMethods; }
+
+    Engine::RefIdentifier<Term> const GetSuperType() { return superType; }
 
 private:
     TypeDefinition(
-        Engine::Identifier<TypeDefinition> identifier,
-        Offset<String> nameOffset,
-        MethodIndex methods,
-        FieldIndex fields,
-        OffsetSequence<MethodDefinition> virtualMethods
-    )
-        : identifier(identifier),
-          nameOffset(nameOffset),
-          methods(std::move(methods)),
-          fields(std::move(fields)),
-          virtualMethods(virtualMethods)
-    {}
+        Engine::Identifier<TypeDefinition> const identifier,
+        Engine::Identifier<String> const name,
+        MethodIndex const methods,
+        FieldIndex const fields,
+        OffsetSequence<MethodDefinition> const virtualMethods,
+        Engine::RefIdentifier<Term> const superType
+    ) : identifier(identifier), name(name), methods(methods), fields(fields), virtualMethods(virtualMethods), superType(superType) {}
 
-    Engine::Identifier<TypeDefinition> identifier;
-    Offset<String> nameOffset;
-    MethodIndex methods;
-    FieldIndex fields;
-    OffsetSequence<MethodDefinition> virtualMethods;
+    Engine::Identifier<TypeDefinition> const identifier;
+    Engine::Identifier<String> const name;
+    MethodIndex const methods;
+    FieldIndex const fields;
+    OffsetSequence<MethodDefinition> const virtualMethods;
+    Engine::RefIdentifier<Term> const superType;
 };
 
 class FieldDefinition {
@@ -109,7 +107,9 @@ public:
     static MethodDefinition Resolve(Engine::Session& session, Engine::Identifier<MethodDefinition> identifier);
     static String ParseName(Engine::Session& session, IO::FileId fileId, Offset<MethodDefinition> offset);
 
-    inline Offset<String> NameOffset() const { return nameOffset; }
+    inline Engine::Identifier<String> Name() const { return Engine::Identifier(nameOffset, identifier.GetFileId()); }
+
+    inline Engine::RefIdentifier<Term> Signature() const { return signature; }
 
     inline Offset<Code> GetCodeOffset() const { return *codeOffs; }
 
@@ -119,14 +119,16 @@ public:
 
 private:
     MethodDefinition(
-        Engine::Identifier<MethodDefinition> identifier, Offset<String> nameOffset, std::optional<Offset<Code>> codeOffs
+        Engine::Identifier<MethodDefinition> identifier, Offset<String> nameOffset, Engine::RefIdentifier<Term> signature, std::optional<Offset<Code>> codeOffs
     )
         : identifier(identifier),
           nameOffset(nameOffset),
+          signature(signature),
           codeOffs(codeOffs)
     {}
 
     Engine::Identifier<MethodDefinition> identifier;
+    Engine::RefIdentifier<Term> signature;
     Offset<String> nameOffset;
     std::optional<Offset<Code>> codeOffs;
 };

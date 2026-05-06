@@ -1,7 +1,7 @@
 #include "definitions.h"
+#include "engine/identifiers.h"
 #include "engine/symlevel/offset_sequence.h"
 #include "reader.h"
-#include "region_data.h"
 
 namespace Symlevel {
 
@@ -30,13 +30,14 @@ TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId
 
     auto fieldIndex = FieldIndex::Read(reader, fileId);
 
-    return TypeDefinition(
-        Engine::Identifier<TypeDefinition>(offset, fileId),
-        nameOffset,
+    return TypeDefinition {
+        Engine::Identifier(offset, fileId),
+        Engine::Identifier(nameOffset, fileId),
         std::move(methodIndex),
         std::move(fieldIndex),
-        dynMethods
-    );
+        dynMethods,
+        Engine::RefIdentifier(RefId<Term>(0, superTypeIdx), fileId)
+    };
 }
 
 TypeDefinition TypeDefinition::Resolve(Engine::Session& session, Engine::Identifier<TypeDefinition> identifier)
@@ -98,25 +99,20 @@ MethodDefinition MethodDefinition::Parse(Engine::Session& session, IO::FileId fi
 
     std::optional<Offset<Code>> codeOffs;
 
-    auto target = &&tags_end;
-
     // TODO: use enum and support all tags
-    while (true) {
+    bool stop;
+    while (!stop) {
         auto tag = reader.ReadU8();
         switch (tag) {
-            case 0: goto tags_end; // FIXME: C++ semantics
+            case 0: stop = true; break;
             case 1: codeOffs.emplace(Offset<Code>(reader.ReadU32())); break;
 
             default: FATAL("unexpected tag: %d", tag); std::exit(2);
         }
     }
 
-tags_end:
-
-    // TODO
-    // auto sig = Engine::RefIdentifier(Index<Term>(0, methodSigIdx), fileId);
-
-    return MethodDefinition(Engine::Identifier<MethodDefinition>(offset, fileId), nameOffset, codeOffs);
+    auto sig = Engine::RefIdentifier(RefId<Term>(0, methodSigIdx), fileId);
+    return MethodDefinition(Engine::Identifier(offset, fileId), nameOffset, sig, codeOffs);
 }
 
 MethodDefinition MethodDefinition::Resolve(Engine::Session& session, Engine::Identifier<MethodDefinition> identifier)
