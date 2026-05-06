@@ -194,8 +194,21 @@ static ResolvedFieldReference ResolveReference(Session& session, RefIdentifier<S
 
 MethodSignature ConstructSignature(Resolver::Impl& resolver, ResolvedMethodReference& ref)
 {
-    // FIXME
-    return {};
+    auto signature = ref.signature;
+    ASSERTION(signature.GetLength() > 0, "method signature encoding was incorrect");
+
+    auto paramLength = signature.GetLength() - 1;
+    auto retTypeIdx = paramLength;
+
+    std::vector<Type*> params;
+    params.reserve(paramLength);
+    for (int i = 0; i < paramLength; i++) {
+        params.push_back(resolver.GetType(signature.Subterm(i)));
+    }
+    return {
+        .params = std::move(params),
+        .resType = resolver.GetType(signature.Subterm(retTypeIdx)),
+    };
 }
 
 template <typename Call> // FIXME: split?
@@ -479,25 +492,25 @@ Stream::Output& operator<<(Stream::Output& stream, MethodSignature const& sig)
 
 Stream::Output& operator<<(Stream::Output& stream, DirectCall const& call)
 {
-    stream << call.refType << '.' << call.name << '.' << call.signature;
+    stream << *call.refType << '.' << call.name << call.signature;
     return stream;
 }
 
 Stream::Output& operator<<(Stream::Output& stream, DynamicCall const& call)
 {
-    stream << call.refType << '.' << call.name << '.' << call.signature;
+    stream << *call.refType << '.' << call.name << call.signature;
     return stream;
 }
 
 Stream::Output& operator<<(Stream::Output& stream, InstanceField const& field)
 {
-    stream << field.refType << '.' << field.name << '.' << field.fieldType;
+    stream << *field.refType << '.' << field.name << '.' << *field.fieldType;
     return stream;
 }
 
 Stream::Output& operator<<(Stream::Output& stream, StaticField const& field)
 {
-    stream << field.refType << '.' << field.name << '.' << field.fieldType;
+    stream << *field.refType << '.' << field.name << '.' << *field.fieldType;
     return stream;
 }
 

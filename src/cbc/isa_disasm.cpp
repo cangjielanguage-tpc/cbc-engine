@@ -273,9 +273,9 @@ struct IsaResolvingDisasm : IsaDisasm {
             return;
         }
         auto method = m.value();
-        // TODO: write full reference, when signature construction would be added.
-        stream << "call.virtual " << dst.ToStr() << ", " << method->extDefNum << ", "
-               << method->methodNum /* << " " << *method */ << endl;
+        stream << "call.virtual " << dst.ToStr() << ", " << *method;
+        stream << " (" << method->extDefNum << "," << method->methodNum << ")";
+        stream << endl;
     }
 
     // TODO: implement rest.
