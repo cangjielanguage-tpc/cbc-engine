@@ -27,7 +27,7 @@
 namespace Resolution {
 
 Stream::Descripted logStream(Stream::cerr, "[resolution] ");
-Logging::Logger log(&logStream, Logging::Level::NONE);
+Logging::Logger log(&logStream, Logging::Level::ERROR);
 
 using namespace Engine;
 
@@ -236,6 +236,7 @@ std::optional<Call> ResolveCall(Resolver::Impl& resolver, Index<Call> id)
                         stream << "Failed to resolve method "
                                << ref.GetFullName(session) << Stream::endl;
                     });
+                    return std::nullopt;
                 }
 
                 auto sig = ConstructSignature(resolver, ref);
