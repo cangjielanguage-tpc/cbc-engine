@@ -81,7 +81,7 @@ StaticFieldsBundle StaticsManager::CreateBundle(Session& session, TypeIdent type
     uint32_t primFieldsNum = 0;
 
     auto typeDef = Symlevel::TypeDefinition::Resolve(session, typeIdent);
-    typeDef.GetFieldIndex().Find(session, [&](Symlevel::FieldDefinition& field) {
+    typeDef.GetFields().Find(session, [&](Symlevel::FieldDefinition& field) {
         if (field.Flags().IsNot(Symlevel::FieldFlag::STATIC)) {
             return false;
         }

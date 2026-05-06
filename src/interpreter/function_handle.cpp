@@ -9,7 +9,6 @@
 #include "function_handle.h"
 #include "interpreter/loggers.h"
 #include "resolution/resolution.h"
-#include "runtimesupport/adapters.h"
 #include "utils/assertion.h"
 
 namespace Interpretation {
@@ -76,7 +75,7 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Session& session, DynamicFuncti
     auto code = Symlevel::Reader::Read(session, def.FileId(), def.GetCodeOffset());
 
     logger.Log(Logging::Level::INFO, [&session, fuh, &def](Stream::Output& out) {
-        auto name = std::string(Symlevel::Reader::Read(session, def.FileId(), def.NameOffset()));
+        auto name = std::string(Symlevel::Reader::Read(session, def.Name()));
         // TODO: print signature
         out.PrintFmt(
             "{%p} Started preparation of method (%u;%u) %s",
