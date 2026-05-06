@@ -1,9 +1,9 @@
+#include "cbc/isa_disasm.h"
 #include "interpreter/loggers.h"
 #include "resolution/resolution.h"
+#include "runtimesupport/impl/entrypoint.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
-#include "cbc/isa_disasm.h"
-#include "runtimesupport/impl/entrypoint.h"
 
 #include <charconv>
 #include <cstdlib>
@@ -70,15 +70,13 @@ static bool SetLogLevelOptionForAll(Option const& option, std::string_view value
 static bool SetBoolOption(const Option& option, std::string_view value);
 static bool SetStrViewOption(const Option& option, std::string_view value);
 
-constexpr Option options[] = {
-    { "cbc.log.resolution", &Resolution::log, &SetLogLevelOption },
-    { "cbc.log.int", &Interpretation::Log::interpretation, &SetLogLevelOption },
-    { "cbc.log.preparation", &Interpretation::Log::preparation, &SetLogLevelOption },
-    { "cbc.log.all", nullptr, &SetLogLevelOptionForAll },
-    { "cbc.dasm", &Cbc::g_IsRawDisasmEnabled, &SetBoolOption },
-    { "cbc.path", &g_cbcPath, &SetStrViewOption },
-    { "cbc.main", &g_mainCbc, &SetStrViewOption }
-};
+constexpr Option options[] = { { "cbc.log.resolution", &Resolution::log, &SetLogLevelOption },
+                               { "cbc.log.int", &Interpretation::Log::interpretation, &SetLogLevelOption },
+                               { "cbc.log.preparation", &Interpretation::Log::preparation, &SetLogLevelOption },
+                               { "cbc.log.all", nullptr, &SetLogLevelOptionForAll },
+                               { "cbc.dasm", &Cbc::g_IsRawDisasmEnabled, &SetBoolOption },
+                               { "cbc.path", &g_cbcPath, &SetStrViewOption },
+                               { "cbc.main", &g_mainCbc, &SetStrViewOption } };
 
 static bool SetLogLevelOptionForAll(Option const& option, std::string_view value)
 {
@@ -161,7 +159,7 @@ void SetOptions(const std::vector<KeyVal>& parsedOpts)
         switch (SetOption(parsedOpt.key, parsedOpt.val)) {
             case SetOptionStatus::INVALID_OPTION: PrintError("invalid option", parsedOpt.whole); break;
             case SetOptionStatus::UNKNOWN_OPTION: PrintError("unknown option", parsedOpt.whole); break;
-            default: continue;
+            default:                              continue;
         }
     }
 }
@@ -173,7 +171,7 @@ void ParseAndSetOptions(int size, char const** _optStr)
     }
 
     std::vector<KeyVal> parsedOpts;
-    for (size_t i {0}; i < size; ++i) {
+    for (size_t i { 0 }; i < size; ++i) {
         PrintError("Parsing:", _optStr[i]);
         ParseKeyVal(parsedOpts, _optStr[i]);
     }
@@ -185,7 +183,6 @@ void ParseAndSetOptions(int size, char const** _optStr)
 
     SetOptions(parsedOpts);
 }
-
 
 void InitEnvOptions()
 {
@@ -200,7 +197,7 @@ void InitEnvOptions()
     std::vector<KeyVal> parsedOpts;
 
     size_t start = 0;
-    size_t end = 0;
+    size_t end   = 0;
     while ((end = optStr.find(' ', start)) != std::string_view::npos) {
         if (end > start) {
             ParseKeyVal(parsedOpts, optStr.substr(start, end - start));
