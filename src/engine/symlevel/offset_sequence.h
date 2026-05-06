@@ -1,10 +1,10 @@
 #pragma once
 
 #include "engine/engine.h"
+#include "engine/identifiers.h"
 #include "engine/symlevel/io/file_id.h"
 #include "engine/symlevel/io/stream_file_reader.h"
 #include "offset.h"
-#include "engine/identifiers.h"
 
 #include <cstdint>
 #include <vector>

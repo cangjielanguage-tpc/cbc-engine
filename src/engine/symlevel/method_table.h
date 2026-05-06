@@ -83,13 +83,17 @@ public:
 
     using Range = Iterators::SimpleRange<SubTableGenerator>;
 
-    auto Entries() {
+    auto Entries()
+    {
         struct EntryView {
             MethodTable const& table;
+
             auto begin() { return table.allEntries.begin(); }
+
             auto end() { return table.allEntries.end(); }
         };
-        return EntryView {*this};
+
+        return EntryView { *this };
     };
 
     void Globalize(Engine::Session& session);
@@ -113,9 +117,7 @@ private:
     friend class MethodTableManager;
 
     MethodTable(
-        std::vector<Entry>&& allEntries,
-        std::vector<SubTable>&& classTables,
-        std::vector<SubTable>&& interfaceTables
+        std::vector<Entry>&& allEntries, std::vector<SubTable>&& classTables, std::vector<SubTable>&& interfaceTables
     );
 
     std::vector<Entry> allEntries;
@@ -147,13 +149,7 @@ private:
     friend class MethodTable::SubTableGenerator;
     friend class MethodTableManager;
 
-    MethodSubTable(
-        MethodTable const& table,
-        Term declaringType,
-        int start,
-        int end,
-        int num
-    );
+    MethodSubTable(MethodTable const& table, Term declaringType, int start, int end, int num);
 
     MethodTable const* table;
     Term declaringType;

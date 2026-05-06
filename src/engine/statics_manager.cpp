@@ -37,7 +37,7 @@ uintptr_t StaticFieldsBundle::GetLocation(Session& session, TypeIdent typeIdent,
     auto targetKind = ComputeSlotKind(session, fieldDef);
     uint32_t idx    = 0;
 
-    typeDef.GetFieldIndex().Find(session, [&idx, &fieldIdent, &targetKind, &session](Symlevel::FieldDefinition& field) {
+    typeDef.GetFields().ForEach(session, [&idx, &fieldIdent, &targetKind, &session](Symlevel::FieldDefinition& field) {
         if (field.Flags().IsNot(Symlevel::FieldFlag::STATIC)) {
             return false;
         }

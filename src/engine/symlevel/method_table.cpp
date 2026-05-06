@@ -21,27 +21,30 @@ using namespace Engine;
 // ---- MethodTable ----
 
 MethodTable::MethodTable(
-    std::vector<Entry>&& allEntries,
-    std::vector<SubTable>&& classTables,
-    std::vector<SubTable>&& interfaceTables
-) : allEntries(std::move(allEntries)), classTables(std::move(classTables)), interfaceTables(std::move(interfaceTables)) {}
+    std::vector<Entry>&& allEntries, std::vector<SubTable>&& classTables, std::vector<SubTable>&& interfaceTables
+)
+    : allEntries(std::move(allEntries)),
+      classTables(std::move(classTables)),
+      interfaceTables(std::move(interfaceTables))
+{}
 
 MethodTable::Range MethodTable::Classes() const
 {
     return Iterators::make_range(MethodTable::SubTableGenerator {
-        .table = *this,
+        .table     = *this,
         .subtables = classTables,
-        .disp = 0,
-        .cursor = 0,
+        .disp      = 0,
+        .cursor    = 0,
     });
 }
 
-MethodTable::Range MethodTable::Interfaces() const {
+MethodTable::Range MethodTable::Interfaces() const
+{
     return Iterators::make_range(MethodTable::SubTableGenerator {
-        .table = *this,
+        .table     = *this,
         .subtables = interfaceTables,
-        .disp = static_cast<int>(classTables.size()),
-        .cursor = 0,
+        .disp      = static_cast<int>(classTables.size()),
+        .cursor    = 0,
     });
 }
 
@@ -56,7 +59,7 @@ std::optional<MethodTableEntry> MethodTable::Resolve(Session& session, MethodTab
     for (auto st : Classes()) {
         for (auto entry : st.Entries()) {
             auto method = Symlevel::Reader::Read(session, entry.method);
-            auto name = Symlevel::Reader::Read(session, method.Name());
+            auto name   = Symlevel::Reader::Read(session, method.Name());
 
             if (name.compare(reference.name) != 0) {
                 continue;
@@ -77,7 +80,7 @@ std::optional<MethodSubTable> MethodTable::SubTableGenerator::operator()()
 {
     if (cursor < subtables.size()) {
         auto cursor = this->cursor++;
-        auto& st = subtables[cursor];
+        auto& st    = subtables[cursor];
         return MethodSubTable(table, st.genericContext, st.start, st.end, cursor + disp);
     } else {
         return std::nullopt;
@@ -85,13 +88,13 @@ std::optional<MethodSubTable> MethodTable::SubTableGenerator::operator()()
 }
 
 // ---- MethodSubTable ----
-MethodSubTable::MethodSubTable(
-        MethodTable const& table,
-        Term declaringType,
-        int start,
-        int end,
-        int num
-) : table(&table), declaringType(declaringType), start(start), end(end), num(num) {}
+MethodSubTable::MethodSubTable(MethodTable const& table, Term declaringType, int start, int end, int num)
+    : table(&table),
+      declaringType(declaringType),
+      start(start),
+      end(end),
+      num(num)
+{}
 
 int MethodSubTable::StartPos() const { return start; }
 
@@ -101,9 +104,10 @@ int MethodSubTable::Num() const { return num; }
 
 Term MethodSubTable::DeclaringType() const { return declaringType; }
 
-MethodSubTable::Range MethodSubTable::Entries() const {
+MethodSubTable::Range MethodSubTable::Entries() const
+{
     return Iterators::make_range(MethodSubTable::EntryGenerator {
-        .st = *this,
+        .st     = *this,
         .cursor = start,
     });
 }
@@ -111,7 +115,7 @@ MethodSubTable::Range MethodSubTable::Entries() const {
 std::optional<MethodTableEntry> MethodSubTable::EntryGenerator::operator()()
 {
     if (cursor < st.end) {
-        auto cursor = this->cursor++;
+        auto cursor             = this->cursor++;
         auto entry              = st.table->allEntries[cursor];
         MethodTableEntry mEntry = {
             .method         = entry.method,
@@ -138,22 +142,20 @@ MethodTable MethodTableManager::BuildTable(Session& session, Identifier<TypeDefi
 
     // copy table
     MethodTable newTable = *GetMethodTable(session, superType);
-    auto oldEntryCount = newTable.EntryCount();
+    auto oldEntryCount   = newTable.EntryCount();
 
     std::vector<Identifier<MethodDefinition>> declaredMethods;
     methodSeq.Read(session, declaredMethods);
 
     for (auto methodId : declaredMethods) {
-        auto newEntry = MethodTable::Entry{
-            .method = methodId,
+        auto newEntry = MethodTable::Entry {
+            .method         = methodId,
             .genericContext = thisType,
         };
 
         auto method = Reader::Read(session, methodId);
-        MethodTable::Reference ref {
-            .name = Reader::Read(session, method.Name()),
-            .signature = TermManager::Resolve(session, method.Signature())
-        };
+        MethodTable::Reference ref { .name      = Reader::Read(session, method.Name()),
+                                     .signature = TermManager::Resolve(session, method.Signature()) };
         if (auto entryOpt = newTable.Resolve(session, ref); entryOpt.has_value()) {
             newTable.allEntries[entryOpt->flatMethodNum] = newEntry;
         } else {
@@ -164,13 +166,12 @@ MethodTable MethodTableManager::BuildTable(Session& session, Identifier<TypeDefi
     auto newEntryCount = newTable.EntryCount();
     newTable.classTables.emplace_back(MethodTable::SubTable {
         .genericContext = thisType,
-        .start = oldEntryCount,
-        .end = newEntryCount,
+        .start          = oldEntryCount,
+        .end            = newEntryCount,
     });
 
     return newTable;
 }
-
 
 void MethodTable::Globalize(Session& session)
 {
@@ -207,7 +208,7 @@ std::shared_ptr<MethodTable> MethodTableManager::GetMethodTable(Session& session
 
     auto res = std::make_shared<MethodTable>(std::move(mt));
 
-    tables.insert({type.Pack(), res});
+    tables.insert({ type.Pack(), res });
     return res;
 }
 
@@ -216,8 +217,8 @@ MethodTable MethodTableManager::BaseTable()
     MethodTable mt;
     mt.classTables.push_back(MethodTable::SubTable {
         .genericContext = Term::Predefined(TermKind::NIL),
-        .start = 0,
-        .end = 0,
+        .start          = 0,
+        .end            = 0,
     });
     return mt;
 }
@@ -228,7 +229,7 @@ std::shared_ptr<MethodTable> MethodTableManager::GetMethodTable(Session& session
         static auto mt = std::make_shared<MethodTable>(std::move(BaseTable()));
         return mt;
     }
-    auto type     = TypeTermId(term).GetIdentifier();
+    auto type = TypeTermId(term).GetIdentifier();
 
     // FIXME: instantiate!
     return GetMethodTable(session, type);
