@@ -429,6 +429,7 @@ struct TermResolver {
                     if (subterm.GetId().GetKind() == TermKind::UNDEFINED) {
                         return NewUndefined(refId);
                     }
+                    data->subterms[subtermIdx] = subterm;
                 }
 
                 data->InitAfterSubterms(TagTermId(TermKind::METHOD), len, true);
