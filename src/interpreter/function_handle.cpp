@@ -71,8 +71,10 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Session& session, DynamicFuncti
 
     auto& logger = Interpretation::Log::preparation;
 
-    auto def  = Symlevel::MethodDefinition::Resolve(session, fuh->methodDef);
-    auto code = Symlevel::Reader::Read(session, def.FileId(), def.GetCodeOffset());
+    auto def = Symlevel::MethodDefinition::Resolve(session, fuh->methodDef);
+    ASSERTION(def.MethodCode().has_value(), "fuh preparation must be unreachable for methods without code");
+
+    auto code = Symlevel::Reader::Read(session, def.MethodCode().value());
 
     logger.Log(Logging::Level::INFO, [&session, fuh, &def](Stream::Output& out) {
         auto name = std::string(Symlevel::Reader::Read(session, def.Name()));
