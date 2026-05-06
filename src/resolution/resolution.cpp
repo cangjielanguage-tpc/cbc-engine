@@ -226,15 +226,17 @@ std::optional<Call> ResolveCall(Resolver::Impl& resolver, Index<Call> id)
                 auto& manager = Symlevel::MethodTableManager::Of(session);
                 auto mt       = manager.GetMethodTable(session, ref.refType);
 
-                auto resolved = mt->Resolve(session, {
-                    .name = ref.name,
-                    .signature = ref.signature,
-                });
+                auto resolved = mt->Resolve(
+                    session,
+                    {
+                        .name      = ref.name,
+                        .signature = ref.signature,
+                    }
+                );
 
                 if (!resolved.has_value()) {
                     log.Log(Logging::Level::ERROR, [&ref, &session](Stream::Output& stream) {
-                        stream << "Failed to resolve method "
-                               << ref.GetFullName(session) << Stream::endl;
+                        stream << "Failed to resolve method " << ref.GetFullName(session) << Stream::endl;
                     });
                     return std::nullopt;
                 }

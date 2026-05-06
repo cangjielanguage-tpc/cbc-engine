@@ -30,14 +30,12 @@ TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId
 
     auto fieldIndex = FieldIndex::Read(reader, fileId);
 
-    return TypeDefinition {
-        Engine::Identifier(offset, fileId),
-        Engine::Identifier(nameOffset, fileId),
-        std::move(methodIndex),
-        std::move(fieldIndex),
-        dynMethods,
-        Engine::RefIdentifier(RefId<Term>(0, superTypeIdx), fileId)
-    };
+    return TypeDefinition { Engine::Identifier(offset, fileId),
+                            Engine::Identifier(nameOffset, fileId),
+                            std::move(methodIndex),
+                            std::move(fieldIndex),
+                            dynMethods,
+                            Engine::RefIdentifier(RefId<Term>(0, superTypeIdx), fileId) };
 }
 
 TypeDefinition TypeDefinition::Resolve(Engine::Session& session, Engine::Identifier<TypeDefinition> identifier)

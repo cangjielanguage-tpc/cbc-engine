@@ -52,7 +52,14 @@ private:
         FieldIndex const fields,
         OffsetSequence<MethodDefinition> const virtualMethods,
         Engine::RefIdentifier<Term> const superType
-    ) : identifier(identifier), name(name), methods(methods), fields(fields), virtualMethods(virtualMethods), superType(superType) {}
+    )
+        : identifier(identifier),
+          name(name),
+          methods(methods),
+          fields(fields),
+          virtualMethods(virtualMethods),
+          superType(superType)
+    {}
 
     Engine::Identifier<TypeDefinition> const identifier;
     Engine::Identifier<String> const name;
@@ -119,7 +126,10 @@ public:
 
 private:
     MethodDefinition(
-        Engine::Identifier<MethodDefinition> identifier, Offset<String> nameOffset, Engine::RefIdentifier<Term> signature, std::optional<Offset<Code>> codeOffs
+        Engine::Identifier<MethodDefinition> identifier,
+        Offset<String> nameOffset,
+        Engine::RefIdentifier<Term> signature,
+        std::optional<Offset<Code>> codeOffs
     )
         : identifier(identifier),
           nameOffset(nameOffset),

@@ -37,25 +37,22 @@ uintptr_t StaticFieldsBundle::GetLocation(Session& session, TypeIdent typeIdent,
     auto targetKind = ComputeSlotKind(session, fieldDef);
     uint32_t idx    = 0;
 
-    typeDef.GetFields().ForEach(
-        session,
-        [&idx, &fieldIdent, &targetKind, &session](Symlevel::FieldDefinition& field) {
-            if (field.Flags().IsNot(Symlevel::FieldFlag::STATIC)) {
-                return false;
-            }
-
-            if (targetKind != ComputeSlotKind(session, field)) {
-                return false;
-            }
-
-            if (fieldIdent == field.Identifier()) {
-                return true;
-            }
-
-            idx++;
+    typeDef.GetFields().ForEach(session, [&idx, &fieldIdent, &targetKind, &session](Symlevel::FieldDefinition& field) {
+        if (field.Flags().IsNot(Symlevel::FieldFlag::STATIC)) {
             return false;
         }
-    );
+
+        if (targetKind != ComputeSlotKind(session, field)) {
+            return false;
+        }
+
+        if (fieldIdent == field.Identifier()) {
+            return true;
+        }
+
+        idx++;
+        return false;
+    });
 
     switch (targetKind) {
         case REFERENCE:
