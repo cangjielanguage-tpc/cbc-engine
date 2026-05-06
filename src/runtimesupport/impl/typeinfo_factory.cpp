@@ -181,7 +181,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         } else if (t.GetKind() == Engine::TermKind::NIL) {
             // special case;
             // method table of core.object is encoded as nil;
-            return QueryTypeInfoAOTByName("core:Object");
+            return QueryTypeInfoAOTByName("std.core:Object");
         }
         return manager.AcquireTypeInfo(session, t);
     };
