@@ -65,4 +65,4 @@ set_target_properties(cbcengine PROPERTIES POSITION_INDEPENDENT_CODE ON)
 enable_testing()
 add_subdirectory(test)
 
-add_subdirectory(tools/disasm)
+add_subdirectory(tools/dis)

@@ -16,7 +16,7 @@ namespace Symlevel { // TODO: move to Engine
 /// The method table is needed for virtual and interface method resolution (including dynamic "static" methods).
 ///
 /// The table consists of two layers, so any entry could be referenced by two indexes or actual type + method index.
-/// To perform an method reference resolution of form `(ref type, method name, signature)` we need to:
+/// To perform a method reference resolution of form `(ref type, method name, signature)` we need to:
 /// 1. Find a sub-table that corresponds to `ref type`;
 /// 2. Find entry that corresponds to `method name; signature` (can require generic instantiation).
 /// The entry found is resolution result.
@@ -30,7 +30,7 @@ namespace Symlevel { // TODO: move to Engine
 /// so virtual methods could be referenced by one number, we can map our method table to this kind of layout easily.
 ///
 /// A new table of class `A <: C & I & J` will look like as table for `C` with added interface sub tables from `I` and
-/// `J`, where entries for overridden methods are patched. New methods would be addede as new class sub table.
+/// `J`, where entries for overridden methods are patched. New methods would be added as new class sub table.
 
 /// The value of that describe an entry in method table.
 struct MethodTableEntry {
