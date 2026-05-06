@@ -4,6 +4,7 @@
 #include <mutex>
 
 #include "RTInterface.h"
+#include "asm_export.h"
 #include "asm_trampolines.h"
 #include "cbc/isa_disasm.h"
 #include "cbc_engine.h"
@@ -55,11 +56,44 @@ static void FiberDestroy(DYN_CJThreadSpecificDataT* data) { /* TODO: ectype clea
 static void IterateFramesWithState(
     DYN_CJThreadSpecificDataT threadSpecificData, void (*callback)(DYN_VisitingStateT, void*), void* ctx
 )
-{ /* no-op */
+{
+    DYN_VisitingStateT state = nullptr; // TODO implement 
+    callback(state, ctx);
 }
 
-static void VisitFrameRootsMarking(DYN_VisitingStateT state, DYN_FrameDescT frame_desc, DYN_RootVisitorT root_visitor)
-{ /* no-op */
+static void VisitGCFrameRoots(DYN_FrameDescT frame_desc, DYN_RootVisitorT root_visitor)
+{
+    auto fuh    = reinterpret_cast<Interpretation::DynamicFunctionHandle*>((uint8_t*) frame_desc.fp - FUH_SLOT_OFFSET);
+    auto reader = reinterpret_cast<Decoder::ByteReader*>((uint8_t*) frame_desc.fp - READER_SLOT_OFFSET);
+    auto curPos = static_cast<uint32_t>(
+        reinterpret_cast<uintptr_t>(reader->Cursor()) - reinterpret_cast<uintptr_t>(reader->Start())
+    ); 
+    
+    auto bc = NOTNULL(fuh->bytecode.load(std::memory_order_acquire));
+
+    const Interpretation::ReferenceInfo* refInfo = nullptr;
+    for (auto& info : bc->referenceInfos) {
+        if (info.rewrittenPos == curPos) {
+            refInfo = &info;
+            break;
+        }
+    }
+
+    auto slotsStartAddr = ((uint8_t*) frame_desc.fp) - (READER_SLOT_OFFSET + bc->frameSize);
+    for (auto& slotOffset : NOTNULL(refInfo)->refSlotOffsets) {
+        auto slotAddr = slotsStartAddr + slotOffset;
+        g_CJNativeInterfaceInstance.visitRootFromInterpreter(root_visitor, slotAddr);
+    }
+}
+
+static void VisitFrameRootsMarking(
+    DYN_VisitingStateT state, 
+    DYN_FrameDescT frame_desc, 
+    DYN_RootVisitorT root_visitor
+)
+{
+    // TODO scan saved regs
+    VisitGCFrameRoots(frame_desc, root_visitor);
 }
 
 static void VisitFrameRootsAdjusting(
@@ -68,15 +102,9 @@ static void VisitFrameRootsAdjusting(
     DYN_RootVisitorT root_visitor,
     DYN_DerivedPtrVisitorT derived_ptr_visitor
 )
-{ /* no-op */
-}
-
-static void VisitGlobalRoots(DYN_RootVisitorT visitor)
 {
-    auto& engine = Engine::GetEngineInstance();
-    Engine::StaticsManager::Of(engine).VisitRefLocations([visitor](Engine::RefLocation* refLocation) {
-        g_CJNativeInterfaceInstance.visitRootFromInterpreter(visitor, refLocation);
-    });
+    // scan saved regs
+    VisitGCFrameRoots(frame_desc, root_visitor);
 }
 
 static void VisitFrameRootsExpansion(
@@ -87,6 +115,14 @@ static void VisitFrameRootsExpansion(
 )
 {
     /* no-op */
+}
+
+static void VisitGlobalRoots(DYN_RootVisitorT visitor)
+{
+    auto& engine = Engine::GetEngineInstance();
+    Engine::StaticsManager::Of(engine).VisitRefLocations([visitor](Engine::RefLocation* refLocation) {
+        g_CJNativeInterfaceInstance.visitRootFromInterpreter(visitor, refLocation);
+    });
 }
 
 extern "C" {

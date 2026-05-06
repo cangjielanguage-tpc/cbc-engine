@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <vector>
 
 #include "asm_export.h"
 #include "literals.h"
@@ -16,7 +17,11 @@ struct Code {
     // TODO: add offsets converter
 };
 
-struct ReferenceSlots {}; // TODO: implement reference maps
+struct ReferenceInfo {
+    uint32_t rewrittenPos;
+    uint16_t regMask;
+    std::vector<uint32_t> refSlotOffsets;
+};
 
 struct ExecBytecodeInfo {
     Code const code;
@@ -24,7 +29,7 @@ struct ExecBytecodeInfo {
     uint16_t const savedFRegs;
     uint16_t const untypedSlotCount;
     uint32_t const frameSize;
-    ReferenceSlots references;
+    std::vector<ReferenceInfo> const referenceInfos;
 };
 
 static_assert(

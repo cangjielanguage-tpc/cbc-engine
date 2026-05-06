@@ -28,9 +28,26 @@ Code::Code(Engine::Session& session, IO::StreamFileReader& reader)
     codePtr = static_cast<uint8_t*>(session.Allocator().Allocate(codeSize, alignof(uint8_t)));
     reader.Read(codePtr, codeSize);
 
-    livenessInfoSize = reader.ReadULEB();
-    livenessInfoPtr  = static_cast<uint8_t*>(session.Allocator().Allocate(livenessInfoSize, alignof(uint8_t)));
-    reader.Read(livenessInfoPtr, livenessInfoSize);
+    uint32_t livenessInfoSize = reader.ReadULEB();
+    uint32_t livenessStart = reader.Position();
+
+    while (reader.Position() - livenessStart < livenessInfoSize) {
+        LivenessInfo info = {
+            .cbcPos  = reader.ReadULEB(),
+            .regMask = reader.ReadU16(),
+        };
+
+        uint32_t n = reader.ReadULEB();
+        std::vector<uint32_t> slots;
+        slots.reserve(n);
+        
+        for (uint32_t idx = 0; idx < n; idx++) {
+            slots.push_back(reader.ReadULEB());
+        }
+
+        info.refSlotNums = std::move(slots);
+        livenessInfo.push_back(std::move(info));
+    }
 }
 
 } // namespace Symlevel

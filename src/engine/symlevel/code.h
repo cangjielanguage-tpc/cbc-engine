@@ -4,6 +4,12 @@
 
 namespace Symlevel {
 
+struct LivenessInfo {
+    uint32_t cbcPos;
+    uint16_t regMask;
+    std::vector<uint32_t> refSlotNums;
+};
+
 class Code {
 public:
     static Code Parse(Engine::Session& session, IO::FileId fileId, Offset<Code> offset);
@@ -21,6 +27,8 @@ public:
     uint8_t UsedNonVolIRegMask() { return usedNonVolIRegMask; }
 
     uint8_t UsedNonVolFRegMask() { return usedNonVolFRegMask; }
+
+    std::vector<LivenessInfo>& GetLivenessInfo() { return livenessInfo; }
 
 private:
     Code(uint8_t* codePtr, uint32_t codeSize) : codePtr(codePtr), codeSize(codeSize) {}
@@ -41,8 +49,7 @@ private:
     uint32_t codeSize;
     uint8_t* codePtr;
 
-    uint32_t livenessInfoSize = 0;
-    uint8_t* livenessInfoPtr  = nullptr;
+    std::vector<LivenessInfo> livenessInfo = {};
 };
 
 } // namespace Symlevel
