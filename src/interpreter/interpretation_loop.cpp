@@ -540,6 +540,7 @@ VIRTUAL_CALL_2C: {
 
     reader0 = reader; // save current pc
 
+    // FIXME: avoid I2C->C2I adapters for pure I2I call.
     return { Adapters::GenericI2CCallInstance(), table.Raw() };
 }
 
