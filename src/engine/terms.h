@@ -198,7 +198,7 @@ template <typename Id, TermKind tk> struct _SpecializedTermId : public TermId {
 
     explicit _SpecializedTermId(Term term) : _SpecializedTermId(term.GetId()) {}
 
-    explicit _SpecializedTermId(TermId ident) : TermId(ident) { ASSERT(ident.GetKind() == tk); }
+    explicit _SpecializedTermId(TermId ident) : TermId(ident) { ASSERTION(ident.GetKind() == tk, "expected: %d, actual: %d", tk, ident.GetKind()); }
 
     Id GetIdentifier()
     {
