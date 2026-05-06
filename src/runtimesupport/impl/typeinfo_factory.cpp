@@ -21,6 +21,8 @@ namespace RTSupport {
 
 template <typename T> static T* Alloc(size_t cnt = 1) { return reinterpret_cast<T*>(std::malloc(sizeof(T) * cnt)); }
 
+static std::optional<TypeInfo> QueryTypeInfoAOTByName(char const* str);
+
 static char* Copy(std::string_view str)
 {
     auto size  = str.size();
@@ -176,6 +178,10 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
                          ) -> std::optional<RTSupport::TypeInfo> {
         if (t == term) {
             return TypeInfo(&currentTypeInfo->base);
+        } else if (t.GetKind() == Engine::TermKind::NIL) {
+            // special case;
+            // method table of core.object is encoded as nil;
+            return QueryTypeInfoAOTByName("core:Object");
         }
         return manager.AcquireTypeInfo(session, t);
     };
