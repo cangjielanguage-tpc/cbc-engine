@@ -34,6 +34,10 @@ struct TermData {
 
     void InitAfterSubterms(TermId identifier, uint16_t length, bool isLocal)
     {
+        uint32_t hash;
+        for (int i = 0; i < length; i++) {
+            hash = 31 * hash + subterms->Hash();
+        }
         Init(identifier, identifier.Hash() ^ hash, length, isLocal);
     }
 
@@ -426,10 +430,10 @@ struct TermResolver {
                 for (int i = 0; i < len; i++) {
                     auto subtermIdx = reader.ReadULEB();
                     auto subterm    = Resolve(RefId<Term>(refId.GetRegion(), subtermIdx));
-                    if (subterm.GetId().GetKind() == TermKind::UNDEFINED) {
+                    if (subterm.GetKind() == TermKind::UNDEFINED) {
                         return NewUndefined(refId);
                     }
-                    data->subterms[subtermIdx] = subterm;
+                    data->subterms[i] = subterm;
                 }
 
                 data->InitAfterSubterms(TagTermId(TermKind::METHOD), len, true);
