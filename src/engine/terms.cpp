@@ -282,8 +282,8 @@ void Term::GetName(Session& session, Stream::Output& stream) const
         }
 
         case TK::METHOD: {
-            // FIXME: separate ret type from rest
-            printSubTerms("(", ")", GetLength());
+            printSubTerms("(", ")", GetLength() - 1);
+            Subterm(GetLength() - 1).GetName(session, stream);
             break;
         }
 
