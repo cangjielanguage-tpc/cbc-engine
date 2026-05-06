@@ -3,6 +3,7 @@
 #include "engine/identifiers.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/reader.h"
+#include "engine/symlevel/term.h"
 #include "engine/terms.h"
 #include "utils/assertion.h"
 #include "utils/iterators.h"
@@ -210,10 +211,21 @@ std::shared_ptr<MethodTable> MethodTableManager::GetMethodTable(Session& session
     return res;
 }
 
+MethodTable MethodTableManager::BaseTable()
+{
+    MethodTable mt;
+    mt.classTables.push_back(MethodTable::SubTable {
+        .genericContext = Term::Predefined(TermKind::NIL),
+        .start = 0,
+        .end = 0,
+    });
+    return mt;
+}
+
 std::shared_ptr<MethodTable> MethodTableManager::GetMethodTable(Session& session, Term term)
 {
     if (term.GetKind() == TermKind::NIL) {
-        static auto mt = std::make_shared<MethodTable>();
+        static auto mt = std::make_shared<MethodTable>(std::move(BaseTable()));
         return mt;
     }
     auto type     = TypeTermId(term).GetIdentifier();

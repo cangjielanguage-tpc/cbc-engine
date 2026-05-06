@@ -231,6 +231,13 @@ std::optional<Call> ResolveCall(Resolver::Impl& resolver, Index<Call> id)
                     .signature = ref.signature,
                 });
 
+                if (!resolved.has_value()) {
+                    log.Log(Logging::Level::ERROR, [&ref, &session](Stream::Output& stream) {
+                        stream << "Failed to resolve method "
+                               << ref.GetFullName(session) << Stream::endl;
+                    });
+                }
+
                 auto sig = ConstructSignature(resolver, ref);
                 return DynamicCall { refType, ref.name, std::move(sig), resolved->methodNum, resolved->subTableNum };
             } else {
