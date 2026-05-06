@@ -198,7 +198,7 @@ MethodSignature ConstructSignature(Resolver::Impl& resolver, ResolvedMethodRefer
     ASSERTION(signature.GetLength() > 0, "method signature encoding was incorrect");
 
     auto paramLength = signature.GetLength() - 1;
-    auto retTypeIdx = paramLength;
+    auto retTypeIdx  = paramLength;
 
     std::vector<Type*> params;
     params.reserve(paramLength);
@@ -206,7 +206,7 @@ MethodSignature ConstructSignature(Resolver::Impl& resolver, ResolvedMethodRefer
         params.push_back(resolver.GetType(signature.Subterm(i)));
     }
     return {
-        .params = std::move(params),
+        .params  = std::move(params),
         .resType = resolver.GetType(signature.Subterm(retTypeIdx)),
     };
 }
