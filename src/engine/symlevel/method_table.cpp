@@ -212,11 +212,11 @@ std::shared_ptr<MethodTable> MethodTableManager::GetMethodTable(Session& session
 
 std::shared_ptr<MethodTable> MethodTableManager::GetMethodTable(Session& session, Term term)
 {
-    auto type     = TypeTermId(term).GetIdentifier();
     if (term.GetKind() == TermKind::NIL) {
         static auto mt = std::make_shared<MethodTable>();
         return mt;
     }
+    auto type     = TypeTermId(term).GetIdentifier();
 
     // FIXME: instantiate!
     return GetMethodTable(session, type);
