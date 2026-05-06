@@ -91,7 +91,7 @@ MethodSubTable::MethodSubTable(
         int start,
         int end,
         int num
-) : table(&table), declaringType(declaringType) {}
+) : table(&table), declaringType(declaringType), start(start), end(end), num(num) {}
 
 int MethodSubTable::StartPos() const { return start; }
 
