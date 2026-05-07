@@ -236,7 +236,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
         Log::typeinfo.Log(Logging::Level::INFO, [&](Stream::Output& out) {
             Stream::ResolvingOutput stream(session, out);
-            stream << term << *mt << Stream::endl;
+            stream << term << " " << *mt << Stream::endl;
         });
 
         auto extDefCount       = mt->ClassCount() + mt->InterfaceCount();
