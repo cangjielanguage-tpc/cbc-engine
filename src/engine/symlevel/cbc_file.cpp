@@ -115,7 +115,7 @@ uint32_t CbcFile::GetFieldRefSectionOffs() const { return impl->poolOffset; }
 
 uint32_t CbcFile::GetAotDataSectionOffs() const { return impl->poolOffset; }
 
-const VersionMetadata& CbcFile::GetVersionMetadata() { return impl->versionMetadata; }
+const VersionMetadata& CbcFile::GetVersionMetadata() const { return impl->versionMetadata; }
 
 String CbcFile::GetName() const { return String(impl->name); }
 
