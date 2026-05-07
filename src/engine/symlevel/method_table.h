@@ -112,6 +112,8 @@ public:
 
     std::optional<MethodTableEntry> Resolve(Engine::Session& session, Reference const& reference) const;
 
+    void ResolveAll(Engine::Session& session, Reference const& reference, std::vector<MethodTableEntry>& buffer) const;
+
 private:
     friend class MethodSubTable;
     friend class MethodTableManager;
