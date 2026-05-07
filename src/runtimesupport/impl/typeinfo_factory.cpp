@@ -55,19 +55,19 @@ struct TypeInfoBuilder {
     char* name = nullptr;
     int8_t type;
     uint8_t flag = 0;
-    uint16_t fieldNum;
+    uint16_t fieldNum = 0;
     //
     // assume that there is no 32-bit size objects
     int32_t instanceSize  = -1;
     int32_t componentSize = -1;
 
     DYN_GCTibT gctib; // TODO: gctib builder
-    uint32_t uuid;
+    uint32_t uuid = 0;
     uint8_t align;
-    int8_t typeArgsNum;
-    uint16_t validInheritNum;
+    int8_t typeArgsNum = 0;
+    uint16_t validInheritNum = 0;
     uint32_t* fieldOffsets = nullptr;
-    DYN_FuncPtrT finalizerMethod;
+    DYN_FuncPtrT finalizerMethod = nullptr;
     DYN_TypeInfoT** typeArgs = nullptr;
     DYN_TypeInfoT** fields   = nullptr;
 

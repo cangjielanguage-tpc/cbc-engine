@@ -239,9 +239,12 @@ private:
     struct Hasher {
         uint64_t operator()(TermData* const& data) const;
     };
+    struct Comparator {
+        bool operator()(TermData* const& left, TermData* const& right) const;
+    };
 
     std::mutex lock;
-    std::unordered_set<TermData*, Hasher> cache;
+    std::unordered_set<TermData*, Hasher, Comparator> cache;
 };
 
 } // namespace Engine
