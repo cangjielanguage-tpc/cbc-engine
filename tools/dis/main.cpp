@@ -2,7 +2,6 @@
 #include "engine/engine.h"
 #include "engine/symlevel/cbc_file.h"
 #include "engine/symlevel/io/filesystem.h"
-#include "engine/symlevel/terms.h"
 #include "engine/symlevel/version_metadata.h"
 #include <filesystem>
 #include <iostream>
