@@ -129,11 +129,68 @@ struct SimpleType : public Type {
             case TK::NON_NULLABLE:   return CbcTypeKind::REF;
             case TK::CANGJIE_ARRAY:  return CbcTypeKind::REF;
             case TK::METHOD:         return CbcTypeKind::INVALID;
-            case TK::TYPE:           return CbcTypeKind::REF; // FIXME
-            case TK::AOT_TYPE:       return CbcTypeKind::REF; // FIXME
+            case TK::TYPE:           return CbcTypeKind::REF;
+            case TK::AOT_TYPE:       return CbcTypeKind::REF;
+            case TK::AOT_REC:        return CbcTypeKind::REC;
             case TK::TYPE_VAR:       return CbcTypeKind::REF;
             case TK::GENERIC_METHOD: return CbcTypeKind::INVALID;
             case TK::LAST:           return CbcTypeKind::INVALID;
+        }
+    }
+
+    std::optional<int> GetFlatSize() override
+    {
+        using TK = TermKind;
+        switch (term.GetKind()) {
+            case TK::VOID:
+            case TK::UNIT: return 0;
+
+            case TK::BOOLEAN:
+            case TK::I8:
+            case TK::U8:      return 8;
+
+            case TK::I16:
+            case TK::U16:
+            case TK::F16: return 16;
+
+            case TK::I32:
+            case TK::U32:
+            case TK::UCHAR32:
+            case TK::F32:     return 32;
+
+            case TK::I64:
+            case TK::U64:
+            case TK::IADDR:
+            case TK::UADDR:
+            case TK::BSTRING:
+            case TK::F64:
+            case TK::C_POINTER: return 64;
+
+            case TK::NULLABLE:
+            case TK::NON_NULLABLE:
+            case TK::CANGJIE_ARRAY:
+            case TK::AOT_TYPE:
+            case TK::TYPE_VAR:      return sizeof(uintptr_t);
+
+            case TK::TYPE: {
+                auto ident = TypeTermId(term).GetIdentifier();
+                auto rec   = Symlevel::TypeDefinition::Resolve(impl.session, ident).GetFlags().GetTypeKind() ==
+                           Symlevel::TypeKind::RECORD;
+                if (rec) {
+                    return RTSupport::MetaInfo::GetTypeSize(GetTypeInfo());
+                } else {
+                    return sizeof(uintptr_t);
+                }
+            }
+
+            case TK::AOT_REC: return RTSupport::MetaInfo::GetTypeSize(GetTypeInfo());
+
+            case TK::NIL:
+            case TK::NOTHING:
+            case TK::UNDEFINED:
+            case TK::METHOD:
+            case TK::GENERIC_METHOD:
+            case TK::LAST:           return std::nullopt;
         }
     }
 };
@@ -473,6 +530,7 @@ template <typename Field> std::optional<Field> ResolveField(Resolver::Impl& reso
     auto fieldType   = resolver.GetType(ref.fieldType);
 
     switch (ref.refType.GetKind()) {
+        case TermKind::AOT_REC:
         case TermKind::AOT_TYPE: {
             ASSERTION(ref.fieldType.GetKind() != TermKind::TYPE, "aot types cannot have fields of cbc type");
             if constexpr (std::is_same_v<Field, InstanceField>) {

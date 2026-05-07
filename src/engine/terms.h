@@ -75,6 +75,7 @@ enum class TermKind : uint8_t {
 
     TYPE,
     AOT_TYPE,
+    AOT_REC,
     TYPE_VAR,
     GENERIC_METHOD,
     LAST
@@ -212,9 +213,10 @@ template <typename Id, TermKind tk> struct _SpecializedTermId : public TermId {
     }
 };
 
-using AotTermId   = _SpecializedTermId<Identifier<Symlevel::String>, TermKind::AOT_TYPE>;
-using TypeTermId  = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::TYPE>;
-using UndefTermId = _SpecializedTermId<RefIdentifier<Term>, TermKind::UNDEFINED>;
+using AotTermId    = _SpecializedTermId<Identifier<Symlevel::String>, TermKind::AOT_TYPE>;
+using AotRecTermId = _SpecializedTermId<Identifier<Symlevel::String>, TermKind::AOT_REC>;
+using TypeTermId   = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::TYPE>;
+using UndefTermId  = _SpecializedTermId<RefIdentifier<Term>, TermKind::UNDEFINED>;
 
 /// Term manager provides utilities for caching (and interning) of global terms,
 /// and responsible for resolution of term identifiers.

@@ -292,7 +292,8 @@ void Term::GetName(Session& session, Stream::Output& stream) const
             break;
         }
 
-        case TK::AOT_TYPE: {
+        case TK::AOT_TYPE:
+        case TK::AOT_REC: {
             auto ident = AotTermId(*this).GetIdentifier();
             stream << Symlevel::String::Parse(session, ident.GetFileId(), ident.GetOffset());
             if (int len = GetLength(); len > 0) {
@@ -431,16 +432,24 @@ struct TermResolver {
                     return NewUndefined(refId);
                 }
                 auto identifier = type.value();
+
+                auto def  = Symlevel::TypeDefinition::Resolve(session, identifier);
+                ASSERT((def.GetFlags().GetTypeKind() == Symlevel::TypeKind::RECORD) == (tag == REC));
+
                 auto* data      = AllocateTerm(heap);
                 data->InitAfterSubterms(TypeTermId(identifier), 0, true);
                 return Term(LocalTerm(data));
             }
-            case AOT_REC:
+            case AOT_REC: // fall-through
             case AOT_REF: {
                 auto nameOffs   = Offset<String>(reader.ReadULEB());
                 auto* data      = AllocateTerm(heap);
                 auto identifier = Identifier(nameOffs, fileId);
-                data->InitAfterSubterms(AotTermId(identifier), 0, true);
+                if (tag == AOT_REF) { 
+                    data->InitAfterSubterms(AotTermId(identifier), 0, true);
+                } else {
+                    data->InitAfterSubterms(AotRecTermId(identifier), 0, true);
+                }
                 return Term(LocalTerm(data));
             }
             case METHOD_SIGNATURE: {

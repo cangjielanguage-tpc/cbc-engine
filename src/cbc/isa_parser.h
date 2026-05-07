@@ -86,6 +86,10 @@ protected:
     virtual void StoreUntyped(AnyReg src, Format::StoreAccessKind stk, uint16_t us) = 0;
     virtual void StoreUntypedImm(uint64_t imm, uint16_t us)                         = 0;
 
+    virtual void LoadTyped(AnyReg dst, uint16_t ts, uint16_t field)       = 0;
+    virtual void StoreTyped(AnyReg src, uint16_t ts, uint16_t field)      = 0;
+    virtual void StoreTypedImm(uint64_t imm, uint16_t ts, uint16_t field) = 0;
+
     friend class IsaParserImpl;
     Decoder::FatByteReader reader;
 };

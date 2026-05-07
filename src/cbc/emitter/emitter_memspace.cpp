@@ -156,9 +156,19 @@ static RT::MemOpcode ComputeStoreImmStart(Format::StoreAccessKind stk, RT::MemOp
 
 void MemSpaceEmitter::StoreFrameImm(StoreAccessKind stk, uint64_t imm)
 {
+    switch (stk) {
+        case StoreAccessKind::ST_F32: stk = StoreAccessKind::ST_32; break;
+        case StoreAccessKind::ST_F64: stk = StoreAccessKind::ST_64; break;
+        case StoreAccessKind::ST_REF:
+            ASSERT(imm == 0);
+            stk = StoreAccessKind::ST_64;
+            break;
+        default: break;
+    }
+
     RT::MemOpcode opcStart = ComputeStoreImmStart(stk, RT::MemOpcode::FSTI_START_OPCODE);
 
-    if (MathUtils::IsNBitsSigned(imm, 8)) {
+    if (MathUtils::IsNBitsSigned(imm, 8) || stk == StoreAccessKind::ST_8) {
         ASSERT(opcStart <= RT::MemOpcode::FSTI_END_OPCODE);
         Encode(
             segment,
@@ -167,9 +177,9 @@ void MemSpaceEmitter::StoreFrameImm(StoreAccessKind stk, uint64_t imm)
                 .imm8 = static_cast<uint8_t>(imm),
             }
         );
-    } else if (MathUtils::IsNBitsSigned(imm, 16)) {
+    } else if (MathUtils::IsNBitsSigned(imm, 16) || stk == StoreAccessKind::ST_16) {
         RT::MemOpcode opc = RT::MemOpcode(opcStart + 1);
-        ASSERT(stk != StoreAccessKind::ST_8 && opc <= RT::MemOpcode::FSTI_END_OPCODE);
+        ASSERT(opc <= RT::MemOpcode::FSTI_END_OPCODE);
         Encode(
             segment,
             RT::M3i16 {
@@ -177,11 +187,9 @@ void MemSpaceEmitter::StoreFrameImm(StoreAccessKind stk, uint64_t imm)
                 .imm16 = static_cast<uint16_t>(imm),
             }
         );
-    } else if (MathUtils::IsNBitsSigned(imm, 32)) {
+    } else if (MathUtils::IsNBitsSigned(imm, 32) || stk == StoreAccessKind::ST_32) {
         RT::MemOpcode opc = RT::MemOpcode(opcStart + 2);
-        ASSERT(
-            (stk == StoreAccessKind::ST_32 || stk == StoreAccessKind::ST_64) && opc <= RT::MemOpcode::FSTI_END_OPCODE
-        );
+        ASSERT(opc <= RT::MemOpcode::FSTI_END_OPCODE);
         Encode(
             segment,
             RT::M5i32 {
@@ -191,7 +199,7 @@ void MemSpaceEmitter::StoreFrameImm(StoreAccessKind stk, uint64_t imm)
         );
     } else {
         RT::MemOpcode opc = RT::MemOpcode(opcStart + 3);
-        ASSERT(stk == StoreAccessKind::ST_64 && opc <= RT::MemOpcode::FSTI_END_OPCODE);
+        ASSERT(opc <= RT::MemOpcode::FSTI_END_OPCODE);
         Encode(
             segment,
             RT::M9i64 {

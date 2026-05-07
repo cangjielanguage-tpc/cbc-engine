@@ -62,6 +62,8 @@ public:
     virtual std::optional<RTSupport::TypeInfo> GetTypeInfo() = 0;
 
     virtual CbcTypeKind GetKind() = 0;
+
+    virtual std::optional<int> GetFlatSize() = 0;
 };
 
 struct MethodSignature {

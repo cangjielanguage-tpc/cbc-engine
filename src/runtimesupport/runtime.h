@@ -4,6 +4,7 @@
 /// interpreter and the runtime.
 
 #include "interpreter/ectype.h"
+#include <optional>
 
 namespace RTSupport {
 
@@ -58,6 +59,10 @@ struct Execution {
     static void* GetInterfaceTarget(Reference base, TypeInfo ti, int methodNum);
 
     static int GetFieldOffset(TypeInfo ti, int ordinal, bool isRef);
+};
+
+struct MetaInfo {
+    static std::optional<int> GetTypeSize(std::optional<TypeInfo> t);
 };
 
 } // namespace RTSupport
