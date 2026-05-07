@@ -465,7 +465,7 @@ std::optional<StaticField const*> Resolver::Query(Index<StaticField> id)
 std::optional<Type*> Resolver::Query(Index<Type> id)
 {
     // terms are being cached on different level
-    auto refId = Symlevel::RefId<Term>(0, id.GetValue());
+    auto refId = Symlevel::RefId<Term>(0, id.GetValue()); // FIXME: region id
     auto ident = RefIdentifier<Term>(refId, impl->method.GetFileId());
     auto term  = TermManager::Of(impl->session).Resolve(impl->session, ident);
     return impl->GetType(term);

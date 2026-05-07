@@ -51,25 +51,22 @@ struct TermData {
 };
 
 enum Tag : uint8_t {
-    NIL,                      // 0x00
-    TYPE,                     // 0x01
-    AOT_TYPE,                 // 0x02
-    CANGJIE_ARRAY,            // 0x03
-    VARRAY,                   // 0x04
-    ENUM_WRAPPER,             // 0x05
-    C_POINTER,                // 0x06
-    GENERIC_TYPE_TERM,        // 0x07
-    GENERIC_TYPE_VAR,         // 0x08
-    GENERIC_RECORD,           // 0x09
-    GENERIC_REFERENCE,        // 0x0a
-    NULLABLE,                 // 0x0b
-    METHOD_SIGNATURE,         // 0x0c
-    GENERIC_METHOD,           // 0x0d
-    CONSTRAINT,               // 0x0e
-    PARAMETERIZED_CONSTRAINT, // 0x0f
-    JAVA_REFERENCE,           // 0x10
-    JAVA_ARRAY,               // 0x11
-    NON_NULLABLE,             // 0x12
+    NIL,                // 0x00
+    REF,                // 0x01
+    AOT_REF,            // 0x02
+    CANGJIE_ARRAY,      // 0x03
+    VARRAY,             // 0x04
+    ENUM_WRAPPER,       // 0x05
+    C_POINTER,          // 0x06
+    CLASS_TYPE_VAR,     // 0x07
+    FUNC_TYPE_VAR,      // 0x08
+    GENERIC_RECORD,     // 0x09
+    GENERIC_REFERENCE,  // 0x0a
+    NULLABLE,           // 0x0b
+    METHOD_SIGNATURE,   // 0x0c
+    REC,                // 0x0d
+    AOT_REC,            // 0x0e
+    NON_NULLABLE,       // 0x0f
 };
 
 static TermData* AllocateTerm(Memory::Heap& allocator, size_t subtermCount = 0)
@@ -404,7 +401,8 @@ struct TermResolver {
 
         auto tag = static_cast<Tag>(reader.ReadU8());
         switch (tag) {
-            case TYPE: {
+            case REC: // fall-through
+            case REF: {
                 auto name = Reader::Read(session, fileId, Offset<String>(reader.ReadULEB()));
                 auto type = session.GetEngine().FindType(session, name);
                 if (!type.has_value()) {
@@ -415,7 +413,8 @@ struct TermResolver {
                 data->InitAfterSubterms(TypeTermId(identifier), 0, true);
                 return Term(LocalTerm(data));
             }
-            case AOT_TYPE: {
+            case AOT_REC:
+            case AOT_REF: {
                 auto nameOffs   = Offset<String>(reader.ReadULEB());
                 auto* data      = AllocateTerm(heap);
                 auto identifier = Identifier(nameOffs, fileId);

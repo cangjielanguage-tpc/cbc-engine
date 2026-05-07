@@ -44,6 +44,8 @@ public:
 
     Engine::RefIdentifier<Term> const GetSuperType() { return superType; }
 
+    TypeFlags const GetFlags() { return flags; }
+
 private:
     TypeDefinition(
         Engine::Identifier<TypeDefinition> const identifier,
@@ -51,22 +53,25 @@ private:
         MethodIndex const methods,
         FieldIndex const fields,
         OffsetSequence<MethodDefinition> const virtualMethods,
-        Engine::RefIdentifier<Term> const superType
+        Engine::RefIdentifier<Term> const superType,
+        TypeFlags flags
     )
         : identifier(identifier),
           name(name),
           methods(methods),
           fields(fields),
           virtualMethods(virtualMethods),
-          superType(superType)
+          superType(superType),
+          flags(flags)
     {}
 
-    Engine::Identifier<TypeDefinition> const identifier;
-    Engine::Identifier<String> const name;
-    MethodIndex const methods;
-    FieldIndex const fields;
-    OffsetSequence<MethodDefinition> const virtualMethods;
-    Engine::RefIdentifier<Term> const superType;
+    Engine::Identifier<TypeDefinition> identifier;
+    Engine::Identifier<String> name;
+    MethodIndex methods;
+    FieldIndex fields;
+    OffsetSequence<MethodDefinition> virtualMethods;
+    Engine::RefIdentifier<Term> superType;
+    TypeFlags flags;
 };
 
 class FieldDefinition {
@@ -87,14 +92,12 @@ private:
     FieldDefinition(
         Engine::Identifier<FieldDefinition> identifier,
         Offset<String> nameOffset,
-        Engine::RefIdentifier<Term> refType,
         Engine::RefIdentifier<Term> fieldType,
         FieldFlags flags,
         std::vector<uint64_t> constValue
     )
         : identifier(identifier),
           nameOffset(nameOffset),
-          refType(refType),
           fieldType(fieldType),
           flags(flags),
           constValue(constValue)
@@ -102,7 +105,6 @@ private:
 
     Engine::Identifier<FieldDefinition> identifier;
     Offset<String> nameOffset;
-    Engine::RefIdentifier<Term> refType;
     Engine::RefIdentifier<Term> fieldType;
     FieldFlags flags;
     std::vector<uint64_t> constValue;
