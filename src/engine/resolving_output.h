@@ -5,6 +5,7 @@
 #include "engine/symlevel/io/file_id.h"
 #include "engine/symlevel/reader.h"
 #include "engine/symlevel/string.h"
+#include "engine/symlevel/method_table.h"
 #include "engine/terms.h"
 #include "utils/ostream.h"
 
@@ -25,6 +26,7 @@ public:
     ResolvingOutput& operator<<(Engine::LocalTerm term);
     ResolvingOutput& operator<<(IO::FileId fileId);
     ResolvingOutput& operator<<(Detailed<Engine::RefIdentifier<Engine::Term>> id);
+    ResolvingOutput& operator<<(Symlevel::MethodTable const& mt);
 
     template <typename T>
     ResolvingOutput& operator<<(Engine::Identifier<T> id)
@@ -48,6 +50,12 @@ public:
     {
         out << v;
         return *this;
+    }
+
+    template <typename T>
+    ResolvingOutput& operator<<(Detailed<T> v)
+    {
+        return *this << v.value;
     }
 
     Engine::Session& session;

@@ -61,6 +61,7 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
         auto target      = deps.FindTarget(linkageName);
 
         Log::preparation.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
+            if (target == nullptr) return;
             using namespace Stream;
             Stream::ResolvingOutput stream(session, out);
             stream << "failed to resolve aot method" << endl;
