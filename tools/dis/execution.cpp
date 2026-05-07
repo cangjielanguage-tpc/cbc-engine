@@ -13,7 +13,7 @@ namespace RTSupport {
 using Reference = Interpretation::Value::Reference;
 
 std::optional<TypeInfo> CreateTypeInfo(
-    Engine::Session& session, Engine::TypeInfoManager& manager, Symlevel::GlobalTerm term
+    Engine::Session& session, Engine::TypeInfoManager& manager, Engine::GlobalTerm term
 )
 {
     FATAL("Should not be called");
