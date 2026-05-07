@@ -120,7 +120,11 @@ public:
 
     inline Engine::RefIdentifier<Term> Signature() const { return signature; }
 
-    inline std::optional<Engine::Identifier<Code>> MethodCode() const { return codeOffs; }
+    inline std::optional<Engine::Identifier<Code>> MethodCode() const { return code; }
+
+    std::optional<Engine::Identifier<String>> SourceFile() { return sourceFile; }
+    std::optional<Engine::Identifier<String>> SourceFullName() { return sourceFullName; }
+    std::optional<Engine::Identifier<String>> LinkageName() { return linkageName; }
 
     inline IO::FileId FileId() const { return identifier.GetFileId(); }
 
@@ -133,21 +137,23 @@ private:
         Engine::Identifier<MethodDefinition> identifier,
         Offset<String> nameOffset,
         Engine::RefIdentifier<Term> signature,
-        std::optional<Engine::Identifier<Code>> codeOffs,
         MethodFlags flags
     )
         : identifier(identifier),
           nameOffset(nameOffset),
           signature(signature),
-          codeOffs(codeOffs),
           flags(flags)
     {}
 
     Engine::Identifier<MethodDefinition> identifier;
     Engine::RefIdentifier<Term> signature;
     Offset<String> nameOffset;
-    std::optional<Engine::Identifier<Code>> codeOffs;
     MethodFlags flags;
+
+    std::optional<Engine::Identifier<Code>> code = std::nullopt;
+    std::optional<Engine::Identifier<String>> sourceFile = std::nullopt;
+    std::optional<Engine::Identifier<String>> sourceFullName = std::nullopt;
+    std::optional<Engine::Identifier<String>> linkageName = std::nullopt;
 };
 
 } // namespace Symlevel

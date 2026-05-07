@@ -3,19 +3,24 @@
 #include "engine/engine.h"
 #include "engine/identifiers.h"
 #include "engine/symlevel/definitions.h"
+#include "engine/symlevel/flags.h"
 #include "engine/symlevel/method_table.h"
+#include "engine/symlevel/dependencies.h"
 #include "engine/symlevel/reader.h"
+#include "engine/resolving_output.h"
 #include "engine/terms.h"
 #include "interpreter/function_handle.h"
 #include "runtimesupport/adapters.h"
 #include "runtimesupport/impl/cjnative.h"
 #include "runtimesupport/impl/typeinfo_ext.h"
+#include "runtimesupport/loggers.h"
 #include "runtimesupport/runtime.h"
 #include "utils/assertion.h"
+#include "utils/logger.h"
+#include "utils/ostream.h"
 #include <cstdint>
 #include <cstdlib>
 #include <optional>
-#include <utility>
 
 namespace RTSupport {
 
@@ -151,11 +156,34 @@ struct TypeInfoBuilder {
 };
 
 static DYN_FuncPtrT GetFunctionOrTrampoline(
-    Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> method, int entryIdx
+    Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> methodId, int entryIdx
 )
 {
-    // FIXME: expects only CBC methods for now.
-    return Adapters::GetDynCallTrampoline(entryIdx);
+    auto method = Symlevel::Reader::Read(session, methodId);
+    auto flags = method.GetFlags();
+
+    ASSERTION(flags.Is(Symlevel::MethodFlag::VIRTUAL), "Only virtual methods are expected");
+
+    if (flags.Is(Symlevel::MethodFlag::ABSTRACT)) {
+        return nullptr;
+    } else if (flags.Is(Symlevel::MethodFlag::AOT)) {
+        // must be present with aot flag
+        auto& deps       = session.CbcFileOf(methodId.GetFileId()).GetDependencies();
+        auto linkageName = Symlevel::Reader::Read(session, method.LinkageName().value());
+        auto target      = deps.FindTarget(linkageName);
+        if (target == nullptr) {
+            Log::typeinfo.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
+                Engine::ResolvingOutput stream(session, out);
+                stream << "failed to resolve aot method" << Stream::endl;
+                stream << "  linkageName: " << linkageName << Stream::endl;
+                stream << "  name: " << method.Name() << method.Signature() << Stream::endl;
+            });
+            // TODO: put stub trampoline that throws exception
+        }
+        return target;
+    } else {
+        return Adapters::GetDynCallTrampoline(entryIdx);
+    }
 }
 
 static std::optional<TypeInfo> CreateTypeInfoDyn(
@@ -316,30 +344,46 @@ std::optional<TypeInfo> CreateTypeInfo(
     Engine::Session& session, Engine::TypeInfoManager& manager, Engine::GlobalTerm term
 )
 {
-    auto termIdent = term.GetId();
-    switch (termIdent.GetKind()) {
-        case Engine::TermKind::AOT_TYPE: return QueryTypeInfoAOT(session, term);
-        case Engine::TermKind::TYPE:     return CreateTypeInfoDyn(session, manager, term);
+    Log::typeinfo.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
+        Engine::ResolvingOutput stream(session, out);
+        stream << "start building " << term << Stream::endl;
+    });
 
-        case Engine::TermKind::BOOLEAN: return QueryTypeInfoAOTByName("Bool");
-        case Engine::TermKind::U8:      return QueryTypeInfoAOTByName("UInt8");
-        case Engine::TermKind::I8:      return QueryTypeInfoAOTByName("Int8");
-        case Engine::TermKind::U16:     return QueryTypeInfoAOTByName("UInt16");
-        case Engine::TermKind::I16:     return QueryTypeInfoAOTByName("Int16");
-        case Engine::TermKind::U32:     return QueryTypeInfoAOTByName("UInt32");
-        case Engine::TermKind::I32:     return QueryTypeInfoAOTByName("Int32");
-        case Engine::TermKind::U64:     return QueryTypeInfoAOTByName("UInt64");
-        case Engine::TermKind::I64:     return QueryTypeInfoAOTByName("Int64");
-        case Engine::TermKind::F16:     return QueryTypeInfoAOTByName("Float16");
-        case Engine::TermKind::F32:     return QueryTypeInfoAOTByName("Float32");
-        case Engine::TermKind::F64:     return QueryTypeInfoAOTByName("Float64");
+    auto createTypeInfo = [&]() {
+        auto termIdent = term.GetId();
+        switch (termIdent.GetKind()) {
+            case Engine::TermKind::AOT_TYPE: return QueryTypeInfoAOT(session, term);
+            case Engine::TermKind::TYPE:     return CreateTypeInfoDyn(session, manager, term);
 
-        default: {
-            FATAL("Not supported yet %d", termIdent.GetKind());
-            break;
+            case Engine::TermKind::BOOLEAN: return QueryTypeInfoAOTByName("Bool");
+            case Engine::TermKind::U8:      return QueryTypeInfoAOTByName("UInt8");
+            case Engine::TermKind::I8:      return QueryTypeInfoAOTByName("Int8");
+            case Engine::TermKind::U16:     return QueryTypeInfoAOTByName("UInt16");
+            case Engine::TermKind::I16:     return QueryTypeInfoAOTByName("Int16");
+            case Engine::TermKind::U32:     return QueryTypeInfoAOTByName("UInt32");
+            case Engine::TermKind::I32:     return QueryTypeInfoAOTByName("Int32");
+            case Engine::TermKind::U64:     return QueryTypeInfoAOTByName("UInt64");
+            case Engine::TermKind::I64:     return QueryTypeInfoAOTByName("Int64");
+            case Engine::TermKind::F16:     return QueryTypeInfoAOTByName("Float16");
+            case Engine::TermKind::F32:     return QueryTypeInfoAOTByName("Float32");
+            case Engine::TermKind::F64:     return QueryTypeInfoAOTByName("Float64");
+
+            default: {
+                FATAL("Not supported yet %d", termIdent.GetKind());
+                break;
+            }
         }
-    }
-    return std::nullopt;
+    };
+    auto ti = createTypeInfo();
+    Log::typeinfo.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
+        Engine::ResolvingOutput stream(session, out);
+        if (ti.has_value()) {
+            stream << "successfuly built " << term << " with " << ti->Raw() << Stream::endl;
+        } else {
+            stream << "failed to build " << term << Stream::endl;
+        }
+    });
+    return ti;
 }
 
 } // namespace RTSupport

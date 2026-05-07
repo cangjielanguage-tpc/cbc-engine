@@ -133,16 +133,19 @@ MethodDefinition MethodDefinition::Parse(Engine::Session& session, IO::FileId fi
     if (test(0x080)) flags = flags.Or(MethodFlag::VIRTUAL);
     if (test(0x100)) flags = flags.Or(MethodFlag::AOT);
 
-    std::optional<Engine::Identifier<Code>> code = std::nullopt;
+    MethodDefinition def(Engine::Identifier(offset, fileId), nameOffset, signature, flags);
 
     for (auto tag = reader.ReadU8(); tag != 0; tag = reader.ReadU8()) {
         switch (tag) {
-            case 1: code = Engine::Identifier(Offset<Code>(reader.ReadULEB()), fileId); break;
+            case 0x1: def.code = Engine::Identifier(Offset<Code>(reader.ReadULEB()), fileId); break;
+            case 0x2: def.sourceFullName = Engine::Identifier(Offset<String>(reader.ReadULEB()), fileId); break;
+            case 0x3: def.sourceFile = Engine::Identifier(Offset<String>(reader.ReadULEB()), fileId); break;
+            case 0x4: def.linkageName = Engine::Identifier(Offset<String>(reader.ReadULEB()), fileId); break;
             default: FATAL("unexpected tag: %d", tag); std::exit(2);
         }
     }
 
-    return MethodDefinition(Engine::Identifier(offset, fileId), nameOffset, signature, code, flags);
+    return def;
 }
 
 MethodDefinition MethodDefinition::Resolve(Engine::Session& session, Engine::Identifier<MethodDefinition> identifier)
