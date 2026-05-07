@@ -12,7 +12,7 @@
 #include "runtimesupport/adapters.h"
 #include "runtimesupport/impl/cjnative.h"
 #include "runtimesupport/impl/typeinfo_ext.h"
-#include "runtimesupport/loggers.h"
+#include "utils/rt_logger.h"
 #include "runtimesupport/runtime.h"
 #include "utils/assertion.h"
 #include "utils/logger.h"
