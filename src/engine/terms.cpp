@@ -335,9 +335,9 @@ GlobalTerm LocalTerm::Publish(Session& session)
 
 GlobalTerm GlobalTerm::Subterm(uint32_t i) const { return this->data->subterms[i].AsGlobal(); }
 
-bool GlobalTerm::operator==(const GlobalTerm& another) const { return this == &another; }
+bool GlobalTerm::operator==(const GlobalTerm& another) const { return data == another.data; }
 
-bool GlobalTerm::operator!=(const GlobalTerm& another) const { return this != &another; }
+bool GlobalTerm::operator!=(const GlobalTerm& another) const { return data != another.data; }
 
 GlobalTerm TermManager::Globalize(Term& term)
 {
