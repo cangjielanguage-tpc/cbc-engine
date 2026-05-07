@@ -377,6 +377,30 @@ GlobalTerm TermManager::Globalize(Term& term)
 
 uint64_t TermManager::Hasher::operator()(TermData* const& data) const { return data->hash; }
 
+bool TermManager::Comparator::operator()(TermData* const& left, TermData* const& right) const
+{
+    if (left == right) {
+        return true;
+    } else if (left->hash != right->hash) {
+        return false;
+    } else if (left->length != right->length) {
+        return false;
+    } else {
+        auto len = left->length;
+        // shallow comparison for cache.
+        for (int i = 0; i < len; i++) {
+            auto lhs = left->subterms[i];
+            auto rhs = right->subterms[i];
+            ASSERT(!lhs.IsLocal());
+            ASSERT(!rhs.IsLocal());
+            if (lhs.data != rhs.data) {
+                return false;
+            }
+        }
+        return true;
+    }
+}
+
 struct TermResolver {
     Symlevel::RegionData const& regionData;
     Session& session;
