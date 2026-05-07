@@ -278,7 +278,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             extDef.funcTableSize       = smt.EndPos() - smt.StartPos();
             extDef.argNum              = 0;
             extDef.isInterfaceTypeInfo = 1;
-            extDef.flag                = 0b00000001; // FIXME: research how to properly implement this.
+            extDef.flag                = 0b00000110; // FIXME: research how to properly implement this.
 
             extDef.ti = &currentTypeInfo->base;
 
