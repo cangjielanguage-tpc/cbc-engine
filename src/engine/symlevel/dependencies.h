@@ -31,7 +31,7 @@ public:
     Dependencies& operator=(const Dependencies&) = delete;
     Dependencies& operator=(Dependencies&& other) noexcept;
 
-    AotCodeAddr FindTarget(String linkageName) const;
+    AotCodeAddr FindTarget(std::string_view linkageName) const;
 
 private:
     std::vector<std::string> cbcDeps;

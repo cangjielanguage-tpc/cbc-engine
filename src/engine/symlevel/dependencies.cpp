@@ -103,10 +103,12 @@ Dependencies& Dependencies::operator=(Dependencies&& other) noexcept
     return *this;
 }
 
-AotCodeAddr Dependencies::FindTarget(String linkageName) const
+AotCodeAddr Dependencies::FindTarget(std::string_view linkageName) const
 {
+    std::string str(linkageName);
+
     for (LibHandle handle : aotHandles) {
-        AotCodeAddr codeAddr = dlsym(handle, std::string(linkageName).c_str());
+        AotCodeAddr codeAddr = dlsym(handle, str.c_str());
         if (codeAddr != nullptr) {
             return codeAddr;
         }
