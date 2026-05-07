@@ -154,13 +154,11 @@ static Term Undefined(Session& session, RefIdentifier<Term> termId)
     return LocalTerm(data);
 }
 
-static bool CompareTermData(TermData* origin, TermData* another, bool ignoreLocal)
+static bool CompareTermData(TermData* origin, TermData* another)
 {
     if (another == origin) {
         return true;
     } else if (another->hash != origin->hash) {
-        return false;
-    } else if (!ignoreLocal && another->isLocal != origin->isLocal) {
         return false;
     } else if (another->identifier != origin->identifier) {
         return false;
@@ -169,7 +167,7 @@ static bool CompareTermData(TermData* origin, TermData* another, bool ignoreLoca
     } else {
         auto length = origin->length;
         for (auto i = 0; i < length; i++) {
-            if (!CompareTermData(another->subterms[i].data, origin->subterms[i].data, ignoreLocal)) {
+            if (!CompareTermData(another->subterms[i].data, origin->subterms[i].data)) {
                 return false;
             }
         }
@@ -321,7 +319,7 @@ void Term::GetName(Session& session, Stream::Output& stream) const
 
 bool Term::operator!=(const Term& another) const { return !(*this == another); }
 
-bool Term::operator==(const Term& another) const { return CompareTermData(this->data, another.data, false); }
+bool Term::operator==(const Term& another) const { return CompareTermData(this->data, another.data); }
 
 bool Term::IsLocal() const { return data->isLocal; }
 
