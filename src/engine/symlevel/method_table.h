@@ -46,7 +46,7 @@ struct MethodTableEntry {
     /// Number of sub table.
     int subTableNum;
 
-    /// idx in all enties array
+    /// idx in all entries array
     int flatMethodNum;
 };
 
