@@ -13,35 +13,34 @@ private:
     using T = typename decltype(generator())::value_type;
     std::optional<T> current;
 
-    void advance() { current = generator(); }
+    void Advance() { current = generator(); }
 
 public:
-    explicit MinimalIterator(Generator func) : generator(std::move(func))
+    explicit MinimalIterator(Generator generator) : generator(std::move(generator))
     {
-        advance(); // Fetch first item
+        Advance(); // Fetch first item
     }
 
     T operator*() const { return *current; }
 
     MinimalIterator& operator++()
     {
-        advance();
+        Advance();
         return *this;
     }
 
     bool operator!=(DefaultSentinel) const { return current.has_value(); }
 };
 
-// 3. The Universal Wrapper
-template <typename GeneratorFunc> struct SimpleRange {
-    GeneratorFunc func;
+template <typename Generator> struct SimpleRange {
+    Generator generator;
 
-    auto begin() { return MinimalIterator<GeneratorFunc>(func); }
+    auto begin() { return MinimalIterator<Generator>(generator); }
 
     auto end() { return DefaultSentinel {}; }
 };
 
-template <typename GeneratorFunc> SimpleRange<GeneratorFunc> make_range(GeneratorFunc func)
+template <typename Generator> SimpleRange<Generator> MakeRange(Generator func)
 {
     return { std::move(func) };
 }

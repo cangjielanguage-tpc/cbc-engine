@@ -30,7 +30,7 @@ MethodTable::MethodTable(
 
 MethodTable::Range MethodTable::Classes() const
 {
-    return Iterators::make_range(MethodTable::SubTableGenerator {
+    return Iterators::MakeRange(MethodTable::SubTableGenerator {
         .table     = *this,
         .subtables = classTables,
         .disp      = 0,
@@ -40,7 +40,7 @@ MethodTable::Range MethodTable::Classes() const
 
 MethodTable::Range MethodTable::Interfaces() const
 {
-    return Iterators::make_range(MethodTable::SubTableGenerator {
+    return Iterators::MakeRange(MethodTable::SubTableGenerator {
         .table     = *this,
         .subtables = interfaceTables,
         .disp      = static_cast<int>(classTables.size()),
@@ -106,7 +106,7 @@ Term MethodSubTable::DeclaringType() const { return declaringType; }
 
 MethodSubTable::Range MethodSubTable::Entries() const
 {
-    return Iterators::make_range(MethodSubTable::EntryGenerator {
+    return Iterators::MakeRange(MethodSubTable::EntryGenerator {
         .st     = *this,
         .cursor = start,
     });
