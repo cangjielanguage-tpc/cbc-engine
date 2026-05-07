@@ -1,4 +1,5 @@
 #include "code.h"
+#include "utils/misc.h"
 
 namespace Symlevel {
 
@@ -48,6 +49,32 @@ Code::Code(Engine::Session& session, IO::StreamFileReader& reader)
         info.refSlotNums = std::move(slots);
         livenessInfo.push_back(std::move(info));
     }
+}
+
+Stream::Output& operator<<(Stream::Output& out, const Code& code)
+{
+    using namespace Stream;
+
+    out << "MethodCode {"                << endl
+        << "\tuntypedSlotCount: "        << code.untypedSlotCount        << endl
+        << "\ttypedSlotCount: "          << code.typedSlotCount          << endl
+        << "\tohmSlotCount: "            << code.ohmSlotCount            << endl
+        << "\tusedNonVolIRegMask: "      << code.usedNonVolIRegMask      << endl
+        << "\tusedNonVolFRegMask: "      << code.usedNonVolFRegMask      << endl
+        << "\tmaxCalleeStackArgsCount: " << code.maxCalleeStackArgsCount << endl
+        << "\thasTrivialXHandler: "      << code.hasTrivialXHandler      << endl;
+    {
+        out << "\tLivenessInfo {" << endl;
+        for (auto& li : code.livenessInfo) {
+            out << "\t\tcbcPos: " << li.cbcPos
+                << ", regMask: "  << li.regMask
+                << ", "           << Std::Vector::ToString(li.refSlotNums)
+                << endl;
+        }
+        out << "\t}" << endl;
+    }
+
+    return out << "}" << endl;
 }
 
 } // namespace Symlevel

@@ -453,7 +453,7 @@ static uint32_t CalcFrameSize(Symlevel::Code code)
 }
 
 static std::vector<Interpretation::ReferenceInfo> CalculateReferencesMap(
-    MethodCode code, 
+    MethodCode code,
     InstructionOffsetsIndex offIndex
 )
 {
@@ -522,6 +522,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
     Interpretation::Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
         ResolvingOutput stream(session, out);
         Descripted desc(out, Descriptor(session, method));
+        desc << code;
         Disasm(desc, code, &resolver);
     });
 
@@ -529,6 +530,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
 
     Interpretation::Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
         Descripted desc(out, Descriptor(session, method));
+        desc << res;
         Cbc::RT::Log(res.code, desc);
     });
 

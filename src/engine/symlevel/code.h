@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/engine.h"
+#include "utils/ostream.h"
 
 namespace Symlevel {
 
@@ -29,6 +30,8 @@ public:
     uint8_t UsedNonVolFRegMask() { return usedNonVolFRegMask; }
 
     std::vector<LivenessInfo>& GetLivenessInfo() { return livenessInfo; }
+
+    friend Stream::Output& operator<<(Stream::Output& out, const Code& code);
 
 private:
     Code(uint8_t* codePtr, uint32_t codeSize) : codePtr(codePtr), codeSize(codeSize) {}
