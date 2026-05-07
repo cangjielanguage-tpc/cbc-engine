@@ -4,6 +4,7 @@
 #include "cbc/frame.h"
 #include "cbc/isa.h"
 #include "cbc/isa_disasm.h"
+#include "engine/resolving_output.h"
 #include "interpreter/code.h"
 #include "interpreter/function_handle.h"
 #include "interpreter/loggers.h"
@@ -427,25 +428,35 @@ Interpretation::ExecBytecodeInfo Rewrite(MethodCode code, Resolver& resolver, Me
     };
 }
 
+static std::string Descriptor(Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> method)
+{
+    Stream::StringBuffer buf;
+    Stream::ResolvingOutput out(session, buf);
+    out << method << " ";
+    return buf.ToString();
+}
+
 Interpretation::ExecBytecodeInfo Rewrite(
-    Interpretation::DynamicFunctionHandle* fuh, MethodCode code, Resolver& resolver, Memory::Heap& heap
+    Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> method, Memory::Heap& heap
 )
 {
+    using namespace Stream;
+    auto def = Symlevel::MethodDefinition::Resolve(session, method);
+    ASSERTION(def.MethodCode().has_value(), "fuh preparation must be unreachable for methods without code");
+
+    Resolver resolver(session, method);
+    auto code = Symlevel::Reader::Read(session, def.MethodCode().value());
+
     Interpretation::Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
-        Stream::StringBuffer buf;
-        buf.PrintFmt("{%p} ", fuh);
-        std::string descriptor = buf.ToString();
-        Stream::Descripted desc(out, std::move(descriptor));
+        ResolvingOutput stream(session, out);
+        Descripted desc(out, Descriptor(session, method));
         Disasm(desc, code, &resolver);
     });
 
     auto res = Rewrite(code, resolver, heap);
 
     Interpretation::Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
-        Stream::StringBuffer buf;
-        buf.PrintFmt("{%p} ", fuh);
-        std::string descriptor = buf.ToString();
-        Stream::Descripted desc(out, std::move(descriptor));
+        Descripted desc(out, Descriptor(session, method));
         Cbc::RT::Log(res.code, desc);
     });
 

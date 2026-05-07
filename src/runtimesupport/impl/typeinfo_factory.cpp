@@ -5,7 +5,6 @@
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/flags.h"
 #include "engine/symlevel/method_table.h"
-#include "engine/symlevel/dependencies.h"
 #include "engine/symlevel/reader.h"
 #include "engine/resolving_output.h"
 #include "engine/terms.h"
@@ -168,19 +167,10 @@ static DYN_FuncPtrT GetFunctionOrTrampoline(
         return nullptr;
     } else if (flags.Is(Symlevel::MethodFlag::AOT)) {
         // must be present with aot flag
-        auto& deps       = session.CbcFileOf(methodId.GetFileId()).GetDependencies();
-        auto linkageName = Symlevel::Reader::Read(session, method.LinkageName().value());
-        auto target      = deps.FindTarget(linkageName);
-        if (target == nullptr) {
-            Log::typeinfo.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
-                Engine::ResolvingOutput stream(session, out);
-                stream << "failed to resolve aot method" << Stream::endl;
-                stream << "  linkageName: " << linkageName << Stream::endl;
-                stream << "  name: " << method.Name() << method.Signature() << Stream::endl;
-            });
-            // TODO: put stub trampoline that throws exception
-        }
-        return target;
+        auto& manager = Interpretation::FunctionHandleManager::Of(session);
+        auto fuh = manager.AcquireTagged(session, methodId);
+        auto staticFuh = std::get<Interpretation::StaticFunctionHandle*>(fuh);
+        return staticFuh->function;
     } else {
         return Adapters::GetDynCallTrampoline(entryIdx);
     }
@@ -345,7 +335,7 @@ std::optional<TypeInfo> CreateTypeInfo(
 )
 {
     Log::typeinfo.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
-        Engine::ResolvingOutput stream(session, out);
+        Stream::ResolvingOutput stream(session, out);
         stream << "start building " << term << Stream::endl;
     });
 
@@ -376,7 +366,7 @@ std::optional<TypeInfo> CreateTypeInfo(
     };
     auto ti = createTypeInfo();
     Log::typeinfo.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
-        Engine::ResolvingOutput stream(session, out);
+        Stream::ResolvingOutput stream(session, out);
         if (ti.has_value()) {
             stream << "successfuly built " << term << " with " << ti->Raw() << Stream::endl;
         } else {
