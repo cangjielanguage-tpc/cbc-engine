@@ -2,26 +2,46 @@
 
 #include "engine/engine.h"
 #include "engine/identifiers.h"
+#include "engine/symlevel/io/file_id.h"
 #include "engine/symlevel/reader.h"
 #include "engine/symlevel/string.h"
 #include "engine/terms.h"
 #include "utils/ostream.h"
 
-namespace Engine {
+namespace Stream {
+
+template <typename T>
+struct Detailed {
+    T value;
+    Detailed(T value) : value(value) {}
+};
 
 class ResolvingOutput {
 public:
-    ResolvingOutput(Session& session, Stream::Output& out);
+    ResolvingOutput(Engine::Session& session, Stream::Output& out);
 
-    ResolvingOutput& operator<<(RefIdentifier<Term> term);
-    ResolvingOutput& operator<<(Term term);
-    ResolvingOutput& operator<<(GlobalTerm term);
-    ResolvingOutput& operator<<(LocalTerm term);
+    ResolvingOutput& operator<<(Engine::Term term);
+    ResolvingOutput& operator<<(Engine::GlobalTerm term);
+    ResolvingOutput& operator<<(Engine::LocalTerm term);
+    ResolvingOutput& operator<<(IO::FileId fileId);
+    ResolvingOutput& operator<<(Detailed<Engine::RefIdentifier<Engine::Term>> id);
 
     template <typename T>
-    ResolvingOutput& operator<<(Identifier<T> id)
+    ResolvingOutput& operator<<(Engine::Identifier<T> id)
     {
-        return *this << Symlevel::Reader::Read(session, id);
+        return *this << "(" << id.GetFileId() << "," << id.GetOffset() << ")";
+    }
+
+    template <typename T>
+    ResolvingOutput& operator<<(Engine::RefIdentifier<T> id)
+    {
+        return *this << "<" << id.GetFileId() << "," << id.GetIndex().GetRegion() << "," << id.GetIndex().GetIndex() << ">";
+    }
+
+    template <typename T>
+    ResolvingOutput& operator<<(Detailed<Engine::Identifier<T>> id)
+    {
+        return *this << Symlevel::Reader::Read(session, id.value);
     }
 
     template <typename T> ResolvingOutput& operator<<(const T v)
@@ -30,7 +50,7 @@ public:
         return *this;
     }
 
-    Session& session;
+    Engine::Session& session;
     Stream::Output& out;
 };
 
