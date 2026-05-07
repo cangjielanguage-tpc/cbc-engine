@@ -173,13 +173,7 @@ void ParseAndSetOptions(int size, char const** _optStr)
 
     std::vector<KeyVal> parsedOpts;
     for (size_t i { 0 }; i < size; ++i) {
-        PrintError("Parsing:", _optStr[i]);
         ParseKeyVal(parsedOpts, _optStr[i]);
-    }
-    for (auto& x : parsedOpts) {
-        PrintError("Parsed key:", x.key);
-        PrintError("Parsed val:", x.val);
-        PrintError("Parsed whole:", x.whole);
     }
 
     SetOptions(parsedOpts);
