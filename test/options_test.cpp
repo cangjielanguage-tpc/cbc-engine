@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <cstdlib>
+#include <optional>
 #include <string>
 
 #include "cbc/isa_disasm.h"
@@ -20,6 +21,29 @@ struct SavedState {
     bool dasm;
     std::string cbcPath;
     std::string mainCbc;
+};
+
+struct EnvGuard {
+    std::optional<std::string> saved;
+
+    void Save() { saved = GetEnv(); }
+    void Restore()
+    {
+        if (saved.has_value()) {
+            setenv("CBCOPT", saved->c_str(), 1);
+        } else {
+            unsetenv("CBCOPT");
+        }
+    }
+
+    static std::optional<std::string> GetEnv()
+    {
+        auto* val = std::getenv("CBCOPT");
+        if (val == nullptr) {
+            return std::nullopt;
+        }
+        return std::string(val);
+    }
 };
 
 SavedState SaveState()
@@ -47,9 +71,19 @@ void RestoreState(SavedState const& s)
 class OptionsTest : public ::testing::Test {
 protected:
     SavedState saved;
+    EnvGuard envGuard;
 
-    void SetUp() override { saved = SaveState(); }
-    void TearDown() override { RestoreState(saved); }
+    void SetUp() override
+    {
+        saved = SaveState();
+        envGuard.Save();
+    }
+
+    void TearDown() override
+    {
+        RestoreState(saved);
+        envGuard.Restore();
+    }
 };
 
 } // namespace
@@ -59,7 +93,7 @@ TEST_F(OptionsTest, ParseAndSetOptions)
     const char* options[] = {
         "cbc.log.resolution=trace", "cbc.log.int=info", "cbc.dasm=true", "cbc.path=/path/to/cbc/sources"
     };
-    constexpr size_t optionsCount = sizeof(options) / sizeof(options[0]);
+    constexpr size_t optionsCount = ::std::size(options);
 
     Options::ParseAndSetOptions(static_cast<int>(optionsCount), options);
 
@@ -85,7 +119,7 @@ TEST_F(OptionsTest, ParseAndSetOptions_Empty)
 TEST_F(OptionsTest, ParseAndSetOptions_UnknownOption)
 {
     const char* options[] = { "cbc.nonexistent=value" };
-    constexpr size_t optionsCount = sizeof(options) / sizeof(options[0]);
+    constexpr size_t optionsCount = ::std::size(options);
 
     Options::ParseAndSetOptions(static_cast<int>(optionsCount), options);
 
@@ -97,7 +131,7 @@ TEST_F(OptionsTest, ParseAndSetOptions_InvalidBoolValue)
 {
     bool savedDasm = Cbc::g_IsRawDisasmEnabled;
     const char* options[] = { "cbc.dasm=yes" };
-    constexpr size_t optionsCount = sizeof(options) / sizeof(options[0]);
+    constexpr size_t optionsCount = ::std::size(options);
 
     Options::ParseAndSetOptions(static_cast<int>(optionsCount), options);
 
@@ -107,7 +141,7 @@ TEST_F(OptionsTest, ParseAndSetOptions_InvalidBoolValue)
 TEST_F(OptionsTest, ParseAndSetOptions_MalformedKeyVal)
 {
     const char* options[] = { "noequalsign" };
-    constexpr size_t optionsCount = sizeof(options) / sizeof(options[0]);
+    constexpr size_t optionsCount = ::std::size(options);
 
     Options::ParseAndSetOptions(static_cast<int>(optionsCount), options);
 
@@ -118,7 +152,7 @@ TEST_F(OptionsTest, ParseAndSetOptions_NoValue)
 {
     bool savedDasm = Cbc::g_IsRawDisasmEnabled;
     const char* options[] = { "cbc.dasm=" };
-    constexpr size_t optionsCount = sizeof(options) / sizeof(options[0]);
+    constexpr size_t optionsCount = ::std::size(options);
 
     Options::ParseAndSetOptions(static_cast<int>(optionsCount), options);
 
@@ -128,7 +162,7 @@ TEST_F(OptionsTest, ParseAndSetOptions_NoValue)
 TEST_F(OptionsTest, ParseAndSetOptions_MultipleKeysLastWins)
 {
     const char* options[] = { "cbc.dasm=true", "cbc.dasm=false" };
-    constexpr size_t optionsCount = sizeof(options) / sizeof(options[0]);
+    constexpr size_t optionsCount = ::std::size(options);
 
     Options::ParseAndSetOptions(static_cast<int>(optionsCount), options);
 
@@ -138,7 +172,7 @@ TEST_F(OptionsTest, ParseAndSetOptions_MultipleKeysLastWins)
 TEST_F(OptionsTest, ParseAndSetOptions_AllLogLevels)
 {
     const char* options[] = { "cbc.log.all=debug" };
-    constexpr size_t optionsCount = sizeof(options) / sizeof(options[0]);
+    constexpr size_t optionsCount = ::std::size(options);
 
     Options::ParseAndSetOptions(static_cast<int>(optionsCount), options);
 
@@ -156,8 +190,6 @@ TEST_F(OptionsTest, InitEnvOptions)
     EXPECT_EQ(Resolution::log.GetLogLevel(), Logging::Level::TRACE);
     EXPECT_TRUE(Cbc::g_IsRawDisasmEnabled);
     EXPECT_EQ(g_cbcPath, "/test/path");
-
-    unsetenv("CBCOPT");
 }
 
 TEST_F(OptionsTest, InitEnvOptions_NotSet)
@@ -176,8 +208,6 @@ TEST_F(OptionsTest, InitEnvOptions_Empty)
     Options::InitEnvOptions();
 
     EXPECT_EQ(Resolution::log.GetLogLevel(), saved.resLog);
-
-    unsetenv("CBCOPT");
 }
 
 TEST_F(OptionsTest, InitEnvOptions_LeadingTrailingSpaces)
@@ -187,8 +217,6 @@ TEST_F(OptionsTest, InitEnvOptions_LeadingTrailingSpaces)
     Options::InitEnvOptions();
 
     EXPECT_TRUE(Cbc::g_IsRawDisasmEnabled);
-
-    unsetenv("CBCOPT");
 }
 
 TEST_F(OptionsTest, InitEnvOptions_ConsecutiveSpaces)
@@ -199,6 +227,4 @@ TEST_F(OptionsTest, InitEnvOptions_ConsecutiveSpaces)
 
     EXPECT_TRUE(Cbc::g_IsRawDisasmEnabled);
     EXPECT_EQ(Resolution::log.GetLogLevel(), Logging::Level::WARN);
-
-    unsetenv("CBCOPT");
 }
