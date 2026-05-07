@@ -33,7 +33,7 @@ TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId
     auto fieldIndex  = FieldIndex::Read(reader, fileId);
 
     auto test = [parsedFlags](uint32_t bits) {
-        return (parsedFlags & bits) == bits;
+        return (parsedFlags & bits) != 0;
     };
 
     TypeFlags flags;
@@ -109,7 +109,29 @@ MethodDefinition MethodDefinition::Parse(Engine::Session& session, IO::FileId fi
     auto nameOffset   = Offset<String>(reader.ReadU32());
     auto regionId     = reader.ReadU8();
     auto signature    = Engine::RefIdentifier(RefId<Term>(regionId, reader.ReadULEB()), fileId);
-    auto flags        = reader.ReadU16();
+    auto parsedFlags        = reader.ReadU16();
+
+    auto test = [parsedFlags](uint32_t bits) {
+        return (parsedFlags & bits) == bits;
+    };
+
+    auto testMask = [parsedFlags](uint32_t bits, uint32_t mask) {
+        return (parsedFlags & mask) == bits;
+    };
+
+    MethodFlags flags;
+
+    if (testMask(0b01, 0b11)) flags = flags.With(AccessKind::PUBLIC);
+    if (testMask(0b10, 0b11)) flags = flags.With(AccessKind::PRIVATE);
+    if (testMask(0b11, 0b11)) flags = flags.With(AccessKind::PROTECTED);
+
+    if (test(0x004)) flags = flags.Or(MethodFlag::STATIC);
+    if (test(0x008)) flags = flags.Or(MethodFlag::FINAL);
+    if (test(0x010)) flags = flags.Or(MethodFlag::FOREIGN);
+    if (test(0x020)) flags = flags.Or(MethodFlag::ABSTRACT);
+    if (test(0x040)) flags = flags.Or(MethodFlag::MUT);
+    if (test(0x080)) flags = flags.Or(MethodFlag::VIRTUAL);
+    if (test(0x100)) flags = flags.Or(MethodFlag::AOT);
 
     std::optional<Engine::Identifier<Code>> code = std::nullopt;
 
@@ -120,7 +142,7 @@ MethodDefinition MethodDefinition::Parse(Engine::Session& session, IO::FileId fi
         }
     }
 
-    return MethodDefinition(Engine::Identifier(offset, fileId), nameOffset, signature, code);
+    return MethodDefinition(Engine::Identifier(offset, fileId), nameOffset, signature, code, flags);
 }
 
 MethodDefinition MethodDefinition::Resolve(Engine::Session& session, Engine::Identifier<MethodDefinition> identifier)

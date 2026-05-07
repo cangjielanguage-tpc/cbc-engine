@@ -28,7 +28,7 @@ namespace Symlevel {
     X(ABSTRACT) \
     X(FOREIGN) \
     X(MUT) \
-    X(HAS_RECEIVER)
+    X(AOT)
 
 #define FLAG_LIST(flag) flag,
 #define FLAG_C_STR(flag) case flag: return #flag;
@@ -160,7 +160,7 @@ private:
 
 struct MethodFlags {
 public:
-    constexpr MethodFlags() : accessRaw(0), flagsRaw(0) {}
+    constexpr MethodFlags() : accessRaw(AccessKind::INVALID), flagsRaw(0) {}
 
     constexpr AccessKind GetAccessKind() const { return static_cast<AccessKind::Value>(accessRaw); }
 

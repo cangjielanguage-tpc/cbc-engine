@@ -126,23 +126,28 @@ public:
 
     Engine::Identifier<MethodDefinition> GetIdentifier() const { return identifier; }
 
+    MethodFlags GetFlags() const { return flags; }
+
 private:
     MethodDefinition(
         Engine::Identifier<MethodDefinition> identifier,
         Offset<String> nameOffset,
         Engine::RefIdentifier<Term> signature,
-        std::optional<Engine::Identifier<Code>> codeOffs
+        std::optional<Engine::Identifier<Code>> codeOffs,
+        MethodFlags flags
     )
         : identifier(identifier),
           nameOffset(nameOffset),
           signature(signature),
-          codeOffs(codeOffs)
+          codeOffs(codeOffs),
+          flags(flags)
     {}
 
     Engine::Identifier<MethodDefinition> identifier;
     Engine::RefIdentifier<Term> signature;
     Offset<String> nameOffset;
     std::optional<Engine::Identifier<Code>> codeOffs;
+    MethodFlags flags;
 };
 
 } // namespace Symlevel
