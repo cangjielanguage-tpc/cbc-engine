@@ -95,10 +95,10 @@ static bool SetLogLevelOptionForAll(Option const& option, std::string_view value
 static bool SetBoolOption(const Option& option, std::string_view value)
 {
     if (value == "true") {
-        *(bool*)options->location = true;
+        *(bool*)option.location = true;
         return true;
     } else if (value == "false") {
-        *(bool*)options->location = false;
+        *(bool*)option.location = false;
         return true;
     } else {
         return false;
