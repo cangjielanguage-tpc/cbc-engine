@@ -79,6 +79,13 @@ static void VisitGCFrameRoots(DYN_FrameDescT frame_desc, DYN_RootVisitorT root_v
     }
 
     auto slotsStartAddr = ((uint8_t*) frame_desc.fp) - (READER_SLOT_OFFSET + bc->frameSize);
+    
+    Interpretation::Log::interpretation.Log(Logging::Level::TRACE, [&](Stream::Output& stream) {
+        stream.PrintFmt("[RT] visiting frame (fuh=%p, fp=%p, pos=%p, slots_addr=%p)\n",
+            fuh, frame_desc, curPos, slotsStartAddr 
+        );
+    });
+    
     for (auto& slotOffset : NOTNULL(refInfo)->refSlotOffsets) {
         auto slotAddr = slotsStartAddr + slotOffset;
         g_CJNativeInterfaceInstance.visitRootFromInterpreter(root_visitor, slotAddr);
@@ -118,6 +125,10 @@ static void VisitFrameRootsExpansion(
 
 static void VisitGlobalRoots(DYN_RootVisitorT visitor)
 {
+    Interpretation::Log::interpretation.Log(Logging::Level::TRACE, [](Stream::Output& stream) {
+        stream << "[RT] visiting global roots" << Stream::endl;
+    });
+
     auto& engine = Engine::GetEngineInstance();
     Engine::StaticsManager::Of(engine).VisitRefLocations([visitor](Engine::RefLocation* refLocation) {
         g_CJNativeInterfaceInstance.visitRootFromInterpreter(visitor, refLocation);
