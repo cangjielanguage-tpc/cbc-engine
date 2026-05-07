@@ -27,7 +27,7 @@ template <typename T> static T* Alloc(size_t cnt = 1) { return reinterpret_cast<
 
 static std::optional<TypeInfo> QueryTypeInfoAOTByName(char const* str);
 
-static char* Copy(std::string_view str)
+static char* ConstructTypeInfoName(std::string_view str)
 {
     auto size  = str.size();
     auto data  = str.data();
@@ -38,6 +38,25 @@ static char* Copy(std::string_view str)
 
     std::memcpy(cStr, data, size);
     cStr[size] = 0;
+
+    char* lastDot = nullptr;
+    char* cursor = cStr;
+    for (;; cursor++) {
+        if (*cursor == '.') lastDot = cursor;
+        switch (*cursor) {
+            case '.': lastDot = cursor; continue;
+            case '<': case ',': case '>':
+            {
+                if (lastDot) *lastDot = ':';
+                continue;
+            }
+            case '\0': {
+                if (lastDot) *lastDot = ':';
+                return cStr;
+            }
+        }
+    }
+
     return cStr;
 }
 
@@ -205,12 +224,14 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
     };
 
     // TODO: construct proper name
-    auto typeInfoName = Copy(name);
-    if (typeInfoName == nullptr) {
+    builder.name = ConstructTypeInfoName(name);
+    if (builder.name == nullptr) {
         return std::nullopt;
     }
 
-    builder.name = typeInfoName;
+    if (type.GetFlags().Is(Symlevel::TypeFlag::AOT)) {
+        return QueryTypeInfoAOTByName(builder.name);
+    }
 
     // FIXME
     builder.type     = -128; // class
