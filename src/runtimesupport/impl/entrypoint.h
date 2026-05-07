@@ -1,6 +1,6 @@
 #pragma once
 
-#include <string_view>
+#include <string>
 
-inline std::string_view g_cbcPath;
-inline std::string_view g_mainCbc;
+inline std::string g_cbcPath;
+inline std::string g_mainCbc;

@@ -7,6 +7,7 @@
 
 #include <charconv>
 #include <cstdlib>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -68,15 +69,15 @@ static bool SetLogLevelOption(Option const& option, std::string_view value)
 
 static bool SetLogLevelOptionForAll(Option const& option, std::string_view value);
 static bool SetBoolOption(const Option& option, std::string_view value);
-static bool SetStrViewOption(const Option& option, std::string_view value);
+static bool SetStringOption(const Option& option, std::string_view value);
 
 constexpr Option options[] = { { "cbc.log.resolution", &Resolution::log, &SetLogLevelOption },
                                { "cbc.log.int", &Interpretation::Log::interpretation, &SetLogLevelOption },
                                { "cbc.log.preparation", &Interpretation::Log::preparation, &SetLogLevelOption },
                                { "cbc.log.all", nullptr, &SetLogLevelOptionForAll },
                                { "cbc.dasm", &Cbc::g_IsRawDisasmEnabled, &SetBoolOption },
-                               { "cbc.path", &g_cbcPath, &SetStrViewOption },
-                               { "cbc.main", &g_mainCbc, &SetStrViewOption } };
+                               { "cbc.path", &g_cbcPath, &SetStringOption },
+                               { "cbc.main", &g_mainCbc, &SetStringOption } };
 
 static bool SetLogLevelOptionForAll(Option const& option, std::string_view value)
 {
@@ -104,9 +105,9 @@ static bool SetBoolOption(const Option& option, std::string_view value)
     }
 }
 
-static bool SetStrViewOption(const Option& option, std::string_view value)
+static bool SetStringOption(const Option& option, std::string_view value)
 {
-    *(std::string_view*)(option.location) = value;
+    *(std::string*)(option.location) = value;
     return true;
 }
 
@@ -186,8 +187,6 @@ void ParseAndSetOptions(int size, char const** _optStr)
 
 void InitEnvOptions()
 {
-    // TODO: implement properly
-
     auto _optStr = std::getenv("CBCOPT");
     if (_optStr == nullptr) {
         return;
