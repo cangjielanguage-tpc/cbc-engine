@@ -3,8 +3,11 @@
 #include "engine/symlevel/cbc_file.h"
 #include "engine/symlevel/io/filesystem.h"
 #include "engine/symlevel/terms.h"
+#include "engine/symlevel/version_metadata.h"
 #include <filesystem>
+#include <iostream>
 #include <memory>
+#include <ostream>
 #include <string_view>
 
 namespace Dis {
@@ -21,14 +24,31 @@ class Disasmer {
         return s;
     }
 
-    void DisasmOf(Symlevel::CbcFile& file) { file }
+    void println(const Symlevel::VersionMetadata& md)
+    {
+        auto& s = *stream;
+        s << "File version: ";
+        s << md.fileVersion;
+        s << ". Bytecode version: ";
+        s << md.bytecodeVersion;
+        s << std::endl;
+    }
+
+    void DisasmOf(Symlevel::CbcFile& file)
+    {
+        assert(this->stream != nullptr);
+        println(file.GetVersionMetadata());
+        //
+    }
 
     std::unique_ptr<Engine::Session> session;
     std::vector<Symlevel::CbcFile>& files;
+    std::ostream* stream = nullptr;
 
 public:
-    void Disasm()
+    void Disasm(std::ostream& stream)
     {
+        this->stream = &stream;
         for (auto& file : files) {
             DisasmOf(file);
         }
@@ -43,5 +63,5 @@ int main(int argc, char* argv[])
     // TODO: parse options etc.
     std::string name = argv[1];
     auto disasmer    = Dis::Disasmer({ name });
-    disasmer.Disasm();
+    disasmer.Disasm(std::cout);
 }
