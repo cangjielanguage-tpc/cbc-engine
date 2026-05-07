@@ -37,8 +37,8 @@ ResolvingOutput& ResolvingOutput::operator<<(IO::FileId fileId)
 ResolvingOutput& ResolvingOutput::operator<<(Symlevel::MethodTable const& mt)
 {
     auto& out = *this;
-    out << "method table {" << endl;
-    out << "  classes {" << endl;
+    out << "method table:" << endl;
+    out << "  classes:" << endl;
 
     auto writeEntry = [&](Symlevel::MethodTableEntry& entry) {
         auto def = Symlevel::Reader::Read(session, entry.method);
@@ -49,7 +49,7 @@ ResolvingOutput& ResolvingOutput::operator<<(Symlevel::MethodTable const& mt)
 
     auto writeTable = [&](Symlevel::MethodSubTable& st) {
         out << "    " << st.DeclaringType();
-        out << " [" << st.StartPos() << ", " << st.EndPos() << "] {" << endl;
+        out << " [" << st.StartPos() << ", " << st.EndPos() << "]:" << endl;
         for (auto entry : st.Entries()) {
             writeEntry(entry);
         }
@@ -58,11 +58,11 @@ ResolvingOutput& ResolvingOutput::operator<<(Symlevel::MethodTable const& mt)
     for (auto st : mt.Classes()) {
         writeTable(st);
     }
-    out << "  }" << endl << "  interfaces {" << endl;
+    out << "  interfaces:" << endl;
     for (auto st : mt.Interfaces()) {
         writeTable(st);
     }
-    return out << "  }" << endl << "}";
+    return out;
 }
 
 }
