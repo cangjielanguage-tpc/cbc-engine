@@ -5,9 +5,7 @@
 #include "engine/symlevel/reader.h"
 #include "engine/symlevel/term.h"
 #include "engine/terms.h"
-#include "utils/assertion.h"
 #include "utils/iterators.h"
-#include <cstddef>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -54,24 +52,54 @@ int MethodTable::InterfaceCount() const { return interfaceTables.size(); }
 
 int MethodTable::EntryCount() const { return allEntries.size(); }
 
+static bool Compare(Session& session, MethodTable::Reference const& reference, MethodTableEntry const& entry)
+{
+    auto method = Symlevel::Reader::Read(session, entry.method);
+    auto name   = Symlevel::Reader::Read(session, method.Name());
+
+    if (name.compare(reference.name) != 0) {
+        return false;
+    }
+
+    auto signature = TermManager::Resolve(session, method.Signature());
+    return signature == reference.signature;
+}
+
 std::optional<MethodTableEntry> MethodTable::Resolve(Session& session, MethodTable::Reference const& reference) const
 {
     for (auto st : Classes()) {
         for (auto entry : st.Entries()) {
-            auto method = Symlevel::Reader::Read(session, entry.method);
-            auto name   = Symlevel::Reader::Read(session, method.Name());
-
-            if (name.compare(reference.name) != 0) {
-                continue;
+            if (Compare(session, reference, entry)) {
+                return entry;
             }
-
-            auto signature = TermManager::Resolve(session, method.Signature());
-            if (signature == reference.signature) {
+        }
+    }
+    for (auto st : Interfaces()) {
+        for (auto entry : st.Entries()) {
+            if (Compare(session, reference, entry)) {
                 return entry;
             }
         }
     }
     return std::nullopt;
+}
+
+void MethodTable::ResolveAll(Session& session, Reference const& reference, std::vector<MethodTableEntry>& buffer) const
+{
+    for (auto st : Classes()) {
+        for (auto entry : st.Entries()) {
+            if (Compare(session, reference, entry)) {
+                buffer.push_back(entry);
+            }
+        }
+    }
+    for (auto st : Interfaces()) {
+        for (auto entry : st.Entries()) {
+            if (Compare(session, reference, entry)) {
+                buffer.push_back(entry);
+            }
+        }
+    }
 }
 
 // ---- MethodTable::SubTableGenerator ----
@@ -147,6 +175,8 @@ MethodTable MethodTableManager::BuildTable(Session& session, Identifier<TypeDefi
     std::vector<Identifier<MethodDefinition>> declaredMethods;
     methodSeq.Read(session, declaredMethods);
 
+    std::vector<MethodTableEntry> entryBuffer;
+
     for (auto methodId : declaredMethods) {
         auto newEntry = MethodTable::Entry {
             .method         = methodId,
@@ -156,11 +186,16 @@ MethodTable MethodTableManager::BuildTable(Session& session, Identifier<TypeDefi
         auto method = Reader::Read(session, methodId);
         MethodTable::Reference ref { .name      = Reader::Read(session, method.Name()),
                                      .signature = TermManager::Resolve(session, method.Signature()) };
-        if (auto entryOpt = newTable.Resolve(session, ref); entryOpt.has_value()) {
-            newTable.allEntries[entryOpt->flatMethodNum] = newEntry;
-        } else {
+
+        newTable.ResolveAll(session, ref, entryBuffer);
+        if (entryBuffer.empty()) {
             newTable.allEntries.emplace_back(newEntry);
+            continue;
         }
+        for (auto& entry : entryBuffer) {
+            newTable.allEntries[entry.flatMethodNum] = newEntry;
+        }
+        entryBuffer.clear();
     }
 
     auto newEntryCount = newTable.EntryCount();
