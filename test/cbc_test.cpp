@@ -1,6 +1,8 @@
-#include "gtest/gtest.h"
-#include <cstdint>
 #include <gtest/gtest.h>
+
+#include <cstdint>
+#include <iterator>
+#include <sstream>
 
 #include "cbc/isa_disasm.h"
 #include "engine/engine.h"
@@ -383,13 +385,13 @@ INSTANTIATE_TEST_SUITE_P(
     CbcSpecializedConvert,
     ::testing::Values(
         ConvertTestParams { "to_integer",
-                            sizeof(convertToIntegerCases) / sizeof(ConvertCase),
+                            static_cast<int>(std::size(convertToIntegerCases)),
                             convertToIntegerCases,
                             &convertToInteger },
         ConvertTestParams {
-            "to_float", sizeof(convertToFloat32Cases) / sizeof(ConvertCase), convertToFloat32Cases, &convertToFloat32 },
+            "to_float", static_cast<int>(std::size(convertToFloat32Cases)), convertToFloat32Cases, &convertToFloat32 },
         ConvertTestParams {
-            "to_float", sizeof(convertToFloat64Cases) / sizeof(ConvertCase), convertToFloat64Cases, &convertToFloat64 }
+            "to_float", static_cast<int>(std::size(convertToFloat64Cases)), convertToFloat64Cases, &convertToFloat64 }
     )
 );
 
@@ -408,16 +410,16 @@ template <typename T> T mulFunc(T l, T r) { return l * r; }
 template <typename T> T divFunc(T l, T r) { return l / r; }
 
 UnaryFunction<float> floatUnaryOps[] = { negFunc<float>, std::sqrt, std::abs };
-constexpr size_t floatUnaryOpsCount  = sizeof(floatUnaryOps) / sizeof(decltype(floatUnaryOps[0]));
+constexpr size_t floatUnaryOpsCount  = std::size(floatUnaryOps);
 
 BinaryFunction<float> floatBinaryOps[] = { addFunc<float>, subFunc<float>, mulFunc<float>, divFunc<float> };
-constexpr size_t floatBinaryOpsCount   = sizeof(floatBinaryOps) / sizeof(decltype(floatBinaryOps[0]));
+constexpr size_t floatBinaryOpsCount   = std::size(floatBinaryOps);
 
 UnaryFunction<double> doubleUnaryOps[] = { negFunc<double>, std::sqrt, std::abs };
-constexpr size_t doubleUnaryOpsCount   = sizeof(doubleUnaryOps) / sizeof(decltype(doubleUnaryOps[0]));
+constexpr size_t doubleUnaryOpsCount   = std::size(doubleUnaryOps);
 
 BinaryFunction<double> doubleBinaryOps[] = { addFunc<double>, subFunc<double>, mulFunc<double>, divFunc<double> };
-constexpr size_t doubleBinaryOpsCount    = sizeof(doubleBinaryOps) / sizeof(decltype(doubleBinaryOps[0]));
+constexpr size_t doubleBinaryOpsCount    = std::size(doubleBinaryOps);
 
 const char* unaryFunctionNames[] = { "NEG", "SQRT", "ABS" };
 
@@ -438,7 +440,7 @@ std::pair<float, float> floatValues[] = {
     { 16777216.0f, 1.0f },
     { 16777216.0f, 2.0f }
 };
-constexpr size_t floatValuesCount = sizeof(floatValues) / sizeof(decltype(floatValues[0]));
+constexpr size_t floatValuesCount = std::size(floatValues);
 
 std::pair<double, double> doubleValues[] = {
     { 4.2, 7.3 },
@@ -455,7 +457,7 @@ std::pair<double, double> doubleValues[] = {
     { 9007199254740992.0, 1.0 },
     { 9007199254740992.0, 2.0 }
 };
-constexpr size_t doubleValuesCount = sizeof(doubleValues) / sizeof(decltype(doubleValues[0]));
+constexpr size_t doubleValuesCount = std::size(doubleValues);
 
 void testFPOps32(Interpretation::Value::Primitive res, float expVal)
 {
