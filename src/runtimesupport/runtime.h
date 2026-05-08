@@ -29,18 +29,6 @@ private:
     void* value;
 };
 
-class MethodTable {
-public:
-    explicit MethodTable(uintptr_t _value) : value(reinterpret_cast<void*>(_value)) {}
-
-    explicit MethodTable(void* value) : value(value) {}
-
-    inline void* Raw() const { return value; }
-
-private:
-    void* value;
-};
-
 struct Execution {
     using Reference = Interpretation::Value::Reference;
 
@@ -66,7 +54,8 @@ struct Execution {
 
     static TypeInfo GetTypeInfo(Reference base);
 
-    static MethodTable GetMethodTable(Reference base, int extDefNum, int methodNum);
+    static void* GetVirtualTarget(Reference base, int extDefNum, int methodNum);
+    static void* GetInterfaceTarget(Reference base, TypeInfo ti, int methodNum);
 
     static int GetFieldOffset(TypeInfo ti, int ordinal, bool isRef);
 };

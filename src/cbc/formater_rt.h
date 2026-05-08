@@ -24,6 +24,7 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3xxrr arg
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B4xi12xr args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3xi12 args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B9i64 args);
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B11i16i64 args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M1 args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M2rr args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M2xr args);

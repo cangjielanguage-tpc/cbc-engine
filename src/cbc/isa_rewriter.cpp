@@ -302,19 +302,36 @@ struct IsaRewriter : public IsaParser {
 
     void CallVirtual(IReg dst, uint16_t methodId) override
     {
-        auto m = resolver.Query(Index<DynamicCall>(methodId));
+        auto m = resolver.Query(Index<VirtualCall>(methodId));
         if (!m.has_value()) {
             Fail();
             return;
         }
         auto method = m.value();
-        emit.VirtualCall2c(method->methodNum, method->extDefNum);
+        emit.VirtualCall(method->methodNum, method->extDefNum);
         if (dst != IReg::IR1) {
             emit.Mov(dst, IReg::IR1);
         }
     }
 
-    void CallInterf(IReg dst, uint16_t method) override { FATAL("not implemented"); }
+    void CallInterf(IReg dst, uint16_t methodId) override
+    {
+        auto m = resolver.Query(Index<InterfaceCall>(methodId));
+        if (!m.has_value()) {
+            Fail();
+            return;
+        }
+        auto method = m.value();
+        auto ti     = method->refType->GetTypeInfo();
+        if (!ti.has_value()) {
+            Fail();
+            return;
+        }
+        emit.InterfaceCall(method->methodNum, *ti);
+        if (dst != IReg::IR1) {
+            emit.Mov(dst, IReg::IR1);
+        }
+    }
 
     void Scc(Format::Width width, Format::CC cc, IReg d, AnyReg l, AnyReg r) override
     {

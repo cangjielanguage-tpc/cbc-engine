@@ -236,9 +236,14 @@ TypeInfo Execution::GetTypeInfo(Reference base)
     return *header;
 }
 
-MethodTable Execution::GetMethodTable(Reference base, int extDefNum, int methodNum)
+void* Execution::GetVirtualTarget(Reference base, int extDefNum, int methodNum)
 {
     FATAL("Should not reach here. I2C virtual call");
+}
+
+void* Execution::GetInterfaceTarget(Reference base, TypeInfo ti, int methodNum)
+{
+    FATAL("Should not reach here. I2C interface call");
 }
 
 void* Execution::AllocateObjectInstance() { return reinterpret_cast<void*>(&Interpretation::MockNewObj); }

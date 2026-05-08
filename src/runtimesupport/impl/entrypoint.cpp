@@ -1,4 +1,5 @@
 #include <filesystem>
+#include <mutex>
 
 #include "RTInterface.h"
 #include "asm_trampolines.h"
@@ -11,23 +12,34 @@
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
 #include "interpreter/loggers.h"
+#include "runtimesupport/impl/rt_syms.h"
 #include "utils/logger.h"
 #include "utils/options.h"
 
+DYN_CJNativeInterfaceT g_CJNativeInterfaceInstance;
+
 static std::mutex g_InitializationGuard;
 static bool g_Initialized;
+static bool g_OptionsInitialized;
 static char const* g_cbcPath;
 static char const* g_mainCbc;
+
+static void InitEnvOpts() {
+    std::lock_guard guard(g_InitializationGuard);
+    if (!g_OptionsInitialized) {
+        Options::InitEnvOptions();
+        g_OptionsInitialized = true;
+    }
+}
 
 /// Initialize engine from launcher.
 static void EnsureEngineInitialized()
 {
+    InitEnvOpts();
     std::lock_guard guard(g_InitializationGuard);
     if (g_Initialized) {
         return;
     }
-
-    Options::InitEnvOptions();
 
     Engine::Loader loader;
     loader.Load(IO::OpenFile(std::filesystem::path(g_mainCbc)), g_mainCbc);
@@ -126,6 +138,7 @@ CBC_EXPORT void interpreter_bridge_init(
 {
     (void)size;
     (void)options;
+    InitEnvOpts();
 
     g_CJNativeInterfaceInstance            = *rtInterf;
     interpInterf->version                  = 1;
@@ -143,6 +156,7 @@ CBC_EXPORT void interpreter_bridge_init(
     interpInterf->visitGlobalRoots         = &VisitGlobalRoots;
 
     Asm::engine_newobject_function = g_CJNativeInterfaceInstance.objectAlloc;
+    RTSupport::Initialize(&g_CJNativeInterfaceInstance);
 }
 
 } // extern "C"

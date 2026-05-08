@@ -71,6 +71,7 @@ constexpr Option options[] = {
     { "cbc.log.int", &Interpretation::Log::interpretation, &SetLogLevelOption },
     { "cbc.log.preparation", &Interpretation::Log::preparation, &SetLogLevelOption },
     { "cbc.log.typeinfo", &RTSupport::Log::typeinfo, &SetLogLevelOption },
+    { "cbc.log.init", &RTSupport::Log::init, &SetLogLevelOption },
     { "cbc.log.all", nullptr, &SetLogLevelOptionForAll },
 };
 

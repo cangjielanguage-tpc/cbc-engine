@@ -11,5 +11,7 @@ namespace Log {
 /// ERROR - logs errors
 extern Logging::Logger typeinfo;
 
+extern Logging::Logger init;
+
 } // namespace Log
 } // namespace RTSupport
