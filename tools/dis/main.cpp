@@ -8,6 +8,7 @@
 #include "engine/symlevel/offset.h"
 #include "engine/symlevel/string.h"
 #include "engine/symlevel/version_metadata.h"
+#include "engine/terms.h"
 #include "utils/ostream.h"
 #include <filesystem>
 #include <iostream>
@@ -33,7 +34,7 @@ class Disasmer {
         return s;
     }
 
-    void print(const VersionMetadata& md)
+    void version(const VersionMetadata& md)
     {
         io << "File version: ";
         io << (unsigned int)md.fileVersion;
@@ -42,33 +43,49 @@ class Disasmer {
         io << endl;
     }
 
-    void print(Offset<String> str, IO::FileId fileId) { io << String::Parse(*session, fileId, str); }
+    void string(Offset<String> str, IO::FileId fileId) { io << String::Parse(*session, fileId, str); }
 
-    void printMethodName(Identifier<MethodDefinition> m)
+    void methodName(Identifier<MethodDefinition> m)
     {
         auto mdef = MethodDefinition::Resolve(*session, m);
-        print(mdef.NameOffset(), m.fileId); //
+        string(mdef.NameOffset(), m.fileId); //
     }
 
-    void printMain(Identifier<MethodDefinition> mainFn)
+    void mainF(Identifier<MethodDefinition> mainFn)
     {
         io << "Main: ";
-        printMethodName(mainFn);
+        methodName(mainFn);
         io << endl;
     }
 
-    void DisasmOf(Symlevel::CbcFile& file)
+    void type(TypeDefinition& def, CbcFile& file)
     {
-        print(file.GetVersionMetadata());
+        auto& tm = TermManager::Of(*session);
+
+        // name
+        string(def.NameOffset(), file.Id());
+        def.GetFieldIndex().ForEach(*session, [&](FieldDefinition& fdef) {
+            auto term     = tm.Resolve(*session, fdef.FieldType());
+            auto typeName = term.GetName(*session);
+            auto flags    = fdef.Flags().ToString();
+            io << "  " << flags << " " << typeName;
+            string(fdef.NameOffset(), file.Id());
+            io << endl;
+        });
+    }
+
+    void DisasmOf(CbcFile& file)
+    {
+        version(file.GetVersionMetadata());
         auto mainOpt = session->GetEngine().FindMain(*session, file.GetPath());
         if (mainOpt.has_value()) {
-            printMain(*mainOpt);
+            mainF(*mainOpt);
         }
 
         auto ti = file.GetTypeIndex();
         io << "types: " << endl;
         ti.ForEach(*session, [&](TypeDefinition& def) {
-            print(def.NameOffset(), file.Id());
+            string(def.NameOffset(), file.Id());
             //
         });
         // TODO: foreign libs, coverage
