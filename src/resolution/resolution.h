@@ -91,6 +91,13 @@ struct DynamicCall {
     int extDefNum;
 };
 
+struct InterfaceCall {
+    Type* refType;
+    std::string_view name;
+    MethodSignature signature;
+    int methodNum;
+};
+
 struct InstanceField {
     Type* refType;
     std::string_view name;
@@ -135,6 +142,7 @@ public:
     std::optional<Type*> Query(Index<Type> id);
     std::optional<DirectCall const*> Query(Index<DirectCall> id);
     std::optional<DynamicCall const*> Query(Index<DynamicCall> id);
+    std::optional<InterfaceCall const*> Query(Index<InterfaceCall> id);
     std::optional<InstanceField const*> Query(Index<InstanceField> id);
     std::optional<StaticField const*> Query(Index<StaticField> id);
 

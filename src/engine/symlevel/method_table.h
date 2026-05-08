@@ -6,7 +6,6 @@
 #include "engine/terms.h"
 #include "utils/iterators.h"
 #include <memory>
-#include <mutex>
 #include <vector>
 
 namespace Symlevel { // TODO: move to Engine
@@ -170,7 +169,9 @@ public:
     virtual ~MethodTableManager() = default;
 
     /// Returns an method table for the given type definition.
-    virtual std::shared_ptr<MethodTable> GetMethodTable(Engine::Session& session, Engine::Identifier<TypeDefinition> type) = 0;
+    virtual std::shared_ptr<MethodTable> GetMethodTable(
+        Engine::Session& session, Engine::Identifier<TypeDefinition> type
+    ) = 0;
 
     /// Returns an method table for the given type.
     std::shared_ptr<MethodTable> GetMethodTable(Engine::Session& session, Engine::Term term);

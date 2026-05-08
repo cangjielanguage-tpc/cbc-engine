@@ -40,7 +40,7 @@ struct VirtualCallAotData {
 };
 
 struct InterfaceCallAotData {
-    uint32_t inum;
+    int inum;
 };
 
 struct StaticFieldAotData {
