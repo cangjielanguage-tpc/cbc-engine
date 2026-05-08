@@ -230,7 +230,7 @@ void MethodTable::Globalize(Session& session)
 
 std::shared_ptr<MethodTable> MethodTableManager::GetMethodTable(Session& session, Identifier<TypeDefinition> type)
 {
-    std::lock_guard guard(lock);
+    // std::lock_guard guard(lock); FIXME: proper recursive access
     auto& tables = this->tables;
 
     auto it = tables.find(type.Pack());
