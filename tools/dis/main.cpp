@@ -42,7 +42,7 @@ class Disasmer {
         io << endl;
     }
 
-    void print(Offset<String> str, IO::FileId fileId) { String::Parse(*session, fileId, str); }
+    void print(Offset<String> str, IO::FileId fileId) { io << String::Parse(*session, fileId, str); }
 
     void printMethodName(Identifier<MethodDefinition> m)
     {
