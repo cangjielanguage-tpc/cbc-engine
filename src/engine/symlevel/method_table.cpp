@@ -52,6 +52,20 @@ int MethodTable::InterfaceCount() const { return interfaceTables.size(); }
 
 int MethodTable::EntryCount() const { return allEntries.size(); }
 
+void MethodTable::Globalize(Session& session)
+{
+    auto& termManager = TermManager::Of(session);
+    for (auto& entry : allEntries) {
+        entry.genericContext = termManager.Globalize(entry.genericContext);
+    }
+    for (auto& st : classTables) {
+        st.genericContext = termManager.Globalize(st.genericContext);
+    }
+    for (auto& st : interfaceTables) {
+        st.genericContext = termManager.Globalize(st.genericContext);
+    }
+}
+
 static bool Compare(Session& session, MethodTable::Reference const& reference, MethodTableEntry const& entry)
 {
     auto method = Symlevel::Reader::Read(session, entry.method);
@@ -159,6 +173,7 @@ std::optional<MethodTableEntry> MethodSubTable::EntryGenerator::operator()()
 }
 
 // ---- MethodTable building ----
+
 MethodTable MethodTableManager::BuildTable(Session& session, Identifier<TypeDefinition> type)
 {
     auto def       = TypeDefinition::Resolve(session, type);
@@ -169,7 +184,7 @@ MethodTable MethodTableManager::BuildTable(Session& session, Identifier<TypeDefi
     auto thisType = Term::Definition(session, type);
 
     // copy table
-    MethodTable newTable = *GetMethodTable(session, superType);
+    auto newTable = *GetMethodTable(session, superType);
     auto oldEntryCount   = newTable.EntryCount();
 
     std::vector<Identifier<MethodDefinition>> declaredMethods;
@@ -208,45 +223,6 @@ MethodTable MethodTableManager::BuildTable(Session& session, Identifier<TypeDefi
     return newTable;
 }
 
-void MethodTable::Globalize(Session& session)
-{
-    auto& termManager = TermManager::Of(session);
-    for (auto& entry : allEntries) {
-        entry.genericContext = termManager.Globalize(entry.genericContext);
-    }
-    for (auto& st : classTables) {
-        st.genericContext = termManager.Globalize(st.genericContext);
-    }
-    for (auto& st : interfaceTables) {
-        st.genericContext = termManager.Globalize(st.genericContext);
-    }
-}
-
-/// Caching policy notice.
-///
-/// Each method table can be build from the ground-up without side effects, using simple procedure
-/// that involves only read-only data from cbc files. So any caching of result
-/// is not functionally required.
-
-std::shared_ptr<MethodTable> MethodTableManager::GetMethodTable(Session& session, Identifier<TypeDefinition> type)
-{
-    // std::lock_guard guard(lock); FIXME: proper recursive access
-    auto& tables = this->tables;
-
-    auto it = tables.find(type.Pack());
-    if (it != tables.end()) {
-        return it->second;
-    }
-
-    auto mt = BuildTable(session, type);
-    mt.Globalize(session);
-
-    auto res = std::make_shared<MethodTable>(std::move(mt));
-
-    tables.insert({ type.Pack(), res });
-    return res;
-}
-
 MethodTable MethodTableManager::BaseTable()
 {
     MethodTable mt;
@@ -268,6 +244,51 @@ std::shared_ptr<MethodTable> MethodTableManager::GetMethodTable(Session& session
 
     // FIXME: instantiate!
     return GetMethodTable(session, type);
+}
+
+/// Caching policy notice.
+///
+/// Each method table can be build from the ground-up without side effects, using simple procedure
+/// that involves only read-only data from cbc files. So any caching of result
+/// is not functionally required.
+struct CachingMethodTableManager : public MethodTableManager {
+    using Ident = Identifier<TypeDefinition>;
+    std::unordered_map<Ident::Packed, std::shared_ptr<MethodTable>, Ident::Hasher> tables;
+
+    /// Returns an method table for the given type definition.
+    std::shared_ptr<MethodTable> GetMethodTable(Session& session, Identifier<TypeDefinition> type) override
+    {
+        auto& tables = this->tables;
+
+        auto it = tables.find(type.Pack());
+        if (it != tables.end()) {
+            return it->second;
+        }
+
+        auto mt = MethodTableManager::BuildTable(session, type);
+        mt.Globalize(session);
+
+        auto res = std::make_shared<MethodTable>(std::move(mt));
+
+        tables.insert({ type.Pack(), res });
+        return res;
+    }
+};
+
+struct LockedMethodTableManager : public MethodTableManager {
+    CachingMethodTableManager delegate;
+    std::mutex lock;
+
+    std::shared_ptr<MethodTable> GetMethodTable(Session& session, Identifier<TypeDefinition> type) override
+    {
+        std::lock_guard guard(lock);
+        return delegate.GetMethodTable(session, type);
+    }
+};
+
+std::unique_ptr<MethodTableManager> MethodTableManager::NewInstance()
+{
+    return std::make_unique<LockedMethodTableManager>();
 }
 
 } // namespace Symlevel
