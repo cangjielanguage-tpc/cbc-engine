@@ -2,4 +2,4 @@
 
 #include "RTInterface.h"
 
-inline DYN_CJNativeInterfaceT g_CJNativeInterfaceInstance;
+extern DYN_CJNativeInterfaceT g_CJNativeInterfaceInstance;
