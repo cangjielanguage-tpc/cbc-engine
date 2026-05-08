@@ -7,6 +7,7 @@
 
 namespace RTSupport {
 
+// merge with LibHandle
 struct Handle {
     void* handle;
     std::string name;
@@ -63,7 +64,19 @@ void Initialize(DYN_CJNativeInterfaceT* interf)
         return;
     }
 
+    // verify that we didn't opened new library.
+    auto stackGrowStub = handle->Sym("CJ_MCC_StackGrowStub");
+    if (stackGrowStub != interf->stackGrowStub) {
+        auto& stream = Log::init.Stream(Logging::Level::ERROR);
+        stream << "incorrect stack grow stub address ";
+        stream << interf->stackGrowStub << " " << stackGrowStub << Stream::endl;
+        return;
+    }
+
     GetMTable = handle->Func<decltype(GetMTable)>("CJ_MCC_GetMTable");
+    UpdateVMT = handle->Func<decltype(UpdateVMT)>("CJ_MCC_UpdateVMT");
+
+    GetMethodOuterTI = handle->Func<decltype(GetMethodOuterTI)>("CJ_MCC_GetMethodOuterTI");
 }
 
 } // namespace RTSupport
