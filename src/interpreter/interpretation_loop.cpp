@@ -521,13 +521,13 @@ DIRECT_CALL_2C: {
 
     return { Adapters::GenericI2CCallInstance(), reinterpret_cast<void*>(target) };
 }
-VIRTUAL_CALL_2C: {
+VIRTUAL_CALL: {
     auto args = B5i16i16::Decode(reader);
     LOG_INSTR;
     auto vnum      = args.imm1.imm;
     auto extDefNum = args.imm2.imm;
 
-    auto table = Execution::GetMethodTable(ectype->GetReference(IReg::IR1), extDefNum, vnum);
+    auto function = Execution::GetVirtualTarget(ectype->GetReference(IReg::IR1), extDefNum, vnum);
 
     // For proper support of fibers, the following call MUST drop the current frame.
     // This can not be guaranteed by C++ compiler consistently, because TCO
@@ -540,7 +540,28 @@ VIRTUAL_CALL_2C: {
     reader0 = reader; // save current pc
 
     // FIXME: avoid I2C->C2I adapters for pure I2I call.
-    return { Adapters::GenericI2CCallInstance(), table.Raw() };
+    return { Adapters::GenericI2CCallInstance(), function };
+}
+
+INTERFACE_CALL: {
+    auto args = B11i16i64::Decode(reader);
+    LOG_INSTR;
+    auto num     = args.imm16.imm;
+    auto typeInfo = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
+    auto function = Execution::GetInterfaceTarget(ectype->GetReference(IReg::IR1), typeInfo, num);
+
+    // For proper support of fibers, the following call MUST drop the current frame.
+    // This can not be guaranteed by C++ compiler consistently, because TCO
+    // is not guaranteed and `mustcall` attribute is not supported
+    // fully by gcc/clang compilers.
+    //
+    // Instead, the following call will drop the current frame manually
+    // (outside of unit-test framework).
+
+    reader0 = reader; // save current pc
+
+    // FIXME: avoid I2C->C2I adapters for pure I2I call.
+    return { Adapters::GenericI2CCallInstance(), function };
 }
 
 MEMSPACE: {

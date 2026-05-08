@@ -64,7 +64,7 @@ struct Resolver::Impl {
     template <typename T> using Cache = std::unordered_map<int, T*>;
 
     std::unordered_map<Term, Type*, Term::Hasher> types;
-    Cache<DynamicCall> dynamicCalls;
+    Cache<VirtualCall> dynamicCalls;
     Cache<InterfaceCall> interfaceCalls;
     Cache<DirectCall> directCalls;
     Cache<InstanceField> instanceFields;
@@ -242,7 +242,7 @@ MethodSignature ConstructSignature(Resolver::Impl& resolver, ResolvedMethodRefer
     };
 }
 
-static std::optional<DynamicCall> ResolveCbcCall(Resolver::Impl& resolver, ResolvedMethodReference& ref)
+static std::optional<VirtualCall> ResolveCbcCall(Resolver::Impl& resolver, ResolvedMethodReference& ref)
 {
     auto& manager = Symlevel::MethodTableManager::Of(resolver.session);
     auto mt       = manager.GetMethodTable(resolver.session, ref.refType);
@@ -262,7 +262,7 @@ static std::optional<DynamicCall> ResolveCbcCall(Resolver::Impl& resolver, Resol
     }
 
     auto sig = ConstructSignature(resolver, ref);
-    return DynamicCall { refType, ref.name, std::move(sig), resolved->methodNum, resolved->subTableNum };
+    return VirtualCall { refType, ref.name, std::move(sig), resolved->methodNum, resolved->subTableNum };
 }
 
 static std::optional<InterfaceCall> ResolveCall(Resolver::Impl& resolver, Index<InterfaceCall> id)
@@ -297,7 +297,7 @@ static std::optional<InterfaceCall> ResolveCall(Resolver::Impl& resolver, Index<
     }
 }
 
-static std::optional<DynamicCall> ResolveCall(Resolver::Impl& resolver, Index<DynamicCall> id)
+static std::optional<VirtualCall> ResolveCall(Resolver::Impl& resolver, Index<VirtualCall> id)
 {
     auto [file, raf] = resolver.session.File(resolver.fileId);
     auto ref         = ResolveReference(resolver, id);
@@ -315,7 +315,7 @@ static std::optional<DynamicCall> ResolveCall(Resolver::Impl& resolver, Index<Dy
             /// FIXME: interface calls
             auto data = file.GetVirtualCallAotTable().GetData(resolver.session, ref.identifier.GetIndex());
             auto sig  = ConstructSignature(resolver, ref);
-            return DynamicCall { refType, ref.name, std::move(sig), data.methodNum, data.extDefNum };
+            return VirtualCall { refType, ref.name, std::move(sig), data.methodNum, data.extDefNum };
         }
 
         default: {
@@ -410,13 +410,13 @@ static std::optional<DirectCall> ResolveCall(Resolver::Impl& resolver, Index<Dir
     }
 }
 
-std::optional<DynamicCall const*> Resolver::Query(Index<DynamicCall> id)
+std::optional<VirtualCall const*> Resolver::Query(Index<VirtualCall> id)
 {
     if (auto opt = ProbeCache(id, impl->dynamicCalls); opt.has_value()) {
         return opt.value();
     }
     if (auto opt = ResolveCall(*impl, id); opt.has_value()) {
-        auto res = impl->session.Allocator().New<DynamicCall>(opt.value());
+        auto res = impl->session.Allocator().New<VirtualCall>(opt.value());
         impl->dynamicCalls.insert({ id.GetValue(), res });
         return res;
     }
@@ -588,7 +588,7 @@ Stream::Output& operator<<(Stream::Output& stream, DirectCall const& call)
     return stream;
 }
 
-Stream::Output& operator<<(Stream::Output& stream, DynamicCall const& call)
+Stream::Output& operator<<(Stream::Output& stream, VirtualCall const& call)
 {
     stream << *call.refType << '.' << call.name << call.signature;
     return stream;
