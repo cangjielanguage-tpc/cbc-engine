@@ -165,19 +165,19 @@ public:
     static MethodTableManager& Of(Engine::Engine& engine);
     static MethodTableManager& Of(Engine::Session& session);
 
+    static std::unique_ptr<MethodTableManager> NewInstance();
+
+    virtual ~MethodTableManager() = default;
+
     /// Returns an method table for the given type definition.
-    std::shared_ptr<MethodTable> GetMethodTable(Engine::Session& session, Engine::Identifier<TypeDefinition> type);
+    virtual std::shared_ptr<MethodTable> GetMethodTable(Engine::Session& session, Engine::Identifier<TypeDefinition> type) = 0;
 
     /// Returns an method table for the given type.
     std::shared_ptr<MethodTable> GetMethodTable(Engine::Session& session, Engine::Term term);
 
-private:
+protected:
     MethodTable BuildTable(Engine::Session& session, Engine::Identifier<TypeDefinition> type);
     MethodTable BaseTable();
-
-    using Ident = Engine::Identifier<TypeDefinition>;
-    std::mutex lock;
-    std::unordered_map<Ident::Packed, std::shared_ptr<MethodTable>, Ident::Hasher> tables;
 };
 
 } // namespace Symlevel
