@@ -129,6 +129,7 @@ template <typename Data> struct MemberIndexWrapper {
 
     void Find(Engine::Session& session, std::function<bool(Data&)> action) const
     {
+        // Why?
         static_assert(std::is_same_v<Data, FieldDefinition> || std::is_same_v<Data, MethodDefinition>);
 
         auto [_, raf] = session.File(index.fileId);

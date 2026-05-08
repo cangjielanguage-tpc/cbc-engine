@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <stdarg.h>
 #include <stdio.h>
@@ -92,6 +93,7 @@ public:
     void NewLine() override;
     void VPrintFmt(const char* fmt, va_list argp) override;
     void Flush() const override;
+    void SetIndent(std::function<unsigned int(unsigned int)> f);
 
 private:
     Output& stream;
