@@ -743,10 +743,7 @@ void Emitter::VirtualCall(uint16_t vnum, uint16_t extDefNum)
     );
 }
 
-void Emitter::InterfaceCall(uint16_t methodNum, RTSupport::TypeInfo typeInfo)
-{
-
-}
+void Emitter::InterfaceCall(uint16_t methodNum, RTSupport::TypeInfo typeInfo) {}
 
 } // namespace Emitter
 } // namespace Cbc

@@ -546,7 +546,7 @@ VIRTUAL_CALL: {
 INTERFACE_CALL: {
     auto args = B11i16i64::Decode(reader);
     LOG_INSTR;
-    auto num     = args.imm16.imm;
+    auto num      = args.imm16.imm;
     auto typeInfo = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
     auto function = Execution::GetInterfaceTarget(ectype->GetReference(IReg::IR1), typeInfo, num);
 

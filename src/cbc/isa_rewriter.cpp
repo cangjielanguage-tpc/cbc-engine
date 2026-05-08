@@ -322,7 +322,7 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto method = m.value();
-        auto ti = method->refType->GetTypeInfo();
+        auto ti     = method->refType->GetTypeInfo();
         if (!ti.has_value()) {
             Fail();
             return;
