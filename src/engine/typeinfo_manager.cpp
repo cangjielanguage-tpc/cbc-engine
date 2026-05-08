@@ -11,9 +11,11 @@ namespace Engine {
 
 using TypeInfo = RTSupport::TypeInfo;
 
-struct Failed {} failed;
+struct Failed {
+} failed;
 
-struct Pending {} pending;
+struct Pending {
+} pending;
 
 using ResolutionState = std::variant<TypeInfo, Failed, Pending>;
 

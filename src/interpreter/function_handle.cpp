@@ -51,7 +51,7 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
     });
 
     auto method = Symlevel::Reader::Read(session, methodDef);
-    auto flags = method.GetFlags();
+    auto flags  = method.GetFlags();
 
     ASSERTION(!flags.Is(MethodFlag::ABSTRACT), "Only methods that can be actually called can have FUH");
 
@@ -61,7 +61,8 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
         auto target      = deps.FindTarget(linkageName);
 
         Log::preparation.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
-            if (target != nullptr) return;
+            if (target != nullptr)
+                return;
             using namespace Stream;
             Stream::ResolvingOutput stream(session, out);
             stream << "failed to resolve aot method" << endl;
@@ -71,7 +72,7 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
 
         // TODO: put stub trampoline that throws exception
         StaticFunctionHandle fuh {
-            .base = FunctionHandle(RTSupport::Adapters::GenericI2CCallInstance()),
+            .base     = FunctionHandle(RTSupport::Adapters::GenericI2CCallInstance()),
             .function = target,
         };
         auto mem = new StaticFunctionHandle(fuh);
@@ -85,7 +86,7 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
     auto newDynFuh = [&]() -> DynamicFunctionHandle* {
         auto i2Call = PrepareI2Call(session, methodDef);
         auto c2Call = PrepareC2Call(session, methodDef);
-        auto mem = new DynamicFunctionHandle(i2Call, c2Call, methodDef);
+        auto mem    = new DynamicFunctionHandle(i2Call, c2Call, methodDef);
         if (mem == nullptr) {
             FATAL("out of memory");
         }
@@ -93,9 +94,7 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
         return mem;
     };
 
-    auto fuh = flags.Is(MethodFlag::AOT)
-        ? TaggedFunctionHandle(newStaticFuh())
-        : TaggedFunctionHandle(newDynFuh());
+    auto fuh = flags.Is(MethodFlag::AOT) ? TaggedFunctionHandle(newStaticFuh()) : TaggedFunctionHandle(newDynFuh());
 
     impl->fuhMap.insert({ methodDef.Pack(), fuh });
     return fuh;
