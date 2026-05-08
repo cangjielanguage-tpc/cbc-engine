@@ -23,8 +23,6 @@ DYN_CJNativeInterfaceT g_CJNativeInterfaceInstance;
 static std::mutex g_InitializationGuard;
 static bool g_Initialized;
 static bool g_OptionsInitialized;
-static char const* g_cbcPath;
-static char const* g_mainCbc;
 
 static void InitEnvOpts() {
     std::lock_guard guard(g_InitializationGuard);
