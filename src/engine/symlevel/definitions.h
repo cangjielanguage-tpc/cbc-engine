@@ -123,7 +123,9 @@ public:
     inline std::optional<Engine::Identifier<Code>> MethodCode() const { return code; }
 
     std::optional<Engine::Identifier<String>> SourceFile() { return sourceFile; }
+
     std::optional<Engine::Identifier<String>> SourceFullName() { return sourceFullName; }
+
     std::optional<Engine::Identifier<String>> LinkageName() { return linkageName; }
 
     inline IO::FileId FileId() const { return identifier.GetFileId(); }
@@ -150,10 +152,10 @@ private:
     Offset<String> nameOffset;
     MethodFlags flags;
 
-    std::optional<Engine::Identifier<Code>> code = std::nullopt;
-    std::optional<Engine::Identifier<String>> sourceFile = std::nullopt;
+    std::optional<Engine::Identifier<Code>> code             = std::nullopt;
+    std::optional<Engine::Identifier<String>> sourceFile     = std::nullopt;
     std::optional<Engine::Identifier<String>> sourceFullName = std::nullopt;
-    std::optional<Engine::Identifier<String>> linkageName = std::nullopt;
+    std::optional<Engine::Identifier<String>> linkageName    = std::nullopt;
 };
 
 } // namespace Symlevel

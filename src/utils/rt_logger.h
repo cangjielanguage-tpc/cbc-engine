@@ -1,6 +1,7 @@
 #pragma once
 
 #include "utils/logger.h"
+
 namespace RTSupport {
 namespace Log {
 
@@ -10,5 +11,5 @@ namespace Log {
 /// ERROR - logs errors
 extern Logging::Logger typeinfo;
 
-}
-}
+} // namespace Log
+} // namespace RTSupport

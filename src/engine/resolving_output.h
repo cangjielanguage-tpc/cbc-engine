@@ -3,17 +3,17 @@
 #include "engine/engine.h"
 #include "engine/identifiers.h"
 #include "engine/symlevel/io/file_id.h"
+#include "engine/symlevel/method_table.h"
 #include "engine/symlevel/reader.h"
 #include "engine/symlevel/string.h"
-#include "engine/symlevel/method_table.h"
 #include "engine/terms.h"
 #include "utils/ostream.h"
 
 namespace Stream {
 
-template <typename T>
-struct Detailed {
+template <typename T> struct Detailed {
     T value;
+
     Detailed(T value) : value(value) {}
 };
 
@@ -28,20 +28,18 @@ public:
     ResolvingOutput& operator<<(Detailed<Engine::RefIdentifier<Engine::Term>> id);
     ResolvingOutput& operator<<(Symlevel::MethodTable const& mt);
 
-    template <typename T>
-    ResolvingOutput& operator<<(Engine::Identifier<T> id)
+    template <typename T> ResolvingOutput& operator<<(Engine::Identifier<T> id)
     {
         return *this << "(" << id.GetFileId() << "," << id.GetOffset() << ")";
     }
 
-    template <typename T>
-    ResolvingOutput& operator<<(Engine::RefIdentifier<T> id)
+    template <typename T> ResolvingOutput& operator<<(Engine::RefIdentifier<T> id)
     {
-        return *this << "<" << id.GetFileId() << "," << id.GetIndex().GetRegion() << "," << id.GetIndex().GetIndex() << ">";
+        return *this << "<" << id.GetFileId() << "," << id.GetIndex().GetRegion() << "," << id.GetIndex().GetIndex()
+                     << ">";
     }
 
-    template <typename T>
-    ResolvingOutput& operator<<(Detailed<Engine::Identifier<T>> id)
+    template <typename T> ResolvingOutput& operator<<(Detailed<Engine::Identifier<T>> id)
     {
         return *this << Symlevel::Reader::Read(session, id.value);
     }
@@ -52,14 +50,10 @@ public:
         return *this;
     }
 
-    template <typename T>
-    ResolvingOutput& operator<<(Detailed<T> v)
-    {
-        return *this << v.value;
-    }
+    template <typename T> ResolvingOutput& operator<<(Detailed<T> v) { return *this << v.value; }
 
     Engine::Session& session;
     Stream::Output& out;
 };
 
-}
+} // namespace Stream

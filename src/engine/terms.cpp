@@ -51,22 +51,22 @@ struct TermData {
 };
 
 enum Tag : uint8_t {
-    NIL,                // 0x00
-    REF,                // 0x01
-    AOT_REF,            // 0x02
-    CANGJIE_ARRAY,      // 0x03
-    VARRAY,             // 0x04
-    ENUM_WRAPPER,       // 0x05
-    C_POINTER,          // 0x06
-    CLASS_TYPE_VAR,     // 0x07
-    FUNC_TYPE_VAR,      // 0x08
-    GENERIC_RECORD,     // 0x09
-    GENERIC_REFERENCE,  // 0x0a
-    NULLABLE,           // 0x0b
-    METHOD_SIGNATURE,   // 0x0c
-    REC,                // 0x0d
-    AOT_REC,            // 0x0e
-    NON_NULLABLE,       // 0x0f
+    NIL,               // 0x00
+    REF,               // 0x01
+    AOT_REF,           // 0x02
+    CANGJIE_ARRAY,     // 0x03
+    VARRAY,            // 0x04
+    ENUM_WRAPPER,      // 0x05
+    C_POINTER,         // 0x06
+    CLASS_TYPE_VAR,    // 0x07
+    FUNC_TYPE_VAR,     // 0x08
+    GENERIC_RECORD,    // 0x09
+    GENERIC_REFERENCE, // 0x0a
+    NULLABLE,          // 0x0b
+    METHOD_SIGNATURE,  // 0x0c
+    REC,               // 0x0d
+    AOT_REC,           // 0x0e
+    NON_NULLABLE,      // 0x0f
 };
 
 static TermData* AllocateTerm(Memory::Heap& allocator, size_t subtermCount = 0)
