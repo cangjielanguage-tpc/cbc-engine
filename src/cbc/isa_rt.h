@@ -38,7 +38,7 @@
     X(FBIN64, B3xrrr, "$0fop.64 $1fr $2fr $3fr")                                                                       \
     X(FUN32, B3xrrr, "$0fop.32 $1fr $3fr")                                                                             \
     X(FUN64, B3xrrr, "$0fop.64 $1fr $3fr")                                                                             \
-    X(NEWOBJ, B3xi12, "newobj $0ir $1U12L")                                                                            \
+    X(NEWOBJ, B9i64, "newobj IR1, $0U64")                                                                              \
     X(LOAD_OBJ, B4xi12rr, "ld.$0ldk $2ir [$3ir $1U12]")                                                                \
     X(STORE_OBJ, B4xi12rr, "st.$0stk $2ir [$3ir $1U12]")                                                               \
     X(LOAD_OBJ_F, B4xi12rr, "ld.$0ldk $2fr [$3ir $1U12]")                                                              \
@@ -64,7 +64,7 @@
     X(CONVERT, B3xxrr, "convert $0ct $1ct $2ir $3ir") /* FIXME: ir/fr */                                               \
     X(DIRECT_CALL_2I, B3xi12, "direct.call.2i $1I12L")                                                                 \
     X(DIRECT_CALL_2C, B3xi12, "direct.call.2c $1I12L")                                                                 \
-    X(VIRTUAL_CALL_2C, B5i16i16, "virtual.call.2c $0U16L $1U16L")                                                      \
+    X(VIRTUAL_CALL_2C, B5i16i16, "virtual.call.2c $0U16 $1U16")                                                        \
     X(MEMSPACE, B1, "memspace {")                                                                                      \
     X(GC_POINT, B1, "gcpoint")                                                                                         \
     X(BFXS, BFX, "bfxs $0ir $1ir $2U8 $3U8")                                                                           \
@@ -426,6 +426,18 @@ struct B6xri32 {
         auto xr    = Format::XR::Decode(reader);
         auto imm32 = Format::Imm32::Decode(reader);
         return B6xri32 { opc, xr, imm32 };
+    }
+};
+
+struct B9i64 {
+    Opcode opc;
+    Format::Imm64 imm64;
+
+    static B9i64 Decode(Decoder::ByteReader& reader)
+    {
+        auto opc   = Opcode::Decode(reader);
+        auto imm64 = Format::Imm64::Decode(reader);
+        return B9i64 { opc, imm64 };
     }
 };
 

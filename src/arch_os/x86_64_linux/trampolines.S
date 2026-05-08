@@ -175,8 +175,7 @@ engine_i2c_call:
 engine_i2_newobject:
   // jumped from .Linterpreter_call without return address to return
   call  [rip + engine_newobject_function]
-  mov   rdi, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8]
-  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8 * rdi], rax
+  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8], rax
   jmp   .Lrestart_interpretation
 
 // expects: (ECTYPE_REG: ectype, rdi: safe_point_f)
