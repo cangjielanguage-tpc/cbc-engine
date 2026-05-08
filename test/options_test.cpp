@@ -18,6 +18,7 @@ protected:
     Options::Table::Snapshot saved;
 
     void SetUp() override { saved = Options::g_table.SaveContext(); }
+
     void TearDown() override { Options::g_table.RestoreContext(saved); }
 };
 
@@ -38,10 +39,7 @@ TEST_F(OptionsTest, ParseAndSet)
     EXPECT_EQ(g_cbcPath, "/path/to/cbc/sources");
 }
 
-TEST_F(OptionsTest, ParseAndSet_Nullptr)
-{
-    Options::ParseAndSet(0, nullptr, Options::g_table);
-}
+TEST_F(OptionsTest, ParseAndSet_Nullptr) { Options::ParseAndSet(0, nullptr, Options::g_table); }
 
 TEST_F(OptionsTest, ParseAndSet_Empty)
 {
@@ -51,7 +49,7 @@ TEST_F(OptionsTest, ParseAndSet_Empty)
 
 TEST_F(OptionsTest, ParseAndSet_UnknownOption)
 {
-    const char* options[] = { "cbc.nonexistent=value" };
+    const char* options[]         = { "cbc.nonexistent=value" };
     constexpr size_t optionsCount = std::size(options);
 
     Options::ParseAndSet(static_cast<int>(optionsCount), options, Options::g_table);
@@ -59,8 +57,8 @@ TEST_F(OptionsTest, ParseAndSet_UnknownOption)
 
 TEST_F(OptionsTest, ParseAndSet_InvalidBoolValue)
 {
-    bool savedDasm = Cbc::g_IsRawDisasmEnabled;
-    const char* options[] = { "cbc.dasm=yes" };
+    bool savedDasm                = Cbc::g_IsRawDisasmEnabled;
+    const char* options[]         = { "cbc.dasm=yes" };
     constexpr size_t optionsCount = std::size(options);
 
     Options::ParseAndSet(static_cast<int>(optionsCount), options, Options::g_table);
@@ -70,7 +68,7 @@ TEST_F(OptionsTest, ParseAndSet_InvalidBoolValue)
 
 TEST_F(OptionsTest, ParseAndSet_MalformedKeyVal)
 {
-    const char* options[] = { "noequalsign" };
+    const char* options[]         = { "noequalsign" };
     constexpr size_t optionsCount = std::size(options);
 
     Options::ParseAndSet(static_cast<int>(optionsCount), options, Options::g_table);
@@ -78,8 +76,8 @@ TEST_F(OptionsTest, ParseAndSet_MalformedKeyVal)
 
 TEST_F(OptionsTest, ParseAndSet_NoValue)
 {
-    bool savedDasm = Cbc::g_IsRawDisasmEnabled;
-    const char* options[] = { "cbc.dasm=" };
+    bool savedDasm                = Cbc::g_IsRawDisasmEnabled;
+    const char* options[]         = { "cbc.dasm=" };
     constexpr size_t optionsCount = std::size(options);
 
     Options::ParseAndSet(static_cast<int>(optionsCount), options, Options::g_table);
@@ -89,7 +87,7 @@ TEST_F(OptionsTest, ParseAndSet_NoValue)
 
 TEST_F(OptionsTest, ParseAndSet_MultipleKeysLastWins)
 {
-    const char* options[] = { "cbc.dasm=true", "cbc.dasm=false" };
+    const char* options[]         = { "cbc.dasm=true", "cbc.dasm=false" };
     constexpr size_t optionsCount = std::size(options);
 
     Options::ParseAndSet(static_cast<int>(optionsCount), options, Options::g_table);
@@ -99,7 +97,7 @@ TEST_F(OptionsTest, ParseAndSet_MultipleKeysLastWins)
 
 TEST_F(OptionsTest, ParseAndSet_AllLogLevels)
 {
-    const char* options[] = { "cbc.log.all=debug" };
+    const char* options[]         = { "cbc.log.all=debug" };
     constexpr size_t optionsCount = std::size(options);
 
     Options::ParseAndSet(static_cast<int>(optionsCount), options, Options::g_table);
@@ -118,10 +116,7 @@ TEST_F(OptionsTest, InitFromString)
     EXPECT_EQ(g_cbcPath, "/test/path");
 }
 
-TEST_F(OptionsTest, InitFromString_Empty)
-{
-    Options::InitFromString("", Options::g_table);
-}
+TEST_F(OptionsTest, InitFromString_Empty) { Options::InitFromString("", Options::g_table); }
 
 TEST_F(OptionsTest, InitFromString_LeadingTrailingSpaces)
 {
@@ -143,10 +138,7 @@ TEST_F(OptionsTest, InitFromString_UnknownOption)
     Options::InitFromString("cbc.nonexistent=value", Options::g_table);
 }
 
-TEST_F(OptionsTest, InitFromString_Malformed)
-{
-    Options::InitFromString("noequalsign", Options::g_table);
-}
+TEST_F(OptionsTest, InitFromString_Malformed) { Options::InitFromString("noequalsign", Options::g_table); }
 
 TEST_F(OptionsTest, InitFromString_BoolZero)
 {
@@ -167,8 +159,8 @@ TEST_F(OptionsTest, InitFromString_BoolOne)
 
 namespace {
 
-using Opts = Options::Table;
-using Opt = Options::Option;
+using Opts   = Options::Table;
+using Opt    = Options::Option;
 using Status = Opts::Status;
 
 bool SetIntValue(Opts const&, Opt const& opt, std::string_view value)
@@ -210,7 +202,7 @@ TEST(OptionsCustom, SetAndGet)
 
 TEST(OptionsCustom, UnknownOption)
 {
-    int var = 0;
+    int var        = 0;
     Opt fakeOpts[] = {
         { "test.var", &var, &SetIntValue },
     };
@@ -222,7 +214,7 @@ TEST(OptionsCustom, UnknownOption)
 
 TEST(OptionsCustom, InvalidValue)
 {
-    int var = 0;
+    int var        = 0;
     Opt fakeOpts[] = {
         { "test.var", &var, &SetIntValue },
     };
@@ -234,8 +226,8 @@ TEST(OptionsCustom, InvalidValue)
 
 TEST(OptionsCustom, MultipleOptions)
 {
-    int a = 0;
-    int b = 0;
+    int a          = 0;
+    int b          = 0;
     Opt fakeOpts[] = {
         { "test.a", &a, &SetIntValue },
         { "test.b", &b, &SetIntValue },
@@ -250,7 +242,7 @@ TEST(OptionsCustom, MultipleOptions)
 
 TEST(OptionsCustom, LastWins)
 {
-    int var = 0;
+    int var        = 0;
     Opt fakeOpts[] = {
         { "test.var", &var, &SetIntValue },
     };
@@ -263,7 +255,7 @@ TEST(OptionsCustom, LastWins)
 
 TEST(OptionsCustom, InitFromString)
 {
-    int var = 0;
+    int var        = 0;
     Opt fakeOpts[] = {
         { "test.var", &var, &SetIntValue },
     };
@@ -276,7 +268,7 @@ TEST(OptionsCustom, InitFromString)
 
 TEST(OptionsCustom, InitFromString_LastWins)
 {
-    int var = 0;
+    int var        = 0;
     Opt fakeOpts[] = {
         { "test.var", &var, &SetIntValue },
     };
@@ -289,8 +281,8 @@ TEST(OptionsCustom, InitFromString_LastWins)
 
 TEST(OptionsCustom, InitFromString_MultipleOptions)
 {
-    int a = 0;
-    int b = 0;
+    int a          = 0;
+    int b          = 0;
     Opt fakeOpts[] = {
         { "test.a", &a, &SetIntValue },
         { "test.b", &b, &SetIntValue },

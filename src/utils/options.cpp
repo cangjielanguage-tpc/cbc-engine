@@ -27,10 +27,7 @@ Table const g_table(globalOptionsArray);
 
 Stream::Descripted warn(Stream::cerr, "[WARNING] ");
 
-void PrintError(std::string_view prefix, std::string_view str)
-{
-    warn << prefix << " " << str << Stream::endl;
-};
+void PrintError(std::string_view prefix, std::string_view str) { warn << prefix << " " << str << Stream::endl; };
 
 Table::Status Table::Set(std::string_view key, std::string_view value) const
 {
@@ -101,7 +98,7 @@ void SetOptions(std::vector<KeyVal> const& parsedOpts, Table const& opts)
         switch (opts.Set(parsedOpt.key, parsedOpt.val)) {
             case Table::Status::INVALID_OPTION: PrintError("invalid option", parsedOpt.whole); break;
             case Table::Status::UNKNOWN_OPTION: PrintError("unknown option", parsedOpt.whole); break;
-            default:                             continue;
+            default:                            continue;
         }
     }
 }
