@@ -66,10 +66,7 @@ void* Execution::GetVirtualTarget(Reference base, int extDefNum, int methodNum)
     return target;
 }
 
-void* Execution::GetInterfaceTarget(Reference base, TypeInfo ti, int methodNum)
-{
-    return nullptr;
-}
+void* Execution::GetInterfaceTarget(Reference base, TypeInfo ti, int methodNum) { return nullptr; }
 
 int Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool isRef)
 {
