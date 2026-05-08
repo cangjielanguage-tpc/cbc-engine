@@ -172,7 +172,8 @@ public:
     void DirectCall2i(Symbol fuh);
     void DirectCall2c(Symbol target);
 
-    void VirtualCall2c(uint16_t vnum, uint16_t extDefNum);
+    void VirtualCall(uint16_t vnum, uint16_t extDefNum);
+    void InterfaceCall(uint16_t methodNum, RTSupport::TypeInfo typeInfo);
 
     MemSpace OpenMemSpace();
 

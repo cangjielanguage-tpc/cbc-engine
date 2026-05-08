@@ -275,7 +275,7 @@ struct IsaResolvingDisasm : IsaDisasm {
 
     void CallVirtual(IReg dst, uint16_t methodId) override
     {
-        auto m = resolver.Query(Index<DynamicCall>(methodId));
+        auto m = resolver.Query(Index<VirtualCall>(methodId));
         if (!m.has_value()) {
             return;
         }

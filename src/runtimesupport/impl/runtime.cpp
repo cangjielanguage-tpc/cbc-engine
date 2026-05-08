@@ -58,12 +58,17 @@ TypeInfo Execution::GetTypeInfo(Reference base)
     return *header;
 }
 
-MethodTable Execution::GetMethodTable(Reference base, int extDefNum, int methodNum)
+void* Execution::GetVirtualTarget(Reference base, int extDefNum, int methodNum)
 {
     DYN_TypeInfoT** header = reinterpret_cast<DYN_TypeInfoT**>(base.value);
     auto typeInfo          = *header;
     auto target            = typeInfo->vExtensionDataStart[extDefNum]->funcTable[methodNum];
-    return MethodTable(target);
+    return target;
+}
+
+void* Execution::GetInterfaceTarget(Reference base, TypeInfo ti, int methodNum)
+{
+    return nullptr;
 }
 
 int Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool isRef)
