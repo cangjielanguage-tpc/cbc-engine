@@ -2,12 +2,15 @@
 
 #include "engine/engine.h"
 #include "engine/identifiers.h"
+#include "engine/symlevel/definitions.h"
 #include "engine/symlevel/io/file_id.h"
 #include "engine/symlevel/method_table.h"
+#include "engine/symlevel/offset.h"
 #include "engine/symlevel/reader.h"
 #include "engine/symlevel/string.h"
 #include "engine/terms.h"
 #include "utils/ostream.h"
+#include <functional>
 
 namespace Stream {
 
@@ -15,6 +18,10 @@ template <typename T> struct Detailed {
     T value;
 
     Detailed(T value) : value(value) {}
+};
+
+template <typename T> struct Full : public Detailed<T> {
+    Full(T value) : Detailed<T>(value) {}
 };
 
 class ResolvingOutput {
@@ -27,6 +34,9 @@ public:
     ResolvingOutput& operator<<(IO::FileId fileId);
     ResolvingOutput& operator<<(Detailed<Engine::RefIdentifier<Engine::Term>> id);
     ResolvingOutput& operator<<(Symlevel::MethodTable const& mt);
+    ResolvingOutput& operator<<(Symlevel::FieldDefinition const& fd);
+    ResolvingOutput& operator<<(Symlevel::MethodDefinition const& md);
+    ResolvingOutput& operator<<(Symlevel::TypeDefinition const& md);
 
     template <typename T> ResolvingOutput& operator<<(Engine::Identifier<T> id)
     {
@@ -44,6 +54,15 @@ public:
         return *this << Symlevel::Reader::Read(session, id.value);
     }
 
+    template <typename T> ResolvingOutput& operator<<(Full<Engine::Identifier<T>> id)
+    {
+        // FIXME
+        full = true;
+        *this << Symlevel::Reader::Read(session, id.value);
+        full = false;
+        return *this;
+    }
+
     template <typename T> ResolvingOutput& operator<<(const T v)
     {
         out << v;
@@ -53,7 +72,14 @@ public:
     template <typename T> ResolvingOutput& operator<<(Detailed<T> v) { return *this << v.value; }
 
     Engine::Session& session;
-    Stream::Output& out;
+    Stream::Indented& out = holder;
+
+private:
+    bool full = false;
+    Stream::Indented holder;
+    Symlevel::String StringOf(Symlevel::Offset<Symlevel::String>, IO::FileId fid);
+    Symlevel::String StringOf(Engine::Identifier<Symlevel::String>);
+    template <typename T> void Region(T name, std::function<void()> f);
 };
 
 } // namespace Stream

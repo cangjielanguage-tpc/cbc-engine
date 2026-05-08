@@ -1,18 +1,26 @@
 #include "resolving_output.h"
+#include "cbc/isa_disasm.h"
 #include "engine/identifiers.h"
+#include "engine/symlevel/code.h"
+#include "engine/symlevel/definitions.h"
+#include "engine/symlevel/io/file_id.h"
 #include "engine/symlevel/method_table.h"
 #include "engine/symlevel/reader.h"
 #include "engine/terms.h"
+#include "resolution/resolution.h"
 
 namespace Stream {
 
-ResolvingOutput::ResolvingOutput(Engine::Session& session, Stream::Output& out) : session(session), out(out) {}
+ResolvingOutput::ResolvingOutput(Engine::Session& session, Stream::Output& out)
+    : session(session),
+      holder(Indented(out))
+{}
 
 ResolvingOutput& ResolvingOutput::operator<<(Engine::Term term) { return *this << term.GetName(session); }
 
 ResolvingOutput& ResolvingOutput::operator<<(Detailed<Engine::RefIdentifier<Engine::Term>> term)
 {
-    return *this << Engine::TermManager::Resolve(session, term.value) << " " << term.value;
+    return *this << Engine::TermManager::Resolve(session, term.value);
 }
 
 ResolvingOutput& ResolvingOutput::operator<<(Engine::GlobalTerm term) { return *this << Engine::Term(term); }
@@ -20,6 +28,75 @@ ResolvingOutput& ResolvingOutput::operator<<(Engine::GlobalTerm term) { return *
 ResolvingOutput& ResolvingOutput::operator<<(Engine::LocalTerm term) { return *this << Engine::Term(term); }
 
 ResolvingOutput& ResolvingOutput::operator<<(IO::FileId fileId) { return *this << fileId.id; }
+
+ResolvingOutput& ResolvingOutput::operator<<(Symlevel::FieldDefinition const& fd)
+{
+    auto& out  = *this;
+    auto ftype = Detailed(fd.FieldType());
+    auto name  = StringOf(fd.NameOffset(), fd.FieldType().GetFileId());
+    out << Detailed(fd.Flags()) << " " << Detailed(fd.FieldType()) << " " << name;
+    return out;
+}
+
+ResolvingOutput& ResolvingOutput::operator<<(Symlevel::MethodDefinition const& md)
+{
+    auto& out     = *this;
+    auto resolver = Resolution::Resolver(session, md.GetIdentifier());
+    auto name     = Detailed(md.Name());
+    if (!full) {
+        out << name << Detailed(md.Signature());
+        return out;
+    }
+
+    Region(name, [&] {
+        auto sig = Detailed(md.Signature());
+        out << "flags: " << Detailed(md.GetFlags()) << endl;
+        out << "sig: " << Detailed(sig) << endl;
+        if (auto sourceFileOpt = md.SourceFile()) {
+            out << "source file: " << StringOf(*sourceFileOpt) << endl;
+        }
+        if (auto sourceFullOpt = md.SourceFullName()) {
+            out << "source full name: " << StringOf(*sourceFullOpt) << endl;
+        }
+        if (auto linkageOpt = md.LinkageName()) {
+            out << "linkage name: " << StringOf(*linkageOpt) << endl;
+        }
+        if (auto codeOpt = md.MethodCode()) {
+            Region("code", [&]() {
+                auto code = Symlevel::Code::Parse(session, md.FileId(), codeOpt->GetOffset());
+                Cbc::Disasm(ResolvingOutput::out, code, &resolver);
+            });
+        }
+    });
+
+    return out;
+}
+
+ResolvingOutput& ResolvingOutput::operator<<(Symlevel::TypeDefinition const& td)
+{
+    auto& out = *this;
+    Region(StringOf(td.GetName()), [&]() {
+        out << "super: " << Detailed(td.GetSuperType()) << endl;
+        Region("fields", [&]() {
+            td.GetFields().ForEach(session, [&](auto& def) { out << Detailed(def.Identifier()) << endl; });
+        });
+
+        Region("methods", [&]() {
+            td.GetMethods().ForEach(session, [&](auto& def) { out << Detailed(def.GetIdentifier()); });
+        });
+
+        Region("virtual methods", [&]() {
+            std::vector<Engine::Identifier<Symlevel::MethodDefinition>> methods;
+            auto vms = td.GetVirtualMethods();
+            vms.Read(session, methods);
+            for (auto ident : methods) {
+                out << Detailed(ident);
+            }
+        });
+    });
+
+    return out;
+}
 
 ResolvingOutput& ResolvingOutput::operator<<(Symlevel::MethodTable const& mt)
 {
@@ -50,6 +127,25 @@ ResolvingOutput& ResolvingOutput::operator<<(Symlevel::MethodTable const& mt)
         writeTable(st);
     }
     return out;
+}
+
+template <typename T> void ResolvingOutput::Region(T name, std::function<void()> f)
+{
+    *this << name << " {" << endl;
+    out.SetIndent([](auto indent) { return indent + 2; });
+    f();
+    out.SetIndent([](auto indent) { return indent - 2; });
+    *this << "}" << endl;
+}
+
+Symlevel::String ResolvingOutput::StringOf(Symlevel::Offset<Symlevel::String> str, IO::FileId fid)
+{
+    return Symlevel::String::Parse(session, fid, str);
+}
+
+Symlevel::String ResolvingOutput::StringOf(Engine::Identifier<Symlevel::String> str)
+{
+    return Symlevel::String::Parse(session, str);
 }
 
 } // namespace Stream
