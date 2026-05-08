@@ -271,9 +271,11 @@ struct IsaRewriter : public IsaParser {
             return;
         }
 
-        auto typeInfo = type->GetTypeInfo().value().Raw();
-        auto sym      = emit.NewAddressSym(reinterpret_cast<uintptr_t>(typeInfo));
-        emit.NewObj(dst, sym);
+        auto typeInfo = type->GetTypeInfo().value();
+        emit.NewObj(typeInfo);
+        if (dst != IReg::IR1) {
+            emit.Mov(dst, IReg::IR1);
+        }
     }
 
     void CallDirect(IReg dst, uint16_t methodId) override

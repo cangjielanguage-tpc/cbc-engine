@@ -481,11 +481,11 @@ void Emitter::Jmp(Label label) { AddFixup(std::make_unique<JmpFixup>(label)); }
 
 void Emitter::Ret() { Encode(segment, RT::B1 { RT::Opcode::RET }); }
 
-void Emitter::NewObj(IReg d, Symbol sym)
+void Emitter::NewObj(RTSupport::TypeInfo typeInfo)
 {
-    segment.AddW8(RT::Opcode::NEWOBJ);
-    Imm4 i4(d);
-    AddFixup(std::make_unique<Literal12Fixup>(i4, sym));
+    Encode(
+        segment, RT::B9i64 { .opc = RT::Opcode::NEWOBJ, .imm64 = { .imm = reinterpret_cast<uint64_t>(typeInfo.Raw()) } }
+    );
 }
 
 void Emitter::LoadStatic(LoadAccessKind ldk, Reg dst, Symbol offSym)
