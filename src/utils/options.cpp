@@ -2,6 +2,7 @@
 #include "resolution/resolution.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
+#include "utils/rt_logger.h"
 #include <charconv>
 #include <cstdlib>
 #include <string_view>
@@ -69,6 +70,7 @@ constexpr Option options[] = {
     { "cbc.log.resolution", &Resolution::log, &SetLogLevelOption },
     { "cbc.log.int", &Interpretation::Log::interpretation, &SetLogLevelOption },
     { "cbc.log.preparation", &Interpretation::Log::preparation, &SetLogLevelOption },
+    { "cbc.log.typeinfo", &RTSupport::Log::typeinfo, &SetLogLevelOption },
     { "cbc.log.all", nullptr, &SetLogLevelOptionForAll },
 };
 

@@ -11,9 +11,11 @@ namespace Engine {
 
 using TypeInfo = RTSupport::TypeInfo;
 
-struct Failed {};
+struct Failed {
+} failed;
 
-struct Pending {};
+struct Pending {
+} pending;
 
 using ResolutionState = std::variant<TypeInfo, Failed, Pending>;
 
@@ -33,7 +35,7 @@ struct BasicTypeInfoManager : public TypeInfoManager {
                 return std::nullopt;
             } else if (std::holds_alternative<Pending>(state)) {
                 // recursive access
-                storage.insert({ term, Failed {} });
+                storage.insert_or_assign(term, failed);
                 return std::nullopt;
             }
         }
@@ -42,9 +44,9 @@ struct BasicTypeInfoManager : public TypeInfoManager {
 
         auto result = RTSupport::CreateTypeInfo(session, *this, term);
         if (result.has_value()) {
-            storage.insert({ term, result.value() });
+            storage.insert_or_assign(term, result.value());
         } else {
-            storage.insert({ term, Failed {} });
+            storage.insert_or_assign(term, failed);
         }
 
         return result;

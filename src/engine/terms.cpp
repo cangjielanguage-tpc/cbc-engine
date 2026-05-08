@@ -34,6 +34,10 @@ struct TermData {
 
     void InitAfterSubterms(TermId identifier, uint16_t length, bool isLocal)
     {
+        uint32_t hash = 0;
+        for (int i = 0; i < length; i++) {
+            hash = 31 * hash + subterms->Hash();
+        }
         Init(identifier, identifier.Hash() ^ hash, length, isLocal);
     }
 
@@ -47,25 +51,22 @@ struct TermData {
 };
 
 enum Tag : uint8_t {
-    NIL,                      // 0x00
-    TYPE,                     // 0x01
-    AOT_TYPE,                 // 0x02
-    CANGJIE_ARRAY,            // 0x03
-    VARRAY,                   // 0x04
-    ENUM_WRAPPER,             // 0x05
-    C_POINTER,                // 0x06
-    GENERIC_TYPE_TERM,        // 0x07
-    GENERIC_TYPE_VAR,         // 0x08
-    GENERIC_RECORD,           // 0x09
-    GENERIC_REFERENCE,        // 0x0a
-    NULLABLE,                 // 0x0b
-    METHOD_SIGNATURE,         // 0x0c
-    GENERIC_METHOD,           // 0x0d
-    CONSTRAINT,               // 0x0e
-    PARAMETERIZED_CONSTRAINT, // 0x0f
-    JAVA_REFERENCE,           // 0x10
-    JAVA_ARRAY,               // 0x11
-    NON_NULLABLE,             // 0x12
+    NIL,               // 0x00
+    REF,               // 0x01
+    AOT_REF,           // 0x02
+    CANGJIE_ARRAY,     // 0x03
+    VARRAY,            // 0x04
+    ENUM_WRAPPER,      // 0x05
+    C_POINTER,         // 0x06
+    CLASS_TYPE_VAR,    // 0x07
+    FUNC_TYPE_VAR,     // 0x08
+    GENERIC_RECORD,    // 0x09
+    GENERIC_REFERENCE, // 0x0a
+    NULLABLE,          // 0x0b
+    METHOD_SIGNATURE,  // 0x0c
+    REC,               // 0x0d
+    AOT_REC,           // 0x0e
+    NON_NULLABLE,      // 0x0f
 };
 
 static TermData* AllocateTerm(Memory::Heap& allocator, size_t subtermCount = 0)
@@ -87,6 +88,7 @@ static TermData builtins[] = {
     { TagTermId(TermKind::BSTRING), 0x16, 0, false }, { TagTermId(TermKind::F16), 0x87, 0, false },
     { TagTermId(TermKind::F32), 0x98, 0, false },     { TagTermId(TermKind::F64), 0x29, 0, false },
 };
+static_assert(FIRST_NON_PRIMITIVE == sizeof(builtins) / sizeof(builtins[0]));
 
 bool TermId::IsReference()
 {
@@ -129,10 +131,9 @@ int TermId::Width()
     }
 }
 
-static Term Primitive(Session& session, Symlevel::RefId<Term> index)
+Term Term::Predefined(TermKind tk)
 {
-    static_assert(FIRST_NON_PRIMITIVE == sizeof(builtins) / sizeof(builtins[0]));
-    int num = static_cast<int>(index.GetIndex());
+    int num = static_cast<int>(tk);
     ASSERT(num < FIRST_NON_PRIMITIVE);
     return GlobalTerm(&builtins[num]);
 }
@@ -153,13 +154,11 @@ static Term Undefined(Session& session, RefIdentifier<Term> termId)
     return LocalTerm(data);
 }
 
-static bool CompareTermData(TermData* origin, TermData* another, bool ignoreLocal)
+static bool CompareTermData(TermData* origin, TermData* another)
 {
     if (another == origin) {
         return true;
     } else if (another->hash != origin->hash) {
-        return false;
-    } else if (!ignoreLocal && another->isLocal != origin->isLocal) {
         return false;
     } else if (another->identifier != origin->identifier) {
         return false;
@@ -168,7 +167,7 @@ static bool CompareTermData(TermData* origin, TermData* another, bool ignoreLoca
     } else {
         auto length = origin->length;
         for (auto i = 0; i < length; i++) {
-            if (!CompareTermData(another->subterms[i].data, origin->subterms[i].data, ignoreLocal)) {
+            if (!CompareTermData(another->subterms[i].data, origin->subterms[i].data)) {
                 return false;
             }
         }
@@ -179,6 +178,8 @@ static bool CompareTermData(TermData* origin, TermData* another, bool ignoreLoca
 Term::Term(LocalTerm local) : data(local.data) {}
 
 Term::Term(GlobalTerm global) : data(global.data) {}
+
+Term::Term(Term const& term) : data(term.data) {}
 
 LocalTerm Term::AsLocal()
 {
@@ -276,15 +277,15 @@ void Term::GetName(Session& session, Stream::Output& stream) const
         }
 
         case TK::METHOD: {
-            // FIXME: separate ret type from rest
-            printSubTerms("(", ")", GetLength());
+            printSubTerms("(", ")", GetLength() - 1);
+            Subterm(GetLength() - 1).GetName(session, stream);
             break;
         }
 
         case TK::TYPE: {
             auto ident = TypeTermId(*this).GetIdentifier();
             auto type  = Symlevel::TypeDefinition::Resolve(session, ident);
-            stream << Symlevel::String::Parse(session, ident.GetFileId(), type.NameOffset());
+            stream << Symlevel::Reader::Read(session, type.GetName());
             if (int len = GetLength(); len > 0) {
                 printSubTerms("<", ">", len);
             }
@@ -318,7 +319,7 @@ void Term::GetName(Session& session, Stream::Output& stream) const
 
 bool Term::operator!=(const Term& another) const { return !(*this == another); }
 
-bool Term::operator==(const Term& another) const { return CompareTermData(this->data, another.data, false); }
+bool Term::operator==(const Term& another) const { return CompareTermData(this->data, another.data); }
 
 bool Term::IsLocal() const { return data->isLocal; }
 
@@ -334,9 +335,9 @@ GlobalTerm LocalTerm::Publish(Session& session)
 
 GlobalTerm GlobalTerm::Subterm(uint32_t i) const { return this->data->subterms[i].AsGlobal(); }
 
-bool GlobalTerm::operator==(const GlobalTerm& another) const { return this == &another; }
+bool GlobalTerm::operator==(const GlobalTerm& another) const { return data == another.data; }
 
-bool GlobalTerm::operator!=(const GlobalTerm& another) const { return this != &another; }
+bool GlobalTerm::operator!=(const GlobalTerm& another) const { return data != another.data; }
 
 GlobalTerm TermManager::Globalize(Term& term)
 {
@@ -376,6 +377,30 @@ GlobalTerm TermManager::Globalize(Term& term)
 
 uint64_t TermManager::Hasher::operator()(TermData* const& data) const { return data->hash; }
 
+bool TermManager::Comparator::operator()(TermData* const& left, TermData* const& right) const
+{
+    if (left == right) {
+        return true;
+    } else if (left->hash != right->hash) {
+        return false;
+    } else if (left->length != right->length) {
+        return false;
+    } else {
+        auto len = left->length;
+        // shallow comparison for cache.
+        for (int i = 0; i < len; i++) {
+            auto lhs = left->subterms[i];
+            auto rhs = right->subterms[i];
+            ASSERT(!lhs.IsLocal());
+            ASSERT(!rhs.IsLocal());
+            if (lhs.data != rhs.data) {
+                return false;
+            }
+        }
+        return true;
+    }
+}
+
 struct TermResolver {
     Symlevel::RegionData const& regionData;
     Session& session;
@@ -384,32 +409,34 @@ struct TermResolver {
     IO::RandomAccessFile& raf;
     Symlevel::CbcFile& file;
 
-    Term NewUndefined(Symlevel::RefId<Term> index) { return Undefined(session, RefIdentifier(index, fileId)); }
+    Term NewUndefined(Symlevel::RefId<Term> refId) { return Undefined(session, RefIdentifier(refId, fileId)); }
 
-    Term Resolve(Symlevel::RefId<Term> index)
+    Term Resolve(Symlevel::RefId<Term> refId)
     {
         using namespace Symlevel;
 
-        if (index.GetIndex() < FIRST_NON_PRIMITIVE) {
-            return Primitive(session, index);
+        if (refId.GetIndex() < FIRST_NON_PRIMITIVE) {
+            return Term::Predefined(TermKind(refId.GetIndex()));
         }
-        auto offset = regionData.Query(session, index);
+        auto offset = regionData.Query(session, refId);
         IO::StreamFileReader reader(raf, file.GetTermSectionOffs() + offset);
 
         auto tag = static_cast<Tag>(reader.ReadU8());
         switch (tag) {
-            case TYPE: {
+            case REC: // fall-through
+            case REF: {
                 auto name = Reader::Read(session, fileId, Offset<String>(reader.ReadULEB()));
                 auto type = session.GetEngine().FindType(session, name);
                 if (!type.has_value()) {
-                    return NewUndefined(index);
+                    return NewUndefined(refId);
                 }
                 auto identifier = type.value();
                 auto* data      = AllocateTerm(heap);
                 data->InitAfterSubterms(TypeTermId(identifier), 0, true);
                 return Term(LocalTerm(data));
             }
-            case AOT_TYPE: {
+            case AOT_REC:
+            case AOT_REF: {
                 auto nameOffs   = Offset<String>(reader.ReadULEB());
                 auto* data      = AllocateTerm(heap);
                 auto identifier = Identifier(nameOffs, fileId);
@@ -423,10 +450,11 @@ struct TermResolver {
                 auto& regionData = session.CbcFileOf(fileId).GetRegionData();
                 for (int i = 0; i < len; i++) {
                     auto subtermIdx = reader.ReadULEB();
-                    auto subterm    = Resolve(RefId<Term>(index.GetRegion(), subtermIdx));
-                    if (subterm.GetId().GetKind() == TermKind::UNDEFINED) {
-                        return NewUndefined(index);
+                    auto subterm    = Resolve(RefId<Term>(refId.GetRegion(), subtermIdx));
+                    if (subterm.GetKind() == TermKind::UNDEFINED) {
+                        return NewUndefined(refId);
                     }
+                    data->subterms[i] = subterm;
                 }
 
                 data->InitAfterSubterms(TagTermId(TermKind::METHOD), len, true);
@@ -434,7 +462,7 @@ struct TermResolver {
             }
             default: {
                 FATAL("Not implemented for tag %d", tag);
-                return NewUndefined(index);
+                return NewUndefined(refId);
             }
         }
     }

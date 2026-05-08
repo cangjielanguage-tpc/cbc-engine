@@ -14,9 +14,6 @@ namespace Symlevel {
 template <typename T> struct RefId {
     static constexpr auto BIT_SIZE = 24;
 
-    uint8_t const region;
-    uint16_t const index;
-
     constexpr RefId(uint8_t region, uint16_t index) : region(region), index(index) {}
 
     uint8_t GetRegion() const { return region; }
@@ -24,6 +21,10 @@ template <typename T> struct RefId {
     uint32_t GetIndex() const { return index; }
 
     bool operator==(const RefId& another) const { return region == another.region && index == another.index; }
+
+private:
+    uint8_t region;
+    uint16_t index;
 };
 
 } // namespace Symlevel

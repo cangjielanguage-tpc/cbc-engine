@@ -4,7 +4,10 @@
 
 #include "adapters.h"
 #include "cbc/isa_rewriter.h"
+#include "engine/resolving_output.h"
 #include "engine/symlevel/definitions.h"
+#include "engine/symlevel/dependencies.h"
+#include "engine/symlevel/flags.h"
 #include "engine/symlevel/reader.h"
 #include "function_handle.h"
 #include "interpreter/loggers.h"
@@ -41,13 +44,58 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
     if (res != impl->fuhMap.end()) {
         return res->second;
     }
-    auto i2Call = PrepareI2Call(session, methodDef);
-    auto c2Call = PrepareC2Call(session, methodDef);
-    auto fuh    = new DynamicFunctionHandle(i2Call, c2Call, methodDef);
-    if (fuh == nullptr) {
-        FATAL("out of memory");
-    }
-    // FIXME: proper publication
+
+    Log::preparation.Log(Logging::Level::INFO, [&](Stream::Output& out) {
+        Stream::ResolvingOutput stream(session, out);
+        stream << "starting to build fuh for " << methodDef << Stream::endl;
+    });
+
+    auto method = Symlevel::Reader::Read(session, methodDef);
+    auto flags  = method.GetFlags();
+
+    ASSERTION(!flags.Is(MethodFlag::ABSTRACT), "Only methods that can be actually called can have FUH");
+
+    auto newStaticFuh = [&]() -> StaticFunctionHandle* {
+        auto& deps       = session.CbcFileOf(methodDef.GetFileId()).GetDependencies();
+        auto linkageName = Symlevel::Reader::Read(session, method.LinkageName().value());
+        auto target      = deps.FindTarget(linkageName);
+
+        Log::preparation.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
+            if (target != nullptr)
+                return;
+            using namespace Stream;
+            Stream::ResolvingOutput stream(session, out);
+            stream << "failed to resolve aot method" << endl;
+            stream << "  name: " << Detailed(method.Name()) << Detailed(method.Signature()) << endl;
+            stream << "  linkageName: " << linkageName << endl;
+        });
+
+        // TODO: put stub trampoline that throws exception
+        StaticFunctionHandle fuh {
+            .base     = FunctionHandle(RTSupport::Adapters::GenericI2CCallInstance()),
+            .function = target,
+        };
+        auto mem = new StaticFunctionHandle(fuh);
+        if (mem == nullptr) {
+            FATAL("out of memory");
+        }
+        // FIXME: proper publication
+        return mem;
+    };
+
+    auto newDynFuh = [&]() -> DynamicFunctionHandle* {
+        auto i2Call = PrepareI2Call(session, methodDef);
+        auto c2Call = PrepareC2Call(session, methodDef);
+        auto mem    = new DynamicFunctionHandle(i2Call, c2Call, methodDef);
+        if (mem == nullptr) {
+            FATAL("out of memory");
+        }
+        // FIXME: proper publication
+        return mem;
+    };
+
+    auto fuh = flags.Is(MethodFlag::AOT) ? TaggedFunctionHandle(newStaticFuh()) : TaggedFunctionHandle(newDynFuh());
+
     impl->fuhMap.insert({ methodDef.Pack(), fuh });
     return fuh;
 }
@@ -72,26 +120,19 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Session& session, DynamicFuncti
 
     auto& logger = Interpretation::Log::preparation;
 
-    auto def  = Symlevel::MethodDefinition::Resolve(session, fuh->methodDef);
-    auto code = Symlevel::Reader::Read(session, def.FileId(), def.GetCodeOffset());
-
-    logger.Log(Logging::Level::INFO, [&session, fuh, &def](Stream::Output& out) {
-        auto name = std::string(Symlevel::Reader::Read(session, def.FileId(), def.NameOffset()));
-        // TODO: print signature
-        out.PrintFmt(
-            "{%p} Started preparation of method (%u;%u) %s",
-            fuh,
-            fuh->methodDef.GetFileId(),
-            fuh->methodDef.GetOffset(),
-            name.c_str()
-        );
-        out.NewLine();
+    logger.Log(Logging::Level::INFO, [&](Stream::Output& out) {
+        using namespace Stream;
+        auto def = Reader::Read(session, fuh->methodDef);
+        Stream::ResolvingOutput stream(session, out);
+        stream << fuh->methodDef << " started preparation of method " << endl;
+        stream << "  fuh: " << fuh << endl;
+        stream << "  name: " << Detailed(def.Name()) << Detailed(def.Signature()) << endl;
     });
 
-    Resolution::Resolver resolver(session, def.GetIdentifier());
+    Resolution::Resolver resolver(session, fuh->methodDef);
 
     auto& heap    = session.GetEngine().CodeHeap();
-    auto bytecode = Cbc::Rewrite(fuh, code, resolver, heap);
+    auto bytecode = Cbc::Rewrite(session, fuh->methodDef, heap);
 
     fuh->bytecode.store(new ExecBytecodeInfo(bytecode));
 

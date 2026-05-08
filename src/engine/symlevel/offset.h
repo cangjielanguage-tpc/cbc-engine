@@ -14,7 +14,7 @@ template <typename T> struct Offset {
 
     operator uint32_t() const { return value; }
 
-    const uint32_t value;
+    uint32_t value;
 };
 
 } // namespace Symlevel

@@ -127,9 +127,11 @@ public:
     TermData* data;
 
     static Term Definition(Session& session, Identifier<Symlevel::TypeDefinition> type);
+    static Term Predefined(TermKind tk);
 
     Term(LocalTerm local);
     Term(GlobalTerm global);
+    Term(Term const& term);
 
     TermId GetId() const;
     TermKind GetKind() const;
@@ -196,7 +198,10 @@ template <typename Id, TermKind tk> struct _SpecializedTermId : public TermId {
 
     explicit _SpecializedTermId(Term term) : _SpecializedTermId(term.GetId()) {}
 
-    explicit _SpecializedTermId(TermId ident) : TermId(ident) { ASSERT(ident.GetKind() == tk); }
+    explicit _SpecializedTermId(TermId ident) : TermId(ident)
+    {
+        ASSERTION(ident.GetKind() == tk, "expected: %d, actual: %d", tk, ident.GetKind());
+    }
 
     Id GetIdentifier()
     {
@@ -235,8 +240,12 @@ private:
         uint64_t operator()(TermData* const& data) const;
     };
 
+    struct Comparator {
+        bool operator()(TermData* const& left, TermData* const& right) const;
+    };
+
     std::mutex lock;
-    std::unordered_set<TermData*, Hasher> cache;
+    std::unordered_set<TermData*, Hasher, Comparator> cache;
 };
 
 } // namespace Engine

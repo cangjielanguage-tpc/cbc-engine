@@ -28,12 +28,7 @@ template <typename T> struct Identifier {
         }
     };
 
-    Symlevel::Offset<T> const offs;
-    IO::FileId const fileId;
-
     Identifier(Symlevel::Offset<T> offs, IO::FileId fileId) : offs(offs), fileId(fileId) {}
-
-    Identifier(Identifier<T> const& another) : Identifier(another.offs, another.fileId) {}
 
     Identifier(Packed const& packed) : Identifier(Symlevel::Offset<T>(packed.offs), IO::FileId(packed.fileId)) {}
 
@@ -44,6 +39,10 @@ template <typename T> struct Identifier {
     bool operator==(const Identifier& another) const { return Pack() == another.Pack(); }
 
     inline Packed Pack() const { return { 0, offs, fileId }; }
+
+private:
+    Symlevel::Offset<T> offs;
+    IO::FileId fileId;
 };
 
 template <typename T> struct RefIdentifier {
@@ -64,12 +63,7 @@ template <typename T> struct RefIdentifier {
         }
     };
 
-    Symlevel::RefId<T> const index;
-    IO::FileId const fileId;
-
     RefIdentifier(Symlevel::RefId<T> index, IO::FileId fileId) : index(index), fileId(fileId) {}
-
-    RefIdentifier(RefIdentifier const& another) : RefIdentifier(another.index, another.fileId) {}
 
     RefIdentifier(Packed const& packed)
         : RefIdentifier(Symlevel::RefId<T>(packed.region, packed.id), IO::FileId(packed.fileId))
@@ -82,6 +76,10 @@ template <typename T> struct RefIdentifier {
     bool operator==(const RefIdentifier& another) const { return Pack() == another.Pack(); }
 
     inline Packed Pack() const { return { 0, index.GetRegion(), index.GetIndex(), fileId }; }
+
+private:
+    Symlevel::RefId<T> index;
+    IO::FileId fileId;
 };
 
 } // namespace Engine

@@ -2,7 +2,9 @@
 #include "RuntimeTypes.h"
 #include "engine/engine.h"
 #include "engine/identifiers.h"
+#include "engine/resolving_output.h"
 #include "engine/symlevel/definitions.h"
+#include "engine/symlevel/flags.h"
 #include "engine/symlevel/method_table.h"
 #include "engine/symlevel/reader.h"
 #include "engine/terms.h"
@@ -12,16 +14,20 @@
 #include "runtimesupport/impl/typeinfo_ext.h"
 #include "runtimesupport/runtime.h"
 #include "utils/assertion.h"
+#include "utils/logger.h"
+#include "utils/ostream.h"
+#include "utils/rt_logger.h"
 #include <cstdint>
 #include <cstdlib>
 #include <optional>
-#include <utility>
 
 namespace RTSupport {
 
 template <typename T> static T* Alloc(size_t cnt = 1) { return reinterpret_cast<T*>(std::malloc(sizeof(T) * cnt)); }
 
-static char* Copy(std::string_view str)
+static std::optional<TypeInfo> QueryTypeInfoAOTByName(char const* str);
+
+static char* ConstructTypeInfoName(std::string_view str)
 {
     auto size  = str.size();
     auto data  = str.data();
@@ -32,6 +38,29 @@ static char* Copy(std::string_view str)
 
     std::memcpy(cStr, data, size);
     cStr[size] = 0;
+
+    char* lastDot = nullptr;
+    char* cursor  = cStr;
+    for (;; cursor++) {
+        if (*cursor == '.')
+            lastDot = cursor;
+        switch (*cursor) {
+            case '.': lastDot = cursor; continue;
+            case '<':
+            case ',':
+            case '>': {
+                if (lastDot)
+                    *lastDot = ':';
+                continue;
+            }
+            case '\0': {
+                if (lastDot)
+                    *lastDot = ':';
+                return cStr;
+            }
+        }
+    }
+
     return cStr;
 }
 
@@ -48,22 +77,22 @@ static char* Copy(std::string_view str)
 struct TypeInfoBuilder {
     char* name = nullptr;
     int8_t type;
-    uint8_t flag = 0;
-    uint16_t fieldNum;
+    uint8_t flag      = 0;
+    uint16_t fieldNum = 0;
     //
     // assume that there is no 32-bit size objects
     int32_t instanceSize  = -1;
     int32_t componentSize = -1;
 
     DYN_GCTibT gctib; // TODO: gctib builder
-    uint32_t uuid;
+    uint32_t uuid = 0;
     uint8_t align;
-    int8_t typeArgsNum;
-    uint16_t validInheritNum;
-    uint32_t* fieldOffsets = nullptr;
-    DYN_FuncPtrT finalizerMethod;
-    DYN_TypeInfoT** typeArgs = nullptr;
-    DYN_TypeInfoT** fields   = nullptr;
+    int8_t typeArgsNum           = 0;
+    uint16_t validInheritNum     = 0;
+    uint32_t* fieldOffsets       = nullptr;
+    DYN_FuncPtrT finalizerMethod = nullptr;
+    DYN_TypeInfoT** typeArgs     = nullptr;
+    DYN_TypeInfoT** fields       = nullptr;
 
     DYN_TypeInfoT* superTypeInfo     = nullptr;
     DYN_TypeInfoT* componentTypeInfo = nullptr;
@@ -149,11 +178,25 @@ struct TypeInfoBuilder {
 };
 
 static DYN_FuncPtrT GetFunctionOrTrampoline(
-    Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> method, int entryIdx
+    Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> methodId, int entryIdx
 )
 {
-    // FIXME: expects only CBC methods for now.
-    return Adapters::GetDynCallTrampoline(entryIdx);
+    auto method = Symlevel::Reader::Read(session, methodId);
+    auto flags  = method.GetFlags();
+
+    ASSERTION(flags.Is(Symlevel::MethodFlag::VIRTUAL), "Only virtual methods are expected");
+
+    if (flags.Is(Symlevel::MethodFlag::ABSTRACT)) {
+        return nullptr;
+    } else if (flags.Is(Symlevel::MethodFlag::AOT)) {
+        // must be present with aot flag
+        auto& manager  = Interpretation::FunctionHandleManager::Of(session);
+        auto fuh       = manager.AcquireTagged(session, methodId);
+        auto staticFuh = std::get<Interpretation::StaticFunctionHandle*>(fuh);
+        return staticFuh->function;
+    } else {
+        return Adapters::GetDynCallTrampoline(entryIdx);
+    }
 }
 
 static std::optional<TypeInfo> CreateTypeInfoDyn(
@@ -161,10 +204,9 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 )
 {
     auto ident = Engine::TypeTermId(term).GetIdentifier();
-    auto file  = ident.GetFileId();
 
-    auto type = Symlevel::Reader::Read(session, file, ident.GetOffset());
-    auto name = Symlevel::Reader::Read(session, file, type.NameOffset());
+    auto type = Symlevel::Reader::Read(session, ident);
+    auto name = Symlevel::Reader::Read(session, type.GetName());
 
     auto currentTypeInfo = Alloc<CbcTypeInfo>();
     if (!currentTypeInfo) {
@@ -177,17 +219,23 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
                          ) -> std::optional<RTSupport::TypeInfo> {
         if (t == term) {
             return TypeInfo(&currentTypeInfo->base);
+        } else if (t.GetKind() == Engine::TermKind::NIL) {
+            // special case;
+            // method table of core.object is encoded as nil;
+            return QueryTypeInfoAOTByName("std.core:Object");
         }
         return manager.AcquireTypeInfo(session, t);
     };
 
     // TODO: construct proper name
-    auto typeInfoName = Copy(name);
-    if (typeInfoName == nullptr) {
+    builder.name = ConstructTypeInfoName(name);
+    if (builder.name == nullptr) {
         return std::nullopt;
     }
 
-    builder.name = typeInfoName;
+    if (type.GetFlags().Is(Symlevel::TypeFlag::AOT)) {
+        return QueryTypeInfoAOTByName(builder.name);
+    }
 
     // FIXME
     builder.type     = -128; // class
@@ -197,20 +245,34 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
     builder.instanceSize = 0;
 
+    auto superType = Engine::TermManager::Resolve(session, type.GetSuperType());
+
+    if (auto superTypeInfo = queryTypeInfo(superType); superTypeInfo.has_value()) {
+        builder.superTypeInfo = UnpackTypeInfo(superTypeInfo.value());
+    } else {
+        // TODO: log
+        return std::nullopt;
+    }
+
     { // fill out ext defs
         auto& manager    = Symlevel::MethodTableManager::Of(session);
         auto& fuhManager = Interpretation::FunctionHandleManager::Of(session);
         auto mt          = manager.GetMethodTable(session, term);
 
-        auto extDefCount       = mt.ClassSubTableCount() + mt.InterfaceSubTableCount();
+        Log::typeinfo.Log(Logging::Level::INFO, [&](Stream::Output& out) {
+            Stream::ResolvingOutput stream(session, out);
+            stream << term << " " << *mt << Stream::endl;
+        });
+
+        auto extDefCount       = mt->ClassCount() + mt->InterfaceCount();
         constexpr auto ptrSize = sizeof(void*);
 
         // To simplify memory management here, we will preallocate "flat" arrays
         // where corresponding structures would be filled out.
         // E.g. function tables are essentionally views in the big array.
 
-        builder.dataMT      = Alloc<Interpretation::FunctionHandle*>(mt.EntryCount());
-        builder.flatMethods = Alloc<DYN_FuncPtrT>(mt.EntryCount());
+        builder.dataMT      = Alloc<Interpretation::FunctionHandle*>(mt->EntryCount());
+        builder.flatMethods = Alloc<DYN_FuncPtrT>(mt->EntryCount());
         builder.extDefs     = Alloc<DYN_ExtensionDataT*>(extDefCount);
         builder.flatExtDefs = Alloc<DYN_ExtensionDataT>(extDefCount);
 
@@ -220,10 +282,10 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
         // fill out flat methods table and data method table
         int entryIdx = 0;
-        for (auto it = mt.EntriesIter(); it.HasNext(); entryIdx++) {
-            auto entry                    = it.Next();
-            builder.dataMT[entryIdx]      = fuhManager.Acquire(session, entry);
-            builder.flatMethods[entryIdx] = GetFunctionOrTrampoline(session, entry, entryIdx);
+        for (auto entry : mt->Entries()) {
+            builder.dataMT[entryIdx]      = fuhManager.Acquire(session, entry.method);
+            builder.flatMethods[entryIdx] = GetFunctionOrTrampoline(session, entry.method, entryIdx);
+            entryIdx++;
         }
 
         // Fill out array of pointers to ext defs.
@@ -241,7 +303,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             extDef.funcTableSize       = smt.EndPos() - smt.StartPos();
             extDef.argNum              = 0;
             extDef.isInterfaceTypeInfo = 1;
-            extDef.flag                = 0b00000001; // FIXME: research how to properly implement this.
+            extDef.flag                = 0b00000110; // FIXME: research how to properly implement this.
 
             extDef.ti = &currentTypeInfo->base;
 
@@ -260,14 +322,14 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
         // fill out ext defs
         int extDefIndex = 0;
-        for (auto it = mt.ClassSubTableIter(); it.HasNext();) {
-            if (!prepareExtDef(builder.flatExtDefs[extDefIndex++], it.Next())) {
+        for (auto st : mt->Classes()) {
+            if (!prepareExtDef(builder.flatExtDefs[extDefIndex++], st)) {
                 return std::nullopt;
             }
         }
 
-        for (auto it = mt.InterfaceSubTableIter(); it.HasNext();) {
-            if (!prepareExtDef(builder.flatExtDefs[extDefIndex++], it.Next())) {
+        for (auto st : mt->Interfaces()) {
+            if (!prepareExtDef(builder.flatExtDefs[extDefIndex++], st)) {
                 return std::nullopt;
             }
         }
@@ -289,7 +351,7 @@ static std::optional<TypeInfo> QueryTypeInfoAOTByName(char const* str)
 static std::optional<TypeInfo> QueryTypeInfoAOT(Engine::Session& session, Engine::GlobalTerm term)
 {
     auto ident    = Engine::AotTermId(term).GetIdentifier();
-    auto typeName = std::string(Symlevel::Reader::Read(session, ident.GetFileId(), ident.GetOffset()));
+    auto typeName = std::string(Symlevel::Reader::Read(session, ident));
 
     auto typeInfo = g_CJNativeInterfaceInstance.typeInfo(typeName.c_str());
     if (typeInfo == nullptr) {
@@ -302,30 +364,46 @@ std::optional<TypeInfo> CreateTypeInfo(
     Engine::Session& session, Engine::TypeInfoManager& manager, Engine::GlobalTerm term
 )
 {
-    auto termIdent = term.GetId();
-    switch (termIdent.GetKind()) {
-        case Engine::TermKind::AOT_TYPE: return QueryTypeInfoAOT(session, term);
-        case Engine::TermKind::TYPE:     return CreateTypeInfoDyn(session, manager, term);
+    Log::typeinfo.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
+        Stream::ResolvingOutput stream(session, out);
+        stream << "start building " << term << Stream::endl;
+    });
 
-        case Engine::TermKind::BOOLEAN: return QueryTypeInfoAOTByName("Bool");
-        case Engine::TermKind::U8:      return QueryTypeInfoAOTByName("UInt8");
-        case Engine::TermKind::I8:      return QueryTypeInfoAOTByName("Int8");
-        case Engine::TermKind::U16:     return QueryTypeInfoAOTByName("UInt16");
-        case Engine::TermKind::I16:     return QueryTypeInfoAOTByName("Int16");
-        case Engine::TermKind::U32:     return QueryTypeInfoAOTByName("UInt32");
-        case Engine::TermKind::I32:     return QueryTypeInfoAOTByName("Int32");
-        case Engine::TermKind::U64:     return QueryTypeInfoAOTByName("UInt64");
-        case Engine::TermKind::I64:     return QueryTypeInfoAOTByName("Int64");
-        case Engine::TermKind::F16:     return QueryTypeInfoAOTByName("Float16");
-        case Engine::TermKind::F32:     return QueryTypeInfoAOTByName("Float32");
-        case Engine::TermKind::F64:     return QueryTypeInfoAOTByName("Float64");
+    auto createTypeInfo = [&]() {
+        auto termIdent = term.GetId();
+        switch (termIdent.GetKind()) {
+            case Engine::TermKind::AOT_TYPE: return QueryTypeInfoAOT(session, term);
+            case Engine::TermKind::TYPE:     return CreateTypeInfoDyn(session, manager, term);
 
-        default: {
-            FATAL("Not supported yet %d", termIdent.GetKind());
-            break;
+            case Engine::TermKind::BOOLEAN: return QueryTypeInfoAOTByName("Bool");
+            case Engine::TermKind::U8:      return QueryTypeInfoAOTByName("UInt8");
+            case Engine::TermKind::I8:      return QueryTypeInfoAOTByName("Int8");
+            case Engine::TermKind::U16:     return QueryTypeInfoAOTByName("UInt16");
+            case Engine::TermKind::I16:     return QueryTypeInfoAOTByName("Int16");
+            case Engine::TermKind::U32:     return QueryTypeInfoAOTByName("UInt32");
+            case Engine::TermKind::I32:     return QueryTypeInfoAOTByName("Int32");
+            case Engine::TermKind::U64:     return QueryTypeInfoAOTByName("UInt64");
+            case Engine::TermKind::I64:     return QueryTypeInfoAOTByName("Int64");
+            case Engine::TermKind::F16:     return QueryTypeInfoAOTByName("Float16");
+            case Engine::TermKind::F32:     return QueryTypeInfoAOTByName("Float32");
+            case Engine::TermKind::F64:     return QueryTypeInfoAOTByName("Float64");
+
+            default: {
+                FATAL("Not supported yet %d", termIdent.GetKind());
+                break;
+            }
         }
-    }
-    return std::nullopt;
+    };
+    auto ti = createTypeInfo();
+    Log::typeinfo.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
+        Stream::ResolvingOutput stream(session, out);
+        if (ti.has_value()) {
+            stream << "successfuly built " << term << " with " << ti->Raw() << Stream::endl;
+        } else {
+            stream << "failed to build " << term << Stream::endl;
+        }
+    });
+    return ti;
 }
 
 } // namespace RTSupport

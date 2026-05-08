@@ -27,7 +27,7 @@
 namespace Resolution {
 
 Stream::Descripted logStream(Stream::cerr, "[resolution] ");
-Logging::Logger log(&logStream, Logging::Level::NONE);
+Logging::Logger log(&logStream, Logging::Level::ERROR);
 
 using namespace Engine;
 
@@ -194,8 +194,21 @@ static ResolvedFieldReference ResolveReference(Session& session, RefIdentifier<S
 
 MethodSignature ConstructSignature(Resolver::Impl& resolver, ResolvedMethodReference& ref)
 {
-    // FIXME
-    return {};
+    auto signature = ref.signature;
+    ASSERTION(signature.GetLength() > 0, "method signature encoding was incorrect");
+
+    auto paramLength = signature.GetLength() - 1;
+    auto retTypeIdx  = paramLength;
+
+    std::vector<Type*> params;
+    params.reserve(paramLength);
+    for (int i = 0; i < paramLength; i++) {
+        params.push_back(resolver.GetType(signature.Subterm(i)));
+    }
+    return {
+        .params  = std::move(params),
+        .resType = resolver.GetType(signature.Subterm(retTypeIdx)),
+    };
 }
 
 template <typename Call> // FIXME: split?
@@ -226,27 +239,29 @@ std::optional<Call> ResolveCall(Resolver::Impl& resolver, Index<Call> id)
                 auto& manager = Symlevel::MethodTableManager::Of(session);
                 auto mt       = manager.GetMethodTable(session, ref.refType);
 
-                std::vector<Symlevel::MethodTableEntry> entries;
-                mt.Find(session, ref.name, entries);
+                auto resolved = mt->Resolve(
+                    session,
+                    {
+                        .name      = ref.name,
+                        .signature = ref.signature,
+                    }
+                );
 
-                if (entries.size() != 1) {
+                if (!resolved.has_value()) {
                     log.Log(Logging::Level::ERROR, [&ref, &session](Stream::Output& stream) {
-                        stream << "Failed to resolve method (note, overloading not supported yet) "
-                               << ref.GetFullName(session) << Stream::endl;
+                        stream << "Failed to resolve method " << ref.GetFullName(session) << Stream::endl;
                     });
                     return std::nullopt;
                 }
 
                 auto sig = ConstructSignature(resolver, ref);
-
-                auto methodInfo = entries.at(0);
-                return DynamicCall { refType, ref.name, std::move(sig), methodInfo.methodNum, methodInfo.subTableNum };
+                return DynamicCall { refType, ref.name, std::move(sig), resolved->methodNum, resolved->subTableNum };
             } else {
                 static_assert(std::is_same_v<Call, DirectCall>);
 
                 auto termIdent = TypeTermId(ref.refType);
                 auto type      = Symlevel::TypeDefinition::Resolve(session, termIdent.GetIdentifier());
-                auto methods   = type.GetMethodIndex().FindMethods(session, ref.name);
+                auto methods   = type.GetMethods().FindMethods(session, ref.name);
 
                 if (methods.size() != 1) {
                     // FIXME: proper resolution
@@ -392,7 +407,7 @@ template <typename Field> std::optional<Field> ResolveField(Resolver::Impl& reso
                 auto typeDefIdent = TypeTermId(ref.refType).GetIdentifier();
                 auto typeDef      = Symlevel::TypeDefinition::Resolve(resolver.session, typeDefIdent);
 
-                auto fieldDefIdentOpt = typeDef.GetFieldIndex().FindField(resolver.session, ref.name);
+                auto fieldDefIdentOpt = typeDef.GetFields().FindField(resolver.session, ref.name);
                 if (!fieldDefIdentOpt.has_value()) {
                     log.Stream(Logging::Level::ERROR)
                         << "Field definition search failed " << id.GetValue() << Stream::endl;
@@ -450,7 +465,7 @@ std::optional<StaticField const*> Resolver::Query(Index<StaticField> id)
 std::optional<Type*> Resolver::Query(Index<Type> id)
 {
     // terms are being cached on different level
-    auto refId = Symlevel::RefId<Term>(0, id.GetValue());
+    auto refId = Symlevel::RefId<Term>(0, id.GetValue()); // FIXME: region id
     auto ident = RefIdentifier<Term>(refId, impl->method.GetFileId());
     auto term  = TermManager::Of(impl->session).Resolve(impl->session, ident);
     return impl->GetType(term);
@@ -477,25 +492,25 @@ Stream::Output& operator<<(Stream::Output& stream, MethodSignature const& sig)
 
 Stream::Output& operator<<(Stream::Output& stream, DirectCall const& call)
 {
-    stream << call.refType << '.' << call.name << '.' << call.signature;
+    stream << *call.refType << '.' << call.name << call.signature;
     return stream;
 }
 
 Stream::Output& operator<<(Stream::Output& stream, DynamicCall const& call)
 {
-    stream << call.refType << '.' << call.name << '.' << call.signature;
+    stream << *call.refType << '.' << call.name << call.signature;
     return stream;
 }
 
 Stream::Output& operator<<(Stream::Output& stream, InstanceField const& field)
 {
-    stream << field.refType << '.' << field.name << '.' << field.fieldType;
+    stream << *field.refType << '.' << field.name << '.' << *field.fieldType;
     return stream;
 }
 
 Stream::Output& operator<<(Stream::Output& stream, StaticField const& field)
 {
-    stream << field.refType << '.' << field.name << '.' << field.fieldType;
+    stream << *field.refType << '.' << field.name << '.' << *field.fieldType;
     return stream;
 }
 
