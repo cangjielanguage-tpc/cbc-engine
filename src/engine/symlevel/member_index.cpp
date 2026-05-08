@@ -1,10 +1,12 @@
 #include "member_index.h"
 #include "definitions.h"
+#include "engine/engine.h"
 #include "engine/identifiers.h"
 #include "engine/symlevel/io/random_access_file.h"
 #include "io/stream_file_reader.h"
 #include "reader.h"
 #include <cstdint>
+#include <functional>
 #include <string_view>
 
 namespace Symlevel {
@@ -125,7 +127,7 @@ template <typename Data> struct MemberIndexWrapper {
         return std::nullopt;
     }
 
-    void ForEach(Engine::Session& session, std::function<bool(Data&)> action) const
+    void Find(Engine::Session& session, std::function<bool(Data&)> action) const
     {
         static_assert(std::is_same_v<Data, FieldDefinition> || std::is_same_v<Data, MethodDefinition>);
 
@@ -138,6 +140,21 @@ template <typename Data> struct MemberIndexWrapper {
             if (action(fieldDef)) {
                 break;
             }
+        }
+    }
+
+    void ForEach(Engine::Session& session, std::function<void(Data&)> action) const
+    {
+        // why is it so? don't really understand.
+        // static_assert(std::is_same_v<Data, FieldDefinition> || std::is_same_v<Data, MethodDefinition>);
+
+        auto [_, raf] = session.File(index.fileId);
+
+        for (uint32_t i = 0; i < index.bucketsSize; i++) {
+            auto offset   = Offset<Data>(ReadAt(raf, index.bucketsStart + i * sizeof(uint32_t)));
+            auto fieldDef = Reader::Read(session, index.fileId, offset);
+
+            action(fieldDef);
         }
     }
 
@@ -186,6 +203,12 @@ std::optional<Engine::Identifier<TypeDefinition>> TypeIndex::FindType(
     return index.FindOffset(session, typeName);
 }
 
+void TypeIndex::ForEach(Engine::Session& session, std::function<void(TypeDefinition&)> action) const
+{
+    MemberIndexWrapper<TypeDefinition> index { this->index };
+    index.ForEach(session, action);
+}
+
 std::optional<Engine::Identifier<FieldDefinition>> FieldIndex::FindField(
     Engine::Session& session, std::string_view typeName
 ) const
@@ -194,7 +217,13 @@ std::optional<Engine::Identifier<FieldDefinition>> FieldIndex::FindField(
     return index.FindOffset(session, typeName);
 }
 
-void FieldIndex::ForEach(Engine::Session& session, std::function<bool(FieldDefinition&)> action) const
+void FieldIndex::Find(Engine::Session& session, std::function<bool(FieldDefinition&)> action) const
+{
+    MemberIndexWrapper<FieldDefinition> index { this->index };
+    index.Find(session, action);
+}
+
+void FieldIndex::ForEach(Engine::Session& session, std::function<void(FieldDefinition&)> action) const
 {
     MemberIndexWrapper<FieldDefinition> index { this->index };
     index.ForEach(session, action);
@@ -206,6 +235,12 @@ std::vector<Engine::Identifier<MethodDefinition>> MethodIndex::FindMethods(
 {
     MemberIndexWrapper<MethodDefinition> index { this->index };
     return index.FindOffsets(session, methodName);
+}
+
+void MethodIndex::ForEach(Engine::Session& session, std::function<void(MethodDefinition&)> action) const
+{
+    MemberIndexWrapper<MethodDefinition> index { this->index };
+    index.ForEach(session, action);
 }
 
 } // namespace Symlevel
