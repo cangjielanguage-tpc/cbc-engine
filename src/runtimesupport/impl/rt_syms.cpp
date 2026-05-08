@@ -53,11 +53,11 @@ DYN_TypeInfoT* (*GetMethodOuterTI)(DYN_TypeInfoT* t, DYN_TypeInfoT* itf, int ind
 
 void Initialize(DYN_CJNativeInterfaceT* interf)
 {
-    auto anySym = reinterpret_cast<void*>(interf->arrayAlloc);
+    auto anySym = reinterpret_cast<void*>(interf->stackGrowStub);
 
     Dl_info info;
     int code = dladdr(anySym, &info);
-    if (code != 0) {
+    if (code == 0) {
         Log::init.Stream(Logging::Level::ERROR) << "dladdr failed to find rt info" << Stream::endl;
         return;
     }
