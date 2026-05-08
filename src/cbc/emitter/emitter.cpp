@@ -743,7 +743,17 @@ void Emitter::VirtualCall(uint16_t vnum, uint16_t extDefNum)
     );
 }
 
-void Emitter::InterfaceCall(uint16_t methodNum, RTSupport::TypeInfo typeInfo) {}
+void Emitter::InterfaceCall(uint16_t methodNum, RTSupport::TypeInfo typeInfo)
+{
+    Encode(
+        segment,
+        RT::B11i16i64 {
+            .opc   = RT::Opcode::INTERFACE_CALL,
+            .imm16 = { methodNum },
+            .imm64 = { .imm = reinterpret_cast<uint64_t>(typeInfo.Raw()) },
+        }
+    );
+}
 
 } // namespace Emitter
 } // namespace Cbc
