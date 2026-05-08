@@ -184,8 +184,8 @@ MethodTable MethodTableManager::BuildTable(Session& session, Identifier<TypeDefi
     auto thisType = Term::Definition(session, type);
 
     // copy table
-    auto newTable = *GetMethodTable(session, superType);
-    auto oldEntryCount   = newTable.EntryCount();
+    auto newTable      = *GetMethodTable(session, superType);
+    auto oldEntryCount = newTable.EntryCount();
 
     std::vector<Identifier<MethodDefinition>> declaredMethods;
     methodSeq.Read(session, declaredMethods);
