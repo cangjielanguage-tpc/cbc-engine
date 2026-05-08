@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/engine.h"
+#include "engine/identifiers.h"
 #include "engine/symlevel/io/file_id.h"
 #include "engine/symlevel/io/stream_file_reader.h"
 #include "offset.h"
@@ -23,15 +24,16 @@ public:
         return OffsetSequence<T>(id, startPos, endPos);
     }
 
-    void Read(Engine::Session& session, std::vector<Offset<T>>& offsets)
+    void Read(Engine::Session& session, std::vector<Engine::Identifier<T>>& offsets) const
     {
         IO::StreamFileReader reader(*session.FileOf(file), startPos);
         while (reader.Position() < endPos) {
-            offsets.emplace_back(reader.ReadULEB());
+            auto offs = Offset<T>(reader.ReadULEB());
+            offsets.emplace_back(offs, file);
         }
     }
 
-    IO::FileId FileId() { return file; }
+    IO::FileId FileId() const { return file; }
 
 private:
     IO::FileId file;

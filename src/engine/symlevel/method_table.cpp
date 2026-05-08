@@ -2,9 +2,10 @@
 #include "engine/engine.h"
 #include "engine/identifiers.h"
 #include "engine/symlevel/definitions.h"
+#include "engine/symlevel/reader.h"
+#include "engine/symlevel/term.h"
 #include "engine/terms.h"
-#include "utils/assertion.h"
-#include <cstddef>
+#include "utils/iterators.h"
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -13,172 +14,236 @@
 
 namespace Symlevel {
 
-struct TableEntry {
-    Engine::Identifier<MethodDefinition> method;
-    Engine::Term declaringType;
+using namespace Engine;
 
-    TableEntry(Engine::Identifier<MethodDefinition> method, Engine::Term declaringType)
-        : method(method),
-          declaringType(declaringType)
-    {}
-};
+// ---- MethodTable ----
 
-struct MethodSubTable::Impl {
-    Impl(std::vector<TableEntry>& allEntries, Engine::Term declaringType, int num, size_t start, size_t end)
-        : allEntries(allEntries),
-          declaringType(declaringType),
-          subTableNum(num),
-          start(start),
-          end(end)
-    {
-        ASSERT(start <= end);
-    }
+MethodTable::MethodTable(
+    std::vector<Entry>&& allEntries, std::vector<SubTable>&& classTables, std::vector<SubTable>&& interfaceTables
+)
+    : allEntries(std::move(allEntries)),
+      classTables(std::move(classTables)),
+      interfaceTables(std::move(interfaceTables))
+{}
 
-    Impl(Impl const& impl) : Impl(impl.allEntries, impl.declaringType, impl.subTableNum, impl.start, impl.end) {}
-
-    std::vector<TableEntry>& allEntries;
-    Engine::Term declaringType;
-    size_t start;
-    size_t end;
-    int subTableNum;
-};
-
-struct MethodTable::Impl {
-    std::vector<TableEntry> allEntries;
-    std::vector<MethodSubTable> classTables;
-    std::vector<MethodSubTable> interfaceTables;
-};
-
-void MethodTable::Find(Engine::Session& session, String name, std::vector<MethodTableEntry>& candidates) const
+MethodTable::Range MethodTable::Classes() const
 {
-    auto checkAndAdd = [&name, &candidates, &session](MethodTableEntry entry) -> void {
-        auto def        = MethodDefinition::Resolve(session, entry.method);
-        auto methodName = String::Parse(session, def.FileId(), def.NameOffset());
-        if (name.compare(methodName) == 0) {
-            candidates.emplace_back(entry);
-        }
-    };
+    return Iterators::MakeRange(MethodTable::SubTableGenerator {
+        .table     = *this,
+        .subtables = classTables,
+        .disp      = 0,
+        .cursor    = 0,
+    });
+}
 
-    for (auto& t : impl->classTables) {
-        auto it = t.Iter();
-        while (it.HasNext()) {
-            checkAndAdd(it.Next());
-        }
+MethodTable::Range MethodTable::Interfaces() const
+{
+    return Iterators::MakeRange(MethodTable::SubTableGenerator {
+        .table     = *this,
+        .subtables = interfaceTables,
+        .disp      = static_cast<int>(classTables.size()),
+        .cursor    = 0,
+    });
+}
+
+int MethodTable::ClassCount() const { return classTables.size(); }
+
+int MethodTable::InterfaceCount() const { return interfaceTables.size(); }
+
+int MethodTable::EntryCount() const { return allEntries.size(); }
+
+void MethodTable::Globalize(Session& session)
+{
+    auto& termManager = TermManager::Of(session);
+    for (auto& entry : allEntries) {
+        entry.genericContext = termManager.Globalize(entry.genericContext);
     }
-
-    for (auto& t : impl->interfaceTables) {
-        auto it = t.Iter();
-        while (it.HasNext()) {
-            checkAndAdd(it.Next());
-        }
+    for (auto& st : classTables) {
+        st.genericContext = termManager.Globalize(st.genericContext);
+    }
+    for (auto& st : interfaceTables) {
+        st.genericContext = termManager.Globalize(st.genericContext);
     }
 }
 
-MethodTable::Iterator MethodTable::EntriesIter() { return Iterator(impl.get()); }
-
-MethodTable::TableIterator MethodTable::ClassSubTableIter() { return TableIterator(impl->classTables); }
-
-MethodTable::TableIterator MethodTable::InterfaceSubTableIter() { return TableIterator(impl->interfaceTables); }
-
-bool MethodTable::TableIterator::HasNext() { return cursor < tables.size(); }
-
-MethodSubTable const& MethodTable::TableIterator::Next()
+static bool Compare(Session& session, MethodTable::Reference const& reference, MethodTableEntry const& entry)
 {
-    ASSERT(HasNext());
-    return tables[cursor++];
+    auto method = Symlevel::Reader::Read(session, entry.method);
+    auto name   = Symlevel::Reader::Read(session, method.Name());
+
+    if (name.compare(reference.name) != 0) {
+        return false;
+    }
+
+    auto signature = TermManager::Resolve(session, method.Signature());
+    return signature == reference.signature;
 }
 
-bool MethodTable::Iterator::HasNext() { return cursor < table->allEntries.size(); }
-
-Engine::Identifier<MethodDefinition> MethodTable::Iterator::Next()
+std::optional<MethodTableEntry> MethodTable::Resolve(Session& session, MethodTable::Reference const& reference) const
 {
-    ASSERT(HasNext());
-    return table->allEntries[cursor++].method;
+    for (auto st : Classes()) {
+        for (auto entry : st.Entries()) {
+            if (Compare(session, reference, entry)) {
+                return entry;
+            }
+        }
+    }
+    for (auto st : Interfaces()) {
+        for (auto entry : st.Entries()) {
+            if (Compare(session, reference, entry)) {
+                return entry;
+            }
+        }
+    }
+    return std::nullopt;
 }
 
-size_t MethodTable::ClassSubTableCount() const { return impl->classTables.size(); }
-
-size_t MethodTable::InterfaceSubTableCount() const { return impl->interfaceTables.size(); }
-
-size_t MethodTable::EntryCount() const { return impl->allEntries.size(); }
-
-MethodTable::~MethodTable() = default;
-
-MethodTable::MethodTable(std::shared_ptr<Impl> impl) : impl(std::move(impl)) {}
-
-MethodTable::MethodTable(MethodTable&& other)      = default;
-MethodTable::MethodTable(MethodTable const& other) = default;
-
-MethodSubTable::MethodSubTable(std::unique_ptr<Impl> impl) : impl(std::move(impl)) {}
-
-MethodSubTable::MethodSubTable(MethodSubTable&& other) = default;
-MethodSubTable::~MethodSubTable()                      = default;
-
-int MethodSubTable::StartPos() const { return impl->start; }
-
-int MethodSubTable::EndPos() const { return impl->end; }
-
-Engine::Term MethodSubTable::DeclaringType() const { return impl->declaringType; }
-
-MethodSubTable::Iterator MethodSubTable::Iter() const { return Iterator(this->impl.get(), impl->start); }
-
-bool MethodSubTable::Iterator::HasNext() { return cursor < table->end; }
-
-MethodTableEntry MethodSubTable::Iterator::Next()
+void MethodTable::ResolveAll(Session& session, Reference const& reference, std::vector<MethodTableEntry>& buffer) const
 {
-    ASSERT(HasNext());
-    auto entry              = table->allEntries[cursor];
-    MethodTableEntry mEntry = {
-        .method        = entry.method,
-        .declaringType = table->declaringType,
-        .methodNum     = static_cast<int>(cursor - table->start),
-        .subTableNum   = table->subTableNum,
-        .flatMethodNum = cursor,
-    };
-    cursor++;
-    return mEntry;
+    for (auto st : Classes()) {
+        for (auto entry : st.Entries()) {
+            if (Compare(session, reference, entry)) {
+                buffer.push_back(entry);
+            }
+        }
+    }
+    for (auto st : Interfaces()) {
+        for (auto entry : st.Entries()) {
+            if (Compare(session, reference, entry)) {
+                buffer.push_back(entry);
+            }
+        }
+    }
 }
 
-size_t MethodSubTable::Size() const { return impl->end - impl->start; }
+// ---- MethodTable::SubTableGenerator ----
 
-static MethodTable BuildTable(Engine::Session& session, Engine::Identifier<TypeDefinition> type)
+std::optional<MethodSubTable> MethodTable::SubTableGenerator::operator()()
+{
+    if (cursor < subtables.size()) {
+        auto cursor = this->cursor++;
+        auto& st    = subtables[cursor];
+        return MethodSubTable(table, st.genericContext, st.start, st.end, cursor + disp);
+    } else {
+        return std::nullopt;
+    }
+}
+
+// ---- MethodSubTable ----
+MethodSubTable::MethodSubTable(MethodTable const& table, Term declaringType, int start, int end, int num)
+    : table(&table),
+      declaringType(declaringType),
+      start(start),
+      end(end),
+      num(num)
+{}
+
+int MethodSubTable::StartPos() const { return start; }
+
+int MethodSubTable::EndPos() const { return end; }
+
+int MethodSubTable::Num() const { return num; }
+
+Term MethodSubTable::DeclaringType() const { return declaringType; }
+
+MethodSubTable::Range MethodSubTable::Entries() const
+{
+    return Iterators::MakeRange(MethodSubTable::EntryGenerator {
+        .st     = *this,
+        .cursor = start,
+    });
+}
+
+std::optional<MethodTableEntry> MethodSubTable::EntryGenerator::operator()()
+{
+    if (cursor < st.end) {
+        auto cursor             = this->cursor++;
+        auto entry              = st.table->allEntries[cursor];
+        MethodTableEntry mEntry = {
+            .method         = entry.method,
+            .genericContext = entry.genericContext,
+            .methodNum      = cursor - st.start,
+            .subTableNum    = st.num,
+            .flatMethodNum  = cursor,
+        };
+        return mEntry;
+    } else {
+        return std::nullopt;
+    }
+}
+
+// ---- MethodTable building ----
+
+MethodTable MethodTableManager::BuildTable(Session& session, Identifier<TypeDefinition> type)
 {
     auto def       = TypeDefinition::Resolve(session, type);
     auto methodSeq = def.GetVirtualMethods();
+    auto superType = TermManager::Resolve(session, def.GetSuperType());
 
-    std::vector<Offset<MethodDefinition>> methods;
-    methodSeq.Read(session, methods);
-
-    // TODO: fixup declaring type term if it is references aot type.
     // TODO: make term with type variables
-    auto declaringTypeTerm = Engine::Term::Definition(session, type);
-    declaringTypeTerm      = Engine::TermManager::Of(session).Globalize(declaringTypeTerm);
+    auto thisType = Term::Definition(session, type);
 
-    // table with only one class.
-    auto table = std::make_shared<MethodTable::Impl>();
+    // copy table
+    auto newTable = *GetMethodTable(session, superType);
+    auto oldEntryCount   = newTable.EntryCount();
 
-    // TODO: support hierarchy
-    //       1. get tables for all super-types;
-    //       2. appropriately instantiate tables;
-    //       3. search for overrides;
-    //       4. split overriden methods and newly declared methods;
-    //       5. copy subtables of tables from super-types to new table;
-    //       6. patch entries in copied subtables with overriden methods;
-    //       7. append newly declared methods to `allEntries`;
-    //       8. introduce new class/interface table with newly declared methods;
-    for (auto offs : methods) {
-        Engine::Identifier<MethodDefinition> def(offs, methodSeq.FileId());
-        table->allEntries.emplace_back(def, declaringTypeTerm);
+    std::vector<Identifier<MethodDefinition>> declaredMethods;
+    methodSeq.Read(session, declaredMethods);
+
+    std::vector<MethodTableEntry> entryBuffer;
+
+    for (auto methodId : declaredMethods) {
+        auto newEntry = MethodTable::Entry {
+            .method         = methodId,
+            .genericContext = thisType,
+        };
+
+        auto method = Reader::Read(session, methodId);
+        MethodTable::Reference ref { .name      = Reader::Read(session, method.Name()),
+                                     .signature = TermManager::Resolve(session, method.Signature()) };
+
+        newTable.ResolveAll(session, ref, entryBuffer);
+        if (entryBuffer.empty()) {
+            newTable.allEntries.emplace_back(newEntry);
+            continue;
+        }
+        for (auto& entry : entryBuffer) {
+            newTable.allEntries[entry.flatMethodNum] = newEntry;
+        }
+        entryBuffer.clear();
     }
 
-    auto objClassTable = // FIXME: support super types (declaring type term of object is required)
-        std::make_unique<MethodSubTable::Impl>(table->allEntries, declaringTypeTerm, 0, 0, 0);
+    auto newEntryCount = newTable.EntryCount();
+    newTable.classTables.emplace_back(MethodTable::SubTable {
+        .genericContext = thisType,
+        .start          = oldEntryCount,
+        .end            = newEntryCount,
+    });
 
-    auto classTable =
-        std::make_unique<MethodSubTable::Impl>(table->allEntries, declaringTypeTerm, 1, 0, table->allEntries.size());
+    return newTable;
+}
 
-    table->classTables.emplace_back(std::move(classTable));
-    return MethodTable(table);
+MethodTable MethodTableManager::BaseTable()
+{
+    MethodTable mt;
+    mt.classTables.push_back(MethodTable::SubTable {
+        .genericContext = Term::Predefined(TermKind::NIL),
+        .start          = 0,
+        .end            = 0,
+    });
+    return mt;
+}
+
+std::shared_ptr<MethodTable> MethodTableManager::GetMethodTable(Session& session, Term term)
+{
+    if (term.GetKind() == TermKind::NIL) {
+        static auto mt = std::make_shared<MethodTable>(std::move(BaseTable()));
+        return mt;
+    }
+    auto type = TypeTermId(term).GetIdentifier();
+
+    // FIXME: instantiate!
+    return GetMethodTable(session, type);
 }
 
 /// Caching policy notice.
@@ -186,32 +251,44 @@ static MethodTable BuildTable(Engine::Session& session, Engine::Identifier<TypeD
 /// Each method table can be build from the ground-up without side effects, using simple procedure
 /// that involves only read-only data from cbc files. So any caching of result
 /// is not functionally required.
+struct CachingMethodTableManager : public MethodTableManager {
+    using Ident = Identifier<TypeDefinition>;
+    std::unordered_map<Ident::Packed, std::shared_ptr<MethodTable>, Ident::Hasher> tables;
 
-MethodTable MethodTableManager::GetMethodTable(Engine::Session& session, Engine::Identifier<TypeDefinition> type)
-{
-    auto& manager = MethodTableManager::Of(session);
-    std::lock_guard guard(manager.lock);
+    /// Returns an method table for the given type definition.
+    std::shared_ptr<MethodTable> GetMethodTable(Session& session, Identifier<TypeDefinition> type) override
+    {
+        auto& tables = this->tables;
 
-    auto& tables = manager.tables;
+        auto it = tables.find(type.Pack());
+        if (it != tables.end()) {
+            return it->second;
+        }
 
-    auto it = tables.find(type.Pack());
-    if (it != tables.end()) {
-        return it->second;
+        auto mt = MethodTableManager::BuildTable(session, type);
+        mt.Globalize(session);
+
+        auto res = std::make_shared<MethodTable>(std::move(mt));
+
+        tables.insert({ type.Pack(), res });
+        return res;
     }
+};
 
-    MethodTable mt = BuildTable(session, type);
-    tables.insert({ type.Pack(), mt });
+struct LockedMethodTableManager : public MethodTableManager {
+    CachingMethodTableManager delegate;
+    std::mutex lock;
 
-    return mt;
-}
+    std::shared_ptr<MethodTable> GetMethodTable(Session& session, Identifier<TypeDefinition> type) override
+    {
+        std::lock_guard guard(lock);
+        return delegate.GetMethodTable(session, type);
+    }
+};
 
-MethodTable MethodTableManager::GetMethodTable(Engine::Session& session, Engine::Term term)
+std::unique_ptr<MethodTableManager> MethodTableManager::NewInstance()
 {
-    auto type     = Engine::TypeTermId(term).GetIdentifier();
-    auto& manager = Symlevel::MethodTableManager::Of(session);
-
-    // FIXME: instantiate!
-    return manager.GetMethodTable(session, type);
+    return std::make_unique<LockedMethodTableManager>();
 }
 
 } // namespace Symlevel

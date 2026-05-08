@@ -11,7 +11,7 @@ struct FileId {
     static constexpr auto BIT_SIZE = 28;
     static constexpr auto MAX_ID   = (1 << 28) - 1;
 
-    const uint32_t id;
+    uint32_t id;
 
     FileId(uint32_t id) : id(id) { ASSERT(id <= MAX_ID); }
 

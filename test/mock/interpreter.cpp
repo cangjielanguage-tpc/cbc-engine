@@ -40,8 +40,7 @@ static void MockNewObj(Ectype* ectype, ThreadHandle th, TypeInfo type)
     TestTypeInfo** header = (TestTypeInfo**)mem;
     *header               = typeInfo;
 
-    auto dst = ectype->GetPrimitive(IReg::IR1);
-    ectype->Put(IReg::From(dst.u32), Value::Reference { .value = reinterpret_cast<uintptr_t>(mem) });
+    ectype->Put(IReg::IR1, Value::Reference { .value = reinterpret_cast<uintptr_t>(mem) });
 }
 
 static void DoInterpretationLoop(

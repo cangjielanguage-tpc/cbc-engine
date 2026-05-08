@@ -2,9 +2,11 @@
 
 #include "cbc/emitter/emitter.h"
 #include "cbc/formater_rt.h"
+#include "cbc/isa.h"
 #include "cbc/isa_rt.h"
 
 #include "mock/interpreter.h"
+#include "runtimesupport/runtime.h"
 #include "testutils.h"
 
 static LimitedHeap<16384> heap;
@@ -24,15 +26,17 @@ using namespace Cbc::Format;
 using namespace Cbc;
 
 /// Allocate type info that describes object of size `objectSize` (including header).
-static TestTypeInfo* NewTypeInfo(size_t objectSize) { return heap.New<TestTypeInfo>(objectSize); }
+static RTSupport::TypeInfo NewTypeInfo(size_t objectSize)
+{
+    return RTSupport::TypeInfo(heap.New<TestTypeInfo>(objectSize));
+}
 
 TEST_F(MemoryAccess, TestAlloc)
 {
     Cbc::Emitter::Emitter e;
-    auto ti  = NewTypeInfo(16);
-    auto sym = e.NewAddressSym(reinterpret_cast<uintptr_t>(ti));
+    auto ti = NewTypeInfo(16);
     e.Mov(IReg::IR10, IReg::IR2);
-    e.NewObj(IReg::IR1, sym);
+    e.NewObj(ti);
     e.StoreObj(Format::StoreAccessKind::ST_64, IReg::IR10, IReg::IR1, 8);
     e.LoadObj(Format::LoadAccessKind::LD_64, IReg::IR1, IReg::IR1, 8);
     e.Ret();
@@ -43,11 +47,11 @@ TEST_F(MemoryAccess, TestAlloc)
 TEST_F(MemoryAccess, TestAlloc2)
 {
     Cbc::Emitter::Emitter e;
-    auto ti  = NewTypeInfo(24);
-    auto sym = e.NewAddressSym(reinterpret_cast<uintptr_t>(ti));
+    auto ti = NewTypeInfo(24);
     e.Mov(IReg::IR11, IReg::IR1);
     e.Mov(IReg::IR12, IReg::IR2);
-    e.NewObj(IReg::IR5, sym);
+    e.NewObj(ti);
+    e.Mov(IReg::IR5, IReg::IR1);
     e.StoreObj(Format::StoreAccessKind::ST_64, IReg::IR12, IReg::IR5, 8);
     e.StoreObj(Format::StoreAccessKind::ST_64, IReg::IR11, IReg::IR5, 16);
     e.LoadObj(Format::LoadAccessKind::LD_64, IReg::IR9, IReg::IR5, 8);
@@ -65,11 +69,11 @@ TEST_F(MemoryAccess, TestAlloc2)
 TEST_F(MemoryAccess, TestU8)
 {
     Cbc::Emitter::Emitter e;
-    auto ti  = NewTypeInfo(16);
-    auto sym = e.NewAddressSym(reinterpret_cast<uintptr_t>(ti));
+    auto ti = NewTypeInfo(16);
     e.Mov(IReg::IR11, IReg::IR1);
     e.Mov(IReg::IR12, IReg::IR2);
-    e.NewObj(IReg::IR5, sym);
+    e.NewObj(ti);
+    e.Mov(IReg::IR5, IReg::IR1);
     e.StoreObj(Format::StoreAccessKind::ST_8, IReg::IR11, IReg::IR5, 8);
     e.StoreObj(Format::StoreAccessKind::ST_8, IReg::IR12, IReg::IR5, 9);
     e.LoadObj(Format::LoadAccessKind::LD_U8, IReg::IR9, IReg::IR5, 8);
@@ -84,11 +88,11 @@ TEST_F(MemoryAccess, TestU8)
 TEST_F(MemoryAccess, TestI8)
 {
     Cbc::Emitter::Emitter e;
-    auto ti  = NewTypeInfo(16);
-    auto sym = e.NewAddressSym(reinterpret_cast<uintptr_t>(ti));
+    auto ti = NewTypeInfo(16);
     e.Mov(IReg::IR11, IReg::IR1);
     e.Mov(IReg::IR12, IReg::IR2);
-    e.NewObj(IReg::IR5, sym);
+    e.NewObj(ti);
+    e.Mov(IReg::IR5, IReg::IR1);
     e.StoreObj(Format::StoreAccessKind::ST_8, IReg::IR11, IReg::IR5, 8);
     e.StoreObj(Format::StoreAccessKind::ST_8, IReg::IR12, IReg::IR5, 9);
     e.LoadObj(Format::LoadAccessKind::LD_S8, IReg::IR9, IReg::IR5, 8);
@@ -104,10 +108,10 @@ TEST_F(MemoryAccess, TestI8)
 TEST_F(MemoryAccess, TestI16)
 {
     Cbc::Emitter::Emitter e;
-    auto ti  = NewTypeInfo(16);
-    auto sym = e.NewAddressSym(reinterpret_cast<uintptr_t>(ti));
+    auto ti = NewTypeInfo(16);
     e.Mov(IReg::IR11, IReg::IR1);
-    e.NewObj(IReg::IR5, sym);
+    e.NewObj(ti);
+    e.Mov(IReg::IR5, IReg::IR1);
     e.StoreObj(Format::StoreAccessKind::ST_16, IReg::IR11, IReg::IR5, 8);
     e.LoadObj(Format::LoadAccessKind::LD_S16, IReg::IR1, IReg::IR5, 8);
     e.Ret();
@@ -120,11 +124,11 @@ TEST_F(MemoryAccess, TestI16)
 TEST_F(MemoryAccess, TestI32)
 {
     Cbc::Emitter::Emitter e;
-    auto ti  = NewTypeInfo(16);
-    auto sym = e.NewAddressSym(reinterpret_cast<uintptr_t>(ti));
+    auto ti = NewTypeInfo(16);
     e.Mov(IReg::IR11, IReg::IR1);
     e.Mov(IReg::IR12, IReg::IR2);
-    e.NewObj(IReg::IR5, sym);
+    e.NewObj(ti);
+    e.Mov(IReg::IR5, IReg::IR1);
     e.StoreObj(Format::StoreAccessKind::ST_32, IReg::IR11, IReg::IR5, 8);
     e.StoreObj(Format::StoreAccessKind::ST_32, IReg::IR12, IReg::IR5, 12);
     e.LoadObj(Format::LoadAccessKind::LD_S32TO64, IReg::IR9, IReg::IR5, 8);
@@ -140,11 +144,11 @@ TEST_F(MemoryAccess, TestI32)
 TEST_F(MemoryAccess, TestU32)
 {
     Cbc::Emitter::Emitter e;
-    auto ti  = NewTypeInfo(16);
-    auto sym = e.NewAddressSym(reinterpret_cast<uintptr_t>(ti));
+    auto ti = NewTypeInfo(16);
     e.Mov(IReg::IR11, IReg::IR1);
     e.Mov(IReg::IR12, IReg::IR2);
-    e.NewObj(IReg::IR5, sym);
+    e.NewObj(ti);
+    e.Mov(IReg::IR5, IReg::IR1);
     e.StoreObj(Format::StoreAccessKind::ST_32, IReg::IR11, IReg::IR5, 8);
     e.StoreObj(Format::StoreAccessKind::ST_32, IReg::IR12, IReg::IR5, 12);
     e.LoadObj(Format::LoadAccessKind::LD_32, IReg::IR9, IReg::IR5, 8);
@@ -159,9 +163,9 @@ TEST_F(MemoryAccess, TestU32)
 TEST_F(MemoryAccess, TestF32)
 {
     Cbc::Emitter::Emitter e;
-    auto ti  = NewTypeInfo(16);
-    auto sym = e.NewAddressSym(reinterpret_cast<uintptr_t>(ti));
-    e.NewObj(IReg::IR5, sym);
+    auto ti = NewTypeInfo(16);
+    e.NewObj(ti);
+    e.Mov(IReg::IR5, IReg::IR1);
     e.FMovI32(FReg::FR0, 0.25);
     e.StoreObj(Format::StoreAccessKind::ST_F32, FReg::FR0, IReg::IR5, 8);
     e.LoadObj(Format::LoadAccessKind::LD_F32, FReg::FR3, IReg::IR5, 8);
@@ -175,9 +179,9 @@ TEST_F(MemoryAccess, TestF32)
 TEST_F(MemoryAccess, TestF64)
 {
     Cbc::Emitter::Emitter e;
-    auto ti  = NewTypeInfo(16);
-    auto sym = e.NewAddressSym(reinterpret_cast<uintptr_t>(ti));
-    e.NewObj(IReg::IR5, sym);
+    auto ti = NewTypeInfo(16);
+    e.NewObj(ti);
+    e.Mov(IReg::IR5, IReg::IR1);
     e.FMovI64(FReg::FR0, 0.25);
     e.StoreObj(Format::StoreAccessKind::ST_F64, FReg::FR0, IReg::IR5, 8);
     e.LoadObj(Format::LoadAccessKind::LD_F64, FReg::FR3, IReg::IR5, 8);
@@ -192,7 +196,6 @@ TEST_F(MemoryAccess, LinkedStack)
 {
     Cbc::Emitter::Emitter e;
     auto ti        = NewTypeInfo(24);
-    auto sym       = e.NewAddressSym(reinterpret_cast<uintptr_t>(ti));
     auto fillStack = e.NewLabel();
     auto dropStack = e.NewLabel();
 
@@ -201,7 +204,7 @@ TEST_F(MemoryAccess, LinkedStack)
 
     e.MovRef(IReg::IR12, IReg::IRZ);
     e.Bind(fillStack);
-    e.NewObj(IReg::IR1, sym);
+    e.NewObj(ti);
     e.StoreObj(Format::StoreAccessKind::ST_REF, IReg::IR12, IReg::IR1, 8);
     e.StoreObj(Format::StoreAccessKind::ST_64, IReg::IR10, IReg::IR1, 16);
     e.MovRef(IReg::IR12, IReg::IR1);
@@ -244,12 +247,12 @@ struct IntegerTest {
 static void testInteger(IntegerTest desc)
 {
     Cbc::Emitter::Emitter e;
-    auto ti  = NewTypeInfo(512);
-    auto sym = e.NewAddressSym(reinterpret_cast<uintptr_t>(ti));
+    auto ti = NewTypeInfo(512);
     e.MovImm(Width::W64, IReg::IR4, 2);
     e.Mov(IReg::IR11, IReg::IR1);
     e.Mov(IReg::IR12, IReg::IR2);
-    e.NewObj(IReg::IR5, sym);
+    e.NewObj(ti);
+    e.Mov(IReg::IR5, IReg::IR1);
 
     auto mspace = e.OpenMemSpace();
     mspace.Offset(31);           // = 31
@@ -347,9 +350,9 @@ TEST_F(MemoryAccess, SpaceU32)
 TEST_F(MemoryAccess, Fallback)
 {
     Cbc::Emitter::Emitter e;
-    auto ti  = NewTypeInfo(5000);
-    auto sym = e.NewAddressSym(reinterpret_cast<uintptr_t>(ti));
-    e.NewObj(IReg::IR5, sym);
+    auto ti = NewTypeInfo(5000);
+    e.NewObj(ti);
+    e.Mov(IReg::IR5, IReg::IR1);
     e.StoreObj(Format::StoreAccessKind::ST_64, IReg::IR2, IReg::IR5, 4096);
     e.LoadObj(Format::LoadAccessKind::LD_64, IReg::IR1, IReg::IR5, 4096);
     e.Ret();

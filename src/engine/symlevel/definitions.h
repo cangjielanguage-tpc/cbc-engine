@@ -32,36 +32,46 @@ public:
     static TypeDefinition Resolve(Engine::Session& session, Engine::Identifier<TypeDefinition> identifier);
     static String ParseName(Engine::Session& session, IO::FileId fileId, Offset<TypeDefinition> offset);
 
-    inline Offset<String> NameOffset() const { return nameOffset; }
+    Engine::Identifier<TypeDefinition> const GetIdentifier() { return identifier; }
 
-    inline Engine::Identifier<TypeDefinition> GetIdentifier() const { return identifier; }
+    Engine::Identifier<String> const GetName() { return name; }
 
-    inline const MethodIndex& GetMethodIndex() const { return methods; }
+    MethodIndex const GetMethods() { return methods; }
 
-    inline const FieldIndex& GetFieldIndex() const { return fields; }
+    FieldIndex const GetFields() { return fields; }
 
-    inline const OffsetSequence<MethodDefinition>& GetVirtualMethods() const { return virtualMethods; }
+    OffsetSequence<MethodDefinition> const GetVirtualMethods() { return virtualMethods; }
+
+    Engine::RefIdentifier<Term> const GetSuperType() { return superType; }
+
+    TypeFlags const GetFlags() { return flags; }
 
 private:
     TypeDefinition(
-        Engine::Identifier<TypeDefinition> identifier,
-        Offset<String> nameOffset,
-        MethodIndex methods,
-        FieldIndex fields,
-        OffsetSequence<MethodDefinition> virtualMethods
+        Engine::Identifier<TypeDefinition> const identifier,
+        Engine::Identifier<String> const name,
+        MethodIndex const methods,
+        FieldIndex const fields,
+        OffsetSequence<MethodDefinition> const virtualMethods,
+        Engine::RefIdentifier<Term> const superType,
+        TypeFlags flags
     )
         : identifier(identifier),
-          nameOffset(nameOffset),
-          methods(std::move(methods)),
-          fields(std::move(fields)),
-          virtualMethods(virtualMethods)
+          name(name),
+          methods(methods),
+          fields(fields),
+          virtualMethods(virtualMethods),
+          superType(superType),
+          flags(flags)
     {}
 
     Engine::Identifier<TypeDefinition> identifier;
-    Offset<String> nameOffset;
+    Engine::Identifier<String> name;
     MethodIndex methods;
     FieldIndex fields;
     OffsetSequence<MethodDefinition> virtualMethods;
+    Engine::RefIdentifier<Term> superType;
+    TypeFlags flags;
 };
 
 class FieldDefinition {
@@ -82,14 +92,12 @@ private:
     FieldDefinition(
         Engine::Identifier<FieldDefinition> identifier,
         Offset<String> nameOffset,
-        Engine::RefIdentifier<Term> refType,
         Engine::RefIdentifier<Term> fieldType,
         FieldFlags flags,
         std::vector<uint64_t> constValue
     )
         : identifier(identifier),
           nameOffset(nameOffset),
-          refType(refType),
           fieldType(fieldType),
           flags(flags),
           constValue(constValue)
@@ -97,7 +105,6 @@ private:
 
     Engine::Identifier<FieldDefinition> identifier;
     Offset<String> nameOffset;
-    Engine::RefIdentifier<Term> refType;
     Engine::RefIdentifier<Term> fieldType;
     FieldFlags flags;
     std::vector<uint64_t> constValue;
@@ -109,26 +116,46 @@ public:
     static MethodDefinition Resolve(Engine::Session& session, Engine::Identifier<MethodDefinition> identifier);
     static String ParseName(Engine::Session& session, IO::FileId fileId, Offset<MethodDefinition> offset);
 
-    inline Offset<String> NameOffset() const { return nameOffset; }
+    inline Engine::Identifier<String> Name() const { return Engine::Identifier(nameOffset, identifier.GetFileId()); }
 
-    inline Offset<Code> GetCodeOffset() const { return *codeOffs; }
+    inline Engine::RefIdentifier<Term> Signature() const { return signature; }
+
+    inline std::optional<Engine::Identifier<Code>> MethodCode() const { return code; }
+
+    std::optional<Engine::Identifier<String>> SourceFile() { return sourceFile; }
+
+    std::optional<Engine::Identifier<String>> SourceFullName() { return sourceFullName; }
+
+    std::optional<Engine::Identifier<String>> LinkageName() { return linkageName; }
 
     inline IO::FileId FileId() const { return identifier.GetFileId(); }
 
     Engine::Identifier<MethodDefinition> GetIdentifier() const { return identifier; }
 
+    MethodFlags GetFlags() const { return flags; }
+
 private:
     MethodDefinition(
-        Engine::Identifier<MethodDefinition> identifier, Offset<String> nameOffset, std::optional<Offset<Code>> codeOffs
+        Engine::Identifier<MethodDefinition> identifier,
+        Offset<String> nameOffset,
+        Engine::RefIdentifier<Term> signature,
+        MethodFlags flags
     )
         : identifier(identifier),
           nameOffset(nameOffset),
-          codeOffs(codeOffs)
+          signature(signature),
+          flags(flags)
     {}
 
     Engine::Identifier<MethodDefinition> identifier;
+    Engine::RefIdentifier<Term> signature;
     Offset<String> nameOffset;
-    std::optional<Offset<Code>> codeOffs;
+    MethodFlags flags;
+
+    std::optional<Engine::Identifier<Code>> code             = std::nullopt;
+    std::optional<Engine::Identifier<String>> sourceFile     = std::nullopt;
+    std::optional<Engine::Identifier<String>> sourceFullName = std::nullopt;
+    std::optional<Engine::Identifier<String>> linkageName    = std::nullopt;
 };
 
 } // namespace Symlevel

@@ -111,7 +111,7 @@ private:
 
     void Write(FReg fr) { stream << "FR" << fr.Raw(); }
 
-    void Write(uint64_t v) { stream.PrintFmt("0x%X", v); }
+    void Write(uint64_t v) { stream.PrintFmt("0x%lx", v); }
 
     void Write(int64_t v) { stream << v; }
 
@@ -324,6 +324,13 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B4xi12xr a
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3xi12 args)
 {
     Operand operands[] = { args.xi12.imm4, args.xi12.imm12 };
+    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    formatter.Format();
+}
+
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B9i64 args)
+{
+    Operand operands[] = { args.imm64.imm };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }

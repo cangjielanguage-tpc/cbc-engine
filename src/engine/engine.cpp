@@ -25,7 +25,8 @@ public:
     Impl(std::vector<CbcFile> files, std::vector<std::unique_ptr<IO::RandomAccessFile>> rafs)
         : files(std::move(files)),
           rafs(std::move(rafs)),
-          typeInfoManager(TypeInfoManager::NewInstance())
+          typeInfoManager(TypeInfoManager::NewInstance()),
+          mtManager(MethodTableManager::NewInstance())
     {}
 
     static Engine::Impl& Of(Engine& engine) { return *engine.impl; }
@@ -38,7 +39,7 @@ public:
 
     Interpretation::FunctionHandleManager fuhManager;
     DefinitionsManager defsManager;
-    MethodTableManager mtManager;
+    std::unique_ptr<MethodTableManager> mtManager;
     TermManager termManager;
     StaticsManager staticsManager;
     std::unique_ptr<TypeInfoManager> typeInfoManager;
@@ -149,7 +150,7 @@ std::optional<Identifier<MethodDefinition>> Engine::FindMain(Session& session, s
     auto declType = f->GetTypeIndex().FindType(session, std::string_view("default"));
     if (declType.has_value()) {
         auto type               = Symlevel::TypeDefinition::Resolve(session, declType.value());
-        const auto& methodIndex = type.GetMethodIndex();
+        const auto& methodIndex = type.GetMethods();
         auto methods            = methodIndex.FindMethods(session, std::string_view("main"));
 
         // TODO: throw?
@@ -171,7 +172,7 @@ std::optional<Identifier<MethodDefinition>> Engine::FindMethod(
     auto declType = f->GetTypeIndex().FindType(session, typeName);
     if (declType.has_value()) {
         auto type               = Symlevel::TypeDefinition::Resolve(session, declType.value());
-        const auto& methodIndex = type.GetMethodIndex();
+        const auto& methodIndex = type.GetMethods();
         auto methods            = methodIndex.FindMethods(session, methodName);
         ASSERTION(methods.size() == 1, "unexpected \"main\" method count");
         return methods[0];
@@ -204,7 +205,7 @@ using EngineImpl = Engine::Engine::Impl;
 
 DefinitionsManager& DefinitionsManager::Of(Engine::Engine& engine) { return EngineImpl::Of(engine).defsManager; }
 
-MethodTableManager& MethodTableManager::Of(Engine::Engine& engine) { return EngineImpl::Of(engine).mtManager; }
+MethodTableManager& MethodTableManager::Of(Engine::Engine& engine) { return *EngineImpl::Of(engine).mtManager; }
 
 MethodTableManager& MethodTableManager::Of(Engine::Session& session)
 {

@@ -339,9 +339,9 @@ FUN64: {
     NEXT_COND(successful);
 }
 NEWOBJ: {
-    auto args = B3xi12::Decode(reader);
+    auto args = B9i64::Decode(reader);
     LOG_INSTR;
-    auto type = TypeInfo(literals->at(args.xi12.imm12).uintptr);
+    auto type = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
 
     // To invoke an `newobj` we need to "return" three values
     // - function to invoke,
@@ -352,7 +352,6 @@ NEWOBJ: {
     // To pass an extra element we will store
     // it in volatile-register in Ectype;
     auto func = RTSupport::Execution::AllocateObjectInstance();
-    ectype->Put(IReg::IR1, Value::Primitive { .u64 = args.xi12.imm4.IR() });
 
     reader0 = reader; // save current pc
 
@@ -540,6 +539,7 @@ VIRTUAL_CALL_2C: {
 
     reader0 = reader; // save current pc
 
+    // FIXME: avoid I2C->C2I adapters for pure I2I call.
     return { Adapters::GenericI2CCallInstance(), table.Raw() };
 }
 

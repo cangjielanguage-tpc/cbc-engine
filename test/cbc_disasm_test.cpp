@@ -9,12 +9,17 @@
 #include "interpreter/function_handle.h"
 
 #include "testutils.h"
+#include "utils/options.h"
 #include "utils/ostream.h"
 
 static LimitedHeap<16384> heap;
 
 class CbcDisasmTest : public testing::Test {
-    void SetUp() override { heap.Reset(); }
+    void SetUp() override
+    {
+        heap.Reset();
+        Options::InitFromEnv(Options::g_table);
+    }
 
     void TearDown() override {}
 };
@@ -34,7 +39,7 @@ static void CompareWith(std::string_view fileName, std::string const& expected)
     ASSERT_TRUE(mainId.has_value());
 
     auto def  = Symlevel::MethodDefinition::Resolve(session, mainId.value());
-    auto code = Symlevel::Reader::Read(session, def.FileId(), def.GetCodeOffset());
+    auto code = Symlevel::Reader::Read(session, def.MethodCode().value());
 
     Resolution::Resolver resolver(session, mainId.value());
 
@@ -46,7 +51,7 @@ static void CompareWith(std::string_view fileName, std::string const& expected)
 
 TEST_ASM(CbcDisasmTest, VirtCall)
 {
-    std::string expected = "0: call.virtual IR1, 1, 1\n"
+    std::string expected = "0: call.virtual IR1, Foo.foo()void (1,1)\n"
                            "4: ret.64 IR1\n";
     CompareWith("cbc-virt-call.asm", expected);
 }

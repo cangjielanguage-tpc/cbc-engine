@@ -180,9 +180,7 @@ engine_i2_newobject:
   ldr   x10, [x10, :lo12:engine_newobject_function]
   blr   x10
 
-  ldr   x1, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 8)]
-  add   x2, ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 8)
-  str   x0, [x2, x1]
+  str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8)]
   b     .Lrestart_interpretation
 
 .align 16
