@@ -6,3 +6,6 @@
 
 Stream::Descripted typeinfoStream(Stream::cerr, "[TI] ");
 Logging::Logger RTSupport::Log::typeinfo(&typeinfoStream, Logging::Level::NONE);
+
+Stream::Descripted initStream(Stream::cerr, "[init] ");
+Logging::Logger RTSupport::Log::init(&initStream, Logging::Level::NONE);

@@ -3,6 +3,7 @@
 #include "RuntimeTypes.h"
 #include "asm_trampolines.h"
 #include "cjnative.h"
+#include "runtimesupport/impl/rt_syms.h"
 #include "runtimesupport/impl/typeinfo_ext.h"
 #include "utils/assertion.h"
 
@@ -58,12 +59,20 @@ TypeInfo Execution::GetTypeInfo(Reference base)
     return *header;
 }
 
-MethodTable Execution::GetMethodTable(Reference base, int extDefNum, int methodNum)
+void* Execution::GetVirtualTarget(Reference base, int extDefNum, int methodNum)
 {
     DYN_TypeInfoT** header = reinterpret_cast<DYN_TypeInfoT**>(base.value);
     auto typeInfo          = *header;
     auto target            = typeInfo->vExtensionDataStart[extDefNum]->funcTable[methodNum];
-    return MethodTable(target);
+    return target;
+}
+
+void* Execution::GetInterfaceTarget(Reference base, TypeInfo interf, int methodNum)
+{
+    DYN_TypeInfoT** header = reinterpret_cast<DYN_TypeInfoT**>(base.value);
+    auto typeInfo          = *header;
+    DYN_FuncPtrT* table    = GetMTable(typeInfo, UnpackTypeInfo(interf));
+    return table[methodNum];
 }
 
 int Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool isRef)

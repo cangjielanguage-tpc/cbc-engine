@@ -83,12 +83,19 @@ struct DirectCall {
     CallData data;
 };
 
-struct DynamicCall {
+struct VirtualCall {
     Type* refType;
     std::string_view name;
     MethodSignature signature;
     int methodNum;
     int extDefNum;
+};
+
+struct InterfaceCall {
+    Type* refType;
+    std::string_view name;
+    MethodSignature signature;
+    int methodNum;
 };
 
 struct InstanceField {
@@ -109,7 +116,7 @@ struct StaticField {
 Stream::Output& operator<<(Stream::Output& stream, Type const& type);
 Stream::Output& operator<<(Stream::Output& stream, MethodSignature const& sig);
 Stream::Output& operator<<(Stream::Output& stream, DirectCall const& call);
-Stream::Output& operator<<(Stream::Output& stream, DynamicCall const& call);
+Stream::Output& operator<<(Stream::Output& stream, VirtualCall const& call);
 Stream::Output& operator<<(Stream::Output& stream, InstanceField const& field);
 Stream::Output& operator<<(Stream::Output& stream, StaticField const& field);
 
@@ -134,7 +141,8 @@ public:
 
     std::optional<Type*> Query(Index<Type> id);
     std::optional<DirectCall const*> Query(Index<DirectCall> id);
-    std::optional<DynamicCall const*> Query(Index<DynamicCall> id);
+    std::optional<VirtualCall const*> Query(Index<VirtualCall> id);
+    std::optional<InterfaceCall const*> Query(Index<InterfaceCall> id);
     std::optional<InstanceField const*> Query(Index<InstanceField> id);
     std::optional<StaticField const*> Query(Index<StaticField> id);
 
