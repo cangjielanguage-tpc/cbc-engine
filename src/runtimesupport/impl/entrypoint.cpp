@@ -27,7 +27,7 @@ static void EnsureEngineInitialized()
         return;
     }
 
-    Options::InitEnvOptions();
+    Options::InitFromEnv(Options::g_table);
 
     Engine::Loader loader;
     loader.Load(IO::OpenFile(std::filesystem::path(g_mainCbc)), g_mainCbc);
@@ -124,7 +124,7 @@ CBC_EXPORT void interpreter_bridge_init(
     char const** options
 )
 {
-    Options::ParseAndSetOptions(size, options);
+    Options::ParseAndSet(size, options, Options::g_table);
 
     g_CJNativeInterfaceInstance            = *rtInterf;
     interpInterf->version                  = 1;
