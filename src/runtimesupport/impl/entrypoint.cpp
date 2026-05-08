@@ -1,4 +1,5 @@
 #include <filesystem>
+#include <mutex>
 
 #include "RTInterface.h"
 #include "asm_trampolines.h"
@@ -19,18 +20,26 @@ DYN_CJNativeInterfaceT g_CJNativeInterfaceInstance;
 
 static std::mutex g_InitializationGuard;
 static bool g_Initialized;
+static bool g_OptionsInitialized;
 static char const* g_cbcPath;
 static char const* g_mainCbc;
+
+static void InitEnvOpts() {
+    std::lock_guard guard(g_InitializationGuard);
+    if (!g_OptionsInitialized) {
+        Options::InitEnvOptions();
+        g_OptionsInitialized = true;
+    }
+}
 
 /// Initialize engine from launcher.
 static void EnsureEngineInitialized()
 {
+    InitEnvOpts();
     std::lock_guard guard(g_InitializationGuard);
     if (g_Initialized) {
         return;
     }
-
-    Options::InitEnvOptions();
 
     Engine::Loader loader;
     loader.Load(IO::OpenFile(std::filesystem::path(g_mainCbc)), g_mainCbc);
@@ -129,6 +138,7 @@ CBC_EXPORT void interpreter_bridge_init(
 {
     (void)size;
     (void)options;
+    InitEnvOpts();
 
     g_CJNativeInterfaceInstance            = *rtInterf;
     interpInterf->version                  = 1;
