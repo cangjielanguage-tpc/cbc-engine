@@ -9,6 +9,7 @@
 #include "cbc/isa.h"
 #include "encoding_rt.h"
 #include "interpreter/code.h"
+#include "runtimesupport/runtime.h"
 #include "utils/heap.h"
 
 namespace Cbc {
@@ -145,7 +146,7 @@ public:
     void BccImm(CC cc, Width width, IReg l, uint64_t r, Label label);
     void Jmp(Label label);
 
-    void NewObj(IReg d, Symbol sym);
+    void NewObj(RTSupport::TypeInfo typeInfo);
     void LoadObj(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset);
     void StoreObj(StoreAccessKind stk, Reg src, IReg base, uint32_t offset);
     void LoadStatic(LoadAccessKind ldk, Reg dst, Symbol offSym);
