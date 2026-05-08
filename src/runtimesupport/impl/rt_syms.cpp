@@ -47,6 +47,10 @@ struct Handle {
     }
 };
 
+DYN_FuncPtrT* (*GetMTable)(DYN_TypeInfoT* t, DYN_TypeInfoT* itf);
+void (*UpdateVMT)(DYN_TypeInfoT* t, DYN_TypeInfoT* itf, DYN_ExtensionDataT* extData);
+DYN_TypeInfoT* (*GetMethodOuterTI)(DYN_TypeInfoT* t, DYN_TypeInfoT* itf, int index);
+
 void Initialize(DYN_CJNativeInterfaceT* interf)
 {
     auto anySym = reinterpret_cast<void*>(interf->arrayAlloc);

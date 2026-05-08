@@ -327,6 +327,7 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
+        emit.InterfaceCall(method->methodNum, *ti);
         if (dst != IReg::IR1) {
             emit.Mov(dst, IReg::IR1);
         }
