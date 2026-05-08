@@ -239,6 +239,7 @@ private:
     struct Hasher {
         uint64_t operator()(TermData* const& data) const;
     };
+
     struct Comparator {
         bool operator()(TermData* const& left, TermData* const& right) const;
     };

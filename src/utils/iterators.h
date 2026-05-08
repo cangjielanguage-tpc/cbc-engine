@@ -40,8 +40,5 @@ template <typename Generator> struct SimpleRange {
     auto end() { return DefaultSentinel {}; }
 };
 
-template <typename Generator> SimpleRange<Generator> MakeRange(Generator func)
-{
-    return { std::move(func) };
-}
+template <typename Generator> SimpleRange<Generator> MakeRange(Generator func) { return { std::move(func) }; }
 } // namespace Iterators

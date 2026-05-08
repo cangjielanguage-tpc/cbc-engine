@@ -2,21 +2,21 @@
 #include "RuntimeTypes.h"
 #include "engine/engine.h"
 #include "engine/identifiers.h"
+#include "engine/resolving_output.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/flags.h"
 #include "engine/symlevel/method_table.h"
 #include "engine/symlevel/reader.h"
-#include "engine/resolving_output.h"
 #include "engine/terms.h"
 #include "interpreter/function_handle.h"
 #include "runtimesupport/adapters.h"
 #include "runtimesupport/impl/cjnative.h"
 #include "runtimesupport/impl/typeinfo_ext.h"
-#include "utils/rt_logger.h"
 #include "runtimesupport/runtime.h"
 #include "utils/assertion.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
+#include "utils/rt_logger.h"
 #include <cstdint>
 #include <cstdlib>
 #include <optional>
@@ -40,18 +40,22 @@ static char* ConstructTypeInfoName(std::string_view str)
     cStr[size] = 0;
 
     char* lastDot = nullptr;
-    char* cursor = cStr;
+    char* cursor  = cStr;
     for (;; cursor++) {
-        if (*cursor == '.') lastDot = cursor;
+        if (*cursor == '.')
+            lastDot = cursor;
         switch (*cursor) {
             case '.': lastDot = cursor; continue;
-            case '<': case ',': case '>':
-            {
-                if (lastDot) *lastDot = ':';
+            case '<':
+            case ',':
+            case '>': {
+                if (lastDot)
+                    *lastDot = ':';
                 continue;
             }
             case '\0': {
-                if (lastDot) *lastDot = ':';
+                if (lastDot)
+                    *lastDot = ':';
                 return cStr;
             }
         }
@@ -73,7 +77,7 @@ static char* ConstructTypeInfoName(std::string_view str)
 struct TypeInfoBuilder {
     char* name = nullptr;
     int8_t type;
-    uint8_t flag = 0;
+    uint8_t flag      = 0;
     uint16_t fieldNum = 0;
     //
     // assume that there is no 32-bit size objects
@@ -83,12 +87,12 @@ struct TypeInfoBuilder {
     DYN_GCTibT gctib; // TODO: gctib builder
     uint32_t uuid = 0;
     uint8_t align;
-    int8_t typeArgsNum = 0;
-    uint16_t validInheritNum = 0;
-    uint32_t* fieldOffsets = nullptr;
+    int8_t typeArgsNum           = 0;
+    uint16_t validInheritNum     = 0;
+    uint32_t* fieldOffsets       = nullptr;
     DYN_FuncPtrT finalizerMethod = nullptr;
-    DYN_TypeInfoT** typeArgs = nullptr;
-    DYN_TypeInfoT** fields   = nullptr;
+    DYN_TypeInfoT** typeArgs     = nullptr;
+    DYN_TypeInfoT** fields       = nullptr;
 
     DYN_TypeInfoT* superTypeInfo     = nullptr;
     DYN_TypeInfoT* componentTypeInfo = nullptr;
@@ -178,7 +182,7 @@ static DYN_FuncPtrT GetFunctionOrTrampoline(
 )
 {
     auto method = Symlevel::Reader::Read(session, methodId);
-    auto flags = method.GetFlags();
+    auto flags  = method.GetFlags();
 
     ASSERTION(flags.Is(Symlevel::MethodFlag::VIRTUAL), "Only virtual methods are expected");
 
@@ -186,8 +190,8 @@ static DYN_FuncPtrT GetFunctionOrTrampoline(
         return nullptr;
     } else if (flags.Is(Symlevel::MethodFlag::AOT)) {
         // must be present with aot flag
-        auto& manager = Interpretation::FunctionHandleManager::Of(session);
-        auto fuh = manager.AcquireTagged(session, methodId);
+        auto& manager  = Interpretation::FunctionHandleManager::Of(session);
+        auto fuh       = manager.AcquireTagged(session, methodId);
         auto staticFuh = std::get<Interpretation::StaticFunctionHandle*>(fuh);
         return staticFuh->function;
     } else {

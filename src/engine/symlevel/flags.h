@@ -10,28 +10,29 @@
 
 namespace Symlevel {
 
-#define TYPE_FLAGS(X) \
-    X(FINAL) \
-    X(ABSTRACT) \
-    X(SEALED) \
+#define TYPE_FLAGS(X)                                                                                                  \
+    X(FINAL)                                                                                                           \
+    X(ABSTRACT)                                                                                                        \
+    X(SEALED)                                                                                                          \
     X(AOT)
 
-#define FIELD_FLAGS(X) \
-    X(STATIC) \
-    X(FINAL) \
+#define FIELD_FLAGS(X)                                                                                                 \
+    X(STATIC)                                                                                                          \
+    X(FINAL)                                                                                                           \
     X(RECORD)
 
-#define METHOD_FLAGS(X) \
-    X(FINAL) \
-    X(STATIC) \
-    X(VIRTUAL) \
-    X(ABSTRACT) \
-    X(FOREIGN) \
-    X(MUT) \
+#define METHOD_FLAGS(X)                                                                                                \
+    X(FINAL)                                                                                                           \
+    X(STATIC)                                                                                                          \
+    X(VIRTUAL)                                                                                                         \
+    X(ABSTRACT)                                                                                                        \
+    X(FOREIGN)                                                                                                         \
+    X(MUT)                                                                                                             \
     X(AOT)
 
 #define FLAG_LIST(flag) flag,
-#define FLAG_C_STR(flag) case flag: return #flag;
+#define FLAG_C_STR(flag)                                                                                               \
+    case flag: return #flag;
 
 struct FieldFlag {
 public:
@@ -39,25 +40,21 @@ public:
         FIELD_FLAGS(FLAG_LIST)
     };
 
-    static constexpr Value values[] = {
-        FIELD_FLAGS(FLAG_LIST)
-    };
+    static constexpr Value values[] = { FIELD_FLAGS(FLAG_LIST) };
 
     constexpr FieldFlag(const Value value) : value(value) {}
 
     constexpr operator Value() const { return value; }
 
-    constexpr char const* CStr() const {
+    constexpr char const* CStr() const
+    {
         switch (value) {
             FIELD_FLAGS(FLAG_C_STR)
         }
         return "<invalid>";
     }
 
-    constexpr std::string_view ToString() const
-    {
-        return std::string_view(CStr());
-    }
+    constexpr std::string_view ToString() const { return std::string_view(CStr()); }
 
 private:
     Value value;
@@ -69,25 +66,21 @@ public:
         METHOD_FLAGS(FLAG_LIST)
     };
 
-    static constexpr Value values[] = {
-        METHOD_FLAGS(FLAG_LIST)
-    };
+    static constexpr Value values[] = { METHOD_FLAGS(FLAG_LIST) };
 
     constexpr MethodFlag(const Value value) : value(value) {}
 
     constexpr operator Value() const { return value; }
 
-    constexpr char const* CStr() const {
+    constexpr char const* CStr() const
+    {
         switch (value) {
             METHOD_FLAGS(FLAG_C_STR)
         }
         return "<invalid>";
     }
 
-    constexpr std::string_view ToString() const
-    {
-        return std::string_view(CStr());
-    }
+    constexpr std::string_view ToString() const { return std::string_view(CStr()); }
 
 private:
     Value value;
@@ -99,25 +92,21 @@ public:
         TYPE_FLAGS(FLAG_LIST)
     };
 
-    static constexpr Value values[] = {
-        TYPE_FLAGS(FLAG_LIST)
-    };
+    static constexpr Value values[] = { TYPE_FLAGS(FLAG_LIST) };
 
     constexpr TypeFlag(const Value value) : value(value) {}
 
     constexpr operator Value() const { return value; }
 
-    constexpr char const* CStr() const {
+    constexpr char const* CStr() const
+    {
         switch (value) {
             TYPE_FLAGS(FLAG_C_STR)
         }
         return "<invalid>";
     }
 
-    constexpr std::string_view ToString() const
-    {
-        return std::string_view(CStr());
-    }
+    constexpr std::string_view ToString() const { return std::string_view(CStr()); }
 
 private:
     Value value;

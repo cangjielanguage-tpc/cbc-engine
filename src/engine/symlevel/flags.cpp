@@ -25,8 +25,6 @@ Stream::Output& operator<<(Stream::Output& stream, MethodFlags flags)
     return stream;
 }
 
-
-
 Stream::Output& operator<<(Stream::Output& stream, FieldFlags flags)
 {
     auto prefix = "";
@@ -39,38 +37,23 @@ Stream::Output& operator<<(Stream::Output& stream, FieldFlags flags)
     return stream;
 }
 
-Stream::Output& operator<<(Stream::Output& stream, FieldFlag flag)
-{
-    return stream << flag.ToString();
-}
+Stream::Output& operator<<(Stream::Output& stream, FieldFlag flag) { return stream << flag.ToString(); }
 
-Stream::Output& operator<<(Stream::Output& stream, TypeFlag flag)
-{
-    return stream << flag.ToString();
-}
+Stream::Output& operator<<(Stream::Output& stream, TypeFlag flag) { return stream << flag.ToString(); }
 
-Stream::Output& operator<<(Stream::Output& stream, MethodFlag flag)
-{
-    return stream << flag.ToString();
-}
+Stream::Output& operator<<(Stream::Output& stream, MethodFlag flag) { return stream << flag.ToString(); }
 
-template <typename T>
-static std::string Str(T const* t) {
+template <typename T> static std::string Str(T const* t)
+{
     Stream::StringBuffer buf;
     buf << *t;
     return buf.ToString();
 }
 
-std::string TypeFlags::ToString() const {
-    return Str(this);
-}
+std::string TypeFlags::ToString() const { return Str(this); }
 
-std::string FieldFlags::ToString() const {
-    return Str(this);
-}
+std::string FieldFlags::ToString() const { return Str(this); }
 
-std::string MethodFlags::ToString() const {
-    return Str(this);
-}
+std::string MethodFlags::ToString() const { return Str(this); }
 
-}
+} // namespace Symlevel
