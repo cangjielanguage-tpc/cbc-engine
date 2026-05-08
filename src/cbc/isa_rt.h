@@ -64,7 +64,7 @@
     X(CONVERT, B3xxrr, "convert $0ct $1ct $2ir $3ir") /* FIXME: ir/fr */                                               \
     X(DIRECT_CALL_2I, B3xi12, "direct.call.2i $1I12L")                                                                 \
     X(DIRECT_CALL_2C, B3xi12, "direct.call.2c $1I12L")                                                                 \
-    X(VIRTUAL_CALL_2C, B5i16i16, "virtual.call.2c $0U16L $1U16L")                                                      \
+    X(VIRTUAL_CALL_2C, B5i16i16, "virtual.call.2c $0U16 $1U16")                                                        \
     X(MEMSPACE, B1, "memspace {")                                                                                      \
     X(GC_POINT, B1, "gcpoint")                                                                                         \
     X(BFXS, BFX, "bfxs $0ir $1ir $2U8 $3U8")                                                                           \
