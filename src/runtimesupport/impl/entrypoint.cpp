@@ -11,8 +11,11 @@
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
 #include "interpreter/loggers.h"
+#include "runtimesupport/impl/rt_syms.h"
 #include "utils/logger.h"
 #include "utils/options.h"
+
+DYN_CJNativeInterfaceT g_CJNativeInterfaceInstance;
 
 static std::mutex g_InitializationGuard;
 static bool g_Initialized;
@@ -143,6 +146,7 @@ CBC_EXPORT void interpreter_bridge_init(
     interpInterf->visitGlobalRoots         = &VisitGlobalRoots;
 
     Asm::engine_newobject_function = g_CJNativeInterfaceInstance.objectAlloc;
+    RTSupport::Initialize(&g_CJNativeInterfaceInstance);
 }
 
 } // extern "C"
