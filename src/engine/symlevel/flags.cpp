@@ -27,12 +27,9 @@ Stream::Output& operator<<(Stream::Output& stream, MethodFlags flags)
 
 Stream::Output& operator<<(Stream::Output& stream, FieldFlags flags)
 {
-    auto prefix = "";
+    stream << flags.GetAccessKind();
     for (FieldFlag flag : FieldFlag::values) {
-        if (flags.Is(flag)) {
-            stream << prefix << flag;
-            prefix = " ";
-        }
+        stream << " " << flag;
     }
     return stream;
 }

@@ -81,7 +81,7 @@ FieldDefinition FieldDefinition::Parse(Engine::Session& session, IO::FileId file
     auto nameOffset   = Offset<String>(reader.ReadU32());
     auto regionId     = reader.ReadU8();
     auto fieldTypeIdx = reader.ReadULEB();
-    auto flags        = reader.ReadU8();
+    auto parsedFlags  = reader.ReadU8();
 
     // TODO parse const value
     auto tag = reader.ReadU8();
@@ -89,8 +89,26 @@ FieldDefinition FieldDefinition::Parse(Engine::Session& session, IO::FileId file
 
     auto fieldType = Engine::RefIdentifier(RefId<Term>(regionId, fieldTypeIdx), fileId);
 
+    auto test = [parsedFlags](uint32_t bits) { return (parsedFlags & bits) != 0; };
+
+    auto testMask = [parsedFlags](uint32_t bits, uint32_t mask) { return (parsedFlags & mask) == bits; };
+
+    FieldFlags flags;
+
+    if (testMask(0b01, 0b11))
+        flags = flags.With(AccessKind::PUBLIC);
+    if (testMask(0b10, 0b11))
+        flags = flags.With(AccessKind::PRIVATE);
+    if (testMask(0b11, 0b11))
+        flags = flags.With(AccessKind::PROTECTED);
+
+    if (test(0x04))
+        flags = flags.Or(FieldFlag::STATIC);
+    if (test(0x08))
+        flags = flags.Or(FieldFlag::FINAL);
+
     return FieldDefinition(
-        Engine::Identifier<FieldDefinition>(offset, fileId), nameOffset, fieldType, FieldFlags(flags), {}
+        Engine::Identifier<FieldDefinition>(offset, fileId), nameOffset, fieldType, flags, {}
     );
 }
 
