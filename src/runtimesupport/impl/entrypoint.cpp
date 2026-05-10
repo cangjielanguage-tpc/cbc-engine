@@ -63,15 +63,18 @@ static void IterateFramesWithState(
 
 static void VisitGCFrameRoots(DYN_FrameDescT frame_desc, DYN_RootVisitorT root_visitor)
 {
-    auto fuh    = reinterpret_cast<Interpretation::DynamicFunctionHandle*>((uint8_t*) frame_desc.fp - FUH_SLOT_OFFSET);
-    auto reader = reinterpret_cast<Decoder::ByteReader*>((uint8_t*) frame_desc.fp - READER_SLOT_OFFSET);
-    auto curPos = static_cast<uint32_t>(
+    using namespace Interpretation;
+    const auto readerOffset = LOCAL_SLOTS_OFFSET + READER_SLOTS_SIZE;
+
+    auto fuh    = *reinterpret_cast<DynamicFunctionHandle**>((uint8_t*) frame_desc.fp - FUH_SLOT_OFFSET);
+    auto reader =  reinterpret_cast<Decoder::ByteReader*>((uint8_t*) frame_desc.fp - readerOffset);
+    auto curPos =  static_cast<uint32_t>(
         reinterpret_cast<uintptr_t>(reader->Cursor()) - reinterpret_cast<uintptr_t>(reader->Start())
     );
 
     auto bc = NOTNULL(fuh->bytecode.load(std::memory_order_acquire));
 
-    const Interpretation::ReferenceInfo* refInfo = nullptr;
+    const ReferenceInfo* refInfo = nullptr;
     for (auto& info : bc->referenceInfos) {
         if (info.rewrittenPos == curPos) {
             refInfo = &info;
@@ -79,9 +82,9 @@ static void VisitGCFrameRoots(DYN_FrameDescT frame_desc, DYN_RootVisitorT root_v
         }
     }
 
-    auto slotsStartAddr = ((uint8_t*) frame_desc.fp) - (READER_SLOT_OFFSET + bc->frameSize);
+    auto slotsStartAddr = ((uint8_t*) frame_desc.fp) - (readerOffset + bc->frameSize);
 
-    Interpretation::Log::interpretation.Log(Logging::Level::TRACE, [&](Stream::Output& stream) {
+    Log::interpretation.Log(Logging::Level::TRACE, [&](Stream::Output& stream) {
         stream.PrintFmt("[RT] visiting frame (fuh=%p, fp=%p, pos=%p, slots_addr=%p)\n",
             fuh, frame_desc, curPos, slotsStartAddr
         );

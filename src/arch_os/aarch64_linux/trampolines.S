@@ -200,18 +200,17 @@ perform_2i_call:
   stp   x0, ECTYPE_REG, [sp, #-16]!
   str   LITERALS_REG, [sp, #-8]!
 
-.set SLOT_OFFS,   0x18
 .set OFFS_ADDEND, 0x0
 
 .macro declare_slot var, size
   .set OFFS_ADDEND, OFFS_ADDEND + \size
-  .set \var, SLOT_OFFS + OFFS_ADDEND
+  .set \var, LOCAL_SLOTS_OFFSET + OFFS_ADDEND
 .endm
 
-  declare_slot READER_SLOT, READER_SLOT_OFFSET
+  declare_slot READER_SLOT, READER_SLOTS_SIZE
 
   // align stack
-  .if (SLOT_OFFS + OFFS_ADDEND) % 0x10 != 0
+  .if (LOCAL_SLOTS_OFFSET + OFFS_ADDEND) % 0x10 != 0
     .set OFFS_ADDEND, OFFS_ADDEND + 0x8
   .endif
   sub   sp, sp, OFFS_ADDEND

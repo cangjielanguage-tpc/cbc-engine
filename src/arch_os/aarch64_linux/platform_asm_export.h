@@ -3,8 +3,10 @@
 
 #define FUH_SLOT_OFFSET 0x8
 
+#define LOCAL_SLOTS_OFFSET 0x18
+
 #ifndef NDEBUG
-#define READER_SLOT_OFFSET 0x18
+#define READER_SLOTS_SIZE 0x18
 #else
-#define READER_SLOT_OFFSET 0x8
+#define READER_SLOTS_SIZE 0x8
 #endif
