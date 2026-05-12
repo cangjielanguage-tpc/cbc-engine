@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <cstdlib>
+#include <optional>
 #include <string>
 
 #include "utils/options.h"
@@ -9,6 +11,29 @@ namespace {
 using Opts = Options::Table;
 using Opt = Options::Option;
 using Status = Opts::Status;
+
+struct EnvGuard {
+    std::optional<std::string> saved;
+
+    void Save() { saved = GetEnv(); }
+    void Restore()
+    {
+        if (saved.has_value()) {
+            setenv("CBCOPT", saved->c_str(), 1);
+        } else {
+            unsetenv("CBCOPT");
+        }
+    }
+
+    static std::optional<std::string> GetEnv()
+    {
+        auto* val = std::getenv("CBCOPT");
+        if (val == nullptr) {
+            return std::nullopt;
+        }
+        return std::string(val);
+    }
+};
 
 } // namespace
 
@@ -274,6 +299,165 @@ TEST(OptionsParseAndSet, LastWins)
     Options::ParseAndSet(2, options, opts);
 
     EXPECT_FALSE(var);
+}
+
+class InitFromEnvTest : public ::testing::Test {
+protected:
+    EnvGuard envGuard;
+
+    void SetUp() override { envGuard.Save(); }
+    void TearDown() override { envGuard.Restore(); }
+};
+
+TEST_F(InitFromEnvTest, Simple)
+{
+    bool var = false;
+    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt optsArray[] = { opt };
+    Opts opts(optsArray);
+
+    setenv("CBCOPT", "test.flag=true", 1);
+    Options::InitFromEnv(opts);
+
+    EXPECT_TRUE(var);
+}
+
+TEST_F(InitFromEnvTest, Multiple)
+{
+    bool flag = false;
+    std::string path;
+    Opt optsArray[] = {
+        { "test.flag", &flag, &SetBoolValue },
+        { "test.path", &path, &SetStringValue },
+    };
+    Opts opts(optsArray);
+
+    setenv("CBCOPT", "test.flag=true test.path=/test/path", 1);
+    Options::InitFromEnv(opts);
+
+    EXPECT_TRUE(flag);
+    EXPECT_EQ(path, "/test/path");
+}
+
+TEST_F(InitFromEnvTest, NotSet)
+{
+    bool var = false;
+    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt optsArray[] = { opt };
+    Opts opts(optsArray);
+
+    unsetenv("CBCOPT");
+    Options::InitFromEnv(opts);
+
+    EXPECT_FALSE(var);
+}
+
+TEST_F(InitFromEnvTest, Empty)
+{
+    bool var = false;
+    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt optsArray[] = { opt };
+    Opts opts(optsArray);
+
+    setenv("CBCOPT", "", 1);
+    Options::InitFromEnv(opts);
+
+    EXPECT_FALSE(var);
+}
+
+TEST_F(InitFromEnvTest, LastWins)
+{
+    bool var = false;
+    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt optsArray[] = { opt };
+    Opts opts(optsArray);
+
+    setenv("CBCOPT", "test.flag=true test.flag=false", 1);
+    Options::InitFromEnv(opts);
+
+    EXPECT_FALSE(var);
+}
+
+TEST_F(InitFromEnvTest, LeadingTrailingSpaces)
+{
+    bool var = false;
+    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt optsArray[] = { opt };
+    Opts opts(optsArray);
+
+    setenv("CBCOPT", "  test.flag=true  ", 1);
+    Options::InitFromEnv(opts);
+
+    EXPECT_TRUE(var);
+}
+
+TEST_F(InitFromEnvTest, ConsecutiveSpaces)
+{
+    bool a = false;
+    bool b = false;
+    Opt optsArray[] = {
+        { "test.a", &a, &SetBoolValue },
+        { "test.b", &b, &SetBoolValue },
+    };
+    Opts opts(optsArray);
+
+    setenv("CBCOPT", "test.a=true  test.b=true", 1);
+    Options::InitFromEnv(opts);
+
+    EXPECT_TRUE(a);
+    EXPECT_TRUE(b);
+}
+
+TEST_F(InitFromEnvTest, UnknownOption)
+{
+    bool var = false;
+    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt optsArray[] = { opt };
+    Opts opts(optsArray);
+
+    setenv("CBCOPT", "test.unknown=value", 1);
+    Options::InitFromEnv(opts);
+
+    EXPECT_FALSE(var);
+}
+
+TEST_F(InitFromEnvTest, MalformedKeyVal)
+{
+    bool var = false;
+    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt optsArray[] = { opt };
+    Opts opts(optsArray);
+
+    setenv("CBCOPT", "noequalsign", 1);
+    Options::InitFromEnv(opts);
+
+    EXPECT_FALSE(var);
+}
+
+TEST_F(InitFromEnvTest, BoolZero)
+{
+    bool var = true;
+    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt optsArray[] = { opt };
+    Opts opts(optsArray);
+
+    setenv("CBCOPT", "test.flag=0", 1);
+    Options::InitFromEnv(opts);
+
+    EXPECT_FALSE(var);
+}
+
+TEST_F(InitFromEnvTest, BoolOne)
+{
+    bool var = false;
+    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt optsArray[] = { opt };
+    Opts opts(optsArray);
+
+    setenv("CBCOPT", "test.flag=1", 1);
+    Options::InitFromEnv(opts);
+
+    EXPECT_TRUE(var);
 }
 
 } // namespace
