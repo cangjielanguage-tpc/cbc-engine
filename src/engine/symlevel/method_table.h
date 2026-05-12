@@ -5,6 +5,7 @@
 #include "engine/symlevel/definitions.h"
 #include "engine/terms.h"
 #include "utils/iterators.h"
+#include "utils/logger.h"
 #include <memory>
 #include <vector>
 
@@ -169,16 +170,23 @@ public:
     virtual ~MethodTableManager() = default;
 
     /// Returns an method table for the given type definition.
-    virtual std::shared_ptr<MethodTable> GetMethodTable(
+    virtual std::optional<std::shared_ptr<MethodTable>> GetMethodTable(
         Engine::Session& session, Engine::Identifier<TypeDefinition> type
     ) = 0;
 
     /// Returns an method table for the given type.
-    std::shared_ptr<MethodTable> GetMethodTable(Engine::Session& session, Engine::Term term);
+    std::optional<std::shared_ptr<MethodTable>> GetMethodTable(Engine::Session& session, Engine::Term term);
 
 protected:
-    MethodTable BuildTable(Engine::Session& session, Engine::Identifier<TypeDefinition> type);
+    std::optional<MethodTable> BuildTable(Engine::Session& session, Engine::Identifier<TypeDefinition> type);
     MethodTable BaseTable();
 };
 
+namespace Log {
+/// Logger for method table building and querying.
+/// DEBUG - log method tables structure
+/// INFO  - log queries of method table
+/// ERROR - log errors
+extern Logging::Logger mt;
+} // namespace Log
 } // namespace Symlevel

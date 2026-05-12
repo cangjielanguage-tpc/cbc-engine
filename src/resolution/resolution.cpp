@@ -245,8 +245,13 @@ MethodSignature ConstructSignature(Resolver::Impl& resolver, ResolvedMethodRefer
 static std::optional<VirtualCall> ResolveCbcCall(Resolver::Impl& resolver, ResolvedMethodReference& ref)
 {
     auto& manager = Symlevel::MethodTableManager::Of(resolver.session);
-    auto mt       = manager.GetMethodTable(resolver.session, ref.refType);
+    auto optMT    = manager.GetMethodTable(resolver.session, ref.refType);
     auto refType  = resolver.GetType(ref.refType);
+
+    if (!optMT.has_value()) {
+        return std::nullopt;
+    }
+    auto mt = *optMT;
 
     Symlevel::MethodTable::Reference mtRef = {
         .name      = ref.name,

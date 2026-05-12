@@ -1,3 +1,4 @@
+#include "engine/symlevel/method_table.h"
 #include "interpreter/loggers.h"
 #include "resolution/resolution.h"
 #include "utils/logger.h"
@@ -72,6 +73,7 @@ constexpr Option options[] = {
     { "cbc.log.preparation", &Interpretation::Log::preparation, &SetLogLevelOption },
     { "cbc.log.typeinfo", &RTSupport::Log::typeinfo, &SetLogLevelOption },
     { "cbc.log.init", &RTSupport::Log::init, &SetLogLevelOption },
+    { "cbc.log.method.table", &Symlevel::Log::mt, &SetLogLevelOption },
     { "cbc.log.all", nullptr, &SetLogLevelOptionForAll },
 };
 

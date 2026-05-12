@@ -266,7 +266,16 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
     { // fill out ext defs
         auto& manager    = Symlevel::MethodTableManager::Of(session);
         auto& fuhManager = Interpretation::FunctionHandleManager::Of(session);
-        auto mt          = manager.GetMethodTable(session, term);
+        auto optMT       = manager.GetMethodTable(session, term);
+
+        if (!optMT.has_value()) {
+            Log::typeinfo.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
+                Stream::ResolvingOutput stream(session, out);
+                stream << "Failed to build method table for " << term << Stream::endl;
+            });
+            return std::nullopt;
+        }
+        auto mt = *optMT;
 
         Log::typeinfo.Log(Logging::Level::INFO, [&](Stream::Output& out) {
             Stream::ResolvingOutput stream(session, out);
