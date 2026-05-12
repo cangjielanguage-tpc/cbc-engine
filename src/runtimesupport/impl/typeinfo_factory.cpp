@@ -277,11 +277,6 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         }
         auto mt = *optMT;
 
-        Log::typeinfo.Log(Logging::Level::INFO, [&](Stream::Output& out) {
-            Stream::ResolvingOutput stream(session, out);
-            stream << term << " " << *mt << Stream::endl;
-        });
-
         auto extDefCount = mt->ClassCount() + mt->InterfaceCount();
 
         // To simplify memory management here, we will preallocate "flat" arrays
