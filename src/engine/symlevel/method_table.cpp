@@ -269,7 +269,7 @@ std::shared_ptr<MethodTable> MethodTableManager::GetMethodTable(Session& session
 {
     if (term.GetKind() == TermKind::NIL) {
         static auto mt = std::make_shared<MethodTable>(std::move(BaseTable()));
-        return mt;
+        return std::atomic_load(&mt);
     }
     auto type = TypeTermId(term).GetIdentifier();
 
