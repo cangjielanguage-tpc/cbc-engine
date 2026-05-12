@@ -17,6 +17,7 @@ Sequence Sequence::Parse(IO::StreamFileReader& reader, IO::FileId id)
     auto size     = reader.ReadULEB();
     auto startPos = reader.Position();
     auto endPos   = startPos + size;
+    reader.Advance(size);
     return Sequence { id, startPos, endPos };
 }
 
