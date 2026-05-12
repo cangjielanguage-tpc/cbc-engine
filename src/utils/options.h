@@ -54,6 +54,7 @@ private:
 void ParseAndSet(int size, char const** optStr, Table const& opts);
 void InitFromString(std::string_view optStr, Table const& opts);
 void InitFromEnv(Table const& opts);
+void InitEnvOptions();
 
 extern Table const g_table;
 

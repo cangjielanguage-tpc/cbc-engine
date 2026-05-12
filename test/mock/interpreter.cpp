@@ -189,7 +189,7 @@ Interpretation::Value::Primitive InterpretFPRes(
 void InitializeMockInterpreter()
 {
     using namespace Interpretation;
-    Options::InitFromEnv(Options::g_table);
+    Options::InitEnvOptions();
     auto i2call = reinterpret_cast<Interpretation::I2Call>(&Interpretation::InterpreterI2CallTest);
     static_assert(IReg::COUNT == 14);
 }

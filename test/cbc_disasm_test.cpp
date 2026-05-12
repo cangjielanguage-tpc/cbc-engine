@@ -18,7 +18,7 @@ class CbcDisasmTest : public testing::Test {
     void SetUp() override
     {
         heap.Reset();
-        Options::InitFromEnv(Options::g_table);
+        Options::InitEnvOptions();
     }
 
     void TearDown() override {}

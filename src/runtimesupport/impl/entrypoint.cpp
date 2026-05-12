@@ -27,7 +27,7 @@ static bool g_OptionsInitialized;
 static void InitEnvOpts() {
     std::lock_guard guard(g_InitializationGuard);
     if (!g_OptionsInitialized) {
-        Options::InitFromEnv(Options::g_table);
+        Options::InitEnvOptions();
         g_OptionsInitialized = true;
     }
 }
@@ -41,7 +41,7 @@ static void EnsureEngineInitialized()
         return;
     }
 
-    Options::InitFromEnv(Options::g_table);
+    Options::InitEnvOptions();
     Engine::Loader loader;
     loader.Load(IO::OpenFile(std::filesystem::path(g_mainCbc)), g_mainCbc);
     loader.Build();

@@ -147,4 +147,9 @@ void InitFromEnv(Table const& opts)
     InitFromString(std::string_view(_optStr), opts);
 }
 
+void InitEnvOptions()
+{
+    InitFromEnv(g_table);
+}
+
 } // namespace Options
