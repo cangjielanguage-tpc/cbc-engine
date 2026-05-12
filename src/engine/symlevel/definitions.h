@@ -3,7 +3,7 @@
 #include "engine/engine.h"
 #include "engine/identifiers.h"
 #include "engine/symlevel/flags.h"
-#include "engine/symlevel/offset_sequence.h"
+#include "engine/symlevel/sequence.h"
 #include "io/file_id.h"
 #include "member_index.h"
 #include "offset.h"
@@ -46,6 +46,8 @@ public:
 
     TypeFlags const GetFlags() { return flags; }
 
+    RefSequence<Term> GetInterfaces() { return interfaces; }
+
 private:
     TypeDefinition(
         Engine::Identifier<TypeDefinition> const identifier,
@@ -72,6 +74,8 @@ private:
     OffsetSequence<MethodDefinition> virtualMethods;
     Engine::RefIdentifier<Term> superType;
     TypeFlags flags;
+
+    RefSequence<Term> interfaces{};
 };
 
 class FieldDefinition {

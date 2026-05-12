@@ -264,8 +264,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             stream << term << " " << *mt << Stream::endl;
         });
 
-        auto extDefCount       = mt->ClassCount() + mt->InterfaceCount();
-        constexpr auto ptrSize = sizeof(void*);
+        auto extDefCount = mt->ClassCount() + mt->InterfaceCount();
 
         // To simplify memory management here, we will preallocate "flat" arrays
         // where corresponding structures would be filled out.
@@ -289,7 +288,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         }
 
         // Fill out array of pointers to ext defs.
-        for (auto i = 0; i < extDefCount; i++) {
+        for (int i = 0; i < extDefCount; i++) {
             builder.extDefs[i] = &builder.flatExtDefs[i];
         }
 

@@ -4,6 +4,7 @@
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/reader.h"
 #include "engine/symlevel/term.h"
+#include "engine/symlevel/type_kind.h"
 #include "engine/terms.h"
 #include "utils/iterators.h"
 #include <memory>
@@ -176,23 +177,45 @@ std::optional<MethodTableEntry> MethodSubTable::EntryGenerator::operator()()
 
 MethodTable MethodTableManager::BuildTable(Session& session, Identifier<TypeDefinition> type)
 {
-    auto def       = TypeDefinition::Resolve(session, type);
-    auto methodSeq = def.GetVirtualMethods();
-    auto superType = TermManager::Resolve(session, def.GetSuperType());
+    auto def   = Reader::Read(session, type);
+    auto flags = def.GetFlags();
 
+    auto getSuperMT = [this, &session, &def]() {
+        return GetMethodTable(session, TermManager::Resolve(session, def.GetSuperType()));
+    };
+
+    // 1. Get table of super type for claseses or empty table for other types
+    auto newTable = flags.Is(TypeKind::CLASS)
+        ? *getSuperMT()
+        : MethodTable();
+
+
+    // 2. Copy all entries and sub tables of interfaces, adjusting their views
+    for (auto interf : def.GetInterfaces().Values(session)) {
+        auto interfTerm = TermManager::Resolve(session, interf);
+        auto interfTable = GetMethodTable(session, interfTerm);
+        ASSERTION(interfTable->classTables.empty(), "interface tables should not have class table");
+
+        auto oldEntryCount = newTable.EntryCount();
+        newTable.allEntries.insert(newTable.allEntries.end(), interfTable->allEntries.begin(), interfTable->allEntries.end());
+
+        for (auto st : interfTable->interfaceTables) {
+            newTable.interfaceTables.emplace_back(MethodTable::SubTable {
+                .genericContext = st.genericContext,
+                .start = st.start + oldEntryCount,
+                .end = st.end + oldEntryCount,
+            });
+        }
+    }
+
+    // 3. Patch all overriden methods and add newly declared methods
+    // to the subtable of current type.
     // TODO: make term with type variables
-    auto thisType = Term::Definition(session, type);
-
-    // copy table
-    auto newTable      = *GetMethodTable(session, superType);
+    auto thisType      = Term::Definition(session, type);
     auto oldEntryCount = newTable.EntryCount();
 
-    std::vector<Identifier<MethodDefinition>> declaredMethods;
-    methodSeq.Read(session, declaredMethods);
-
     std::vector<MethodTableEntry> entryBuffer;
-
-    for (auto methodId : declaredMethods) {
+    for (auto methodId : def.GetVirtualMethods().Values(session)) {
         auto newEntry = MethodTable::Entry {
             .method         = methodId,
             .genericContext = thisType,
@@ -202,27 +225,36 @@ MethodTable MethodTableManager::BuildTable(Session& session, Identifier<TypeDefi
         MethodTable::Reference ref { .name      = Reader::Read(session, method.Name()),
                                      .signature = TermManager::Resolve(session, method.Signature()) };
 
+        // TODO: Do not override protected methods that are not visible from the current type.
         newTable.ResolveAll(session, ref, entryBuffer);
+
         if (entryBuffer.empty()) {
+            // 3.2 add newly declared methods
             newTable.allEntries.emplace_back(newEntry);
-            continue;
+        } else {
+            // 3.1 patch overriden methods
+            for (auto& entry : entryBuffer) {
+                newTable.allEntries[entry.flatMethodNum] = newEntry;
+            }
+            entryBuffer.clear();
         }
-        for (auto& entry : entryBuffer) {
-            newTable.allEntries[entry.flatMethodNum] = newEntry;
-        }
-        entryBuffer.clear();
     }
 
-    auto newEntryCount = newTable.EntryCount();
-    newTable.classTables.emplace_back(MethodTable::SubTable {
+    // 3.3 add new subtable for current type (even if new methods were not added)
+    auto tables = flags.Is(TypeKind::INTERFACE)
+        ? &newTable.interfaceTables
+        : &newTable.classTables;
+
+    tables->emplace_back(MethodTable::SubTable {
         .genericContext = thisType,
         .start          = oldEntryCount,
-        .end            = newEntryCount,
+        .end            = newTable.EntryCount(),
     });
 
     return newTable;
 }
 
+/// "Almost empty" table of Object.
 MethodTable MethodTableManager::BaseTable()
 {
     MethodTable mt;
