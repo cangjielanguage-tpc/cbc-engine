@@ -206,9 +206,11 @@ struct IsaDisasm : public IsaParser {
         stream << d.ToStr() << ", " << l.ToStr() << ", " << imm << endl;
     }
 
-    void Ret(Format::Width width, IReg dst) override { stream << "ret." << Sz(width) << " " << dst.ToStr() << endl; }
+    void Ret(Format::Width width, IReg src) override { stream << "ret." << Sz(width) << " " << src.ToStr() << endl; }
 
-    void FRet(Format::Width width, FReg dst) override { stream << "fret." << Sz(width) << " " << dst.ToStr() << endl; }
+    void FRet(Format::Width width, FReg src) override { stream << "fret." << Sz(width) << " " << src.ToStr() << endl; }
+
+    void RetRef(IReg src) override { stream << "ret.ref " << src.ToStr() << endl; }
 
     void DivCheck(IReg reg) override { stream << "divcheck" << " " << reg.ToStr() << endl; }
 

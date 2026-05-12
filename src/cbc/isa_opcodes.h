@@ -106,4 +106,5 @@
     X(FRet64)                                                                                                          \
     X(DivCheck)                                                                                                        \
     X(Catch)                                                                                                           \
-    X(Throw)
+    X(Throw)                                                                                                           \
+    X(RetRef)

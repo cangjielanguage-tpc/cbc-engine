@@ -482,6 +482,7 @@ struct IsaParserImpl {
             case Cbc::RegGroup::DivCheck: parser.DivCheck(reg); break;
             case Cbc::RegGroup::Catch:    parser.Catch(reg); break;
             case Cbc::RegGroup::Throw:    parser.Throw(reg); break;
+            case Cbc::RegGroup::RetRef:   parser.RetRef(reg); break;
         }
     }
 

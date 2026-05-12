@@ -363,18 +363,26 @@ struct IsaRewriter : public IsaParser {
         emit.SCCImm(cc, width, d, l, imm);
     }
 
-    void Ret(Format::Width width, IReg dst) override
+    void Ret(Format::Width width, IReg src) override
     {
-        if (dst != IReg::IR1) {
-            emit.Mov(IReg::IR1, dst);
+        if (src != IReg::IR1) {
+            emit.Mov(IReg::IR1, src);
         }
         emit.Ret();
     }
 
-    void FRet(Format::Width width, FReg dst) override
+    void FRet(Format::Width width, FReg src) override
     {
-        if (dst != FReg::FR1) {
-            emit.Mov(FReg::FR1, dst);
+        if (src != FReg::FR1) {
+            emit.Mov(FReg::FR1, src);
+        }
+        emit.Ret();
+    }
+
+    void RetRef(IReg src) override
+    {
+        if (src != IReg::IR1) {
+            emit.Mov(IReg::IR1, src);
         }
         emit.Ret();
     }
