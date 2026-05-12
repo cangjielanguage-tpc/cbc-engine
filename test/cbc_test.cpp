@@ -485,6 +485,18 @@ template <typename T> struct FPOpsTestParams {
     std::pair<T, T>* values;
 };
 
+template <typename T>
+std::ostream& operator<<(std::ostream& os, const FPOpsTestParams<T>& params)
+{
+    return os << params.name;
+}
+
+template <typename T>
+static std::string FPOpsTestParamsName(const ::testing::TestParamInfo<FPOpsTestParams<T>>& info)
+{
+    return info.param.name;
+}
+
 class CbcSpecializedFloatOps : public ::testing::TestWithParam<FPOpsTestParams<float>> {
     void SetUp() override { DoSetUp(); }
 };
@@ -556,13 +568,15 @@ TEST_P(CbcSpecializedDoubleOps, test)
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    CbcTest, CbcSpecializedFloatOps, ::testing::Values(FPOpsTestParams<float> { "32", floatValuesCount, floatValues })
+    CbcTest, CbcSpecializedFloatOps, ::testing::Values(FPOpsTestParams<float> { "32", floatValuesCount, floatValues }),
+    FPOpsTestParamsName<float>
 );
 
 INSTANTIATE_TEST_SUITE_P(
     CbcTest,
     CbcSpecializedDoubleOps,
-    ::testing::Values(FPOpsTestParams<double> { "64", doubleValuesCount, doubleValues })
+    ::testing::Values(FPOpsTestParams<double> { "64", doubleValuesCount, doubleValues }),
+    FPOpsTestParamsName<double>
 );
 
 TEST_ASM(CbcTest, SimpleArithFloatMov32)
