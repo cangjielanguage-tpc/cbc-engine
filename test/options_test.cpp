@@ -1,296 +1,279 @@
 #include <gtest/gtest.h>
 
-#include <charconv>
 #include <string>
 
-#include "cbc/isa_disasm.h"
-#include "interpreter/loggers.h"
-#include "resolution/resolution.h"
-#include "runtimesupport/impl/entrypoint.h"
-
-#include "utils/logger.h"
 #include "utils/options.h"
 
 namespace {
 
-class OptionsTest : public ::testing::Test {
-protected:
-    Options::Table::Snapshot saved;
-
-    void SetUp() override { saved = Options::g_table.SaveContext(); }
-
-    void TearDown() override { Options::g_table.RestoreContext(saved); }
-};
+using Opts = Options::Table;
+using Opt = Options::Option;
+using Status = Opts::Status;
 
 } // namespace
 
-TEST_F(OptionsTest, ParseAndSet)
-{
-    const char* options[] = {
-        "cbc.log.resolution=trace", "cbc.log.int=info", "cbc.dasm=true", "cbc.path=/path/to/cbc/sources"
-    };
-    constexpr size_t optionsCount = std::size(options);
-
-    Options::ParseAndSet(static_cast<int>(optionsCount), options, Options::g_table);
-
-    EXPECT_EQ(Resolution::log.GetLogLevel(), Logging::Level::TRACE);
-    EXPECT_EQ(Interpretation::Log::interpretation.GetLogLevel(), Logging::Level::INFO);
-    EXPECT_TRUE(Cbc::g_IsRawDisasmEnabled);
-    EXPECT_EQ(g_cbcPath, "/path/to/cbc/sources");
-}
-
-TEST_F(OptionsTest, ParseAndSet_Nullptr) { Options::ParseAndSet(0, nullptr, Options::g_table); }
-
-TEST_F(OptionsTest, ParseAndSet_Empty)
-{
-    const char* options[] = { "cbc.log.resolution=trace" };
-    Options::ParseAndSet(0, options, Options::g_table);
-}
-
-TEST_F(OptionsTest, ParseAndSet_UnknownOption)
-{
-    const char* options[]         = { "cbc.nonexistent=value" };
-    constexpr size_t optionsCount = std::size(options);
-
-    Options::ParseAndSet(static_cast<int>(optionsCount), options, Options::g_table);
-}
-
-TEST_F(OptionsTest, ParseAndSet_InvalidBoolValue)
-{
-    bool savedDasm                = Cbc::g_IsRawDisasmEnabled;
-    const char* options[]         = { "cbc.dasm=yes" };
-    constexpr size_t optionsCount = std::size(options);
-
-    Options::ParseAndSet(static_cast<int>(optionsCount), options, Options::g_table);
-
-    EXPECT_EQ(Cbc::g_IsRawDisasmEnabled, savedDasm);
-}
-
-TEST_F(OptionsTest, ParseAndSet_MalformedKeyVal)
-{
-    const char* options[]         = { "noequalsign" };
-    constexpr size_t optionsCount = std::size(options);
-
-    Options::ParseAndSet(static_cast<int>(optionsCount), options, Options::g_table);
-}
-
-TEST_F(OptionsTest, ParseAndSet_NoValue)
-{
-    bool savedDasm                = Cbc::g_IsRawDisasmEnabled;
-    const char* options[]         = { "cbc.dasm=" };
-    constexpr size_t optionsCount = std::size(options);
-
-    Options::ParseAndSet(static_cast<int>(optionsCount), options, Options::g_table);
-
-    EXPECT_EQ(Cbc::g_IsRawDisasmEnabled, savedDasm);
-}
-
-TEST_F(OptionsTest, ParseAndSet_MultipleKeysLastWins)
-{
-    const char* options[]         = { "cbc.dasm=true", "cbc.dasm=false" };
-    constexpr size_t optionsCount = std::size(options);
-
-    Options::ParseAndSet(static_cast<int>(optionsCount), options, Options::g_table);
-
-    EXPECT_FALSE(Cbc::g_IsRawDisasmEnabled);
-}
-
-TEST_F(OptionsTest, ParseAndSet_AllLogLevels)
-{
-    const char* options[]         = { "cbc.log.all=debug" };
-    constexpr size_t optionsCount = std::size(options);
-
-    Options::ParseAndSet(static_cast<int>(optionsCount), options, Options::g_table);
-
-    EXPECT_EQ(Resolution::log.GetLogLevel(), Logging::Level::DEBUG);
-    EXPECT_EQ(Interpretation::Log::interpretation.GetLogLevel(), Logging::Level::DEBUG);
-    EXPECT_EQ(Interpretation::Log::preparation.GetLogLevel(), Logging::Level::DEBUG);
-}
-
-TEST_F(OptionsTest, InitFromString)
-{
-    Options::InitFromString("cbc.log.resolution=trace cbc.dasm=true cbc.path=/test/path", Options::g_table);
-
-    EXPECT_EQ(Resolution::log.GetLogLevel(), Logging::Level::TRACE);
-    EXPECT_TRUE(Cbc::g_IsRawDisasmEnabled);
-    EXPECT_EQ(g_cbcPath, "/test/path");
-}
-
-TEST_F(OptionsTest, InitFromString_Empty) { Options::InitFromString("", Options::g_table); }
-
-TEST_F(OptionsTest, InitFromString_LeadingTrailingSpaces)
-{
-    Options::InitFromString("  cbc.dasm=true  ", Options::g_table);
-
-    EXPECT_TRUE(Cbc::g_IsRawDisasmEnabled);
-}
-
-TEST_F(OptionsTest, InitFromString_ConsecutiveSpaces)
-{
-    Options::InitFromString("cbc.dasm=true  cbc.log.resolution=warn", Options::g_table);
-
-    EXPECT_TRUE(Cbc::g_IsRawDisasmEnabled);
-    EXPECT_EQ(Resolution::log.GetLogLevel(), Logging::Level::WARN);
-}
-
-TEST_F(OptionsTest, InitFromString_UnknownOption)
-{
-    Options::InitFromString("cbc.nonexistent=value", Options::g_table);
-}
-
-TEST_F(OptionsTest, InitFromString_Malformed) { Options::InitFromString("noequalsign", Options::g_table); }
-
-TEST_F(OptionsTest, InitFromString_BoolZero)
-{
-    Options::InitFromString("cbc.dasm=0", Options::g_table);
-
-    EXPECT_FALSE(Cbc::g_IsRawDisasmEnabled);
-}
-
-TEST_F(OptionsTest, InitFromString_BoolOne)
-{
-    Cbc::g_IsRawDisasmEnabled = false;
-    Options::InitFromString("cbc.dasm=1", Options::g_table);
-
-    EXPECT_TRUE(Cbc::g_IsRawDisasmEnabled);
-}
-
-// --- Custom Table instance tests ---
+#include "utils/options_setup.h"
 
 namespace {
 
-using Opts   = Options::Table;
-using Opt    = Options::Option;
-using Status = Opts::Status;
-
-bool SetIntValue(Opts const&, Opt const& opt, std::string_view value)
+TEST(OptionsSetters, SetBoolValue_True)
 {
-    int val;
-    auto res = std::from_chars(value.begin(), value.end(), val);
-    if (res.ptr == value.end()) {
-        *reinterpret_cast<int*>(opt.location) = val;
-        return true;
-    }
-    return false;
+    bool var = false;
+    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt optsArray[] = { opt };
+    Opts opts(optsArray);
+
+    EXPECT_EQ(opts.Set("test.flag", "true"), Status::OK);
+    EXPECT_TRUE(var);
 }
 
-bool SetStringVal(Opts const&, Opt const& opt, std::string_view value)
+TEST(OptionsSetters, SetBoolValue_False)
 {
-    *reinterpret_cast<std::string*>(opt.location) = value;
-    return true;
+    bool var = true;
+    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt optsArray[] = { opt };
+    Opts opts(optsArray);
+
+    EXPECT_EQ(opts.Set("test.flag", "false"), Status::OK);
+    EXPECT_FALSE(var);
+}
+
+TEST(OptionsSetters, SetBoolValue_One)
+{
+    bool var = false;
+    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt optsArray[] = { opt };
+    Opts opts(optsArray);
+
+    EXPECT_EQ(opts.Set("test.flag", "1"), Status::OK);
+    EXPECT_TRUE(var);
+}
+
+TEST(OptionsSetters, SetBoolValue_Zero)
+{
+    bool var = true;
+    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt optsArray[] = { opt };
+    Opts opts(optsArray);
+
+    EXPECT_EQ(opts.Set("test.flag", "0"), Status::OK);
+    EXPECT_FALSE(var);
+}
+
+TEST(OptionsSetters, SetBoolValue_Invalid)
+{
+    bool var = false;
+    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt optsArray[] = { opt };
+    Opts opts(optsArray);
+
+    EXPECT_EQ(opts.Set("test.flag", "yes"), Status::INVALID_OPTION);
+    EXPECT_FALSE(var);
+}
+
+TEST(OptionsSetters, SetStringValue)
+{
+    std::string var = "old";
+    Opt opt = { "test.path", &var, &SetStringValue };
+    Opt optsArray[] = { opt };
+    Opts opts(optsArray);
+
+    EXPECT_EQ(opts.Set("test.path", "/new/path"), Status::OK);
+    EXPECT_EQ(var, "/new/path");
+}
+
+TEST(OptionsSetters, SetLogLevelValue)
+{
+    Logging::Logger logger;
+    Opt opt = { "test.log", &logger, &SetLogLevelValue };
+    Opt optsArray[] = { opt };
+    Opts opts(optsArray);
+
+    EXPECT_EQ(opts.Set("test.log", "trace"), Status::OK);
+    EXPECT_EQ(logger.GetLogLevel(), Logging::Level::TRACE);
+
+    EXPECT_EQ(opts.Set("test.log", "debug"), Status::OK);
+    EXPECT_EQ(logger.GetLogLevel(), Logging::Level::DEBUG);
+
+    EXPECT_EQ(opts.Set("test.log", "info"), Status::OK);
+    EXPECT_EQ(logger.GetLogLevel(), Logging::Level::INFO);
+
+    EXPECT_EQ(opts.Set("test.log", "warn"), Status::OK);
+    EXPECT_EQ(logger.GetLogLevel(), Logging::Level::WARN);
+
+    EXPECT_EQ(opts.Set("test.log", "error"), Status::OK);
+    EXPECT_EQ(logger.GetLogLevel(), Logging::Level::ERROR);
+
+    EXPECT_EQ(opts.Set("test.log", "fatal"), Status::OK);
+    EXPECT_EQ(logger.GetLogLevel(), Logging::Level::FATAL);
+
+    EXPECT_EQ(opts.Set("test.log", "none"), Status::OK);
+    EXPECT_EQ(logger.GetLogLevel(), Logging::Level::NONE);
+}
+
+TEST(OptionsSetters, SetLogLevelValue_Invalid)
+{
+    Logging::Logger logger;
+    Opt opt = { "test.log", &logger, &SetLogLevelValue };
+    Opt optsArray[] = { opt };
+    Opts opts(optsArray);
+
+    EXPECT_EQ(opts.Set("test.log", "invalid"), Status::INVALID_OPTION);
+}
+
+TEST(OptionsTable, UnknownOption)
+{
+    bool var = false;
+    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt optsArray[] = { opt };
+    Opts opts(optsArray);
+
+    EXPECT_EQ(opts.Set("test.nonexistent", "x"), Status::UNKNOWN_OPTION);
+}
+
+TEST(OptionsTable, LastWins)
+{
+    bool var = false;
+    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt optsArray[] = { opt };
+    Opts opts(optsArray);
+
+    EXPECT_EQ(opts.Set("test.flag", "true"), Status::OK);
+    EXPECT_EQ(opts.Set("test.flag", "false"), Status::OK);
+    EXPECT_FALSE(var);
+}
+
+TEST(OptionsInitFromString, Simple)
+{
+    bool var = false;
+    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt optsArray[] = { opt };
+    Opts opts(optsArray);
+
+    Options::InitFromString("test.flag=true", opts);
+    EXPECT_TRUE(var);
+}
+
+TEST(OptionsInitFromString, Multiple)
+{
+    bool flag = false;
+    std::string path;
+    Opt optsArray[] = {
+        { "test.flag", &flag, &SetBoolValue },
+        { "test.path", &path, &SetStringValue },
+    };
+    Opts opts(optsArray);
+
+    Options::InitFromString("test.flag=true test.path=/some/path", opts);
+
+    EXPECT_TRUE(flag);
+    EXPECT_EQ(path, "/some/path");
+}
+
+TEST(OptionsInitFromString, LastWins)
+{
+    bool var = false;
+    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt optsArray[] = { opt };
+    Opts opts(optsArray);
+
+    Options::InitFromString("test.flag=true test.flag=false", opts);
+    EXPECT_FALSE(var);
+}
+
+TEST(OptionsInitFromString, Empty)
+{
+    bool var = false;
+    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt optsArray[] = { opt };
+    Opts opts(optsArray);
+
+    Options::InitFromString("", opts);
+    EXPECT_FALSE(var);
+}
+
+TEST(OptionsInitFromString, LeadingTrailingSpaces)
+{
+    bool var = false;
+    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt optsArray[] = { opt };
+    Opts opts(optsArray);
+
+    Options::InitFromString("  test.flag=true  ", opts);
+    EXPECT_TRUE(var);
+}
+
+TEST(OptionsInitFromString, ConsecutiveSpaces)
+{
+    bool var = false;
+    std::string str;
+    Opt optsArray[] = {
+        { "test.flag", &var, &SetBoolValue },
+        { "test.str", &str, &SetStringValue },
+    };
+    Opts opts(optsArray);
+
+    Options::InitFromString("test.flag=true  test.str=hello", opts);
+    EXPECT_TRUE(var);
+    EXPECT_EQ(str, "hello");
+}
+
+TEST(OptionsInitFromString, MalformedKeyVal)
+{
+    bool var = false;
+    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt optsArray[] = { opt };
+    Opts opts(optsArray);
+
+    Options::InitFromString("noequalsign", opts);
+    EXPECT_FALSE(var);
+}
+
+TEST(OptionsInitFromString, UnknownOption)
+{
+    bool var = false;
+    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt optsArray[] = { opt };
+    Opts opts(optsArray);
+
+    Options::InitFromString("test.unknown=value", opts);
+    EXPECT_FALSE(var);
+}
+
+TEST(OptionsParseAndSet, Simple)
+{
+    bool var = false;
+    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt optsArray[] = { opt };
+    Opts opts(optsArray);
+
+    const char* options[] = { "test.flag=true" };
+    Options::ParseAndSet(1, options, opts);
+
+    EXPECT_TRUE(var);
+}
+
+TEST(OptionsParseAndSet, Nullptr)
+{
+    bool var = false;
+    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt optsArray[] = { opt };
+    Opts opts(optsArray);
+
+    Options::ParseAndSet(0, nullptr, opts);
+}
+
+TEST(OptionsParseAndSet, LastWins)
+{
+    bool var = false;
+    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt optsArray[] = { opt };
+    Opts opts(optsArray);
+
+    const char* options[] = { "test.flag=true", "test.flag=false" };
+    Options::ParseAndSet(2, options, opts);
+
+    EXPECT_FALSE(var);
 }
 
 } // namespace
-
-TEST(OptionsCustom, SetAndGet)
-{
-    int myCounter = 0;
-    std::string myLabel;
-
-    Opt fakeOpts[] = {
-        { "test.counter", &myCounter, &SetIntValue },
-        { "test.label", &myLabel, &SetStringVal },
-    };
-    Opts opts(fakeOpts);
-
-    EXPECT_EQ(opts.Set("test.counter", "42"), Status::OK);
-    EXPECT_EQ(myCounter, 42);
-
-    EXPECT_EQ(opts.Set("test.label", "hello"), Status::OK);
-    EXPECT_EQ(myLabel, "hello");
-}
-
-TEST(OptionsCustom, UnknownOption)
-{
-    int var        = 0;
-    Opt fakeOpts[] = {
-        { "test.var", &var, &SetIntValue },
-    };
-    Opts opts(fakeOpts);
-
-    EXPECT_EQ(opts.Set("test.nonexistent", "x"), Status::UNKNOWN_OPTION);
-    EXPECT_EQ(var, 0);
-}
-
-TEST(OptionsCustom, InvalidValue)
-{
-    int var        = 0;
-    Opt fakeOpts[] = {
-        { "test.var", &var, &SetIntValue },
-    };
-    Opts opts(fakeOpts);
-
-    EXPECT_EQ(opts.Set("test.var", "notanumber"), Status::INVALID_OPTION);
-    EXPECT_EQ(var, 0);
-}
-
-TEST(OptionsCustom, MultipleOptions)
-{
-    int a          = 0;
-    int b          = 0;
-    Opt fakeOpts[] = {
-        { "test.a", &a, &SetIntValue },
-        { "test.b", &b, &SetIntValue },
-    };
-    Opts opts(fakeOpts);
-
-    EXPECT_EQ(opts.Set("test.a", "10"), Status::OK);
-    EXPECT_EQ(opts.Set("test.b", "20"), Status::OK);
-    EXPECT_EQ(a, 10);
-    EXPECT_EQ(b, 20);
-}
-
-TEST(OptionsCustom, LastWins)
-{
-    int var        = 0;
-    Opt fakeOpts[] = {
-        { "test.var", &var, &SetIntValue },
-    };
-    Opts opts(fakeOpts);
-
-    EXPECT_EQ(opts.Set("test.var", "1"), Status::OK);
-    EXPECT_EQ(opts.Set("test.var", "2"), Status::OK);
-    EXPECT_EQ(var, 2);
-}
-
-TEST(OptionsCustom, InitFromString)
-{
-    int var        = 0;
-    Opt fakeOpts[] = {
-        { "test.var", &var, &SetIntValue },
-    };
-    Opts opts(fakeOpts);
-
-    Options::InitFromString("test.var=42", opts);
-
-    EXPECT_EQ(var, 42);
-}
-
-TEST(OptionsCustom, InitFromString_LastWins)
-{
-    int var        = 0;
-    Opt fakeOpts[] = {
-        { "test.var", &var, &SetIntValue },
-    };
-    Opts opts(fakeOpts);
-
-    Options::InitFromString("test.var=10 test.var=20", opts);
-
-    EXPECT_EQ(var, 20);
-}
-
-TEST(OptionsCustom, InitFromString_MultipleOptions)
-{
-    int a          = 0;
-    int b          = 0;
-    Opt fakeOpts[] = {
-        { "test.a", &a, &SetIntValue },
-        { "test.b", &b, &SetIntValue },
-    };
-    Opts opts(fakeOpts);
-
-    Options::InitFromString("test.a=100 test.b=200", opts);
-
-    EXPECT_EQ(a, 100);
-    EXPECT_EQ(b, 200);
-}

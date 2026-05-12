@@ -42,38 +42,6 @@ Table::Status Table::Set(std::string_view key, std::string_view value) const
     return Status::UNKNOWN_OPTION;
 }
 
-Table::Snapshot Table::SaveContext() const
-{
-    Snapshot snap;
-    for (size_t i = 0; i < size_; ++i) {
-        auto& opt = options_[i];
-        if (opt.setter == &SetLogLevelValue) {
-            auto level = reinterpret_cast<Logging::Logger*>(opt.location)->GetLogLevel();
-            snap.entries.push_back({ i, std::string(1, static_cast<char>(level)) });
-        } else if (opt.setter == &SetBoolValue) {
-            snap.entries.push_back({ i, std::string(1, *(bool*)opt.location ? 1 : 0) });
-        } else if (opt.setter == &SetStringValue) {
-            snap.entries.push_back({ i, *(std::string*)opt.location });
-        }
-    }
-    return snap;
-}
-
-void Table::RestoreContext(Snapshot const& snap) const
-{
-    for (auto& entry : snap.entries) {
-        auto& opt = options_[entry.index];
-        if (opt.setter == &SetLogLevelValue) {
-            auto level = static_cast<Logging::Level>(entry.data[0]);
-            reinterpret_cast<Logging::Logger*>(opt.location)->SetLogLevel(level);
-        } else if (opt.setter == &SetBoolValue) {
-            *(bool*)opt.location = entry.data[0] != 0;
-        } else if (opt.setter == &SetStringValue) {
-            *(std::string*)opt.location = entry.data;
-        }
-    }
-}
-
 struct KeyVal {
     std::string_view key;
     std::string_view val;
@@ -92,7 +60,7 @@ void ParseKeyVal(std::vector<KeyVal>& parsedOpts, std::string_view kv)
     }
 };
 
-void SetOptions(std::vector<KeyVal> const& parsedOpts, Table const& opts)
+void SetOptions(const std::vector<KeyVal>& parsedOpts, const Table& opts)
 {
     for (auto& parsedOpt : parsedOpts) {
         switch (opts.Set(parsedOpt.key, parsedOpt.val)) {
@@ -103,7 +71,7 @@ void SetOptions(std::vector<KeyVal> const& parsedOpts, Table const& opts)
     }
 }
 
-void ParseAndSet(int size, char const** optStr, Table const& opts)
+void ParseAndSet(int size, char const** optStr, const Table& opts)
 {
     if (optStr == nullptr) {
         return;
@@ -117,7 +85,7 @@ void ParseAndSet(int size, char const** optStr, Table const& opts)
     SetOptions(parsedOpts, opts);
 }
 
-void InitFromString(std::string_view optStr, Table const& opts)
+void InitFromString(std::string_view optStr, const Table& opts)
 {
     std::vector<KeyVal> parsedOpts;
 
@@ -137,7 +105,7 @@ void InitFromString(std::string_view optStr, Table const& opts)
     SetOptions(parsedOpts, opts);
 }
 
-void InitFromEnv(Table const& opts)
+void InitFromEnv(const Table& opts)
 {
     auto _optStr = std::getenv("CBCOPT");
     if (_optStr == nullptr) {
