@@ -86,7 +86,7 @@ public:
     case opc: return #opc;
 
     enum Value : uint8_t {
-        ISA_REG_GROUP_OPCODES(DECLARE_OPCODE) LAST = Throw
+        ISA_REG_GROUP_OPCODES(DECLARE_OPCODE) LAST = RetRef
     };
 
     constexpr RegGroup(const Value raw) : _value(raw) {}
