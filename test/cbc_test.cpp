@@ -499,7 +499,7 @@ TEST_P(CbcSpecializedFloatOps, test)
         GTEST_SKIP() << "Assembler is not present";
     }
     FPOpsTestParams<float> params = GetParam();
-    auto path              = "./simple_arith_float/simple_arith_float" + params.name + ".asm";
+    auto path                     = "./simple_arith_float/simple_arith_float" + params.name + ".asm";
     auto& engine                  = Open(path);
     for (size_t i { 0 }; i < params.valuesCount; ++i) {
         auto [l, r] = params.values[i];
@@ -530,8 +530,8 @@ TEST_P(CbcSpecializedDoubleOps, test)
         GTEST_SKIP() << "Assembler is not present";
     }
     FPOpsTestParams<double> params = GetParam();
-    auto path              = "./simple_arith_float/simple_arith_float" + params.name + ".asm";
-    auto& engine           = Open(path);
+    auto path                      = "./simple_arith_float/simple_arith_float" + params.name + ".asm";
+    auto& engine                   = Open(path);
     for (size_t i { 0 }; i < params.valuesCount; ++i) {
         auto [l, r] = params.values[i];
         for (size_t j { 0 }; j < floatUnaryOpsCount; ++j) {
