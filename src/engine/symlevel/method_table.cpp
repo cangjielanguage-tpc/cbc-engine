@@ -304,13 +304,13 @@ std::optional<std::shared_ptr<MethodTable>> MethodTableManager::GetMethodTable(S
         auto type = TypeTermId(term).GetIdentifier();
 
         // FIXME: instantiate!
-        return GetMethodTable(session, type);
+        result = GetMethodTable(session, type);
     }
 
     Log::mt.Log(Logging::Level::DEBUG, [&](Output& stream) {
         ResolvingOutput out(session, stream);
         if (result.has_value()) {
-            out << "MT for " << term << " " << **result << endl;
+            out << term << " " << **result << endl;
         } else {
             out << "MT for " << term << " not built." << endl;
         }
