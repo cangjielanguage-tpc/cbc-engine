@@ -18,8 +18,7 @@ namespace Symlevel {
 
 #define FIELD_FLAGS(X)                                                                                                 \
     X(STATIC)                                                                                                          \
-    X(FINAL)                                                                                                           \
-    X(RECORD)
+    X(FINAL)
 
 #define METHOD_FLAGS(X)                                                                                                \
     X(FINAL)                                                                                                           \
@@ -120,17 +119,22 @@ private:
 
 struct FieldFlags {
 public:
-    constexpr FieldFlags(uint8_t flags) : flagsRaw(flags) {}
+    constexpr FieldFlags() : flagsRaw(0), accessRaw(0) {}
 
-    constexpr FieldFlags() : flagsRaw(0) {}
+    constexpr AccessKind GetAccessKind() const { return static_cast<AccessKind::Value>(accessRaw); }
 
-    constexpr void With(FieldFlag::Value pos) { flagsRaw |= 1 << static_cast<FieldFlag::Value>(pos); }
+    constexpr bool Is(AccessKind kind) const { return GetAccessKind() == kind; }
 
-    constexpr FieldFlags With(FieldFlags other) { return flagsRaw | other.flagsRaw; }
-
-    constexpr bool Is(FieldFlag flag) const { return flagsRaw & (1 << static_cast<FieldFlag::Value>(flag)); }
+    constexpr bool Is(FieldFlag flag) const { return flagsRaw & (1 << flag); }
 
     constexpr bool IsNot(FieldFlag flag) const { return !Is(flag); }
+
+    constexpr FieldFlags With(AccessKind accessKind) const
+    {
+        FieldFlags copy = *this;
+        copy.accessRaw   = accessRaw;
+        return copy;
+    }
 
     constexpr FieldFlags Or(FieldFlag flag) const
     {
@@ -139,12 +143,11 @@ public:
         return copy;
     }
 
-    constexpr FieldFlags Or(FieldFlag flag, bool shouldAdd) const { return shouldAdd ? Or(flag) : *this; }
-
     std::string ToString() const;
 
 private:
-    uint16_t flagsRaw : 14;
+    uint16_t flagsRaw : 16 - AccessKind::BIT_COUNT;
+    uint16_t accessRaw : AccessKind::BIT_COUNT;
 };
 
 struct MethodFlags {

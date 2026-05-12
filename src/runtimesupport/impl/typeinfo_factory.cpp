@@ -273,7 +273,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
         builder.dataMT      = Alloc<Interpretation::FunctionHandle*>(mt->EntryCount());
         builder.flatMethods = Alloc<DYN_FuncPtrT>(mt->EntryCount());
-        builder.extDefs     = Alloc<DYN_ExtensionDataT*>(extDefCount);
+        builder.extDefs     = Alloc<DYN_ExtensionDataT*>(extDefCount + 1);
         builder.flatExtDefs = Alloc<DYN_ExtensionDataT>(extDefCount);
 
         if (!builder.dataMT || !builder.flatMethods || !builder.extDefs || !builder.flatExtDefs) {
