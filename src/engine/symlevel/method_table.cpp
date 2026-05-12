@@ -189,7 +189,6 @@ MethodTable MethodTableManager::BuildTable(Session& session, Identifier<TypeDefi
         ? *getSuperMT()
         : MethodTable();
 
-
     // 2. Copy all entries and sub tables of interfaces, adjusting their views
     for (auto interf : def.GetInterfaces().Values(session)) {
         auto interfTerm = TermManager::Resolve(session, interf);
