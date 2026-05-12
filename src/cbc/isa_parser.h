@@ -66,8 +66,9 @@ protected:
     virtual void Scc(Format::Width width, Format::CC cc, IReg d, AnyReg l, AnyReg r)      = 0;
     virtual void SccImm(Format::Width width, Format::CC cc, IReg d, IReg l, uint64_t imm) = 0;
 
-    virtual void Ret(Format::Width width, IReg dst)  = 0;
-    virtual void FRet(Format::Width width, FReg dst) = 0;
+    virtual void Ret(Format::Width width, IReg src)  = 0;
+    virtual void FRet(Format::Width width, FReg src) = 0;
+    virtual void RetRef(IReg src)                    = 0;
     virtual void DivCheck(IReg reg)                  = 0;
     virtual void Catch(IReg reg)                     = 0;
     virtual void Throw(IReg reg)                     = 0;
