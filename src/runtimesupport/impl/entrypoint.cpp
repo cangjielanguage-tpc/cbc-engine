@@ -142,7 +142,7 @@ CBC_EXPORT void interpreter_bridge_init(
     (void)options;
     InitEnvOpts();
 
-    rtInterf->nativeLogger(21, "Interpreter", "Initializing CBC engine...");
+    rtInterf->nativeLogger(INTERPRETER_TAG, "Interpreter", "Initializing CBC engine...");
 
     g_CJNativeInterfaceInstance            = *rtInterf;
     interpInterf->version                  = 1;
