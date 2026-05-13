@@ -39,6 +39,12 @@ RegionData::RegionData(
       terms(terms)
 {}
 
+IO::OffsetPool<MethodReference> const& RegionData::MethodReferencesOffsets() const { return methods; }
+
+IO::OffsetPool<FieldReference> const& RegionData::FieldReferencesOffsets() const { return fields; }
+
+IO::OffsetPool<Term> const& RegionData::TermsOffsets() const { return terms; }
+
 template <typename T> using OffsetId = Engine::Identifier<T>;
 
 Offset<MethodReference> RegionData::Query(Engine::Session& session, RefId<MethodReference> index) const

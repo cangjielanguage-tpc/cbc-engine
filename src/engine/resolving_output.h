@@ -7,6 +7,7 @@
 #include "engine/symlevel/method_table.h"
 #include "engine/symlevel/offset.h"
 #include "engine/symlevel/reader.h"
+#include "engine/symlevel/region_data.h"
 #include "engine/symlevel/string.h"
 #include "engine/terms.h"
 #include "utils/ostream.h"
@@ -24,6 +25,10 @@ template <typename T> struct Full : public Detailed<T> {
     Full(T value) : Detailed<T>(value) {}
 };
 
+template <typename T> struct NoResolve : public Detailed<T> {
+    NoResolve(T value) : Detailed<T>(value) {}
+};
+
 class ResolvingOutput {
 public:
     ResolvingOutput(Engine::Session& session, Stream::Output& out);
@@ -35,8 +40,13 @@ public:
     ResolvingOutput& operator<<(Detailed<Engine::RefIdentifier<Engine::Term>> id);
     ResolvingOutput& operator<<(Symlevel::MethodTable const& mt);
     ResolvingOutput& operator<<(Symlevel::FieldDefinition const& fd);
+    ResolvingOutput& operator<<(NoResolve<Symlevel::FieldDefinition> fd);
     ResolvingOutput& operator<<(Symlevel::MethodDefinition const& md);
+    ResolvingOutput& operator<<(Full<Symlevel::MethodDefinition> md);
+    ResolvingOutput& operator<<(NoResolve<Symlevel::MethodDefinition> md);
     ResolvingOutput& operator<<(Symlevel::TypeDefinition const& md);
+    ResolvingOutput& operator<<(Full<Symlevel::TypeDefinition> td);
+    ResolvingOutput& operator<<(NoResolve<Symlevel::TypeDefinition> td);
 
     template <typename T> ResolvingOutput& operator<<(Engine::Identifier<T> id)
     {
@@ -56,11 +66,12 @@ public:
 
     template <typename T> ResolvingOutput& operator<<(Full<Engine::Identifier<T>> id)
     {
-        // FIXME
-        full = true;
-        *this << Symlevel::Reader::Read(session, id.value);
-        full = false;
-        return *this;
+        return *this << Full(Symlevel::Reader::Read(session, id.value));
+    }
+
+    template <typename T> ResolvingOutput& operator<<(NoResolve<Engine::Identifier<T>> id)
+    {
+        return *this << NoResolve(Symlevel::Reader::Read(session, id.value));
     }
 
     template <typename T> ResolvingOutput& operator<<(const T v)
@@ -75,11 +86,12 @@ public:
     Stream::Indented& out = holder;
 
 private:
-    bool full = false;
     Stream::Indented holder;
     Symlevel::String StringOf(Symlevel::Offset<Symlevel::String>, IO::FileId fid);
     Symlevel::String StringOf(Engine::Identifier<Symlevel::String>);
     template <typename T> void Region(T name, std::function<void()> f);
+
+    ResolvingOutput& TypeDefinition(Symlevel::TypeDefinition const& td, bool full);
 };
 
 } // namespace Stream

@@ -37,7 +37,9 @@ int Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool isRef) { FATAL("Sho
 
 TypeInfo Execution::GetTypeInfo(Reference base) { FATAL("Should not be called"); }
 
-MethodTable Execution::GetMethodTable(Reference base, int extDefNum, int methodNum) { FATAL("Should not reach here"); }
+void* Execution::GetVirtualTarget(Reference base, int extDefNum, int methodNum) { FATAL("Should not reach here."); }
+
+void* Execution::GetInterfaceTarget(Reference base, TypeInfo ti, int methodNum) { FATAL("Should not reach here."); }
 
 void* Execution::AllocateObjectInstance() { FATAL("Should not reach here"); }
 

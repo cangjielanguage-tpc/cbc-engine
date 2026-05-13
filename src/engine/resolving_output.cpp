@@ -1,5 +1,6 @@
 #include "resolving_output.h"
 #include "cbc/isa_disasm.h"
+#include "engine/engine.h"
 #include "engine/identifiers.h"
 #include "engine/symlevel/code.h"
 #include "engine/symlevel/definitions.h"
@@ -38,15 +39,23 @@ ResolvingOutput& ResolvingOutput::operator<<(Symlevel::FieldDefinition const& fd
     return out;
 }
 
-ResolvingOutput& ResolvingOutput::operator<<(Symlevel::MethodDefinition const& md)
+ResolvingOutput& ResolvingOutput::operator<<(NoResolve<Symlevel::FieldDefinition> nr)
 {
+    auto& out  = *this;
+    auto& fd   = nr.value;
+    auto ftype = fd.FieldType();
+    auto name  = fd.NameOffset();
+    out << Detailed(fd.Flags()) << ". field type: " << ftype << ". name: " << name;
+    return out;
+}
+
+ResolvingOutput& ResolvingOutput::operator<<(Full<Symlevel::MethodDefinition> full)
+{
+    auto& md      = full.value;
     auto& out     = *this;
     auto resolver = Resolution::Resolver(session, md.GetIdentifier());
     auto name     = Detailed(md.Name());
-    if (!full) {
-        out << name << Detailed(md.Signature());
-        return out;
-    }
+    out << Detailed(md.Signature()) << " ";
 
     Region(name, [&] {
         auto sig = Detailed(md.Signature());
@@ -72,7 +81,47 @@ ResolvingOutput& ResolvingOutput::operator<<(Symlevel::MethodDefinition const& m
     return out;
 }
 
-ResolvingOutput& ResolvingOutput::operator<<(Symlevel::TypeDefinition const& td)
+ResolvingOutput& ResolvingOutput::operator<<(Symlevel::MethodDefinition const& md)
+{
+    auto& out = *this;
+    auto name = Detailed(md.Name());
+    out << name << Detailed(md.Signature());
+    return out;
+}
+
+ResolvingOutput& ResolvingOutput::operator<<(NoResolve<Symlevel::MethodDefinition> nr)
+{
+    auto& out = *this;
+    auto& md  = nr.value;
+    out << "name: " << md.Name().GetOffset() << ". sig: " << md.Signature();
+    return out;
+}
+
+ResolvingOutput& ResolvingOutput::operator<<(NoResolve<Symlevel::TypeDefinition> nr)
+{
+    auto& out = *this;
+    auto& td  = nr.value;
+    Region("method name: " + std::to_string(td.GetName().GetOffset()), [&]() {
+        out << "super: " << td.GetSuperType() << endl;
+        Region("fields", [&]() {
+            td.GetFields().ForEach(session, [&](auto& def) { out << NoResolve(def.Identifier()) << endl; });
+        });
+        Region("methods", [&]() {
+            td.GetMethods().ForEach(session, [&](auto& def) { out << NoResolve(def.GetIdentifier()); });
+        });
+        Region("virtual methods", [&]() {
+            std::vector<Engine::Identifier<Symlevel::MethodDefinition>> methods;
+            auto vms = td.GetVirtualMethods();
+            vms.Read(session, methods);
+            for (auto ident : methods) {
+                out << NoResolve(ident);
+            }
+        });
+    });
+    return out;
+}
+
+ResolvingOutput& ResolvingOutput::TypeDefinition(Symlevel::TypeDefinition const& td, bool full)
 {
     auto& out = *this;
     Region(StringOf(td.GetName()), [&]() {
@@ -82,7 +131,13 @@ ResolvingOutput& ResolvingOutput::operator<<(Symlevel::TypeDefinition const& td)
         });
 
         Region("methods", [&]() {
-            td.GetMethods().ForEach(session, [&](auto& def) { out << Detailed(def.GetIdentifier()); });
+            td.GetMethods().ForEach(session, [&](auto& def) {
+                if (full) {
+                    out << Full(def.GetIdentifier());
+                } else {
+                    out << Detailed(def.GetIdentifier());
+                }
+            });
         });
 
         Region("virtual methods", [&]() {
@@ -90,13 +145,24 @@ ResolvingOutput& ResolvingOutput::operator<<(Symlevel::TypeDefinition const& td)
             auto vms = td.GetVirtualMethods();
             vms.Read(session, methods);
             for (auto ident : methods) {
-                out << Detailed(ident);
+                if (full) {
+                    out << Full(ident);
+                } else {
+                    out << Detailed(ident);
+                }
             }
         });
     });
 
     return out;
 }
+
+ResolvingOutput& ResolvingOutput::operator<<(Full<Symlevel::TypeDefinition> full)
+{
+    return TypeDefinition(full.value, true);
+}
+
+ResolvingOutput& ResolvingOutput::operator<<(Symlevel::TypeDefinition const& td) { return TypeDefinition(td, false); }
 
 ResolvingOutput& ResolvingOutput::operator<<(Symlevel::MethodTable const& mt)
 {
