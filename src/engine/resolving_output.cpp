@@ -12,7 +12,7 @@ ResolvingOutput& ResolvingOutput::operator<<(Engine::Term term) { return *this <
 
 ResolvingOutput& ResolvingOutput::operator<<(Detailed<Engine::RefIdentifier<Engine::Term>> term)
 {
-    return *this << Engine::TermManager::Resolve(session, term.value) << " " << term.value;
+    return *this << Engine::TermManager::Resolve(session, term.value);
 }
 
 ResolvingOutput& ResolvingOutput::operator<<(Engine::GlobalTerm term) { return *this << Engine::Term(term); }

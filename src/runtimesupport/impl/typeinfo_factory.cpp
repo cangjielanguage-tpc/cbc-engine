@@ -177,7 +177,13 @@ struct TypeInfoBuilder {
     }
 };
 
-static DYN_FuncPtrT GetFunctionOrTrampoline(
+struct MethodTableMember {
+    Interpretation::FunctionHandle* handle;
+    DYN_FuncPtrT function;
+};
+
+/// Returns pair of (handle, function) that describes member in method table.
+static MethodTableMember GetTableMember(
     Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> methodId, int entryIdx
 )
 {
@@ -187,15 +193,18 @@ static DYN_FuncPtrT GetFunctionOrTrampoline(
     ASSERTION(flags.Is(Symlevel::MethodFlag::VIRTUAL), "Only virtual methods are expected");
 
     if (flags.Is(Symlevel::MethodFlag::ABSTRACT)) {
-        return nullptr;
+        // can not be called
+        // TODO: put stub method that throws
+        return { nullptr, nullptr };
     } else if (flags.Is(Symlevel::MethodFlag::AOT)) {
-        // must be present with aot flag
+        // target must be present with aot flag
         auto& manager  = Interpretation::FunctionHandleManager::Of(session);
         auto fuh       = manager.AcquireTagged(session, methodId);
         auto staticFuh = std::get<Interpretation::StaticFunctionHandle*>(fuh);
-        return staticFuh->function;
+        return { &staticFuh->base, staticFuh->function };
     } else {
-        return Adapters::GetDynCallTrampoline(entryIdx);
+        auto& manager  = Interpretation::FunctionHandleManager::Of(session);
+        return { manager.Acquire(session, methodId), Adapters::GetDynCallTrampoline(entryIdx) };
     }
 }
 
@@ -257,15 +266,18 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
     { // fill out ext defs
         auto& manager    = Symlevel::MethodTableManager::Of(session);
         auto& fuhManager = Interpretation::FunctionHandleManager::Of(session);
-        auto mt          = manager.GetMethodTable(session, term);
+        auto optMT       = manager.GetMethodTable(session, term);
 
-        Log::typeinfo.Log(Logging::Level::INFO, [&](Stream::Output& out) {
-            Stream::ResolvingOutput stream(session, out);
-            stream << term << " " << *mt << Stream::endl;
-        });
+        if (!optMT.has_value()) {
+            Log::typeinfo.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
+                Stream::ResolvingOutput stream(session, out);
+                stream << "Failed to build method table for " << term << Stream::endl;
+            });
+            return std::nullopt;
+        }
+        auto mt = *optMT;
 
-        auto extDefCount       = mt->ClassCount() + mt->InterfaceCount();
-        constexpr auto ptrSize = sizeof(void*);
+        auto extDefCount = mt->ClassCount() + mt->InterfaceCount();
 
         // To simplify memory management here, we will preallocate "flat" arrays
         // where corresponding structures would be filled out.
@@ -283,13 +295,15 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         // fill out flat methods table and data method table
         int entryIdx = 0;
         for (auto entry : mt->Entries()) {
-            builder.dataMT[entryIdx]      = fuhManager.Acquire(session, entry.method);
-            builder.flatMethods[entryIdx] = GetFunctionOrTrampoline(session, entry.method, entryIdx);
+            auto tm = GetTableMember(session, entry.method, entryIdx);
+
+            builder.dataMT[entryIdx]      = tm.handle;
+            builder.flatMethods[entryIdx] = tm.function;
             entryIdx++;
         }
 
         // Fill out array of pointers to ext defs.
-        for (auto i = 0; i < extDefCount; i++) {
+        for (int i = 0; i < extDefCount; i++) {
             builder.extDefs[i] = &builder.flatExtDefs[i];
         }
 

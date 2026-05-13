@@ -2,7 +2,7 @@
 #include "engine/identifiers.h"
 #include "engine/symlevel/access_kind.h"
 #include "engine/symlevel/flags.h"
-#include "engine/symlevel/offset_sequence.h"
+#include "engine/symlevel/sequence.h"
 #include "engine/symlevel/type_kind.h"
 #include "reader.h"
 #include <cstdint>
@@ -52,13 +52,21 @@ TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId
     if (test(0x80))
         flags = flags.Or(TypeFlag::AOT);
 
-    return TypeDefinition { Engine::Identifier(offset, fileId),
+    TypeDefinition def { Engine::Identifier(offset, fileId),
                             name,
                             std::move(methodIndex),
                             std::move(fieldIndex),
                             dynMethods,
                             superType,
                             flags };
+
+    for (auto tag = reader.ReadU8(); tag != 0; tag = reader.ReadU8()) {
+        switch (tag) {
+            case 0x1: def.interfaces = RefSequence<Term>::Parse(reader, fileId, regionId); break;
+            default:  FATAL("unexpected tag: %d", tag); std::exit(2);
+        }
+    }
+    return def;
 }
 
 TypeDefinition TypeDefinition::Resolve(Engine::Session& session, Engine::Identifier<TypeDefinition> identifier)
