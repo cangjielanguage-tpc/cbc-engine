@@ -4,13 +4,13 @@ TODO There will be some description of the project
 
 ## How to build interpreter lib
 
-### Required tools
+<details>
+<summary>Required tools</summary>
 
 ```
-udo apt install lld
+sudo apt install lld
 ```
-
-### Build process
+</details>
 
 1) Clean directory with artifacts if it exists:
 
