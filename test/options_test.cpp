@@ -4,6 +4,7 @@
 #include <optional>
 #include <string>
 
+#include "utils/logger.h"
 #include "utils/options.h"
 
 namespace {
@@ -37,14 +38,12 @@ struct EnvGuard {
 
 } // namespace
 
-#include "utils/options_setup.h"
-
 namespace {
 
 TEST(OptionsSetters, SetBoolValue_True)
 {
     bool var = false;
-    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt opt = { "test.flag", &var, &Options::SetBoolValue };
     Opt optsArray[] = { opt };
     Opts opts(optsArray);
 
@@ -55,7 +54,7 @@ TEST(OptionsSetters, SetBoolValue_True)
 TEST(OptionsSetters, SetBoolValue_False)
 {
     bool var = true;
-    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt opt = { "test.flag", &var, &Options::SetBoolValue };
     Opt optsArray[] = { opt };
     Opts opts(optsArray);
 
@@ -66,7 +65,7 @@ TEST(OptionsSetters, SetBoolValue_False)
 TEST(OptionsSetters, SetBoolValue_One)
 {
     bool var = false;
-    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt opt = { "test.flag", &var, &Options::SetBoolValue };
     Opt optsArray[] = { opt };
     Opts opts(optsArray);
 
@@ -77,7 +76,7 @@ TEST(OptionsSetters, SetBoolValue_One)
 TEST(OptionsSetters, SetBoolValue_Zero)
 {
     bool var = true;
-    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt opt = { "test.flag", &var, &Options::SetBoolValue };
     Opt optsArray[] = { opt };
     Opts opts(optsArray);
 
@@ -88,7 +87,7 @@ TEST(OptionsSetters, SetBoolValue_Zero)
 TEST(OptionsSetters, SetBoolValue_Invalid)
 {
     bool var = false;
-    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt opt = { "test.flag", &var, &Options::SetBoolValue };
     Opt optsArray[] = { opt };
     Opts opts(optsArray);
 
@@ -99,7 +98,7 @@ TEST(OptionsSetters, SetBoolValue_Invalid)
 TEST(OptionsSetters, SetStringValue)
 {
     std::string var = "old";
-    Opt opt = { "test.path", &var, &SetStringValue };
+    Opt opt = { "test.path", &var, &Options::SetStringValue };
     Opt optsArray[] = { opt };
     Opts opts(optsArray);
 
@@ -110,7 +109,7 @@ TEST(OptionsSetters, SetStringValue)
 TEST(OptionsSetters, SetLogLevelValue)
 {
     Logging::Logger logger;
-    Opt opt = { "test.log", &logger, &SetLogLevelValue };
+    Opt opt = { "test.log", &logger, &Options::SetLogLevelValue };
     Opt optsArray[] = { opt };
     Opts opts(optsArray);
 
@@ -139,7 +138,7 @@ TEST(OptionsSetters, SetLogLevelValue)
 TEST(OptionsSetters, SetLogLevelValue_Invalid)
 {
     Logging::Logger logger;
-    Opt opt = { "test.log", &logger, &SetLogLevelValue };
+    Opt opt = { "test.log", &logger, &Options::SetLogLevelValue };
     Opt optsArray[] = { opt };
     Opts opts(optsArray);
 
@@ -149,7 +148,7 @@ TEST(OptionsSetters, SetLogLevelValue_Invalid)
 TEST(OptionsTable, UnknownOption)
 {
     bool var = false;
-    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt opt = { "test.flag", &var, &Options::SetBoolValue };
     Opt optsArray[] = { opt };
     Opts opts(optsArray);
 
@@ -159,7 +158,7 @@ TEST(OptionsTable, UnknownOption)
 TEST(OptionsTable, LastWins)
 {
     bool var = false;
-    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt opt = { "test.flag", &var, &Options::SetBoolValue };
     Opt optsArray[] = { opt };
     Opts opts(optsArray);
 
@@ -171,7 +170,7 @@ TEST(OptionsTable, LastWins)
 TEST(OptionsInitFromString, Simple)
 {
     bool var = false;
-    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt opt = { "test.flag", &var, &Options::SetBoolValue };
     Opt optsArray[] = { opt };
     Opts opts(optsArray);
 
@@ -184,8 +183,8 @@ TEST(OptionsInitFromString, Multiple)
     bool flag = false;
     std::string path;
     Opt optsArray[] = {
-        { "test.flag", &flag, &SetBoolValue },
-        { "test.path", &path, &SetStringValue },
+        { "test.flag", &flag, &Options::SetBoolValue },
+        { "test.path", &path, &Options::SetStringValue },
     };
     Opts opts(optsArray);
 
@@ -198,7 +197,7 @@ TEST(OptionsInitFromString, Multiple)
 TEST(OptionsInitFromString, LastWins)
 {
     bool var = false;
-    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt opt = { "test.flag", &var, &Options::SetBoolValue };
     Opt optsArray[] = { opt };
     Opts opts(optsArray);
 
@@ -209,7 +208,7 @@ TEST(OptionsInitFromString, LastWins)
 TEST(OptionsInitFromString, Empty)
 {
     bool var = false;
-    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt opt = { "test.flag", &var, &Options::SetBoolValue };
     Opt optsArray[] = { opt };
     Opts opts(optsArray);
 
@@ -220,7 +219,7 @@ TEST(OptionsInitFromString, Empty)
 TEST(OptionsInitFromString, LeadingTrailingSpaces)
 {
     bool var = false;
-    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt opt = { "test.flag", &var, &Options::SetBoolValue };
     Opt optsArray[] = { opt };
     Opts opts(optsArray);
 
@@ -233,8 +232,8 @@ TEST(OptionsInitFromString, ConsecutiveSpaces)
     bool var = false;
     std::string str;
     Opt optsArray[] = {
-        { "test.flag", &var, &SetBoolValue },
-        { "test.str", &str, &SetStringValue },
+        { "test.flag", &var, &Options::SetBoolValue },
+        { "test.str", &str, &Options::SetStringValue },
     };
     Opts opts(optsArray);
 
@@ -246,7 +245,7 @@ TEST(OptionsInitFromString, ConsecutiveSpaces)
 TEST(OptionsInitFromString, MalformedKeyVal)
 {
     bool var = false;
-    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt opt = { "test.flag", &var, &Options::SetBoolValue };
     Opt optsArray[] = { opt };
     Opts opts(optsArray);
 
@@ -257,7 +256,7 @@ TEST(OptionsInitFromString, MalformedKeyVal)
 TEST(OptionsInitFromString, UnknownOption)
 {
     bool var = false;
-    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt opt = { "test.flag", &var, &Options::SetBoolValue };
     Opt optsArray[] = { opt };
     Opts opts(optsArray);
 
@@ -268,7 +267,7 @@ TEST(OptionsInitFromString, UnknownOption)
 TEST(OptionsParseAndSet, Simple)
 {
     bool var = false;
-    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt opt = { "test.flag", &var, &Options::SetBoolValue };
     Opt optsArray[] = { opt };
     Opts opts(optsArray);
 
@@ -281,7 +280,7 @@ TEST(OptionsParseAndSet, Simple)
 TEST(OptionsParseAndSet, Nullptr)
 {
     bool var = false;
-    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt opt = { "test.flag", &var, &Options::SetBoolValue };
     Opt optsArray[] = { opt };
     Opts opts(optsArray);
 
@@ -291,7 +290,7 @@ TEST(OptionsParseAndSet, Nullptr)
 TEST(OptionsParseAndSet, LastWins)
 {
     bool var = false;
-    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt opt = { "test.flag", &var, &Options::SetBoolValue };
     Opt optsArray[] = { opt };
     Opts opts(optsArray);
 
@@ -300,6 +299,8 @@ TEST(OptionsParseAndSet, LastWins)
 
     EXPECT_FALSE(var);
 }
+
+// --- InitFromEnv tests with fake options ---
 
 class InitFromEnvTest : public ::testing::Test {
 protected:
@@ -312,7 +313,7 @@ protected:
 TEST_F(InitFromEnvTest, Simple)
 {
     bool var = false;
-    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt opt = { "test.flag", &var, &Options::SetBoolValue };
     Opt optsArray[] = { opt };
     Opts opts(optsArray);
 
@@ -327,8 +328,8 @@ TEST_F(InitFromEnvTest, Multiple)
     bool flag = false;
     std::string path;
     Opt optsArray[] = {
-        { "test.flag", &flag, &SetBoolValue },
-        { "test.path", &path, &SetStringValue },
+        { "test.flag", &flag, &Options::SetBoolValue },
+        { "test.path", &path, &Options::SetStringValue },
     };
     Opts opts(optsArray);
 
@@ -342,7 +343,7 @@ TEST_F(InitFromEnvTest, Multiple)
 TEST_F(InitFromEnvTest, NotSet)
 {
     bool var = false;
-    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt opt = { "test.flag", &var, &Options::SetBoolValue };
     Opt optsArray[] = { opt };
     Opts opts(optsArray);
 
@@ -355,7 +356,7 @@ TEST_F(InitFromEnvTest, NotSet)
 TEST_F(InitFromEnvTest, Empty)
 {
     bool var = false;
-    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt opt = { "test.flag", &var, &Options::SetBoolValue };
     Opt optsArray[] = { opt };
     Opts opts(optsArray);
 
@@ -368,7 +369,7 @@ TEST_F(InitFromEnvTest, Empty)
 TEST_F(InitFromEnvTest, LastWins)
 {
     bool var = false;
-    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt opt = { "test.flag", &var, &Options::SetBoolValue };
     Opt optsArray[] = { opt };
     Opts opts(optsArray);
 
@@ -381,7 +382,7 @@ TEST_F(InitFromEnvTest, LastWins)
 TEST_F(InitFromEnvTest, LeadingTrailingSpaces)
 {
     bool var = false;
-    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt opt = { "test.flag", &var, &Options::SetBoolValue };
     Opt optsArray[] = { opt };
     Opts opts(optsArray);
 
@@ -396,8 +397,8 @@ TEST_F(InitFromEnvTest, ConsecutiveSpaces)
     bool a = false;
     bool b = false;
     Opt optsArray[] = {
-        { "test.a", &a, &SetBoolValue },
-        { "test.b", &b, &SetBoolValue },
+        { "test.a", &a, &Options::SetBoolValue },
+        { "test.b", &b, &Options::SetBoolValue },
     };
     Opts opts(optsArray);
 
@@ -411,7 +412,7 @@ TEST_F(InitFromEnvTest, ConsecutiveSpaces)
 TEST_F(InitFromEnvTest, UnknownOption)
 {
     bool var = false;
-    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt opt = { "test.flag", &var, &Options::SetBoolValue };
     Opt optsArray[] = { opt };
     Opts opts(optsArray);
 
@@ -424,7 +425,7 @@ TEST_F(InitFromEnvTest, UnknownOption)
 TEST_F(InitFromEnvTest, MalformedKeyVal)
 {
     bool var = false;
-    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt opt = { "test.flag", &var, &Options::SetBoolValue };
     Opt optsArray[] = { opt };
     Opts opts(optsArray);
 
@@ -437,7 +438,7 @@ TEST_F(InitFromEnvTest, MalformedKeyVal)
 TEST_F(InitFromEnvTest, BoolZero)
 {
     bool var = true;
-    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt opt = { "test.flag", &var, &Options::SetBoolValue };
     Opt optsArray[] = { opt };
     Opts opts(optsArray);
 
@@ -450,7 +451,7 @@ TEST_F(InitFromEnvTest, BoolZero)
 TEST_F(InitFromEnvTest, BoolOne)
 {
     bool var = false;
-    Opt opt = { "test.flag", &var, &SetBoolValue };
+    Opt opt = { "test.flag", &var, &Options::SetBoolValue };
     Opt optsArray[] = { opt };
     Opts opts(optsArray);
 
