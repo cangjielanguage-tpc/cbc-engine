@@ -14,7 +14,6 @@
 #include <functional>
 
 namespace Stream {
-
 template <typename T> struct Detailed {
     T value;
 
