@@ -5,10 +5,11 @@
 #include "engine/symlevel/definitions.h"
 #include "engine/terms.h"
 #include "utils/iterators.h"
+#include "utils/logger.h"
 #include <memory>
 #include <vector>
 
-namespace Symlevel { // TODO: move to Engine
+namespace Engine {
 
 /// Each method table can be constructed for some type definition or term that instantiates type definition.
 /// The method table is needed for virtual and interface method resolution (including dynamic "static" methods).
@@ -33,11 +34,11 @@ namespace Symlevel { // TODO: move to Engine
 /// The value of that describe an entry in method table.
 struct MethodTableEntry {
     /// The method which is being referenced.
-    Engine::Identifier<MethodDefinition> method;
+    Identifier<Symlevel::MethodDefinition> method;
 
     /// Declaring type, where method is actually declared. Additionally to type definition,
     /// stores an generic variable parameterization.
-    Engine::Term genericContext;
+    Term genericContext;
 
     /// Method number in sub table.
     int methodNum;
@@ -64,11 +65,11 @@ public:
 
     struct Entry {
         /// The method which is being referenced.
-        Engine::Identifier<MethodDefinition> method;
+        Identifier<Symlevel::MethodDefinition> method;
 
         /// Declaring type, where method is actually declared. Additionally to type definition,
         /// stores an generic variable parameterization.
-        Engine::Term genericContext;
+        Term genericContext;
     };
 
     struct SubTableGenerator {
@@ -95,7 +96,7 @@ public:
         return EntryView { *this };
     };
 
-    void Globalize(Engine::Session& session);
+    void Globalize(Session& session);
 
     Range Classes() const;
     Range Interfaces() const;
@@ -109,9 +110,9 @@ public:
         Term signature;
     };
 
-    std::optional<MethodTableEntry> Resolve(Engine::Session& session, Reference const& reference) const;
+    std::optional<MethodTableEntry> Resolve(Session& session, Reference const& reference) const;
 
-    void ResolveAll(Engine::Session& session, Reference const& reference, std::vector<MethodTableEntry>& buffer) const;
+    void ResolveAll(Session& session, Reference const& reference, std::vector<MethodTableEntry>& buffer) const;
 
 private:
     friend class MethodSubTable;
@@ -161,24 +162,31 @@ private:
 
 class MethodTableManager {
 public:
-    static MethodTableManager& Of(Engine::Engine& engine);
-    static MethodTableManager& Of(Engine::Session& session);
+    static MethodTableManager& Of(Engine& engine);
+    static MethodTableManager& Of(Session& session);
 
     static std::unique_ptr<MethodTableManager> NewInstance();
 
     virtual ~MethodTableManager() = default;
 
     /// Returns an method table for the given type definition.
-    virtual std::shared_ptr<MethodTable> GetMethodTable(
-        Engine::Session& session, Engine::Identifier<TypeDefinition> type
+    virtual std::optional<std::shared_ptr<MethodTable>> GetMethodTable(
+        Session& session, Identifier<Symlevel::TypeDefinition> type
     ) = 0;
 
     /// Returns an method table for the given type.
-    std::shared_ptr<MethodTable> GetMethodTable(Engine::Session& session, Engine::Term term);
+    std::optional<std::shared_ptr<MethodTable>> GetMethodTable(Session& session, Term term);
 
 protected:
-    MethodTable BuildTable(Engine::Session& session, Engine::Identifier<TypeDefinition> type);
+    std::optional<MethodTable> BuildTable(Session& session, Identifier<Symlevel::TypeDefinition> type);
     MethodTable BaseTable();
 };
 
-} // namespace Symlevel
+namespace Log {
+/// Logger for method table building and querying.
+/// DEBUG - log method tables structure
+/// INFO  - log queries of method table
+/// ERROR - log errors
+extern Logging::Logger mt;
+} // namespace Log
+} // namespace Engine

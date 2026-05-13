@@ -1,6 +1,8 @@
-#include "gtest/gtest.h"
-#include <cstdint>
 #include <gtest/gtest.h>
+
+#include <cstdint>
+#include <iterator>
+#include <sstream>
 
 #include "cbc/isa_disasm.h"
 #include "engine/engine.h"
@@ -8,6 +10,7 @@
 #include "engine/symlevel/reader.h"
 #include "engine/symlevel/string.h"
 #include "interpreter/code.h"
+#include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
 
 #include "interpreter/loggers.h"
@@ -382,15 +385,240 @@ INSTANTIATE_TEST_SUITE_P(
     CbcSpecializedConvert,
     ::testing::Values(
         ConvertTestParams { "to_integer",
-                            sizeof(convertToIntegerCases) / sizeof(ConvertCase),
+                            static_cast<int>(std::size(convertToIntegerCases)),
                             convertToIntegerCases,
                             &convertToInteger },
         ConvertTestParams {
-            "to_float", sizeof(convertToFloat32Cases) / sizeof(ConvertCase), convertToFloat32Cases, &convertToFloat32 },
+            "to_float", static_cast<int>(std::size(convertToFloat32Cases)), convertToFloat32Cases, &convertToFloat32 },
         ConvertTestParams {
-            "to_float", sizeof(convertToFloat64Cases) / sizeof(ConvertCase), convertToFloat64Cases, &convertToFloat64 }
+            "to_float", static_cast<int>(std::size(convertToFloat64Cases)), convertToFloat64Cases, &convertToFloat64 }
     )
 );
+
+template <typename T> using UnaryFunction = T (*)(T);
+
+template <typename T> using BinaryFunction = T (*)(T, T);
+
+template <typename T> T negFunc(T x) { return -x; }
+
+template <typename T> T addFunc(T l, T r) { return l + r; }
+
+template <typename T> T subFunc(T l, T r) { return l - r; }
+
+template <typename T> T mulFunc(T l, T r) { return l * r; }
+
+template <typename T> T divFunc(T l, T r) { return l / r; }
+
+UnaryFunction<float> floatUnaryOps[] = { negFunc<float>, std::sqrt, std::abs };
+constexpr size_t floatUnaryOpsCount  = std::size(floatUnaryOps);
+
+BinaryFunction<float> floatBinaryOps[] = { addFunc<float>, subFunc<float>, mulFunc<float>, divFunc<float> };
+constexpr size_t floatBinaryOpsCount   = std::size(floatBinaryOps);
+
+UnaryFunction<double> doubleUnaryOps[] = { negFunc<double>, std::sqrt, std::abs };
+constexpr size_t doubleUnaryOpsCount   = std::size(doubleUnaryOps);
+
+BinaryFunction<double> doubleBinaryOps[] = { addFunc<double>, subFunc<double>, mulFunc<double>, divFunc<double> };
+constexpr size_t doubleBinaryOpsCount    = std::size(doubleBinaryOps);
+
+const char* unaryFunctionNames[] = { "NEG", "SQRT", "ABS" };
+
+const char* binaryFunctionNames[] = { "ADD", "SUB", "MUL", "DIV" };
+
+std::pair<float, float> floatValues[] = {
+    { 4.2f, 7.3f },
+    { 0.0f, -0.0f },
+    { -0.0f, -0.0f },
+    { std::numeric_limits<float>::quiet_NaN(), 12.34f },
+    { std::numeric_limits<float>::infinity(), 12.34f },
+    { std::numeric_limits<float>::infinity(), 0.0f },
+    { -std::numeric_limits<float>::infinity(), 12.34f },
+    { std::numeric_limits<float>::infinity(), -std::numeric_limits<float>::infinity() },
+    { std::numeric_limits<float>::infinity(), std::numeric_limits<float>::quiet_NaN() },
+    { std::numeric_limits<float>::max(), 2.0f },
+    { std::numeric_limits<float>::max(), -std::numeric_limits<float>::max() },
+    { 16777216.0f, 1.0f },
+    { 16777216.0f, 2.0f }
+};
+constexpr size_t floatValuesCount = std::size(floatValues);
+
+std::pair<double, double> doubleValues[] = {
+    { 4.2, 7.3 },
+    { 0.0, -0.0 },
+    { -0.0, -0.0 },
+    { std::numeric_limits<double>::quiet_NaN(), 12.34 },
+    { std::numeric_limits<double>::infinity(), 12.34 },
+    { std::numeric_limits<double>::infinity(), 0.0 },
+    { -std::numeric_limits<double>::infinity(), 12.34 },
+    { std::numeric_limits<double>::infinity(), -std::numeric_limits<double>::infinity() },
+    { std::numeric_limits<double>::infinity(), std::numeric_limits<double>::quiet_NaN() },
+    { std::numeric_limits<double>::max(), 2.0 },
+    { std::numeric_limits<double>::max(), -std::numeric_limits<double>::max() },
+    { 9007199254740992.0, 1.0 },
+    { 9007199254740992.0, 2.0 }
+};
+constexpr size_t doubleValuesCount = std::size(doubleValues);
+
+void testFPOps32(Interpretation::Value::Primitive res, float expVal)
+{
+    auto resVal = res.u32;
+    if (std::isnan(resVal) && std::isnan(expVal)) {
+        SUCCEED();
+    } else {
+        ASSERT_EQ(res.u32, F32(expVal).u32);
+    }
+}
+
+void testFPOps64(Interpretation::Value::Primitive res, double expVal)
+{
+    auto resVal = res.u64;
+    if (std::isnan(resVal) && std::isnan(expVal)) {
+        SUCCEED();
+    } else {
+        ASSERT_EQ(res.u64, F64(expVal).u64);
+    }
+}
+
+template <typename T> struct FPOpsTestParams {
+    std::string name;
+    size_t valuesCount;
+    std::pair<T, T>* values;
+};
+
+template <typename T>
+std::ostream& operator<<(std::ostream& os, const FPOpsTestParams<T>& params)
+{
+    return os << params.name;
+}
+
+template <typename T>
+static std::string FPOpsTestParamsName(const ::testing::TestParamInfo<FPOpsTestParams<T>>& info)
+{
+    return info.param.name;
+}
+
+class CbcSpecializedFloatOps : public ::testing::TestWithParam<FPOpsTestParams<float>> {
+    void SetUp() override { DoSetUp(); }
+};
+
+class CbcSpecializedDoubleOps : public ::testing::TestWithParam<FPOpsTestParams<double>> {
+    void SetUp() override { DoSetUp(); }
+};
+
+TEST_P(CbcSpecializedFloatOps, test)
+{
+    if (!CheckForAssembler()) {
+        GTEST_SKIP() << "Assembler is not present";
+    }
+    FPOpsTestParams<float> params = GetParam();
+    auto path                     = "./simple_arith_float/simple_arith_float" + params.name + ".asm";
+    auto& engine                  = Open(path);
+    for (size_t i { 0 }; i < params.valuesCount; ++i) {
+        auto [l, r] = params.values[i];
+        for (size_t j { 0 }; j < floatUnaryOpsCount; ++j) {
+            UnaryFunction<float> unaryFunc = floatUnaryOps[j];
+            const char* unaryFuncName      = unaryFunctionNames[j];
+            auto res                       = InterpretFPRes(
+                Rewrite(engine, path, "default", std::string("test_") + unaryFuncName)->code, F32(l), F32(1.f)
+            );
+            auto expVal = unaryFunc(l);
+            testFPOps32(res, expVal);
+        }
+        for (size_t j { 0 }; j < floatBinaryOpsCount; ++j) {
+            BinaryFunction<float> binaryFunc = floatBinaryOps[j];
+            const char* binaryFuncName       = binaryFunctionNames[j];
+            auto res                         = InterpretFPRes(
+                Rewrite(engine, path, "default", std::string("test_") + binaryFuncName)->code, F32(l), F32(r)
+            );
+            auto expVal = binaryFunc(l, r);
+            testFPOps32(res, expVal);
+        }
+    }
+}
+
+TEST_P(CbcSpecializedDoubleOps, test)
+{
+    if (!CheckForAssembler()) {
+        GTEST_SKIP() << "Assembler is not present";
+    }
+    FPOpsTestParams<double> params = GetParam();
+    auto path                      = "./simple_arith_float/simple_arith_float" + params.name + ".asm";
+    auto& engine                   = Open(path);
+    for (size_t i { 0 }; i < params.valuesCount; ++i) {
+        auto [l, r] = params.values[i];
+        for (size_t j { 0 }; j < floatUnaryOpsCount; ++j) {
+            UnaryFunction<double> unaryFunc = doubleUnaryOps[j];
+            const char* unaryFuncName       = unaryFunctionNames[j];
+            auto res                        = InterpretFPRes(
+                Rewrite(engine, path, "default", std::string("test_") + unaryFuncName)->code, F64(l), F64(1.f)
+            );
+            auto expVal = unaryFunc(l);
+            testFPOps64(res, expVal);
+        }
+        for (size_t j { 0 }; j < floatBinaryOpsCount; ++j) {
+            BinaryFunction<double> binaryFunc = doubleBinaryOps[j];
+            const char* binaryFuncName        = binaryFunctionNames[j];
+            auto res                          = InterpretFPRes(
+                Rewrite(engine, path, "default", std::string("test_") + binaryFuncName)->code, F64(l), F64(r)
+            );
+            auto expVal = binaryFunc(l, r);
+            testFPOps64(res, expVal);
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    CbcTest, CbcSpecializedFloatOps, ::testing::Values(FPOpsTestParams<float> { "32", floatValuesCount, floatValues }),
+    FPOpsTestParamsName<float>
+);
+
+INSTANTIATE_TEST_SUITE_P(
+    CbcTest,
+    CbcSpecializedDoubleOps,
+    ::testing::Values(FPOpsTestParams<double> { "64", doubleValuesCount, doubleValues }),
+    FPOpsTestParamsName<double>
+);
+
+TEST_ASM(CbcTest, SimpleArithFloatMov32)
+{
+    auto path    = "./simple_arith_float/simple_arith_float32_mov.asm";
+    auto& engine = Open(path);
+
+    {
+        auto res = InterpretFPRes(Rewrite(engine, path, "default", "test_MOV")->code, F32(0), F32(2.0f));
+        ASSERT_EQ(res.f32, 2.0f);
+    }
+    {
+        auto res = Interpret(Rewrite(engine, path, "default", "test_F2I")->code, U32(0), U32(0), F32(2.5f), F32(0));
+        ASSERT_EQ(res.u32, 0x40200000);
+    }
+    {
+        auto res =
+            InterpretFPRes(Rewrite(engine, path, "default", "test_I2F")->code, U32(0x40200000), U32(0), F32(0), F32(0));
+        ASSERT_EQ(res.f32, 2.5f);
+    }
+}
+
+TEST_ASM(CbcTest, SimpleArithFloatMov64)
+{
+    auto path    = "./simple_arith_float/simple_arith_float64_mov.asm";
+    auto& engine = Open(path);
+
+    {
+        auto res = InterpretFPRes(Rewrite(engine, path, "default", "test_MOV")->code, F64(0), F64(2.0));
+        ASSERT_EQ(res.f64, 2.0);
+    }
+    {
+        auto res = Interpret(Rewrite(engine, path, "default", "test_F2I")->code, U64(0), U64(0), F64(2.5), F64(0));
+        ASSERT_EQ(res.u64, 0x4004000000000000);
+    }
+    {
+        auto res = InterpretFPRes(
+            Rewrite(engine, path, "default", "test_I2F")->code, U64(0x4004000000000000), U64(0), F64(0), F64(0)
+        );
+        ASSERT_EQ(res.f64, 2.5);
+    }
+}
 
 struct BFXCase {
     bool signExtend;

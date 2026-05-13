@@ -1,5 +1,4 @@
 #include "utils/options.h"
-
 #include "utils/logger.h"
 #include "utils/ostream.h"
 

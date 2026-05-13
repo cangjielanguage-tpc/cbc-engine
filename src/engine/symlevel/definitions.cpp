@@ -2,7 +2,7 @@
 #include "engine/identifiers.h"
 #include "engine/symlevel/access_kind.h"
 #include "engine/symlevel/flags.h"
-#include "engine/symlevel/offset_sequence.h"
+#include "engine/symlevel/sequence.h"
 #include "engine/symlevel/type_kind.h"
 #include "reader.h"
 #include <cstdint>
@@ -52,13 +52,21 @@ TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId
     if (test(0x80))
         flags = flags.Or(TypeFlag::AOT);
 
-    return TypeDefinition { Engine::Identifier(offset, fileId),
+    TypeDefinition def { Engine::Identifier(offset, fileId),
                             name,
                             std::move(methodIndex),
                             std::move(fieldIndex),
                             dynMethods,
                             superType,
                             flags };
+
+    for (auto tag = reader.ReadU8(); tag != 0; tag = reader.ReadU8()) {
+        switch (tag) {
+            case 0x1: def.interfaces = RefSequence<Term>::Parse(reader, fileId, regionId); break;
+            default:  FATAL("unexpected tag: %d", tag); std::exit(2);
+        }
+    }
+    return def;
 }
 
 TypeDefinition TypeDefinition::Resolve(Engine::Session& session, Engine::Identifier<TypeDefinition> identifier)
@@ -81,7 +89,7 @@ FieldDefinition FieldDefinition::Parse(Engine::Session& session, IO::FileId file
     auto nameOffset   = Offset<String>(reader.ReadU32());
     auto regionId     = reader.ReadU8();
     auto fieldTypeIdx = reader.ReadULEB();
-    auto flags        = reader.ReadU8();
+    auto parsedFlags  = reader.ReadU8();
 
     // TODO parse const value
     auto tag = reader.ReadU8();
@@ -89,8 +97,26 @@ FieldDefinition FieldDefinition::Parse(Engine::Session& session, IO::FileId file
 
     auto fieldType = Engine::RefIdentifier(RefId<Term>(regionId, fieldTypeIdx), fileId);
 
+    auto test = [parsedFlags](uint32_t bits) { return (parsedFlags & bits) != 0; };
+
+    auto testMask = [parsedFlags](uint32_t bits, uint32_t mask) { return (parsedFlags & mask) == bits; };
+
+    FieldFlags flags;
+
+    if (testMask(0b01, 0b11))
+        flags = flags.With(AccessKind::PUBLIC);
+    if (testMask(0b10, 0b11))
+        flags = flags.With(AccessKind::PRIVATE);
+    if (testMask(0b11, 0b11))
+        flags = flags.With(AccessKind::PROTECTED);
+
+    if (test(0x04))
+        flags = flags.Or(FieldFlag::STATIC);
+    if (test(0x08))
+        flags = flags.Or(FieldFlag::FINAL);
+
     return FieldDefinition(
-        Engine::Identifier<FieldDefinition>(offset, fileId), nameOffset, fieldType, FieldFlags(flags), {}
+        Engine::Identifier<FieldDefinition>(offset, fileId), nameOffset, fieldType, flags, {}
     );
 }
 

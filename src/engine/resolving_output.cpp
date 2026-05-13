@@ -1,6 +1,6 @@
 #include "resolving_output.h"
 #include "engine/identifiers.h"
-#include "engine/symlevel/method_table.h"
+#include "engine/method_table.h"
 #include "engine/symlevel/reader.h"
 #include "engine/terms.h"
 
@@ -12,7 +12,7 @@ ResolvingOutput& ResolvingOutput::operator<<(Engine::Term term) { return *this <
 
 ResolvingOutput& ResolvingOutput::operator<<(Detailed<Engine::RefIdentifier<Engine::Term>> term)
 {
-    return *this << Engine::TermManager::Resolve(session, term.value) << " " << term.value;
+    return *this << Engine::TermManager::Resolve(session, term.value);
 }
 
 ResolvingOutput& ResolvingOutput::operator<<(Engine::GlobalTerm term) { return *this << Engine::Term(term); }
@@ -21,20 +21,20 @@ ResolvingOutput& ResolvingOutput::operator<<(Engine::LocalTerm term) { return *t
 
 ResolvingOutput& ResolvingOutput::operator<<(IO::FileId fileId) { return *this << fileId.id; }
 
-ResolvingOutput& ResolvingOutput::operator<<(Symlevel::MethodTable const& mt)
+ResolvingOutput& ResolvingOutput::operator<<(Engine::MethodTable const& mt)
 {
     auto& out = *this;
     out << "method table:" << endl;
     out << "  classes:" << endl;
 
-    auto writeEntry = [&](Symlevel::MethodTableEntry& entry) {
+    auto writeEntry = [&](Engine::MethodTableEntry& entry) {
         auto def = Symlevel::Reader::Read(session, entry.method);
         out << "      " << entry.methodNum << ": ";
         out << Detailed(def.Name()) << Detailed(def.Signature());
         out << ", from: " << entry.genericContext << endl;
     };
 
-    auto writeTable = [&](Symlevel::MethodSubTable& st) {
+    auto writeTable = [&](Engine::MethodSubTable& st) {
         out << "    " << st.DeclaringType();
         out << " [" << st.StartPos() << ", " << st.EndPos() << "]:" << endl;
         for (auto entry : st.Entries()) {

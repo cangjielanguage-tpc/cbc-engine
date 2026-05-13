@@ -1,20 +1,24 @@
 #include "method_table.h"
 #include "engine/engine.h"
 #include "engine/identifiers.h"
+#include "engine/resolving_output.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/reader.h"
 #include "engine/symlevel/term.h"
 #include "engine/terms.h"
 #include "utils/iterators.h"
+#include "utils/logger.h"
+#include "utils/ostream.h"
 #include <memory>
 #include <mutex>
 #include <optional>
 #include <unordered_map>
 #include <vector>
 
-namespace Symlevel {
+namespace Engine {
 
-using namespace Engine;
+using namespace Stream;
+using namespace Symlevel;
 
 // ---- MethodTable ----
 
@@ -174,25 +178,65 @@ std::optional<MethodTableEntry> MethodSubTable::EntryGenerator::operator()()
 
 // ---- MethodTable building ----
 
-MethodTable MethodTableManager::BuildTable(Session& session, Identifier<TypeDefinition> type)
+std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, Identifier<TypeDefinition> type)
 {
-    auto def       = TypeDefinition::Resolve(session, type);
-    auto methodSeq = def.GetVirtualMethods();
-    auto superType = TermManager::Resolve(session, def.GetSuperType());
+    auto def   = Reader::Read(session, type);
+    auto flags = def.GetFlags();
 
+    // 1. Get table of super type for claseses or empty table for other types
+    MethodTable newTable {};
+
+    if (flags.Is(TypeKind::CLASS)) {
+        auto superMT = GetMethodTable(session, TermManager::Resolve(session, def.GetSuperType()));
+        if (!superMT.has_value()) {
+            ResolvingOutput out(session, Log::mt.Stream(Logging::Level::ERROR));
+            out << "Super " << def.GetSuperType() << " of type " << Detailed(def.GetName()) << " not found." << endl;
+            return std::nullopt;
+        }
+        newTable = **superMT;
+    }
+
+    // 2. Copy all entries and sub tables of interfaces, adjusting their views
+    for (auto interf : def.GetInterfaces().Values(session)) {
+        auto interfTerm     = TermManager::Resolve(session, interf);
+        auto optInterfTable = GetMethodTable(session, interfTerm);
+        if (!optInterfTable.has_value()) {
+            ResolvingOutput out(session, Log::mt.Stream(Logging::Level::ERROR));
+            out << "Interface " << interf << " of type " << Detailed(def.GetName()) << " not found." << endl;
+            return std::nullopt;
+        }
+
+        auto interfTable = *optInterfTable;
+
+        ASSERTION(interfTable->classTables.empty(), "interface tables should not have class table");
+
+        auto oldEntryCount = newTable.EntryCount();
+        newTable.allEntries.insert(
+            newTable.allEntries.end(), interfTable->allEntries.begin(), interfTable->allEntries.end()
+        );
+
+        for (auto st : interfTable->interfaceTables) {
+            newTable.interfaceTables.emplace_back(MethodTable::SubTable {
+                .genericContext = st.genericContext,
+                .start          = st.start + oldEntryCount,
+                .end            = st.end + oldEntryCount,
+            });
+        }
+    }
+
+    Log::mt.Log(Logging::Level::DEBUG, [&session, &newTable, &def](Output& stream) {
+        ResolvingOutput out(session, Log::mt.Stream(Logging::Level::ERROR));
+        out << "Intermediate table for " << Detailed(def.GetName()) << " " << newTable << endl;
+    });
+
+    // 3. Patch all overriden methods and add newly declared methods
+    // to the subtable of current type.
     // TODO: make term with type variables
-    auto thisType = Term::Definition(session, type);
-
-    // copy table
-    auto newTable      = *GetMethodTable(session, superType);
+    auto thisType      = Term::Definition(session, type);
     auto oldEntryCount = newTable.EntryCount();
 
-    std::vector<Identifier<MethodDefinition>> declaredMethods;
-    methodSeq.Read(session, declaredMethods);
-
     std::vector<MethodTableEntry> entryBuffer;
-
-    for (auto methodId : declaredMethods) {
+    for (auto methodId : def.GetVirtualMethods().Values(session)) {
         auto newEntry = MethodTable::Entry {
             .method         = methodId,
             .genericContext = thisType,
@@ -202,27 +246,34 @@ MethodTable MethodTableManager::BuildTable(Session& session, Identifier<TypeDefi
         MethodTable::Reference ref { .name      = Reader::Read(session, method.Name()),
                                      .signature = TermManager::Resolve(session, method.Signature()) };
 
+        // TODO: Do not override protected methods that are not visible from the current type.
         newTable.ResolveAll(session, ref, entryBuffer);
+
         if (entryBuffer.empty()) {
+            // 3.2 add newly declared methods
             newTable.allEntries.emplace_back(newEntry);
-            continue;
+        } else {
+            // 3.1 patch overriden methods
+            for (auto& entry : entryBuffer) {
+                newTable.allEntries[entry.flatMethodNum] = newEntry;
+            }
+            entryBuffer.clear();
         }
-        for (auto& entry : entryBuffer) {
-            newTable.allEntries[entry.flatMethodNum] = newEntry;
-        }
-        entryBuffer.clear();
     }
 
-    auto newEntryCount = newTable.EntryCount();
-    newTable.classTables.emplace_back(MethodTable::SubTable {
+    // 3.3 add new subtable for current type (even if new methods were not added)
+    auto tables = flags.Is(TypeKind::INTERFACE) ? &newTable.interfaceTables : &newTable.classTables;
+
+    tables->emplace_back(MethodTable::SubTable {
         .genericContext = thisType,
         .start          = oldEntryCount,
-        .end            = newEntryCount,
+        .end            = newTable.EntryCount(),
     });
 
     return newTable;
 }
 
+/// "Almost empty" table of Object.
 MethodTable MethodTableManager::BaseTable()
 {
     MethodTable mt;
@@ -234,16 +285,37 @@ MethodTable MethodTableManager::BaseTable()
     return mt;
 }
 
-std::shared_ptr<MethodTable> MethodTableManager::GetMethodTable(Session& session, Term term)
+std::optional<std::shared_ptr<MethodTable>> MethodTableManager::GetMethodTable(Session& session, Term term)
 {
+    Log::mt.Log(Logging::Level::INFO, [&](Output& stream) {
+        ResolvingOutput out(session, stream);
+        out << "Requesting of method table for " << term << endl;
+    });
+
+    std::optional<std::shared_ptr<MethodTable>> result = std::nullopt;
+
     if (term.GetKind() == TermKind::NIL) {
         static auto mt = std::make_shared<MethodTable>(std::move(BaseTable()));
-        return mt;
-    }
-    auto type = TypeTermId(term).GetIdentifier();
+        result         = std::atomic_load(&mt);
+    } else if (term.GetKind() == TermKind::UNDEFINED) {
+        result = std::nullopt;
+    } else {
+        auto type = TypeTermId(term).GetIdentifier();
 
-    // FIXME: instantiate!
-    return GetMethodTable(session, type);
+        // FIXME: instantiate!
+        result = GetMethodTable(session, type);
+    }
+
+    Log::mt.Log(Logging::Level::DEBUG, [&](Output& stream) {
+        ResolvingOutput out(session, stream);
+        if (result.has_value()) {
+            out << term << " " << **result << endl;
+        } else {
+            out << "MT for " << term << " not built." << endl;
+        }
+    });
+
+    return result;
 }
 
 /// Caching policy notice.
@@ -256,7 +328,8 @@ struct CachingMethodTableManager : public MethodTableManager {
     std::unordered_map<Ident::Packed, std::shared_ptr<MethodTable>, Ident::Hasher> tables;
 
     /// Returns an method table for the given type definition.
-    std::shared_ptr<MethodTable> GetMethodTable(Session& session, Identifier<TypeDefinition> type) override
+    std::optional<std::shared_ptr<MethodTable>> GetMethodTable(Session& session, Identifier<TypeDefinition> type)
+        override
     {
         auto& tables = this->tables;
 
@@ -265,7 +338,13 @@ struct CachingMethodTableManager : public MethodTableManager {
             return it->second;
         }
 
-        auto mt = MethodTableManager::BuildTable(session, type);
+        auto optMT = MethodTableManager::BuildTable(session, type);
+        if (!optMT.has_value()) {
+            return std::nullopt;
+        }
+
+        auto mt = *optMT;
+
         mt.Globalize(session);
 
         auto res = std::make_shared<MethodTable>(std::move(mt));
@@ -279,7 +358,8 @@ struct LockedMethodTableManager : public MethodTableManager {
     CachingMethodTableManager delegate;
     std::mutex lock;
 
-    std::shared_ptr<MethodTable> GetMethodTable(Session& session, Identifier<TypeDefinition> type) override
+    std::optional<std::shared_ptr<MethodTable>> GetMethodTable(Session& session, Identifier<TypeDefinition> type)
+        override
     {
         std::lock_guard guard(lock);
         return delegate.GetMethodTable(session, type);
@@ -291,4 +371,7 @@ std::unique_ptr<MethodTableManager> MethodTableManager::NewInstance()
     return std::make_unique<LockedMethodTableManager>();
 }
 
-} // namespace Symlevel
+static Descripted stream(cerr, "[MT] ");
+Logging::Logger Log::mt(&stream, Logging::Level::ERROR);
+
+} // namespace Engine

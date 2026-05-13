@@ -2,10 +2,10 @@
 #include "RuntimeTypes.h"
 #include "engine/engine.h"
 #include "engine/identifiers.h"
+#include "engine/method_table.h"
 #include "engine/resolving_output.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/flags.h"
-#include "engine/symlevel/method_table.h"
 #include "engine/symlevel/reader.h"
 #include "engine/terms.h"
 #include "interpreter/function_handle.h"
@@ -177,7 +177,13 @@ struct TypeInfoBuilder {
     }
 };
 
-static DYN_FuncPtrT GetFunctionOrTrampoline(
+struct MethodTableMember {
+    Interpretation::FunctionHandle* handle;
+    DYN_FuncPtrT function;
+};
+
+/// Returns pair of (handle, function) that describes member in method table.
+static MethodTableMember GetTableMember(
     Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> methodId, int entryIdx
 )
 {
@@ -187,15 +193,18 @@ static DYN_FuncPtrT GetFunctionOrTrampoline(
     ASSERTION(flags.Is(Symlevel::MethodFlag::VIRTUAL), "Only virtual methods are expected");
 
     if (flags.Is(Symlevel::MethodFlag::ABSTRACT)) {
-        return nullptr;
+        // can not be called
+        // TODO: put stub method that throws
+        return { nullptr, nullptr };
     } else if (flags.Is(Symlevel::MethodFlag::AOT)) {
-        // must be present with aot flag
+        // target must be present with aot flag
         auto& manager  = Interpretation::FunctionHandleManager::Of(session);
         auto fuh       = manager.AcquireTagged(session, methodId);
         auto staticFuh = std::get<Interpretation::StaticFunctionHandle*>(fuh);
-        return staticFuh->function;
+        return { &staticFuh->base, staticFuh->function };
     } else {
-        return Adapters::GetDynCallTrampoline(entryIdx);
+        auto& manager  = Interpretation::FunctionHandleManager::Of(session);
+        return { manager.Acquire(session, methodId), Adapters::GetDynCallTrampoline(entryIdx) };
     }
 }
 
@@ -255,17 +264,20 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
     }
 
     { // fill out ext defs
-        auto& manager    = Symlevel::MethodTableManager::Of(session);
+        auto& manager    = Engine::MethodTableManager::Of(session);
         auto& fuhManager = Interpretation::FunctionHandleManager::Of(session);
-        auto mt          = manager.GetMethodTable(session, term);
+        auto optMT       = manager.GetMethodTable(session, term);
 
-        Log::typeinfo.Log(Logging::Level::INFO, [&](Stream::Output& out) {
-            Stream::ResolvingOutput stream(session, out);
-            stream << term << " " << *mt << Stream::endl;
-        });
+        if (!optMT.has_value()) {
+            Log::typeinfo.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
+                Stream::ResolvingOutput stream(session, out);
+                stream << "Failed to build method table for " << term << Stream::endl;
+            });
+            return std::nullopt;
+        }
+        auto mt = *optMT;
 
-        auto extDefCount       = mt->ClassCount() + mt->InterfaceCount();
-        constexpr auto ptrSize = sizeof(void*);
+        auto extDefCount = mt->ClassCount() + mt->InterfaceCount();
 
         // To simplify memory management here, we will preallocate "flat" arrays
         // where corresponding structures would be filled out.
@@ -273,7 +285,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
         builder.dataMT      = Alloc<Interpretation::FunctionHandle*>(mt->EntryCount());
         builder.flatMethods = Alloc<DYN_FuncPtrT>(mt->EntryCount());
-        builder.extDefs     = Alloc<DYN_ExtensionDataT*>(extDefCount);
+        builder.extDefs     = Alloc<DYN_ExtensionDataT*>(extDefCount + 1);
         builder.flatExtDefs = Alloc<DYN_ExtensionDataT>(extDefCount);
 
         if (!builder.dataMT || !builder.flatMethods || !builder.extDefs || !builder.flatExtDefs) {
@@ -283,13 +295,15 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         // fill out flat methods table and data method table
         int entryIdx = 0;
         for (auto entry : mt->Entries()) {
-            builder.dataMT[entryIdx]      = fuhManager.Acquire(session, entry.method);
-            builder.flatMethods[entryIdx] = GetFunctionOrTrampoline(session, entry.method, entryIdx);
+            auto tm = GetTableMember(session, entry.method, entryIdx);
+
+            builder.dataMT[entryIdx]      = tm.handle;
+            builder.flatMethods[entryIdx] = tm.function;
             entryIdx++;
         }
 
         // Fill out array of pointers to ext defs.
-        for (auto i = 0; i < extDefCount; i++) {
+        for (int i = 0; i < extDefCount; i++) {
             builder.extDefs[i] = &builder.flatExtDefs[i];
         }
 
@@ -297,7 +311,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
         auto prepareExtDef = [&builder,
                               currentTypeInfo,
-                              &queryTypeInfo](DYN_ExtensionDataT& extDef, Symlevel::MethodSubTable const& smt) -> bool {
+                              &queryTypeInfo](DYN_ExtensionDataT& extDef, Engine::MethodSubTable const& smt) -> bool {
             auto funcTableStart        = &builder.flatMethods[smt.StartPos()];
             extDef.funcTable           = funcTableStart;
             extDef.funcTableSize       = smt.EndPos() - smt.StartPos();
