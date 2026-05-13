@@ -129,6 +129,8 @@ CBC_EXPORT void* engine_get_entrypoint_trampoline(void)
     return fuhManager.GetFunctionPtrForDirectCall(fuh);
 }
 
+#define INTERPRETER_TAG 21
+
 CBC_EXPORT void interpreter_bridge_init(
     struct DYN_InterpreterInterfaceT* interpInterf,
     struct DYN_CJNativeInterfaceT* rtInterf,
@@ -139,6 +141,8 @@ CBC_EXPORT void interpreter_bridge_init(
     (void)size;
     (void)options;
     InitEnvOpts();
+
+    rtInterf->nativeLogger(21, "Interpreter", "Initializing CBC engine...");
 
     g_CJNativeInterfaceInstance            = *rtInterf;
     interpInterf->version                  = 1;
@@ -157,6 +161,8 @@ CBC_EXPORT void interpreter_bridge_init(
 
     Asm::engine_newobject_function = g_CJNativeInterfaceInstance.objectAlloc;
     RTSupport::Initialize(&g_CJNativeInterfaceInstance);
+
+    rtInterf->nativeLogger(INTERPRETER_TAG, "Interpreter", "Initializing CBC engine ... finished");
 }
 
 } // extern "C"
