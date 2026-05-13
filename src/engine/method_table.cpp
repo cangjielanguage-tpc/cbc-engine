@@ -5,7 +5,6 @@
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/reader.h"
 #include "engine/symlevel/term.h"
-#include "engine/symlevel/type_kind.h"
 #include "engine/terms.h"
 #include "utils/iterators.h"
 #include "utils/logger.h"
@@ -16,10 +15,10 @@
 #include <unordered_map>
 #include <vector>
 
-namespace Symlevel {
+namespace Engine {
 
-using namespace Engine;
 using namespace Stream;
+using namespace Symlevel;
 
 // ---- MethodTable ----
 
@@ -199,7 +198,7 @@ std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, Iden
 
     // 2. Copy all entries and sub tables of interfaces, adjusting their views
     for (auto interf : def.GetInterfaces().Values(session)) {
-        auto interfTerm = TermManager::Resolve(session, interf);
+        auto interfTerm     = TermManager::Resolve(session, interf);
         auto optInterfTable = GetMethodTable(session, interfTerm);
         if (!optInterfTable.has_value()) {
             ResolvingOutput out(session, Log::mt.Stream(Logging::Level::ERROR));
@@ -212,13 +211,15 @@ std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, Iden
         ASSERTION(interfTable->classTables.empty(), "interface tables should not have class table");
 
         auto oldEntryCount = newTable.EntryCount();
-        newTable.allEntries.insert(newTable.allEntries.end(), interfTable->allEntries.begin(), interfTable->allEntries.end());
+        newTable.allEntries.insert(
+            newTable.allEntries.end(), interfTable->allEntries.begin(), interfTable->allEntries.end()
+        );
 
         for (auto st : interfTable->interfaceTables) {
             newTable.interfaceTables.emplace_back(MethodTable::SubTable {
                 .genericContext = st.genericContext,
-                .start = st.start + oldEntryCount,
-                .end = st.end + oldEntryCount,
+                .start          = st.start + oldEntryCount,
+                .end            = st.end + oldEntryCount,
             });
         }
     }
@@ -261,9 +262,7 @@ std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, Iden
     }
 
     // 3.3 add new subtable for current type (even if new methods were not added)
-    auto tables = flags.Is(TypeKind::INTERFACE)
-        ? &newTable.interfaceTables
-        : &newTable.classTables;
+    auto tables = flags.Is(TypeKind::INTERFACE) ? &newTable.interfaceTables : &newTable.classTables;
 
     tables->emplace_back(MethodTable::SubTable {
         .genericContext = thisType,
@@ -375,4 +374,4 @@ std::unique_ptr<MethodTableManager> MethodTableManager::NewInstance()
 static Descripted stream(cerr, "[MT] ");
 Logging::Logger Log::mt(&stream, Logging::Level::ERROR);
 
-} // namespace Symlevel
+} // namespace Engine
