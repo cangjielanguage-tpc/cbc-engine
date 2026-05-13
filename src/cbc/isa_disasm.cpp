@@ -293,7 +293,7 @@ struct IsaResolvingDisasm : IsaDisasm {
     // TODO: implement rest.
 };
 
-static bool g_IsRawDisasmEnabled;
+bool g_IsRawDisasmEnabled = false;
 
 void EnableRawDisasm() { g_IsRawDisasmEnabled = true; }
 

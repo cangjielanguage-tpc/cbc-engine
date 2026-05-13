@@ -28,6 +28,7 @@ public:
     Stream::Output& Stream(Level level);
     void SetStream(Stream::Output* stream);
     void SetLogLevel(Level level);
+    Level GetLogLevel();
 
     template <typename F> inline void Log(Level level, F const& logger)
     {

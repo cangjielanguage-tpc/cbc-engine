@@ -9,7 +9,7 @@
 #include "interpreter/function_handle.h"
 
 #include "testutils.h"
-#include "utils/options.h"
+#include "engine/options.h"
 #include "utils/ostream.h"
 
 static LimitedHeap<16384> heap;
@@ -18,7 +18,7 @@ class CbcDisasmTest : public testing::Test {
     void SetUp() override
     {
         heap.Reset();
-        Options::InitEnvOptions();
+        Engine::InitEnvOptions();
     }
 
     void TearDown() override {}
