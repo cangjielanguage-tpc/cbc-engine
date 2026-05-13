@@ -1,4 +1,5 @@
 #include "utils/options.h"
+#include "engine/options.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
 
@@ -160,11 +161,6 @@ void InitFromEnv(const Table& opts)
     }
 
     InitFromString(std::string_view(_optStr), opts);
-}
-
-void InitEnvOptions()
-{
-    InitFromEnv(g_table);
 }
 
 } // namespace Options

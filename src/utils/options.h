@@ -40,13 +40,10 @@ private:
 
 void InitFromString(std::string_view optStr, const Table& opts);
 void InitFromEnv(const Table& opts);
-void InitEnvOptions();
 
 bool SetLogLevelValue(Table const&, Option const&, std::string_view value);
 bool SetBoolValue(Table const&, Option const&, std::string_view value);
 bool SetStringValue(Table const&, Option const&, std::string_view value);
 bool SetAllLogLevels(Table const&, Option const&, std::string_view value);
-
-extern Table const g_table;
 
 } // namespace Options

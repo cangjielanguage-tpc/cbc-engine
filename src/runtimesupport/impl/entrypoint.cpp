@@ -9,6 +9,7 @@
 #include "cbc_engine.h"
 #include "cjnative.h"
 #include "engine/engine.h"
+#include "engine/options.h"
 #include "engine/statics_manager.h"
 #include "engine/symlevel/io/filesystem.h"
 #include "interpreter/ectype.h"
@@ -16,7 +17,6 @@
 #include "interpreter/loggers.h"
 #include "runtimesupport/impl/rt_syms.h"
 #include "utils/logger.h"
-#include "utils/options.h"
 
 DYN_CJNativeInterfaceT g_CJNativeInterfaceInstance;
 
@@ -27,7 +27,7 @@ static bool g_OptionsInitialized;
 static void InitEnvOpts() {
     std::lock_guard guard(g_InitializationGuard);
     if (!g_OptionsInitialized) {
-        Options::InitEnvOptions();
+        Engine::InitEnvOptions();
         g_OptionsInitialized = true;
     }
 }
@@ -41,7 +41,7 @@ static void EnsureEngineInitialized()
         return;
     }
 
-    Options::InitEnvOptions();
+    Engine::InitEnvOptions();
     Engine::Loader loader;
     loader.Load(IO::OpenFile(std::filesystem::path(g_mainCbc)), g_mainCbc);
     loader.Build();
@@ -139,7 +139,7 @@ CBC_EXPORT void interpreter_bridge_init(
 {
     // Order matters
     InitEnvOpts();
-    Options::g_table.ParseAndSet(size, options);
+    Engine::g_table.ParseAndSet(size, options);
 
     g_CJNativeInterfaceInstance            = *rtInterf;
     interpInterf->version                  = 1;

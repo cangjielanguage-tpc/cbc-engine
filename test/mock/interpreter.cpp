@@ -12,7 +12,7 @@
 #include "runtimesupport/runtime.h"
 #include "utils/assertion.h"
 #include "utils/logger.h"
-#include "utils/options.h"
+#include "engine/options.h"
 
 static constexpr int HEAP_SIZE = 16384;
 static LimitedHeap<HEAP_SIZE> heap;
@@ -189,7 +189,7 @@ Interpretation::Value::Primitive InterpretFPRes(
 void InitializeMockInterpreter()
 {
     using namespace Interpretation;
-    Options::InitEnvOptions();
+    Engine::InitEnvOptions();
     auto i2call = reinterpret_cast<Interpretation::I2Call>(&Interpretation::InterpreterI2CallTest);
     static_assert(IReg::COUNT == 14);
 }

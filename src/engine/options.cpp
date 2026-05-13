@@ -1,4 +1,4 @@
-#include "utils/options.h"
+#include "engine/options.h"
 
 #include "cbc/isa_disasm.h"
 #include "interpreter/loggers.h"
@@ -7,7 +7,14 @@
 
 #include "utils/logger.h"
 
-namespace Options {
+namespace Engine {
+
+using Options::Option;
+using Options::SetLogLevelValue;
+using Options::SetAllLogLevels;
+using Options::SetBoolValue;
+using Options::SetStringValue;
+using Options::Table;
 
 constexpr Option globalOptionsArray[] = {
     { "cbc.log.resolution", &Resolution::log, &SetLogLevelValue },
@@ -21,4 +28,9 @@ constexpr Option globalOptionsArray[] = {
 
 Table const g_table(globalOptionsArray);
 
-} // namespace Options
+void InitEnvOptions()
+{
+    Options::InitFromEnv(g_table);
+}
+
+} // namespace Engine
