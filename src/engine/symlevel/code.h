@@ -11,6 +11,12 @@ struct LivenessInfo {
     std::vector<uint32_t> refSlotNums;
 };
 
+struct RawLivenessInfo {
+    uint32_t size;
+    uint32_t start;
+    IO::RandomAccessFile* raf;
+};
+
 class Code {
 public:
     static Code Parse(Engine::Session& session, IO::FileId fileId, Offset<Code> offset);
@@ -29,14 +35,38 @@ public:
 
     uint8_t UsedNonVolFRegMask() { return usedNonVolFRegMask; }
 
-    std::vector<LivenessInfo>& GetLivenessInfo() { return livenessInfo; }
+    std::vector<LivenessInfo> GetLivenessInfo() const;
 
     friend Stream::Output& operator<<(Stream::Output& out, const Code& code);
 
 private:
     Code(uint8_t* codePtr, uint32_t codeSize) : codePtr(codePtr), codeSize(codeSize) {}
 
-    Code(Engine::Session& session, IO::StreamFileReader& reader);
+    Code(
+        uint32_t untypedSlotCount,
+        uint32_t typedSlotCount,
+        uint32_t ohmSlotCount,
+        uint8_t usedNonVolIRegMask,
+        uint8_t usedNonVolFRegMask,
+        uint32_t maxCalleeStackArgsCount,
+        bool mayHaveNativeCalls,
+        bool hasTrivialXHandler,
+        uint32_t codeSize,
+        uint8_t* codePtr,
+        RawLivenessInfo rawLivenessInfo
+    )
+        : untypedSlotCount(untypedSlotCount),
+          typedSlotCount(typedSlotCount),
+          ohmSlotCount(ohmSlotCount),
+          usedNonVolIRegMask(usedNonVolIRegMask),
+          usedNonVolFRegMask(usedNonVolFRegMask),
+          maxCalleeStackArgsCount(maxCalleeStackArgsCount),
+          mayHaveNativeCalls(mayHaveNativeCalls),
+          hasTrivialXHandler(hasTrivialXHandler),
+          codePtr(codePtr),
+          codeSize(codeSize),
+          rawLivenessInfo(rawLivenessInfo)
+    {}
 
     uint32_t untypedSlotCount = 0;
     uint32_t typedSlotCount   = 0;
@@ -52,7 +82,7 @@ private:
     uint32_t codeSize;
     uint8_t* codePtr;
 
-    std::vector<LivenessInfo> livenessInfo = {};
+    RawLivenessInfo rawLivenessInfo = { 0, 0, nullptr };
 };
 
 } // namespace Symlevel

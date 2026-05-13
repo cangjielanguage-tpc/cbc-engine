@@ -1,19 +1,21 @@
 #pragma once
 
+#include "ostream.h"
+
 #include <string>
 #include <vector>
 
 namespace Std {
 namespace Vector {
 
-template <typename T>
-std::string ToString(const std::vector<T>& vec, const std::string& delim = ", ") {
-    std::string result = "[";
-    for (auto it = vec.begin(); it != vec.end(); ++it) {
-        result += std::to_string(*it);
-        result = std::next(it) != vec.end() ? result += delim : result;
+template <typename T> void Print(Stream::Output& out, const std::vector<T>& vec, const std::string& delim = ", ")
+{
+    std::string empty = "";
+    std::string& sep  = empty;
+    for (auto& elem : vec) {
+        out << sep << elem;
+        sep = delim;
     }
-    return result + "]";
 }
 
 } //namespace Vector

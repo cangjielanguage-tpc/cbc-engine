@@ -7,32 +7,47 @@ Code Code::Parse(Engine::Session& session, IO::FileId fileId, Offset<Code> offse
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetCodeSectionOffs() + offset);
 
-    return Code(session, reader);
-}
+    uint32_t untypedSlotCount = reader.ReadULEB();
+    uint32_t typedSlotCount   = reader.ReadULEB(); // TODO: impl
+    uint32_t ohmSlotCount     = reader.ReadULEB(); // TODO: impl
 
-Code::Code(Engine::Session& session, IO::StreamFileReader& reader)
-{
-    untypedSlotCount = reader.ReadULEB();
-    typedSlotCount   = reader.ReadULEB(); // TODO: impl
-    ohmSlotCount     = reader.ReadULEB(); // TODO: impl
+    uint8_t usedNonVolIRegMask       = reader.ReadU8();
+    uint8_t usedNonVolFRegMask       = reader.ReadU8();
+    uint32_t maxCalleeStackArgsCount = reader.ReadULEB();
 
-    usedNonVolIRegMask      = reader.ReadU8();
-    usedNonVolFRegMask      = reader.ReadU8();
-    maxCalleeStackArgsCount = reader.ReadULEB();
+    bool mayHaveNativeCalls = static_cast<bool>(reader.ReadU8());
+    bool hasTrivialXHandler = static_cast<bool>(reader.ReadU8());
 
-    mayHaveNativeCalls = static_cast<bool>(reader.ReadU8());
-    hasTrivialXHandler = static_cast<bool>(reader.ReadU8());
+    uint32_t codeSize       = reader.ReadULEB();
+    uint32_t literalsOffset = reader.ReadULEB(); // TODO: remove
 
-    codeSize            = reader.ReadULEB();
-    auto literalsOffset = reader.ReadULEB(); // TODO: remove
-
-    codePtr = static_cast<uint8_t*>(session.Allocator().Allocate(codeSize, alignof(uint8_t)));
+    auto codePtr = static_cast<uint8_t*>(session.Allocator().Allocate(codeSize, alignof(uint8_t)));
     reader.Read(codePtr, codeSize);
 
     uint32_t livenessInfoSize = reader.ReadULEB();
-    uint32_t livenessStart = reader.Position();
+    uint32_t livenessInfoStart = reader.Position();
 
-    while (reader.Position() - livenessStart < livenessInfoSize) {
+    return Code(
+        untypedSlotCount,
+        typedSlotCount,
+        ohmSlotCount,
+        usedNonVolIRegMask,
+        usedNonVolFRegMask,
+        maxCalleeStackArgsCount,
+        mayHaveNativeCalls,
+        hasTrivialXHandler,
+        codeSize,
+        codePtr,
+        { livenessInfoSize, livenessInfoStart, session.FileOf(fileId).get() }
+    );
+}
+
+std::vector<LivenessInfo> Code::GetLivenessInfo() const
+{
+    IO::StreamFileReader reader(rawLivenessInfo.raf, rawLivenessInfo.start);
+    std::vector<LivenessInfo> livenessInfo;
+
+    while (reader.Position() - rawLivenessInfo.start < rawLivenessInfo.size) {
         LivenessInfo info = {
             .cbcPos  = reader.ReadULEB(),
             .regMask = reader.ReadU16(),
@@ -49,31 +64,33 @@ Code::Code(Engine::Session& session, IO::StreamFileReader& reader)
         info.refSlotNums = std::move(slots);
         livenessInfo.push_back(std::move(info));
     }
+
+    return livenessInfo;
 }
 
 Stream::Output& operator<<(Stream::Output& out, const Code& code)
 {
     using namespace Stream;
+    Stream::Indented out2(out, 2);
+    Stream::Indented out4(out, 4);
 
-    out << "MethodCode {"                << endl
-        << "\tuntypedSlotCount: "        << code.untypedSlotCount        << endl
-        << "\ttypedSlotCount: "          << code.typedSlotCount          << endl
-        << "\tohmSlotCount: "            << code.ohmSlotCount            << endl
-        << "\tusedNonVolIRegMask: "      << code.usedNonVolIRegMask      << endl
-        << "\tusedNonVolFRegMask: "      << code.usedNonVolFRegMask      << endl
-        << "\tmaxCalleeStackArgsCount: " << code.maxCalleeStackArgsCount << endl
-        << "\thasTrivialXHandler: "      << code.hasTrivialXHandler      << endl;
-    {
-        out << "\tLivenessInfo {" << endl;
-        for (auto& li : code.livenessInfo) {
-            out << "\t\tcbcPos: " << li.cbcPos
-                << ", regMask: "  << li.regMask
-                << ", "           << Std::Vector::ToString(li.refSlotNums)
-                << endl;
-        }
-        out << "\t}" << endl;
+    out << "MethodCode {" << endl;
+    out2 << "untypedSlotCount: " << code.untypedSlotCount << endl
+         << "typedSlotCount: " << code.typedSlotCount << endl
+         << "ohmSlotCount: " << code.ohmSlotCount << endl
+         << "usedNonVolIRegMask: " << code.usedNonVolIRegMask << endl
+         << "usedNonVolFRegMask: " << code.usedNonVolFRegMask << endl
+         << "maxCalleeStackArgsCount: " << code.maxCalleeStackArgsCount << endl
+         << "hasTrivialXHandler: " << code.hasTrivialXHandler << endl
+         << "LivenessInfo {" << endl;
+
+    for (auto& li : code.GetLivenessInfo()) {
+        out4 << "cbcPos: " << li.cbcPos << ", regMask: " << li.regMask << ", ";
+        Std::Vector::Print(out4, li.refSlotNums);
+        out4 << endl;
     }
 
+    out2 << "}" << endl;
     return out << "}" << endl;
 }
 

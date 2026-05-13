@@ -19,9 +19,7 @@ Label Emitter::NewLabel() { return symbols.NewLabel(); }
 
 void Emitter::Bind(Label label) { symbols.Bind(label, segment.Pos()); }
 
-int32_t Emitter::LabelPosition(Label label) {
-    return symbols.LabelPosition(label);
-}
+int32_t Emitter::LabelPosition(Label label) const { return symbols.LabelPosition(label); }
 
 EmitterSnapshot Emitter::Snapshot()
 {
