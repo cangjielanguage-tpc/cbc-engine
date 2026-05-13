@@ -6,13 +6,14 @@
 #include "RTInterface.h"
 #include "asm_export.h"
 #include "asm_trampolines.h"
+#include "cbc/isa.h"
 #include "cbc/isa_disasm.h"
 #include "cbc_engine.h"
 #include "cjnative.h"
 #include "engine/engine.h"
 #include "engine/options.h"
-#include "engine/statics_manager.h"
 #include "engine/symlevel/io/filesystem.h"
+#include "gc_support.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
 #include "interpreter/loggers.h"
@@ -52,7 +53,10 @@ static void EnsureEngineInitialized()
     g_Initialized = true;
 }
 
-static void FiberStart(DYN_CJThreadSpecificDataT* data) { /* no-op */ }
+static void FiberStart(DYN_CJThreadSpecificDataT* data)
+{
+    Interpretation::Ectype* ectype = new Interpretation::Ectype();
+}
 
 static void FiberDestroy(DYN_CJThreadSpecificDataT* data) { /* TODO: ectype cleanup */ }
 
@@ -65,7 +69,9 @@ static void IterateFramesWithState(
         out.NewLine();
     });
 
-    DYN_VisitingStateT state = nullptr; // TODO implement
+    std::vector<uintptr_t> registersTable(Cbc::IReg::NON_VOLATILE_COUNT) DYN_VisitingStateT state =
+        nullptr; // TODO implement
+
     callback(state, ctx);
 
     RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Stream::Output& out) {
@@ -74,58 +80,9 @@ static void IterateFramesWithState(
     });
 }
 
-static void VisitGCFrameRoots(DYN_FrameDescT frame_desc, DYN_RootVisitorT root_visitor)
-{
-    using namespace Interpretation;
-    const auto readerOffset = LOCAL_SLOTS_OFFSET + READER_SLOTS_SIZE;
-
-    auto fuh    = *reinterpret_cast<DynamicFunctionHandle**>((uint8_t*)frame_desc.fp - FUH_SLOT_OFFSET);
-    auto reader = reinterpret_cast<Decoder::ByteReader*>((uint8_t*)frame_desc.fp - readerOffset);
-    auto bc     = NOTNULL(fuh->bytecode.load());
-
-    uint32_t curPos = reinterpret_cast<uintptr_t>(reader->Cursor()) - reinterpret_cast<uintptr_t>(bc->code.bytecode);
-
-    const ReferenceInfo* refInfo = nullptr;
-    for (auto& info : bc->referenceInfos) {
-        if (info.rewrittenPos == curPos) {
-            refInfo = &info;
-            break;
-        }
-    }
-
-    auto slotsStartAddr = ((uint8_t*)frame_desc.fp) - (readerOffset + bc->frameSize);
-
-    RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Stream::Output& out) {
-        out.PrintFmt(
-            "start visiting frame (fuh=%p, ip=%p, fp=%p, pos=%p, slots_addr=%p)",
-            fuh,
-            frame_desc.ip,
-            frame_desc.fp,
-            curPos,
-            slotsStartAddr
-        );
-        out.NewLine();
-    });
-
-    for (auto& refSlotOffset : NOTNULL(refInfo)->refSlotOffsets) {
-        uintptr_t* refLocation = reinterpret_cast<uintptr_t*>(slotsStartAddr + refSlotOffset);
-        RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
-            out.PrintFmt("visiting %p, value=%p", refLocation, *refLocation);
-            out.NewLine();
-        });
-        g_CJNativeInterfaceInstance.visitRootFromInterpreter(root_visitor, refLocation);
-    }
-
-    RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Stream::Output& out) {
-        out.PrintFmt("end visiting frame (fuh=%p)", fuh);
-        out.NewLine();
-    });
-}
-
 static void VisitFrameRootsMarking(DYN_VisitingStateT state, DYN_FrameDescT frame_desc, DYN_RootVisitorT root_visitor)
 {
-    // TODO scan saved regs
-    VisitGCFrameRoots(frame_desc, root_visitor);
+    GCSupport::VisitGCFrameRoots(state, frame_desc, root_visitor);
 }
 
 static void VisitFrameRootsAdjusting(
@@ -135,8 +92,7 @@ static void VisitFrameRootsAdjusting(
     DYN_DerivedPtrVisitorT derived_ptr_visitor
 )
 {
-    // scan saved regs
-    VisitGCFrameRoots(frame_desc, root_visitor);
+    GCSupport::VisitGCFrameRoots(state, frame_desc, root_visitor);
 }
 
 static void VisitFrameRootsExpansion(
@@ -149,21 +105,7 @@ static void VisitFrameRootsExpansion(
     /* no-op */
 }
 
-static void VisitGlobalRoots(DYN_RootVisitorT visitor)
-{
-    RTSupport::Log::gc.Stream(Logging::Level::INFO) << "start visiting global roots" << Stream::endl;
-
-    auto& engine = Engine::GetEngineInstance();
-    Engine::StaticsManager::Of(engine).VisitRefLocations([visitor](Engine::RefLocation* refLocation) {
-        RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Stream::Output& out) {
-            out.PrintFmt("visiting %p, value=%p", refLocation, *refLocation);
-            out.NewLine();
-        });
-        g_CJNativeInterfaceInstance.visitRootFromInterpreter(visitor, refLocation);
-    });
-
-    RTSupport::Log::gc.Stream(Logging::Level::INFO) << "end visiting global roots" << Stream::endl;
-}
+static void VisitGlobalRoots(DYN_RootVisitorT visitor) { GCSupport::VisitGlobalRoots(visitor); }
 
 extern "C" {
 /// This symbol is exported to the runtime, which would initialize engine.

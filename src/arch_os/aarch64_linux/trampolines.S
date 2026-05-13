@@ -255,8 +255,8 @@ perform_2i_call:
     ldrh  \mask_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
     .irp reg, 10,11,12,13
         tbz \mask_reg, #(\reg-8), saveireg\reg
-        ldr x2, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + \reg*8)]
-        str x2, [\stack_reg, #-0x8]!
+        ldr x2, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + \reg*ECTYPE_REG_SIZE)]
+        str x2, [\stack_reg, #-ECTYPE_REG_SIZE]!
 saveireg\reg:
     .endr
 .endm
@@ -265,8 +265,8 @@ saveireg\reg:
     ldrh  \mask_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_FREGS_OFFSET]
     .irp reg, 8,9,10,11,12,13,14,15
         tbz \mask_reg, #(\reg-8), savefreg\reg
-        ldr d2, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET + \reg*8)]
-        str d2, [\stack_reg, #-0x8]!
+        ldr d2, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET + \reg*ECTYPE_REG_SIZE)]
+        str d2, [\stack_reg, #-ECTYPE_REG_SIZE]!
 savefreg\reg:
     .endr
 .endm

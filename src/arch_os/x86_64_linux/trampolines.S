@@ -259,8 +259,8 @@ perform_2i_call:
         .set _bit, (\reg - 8)
         test    \mask_reg, (1 << _bit)
         jz      saveireg\reg
-        mov     rsi, QWORD PTR [ECTYPE_REG + ECTYPE_IREGS_OFFSET + \reg*8]
-        sub     \stack_reg, 8
+        mov     rsi, QWORD PTR [ECTYPE_REG + ECTYPE_IREGS_OFFSET + \reg*ECTYPE_REG_SIZE]
+        sub     \stack_reg, ECTYPE_REG_SIZE
         mov     QWORD PTR [\stack_reg], rsi
 saveireg\reg:
     .endr
@@ -272,8 +272,8 @@ saveireg\reg:
         .set _bit, (\reg - 8)
         test    \mask_reg, (1 << _bit)
         jz      savefreg\reg
-        mov     rsi, QWORD PTR [ECTYPE_REG + ECTYPE_FREGS_OFFSET + \reg*8]
-        sub     \stack_reg, 8
+        mov     rsi, QWORD PTR [ECTYPE_REG + ECTYPE_FREGS_OFFSET + \reg*ECTYPE_REG_SIZE]
+        sub     \stack_reg, ECTYPE_REG_SIZE
         mov     QWORD PTR [\stack_reg], rsi
 savefreg\reg:
     .endr
