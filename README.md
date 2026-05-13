@@ -15,15 +15,24 @@ python3 build.py clean
 2) Build `libcbcengine.so` for target platform:
 
 ```bash
-python3 build.py build --target-platform=<x86_64 or aarch64>
+python3 build.py build --target-os=linux --target-arch=<x86_64 or aarch64>
 ```
 
-3) Library is located in `output/libcbcengine.so`
+For Android builds, set `ANDROID_NDK_HOME` first:
+
+```bash
+export ANDROID_NDK_HOME=/path/to/android-ndk
+python3 build.py build --target-os=android --target-arch=aarch64
+```
+
+3) Library is located in `output/<target-os>_<target-arch>/libcbcengine.so`
 
 ## How to run tests
 
-Build project with additional `--run-tests` option:
+Build project for the native target with additional `--run-tests` option:
 
 ```bash
 python3 build.py build --run-tests
 ```
+
+Cross-target builds with `--run-tests` are not allowed.
