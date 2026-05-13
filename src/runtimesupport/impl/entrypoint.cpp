@@ -139,7 +139,7 @@ CBC_EXPORT void interpreter_bridge_init(
 {
     // Order matters
     InitEnvOpts();
-    Options::ParseAndSet(size, options, Options::g_table);
+    Options::g_table.ParseAndSet(size, options);
 
     g_CJNativeInterfaceInstance            = *rtInterf;
     interpInterf->version                  = 1;

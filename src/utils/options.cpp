@@ -86,6 +86,8 @@ Table::Status Table::Set(std::string_view key, std::string_view value) const
     return Status::UNKNOWN_OPTION;
 }
 
+namespace {
+
 struct KeyVal {
     std::string_view key;
     std::string_view val;
@@ -115,7 +117,9 @@ void SetOptions(const std::vector<KeyVal>& parsedOpts, const Table& opts)
     }
 }
 
-void ParseAndSet(int size, char const** optStr, const Table& opts)
+} // namespace
+
+void Table::ParseAndSet(int size, char const** optStr) const
 {
     if (optStr == nullptr) {
         return;
@@ -126,7 +130,7 @@ void ParseAndSet(int size, char const** optStr, const Table& opts)
         ParseKeyVal(parsedOpts, optStr[i]);
     }
 
-    SetOptions(parsedOpts, opts);
+    SetOptions(parsedOpts, *this);
 }
 
 void InitFromString(std::string_view optStr, const Table& opts)

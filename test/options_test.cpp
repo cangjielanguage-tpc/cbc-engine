@@ -296,7 +296,7 @@ TEST(OptionsParseAndSet, Simple)
     Opts opts(optsArray);
 
     const char* options[] = { "test.flag=true" };
-    Options::ParseAndSet(1, options, opts);
+    opts.ParseAndSet(1, options);
 
     EXPECT_TRUE(var);
 }
@@ -308,7 +308,7 @@ TEST(OptionsParseAndSet, Nullptr)
     Opt optsArray[] = { opt };
     Opts opts(optsArray);
 
-    Options::ParseAndSet(0, nullptr, opts);
+    opts.ParseAndSet(0, nullptr);
 }
 
 TEST(OptionsParseAndSet, LastWins)
@@ -319,7 +319,7 @@ TEST(OptionsParseAndSet, LastWins)
     Opts opts(optsArray);
 
     const char* options[] = { "test.flag=true", "test.flag=false" };
-    Options::ParseAndSet(2, options, opts);
+    opts.ParseAndSet(2, options);
 
     EXPECT_FALSE(var);
 }
