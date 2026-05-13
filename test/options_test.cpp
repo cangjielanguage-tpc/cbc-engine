@@ -264,6 +264,30 @@ TEST(OptionsInitFromString, UnknownOption)
     EXPECT_FALSE(var);
 }
 
+TEST(OptionsInitFromString, NoValueAfterEquals)
+{
+    bool var = false;
+    Opt opt = { "test.foo", &var, &Options::SetBoolValue };
+    Opt optsArray[] = { opt };
+    Opts opts(optsArray);
+
+    Options::InitFromString("test.foo=", opts);
+    EXPECT_FALSE(var);
+}
+
+TEST(OptionsInitFromString, ValueWithSpace)
+{
+    GTEST_SKIP() << "WIP";
+
+    std::string var = "old";
+    Opt opt = { "test.str", &var, &Options::SetStringValue };
+    Opt optsArray[] = { opt };
+    Opts opts(optsArray);
+
+    Options::InitFromString("test.str=string have space", opts);
+    EXPECT_EQ(var, "string have space");
+}
+
 TEST(OptionsParseAndSet, Simple)
 {
     bool var = false;
@@ -299,8 +323,6 @@ TEST(OptionsParseAndSet, LastWins)
 
     EXPECT_FALSE(var);
 }
-
-// --- InitFromEnv tests with fake options ---
 
 class InitFromEnvTest : public ::testing::Test {
 protected:
@@ -459,6 +481,59 @@ TEST_F(InitFromEnvTest, BoolOne)
     Options::InitFromEnv(opts);
 
     EXPECT_TRUE(var);
+}
+
+TEST_F(InitFromEnvTest, MixedTypes)
+{
+    Logging::Logger logLevel;
+    bool flag = false;
+    std::string str;
+
+    Opt optsArray[] = {
+        { "test.log", &logLevel, &Options::SetLogLevelValue },
+        { "test.flag", &flag, &Options::SetBoolValue },
+        { "test.str", &str, &Options::SetStringValue },
+    };
+    Opts opts(optsArray);
+
+    setenv("CBCOPT", "test.log=debug test.flag=true test.str=test_value", 1);
+    Options::InitFromEnv(opts);
+
+    EXPECT_EQ(logLevel.GetLogLevel(), Logging::Level::DEBUG);
+    EXPECT_TRUE(flag);
+    EXPECT_EQ(str, "test_value");
+}
+
+TEST(OptionsMultiOptionTable, FromString)
+{
+    Logging::Logger logLevel1;
+    Logging::Logger logLevel2;
+    bool flag1 = false;
+    bool flag2 = true;
+    std::string str1;
+    std::string str2;
+
+    Opt optsArray[] = {
+        { "test.log1", &logLevel1, &Options::SetLogLevelValue },
+        { "test.log2", &logLevel2, &Options::SetLogLevelValue },
+        { "test.flag1", &flag1, &Options::SetBoolValue },
+        { "test.flag2", &flag2, &Options::SetBoolValue },
+        { "test.str1", &str1, &Options::SetStringValue },
+        { "test.str2", &str2, &Options::SetStringValue },
+    };
+    Opts opts(optsArray);
+
+    Options::InitFromString(
+        "test.log1=trace test.log2=warn test.flag1=1 test.flag2=0 test.str1=hello test.str2=world",
+        opts
+    );
+
+    EXPECT_EQ(logLevel1.GetLogLevel(), Logging::Level::TRACE);
+    EXPECT_EQ(logLevel2.GetLogLevel(), Logging::Level::WARN);
+    EXPECT_TRUE(flag1);
+    EXPECT_FALSE(flag2);
+    EXPECT_EQ(str1, "hello");
+    EXPECT_EQ(str2, "world");
 }
 
 } // namespace
