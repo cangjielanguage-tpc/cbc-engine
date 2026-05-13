@@ -26,13 +26,9 @@ InstructionOffsetsIndex InstructionOffsetsIndex::Create(
     std::vector<std::pair<Offset, Offset>> tmp;
     tmp.reserve(labels.size());
 
-    std::transform(labels.begin(), labels.end(), std::back_inserter(tmp),
-        [&emitter](const auto& pair) {
-            return std::make_pair(
-                static_cast<Offset>(pair.first), 
-                emitter.LabelPosition(pair.second));
-        }
-    );
+    std::transform(labels.begin(), labels.end(), std::back_inserter(tmp), [&emitter](const auto& pair) {
+        return std::make_pair(static_cast<Offset>(pair.first), emitter.LabelPosition(pair.second));
+    });
 
     std::sort(tmp.begin(), tmp.end(), [](const auto& a, const auto& b) {
         return a.first < b.first; // sort by cbc offsets
@@ -43,7 +39,7 @@ InstructionOffsetsIndex InstructionOffsetsIndex::Create(
         rtOffsets.push_back(rtOffset);
     }
 
-    ASSERTION(cbcOffsets.size() == rtOffsets.size(),  "Wrong number of elements");
+    ASSERTION(cbcOffsets.size() == rtOffsets.size(), "Wrong number of elements");
     ASSERTION(index.OffsetsAreInAscendingOrder(cbcOffsets), "CBC instruction offsets invariant violation");
     ASSERTION(index.OffsetsAreInAscendingOrder(rtOffsets), "REWRITTEN instruction offsets invariant violation");
 
@@ -69,6 +65,5 @@ bool InstructionOffsetsIndex::OffsetsAreInAscendingOrder(std::vector<Offset> off
 {
     return std::is_sorted(offsets.begin(), offsets.end());
 }
-
 
 }; // namespace Cbc

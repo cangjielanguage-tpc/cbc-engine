@@ -24,7 +24,7 @@ Code Code::Parse(Engine::Session& session, IO::FileId fileId, Offset<Code> offse
     auto codePtr = static_cast<uint8_t*>(session.Allocator().Allocate(codeSize, alignof(uint8_t)));
     reader.Read(codePtr, codeSize);
 
-    uint32_t livenessInfoSize = reader.ReadULEB();
+    uint32_t livenessInfoSize  = reader.ReadULEB();
     uint32_t livenessInfoStart = reader.Position();
 
     return Code(
@@ -56,7 +56,7 @@ std::vector<LivenessInfo> Code::GetLivenessInfo() const
         uint32_t n = reader.ReadULEB();
         std::vector<uint32_t> slots;
         slots.reserve(n);
-        
+
         for (uint32_t idx = 0; idx < n; idx++) {
             slots.push_back(reader.ReadULEB());
         }
