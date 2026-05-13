@@ -27,12 +27,7 @@ public:
 
     bool IsEmpty() { return Length() == 0; }
 
-    std::optional<Offset> FindMappedOffset(InstructionType type, Offset srcOffset)
-    {
-        return FindMappedOffset(type, srcOffset, false);
-    }
-
-    std::optional<Offset> FindMappedOffset(InstructionType type, Offset srcOffset, bool failIfNotFound);
+    std::optional<Offset> FindMappedOffset(InstructionType type, Offset srcOffset) const;
 
 private:
     std::vector<Offset> cbcOffsets = {};

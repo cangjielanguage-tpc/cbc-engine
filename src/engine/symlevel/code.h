@@ -12,9 +12,9 @@ struct LivenessInfo {
 };
 
 struct RawLivenessInfo {
-    uint32_t size;
+    IO::FileId fileId;
     uint32_t start;
-    IO::RandomAccessFile* raf;
+    uint32_t end;
 };
 
 class Code {
@@ -35,9 +35,9 @@ public:
 
     uint8_t UsedNonVolFRegMask() { return usedNonVolFRegMask; }
 
-    std::vector<LivenessInfo> GetLivenessInfo() const;
+    std::vector<LivenessInfo> GetLivenessInfo(Engine::Session& session) const;
 
-    friend Stream::Output& operator<<(Stream::Output& out, const Code& code);
+    void Print(Engine::Session& session, Stream::Output& out);
 
 private:
     Code(uint8_t* codePtr, uint32_t codeSize) : codePtr(codePtr), codeSize(codeSize) {}
@@ -82,7 +82,7 @@ private:
     uint32_t codeSize;
     uint8_t* codePtr;
 
-    RawLivenessInfo rawLivenessInfo = { 0, 0, nullptr };
+    RawLivenessInfo rawLivenessInfo = { 0, 0, IO::FileId(0) };
 };
 
 } // namespace Symlevel

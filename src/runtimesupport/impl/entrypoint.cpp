@@ -59,14 +59,16 @@ static void IterateFramesWithState(
     DYN_CJThreadSpecificDataT threadSpecificData, void (*callback)(DYN_VisitingStateT, void*), void* ctx
 )
 {
-    RTSupport::Log::gc.Stream(Logging::Level::INFO)
-        .PrintFmt("start scanning frames, thread spec data = %p\n", threadSpecificData);
+    RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Stream::Output& out) {
+        out.PrintFmt("start scanning frames, thread spec data = %p\n", threadSpecificData);
+    });
 
     DYN_VisitingStateT state = nullptr; // TODO implement
     callback(state, ctx);
 
-    RTSupport::Log::gc.Stream(Logging::Level::INFO)
-        .PrintFmt("end scanning frames, thread spec data = %p\n", threadSpecificData);
+    RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Stream::Output& out) {
+        out.PrintFmt("end scanning frames, thread spec data = %p\n", threadSpecificData);
+    });
 }
 
 static void VisitGCFrameRoots(DYN_FrameDescT frame_desc, DYN_RootVisitorT root_visitor)
@@ -90,18 +92,23 @@ static void VisitGCFrameRoots(DYN_FrameDescT frame_desc, DYN_RootVisitorT root_v
 
     auto slotsStartAddr = ((uint8_t*)frame_desc.fp) - (readerOffset + bc->frameSize);
 
-    Log::interpretation.Stream(Logging::Level::INFO)
-        .PrintFmt(
+    RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Stream::Output& out) {
+        out.PrintFmt(
             "start visiting frame (fuh=%p, fp=%p, pos=%p, slots_addr=%p)\n", fuh, frame_desc, curPos, slotsStartAddr
         );
+    });
 
     for (auto& refSlotOffset : NOTNULL(refInfo)->refSlotOffsets) {
         uintptr_t* refLocation = reinterpret_cast<uintptr_t*>(slotsStartAddr + refSlotOffset);
-        RTSupport::Log::gc.Stream(Logging::Level::TRACE).PrintFmt("visiting %p, value=%p\n", refLocation, *refLocation);
+        RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
+            out.PrintFmt("visiting %p, value=%p\n", refLocation, *refLocation);
+        });
         g_CJNativeInterfaceInstance.visitRootFromInterpreter(root_visitor, refLocation);
     }
 
-    Log::interpretation.Stream(Logging::Level::INFO).PrintFmt("end visiting frame (fuh=%p)\n", fuh);
+    RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Stream::Output& out) {
+        out.PrintFmt("end visiting frame (fuh=%p)\n", fuh);
+    });
 }
 
 static void VisitFrameRootsMarking(DYN_VisitingStateT state, DYN_FrameDescT frame_desc, DYN_RootVisitorT root_visitor)
@@ -137,7 +144,9 @@ static void VisitGlobalRoots(DYN_RootVisitorT visitor)
 
     auto& engine = Engine::GetEngineInstance();
     Engine::StaticsManager::Of(engine).VisitRefLocations([visitor](Engine::RefLocation* refLocation) {
-        RTSupport::Log::gc.Stream(Logging::Level::TRACE).PrintFmt("visiting %p, value=%p\n", refLocation, *refLocation);
+        RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Stream::Output& out) {
+            out.PrintFmt("visiting %p, value=%p\n", refLocation, *refLocation);
+        });
         g_CJNativeInterfaceInstance.visitRootFromInterpreter(visitor, refLocation);
     });
 
