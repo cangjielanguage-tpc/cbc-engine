@@ -7,7 +7,7 @@ TODO There will be some description of the project
 <details>
 <summary>Required tools</summary>
 
-```
+```bash
 sudo apt install lld
 ```
 </details>
