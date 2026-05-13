@@ -4,6 +4,8 @@ TODO There will be some description of the project
 
 ## How to build interpreter lib
 
+There is ready dev container (<project_dir>/.devcontainer/debian) for easy environment setup and project building.
+
 1) Clean directory with artifacts if it exists:
 
 ```bash
