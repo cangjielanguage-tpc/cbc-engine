@@ -451,10 +451,10 @@ static uint32_t CalcFrameSize(Symlevel::Code code)
 }
 
 static std::vector<Interpretation::ReferenceInfo> CalculateReferencesMap(
-    MethodCode code, InstructionOffsetsIndex offIndex
+    Engine::Session& session, const MethodCode& code, const InstructionOffsetsIndex& offIndex
 )
 {
-    auto livenessInfo = code.GetLivenessInfo();
+    auto livenessInfo = code.GetLivenessInfo(session);
 
     std::vector<Interpretation::ReferenceInfo> refInfo;
     refInfo.reserve(livenessInfo.size());
@@ -476,7 +476,9 @@ static std::vector<Interpretation::ReferenceInfo> CalculateReferencesMap(
     return refInfo;
 }
 
-Interpretation::ExecBytecodeInfo Rewrite(MethodCode code, Resolver& resolver, Memory::Heap& heap)
+Interpretation::ExecBytecodeInfo Rewrite(
+    Engine::Session& session, MethodCode code, Resolver& resolver, Memory::Heap& heap
+)
 {
     Emitter::Emitter emitter;
     auto rewriter = IsaRewriter(resolver, code, emitter);
@@ -494,7 +496,7 @@ Interpretation::ExecBytecodeInfo Rewrite(MethodCode code, Resolver& resolver, Me
         .savedFRegs       = code.UsedNonVolFRegMask(),
         .untypedSlotCount = static_cast<uint16_t>(code.UntypedSlotCount()),
         .frameSize        = frameSize,
-        .referenceInfos   = CalculateReferencesMap(code, offsetsIndex),
+        .referenceInfos   = CalculateReferencesMap(session, code, offsetsIndex),
     };
 }
 
@@ -520,11 +522,11 @@ Interpretation::ExecBytecodeInfo Rewrite(
     Interpretation::Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
         ResolvingOutput stream(session, out);
         Descripted desc(out, Descriptor(session, method));
-        desc << code;
+        code.Print(session, out);
         Disasm(desc, code, &resolver);
     });
 
-    auto res = Rewrite(code, resolver, heap);
+    auto res = Rewrite(session, code, resolver, heap);
 
     Interpretation::Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
         Descripted desc(out, Descriptor(session, method));

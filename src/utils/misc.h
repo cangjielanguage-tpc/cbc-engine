@@ -10,12 +10,15 @@ namespace Vector {
 
 template <typename T> void Print(Stream::Output& out, const std::vector<T>& vec, const std::string& delim = ", ")
 {
-    std::string empty = "";
-    std::string& sep  = empty;
-    for (auto& elem : vec) {
-        out << sep << elem;
-        sep = delim;
+    const std::string empty = "";
+    const std::string* sep  = &empty;
+
+    out << "[";
+    for (const auto& elem : vec) {
+        out << *sep << elem;
+        sep = &delim;
     }
+    out << "]";
 }
 
 } // namespace Vector

@@ -46,12 +46,10 @@ InstructionOffsetsIndex InstructionOffsetsIndex::Create(
     return index;
 }
 
-std::optional<Offset> InstructionOffsetsIndex::FindMappedOffset(
-    InstructionType type, Offset srcOffset, bool failIfNotFound
-)
+std::optional<Offset> InstructionOffsetsIndex::FindMappedOffset(InstructionType type, Offset srcOffset) const
 {
-    std::vector<Offset>& searchVec = type == CBC ? cbcOffsets : rtOffsets;
-    std::vector<Offset>& resultVec = type == CBC ? rtOffsets : cbcOffsets;
+    const std::vector<Offset>& searchVec = type == CBC ? cbcOffsets : rtOffsets;
+    const std::vector<Offset>& resultVec = type == CBC ? rtOffsets : cbcOffsets;
 
     auto it = std::lower_bound(searchVec.begin(), searchVec.end(), srcOffset);
     if (it == searchVec.end() || *it != srcOffset) {

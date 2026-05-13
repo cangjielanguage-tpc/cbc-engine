@@ -26,6 +26,7 @@ Code Code::Parse(Engine::Session& session, IO::FileId fileId, Offset<Code> offse
 
     uint32_t livenessInfoSize  = reader.ReadULEB();
     uint32_t livenessInfoStart = reader.Position();
+    reader.Advance(livenessInfoSize);
 
     return Code(
         untypedSlotCount,
@@ -38,16 +39,16 @@ Code Code::Parse(Engine::Session& session, IO::FileId fileId, Offset<Code> offse
         hasTrivialXHandler,
         codeSize,
         codePtr,
-        { livenessInfoSize, livenessInfoStart, session.FileOf(fileId).get() }
+        { fileId, livenessInfoStart, livenessInfoStart + livenessInfoSize }
     );
 }
 
-std::vector<LivenessInfo> Code::GetLivenessInfo() const
+std::vector<LivenessInfo> Code::GetLivenessInfo(Engine::Session& session) const
 {
-    IO::StreamFileReader reader(rawLivenessInfo.raf, rawLivenessInfo.start);
-    std::vector<LivenessInfo> livenessInfo;
+    IO::StreamFileReader reader(*session.FileOf(rawLivenessInfo.fileId), rawLivenessInfo.start);
 
-    while (reader.Position() - rawLivenessInfo.start < rawLivenessInfo.size) {
+    std::vector<LivenessInfo> livenessInfo;
+    while (reader.Position() < rawLivenessInfo.end) {
         LivenessInfo info = {
             .cbcPos  = reader.ReadULEB(),
             .regMask = reader.ReadU16(),
@@ -68,30 +69,30 @@ std::vector<LivenessInfo> Code::GetLivenessInfo() const
     return livenessInfo;
 }
 
-Stream::Output& operator<<(Stream::Output& out, const Code& code)
+void Code::Print(Engine::Session& session, Stream::Output& out)
 {
     using namespace Stream;
     Stream::Indented out2(out, 2);
     Stream::Indented out4(out, 4);
 
     out << "MethodCode {" << endl;
-    out2 << "untypedSlotCount: " << code.untypedSlotCount << endl
-         << "typedSlotCount: " << code.typedSlotCount << endl
-         << "ohmSlotCount: " << code.ohmSlotCount << endl
-         << "usedNonVolIRegMask: " << code.usedNonVolIRegMask << endl
-         << "usedNonVolFRegMask: " << code.usedNonVolFRegMask << endl
-         << "maxCalleeStackArgsCount: " << code.maxCalleeStackArgsCount << endl
-         << "hasTrivialXHandler: " << code.hasTrivialXHandler << endl
+    out2 << "untypedSlotCount: " << untypedSlotCount << endl
+         << "typedSlotCount: " << typedSlotCount << endl
+         << "ohmSlotCount: " << ohmSlotCount << endl
+         << "usedNonVolIRegMask: " << usedNonVolIRegMask << endl
+         << "usedNonVolFRegMask: " << usedNonVolFRegMask << endl
+         << "maxCalleeStackArgsCount: " << maxCalleeStackArgsCount << endl
+         << "hasTrivialXHandler: " << hasTrivialXHandler << endl
          << "LivenessInfo {" << endl;
 
-    for (auto& li : code.GetLivenessInfo()) {
+    for (auto& li : GetLivenessInfo(session)) {
         out4 << "cbcPos: " << li.cbcPos << ", regMask: " << li.regMask << ", ";
         Std::Vector::Print(out4, li.refSlotNums);
         out4 << endl;
     }
 
     out2 << "}" << endl;
-    return out << "}" << endl;
+    out << "}" << endl;
 }
 
 } // namespace Symlevel
