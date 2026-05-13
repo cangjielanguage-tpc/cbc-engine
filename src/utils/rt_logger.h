@@ -13,5 +13,10 @@ extern Logging::Logger typeinfo;
 
 extern Logging::Logger init;
 
+/// Logger for gc-related operations.
+/// TRACE - logs reference placeholders visiting
+/// INFO  - logs gc-related operations calls
+extern Logging::Logger gc;
+
 } // namespace Log
 } // namespace RTSupport

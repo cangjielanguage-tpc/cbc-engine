@@ -89,7 +89,8 @@
     X(MemHeadHandle, Unreachable)                                                                                      \
     X(LoadUntyped, LoadUntyped)                                                                                        \
     X(StoreUntyped, StoreUntyped)                                                                                      \
-    X(StoreUntypedImm, StoreUntypedImm)
+    X(StoreUntypedImm, StoreUntypedImm)                                                                                \
+    X(_END, Unreachable)
 
 #define ISA_REG_SYM_GROUP_OPCODES(X)                                                                                   \
     X(LoadTypeInfoSig)                                                                                                 \
@@ -97,7 +98,8 @@
     X(NewObj)                                                                                                          \
     X(CallDirect)                                                                                                      \
     X(CallVirt)                                                                                                        \
-    X(CallInterf)
+    X(CallInterf)                                                                                                      \
+    X(_END)
 
 #define ISA_REG_GROUP_OPCODES(X)                                                                                       \
     X(Ret32)                                                                                                           \
@@ -107,4 +109,5 @@
     X(DivCheck)                                                                                                        \
     X(Catch)                                                                                                           \
     X(Throw)                                                                                                           \
-    X(RetRef)
+    X(RetRef)                                                                                                          \
+    X(_END)

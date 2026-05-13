@@ -48,7 +48,7 @@ public:
     case opc: return #opc;
 
     enum Value : uint8_t {
-        ISA_REG_SYM_GROUP_OPCODES(DECLARE_OPCODE) LAST = CallInterf
+        ISA_REG_SYM_GROUP_OPCODES(DECLARE_OPCODE)
     };
 
     constexpr RegSymGroup(const Value raw) : _value(raw) {}
@@ -59,7 +59,7 @@ public:
 
     constexpr static RegSymGroup From(uint8_t value)
     {
-        ASSERT(value <= LAST);
+        ASSERT(value < Value::_END);
         return Value(value);
     }
 
@@ -86,7 +86,7 @@ public:
     case opc: return #opc;
 
     enum Value : uint8_t {
-        ISA_REG_GROUP_OPCODES(DECLARE_OPCODE) LAST = RetRef
+        ISA_REG_GROUP_OPCODES(DECLARE_OPCODE)
     };
 
     constexpr RegGroup(const Value raw) : _value(raw) {}
@@ -97,7 +97,7 @@ public:
 
     constexpr static RegGroup From(uint8_t value)
     {
-        ASSERT(value <= LAST);
+        ASSERT(value < Value::_END);
         return Value(value);
     }
 

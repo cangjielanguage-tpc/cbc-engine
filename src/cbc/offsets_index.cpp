@@ -12,8 +12,14 @@ int InstructionOffsetsIndex::Length()
     return cbcOffsets.size();
 }
 
-void InstructionOffsetsIndex::Build(Emitter::Emitter& emitter, std::unordered_map<ssize_t, Emitter::Label> labels)
-{   
+InstructionOffsetsIndex InstructionOffsetsIndex::Create(
+    Emitter::Emitter const& emitter, std::unordered_map<ssize_t, Emitter::Label> labels
+)
+{
+    InstructionOffsetsIndex index;
+    auto& cbcOffsets = index.cbcOffsets;
+    auto& rtOffsets  = index.rtOffsets;
+
     cbcOffsets.reserve(labels.size());
     rtOffsets.reserve(labels.size());
 
@@ -38,25 +44,22 @@ void InstructionOffsetsIndex::Build(Emitter::Emitter& emitter, std::unordered_ma
     }
 
     ASSERTION(cbcOffsets.size() == rtOffsets.size(),  "Wrong number of elements");
-    ASSERTION(OffsetsAreInAscendingOrder(cbcOffsets), "CBC instruction offsets invariant violation");
-    ASSERTION(OffsetsAreInAscendingOrder(rtOffsets),  "REWRITTEN instruction offsets invariant violation");
+    ASSERTION(index.OffsetsAreInAscendingOrder(cbcOffsets), "CBC instruction offsets invariant violation");
+    ASSERTION(index.OffsetsAreInAscendingOrder(rtOffsets), "REWRITTEN instruction offsets invariant violation");
 
-    state = READY;
+    return index;
 }
 
-Offset InstructionOffsetsIndex::FindMappedOffset(InstructionType type, Offset srcOffset, bool failIfNotFound)
+std::optional<Offset> InstructionOffsetsIndex::FindMappedOffset(
+    InstructionType type, Offset srcOffset, bool failIfNotFound
+)
 {
-    ASSERTION(state == READY, "Incorrect state");
-
     std::vector<Offset>& searchVec = type == CBC ? cbcOffsets : rtOffsets;
     std::vector<Offset>& resultVec = type == CBC ? rtOffsets : cbcOffsets;
 
     auto it = std::lower_bound(searchVec.begin(), searchVec.end(), srcOffset);
     if (it == searchVec.end() || *it != srcOffset) {
-        if (failIfNotFound) {
-            FATAL("Offset is not found: %u", srcOffset);
-        }
-        return UNKNOWN_OFFSET;
+        return std::nullopt;
     }
 
     return resultVec[std::distance(searchVec.begin(), it)];

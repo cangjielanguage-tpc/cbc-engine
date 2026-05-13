@@ -77,7 +77,7 @@ public:
     void Bind(Label label);
     // TODO: add symbol kind to store arbitrary-size values.
 
-    int32_t LabelPosition(Label label);
+    int32_t LabelPosition(Label label) const;
 
     /// Build `Code` in given `heap`.
     ///

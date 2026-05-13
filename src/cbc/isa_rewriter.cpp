@@ -93,13 +93,10 @@ struct IsaRewriter : public IsaParser {
 
     size_t startPosition;
     std::unordered_map<ssize_t, Emitter::Label> instructionLabel;
-    InstructionOffsetsIndex offsetsIndex;
 
     bool failed = false;
 
-    void BuildOffsetsIndex() {
-        offsetsIndex.Build(emit, instructionLabel);
-    }
+    InstructionOffsetsIndex BuildOffsetsIndex() { return InstructionOffsetsIndex::Create(emit, instructionLabel); }
 
     Emitter::Label InstructionLabel(ssize_t position)
     {
@@ -458,17 +455,18 @@ static std::vector<Interpretation::ReferenceInfo> CalculateReferencesMap(
     InstructionOffsetsIndex offIndex
 )
 {
-    auto& livenessInfo = code.GetLivenessInfo();
+    auto livenessInfo = code.GetLivenessInfo();
 
     std::vector<Interpretation::ReferenceInfo> refInfo;
     refInfo.reserve(livenessInfo.size());
 
     for (const auto& info : livenessInfo) {
-        refInfo.push_back({
-            .rewrittenPos   = offIndex.FindMappedOffset(CBC, info.cbcPos),
-            .regMask        = info.regMask,
-            .refSlotOffsets = {}
-        });
+        auto posOpt = offIndex.FindMappedOffset(CBC, info.cbcPos);
+        if (!posOpt.has_value()) {
+            FATAL("Unknown position");
+        }
+
+        refInfo.push_back({ .rewrittenPos = posOpt.value(), .regMask = info.regMask, .refSlotOffsets = {} });
 
         refInfo.back().refSlotOffsets.reserve(info.refSlotNums.size());
         for (const auto& slotN : info.refSlotNums) {
@@ -486,7 +484,7 @@ Interpretation::ExecBytecodeInfo Rewrite(MethodCode code, Resolver& resolver, Me
     rewriter.ParseAll();
     if (rewriter.failed) {}
 
-    rewriter.BuildOffsetsIndex();
+    auto offsetsIndex = rewriter.BuildOffsetsIndex();
 
     auto rewrittenCode = emitter.Build(heap);
     auto frameSize     = CalcFrameSize(code);
@@ -497,7 +495,7 @@ Interpretation::ExecBytecodeInfo Rewrite(MethodCode code, Resolver& resolver, Me
         .savedFRegs       = code.UsedNonVolFRegMask(),
         .untypedSlotCount = static_cast<uint16_t>(code.UntypedSlotCount()),
         .frameSize        = frameSize,
-        .referenceInfos   = CalculateReferencesMap(code, rewriter.offsetsIndex),
+        .referenceInfos   = CalculateReferencesMap(code, offsetsIndex),
     };
 }
 

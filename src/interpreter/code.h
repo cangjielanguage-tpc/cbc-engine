@@ -33,25 +33,7 @@ struct ExecBytecodeInfo {
     uint32_t const frameSize;
     std::vector<ReferenceInfo> const referenceInfos;
 
-    friend Stream::Output& operator<<(Stream::Output& out, const ExecBytecodeInfo& bc) {
-        using namespace Stream;
-
-        out << "ExecBytecodeInfo {"   << endl
-            << "\tuntypedSlotCount: " << bc.untypedSlotCount << endl
-            << "\tframeSize: "        << bc.frameSize << endl;
-        {
-            out << "\tGCMap {" << endl;
-            for (auto& entry : bc.referenceInfos) {
-                out << "\t\trtPos: " << entry.rewrittenPos
-                    << ", regMask: " << entry.regMask
-                    << ", "          << Std::Vector::ToString(entry.refSlotOffsets)
-                    << endl;
-            }
-            out << "\t}" << endl;
-        }
-
-        return out << "}" << endl;
-    } 
+    friend Stream::Output& operator<<(Stream::Output& out, const ExecBytecodeInfo& bc);
 };
 
 static_assert(
