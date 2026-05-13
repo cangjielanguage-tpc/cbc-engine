@@ -1,13 +1,13 @@
 #include "resolution.h"
 #include "engine/engine.h"
 #include "engine/identifiers.h"
+#include "engine/method_table.h"
 #include "engine/resolving_output.h"
 #include "engine/statics_manager.h"
 #include "engine/symlevel/aot_table.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/dependencies.h"
 #include "engine/symlevel/io/file_id.h"
-#include "engine/symlevel/method_table.h"
 #include "engine/symlevel/reader.h"
 #include "engine/symlevel/references.h"
 #include "engine/symlevel/string.h"
@@ -244,7 +244,7 @@ MethodSignature ConstructSignature(Resolver::Impl& resolver, ResolvedMethodRefer
 
 static std::optional<VirtualCall> ResolveCbcCall(Resolver::Impl& resolver, ResolvedMethodReference& ref)
 {
-    auto& manager = Symlevel::MethodTableManager::Of(resolver.session);
+    auto& manager = MethodTableManager::Of(resolver.session);
     auto optMT    = manager.GetMethodTable(resolver.session, ref.refType);
     auto refType  = resolver.GetType(ref.refType);
 
@@ -253,7 +253,7 @@ static std::optional<VirtualCall> ResolveCbcCall(Resolver::Impl& resolver, Resol
     }
     auto mt = *optMT;
 
-    Symlevel::MethodTable::Reference mtRef = {
+    MethodTable::Reference mtRef = {
         .name      = ref.name,
         .signature = ref.signature,
     };

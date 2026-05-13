@@ -1,6 +1,6 @@
 #include "engine.h"
+#include "engine/method_table.h"
 #include "engine/statics_manager.h"
-#include "engine/symlevel/method_table.h"
 #include "engine/terms.h"
 #include "engine/typeinfo_manager.h"
 #include "interpreter/function_handle.h"
@@ -205,16 +205,13 @@ using EngineImpl = Engine::Engine::Impl;
 
 DefinitionsManager& DefinitionsManager::Of(Engine::Engine& engine) { return EngineImpl::Of(engine).defsManager; }
 
-MethodTableManager& MethodTableManager::Of(Engine::Engine& engine) { return *EngineImpl::Of(engine).mtManager; }
-
-MethodTableManager& MethodTableManager::Of(Engine::Session& session)
-{
-    return MethodTableManager::Of(session.GetEngine());
-}
-
 } // namespace Symlevel
 
 namespace Engine {
+
+MethodTableManager& MethodTableManager::Of(Engine& engine) { return *EngineImpl::Of(engine).mtManager; }
+
+MethodTableManager& MethodTableManager::Of(Session& session) { return MethodTableManager::Of(session.GetEngine()); }
 
 TermManager& TermManager::Of(Engine& engine) { return EngineImpl::Of(engine).termManager; }
 

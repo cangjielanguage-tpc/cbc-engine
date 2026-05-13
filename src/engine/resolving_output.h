@@ -2,8 +2,8 @@
 
 #include "engine/engine.h"
 #include "engine/identifiers.h"
+#include "engine/method_table.h"
 #include "engine/symlevel/io/file_id.h"
-#include "engine/symlevel/method_table.h"
 #include "engine/symlevel/reader.h"
 #include "engine/symlevel/string.h"
 #include "engine/terms.h"
@@ -26,7 +26,7 @@ public:
     ResolvingOutput& operator<<(Engine::LocalTerm term);
     ResolvingOutput& operator<<(IO::FileId fileId);
     ResolvingOutput& operator<<(Detailed<Engine::RefIdentifier<Engine::Term>> id);
-    ResolvingOutput& operator<<(Symlevel::MethodTable const& mt);
+    ResolvingOutput& operator<<(Engine::MethodTable const& mt);
 
     template <typename T> ResolvingOutput& operator<<(Engine::Identifier<T> id)
     {

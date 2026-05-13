@@ -2,10 +2,10 @@
 #include "RuntimeTypes.h"
 #include "engine/engine.h"
 #include "engine/identifiers.h"
+#include "engine/method_table.h"
 #include "engine/resolving_output.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/flags.h"
-#include "engine/symlevel/method_table.h"
 #include "engine/symlevel/reader.h"
 #include "engine/terms.h"
 #include "interpreter/function_handle.h"
@@ -264,7 +264,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
     }
 
     { // fill out ext defs
-        auto& manager    = Symlevel::MethodTableManager::Of(session);
+        auto& manager    = Engine::MethodTableManager::Of(session);
         auto& fuhManager = Interpretation::FunctionHandleManager::Of(session);
         auto optMT       = manager.GetMethodTable(session, term);
 
@@ -311,7 +311,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
         auto prepareExtDef = [&builder,
                               currentTypeInfo,
-                              &queryTypeInfo](DYN_ExtensionDataT& extDef, Symlevel::MethodSubTable const& smt) -> bool {
+                              &queryTypeInfo](DYN_ExtensionDataT& extDef, Engine::MethodSubTable const& smt) -> bool {
             auto funcTableStart        = &builder.flatMethods[smt.StartPos()];
             extDef.funcTable           = funcTableStart;
             extDef.funcTableSize       = smt.EndPos() - smt.StartPos();
