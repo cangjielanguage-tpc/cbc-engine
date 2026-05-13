@@ -18,5 +18,5 @@ template <typename T> void Print(Stream::Output& out, const std::vector<T>& vec,
     }
 }
 
-} //namespace Vector
-}
+} // namespace Vector
+} // namespace Std

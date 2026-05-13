@@ -26,7 +26,8 @@ static std::mutex g_InitializationGuard;
 static bool g_Initialized;
 static bool g_OptionsInitialized;
 
-static void InitEnvOpts() {
+static void InitEnvOpts()
+{
     std::lock_guard guard(g_InitializationGuard);
     if (!g_OptionsInitialized) {
         Engine::InitEnvOptions();
@@ -73,8 +74,8 @@ static void VisitGCFrameRoots(DYN_FrameDescT frame_desc, DYN_RootVisitorT root_v
     using namespace Interpretation;
     const auto readerOffset = LOCAL_SLOTS_OFFSET + READER_SLOTS_SIZE;
 
-    auto fuh    = *reinterpret_cast<DynamicFunctionHandle**>((uint8_t*) frame_desc.fp - FUH_SLOT_OFFSET);
-    auto reader =  reinterpret_cast<Decoder::ByteReader*>((uint8_t*) frame_desc.fp - readerOffset);
+    auto fuh    = *reinterpret_cast<DynamicFunctionHandle**>((uint8_t*)frame_desc.fp - FUH_SLOT_OFFSET);
+    auto reader = reinterpret_cast<Decoder::ByteReader*>((uint8_t*)frame_desc.fp - readerOffset);
     auto bc     = NOTNULL(fuh->bytecode.load());
 
     uint32_t curPos = reinterpret_cast<uintptr_t>(reader->Cursor()) - reinterpret_cast<uintptr_t>(bc->code.bytecode);
@@ -87,7 +88,7 @@ static void VisitGCFrameRoots(DYN_FrameDescT frame_desc, DYN_RootVisitorT root_v
         }
     }
 
-    auto slotsStartAddr = ((uint8_t*) frame_desc.fp) - (readerOffset + bc->frameSize);
+    auto slotsStartAddr = ((uint8_t*)frame_desc.fp) - (readerOffset + bc->frameSize);
 
     Log::interpretation.Stream(Logging::Level::INFO)
         .PrintFmt(
@@ -103,11 +104,7 @@ static void VisitGCFrameRoots(DYN_FrameDescT frame_desc, DYN_RootVisitorT root_v
     Log::interpretation.Stream(Logging::Level::INFO).PrintFmt("end visiting frame (fuh=%p)\n", fuh);
 }
 
-static void VisitFrameRootsMarking(
-    DYN_VisitingStateT state,
-    DYN_FrameDescT frame_desc,
-    DYN_RootVisitorT root_visitor
-)
+static void VisitFrameRootsMarking(DYN_VisitingStateT state, DYN_FrameDescT frame_desc, DYN_RootVisitorT root_visitor)
 {
     // TODO scan saved regs
     VisitGCFrameRoots(frame_desc, root_visitor);

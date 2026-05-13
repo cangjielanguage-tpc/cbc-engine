@@ -458,8 +458,7 @@ static uint32_t CalcFrameSize(Symlevel::Code code)
 }
 
 static std::vector<Interpretation::ReferenceInfo> CalculateReferencesMap(
-    MethodCode code,
-    InstructionOffsetsIndex offIndex
+    MethodCode code, InstructionOffsetsIndex offIndex
 )
 {
     auto livenessInfo = code.GetLivenessInfo();
