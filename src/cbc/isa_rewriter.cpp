@@ -492,7 +492,7 @@ struct IsaRewriter : public IsaParser {
     }
 };
 
-static FrameLayout makeFrameLayout(Symlevel::Code code, Resolver& resolver)
+static std::optional<FrameLayout> makeFrameLayout(Symlevel::Code code, Resolver& resolver)
 {
     auto savedRegsCount = 0;
     for (uint8_t i = 0, savedRegs = code.UsedNonVolIRegMask(); i < (IReg::COUNT - IReg::FIRST_NON_VOL); i++) {
@@ -508,14 +508,17 @@ static FrameLayout makeFrameLayout(Symlevel::Code code, Resolver& resolver)
     std::unordered_map<uint32_t, uint32_t> typedOffset;
     auto typedSlotsSize = 0;
     for (uint32_t i = 0; i < code.StackAllocSigsCount(); i++) {
-        auto t = resolver.Query(Index<Type>(code.StackAllocSigs()[i]));
-        if (!t.has_value()) {
-            FATAL("Failed to resolve stack allocated sig %d", code.StackAllocSigs()[i]);
+        auto typeOpt = resolver.Query(Index<Type>(code.StackAllocSigs()[i]));
+        if (!typeOpt.has_value()) {
+            return std::nullopt;
         }
-
-        auto size = t.value()->GetFlatSize();
+        auto type = typeOpt.value();
+        if (type->GetKind() != CbcTypeKind::REC) {
+            return std::nullopt;
+        }
+        auto size = type->GetFlatSize();
         if (!size.has_value()) {
-            FATAL("Failed to get type flat size of %p", t.value());
+            return std::nullopt;
         }
 
         typedOffset.insert({ i, typedSlotsSize });
@@ -527,7 +530,7 @@ static FrameLayout makeFrameLayout(Symlevel::Code code, Resolver& resolver)
 
     auto frameSize = MathUtils::AlignUp(savedRegsSpace + stackAllocSize, Cbc::FRAME_ALIGNMENT);
 
-    return FrameLayout { typedOffset, untypedSlotsSize, frameSize };
+    return FrameLayout { std::move(typedOffset), untypedSlotsSize, frameSize };
 }
 
 static std::vector<Interpretation::ReferenceInfo> CalculateReferencesMap(
@@ -562,14 +565,19 @@ Interpretation::ExecBytecodeInfo Rewrite(
 {
     Emitter::Emitter emitter;
     auto frameLayout = makeFrameLayout(code, resolver);
-    auto rewriter    = IsaRewriter(resolver, code, frameLayout, emitter);
-    rewriter.ParseAll();
-    if (rewriter.failed) {
-        FATAL("Rewriter failed");
+
+    if (!frameLayout.has_value()) {
+        FATAL("Rewriter failed: cannot make frame layout.");
     }
 
-    auto offsetsIndex = rewriter.BuildOffsetsIndex();
+    auto rewriter = IsaRewriter(resolver, code, *frameLayout, emitter);
+    rewriter.ParseAll();
 
+    if (rewriter.failed) {
+        FATAL("Rewriter failed: cannot rewrite code.");
+    }
+
+    auto offsetsIndex  = rewriter.BuildOffsetsIndex();
     auto rewrittenCode = emitter.Build(heap);
 
     return Interpretation::ExecBytecodeInfo {
@@ -577,7 +585,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
         .savedIRegs       = code.UsedNonVolIRegMask(),
         .savedFRegs       = code.UsedNonVolFRegMask(),
         .untypedSlotCount = static_cast<uint16_t>(code.UntypedSlotCount()),
-        .frameSize        = frameLayout.frameSize,
+        .frameSize        = (*frameLayout).frameSize,
         .referenceInfos   = CalculateReferencesMap(session, code, offsetsIndex),
     };
 }

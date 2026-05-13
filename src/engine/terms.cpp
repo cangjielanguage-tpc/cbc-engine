@@ -434,7 +434,9 @@ struct TermResolver {
                 auto identifier = type.value();
 
                 auto def  = Symlevel::TypeDefinition::Resolve(session, identifier);
-                ASSERT((def.GetFlags().GetTypeKind() == Symlevel::TypeKind::RECORD) == (tag == REC));
+                if ((def.GetFlags().GetTypeKind() == Symlevel::TypeKind::RECORD) != (tag == REC)) {
+                    return NewUndefined(refId);
+                }
 
                 auto* data      = AllocateTerm(heap);
                 data->InitAfterSubterms(TypeTermId(identifier), 0, true);

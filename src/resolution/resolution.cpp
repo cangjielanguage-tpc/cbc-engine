@@ -147,16 +147,16 @@ struct SimpleType : public Type {
 
             case TK::BOOLEAN:
             case TK::I8:
-            case TK::U8:      return 8;
+            case TK::U8:      return 1;
 
             case TK::I16:
             case TK::U16:
-            case TK::F16: return 16;
+            case TK::F16: return 2;
 
             case TK::I32:
             case TK::U32:
             case TK::UCHAR32:
-            case TK::F32:     return 32;
+            case TK::F32:     return 4;
 
             case TK::I64:
             case TK::U64:
@@ -164,7 +164,7 @@ struct SimpleType : public Type {
             case TK::UADDR:
             case TK::BSTRING:
             case TK::F64:
-            case TK::C_POINTER: return 64;
+            case TK::C_POINTER: return 8;
 
             case TK::NULLABLE:
             case TK::NON_NULLABLE:
@@ -177,13 +177,23 @@ struct SimpleType : public Type {
                 auto rec   = Symlevel::TypeDefinition::Resolve(impl.session, ident).GetFlags().GetTypeKind() ==
                            Symlevel::TypeKind::RECORD;
                 if (rec) {
-                    return RTSupport::MetaInfo::GetTypeSize(GetTypeInfo());
+                    auto ti = GetTypeInfo();
+                    if (!ti.has_value()) {
+                        return std::nullopt;
+                    }
+                    return RTSupport::MetaInfo::GetTypeSize(*ti);
                 } else {
                     return sizeof(uintptr_t);
                 }
             }
 
-            case TK::AOT_REC: return RTSupport::MetaInfo::GetTypeSize(GetTypeInfo());
+            case TK::AOT_REC: {
+                auto ti = GetTypeInfo();
+                if (!ti.has_value()) {
+                    return std::nullopt;
+                }
+                return RTSupport::MetaInfo::GetTypeSize(*ti);
+            }
 
             case TK::NIL:
             case TK::NOTHING:

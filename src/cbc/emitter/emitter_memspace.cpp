@@ -157,12 +157,12 @@ static RT::MemOpcode ComputeStoreImmStart(Format::StoreAccessKind stk, RT::MemOp
 void MemSpaceEmitter::StoreFrameImm(StoreAccessKind stk, uint64_t imm)
 {
     switch (stk) {
-        case StoreAccessKind::ST_F32: stk = StoreAccessKind::ST_32; break;
-        case StoreAccessKind::ST_F64: stk = StoreAccessKind::ST_64; break;
         case StoreAccessKind::ST_REF:
             ASSERT(imm == 0);
-            stk = StoreAccessKind::ST_64;
-            break;
+            StoreFrame(stk, IReg::IRZ);
+            return;
+        case StoreAccessKind::ST_F32: stk = StoreAccessKind::ST_32; break;
+        case StoreAccessKind::ST_F64: stk = StoreAccessKind::ST_64; break;
         default: break;
     }
 

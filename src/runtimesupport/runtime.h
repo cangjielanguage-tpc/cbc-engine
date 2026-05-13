@@ -62,7 +62,7 @@ struct Execution {
 };
 
 struct MetaInfo {
-    static std::optional<int> GetTypeSize(std::optional<TypeInfo> t);
+    static std::optional<int> GetTypeSize(TypeInfo ti);
 };
 
 } // namespace RTSupport

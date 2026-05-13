@@ -63,6 +63,7 @@ public:
 
     virtual CbcTypeKind GetKind() = 0;
 
+    /// Total size of the type's fields in bytes.
     virtual std::optional<int> GetFlatSize() = 0;
 };
 
