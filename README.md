@@ -4,6 +4,14 @@ TODO There will be some description of the project
 
 ## How to build interpreter lib
 
+<details>
+<summary>Required tools</summary>
+
+```bash
+sudo apt install lld
+```
+</details>
+
 1) Clean directory with artifacts if it exists:
 
 ```bash
