@@ -8,11 +8,14 @@
 #include "interpreter/code.h"
 #include "interpreter/function_handle.h"
 #include "interpreter/loggers.h"
+#include "offsets_index.h"
 #include "resolution/resolution.h"
 #include "utils/assertion.h"
 #include "utils/logger.h"
 #include "utils/math.h"
 #include "utils/ostream.h"
+
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <sys/types.h>
@@ -92,6 +95,8 @@ struct IsaRewriter : public IsaParser {
     std::unordered_map<ssize_t, Emitter::Label> instructionLabel;
 
     bool failed = false;
+
+    InstructionOffsetsIndex BuildOffsetsIndex() { return InstructionOffsetsIndex::Create(emit, instructionLabel); }
 
     Emitter::Label InstructionLabel(ssize_t position)
     {
@@ -355,18 +360,26 @@ struct IsaRewriter : public IsaParser {
         emit.SCCImm(cc, width, d, l, imm);
     }
 
-    void Ret(Format::Width width, IReg dst) override
+    void Ret(Format::Width width, IReg src) override
     {
-        if (dst != IReg::IR1) {
-            emit.Mov(IReg::IR1, dst);
+        if (src != IReg::IR1) {
+            emit.Mov(IReg::IR1, src);
         }
         emit.Ret();
     }
 
-    void FRet(Format::Width width, FReg dst) override
+    void FRet(Format::Width width, FReg src) override
     {
-        if (dst != FReg::FR1) {
-            emit.Mov(FReg::FR1, dst);
+        if (src != FReg::FR1) {
+            emit.Mov(FReg::FR1, src);
+        }
+        emit.Ret();
+    }
+
+    void RetRef(IReg src) override
+    {
+        if (src != IReg::IR1) {
+            emit.Mov(IReg::IR1, src);
         }
         emit.Ret();
     }
@@ -444,12 +457,42 @@ static uint32_t CalcFrameSize(Symlevel::Code code)
     return MathUtils::AlignUp(savedRegsSpace + stackAllocSize, Cbc::FRAME_ALIGNMENT);
 }
 
-Interpretation::ExecBytecodeInfo Rewrite(MethodCode code, Resolver& resolver, Memory::Heap& heap)
+static std::vector<Interpretation::ReferenceInfo> CalculateReferencesMap(
+    Engine::Session& session, const MethodCode& code, const InstructionOffsetsIndex& offIndex
+)
+{
+    auto livenessInfo = code.GetLivenessInfo(session);
+
+    std::vector<Interpretation::ReferenceInfo> refInfo;
+    refInfo.reserve(livenessInfo.size());
+
+    for (const auto& info : livenessInfo) {
+        auto posOpt = offIndex.FindMappedOffset(CBC, info.cbcPos);
+        if (!posOpt.has_value()) {
+            FATAL("Unknown position");
+        }
+
+        refInfo.push_back({ .rewrittenPos = posOpt.value(), .regMask = info.regMask, .refSlotOffsets = {} });
+
+        refInfo.back().refSlotOffsets.reserve(info.refSlotNums.size());
+        for (const auto& slotN : info.refSlotNums) {
+            refInfo.back().refSlotOffsets.push_back(slotN * STACK_SLOT_SIZE);
+        }
+    }
+
+    return refInfo;
+}
+
+Interpretation::ExecBytecodeInfo Rewrite(
+    Engine::Session& session, MethodCode code, Resolver& resolver, Memory::Heap& heap
+)
 {
     Emitter::Emitter emitter;
     auto rewriter = IsaRewriter(resolver, code, emitter);
     rewriter.ParseAll();
     if (rewriter.failed) {}
+
+    auto offsetsIndex = rewriter.BuildOffsetsIndex();
 
     auto rewrittenCode = emitter.Build(heap);
     auto frameSize     = CalcFrameSize(code);
@@ -460,7 +503,7 @@ Interpretation::ExecBytecodeInfo Rewrite(MethodCode code, Resolver& resolver, Me
         .savedFRegs       = code.UsedNonVolFRegMask(),
         .untypedSlotCount = static_cast<uint16_t>(code.UntypedSlotCount()),
         .frameSize        = frameSize,
-        // TODO: initialize rest
+        .referenceInfos   = CalculateReferencesMap(session, code, offsetsIndex),
     };
 }
 
@@ -486,13 +529,15 @@ Interpretation::ExecBytecodeInfo Rewrite(
     Interpretation::Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
         ResolvingOutput stream(session, out);
         Descripted desc(out, Descriptor(session, method));
+        code.Print(session, out);
         Disasm(desc, code, &resolver);
     });
 
-    auto res = Rewrite(code, resolver, heap);
+    auto res = Rewrite(session, code, resolver, heap);
 
     Interpretation::Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
         Descripted desc(out, Descriptor(session, method));
+        desc << res;
         Cbc::RT::Log(res.code, desc);
     });
 

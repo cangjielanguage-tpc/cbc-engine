@@ -30,7 +30,7 @@ public:
     };
 
     Status Set(std::string_view key, std::string_view value) const;
-    void ParseAndSet(int size, char const** optStr) const;
+    void ParseAndSet(int size, const char* const* optStr) const;
     size_t Size() const { return size_; }
 
 private:

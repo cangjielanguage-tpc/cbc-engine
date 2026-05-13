@@ -1,8 +1,21 @@
 #pragma once
 
 #include "engine/engine.h"
+#include "utils/ostream.h"
 
 namespace Symlevel {
+
+struct LivenessInfo {
+    uint32_t cbcPos;
+    uint16_t regMask;
+    std::vector<uint32_t> refSlotNums;
+};
+
+struct RawLivenessInfo {
+    IO::FileId fileId;
+    uint32_t start;
+    uint32_t end;
+};
 
 class Code {
 public:
@@ -22,10 +35,38 @@ public:
 
     uint8_t UsedNonVolFRegMask() { return usedNonVolFRegMask; }
 
+    std::vector<LivenessInfo> GetLivenessInfo(Engine::Session& session) const;
+
+    void Print(Engine::Session& session, Stream::Output& out);
+
 private:
     Code(uint8_t* codePtr, uint32_t codeSize) : codePtr(codePtr), codeSize(codeSize) {}
 
-    Code(Engine::Session& session, IO::StreamFileReader& reader);
+    Code(
+        uint32_t untypedSlotCount,
+        uint32_t typedSlotCount,
+        uint32_t ohmSlotCount,
+        uint8_t usedNonVolIRegMask,
+        uint8_t usedNonVolFRegMask,
+        uint32_t maxCalleeStackArgsCount,
+        bool mayHaveNativeCalls,
+        bool hasTrivialXHandler,
+        uint32_t codeSize,
+        uint8_t* codePtr,
+        RawLivenessInfo rawLivenessInfo
+    )
+        : untypedSlotCount(untypedSlotCount),
+          typedSlotCount(typedSlotCount),
+          ohmSlotCount(ohmSlotCount),
+          usedNonVolIRegMask(usedNonVolIRegMask),
+          usedNonVolFRegMask(usedNonVolFRegMask),
+          maxCalleeStackArgsCount(maxCalleeStackArgsCount),
+          mayHaveNativeCalls(mayHaveNativeCalls),
+          hasTrivialXHandler(hasTrivialXHandler),
+          codePtr(codePtr),
+          codeSize(codeSize),
+          rawLivenessInfo(rawLivenessInfo)
+    {}
 
     uint32_t untypedSlotCount = 0;
     uint32_t typedSlotCount   = 0;
@@ -41,8 +82,7 @@ private:
     uint32_t codeSize;
     uint8_t* codePtr;
 
-    uint32_t livenessInfoSize = 0;
-    uint8_t* livenessInfoPtr  = nullptr;
+    RawLivenessInfo rawLivenessInfo = { 0, 0, IO::FileId(0) };
 };
 
 } // namespace Symlevel

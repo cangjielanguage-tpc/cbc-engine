@@ -119,7 +119,7 @@ void SetOptions(const std::vector<KeyVal>& parsedOpts, const Table& opts)
 
 } // namespace
 
-void Table::ParseAndSet(int size, char const** optStr) const
+void Table::ParseAndSet(int size, const char* const* optStr) const
 {
     if (optStr == nullptr) {
         return;
