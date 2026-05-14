@@ -129,18 +129,16 @@ struct SimpleType : public Type {
             case TK::F64:            return CbcTypeKind::F64;
             case TK::UNDEFINED:      return CbcTypeKind::INVALID;
             case TK::C_POINTER:      return CbcTypeKind::U64;
-            case TK::NULLABLE:       return CbcTypeKind::REF;
-            case TK::NON_NULLABLE:   return CbcTypeKind::REF;
-            case TK::CANGJIE_ARRAY:  return CbcTypeKind::REF;
             case TK::METHOD:         return CbcTypeKind::INVALID;
-            case TK::TYPE:           return CbcTypeKind::REF;
-            case TK::AOT_TYPE:       return CbcTypeKind::REF;
             case TK::AOT_REC:        return CbcTypeKind::REC;
-            case TK::TYPE_VAR:       return CbcTypeKind::REF;
             case TK::GENERIC_METHOD: return CbcTypeKind::INVALID;
             case TK::LAST:           return CbcTypeKind::INVALID;
 
-            default: FATAL("Unexpected %d", term.GetKind());
+            default:
+                if (term.IsReference()) {
+                    return CbcTypeKind::REF;
+                }
+                FATAL("Unexpected %d", term.GetKind());
         }
     }
 

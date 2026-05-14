@@ -1,14 +1,19 @@
 #include "field_layout.h"
 #include "engine/engine.h"
+#include "engine/symlevel/definitions.h"
+#include "engine/symlevel/flags.h"
 #include "engine/symlevel/reader.h"
 #include "engine/terms.h"
 #include "engine/typeinfo_manager.h"
+#include "runtimesupport/runtime.h"
 #include "utils/assertion.h"
 #include "utils/math.h"
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+
+static constexpr auto MAX_ALIGN = alignof(max_align_t);
 
 namespace Engine {
 
@@ -52,9 +57,9 @@ struct FLManager : public FieldLayoutManager {
             case TK::VOID:
             case TK::UNIT: return 0;
 
-            case TK::BOOLEAN:
             case TK::I8:
-            case TK::U8:      return 1;
+            case TK::U8:
+            case TK::BOOLEAN: return 1;
 
             case TK::I16:
             case TK::U16:
@@ -62,15 +67,15 @@ struct FLManager : public FieldLayoutManager {
 
             case TK::I32:
             case TK::U32:
-            case TK::UCHAR32:
-            case TK::F32:     return 4;
+            case TK::F32:
+            case TK::UCHAR32: return 4;
 
             case TK::I64:
             case TK::U64:
+            case TK::F64:
             case TK::IADDR:
             case TK::UADDR:
             case TK::BSTRING:
-            case TK::F64:
             case TK::C_POINTER: return 8;
 
             case TK::AOT_TYPE:
@@ -108,13 +113,16 @@ struct FLManager : public FieldLayoutManager {
             case TK::METHOD:
             case TK::GENERIC_METHOD:
             case TK::LAST:           return std::nullopt;
+
+            default: {
+                FATAL("Unexpected kind %d", term.GetKind());
+            }
         }
     }
 
     /// The alignment of a field of given type and its alignment.
     uint8_t GetFlatAlignment(Term term) override
     {
-        constexpr auto MAX_ALIGN = alignof(max_align_t);
         switch (term.GetKind()) {
             case TermKind::TYPE: {
                 auto ident = TypeTermId(term).GetIdentifier();
@@ -149,35 +157,95 @@ struct FLManager : public FieldLayoutManager {
         }
     }
 
+    void FillRefOffsets(Term term, std::vector<uint32_t>& offsets) override
+    {
+        FillRefOffsets(term, offsets, 0);
+    }
+
+private:
+
+    void FillRefOffsets(Term term, std::vector<uint32_t>& offsets, uint32_t disp)
+    {
+        if (term.IsReference()) {
+            offsets.push_back(disp);
+        }
+        if (term.GetKind() == TermKind::AOT_REC) {
+            // ASSERT(!term.IsGeneric());
+            auto typeInfo = TypeInfoManager::Of(session).AcquireTypeInfo(session, term);
+            // FIXME: visit GCTib
+            // RTSupport::VisitReferences(typeInfo, [&offsets, disp](uint32_t offset) {
+            //      offsets.push_back(offset + disp);
+            // };
+        } else if (term.GetKind() == TermKind::TYPE) {
+            // Absent offsets must be handled separately.
+            // Here we will just ignore possible errors.
+            auto optlayout = GetLayout(term);
+            if (!optlayout.has_value()) {
+                return;
+            }
+            for (auto& field : (**optlayout).fields) {
+                if (!field.offset.has_value()) {
+                    return;
+                }
+                auto offset = *field.offset + disp;
+                FillRefOffsets(field.fieldType, offsets, offset);
+            }
+        }
+    }
+
     std::optional<FieldLayout> BuildLayout(Term term) {
         auto type = TypeTermId(term);
         auto def = Symlevel::Reader::Read(session, type.GetIdentifier());
-        auto super = TermManager::Resolve(session, def.GetSuperType());
-
-        FieldLayout::Content layout;
-
-        if (super.GetKind() == TermKind::UNDEFINED) {
-            return std::nullopt;
-        } else if (super.GetKind() == TermKind::TYPE) {
-            auto opt = GetLayout(super);
-            if (!opt.has_value()) {
-                return std::nullopt;
-            }
-            auto superLayout = opt.value();
-            layout = *superLayout;
+        if (def.GetFlags().Is(Symlevel::TypeFlag::AOT)) {
+            return BuildLayoutAot(term, def);
         } else {
-            ASSERTION(term.GetKind() == TermKind::NIL, "only nil or type term kinds are expected for super");
+            return BuildLayoutCbc(term, def);
         }
+    }
+
+    std::optional<FieldLayout> BuildLayoutAot(Term term, Symlevel::TypeDefinition& def) {
+        auto optlayout = GetSuperLayout(def);
+        if (!optlayout.has_value()) {
+            return std::nullopt;
+        }
+        FieldLayout::Content layout(std::move(optlayout).value());
+        // TODO:we can not properly query offsets of generic type.
+        // if (term.IsGeneric()) { layout.size = std::nullopt; layout.alignment = MAX_ALIGN; }
+
+        // Concrete term path.
+        auto typeInfo = TypeInfoManager::Of(session).AcquireTypeInfo(session, term);
+
+        if (!typeInfo.has_value()) {
+            return std::nullopt;
+        }
+
+        for (auto fieldId : def.GetInstanceFields().Values(session)) {
+            auto def = Symlevel::Reader::Read(session, fieldId);
+            // FIXME: substitution
+            auto fieldType = TermManager::Resolve(session, def.FieldType());
+
+            auto offset = RTSupport::Execution::GetFieldOffset(*typeInfo, 0, false);
+            layout.fields.emplace_back(FieldLayout::Entry {
+                .definition = fieldId, .fieldType = fieldType, .offset = offset });
+        }
+        return FieldLayout(std::move(layout));
+    }
+
+    std::optional<FieldLayout> BuildLayoutCbc(Term term, Symlevel::TypeDefinition& def) {
+        auto optlayout = GetSuperLayout(def);
+        if (!optlayout.has_value()) {
+            return std::nullopt;
+        }
+        FieldLayout::Content layout(std::move(optlayout).value());
 
         auto& alignment = layout.desc.alignment;
         auto& size      = layout.desc.size;
 
         // FIXME: split table for instance and static fields in encoding.
-        auto fields = def.GetInstanceFields();
-        for (auto fieldId : fields.Values(session)) {
+        for (auto fieldId : def.GetInstanceFields().Values(session)) {
             auto def = Symlevel::Reader::Read(session, fieldId);
             // FIXME: substitution
-            auto fieldType = TermManager::Resolve(session, def.FieldType());
+            auto fieldType      = TermManager::Resolve(session, def.FieldType());
             auto fieldSize      = GetFlatSize(fieldType);
             auto fieldAlignment = GetFlatAlignment(fieldType);
 
@@ -186,9 +254,13 @@ struct FLManager : public FieldLayoutManager {
             if (size.has_value()) {
                 auto offset = MathUtils::AlignUp(*size, fieldAlignment);
                 size        = offset;
+                if (fieldSize.has_value()) {
+                    size = *size + *fieldSize;
+                }
             }
-            if (size.has_value() && fieldSize.has_value()) {
-                size = *size + *fieldSize;
+            if (!fieldSize.has_value()) {
+                size = std::nullopt;
+                alignment = MAX_ALIGN;
             }
             alignment = std::max(alignment, fieldAlignment);
 
@@ -200,6 +272,22 @@ struct FLManager : public FieldLayoutManager {
         layout.desc.alignment = alignment;
 
         return FieldLayout(std::move(layout));
+    }
+
+    std::optional<FieldLayout::Content> GetSuperLayout(Symlevel::TypeDefinition& def) {
+        auto super = TermManager::Resolve(session, def.GetSuperType());
+        if (super.GetKind() == TermKind::UNDEFINED) {
+            return std::nullopt;
+        } else if (super.GetKind() == TermKind::TYPE) {
+            auto opt = GetLayout(super);
+            if (!opt.has_value()) {
+                return std::nullopt;
+            }
+            return *opt.value(); // copy
+        } else {
+            ASSERTION(super.GetKind() == TermKind::NIL, "only nil or type term kinds are expected for super");
+            return std::nullopt;
+        }
     }
 };
 

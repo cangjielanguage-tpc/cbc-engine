@@ -76,10 +76,10 @@ void* Execution::GetInterfaceTarget(Reference base, TypeInfo interf, int methodN
     return table[methodNum];
 }
 
-int Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool isRef)
+int Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool adjustByHeader)
 {
     auto mrtti      = UnpackTypeInfo(ti);
-    auto headerOffs = isRef ? 8 : 0;
+    auto headerOffs = adjustByHeader ? sizeof(void*) : 0;
     ASSERT(ordinal < mrtti->fieldNum);
     return mrtti->fieldOffsets[ordinal] + headerOffs;
 }

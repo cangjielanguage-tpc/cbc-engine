@@ -227,7 +227,7 @@ void Execution::WriteObjectStatic(void* location, Reference object, ThreadHandle
     *reinterpret_cast<uintptr_t*>(location) = object.value;
 }
 
-int Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool isRef)
+int Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool adjustByHeader)
 {
     FATAL("Should not reach here. Get field offset");
 }

@@ -59,7 +59,7 @@ struct Execution {
     static void* GetVirtualTarget(Reference base, int extDefNum, int methodNum);
     static void* GetInterfaceTarget(Reference base, TypeInfo ti, int methodNum);
 
-    static int GetFieldOffset(TypeInfo ti, int ordinal, bool isRef);
+    static int GetFieldOffset(TypeInfo ti, int ordinal, bool adjustByHeader);
 };
 
 struct MetaInfo {
