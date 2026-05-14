@@ -10,8 +10,6 @@ namespace Stream {
 
 FileOutput cout(stdout);
 FileOutput cerr(stderr);
-Descripted Disasm::isa(cerr, "[dis-isa] ");
-Descripted Disasm::rt(cerr, "[dis-rt] ");
 
 void Output::Flush() const {}
 

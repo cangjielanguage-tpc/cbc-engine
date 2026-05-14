@@ -21,6 +21,10 @@ class MemoryAccess : public testing::Test {
     void TearDown() override {}
 };
 
+namespace Stream::Disasm {
+static Stream::Descripted rt(cerr, "[dis-rt] ");
+}
+
 using namespace Cbc::Emitter;
 using namespace Cbc::Format;
 using namespace Cbc;

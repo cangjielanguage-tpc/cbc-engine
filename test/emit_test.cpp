@@ -20,6 +20,10 @@ class EmitTest : public testing::Test {
     void TearDown() override {}
 };
 
+namespace Stream::Disasm {
+static Stream::Descripted rt(cerr, "[dis-rt] ");
+}
+
 namespace Cbc {
 namespace Emitter {
 

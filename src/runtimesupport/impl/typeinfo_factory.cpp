@@ -4,6 +4,7 @@
 #include "engine/identifiers.h"
 #include "engine/method_table.h"
 #include "engine/resolving_output.h"
+#include "engine/rt_logger.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/flags.h"
 #include "engine/symlevel/reader.h"
@@ -16,7 +17,6 @@
 #include "utils/assertion.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
-#include "utils/rt_logger.h"
 #include <cstdint>
 #include <cstdlib>
 #include <optional>

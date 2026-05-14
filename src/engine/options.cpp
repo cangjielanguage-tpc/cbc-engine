@@ -6,7 +6,7 @@
 #include "resolution/resolution.h"
 #include "runtimesupport/impl/entrypoint.h"
 
-#include "utils/rt_logger.h"
+#include "engine/rt_logger.h"
 
 using Options::Option;
 using Options::SetLogLevelValue;

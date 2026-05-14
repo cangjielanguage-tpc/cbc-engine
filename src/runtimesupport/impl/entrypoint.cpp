@@ -11,6 +11,7 @@
 #include "cjnative.h"
 #include "engine/engine.h"
 #include "engine/options.h"
+#include "engine/rt_logger.h"
 #include "engine/statics_manager.h"
 #include "engine/symlevel/io/filesystem.h"
 #include "interpreter/ectype.h"
@@ -19,7 +20,6 @@
 #include "runtimesupport/impl/rt_syms.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
-#include "utils/rt_logger.h"
 
 DYN_CJNativeInterfaceT g_CJNativeInterfaceInstance;
 

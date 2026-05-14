@@ -116,9 +116,4 @@ private:
 extern FileOutput cout;
 extern FileOutput cerr;
 
-namespace Disasm {
-extern Descripted isa;
-extern Descripted rt;
-} // namespace Disasm
-
 }; // namespace Stream
