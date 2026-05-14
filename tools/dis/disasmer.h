@@ -25,21 +25,21 @@ class Disasmer {
 
     void RData(Symlevel::RegionData const& rd, uint8_t regionNum);
 
-    void SetFile(Symlevel::CbcFile& file)
+    void SetFile(Symlevel::CbcFile const& file)
     {
         io << "Disassembly of " << file.GetName() << Stream::endl;
         currentFile = &file;
     }
 
-    Symlevel::CbcFile* currentFile = nullptr;
+    Symlevel::CbcFile const* currentFile = nullptr;
     std::unique_ptr<Engine::Session> session;
-    std::vector<Symlevel::CbcFile>& files;
+    std::vector<Symlevel::CbcFile> const& files;
     Stream::Indented idio;
     Stream::ResolvingOutput io = Stream::ResolvingOutput(*session, idio);
 
     bool resolving;
 
-    void DisasmOf(Symlevel::CbcFile& file);
+    void DisasmOf(Symlevel::CbcFile const& file);
 
 public:
     void Disasm()
@@ -51,7 +51,7 @@ public:
 
     Disasmer(std::vector<std::string_view> views, Stream::Output& s, bool resolving)
         : session(SessionFor(views)),
-          files(session->GetEngine().files()),
+          files(session->GetEngine().Files()),
           resolving(resolving),
           idio(s, 0)
     {}

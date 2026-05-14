@@ -93,7 +93,8 @@ public:
     void NewLine() override;
     void VPrintFmt(const char* fmt, va_list argp) override;
     void Flush() const override;
-    void SetIndent(std::function<unsigned int(unsigned int)> f);
+    void SetIndent(unsigned int indent);
+    unsigned int GetIndent() const;
 
 private:
     Output& stream;

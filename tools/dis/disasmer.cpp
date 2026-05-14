@@ -94,7 +94,7 @@ void Disasmer::RData(RegionData const& rd, uint8_t regionNum)
     });
 }
 
-void Disasmer::DisasmOf(CbcFile& file)
+void Disasmer::DisasmOf(CbcFile const& file)
 {
     SetFile(file);
     Version(file.GetVersionMetadata());
