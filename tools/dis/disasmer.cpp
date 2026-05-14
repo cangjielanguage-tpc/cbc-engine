@@ -52,44 +52,41 @@ void Disasmer::Type(TypeDefinition& def)
 
 void Disasmer::RData(RegionData const& rd, uint8_t regionNum)
 {
+    io << "region " << regionNum << endl;
     auto& raf = *session->FileOf(currentFile->Id());
     Region("methods: ", [&]() {
-        auto mrefs = rd.MethodReferencesOffsets().Offsets(raf);
-        for (auto ref : mrefs) {
-            auto offset = IO::StreamFileReader(raf, ref).ReadULEB();
-            auto refid  = RefId<MethodReference>(regionNum, offset);
+        auto mrefs = rd.MethodReferencesOffsets().RefIds(regionNum);
+        for (auto refid : mrefs) {
+            // FieldReference ParseReference(
+            //     Engine::Session& session, IO::FileId fileId, Offset<FieldReference> offset, uint8_t region
+            // )
 
             auto methodIdx       = RefIdentifier(refid, currentFile->Id());
             auto methodReference = MethodReference::Parse(*session, methodIdx);
 
-            io << "method offset: " << offset << ", method: " << Detailed(methodReference.name) << endl;
+            io << "method refid: " << refid.GetIndex() << ", method: " << Detailed(methodReference.name) << endl;
         }
     });
 
     Region("terms: ", [&]() {
-        auto terms = rd.TermsOffsets().Offsets(raf);
-        for (auto ref : terms) {
+        auto terms = rd.TermsOffsets().RefIds(regionNum);
+        for (auto refid : terms) {
             // TODO
-            auto offset = IO::StreamFileReader(raf, ref).ReadULEB();
-            auto refid  = RefId<Term>(regionNum, offset);
+            auto newrefid = RefId<Term>(regionNum, refid.GetIndex() - Term::FIRST_NON_PRIMITIVE);
+            auto termIdx  = RefIdentifier(newrefid, currentFile->Id());
+            auto term     = TermManager::Resolve(*session, termIdx);
 
-            auto termIdx = RefIdentifier(refid, currentFile->Id());
-            auto term    = TermManager::Resolve(*session, termIdx);
-
-            io << "term offset: " << offset << ", term: " << term << endl;
+            io << "term refid: " << newrefid.GetIndex() << ", term: " << term << endl;
         }
     });
 
     Region("fields: ", [&]() {
-        auto frefs = rd.FieldReferencesOffsets().Offsets(raf);
-        for (auto ref : frefs) {
-            auto offset = IO::StreamFileReader(raf, ref).ReadULEB();
-            auto refid  = RefId<FieldReference>(regionNum, offset);
-
+        auto frefs = rd.FieldReferencesOffsets().RefIds(regionNum);
+        for (auto refid : frefs) {
             auto fieldIdx       = RefIdentifier(refid, currentFile->Id());
             auto fieldReference = FieldReference::Parse(*session, fieldIdx);
 
-            io << "field offset: " << offset << ", field: " << Detailed(fieldReference.name) << endl;
+            io << "field refid: " << refid.GetIndex() << ", field: " << Detailed(fieldReference.name) << endl;
         }
     });
 }
