@@ -30,7 +30,9 @@ TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId
 
     auto methodIndex = MethodIndex::Read(reader, fileId);
     auto dynMethods  = OffsetSequence<MethodDefinition>::Parse(reader, fileId);
-    auto fieldIndex  = FieldIndex::Read(reader, fileId);
+
+    auto fieldIndex     = FieldIndex::Read(reader, fileId);
+    auto instanceFields = OffsetSequence<FieldDefinition>::Parse(reader, fileId);
 
     auto test = [parsedFlags](uint32_t bits) { return (parsedFlags & bits) != 0; };
 
@@ -52,11 +54,12 @@ TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId
     if (test(0x80))
         flags = flags.Or(TypeFlag::AOT);
 
-    TypeDefinition def { Engine::Identifier(offset, fileId),
+    TypeDefinition::Content def { Engine::Identifier(offset, fileId),
                             name,
                             std::move(methodIndex),
                             std::move(fieldIndex),
                             dynMethods,
+                            instanceFields,
                             superType,
                             flags };
 
@@ -66,7 +69,7 @@ TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId
             default:  FATAL("unexpected tag: %d", tag); std::exit(2);
         }
     }
-    return def;
+    return TypeDefinition(std::move(def));
 }
 
 TypeDefinition TypeDefinition::Resolve(Engine::Session& session, Engine::Identifier<TypeDefinition> identifier)

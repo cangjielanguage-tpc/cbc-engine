@@ -1,5 +1,6 @@
 #include "resolution.h"
 #include "engine/engine.h"
+#include "engine/field_layout.h"
 #include "engine/identifiers.h"
 #include "engine/method_table.h"
 #include "engine/resolving_output.h"
@@ -55,10 +56,13 @@ struct Resolver::Impl {
     IO::FileId fileId;
     uint8_t regionId = 0; // FIXME
 
+    std::unique_ptr<FieldLayoutManager> fieldManager;
+
     Impl(Session& session, Identifier<Symlevel::MethodDefinition> method)
         : session(session),
           method(method),
-          fileId(method.GetFileId())
+          fileId(method.GetFileId()),
+          fieldManager(FieldLayoutManager::Of(session))
     {}
 
     template <typename T> using Cache = std::unordered_map<int, T*>;
@@ -88,15 +92,15 @@ struct Resolver::Impl {
 /// TODO: add diffrent Type implementations.
 struct SimpleType : public Type {
     Term term;
-    Resolver::Impl& impl;
+    Resolver::Impl& resolver;
 
-    SimpleType(Term term, Resolver::Impl& impl) : term(term), impl(impl) {}
+    SimpleType(Term term, Resolver::Impl& impl) : term(term), resolver(impl) {}
 
-    void GetFullName(Stream::Output& stream) const override { term.GetName(impl.session, stream); }
+    void GetFullName(Stream::Output& stream) const override { term.GetName(resolver.session, stream); }
 
     std::optional<RTSupport::TypeInfo> GetTypeInfo() override
     {
-        return TypeInfoManager::Of(impl.session).AcquireTypeInfo(impl.session, term);
+        return TypeInfoManager::Of(resolver.session).AcquireTypeInfo(resolver.session, term);
     }
 
     CbcTypeKind GetKind() override
@@ -135,74 +139,16 @@ struct SimpleType : public Type {
             case TK::TYPE_VAR:       return CbcTypeKind::REF;
             case TK::GENERIC_METHOD: return CbcTypeKind::INVALID;
             case TK::LAST:           return CbcTypeKind::INVALID;
+
+            default: FATAL("Unexpected %d", term.GetKind());
         }
     }
 
-    std::optional<int> GetFlatSize() override
+    std::optional<uint32_t> GetFlatSize() override
     {
-        using TK = TermKind;
-        switch (term.GetKind()) {
-            case TK::VOID:
-            case TK::UNIT: return 0;
-
-            case TK::BOOLEAN:
-            case TK::I8:
-            case TK::U8:      return 1;
-
-            case TK::I16:
-            case TK::U16:
-            case TK::F16: return 2;
-
-            case TK::I32:
-            case TK::U32:
-            case TK::UCHAR32:
-            case TK::F32:     return 4;
-
-            case TK::I64:
-            case TK::U64:
-            case TK::IADDR:
-            case TK::UADDR:
-            case TK::BSTRING:
-            case TK::F64:
-            case TK::C_POINTER: return 8;
-
-            case TK::NULLABLE:
-            case TK::NON_NULLABLE:
-            case TK::CANGJIE_ARRAY:
-            case TK::AOT_TYPE:
-            case TK::TYPE_VAR:      return sizeof(uintptr_t);
-
-            case TK::TYPE: {
-                auto ident = TypeTermId(term).GetIdentifier();
-                auto rec   = Symlevel::TypeDefinition::Resolve(impl.session, ident).GetFlags().GetTypeKind() ==
-                           Symlevel::TypeKind::RECORD;
-                if (rec) {
-                    auto ti = GetTypeInfo();
-                    if (!ti.has_value()) {
-                        return std::nullopt;
-                    }
-                    return RTSupport::MetaInfo::GetTypeSize(*ti);
-                } else {
-                    return sizeof(uintptr_t);
-                }
-            }
-
-            case TK::AOT_REC: {
-                auto ti = GetTypeInfo();
-                if (!ti.has_value()) {
-                    return std::nullopt;
-                }
-                return RTSupport::MetaInfo::GetTypeSize(*ti);
-            }
-
-            case TK::NIL:
-            case TK::NOTHING:
-            case TK::UNDEFINED:
-            case TK::METHOD:
-            case TK::GENERIC_METHOD:
-            case TK::LAST:           return std::nullopt;
-        }
+        return resolver.fieldManager->GetFlatSize(term);
     }
+
 };
 
 Type* Resolver::Impl::NewType(Term term) { return session.Allocator().New<SimpleType>(term, *this); }
@@ -384,7 +330,6 @@ static std::optional<VirtualCall> ResolveCall(Resolver::Impl& resolver, Index<Vi
         }
 
         case TermKind::AOT_TYPE: {
-            /// FIXME: interface calls
             auto data = file.GetVirtualCallAotTable().GetData(resolver.session, ref.identifier.GetIndex());
             auto sig  = ConstructSignature(resolver, ref);
             return VirtualCall { refType, ref.name, std::move(sig), data.methodNum, data.extDefNum };

@@ -6,6 +6,7 @@
 #include "runtimesupport/impl/rt_syms.h"
 #include "runtimesupport/impl/typeinfo_ext.h"
 #include "utils/assertion.h"
+#include <cstdint>
 
 namespace RTSupport {
 
@@ -83,10 +84,16 @@ int Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool isRef)
     return mrtti->fieldOffsets[ordinal] + headerOffs;
 }
 
-std::optional<int> MetaInfo::GetTypeSize(TypeInfo ti)
+uint32_t MetaInfo::GetTypeSize(TypeInfo ti)
 {
     auto mrtti = UnpackTypeInfo(ti);
     return mrtti->instanceSize;
+}
+
+uint8_t MetaInfo::GetAlign(TypeInfo ti)
+{
+    auto mrtti = UnpackTypeInfo(ti);
+    return mrtti->align;
 }
 
 } // namespace RTSupport

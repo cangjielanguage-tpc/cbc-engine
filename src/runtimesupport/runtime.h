@@ -4,6 +4,7 @@
 /// interpreter and the runtime.
 
 #include "interpreter/ectype.h"
+#include <cstdint>
 #include <optional>
 
 namespace RTSupport {
@@ -62,7 +63,8 @@ struct Execution {
 };
 
 struct MetaInfo {
-    static std::optional<int> GetTypeSize(TypeInfo ti);
+    static uint32_t GetTypeSize(TypeInfo ti);
+    static uint8_t GetAlign(TypeInfo ti);
 };
 
 } // namespace RTSupport
