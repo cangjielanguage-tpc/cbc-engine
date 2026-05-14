@@ -8,7 +8,6 @@ namespace Symlevel {
 struct TypeKind {
 public:
     enum Value : uint32_t {
-        PRIMITIVE,
         CLASS,
         INTERFACE,
         RECORD
@@ -23,7 +22,6 @@ public:
     constexpr std::string_view const ToString()
     {
         switch (value) {
-            case PRIMITIVE: return "PRIMITIVE";
             case CLASS:     return "CLASS";
             case INTERFACE: return "INTERFACE";
             case RECORD:    return "RECORD";

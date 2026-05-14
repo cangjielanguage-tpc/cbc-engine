@@ -1,12 +1,14 @@
 #include "runtimesupport/typeinfo_factory.h"
 #include "RuntimeTypes.h"
 #include "engine/engine.h"
+#include "engine/field_layout.h"
 #include "engine/identifiers.h"
 #include "engine/method_table.h"
 #include "engine/resolving_output.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/flags.h"
 #include "engine/symlevel/reader.h"
+#include "engine/symlevel/type_kind.h"
 #include "engine/terms.h"
 #include "interpreter/function_handle.h"
 #include "runtimesupport/adapters.h"
@@ -17,6 +19,7 @@
 #include "utils/logger.h"
 #include "utils/ostream.h"
 #include "utils/rt_logger.h"
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <optional>
@@ -246,13 +249,12 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         return QueryTypeInfoAOTByName(builder.name);
     }
 
-    // FIXME
-    builder.type     = -128; // class
-    builder.fieldNum = 0;
-    builder.fields   = nullptr;
-    builder.align    = 8;
-
-    builder.instanceSize = 0;
+    switch (type.GetFlags().GetTypeKind()) {
+        case Symlevel::TypeKind::INTERFACE: builder.type = -127; break;
+        case Symlevel::TypeKind::RECORD: builder.type = 22; break;
+        case Symlevel::TypeKind::CLASS: builder.type = -128; break;
+        default: FATAL("unreachable type kind");
+    }
 
     auto superType = Engine::TermManager::Resolve(session, type.GetSuperType());
 
@@ -347,6 +349,52 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
                 return std::nullopt;
             }
         }
+    }
+
+    auto typeKind = type.GetFlags().GetTypeKind();
+    if (typeKind == Symlevel::TypeKind::RECORD || typeKind == Symlevel::TypeKind::CLASS) {
+        auto manager = Engine::FieldLayoutManager::Of(session);
+        auto optlayout = manager->GetLayout(term);
+
+        bool hasProperLayout = optlayout.has_value();
+        if (hasProperLayout) {
+            auto layout = *optlayout;
+            if (!layout->desc.size.has_value()) {
+                hasProperLayout = false;
+            }
+        }
+
+        if (!hasProperLayout) {
+            Log::typeinfo.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
+                Stream::ResolvingOutput stream(session, out);
+                stream << "Failed to build field layout for " << term << Stream::endl;
+            });
+            return std::nullopt;
+        }
+        auto layout = *optlayout;
+        builder.align = layout->desc.alignment;
+        builder.instanceSize = layout->desc.size.value();
+        builder.fieldNum = layout->fields.size();
+
+        builder.fields = Alloc<DYN_TypeInfoT*>(builder.fieldNum);
+
+        if (builder.fields == nullptr) {
+            return std::nullopt;
+        }
+
+        size_t idx = 0;
+        for (auto& field : layout->fields) {
+            auto typeInfo = queryTypeInfo(field.fieldType);
+            if (!typeInfo.has_value()) {
+                return std::nullopt;
+            }
+            builder.fields[idx++] = UnpackTypeInfo(*typeInfo);
+        }
+    } else {
+        builder.fieldNum = 0;
+        builder.fields   = nullptr;
+        builder.align    = 1;
+        builder.instanceSize = 0;
     }
 
     return TypeInfo(builder.Build());
