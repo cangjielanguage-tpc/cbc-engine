@@ -45,10 +45,6 @@ def target_name(target_os, target_arch):
     return f"{target_os}_{target_arch}"
 
 
-def is_android_target(target_os, target_arch):
-    return (target_os, target_arch) == ("android", "aarch64")
-
-
 def validate_target(target_os, target_arch):
     if (target_os, target_arch) not in SUPPORTED_TARGETS:
         fail(
@@ -81,7 +77,7 @@ def prepare_cmake_options(args, project_dir):
     build_type = f"-DCMAKE_BUILD_TYPE={args.build_type.capitalize()} "
     build_testing = "ON" if args.run_tests else "OFF"
 
-    if is_android_target(args.target_os, args.target_arch):
+    if args.target_os == "android":
         android_ndk_home = os.environ.get("ANDROID_NDK_HOME")
         if android_ndk_home is None:
             fail(
