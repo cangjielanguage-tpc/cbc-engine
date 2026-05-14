@@ -29,7 +29,9 @@ public:
 
     uint32_t UntypedSlotCount() { return untypedSlotCount; }
 
-    uint32_t TypedSlotCount() { return typedSlotCount; }
+    uint32_t StackAllocSigsCount() { return stackAllocSigsCount; }
+
+    uint32_t* StackAllocSigs() { return stackAllocSigs; }
 
     uint8_t UsedNonVolIRegMask() { return usedNonVolIRegMask; }
 
@@ -44,7 +46,8 @@ private:
 
     Code(
         uint32_t untypedSlotCount,
-        uint32_t typedSlotCount,
+        uint32_t stackAllocSigsCount,
+        uint32_t* stackAllocSigs,
         uint32_t ohmSlotCount,
         uint8_t usedNonVolIRegMask,
         uint8_t usedNonVolFRegMask,
@@ -56,7 +59,8 @@ private:
         RawLivenessInfo rawLivenessInfo
     )
         : untypedSlotCount(untypedSlotCount),
-          typedSlotCount(typedSlotCount),
+          stackAllocSigsCount(stackAllocSigsCount),
+          stackAllocSigs(stackAllocSigs),
           ohmSlotCount(ohmSlotCount),
           usedNonVolIRegMask(usedNonVolIRegMask),
           usedNonVolFRegMask(usedNonVolFRegMask),
@@ -68,9 +72,11 @@ private:
           rawLivenessInfo(rawLivenessInfo)
     {}
 
-    uint32_t untypedSlotCount = 0;
-    uint32_t typedSlotCount   = 0;
-    uint32_t ohmSlotCount     = 0;
+    uint32_t untypedSlotCount    = 0;
+    uint32_t stackAllocSigsCount = 0;
+    uint32_t ohmSlotCount        = 0;
+
+    uint32_t* stackAllocSigs = nullptr;
 
     uint8_t usedNonVolIRegMask       = 0;
     uint8_t usedNonVolFRegMask       = 0;

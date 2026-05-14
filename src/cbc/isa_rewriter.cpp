@@ -78,16 +78,18 @@ static STK Stk(TK typeIdentifier)
 }
 
 struct IsaRewriter : public IsaParser {
-    IsaRewriter(Resolver& resolver, MethodCode code, Emitter::Emitter& emit)
+    IsaRewriter(Resolver& resolver, MethodCode code, FrameLayout frameLayout, Emitter::Emitter& emit)
         : IsaParser(code),
           resolver(resolver),
           emit(emit),
+          frameLayout(frameLayout),
           startPosition(0),
           bytecodeSize(reader.End() - reader.Start())
     {}
 
     Resolver& resolver;
     Emitter::Emitter& emit;
+    FrameLayout frameLayout;
     size_t bytecodeSize;
     Stream::Output& errStream = Interpretation::Log::preparation.Stream(Logging::Level::ERROR);
 
@@ -408,17 +410,68 @@ struct IsaRewriter : public IsaParser {
 
     void LoadUntyped(AnyReg dst, Format::LoadAccessKind ldk, uint16_t us) override
     {
-        emit.LoadFrame(ldk, Format::Reg(dst), UntypedSlotOffset(us));
+        emit.LoadFrame(ldk, dst, UntypedSlotOffset(us));
     }
 
     void StoreUntyped(AnyReg src, Format::StoreAccessKind stk, uint16_t us) override
     {
-        emit.StoreFrame(stk, Format::Reg(src), UntypedSlotOffset(us));
+        emit.StoreFrame(stk, src, UntypedSlotOffset(us));
     }
 
     void StoreUntypedImm(uint64_t imm, uint16_t us) override
     {
         emit.StoreFrameImm(Format::StoreAccessKind::ST_64, imm, UntypedSlotOffset(us));
+    }
+
+    void LoadTyped(AnyReg dst, uint16_t ts, uint16_t fieldId) override
+    {
+        auto f = resolver.Query(Index<InstanceField>(fieldId));
+        if (!f.has_value()) {
+            Fail();
+            return;
+        }
+        auto field = f.value();
+        if (field->offset.has_value()) {
+            auto offset = frameLayout.typedOffset.at(ts) + field->offset.value();
+            emit.LoadFrame(Ldk(field->fieldType->GetKind()), dst, offset);
+        } else {
+            errStream << "Failed to get offset of field " << *field << Stream::endl;
+            Fail();
+        }
+    }
+
+    void StoreTyped(AnyReg src, uint16_t ts, uint16_t fieldId) override
+    {
+        auto f = resolver.Query(Index<InstanceField>(fieldId));
+        if (!f.has_value()) {
+            Fail();
+            return;
+        }
+        auto field = f.value();
+        if (field->offset.has_value()) {
+            auto offset = frameLayout.typedOffset.at(ts) + field->offset.value();
+            emit.StoreFrame(Stk(field->fieldType->GetKind()), src, offset);
+        } else {
+            errStream << "Failed to get offset of field " << *field << Stream::endl;
+            Fail();
+        }
+    }
+
+    void StoreTypedImm(uint64_t imm, uint16_t ts, uint16_t fieldId) override
+    {
+        auto f = resolver.Query(Index<InstanceField>(fieldId));
+        if (!f.has_value()) {
+            Fail();
+            return;
+        }
+        auto field = f.value();
+        if (field->offset.has_value()) {
+            auto offset = frameLayout.typedOffset.at(ts) + field->offset.value();
+            emit.StoreFrameImm(Stk(field->fieldType->GetKind()), imm, offset);
+        } else {
+            errStream << "Failed to get offset of field " << *field << Stream::endl;
+            Fail();
+        }
     }
 
     void ParseOne() override
@@ -439,7 +492,7 @@ struct IsaRewriter : public IsaParser {
     }
 };
 
-static uint32_t CalcFrameSize(Symlevel::Code code)
+static std::optional<FrameLayout> makeFrameLayout(Symlevel::Code code, Resolver& resolver)
 {
     auto savedRegsCount = 0;
     for (uint8_t i = 0, savedRegs = code.UsedNonVolIRegMask(); i < (IReg::COUNT - IReg::FIRST_NON_VOL); i++) {
@@ -452,9 +505,31 @@ static uint32_t CalcFrameSize(Symlevel::Code code)
     }
     auto savedRegsSpace = Cbc::STACK_SLOT_SIZE * savedRegsCount;
 
-    auto stackAllocSize = Cbc::STACK_SLOT_SIZE * code.UntypedSlotCount(); // TODO: typed stack slots
+    auto untypedSlotsSize = Cbc::STACK_SLOT_SIZE * code.UntypedSlotCount();
 
-    return MathUtils::AlignUp(savedRegsSpace + stackAllocSize, Cbc::FRAME_ALIGNMENT);
+    std::unordered_map<uint32_t, uint32_t> typedOffset;
+    auto stackAllocSize = untypedSlotsSize;
+    for (uint32_t i = 0; i < code.StackAllocSigsCount(); i++) {
+        auto typeOpt = resolver.Query(Index<Type>(code.StackAllocSigs()[i]));
+        if (!typeOpt.has_value()) {
+            return std::nullopt;
+        }
+        auto type = typeOpt.value();
+        if (type->GetKind() != CbcTypeKind::REC) {
+            return std::nullopt;
+        }
+        auto size = type->GetFlatSize();
+        if (!size.has_value()) {
+            return std::nullopt;
+        }
+
+        typedOffset.insert({ i, stackAllocSize });
+        stackAllocSize += MathUtils::AlignUp(size.value(), Cbc::STACK_SLOT_SIZE);
+    }
+
+    auto frameSize = MathUtils::AlignUp(savedRegsSpace + stackAllocSize, Cbc::FRAME_ALIGNMENT);
+
+    return FrameLayout { std::move(typedOffset), untypedSlotsSize, frameSize };
 }
 
 static std::vector<Interpretation::ReferenceInfo> CalculateReferencesMap(
@@ -488,21 +563,28 @@ Interpretation::ExecBytecodeInfo Rewrite(
 )
 {
     Emitter::Emitter emitter;
-    auto rewriter = IsaRewriter(resolver, code, emitter);
+    auto frameLayout = makeFrameLayout(code, resolver);
+
+    if (!frameLayout.has_value()) {
+        FATAL("Rewriter failed: cannot make frame layout.");
+    }
+
+    auto rewriter = IsaRewriter(resolver, code, *frameLayout, emitter);
     rewriter.ParseAll();
-    if (rewriter.failed) {}
 
-    auto offsetsIndex = rewriter.BuildOffsetsIndex();
+    if (rewriter.failed) {
+        FATAL("Rewriter failed: cannot rewrite code.");
+    }
 
+    auto offsetsIndex  = rewriter.BuildOffsetsIndex();
     auto rewrittenCode = emitter.Build(heap);
-    auto frameSize     = CalcFrameSize(code);
 
     return Interpretation::ExecBytecodeInfo {
         .code             = rewrittenCode,
         .savedIRegs       = code.UsedNonVolIRegMask(),
         .savedFRegs       = code.UsedNonVolFRegMask(),
         .untypedSlotCount = static_cast<uint16_t>(code.UntypedSlotCount()),
-        .frameSize        = frameSize,
+        .frameSize        = (*frameLayout).frameSize,
         .referenceInfos   = CalculateReferencesMap(session, code, offsetsIndex),
     };
 }

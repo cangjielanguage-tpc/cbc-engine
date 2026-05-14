@@ -8,8 +8,15 @@ Code Code::Parse(Engine::Session& session, IO::FileId fileId, Offset<Code> offse
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetCodeSectionOffs() + offset);
 
     uint32_t untypedSlotCount = reader.ReadULEB();
-    uint32_t typedSlotCount   = reader.ReadULEB(); // TODO: impl
-    uint32_t ohmSlotCount     = reader.ReadULEB(); // TODO: impl
+
+    uint32_t stackAllocSigsCount = reader.ReadULEB();
+    uint32_t* stackAllocSigs =
+        static_cast<uint32_t*>(session.Allocator().Allocate(stackAllocSigsCount * sizeof(uint32_t), alignof(uint32_t)));
+    for (size_t i = 0; i < stackAllocSigsCount; i++) {
+        stackAllocSigs[i] = reader.ReadULEB();
+    }
+
+    uint32_t ohmSlotCount = reader.ReadULEB(); // TODO: impl
 
     uint8_t usedNonVolIRegMask       = reader.ReadU8();
     uint8_t usedNonVolFRegMask       = reader.ReadU8();
@@ -30,7 +37,8 @@ Code Code::Parse(Engine::Session& session, IO::FileId fileId, Offset<Code> offse
 
     return Code(
         untypedSlotCount,
-        typedSlotCount,
+        stackAllocSigsCount,
+        stackAllocSigs,
         ohmSlotCount,
         usedNonVolIRegMask,
         usedNonVolFRegMask,
@@ -77,8 +85,18 @@ void Code::Print(Engine::Session& session, Stream::Output& out)
 
     out << "MethodCode {" << endl;
     out2 << "untypedSlotCount: " << untypedSlotCount << endl
-         << "typedSlotCount: " << typedSlotCount << endl
-         << "ohmSlotCount: " << ohmSlotCount << endl
+         << "stackAllocSigsCount: " << stackAllocSigsCount << endl
+         << "stackAllocSigs: ";
+
+    for (size_t i = 0; i < stackAllocSigsCount; i++) {
+        out2 << stackAllocSigs[i];
+        if (i < (stackAllocSigsCount - 1)) {
+            out2 << ", ";
+        }
+    }
+    out2 << endl;
+
+    out2 << "ohmSlotCount: " << ohmSlotCount << endl
          << "usedNonVolIRegMask: " << usedNonVolIRegMask << endl
          << "usedNonVolFRegMask: " << usedNonVolFRegMask << endl
          << "maxCalleeStackArgsCount: " << maxCalleeStackArgsCount << endl

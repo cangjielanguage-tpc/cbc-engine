@@ -264,4 +264,6 @@ void* Adapters::IregOnlyC2ICallInstance() { return reinterpret_cast<void*>(&C2IC
 
 void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* fuh) { FATAL("Should not reach here."); }
 
+std::optional<int> MetaInfo::GetTypeSize(TypeInfo ti) { return std::nullopt; }
+
 } // namespace RTSupport

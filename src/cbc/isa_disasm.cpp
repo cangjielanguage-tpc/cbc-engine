@@ -262,6 +262,21 @@ struct IsaDisasm : public IsaParser {
         stream << "store.untyped.imm" << " " << us << ", " << imm << endl;
     }
 
+    void LoadTyped(AnyReg dst, uint16_t ts, uint16_t fieldId) override
+    {
+        stream << "load.typed" << " " << dst << ", " << ts << ", " << fieldId << endl;
+    }
+
+    void StoreTyped(AnyReg src, uint16_t ts, uint16_t fieldId) override
+    {
+        stream << "store.typed" << " " << ts << ", " << fieldId << ", " << src << endl;
+    }
+
+    void StoreTypedImm(uint64_t imm, uint16_t ts, uint16_t fieldId) override
+    {
+        stream << "store.typed.imm" << " " << ts << ", " << fieldId << ", " << imm << endl;
+    }
+
     void ParseOne() override
     {
         auto position = reader.Cursor() - reader.Start();

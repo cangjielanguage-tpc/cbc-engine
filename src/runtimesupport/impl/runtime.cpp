@@ -83,4 +83,10 @@ int Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool isRef)
     return mrtti->fieldOffsets[ordinal] + headerOffs;
 }
 
+std::optional<int> MetaInfo::GetTypeSize(TypeInfo ti)
+{
+    auto mrtti = UnpackTypeInfo(ti);
+    return mrtti->instanceSize;
+}
+
 } // namespace RTSupport
