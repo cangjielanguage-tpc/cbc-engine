@@ -72,9 +72,9 @@ def detect_host_arch():
 
 def detect_host_os():
     current_os = platform.system().lower()
-    if current_os == "android":
-        return "android"
-    return "linux"
+    if current_os == "linux":
+        return current_os
+    fail(f"Unsupported host OS: {current_os}. Only Linux hosts are supported for now.")
 
 
 def prepare_cmake_options(args, project_dir):
