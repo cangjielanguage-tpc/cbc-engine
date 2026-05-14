@@ -59,13 +59,14 @@ extern "C" Interpretation::Ectype* FiberDataInit(DYN_CJThreadSpecificDataT* data
 
 Interpretation::Ectype* FiberDataInit(DYN_CJThreadSpecificDataT* data)
 {
-    RTSupport::Log::rt.Log(Logging::Level::INFO, [&data](Stream::Output& out) {
-        out.PrintFmtLn("fiber init, fsd addr: %p, ectype addr: %p", data, *data);
-    });
     ASSERTION(*data == nullptr, "Incorrect data value: %p", *data);
 
     auto ectype = new Interpretation::Ectype();
     *data       = ectype;
+
+    RTSupport::Log::rt.Log(Logging::Level::INFO, [&data](Stream::Output& out) {
+        out.PrintFmtLn("fiber init, fsd addr: %p, ectype addr: %p", data, *data);
+    });
 
     return ectype;
 }

@@ -107,6 +107,7 @@ engine_trampolines_dyn_start:
 #define LITERALS_REG r14
 
 .align 16
+// expects: (TLS_REG: th, rax: fuh)
 // System-V abi, except r15 can be changed after context-switches
 engine_c2i_call_pc_start:
 engine_iregs_only_c2i_call:
@@ -158,7 +159,9 @@ engine_iregs_only_c2i_call:
   
   mov   rdi, r12
   call  engine_fiber_data_init
+  
   mov   ECTYPE_REG, rax
+  mov   rax, [rbp - 0x30] // restore fuh
 
   pop_lst r9, r8, rcx, rdx, rsi, rdi
   jmp   .Lc2i_args_preparation
