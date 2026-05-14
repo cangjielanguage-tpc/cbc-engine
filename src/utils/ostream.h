@@ -23,7 +23,7 @@ public:
         return *this;
     }
 
-    virtual void Flush() const;
+    virtual void Flush();
     virtual void NewLine();
     virtual void VPrintFmt(const char* fmt, va_list argp) = 0;
 
@@ -64,7 +64,7 @@ class FileOutput : public Output {
 public:
     FileOutput(FILE* destStream);
 
-    void Flush() const override;
+    void Flush() override;
     void VPrintFmt(const char* fmt, va_list argp) override;
 
 protected:
@@ -78,6 +78,7 @@ public:
     void VPrintFmt(const char* fmt, va_list argp) override;
     std::string ToString();
     void Clear();
+    std::string_view View();
 
 private:
     std::unique_ptr<char[]> data;
@@ -91,7 +92,7 @@ public:
 
     void NewLine() override;
     void VPrintFmt(const char* fmt, va_list argp) override;
-    void Flush() const override;
+    void Flush() override;
 
 private:
     Output& stream;
@@ -105,12 +106,24 @@ public:
 
     void VPrintFmt(const char* fmt, va_list argp) override;
     void NewLine() override;
-    void Flush() const override;
+    void Flush() override;
 
 private:
     Output& stream;
     std::string beforeDesc;
     bool newLine = true;
+};
+
+/// Supposed to accumulate the result to one string, which would be
+/// forwarded to the underlying `output` in one go;
+class BufferedWrapper : public StringBuffer {
+public:
+    BufferedWrapper(Output& output);
+    void NewLine() override;
+    void Flush() override;
+    ~BufferedWrapper();
+private:
+    Output& output;
 };
 
 extern FileOutput cout;

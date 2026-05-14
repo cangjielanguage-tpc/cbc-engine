@@ -33,11 +33,18 @@ public:
     template <typename F> inline void Log(Level level, F const& logger)
     {
         if (level <= this->level) {
-            logger(*output);
+            if (buffered) {
+                Stream::BufferedWrapper stream(*output);
+                logger(static_cast<Stream::Output&>(stream));
+            } else {
+                logger(*output);
+            }
         }
     }
 
-private:
+    bool buffered = false;
+
+protected:
     Stream::Output* output;
     Level level;
 };

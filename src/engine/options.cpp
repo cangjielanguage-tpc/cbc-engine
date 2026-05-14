@@ -7,6 +7,7 @@
 #include "runtimesupport/impl/entrypoint.h"
 
 #include "engine/rt_logger.h"
+#include "utils/options.h"
 
 using Options::Option;
 using Options::SetLogLevelValue;
@@ -21,6 +22,7 @@ constexpr Option globalOptionsArray[] = {
     { "cbc.log.preparation", &Interpretation::Log::preparation, &SetLogLevelValue },
     { "cbc.log.method.table", &Engine::Log::mt, &SetLogLevelValue },
     { "cbc.log.root.scan", &RTSupport::Log::gc, &SetLogLevelValue },
+    { "cbc.log.root.scan.buffer", &RTSupport::Log::gc.buffered, &SetBoolValue },
     { "cbc.log.init", &RTSupport::Log::init, &SetLogLevelValue },
     { "cbc.log.typeinfo", &RTSupport::Log::typeinfo, &SetLogLevelValue },
     { "cbc.log.all", nullptr, &SetAllLogLevels },

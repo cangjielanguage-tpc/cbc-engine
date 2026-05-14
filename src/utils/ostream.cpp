@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdio>
 #include <memory>
+#include <string_view>
 #include <utility>
 
 namespace Stream {
@@ -11,7 +12,7 @@ namespace Stream {
 FileOutput cout(stdout);
 FileOutput cerr(stderr);
 
-void Output::Flush() const {}
+void Output::Flush() {}
 
 void Output::NewLine()
 {
@@ -93,7 +94,7 @@ Output& Output::operator<<(const endl_t&)
 
 FileOutput::FileOutput(FILE* destStream) : Output(), dest(destStream) {}
 
-void FileOutput::Flush() const { fflush(dest); }
+void FileOutput::Flush() { fflush(dest); }
 
 void FileOutput::VPrintFmt(const char* fmt, va_list argp) { vfprintf(dest, fmt, argp); }
 
@@ -134,6 +135,7 @@ void StringBuffer::VPrintFmt(const char* fmt, va_list argp)
 }
 
 std::string StringBuffer::ToString() { return std::string(data.get(), size); }
+std::string_view StringBuffer::View() { return std::string_view(data.get(), size); }
 
 // Decorators
 
@@ -145,7 +147,7 @@ void Indented::NewLine()
     newLine = true;
 }
 
-void Indented::Flush() const { stream.Flush(); }
+void Indented::Flush() { stream.Flush(); }
 
 void Indented::VPrintFmt(const char* fmt, va_list argp)
 {
@@ -165,7 +167,7 @@ void Descripted::NewLine()
     newLine = true;
 }
 
-void Descripted::Flush() const { stream.Flush(); }
+void Descripted::Flush() { stream.Flush(); }
 
 void Descripted::VPrintFmt(const char* fmt, va_list argp)
 {
@@ -174,6 +176,26 @@ void Descripted::VPrintFmt(const char* fmt, va_list argp)
         newLine = false;
     }
     stream.VPrintFmt(fmt, argp);
+}
+
+BufferedWrapper::BufferedWrapper(Stream::Output& output) : StringBuffer(), output(output) {}
+
+void BufferedWrapper::NewLine()
+{
+    StringBuffer::NewLine();
+    output << View();
+    Clear();
+}
+
+void BufferedWrapper::Flush()
+{
+    output << View();
+    Clear();
+}
+
+BufferedWrapper::~BufferedWrapper()
+{
+    output << View();
 }
 
 }; // namespace Stream
