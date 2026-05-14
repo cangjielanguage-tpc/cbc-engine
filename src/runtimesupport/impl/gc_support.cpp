@@ -12,10 +12,13 @@
 
 namespace GCSupport {
 
+using namespace Stream;
 using placeholder = uintptr_t*;
 
 static void VisitRoot(DYN_RootVisitorT rootVisitor, placeholder ph) {
-    RTSupport::Log::gc.Stream(Logging::Level::TRACE).PrintFmt("visiting %p, value=%p\n", ph, *ph);
+    RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) {
+        out.PrintFmtLn("visiting %p, value=%p", ph, *ph);
+    });
     g_CJNativeInterfaceInstance.visitRootFromInterpreter(rootVisitor, ph);
 }
 
@@ -56,7 +59,18 @@ private:
 
 void IterateFramesWithState(DYN_CJThreadSpecificDataT threadSpecificData, void (*callback)(DYN_VisitingStateT, void*), void* ctx)
 {
+    RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Output& out) {
+        out.PrintFmtLn("start scanning frames, thread spec data = %p", threadSpecificData);
+    });
 
+    RegistersTable regTable(static_cast<Interpretation::Ectype*>(NOTNULL(threadSpecificData)));
+    DYN_VisitingStateT state = &regTable;
+
+    callback(state, ctx);
+
+    RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Output& out) {
+        out.PrintFmtLn("end scanning frames, thread spec data = %p", threadSpecificData);
+    });
 }
 
 void VisitGCFrameRoots(DYN_VisitingStateT state, DYN_FrameDescT frame_desc, DYN_RootVisitorT rootVisitor)
@@ -67,7 +81,6 @@ void VisitGCFrameRoots(DYN_VisitingStateT state, DYN_FrameDescT frame_desc, DYN_
     const auto readerOffset = LOCAL_SLOTS_OFFSET + READER_SLOTS_SIZE;
 
     auto fuh    = *reinterpret_cast<DynamicFunctionHandle**>((uint8_t*)frame_desc.fp - FUH_SLOT_OFFSET);
-    auto ectype = *reinterpret_cast<Ectype**>((uint8_t*)frame_desc.fp - (FUH_SLOT_OFFSET + 8));
     auto reader = reinterpret_cast<Decoder::ByteReader*>((uint8_t*)frame_desc.fp - readerOffset);
     auto bc     = NOTNULL(fuh->bytecode.load());
 
@@ -84,44 +97,54 @@ void VisitGCFrameRoots(DYN_VisitingStateT state, DYN_FrameDescT frame_desc, DYN_
     auto spillsEnd = ((uint8_t*)frame_desc.fp) - readerOffset;
     auto slotsStartAddr = ((uint8_t*)frame_desc.fp) - (readerOffset + bc->frameSize);
 
-    RTSupport::Log::gc.Stream(Logging::Level::INFO)
-        .PrintFmt(
-            "start visiting frame (fuh=%p, fp=%p, pos=%p, slots_addr=%p)\n", fuh, frame_desc, curPos, slotsStartAddr
+    RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Output& out) {
+        out.PrintFmtLn(
+            "start visiting frame (fuh=%p, ip=%p, fp=%p, pos=%p, slots_addr=%p)",
+            fuh,
+            frame_desc.ip,
+            frame_desc.fp,
+            curPos,
+            slotsStartAddr
         );
+    });
 
     for (auto& refSlotOffset : NOTNULL(refInfo)->refSlotOffsets) {
         auto refLocation = reinterpret_cast<placeholder>(slotsStartAddr + refSlotOffset);
         VisitRoot(rootVisitor, refLocation);
     }
 
-    RTSupport::Log::gc.Stream(Logging::Level::INFO).PrintFmt("end visiting frame (fuh=%p)\n", fuh);
-
     auto aliveRegsMap = std::bitset<ECTYPE_IREGS_COUNT>(NOTNULL(refInfo)->regMask);
     {
-        RTSupport::Log::gc.Stream(Logging::Level::INFO).PrintFmt("visit alive regs, alive regs: %s\n",
-            aliveRegsMap.to_string().c_str());
-    
+        RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) {
+            out << "visit alive regs, alive regs: " << aliveRegsMap.to_string().c_str() << endl;
+        });
+
         regsLocationTable->VisitAliveRegs(aliveRegsMap, rootVisitor);
     }
 
     auto savedRegsMap = std::bitset<ECTYPE_IREGS_COUNT>(bc->savedIRegs);
     {
-        RTSupport::Log::gc.Stream(Logging::Level::INFO).PrintFmt("update regs table, saved regs: %s",
-            savedRegsMap.to_string().c_str());
-    
+        RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) {
+            out << "update regs table, saved regs: " << savedRegsMap.to_string().c_str() << endl;
+        });
+
         regsLocationTable->UpdateRegLocations(savedRegsMap, reinterpret_cast<placeholder>(spillsEnd));
     }
+
+    RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Output& out) {
+        out.PrintFmtLn("end visiting frame (fuh=%p)", fuh);
+    });
 }
 
 void VisitGlobalRoots(DYN_RootVisitorT rootVisitor) {
-    RTSupport::Log::gc.Stream(Logging::Level::INFO).PrintFmt("start visiting global roots\n");
+    RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Output& out) { out << "start visiting global roots" << endl; });
 
     auto& engine = Engine::GetEngineInstance();
     Engine::StaticsManager::Of(engine).VisitRefLocations([rootVisitor](Engine::RefLocation* refLocation) {
         VisitRoot(rootVisitor, &refLocation->reference);
     });
 
-    RTSupport::Log::gc.Stream(Logging::Level::INFO).PrintFmt("end visiting global roots\n");
+    RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Output& out) { out << "end visiting global roots" << endl; });
 }
 
 }

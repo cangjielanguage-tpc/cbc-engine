@@ -53,31 +53,41 @@ static void EnsureEngineInitialized()
     g_Initialized = true;
 }
 
-static void FiberStart(DYN_CJThreadSpecificDataT* data)
+static void FiberStart(DYN_CJThreadSpecificDataT* data) { *data = nullptr; }
+
+extern "C" Interpretation::Ectype* FiberDataInit(DYN_CJThreadSpecificDataT* data) __asm__("engine_fiber_data_init");
+
+Interpretation::Ectype* FiberDataInit(DYN_CJThreadSpecificDataT* data)
 {
-    Interpretation::Ectype* ectype = new Interpretation::Ectype();
+    RTSupport::Log::rt.Log(Logging::Level::INFO, [&data](Stream::Output& out) {
+        out.PrintFmtLn("fiber init, fsd addr: %p, ectype addr: %p", data, *data);
+    });
+    ASSERTION(*data == nullptr, "Incorrect data value: %p", *data);
+
+    auto ectype = new Interpretation::Ectype();
+    *data       = ectype;
+
+    return ectype;
 }
 
-static void FiberDestroy(DYN_CJThreadSpecificDataT* data) { /* TODO: ectype cleanup */ }
+static void FiberDestroy(DYN_CJThreadSpecificDataT* data)
+{
+    if (*data == nullptr) {
+        // ectype wasn't initialized for this fiber, nothing to do here
+        return;
+    }
+
+    RTSupport::Log::rt.Log(Logging::Level::INFO, [&data](Stream::Output& out) {
+        out.PrintFmtLn("fiber destroy, fsd addr: %p, ectype addr: %p", data, *data);
+    });
+    delete static_cast<Interpretation::Ectype*>(*data);
+}
 
 static void IterateFramesWithState(
     DYN_CJThreadSpecificDataT threadSpecificData, void (*callback)(DYN_VisitingStateT, void*), void* ctx
 )
 {
-    RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Stream::Output& out) {
-        out.PrintFmt("start scanning frames, thread spec data = %p", threadSpecificData);
-        out.NewLine();
-    });
-
-    std::vector<uintptr_t> registersTable(Cbc::IReg::NON_VOLATILE_COUNT) DYN_VisitingStateT state =
-        nullptr; // TODO implement
-
-    callback(state, ctx);
-
-    RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Stream::Output& out) {
-        out.PrintFmt("end scanning frames, thread spec data = %p", threadSpecificData);
-        out.NewLine();
-    });
+    GCSupport::IterateFramesWithState(threadSpecificData, callback, ctx);
 }
 
 static void VisitFrameRootsMarking(DYN_VisitingStateT state, DYN_FrameDescT frame_desc, DYN_RootVisitorT root_visitor)
@@ -175,6 +185,9 @@ CBC_EXPORT int interpreter_bridge_init(
     interpInterf->visitFrameRootsMarking   = &VisitFrameRootsMarking;
     interpInterf->visitFrameRootsAdjusting = &VisitFrameRootsAdjusting;
     interpInterf->visitGlobalRoots         = &VisitGlobalRoots;
+
+    Asm::engine_carrier_specific_offset  = g_CJNativeInterfaceInstance.carrierSpecificOffset;
+    Asm::engine_cjthread_specific_offset = g_CJNativeInterfaceInstance.cjThreadSpecificOffset;
 
     Asm::engine_newobject_function = g_CJNativeInterfaceInstance.objectAlloc;
     RTSupport::Initialize(&g_CJNativeInterfaceInstance);

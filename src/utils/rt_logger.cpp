@@ -12,3 +12,6 @@ Logging::Logger RTSupport::Log::init(&initStream, Logging::Level::NONE);
 
 Stream::Descripted gcStream(Stream::cerr, "[GC] ");
 Logging::Logger RTSupport::Log::gc(&gcStream, Logging::Level::NONE);
+
+Stream::Descripted rtStream(Stream::cerr, "[RT] ");
+Logging::Logger RTSupport::Log::rt(&rtStream, Logging::Level::NONE);
