@@ -433,26 +433,47 @@ struct TermResolver {
                 }
                 auto identifier = type.value();
 
-                auto def  = Symlevel::TypeDefinition::Resolve(session, identifier);
-                if ((def.GetFlags().GetTypeKind() == Symlevel::TypeKind::RECORD) != (tag == REC)) {
+                auto def = Symlevel::TypeDefinition::Resolve(session, identifier);
+                if ((def.GetFlags().Is(Symlevel::TypeKind::RECORD)) != (tag == REC)) {
                     return NewUndefined(refId);
                 }
+                // TODO: verify def.arity == 0
 
-                auto* data      = AllocateTerm(heap);
+                auto data = AllocateTerm(heap);
                 data->InitAfterSubterms(TypeTermId(identifier), 0, true);
                 return Term(LocalTerm(data));
             }
             case AOT_REC: // fall-through
             case AOT_REF: {
                 auto nameOffs   = Offset<String>(reader.ReadULEB());
-                auto* data      = AllocateTerm(heap);
                 auto identifier = Identifier(nameOffs, fileId);
-                if (tag == AOT_REF) { 
-                    data->InitAfterSubterms(AotTermId(identifier), 0, true);
+                auto name       = Reader::Read(session, identifier);
+
+                // Attempt to find type definition, even if the type is tagged as aot.
+                // Because they could present in `TypeDefinition` super closure
+                // or be present as "patch".
+                auto type = session.GetEngine().FindType(session, name);
+                if (type.has_value()) {
+                    // While, such behaviour is possible for CBC defined types,
+                    // because of incorrect dependencies of cbc's (stability issues).
+                    // It is not expected from AOT code.
+                    ASSERTION(Symlevel::TypeDefinition::Resolve(session, *type)
+                            .GetFlags().Is(Symlevel::TypeKind::RECORD) != (tag == AOT_REC),
+                            "incorrect encoding");
+                    // TODO: assert def.arity == 0
+
+                    auto data = AllocateTerm(heap);
+                    data->InitAfterSubterms(TypeTermId(*type), 0, true);
+                    return Term(LocalTerm(data));
                 } else {
-                    data->InitAfterSubterms(AotRecTermId(identifier), 0, true);
+                    auto data = AllocateTerm(heap);
+                    if (tag == AOT_REF) {
+                        data->InitAfterSubterms(AotTermId(identifier), 0, true);
+                    } else {
+                        data->InitAfterSubterms(AotRecTermId(identifier), 0, true);
+                    }
+                    return Term(LocalTerm(data));
                 }
-                return Term(LocalTerm(data));
             }
             case METHOD_SIGNATURE: {
                 auto len   = reader.ReadU8() + 1; // +1 for ret type
