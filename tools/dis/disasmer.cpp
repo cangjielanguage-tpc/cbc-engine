@@ -2,10 +2,8 @@
 #include "engine/identifiers.h"
 #include "engine/symlevel/io/filesystem.h"
 #include "engine/symlevel/io/stream_file_reader.h"
-#include "engine/symlevel/offset.h"
 #include "engine/symlevel/references.h"
 #include "engine/symlevel/region_data.h"
-#include "engine/symlevel/sequence.h"
 #include <cstdint>
 #include <memory>
 
@@ -37,9 +35,9 @@ void Disasmer::Version(const VersionMetadata& md)
 void Disasmer::Region(String name, std::function<void()> fn)
 {
     io << name << " {" << endl;
-    idio.SetIndent([](auto indent) { return indent + 2; });
+    idio.SetIndent(idio.GetIndent() + 2);
     fn();
-    idio.SetIndent([](auto indent) { return indent - 2; });
+    idio.SetIndent(idio.GetIndent() - 2);
     io << "}" << endl;
 }
 

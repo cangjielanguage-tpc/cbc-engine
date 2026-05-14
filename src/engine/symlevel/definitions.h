@@ -75,7 +75,7 @@ private:
     Engine::RefIdentifier<Term> superType;
     TypeFlags flags;
 
-    RefSequence<Term> interfaces{};
+    RefSequence<Term> interfaces {};
 };
 
 class FieldDefinition {
@@ -84,7 +84,7 @@ public:
     static FieldDefinition Resolve(Engine::Session& session, Engine::Identifier<FieldDefinition> identifier);
     static String ParseName(Engine::Session& session, IO::FileId fileId, Offset<FieldDefinition> offset);
 
-    inline Offset<String> NameOffset() const { return nameOffset; }
+    inline Engine::Identifier<String> GetName() const { return Engine::Identifier(nameOffset, identifier.GetFileId()); }
 
     inline Engine::RefIdentifier<Term> FieldType() const { return fieldType; }
 

@@ -6,7 +6,6 @@
 #include "stream_file_reader.h"
 #include "utils/iterators.h"
 #include <cstdint>
-#include <functional>
 #include <optional>
 
 namespace IO {
@@ -50,13 +49,6 @@ public:
                 .cursor = offset,
             }
         );
-    }
-
-    void ForEach(RandomAccessFile& file, std::function<void(uint32_t)> f) const
-    {
-        for (uint32_t slotOffs = offset; slotOffs < size; slotOffs += sizeof(uint32_t)) {
-            f(Symlevel::RefId<T>(0, (slotOffs - offset) / sizeof(uint32_t))); // FIXME?
-        }
     }
 
 private:

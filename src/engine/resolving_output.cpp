@@ -14,7 +14,7 @@ namespace Stream {
 
 ResolvingOutput::ResolvingOutput(Engine::Session& session, Stream::Output& out)
     : session(session),
-      holder(Indented(out))
+      holder(Indented(out, 0))
 {}
 
 ResolvingOutput& ResolvingOutput::operator<<(Engine::Term term) { return *this << term.GetName(session); }
@@ -34,7 +34,7 @@ ResolvingOutput& ResolvingOutput::operator<<(Symlevel::FieldDefinition const& fd
 {
     auto& out  = *this;
     auto ftype = Detailed(fd.FieldType());
-    auto name  = StringOf(fd.NameOffset(), fd.FieldType().GetFileId());
+    auto name  = StringOf(fd.GetName());
     out << Detailed(fd.Flags()) << " " << Detailed(fd.FieldType()) << " " << name;
     return out;
 }
@@ -44,7 +44,7 @@ ResolvingOutput& ResolvingOutput::operator<<(NoResolve<Symlevel::FieldDefinition
     auto& out  = *this;
     auto& fd   = nr.value;
     auto ftype = fd.FieldType();
-    auto name  = fd.NameOffset();
+    auto name  = fd.GetName();
     out << Detailed(fd.Flags()) << ". field type: " << ftype << ". name: " << name;
     return out;
 }
@@ -194,9 +194,9 @@ ResolvingOutput& ResolvingOutput::operator<<(Engine::MethodTable const& mt)
 template <typename T> void ResolvingOutput::Region(T name, std::function<void()> f)
 {
     *this << name << " {" << endl;
-    out.SetIndent([](auto indent) { return indent + 2; });
+    out.SetIndent(out.GetIndent() + 2);
     f();
-    out.SetIndent([](auto indent) { return indent - 2; });
+    out.SetIndent(out.GetIndent() - 2);
     *this << "}" << endl;
 }
 

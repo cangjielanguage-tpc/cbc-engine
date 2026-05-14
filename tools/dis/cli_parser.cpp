@@ -5,15 +5,22 @@
 #include <cmath>
 #include <cstdlib>
 #include <filesystem>
-#include <functional>
 #include <iostream>
 #include <string_view>
-#include <unordered_map>
 #include <vector>
 
 namespace Cli {
 
 using namespace std;
+
+CliParser::CliParser(int argc, char* argv[], OptionsMap options) : opts(options)
+{
+    assert(argc > 0);
+    args.reserve(argc);
+    for (size_t i = 1; i < argc; i++) {
+        args.push_back(argv[i]);
+    }
+}
 
 void CliParser::Help()
 {
@@ -53,7 +60,7 @@ void CliParser::ParseOption(string_view sv, DisasmerBuilder& builder)
         exit(1);
     }
 
-    it->second(builder);
+    it->second(*this, builder);
 }
 
 Dis::Disasmer CliParser::CreateDisasmer(Stream::Output& out)
