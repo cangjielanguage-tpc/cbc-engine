@@ -505,8 +505,10 @@ static std::optional<FrameLayout> makeFrameLayout(Symlevel::Code code, Resolver&
     }
     auto savedRegsSpace = Cbc::STACK_SLOT_SIZE * savedRegsCount;
 
+    auto untypedSlotsSize = Cbc::STACK_SLOT_SIZE * code.UntypedSlotCount();
+
     std::unordered_map<uint32_t, uint32_t> typedOffset;
-    auto typedSlotsSize = 0;
+    auto stackAllocSize = untypedSlotsSize;
     for (uint32_t i = 0; i < code.StackAllocSigsCount(); i++) {
         auto typeOpt = resolver.Query(Index<Type>(code.StackAllocSigs()[i]));
         if (!typeOpt.has_value()) {
@@ -521,12 +523,9 @@ static std::optional<FrameLayout> makeFrameLayout(Symlevel::Code code, Resolver&
             return std::nullopt;
         }
 
-        typedOffset.insert({ i, typedSlotsSize });
-        typedSlotsSize += MathUtils::AlignUp(size.value(), Cbc::STACK_SLOT_SIZE);
+        typedOffset.insert({ i, stackAllocSize });
+        stackAllocSize += MathUtils::AlignUp(size.value(), Cbc::STACK_SLOT_SIZE);
     }
-
-    auto untypedSlotsSize = Cbc::STACK_SLOT_SIZE * code.UntypedSlotCount();
-    auto stackAllocSize   = typedSlotsSize + untypedSlotsSize;
 
     auto frameSize = MathUtils::AlignUp(savedRegsSpace + stackAllocSize, Cbc::FRAME_ALIGNMENT);
 
