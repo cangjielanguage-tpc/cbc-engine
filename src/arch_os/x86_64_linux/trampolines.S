@@ -26,7 +26,6 @@ declare_hidden engine_newobject_function
 declare_hidden engine_carrier_specific_offset
 declare_hidden engine_cjthread_specific_offset
 
-
 // --- SECTION BSS ---
 .section .bss
 

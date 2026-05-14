@@ -59,6 +59,11 @@ private:
 
 void IterateFramesWithState(DYN_CJThreadSpecificDataT threadSpecificData, void (*callback)(DYN_VisitingStateT, void*), void* ctx)
 {
+    if (threadSpecificData == nullptr) {
+        // fiber didn't executed patch code, nothing to do
+        return;
+    }
+
     RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Output& out) {
         out.PrintFmtLn("start scanning frames, thread spec data = %p", threadSpecificData);
     });

@@ -7,6 +7,7 @@
 
 .extern engine_prepare_bytecode
 .extern engine_interpretation_loop
+.extern engine_fiber_data_init
 
 // exported
 declare_hidden engine_c2i_call_pc_start
@@ -20,17 +21,11 @@ declare_hidden engine_i2_newobject
 declare_hidden engine_i2_gcpoint
 declare_hidden engine_universal_direct_function_handles
 declare_hidden engine_newobject_function
-
+declare_hidden engine_carrier_specific_offset
+declare_hidden engine_cjthread_specific_offset
 
 // --- SECTION BSS ---
 .section .bss
-
-// Fake Ectype* instance represented as global
-// FIXME: get Ectype* instance from ThreadHandle
-.align 16
-.local engine_fake_ectype
-engine_fake_ectype:
-  .skip 1024
 
 .align 16
 engine_universal_direct_function_handles:
