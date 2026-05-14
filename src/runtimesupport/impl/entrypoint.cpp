@@ -18,6 +18,7 @@
 #include "interpreter/loggers.h"
 #include "runtimesupport/impl/rt_syms.h"
 #include "utils/logger.h"
+#include "utils/ostream.h"
 #include "utils/rt_logger.h"
 
 DYN_CJNativeInterfaceT g_CJNativeInterfaceInstance;
@@ -60,14 +61,16 @@ static void IterateFramesWithState(
 )
 {
     RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Stream::Output& out) {
-        out.PrintFmt("start scanning frames, thread spec data = %p\n", threadSpecificData);
+        out.PrintFmt("start scanning frames, thread spec data = %p", threadSpecificData);
+        out.NewLine();
     });
 
     DYN_VisitingStateT state = nullptr; // TODO implement
     callback(state, ctx);
 
     RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Stream::Output& out) {
-        out.PrintFmt("end scanning frames, thread spec data = %p\n", threadSpecificData);
+        out.PrintFmt("end scanning frames, thread spec data = %p", threadSpecificData);
+        out.NewLine();
     });
 }
 
@@ -94,20 +97,23 @@ static void VisitGCFrameRoots(DYN_FrameDescT frame_desc, DYN_RootVisitorT root_v
 
     RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Stream::Output& out) {
         out.PrintFmt(
-            "start visiting frame (fuh=%p, fp=%p, pos=%p, slots_addr=%p)\n", fuh, frame_desc, curPos, slotsStartAddr
+            "start visiting frame (fuh=%p, fp=%p, pos=%p, slots_addr=%p)", fuh, frame_desc, curPos, slotsStartAddr
         );
+        out.NewLine();
     });
 
     for (auto& refSlotOffset : NOTNULL(refInfo)->refSlotOffsets) {
         uintptr_t* refLocation = reinterpret_cast<uintptr_t*>(slotsStartAddr + refSlotOffset);
         RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
-            out.PrintFmt("visiting %p, value=%p\n", refLocation, *refLocation);
+            out.PrintFmt("visiting %p, value=%p", refLocation, *refLocation);
+            out.NewLine();
         });
         g_CJNativeInterfaceInstance.visitRootFromInterpreter(root_visitor, refLocation);
     }
 
     RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Stream::Output& out) {
-        out.PrintFmt("end visiting frame (fuh=%p)\n", fuh);
+        out.PrintFmt("end visiting frame (fuh=%p)", fuh);
+        out.NewLine();
     });
 }
 
@@ -140,17 +146,18 @@ static void VisitFrameRootsExpansion(
 
 static void VisitGlobalRoots(DYN_RootVisitorT visitor)
 {
-    RTSupport::Log::gc.Stream(Logging::Level::INFO).PrintFmt("start visiting global roots\n");
+    RTSupport::Log::gc.Stream(Logging::Level::INFO) << "start visiting global roots" << Stream::endl;
 
     auto& engine = Engine::GetEngineInstance();
     Engine::StaticsManager::Of(engine).VisitRefLocations([visitor](Engine::RefLocation* refLocation) {
         RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Stream::Output& out) {
-            out.PrintFmt("visiting %p, value=%p\n", refLocation, *refLocation);
+            out.PrintFmt("visiting %p, value=%p", refLocation, *refLocation);
+            out.NewLine();
         });
         g_CJNativeInterfaceInstance.visitRootFromInterpreter(visitor, refLocation);
     });
 
-    RTSupport::Log::gc.Stream(Logging::Level::INFO).PrintFmt("end visiting global roots\n");
+    RTSupport::Log::gc.Stream(Logging::Level::INFO) << "end visiting global roots" << Stream::endl;
 }
 
 extern "C" {

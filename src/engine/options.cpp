@@ -1,13 +1,12 @@
 #include "engine/options.h"
 
 #include "cbc/isa_disasm.h"
+#include "engine/method_table.h"
 #include "interpreter/loggers.h"
 #include "resolution/resolution.h"
 #include "runtimesupport/impl/entrypoint.h"
 
-#include "utils/logger.h"
-
-namespace Engine {
+#include "utils/rt_logger.h"
 
 using Options::Option;
 using Options::SetLogLevelValue;
@@ -20,11 +19,17 @@ constexpr Option globalOptionsArray[] = {
     { "cbc.log.resolution", &Resolution::log, &SetLogLevelValue },
     { "cbc.log.int", &Interpretation::Log::interpretation, &SetLogLevelValue },
     { "cbc.log.preparation", &Interpretation::Log::preparation, &SetLogLevelValue },
+    { "cbc.log.method.table", &Engine::Log::mt, &SetLogLevelValue },
+    { "cbc.log.root.scan", &RTSupport::Log::gc, &SetLogLevelValue },
+    { "cbc.log.init", &RTSupport::Log::init, &SetLogLevelValue },
+    { "cbc.log.typeinfo", &RTSupport::Log::typeinfo, &SetLogLevelValue },
     { "cbc.log.all", nullptr, &SetAllLogLevels },
     { "cbc.dasm", &Cbc::g_IsRawDisasmEnabled, &SetBoolValue },
     { "cbc.path", &g_cbcPath, &SetStringValue },
     { "cbc.main", &g_mainCbc, &SetStringValue },
 };
+
+namespace Engine {
 
 Table const g_table(globalOptionsArray);
 
