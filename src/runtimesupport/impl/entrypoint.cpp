@@ -97,7 +97,12 @@ static void VisitGCFrameRoots(DYN_FrameDescT frame_desc, DYN_RootVisitorT root_v
 
     RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Stream::Output& out) {
         out.PrintFmt(
-            "start visiting frame (fuh=%p, fp=%p, pos=%p, slots_addr=%p)", fuh, frame_desc, curPos, slotsStartAddr
+            "start visiting frame (fuh=%p, ip=%p, fp=%p, pos=%p, slots_addr=%p)",
+            fuh,
+            frame_desc.ip,
+            frame_desc.fp,
+            curPos,
+            slotsStartAddr
         );
         out.NewLine();
     });
