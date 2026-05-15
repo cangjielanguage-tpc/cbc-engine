@@ -268,6 +268,6 @@ void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* f
 
 uint32_t MetaInfo::GetTypeSize(TypeInfo ti) { return Interpretation::Extract(ti)->size; }
 
-uint8_t GetAlign(TypeInfo ti) { return alignof(max_align_t); }
+uint8_t MetaInfo::GetAlign(TypeInfo ti) { return alignof(max_align_t); }
 
 } // namespace RTSupport
