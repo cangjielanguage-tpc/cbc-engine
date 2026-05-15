@@ -351,6 +351,8 @@ perform_2i_call:
   POP_IREGS w8, x1, x9
   POP_FREGS w8, x1, x9
 
+  ldr   LITERALS_REG, [x29, #-0x18]
+
   mov   sp, x29
   ldp   x29, x30, [sp], #16
   ret
