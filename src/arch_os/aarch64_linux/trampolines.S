@@ -174,7 +174,7 @@ engine_i2i_call:
 
 
 .align 16
-// expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: fuh)
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: target)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
 engine_i2c_call:
@@ -224,7 +224,7 @@ perform_2i_call:
   // fp-0x8: FunctionHandle for frame scanning,
   // fp-0x10: Ectype
   // fp-0x18: Literals
-  stp   x0, ECTYPE_REG, [sp, #-16]!
+  stp   ECTYPE_REG, x0, [sp, #-16]!
   str   LITERALS_REG, [sp, #-8]!
 
 .set OFFS_ADDEND, 0x0
@@ -281,20 +281,20 @@ perform_2i_call:
 .macro PUSH_IREGS mask_reg, stack_reg, exec_info_reg
     ldrh  \mask_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
     .irp reg, 10,11,12,13
-        tbz \mask_reg, #(\reg-8), saveireg\reg
+        tbz \mask_reg, #(\reg-8), .Lsaveireg\reg
         ldr x2, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + \reg*ECTYPE_REG_SIZE)]
         str x2, [\stack_reg, #-ECTYPE_REG_SIZE]!
-saveireg\reg:
+.Lsaveireg\reg:
     .endr
 .endm
 
 .macro PUSH_FREGS mask_reg, stack_reg, exec_info_reg
     ldrh  \mask_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_FREGS_OFFSET]
     .irp reg, 8,9,10,11,12,13,14,15
-        tbz \mask_reg, #(\reg-8), savefreg\reg
+        tbz \mask_reg, #(\reg-8), .Lsavefreg\reg
         ldr d2, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET + \reg*ECTYPE_REG_SIZE)]
         str d2, [\stack_reg, #-ECTYPE_REG_SIZE]!
-savefreg\reg:
+.Lsavefreg\reg:
     .endr
 .endm
 
@@ -331,20 +331,20 @@ savefreg\reg:
 .macro POP_IREGS mask_reg, stack_reg, exec_info_reg
     ldrh  \mask_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
     .irp reg, 13,12,11,10
-        tbz \mask_reg, #(\reg-8), loadireg\reg
+        tbz \mask_reg, #(\reg-8), .Lloadireg\reg
         ldr x2, [\stack_reg], #0x8
         str x2, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + \reg*8)]
-loadireg\reg:
+.Lloadireg\reg:
     .endr
 .endm
 
 .macro POP_FREGS mask_reg, stack_reg, exec_info_reg
     ldrh  \mask_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_FREGS_OFFSET]
     .irp reg, 15,14,13,12,11,10,9,8
-        tbz \mask_reg, #(\reg-8), loadfreg\reg
+        tbz \mask_reg, #(\reg-8), .Lloadfreg\reg
         ldr d2, [\stack_reg], #0x8
         str d2, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET + \reg*8)]
-loadfreg\reg:
+.Lloadfreg\reg:
     .endr
 .endm
 

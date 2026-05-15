@@ -291,11 +291,11 @@ perform_2i_call:
     .irp reg, 8,9,10,11,12,13
         .set _bit, (\reg - 8)
         test    \mask_reg, (1 << _bit)
-        jz      saveireg\reg
+        jz      .Lsaveireg\reg
         mov     rsi, QWORD PTR [ECTYPE_REG + ECTYPE_IREGS_OFFSET + \reg*ECTYPE_REG_SIZE]
         sub     \stack_reg, ECTYPE_REG_SIZE
         mov     QWORD PTR [\stack_reg], rsi
-saveireg\reg:
+.Lsaveireg\reg:
     .endr
 .endm
 
@@ -304,11 +304,11 @@ saveireg\reg:
     .irp reg, 8,9,10,11,12,13,14,15
         .set _bit, (\reg - 8)
         test    \mask_reg, (1 << _bit)
-        jz      savefreg\reg
+        jz      .Lsavefreg\reg
         mov     rsi, QWORD PTR [ECTYPE_REG + ECTYPE_FREGS_OFFSET + \reg*ECTYPE_REG_SIZE]
         sub     \stack_reg, ECTYPE_REG_SIZE
         mov     QWORD PTR [\stack_reg], rsi
-savefreg\reg:
+.Lsavefreg\reg:
     .endr
 .endm
 
@@ -352,11 +352,11 @@ savefreg\reg:
     .irp reg, 8,9,10,11,12,13
         .set _bit, (\reg - 8)
         test    \mask_reg, (1 << _bit)
-        jz      loadireg\reg
+        jz      .Lloadireg\reg
         sub     \stack_reg, 8
         mov     rsi, QWORD PTR [\stack_reg]
         mov     QWORD PTR [ECTYPE_REG + ECTYPE_IREGS_OFFSET + \reg*8], rsi
-loadireg\reg:
+.Lloadireg\reg:
     .endr
 .endm
 
@@ -365,11 +365,11 @@ loadireg\reg:
     .irp reg, 8,9,10,11,12,13,14,15
         .set _bit, (\reg - 8)
         test    \mask_reg, (1 << _bit)
-        jz      loadfreg\reg
+        jz      .Lloadfreg\reg
         sub     \stack_reg, 8
         mov     rsi, QWORD PTR [\stack_reg]
         mov     QWORD PTR [ECTYPE_REG + ECTYPE_FREGS_OFFSET + \reg*8], rsi
-loadfreg\reg:
+.Lloadfreg\reg:
     .endr
 .endm
 
