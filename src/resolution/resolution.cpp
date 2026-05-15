@@ -507,7 +507,7 @@ template <typename Field> std::optional<Field> ResolveField(Resolver::Impl& reso
         }
         case TermKind::TYPE: {
             if constexpr (std::is_same_v<Field, InstanceField>) {
-                auto optlayout = resolver.fieldManager->GetLayout(ref.fieldType);
+                auto optlayout = resolver.fieldManager->GetLayout(ref.refType);
                 if (!optlayout.has_value()) {
                     return std::nullopt;
                 }

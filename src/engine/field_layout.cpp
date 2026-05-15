@@ -245,14 +245,16 @@ private:
             return std::nullopt;
         }
 
+        size_t ordinal = layout.fields.size();
         for (auto fieldId : def.GetInstanceFields().Values(session)) {
             auto def = Symlevel::Reader::Read(session, fieldId);
             // FIXME: substitution
             auto fieldType = TermManager::Resolve(session, def.FieldType());
 
-            auto offset = RTSupport::Execution::GetFieldOffset(*typeInfo, 0, false);
+            auto offset = RTSupport::Execution::GetFieldOffset(*typeInfo, ordinal, false);
             layout.fields.emplace_back(FieldLayout::Entry {
                 .definition = fieldId, .fieldType = fieldType, .offset = offset });
+            ordinal++;
         }
         return FieldLayout(std::move(layout));
     }
@@ -278,8 +280,9 @@ private:
             std::optional<uint32_t> offset = std::nullopt;
 
             if (size.has_value()) {
-                auto offset = MathUtils::AlignUp(*size, fieldAlignment);
-                size        = offset;
+                auto offs = MathUtils::AlignUp(*size, fieldAlignment);
+                size      = offs;
+                offset    = offs;
                 if (fieldSize.has_value()) {
                     size = *size + *fieldSize;
                 }
