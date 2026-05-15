@@ -53,7 +53,7 @@ enum class CbcTypeKind {
 /// The handle that represents a type.
 class Type {
 public:
-    ~Type() = default;
+    virtual ~Type() = default;
 
     /// Full name of the type.
     virtual void GetFullName(Stream::Output& stream) const = 0;
