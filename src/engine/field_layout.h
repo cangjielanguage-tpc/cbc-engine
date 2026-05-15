@@ -4,6 +4,7 @@
 #include "engine/identifiers.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/terms.h"
+#include "engine/typeinfo_manager.h"
 #include <cstdint>
 #include <memory>
 
@@ -37,7 +38,8 @@ private:
 
 class FieldLayoutManager {
 public:
-    static std::unique_ptr<FieldLayoutManager> Of(Session& session);
+    static std::unique_ptr<FieldLayoutManager> New(Session& session);
+    static std::unique_ptr<FieldLayoutManager> New(Session& session, TypeInfoManager& typeInfoManager);
 
     /// Computes the layout of fields of the type provided by term.
     /// Expects only terms which are backed by TypeDefinition (classes and structs).

@@ -211,6 +211,7 @@ static MethodTableMember GetTableMember(
     }
 }
 
+// TODO: factory class, so it can hold state other managers without recreating them
 static std::optional<TypeInfo> CreateTypeInfoDyn(
     Engine::Session& session, Engine::TypeInfoManager& manager, Engine::GlobalTerm term
 )
@@ -353,8 +354,8 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
     auto typeKind = type.GetFlags().GetTypeKind();
     if (typeKind == Symlevel::TypeKind::RECORD || typeKind == Symlevel::TypeKind::CLASS) {
-        auto manager = Engine::FieldLayoutManager::Of(session);
-        auto optlayout = manager->GetLayout(term);
+        auto fieldManager = Engine::FieldLayoutManager::New(session, manager);
+        auto optlayout = fieldManager->GetLayout(term);
 
         bool hasProperLayout = optlayout.has_value();
         if (hasProperLayout) {

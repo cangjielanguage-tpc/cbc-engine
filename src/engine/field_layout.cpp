@@ -27,9 +27,11 @@ FieldLayout::Content const& FieldLayout::operator*() const { return *content; }
 struct FLManager : public FieldLayoutManager {
 
     Session& session;
+    TypeInfoManager& typeInfoManager;
     std::unordered_map<Term, FieldLayout, Term::Hasher> cache;
 
-    FLManager(Session& session) : session(session) {}
+    FLManager(Session& session, TypeInfoManager& typeInfoManager) :
+        session(session), typeInfoManager(typeInfoManager) {}
 
     std::optional<FieldLayout> GetLayout(Term term) override
     {
@@ -98,7 +100,7 @@ struct FLManager : public FieldLayoutManager {
             }
 
             case TK::AOT_REC: {
-                auto ti = TypeInfoManager::Of(session).AcquireTypeInfo(session, term);
+                auto ti = typeInfoManager.AcquireTypeInfo(session, term);
                 if (!ti.has_value()) {
                     return std::nullopt;
                 }
@@ -300,9 +302,14 @@ private:
     }
 };
 
-std::unique_ptr<FieldLayoutManager> FieldLayoutManager::Of(Session& session)
+std::unique_ptr<FieldLayoutManager> FieldLayoutManager::New(Session& session)
 {
-    return std::make_unique<FLManager>(session);
+    return std::make_unique<FLManager>(session, TypeInfoManager::Of(session));
+}
+
+std::unique_ptr<FieldLayoutManager> FieldLayoutManager::New(Session& session, TypeInfoManager& typeInfoManager)
+{
+    return std::make_unique<FLManager>(session, typeInfoManager);
 }
 
 FieldLayoutManager::~FieldLayoutManager() = default;

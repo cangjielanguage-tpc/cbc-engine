@@ -62,7 +62,7 @@ struct Resolver::Impl {
         : session(session),
           method(method),
           fileId(method.GetFileId()),
-          fieldManager(FieldLayoutManager::Of(session))
+          fieldManager(FieldLayoutManager::New(session))
     {}
 
     template <typename T> using Cache = std::unordered_map<int, T*>;
