@@ -117,6 +117,8 @@ FieldDefinition FieldDefinition::Parse(Engine::Session& session, IO::FileId file
         flags = flags.Or(FieldFlag::STATIC);
     if (test(0x08))
         flags = flags.Or(FieldFlag::FINAL);
+    if (test(0x20))
+        flags = flags.Or(FieldFlag::AOT);
 
     return FieldDefinition(
         Engine::Identifier<FieldDefinition>(offset, fileId), nameOffset, fieldType, flags, {}
