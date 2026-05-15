@@ -1,5 +1,6 @@
 #pragma once
 
+#include "engine/symlevel/version_metadata.h"
 #include "io/file_id.h"
 #include "io/stream_file_reader.h"
 #include "offset.h"
@@ -54,6 +55,8 @@ public:
 
     String GetName() const;
     String GetPath() const;
+
+    const VersionMetadata& GetVersionMetadata() const;
 
     const RegionData& GetRegionData() const;
     const TypeIndex& GetTypeIndex() const;

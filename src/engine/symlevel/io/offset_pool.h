@@ -1,13 +1,31 @@
 #pragma once
 
 #include "engine/symlevel/index.h"
+#include "engine/symlevel/io/random_access_file.h"
 #include "engine/symlevel/offset.h"
 #include "stream_file_reader.h"
+#include "utils/iterators.h"
 #include <cstdint>
+#include <optional>
 
 namespace IO {
 
 template <typename T> class OffsetPool {
+    struct OffsetGenerator {
+        OffsetPool<T> const& op;
+        uint32_t cursor;
+        uint8_t region;
+
+        std::optional<Symlevel::RefId<T>> operator()()
+        {
+            if (cursor < op.size) {
+                return Symlevel::RefId<T>(region, cursor++);
+            } else {
+                return std::nullopt;
+            }
+        }
+    };
+
 public:
     OffsetPool(uint32_t offset, uint32_t size) : offset(offset), size(size) {}
 
@@ -18,6 +36,17 @@ public:
 
         uint32_t offs = offset + idx * sizeof(uint32_t);
         return Symlevel::Offset<T>(IO::StreamFileReader(file, offs).ReadU32());
+    }
+
+    Iterators::SimpleRange<OffsetGenerator> RefIds(uint8_t region) const
+    {
+        return Iterators::MakeRange(
+            OffsetGenerator {
+                .op     = *this,
+                .cursor = 0,
+                .region = region,
+            }
+        );
     }
 
 private:
