@@ -57,10 +57,6 @@ void Disasmer::RData(RegionData const& rd, uint8_t regionNum)
     Region("methods: ", [&]() {
         auto mrefs = rd.MethodReferencesOffsets().RefIds(regionNum);
         for (auto refid : mrefs) {
-            // FieldReference ParseReference(
-            //     Engine::Session& session, IO::FileId fileId, Offset<FieldReference> offset, uint8_t region
-            // )
-
             auto methodIdx       = RefIdentifier(refid, currentFile->Id());
             auto methodReference = MethodReference::Parse(*session, methodIdx);
 
@@ -71,8 +67,7 @@ void Disasmer::RData(RegionData const& rd, uint8_t regionNum)
     Region("terms: ", [&]() {
         auto terms = rd.TermsOffsets().RefIds(regionNum);
         for (auto refid : terms) {
-            // TODO
-            auto newrefid = RefId<Term>(regionNum, refid.GetIndex() - Term::FIRST_NON_PRIMITIVE);
+            auto newrefid = RefId<Term>(regionNum, refid.GetIndex());
             auto termIdx  = RefIdentifier(newrefid, currentFile->Id());
             auto term     = TermManager::Resolve(*session, termIdx);
 
