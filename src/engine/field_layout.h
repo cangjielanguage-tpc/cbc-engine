@@ -22,13 +22,13 @@ public:
     };
 
     struct SizeDesc {
-        std::optional<uint32_t> size;
-        uint8_t alignment; // required for records, for references - always 8.
+        std::optional<uint32_t> size{0};
+        uint8_t alignment{1}; // required for records, for references - always 8.
     };
 
     struct Content {
         std::vector<Entry> fields;
-        SizeDesc desc;
+        SizeDesc desc{};
     };
 
     FieldLayout(Content&& content);

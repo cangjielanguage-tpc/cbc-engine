@@ -4,6 +4,7 @@
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/flags.h"
 #include "engine/symlevel/reader.h"
+#include "engine/symlevel/type_kind.h"
 #include "engine/terms.h"
 #include "engine/typeinfo_manager.h"
 #include "runtimesupport/runtime.h"
@@ -207,7 +208,6 @@ private:
 
         std::optional<FieldLayout> layout {};
 
-        // FIXME: records
         if (def.GetFlags().Is(Symlevel::TypeFlag::AOT)) {
             layout = BuildLayoutAot(term, def);
         } else {
@@ -227,11 +227,11 @@ private:
 
     std::optional<FieldLayout> BuildLayoutAot(Term term, Symlevel::TypeDefinition& def)
     {
-        auto optlayout = GetSuperLayout(def);
+        auto optlayout = GetTypeBaseLayout(def);
         if (!optlayout.has_value()) {
             return std::nullopt;
         }
-        FieldLayout::Content layout(std::move(optlayout).value());
+        FieldLayout::Content layout(std::move(*optlayout));
         // TODO:we can not properly query offsets of generic type.
         // if (term.IsGeneric()) { layout.size = std::nullopt; layout.alignment = MAX_ALIGN; }
 
@@ -262,16 +262,15 @@ private:
 
     std::optional<FieldLayout> BuildLayoutCbc(Term term, Symlevel::TypeDefinition& def)
     {
-        auto optlayout = GetSuperLayout(def);
+        auto optlayout = GetTypeBaseLayout(def);
         if (!optlayout.has_value()) {
             return std::nullopt;
         }
-        FieldLayout::Content layout(std::move(optlayout).value());
+        FieldLayout::Content layout(std::move(*optlayout));
 
         auto& alignment = layout.desc.alignment;
         auto& size      = layout.desc.size;
 
-        // FIXME: split table for instance and static fields in encoding.
         for (auto fieldId : def.GetInstanceFields().Values(session)) {
             auto def = Symlevel::Reader::Read(session, fieldId);
             // FIXME: substitution
@@ -305,11 +304,14 @@ private:
         return FieldLayout(std::move(layout));
     }
 
-    std::optional<FieldLayout::Content> GetSuperLayout(Symlevel::TypeDefinition& def)
+    /// Layout of the super type for classes or empty layout for records.
+    std::optional<FieldLayout::Content> GetTypeBaseLayout(Symlevel::TypeDefinition& def)
     {
         auto super = TermManager::Resolve(session, def.GetSuperType());
         if (super.GetKind() == TermKind::UNDEFINED) {
             return std::nullopt;
+        } else if (def.GetFlags().Is(Symlevel::TypeKind::RECORD)) {
+            return FieldLayout::Content();
         } else if (super.GetKind() == TermKind::TYPE) {
             auto opt = GetLayout(super);
             if (!opt.has_value()) {
@@ -319,11 +321,9 @@ private:
         } else {
             ASSERTION(super.GetKind() == TermKind::NIL, "only nil or type term kinds are expected for super");
 
-            FieldLayout::Content base { .fields {},
-                                        .desc = {
-                                            .size      = 0,
-                                            .alignment = 8,
-                                        } };
+            FieldLayout::Content base;
+            base.desc.alignment = sizeof(void*);
+
             return base;
         }
     }
