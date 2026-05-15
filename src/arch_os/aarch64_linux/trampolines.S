@@ -35,6 +35,14 @@ engine_universal_direct_function_handles:
 engine_newobject_function:
   .skip 8
 
+.align 16
+engine_carrier_specific_offset:
+  .skip 8
+
+.align 16
+engine_cjthread_specific_offset:
+  .skip 8
+
 // --- SECTION TEXT ---
 .section .text
 
