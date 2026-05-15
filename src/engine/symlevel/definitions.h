@@ -34,17 +34,17 @@ public:
 
     Engine::Identifier<TypeDefinition> const GetIdentifier() { return identifier; }
 
-    Engine::Identifier<String> const GetName() { return name; }
+    Engine::Identifier<String> const GetName() const { return name; }
 
-    MethodIndex const GetMethods() { return methods; }
+    MethodIndex const GetMethods() const { return methods; }
 
-    FieldIndex const GetFields() { return fields; }
+    FieldIndex const GetFields() const { return fields; }
 
-    OffsetSequence<MethodDefinition> const GetVirtualMethods() { return virtualMethods; }
+    OffsetSequence<MethodDefinition> const GetVirtualMethods() const { return virtualMethods; }
 
-    Engine::RefIdentifier<Term> const GetSuperType() { return superType; }
+    Engine::RefIdentifier<Term> const GetSuperType() const { return superType; }
 
-    TypeFlags const GetFlags() { return flags; }
+    TypeFlags const GetFlags() const { return flags; }
 
     RefSequence<Term> GetInterfaces() { return interfaces; }
 
@@ -75,7 +75,7 @@ private:
     Engine::RefIdentifier<Term> superType;
     TypeFlags flags;
 
-    RefSequence<Term> interfaces{};
+    RefSequence<Term> interfaces {};
 };
 
 class FieldDefinition {
@@ -84,13 +84,13 @@ public:
     static FieldDefinition Resolve(Engine::Session& session, Engine::Identifier<FieldDefinition> identifier);
     static String ParseName(Engine::Session& session, IO::FileId fileId, Offset<FieldDefinition> offset);
 
-    inline Offset<String> NameOffset() const { return nameOffset; }
+    inline Engine::Identifier<String> GetName() const { return Engine::Identifier(nameOffset, identifier.GetFileId()); }
 
     inline Engine::RefIdentifier<Term> FieldType() const { return fieldType; }
 
     inline Engine::Identifier<FieldDefinition> Identifier() { return identifier; }
 
-    inline FieldFlags Flags() { return flags; }
+    inline FieldFlags Flags() const { return flags; }
 
 private:
     FieldDefinition(
@@ -126,11 +126,11 @@ public:
 
     inline std::optional<Engine::Identifier<Code>> MethodCode() const { return code; }
 
-    std::optional<Engine::Identifier<String>> SourceFile() { return sourceFile; }
+    std::optional<Engine::Identifier<String>> SourceFile() const { return sourceFile; }
 
-    std::optional<Engine::Identifier<String>> SourceFullName() { return sourceFullName; }
+    std::optional<Engine::Identifier<String>> SourceFullName() const { return sourceFullName; }
 
-    std::optional<Engine::Identifier<String>> LinkageName() { return linkageName; }
+    std::optional<Engine::Identifier<String>> LinkageName() const { return linkageName; }
 
     inline IO::FileId FileId() const { return identifier.GetFileId(); }
 

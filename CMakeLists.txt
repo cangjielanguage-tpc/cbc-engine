@@ -63,6 +63,8 @@ target_link_options(cbcengine PRIVATE
 
 set_target_properties(cbcengine PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+add_subdirectory(tools/dis)
+
 if(BUILD_TESTING)
   add_subdirectory(test)
 endif()
