@@ -474,7 +474,7 @@ template <typename Field> std::optional<Field> ResolveField(Resolver::Impl& reso
 
     if (ref.refType.GetKind() == TermKind::UNDEFINED || ref.fieldType.GetKind() == TermKind::UNDEFINED) {
         // undef terms would be reported separately
-        log.Stream(Logging::Level::ERROR) << "Failed to parse field reference " << id.GetValue();
+        log.Stream(Logging::Level::ERROR) << "Failed to parse field reference " << id.GetValue() << Stream::endl;
         return std::nullopt;
     }
 
