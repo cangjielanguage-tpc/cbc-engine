@@ -256,6 +256,10 @@ private:
                 .definition = fieldId, .fieldType = fieldType, .offset = offset });
             ordinal++;
         }
+
+        layout.desc.size = RTSupport::MetaInfo::GetTypeSize(*typeInfo);
+        layout.desc.alignment = RTSupport::MetaInfo::GetAlign(*typeInfo);
+
         return FieldLayout(std::move(layout));
     }
 
