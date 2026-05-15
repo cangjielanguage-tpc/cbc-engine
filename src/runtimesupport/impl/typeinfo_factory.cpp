@@ -362,10 +362,9 @@ static std::optional<TypeInfo> QueryTypeInfoAOTByName(char const* str)
     }
 }
 
-static std::optional<TypeInfo> QueryTypeInfoAOT(Engine::Session& session, Engine::GlobalTerm term)
+static std::optional<TypeInfo> QueryTypeInfoAOT(Engine::Session& session, Engine::Identifier<Symlevel::String> ident)
 {
-    auto ident    = Engine::AotTermId(term).GetIdentifier();
-    auto typeName = std::string(Symlevel::Reader::Read(session, ident));
+    auto typeName = std::string(Symlevel::Reader::Read(session, ident.GetFileId(), ident.GetOffset()));
 
     auto typeInfo = g_CJNativeInterfaceInstance.typeInfo(typeName.c_str());
     if (typeInfo == nullptr) {
@@ -386,8 +385,10 @@ std::optional<TypeInfo> CreateTypeInfo(
     auto createTypeInfo = [&]() {
         auto termIdent = term.GetId();
         switch (termIdent.GetKind()) {
-            case Engine::TermKind::AOT_TYPE: return QueryTypeInfoAOT(session, term);
-            case Engine::TermKind::TYPE:     return CreateTypeInfoDyn(session, manager, term);
+        case Engine::TermKind::TYPE:    return CreateTypeInfoDyn(session, manager, term);
+
+        case Engine::TermKind::AOT_TYPE: return QueryTypeInfoAOT(session, Engine::AotTermId(term).GetIdentifier());
+        case Engine::TermKind::AOT_REC:  return QueryTypeInfoAOT(session, Engine::AotRecTermId(term).GetIdentifier());
 
             case Engine::TermKind::BOOLEAN: return QueryTypeInfoAOTByName("Bool");
             case Engine::TermKind::U8:      return QueryTypeInfoAOTByName("UInt8");

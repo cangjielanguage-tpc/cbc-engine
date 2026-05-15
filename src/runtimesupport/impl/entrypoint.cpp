@@ -1,12 +1,16 @@
+#include "runtimesupport/impl/entrypoint.h"
+
 #include <filesystem>
 #include <mutex>
 
 #include "RTInterface.h"
+#include "asm_export.h"
 #include "asm_trampolines.h"
 #include "cbc/isa_disasm.h"
 #include "cbc_engine.h"
 #include "cjnative.h"
 #include "engine/engine.h"
+#include "engine/options.h"
 #include "engine/statics_manager.h"
 #include "engine/symlevel/io/filesystem.h"
 #include "interpreter/ectype.h"
@@ -14,20 +18,20 @@
 #include "interpreter/loggers.h"
 #include "runtimesupport/impl/rt_syms.h"
 #include "utils/logger.h"
-#include "utils/options.h"
+#include "utils/ostream.h"
+#include "utils/rt_logger.h"
 
 DYN_CJNativeInterfaceT g_CJNativeInterfaceInstance;
 
 static std::mutex g_InitializationGuard;
 static bool g_Initialized;
 static bool g_OptionsInitialized;
-static char const* g_cbcPath;
-static char const* g_mainCbc;
 
-static void InitEnvOpts() {
+static void InitEnvOpts()
+{
     std::lock_guard guard(g_InitializationGuard);
     if (!g_OptionsInitialized) {
-        Options::InitEnvOptions();
+        Engine::InitEnvOptions();
         g_OptionsInitialized = true;
     }
 }
@@ -41,6 +45,7 @@ static void EnsureEngineInitialized()
         return;
     }
 
+    Engine::InitEnvOptions();
     Engine::Loader loader;
     loader.Load(IO::OpenFile(std::filesystem::path(g_mainCbc)), g_mainCbc);
     loader.Build();
@@ -54,11 +59,73 @@ static void FiberDestroy(DYN_CJThreadSpecificDataT* data) { /* TODO: ectype clea
 static void IterateFramesWithState(
     DYN_CJThreadSpecificDataT threadSpecificData, void (*callback)(DYN_VisitingStateT, void*), void* ctx
 )
-{ /* no-op */
+{
+    RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Stream::Output& out) {
+        out.PrintFmt("start scanning frames, thread spec data = %p", threadSpecificData);
+        out.NewLine();
+    });
+
+    DYN_VisitingStateT state = nullptr; // TODO implement
+    callback(state, ctx);
+
+    RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Stream::Output& out) {
+        out.PrintFmt("end scanning frames, thread spec data = %p", threadSpecificData);
+        out.NewLine();
+    });
+}
+
+static void VisitGCFrameRoots(DYN_FrameDescT frame_desc, DYN_RootVisitorT root_visitor)
+{
+    using namespace Interpretation;
+    const auto readerOffset = LOCAL_SLOTS_OFFSET + READER_SLOTS_SIZE;
+
+    auto fuh    = *reinterpret_cast<DynamicFunctionHandle**>((uint8_t*)frame_desc.fp - FUH_SLOT_OFFSET);
+    auto reader = reinterpret_cast<Decoder::ByteReader*>((uint8_t*)frame_desc.fp - readerOffset);
+    auto bc     = NOTNULL(fuh->bytecode.load());
+
+    uint32_t curPos = reinterpret_cast<uintptr_t>(reader->Cursor()) - reinterpret_cast<uintptr_t>(bc->code.bytecode);
+
+    const ReferenceInfo* refInfo = nullptr;
+    for (auto& info : bc->referenceInfos) {
+        if (info.rewrittenPos == curPos) {
+            refInfo = &info;
+            break;
+        }
+    }
+
+    auto slotsStartAddr = ((uint8_t*)frame_desc.fp) - (readerOffset + bc->frameSize);
+
+    RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Stream::Output& out) {
+        out.PrintFmt(
+            "start visiting frame (fuh=%p, ip=%p, fp=%p, pos=%p, slots_addr=%p)",
+            fuh,
+            frame_desc.ip,
+            frame_desc.fp,
+            curPos,
+            slotsStartAddr
+        );
+        out.NewLine();
+    });
+
+    for (auto& refSlotOffset : NOTNULL(refInfo)->refSlotOffsets) {
+        uintptr_t* refLocation = reinterpret_cast<uintptr_t*>(slotsStartAddr + refSlotOffset);
+        RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
+            out.PrintFmt("visiting %p, value=%p", refLocation, *refLocation);
+            out.NewLine();
+        });
+        g_CJNativeInterfaceInstance.visitRootFromInterpreter(root_visitor, refLocation);
+    }
+
+    RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Stream::Output& out) {
+        out.PrintFmt("end visiting frame (fuh=%p)", fuh);
+        out.NewLine();
+    });
 }
 
 static void VisitFrameRootsMarking(DYN_VisitingStateT state, DYN_FrameDescT frame_desc, DYN_RootVisitorT root_visitor)
-{ /* no-op */
+{
+    // TODO scan saved regs
+    VisitGCFrameRoots(frame_desc, root_visitor);
 }
 
 static void VisitFrameRootsAdjusting(
@@ -67,15 +134,9 @@ static void VisitFrameRootsAdjusting(
     DYN_RootVisitorT root_visitor,
     DYN_DerivedPtrVisitorT derived_ptr_visitor
 )
-{ /* no-op */
-}
-
-static void VisitGlobalRoots(DYN_RootVisitorT visitor)
 {
-    auto& engine = Engine::GetEngineInstance();
-    Engine::StaticsManager::Of(engine).VisitRefLocations([visitor](Engine::RefLocation* refLocation) {
-        g_CJNativeInterfaceInstance.visitRootFromInterpreter(visitor, refLocation);
-    });
+    // scan saved regs
+    VisitGCFrameRoots(frame_desc, root_visitor);
 }
 
 static void VisitFrameRootsExpansion(
@@ -88,13 +149,29 @@ static void VisitFrameRootsExpansion(
     /* no-op */
 }
 
+static void VisitGlobalRoots(DYN_RootVisitorT visitor)
+{
+    RTSupport::Log::gc.Stream(Logging::Level::INFO) << "start visiting global roots" << Stream::endl;
+
+    auto& engine = Engine::GetEngineInstance();
+    Engine::StaticsManager::Of(engine).VisitRefLocations([visitor](Engine::RefLocation* refLocation) {
+        RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Stream::Output& out) {
+            out.PrintFmt("visiting %p, value=%p", refLocation, *refLocation);
+            out.NewLine();
+        });
+        g_CJNativeInterfaceInstance.visitRootFromInterpreter(visitor, refLocation);
+    });
+
+    RTSupport::Log::gc.Stream(Logging::Level::INFO) << "end visiting global roots" << Stream::endl;
+}
+
 extern "C" {
 /// This symbol is exported to the runtime, which would initialize engine.
-CBC_EXPORT void interpreter_bridge_init(
+CBC_EXPORT int interpreter_bridge_init(
     struct DYN_InterpreterInterfaceT* interpInterf,
     struct DYN_CJNativeInterfaceT* rtInterf,
     int size,
-    char const** options
+    const char* const* options
 );
 
 CBC_EXPORT void engine_set_cbcpath(char const* cbcPath) { g_cbcPath = cbcPath; }
@@ -129,16 +206,18 @@ CBC_EXPORT void* engine_get_entrypoint_trampoline(void)
     return fuhManager.GetFunctionPtrForDirectCall(fuh);
 }
 
-CBC_EXPORT void interpreter_bridge_init(
+CBC_EXPORT int interpreter_bridge_init(
     struct DYN_InterpreterInterfaceT* interpInterf,
     struct DYN_CJNativeInterfaceT* rtInterf,
     int size,
-    char const** options
+    const char* const* options
 )
 {
-    (void)size;
-    (void)options;
+    static_assert(std::is_same_v<decltype(&interpreter_bridge_init), DYN_InitRt>);
+
+    // Order matters
     InitEnvOpts();
+    Engine::g_table.ParseAndSet(size, options);
 
     g_CJNativeInterfaceInstance            = *rtInterf;
     interpInterf->version                  = 1;
@@ -157,6 +236,8 @@ CBC_EXPORT void interpreter_bridge_init(
 
     Asm::engine_newobject_function = g_CJNativeInterfaceInstance.objectAlloc;
     RTSupport::Initialize(&g_CJNativeInterfaceInstance);
+
+    return 0;
 }
 
 } // extern "C"

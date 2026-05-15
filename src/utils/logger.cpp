@@ -26,4 +26,6 @@ void Logger::SetStream(Stream::Output* stream) { this->output = stream; }
 
 void Logger::SetLogLevel(Level level) { this->level = level; }
 
+Level Logger::GetLogLevel() { return level; }
+
 } // namespace Logging

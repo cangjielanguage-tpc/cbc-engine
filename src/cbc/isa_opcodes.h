@@ -29,9 +29,9 @@
     X(FMov32i, FMovImm<Width::W32>)                                                                                    \
     X(FMov64i, FMovImm<Width::W64>)                                                                                    \
     X(BFX, BFX)                                                                                                        \
-    X(Mov64_FloatToInt, FloatToInt<Width::W64>)                                                                        \
-    X(Mov32_IntToFloat, IntToFloat<Width::W32>)                                                                        \
-    X(Mov64_IntToFloat, IntToFloat<Width::W64>)                                                                        \
+    X(LoadTyped, LoadTyped)                                                                                            \
+    X(StoreTyped, StoreTyped)                                                                                          \
+    X(StoreTypedImm, StoreTypedImm)                                                                                    \
     X(Add32, (BinarySpecialized<Common::ADD, Width::W32>))                                                             \
     X(Sub32, (BinarySpecialized<Common::SUB, Width::W32>))                                                             \
     X(Mul32, (BinarySpecialized<Common::MUL, Width::W32>))                                                             \
@@ -89,7 +89,8 @@
     X(MemHeadHandle, Unreachable)                                                                                      \
     X(LoadUntyped, LoadUntyped)                                                                                        \
     X(StoreUntyped, StoreUntyped)                                                                                      \
-    X(StoreUntypedImm, StoreUntypedImm)
+    X(StoreUntypedImm, StoreUntypedImm)                                                                                \
+    X(_END, Unreachable)
 
 #define ISA_REG_SYM_GROUP_OPCODES(X)                                                                                   \
     X(LoadTypeInfoSig)                                                                                                 \
@@ -97,7 +98,8 @@
     X(NewObj)                                                                                                          \
     X(CallDirect)                                                                                                      \
     X(CallVirt)                                                                                                        \
-    X(CallInterf)
+    X(CallInterf)                                                                                                      \
+    X(_END)
 
 #define ISA_REG_GROUP_OPCODES(X)                                                                                       \
     X(Ret32)                                                                                                           \
@@ -106,4 +108,6 @@
     X(FRet64)                                                                                                          \
     X(DivCheck)                                                                                                        \
     X(Catch)                                                                                                           \
-    X(Throw)
+    X(Throw)                                                                                                           \
+    X(RetRef)                                                                                                          \
+    X(_END)

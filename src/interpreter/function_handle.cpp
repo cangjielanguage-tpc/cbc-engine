@@ -124,7 +124,7 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Session& session, DynamicFuncti
         using namespace Stream;
         auto def = Reader::Read(session, fuh->methodDef);
         Stream::ResolvingOutput stream(session, out);
-        stream << fuh->methodDef << " started preparation of method " << endl;
+        stream << endl << fuh->methodDef << " started preparation of method " << endl;
         stream << "  fuh: " << fuh << endl;
         stream << "  name: " << Detailed(def.Name()) << Detailed(def.Signature()) << endl;
     });

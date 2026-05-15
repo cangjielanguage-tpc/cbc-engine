@@ -206,9 +206,11 @@ struct IsaDisasm : public IsaParser {
         stream << d.ToStr() << ", " << l.ToStr() << ", " << imm << endl;
     }
 
-    void Ret(Format::Width width, IReg dst) override { stream << "ret." << Sz(width) << " " << dst.ToStr() << endl; }
+    void Ret(Format::Width width, IReg src) override { stream << "ret." << Sz(width) << " " << src.ToStr() << endl; }
 
-    void FRet(Format::Width width, FReg dst) override { stream << "fret." << Sz(width) << " " << dst.ToStr() << endl; }
+    void FRet(Format::Width width, FReg src) override { stream << "fret." << Sz(width) << " " << src.ToStr() << endl; }
+
+    void RetRef(IReg src) override { stream << "ret.ref " << src.ToStr() << endl; }
 
     void DivCheck(IReg reg) override { stream << "divcheck" << " " << reg.ToStr() << endl; }
 
@@ -260,6 +262,21 @@ struct IsaDisasm : public IsaParser {
         stream << "store.untyped.imm" << " " << us << ", " << imm << endl;
     }
 
+    void LoadTyped(AnyReg dst, uint16_t ts, uint16_t fieldId) override
+    {
+        stream << "load.typed" << " " << dst << ", " << ts << ", " << fieldId << endl;
+    }
+
+    void StoreTyped(AnyReg src, uint16_t ts, uint16_t fieldId) override
+    {
+        stream << "store.typed" << " " << ts << ", " << fieldId << ", " << src << endl;
+    }
+
+    void StoreTypedImm(uint64_t imm, uint16_t ts, uint16_t fieldId) override
+    {
+        stream << "store.typed.imm" << " " << ts << ", " << fieldId << ", " << imm << endl;
+    }
+
     void ParseOne() override
     {
         auto position = reader.Cursor() - reader.Start();
@@ -293,7 +310,7 @@ struct IsaResolvingDisasm : IsaDisasm {
     // TODO: implement rest.
 };
 
-static bool g_IsRawDisasmEnabled;
+bool g_IsRawDisasmEnabled = false;
 
 void EnableRawDisasm() { g_IsRawDisasmEnabled = true; }
 

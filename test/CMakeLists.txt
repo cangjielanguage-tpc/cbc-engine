@@ -1,9 +1,15 @@
 include(FetchContent)
-FetchContent_Declare(
-  googletest
+
+set(GOOGLETEST_FETCHCONTENT_ARGS
   URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
-  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
+
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.24")
+  list(APPEND GOOGLETEST_FETCHCONTENT_ARGS DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+endif()
+
+FetchContent_Declare(googletest ${GOOGLETEST_FETCHCONTENT_ARGS})
+
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 

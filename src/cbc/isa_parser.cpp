@@ -467,6 +467,9 @@ struct IsaParserImpl {
             case Cbc::RegSymGroup::CallDirect:      parser.CallDirect(dst, id); break;
             case Cbc::RegSymGroup::CallVirt:        parser.CallVirtual(dst, id); break;
             case Cbc::RegSymGroup::CallInterf:      parser.CallInterf(dst, id); break;
+            default:                                {
+                FATAL("Should not reach here");
+            }
         }
     }
 
@@ -482,6 +485,10 @@ struct IsaParserImpl {
             case Cbc::RegGroup::DivCheck: parser.DivCheck(reg); break;
             case Cbc::RegGroup::Catch:    parser.Catch(reg); break;
             case Cbc::RegGroup::Throw:    parser.Throw(reg); break;
+            case Cbc::RegGroup::RetRef:   parser.RetRef(reg); break;
+            default:                      {
+                FATAL("Should not reach here");
+            }
         }
     }
 
@@ -547,6 +554,24 @@ struct IsaParserImpl {
     {
         auto [us, imm] = ByteReaderM(parser.reader).ReadU16().ReadSLEB().Get();
         parser.StoreUntypedImm(imm, us);
+    }
+
+    static void LoadTyped(IsaParser& parser)
+    {
+        auto [dst, ts, field] = ByteReaderM(parser.reader).ReadU4Skip4().ReadU16().ReadU16().Get();
+        parser.LoadTyped(dst, ts, field);
+    }
+
+    static void StoreTyped(IsaParser& parser)
+    {
+        auto [src, ts, field] = ByteReaderM(parser.reader).ReadU4Skip4().ReadU16().ReadU16().Get();
+        parser.StoreTyped(src, ts, field);
+    }
+
+    static void StoreTypedImm(IsaParser& parser)
+    {
+        auto [ts, field, imm] = ByteReaderM(parser.reader).ReadU16().ReadU16().ReadSLEB().Get();
+        parser.StoreTypedImm(imm, ts, field);
     }
 
     template <Width::Value width, CC::Value value>

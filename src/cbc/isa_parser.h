@@ -65,8 +65,9 @@ protected:
     virtual void Scc(Format::Width width, Format::CC cc, IReg d, AnyReg l, AnyReg r)      = 0;
     virtual void SccImm(Format::Width width, Format::CC cc, IReg d, IReg l, uint64_t imm) = 0;
 
-    virtual void Ret(Format::Width width, IReg dst)  = 0;
-    virtual void FRet(Format::Width width, FReg dst) = 0;
+    virtual void Ret(Format::Width width, IReg src)  = 0;
+    virtual void FRet(Format::Width width, FReg src) = 0;
+    virtual void RetRef(IReg src)                    = 0;
     virtual void DivCheck(IReg reg)                  = 0;
     virtual void Catch(IReg reg)                     = 0;
     virtual void Throw(IReg reg)                     = 0;
@@ -84,6 +85,10 @@ protected:
     virtual void LoadUntyped(AnyReg dst, Format::LoadAccessKind ldk, uint16_t us)   = 0;
     virtual void StoreUntyped(AnyReg src, Format::StoreAccessKind stk, uint16_t us) = 0;
     virtual void StoreUntypedImm(uint64_t imm, uint16_t us)                         = 0;
+
+    virtual void LoadTyped(AnyReg dst, uint16_t ts, uint16_t field)       = 0;
+    virtual void StoreTyped(AnyReg src, uint16_t ts, uint16_t field)      = 0;
+    virtual void StoreTypedImm(uint64_t imm, uint16_t ts, uint16_t field) = 0;
 
     friend class IsaParserImpl;
     Decoder::FatByteReader reader;

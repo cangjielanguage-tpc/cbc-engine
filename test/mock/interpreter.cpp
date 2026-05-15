@@ -12,7 +12,7 @@
 #include "runtimesupport/runtime.h"
 #include "utils/assertion.h"
 #include "utils/logger.h"
-#include "utils/options.h"
+#include "engine/options.h"
 
 static constexpr int HEAP_SIZE = 16384;
 static LimitedHeap<HEAP_SIZE> heap;
@@ -189,7 +189,7 @@ Interpretation::Value::Primitive InterpretFPRes(
 void InitializeMockInterpreter()
 {
     using namespace Interpretation;
-    Options::InitEnvOptions();
+    Engine::InitEnvOptions();
     auto i2call = reinterpret_cast<Interpretation::I2Call>(&Interpretation::InterpreterI2CallTest);
     static_assert(IReg::COUNT == 14);
 }
@@ -263,5 +263,7 @@ static void C2ICall() { FATAL("Should not reach here. Mock c2i"); }
 void* Adapters::IregOnlyC2ICallInstance() { return reinterpret_cast<void*>(&C2ICall); }
 
 void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* fuh) { FATAL("Should not reach here."); }
+
+std::optional<int> MetaInfo::GetTypeSize(TypeInfo ti) { return std::nullopt; }
 
 } // namespace RTSupport
