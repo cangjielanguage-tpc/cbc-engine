@@ -65,6 +65,8 @@ struct Execution {
 struct MetaInfo {
     static uint32_t GetTypeSize(TypeInfo ti);
     static uint8_t GetAlign(TypeInfo ti);
+
+    static uint32_t ObjectHeaderSize() { return sizeof(void*); }
 };
 
 } // namespace RTSupport
