@@ -140,7 +140,7 @@ struct FLManager : public FieldLayoutManager {
                 return MAX_ALIGN;
             }
             case TermKind::AOT_REC: {
-                auto ti = TypeInfoManager::Of(session).AcquireTypeInfo(session, term);
+                auto ti = typeInfoManager.AcquireTypeInfo(session, term);
                 if (!ti.has_value()) {
                     return MAX_ALIGN;
                 }
@@ -173,7 +173,7 @@ private:
         }
         if (term.GetKind() == TermKind::AOT_REC) {
             // ASSERT(!term.IsGeneric());
-            auto typeInfo = TypeInfoManager::Of(session).AcquireTypeInfo(session, term);
+            auto typeInfo = typeInfoManager.AcquireTypeInfo(session, term);
             // FIXME: visit GCTib
             // RTSupport::VisitReferences(typeInfo, [&offsets, disp](uint32_t offset) {
             //      offsets.push_back(offset + disp);
@@ -216,7 +216,7 @@ private:
         // if (term.IsGeneric()) { layout.size = std::nullopt; layout.alignment = MAX_ALIGN; }
 
         // Concrete term path.
-        auto typeInfo = TypeInfoManager::Of(session).AcquireTypeInfo(session, term);
+        auto typeInfo = typeInfoManager.AcquireTypeInfo(session, term);
 
         if (!typeInfo.has_value()) {
             return std::nullopt;
