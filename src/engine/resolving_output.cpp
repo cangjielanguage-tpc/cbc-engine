@@ -1,6 +1,7 @@
 #include "resolving_output.h"
 #include "cbc/isa_disasm.h"
 #include "engine/engine.h"
+#include "engine/field_layout.h"
 #include "engine/identifiers.h"
 #include "engine/method_table.h"
 #include "engine/symlevel/code.h"
@@ -16,6 +17,17 @@ ResolvingOutput::ResolvingOutput(Engine::Session& session, Stream::Output& out)
     : session(session),
       holder(Indented(out, 0))
 {}
+
+template <typename T>
+ResolvingOutput& operator<<(ResolvingOutput& out, std::optional<T> opt)
+{
+    if (opt.has_value()) {
+        out << *opt;
+    } else {
+        out << "<none>";
+    }
+    return out;
+}
 
 ResolvingOutput& ResolvingOutput::operator<<(Engine::Term term) { return *this << term.GetName(session); }
 
@@ -189,6 +201,24 @@ ResolvingOutput& ResolvingOutput::operator<<(Engine::MethodTable const& mt)
         writeTable(st);
     }
     return out;
+}
+
+ResolvingOutput& ResolvingOutput::operator<<(Engine::FieldLayout const& layout)
+{
+    auto& stream = *this;
+    stream << "field layout:" << endl;
+
+    out.SetIndent(out.GetIndent() + 2);
+
+    stream << "size" << layout->desc.size << endl;
+    stream << "alignment" << layout->desc.alignment << endl;
+
+    for (auto& f : layout->fields) {
+        auto def = Symlevel::Reader::Read(session, f.definition);
+        stream << Detailed(def.GetName()) << '.' << f.fieldType << ": " << f.offset << endl;
+    }
+    out.SetIndent(out.GetIndent() - 2);
+    return stream;
 }
 
 template <typename T> void ResolvingOutput::Region(T name, std::function<void()> f)

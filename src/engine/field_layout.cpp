@@ -1,5 +1,6 @@
 #include "field_layout.h"
 #include "engine/engine.h"
+#include "engine/resolving_output.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/flags.h"
 #include "engine/symlevel/reader.h"
@@ -7,7 +8,9 @@
 #include "engine/typeinfo_manager.h"
 #include "runtimesupport/runtime.h"
 #include "utils/assertion.h"
+#include "utils/logger.h"
 #include "utils/math.h"
+#include "utils/ostream.h"
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -35,20 +38,23 @@ struct FLManager : public FieldLayoutManager {
 
     std::optional<FieldLayout> GetLayout(Term term) override
     {
+        Log::fields.Log(Logging::Level::INFO, [&](Stream::Output& out_) {
+            Stream::ResolvingOutput out(session, out_);
+            out << "requested field layout for " << term << Stream::endl;
+        });
+        std::optional<FieldLayout> layout = std::nullopt;
         if (term.GetKind() != TermKind::TYPE) {
             return std::nullopt;
-        }
-        // FIXME: recursion detection
-        auto it = cache.find(term);
-        if (it != cache.end()) {
+        } else if (auto it = cache.find(term); it != cache.end()) {
+            // FIXME: recursion detection
             return it->second;
+        } else {
+            auto layout = BuildLayout(term);
+            if (layout.has_value()) {
+                cache.insert( {term, *layout} );
+            }
+            return layout;
         }
-
-        auto result = BuildLayout(term);
-        if (result.has_value()) {
-            cache.insert( {term, *result} );
-        }
-        return result;
     }
 
     /// The size of a field of given type and its alignment.
@@ -196,14 +202,31 @@ private:
     }
 
     std::optional<FieldLayout> BuildLayout(Term term) {
+        Log::fields.Log(Logging::Level::INFO, [&](Stream::Output& out_) {
+            Stream::ResolvingOutput out(session, out_);
+            out << "starting to build layout for " << term << Stream::endl;
+        });
         auto type = TypeTermId(term);
         auto def = Symlevel::Reader::Read(session, type.GetIdentifier());
+
+        std::optional<FieldLayout> layout{};
+
         // FIXME: records
         if (def.GetFlags().Is(Symlevel::TypeFlag::AOT)) {
-            return BuildLayoutAot(term, def);
+            layout = BuildLayoutAot(term, def);
         } else {
-            return BuildLayoutCbc(term, def);
+            layout = BuildLayoutCbc(term, def);
         }
+
+        Log::fields.Log(Logging::Level::DEBUG, [&](Stream::Output& out_) {
+            Stream::ResolvingOutput out(session, out_);
+            if (layout.has_value()) {
+                out << term << " " << *layout << Stream::endl;
+            } else {
+                out << "failed to build layout for " << term << Stream::endl;
+            }
+        });
+        return layout;
     }
 
     std::optional<FieldLayout> BuildLayoutAot(Term term, Symlevel::TypeDefinition& def) {
@@ -314,4 +337,6 @@ std::unique_ptr<FieldLayoutManager> FieldLayoutManager::New(Session& session, Ty
 
 FieldLayoutManager::~FieldLayoutManager() = default;
 
+static Stream::Descripted stream(Stream::cerr, "[MT] ");
+Logging::Logger Log::fields(&stream, Logging::Level::ERROR);
 } // namespace Engine

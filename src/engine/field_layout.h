@@ -5,6 +5,7 @@
 #include "engine/symlevel/definitions.h"
 #include "engine/terms.h"
 #include "engine/typeinfo_manager.h"
+#include "utils/logger.h"
 #include <cstdint>
 #include <memory>
 
@@ -59,5 +60,13 @@ public:
 
     virtual ~FieldLayoutManager();
 };
+
+namespace Log {
+/// Logger for field layout building and querying.
+/// DEBUG - log field layout structure
+/// INFO  - log queries of field layout
+/// ERROR - log errors
+extern Logging::Logger fields;
+} // namespace Log
 
 } // namespace Engine
