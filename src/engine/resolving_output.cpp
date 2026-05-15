@@ -210,12 +210,12 @@ ResolvingOutput& ResolvingOutput::operator<<(Engine::FieldLayout const& layout)
 
     out.SetIndent(out.GetIndent() + 2);
 
-    stream << "size" << layout->desc.size << endl;
-    stream << "alignment" << layout->desc.alignment << endl;
+    stream << "size: " << layout->desc.size << endl;
+    stream << "alignment: " << layout->desc.alignment << endl;
 
     for (auto& f : layout->fields) {
         auto def = Symlevel::Reader::Read(session, f.definition);
-        stream << Detailed(def.GetName()) << '.' << f.fieldType << ": " << f.offset << endl;
+        stream << Detailed(def.GetName()) << ": " << f.fieldType << " - " << f.offset << endl;
     }
     out.SetIndent(out.GetIndent() - 2);
     return stream;
