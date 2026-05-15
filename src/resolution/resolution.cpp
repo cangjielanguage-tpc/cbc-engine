@@ -507,8 +507,30 @@ template <typename Field> std::optional<Field> ResolveField(Resolver::Impl& reso
         }
         case TermKind::TYPE: {
             if constexpr (std::is_same_v<Field, InstanceField>) {
-                FATAL("Not supported yet");
-                return std::nullopt;
+                auto optlayout = resolver.fieldManager->GetLayout(ref.fieldType);
+                if (!optlayout.has_value()) {
+                    return std::nullopt;
+                }
+                auto layout = *optlayout;
+
+                uint32_t ordinal = 0;
+                auto optoffset = [&]() {
+                    std::optional<uint32_t> offset{};
+                    for (auto& field : layout->fields) {
+                        auto def  = Symlevel::Reader::Read(resolver.session, field.definition);
+                        auto name = Symlevel::Reader::Read(resolver.session, def.GetName());
+                        if (field.fieldType == ref.fieldType && name.compare(ref.name) == 0) {
+                            offset = field.offset;
+                            break;
+                        }
+                        ordinal++;
+                    }
+                    return offset;
+                }();
+                if (!optoffset.has_value()) {
+                    return std::nullopt;
+                }
+                return InstanceField { refType, ref.name, fieldType, ordinal, *optoffset};
             } else {
                 static_assert(std::is_same_v<Field, StaticField>);
 
