@@ -59,4 +59,6 @@ void* Adapters::IregOnlyC2ICallInstance() { FATAL("Should not reach here."); }
 
 void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* fuh) { FATAL("Should not reach here."); }
 
+std::optional<int> MetaInfo::GetTypeSize(TypeInfo ti) { return std::nullopt; }
+
 } // namespace RTSupport
