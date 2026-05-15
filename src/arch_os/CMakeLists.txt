@@ -6,8 +6,13 @@ string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" DETECTED_ARCH)
 
 if(DETECTED_ARCH MATCHES "^(amd64|x64)$")
     set(DETECTED_ARCH "x86_64")
-elseif(DETECTED_ARCH MATCHES "^(arm64)$")
+elseif(DETECTED_ARCH MATCHES "^(arm64|arm64-v8a)$")
     set(DETECTED_ARCH "aarch64")
+endif()
+
+if(DETECTED_OS STREQUAL "android" AND DETECTED_ARCH STREQUAL "aarch64")
+    # Android arm64 uses the same AArch64 ELF ABI trampolines as Linux here.
+    set(DETECTED_OS "linux")
 endif()
 
 set(ARCH_OS_DIR "${DETECTED_ARCH}_${DETECTED_OS}")

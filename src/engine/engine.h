@@ -37,6 +37,8 @@ public:
     );
     std::optional<Identifier<TypeDefinition>> FindType(Session& session, std::string_view typeName);
 
+    std::vector<Symlevel::CbcFile> const& Files() const;
+
 private:
     Engine(std::unique_ptr<Impl>&& impl);
     Engine(Engine&& other);

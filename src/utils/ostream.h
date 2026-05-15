@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <stdarg.h>
 #include <stdio.h>
@@ -87,11 +88,13 @@ private:
 
 class Indented : public Output {
 public:
-    Indented(Output& astream, const unsigned int indentSize = 4);
+    Indented(Output& astream, const unsigned int indentSize = 0);
 
     void NewLine() override;
     void VPrintFmt(const char* fmt, va_list argp) override;
     void Flush() const override;
+    void SetIndent(unsigned int indent);
+    unsigned int GetIndent() const;
 
 private:
     Output& stream;

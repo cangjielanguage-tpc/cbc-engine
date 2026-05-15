@@ -1,14 +1,12 @@
 #pragma once
 
 #include "random_access_file.h"
-#include <fstream>
-#include <stdexcept>
 
 namespace IO {
 
 /**
  * @class ByteArrayRandomAccessFile
- * @brief Simple realization of RandomAccessFile in which whole file is read to byte array.
+ * @brief Simple implementation of RandomAccessFile that reads whole file to byte array.
  */
 class ByteArrayRandomAccessFile : public RandomAccessFile {
 public:

@@ -11,6 +11,7 @@ execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink
 
 
 set(CMAKE_CXX_STANDARD 17)
+include(CTest)
 
 set(DEBUG_OPTIONS "-DCBC_ENGINE_IMMEDIATE_ASSERTION -DCBC_ENGINE_PRETTY_FUNC_NAME")
 
@@ -62,5 +63,8 @@ target_link_options(cbcengine PRIVATE
 
 set_target_properties(cbcengine PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-enable_testing()
-add_subdirectory(test)
+add_subdirectory(tools/dis)
+
+if(BUILD_TESTING)
+  add_subdirectory(test)
+endif()

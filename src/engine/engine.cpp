@@ -140,6 +140,8 @@ std::optional<Identifier<Symlevel::TypeDefinition>> Engine::FindType(Session& se
     return std::nullopt;
 }
 
+std::vector<Symlevel::CbcFile> const& Engine::Files() const { return impl->files; }
+
 std::optional<Identifier<MethodDefinition>> Engine::FindMain(Session& session, std::string_view filePath)
 {
     auto file = impl->FindCbcFile(filePath);

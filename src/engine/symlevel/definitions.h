@@ -46,21 +46,21 @@ public:
 
     Engine::Identifier<TypeDefinition> const GetIdentifier() { return content.identifier; }
 
-    Engine::Identifier<String> const GetName() { return content.name; }
+    Engine::Identifier<String> const GetName() const { return content.name; }
 
-    MethodIndex const GetMethods() { return content.methods; }
+    MethodIndex const GetMethods() const { return content.methods; }
 
-    FieldIndex const GetFields() { return content.fields; }
+    FieldIndex const GetFields() const { return content.fields; }
 
-    OffsetSequence<MethodDefinition> const GetVirtualMethods() { return content.virtualMethods; }
+    OffsetSequence<MethodDefinition> const GetVirtualMethods() const { return content.virtualMethods; }
 
-    OffsetSequence<FieldDefinition> const GetInstanceFields() { return content.instanceFields; }
+    OffsetSequence<FieldDefinition> const GetInstanceFields() const { return content.instanceFields; }
 
-    Engine::RefIdentifier<Term> const GetSuperType() { return content.superType; }
+    Engine::RefIdentifier<Term> const GetSuperType() const { return content.superType; }
 
-    TypeFlags const GetFlags() { return content.flags; }
+    TypeFlags const GetFlags() const { return content.flags; }
 
-    RefSequence<Term> GetInterfaces() { return content.interfaces; }
+    RefSequence<Term> GetInterfaces() const { return content.interfaces; }
 
     Content const* operator->() const {
         return &content;
@@ -82,13 +82,13 @@ public:
     static FieldDefinition Resolve(Engine::Session& session, Engine::Identifier<FieldDefinition> identifier);
     static String ParseName(Engine::Session& session, IO::FileId fileId, Offset<FieldDefinition> offset);
 
-    inline Offset<String> NameOffset() const { return nameOffset; }
+    inline Engine::Identifier<String> GetName() const { return Engine::Identifier(nameOffset, identifier.GetFileId()); }
 
     inline Engine::RefIdentifier<Term> FieldType() const { return fieldType; }
 
     inline Engine::Identifier<FieldDefinition> Identifier() { return identifier; }
 
-    inline FieldFlags Flags() { return flags; }
+    inline FieldFlags Flags() const { return flags; }
 
 private:
     FieldDefinition(
@@ -124,11 +124,11 @@ public:
 
     inline std::optional<Engine::Identifier<Code>> MethodCode() const { return code; }
 
-    std::optional<Engine::Identifier<String>> SourceFile() { return sourceFile; }
+    std::optional<Engine::Identifier<String>> SourceFile() const { return sourceFile; }
 
-    std::optional<Engine::Identifier<String>> SourceFullName() { return sourceFullName; }
+    std::optional<Engine::Identifier<String>> SourceFullName() const { return sourceFullName; }
 
-    std::optional<Engine::Identifier<String>> LinkageName() { return linkageName; }
+    std::optional<Engine::Identifier<String>> LinkageName() const { return linkageName; }
 
     inline IO::FileId FileId() const { return identifier.GetFileId(); }
 

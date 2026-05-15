@@ -74,7 +74,8 @@ enum Tag : uint8_t {
 
 static TermData* AllocateTerm(Memory::Heap& allocator, size_t subtermCount = 0)
 {
-    return static_cast<TermData*>(allocator.Allocate(sizeof(TermData) + subtermCount * sizeof(Term), alignof(TermData))
+    return static_cast<TermData*>(
+        allocator.Allocate(sizeof(TermData) + subtermCount * sizeof(Term), alignof(TermData))
     );
 }
 
