@@ -38,6 +38,9 @@ public:
     {
         for (uint32_t regN = 0; regN < IReg::COUNT; regN++) {
             if (aliveRegsMap.test(regN)) {
+                RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) {
+                    out << IReg::From(regN).CStr() << ": ";
+                });
                 VisitRoot(rootVisitor, regLocationMap[regN]);
             }
         }
@@ -115,6 +118,7 @@ void VisitGCFrameRoots(DYN_VisitingStateT state, DYN_FrameDescT frame_desc, DYN_
 
     for (auto& refSlotOffset : NOTNULL(refInfo)->refSlotOffsets) {
         auto refLocation = reinterpret_cast<placeholder>(slotsStartAddr + refSlotOffset);
+        RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) { out << refSlotOffset << ": "; });
         VisitRoot(rootVisitor, refLocation);
     }
 
