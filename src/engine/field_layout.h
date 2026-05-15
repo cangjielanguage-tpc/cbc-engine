@@ -20,10 +20,12 @@ public:
         Term fieldType;
         std::optional<uint32_t> offset;
     };
+
     struct SizeDesc {
         std::optional<uint32_t> size;
         uint8_t alignment; // required for records, for references - always 8.
     };
+
     struct Content {
         std::vector<Entry> fields;
         SizeDesc desc;

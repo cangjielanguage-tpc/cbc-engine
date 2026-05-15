@@ -18,8 +18,7 @@ ResolvingOutput::ResolvingOutput(Engine::Session& session, Stream::Output& out)
       holder(Indented(out, 0))
 {}
 
-template <typename T>
-ResolvingOutput& operator<<(ResolvingOutput& out, std::optional<T> opt)
+template <typename T> ResolvingOutput& operator<<(ResolvingOutput& out, std::optional<T> opt)
 {
     if (opt.has_value()) {
         out << *opt;

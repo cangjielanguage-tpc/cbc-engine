@@ -145,7 +145,7 @@ Term Term::Predefined(TermKind tk)
 Term Term::Definition(Session& session, Identifier<Symlevel::TypeDefinition> type)
 {
     // TODO: handle arity and generic type vars
-    auto def = Symlevel::Reader::Read(session, type);
+    auto def   = Symlevel::Reader::Read(session, type);
     bool isRec = def.GetFlags().Is(Symlevel::TypeKind::RECORD);
     auto* data = AllocateTerm(session.Allocator());
     data->InitAfterSubterms(TypeTermId(type), 0, true, !isRec);
@@ -463,9 +463,11 @@ struct TermResolver {
                     // While, such behaviour is possible for CBC defined types,
                     // because of incorrect dependencies of cbc's (stability issues).
                     // It is not expected from AOT code.
-                    ASSERTION(Symlevel::TypeDefinition::Resolve(session, *type)
-                            .GetFlags().Is(Symlevel::TypeKind::RECORD) != (tag == AOT_REC),
-                            "incorrect encoding");
+                    ASSERTION(
+                        Symlevel::TypeDefinition::Resolve(session, *type).GetFlags().Is(Symlevel::TypeKind::RECORD) !=
+                            (tag == AOT_REC),
+                        "incorrect encoding"
+                    );
                     // TODO: assert def.arity == 0
 
                     auto data = AllocateTerm(heap);

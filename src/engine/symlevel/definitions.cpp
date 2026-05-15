@@ -55,13 +55,13 @@ TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId
         flags = flags.Or(TypeFlag::AOT);
 
     TypeDefinition::Content def { Engine::Identifier(offset, fileId),
-                            name,
-                            std::move(methodIndex),
-                            std::move(fieldIndex),
-                            dynMethods,
-                            instanceFields,
-                            superType,
-                            flags };
+                                  name,
+                                  std::move(methodIndex),
+                                  std::move(fieldIndex),
+                                  dynMethods,
+                                  instanceFields,
+                                  superType,
+                                  flags };
 
     for (auto tag = reader.ReadU8(); tag != 0; tag = reader.ReadU8()) {
         switch (tag) {

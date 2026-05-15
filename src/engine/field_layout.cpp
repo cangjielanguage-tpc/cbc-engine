@@ -28,13 +28,12 @@ FieldLayout::Content const& FieldLayout::operator*() const { return *content; }
 
 /// Fully local implementation of the field layout manager.
 struct FLManager : public FieldLayoutManager {
-
     Session& session;
     TypeInfoManager& typeInfoManager;
     std::unordered_map<Term, FieldLayout, Term::Hasher> cache;
 
-    FLManager(Session& session, TypeInfoManager& typeInfoManager) :
-        session(session), typeInfoManager(typeInfoManager) {}
+    FLManager(Session& session, TypeInfoManager& typeInfoManager) : session(session), typeInfoManager(typeInfoManager)
+    {}
 
     std::optional<FieldLayout> GetLayout(Term term) override
     {
@@ -51,7 +50,7 @@ struct FLManager : public FieldLayoutManager {
         } else {
             auto layout = BuildLayout(term);
             if (layout.has_value()) {
-                cache.insert( {term, *layout} );
+                cache.insert({ term, *layout });
             }
             return layout;
         }
@@ -165,13 +164,9 @@ struct FLManager : public FieldLayoutManager {
         }
     }
 
-    void FillRefOffsets(Term term, std::vector<uint32_t>& offsets) override
-    {
-        FillRefOffsets(term, offsets, 0);
-    }
+    void FillRefOffsets(Term term, std::vector<uint32_t>& offsets) override { FillRefOffsets(term, offsets, 0); }
 
 private:
-
     void FillRefOffsets(Term term, std::vector<uint32_t>& offsets, uint32_t disp)
     {
         if (term.IsReference()) {
@@ -201,15 +196,16 @@ private:
         }
     }
 
-    std::optional<FieldLayout> BuildLayout(Term term) {
+    std::optional<FieldLayout> BuildLayout(Term term)
+    {
         Log::fields.Log(Logging::Level::INFO, [&](Stream::Output& out_) {
             Stream::ResolvingOutput out(session, out_);
             out << "starting to build layout for " << term << Stream::endl;
         });
         auto type = TypeTermId(term);
-        auto def = Symlevel::Reader::Read(session, type.GetIdentifier());
+        auto def  = Symlevel::Reader::Read(session, type.GetIdentifier());
 
-        std::optional<FieldLayout> layout{};
+        std::optional<FieldLayout> layout {};
 
         // FIXME: records
         if (def.GetFlags().Is(Symlevel::TypeFlag::AOT)) {
@@ -229,7 +225,8 @@ private:
         return layout;
     }
 
-    std::optional<FieldLayout> BuildLayoutAot(Term term, Symlevel::TypeDefinition& def) {
+    std::optional<FieldLayout> BuildLayoutAot(Term term, Symlevel::TypeDefinition& def)
+    {
         auto optlayout = GetSuperLayout(def);
         if (!optlayout.has_value()) {
             return std::nullopt;
@@ -257,13 +254,14 @@ private:
             ordinal++;
         }
 
-        layout.desc.size = RTSupport::MetaInfo::GetTypeSize(*typeInfo);
+        layout.desc.size      = RTSupport::MetaInfo::GetTypeSize(*typeInfo);
         layout.desc.alignment = RTSupport::MetaInfo::GetAlign(*typeInfo);
 
         return FieldLayout(std::move(layout));
     }
 
-    std::optional<FieldLayout> BuildLayoutCbc(Term term, Symlevel::TypeDefinition& def) {
+    std::optional<FieldLayout> BuildLayoutCbc(Term term, Symlevel::TypeDefinition& def)
+    {
         auto optlayout = GetSuperLayout(def);
         if (!optlayout.has_value()) {
             return std::nullopt;
@@ -292,7 +290,7 @@ private:
                 }
             }
             if (!fieldSize.has_value()) {
-                size = std::nullopt;
+                size      = std::nullopt;
                 alignment = MAX_ALIGN;
             }
             alignment = std::max(alignment, fieldAlignment);
@@ -307,7 +305,8 @@ private:
         return FieldLayout(std::move(layout));
     }
 
-    std::optional<FieldLayout::Content> GetSuperLayout(Symlevel::TypeDefinition& def) {
+    std::optional<FieldLayout::Content> GetSuperLayout(Symlevel::TypeDefinition& def)
+    {
         auto super = TermManager::Resolve(session, def.GetSuperType());
         if (super.GetKind() == TermKind::UNDEFINED) {
             return std::nullopt;
@@ -320,13 +319,11 @@ private:
         } else {
             ASSERTION(super.GetKind() == TermKind::NIL, "only nil or type term kinds are expected for super");
 
-            FieldLayout::Content base {
-                .fields{},
-                .desc = {
-                    .size = 0,
-                    .alignment = 8,
-                }
-            };
+            FieldLayout::Content base { .fields {},
+                                        .desc = {
+                                            .size      = 0,
+                                            .alignment = 8,
+                                        } };
             return base;
         }
     }

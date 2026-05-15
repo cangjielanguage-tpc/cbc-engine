@@ -143,11 +143,7 @@ struct SimpleType : public Type {
         }
     }
 
-    std::optional<uint32_t> GetFlatSize() override
-    {
-        return resolver.fieldManager->GetFlatSize(term);
-    }
-
+    std::optional<uint32_t> GetFlatSize() override { return resolver.fieldManager->GetFlatSize(term); }
 };
 
 Type* Resolver::Impl::NewType(Term term) { return session.Allocator().New<SimpleType>(term, *this); }
@@ -489,8 +485,9 @@ template <typename Field> std::optional<Field> ResolveField(Resolver::Impl& reso
             ASSERTION(ref.fieldType.GetKind() != TermKind::TYPE, "aot types cannot have fields of cbc type");
             if constexpr (std::is_same_v<Field, InstanceField>) {
                 auto data = file.GetInstanceFieldAotTable().GetData(resolver.session, refId);
-                int offset =
-                    RTSupport::Execution::GetFieldOffset(refType->GetTypeInfo().value(), data.ordinal, ref.refType.IsReference());
+                int offset = RTSupport::Execution::GetFieldOffset(
+                    refType->GetTypeInfo().value(), data.ordinal, ref.refType.IsReference()
+                );
                 return InstanceField { refType, ref.name, fieldType, data.ordinal, offset };
             } else {
                 static_assert(std::is_same_v<Field, StaticField>);
@@ -515,8 +512,8 @@ template <typename Field> std::optional<Field> ResolveField(Resolver::Impl& reso
                 auto layout = *optlayout;
 
                 uint32_t ordinal = 0;
-                auto optoffset = [&]() {
-                    std::optional<uint32_t> offset{};
+                auto optoffset   = [&]() {
+                    std::optional<uint32_t> offset {};
                     for (auto& field : layout->fields) {
                         auto def  = Symlevel::Reader::Read(resolver.session, field.definition);
                         auto name = Symlevel::Reader::Read(resolver.session, def.GetName());
@@ -531,9 +528,9 @@ template <typename Field> std::optional<Field> ResolveField(Resolver::Impl& reso
                 if (!optoffset.has_value()) {
                     return std::nullopt;
                 }
-                auto offset = *optoffset;
-                offset += (ref.refType.IsReference() ? RTSupport::MetaInfo::ObjectHeaderSize() : 0);
-                return InstanceField { refType, ref.name, fieldType, ordinal, offset};
+                auto offset  = *optoffset;
+                offset      += (ref.refType.IsReference() ? RTSupport::MetaInfo::ObjectHeaderSize() : 0);
+                return InstanceField { refType, ref.name, fieldType, ordinal, offset };
             } else {
                 static_assert(std::is_same_v<Field, StaticField>);
 

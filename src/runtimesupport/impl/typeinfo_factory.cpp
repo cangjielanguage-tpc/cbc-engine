@@ -252,9 +252,9 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
     switch (type.GetFlags().GetTypeKind()) {
         case Symlevel::TypeKind::INTERFACE: builder.type = -127; break;
-        case Symlevel::TypeKind::RECORD: builder.type = 22; break;
-        case Symlevel::TypeKind::CLASS: builder.type = -128; break;
-        default: FATAL("unreachable type kind");
+        case Symlevel::TypeKind::RECORD:    builder.type = 22; break;
+        case Symlevel::TypeKind::CLASS:     builder.type = -128; break;
+        default:                            FATAL("unreachable type kind");
     }
 
     auto superType = Engine::TermManager::Resolve(session, type.GetSuperType());
@@ -355,7 +355,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
     auto typeKind = type.GetFlags().GetTypeKind();
     if (typeKind == Symlevel::TypeKind::RECORD || typeKind == Symlevel::TypeKind::CLASS) {
         auto fieldManager = Engine::FieldLayoutManager::New(session, manager);
-        auto optlayout = fieldManager->GetLayout(term);
+        auto optlayout    = fieldManager->GetLayout(term);
 
         bool hasProperLayout = optlayout.has_value();
         if (hasProperLayout) {
@@ -372,10 +372,10 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             });
             return std::nullopt;
         }
-        auto layout = *optlayout;
-        builder.align = layout->desc.alignment;
+        auto layout          = *optlayout;
+        builder.align        = layout->desc.alignment;
         builder.instanceSize = layout->desc.size.value();
-        builder.fieldNum = layout->fields.size();
+        builder.fieldNum     = layout->fields.size();
 
         builder.fields = Alloc<DYN_TypeInfoT*>(builder.fieldNum);
 
@@ -392,9 +392,9 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             builder.fields[idx++] = UnpackTypeInfo(*typeInfo);
         }
     } else {
-        builder.fieldNum = 0;
-        builder.fields   = nullptr;
-        builder.align    = 1;
+        builder.fieldNum     = 0;
+        builder.fields       = nullptr;
+        builder.align        = 1;
         builder.instanceSize = 0;
     }
 

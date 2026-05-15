@@ -37,7 +37,7 @@ public:
         OffsetSequence<FieldDefinition> instanceFields;
         Engine::RefIdentifier<Term> superType;
         TypeFlags flags;
-        RefSequence<Term> interfaces{};
+        RefSequence<Term> interfaces {};
     };
 
     static TypeDefinition Parse(Engine::Session& session, IO::FileId fileId, Offset<TypeDefinition> offset);
@@ -62,13 +62,9 @@ public:
 
     RefSequence<Term> GetInterfaces() const { return content.interfaces; }
 
-    Content const* operator->() const {
-        return &content;
-    }
+    Content const* operator->() const { return &content; }
 
-    Content const* operator*() const {
-        return &content;
-    }
+    Content const* operator*() const { return &content; }
 
 private:
     TypeDefinition(Content&& content) : content(content) {}
