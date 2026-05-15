@@ -324,15 +324,15 @@ perform_2i_call:
   ldr   x9, [x29, #-0x8] // load Function Handle
   ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
 
-  ldr   x1, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
+  ldr   w1, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   mov   x2, sp
   add   x1, x1, x2 // add frame size to locate saved registers
 
 .macro POP_IREGS mask_reg, stack_reg, exec_info_reg
     ldrh  \mask_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
-    .irp reg, 13,12,11,10,9,8
+    .irp reg, 8,9,10,11,12,13
         tbz \mask_reg, #(\reg-8), .Lloadireg\reg
-        ldr x2, [\stack_reg], #0x8
+        ldr x2, [\stack_reg, #-0x8]!
         str x2, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + \reg*8)]
 .Lloadireg\reg:
     .endr
@@ -340,9 +340,9 @@ perform_2i_call:
 
 .macro POP_FREGS mask_reg, stack_reg, exec_info_reg
     ldrh  \mask_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_FREGS_OFFSET]
-    .irp reg, 15,14,13,12,11,10,9,8
+    .irp reg, 8,9,10,11,12,13,14,15
         tbz \mask_reg, #(\reg-8), .Lloadfreg\reg
-        ldr d2, [\stack_reg], #0x8
+        ldr d2, [\stack_reg, #-0x8]!
         str d2, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET + \reg*8)]
 .Lloadfreg\reg:
     .endr
