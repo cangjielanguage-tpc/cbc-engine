@@ -66,6 +66,11 @@ void CliParser::ParseOption(string_view sv, DisasmerBuilder& builder)
 Dis::Disasmer CliParser::CreateDisasmer(Stream::Output& out)
 
 {
+    if (args.empty()) {
+        Help();
+        exit(0);
+    }
+
     auto builder = DisasmerBuilder(out, args.size());
     for (auto arg : args) {
         if (isOption(arg)) {
