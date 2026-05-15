@@ -108,11 +108,11 @@ engine_iregs_only_c2i_call:
 
   adrp  ECTYPE_REG, engine_carrier_specific_offset
   ldr   ECTYPE_REG, [ECTYPE_REG, :lo12:engine_carrier_specific_offset]
-  ldr   x19, [TLS_REG, ECTYPE_REG]
+  ldr   x21, [TLS_REG, ECTYPE_REG]
   adrp  ECTYPE_REG, engine_cjthread_specific_offset
   ldr   ECTYPE_REG, [ECTYPE_REG, :lo12:engine_cjthread_specific_offset]
-  add   x19, x19, ECTYPE_REG // address of slot in fiber data that contains ectype addr
-  ldr   ECTYPE_REG, [x19]    // ectype addr
+  add   x21, x21, ECTYPE_REG // address of slot in fiber data that contains ectype addr
+  ldr   ECTYPE_REG, [x21]    // ectype addr
 
   cbz   ECTYPE_REG, .Lc2i_prepare_ectype
 
@@ -147,13 +147,13 @@ engine_iregs_only_c2i_call:
   stp   x4, x5, [sp, #-16]!
   stp   x6, x7, [sp, #-16]!
 
-  mov   x0, x19
+  mov   x0, x21
   bl    engine_fiber_data_init
   
   mov   ECTYPE_REG, x0
-  ldr   x0, [x29, #-0x50] // restore fuh
+  ldr   x9, [x29, #-0x50] // restore fuh
 
-  stp   x6, x7, [sp], #16
+  ldp   x6, x7, [sp], #16
   ldp   x4, x5, [sp], #16
   ldp   x2, x3, [sp], #16
   ldp   x0, x1, [sp], #16
