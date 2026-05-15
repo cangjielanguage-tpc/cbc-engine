@@ -91,20 +91,25 @@ engine_iregs_only_c2i_call:
   stp   x29, x30, [sp, #-16]!
   mov   x29, sp
 
-  stp   x19, x20, [sp, #-16]!
-  stp   x21, x22, [sp, #-16]!
-  stp   x23, x24, [sp, #-16]!
-  stp   x27, x28, [sp, #-16]!
+  stp   x19, x20, [sp, #-16]! // x29 - 0x10
+  stp   x21, x22, [sp, #-16]! // x29 - 0x20
+  stp   x23, x24, [sp, #-16]! // x29 - 0x30
+  stp   x27, x28, [sp, #-16]! // x29 - 0x40
 
-  str   x9, [sp, #-16]! // FunctionHandle that will help to scan saved regs
+  str   x9, [sp, #-16]! // x29 - 0x50 : FunctionHandle that will help to scan saved regs
 
-// FIXME: get Ectype* from ThreadHandle
-//  mov   ECTYPE_REG, [TLS + TLS_FIBER_DATA_OFFSET]
-//  mov   ECTYPE_REG, [ECTYPE_REG + FIBER_DATA_ECTYPE_OFFSET]
-  adrp  ECTYPE_REG, engine_fake_ectype
-  add   ECTYPE_REG, ECTYPE_REG, :lo12:engine_fake_ectype
+  adrp  ECTYPE_REG, engine_carrier_specific_offset
+  ldr   ECTYPE_REG, [ECTYPE_REG, :lo12:engine_carrier_specific_offset]
+  ldr   x19, [TLS_REG, ECTYPE_REG]
+  adrp  ECTYPE_REG, engine_cjthread_specific_offset
+  ldr   ECTYPE_REG, [ECTYPE_REG, :lo12:engine_cjthread_specific_offset]
+  add   x19, x19, ECTYPE_REG // address of slot in fiber data that contains ectype addr
+  ldr   ECTYPE_REG, [x19]    // ectype addr
 
-// TODO support correct sret handling
+  cbz   ECTYPE_REG, .Lc2i_prepare_ectype
+
+.Lc2i_args_preparation:
+  // TODO support correct sret handling
   str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8 )]
   str   x1, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x10)]
   str   x2, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x18)]
@@ -127,6 +132,25 @@ engine_iregs_only_c2i_call:
 
   ldp   x29, x30, [sp], #16
   ret
+
+.Lc2i_prepare_ectype:
+  stp   x0, x1, [sp, #-16]!
+  stp   x2, x3, [sp, #-16]!
+  stp   x4, x5, [sp, #-16]!
+  stp   x6, x7, [sp, #-16]!
+
+  mov   x0, x19
+  bl    engine_fiber_data_init
+  
+  mov   ECTYPE_REG, x0
+  ldr   x0, [x29, #-0x50] // restore fuh
+
+  stp   x6, x7, [sp], #16
+  ldp   x4, x5, [sp], #16
+  ldp   x2, x3, [sp], #16
+  ldp   x0, x1, [sp], #16
+  b     .Lc2i_args_preparation
+
 engine_c2i_call_pc_end:
   brk   #0
 
