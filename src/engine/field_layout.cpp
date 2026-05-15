@@ -196,6 +196,7 @@ private:
     std::optional<FieldLayout> BuildLayout(Term term) {
         auto type = TypeTermId(term);
         auto def = Symlevel::Reader::Read(session, type.GetIdentifier());
+        // FIXME: records
         if (def.GetFlags().Is(Symlevel::TypeFlag::AOT)) {
             return BuildLayoutAot(term, def);
         } else {
@@ -286,7 +287,15 @@ private:
             return *opt.value(); // copy
         } else {
             ASSERTION(super.GetKind() == TermKind::NIL, "only nil or type term kinds are expected for super");
-            return std::nullopt;
+
+            FieldLayout::Content base {
+                .fields{},
+                .desc = {
+                    .size = 0,
+                    .alignment = 8,
+                }
+            };
+            return base;
         }
     }
 };
