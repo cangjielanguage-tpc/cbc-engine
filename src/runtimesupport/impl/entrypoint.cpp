@@ -62,7 +62,11 @@ Interpretation::Ectype* FiberDataInit(DYN_CJThreadSpecificDataT* data)
     ASSERTION(*data == nullptr, "Incorrect data value: %p", *data);
 
     auto ectype = new Interpretation::Ectype();
-    *data       = ectype;
+    if (!ectype) {
+        FATAL("Ectype allocation error");
+    }
+
+    *data = ectype;
 
     RTSupport::Log::rt.Log(Logging::Level::INFO, [&data](Stream::Output& out) {
         out.PrintFmtLn("fiber init, fsd addr: %p, ectype addr: %p", data, *data);
@@ -81,7 +85,7 @@ static void FiberDestroy(DYN_CJThreadSpecificDataT* data)
     RTSupport::Log::rt.Log(Logging::Level::INFO, [&data](Stream::Output& out) {
         out.PrintFmtLn("fiber destroy, fsd addr: %p, ectype addr: %p", data, *data);
     });
-    delete static_cast<Interpretation::Ectype*>(*data);
+    delete static_cast<Interpretation::Ectype*>(*data)->Checked();
 }
 
 static void IterateFramesWithState(

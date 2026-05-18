@@ -26,11 +26,12 @@ class RegistersTable {
     using IReg = Cbc::IReg;
 
 public:
-    RegistersTable(Interpretation::Ectype* ectype): regLocationMap(IReg::COUNT)
+    RegistersTable(Interpretation::Ectype* ectype)
     {
         uintptr_t ectypeAddr = reinterpret_cast<uintptr_t>(ectype);
         for (uint32_t regN = 0; regN < IReg::COUNT; regN++) {
-            regLocationMap[regN] = reinterpret_cast<placeholder>(ectypeAddr + ECTYPE_IREGS_OFFSET + (regN * ECTYPE_REG_SIZE));
+            IReg reg             = IReg::From(regN);
+            regLocationMap[regN] = reinterpret_cast<placeholder>(ectype->GetIRegLocation(reg));
         }
     }
 
@@ -57,7 +58,7 @@ public:
     }
 
 private:
-    std::vector<placeholder> regLocationMap;
+    placeholder regLocationMap[IReg::COUNT];
 };
 
 void IterateFramesWithState(DYN_CJThreadSpecificDataT threadSpecificData, void (*callback)(DYN_VisitingStateT, void*), void* ctx)
@@ -71,7 +72,9 @@ void IterateFramesWithState(DYN_CJThreadSpecificDataT threadSpecificData, void (
         out.PrintFmtLn("start scanning frames, thread spec data = %p", threadSpecificData);
     });
 
-    RegistersTable regTable(static_cast<Interpretation::Ectype*>(NOTNULL(threadSpecificData)));
+    auto ectype = static_cast<Interpretation::Ectype*>(NOTNULL(threadSpecificData))->Checked();
+
+    RegistersTable regTable(ectype);
     DYN_VisitingStateT state = &regTable;
 
     callback(state, ctx);
@@ -100,6 +103,15 @@ void VisitGCFrameRoots(DYN_VisitingStateT state, DYN_FrameDescT frame_desc, DYN_
             refInfo = &info;
             break;
         }
+    }
+
+    if (!refInfo) {
+        RTSupport::Log::gc.Log(Logging::Level::ERROR, [&](Output& out) {
+            out.PrintFmtLn(
+                "cannot translate position (fuh=%p, ip=%p, fp=%p, pos=%p)", fuh, frame_desc.ip, frame_desc.fp, curPos
+            );
+        });
+        return;
     }
 
     auto spillsEnd = ((uint8_t*)frame_desc.fp) - readerOffset;
