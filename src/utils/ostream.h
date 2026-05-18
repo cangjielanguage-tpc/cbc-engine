@@ -29,6 +29,7 @@ public:
     virtual void VPrintFmt(const char* fmt, va_list argp) = 0;
 
     void PrintFmt(const char* fmt, ...);
+    void PrintFmtLn(const char* fmt, ...);
 
     void Print(const float v);
     void Print(const double v);

@@ -5,6 +5,8 @@
 #include "cbc/isa.h"
 #include <cstddef>
 
+#define MAGIC_WORD 0xCBC0C0DE
+
 namespace Interpretation {
 
 using namespace Cbc;
@@ -67,10 +69,20 @@ public:
 
     inline Value::Primitive GetPrimitive(FReg reg) { return fregs[reg].primitive; }
 
+    inline IRegContainer* GetIRegLocation(IReg reg) { return &iregs[reg]; }
+
+    inline Ectype* Checked()
+    {
+        ASSERT(magic == MAGIC_WORD);
+        return this;
+    }
+
 private:
     friend class EctypeInvariants;
     IRegContainer iregs[IReg::COUNT];
     FRegContainer fregs[FReg::COUNT];
+
+    uint32_t magic = MAGIC_WORD;
 };
 
 class EctypeInvariants {

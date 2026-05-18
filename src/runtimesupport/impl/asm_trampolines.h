@@ -3,6 +3,8 @@
 #include "RuntimeTypes.h"
 #include "asm_export.h"
 
+#include <stddef.h>
+
 /// Declarations of `trampolines.S` defined symbols.
 
 namespace Asm {
@@ -19,6 +21,9 @@ extern void engine_i2i_call();
 extern void engine_i2c_call();
 extern void* (*engine_newobject_function)(DYN_TypeInfoT*);
 extern void* engine_universal_direct_function_handles[TRAMPOLINE_COUNT];
+
+extern size_t engine_carrier_specific_offset;
+extern size_t engine_cjthread_specific_offset;
 
 } // extern "C"
 } // namespace Asm
