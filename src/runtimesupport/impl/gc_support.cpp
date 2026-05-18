@@ -13,9 +13,10 @@
 namespace GCSupport {
 
 using namespace Stream;
-using placeholder = uintptr_t*;
+using Placeholder = uintptr_t*;
 
-static void VisitRoot(DYN_RootVisitorT rootVisitor, placeholder ph) {
+static void VisitRoot(DYN_RootVisitorT rootVisitor, Placeholder ph)
+{
     RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) {
         out.PrintFmtLn("visiting %p, value=%p", ph, *ph);
     });
@@ -31,7 +32,7 @@ public:
         uintptr_t ectypeAddr = reinterpret_cast<uintptr_t>(ectype);
         for (uint32_t regN = 0; regN < IReg::COUNT; regN++) {
             IReg reg             = IReg::From(regN);
-            regLocationMap[regN] = reinterpret_cast<placeholder>(ectype->GetIRegLocation(reg));
+            regLocationMap[regN] = reinterpret_cast<Placeholder>(ectype->GetIRegLocation(reg));
         }
     }
 
@@ -47,9 +48,9 @@ public:
         }
     }
 
-    void UpdateRegLocations(std::bitset<ECTYPE_IREGS_COUNT> savedRegsMask, placeholder spillsEnd)
+    void UpdateRegLocations(std::bitset<ECTYPE_IREGS_COUNT> savedRegsMask, Placeholder spillsEnd)
     {
-        placeholder spillAddr = spillsEnd;
+        Placeholder spillAddr = spillsEnd;
         for (uint32_t regN = IReg::FIRST_NON_VOL; regN < IReg::COUNT; regN++) {
             if (savedRegsMask.test(regN - IReg::FIRST_NON_VOL)) {
                 regLocationMap[regN] = --spillAddr;
@@ -58,7 +59,7 @@ public:
     }
 
 private:
-    placeholder regLocationMap[IReg::COUNT];
+    Placeholder regLocationMap[IReg::COUNT];
 };
 
 void IterateFramesWithState(DYN_CJThreadSpecificDataT threadSpecificData, void (*callback)(DYN_VisitingStateT, void*), void* ctx)
@@ -129,7 +130,7 @@ void VisitGCFrameRoots(DYN_VisitingStateT state, DYN_FrameDescT frame_desc, DYN_
     });
 
     for (auto& refSlotOffset : NOTNULL(refInfo)->refSlotOffsets) {
-        auto refLocation = reinterpret_cast<placeholder>(slotsStartAddr + refSlotOffset);
+        auto refLocation = reinterpret_cast<Placeholder>(slotsStartAddr + refSlotOffset);
         RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) { out << refSlotOffset << ": "; });
         VisitRoot(rootVisitor, refLocation);
     }
@@ -149,7 +150,7 @@ void VisitGCFrameRoots(DYN_VisitingStateT state, DYN_FrameDescT frame_desc, DYN_
             out << "update regs table, saved regs: " << savedRegsMap.to_string().c_str() << endl;
         });
 
-        regsLocationTable->UpdateRegLocations(savedRegsMap, reinterpret_cast<placeholder>(spillsEnd));
+        regsLocationTable->UpdateRegLocations(savedRegsMap, reinterpret_cast<Placeholder>(spillsEnd));
     }
 
     RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Output& out) {
