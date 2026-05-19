@@ -22,7 +22,7 @@
 #include "utils/ostream.h"
 #include "utils/rt_logger.h"
 
-DYN_CJNativeInterfaceT g_CJNativeInterfaceInstance;
+DYN_CJNativeInterface g_CJNativeInterfaceInstance;
 
 static std::mutex g_InitializationGuard;
 static bool g_Initialized;
@@ -53,11 +53,11 @@ static void EnsureEngineInitialized()
     g_Initialized = true;
 }
 
-static void FiberStart(DYN_CJThreadSpecificDataT* data) { *data = nullptr; }
+static void FiberStart(DYN_CJThreadSpecificData* data) { *data = nullptr; }
 
-extern "C" Interpretation::Ectype* FiberDataInit(DYN_CJThreadSpecificDataT* data) __asm__("engine_fiber_data_init");
+extern "C" Interpretation::Ectype* FiberDataInit(DYN_CJThreadSpecificData* data) __asm__("engine_fiber_data_init");
 
-Interpretation::Ectype* FiberDataInit(DYN_CJThreadSpecificDataT* data)
+Interpretation::Ectype* FiberDataInit(DYN_CJThreadSpecificData* data)
 {
     ASSERTION(*data == nullptr, "Incorrect data value: %p", *data);
 
@@ -75,7 +75,7 @@ Interpretation::Ectype* FiberDataInit(DYN_CJThreadSpecificDataT* data)
     return ectype;
 }
 
-static void FiberDestroy(DYN_CJThreadSpecificDataT* data)
+static void FiberDestroy(DYN_CJThreadSpecificData* data)
 {
     if (*data == nullptr) {
         // ectype wasn't initialized for this fiber, nothing to do here
@@ -89,44 +89,44 @@ static void FiberDestroy(DYN_CJThreadSpecificDataT* data)
 }
 
 static void IterateFramesWithState(
-    DYN_CJThreadSpecificDataT threadSpecificData, void (*callback)(DYN_VisitingStateT, void*), void* ctx
+    DYN_CJThreadSpecificData threadSpecificData, void (*callback)(DYN_VisitingState, void*), void* ctx
 )
 {
     GCSupport::IterateFramesWithState(threadSpecificData, callback, ctx);
 }
 
-static void VisitFrameRootsMarking(DYN_VisitingStateT state, DYN_FrameDescT frame_desc, DYN_RootVisitorT root_visitor)
+static void VisitFrameRootsMarking(DYN_VisitingState state, DYN_FrameDesc frame_desc, DYN_RootVisitor root_visitor)
 {
     GCSupport::VisitGCFrameRoots(state, frame_desc, root_visitor);
 }
 
 static void VisitFrameRootsAdjusting(
-    DYN_VisitingStateT state,
-    DYN_FrameDescT frame_desc,
-    DYN_RootVisitorT root_visitor,
-    DYN_DerivedPtrVisitorT derived_ptr_visitor
+    DYN_VisitingState state,
+    DYN_FrameDesc frame_desc,
+    DYN_RootVisitor root_visitor,
+    DYN_DerivedPtrVisitor derived_ptr_visitor
 )
 {
     GCSupport::VisitGCFrameRoots(state, frame_desc, root_visitor);
 }
 
 static void VisitFrameRootsExpansion(
-    DYN_VisitingStateT state,
-    DYN_FrameDescT frameDesc,
-    DYN_RootVisitorT stackPtrVisitor,
-    DYN_DerivedPtrVisitorT derivedPtrVisitor
+    DYN_VisitingState state,
+    DYN_FrameDesc frameDesc,
+    DYN_RootVisitor stackPtrVisitor,
+    DYN_DerivedPtrVisitor derivedPtrVisitor
 )
 {
     /* no-op */
 }
 
-static void VisitGlobalRoots(DYN_RootVisitorT visitor) { GCSupport::VisitGlobalRoots(visitor); }
+static void VisitGlobalRoots(DYN_RootVisitor visitor) { GCSupport::VisitGlobalRoots(visitor); }
 
 extern "C" {
 /// This symbol is exported to the runtime, which would initialize engine.
 CBC_EXPORT int interpreter_bridge_init(
-    struct DYN_InterpreterInterfaceT* interpInterf,
-    struct DYN_CJNativeInterfaceT* rtInterf,
+    struct INT_InterpreterInterface* interpInterf,
+    struct DYN_CJNativeInterface* rtInterf,
     int size,
     const char* const* options
 );
@@ -164,8 +164,8 @@ CBC_EXPORT void* engine_get_entrypoint_trampoline(void)
 }
 
 CBC_EXPORT int interpreter_bridge_init(
-    struct DYN_InterpreterInterfaceT* interpInterf,
-    struct DYN_CJNativeInterfaceT* rtInterf,
+    struct INT_InterpreterInterface* interpInterf,
+    struct DYN_CJNativeInterface* rtInterf,
     int size,
     const char* const* options
 )

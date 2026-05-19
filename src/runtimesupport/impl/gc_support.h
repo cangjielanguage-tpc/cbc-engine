@@ -4,10 +4,11 @@
 
 namespace GCSupport {
 
-    void IterateFramesWithState(DYN_CJThreadSpecificDataT threadSpecificData, void (*callback)(DYN_VisitingStateT, void*), void* ctx);
+void IterateFramesWithState(
+    DYN_CJThreadSpecificData threadSpecificData, void (*callback)(DYN_VisitingState, void*), void* ctx
+);
 
-    void VisitGCFrameRoots(DYN_VisitingStateT state, DYN_FrameDescT frame_desc, DYN_RootVisitorT root_visitor);
+void VisitGCFrameRoots(DYN_VisitingState state, DYN_FrameDesc frame_desc, DYN_RootVisitor root_visitor);
 
-    void VisitGlobalRoots(DYN_RootVisitorT visitor);
-
+void VisitGlobalRoots(DYN_RootVisitor visitor);
 }

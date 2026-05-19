@@ -15,7 +15,7 @@ namespace GCSupport {
 using namespace Stream;
 using Placeholder = uintptr_t*;
 
-static void VisitRoot(DYN_RootVisitorT rootVisitor, Placeholder ph)
+static void VisitRoot(DYN_RootVisitor rootVisitor, Placeholder ph)
 {
     RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) {
         out.PrintFmtLn("visiting %p, value=%p", ph, *ph);
@@ -36,7 +36,7 @@ public:
         }
     }
 
-    void VisitAliveRegs(std::bitset<ECTYPE_IREGS_COUNT> aliveRegsMap, DYN_RootVisitorT rootVisitor)
+    void VisitAliveRegs(std::bitset<ECTYPE_IREGS_COUNT> aliveRegsMap, DYN_RootVisitor rootVisitor)
     {
         for (uint32_t regN = 0; regN < IReg::COUNT; regN++) {
             if (aliveRegsMap.test(regN)) {
@@ -62,7 +62,9 @@ private:
     Placeholder regLocationMap[IReg::COUNT];
 };
 
-void IterateFramesWithState(DYN_CJThreadSpecificDataT threadSpecificData, void (*callback)(DYN_VisitingStateT, void*), void* ctx)
+void IterateFramesWithState(
+    DYN_CJThreadSpecificData threadSpecificData, void (*callback)(DYN_VisitingState, void*), void* ctx
+)
 {
     if (threadSpecificData == nullptr) {
         // fiber didn't executed patch code, nothing to do
@@ -76,7 +78,7 @@ void IterateFramesWithState(DYN_CJThreadSpecificDataT threadSpecificData, void (
     auto ectype = static_cast<Interpretation::Ectype*>(NOTNULL(threadSpecificData))->Checked();
 
     RegistersTable regTable(ectype);
-    DYN_VisitingStateT state = &regTable;
+    DYN_VisitingState state = &regTable;
 
     callback(state, ctx);
 
@@ -85,7 +87,7 @@ void IterateFramesWithState(DYN_CJThreadSpecificDataT threadSpecificData, void (
     });
 }
 
-void VisitGCFrameRoots(DYN_VisitingStateT state, DYN_FrameDescT frame_desc, DYN_RootVisitorT rootVisitor)
+void VisitGCFrameRoots(DYN_VisitingState state, DYN_FrameDesc frame_desc, DYN_RootVisitor rootVisitor)
 {
     using namespace Interpretation;
     auto regsLocationTable = reinterpret_cast<RegistersTable*>(state);
@@ -158,7 +160,8 @@ void VisitGCFrameRoots(DYN_VisitingStateT state, DYN_FrameDescT frame_desc, DYN_
     });
 }
 
-void VisitGlobalRoots(DYN_RootVisitorT rootVisitor) {
+void VisitGlobalRoots(DYN_RootVisitor rootVisitor)
+{
     RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Output& out) { out << "start visiting global roots" << endl; });
 
     auto& engine = Engine::GetEngineInstance();
@@ -168,5 +171,4 @@ void VisitGlobalRoots(DYN_RootVisitorT rootVisitor) {
 
     RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Output& out) { out << "end visiting global roots" << endl; });
 }
-
 }
