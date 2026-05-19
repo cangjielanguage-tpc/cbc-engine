@@ -95,6 +95,7 @@ StaticFieldsBundle StaticsManager::CreateBundle(Session& session, TypeIdent type
         return false;
     });
 
+    // URVO guaranteed non-copy
     return StaticFieldsBundle(refFieldsNum, primFieldsNum);
 }
 
@@ -104,7 +105,9 @@ uintptr_t StaticsManager::GetLocation(Session& session, TypeIdent typeIdent, Fie
 
     auto it = bundles.find(typeIdent.Pack());
     if (it == bundles.end()) {
-        it = bundles.emplace(typeIdent.Pack(), CreateBundle(session, typeIdent)).first;
+        // move bundle, so the underlying vector won't be copied.
+        bundles.try_emplace(typeIdent.Pack(), std::move(CreateBundle(session, typeIdent)));
+        it = bundles.find(typeIdent.Pack());
     }
 
     return it->second.GetLocation(session, typeIdent, fieldIdent);

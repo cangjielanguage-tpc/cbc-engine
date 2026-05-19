@@ -45,7 +45,7 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
         return res->second;
     }
 
-    Log::preparation.Log(Logging::Level::INFO, [&](Stream::Output& out) {
+    Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
         Stream::ResolvingOutput stream(session, out);
         stream << "starting to build fuh for " << methodDef << Stream::endl;
     });
@@ -120,7 +120,7 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Session& session, DynamicFuncti
 
     auto& logger = Interpretation::Log::preparation;
 
-    logger.Log(Logging::Level::INFO, [&](Stream::Output& out) {
+    logger.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
         using namespace Stream;
         auto def = Reader::Read(session, fuh->methodDef);
         Stream::ResolvingOutput stream(session, out);
