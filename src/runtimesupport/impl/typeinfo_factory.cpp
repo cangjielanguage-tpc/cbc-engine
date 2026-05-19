@@ -377,7 +377,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         builder.instanceSize = layout->desc.size.value();
         builder.fieldNum     = layout->fields.size();
 
-        builder.fields = Alloc<DYN_TypeInfoT*>(builder.fieldNum);
+        builder.fields = Alloc<DYN_TypeInfo*>(builder.fieldNum);
 
         if (builder.fields == nullptr) {
             return std::nullopt;

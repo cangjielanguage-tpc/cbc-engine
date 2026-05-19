@@ -510,7 +510,7 @@ struct TermResolver {
                 }
                 data->subterms[0] = subterm;
 
-                data->InitAfterSubterms(TagTermId(TermKind::NULLABLE), 1, true);
+                data->InitAfterSubterms(TagTermId(TermKind::NULLABLE), 1, true, true);
                 return Term(LocalTerm(data));
             }
             default: {
