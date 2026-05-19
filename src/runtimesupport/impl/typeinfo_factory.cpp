@@ -42,28 +42,6 @@ static char* ConstructTypeInfoName(std::string_view str)
     std::memcpy(cStr, data, size);
     cStr[size] = 0;
 
-    char* lastDot = nullptr;
-    char* cursor  = cStr;
-    for (;; cursor++) {
-        if (*cursor == '.')
-            lastDot = cursor;
-        switch (*cursor) {
-            case '.': lastDot = cursor; continue;
-            case '<':
-            case ',':
-            case '>': {
-                if (lastDot)
-                    *lastDot = ':';
-                continue;
-            }
-            case '\0': {
-                if (lastDot)
-                    *lastDot = ':';
-                return cStr;
-            }
-        }
-    }
-
     return cStr;
 }
 
@@ -167,8 +145,6 @@ struct TypeInfoBuilder {
             std::free(name);
             std::free(typeArgs);
             std::free(fields);
-            std::free(superTypeInfo);
-            std::free(componentTypeInfo);
             std::free(mtableDesc);
             std::free(reflectOrDebugInfo);
             std::free(dataMT);
@@ -232,10 +208,6 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
                          ) -> std::optional<RTSupport::TypeInfo> {
         if (t == term) {
             return TypeInfo(&currentTypeInfo->base);
-        } else if (t.GetKind() == Engine::TermKind::NIL) {
-            // special case;
-            // method table of core.object is encoded as nil;
-            return QueryTypeInfoAOTByName("std.core:Object");
         }
         return manager.AcquireTypeInfo(session, t);
     };
@@ -259,7 +231,9 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
     auto superType = Engine::TermManager::Resolve(session, type.GetSuperType());
 
-    if (auto superTypeInfo = queryTypeInfo(superType); superTypeInfo.has_value()) {
+    if (superType.GetKind() == Engine::TermKind::NIL) {
+        // nothing TODO
+    } else if (auto superTypeInfo = queryTypeInfo(superType); superTypeInfo.has_value()) {
         builder.superTypeInfo = UnpackTypeInfo(superTypeInfo.value());
     } else {
         // TODO: log
@@ -379,7 +353,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
         builder.fields = Alloc<DYN_TypeInfo*>(builder.fieldNum);
 
-        if (builder.fields == nullptr) {
+        if (builder.fields == nullptr && builder.fieldNum != 0) {
             return std::nullopt;
         }
 

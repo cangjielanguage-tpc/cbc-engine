@@ -273,18 +273,6 @@ std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, Iden
     return newTable;
 }
 
-/// "Almost empty" table of Object.
-MethodTable MethodTableManager::BaseTable()
-{
-    MethodTable mt;
-    mt.classTables.push_back(MethodTable::SubTable {
-        .genericContext = Term::Predefined(TermKind::NIL),
-        .start          = 0,
-        .end            = 0,
-    });
-    return mt;
-}
-
 std::optional<std::shared_ptr<MethodTable>> MethodTableManager::GetMethodTable(Session& session, Term term)
 {
     Log::mt.Log(Logging::Level::INFO, [&](Output& stream) {
@@ -295,7 +283,7 @@ std::optional<std::shared_ptr<MethodTable>> MethodTableManager::GetMethodTable(S
     std::optional<std::shared_ptr<MethodTable>> result = std::nullopt;
 
     if (term.GetKind() == TermKind::NIL) {
-        static auto mt = std::make_shared<MethodTable>(std::move(BaseTable()));
+        static auto mt = std::make_shared<MethodTable>();
         result         = std::atomic_load(&mt);
     } else if (term.GetKind() == TermKind::UNDEFINED) {
         result = std::nullopt;
