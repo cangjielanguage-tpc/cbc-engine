@@ -3,7 +3,6 @@
 #include "utils/assertion.h"
 #include <cstddef>
 #include <cstdio>
-#include <iostream>
 #include <memory>
 #include <utility>
 
@@ -28,6 +27,15 @@ void Output::PrintFmt(const char* fmt, ...)
     va_start(args, fmt);
     VPrintFmt(fmt, args);
     va_end(args);
+}
+
+void Output::PrintFmtLn(const char* fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    VPrintFmt(fmt, args);
+    va_end(args);
+    NewLine(); // TODO print atomically with VPrintFmt
 }
 
 void Output::Print(const float v) { PrintFmt("%f", v); }

@@ -23,6 +23,7 @@ constexpr Option globalOptionsArray[] = {
     { "cbc.log.method.table", &Engine::Log::mt, &SetLogLevelValue },
     { "cbc.log.field.layout", &Engine::Log::fields, &SetLogLevelValue },
     { "cbc.log.root.scan", &RTSupport::Log::gc, &SetLogLevelValue },
+    { "cbc.log.runtime", &RTSupport::Log::rt, &SetLogLevelValue },
     { "cbc.log.init", &RTSupport::Log::init, &SetLogLevelValue },
     { "cbc.log.typeinfo", &RTSupport::Log::typeinfo, &SetLogLevelValue },
     { "cbc.log.all", nullptr, &SetAllLogLevels },

@@ -7,6 +7,7 @@
 
 .extern engine_prepare_bytecode
 .extern engine_interpretation_loop
+.extern engine_fiber_data_init
 
 // exported
 declare_hidden engine_c2i_call_pc_start
@@ -20,17 +21,11 @@ declare_hidden engine_i2_newobject
 declare_hidden engine_i2_gcpoint
 declare_hidden engine_universal_direct_function_handles
 declare_hidden engine_newobject_function
-
+declare_hidden engine_carrier_specific_offset
+declare_hidden engine_cjthread_specific_offset
 
 // --- SECTION BSS ---
 .section .bss
-
-// Fake Ectype* instance represented as global
-// FIXME: get Ectype* instance from ThreadHandle
-.align 16
-.local engine_fake_ectype
-engine_fake_ectype:
-  .skip 1024
 
 .align 16
 engine_universal_direct_function_handles:
@@ -38,6 +33,14 @@ engine_universal_direct_function_handles:
 
 .align 16
 engine_newobject_function:
+  .skip 8
+
+.align 16
+engine_carrier_specific_offset:
+  .skip 8
+
+.align 16
+engine_cjthread_specific_offset:
   .skip 8
 
 // --- SECTION TEXT ---
@@ -96,20 +99,25 @@ engine_iregs_only_c2i_call:
   stp   x29, x30, [sp, #-16]!
   mov   x29, sp
 
-  stp   x19, x20, [sp, #-16]!
-  stp   x21, x22, [sp, #-16]!
-  stp   x23, x24, [sp, #-16]!
-  stp   x27, x28, [sp, #-16]!
+  stp   x19, x20, [sp, #-16]! // x29 - 0x10
+  stp   x21, x22, [sp, #-16]! // x29 - 0x20
+  stp   x23, x24, [sp, #-16]! // x29 - 0x30
+  stp   x27, x28, [sp, #-16]! // x29 - 0x40
 
-  str   x9, [sp, #-16]! // FunctionHandle that will help to scan saved regs
+  str   x9, [sp, #-16]! // x29 - 0x50 : FunctionHandle that will help to scan saved regs
 
-// FIXME: get Ectype* from ThreadHandle
-//  mov   ECTYPE_REG, [TLS + TLS_FIBER_DATA_OFFSET]
-//  mov   ECTYPE_REG, [ECTYPE_REG + FIBER_DATA_ECTYPE_OFFSET]
-  adrp  ECTYPE_REG, engine_fake_ectype
-  add   ECTYPE_REG, ECTYPE_REG, :lo12:engine_fake_ectype
+  adrp  ECTYPE_REG, engine_carrier_specific_offset
+  ldr   ECTYPE_REG, [ECTYPE_REG, :lo12:engine_carrier_specific_offset]
+  ldr   x21, [TLS_REG, ECTYPE_REG]
+  adrp  ECTYPE_REG, engine_cjthread_specific_offset
+  ldr   ECTYPE_REG, [ECTYPE_REG, :lo12:engine_cjthread_specific_offset]
+  add   x21, x21, ECTYPE_REG // address of slot in fiber data that contains ectype addr
+  ldr   ECTYPE_REG, [x21]    // ectype addr
 
-// TODO support correct sret handling
+  cbz   ECTYPE_REG, .Lc2i_prepare_ectype
+
+.Lc2i_args_preparation:
+  // TODO support correct sret handling
   str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8 )]
   str   x1, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x10)]
   str   x2, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x18)]
@@ -132,6 +140,25 @@ engine_iregs_only_c2i_call:
 
   ldp   x29, x30, [sp], #16
   ret
+
+.Lc2i_prepare_ectype:
+  stp   x0, x1, [sp, #-16]!
+  stp   x2, x3, [sp, #-16]!
+  stp   x4, x5, [sp, #-16]!
+  stp   x6, x7, [sp, #-16]!
+
+  mov   x0, x21
+  bl    engine_fiber_data_init
+  
+  mov   ECTYPE_REG, x0
+  ldr   x9, [x29, #-0x50] // restore fuh
+
+  ldp   x6, x7, [sp], #16
+  ldp   x4, x5, [sp], #16
+  ldp   x2, x3, [sp], #16
+  ldp   x0, x1, [sp], #16
+  b     .Lc2i_args_preparation
+
 engine_c2i_call_pc_end:
   brk   #0
 
@@ -147,7 +174,7 @@ engine_i2i_call:
 
 
 .align 16
-// expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: fuh)
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: target)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
 engine_i2c_call:
@@ -197,7 +224,7 @@ perform_2i_call:
   // fp-0x8: FunctionHandle for frame scanning,
   // fp-0x10: Ectype
   // fp-0x18: Literals
-  stp   x0, ECTYPE_REG, [sp, #-16]!
+  stp   ECTYPE_REG, x0, [sp, #-16]!
   str   LITERALS_REG, [sp, #-8]!
 
 .set OFFS_ADDEND, 0x0
@@ -254,20 +281,20 @@ perform_2i_call:
 .macro PUSH_IREGS mask_reg, stack_reg, exec_info_reg
     ldrh  \mask_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
     .irp reg, 10,11,12,13
-        tbz \mask_reg, #(\reg-8), saveireg\reg
-        ldr x2, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + \reg*8)]
-        str x2, [\stack_reg, #-0x8]!
-saveireg\reg:
+        tbz \mask_reg, #(\reg-8), .Lsaveireg\reg
+        ldr x2, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + \reg*ECTYPE_REG_SIZE)]
+        str x2, [\stack_reg, #-ECTYPE_REG_SIZE]!
+.Lsaveireg\reg:
     .endr
 .endm
 
 .macro PUSH_FREGS mask_reg, stack_reg, exec_info_reg
     ldrh  \mask_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_FREGS_OFFSET]
     .irp reg, 8,9,10,11,12,13,14,15
-        tbz \mask_reg, #(\reg-8), savefreg\reg
-        ldr d2, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET + \reg*8)]
-        str d2, [\stack_reg, #-0x8]!
-savefreg\reg:
+        tbz \mask_reg, #(\reg-8), .Lsavefreg\reg
+        ldr d2, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET + \reg*ECTYPE_REG_SIZE)]
+        str d2, [\stack_reg, #-ECTYPE_REG_SIZE]!
+.Lsavefreg\reg:
     .endr
 .endm
 
@@ -297,32 +324,34 @@ savefreg\reg:
   ldr   x9, [x29, #-0x8] // load Function Handle
   ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
 
-  ldr   x1, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
+  ldr   w1, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   mov   x2, sp
   add   x1, x1, x2 // add frame size to locate saved registers
 
 .macro POP_IREGS mask_reg, stack_reg, exec_info_reg
     ldrh  \mask_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
-    .irp reg, 13,12,11,10
-        tbz \mask_reg, #(\reg-8), loadireg\reg
-        ldr x2, [\stack_reg], #0x8
+    .irp reg, 10,11,12,13
+        tbz \mask_reg, #(\reg-8), .Lloadireg\reg
+        ldr x2, [\stack_reg, #-0x8]!
         str x2, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + \reg*8)]
-loadireg\reg:
+.Lloadireg\reg:
     .endr
 .endm
 
 .macro POP_FREGS mask_reg, stack_reg, exec_info_reg
     ldrh  \mask_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_FREGS_OFFSET]
-    .irp reg, 15,14,13,12,11,10,9,8
-        tbz \mask_reg, #(\reg-8), loadfreg\reg
-        ldr d2, [\stack_reg], #0x8
+    .irp reg, 8,9,10,11,12,13,14,15
+        tbz \mask_reg, #(\reg-8), .Lloadfreg\reg
+        ldr d2, [\stack_reg, #-0x8]!
         str d2, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET + \reg*8)]
-loadfreg\reg:
+.Lloadfreg\reg:
     .endr
 .endm
 
   POP_IREGS w8, x1, x9
   POP_FREGS w8, x1, x9
+
+  ldr   LITERALS_REG, [x29, #-0x18]
 
   mov   sp, x29
   ldp   x29, x30, [sp], #16

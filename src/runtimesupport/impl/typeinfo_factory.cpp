@@ -87,23 +87,23 @@ struct TypeInfoBuilder {
     int32_t instanceSize  = -1;
     int32_t componentSize = -1;
 
-    DYN_GCTibT gctib; // TODO: gctib builder
+    DYN_GCTib gctib; // TODO: gctib builder
     uint32_t uuid = 0;
     uint8_t align;
     int8_t typeArgsNum           = 0;
     uint16_t validInheritNum     = 0;
     uint32_t* fieldOffsets       = nullptr;
-    DYN_FuncPtrT finalizerMethod = nullptr;
-    DYN_TypeInfoT** typeArgs     = nullptr;
-    DYN_TypeInfoT** fields       = nullptr;
+    DYN_FuncPtr finalizerMethod  = nullptr;
+    DYN_TypeInfo** typeArgs      = nullptr;
+    DYN_TypeInfo** fields        = nullptr;
 
-    DYN_TypeInfoT* superTypeInfo     = nullptr;
-    DYN_TypeInfoT* componentTypeInfo = nullptr;
+    DYN_TypeInfo* superTypeInfo     = nullptr;
+    DYN_TypeInfo* componentTypeInfo = nullptr;
 
-    DYN_ExtensionDataT** extDefs    = nullptr;
-    DYN_FuncPtrT* flatMethods       = nullptr;
-    DYN_ExtensionDataT* flatExtDefs = nullptr;
-    DYN_MTableDescT* mtableDesc     = nullptr;
+    DYN_ExtensionData** extDefs     = nullptr;
+    DYN_FuncPtr* flatMethods        = nullptr;
+    DYN_ExtensionData* flatExtDefs  = nullptr;
+    DYN_MTableDesc* mtableDesc      = nullptr;
     void* reflectOrDebugInfo        = nullptr;
 
     Interpretation::FunctionHandle** dataMT = nullptr;
@@ -114,7 +114,7 @@ struct TypeInfoBuilder {
 
     TypeInfoBuilder(CbcTypeInfo* typeInfo) : typeInfo(typeInfo), gctib({ .raw = (1lu << 63) }) {}
 
-    DYN_TypeInfoT* Build()
+    DYN_TypeInfo* Build()
     {
         auto typeInfo = this->typeInfo;
         auto result   = &typeInfo->base;
@@ -182,7 +182,7 @@ struct TypeInfoBuilder {
 
 struct MethodTableMember {
     Interpretation::FunctionHandle* handle;
-    DYN_FuncPtrT function;
+    DYN_FuncPtr function;
 };
 
 /// Returns pair of (handle, function) that describes member in method table.
@@ -287,9 +287,9 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         // E.g. function tables are essentionally views in the big array.
 
         builder.dataMT      = Alloc<Interpretation::FunctionHandle*>(mt->EntryCount());
-        builder.flatMethods = Alloc<DYN_FuncPtrT>(mt->EntryCount());
-        builder.extDefs     = Alloc<DYN_ExtensionDataT*>(extDefCount + 1);
-        builder.flatExtDefs = Alloc<DYN_ExtensionDataT>(extDefCount);
+        builder.flatMethods = Alloc<DYN_FuncPtr>(mt->EntryCount());
+        builder.extDefs     = Alloc<DYN_ExtensionData*>(extDefCount + 1);
+        builder.flatExtDefs = Alloc<DYN_ExtensionData>(extDefCount);
 
         if (!builder.dataMT || !builder.flatMethods || !builder.extDefs || !builder.flatExtDefs) {
             return std::nullopt;
@@ -314,7 +314,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
         auto prepareExtDef = [&builder,
                               currentTypeInfo,
-                              &queryTypeInfo](DYN_ExtensionDataT& extDef, Engine::MethodSubTable const& smt) -> bool {
+                              &queryTypeInfo](DYN_ExtensionData& extDef, Engine::MethodSubTable const& smt) -> bool {
             auto funcTableStart        = &builder.flatMethods[smt.StartPos()];
             extDef.funcTable           = funcTableStart;
             extDef.funcTableSize       = smt.EndPos() - smt.StartPos();

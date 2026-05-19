@@ -500,6 +500,19 @@ struct TermResolver {
                 data->InitAfterSubterms(TagTermId(TermKind::METHOD), len, true, false);
                 return Term(LocalTerm(data));
             }
+            case NULLABLE: {
+                auto* data = AllocateTerm(heap, 1);
+
+                auto subtermIdx = reader.ReadULEB();
+                auto subterm    = Resolve(RefId<Term>(refId.GetRegion(), subtermIdx));
+                if (subterm.GetKind() == TermKind::UNDEFINED) {
+                    return NewUndefined(refId);
+                }
+                data->subterms[0] = subterm;
+
+                data->InitAfterSubterms(TagTermId(TermKind::NULLABLE), 1, true);
+                return Term(LocalTerm(data));
+            }
             default: {
                 FATAL("Not implemented for tag %d", tag);
                 return NewUndefined(refId);

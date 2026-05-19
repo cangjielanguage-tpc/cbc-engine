@@ -5,10 +5,10 @@
 
 namespace RTSupport {
 
-void Initialize(DYN_CJNativeInterfaceT* interf);
+void Initialize(DYN_CJNativeInterface* interf);
 
-extern DYN_FuncPtrT* (*GetMTable)(DYN_TypeInfoT* t, DYN_TypeInfoT* itf);
-extern void (*UpdateVMT)(DYN_TypeInfoT* t, DYN_TypeInfoT* itf, DYN_ExtensionDataT* extData);
-extern DYN_TypeInfoT* (*GetMethodOuterTI)(DYN_TypeInfoT* t, DYN_TypeInfoT* itf, int index);
+extern DYN_FuncPtr* (*GetMTable)(DYN_TypeInfo* t, DYN_TypeInfo* itf);
+extern void (*UpdateVMT)(DYN_TypeInfo* t, DYN_TypeInfo* itf, DYN_ExtensionData* extData);
+extern DYN_TypeInfo* (*GetMethodOuterTI)(DYN_TypeInfo* t, DYN_TypeInfo* itf, int index);
 
 } // namespace RTSupport

@@ -18,5 +18,7 @@ extern Logging::Logger init;
 /// INFO  - logs gc-related operations calls
 extern Logging::Logger gc;
 
+extern Logging::Logger rt;
+
 } // namespace Log
 } // namespace RTSupport

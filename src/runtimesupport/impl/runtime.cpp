@@ -15,31 +15,30 @@ using Reference = Interpretation::Value::Reference;
 Reference Execution::ReadObjectInstance(Reference base, size_t offset, ThreadHandle th)
 {
     return Reference { .value = reinterpret_cast<uintptr_t>(g_CJNativeInterfaceInstance.readInstanceField(
-                           reinterpret_cast<DYN_ObjRefT>(base.value),
-                           reinterpret_cast<DYN_FieldRefT>(base.value + offset)
+                           reinterpret_cast<DYN_ObjRef>(base.value), reinterpret_cast<DYN_FieldRef>(base.value + offset)
                        )) };
 }
 
 void Execution::WriteObjectInstance(Reference base, size_t offset, Reference object, ThreadHandle th)
 {
     g_CJNativeInterfaceInstance.writeInstanceField(
-        reinterpret_cast<DYN_ObjRefT>(base.value),
-        reinterpret_cast<DYN_FieldRefT>(base.value + offset),
-        reinterpret_cast<DYN_ObjRefT>(object.value)
+        reinterpret_cast<DYN_ObjRef>(base.value),
+        reinterpret_cast<DYN_FieldRef>(base.value + offset),
+        reinterpret_cast<DYN_ObjRef>(object.value)
     );
 }
 
 Reference Execution::ReadObjectStatic(void* location, ThreadHandle th)
 {
     return Reference { .value = reinterpret_cast<uintptr_t>(
-                           g_CJNativeInterfaceInstance.readStaticField(reinterpret_cast<DYN_FieldRefT>(location))
+                           g_CJNativeInterfaceInstance.readStaticField(reinterpret_cast<DYN_FieldRef>(location))
                        ) };
 }
 
 void Execution::WriteObjectStatic(void* location, Reference object, ThreadHandle th)
 {
     g_CJNativeInterfaceInstance.writeStaticField(
-        reinterpret_cast<DYN_FieldRefT>(location), reinterpret_cast<DYN_ObjRefT>(object.value)
+        reinterpret_cast<DYN_FieldRef>(location), reinterpret_cast<DYN_ObjRef>(object.value)
     );
 }
 
@@ -62,7 +61,7 @@ TypeInfo Execution::GetTypeInfo(Reference base)
 
 void* Execution::GetVirtualTarget(Reference base, int extDefNum, int methodNum)
 {
-    DYN_TypeInfoT** header = reinterpret_cast<DYN_TypeInfoT**>(base.value);
+    DYN_TypeInfo** header  = reinterpret_cast<DYN_TypeInfo**>(base.value);
     auto typeInfo          = *header;
     auto target            = typeInfo->vExtensionDataStart[extDefNum]->funcTable[methodNum];
     return target;
@@ -70,9 +69,9 @@ void* Execution::GetVirtualTarget(Reference base, int extDefNum, int methodNum)
 
 void* Execution::GetInterfaceTarget(Reference base, TypeInfo interf, int methodNum)
 {
-    DYN_TypeInfoT** header = reinterpret_cast<DYN_TypeInfoT**>(base.value);
+    DYN_TypeInfo** header  = reinterpret_cast<DYN_TypeInfo**>(base.value);
     auto typeInfo          = *header;
-    DYN_FuncPtrT* table    = GetMTable(typeInfo, UnpackTypeInfo(interf));
+    DYN_FuncPtr* table     = GetMTable(typeInfo, UnpackTypeInfo(interf));
     return table[methodNum];
 }
 

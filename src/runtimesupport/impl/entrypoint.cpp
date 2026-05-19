@@ -6,13 +6,14 @@
 #include "RTInterface.h"
 #include "asm_export.h"
 #include "asm_trampolines.h"
+#include "cbc/isa.h"
 #include "cbc/isa_disasm.h"
 #include "cbc_engine.h"
 #include "cjnative.h"
 #include "engine/engine.h"
 #include "engine/options.h"
-#include "engine/statics_manager.h"
 #include "engine/symlevel/io/filesystem.h"
+#include "gc_support.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
 #include "interpreter/loggers.h"
@@ -21,7 +22,7 @@
 #include "utils/ostream.h"
 #include "utils/rt_logger.h"
 
-DYN_CJNativeInterfaceT g_CJNativeInterfaceInstance;
+DYN_CJNativeInterface g_CJNativeInterfaceInstance;
 
 static std::mutex g_InitializationGuard;
 static bool g_Initialized;
@@ -52,124 +53,80 @@ static void EnsureEngineInitialized()
     g_Initialized = true;
 }
 
-static void FiberStart(DYN_CJThreadSpecificDataT* data) { /* no-op */ }
+static void FiberStart(DYN_CJThreadSpecificData* data) { *data = nullptr; }
 
-static void FiberDestroy(DYN_CJThreadSpecificDataT* data) { /* TODO: ectype cleanup */ }
+extern "C" Interpretation::Ectype* FiberDataInit(DYN_CJThreadSpecificData* data) __asm__("engine_fiber_data_init");
+
+Interpretation::Ectype* FiberDataInit(DYN_CJThreadSpecificData* data)
+{
+    ASSERTION(*data == nullptr, "Incorrect data value: %p", *data);
+
+    auto ectype = new Interpretation::Ectype();
+    if (!ectype) {
+        FATAL("Ectype allocation error");
+    }
+
+    *data = ectype;
+
+    RTSupport::Log::rt.Log(Logging::Level::INFO, [&data](Stream::Output& out) {
+        out.PrintFmtLn("fiber init, fsd addr: %p, ectype addr: %p", data, *data);
+    });
+
+    return ectype;
+}
+
+static void FiberDestroy(DYN_CJThreadSpecificData* data)
+{
+    if (*data == nullptr) {
+        // ectype wasn't initialized for this fiber, nothing to do here
+        return;
+    }
+
+    RTSupport::Log::rt.Log(Logging::Level::INFO, [&data](Stream::Output& out) {
+        out.PrintFmtLn("fiber destroy, fsd addr: %p, ectype addr: %p", data, *data);
+    });
+    delete static_cast<Interpretation::Ectype*>(*data)->Checked();
+}
 
 static void IterateFramesWithState(
-    DYN_CJThreadSpecificDataT threadSpecificData, void (*callback)(DYN_VisitingStateT, void*), void* ctx
+    DYN_CJThreadSpecificData threadSpecificData, void (*callback)(DYN_VisitingState, void*), void* ctx
 )
 {
-    RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Stream::Output& out) {
-        out.PrintFmt("start scanning frames, thread spec data = %p", threadSpecificData);
-        out.NewLine();
-    });
-
-    DYN_VisitingStateT state = nullptr; // TODO implement
-    callback(state, ctx);
-
-    RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Stream::Output& out) {
-        out.PrintFmt("end scanning frames, thread spec data = %p", threadSpecificData);
-        out.NewLine();
-    });
+    GCSupport::IterateFramesWithState(threadSpecificData, callback, ctx);
 }
 
-static void VisitGCFrameRoots(DYN_FrameDescT frame_desc, DYN_RootVisitorT root_visitor)
+static void VisitFrameRootsMarking(DYN_VisitingState state, DYN_FrameDesc frame_desc, DYN_RootVisitor root_visitor)
 {
-    using namespace Interpretation;
-    const auto readerOffset = LOCAL_SLOTS_OFFSET + READER_SLOTS_SIZE;
-
-    auto fuh    = *reinterpret_cast<DynamicFunctionHandle**>((uint8_t*)frame_desc.fp - FUH_SLOT_OFFSET);
-    auto reader = reinterpret_cast<Decoder::ByteReader*>((uint8_t*)frame_desc.fp - readerOffset);
-    auto bc     = NOTNULL(fuh->bytecode.load());
-
-    uint32_t curPos = reinterpret_cast<uintptr_t>(reader->Cursor()) - reinterpret_cast<uintptr_t>(bc->code.bytecode);
-
-    const ReferenceInfo* refInfo = nullptr;
-    for (auto& info : bc->referenceInfos) {
-        if (info.rewrittenPos == curPos) {
-            refInfo = &info;
-            break;
-        }
-    }
-
-    auto slotsStartAddr = ((uint8_t*)frame_desc.fp) - (readerOffset + bc->frameSize);
-
-    RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Stream::Output& out) {
-        out.PrintFmt(
-            "start visiting frame (fuh=%p, ip=%p, fp=%p, pos=%p, slots_addr=%p)",
-            fuh,
-            frame_desc.ip,
-            frame_desc.fp,
-            curPos,
-            slotsStartAddr
-        );
-        out.NewLine();
-    });
-
-    for (auto& refSlotOffset : NOTNULL(refInfo)->refSlotOffsets) {
-        uintptr_t* refLocation = reinterpret_cast<uintptr_t*>(slotsStartAddr + refSlotOffset);
-        RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
-            out.PrintFmt("visiting %p, value=%p", refLocation, *refLocation);
-            out.NewLine();
-        });
-        g_CJNativeInterfaceInstance.visitRootFromInterpreter(root_visitor, refLocation);
-    }
-
-    RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Stream::Output& out) {
-        out.PrintFmt("end visiting frame (fuh=%p)", fuh);
-        out.NewLine();
-    });
-}
-
-static void VisitFrameRootsMarking(DYN_VisitingStateT state, DYN_FrameDescT frame_desc, DYN_RootVisitorT root_visitor)
-{
-    // TODO scan saved regs
-    VisitGCFrameRoots(frame_desc, root_visitor);
+    GCSupport::VisitGCFrameRoots(state, frame_desc, root_visitor);
 }
 
 static void VisitFrameRootsAdjusting(
-    DYN_VisitingStateT state,
-    DYN_FrameDescT frame_desc,
-    DYN_RootVisitorT root_visitor,
-    DYN_DerivedPtrVisitorT derived_ptr_visitor
+    DYN_VisitingState state,
+    DYN_FrameDesc frame_desc,
+    DYN_RootVisitor root_visitor,
+    DYN_DerivedPtrVisitor derived_ptr_visitor
 )
 {
-    // scan saved regs
-    VisitGCFrameRoots(frame_desc, root_visitor);
+    GCSupport::VisitGCFrameRoots(state, frame_desc, root_visitor);
 }
 
 static void VisitFrameRootsExpansion(
-    DYN_VisitingStateT state,
-    DYN_FrameDescT frameDesc,
-    DYN_RootVisitorT stackPtrVisitor,
-    DYN_DerivedPtrVisitorT derivedPtrVisitor
+    DYN_VisitingState state,
+    DYN_FrameDesc frameDesc,
+    DYN_RootVisitor stackPtrVisitor,
+    DYN_DerivedPtrVisitor derivedPtrVisitor
 )
 {
     /* no-op */
 }
 
-static void VisitGlobalRoots(DYN_RootVisitorT visitor)
-{
-    RTSupport::Log::gc.Stream(Logging::Level::INFO) << "start visiting global roots" << Stream::endl;
-
-    auto& engine = Engine::GetEngineInstance();
-    Engine::StaticsManager::Of(engine).VisitRefLocations([visitor](Engine::RefLocation* refLocation) {
-        RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Stream::Output& out) {
-            out.PrintFmt("visiting %p, value=%p", refLocation, *refLocation);
-            out.NewLine();
-        });
-        g_CJNativeInterfaceInstance.visitRootFromInterpreter(visitor, refLocation);
-    });
-
-    RTSupport::Log::gc.Stream(Logging::Level::INFO) << "end visiting global roots" << Stream::endl;
-}
+static void VisitGlobalRoots(DYN_RootVisitor visitor) { GCSupport::VisitGlobalRoots(visitor); }
 
 extern "C" {
 /// This symbol is exported to the runtime, which would initialize engine.
 CBC_EXPORT int interpreter_bridge_init(
-    struct DYN_InterpreterInterfaceT* interpInterf,
-    struct DYN_CJNativeInterfaceT* rtInterf,
+    struct INT_InterpreterInterface* interpInterf,
+    struct DYN_CJNativeInterface* rtInterf,
     int size,
     const char* const* options
 );
@@ -207,8 +164,8 @@ CBC_EXPORT void* engine_get_entrypoint_trampoline(void)
 }
 
 CBC_EXPORT int interpreter_bridge_init(
-    struct DYN_InterpreterInterfaceT* interpInterf,
-    struct DYN_CJNativeInterfaceT* rtInterf,
+    struct INT_InterpreterInterface* interpInterf,
+    struct DYN_CJNativeInterface* rtInterf,
     int size,
     const char* const* options
 )
@@ -233,6 +190,9 @@ CBC_EXPORT int interpreter_bridge_init(
     interpInterf->visitFrameRootsMarking   = &VisitFrameRootsMarking;
     interpInterf->visitFrameRootsAdjusting = &VisitFrameRootsAdjusting;
     interpInterf->visitGlobalRoots         = &VisitGlobalRoots;
+
+    Asm::engine_carrier_specific_offset  = g_CJNativeInterfaceInstance.carrierSpecificOffset;
+    Asm::engine_cjthread_specific_offset = g_CJNativeInterfaceInstance.cjThreadSpecificOffset;
 
     Asm::engine_newobject_function = g_CJNativeInterfaceInstance.objectAlloc;
     RTSupport::Initialize(&g_CJNativeInterfaceInstance);

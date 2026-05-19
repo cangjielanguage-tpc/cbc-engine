@@ -9,6 +9,7 @@
 
 .extern engine_prepare_bytecode
 .extern engine_interpretation_loop
+.extern engine_fiber_data_init
 
 // exported
 declare_hidden engine_c2i_call_pc_start
@@ -22,17 +23,11 @@ declare_hidden engine_i2_newobject
 declare_hidden engine_i2_gcpoint
 declare_hidden engine_universal_direct_function_handles
 declare_hidden engine_newobject_function
-
+declare_hidden engine_carrier_specific_offset
+declare_hidden engine_cjthread_specific_offset
 
 // --- SECTION BSS ---
 .section .bss
-
-// Fake Ectype* instance represented as global
-// FIXME: get Ectype* instance from ThreadHandle
-.align 16
-.local engine_fake_ectype
-engine_fake_ectype:
-  .skip 1024
 
 .align 16
 engine_universal_direct_function_handles:
@@ -42,8 +37,28 @@ engine_universal_direct_function_handles:
 engine_newobject_function:
   .skip 8
 
+.align 16
+engine_carrier_specific_offset:
+  .skip 8
+
+.align 16
+engine_cjthread_specific_offset:
+  .skip 8
+
 // --- SECTION TEXT ---
 .section .text
+
+.macro push_lst regs:vararg
+  .irp reg, \regs
+    push \reg
+  .endr
+.endm
+
+.macro pop_lst regs:vararg
+  .irp reg, \regs
+    pop  \reg
+  .endr
+.endm
 
 .align 16
 engine_universal_direct_call:
@@ -91,6 +106,7 @@ engine_trampolines_dyn_start:
 #define LITERALS_REG r14
 
 .align 16
+// expects: (TLS_REG: th, rax: fuh)
 // System-V abi, except r15 can be changed after context-switches
 engine_c2i_call_pc_start:
 engine_iregs_only_c2i_call:
@@ -105,12 +121,16 @@ engine_iregs_only_c2i_call:
 
   push  rax // rbp - 0x30 : FunctionHandle that will help to scan saved regs
 
+  mov   ECTYPE_REG, QWORD PTR [rip + engine_carrier_specific_offset]
+  mov   r12, [TLS_REG + ECTYPE_REG]
+  mov   ECTYPE_REG, QWORD PTR [rip + engine_cjthread_specific_offset]
+  lea   r12, [r12 + ECTYPE_REG] // address of slot in fiber data that contains ectype addr
+  mov   ECTYPE_REG, [r12]       // ectype addr
 
-// FIXME: get Ectype* from ThreadHandle
-//  mov   ECTYPE_REG, [TLS + TLS_FIBER_DATA_OFFSET]
-//  mov   ECTYPE_REG, [ECTYPE_REG + FIBER_DATA_ECTYPE_OFFSET]
-  lea   ECTYPE_REG, [rip + engine_fake_ectype]
+  test  ECTYPE_REG, ECTYPE_REG
+  jz    .Lc2i_prepare_ectype
 
+.Lc2i_args_preparation:
   mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8],  rdi
   mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x10], rsi
   mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x18], rdx
@@ -132,6 +152,19 @@ engine_iregs_only_c2i_call:
 
   pop   rbp
   ret
+
+.Lc2i_prepare_ectype:
+  push_lst rdi, rsi, rdx, rcx, r8, r9
+  
+  mov   rdi, r12
+  call  engine_fiber_data_init
+  
+  mov   ECTYPE_REG, rax
+  mov   rax, [rbp - 0x30] // restore fuh
+
+  pop_lst r9, r8, rcx, rdx, rsi, rdi
+  jmp   .Lc2i_args_preparation
+
 engine_c2i_call_pc_end:
   ud2
 
@@ -258,11 +291,11 @@ perform_2i_call:
     .irp reg, 8,9,10,11,12,13
         .set _bit, (\reg - 8)
         test    \mask_reg, (1 << _bit)
-        jz      saveireg\reg
-        mov     rsi, QWORD PTR [ECTYPE_REG + ECTYPE_IREGS_OFFSET + \reg*8]
-        sub     \stack_reg, 8
+        jz      .Lsaveireg\reg
+        mov     rsi, QWORD PTR [ECTYPE_REG + ECTYPE_IREGS_OFFSET + \reg*ECTYPE_REG_SIZE]
+        sub     \stack_reg, ECTYPE_REG_SIZE
         mov     QWORD PTR [\stack_reg], rsi
-saveireg\reg:
+.Lsaveireg\reg:
     .endr
 .endm
 
@@ -271,11 +304,11 @@ saveireg\reg:
     .irp reg, 8,9,10,11,12,13,14,15
         .set _bit, (\reg - 8)
         test    \mask_reg, (1 << _bit)
-        jz      savefreg\reg
-        mov     rsi, QWORD PTR [ECTYPE_REG + ECTYPE_FREGS_OFFSET + \reg*8]
-        sub     \stack_reg, 8
+        jz      .Lsavefreg\reg
+        mov     rsi, QWORD PTR [ECTYPE_REG + ECTYPE_FREGS_OFFSET + \reg*ECTYPE_REG_SIZE]
+        sub     \stack_reg, ECTYPE_REG_SIZE
         mov     QWORD PTR [\stack_reg], rsi
-savefreg\reg:
+.Lsavefreg\reg:
     .endr
 .endm
 
@@ -319,11 +352,11 @@ savefreg\reg:
     .irp reg, 8,9,10,11,12,13
         .set _bit, (\reg - 8)
         test    \mask_reg, (1 << _bit)
-        jz      loadireg\reg
+        jz      .Lloadireg\reg
         sub     \stack_reg, 8
         mov     rsi, QWORD PTR [\stack_reg]
         mov     QWORD PTR [ECTYPE_REG + ECTYPE_IREGS_OFFSET + \reg*8], rsi
-loadireg\reg:
+.Lloadireg\reg:
     .endr
 .endm
 
@@ -332,11 +365,11 @@ loadireg\reg:
     .irp reg, 8,9,10,11,12,13,14,15
         .set _bit, (\reg - 8)
         test    \mask_reg, (1 << _bit)
-        jz      loadfreg\reg
+        jz      .Lloadfreg\reg
         sub     \stack_reg, 8
         mov     rsi, QWORD PTR [\stack_reg]
         mov     QWORD PTR [ECTYPE_REG + ECTYPE_FREGS_OFFSET + \reg*8], rsi
-loadfreg\reg:
+.Lloadfreg\reg:
     .endr
 .endm
 
