@@ -1,5 +1,6 @@
 #include "resolution.h"
 #include "engine/engine.h"
+#include "engine/field_layout.h"
 #include "engine/identifiers.h"
 #include "engine/method_table.h"
 #include "engine/resolving_output.h"
@@ -15,6 +16,7 @@
 #include "engine/typeinfo_manager.h"
 #include "interpreter/function_handle.h"
 #include "runtimesupport/adapters.h"
+#include "runtimesupport/runtime.h"
 #include "utils/assertion.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
@@ -55,10 +57,13 @@ struct Resolver::Impl {
     IO::FileId fileId;
     uint8_t regionId = 0; // FIXME
 
+    std::unique_ptr<FieldLayoutManager> fieldManager;
+
     Impl(Session& session, Identifier<Symlevel::MethodDefinition> method)
         : session(session),
           method(method),
-          fileId(method.GetFileId())
+          fileId(method.GetFileId()),
+          fieldManager(FieldLayoutManager::New(session))
     {}
 
     template <typename T> using Cache = std::unordered_map<int, T*>;
@@ -88,15 +93,15 @@ struct Resolver::Impl {
 /// TODO: add diffrent Type implementations.
 struct SimpleType : public Type {
     Term term;
-    Resolver::Impl& impl;
+    Resolver::Impl& resolver;
 
-    SimpleType(Term term, Resolver::Impl& impl) : term(term), impl(impl) {}
+    SimpleType(Term term, Resolver::Impl& impl) : term(term), resolver(impl) {}
 
-    void GetFullName(Stream::Output& stream) const override { term.GetName(impl.session, stream); }
+    void GetFullName(Stream::Output& stream) const override { term.GetName(resolver.session, stream); }
 
     std::optional<RTSupport::TypeInfo> GetTypeInfo() override
     {
-        return TypeInfoManager::Of(impl.session).AcquireTypeInfo(impl.session, term);
+        return TypeInfoManager::Of(resolver.session).AcquireTypeInfo(resolver.session, term);
     }
 
     CbcTypeKind GetKind() override
@@ -125,84 +130,20 @@ struct SimpleType : public Type {
             case TK::F64:            return CbcTypeKind::F64;
             case TK::UNDEFINED:      return CbcTypeKind::INVALID;
             case TK::C_POINTER:      return CbcTypeKind::U64;
-            case TK::NULLABLE:       return CbcTypeKind::REF;
-            case TK::NON_NULLABLE:   return CbcTypeKind::REF;
-            case TK::CANGJIE_ARRAY:  return CbcTypeKind::REF;
             case TK::METHOD:         return CbcTypeKind::INVALID;
-            case TK::TYPE:           return CbcTypeKind::REF;
-            case TK::AOT_TYPE:       return CbcTypeKind::REF;
             case TK::AOT_REC:        return CbcTypeKind::REC;
-            case TK::TYPE_VAR:       return CbcTypeKind::REF;
             case TK::GENERIC_METHOD: return CbcTypeKind::INVALID;
             case TK::LAST:           return CbcTypeKind::INVALID;
+
+            default:
+                if (term.IsReference()) {
+                    return CbcTypeKind::REF;
+                }
+                FATAL("Unexpected %d", term.GetKind());
         }
     }
 
-    std::optional<int> GetFlatSize() override
-    {
-        using TK = TermKind;
-        switch (term.GetKind()) {
-            case TK::VOID:
-            case TK::UNIT: return 0;
-
-            case TK::BOOLEAN:
-            case TK::I8:
-            case TK::U8:      return 1;
-
-            case TK::I16:
-            case TK::U16:
-            case TK::F16: return 2;
-
-            case TK::I32:
-            case TK::U32:
-            case TK::UCHAR32:
-            case TK::F32:     return 4;
-
-            case TK::I64:
-            case TK::U64:
-            case TK::IADDR:
-            case TK::UADDR:
-            case TK::BSTRING:
-            case TK::F64:
-            case TK::C_POINTER: return 8;
-
-            case TK::NULLABLE:
-            case TK::NON_NULLABLE:
-            case TK::CANGJIE_ARRAY:
-            case TK::AOT_TYPE:
-            case TK::TYPE_VAR:      return sizeof(uintptr_t);
-
-            case TK::TYPE: {
-                auto ident = TypeTermId(term).GetIdentifier();
-                auto rec   = Symlevel::TypeDefinition::Resolve(impl.session, ident).GetFlags().GetTypeKind() ==
-                           Symlevel::TypeKind::RECORD;
-                if (rec) {
-                    auto ti = GetTypeInfo();
-                    if (!ti.has_value()) {
-                        return std::nullopt;
-                    }
-                    return RTSupport::MetaInfo::GetTypeSize(*ti);
-                } else {
-                    return sizeof(uintptr_t);
-                }
-            }
-
-            case TK::AOT_REC: {
-                auto ti = GetTypeInfo();
-                if (!ti.has_value()) {
-                    return std::nullopt;
-                }
-                return RTSupport::MetaInfo::GetTypeSize(*ti);
-            }
-
-            case TK::NIL:
-            case TK::NOTHING:
-            case TK::UNDEFINED:
-            case TK::METHOD:
-            case TK::GENERIC_METHOD:
-            case TK::LAST:           return std::nullopt;
-        }
-    }
+    std::optional<uint32_t> GetFlatSize() override { return resolver.fieldManager->GetFlatSize(term); }
 };
 
 Type* Resolver::Impl::NewType(Term term) { return session.Allocator().New<SimpleType>(term, *this); }
@@ -384,7 +325,6 @@ static std::optional<VirtualCall> ResolveCall(Resolver::Impl& resolver, Index<Vi
         }
 
         case TermKind::AOT_TYPE: {
-            /// FIXME: interface calls
             auto data = file.GetVirtualCallAotTable().GetData(resolver.session, ref.identifier.GetIndex());
             auto sig  = ConstructSignature(resolver, ref);
             return VirtualCall { refType, ref.name, std::move(sig), data.methodNum, data.extDefNum };
@@ -531,7 +471,7 @@ template <typename Field> std::optional<Field> ResolveField(Resolver::Impl& reso
 
     if (ref.refType.GetKind() == TermKind::UNDEFINED || ref.fieldType.GetKind() == TermKind::UNDEFINED) {
         // undef terms would be reported separately
-        log.Stream(Logging::Level::ERROR) << "Failed to parse field reference " << id.GetValue();
+        log.Stream(Logging::Level::ERROR) << "Failed to parse field reference " << id.GetValue() << Stream::endl;
         return std::nullopt;
     }
 
@@ -545,8 +485,9 @@ template <typename Field> std::optional<Field> ResolveField(Resolver::Impl& reso
             ASSERTION(ref.fieldType.GetKind() != TermKind::TYPE, "aot types cannot have fields of cbc type");
             if constexpr (std::is_same_v<Field, InstanceField>) {
                 auto data = file.GetInstanceFieldAotTable().GetData(resolver.session, refId);
-                int offset =
-                    RTSupport::Execution::GetFieldOffset(refType->GetTypeInfo().value(), data.ordinal, !ref.isRecord);
+                int offset = RTSupport::Execution::GetFieldOffset(
+                    refType->GetTypeInfo().value(), data.ordinal, ref.refType.IsReference()
+                );
                 return InstanceField { refType, ref.name, fieldType, data.ordinal, offset };
             } else {
                 static_assert(std::is_same_v<Field, StaticField>);
@@ -564,8 +505,32 @@ template <typename Field> std::optional<Field> ResolveField(Resolver::Impl& reso
         }
         case TermKind::TYPE: {
             if constexpr (std::is_same_v<Field, InstanceField>) {
-                FATAL("Not supported yet");
-                return std::nullopt;
+                auto optlayout = resolver.fieldManager->GetLayout(ref.refType);
+                if (!optlayout.has_value()) {
+                    return std::nullopt;
+                }
+                auto layout = *optlayout;
+
+                uint32_t ordinal = 0;
+                auto optoffset   = [&]() {
+                    std::optional<uint32_t> offset {};
+                    for (auto& field : layout->fields) {
+                        auto def  = Symlevel::Reader::Read(resolver.session, field.definition);
+                        auto name = Symlevel::Reader::Read(resolver.session, def.GetName());
+                        if (field.fieldType == ref.fieldType && name.compare(ref.name) == 0) {
+                            offset = field.offset;
+                            break;
+                        }
+                        ordinal++;
+                    }
+                    return offset;
+                }();
+                if (!optoffset.has_value()) {
+                    return std::nullopt;
+                }
+                auto offset  = *optoffset;
+                offset      += (ref.refType.IsReference() ? RTSupport::MetaInfo::ObjectHeaderSize() : 0);
+                return InstanceField { refType, ref.name, fieldType, ordinal, offset };
             } else {
                 static_assert(std::is_same_v<Field, StaticField>);
 

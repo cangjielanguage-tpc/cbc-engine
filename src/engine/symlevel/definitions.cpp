@@ -30,7 +30,9 @@ TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId
 
     auto methodIndex = MethodIndex::Read(reader, fileId);
     auto dynMethods  = OffsetSequence<MethodDefinition>::Parse(reader, fileId);
-    auto fieldIndex  = FieldIndex::Read(reader, fileId);
+
+    auto fieldIndex     = FieldIndex::Read(reader, fileId);
+    auto instanceFields = OffsetSequence<FieldDefinition>::Parse(reader, fileId);
 
     auto test = [parsedFlags](uint32_t bits) { return (parsedFlags & bits) != 0; };
 
@@ -52,13 +54,14 @@ TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId
     if (test(0x80))
         flags = flags.Or(TypeFlag::AOT);
 
-    TypeDefinition def { Engine::Identifier(offset, fileId),
-                            name,
-                            std::move(methodIndex),
-                            std::move(fieldIndex),
-                            dynMethods,
-                            superType,
-                            flags };
+    TypeDefinition::Content def { Engine::Identifier(offset, fileId),
+                                  name,
+                                  std::move(methodIndex),
+                                  std::move(fieldIndex),
+                                  dynMethods,
+                                  instanceFields,
+                                  superType,
+                                  flags };
 
     for (auto tag = reader.ReadU8(); tag != 0; tag = reader.ReadU8()) {
         switch (tag) {
@@ -66,7 +69,7 @@ TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId
             default:  FATAL("unexpected tag: %d", tag); std::exit(2);
         }
     }
-    return def;
+    return TypeDefinition(std::move(def));
 }
 
 TypeDefinition TypeDefinition::Resolve(Engine::Session& session, Engine::Identifier<TypeDefinition> identifier)
@@ -114,6 +117,8 @@ FieldDefinition FieldDefinition::Parse(Engine::Session& session, IO::FileId file
         flags = flags.Or(FieldFlag::STATIC);
     if (test(0x08))
         flags = flags.Or(FieldFlag::FINAL);
+    if (test(0x20))
+        flags = flags.Or(FieldFlag::AOT);
 
     return FieldDefinition(
         Engine::Identifier<FieldDefinition>(offset, fileId), nameOffset, fieldType, flags, {}

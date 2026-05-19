@@ -6,6 +6,7 @@
 #include "runtimesupport/impl/rt_syms.h"
 #include "runtimesupport/impl/typeinfo_ext.h"
 #include "utils/assertion.h"
+#include <cstdint>
 
 namespace RTSupport {
 
@@ -74,18 +75,24 @@ void* Execution::GetInterfaceTarget(Reference base, TypeInfo interf, int methodN
     return table[methodNum];
 }
 
-int Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool isRef)
+int Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool adjustByHeader)
 {
     auto mrtti      = UnpackTypeInfo(ti);
-    auto headerOffs = isRef ? 8 : 0;
+    auto headerOffs = adjustByHeader ? sizeof(void*) : 0;
     ASSERT(ordinal < mrtti->fieldNum);
     return mrtti->fieldOffsets[ordinal] + headerOffs;
 }
 
-std::optional<int> MetaInfo::GetTypeSize(TypeInfo ti)
+uint32_t MetaInfo::GetTypeSize(TypeInfo ti)
 {
     auto mrtti = UnpackTypeInfo(ti);
     return mrtti->instanceSize;
+}
+
+uint8_t MetaInfo::GetAlign(TypeInfo ti)
+{
+    auto mrtti = UnpackTypeInfo(ti);
+    return mrtti->align;
 }
 
 } // namespace RTSupport

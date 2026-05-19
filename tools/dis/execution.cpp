@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <cstring>
 
 #include "engine/typeinfo_manager.h"
@@ -59,6 +60,8 @@ void* Adapters::IregOnlyC2ICallInstance() { FATAL("Should not reach here."); }
 
 void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* fuh) { FATAL("Should not reach here."); }
 
-std::optional<int> MetaInfo::GetTypeSize(TypeInfo ti) { return std::nullopt; }
+uint32_t MetaInfo::GetTypeSize(TypeInfo ti) { return 0; }
+
+uint8_t MetaInfo::GetAlign(TypeInfo ti) { return alignof(max_align_t); }
 
 } // namespace RTSupport

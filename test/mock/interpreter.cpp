@@ -1,3 +1,5 @@
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
 
 #include "../testutils.h"
@@ -225,7 +227,7 @@ void Execution::WriteObjectStatic(void* location, Reference object, ThreadHandle
     *reinterpret_cast<uintptr_t*>(location) = object.value;
 }
 
-int Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool isRef)
+int Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool adjustByHeader)
 {
     FATAL("Should not reach here. Get field offset");
 }
@@ -264,6 +266,8 @@ void* Adapters::IregOnlyC2ICallInstance() { return reinterpret_cast<void*>(&C2IC
 
 void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* fuh) { FATAL("Should not reach here."); }
 
-std::optional<int> MetaInfo::GetTypeSize(TypeInfo ti) { return std::nullopt; }
+uint32_t MetaInfo::GetTypeSize(TypeInfo ti) { return Interpretation::Extract(ti)->size; }
+
+uint8_t MetaInfo::GetAlign(TypeInfo ti) { return alignof(max_align_t); }
 
 } // namespace RTSupport

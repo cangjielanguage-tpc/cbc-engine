@@ -28,54 +28,48 @@ private:
 
 class TypeDefinition {
 public:
+    struct Content {
+        Engine::Identifier<TypeDefinition> identifier;
+        Engine::Identifier<String> name;
+        MethodIndex methods;
+        FieldIndex fields;
+        OffsetSequence<MethodDefinition> virtualMethods;
+        OffsetSequence<FieldDefinition> instanceFields;
+        Engine::RefIdentifier<Term> superType;
+        TypeFlags flags;
+        RefSequence<Term> interfaces {};
+    };
+
     static TypeDefinition Parse(Engine::Session& session, IO::FileId fileId, Offset<TypeDefinition> offset);
     static TypeDefinition Resolve(Engine::Session& session, Engine::Identifier<TypeDefinition> identifier);
     static String ParseName(Engine::Session& session, IO::FileId fileId, Offset<TypeDefinition> offset);
 
-    Engine::Identifier<TypeDefinition> const GetIdentifier() { return identifier; }
+    Engine::Identifier<TypeDefinition> const GetIdentifier() { return content.identifier; }
 
-    Engine::Identifier<String> const GetName() const { return name; }
+    Engine::Identifier<String> const GetName() const { return content.name; }
 
-    MethodIndex const GetMethods() const { return methods; }
+    MethodIndex const GetMethods() const { return content.methods; }
 
-    FieldIndex const GetFields() const { return fields; }
+    FieldIndex const GetFields() const { return content.fields; }
 
-    OffsetSequence<MethodDefinition> const GetVirtualMethods() const { return virtualMethods; }
+    OffsetSequence<MethodDefinition> const GetVirtualMethods() const { return content.virtualMethods; }
 
-    Engine::RefIdentifier<Term> const GetSuperType() const { return superType; }
+    OffsetSequence<FieldDefinition> const GetInstanceFields() const { return content.instanceFields; }
 
-    TypeFlags const GetFlags() const { return flags; }
+    Engine::RefIdentifier<Term> const GetSuperType() const { return content.superType; }
 
-    RefSequence<Term> GetInterfaces() { return interfaces; }
+    TypeFlags const GetFlags() const { return content.flags; }
+
+    RefSequence<Term> GetInterfaces() const { return content.interfaces; }
+
+    Content const* operator->() const { return &content; }
+
+    Content const* operator*() const { return &content; }
 
 private:
-    TypeDefinition(
-        Engine::Identifier<TypeDefinition> const identifier,
-        Engine::Identifier<String> const name,
-        MethodIndex const methods,
-        FieldIndex const fields,
-        OffsetSequence<MethodDefinition> const virtualMethods,
-        Engine::RefIdentifier<Term> const superType,
-        TypeFlags flags
-    )
-        : identifier(identifier),
-          name(name),
-          methods(methods),
-          fields(fields),
-          virtualMethods(virtualMethods),
-          superType(superType),
-          flags(flags)
-    {}
+    TypeDefinition(Content&& content) : content(content) {}
 
-    Engine::Identifier<TypeDefinition> identifier;
-    Engine::Identifier<String> name;
-    MethodIndex methods;
-    FieldIndex fields;
-    OffsetSequence<MethodDefinition> virtualMethods;
-    Engine::RefIdentifier<Term> superType;
-    TypeFlags flags;
-
-    RefSequence<Term> interfaces {};
+    Content content;
 };
 
 class FieldDefinition {

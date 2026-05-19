@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/engine.h"
+#include "engine/field_layout.h"
 #include "engine/identifiers.h"
 #include "engine/method_table.h"
 #include "engine/symlevel/definitions.h"
@@ -39,6 +40,7 @@ public:
     ResolvingOutput& operator<<(IO::FileId fileId);
     ResolvingOutput& operator<<(Detailed<Engine::RefIdentifier<Engine::Term>> id);
     ResolvingOutput& operator<<(Engine::MethodTable const& mt);
+    ResolvingOutput& operator<<(Engine::FieldLayout const& mt);
     ResolvingOutput& operator<<(Symlevel::FieldDefinition const& fd);
     ResolvingOutput& operator<<(NoResolve<Symlevel::FieldDefinition> fd);
     ResolvingOutput& operator<<(Symlevel::MethodDefinition const& md);

@@ -18,6 +18,7 @@ namespace Symlevel {
 
 #define FIELD_FLAGS(X)                                                                                                 \
     X(STATIC)                                                                                                          \
+    X(AOT)                                                                                                             \
     X(FINAL)
 
 #define METHOD_FLAGS(X)                                                                                                \

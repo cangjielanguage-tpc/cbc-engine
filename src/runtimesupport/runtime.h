@@ -4,6 +4,7 @@
 /// interpreter and the runtime.
 
 #include "interpreter/ectype.h"
+#include <cstdint>
 #include <optional>
 
 namespace RTSupport {
@@ -58,11 +59,14 @@ struct Execution {
     static void* GetVirtualTarget(Reference base, int extDefNum, int methodNum);
     static void* GetInterfaceTarget(Reference base, TypeInfo ti, int methodNum);
 
-    static int GetFieldOffset(TypeInfo ti, int ordinal, bool isRef);
+    static int GetFieldOffset(TypeInfo ti, int ordinal, bool adjustByHeader);
 };
 
 struct MetaInfo {
-    static std::optional<int> GetTypeSize(TypeInfo ti);
+    static uint32_t GetTypeSize(TypeInfo ti);
+    static uint8_t GetAlign(TypeInfo ti);
+
+    static uint32_t ObjectHeaderSize() { return sizeof(void*); }
 };
 
 } // namespace RTSupport

@@ -7,6 +7,7 @@
 #include "engine/symlevel/io/stream_file_reader.h"
 #include "engine/symlevel/reader.h"
 #include "engine/symlevel/region_data.h"
+#include "engine/symlevel/type_kind.h"
 #include "string.h"
 #include "utils/assertion.h"
 #include "utils/heap.h"
@@ -30,23 +31,25 @@ struct TermData {
     uint32_t hash;
     uint16_t length;
     bool isLocal;
+    bool isReference;
     Term subterms[];
 
-    void InitAfterSubterms(TermId identifier, uint16_t length, bool isLocal)
+    void InitAfterSubterms(TermId identifier, uint16_t length, bool isLocal, bool isReference)
     {
         uint32_t hash = 0;
         for (int i = 0; i < length; i++) {
             hash = 31 * hash + subterms->Hash();
         }
-        Init(identifier, identifier.Hash() ^ hash, length, isLocal);
+        Init(identifier, identifier.Hash() ^ hash, length, isLocal, isReference);
     }
 
-    void Init(TermId identifier, uint32_t hash, uint16_t length, bool isLocal)
+    void Init(TermId identifier, uint32_t hash, uint16_t length, bool isLocal, bool isReference)
     {
-        this->identifier = identifier;
-        this->isLocal    = isLocal;
-        this->length     = length;
-        this->hash       = hash;
+        this->identifier  = identifier;
+        this->isLocal     = isLocal;
+        this->length      = length;
+        this->hash        = hash;
+        this->isReference = isReference;
     }
 };
 
@@ -141,9 +144,11 @@ Term Term::Predefined(TermKind tk)
 
 Term Term::Definition(Session& session, Identifier<Symlevel::TypeDefinition> type)
 {
-    // TODO: assertions for length
+    // TODO: handle arity and generic type vars
+    auto def   = Symlevel::Reader::Read(session, type);
+    bool isRec = def.GetFlags().Is(Symlevel::TypeKind::RECORD);
     auto* data = AllocateTerm(session.Allocator());
-    data->InitAfterSubterms(TypeTermId(type), 0, true);
+    data->InitAfterSubterms(TypeTermId(type), 0, true, !isRec);
     return LocalTerm(data);
 }
 
@@ -151,7 +156,7 @@ static Term Undefined(Session& session, RefIdentifier<Term> termId)
 {
     // TODO: assertions for length
     auto* data = AllocateTerm(session.Allocator());
-    data->InitAfterSubterms(UndefTermId(termId), 0, true);
+    data->InitAfterSubterms(UndefTermId(termId), 0, true, false);
     return LocalTerm(data);
 }
 
@@ -370,7 +375,7 @@ GlobalTerm TermManager::Globalize(Term& term)
     for (int i = 0; i < term.GetLength(); i++) {
         data->subterms[i] = termData->subterms[i];
     }
-    data->Init(termData->identifier, termData->hash, termData->length, false);
+    data->Init(termData->identifier, termData->hash, termData->length, false, termData->isReference);
 
     cache.insert(data);
     term.data = data;
@@ -434,26 +439,49 @@ struct TermResolver {
                 }
                 auto identifier = type.value();
 
-                auto def  = Symlevel::TypeDefinition::Resolve(session, identifier);
-                if ((def.GetFlags().GetTypeKind() == Symlevel::TypeKind::RECORD) != (tag == REC)) {
+                auto def = Symlevel::TypeDefinition::Resolve(session, identifier);
+                if ((def.GetFlags().Is(Symlevel::TypeKind::RECORD)) != (tag == REC)) {
                     return NewUndefined(refId);
                 }
+                // TODO: verify def.arity == 0
 
-                auto* data      = AllocateTerm(heap);
-                data->InitAfterSubterms(TypeTermId(identifier), 0, true);
+                auto data = AllocateTerm(heap);
+                data->InitAfterSubterms(TypeTermId(identifier), 0, true, tag == REF);
                 return Term(LocalTerm(data));
             }
             case AOT_REC: // fall-through
             case AOT_REF: {
                 auto nameOffs   = Offset<String>(reader.ReadULEB());
-                auto* data      = AllocateTerm(heap);
                 auto identifier = Identifier(nameOffs, fileId);
-                if (tag == AOT_REF) { 
-                    data->InitAfterSubterms(AotTermId(identifier), 0, true);
+                auto name       = Reader::Read(session, identifier);
+
+                // Attempt to find type definition, even if the type is tagged as aot.
+                // Because they could present in `TypeDefinition` super closure
+                // or be present as "patch".
+                auto type = session.GetEngine().FindType(session, name);
+                if (type.has_value()) {
+                    // While, such behaviour is possible for CBC defined types,
+                    // because of incorrect dependencies of cbc's (stability issues).
+                    // It is not expected from AOT code.
+                    ASSERTION(
+                        Symlevel::TypeDefinition::Resolve(session, *type).GetFlags().Is(Symlevel::TypeKind::RECORD) !=
+                            (tag == AOT_REC),
+                        "incorrect encoding"
+                    );
+                    // TODO: assert def.arity == 0
+
+                    auto data = AllocateTerm(heap);
+                    data->InitAfterSubterms(TypeTermId(*type), 0, true, tag == AOT_REF);
+                    return Term(LocalTerm(data));
                 } else {
-                    data->InitAfterSubterms(AotRecTermId(identifier), 0, true);
+                    auto data = AllocateTerm(heap);
+                    if (tag == AOT_REF) {
+                        data->InitAfterSubterms(AotTermId(identifier), 0, true, true);
+                    } else {
+                        data->InitAfterSubterms(AotRecTermId(identifier), 0, true, false);
+                    }
+                    return Term(LocalTerm(data));
                 }
-                return Term(LocalTerm(data));
             }
             case METHOD_SIGNATURE: {
                 auto len   = reader.ReadU8() + 1; // +1 for ret type
@@ -469,7 +497,7 @@ struct TermResolver {
                     data->subterms[i] = subterm;
                 }
 
-                data->InitAfterSubterms(TagTermId(TermKind::METHOD), len, true);
+                data->InitAfterSubterms(TagTermId(TermKind::METHOD), len, true, false);
                 return Term(LocalTerm(data));
             }
             case NULLABLE: {
@@ -482,7 +510,7 @@ struct TermResolver {
                 }
                 data->subterms[0] = subterm;
 
-                data->InitAfterSubterms(TagTermId(TermKind::NULLABLE), 1, true);
+                data->InitAfterSubterms(TagTermId(TermKind::NULLABLE), 1, true, true);
                 return Term(LocalTerm(data));
             }
             default: {
@@ -503,6 +531,23 @@ Term TermManager::Resolve(Session& session, RefIdentifier<Term> ident)
     TermResolver resolver { file.GetRegionData(), session, session.Allocator(), ident.GetFileId(), *raf, file };
 
     return resolver.Resolve(ident.GetIndex());
+}
+
+bool Term::IsReference() const
+{
+    return data->isReference;
+    switch (GetKind()) {
+        case TermKind::NULLABLE:
+        case TermKind::NON_NULLABLE:
+        case TermKind::AOT_TYPE:
+        case TermKind::TYPE_VAR:
+        case TermKind::CANGJIE_ARRAY: return true;
+
+        case TermKind::TYPE: {
+        }
+
+        default: return false;
+    }
 }
 
 } // namespace Engine

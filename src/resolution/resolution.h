@@ -53,7 +53,7 @@ enum class CbcTypeKind {
 /// The handle that represents a type.
 class Type {
 public:
-    ~Type() = default;
+    virtual ~Type() = default;
 
     /// Full name of the type.
     virtual void GetFullName(Stream::Output& stream) const = 0;
@@ -63,8 +63,8 @@ public:
 
     virtual CbcTypeKind GetKind() = 0;
 
-    /// Total size of the type's fields in bytes.
-    virtual std::optional<int> GetFlatSize() = 0;
+    /// The size of a field of given type.
+    virtual std::optional<uint32_t> GetFlatSize() = 0;
 };
 
 struct MethodSignature {
