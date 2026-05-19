@@ -5,6 +5,7 @@
 #include "identifiers.h"
 #include "symlevel/definitions.h"
 
+#include <cstdint>
 #include <functional>
 #include <mutex>
 
@@ -31,6 +32,10 @@ class StaticFieldsBundle {
 
 public:
     StaticFieldsBundle(uint32_t refFieldsNum, uint32_t primFieldsNum);
+
+    // underlying vector CAN NOT be copied.
+    StaticFieldsBundle(StaticFieldsBundle const& another) = delete;
+    StaticFieldsBundle(StaticFieldsBundle&& another) = default;
 
     ~StaticFieldsBundle() = default;
 
