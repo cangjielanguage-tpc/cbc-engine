@@ -608,8 +608,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
     Resolver resolver(session, method);
     auto code = Symlevel::Reader::Read(session, def.MethodCode().value());
 
-    Interpretation::Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
-        ResolvingOutput stream(session, out);
+    Interpretation::Log::preparation.Log(Logging::Level::INFO, [&](Stream::Output& out) {
         Descripted desc(out, Descriptor(session, method));
         code.Print(session, out);
         Disasm(desc, code, &resolver);
@@ -617,8 +616,14 @@ Interpretation::ExecBytecodeInfo Rewrite(
 
     auto res = Rewrite(session, code, resolver, heap);
 
-    Interpretation::Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
+    Interpretation::Log::preparation.Log(Logging::Level::INFO, [&](Stream::Output& out) {
         Descripted desc(out, Descriptor(session, method));
+
+        desc.PrintFmt("bytecode: %p %zu", res.code.bytecode, res.code.bytecodeSize);
+        desc.NewLine();
+        desc.PrintFmt("literals: %p %zu", res.code.literals->_table, res.code.literals->_byteSize / 8);
+        desc.NewLine();
+
         desc << res;
         Cbc::RT::Log(res.code, desc);
     });
