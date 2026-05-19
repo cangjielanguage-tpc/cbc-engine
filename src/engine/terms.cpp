@@ -464,7 +464,7 @@ struct TermResolver {
                     // because of incorrect dependencies of cbc's (stability issues).
                     // It is not expected from AOT code.
                     ASSERTION(
-                        Symlevel::TypeDefinition::Resolve(session, *type).GetFlags().Is(Symlevel::TypeKind::RECORD) !=
+                        Symlevel::TypeDefinition::Resolve(session, *type).GetFlags().Is(Symlevel::TypeKind::RECORD) ==
                             (tag == AOT_REC),
                         "incorrect encoding"
                     );
