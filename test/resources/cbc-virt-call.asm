@@ -1,5 +1,14 @@
+; Disasm-only
+;@aotdeps cangjie-std-core
+
+@type std.core:Object {
+  @typeflags PUBLIC AOT
+}
+
 @type Foo {
   @typeflags PUBLIC
+
+  @typesuper std.core:Object
 
   @method default dummy [ ] Void {
     @methodflags VIRTUAL
