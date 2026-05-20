@@ -1,6 +1,7 @@
 .intel_syntax noprefix
 
 #include "asm_export.h"
+#include "abi.inc"
 
 .macro declare_hidden sym
   .global \sym
@@ -16,6 +17,7 @@ declare_hidden engine_c2i_call_pc_start
 declare_hidden engine_c2i_call_pc_end
 declare_hidden engine_trampolines_dyn_start
 declare_hidden engine_trampolines_direct_start
+declare_hidden engine_all_regs_c2i_call
 declare_hidden engine_iregs_only_c2i_call
 declare_hidden engine_i2i_call
 declare_hidden engine_i2c_call
@@ -34,7 +36,7 @@ declare_hidden engine_i2_spawn
 // --- SECTION BSS ---
 .section .bss
 
-.align 16
+.balign 16
 engine_universal_direct_function_handles:
   .skip 8 * TRAMPOLINE_COUNT
 
@@ -67,14 +69,14 @@ engine_cjthread_specific_offset:
   .endr
 .endm
 
-.align 16
+.balign 16
 engine_universal_direct_call:
   lea   r10, [rip + engine_universal_direct_function_handles]
   mov   rax, [r10 + rax * 8] // put FuH on rax
   jmp   [rax + FUNCTION_HANDLE_C2CALL_OFFSET]
 
 
-.align 16
+.balign 16
 engine_trampolines_direct_start:
 .macro repeat_trampoline_direct count
   .set i, 0
@@ -87,7 +89,7 @@ engine_trampolines_direct_start:
   repeat_trampoline_direct TRAMPOLINE_COUNT
 
 
-.align 16
+.balign 16
 engine_universal_dyn_call:
   mov   r10, [rdi] // get TypeInfo
   // TODO: consider tail array
@@ -96,7 +98,7 @@ engine_universal_dyn_call:
   jmp   [rax + FUNCTION_HANDLE_C2CALL_OFFSET]
 
 
-.align 16
+.balign 16
 engine_trampolines_dyn_start:
 .macro repeat_trampoline_dyn count
   .set i, 0
@@ -108,15 +110,10 @@ engine_trampolines_dyn_start:
 .endm
   repeat_trampoline_dyn TRAMPOLINE_COUNT
 
-#define TLS_REG r15
-#define ECTYPE_REG rbx
-#define LITERALS_REG r14
 
-.align 16
 // expects: (TLS_REG: th, rax: fuh)
 // System-V abi, except r15 can be changed after context-switches
-engine_c2i_call_pc_start:
-engine_iregs_only_c2i_call:
+.macro engine_c2i_call ireg_count freg_count
   push  rbp
   mov   rbp, rsp
 
@@ -135,15 +132,12 @@ engine_iregs_only_c2i_call:
   mov   ECTYPE_REG, [r12]       // ectype addr
 
   test  ECTYPE_REG, ECTYPE_REG
-  jz    .Lc2i_prepare_ectype
+  jz    .Lc2i_prepare_ectype\@
 
-.Lc2i_args_preparation:
-  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8],  rdi
-  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x10], rsi
-  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x18], rdx
-  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x20], rcx
-  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x28], r8
-  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x30], r9
+.Lc2i_args_preparation\@:
+  c2i_emit_iregs_abi \ireg_count
+  c2i_emit_fregs_abi \freg_count
+
 
   mov   rdi, rax
   call perform_2i_call
@@ -160,7 +154,13 @@ engine_iregs_only_c2i_call:
   pop   rbp
   ret
 
-.Lc2i_prepare_ectype:
+.Lc2i_prepare_ectype\@:
+  call c2i_prepare_ectype
+  jmp   .Lc2i_args_preparation\@
+.endm
+
+.balign 16
+c2i_prepare_ectype:
   push_lst rdi, rsi, rdx, rcx, r8, r9
 
   mov   rdi, r12
@@ -170,13 +170,28 @@ engine_iregs_only_c2i_call:
   mov   rax, [rbp - 0x30] // restore fuh
 
   pop_lst r9, r8, rcx, rdx, rsi, rdi
-  jmp   .Lc2i_args_preparation
+  ret
 
+
+
+.balign 16
+// expects: (TLS_REG: th, rax: fuh)
+// System-V abi, except r15 can be changed after context-switches
+// label that is used to range-check all c2i call variations
+engine_c2i_call_pc_start:
+engine_all_regs_c2i_call:
+  engine_c2i_call IREG_ABI_AMOUNT FREG_ABI_AMOUNT
+
+.balign 16
+// variation of c2i call that only passes iregs
+engine_iregs_only_c2i_call:
+  engine_c2i_call IREG_ABI_AMOUNT 0
+
+// label that is used to range-check all c2i call variations
 engine_c2i_call_pc_end:
   ud2
 
-
-.align 16
+.balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: fuh)
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
@@ -185,34 +200,36 @@ engine_i2i_call:
   call  perform_2i_call
   jmp   .Lrestart_interpretation
 
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: target)
+// preserved: ECTYPE_REG, rbp
+// TLS_REG can be changed after context-switch
+.macro i2c_call iregs_count fregs_count
+  mov r10, rdi
 
-.align 16
+  i2c_emit_iregs_abi \iregs_count
+  i2c_emit_fregs_abi \fregs_count
+
+  call r10
+
+  mov [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8], rax
+
+  jmp .Lrestart_interpretation
+.endm
+
+.balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: target)
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
 engine_i2c_call:
   // jumped from .Linterpreter_call without return address to return
-  mov   r10, rdi
-
-  mov   rdi, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8]
-  mov   rsi, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x10]
-  mov   rdx, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x18]
-  mov   rcx, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x20]
-  mov   r8,  [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x28]
-  mov   r9,  [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x30]
-
-  call  r10
-
-  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8], rax
-
-  jmp   .Lrestart_interpretation
+  i2c_call IREG_ABI_AMOUNT FREG_ABI_AMOUNT
 
 .macro restore_tls // spoils volatile registers!
   call  [rip + engine_tls_function]
   mov   TLS_REG, rax
 .endm
 
-.align 16
+.balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
@@ -236,7 +253,7 @@ engine_i2_newarray:
   jmp   .Lrestart_interpretation
 
 // expects: (ECTYPE_REG: ectype, rdi: safe_point_f)
-.align 16
+.balign 16
 engine_i2_gcpoint:
   call rdi
   restore_tls
@@ -253,7 +270,7 @@ engine_i2_spawn:
   call  [rip + engine_newthread_nret_function]
   jmp  .Lrestart_interpretation
 
-.align 16
+.balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: fuh)
 // preserved: TLS_REG, ECTYPE_REG, rbp
 perform_2i_call:
@@ -272,7 +289,7 @@ perform_2i_call:
 
   declare_slot READER_SLOT, READER_SLOTS_SIZE
 
-  // align stack
+  //.balign stack
   .if (LOCAL_SLOTS_OFFSET + OFFS_ADDEND) % 0x10 != 0
     .set OFFS_ADDEND, OFFS_ADDEND + 0x8
   .endif
@@ -317,7 +334,7 @@ perform_2i_call:
   mov   rax, [rbp - 0x8] // load Function Handle
   mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
 
-  // current rsp is 16-byte aligned
+  // current rsp is 16-byte.baligned
   mov   r8d, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   sub   rsp, r8
 

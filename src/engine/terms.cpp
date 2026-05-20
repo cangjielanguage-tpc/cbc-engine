@@ -84,8 +84,7 @@ enum Tag : uint8_t {
 
 static TermData* AllocateTerm(Memory::Heap& allocator, size_t subtermCount = 0)
 {
-    return static_cast<TermData*>(
-        allocator.Allocate(sizeof(TermData) + subtermCount * sizeof(Term), alignof(TermData))
+    return static_cast<TermData*>(allocator.Allocate(sizeof(TermData) + subtermCount * sizeof(Term), alignof(TermData))
     );
 }
 
@@ -334,6 +333,17 @@ TermId Term::GetId() const { return data->identifier; }
 
 TermKind Term::GetKind() const { return data->identifier.GetKind(); }
 
+bool Term::IsFReg() const
+{
+    switch (GetKind()) {
+        case TermKind::F32:
+        case TermKind::F64: return true;
+        default:            return false;
+    }
+}
+
+bool Term::IsIReg() const { return !IsFReg(); }
+
 uint32_t Term::GetLength() const { return data->length; }
 
 uint32_t Term::Hash() const { return data->hash; }
@@ -358,7 +368,7 @@ void Term::GetName(Session& session, Stream::Output& stream) const
         stream << suffix;
     };
 
-    using TK = TermKind;
+    using TK  = TermKind;
     auto kind = GetKind();
     switch (kind) {
         case TK::NIL:     stream << "nil"; break;
@@ -434,7 +444,7 @@ void Term::GetName(Session& session, Stream::Output& stream) const
         }
 
         case TK::AOT_TYPE:
-        case TK::AOT_REC: {
+        case TK::AOT_REC:  {
             auto& manager = TermManager::Of(session);
             std::string_view name;
             if (kind == TermKind::AOT_TYPE) {
@@ -523,7 +533,7 @@ GlobalTerm TermManager::Globalize(Term& term)
     for (int i = 0; i < term.GetLength(); i++) {
         data->subterms[i] = termData->subterms[i];
     }
-    auto flags = termData->flags;
+    auto flags    = termData->flags;
     flags.isLocal = false;
     data->Init(termData->identifier, termData->hash, termData->length, flags);
 
@@ -889,14 +899,15 @@ Term TermManager::Resolve(Session& session, RefIdentifier<Term> ident)
 
     auto& manager = TermManager::Of(session);
 
-    TermResolver resolver { .regionData = file.GetRegionData(),
-                            .session    = session,
-                            .heap       = session.Allocator(),
-                            .fileId     = ident.GetFileId(),
-                            .region     = ident.GetIndex().GetRegion(),
-                            .raf        = *raf,
-                            .file       = file,
-                            .manager    = manager,
+    TermResolver resolver {
+        .regionData = file.GetRegionData(),
+        .session    = session,
+        .heap       = session.Allocator(),
+        .fileId     = ident.GetFileId(),
+        .region     = ident.GetIndex().GetRegion(),
+        .raf        = *raf,
+        .file       = file,
+        .manager    = manager,
     };
 
     // TODO: cache
