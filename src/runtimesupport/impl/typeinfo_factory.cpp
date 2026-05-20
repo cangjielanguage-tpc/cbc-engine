@@ -222,7 +222,9 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         return manager.AcquireTypeInfo(session, t);
     };
 
+    Engine::ClassSubstitution substitute(session, term);
     auto superType = Engine::TermManager::Resolve(session, type.GetSuperType());
+    superType      = substitute(superType);
 
     if (superType.GetKind() == Engine::TermKind::NIL) {
         // nothing TODO
