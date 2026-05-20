@@ -23,10 +23,10 @@
 namespace Engine {
 
 struct TermFlags {
-    uint16_t isLocal       : 1;
-    uint16_t isReference   : 1;
+    uint16_t isLocal : 1;
+    uint16_t isReference : 1;
     uint16_t isAotPromoted : 1;
-    uint16_t isGeneric     : 1;
+    uint16_t isGeneric : 1;
 
     TermFlags() = delete;
 };
@@ -61,24 +61,24 @@ struct TermData {
 };
 
 enum Tag : uint8_t {
-    NIL = 0x0,
-    REF = 0x1,
-    AOT_REF = 0x2,
-    CANGJIE_ARRAY = 0x3,
-    VARRAY = 0x4,
-    ENUM_WRAPPER = 0x5,
-    C_POINTER = 0x6,
-    FUNC_TYPE_VAR = 0x7,
-    CLASS_TYPE_VAR = 0x8,
-    GENERIC_RECORD = 0x9,
+    NIL               = 0x0,
+    REF               = 0x1,
+    AOT_REF           = 0x2,
+    CANGJIE_ARRAY     = 0x3,
+    VARRAY            = 0x4,
+    ENUM_WRAPPER      = 0x5,
+    C_POINTER         = 0x6,
+    FUNC_TYPE_VAR     = 0x7,
+    CLASS_TYPE_VAR    = 0x8,
+    GENERIC_RECORD    = 0x9,
     GENERIC_REFERENCE = 0xa,
-    NULLABLE = 0xb,
-    METHOD_SIGNATURE = 0xc,
-    REC = 0xd,
-    AOT_REC = 0xe,
-    NON_NULLABLE = 0xf,
-    GENERIC_AOT_REF = 0x10,
-    GENERIC_AOT_REC = 0x11,
+    NULLABLE          = 0xb,
+    METHOD_SIGNATURE  = 0xc,
+    REC               = 0xd,
+    AOT_REC           = 0xe,
+    NON_NULLABLE      = 0xf,
+    GENERIC_AOT_REF   = 0x10,
+    GENERIC_AOT_REC   = 0x11,
 };
 
 static TermData* AllocateTerm(Memory::Heap& allocator, size_t subtermCount = 0)
@@ -94,98 +94,102 @@ struct BuiltinTerms {
     void* classTypeVars;
     void* funcTypeVars;
 
-    static constexpr size_t TV_COUNT = 256;
+    static constexpr size_t TV_COUNT   = 256;
     static constexpr size_t PRIM_COUNT = FIRST_NON_PRIMITIVE;
 
     BuiltinTerms(BuiltinTerms const&) = delete;
 
-    ~BuiltinTerms() {
-        std::free(memory);
-    }
+    ~BuiltinTerms() { std::free(memory); }
 
-    inline static TermData* DataAt(void *memory, size_t idx) {
-        char* ptr = reinterpret_cast<char*>(memory);
-        ptr += sizeof(TermData) * idx;
+    inline static TermData* DataAt(void* memory, size_t idx)
+    {
+        char* ptr  = reinterpret_cast<char*>(memory);
+        ptr       += sizeof(TermData) * idx;
         return reinterpret_cast<TermData*>(ptr);
     }
 
-    inline TermData* Primitive(size_t i) const {
+    inline TermData* Primitive(size_t i) const
+    {
         ASSERT(i < PRIM_COUNT);
         return DataAt(primitives, i);
     }
 
-    inline TermData* ClassTv(size_t i) const {
+    inline TermData* ClassTv(size_t i) const
+    {
         ASSERT(i < TV_COUNT);
         return DataAt(classTypeVars, i);
     }
 
-    inline TermData* FuncTv(size_t i) const {
+    inline TermData* FuncTv(size_t i) const
+    {
         ASSERT(i < TV_COUNT);
         return DataAt(funcTypeVars, i);
     }
 
-    static BuiltinTerms Create() {
-
+    static BuiltinTerms Create()
+    {
         size_t seed = 0xf123123a;
 
         auto hash = [&seed]() {
             constexpr size_t multiplier = 3202034522624059733L;
-            constexpr size_t addend = 0x421L;
-            auto next = (multiplier * seed + addend);
-            return seed = next;
+            constexpr size_t addend     = 0x421L;
+            auto next                   = (multiplier * seed + addend);
+            return seed                 = next;
         };
 
         void* memory = std::malloc(sizeof(TermData) * (TV_COUNT + TV_COUNT + PRIM_COUNT));
-        if (!memory) FATAL("Failed to allocate builtin terms");
+        if (!memory)
+            FATAL("Failed to allocate builtin terms");
 
-        void* primitives = DataAt(memory, 0);
+        void* primitives    = DataAt(memory, 0);
         void* classTypeVars = DataAt(memory, PRIM_COUNT);
-        void* funcTypeVars = DataAt(memory, PRIM_COUNT + TV_COUNT);
+        void* funcTypeVars  = DataAt(memory, PRIM_COUNT + TV_COUNT);
 
         TermFlags primFlags = {
-            .isLocal = false,
-            .isReference = false,
+            .isLocal       = false,
+            .isReference   = false,
             .isAotPromoted = false,
-            .isGeneric = false,
+            .isGeneric     = false,
         };
 
         TermFlags tvFlags = {
-            .isLocal = false,
-            .isReference = true,
+            .isLocal       = false,
+            .isReference   = true,
             .isAotPromoted = false,
-            .isGeneric = true,
+            .isGeneric     = true,
         };
 
         for (size_t i = 0; i < PRIM_COUNT; i++) {
-            auto kind = TermKind(i);
-            auto data = DataAt(primitives, i);
-            data->hash = hash();
-            data->length = 0;
+            auto kind        = TermKind(i);
+            auto data        = DataAt(primitives, i);
+            data->hash       = hash();
+            data->length     = 0;
             data->identifier = TagTermId(kind);
-            data->flags = primFlags;
+            data->flags      = primFlags;
         }
 
         for (size_t i = 0; i < TV_COUNT; i++) {
-            auto data = DataAt(classTypeVars, i);
-            data->hash = hash();
-            data->length = 0;
+            auto data        = DataAt(classTypeVars, i);
+            data->hash       = hash();
+            data->length     = 0;
             data->identifier = ClassTvTermId(i);
-            data->flags = tvFlags;
+            data->flags      = tvFlags;
         }
 
         for (size_t i = 0; i < TV_COUNT; i++) {
-            auto data = DataAt(funcTypeVars, i);
-            data->hash = hash();
-            data->length = 0;
+            auto data        = DataAt(funcTypeVars, i);
+            data->hash       = hash();
+            data->length     = 0;
             data->identifier = FuncTvTermId(i);
-            data->flags = tvFlags;
+            data->flags      = tvFlags;
         }
 
         return { memory, primitives, classTypeVars, funcTypeVars };
     }
 };
 
-static BuiltinTerms const& Builtins() {
+static BuiltinTerms const& Builtins()
+{
     static auto instance = BuiltinTerms::Create();
     return instance;
 }
@@ -239,15 +243,9 @@ Term Term::Predefined(TermKind tk)
     return GlobalTerm(Builtins().Primitive(num));
 }
 
-Term Term::ClassTypeVariable(uint8_t tv)
-{
-    return GlobalTerm(Builtins().ClassTv(tv));
-}
+Term Term::ClassTypeVariable(uint8_t tv) { return GlobalTerm(Builtins().ClassTv(tv)); }
 
-Term Term::FuncTypeVariable(uint8_t tv)
-{
-    return GlobalTerm(Builtins().FuncTv(tv));
-}
+Term Term::FuncTypeVariable(uint8_t tv) { return GlobalTerm(Builtins().FuncTv(tv)); }
 
 Term Term::Definition(Session& session, Identifier<Symlevel::TypeDefinition> type)
 {
@@ -260,12 +258,16 @@ Term Term::Definition(Session& session, Identifier<Symlevel::TypeDefinition> typ
     for (uint8_t i = 0; i < arity; i++) {
         data->subterms[i] = ClassTypeVariable(i);
     }
-    data->InitAfterSubterms(TypeTermId(type), arity, {
-        .isLocal = true,
-        .isReference = !isRec,
-        .isAotPromoted = false,
-        .isGeneric = (arity > 0),
-    });
+    data->InitAfterSubterms(
+        TypeTermId(type),
+        arity,
+        {
+            .isLocal       = true,
+            .isReference   = !isRec,
+            .isAotPromoted = false,
+            .isGeneric     = (arity > 0),
+        }
+    );
     return LocalTerm(data);
 }
 
@@ -273,12 +275,16 @@ static Term Undefined(Session& session, RefIdentifier<Term> termId)
 {
     // TODO: assertions for length
     auto* data = AllocateTerm(session.Allocator());
-    data->InitAfterSubterms(UndefTermId(termId), 0, {
-        .isLocal = true,
-        .isReference = !false,
-        .isAotPromoted = false,
-        .isGeneric = false,
-    });
+    data->InitAfterSubterms(
+        UndefTermId(termId),
+        0,
+        {
+            .isLocal       = true,
+            .isReference   = !false,
+            .isAotPromoted = false,
+            .isGeneric     = false,
+        }
+    );
     return LocalTerm(data);
 }
 
@@ -550,7 +556,8 @@ struct TermResolver {
 
     Term NewUndefined(Symlevel::RefId<Term> refId) { return Undefined(session, RefIdentifier(refId, fileId)); }
 
-    bool ReadSubTerms(TermData* data, bool* isGenericLoc, int length, IO::StreamFileReader& reader) {
+    bool ReadSubTerms(TermData* data, bool* isGenericLoc, int length, IO::StreamFileReader& reader)
+    {
         using namespace Symlevel;
         bool isGeneric = false;
 
@@ -561,13 +568,20 @@ struct TermResolver {
                 return false;
             }
             data->subterms[i] = subterm;
-            isGeneric = isGeneric || subterm.IsGeneric();
+            isGeneric         = isGeneric || subterm.IsGeneric();
         }
         *isGenericLoc = isGeneric;
         return true;
     }
 
-    Term ResolveTypeDefTerm(IO::StreamFileReader& reader, Symlevel::Offset<Symlevel::String> nameOffs, int expectedLength, bool isReference, Symlevel::RefId<Term> refId, bool wasAot)
+    Term ResolveTypeDefTerm(
+        IO::StreamFileReader& reader,
+        Symlevel::Offset<Symlevel::String> nameOffs,
+        int expectedLength,
+        bool isReference,
+        Symlevel::RefId<Term> refId,
+        bool wasAot
+    )
     {
         using namespace Symlevel;
 
@@ -578,7 +592,7 @@ struct TermResolver {
         }
         auto identifier = type.value();
 
-        auto def = Symlevel::TypeDefinition::Resolve(session, identifier);
+        auto def       = Symlevel::TypeDefinition::Resolve(session, identifier);
         bool undefined = false;
         if ((def.GetFlags().Is(Symlevel::TypeKind::RECORD)) == isReference) {
             undefined = true;
@@ -593,22 +607,33 @@ struct TermResolver {
             return NewUndefined(refId);
         }
 
-        auto data = AllocateTerm(heap, expectedLength);
+        auto data      = AllocateTerm(heap, expectedLength);
         bool isGeneric = false;
         if (!ReadSubTerms(data, &isGeneric, expectedLength, reader)) {
             return NewUndefined(refId);
         }
 
-        data->InitAfterSubterms(TypeTermId(identifier), 0, {
-            .isLocal = true,
-            .isReference = isReference,
-            .isAotPromoted = wasAot,
-            .isGeneric = isGeneric,
-        });
+        data->InitAfterSubterms(
+            TypeTermId(identifier),
+            0,
+            {
+                .isLocal       = true,
+                .isReference   = isReference,
+                .isAotPromoted = wasAot,
+                .isGeneric     = isGeneric,
+            }
+        );
         return Term(LocalTerm(data));
     }
 
-    Term ResolveAotType(IO::StreamFileReader& reader, Symlevel::Offset<Symlevel::String> nameOffs, int length, bool isReference, Symlevel::RefId<Term> refId) {
+    Term ResolveAotType(
+        IO::StreamFileReader& reader,
+        Symlevel::Offset<Symlevel::String> nameOffs,
+        int length,
+        bool isReference,
+        Symlevel::RefId<Term> refId
+    )
+    {
         // Attempt to find type definition, even if the type is tagged as aot.
         // Because the type could present in `TypeDefinition` super closure
         // or be present as "patch".
@@ -617,16 +642,16 @@ struct TermResolver {
             return term;
         }
 
-        auto data = AllocateTerm(heap, length);
+        auto data      = AllocateTerm(heap, length);
         bool isGeneric = false;
         if (!ReadSubTerms(data, &isGeneric, length, reader)) {
             return NewUndefined(refId);
         }
         TermFlags flags = {
-            .isLocal = true,
-            .isReference = isReference,
+            .isLocal       = true,
+            .isReference   = isReference,
             .isAotPromoted = false,
-            .isGeneric = isGeneric,
+            .isGeneric     = isGeneric,
         };
         // FIXME: in multi-cbc scenario this identifier is not unique.
         if (flags.isReference) {
@@ -681,10 +706,10 @@ struct TermResolver {
                     return NewUndefined(refId);
                 }
                 TermFlags flags = {
-                    .isLocal = true,
-                    .isReference = false,
+                    .isLocal       = true,
+                    .isReference   = false,
                     .isAotPromoted = false,
-                    .isGeneric = isGeneric,
+                    .isGeneric     = isGeneric,
                 };
                 data->InitAfterSubterms(TagTermId(TermKind::METHOD), len, flags);
                 return Term(LocalTerm(data));
@@ -697,10 +722,10 @@ struct TermResolver {
                 }
 
                 TermFlags flags = {
-                    .isLocal = true,
-                    .isReference = true,
+                    .isLocal       = true,
+                    .isReference   = true,
                     .isAotPromoted = false,
-                    .isGeneric = isGeneric,
+                    .isGeneric     = isGeneric,
                 };
                 data->InitAfterSubterms(TagTermId(TermKind::NULLABLE), 1, flags);
                 return Term(LocalTerm(data));
@@ -720,15 +745,13 @@ Term TermManager::Resolve(Session& session, RefIdentifier<Term> ident)
     auto& raf   = session.FileOf(ident.GetFileId());
     auto& file  = session.CbcFileOf(ident.GetFileId());
 
-    TermResolver resolver {
-        .regionData = file.GetRegionData(),
-        .session = session,
-        .heap = session.Allocator(),
-        .fileId = ident.GetFileId(),
-        .region = ident.GetIndex().GetRegion(),
-        .raf= *raf,
-        .file = file
-    };
+    TermResolver resolver { .regionData = file.GetRegionData(),
+                            .session    = session,
+                            .heap       = session.Allocator(),
+                            .fileId     = ident.GetFileId(),
+                            .region     = ident.GetIndex().GetRegion(),
+                            .raf        = *raf,
+                            .file       = file };
 
     // TODO: cache
     return resolver.Resolve(ident.GetIndex());
@@ -752,16 +775,16 @@ Term Substitution::Substitute(Term term)
         return term;
     } else {
         // TODO: cache
-        auto data = term.data;
-        auto length = data->length;
-        auto newData = AllocateTerm(session.Allocator(), length);
-        auto flags = data->flags;
+        auto data      = term.data;
+        auto length    = data->length;
+        auto newData   = AllocateTerm(session.Allocator(), length);
+        auto flags     = data->flags;
         auto isGeneric = false;
         for (int i = 0; i < length; i++) {
             newData->subterms[i] = Substitute(data->subterms[i]);
-            isGeneric = isGeneric || newData->subterms[i].IsGeneric();
+            isGeneric            = isGeneric || newData->subterms[i].IsGeneric();
         }
-        flags.isLocal = true;
+        flags.isLocal   = true;
         flags.isGeneric = isGeneric;
         newData->InitAfterSubterms(data->identifier, length, flags);
         return LocalTerm(newData);
@@ -778,9 +801,6 @@ Term ClassSubstitution::SubstituteClassTv(uint8_t typeVar)
     return term.Subterm(typeVar);
 }
 
-Term ClassSubstitution::SubstituteFuncTv(uint8_t typeVar)
-{
-    return Term::FuncTypeVariable(typeVar);
-}
+Term ClassSubstitution::SubstituteFuncTv(uint8_t typeVar) { return Term::FuncTypeVariable(typeVar); }
 
 } // namespace Engine

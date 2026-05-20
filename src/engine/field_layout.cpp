@@ -166,7 +166,8 @@ struct FLManager : public FieldLayoutManager {
         }
     }
 
-    void FillRefOffsets(Term term, std::vector<uint32_t>& offsets) override {
+    void FillRefOffsets(Term term, std::vector<uint32_t>& offsets) override
+    {
         ASSERT(!term.IsGeneric());
         FillRefOffsets(term, offsets, 0);
     }
@@ -242,12 +243,12 @@ private:
 
         if (term.IsGeneric()) {
             // We can not properly query offsets of generic aot type.
-            layout.desc.size = std::nullopt;
+            layout.desc.size      = std::nullopt;
             layout.desc.alignment = MAX_ALIGN;
 
             size_t ordinal = layout.fields.size();
             for (auto fieldId : def.GetInstanceFields().Values(session)) {
-                auto def = Symlevel::Reader::Read(session, fieldId);
+                auto def       = Symlevel::Reader::Read(session, fieldId);
                 auto fieldType = TermManager::Resolve(session, def.FieldType());
                 fieldType      = substitute(fieldType);
 
@@ -297,7 +298,7 @@ private:
         auto& size      = layout.desc.size;
 
         for (auto fieldId : def.GetInstanceFields().Values(session)) {
-            auto def = Symlevel::Reader::Read(session, fieldId);
+            auto def            = Symlevel::Reader::Read(session, fieldId);
             auto fieldType      = TermManager::Resolve(session, def.FieldType());
             fieldType           = substitute(fieldType);
             auto fieldSize      = GetFlatSize(fieldType);

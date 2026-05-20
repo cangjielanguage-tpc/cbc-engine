@@ -55,15 +55,15 @@ TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId
         flags = flags.Or(TypeFlag::AOT);
 
     TypeDefinition::Content def {
-        .identifier = Engine::Identifier(offset, fileId),
-        .name = name,
-        .methods = std::move(methodIndex),
-        .fields = std::move(fieldIndex),
+        .identifier     = Engine::Identifier(offset, fileId),
+        .name           = name,
+        .methods        = std::move(methodIndex),
+        .fields         = std::move(fieldIndex),
         .virtualMethods = dynMethods,
         .instanceFields = instanceFields,
-        .superType = superType,
-        .flags = flags,
-        .arity = 0,
+        .superType      = superType,
+        .flags          = flags,
+        .arity          = 0,
     };
 
     for (auto tag = reader.ReadU8(); tag != 0; tag = reader.ReadU8()) {
