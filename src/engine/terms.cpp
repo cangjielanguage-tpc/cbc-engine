@@ -254,11 +254,17 @@ Term Term::Definition(Session& session, Identifier<Symlevel::TypeDefinition> typ
     // TODO: handle arity and generic type vars
     auto def   = Symlevel::Reader::Read(session, type);
     bool isRec = def.GetFlags().Is(Symlevel::TypeKind::RECORD);
-    auto* data = AllocateTerm(session.Allocator());
-    data->InitAfterSubterms(TypeTermId(type), 0, {
+    auto arity = def->arity;
+
+    auto* data = AllocateTerm(session.Allocator(), arity);
+    for (uint8_t i = 0; i < arity; i++) {
+        data->subterms[i] = ClassTypeVariable(i);
+    }
+    data->InitAfterSubterms(TypeTermId(type), arity, {
         .isLocal = true,
         .isReference = !isRec,
         .isAotPromoted = false,
+        .isGeneric = (arity > 0),
     });
     return LocalTerm(data);
 }
@@ -271,6 +277,7 @@ static Term Undefined(Session& session, RefIdentifier<Term> termId)
         .isLocal = true,
         .isReference = !false,
         .isAotPromoted = false,
+        .isGeneric = false,
     });
     return LocalTerm(data);
 }
@@ -749,11 +756,13 @@ Term Substitution::Substitute(Term term)
         auto length = data->length;
         auto newData = AllocateTerm(session.Allocator(), length);
         auto flags = data->flags;
-        flags.isLocal = true;
-        flags.isGeneric = false;
+        auto isGeneric = false;
         for (int i = 0; i < length; i++) {
             newData->subterms[i] = Substitute(data->subterms[i]);
+            isGeneric = isGeneric || newData->subterms[i].IsGeneric();
         }
+        flags.isLocal = true;
+        flags.isGeneric = isGeneric;
         newData->InitAfterSubterms(data->identifier, length, flags);
         return LocalTerm(newData);
     }

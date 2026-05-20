@@ -166,22 +166,27 @@ struct FLManager : public FieldLayoutManager {
         }
     }
 
-    void FillRefOffsets(Term term, std::vector<uint32_t>& offsets) override { FillRefOffsets(term, offsets, 0); }
+    void FillRefOffsets(Term term, std::vector<uint32_t>& offsets) override {
+        ASSERT(!term.IsGeneric());
+        FillRefOffsets(term, offsets, 0);
+    }
 
 private:
     void FillRefOffsets(Term term, std::vector<uint32_t>& offsets, uint32_t disp)
     {
+        ASSERT(!term.IsGeneric());
         if (term.IsReference()) {
             offsets.push_back(disp);
         }
         if (term.GetKind() == TermKind::AOT_REC) {
-            // ASSERT(!term.IsGeneric());
             auto typeInfo = typeInfoManager.AcquireTypeInfo(session, term);
             // FIXME: visit GCTib
             // RTSupport::VisitReferences(typeInfo, [&offsets, disp](uint32_t offset) {
             //      offsets.push_back(offset + disp);
             // };
+            FATAL("reference fields of aot records are not supported");
         } else if (term.GetKind() == TermKind::TYPE) {
+            ASSERT(!term.IsReference());
             // Absent offsets must be handled separately.
             // Here we will just ignore possible errors.
             auto optlayout = GetLayout(term);
@@ -228,13 +233,30 @@ private:
 
     std::optional<FieldLayout> BuildLayoutAot(Term term, Symlevel::TypeDefinition& def)
     {
-        auto optlayout = GetTypeBaseLayout(def);
+        ClassSubstitution substitute(session, term);
+        auto optlayout = GetTypeBaseLayout(substitute, def);
         if (!optlayout.has_value()) {
             return std::nullopt;
         }
         FieldLayout::Content layout(std::move(*optlayout));
-        // TODO:we can not properly query offsets of generic type.
-        // if (term.IsGeneric()) { layout.size = std::nullopt; layout.alignment = MAX_ALIGN; }
+
+        if (term.IsGeneric()) {
+            // We can not properly query offsets of generic aot type.
+            layout.desc.size = std::nullopt;
+            layout.desc.alignment = MAX_ALIGN;
+
+            size_t ordinal = layout.fields.size();
+            for (auto fieldId : def.GetInstanceFields().Values(session)) {
+                auto def = Symlevel::Reader::Read(session, fieldId);
+                auto fieldType = TermManager::Resolve(session, def.FieldType());
+                fieldType      = substitute(fieldType);
+
+                layout.fields.emplace_back(FieldLayout::Entry {
+                    .definition = fieldId, .fieldType = fieldType, .offset = std::nullopt });
+                ordinal++;
+            }
+            return layout;
+        }
 
         // Concrete term path.
         auto typeInfo = typeInfoManager.AcquireTypeInfo(session, term);
@@ -248,6 +270,7 @@ private:
             auto def = Symlevel::Reader::Read(session, fieldId);
             // FIXME: substitution
             auto fieldType = TermManager::Resolve(session, def.FieldType());
+            fieldType      = substitute(fieldType);
 
             auto offset = RTSupport::Execution::GetFieldOffset(*typeInfo, ordinal, false);
             layout.fields.emplace_back(FieldLayout::Entry {
@@ -258,12 +281,13 @@ private:
         layout.desc.size      = RTSupport::MetaInfo::GetTypeSize(*typeInfo);
         layout.desc.alignment = RTSupport::MetaInfo::GetAlign(*typeInfo);
 
-        return FieldLayout(std::move(layout));
+        return layout;
     }
 
     std::optional<FieldLayout> BuildLayoutCbc(Term term, Symlevel::TypeDefinition& def)
     {
-        auto optlayout = GetTypeBaseLayout(def);
+        ClassSubstitution substitute(session, term);
+        auto optlayout = GetTypeBaseLayout(substitute, def);
         if (!optlayout.has_value()) {
             return std::nullopt;
         }
@@ -274,8 +298,8 @@ private:
 
         for (auto fieldId : def.GetInstanceFields().Values(session)) {
             auto def = Symlevel::Reader::Read(session, fieldId);
-            // FIXME: substitution
             auto fieldType      = TermManager::Resolve(session, def.FieldType());
+            fieldType           = substitute(fieldType);
             auto fieldSize      = GetFlatSize(fieldType);
             auto fieldAlignment = GetFlatAlignment(fieldType);
 
@@ -306,7 +330,7 @@ private:
     }
 
     /// Layout of the super type for classes or empty layout for records.
-    std::optional<FieldLayout::Content> GetTypeBaseLayout(Symlevel::TypeDefinition& def)
+    std::optional<FieldLayout::Content> GetTypeBaseLayout(ClassSubstitution& substitute, Symlevel::TypeDefinition& def)
     {
         auto super = TermManager::Resolve(session, def.GetSuperType());
         if (super.GetKind() == TermKind::UNDEFINED) {
@@ -314,7 +338,7 @@ private:
         } else if (def.GetFlags().Is(Symlevel::TypeKind::RECORD)) {
             return FieldLayout::Content();
         } else if (super.GetKind() == TermKind::TYPE) {
-            auto opt = GetLayout(super);
+            auto opt = GetLayout(substitute(super));
             if (!opt.has_value()) {
                 return std::nullopt;
             }
@@ -342,6 +366,6 @@ std::unique_ptr<FieldLayoutManager> FieldLayoutManager::New(Session& session, Ty
 
 FieldLayoutManager::~FieldLayoutManager() = default;
 
-static Stream::Descripted stream(Stream::cerr, "[MT] ");
+static Stream::Descripted stream(Stream::cerr, "[FL] ");
 Logging::Logger Log::fields(&stream, Logging::Level::ERROR);
 } // namespace Engine
