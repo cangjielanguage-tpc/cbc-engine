@@ -183,6 +183,7 @@ struct ResolvedFieldReference {
     Term refType;
     std::string_view name;
     Term fieldType;
+    RefIdentifier<Symlevel::FieldReference> identifier;
     bool isRecord;
 
     std::string GetFullName(Session& session)
@@ -228,7 +229,7 @@ static ResolvedFieldReference ResolveReference(Session& session, RefIdentifier<S
     auto refType   = manager.Resolve(session, parsedRef.refType);
     auto name      = Symlevel::String::Parse(session, parsedRef.name);
     auto fieldType = manager.Resolve(session, parsedRef.fieldType);
-    return { refType, name, fieldType, parsedRef.isRecord };
+    return { refType, name, fieldType, identifier, parsedRef.isRecord };
 }
 
 MethodSignature ConstructSignature(Resolver::Impl& resolver, ResolvedMethodReference& ref)
@@ -337,6 +338,32 @@ static std::optional<VirtualCall> ResolveCall(Resolver::Impl& resolver, Index<Vi
     }
 }
 
+static std::optional<DirectCall> ResolveAotDirectCall(Resolver::Impl& resolver, ResolvedMethodReference &ref) {
+    auto [file, raf] = resolver.session.File(resolver.fileId);
+    auto data = file.GetDirectCallAotTable().GetData(resolver.session, ref.identifier.GetIndex());
+
+    auto linkageName = Symlevel::String::Parse(resolver.session, data.linkangeName);
+    auto funcPtr     = file.GetDependencies().FindTarget(linkageName);
+
+    if (!funcPtr) {
+        log.Log(Logging::Level::FATAL, [linkageName](Stream::Output& stream) {
+            stream << "not found location of static field: " << linkageName << Stream::endl;
+        });
+        return std::nullopt;
+    }
+
+    auto sig = ConstructSignature(resolver, ref);
+
+    /// FIXME: choose proper adapter based on signature (abi)
+    DirectCall::CallData callData = DirectCall::Compiled {
+        .funcPtr    = reinterpret_cast<uintptr_t>(funcPtr),
+        .i2cAdapter = RTSupport::Adapters::GenericI2CCallInstance(),
+    };
+
+    auto refType = resolver.GetType(ref.refType);
+    return DirectCall { refType, ref.name, std::move(sig), callData };
+}
+
 static std::optional<DirectCall> ResolveCall(Resolver::Impl& resolver, Index<DirectCall> id)
 {
     auto [file, raf] = resolver.session.File(resolver.fileId);
@@ -344,10 +371,12 @@ static std::optional<DirectCall> ResolveCall(Resolver::Impl& resolver, Index<Dir
     if (!ref.isResolved) {
         return std::nullopt;
     }
-    auto refType = resolver.GetType(ref.refType);
 
     switch (ref.refType.GetKind()) {
         case TermKind::TYPE: {
+            if (ref.refType.IsAotPromoted()) {
+                return ResolveAotDirectCall(resolver, ref);
+            }
             auto termIdent = TypeTermId(ref.refType);
             auto type      = Symlevel::TypeDefinition::Resolve(resolver.session, termIdent.GetIdentifier());
 
@@ -375,7 +404,7 @@ static std::optional<DirectCall> ResolveCall(Resolver::Impl& resolver, Index<Dir
             auto fuh = Interpretation::FunctionHandleManager::Of(resolver.session)
                            .AcquireTagged(resolver.session, method.value());
             auto sig = ConstructSignature(resolver, ref);
-
+            auto refType = resolver.GetType(ref.refType);
             // TODO: simplify
             if (auto* staticFuh = std::get_if<Interpretation::StaticFunctionHandle*>(&fuh)) {
                 auto fuh                  = *staticFuh;
@@ -392,27 +421,7 @@ static std::optional<DirectCall> ResolveCall(Resolver::Impl& resolver, Index<Dir
         }
 
         case TermKind::AOT_TYPE: {
-            auto data = file.GetDirectCallAotTable().GetData(resolver.session, ref.identifier.GetIndex());
-
-            auto linkageName = Symlevel::String::Parse(resolver.session, data.linkangeName);
-            auto funcPtr     = file.GetDependencies().FindTarget(linkageName);
-
-            if (!funcPtr) {
-                log.Log(Logging::Level::FATAL, [linkageName](Stream::Output& stream) {
-                    stream << "not found location of static field: " << linkageName << Stream::endl;
-                });
-                return std::nullopt;
-            }
-
-            auto sig = ConstructSignature(resolver, ref);
-
-            /// FIXME: choose proper adapter based on signature (abi)
-            DirectCall::CallData callData = DirectCall::Compiled {
-                .funcPtr    = reinterpret_cast<uintptr_t>(funcPtr),
-                .i2cAdapter = RTSupport::Adapters::GenericI2CCallInstance(),
-            };
-
-            return DirectCall { refType, ref.name, std::move(sig), callData };
+            return ResolveAotDirectCall(resolver, ref);
         }
 
         default: {
@@ -461,6 +470,36 @@ std::optional<DirectCall const*> Resolver::Query(Index<DirectCall> id)
     return std::nullopt;
 }
 
+static std::optional<InstanceField> ResolveAotInstanceField(Resolver::Impl& resolver, ResolvedFieldReference &ref)
+{
+    auto refType     = resolver.GetType(ref.refType);
+    auto fieldType   = resolver.GetType(ref.fieldType);
+    auto [file, raf] = resolver.session.File(resolver.fileId);
+    ASSERTION(ref.fieldType.GetKind() != TermKind::TYPE, "aot types cannot have fields of cbc type");
+    auto data = file.GetInstanceFieldAotTable().GetData(resolver.session, ref.identifier.GetIndex());
+    int offset = RTSupport::Execution::GetFieldOffset(
+        refType->GetTypeInfo().value(), data.ordinal, ref.refType.IsReference()
+    );
+    return InstanceField { refType, ref.name, fieldType, data.ordinal, offset };
+}
+
+static std::optional<StaticField> ResolveAotStaticField(Resolver::Impl& resolver, ResolvedFieldReference &ref)
+{
+    auto refType     = resolver.GetType(ref.refType);
+    auto fieldType   = resolver.GetType(ref.fieldType);
+    auto [file, raf] = resolver.session.File(resolver.fileId);
+    auto data        = file.GetStaticFieldAotTable().GetData(resolver.session, ref.identifier.GetIndex());
+    auto linkageName = Symlevel::String::Parse(resolver.session, data.linkangeName);
+    auto location    = file.GetDependencies().FindTarget(linkageName);
+    if (!location) {
+        log.Log(Logging::Level::FATAL, [linkageName](Stream::Output& stream) {
+            stream << "not found location of static field: " << linkageName << Stream::endl;
+        });
+        return std::nullopt;
+    }
+    return StaticField { refType, ref.name, fieldType, reinterpret_cast<uintptr_t>(location) };
+}
+
 template <typename Field> std::optional<Field> ResolveField(Resolver::Impl& resolver, Index<Field> id)
 {
     auto fileId = resolver.method.GetFileId();
@@ -482,29 +521,18 @@ template <typename Field> std::optional<Field> ResolveField(Resolver::Impl& reso
     switch (ref.refType.GetKind()) {
         case TermKind::AOT_REC:
         case TermKind::AOT_TYPE: {
-            ASSERTION(ref.fieldType.GetKind() != TermKind::TYPE, "aot types cannot have fields of cbc type");
             if constexpr (std::is_same_v<Field, InstanceField>) {
-                auto data = file.GetInstanceFieldAotTable().GetData(resolver.session, refId);
-                int offset = RTSupport::Execution::GetFieldOffset(
-                    refType->GetTypeInfo().value(), data.ordinal, ref.refType.IsReference()
-                );
-                return InstanceField { refType, ref.name, fieldType, data.ordinal, offset };
+                return ResolveAotInstanceField(resolver, ref);
             } else {
                 static_assert(std::is_same_v<Field, StaticField>);
-                auto data        = file.GetStaticFieldAotTable().GetData(resolver.session, refId);
-                auto linkageName = Symlevel::String::Parse(resolver.session, data.linkangeName);
-                auto location    = file.GetDependencies().FindTarget(linkageName);
-                if (!location) {
-                    log.Log(Logging::Level::FATAL, [linkageName](Stream::Output& stream) {
-                        stream << "not found location of static field: " << linkageName << Stream::endl;
-                    });
-                    return std::nullopt;
-                }
-                return StaticField { refType, ref.name, fieldType, reinterpret_cast<uintptr_t>(location) };
+                return ResolveAotStaticField(resolver, ref);
             }
         }
         case TermKind::TYPE: {
             if constexpr (std::is_same_v<Field, InstanceField>) {
+                if (ref.refType.IsAotPromoted()) {
+                    return ResolveAotInstanceField(resolver, ref);
+                }
                 auto optlayout = resolver.fieldManager->GetLayout(ref.refType);
                 if (!optlayout.has_value()) {
                     return std::nullopt;
@@ -532,6 +560,9 @@ template <typename Field> std::optional<Field> ResolveField(Resolver::Impl& reso
                 offset      += (ref.refType.IsReference() ? RTSupport::MetaInfo::ObjectHeaderSize() : 0);
                 return InstanceField { refType, ref.name, fieldType, ordinal, offset };
             } else {
+                if (ref.refType.IsAotPromoted()) {
+                    return ResolveAotStaticField(resolver, ref);
+                }
                 static_assert(std::is_same_v<Field, StaticField>);
 
                 auto typeDefIdent = TypeTermId(ref.refType).GetIdentifier();
