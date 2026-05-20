@@ -17,6 +17,21 @@ struct RawLivenessInfo {
     uint32_t end;
 };
 
+struct ExceptionTable {
+    struct Region {
+        uint32_t start;
+        uint32_t end;
+        uint32_t target;
+    };
+
+    void AddRegion(uint32_t start, uint32_t end, uint32_t target)
+    {
+        regions.emplace_back(Region{start, end, target});
+    }
+
+    std::vector<Region> regions;
+};
+
 class Code {
 public:
     static Code Parse(Engine::Session& session, IO::FileId fileId, Offset<Code> offset);
@@ -54,6 +69,7 @@ private:
         uint32_t maxCalleeStackArgsCount,
         bool mayHaveNativeCalls,
         bool hasTrivialXHandler,
+        ExceptionTable exTable,
         uint32_t codeSize,
         uint8_t* codePtr,
         RawLivenessInfo rawLivenessInfo
@@ -67,6 +83,7 @@ private:
           maxCalleeStackArgsCount(maxCalleeStackArgsCount),
           mayHaveNativeCalls(mayHaveNativeCalls),
           hasTrivialXHandler(hasTrivialXHandler),
+          exTable(std::move(exTable)),
           codePtr(codePtr),
           codeSize(codeSize),
           rawLivenessInfo(rawLivenessInfo)
@@ -84,6 +101,7 @@ private:
 
     bool mayHaveNativeCalls = false;
     bool hasTrivialXHandler = true;
+    ExceptionTable exTable;
 
     uint32_t codeSize;
     uint8_t* codePtr;

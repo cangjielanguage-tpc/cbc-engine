@@ -25,6 +25,15 @@ Code Code::Parse(Engine::Session& session, IO::FileId fileId, Offset<Code> offse
     bool mayHaveNativeCalls = static_cast<bool>(reader.ReadU8());
     bool hasTrivialXHandler = static_cast<bool>(reader.ReadU8());
 
+    uint32_t exTableSize = reader.ReadULEB();
+    ExceptionTable exTable;
+    for (size_t i = 0; i < exTableSize; i++) {
+        uint32_t start = reader.ReadULEB();
+        uint32_t end = reader.ReadULEB();
+        uint32_t target = reader.ReadULEB();
+        exTable.AddRegion(start, end, target);
+    }
+
     uint32_t codeSize       = reader.ReadULEB();
     uint32_t literalsOffset = reader.ReadULEB(); // TODO: remove
 
@@ -45,6 +54,7 @@ Code Code::Parse(Engine::Session& session, IO::FileId fileId, Offset<Code> offse
         maxCalleeStackArgsCount,
         mayHaveNativeCalls,
         hasTrivialXHandler,
+        std::move(exTable),
         codeSize,
         codePtr,
         { fileId, livenessInfoStart, livenessInfoStart + livenessInfoSize }
@@ -100,8 +110,17 @@ void Code::Print(Engine::Session& session, Stream::Output& out)
          << "usedNonVolIRegMask: " << usedNonVolIRegMask << endl
          << "usedNonVolFRegMask: " << usedNonVolFRegMask << endl
          << "maxCalleeStackArgsCount: " << maxCalleeStackArgsCount << endl
-         << "hasTrivialXHandler: " << hasTrivialXHandler << endl
-         << "LivenessInfo {" << endl;
+         << "hasTrivialXHandler: " << hasTrivialXHandler << endl;
+
+    out2 << "ExceptionTable {" << endl;
+
+    for (auto& [start, end, target] : exTable.regions) {
+        out2 << "  [" << start << ", " << end << ") -> " << target << endl;
+    }
+
+    out2 << "}" << endl;
+
+    out2 << "LivenessInfo {" << endl;
 
     for (auto& li : GetLivenessInfo(session)) {
         out4 << "cbcPos: " << li.cbcPos << ", regMask: " << li.regMask << ", ";
