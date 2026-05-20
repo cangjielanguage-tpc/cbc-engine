@@ -8,6 +8,7 @@
 #include "symlevel/definitions.h"
 #include "symlevel/io/stream_file_reader.h"
 #include "symlevel/member_index.h"
+#include "symlevel/reader.h"
 #include "utils/heap.h"
 #include <memory>
 
@@ -149,7 +150,12 @@ std::optional<Identifier<MethodDefinition>> Engine::FindMain(Session& session, s
         return std::nullopt;
     }
     auto f        = file.value();
-    auto declType = f->GetTypeIndex().FindType(session, std::string_view("default"));
+    auto mainTypeName = f->GetMainTypeName();
+    if (!mainTypeName.has_value()) {
+        return std::nullopt;
+    }
+    auto mainName = Symlevel::Reader::Read(session, mainTypeName.value());
+    auto declType = f->GetTypeIndex().FindType(session, mainName);
     if (declType.has_value()) {
         auto type               = Symlevel::TypeDefinition::Resolve(session, declType.value());
         const auto& methodIndex = type.GetMethods();
