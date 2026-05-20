@@ -374,6 +374,9 @@ static std::optional<DirectCall> ResolveCall(Resolver::Impl& resolver, Index<Dir
 
     switch (ref.refType.GetKind()) {
         case TermKind::TYPE: {
+            if (ref.refType.IsAotPromoted()) {
+                return ResolveAotDirectCall(resolver, ref);
+            }
             auto termIdent = TypeTermId(ref.refType);
             auto type      = Symlevel::TypeDefinition::Resolve(resolver.session, termIdent.GetIdentifier());
 
@@ -527,6 +530,9 @@ template <typename Field> std::optional<Field> ResolveField(Resolver::Impl& reso
         }
         case TermKind::TYPE: {
             if constexpr (std::is_same_v<Field, InstanceField>) {
+                if (ref.refType.IsAotPromoted()) {
+                    return ResolveAotInstanceField(resolver, ref);
+                }
                 auto optlayout = resolver.fieldManager->GetLayout(ref.refType);
                 if (!optlayout.has_value()) {
                     return std::nullopt;
@@ -554,6 +560,9 @@ template <typename Field> std::optional<Field> ResolveField(Resolver::Impl& reso
                 offset      += (ref.refType.IsReference() ? RTSupport::MetaInfo::ObjectHeaderSize() : 0);
                 return InstanceField { refType, ref.name, fieldType, ordinal, offset };
             } else {
+                if (ref.refType.IsAotPromoted()) {
+                    return ResolveAotStaticField(resolver, ref);
+                }
                 static_assert(std::is_same_v<Field, StaticField>);
 
                 auto typeDefIdent = TypeTermId(ref.refType).GetIdentifier();
