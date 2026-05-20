@@ -162,6 +162,8 @@ public:
     bool IsReference() const;
     bool IsAotPromoted() const;
     bool IsGeneric() const;
+    bool IsIReg() const;
+    bool IsFReg() const;
 
     struct Hasher {
         uint64_t operator()(Term const& term) const { return term.Hash(); }

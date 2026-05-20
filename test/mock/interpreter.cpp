@@ -16,7 +16,6 @@
 #include "runtimesupport/runtime.h"
 #include "utils/assertion.h"
 #include "utils/logger.h"
-#include "engine/options.h"
 
 static constexpr int HEAP_SIZE = 16384;
 static LimitedHeap<HEAP_SIZE> heap;
@@ -319,7 +318,11 @@ static void C2ICall() { FATAL("Should not reach here. Mock c2i"); }
 
 void* Adapters::GetDynCallTrampoline(int idx) { FATAL("Should not reach here"); }
 
+void* Adapters::GenericC2ICallInstance() { return reinterpret_cast<void*>(&C2ICall); }
+
 void* Adapters::IregOnlyC2ICallInstance() { return reinterpret_cast<void*>(&C2ICall); }
+
+void* Adapters::C2ICall(uint32_t intArgCount, uint32_t floatArgCount) { return reinterpret_cast<void*>(&C2ICall); }
 
 void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* fuh) { FATAL("Should not reach here."); }
 
