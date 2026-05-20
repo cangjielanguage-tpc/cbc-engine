@@ -252,11 +252,11 @@ public:
     Substitution(Session& session);
     virtual ~Substitution() = default;
 
+    Term Substitute(Term term);
+    inline Term operator()(Term term) { return Substitute(term); }
+protected:
     virtual Term SubstituteClassTv(uint8_t typeVar) = 0;
     virtual Term SubstituteFuncTv(uint8_t typeVar) = 0;
-
-    Term Substitute(Term term);
-protected:
     Session& session;
 };
 
@@ -265,6 +265,7 @@ protected:
 class ClassSubstitution : public Substitution {
 public:
     ClassSubstitution(Session& session, Term term);
+protected:
     Term SubstituteClassTv(uint8_t typeVar) override;
     Term SubstituteFuncTv(uint8_t typeVar) override;
 private:

@@ -186,8 +186,13 @@ std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, Iden
     // 1. Get table of super type for claseses or empty table for other types
     MethodTable newTable {};
 
+    ClassSubstitution substitute(session, Term::Definition(session, type));
+
     if (flags.Is(TypeKind::CLASS)) {
-        auto superMT = GetMethodTable(session, TermManager::Resolve(session, def.GetSuperType()));
+        auto superType = TermManager::Resolve(session, def.GetSuperType());
+        superType      = substitute(superType);
+
+        auto superMT = GetMethodTable(session, superType);
         if (!superMT.has_value()) {
             ResolvingOutput out(session, Log::mt.Stream(Logging::Level::ERROR));
             out << "Super " << def.GetSuperType() << " of type " << Detailed(def.GetName()) << " not found." << endl;
@@ -198,8 +203,10 @@ std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, Iden
 
     // 2. Copy all entries and sub tables of interfaces, adjusting their views
     for (auto interf : def.GetInterfaces().Values(session)) {
-        auto interfTerm     = TermManager::Resolve(session, interf);
-        auto optInterfTable = GetMethodTable(session, interfTerm);
+        auto interface = TermManager::Resolve(session, interf);
+        interface      = substitute(interface);
+
+        auto optInterfTable = GetMethodTable(session, interface);
         if (!optInterfTable.has_value()) {
             ResolvingOutput out(session, Log::mt.Stream(Logging::Level::ERROR));
             out << "Interface " << interf << " of type " << Detailed(def.GetName()) << " not found." << endl;
@@ -289,9 +296,27 @@ std::optional<std::shared_ptr<MethodTable>> MethodTableManager::GetMethodTable(S
         result = std::nullopt;
     } else {
         auto type = TypeTermId(term).GetIdentifier();
+        auto table = GetMethodTable(session, type);
+        if (!table.has_value()) {
+            result = std::nullopt;
+        } else {
+            ClassSubstitution substitute(session, term);
+            MethodTable t = **table;
 
-        // FIXME: instantiate!
-        result = GetMethodTable(session, type);
+            for (auto& e : t.allEntries) {
+                e.genericContext = substitute(e.genericContext);
+            }
+
+            for (auto& st : t.classTables) {
+                st.genericContext = substitute(st.genericContext);
+            }
+
+            for (auto& st : t.interfaceTables) {
+                st.genericContext = substitute(st.genericContext);
+            }
+
+            result = std::make_shared<MethodTable>(std::move(t));
+        }
     }
 
     Log::mt.Log(Logging::Level::DEBUG, [&](Output& stream) {
