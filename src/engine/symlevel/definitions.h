@@ -9,6 +9,7 @@
 #include "offset.h"
 #include "string.h"
 #include "term.h"
+#include <cstdint>
 
 namespace Symlevel {
 
@@ -37,6 +38,7 @@ public:
         OffsetSequence<FieldDefinition> instanceFields;
         Engine::RefIdentifier<Term> superType;
         TypeFlags flags;
+        uint8_t arity;
         RefSequence<Term> interfaces {};
     };
 

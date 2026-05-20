@@ -65,7 +65,7 @@ struct TypeInfoBuilder {
     int32_t instanceSize  = -1;
     int32_t componentSize = -1;
 
-    DYN_GCTib gctib; // TODO: gctib builder
+    DYN_GCTib gctib { .raw = (1lu << 63) }; // TODO: gctib builder
     uint32_t uuid = 0;
     uint8_t align;
     int8_t typeArgsNum           = 0;
@@ -81,8 +81,6 @@ struct TypeInfoBuilder {
     DYN_ExtensionData** extDefs     = nullptr;
     DYN_FuncPtr* flatMethods        = nullptr;
     DYN_ExtensionData* flatExtDefs  = nullptr;
-    DYN_MTableDesc* mtableDesc      = nullptr;
-    void* reflectOrDebugInfo        = nullptr;
 
     Interpretation::FunctionHandle** dataMT = nullptr;
 
@@ -90,7 +88,7 @@ struct TypeInfoBuilder {
 
     bool built = false;
 
-    TypeInfoBuilder(CbcTypeInfo* typeInfo) : typeInfo(typeInfo), gctib({ .raw = (1lu << 63) }) {}
+    TypeInfoBuilder(CbcTypeInfo* typeInfo) : typeInfo(typeInfo) {}
 
     DYN_TypeInfo* Build()
     {
@@ -124,13 +122,10 @@ struct TypeInfoBuilder {
             result->superTypeInfo = superTypeInfo;
         } else if (componentTypeInfo) {
             result->componentTypeInfo = componentTypeInfo;
-        } else {
-            ASSERTION(false, "neither of super type TI or component TI was set");
         }
 
         result->vExtensionDataStart = extDefs;
-        result->mTableDesc          = mtableDesc;
-        result->reflectOrDebugInfo  = reflectOrDebugInfo;
+        result->mTableDesc          = nullptr;
         typeInfo->dataMT            = dataMT;
 
         built = true;
@@ -145,8 +140,6 @@ struct TypeInfoBuilder {
             std::free(name);
             std::free(typeArgs);
             std::free(fields);
-            std::free(mtableDesc);
-            std::free(reflectOrDebugInfo);
             std::free(dataMT);
             std::free(flatExtDefs);
             std::free(extDefs);
@@ -204,14 +197,6 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
     TypeInfoBuilder builder(currentTypeInfo);
 
-    auto queryTypeInfo = [&session, &manager, term, currentTypeInfo](Engine::Term t
-                         ) -> std::optional<RTSupport::TypeInfo> {
-        if (t == term) {
-            return TypeInfo(&currentTypeInfo->base);
-        }
-        return manager.AcquireTypeInfo(session, t);
-    };
-
     // TODO: construct proper name
     builder.name = ConstructTypeInfoName(name);
     if (builder.name == nullptr) {
@@ -228,6 +213,14 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         case Symlevel::TypeKind::CLASS:     builder.type = -128; break;
         default:                            FATAL("unreachable type kind");
     }
+
+    auto queryTypeInfo = [&session, &manager, term, currentTypeInfo](Engine::Term t
+                         ) -> std::optional<RTSupport::TypeInfo> {
+        if (t == term) {
+            return TypeInfo(&currentTypeInfo->base);
+        }
+        return manager.AcquireTypeInfo(session, t);
+    };
 
     auto superType = Engine::TermManager::Resolve(session, type.GetSuperType());
 

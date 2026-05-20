@@ -113,7 +113,8 @@ struct FLManager : public FieldLayoutManager {
                 return RTSupport::MetaInfo::GetTypeSize(*ti);
             }
 
-            case TK::TYPE_VAR: return std::nullopt;
+            case TK::FUNC_TYPE_VAR:
+            case TK::CLASS_TYPE_VAR: return std::nullopt;
 
             case TK::NIL:
             case TK::NOTHING:
