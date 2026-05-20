@@ -151,6 +151,7 @@ public:
 
     Term Subterm(uint32_t i) const;
     bool IsReference() const;
+    bool IsAotPromoted() const;
 
     struct Hasher {
         uint64_t operator()(Term const& term) const { return term.Hash(); }

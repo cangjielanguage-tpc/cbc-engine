@@ -22,6 +22,14 @@
 
 namespace Engine {
 
+struct TermFlags {
+    uint16_t isLocal     : 1;
+    uint16_t isReference : 1;
+    uint16_t isAotPromoted : 1;
+
+    TermFlags() = delete;
+};
+
 /// Internal representation of `Term`.
 /// The main things which are needed to represent term is an identifier and subterms.
 /// The length of subterm array is bounded by 2^16, so in the leftover memory
@@ -30,26 +38,24 @@ struct TermData {
     TermId identifier;
     uint32_t hash;
     uint16_t length;
-    bool isLocal;
-    bool isReference;
+    TermFlags flags;
     Term subterms[];
 
-    void InitAfterSubterms(TermId identifier, uint16_t length, bool isLocal, bool isReference)
+    void InitAfterSubterms(TermId identifier, uint16_t length, TermFlags flags)
     {
         uint32_t hash = 0;
         for (int i = 0; i < length; i++) {
             hash = 31 * hash + subterms->Hash();
         }
-        Init(identifier, identifier.Hash() ^ hash, length, isLocal, isReference);
+        Init(identifier, identifier.Hash() ^ hash, length, flags);
     }
 
-    void Init(TermId identifier, uint32_t hash, uint16_t length, bool isLocal, bool isReference)
+    void Init(TermId identifier, uint32_t hash, uint16_t length, TermFlags flags)
     {
-        this->identifier  = identifier;
-        this->isLocal     = isLocal;
-        this->length      = length;
-        this->hash        = hash;
-        this->isReference = isReference;
+        this->identifier = identifier;
+        this->length     = length;
+        this->hash       = hash;
+        this->flags      = flags;
     }
 };
 
@@ -148,7 +154,11 @@ Term Term::Definition(Session& session, Identifier<Symlevel::TypeDefinition> typ
     auto def   = Symlevel::Reader::Read(session, type);
     bool isRec = def.GetFlags().Is(Symlevel::TypeKind::RECORD);
     auto* data = AllocateTerm(session.Allocator());
-    data->InitAfterSubterms(TypeTermId(type), 0, true, !isRec);
+    data->InitAfterSubterms(TypeTermId(type), 0, {
+        .isLocal = true,
+        .isReference = !isRec,
+        .isAotPromoted = false,
+    });
     return LocalTerm(data);
 }
 
@@ -156,7 +166,11 @@ static Term Undefined(Session& session, RefIdentifier<Term> termId)
 {
     // TODO: assertions for length
     auto* data = AllocateTerm(session.Allocator());
-    data->InitAfterSubterms(UndefTermId(termId), 0, true, false);
+    data->InitAfterSubterms(UndefTermId(termId), 0, {
+        .isLocal = true,
+        .isReference = !false,
+        .isAotPromoted = false,
+    });
     return LocalTerm(data);
 }
 
@@ -328,11 +342,11 @@ bool Term::operator!=(const Term& another) const { return !(*this == another); }
 
 bool Term::operator==(const Term& another) const { return CompareTermData(this->data, another.data); }
 
-bool Term::IsLocal() const { return data->isLocal; }
+bool Term::IsLocal() const { return data->flags.isLocal; }
 
 Term LocalTerm::Subterm(uint32_t i) const { return this->data->subterms[i]; }
 
-LocalTerm::LocalTerm(TermData* data) : data(data) { ASSERT(data->isLocal); }
+LocalTerm::LocalTerm(TermData* data) : data(data) { ASSERT(data->flags.isLocal); }
 
 GlobalTerm LocalTerm::Publish(Session& session)
 {
@@ -375,7 +389,9 @@ GlobalTerm TermManager::Globalize(Term& term)
     for (int i = 0; i < term.GetLength(); i++) {
         data->subterms[i] = termData->subterms[i];
     }
-    data->Init(termData->identifier, termData->hash, termData->length, false, termData->isReference);
+    auto flags = termData->flags;
+    flags.isLocal = false;
+    data->Init(termData->identifier, termData->hash, termData->length, flags);
 
     cache.insert(data);
     term.data = data;
@@ -446,7 +462,11 @@ struct TermResolver {
                 // TODO: verify def.arity == 0
 
                 auto data = AllocateTerm(heap);
-                data->InitAfterSubterms(TypeTermId(identifier), 0, true, tag == REF);
+                data->InitAfterSubterms(TypeTermId(identifier), 0, {
+                    .isLocal = true,
+                    .isReference = (tag == REF),
+                    .isAotPromoted = false,
+                });
                 return Term(LocalTerm(data));
             }
             case AOT_REC: // fall-through
@@ -471,14 +491,23 @@ struct TermResolver {
                     // TODO: assert def.arity == 0
 
                     auto data = AllocateTerm(heap);
-                    data->InitAfterSubterms(TypeTermId(*type), 0, true, tag == AOT_REF);
+                    data->InitAfterSubterms(TypeTermId(*type), 0, {
+                        .isLocal = true,
+                        .isReference = (tag == AOT_REF),
+                        .isAotPromoted = true,
+                    });
                     return Term(LocalTerm(data));
                 } else {
                     auto data = AllocateTerm(heap);
+                    TermFlags flags = {
+                        .isLocal = true,
+                        .isReference = (tag == AOT_REF),
+                        .isAotPromoted = false,
+                    };
                     if (tag == AOT_REF) {
-                        data->InitAfterSubterms(AotTermId(identifier), 0, true, true);
+                        data->InitAfterSubterms(AotTermId(identifier), 0, flags);
                     } else {
-                        data->InitAfterSubterms(AotRecTermId(identifier), 0, true, false);
+                        data->InitAfterSubterms(AotRecTermId(identifier), 0, flags);
                     }
                     return Term(LocalTerm(data));
                 }
@@ -497,7 +526,12 @@ struct TermResolver {
                     data->subterms[i] = subterm;
                 }
 
-                data->InitAfterSubterms(TagTermId(TermKind::METHOD), len, true, false);
+                TermFlags flags = {
+                    .isLocal = true,
+                    .isReference = false,
+                    .isAotPromoted = false,
+                };
+                data->InitAfterSubterms(TagTermId(TermKind::METHOD), len, flags);
                 return Term(LocalTerm(data));
             }
             case NULLABLE: {
@@ -510,7 +544,12 @@ struct TermResolver {
                 }
                 data->subterms[0] = subterm;
 
-                data->InitAfterSubterms(TagTermId(TermKind::NULLABLE), 1, true, true);
+                TermFlags flags = {
+                    .isLocal = true,
+                    .isReference = true,
+                    .isAotPromoted = false,
+                };
+                data->InitAfterSubterms(TagTermId(TermKind::NULLABLE), 1, flags);
                 return Term(LocalTerm(data));
             }
             default: {
@@ -533,21 +572,8 @@ Term TermManager::Resolve(Session& session, RefIdentifier<Term> ident)
     return resolver.Resolve(ident.GetIndex());
 }
 
-bool Term::IsReference() const
-{
-    return data->isReference;
-    switch (GetKind()) {
-        case TermKind::NULLABLE:
-        case TermKind::NON_NULLABLE:
-        case TermKind::AOT_TYPE:
-        case TermKind::TYPE_VAR:
-        case TermKind::CANGJIE_ARRAY: return true;
+bool Term::IsReference() const { return data->flags.isReference; }
 
-        case TermKind::TYPE: {
-        }
-
-        default: return false;
-    }
-}
+bool Term::IsAotPromoted() const { return data->flags.isAotPromoted; }
 
 } // namespace Engine
