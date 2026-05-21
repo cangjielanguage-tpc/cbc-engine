@@ -1,3 +1,5 @@
+@main_type default
+
 @type default {
   @method default test_NEG [ ] F32 {
     fneg.32 FR0, FR0

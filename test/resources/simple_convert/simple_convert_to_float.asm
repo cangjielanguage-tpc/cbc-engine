@@ -1,3 +1,5 @@
+@main_type default
+
 @type default {
   @method default test_F32_F64 [ ] I64 {
     live.prim [ IR1 ]

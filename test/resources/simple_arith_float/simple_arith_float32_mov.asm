@@ -1,3 +1,5 @@
+@main_type default
+
 @type default {
   @method default test_MOV [ ] F32 {
     mov.32 FR0, FR1

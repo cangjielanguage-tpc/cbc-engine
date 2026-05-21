@@ -1,3 +1,5 @@
+@main_type default
+
 @type default {
   @methodref default.foo, DIRECT default foo [ I64, I64 ] I64
 

@@ -1,3 +1,5 @@
+@main_type default
+
 @type default {
   @method default test_I16_I32 [ ] I64 {
     live.prim [ IR1 ]

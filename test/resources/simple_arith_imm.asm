@@ -1,3 +1,5 @@
+@main_type default
+
 @type default {
   @method default main [ ] I64 {
     mov.64 IR2, 0x5
