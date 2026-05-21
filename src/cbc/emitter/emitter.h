@@ -147,6 +147,7 @@ public:
 
     void Bcc(CC cc, Width width, IReg l, IReg r, Label label);
     void BccImm(CC cc, Width width, IReg l, uint64_t r, Label label);
+    void Nop();
     void Jmp(Label label);
 
     void NewObj(RTSupport::TypeInfo typeInfo);

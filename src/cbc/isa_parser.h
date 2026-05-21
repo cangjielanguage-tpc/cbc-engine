@@ -27,6 +27,7 @@ protected:
     virtual void Bcc(Format::Width width, Format::CC cc, AnyReg l, AnyReg r, int64_t delta)        = 0;
     virtual void BccImm(Format::Width width, Format::CC cc, IReg l, uint64_t imm, int64_t delta)   = 0;
     virtual void Jump(int64_t delta)                                                               = 0;
+    virtual void Nop()                                                                             = 0;
     virtual void Mov(Format::Width width, IReg d, IReg s)                                          = 0;
     virtual void FMov(Format::Width width, FReg d, FReg s)                                         = 0;
     virtual void FloatToInt(Format::Width width, IReg d, FReg s)                                   = 0;

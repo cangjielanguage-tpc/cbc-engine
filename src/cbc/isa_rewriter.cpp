@@ -136,6 +136,8 @@ struct IsaRewriter : public IsaParser {
         emit.BccImm(cc, width, IReg::From(l), imm, InstructionLabel(Pos() + delta));
     }
 
+    void Nop() override { emit.Nop(); }
+
     void Jump(int64_t delta) override { emit.Jmp(InstructionLabel(Pos() + delta)); }
 
     void Mov(Format::Width width, IReg d, IReg s) override { emit.Mov(d, s); }

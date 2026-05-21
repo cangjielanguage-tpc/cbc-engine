@@ -7,6 +7,7 @@
 #define CBC_RT_OPCODES(X)                                                                                              \
     X(HALT, B1, "halt")                                                                                                \
     X(RET, B1, "ret")                                                                                                  \
+    X(NOP, B1, "nop")                                                                                                  \
     X(MOV, B2rr, "mov $0ir $1ir")                                                                                      \
     X(MOVI, B2xr, "movi $1ir $0I4")                                                                                    \
     X(MOVR, B2rr, "movr $0ir $1ir")                                                                                    \

@@ -82,7 +82,7 @@
     X(LoadField, LoadField)                                                                                            \
     X(StoreField, StoreField)                                                                                          \
     X(LoadStackRec, LoadStackRec)                                                                                      \
-    X(Unused, Unreachable)                                                                                             \
+    X(Nop, Nop)                                                                                                        \
     X(MemHeadReg, Unreachable)                                                                                         \
     X(MemHeadField, Unreachable)                                                                                       \
     X(MemHeadStatic, Unreachable)                                                                                      \
