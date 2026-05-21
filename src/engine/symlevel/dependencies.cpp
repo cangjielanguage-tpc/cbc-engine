@@ -114,7 +114,11 @@ AotCodeAddr Dependencies::FindTarget(std::string_view linkageName) const
         }
     }
 
-    ASSERTION(false, "Dependencies: cannot find target lib for method");
+    AotCodeAddr codeAddr = dlsym(RTLD_DEFAULT, str.c_str());
+    if (codeAddr != nullptr) {
+        return codeAddr;
+    }
+
     return nullptr;
 }
 

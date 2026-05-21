@@ -14,7 +14,8 @@ namespace Symlevel {
     X(FINAL)                                                                                                           \
     X(ABSTRACT)                                                                                                        \
     X(SEALED)                                                                                                          \
-    X(AOT)
+    X(AOT)                                                                                                             \
+    X(PATCH)
 
 #define FIELD_FLAGS(X)                                                                                                 \
     X(STATIC)                                                                                                          \
@@ -28,7 +29,9 @@ namespace Symlevel {
     X(ABSTRACT)                                                                                                        \
     X(FOREIGN)                                                                                                         \
     X(MUT)                                                                                                             \
-    X(AOT)
+    X(AOT)                                                                                                             \
+    X(PKG_INIT)                                                                                                        \
+    X(LIT_INIT)
 
 #define FLAG_LIST(flag) flag,
 #define FLAG_C_STR(flag)                                                                                               \
