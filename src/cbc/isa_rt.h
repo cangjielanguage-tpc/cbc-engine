@@ -70,6 +70,7 @@
     X(MEMSPACE, B1, "memspace {")                                                                                      \
     X(GC_POINT, B1, "gcpoint")                                                                                         \
     X(BFXS, BFX, "bfxs $0ir $1ir $2U8 $3U8")                                                                           \
+    X(BFXZ, BFX, "bfxz $0ir $1ir $2U8 $3U8")                                                                           \
     X(STRING_INIT, B2xr, "string.init $ir")                                                                            \
     X(NULLCHECK, B2xr, "nullcheck $ir")                                                                                \
     X(DIVCHECK, B2xr, "divcheck $1ir")
