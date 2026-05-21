@@ -74,7 +74,7 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
 
     auto mainType    = reader.ReadU32();
     std::optional<Engine::Identifier<String>> mainTypeName = std::nullopt;
-    if (mainType != 0) {
+    if (mainType >= 0) {
         mainTypeName = Engine::Identifier(Offset<String>(mainType), fileId);
     }
 

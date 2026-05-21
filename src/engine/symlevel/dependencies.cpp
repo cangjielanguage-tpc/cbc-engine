@@ -53,14 +53,14 @@ Dependencies Dependencies::Read(
 )
 {
     std::vector<std::string> cbcDeps;
-    if (cbcDepsOffset != 0) {
+    if (cbcDepsOffset >= 0) {
         cbcDeps = parse(fileId, file, poolOffset + cbcDepsOffset);
     } else {
         cbcDeps = std::vector<std::string>();
     }
 
     std::vector<LibHandle> handles;
-    if (aotDepsOffset != 0) {
+    if (aotDepsOffset >= 0) {
         auto aotDeps = parse(fileId, file, poolOffset + aotDepsOffset);
         handles      = std::vector<LibHandle>(aotDeps.size());
 
