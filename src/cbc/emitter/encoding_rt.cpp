@@ -150,5 +150,12 @@ void Encode(ByteBuffer& buf, RT::B11i16i64 command)
     buf.AddW64(command.imm64.imm);
 }
 
+void Encode(ByteBuffer& buf, RT::B13i64i32 command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.imm64);
+    Encode(buf, command.imm32);
+}
+
 } // namespace Emitter
 } // namespace Cbc

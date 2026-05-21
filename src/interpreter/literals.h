@@ -6,6 +6,11 @@
 
 namespace Interpretation {
 
+struct StringLiteral {
+    uint32_t size;
+    char string[];
+};
+
 union Literal {
     int32_t i32;
     int64_t i64;

@@ -757,5 +757,25 @@ void Emitter::InterfaceCall(uint16_t methodNum, RTSupport::TypeInfo typeInfo)
     );
 }
 
+void Emitter::StringLit(Interpretation::StringLiteral* literal, uint32_t frameOffs)
+{
+    Encode(
+        segment,
+        RT::B13i64i32 { .opc   = RT::Opcode::STRING_INIT,
+                        .imm64 = { .imm = reinterpret_cast<uint64_t>(literal) },
+                        .imm32 = { .imm = frameOffs } }
+    );
+}
+
+void Emitter::DivCheck(IReg r)
+{
+    Encode(segment, RT::B2xr { .opc = RT::Opcode::DIVCHECK, .xr = { .imm = 0, .r = r } });
+}
+
+void Emitter::NullCheck(IReg r)
+{
+    Encode(segment, RT::B2xr { .opc = RT::Opcode::NULLCHECK, .xr = { .imm = 0, .r = r } });
+}
+
 } // namespace Emitter
 } // namespace Cbc

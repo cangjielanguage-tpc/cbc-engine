@@ -149,6 +149,8 @@ public:
     std::optional<InstanceField const*> Query(Index<InstanceField> id);
     std::optional<StaticField const*> Query(Index<StaticField> id);
 
+    std::string_view QueryString(uint32_t stringOffs);
+
     class Impl;
 
 private:

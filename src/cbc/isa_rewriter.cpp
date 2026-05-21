@@ -7,6 +7,7 @@
 #include "engine/resolving_output.h"
 #include "interpreter/code.h"
 #include "interpreter/function_handle.h"
+#include "interpreter/literals.h"
 #include "interpreter/loggers.h"
 #include "offsets_index.h"
 #include "resolution/resolution.h"
@@ -18,6 +19,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <sys/types.h>
 #include <variant>
 
@@ -198,6 +200,11 @@ struct IsaRewriter : public IsaParser {
 
     void GcPoint() override { emit.GcPoint(); }
 
+    virtual void LoadStackRec(IReg r, uint16_t ts) override
+    {
+        emit.LoadFrame(Format::LoadAccessKind::LEA, r, frameLayout.typedOffset[ts]);
+    }
+
     void LoadStatic(AnyReg r, uint16_t fieldId) override
     {
         auto f = resolver.Query(Index<StaticField>(fieldId));
@@ -222,7 +229,7 @@ struct IsaRewriter : public IsaParser {
         emit.StoreStatic(Stk(field->fieldType->GetKind()), r, symbol);
     }
 
-    void LoadObj(IReg rb, AnyReg rd, uint16_t fieldId) override
+    void LoadField(IReg rb, AnyReg rd, uint16_t fieldId) override
     {
         auto f = resolver.Query(Index<InstanceField>(fieldId));
         if (!f.has_value()) {
@@ -238,7 +245,7 @@ struct IsaRewriter : public IsaParser {
         }
     }
 
-    void StoreObj(IReg rb, AnyReg rs, uint16_t fieldId) override
+    void StoreField(IReg rb, AnyReg rs, uint16_t fieldId) override
     {
         auto f = resolver.Query(Index<InstanceField>(fieldId));
         if (!f.has_value()) {
@@ -253,10 +260,6 @@ struct IsaRewriter : public IsaParser {
             Fail();
         }
     }
-
-    void LoadRec(IReg rb, AnyReg rs, uint16_t field) override { FATAL("not implemented"); }
-
-    void StoreRec(IReg rb, AnyReg rd, uint16_t field) override { FATAL("not implemented"); }
 
     void LoadTypeInfoFtc(IReg dst, uint16_t ftc) override { FATAL("not implemented"); }
 
@@ -386,7 +389,9 @@ struct IsaRewriter : public IsaParser {
         emit.Ret();
     }
 
-    void DivCheck(IReg reg) override { FATAL("not implemented"); }
+    void DivCheck(IReg reg) override { emit.DivCheck(reg); }
+
+    void NullCheck(IReg reg) override { emit.NullCheck(reg); }
 
     void Catch(IReg reg) override { FATAL("not implemented"); }
 
@@ -400,7 +405,28 @@ struct IsaRewriter : public IsaParser {
 
     void InitObj(uint16_t ts) override { FATAL("not implemented"); }
 
-    void InitString(uint16_t ts, uint32_t offset) override { FATAL("not implemented"); }
+    void InitString(uint16_t ts, uint32_t offset) override
+    {
+        auto str = resolver.QueryString(offset);
+        // FIXME: string intern!
+        uint32_t size                      = 0;
+        Interpretation::StringLiteral* lit = nullptr;
+        if (str.size() > UINT32_MAX) {
+            // TODO: log
+            Fail();
+        } else if (str.size() > 0) {
+            size     = str.size();
+            auto mem = std::malloc(sizeof(Interpretation::StringLiteral) + size + 1);
+            if (!mem) {
+                FATAL("out of memory"); // FIXME: rewrite to throwing stub
+            }
+            lit       = reinterpret_cast<Interpretation::StringLiteral*>(mem);
+            lit->size = size;
+            std::memcpy(lit->string, str.data(), size);
+            lit->string[size] = 0;
+        }
+        emit.StringLit(lit, frameLayout.typedOffset.at(ts));
+    }
 
     void ArrayLength(IReg dst, IReg arr) override { FATAL("not implemented"); }
 

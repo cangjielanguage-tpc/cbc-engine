@@ -9,6 +9,7 @@
 #include "cbc/isa.h"
 #include "encoding_rt.h"
 #include "interpreter/code.h"
+#include "interpreter/literals.h"
 #include "runtimesupport/runtime.h"
 #include "utils/heap.h"
 
@@ -176,6 +177,11 @@ public:
 
     void VirtualCall(uint16_t vnum, uint16_t extDefNum);
     void InterfaceCall(uint16_t methodNum, RTSupport::TypeInfo typeInfo);
+
+    void StringLit(Interpretation::StringLiteral* literal, uint32_t frameOffs);
+
+    void DivCheck(IReg r);
+    void NullCheck(IReg r);
 
     MemSpace OpenMemSpace();
 

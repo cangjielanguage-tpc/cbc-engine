@@ -48,12 +48,11 @@ protected:
 
     virtual void GcPoint() = 0;
 
-    virtual void LoadStatic(AnyReg r, uint16_t field)         = 0;
-    virtual void StoreStatic(AnyReg r, uint16_t field)        = 0;
-    virtual void LoadObj(IReg rb, AnyReg rs, uint16_t field)  = 0;
-    virtual void StoreObj(IReg rb, AnyReg rd, uint16_t field) = 0;
-    virtual void LoadRec(IReg rb, AnyReg rs, uint16_t field)  = 0;
-    virtual void StoreRec(IReg rb, AnyReg rd, uint16_t field) = 0;
+    virtual void LoadStackRec(IReg r, uint16_t ts)              = 0;
+    virtual void LoadStatic(AnyReg r, uint16_t field)           = 0;
+    virtual void StoreStatic(AnyReg r, uint16_t field)          = 0;
+    virtual void LoadField(IReg rb, AnyReg rs, uint16_t field)  = 0;
+    virtual void StoreField(IReg rb, AnyReg rd, uint16_t field) = 0;
 
     virtual void LoadTypeInfoFtc(IReg dst, uint16_t ftc)  = 0;
     virtual void LoadTypeInfoSig(IReg dst, uint16_t type) = 0;
@@ -69,6 +68,7 @@ protected:
     virtual void FRet(Format::Width width, FReg src) = 0;
     virtual void RetRef(IReg src)                    = 0;
     virtual void DivCheck(IReg reg)                  = 0;
+    virtual void NullCheck(IReg reg)                 = 0;
     virtual void Catch(IReg reg)                     = 0;
     virtual void Throw(IReg reg)                     = 0;
 
