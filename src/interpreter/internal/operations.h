@@ -324,6 +324,7 @@ public:
 
     inline void StoreRef(Format::Reg src, Ectype* ectype);
     inline void LoadRef(Format::Reg dst, Ectype* ectype);
+    inline void Lea(Format::Reg dst, Ectype* ectype);
 
 private:
     template <typename P> inline void Store(Format::Reg src, Ectype* ectype);
@@ -362,6 +363,12 @@ template <> inline void MemoryLocation::Load<double>(Format::Reg dst, Ectype* ec
 }
 
 template <> inline void MemoryLocation::Load<Value::Reference>(Format::Reg dst, Ectype* ectype)
+{
+    auto value = *reinterpret_cast<uintptr_t*>(base + offset);
+    ectype->Put(dst.IR(), Value::Reference { .value = value });
+}
+
+inline void MemoryLocation::Lea(Format::Reg dst, Ectype* ectype)
 {
     auto value = *reinterpret_cast<uintptr_t*>(base + offset);
     ectype->Put(dst.IR(), Value::Reference { .value = value });
@@ -419,6 +426,7 @@ inline void MemoryLocation::LoadPrim(LoadAccessKind::Value ldk, Format::Reg dst,
         case LoadAccessKind::LD_S32TO64: Load<int32_t>(dst, ectype); return;
         case LoadAccessKind::LD_F32:     Load<float>(dst, ectype); return;
         case LoadAccessKind::LD_F64:     Load<double>(dst, ectype); return;
+        case LoadAccessKind::LEA:        Lea(dst, ectype); return;
         default:                         FATAL("Unexpected ldk");
     }
 }

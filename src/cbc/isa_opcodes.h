@@ -79,10 +79,10 @@
     X(Float64, FloatOp<Width::W64>)                                                                                    \
     X(LoadStatic, LoadStatic)                                                                                          \
     X(StoreStatic, StoreStatic)                                                                                        \
-    X(LoadObj, LoadObj)                                                                                                \
-    X(StoreObj, StoreObj)                                                                                              \
-    X(LoadRec, LoadRec)                                                                                                \
-    X(StoreRec, StoreRec)                                                                                              \
+    X(LoadField, LoadField)                                                                                            \
+    X(StoreField, StoreField)                                                                                          \
+    X(LoadStackRec, LoadStackRec)                                                                                      \
+    X(Unused, Unreachable)                                                                                             \
     X(MemHeadReg, Unreachable)                                                                                         \
     X(MemHeadField, Unreachable)                                                                                       \
     X(MemHeadStatic, Unreachable)                                                                                      \
@@ -110,4 +110,5 @@
     X(Catch)                                                                                                           \
     X(Throw)                                                                                                           \
     X(RetRef)                                                                                                          \
+    X(NullCheck)                                                                                                       \
     X(_END)

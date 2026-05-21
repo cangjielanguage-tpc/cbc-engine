@@ -30,6 +30,7 @@ void Encode(ByteBuffer& buf, RT::B6xri32 command);
 void Encode(ByteBuffer& buf, RT::B10xri64 command);
 void Encode(ByteBuffer& buf, RT::B9i64 command);
 void Encode(ByteBuffer& buf, RT::B11i16i64 command);
+void Encode(ByteBuffer& buf, RT::B13i64i32 command);
 
 void Encode(ByteBuffer& buf, RT::MemOpcode opc);
 void Encode(ByteBuffer& buf, RT::M2i8 command);
