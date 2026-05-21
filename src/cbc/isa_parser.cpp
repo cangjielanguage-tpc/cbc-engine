@@ -272,6 +272,8 @@ struct IsaParserImpl {
         parser.BccImm(width, cc, lhs, imm, offset);
     }
 
+    static void Nop(IsaParser& parser) { parser.Nop(); }
+
     static void JumpDefault(IsaParser& parser)
     {
         auto [offset] = ByteReaderM(parser.reader).ReadS16().Get();

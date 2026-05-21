@@ -87,6 +87,11 @@ RET: {
     LOG_INSTR;
     return {};
 }
+NOP: {
+    auto args = B1::Decode(reader);
+    LOG_INSTR;
+    NEXT;
+}
 MOV: {
     auto args = B2rr::Decode(reader);
     LOG_INSTR;

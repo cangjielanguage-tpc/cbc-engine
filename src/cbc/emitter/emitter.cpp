@@ -479,6 +479,8 @@ void Emitter::BccImm(CC cc, Width width, IReg l, uint64_t r, Label label)
     AddFixup(std::make_unique<BccImmFixup>(label, cc, width, l, r));
 }
 
+void Emitter::Nop() { Encode(segment, RT::B1 { RT::Opcode::NOP }); }
+
 void Emitter::Jmp(Label label) { AddFixup(std::make_unique<JmpFixup>(label)); }
 
 void Emitter::Ret() { Encode(segment, RT::B1 { RT::Opcode::RET }); }

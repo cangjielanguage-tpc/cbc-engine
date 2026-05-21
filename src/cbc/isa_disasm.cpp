@@ -62,6 +62,8 @@ struct IsaDisasm : public IsaParser {
         stream << IReg::From(l).ToStr() << ", " << imm << ", " << delta << endl;
     }
 
+    void Nop() override { stream << "nop" << endl; }
+
     void Jump(int64_t delta) override { stream << "jmp" << " " << delta << endl; }
 
     void Mov(Format::Width width, IReg d, IReg s) override
