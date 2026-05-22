@@ -581,6 +581,7 @@ STRING_INIT: {
         uint32_t length;
     };
 
+    /// TODO: more effective string encoding?
     auto recordLoc    = reinterpret_cast<CJString*>(frame.start + offs);
     recordLoc->str    = ref;
     recordLoc->start  = 0;
