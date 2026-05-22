@@ -685,7 +685,7 @@ struct TermResolver {
             case GENERIC_REFERENCE: {
                 auto nameOffs = Offset<String>(reader.ReadULEB());
                 auto length   = reader.ReadU8();
-                return ResolveTypeDefTerm(reader, nameOffs, length, tag == REF, refId, false);
+                return ResolveTypeDefTerm(reader, nameOffs, length, tag == GENERIC_REFERENCE, refId, false);
             }
             case AOT_REC: // fall-through
             case AOT_REF: {
