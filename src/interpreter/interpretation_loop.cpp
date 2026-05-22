@@ -572,17 +572,17 @@ INTERFACE_CALL: {
 STRING_INIT: {
     auto args = B13i64i32::Decode(reader);
     LOG_INSTR;
-    auto ref  = reinterpret_cast<StringLiteral*>(args.imm64.imm);
+    auto ref  = reinterpret_cast<StringStorage*>(args.imm64.imm);
     auto offs = args.imm32.imm;
 
     struct CJString {
-        char* str;
+        StringStorage* str;
         uint32_t start;
         uint32_t length;
     };
 
     auto recordLoc    = reinterpret_cast<CJString*>(frame.start + offs);
-    recordLoc->str    = ref->string;
+    recordLoc->str    = ref;
     recordLoc->start  = 0;
     recordLoc->length = ref->size;
     NEXT;

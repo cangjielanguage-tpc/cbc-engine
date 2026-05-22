@@ -67,6 +67,8 @@ struct MetaInfo {
     static uint8_t GetAlign(TypeInfo ti);
 
     static uint32_t ObjectHeaderSize() { return sizeof(void*); }
+
+    static TypeInfo ByteArrayTypeInfo();
 };
 
 } // namespace RTSupport

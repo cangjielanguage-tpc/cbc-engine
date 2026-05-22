@@ -179,7 +179,7 @@ public:
     void VirtualCall(uint16_t vnum, uint16_t extDefNum);
     void InterfaceCall(uint16_t methodNum, RTSupport::TypeInfo typeInfo);
 
-    void StringLit(Interpretation::StringLiteral* literal, uint32_t frameOffs);
+    void StringLit(Interpretation::StringStorage* literal, uint32_t frameOffs);
 
     void DivCheck(IReg r);
     void NullCheck(IReg r);

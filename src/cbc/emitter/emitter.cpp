@@ -759,7 +759,7 @@ void Emitter::InterfaceCall(uint16_t methodNum, RTSupport::TypeInfo typeInfo)
     );
 }
 
-void Emitter::StringLit(Interpretation::StringLiteral* literal, uint32_t frameOffs)
+void Emitter::StringLit(Interpretation::StringStorage* literal, uint32_t frameOffs)
 {
     Encode(
         segment,
