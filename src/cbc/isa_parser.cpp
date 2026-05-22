@@ -393,7 +393,7 @@ struct IsaParserImpl {
 
     static void LoadStackRec(IsaParser& parser)
     {
-        auto [r, ts] = ByteReaderM(parser.reader).ReadU4Skip4().ReadU16().Get();
+        auto [skip, r, ts] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
         parser.LoadStackRec(r, ts);
     }
 
