@@ -11,6 +11,7 @@
 #include "interpreter/loggers.h"
 #include "offsets_index.h"
 #include "resolution/resolution.h"
+#include "runtimesupport/runtime.h"
 #include "utils/assertion.h"
 #include "utils/logger.h"
 #include "utils/math.h"
@@ -411,23 +412,24 @@ struct IsaRewriter : public IsaParser {
     {
         auto str = resolver.QueryString(offset);
         // FIXME: string intern!
-        uint32_t size                      = 0;
-        Interpretation::StringLiteral* lit = nullptr;
+        Interpretation::StringStorage* storage = nullptr;
         if (str.size() > UINT32_MAX) {
             // TODO: log
             Fail();
-        } else if (str.size() > 0) {
-            size     = str.size();
-            auto mem = std::malloc(sizeof(Interpretation::StringLiteral) + size + 1);
-            if (!mem) {
-                FATAL("out of memory"); // FIXME: rewrite to throwing stub
-            }
-            lit       = reinterpret_cast<Interpretation::StringLiteral*>(mem);
-            lit->size = size;
-            std::memcpy(lit->string, str.data(), size);
-            lit->string[size] = 0;
         }
-        emit.StringLit(lit, frameLayout.typedOffset.at(ts));
+        size_t size = str.size();
+        auto mem    = std::malloc(sizeof(Interpretation::StringStorage) + size + 1);
+        if (!mem) {
+            FATAL("out of memory"); // FIXME: rewrite to throwing stub
+        }
+
+        storage           = reinterpret_cast<Interpretation::StringStorage*>(mem);
+        storage->size     = size;
+        storage->typeInfo = RTSupport::MetaInfo::ByteArrayTypeInfo();
+
+        std::memcpy(storage->string, str.data(), size);
+        storage->string[size] = 0;
+        emit.StringLit(storage, frameLayout.typedOffset.at(ts));
     }
 
     void ArrayLength(IReg dst, IReg arr) override { FATAL("not implemented"); }

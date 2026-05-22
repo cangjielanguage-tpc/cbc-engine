@@ -1,13 +1,15 @@
 #ifndef INTERPRETER_LITERALS_H
 #define INTERPRETER_LITERALS_H
 
+#include "runtimesupport/runtime.h"
 #include <cstddef>
 #include <cstdint>
 
 namespace Interpretation {
 
-struct StringLiteral {
-    uint32_t size;
+struct StringStorage {
+    RTSupport::TypeInfo typeInfo;
+    uint64_t size;
     char string[];
 };
 
