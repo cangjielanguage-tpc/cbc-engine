@@ -617,7 +617,7 @@ struct TermResolver {
 
         data->InitAfterSubterms(
             TypeTermId(identifier),
-            0,
+            expectedLength,
             {
                 .isLocal       = true,
                 .isReference   = isReference,
