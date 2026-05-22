@@ -370,7 +370,7 @@ template <> inline void MemoryLocation::Load<Value::Reference>(Format::Reg dst, 
 
 inline void MemoryLocation::Lea(Format::Reg dst, Ectype* ectype)
 {
-    auto value = *reinterpret_cast<uintptr_t*>(base + offset);
+    auto value = reinterpret_cast<uintptr_t>(base + offset);
     ectype->Put(dst.IR(), Value::Reference { .value = value });
 }
 
