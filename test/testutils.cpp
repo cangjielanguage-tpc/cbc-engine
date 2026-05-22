@@ -29,5 +29,5 @@ std::unique_ptr<IO::RandomAccessFile> OpenAsm(std::string file_name)
     auto command = "java -jar " + jar_path + ' ' + asm_path;
     auto file    = popen(command.c_str(), "r");
     pclose(file);
-    return IO::OpenFile(std::filesystem::path(cbc_path));
+    return std::move(IO::OpenFile(std::filesystem::path(cbc_path)).value());
 }

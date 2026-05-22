@@ -55,10 +55,11 @@ static void EnsureEngineInitialized(std::string cbcFile)
         out << "start engine init" << Stream::endl;
     });
 
-    Engine::InitEnvOptions();
     Engine::Loader loader;
-    if (std::filesystem::exists(cbcFile)) {
-        loader.Load(IO::OpenFile(std::filesystem::path(cbcFile)), cbcFile);
+
+    auto file = IO::TryOpenFile(cbcFile);
+    if (file.has_value()) {
+        loader.Load(std::move(file.value()), cbcFile);
     } else {
         RTSupport::Log::rt.Log(Logging::Level::WARN, [&cbcFile](Stream::Output& out) {
             out.PrintFmtLn("engine init: no such file or directory %s", cbcFile.c_str());

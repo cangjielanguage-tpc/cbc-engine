@@ -103,6 +103,7 @@ Dependencies& Dependencies::operator=(Dependencies&& other) noexcept
     return *this;
 }
 
+// TODO: use optional
 AotCodeAddr Dependencies::FindTarget(std::string_view linkageName) const
 {
     std::string str(linkageName);
