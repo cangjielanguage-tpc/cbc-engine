@@ -23,22 +23,16 @@ Code Code::Parse(Engine::Session& session, IO::FileId fileId, Offset<Code> offse
     uint32_t maxCalleeStackArgsCount = reader.ReadULEB();
 
     bool mayHaveNativeCalls = static_cast<bool>(reader.ReadU8());
-    bool hasTrivialXHandler = static_cast<bool>(reader.ReadU8());
-
-    uint32_t exTableSize = reader.ReadULEB();
-    ExceptionTable exTable;
-    for (size_t i = 0; i < exTableSize; i++) {
-        uint32_t start = reader.ReadULEB();
-        uint32_t end = reader.ReadULEB();
-        uint32_t target = reader.ReadULEB();
-        exTable.AddRegion(start, end, target);
-    }
 
     uint32_t codeSize       = reader.ReadULEB();
     uint32_t literalsOffset = reader.ReadULEB(); // TODO: remove
 
     auto codePtr = static_cast<uint8_t*>(session.Allocator().Allocate(codeSize, alignof(uint8_t)));
     reader.Read(codePtr, codeSize);
+
+    uint32_t exTableSize  = reader.ReadULEB();
+    uint32_t exTableStart = reader.Position();
+    reader.Advance(exTableSize);
 
     uint32_t livenessInfoSize  = reader.ReadULEB();
     uint32_t livenessInfoStart = reader.Position();
@@ -53,12 +47,25 @@ Code Code::Parse(Engine::Session& session, IO::FileId fileId, Offset<Code> offse
         usedNonVolFRegMask,
         maxCalleeStackArgsCount,
         mayHaveNativeCalls,
-        hasTrivialXHandler,
-        std::move(exTable),
         codeSize,
         codePtr,
+        { fileId, exTableStart, exTableStart + exTableSize },
         { fileId, livenessInfoStart, livenessInfoStart + livenessInfoSize }
     );
+}
+
+std::vector<ExceptionRegion> Code::GetExceptionRegions(Engine::Session& session) const
+{
+    IO::StreamFileReader reader(*session.FileOf(rawExTable.fileId), rawExTable.start);
+    std::vector<ExceptionRegion> regions;
+    while (reader.Position() < rawExTable.end) {
+        regions.emplace_back(ExceptionRegion {
+            .start  = reader.ReadULEB(),
+            .end    = reader.ReadULEB(),
+            .target = reader.ReadULEB(),
+        });
+    }
+    return regions;
 }
 
 std::vector<LivenessInfo> Code::GetLivenessInfo(Engine::Session& session) const
@@ -109,12 +116,11 @@ void Code::Print(Engine::Session& session, Stream::Output& out)
     out2 << "ohmSlotCount: " << ohmSlotCount << endl
          << "usedNonVolIRegMask: " << usedNonVolIRegMask << endl
          << "usedNonVolFRegMask: " << usedNonVolFRegMask << endl
-         << "maxCalleeStackArgsCount: " << maxCalleeStackArgsCount << endl
-         << "hasTrivialXHandler: " << hasTrivialXHandler << endl;
+         << "maxCalleeStackArgsCount: " << maxCalleeStackArgsCount << endl;
 
     out2 << "ExceptionTable {" << endl;
 
-    for (auto& [start, end, target] : exTable.regions) {
+    for (auto& [start, end, target] : GetExceptionRegions(session)) {
         out2 << "  [" << start << ", " << end << ") -> " << target << endl;
     }
 

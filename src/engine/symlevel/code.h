@@ -5,6 +5,18 @@
 
 namespace Symlevel {
 
+struct ExceptionRegion {
+    uint32_t start;
+    uint32_t end;
+    uint32_t target;
+};
+
+struct RawExceptionTable {
+    IO::FileId fileId;
+    uint32_t start;
+    uint32_t end;
+};
+
 struct LivenessInfo {
     uint32_t cbcPos;
     uint16_t regMask;
@@ -15,21 +27,6 @@ struct RawLivenessInfo {
     IO::FileId fileId;
     uint32_t start;
     uint32_t end;
-};
-
-struct ExceptionTable {
-    struct Region {
-        uint32_t start;
-        uint32_t end;
-        uint32_t target;
-    };
-
-    void AddRegion(uint32_t start, uint32_t end, uint32_t target)
-    {
-        regions.emplace_back(Region{start, end, target});
-    }
-
-    std::vector<Region> regions;
 };
 
 class Code {
@@ -52,6 +49,8 @@ public:
 
     uint8_t UsedNonVolFRegMask() { return usedNonVolFRegMask; }
 
+    std::vector<ExceptionRegion> GetExceptionRegions(Engine::Session& session) const;
+
     std::vector<LivenessInfo> GetLivenessInfo(Engine::Session& session) const;
 
     void Print(Engine::Session& session, Stream::Output& out);
@@ -68,10 +67,9 @@ private:
         uint8_t usedNonVolFRegMask,
         uint32_t maxCalleeStackArgsCount,
         bool mayHaveNativeCalls,
-        bool hasTrivialXHandler,
-        ExceptionTable exTable,
         uint32_t codeSize,
         uint8_t* codePtr,
+        RawExceptionTable rawExTable,
         RawLivenessInfo rawLivenessInfo
     )
         : untypedSlotCount(untypedSlotCount),
@@ -82,10 +80,9 @@ private:
           usedNonVolFRegMask(usedNonVolFRegMask),
           maxCalleeStackArgsCount(maxCalleeStackArgsCount),
           mayHaveNativeCalls(mayHaveNativeCalls),
-          hasTrivialXHandler(hasTrivialXHandler),
-          exTable(std::move(exTable)),
           codePtr(codePtr),
           codeSize(codeSize),
+          rawExTable(rawExTable),
           rawLivenessInfo(rawLivenessInfo)
     {}
 
@@ -100,13 +97,13 @@ private:
     uint32_t maxCalleeStackArgsCount = 0;
 
     bool mayHaveNativeCalls = false;
-    bool hasTrivialXHandler = true;
-    ExceptionTable exTable;
 
     uint32_t codeSize;
     uint8_t* codePtr;
 
-    RawLivenessInfo rawLivenessInfo = { 0, 0, IO::FileId(0) };
+    RawExceptionTable rawExTable = { IO::FileId(0), 0, 0 };
+
+    RawLivenessInfo rawLivenessInfo = { IO::FileId(0), 0, 0 };
 };
 
 } // namespace Symlevel
