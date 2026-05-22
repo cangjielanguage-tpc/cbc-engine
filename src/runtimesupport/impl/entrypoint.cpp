@@ -221,14 +221,14 @@ static void IterateFramesWithState(
     GCSupport::IterateFramesWithState(threadSpecificData, callback, ctx);
 }
 
-static void VisitFrameRootsMarking(DYN_VisitingState state, DYN_FrameDesc frame_desc, DYN_RootVisitor root_visitor)
+static void VisitFrameRootsMarking(DYN_VisitingState state, INT_FrameDesc frame_desc, DYN_RootVisitor root_visitor)
 {
     GCSupport::VisitGCFrameRoots(state, frame_desc, root_visitor);
 }
 
 static void VisitFrameRootsAdjusting(
     DYN_VisitingState state,
-    DYN_FrameDesc frame_desc,
+    INT_FrameDesc frame_desc,
     DYN_RootVisitor root_visitor,
     DYN_DerivedPtrVisitor derived_ptr_visitor
 )
@@ -238,7 +238,7 @@ static void VisitFrameRootsAdjusting(
 
 static void VisitFrameRootsExpansion(
     DYN_VisitingState state,
-    DYN_FrameDesc frameDesc,
+    INT_FrameDesc frameDesc,
     DYN_RootVisitor stackPtrVisitor,
     DYN_DerivedPtrVisitor derivedPtrVisitor
 )
@@ -296,7 +296,7 @@ CBC_EXPORT int interpreter_bridge_init(
     const char* const* options
 )
 {
-    static_assert(std::is_same_v<decltype(&interpreter_bridge_init), DYN_InitRt>);
+    static_assert(std::is_same_v<decltype(&interpreter_bridge_init), INT_InitInterpreter>);
 
     // Order matters
     InitEnvOpts();
@@ -305,11 +305,10 @@ CBC_EXPORT int interpreter_bridge_init(
     g_CJNativeInterfaceInstance            = *rtInterf;
     interpInterf->version                  = 1;
     interpInterf->cjThreadSpecificDataSize = sizeof(Interpretation::Ectype);
-    interpInterf->iteratorSize             = 0; // FIXME: remove
     interpInterf->c2iStubStartAddr         = reinterpret_cast<uintptr_t>(&Asm::engine_c2i_call_pc_start);
     interpInterf->c2iStubEndAddr           = reinterpret_cast<uintptr_t>(&Asm::engine_c2i_call_pc_end);
-    interpInterf->cjThreadStart            = &FiberStart;
-    interpInterf->cjThreadDestroy          = &FiberDestroy;
+    interpInterf->cjThreadOnStart          = &FiberStart;
+    interpInterf->cjThreadOnDestroy        = &FiberDestroy;
 
     interpInterf->iterateFramesWithState   = &IterateFramesWithState;
     interpInterf->visitFrameRootsExpansion = &VisitFrameRootsExpansion;
