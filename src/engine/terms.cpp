@@ -440,13 +440,13 @@ void Term::GetName(Session& session, Stream::Output& stream) const
 
         case TK::CLASS_TYPE_VAR: {
             auto tv = ClassTvTermId(*this).GetNum();
-            stream << "$CT" << tv;
+            stream << "%" << tv;
             break;
         }
 
         case TK::FUNC_TYPE_VAR: {
             auto tv = FuncTvTermId(*this).GetNum();
-            stream << "$FT" << tv;
+            stream << "%%" << tv;
             break;
         }
 
@@ -731,6 +731,14 @@ struct TermResolver {
                 };
                 data->InitAfterSubterms(TagTermId(TermKind::NULLABLE), 1, flags);
                 return Term(LocalTerm(data));
+            }
+            case CLASS_TYPE_VAR: {
+                auto id = reader.ReadU8();
+                return Term::ClassTypeVariable(id);
+            }
+            case FUNC_TYPE_VAR: {
+                auto id = reader.ReadU8();
+                return Term::FuncTypeVariable(id);
             }
             default: {
                 FATAL("Not implemented for tag %d", tag);
