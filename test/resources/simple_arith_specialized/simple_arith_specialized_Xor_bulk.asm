@@ -1,3 +1,5 @@
+@main_type default
+
 @type default {
   @method default test_0x1000020 [ ] I64 {
     live.prim [ IR1 ]

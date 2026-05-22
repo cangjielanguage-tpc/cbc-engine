@@ -13,6 +13,10 @@
 #include "engine/engine.h"
 #include "engine/options.h"
 #include "engine/symlevel/io/filesystem.h"
+#include "engine/symlevel/member_index.h"
+#include "engine/symlevel/definitions.h"
+#include "engine/symlevel/dependencies.h"
+#include "engine/symlevel/reader.h"
 #include "gc_support.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
@@ -27,6 +31,7 @@ DYN_CJNativeInterface g_CJNativeInterfaceInstance;
 static std::mutex g_InitializationGuard;
 static bool g_Initialized;
 static bool g_OptionsInitialized;
+static bool g_Patched;
 
 static void InitEnvOpts()
 {
@@ -38,7 +43,7 @@ static void InitEnvOpts()
 }
 
 /// Initialize engine from launcher.
-static void EnsureEngineInitialized()
+static void EnsureEngineInitialized(std::string cbcFile)
 {
     InitEnvOpts();
     std::lock_guard guard(g_InitializationGuard);
@@ -46,11 +51,132 @@ static void EnsureEngineInitialized()
         return;
     }
 
-    Engine::InitEnvOptions();
+    RTSupport::Log::rt.Log(Logging::Level::INFO, [](Stream::Output& out) {
+        out << "start engine init" << Stream::endl;
+    });
+
     Engine::Loader loader;
-    loader.Load(IO::OpenFile(std::filesystem::path(g_mainCbc)), g_mainCbc);
+
+    auto file = IO::TryOpenFile(cbcFile);
+    if (file.has_value()) {
+        loader.Load(std::move(file.value()), cbcFile);
+    } else {
+        RTSupport::Log::rt.Log(Logging::Level::WARN, [&cbcFile](Stream::Output& out) {
+            out.PrintFmtLn("engine init: no such file or directory %s", cbcFile.c_str());
+        });
+    }
     loader.Build();
+
+    RTSupport::Log::rt.Log(Logging::Level::INFO, [](Stream::Output& out) {
+        out << "end engine init" << Stream::endl;
+    });
+
     g_Initialized = true;
+}
+
+static void PerformPatching()
+{
+    EnsureEngineInitialized(g_patchCbc);
+
+    std::lock_guard guard(g_InitializationGuard);
+    if (g_Patched) {
+        return;
+    }
+
+    RTSupport::Log::rt.Log(Logging::Level::INFO, [](Stream::Output& out) {
+        out << "start patching" << Stream::endl;
+    });
+
+    auto& engine = Engine::GetEngineInstance();
+
+    Engine::Session session(engine);
+
+    auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
+
+    for (auto& file : engine.Files()) {
+        // TODO: list patches in CBC file header
+        auto ti = file.GetTypeIndex();
+        ti.ForEach(session, [&](Symlevel::TypeDefinition& def) {
+            if (!def.GetFlags().Is(Symlevel::TypeFlag::PATCH)) {
+                return;
+            }
+
+            auto pkgName = Symlevel::Reader::Read(session, def.GetName());
+            pkgName = pkgName.substr(3);
+
+            RTSupport::Log::rt.Log(Logging::Level::INFO, [&pkgName](Stream::Output& out) {
+                out.PrintFmtLn("patching package %s", pkgName);
+            });
+
+            auto patchPrefix = "$" + std::string(pkgName);
+
+            auto patchFlagName = patchPrefix + "$packageInit$GVF";
+            auto patchClassName = std::string(pkgName) + ":" + patchPrefix + "$PackageInitPatch$GC";
+
+            // Get patched type info
+            auto ti = g_CJNativeInterfaceInstance.typeInfo(patchClassName.c_str());
+            if (ti == nullptr) {
+                RTSupport::Log::rt.Log(Logging::Level::ERROR, [&patchClassName](Stream::Output& out) {
+                    out.PrintFmtLn("patch type info not found: %s", patchClassName.c_str());
+                });
+                return;
+            }
+
+            RTSupport::Log::rt.Log(Logging::Level::INFO, [&patchClassName](Stream::Output& out) {
+                out.PrintFmtLn("patch type info found: %s", patchClassName.c_str());
+            });
+
+            // Corresponding extension def (TODO: check it)
+            auto edef = ti->vExtensionDataStart[1];
+
+            def.GetMethods().ForEach(session, [&](Symlevel::MethodDefinition& mdef) {
+
+                auto idx = -1;
+                if (mdef.GetFlags().Is(Symlevel::MethodFlag::PKG_INIT)) {
+                    idx = 0;
+                }
+                if (mdef.GetFlags().Is(Symlevel::MethodFlag::LIT_INIT)) {
+                    idx = 1;
+                }
+
+                if (idx != -1) {
+
+                    RTSupport::Log::rt.Log(Logging::Level::INFO, [&idx, &session, &mdef](Stream::Output& out) {
+                        auto funcName = Symlevel::Reader::Read(session, mdef.Name());
+                        out.PrintFmtLn("patching funcTable[%d] with %s", idx, funcName);
+                    });
+
+                    auto fuh = fuhManager.AcquireTagged(session, mdef.GetIdentifier());
+                    auto ptr = fuhManager.GetFunctionPtrForDirectCall(fuh);
+
+                    edef->funcTable[idx] = ptr;
+                }
+            });
+
+            // Set patched flag
+            auto& deps = file.GetDependencies();
+            auto flag = deps.FindTarget(patchFlagName);
+            if (flag == nullptr) {
+                RTSupport::Log::rt.Log(Logging::Level::ERROR, [&patchFlagName](Stream::Output& out) {
+                    out.PrintFmtLn("patch flag field not found: %s", patchFlagName.c_str());
+                });
+                return;
+            }
+
+            RTSupport::Log::rt.Log(Logging::Level::INFO, [&patchFlagName](Stream::Output& out) {
+                out.PrintFmtLn("patch flag field found: %s", patchFlagName.c_str());
+            });
+
+            *(bool*) flag = true;
+        });
+
+    }
+
+    RTSupport::Log::rt.Log(Logging::Level::INFO, [](Stream::Output& out) {
+        out << "end patching" << Stream::endl;
+    });
+
+    g_Patched = true;
 }
 
 static void FiberStart(DYN_CJThreadSpecificData* data) { *data = nullptr; }
@@ -135,7 +261,7 @@ CBC_EXPORT void engine_set_cbcpath(char const* cbcPath) { g_cbcPath = cbcPath; }
 
 CBC_EXPORT void engine_set_main_cbc(char const* mainCbc) { g_mainCbc = mainCbc; }
 
-CBC_EXPORT void engine_initialize() { EnsureEngineInitialized(); }
+CBC_EXPORT void engine_initialize() { EnsureEngineInitialized(g_mainCbc); }
 
 CBC_EXPORT void engine_enable_dasm() { Interpretation::Log::preparation.SetLogLevel(Logging::Level::TRACE); }
 
@@ -196,6 +322,10 @@ CBC_EXPORT int interpreter_bridge_init(
 
     Asm::engine_newobject_function = g_CJNativeInterfaceInstance.objectAlloc;
     RTSupport::Initialize(&g_CJNativeInterfaceInstance);
+
+    if (!g_patchCbc.empty()) {
+        PerformPatching();
+    }
 
     return 0;
 }

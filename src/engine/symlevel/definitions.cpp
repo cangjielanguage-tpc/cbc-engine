@@ -39,20 +39,22 @@ TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId
     TypeFlags flags;
     flags = flags.With(TypeKind::CLASS);
 
-    if (test(0x01))
+    if (test(0x001))
         flags = flags.With(AccessKind::PUBLIC);
-    if (test(0x02))
+    if (test(0x002))
         flags = flags.Or(TypeFlag::FINAL);
-    if (test(0x04))
+    if (test(0x004))
         flags = flags.Or(TypeFlag::ABSTRACT);
-    if (test(0x08))
+    if (test(0x008))
         flags = flags.Or(TypeFlag::SEALED);
-    if (test(0x10))
+    if (test(0x010))
         flags = flags.With(TypeKind::INTERFACE);
-    if (test(0x40))
+    if (test(0x040))
         flags = flags.With(TypeKind::RECORD);
-    if (test(0x80))
+    if (test(0x080))
         flags = flags.Or(TypeFlag::AOT);
+    if (test(0x100))
+        flags = flags.Or(TypeFlag::PATCH);
 
     TypeDefinition::Content def { Engine::Identifier(offset, fileId),
                                   name,
@@ -174,6 +176,10 @@ MethodDefinition MethodDefinition::Parse(Engine::Session& session, IO::FileId fi
         flags = flags.Or(MethodFlag::VIRTUAL);
     if (test(0x100))
         flags = flags.Or(MethodFlag::AOT);
+    if (test(0x200))
+        flags = flags.Or(MethodFlag::PKG_INIT);
+    if (test(0x400))
+        flags = flags.Or(MethodFlag::LIT_INIT);
 
     MethodDefinition def(Engine::Identifier(offset, fileId), nameOffset, signature, flags);
 

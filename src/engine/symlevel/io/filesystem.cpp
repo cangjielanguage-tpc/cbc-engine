@@ -1,18 +1,25 @@
 #include "filesystem.h"
 #include "byte_array_random_access_file.h"
+#include "utils/rt_logger.h"
 
 #include <fcntl.h>
+#include <optional>
 #include <sys/stat.h>
 #include <unistd.h>
 
 namespace IO {
 
-std::unique_ptr<RandomAccessFile> OpenFile(std::filesystem::path path)
+static std::optional<std::unique_ptr<RandomAccessFile>> OpenFileImpl(std::string const& path, bool log_failure)
 {
     // FIXME: remove linux specific code
     int fd = open(path.c_str(), O_RDONLY);
     if (fd == -1) {
-        throw std::runtime_error("cannot open file " + path.string());
+        if (log_failure) {
+            RTSupport::Log::gc.Log(Logging::Level::ERROR, [&path](Stream::Output& out) {
+                out.PrintFmtLn("cannot open file %s", path.c_str());
+            });
+        }
+        return std::nullopt;
     }
 
     struct stat stat;
@@ -21,7 +28,12 @@ std::unique_ptr<RandomAccessFile> OpenFile(std::filesystem::path path)
     auto rawLength = stat.st_size; // TODO: not working with symbolic links
     if (rawLength <= 0) {
         close(fd);
-        throw std::runtime_error("empty file " + path.string());
+        if (log_failure) {
+            RTSupport::Log::gc.Log(Logging::Level::ERROR, [&path](Stream::Output& out) {
+                out.PrintFmtLn("empty file %s", path.c_str());
+            });
+        }
+        return std::nullopt;
     }
 
     size_t fileLength = static_cast<size_t>(rawLength);
@@ -33,10 +45,25 @@ std::unique_ptr<RandomAccessFile> OpenFile(std::filesystem::path path)
 
     if (n != fileLength) {
         delete[] data;
-        throw std::runtime_error("read error " + path.string());
+        if (log_failure) {
+            RTSupport::Log::gc.Log(Logging::Level::ERROR, [&path](Stream::Output& out) {
+                out.PrintFmtLn("read error %s", path.c_str());
+            });
+        }
+        return std::nullopt;
     }
 
     return std::make_unique<ByteArrayRandomAccessFile>(data, fileLength);
 };
+
+std::optional<std::unique_ptr<RandomAccessFile>> OpenFile(std::string const& path)
+{
+    return OpenFileImpl(path, true);
+}
+
+std::optional<std::unique_ptr<RandomAccessFile>> TryOpenFile(std::string const& path)
+{
+    return OpenFileImpl(path, false);
+}
 
 } // namespace IO

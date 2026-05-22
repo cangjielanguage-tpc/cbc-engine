@@ -1,3 +1,5 @@
+@main_type default
+
 @type default {
   @methodref default.fib, DIRECT default fib [ I64 ] I64
 

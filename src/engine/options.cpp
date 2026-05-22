@@ -30,6 +30,7 @@ constexpr Option globalOptionsArray[] = {
     { "cbc.dasm", &Cbc::g_IsRawDisasmEnabled, &SetBoolValue },
     { "cbc.path", &g_cbcPath, &SetStringValue },
     { "cbc.main", &g_mainCbc, &SetStringValue },
+    { "cbc.patch", &g_patchCbc, &SetStringValue },
 };
 
 namespace Engine {

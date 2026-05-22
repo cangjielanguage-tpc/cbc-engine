@@ -1,3 +1,5 @@
+@main_type default
+
 @type default {
   @method default main [ ] I64 {
     live.prim [ IR1 ]

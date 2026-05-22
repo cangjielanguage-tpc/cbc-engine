@@ -1,6 +1,8 @@
 ; Disasm-only
 ;@aotdeps cangjie-std-core
 
+@main_type default
+
 @type std.core:Object {
   @typeflags PUBLIC AOT
 }

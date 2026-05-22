@@ -1,3 +1,5 @@
+@main_type default
+
 @type default {
   @method default test_MOV [ ] F64 {
     mov.64 FR0, FR1

@@ -53,14 +53,14 @@ Dependencies Dependencies::Read(
 )
 {
     std::vector<std::string> cbcDeps;
-    if (cbcDepsOffset != 0) {
+    if (cbcDepsOffset >= 0) {
         cbcDeps = parse(fileId, file, poolOffset + cbcDepsOffset);
     } else {
         cbcDeps = std::vector<std::string>();
     }
 
     std::vector<LibHandle> handles;
-    if (aotDepsOffset != 0) {
+    if (aotDepsOffset >= 0) {
         auto aotDeps = parse(fileId, file, poolOffset + aotDepsOffset);
         handles      = std::vector<LibHandle>(aotDeps.size());
 
@@ -103,6 +103,7 @@ Dependencies& Dependencies::operator=(Dependencies&& other) noexcept
     return *this;
 }
 
+// TODO: use optional
 AotCodeAddr Dependencies::FindTarget(std::string_view linkageName) const
 {
     std::string str(linkageName);
@@ -114,7 +115,11 @@ AotCodeAddr Dependencies::FindTarget(std::string_view linkageName) const
         }
     }
 
-    ASSERTION(false, "Dependencies: cannot find target lib for method");
+    AotCodeAddr codeAddr = dlsym(RTLD_DEFAULT, str.c_str());
+    if (codeAddr != nullptr) {
+        return codeAddr;
+    }
+
     return nullptr;
 }
 

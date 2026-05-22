@@ -17,8 +17,10 @@ std::unique_ptr<Session> Disasmer::SessionFor(std::vector<std::string_view> view
 {
     auto loader = Loader();
     for (auto view : views) {
-        auto raf = IO::OpenFile(std::filesystem::path(view));
-        loader.Load(std::move(raf), view);
+        auto raf = IO::OpenFile(std::string(view));
+        if (raf.has_value()) {
+            loader.Load(std::move(raf.value()), view);
+        }
     }
     return std::make_unique<Session>(loader.Build());
 }

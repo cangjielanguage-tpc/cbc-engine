@@ -1,3 +1,5 @@
+@main_type default
+
 @type default {
   @method default test_NEG [ ] F64 {
     fneg.64 FR0, FR0
