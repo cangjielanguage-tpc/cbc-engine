@@ -358,7 +358,8 @@ void Term::GetName(Session& session, Stream::Output& stream) const
     };
 
     using TK = TermKind;
-    switch (GetKind()) {
+    auto kind = GetKind();
+    switch (kind) {
         case TK::NIL:     stream << "nil"; break;
         case TK::VOID:    stream << "void"; break;
         case TK::UNIT:    stream << "unit"; break;
@@ -428,7 +429,8 @@ void Term::GetName(Session& session, Stream::Output& stream) const
 
         case TK::AOT_TYPE:
         case TK::AOT_REC: {
-            auto ident = AotTermId(*this).GetIdentifier();
+            auto ident =
+                kind == TermKind::AOT_TYPE ? AotRefTermId(*this).GetIdentifier() : AotRecTermId(*this).GetIdentifier();
             stream << Symlevel::String::Parse(session, ident.GetFileId(), ident.GetOffset());
             if (int len = GetLength(); len > 0) {
                 printSubTerms("<", ">", len);
@@ -655,7 +657,7 @@ struct TermResolver {
         };
         // FIXME: in multi-cbc scenario this identifier is not unique.
         if (flags.isReference) {
-            data->InitAfterSubterms(AotTermId(Identifier(nameOffs, fileId)), 0, flags);
+            data->InitAfterSubterms(AotRefTermId(Identifier(nameOffs, fileId)), 0, flags);
         } else {
             data->InitAfterSubterms(AotRecTermId(Identifier(nameOffs, fileId)), 0, flags);
         }

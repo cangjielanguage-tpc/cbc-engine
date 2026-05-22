@@ -233,7 +233,7 @@ template <typename Num, TermKind tk> struct _NumberedTermId : public TermId {
     Num GetNum() { return static_cast<Num>(this->info); }
 };
 
-using AotTermId    = _SpecializedTermId<Identifier<Symlevel::String>, TermKind::AOT_TYPE>;
+using AotRefTermId = _SpecializedTermId<Identifier<Symlevel::String>, TermKind::AOT_TYPE>;
 using AotRecTermId = _SpecializedTermId<Identifier<Symlevel::String>, TermKind::AOT_REC>;
 using TypeTermId   = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::TYPE>;
 using UndefTermId  = _SpecializedTermId<RefIdentifier<Term>, TermKind::UNDEFINED>;

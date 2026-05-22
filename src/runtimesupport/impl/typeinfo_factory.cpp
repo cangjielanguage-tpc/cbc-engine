@@ -405,7 +405,7 @@ std::optional<TypeInfo> CreateTypeInfo(
         switch (termIdent.GetKind()) {
         case Engine::TermKind::TYPE:    return CreateTypeInfoDyn(session, manager, term);
 
-        case Engine::TermKind::AOT_TYPE: return QueryTypeInfoAOT(session, Engine::AotTermId(term).GetIdentifier());
+        case Engine::TermKind::AOT_TYPE: return QueryTypeInfoAOT(session, Engine::AotRefTermId(term).GetIdentifier());
         case Engine::TermKind::AOT_REC:  return QueryTypeInfoAOT(session, Engine::AotRecTermId(term).GetIdentifier());
 
             case Engine::TermKind::BOOLEAN: return QueryTypeInfoAOTByName("Bool");
