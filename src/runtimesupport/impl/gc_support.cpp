@@ -87,7 +87,7 @@ void IterateFramesWithState(
     });
 }
 
-void VisitGCFrameRoots(DYN_VisitingState state, DYN_FrameDesc frame_desc, DYN_RootVisitor rootVisitor)
+void VisitGCFrameRoots(DYN_VisitingState state, INT_FrameDesc frame_desc, DYN_RootVisitor rootVisitor)
 {
     using namespace Interpretation;
     auto regsLocationTable = reinterpret_cast<RegistersTable*>(state);

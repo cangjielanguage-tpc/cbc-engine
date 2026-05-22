@@ -42,6 +42,9 @@ typedef void *DYN_ThreadLocalData;
 // This pointer is stored in cjThread specific storage.
 typedef void *DYN_CJThreadSpecificData;
 
+// Handle of a cjThread.
+typedef void *DYN_CJThreadHandle;
+
 // This is alias for frame pointer. CJNative runtime should pass this pointer to `INT_FrameInfoProviderFn` function.
 // Interpreter would return description of corresponding frame (e.g. fileName, lineNumber).
 typedef const void *DYN_FramePointer;
@@ -62,13 +65,13 @@ typedef const void *DYN_DerivedPtrVisitor;
 typedef void *DYN_ExceptionWrapper;
 
 // Frame description used by interpreter frame visitors.
-struct DYN_FrameDesc {
+struct INT_FrameDesc {
     DYN_FramePointer fp;
     DYN_InstructionPointer ip;
 };
 
 // This struct describes frame. Interpreter would fill this structure in `INT_FrameInfoProviderFn` function.
-struct DYN_InterpretedFrameInfo {
+struct INT_InterpretedFrameInfo {
     size_t lineNumber;
     char*  methodName;
     char*  className;
@@ -112,17 +115,17 @@ struct DYN_CJNativeInterface;
 // region interpreter interface
 ////////////////////////////////////////////////////////////////////////////////////
 
-// Initalizes runtime and its interface.
+// Initalize interpreter and fill it`s interface.
 //
 // params:
-// - interpreterInterface - Pointer to `INT_InterpreterInterface` which filled by callee (out parameter).
+// - interpreterInterface - [OUT] Pointer to `INT_InterpreterInterface` which filled by callee.
 // - cjnativeInterface - Pointer to `DYN_CJNativeInterface`. Pointer owned by caller, callee should copy the content.
 // - interpreterArgsCount - Number of interpreter arguments in `interpreterArgs`.
 // - interpreterArgs - Interpreter arguments array (null-terminated).
 //                     Pointer owned by caller, callee should copy the content.
 // return: 0 on success.
 //
-typedef int (*DYN_InitRt)(struct INT_InterpreterInterface *interpreterInterface,
+typedef int (*INT_InitInterpreter)(struct INT_InterpreterInterface *interpreterInterface,
                       struct DYN_CJNativeInterface *cjnativeInterface,
                       int interpreterArgsCount,
                       const char* const* interpreterArgs);
@@ -148,7 +151,7 @@ typedef void (*INT_IterateFramesWithStateFn)(DYN_CJThreadSpecificData cjThreadDa
 // Notes:
 // Provided visitors cannot be called directly by interpreter. Interpreter should pass visitor to the callbacks defined in `DYN_CJNativeInterface` to process slots.
 //
-typedef void (*INT_VisitFrameRootsExpansionFn)(DYN_VisitingState state, DYN_FrameDesc frameDesc, DYN_RootVisitor stackPtrVisitor, DYN_DerivedPtrVisitor derivedPtrVisitor);
+typedef void (*INT_VisitFrameRootsExpansionFn)(DYN_VisitingState state, INT_FrameDesc frameDesc, DYN_RootVisitor stackPtrVisitor, DYN_DerivedPtrVisitor derivedPtrVisitor);
 
 
 // Visit frame roots (local variables) of interpreted code with marking visitor.
@@ -161,7 +164,7 @@ typedef void (*INT_VisitFrameRootsExpansionFn)(DYN_VisitingState state, DYN_Fram
 // Notes:
 // Root visitor cannot be called directly by interpreter. Interpreter should pass root visitor to the callbacks defined in `DYN_CJNativeInterface` to process roots.
 //
-typedef void (*INT_VisitFrameRootsMarkingFn)(DYN_VisitingState state, DYN_FrameDesc frameDesc, DYN_RootVisitor rootVisitor);
+typedef void (*INT_VisitFrameRootsMarkingFn)(DYN_VisitingState state, INT_FrameDesc frameDesc, DYN_RootVisitor rootVisitor);
 
 
 // Visit frame roots (local variables) of interpreted code with adjusting visitor.
@@ -175,7 +178,7 @@ typedef void (*INT_VisitFrameRootsMarkingFn)(DYN_VisitingState state, DYN_FrameD
 // Notes:
 // Root visitors cannot be called directly by interpreter. Interpreter should pass root visitor to the callbacks defined in `DYN_CJNativeInterface` to process roots.
 //
-typedef void (*INT_VisitFrameRootsAdjustingFn)(DYN_VisitingState state, DYN_FrameDesc frameDesc, DYN_RootVisitor rootVisitor, DYN_DerivedPtrVisitor derivedPtrVisitor);
+typedef void (*INT_VisitFrameRootsAdjustingFn)(DYN_VisitingState state, INT_FrameDesc frameDesc, DYN_RootVisitor rootVisitor, DYN_DerivedPtrVisitor derivedPtrVisitor);
 
 
 // Visit static roots (global variables) of interpreted code with some visitor.
@@ -198,7 +201,7 @@ typedef void (*INT_VisitGlobalRootsFn)(DYN_RootVisitor visitor);
 // Notes:
 //  Interpreter will save auxiliary metadata in [DYN_CJThreadSpecificData + offsetToCJThreadSpecificMemory] memory area to simplify support of interpretation and Garbage collection.
 //
-typedef void (*INT_CJThreadStartFn)(DYN_CJThreadSpecificData*);
+typedef void (*INT_CJThreadOnStartFn)(DYN_CJThreadSpecificData*);
 
 
 // Unregisters cjThread in interpreter. This method could be called by any thread (e.g. auxiliary scheduler thread) to notify interpreter about termination of some completed cjThread.
@@ -206,7 +209,7 @@ typedef void (*INT_CJThreadStartFn)(DYN_CJThreadSpecificData*);
 // params:
 // - Pointer to CJThreadSpecificData
 //
-typedef void (*INT_CJThreadDestroyFn)(DYN_CJThreadSpecificData*);
+typedef void (*INT_CJThreadOnDestroyFn)(DYN_CJThreadSpecificData*);
 
 
 // Provides information about given frame which could be used for precise stack trace generation.
@@ -216,11 +219,11 @@ typedef void (*INT_CJThreadDestroyFn)(DYN_CJThreadSpecificData*);
 //            should treat this method as "foreign" code.
 //
 // params:
-// - Frame pointer. Must be provided by CJNative runtime.
-// - Instruction pointer in frame (callsite position).
-// - Pointer to DYN_InterpretedFrameInfo. Fields of this struct will be initialized by interpreter.
+// - fp - Frame pointer. Must be provided by CJNative runtime.
+// - ip - Instruction pointer in frame (callsite position).
+// - frameInfo - [OUT] Pointer to INT_InterpretedFrameInfo. Fields of this struct will be initialized by interpreter.
 //
-typedef void (*INT_FrameInfoProviderFn)(DYN_FramePointer, DYN_InstructionPointer ip, DYN_InterpretedFrameInfo *);
+typedef void (*INT_FrameInfoProviderFn)(DYN_FramePointer fp, DYN_InstructionPointer ip, INT_InterpretedFrameInfo* frameInfo);
 
 
 // Landing pad which handles pending exception.
@@ -329,6 +332,62 @@ typedef struct DYN_TypeInfo* (*DYN_GetOrCreateTypeInfoFn)(DYN_TypeTemplate typeT
 // This method will be invoked by interpreter as a part of interpretation loop.
 //
 typedef uint32_t (*DYN_GetInstanceSizeFn)(struct DYN_TypeInfo* typeInfo);
+
+// Get method table for a concrete type using the method layout of another type.
+// VMT for type is split into subtables keyed by the type that owns the method layout.
+// The layout owner is interface, concrete class itself or one of its supertypes.
+//
+// params:
+// - concreteTi - concrete type
+// - ownerTi - method layout owner type, interface/supertype
+//
+// return: methods array of ownerTi implemented by concreteTi
+//
+typedef DYN_FuncPtr* (*DYN_GetMTableFn)(struct DYN_TypeInfo* concreteTi, struct DYN_TypeInfo* ownerTi);
+
+// Get the outer TypeInfo for the implementation in a method-table slot.
+// The method table is selected by concreteTi and ownerTi: ownerTi provides the
+// method layout and index selects a slot in that layout. "Outer TypeInfo" means
+// the TypeInfo that owns the selected implementation. If concreteTi overrides
+// the slot, this is concreteTi. If concreteTi inherits the same function pointer
+// from a supertype, this is the supertype that provides it.
+//
+// params:
+// - concreteTi - concrete type
+// - ownerTi - method layout owner type, interface/supertype
+// - index - method index in the owner method table
+//
+// return: outer TypeInfo for the selected method
+//
+typedef struct DYN_TypeInfo* (*DYN_GetMethodOuterTIFn)(
+    struct DYN_TypeInfo* concreteTi, struct DYN_TypeInfo* ownerTi, uint64_t index);
+
+// Refresh an ExtensionData function table used for virtual dispatch.
+// concreteTi is the concrete type whose dispatch table is being refreshed.
+// ownerTi is the method layout owner whose current function-table size is used
+// as the target size. extensionData is the dispatch metadata entry for
+// concreteTi under ownerTi's method layout. If the table is already marked
+// updated, this call is a no-op. Otherwise the runtime may allocate a larger
+// function table, copy existing slots, fill newly added slots from a compatible
+// direct supertype, reset cached outer TypeInfo entries, and mark the table as
+// updated.
+//
+// params:
+// - concreteTi - concrete type
+// - ownerTi - method layout owner type, interface/supertype
+// - extensionData - dispatch metadata entry to refresh
+//
+typedef void (*DYN_UpdateVMTFn)(
+    struct DYN_TypeInfo* concreteTi, struct DYN_TypeInfo* ownerTi, struct DYN_ExtensionData* extensionData);
+
+// Get TypeInfo UUID.
+//
+// params:
+// - ti - type info
+//
+// return: UUID assigned to type by runtime
+//
+typedef uint32_t (*DYN_GetTypeInfoUUIDFn)(struct DYN_TypeInfo* ti);
 
 
 // Throw OutOfMemoryError exception.
@@ -566,14 +625,25 @@ typedef DYN_ObjRef (*DYN_GetArrayRefElementFn)(DYN_ObjRef source, uint64_t index
 typedef void (*DYN_SetArrayRefElementFn)(DYN_ObjRef destination, uint64_t index, DYN_ObjRef newValue);
 
 //
-// Check state flags of the object.
-//
-typedef bool (*DYN_IsValidObjectFn)(DYN_ObjRef object);
-
-//
 // Get ThreadLocalData.
 //
 typedef DYN_ThreadLocalData (*DYN_GetThreadLocalDataFn)();
+
+// Creates and schedules a new Cangjie thread that executes a managed Future task.
+//
+// The new cjThread startup payload keeps `future` as a GC-visible object reference.
+// When the cjThread starts, runtime prepares managed execution and invokes `execute`
+// with the future object and its type info as managed arguments.
+//
+// params:
+// - execute - managed-call entry pointer for Future.execute. Must be non-null.
+// - future - Future object passed to `execute` and used for task result/completion.
+//            Must be a non-null valid object reference.
+// - scheduler - target scheduler handle, or null to use the current runtime scheduler.
+//
+// return: opaque cjThread handle for the created thread, or null if creation or scheduling fails.
+//
+typedef DYN_CJThreadHandle (*DYN_NewCJThreadFn)(void* execute, DYN_ObjRef future, void* scheduler);
 
 //
 // Returns true if the GC is in an "active" phase.
@@ -581,10 +651,37 @@ typedef DYN_ThreadLocalData (*DYN_GetThreadLocalDataFn)();
 //
 typedef bool (*DYN_IsActiveGcPhaseFn)(DYN_ThreadLocalData);
 
+// Runtime stack-growth entry used by interpreter-owned transition/prologue stubs.
 //
-// Stub for stack growth.
+// `DYN_CJNativeInterface::stackGrowStub` is initialized by runtime with
+// `CJ_MCC_StackGrowStub`, an architecture-specific assembly stub. It is intended
+// to be called only after a transition/prologue stack-limit check has failed,
+// while the caller frame is still materialized and visible for runtime unwinding.
 //
-typedef void* (*DYN_StackGrowStubFn)();
+// No C parameters are declared here because the actual call ABI is defined by the
+// assembly stub for each architecture. The caller must pass the required stack
+// size in the architecture-specific scratch register consumed by the stub (for
+// example, `rax` on x86_64 and `x9` on AArch64). The caller must also keep a
+// regular frame record/return address so the stub can pass the frame base,
+// required size, and call-site PC to runtime stack-growth code.
+//
+// Behavior:
+// - saves and restores caller general-purpose and vector registers, while
+//   refreshing the managed thread-local-data register from runtime after stack
+//   movement;
+// - updates runtime unwind context, grows the current cjThread stack when
+//   possible, fixes stack-resident pointers and derived pointers using stack maps
+//   and interpreter frame-expansion visitors, moves stack frames by the runtime
+//   returned stack offset, frees the old stack, and refreshes thread-local data;
+// - if stack growth cannot be performed, leaves a pending StackOverflowError in
+//   runtime exception state and returns to the caller.
+//
+// Before calling this stub, transition code must initialize any callee-saved
+// register slots that stack-map based pointer adjustment may inspect. After the
+// call returns, the caller should check runtime pending-exception state and route
+// StackOverflowError to the appropriate exception-handling path.
+//
+typedef void (*DYN_StackGrowStubFn)();
 
 // I2N (interpreter-to-native) entry stub.
 //
@@ -633,7 +730,6 @@ typedef DYN_ObjRef (*DYN_PostThrowExceptionFn)(DYN_ExceptionWrapper exceptionWra
 //
 typedef void (*DYN_NativeLoggerFn)(int logLevel, char* tag, char* message);
 
-
 ////////////////////////////////////////////////////////////////////////////////////
 // endregion CJNative interface
 ////////////////////////////////////////////////////////////////////////////////////
@@ -646,7 +742,6 @@ struct INT_InterpreterInterface {
     int64_t version;
 
     size_t cjThreadSpecificDataSize;
-    size_t iteratorSize;
 
     uintptr_t c2iStubStartAddr;
     uintptr_t c2iStubEndAddr;
@@ -663,8 +758,8 @@ struct INT_InterpreterInterface {
     INT_VisitFrameRootsAdjustingFn visitFrameRootsAdjusting;
     INT_VisitGlobalRootsFn visitGlobalRoots;
 
-    INT_CJThreadStartFn cjThreadStart;
-    INT_CJThreadDestroyFn cjThreadDestroy;
+    INT_CJThreadOnStartFn cjThreadOnStart;
+    INT_CJThreadOnDestroyFn cjThreadOnDestroy;
 
     INT_FrameInfoProviderFn frameInfoProvider;
     INT_LandingPadFn landingPad;
@@ -678,11 +773,16 @@ struct DYN_CJNativeInterface {
     void* appLibHandle;
     size_t carrierSpecificOffset;
     size_t cjThreadSpecificOffset;
+    DYN_NewCJThreadFn newCJThread;
 
     DYN_TypeInfoProviderFn typeInfo;
     DYN_TypeTemplateFn typeTemplate;
     DYN_GetOrCreateTypeInfoFn getOrCreateTypeInfo;
     DYN_GetInstanceSizeFn getInstanceSize;
+    DYN_GetMTableFn getMTable;
+    DYN_GetMethodOuterTIFn getMethodOuterTI;
+    DYN_UpdateVMTFn updateVMT;
+    DYN_GetTypeInfoUUIDFn getTypeInfoUUID;
 
     DYN_ObjAllocFn objectAlloc;
     DYN_ArrayAllocFn arrayAlloc;
@@ -720,7 +820,6 @@ struct DYN_CJNativeInterface {
     DYN_GetArrayRefElementFn getArrayRefElement;
     DYN_SetArrayRefElementFn setArrayRefElement;
 
-    DYN_IsValidObjectFn isValidObject;
     DYN_GetThreadLocalDataFn getThreadLocalData;
     DYN_IsActiveGcPhaseFn isActiveGcPhase;
     DYN_StackGrowStubFn stackGrowStub;
