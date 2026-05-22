@@ -509,7 +509,7 @@ void Emitter::StoreStatic(StoreAccessKind sdk, Reg src, Symbol offSym)
 void Emitter::LoadObj(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset)
 {
     if (MathUtils::IsNBits(offset, 12)) {
-        auto opc = ldk.IsFloat() ? RT::Opcode::LOAD_OBJ : RT::Opcode::LOAD_OBJ_F;
+        auto opc = !ldk.IsFloat() ? RT::Opcode::LOAD_OBJ : RT::Opcode::LOAD_OBJ_F;
         Encode(segment, RT::B4xi12rr {
             .opc = opc,
             .xi12 = {
@@ -531,7 +531,7 @@ void Emitter::LoadObj(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset)
 void Emitter::StoreObj(StoreAccessKind stk, Reg src, IReg base, uint32_t offset)
 {
     if (MathUtils::IsNBits(offset, 12)) {
-        auto opc = stk.IsFloat() ? RT::Opcode::STORE_OBJ : RT::Opcode::STORE_OBJ_F;
+        auto opc = !stk.IsFloat() ? RT::Opcode::STORE_OBJ : RT::Opcode::STORE_OBJ_F;
         Encode(segment, RT::B4xi12rr {
             .opc = opc,
             .xi12 = {
@@ -553,7 +553,7 @@ void Emitter::StoreObj(StoreAccessKind stk, Reg src, IReg base, uint32_t offset)
 void Emitter::LoadRec(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset)
 {
     if (MathUtils::IsNBits(offset, 12)) {
-        auto opc = ldk.IsFloat() ? RT::Opcode::LOAD_REC : RT::Opcode::LOAD_REC_F;
+        auto opc = !ldk.IsFloat() ? RT::Opcode::LOAD_REC : RT::Opcode::LOAD_REC_F;
         LoadStore(ldk, dst, base, offset, opc);
     } else {
         auto ms = OpenMemSpace();
@@ -565,7 +565,7 @@ void Emitter::LoadRec(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset)
 void Emitter::StoreRec(StoreAccessKind stk, Reg src, IReg base, uint32_t offset)
 {
     if (MathUtils::IsNBits(offset, 12)) {
-        auto opc = stk.IsFloat() ? RT::Opcode::STORE_REC : RT::Opcode::STORE_REC_F;
+        auto opc = !stk.IsFloat() ? RT::Opcode::STORE_REC : RT::Opcode::STORE_REC_F;
         LoadStore(stk, src, base, offset, opc);
     } else {
         auto ms = OpenMemSpace();
@@ -577,7 +577,7 @@ void Emitter::StoreRec(StoreAccessKind stk, Reg src, IReg base, uint32_t offset)
 void Emitter::LoadFrame(LoadAccessKind ldk, Reg dst, uint32_t offset)
 {
     if (MathUtils::IsNBits(offset, 12)) {
-        auto opc = ldk.IsFloat() ? RT::Opcode::LOAD_FRAME : RT::Opcode::LOAD_FRAME_F;
+        auto opc = !ldk.IsFloat() ? RT::Opcode::LOAD_FRAME : RT::Opcode::LOAD_FRAME_F;
         LoadStore(ldk, dst, IReg::IRZ, offset, RT::Opcode::LOAD_FRAME);
     } else {
         auto ms = OpenMemSpace();
@@ -589,7 +589,7 @@ void Emitter::LoadFrame(LoadAccessKind ldk, Reg dst, uint32_t offset)
 void Emitter::StoreFrame(StoreAccessKind stk, Reg src, uint32_t offset)
 {
     if (MathUtils::IsNBits(offset, 12)) {
-        auto opc = stk.IsFloat() ? RT::Opcode::STORE_FRAME : RT::Opcode::STORE_FRAME_F;
+        auto opc = !stk.IsFloat() ? RT::Opcode::STORE_FRAME : RT::Opcode::STORE_FRAME_F;
         LoadStore(stk, src, IReg::IRZ, offset, opc);
     } else {
         auto ms = OpenMemSpace();
