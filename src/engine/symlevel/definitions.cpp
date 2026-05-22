@@ -71,6 +71,7 @@ TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId
     for (auto tag = reader.ReadU8(); tag != 0; tag = reader.ReadU8()) {
         switch (tag) {
             case 0x1: def.interfaces = RefSequence<Term>::Parse(reader, fileId, regionId); break;
+            case 0x6: def.arity = reader.ReadULEB(); break; // TODO: check range
             default:  FATAL("unexpected tag: %d", tag); std::exit(2);
         }
     }
