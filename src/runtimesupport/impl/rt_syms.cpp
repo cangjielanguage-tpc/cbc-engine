@@ -37,8 +37,6 @@ struct Handle {
         return res;
     }
 
-    template <typename T> T Func(char const* str) { return reinterpret_cast<T>(Sym(str)); }
-
     ~Handle()
     {
         if (handle) {
@@ -46,10 +44,6 @@ struct Handle {
         }
     }
 };
-
-DYN_FuncPtr* (*GetMTable)(DYN_TypeInfo* t, DYN_TypeInfo* itf);
-void (*UpdateVMT)(DYN_TypeInfo* t, DYN_TypeInfo* itf, DYN_ExtensionData* extData);
-DYN_TypeInfo* (*GetMethodOuterTI)(DYN_TypeInfo* t, DYN_TypeInfo* itf, int index);
 
 void Initialize(DYN_CJNativeInterface* interf)
 {
@@ -76,11 +70,6 @@ void Initialize(DYN_CJNativeInterface* interf)
         stream << interf->stackGrowStub << " " << stackGrowStub << Stream::endl;
         return;
     }
-
-    GetMTable = handle->Func<decltype(GetMTable)>("CJ_MCC_GetMTable");
-    UpdateVMT = handle->Func<decltype(UpdateVMT)>("CJ_MCC_UpdateVMT");
-
-    GetMethodOuterTI = handle->Func<decltype(GetMethodOuterTI)>("CJ_MCC_GetMethodOuterTI");
 }
 
 } // namespace RTSupport

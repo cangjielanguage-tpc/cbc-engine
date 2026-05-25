@@ -71,7 +71,7 @@ void* Execution::GetInterfaceTarget(Reference base, TypeInfo interf, int methodN
 {
     DYN_TypeInfo** header  = reinterpret_cast<DYN_TypeInfo**>(base.value);
     auto typeInfo          = *header;
-    DYN_FuncPtr* table     = GetMTable(typeInfo, UnpackTypeInfo(interf));
+    DYN_FuncPtr* table     = g_CJNativeInterfaceInstance.getMTable(typeInfo, UnpackTypeInfo(interf));
     return table[methodNum];
 }
 
