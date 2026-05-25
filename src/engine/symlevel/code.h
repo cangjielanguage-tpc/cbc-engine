@@ -5,6 +5,18 @@
 
 namespace Symlevel {
 
+struct ExceptionRegion {
+    uint32_t start;
+    uint32_t end;
+    uint32_t target;
+};
+
+struct RawExceptionTable {
+    IO::FileId fileId;
+    uint32_t start;
+    uint32_t end;
+};
+
 struct LivenessInfo {
     uint32_t cbcPos;
     uint16_t regMask;
@@ -37,6 +49,8 @@ public:
 
     uint8_t UsedNonVolFRegMask() { return usedNonVolFRegMask; }
 
+    std::vector<ExceptionRegion> GetExceptionRegions(Engine::Session& session) const;
+
     std::vector<LivenessInfo> GetLivenessInfo(Engine::Session& session) const;
 
     void Print(Engine::Session& session, Stream::Output& out);
@@ -53,9 +67,9 @@ private:
         uint8_t usedNonVolFRegMask,
         uint32_t maxCalleeStackArgsCount,
         bool mayHaveNativeCalls,
-        bool hasTrivialXHandler,
         uint32_t codeSize,
         uint8_t* codePtr,
+        RawExceptionTable rawExTable,
         RawLivenessInfo rawLivenessInfo
     )
         : untypedSlotCount(untypedSlotCount),
@@ -66,9 +80,9 @@ private:
           usedNonVolFRegMask(usedNonVolFRegMask),
           maxCalleeStackArgsCount(maxCalleeStackArgsCount),
           mayHaveNativeCalls(mayHaveNativeCalls),
-          hasTrivialXHandler(hasTrivialXHandler),
           codePtr(codePtr),
           codeSize(codeSize),
+          rawExTable(rawExTable),
           rawLivenessInfo(rawLivenessInfo)
     {}
 
@@ -83,12 +97,13 @@ private:
     uint32_t maxCalleeStackArgsCount = 0;
 
     bool mayHaveNativeCalls = false;
-    bool hasTrivialXHandler = true;
 
     uint32_t codeSize;
     uint8_t* codePtr;
 
-    RawLivenessInfo rawLivenessInfo = { 0, 0, IO::FileId(0) };
+    RawExceptionTable rawExTable = { IO::FileId(0), 0, 0 };
+
+    RawLivenessInfo rawLivenessInfo = { IO::FileId(0), 0, 0 };
 };
 
 } // namespace Symlevel
