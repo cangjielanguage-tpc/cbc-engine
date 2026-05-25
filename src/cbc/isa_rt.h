@@ -43,8 +43,8 @@
     X(STORE_OBJ, B4xi12rr, "st.$0stk $2ir [$3ir $1U12]")                                                               \
     X(LOAD_OBJ_F, B4xi12rr, "ld.$0ldk $2fr [$3ir $1U12]")                                                              \
     X(STORE_OBJ_F, B4xi12rr, "st.$0stk $2fr [$3ir $1U12]")                                                             \
-    X(LOAD_ADDR, B2xr, "ld.addr.$0ldk")                                                                                \
-    X(STORE_ADDR, B2xr, "st.addr.$0ldk")                                                                               \
+    X(LOAD_ADDR, B4xri16, "ld.addr.$0ldk $1ir $2U16")                                                                  \
+    X(STORE_ADDR, B4xri16, "st.addr.$0ldk $1ir $2U16")                                                                 \
     X(LOAD_REC, B4xi12rr, "ld.rec.$0ldk $2ir [$3ir $1U12]")                                                            \
     X(STORE_REC, B4xi12rr, "st.rec.$0stk $2ir [$3ir $1U12]")                                                           \
     X(LOAD_FRAME, B4xi12rr, "ld.frame.$0ldk $2ir [$3ir $1U12]")                                                        \
@@ -277,6 +277,20 @@ struct B2xr {
         auto opc = Opcode::Decode(reader);
         auto xr  = Format::XR::Decode(reader);
         return B2xr { opc, xr };
+    }
+};
+
+struct B4xri16 {
+    Opcode opc;
+    Format::XR xr;
+    Format::Imm16 imm;
+
+    static B4xri16 Decode(Decoder::ByteReader& reader)
+    {
+        auto opc = Opcode::Decode(reader);
+        auto xr  = Format::XR::Decode(reader);
+        auto imm = Format::Imm16::Decode(reader);
+        return B4xri16 { opc, xr, imm };
     }
 };
 
