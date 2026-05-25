@@ -37,6 +37,8 @@ struct Handle {
         return res;
     }
 
+    template <typename T> T Func(char const* str) { return reinterpret_cast<T>(Sym(str)); }
+
     ~Handle()
     {
         if (handle) {
