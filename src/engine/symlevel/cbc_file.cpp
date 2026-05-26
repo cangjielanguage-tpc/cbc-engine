@@ -72,15 +72,15 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
     }
     auto regionOffset = reader.ReadU32();
 
-    auto mainType    = reader.ReadU32();
+    auto mainType    = reader.ReadS32();
     std::optional<Engine::Identifier<String>> mainTypeName = std::nullopt;
     if (mainType >= 0) {
         mainTypeName = Engine::Identifier(Offset<String>(mainType), fileId);
     }
 
-    auto cbcDeps     = reader.ReadU32();
-    auto aotDeps     = reader.ReadU32();
-    auto foreignLibs = reader.ReadU32();
+    auto cbcDeps     = reader.ReadS32();
+    auto aotDeps     = reader.ReadS32();
+    auto foreignLibs = reader.ReadS32();
     auto coverageId  = reader.ReadULEB();
 
     CbcFile::Impl impl {

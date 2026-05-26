@@ -17,9 +17,9 @@ public:
     static Dependencies Read(
         IO::FileId fileId,
         IO::RandomAccessFile& file,
-        uint32_t poolOffset,
-        uint32_t cbcDepsOffset,
-        uint32_t aotDepsOffset
+        int32_t poolOffset,
+        int32_t cbcDepsOffset,
+        int32_t aotDepsOffset
     );
 
     explicit Dependencies(std::vector<std::string> cbcDeps, std::vector<LibHandle> handles);
