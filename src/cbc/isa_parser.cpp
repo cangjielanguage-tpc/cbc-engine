@@ -272,6 +272,8 @@ struct IsaParserImpl {
         parser.BccImm(width, cc, lhs, imm, offset);
     }
 
+    static void Nop(IsaParser& parser) { parser.Nop(); }
+
     static void JumpDefault(IsaParser& parser)
     {
         auto [offset] = ByteReaderM(parser.reader).ReadS16().Get();
@@ -389,34 +391,28 @@ struct IsaParserImpl {
         parser.LoadStatic(r, id);
     }
 
+    static void LoadStackRec(IsaParser& parser)
+    {
+        auto [r, skip, ts] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.LoadStackRec(r, ts);
+    }
+
     static void StoreStatic(IsaParser& parser)
     {
         auto [r, id] = ByteReaderM(parser.reader).ReadU4Skip4().ReadU16().Get();
         parser.StoreStatic(r, id);
     }
 
-    static void LoadObj(IsaParser& parser)
+    static void LoadField(IsaParser& parser)
     {
         auto [rb, rd, id] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
-        parser.LoadObj(rb, rd, id);
+        parser.LoadField(rb, rd, id);
     }
 
-    static void StoreObj(IsaParser& parser)
+    static void StoreField(IsaParser& parser)
     {
         auto [rb, rs, id] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
-        parser.StoreObj(rb, rs, id);
-    }
-
-    static void LoadRec(IsaParser& parser)
-    {
-        auto [rb, rs, id] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
-        parser.LoadRec(rb, rs, id);
-    }
-
-    static void StoreRec(IsaParser& parser)
-    {
-        auto [rb, rd, id] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
-        parser.LoadRec(rb, rd, id);
+        parser.StoreField(rb, rs, id);
     }
 
     static void PrepareRecord(IsaParser& parser)
@@ -478,14 +474,15 @@ struct IsaParserImpl {
         auto [opc_, reg]   = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
         class RegGroup opc = opc_;
         switch (opc) {
-            case Cbc::RegGroup::Ret32:    parser.Ret(Width::W32, reg); break;
-            case Cbc::RegGroup::Ret64:    parser.Ret(Width::W64, reg); break;
-            case Cbc::RegGroup::FRet32:   parser.FRet(Width::W32, reg); break;
-            case Cbc::RegGroup::FRet64:   parser.FRet(Width::W64, reg); break;
-            case Cbc::RegGroup::DivCheck: parser.DivCheck(reg); break;
-            case Cbc::RegGroup::Catch:    parser.Catch(reg); break;
-            case Cbc::RegGroup::Throw:    parser.Throw(reg); break;
-            case Cbc::RegGroup::RetRef:   parser.RetRef(reg); break;
+            case Cbc::RegGroup::Ret32:     parser.Ret(Width::W32, reg); break;
+            case Cbc::RegGroup::Ret64:     parser.Ret(Width::W64, reg); break;
+            case Cbc::RegGroup::FRet32:    parser.FRet(Width::W32, reg); break;
+            case Cbc::RegGroup::FRet64:    parser.FRet(Width::W64, reg); break;
+            case Cbc::RegGroup::DivCheck:  parser.DivCheck(reg); break;
+            case Cbc::RegGroup::Catch:     parser.Catch(reg); break;
+            case Cbc::RegGroup::Throw:     parser.Throw(reg); break;
+            case Cbc::RegGroup::RetRef:    parser.RetRef(reg); break;
+            case Cbc::RegGroup::NullCheck: parser.NullCheck(reg); break;
             default:                      {
                 FATAL("Should not reach here");
             }

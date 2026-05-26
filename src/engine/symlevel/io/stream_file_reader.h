@@ -45,6 +45,8 @@ public:
 
     uint32_t ReadU32() { return ReadValue<uint32_t>(); }
 
+    int32_t ReadS32() { return ReadValue<int32_t>(); }
+
     uint64_t ReadU64() { return ReadValue<uint64_t>(); }
 
     uint32_t ReadULEB();

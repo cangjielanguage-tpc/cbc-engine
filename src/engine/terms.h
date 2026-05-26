@@ -76,7 +76,8 @@ enum class TermKind : uint8_t {
     TYPE,
     AOT_TYPE,
     AOT_REC,
-    TYPE_VAR,
+    CLASS_TYPE_VAR,
+    FUNC_TYPE_VAR,
     GENERIC_METHOD,
     LAST
 };
@@ -130,6 +131,9 @@ public:
     static Term Definition(Session& session, Identifier<Symlevel::TypeDefinition> type);
     static Term Predefined(TermKind tk);
 
+    static Term ClassTypeVariable(uint8_t tv);
+    static Term FuncTypeVariable(uint8_t tv);
+
     Term(LocalTerm local);
     Term(GlobalTerm global);
     Term(Term const& term);
@@ -152,6 +156,7 @@ public:
     Term Subterm(uint32_t i) const;
     bool IsReference() const;
     bool IsAotPromoted() const;
+    bool IsGeneric() const;
 
     struct Hasher {
         uint64_t operator()(Term const& term) const { return term.Hash(); }
@@ -215,10 +220,58 @@ template <typename Id, TermKind tk> struct _SpecializedTermId : public TermId {
     }
 };
 
-using AotTermId    = _SpecializedTermId<Identifier<Symlevel::String>, TermKind::AOT_TYPE>;
+template <typename Num, TermKind tk> struct _NumberedTermId : public TermId {
+    explicit _NumberedTermId(Num number) : TermId(tk, number) {}
+
+    explicit _NumberedTermId(Term term) : _NumberedTermId(term.GetId()) {}
+
+    explicit _NumberedTermId(TermId ident) : TermId(ident)
+    {
+        ASSERTION(ident.GetKind() == tk, "expected: %d, actual: %d", tk, ident.GetKind());
+    }
+
+    Num GetNum() { return static_cast<Num>(this->info); }
+};
+
+using AotRefTermId = _SpecializedTermId<Identifier<Symlevel::String>, TermKind::AOT_TYPE>;
 using AotRecTermId = _SpecializedTermId<Identifier<Symlevel::String>, TermKind::AOT_REC>;
 using TypeTermId   = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::TYPE>;
 using UndefTermId  = _SpecializedTermId<RefIdentifier<Term>, TermKind::UNDEFINED>;
+
+using ClassTvTermId = _NumberedTermId<uint8_t, TermKind::CLASS_TYPE_VAR>;
+using FuncTvTermId  = _NumberedTermId<uint8_t, TermKind::FUNC_TYPE_VAR>;
+
+/// Routine that substitutes terms in places of type variables.
+/// To perform an substitution a mapping `TV -> Term` is required.
+/// The form of mapping is represented by different implementations.
+class Substitution {
+public:
+    Substitution(Session& session);
+    virtual ~Substitution() = default;
+
+    Term Substitute(Term term);
+
+    inline Term operator()(Term term) { return Substitute(term); }
+
+protected:
+    virtual Term SubstituteClassTv(uint8_t typeVar) = 0;
+    virtual Term SubstituteFuncTv(uint8_t typeVar)  = 0;
+    Session& session;
+};
+
+/// Routine that substitutes class type variables with corresponding subterms of `term`.
+/// Function type vars are mapped to themselves.
+class ClassSubstitution : public Substitution {
+public:
+    ClassSubstitution(Session& session, Term term);
+
+protected:
+    Term SubstituteClassTv(uint8_t typeVar) override;
+    Term SubstituteFuncTv(uint8_t typeVar) override;
+
+private:
+    Term term;
+};
 
 /// Term manager provides utilities for caching (and interning) of global terms,
 /// and responsible for resolution of term identifiers.

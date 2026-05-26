@@ -578,7 +578,7 @@ public:
     X(LD_U8, 0b0000, "u8")                                                                                             \
     X(LD_U16, 0b0001, "u16")                                                                                           \
     X(LD_32, 0b0010, "32")                                                                                             \
-    X(SPECIAL, 0b0011, "special") /* unused in interpreter */                                                          \
+    X(LEA, 0b0011, "lea")                                                                                              \
     X(LD_S8, 0b0100, "s8")                                                                                             \
     X(LD_S16, 0b0101, "s16")                                                                                           \
     X(LD_F32, 0b0110, "f32")                                                                                           \

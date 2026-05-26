@@ -632,6 +632,12 @@ std::optional<Type*> Resolver::Query(Index<Type> id)
     return impl->GetType(term);
 }
 
+std::string_view Resolver::QueryString(uint32_t stringOffs)
+{
+    using namespace Symlevel;
+    return Reader::Read(impl->session, Identifier(Offset<String>(stringOffs), impl->fileId));
+}
+
 Stream::Output& operator<<(Stream::Output& stream, Type const& type)
 {
     type.GetFullName(stream);

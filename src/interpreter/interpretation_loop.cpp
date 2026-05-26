@@ -87,6 +87,11 @@ RET: {
     LOG_INSTR;
     return {};
 }
+NOP: {
+    auto args = B1::Decode(reader);
+    LOG_INSTR;
+    NEXT;
+}
 MOV: {
     auto args = B2rr::Decode(reader);
     LOG_INSTR;
@@ -562,6 +567,46 @@ INTERFACE_CALL: {
 
     // FIXME: avoid I2C->C2I adapters for pure I2I call.
     return { Adapters::GenericI2CCallInstance(), function };
+}
+
+STRING_INIT: {
+    auto args = B13i64i32::Decode(reader);
+    LOG_INSTR;
+    auto ref  = reinterpret_cast<StringStorage*>(args.imm64.imm);
+    auto offs = args.imm32.imm;
+
+    struct CJString {
+        StringStorage* str;
+        uint32_t start;
+        uint32_t length;
+    };
+
+    /// TODO: more effective string encoding?
+    auto recordLoc    = reinterpret_cast<CJString*>(frame.start + offs);
+    recordLoc->str    = ref;
+    recordLoc->start  = 0;
+    recordLoc->length = ref->size;
+    NEXT;
+}
+
+NULLCHECK: {
+    auto args = B2xr::Decode(reader);
+    LOG_INSTR;
+    auto ref = ectype->GetReference(args.xr.r.IR());
+    if (ref.value == 0) {
+        FATAL("null check failed"); // TODO: throw exception
+    }
+    NEXT;
+}
+
+DIVCHECK: {
+    auto args = B2xr::Decode(reader);
+    LOG_INSTR;
+    auto div = ectype->GetPrimitive(args.xr.r.IR());
+    if (div.u64 == 0) {
+        FATAL("div check failed"); // TODO: throw exception
+    }
+    NEXT;
 }
 
 MEMSPACE: {

@@ -56,18 +56,22 @@ TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId
     if (test(0x100))
         flags = flags.Or(TypeFlag::PATCH);
 
-    TypeDefinition::Content def { Engine::Identifier(offset, fileId),
-                                  name,
-                                  std::move(methodIndex),
-                                  std::move(fieldIndex),
-                                  dynMethods,
-                                  instanceFields,
-                                  superType,
-                                  flags };
+    TypeDefinition::Content def {
+        .identifier     = Engine::Identifier(offset, fileId),
+        .name           = name,
+        .methods        = std::move(methodIndex),
+        .fields         = std::move(fieldIndex),
+        .virtualMethods = dynMethods,
+        .instanceFields = instanceFields,
+        .superType      = superType,
+        .flags          = flags,
+        .arity          = 0,
+    };
 
     for (auto tag = reader.ReadU8(); tag != 0; tag = reader.ReadU8()) {
         switch (tag) {
             case 0x1: def.interfaces = RefSequence<Term>::Parse(reader, fileId, regionId); break;
+            case 0x5: def.arity = reader.ReadULEB(); break; // TODO: check range
             default:  FATAL("unexpected tag: %d", tag); std::exit(2);
         }
     }

@@ -64,4 +64,6 @@ uint32_t MetaInfo::GetTypeSize(TypeInfo ti) { return 0; }
 
 uint8_t MetaInfo::GetAlign(TypeInfo ti) { return alignof(max_align_t); }
 
+TypeInfo MetaInfo::ByteArrayTypeInfo() { return TypeInfo(nullptr); }
+
 } // namespace RTSupport

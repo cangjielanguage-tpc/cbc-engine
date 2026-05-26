@@ -7,6 +7,7 @@
 #define CBC_RT_OPCODES(X)                                                                                              \
     X(HALT, B1, "halt")                                                                                                \
     X(RET, B1, "ret")                                                                                                  \
+    X(NOP, B1, "nop")                                                                                                  \
     X(MOV, B2rr, "mov $0ir $1ir")                                                                                      \
     X(MOVI, B2xr, "movi $1ir $0I4")                                                                                    \
     X(MOVR, B2rr, "movr $0ir $1ir")                                                                                    \
@@ -65,11 +66,14 @@
     X(DIRECT_CALL_2I, B3xi12, "call.2i $1I12L")                                                                        \
     X(DIRECT_CALL_2C, B3xi12, "call.2c $1I12L")                                                                        \
     X(VIRTUAL_CALL, B5i16i16, "vcall $0U16 $1U16")                                                                     \
-    X(INTERFACE_CALL, B11i16i64, "icall $0U16 $1U64")                                                                   \
+    X(INTERFACE_CALL, B11i16i64, "icall $0U16 $1U64")                                                                  \
     X(MEMSPACE, B1, "memspace {")                                                                                      \
     X(GC_POINT, B1, "gcpoint")                                                                                         \
     X(BFXS, BFX, "bfxs $0ir $1ir $2U8 $3U8")                                                                           \
-    X(BFXZ, BFX, "bfxz $0ir $1ir $2U8 $3U8")
+    X(BFXZ, BFX, "bfxz $0ir $1ir $2U8 $3U8")                                                                           \
+    X(STRING_INIT, B13i64i32, "string.init $0U64 $1U32")                                                                           \
+    X(NULLCHECK, B2xr, "nullcheck $1ir")                                                                               \
+    X(DIVCHECK, B2xr, "divcheck $1ir")
 
 // X parameters: opcode, encoding format, string format, is tail
 #define CBC_RT_MEMOPCODES(X)                                                                                           \
@@ -453,6 +457,20 @@ struct B9i64 {
         auto opc   = Opcode::Decode(reader);
         auto imm64 = Format::Imm64::Decode(reader);
         return B9i64 { opc, imm64 };
+    }
+};
+
+struct B13i64i32 {
+    Opcode opc;
+    Format::Imm64 imm64;
+    Format::Imm32 imm32;
+
+    static B13i64i32 Decode(Decoder::ByteReader& reader)
+    {
+        auto opc   = Opcode::Decode(reader);
+        auto imm64 = Format::Imm64::Decode(reader);
+        auto imm32 = Format::Imm32::Decode(reader);
+        return B13i64i32 { opc, imm64, imm32 };
     }
 };
 

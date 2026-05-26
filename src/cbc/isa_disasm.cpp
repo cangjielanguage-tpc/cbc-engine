@@ -62,6 +62,8 @@ struct IsaDisasm : public IsaParser {
         stream << IReg::From(l).ToStr() << ", " << imm << ", " << delta << endl;
     }
 
+    void Nop() override { stream << "nop" << endl; }
+
     void Jump(int64_t delta) override { stream << "jmp" << " " << delta << endl; }
 
     void Mov(Format::Width width, IReg d, IReg s) override
@@ -142,28 +144,20 @@ struct IsaDisasm : public IsaParser {
 
     void GcPoint() override { stream << "gcpoint" << endl; }
 
+    void LoadStackRec(IReg r, uint16_t ts) override { stream << "ld.stack.rec" << " " << r << ", " << ts << endl; }
+
     void LoadStatic(AnyReg r, uint16_t field) override { stream << "ld.static" << " " << r << ", " << field << endl; }
 
     void StoreStatic(AnyReg r, uint16_t field) override { stream << "st.static" << " " << r << ", " << field << endl; }
 
-    void LoadObj(IReg rb, AnyReg rs, uint16_t field) override
+    void LoadField(IReg rb, AnyReg rs, uint16_t field) override
     {
         stream << "ld.obj" << " " << rb.ToStr() << ", " << rs << ", " << field << endl;
     }
 
-    void StoreObj(IReg rb, AnyReg rd, uint16_t field) override
+    void StoreField(IReg rb, AnyReg rd, uint16_t field) override
     {
         stream << "st.obj" << " " << rb.ToStr() << ", " << rd << ", " << field << endl;
-    }
-
-    void LoadRec(IReg rb, AnyReg rs, uint16_t field) override
-    {
-        stream << "ld.rec" << " " << rb.ToStr() << ", " << rs << ", " << field << endl;
-    }
-
-    void StoreRec(IReg rb, AnyReg rd, uint16_t field) override
-    {
-        stream << "st.rec" << " " << rb.ToStr() << ", " << rd << ", " << field << endl;
     }
 
     void LoadTypeInfoFtc(IReg dst, uint16_t ftc) override
@@ -213,6 +207,8 @@ struct IsaDisasm : public IsaParser {
     void RetRef(IReg src) override { stream << "ret.ref " << src.ToStr() << endl; }
 
     void DivCheck(IReg reg) override { stream << "divcheck" << " " << reg.ToStr() << endl; }
+
+    void NullCheck(IReg reg) override { stream << "nullcheck" << " " << reg.ToStr() << endl; }
 
     void Catch(IReg reg) override { stream << "catch" << " " << reg.ToStr() << endl; }
 

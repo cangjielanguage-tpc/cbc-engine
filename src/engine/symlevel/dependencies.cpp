@@ -49,7 +49,7 @@ std::string Dependencies::convertToLibName(const std::string& name)
 }
 
 Dependencies Dependencies::Read(
-    IO::FileId fileId, IO::RandomAccessFile& file, uint32_t poolOffset, uint32_t cbcDepsOffset, uint32_t aotDepsOffset
+    IO::FileId fileId, IO::RandomAccessFile& file, int32_t poolOffset, int32_t cbcDepsOffset, int32_t aotDepsOffset
 )
 {
     std::vector<std::string> cbcDeps;

@@ -95,4 +95,13 @@ uint8_t MetaInfo::GetAlign(TypeInfo ti)
     return mrtti->align;
 }
 
+TypeInfo MetaInfo::ByteArrayTypeInfo()
+{
+    auto typeName = "RawArray<UInt8>";
+    auto ti       = g_CJNativeInterfaceInstance.typeInfo(typeName);
+    ASSERT(ti != nullptr);
+
+    return TypeInfo(ti);
+}
+
 } // namespace RTSupport
