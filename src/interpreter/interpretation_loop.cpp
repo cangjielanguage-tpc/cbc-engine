@@ -602,8 +602,8 @@ NULLCHECK: {
 DIVCHECK: {
     auto args = B2xr::Decode(reader);
     LOG_INSTR;
-    auto ref = ectype->GetReference(args.xr.r.IR());
-    if (ref.value == 0) {
+    auto div = ectype->GetPrimitive(args.xr.r.IR());
+    if (div.u64 == 0) {
         FATAL("div check failed"); // TODO: throw exception
     }
     NEXT;
