@@ -251,6 +251,13 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B2xr args)
     formatter.Format();
 }
 
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B4xri16 args)
+{
+    Operand operands[] = { args.xr.imm, args.xr.r, args.imm };
+    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    formatter.Format();
+}
+
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B6xri32 args)
 {
     Operand operands[] = { args.xr.imm, args.xr.r, args.imm32.imm };
