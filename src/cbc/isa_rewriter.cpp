@@ -417,6 +417,7 @@ struct IsaRewriter : public IsaParser {
             // TODO: log
             Fail();
         }
+        // TODO: allocate proper array in heap?
         size_t size = str.size();
         auto mem    = std::malloc(sizeof(Interpretation::StringStorage) + size + 1);
         if (!mem) {
