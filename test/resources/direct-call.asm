@@ -1,25 +1,32 @@
-@main_type default
+;strict
+@main_type "default"
 
-@type default {
-  @methodref default.foo, DIRECT default foo [ I64, I64 ] I64
+@method_ref default.foo = default@ref foo(I64,I64)I64
 
-  @method default main [ ] I64 {
-    mov.64 IR1, 0x7
-    mov.64 IR2, 0x0
-    call.direct Method(default.foo), IR1
-    ret.64 IR1
-  }
+@type default
 
-  @method default foo [ I64, I64 ] I64 {
-    live.prim [ IR1, IR2 ]
-    branch.if EQ, IR1, IRZ, r
-    add.64 IR2, IR2, IR1
-    mov.64 IR3, 0x1
-    sub.64 IR1, IR1, IR3
-    dead [ IR3 ]
-    call.direct Method(default.foo), IR1
-r:  dead [ IR1 ]
-    mov.64 IR1, IR2
-    ret.64 IR1
-  }
-}
+  @method main()I64 {
+    @code
+      movi.64 IR1, 0x7
+      movi.64 IR2, 0x0
+      call.direct IR1, #default.foo
+      ret.64 IR1
+    @end
+  @end
+
+  @method foo(I64,I64)I64 {
+    @code
+      @live.prim IR1, IR2
+      bcc.64 EQ, IR1, IRZ, r
+      add.64 IR2, IR2, IR1
+      movi.64 IR3, 0x1
+      sub.64 IR1, IR1, IR3
+      @dead IR3
+      call.direct IR1, #default.foo
+r:
+      @dead IR1
+      mov.64 IR1, IR2
+      ret.64 IR1
+    @end
+  @end
+@end

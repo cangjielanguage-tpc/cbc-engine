@@ -1,19 +1,26 @@
-@main_type default
+;strict
+@main_type "default"
 
-@type default {
-  @method default test_MOV [ ] F64 {
-    mov.64 FR0, FR1
-    fret.64 FR0
-  }
+@type default
+  @method test_MOV()F64
+    @code
+      fmov.64 FR0, FR1
+      fret.64 FR0
+    @end
+  @end
 
-  @method default test_I2F [ ] F64 {
-    live.prim [ IR1 ]
-    mov.64 FR0, IR1
-    fret.64 FR0
-  }
+  @method test_I2F()F64
+    @code
+      @live.prim IR1
+      movi2f.64 FR0, IR1
+      fret.64 FR0
+    @end
+  @end
 
-  @method default test_F2I [ ] I64 {
-    mov.64 IR1, FR0
-    ret.64 IR1
-  }
-}
+  @method test_F2I()I64
+    @code
+      movf2i.64 IR1, FR0
+      ret.64 IR1
+    @end
+  @end
+@end
