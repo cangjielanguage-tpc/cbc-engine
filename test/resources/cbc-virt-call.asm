@@ -1,36 +1,45 @@
+;strict
+
 ; Disasm-only
 ;@aotdeps cangjie-std-core
 
-@main_type default
+@main_type "default"
 
-@type std.core:Object {
-  @typeflags PUBLIC AOT
-}
+@type std.core:Object
+  @flags PUBLIC AOT
+@end
 
-@type Foo {
-  @typeflags PUBLIC
+@type Foo
+  @flags PUBLIC
 
-  @typesuper std.core:Object
+  @super std.core:Object@aref
 
-  @method default dummy [ ] Void {
-    @methodflags VIRTUAL
-    mov.64 IR1, 0x123
-    ret.64 IR1
-  }
+  @method dummy()Void
+    @flags VIRTUAL
+    @code
+      movi.64 IR1, 0x123
+      ret.64 IR1
+    @end
+  @end
 
-  @method default foo [ ] Void {
-    @methodflags VIRTUAL
-    mov.64 IR1, 0x123
-    ret.64 IR1
-  }
-}
+  @method foo()Void
+    @flags VIRTUAL
+    @code
+      movi.64 IR1, 0x123
+      ret.64 IR1
+    @end
+  @end
+@end
 
-@type default {
-  @methodref Foo.foo, VIRTUAL Foo foo [ ] Void
+@method_ref Foo.foo = Foo@ref foo()Void
 
-  @method default main [ ] I64 {
-    call.virt Method(Foo.foo), IR1
-    live.prim [ IR1 ]
-    ret.64 IR1
-  }
-}
+@type default
+
+  @method main()I64
+    @code
+      call.virt IR1, #Foo.foo
+      @live.prim IR1
+      ret.64 IR1
+    @end
+  @end
+@end

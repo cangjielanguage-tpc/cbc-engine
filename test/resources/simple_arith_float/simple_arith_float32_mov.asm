@@ -1,19 +1,26 @@
-@main_type default
+;strict
+@main_type "default"
 
-@type default {
-  @method default test_MOV [ ] F32 {
-    mov.32 FR0, FR1
-    fret.32 FR0
-  }
+@type default
+  @method test_MOV()F32
+    @code
+      fmov.32 FR0, FR1
+      fret.32 FR0
+    @end
+  @end
 
-  @method default test_I2F [ ] F32 {
-    live.prim [ IR1 ]
-    mov.32 FR0, IR1
-    fret.32 FR0
-  }
+  @method test_I2F()F32
+    @code
+      @live.prim IR1
+      movi2f.32 FR0, IR1
+      fret.32 FR0
+    @end
+  @end
 
-  @method default test_F2I [ ] I32 {
-    mov.32 IR1, FR0
-    ret.32 IR1
-  }
-}
+  @method test_F2I()I32
+    @code
+      movf2i.32 IR1, FR0
+      ret.32 IR1
+    @end
+  @end
+@end

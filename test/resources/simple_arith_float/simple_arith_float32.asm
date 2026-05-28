@@ -1,38 +1,53 @@
-@main_type default
+;strict
+@main_type "default"
 
-@type default {
-  @method default test_NEG [ ] F32 {
-    fneg.32 FR0, FR0
-    fret.32 FR0
-  }
+@type default
+  @method test_NEG()F32
+    @code
+      fneg.32 FR0, FR0
+      fret.32 FR0
+    @end
+  @end
 
-  @method default test_SQRT [ ] F32 {
-    fsqrt.32 FR0, FR0
-    fret.32 FR0
-  }
+  @method test_SQRT()F32
+    @code
+      fsqrt.32 FR0, FR0
+      fret.32 FR0
+    @end
+  @end
 
-  @method default test_ABS [ ] F32 {
-    fabs.32 FR0, FR0
-    fret.32 FR0
-  }
+  @method test_ABS()F32
+    @code
+      fabs.32 FR0, FR0
+      fret.32 FR0
+    @end
+  @end
 
-  @method default test_ADD [ ] F32 {
-    fadd.32 FR0, FR0, FR1
-    fret.32 FR0
-  }
+  @method test_ADD()F32
+    @code
+      fadd.32 FR0, FR0, FR1
+      fret.32 FR0
+    @end
+  @end
 
-  @method default test_SUB [ ] F32 {
-    fsub.32 FR0, FR0, FR1
-    fret.32 FR0
-  }
+  @method test_SUB()F32
+    @code
+      fsub.32 FR0, FR0, FR1
+      fret.32 FR0
+    @end
+  @end
 
-  @method default test_MUL [ ] F32 {
-    fmul.32 FR0, FR0, FR1
-    fret.32 FR0
-  }
+  @method test_MUL()F32
+    @code
+      fmul.32 FR0, FR0, FR1
+      fret.32 FR0
+    @end
+  @end
 
-  @method default test_DIV [ ] F32 {
-    fdiv.32 FR0, FR0, FR1
-    fret.32 FR0
-  }
-}
+  @method test_DIV()F32
+    @code
+      fdiv.32 FR0, FR0, FR1
+      fret.32 FR0
+    @end
+  @end
+@end
