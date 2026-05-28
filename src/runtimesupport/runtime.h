@@ -80,6 +80,10 @@ struct MetaInfo {
     static uint32_t GetTypeSize(TypeInfo ti);
     static uint8_t GetAlign(TypeInfo ti);
 
+    static bool IsReferenceType(TypeInfo ti);
+
+    static void VisitReferences(TypeInfo ti, std::function<void(uint32_t)> visitor);
+
     static uint32_t ObjectHeaderSize() { return sizeof(void*); }
 
     static TypeInfo ByteArrayTypeInfo();

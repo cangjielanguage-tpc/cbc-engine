@@ -146,6 +146,11 @@ struct SimpleType : public Type {
     }
 
     std::optional<uint32_t> GetFlatSize() override { return resolver.fieldManager->GetFlatSize(term); }
+
+    void FillRefOffsets(std::vector<uint32_t>& offsets, uint32_t disp) override
+    {
+        resolver.fieldManager->FillRefOffsets(term, offsets, disp);
+    }
 };
 
 Type* Resolver::Impl::NewType(Term term) { return session.Allocator().New<SimpleType>(term, *this); }

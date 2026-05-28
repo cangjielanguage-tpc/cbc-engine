@@ -782,6 +782,7 @@ static std::optional<FrameLayout> makeFrameLayout(Symlevel::Code code, Resolver&
     auto untypedSlotsSize = Cbc::STACK_SLOT_SIZE * code.UntypedSlotCount();
 
     std::unordered_map<uint32_t, uint32_t> typedOffset;
+    std::vector<std::pair<uint32_t, void*>> typedSlotsInfo;
     auto stackAllocSize = untypedSlotsSize;
     for (uint32_t i = 0; i < code.StackAllocSigsCount(); i++) {
         auto typeOpt = resolver.Query(Index<Type>(code.StackAllocSigs()[i]));
@@ -796,24 +797,30 @@ static std::optional<FrameLayout> makeFrameLayout(Symlevel::Code code, Resolver&
         if (!size.has_value()) {
             return std::nullopt;
         }
+        auto typeInfo = type->GetTypeInfo();
+        if (!typeInfo.has_value()) {
+            return std::nullopt;
+        }
+        auto typeInfoPtr = typeInfo->Raw();
 
         typedOffset.insert({ i, stackAllocSize });
+        typedSlotsInfo.push_back({ stackAllocSize, typeInfoPtr });
         stackAllocSize += MathUtils::AlignUp(size.value(), Cbc::STACK_SLOT_SIZE);
     }
 
     auto frameSize = MathUtils::AlignUp(savedRegsSpace + stackAllocSize, Cbc::FRAME_ALIGNMENT);
 
-    return FrameLayout { std::move(typedOffset), untypedSlotsSize, frameSize };
+    return FrameLayout { std::move(typedOffset), std::move(typedSlotsInfo), untypedSlotsSize, frameSize };
 }
 
-static std::vector<Interpretation::ReferenceInfo> CalculateReferencesMap(
+static std::vector<Interpretation::PositionalInfo> CalculatePositionalGCInfo(
     Engine::Session& session, const MethodCode& code, const InstructionOffsetsIndex& offIndex
 )
 {
     auto livenessInfo = code.GetLivenessInfo(session);
 
-    std::vector<Interpretation::ReferenceInfo> refInfo;
-    refInfo.reserve(livenessInfo.size());
+    std::vector<Interpretation::PositionalInfo> posInfo;
+    posInfo.reserve(livenessInfo.size());
 
     for (const auto& info : livenessInfo) {
         auto posOpt = offIndex.FindMappedOffset(CBC, info.cbcPos);
@@ -821,15 +828,15 @@ static std::vector<Interpretation::ReferenceInfo> CalculateReferencesMap(
             FATAL("Unknown position");
         }
 
-        refInfo.push_back({ .rewrittenPos = posOpt.value(), .regMask = info.regMask, .refSlotOffsets = {} });
+        posInfo.push_back({ .rewrittenPos = posOpt.value(), .regMask = info.regMask, .untypedRefSlotsInfo = {} });
 
-        refInfo.back().refSlotOffsets.reserve(info.refSlotNums.size());
+        posInfo.back().untypedRefSlotsInfo.reserve(info.refSlotNums.size());
         for (const auto& slotN : info.refSlotNums) {
-            refInfo.back().refSlotOffsets.push_back(slotN * STACK_SLOT_SIZE);
+            posInfo.back().untypedRefSlotsInfo.push_back(slotN * STACK_SLOT_SIZE);
         }
     }
 
-    return refInfo;
+    return posInfo;
 }
 
 Interpretation::ExecBytecodeInfo Rewrite(
@@ -859,7 +866,11 @@ Interpretation::ExecBytecodeInfo Rewrite(
         .savedFRegs       = code.UsedNonVolFRegMask(),
         .untypedSlotCount = static_cast<uint16_t>(code.UntypedSlotCount()),
         .frameSize        = (*frameLayout).frameSize,
-        .referenceInfos   = CalculateReferencesMap(session, code, offsetsIndex),
+        .gcInfo =
+            Interpretation::GcInfo {
+                .positionalInfo = CalculatePositionalGCInfo(session, code, offsetsIndex),
+                .typedSlotsInfo = (*frameLayout).typedSlotsInfo,
+            },
     };
 }
 
