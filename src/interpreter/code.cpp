@@ -9,13 +9,14 @@ Stream::Output& operator<<(Stream::Output& out, const ExecBytecodeInfo& bc)
     Stream::Indented out4(out, 4);
 
     out << "ExecBytecodeInfo {" << endl;
-    out2 << "untypedSlotCount: " << bc.untypedSlotCount << endl
+    out2 << "untypedSlotsCount: " << bc.untypedSlotCount << endl
+         << "typedSlotsCount: " << bc.gcInfo.typedSlotsInfo.size() << endl
          << "frameSize: " << bc.frameSize << endl
          << "GCMap {" << endl;
 
-    for (auto& entry : bc.referenceInfos) {
+    for (auto& entry : bc.gcInfo.positionalInfo) {
         out4 << "rtPos: " << entry.rewrittenPos << ", regMask: " << entry.regMask << ", ";
-        Std::Vector::Print(out4, entry.refSlotOffsets);
+        Std::Vector::Print(out4, entry.untypedRefSlotsInfo);
         out4 << endl;
     }
 

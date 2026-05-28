@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 #include "asm_export.h"
@@ -19,10 +20,15 @@ struct Code {
     // TODO: add offsets converter
 };
 
-struct ReferenceInfo {
+struct PositionalInfo {
     uint32_t rewrittenPos;
     uint16_t regMask;
-    std::vector<uint32_t> refSlotOffsets;
+    std::vector<uint32_t> untypedRefSlotsInfo;
+};
+
+struct GcInfo {
+    std::vector<PositionalInfo> positionalInfo;
+    std::vector<std::pair<uint32_t, void*>> typedSlotsInfo;
 };
 
 struct ExecBytecodeInfo {
@@ -31,7 +37,7 @@ struct ExecBytecodeInfo {
     uint16_t const savedFRegs;
     uint16_t const untypedSlotCount;
     uint32_t const frameSize;
-    std::vector<ReferenceInfo> const referenceInfos;
+    GcInfo const gcInfo;
 
     friend Stream::Output& operator<<(Stream::Output& out, const ExecBytecodeInfo& bc);
 };
