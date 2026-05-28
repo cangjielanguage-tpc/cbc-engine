@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <optional>
 #include <string_view>
+#include <vector>
 
 /// This namespace provides an facade to access symlevel from rewriter.
 ///
@@ -65,6 +66,9 @@ public:
 
     /// The size of a field of given type.
     virtual std::optional<uint32_t> GetFlatSize() = 0;
+
+    /// Fills reference offsets for this type.
+    virtual void FillRefOffsets(std::vector<uint32_t>& offsets) = 0;
 };
 
 struct MethodSignature {

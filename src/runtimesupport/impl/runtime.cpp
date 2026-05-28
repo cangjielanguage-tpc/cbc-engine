@@ -117,6 +117,25 @@ uint8_t MetaInfo::GetAlign(TypeInfo ti)
     return mrtti->align;
 }
 
+void MetaInfo::VisitReferences(TypeInfo ti, std::function<void(uint32_t)> visitor)
+{
+    auto mrtti = UnpackTypeInfo(ti);
+
+    uintptr_t SHORT_GCTIB_TAG = 1ull << (8 * sizeof(uintptr_t) - 1);
+    if ((mrtti->gctib.raw & SHORT_GCTIB_TAG) == 0) {
+        FATAL("pointer gctib format is not supported yet");
+        return;
+    }
+
+    auto bitmap = mrtti->gctib.raw & ~SHORT_GCTIB_TAG;
+    for (uint32_t offset = 0; bitmap != 0; offset += sizeof(uintptr_t)) {
+        if ((bitmap & 1) != 0) {
+            visitor(offset);
+        }
+        bitmap >>= 1;
+    }
+}
+
 TypeInfo MetaInfo::ByteArrayTypeInfo()
 {
     auto typeName = "RawArray<UInt8>";

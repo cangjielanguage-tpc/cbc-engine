@@ -179,8 +179,8 @@ struct FLManager : public FieldLayoutManager {
             if (!typeInfo.has_value()) {
                 return;
             }
-            RTSupport::Execution::VisitReferences(typeInfo.value(), [&offsets, disp](uint32_t offset) {
-                 offsets.push_back(offset + disp);
+            RTSupport::MetaInfo::VisitReferences(typeInfo.value(), [&offsets, disp](uint32_t offset) {
+                offsets.push_back(offset + disp);
             });
         } else if (term.GetKind() == TermKind::TYPE) {
             ASSERT(!term.IsReference());
