@@ -58,18 +58,19 @@ Interpretation::Thunk engine_interpretation_loop(
 #ifdef NDEBUG
     #define LOG_INSTR
 #else
-    // Logging format is:
-    // [int] (stack depth) < (bc pos): instruction
-    #define LOG_INSTR                                                                                                  \
-        do {                                                                                                           \
-            logger.PrintFmt("#0x%x < 0x%03lx: ", (uint32_t)frame.start, pos - start);                                  \
-            pos = reader.Cursor();                                                                                     \
-            Cbc::RT::Log(literals, logger, args);                                                                      \
-        } while (0)
-    // TODO: add ectype ptr as ID of thread.
-    auto start   = reader.Start();
-    auto pos     = reader.Cursor();
-    auto& logger = Log::interpretation.Stream(Logging::Level::TRACE);
+    #define LOG_INSTR
+    //// Logging format is:
+    //// [int] (stack depth) < (bc pos): instruction
+    //#define LOG_INSTR                                                                                                  \
+    //    do {                                                                                                           \
+    //        logger.PrintFmt("#0x%x < 0x%03lx: ", (uint32_t)frame.start, pos - start);                                  \
+    //        pos = reader.Cursor();                                                                                     \
+    //        Cbc::RT::Log(literals, logger, args);                                                                      \
+    //    } while (0)
+    //// TODO: add ectype ptr as ID of thread.
+    //auto start   = reader.Start();
+    //auto pos     = reader.Cursor();
+    //auto& logger = Log::interpretation.Stream(Logging::Level::TRACE);
 #endif
 
     uint64_t memspaceOffsetAcc = 0;

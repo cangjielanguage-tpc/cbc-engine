@@ -289,6 +289,19 @@ CBC_EXPORT void* engine_get_entrypoint_trampoline(void)
     return fuhManager.GetFunctionPtrForDirectCall(fuh);
 }
 
+static DYN_ObjRef wrap(struct DYN_TypeInfo* ti)
+{
+    auto res = g_CJNativeInterfaceInstance.objectAlloc(ti);
+    if (*((uint64_t*)res) == 0) {
+        printf("NULLL NEWOBJ: %p\n", res);
+        fflush(stdout);
+    }
+
+    //printf("NEWOBJ: %p\n", res);
+    //fflush(stdout);
+    return res;
+}
+
 CBC_EXPORT int interpreter_bridge_init(
     struct INT_InterpreterInterface* interpInterf,
     struct DYN_CJNativeInterface* rtInterf,
@@ -319,7 +332,7 @@ CBC_EXPORT int interpreter_bridge_init(
     Asm::engine_carrier_specific_offset  = g_CJNativeInterfaceInstance.carrierSpecificOffset;
     Asm::engine_cjthread_specific_offset = g_CJNativeInterfaceInstance.cjThreadSpecificOffset;
 
-    Asm::engine_newobject_function = g_CJNativeInterfaceInstance.objectAlloc;
+    Asm::engine_newobject_function = wrap;
     RTSupport::Initialize(&g_CJNativeInterfaceInstance);
 
     if (!g_patchCbc.empty()) {
@@ -328,5 +341,6 @@ CBC_EXPORT int interpreter_bridge_init(
 
     return 0;
 }
+
 
 } // extern "C"

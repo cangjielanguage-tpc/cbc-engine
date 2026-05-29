@@ -559,14 +559,17 @@ static std::optional<FrameLayout> makeFrameLayout(Symlevel::Code code, Resolver&
     for (uint32_t i = 0; i < code.StackAllocSigsCount(); i++) {
         auto typeOpt = resolver.Query(Index<Type>(code.StackAllocSigs()[i]));
         if (!typeOpt.has_value()) {
+            FATAL("makeFrameLayout0 %d", i);
             return std::nullopt;
         }
         auto type = typeOpt.value();
         if (type->GetKind() != CbcTypeKind::REC) {
+            FATAL("makeFrameLayout1 %d %d", i, type->GetKind());
             return std::nullopt;
         }
         auto size = type->GetFlatSize();
         if (!size.has_value()) {
+            FATAL("makeFrameLayout2 %d %d", i, type->GetKind());
             return std::nullopt;
         }
 

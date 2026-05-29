@@ -102,12 +102,14 @@ struct FLManager : public FieldLayoutManager {
                     auto layout = *optlayout;
                     return layout->desc.size;
                 }
+                FATAL("TYPE %d", term.GetKind());
                 return std::nullopt;
             }
 
             case TK::AOT_REC: {
                 auto ti = typeInfoManager.AcquireTypeInfo(session, term);
                 if (!ti.has_value()) {
+                    FATAL("AOT_REC %d", term.GetKind());
                     return std::nullopt;
                 }
                 return RTSupport::MetaInfo::GetTypeSize(*ti);
@@ -348,6 +350,7 @@ private:
             ASSERTION(super.GetKind() == TermKind::NIL, "only nil or type term kinds are expected for super");
 
             FieldLayout::Content base;
+            //base.desc.size = sizeof(void*);
             base.desc.alignment = sizeof(void*);
 
             return base;
