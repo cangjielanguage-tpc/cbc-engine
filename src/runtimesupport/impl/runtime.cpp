@@ -83,6 +83,11 @@ int Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool adjustByHeader)
     return mrtti->fieldOffsets[ordinal] + headerOffs;
 }
 
+bool Execution::IsInstanceOf(Reference base, TypeInfo ti)
+{
+    return g_CJNativeInterfaceInstance.instanceOf(reinterpret_cast<DYN_ObjRef>(base.value), UnpackTypeInfo(ti));
+}
+
 uint32_t MetaInfo::GetTypeSize(TypeInfo ti)
 {
     auto mrtti = UnpackTypeInfo(ti);

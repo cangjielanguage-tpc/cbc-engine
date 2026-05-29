@@ -779,5 +779,10 @@ void Emitter::NullCheck(IReg r)
     Encode(segment, RT::B2xr { .opc = RT::Opcode::NULLCHECK, .xr = { .imm = 0, .r = r } });
 }
 
+void Emitter::InstanceOf(IReg dst, IReg obj, RTSupport::TypeInfo typeInfo)
+{
+    Encode(segment, RT::IOF { .opc = RT::Opcode::IOF, .rr = { .x = dst, .y = obj }, .imm64 = reinterpret_cast<uint64_t>(typeInfo.Raw()) });
+}
+
 } // namespace Emitter
 } // namespace Cbc
