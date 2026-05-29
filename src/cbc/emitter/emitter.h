@@ -184,6 +184,8 @@ public:
     void DivCheck(IReg r);
     void NullCheck(IReg r);
 
+    void InstanceOf(IReg dst, IReg obj, RTSupport::TypeInfo typeInfo);
+
     MemSpace OpenMemSpace();
 
 private:

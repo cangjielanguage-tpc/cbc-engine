@@ -402,7 +402,23 @@ struct IsaRewriter : public IsaParser {
 
     void ZeroRefs(uint16_t ts) override { FATAL("not implemented"); }
 
-    void InstanceOf(IReg dst, IReg obj, uint16_t type) override { FATAL("not implemented"); }
+    void InstanceOf(IReg dst, IReg obj, uint16_t typeId) override
+    {
+        auto t = resolver.Query(Index<Type>(typeId));
+        if (!t.has_value()) {
+            Fail();
+            return;
+        }
+        auto type = t.value();
+        if (!type->GetTypeInfo().has_value()) {
+            errStream << "Failed to get type info of " << *type << Stream::endl;
+            Fail();
+            return;
+        }
+
+        auto typeInfo = type->GetTypeInfo().value();
+        emit.InstanceOf(dst, obj, typeInfo);
+    }
 
     void LoadTypeInfoObj(IReg dst, IReg obj) override { FATAL("not implemented"); }
 
