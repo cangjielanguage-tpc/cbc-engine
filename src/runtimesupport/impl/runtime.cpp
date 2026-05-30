@@ -88,6 +88,23 @@ bool Execution::IsInstanceOf(Reference base, TypeInfo ti)
     return g_CJNativeInterfaceInstance.instanceOf(reinterpret_cast<DYN_ObjRef>(base.value), UnpackTypeInfo(ti));
 }
 
+void Execution::VisitReferences(TypeInfo ti, std::function<void(uint32_t)> visitor)
+{
+    auto mrtti = UnpackTypeInfo(ti);
+    ASSERT(mrtti->gctib.raw & GCTIB_SIGN_BIT); // TODO: support
+
+    auto gctib = mrtti->gctib.raw & ~(GCTIB_SIGN_BIT);
+
+    uint32_t offs = 0;
+    while (gctib != 0) {
+        if (gctib & 0x1) {
+            visitor(offs);
+        }
+        gctib >>= 1;
+        offs += sizeof(uintptr_t);
+    }
+}
+
 uint32_t MetaInfo::GetTypeSize(TypeInfo ti)
 {
     auto mrtti = UnpackTypeInfo(ti);

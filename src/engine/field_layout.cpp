@@ -173,11 +173,12 @@ struct FLManager : public FieldLayoutManager {
             offsets.push_back(disp);
         } else if (term.GetKind() == TermKind::AOT_REC) {
             auto typeInfo = typeInfoManager.AcquireTypeInfo(session, term);
-            // FIXME: visit GCTib
-            // RTSupport::VisitReferences(typeInfo, [&offsets, disp](uint32_t offset) {
-            //      offsets.push_back(offset + disp);
-            // };
-            FATAL("reference fields of aot records are not supported");
+            if (!typeInfo.has_value()) {
+                return;
+            }
+            RTSupport::Execution::VisitReferences(typeInfo.value(), [&offsets, disp](uint32_t offset) {
+                 offsets.push_back(offset + disp);
+            });
         } else if (term.GetKind() == TermKind::TYPE) {
             ASSERT(!term.IsReference());
             // Absent offsets must be handled separately.
@@ -308,6 +309,10 @@ private:
                 }
             }
             if (!fieldSize.has_value()) {
+                Log::fields.Log(Logging::Level::ERROR, [&](Stream::Output& out_) {
+                    Stream::ResolvingOutput out(session, out_);
+                    out << "failed to obtain field size " << def << Stream::endl;
+                });
                 size      = std::nullopt;
                 alignment = MAX_ALIGN;
             }
