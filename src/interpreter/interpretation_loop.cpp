@@ -614,15 +614,6 @@ IOF: {
     LOG_INSTR;
     auto dst = args.rr.x.IR();
     auto ref = ectype->GetReference(args.rr.y.IR());
-    printf("INSTOF: %p\n", (void*)ref.value);
-    fflush(stdout);
-    if (ref.value == 0) {
-        printf("REF IS NULL\n");
-    }
-    if (*((uint64_t*)ref.value) == 0) {
-        printf("TI IS NULL: %p\n", (void*)ref.value);
-        fflush(stdout);
-    }
     auto typeInfo = TypeInfo(static_cast<uintptr_t>(args.imm64));
     ectype->Put(dst, Value::Primitive { .u64 = Execution::IsInstanceOf(ref, typeInfo) });
     NEXT;
