@@ -419,15 +419,41 @@ static std::optional<TypeInfo> QueryTypeInfoAOTByName(char const* str)
     }
 }
 
-static std::optional<TypeInfo> QueryTypeInfoAOT(Engine::Session& session, Engine::Identifier<Symlevel::String> ident)
+static std::optional<TypeInfo> QueryTypeInfoAOT(Engine::Session& session, Engine::TypeInfoManager& manager, Engine::Identifier<Symlevel::String> ident, Engine:: GlobalTerm term)
 {
     auto typeName = std::string(Symlevel::Reader::Read(session, ident.GetFileId(), ident.GetOffset()));
 
-    auto typeInfo = g_CJNativeInterfaceInstance.typeInfo(typeName.c_str());
-    if (typeInfo == nullptr) {
-        return std::nullopt;
+    if (term.GetLength() > 0) {
+
+        std::vector<DYN_TypeInfo*> infos;
+
+        Log::typeinfo.Log(Logging::Level::TRACE, [&session, &term, &typeName](Stream::Output& out) {
+            Stream::ResolvingOutput stream(session, out);
+            stream << "querying generic " << (Engine::Term(term).GetName(session)).c_str() << Stream::endl;
+        });
+
+        for (auto i = 0; i < term.GetLength(); i++) {
+            auto subterm = term.Subterm(i);
+            auto ti = CreateTypeInfo(session, manager, subterm);
+            infos.emplace_back((DYN_TypeInfo*) ti->Raw());
+        }
+
+        auto typeTemplate = g_CJNativeInterfaceInstance.typeTemplate(typeName.c_str());
+        auto typeInfoG = g_CJNativeInterfaceInstance.getOrCreateTypeInfo(typeTemplate, term.GetLength(), infos.data());
+        return TypeInfo(typeInfoG);
+    } else {
+
+        Log::typeinfo.Log(Logging::Level::TRACE, [&session, &term, &typeName](Stream::Output& out) {
+            Stream::ResolvingOutput stream(session, out);
+            stream << "querying " << (Engine::Term(term).GetName(session)).c_str() << Stream::endl;
+        });
+
+        auto typeInfo = g_CJNativeInterfaceInstance.typeInfo(typeName.c_str());
+        if (typeInfo == nullptr) {
+            return std::nullopt;
+        }
+        return TypeInfo(typeInfo);
     }
-    return TypeInfo(typeInfo);
 }
 
 std::optional<TypeInfo> CreateTypeInfo(
@@ -444,8 +470,8 @@ std::optional<TypeInfo> CreateTypeInfo(
         switch (termIdent.GetKind()) {
         case Engine::TermKind::TYPE:    return CreateTypeInfoDyn(session, manager, term);
 
-        case Engine::TermKind::AOT_TYPE: return QueryTypeInfoAOT(session, Engine::AotRefTermId(term).GetIdentifier());
-        case Engine::TermKind::AOT_REC:  return QueryTypeInfoAOT(session, Engine::AotRecTermId(term).GetIdentifier());
+        case Engine::TermKind::AOT_TYPE: return QueryTypeInfoAOT(session, manager, Engine::AotRefTermId(term).GetIdentifier(), term);
+        case Engine::TermKind::AOT_REC:  return QueryTypeInfoAOT(session, manager, Engine::AotRecTermId(term).GetIdentifier(), term);
 
             case Engine::TermKind::BOOLEAN: return QueryTypeInfoAOTByName("Bool");
             case Engine::TermKind::U8:      return QueryTypeInfoAOTByName("UInt8");
