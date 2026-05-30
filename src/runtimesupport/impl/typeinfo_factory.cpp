@@ -65,7 +65,7 @@ struct TypeInfoBuilder {
     int32_t instanceSize  = -1;
     int32_t componentSize = -1;
 
-    DYN_GCTib gctib { .raw = (1lu << 63) }; // TODO: gctib builder
+    DYN_GCTib gctib { .raw = (1lu << 63) | (0b11lu) }; // TODO: gctib builder
     uint32_t uuid = 0;
     uint8_t align;
     int8_t typeArgsNum           = 0;
@@ -213,6 +213,8 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         case Symlevel::TypeKind::CLASS:     builder.type = -128; break;
         default:                            FATAL("unreachable type kind");
     }
+
+    builder.flag = 0b01; // HAS_REF_FIELD; // FIXME: build it properly
 
     auto queryTypeInfo = [&session, &manager, term, currentTypeInfo](Engine::Term t
                          ) -> std::optional<RTSupport::TypeInfo> {
