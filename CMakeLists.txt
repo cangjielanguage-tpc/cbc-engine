@@ -16,7 +16,7 @@ include(CTest)
 set(DEBUG_OPTIONS "-DCBC_ENGINE_IMMEDIATE_ASSERTION -DCBC_ENGINE_PRETTY_FUNC_NAME")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-stack-protector -fomit-frame-pointer")
-set(CMAKE_CXX_FLAGS_DEBUG "-g ${DEBUG_OPTIONS}")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -gz ${DEBUG_OPTIONS}")
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
 
 include(CheckIPOSupported)
