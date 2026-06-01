@@ -68,7 +68,7 @@ public:
     virtual std::optional<uint32_t> GetFlatSize() = 0;
 
     /// Fills reference offsets for this type.
-    virtual void FillRefOffsets(std::vector<uint32_t>& offsets) = 0;
+    virtual void FillRefOffsets(std::vector<uint32_t>& offsets, uint32_t disp) = 0;
 };
 
 struct MethodSignature {
