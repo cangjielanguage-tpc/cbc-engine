@@ -68,6 +68,8 @@ uint32_t MetaInfo::GetTypeSize(TypeInfo ti) { return 0; }
 
 uint8_t MetaInfo::GetAlign(TypeInfo ti) { return alignof(max_align_t); }
 
+bool MetaInfo::IsReferenceType(TypeInfo ti) { return false; }
+
 void MetaInfo::VisitReferences(TypeInfo ti, std::function<void(uint32_t)> visitor) { FATAL("Should not be called"); }
 
 TypeInfo MetaInfo::ByteArrayTypeInfo() { return TypeInfo(nullptr); }

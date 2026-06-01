@@ -117,6 +117,12 @@ uint8_t MetaInfo::GetAlign(TypeInfo ti)
     return mrtti->align;
 }
 
+bool MetaInfo::IsReferenceType(TypeInfo ti)
+{
+    auto mrtti = UnpackTypeInfo(ti);
+    return mrtti->type < 0;
+}
+
 void MetaInfo::VisitReferences(TypeInfo ti, std::function<void(uint32_t)> visitor)
 {
     auto mrtti = UnpackTypeInfo(ti);
@@ -128,7 +134,8 @@ void MetaInfo::VisitReferences(TypeInfo ti, std::function<void(uint32_t)> visito
     }
 
     auto bitmap = mrtti->gctib.raw & ~SHORT_GCTIB_TAG;
-    for (uint32_t offset = 0; bitmap != 0; offset += sizeof(uintptr_t)) {
+    uint32_t startOffset = IsReferenceType(ti) ? ObjectHeaderSize() : 0;
+    for (uint32_t offset = startOffset; bitmap != 0; offset += sizeof(uintptr_t)) {
         if ((bitmap & 1) != 0) {
             visitor(offset);
         }
