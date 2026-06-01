@@ -70,10 +70,6 @@ struct Execution {
     static int GetFieldOffset(TypeInfo ti, int ordinal, bool adjustByHeader);
 
     static bool IsInstanceOf(Reference base, TypeInfo ti);
-
-    // Visits offsets of reference fields in GCTib.
-    // NOTE: offsets are relative to object/struct body (NO HEADER)!
-    static void VisitReferences(TypeInfo ti, std::function<void(uint32_t)> visitor);
 };
 
 struct MetaInfo {
@@ -82,6 +78,8 @@ struct MetaInfo {
 
     static bool IsReferenceType(TypeInfo ti);
 
+    // Visits offsets of reference fields in GCTib.
+    // NOTE: offsets are relative to object/struct body (NO HEADER)!
     static void VisitReferences(TypeInfo ti, std::function<void(uint32_t)> visitor);
 
     static uint32_t ObjectHeaderSize() { return sizeof(void*); }

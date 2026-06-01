@@ -151,7 +151,9 @@ void VisitGCFrameRoots(DYN_VisitingState state, INT_FrameDesc frame_desc, DYN_Ro
             auto refLocation = reinterpret_cast<Placeholder>(slotsStartAddr + typedSlotOffset + offsetInSlot);
             RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) {
                 out.PrintFmtLn(
-                    "found reference in typed slot with offset (slot=%u, internal=%u)", typedSlotOffset, offsetInSlot
+                    "found reference in typed slot with offset (slot_offset=%u, inner_offset=%u)",
+                    typedSlotOffset,
+                    offsetInSlot
                 );
             });
             VisitRoot(rootVisitor, refLocation);
@@ -186,9 +188,34 @@ void VisitGlobalRoots(DYN_RootVisitor rootVisitor)
     RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Output& out) { out << "start visiting global roots" << endl; });
 
     auto& engine = Engine::GetEngineInstance();
-    Engine::StaticsManager::Of(engine).VisitRefLocations([rootVisitor](Engine::RefLocation* refLocation) {
+    auto& sm     = Engine::StaticsManager::Of(engine);
+
+    auto untypedSlotsVisitor = [rootVisitor](Engine::RefLocation* refLocation) {
         VisitRoot(rootVisitor, &refLocation->reference);
-    });
+    };
+
+    auto typedSlotsVisitor = [rootVisitor](uint8_t* base, const Engine::StaticTypedSlotInfo& info) {
+        auto typeInfoPtr = info.typeInfoPtr;
+
+        std::vector<uint32_t> offsets;
+        RTSupport::MetaInfo::VisitReferences(RTSupport::TypeInfo(typeInfoPtr), [&offsets](uint32_t offset) {
+            offsets.push_back(offset);
+        });
+
+        for (auto& offsetInSlot : offsets) {
+            auto refLocation = reinterpret_cast<Placeholder>(base + info.offset + offsetInSlot);
+            RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) {
+                out.PrintFmtLn(
+                    "found reference in static typed slot with offset (slot_offset=%u, inner_offset=%u)",
+                    info.offset,
+                    offsetInSlot
+                );
+            });
+            VisitRoot(rootVisitor, refLocation);
+        }
+    };
+
+    sm.VisitRefLocations(untypedSlotsVisitor, typedSlotsVisitor);
 
     RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Output& out) { out << "end visiting global roots" << endl; });
 }

@@ -50,6 +50,7 @@ static LDK Ldk(CbcTypeKind tk)
 
         case TK::BOOL: return LDK::LD_U8;
         case TK::REF:  return LDK::LD_REF;
+        case TK::REC:  return LDK::LEA; // record types: load effective address
 
         default: {
             FATAL("Not supported template kind");
