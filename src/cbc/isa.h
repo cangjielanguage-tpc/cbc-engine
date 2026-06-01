@@ -41,6 +41,38 @@ private:
     Value _value;
 };
 
+class MemOpcode {
+public:
+#define DECLARE_OPCODE(opc, func) opc,
+#define OPCODE_STR(opc, func)                                                                                          \
+    case opc: return #opc;
+
+    enum Value : uint8_t {
+        ISA_MEM_OPCODES(DECLARE_OPCODE)
+    };
+
+    constexpr MemOpcode(const Value raw) : _value(raw) {}
+
+    constexpr operator Value() const { return _value; }
+
+    constexpr uint32_t Raw() const { return _value; }
+
+    constexpr const char* CStr()
+    {
+        switch (_value) {
+            ISA_MEM_OPCODES(OPCODE_STR);
+        }
+        return "<invalid>";
+    }
+
+    constexpr std::string_view ToStr() { return std::string_view(CStr()); }
+
+#undef OPCODE_STR
+#undef DECLARE_OPCODE
+private:
+    Value _value;
+};
+
 class RegSymGroup {
 public:
 #define DECLARE_OPCODE(opc) opc,

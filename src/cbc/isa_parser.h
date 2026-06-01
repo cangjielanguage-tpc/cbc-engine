@@ -94,6 +94,35 @@ protected:
     virtual void LoadArray(AnyReg dst, Format::LoadAccessKind ldk, IReg arr, IReg idx) = 0;
     virtual void StoreArray(AnyReg src, Format::StoreAccessKind stk, IReg arr, IReg idx) = 0;
 
+    class MemSpace {
+    public:
+        ~MemSpace() = default;
+    };
+
+    virtual std::unique_ptr<MemSpace> OpenMemSpace() = 0;
+
+    virtual void MemHeadReg(MemSpace& ms, IReg scratch, IReg base) = 0;
+    virtual void MemHeadField(MemSpace& ms, IReg scratch, IReg base, uint16_t field) = 0;
+    virtual void MemHeadStatic(MemSpace& ms, IReg scratch, uint16_t field) = 0;
+    virtual void MemHeadHandle(MemSpace& ms, IReg scratch, IReg base, IReg offset) = 0;
+    virtual void MemHeadTyped(MemSpace& ms, IReg scratch, uint16_t ts) = 0;
+
+    virtual void MemBodyField1(MemSpace& ms, uint16_t f1) = 0;
+    virtual void MemBodyField2(MemSpace& ms, uint16_t f1, uint16_t f2) = 0;
+    virtual void MemBodyField3(MemSpace& ms, uint16_t f1, uint16_t f2, uint16_t f3) = 0;
+    virtual void MemBodyField4(MemSpace& ms, uint16_t f1, uint16_t f2, uint16_t f3, uint16_t f4) = 0;
+    virtual void MemBodyIndex(MemSpace& ms, IReg reg, uint16_t arrayType, bool checked) = 0;
+
+    virtual void MemTailLoad(MemSpace& ms, IReg dst, std::vector<uint16_t> refs) = 0;
+    virtual void MemTailStore(MemSpace& ms, IReg src, std::vector<uint16_t> refs) = 0;
+    virtual void MemTailStoreImm(MemSpace& ms, uint64_t imm) = 0;
+    virtual void MemTailCopyReg(MemSpace& ms, IReg dst, uint16_t recType) = 0;
+    virtual void MemTailCopyInterior(MemSpace& ms, IReg dst, std::vector<uint16_t> refs) = 0;
+    virtual void MemTailCopyInteriorArr(MemSpace& ms, IReg dst, IReg idx, std::vector<uint16_t> refs) = 0;
+    virtual void MemTailCopyStatic(MemSpace& ms, std::vector<uint16_t> refs) = 0;
+    virtual void MemTailCopyTyped(MemSpace& ms, uint16_t ts, std::vector<uint16_t> refs) = 0;
+    virtual void MemTailCopyHandle(MemSpace& ms, IReg base, IReg offset) = 0;
+
     friend class IsaParserImpl;
     Decoder::FatByteReader reader;
 };

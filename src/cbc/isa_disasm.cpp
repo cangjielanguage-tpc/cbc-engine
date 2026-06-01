@@ -275,18 +275,158 @@ struct IsaDisasm : public IsaParser {
 
     void LoadArray(AnyReg dst, Format::LoadAccessKind ldk, IReg arr, IReg idx) override
     {
-        stream << "ldarr." << ldk.ToStr() << " " << Fmt(dst, ldk.IsFloat()) << ", " << arr << ", " << idx << endl;
+        stream << "ldarr." << ldk.ToStr() << " " << Fmt(dst, ldk.IsFloat()) << ", " << arr.ToStr() << ", " << idx.ToStr() << endl;
     }
 
     void StoreArray(AnyReg src, Format::StoreAccessKind stk, IReg arr, IReg idx) override
     {
-        stream << "starr." << stk.ToStr() << " " << arr << ", " << idx << ", " << Fmt(src, stk.IsFloat()) << endl;
+        stream << "starr." << stk.ToStr() << " " << arr.ToStr() << ", " << idx.ToStr() << ", " << Fmt(src, stk.IsFloat()) << endl;
+    }
+
+    std::unique_ptr<MemSpace> OpenMemSpace() override
+    {
+        return std::make_unique<MemSpace>(MemSpace());
+    }
+
+    void MemHeadReg(MemSpace& ms, IReg scratch, IReg base) override
+    {
+        stream << "mem.reg" << " " << scratch << ", " << base.ToStr() << " {" << endl;
+    }
+
+    void MemHeadField(MemSpace& ms, IReg scratch, IReg base, uint16_t field) override
+    {
+        stream << "mem.field" << " " << scratch << ", " << base.ToStr() << ", " << field << " {" << endl;
+    }
+
+    void MemHeadStatic(MemSpace& ms, IReg scratch, uint16_t field) override
+    {
+        stream << "mem.static" << " " << scratch << ", " << field << " {" << endl;
+    }
+
+    void MemHeadHandle(MemSpace& ms, IReg scratch, IReg base, IReg offset) override
+    {
+        stream << "mem.handle" << " " << scratch << ", " << base.ToStr() << ", " << offset.ToStr() << " {" << endl;
+    }
+
+    void MemHeadTyped(MemSpace& ms, IReg scratch, uint16_t ts) override
+    {
+        PrintPos();
+        stream << "mem.typed" << " " << scratch << ", " << ts << " {" << endl;
+    }
+
+    void MemBodyField1(MemSpace& ms, uint16_t f1) override
+    {
+        PrintPos();
+        stream << "mem.field1" << " " << f1 << endl;
+    }
+
+    void MemBodyField2(MemSpace& ms, uint16_t f1, uint16_t f2) override
+    {
+        PrintPos();
+        stream << "mem.field2" << " " << f1 << " " << f2 << endl;
+    }
+
+    void MemBodyField3(MemSpace& ms, uint16_t f1, uint16_t f2, uint16_t f3) override
+    {
+        PrintPos();
+        stream << "mem.field3" << " " << f1 << " " << f2 << " " << f3 << endl;
+    }
+
+    void MemBodyField4(MemSpace& ms, uint16_t f1, uint16_t f2, uint16_t f3, uint16_t f4) override
+    {
+        PrintPos();
+        stream << "mem.field4" << " " << f1 << " " << f2 << " " << f3 << " " << f4 << endl;
+    }
+
+    void MemBodyIndex(MemSpace& ms, IReg reg, uint16_t arrayType, bool checked) override
+    {
+        PrintPos();
+        stream << "mem.index" << " " << reg.ToStr() << ", " << arrayType << ", " << checked << endl;
+    }
+
+    void Refs(std::vector<uint16_t> refs)
+    {
+        stream << "[ ";
+        for (auto ref : refs) {
+            stream << ref << " ";
+        }
+        stream << "]";
+    }
+
+    void MemTailLoad(MemSpace& ms, IReg dst, std::vector<uint16_t> refs) override
+    {
+        PrintPos();
+        stream << "mem.load" << " " << dst.ToStr() << ", ";
+        Refs(refs);
+        stream << " }" << endl;
+    }
+
+    void MemTailStore(MemSpace& ms, IReg src, std::vector<uint16_t> refs) override
+    {
+        PrintPos();
+        stream << "mem.store" << " " << src.ToStr() << ", ";
+        Refs(refs);
+        stream << " }" << endl;
+    }
+
+    void MemTailStoreImm(MemSpace& ms, uint64_t imm) override
+    {
+        PrintPos();
+        stream << "mem.store.imm" << " " << imm << " }" << endl;
+    }
+
+    void MemTailCopyReg(MemSpace& ms, IReg dst, uint16_t recType) override
+    {
+        PrintPos();
+        stream << "mem.copy.reg" << " " << dst.ToStr() << ", " << recType << " }" << endl;
+    }
+
+    void MemTailCopyInterior(MemSpace& ms, IReg dst, std::vector<uint16_t> refs) override
+    {
+        PrintPos();
+        stream << "mem.copy.interior" << " " << dst.ToStr() << ", ";
+        Refs(refs);
+        stream << " }" << endl;
+    }
+
+    void MemTailCopyInteriorArr(MemSpace& ms, IReg dst, IReg idx, std::vector<uint16_t> refs) override
+    {
+        PrintPos();
+        stream << "mem.copy.interior.arr" << " " << dst.ToStr() << ", " << idx.ToStr() << ", ";
+        Refs(refs);
+        stream << " }" << endl;
+    }
+
+    void MemTailCopyStatic(MemSpace& ms, std::vector<uint16_t> refs) override
+    {
+        PrintPos();
+        stream << "mem.copy.static" << " ";
+        Refs(refs);
+        stream << " }" << endl;
+    }
+
+    void MemTailCopyTyped(MemSpace& ms, uint16_t ts, std::vector<uint16_t> refs) override
+    {
+        PrintPos();
+        stream << "mem.copy.typed" << " " << ts << ", ";
+        Refs(refs);
+        stream << " }" << endl;
+    }
+
+    void MemTailCopyHandle(MemSpace& ms, IReg base, IReg offset) override
+    {
+        stream << "mem.copy.handle" << " " << base.ToStr() << ", " << offset.ToStr() << " }" << endl;
+    }
+
+    void PrintPos()
+    {
+        auto position = reader.Cursor() - reader.Start();
+        stream.PrintFmt("%*lld: ", log10Size, position);
     }
 
     void ParseOne() override
     {
-        auto position = reader.Cursor() - reader.Start();
-        stream.PrintFmt("%*lld: ", log10Size, position);
+        PrintPos();
         IsaParser::ParseOne();
     }
 };
