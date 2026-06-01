@@ -15,7 +15,6 @@ struct RefLocation {
     uintptr_t reference;
 };
 
-// TODO segregate by sizes
 struct PrimLocation {
     uint64_t value;
 };
@@ -26,12 +25,23 @@ enum SlotKind {
     RECORD
 };
 
+struct StaticTypedSlotInfo {
+    uint32_t offset;
+    void* typeInfoPtr;
+};
+
 class StaticFieldsBundle {
     using TypeIdent  = struct Identifier<Symlevel::TypeDefinition>;
     using FieldIdent = struct Identifier<Symlevel::FieldDefinition>;
 
 public:
-    StaticFieldsBundle(uint32_t refFieldsNum, uint32_t primFieldsNum);
+    StaticFieldsBundle(
+        uint32_t refFieldsNum,
+        uint32_t primFieldsNum,
+        uint32_t recordFieldsNum,
+        std::vector<uint32_t> recordSlotSizes,
+        std::vector<StaticTypedSlotInfo> typedSlotsInfo
+    );
 
     // underlying vector CAN NOT be copied.
     StaticFieldsBundle(StaticFieldsBundle const& another) = delete;
@@ -43,15 +53,20 @@ public:
 
     void VisitRefLocations(std::function<void(RefLocation*)> action) const;
 
+    void VisitTypedSlots(std::function<void(uint8_t* base, const StaticTypedSlotInfo&)> action) const;
+
 private:
     RefLocation* refFieldsStart;
     uint32_t refFieldsNum;
     PrimLocation* primFieldsStart;
     uint32_t primFieldsNum;
+    uint8_t* recordFieldsStart;
+    uint32_t recordFieldsNum;
 
     std::vector<uint8_t> rawMemory;
 
-    // TODO support record fields
+    /// Info about typed slots for GC scanning: (offset, typeInfoPtr)
+    std::vector<StaticTypedSlotInfo> typedSlotsInfo;
 };
 
 class StaticsManager {
@@ -68,6 +83,8 @@ public:
     uintptr_t GetLocation(Session& session, TypeIdent typeIdent, FieldIdent fieldIdent);
 
     void VisitRefLocations(std::function<void(RefLocation*)> action) const;
+
+    void VisitTypedSlots(std::function<void(uint8_t* base, const StaticTypedSlotInfo&)> action) const;
 
 private:
     mutable std::mutex lock;
