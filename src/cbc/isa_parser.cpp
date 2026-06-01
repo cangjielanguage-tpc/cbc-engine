@@ -230,6 +230,21 @@ struct IsaParserImpl {
         }
     }
 
+#define PARSE_ONE_MEM_CASES(opc, func)                                                                                     \
+    case MemOpcode::opc: end = func(parser); break;
+
+    static void ParseMemExpr(IsaParser& parser)
+    {
+        bool end = false;
+        while (!end) {
+            auto opc = parser.reader.Read8();
+            switch (opc) {
+                ISA_MEM_OPCODES(PARSE_ONE_MEM_CASES)
+            }
+        }
+
+    }
+
     static int64_t MergeLowHi(uint8_t low4, int64_t hi) { return static_cast<int64_t>((hi << 4) | low4); }
 
     static Width width64Or32(bool w64) { return w64 ? Width::W64 : Width::W32; }
@@ -583,6 +598,168 @@ struct IsaParserImpl {
         parser.StoreArray(src, stk, arr, idx);
     }
 
+    static void MemHeadReg(IsaParser& parser)
+    {
+        auto [base, scratch] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
+        parser.MemHeadReg(scratch, base);
+        ParseMemExpr(parser);
+    }
+
+    static void MemHeadField(IsaParser& parser)
+    {
+        auto [base, scratch, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.MemHeadField(scratch, base, field);
+        ParseMemExpr(parser);
+    }
+
+    static void MemHeadStatic(IsaParser& parser)
+    {
+        auto [skip, scratch, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.MemHeadStatic(scratch, field);
+        ParseMemExpr(parser);
+    }
+
+    static void MemHeadHandle(IsaParser& parser)
+    {
+        auto [skip, scratch, base, offset] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
+        parser.MemHeadHandle(scratch, base, offset);
+        ParseMemExpr(parser);
+    }
+
+    static void MemHeadTyped(IsaParser& parser)
+    {
+        auto [skip, scratch, ts] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.MemHeadTyped(scratch, ts);
+        ParseMemExpr(parser);
+    }
+
+    static bool MemBodyField1(IsaParser& parser)
+    {
+        auto [f1] = ByteReaderM(parser.reader).ReadU16().Get();
+        parser.MemBodyField1(f1);
+        return false;
+    }
+
+    static bool MemBodyField2(IsaParser& parser)
+    {
+        auto [f1, f2] = ByteReaderM(parser.reader).ReadU16().ReadU16().Get();
+        parser.MemBodyField2(f1, f2);
+        return false;
+    }
+
+    static bool MemBodyField3(IsaParser& parser)
+    {
+        auto [f1, f2, f3] = ByteReaderM(parser.reader).ReadU16().ReadU16().ReadU16().Get();
+        parser.MemBodyField3(f1, f2, f3);
+        return false;
+    }
+
+    static bool MemBodyField4(IsaParser& parser)
+    {
+        auto [f1, f2, f3, f4] = ByteReaderM(parser.reader).ReadU16().ReadU16().ReadU16().ReadU16().Get();
+        parser.MemBodyField4(f1, f2, f3, f4);
+        return false;
+    }
+
+    static bool MemBodyIndex(IsaParser& parser)
+    {
+        auto [reg, checked, arrayType] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.MemBodyIndex(reg, arrayType, checked);
+        return false;
+    }
+
+    static bool MemTailLoad(IsaParser& parser)
+    {
+        auto [reg, _size] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
+        std::vector<uint16_t> refs;
+        uint8_t size = _size;
+        for (int i = 0; i < size; i++) {
+            refs.emplace_back(parser.reader.Read16());
+        }
+        parser.MemTailLoad(reg, refs);
+        return true;
+    }
+
+    static bool MemTailStore(IsaParser& parser)
+    {
+        auto [reg, _size] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
+        std::vector<uint16_t> refs;
+        uint8_t size = _size;
+        for (int i = 0; i < size; i++) {
+            refs.emplace_back(parser.reader.Read16());
+        }
+        parser.MemTailStore(reg, refs);
+        return true;
+    }
+
+    static bool MemTailStoreImm(IsaParser& parser)
+    {
+        uint64_t imm = parser.reader.Read64();
+        parser.MemTailStoreImm(imm);
+        return true;
+    }
+
+    static bool MemTailCopyReg(IsaParser& parser)
+    {
+        auto [reg, skip, recType] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.MemTailCopyReg(reg, recType);
+        return true;
+    }
+
+    static bool MemTailCopyInterior(IsaParser& parser)
+    {
+        auto [reg, _size] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
+        std::vector<uint16_t> refs;
+        uint8_t size = _size;
+        for (int i = 0; i < size; i++) {
+            refs.emplace_back(parser.reader.Read16());
+        }
+        parser.MemTailCopyInterior(reg, refs);
+        return true;
+    }
+
+    static bool MemTailCopyInteriorArr(IsaParser& parser)
+    {
+        auto [reg, idx, _size, skip] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
+        std::vector<uint16_t> refs;
+        uint8_t size = _size;
+        for (int i = 0; i < size; i++) {
+            refs.emplace_back(parser.reader.Read16());
+        }
+        parser.MemTailCopyInteriorArr(reg, idx, refs);
+        return true;
+    }
+
+    static bool MemTailCopyStatic(IsaParser& parser)
+    {
+        std::vector<uint16_t> refs;
+        uint8_t size = parser.reader.Read8();
+        for (int i = 0; i < size; i++) {
+            refs.emplace_back(parser.reader.Read16());
+        }
+        parser.MemTailCopyStatic(refs);
+        return true;
+    }
+
+    static bool MemTailCopyTyped(IsaParser& parser)
+    {
+        std::vector<uint16_t> refs;
+        uint8_t size = parser.reader.Read8();
+        uint16_t ts = parser.reader.Read16();
+        for (int i = 0; i < size; i++) {
+            refs.emplace_back(parser.reader.Read16());
+        }
+        parser.MemTailCopyTyped(ts, refs);
+        return true;
+    }
+
+    static bool MemTailCopyHandle(IsaParser& parser)
+    {
+        auto [base, offs] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
+        parser.MemTailCopyHandle(base, offs);
+        return true;
+    }
+
     template <Width::Value width, CC::Value value>
     static constexpr ParseFunction BranchSpecialized[] = {
         &BranchSpecializedDefault<width, value>,
@@ -607,6 +784,8 @@ struct IsaParserImpl {
     };
 
     static void Unreachable(IsaParser& parser) {}
+
+    static bool UnreachableMem(IsaParser& parser) { return true; }
 };
 
 void IsaParser::ParseOne() { IsaParserImpl::ParseOne(*this); }

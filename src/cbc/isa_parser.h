@@ -94,6 +94,28 @@ protected:
     virtual void LoadArray(AnyReg dst, Format::LoadAccessKind ldk, IReg arr, IReg idx) = 0;
     virtual void StoreArray(AnyReg src, Format::StoreAccessKind stk, IReg arr, IReg idx) = 0;
 
+    virtual void MemHeadReg(IReg scratch, IReg base) = 0;
+    virtual void MemHeadField(IReg scratch, IReg base, uint16_t field) = 0;
+    virtual void MemHeadStatic(IReg scratch, uint16_t field) = 0;
+    virtual void MemHeadHandle(IReg scratch, IReg base, IReg offset) = 0;
+    virtual void MemHeadTyped(IReg scratch, uint16_t ts) = 0;
+
+    virtual void MemBodyField1(uint16_t f1) = 0;
+    virtual void MemBodyField2(uint16_t f1, uint16_t f2) = 0;
+    virtual void MemBodyField3(uint16_t f1, uint16_t f2, uint16_t f3) = 0;
+    virtual void MemBodyField4(uint16_t f1, uint16_t f2, uint16_t f3, uint16_t f4) = 0;
+    virtual void MemBodyIndex(IReg reg, uint16_t arrayType, bool checked) = 0;
+
+    virtual void MemTailLoad(IReg reg, std::vector<uint16_t> refs) = 0;
+    virtual void MemTailStore(IReg reg, std::vector<uint16_t> refs) = 0;
+    virtual void MemTailStoreImm(uint64_t imm) = 0;
+    virtual void MemTailCopyReg(IReg reg, uint16_t recType) = 0;
+    virtual void MemTailCopyInterior(IReg reg, std::vector<uint16_t> refs) = 0;
+    virtual void MemTailCopyInteriorArr(IReg reg, IReg idx, std::vector<uint16_t> refs) = 0;
+    virtual void MemTailCopyStatic(std::vector<uint16_t> refs) = 0;
+    virtual void MemTailCopyTyped(uint16_t ts, std::vector<uint16_t> refs) = 0;
+    virtual void MemTailCopyHandle(IReg base, IReg offset) = 0;
+
     friend class IsaParserImpl;
     Decoder::FatByteReader reader;
 };

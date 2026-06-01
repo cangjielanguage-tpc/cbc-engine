@@ -531,6 +531,101 @@ struct IsaRewriter : public IsaParser {
         emit.StoreArray(stk, src, arr, idx);
     }
 
+    void MemHeadReg(IReg scratch, IReg base) override
+    {
+        FATAL("MemHeadReg");
+    }
+
+    void MemHeadField(IReg scratch, IReg base, uint16_t field) override
+    {
+        FATAL("MemHeadField");
+    }
+
+    void MemHeadStatic(IReg scratch, uint16_t field) override
+    {
+        FATAL("MemHeadStatic");
+    }
+
+    void MemHeadHandle(IReg scratch, IReg base, IReg offset) override
+    {
+        FATAL("MemHeadHandle");
+    }
+
+    void MemHeadTyped(IReg scratch, uint16_t ts) override
+    {
+        FATAL("MemHeadTyped");
+    }
+
+    void MemBodyField1(uint16_t f1) override
+    {
+        FATAL("MemBodyField1");
+    }
+
+    void MemBodyField2(uint16_t f1, uint16_t f2) override
+    {
+        FATAL("MemBodyField2");
+    }
+
+    void MemBodyField3(uint16_t f1, uint16_t f2, uint16_t f3) override
+    {
+        FATAL("MemBodyField3");
+    }
+
+    void MemBodyField4(uint16_t f1, uint16_t f2, uint16_t f3, uint16_t f4) override
+    {
+        FATAL("MemBodyField4");
+    }
+
+    void MemBodyIndex(IReg reg, uint16_t arrayType, bool checked) override
+    {
+        FATAL("MemBodyIndex");
+    }
+
+    void MemTailLoad(IReg reg, std::vector<uint16_t> refs) override
+    {
+        FATAL("MemTailLoad");
+    }
+
+    void MemTailStore(IReg reg, std::vector<uint16_t> refs) override
+    {
+        FATAL("MemTailStore");
+    }
+
+    void MemTailStoreImm(uint64_t imm) override
+    {
+        FATAL("MemTailStoreImm");
+    }
+
+    void MemTailCopyReg(IReg reg, uint16_t recType) override
+    {
+        FATAL("MemTailCopyReg");
+    }
+
+    void MemTailCopyInterior(IReg reg, std::vector<uint16_t> refs) override
+    {
+        FATAL("MemTailCopyInterior");
+    }
+
+    void MemTailCopyInteriorArr(IReg reg, IReg idx, std::vector<uint16_t> refs) override
+    {
+        FATAL("MemTailCopyInteriorArr");
+    }
+
+    void MemTailCopyStatic(std::vector<uint16_t> refs) override
+    {
+        FATAL("MemTailCopyStatic");
+    }
+
+    void MemTailCopyTyped(uint16_t ts, std::vector<uint16_t> refs) override
+    {
+        FATAL("MemTailCopyTyped");
+    }
+
+    void MemTailCopyHandle(IReg base, IReg offset) override
+    {
+        FATAL("MemTailCopyHandle");
+    }
+
     void ParseOne() override
     {
         auto position = reader.Cursor() - reader.Start();

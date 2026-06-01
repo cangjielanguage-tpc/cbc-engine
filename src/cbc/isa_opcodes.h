@@ -83,16 +83,34 @@
     X(StoreField, StoreField)                                                                                          \
     X(LoadStackRec, LoadStackRec)                                                                                      \
     X(Nop, Nop)                                                                                                        \
-    X(MemHeadReg, Unreachable)                                                                                         \
-    X(MemHeadField, Unreachable)                                                                                       \
-    X(MemHeadStatic, Unreachable)                                                                                      \
-    X(MemHeadHandle, Unreachable)                                                                                      \
+    X(MemHeadReg, MemHeadReg)                                                                                          \
+    X(MemHeadField, MemHeadField)                                                                                      \
+    X(MemHeadStatic, MemHeadStatic)                                                                                    \
+    X(MemHeadHandle, MemHeadHandle)                                                                                    \
+    X(MemHeadTyped, MemHeadTyped)                                                                                      \
     X(LoadUntyped, LoadUntyped)                                                                                        \
     X(StoreUntyped, StoreUntyped)                                                                                      \
     X(StoreUntypedImm, StoreUntypedImm)                                                                                \
     X(LoadArray, LoadArray)                                                                                            \
     X(StoreArray, StoreArray)                                                                                          \
     X(_END, Unreachable)
+
+#define ISA_MEM_OPCODES(X)                                                                                             \
+    X(Field1, MemBodyField1)                                                                                           \
+    X(Field2, MemBodyField2)                                                                                           \
+    X(Field3, MemBodyField3)                                                                                           \
+    X(Field4, MemBodyField4)                                                                                           \
+    X(Index, MemBodyIndex)                                                                                             \
+    X(Load, MemTailLoad)                                                                                               \
+    X(Store, MemTailStore)                                                                                             \
+    X(StoreImm, MemTailStoreImm)                                                                                       \
+    X(CopyReg, MemTailCopyReg)                                                                                         \
+    X(CopyInterior, MemTailCopyInterior)                                                                               \
+    X(CopyInteriorArr, MemTailCopyInteriorArr)                                                                         \
+    X(CopyStatic, MemTailCopyStatic)                                                                                   \
+    X(CopyTyped, MemTailCopyTyped)                                                                                     \
+    X(CopyHandle, MemTailCopyHandle)                                                                                   \
+    X(_END, UnreachableMem)
 
 #define ISA_REG_SYM_GROUP_OPCODES(X)                                                                                   \
     X(LoadTypeInfoSig)                                                                                                 \
