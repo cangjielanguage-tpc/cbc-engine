@@ -27,12 +27,6 @@
 
 namespace RTSupport {
 
-// TypeInfo flags
-static const uint8_t HAS_REF_FIELD = 0b00000001;
-
-static const uint64_t GCTIB_SIGN_BIT = (1lu << 63);
-static const uint32_t GCTIB_MAX_SHORT_OFFSET = sizeof(void*) * 62;
-
 template <typename T> static T* Alloc(size_t cnt = 1) { return reinterpret_cast<T*>(std::malloc(sizeof(T) * cnt)); }
 
 static std::optional<TypeInfo> QueryTypeInfoAOTByName(char const* str);
@@ -419,11 +413,11 @@ static std::optional<TypeInfo> QueryTypeInfoAOTByName(char const* str)
     }
 }
 
-static std::optional<TypeInfo> QueryTypeInfoAOT(Engine::Session& session, Engine::TypeInfoManager& manager, Engine::Identifier<Symlevel::String> ident, Engine:: GlobalTerm term)
+static std::optional<TypeInfo> QueryTypeInfoAOT(Engine::Session& session, Engine::TypeInfoManager& manager, Engine::Identifier<Symlevel::String> ident, Engine::Term term)
 {
     auto typeName = std::string(Symlevel::Reader::Read(session, ident.GetFileId(), ident.GetOffset()));
 
-    if (term.GetLength() > 0) {
+    if (term.GetLength() > 0 || term.IsGeneric()) {
 
         std::vector<DYN_TypeInfo*> infos;
 
@@ -434,7 +428,7 @@ static std::optional<TypeInfo> QueryTypeInfoAOT(Engine::Session& session, Engine
 
         for (auto i = 0; i < term.GetLength(); i++) {
             auto subterm = term.Subterm(i);
-            auto ti = CreateTypeInfo(session, manager, subterm);
+            auto ti = manager.AcquireTypeInfo(session, subterm);
             infos.emplace_back((DYN_TypeInfo*) ti->Raw());
         }
 
@@ -470,8 +464,8 @@ std::optional<TypeInfo> CreateTypeInfo(
         switch (termIdent.GetKind()) {
         case Engine::TermKind::TYPE:    return CreateTypeInfoDyn(session, manager, term);
 
-        case Engine::TermKind::AOT_TYPE: return QueryTypeInfoAOT(session, manager, Engine::AotRefTermId(term).GetIdentifier(), term);
-        case Engine::TermKind::AOT_REC:  return QueryTypeInfoAOT(session, manager, Engine::AotRecTermId(term).GetIdentifier(), term);
+        case Engine::TermKind::AOT_TYPE: return QueryTypeInfoAOT(session, manager, Engine::AotRefTermId(term).GetIdentifier(), Engine::Term(term));
+        case Engine::TermKind::AOT_REC:  return QueryTypeInfoAOT(session, manager, Engine::AotRecTermId(term).GetIdentifier(), Engine::Term(term));
 
             case Engine::TermKind::BOOLEAN: return QueryTypeInfoAOTByName("Bool");
             case Engine::TermKind::U8:      return QueryTypeInfoAOTByName("UInt8");

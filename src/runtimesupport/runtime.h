@@ -5,9 +5,16 @@
 
 #include "interpreter/ectype.h"
 #include <cstdint>
+#include <functional>
 #include <optional>
 
 namespace RTSupport {
+
+// TypeInfo flags
+static constexpr uint8_t HAS_REF_FIELD = 0b00000001;
+
+static constexpr uint64_t GCTIB_SIGN_BIT = (1lu << 63);
+static constexpr uint32_t GCTIB_MAX_SHORT_OFFSET = sizeof(void*) * 62;
 
 class ThreadHandle {
 public:
@@ -62,6 +69,10 @@ struct Execution {
     static int GetFieldOffset(TypeInfo ti, int ordinal, bool adjustByHeader);
 
     static bool IsInstanceOf(Reference base, TypeInfo ti);
+
+    // Visits offsets of reference fields in GCTib.
+    // NOTE: offsets are relative to object/struct body (NO HEADER)!
+    static void VisitReferences(TypeInfo ti, std::function<void(uint32_t)> visitor);
 };
 
 struct MetaInfo {
