@@ -571,6 +571,18 @@ struct IsaParserImpl {
         parser.StoreTypedImm(imm, ts, field);
     }
 
+    static void LoadArray(IsaParser& parser)
+    {
+        auto [dst, ldk, arr, idx] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
+        parser.LoadArray(dst, ldk, arr, idx);
+    }
+
+    static void StoreArray(IsaParser& parser)
+    {
+        auto [src, stk, arr, idx] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
+        parser.StoreArray(src, stk, arr, idx);
+    }
+
     template <Width::Value width, CC::Value value>
     static constexpr ParseFunction BranchSpecialized[] = {
         &BranchSpecializedDefault<width, value>,

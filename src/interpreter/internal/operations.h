@@ -435,4 +435,40 @@ inline void MemoryLocation::StoreRef(Format::Reg src, Ectype* ectype) { Store<Va
 
 inline void MemoryLocation::LoadRef(Format::Reg dst, Ectype* ectype) { Load<Value::Reference>(dst, ectype); }
 
+static const uint32_t ARRAY_BODY_OFFSET = 16;
+
+inline uint32_t CalcLoadArrayOffset(LoadAccessKind::Value ldk, IReg idx, Ectype* ectype)
+{
+    uint32_t elemSize;
+    switch (ldk) {
+        case LoadAccessKind::LD_S8:  // fallthrough
+        case LoadAccessKind::LD_U8:  elemSize = 1; break;
+        case LoadAccessKind::LD_S16: // fallthrough
+        case LoadAccessKind::LD_U16: elemSize = 2; break;
+        case LoadAccessKind::LD_F32: // fallthrough
+        case LoadAccessKind::LD_32:  elemSize = 4; break;
+        case LoadAccessKind::LD_F64: // fallthrough
+        case LoadAccessKind::LD_REF: // fallthrough
+        case LoadAccessKind::LD_64:  elemSize = 8; break;
+        default:                     FATAL("Unexpected ldk");
+    }
+    return ARRAY_BODY_OFFSET + ectype->GetPrimitive(idx).u32 * elemSize;
+}
+
+inline uint32_t CalcStoreArrayOffset(StoreAccessKind::Value stk, IReg idx, Ectype* ectype)
+{
+    uint32_t elemSize;
+    switch (stk) {
+        case StoreAccessKind::ST_8:   elemSize = 1; break;
+        case StoreAccessKind::ST_16:  elemSize = 2; break;
+        case StoreAccessKind::ST_F32: // fallthrough
+        case StoreAccessKind::ST_32:  elemSize = 4; break;
+        case StoreAccessKind::ST_REF: // fallthrough
+        case StoreAccessKind::ST_F64: // fallthrough
+        case StoreAccessKind::ST_64:  elemSize = 8; break;
+        default:                      FATAL("Unexpected ldk");
+    }
+    return ARRAY_BODY_OFFSET + ectype->GetPrimitive(idx).u32 * elemSize;
+}
+
 } // namespace Interpretation

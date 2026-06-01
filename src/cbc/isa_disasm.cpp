@@ -273,6 +273,16 @@ struct IsaDisasm : public IsaParser {
         stream << "store.typed.imm" << " " << ts << ", " << fieldId << ", " << imm << endl;
     }
 
+    void LoadArray(AnyReg dst, Format::LoadAccessKind ldk, IReg arr, IReg idx) override
+    {
+        stream << "ldarr." << ldk.ToStr() << " " << Fmt(dst, ldk.IsFloat()) << ", " << arr << ", " << idx << endl;
+    }
+
+    void StoreArray(AnyReg src, Format::StoreAccessKind stk, IReg arr, IReg idx) override
+    {
+        stream << "starr." << stk.ToStr() << " " << arr << ", " << idx << ", " << Fmt(src, stk.IsFloat()) << endl;
+    }
+
     void ParseOne() override
     {
         auto position = reader.Cursor() - reader.Start();

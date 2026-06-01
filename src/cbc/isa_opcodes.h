@@ -90,6 +90,8 @@
     X(LoadUntyped, LoadUntyped)                                                                                        \
     X(StoreUntyped, StoreUntyped)                                                                                      \
     X(StoreUntypedImm, StoreUntypedImm)                                                                                \
+    X(LoadArray, LoadArray)                                                                                            \
+    X(StoreArray, StoreArray)                                                                                          \
     X(_END, Unreachable)
 
 #define ISA_REG_SYM_GROUP_OPCODES(X)                                                                                   \

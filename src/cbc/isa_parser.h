@@ -91,6 +91,9 @@ protected:
     virtual void StoreTyped(AnyReg src, uint16_t ts, uint16_t field)      = 0;
     virtual void StoreTypedImm(uint64_t imm, uint16_t ts, uint16_t field) = 0;
 
+    virtual void LoadArray(AnyReg dst, Format::LoadAccessKind ldk, IReg arr, IReg idx) = 0;
+    virtual void StoreArray(AnyReg src, Format::StoreAccessKind stk, IReg arr, IReg idx) = 0;
+
     friend class IsaParserImpl;
     Decoder::FatByteReader reader;
 };

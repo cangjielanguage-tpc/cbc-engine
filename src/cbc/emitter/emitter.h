@@ -153,6 +153,8 @@ public:
     void NewObj(RTSupport::TypeInfo typeInfo);
     void LoadObj(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset);
     void StoreObj(StoreAccessKind stk, Reg src, IReg base, uint32_t offset);
+    void LoadArray(LoadAccessKind ldk, Reg dst, IReg base, IReg idx);
+    void StoreArray(StoreAccessKind stk, Reg src, IReg base, IReg idx);
     void LoadStatic(LoadAccessKind ldk, Reg dst, Symbol offSym);
     void StoreStatic(StoreAccessKind sdk, Reg src, Symbol offSym);
     void LoadRec(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset);

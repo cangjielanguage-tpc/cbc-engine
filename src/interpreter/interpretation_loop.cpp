@@ -390,6 +390,20 @@ STORE_OBJ: {
     bool successful = interpreter.StoreObj(args.xi12.imm4.STK(), args.rr.x, args.rr.y.IR(), args.xi12.imm12);
     NEXT_COND(successful);
 }
+LOAD_ARR_F:
+LOAD_ARR: {
+    auto args = B3xrrr::Decode(reader);
+    LOG_INSTR;
+    bool successful = interpreter.LoadArray(args.xr.imm.LDK(), args.xr.r, args.rr.x.IR(), args.rr.y.IR());
+    NEXT_COND(successful);
+}
+STORE_ARR_F:
+STORE_ARR: {
+    auto args = B3xrrr::Decode(reader);
+    LOG_INSTR;
+    bool successful = interpreter.StoreArray(args.xr.imm.STK(), args.xr.r, args.rr.x.IR(), args.rr.y.IR());
+    NEXT_COND(successful);
+}
 LOAD_REC_F:
 LOAD_REC: {
     auto args = B4xi12rr::Decode(reader);

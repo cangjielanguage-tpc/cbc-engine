@@ -521,6 +521,16 @@ struct IsaRewriter : public IsaParser {
         }
     }
 
+    void LoadArray(AnyReg dst, Format::LoadAccessKind ldk, IReg arr, IReg idx) override
+    {
+        emit.LoadArray(ldk, dst, arr, idx);
+    }
+
+    void StoreArray(AnyReg src, Format::StoreAccessKind stk, IReg arr, IReg idx) override
+    {
+        emit.StoreArray(stk, src, arr, idx);
+    }
+
     void ParseOne() override
     {
         auto position = reader.Cursor() - reader.Start();
