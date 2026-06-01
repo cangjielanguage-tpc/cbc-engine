@@ -60,6 +60,8 @@ struct Execution {
     static void* GetInterfaceTarget(Reference base, TypeInfo ti, int methodNum);
 
     static int GetFieldOffset(TypeInfo ti, int ordinal, bool adjustByHeader);
+
+    static bool IsInstanceOf(Reference base, TypeInfo ti);
 };
 
 struct MetaInfo {

@@ -73,7 +73,8 @@
     X(BFXZ, BFX, "bfxz $0ir $1ir $2U8 $3U8")                                                                           \
     X(STRING_INIT, B13i64i32, "string.init $0U64 $1U32")                                                                           \
     X(NULLCHECK, B2xr, "nullcheck $1ir")                                                                               \
-    X(DIVCHECK, B2xr, "divcheck $1ir")
+    X(DIVCHECK, B2xr, "divcheck $1ir")                                                                                 \
+    X(IOF, IOF, "iof $0ir $1ir $2U64")
 
 // X parameters: opcode, encoding format, string format, is tail
 #define CBC_RT_MEMOPCODES(X)                                                                                           \
@@ -383,6 +384,21 @@ struct BFX {
         auto offs = reader.Read8();
         auto size = reader.Read8();
         return BFX { opc, rr, offs, size };
+    }
+};
+
+struct IOF {
+    Opcode opc;
+    Format::RR rr;
+    uint64_t imm64;
+
+
+    static IOF Decode(Decoder::ByteReader& reader)
+    {
+        auto opc  = Opcode::Decode(reader);
+        auto rr   = Format::RR::Decode(reader);
+        auto imm64 = reader.Read64();
+        return IOF { opc, rr, imm64 };
     }
 };
 

@@ -609,6 +609,16 @@ DIVCHECK: {
     NEXT;
 }
 
+IOF: {
+    auto args = IOF::Decode(reader);
+    LOG_INSTR;
+    auto dst = args.rr.x.IR();
+    auto ref = ectype->GetReference(args.rr.y.IR());
+    auto typeInfo = TypeInfo(static_cast<uintptr_t>(args.imm64));
+    ectype->Put(dst, Value::Primitive { .u64 = Execution::IsInstanceOf(ref, typeInfo) });
+    NEXT;
+}
+
 MEMSPACE: {
     auto args = B1::Decode(reader);
     LOG_INSTR;

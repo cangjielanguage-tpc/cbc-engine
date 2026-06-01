@@ -256,6 +256,8 @@ void* Execution::GcPoint() { FATAL("Should not reach here"); }
 
 bool Execution::IsPendingSafePoint() { return false; }
 
+bool Execution::IsInstanceOf(Reference base, TypeInfo ti) { FATAL("Should not reach here"); }
+
 void* Adapters::GenericI2CCallInstance() { FATAL("Should not reach here. Mock i2c"); }
 
 void* Adapters::I2ICallInstance() { return reinterpret_cast<void*>(&Interpretation::InterpreterI2CallTest); }

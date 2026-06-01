@@ -58,7 +58,7 @@ public:
     virtual uint8_t GetFlatAlignment(Term term) = 0;
 
     /// Fills out the `offsets` vector with all reference offsets of type `term`.
-    virtual void FillRefOffsets(Term term, std::vector<uint32_t>& offsets) = 0;
+    virtual void FillRefOffsets(Term term, std::vector<uint32_t>& offsets, uint32_t disp) = 0;
 
     virtual ~FieldLayoutManager();
 };

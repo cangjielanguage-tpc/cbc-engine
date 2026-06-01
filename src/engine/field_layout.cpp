@@ -166,20 +166,12 @@ struct FLManager : public FieldLayoutManager {
         }
     }
 
-    void FillRefOffsets(Term term, std::vector<uint32_t>& offsets) override
-    {
-        ASSERT(!term.IsGeneric());
-        FillRefOffsets(term, offsets, 0);
-    }
-
-private:
-    void FillRefOffsets(Term term, std::vector<uint32_t>& offsets, uint32_t disp)
+    void FillRefOffsets(Term term, std::vector<uint32_t>& offsets, uint32_t disp) override
     {
         ASSERT(!term.IsGeneric());
         if (term.IsReference()) {
             offsets.push_back(disp);
-        }
-        if (term.GetKind() == TermKind::AOT_REC) {
+        } else if (term.GetKind() == TermKind::AOT_REC) {
             auto typeInfo = typeInfoManager.AcquireTypeInfo(session, term);
             // FIXME: visit GCTib
             // RTSupport::VisitReferences(typeInfo, [&offsets, disp](uint32_t offset) {
@@ -204,6 +196,7 @@ private:
         }
     }
 
+private:
     std::optional<FieldLayout> BuildLayout(Term term)
     {
         Log::fields.Log(Logging::Level::INFO, [&](Stream::Output& out_) {

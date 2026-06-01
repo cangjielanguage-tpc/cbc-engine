@@ -19,12 +19,19 @@
 #include "utils/logger.h"
 #include "utils/ostream.h"
 #include "utils/rt_logger.h"
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <optional>
 
 namespace RTSupport {
+
+// TypeInfo flags
+static const uint8_t HAS_REF_FIELD = 0b00000001;
+
+static const uint64_t GCTIB_SIGN_BIT = (1lu << 63);
+static const uint32_t GCTIB_MAX_SHORT_OFFSET = sizeof(void*) * 62;
 
 template <typename T> static T* Alloc(size_t cnt = 1) { return reinterpret_cast<T*>(std::malloc(sizeof(T) * cnt)); }
 
@@ -65,7 +72,7 @@ struct TypeInfoBuilder {
     int32_t instanceSize  = -1;
     int32_t componentSize = -1;
 
-    DYN_GCTib gctib { .raw = (1lu << 63) }; // TODO: gctib builder
+    DYN_GCTib gctib { .raw = GCTIB_SIGN_BIT }; // TODO: gctib builder
     uint32_t uuid = 0;
     uint8_t align;
     int8_t typeArgsNum           = 0;
@@ -185,6 +192,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
     Engine::Session& session, Engine::TypeInfoManager& manager, Engine::GlobalTerm term
 )
 {
+
     auto ident = Engine::TypeTermId(term).GetIdentifier();
 
     auto type = Symlevel::Reader::Read(session, ident);
@@ -352,13 +360,44 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             return std::nullopt;
         }
 
+        std::vector<uint32_t> refFieldOffs;
+
         size_t idx = 0;
         for (auto& field : layout->fields) {
-            auto typeInfo = queryTypeInfo(field.fieldType);
+            auto fieldType = field.fieldType;
+            auto typeInfo = queryTypeInfo(fieldType);
             if (!typeInfo.has_value()) {
                 return std::nullopt;
             }
             builder.fields[idx++] = UnpackTypeInfo(*typeInfo);
+
+            auto optOffs = field.offset;
+
+            if (!optOffs.has_value()) {
+                return std::nullopt;
+            }
+            fieldManager->FillRefOffsets(fieldType, refFieldOffs, optOffs.value());
+        }
+
+        if (!refFieldOffs.empty()) {
+            builder.flag |= HAS_REF_FIELD;
+
+            auto maxOffset = std::max_element(refFieldOffs.begin(), refFieldOffs.end());
+            if (*maxOffset > GCTIB_MAX_SHORT_OFFSET) {
+                // TODO: support large GCTib
+                Log::typeinfo.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
+                    Stream::ResolvingOutput stream(session, out);
+                    stream << "Not implemented large object GCTib for " << term << Stream::endl;
+                });
+                return std::nullopt;
+            }
+
+            uint64_t gctib = GCTIB_SIGN_BIT;
+            for (auto offs : refFieldOffs) {
+                gctib |= 1 << (offs / sizeof(uintptr_t));
+            }
+
+            builder.gctib.raw = gctib;
         }
     } else {
         builder.fieldNum     = 0;

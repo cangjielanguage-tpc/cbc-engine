@@ -126,6 +126,7 @@ engine_iregs_only_c2i_call:
   str   x5, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x30)]
   str   x6, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x38)]
   str   x7, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x40)]
+  str   x8, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x48)]
 
   mov   x0, x9
   bl    perform_2i_call
@@ -149,7 +150,7 @@ engine_iregs_only_c2i_call:
 
   mov   x0, x21
   bl    engine_fiber_data_init
-  
+
   mov   ECTYPE_REG, x0
   ldr   x9, [x29, #-0x50] // restore fuh
 
@@ -189,6 +190,7 @@ engine_i2c_call:
   ldr   x5, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x30)]
   ldr   x6, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x38)]
   ldr   x7, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x40)]
+  ldr   x8, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x48)]
 
   blr    x9
 
