@@ -52,8 +52,6 @@ bool Execution::IsPendingSafePoint() { return false; }
 
 bool Execution::IsInstanceOf(Reference base, TypeInfo ti) { FATAL("Should not reach here"); }
 
-void Execution::VisitReferences(TypeInfo ti, std::function<void(uint32_t)> visitor) { FATAL("Should not reach here"); }
-
 void* Adapters::GenericI2CCallInstance() { FATAL("Should not reach here"); }
 
 void* Adapters::I2ICallInstance() { FATAL("Should not reach here"); }
