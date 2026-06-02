@@ -10,6 +10,8 @@
 #include <algorithm>
 #include <numeric>
 
+#define RECORD_ALIGNMENT sizeof(uintptr_t)
+
 namespace Engine {
 
 StaticFieldsBundle::StaticFieldsBundle(
@@ -49,16 +51,14 @@ StaticFieldsBundle::StaticFieldsBundle(
 SlotKind ComputeSlotKind(Session& session, FieldLayoutManager& flm, Symlevel::FieldDefinition& definition)
 {
     auto fieldType = TermManager::Resolve(session, definition.FieldType());
-    if (fieldType.GetId().IsReference()) {
-        return REFERENCE;
-    }
-    if (fieldType.GetKind() == TermKind::TYPE) {
-        auto typeIdent = TypeTermId(fieldType).GetIdentifier();
-        auto typeDef   = Symlevel::TypeDefinition::Resolve(session, typeIdent);
-        auto typeKind  = typeDef.GetFlags().GetTypeKind();
-        if (typeKind == Symlevel::TypeKind::RECORD) {
+    if (fieldType.GetKind() == TermKind::TYPE || fieldType.GetKind() == TermKind::AOT_REC) {
+        auto typeDef = Symlevel::TypeDefinition::Resolve(session, TypeTermId(fieldType).GetIdentifier());
+        if (typeDef.GetFlags().GetTypeKind() == Symlevel::TypeKind::RECORD) {
             return RECORD;
         }
+    }
+    if (fieldType.GetId().IsReference()) {
+        return REFERENCE;
     }
     return PRIMITIVE;
 }
@@ -87,14 +87,15 @@ uintptr_t StaticFieldsBundle::GetLocation(Session& session, TypeIdent typeIdent,
             return true;
         }
 
+        // advance state for next iteration
         switch (kind) {
             case REFERENCE:
             case PRIMITIVE: untypedSlotIdx++; break;
             case RECORD:    {
-                auto ft   = TermManager::Resolve(session, field.FieldType());
-                auto size = flm->GetFlatSize(ft);
+                auto fterm = TermManager::Resolve(session, field.FieldType());
+                auto size  = flm->GetFlatSize(fterm);
                 if (!size.has_value()) {
-                    FATAL("Couldn't get size for record field: %s", ft.GetName(session).c_str());
+                    FATAL("Couldn't get size for record field: %s", fterm.GetName(session).c_str());
                 }
                 typedSlotOffset += size.value();
                 break;
@@ -112,7 +113,7 @@ uintptr_t StaticFieldsBundle::GetLocation(Session& session, TypeIdent typeIdent,
             ASSERTION(untypedSlotIdx < primFieldsNum, "Incorrect static primitive field index");
             return reinterpret_cast<uintptr_t>(primFieldsStart + untypedSlotIdx);
         case RECORD:
-            ASSERTION(typedSlotOffset < typedSlotsInfo.back().offset, "Incorrect static record offset");
+            ASSERTION(typedSlotOffset <= typedSlotsInfo.back().offset, "Incorrect static record offset");
             return reinterpret_cast<uintptr_t>(recordFieldsStart + typedSlotOffset);
         default: FATAL("Not supported yet"); return 0;
     }
@@ -144,7 +145,7 @@ StaticFieldsBundle StaticsManager::CreateBundle(Session& session, TypeIdent type
     auto& tim    = TypeInfoManager::Of(session);
     auto typeDef = Symlevel::TypeDefinition::Resolve(session, typeIdent);
 
-    std::vector<uint32_t> recordSlotSizes;
+    uint32_t recordSlotsSize = 0;
     std::vector<StaticTypedSlotInfo> typedSlotsInfo;
 
     typeDef.GetFields().Find(session, [&](Symlevel::FieldDefinition& field) {
@@ -165,9 +166,10 @@ StaticFieldsBundle StaticsManager::CreateBundle(Session& session, TypeIdent type
                     FATAL("Couldn't get info about record field: %s", fterm.GetName(session).c_str());
                 }
 
-                auto alignedSize = MathUtils::AlignUp(size.value(), static_cast<uint32_t>(alignof(max_align_t)));
-                recordSlotSizes.push_back(alignedSize);
-                typedSlotsInfo.push_back({ 0, typeInfo->Raw() });
+                auto alignedSize = MathUtils::AlignUp(size.value(), RECORD_ALIGNMENT);
+
+                typedSlotsInfo.push_back({ recordSlotsSize, typeInfo->Raw() });
+                recordSlotsSize += alignedSize;
                 break;
             }
         }
@@ -175,18 +177,7 @@ StaticFieldsBundle StaticsManager::CreateBundle(Session& session, TypeIdent type
         return false;
     });
 
-    // Build the offset map for typed slots.
-    uint32_t currentOffset = 0;
-    for (size_t i = 0; i < typedSlotsInfo.size(); i++) {
-        auto& alignedSize         = recordSlotSizes[i];
-        currentOffset             = MathUtils::AlignUp(currentOffset, alignof(max_align_t));
-        typedSlotsInfo[i].offset  = currentOffset;
-        currentOffset            += alignedSize;
-    }
-
-    return StaticFieldsBundle(
-        refFieldsNum, primFieldsNum, recordFieldsNum, std::move(recordSlotSizes), std::move(typedSlotsInfo)
-    );
+    return StaticFieldsBundle(refFieldsNum, primFieldsNum, recordFieldsNum, recordSlotsSize, std::move(typedSlotsInfo));
 }
 
 uintptr_t StaticsManager::GetLocation(Session& session, TypeIdent typeIdent, FieldIdent fieldIdent)
@@ -195,6 +186,7 @@ uintptr_t StaticsManager::GetLocation(Session& session, TypeIdent typeIdent, Fie
 
     auto it = bundles.find(typeIdent.Pack());
     if (it == bundles.end()) {
+        // move bundle, so the underlying vector won't be copied.
         bundles.try_emplace(typeIdent.Pack(), std::move(CreateBundle(session, typeIdent)));
         it = bundles.find(typeIdent.Pack());
     }
@@ -202,21 +194,16 @@ uintptr_t StaticsManager::GetLocation(Session& session, TypeIdent typeIdent, Fie
     return it->second.GetLocation(session, typeIdent, fieldIdent);
 }
 
-void StaticsManager::VisitRefLocations(std::function<void(RefLocation*)> action) const
+void StaticsManager::VisitRefLocations(
+    std::function<void(RefLocation*)> untypedSlotsVisitor,
+    std::function<void(uint8_t* base, const StaticTypedSlotInfo&)> typedSlotsVisitor
+) const
 {
     std::lock_guard guard(lock);
 
-    for (const auto& [key, group] : bundles) {
-        group.VisitRefLocations(action);
-    }
-}
-
-void StaticsManager::VisitTypedSlots(std::function<void(uint8_t* base, const StaticTypedSlotInfo&)> action) const
-{
-    std::lock_guard guard(lock);
-
-    for (const auto& [key, group] : bundles) {
-        group.VisitTypedSlots(action);
+    for (const auto& [key, bundle] : bundles) {
+        bundle.VisitRefLocations(untypedSlotsVisitor);
+        bundle.VisitTypedSlots(typedSlotsVisitor);
     }
 }
 

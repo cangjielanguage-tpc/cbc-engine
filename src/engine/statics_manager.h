@@ -39,7 +39,7 @@ public:
         uint32_t refFieldsNum,
         uint32_t primFieldsNum,
         uint32_t recordFieldsNum,
-        std::vector<uint32_t> recordSlotSizes,
+        uint32_t recordFieldsSize,
         std::vector<StaticTypedSlotInfo> typedSlotsInfo
     );
 
@@ -82,9 +82,10 @@ public:
 
     uintptr_t GetLocation(Session& session, TypeIdent typeIdent, FieldIdent fieldIdent);
 
-    void VisitRefLocations(std::function<void(RefLocation*)> action) const;
-
-    void VisitTypedSlots(std::function<void(uint8_t* base, const StaticTypedSlotInfo&)> action) const;
+    void VisitRefLocations(
+        std::function<void(RefLocation*)> untypedSlotsVisitor,
+        std::function<void(uint8_t* base, const StaticTypedSlotInfo&)> typedSlotsVisitor
+    ) const;
 
 private:
     mutable std::mutex lock;
