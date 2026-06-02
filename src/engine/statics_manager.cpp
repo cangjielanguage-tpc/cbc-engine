@@ -51,7 +51,10 @@ StaticFieldsBundle::StaticFieldsBundle(
 SlotKind ComputeSlotKind(Session& session, FieldLayoutManager& flm, Symlevel::FieldDefinition& definition)
 {
     auto fieldType = TermManager::Resolve(session, definition.FieldType());
-    if (fieldType.GetKind() == TermKind::TYPE || fieldType.GetKind() == TermKind::AOT_REC) {
+    if (fieldType.GetKind() == TermKind::AOT_REC) {
+        return RECORD;
+    }
+    if (fieldType.GetKind() == TermKind::TYPE) {
         auto typeDef = Symlevel::TypeDefinition::Resolve(session, TypeTermId(fieldType).GetIdentifier());
         if (typeDef.GetFlags().GetTypeKind() == Symlevel::TypeKind::RECORD) {
             return RECORD;
