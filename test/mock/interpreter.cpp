@@ -250,6 +250,8 @@ void* Execution::GetInterfaceTarget(Reference base, TypeInfo ti, int methodNum)
 
 void* Execution::AllocateObjectInstance() { return reinterpret_cast<void*>(&Interpretation::MockNewObj); }
 
+void* Execution::AllocateArrayInstance() { return reinterpret_cast<void*>(&Interpretation::MockNewObj); }
+
 void* Execution::GcPointTrampoline() { FATAL("Should not reach here"); }
 
 void* Execution::GcPoint() { FATAL("Should not reach here"); }

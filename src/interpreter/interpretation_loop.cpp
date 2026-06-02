@@ -362,6 +362,26 @@ NEWOBJ: {
 
     return { func, type.Raw() };
 }
+NEWARR: {
+    auto args = B9i64::Decode(reader);
+    LOG_INSTR;
+    auto type = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
+
+    // To invoke an `newobj` we need to "return" four values
+    // - function to invoke,
+    // - type info,
+    // - length,
+    // - destination register,
+    // which is more than Thunk can fit.
+    //
+    // To pass an extra elements we will store
+    // it in volatile-registers in Ectype;
+    auto func = RTSupport::Execution::AllocateArrayInstance();
+
+    reader0 = reader; // save current pc
+
+    return { func, type.Raw() };
+}
 LOAD_ADDR: {
     auto args = B2xr::Decode(reader);
     LOG_INSTR;

@@ -44,6 +44,8 @@ void Execution::WriteObjectStatic(void* location, Reference object, ThreadHandle
 
 void* Execution::AllocateObjectInstance() { return reinterpret_cast<void*>(&Asm::engine_i2_newobject); }
 
+void* Execution::AllocateArrayInstance() { return reinterpret_cast<void*>(&Asm::engine_i2_newarray); }
+
 void* Execution::GcPoint() { return reinterpret_cast<void*>(g_CJNativeInterfaceInstance.safePoint); }
 
 void* Execution::GcPointTrampoline() { return reinterpret_cast<void*>(&Asm::engine_i2_gcpoint); }

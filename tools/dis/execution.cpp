@@ -44,6 +44,8 @@ void* Execution::GetInterfaceTarget(Reference base, TypeInfo ti, int methodNum) 
 
 void* Execution::AllocateObjectInstance() { FATAL("Should not reach here"); }
 
+void* Execution::AllocateArrayInstance() { FATAL("Should not reach here"); }
+
 void* Execution::GcPointTrampoline() { FATAL("Should not reach here"); }
 
 void* Execution::GcPoint() { FATAL("Should not reach here"); }

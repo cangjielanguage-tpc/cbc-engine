@@ -151,6 +151,7 @@ public:
     void Jmp(Label label);
 
     void NewObj(RTSupport::TypeInfo typeInfo);
+    void NewArr(RTSupport::TypeInfo typeInfo);
     void LoadObj(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset);
     void StoreObj(StoreAccessKind stk, Reg src, IReg base, uint32_t offset);
     void LoadArray(LoadAccessKind ldk, Reg dst, IReg base, IReg idx);

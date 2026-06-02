@@ -405,7 +405,7 @@ void Term::GetName(Session& session, Stream::Output& stream) const
         }
 
         case TK::CANGJIE_ARRAY: {
-            stream << "$array<";
+            stream << "RawArray<";
             Subterm(0).GetName(session, stream);
             stream << '>';
             break;
