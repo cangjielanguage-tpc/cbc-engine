@@ -112,13 +112,12 @@ void MetaInfo::VisitReferences(TypeInfo ti, std::function<void(uint32_t)> visito
 {
     auto mrtti = UnpackTypeInfo(ti);
 
-    uintptr_t SHORT_GCTIB_TAG = 1ull << (8 * sizeof(uintptr_t) - 1);
-    if ((mrtti->gctib.raw & SHORT_GCTIB_TAG) == 0) {
+    if ((mrtti->gctib.raw & GCTIB_SIGN_BIT) == 0) {
         FATAL("pointer gctib format is not supported yet");
         return;
     }
 
-    auto bitmap = mrtti->gctib.raw & ~SHORT_GCTIB_TAG;
+    auto bitmap = mrtti->gctib.raw & ~GCTIB_SIGN_BIT;
     uint32_t startOffset = IsReferenceType(ti) ? ObjectHeaderSize() : 0;
     for (uint32_t offset = startOffset; bitmap != 0; offset += sizeof(uintptr_t)) {
         if ((bitmap & 1) != 0) {
