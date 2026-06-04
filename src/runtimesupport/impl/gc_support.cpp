@@ -142,6 +142,8 @@ void VisitGCFrameRoots(DYN_VisitingState state, INT_FrameDesc frame_desc, DYN_Ro
         auto typedSlotOffset = typedSlotInfo.first;
         auto typeInfoPtr     = typedSlotInfo.second;
 
+        ASSERTION(!RTSupport::MetaInfo::IsReferenceType(RTSupport::TypeInfo(typeInfoPtr)), "Expected record type");
+
         std::vector<uint32_t> offsets;
         RTSupport::MetaInfo::VisitReferences(RTSupport::TypeInfo(typeInfoPtr), [&offsets](uint32_t offset) {
             offsets.push_back(offset);
@@ -219,4 +221,4 @@ void VisitGlobalRoots(DYN_RootVisitor rootVisitor)
 
     RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Output& out) { out << "end visiting global roots" << endl; });
 }
-}
+} // namespace GCSupport
