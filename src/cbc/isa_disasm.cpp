@@ -283,35 +283,42 @@ struct IsaDisasm : public IsaParser {
         stream << "starr." << stk.ToStr() << " " << arr.ToStr() << ", " << idx.ToStr() << ", " << Fmt(src, stk.IsFloat()) << endl;
     }
 
-    std::unique_ptr<MemSpace> OpenMemSpace() override
-    {
-        return std::make_unique<MemSpace>(MemSpace());
-    }
+    class PrintingMemSpace : public MemSpace {
+    public:
+        PrintingMemSpace(Stream::Output& stream) : stream(stream) { stream << "{ " << endl; }
+
+        ~PrintingMemSpace() override { stream << " }" << endl; }
+
+    private:
+        Stream::Output& stream;
+    };
+
+    std::unique_ptr<MemSpace> OpenMemSpace() override { return std::make_unique<PrintingMemSpace>(stream); }
 
     void MemHeadReg(MemSpace& ms, IReg scratch, IReg base) override
     {
-        stream << "mem.reg" << " " << scratch << ", " << base.ToStr() << " {" << endl;
+        stream << "mem.reg" << " " << scratch << ", " << base.ToStr();
     }
 
     void MemHeadField(MemSpace& ms, IReg scratch, IReg base, uint16_t field) override
     {
-        stream << "mem.field" << " " << scratch << ", " << base.ToStr() << ", " << field << " {" << endl;
+        stream << "mem.field" << " " << scratch << ", " << base.ToStr() << ", " << field;
     }
 
     void MemHeadStatic(MemSpace& ms, IReg scratch, uint16_t field) override
     {
-        stream << "mem.static" << " " << scratch << ", " << field << " {" << endl;
+        stream << "mem.static" << " " << scratch << ", " << field;
     }
 
     void MemHeadHandle(MemSpace& ms, IReg scratch, IReg base, IReg offset) override
     {
-        stream << "mem.handle" << " " << scratch << ", " << base.ToStr() << ", " << offset.ToStr() << " {" << endl;
+        stream << "mem.handle" << " " << scratch << ", " << base.ToStr() << ", " << offset.ToStr();
     }
 
     void MemHeadTyped(MemSpace& ms, IReg scratch, uint16_t ts) override
     {
         PrintPos();
-        stream << "mem.typed" << " " << scratch << ", " << ts << " {" << endl;
+        stream << "mem.typed" << " " << scratch << ", " << ts;
     }
 
     void MemBodyField1(MemSpace& ms, uint16_t f1) override
@@ -358,7 +365,6 @@ struct IsaDisasm : public IsaParser {
         PrintPos();
         stream << "mem.load" << " " << dst.ToStr() << ", ";
         Refs(refs);
-        stream << " }" << endl;
     }
 
     void MemTailStore(MemSpace& ms, IReg src, std::vector<uint16_t> refs) override
@@ -366,19 +372,18 @@ struct IsaDisasm : public IsaParser {
         PrintPos();
         stream << "mem.store" << " " << src.ToStr() << ", ";
         Refs(refs);
-        stream << " }" << endl;
     }
 
     void MemTailStoreImm(MemSpace& ms, uint64_t imm) override
     {
         PrintPos();
-        stream << "mem.store.imm" << " " << imm << " }" << endl;
+        stream << "mem.store.imm" << " " << imm;
     }
 
     void MemTailCopyReg(MemSpace& ms, IReg dst, uint16_t recType) override
     {
         PrintPos();
-        stream << "mem.copy.reg" << " " << dst.ToStr() << ", " << recType << " }" << endl;
+        stream << "mem.copy.reg" << " " << dst.ToStr() << ", " << recType;
     }
 
     void MemTailCopyInterior(MemSpace& ms, IReg dst, std::vector<uint16_t> refs) override
@@ -386,7 +391,6 @@ struct IsaDisasm : public IsaParser {
         PrintPos();
         stream << "mem.copy.interior" << " " << dst.ToStr() << ", ";
         Refs(refs);
-        stream << " }" << endl;
     }
 
     void MemTailCopyInteriorArr(MemSpace& ms, IReg dst, IReg idx, std::vector<uint16_t> refs) override
@@ -394,7 +398,6 @@ struct IsaDisasm : public IsaParser {
         PrintPos();
         stream << "mem.copy.interior.arr" << " " << dst.ToStr() << ", " << idx.ToStr() << ", ";
         Refs(refs);
-        stream << " }" << endl;
     }
 
     void MemTailCopyStatic(MemSpace& ms, std::vector<uint16_t> refs) override
@@ -402,7 +405,6 @@ struct IsaDisasm : public IsaParser {
         PrintPos();
         stream << "mem.copy.static" << " ";
         Refs(refs);
-        stream << " }" << endl;
     }
 
     void MemTailCopyTyped(MemSpace& ms, uint16_t ts, std::vector<uint16_t> refs) override
@@ -410,12 +412,11 @@ struct IsaDisasm : public IsaParser {
         PrintPos();
         stream << "mem.copy.typed" << " " << ts << ", ";
         Refs(refs);
-        stream << " }" << endl;
     }
 
     void MemTailCopyHandle(MemSpace& ms, IReg base, IReg offset) override
     {
-        stream << "mem.copy.handle" << " " << base.ToStr() << ", " << offset.ToStr() << " }" << endl;
+        stream << "mem.copy.handle" << " " << base.ToStr() << ", " << offset.ToStr();
     }
 
     void PrintPos()

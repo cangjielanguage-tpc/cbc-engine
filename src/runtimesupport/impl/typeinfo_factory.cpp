@@ -422,6 +422,7 @@ static std::optional<TypeInfo> QueryTypeInfoAOT(Engine::Session& session, Engine
         typeName = std::string(Symlevel::Reader::Read(session, ident.GetFileId(), ident.GetOffset()));
     }
 
+    // TODO: why check both predicates?
     if (term.GetLength() > 0 || term.IsGeneric()) {
 
         std::vector<DYN_TypeInfo*> infos;

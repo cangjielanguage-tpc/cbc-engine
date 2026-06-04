@@ -96,7 +96,7 @@ protected:
 
     class MemSpace {
     public:
-        ~MemSpace() = default;
+        virtual ~MemSpace() = default;
     };
 
     virtual std::unique_ptr<MemSpace> OpenMemSpace() = 0;

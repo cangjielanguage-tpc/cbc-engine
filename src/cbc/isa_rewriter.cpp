@@ -595,13 +595,13 @@ struct IsaRewriter : public IsaParser {
 
     void MemHeadReg(MemSpace& ms, IReg scratch, IReg base) override
     {
-        auto msr = static_cast<MemSpaceRewriter&>(ms);
+        auto& msr = static_cast<MemSpaceRewriter&>(ms);
         msr.base = base;
     }
 
     void MemHeadField(MemSpace& ms, IReg scratch, IReg base, uint16_t fieldId) override
     {
-        auto msr = static_cast<MemSpaceRewriter&>(ms);
+        auto& msr = static_cast<MemSpaceRewriter&>(ms);
         msr.base = base;
         FieldOffset(msr, fieldId);
     }
@@ -615,41 +615,41 @@ struct IsaRewriter : public IsaParser {
         }
         auto field  = f.value();
 
-        auto msr = static_cast<MemSpaceRewriter&>(ms);
+        auto& msr = static_cast<MemSpaceRewriter&>(ms);
         msr.emit.Offset(field->location);
         msr.lastFieldKind = field->fieldType->GetKind();
     }
 
     void MemHeadHandle(MemSpace& ms, IReg scratch, IReg base, IReg offset) override
     {
-        auto msr = static_cast<MemSpaceRewriter&>(ms);
+        auto& msr = static_cast<MemSpaceRewriter&>(ms);
         msr.base = base;
         msr.emit.OffsetReg(offset);
     }
 
     void MemHeadTyped(MemSpace& ms, IReg scratch, uint16_t ts) override
     {
-        auto msr = static_cast<MemSpaceRewriter&>(ms);
+        auto& msr = static_cast<MemSpaceRewriter&>(ms);
         msr.emit.Offset(frameLayout.typedOffset.at(ts));
         msr.frame = true;
     }
 
     void MemBodyField1(MemSpace& ms, uint16_t f1) override
     {
-        auto msr = static_cast<MemSpaceRewriter&>(ms);
+        auto& msr = static_cast<MemSpaceRewriter&>(ms);
         FieldOffset(msr, f1);
     }
 
     void MemBodyField2(MemSpace& ms, uint16_t f1, uint16_t f2) override
     {
-        auto msr = static_cast<MemSpaceRewriter&>(ms);
+        auto& msr = static_cast<MemSpaceRewriter&>(ms);
         FieldOffset(msr, f1);
         FieldOffset(msr, f2);
     }
 
     void MemBodyField3(MemSpace& ms, uint16_t f1, uint16_t f2, uint16_t f3) override
     {
-        auto msr = static_cast<MemSpaceRewriter&>(ms);
+        auto& msr = static_cast<MemSpaceRewriter&>(ms);
         FieldOffset(msr, f1);
         FieldOffset(msr, f2);
         FieldOffset(msr, f3);
@@ -657,7 +657,7 @@ struct IsaRewriter : public IsaParser {
 
     void MemBodyField4(MemSpace& ms, uint16_t f1, uint16_t f2, uint16_t f3, uint16_t f4) override
     {
-        auto msr = static_cast<MemSpaceRewriter&>(ms);
+        auto& msr = static_cast<MemSpaceRewriter&>(ms);
         FieldOffset(msr, f1);
         FieldOffset(msr, f2);
         FieldOffset(msr, f3);
@@ -666,7 +666,7 @@ struct IsaRewriter : public IsaParser {
 
     void MemBodyIndex(MemSpace& ms, IReg reg, uint16_t arrayType, bool checked) override
     {
-        auto msr = static_cast<MemSpaceRewriter&>(ms);
+        auto& msr = static_cast<MemSpaceRewriter&>(ms);
         msr.emit.OffsetReg(reg);
         // FIXME
     }
@@ -685,7 +685,7 @@ struct IsaRewriter : public IsaParser {
 
     void MemTailLoad(MemSpace& ms, IReg dst, std::vector<uint16_t> refs) override
     {
-        auto msr = static_cast<MemSpaceRewriter&>(ms);
+        auto& msr = static_cast<MemSpaceRewriter&>(ms);
         for (auto r : refs) {
             FieldOffset(msr, r);
         }
@@ -698,7 +698,7 @@ struct IsaRewriter : public IsaParser {
 
     void MemTailStore(MemSpace& ms, IReg src, std::vector<uint16_t> refs) override
     {
-        auto msr = static_cast<MemSpaceRewriter&>(ms);
+        auto& msr = static_cast<MemSpaceRewriter&>(ms);
         for (auto r : refs) {
             FieldOffset(msr, r);
         }
@@ -711,7 +711,7 @@ struct IsaRewriter : public IsaParser {
 
     void MemTailStoreImm(MemSpace& ms, uint64_t imm) override
     {
-        auto msr = static_cast<MemSpaceRewriter&>(ms);
+        auto& msr = static_cast<MemSpaceRewriter&>(ms);
         if (msr.frame) {
             msr.emit.StoreFrameImm(Stk(msr.lastFieldKind), imm);
         } else {
