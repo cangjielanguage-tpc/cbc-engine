@@ -452,7 +452,7 @@ struct IsaParserImpl {
     {
         auto [cc, dst, lhs, low4, hibits] =
             ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadSLEB().Get();
-        parser.Scc(width, cc, dst, lhs, MergeLowHi(low4, hibits));
+        parser.SccImm(width, cc, dst, lhs, MergeLowHi(low4, hibits));
     }
 
     static void InstanceOf(IsaParser& parser)
