@@ -644,6 +644,15 @@ void Emitter::StoreFrameImm(StoreAccessKind stk, uint64_t imm, uint32_t offset)
     ms.StoreFrameImm(stk, imm);
 }
 
+void Emitter::PrepareTyped(RTSupport::TypeInfo typeInfo, uint32_t offset)
+{
+    Encode(segment, RT::B13i64i32 {
+        .opc = RT::Opcode::PREP_TYPED,
+        .imm64 = { .imm = reinterpret_cast<uint64_t>(typeInfo.Raw()) },
+        .imm32 = { .imm = offset }
+    });
+}
+
 void Emitter::SCC(CC cc, Width width, IReg d, IReg l, IReg r)
 {
     ASSERT(width == Width::W32 || width == Width::W64);

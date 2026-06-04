@@ -452,6 +452,16 @@ STORE_FRAME: {
     bool successful = interpreter.StoreFrame(args.xi12.imm4.STK(), args.rr.x, args.xi12.imm12);
     NEXT_COND(successful);
 }
+PREP_TYPED: {
+    auto args = B13i64i32::Decode(reader);
+    LOG_INSTR;
+    auto typedOffset = args.imm32.imm;
+    auto typeInfo = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
+    MetaInfo::VisitReferences(typeInfo, [&](uint32_t offset) {
+        interpreter.StoreFrameImm(StoreAccessKind::ST_64, 0, typedOffset + offset);
+    });
+    NEXT;
+}
 SCC32: {
     auto args = B3xrrr::Decode(reader);
     LOG_INSTR;

@@ -200,7 +200,12 @@ struct IsaRewriter : public IsaParser {
         }
     }
 
-    void PrepareRecord(uint16_t ts) override {}
+    void PrepareRecord(uint16_t ts) override
+    {
+        auto tsi = frameLayout.typedSlotsInfo[ts];
+        auto ti = RTSupport::TypeInfo(tsi.second);
+        emit.PrepareTyped(ti, tsi.first);
+    }
 
     void NewArr(IReg dst, IReg len, uint16_t typeId) override
     {

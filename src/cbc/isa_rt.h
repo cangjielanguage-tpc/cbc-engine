@@ -59,6 +59,7 @@
     X(STORE_REC_F, B4xi12rr, "st.rec.$0stk $2fr [$3ir $1U12]")                                                         \
     X(LOAD_FRAME_F, B4xi12rr, "ld.frame.$0ldk $2fr [$3ir $1U12]")                                                      \
     X(STORE_FRAME_F, B4xi12rr, "st.frame.$0stk $2fr [$3ir $1U12]")                                                     \
+    X(PREP_TYPED, B13i64i32, "prep.typed $0U64 $1U32")                                                                 \
     X(SCC32, B3xrrr, "scc.32 $0cc $1ir $2ir $3ir")                                                                     \
     X(SCC64, B3xrrr, "scc.64 $0cc $1ir $2ir $3ir")                                                                     \
     X(FSCC32, B3xrrr, "fscc.32 $0cc $1ir $2fr $3fr")                                                                   \
