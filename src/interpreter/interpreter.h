@@ -120,10 +120,10 @@ public:
         if (!NullCheck(obj)) {
             return false;
         }
-        auto offset = CalcLoadArrayOffset(ldk, idx, ectype);
         if (ldk == LoadAccessKind::LD_REF) {
-            ectype->Put(dst.IR(), RTSupport::Execution::ReadObjectInstance(obj, offset, handle));
+            ectype->Put(dst.IR(), RTSupport::Execution::ReadArrayElem(obj, ectype->GetPrimitive(idx).u64, handle));
         } else {
+            auto offset = CalcLoadArrayOffset(ldk, idx, ectype);
             MemoryLocation(obj.value, offset).LoadPrim(ldk, dst, ectype);
         }
         return true;
@@ -135,10 +135,12 @@ public:
         if (!NullCheck(obj)) {
             return false;
         }
-        auto offset = CalcStoreArrayOffset(stk, idx, ectype);
         if (stk == StoreAccessKind::ST_REF) {
-            RTSupport::Execution::WriteObjectInstance(obj, offset, ectype->GetReference(src.IR()), handle);
+            RTSupport::Execution::WriteArrayElem(
+                obj, ectype->GetPrimitive(idx).u64, ectype->GetReference(src.IR()), handle
+            );
         } else {
+            auto offset = CalcStoreArrayOffset(stk, idx, ectype);
             MemoryLocation(obj.value, offset).StorePrim(stk, src, ectype);
         }
         return true;

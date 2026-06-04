@@ -435,8 +435,6 @@ inline void MemoryLocation::StoreRef(Format::Reg src, Ectype* ectype) { Store<Va
 
 inline void MemoryLocation::LoadRef(Format::Reg dst, Ectype* ectype) { Load<Value::Reference>(dst, ectype); }
 
-static const uint32_t ARRAY_BODY_OFFSET = 16;
-
 inline uint32_t CalcLoadArrayOffset(LoadAccessKind::Value ldk, IReg idx, Ectype* ectype)
 {
     uint32_t elemSize;
@@ -452,7 +450,7 @@ inline uint32_t CalcLoadArrayOffset(LoadAccessKind::Value ldk, IReg idx, Ectype*
         case LoadAccessKind::LD_64:  elemSize = 8; break;
         default:                     FATAL("Unexpected ldk");
     }
-    return ARRAY_BODY_OFFSET + ectype->GetPrimitive(idx).u32 * elemSize;
+    return RTSupport::MetaInfo::ArrayBodyOffset() + ectype->GetPrimitive(idx).u32 * elemSize;
 }
 
 inline uint32_t CalcStoreArrayOffset(StoreAccessKind::Value stk, IReg idx, Ectype* ectype)
@@ -468,7 +466,7 @@ inline uint32_t CalcStoreArrayOffset(StoreAccessKind::Value stk, IReg idx, Ectyp
         case StoreAccessKind::ST_64:  elemSize = 8; break;
         default:                      FATAL("Unexpected ldk");
     }
-    return ARRAY_BODY_OFFSET + ectype->GetPrimitive(idx).u32 * elemSize;
+    return RTSupport::MetaInfo::ArrayBodyOffset() + ectype->GetPrimitive(idx).u32 * elemSize;
 }
 
 } // namespace Interpretation

@@ -869,8 +869,8 @@ Interpretation::ExecBytecodeInfo Rewrite(
         .frameSize        = (*frameLayout).frameSize,
         .gcInfo =
             Interpretation::GcInfo {
-                .positionalInfo = CalculatePositionalGCInfo(session, code, offsetsIndex),
-                .typedSlotsInfo = (*frameLayout).typedSlotsInfo,
+                .positionalInfo = std::move(CalculatePositionalGCInfo(session, code, offsetsIndex)),
+                .typedSlotsInfo = std::move((*frameLayout).typedSlotsInfo),
             },
     };
 }

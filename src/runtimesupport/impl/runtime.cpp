@@ -28,6 +28,20 @@ void Execution::WriteObjectInstance(Reference base, size_t offset, Reference obj
     );
 }
 
+Reference Execution::ReadArrayElem(Reference array, uint64_t index, ThreadHandle th)
+{
+    return Reference { .value = reinterpret_cast<uintptr_t>(g_CJNativeInterfaceInstance.getArrayRefElement(
+                           reinterpret_cast<DYN_ObjRef>(array.value), index
+                       )) };
+}
+
+void Execution::WriteArrayElem(Reference array, uint64_t index, Reference object, ThreadHandle th)
+{
+    g_CJNativeInterfaceInstance.setArrayRefElement(
+        reinterpret_cast<DYN_ObjRef>(array.value), index, reinterpret_cast<DYN_ObjRef>(object.value)
+    );
+}
+
 Reference Execution::ReadObjectStatic(void* location, ThreadHandle th)
 {
     return Reference { .value = reinterpret_cast<uintptr_t>(
@@ -119,11 +133,10 @@ void MetaInfo::VisitReferences(TypeInfo ti, std::function<void(uint32_t)> visito
 
     auto bitmap = mrtti->gctib.raw & ~GCTIB_SIGN_BIT;
     uint32_t startOffset = IsReferenceType(ti) ? ObjectHeaderSize() : 0;
-    for (uint32_t offset = startOffset; bitmap != 0; offset += sizeof(uintptr_t)) {
+    for (uint32_t offset = startOffset; bitmap != 0; offset += sizeof(uintptr_t), bitmap >>= 1) {
         if ((bitmap & 1) != 0) {
             visitor(offset);
         }
-        bitmap >>= 1;
     }
 }
 

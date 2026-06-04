@@ -59,6 +59,8 @@ struct Execution {
 
     static Reference ReadObjectInstance(Reference base, size_t offset, ThreadHandle th);
     static void WriteObjectInstance(Reference base, size_t offset, Reference object, ThreadHandle th);
+    static Reference ReadArrayElem(Reference array, uint64_t index, ThreadHandle th);
+    static void WriteArrayElem(Reference array, uint64_t index, Reference object, ThreadHandle th);
     static Reference ReadObjectStatic(void* location, ThreadHandle th);
     static void WriteObjectStatic(void* location, Reference object, ThreadHandle th);
 
@@ -79,10 +81,12 @@ struct MetaInfo {
     static bool IsReferenceType(TypeInfo ti);
 
     // Visits offsets of reference fields in GCTib.
-    // NOTE: offsets are relative to object/struct body (NO HEADER)!
+    // NOTE: offsets are relative to object/struct start address.
     static void VisitReferences(TypeInfo ti, std::function<void(uint32_t)> visitor);
 
     static uint32_t ObjectHeaderSize() { return sizeof(void*); }
+
+    static uint32_t ArrayBodyOffset() { return sizeof(void*) + sizeof(uint64_t); }
 
     static TypeInfo ByteArrayTypeInfo();
 };

@@ -30,6 +30,13 @@ void Execution::WriteObjectInstance(Reference base, size_t offset, Reference obj
     FATAL("Should not be called");
 }
 
+Reference Execution::ReadArrayElem(Reference array, uint64_t index, ThreadHandle th) { FATAL("Should not be called"); }
+
+void Execution::WriteArrayElem(Reference array, uint64_t index, Reference object, ThreadHandle th)
+{
+    FATAL("Should not be called");
+}
+
 Reference Execution::ReadObjectStatic(void* location, ThreadHandle th) { FATAL("Should not be called"); }
 
 void Execution::WriteObjectStatic(void* location, Reference object, ThreadHandle th) { FATAL("Should not be called"); }

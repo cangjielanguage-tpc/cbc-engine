@@ -217,6 +217,19 @@ void Execution::WriteObjectInstance(Reference base, size_t offset, Reference obj
     *reinterpret_cast<uintptr_t*>(base.value + offset) = object.value;
 }
 
+Reference Execution::ReadArrayElem(Reference array, uint64_t index, ThreadHandle th)
+{
+    return Reference { .value = *reinterpret_cast<uintptr_t*>(
+                           array.value + Interpretation::ARRAY_BODY_OFFSET + index * sizeof(uintptr_t)
+                       ) };
+}
+
+void Execution::WriteArrayElem(Reference array, uint64_t index, Reference object, ThreadHandle th)
+{
+    *reinterpret_cast<uintptr_t*>(array.value + Interpretation::ARRAY_BODY_OFFSET + index * sizeof(uintptr_t)) =
+        object.value;
+}
+
 Reference Execution::ReadObjectStatic(void* location, ThreadHandle th)
 {
     return Reference { .value = *reinterpret_cast<uintptr_t*>(location) };
