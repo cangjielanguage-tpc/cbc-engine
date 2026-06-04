@@ -151,8 +151,11 @@ public:
     void Jmp(Label label);
 
     void NewObj(RTSupport::TypeInfo typeInfo);
+    void NewArr(RTSupport::TypeInfo typeInfo);
     void LoadObj(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset);
     void StoreObj(StoreAccessKind stk, Reg src, IReg base, uint32_t offset);
+    void LoadArray(LoadAccessKind ldk, Reg dst, IReg base, IReg idx);
+    void StoreArray(StoreAccessKind stk, Reg src, IReg base, IReg idx);
     void LoadStatic(LoadAccessKind ldk, Reg dst, Symbol offSym);
     void StoreStatic(StoreAccessKind sdk, Reg src, Symbol offSym);
     void LoadRec(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset);
@@ -161,6 +164,8 @@ public:
     void LoadFrame(LoadAccessKind ldk, Reg dst, uint32_t offset);
     void StoreFrame(StoreAccessKind stk, Reg src, uint32_t offset);
     void StoreFrameImm(StoreAccessKind stk, uint64_t imm, uint32_t offset);
+
+    void PrepareTyped(RTSupport::TypeInfo typeInfo, uint32_t offset);
 
     void SCC(CC cc, Width width, IReg d, IReg l, IReg r);
     void SCC(CC cc, Width width, IReg d, FReg l, FReg r);

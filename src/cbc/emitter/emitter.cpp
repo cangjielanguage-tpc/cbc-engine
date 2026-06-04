@@ -492,6 +492,13 @@ void Emitter::NewObj(RTSupport::TypeInfo typeInfo)
     );
 }
 
+void Emitter::NewArr(RTSupport::TypeInfo typeInfo)
+{
+    Encode(
+        segment, RT::B9i64 { .opc = RT::Opcode::NEWARR, .imm64 = { .imm = reinterpret_cast<uint64_t>(typeInfo.Raw()) } }
+    );
+}
+
 void Emitter::LoadStatic(LoadAccessKind ldk, Reg dst, Symbol offSym)
 {
     LoadAccessKind::Value kind = ldk;
@@ -550,6 +557,38 @@ void Emitter::StoreObj(StoreAccessKind stk, Reg src, IReg base, uint32_t offset)
     }
 }
 
+void Emitter::LoadArray(LoadAccessKind ldk, Reg dst, IReg base, IReg idx)
+{
+    auto opc = !ldk.IsFloat() ? RT::Opcode::LOAD_ARR : RT::Opcode::LOAD_ARR_F;
+    Encode(segment, RT::B3xrrr {
+        .opc = opc,
+        .xr = {
+            .imm = Imm4(ldk),
+            .r = dst,
+        },
+        .rr = {
+            .x = base,
+            .y = idx,
+        }
+    });
+}
+
+void Emitter::StoreArray(StoreAccessKind stk, Reg src, IReg base, IReg idx)
+{
+    auto opc = !stk.IsFloat() ? RT::Opcode::STORE_ARR : RT::Opcode::STORE_ARR_F;
+    Encode(segment, RT::B3xrrr {
+        .opc = opc,
+        .xr = {
+            .imm = Imm4(stk),
+            .r = src,
+        },
+        .rr = {
+            .x = base,
+            .y = idx,
+        }
+    });
+}
+
 void Emitter::LoadRec(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset)
 {
     if (MathUtils::IsNBits(offset, 12)) {
@@ -603,6 +642,15 @@ void Emitter::StoreFrameImm(StoreAccessKind stk, uint64_t imm, uint32_t offset)
     auto ms = OpenMemSpace();
     ms.Offset(offset);
     ms.StoreFrameImm(stk, imm);
+}
+
+void Emitter::PrepareTyped(RTSupport::TypeInfo typeInfo, uint32_t offset)
+{
+    Encode(segment, RT::B13i64i32 {
+        .opc = RT::Opcode::PREP_TYPED,
+        .imm64 = { .imm = reinterpret_cast<uint64_t>(typeInfo.Raw()) },
+        .imm32 = { .imm = offset }
+    });
 }
 
 void Emitter::SCC(CC cc, Width width, IReg d, IReg l, IReg r)

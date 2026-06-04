@@ -30,6 +30,13 @@ void Execution::WriteObjectInstance(Reference base, size_t offset, Reference obj
     FATAL("Should not be called");
 }
 
+Reference Execution::ReadArrayElem(Reference array, uint64_t index, ThreadHandle th) { FATAL("Should not be called"); }
+
+void Execution::WriteArrayElem(Reference array, uint64_t index, Reference object, ThreadHandle th)
+{
+    FATAL("Should not be called");
+}
+
 Reference Execution::ReadObjectStatic(void* location, ThreadHandle th) { FATAL("Should not be called"); }
 
 void Execution::WriteObjectStatic(void* location, Reference object, ThreadHandle th) { FATAL("Should not be called"); }
@@ -43,6 +50,8 @@ void* Execution::GetVirtualTarget(Reference base, int extDefNum, int methodNum) 
 void* Execution::GetInterfaceTarget(Reference base, TypeInfo ti, int methodNum) { FATAL("Should not reach here."); }
 
 void* Execution::AllocateObjectInstance() { FATAL("Should not reach here"); }
+
+void* Execution::AllocateArrayInstance() { FATAL("Should not reach here"); }
 
 void* Execution::GcPointTrampoline() { FATAL("Should not reach here"); }
 
@@ -65,6 +74,10 @@ void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* f
 uint32_t MetaInfo::GetTypeSize(TypeInfo ti) { return 0; }
 
 uint8_t MetaInfo::GetAlign(TypeInfo ti) { return alignof(max_align_t); }
+
+bool MetaInfo::IsReferenceType(TypeInfo ti) { return false; }
+
+void MetaInfo::VisitReferences(TypeInfo ti, std::function<void(uint32_t)> visitor) { FATAL("Should not be called"); }
 
 TypeInfo MetaInfo::ByteArrayTypeInfo() { return TypeInfo(nullptr); }
 

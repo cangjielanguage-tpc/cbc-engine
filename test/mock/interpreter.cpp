@@ -217,6 +217,19 @@ void Execution::WriteObjectInstance(Reference base, size_t offset, Reference obj
     *reinterpret_cast<uintptr_t*>(base.value + offset) = object.value;
 }
 
+Reference Execution::ReadArrayElem(Reference array, uint64_t index, ThreadHandle th)
+{
+    return Reference { .value = *reinterpret_cast<uintptr_t*>(
+                           array.value + RTSupport::MetaInfo::ArrayBodyOffset() + index * sizeof(uintptr_t)
+                       ) };
+}
+
+void Execution::WriteArrayElem(Reference array, uint64_t index, Reference object, ThreadHandle th)
+{
+    *reinterpret_cast<uintptr_t*>(array.value + RTSupport::MetaInfo::ArrayBodyOffset() + index * sizeof(uintptr_t)) =
+        object.value;
+}
+
 Reference Execution::ReadObjectStatic(void* location, ThreadHandle th)
 {
     return Reference { .value = *reinterpret_cast<uintptr_t*>(location) };
@@ -250,6 +263,8 @@ void* Execution::GetInterfaceTarget(Reference base, TypeInfo ti, int methodNum)
 
 void* Execution::AllocateObjectInstance() { return reinterpret_cast<void*>(&Interpretation::MockNewObj); }
 
+void* Execution::AllocateArrayInstance() { return reinterpret_cast<void*>(&Interpretation::MockNewObj); }
+
 void* Execution::GcPointTrampoline() { FATAL("Should not reach here"); }
 
 void* Execution::GcPoint() { FATAL("Should not reach here"); }
@@ -271,6 +286,10 @@ void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* f
 uint32_t MetaInfo::GetTypeSize(TypeInfo ti) { return Interpretation::Extract(ti)->size; }
 
 uint8_t MetaInfo::GetAlign(TypeInfo ti) { return alignof(max_align_t); }
+
+bool MetaInfo::IsReferenceType(TypeInfo ti) { return false; }
+
+void MetaInfo::VisitReferences(TypeInfo ti, std::function<void(uint32_t)> visitor) { FATAL("Should not be called"); }
 
 TypeInfo MetaInfo::ByteArrayTypeInfo() { return TypeInfo(nullptr); }
 

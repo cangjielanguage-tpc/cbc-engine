@@ -66,12 +66,10 @@ ResolvingOutput& ResolvingOutput::operator<<(Full<Symlevel::MethodDefinition> fu
     auto& out     = *this;
     auto resolver = Resolution::Resolver(session, md.GetIdentifier());
     auto name     = Detailed(md.Name());
-    out << Detailed(md.Signature()) << " ";
+    out << name << Detailed(md.Signature()) << " ";
 
-    Region(name, [&] {
-        auto sig = Detailed(md.Signature());
+    Region("", [&] {
         out << "flags: " << Detailed(md.GetFlags()) << endl;
-        out << "sig: " << Detailed(sig) << endl;
         if (auto sourceFileOpt = md.SourceFile()) {
             out << "source file: " << StringOf(*sourceFileOpt) << endl;
         }
@@ -135,8 +133,15 @@ ResolvingOutput& ResolvingOutput::TypeDefinition(Symlevel::TypeDefinition const&
     auto& out = *this;
     Region(StringOf(td.GetName()), [&]() {
         out << "super: " << Detailed(td.GetSuperType()) << endl;
+
         Region("fields", [&]() {
             td.GetFields().ForEach(session, [&](auto& def) { out << Detailed(def.Identifier()) << endl; });
+        });
+
+        Region("instance fields", [&]() {
+            for (auto def : td.GetInstanceFields().Values(session)) {
+                out << Detailed(def) << endl;
+            }
         });
 
         Region("methods", [&]() {

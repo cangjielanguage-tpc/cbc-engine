@@ -5,9 +5,16 @@
 
 #include "interpreter/ectype.h"
 #include <cstdint>
+#include <functional>
 #include <optional>
 
 namespace RTSupport {
+
+// TypeInfo flags
+static constexpr uint8_t HAS_REF_FIELD = 0b00000001;
+
+static constexpr uint64_t GCTIB_SIGN_BIT = (1lu << 63);
+static constexpr uint32_t GCTIB_MAX_SHORT_OFFSET = sizeof(void*) * 62;
 
 class ThreadHandle {
 public:
@@ -40,17 +47,20 @@ struct Execution {
     /// This specialization is needed to allow Thunk usage.
     static void* AllocateObjectInstance();
 
+    static void* AllocateArrayInstance();
+
     static void* GcPoint();
 
     static void* GcPointTrampoline();
 
     static bool IsPendingSafePoint();
 
-    static Reference NewArray(TypeInfo type, size_t count, ThreadHandle th);
     static size_t ArrayLength(Reference array);
 
     static Reference ReadObjectInstance(Reference base, size_t offset, ThreadHandle th);
     static void WriteObjectInstance(Reference base, size_t offset, Reference object, ThreadHandle th);
+    static Reference ReadArrayElem(Reference array, uint64_t index, ThreadHandle th);
+    static void WriteArrayElem(Reference array, uint64_t index, Reference object, ThreadHandle th);
     static Reference ReadObjectStatic(void* location, ThreadHandle th);
     static void WriteObjectStatic(void* location, Reference object, ThreadHandle th);
 
@@ -68,7 +78,15 @@ struct MetaInfo {
     static uint32_t GetTypeSize(TypeInfo ti);
     static uint8_t GetAlign(TypeInfo ti);
 
+    static bool IsReferenceType(TypeInfo ti);
+
+    // Visits offsets of reference fields in GCTib.
+    // NOTE: offsets are relative to object/struct start address.
+    static void VisitReferences(TypeInfo ti, std::function<void(uint32_t)> visitor);
+
     static uint32_t ObjectHeaderSize() { return sizeof(void*); }
+
+    static uint32_t ArrayBodyOffset() { return sizeof(void*) + sizeof(uint64_t); }
 
     static TypeInfo ByteArrayTypeInfo();
 };

@@ -18,9 +18,11 @@ declare_hidden engine_iregs_only_c2i_call
 declare_hidden engine_i2i_call
 declare_hidden engine_i2c_call
 declare_hidden engine_i2_newobject
+declare_hidden engine_i2_newarray
 declare_hidden engine_i2_gcpoint
 declare_hidden engine_universal_direct_function_handles
 declare_hidden engine_newobject_function
+declare_hidden engine_newarray_function
 declare_hidden engine_carrier_specific_offset
 declare_hidden engine_cjthread_specific_offset
 
@@ -33,6 +35,10 @@ engine_universal_direct_function_handles:
 
 .align 16
 engine_newobject_function:
+  .skip 8
+
+.align 16
+engine_newarray_function:
   .skip 8
 
 .align 16
@@ -207,6 +213,20 @@ engine_i2_newobject:
   // jumped from .Linterpreter_call without return address to return
   adrp  x10, engine_newobject_function
   ldr   x10, [x10, :lo12:engine_newobject_function]
+  blr   x10
+
+  str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8)]
+  b     .Lrestart_interpretation
+
+.align 16
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo, x1: length)
+// preserved: ECTYPE_REG, x29
+// TLS_REG can be changed after context-switch
+engine_i2_newarray:
+  // jumped from .Linterpreter_call without return address to return
+  ldr   x1, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x10)]
+  adrp  x10, engine_newarray_function
+  ldr   x10, [x10, :lo12:engine_newarray_function]
   blr   x10
 
   str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8)]

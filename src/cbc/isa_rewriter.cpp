@@ -28,6 +28,8 @@ namespace Cbc {
 
 using namespace Resolution;
 
+using MemSpaceEmitter = Emitter::Emitter::MemSpace;
+
 using TK  = CbcTypeKind;
 using LDK = Format::LoadAccessKind;
 using STK = Format::StoreAccessKind;
@@ -48,6 +50,7 @@ static LDK Ldk(CbcTypeKind tk)
 
         case TK::BOOL: return LDK::LD_U8;
         case TK::REF:  return LDK::LD_REF;
+        case TK::REC:  return LDK::LEA; // record types: load effective address
 
         default: {
             FATAL("Not supported template kind");
@@ -197,15 +200,42 @@ struct IsaRewriter : public IsaParser {
         }
     }
 
-    void PrepareRecord(uint16_t ts) override {}
+    void PrepareRecord(uint16_t ts) override
+    {
+        auto tsi = frameLayout.typedSlotsInfo[ts];
+        auto ti = RTSupport::TypeInfo(tsi.second);
+        emit.PrepareTyped(ti, tsi.first);
+    }
 
-    void NewArr(IReg dst, IReg len, uint16_t type) override { FATAL("not implemented"); }
+    void NewArr(IReg dst, IReg len, uint16_t typeId) override
+    {
+        auto t = resolver.Query(Index<Type>(typeId));
+        if (!t.has_value()) {
+            Fail();
+            return;
+        }
+        auto type = t.value();
+        if (!type->GetTypeInfo().has_value()) {
+            errStream << "Failed to get type info of " << *type << Stream::endl;
+            Fail();
+            return;
+        }
+
+        auto typeInfo = type->GetTypeInfo().value();
+        if (len != IReg::IR2) {
+            FATAL("newarr len register expected IR2, but found IR%d", len.Raw());
+        }
+        emit.NewArr(typeInfo);
+        if (dst != IReg::IR1) {
+            emit.Mov(dst, IReg::IR1);
+        }
+    }
 
     void GcPoint() override { emit.GcPoint(); }
 
     virtual void LoadStackRec(IReg r, uint16_t ts) override
     {
-        emit.LoadFrame(Format::LoadAccessKind::LEA, r, frameLayout.typedOffset[ts]);
+        emit.LoadFrame(Format::LoadAccessKind::LEA, r, frameLayout.typedOffset.at(ts));
     }
 
     void LoadStatic(AnyReg r, uint16_t fieldId) override
@@ -398,7 +428,7 @@ struct IsaRewriter : public IsaParser {
 
     void Catch(IReg reg) override { FATAL("not implemented"); }
 
-    void Throw(IReg reg) override { FATAL("not implemented"); }
+    void Throw(IReg reg) override { /*FATAL("not implemented");*/ }
 
     void ZeroRefs(uint16_t ts) override { FATAL("not implemented"); }
 
@@ -521,6 +551,209 @@ struct IsaRewriter : public IsaParser {
         }
     }
 
+    void LoadArray(AnyReg dst, Format::LoadAccessKind ldk, IReg arr, IReg idx) override
+    {
+        emit.LoadArray(ldk, dst, arr, idx);
+    }
+
+    void StoreArray(AnyReg src, Format::StoreAccessKind stk, IReg arr, IReg idx) override
+    {
+        emit.StoreArray(stk, src, arr, idx);
+    }
+
+    struct MemSpaceRewriter : public MemSpace {
+        MemSpaceRewriter(MemSpaceEmitter emit)
+            : MemSpace(),
+            emit(emit),
+            base(std::nullopt),
+            frame(false),
+            lastFieldKind(CbcTypeKind::INVALID)
+        {}
+
+        MemSpaceEmitter emit;
+        std::optional<IReg> base;
+        bool frame;
+        CbcTypeKind lastFieldKind;
+    };
+
+    void FieldOffset(MemSpaceRewriter& msr, uint16_t fieldId)
+    {
+        auto f = resolver.Query(Index<InstanceField>(fieldId));
+        if (!f.has_value()) {
+            Fail();
+            return;
+        }
+        auto field = f.value();
+        if (field->offset.has_value()) {
+            msr.emit.Offset(field->offset.value());
+            msr.lastFieldKind = field->fieldType->GetKind();
+        } else {
+            errStream << "Failed to get offset of field " << *field << Stream::endl;
+            Fail();
+        }
+    }
+
+    std::unique_ptr<MemSpace> OpenMemSpace() override
+    {
+        return std::make_unique<MemSpaceRewriter>(MemSpaceRewriter(emit.OpenMemSpace()));
+    }
+
+    void MemHeadReg(MemSpace& ms, IReg scratch, IReg base) override
+    {
+        auto& msr = static_cast<MemSpaceRewriter&>(ms);
+        msr.base = base;
+    }
+
+    void MemHeadField(MemSpace& ms, IReg scratch, IReg base, uint16_t fieldId) override
+    {
+        auto& msr = static_cast<MemSpaceRewriter&>(ms);
+        msr.base = base;
+        FieldOffset(msr, fieldId);
+    }
+
+    void MemHeadStatic(MemSpace& ms, IReg scratch, uint16_t fieldId) override
+    {
+        auto f = resolver.Query(Index<StaticField>(fieldId));
+        if (!f.has_value()) {
+            Fail();
+            return;
+        }
+        auto field  = f.value();
+
+        auto& msr = static_cast<MemSpaceRewriter&>(ms);
+        msr.emit.Offset(field->location);
+        msr.lastFieldKind = field->fieldType->GetKind();
+    }
+
+    void MemHeadHandle(MemSpace& ms, IReg scratch, IReg base, IReg offset) override
+    {
+        auto& msr = static_cast<MemSpaceRewriter&>(ms);
+        msr.base = base;
+        msr.emit.OffsetReg(offset);
+    }
+
+    void MemHeadTyped(MemSpace& ms, IReg scratch, uint16_t ts) override
+    {
+        auto& msr = static_cast<MemSpaceRewriter&>(ms);
+        msr.emit.Offset(frameLayout.typedOffset.at(ts));
+        msr.frame = true;
+    }
+
+    void MemBodyField1(MemSpace& ms, uint16_t f1) override
+    {
+        auto& msr = static_cast<MemSpaceRewriter&>(ms);
+        FieldOffset(msr, f1);
+    }
+
+    void MemBodyField2(MemSpace& ms, uint16_t f1, uint16_t f2) override
+    {
+        auto& msr = static_cast<MemSpaceRewriter&>(ms);
+        FieldOffset(msr, f1);
+        FieldOffset(msr, f2);
+    }
+
+    void MemBodyField3(MemSpace& ms, uint16_t f1, uint16_t f2, uint16_t f3) override
+    {
+        auto& msr = static_cast<MemSpaceRewriter&>(ms);
+        FieldOffset(msr, f1);
+        FieldOffset(msr, f2);
+        FieldOffset(msr, f3);
+    }
+
+    void MemBodyField4(MemSpace& ms, uint16_t f1, uint16_t f2, uint16_t f3, uint16_t f4) override
+    {
+        auto& msr = static_cast<MemSpaceRewriter&>(ms);
+        FieldOffset(msr, f1);
+        FieldOffset(msr, f2);
+        FieldOffset(msr, f3);
+        FieldOffset(msr, f4);
+    }
+
+    void MemBodyIndex(MemSpace& ms, IReg reg, uint16_t arrayType, bool checked) override
+    {
+        auto& msr = static_cast<MemSpaceRewriter&>(ms);
+        msr.emit.OffsetReg(reg);
+        // FIXME
+    }
+
+    void ForEachInstanceField(std::vector<uint16_t> refs, std::function<void(const InstanceField*)> visitor) {
+        for (auto fieldId : refs) {
+            auto f = resolver.Query(Index<InstanceField>(fieldId));
+            if (!f.has_value()) {
+                Fail();
+                return;
+            }
+            auto field  = f.value();
+            visitor(field);
+        }
+    }
+
+    void MemTailLoad(MemSpace& ms, IReg dst, std::vector<uint16_t> refs) override
+    {
+        auto& msr = static_cast<MemSpaceRewriter&>(ms);
+        for (auto r : refs) {
+            FieldOffset(msr, r);
+        }
+        if (msr.base.has_value()) {
+            msr.emit.LoadObj(Ldk(msr.lastFieldKind), dst, msr.base.value());
+        } else {
+            msr.emit.LoadFrame(Ldk(msr.lastFieldKind), dst);
+        }
+    }
+
+    void MemTailStore(MemSpace& ms, IReg src, std::vector<uint16_t> refs) override
+    {
+        auto& msr = static_cast<MemSpaceRewriter&>(ms);
+        for (auto r : refs) {
+            FieldOffset(msr, r);
+        }
+        if (msr.base.has_value()) {
+            msr.emit.StoreObj(Stk(msr.lastFieldKind), msr.base.value(), src);
+        } else {
+            msr.emit.StoreFrame(Stk(msr.lastFieldKind), src);
+        }
+    }
+
+    void MemTailStoreImm(MemSpace& ms, uint64_t imm) override
+    {
+        auto& msr = static_cast<MemSpaceRewriter&>(ms);
+        if (msr.frame) {
+            msr.emit.StoreFrameImm(Stk(msr.lastFieldKind), imm);
+        } else {
+            Fail();
+        }
+    }
+
+    void MemTailCopyReg(MemSpace& ms, IReg dst, uint16_t recType) override
+    {
+        FATAL("MemTailCopyReg");
+    }
+
+    void MemTailCopyInterior(MemSpace& ms, IReg dst, std::vector<uint16_t> refs) override
+    {
+        FATAL("MemTailCopyInterior");
+    }
+
+    void MemTailCopyInteriorArr(MemSpace& ms, IReg dst, IReg idx, std::vector<uint16_t> refs) override
+    {
+        FATAL("MemTailCopyInteriorArr");
+    }
+
+    void MemTailCopyStatic(MemSpace& ms, std::vector<uint16_t> refs) override
+    {
+        FATAL("MemTailCopyStatic");
+    }
+
+    void MemTailCopyTyped(MemSpace& ms, uint16_t ts, std::vector<uint16_t> refs) override
+    {
+        FATAL("MemTailCopyTyped");
+    }
+
+    void MemTailCopyHandle(MemSpace& ms, IReg base, IReg offset) override
+    {
+        FATAL("MemTailCopyHandle");
+    }
+
     void ParseOne() override
     {
         auto position = reader.Cursor() - reader.Start();
@@ -555,6 +788,7 @@ static std::optional<FrameLayout> makeFrameLayout(Symlevel::Code code, Resolver&
     auto untypedSlotsSize = Cbc::STACK_SLOT_SIZE * code.UntypedSlotCount();
 
     std::unordered_map<uint32_t, uint32_t> typedOffset;
+    std::vector<std::pair<uint32_t, void*>> typedSlotsInfo;
     auto stackAllocSize = untypedSlotsSize;
     for (uint32_t i = 0; i < code.StackAllocSigsCount(); i++) {
         auto typeOpt = resolver.Query(Index<Type>(code.StackAllocSigs()[i]));
@@ -569,24 +803,30 @@ static std::optional<FrameLayout> makeFrameLayout(Symlevel::Code code, Resolver&
         if (!size.has_value()) {
             return std::nullopt;
         }
+        auto typeInfo = type->GetTypeInfo();
+        if (!typeInfo.has_value()) {
+            return std::nullopt;
+        }
+        auto typeInfoPtr = typeInfo->Raw();
 
         typedOffset.insert({ i, stackAllocSize });
+        typedSlotsInfo.push_back({ stackAllocSize, typeInfoPtr });
         stackAllocSize += MathUtils::AlignUp(size.value(), Cbc::STACK_SLOT_SIZE);
     }
 
     auto frameSize = MathUtils::AlignUp(savedRegsSpace + stackAllocSize, Cbc::FRAME_ALIGNMENT);
 
-    return FrameLayout { std::move(typedOffset), untypedSlotsSize, frameSize };
+    return FrameLayout { std::move(typedOffset), std::move(typedSlotsInfo), untypedSlotsSize, frameSize };
 }
 
-static std::vector<Interpretation::ReferenceInfo> CalculateReferencesMap(
+static std::vector<Interpretation::PositionalInfo> CalculatePositionalGCInfo(
     Engine::Session& session, const MethodCode& code, const InstructionOffsetsIndex& offIndex
 )
 {
     auto livenessInfo = code.GetLivenessInfo(session);
 
-    std::vector<Interpretation::ReferenceInfo> refInfo;
-    refInfo.reserve(livenessInfo.size());
+    std::vector<Interpretation::PositionalInfo> posInfo;
+    posInfo.reserve(livenessInfo.size());
 
     for (const auto& info : livenessInfo) {
         auto posOpt = offIndex.FindMappedOffset(CBC, info.cbcPos);
@@ -594,15 +834,15 @@ static std::vector<Interpretation::ReferenceInfo> CalculateReferencesMap(
             FATAL("Unknown position");
         }
 
-        refInfo.push_back({ .rewrittenPos = posOpt.value(), .regMask = info.regMask, .refSlotOffsets = {} });
+        posInfo.push_back({ .rewrittenPos = posOpt.value(), .regMask = info.regMask, .untypedRefSlotsInfo = {} });
 
-        refInfo.back().refSlotOffsets.reserve(info.refSlotNums.size());
+        posInfo.back().untypedRefSlotsInfo.reserve(info.refSlotNums.size());
         for (const auto& slotN : info.refSlotNums) {
-            refInfo.back().refSlotOffsets.push_back(slotN * STACK_SLOT_SIZE);
+            posInfo.back().untypedRefSlotsInfo.push_back(slotN * STACK_SLOT_SIZE);
         }
     }
 
-    return refInfo;
+    return posInfo;
 }
 
 Interpretation::ExecBytecodeInfo Rewrite(
@@ -632,7 +872,11 @@ Interpretation::ExecBytecodeInfo Rewrite(
         .savedFRegs       = code.UsedNonVolFRegMask(),
         .untypedSlotCount = static_cast<uint16_t>(code.UntypedSlotCount()),
         .frameSize        = (*frameLayout).frameSize,
-        .referenceInfos   = CalculateReferencesMap(session, code, offsetsIndex),
+        .gcInfo =
+            Interpretation::GcInfo {
+                .positionalInfo = std::move(CalculatePositionalGCInfo(session, code, offsetsIndex)),
+                .typedSlotsInfo = std::move((*frameLayout).typedSlotsInfo),
+            },
     };
 }
 

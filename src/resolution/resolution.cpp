@@ -133,7 +133,9 @@ struct SimpleType : public Type {
             case TK::METHOD:         return CbcTypeKind::INVALID;
             case TK::AOT_REC:        return CbcTypeKind::REC;
             case TK::GENERIC_METHOD: return CbcTypeKind::INVALID;
+            case TK::CANGJIE_ARRAY:  return CbcTypeKind::REF;
             case TK::LAST:           return CbcTypeKind::INVALID;
+            case TK::TYPE:           return term.IsReference() ? CbcTypeKind::REF : CbcTypeKind::REC;
 
             default:
                 if (term.IsReference()) {
@@ -144,6 +146,11 @@ struct SimpleType : public Type {
     }
 
     std::optional<uint32_t> GetFlatSize() override { return resolver.fieldManager->GetFlatSize(term); }
+
+    void FillRefOffsets(std::vector<uint32_t>& offsets, uint32_t disp) override
+    {
+        resolver.fieldManager->FillRefOffsets(term, offsets, disp);
+    }
 };
 
 Type* Resolver::Impl::NewType(Term term) { return session.Allocator().New<SimpleType>(term, *this); }
@@ -305,7 +312,7 @@ static std::optional<InterfaceCall> ResolveCall(Resolver::Impl& resolver, Index<
         }
 
         default: {
-            log.Stream(Logging::Level::FATAL) << "Unexpected ref type in reference " << id.GetValue();
+            log.Stream(Logging::Level::FATAL) << "Unexpected ref type in reference " << id.GetValue() << Stream::endl;
             return std::nullopt;
         }
     }
@@ -332,7 +339,7 @@ static std::optional<VirtualCall> ResolveCall(Resolver::Impl& resolver, Index<Vi
         }
 
         default: {
-            log.Stream(Logging::Level::FATAL) << "Unexpected ref type in reference " << id.GetValue();
+            log.Stream(Logging::Level::FATAL) << "Unexpected ref type in reference " << id.GetValue() << Stream::endl;
             return std::nullopt;
         }
     }
@@ -420,12 +427,13 @@ static std::optional<DirectCall> ResolveCall(Resolver::Impl& resolver, Index<Dir
             }
         }
 
+        case TermKind::AOT_REC:
         case TermKind::AOT_TYPE: {
             return ResolveAotDirectCall(resolver, ref);
         }
 
         default: {
-            log.Stream(Logging::Level::FATAL) << "Unexpected ref type in reference " << id.GetValue();
+            log.Stream(Logging::Level::FATAL) << "Unexpected ref type in reference " << id.GetValue() << Stream::endl;
             return std::nullopt;
         }
     }

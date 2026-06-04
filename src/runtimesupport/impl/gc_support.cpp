@@ -5,6 +5,7 @@
 #include "engine/statics_manager.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
+#include "runtimesupport/runtime.h"
 #include "utils/logger.h"
 #include "utils/rt_logger.h"
 
@@ -100,15 +101,15 @@ void VisitGCFrameRoots(DYN_VisitingState state, INT_FrameDesc frame_desc, DYN_Ro
 
     uint32_t curPos = reinterpret_cast<uintptr_t>(reader->Cursor()) - reinterpret_cast<uintptr_t>(bc->code.bytecode);
 
-    const ReferenceInfo* refInfo = nullptr;
-    for (auto& info : bc->referenceInfos) {
+    const PositionalInfo* positionalInfo = nullptr;
+    for (auto& info : bc->gcInfo.positionalInfo) {
         if (info.rewrittenPos == curPos) {
-            refInfo = &info;
+            positionalInfo = &info;
             break;
         }
     }
 
-    if (!refInfo) {
+    if (!positionalInfo) {
         RTSupport::Log::gc.Log(Logging::Level::ERROR, [&](Output& out) {
             out.PrintFmtLn(
                 "cannot translate position (fuh=%p, ip=%p, fp=%p, pos=%p)", fuh, frame_desc.ip, frame_desc.fp, curPos
@@ -131,13 +132,37 @@ void VisitGCFrameRoots(DYN_VisitingState state, INT_FrameDesc frame_desc, DYN_Ro
         );
     });
 
-    for (auto& refSlotOffset : NOTNULL(refInfo)->refSlotOffsets) {
+    for (auto& refSlotOffset : NOTNULL(positionalInfo)->untypedRefSlotsInfo) {
         auto refLocation = reinterpret_cast<Placeholder>(slotsStartAddr + refSlotOffset);
         RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) { out << refSlotOffset << ": "; });
         VisitRoot(rootVisitor, refLocation);
     }
 
-    auto aliveRegsMap = std::bitset<ECTYPE_IREGS_COUNT>(NOTNULL(refInfo)->regMask);
+    for (auto& typedSlotInfo : bc->gcInfo.typedSlotsInfo) {
+        auto typedSlotOffset = typedSlotInfo.first;
+        auto typeInfoPtr     = typedSlotInfo.second;
+
+        ASSERTION(!RTSupport::MetaInfo::IsReferenceType(RTSupport::TypeInfo(typeInfoPtr)), "Expected record type");
+
+        std::vector<uint32_t> offsets;
+        RTSupport::MetaInfo::VisitReferences(RTSupport::TypeInfo(typeInfoPtr), [&offsets](uint32_t offset) {
+            offsets.push_back(offset);
+        });
+
+        for (auto& offsetInSlot : offsets) {
+            auto refLocation = reinterpret_cast<Placeholder>(slotsStartAddr + typedSlotOffset + offsetInSlot);
+            RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) {
+                out.PrintFmtLn(
+                    "found reference in typed slot with offset (slot_offset=%u, inner_offset=%u)",
+                    typedSlotOffset,
+                    offsetInSlot
+                );
+            });
+            VisitRoot(rootVisitor, refLocation);
+        }
+    }
+
+    auto aliveRegsMap = std::bitset<ECTYPE_IREGS_COUNT>(NOTNULL(positionalInfo)->regMask);
     {
         RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) {
             out << "visit alive regs, alive regs: " << aliveRegsMap.to_string().c_str() << endl;
@@ -165,10 +190,35 @@ void VisitGlobalRoots(DYN_RootVisitor rootVisitor)
     RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Output& out) { out << "start visiting global roots" << endl; });
 
     auto& engine = Engine::GetEngineInstance();
-    Engine::StaticsManager::Of(engine).VisitRefLocations([rootVisitor](Engine::RefLocation* refLocation) {
+    auto& sm     = Engine::StaticsManager::Of(engine);
+
+    auto untypedSlotsVisitor = [rootVisitor](Engine::RefLocation* refLocation) {
         VisitRoot(rootVisitor, &refLocation->reference);
-    });
+    };
+
+    auto typedSlotsVisitor = [rootVisitor](uint8_t* base, const Engine::StaticTypedSlotInfo& info) {
+        auto typeInfoPtr = info.typeInfoPtr;
+
+        std::vector<uint32_t> offsets;
+        RTSupport::MetaInfo::VisitReferences(RTSupport::TypeInfo(typeInfoPtr), [&offsets](uint32_t offset) {
+            offsets.push_back(offset);
+        });
+
+        for (auto& offsetInSlot : offsets) {
+            auto refLocation = reinterpret_cast<Placeholder>(base + info.offset + offsetInSlot);
+            RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) {
+                out.PrintFmtLn(
+                    "found reference in static typed slot with offset (slot_offset=%u, inner_offset=%u)",
+                    info.offset,
+                    offsetInSlot
+                );
+            });
+            VisitRoot(rootVisitor, refLocation);
+        }
+    };
+
+    sm.VisitRefLocations(untypedSlotsVisitor, typedSlotsVisitor);
 
     RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Output& out) { out << "end visiting global roots" << endl; });
 }
-}
+} // namespace GCSupport

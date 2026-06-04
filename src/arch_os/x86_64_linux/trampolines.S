@@ -20,9 +20,11 @@ declare_hidden engine_iregs_only_c2i_call
 declare_hidden engine_i2i_call
 declare_hidden engine_i2c_call
 declare_hidden engine_i2_newobject
+declare_hidden engine_i2_newarray
 declare_hidden engine_i2_gcpoint
 declare_hidden engine_universal_direct_function_handles
 declare_hidden engine_newobject_function
+declare_hidden engine_newarray_function
 declare_hidden engine_carrier_specific_offset
 declare_hidden engine_cjthread_specific_offset
 
@@ -35,6 +37,10 @@ engine_universal_direct_function_handles:
 
 .align 16
 engine_newobject_function:
+  .skip 8
+
+.align 16
+engine_newarray_function:
   .skip 8
 
 .align 16
@@ -155,10 +161,10 @@ engine_iregs_only_c2i_call:
 
 .Lc2i_prepare_ectype:
   push_lst rdi, rsi, rdx, rcx, r8, r9
-  
+
   mov   rdi, r12
   call  engine_fiber_data_init
-  
+
   mov   ECTYPE_REG, rax
   mov   rax, [rbp - 0x30] // restore fuh
 
@@ -208,6 +214,17 @@ engine_i2c_call:
 engine_i2_newobject:
   // jumped from .Linterpreter_call without return address to return
   call  [rip + engine_newobject_function]
+  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8], rax
+  jmp   .Lrestart_interpretation
+
+.align 16
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo, rsi: length)
+// preserved: ECTYPE_REG, rbp
+// TLS_REG can be changed after context-switch
+engine_i2_newarray:
+  // jumped from .Linterpreter_call without return address to return
+  mov   rsi, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x10]
+  call  [rip + engine_newarray_function]
   mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8], rax
   jmp   .Lrestart_interpretation
 

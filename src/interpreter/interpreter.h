@@ -114,6 +114,38 @@ public:
         return true;
     }
 
+    inline bool LoadArray(Format::LoadAccessKind ldk, Format::Reg dst, IReg base, IReg idx)
+    {
+        auto obj = ectype->GetReference(base);
+        if (!NullCheck(obj)) {
+            return false;
+        }
+        if (ldk == LoadAccessKind::LD_REF) {
+            ectype->Put(dst.IR(), RTSupport::Execution::ReadArrayElem(obj, ectype->GetPrimitive(idx).u64, handle));
+        } else {
+            auto offset = CalcLoadArrayOffset(ldk, idx, ectype);
+            MemoryLocation(obj.value, offset).LoadPrim(ldk, dst, ectype);
+        }
+        return true;
+    }
+
+    inline bool StoreArray(Format::StoreAccessKind stk, Format::Reg src, IReg base, IReg idx)
+    {
+        auto obj = ectype->GetReference(base);
+        if (!NullCheck(obj)) {
+            return false;
+        }
+        if (stk == StoreAccessKind::ST_REF) {
+            RTSupport::Execution::WriteArrayElem(
+                obj, ectype->GetPrimitive(idx).u64, ectype->GetReference(src.IR()), handle
+            );
+        } else {
+            auto offset = CalcStoreArrayOffset(stk, idx, ectype);
+            MemoryLocation(obj.value, offset).StorePrim(stk, src, ectype);
+        }
+        return true;
+    }
+
     inline bool LoadRec(Format::LoadAccessKind ldk, Format::Reg dst, IReg base, size_t offset)
     {
         auto ptr = static_cast<uintptr_t>(ectype->GetPrimitive(base).u64);

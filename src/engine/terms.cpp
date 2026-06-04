@@ -405,7 +405,7 @@ void Term::GetName(Session& session, Stream::Output& stream) const
         }
 
         case TK::CANGJIE_ARRAY: {
-            stream << "$array<";
+            stream << "RawArray<";
             Subterm(0).GetName(session, stream);
             stream << '>';
             break;
@@ -657,9 +657,9 @@ struct TermResolver {
         };
         // FIXME: in multi-cbc scenario this identifier is not unique.
         if (flags.isReference) {
-            data->InitAfterSubterms(AotRefTermId(Identifier(nameOffs, fileId)), 0, flags);
+            data->InitAfterSubterms(AotRefTermId(Identifier(nameOffs, fileId)), length, flags);
         } else {
-            data->InitAfterSubterms(AotRecTermId(Identifier(nameOffs, fileId)), 0, flags);
+            data->InitAfterSubterms(AotRecTermId(Identifier(nameOffs, fileId)), length, flags);
         }
         return Term(LocalTerm(data));
     }
@@ -739,6 +739,22 @@ struct TermResolver {
             case FUNC_TYPE_VAR: {
                 auto id = reader.ReadU8();
                 return Term::FuncTypeVariable(id);
+            }
+            case CANGJIE_ARRAY: {
+                auto* data     = AllocateTerm(heap, 1);
+                bool isGeneric = false;
+                if (!ReadSubTerms(data, &isGeneric, 1, reader)) {
+                    return NewUndefined(refId);
+                }
+
+                TermFlags flags = {
+                    .isLocal       = true,
+                    .isReference   = true,
+                    .isAotPromoted = false,
+                    .isGeneric     = isGeneric,
+                };
+                data->InitAfterSubterms(TagTermId(TermKind::CANGJIE_ARRAY), 1, flags);
+                return Term(LocalTerm(data));
             }
             default: {
                 FATAL("Not implemented for tag %d", tag);

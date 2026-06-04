@@ -230,6 +230,21 @@ struct IsaParserImpl {
         }
     }
 
+#define PARSE_ONE_MEM_CASES(opc, func)                                                                                     \
+    case MemOpcode::opc: end = func(parser, ms); break;
+
+    static void ParseMemExpr(IsaParser& parser, IsaParser::MemSpace& ms)
+    {
+        bool end = false;
+        while (!end) {
+            auto opc = parser.reader.Read8();
+            switch (opc) {
+                ISA_MEM_OPCODES(PARSE_ONE_MEM_CASES)
+            }
+        }
+
+    }
+
     static int64_t MergeLowHi(uint8_t low4, int64_t hi) { return static_cast<int64_t>((hi << 4) | low4); }
 
     static Width width64Or32(bool w64) { return w64 ? Width::W64 : Width::W32; }
@@ -571,6 +586,185 @@ struct IsaParserImpl {
         parser.StoreTypedImm(imm, ts, field);
     }
 
+    static void LoadArray(IsaParser& parser)
+    {
+        auto [dst, ldk, arr, idx] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
+        parser.LoadArray(dst, ldk, arr, idx);
+    }
+
+    static void StoreArray(IsaParser& parser)
+    {
+        auto [src, stk, arr, idx] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
+        parser.StoreArray(src, stk, arr, idx);
+    }
+
+    static void MemHeadReg(IsaParser& parser)
+    {
+        auto ms = parser.OpenMemSpace();
+        auto [base, scratch] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
+        parser.MemHeadReg(*ms, scratch, base);
+        ParseMemExpr(parser, *ms);
+    }
+
+    static void MemHeadField(IsaParser& parser)
+    {
+        auto ms = parser.OpenMemSpace();
+        auto [base, scratch, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.MemHeadField(*ms, scratch, base, field);
+        ParseMemExpr(parser, *ms);
+    }
+
+    static void MemHeadStatic(IsaParser& parser)
+    {
+        auto ms = parser.OpenMemSpace();
+        auto [skip, scratch, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.MemHeadStatic(*ms, scratch, field);
+        ParseMemExpr(parser, *ms);
+    }
+
+    static void MemHeadHandle(IsaParser& parser)
+    {
+        auto ms = parser.OpenMemSpace();
+        auto [skip, scratch, base, offset] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
+        parser.MemHeadHandle(*ms, scratch, base, offset);
+        ParseMemExpr(parser, *ms);
+    }
+
+    static void MemHeadTyped(IsaParser& parser)
+    {
+        auto ms = parser.OpenMemSpace();
+        auto [skip, scratch, ts] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.MemHeadTyped(*ms, scratch, ts);
+        ParseMemExpr(parser, *ms);
+    }
+
+    static bool MemBodyField1(IsaParser& parser, IsaParser::MemSpace& ms)
+    {
+        auto [f1] = ByteReaderM(parser.reader).ReadU16().Get();
+        parser.MemBodyField1(ms, f1);
+        return false;
+    }
+
+    static bool MemBodyField2(IsaParser& parser, IsaParser::MemSpace& ms)
+    {
+        auto [f1, f2] = ByteReaderM(parser.reader).ReadU16().ReadU16().Get();
+        parser.MemBodyField2(ms, f1, f2);
+        return false;
+    }
+
+    static bool MemBodyField3(IsaParser& parser, IsaParser::MemSpace& ms)
+    {
+        auto [f1, f2, f3] = ByteReaderM(parser.reader).ReadU16().ReadU16().ReadU16().Get();
+        parser.MemBodyField3(ms, f1, f2, f3);
+        return false;
+    }
+
+    static bool MemBodyField4(IsaParser& parser, IsaParser::MemSpace& ms)
+    {
+        auto [f1, f2, f3, f4] = ByteReaderM(parser.reader).ReadU16().ReadU16().ReadU16().ReadU16().Get();
+        parser.MemBodyField4(ms, f1, f2, f3, f4);
+        return false;
+    }
+
+    static bool MemBodyIndex(IsaParser& parser, IsaParser::MemSpace& ms)
+    {
+        auto [reg, checked, arrayType] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.MemBodyIndex(ms, reg, arrayType, checked);
+        return false;
+    }
+
+    static bool MemTailLoad(IsaParser& parser, IsaParser::MemSpace& ms)
+    {
+        auto [reg, _size] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
+        std::vector<uint16_t> refs;
+        uint8_t size = _size;
+        for (int i = 0; i < size; i++) {
+            refs.emplace_back(parser.reader.Read16());
+        }
+        parser.MemTailLoad(ms, reg, refs);
+        return true;
+    }
+
+    static bool MemTailStore(IsaParser& parser, IsaParser::MemSpace& ms)
+    {
+        auto [reg, _size] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
+        std::vector<uint16_t> refs;
+        uint8_t size = _size;
+        for (int i = 0; i < size; i++) {
+            refs.emplace_back(parser.reader.Read16());
+        }
+        parser.MemTailStore(ms, reg, refs);
+        return true;
+    }
+
+    static bool MemTailStoreImm(IsaParser& parser, IsaParser::MemSpace& ms)
+    {
+        uint64_t imm = parser.reader.Read64();
+        parser.MemTailStoreImm(ms, imm);
+        return true;
+    }
+
+    static bool MemTailCopyReg(IsaParser& parser, IsaParser::MemSpace& ms)
+    {
+        auto [reg, skip, recType] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.MemTailCopyReg(ms, reg, recType);
+        return true;
+    }
+
+    static bool MemTailCopyInterior(IsaParser& parser, IsaParser::MemSpace& ms)
+    {
+        auto [reg, _size] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
+        std::vector<uint16_t> refs;
+        uint8_t size = _size;
+        for (int i = 0; i < size; i++) {
+            refs.emplace_back(parser.reader.Read16());
+        }
+        parser.MemTailCopyInterior(ms, reg, refs);
+        return true;
+    }
+
+    static bool MemTailCopyInteriorArr(IsaParser& parser, IsaParser::MemSpace& ms)
+    {
+        auto [reg, idx, _size, skip] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
+        std::vector<uint16_t> refs;
+        uint8_t size = _size;
+        for (int i = 0; i < size; i++) {
+            refs.emplace_back(parser.reader.Read16());
+        }
+        parser.MemTailCopyInteriorArr(ms, reg, idx, refs);
+        return true;
+    }
+
+    static bool MemTailCopyStatic(IsaParser& parser, IsaParser::MemSpace& ms)
+    {
+        std::vector<uint16_t> refs;
+        uint8_t size = parser.reader.Read8();
+        for (int i = 0; i < size; i++) {
+            refs.emplace_back(parser.reader.Read16());
+        }
+        parser.MemTailCopyStatic(ms, refs);
+        return true;
+    }
+
+    static bool MemTailCopyTyped(IsaParser& parser, IsaParser::MemSpace& ms)
+    {
+        std::vector<uint16_t> refs;
+        uint8_t size = parser.reader.Read8();
+        uint16_t ts = parser.reader.Read16();
+        for (int i = 0; i < size; i++) {
+            refs.emplace_back(parser.reader.Read16());
+        }
+        parser.MemTailCopyTyped(ms, ts, refs);
+        return true;
+    }
+
+    static bool MemTailCopyHandle(IsaParser& parser, IsaParser::MemSpace& ms)
+    {
+        auto [base, offs] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
+        parser.MemTailCopyHandle(ms, base, offs);
+        return true;
+    }
+
     template <Width::Value width, CC::Value value>
     static constexpr ParseFunction BranchSpecialized[] = {
         &BranchSpecializedDefault<width, value>,
@@ -595,6 +789,8 @@ struct IsaParserImpl {
     };
 
     static void Unreachable(IsaParser& parser) {}
+
+    static bool UnreachableMem(IsaParser& parser, IsaParser::MemSpace& ms) { return true; }
 };
 
 void IsaParser::ParseOne() { IsaParserImpl::ParseOne(*this); }

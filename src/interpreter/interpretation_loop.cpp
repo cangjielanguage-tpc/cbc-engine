@@ -362,6 +362,26 @@ NEWOBJ: {
 
     return { func, type.Raw() };
 }
+NEWARR: {
+    auto args = B9i64::Decode(reader);
+    LOG_INSTR;
+    auto type = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
+
+    // To invoke an `newobj` we need to "return" four values
+    // - function to invoke,
+    // - type info,
+    // - length,
+    // - destination register,
+    // which is more than Thunk can fit.
+    //
+    // To pass an extra elements we will store
+    // it in volatile-registers in Ectype;
+    auto func = RTSupport::Execution::AllocateArrayInstance();
+
+    reader0 = reader; // save current pc
+
+    return { func, type.Raw() };
+}
 LOAD_ADDR: {
     auto args = B2xr::Decode(reader);
     LOG_INSTR;
@@ -388,6 +408,20 @@ STORE_OBJ: {
     auto args = B4xi12rr::Decode(reader);
     LOG_INSTR;
     bool successful = interpreter.StoreObj(args.xi12.imm4.STK(), args.rr.x, args.rr.y.IR(), args.xi12.imm12);
+    NEXT_COND(successful);
+}
+LOAD_ARR_F:
+LOAD_ARR: {
+    auto args = B3xrrr::Decode(reader);
+    LOG_INSTR;
+    bool successful = interpreter.LoadArray(args.xr.imm.LDK(), args.xr.r, args.rr.x.IR(), args.rr.y.IR());
+    NEXT_COND(successful);
+}
+STORE_ARR_F:
+STORE_ARR: {
+    auto args = B3xrrr::Decode(reader);
+    LOG_INSTR;
+    bool successful = interpreter.StoreArray(args.xr.imm.STK(), args.xr.r, args.rr.x.IR(), args.rr.y.IR());
     NEXT_COND(successful);
 }
 LOAD_REC_F:
@@ -417,6 +451,16 @@ STORE_FRAME: {
     LOG_INSTR;
     bool successful = interpreter.StoreFrame(args.xi12.imm4.STK(), args.rr.x, args.xi12.imm12);
     NEXT_COND(successful);
+}
+PREP_TYPED: {
+    auto args = B13i64i32::Decode(reader);
+    LOG_INSTR;
+    auto typedOffset = args.imm32.imm;
+    auto typeInfo = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
+    MetaInfo::VisitReferences(typeInfo, [&](uint32_t offset) {
+        interpreter.StoreFrameImm(StoreAccessKind::ST_64, 0, typedOffset + offset);
+    });
+    NEXT;
 }
 SCC32: {
     auto args = B3xrrr::Decode(reader);
