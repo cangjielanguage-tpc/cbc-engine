@@ -411,6 +411,13 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M9i64 args
     formatter.Format();
 }
 
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M10xri64 args)
+{
+    Operand operands[] = { args.xr.imm, args.xr.r, args.imm64 };
+    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
+    formatter.Format();
+}
+
 void LogBaseSpaceInstruction(
     uint32_t opc, Interpretation::LiteralTable* table, Stream::Output& stream, Decoder::ByteReader& reader
 )

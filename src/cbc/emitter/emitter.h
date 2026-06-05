@@ -42,6 +42,7 @@ public:
 
         void Offset(uint64_t offset);
         void OffsetReg(IReg reg);
+        void OffsetRegIdx(IReg reg, uint64_t size);
 
         // tail instructions
         void LoadObj(LoadAccessKind ldk, Reg dst, IReg base);
@@ -190,6 +191,8 @@ public:
     void NullCheck(IReg r);
 
     void InstanceOf(IReg dst, IReg obj, RTSupport::TypeInfo typeInfo);
+
+    void Throw(IReg dst);
 
     MemSpace OpenMemSpace();
 

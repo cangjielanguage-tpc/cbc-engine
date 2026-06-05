@@ -7,6 +7,7 @@
 #include "engine/resolving_output.h"
 #include "interpreter/code.h"
 #include "interpreter/function_handle.h"
+#include "interpreter/interpreter.h"
 #include "interpreter/literals.h"
 #include "interpreter/loggers.h"
 #include "offsets_index.h"
@@ -428,7 +429,7 @@ struct IsaRewriter : public IsaParser {
 
     void Catch(IReg reg) override { FATAL("not implemented"); }
 
-    void Throw(IReg reg) override { /*FATAL("not implemented");*/ }
+    void Throw(IReg reg) override { emit.Throw(reg); }
 
     void ZeroRefs(uint16_t ts) override { FATAL("not implemented"); }
 
@@ -669,11 +670,34 @@ struct IsaRewriter : public IsaParser {
         FieldOffset(msr, f4);
     }
 
-    void MemBodyIndex(MemSpace& ms, IReg reg, uint16_t arrayType, bool checked) override
+    void MemBodyIndex(MemSpace& ms, IReg reg, uint16_t typeId, bool checked) override
     {
+        if (checked) {
+            FATAL("Not implemented checked MemBodyIndex");
+            Fail();
+            return;
+        }
+
+        auto t = resolver.Query(Index<Type>(typeId));
+        if (!t.has_value()) {
+            Fail();
+            return;
+        }
+        auto type = t.value();
+        if (!type->GetTypeInfo().has_value()) {
+            errStream << "Failed to get type info of " << *type << Stream::endl;
+            Fail();
+            return;
+        }
+
+        ASSERT(type->GetKind() == CbcTypeKind::REC);
+
+        auto typeInfo = type->GetTypeInfo().value();
+        auto size = RTSupport::MetaInfo::GetTypeSize(typeInfo);
+
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
-        msr.emit.OffsetReg(reg);
-        // FIXME
+        msr.emit.Offset(RTSupport::MetaInfo::ArrayBodyOffset());
+        msr.emit.OffsetRegIdx(reg, size);
     }
 
     void ForEachInstanceField(std::vector<uint16_t> refs, std::function<void(const InstanceField*)> visitor) {
@@ -708,7 +732,7 @@ struct IsaRewriter : public IsaParser {
             FieldOffset(msr, r);
         }
         if (msr.base.has_value()) {
-            msr.emit.StoreObj(Stk(msr.lastFieldKind), msr.base.value(), src);
+            msr.emit.StoreObj(Stk(msr.lastFieldKind), src, msr.base.value());
         } else {
             msr.emit.StoreFrame(Stk(msr.lastFieldKind), src);
         }

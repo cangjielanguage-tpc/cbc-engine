@@ -832,5 +832,10 @@ void Emitter::InstanceOf(IReg dst, IReg obj, RTSupport::TypeInfo typeInfo)
     Encode(segment, RT::IOF { .opc = RT::Opcode::IOF, .rr = { .x = dst, .y = obj }, .imm64 = reinterpret_cast<uint64_t>(typeInfo.Raw()) });
 }
 
+void Emitter::Throw(IReg reg)
+{
+    Encode(segment, RT::B2xr { .opc = RT::Opcode::THROW, .xr = { .imm = 0, .r = reg } });
+}
+
 } // namespace Emitter
 } // namespace Cbc

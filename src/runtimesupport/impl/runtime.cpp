@@ -104,6 +104,12 @@ bool Execution::IsInstanceOf(Reference base, TypeInfo ti)
     return g_CJNativeInterfaceInstance.instanceOf(reinterpret_cast<DYN_ObjRef>(base.value), UnpackTypeInfo(ti));
 }
 
+const char* MetaInfo::GetName(TypeInfo ti)
+{
+    auto mrtti = UnpackTypeInfo(ti);
+    return mrtti->typeInfoName;
+}
+
 uint32_t MetaInfo::GetTypeSize(TypeInfo ti)
 {
     auto mrtti = UnpackTypeInfo(ti);

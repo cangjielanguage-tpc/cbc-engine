@@ -452,7 +452,7 @@ struct IsaParserImpl {
     {
         auto [cc, dst, lhs, low4, hibits] =
             ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadSLEB().Get();
-        parser.Scc(width, cc, dst, lhs, MergeLowHi(low4, hibits));
+        parser.SccImm(width, cc, dst, lhs, MergeLowHi(low4, hibits));
     }
 
     static void InstanceOf(IsaParser& parser)
@@ -668,8 +668,8 @@ struct IsaParserImpl {
 
     static bool MemBodyIndex(IsaParser& parser, IsaParser::MemSpace& ms)
     {
-        auto [reg, checked, arrayType] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
-        parser.MemBodyIndex(ms, reg, arrayType, checked);
+        auto [reg, checked, elemType] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.MemBodyIndex(ms, reg, elemType, checked);
         return false;
     }
 

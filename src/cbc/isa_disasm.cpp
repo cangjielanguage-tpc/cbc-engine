@@ -344,10 +344,10 @@ struct IsaDisasm : public IsaParser {
         stream << "mem.field4" << " " << f1 << " " << f2 << " " << f3 << " " << f4 << endl;
     }
 
-    void MemBodyIndex(MemSpace& ms, IReg reg, uint16_t arrayType, bool checked) override
+    void MemBodyIndex(MemSpace& ms, IReg reg, uint16_t elemType, bool checked) override
     {
         PrintMemPos();
-        stream << "mem.index" << " " << reg.ToStr() << ", " << arrayType << ", " << checked << endl;
+        stream << "mem.index" << " " << reg.ToStr() << ", " << elemType << ", " << checked << endl;
     }
 
     void Refs(std::vector<uint16_t> refs)

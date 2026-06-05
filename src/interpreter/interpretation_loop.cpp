@@ -48,6 +48,16 @@ Interpretation::Thunk engine_interpretation_loop(
 #define MEM_NEXT goto* MEMSPACE_TABLE[reader.PeekOpcode()]
     Interpretation::Interpreter interpreter(ectype, frame, handle, literals);
     Decoder::ByteReader reader = reader0;
+#ifdef NDEBUG
+    #define JUMP                                                                                                       \
+        reader.Advance(delta);                                                                                         \
+        NEXT;
+#else
+    #define JUMP                                                                                                       \
+        reader.Advance(delta);                                                                                         \
+        pos = reader.Cursor();                                                                                         \
+        NEXT;
+#endif
 
 #define CBC_RT_LABEL(opc, encoding, fmt) &&opc,
 #define CBC_RT_MEM_LABEL(opc, encoding, fmt, tail) &&opc,
@@ -158,8 +168,7 @@ BCC32I: {
     int64_t delta = interpreter.template Bcc<ImmKind::VALUE, Width::W32>(
         args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
     );
-    reader.Advance(delta);
-    NEXT;
+    JUMP;
 }
 BCC32L: {
     auto args = B4xi12rr::Decode(reader);
@@ -167,8 +176,7 @@ BCC32L: {
     int64_t delta = interpreter.template Bcc<ImmKind::LITERAL, Width::W32>(
         args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
     );
-    reader.Advance(delta);
-    NEXT;
+    JUMP;
 }
 BCC64I: {
     auto args = B4xi12rr::Decode(reader);
@@ -176,8 +184,7 @@ BCC64I: {
     int64_t delta = interpreter.template Bcc<ImmKind::VALUE, Width::W64>(
         args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
     );
-    reader.Advance(delta);
-    NEXT;
+    JUMP;
 }
 BCC64L: {
     auto args = B4xi12rr::Decode(reader);
@@ -185,8 +192,7 @@ BCC64L: {
     int64_t delta = interpreter.template Bcc<ImmKind::LITERAL, Width::W64>(
         args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
     );
-    reader.Advance(delta);
-    NEXT;
+    JUMP;
 }
 BCCI32I: {
     auto args = B5xi12ri12::Decode(reader);
@@ -194,8 +200,7 @@ BCCI32I: {
     int64_t delta = interpreter.template BccImm<ImmKind::VALUE, ImmKind::VALUE, Width::W32>(
         args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
     );
-    reader.Advance(delta);
-    NEXT;
+    JUMP;
 }
 BCCI64I: {
     auto args = B5xi12ri12::Decode(reader);
@@ -203,8 +208,7 @@ BCCI64I: {
     int64_t delta = interpreter.template BccImm<ImmKind::VALUE, ImmKind::VALUE, Width::W64>(
         args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
     );
-    reader.Advance(delta);
-    NEXT;
+    JUMP;
 }
 BCCI32L: {
     auto args = B5xi12ri12::Decode(reader);
@@ -212,8 +216,7 @@ BCCI32L: {
     int64_t delta = interpreter.template BccImm<ImmKind::VALUE, ImmKind::LITERAL, Width::W32>(
         args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
     );
-    reader.Advance(delta);
-    NEXT;
+    JUMP;
 }
 BCCI64L: {
     auto args = B5xi12ri12::Decode(reader);
@@ -221,8 +224,7 @@ BCCI64L: {
     int64_t delta = interpreter.template BccImm<ImmKind::VALUE, ImmKind::LITERAL, Width::W64>(
         args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
     );
-    reader.Advance(delta);
-    NEXT;
+    JUMP;
 }
 BCCL32I: {
     auto args = B5xi12ri12::Decode(reader);
@@ -230,8 +232,7 @@ BCCL32I: {
     int64_t delta = interpreter.template BccImm<ImmKind::LITERAL, ImmKind::VALUE, Width::W32>(
         args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
     );
-    reader.Advance(delta);
-    NEXT;
+    JUMP;
 }
 BCCL64I: {
     auto args = B5xi12ri12::Decode(reader);
@@ -239,8 +240,7 @@ BCCL64I: {
     int64_t delta = interpreter.template BccImm<ImmKind::LITERAL, ImmKind::VALUE, Width::W64>(
         args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
     );
-    reader.Advance(delta);
-    NEXT;
+    JUMP;
 }
 BCCL32L: {
     auto args = B5xi12ri12::Decode(reader);
@@ -248,8 +248,7 @@ BCCL32L: {
     int64_t delta = interpreter.template BccImm<ImmKind::LITERAL, ImmKind::LITERAL, Width::W32>(
         args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
     );
-    reader.Advance(delta);
-    NEXT;
+    JUMP;
 }
 BCCL64L: {
     auto args = B5xi12ri12::Decode(reader);
@@ -257,15 +256,13 @@ BCCL64L: {
     int64_t delta = interpreter.template BccImm<ImmKind::LITERAL, ImmKind::LITERAL, Width::W64>(
         args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
     );
-    reader.Advance(delta);
-    NEXT;
+    JUMP;
 }
 JMP32: {
     auto args = B5i32::Decode(reader);
     LOG_INSTR;
     int64_t delta = interpreter.Jmp(args.imm32.imm);
-    reader.Advance(delta);
-    NEXT;
+    JUMP;
 }
 BIN32: {
     auto args = B3xrrr::Decode(reader);
@@ -663,6 +660,18 @@ IOF: {
     NEXT;
 }
 
+THROW: {
+    auto args = B2xr::Decode(reader);
+    LOG_INSTR;
+    auto ref = ectype->GetReference(args.xr.r.IR());
+    if (ref.value == 0) {
+        FATAL("unexpected null in THROW");
+    }
+    uintptr_t** header  = reinterpret_cast<uintptr_t**>(ref.value);
+    auto typeInfo = TypeInfo(*header);
+    FATAL("Throw %s", MetaInfo::GetName(typeInfo)); // TODO: throw exception
+}
+
 MEMSPACE: {
     auto args = B1::Decode(reader);
     LOG_INSTR;
@@ -699,6 +708,12 @@ OFFS_REG: {
     auto args = M2xr::Decode(reader);
     LOG_INSTR;
     memspaceOffsetAcc += interpreter.MemOffsetReg(args.xr.r.IR());
+    MEM_NEXT;
+}
+OFFS_REG_IDX64: {
+    auto args = M10xri64::Decode(reader);
+    LOG_INSTR;
+    memspaceOffsetAcc += interpreter.MemOffsetReg(args.xr.r.IR()) * interpreter.MemOffset(args.imm64);
     MEM_NEXT;
 }
 #define RLD(ldk)                                                                                                       \

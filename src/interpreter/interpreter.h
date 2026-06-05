@@ -295,21 +295,21 @@ public:
 
     template <Width::Value width> inline void SCC(CC cc, IReg d, IReg l, IReg r)
     {
-        uint32_t res = Cmp<width>(cc, l, r) ? 1 : 0;
-        ectype->Put(d, Value::Primitive { .u32 = res });
+        uint64_t res = Cmp<width>(cc, l, r) ? 1 : 0;
+        ectype->Put(d, Value::Primitive { .u64 = res });
     }
 
     template <Width::Value width> inline void SCC(CC cc, IReg d, FReg l, FReg r)
     {
-        uint32_t res = Cmp<width>(cc, l, r) ? 1 : 0;
-        ectype->Put(d, Value::Primitive { .u32 = res });
+        uint64_t res = Cmp<width>(cc, l, r) ? 1 : 0;
+        ectype->Put(d, Value::Primitive { .u64 = res });
     }
 
     template <RT::ImmKind::Value immKind, Width::Value width> inline void SCCImm(CC cc, IReg d, IReg l, uint16_t imm)
     {
-        uint32_t res =
+        uint64_t res =
             CmpPrim<width>(cc, l, Value::Primitive { .u64 = DecodeImmediate<immKind>(literals, imm) }) ? 1 : 0;
-        ectype->Put(d, Value::Primitive { .u32 = res });
+        ectype->Put(d, Value::Primitive { .u64 = res });
     }
 
     void Convert(ConvertType toType, ConvertType fromType, Reg to, Reg from)
