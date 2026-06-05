@@ -3,6 +3,7 @@
 
 #include "asm_export.h"
 #include "cbc/isa.h"
+#include "interpreter/loggers.h"
 #include <cstddef>
 
 #define MAGIC_WORD 0xCBC0C0DE
@@ -51,17 +52,30 @@ public:
 
     inline void Put(IReg reg, Value::Primitive primitive)
     {
+        Log::interpretation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
+            out << reg.ToStr() << " <- " << primitive.u64 << Stream::endl;
+        });
         ASSERT(reg != IReg::IRZ);
         iregs[reg].primitive = primitive;
     }
 
     inline void Put(IReg reg, Value::Reference reference)
     {
+        Log::interpretation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
+            out.PrintFmt("%s <- %p", reg.ToStr().data(), reference.value);
+            out.NewLine();
+        });
         ASSERT(reg != IReg::IRZ);
         iregs[reg].reference = reference;
     }
 
-    inline void Put(FReg reg, Value::Primitive primitive) { fregs[reg].primitive = primitive; }
+    inline void Put(FReg reg, Value::Primitive primitive)
+    {
+        Log::interpretation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
+            out << reg.ToStr() << " <- " << primitive.f64 << Stream::endl;
+        });
+        fregs[reg].primitive = primitive;
+    }
 
     inline Value::Reference GetReference(IReg reg) { return iregs[reg].reference; }
 
