@@ -429,7 +429,7 @@ struct IsaRewriter : public IsaParser {
 
     void Catch(IReg reg) override { FATAL("not implemented"); }
 
-    void Throw(IReg reg) override { /*FATAL("not implemented");*/ }
+    void Throw(IReg reg) override { emit.Throw(reg); }
 
     void ZeroRefs(uint16_t ts) override { FATAL("not implemented"); }
 

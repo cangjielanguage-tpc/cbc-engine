@@ -192,6 +192,8 @@ public:
 
     void InstanceOf(IReg dst, IReg obj, RTSupport::TypeInfo typeInfo);
 
+    void Throw(IReg dst);
+
     MemSpace OpenMemSpace();
 
 private:

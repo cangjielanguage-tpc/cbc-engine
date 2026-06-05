@@ -663,6 +663,18 @@ IOF: {
     NEXT;
 }
 
+THROW: {
+    auto args = B2xr::Decode(reader);
+    LOG_INSTR;
+    auto ref = ectype->GetReference(args.xr.r.IR());
+    if (ref.value == 0) {
+        FATAL("unexpected null in THROW");
+    }
+    uintptr_t** header  = reinterpret_cast<uintptr_t**>(ref.value);
+    auto typeInfo = TypeInfo(*header);
+    FATAL("Throw %s", MetaInfo::GetName(typeInfo)); // TODO: throw exception
+}
+
 MEMSPACE: {
     auto args = B1::Decode(reader);
     LOG_INSTR;

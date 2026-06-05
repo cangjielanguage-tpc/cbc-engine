@@ -77,10 +77,11 @@
     X(GC_POINT, B1, "gcpoint")                                                                                         \
     X(BFXS, BFX, "bfxs $0ir $1ir $2U8 $3U8")                                                                           \
     X(BFXZ, BFX, "bfxz $0ir $1ir $2U8 $3U8")                                                                           \
-    X(STRING_INIT, B13i64i32, "string.init $0U64 $1U32")                                                                           \
+    X(STRING_INIT, B13i64i32, "string.init $0U64 $1U32")                                                               \
     X(NULLCHECK, B2xr, "nullcheck $1ir")                                                                               \
     X(DIVCHECK, B2xr, "divcheck $1ir")                                                                                 \
-    X(IOF, IOF, "iof $0ir $1ir $2U64")
+    X(IOF, IOF, "iof $0ir $1ir $2U64")                                                                                 \
+    X(THROW, B2xr, "throw $1ir")
 
 // X parameters: opcode, encoding format, string format, is tail
 #define CBC_RT_MEMOPCODES(X)                                                                                           \

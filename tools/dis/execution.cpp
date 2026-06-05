@@ -71,6 +71,8 @@ void* Adapters::IregOnlyC2ICallInstance() { FATAL("Should not reach here."); }
 
 void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* fuh) { FATAL("Should not reach here."); }
 
+const char* MetaInfo::GetName(TypeInfo ti) { return nullptr; }
+
 uint32_t MetaInfo::GetTypeSize(TypeInfo ti) { return 0; }
 
 uint8_t MetaInfo::GetAlign(TypeInfo ti) { return alignof(max_align_t); }

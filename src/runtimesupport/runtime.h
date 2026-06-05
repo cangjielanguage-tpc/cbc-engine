@@ -72,9 +72,12 @@ struct Execution {
     static int GetFieldOffset(TypeInfo ti, int ordinal, bool adjustByHeader);
 
     static bool IsInstanceOf(Reference base, TypeInfo ti);
+
+    static void Throw(Reference base);
 };
 
 struct MetaInfo {
+    static const char* GetName(TypeInfo ti);
     static uint32_t GetTypeSize(TypeInfo ti);
     static uint8_t GetAlign(TypeInfo ti);
 

@@ -283,6 +283,8 @@ void* Adapters::IregOnlyC2ICallInstance() { return reinterpret_cast<void*>(&C2IC
 
 void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* fuh) { FATAL("Should not reach here."); }
 
+const char* MetaInfo::GetName(TypeInfo ti) { return "<unknown>"; }
+
 uint32_t MetaInfo::GetTypeSize(TypeInfo ti) { return Interpretation::Extract(ti)->size; }
 
 uint8_t MetaInfo::GetAlign(TypeInfo ti) { return alignof(max_align_t); }
