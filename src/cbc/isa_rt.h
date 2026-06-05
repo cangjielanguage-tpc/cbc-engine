@@ -89,6 +89,7 @@
     X(OFFS32, M5i32, "offs.32 $0U32", false)                                                                           \
     X(OFFS64, M9i64, "offs.64 $0U64", false)                                                                           \
     X(OFFS_REG, M2xr, "offs.r $1ir", false)                                                                            \
+    X(OFFS_REG_IDX64, M10xri64, "offs.r.idx.64 [$1ir * $2U64]", false)                                                 \
     X(RLD_U8, M2rr, "rld.u8 $0ir $1ir }", true)                                                                        \
     X(RLD_U16, M2rr, "rld.u16 $0ir $1ir }", true)                                                                      \
     X(RLD_32, M2rr, "rld.u32 $0ir $1ir }", true)                                                                       \
@@ -577,6 +578,20 @@ struct M9i64 {
         auto opc   = MemOpcode::Decode(reader);
         auto imm64 = reader.Read64();
         return M9i64 { opc, imm64 };
+    }
+};
+
+struct M10xri64 {
+    MemOpcode opc;
+    Format::XR xr;
+    uint64_t imm64;
+
+    inline static M10xri64 Decode(Decoder::ByteReader& reader)
+    {
+        auto opc   = MemOpcode::Decode(reader);
+        auto xr  = Format::XR::Decode(reader);
+        auto imm64 = reader.Read64();
+        return M10xri64 { opc, xr, imm64 };
     }
 };
 

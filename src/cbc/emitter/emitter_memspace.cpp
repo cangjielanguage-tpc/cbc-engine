@@ -60,6 +60,18 @@ void MemSpaceEmitter::OffsetReg(IReg reg)
     );
 }
 
+void MemSpaceEmitter::OffsetRegIdx(IReg reg, uint64_t size)
+{
+    Encode(
+        segment,
+        RT::M10xri64 {
+            .opc = RT::MemOpcode::OFFS_REG_IDX64,
+            .xr  = XR { .imm = 0, .r = reg },
+            .imm64  = size,
+        }
+    );
+}
+
 static RT::MemOpcode ComputeLoadAccessKind(LoadAccessKind ldk, RT::MemOpcode start)
 {
     // This code is heavily rely on the fact that opcodes are ordered

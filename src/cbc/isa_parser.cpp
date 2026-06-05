@@ -668,8 +668,8 @@ struct IsaParserImpl {
 
     static bool MemBodyIndex(IsaParser& parser, IsaParser::MemSpace& ms)
     {
-        auto [reg, checked, arrayType] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
-        parser.MemBodyIndex(ms, reg, arrayType, checked);
+        auto [reg, checked, elemType] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.MemBodyIndex(ms, reg, elemType, checked);
         return false;
     }
 

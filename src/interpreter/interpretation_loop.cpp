@@ -701,6 +701,12 @@ OFFS_REG: {
     memspaceOffsetAcc += interpreter.MemOffsetReg(args.xr.r.IR());
     MEM_NEXT;
 }
+OFFS_REG_IDX64: {
+    auto args = M10xri64::Decode(reader);
+    LOG_INSTR;
+    memspaceOffsetAcc += interpreter.MemOffsetReg(args.xr.r.IR()) * interpreter.MemOffset(args.imm64);
+    MEM_NEXT;
+}
 #define RLD(ldk)                                                                                                       \
     RLD_##ldk:                                                                                                         \
     {                                                                                                                  \

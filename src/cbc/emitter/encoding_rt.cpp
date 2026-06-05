@@ -92,6 +92,13 @@ void Encode(ByteBuffer& buf, RT::M9i64 command)
     buf.AddW64(command.imm64);
 }
 
+void Encode(ByteBuffer& buf, RT::M10xri64 command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.xr);
+    buf.AddW64(command.imm64);
+}
+
 void Encode(ByteBuffer& buf, RT::M2rr command)
 {
     Encode(buf, command.opc);
