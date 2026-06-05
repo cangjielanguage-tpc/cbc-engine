@@ -732,7 +732,7 @@ struct IsaRewriter : public IsaParser {
             FieldOffset(msr, r);
         }
         if (msr.base.has_value()) {
-            msr.emit.StoreObj(Stk(msr.lastFieldKind), msr.base.value(), src);
+            msr.emit.StoreObj(Stk(msr.lastFieldKind), src, msr.base.value());
         } else {
             msr.emit.StoreFrame(Stk(msr.lastFieldKind), src);
         }
