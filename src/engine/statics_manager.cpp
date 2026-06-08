@@ -55,10 +55,7 @@ SlotKind ComputeSlotKind(Session& session, FieldLayoutManager& flm, Symlevel::Fi
         return RECORD;
     }
     if (fieldType.GetKind() == TermKind::TYPE) {
-        auto typeDef = Symlevel::TypeDefinition::Resolve(session, TypeTermId(fieldType).GetIdentifier());
-        if (typeDef.GetFlags().GetTypeKind() == Symlevel::TypeKind::RECORD) {
-            return RECORD;
-        }
+        return fieldType.IsReference() ? REFERENCE : RECORD;
     }
     if (fieldType.GetId().IsReference()) {
         return REFERENCE;
