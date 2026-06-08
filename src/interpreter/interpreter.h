@@ -149,12 +149,18 @@ public:
     inline bool LoadRec(Format::LoadAccessKind ldk, Format::Reg dst, IReg base, size_t offset)
     {
         auto ptr = static_cast<uintptr_t>(ectype->GetPrimitive(base).u64);
-        if (ptr == 0) {
+        // IRZ means static record field, so whole position is encoded in accumulated offset
+        if (base != IReg::IRZ && ptr == 0) {
             return false;
         }
         if (ldk == LoadAccessKind::LD_REF) {
-            auto ref = Value::Reference { .value = *reinterpret_cast<uintptr_t*>(base + offset) };
-            ectype->Put(dst.IR(), ref);
+            if (base == IReg::IRZ) {
+                // Static record field requires barrier
+                ectype->Put(dst.IR(), RTSupport::Execution::ReadObjectStatic(reinterpret_cast<void*>(offset), handle));
+            } else {
+                auto ref = Value::Reference { .value = *reinterpret_cast<uintptr_t*>(base + offset) };
+                ectype->Put(dst.IR(), ref);
+            }
         } else {
             MemoryLocation(ptr, offset).LoadPrim(ldk, dst, ectype);
         }
@@ -164,12 +170,18 @@ public:
     inline bool StoreRec(Format::StoreAccessKind stk, Format::Reg src, IReg base, uint64_t offset)
     {
         auto ptr = static_cast<uintptr_t>(ectype->GetPrimitive(base).u64);
-        if (ptr == 0) {
+        // IRZ means static record field, so whole position is encoded in accumulated offset
+        if (base != IReg::IRZ && ptr == 0) {
             return false;
         }
         if (stk == StoreAccessKind::ST_REF) {
-            auto ref                                     = ectype->GetReference(src.IR()).value;
-            *reinterpret_cast<uintptr_t*>(base + offset) = ref;
+            auto ref = ectype->GetReference(src.IR());
+            if (base == IReg::IRZ) {
+                // Static record field requires barrier
+                RTSupport::Execution::WriteObjectStatic(reinterpret_cast<void*>(offset), ref, handle);
+            } else {
+                *reinterpret_cast<uintptr_t*>(base + offset) = ref.value;
+            }
         } else {
             MemoryLocation(ptr, offset).StorePrim(stk, src, ectype);
         }

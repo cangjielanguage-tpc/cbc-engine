@@ -720,8 +720,10 @@ struct IsaRewriter : public IsaParser {
         }
         if (msr.base.has_value()) {
             msr.emit.LoadObj(Ldk(msr.lastFieldKind), dst, msr.base.value());
-        } else {
+        } else if (msr.frame) {
             msr.emit.LoadFrame(Ldk(msr.lastFieldKind), dst);
+        } else {
+            msr.emit.LoadRec(Ldk(msr.lastFieldKind), dst, IReg::IRZ);
         }
     }
 
@@ -733,8 +735,10 @@ struct IsaRewriter : public IsaParser {
         }
         if (msr.base.has_value()) {
             msr.emit.StoreObj(Stk(msr.lastFieldKind), src, msr.base.value());
-        } else {
+        } else if (msr.frame) {
             msr.emit.StoreFrame(Stk(msr.lastFieldKind), src);
+        } else {
+            msr.emit.StoreRec(Stk(msr.lastFieldKind), src, IReg::IRZ);
         }
     }
 
