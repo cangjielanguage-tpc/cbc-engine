@@ -108,6 +108,16 @@
     X(RST_REF, M2rr, "rst.ref $0ir $1ir }", true)                                                                      \
     X(RST_F32, M2rr, "rst.f32 $0fr $1ir }", true)                                                                      \
     X(RST_F64, M2rr, "rst.f64 $0fr $1ir }", true)                                                                      \
+    X(RSTI_8_8, M3xri8, "rsti.8.8 $1ir $2U8 }", true)                                                                  \
+    X(RSTI_16_8, M3xri8, "rsti.16.8 $1ir $2U8 }", true)                                                                \
+    X(RSTI_16_16, M4xri16, "rsti.16.16 $1ir $2U16 }", true)                                                            \
+    X(RSTI_32_8, M3xri8, "rsti.32.8 $1ir $2U8 }", true)                                                                \
+    X(RSTI_32_16, M4xri16, "rsti.32.16 $1ir $2U16 }", true)                                                            \
+    X(RSTI_32_32, M6xri32, "rsti.32.32 $1ir $2U32 }", true)                                                            \
+    X(RSTI_64_8, M3xri8, "rsti.64.8 $1ir $2U8 }", true)                                                                \
+    X(RSTI_64_16, M4xri16, "rsti.64.16 $1ir $2U16 }", true)                                                            \
+    X(RSTI_64_32, M6xri32, "rsti.64.32 $1ir $2U32 }", true)                                                            \
+    X(RSTI_64_64, M10xri64, "rsti.64.64 $1ir $2U64 }", true)                                                           \
     X(DLD_U8, M3xrrr, "dld.u8 $1ir $2ir $3ir }", true)                                                                 \
     X(DLD_U16, M3xrrr, "dld.u16 $1ir $2ir $3ir }", true)                                                               \
     X(DLD_32, M3xrrr, "dld.u32 $1ir $2ir $3ir }", true)                                                                \
@@ -240,6 +250,8 @@ public:
     static constexpr auto FLD_END_OPCODE    = FLD_REF;
     static constexpr auto RST_START_OPCODE  = RST_8;
     static constexpr auto RST_END_OPCODE    = RST_F64;
+    static constexpr auto RSTI_START_OPCODE = RSTI_8_8;
+    static constexpr auto RSTI_END_OPCODE   = RSTI_64_64;
     static constexpr auto DST_START_OPCODE  = DST_8;
     static constexpr auto DST_END_OPCODE    = DST_F64;
     static constexpr auto SST_START_OPCODE  = SST_8;
@@ -311,6 +323,22 @@ struct B2xr {
         auto opc = Opcode::Decode(reader);
         auto xr  = Format::XR::Decode(reader);
         return B2xr { opc, xr };
+    }
+};
+
+struct B3xri8 {
+    static constexpr int SIZE = 3;
+
+    Opcode opc;
+    Format::XR xr;
+    Format::Imm8 imm8;
+
+    static B3xri8 Decode(Decoder::ByteReader& reader)
+    {
+        auto opc  = Opcode::Decode(reader);
+        auto xr   = Format::XR::Decode(reader);
+        auto imm8 = Format::Imm8::Decode(reader);
+        return B3xri8 { opc, xr, imm8 };
     }
 };
 
@@ -603,16 +631,58 @@ struct M9i64 {
     }
 };
 
+struct M3xri8 {
+    MemOpcode opc;
+    Format::XR xr;
+    Format::Imm8 imm8;
+
+    inline static M3xri8 Decode(Decoder::ByteReader& reader)
+    {
+        auto opc  = MemOpcode::Decode(reader);
+        auto xr   = Format::XR::Decode(reader);
+        auto imm8 = Format::Imm8::Decode(reader);
+        return M3xri8 { opc, xr, imm8 };
+    }
+};
+
+struct M4xri16 {
+    MemOpcode opc;
+    Format::XR xr;
+    Format::Imm16 imm16;
+
+    inline static M4xri16 Decode(Decoder::ByteReader& reader)
+    {
+        auto opc   = MemOpcode::Decode(reader);
+        auto xr    = Format::XR::Decode(reader);
+        auto imm16 = Format::Imm16::Decode(reader);
+        return M4xri16 { opc, xr, imm16 };
+    }
+};
+
+struct M6xri32 {
+    MemOpcode opc;
+    Format::XR xr;
+    Format::Imm32 imm32;
+
+    inline static M6xri32 Decode(Decoder::ByteReader& reader)
+    {
+        auto opc   = MemOpcode::Decode(reader);
+        auto xr    = Format::XR::Decode(reader);
+        auto imm32 = Format::Imm32::Decode(reader);
+        return M6xri32 { opc, xr, imm32 };
+    }
+};
+
 struct M10xri64 {
     MemOpcode opc;
     Format::XR xr;
-    uint64_t imm64;
+    Format::Imm64 imm64;
 
     inline static M10xri64 Decode(Decoder::ByteReader& reader)
     {
         auto opc   = MemOpcode::Decode(reader);
         auto xr  = Format::XR::Decode(reader);
-        auto imm64 = reader.Read64();
+        auto imm64 = Format::Imm64::Decode(reader);
         return M10xri64 { opc, xr, imm64 };
     }
 };

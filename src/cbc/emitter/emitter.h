@@ -47,6 +47,7 @@ public:
         // tail instructions
         void LoadObj(LoadAccessKind ldk, Reg dst, IReg base);
         void StoreObj(StoreAccessKind stk, Reg src, IReg base);
+        void StoreObjImm(StoreAccessKind stk, Reg base, uint64_t imm);
 
         void LoadDerived(LoadAccessKind ldk, Reg dst, IReg base, IReg derived);
         void StoreDerived(StoreAccessKind stk, Reg src, IReg base, IReg derived);
