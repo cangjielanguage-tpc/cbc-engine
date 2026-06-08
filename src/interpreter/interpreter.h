@@ -114,6 +114,20 @@ public:
         return true;
     }
 
+    inline bool StoreObjImm(Format::StoreAccessKind stk, IReg base, uint64_t offset, uint64_t imm)
+    {
+        auto obj = ectype->GetReference(base);
+        if (!NullCheck(obj)) {
+            return false;
+        }
+        if (stk == StoreAccessKind::ST_REF) {
+            return false;
+        } else {
+            MemoryLocation(obj.value, offset).StoreImm(stk, imm);
+        }
+        return true;
+    }
+
     inline bool LoadDerived(Format::LoadAccessKind ldk, Format::Reg dst, IReg base, IReg derived, uint64_t offset)
     {
         auto obj = ectype->GetReference(base);

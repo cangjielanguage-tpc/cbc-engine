@@ -707,18 +707,6 @@ struct IsaRewriter : public IsaParser {
         msr.emit.OffsetRegIdx(reg, size);
     }
 
-    void ForEachInstanceField(std::vector<uint16_t> refs, std::function<void(const InstanceField*)> visitor) {
-        for (auto fieldId : refs) {
-            auto f = resolver.Query(Index<InstanceField>(fieldId));
-            if (!f.has_value()) {
-                Fail();
-                return;
-            }
-            auto field  = f.value();
-            visitor(field);
-        }
-    }
-
     void MemTailLoad(MemSpace& ms, IReg dst, std::vector<uint16_t> refs) override
     {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
@@ -764,7 +752,9 @@ struct IsaRewriter : public IsaParser {
     void MemTailStoreImm(MemSpace& ms, uint64_t imm) override
     {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
-        if (msr.frame) {
+        if (msr.base.has_value()) {
+            msr.emit.StoreObjImm(Stk(msr.lastFieldKind), msr.base.value(), imm);
+        } else if (msr.frame) {
             msr.emit.StoreFrameImm(Stk(msr.lastFieldKind), imm);
         } else {
             Fail();
