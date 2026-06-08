@@ -12,7 +12,13 @@ void Encode(ByteBuffer& buf, Format::XR xr) { buf.AddW8(static_cast<uint32_t>(xr
 
 void Encode(ByteBuffer& buf, Format::XX xx) { buf.AddW8(static_cast<uint32_t>(xx.imm1 | (xx.imm2 << 4))); }
 
+void Encode(ByteBuffer& buf, Format::Imm8 i8) { buf.AddW8(i8.imm); }
+
 void Encode(ByteBuffer& buf, Format::Imm16 i16) { buf.AddW16(i16.imm); }
+
+void Encode(ByteBuffer& buf, Format::Imm32 i32) { buf.AddW32(i32.imm); }
+
+void Encode(ByteBuffer& buf, Format::Imm64 i64) { buf.AddW64(i64.imm); }
 
 void Encode(ByteBuffer& buf, Format::XImm12 xi12) { buf.AddW16(Format::XImm12::Raw(xi12)); }
 
@@ -28,6 +34,20 @@ void Encode(ByteBuffer& buf, RT::B2xr command)
 {
     Encode(buf, command.opc);
     Encode(buf, command.xr);
+}
+
+void Encode(ByteBuffer& buf, RT::B3xri8 command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.xr);
+    Encode(buf, command.imm8);
+}
+
+void Encode(ByteBuffer& buf, RT::B4xri16 command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.xr);
+    Encode(buf, command.imm);
 }
 
 void Encode(ByteBuffer& buf, RT::B3xrrr command)
@@ -92,11 +112,32 @@ void Encode(ByteBuffer& buf, RT::M9i64 command)
     buf.AddW64(command.imm64);
 }
 
+void Encode(ByteBuffer& buf, RT::M3xri8 command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.xr);
+    Encode(buf, command.imm8);
+}
+
+void Encode(ByteBuffer& buf, RT::M4xri16 command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.xr);
+    Encode(buf, command.imm16);
+}
+
+void Encode(ByteBuffer& buf, RT::M6xri32 command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.xr);
+    Encode(buf, command.imm32);
+}
+
 void Encode(ByteBuffer& buf, RT::M10xri64 command)
 {
     Encode(buf, command.opc);
     Encode(buf, command.xr);
-    buf.AddW64(command.imm64);
+    Encode(buf, command.imm64);
 }
 
 void Encode(ByteBuffer& buf, RT::M2rr command)
@@ -110,10 +151,6 @@ void Encode(ByteBuffer& buf, RT::M2xr command)
     Encode(buf, command.opc);
     Encode(buf, command.xr);
 }
-
-void Encode(ByteBuffer& buf, Format::Imm32 i32) { buf.AddW32(i32.imm); }
-
-void Encode(ByteBuffer& buf, Format::Imm64 i64) { buf.AddW64(i64.imm); }
 
 void Encode(ByteBuffer& buf, Format::RImm12 ri12) { buf.AddW16(Format::RImm12::Raw(ri12)); }
 

@@ -713,7 +713,7 @@ OFFS_REG: {
 OFFS_REG_IDX64: {
     auto args = M10xri64::Decode(reader);
     LOG_INSTR;
-    memspaceOffsetAcc += interpreter.MemOffsetReg(args.xr.r.IR()) * interpreter.MemOffset(args.imm64);
+    memspaceOffsetAcc += interpreter.MemOffsetReg(args.xr.r.IR()) * interpreter.MemOffset(args.imm64.imm);
     MEM_NEXT;
 }
 #define RLD(ldk)                                                                                                       \
@@ -754,6 +754,29 @@ OFFS_REG_IDX64: {
     RST(F32)
     RST(F64)
 #undef RST
+
+#define RSTI(memSize, immSize, encoding)                                                                               \
+    RSTI_##memSize##_##immSize:                                                                                        \
+    {                                                                                                                  \
+        auto args = encoding::Decode(reader);                                                                          \
+        LOG_INSTR;                                                                                                     \
+        uint64_t imm = MathUtils::SignExtend(static_cast<uint64_t>(args.imm##immSize.imm), immSize);                   \
+        IReg base    = args.xr.r.IR();                                                                                 \
+        bool successful =                                                                                              \
+            interpreter.StoreObjImm(Format::StoreAccessKind::ST_##memSize, base, memspaceOffsetAcc, imm);              \
+        NEXT_COND(successful);                                                                                         \
+    }
+    RSTI(8, 8, M3xri8)
+    RSTI(16, 8, M3xri8)
+    RSTI(16, 16, M4xri16)
+    RSTI(32, 8, M3xri8)
+    RSTI(32, 16, M4xri16)
+    RSTI(32, 32, M6xri32)
+    RSTI(64, 8, M3xri8)
+    RSTI(64, 16, M4xri16)
+    RSTI(64, 32, M6xri32)
+    RSTI(64, 64, M10xri64)
+#undef RSTI
 
 #define SLD(ldk)                                                                                                       \
     SLD_##ldk:                                                                                                         \
