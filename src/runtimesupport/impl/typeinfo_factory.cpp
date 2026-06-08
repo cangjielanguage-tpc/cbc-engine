@@ -27,6 +27,8 @@
 
 namespace RTSupport {
 
+static const std::string ARRAY_NAME = "RawArray";
+
 template <typename T> static T* Alloc(size_t cnt = 1) { return reinterpret_cast<T*>(std::malloc(sizeof(T) * cnt)); }
 
 static std::optional<TypeInfo> QueryTypeInfoAOTByName(char const* str);
@@ -413,23 +415,22 @@ static std::optional<TypeInfo> QueryTypeInfoAOTByName(char const* str)
     }
 }
 
-static std::optional<TypeInfo> QueryTypeInfoAOT(Engine::Session& session, Engine::TypeInfoManager& manager, Engine::Identifier<Symlevel::String> ident, Engine::Term term)
+std::string GetTypeName(Engine::Session& session, Engine::Identifier<Symlevel::String> ident)
 {
-    std::string typeName;
-    if (term.GetKind() == Engine::TermKind::CANGJIE_ARRAY) {
-        typeName = "RawArray";
-    } else {
-        typeName = std::string(Symlevel::Reader::Read(session, ident.GetFileId(), ident.GetOffset()));
-    }
+    return std::string(Symlevel::Reader::Read(session, ident));
+}
 
-    // TODO: why check both predicates?
-    if (term.GetLength() > 0 || term.IsGeneric()) {
-
+static std::optional<TypeInfo> QueryTypeInfoAOT(
+    Engine::Session& session, Engine::TypeInfoManager& manager, std::string const& typeName, Engine::Term term
+)
+{
+    ASSERT(!term.IsGeneric());
+    if (term.GetLength() > 0) {
         std::vector<DYN_TypeInfo*> infos;
 
         Log::typeinfo.Log(Logging::Level::TRACE, [&session, &term](Stream::Output& out) {
             Stream::ResolvingOutput stream(session, out);
-            stream << "querying generic " << (Engine::Term(term).GetName(session)).c_str() << Stream::endl;
+            stream << "querying generic " << term << Stream::endl;
         });
 
         for (auto i = 0; i < term.GetLength(); i++) {
@@ -438,7 +439,7 @@ static std::optional<TypeInfo> QueryTypeInfoAOT(Engine::Session& session, Engine
 
             Log::typeinfo.Log(Logging::Level::TRACE, [&session, &subterm](Stream::Output& out) {
                 Stream::ResolvingOutput stream(session, out);
-                stream << "querying with generic type param " << (subterm.GetName(session)).c_str() << Stream::endl;
+                stream << "querying with generic type param " << subterm << Stream::endl;
             });
 
             infos.emplace_back((DYN_TypeInfo*) ti->Raw());
@@ -458,14 +459,14 @@ static std::optional<TypeInfo> QueryTypeInfoAOT(Engine::Session& session, Engine
 
         Log::typeinfo.Log(Logging::Level::TRACE, [&session, &term](Stream::Output& out) {
             Stream::ResolvingOutput stream(session, out);
-            stream << "querying " << (Engine::Term(term).GetName(session)).c_str() << Stream::endl;
+            stream << "querying " << term << Stream::endl;
         });
 
         auto typeInfo = g_CJNativeInterfaceInstance.typeInfo(typeName.c_str());
         if (typeInfo == nullptr) {
             Log::typeinfo.Log(Logging::Level::ERROR, [&session, &term](Stream::Output& out) {
                 Stream::ResolvingOutput stream(session, out);
-                stream << "failed to query " << (Engine::Term(term).GetName(session)).c_str() << Stream::endl;
+                stream << "failed to query " << term << Stream::endl;
             });
             return std::nullopt;
         }
@@ -482,15 +483,30 @@ std::optional<TypeInfo> CreateTypeInfo(
         stream << "start building " << term << Stream::endl;
     });
 
+    ASSERT(!Engine::Term(term).IsGeneric());
+
     auto createTypeInfo = [&]() {
         auto termIdent = term.GetId();
         switch (termIdent.GetKind()) {
             case Engine::TermKind::TYPE:    return CreateTypeInfoDyn(session, manager, term);
 
-            case Engine::TermKind::AOT_TYPE: return QueryTypeInfoAOT(session, manager, Engine::AotRefTermId(term).GetIdentifier(), Engine::Term(term));
-            case Engine::TermKind::AOT_REC:  return QueryTypeInfoAOT(session, manager, Engine::AotRecTermId(term).GetIdentifier(), Engine::Term(term));
+            case Engine::TermKind::AOT_TYPE:
+                return QueryTypeInfoAOT(
+                    session,
+                    manager,
+                    GetTypeName(session, Engine::AotRefTermId(term).GetIdentifier()),
+                    Engine::Term(term)
+                );
+            case Engine::TermKind::AOT_REC:
+                return QueryTypeInfoAOT(
+                    session,
+                    manager,
+                    GetTypeName(session, Engine::AotRecTermId(term).GetIdentifier()),
+                    Engine::Term(term)
+                );
 
-            case Engine::TermKind::CANGJIE_ARRAY: return QueryTypeInfoAOT(session, manager, Engine::ArrayTermId(term).GetIdentifier(), Engine::Term(term));
+            case Engine::TermKind::CANGJIE_ARRAY:
+                return QueryTypeInfoAOT(session, manager, ARRAY_NAME, Engine::Term(term));
 
             case Engine::TermKind::BOOLEAN: return QueryTypeInfoAOTByName("Bool");
             case Engine::TermKind::U8:      return QueryTypeInfoAOTByName("UInt8");
