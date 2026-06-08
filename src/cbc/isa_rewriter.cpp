@@ -224,7 +224,7 @@ struct IsaRewriter : public IsaParser {
 
         auto typeInfo = type->GetTypeInfo().value();
         if (len != IReg::IR2) {
-            FATAL("newarr len register expected IR2, but found IR%d", len.Raw());
+            emit.Mov(IReg::IR2, len);
         }
         emit.NewArr(typeInfo);
         if (dst != IReg::IR1) {
