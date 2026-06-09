@@ -28,6 +28,7 @@
 namespace RTSupport {
 
 static const std::string ARRAY_NAME = "RawArray";
+static const std::string TUPLE_NAME = "Tuple";
 
 template <typename T> static T* Alloc(size_t cnt = 1) { return reinterpret_cast<T*>(std::malloc(sizeof(T) * cnt)); }
 
@@ -507,6 +508,9 @@ std::optional<TypeInfo> CreateTypeInfo(
 
             case Engine::TermKind::CANGJIE_ARRAY:
                 return QueryTypeInfoAOT(session, manager, ARRAY_NAME, Engine::Term(term));
+
+            case Engine::TermKind::TUPLE:
+                return QueryTypeInfoAOT(session, manager, TUPLE_NAME, Engine::Term(term));
 
             case Engine::TermKind::BOOLEAN: return QueryTypeInfoAOTByName("Bool");
             case Engine::TermKind::U8:      return QueryTypeInfoAOTByName("UInt8");
