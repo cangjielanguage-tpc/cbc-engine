@@ -355,6 +355,12 @@ struct IsaDisasm : public IsaParser {
         stream << "mem.index" << " " << reg.ToStr() << ", " << elemType << ", " << checked << endl;
     }
 
+    void MemBodyConstIndex(MemSpace& ms, int64_t idx, uint16_t refType) override
+    {
+        PrintMemPos();
+        stream << "mem.const.index" << " " << idx << ", " << refType << ", " << endl;
+    }
+
     void Refs(std::vector<uint16_t> refs)
     {
         stream << "[ ";
