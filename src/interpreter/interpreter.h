@@ -184,8 +184,7 @@ public:
                 // Static record field requires barrier
                 ectype->Put(dst.IR(), RTSupport::Execution::ReadObjectStatic(reinterpret_cast<void*>(offset), handle));
             } else {
-                auto ref = Value::Reference { .value = *reinterpret_cast<uintptr_t*>(base + offset) };
-                ectype->Put(dst.IR(), ref);
+                MemoryLocation(ptr, offset).LoadRef(dst, ectype);
             }
         } else {
             MemoryLocation(ptr, offset).LoadPrim(ldk, dst, ectype);
@@ -206,7 +205,7 @@ public:
                 // Static record field requires barrier
                 RTSupport::Execution::WriteObjectStatic(reinterpret_cast<void*>(offset), ref, handle);
             } else {
-                *reinterpret_cast<uintptr_t*>(base + offset) = ref.value;
+                MemoryLocation(ptr, offset).StoreRef(src, ectype);
             }
         } else {
             MemoryLocation(ptr, offset).StorePrim(stk, src, ectype);
