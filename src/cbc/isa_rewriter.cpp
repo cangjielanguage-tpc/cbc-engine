@@ -706,6 +706,7 @@ struct IsaRewriter : public IsaParser {
         }
         auto offset = *field->offset;
         msr.emit.Offset(offset);
+        msr.lastFieldKind = field->fieldType->GetKind();
     }
 
     void MemBodyIndex(MemSpace& ms, IReg reg, uint16_t typeId, bool checked) override
