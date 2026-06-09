@@ -115,7 +115,7 @@ struct FLManager : public FieldLayoutManager {
             }
 
             case TK::TUPLE: {
-                auto length = term.GetLength();
+                auto length   = term.GetLength();
                 uint32_t size = 0;
                 for (int i = 0; i < length; i++) {
                     auto subterm = term.Subterm(i);
