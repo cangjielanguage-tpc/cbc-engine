@@ -763,7 +763,7 @@ struct IsaRewriter : public IsaParser {
         } else if (msr.frame) {
             msr.emit.StoreFrameImm(Stk(msr.lastFieldKind), imm);
         } else {
-            Fail();
+            msr.emit.StoreRecImm(Stk(msr.lastFieldKind), IReg::IRZ, imm);
         }
     }
 
