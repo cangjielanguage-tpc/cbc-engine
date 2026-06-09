@@ -112,6 +112,7 @@ protected:
     virtual void MemBodyField3(MemSpace& ms, uint16_t f1, uint16_t f2, uint16_t f3) = 0;
     virtual void MemBodyField4(MemSpace& ms, uint16_t f1, uint16_t f2, uint16_t f3, uint16_t f4) = 0;
     virtual void MemBodyIndex(MemSpace& ms, IReg reg, uint16_t elemType, bool checked) = 0;
+    virtual void MemBodyConstIndex(MemSpace& ms, int64_t idx, uint16_t elemType)                 = 0;
 
     virtual void MemTailLoad(MemSpace& ms, IReg dst, std::vector<uint16_t> refs) = 0;
     virtual void MemTailStore(MemSpace& ms, IReg src, std::vector<uint16_t> refs) = 0;

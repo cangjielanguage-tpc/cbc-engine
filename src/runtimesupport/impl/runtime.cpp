@@ -91,7 +91,7 @@ void* Execution::GetInterfaceTarget(Reference base, TypeInfo interf, int methodN
     return table[methodNum];
 }
 
-int Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool adjustByHeader)
+uint32_t Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool adjustByHeader)
 {
     auto mrtti      = UnpackTypeInfo(ti);
     auto headerOffs = adjustByHeader ? sizeof(void*) : 0;

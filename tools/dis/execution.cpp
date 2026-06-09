@@ -41,7 +41,7 @@ Reference Execution::ReadObjectStatic(void* location, ThreadHandle th) { FATAL("
 
 void Execution::WriteObjectStatic(void* location, Reference object, ThreadHandle th) { FATAL("Should not be called"); }
 
-int Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool isRef) { FATAL("Should not reach here"); }
+uint32_t Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool isRef) { FATAL("Should not reach here"); }
 
 TypeInfo Execution::GetTypeInfo(Reference base) { FATAL("Should not be called"); }
 

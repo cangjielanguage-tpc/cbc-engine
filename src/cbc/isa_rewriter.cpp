@@ -103,7 +103,7 @@ struct IsaRewriter : public IsaParser {
     size_t startPosition;
     std::unordered_map<ssize_t, Emitter::Label> instructionLabel;
 
-    bool failed = false;
+    std::vector<size_t> failedPositions;
 
     InstructionOffsetsIndex BuildOffsetsIndex() { return InstructionOffsetsIndex::Create(emit, instructionLabel); }
 
@@ -670,6 +670,30 @@ struct IsaRewriter : public IsaParser {
         FieldOffset(msr, f4);
     }
 
+    void MemBodyConstIndex(MemSpace& ms, int64_t idx, uint16_t refType) override
+    {
+        // FIXME: elem type is computable, remove `refType` from encoding.
+        auto& msr = static_cast<MemSpaceRewriter&>(ms);
+        auto t    = resolver.Query(Index<Type>(refType));
+        if (!t.has_value()) {
+            Fail();
+            return;
+        }
+        // FIXME: support const indicies for arrays
+        auto f = resolver.QueryTupleElement(*t, idx);
+        if (!f.has_value()) {
+            Fail();
+            return;
+        }
+        auto field = *f;
+        if (!field->offset.has_value()) {
+            Fail();
+            return;
+        }
+        auto offset = *field->offset;
+        msr.emit.Offset(offset);
+    }
+
     void MemBodyIndex(MemSpace& ms, IReg reg, uint16_t typeId, bool checked) override
     {
         if (checked) {
@@ -692,12 +716,15 @@ struct IsaRewriter : public IsaParser {
 
         ASSERT(type->GetKind() == CbcTypeKind::REC);
 
-        auto typeInfo = type->GetTypeInfo().value();
-        auto size = RTSupport::MetaInfo::GetTypeSize(typeInfo);
+        auto size = type->GetFlatSize();
+        if (!size.has_value()) {
+            Fail();
+            return;
+        }
 
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
         msr.emit.Offset(RTSupport::MetaInfo::ArrayBodyOffset());
-        msr.emit.OffsetRegIdx(reg, size);
+        msr.emit.OffsetRegIdx(reg, *size);
     }
 
     void ForEachInstanceField(std::vector<uint16_t> refs, std::function<void(const InstanceField*)> visitor) {
@@ -786,13 +813,13 @@ struct IsaRewriter : public IsaParser {
         IsaParser::ParseOne();
     }
 
-    void Fail() { failed = true; }
+    void Fail() { failedPositions.push_back(startPosition); }
 
     void StopRewrite()
     {
+        Fail();
         auto left = reader.End() - reader.Cursor();
         reader.Advance(left);
-        failed = true;
     }
 };
 
@@ -869,10 +896,23 @@ static std::vector<Interpretation::PositionalInfo> CalculatePositionalGCInfo(
     return posInfo;
 }
 
+static std::string Descriptor(Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> method)
+{
+    Stream::StringBuffer buf;
+    Stream::ResolvingOutput out(session, buf);
+    out << method << " ";
+    return buf.ToString();
+}
+
 Interpretation::ExecBytecodeInfo Rewrite(
-    Engine::Session& session, MethodCode code, Resolver& resolver, Memory::Heap& heap
+    Engine::Session& session,
+    MethodCode code,
+    Resolver& resolver,
+    Memory::Heap& heap,
+    Engine::Identifier<Symlevel::MethodDefinition> method
 )
 {
+    using namespace Stream;
     Emitter::Emitter emitter;
     auto frameLayout = makeFrameLayout(code, resolver);
 
@@ -883,7 +923,14 @@ Interpretation::ExecBytecodeInfo Rewrite(
     auto rewriter = IsaRewriter(resolver, code, *frameLayout, emitter);
     rewriter.ParseAll();
 
-    if (rewriter.failed) {
+    if (!rewriter.failedPositions.empty()) {
+        Interpretation::Log::preparation.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
+            out << "Failed to rewrite method at positions: ";
+            for (auto pos : rewriter.failedPositions) {
+                out << pos << ", ";
+            }
+            out.NewLine();
+        });
         FATAL("Rewriter failed: cannot rewrite code.");
     }
 
@@ -904,14 +951,6 @@ Interpretation::ExecBytecodeInfo Rewrite(
     };
 }
 
-static std::string Descriptor(Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> method)
-{
-    Stream::StringBuffer buf;
-    Stream::ResolvingOutput out(session, buf);
-    out << method << " ";
-    return buf.ToString();
-}
-
 Interpretation::ExecBytecodeInfo Rewrite(
     Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> method, Memory::Heap& heap
 )
@@ -929,7 +968,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
         Disasm(desc, code, &resolver);
     });
 
-    auto res = Rewrite(session, code, resolver, heap);
+    auto res = Rewrite(session, code, resolver, heap, method);
 
     Interpretation::Log::preparation.Log(Logging::Level::INFO, [&](Stream::Output& out) {
         Descripted desc(out, Descriptor(session, method));
