@@ -51,9 +51,11 @@ public:
 
         void LoadDerived(LoadAccessKind ldk, Reg dst, IReg base, IReg derived);
         void StoreDerived(StoreAccessKind stk, Reg src, IReg base, IReg derived);
+        void StoreDerivedImm(StoreAccessKind stk, IReg base, IReg derived, uint64_t imm);
 
         void LoadRec(LoadAccessKind ldk, Reg dst, IReg base);
         void StoreRec(StoreAccessKind stk, Reg src, IReg base);
+        void StoreRecImm(StoreAccessKind stk, Reg base, uint64_t imm);
 
         void LoadFrame(LoadAccessKind ldk, Reg dst);
         void StoreFrame(StoreAccessKind stk, Reg src);
