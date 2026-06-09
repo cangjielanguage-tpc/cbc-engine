@@ -596,6 +596,7 @@ struct IsaRewriter : public IsaParser {
         }
         auto field = f.value();
         if (field->offset.has_value()) {
+            // TODO: accumulate offset for field sequence
             msr.emit.Offset(field->offset.value());
             msr.lastFieldKind = field->fieldType->GetKind();
             return field->refType->GetKind() == CbcTypeKind::REF;
@@ -730,6 +731,8 @@ struct IsaRewriter : public IsaParser {
         } else if (msr.frame) {
             msr.emit.LoadFrame(Ldk(msr.lastFieldKind), dst);
         } else {
+            // IRZ means static record field, so whole position is encoded in accumulated offset
+            // FIXME: encode as separate operation
             msr.emit.LoadRec(Ldk(msr.lastFieldKind), dst, IReg::IRZ);
         }
     }
@@ -751,6 +754,8 @@ struct IsaRewriter : public IsaParser {
         } else if (msr.frame) {
             msr.emit.StoreFrame(Stk(msr.lastFieldKind), src);
         } else {
+            // IRZ means static record field, so whole position is encoded in accumulated offset
+            // FIXME: encode as separate operation
             msr.emit.StoreRec(Stk(msr.lastFieldKind), src, IReg::IRZ);
         }
     }
@@ -769,6 +774,8 @@ struct IsaRewriter : public IsaParser {
         } else if (msr.frame) {
             msr.emit.StoreFrameImm(Stk(msr.lastFieldKind), imm);
         } else {
+            // IRZ means static record field, so whole position is encoded in accumulated offset
+            // FIXME: encode as separate operation
             msr.emit.StoreRecImm(Stk(msr.lastFieldKind), IReg::IRZ, imm);
         }
     }
