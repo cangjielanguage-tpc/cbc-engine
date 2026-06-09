@@ -574,6 +574,7 @@ struct IsaRewriter : public IsaParser {
             emit(emit),
             base(std::nullopt),
             derived(std::nullopt),
+            ref(false),
             frame(false),
             lastFieldKind(CbcTypeKind::INVALID)
         {}
@@ -581,24 +582,27 @@ struct IsaRewriter : public IsaParser {
         MemSpaceEmitter emit;
         std::optional<IReg> base;
         std::optional<IReg> derived;
+        bool ref;
         bool frame;
         CbcTypeKind lastFieldKind;
     };
 
-    void FieldOffset(MemSpaceRewriter& msr, uint16_t fieldId)
+    bool FieldOffset(MemSpaceRewriter& msr, uint16_t fieldId)
     {
         auto f = resolver.Query(Index<InstanceField>(fieldId));
         if (!f.has_value()) {
             Fail();
-            return;
+            return false;
         }
         auto field = f.value();
         if (field->offset.has_value()) {
             msr.emit.Offset(field->offset.value());
             msr.lastFieldKind = field->fieldType->GetKind();
+            return field->refType->GetKind() == CbcTypeKind::REF;
         } else {
             errStream << "Failed to get offset of field " << *field << Stream::endl;
             Fail();
+            return false;
         }
     }
 
@@ -607,20 +611,21 @@ struct IsaRewriter : public IsaParser {
         return std::make_unique<MemSpaceRewriter>(MemSpaceRewriter(emit.OpenMemSpace()));
     }
 
-    void MemHeadReg(MemSpace& ms, IReg scratch, IReg base) override
+    void MemHeadReg(MemSpace& ms, IReg base, bool isRef) override
     {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
         msr.base = base;
+        msr.ref = isRef;
     }
 
-    void MemHeadField(MemSpace& ms, IReg scratch, IReg base, uint16_t fieldId) override
+    void MemHeadField(MemSpace& ms, IReg base, uint16_t fieldId) override
     {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
         msr.base = base;
-        FieldOffset(msr, fieldId);
+        msr.ref = FieldOffset(msr, fieldId);
     }
 
-    void MemHeadStatic(MemSpace& ms, IReg scratch, uint16_t fieldId) override
+    void MemHeadStatic(MemSpace& ms, uint16_t fieldId) override
     {
         auto f = resolver.Query(Index<StaticField>(fieldId));
         if (!f.has_value()) {
@@ -634,14 +639,14 @@ struct IsaRewriter : public IsaParser {
         msr.lastFieldKind = field->fieldType->GetKind();
     }
 
-    void MemHeadHandle(MemSpace& ms, IReg scratch, IReg base, IReg derived) override
+    void MemHeadHandle(MemSpace& ms, IReg base, IReg derived) override
     {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
         msr.base = base;
         msr.derived = derived;
     }
 
-    void MemHeadTyped(MemSpace& ms, IReg scratch, uint16_t ts) override
+    void MemHeadTyped(MemSpace& ms, uint16_t ts) override
     {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
         msr.emit.Offset(frameLayout.typedOffset.at(ts));
@@ -729,8 +734,10 @@ struct IsaRewriter : public IsaParser {
         if (msr.base.has_value()) {
             if (msr.derived.has_value()) {
                 msr.emit.LoadDerived(Ldk(msr.lastFieldKind), dst, msr.base.value(), msr.derived.value());
-            } else {
+            } else if (msr.ref) {
                 msr.emit.LoadObj(Ldk(msr.lastFieldKind), dst, msr.base.value());
+            } else {
+                msr.emit.LoadRec(Ldk(msr.lastFieldKind), dst, msr.base.value());
             }
         } else if (msr.frame) {
             msr.emit.LoadFrame(Ldk(msr.lastFieldKind), dst);
@@ -748,8 +755,10 @@ struct IsaRewriter : public IsaParser {
         if (msr.base.has_value()) {
             if (msr.derived.has_value()) {
                 msr.emit.StoreDerived(Stk(msr.lastFieldKind), src, msr.base.value(), msr.derived.value());
-            } else {
+            } else if (msr.ref) {
                 msr.emit.StoreObj(Stk(msr.lastFieldKind), src, msr.base.value());
+            } else {
+                msr.emit.StoreRec(Stk(msr.lastFieldKind), src, msr.base.value());
             }
         } else if (msr.frame) {
             msr.emit.StoreFrame(Stk(msr.lastFieldKind), src);
