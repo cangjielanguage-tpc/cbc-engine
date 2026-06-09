@@ -453,6 +453,34 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M10xri64 a
     formatter.Format();
 }
 
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M3rri8 args)
+{
+    Operand operands[] = { args.rr.x, args.rr.y, args.imm8.imm };
+    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
+    formatter.Format();
+}
+
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M4rri16 args)
+{
+    Operand operands[] = { args.rr.x, args.rr.y, args.imm16.imm };
+    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
+    formatter.Format();
+}
+
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M6rri32 args)
+{
+    Operand operands[] = { args.rr.x, args.rr.y, args.imm32.imm };
+    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
+    formatter.Format();
+}
+
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M10rri64 args)
+{
+    Operand operands[] = { args.rr.x, args.rr.y, args.imm64.imm };
+    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
+    formatter.Format();
+}
+
 void LogBaseSpaceInstruction(
     uint32_t opc, Interpretation::LiteralTable* table, Stream::Output& stream, Decoder::ByteReader& reader
 )

@@ -215,5 +215,33 @@ void Encode(ByteBuffer& buf, RT::B13i64i32 command)
     Encode(buf, command.imm32);
 }
 
+void Encode(ByteBuffer& buf, RT::M3rri8 command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.rr);
+    Encode(buf, command.imm8);
+}
+
+void Encode(ByteBuffer& buf, RT::M4rri16 command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.rr);
+    Encode(buf, command.imm16);
+}
+
+void Encode(ByteBuffer& buf, RT::M6rri32 command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.rr);
+    Encode(buf, command.imm32);
+}
+
+void Encode(ByteBuffer& buf, RT::M10rri64 command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.rr);
+    Encode(buf, command.imm64);
+}
+
 } // namespace Emitter
 } // namespace Cbc
