@@ -70,7 +70,8 @@ enum class TermKind : uint8_t {
     NULLABLE,
     NON_NULLABLE,
     CANGJIE_ARRAY,
-    METHOD,
+    FUNCTIONAL,
+    TUPLE,
     // builtin types end
 
     TYPE,

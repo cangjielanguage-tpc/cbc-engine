@@ -895,7 +895,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
         .savedIRegs       = code.UsedNonVolIRegMask(),
         .savedFRegs       = code.UsedNonVolFRegMask(),
         .untypedSlotCount = static_cast<uint16_t>(code.UntypedSlotCount()),
-        .frameSize        = (*frameLayout).frameSize,
+        .frameSize        = frameLayout->frameSize,
         .gcInfo =
             Interpretation::GcInfo {
                 .positionalInfo = std::move(CalculatePositionalGCInfo(session, code, offsetsIndex)),

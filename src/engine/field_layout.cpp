@@ -89,6 +89,7 @@ struct FLManager : public FieldLayoutManager {
             case TK::AOT_TYPE:
             case TK::NULLABLE:
             case TK::NON_NULLABLE:
+            case TK::FUNCTIONAL:
             case TK::CANGJIE_ARRAY: return sizeof(void*);
 
             case TK::TYPE: {
@@ -113,13 +114,26 @@ struct FLManager : public FieldLayoutManager {
                 return RTSupport::MetaInfo::GetTypeSize(*ti);
             }
 
+            case TK::TUPLE: {
+                auto length = term.GetLength();
+                uint32_t size = 0;
+                for (int i = 0; i < length; i++) {
+                    auto subterm = term.Subterm(i);
+                    auto optSize = GetFlatSize(subterm);
+                    if (!optSize.has_value()) {
+                        return std::nullopt;
+                    }
+                    size += *optSize;
+                }
+                return size;
+            }
+
             case TK::FUNC_TYPE_VAR:
             case TK::CLASS_TYPE_VAR: return std::nullopt;
 
             case TK::NIL:
             case TK::NOTHING:
             case TK::UNDEFINED:
-            case TK::METHOD:
             case TK::GENERIC_METHOD:
             case TK::LAST:           return std::nullopt;
 
