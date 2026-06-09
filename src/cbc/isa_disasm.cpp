@@ -128,6 +128,11 @@ struct IsaDisasm : public IsaParser {
         stream << ", " << to << ", " << from << endl;
     }
 
+    void MovBasePtr(IReg dst, bool local) override
+    {
+        stream << "mov.base.ptr" << (local ? ".local" : ".global") << " " << dst.ToStr() << endl;
+    }
+
     void BFX(IReg dst, IReg src, Format::Width resW, Format::Width argW, bool sx, uint8_t offset, uint8_t size) override
     {
         stream << "bfx" << " " << dst.ToStr() << ", " << src.ToStr() << ", ";
@@ -310,9 +315,9 @@ struct IsaDisasm : public IsaParser {
         stream << "mem.static" << " " << scratch << ", " << field << endl;
     }
 
-    void MemHeadHandle(MemSpace& ms, IReg scratch, IReg base, IReg offset) override
+    void MemHeadHandle(MemSpace& ms, IReg scratch, IReg base, IReg derived) override
     {
-        stream << "mem.handle" << " " << scratch << ", " << base.ToStr() << ", " << offset.ToStr() << endl;
+        stream << "mem.handle" << " " << scratch << ", " << base.ToStr() << ", " << derived.ToStr() << endl;
     }
 
     void MemHeadTyped(MemSpace& ms, IReg scratch, uint16_t ts) override

@@ -111,6 +111,13 @@ void Encode(ByteBuffer& buf, RT::M2xr command)
     Encode(buf, command.xr);
 }
 
+void Encode(ByteBuffer& buf, RT::M3xrrr command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.xr);
+    Encode(buf, command.rr);
+}
+
 void Encode(ByteBuffer& buf, Format::Imm32 i32) { buf.AddW32(i32.imm); }
 
 void Encode(ByteBuffer& buf, Format::Imm64 i64) { buf.AddW64(i64.imm); }

@@ -125,6 +125,35 @@ void MemSpaceEmitter::StoreObj(StoreAccessKind stk, Reg src, IReg base)
     LoadStore(stk, src, base, opc);
 }
 
+void MemSpaceEmitter::LoadDerived(LoadAccessKind ldk, Reg dst, IReg base, IReg derived)
+{
+    RT::MemOpcode opc = ComputeLoadAccessKind(ldk, RT::MemOpcode::DLD_START_OPCODE);
+    ASSERT(opc <= RT::MemOpcode::DLD_END_OPCODE);
+    LoadStore(ldk, dst, base, opc);
+    Encode(
+        segment,
+        RT::M3xrrr {
+            .opc = opc,
+            .xr  = Format::XR { .imm = 0, .r = dst },
+            .rr  = Format::RR { .x = base, .y = derived },
+        }
+    );
+}
+
+void MemSpaceEmitter::StoreDerived(StoreAccessKind stk, Reg src, IReg base, IReg derived)
+{
+    RT::MemOpcode opc = ComputeStoreAccessKind(stk, RT::MemOpcode::DST_START_OPCODE);
+    ASSERT(opc <= RT::MemOpcode::DST_END_OPCODE);
+    Encode(
+        segment,
+        RT::M3xrrr {
+            .opc = opc,
+            .xr  = Format::XR { .imm = 0, .r = src },
+            .rr  = Format::RR { .x = base, .y = derived },
+        }
+    );
+}
+
 void MemSpaceEmitter::LoadRec(LoadAccessKind ldk, Reg dst, IReg base)
 {
     RT::MemOpcode opc = ComputeLoadAccessKind(ldk, RT::MemOpcode::SLD_START_OPCODE);

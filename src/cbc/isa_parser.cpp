@@ -325,6 +325,12 @@ struct IsaParserImpl {
         parser.MovImm(width, dst, MergeLowHi(low4, hibits));
     }
 
+    static void MovBasePtr(IsaParser& parser)
+    {
+        auto [dst, local] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
+        parser.MovBasePtr(dst, local);
+    }
+
     static void BFX(IsaParser& parser)
     {
         auto [dst, src, byte1, byte2 ] =
@@ -625,8 +631,8 @@ struct IsaParserImpl {
     static void MemHeadHandle(IsaParser& parser)
     {
         auto ms = parser.OpenMemSpace();
-        auto [skip, scratch, base, offset] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
-        parser.MemHeadHandle(*ms, scratch, base, offset);
+        auto [skip, scratch, base, derived] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
+        parser.MemHeadHandle(*ms, scratch, base, derived);
         ParseMemExpr(parser, *ms);
     }
 

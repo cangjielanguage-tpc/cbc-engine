@@ -108,6 +108,23 @@
     X(RST_REF, M2rr, "rst.ref $0ir $1ir }", true)                                                                      \
     X(RST_F32, M2rr, "rst.f32 $0fr $1ir }", true)                                                                      \
     X(RST_F64, M2rr, "rst.f64 $0fr $1ir }", true)                                                                      \
+    X(DLD_U8, M3xrrr, "dld.u8 $1ir $2ir $3ir }", true)                                                                 \
+    X(DLD_U16, M3xrrr, "dld.u16 $1ir $2ir $3ir }", true)                                                               \
+    X(DLD_32, M3xrrr, "dld.u32 $1ir $2ir $3ir }", true)                                                                \
+    X(DLD_S8, M3xrrr, "dld.s8 $1ir $2ir $3ir }", true)                                                                 \
+    X(DLD_S16, M3xrrr, "dld.s16 $1ir $2ir $3ir }", true)                                                               \
+    X(DLD_F32, M3xrrr, "dld.f32 $1fr $2ir $3ir }", true)                                                               \
+    X(DLD_F64, M3xrrr, "dld.f64 $1fr $2ir $3ir }", true)                                                               \
+    X(DLD_64, M3xrrr, "dld.64 $1ir $2ir $3ir }", true)                                                                 \
+    X(DLD_S32TO64, M3xrrr, "dld.s32to64 $1ir $2ir $3ir }", true)                                                       \
+    X(DLD_REF, M3xrrr, "dld.ref $1ir $2ir $3ir }", true)                                                               \
+    X(DST_8, M3xrrr, "dst.8 $1ir $2ir $3ir }", true)                                                                   \
+    X(DST_16, M3xrrr, "dst.16 $1ir $2ir $3ir }", true)                                                                 \
+    X(DST_32, M3xrrr, "dst.32 $1ir $2ir $3ir }", true)                                                                 \
+    X(DST_64, M3xrrr, "dst.64 $1ir $2ir $3ir }", true)                                                                 \
+    X(DST_REF, M3xrrr, "dst.ref $1ir $2ir $3ir }", true)                                                               \
+    X(DST_F32, M3xrrr, "dst.f32 $1fr $2ir $3ir }", true)                                                               \
+    X(DST_F64, M3xrrr, "dst.f64 $rfr $2ir $3ir }", true)                                                               \
     X(SLD_U8, M2rr, "sld.u8 $0ir $1ir }", true)                                                                        \
     X(SLD_U16, M2rr, "sld.u16 $0ir $1ir }", true)                                                                      \
     X(SLD_32, M2rr, "sld.u32 $0ir $1ir }", true)                                                                       \
@@ -215,12 +232,16 @@ public:
 
     static constexpr auto RLD_START_OPCODE  = RLD_U8;
     static constexpr auto RLD_END_OPCODE    = RLD_REF;
+    static constexpr auto DLD_START_OPCODE  = DLD_U8;
+    static constexpr auto DLD_END_OPCODE    = DLD_REF;
     static constexpr auto SLD_START_OPCODE  = SLD_U8;
     static constexpr auto SLD_END_OPCODE    = SLD_REF;
     static constexpr auto FLD_START_OPCODE  = FLD_U8;
     static constexpr auto FLD_END_OPCODE    = FLD_REF;
     static constexpr auto RST_START_OPCODE  = RST_8;
     static constexpr auto RST_END_OPCODE    = RST_F64;
+    static constexpr auto DST_START_OPCODE  = DST_8;
+    static constexpr auto DST_END_OPCODE    = DST_F64;
     static constexpr auto SST_START_OPCODE  = SST_8;
     static constexpr auto SST_END_OPCODE    = SST_F64;
     static constexpr auto FST_START_OPCODE  = FST_8;
@@ -617,6 +638,20 @@ struct M2xr {
         auto opc = MemOpcode::Decode(reader);
         auto xr  = Format::XR::Decode(reader);
         return M2xr { opc, xr };
+    }
+};
+
+struct M3xrrr {
+    MemOpcode opc;
+    Format::XR xr;
+    Format::RR rr;
+
+    inline static M3xrrr Decode(Decoder::ByteReader& reader)
+    {
+        auto opc = MemOpcode::Decode(reader);
+        auto xr  = Format::XR::Decode(reader);
+        auto rr  = Format::RR::Decode(reader);
+        return M3xrrr { opc, xr, rr };
     }
 };
 

@@ -41,6 +41,7 @@ void Encode(ByteBuffer& buf, RT::M9i64 command);
 void Encode(ByteBuffer& buf, RT::M10xri64 command);
 void Encode(ByteBuffer& buf, RT::M2rr command);
 void Encode(ByteBuffer& buf, RT::M2xr command);
+void Encode(ByteBuffer& buf, RT::M3xrrr command);
 
 } // namespace Emitter
 } // namespace Cbc

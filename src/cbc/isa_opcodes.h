@@ -28,6 +28,7 @@
     X(FMov64, FMov<Width::W64>)                                                                                        \
     X(FMov32i, FMovImm<Width::W32>)                                                                                    \
     X(FMov64i, FMovImm<Width::W64>)                                                                                    \
+    X(MovBP, MovBasePtr)                                                                                               \
     X(BFX, BFX)                                                                                                        \
     X(LoadTyped, LoadTyped)                                                                                            \
     X(StoreTyped, StoreTyped)                                                                                          \

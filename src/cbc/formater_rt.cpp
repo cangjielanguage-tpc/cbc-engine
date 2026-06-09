@@ -390,6 +390,13 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M2i8 args)
     formatter.Format();
 }
 
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M3xrrr args)
+{
+    Operand operands[] = { args.xr.imm, args.xr.r, args.rr.x, args.rr.y };
+    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
+    formatter.Format();
+}
+
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M3i16 args)
 {
     Operand operands[] = { args.imm16 };
