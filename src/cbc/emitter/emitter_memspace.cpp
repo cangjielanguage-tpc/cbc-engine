@@ -195,231 +195,130 @@ static RT::MemOpcode ComputeStoreImmStart(Format::StoreAccessKind stk, RT::MemOp
     return RT::MemOpcode(start + delta);
 }
 
-void MemSpaceEmitter::StoreFrameImm(StoreAccessKind stk, uint64_t imm)
+static StoreAccessKind NormalizeStoreImmKind(StoreAccessKind stk)
 {
     switch (stk) {
-        case StoreAccessKind::ST_REF:
-            ASSERT(imm == 0);
-            StoreFrame(stk, IReg::IRZ);
-            return;
-        case StoreAccessKind::ST_F32: stk = StoreAccessKind::ST_32; break;
-        case StoreAccessKind::ST_F64: stk = StoreAccessKind::ST_64; break;
-        default: break;
+        case StoreAccessKind::ST_REF: FATAL("Unexpected store access kind: %s", stk.ToStr().data()); return stk;
+        case StoreAccessKind::ST_F32: return StoreAccessKind::ST_32;
+        case StoreAccessKind::ST_F64: return StoreAccessKind::ST_64;
+        default:                      return stk;
     }
+}
 
-    RT::MemOpcode opcStart = ComputeStoreImmStart(stk, RT::MemOpcode::FSTI_START_OPCODE);
+struct ImmBuilder {
+    auto I8(RT::MemOpcode opc, uint8_t v) const { return RT::M2i8 { opc, v }; }
 
+    auto I16(RT::MemOpcode opc, uint16_t v) const { return RT::M3i16 { opc, v }; }
+
+    auto I32(RT::MemOpcode opc, uint32_t v) const { return RT::M5i32 { opc, v }; }
+
+    auto I64(RT::MemOpcode opc, uint64_t v) const { return RT::M9i64 { opc, v }; }
+};
+
+struct XRImmBuilder {
+    Format::XR xr;
+
+    auto I8(RT::MemOpcode opc, uint8_t v) const { return RT::M3xri8 { opc, xr, { v } }; }
+
+    auto I16(RT::MemOpcode opc, uint16_t v) const { return RT::M4xri16 { opc, xr, { v } }; }
+
+    auto I32(RT::MemOpcode opc, uint32_t v) const { return RT::M6xri32 { opc, xr, { v } }; }
+
+    auto I64(RT::MemOpcode opc, uint64_t v) const { return RT::M10xri64 { opc, xr, { v } }; }
+};
+
+struct RRImmBuilder {
+    Format::RR rr;
+
+    auto I8(RT::MemOpcode opc, uint8_t v) const { return RT::M3rri8 { opc, rr, { v } }; }
+
+    auto I16(RT::MemOpcode opc, uint16_t v) const { return RT::M4rri16 { opc, rr, { v } }; }
+
+    auto I32(RT::MemOpcode opc, uint32_t v) const { return RT::M6rri32 { opc, rr, { v } }; }
+
+    auto I64(RT::MemOpcode opc, uint64_t v) const { return RT::M10rri64 { opc, rr, { v } }; }
+};
+
+template <typename Builder>
+static void EmitStoreImm(
+    Segment& seg,
+    StoreAccessKind stk,
+    uint64_t imm,
+    RT::MemOpcode opcStart,
+    RT::MemOpcode endOpcode,
+    const Builder& builder
+)
+{
     if (MathUtils::IsNBitsSigned(imm, 8) || stk == StoreAccessKind::ST_8) {
-        ASSERT(opcStart <= RT::MemOpcode::FSTI_END_OPCODE);
-        Encode(
-            segment,
-            RT::M2i8 {
-                .opc  = opcStart,
-                .imm8 = static_cast<uint8_t>(imm),
-            }
-        );
+        ASSERT(opcStart <= endOpcode);
+        Encode(seg, builder.I8(opcStart, static_cast<uint8_t>(imm)));
     } else if (MathUtils::IsNBitsSigned(imm, 16) || stk == StoreAccessKind::ST_16) {
-        RT::MemOpcode opc = RT::MemOpcode(opcStart + 1);
-        ASSERT(opc <= RT::MemOpcode::FSTI_END_OPCODE);
-        Encode(
-            segment,
-            RT::M3i16 {
-                .opc   = opc,
-                .imm16 = static_cast<uint16_t>(imm),
-            }
-        );
+        auto opc = RT::MemOpcode(opcStart + 1);
+        ASSERT(opc <= endOpcode);
+        Encode(seg, builder.I16(opc, static_cast<uint16_t>(imm)));
     } else if (MathUtils::IsNBitsSigned(imm, 32) || stk == StoreAccessKind::ST_32) {
-        RT::MemOpcode opc = RT::MemOpcode(opcStart + 2);
-        ASSERT(opc <= RT::MemOpcode::FSTI_END_OPCODE);
-        Encode(
-            segment,
-            RT::M5i32 {
-                .opc   = opc,
-                .imm32 = static_cast<uint32_t>(imm),
-            }
-        );
+        auto opc = RT::MemOpcode(opcStart + 2);
+        ASSERT(opc <= endOpcode);
+        Encode(seg, builder.I32(opc, static_cast<uint32_t>(imm)));
     } else {
-        RT::MemOpcode opc = RT::MemOpcode(opcStart + 3);
-        ASSERT(opc <= RT::MemOpcode::FSTI_END_OPCODE);
-        Encode(
-            segment,
-            RT::M9i64 {
-                .opc   = opc,
-                .imm64 = imm,
-            }
-        );
+        auto opc = RT::MemOpcode(opcStart + 3);
+        ASSERT(opc <= endOpcode);
+        Encode(seg, builder.I64(opc, imm));
     }
+}
+
+void MemSpaceEmitter::StoreFrameImm(StoreAccessKind stk, uint64_t imm)
+{
+    if (stk == StoreAccessKind::ST_REF) {
+        ASSERT(imm == 0);
+        StoreFrame(stk, IReg::IRZ);
+        return;
+    }
+    stk           = NormalizeStoreImmKind(stk);
+    auto opcStart = ComputeStoreImmStart(stk, RT::MemOpcode::FSTI_START_OPCODE);
+    EmitStoreImm(segment, stk, imm, opcStart, RT::MemOpcode::FSTI_END_OPCODE, ImmBuilder {});
 }
 
 void MemSpaceEmitter::StoreRecImm(StoreAccessKind stk, Reg base, uint64_t imm)
 {
-    switch (stk) {
-        case StoreAccessKind::ST_REF: ASSERT(false); return;
-        case StoreAccessKind::ST_F32: stk = StoreAccessKind::ST_32; break;
-        case StoreAccessKind::ST_F64: stk = StoreAccessKind::ST_64; break;
-        default:                      break;
-    }
-
-    RT::MemOpcode opcStart = ComputeStoreImmStart(stk, RT::MemOpcode::SSTI_START_OPCODE);
-
-    if (MathUtils::IsNBitsSigned(imm, 8) || stk == StoreAccessKind::ST_8) {
-        ASSERT(opcStart <= RT::MemOpcode::SSTI_END_OPCODE);
-        Encode(
-            segment,
-            RT::M3xri8 {
-                .opc  = opcStart,
-                .xr   = Format::XR { .imm = 0, .r = base.IR() },
-                .imm8 = Format::Imm8 { .imm = static_cast<uint8_t>(imm) },
-            }
-        );
-    } else if (MathUtils::IsNBitsSigned(imm, 16) || stk == StoreAccessKind::ST_16) {
-        RT::MemOpcode opc = RT::MemOpcode(opcStart + 1);
-        ASSERT(opc <= RT::MemOpcode::SSTI_END_OPCODE);
-        Encode(
-            segment,
-            RT::M4xri16 {
-                .opc   = opc,
-                .xr    = Format::XR { .imm = 0, .r = base.IR() },
-                .imm16 = Format::Imm16 { .imm = static_cast<uint16_t>(imm) },
-            }
-        );
-    } else if (MathUtils::IsNBitsSigned(imm, 32) || stk == StoreAccessKind::ST_32) {
-        RT::MemOpcode opc = RT::MemOpcode(opcStart + 2);
-        ASSERT(opc <= RT::MemOpcode::SSTI_END_OPCODE);
-        Encode(
-            segment,
-            RT::M6xri32 {
-                .opc   = opc,
-                .xr    = Format::XR { .imm = 0, .r = base.IR() },
-                .imm32 = Format::Imm32 { .imm = static_cast<uint32_t>(imm) },
-            }
-        );
-    } else {
-        RT::MemOpcode opc = RT::MemOpcode(opcStart + 3);
-        ASSERT(opc <= RT::MemOpcode::SSTI_END_OPCODE);
-        Encode(
-            segment,
-            RT::M10xri64 {
-                .opc   = opc,
-                .xr    = Format::XR { .imm = 0, .r = base.IR() },
-                .imm64 = Format::Imm64 { .imm = imm },
-            }
-        );
-    }
+    stk           = NormalizeStoreImmKind(stk);
+    auto opcStart = ComputeStoreImmStart(stk, RT::MemOpcode::SSTI_START_OPCODE);
+    EmitStoreImm(
+        segment,
+        stk,
+        imm,
+        opcStart,
+        RT::MemOpcode::SSTI_END_OPCODE,
+        XRImmBuilder { Format::XR { .imm = 0, .r = base.IR() } }
+    );
 }
 
 void MemSpaceEmitter::StoreDerivedImm(StoreAccessKind stk, IReg base, IReg derived, uint64_t imm)
 {
-    switch (stk) {
-        case StoreAccessKind::ST_REF: ASSERT(false); return;
-        case StoreAccessKind::ST_F32: stk = StoreAccessKind::ST_32; break;
-        case StoreAccessKind::ST_F64: stk = StoreAccessKind::ST_64; break;
-        default:                      break;
-    }
-
-    RT::MemOpcode opcStart = ComputeStoreImmStart(stk, RT::MemOpcode::DSTI_START_OPCODE);
-
-    if (MathUtils::IsNBitsSigned(imm, 8) || stk == StoreAccessKind::ST_8) {
-        ASSERT(opcStart <= RT::MemOpcode::DSTI_END_OPCODE);
-        Encode(
-            segment,
-            RT::M3rri8 {
-                .opc  = opcStart,
-                .rr   = Format::RR { .x = base, .y = derived },
-                .imm8 = Format::Imm8 { .imm = static_cast<uint8_t>(imm) },
-            }
-        );
-    } else if (MathUtils::IsNBitsSigned(imm, 16) || stk == StoreAccessKind::ST_16) {
-        RT::MemOpcode opc = RT::MemOpcode(opcStart + 1);
-        ASSERT(opc <= RT::MemOpcode::DSTI_END_OPCODE);
-        Encode(
-            segment,
-            RT::M4rri16 {
-                .opc   = opc,
-                .rr    = Format::RR { .x = base, .y = derived },
-                .imm16 = Format::Imm16 { .imm = static_cast<uint16_t>(imm) },
-            }
-        );
-    } else if (MathUtils::IsNBitsSigned(imm, 32) || stk == StoreAccessKind::ST_32) {
-        RT::MemOpcode opc = RT::MemOpcode(opcStart + 2);
-        ASSERT(opc <= RT::MemOpcode::DSTI_END_OPCODE);
-        Encode(
-            segment,
-            RT::M6rri32 {
-                .opc   = opc,
-                .rr    = Format::RR { .x = base, .y = derived },
-                .imm32 = Format::Imm32 { .imm = static_cast<uint32_t>(imm) },
-            }
-        );
-    } else {
-        RT::MemOpcode opc = RT::MemOpcode(opcStart + 3);
-        ASSERT(opc <= RT::MemOpcode::DSTI_END_OPCODE);
-        Encode(
-            segment,
-            RT::M10rri64 {
-                .opc   = opc,
-                .rr    = Format::RR { .x = base, .y = derived },
-                .imm64 = Format::Imm64 { .imm = imm },
-            }
-        );
-    }
+    stk           = NormalizeStoreImmKind(stk);
+    auto opcStart = ComputeStoreImmStart(stk, RT::MemOpcode::DSTI_START_OPCODE);
+    EmitStoreImm(
+        segment,
+        stk,
+        imm,
+        opcStart,
+        RT::MemOpcode::DSTI_END_OPCODE,
+        RRImmBuilder { Format::RR { .x = base, .y = derived } }
+    );
 }
 
 void MemSpaceEmitter::StoreObjImm(StoreAccessKind stk, Reg base, uint64_t imm)
 {
-    switch (stk) {
-        case StoreAccessKind::ST_REF: ASSERT(false); return;
-        case StoreAccessKind::ST_F32: stk = StoreAccessKind::ST_32; break;
-        case StoreAccessKind::ST_F64: stk = StoreAccessKind::ST_64; break;
-        default:                      break;
-    }
-
-    RT::MemOpcode opcStart = ComputeStoreImmStart(stk, RT::MemOpcode::RSTI_START_OPCODE);
-
-    if (MathUtils::IsNBitsSigned(imm, 8) || stk == StoreAccessKind::ST_8) {
-        ASSERT(opcStart <= RT::MemOpcode::RSTI_END_OPCODE);
-        Encode(
-            segment,
-            RT::M3xri8 {
-                .opc  = opcStart,
-                .xr   = Format::XR { .imm = 0, .r = base.IR() },
-                .imm8 = Format::Imm8 { .imm = static_cast<uint8_t>(imm) },
-            }
-        );
-    } else if (MathUtils::IsNBitsSigned(imm, 16) || stk == StoreAccessKind::ST_16) {
-        RT::MemOpcode opc = RT::MemOpcode(opcStart + 1);
-        ASSERT(opc <= RT::MemOpcode::RSTI_END_OPCODE);
-        Encode(
-            segment,
-            RT::M4xri16 {
-                .opc   = opc,
-                .xr    = Format::XR { .imm = 0, .r = base.IR() },
-                .imm16 = Format::Imm16 { .imm = static_cast<uint16_t>(imm) },
-            }
-        );
-    } else if (MathUtils::IsNBitsSigned(imm, 32) || stk == StoreAccessKind::ST_32) {
-        RT::MemOpcode opc = RT::MemOpcode(opcStart + 2);
-        ASSERT(opc <= RT::MemOpcode::RSTI_END_OPCODE);
-        Encode(
-            segment,
-            RT::M6xri32 {
-                .opc   = opc,
-                .xr    = Format::XR { .imm = 0, .r = base.IR() },
-                .imm32 = Format::Imm32 { .imm = static_cast<uint32_t>(imm) },
-            }
-        );
-    } else {
-        RT::MemOpcode opc = RT::MemOpcode(opcStart + 3);
-        ASSERT(opc <= RT::MemOpcode::RSTI_END_OPCODE);
-        Encode(
-            segment,
-            RT::M10xri64 {
-                .opc   = opc,
-                .xr    = Format::XR { .imm = 0, .r = base.IR() },
-                .imm64 = Format::Imm64 { .imm = imm },
-            }
-        );
-    }
+    stk           = NormalizeStoreImmKind(stk);
+    auto opcStart = ComputeStoreImmStart(stk, RT::MemOpcode::RSTI_START_OPCODE);
+    EmitStoreImm(
+        segment,
+        stk,
+        imm,
+        opcStart,
+        RT::MemOpcode::RSTI_END_OPCODE,
+        XRImmBuilder { Format::XR { .imm = 0, .r = base.IR() } }
+    );
 }
 
 } // namespace Emitter
