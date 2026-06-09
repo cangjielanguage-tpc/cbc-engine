@@ -203,6 +203,7 @@ public:
     {
         auto ptr = static_cast<uintptr_t>(ectype->GetPrimitive(base).u64);
         // IRZ means static record field, so whole position is encoded in accumulated offset
+        // FIXME: encode as separate operation
         if (base != IReg::IRZ && ptr == 0) {
             return false;
         }
@@ -223,6 +224,7 @@ public:
     {
         auto ptr = static_cast<uintptr_t>(ectype->GetPrimitive(base).u64);
         // IRZ means static record field, so whole position is encoded in accumulated offset
+        // FIXME: encode as separate operation
         if (base != IReg::IRZ && ptr == 0) {
             return false;
         }
