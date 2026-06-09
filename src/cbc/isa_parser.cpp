@@ -625,8 +625,8 @@ struct IsaParserImpl {
     static void MemHeadHandle(IsaParser& parser)
     {
         auto ms = parser.OpenMemSpace();
-        auto [skip, scratch, base, offset] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
-        parser.MemHeadHandle(*ms, scratch, base, offset);
+        auto [skip, scratch, base, derived] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
+        parser.MemHeadHandle(*ms, scratch, base, derived);
         ParseMemExpr(parser, *ms);
     }
 

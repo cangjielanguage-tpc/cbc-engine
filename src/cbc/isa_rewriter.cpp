@@ -567,12 +567,14 @@ struct IsaRewriter : public IsaParser {
             : MemSpace(),
             emit(emit),
             base(std::nullopt),
+            derived(std::nullopt),
             frame(false),
             lastFieldKind(CbcTypeKind::INVALID)
         {}
 
         MemSpaceEmitter emit;
         std::optional<IReg> base;
+        std::optional<IReg> derived;
         bool frame;
         CbcTypeKind lastFieldKind;
     };
@@ -626,11 +628,11 @@ struct IsaRewriter : public IsaParser {
         msr.lastFieldKind = field->fieldType->GetKind();
     }
 
-    void MemHeadHandle(MemSpace& ms, IReg scratch, IReg base, IReg offset) override
+    void MemHeadHandle(MemSpace& ms, IReg scratch, IReg base, IReg derived) override
     {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
         msr.base = base;
-        msr.emit.OffsetReg(offset);
+        msr.derived = derived;
     }
 
     void MemHeadTyped(MemSpace& ms, IReg scratch, uint16_t ts) override
@@ -719,7 +721,11 @@ struct IsaRewriter : public IsaParser {
             FieldOffset(msr, r);
         }
         if (msr.base.has_value()) {
-            msr.emit.LoadObj(Ldk(msr.lastFieldKind), dst, msr.base.value());
+            if (msr.derived.has_value()) {
+                msr.emit.LoadDerived(Ldk(msr.lastFieldKind), dst, msr.base.value(), msr.derived.value());
+            } else {
+                msr.emit.LoadObj(Ldk(msr.lastFieldKind), dst, msr.base.value());
+            }
         } else if (msr.frame) {
             msr.emit.LoadFrame(Ldk(msr.lastFieldKind), dst);
         } else {
@@ -734,7 +740,11 @@ struct IsaRewriter : public IsaParser {
             FieldOffset(msr, r);
         }
         if (msr.base.has_value()) {
-            msr.emit.StoreObj(Stk(msr.lastFieldKind), src, msr.base.value());
+            if (msr.derived.has_value()) {
+                msr.emit.StoreDerived(Stk(msr.lastFieldKind), src, msr.base.value(), msr.derived.value());
+            } else {
+                msr.emit.StoreObj(Stk(msr.lastFieldKind), src, msr.base.value());
+            }
         } else if (msr.frame) {
             msr.emit.StoreFrame(Stk(msr.lastFieldKind), src);
         } else {

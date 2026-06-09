@@ -104,7 +104,7 @@ protected:
     virtual void MemHeadReg(MemSpace& ms, IReg scratch, IReg base) = 0;
     virtual void MemHeadField(MemSpace& ms, IReg scratch, IReg base, uint16_t field) = 0;
     virtual void MemHeadStatic(MemSpace& ms, IReg scratch, uint16_t field) = 0;
-    virtual void MemHeadHandle(MemSpace& ms, IReg scratch, IReg base, IReg offset) = 0;
+    virtual void MemHeadHandle(MemSpace& ms, IReg scratch, IReg base, IReg derived) = 0;
     virtual void MemHeadTyped(MemSpace& ms, IReg scratch, uint16_t ts) = 0;
 
     virtual void MemBodyField1(MemSpace& ms, uint16_t f1) = 0;

@@ -73,7 +73,7 @@ struct Execution {
 
     static bool IsInstanceOf(Reference base, TypeInfo ti);
 
-    static void Throw(Reference base);
+    static bool IsGlobalStruct(Reference base, uintptr_t derived);
 };
 
 struct MetaInfo {

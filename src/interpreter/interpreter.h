@@ -114,6 +114,32 @@ public:
         return true;
     }
 
+    inline bool LoadDerived(Format::LoadAccessKind ldk, Format::Reg dst, IReg base, IReg derived, uint64_t offset)
+    {
+        auto obj = ectype->GetReference(base);
+        auto derivedAddr = ectype->GetPrimitive(derived).u64;
+        if (RTSupport::Execution::IsGlobalStruct(obj, derivedAddr)) {
+            return LoadRec(ldk, dst, IReg::IRZ, derivedAddr + offset);
+        } else if (obj.value == 0) {
+            return LoadRec(ldk, dst, base, offset);
+        } else {
+            return LoadObj(ldk, dst, base, derived + offset);
+        }
+    }
+
+    inline bool StoreDerived(Format::StoreAccessKind stk, Format::Reg src, IReg base, IReg derived, uint64_t offset)
+    {
+        auto obj = ectype->GetReference(base);
+        auto derivedAddr = ectype->GetPrimitive(derived).u64;
+        if (RTSupport::Execution::IsGlobalStruct(obj, derivedAddr)) {
+            return StoreRec(stk, src, IReg::IRZ, derivedAddr + offset);
+        } else if (obj.value == 0) {
+            return StoreRec(stk, src, derived, offset);
+        } else {
+            return StoreObj(stk, src, base, (derivedAddr - obj.value) + offset);
+        }
+    }
+
     inline bool LoadArray(Format::LoadAccessKind ldk, Format::Reg dst, IReg base, IReg idx)
     {
         auto obj = ectype->GetReference(base);

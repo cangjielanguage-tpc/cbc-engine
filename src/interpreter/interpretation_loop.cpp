@@ -755,6 +755,47 @@ OFFS_REG_IDX64: {
     RST(F64)
 #undef RST
 
+#define DLD(ldk)                                                                                                       \
+    DLD_##ldk:                                                                                                         \
+    {                                                                                                                  \
+        auto args = M3xrrr::Decode(reader);                                                                            \
+        LOG_INSTR;                                                                                                     \
+        bool successful =                                                                                              \
+            interpreter.LoadDerived(Format::LoadAccessKind::LD_##ldk, args.xr.r, args.rr.x.IR(), args.rr.y.IR(),       \
+                                                                      memspaceOffsetAcc);                              \
+        NEXT_COND(successful);                                                                                         \
+    }
+    DLD(U8)
+    DLD(U16)
+    DLD(32)
+    DLD(S8)
+    DLD(S16)
+    DLD(F32)
+    DLD(F64)
+    DLD(64)
+    DLD(S32TO64)
+    DLD(REF)
+#undef DLD
+
+#define DST(stk)                                                                                                       \
+    DST_##stk:                                                                                                         \
+    {                                                                                                                  \
+        auto args = M3xrrr::Decode(reader);                                                                            \
+        LOG_INSTR;                                                                                                     \
+        bool successful =                                                                                              \
+            interpreter.StoreDerived(Format::StoreAccessKind::ST_##stk, args.xr.r, args.rr.x.IR(), args.rr.y.IR(),     \
+                                                                        memspaceOffsetAcc);                            \
+        NEXT_COND(successful);                                                                                         \
+    }
+    DST(8)
+    DST(16)
+    DST(32)
+    DST(64)
+    DST(REF)
+    DST(F32)
+    DST(F64)
+#undef DST
+
 #define SLD(ldk)                                                                                                       \
     SLD_##ldk:                                                                                                         \
     {                                                                                                                  \

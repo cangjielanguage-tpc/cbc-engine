@@ -310,9 +310,9 @@ struct IsaDisasm : public IsaParser {
         stream << "mem.static" << " " << scratch << ", " << field << endl;
     }
 
-    void MemHeadHandle(MemSpace& ms, IReg scratch, IReg base, IReg offset) override
+    void MemHeadHandle(MemSpace& ms, IReg scratch, IReg base, IReg derived) override
     {
-        stream << "mem.handle" << " " << scratch << ", " << base.ToStr() << ", " << offset.ToStr() << endl;
+        stream << "mem.handle" << " " << scratch << ", " << base.ToStr() << ", " << derived.ToStr() << endl;
     }
 
     void MemHeadTyped(MemSpace& ms, IReg scratch, uint16_t ts) override
