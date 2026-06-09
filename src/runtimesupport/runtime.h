@@ -75,7 +75,7 @@ struct Execution {
     static void* GetVirtualTarget(Reference base, int extDefNum, int methodNum);
     static void* GetInterfaceTarget(Reference base, TypeInfo ti, int methodNum);
 
-    static int GetFieldOffset(TypeInfo ti, int ordinal, bool adjustByHeader);
+    static uint32_t GetFieldOffset(TypeInfo ti, int ordinal, bool adjustByHeader);
 
     static bool IsInstanceOf(Reference base, TypeInfo ti);
 
