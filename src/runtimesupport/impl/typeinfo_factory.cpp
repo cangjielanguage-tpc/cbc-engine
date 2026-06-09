@@ -457,7 +457,6 @@ static std::optional<TypeInfo> QueryTypeInfoAOT(
         auto typeInfoG = g_CJNativeInterfaceInstance.getOrCreateTypeInfo(typeTemplate, term.GetLength(), infos.data());
         return TypeInfo(typeInfoG);
     } else {
-
         Log::typeinfo.Log(Logging::Level::TRACE, [&session, &term](Stream::Output& out) {
             Stream::ResolvingOutput stream(session, out);
             stream << "querying " << term << Stream::endl;
@@ -509,8 +508,7 @@ std::optional<TypeInfo> CreateTypeInfo(
             case Engine::TermKind::CANGJIE_ARRAY:
                 return QueryTypeInfoAOT(session, manager, ARRAY_NAME, Engine::Term(term));
 
-            case Engine::TermKind::TUPLE:
-                return QueryTypeInfoAOT(session, manager, TUPLE_NAME, Engine::Term(term));
+            case Engine::TermKind::TUPLE: return QueryTypeInfoAOT(session, manager, TUPLE_NAME, Engine::Term(term));
 
             case Engine::TermKind::BOOLEAN: return QueryTypeInfoAOTByName("Bool");
             case Engine::TermKind::U8:      return QueryTypeInfoAOTByName("UInt8");
