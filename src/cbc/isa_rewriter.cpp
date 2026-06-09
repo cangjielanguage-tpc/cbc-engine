@@ -759,7 +759,13 @@ struct IsaRewriter : public IsaParser {
     {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
         if (msr.base.has_value()) {
-            msr.emit.StoreObjImm(Stk(msr.lastFieldKind), msr.base.value(), imm);
+            if (msr.derived.has_value()) {
+                msr.emit.StoreDerivedImm(Stk(msr.lastFieldKind), msr.base.value(), msr.derived.value(), imm);
+            } else if (msr.ref) {
+                msr.emit.StoreObjImm(Stk(msr.lastFieldKind), msr.base.value(), imm);
+            } else {
+                msr.emit.StoreRecImm(Stk(msr.lastFieldKind), msr.base.value(), imm);
+            }
         } else if (msr.frame) {
             msr.emit.StoreFrameImm(Stk(msr.lastFieldKind), imm);
         } else {

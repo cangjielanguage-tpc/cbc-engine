@@ -41,6 +41,10 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M3xri8 arg
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M4xri16 args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M6xri32 args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M10xri64 args);
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M3rri8 args);
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M4rri16 args);
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M6rri32 args);
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M10rri64 args);
 
 } // namespace RT
 } // namespace Cbc

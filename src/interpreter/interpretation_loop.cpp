@@ -819,6 +819,30 @@ OFFS_REG_IDX64: {
     DST(F64)
 #undef DST
 
+#define DSTI(memSize, immSize, encoding)                                                                               \
+    DSTI_##memSize##_##immSize:                                                                                        \
+    {                                                                                                                  \
+        auto args = encoding::Decode(reader);                                                                          \
+        LOG_INSTR;                                                                                                     \
+        uint64_t imm = MathUtils::SignExtend(static_cast<uint64_t>(args.imm##immSize.imm), immSize);                   \
+        IReg base    = args.rr.x.IR();                                                                                 \
+        IReg derived = args.rr.y.IR();                                                                                 \
+        bool successful =                                                                                              \
+            interpreter.StoreDerivedImm(Format::StoreAccessKind::ST_##memSize, base, derived, memspaceOffsetAcc, imm); \
+        NEXT_COND(successful);                                                                                         \
+    }
+    DSTI(8, 8, M3rri8)
+    DSTI(16, 8, M3rri8)
+    DSTI(16, 16, M4rri16)
+    DSTI(32, 8, M3rri8)
+    DSTI(32, 16, M4rri16)
+    DSTI(32, 32, M6rri32)
+    DSTI(64, 8, M3rri8)
+    DSTI(64, 16, M4rri16)
+    DSTI(64, 32, M6rri32)
+    DSTI(64, 64, M10rri64)
+#undef DSTI
+
 #define SLD(ldk)                                                                                                       \
     SLD_##ldk:                                                                                                         \
     {                                                                                                                  \
@@ -857,6 +881,29 @@ OFFS_REG_IDX64: {
     SST(F32)
     SST(F64)
 #undef SST
+
+#define SSTI(memSize, immSize, encoding)                                                                               \
+    SSTI_##memSize##_##immSize:                                                                                        \
+    {                                                                                                                  \
+        auto args = encoding::Decode(reader);                                                                          \
+        LOG_INSTR;                                                                                                     \
+        uint64_t imm = MathUtils::SignExtend(static_cast<uint64_t>(args.imm##immSize.imm), immSize);                   \
+        IReg base    = args.xr.r.IR();                                                                                 \
+        bool successful =                                                                                              \
+            interpreter.StoreRecImm(Format::StoreAccessKind::ST_##memSize, base, memspaceOffsetAcc, imm);              \
+        NEXT_COND(successful);                                                                                         \
+    }
+    SSTI(8, 8, M3xri8)
+    SSTI(16, 8, M3xri8)
+    SSTI(16, 16, M4xri16)
+    SSTI(32, 8, M3xri8)
+    SSTI(32, 16, M4xri16)
+    SSTI(32, 32, M6xri32)
+    SSTI(64, 8, M3xri8)
+    SSTI(64, 16, M4xri16)
+    SSTI(64, 32, M6xri32)
+    SSTI(64, 64, M10xri64)
+#undef SSTI
 
 #define FLD(ldk)                                                                                                       \
     FLD_##ldk:                                                                                                         \
