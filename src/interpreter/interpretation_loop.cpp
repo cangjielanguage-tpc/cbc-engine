@@ -72,7 +72,7 @@ Interpretation::Thunk engine_interpretation_loop(
     // [int] (stack depth) < (bc pos): instruction
     #define LOG_INSTR                                                                                                  \
         do {                                                                                                           \
-            logger.PrintFmt("#0x%x < 0x%03lx: ", (uint32_t)frame.start, pos - start);                                  \
+            logger.PrintFmt("#0x%lx < 0x%03lx: ", frame.start, pos - start);                                  \
             pos = reader.Cursor();                                                                                     \
             Cbc::RT::Log(literals, logger, args);                                                                      \
         } while (0)
@@ -713,7 +713,7 @@ OFFS_REG: {
 OFFS_REG_IDX64: {
     auto args = M10xri64::Decode(reader);
     LOG_INSTR;
-    memspaceOffsetAcc += interpreter.MemOffsetReg(args.xr.r.IR()) * interpreter.MemOffset(args.imm64);
+    memspaceOffsetAcc += interpreter.MemOffsetReg(args.xr.r.IR()) * interpreter.MemOffset(args.imm64.imm);
     MEM_NEXT;
 }
 #define RLD(ldk)                                                                                                       \
@@ -755,6 +755,94 @@ OFFS_REG_IDX64: {
     RST(F64)
 #undef RST
 
+#define RSTI(memSize, immSize, encoding)                                                                               \
+    RSTI_##memSize##_##immSize:                                                                                        \
+    {                                                                                                                  \
+        auto args = encoding::Decode(reader);                                                                          \
+        LOG_INSTR;                                                                                                     \
+        uint64_t imm = MathUtils::SignExtend(static_cast<uint64_t>(args.imm##immSize.imm), immSize);                   \
+        IReg base    = args.xr.r.IR();                                                                                 \
+        bool successful =                                                                                              \
+            interpreter.StoreObjImm(Format::StoreAccessKind::ST_##memSize, base, memspaceOffsetAcc, imm);              \
+        NEXT_COND(successful);                                                                                         \
+    }
+    RSTI(8, 8, M3xri8)
+    RSTI(16, 8, M3xri8)
+    RSTI(16, 16, M4xri16)
+    RSTI(32, 8, M3xri8)
+    RSTI(32, 16, M4xri16)
+    RSTI(32, 32, M6xri32)
+    RSTI(64, 8, M3xri8)
+    RSTI(64, 16, M4xri16)
+    RSTI(64, 32, M6xri32)
+    RSTI(64, 64, M10xri64)
+#undef RSTI
+
+#define DLD(ldk)                                                                                                       \
+    DLD_##ldk:                                                                                                         \
+    {                                                                                                                  \
+        auto args = M3xrrr::Decode(reader);                                                                            \
+        LOG_INSTR;                                                                                                     \
+        bool successful =                                                                                              \
+            interpreter.LoadDerived(Format::LoadAccessKind::LD_##ldk, args.xr.r, args.rr.x.IR(), args.rr.y.IR(),       \
+                                                                      memspaceOffsetAcc);                              \
+        NEXT_COND(successful);                                                                                         \
+    }
+    DLD(U8)
+    DLD(U16)
+    DLD(32)
+    DLD(S8)
+    DLD(S16)
+    DLD(F32)
+    DLD(F64)
+    DLD(64)
+    DLD(S32TO64)
+    DLD(REF)
+#undef DLD
+
+#define DST(stk)                                                                                                       \
+    DST_##stk:                                                                                                         \
+    {                                                                                                                  \
+        auto args = M3xrrr::Decode(reader);                                                                            \
+        LOG_INSTR;                                                                                                     \
+        bool successful =                                                                                              \
+            interpreter.StoreDerived(Format::StoreAccessKind::ST_##stk, args.xr.r, args.rr.x.IR(), args.rr.y.IR(),     \
+                                                                        memspaceOffsetAcc);                            \
+        NEXT_COND(successful);                                                                                         \
+    }
+    DST(8)
+    DST(16)
+    DST(32)
+    DST(64)
+    DST(REF)
+    DST(F32)
+    DST(F64)
+#undef DST
+
+#define DSTI(memSize, immSize, encoding)                                                                               \
+    DSTI_##memSize##_##immSize:                                                                                        \
+    {                                                                                                                  \
+        auto args = encoding::Decode(reader);                                                                          \
+        LOG_INSTR;                                                                                                     \
+        uint64_t imm = MathUtils::SignExtend(static_cast<uint64_t>(args.imm##immSize.imm), immSize);                   \
+        IReg base    = args.rr.x.IR();                                                                                 \
+        IReg derived = args.rr.y.IR();                                                                                 \
+        bool successful =                                                                                              \
+            interpreter.StoreDerivedImm(Format::StoreAccessKind::ST_##memSize, base, derived, memspaceOffsetAcc, imm); \
+        NEXT_COND(successful);                                                                                         \
+    }
+    DSTI(8, 8, M3rri8)
+    DSTI(16, 8, M3rri8)
+    DSTI(16, 16, M4rri16)
+    DSTI(32, 8, M3rri8)
+    DSTI(32, 16, M4rri16)
+    DSTI(32, 32, M6rri32)
+    DSTI(64, 8, M3rri8)
+    DSTI(64, 16, M4rri16)
+    DSTI(64, 32, M6rri32)
+    DSTI(64, 64, M10rri64)
+#undef DSTI
+
 #define SLD(ldk)                                                                                                       \
     SLD_##ldk:                                                                                                         \
     {                                                                                                                  \
@@ -793,6 +881,29 @@ OFFS_REG_IDX64: {
     SST(F32)
     SST(F64)
 #undef SST
+
+#define SSTI(memSize, immSize, encoding)                                                                               \
+    SSTI_##memSize##_##immSize:                                                                                        \
+    {                                                                                                                  \
+        auto args = encoding::Decode(reader);                                                                          \
+        LOG_INSTR;                                                                                                     \
+        uint64_t imm = MathUtils::SignExtend(static_cast<uint64_t>(args.imm##immSize.imm), immSize);                   \
+        IReg base    = args.xr.r.IR();                                                                                 \
+        bool successful =                                                                                              \
+            interpreter.StoreRecImm(Format::StoreAccessKind::ST_##memSize, base, memspaceOffsetAcc, imm);              \
+        NEXT_COND(successful);                                                                                         \
+    }
+    SSTI(8, 8, M3xri8)
+    SSTI(16, 8, M3xri8)
+    SSTI(16, 16, M4xri16)
+    SSTI(32, 8, M3xri8)
+    SSTI(32, 16, M4xri16)
+    SSTI(32, 32, M6xri32)
+    SSTI(64, 8, M3xri8)
+    SSTI(64, 16, M4xri16)
+    SSTI(64, 32, M6xri32)
+    SSTI(64, 64, M10xri64)
+#undef SSTI
 
 #define FLD(ldk)                                                                                                       \
     FLD_##ldk:                                                                                                         \

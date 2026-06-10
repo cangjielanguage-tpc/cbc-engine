@@ -191,6 +191,12 @@ struct IsaRewriter : public IsaParser {
         emit.Convert(toType, fromType, to, from);
     }
 
+    void MovBasePtr(IReg dst, bool local) override
+    {
+        auto basePtr = local ? RTSupport::Execution::GetLocalBasePtr() : RTSupport::Execution::GetGlobalBasePtr();
+        emit.MovImm(Format::Width::W64, dst, basePtr.value);
+    }
+
     void BFX(IReg dst, IReg src, Format::Width resW, Format::Width argW, bool sx, uint8_t offset, uint8_t size) override
     {
         // We can ignore resW and argW, because interpreter computes the result in 64-bit number anyway.
@@ -567,30 +573,37 @@ struct IsaRewriter : public IsaParser {
             : MemSpace(),
             emit(emit),
             base(std::nullopt),
+            derived(std::nullopt),
+            ref(false),
             frame(false),
             lastFieldKind(CbcTypeKind::INVALID)
         {}
 
         MemSpaceEmitter emit;
         std::optional<IReg> base;
+        std::optional<IReg> derived;
+        bool ref;
         bool frame;
         CbcTypeKind lastFieldKind;
     };
 
-    void FieldOffset(MemSpaceRewriter& msr, uint16_t fieldId)
+    bool FieldOffset(MemSpaceRewriter& msr, uint16_t fieldId)
     {
         auto f = resolver.Query(Index<InstanceField>(fieldId));
         if (!f.has_value()) {
             Fail();
-            return;
+            return false;
         }
         auto field = f.value();
         if (field->offset.has_value()) {
+            // TODO: accumulate offset for field sequence
             msr.emit.Offset(field->offset.value());
             msr.lastFieldKind = field->fieldType->GetKind();
+            return field->refType->GetKind() == CbcTypeKind::REF;
         } else {
             errStream << "Failed to get offset of field " << *field << Stream::endl;
             Fail();
+            return false;
         }
     }
 
@@ -599,20 +612,21 @@ struct IsaRewriter : public IsaParser {
         return std::make_unique<MemSpaceRewriter>(MemSpaceRewriter(emit.OpenMemSpace()));
     }
 
-    void MemHeadReg(MemSpace& ms, IReg scratch, IReg base) override
+    void MemHeadReg(MemSpace& ms, IReg base, bool isRef) override
     {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
         msr.base = base;
+        msr.ref = isRef;
     }
 
-    void MemHeadField(MemSpace& ms, IReg scratch, IReg base, uint16_t fieldId) override
+    void MemHeadField(MemSpace& ms, IReg base, uint16_t fieldId) override
     {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
         msr.base = base;
-        FieldOffset(msr, fieldId);
+        msr.ref = FieldOffset(msr, fieldId);
     }
 
-    void MemHeadStatic(MemSpace& ms, IReg scratch, uint16_t fieldId) override
+    void MemHeadStatic(MemSpace& ms, uint16_t fieldId) override
     {
         auto f = resolver.Query(Index<StaticField>(fieldId));
         if (!f.has_value()) {
@@ -626,14 +640,14 @@ struct IsaRewriter : public IsaParser {
         msr.lastFieldKind = field->fieldType->GetKind();
     }
 
-    void MemHeadHandle(MemSpace& ms, IReg scratch, IReg base, IReg offset) override
+    void MemHeadHandle(MemSpace& ms, IReg base, IReg derived) override
     {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
         msr.base = base;
-        msr.emit.OffsetReg(offset);
+        msr.derived = derived;
     }
 
-    void MemHeadTyped(MemSpace& ms, IReg scratch, uint16_t ts) override
+    void MemHeadTyped(MemSpace& ms, uint16_t ts) override
     {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
         msr.emit.Offset(frameLayout.typedOffset.at(ts));
@@ -700,18 +714,6 @@ struct IsaRewriter : public IsaParser {
         msr.emit.OffsetRegIdx(reg, size);
     }
 
-    void ForEachInstanceField(std::vector<uint16_t> refs, std::function<void(const InstanceField*)> visitor) {
-        for (auto fieldId : refs) {
-            auto f = resolver.Query(Index<InstanceField>(fieldId));
-            if (!f.has_value()) {
-                Fail();
-                return;
-            }
-            auto field  = f.value();
-            visitor(field);
-        }
-    }
-
     void MemTailLoad(MemSpace& ms, IReg dst, std::vector<uint16_t> refs) override
     {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
@@ -719,9 +721,19 @@ struct IsaRewriter : public IsaParser {
             FieldOffset(msr, r);
         }
         if (msr.base.has_value()) {
-            msr.emit.LoadObj(Ldk(msr.lastFieldKind), dst, msr.base.value());
-        } else {
+            if (msr.derived.has_value()) {
+                msr.emit.LoadDerived(Ldk(msr.lastFieldKind), dst, msr.base.value(), msr.derived.value());
+            } else if (msr.ref) {
+                msr.emit.LoadObj(Ldk(msr.lastFieldKind), dst, msr.base.value());
+            } else {
+                msr.emit.LoadRec(Ldk(msr.lastFieldKind), dst, msr.base.value());
+            }
+        } else if (msr.frame) {
             msr.emit.LoadFrame(Ldk(msr.lastFieldKind), dst);
+        } else {
+            // IRZ means static record field, so whole position is encoded in accumulated offset
+            // FIXME: encode as separate operation
+            msr.emit.LoadRec(Ldk(msr.lastFieldKind), dst, IReg::IRZ);
         }
     }
 
@@ -732,19 +744,39 @@ struct IsaRewriter : public IsaParser {
             FieldOffset(msr, r);
         }
         if (msr.base.has_value()) {
-            msr.emit.StoreObj(Stk(msr.lastFieldKind), src, msr.base.value());
-        } else {
+            if (msr.derived.has_value()) {
+                msr.emit.StoreDerived(Stk(msr.lastFieldKind), src, msr.base.value(), msr.derived.value());
+            } else if (msr.ref) {
+                msr.emit.StoreObj(Stk(msr.lastFieldKind), src, msr.base.value());
+            } else {
+                msr.emit.StoreRec(Stk(msr.lastFieldKind), src, msr.base.value());
+            }
+        } else if (msr.frame) {
             msr.emit.StoreFrame(Stk(msr.lastFieldKind), src);
+        } else {
+            // IRZ means static record field, so whole position is encoded in accumulated offset
+            // FIXME: encode as separate operation
+            msr.emit.StoreRec(Stk(msr.lastFieldKind), src, IReg::IRZ);
         }
     }
 
     void MemTailStoreImm(MemSpace& ms, uint64_t imm) override
     {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
-        if (msr.frame) {
+        if (msr.base.has_value()) {
+            if (msr.derived.has_value()) {
+                msr.emit.StoreDerivedImm(Stk(msr.lastFieldKind), msr.base.value(), msr.derived.value(), imm);
+            } else if (msr.ref) {
+                msr.emit.StoreObjImm(Stk(msr.lastFieldKind), msr.base.value(), imm);
+            } else {
+                msr.emit.StoreRecImm(Stk(msr.lastFieldKind), msr.base.value(), imm);
+            }
+        } else if (msr.frame) {
             msr.emit.StoreFrameImm(Stk(msr.lastFieldKind), imm);
         } else {
-            Fail();
+            // IRZ means static record field, so whole position is encoded in accumulated offset
+            // FIXME: encode as separate operation
+            msr.emit.StoreRecImm(Stk(msr.lastFieldKind), IReg::IRZ, imm);
         }
     }
 

@@ -128,6 +128,11 @@ struct IsaDisasm : public IsaParser {
         stream << ", " << to << ", " << from << endl;
     }
 
+    void MovBasePtr(IReg dst, bool local) override
+    {
+        stream << "mov.base.ptr" << (local ? ".local" : ".global") << " " << dst.ToStr() << endl;
+    }
+
     void BFX(IReg dst, IReg src, Format::Width resW, Format::Width argW, bool sx, uint8_t offset, uint8_t size) override
     {
         stream << "bfx" << " " << dst.ToStr() << ", " << src.ToStr() << ", ";
@@ -295,29 +300,29 @@ struct IsaDisasm : public IsaParser {
 
     std::unique_ptr<MemSpace> OpenMemSpace() override { return std::make_unique<PrintingMemSpace>(stream); }
 
-    void MemHeadReg(MemSpace& ms, IReg scratch, IReg base) override
+    void MemHeadReg(MemSpace& ms, IReg base, bool isRef) override
     {
-        stream << "mem.reg" << " " << scratch << ", " << base.ToStr() << endl;
+        stream << "mem.reg" << (isRef ? ".ref" : ".rec") << " " << base.ToStr() << endl;
     }
 
-    void MemHeadField(MemSpace& ms, IReg scratch, IReg base, uint16_t field) override
+    void MemHeadField(MemSpace& ms, IReg base, uint16_t field) override
     {
-        stream << "mem.field" << " " << scratch << ", " << base.ToStr() << ", " << field << endl;
+        stream << "mem.field" << " " << base.ToStr() << ", " << field << endl;
     }
 
-    void MemHeadStatic(MemSpace& ms, IReg scratch, uint16_t field) override
+    void MemHeadStatic(MemSpace& ms, uint16_t field) override
     {
-        stream << "mem.static" << " " << scratch << ", " << field << endl;
+        stream << "mem.static" << " " << field << endl;
     }
 
-    void MemHeadHandle(MemSpace& ms, IReg scratch, IReg base, IReg offset) override
+    void MemHeadHandle(MemSpace& ms, IReg base, IReg derived) override
     {
-        stream << "mem.handle" << " " << scratch << ", " << base.ToStr() << ", " << offset.ToStr() << endl;
+        stream << "mem.handle" << " " << base.ToStr() << ", " << derived.ToStr() << endl;
     }
 
-    void MemHeadTyped(MemSpace& ms, IReg scratch, uint16_t ts) override
+    void MemHeadTyped(MemSpace& ms, uint16_t ts) override
     {
-        stream << "mem.typed" << " " << scratch << ", " << ts << endl;
+        stream << "mem.typed" << " " << ts << endl;
     }
 
     void MemBodyField1(MemSpace& ms, uint16_t f1) override

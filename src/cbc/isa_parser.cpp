@@ -325,6 +325,12 @@ struct IsaParserImpl {
         parser.MovImm(width, dst, MergeLowHi(low4, hibits));
     }
 
+    static void MovBasePtr(IsaParser& parser)
+    {
+        auto [dst, local] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
+        parser.MovBasePtr(dst, local);
+    }
+
     static void BFX(IsaParser& parser)
     {
         auto [dst, src, byte1, byte2 ] =
@@ -601,40 +607,40 @@ struct IsaParserImpl {
     static void MemHeadReg(IsaParser& parser)
     {
         auto ms = parser.OpenMemSpace();
-        auto [base, scratch] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
-        parser.MemHeadReg(*ms, scratch, base);
+        auto [base, isRef] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
+        parser.MemHeadReg(*ms, base, isRef);
         ParseMemExpr(parser, *ms);
     }
 
     static void MemHeadField(IsaParser& parser)
     {
         auto ms = parser.OpenMemSpace();
-        auto [base, scratch, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
-        parser.MemHeadField(*ms, scratch, base, field);
+        auto [base, skip, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.MemHeadField(*ms, base, field);
         ParseMemExpr(parser, *ms);
     }
 
     static void MemHeadStatic(IsaParser& parser)
     {
         auto ms = parser.OpenMemSpace();
-        auto [skip, scratch, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
-        parser.MemHeadStatic(*ms, scratch, field);
+        auto [field] = ByteReaderM(parser.reader).ReadU16().Get();
+        parser.MemHeadStatic(*ms, field);
         ParseMemExpr(parser, *ms);
     }
 
     static void MemHeadHandle(IsaParser& parser)
     {
         auto ms = parser.OpenMemSpace();
-        auto [skip, scratch, base, offset] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
-        parser.MemHeadHandle(*ms, scratch, base, offset);
+        auto [base, derived] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
+        parser.MemHeadHandle(*ms, base, derived);
         ParseMemExpr(parser, *ms);
     }
 
     static void MemHeadTyped(IsaParser& parser)
     {
         auto ms = parser.OpenMemSpace();
-        auto [skip, scratch, ts] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
-        parser.MemHeadTyped(*ms, scratch, ts);
+        auto [ts] = ByteReaderM(parser.reader).ReadU16().Get();
+        parser.MemHeadTyped(*ms, ts);
         ParseMemExpr(parser, *ms);
     }
 

@@ -104,6 +104,29 @@ bool Execution::IsInstanceOf(Reference base, TypeInfo ti)
     return g_CJNativeInterfaceInstance.instanceOf(reinterpret_cast<DYN_ObjRef>(base.value), UnpackTypeInfo(ti));
 }
 
+bool Execution::IsGlobalStruct(Reference base, uintptr_t derived)
+{
+#if defined(__x86_64__) || defined(_M_X64)
+    return (base.value & DERIVED_PTR_GLOBAL_FLAG) != 0;
+#elif defined(__aarch64__) || defined(_M_ARM64)
+    return (derived & DERIVED_PTR_GLOBAL_FLAG) != 0;
+#endif
+}
+
+Reference Execution::GetGlobalBasePtr()
+{
+#if defined(__x86_64__) || defined(_M_X64)
+    return Reference { .value = DERIVED_PTR_GLOBAL_FLAG };
+#elif defined(__aarch64__) || defined(_M_ARM64)
+    return Reference { .value = 0 };
+#endif
+}
+
+Reference Execution::GetLocalBasePtr()
+{
+    return Reference { .value = 0 };
+}
+
 const char* MetaInfo::GetName(TypeInfo ti)
 {
     auto mrtti = UnpackTypeInfo(ti);
