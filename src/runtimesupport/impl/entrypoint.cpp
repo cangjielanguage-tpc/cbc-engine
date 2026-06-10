@@ -297,13 +297,22 @@ CBC_EXPORT int interpreter_bridge_init(
 )
 {
     static_assert(std::is_same_v<decltype(&interpreter_bridge_init), INT_InitInterpreter>);
+    if (rtInterf == nullptr || rtInterf->version != DYN_CJNATIVE_INTERFACE_VERSION) {
+        ASSERTION(
+            false,
+            "Unexpected DYN_CJNativeInterface version: expected %d, actual %lld",
+            DYN_CJNATIVE_INTERFACE_VERSION,
+            static_cast<long long>(rtInterf != nullptr ? rtInterf->version : -1)
+        );
+        return 1;
+    }
 
     // Order matters
     InitEnvOpts();
     Engine::g_table.ParseAndSet(size, options);
 
     g_CJNativeInterfaceInstance            = *rtInterf;
-    interpInterf->version                  = 1;
+    interpInterf->version                  = INT_INTERPRETER_INTERFACE_VERSION;
     interpInterf->cjThreadSpecificDataSize = sizeof(Interpretation::Ectype);
     interpInterf->c2iStubStartAddr         = reinterpret_cast<uintptr_t>(&Asm::engine_c2i_call_pc_start);
     interpInterf->c2iStubEndAddr           = reinterpret_cast<uintptr_t>(&Asm::engine_c2i_call_pc_end);
