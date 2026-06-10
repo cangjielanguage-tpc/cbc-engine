@@ -808,11 +808,14 @@ struct IsaParserImpl {
 
 void IsaParser::ParseOne() { IsaParserImpl::ParseOne(*this); }
 
+void IsaParser::End() {}
+
 void IsaParser::ParseAll()
 {
     while (!reader.IsEndReached()) {
         ParseOne();
     }
+    End();
 }
 
 IsaParser::IsaParser(Decoder::FatByteReader reader) : reader(reader) {}

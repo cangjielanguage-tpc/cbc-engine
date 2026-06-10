@@ -107,10 +107,20 @@ struct IsaRewriter : public IsaParser {
 
     InstructionOffsetsIndex BuildOffsetsIndex() { return InstructionOffsetsIndex::Create(emit, instructionLabel); }
 
+    Emitter::Label InstructionLabelLast(ssize_t position)
+    {
+        return InstructionLabel(position, true);
+    }
+
     Emitter::Label InstructionLabel(ssize_t position)
     {
+        return InstructionLabel(position, false);
+    }
+
+    Emitter::Label InstructionLabel(ssize_t position, bool lastInclusive)
+    {
         ASSERTION(position >= 0, "label position is negative");
-        ASSERTION(position < bytecodeSize, "label position is negative");
+        ASSERTION(position < bytecodeSize || (lastInclusive && position <= bytecodeSize), "label position greater than bytecode size");
         if (auto existing = instructionLabel.find(position); existing != instructionLabel.end()) {
             return existing->second;
         } else {
@@ -844,6 +854,12 @@ struct IsaRewriter : public IsaParser {
         startPosition = position;
         emit.Bind(InstructionLabel(Pos()));
         IsaParser::ParseOne();
+    }
+
+    void End() override
+    {
+        emit.Bind(InstructionLabelLast(Pos()));
+        IsaParser::End();
     }
 
     void Fail() { failedPositions.push_back(startPosition); }
