@@ -435,9 +435,14 @@ void Term::GetName(Session& session, Stream::Output& stream) const
 
         case TK::AOT_TYPE:
         case TK::AOT_REC: {
-            auto ident =
-                kind == TermKind::AOT_TYPE ? AotRefTermId(*this).GetIdentifier() : AotRecTermId(*this).GetIdentifier();
-            stream << Symlevel::String::Parse(session, ident.GetFileId(), ident.GetOffset());
+            auto& manager = TermManager::Of(session);
+            std::string_view name;
+            if (kind == TermKind::AOT_TYPE) {
+                name = manager.GetNameOfAotType(AotRefTermId(*this));
+            } else {
+                name = manager.GetNameOfAotType(AotRecTermId(*this));
+            }
+            stream << name;
             if (int len = GetLength(); len > 0) {
                 printSubTerms("<", ">", len);
             }
@@ -561,6 +566,7 @@ struct TermResolver {
     uint8_t region;
     IO::RandomAccessFile& raf;
     Symlevel::CbcFile& file;
+    TermManager& manager;
 
     Term NewUndefined(Symlevel::RefId<Term> refId) { return Undefined(session, RefIdentifier(refId, fileId)); }
 
@@ -594,6 +600,20 @@ struct TermResolver {
         using namespace Symlevel;
 
         auto name = Reader::Read(session, fileId, nameOffs);
+        return ResolveTypeDefTerm(reader, name, expectedLength, isReference, refId, wasAot);
+    }
+
+    Term ResolveTypeDefTerm(
+        IO::StreamFileReader& reader,
+        Symlevel::String name,
+        int expectedLength,
+        bool isReference,
+        Symlevel::RefId<Term> refId,
+        bool wasAot
+    )
+    {
+        using namespace Symlevel;
+
         auto type = session.GetEngine().FindType(session, name);
         if (!type.has_value()) {
             return NewUndefined(refId);
@@ -642,10 +662,11 @@ struct TermResolver {
         Symlevel::RefId<Term> refId
     )
     {
+        auto name = Symlevel::Reader::Read(session, fileId, nameOffs);
         // Attempt to find type definition, even if the type is tagged as aot.
         // Because the type could present in `TypeDefinition` super closure
         // or be present as "patch".
-        auto term = ResolveTypeDefTerm(reader, nameOffs, length, isReference, refId, true);
+        auto term = ResolveTypeDefTerm(reader, name, length, isReference, refId, true);
         if (term.GetKind() != TermKind::UNDEFINED) {
             return term;
         }
@@ -661,11 +682,12 @@ struct TermResolver {
             .isAotPromoted = false,
             .isGeneric     = isGeneric,
         };
-        // FIXME: in multi-cbc scenario this identifier is not unique.
+        auto internedName = manager.InternString(name);
+
         if (flags.isReference) {
-            data->InitAfterSubterms(AotRefTermId(Identifier(nameOffs, fileId)), length, flags);
+            data->InitAfterSubterms(AotRefTermId(internedName), length, flags);
         } else {
-            data->InitAfterSubterms(AotRecTermId(Identifier(nameOffs, fileId)), length, flags);
+            data->InitAfterSubterms(AotRecTermId(internedName), length, flags);
         }
         return Term(LocalTerm(data));
     }
@@ -787,6 +809,24 @@ struct TermResolver {
     }
 };
 
+size_t TermManager::InternString(std::string_view str)
+{
+    std::lock_guard guard(lock);
+    return internTable.InternAndGetId(str);
+}
+
+Utils::StringPool::ZeroTerminatedView TermManager::GetNameOfAotType(AotRefTermId type)
+{
+    std::lock_guard guard(lock);
+    return internTable.GetStringById(type.GetNum());
+}
+
+Utils::StringPool::ZeroTerminatedView TermManager::GetNameOfAotType(AotRecTermId type)
+{
+    std::lock_guard guard(lock);
+    return internTable.GetStringById(type.GetNum());
+}
+
 Term TermManager::Resolve(Session& session, RefIdentifier<Term> ident)
 {
     auto index  = ident.GetIndex();
@@ -794,13 +834,17 @@ Term TermManager::Resolve(Session& session, RefIdentifier<Term> ident)
     auto& raf   = session.FileOf(ident.GetFileId());
     auto& file  = session.CbcFileOf(ident.GetFileId());
 
+    auto& manager = TermManager::Of(session);
+
     TermResolver resolver { .regionData = file.GetRegionData(),
                             .session    = session,
                             .heap       = session.Allocator(),
                             .fileId     = ident.GetFileId(),
                             .region     = ident.GetIndex().GetRegion(),
                             .raf        = *raf,
-                            .file       = file };
+                            .file       = file,
+                            .manager    = manager,
+    };
 
     // TODO: cache
     return resolver.Resolve(ident.GetIndex());

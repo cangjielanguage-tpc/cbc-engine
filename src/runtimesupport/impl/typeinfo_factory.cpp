@@ -27,8 +27,8 @@
 
 namespace RTSupport {
 
-static const std::string ARRAY_NAME = "RawArray";
-static const std::string TUPLE_NAME = "Tuple";
+static char const* ARRAY_NAME = "RawArray";
+static char const* TUPLE_NAME = "Tuple";
 
 template <typename T> static T* Alloc(size_t cnt = 1) { return reinterpret_cast<T*>(std::malloc(sizeof(T) * cnt)); }
 
@@ -416,13 +416,21 @@ static std::optional<TypeInfo> QueryTypeInfoAOTByName(char const* str)
     }
 }
 
-std::string GetTypeName(Engine::Session& session, Engine::Identifier<Symlevel::String> ident)
+char const* GetAotTypeName(Engine::Session& session, Engine::Term term)
 {
-    return std::string(Symlevel::Reader::Read(session, ident));
+    auto& manager = Engine::TermManager::Of(session);
+    switch (term.GetKind()) {
+    case Engine::TermKind::AOT_TYPE:
+        return manager.GetNameOfAotType(Engine::AotRefTermId(term)).data();
+    case Engine::TermKind::AOT_REC:
+        return manager.GetNameOfAotType(Engine::AotRecTermId(term)).data();
+    default:
+        FATAL("Unexpected kind");
+    }
 }
 
 static std::optional<TypeInfo> QueryTypeInfoAOT(
-    Engine::Session& session, Engine::TypeInfoManager& manager, std::string const& typeName, Engine::Term term
+    Engine::Session& session, Engine::TypeInfoManager& manager, char const* typeName, Engine::Term term
 )
 {
     ASSERT(!term.IsGeneric());
@@ -446,11 +454,11 @@ static std::optional<TypeInfo> QueryTypeInfoAOT(
             infos.emplace_back((DYN_TypeInfo*) ti->Raw());
         }
 
-        auto typeTemplate = g_CJNativeInterfaceInstance.typeTemplate(typeName.c_str());
+        auto typeTemplate = g_CJNativeInterfaceInstance.typeTemplate(typeName);
         if (!typeTemplate) {
             Log::typeinfo.Log(Logging::Level::ERROR, [&session, &typeName](Stream::Output& out) {
                 Stream::ResolvingOutput stream(session, out);
-                stream << "failed to query template " << typeName.c_str() << Stream::endl;
+                stream << "failed to query template " << typeName << Stream::endl;
             });
             return std::nullopt;
         }
@@ -462,7 +470,7 @@ static std::optional<TypeInfo> QueryTypeInfoAOT(
             stream << "querying " << term << Stream::endl;
         });
 
-        auto typeInfo = g_CJNativeInterfaceInstance.typeInfo(typeName.c_str());
+        auto typeInfo = g_CJNativeInterfaceInstance.typeInfo(typeName);
         if (typeInfo == nullptr) {
             Log::typeinfo.Log(Logging::Level::ERROR, [&session, &term](Stream::Output& out) {
                 Stream::ResolvingOutput stream(session, out);
@@ -494,14 +502,14 @@ std::optional<TypeInfo> CreateTypeInfo(
                 return QueryTypeInfoAOT(
                     session,
                     manager,
-                    GetTypeName(session, Engine::AotRefTermId(term).GetIdentifier()),
+                    GetAotTypeName(session, term),
                     Engine::Term(term)
                 );
             case Engine::TermKind::AOT_REC:
                 return QueryTypeInfoAOT(
                     session,
                     manager,
-                    GetTypeName(session, Engine::AotRecTermId(term).GetIdentifier()),
+                    GetAotTypeName(session, term),
                     Engine::Term(term)
                 );
 

@@ -6,9 +6,12 @@
 #include "utils/assertion.h"
 #include "utils/ostream.h"
 #include "utils/reinterpretation.h"
+#include "utils/string_pool.h"
 #include <cstdint>
 #include <mutex>
+#include <string_view>
 #include <unordered_set>
+#include <variant>
 
 /// `Term` is an symbolic representation of any type that is supported in CBC.
 /// It can represent primitives (e.g. I32), builtins (e.g. ARRAY) or user-defined types (e.g. TYPE).
@@ -235,8 +238,8 @@ template <typename Num, TermKind tk> struct _NumberedTermId : public TermId {
 };
 
 using ArrayTermId = _SpecializedTermId<Identifier<Symlevel::String>, TermKind::CANGJIE_ARRAY>;
-using AotRefTermId = _SpecializedTermId<Identifier<Symlevel::String>, TermKind::AOT_TYPE>;
-using AotRecTermId = _SpecializedTermId<Identifier<Symlevel::String>, TermKind::AOT_REC>;
+using AotRefTermId = _NumberedTermId<uint32_t, TermKind::AOT_TYPE>;
+using AotRecTermId = _NumberedTermId<uint32_t, TermKind::AOT_REC>;
 using TypeTermId   = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::TYPE>;
 using UndefTermId  = _SpecializedTermId<RefIdentifier<Term>, TermKind::UNDEFINED>;
 
@@ -279,9 +282,7 @@ private:
 /// and responsible for resolution of term identifiers.
 class TermManager {
 public:
-    class Impl;
-    friend class Impl;
-
+    friend class TermResolver;
     static TermManager& Of(Engine& engine);
     static TermManager& Of(Session& session);
 
@@ -294,7 +295,12 @@ public:
     /// The function performs in-place modification of `Term` structure.
     GlobalTerm Globalize(Term& term);
 
+    Utils::StringPool::ZeroTerminatedView GetNameOfAotType(AotRefTermId type);
+    Utils::StringPool::ZeroTerminatedView GetNameOfAotType(AotRecTermId type);
+
 private:
+    size_t InternString(std::string_view str);
+
     struct Hasher {
         uint64_t operator()(TermData* const& data) const;
     };
@@ -305,6 +311,7 @@ private:
 
     std::mutex lock;
     std::unordered_set<TermData*, Hasher, Comparator> cache;
+    Utils::StringPool internTable;
 };
 
 } // namespace Engine
