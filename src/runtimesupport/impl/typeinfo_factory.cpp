@@ -295,6 +295,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             extDef.argNum              = 0;
             extDef.isInterfaceTypeInfo = 1;
             extDef.flag                = 0b00000110; // FIXME: research how to properly implement this.
+            extDef.whereCondFn         = nullptr;
 
             extDef.ti = &currentTypeInfo->base;
 
