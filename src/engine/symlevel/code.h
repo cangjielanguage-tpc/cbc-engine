@@ -31,6 +31,8 @@ struct RawLivenessInfo {
 
 class Code {
 public:
+    static Code Resolve(Engine::Session& session, Engine::Identifier<Code> identifier);
+
     static Code Parse(Engine::Session& session, IO::FileId fileId, Offset<Code> offset);
 
     static Code Mock(uint8_t* codePtr, uint32_t codeSize) { return Code(codePtr, codeSize); }

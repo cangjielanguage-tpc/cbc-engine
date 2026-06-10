@@ -3,6 +3,7 @@
 #include "RuntimeTypes.h"
 #include "asm_trampolines.h"
 #include "cjnative.h"
+#include "interpreter/implicit_exceptions.h"
 #include "runtimesupport/impl/rt_syms.h"
 #include "runtimesupport/impl/typeinfo_ext.h"
 #include "utils/assertion.h"
@@ -59,6 +60,8 @@ void Execution::WriteObjectStatic(void* location, Reference object, ThreadHandle
 void* Execution::AllocateObjectInstance() { return reinterpret_cast<void*>(&Asm::engine_i2_newobject); }
 
 void* Execution::AllocateArrayInstance() { return reinterpret_cast<void*>(&Asm::engine_i2_newarray); }
+
+void* Execution::HandleException() { return reinterpret_cast<void*>(&Asm::engine_handle_exception); }
 
 void* Execution::GcPoint() { return reinterpret_cast<void*>(g_CJNativeInterfaceInstance.safePoint); }
 
@@ -175,6 +178,14 @@ TypeInfo MetaInfo::ByteArrayTypeInfo()
 {
     auto typeName = "RawArray<UInt8>";
     auto ti       = g_CJNativeInterfaceInstance.typeInfo(typeName);
+    ASSERT(ti != nullptr);
+
+    return TypeInfo(ti);
+}
+
+TypeInfo MetaInfo::ImplicitExceptionTypeInfo(Interpretation::ImplicitException exception)
+{
+    auto ti = g_CJNativeInterfaceInstance.typeInfo(exception.GetTypeName());
     ASSERT(ti != nullptr);
 
     return TypeInfo(ti);

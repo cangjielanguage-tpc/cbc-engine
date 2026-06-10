@@ -4,6 +4,7 @@
 /// interpreter and the runtime.
 
 #include "interpreter/ectype.h"
+#include "interpreter/implicit_exceptions.h"
 #include <cstdint>
 #include <functional>
 #include <optional>
@@ -62,6 +63,8 @@ struct Execution {
 
     static void* AllocateArrayInstance();
 
+    static void* HandleException();
+
     static void* GcPoint();
 
     static void* GcPointTrampoline();
@@ -109,6 +112,8 @@ struct MetaInfo {
     static uint32_t ArrayBodyOffset() { return sizeof(void*) + sizeof(uint64_t); }
 
     static TypeInfo ByteArrayTypeInfo();
+
+    static TypeInfo ImplicitExceptionTypeInfo(Interpretation::ImplicitException exception);
 };
 
 } // namespace RTSupport
