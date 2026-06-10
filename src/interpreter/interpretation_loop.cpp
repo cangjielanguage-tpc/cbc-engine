@@ -1,7 +1,10 @@
 #include "interpretation_loop.h"
 #include "cbc/formater_rt.h"
 #include "cbc/isa_rt.h"
+#include "engine/symlevel/code.h"
+#include "engine/symlevel/definitions.h"
 #include "interpreter.h"
+#include "interpreter/implicit_exceptions.h"
 #include "interpreter/loggers.h"
 #include "runtimesupport/adapters.h"
 #include "runtimesupport/runtime.h"
@@ -9,6 +12,7 @@
 #include "utils/logger.h"
 #include "utils/math.h"
 #include "utils/ostream.h"
+
 #include <cmath>
 #include <cstdint>
 
@@ -59,6 +63,31 @@ Interpretation::Thunk engine_interpretation_loop(
         NEXT;
 #endif
 
+    uintptr_t exceptionObj = 0;
+
+#define NEXT_OR_THROW(successfull, implicit_exception)                                                                 \
+    do {                                                                                                               \
+        if (successfull) {                                                                                             \
+            goto* MAIN_TABLE[reader.PeekOpcode()];                                                                     \
+        } else {                                                                                                       \
+            THROW_IMPLICIT(implicit_exception);                                                                        \
+        }                                                                                                              \
+    } while (0)
+
+#define THROW_EXPLICIT(exception)                                                                                      \
+    do {                                                                                                               \
+        exceptionObj = exception;                                                                                      \
+        goto HANDLE_EXCEPTION;                                                                                         \
+    } while (0)
+
+#define THROW_IMPLICIT(implicit_exception)                                                                             \
+    do {                                                                                                               \
+        exceptionObj      = 0;                                                                                         \
+        TypeInfo typeInfo = RTSupport::MetaInfo::ImplicitExceptionTypeInfo(implicit_exception);                        \
+        ectype->PutSReg(0, Value::Primitive { .u64 = reinterpret_cast<uintptr_t>(typeInfo.Raw()) });                   \
+        goto HANDLE_EXCEPTION;                                                                                         \
+    } while (0)
+
 #define CBC_RT_LABEL(opc, encoding, fmt) &&opc,
 #define CBC_RT_MEM_LABEL(opc, encoding, fmt, tail) &&opc,
     static void* MAIN_TABLE[] = { CBC_RT_OPCODES(CBC_RT_LABEL) };
@@ -72,7 +101,7 @@ Interpretation::Thunk engine_interpretation_loop(
     // [int] (stack depth) < (bc pos): instruction
     #define LOG_INSTR                                                                                                  \
         do {                                                                                                           \
-            logger.PrintFmt("#0x%lx < 0x%03lx: ", frame.start, pos - start);                                  \
+            logger.PrintFmt("#0x%lx < 0x%03lx: ", frame.start, pos - start);                                           \
             pos = reader.Cursor();                                                                                     \
             Cbc::RT::Log(literals, logger, args);                                                                      \
         } while (0)
@@ -644,10 +673,7 @@ NULLCHECK: {
     auto args = B2xr::Decode(reader);
     LOG_INSTR;
     auto ref = ectype->GetReference(args.xr.r.IR());
-    if (ref.value == 0) {
-        FATAL("null check failed"); // TODO: throw exception
-    }
-    NEXT;
+    NEXT_OR_THROW(ref.value != 0, ImplicitException::Type::NoneValueException);
 }
 
 DIVCHECK: {
@@ -657,7 +683,7 @@ DIVCHECK: {
     if (div.u64 == 0) {
         FATAL("div check failed"); // TODO: throw exception
     }
-    NEXT;
+    NEXT_OR_THROW(div.u64 != 0, ImplicitException::Type::ArithmeticException);
 }
 
 IOF: {
@@ -677,9 +703,7 @@ THROW: {
     if (ref.value == 0) {
         FATAL("unexpected null in THROW");
     }
-    uintptr_t** header  = reinterpret_cast<uintptr_t**>(ref.value);
-    auto typeInfo = TypeInfo(*header);
-    FATAL("Throw %s", MetaInfo::GetName(typeInfo)); // TODO: throw exception
+    THROW_EXPLICIT(ref.value);
 }
 
 MEMSPACE: {
@@ -972,6 +996,13 @@ OFFS_REG_IDX64: {
     FSTI(64, 32, M5i32)
     FSTI(64, 64, M9i64)
 #undef FSTI
+
+HANDLE_EXCEPTION: {
+    auto func = RTSupport::Execution::HandleException();
+    reader0   = reader; // save current pc
+
+    return { func, reinterpret_cast<void*>(exceptionObj) };
+}
 
 #undef MEM_NEXT
 #undef NEXT

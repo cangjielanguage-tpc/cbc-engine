@@ -53,6 +53,12 @@ void* Execution::AllocateObjectInstance() { FATAL("Should not reach here"); }
 
 void* Execution::AllocateArrayInstance() { FATAL("Should not reach here"); }
 
+void* Execution::HandleException()
+{
+    FATAL("Should not reach here");
+    return nullptr;
+}
+
 void* Execution::GcPointTrampoline() { FATAL("Should not reach here"); }
 
 void* Execution::Spawn() { FATAL("Should not reach here"); }
@@ -92,5 +98,7 @@ bool MetaInfo::IsReferenceType(TypeInfo ti) { return false; }
 void MetaInfo::VisitReferences(TypeInfo ti, std::function<void(uint32_t)> visitor) { FATAL("Should not be called"); }
 
 TypeInfo MetaInfo::ByteArrayTypeInfo() { return TypeInfo(nullptr); }
+
+TypeInfo MetaInfo::ImplicitExceptionTypeInfo(Interpretation::ImplicitException exception) { return TypeInfo(nullptr); }
 
 } // namespace RTSupport
