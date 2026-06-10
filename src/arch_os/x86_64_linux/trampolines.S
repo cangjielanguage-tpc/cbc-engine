@@ -35,19 +35,15 @@ declare_hidden engine_cjthread_specific_offset
 engine_universal_direct_function_handles:
   .skip 8 * TRAMPOLINE_COUNT
 
-.align 16
+.align 64
 engine_newobject_function:
   .skip 8
-
-.align 16
 engine_newarray_function:
   .skip 8
-
-.align 16
+engine_newthread_nret_function:
+  .skip 8
 engine_carrier_specific_offset:
   .skip 8
-
-.align 16
 engine_cjthread_specific_offset:
   .skip 8
 
@@ -218,7 +214,7 @@ engine_i2_newobject:
   jmp   .Lrestart_interpretation
 
 .align 16
-// expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo, rsi: length)
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
 engine_i2_newarray:
@@ -234,6 +230,17 @@ engine_i2_gcpoint:
   call rdi
   jmp  .Lrestart_interpretation
 
+.align 16
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
+// preserved: ECTYPE_REG, rbp
+// TLS_REG can be changed after context-switch
+engine_i2_spawn:
+  mov   rsi, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8]
+  mov   rcx, rdi
+  lea   rdi, [rip + engine_fake_execute_closure]
+  xor   edx, edx
+  call  [rip + engine_newthread_nret_function]
+  jmp  .Lrestart_interpretation
 
 .align 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: fuh)
@@ -399,3 +406,10 @@ perform_2i_call:
   mov   rsp, rbp
   pop   rbp
   ret
+
+// fake execute closure function
+.align 16
+engine_fake_execute_closure:
+  // (rdi: sret, rsi: ()T, rdx: TypeInfo[Future[T]]
+  mov   rcx, [rsi + 0x10] // get $i (instantiated) version of closure function
+  jmp   rcx

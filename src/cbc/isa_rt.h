@@ -10,7 +10,6 @@
     X(NOP, B1, "nop")                                                                                                  \
     X(MOV, B2rr, "mov $0ir $1ir")                                                                                      \
     X(MOVI, B2xr, "movi $1ir $0I4")                                                                                    \
-    X(MOVR, B2rr, "movr $0ir $1ir")                                                                                    \
     X(FMOV, B2rr, "fmov $0fr $1fr")                                                                                    \
     X(MOVI2F, B2rr, "i2f $0fr $1ir")                                                                                   \
     X(MOVF2I, B2rr, "f2i $0ir $1fr")                                                                                   \
@@ -41,6 +40,8 @@
     X(FUN64, B3xrrr, "$0fop.64 $1fr $3fr")                                                                             \
     X(NEWOBJ, B9i64, "newobj IR1, $0U64")                                                                              \
     X(NEWARR, B9i64, "newarr IR1, IR2, $0U64")                                                                         \
+    X(INITCLOSURE, B9i64, "init.closure")                                                                              \
+    X(SPAWN, B9i64, "spawn $0U64")                                                                                     \
     X(LOAD_OBJ, B4xi12rr, "ld.$0ldk $2ir [$3ir $1U12]")                                                                \
     X(STORE_OBJ, B4xi12rr, "st.$0stk $2ir [$3ir $1U12]")                                                               \
     X(LOAD_OBJ_F, B4xi12rr, "ld.$0ldk $2fr [$3ir $1U12]")                                                              \

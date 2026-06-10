@@ -63,6 +63,10 @@ protected:
     virtual void CallDirect(IReg dst, uint16_t method)    = 0;
     virtual void CallVirtual(IReg dst, uint16_t method)   = 0;
     virtual void CallInterf(IReg dst, uint16_t method)    = 0;
+    virtual void Spawn(IReg closure, uint16_t type)       = 0;
+    virtual void SpawnFuture(IReg future, uint16_t type)  = 0;
+    virtual void CallClosure(IReg dst, uint16_t type)     = 0;
+    virtual void NewClosure(IReg dst, uint16_t type)      = 0;
 
     virtual void Scc(Format::Width width, Format::CC cc, IReg d, AnyReg l, AnyReg r)      = 0;
     virtual void SccImm(Format::Width width, Format::CC cc, IReg d, IReg l, uint64_t imm) = 0;

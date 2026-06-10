@@ -64,6 +64,8 @@ void* Execution::GcPoint() { return reinterpret_cast<void*>(g_CJNativeInterfaceI
 
 void* Execution::GcPointTrampoline() { return reinterpret_cast<void*>(&Asm::engine_i2_gcpoint); }
 
+void* Execution::Spawn() { return reinterpret_cast<void*>(&Asm::engine_i2_spawn); }
+
 bool Execution::IsPendingSafePoint()
 {
     return g_CJNativeInterfaceInstance.isPendingSafePoint(g_CJNativeInterfaceInstance.getThreadLocalData());

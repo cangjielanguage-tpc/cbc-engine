@@ -55,6 +55,8 @@ void* Execution::AllocateArrayInstance() { FATAL("Should not reach here"); }
 
 void* Execution::GcPointTrampoline() { FATAL("Should not reach here"); }
 
+void* Execution::Spawn() { FATAL("Should not reach here"); }
+
 void* Execution::GcPoint() { FATAL("Should not reach here"); }
 
 bool Execution::IsPendingSafePoint() { return false; }
@@ -68,6 +70,8 @@ Reference Execution::GetGlobalBasePtr() { FATAL("Should not reach here"); }
 Reference Execution::GetLocalBasePtr() { FATAL("Should not reach here"); }
 
 void* Adapters::GenericI2CCallInstance() { FATAL("Should not reach here"); }
+
+void* Adapters::GetDynCallTrampoline(int idx) { FATAL("Should not reach here"); }
 
 void* Adapters::I2ICallInstance() { FATAL("Should not reach here"); }
 

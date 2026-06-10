@@ -462,11 +462,6 @@ void Emitter::FMovI64(FReg d, double imm)
     );
 }
 
-void Emitter::MovRef(IReg d, IReg s)
-{
-    Encode(segment, RT::B2rr { .opc = RT::Opcode::MOVR, .rr = RR { .x = d, .y = s } });
-}
-
 void Emitter::Bcc(CC cc, Width width, IReg l, IReg r, Label label)
 {
     ASSERT(width == Width::W32 || width == Width::W64);
@@ -498,6 +493,8 @@ void Emitter::NewArr(RTSupport::TypeInfo typeInfo)
         segment, RT::B9i64 { .opc = RT::Opcode::NEWARR, .imm64 = { .imm = reinterpret_cast<uint64_t>(typeInfo.Raw()) } }
     );
 }
+
+void Emitter::InitClosure() { Encode(segment, RT::B1 { RT::Opcode::INITCLOSURE }); }
 
 void Emitter::LoadStatic(LoadAccessKind ldk, Reg dst, Symbol offSym)
 {

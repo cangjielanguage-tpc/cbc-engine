@@ -269,6 +269,8 @@ void* Execution::GcPointTrampoline() { FATAL("Should not reach here"); }
 
 void* Execution::GcPoint() { FATAL("Should not reach here"); }
 
+void* Execution::Spawn() { FATAL("Should not reach here"); }
+
 bool Execution::IsPendingSafePoint() { return false; }
 
 bool Execution::IsInstanceOf(Reference base, TypeInfo ti) { FATAL("Should not reach here"); }

@@ -157,6 +157,8 @@ public:
     void Nop();
     void Jmp(Label label);
 
+    void InitClosure();
+
     void NewObj(RTSupport::TypeInfo typeInfo);
     void NewArr(RTSupport::TypeInfo typeInfo);
     void LoadObj(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset);

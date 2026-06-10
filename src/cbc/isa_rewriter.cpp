@@ -22,6 +22,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <optional>
 #include <sys/types.h>
 #include <variant>
 
@@ -34,6 +35,11 @@ using MemSpaceEmitter = Emitter::Emitter::MemSpace;
 using TK  = CbcTypeKind;
 using LDK = Format::LoadAccessKind;
 using STK = Format::StoreAccessKind;
+
+enum class New {
+    Obj,
+    Arr,
+};
 
 static LDK Ldk(CbcTypeKind tk)
 {
@@ -127,6 +133,13 @@ struct IsaRewriter : public IsaParser {
         return cursor - start;
     }
 
+    void AdjustReg(IReg expected, IReg actual)
+    {
+        if (expected != actual) {
+            emit.Mov(expected, actual);
+        }
+    }
+
     void Bcc(Format::Width width, Format::CC cc, AnyReg l, AnyReg r, int64_t delta) override
     {
         if (cc.IsFloatingPoint()) {
@@ -153,7 +166,7 @@ struct IsaRewriter : public IsaParser {
 
     void IntToFloat(Format::Width width, FReg d, IReg s) override { emit.Mov(d, s); }
 
-    void MovRef(IReg d, IReg s) override { emit.MovRef(d, s); }
+    void MovRef(IReg d, IReg s) override { emit.Mov(d, s); }
 
     void MovImm(Format::Width width, IReg d, uint64_t value) override { emit.MovImm(width, d, value); }
 
@@ -216,26 +229,8 @@ struct IsaRewriter : public IsaParser {
 
     void NewArr(IReg dst, IReg len, uint16_t typeId) override
     {
-        auto t = resolver.Query(Index<Type>(typeId));
-        if (!t.has_value()) {
-            Fail();
-            return;
-        }
-        auto type = t.value();
-        if (!type->GetTypeInfo().has_value()) {
-            errStream << "Failed to get type info of " << *type << Stream::endl;
-            Fail();
-            return;
-        }
-
-        auto typeInfo = type->GetTypeInfo().value();
-        if (len != IReg::IR2) {
-            emit.Mov(IReg::IR2, len);
-        }
-        emit.NewArr(typeInfo);
-        if (dst != IReg::IR1) {
-            emit.Mov(dst, IReg::IR1);
-        }
+        AdjustReg(IReg::IR2, len);
+        NewObject(dst, typeId, New::Arr);
     }
 
     void GcPoint() override { emit.GcPoint(); }
@@ -314,26 +309,30 @@ struct IsaRewriter : public IsaParser {
         emit.MovImm(Format::Width::W64, dst, reinterpret_cast<uint64_t>(typeInfo));
     }
 
-    void NewObj(IReg dst, uint16_t typeId) override
+    std::optional<Type*> NewObject(IReg dst, uint16_t typeId, New kind)
     {
         auto t = resolver.Query(Index<Type>(typeId));
         if (!t.has_value()) {
             Fail();
-            return;
+            return std::nullopt;
         }
         auto type = t.value();
         if (!type->GetTypeInfo().has_value()) {
             errStream << "Failed to get type info of " << *type << Stream::endl;
             Fail();
-            return;
+            return std::nullopt;
         }
 
         auto typeInfo = type->GetTypeInfo().value();
-        emit.NewObj(typeInfo);
-        if (dst != IReg::IR1) {
-            emit.Mov(dst, IReg::IR1);
+        switch (kind) {
+            case New::Obj: emit.NewObj(typeInfo); break;
+            case New::Arr: emit.NewArr(typeInfo); break;
         }
+        AdjustReg(dst, IReg::IR1);
+        return type;
     }
+
+    void NewObj(IReg dst, uint16_t typeId) override { NewObject(dst, typeId, New::Obj); }
 
     void CallDirect(IReg dst, uint16_t methodId) override
     {
@@ -352,9 +351,7 @@ struct IsaRewriter : public IsaParser {
             auto sym = emit.NewAddressSym(reinterpret_cast<uintptr_t>(fuh));
             emit.DirectCall2i(sym);
         }
-        if (dst != IReg::IR1) {
-            emit.Mov(dst, IReg::IR1);
-        }
+        AdjustReg(dst, IReg::IR1);
     }
 
     void CallVirtual(IReg dst, uint16_t methodId) override
@@ -366,9 +363,7 @@ struct IsaRewriter : public IsaParser {
         }
         auto method = m.value();
         emit.VirtualCall(method->methodNum, method->extDefNum);
-        if (dst != IReg::IR1) {
-            emit.Mov(dst, IReg::IR1);
-        }
+        AdjustReg(dst, IReg::IR1);
     }
 
     void CallInterf(IReg dst, uint16_t methodId) override
@@ -385,9 +380,35 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         emit.InterfaceCall(method->methodNum, *ti);
-        if (dst != IReg::IR1) {
-            emit.Mov(dst, IReg::IR1);
+        AdjustReg(dst, IReg::IR1);
+    }
+
+    void Spawn(IReg closure, uint16_t typeId) override
+    {
+        AdjustReg(IReg::IR1, closure);
+
+        auto t = resolver.QueryFutureByFunctional(Index<Type>(typeId));
+        if (!t.has_value()) {
+            Fail();
+            return;
         }
+        auto type        = t.value();
+        auto optTypeInfo = type->GetTypeInfo();
+        if (!optTypeInfo.has_value()) {
+            Fail();
+            return;
+        }
+        auto typeInfo = *optTypeInfo;
+    }
+
+    void SpawnFuture(IReg future, uint16_t type) override { FATAL("not implemented"); }
+
+    void CallClosure(IReg dst, uint16_t type) override { FATAL("not implemented"); }
+
+    void NewClosure(IReg dst, uint16_t typeId) override
+    {
+        NewObj(dst, typeId);
+        emit.InitClosure();
     }
 
     void Scc(Format::Width width, Format::CC cc, IReg d, AnyReg l, AnyReg r) override
@@ -407,9 +428,7 @@ struct IsaRewriter : public IsaParser {
 
     void Ret(Format::Width width, IReg src) override
     {
-        if (src != IReg::IR1) {
-            emit.Mov(IReg::IR1, src);
-        }
+        AdjustReg(IReg::IR1, src);
         emit.Ret();
     }
 
@@ -423,9 +442,7 @@ struct IsaRewriter : public IsaParser {
 
     void RetRef(IReg src) override
     {
-        if (src != IReg::IR1) {
-            emit.Mov(IReg::IR1, src);
-        }
+        AdjustReg(IReg::IR1, src);
         emit.Ret();
     }
 

@@ -653,6 +653,19 @@ std::optional<InstanceField const*> Resolver::QueryTupleElement(Type* refType, u
     return impl->session.Allocator().New<InstanceField>(field);
 }
 
+std::optional<Type*> Resolver::QueryFutureByFunctional(Index<Type> id)
+{
+    auto optFunctional = Query(id);
+    if (!optFunctional.has_value()) {
+        return std::nullopt;
+    }
+    auto functionalType = dynamic_cast<SimpleType*>(*optFunctional);
+    auto term           = functionalType->term;
+    ASSERT(term.GetKind() == TermKind::FUNCTIONAL);
+    auto retType = term.Subterm(term.GetLength() - 1);
+    FATAL("not supported yet");
+}
+
 std::optional<Type*> Resolver::Query(Index<Type> id)
 {
     // terms are being cached on different level

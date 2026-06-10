@@ -59,6 +59,8 @@ struct Execution {
 
     static void* GcPointTrampoline();
 
+    static void* Spawn();
+
     static bool IsPendingSafePoint();
 
     static size_t ArrayLength(Reference array);

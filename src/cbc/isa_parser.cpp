@@ -484,7 +484,12 @@ struct IsaParserImpl {
             case Cbc::RegSymGroup::CallDirect:      parser.CallDirect(dst, id); break;
             case Cbc::RegSymGroup::CallVirt:        parser.CallVirtual(dst, id); break;
             case Cbc::RegSymGroup::CallInterf:      parser.CallInterf(dst, id); break;
-            default:                                {
+            case Cbc::RegSymGroup::Spawn:           parser.Spawn(dst, id); break;
+            case Cbc::RegSymGroup::SpawnFuture:     parser.SpawnFuture(dst, id); break;
+            case Cbc::RegSymGroup::CallClosure:     parser.CallClosure(dst, id); break;
+            case Cbc::RegSymGroup::NewClosure:      parser.NewClosure(dst, id); break;
+
+            default: {
                 FATAL("Should not reach here");
             }
         }
