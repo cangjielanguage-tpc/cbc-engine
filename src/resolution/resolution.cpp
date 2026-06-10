@@ -484,7 +484,6 @@ static std::optional<InstanceField> ResolveAotInstanceField(Resolver::Impl& reso
     auto refType     = resolver.GetType(ref.refType);
     auto fieldType   = resolver.GetType(ref.fieldType);
     auto [file, raf] = resolver.session.File(resolver.fileId);
-    ASSERTION(ref.fieldType.GetKind() != TermKind::TYPE, "aot types cannot have fields of cbc type");
     auto data = file.GetInstanceFieldAotTable().GetData(resolver.session, ref.identifier.GetIndex());
     auto offset =
         RTSupport::Execution::GetFieldOffset(refType->GetTypeInfo().value(), data.ordinal, ref.refType.IsReference());

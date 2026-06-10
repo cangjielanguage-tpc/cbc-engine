@@ -52,28 +52,34 @@ public:
 
     inline void Put(IReg reg, Value::Primitive primitive)
     {
+#ifndef NDEBUG
         Log::interpretation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
             out << reg.ToStr() << " <- " << primitive.u64 << Stream::endl;
         });
+#endif
         ASSERT(reg != IReg::IRZ);
         iregs[reg].primitive = primitive;
     }
 
     inline void Put(IReg reg, Value::Reference reference)
     {
+#ifndef NDEBUG
         Log::interpretation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
             out.PrintFmt("%s <- %p", reg.ToStr().data(), reference.value);
             out.NewLine();
         });
+#endif
         ASSERT(reg != IReg::IRZ);
         iregs[reg].reference = reference;
     }
 
     inline void Put(FReg reg, Value::Primitive primitive)
     {
+#ifndef NDEBUG
         Log::interpretation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
             out << reg.ToStr() << " <- " << primitive.f64 << Stream::endl;
         });
+#endif
         fregs[reg].primitive = primitive;
     }
 

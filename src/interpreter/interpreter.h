@@ -114,6 +114,59 @@ public:
         return true;
     }
 
+    inline bool StoreObjImm(Format::StoreAccessKind stk, IReg base, uint64_t offset, uint64_t imm)
+    {
+        auto obj = ectype->GetReference(base);
+        if (!NullCheck(obj)) {
+            return false;
+        }
+        if (stk == StoreAccessKind::ST_REF) {
+            return false;
+        } else {
+            MemoryLocation(obj.value, offset).StoreImm(stk, imm);
+        }
+        return true;
+    }
+
+    inline bool LoadDerived(Format::LoadAccessKind ldk, Format::Reg dst, IReg base, IReg derived, uint64_t offset)
+    {
+        auto obj = ectype->GetReference(base);
+        auto derivedAddr = ectype->GetPrimitive(derived).u64;
+        if (RTSupport::Execution::IsGlobalStruct(obj, derivedAddr)) {
+            return LoadRec(ldk, dst, IReg::IRZ, derivedAddr + offset);
+        } else if (obj.value == 0) {
+            return LoadRec(ldk, dst, base, offset);
+        } else {
+            return LoadObj(ldk, dst, base, derived + offset);
+        }
+    }
+
+    inline bool StoreDerived(Format::StoreAccessKind stk, Format::Reg src, IReg base, IReg derived, uint64_t offset)
+    {
+        auto obj = ectype->GetReference(base);
+        auto derivedAddr = ectype->GetPrimitive(derived).u64;
+        if (RTSupport::Execution::IsGlobalStruct(obj, derivedAddr)) {
+            return StoreRec(stk, src, IReg::IRZ, derivedAddr + offset);
+        } else if (obj.value == 0) {
+            return StoreRec(stk, src, derived, offset);
+        } else {
+            return StoreObj(stk, src, base, (derivedAddr - obj.value) + offset);
+        }
+    }
+
+    inline bool StoreDerivedImm(Format::StoreAccessKind stk, IReg base, IReg derived, uint64_t offset, uint64_t imm)
+    {
+        auto obj         = ectype->GetReference(base);
+        auto derivedAddr = ectype->GetPrimitive(derived).u64;
+        if (RTSupport::Execution::IsGlobalStruct(obj, derivedAddr)) {
+            return StoreRecImm(stk, IReg::IRZ, derivedAddr + offset, imm);
+        } else if (obj.value == 0) {
+            return StoreRecImm(stk, derived, offset, imm);
+        } else {
+            return StoreObjImm(stk, base, (derivedAddr - obj.value) + offset, imm);
+        }
+    }
+
     inline bool LoadArray(Format::LoadAccessKind ldk, Format::Reg dst, IReg base, IReg idx)
     {
         auto obj = ectype->GetReference(base);
@@ -149,12 +202,18 @@ public:
     inline bool LoadRec(Format::LoadAccessKind ldk, Format::Reg dst, IReg base, size_t offset)
     {
         auto ptr = static_cast<uintptr_t>(ectype->GetPrimitive(base).u64);
-        if (ptr == 0) {
+        // IRZ means static record field, so whole position is encoded in accumulated offset
+        // FIXME: encode as separate operation
+        if (base != IReg::IRZ && ptr == 0) {
             return false;
         }
         if (ldk == LoadAccessKind::LD_REF) {
-            auto ref = Value::Reference { .value = *reinterpret_cast<uintptr_t*>(base + offset) };
-            ectype->Put(dst.IR(), ref);
+            if (base == IReg::IRZ) {
+                // Static record field requires barrier
+                ectype->Put(dst.IR(), RTSupport::Execution::ReadObjectStatic(reinterpret_cast<void*>(offset), handle));
+            } else {
+                MemoryLocation(ptr, offset).LoadRef(dst, ectype);
+            }
         } else {
             MemoryLocation(ptr, offset).LoadPrim(ldk, dst, ectype);
         }
@@ -164,15 +223,34 @@ public:
     inline bool StoreRec(Format::StoreAccessKind stk, Format::Reg src, IReg base, uint64_t offset)
     {
         auto ptr = static_cast<uintptr_t>(ectype->GetPrimitive(base).u64);
-        if (ptr == 0) {
+        // IRZ means static record field, so whole position is encoded in accumulated offset
+        // FIXME: encode as separate operation
+        if (base != IReg::IRZ && ptr == 0) {
             return false;
         }
         if (stk == StoreAccessKind::ST_REF) {
-            auto ref                                     = ectype->GetReference(src.IR()).value;
-            *reinterpret_cast<uintptr_t*>(base + offset) = ref;
+            auto ref = ectype->GetReference(src.IR());
+            if (base == IReg::IRZ) {
+                // Static record field requires barrier
+                RTSupport::Execution::WriteObjectStatic(reinterpret_cast<void*>(offset), ref, handle);
+            } else {
+                MemoryLocation(ptr, offset).StoreRef(src, ectype);
+            }
         } else {
             MemoryLocation(ptr, offset).StorePrim(stk, src, ectype);
         }
+        return true;
+    }
+
+    inline bool StoreRecImm(Format::StoreAccessKind stk, IReg base, uint64_t offset, uint64_t imm)
+    {
+        auto ptr = static_cast<uintptr_t>(ectype->GetPrimitive(base).u64);
+        // IRZ means static record field, so whole position is encoded in accumulated offset
+        if (base != IReg::IRZ && ptr == 0) {
+            return false;
+        }
+        ASSERTION(stk <= Format::StoreAccessKind::ST_64, "Unexpected store access kind");
+        MemoryLocation(ptr, offset).StoreImm(stk, imm);
         return true;
     }
 
@@ -201,7 +279,7 @@ public:
     inline bool StoreFrameImm(Format::StoreAccessKind stk, uint64_t imm, uint64_t offset)
     {
         auto ptr = frame.start;
-        ASSERTION(stk <= 3, "Unexpected stk");
+        ASSERTION(stk <= Format::StoreAccessKind::ST_64, "Unexpected store access kind");
         MemoryLocation(ptr, offset).StoreImm(stk, imm);
         return true;
     }

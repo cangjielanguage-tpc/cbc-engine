@@ -42,6 +42,8 @@ protected:
 
     virtual void Convert(Format::ConvertType toType, Format::ConvertType fromType, AnyReg to, AnyReg from) = 0;
 
+    virtual void MovBasePtr(IReg dst, bool local) = 0;
+
     virtual void BFX(IReg dst, IReg src, Format::Width resW, Format::Width argW, bool sx, uint8_t offset, uint8_t size) = 0;
 
     virtual void PrepareRecord(uint16_t ts)                = 0;
@@ -101,11 +103,11 @@ protected:
 
     virtual std::unique_ptr<MemSpace> OpenMemSpace() = 0;
 
-    virtual void MemHeadReg(MemSpace& ms, IReg scratch, IReg base) = 0;
-    virtual void MemHeadField(MemSpace& ms, IReg scratch, IReg base, uint16_t field) = 0;
-    virtual void MemHeadStatic(MemSpace& ms, IReg scratch, uint16_t field) = 0;
-    virtual void MemHeadHandle(MemSpace& ms, IReg scratch, IReg base, IReg offset) = 0;
-    virtual void MemHeadTyped(MemSpace& ms, IReg scratch, uint16_t ts) = 0;
+    virtual void MemHeadReg(MemSpace& ms, IReg base, bool isRef) = 0;
+    virtual void MemHeadField(MemSpace& ms, IReg base, uint16_t field) = 0;
+    virtual void MemHeadStatic(MemSpace& ms, uint16_t field) = 0;
+    virtual void MemHeadHandle(MemSpace& ms, IReg base, IReg derived) = 0;
+    virtual void MemHeadTyped(MemSpace& ms, uint16_t ts) = 0;
 
     virtual void MemBodyField1(MemSpace& ms, uint16_t f1) = 0;
     virtual void MemBodyField2(MemSpace& ms, uint16_t f1, uint16_t f2) = 0;

@@ -108,6 +108,43 @@
     X(RST_REF, M2rr, "rst.ref $0ir $1ir }", true)                                                                      \
     X(RST_F32, M2rr, "rst.f32 $0fr $1ir }", true)                                                                      \
     X(RST_F64, M2rr, "rst.f64 $0fr $1ir }", true)                                                                      \
+    X(RSTI_8_8, M3xri8, "rsti.8.8 $1ir $2U8 }", true)                                                                  \
+    X(RSTI_16_8, M3xri8, "rsti.16.8 $1ir $2U8 }", true)                                                                \
+    X(RSTI_16_16, M4xri16, "rsti.16.16 $1ir $2U16 }", true)                                                            \
+    X(RSTI_32_8, M3xri8, "rsti.32.8 $1ir $2U8 }", true)                                                                \
+    X(RSTI_32_16, M4xri16, "rsti.32.16 $1ir $2U16 }", true)                                                            \
+    X(RSTI_32_32, M6xri32, "rsti.32.32 $1ir $2U32 }", true)                                                            \
+    X(RSTI_64_8, M3xri8, "rsti.64.8 $1ir $2U8 }", true)                                                                \
+    X(RSTI_64_16, M4xri16, "rsti.64.16 $1ir $2U16 }", true)                                                            \
+    X(RSTI_64_32, M6xri32, "rsti.64.32 $1ir $2U32 }", true)                                                            \
+    X(RSTI_64_64, M10xri64, "rsti.64.64 $1ir $2U64 }", true)                                                           \
+    X(DLD_U8, M3xrrr, "dld.u8 $1ir $2ir $3ir }", true)                                                                 \
+    X(DLD_U16, M3xrrr, "dld.u16 $1ir $2ir $3ir }", true)                                                               \
+    X(DLD_32, M3xrrr, "dld.u32 $1ir $2ir $3ir }", true)                                                                \
+    X(DLD_S8, M3xrrr, "dld.s8 $1ir $2ir $3ir }", true)                                                                 \
+    X(DLD_S16, M3xrrr, "dld.s16 $1ir $2ir $3ir }", true)                                                               \
+    X(DLD_F32, M3xrrr, "dld.f32 $1fr $2ir $3ir }", true)                                                               \
+    X(DLD_F64, M3xrrr, "dld.f64 $1fr $2ir $3ir }", true)                                                               \
+    X(DLD_64, M3xrrr, "dld.64 $1ir $2ir $3ir }", true)                                                                 \
+    X(DLD_S32TO64, M3xrrr, "dld.s32to64 $1ir $2ir $3ir }", true)                                                       \
+    X(DLD_REF, M3xrrr, "dld.ref $1ir $2ir $3ir }", true)                                                               \
+    X(DST_8, M3xrrr, "dst.8 $1ir $2ir $3ir }", true)                                                                   \
+    X(DST_16, M3xrrr, "dst.16 $1ir $2ir $3ir }", true)                                                                 \
+    X(DST_32, M3xrrr, "dst.32 $1ir $2ir $3ir }", true)                                                                 \
+    X(DST_64, M3xrrr, "dst.64 $1ir $2ir $3ir }", true)                                                                 \
+    X(DST_REF, M3xrrr, "dst.ref $1ir $2ir $3ir }", true)                                                               \
+    X(DST_F32, M3xrrr, "dst.f32 $1fr $2ir $3ir }", true)                                                               \
+    X(DST_F64, M3xrrr, "dst.f64 $rfr $2ir $3ir }", true)                                                               \
+    X(DSTI_8_8, M3rri8, "dsti.8.8 $0ir $1ir $2U8 }", true)                                                             \
+    X(DSTI_16_8, M3rri8, "dsti.16.8 $0ir $1ir $2U8 }", true)                                                           \
+    X(DSTI_16_16, M4rri16, "dsti.16.16 $0ir $1ir $2U16 }", true)                                                       \
+    X(DSTI_32_8, M3rri8, "dsti.32.8 $0ir $1ir $2U8 }", true)                                                           \
+    X(DSTI_32_16, M4rri16, "dsti.32.16 $0ir $1ir $2U16 }", true)                                                       \
+    X(DSTI_32_32, M6rri32, "dsti.32.32 $0ir $1ir $2U32 }", true)                                                       \
+    X(DSTI_64_8, M3rri8, "dsti.64.8 $0ir $1ir $2U8 }", true)                                                           \
+    X(DSTI_64_16, M4rri16, "dsti.64.16 $0ir $1ir $2U16 }", true)                                                       \
+    X(DSTI_64_32, M6rri32, "dsti.64.32 $0ir $1ir $2U32 }", true)                                                       \
+    X(DSTI_64_64, M10rri64, "dsti.64.64 $0ir $1ir $2U64 }", true)                                                      \
     X(SLD_U8, M2rr, "sld.u8 $0ir $1ir }", true)                                                                        \
     X(SLD_U16, M2rr, "sld.u16 $0ir $1ir }", true)                                                                      \
     X(SLD_32, M2rr, "sld.u32 $0ir $1ir }", true)                                                                       \
@@ -125,6 +162,16 @@
     X(SST_REF, M2rr, "sst.ref $0ir $1ir }", true)                                                                      \
     X(SST_F32, M2rr, "sst.f32 $0fr $1ir }", true)                                                                      \
     X(SST_F64, M2rr, "sst.f64 $0fr $1ir }", true)                                                                      \
+    X(SSTI_8_8, M3xri8, "ssti.8.8 $1ir $2U8 }", true)                                                                  \
+    X(SSTI_16_8, M3xri8, "ssti.16.8 $1ir $2U8 }", true)                                                                \
+    X(SSTI_16_16, M4xri16, "ssti.16.16 $1ir $2U16 }", true)                                                            \
+    X(SSTI_32_8, M3xri8, "ssti.32.8 $1ir $2U8 }", true)                                                                \
+    X(SSTI_32_16, M4xri16, "ssti.32.16 $1ir $2U16 }", true)                                                            \
+    X(SSTI_32_32, M6xri32, "ssti.32.32 $1ir $2U32 }", true)                                                            \
+    X(SSTI_64_8, M3xri8, "ssti.64.8 $1ir $2U8 }", true)                                                                \
+    X(SSTI_64_16, M4xri16, "ssti.64.16 $1ir $2U16 }", true)                                                            \
+    X(SSTI_64_32, M6xri32, "ssti.64.32 $1ir $2U32 }", true)                                                            \
+    X(SSTI_64_64, M10xri64, "ssti.64.64 $1ir $2U64 }", true)                                                           \
     X(FLD_U8, M2rr, "fld.u8 $0ir $1ir }", true)                                                                        \
     X(FLD_U16, M2rr, "fld.u16 $0ir $1ir }", true)                                                                      \
     X(FLD_32, M2rr, "fld.u32 $0ir $1ir }", true)                                                                       \
@@ -215,16 +262,26 @@ public:
 
     static constexpr auto RLD_START_OPCODE  = RLD_U8;
     static constexpr auto RLD_END_OPCODE    = RLD_REF;
+    static constexpr auto DLD_START_OPCODE  = DLD_U8;
+    static constexpr auto DLD_END_OPCODE    = DLD_REF;
     static constexpr auto SLD_START_OPCODE  = SLD_U8;
     static constexpr auto SLD_END_OPCODE    = SLD_REF;
     static constexpr auto FLD_START_OPCODE  = FLD_U8;
     static constexpr auto FLD_END_OPCODE    = FLD_REF;
     static constexpr auto RST_START_OPCODE  = RST_8;
     static constexpr auto RST_END_OPCODE    = RST_F64;
+    static constexpr auto DST_START_OPCODE  = DST_8;
+    static constexpr auto DST_END_OPCODE    = DST_F64;
     static constexpr auto SST_START_OPCODE  = SST_8;
     static constexpr auto SST_END_OPCODE    = SST_F64;
     static constexpr auto FST_START_OPCODE  = FST_8;
     static constexpr auto FST_END_OPCODE    = FST_F64;
+    static constexpr auto RSTI_START_OPCODE = RSTI_8_8;
+    static constexpr auto RSTI_END_OPCODE   = RSTI_64_64;
+    static constexpr auto DSTI_START_OPCODE = DSTI_8_8;
+    static constexpr auto DSTI_END_OPCODE   = DSTI_64_64;
+    static constexpr auto SSTI_START_OPCODE = SSTI_8_8;
+    static constexpr auto SSTI_END_OPCODE   = SSTI_64_64;
     static constexpr auto FSTI_START_OPCODE = FSTI_8_8;
     static constexpr auto FSTI_END_OPCODE   = FSTI_64_64;
 
@@ -290,6 +347,22 @@ struct B2xr {
         auto opc = Opcode::Decode(reader);
         auto xr  = Format::XR::Decode(reader);
         return B2xr { opc, xr };
+    }
+};
+
+struct B3xri8 {
+    static constexpr int SIZE = 3;
+
+    Opcode opc;
+    Format::XR xr;
+    Format::Imm8 imm8;
+
+    static B3xri8 Decode(Decoder::ByteReader& reader)
+    {
+        auto opc  = Opcode::Decode(reader);
+        auto xr   = Format::XR::Decode(reader);
+        auto imm8 = Format::Imm8::Decode(reader);
+        return B3xri8 { opc, xr, imm8 };
     }
 };
 
@@ -582,16 +655,58 @@ struct M9i64 {
     }
 };
 
+struct M3xri8 {
+    MemOpcode opc;
+    Format::XR xr;
+    Format::Imm8 imm8;
+
+    inline static M3xri8 Decode(Decoder::ByteReader& reader)
+    {
+        auto opc  = MemOpcode::Decode(reader);
+        auto xr   = Format::XR::Decode(reader);
+        auto imm8 = Format::Imm8::Decode(reader);
+        return M3xri8 { opc, xr, imm8 };
+    }
+};
+
+struct M4xri16 {
+    MemOpcode opc;
+    Format::XR xr;
+    Format::Imm16 imm16;
+
+    inline static M4xri16 Decode(Decoder::ByteReader& reader)
+    {
+        auto opc   = MemOpcode::Decode(reader);
+        auto xr    = Format::XR::Decode(reader);
+        auto imm16 = Format::Imm16::Decode(reader);
+        return M4xri16 { opc, xr, imm16 };
+    }
+};
+
+struct M6xri32 {
+    MemOpcode opc;
+    Format::XR xr;
+    Format::Imm32 imm32;
+
+    inline static M6xri32 Decode(Decoder::ByteReader& reader)
+    {
+        auto opc   = MemOpcode::Decode(reader);
+        auto xr    = Format::XR::Decode(reader);
+        auto imm32 = Format::Imm32::Decode(reader);
+        return M6xri32 { opc, xr, imm32 };
+    }
+};
+
 struct M10xri64 {
     MemOpcode opc;
     Format::XR xr;
-    uint64_t imm64;
+    Format::Imm64 imm64;
 
     inline static M10xri64 Decode(Decoder::ByteReader& reader)
     {
         auto opc   = MemOpcode::Decode(reader);
         auto xr  = Format::XR::Decode(reader);
-        auto imm64 = reader.Read64();
+        auto imm64 = Format::Imm64::Decode(reader);
         return M10xri64 { opc, xr, imm64 };
     }
 };
@@ -617,6 +732,76 @@ struct M2xr {
         auto opc = MemOpcode::Decode(reader);
         auto xr  = Format::XR::Decode(reader);
         return M2xr { opc, xr };
+    }
+};
+
+struct M3xrrr {
+    MemOpcode opc;
+    Format::XR xr;
+    Format::RR rr;
+
+    inline static M3xrrr Decode(Decoder::ByteReader& reader)
+    {
+        auto opc = MemOpcode::Decode(reader);
+        auto xr  = Format::XR::Decode(reader);
+        auto rr  = Format::RR::Decode(reader);
+        return M3xrrr { opc, xr, rr };
+    }
+};
+
+struct M3rri8 {
+    MemOpcode opc;
+    Format::RR rr;
+    Format::Imm8 imm8;
+
+    inline static M3rri8 Decode(Decoder::ByteReader& reader)
+    {
+        auto opc  = MemOpcode::Decode(reader);
+        auto rr   = Format::RR::Decode(reader);
+        auto imm8 = Format::Imm8::Decode(reader);
+        return M3rri8 { opc, rr, imm8 };
+    }
+};
+
+struct M4rri16 {
+    MemOpcode opc;
+    Format::RR rr;
+    Format::Imm16 imm16;
+
+    inline static M4rri16 Decode(Decoder::ByteReader& reader)
+    {
+        auto opc   = MemOpcode::Decode(reader);
+        auto rr    = Format::RR::Decode(reader);
+        auto imm16 = Format::Imm16::Decode(reader);
+        return M4rri16 { opc, rr, imm16 };
+    }
+};
+
+struct M6rri32 {
+    MemOpcode opc;
+    Format::RR rr;
+    Format::Imm32 imm32;
+
+    inline static M6rri32 Decode(Decoder::ByteReader& reader)
+    {
+        auto opc   = MemOpcode::Decode(reader);
+        auto rr    = Format::RR::Decode(reader);
+        auto imm32 = Format::Imm32::Decode(reader);
+        return M6rri32 { opc, rr, imm32 };
+    }
+};
+
+struct M10rri64 {
+    MemOpcode opc;
+    Format::RR rr;
+    Format::Imm64 imm64;
+
+    inline static M10rri64 Decode(Decoder::ByteReader& reader)
+    {
+        auto opc   = MemOpcode::Decode(reader);
+        auto rr    = Format::RR::Decode(reader);
+        auto imm64 = Format::Imm64::Decode(reader);
+        return M10rri64 { opc, rr, imm64 };
     }
 };
 
