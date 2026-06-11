@@ -532,6 +532,62 @@ GlobalTerm TermManager::Globalize(Term& term)
     return term.AsGlobal();
 }
 
+static bool IsProperTypeReference(Symlevel::TypeDefinition& def, bool isReference, int arity)
+{
+    if ((def.GetFlags().Is(Symlevel::TypeKind::RECORD)) == isReference) {
+        return false;
+    } else if (def->arity != arity) {
+        return false;
+    }
+    return true;
+}
+
+Term TermManager::NewAotTerm(
+    Session& session, std::string_view name, std::vector<Term> const& subterms, bool isReference
+)
+{
+    auto heap      = session.Allocator();
+    auto data      = AllocateTerm(heap, subterms.size());
+    bool isGeneric = false;
+    auto arity     = subterms.size();
+    for (int i = 0; i < arity; i++) {
+        data->subterms[i] = subterms[i];
+        isGeneric         = isGeneric || subterms[i].IsGeneric();
+    }
+
+    TermId id       = TagTermId(TermKind::NOTHING);
+    TermFlags flags = {
+        .isLocal       = true,
+        .isReference   = isReference,
+        .isAotPromoted = false,
+        .isGeneric     = isGeneric,
+    };
+
+    auto type = session.GetEngine().FindType(session, name);
+    if (type.has_value()) {
+        auto def = Symlevel::TypeDefinition::Resolve(session, type.value());
+        ASSERT(IsProperTypeReference(def, true, arity));
+        id                  = TypeTermId(*type);
+        flags.isAotPromoted = true;
+    } else if (isReference) {
+        id = AotRefTermId(InternString(name));
+    } else {
+        id = AotRecTermId(InternString(name));
+    }
+    data->InitAfterSubterms(id, arity, flags);
+    return Term(LocalTerm(data));
+}
+
+Term TermManager::NewAotRefTerm(Session& session, std::string_view name, std::vector<Term> const& subterms)
+{
+    return NewAotTerm(session, name, subterms, true);
+}
+
+Term TermManager::NewAotRecTerm(Session& session, std::string_view name, std::vector<Term> const& subterms)
+{
+    return NewAotTerm(session, name, subterms, false);
+}
+
 uint64_t TermManager::Hasher::operator()(TermData* const& data) const { return data->hash; }
 
 bool TermManager::Comparator::operator()(TermData* const& left, TermData* const& right) const
@@ -621,12 +677,7 @@ struct TermResolver {
         auto identifier = type.value();
 
         auto def       = Symlevel::TypeDefinition::Resolve(session, identifier);
-        bool undefined = false;
-        if ((def.GetFlags().Is(Symlevel::TypeKind::RECORD)) == isReference) {
-            undefined = true;
-        } else if (def->arity != expectedLength) {
-            undefined = true;
-        }
+        bool undefined = !IsProperTypeReference(def, isReference, expectedLength);
 
         if (undefined && wasAot) {
             FATAL("Unexpected mismatch of resolved type definition and aot term");

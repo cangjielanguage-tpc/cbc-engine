@@ -295,10 +295,14 @@ public:
     /// The function performs in-place modification of `Term` structure.
     GlobalTerm Globalize(Term& term);
 
+    Term NewAotRefTerm(Session& session, std::string_view name, std::vector<Term> const& subterms);
+    Term NewAotRecTerm(Session& session, std::string_view name, std::vector<Term> const& subterms);
+
     Utils::StringPool::ZeroTerminatedView GetNameOfAotType(AotRefTermId type);
     Utils::StringPool::ZeroTerminatedView GetNameOfAotType(AotRecTermId type);
 
 private:
+    Term NewAotTerm(Session& session, std::string_view name, std::vector<Term> const& subterms, bool isReference);
     size_t InternString(std::string_view str);
 
     struct Hasher {

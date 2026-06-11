@@ -58,12 +58,14 @@ struct Resolver::Impl {
     uint8_t regionId = 0; // FIXME
 
     std::unique_ptr<FieldLayoutManager> fieldManager;
+    TermManager& termManager;
 
     Impl(Session& session, Identifier<Symlevel::MethodDefinition> method)
         : session(session),
           method(method),
           fileId(method.GetFileId()),
-          fieldManager(FieldLayoutManager::New(session))
+          fieldManager(FieldLayoutManager::New(session)),
+          termManager(TermManager::Of(session))
     {}
 
     template <typename T> using Cache = std::unordered_map<int, T*>;
@@ -202,10 +204,11 @@ struct ResolvedFieldReference {
     }
 };
 
-static ResolvedMethodReference ResolveReference(Session& session, RefIdentifier<Symlevel::MethodReference> identifier)
+static ResolvedMethodReference ResolveReference(
+    Session& session, TermManager& manager, RefIdentifier<Symlevel::MethodReference> identifier
+)
 {
     auto parsedRef = Symlevel::MethodReference::Parse(session, identifier);
-    auto& manager  = TermManager::Of(session);
     auto refType   = manager.Resolve(session, parsedRef.refType);
     auto name      = Symlevel::String::Parse(session, parsedRef.name);
     auto signature = manager.Resolve(session, parsedRef.methodSig);
@@ -227,13 +230,14 @@ template <typename Call> static ResolvedMethodReference ResolveReference(Resolve
 {
     auto refId = Symlevel::RefId<Symlevel::MethodReference>(resolver.regionId, index.GetValue());
     auto ident = RefIdentifier<Symlevel::MethodReference>(refId, resolver.fileId);
-    return ResolveReference(resolver.session, ident);
+    return ResolveReference(resolver.session, resolver.termManager, ident);
 }
 
-static ResolvedFieldReference ResolveReference(Session& session, RefIdentifier<Symlevel::FieldReference> identifier)
+static ResolvedFieldReference ResolveReference(
+    Session& session, TermManager& manager, RefIdentifier<Symlevel::FieldReference> identifier
+)
 {
     auto parsedRef = Symlevel::FieldReference::Parse(session, identifier);
-    auto& manager  = TermManager::Of(session);
     auto refType   = manager.Resolve(session, parsedRef.refType);
     auto name      = Symlevel::String::Parse(session, parsedRef.name);
     auto fieldType = manager.Resolve(session, parsedRef.fieldType);
@@ -513,7 +517,7 @@ template <typename Field> std::optional<Field> ResolveField(Resolver::Impl& reso
 
     auto refId = Symlevel::RefId<Symlevel::FieldReference>(resolver.regionId, id.GetValue());
     auto ident = RefIdentifier<Symlevel::FieldReference>(refId, fileId);
-    auto ref   = ResolveReference(resolver.session, ident);
+    auto ref   = ResolveReference(resolver.session, resolver.termManager, ident);
 
     if (ref.refType.GetKind() == TermKind::UNDEFINED || ref.fieldType.GetKind() == TermKind::UNDEFINED) {
         // undef terms would be reported separately
@@ -662,8 +666,12 @@ std::optional<Type*> Resolver::QueryFutureByFunctional(Index<Type> id)
     auto functionalType = dynamic_cast<SimpleType*>(*optFunctional);
     auto term           = functionalType->term;
     ASSERT(term.GetKind() == TermKind::FUNCTIONAL);
+    ASSERT(term.GetLength() > 0);
     auto retType = term.Subterm(term.GetLength() - 1);
-    FATAL("not supported yet");
+
+    std::vector<Term> subterms { retType };
+    auto futureType = impl->termManager.NewAotRefTerm(impl->session, "std.core:Future", subterms);
+    return impl->GetType(futureType);
 }
 
 std::optional<Type*> Resolver::Query(Index<Type> id)
@@ -671,7 +679,7 @@ std::optional<Type*> Resolver::Query(Index<Type> id)
     // terms are being cached on different level
     auto refId = Symlevel::RefId<Term>(impl->regionId, id.GetValue());
     auto ident = RefIdentifier<Term>(refId, impl->method.GetFileId());
-    auto term  = TermManager::Of(impl->session).Resolve(impl->session, ident);
+    auto term  = impl->termManager.Resolve(impl->session, ident);
     return impl->GetType(term);
 }
 
