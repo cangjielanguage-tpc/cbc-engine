@@ -298,12 +298,13 @@ CBC_EXPORT int interpreter_bridge_init(
 {
     static_assert(std::is_same_v<decltype(&interpreter_bridge_init), INT_InitInterpreter>);
     if (rtInterf == nullptr || rtInterf->version != DYN_CJNATIVE_INTERFACE_VERSION) {
-        ASSERTION(
-            false,
-            "Unexpected DYN_CJNativeInterface version: expected %d, actual %lld",
-            DYN_CJNATIVE_INTERFACE_VERSION,
-            static_cast<long long>(rtInterf != nullptr ? rtInterf->version : -1)
-        );
+        RTSupport::Log::rt.Log(Logging::Level::ERROR, [rtInterf](Stream::Output& out) {
+            out.PrintFmtLn(
+                "Unexpected DYN_CJNativeInterface version: expected %d, actual %lld",
+                DYN_CJNATIVE_INTERFACE_VERSION,
+                static_cast<long long>(rtInterf != nullptr ? rtInterf->version : -1)
+            );
+        });
         return 1;
     }
 
