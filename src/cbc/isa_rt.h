@@ -82,7 +82,8 @@
     X(NULLCHECK, B2xr, "nullcheck $1ir")                                                                               \
     X(DIVCHECK, B2xr, "divcheck $1ir")                                                                                 \
     X(IOF, IOF, "iof $0ir $1ir $2U64")                                                                                 \
-    X(THROW, B2xr, "throw $1ir")
+    X(THROW, B2xr, "throw $1ir")                                                                                       \
+    X(CATCH, B2xr, "catch $1ir")
 
 // X parameters: opcode, encoding format, string format, is tail
 #define CBC_RT_MEMOPCODES(X)                                                                                           \

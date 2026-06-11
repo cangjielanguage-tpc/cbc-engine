@@ -202,6 +202,7 @@ public:
     void InstanceOf(IReg dst, IReg obj, RTSupport::TypeInfo typeInfo);
 
     void Throw(IReg dst);
+    void Catch(IReg dst);
 
     MemSpace OpenMemSpace();
 

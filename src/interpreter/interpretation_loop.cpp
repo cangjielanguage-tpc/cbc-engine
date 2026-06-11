@@ -696,6 +696,15 @@ IOF: {
     NEXT;
 }
 
+CATCH: {
+    auto args = B2xr::Decode(reader);
+    LOG_INSTR;
+    auto exceptionObj = ectype->GetSReg(0);
+    ASSERTION(exceptionObj.u64 != 0, "catch expected non-null exception object");
+    ectype->Put(args.xr.r.IR(), Value::Reference { .value = exceptionObj.u64 });
+    NEXT;
+}
+
 THROW: {
     auto args = B2xr::Decode(reader);
     LOG_INSTR;
