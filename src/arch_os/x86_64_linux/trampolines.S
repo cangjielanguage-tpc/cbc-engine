@@ -57,6 +57,10 @@ engine_cjthread_specific_offset:
 // --- SECTION TEXT ---
 .section .text
 
+#define TLS_REG r15
+#define ECTYPE_REG rbx
+#define LITERALS_REG r14
+
 .macro push_lst regs:vararg
   .irp reg, \regs
     push \reg
@@ -67,6 +71,32 @@ engine_cjthread_specific_offset:
   .irp reg, \regs
     pop  \reg
   .endr
+.endm
+
+.macro POP_IREGS mask_reg, stack_reg, exec_info_reg
+    movzx   \mask_reg, WORD PTR [\exec_info_reg + EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
+    .irp reg, 8,9,10,11,12,13
+        .set _bit, (\reg - 8)
+        test    \mask_reg, (1 << _bit)
+        jz      2f
+        sub     \stack_reg, 8
+        mov     rsi, QWORD PTR [\stack_reg]
+        mov     QWORD PTR [ECTYPE_REG + ECTYPE_IREGS_OFFSET + \reg*8], rsi
+2:
+    .endr
+.endm
+
+.macro POP_FREGS mask_reg, stack_reg, exec_info_reg
+    movzx   \mask_reg, WORD PTR [\exec_info_reg + EXEC_BYTECODE_INFO_SAVED_FREGS_OFFSET]
+    .irp reg, 8,9,10,11,12,13,14,15
+        .set _bit, (\reg - 8)
+        test    \mask_reg, (1 << _bit)
+        jz      2f
+        sub     \stack_reg, 8
+        mov     rsi, QWORD PTR [\stack_reg]
+        mov     QWORD PTR [ECTYPE_REG + ECTYPE_FREGS_OFFSET + \reg*8], rsi
+2:
+    .endr
 .endm
 
 .align 16
@@ -109,10 +139,6 @@ engine_trampolines_dyn_start:
   .endr
 .endm
   repeat_trampoline_dyn TRAMPOLINE_COUNT
-
-#define TLS_REG r15
-#define ECTYPE_REG rbx
-#define LITERALS_REG r14
 
 .align 16
 // expects: (TLS_REG: th, rax: fuh)
@@ -295,7 +321,17 @@ common_landing_pad:
   jmp   .Lrestart_interpretation
 
 .Lunwind_top_frame:
-  // TODO restore spilled non-volatile regs
+  // Restore spilled non-volatile regs before clearing the frame
+  mov   rax, QWORD PTR [rbp - 0x8] // fuh
+  mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
+  mov   edx, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
+  add   rdx, rsp // start of saved regs area
+
+  POP_IREGS ecx, rdx, rax
+  POP_FREGS ecx, rdx, rax
+
+  mov   LITERALS_REG, [rbp - 0x18]
+  mov   ECTYPE_REG, [rbp - 0x10]
 
   // Clear top frame
   mov rsp, rbp
@@ -447,32 +483,6 @@ perform_2i_call:
 
   mov   edx, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   add   rdx, rsp // add frame size to locate saved registers
-
-.macro POP_IREGS mask_reg, stack_reg, exec_info_reg
-    movzx   \mask_reg, WORD PTR [\exec_info_reg + EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
-    .irp reg, 8,9,10,11,12,13
-        .set _bit, (\reg - 8)
-        test    \mask_reg, (1 << _bit)
-        jz      .Lloadireg\reg
-        sub     \stack_reg, 8
-        mov     rsi, QWORD PTR [\stack_reg]
-        mov     QWORD PTR [ECTYPE_REG + ECTYPE_IREGS_OFFSET + \reg*8], rsi
-.Lloadireg\reg:
-    .endr
-.endm
-
-.macro POP_FREGS mask_reg, stack_reg, exec_info_reg
-    movzx   \mask_reg, WORD PTR [\exec_info_reg + EXEC_BYTECODE_INFO_SAVED_FREGS_OFFSET]
-    .irp reg, 8,9,10,11,12,13,14,15
-        .set _bit, (\reg - 8)
-        test    \mask_reg, (1 << _bit)
-        jz      .Lloadfreg\reg
-        sub     \stack_reg, 8
-        mov     rsi, QWORD PTR [\stack_reg]
-        mov     QWORD PTR [ECTYPE_REG + ECTYPE_FREGS_OFFSET + \reg*8], rsi
-.Lloadfreg\reg:
-    .endr
-.endm
 
   POP_IREGS ecx, rdx, rax
   POP_FREGS ecx, rdx, rax
