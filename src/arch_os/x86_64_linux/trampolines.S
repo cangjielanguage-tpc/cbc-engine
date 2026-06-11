@@ -25,8 +25,10 @@ declare_hidden engine_i2_gcpoint
 declare_hidden engine_universal_direct_function_handles
 declare_hidden engine_newobject_function
 declare_hidden engine_newarray_function
+declare_hidden engine_newthread_nret_function
 declare_hidden engine_carrier_specific_offset
 declare_hidden engine_cjthread_specific_offset
+declare_hidden engine_i2_spawn
 
 // --- SECTION BSS ---
 .section .bss

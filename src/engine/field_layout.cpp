@@ -350,6 +350,8 @@ private:
             return std::nullopt;
         } else if (def.GetFlags().Is(Symlevel::TypeKind::RECORD)) {
             return FieldLayout::Content();
+        } else if (def.GetFlags().Is(Symlevel::TypeKind::RECORD)) {
+            return FieldLayout::Content();
         } else if (super.GetKind() == TermKind::TYPE) {
             auto opt = GetLayout(substitute(super));
             if (!opt.has_value()) {
@@ -357,7 +359,13 @@ private:
             }
             return *opt.value(); // copy
         } else {
-            ASSERTION(super.GetKind() == TermKind::NIL, "only nil or type term kinds are expected for super");
+            switch (super.GetKind()) {
+                case TermKind::NIL:
+                case TermKind::FUNCTIONAL:
+                    break;
+                default:
+                    ASSERTION(false, "only nil or type term kinds are expected for super");
+            }
 
             FieldLayout::Content base;
             base.desc.alignment = sizeof(void*);
