@@ -49,6 +49,8 @@ TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId
         flags = flags.Or(TypeFlag::SEALED);
     if (test(0x010))
         flags = flags.With(TypeKind::INTERFACE);
+    if (test(0x020))
+        flags = flags.With(TypeKind::LAMBDA);
     if (test(0x040))
         flags = flags.With(TypeKind::RECORD);
     if (test(0x080))

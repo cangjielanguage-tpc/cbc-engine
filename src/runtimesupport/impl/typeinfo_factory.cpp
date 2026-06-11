@@ -1,4 +1,5 @@
 #include "runtimesupport/typeinfo_factory.h"
+#include "RTInterface.h"
 #include "RuntimeTypes.h"
 #include "engine/engine.h"
 #include "engine/field_layout.h"
@@ -26,9 +27,6 @@
 #include <optional>
 
 namespace RTSupport {
-
-static char const* ARRAY_NAME = "RawArray";
-static char const* TUPLE_NAME = "Tuple";
 
 template <typename T> static T* Alloc(size_t cnt = 1) { return reinterpret_cast<T*>(std::malloc(sizeof(T) * cnt)); }
 
@@ -212,11 +210,32 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         return QueryTypeInfoAOTByName(builder.name);
     }
 
-    switch (type.GetFlags().GetTypeKind()) {
-        case Symlevel::TypeKind::INTERFACE: builder.type = -127; break;
-        case Symlevel::TypeKind::RECORD:    builder.type = 22; break;
-        case Symlevel::TypeKind::CLASS:     builder.type = -128; break;
-        default:                            FATAL("unreachable type kind");
+    bool needExtDefs;
+    bool needFields;
+
+    auto typeKind = type.GetFlags().GetTypeKind();
+    switch (typeKind) {
+        case Symlevel::TypeKind::INTERFACE:
+            builder.type = -127;
+            needExtDefs  = true;
+            needFields   = false;
+            break;
+        case Symlevel::TypeKind::RECORD:
+            builder.type = 22;
+            needExtDefs  = true;
+            needFields   = true;
+            break;
+        case Symlevel::TypeKind::CLASS:
+            builder.type = -128;
+            needExtDefs  = true;
+            needFields   = true;
+            break;
+        case Symlevel::TypeKind::LAMBDA:
+            builder.type = -128;
+            needExtDefs  = false;
+            needFields   = true;
+            break;
+        default: FATAL("unreachable type kind");
     }
 
     auto queryTypeInfo = [&session, &manager, term, currentTypeInfo](Engine::Term t
@@ -240,9 +259,8 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         return std::nullopt;
     }
 
-    { // fill out ext defs
+    if (needExtDefs) { // fill out ext defs
         auto& manager    = Engine::MethodTableManager::Of(session);
-        auto& fuhManager = Interpretation::FunctionHandleManager::Of(session);
         auto optMT       = manager.GetMethodTable(session, term);
 
         if (!optMT.has_value()) {
@@ -294,7 +312,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             extDef.funcTableSize       = smt.EndPos() - smt.StartPos();
             extDef.argNum              = 0;
             extDef.isInterfaceTypeInfo = 1;
-            extDef.flag                = 0b00000110; // FIXME: research how to properly implement this.
+            extDef.flag                = 0b00000000;
 
             extDef.ti = &currentTypeInfo->base;
 
@@ -324,10 +342,43 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
                 return std::nullopt;
             }
         }
+    } else if (typeKind == Symlevel::TypeKind::LAMBDA) {
+        auto& manager = Engine::MethodTableManager::Of(session);
+        auto optMT    = manager.GetMethodTable(session, term);
+
+        if (!optMT.has_value()) {
+            Log::typeinfo.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
+                Stream::ResolvingOutput stream(session, out);
+                stream << "Failed to build method table for " << term << Stream::endl;
+            });
+            return std::nullopt;
+        }
+        auto mt = *optMT;
+
+        // In cbc closures are represented as type definitions with two virtual methods,
+        // which are represent "generic" and "instantiated" version of closure.
+        // Note, that order of methods is important (first is "generic", second is "instantiated").
+        // FIXME: pure generic closure
+        auto entryCount = mt->EntryCount();
+        ASSERTION(entryCount == 2, "Closures should have only two virtual methods");
+        builder.dataMT = Alloc<Interpretation::FunctionHandle*>(entryCount);
+        if (!builder.dataMT) {
+            return std::nullopt;
+        }
+
+        // It is assumed that closures in CBC have only CBC methods (not aot compiled),
+        // so we will place a function handle in data mt, which would be referenced
+        // by 0/1-indexed trampolines, which would be placed as first and second fields of an object.
+        int entryIdx = 0;
+        for (auto entry : mt->Entries()) {
+            auto tm = GetTableMember(session, entry.method, entryIdx);
+
+            builder.dataMT[entryIdx] = tm.handle;
+            entryIdx++;
+        }
     }
 
-    auto typeKind = type.GetFlags().GetTypeKind();
-    if (typeKind == Symlevel::TypeKind::RECORD || typeKind == Symlevel::TypeKind::CLASS) {
+    if (needFields) {
         auto fieldManager = Engine::FieldLayoutManager::New(session, manager);
         auto optlayout    = fieldManager->GetLayout(term);
 
@@ -429,6 +480,47 @@ char const* GetAotTypeName(Engine::Session& session, Engine::Term term)
     }
 }
 
+/// Find typeinfos of subterms with `nulls` on place of subterms that are not found.
+/// Returns `true` if all typeinfos of subterms are found.
+static bool QuerySubterms(
+    std::vector<DYN_TypeInfo*>& typeInfos, Engine::Session& session, Engine::TypeInfoManager& manager, Engine::Term term
+)
+{
+    bool allResolved = true;
+    for (auto i = 0; i < term.GetLength(); i++) {
+        auto subterm = term.Subterm(i);
+
+        Log::typeinfo.Log(Logging::Level::TRACE, [&session, &subterm](Stream::Output& out) {
+            Stream::ResolvingOutput stream(session, out);
+            stream << "querying param " << subterm << Stream::endl;
+        });
+
+        auto ti = manager.AcquireTypeInfo(session, subterm);
+        TypeInfo info(nullptr);
+
+        if (ti.has_value()) {
+            info = *ti;
+        } else {
+            allResolved = false;
+        }
+        typeInfos.emplace_back((DYN_TypeInfo*)info.Raw());
+    }
+    return allResolved;
+}
+
+// Can return null!
+static void* QueryTypeTemplate(Engine::Session& session, char const* typeName)
+{
+    auto typeTemplate = g_CJNativeInterfaceInstance.typeTemplate(typeName);
+    if (!typeTemplate) {
+        Log::typeinfo.Log(Logging::Level::ERROR, [&session, &typeName](Stream::Output& out) {
+            Stream::ResolvingOutput stream(session, out);
+            stream << "failed to query template " << typeName << Stream::endl;
+        });
+    }
+    return typeTemplate;
+}
+
 static std::optional<TypeInfo> QueryTypeInfoAOT(
     Engine::Session& session, Engine::TypeInfoManager& manager, char const* typeName, Engine::Term term
 )
@@ -442,27 +534,16 @@ static std::optional<TypeInfo> QueryTypeInfoAOT(
             stream << "querying generic " << term << Stream::endl;
         });
 
-        for (auto i = 0; i < term.GetLength(); i++) {
-            auto subterm = term.Subterm(i);
-            auto ti = manager.AcquireTypeInfo(session, subterm);
-
-            Log::typeinfo.Log(Logging::Level::TRACE, [&session, &subterm](Stream::Output& out) {
-                Stream::ResolvingOutput stream(session, out);
-                stream << "querying with generic type param " << subterm << Stream::endl;
-            });
-
-            infos.emplace_back((DYN_TypeInfo*) ti->Raw());
-        }
-
-        auto typeTemplate = g_CJNativeInterfaceInstance.typeTemplate(typeName);
-        if (!typeTemplate) {
-            Log::typeinfo.Log(Logging::Level::ERROR, [&session, &typeName](Stream::Output& out) {
-                Stream::ResolvingOutput stream(session, out);
-                stream << "failed to query template " << typeName << Stream::endl;
-            });
+        bool allResolved = QuerySubterms(infos, session, manager, term);
+        if (!allResolved) {
             return std::nullopt;
         }
-        auto typeInfoG = g_CJNativeInterfaceInstance.getOrCreateTypeInfo(typeTemplate, term.GetLength(), infos.data());
+
+        auto typeTemplate = QueryTypeTemplate(session, typeName);
+        if (!typeTemplate) {
+            return std::nullopt;
+        }
+        auto typeInfoG = g_CJNativeInterfaceInstance.getOrCreateTypeInfo(typeTemplate, infos.size(), infos.data());
         return TypeInfo(typeInfoG);
     } else {
         Log::typeinfo.Log(Logging::Level::TRACE, [&session, &term](Stream::Output& out) {
@@ -482,6 +563,42 @@ static std::optional<TypeInfo> QueryTypeInfoAOT(
     }
 }
 
+static std::optional<TypeInfo> QueryFunctional(
+    Engine::Session& session, Engine::TypeInfoManager& manager, Engine::Term term
+)
+{
+    ASSERT(term.GetKind() == Engine::TermKind::FUNCTIONAL);
+    std::vector<DYN_TypeInfo*> infos;
+
+    bool allResolved = QuerySubterms(infos, session, manager, term);
+    if (!allResolved) {
+        return std::nullopt;
+    }
+
+    // CBC encodes return type as last parameter, but CJNative expects it as the first.
+    // TODO: maybe we should change encoding?
+    auto retType = infos.back();
+    auto size    = infos.size();
+    for (size_t i = size - 1; i > 0; i--) {
+        infos[i] = infos[i - 1];
+    }
+    infos[0] = retType;
+
+    struct Templates {
+        void* cfunc;
+        void* closure;
+    };
+
+    static auto templates =
+        Templates { .cfunc = QueryTypeTemplate(session, "CFunc"), .closure = QueryTypeTemplate(session, "Closure") };
+
+    auto cfuncTypeInfo = g_CJNativeInterfaceInstance.getOrCreateTypeInfo(templates.cfunc, infos.size(), infos.data());
+    DYN_TypeInfo* cfuncTIBox[1] = { cfuncTypeInfo };
+
+    auto closureTypeInfo = g_CJNativeInterfaceInstance.getOrCreateTypeInfo(templates.closure, 1, cfuncTIBox);
+    return TypeInfo(closureTypeInfo);
+}
+
 std::optional<TypeInfo> CreateTypeInfo(
     Engine::Session& session, Engine::TypeInfoManager& manager, Engine::GlobalTerm term
 )
@@ -499,24 +616,14 @@ std::optional<TypeInfo> CreateTypeInfo(
             case Engine::TermKind::TYPE:    return CreateTypeInfoDyn(session, manager, term);
 
             case Engine::TermKind::AOT_TYPE:
-                return QueryTypeInfoAOT(
-                    session,
-                    manager,
-                    GetAotTypeName(session, term),
-                    Engine::Term(term)
-                );
+                return QueryTypeInfoAOT(session, manager, GetAotTypeName(session, term), term);
             case Engine::TermKind::AOT_REC:
-                return QueryTypeInfoAOT(
-                    session,
-                    manager,
-                    GetAotTypeName(session, term),
-                    Engine::Term(term)
-                );
+                return QueryTypeInfoAOT(session, manager, GetAotTypeName(session, term), term);
 
-            case Engine::TermKind::CANGJIE_ARRAY:
-                return QueryTypeInfoAOT(session, manager, ARRAY_NAME, Engine::Term(term));
+            case Engine::TermKind::CANGJIE_ARRAY: return QueryTypeInfoAOT(session, manager, "RawArray", term);
 
-            case Engine::TermKind::TUPLE: return QueryTypeInfoAOT(session, manager, TUPLE_NAME, Engine::Term(term));
+            case Engine::TermKind::FUNCTIONAL: return QueryFunctional(session, manager, term);
+            case Engine::TermKind::TUPLE:      return QueryTypeInfoAOT(session, manager, "Tuple", term);
 
             case Engine::TermKind::BOOLEAN: return QueryTypeInfoAOTByName("Bool");
             case Engine::TermKind::U8:      return QueryTypeInfoAOTByName("UInt8");

@@ -11,7 +11,14 @@
 namespace RTSupport {
 
 // TypeInfo flags
-static constexpr uint8_t HAS_REF_FIELD = 0b00000001;
+static constexpr uint8_t HAS_REF_FIELD    = 0b00000001;
+static constexpr uint8_t HAS_FINALIZER    = 0b00000010;
+static constexpr uint8_t FUTURE_CLASS     = 0b00000100;
+static constexpr uint8_t MUTEX_CLASS      = 0b00001000;
+static constexpr uint8_t MONITOR_CLASS    = 0b00010000;
+static constexpr uint8_t WAIT_QUEUE_CLASS = 0b00100000;
+static constexpr uint8_t HAS_REFLECTION   = 0b01000000;
+static constexpr uint8_t HAS_EXT_PART     = 0b10000000;
 
 static constexpr uint64_t GCTIB_SIGN_BIT = (1lu << 63);
 static constexpr uint32_t GCTIB_MAX_SHORT_OFFSET = sizeof(void*) * 62;

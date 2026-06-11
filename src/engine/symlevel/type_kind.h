@@ -10,6 +10,7 @@ public:
     enum Value : uint32_t {
         CLASS,
         INTERFACE,
+        LAMBDA,
         RECORD
     };
 
