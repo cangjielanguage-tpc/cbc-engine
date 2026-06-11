@@ -94,6 +94,12 @@ public:
         sregs[reg].primitive = primitive;
     }
 
+    inline Value::Primitive GetSReg(int reg)
+    {
+        ASSERT(reg < SERVICE_REGS_COUNT);
+        return sregs[reg].primitive;
+    }
+
     inline Value::Reference GetReference(IReg reg) { return iregs[reg].reference; }
 
     inline Value::Primitive GetPrimitive(IReg reg) { return iregs[reg].primitive; }

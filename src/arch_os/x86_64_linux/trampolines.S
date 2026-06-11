@@ -285,14 +285,14 @@ common_landing_pad:
 
   mov   rdi, QWORD PTR [rbp - 0x8]         // fuh
   lea   rsi, QWORD PTR [rbp - READER_SLOT] // reader
-  call  [rip + engine_get_exception_handler]
+  call  engine_get_exception_handler
 
   test  rax, rax
   jz   .Lunwind_top_frame
 
   // Handler is found, set exception object to SREG and continue interpretation
   mov   QWORD PTR [ECTYPE_REG + ECTYPE_SREGS_OFFSET + 0], r12
-  jmp   .Lrestart_interpretation:
+  jmp   .Lrestart_interpretation
 
 .Lunwind_top_frame:
   // TODO restore spilled non-volatile regs
