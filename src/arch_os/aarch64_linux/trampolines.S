@@ -213,7 +213,7 @@ get_tls:
   bl    x10
 
 .macro restore_tls // spoils volatile registers!
-  blr   get_tls
+  bl    get_tls
   mov   TLS_REG, x0
 .endm
 
