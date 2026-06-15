@@ -679,6 +679,13 @@ struct IsaParserImpl {
         return false;
     }
 
+    static bool MemBodyConstIndex(IsaParser& parser, IsaParser::MemSpace& ms)
+    {
+        auto [idx, elemType] = ByteReaderM(parser.reader).ReadSLEB().ReadU16().Get();
+        parser.MemBodyConstIndex(ms, idx, elemType);
+        return false;
+    }
+
     static bool MemTailLoad(IsaParser& parser, IsaParser::MemSpace& ms)
     {
         auto [reg, _size] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();

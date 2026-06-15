@@ -345,14 +345,7 @@ NEWOBJ: {
     LOG_INSTR;
     auto type = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
 
-    // To invoke an `newobj` we need to "return" three values
-    // - function to invoke,
-    // - type info,
-    // - destination register,
-    // which is more than Thunk can fit.
-    //
-    // To pass an extra element we will store
-    // it in volatile-register in Ectype;
+    // Puts result to `IR1`.
     auto func = RTSupport::Execution::AllocateObjectInstance();
 
     reader0 = reader; // save current pc
@@ -364,15 +357,7 @@ NEWARR: {
     LOG_INSTR;
     auto type = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
 
-    // To invoke an `newobj` we need to "return" four values
-    // - function to invoke,
-    // - type info,
-    // - length,
-    // - destination register,
-    // which is more than Thunk can fit.
-    //
-    // To pass an extra elements we will store
-    // it in volatile-registers in Ectype;
+    // Puts result to `IR1`, expects length to be passed on `IR2`.
     auto func = RTSupport::Execution::AllocateArrayInstance();
 
     reader0 = reader; // save current pc

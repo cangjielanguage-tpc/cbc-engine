@@ -111,6 +111,7 @@
     X(CopyStatic, MemTailCopyStatic)                                                                                   \
     X(CopyTyped, MemTailCopyTyped)                                                                                     \
     X(CopyHandle, MemTailCopyHandle)                                                                                   \
+    X(ConstIndex, MemBodyConstIndex)                                                                                   \
     X(_END, UnreachableMem)
 
 #define ISA_REG_SYM_GROUP_OPCODES(X)                                                                                   \

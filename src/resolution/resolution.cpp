@@ -130,7 +130,8 @@ struct SimpleType : public Type {
             case TK::F64:            return CbcTypeKind::F64;
             case TK::UNDEFINED:      return CbcTypeKind::INVALID;
             case TK::C_POINTER:      return CbcTypeKind::U64;
-            case TK::METHOD:         return CbcTypeKind::INVALID;
+            case TK::FUNCTIONAL:     return CbcTypeKind::REF;
+            case TK::TUPLE:          return CbcTypeKind::REC;
             case TK::AOT_REC:        return CbcTypeKind::REC;
             case TK::GENERIC_METHOD: return CbcTypeKind::INVALID;
             case TK::CANGJIE_ARRAY:  return CbcTypeKind::REF;
@@ -484,9 +485,8 @@ static std::optional<InstanceField> ResolveAotInstanceField(Resolver::Impl& reso
     auto fieldType   = resolver.GetType(ref.fieldType);
     auto [file, raf] = resolver.session.File(resolver.fileId);
     auto data = file.GetInstanceFieldAotTable().GetData(resolver.session, ref.identifier.GetIndex());
-    int offset = RTSupport::Execution::GetFieldOffset(
-        refType->GetTypeInfo().value(), data.ordinal, ref.refType.IsReference()
-    );
+    auto offset =
+        RTSupport::Execution::GetFieldOffset(refType->GetTypeInfo().value(), data.ordinal, ref.refType.IsReference());
     return InstanceField { refType, ref.name, fieldType, data.ordinal, offset };
 }
 
@@ -628,6 +628,29 @@ std::optional<StaticField const*> Resolver::Query(Index<StaticField> id)
         return res;
     }
     return std::nullopt;
+}
+
+std::optional<InstanceField const*> Resolver::QueryTupleElement(Type* refType, uint32_t idx)
+{
+    auto tpe = dynamic_cast<SimpleType*>(refType);
+    ASSERT(tpe->term.GetKind() == TermKind::TUPLE);
+    auto optTypeInfo = tpe->GetTypeInfo();
+    if (!optTypeInfo.has_value()) {
+        return std::nullopt;
+    }
+    auto term = tpe->term;
+    ASSERT(idx < term.GetLength());
+    auto typeInfo       = *optTypeInfo;
+    auto offset         = RTSupport::Execution::GetFieldOffset(typeInfo, idx, false);
+    auto fieldType      = impl->GetType(term.Subterm(idx));
+    InstanceField field = {
+        .refType   = refType,
+        .name      = "",
+        .fieldType = fieldType,
+        .ordinal   = idx,
+        .offset    = offset,
+    };
+    return impl->session.Allocator().New<InstanceField>(field);
 }
 
 std::optional<Type*> Resolver::Query(Index<Type> id)

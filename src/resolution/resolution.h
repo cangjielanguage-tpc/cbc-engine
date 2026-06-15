@@ -110,7 +110,7 @@ struct InstanceField {
     std::string_view name;
     Type* fieldType;
     uint32_t ordinal;
-    std::optional<int> offset;
+    std::optional<uint32_t> offset;
 };
 
 struct StaticField {
@@ -152,6 +152,8 @@ public:
     std::optional<InterfaceCall const*> Query(Index<InterfaceCall> id);
     std::optional<InstanceField const*> Query(Index<InstanceField> id);
     std::optional<StaticField const*> Query(Index<StaticField> id);
+
+    std::optional<InstanceField const*> QueryTupleElement(Type* refType, uint32_t idx);
 
     std::string_view QueryString(uint32_t stringOffs);
 

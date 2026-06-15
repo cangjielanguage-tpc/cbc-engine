@@ -73,12 +73,13 @@ enum Tag : uint8_t {
     GENERIC_RECORD    = 0x9,
     GENERIC_REFERENCE = 0xa,
     NULLABLE          = 0xb,
-    METHOD_SIGNATURE  = 0xc,
+    FUNCTIONAL        = 0xc,
     REC               = 0xd,
     AOT_REC           = 0xe,
     NON_NULLABLE      = 0xf,
     GENERIC_AOT_REF   = 0x10,
     GENERIC_AOT_REC   = 0x11,
+    TUPLE             = 0x12,
 };
 
 static TermData* AllocateTerm(Memory::Heap& allocator, size_t subtermCount = 0)
@@ -411,9 +412,14 @@ void Term::GetName(Session& session, Stream::Output& stream) const
             break;
         }
 
-        case TK::METHOD: {
+        case TK::FUNCTIONAL: {
             printSubTerms("(", ")", GetLength() - 1);
             Subterm(GetLength() - 1).GetName(session, stream);
+            break;
+        }
+
+        case TK::TUPLE: {
+            printSubTerms("[", "]", GetLength());
             break;
         }
 
@@ -699,8 +705,25 @@ struct TermResolver {
                 bool isRef    = tag == GENERIC_AOT_REF;
                 return ResolveAotType(reader, nameOffs, length, isRef, refId);
             }
-            case METHOD_SIGNATURE: {
+            case FUNCTIONAL: {
                 auto len   = reader.ReadU8() + 1; // +1 for ret type
+                auto* data = AllocateTerm(heap, len);
+
+                bool isGeneric = false;
+                if (!ReadSubTerms(data, &isGeneric, len, reader)) {
+                    return NewUndefined(refId);
+                }
+                TermFlags flags = {
+                    .isLocal       = true,
+                    .isReference   = true,
+                    .isAotPromoted = false,
+                    .isGeneric     = isGeneric,
+                };
+                data->InitAfterSubterms(TagTermId(TermKind::FUNCTIONAL), len, flags);
+                return Term(LocalTerm(data));
+            }
+            case TUPLE: {
+                auto len   = reader.ReadULEB();
                 auto* data = AllocateTerm(heap, len);
 
                 bool isGeneric = false;
@@ -713,7 +736,7 @@ struct TermResolver {
                     .isAotPromoted = false,
                     .isGeneric     = isGeneric,
                 };
-                data->InitAfterSubterms(TagTermId(TermKind::METHOD), len, flags);
+                data->InitAfterSubterms(TagTermId(TermKind::TUPLE), len, flags);
                 return Term(LocalTerm(data));
             }
             case NULLABLE: {

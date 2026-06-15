@@ -93,7 +93,7 @@
     X(OFFS_REG_IDX64, M10xri64, "offs.r.idx.64 [$1ir * $2U64]", false)                                                 \
     X(RLD_U8, M2rr, "rld.u8 $0ir $1ir }", true)                                                                        \
     X(RLD_U16, M2rr, "rld.u16 $0ir $1ir }", true)                                                                      \
-    X(RLD_32, M2rr, "rld.u32 $0ir $1ir }", true)                                                                       \
+    X(RLD_32, M2rr, "rld.32 $0ir $1ir }", true)                                                                        \
     X(RLD_S8, M2rr, "rld.s8 $0ir $1ir }", true)                                                                        \
     X(RLD_S16, M2rr, "rld.s16 $0ir $1ir }", true)                                                                      \
     X(RLD_F32, M2rr, "rld.f32 $0fr $1ir }", true)                                                                      \
