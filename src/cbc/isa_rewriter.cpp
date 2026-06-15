@@ -399,6 +399,7 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto typeInfo = *optTypeInfo;
+        emit.Spawn(typeInfo);
     }
 
     void SpawnFuture(IReg future, uint16_t type) override { FATAL("not implemented"); }

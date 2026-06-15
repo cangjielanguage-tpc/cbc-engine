@@ -158,6 +158,7 @@ public:
     void Jmp(Label label);
 
     void InitClosure();
+    void Spawn(RTSupport::TypeInfo typeInfo);
 
     void NewObj(RTSupport::TypeInfo typeInfo);
     void NewArr(RTSupport::TypeInfo typeInfo);

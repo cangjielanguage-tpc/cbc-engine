@@ -565,8 +565,10 @@ Term TermManager::NewAotTerm(
 
     auto type = session.GetEngine().FindType(session, name);
     if (type.has_value()) {
-        auto def = Symlevel::TypeDefinition::Resolve(session, type.value());
-        ASSERT(IsProperTypeReference(def, true, arity));
+        ASSERT([&]() -> bool {
+            auto def = Symlevel::TypeDefinition::Resolve(session, type.value());
+            return IsProperTypeReference(def, isReference, arity);
+        }());
         id                  = TypeTermId(*type);
         flags.isAotPromoted = true;
     } else if (isReference) {

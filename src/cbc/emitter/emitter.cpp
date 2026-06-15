@@ -496,6 +496,13 @@ void Emitter::NewArr(RTSupport::TypeInfo typeInfo)
 
 void Emitter::InitClosure() { Encode(segment, RT::B1 { RT::Opcode::INITCLOSURE }); }
 
+void Emitter::Spawn(RTSupport::TypeInfo typeInfo)
+{
+    Encode(
+        segment, RT::B9i64 { .opc = RT::Opcode::SPAWN, .imm64 = { .imm = reinterpret_cast<uint64_t>(typeInfo.Raw()) } }
+    );
+}
+
 void Emitter::LoadStatic(LoadAccessKind ldk, Reg dst, Symbol offSym)
 {
     LoadAccessKind::Value kind = ldk;

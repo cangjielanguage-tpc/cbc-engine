@@ -40,7 +40,7 @@
     X(FUN64, B3xrrr, "$0fop.64 $1fr $3fr")                                                                             \
     X(NEWOBJ, B9i64, "newobj IR1, $0U64")                                                                              \
     X(NEWARR, B9i64, "newarr IR1, IR2, $0U64")                                                                         \
-    X(INITCLOSURE, B9i64, "init.closure")                                                                              \
+    X(INITCLOSURE, B1, "init.closure")                                                                                 \
     X(SPAWN, B9i64, "spawn $0U64")                                                                                     \
     X(LOAD_OBJ, B4xi12rr, "ld.$0ldk $2ir [$3ir $1U12]")                                                                \
     X(STORE_OBJ, B4xi12rr, "st.$0stk $2ir [$3ir $1U12]")                                                               \
