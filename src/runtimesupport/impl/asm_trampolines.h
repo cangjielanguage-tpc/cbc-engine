@@ -22,6 +22,7 @@ extern void engine_trampolines_dyn_start();
 extern void engine_iregs_only_c2i_call();
 extern void engine_i2i_call();
 extern void engine_i2c_call();
+extern void* (*engine_tls_function)();
 extern void* (*engine_newobject_function)(DYN_TypeInfo*);
 extern void* (*engine_newthread_nret_function)(void*, DYN_ObjRef, void*, DYN_TypeInfo*);
 extern void* (*engine_newarray_function)(DYN_TypeInfo*, uint64_t);

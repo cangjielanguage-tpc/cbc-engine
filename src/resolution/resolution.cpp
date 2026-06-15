@@ -359,7 +359,7 @@ static std::optional<DirectCall> ResolveAotDirectCall(Resolver::Impl& resolver, 
 
     if (!funcPtr) {
         log.Log(Logging::Level::FATAL, [linkageName](Stream::Output& stream) {
-            stream << "not found location of static field: " << linkageName << Stream::endl;
+            stream << "not found function: " << linkageName << Stream::endl;
         });
         return std::nullopt;
     }

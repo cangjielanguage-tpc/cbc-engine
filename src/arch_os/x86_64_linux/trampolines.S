@@ -23,6 +23,7 @@ declare_hidden engine_i2_newobject
 declare_hidden engine_i2_newarray
 declare_hidden engine_i2_gcpoint
 declare_hidden engine_universal_direct_function_handles
+declare_hidden engine_tls_function
 declare_hidden engine_newobject_function
 declare_hidden engine_newarray_function
 declare_hidden engine_newthread_nret_function
@@ -38,6 +39,8 @@ engine_universal_direct_function_handles:
   .skip 8 * TRAMPOLINE_COUNT
 
 .align 64
+engine_tls_function:
+  .skip 8
 engine_newobject_function:
   .skip 8
 engine_newarray_function:
@@ -213,6 +216,8 @@ engine_i2_newobject:
   // jumped from .Linterpreter_call without return address to return
   call  [rip + engine_newobject_function]
   mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8], rax
+  call  [rip + engine_tls_function]
+  mov   r15, rax
   jmp   .Lrestart_interpretation
 
 .align 16
@@ -224,12 +229,16 @@ engine_i2_newarray:
   mov   rsi, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x10]
   call  [rip + engine_newarray_function]
   mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8], rax
+  call  [rip + engine_tls_function]
+  mov   r15, rax
   jmp   .Lrestart_interpretation
 
 // expects: (ECTYPE_REG: ectype, rdi: safe_point_f)
 .align 16
 engine_i2_gcpoint:
   call rdi
+  call  [rip + engine_tls_function]
+  mov   r15, rax
   jmp  .Lrestart_interpretation
 
 .align 16

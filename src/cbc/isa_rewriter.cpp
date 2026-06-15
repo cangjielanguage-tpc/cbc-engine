@@ -408,8 +408,9 @@ struct IsaRewriter : public IsaParser {
 
     void NewClosure(IReg dst, uint16_t typeId) override
     {
-        NewObj(dst, typeId);
+        NewObj(IReg::IR1, typeId);
         emit.InitClosure();
+        AdjustReg(dst, IReg::IR1);
     }
 
     void Scc(Format::Width width, Format::CC cc, IReg d, AnyReg l, AnyReg r) override
