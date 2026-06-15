@@ -977,10 +977,13 @@ static std::vector<Interpretation::PositionalInfo> CalculatePositionalGCInfo(
     }
 
     for (auto& point : statePoints) {
+        auto originalPos = point.originalPos;
         auto rewrittenPos = emitter.LabelPosition(point.label);
-        auto it = infos.find(rewrittenPos);
-        if (rewrittenPos < 0 || it == infos.end()) {
+        auto it = infos.find(originalPos);
+        if (it == infos.end()) {
             FATAL("Unknown position");
+        } else if (rewrittenPos > UINT32_MAX) {
+            FATAL("Position too big");
         }
         auto& info = it->second;
 
