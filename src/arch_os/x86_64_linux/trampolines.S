@@ -414,4 +414,5 @@ perform_2i_call:
 engine_fake_execute_closure:
   // (rdi: sret, rsi: ()T, rdx: TypeInfo[Future[T]]
   mov   rcx, [rsi + 0x10] // get $i (instantiated) version of closure function
+  mov   rdi, rsi
   jmp   rcx

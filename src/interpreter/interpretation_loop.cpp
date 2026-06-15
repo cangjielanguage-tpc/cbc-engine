@@ -349,7 +349,6 @@ NEWOBJ: {
 INITCLOSURE: {
     auto args = B1::Decode(reader);
     LOG_INSTR;
-    auto bodyOffs = MetaInfo::ObjectHeaderSize();
 
     struct ClosureObj {
         void* header;
