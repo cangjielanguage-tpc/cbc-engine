@@ -138,8 +138,10 @@ struct IsaRewriter : public IsaParser {
     }
 
     void BindStatePoint() {
+        auto label = emit.NewLabel();
+        emit.Bind(label);
         StatePoint point {
-            .label = emit.NewLabel(),
+            .label = label,
             .originalPos = Pos(), // attached to the end of instruction
         };
         statePoints.push_back(point);
