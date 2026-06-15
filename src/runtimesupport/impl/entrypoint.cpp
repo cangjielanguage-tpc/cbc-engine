@@ -240,7 +240,7 @@ bool GetExceptionHandler(Interpretation::DynamicFunctionHandle* handle, Decoder:
         return false;
     }
 
-    auto delta = static_cast<int64_t>(target.value() - reader.Pos());
+    auto delta = static_cast<int64_t>(target.value()) - static_cast<int64_t>(reader.Pos());
     reader.Advance(delta);
     return true;
 }
