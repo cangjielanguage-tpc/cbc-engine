@@ -21,10 +21,12 @@ declare_hidden engine_i2_newobject
 declare_hidden engine_i2_newarray
 declare_hidden engine_i2_gcpoint
 declare_hidden engine_universal_direct_function_handles
+declare_hidden engine_tls_function
 declare_hidden engine_newobject_function
 declare_hidden engine_newarray_function
 declare_hidden engine_carrier_specific_offset
 declare_hidden engine_cjthread_specific_offset
+declare_hidden engine_i2_spawn
 
 // --- SECTION BSS ---
 .section .bss
@@ -33,20 +35,19 @@ declare_hidden engine_cjthread_specific_offset
 engine_universal_direct_function_handles:
   .skip 8 * TRAMPOLINE_COUNT
 
-.align 16
-engine_newobject_function:
+.balign 64
+.Lfunc_anchor:
+engine_tls_function:              // 0x0
   .skip 8
-
-.align 16
-engine_newarray_function:
+engine_newobject_function:        // 0x8
   .skip 8
-
-.align 16
-engine_carrier_specific_offset:
+engine_newarray_function:         // 0x10
   .skip 8
-
-.align 16
-engine_cjthread_specific_offset:
+engine_newthread_nret_function:   // 0x18
+  .skip 8
+engine_carrier_specific_offset:   // 0x20
+  .skip 8
+engine_cjthread_specific_offset:  // 0x28
   .skip 8
 
 // --- SECTION TEXT ---
@@ -205,6 +206,17 @@ engine_i2c_call:
   b     .Lrestart_interpretation
 
 
+.balign 16
+get_tls:
+  adrp  x10, engine_tls_function
+  ldr   x10, [x10, :lo12:engine_tls_function]
+  bl    x10
+
+.macro restore_tls // spoils volatile registers!
+  blr   get_tls
+  mov   TLS_REG, x0
+.endm
+
 .align 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo)
 // preserved: ECTYPE_REG, x29
@@ -216,10 +228,12 @@ engine_i2_newobject:
   blr   x10
 
   str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8)]
+  restore_tls
+
   b     .Lrestart_interpretation
 
 .align 16
-// expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo, x1: length)
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
 engine_i2_newarray:
@@ -230,12 +244,30 @@ engine_i2_newarray:
   blr   x10
 
   str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8)]
+  restore_tls
+
   b     .Lrestart_interpretation
 
 .align 16
 engine_i2_gcpoint:
-  blr x0
-  b .Lrestart_interpretation
+  blr   x0
+  restore_tls
+  b     .Lrestart_interpretation
+
+.align 16
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo)
+// preserved: ECTYPE_REG, x29
+engine_i2_spawn:
+  ldr   x1, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8)]
+  mov   x3, x0
+  adrp  x0, engine_fake_execute_closure
+  add   x0, x0, :lo12:engine_fake_execute_closure
+  mov   x2, 0
+
+  adrp  x4, engine_newthread_nret_function
+  ldr   x4, :lo12:engine_newthread_nret_function
+  blr   x4
+  b     .Lrestart_interpretation
 
 .align 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: fuh)
@@ -378,3 +410,10 @@ perform_2i_call:
   mov   sp, x29
   ldp   x29, x30, [sp], #16
   ret
+
+// fake execute closure function
+.align 16
+engine_fake_execute_closure:
+  // (x8: sret, x0: ()T, x1: TypeInfo[Future[T]]
+  ldr   x2, [x0, #0x10]
+  br    x2

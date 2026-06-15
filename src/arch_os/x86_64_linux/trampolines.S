@@ -207,6 +207,10 @@ engine_i2c_call:
 
   jmp   .Lrestart_interpretation
 
+.macro restore_tls // spoils volatile registers!
+  call  [rip + engine_tls_function]
+  mov   TLS_REG, rax
+.endm
 
 .align 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
@@ -216,8 +220,7 @@ engine_i2_newobject:
   // jumped from .Linterpreter_call without return address to return
   call  [rip + engine_newobject_function]
   mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8], rax
-  call  [rip + engine_tls_function]
-  mov   r15, rax
+  restore_tls
   jmp   .Lrestart_interpretation
 
 .align 16
@@ -229,22 +232,19 @@ engine_i2_newarray:
   mov   rsi, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x10]
   call  [rip + engine_newarray_function]
   mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8], rax
-  call  [rip + engine_tls_function]
-  mov   r15, rax
+  restore_tls
   jmp   .Lrestart_interpretation
 
 // expects: (ECTYPE_REG: ectype, rdi: safe_point_f)
 .align 16
 engine_i2_gcpoint:
   call rdi
-  call  [rip + engine_tls_function]
-  mov   r15, rax
+  restore_tls
   jmp  .Lrestart_interpretation
 
 .align 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
 // preserved: ECTYPE_REG, rbp
-// TLS_REG can be changed after context-switch
 engine_i2_spawn:
   mov   rsi, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8]
   mov   rcx, rdi
