@@ -68,7 +68,7 @@ Interpretation::Thunk engine_interpretation_loop(
 #define NEXT_OR_THROW(successfull, implicit_exception)                                                                 \
     do {                                                                                                               \
         if (successfull) {                                                                                             \
-            goto* MAIN_TABLE[reader.PeekOpcode()];                                                                     \
+            NEXT;                                                                                                      \
         } else {                                                                                                       \
             THROW_IMPLICIT(implicit_exception);                                                                        \
         }                                                                                                              \
@@ -680,9 +680,6 @@ DIVCHECK: {
     auto args = B2xr::Decode(reader);
     LOG_INSTR;
     auto div = ectype->GetPrimitive(args.xr.r.IR());
-    if (div.u64 == 0) {
-        FATAL("div check failed"); // TODO: throw exception
-    }
     NEXT_OR_THROW(div.u64 != 0, ImplicitException::Type::ArithmeticException);
 }
 
