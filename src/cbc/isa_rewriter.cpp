@@ -968,10 +968,10 @@ static std::vector<Interpretation::PositionalInfo> CalculatePositionalGCInfo(
     std::vector<Interpretation::PositionalInfo> posInfo;
     posInfo.reserve(livenessInfo.size());
 
-    std::unordered_map<ssize_t, Symlevel::LivenessInfo&> infos;
+    std::unordered_map<ssize_t, Symlevel::LivenessInfo const&> infos;
 
     for (const auto& info : livenessInfo) {
-        infos[info.cbcPos] = info;
+        infos.insert({info.cbcPos, info});
     }
 
     for (auto& point : statePoints) {
