@@ -546,7 +546,7 @@ Term TermManager::NewAotTerm(
     Session& session, std::string_view name, std::vector<Term> const& subterms, bool isReference
 )
 {
-    auto heap      = session.Allocator();
+    auto& heap     = session.Allocator();
     auto data      = AllocateTerm(heap, subterms.size());
     bool isGeneric = false;
     auto arity     = subterms.size();

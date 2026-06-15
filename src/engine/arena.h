@@ -13,7 +13,9 @@ public:
 
     Arena() : cursor(0), end(0), chunks(nullptr) {}
 
+    Arena(Arena const& another) = delete;
     ~Arena();
+
     void* Allocate(size_t bytes, size_t alignment) override;
     void Free(void* memory, size_t bytes, size_t alignment) override;
 
