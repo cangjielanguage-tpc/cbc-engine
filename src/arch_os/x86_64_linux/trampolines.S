@@ -282,79 +282,6 @@ engine_i2_spawn:
   call  [rip + engine_newthread_nret_function]
   jmp  .Lrestart_interpretation
 
-// expects: (ECTYPE_REG: ectype, rdi: exception reference, ectype.SR0: optional[TypeInfo])
-//
-// Returns to interpretation loop with exception reference on ectype.SR0
-// or throws exception reference using CJNative runtime interface if there is no any exception handler in consecutive interpreter frames.
-// Precondition: top frame is interpreter frame.
-.align 16
-engine_handle_exception:
-  test  rdi, rdi
-  jnz   .Lhandle_ready_exception
-
-  // Implicit exception is thrown, need to construct exception object
-  mov   rdi, QWORD PTR [ECTYPE_REG + ECTYPE_SREGS_OFFSET + 0]
-  mov   QWORD PTR [ECTYPE_REG + ECTYPE_SREGS_OFFSET + 0], 0
-  call  [rip + engine_newobject_function]
-  mov   rdi, rax
-
-  // TODO call constructor
-  jmp   .Lhandle_ready_exception
-
-// If exception is thrown from CJNative code to interpreter, execution of
-// interpreter code starts here
-common_landing_pad:
-  // TODO obtain pending exception and put it into rdi
-
-.Lhandle_ready_exception: // expects: rdi - exception obj
-  mov   r12, rdi
-
-  mov   rdi, QWORD PTR [rbp - 0x8]         // fuh
-  lea   rsi, QWORD PTR [rbp - READER_SLOT] // reader
-  call  engine_get_exception_handler
-
-  test  rax, rax
-  jz   .Lunwind_top_frame
-
-  // Handler is found, set exception object to SREG and continue interpretation
-  mov   QWORD PTR [ECTYPE_REG + ECTYPE_SREGS_OFFSET + 0], r12
-  jmp   .Lrestart_interpretation
-
-.Lunwind_top_frame:
-  // Restore spilled non-volatile regs before clearing the frame
-  mov   rax, QWORD PTR [rbp - 0x8] // fuh
-  mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
-  mov   edx, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
-  add   rdx, rsp // start of saved regs area
-
-  POP_IREGS ecx, rdx, rax
-  POP_FREGS ecx, rdx, rax
-
-  mov   LITERALS_REG, [rbp - 0x18]
-  mov   ECTYPE_REG, [rbp - 0x10]
-
-  // Clear top frame
-  mov rsp, rbp
-  pop rbp
-  pop rdi // ret addr
-
-  // Check if next method is C2I adapter
-  lea   rax, [rip + engine_c2i_call_pc_start]
-  cmp   rdi, rax
-  jb    .Lhandle_next_dyn_func
-  lea   rax, [rip + engine_c2i_call_pc_end]
-  cmp   rdi, rax
-  jae   .Lhandle_next_dyn_func
-
-  // Unwind current frame and next (C2I) and throw exception by CJNative runtime
-  // TODO implement
-  xor   eax, eax
-  mov   qword ptr [rax], rax
-
-.Lhandle_next_dyn_func:
-  mov   rdi, r12
-  jmp   engine_handle_exception
-
 .align 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: fuh)
 // preserved: TLS_REG, ECTYPE_REG, rbp
@@ -400,13 +327,13 @@ perform_2i_call:
 
   mov   LITERALS_REG, [rax + EXEC_BYTECODE_INFO_LITERALS_OFFSET]
   mov   rsi, [rax + EXEC_BYTECODE_INFO_BYTECODE_OFFSET]
-#ifndef NDEBUG
+
+  // construct reader
   mov   r8, [rax + EXEC_BYTECODE_INFO_BYTECODE_SIZE_OFFSET]
   add   r8, rsi
-  mov   [rbp - READER_SLOT + 0x10], r8
-  mov   [rbp - READER_SLOT + 0x8], rsi
-#endif
-  mov   [rbp - READER_SLOT], rsi
+  mov   [rbp - READER_SLOT + 0x10], r8 // end
+  mov   [rbp - READER_SLOT + 0x8], rsi // start
+  mov   [rbp - READER_SLOT], rsi       // cursor
 
 #ifndef NDEBUG
   mov   rdi, [rbp - 0x8]
@@ -501,3 +428,76 @@ engine_fake_execute_closure:
   mov   rcx, [rsi + 0x10] // get $i (instantiated) version of closure function
   mov   rdi, rsi
   jmp   rcx
+
+// expects: (ECTYPE_REG: ectype, rdi: exception reference, ectype.SR0: optional[TypeInfo])
+//
+// Returns to interpretation loop with exception reference on ectype.SR0
+// or throws exception reference using CJNative runtime interface if there is no any exception handler in consecutive interpreter frames.
+// Precondition: top frame is interpreter frame.
+.align 16
+engine_handle_exception:
+  test  rdi, rdi
+  jnz   .Lhandle_ready_exception
+
+  // Implicit exception is thrown, need to construct exception object
+  mov   rdi, QWORD PTR [ECTYPE_REG + ECTYPE_SREGS_OFFSET + 0]
+  mov   QWORD PTR [ECTYPE_REG + ECTYPE_SREGS_OFFSET + 0], 0
+  call  [rip + engine_newobject_function]
+  mov   rdi, rax
+
+  // TODO call constructor
+  jmp   .Lhandle_ready_exception
+
+// If exception is thrown from CJNative code to interpreter, execution of
+// interpreter code starts here
+common_landing_pad:
+  // TODO obtain pending exception and put it into rdi
+
+.Lhandle_ready_exception: // expects: rdi - exception obj
+  mov   r12, rdi
+
+  mov   rdi, QWORD PTR [rbp - 0x8]         // fuh
+  lea   rsi, QWORD PTR [rbp - READER_SLOT] // reader
+  call  engine_get_exception_handler
+
+  test  al, al
+  jz   .Lunwind_top_frame
+
+  // Handler is found, set exception object to SREG and continue interpretation
+  mov   QWORD PTR [ECTYPE_REG + ECTYPE_SREGS_OFFSET + 0], r12
+  jmp   .Lrestart_interpretation
+
+.Lunwind_top_frame:
+  // Restore spilled non-volatile regs before clearing the frame
+  mov   rax, QWORD PTR [rbp - 0x8] // fuh
+  mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
+  mov   edx, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
+  add   rdx, rsp // start of saved regs area
+
+  POP_IREGS ecx, rdx, rax
+  POP_FREGS ecx, rdx, rax
+
+  mov   LITERALS_REG, [rbp - 0x18]
+  mov   ECTYPE_REG, [rbp - 0x10]
+
+  // Clear top frame
+  mov rsp, rbp
+  pop rbp
+  pop rdi // ret addr
+
+  // Check if next method is C2I adapter
+  lea   rax, [rip + engine_c2i_call_pc_start]
+  cmp   rdi, rax
+  jb    .Lhandle_next_dyn_func
+  lea   rax, [rip + engine_c2i_call_pc_end]
+  cmp   rdi, rax
+  jae   .Lhandle_next_dyn_func
+
+  // Unwind current frame and next (C2I) and throw exception by CJNative runtime
+  // TODO implement
+  xor   eax, eax
+  mov   qword ptr [rax], rax
+
+.Lhandle_next_dyn_func:
+  mov   rdi, r12
+  jmp   engine_handle_exception
