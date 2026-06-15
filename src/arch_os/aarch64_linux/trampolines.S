@@ -210,7 +210,7 @@ engine_i2c_call:
 get_tls:
   adrp  x10, engine_tls_function
   ldr   x10, [x10, :lo12:engine_tls_function]
-  bl    x10
+  blr   x10
 
 .macro restore_tls // spoils volatile registers!
   bl    get_tls
