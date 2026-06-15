@@ -78,7 +78,7 @@ class LiteralTableBuilder {
 public:
     static constexpr size_t MAX_SIZE = RT::LIT_TABLE_SIZE;
 
-    LiteralTableBuilder(Symbols _symbols) : symbols(_symbols) {}
+    LiteralTableBuilder(Symbols& _symbols) : symbols(_symbols) {}
 
     /// Register given symbol as used and assign an index in literal table.
     /// Different symbol instances could reference similar literals in the table,
@@ -88,7 +88,7 @@ public:
     Interpretation::LiteralTable* BuildTable(Memory::Heap& heap);
 
     std::vector<uint8_t> table;
-    Symbols symbols;
+    Symbols& symbols;
 };
 
 class Fixup {

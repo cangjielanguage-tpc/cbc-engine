@@ -51,7 +51,7 @@ Interpretation::Code Emitter::Build(Memory::Heap& heap)
     auto segment = std::exchange(this->segment, {});
     auto fixups  = std::exchange(this->fixups, {});
 
-    LiteralTableBuilder litBuilder(std::exchange(this->symbols, {}));
+    LiteralTableBuilder litBuilder(this->symbols);
 
     auto relocationConverter = [&litBuilder, &segment](Symbol sym) {
         ASSERTION(sym.kind != SymbolKind::LABEL, "Labels should be processed as part of fixup resolution");
