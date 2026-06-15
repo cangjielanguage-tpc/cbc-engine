@@ -202,12 +202,12 @@ TEST_F(MemoryAccess, LinkedStack)
     e.MovImm(Width::W32, IReg::IR11, 10);
     e.Mov(IReg::IR10, IReg::IR11);
 
-    e.MovRef(IReg::IR12, IReg::IRZ);
+    e.Mov(IReg::IR12, IReg::IRZ);
     e.Bind(fillStack);
     e.NewObj(ti);
     e.StoreObj(Format::StoreAccessKind::ST_REF, IReg::IR12, IReg::IR1, 8);
     e.StoreObj(Format::StoreAccessKind::ST_64, IReg::IR10, IReg::IR1, 16);
-    e.MovRef(IReg::IR12, IReg::IR1);
+    e.Mov(IReg::IR12, IReg::IR1);
     e.AddI(Width::W32, IReg::IR10, IReg::IR10, static_cast<uint64_t>(-1));
     e.Bcc(CC::LT, Width::W32, IReg::IRZ, IReg::IR10, fillStack);
 
@@ -220,7 +220,7 @@ TEST_F(MemoryAccess, LinkedStack)
     e.Add(Width::W32, IReg::IR4, IReg::IR4, IReg::IR3);
 
     e.LoadObj(Format::LoadAccessKind::LD_REF, IReg::IR1, IReg::IR12, 8);
-    e.MovRef(IReg::IR12, IReg::IR1);
+    e.Mov(IReg::IR12, IReg::IR1);
 
     e.AddI(Width::W32, IReg::IR10, IReg::IR10, static_cast<uint64_t>(-2));
     e.Bcc(CC::LT, Width::W32, IReg::IRZ, IReg::IR10, dropStack);
