@@ -9,13 +9,14 @@ import platform
 import sys
 
 
-TARGET_OSES = ["linux", "android", "ios"]
+TARGET_OSES = ["linux", "android", "ios", "ios-sim"]
 TARGET_ARCHES = ["x86_64", "aarch64"]
 SUPPORTED_TARGETS = {
     ("linux", "x86_64"),
     ("linux", "aarch64"),
     ("android", "aarch64"),
     ("ios", "aarch64"),
+    ("ios-sim", "aarch64"),
 }
 
 ANDROID_PLATFORM = "android-26"
@@ -100,11 +101,11 @@ def prepare_cmake_options(args, project_dir):
             f"-DANDROID_ABI={ANDROID_ABI} "
         )
 
-    elif args.target_os == "ios":
+    elif args.target_os in ["ios", "ios-sim"]:
         if detect_host_os() != "macos":
-            fail("iOS builds require macOS and the Xcode command-line tools")
+            fail(f"{args.target_os} builds require macOS and the Xcode command-line tools")
 
-        toolchain_path = Path(project_dir) / "cmake/toolchains/aarch64-ios-clang.cmake"
+        toolchain_path = Path(project_dir) / f"cmake/toolchains/{args.target_arch}-{args.target_os}-clang.cmake"
         if not toolchain_path.is_file():
             fail(f"Toolchain file does not exist: {toolchain_path}")
 

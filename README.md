@@ -25,14 +25,15 @@ export ANDROID_NDK_HOME=/path/to/android-ndk
 python3 build.py build --target-os=android --target-arch=aarch64
 ```
 
-For an iOS device build, run the build directly on macOS with Xcode installed:
+For iOS device and simulator builds, run the build directly on macOS with Xcode installed:
 
 ```bash
 python3 build.py build --target-os=ios --target-arch=aarch64
+python3 build.py build --target-os=ios-sim --target-arch=aarch64
 ```
 
 3) Library is located in `output/<target-os>_<target-arch>/libcbcengine.so`.
-For iOS, the output is `output/ios_aarch64/libcangjie-interpreter.dylib`.
+For iOS, the output is `output/<target-os>_aarch64/libcangjie-interpreter.dylib`.
 
 ## How to run tests
 
