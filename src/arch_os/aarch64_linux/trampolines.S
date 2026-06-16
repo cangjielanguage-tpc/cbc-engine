@@ -1,8 +1,35 @@
 #include "asm_export.h"
 
+#ifdef __APPLE__
+    #define engine_prepare_bytecode _engine_prepare_bytecode
+    #define engine_interpretation_loop _engine_interpretation_loop
+    #define engine_fiber_data_init _engine_fiber_data_init
+    #define engine_c2i_call_pc_start _engine_c2i_call_pc_start
+    #define engine_c2i_call_pc_end _engine_c2i_call_pc_end
+    #define engine_trampolines_dyn_start _engine_trampolines_dyn_start
+    #define engine_trampolines_direct_start _engine_trampolines_direct_start
+    #define engine_iregs_only_c2i_call _engine_iregs_only_c2i_call
+    #define engine_i2i_call _engine_i2i_call
+    #define engine_i2c_call _engine_i2c_call
+    #define engine_i2_newobject _engine_i2_newobject
+    #define engine_i2_newarray _engine_i2_newarray
+    #define engine_i2_gcpoint _engine_i2_gcpoint
+    #define engine_universal_direct_function_handles _engine_universal_direct_function_handles
+    #define engine_tls_function _engine_tls_function
+    #define engine_newobject_function _engine_newobject_function
+    #define engine_newarray_function _engine_newarray_function
+    #define engine_newthread_nret_function _engine_newthread_nret_function
+    #define engine_carrier_specific_offset _engine_carrier_specific_offset
+    #define engine_cjthread_specific_offset _engine_cjthread_specific_offset
+#endif
+
 .macro declare_hidden sym
   .global \sym
+#ifdef __APPLE__
+  .private_extern \sym
+#else
   .hidden \sym
+#endif
 .endm
 
 .extern engine_prepare_bytecode
@@ -31,7 +58,11 @@ declare_hidden engine_cjthread_specific_offset
 declare_hidden engine_i2_spawn
 
 // --- SECTION BSS ---
+#ifdef __APPLE__
+.section __DATA,__bss
+#else
 .section .bss
+#endif
 
 .balign 16
 engine_universal_direct_function_handles:
@@ -53,12 +84,21 @@ engine_cjthread_specific_offset:  // 0x28
   .skip 8
 
 // --- SECTION TEXT ---
+#ifdef __APPLE__
+.section __TEXT,__text,regular,pure_instructions
+#else
 .section .text
+#endif
 
 .balign 16
 engine_universal_direct_call:
+#ifdef __APPLE__
+  adrp  x10, engine_universal_direct_function_handles@PAGE
+  add   x10, x10, engine_universal_direct_function_handles@PAGEOFF
+#else
   adrp  x10, engine_universal_direct_function_handles
   add   x10, x10, :lo12:engine_universal_direct_function_handles
+#endif
   ldr   x9, [x10, x9, lsl #3] // put FuH on x9
   ldr   x10, [x9, #FUNCTION_HANDLE_C2CALL_OFFSET]
   br    x10
@@ -115,11 +155,21 @@ engine_iregs_only_c2i_call:
 
   str   x9, [sp, #-16]! // x29 - 0x50 : FunctionHandle that will help to scan saved regs
 
+#ifdef __APPLE__
+  adrp  ECTYPE_REG, engine_carrier_specific_offset@PAGE
+  ldr   ECTYPE_REG, [ECTYPE_REG, engine_carrier_specific_offset@PAGEOFF]
+#else
   adrp  ECTYPE_REG, engine_carrier_specific_offset
   ldr   ECTYPE_REG, [ECTYPE_REG, :lo12:engine_carrier_specific_offset]
+#endif
   ldr   x21, [TLS_REG, ECTYPE_REG]
+#ifdef __APPLE__
+  adrp  ECTYPE_REG, engine_cjthread_specific_offset@PAGE
+  ldr   ECTYPE_REG, [ECTYPE_REG, engine_cjthread_specific_offset@PAGEOFF]
+#else
   adrp  ECTYPE_REG, engine_cjthread_specific_offset
   ldr   ECTYPE_REG, [ECTYPE_REG, :lo12:engine_cjthread_specific_offset]
+#endif
   add   x21, x21, ECTYPE_REG // address of slot in fiber data that contains ectype addr
   ldr   ECTYPE_REG, [x21]    // ectype addr
 
@@ -210,8 +260,13 @@ engine_i2c_call:
 
 .balign 16
 get_tls:
+#ifdef __APPLE__
+  adrp  x10, engine_tls_function@PAGE
+  ldr   x10, [x10, engine_tls_function@PAGEOFF]
+#else
   adrp  x10, engine_tls_function
   ldr   x10, [x10, :lo12:engine_tls_function]
+#endif
   br    x10
 
 .macro restore_tls // spoils volatile registers!
@@ -225,8 +280,13 @@ get_tls:
 // TLS_REG can be changed after context-switch
 engine_i2_newobject:
   // jumped from .Linterpreter_call without return address to return
+#ifdef __APPLE__
+  adrp  x10, engine_newobject_function@PAGE
+  ldr   x10, [x10, engine_newobject_function@PAGEOFF]
+#else
   adrp  x10, engine_newobject_function
   ldr   x10, [x10, :lo12:engine_newobject_function]
+#endif
   blr   x10
 
   str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8)]
@@ -256,8 +316,13 @@ engine_i2_newobject_acc:
 engine_i2_newarray:
   // jumped from .Linterpreter_call without return address to return
   ldr   x1, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x10)]
+#ifdef __APPLE__
+  adrp  x10, engine_newarray_function@PAGE
+  ldr   x10, [x10, engine_newarray_function@PAGEOFF]
+#else
   adrp  x10, engine_newarray_function
   ldr   x10, [x10, :lo12:engine_newarray_function]
+#endif
   blr   x10
 
   str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8)]

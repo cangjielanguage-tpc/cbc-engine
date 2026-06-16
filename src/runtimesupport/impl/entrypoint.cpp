@@ -1,6 +1,7 @@
 #include "runtimesupport/impl/entrypoint.h"
 
 #include <mutex>
+#include <system_error>
 
 #include "RTInterface.h"
 #include "asm_export.h"
@@ -32,6 +33,17 @@ static bool g_Initialized;
 static bool g_OptionsInitialized;
 static bool g_Patched;
 
+static void NativeLog(std::string message)
+{
+    auto logger = g_CJNativeInterfaceInstance.nativeLogger;
+    if (logger == nullptr) {
+        return;
+    }
+
+    static char tag[] = "Interpreter";
+    logger(21, tag, message.data());
+}
+
 static void InitEnvOpts()
 {
     std::lock_guard guard(g_InitializationGuard);
@@ -39,6 +51,59 @@ static void InitEnvOpts()
         Engine::InitEnvOptions();
         g_OptionsInitialized = true;
     }
+}
+
+static void DiscoverPatchCbcFromAppStorage()
+{
+    if (g_appStoragePath.empty() || !g_cbcPath.empty() || !g_patchCbc.empty()) {
+        return;
+    }
+
+    auto cbcDir = std::filesystem::path(g_appStoragePath) / "cbc";
+
+    std::error_code ec;
+    if (!std::filesystem::is_directory(cbcDir, ec)) {
+        if (ec) {
+            NativeLog("failed to access app storage cbc directory: " + cbcDir.string());
+        } else {
+            NativeLog("app storage cbc directory does not exist: " + cbcDir.string());
+        }
+        return;
+    }
+
+    std::filesystem::directory_iterator it(cbcDir, std::filesystem::directory_options::skip_permission_denied, ec);
+    if (ec) {
+        NativeLog("failed to scan app storage cbc directory: " + cbcDir.string());
+        return;
+    }
+
+    std::filesystem::path patchCbc;
+    std::filesystem::directory_iterator end;
+    while (it != end) {
+        auto const& entry = *it;
+        std::error_code fileEc;
+        if (entry.is_regular_file(fileEc) && entry.path().extension() == ".cbc") {
+            if (!patchCbc.empty()) {
+                NativeLog("multiple .cbc files found in app storage cbc directory: " + cbcDir.string());
+                return;
+            }
+            patchCbc = entry.path();
+        }
+
+        it.increment(ec);
+        if (ec) {
+            NativeLog("failed to scan app storage cbc directory: " + cbcDir.string());
+            return;
+        }
+    }
+
+    if (patchCbc.empty()) {
+        NativeLog("no .cbc files found in app storage cbc directory: " + cbcDir.string());
+        return;
+    }
+
+    g_patchCbc = patchCbc.string();
+    NativeLog("using app storage patch cbc: " + g_patchCbc);
 }
 
 /// Initialize engine from launcher.
@@ -180,7 +245,13 @@ static void PerformPatching()
 
 static void FiberStart(DYN_CJThreadSpecificData* data) { *data = nullptr; }
 
-extern "C" Interpretation::Ectype* FiberDataInit(DYN_CJThreadSpecificData* data) __asm__("engine_fiber_data_init");
+#if defined(__APPLE__)
+    #define FIBER_INIT_ASM_LABEL "_engine_fiber_data_init"
+#else
+    #define FIBER_INIT_ASM_LABEL "engine_fiber_data_init"
+#endif
+
+extern "C" Interpretation::Ectype* FiberDataInit(DYN_CJThreadSpecificData* data) __asm__(FIBER_INIT_ASM_LABEL);
 
 Interpretation::Ectype* FiberDataInit(DYN_CJThreadSpecificData* data)
 {
@@ -217,12 +288,16 @@ static void IterateFramesWithState(
     DYN_CJThreadSpecificData threadSpecificData, void (*callback)(DYN_VisitingState, void*), void* ctx
 )
 {
-    GCSupport::IterateFramesWithState(threadSpecificData, callback, ctx);
+    if (g_Initialized) {
+        GCSupport::IterateFramesWithState(threadSpecificData, callback, ctx);
+    }
 }
 
 static void VisitFrameRootsMarking(DYN_VisitingState state, INT_FrameDesc frame_desc, DYN_RootVisitor root_visitor)
 {
-    GCSupport::VisitGCFrameRoots(state, frame_desc, root_visitor);
+    if (g_Initialized) {
+        GCSupport::VisitGCFrameRoots(state, frame_desc, root_visitor);
+    }
 }
 
 static void VisitFrameRootsAdjusting(
@@ -232,7 +307,9 @@ static void VisitFrameRootsAdjusting(
     DYN_DerivedPtrVisitor derived_ptr_visitor
 )
 {
-    GCSupport::VisitGCFrameRoots(state, frame_desc, root_visitor);
+    if (g_Initialized) {
+        GCSupport::VisitGCFrameRoots(state, frame_desc, root_visitor);
+    }
 }
 
 static void VisitFrameRootsExpansion(
@@ -245,7 +322,12 @@ static void VisitFrameRootsExpansion(
     /* no-op */
 }
 
-static void VisitGlobalRoots(DYN_RootVisitor visitor) { GCSupport::VisitGlobalRoots(visitor); }
+static void VisitGlobalRoots(DYN_RootVisitor visitor)
+{
+    if (g_Initialized) {
+        GCSupport::VisitGlobalRoots(visitor);
+    }
+}
 
 extern "C" {
 /// This symbol is exported to the runtime, which would initialize engine.
@@ -307,11 +389,16 @@ CBC_EXPORT int interpreter_bridge_init(
         return 1;
     }
 
+    g_CJNativeInterfaceInstance = *rtInterf;
+
+    NativeLog("Interpreter bridge init started");
+
     // Order matters
     InitEnvOpts();
     Engine::g_table.ParseAndSet(size, options);
 
-    g_CJNativeInterfaceInstance            = *rtInterf;
+    DiscoverPatchCbcFromAppStorage();
+
     interpInterf->version                  = INT_INTERPRETER_INTERFACE_VERSION;
     interpInterf->cjThreadSpecificDataSize = sizeof(Interpretation::Ectype);
     interpInterf->c2iStubStartAddr         = reinterpret_cast<uintptr_t>(&Asm::engine_c2i_call_pc_start);
@@ -353,6 +440,8 @@ CBC_EXPORT int interpreter_bridge_init(
         builtinTypeInfos[BUILTIN_F32]     = RTSupport::TypeInfo(getTypeInfo("Float32"));
         builtinTypeInfos[BUILTIN_F64]     = RTSupport::TypeInfo(getTypeInfo("Float64"));
     }
+
+    NativeLog("Interpreter bridge init finished");
 
     return 0;
 }

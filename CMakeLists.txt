@@ -64,13 +64,19 @@ target_link_libraries(cbcengine PRIVATE
   cbc_lib
 )
 
-target_link_options(cbcengine PRIVATE
-  "-Wl,-z,noexecstack"
-  "-Wl,-z,relro"
-  "-Wl,-z,now"
-)
+if(NOT APPLE)
+  target_link_options(cbcengine PRIVATE
+    "-Wl,-z,noexecstack"
+    "-Wl,-z,relro"
+    "-Wl,-z,now"
+  )
+endif()
 
 set_target_properties(cbcengine PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+  set_target_properties(cbcengine PROPERTIES OUTPUT_NAME "cangjie-interpreter")
+endif()
 
 add_subdirectory(tools/dis)
 
