@@ -330,7 +330,14 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
-        auto typeInfo = t.value()->GetTypeInfo()->Raw();
+        auto type = t.value();
+        if (!type->GetTypeInfo().has_value()) {
+            errStream << "Failed to get type info of " << *type << Stream::endl;
+            Fail();
+            return;
+        }
+
+        auto typeInfo = type->GetTypeInfo()->Raw();
         emit.MovImm(Format::Width::W64, dst, reinterpret_cast<uint64_t>(typeInfo));
     }
 
