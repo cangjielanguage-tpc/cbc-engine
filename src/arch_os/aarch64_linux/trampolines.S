@@ -31,11 +31,11 @@ declare_hidden engine_i2_spawn
 // --- SECTION BSS ---
 .section .bss
 
-.align 16
+.balign 16
 engine_universal_direct_function_handles:
   .skip 8 * TRAMPOLINE_COUNT
 
-.balign 64
+..balign 64
 .Lfunc_anchor:
 engine_tls_function:              // 0x0
   .skip 8
@@ -53,7 +53,7 @@ engine_cjthread_specific_offset:  // 0x28
 // --- SECTION TEXT ---
 .section .text
 
-.align 16
+.balign 16
 engine_universal_direct_call:
   adrp  x10, engine_universal_direct_function_handles
   add   x10, x10, :lo12:engine_universal_direct_function_handles
@@ -62,7 +62,7 @@ engine_universal_direct_call:
   br    x10
 
 
-.align 16
+.balign 16
 engine_trampolines_direct_start:
 .macro repeat_trampoline_direct count
   .set i, 0
@@ -75,7 +75,7 @@ engine_trampolines_direct_start:
   repeat_trampoline_direct TRAMPOLINE_COUNT
 
 
-.align 16
+.balign 16
 engine_universal_dyn_call:
   ldr   x10, [x0]
   ldr   x10, [x10, #TYPEINFO_DATA_MT_OFFSET] // TODO: consider tail array
@@ -84,7 +84,7 @@ engine_universal_dyn_call:
   br    x10
 
 
-.align 16
+.balign 16
 engine_trampolines_dyn_start:
 .macro repeat_trampoline_dyn count
   .set i, 0
@@ -100,7 +100,7 @@ engine_trampolines_dyn_start:
 #define ECTYPE_REG x19
 #define LITERALS_REG x20
 
-.align 16
+.balign 16
 engine_c2i_call_pc_start:
 engine_iregs_only_c2i_call:
   stp   x29, x30, [sp, #-16]!
@@ -171,7 +171,7 @@ engine_c2i_call_pc_end:
   brk   #0
 
 
-.align 16
+.balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: fuh)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
@@ -181,7 +181,7 @@ engine_i2i_call:
   b     .Lrestart_interpretation
 
 
-.align 16
+.balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: target)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
@@ -206,7 +206,7 @@ engine_i2c_call:
   b     .Lrestart_interpretation
 
 
-.balign 16
+..balign 16
 get_tls:
   adrp  x10, engine_tls_function
   ldr   x10, [x10, :lo12:engine_tls_function]
@@ -217,7 +217,7 @@ get_tls:
   mov   TLS_REG, x0
 .endm
 
-.align 16
+.balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
@@ -232,7 +232,7 @@ engine_i2_newobject:
 
   b     .Lrestart_interpretation
 
-.align 16
+.balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
@@ -248,13 +248,13 @@ engine_i2_newarray:
 
   b     .Lrestart_interpretation
 
-.align 16
+.balign 16
 engine_i2_gcpoint:
   blr   x0
   restore_tls
   b     .Lrestart_interpretation
 
-.align 16
+.balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo)
 // preserved: ECTYPE_REG, x29
 engine_i2_spawn:
@@ -269,7 +269,7 @@ engine_i2_spawn:
   blr   x4
   b     .Lrestart_interpretation
 
-.align 16
+.balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: fuh)
 // preserved: TLS_REG, ECTYPE_REG, x29
 perform_2i_call:
@@ -290,7 +290,7 @@ perform_2i_call:
 
   declare_slot READER_SLOT, READER_SLOTS_SIZE
 
-  // align stack
+  //.balign stack
   .if (LOCAL_SLOTS_OFFSET + OFFS_ADDEND) % 0x10 != 0
     .set OFFS_ADDEND, OFFS_ADDEND + 0x8
   .endif
@@ -328,7 +328,7 @@ perform_2i_call:
 
   mov   x1, sp // save current sp for registers saving to the bottom of frame
 
-  // current sp is 16-byte aligned
+  // current sp is 16-byte.baligned
   ldr   w8, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   sub   sp, sp, x8
 
@@ -412,7 +412,7 @@ perform_2i_call:
   ret
 
 // fake execute closure function
-.align 16
+.balign 16
 engine_fake_execute_closure:
   // (x8: sret, x0: ()T, x1: TypeInfo[Future[T]]
   ldr   x2, [x0, #0x10]
