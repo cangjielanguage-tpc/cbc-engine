@@ -15,7 +15,7 @@ char const *interpreter_lib = "libcbcengine.so";
 char const *managed_entry_lib = "libentry.so";
 
 extern int   InitCJRuntime(struct RuntimeParam *param);
-extern void  InitCJInterpreter(struct InterpreterParam *param);
+extern RTErrorCode InitCJInterpreter(struct InterpreterParam* param);
 extern int   LoadCJLibraryWithInit(const char *libName);
 extern void *FindCJSymbol(const char *libName, const char *symbolName);
 extern void *RunCJTask(const void *func, void *args);
