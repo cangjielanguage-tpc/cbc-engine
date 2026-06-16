@@ -127,7 +127,7 @@ struct IsaRewriter : public IsaParser {
     Emitter::Label InstructionLabel(ssize_t position)
     {
         ASSERTION(position >= 0, "label position is negative");
-        ASSERTION(position < bytecodeSize, "label position is negative");
+        ASSERTION(position <= bytecodeSize, "label position greater than bytecode size");
         if (auto existing = instructionLabel.find(position); existing != instructionLabel.end()) {
             return existing->second;
         } else {
@@ -330,7 +330,14 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
-        auto typeInfo = t.value()->GetTypeInfo()->Raw();
+        auto type = t.value();
+        if (!type->GetTypeInfo().has_value()) {
+            errStream << "Failed to get type info of " << *type << Stream::endl;
+            Fail();
+            return;
+        }
+
+        auto typeInfo = type->GetTypeInfo()->Raw();
         emit.MovImm(Format::Width::W64, dst, reinterpret_cast<uint64_t>(typeInfo));
     }
 
@@ -902,6 +909,12 @@ struct IsaRewriter : public IsaParser {
         startPosition = position;
         emit.Bind(InstructionLabel(position));
         IsaParser::ParseOne();
+    }
+
+    void End() override
+    {
+        emit.Bind(InstructionLabel(Pos()));
+        IsaParser::End();
     }
 
     void Fail() { failedPositions.push_back(startPosition); }
