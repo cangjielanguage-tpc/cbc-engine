@@ -32,7 +32,7 @@ python3 build.py build --target-os=ios --target-arch=aarch64
 ```
 
 3) Library is located in `output/<target-os>_<target-arch>/libcbcengine.so`.
-For iOS, the output is `output/ios_aarch64/libcbcengine.dylib`.
+For iOS, the output is `output/ios_aarch64/libcangjie-interpreter.dylib`.
 
 ## How to run tests
 
