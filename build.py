@@ -9,12 +9,14 @@ import platform
 import sys
 
 
-TARGET_OSES = ["linux", "android"]
+TARGET_OSES = ["linux", "android", "ios", "ios-sim"]
 TARGET_ARCHES = ["x86_64", "aarch64"]
 SUPPORTED_TARGETS = {
     ("linux", "x86_64"),
     ("linux", "aarch64"),
     ("android", "aarch64"),
+    ("ios", "aarch64"),
+    ("ios-sim", "aarch64"),
 }
 
 ANDROID_PLATFORM = "android-26"
@@ -70,7 +72,9 @@ def detect_host_os():
     current_os = platform.system().lower()
     if current_os == "linux":
         return current_os
-    fail(f"Unsupported host OS: {current_os}. Only Linux hosts are supported for now.")
+    if current_os == "darwin":
+        return "macos"
+    fail(f"Unsupported host OS: {current_os}.")
 
 
 def prepare_cmake_options(args, project_dir):
@@ -95,6 +99,20 @@ def prepare_cmake_options(args, project_dir):
             f"-DCMAKE_TOOLCHAIN_FILE={toolchain_path} "
             f"-DANDROID_PLATFORM={ANDROID_PLATFORM} "
             f"-DANDROID_ABI={ANDROID_ABI} "
+        )
+
+    elif args.target_os in ["ios", "ios-sim"]:
+        if detect_host_os() != "macos":
+            fail(f"{args.target_os} builds require macOS and the Xcode command-line tools")
+
+        toolchain_path = Path(project_dir) / f"cmake/toolchains/{args.target_arch}-{args.target_os}-clang.cmake"
+        if not toolchain_path.is_file():
+            fail(f"Toolchain file does not exist: {toolchain_path}")
+
+        return (
+            f"{build_type}"
+            f"-DBUILD_TESTING={build_testing} "
+            f"-DCMAKE_TOOLCHAIN_FILE={toolchain_path} "
         )
 
     toolchain_files_dir = f"{project_dir}/cmake/toolchains"
@@ -156,15 +174,20 @@ def build(args, project_dir, build_dir):
 def main():
     host_os = detect_host_os()
     host_arch = detect_host_arch()
+    default_target_os = host_os if host_os in TARGET_OSES else None
 
     parser = argparse.ArgumentParser(description="build / clean")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     build_parser = subparsers.add_parser("build", help="build the project")
+    target_os_help = "Target operating system"
+    if default_target_os is not None:
+        target_os_help += f" (default: {default_target_os})"
     build_parser.add_argument("--target-os",
                               choices=TARGET_OSES,
-                              default=host_os,
-                              help=f"Target operating system (default: {host_os})")
+                              default=default_target_os,
+                              required=default_target_os is None,
+                              help=target_os_help)
     build_parser.add_argument("--target-arch",
                               choices=TARGET_ARCHES,
                               default=host_arch,
