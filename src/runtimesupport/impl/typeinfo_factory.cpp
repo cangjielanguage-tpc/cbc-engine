@@ -47,6 +47,33 @@ static char* ConstructTypeInfoName(std::string_view str)
     return cStr;
 }
 
+/// OuterTI plays the role of "class type context".
+/// Example:
+/// interface J<T> {
+///     func foo(): Unit
+/// }
+/// interface I<T, K> <: J<T> {
+///     func foo(): Unit {
+///         // outerTI == TypeInfo[I<T, K>]
+///         // Use(outerTI.typeArgs[0], outerTi.typeArgs[1])
+///         Use(T, K)
+///     }
+/// }
+/// class Foo <: I<Int64, Int64> {}
+/// func use(f: Foo) {
+///     // outerTI := GetMethodOuterTI(f.ti, TypeInfo[I<i64, i64>], foo_idx)
+///     f.foo()
+/// }
+/// To use `T` and `K` type vars in `foo` an extra parameter `outerTI` will be passed,
+/// which holds TypeInfo of `I<T, K>`.
+///
+/// These outer ti instances are stored in function table as:
+/// [f0, f1, .., fn, ti0, ti1, .., tin]
+union OuterTIFuncUnion {
+    DYN_FuncPtr func;
+    DYN_TypeInfo* typeInfo;
+};
+
 /// This class is almost 1-to-1 maps to fields of TypeInfo.
 /// The builder is needed mainly to properly manage memory in case of unexpected
 /// errors like resolution failures.
@@ -81,7 +108,7 @@ struct TypeInfoBuilder {
     DYN_TypeInfo* componentTypeInfo = nullptr;
 
     DYN_ExtensionData** extDefs     = nullptr;
-    DYN_FuncPtr* flatMethods        = nullptr;
+    OuterTIFuncUnion* flatMethods   = nullptr;
     DYN_ExtensionData* flatExtDefs  = nullptr;
 
     Interpretation::FunctionHandle** dataMT = nullptr;
@@ -278,8 +305,18 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         // where corresponding structures would be filled out.
         // E.g. function tables are essentionally views in the big array.
 
-        builder.dataMT      = Alloc<Interpretation::FunctionHandle*>(mt->EntryCount());
-        builder.flatMethods = Alloc<DYN_FuncPtr>(mt->EntryCount());
+        auto entryCount = mt->EntryCount();
+
+        struct FuncDesc {
+            DYN_FuncPtr ptr;
+            Engine::Term declaredType;
+        };
+
+        std::vector<FuncDesc> funcDescs;
+        funcDescs.resize(entryCount);
+
+        builder.dataMT      = Alloc<Interpretation::FunctionHandle*>(entryCount);
+        builder.flatMethods = Alloc<OuterTIFuncUnion>(2 * entryCount);
         builder.extDefs     = Alloc<DYN_ExtensionData*>(extDefCount + 1);
         builder.flatExtDefs = Alloc<DYN_ExtensionData>(extDefCount);
 
@@ -291,9 +328,8 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         int entryIdx = 0;
         for (auto entry : mt->Entries()) {
             auto tm = GetTableMember(session, entry.method, entryIdx);
-
-            builder.dataMT[entryIdx]      = tm.handle;
-            builder.flatMethods[entryIdx] = tm.function;
+            builder.dataMT[entryIdx] = tm.handle;
+            funcDescs[entryIdx]      = FuncDesc { tm.function, entry.genericContext };
             entryIdx++;
         }
 
@@ -304,15 +340,35 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
         builder.extDefs[extDefCount] = nullptr;
 
-        auto prepareExtDef = [&builder,
-                              currentTypeInfo,
-                              &queryTypeInfo](DYN_ExtensionData& extDef, Engine::MethodSubTable const& smt) -> bool {
-            auto funcTableStart        = &builder.flatMethods[smt.StartPos()];
-            extDef.funcTable           = funcTableStart;
-            extDef.funcTableSize       = smt.EndPos() - smt.StartPos();
+        auto prepareExtDef = [&builder, currentTypeInfo, &queryTypeInfo, &funcDescs](
+                                 DYN_ExtensionData& extDef, Engine::MethodSubTable const& smt
+                             ) -> bool {
+            // We are maintaining disjoint sub method table ranges!
+            auto start      = smt.StartPos();
+            auto end        = smt.EndPos();
+            auto entryCount = end - start;
+
+            // first `entryCount` slots are func ptrs, next `entryCount` slots are outer ti's.
+            auto ft = &builder.flatMethods[2 * start];
+            auto tt = &builder.flatMethods[2 * start + entryCount];
+
+            for (int i = 0; i < entryCount; i++) {
+                auto desc              = funcDescs[start + i];
+                auto funcDeclaringType = queryTypeInfo(desc.declaredType);
+                if (!funcDeclaringType.has_value()) {
+                    return false;
+                }
+                ft[i].func     = desc.ptr;
+                tt[i].typeInfo = UnpackTypeInfo(*funcDeclaringType);
+            }
+
+            uint8_t hasOuterTIFastPath = 0b00000001;
+
+            extDef.funcTable           = reinterpret_cast<DYN_FuncPtr*>(ft);
+            extDef.funcTableSize       = entryCount;
             extDef.argNum              = 0;
             extDef.isInterfaceTypeInfo = 1;
-            extDef.flag                = 0b00000000;
+            extDef.flag                = hasOuterTIFastPath;
 
             extDef.ti = &currentTypeInfo->base;
 
