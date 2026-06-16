@@ -25,7 +25,14 @@ export ANDROID_NDK_HOME=/path/to/android-ndk
 python3 build.py build --target-os=android --target-arch=aarch64
 ```
 
-3) Library is located in `output/<target-os>_<target-arch>/libcbcengine.so`
+For an iOS device build, run the build directly on macOS with Xcode installed:
+
+```bash
+python3 build.py build --target-os=ios --target-arch=aarch64
+```
+
+3) Library is located in `output/<target-os>_<target-arch>/libcbcengine.so`.
+For iOS, the output is `output/ios_aarch64/libcbcengine.dylib`.
 
 ## How to run tests
 

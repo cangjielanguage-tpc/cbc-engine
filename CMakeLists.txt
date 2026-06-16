@@ -56,10 +56,12 @@ target_include_directories(cbcengine PUBLIC "third_party/mrt/include")
 target_include_directories(cbc_lib PRIVATE "${PLATFORM_DIR}")
 target_link_libraries(cbcengine PRIVATE cbc_lib)
 
-target_link_options(cbcengine PRIVATE
-  "-Wl,-z,noexecstack"
-  "-Wl,-z,relro"
-  "-Wl,-z,now")
+if(NOT APPLE)
+  target_link_options(cbcengine PRIVATE
+    "-Wl,-z,noexecstack"
+    "-Wl,-z,relro"
+    "-Wl,-z,now")
+endif()
 
 set_target_properties(cbcengine PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
