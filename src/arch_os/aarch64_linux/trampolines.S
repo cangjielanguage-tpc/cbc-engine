@@ -35,7 +35,7 @@ declare_hidden engine_i2_spawn
 engine_universal_direct_function_handles:
   .skip 8 * TRAMPOLINE_COUNT
 
-..balign 64
+.balign 64
 .Lfunc_anchor:
 engine_tls_function:              // 0x0
   .skip 8
@@ -206,7 +206,7 @@ engine_i2c_call:
   b     .Lrestart_interpretation
 
 
-..balign 16
+.balign 16
 get_tls:
   adrp  x10, engine_tls_function
   ldr   x10, [x10, :lo12:engine_tls_function]
