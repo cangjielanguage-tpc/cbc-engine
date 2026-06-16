@@ -38,7 +38,7 @@ template <typename T> struct Identifier {
 
     bool operator==(const Identifier& another) const { return Pack() == another.Pack(); }
 
-    inline Packed Pack() const { return { 0, offs, fileId }; }
+    inline Packed Pack() const { return { 0, offs, static_cast<uint32_t>(fileId) }; }
 
 private:
     Symlevel::Offset<T> offs;
@@ -75,7 +75,7 @@ template <typename T> struct RefIdentifier {
 
     bool operator==(const RefIdentifier& another) const { return Pack() == another.Pack(); }
 
-    inline Packed Pack() const { return { 0, index.GetRegion(), index.GetIndex(), fileId }; }
+    inline Packed Pack() const { return { 0, index.GetRegion(), index.GetIndex(), static_cast<uint32_t>(fileId) }; }
 
 private:
     Symlevel::RefId<T> index;

@@ -13,6 +13,18 @@
     #define CBC_ENGINE_FUNC_NAME __func__
 #endif
 
+
+#if defined(__APPLE__) && __has_include(<TargetConditionals.h>)
+    #include <TargetConditionals.h>
+#endif
+
+#if defined(TARGET_OS_IOS) && TARGET_OS_IOS && __has_include(<os/log.h>)
+    #include <os/log.h>
+    #define ASSERTION_IOS_OS_LOG 1
+#else
+    #define ASSERTION_IOS_OS_LOG 0
+#endif
+
 #define FATAL(...) ReportFailure(__FILE__, __LINE__, CBC_ENGINE_FUNC_NAME, __VA_ARGS__)
 
 [[noreturn]]
