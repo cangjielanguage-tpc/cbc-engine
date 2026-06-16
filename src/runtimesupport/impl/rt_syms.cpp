@@ -1,4 +1,5 @@
 #include "rt_syms.h"
+#include "runtimesupport/impl/asm_trampolines.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
 #include "utils/rt_logger.h"
@@ -66,6 +67,8 @@ void Initialize(DYN_CJNativeInterface* interf)
 
     // verify that we didn't opened new library.
     auto stackGrowStub = handle->Sym("CJ_MCC_StackGrowStub");
+    Asm::engine_newthread_nret_function =
+        handle->Func<decltype(Asm::engine_newthread_nret_function)>("CJ_MCC_NewCJThreadNoReturn");
     if (stackGrowStub != interf->stackGrowStub) {
         auto& stream = Log::init.Stream(Logging::Level::ERROR);
         stream << "incorrect stack grow stub address ";

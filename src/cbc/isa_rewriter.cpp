@@ -1,10 +1,12 @@
 #include "isa_rewriter.h"
 #include "cbc/emitter/emitter.h"
+#include "cbc/emitter/symbols.h"
 #include "cbc/formater_rt.h"
 #include "cbc/frame.h"
 #include "cbc/isa.h"
 #include "cbc/isa_disasm.h"
 #include "engine/resolving_output.h"
+#include "engine/symlevel/code.h"
 #include "interpreter/code.h"
 #include "interpreter/function_handle.h"
 #include "interpreter/interpreter.h"
@@ -22,6 +24,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <optional>
 #include <sys/types.h>
 #include <variant>
 
@@ -34,6 +37,11 @@ using MemSpaceEmitter = Emitter::Emitter::MemSpace;
 using TK  = CbcTypeKind;
 using LDK = Format::LoadAccessKind;
 using STK = Format::StoreAccessKind;
+
+enum class New {
+    Obj,
+    Arr,
+};
 
 static LDK Ldk(CbcTypeKind tk)
 {
@@ -103,8 +111,17 @@ struct IsaRewriter : public IsaParser {
     size_t startPosition;
     std::unordered_map<ssize_t, Emitter::Label> instructionLabel;
 
+    // positions, where GC metadata is expected to be attached
+    struct StatePoint {
+        Emitter::Label label; // position in rewritten code
+        ssize_t originalPos; // position in original code
+    };
+
+    std::vector<StatePoint> statePoints;
+
     std::vector<size_t> failedPositions;
 
+    // TODO: remove or it is needed for exceptions?
     InstructionOffsetsIndex BuildOffsetsIndex() { return InstructionOffsetsIndex::Create(emit, instructionLabel); }
 
     Emitter::Label InstructionLabel(ssize_t position)
@@ -120,11 +137,28 @@ struct IsaRewriter : public IsaParser {
         }
     }
 
+    void BindStatePoint() {
+        auto label = emit.NewLabel();
+        emit.Bind(label);
+        StatePoint point {
+            .label = label,
+            .originalPos = Pos(), // attached to the end of instruction
+        };
+        statePoints.push_back(point);
+    }
+
     ssize_t Pos()
     {
         auto start  = reader.Start();
         auto cursor = reader.Cursor();
         return cursor - start;
+    }
+
+    void AdjustReg(IReg expected, IReg actual)
+    {
+        if (expected != actual) {
+            emit.Mov(expected, actual);
+        }
     }
 
     void Bcc(Format::Width width, Format::CC cc, AnyReg l, AnyReg r, int64_t delta) override
@@ -153,7 +187,7 @@ struct IsaRewriter : public IsaParser {
 
     void IntToFloat(Format::Width width, FReg d, IReg s) override { emit.Mov(d, s); }
 
-    void MovRef(IReg d, IReg s) override { emit.MovRef(d, s); }
+    void MovRef(IReg d, IReg s) override { emit.Mov(d, s); }
 
     void MovImm(Format::Width width, IReg d, uint64_t value) override { emit.MovImm(width, d, value); }
 
@@ -216,29 +250,15 @@ struct IsaRewriter : public IsaParser {
 
     void NewArr(IReg dst, IReg len, uint16_t typeId) override
     {
-        auto t = resolver.Query(Index<Type>(typeId));
-        if (!t.has_value()) {
-            Fail();
-            return;
-        }
-        auto type = t.value();
-        if (!type->GetTypeInfo().has_value()) {
-            errStream << "Failed to get type info of " << *type << Stream::endl;
-            Fail();
-            return;
-        }
-
-        auto typeInfo = type->GetTypeInfo().value();
-        if (len != IReg::IR2) {
-            emit.Mov(IReg::IR2, len);
-        }
-        emit.NewArr(typeInfo);
-        if (dst != IReg::IR1) {
-            emit.Mov(dst, IReg::IR1);
-        }
+        AdjustReg(IReg::IR2, len);
+        NewObject(dst, typeId, New::Arr);
     }
 
-    void GcPoint() override { emit.GcPoint(); }
+    void GcPoint() override
+    {
+        emit.GcPoint();
+        BindStatePoint();
+    }
 
     virtual void LoadStackRec(IReg r, uint16_t ts) override
     {
@@ -314,26 +334,31 @@ struct IsaRewriter : public IsaParser {
         emit.MovImm(Format::Width::W64, dst, reinterpret_cast<uint64_t>(typeInfo));
     }
 
-    void NewObj(IReg dst, uint16_t typeId) override
+    std::optional<Type*> NewObject(IReg dst, uint16_t typeId, New kind)
     {
         auto t = resolver.Query(Index<Type>(typeId));
         if (!t.has_value()) {
             Fail();
-            return;
+            return std::nullopt;
         }
         auto type = t.value();
         if (!type->GetTypeInfo().has_value()) {
             errStream << "Failed to get type info of " << *type << Stream::endl;
             Fail();
-            return;
+            return std::nullopt;
         }
 
         auto typeInfo = type->GetTypeInfo().value();
-        emit.NewObj(typeInfo);
-        if (dst != IReg::IR1) {
-            emit.Mov(dst, IReg::IR1);
+        switch (kind) {
+            case New::Obj: emit.NewObj(typeInfo); break;
+            case New::Arr: emit.NewArr(typeInfo); break;
         }
+        BindStatePoint();
+        AdjustReg(dst, IReg::IR1);
+        return type;
     }
+
+    void NewObj(IReg dst, uint16_t typeId) override { NewObject(dst, typeId, New::Obj); }
 
     void CallDirect(IReg dst, uint16_t methodId) override
     {
@@ -347,14 +372,14 @@ struct IsaRewriter : public IsaParser {
         if (auto data = std::get_if<DirectCall::Compiled>(&method->data)) {
             auto sym = emit.NewAddressSym(data->funcPtr);
             emit.DirectCall2c(sym);
+            BindStatePoint();
         } else {
             auto fuh = std::get<Interpretation::DynamicFunctionHandle*>(method->data);
             auto sym = emit.NewAddressSym(reinterpret_cast<uintptr_t>(fuh));
             emit.DirectCall2i(sym);
+            BindStatePoint();
         }
-        if (dst != IReg::IR1) {
-            emit.Mov(dst, IReg::IR1);
-        }
+        AdjustReg(dst, IReg::IR1);
     }
 
     void CallVirtual(IReg dst, uint16_t methodId) override
@@ -366,9 +391,8 @@ struct IsaRewriter : public IsaParser {
         }
         auto method = m.value();
         emit.VirtualCall(method->methodNum, method->extDefNum);
-        if (dst != IReg::IR1) {
-            emit.Mov(dst, IReg::IR1);
-        }
+        BindStatePoint();
+        AdjustReg(dst, IReg::IR1);
     }
 
     void CallInterf(IReg dst, uint16_t methodId) override
@@ -385,9 +409,47 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         emit.InterfaceCall(method->methodNum, *ti);
-        if (dst != IReg::IR1) {
-            emit.Mov(dst, IReg::IR1);
+        BindStatePoint();
+        AdjustReg(dst, IReg::IR1);
+    }
+
+    void Spawn(IReg closure, uint16_t typeId) override
+    {
+        AdjustReg(IReg::IR1, closure);
+
+        auto t = resolver.QueryFutureByFunctional(Index<Type>(typeId));
+        if (!t.has_value()) {
+            Fail();
+            return;
         }
+        auto type        = t.value();
+        auto optTypeInfo = type->GetTypeInfo();
+        if (!optTypeInfo.has_value()) {
+            Fail();
+            return;
+        }
+        auto typeInfo = *optTypeInfo;
+        emit.Spawn(typeInfo);
+        BindStatePoint();
+    }
+
+    void SpawnFuture(IReg future, uint16_t type) override
+    {
+        BindStatePoint();
+        FATAL("not implemented");
+    }
+
+    void CallClosure(IReg dst, uint16_t type) override
+    {
+        BindStatePoint();
+        FATAL("not implemented");
+    }
+
+    void NewClosure(IReg dst, uint16_t typeId) override
+    {
+        NewObj(IReg::IR1, typeId); // has BindStatePoint call inside
+        emit.InitClosure();
+        AdjustReg(dst, IReg::IR1);
     }
 
     void Scc(Format::Width width, Format::CC cc, IReg d, AnyReg l, AnyReg r) override
@@ -407,9 +469,7 @@ struct IsaRewriter : public IsaParser {
 
     void Ret(Format::Width width, IReg src) override
     {
-        if (src != IReg::IR1) {
-            emit.Mov(IReg::IR1, src);
-        }
+        AdjustReg(IReg::IR1, src);
         emit.Ret();
     }
 
@@ -423,9 +483,7 @@ struct IsaRewriter : public IsaParser {
 
     void RetRef(IReg src) override
     {
-        if (src != IReg::IR1) {
-            emit.Mov(IReg::IR1, src);
-        }
+        AdjustReg(IReg::IR1, src);
         emit.Ret();
     }
 
@@ -842,7 +900,7 @@ struct IsaRewriter : public IsaParser {
     {
         auto position = reader.Cursor() - reader.Start();
         startPosition = position;
-        emit.Bind(InstructionLabel(Pos()));
+        emit.Bind(InstructionLabel(position));
         IsaParser::ParseOne();
     }
 
@@ -904,7 +962,7 @@ static std::optional<FrameLayout> makeFrameLayout(Symlevel::Code code, Resolver&
 }
 
 static std::vector<Interpretation::PositionalInfo> CalculatePositionalGCInfo(
-    Engine::Session& session, const MethodCode& code, const InstructionOffsetsIndex& offIndex
+    Engine::Session& session, const MethodCode& code, Emitter::Emitter const& emitter, std::vector<IsaRewriter::StatePoint> const& statePoints
 )
 {
     auto livenessInfo = code.GetLivenessInfo(session);
@@ -912,13 +970,24 @@ static std::vector<Interpretation::PositionalInfo> CalculatePositionalGCInfo(
     std::vector<Interpretation::PositionalInfo> posInfo;
     posInfo.reserve(livenessInfo.size());
 
-    for (const auto& info : livenessInfo) {
-        auto posOpt = offIndex.FindMappedOffset(CBC, info.cbcPos);
-        if (!posOpt.has_value()) {
-            FATAL("Unknown position");
-        }
+    std::unordered_map<ssize_t, Symlevel::LivenessInfo const&> infos;
 
-        posInfo.push_back({ .rewrittenPos = posOpt.value(), .regMask = info.regMask, .untypedRefSlotsInfo = {} });
+    for (const auto& info : livenessInfo) {
+        infos.insert({info.cbcPos, info});
+    }
+
+    for (auto& point : statePoints) {
+        auto originalPos = point.originalPos;
+        auto rewrittenPos = emitter.LabelPosition(point.label);
+        auto it = infos.find(originalPos);
+        if (it == infos.end()) {
+            FATAL("Unknown position");
+        } else if (rewrittenPos > UINT32_MAX) {
+            FATAL("Position too big");
+        }
+        auto& info = it->second;
+
+        posInfo.push_back({ .rewrittenPos = (uint32_t) rewrittenPos, .regMask = info.regMask, .untypedRefSlotsInfo = {} });
 
         posInfo.back().untypedRefSlotsInfo.reserve(info.refSlotNums.size());
         for (const auto& slotN : info.refSlotNums) {
@@ -967,7 +1036,6 @@ Interpretation::ExecBytecodeInfo Rewrite(
         FATAL("Rewriter failed: cannot rewrite code.");
     }
 
-    auto offsetsIndex  = rewriter.BuildOffsetsIndex();
     auto rewrittenCode = emitter.Build(heap);
 
     return Interpretation::ExecBytecodeInfo {
@@ -978,7 +1046,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
         .frameSize        = frameLayout->frameSize,
         .gcInfo =
             Interpretation::GcInfo {
-                .positionalInfo = std::move(CalculatePositionalGCInfo(session, code, offsetsIndex)),
+                .positionalInfo = std::move(CalculatePositionalGCInfo(session, code, emitter, rewriter.statePoints)),
                 .typedSlotsInfo = std::move((*frameLayout).typedSlotsInfo),
             },
     };

@@ -114,12 +114,6 @@ MOVI: {
     interpreter.MovI(args.xr.r.IR(), MathUtils::SignExtend(static_cast<uint64_t>(args.xr.imm), 4));
     NEXT;
 }
-MOVR: {
-    auto args = B2rr::Decode(reader);
-    LOG_INSTR;
-    interpreter.MovRef(args.rr.x.IR(), args.rr.y.IR());
-    NEXT;
-}
 FMOV: {
     auto args = B2rr::Decode(reader);
     LOG_INSTR;
@@ -347,6 +341,37 @@ NEWOBJ: {
 
     // Puts result to `IR1`.
     auto func = RTSupport::Execution::AllocateObjectInstance();
+
+    reader0 = reader; // save current pc
+
+    return { func, type.Raw() };
+}
+INITCLOSURE: {
+    auto args = B1::Decode(reader);
+    LOG_INSTR;
+
+    struct ClosureObj {
+        void* header;
+        void* generic;
+        void* instantiated;
+    };
+
+    /// CBC-provided closures are always have two fields reserved with
+    /// function pointers to generic and instantiated versions of function.
+    /// Two fields are always reserved for this functions, even if `instantiated` part is never used.
+    auto closure = reinterpret_cast<ClosureObj*>(ectype->GetReference(IReg::IR1).value);
+
+    closure->generic      = Adapters::GetDynCallTrampoline(0);
+    closure->instantiated = Adapters::GetDynCallTrampoline(1);
+    NEXT;
+}
+SPAWN: {
+    auto args = B9i64::Decode(reader);
+    LOG_INSTR;
+    auto type = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
+
+    // Puts result to `IR1`.
+    auto func = RTSupport::Execution::Spawn();
 
     reader0 = reader; // save current pc
 

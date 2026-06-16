@@ -177,6 +177,11 @@ struct IsaDisasm : public IsaParser {
 
     void NewObj(IReg dst, uint16_t type) override { stream << "newobj" << " " << dst.ToStr() << ", " << type << endl; }
 
+    void NewClosure(IReg dst, uint16_t type) override
+    {
+        stream << "new.closure" << " " << dst.ToStr() << ", " << type << endl;
+    }
+
     void CallDirect(IReg dst, uint16_t method) override
     {
         stream << "call.direct" << " " << dst.ToStr() << ", " << method << endl;
@@ -190,6 +195,21 @@ struct IsaDisasm : public IsaParser {
     void CallInterf(IReg dst, uint16_t method) override
     {
         stream << "call.interf" << " " << dst.ToStr() << ", " << method << endl;
+    }
+
+    void Spawn(IReg closure, uint16_t type) override
+    {
+        stream << "spawn" << " " << closure.ToStr() << ", " << type << endl;
+    }
+
+    void SpawnFuture(IReg future, uint16_t type) override
+    {
+        stream << "spawn.future" << " " << future.ToStr() << ", " << type << endl;
+    }
+
+    void CallClosure(IReg dst, uint16_t type) override
+    {
+        stream << "call.closure" << " " << dst.ToStr() << ", " << type << endl;
     }
 
     void Scc(Format::Width width, Format::CC cc, IReg d, AnyReg l, AnyReg r) override

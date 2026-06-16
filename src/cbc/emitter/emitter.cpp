@@ -51,7 +51,7 @@ Interpretation::Code Emitter::Build(Memory::Heap& heap)
     auto segment = std::exchange(this->segment, {});
     auto fixups  = std::exchange(this->fixups, {});
 
-    LiteralTableBuilder litBuilder(std::exchange(this->symbols, {}));
+    LiteralTableBuilder litBuilder(this->symbols);
 
     auto relocationConverter = [&litBuilder, &segment](Symbol sym) {
         ASSERTION(sym.kind != SymbolKind::LABEL, "Labels should be processed as part of fixup resolution");
@@ -462,11 +462,6 @@ void Emitter::FMovI64(FReg d, double imm)
     );
 }
 
-void Emitter::MovRef(IReg d, IReg s)
-{
-    Encode(segment, RT::B2rr { .opc = RT::Opcode::MOVR, .rr = RR { .x = d, .y = s } });
-}
-
 void Emitter::Bcc(CC cc, Width width, IReg l, IReg r, Label label)
 {
     ASSERT(width == Width::W32 || width == Width::W64);
@@ -496,6 +491,15 @@ void Emitter::NewArr(RTSupport::TypeInfo typeInfo)
 {
     Encode(
         segment, RT::B9i64 { .opc = RT::Opcode::NEWARR, .imm64 = { .imm = reinterpret_cast<uint64_t>(typeInfo.Raw()) } }
+    );
+}
+
+void Emitter::InitClosure() { Encode(segment, RT::B1 { RT::Opcode::INITCLOSURE }); }
+
+void Emitter::Spawn(RTSupport::TypeInfo typeInfo)
+{
+    Encode(
+        segment, RT::B9i64 { .opc = RT::Opcode::SPAWN, .imm64 = { .imm = reinterpret_cast<uint64_t>(typeInfo.Raw()) } }
     );
 }
 

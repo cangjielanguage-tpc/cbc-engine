@@ -153,6 +153,8 @@ public:
     std::optional<InstanceField const*> Query(Index<InstanceField> id);
     std::optional<StaticField const*> Query(Index<StaticField> id);
 
+    std::optional<Type*> QueryFutureByFunctional(Index<Type> id);
+
     std::optional<InstanceField const*> QueryTupleElement(Type* refType, uint32_t idx);
 
     std::string_view QueryString(uint32_t stringOffs);

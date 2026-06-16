@@ -269,6 +269,8 @@ void* Execution::GcPointTrampoline() { FATAL("Should not reach here"); }
 
 void* Execution::GcPoint() { FATAL("Should not reach here"); }
 
+void* Execution::Spawn() { FATAL("Should not reach here"); }
+
 bool Execution::IsPendingSafePoint() { return false; }
 
 bool Execution::IsInstanceOf(Reference base, TypeInfo ti) { FATAL("Should not reach here"); }
@@ -284,6 +286,8 @@ void* Adapters::GenericI2CCallInstance() { FATAL("Should not reach here. Mock i2
 void* Adapters::I2ICallInstance() { return reinterpret_cast<void*>(&Interpretation::InterpreterI2CallTest); }
 
 static void C2ICall() { FATAL("Should not reach here. Mock c2i"); }
+
+void* Adapters::GetDynCallTrampoline(int idx) { FATAL("Should not reach here"); }
 
 void* Adapters::IregOnlyC2ICallInstance() { return reinterpret_cast<void*>(&C2ICall); }
 
