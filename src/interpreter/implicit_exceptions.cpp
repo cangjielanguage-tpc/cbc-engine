@@ -8,7 +8,7 @@ void* g_exceptionThrower;
 
 void ImplicitException::RegisterExceptionThrower()
 {
-    g_exceptionThrower = RTSupport::Execution::GetImplicitExceptionsThrower();
+    g_exceptionThrower = NOTNULL(RTSupport::Execution::GetImplicitExceptionsThrower());
 }
 
 const void ImplicitException::Throw() const

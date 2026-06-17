@@ -12,18 +12,23 @@ namespace RTSupport {
 struct Handle {
     void* handle;
     std::string name;
+    bool autoclose;
 
-    Handle(void* handle, std::string&& name) : handle(handle), name(std::move(name)) {}
+    Handle(void* handle, std::string&& name, bool autoclose)
+        : handle(handle),
+          name(std::move(name)),
+          autoclose(autoclose)
+    {}
 
     Handle(Handle const& handle) = delete;
 
     Handle(Handle&& handle) : handle(handle.handle) { handle.handle = nullptr; }
 
-    static std::optional<Handle> Open(std::string&& str)
+    static std::optional<Handle> Open(std::string&& str, bool autoclose = true)
     {
         void* handle = dlopen(str.c_str(), RTLD_LAZY);
         if (handle) {
-            return Handle(handle, std::move(str));
+            return Handle(handle, std::move(str), autoclose);
         } else {
             return std::nullopt;
         }
@@ -42,7 +47,7 @@ struct Handle {
 
     ~Handle()
     {
-        if (handle) {
+        if (handle && autoclose) {
             dlclose(handle);
         }
     }
@@ -79,7 +84,7 @@ void Initialize(DYN_CJNativeInterface* interf)
 
 void* GetSymbolAddr(const char* libName, const char* symName)
 {
-    auto handle = Handle::Open(libName);
+    auto handle = Handle::Open(libName, false);
     if (!handle.has_value()) {
         Log::init.Stream(Logging::Level::ERROR) << "failed to open lib " << libName << Stream::endl;
         return nullptr;
