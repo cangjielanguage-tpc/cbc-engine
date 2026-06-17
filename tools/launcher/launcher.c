@@ -15,7 +15,7 @@ char const *interpreter_lib = "libcbcengine.so";
 char const *managed_entry_lib = "libentry.so";
 
 extern int   InitCJRuntime(struct RuntimeParam *param);
-extern RTErrorCode InitCJInterpreter(struct InterpreterParam* param);
+extern enum RTErrorCode InitCJInterpreter(struct InterpreterParam* param);
 extern int   LoadCJLibraryWithInit(const char *libName);
 extern void *FindCJSymbol(const char *libName, const char *symbolName);
 extern void *RunCJTask(const void *func, void *args);
@@ -77,7 +77,11 @@ static void init_cangjie_runtime() {
         exit(-1);
     }
 
-    InitCJInterpreter(&interpParams);
+    enum RTErrorCode interpInitCode = InitCJInterpreter(&interpParams);
+    if (interpInitCode != E_OK) {
+        fprintf(stderr, "Interpreter initialization failed with code: %d\n", interpInitCode);
+        exit(-1);
+    }
 
     int libLoadCode = LoadCJLibraryWithInit(managed_entry_lib);
     if (libLoadCode != 0) {
