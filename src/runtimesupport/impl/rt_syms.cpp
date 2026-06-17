@@ -77,4 +77,21 @@ void Initialize(DYN_CJNativeInterface* interf)
     }
 }
 
+void* GetSymbolAddr(const char* libName, const char* symName)
+{
+    auto handle = Handle::Open(libName);
+    if (!handle.has_value()) {
+        Log::init.Stream(Logging::Level::ERROR) << "failed to open lib " << libName << Stream::endl;
+        return nullptr;
+    }
+
+    auto sym = handle->Sym(symName);
+    if (sym == nullptr) {
+        Log::init.Stream(Logging::Level::ERROR) << "failed to find symbol " << symName << Stream::endl;
+        return nullptr;
+    }
+
+    return sym;
+}
+
 } // namespace RTSupport

@@ -430,30 +430,19 @@ engine_fake_execute_closure:
   jmp   rcx
 
 // expects: (ECTYPE_REG: ectype, rdi: exception reference, ectype.SR0: optional[TypeInfo])
+// When exception is thrown from CJNative code to interpreter, execution of
+// interpreter exception handling starts here
+common_landing_pad:
+  // TODO obtain pending exception (from CJNative runtime) and put it into rdi
+  jmp engine_handle_exception
+
+// expects: (ECTYPE_REG: ectype, rdi: exception reference)
 //
 // Returns to interpretation loop with exception reference on ectype.SR0
 // or throws exception reference using CJNative runtime interface if there is no any exception handler in consecutive interpreter frames.
 // Precondition: top frame is interpreter frame.
 .align 16
 engine_handle_exception:
-  test  rdi, rdi
-  jnz   .Lhandle_ready_exception
-
-  // Implicit exception is thrown, need to construct exception object
-  mov   rdi, QWORD PTR [ECTYPE_REG + ECTYPE_SREGS_OFFSET + 0]
-  mov   QWORD PTR [ECTYPE_REG + ECTYPE_SREGS_OFFSET + 0], 0
-  call  [rip + engine_newobject_function]
-  mov   rdi, rax
-
-  // TODO call constructor
-  jmp   .Lhandle_ready_exception
-
-// If exception is thrown from CJNative code to interpreter, execution of
-// interpreter code starts here
-common_landing_pad:
-  // TODO obtain pending exception and put it into rdi
-
-.Lhandle_ready_exception: // expects: rdi - exception obj
   mov   r12, rdi
 
   mov   rdi, QWORD PTR [rbp - 0x8]         // fuh
@@ -493,7 +482,7 @@ common_landing_pad:
   cmp   rdi, rax
   jae   .Lhandle_next_dyn_func
 
-  // Unwind current frame and next (C2I) and throw exception by CJNative runtime
+  // Unwind current frame and next (C2I) and throw exception through native frames
   // TODO implement
   xor   eax, eax
   mov   qword ptr [rax], rax

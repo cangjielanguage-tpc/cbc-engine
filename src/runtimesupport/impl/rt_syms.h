@@ -7,4 +7,6 @@ namespace RTSupport {
 
 void Initialize(DYN_CJNativeInterface* interf);
 
+void* GetSymbolAddr(const char* libName, const char* symName);
+
 } // namespace RTSupport

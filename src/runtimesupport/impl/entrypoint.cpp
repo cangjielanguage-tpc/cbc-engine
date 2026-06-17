@@ -13,14 +13,15 @@
 #include "cjnative.h"
 #include "engine/engine.h"
 #include "engine/options.h"
-#include "engine/symlevel/io/filesystem.h"
-#include "engine/symlevel/member_index.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/dependencies.h"
+#include "engine/symlevel/io/filesystem.h"
+#include "engine/symlevel/member_index.h"
 #include "engine/symlevel/reader.h"
 #include "gc_support.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
+#include "interpreter/implicit_exceptions.h"
 #include "interpreter/loggers.h"
 #include "runtimesupport/impl/rt_syms.h"
 #include "utils/logger.h"
@@ -381,6 +382,8 @@ CBC_EXPORT int interpreter_bridge_init(
     if (!g_patchCbc.empty()) {
         PerformPatching();
     }
+
+    Interpretation::ImplicitException::RegisterExceptionThrower();
 
     return 0;
 }
