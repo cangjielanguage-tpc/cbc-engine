@@ -1062,7 +1062,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
                 .positionalInfo = std::move(CalculatePositionalGCInfo(session, code, emitter, rewriter.statePoints)),
                 .typedSlotsInfo = std::move((*frameLayout).typedSlotsInfo),
             },
-        .offsetsIndex = std::move(offsetsIndex),
+        .offsetsIndex = std::move(rewriter.BuildOffsetsIndex()),
     };
 }
 
