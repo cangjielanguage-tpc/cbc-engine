@@ -261,12 +261,11 @@ engine_i2_gcpoint:
 engine_i2_spawn:
   ldr   x1, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8)]
   mov   x3, x0
-  adrp  x0, engine_fake_execute_closure
-  add   x0, x0, :lo12:engine_fake_execute_closure
+  adr   x0, engine_fake_execute_closure
   mov   x2, 0
 
   adrp  x4, engine_newthread_nret_function
-  ldr   x4, :lo12:engine_newthread_nret_function
+  ldr   x4, [x4, :lo12:engine_newthread_nret_function]
   blr   x4
   b     .Lrestart_interpretation
 
