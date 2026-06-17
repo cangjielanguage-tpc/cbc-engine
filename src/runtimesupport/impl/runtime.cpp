@@ -13,6 +13,12 @@ namespace RTSupport {
 
 using Reference = Interpretation::Value::Reference;
 
+/// Executes Cangjie native @C function if it should be called directly from interpreter.
+/// Performs N2C transition in terms of CJNative runtime.
+///
+/// Defined in N2C.S
+extern "C" void* engine_execute_cangjie_cfunc(...);
+
 Reference Execution::ReadObjectInstance(Reference base, size_t offset, ThreadHandle th)
 {
     return Reference { .value = reinterpret_cast<uintptr_t>(g_CJNativeInterfaceInstance.readInstanceField(
@@ -132,6 +138,25 @@ Reference Execution::GetLocalBasePtr()
     return Reference { .value = 0 };
 }
 
+void* Execution::ExecuteCangjieCFunc(void* func, uint64_t arg1, uint64_t arg2, uint64_t arg3)
+{
+    DYN_ThreadLocalData tld = g_CJNativeInterfaceInstance.getThreadLocalData();
+    return engine_execute_cangjie_cfunc(arg1, arg2, arg3, func, tld);
+}
+
+void* Execution::GetImplicitExceptionsThrower() { return GetSymbolAddr("libhelper.so", "throwImplicitException"); }
+
+Reference Execution::GetPendingException()
+{
+    return Reference { .value = reinterpret_cast<uintptr_t>(g_CJNativeInterfaceInstance.getPendingException()) };
+}
+
+Reference Execution::GetAndClearPendingException()
+{
+    return Reference { .value =
+                           reinterpret_cast<uintptr_t>(g_CJNativeInterfaceInstance.getAndClearPendingException()) };
+}
+
 const char* MetaInfo::GetName(TypeInfo ti)
 {
     auto mrtti = UnpackTypeInfo(ti);
@@ -178,14 +203,6 @@ TypeInfo MetaInfo::ByteArrayTypeInfo()
 {
     auto typeName = "RawArray<UInt8>";
     auto ti       = g_CJNativeInterfaceInstance.typeInfo(typeName);
-    ASSERT(ti != nullptr);
-
-    return TypeInfo(ti);
-}
-
-TypeInfo MetaInfo::ImplicitExceptionTypeInfo(Interpretation::ImplicitException exception)
-{
-    auto ti = g_CJNativeInterfaceInstance.typeInfo(exception.GetTypeName());
     ASSERT(ti != nullptr);
 
     return TypeInfo(ti);

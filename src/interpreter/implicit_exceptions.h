@@ -10,21 +10,16 @@ public:
     enum class Type {
         NoneValueException,
         ArithmeticException,
-        // TODO: support others
+        // TODO: add other types when needed
     };
 
     constexpr ImplicitException(Type type) : type(type) {}
 
     constexpr operator Type() const { return type; }
 
-    const char* GetTypeName() const
-    {
-        switch (type) {
-            case Type::NoneValueException:  return "std.core:NoneValueException";
-            case Type::ArithmeticException: return "std.core:ArithmeticException";
-            default:                        FATAL("Unknown exception type"); return nullptr;
-        }
-    }
+    const void Throw() const;
+
+    static void RegisterExceptionThrower();
 
 private:
     Type type;

@@ -94,6 +94,12 @@ struct Execution {
     static bool IsGlobalStruct(Reference base, uintptr_t derived);
     static Reference GetGlobalBasePtr();
     static Reference GetLocalBasePtr();
+
+    static void* ExecuteCangjieCFunc(void* func, uint64_t arg1, uint64_t arg2, uint64_t arg3);
+
+    static void* GetImplicitExceptionsThrower();
+    static Reference GetPendingException();
+    static Reference GetAndClearPendingException();
 };
 
 struct MetaInfo {
@@ -112,8 +118,6 @@ struct MetaInfo {
     static uint32_t ArrayBodyOffset() { return sizeof(void*) + sizeof(uint64_t); }
 
     static TypeInfo ByteArrayTypeInfo();
-
-    static TypeInfo ImplicitExceptionTypeInfo(Interpretation::ImplicitException exception);
 };
 
 } // namespace RTSupport

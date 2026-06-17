@@ -75,6 +75,25 @@ Reference Execution::GetGlobalBasePtr() { FATAL("Should not reach here"); }
 
 Reference Execution::GetLocalBasePtr() { FATAL("Should not reach here"); }
 
+void* Execution::ExecuteCangjieCFunc(void* func, uint64_t arg1, uint64_t arg2, uint64_t arg3)
+{
+    FATAL("Should not reach here");
+}
+
+void* Execution::GetImplicitExceptionsThrower() { FATAL("Should not reach here"); }
+
+Reference Execution::GetPendingException()
+{
+    FATAL("Should not reach here");
+    return Reference { .value = 0 };
+}
+
+Reference Execution::GetAndClearPendingException()
+{
+    FATAL("Should not reach here");
+    return Reference { .value = 0 };
+}
+
 void* Adapters::GenericI2CCallInstance() { FATAL("Should not reach here"); }
 
 void* Adapters::GetDynCallTrampoline(int idx) { FATAL("Should not reach here"); }
@@ -98,7 +117,5 @@ bool MetaInfo::IsReferenceType(TypeInfo ti) { return false; }
 void MetaInfo::VisitReferences(TypeInfo ti, std::function<void(uint32_t)> visitor) { FATAL("Should not be called"); }
 
 TypeInfo MetaInfo::ByteArrayTypeInfo() { return TypeInfo(nullptr); }
-
-TypeInfo MetaInfo::ImplicitExceptionTypeInfo(Interpretation::ImplicitException exception) { return TypeInfo(nullptr); }
 
 } // namespace RTSupport

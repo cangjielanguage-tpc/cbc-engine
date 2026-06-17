@@ -65,12 +65,12 @@ Interpretation::Thunk engine_interpretation_loop(
 
     uintptr_t exceptionObj = 0;
 
-#define NEXT_OR_THROW(successfull, implicit_exception)                                                                 \
+#define NEXT_OR_THROW(successfull, type)                                                                               \
     do {                                                                                                               \
         if (successfull) {                                                                                             \
             NEXT;                                                                                                      \
         } else {                                                                                                       \
-            THROW_IMPLICIT(implicit_exception);                                                                        \
+            THROW_IMPLICIT(type);                                                                                      \
         }                                                                                                              \
     } while (0)
 
@@ -80,11 +80,10 @@ Interpretation::Thunk engine_interpretation_loop(
         goto HANDLE_EXCEPTION;                                                                                         \
     } while (0)
 
-#define THROW_IMPLICIT(implicit_exception)                                                                             \
+#define THROW_IMPLICIT(type)                                                                                           \
     do {                                                                                                               \
-        exceptionObj      = 0;                                                                                         \
-        TypeInfo typeInfo = RTSupport::MetaInfo::ImplicitExceptionTypeInfo(implicit_exception);                        \
-        ectype->PutSReg(0, Value::Primitive { .u64 = reinterpret_cast<uintptr_t>(typeInfo.Raw()) });                   \
+        ImplicitException(type).Throw();                                                                               \
+        exceptionObj = NOTNULL(RTSupport::Execution::GetAndClearPendingException().value);                             \
         goto HANDLE_EXCEPTION;                                                                                         \
     } while (0)
 
