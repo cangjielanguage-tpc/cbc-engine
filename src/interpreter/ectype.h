@@ -97,7 +97,6 @@ public:
         return this;
     }
 
-private:
     friend class EctypeInvariants;
     IRegContainer iregs[IReg::COUNT];
     FRegContainer fregs[FReg::COUNT];

@@ -5,8 +5,10 @@
 #include "../testutils.h"
 #include "cbc/decoder.h"
 #include "cbc/frame.h"
+#include "cbc/isa.h"
 #include "engine/typeinfo_manager.h"
 #include "interpreter.h"
+#include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
 #include "interpreter/interpretation_loop.h"
 #include "interpreter/loggers.h"
@@ -77,7 +79,24 @@ Value::Primitive Interpret(
     heap.Reset();
 
     Interpretation::Ectype ectype {};
+    uint8_t bufIrs[sizeof(ectype.iregs)];
+    uint8_t bufFrs[sizeof(ectype.fregs)];
+
+    uint32_t prng = 1;
+    for (int i = 0; i < sizeof(bufIrs); i++) {
+        prng = 1664525 * prng + 1013904223;
+        bufIrs[i] = (prng >> 16) & 0xff;
+    }
+    for (int i = 0; i < sizeof(bufFrs); i++) {
+        prng = 1664525 * prng + 1013904223;
+        bufFrs[i] = (prng >> 16) & 0xff;
+    }
+
+    memcpy(&ectype.iregs, bufIrs, sizeof(bufIrs));
+    memcpy(&ectype.fregs, bufFrs, sizeof(bufFrs));
+
     Decoder::ByteReader s(code.bytecode, code.bytecode, code.bytecode + code.bytecodeSize);
+    ectype.iregs[0].primitive = Value::Primitive { .u64 = 0 };
     ectype.Put(IReg::IR1, ir1);
     ectype.Put(IReg::IR2, ir2);
     ectype.Put(FReg::FR0, fr0);
