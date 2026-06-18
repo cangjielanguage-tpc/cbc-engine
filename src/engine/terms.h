@@ -138,6 +138,7 @@ public:
     static Term ClassTypeVariable(uint8_t tv);
     static Term FuncTypeVariable(uint8_t tv);
 
+    Term();
     Term(LocalTerm local);
     Term(GlobalTerm global);
     Term(Term const& term);

@@ -310,6 +310,8 @@ static bool CompareTermData(TermData* origin, TermData* another)
     }
 }
 
+Term::Term() : Term(Term::Predefined(TermKind::NIL)) {}
+
 Term::Term(LocalTerm local) : data(local.data) {}
 
 Term::Term(GlobalTerm global) : data(global.data) {}
@@ -517,7 +519,7 @@ GlobalTerm TermManager::Globalize(Term& term)
     // cache miss; evacuate term and update cache
     auto data = static_cast<TermData*>(malloc(sizeof(TermData) + termData->length * sizeof(Term)));
     if (data == nullptr) {
-        throw std::bad_alloc();
+        FATAL("Out of memory");
     }
 
     for (int i = 0; i < term.GetLength(); i++) {
