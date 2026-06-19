@@ -21,6 +21,7 @@ public:
     using AnyReg = uint8_t;
 
     virtual void ParseOne();
+    virtual void End();
     void ParseAll();
 
 protected:
