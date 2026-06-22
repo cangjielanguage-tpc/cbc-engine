@@ -183,12 +183,9 @@ TypeInfo MetaInfo::ByteArrayTypeInfo()
     return TypeInfo(ti);
 }
 
-TypeInfoUUID MetaInfo::GetUUID(TypeInfo ti)
-{
-    return g_CJNativeInterfaceInstance.getTypeInfoUUID(UnpackTypeInfo(ti));
-}
+TypeInfoUUID MetaInfo::GetUUID(TypeInfo ti) { return g_CJNativeInterfaceInstance.getTypeInfoUUID(UnpackTypeInfo(ti)); }
 
-TypeInfo Execution::LoadTypeInfo(Engine::GlobalTerm term, Interpretation::Ectype *ectype, void *stackSlots)
+TypeInfo Execution::LoadTypeInfo(Engine::GlobalTerm term, Interpretation::Ectype* ectype, void* stackSlots)
 {
     // FIXME: optimize!
     auto length = term.GetLength();

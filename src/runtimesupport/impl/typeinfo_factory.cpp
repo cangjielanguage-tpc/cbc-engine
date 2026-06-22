@@ -40,15 +40,15 @@ static constexpr uint8_t HAS_EXT_PART     = 0b10000000;
 
 enum TypeKind : int8_t {
     // reference type
-    TYPE_KIND_CLASS = -128,
-    TYPE_KIND_INTERFACE = -127,
-    TYPE_KIND_RAWARRAY = -126,
-    TYPE_KIND_FUNC = -125,
-    TYPE_KIND_TEMP_ENUM = -124,
-    TYPE_KIND_WEAKREF_CLASS = -123,
-    TYPE_KIND_FOREIGN_PROXY = -122,
-    TYPE_KIND_EXPORTED_REF = -121,
-    TYPE_KIND_GENERIC_TI = -1,
+    TYPE_KIND_CLASS          = -128,
+    TYPE_KIND_INTERFACE      = -127,
+    TYPE_KIND_RAWARRAY       = -126,
+    TYPE_KIND_FUNC           = -125,
+    TYPE_KIND_TEMP_ENUM      = -124,
+    TYPE_KIND_WEAKREF_CLASS  = -123,
+    TYPE_KIND_FOREIGN_PROXY  = -122,
+    TYPE_KIND_EXPORTED_REF   = -121,
+    TYPE_KIND_GENERIC_TI     = -1,
     TYPE_KIND_GENERIC_CUSTOM = -2,
 
     // value type
@@ -78,7 +78,6 @@ enum TypeKind : int8_t {
     TYPE_KIND_ENUM,
     TYPE_KIND_MAX,
 };
-
 
 template <typename T> static T* Alloc(size_t cnt = 1) { return reinterpret_cast<T*>(std::malloc(sizeof(T) * cnt)); }
 
@@ -765,15 +764,13 @@ std::optional<TypeInfo> CreateTypeInfo(
     return ti;
 }
 
-Engine::GlobalTerm ReconstructTerm(
-    Engine::Session& session, Engine::TypeInfoManager& manager, TypeInfo ti
-)
+Engine::GlobalTerm ReconstructTerm(Engine::Session& session, Engine::TypeInfoManager& manager, TypeInfo ti)
 {
     using namespace Engine;
     DYN_TypeInfo* typeInfo = UnpackTypeInfo(ti);
 
     auto argNum = typeInfo->typeArgsNum;
-    bool isRef     = typeInfo->type < 0;
+    bool isRef  = typeInfo->type < 0;
 
     switch (typeInfo->type) {
         case TYPE_KIND_TEMP_ENUM:
@@ -783,7 +780,7 @@ Engine::GlobalTerm ReconstructTerm(
         case TYPE_KIND_FOREIGN_PROXY:
         case TYPE_KIND_WEAKREF_CLASS:
         case TYPE_KIND_VARRAY:
-        case TYPE_KIND_ENUM: FATAL("TYPE_KIND_ENUM not implemented yet");
+        case TYPE_KIND_ENUM:           FATAL("TYPE_KIND_ENUM not implemented yet");
     }
 
     if (argNum > 0) {
@@ -810,20 +807,21 @@ Engine::GlobalTerm ReconstructTerm(
 
             case TYPE_KIND_STRUCT:
             case TYPE_KIND_INTERFACE:
-            case TYPE_KIND_CLASS:
-                break;
+            case TYPE_KIND_CLASS:     break;
 
             default: FATAL("Unexpected type kind %d", typeInfo->type);
         }
+
         // treats the rest as Aot type
 
         // FIXME: union field
         // FIXME: explicit DYN_TypeTemplate* type
         struct TypeTemplate {
-            char *name;
+            char* name;
         };
+
         auto typeTemplate = reinterpret_cast<TypeTemplate*>(typeInfo->finalizerMethod);
-        auto name = typeTemplate->name;
+        auto name         = typeTemplate->name;
 
         Term term;
         if (isRef) {
@@ -855,8 +853,7 @@ Engine::GlobalTerm ReconstructTerm(
 
             case TYPE_KIND_STRUCT:
             case TYPE_KIND_INTERFACE:
-            case TYPE_KIND_CLASS:
-                break;
+            case TYPE_KIND_CLASS:     break;
 
             default: FATAL("Unexpected type kind %d", typeInfo->type);
         }
@@ -865,7 +862,7 @@ Engine::GlobalTerm ReconstructTerm(
         std::vector<Term> noSubTerms;
 
         auto& termManager = TermManager::Of(session);
-        auto name     = typeInfo->typeInfoName;
+        auto name         = typeInfo->typeInfoName;
 
         Term term;
         if (isRef) {

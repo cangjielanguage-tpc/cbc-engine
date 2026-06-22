@@ -294,7 +294,10 @@ bool Execution::IsPendingSafePoint() { return false; }
 
 bool Execution::IsInstanceOf(Reference base, TypeInfo ti) { FATAL("Should not reach here"); }
 
-TypeInfo Execution::LoadTypeInfo(Engine::GlobalTerm term, Interpretation::Ectype *ectype, void *stackSlots) { FATAL("Should not reach here"); }
+TypeInfo Execution::LoadTypeInfo(Engine::GlobalTerm term, Interpretation::Ectype* ectype, void* stackSlots)
+{
+    FATAL("Should not reach here");
+}
 
 bool Execution::IsGlobalStruct(Reference base, uintptr_t derived) { FATAL("Should not reach here"); }
 

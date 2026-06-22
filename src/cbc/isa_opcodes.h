@@ -116,7 +116,7 @@
 
 #define ISA_REG_SYM_GROUP_OPCODES(X)                                                                                   \
     X(LoadTypeInfoSig)                                                                                                 \
-    X(LoadTypeInfoGeneric)                                                                                                 \
+    X(LoadTypeInfoGeneric)                                                                                             \
     X(NewObj)                                                                                                          \
     X(CallDirect)                                                                                                      \
     X(CallVirt)                                                                                                        \

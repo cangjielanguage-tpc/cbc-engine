@@ -20,16 +20,16 @@ static constexpr uint32_t GCTIB_MAX_SHORT_OFFSET = sizeof(void*) * 62;
     static constexpr uintptr_t DERIVED_PTR_GLOBAL_FLAG = 1ULL << 63;
 #endif
 
-using TypeInfoUUID = uint32_t;
+    using TypeInfoUUID = uint32_t;
 
-class ThreadHandle {
-public:
-    explicit ThreadHandle(void* _value) : value(_value) {}
+    class ThreadHandle {
+    public:
+        explicit ThreadHandle(void* _value) : value(_value) {}
 
-    inline void* Raw() const { return value; }
+        inline void* Raw() const { return value; }
 
-private:
-    void* value;
+    private:
+        void* value;
 };
 
 class TypeInfo {
@@ -81,7 +81,7 @@ struct Execution {
 
     static bool IsInstanceOf(Reference base, TypeInfo ti);
 
-    static TypeInfo LoadTypeInfo(Engine::GlobalTerm term, Interpretation::Ectype *ectype, void *stackSlots);
+    static TypeInfo LoadTypeInfo(Engine::GlobalTerm term, Interpretation::Ectype* ectype, void* stackSlots);
 
     static bool IsGlobalStruct(Reference base, uintptr_t derived);
     static Reference GetGlobalBasePtr();

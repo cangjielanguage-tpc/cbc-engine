@@ -972,13 +972,13 @@ Term ClassSubstitution::SubstituteClassTv(uint8_t typeVar)
 
 Term ClassSubstitution::SubstituteFuncTv(uint8_t typeVar) { return Term::FuncTypeVariable(typeVar); }
 
-ArraySubstitution::ArraySubstitution(Session& session, std::vector<Term> const& terms) : Substitution(session), terms(terms) {}
+ArraySubstitution::ArraySubstitution(Session& session, std::vector<Term> const& terms)
+    : Substitution(session),
+      terms(terms)
+{}
 
 Term ArraySubstitution::SubstituteFuncTv(uint8_t typeVar) { return Term::FuncTypeVariable(typeVar); }
 
-Term ArraySubstitution::SubstituteClassTv(uint8_t typeVar)
-{
-    return terms.at(typeVar);
-}
+Term ArraySubstitution::SubstituteClassTv(uint8_t typeVar) { return terms.at(typeVar); }
 
 } // namespace Engine

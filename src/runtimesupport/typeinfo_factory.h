@@ -23,8 +23,6 @@ std::optional<TypeInfo> CreateTypeInfo(
 
 /// Reconstruct term based on TypeInfo being provided.
 /// Expects that `ti` is not CBC provided!
-Engine::GlobalTerm ReconstructTerm(
-    Engine::Session& session, Engine::TypeInfoManager& manager, TypeInfo ti
-);
+Engine::GlobalTerm ReconstructTerm(Engine::Session& session, Engine::TypeInfoManager& manager, TypeInfo ti);
 
 } // namespace RTSupport

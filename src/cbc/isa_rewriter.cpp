@@ -96,7 +96,14 @@ static STK Stk(TK typeIdentifier)
 }
 
 struct IsaRewriter : public IsaParser {
-    IsaRewriter(Resolver& resolver, Engine::Session& session, IO::FileId fileId, MethodCode code, FrameLayout frameLayout, Emitter::Emitter& emit)
+    IsaRewriter(
+        Resolver& resolver,
+        Engine::Session& session,
+        IO::FileId fileId,
+        MethodCode code,
+        FrameLayout frameLayout,
+        Emitter::Emitter& emit
+    )
         : IsaParser(code),
           resolver(resolver),
           session(session),
@@ -333,7 +340,7 @@ struct IsaRewriter : public IsaParser {
         using namespace Engine;
         auto refId = Symlevel::RefId<Term>(0, typeId);
         auto ident = RefIdentifier<Term>(refId, fileId);
-        auto term = TermManager::Resolve(session, ident);
+        auto term  = TermManager::Resolve(session, ident);
         if (term.GetKind() == TermKind::UNDEFINED) {
             Fail();
             return;

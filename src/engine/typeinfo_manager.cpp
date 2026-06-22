@@ -64,7 +64,7 @@ struct BasicTypeInfoManager : public TypeInfoManager {
     GlobalTerm AcquireTerm(Session& session, RTSupport::TypeInfo ti) override
     {
         auto uuid = RTSupport::MetaInfo::GetUUID(ti);
-        auto it = uuidMap.find(uuid);
+        auto it   = uuidMap.find(uuid);
         if (it != uuidMap.end()) {
             return it->second;
         }
