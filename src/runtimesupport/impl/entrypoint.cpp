@@ -289,12 +289,16 @@ static void IterateFramesWithState(
     DYN_CJThreadSpecificData threadSpecificData, void (*callback)(DYN_VisitingState, void*), void* ctx
 )
 {
-    GCSupport::IterateFramesWithState(threadSpecificData, callback, ctx);
+    if (g_Initialized) {
+        GCSupport::IterateFramesWithState(threadSpecificData, callback, ctx);
+    }
 }
 
 static void VisitFrameRootsMarking(DYN_VisitingState state, INT_FrameDesc frame_desc, DYN_RootVisitor root_visitor)
 {
-    GCSupport::VisitGCFrameRoots(state, frame_desc, root_visitor);
+    if (g_Initialized) {
+        GCSupport::VisitGCFrameRoots(state, frame_desc, root_visitor);
+    }
 }
 
 static void VisitFrameRootsAdjusting(
@@ -304,7 +308,9 @@ static void VisitFrameRootsAdjusting(
     DYN_DerivedPtrVisitor derived_ptr_visitor
 )
 {
-    GCSupport::VisitGCFrameRoots(state, frame_desc, root_visitor);
+    if (g_Initialized) {
+        GCSupport::VisitGCFrameRoots(state, frame_desc, root_visitor);
+    }
 }
 
 static void VisitFrameRootsExpansion(
@@ -317,7 +323,12 @@ static void VisitFrameRootsExpansion(
     /* no-op */
 }
 
-static void VisitGlobalRoots(DYN_RootVisitor visitor) { GCSupport::VisitGlobalRoots(visitor); }
+static void VisitGlobalRoots(DYN_RootVisitor visitor)
+{
+    if (g_Initialized) {
+        GCSupport::VisitGlobalRoots(visitor);
+    }
+}
 
 extern "C" {
 /// This symbol is exported to the runtime, which would initialize engine.
