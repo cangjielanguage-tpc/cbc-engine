@@ -11,6 +11,7 @@
 .extern engine_interpretation_loop
 .extern engine_fiber_data_init
 .extern engine_get_exception_handler
+.extern engine_get_and_clear_pending_exception
 
 // exported
 declare_hidden engine_c2i_call_pc_start
@@ -429,11 +430,13 @@ engine_fake_execute_closure:
   mov   rdi, rsi
   jmp   rcx
 
-// expects: (ECTYPE_REG: ectype, rdi: exception reference, ectype.SR0: optional[TypeInfo])
+// expects: (ECTYPE_REG: ectype)
 // When exception is thrown from CJNative code to interpreter, execution of
 // interpreter exception handling starts here
+// TODO obtain exception using PostThrowException from RT interface
 common_landing_pad:
-  // TODO obtain pending exception (from CJNative runtime) and put it into rdi
+  call engine_get_and_clear_pending_exception
+  mov rdi, rax
   jmp engine_handle_exception
 
 // expects: (ECTYPE_REG: ectype, rdi: exception reference)

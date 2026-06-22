@@ -70,6 +70,7 @@ Interpretation::Thunk engine_interpretation_loop(
         if (successfull) {                                                                                             \
             NEXT;                                                                                                      \
         } else {                                                                                                       \
+            reader = readerBeforeInstr;                                                                                \
             THROW_IMPLICIT(type);                                                                                      \
         }                                                                                                              \
     } while (0)
@@ -669,6 +670,7 @@ STRING_INIT: {
 }
 
 NULLCHECK: {
+    auto readerBeforeInstr = reader;
     auto args = B2xr::Decode(reader);
     LOG_INSTR;
     auto ref = ectype->GetReference(args.xr.r.IR());
@@ -676,6 +678,7 @@ NULLCHECK: {
 }
 
 DIVCHECK: {
+    auto readerBeforeInstr = reader;
     auto args = B2xr::Decode(reader);
     LOG_INSTR;
     auto div = ectype->GetPrimitive(args.xr.r.IR());
