@@ -371,6 +371,8 @@ CBC_EXPORT int interpreter_bridge_init(
     interpInterf->visitFrameRootsAdjusting = &VisitFrameRootsAdjusting;
     interpInterf->visitGlobalRoots         = &VisitGlobalRoots;
 
+    interpInterf->landingPad = Asm::common_landing_pad;
+
     Asm::engine_carrier_specific_offset  = g_CJNativeInterfaceInstance.carrierSpecificOffset;
     Asm::engine_cjthread_specific_offset = g_CJNativeInterfaceInstance.cjThreadSpecificOffset;
 
