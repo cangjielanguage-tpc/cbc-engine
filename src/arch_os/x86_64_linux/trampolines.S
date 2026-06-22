@@ -26,6 +26,7 @@ declare_hidden engine_i2_newarray
 declare_hidden engine_i2_gcpoint
 declare_hidden engine_universal_direct_function_handles
 declare_hidden engine_tls_function
+declare_hidden engine_throw_out_of_interpreter
 declare_hidden engine_newobject_function
 declare_hidden engine_newarray_function
 declare_hidden engine_newthread_nret_function
@@ -44,6 +45,8 @@ engine_universal_direct_function_handles:
 
 .align 64
 engine_tls_function:
+  .skip 8
+engine_throw_out_of_interpreter:
   .skip 8
 engine_newobject_function:
   .skip 8
@@ -486,10 +489,34 @@ engine_handle_exception:
   cmp   rdi, rax
   jae   .Lhandle_next_dyn_func
 
-  // Unwind current frame and next (C2I) and throw exception through native frames
-  // TODO implement
-  xor   eax, eax
-  mov   qword ptr [rax], rax
+  // Unwind current frame and next (C2I) and when there are no interpreter frames
+  // throw exception using CJNative runtime (as it usually done in AOT code) 
+.Llast_interpreter_frame_unwinding:
+  mov   rdi, r12 // set exception pointer as argument
+  
+  // TODO use macros here
+  // Restore C2I saved regs
+  pop   rbx // pop saved fuh
+  pop   rbx
+  pop   r12
+  pop   r13
+  pop   r14
+  pop   rbp // pop TLD
+  pop   rbp
+
+  // Now stack has the following layout:
+  // 
+  // |                     |
+  // |         ...         |
+  // | AOT func frame data |
+  // |---------------------|
+  // |   AOT func ret ip   |
+  // |---------------------|
+  //
+  // So jumping to engine_throw_out_of_interpreter can be seen as call from AOT function.
+  
+  jmp   engine_throw_out_of_interpreter
+  ud2
 
 .Lhandle_next_dyn_func:
   mov   rdi, r12
