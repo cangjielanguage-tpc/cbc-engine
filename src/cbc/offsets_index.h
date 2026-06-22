@@ -10,7 +10,6 @@
 
 namespace Cbc {
 
-// Forward declarations to avoid circular dependency with emitter.h
 namespace Emitter {
 class Emitter;
 class Label;
