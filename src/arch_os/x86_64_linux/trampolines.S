@@ -515,7 +515,7 @@ engine_handle_exception:
   //
   // So jumping to engine_throw_out_of_interpreter can be seen as call from AOT function.
   
-  jmp   engine_throw_out_of_interpreter
+  jmp   [rip + engine_throw_out_of_interpreter]
   ud2
 
 .Lhandle_next_dyn_func:
