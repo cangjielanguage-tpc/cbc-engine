@@ -3,6 +3,7 @@
 /// This file defines Runtime specific interface for communication between
 /// interpreter and the runtime.
 
+#include "engine/terms.h"
 #include "interpreter/ectype.h"
 #include <cstdint>
 #include <functional>
@@ -79,6 +80,8 @@ struct Execution {
     static uint32_t GetFieldOffset(TypeInfo ti, int ordinal, bool adjustByHeader);
 
     static bool IsInstanceOf(Reference base, TypeInfo ti);
+
+    static TypeInfo LoadTypeInfo(Engine::GlobalTerm term, Interpretation::Ectype *ectype, void *stackSlots);
 
     static bool IsGlobalStruct(Reference base, uintptr_t derived);
     static Reference GetGlobalBasePtr();

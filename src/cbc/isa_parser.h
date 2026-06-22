@@ -58,7 +58,8 @@ protected:
     virtual void LoadField(IReg rb, AnyReg rs, uint16_t field)  = 0;
     virtual void StoreField(IReg rb, AnyReg rd, uint16_t field) = 0;
 
-    virtual void LoadTypeInfoFtc(IReg dst, uint16_t ftc)  = 0;
+    virtual void LoadTypeInfoGeneric(IReg dst, uint16_t typeId) = 0;
+
     virtual void LoadTypeInfoSig(IReg dst, uint16_t type) = 0;
     virtual void NewObj(IReg dst, uint16_t type)          = 0;
     virtual void CallDirect(IReg dst, uint16_t method)    = 0;

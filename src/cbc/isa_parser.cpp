@@ -479,7 +479,6 @@ struct IsaParserImpl {
         class RegSymGroup opc = opc_;
         switch (opc) {
             case Cbc::RegSymGroup::LoadTypeInfoSig: parser.LoadTypeInfoSig(dst, id); break;
-            case Cbc::RegSymGroup::LoadTypeInfoFtc: parser.LoadTypeInfoFtc(dst, id); break;
             case Cbc::RegSymGroup::NewObj:          parser.NewObj(dst, id); break;
             case Cbc::RegSymGroup::CallDirect:      parser.CallDirect(dst, id); break;
             case Cbc::RegSymGroup::CallVirt:        parser.CallVirtual(dst, id); break;
@@ -488,6 +487,8 @@ struct IsaParserImpl {
             case Cbc::RegSymGroup::SpawnFuture:     parser.SpawnFuture(dst, id); break;
             case Cbc::RegSymGroup::CallClosure:     parser.CallClosure(dst, id); break;
             case Cbc::RegSymGroup::NewClosure:      parser.NewClosure(dst, id); break;
+
+            case Cbc::RegSymGroup::LoadTypeInfoGeneric: parser.LoadTypeInfoGeneric(dst, id); break;
 
             default: {
                 FATAL("Should not reach here");

@@ -26,6 +26,7 @@
 ///
 /// To work properly with handles in rewriter an specialized wrapper
 /// is needed.
+/// TODO: remove excessive encapsulation. `Term` is already good enough representation for type.
 
 namespace Resolution {
 

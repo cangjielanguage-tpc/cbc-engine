@@ -165,9 +165,9 @@ struct IsaDisasm : public IsaParser {
         stream << "st.obj" << " " << rb.ToStr() << ", " << rd << ", " << field << endl;
     }
 
-    void LoadTypeInfoFtc(IReg dst, uint16_t ftc) override
+    void LoadTypeInfoGeneric(IReg dst, uint16_t typeId) override
     {
-        stream << "load.typeinfo.ftc" << " " << dst.ToStr() << ", " << ftc << endl;
+        stream << "load.typeinfo.generic" << " " << dst.ToStr() << ", " << typeId << endl;
     }
 
     void LoadTypeInfoSig(IReg dst, uint16_t type) override

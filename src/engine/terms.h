@@ -279,6 +279,20 @@ private:
     Term term;
 };
 
+/// Routine that substitutes class type variables with corresponding subterms provided in vector.
+/// Function type vars are mapped to themselves.
+class ArraySubstitution : public Substitution {
+public:
+    ArraySubstitution(Session& session, std::vector<Term> const& terms);
+
+protected:
+    Term SubstituteClassTv(uint8_t typeVar) override;
+    Term SubstituteFuncTv(uint8_t typeVar) override;
+
+private:
+    std::vector<Term> const& terms;
+};
+
 /// Term manager provides utilities for caching (and interning) of global terms,
 /// and responsible for resolution of term identifiers.
 class TermManager {

@@ -1,7 +1,10 @@
 #include "interpretation_loop.h"
 #include "cbc/formater_rt.h"
+#include "cbc/isa.h"
 #include "cbc/isa_rt.h"
+#include "engine/terms.h"
 #include "interpreter.h"
+#include "interpreter/ectype.h"
 #include "interpreter/loggers.h"
 #include "runtimesupport/adapters.h"
 #include "runtimesupport/runtime.h"
@@ -657,6 +660,27 @@ DIVCHECK: {
     if (div.u64 == 0) {
         FATAL("div check failed"); // TODO: throw exception
     }
+    NEXT;
+}
+
+LOAD_GENERIC_TI: {
+    auto args = B9i64::Decode(reader);
+    LOG_INSTR;
+    auto termValue = args.imm64.imm;
+    Engine::TermData* data;
+    static_assert(sizeof(data) == sizeof(termValue));
+    memcpy(&data, &termValue, sizeof(termValue));
+    Engine::GlobalTerm term(data);
+    auto ti = Execution::LoadTypeInfo(term, ectype, reinterpret_cast<void*>(frame.start));
+    ectype->Put(IReg::IR1, Value::Primitive { .u64 = reinterpret_cast<uintptr_t>(ti.Raw()) });
+    NEXT;
+}
+
+LOAD_TI: {
+    auto args = B9i64::Decode(reader);
+    LOG_INSTR;
+    auto ti = args.imm64.imm;
+    ectype->Put(IReg::IR1, Value::Primitive { .u64 = ti });
     NEXT;
 }
 

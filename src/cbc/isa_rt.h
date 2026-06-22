@@ -81,6 +81,8 @@
     X(STRING_INIT, B13i64i32, "string.init $0U64 $1U32")                                                               \
     X(NULLCHECK, B2xr, "nullcheck $1ir")                                                                               \
     X(DIVCHECK, B2xr, "divcheck $1ir")                                                                                 \
+    X(LOAD_TI, B9i64, "load.ti $0U64")                                                                                 \
+    X(LOAD_GENERIC_TI, B9i64, "load.generic.ti $0U64")                                                                 \
     X(IOF, IOF, "iof $0ir $1ir $2U64")                                                                                 \
     X(THROW, B2xr, "throw $1ir")
 

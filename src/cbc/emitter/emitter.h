@@ -200,6 +200,8 @@ public:
     void NullCheck(IReg r);
 
     void InstanceOf(IReg dst, IReg obj, RTSupport::TypeInfo typeInfo);
+    void LoadGenericTypeInfo(void *termData);
+    void LoadTypeInfo(RTSupport::TypeInfo typeInfo);
 
     void Throw(IReg dst);
 

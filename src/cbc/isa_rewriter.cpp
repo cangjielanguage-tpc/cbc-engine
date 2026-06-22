@@ -5,8 +5,11 @@
 #include "cbc/frame.h"
 #include "cbc/isa.h"
 #include "cbc/isa_disasm.h"
+#include "engine/engine.h"
 #include "engine/resolving_output.h"
 #include "engine/symlevel/code.h"
+#include "engine/symlevel/io/file_id.h"
+#include "engine/terms.h"
 #include "interpreter/code.h"
 #include "interpreter/function_handle.h"
 #include "interpreter/interpreter.h"
@@ -93,15 +96,19 @@ static STK Stk(TK typeIdentifier)
 }
 
 struct IsaRewriter : public IsaParser {
-    IsaRewriter(Resolver& resolver, MethodCode code, FrameLayout frameLayout, Emitter::Emitter& emit)
+    IsaRewriter(Resolver& resolver, Engine::Session& session, IO::FileId fileId, MethodCode code, FrameLayout frameLayout, Emitter::Emitter& emit)
         : IsaParser(code),
           resolver(resolver),
+          session(session),
+          fileId(fileId),
           emit(emit),
           frameLayout(frameLayout),
           startPosition(0),
           bytecodeSize(reader.End() - reader.Start())
     {}
 
+    Engine::Session& session;
+    IO::FileId fileId;
     Resolver& resolver;
     Emitter::Emitter& emit;
     FrameLayout frameLayout;
@@ -321,7 +328,19 @@ struct IsaRewriter : public IsaParser {
         }
     }
 
-    void LoadTypeInfoFtc(IReg dst, uint16_t ftc) override { FATAL("not implemented"); }
+    void LoadTypeInfoGeneric(IReg dst, uint16_t typeId) override
+    {
+        using namespace Engine;
+        auto refId = Symlevel::RefId<Term>(0, typeId);
+        auto ident = RefIdentifier<Term>(refId, fileId);
+        auto term = TermManager::Resolve(session, ident);
+        if (term.GetKind() == TermKind::UNDEFINED) {
+            Fail();
+            return;
+        }
+        emit.LoadGenericTypeInfo(term.data);
+        AdjustReg(dst, IReg::IR1);
+    }
 
     void LoadTypeInfoSig(IReg dst, uint16_t typeId) override
     {
@@ -337,8 +356,8 @@ struct IsaRewriter : public IsaParser {
             return;
         }
 
-        auto typeInfo = type->GetTypeInfo()->Raw();
-        emit.MovImm(Format::Width::W64, dst, reinterpret_cast<uint64_t>(typeInfo));
+        emit.LoadTypeInfo(type->GetTypeInfo().value());
+        AdjustReg(dst, IReg::IR1);
     }
 
     std::optional<Type*> NewObject(IReg dst, uint16_t typeId, New kind)
@@ -1035,7 +1054,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
         FATAL("Rewriter failed: cannot make frame layout.");
     }
 
-    auto rewriter = IsaRewriter(resolver, code, *frameLayout, emitter);
+    auto rewriter = IsaRewriter(resolver, session, method.GetFileId(), code, *frameLayout, emitter);
     rewriter.ParseAll();
 
     if (!rewriter.failedPositions.empty()) {

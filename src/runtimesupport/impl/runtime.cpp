@@ -3,6 +3,9 @@
 #include "RuntimeTypes.h"
 #include "asm_trampolines.h"
 #include "cjnative.h"
+#include "engine/engine.h"
+#include "engine/terms.h"
+#include "engine/typeinfo_manager.h"
 #include "runtimesupport/impl/rt_syms.h"
 #include "runtimesupport/impl/typeinfo_ext.h"
 #include "utils/assertion.h"
@@ -183,6 +186,29 @@ TypeInfo MetaInfo::ByteArrayTypeInfo()
 TypeInfoUUID MetaInfo::GetUUID(TypeInfo ti)
 {
     return g_CJNativeInterfaceInstance.getTypeInfoUUID(UnpackTypeInfo(ti));
+}
+
+TypeInfo Execution::LoadTypeInfo(Engine::GlobalTerm term, Interpretation::Ectype *ectype, void *stackSlots)
+{
+    // FIXME: optimize!
+    auto length = term.GetLength();
+    if (length > 6) {
+        FATAL("not supported yet");
+    }
+    Engine::Session session(Engine::GetEngineInstance());
+    auto& tiManager = Engine::TypeInfoManager::Of(session);
+    std::vector<Engine::Term> terms;
+    for (int i = 0; i < length; i++) {
+        auto ti = reinterpret_cast<DYN_TypeInfo*>(ectype->iregs[1 + i].primitive.u64);
+        terms.push_back(tiManager.AcquireTerm(session, TypeInfo(ti)));
+    }
+
+    Engine::ArraySubstitution sub(session, terms);
+    auto type = sub.Substitute(term);
+
+    // resolution error should be handled in rewriter.
+    auto res = tiManager.AcquireTypeInfo(session, type);
+    return res.value();
 }
 
 } // namespace RTSupport
