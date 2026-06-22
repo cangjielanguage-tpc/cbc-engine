@@ -133,7 +133,7 @@ public:
     TermData* data;
 
     static Term Definition(Session& session, Identifier<Symlevel::TypeDefinition> type);
-    static Term Predefined(TermKind tk);
+    static GlobalTerm Predefined(TermKind tk);
 
     static Term ClassTypeVariable(uint8_t tv);
     static Term FuncTypeVariable(uint8_t tv);
@@ -295,6 +295,8 @@ public:
     /// Globalize given term.
     /// The function performs in-place modification of `Term` structure.
     GlobalTerm Globalize(Term& term);
+
+    Term NewTermWithId(Session& session, TermId id, bool isReference, std::vector<Term> const& subterms);
 
     Term NewAotRefTerm(Session& session, std::string_view name, std::vector<Term> const& subterms);
     Term NewAotRecTerm(Session& session, std::string_view name, std::vector<Term> const& subterms);

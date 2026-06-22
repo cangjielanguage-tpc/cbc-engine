@@ -180,4 +180,9 @@ TypeInfo MetaInfo::ByteArrayTypeInfo()
     return TypeInfo(ti);
 }
 
+TypeInfoUUID MetaInfo::GetUUID(TypeInfo ti)
+{
+    return g_CJNativeInterfaceInstance.getTypeInfoUUID(UnpackTypeInfo(ti));
+}
+
 } // namespace RTSupport

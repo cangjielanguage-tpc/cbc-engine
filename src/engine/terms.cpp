@@ -238,7 +238,7 @@ int TermId::Width()
     }
 }
 
-Term Term::Predefined(TermKind tk)
+GlobalTerm Term::Predefined(TermKind tk)
 {
     int num = static_cast<int>(tk);
     return GlobalTerm(Builtins().Primitive(num));
@@ -578,6 +578,27 @@ Term TermManager::NewAotTerm(
     } else {
         id = AotRecTermId(InternString(name));
     }
+    data->InitAfterSubterms(id, arity, flags);
+    return Term(LocalTerm(data));
+}
+
+Term TermManager::NewTermWithId(Session& session, TermId id, bool isReference, std::vector<Term> const& subterms)
+{
+    auto& heap     = session.Allocator();
+    auto data      = AllocateTerm(heap, subterms.size());
+    bool isGeneric = false;
+    auto arity     = subterms.size();
+    for (int i = 0; i < arity; i++) {
+        data->subterms[i] = subterms[i];
+        isGeneric         = isGeneric || subterms[i].IsGeneric();
+    }
+
+    TermFlags flags = {
+        .isLocal       = true,
+        .isReference   = isReference,
+        .isAotPromoted = false,
+        .isGeneric     = isGeneric,
+    };
     data->InitAfterSubterms(id, arity, flags);
     return Term(LocalTerm(data));
 }

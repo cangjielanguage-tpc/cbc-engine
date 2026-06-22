@@ -3,6 +3,7 @@
 #include "engine/terms.h"
 #include "runtimesupport/runtime.h"
 #include "runtimesupport/typeinfo_factory.h"
+#include "utils/assertion.h"
 #include <mutex>
 #include <optional>
 #include <variant>
@@ -44,6 +45,14 @@ struct BasicTypeInfoManager : public TypeInfoManager {
 
         auto result = RTSupport::CreateTypeInfo(session, *this, term);
         if (result.has_value()) {
+            auto uuid = RTSupport::MetaInfo::GetUUID(result.value());
+            if (auto it = uuidMap.find(uuid); it != uuidMap.end()) {
+                // The `result` Typeinfo already been created before,
+                // which is possible only if we incorrectly reconstructed term
+                // from TypeInfo.
+                FATAL("Unexpected UUID associated term.");
+            }
+            uuidMap.insert_or_assign(uuid, term);
             storage.insert_or_assign(term, result.value());
         } else {
             storage.insert_or_assign(term, failed);
@@ -52,8 +61,23 @@ struct BasicTypeInfoManager : public TypeInfoManager {
         return result;
     }
 
+    GlobalTerm AcquireTerm(Session& session, RTSupport::TypeInfo ti) override
+    {
+        auto uuid = RTSupport::MetaInfo::GetUUID(ti);
+        auto it = uuidMap.find(uuid);
+        if (it != uuidMap.end()) {
+            return it->second;
+        }
+        // unknown uuid -> aot type was provided
+        // We need to accurately reconstruct term.
+        auto term = RTSupport::ReconstructTerm(session, *this, ti);
+        uuidMap.insert_or_assign(uuid, term);
+        return term;
+    }
+
 protected:
     std::unordered_map<GlobalTerm, ResolutionState, TermHasher> storage;
+    std::unordered_map<RTSupport::TypeInfoUUID, GlobalTerm> uuidMap;
 };
 
 struct LockedTypeInfoManager : public TypeInfoManager {
@@ -61,6 +85,12 @@ struct LockedTypeInfoManager : public TypeInfoManager {
     {
         std::lock_guard guard(lock);
         return unsafe.AcquireTypeInfo(session, term);
+    }
+
+    GlobalTerm AcquireTerm(Session& session, RTSupport::TypeInfo ti) override
+    {
+        std::lock_guard guard(lock);
+        return unsafe.AcquireTerm(session, ti);
     }
 
 private:

@@ -21,6 +21,10 @@ struct TypeInfoManager {
 
     virtual ~TypeInfoManager() = default;
 
+    /// Returns associated with `TypeInfo` term.
+    virtual GlobalTerm AcquireTerm(Session& session, RTSupport::TypeInfo ti) = 0;
+
+    /// Returns associated with term `TypeInfo`. On resolution errors, returns `nullopt`.
     std::optional<RTSupport::TypeInfo> AcquireTypeInfo(Session& session, Term& term);
     virtual std::optional<RTSupport::TypeInfo> AcquireTypeInfo(Session& session, GlobalTerm term) = 0;
 };

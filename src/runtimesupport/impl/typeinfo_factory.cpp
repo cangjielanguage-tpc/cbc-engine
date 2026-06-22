@@ -28,6 +28,58 @@
 
 namespace RTSupport {
 
+// TypeInfo flags
+static constexpr uint8_t HAS_REF_FIELD    = 0b00000001;
+static constexpr uint8_t HAS_FINALIZER    = 0b00000010;
+static constexpr uint8_t FUTURE_CLASS     = 0b00000100;
+static constexpr uint8_t MUTEX_CLASS      = 0b00001000;
+static constexpr uint8_t MONITOR_CLASS    = 0b00010000;
+static constexpr uint8_t WAIT_QUEUE_CLASS = 0b00100000;
+static constexpr uint8_t HAS_REFLECTION   = 0b01000000;
+static constexpr uint8_t HAS_EXT_PART     = 0b10000000;
+
+enum TypeKind : int8_t {
+    // reference type
+    TYPE_KIND_CLASS = -128,
+    TYPE_KIND_INTERFACE = -127,
+    TYPE_KIND_RAWARRAY = -126,
+    TYPE_KIND_FUNC = -125,
+    TYPE_KIND_TEMP_ENUM = -124,
+    TYPE_KIND_WEAKREF_CLASS = -123,
+    TYPE_KIND_FOREIGN_PROXY = -122,
+    TYPE_KIND_EXPORTED_REF = -121,
+    TYPE_KIND_GENERIC_TI = -1,
+    TYPE_KIND_GENERIC_CUSTOM = -2,
+
+    // value type
+    TYPE_KIND_NOTHING = 0,
+    TYPE_KIND_UNIT,
+    TYPE_KIND_BOOL,
+    TYPE_KIND_RUNE,
+    TYPE_KIND_UINT8,
+    TYPE_KIND_UINT16 = 5,
+    TYPE_KIND_UINT32,
+    TYPE_KIND_UINT64,
+    TYPE_KIND_UINT_NATIVE,
+    TYPE_KIND_INT8,
+    TYPE_KIND_INT16 = 10,
+    TYPE_KIND_INT32,
+    TYPE_KIND_INT64,
+    TYPE_KIND_INT_NATIVE,
+    TYPE_KIND_FLOAT16,
+    TYPE_KIND_FLOAT32 = 15,
+    TYPE_KIND_FLOAT64,
+    TYPE_KIND_CSTRING,
+    TYPE_KIND_CPOINTER,
+    TYPE_KIND_CFUNC,
+    TYPE_KIND_VARRAY = 20,
+    TYPE_KIND_TUPLE,
+    TYPE_KIND_STRUCT,
+    TYPE_KIND_ENUM,
+    TYPE_KIND_MAX,
+};
+
+
 template <typename T> static T* Alloc(size_t cnt = 1) { return reinterpret_cast<T*>(std::malloc(sizeof(T) * cnt)); }
 
 static std::optional<TypeInfo> QueryTypeInfoAOTByName(char const* str);
@@ -711,6 +763,118 @@ std::optional<TypeInfo> CreateTypeInfo(
         }
     });
     return ti;
+}
+
+Engine::GlobalTerm ReconstructTerm(
+    Engine::Session& session, Engine::TypeInfoManager& manager, TypeInfo ti
+)
+{
+    using namespace Engine;
+    DYN_TypeInfo* typeInfo = UnpackTypeInfo(ti);
+
+    auto argNum = typeInfo->typeArgsNum;
+    bool isRef     = typeInfo->type < 0;
+
+    switch (typeInfo->type) {
+        case TYPE_KIND_TEMP_ENUM:
+        case TYPE_KIND_FUNC:
+        case TYPE_KIND_GENERIC_CUSTOM:
+        case TYPE_KIND_GENERIC_TI:
+        case TYPE_KIND_FOREIGN_PROXY:
+        case TYPE_KIND_WEAKREF_CLASS:
+        case TYPE_KIND_VARRAY:
+        case TYPE_KIND_ENUM: FATAL("TYPE_KIND_ENUM not implemented yet");
+    }
+
+    if (argNum > 0) {
+        // assume that uuid of TypeTemplate is already computed,
+        // because of `GetUUID` query to TypeInfo itself.
+        auto& termManager = TermManager::Of(session);
+
+        auto subTypes = typeInfo->typeArgs;
+        std::vector<Term> subTerms;
+        subTerms.resize(argNum);
+        for (int i = 0; i < argNum; i++) {
+            subTerms[i] = manager.AcquireTerm(session, TypeInfo(subTypes[i]));
+        }
+
+        auto g = [&subTerms, &session, &termManager](TermId tk, bool isRef) {
+            auto term = termManager.NewTermWithId(session, tk, isRef, subTerms);
+            return termManager.Globalize(term);
+        };
+
+        switch (typeInfo->type) {
+            case TYPE_KIND_RAWARRAY: return g(TagTermId(TermKind::CANGJIE_ARRAY), true);
+            case TYPE_KIND_CPOINTER: return g(TagTermId(TermKind::C_POINTER), true);
+            case TYPE_KIND_TUPLE:    return g(TagTermId(TermKind::TUPLE), true);
+
+            case TYPE_KIND_STRUCT:
+            case TYPE_KIND_INTERFACE:
+            case TYPE_KIND_CLASS:
+                break;
+
+            default: FATAL("Unexpected type kind %d", typeInfo->type);
+        }
+        // treats the rest as Aot type
+
+        // FIXME: union field
+        // FIXME: explicit DYN_TypeTemplate* type
+        struct TypeTemplate {
+            char *name;
+        };
+        auto typeTemplate = reinterpret_cast<TypeTemplate*>(typeInfo->finalizerMethod);
+        auto name = typeTemplate->name;
+
+        Term term;
+        if (isRef) {
+            term = termManager.NewAotRefTerm(session, name, subTerms);
+        } else {
+            term = termManager.NewAotRecTerm(session, name, subTerms);
+        }
+        return termManager.Globalize(term);
+    } else {
+        auto g = Term::Predefined;
+        switch (typeInfo->type) {
+            case TYPE_KIND_NOTHING:     return g(TermKind::NOTHING);
+            case TYPE_KIND_UNIT:        return g(TermKind::UNIT);
+            case TYPE_KIND_BOOL:        return g(TermKind::BOOLEAN);
+            case TYPE_KIND_RUNE:        return g(TermKind::UCHAR32);
+            case TYPE_KIND_UINT8:       return g(TermKind::U8);
+            case TYPE_KIND_UINT16:      return g(TermKind::U16);
+            case TYPE_KIND_UINT32:      return g(TermKind::U32);
+            case TYPE_KIND_UINT64:      return g(TermKind::U64);
+            case TYPE_KIND_UINT_NATIVE: return g(TermKind::UADDR);
+            case TYPE_KIND_INT8:        return g(TermKind::I8);
+            case TYPE_KIND_INT16:       return g(TermKind::I16);
+            case TYPE_KIND_INT32:       return g(TermKind::I32);
+            case TYPE_KIND_INT64:       return g(TermKind::I64);
+            case TYPE_KIND_INT_NATIVE:  return g(TermKind::IADDR);
+            case TYPE_KIND_FLOAT16:     return g(TermKind::F16);
+            case TYPE_KIND_FLOAT32:     return g(TermKind::F32);
+            case TYPE_KIND_FLOAT64:     return g(TermKind::F64);
+
+            case TYPE_KIND_STRUCT:
+            case TYPE_KIND_INTERFACE:
+            case TYPE_KIND_CLASS:
+                break;
+
+            default: FATAL("Unexpected type kind %d", typeInfo->type);
+        }
+
+        // treats the rest as Aot type
+        std::vector<Term> noSubTerms;
+
+        auto& termManager = TermManager::Of(session);
+        auto name     = typeInfo->typeInfoName;
+
+        Term term;
+        if (isRef) {
+            term = termManager.NewAotRefTerm(session, name, noSubTerms);
+        } else {
+            term = termManager.NewAotRecTerm(session, name, noSubTerms);
+        }
+        return termManager.Globalize(term);
+    }
 }
 
 } // namespace RTSupport

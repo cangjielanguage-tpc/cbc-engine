@@ -93,4 +93,6 @@ void MetaInfo::VisitReferences(TypeInfo ti, std::function<void(uint32_t)> visito
 
 TypeInfo MetaInfo::ByteArrayTypeInfo() { return TypeInfo(nullptr); }
 
+TypeInfoUUID MetaInfo::GetUUID(TypeInfo ti) { return 0; }
+
 } // namespace RTSupport
