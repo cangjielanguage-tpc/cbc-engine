@@ -769,7 +769,19 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, Engine::TypeInfoMan
     using namespace Engine;
     DYN_TypeInfo* typeInfo = UnpackTypeInfo(ti);
 
-    auto argNum = typeInfo->typeArgsNum;
+    bool isGeneric, shouldUseComponentType;
+    switch (typeInfo->type) {
+        case TYPE_KIND_CPOINTER:
+        case TYPE_KIND_RAWARRAY:
+            isGeneric              = true;
+            shouldUseComponentType = true;
+            break;
+        default:
+            isGeneric              = typeInfo->typeArgsNum > 0;
+            shouldUseComponentType = false;
+            break;
+    }
+
     bool isRef  = typeInfo->type < 0;
 
     switch (typeInfo->type) {
@@ -780,15 +792,28 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, Engine::TypeInfoMan
         case TYPE_KIND_FOREIGN_PROXY:
         case TYPE_KIND_WEAKREF_CLASS:
         case TYPE_KIND_VARRAY:
-        case TYPE_KIND_ENUM:           FATAL("TYPE_KIND_ENUM not implemented yet");
+        case TYPE_KIND_ENUM:           FATAL("type kind %d not implemented yet", typeInfo->type);
     }
 
-    if (argNum > 0) {
+    if (isGeneric) {
         // assume that uuid of TypeTemplate is already computed,
         // because of `GetUUID` query to TypeInfo itself.
         auto& termManager = TermManager::Of(session);
 
-        auto subTypes = typeInfo->typeArgs;
+        struct DYN_TypeInfo* singleTypeSubterms[1];
+
+        struct DYN_TypeInfo** subTypes;
+        int argNum;
+        if (shouldUseComponentType) {
+            singleTypeSubterms[0] = typeInfo->componentTypeInfo;
+            subTypes              = singleTypeSubterms;
+            argNum                = 1;
+        } else {
+            subTypes = typeInfo->typeArgs;
+            argNum   = typeInfo->typeArgsNum;
+        }
+
+        // TODO: do not use vectors!
         std::vector<Term> subTerms;
         subTerms.resize(argNum);
         for (int i = 0; i < argNum; i++) {
