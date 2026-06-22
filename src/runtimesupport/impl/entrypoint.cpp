@@ -228,7 +228,7 @@ bool GetExceptionHandler(Interpretation::DynamicFunctionHandle* handle, Decoder:
             return false;
         }
 
-        return start.value() <= reader.Pos() && reader.Pos() < end.value();
+        return start.value() <= reader.Pos() && reader.Pos() <= end.value();
     });
 
     if (it == regions.end()) {

@@ -157,6 +157,8 @@ Reference Execution::GetAndClearPendingException()
                            reinterpret_cast<uintptr_t>(g_CJNativeInterfaceInstance.getAndClearPendingException()) };
 }
 
+extern "C" Reference engine_get_and_clear_pending_exception() { return Execution::GetAndClearPendingException(); }
+
 const char* MetaInfo::GetName(TypeInfo ti)
 {
     auto mrtti = UnpackTypeInfo(ti);
