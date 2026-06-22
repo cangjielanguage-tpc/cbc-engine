@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <mutex>
+#include <system_error>
 
 #include "RTInterface.h"
 #include "asm_export.h"
@@ -33,6 +34,17 @@ static bool g_Initialized;
 static bool g_OptionsInitialized;
 static bool g_Patched;
 
+static void NativeLog(std::string message)
+{
+    auto logger = g_CJNativeInterfaceInstance.nativeLogger;
+    if (logger == nullptr) {
+        return;
+    }
+
+    static char tag[] = "Interpreter";
+    logger(21, tag, message.data());
+}
+
 static void InitEnvOpts()
 {
     std::lock_guard guard(g_InitializationGuard);
@@ -40,6 +52,59 @@ static void InitEnvOpts()
         Engine::InitEnvOptions();
         g_OptionsInitialized = true;
     }
+}
+
+static void DiscoverPatchCbcFromAppStorage()
+{
+    if (g_appStoragePath.empty() || !g_cbcPath.empty() || !g_patchCbc.empty()) {
+        return;
+    }
+
+    auto cbcDir = std::filesystem::path(g_appStoragePath) / "cbc";
+
+    std::error_code ec;
+    if (!std::filesystem::is_directory(cbcDir, ec)) {
+        if (ec) {
+            NativeLog("failed to access app storage cbc directory: " + cbcDir.string());
+        } else {
+            NativeLog("app storage cbc directory does not exist: " + cbcDir.string());
+        }
+        return;
+    }
+
+    std::filesystem::directory_iterator it(cbcDir, std::filesystem::directory_options::skip_permission_denied, ec);
+    if (ec) {
+        NativeLog("failed to scan app storage cbc directory: " + cbcDir.string());
+        return;
+    }
+
+    std::filesystem::path patchCbc;
+    std::filesystem::directory_iterator end;
+    while (it != end) {
+        auto const& entry = *it;
+        std::error_code fileEc;
+        if (entry.is_regular_file(fileEc) && entry.path().extension() == ".cbc") {
+            if (!patchCbc.empty()) {
+                NativeLog("multiple .cbc files found in app storage cbc directory: " + cbcDir.string());
+                return;
+            }
+            patchCbc = entry.path();
+        }
+
+        it.increment(ec);
+        if (ec) {
+            NativeLog("failed to scan app storage cbc directory: " + cbcDir.string());
+            return;
+        }
+    }
+
+    if (patchCbc.empty()) {
+        NativeLog("no .cbc files found in app storage cbc directory: " + cbcDir.string());
+        return;
+    }
+
+    g_patchCbc = patchCbc.string();
+    NativeLog("using app storage patch cbc: " + g_patchCbc);
 }
 
 /// Initialize engine from launcher.
@@ -314,11 +379,16 @@ CBC_EXPORT int interpreter_bridge_init(
         return 1;
     }
 
+    g_CJNativeInterfaceInstance = *rtInterf;
+
+    NativeLog("Interpreter bridge init started");
+
     // Order matters
     InitEnvOpts();
     Engine::g_table.ParseAndSet(size, options);
 
-    g_CJNativeInterfaceInstance            = *rtInterf;
+    DiscoverPatchCbcFromAppStorage();
+
     interpInterf->version                  = INT_INTERPRETER_INTERFACE_VERSION;
     interpInterf->cjThreadSpecificDataSize = sizeof(Interpretation::Ectype);
     interpInterf->c2iStubStartAddr         = reinterpret_cast<uintptr_t>(&Asm::engine_c2i_call_pc_start);
@@ -342,6 +412,8 @@ CBC_EXPORT int interpreter_bridge_init(
     if (!g_patchCbc.empty()) {
         PerformPatching();
     }
+
+    NativeLog("Interpreter bridge init finished");
 
     return 0;
 }
