@@ -254,7 +254,7 @@ CBC_EXPORT int interpreter_bridge_init(
     struct INT_InterpreterInterface* interpInterf,
     struct DYN_CJNativeInterface* rtInterf,
     int size,
-    const char* const* options
+    const char** options
 );
 
 CBC_EXPORT void engine_set_cbcpath(char const* cbcPath) { g_cbcPath = cbcPath; }
@@ -293,7 +293,7 @@ CBC_EXPORT int interpreter_bridge_init(
     struct INT_InterpreterInterface* interpInterf,
     struct DYN_CJNativeInterface* rtInterf,
     int size,
-    const char* const* options
+    const char** options
 )
 {
     static_assert(std::is_same_v<decltype(&interpreter_bridge_init), INT_InitInterpreter>);
