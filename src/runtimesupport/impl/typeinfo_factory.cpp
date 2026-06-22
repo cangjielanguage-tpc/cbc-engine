@@ -273,6 +273,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         auto mt = *optMT;
 
         auto extDefCount = mt->ClassCount() + mt->InterfaceCount();
+        builder.validInheritNum = extDefCount;
 
         // To simplify memory management here, we will preallocate "flat" arrays
         // where corresponding structures would be filled out.
