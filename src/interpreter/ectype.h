@@ -120,7 +120,7 @@ private:
     FRegContainer fregs[FReg::COUNT];
 
     /// Service registers can be used for internal interpreter operations (e.g. for exception handling)
-    /// and should not be reachable from CBC bytecode. Do not put traceable values here.
+    /// and should not be reachable from CBC bytecode. Not traceable, put references here with the great care.
     SRegContainer sregs[SERVICE_REGS_COUNT];
 
     uint32_t magic = MAGIC_WORD;
