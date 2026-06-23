@@ -260,6 +260,10 @@ static MethodTableMember GetTableMember(
     }
 }
 
+static std::optional<TypeInfo> QueryTypeInfoAOT(
+    Engine::Session& session, Engine::TypeInfoManager& manager, char const* typeName, Engine::Term term
+);
+
 // TODO: factory class, so it can hold state other managers without recreating them
 static std::optional<TypeInfo> CreateTypeInfoDyn(
     Engine::Session& session, Engine::TypeInfoManager& manager, Engine::GlobalTerm term
@@ -270,6 +274,11 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
     auto type = Symlevel::Reader::Read(session, ident);
     auto name = Symlevel::Reader::Read(session, type.GetName());
+
+    if (type.GetFlags().Is(Symlevel::TypeFlag::AOT)) {
+        std::string copiedName(name);
+        return QueryTypeInfoAOT(session, manager, copiedName.c_str(), term);
+    }
 
     auto currentTypeInfo = Alloc<CbcTypeInfo>();
     if (!currentTypeInfo) {
@@ -282,10 +291,6 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
     builder.name = ConstructTypeInfoName(name);
     if (builder.name == nullptr) {
         return std::nullopt;
-    }
-
-    if (type.GetFlags().Is(Symlevel::TypeFlag::AOT)) {
-        return QueryTypeInfoAOTByName(builder.name);
     }
 
     bool needExtDefs;
@@ -639,7 +644,7 @@ static std::optional<TypeInfo> QueryTypeInfoAOT(
 
         Log::typeinfo.Log(Logging::Level::TRACE, [&session, &term](Stream::Output& out) {
             Stream::ResolvingOutput stream(session, out);
-            stream << "querying generic " << term << Stream::endl;
+            stream << "querying aot generic " << term << Stream::endl;
         });
 
         bool allResolved = QuerySubterms(infos, session, manager, term);
@@ -724,7 +729,6 @@ std::optional<TypeInfo> CreateTypeInfo(
             case Engine::TermKind::TYPE:    return CreateTypeInfoDyn(session, manager, term);
 
             case Engine::TermKind::AOT_TYPE:
-                return QueryTypeInfoAOT(session, manager, GetAotTypeName(session, term), term);
             case Engine::TermKind::AOT_REC:
                 return QueryTypeInfoAOT(session, manager, GetAotTypeName(session, term), term);
 

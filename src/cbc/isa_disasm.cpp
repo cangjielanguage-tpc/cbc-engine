@@ -314,19 +314,19 @@ struct IsaDisasm : public IsaParser {
     }
 
     void Box(AnyReg src, IReg dst, Engine::TermKind tk) override {
-        stream << "box." << (uint8_t) tk << " " << src << ", " << dst.ToStr(); // TODO: prettify
+        stream << "box." << (uint8_t) tk << " " << src << ", " << dst.ToStr() << endl; // TODO: prettify
     }
 
     void BoxT(uint16_t srcTs, IReg dst) override {
-        stream << "box.t " << srcTs << ", " << dst.ToStr();
+        stream << "box.t " << srcTs << ", " << dst.ToStr() << endl;
     }
 
     void Unbox(AnyReg dst, IReg src, Engine::TermKind tk) override {
-        stream << "unbox." << (uint8_t) tk << " " << dst << ", " << src.ToStr(); // TODO: prettify
+        stream << "unbox." << (uint8_t) tk << " " << dst << ", " << src.ToStr() << endl; // TODO: prettify
     }
 
     void UnboxT(uint16_t dstTs, IReg src) override {
-        stream << "unbox.t " << dstTs << ", " << src.ToStr();
+        stream << "unbox.t " << dstTs << ", " << src.ToStr() << endl;
     }
 
     class PrintingMemSpace : public MemSpace {
