@@ -107,6 +107,7 @@ public:
 class EctypeInvariants {
     static_assert(offsetof(Ectype, iregs) == ECTYPE_IREGS_OFFSET);
     static_assert(offsetof(Ectype, fregs) == ECTYPE_FREGS_OFFSET);
+    static_assert(IReg::COUNT == ECTYPE_IREGS_COUNT);
 };
 
 } // namespace Interpretation
