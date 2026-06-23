@@ -3,6 +3,8 @@
 #include "utils/assertion.h"
 #include <cstddef>
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <memory>
 #include <utility>
 
@@ -145,6 +147,17 @@ void StringBuffer::VPrintFmt(const char* fmt, va_list argp)
 }
 
 std::string StringBuffer::ToString() { return std::string(data.get(), size); }
+
+char* StringBuffer::ToCString()
+{
+    char* mem = (char*) malloc(size + 1);
+    if (!mem) {
+        return nullptr;
+    }
+    memcpy(mem, data.get(), size);
+    mem[size] = 0;
+    return mem;
+}
 
 // Decorators
 

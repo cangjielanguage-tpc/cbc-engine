@@ -287,8 +287,12 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
     TypeInfoBuilder builder(currentTypeInfo);
 
-    // TODO: construct proper name
-    builder.name = ConstructTypeInfoName(name);
+    Stream::StringBuffer stringBuffer;
+    Engine::Term(term).GetName(session, stringBuffer);
+
+    // Not guaranteed that name is constructed in the same way as CJNative does.
+    // TODO: does it matter?
+    builder.name = stringBuffer.ToCString();
     if (builder.name == nullptr) {
         return std::nullopt;
     }
