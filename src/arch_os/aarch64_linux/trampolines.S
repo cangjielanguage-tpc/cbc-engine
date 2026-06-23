@@ -392,20 +392,20 @@ perform_2i_call:
 .macro POP_IREGS mask_reg, stack_reg, exec_info_reg
     ldrh  \mask_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
     .irp reg, 10,11,12,13
-        tbz \mask_reg, #(\reg-8), .Lloadireg\reg
+        tbz \mask_reg, #(\reg-8), .L\@skipireg\reg
         ldr x2, [\stack_reg, #-0x8]!
         str x2, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + \reg*8)]
-.Lloadireg\reg:
+.L\@skipireg\reg:
     .endr
 .endm
 
 .macro POP_FREGS mask_reg, stack_reg, exec_info_reg
     ldrh  \mask_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_FREGS_OFFSET]
     .irp reg, 8,9,10,11,12,13,14,15
-        tbz \mask_reg, #(\reg-8), .Lloadfreg\reg
+        tbz \mask_reg, #(\reg-8), .L\@skipfreg\reg
         ldr d2, [\stack_reg, #-0x8]!
         str d2, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET + \reg*8)]
-.Lloadfreg\reg:
+.L\@skipfreg\reg:
     .endr
 .endm
 
