@@ -226,6 +226,11 @@ std::optional<TypeInfo> CreateTypeInfo(
     return std::nullopt;
 }
 
+Engine::GlobalTerm ReconstructTerm(Engine::Session& session, Engine::TypeInfoManager& manager, TypeInfo ti)
+{
+    FATAL("Should not be called");
+}
+
 Reference Execution::ReadObjectInstance(Reference base, size_t offset, ThreadHandle th)
 {
     return Reference { .value = *reinterpret_cast<uintptr_t*>(base.value + offset) };

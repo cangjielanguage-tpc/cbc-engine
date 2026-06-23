@@ -20,6 +20,11 @@ std::optional<TypeInfo> CreateTypeInfo(
     FATAL("Should not be called");
 }
 
+Engine::GlobalTerm ReconstructTerm(Engine::Session& session, Engine::TypeInfoManager& manager, TypeInfo ti)
+{
+    FATAL("Should not be called");
+}
+
 Reference Execution::ReadObjectInstance(Reference base, size_t offset, ThreadHandle th)
 {
     FATAL("Should not be called :)");
