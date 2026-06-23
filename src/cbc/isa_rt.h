@@ -84,7 +84,7 @@
     X(LOAD_TI, B9i64, "load.ti $0U64")                                                                                 \
     X(LOAD_GENERIC_TI, B9i64, "load.generic.ti $0U64")                                                                 \
     X(IOF, IOF, "iof $0ir $1ir $2U64")                                                                                 \
-    X(NEWBOX, B2xr, "newbox $0I4")                                                                                 \
+    X(NEWBOX, B2xr, "newbox $0U8")                                                                                 \
     X(THROW, B2xr, "throw $1ir")
 
 // X parameters: opcode, encoding format, string format, is tail
