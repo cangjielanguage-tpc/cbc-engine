@@ -804,8 +804,6 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, Engine::TypeInfoMan
     }
 
     if (isGeneric) {
-        // assume that uuid of TypeTemplate is already computed,
-        // because of `GetUUID` query to TypeInfo itself.
         auto& termManager = TermManager::Of(session);
 
         struct DYN_TypeInfo* singleTypeSubterms[1];
