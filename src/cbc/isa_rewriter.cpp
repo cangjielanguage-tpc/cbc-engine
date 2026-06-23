@@ -397,8 +397,8 @@ struct IsaRewriter : public IsaParser {
             return;
         }
 
-        emit.LoadTypeInfo(type->GetTypeInfo().value());
-        AdjustReg(dst, IReg::IR1);
+        auto ti = type->GetTypeInfo().value();
+        emit.MovImm(Format::Width::W64, dst, reinterpret_cast<uintptr_t>(ti.Raw()));
     }
 
     std::optional<Type*> NewObject(IReg dst, uint16_t typeId, New kind)
