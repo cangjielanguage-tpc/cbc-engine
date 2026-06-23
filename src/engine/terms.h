@@ -315,8 +315,8 @@ public:
     Term NewAotRefTerm(Session& session, std::string_view name, std::vector<Term> const& subterms);
     Term NewAotRecTerm(Session& session, std::string_view name, std::vector<Term> const& subterms);
 
-    Utils::StringPool::ZeroTerminatedView GetNameOfAotType(AotRefTermId type);
-    Utils::StringPool::ZeroTerminatedView GetNameOfAotType(AotRecTermId type);
+    Utils::StringPool::String GetNameOfAotType(AotRefTermId type);
+    Utils::StringPool::String GetNameOfAotType(AotRecTermId type);
 
 private:
     Term NewAotTerm(Session& session, std::string_view name, std::vector<Term> const& subterms, bool isReference);

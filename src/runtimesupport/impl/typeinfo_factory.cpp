@@ -589,9 +589,9 @@ char const* GetAotTypeName(Engine::Session& session, Engine::Term term)
     auto& manager = Engine::TermManager::Of(session);
     switch (term.GetKind()) {
     case Engine::TermKind::AOT_TYPE:
-        return manager.GetNameOfAotType(Engine::AotRefTermId(term)).data();
+        return manager.GetNameOfAotType(Engine::AotRefTermId(term)).str;
     case Engine::TermKind::AOT_REC:
-        return manager.GetNameOfAotType(Engine::AotRecTermId(term)).data();
+        return manager.GetNameOfAotType(Engine::AotRecTermId(term)).str;
     default:
         FATAL("Unexpected kind");
     }

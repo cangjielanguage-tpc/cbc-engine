@@ -891,13 +891,13 @@ size_t TermManager::InternString(std::string_view str)
     return internTable.InternAndGetId(str);
 }
 
-Utils::StringPool::ZeroTerminatedView TermManager::GetNameOfAotType(AotRefTermId type)
+Utils::StringPool::String TermManager::GetNameOfAotType(AotRefTermId type)
 {
     std::lock_guard guard(lock);
     return internTable.GetStringById(type.GetNum());
 }
 
-Utils::StringPool::ZeroTerminatedView TermManager::GetNameOfAotType(AotRecTermId type)
+Utils::StringPool::String TermManager::GetNameOfAotType(AotRecTermId type)
 {
     std::lock_guard guard(lock);
     return internTable.GetStringById(type.GetNum());
