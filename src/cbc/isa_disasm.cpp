@@ -1,5 +1,6 @@
 #include "cbc/decoder.h"
 #include "cbc/isa.h"
+#include "engine/terms.h"
 #include "isa_parser.h"
 #include "resolution/resolution.h"
 #include "utils/ostream.h"
@@ -306,6 +307,26 @@ struct IsaDisasm : public IsaParser {
     void StoreArray(AnyReg src, Format::StoreAccessKind stk, IReg arr, IReg idx) override
     {
         stream << "starr." << stk.ToStr() << " " << arr.ToStr() << ", " << idx.ToStr() << ", " << Fmt(src, stk.IsFloat()) << endl;
+    }
+
+    void TypeArg(IReg ti, int idx, IReg dst) override {
+        stream << "type.arg " << ti.ToStr() << ", " << idx << ", " << dst.ToStr();
+    }
+
+    void Box(AnyReg src, IReg dst, Engine::TermKind tk) override {
+        stream << "box." << (uint8_t) tk << " " << src << ", " << dst.ToStr(); // TODO: prettify
+    }
+
+    void BoxT(uint16_t srcTs, IReg dst) override {
+        stream << "box.t " << srcTs << ", " << dst.ToStr();
+    }
+
+    void Unbox(AnyReg dst, IReg src, Engine::TermKind tk) override {
+        stream << "unbox." << (uint8_t) tk << " " << dst << ", " << src.ToStr(); // TODO: prettify
+    }
+
+    void UnboxT(uint16_t dstTs, IReg src) override {
+        stream << "unbox.t " << dstTs << ", " << src.ToStr();
     }
 
     class PrintingMemSpace : public MemSpace {

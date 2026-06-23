@@ -38,6 +38,8 @@ public:
 
     explicit TypeInfo(void* value) : value(value) {}
 
+    TypeInfo() : value(nullptr) {}
+
     inline void* Raw() const { return value; }
 
 private:
@@ -51,8 +53,14 @@ struct Execution {
     /// and puts result in IReg(idx) register.
     ///
     /// This specialization is needed to allow Thunk usage.
+
+    // dst = IR1
     static void* AllocateObjectInstance();
 
+    // dst = IR_ACC
+    static void* AllocateObjectInstanceAcc();
+
+    // dst = IR1
     static void* AllocateArrayInstance();
 
     static void* GcPoint();

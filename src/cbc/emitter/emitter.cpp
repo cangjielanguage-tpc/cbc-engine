@@ -853,5 +853,10 @@ void Emitter::LoadTypeInfo(RTSupport::TypeInfo typeInfo)
     Encode(segment, RT::B9i64 { .opc = RT::Opcode::LOAD_TI, .imm64 = { d } });
 }
 
+void Emitter::NewBox(Interpretation::BuiltinType t)
+{
+    Encode(segment, RT::B2xr { .opc = RT::Opcode::NEWBOX, .xr = { .imm = t, .r = IReg::IRZ }});
+}
+
 } // namespace Emitter
 } // namespace Cbc

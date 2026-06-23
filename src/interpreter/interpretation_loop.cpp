@@ -349,6 +349,20 @@ NEWOBJ: {
 
     return { func, type.Raw() };
 }
+
+NEWBOX: {
+    auto args = B2xr::Decode(reader);
+    LOG_INSTR;
+    auto btype = builtinTypeInfos[args.xr.imm];
+
+    // Puts result to `IR1`.
+    auto func = RTSupport::Execution::AllocateObjectInstanceAcc();
+
+    reader0 = reader; // save current pc
+
+    return { func, btype.Raw() };
+}
+
 INITCLOSURE: {
     auto args = B1::Decode(reader);
     LOG_INSTR;
@@ -1035,3 +1049,6 @@ void Interpretation::InterpretationEnd(DynamicFunctionHandle* handle, Ectype* ec
 {
     engine_log_int_end(handle, ectype);
 }
+
+RTSupport::TypeInfo Interpretation::builtinTypeInfos[BUILTIN_COUNT];
+

@@ -10,9 +10,10 @@
 #include "engine/symlevel/code.h"
 #include "engine/symlevel/io/file_id.h"
 #include "engine/terms.h"
+#include "engine/typeinfo_manager.h"
 #include "interpreter/code.h"
 #include "interpreter/function_handle.h"
-#include "interpreter/interpreter.h"
+#include "interpreter/interpretation_loop.h"
 #include "interpreter/literals.h"
 #include "interpreter/loggers.h"
 #include "offsets_index.h"
@@ -23,7 +24,6 @@
 #include "utils/math.h"
 #include "utils/ostream.h"
 
-#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -92,6 +92,40 @@ static STK Stk(TK typeIdentifier)
             FATAL("Not supported template kind");
             return STK::ST_8;
         }
+    }
+}
+
+STK Stk(Interpretation::BuiltinType bt) {
+    switch (bt) {
+        case Interpretation::BUILTIN_BOOLEAN: return STK::ST_8;
+        case Interpretation::BUILTIN_U8:      return STK::ST_8;
+        case Interpretation::BUILTIN_I8:      return STK::ST_8;
+        case Interpretation::BUILTIN_U16:     return STK::ST_16;
+        case Interpretation::BUILTIN_I16:     return STK::ST_16;
+        case Interpretation::BUILTIN_U32:     return STK::ST_32;
+        case Interpretation::BUILTIN_I32:     return STK::ST_32;
+        case Interpretation::BUILTIN_U64:     return STK::ST_64;
+        case Interpretation::BUILTIN_I64:     return STK::ST_64;
+        case Interpretation::BUILTIN_F16:     return STK::ST_16;
+        case Interpretation::BUILTIN_F32:     return STK::ST_F32;
+        case Interpretation::BUILTIN_F64:     return STK::ST_F64;
+    }
+}
+
+LDK Ldk(Interpretation::BuiltinType bt) {
+    switch (bt) {
+        case Interpretation::BUILTIN_BOOLEAN: return LDK::LD_U8;
+        case Interpretation::BUILTIN_U8:      return LDK::LD_U8;
+        case Interpretation::BUILTIN_I8:      return LDK::LD_S8;
+        case Interpretation::BUILTIN_U16:     return LDK::LD_U16;
+        case Interpretation::BUILTIN_I16:     return LDK::LD_S16;
+        case Interpretation::BUILTIN_U32:     return LDK::LD_32;
+        case Interpretation::BUILTIN_I32:     return LDK::LD_32;
+        case Interpretation::BUILTIN_U64:     return LDK::LD_64;
+        case Interpretation::BUILTIN_I64:     return LDK::LD_64;
+        case Interpretation::BUILTIN_F16:     return LDK::LD_U16;
+        case Interpretation::BUILTIN_F32:     return LDK::LD_F32;
+        case Interpretation::BUILTIN_F64:     return LDK::LD_F64;
     }
 }
 
@@ -657,6 +691,53 @@ struct IsaRewriter : public IsaParser {
     void StoreArray(AnyReg src, Format::StoreAccessKind stk, IReg arr, IReg idx) override
     {
         emit.StoreArray(stk, src, arr, idx);
+    }
+
+    void TypeArg(IReg ti, int idx, IReg dst) override {
+        FATAL("Not implemented");
+    }
+
+    Interpretation::BuiltinType ToBuiltin(Engine::TermKind tk) {
+        switch (tk) {
+            case Engine::TermKind::BOOLEAN: return Interpretation::BUILTIN_BOOLEAN;
+            case Engine::TermKind::U8: return Interpretation::BUILTIN_U8;
+            case Engine::TermKind::I8: return Interpretation::BUILTIN_I8;
+            case Engine::TermKind::U16: return Interpretation::BUILTIN_U16;
+            case Engine::TermKind::I16: return Interpretation::BUILTIN_I16;
+            case Engine::TermKind::U32: return Interpretation::BUILTIN_U32;
+            case Engine::TermKind::I32: return Interpretation::BUILTIN_I32;
+            case Engine::TermKind::U64: return Interpretation::BUILTIN_U64;
+            case Engine::TermKind::I64: return Interpretation::BUILTIN_I64;
+            case Engine::TermKind::F16: return Interpretation::BUILTIN_F16;
+            case Engine::TermKind::F32: return Interpretation::BUILTIN_F32;
+            case Engine::TermKind::F64: return Interpretation::BUILTIN_F64;
+
+            default:
+                Fail();
+                return Interpretation::BUILTIN_I64;
+        }
+    }
+
+    void Box(AnyReg src, IReg dst, Engine::TermKind tk) override {
+        auto term = Engine::Term::Predefined(tk);
+        auto& manager = Engine::TypeInfoManager::Of(session);
+        auto bt = ToBuiltin(tk);
+        emit.NewBox(bt); // Spoils IR_ACC
+        BindStatePoint();
+        AdjustReg(dst, IReg::IR_ACC);
+        emit.StoreObj(Stk(bt), src, dst, RTSupport::MetaInfo::ObjectHeaderSize());
+    }
+
+    void BoxT(uint16_t srcTs, IReg dst) override {
+        FATAL("Not implemented");
+    }
+
+    void Unbox(AnyReg dst, IReg src, Engine::TermKind tk) override {
+        FATAL("Not implemented");
+    }
+
+    void UnboxT(uint16_t dstTs, IReg src) override {
+        FATAL("Not implemented");
     }
 
     struct MemSpaceRewriter : public MemSpace {

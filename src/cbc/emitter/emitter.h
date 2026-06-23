@@ -9,6 +9,7 @@
 #include "cbc/isa.h"
 #include "encoding_rt.h"
 #include "interpreter/code.h"
+#include "interpreter/interpretation_loop.h"
 #include "interpreter/literals.h"
 #include "runtimesupport/runtime.h"
 #include "utils/heap.h"
@@ -202,6 +203,8 @@ public:
     void InstanceOf(IReg dst, IReg obj, RTSupport::TypeInfo typeInfo);
     void LoadGenericTypeInfo(void* termData);
     void LoadTypeInfo(RTSupport::TypeInfo typeInfo);
+
+    void NewBox(Interpretation::BuiltinType t);
 
     void Throw(IReg dst);
 

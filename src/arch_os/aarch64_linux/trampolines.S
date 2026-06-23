@@ -18,6 +18,7 @@ declare_hidden engine_iregs_only_c2i_call
 declare_hidden engine_i2i_call
 declare_hidden engine_i2c_call
 declare_hidden engine_i2_newobject
+declare_hidden engine_i2_newobject_acc
 declare_hidden engine_i2_newarray
 declare_hidden engine_i2_gcpoint
 declare_hidden engine_universal_direct_function_handles
@@ -229,6 +230,21 @@ engine_i2_newobject:
   blr   x10
 
   str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8)]
+  restore_tls
+
+  b     .Lrestart_interpretation
+
+.balign 16
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo)
+// preserved: ECTYPE_REG, x29
+// TLS_REG can be changed after context-switch
+engine_i2_newobject_acc:
+  // jumped from .Linterpreter_call without return address to return
+  adrp  x10, engine_newobject_function
+  ldr   x10, [x10, :lo12:engine_newobject_function]
+  blr   x10
+
+  str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8 * 14)]
   restore_tls
 
   b     .Lrestart_interpretation

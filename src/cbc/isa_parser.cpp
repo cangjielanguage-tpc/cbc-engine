@@ -1,5 +1,6 @@
 #include <cstdint>
 
+#include "engine/terms.h"
 #include "isa.h"
 #include "isa_opcodes.h"
 #include "isa_parser.h"
@@ -75,6 +76,12 @@ public:
     {
         ASSERT(MathUtils::IsNBits(value, 1));
         return static_cast<bool>(value);
+    }
+
+    inline operator Engine::TermKind()
+    {
+        ASSERT(value < Engine::FIRST_NON_PRIMITIVE);
+        return static_cast<Engine::TermKind>(value);
     }
 
     inline operator IReg() { return IReg::From(*this); }
@@ -608,6 +615,36 @@ struct IsaParserImpl {
     {
         auto [src, stk, arr, idx] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
         parser.StoreArray(src, stk, arr, idx);
+    }
+
+    static void TypeArg(IsaParser& parser)
+    {
+        auto [ti, dst, idx] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadSLEB().Get();
+        parser.TypeArg(ti, idx, dst);
+    }
+
+    static void Box(IsaParser& parser)
+    {
+        auto [src, dst, tk] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU8().Get();
+        parser.Box(src, dst, tk);
+    }
+
+    static void BoxT(IsaParser& parser)
+    {
+        auto [_, dst, src] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.BoxT(src, dst);
+    }
+
+    static void Unbox(IsaParser& parser)
+    {
+        auto [dst, src, tk] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU8().Get();
+        parser.Unbox(dst, src, tk);
+    }
+
+    static void UnboxT(IsaParser& parser)
+    {
+        auto [_, src, dst] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.UnboxT(dst, src);
     }
 
     static void MemHeadReg(IsaParser& parser)

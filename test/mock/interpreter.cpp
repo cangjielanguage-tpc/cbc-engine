@@ -212,7 +212,6 @@ void InitializeMockInterpreter()
     using namespace Interpretation;
     Engine::InitEnvOptions();
     auto i2call = reinterpret_cast<Interpretation::I2Call>(&Interpretation::InterpreterI2CallTest);
-    static_assert(IReg::COUNT == 14);
 }
 
 namespace RTSupport {
@@ -286,6 +285,8 @@ void* Execution::GetInterfaceTarget(Reference base, TypeInfo ti, int methodNum)
 }
 
 void* Execution::AllocateObjectInstance() { return reinterpret_cast<void*>(&Interpretation::MockNewObj); }
+
+void* Execution::AllocateObjectInstanceAcc() { return reinterpret_cast<void*>(&Interpretation::MockNewObj); }
 
 void* Execution::AllocateArrayInstance() { return reinterpret_cast<void*>(&Interpretation::MockNewObj); }
 
