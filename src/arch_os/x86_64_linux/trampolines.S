@@ -83,11 +83,11 @@ engine_cjthread_specific_offset:
     .irp reg, 8,9,10,11,12,13
         .set _bit, (\reg - 8)
         test    \mask_reg, (1 << _bit)
-        jz      2f
+        jz      .L\@skipireg\reg
         sub     \stack_reg, 8
         mov     rsi, QWORD PTR [\stack_reg]
         mov     QWORD PTR [ECTYPE_REG + ECTYPE_IREGS_OFFSET + \reg*8], rsi
-2:
+.L\@skipireg\reg:
     .endr
 .endm
 
@@ -96,11 +96,11 @@ engine_cjthread_specific_offset:
     .irp reg, 8,9,10,11,12,13,14,15
         .set _bit, (\reg - 8)
         test    \mask_reg, (1 << _bit)
-        jz      2f
+        jz      .L\@skipfreg\reg
         sub     \stack_reg, 8
         mov     rsi, QWORD PTR [\stack_reg]
         mov     QWORD PTR [ECTYPE_REG + ECTYPE_FREGS_OFFSET + \reg*8], rsi
-2:
+.L\@skipfreg\reg:
     .endr
 .endm
 
