@@ -8,6 +8,8 @@
 .extern engine_prepare_bytecode
 .extern engine_interpretation_loop
 .extern engine_fiber_data_init
+.extern engine_get_exception_handler
+.extern engine_get_and_clear_pending_exception
 
 // exported
 declare_hidden engine_c2i_call_pc_start
@@ -28,6 +30,9 @@ declare_hidden engine_newthread_nret_function
 declare_hidden engine_carrier_specific_offset
 declare_hidden engine_cjthread_specific_offset
 declare_hidden engine_i2_spawn
+declare_hidden engine_throw_out_of_interpreter
+declare_hidden engine_handle_exception
+declare_hidden common_landing_pad
 
 // --- SECTION BSS ---
 .section .bss
@@ -40,15 +45,17 @@ engine_universal_direct_function_handles:
 .Lfunc_anchor:
 engine_tls_function:              // 0x0
   .skip 8
-engine_newobject_function:        // 0x8
+engine_throw_out_of_interpreter:  // 0x8
   .skip 8
-engine_newarray_function:         // 0x10
+engine_newobject_function:        // 0x10
   .skip 8
-engine_newthread_nret_function:   // 0x18
+engine_newarray_function:         // 0x18
   .skip 8
-engine_carrier_specific_offset:   // 0x20
+engine_newthread_nret_function:   // 0x20
   .skip 8
-engine_cjthread_specific_offset:  // 0x28
+engine_carrier_specific_offset:   // 0x28
+  .skip 8
+engine_cjthread_specific_offset:  // 0x30
   .skip 8
 
 // --- SECTION TEXT ---
@@ -418,3 +425,91 @@ engine_fake_execute_closure:
   // (x8: sret, x0: ()T, x1: TypeInfo[Future[T]]
   ldr   x2, [x0, #0x10]
   br    x2
+
+// expects: (ECTYPE_REG: ectype)
+// When exception is thrown from CJNative code to interpreter, execution of
+// interpreter exception handling starts here
+// TODO obtain exception using PostThrowException from RT interface
+common_landing_pad:
+  bl engine_get_and_clear_pending_exception
+  b engine_handle_exception
+
+// expects: (ECTYPE_REG: ectype, x0: exception reference)
+//
+// Returns to interpretation loop with exception reference on ectype.SR0
+// or throws exception reference using CJNative runtime interface if there is no any exception handler in consecutive interpreter frames.
+// Precondition: top frame is interpreter frame.
+.balign 16
+engine_handle_exception:
+  mov   x21, x0
+
+  ldr   x0, [x29, #-0x8]      // fuh
+  sub   x1, x29, #READER_SLOT // reader
+  bl    engine_get_exception_handler
+
+  cbz   w0, .Lunwind_top_frame
+
+  // Handler is found, set exception object to SREG and continue interpretation
+  str   x21, [ECTYPE_REG, #ECTYPE_SREGS_OFFSET]
+  b     .Lrestart_interpretation
+
+.Lunwind_top_frame:
+  // Restore spilled non-volatile regs before clearing the frame
+  ldr   x9, [x29, #-0x8]      // fuh
+  ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
+  ldr   w1, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
+  mov   x2, sp
+  add   x1, x1, x2            // start of saved regs area
+
+  POP_IREGS w8, x1, x9
+  POP_FREGS w8, x1, x9
+
+  ldr   LITERALS_REG, [x29, #-0x18]
+  ldr   ECTYPE_REG, [x29, #-0x10]
+
+  // Clear top frame
+  mov   sp, x29
+  ldp   x29, x30, [sp], #16
+
+  // Check if next method is C2I adapter
+  adrp  x9, engine_c2i_call_pc_start
+  add   x9, x9, :lo12:engine_c2i_call_pc_start
+  cmp   x30, x9
+  b.lo  .Lhandle_next_dyn_func
+  adrp  x9, engine_c2i_call_pc_end
+  add   x9, x9, :lo12:engine_c2i_call_pc_end
+  cmp   x30, x9
+  b.hs  .Lhandle_next_dyn_func
+
+  // Unwind next frame (C2I) and when there are no interpreter frames
+  // throw exception using CJNative runtime (as it usually done in AOT code)
+.Llast_interpreter_frame_unwinding:
+  mov   x0, x21              // set exception pointer as argument
+
+  // Restore C2I saved regs
+  add   sp, sp, #16          // skip saved fuh
+  ldp   x27, x28, [sp], #16
+  ldp   x23, x24, [sp], #16
+  ldp   x21, x22, [sp], #16
+  ldp   x19, x20, [sp], #16
+  ldp   x29, x30, [sp], #16
+
+  // Now stack has the following layout:
+  //
+  // |                     |
+  // |         ...         |
+  // | AOT func frame data |
+  // |---------------------|
+  //
+  // x30: AOT func ret ip
+  //
+  // So br to engine_throw_out_of_interpreter can be seen as blr from AOT function.
+
+  adrp  x9, engine_throw_out_of_interpreter
+  ldr   x9, [x9, :lo12:engine_throw_out_of_interpreter]
+  br    x9
+  brk   #0
+
+.Lhandle_next_dyn_func:
+  mov   x0, x21
+  b     engine_handle_exception
