@@ -27,6 +27,8 @@ declare_hidden engine_i2_gcpoint
 declare_hidden engine_universal_direct_function_handles
 declare_hidden engine_tls_function
 declare_hidden engine_throw_out_of_interpreter
+declare_hidden engine_throw_implicit_exception
+declare_hidden engine_implicit_exception_thrower
 declare_hidden engine_newobject_function
 declare_hidden engine_newarray_function
 declare_hidden engine_newthread_nret_function
@@ -47,6 +49,8 @@ engine_universal_direct_function_handles:
 engine_tls_function:
   .skip 8
 engine_throw_out_of_interpreter:
+  .skip 8
+engine_implicit_exception_thrower:
   .skip 8
 engine_newobject_function:
   .skip 8
@@ -434,6 +438,14 @@ engine_fake_execute_closure:
   mov   rdi, rsi
   jmp   rcx
 
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: exception type)
+// preserved: ECTYPE_REG, rbp
+// TLS_REG can be changed after context-switch
+engine_throw_implicit_exception:
+  // jumped from .Linterpreter_call without return address to return
+  call  [rip + engine_implicit_exception_thrower]
+  ud2 // should not return, as exception is thrown inside call
+
 // expects: (ECTYPE_REG: ectype)
 // When exception is thrown from CJNative code to interpreter, execution of
 // interpreter exception handling starts here
@@ -490,10 +502,10 @@ engine_handle_exception:
   jae   .Lhandle_next_dyn_func
 
   // Unwind current frame and next (C2I) and when there are no interpreter frames
-  // throw exception using CJNative runtime (as it usually done in AOT code) 
+  // throw exception using CJNative runtime (as it usually done in AOT code)
 .Llast_interpreter_frame_unwinding:
   mov   rdi, r12 // set exception pointer as argument
-  
+
   // TODO use macros here
   // Restore C2I saved regs
   pop   rbx // pop saved fuh
@@ -505,7 +517,7 @@ engine_handle_exception:
   pop   rbp
 
   // Now stack has the following layout:
-  // 
+  //
   // |                     |
   // |         ...         |
   // | AOT func frame data |
@@ -514,7 +526,7 @@ engine_handle_exception:
   // |---------------------|
   //
   // So jumping to engine_throw_out_of_interpreter can be seen as call from AOT function.
-  
+
   jmp   [rip + engine_throw_out_of_interpreter]
   ud2
 

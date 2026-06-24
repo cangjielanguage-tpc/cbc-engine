@@ -83,9 +83,8 @@ Interpretation::Thunk engine_interpretation_loop(
 
 #define THROW_IMPLICIT(type)                                                                                           \
     do {                                                                                                               \
-        ImplicitException(type).Throw();                                                                               \
-        exceptionObj = NOTNULL(RTSupport::Execution::GetAndClearPendingException().value);                             \
-        goto HANDLE_EXCEPTION;                                                                                         \
+        reader0 = readerBeforeInstr;                                                                                   \
+        return { RTSupport::Execution::ThrowImplicitException(), reinterpret_cast<void*>(type) };                      \
     } while (0)
 
 #define CBC_RT_LABEL(opc, encoding, fmt) &&opc,

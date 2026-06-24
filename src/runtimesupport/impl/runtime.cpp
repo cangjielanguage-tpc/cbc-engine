@@ -13,12 +13,6 @@ namespace RTSupport {
 
 using Reference = Interpretation::Value::Reference;
 
-/// Executes Cangjie native @C function if it should be called directly from interpreter.
-/// Performs N2C transition in terms of CJNative runtime.
-///
-/// Defined in N2C.S
-extern "C" void* engine_execute_cangjie_cfunc(...);
-
 Reference Execution::ReadObjectInstance(Reference base, size_t offset, ThreadHandle th)
 {
     return Reference { .value = reinterpret_cast<uintptr_t>(g_CJNativeInterfaceInstance.readInstanceField(
@@ -68,6 +62,8 @@ void* Execution::AllocateObjectInstance() { return reinterpret_cast<void*>(&Asm:
 void* Execution::AllocateArrayInstance() { return reinterpret_cast<void*>(&Asm::engine_i2_newarray); }
 
 void* Execution::HandleException() { return reinterpret_cast<void*>(&Asm::engine_handle_exception); }
+
+void* Execution::ThrowImplicitException() { return reinterpret_cast<void*>(&Asm::engine_throw_implicit_exception); }
 
 void* Execution::GcPoint() { return reinterpret_cast<void*>(g_CJNativeInterfaceInstance.safePoint); }
 
@@ -138,13 +134,11 @@ Reference Execution::GetLocalBasePtr()
     return Reference { .value = 0 };
 }
 
-void* Execution::ExecuteCangjieCFunc(void* func, uint64_t arg1, uint64_t arg2, uint64_t arg3)
+void Execution::RegisterImplicitExceptionsThrower()
 {
-    DYN_ThreadLocalData tld = g_CJNativeInterfaceInstance.getThreadLocalData();
-    return engine_execute_cangjie_cfunc(arg1, arg2, arg3, func, tld);
+    auto funcAddr = NOTNULL(GetSymbolAddr("libhelper.so", "_CN7default22throwImplicitExceptionHl"));
+    Asm::engine_implicit_exception_thrower = reinterpret_cast<void (*)(int)>(funcAddr);
 }
-
-void* Execution::GetImplicitExceptionsThrower() { return GetSymbolAddr("libhelper.so", "throwImplicitException"); }
 
 Reference Execution::GetPendingException()
 {

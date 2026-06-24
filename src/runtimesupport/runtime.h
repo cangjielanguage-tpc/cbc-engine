@@ -65,6 +65,8 @@ struct Execution {
 
     static void* HandleException();
 
+    static void* ThrowImplicitException();
+
     static void* GcPoint();
 
     static void* GcPointTrampoline();
@@ -95,9 +97,7 @@ struct Execution {
     static Reference GetGlobalBasePtr();
     static Reference GetLocalBasePtr();
 
-    static void* ExecuteCangjieCFunc(void* func, uint64_t arg1, uint64_t arg2, uint64_t arg3);
-
-    static void* GetImplicitExceptionsThrower();
+    static void RegisterImplicitExceptionsThrower();
     static Reference GetPendingException();
     static Reference GetAndClearPendingException();
 };

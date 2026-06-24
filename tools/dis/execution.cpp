@@ -59,6 +59,12 @@ void* Execution::HandleException()
     return nullptr;
 }
 
+void* Execution::ThrowImplicitException()
+{
+    FATAL("Should not reach here");
+    return nullptr;
+}
+
 void* Execution::GcPointTrampoline() { FATAL("Should not reach here"); }
 
 void* Execution::Spawn() { FATAL("Should not reach here"); }
@@ -75,12 +81,7 @@ Reference Execution::GetGlobalBasePtr() { FATAL("Should not reach here"); }
 
 Reference Execution::GetLocalBasePtr() { FATAL("Should not reach here"); }
 
-void* Execution::ExecuteCangjieCFunc(void* func, uint64_t arg1, uint64_t arg2, uint64_t arg3)
-{
-    FATAL("Should not reach here");
-}
-
-void* Execution::GetImplicitExceptionsThrower() { FATAL("Should not reach here"); }
+void Execution::RegisterImplicitExceptionsThrower() { FATAL("Should not reach here"); }
 
 Reference Execution::GetPendingException()
 {
