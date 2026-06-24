@@ -314,7 +314,11 @@ struct IsaRewriter : public IsaParser {
         }
         auto field = f.value();
         if (field->offset.has_value()) {
-            emit.StoreObj(Stk(field->fieldType->GetKind()), rs, rb, field->offset.value());
+            if (field->refType->GetKind() == Resolution::CbcTypeKind::REF) {
+                emit.StoreObj(Stk(field->fieldType->GetKind()), rs, rb, field->offset.value());
+            } else {
+                emit.StoreRec(Stk(field->fieldType->GetKind()), rs, rb, field->offset.value());
+            }
         } else {
             errStream << "Failed to get offset of field " << *field << Stream::endl;
             Fail();
