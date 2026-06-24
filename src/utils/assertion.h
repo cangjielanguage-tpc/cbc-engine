@@ -45,9 +45,9 @@
 
     #if defined(TARGET_OS_IOS) && TARGET_OS_IOS && __has_include(<os/log.h>)
         #include <os/log.h>
-        #define CBC_ENGINE_IOS_OS_LOG 1
+        #define ASSERTION_IOS_OS_LOG 1
     #else
-        #define CBC_ENGINE_IOS_OS_LOG 0
+        #define ASSERTION_IOS_OS_LOG 0
     #endif
 
 [[noreturn]]
@@ -56,7 +56,7 @@ static void ReportFailure(const char* filename, int line, const char* func, cons
     fprintf(stderr, "%s:%d: assertion failed in %s: ", filename, line, func);
     va_list args;
     va_start(args, fmt);
-    #if CBC_ENGINE_IOS_OS_LOG
+    #if ASSERTION_IOS_OS_LOG
     va_list logArgs;
     va_copy(logArgs, args);
     #endif
@@ -65,7 +65,7 @@ static void ReportFailure(const char* filename, int line, const char* func, cons
     fprintf(stderr, "\n");
     fflush(stderr);
 
-    #if CBC_ENGINE_IOS_OS_LOG
+    #if ASSERTION_IOS_OS_LOG
     char message[4096];
     int written = vsnprintf(message, sizeof(message), fmt, logArgs);
     va_end(logArgs);

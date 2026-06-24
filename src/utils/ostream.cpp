@@ -1,15 +1,40 @@
 #include "utils/ostream.h"
 
 #include "utils/assertion.h"
+#include <algorithm>
 #include <cstddef>
 #include <cstdio>
 #include <memory>
 #include <utility>
 
+#if defined(__APPLE__) && __has_include(<TargetConditionals.h>)
+    #include <TargetConditionals.h>
+#endif
+
+#if defined(TARGET_OS_IOS) && TARGET_OS_IOS && __has_include(<os/log.h>)
+    #include <os/log.h>
+    #define CBC_ENGINE_STREAM_IOS_OS_LOG 1
+#else
+    #define CBC_ENGINE_STREAM_IOS_OS_LOG 0
+#endif
+
 namespace Stream {
 
+namespace {
+
+constexpr size_t PLATFORM_LOG_MAX_MESSAGE_SIZE = 4096;
+
+} // namespace
+
 FileOutput cout(stdout);
-FileOutput cerr(stderr);
+
+#if CBC_ENGINE_STREAM_IOS_OS_LOG
+IOSPlatformLogOutput cerrOutput;
+#else
+FileOutput cerrOutput(stderr);
+#endif
+
+Output& cerr = cerrOutput;
 Descripted Disasm::isa(cerr, "[dis-isa] ");
 Descripted Disasm::rt(cerr, "[dis-rt] ");
 
@@ -107,6 +132,28 @@ FileOutput::FileOutput(FILE* destStream) : Output(), dest(destStream) {}
 void FileOutput::Flush() const { fflush(dest); }
 
 void FileOutput::VPrintFmt(const char* fmt, va_list argp) { vfprintf(dest, fmt, argp); }
+
+void PlatformLogOutput::NewLine() {}
+
+void PlatformLogOutput::VPrintFmt(const char* fmt, va_list argp)
+{
+    char message[PLATFORM_LOG_MAX_MESSAGE_SIZE];
+    int written = vsnprintf(message, sizeof(message), fmt, argp);
+    if (written < 0) {
+        return;
+    }
+
+    Log(message);
+}
+
+void IOSPlatformLogOutput::Log(const char* message)
+{
+#if CBC_ENGINE_STREAM_IOS_OS_LOG
+    os_log(OS_LOG_DEFAULT, "%{public}s", message);
+#else
+    (void)message;
+#endif
+}
 
 StringBuffer::StringBuffer() : data(nullptr), size(0), capacity(0) {}
 

@@ -5,6 +5,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string>
+#include <string_view>
 
 namespace Stream {
 
@@ -73,6 +74,20 @@ protected:
     FILE* dest;
 };
 
+class PlatformLogOutput : public Output {
+public:
+    void NewLine() override;
+    void VPrintFmt(const char* fmt, va_list argp) override;
+
+protected:
+    virtual void Log(const char* message) = 0;
+};
+
+class IOSPlatformLogOutput : public PlatformLogOutput {
+protected:
+    void Log(const char* message) override;
+};
+
 class StringBuffer : public Output {
 public:
     StringBuffer();
@@ -118,7 +133,7 @@ private:
 };
 
 extern FileOutput cout;
-extern FileOutput cerr;
+extern Output& cerr;
 
 namespace Disasm {
 extern Descripted isa;
