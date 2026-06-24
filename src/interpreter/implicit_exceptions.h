@@ -17,8 +17,6 @@ public:
 
     constexpr operator Type() const { return type; }
 
-    const void Throw() const;
-
     static void RegisterExceptionThrower();
 
 private:
