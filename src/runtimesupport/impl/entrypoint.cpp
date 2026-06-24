@@ -1,12 +1,10 @@
 #include "runtimesupport/impl/entrypoint.h"
 
-#include <filesystem>
 #include <mutex>
 
 #include "RTInterface.h"
 #include "asm_export.h"
 #include "asm_trampolines.h"
-#include "cbc/isa.h"
 #include "cbc/isa_disasm.h"
 #include "cbc_engine.h"
 #include "cjnative.h"
@@ -17,7 +15,6 @@
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/dependencies.h"
 #include "engine/symlevel/reader.h"
-#include "engine/terms.h"
 #include "gc_support.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
