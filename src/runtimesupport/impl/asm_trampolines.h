@@ -14,6 +14,7 @@ extern "C" {
 extern void engine_c2i_call_pc_start();
 extern void engine_c2i_call_pc_end();
 extern void engine_i2_newobject();
+extern void engine_i2_newobject_acc();
 extern void engine_i2_newarray();
 extern void engine_i2_gcpoint();
 extern void engine_i2_spawn();

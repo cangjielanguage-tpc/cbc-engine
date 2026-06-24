@@ -841,5 +841,22 @@ void Emitter::Throw(IReg reg)
     Encode(segment, RT::B2xr { .opc = RT::Opcode::THROW, .xr = { .imm = 0, .r = reg } });
 }
 
+void Emitter::LoadGenericTypeInfo(void* termData)
+{
+    auto d = reinterpret_cast<uintptr_t>(termData);
+    Encode(segment, RT::B9i64 { .opc = RT::Opcode::LOAD_GENERIC_TI, .imm64 = { d } });
+}
+
+void Emitter::LoadTypeInfo(RTSupport::TypeInfo typeInfo)
+{
+    auto d = reinterpret_cast<uintptr_t>(typeInfo.Raw());
+    Encode(segment, RT::B9i64 { .opc = RT::Opcode::LOAD_TI, .imm64 = { d } });
+}
+
+void Emitter::NewBox(Interpretation::BuiltinType t)
+{
+    Encode(segment, RT::B2xr { .opc = RT::Opcode::NEWBOX, .xr = { .imm = t, .r = IReg::IRZ } });
+}
+
 } // namespace Emitter
 } // namespace Cbc

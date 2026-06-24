@@ -167,7 +167,8 @@ public:
     X(IR10)                                                                                                            \
     X(IR11)                                                                                                            \
     X(IR12)                                                                                                            \
-    X(IR13)
+    X(IR13)                                                                                                            \
+    X(IR_ACC)
 
 #define IREG_ENUM(opc) opc,
 
@@ -175,7 +176,7 @@ public:
         IREG_VALUES(IREG_ENUM) FIRST_NON_VOL = IR8
     };
 
-    static constexpr int COUNT = 14;
+    static constexpr int COUNT = 15;
 
     constexpr IReg(const Value raw) : _value(raw) {}
 

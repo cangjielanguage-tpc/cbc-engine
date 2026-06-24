@@ -1,6 +1,6 @@
 #include "heap.h"
+#include "utils/assertion.h"
 #include <cstdlib>
-#include <new>
 
 namespace Memory {
 
@@ -11,7 +11,7 @@ struct OSHeap : public Heap {
     {
         auto result = malloc(bytes);
         if (!result) {
-            throw std::bad_alloc();
+            FATAL("Out of memory");
         }
         return result;
     }

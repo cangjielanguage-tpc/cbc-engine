@@ -133,11 +133,12 @@ public:
     TermData* data;
 
     static Term Definition(Session& session, Identifier<Symlevel::TypeDefinition> type);
-    static Term Predefined(TermKind tk);
+    static GlobalTerm Predefined(TermKind tk);
 
     static Term ClassTypeVariable(uint8_t tv);
     static Term FuncTypeVariable(uint8_t tv);
 
+    Term();
     Term(LocalTerm local);
     Term(GlobalTerm global);
     Term(Term const& term);
@@ -278,6 +279,20 @@ private:
     Term term;
 };
 
+/// Routine that substitutes class type variables with corresponding subterms provided in vector.
+/// Function type vars are mapped to themselves.
+class ArraySubstitution : public Substitution {
+public:
+    ArraySubstitution(Session& session, std::vector<Term> const& terms);
+
+protected:
+    Term SubstituteClassTv(uint8_t typeVar) override;
+    Term SubstituteFuncTv(uint8_t typeVar) override;
+
+private:
+    std::vector<Term> const& terms;
+};
+
 /// Term manager provides utilities for caching (and interning) of global terms,
 /// and responsible for resolution of term identifiers.
 class TermManager {
@@ -295,11 +310,13 @@ public:
     /// The function performs in-place modification of `Term` structure.
     GlobalTerm Globalize(Term& term);
 
+    Term NewTermWithId(Session& session, TermId id, bool isReference, std::vector<Term> const& subterms);
+
     Term NewAotRefTerm(Session& session, std::string_view name, std::vector<Term> const& subterms);
     Term NewAotRecTerm(Session& session, std::string_view name, std::vector<Term> const& subterms);
 
-    Utils::StringPool::ZeroTerminatedView GetNameOfAotType(AotRefTermId type);
-    Utils::StringPool::ZeroTerminatedView GetNameOfAotType(AotRecTermId type);
+    Utils::StringPool::String GetNameOfAotType(AotRefTermId type);
+    Utils::StringPool::String GetNameOfAotType(AotRecTermId type);
 
 private:
     Term NewAotTerm(Session& session, std::string_view name, std::vector<Term> const& subterms, bool isReference);

@@ -1,25 +1,24 @@
 #include "runtimesupport/impl/entrypoint.h"
 
-#include <filesystem>
 #include <mutex>
 
 #include "RTInterface.h"
 #include "asm_export.h"
 #include "asm_trampolines.h"
-#include "cbc/isa.h"
 #include "cbc/isa_disasm.h"
 #include "cbc_engine.h"
 #include "cjnative.h"
 #include "engine/engine.h"
 #include "engine/options.h"
-#include "engine/symlevel/io/filesystem.h"
-#include "engine/symlevel/member_index.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/dependencies.h"
+#include "engine/symlevel/io/filesystem.h"
+#include "engine/symlevel/member_index.h"
 #include "engine/symlevel/reader.h"
 #include "gc_support.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
+#include "interpreter/interpretation_loop.h"
 #include "interpreter/loggers.h"
 #include "runtimesupport/impl/rt_syms.h"
 #include "utils/logger.h"
@@ -336,6 +335,23 @@ CBC_EXPORT int interpreter_bridge_init(
 
     if (!g_patchCbc.empty()) {
         PerformPatching();
+    }
+
+    {
+        using namespace Interpretation;
+        auto getTypeInfo                  = g_CJNativeInterfaceInstance.typeInfo;
+        builtinTypeInfos[BUILTIN_BOOLEAN] = RTSupport::TypeInfo(getTypeInfo("Bool"));
+        builtinTypeInfos[BUILTIN_U8]      = RTSupport::TypeInfo(getTypeInfo("UInt8"));
+        builtinTypeInfos[BUILTIN_U16]     = RTSupport::TypeInfo(getTypeInfo("UInt16"));
+        builtinTypeInfos[BUILTIN_U32]     = RTSupport::TypeInfo(getTypeInfo("UInt32"));
+        builtinTypeInfos[BUILTIN_U64]     = RTSupport::TypeInfo(getTypeInfo("UInt64"));
+        builtinTypeInfos[BUILTIN_I8]      = RTSupport::TypeInfo(getTypeInfo("Int8"));
+        builtinTypeInfos[BUILTIN_I16]     = RTSupport::TypeInfo(getTypeInfo("Int16"));
+        builtinTypeInfos[BUILTIN_I32]     = RTSupport::TypeInfo(getTypeInfo("Int32"));
+        builtinTypeInfos[BUILTIN_I64]     = RTSupport::TypeInfo(getTypeInfo("Int64"));
+        builtinTypeInfos[BUILTIN_F16]     = RTSupport::TypeInfo(getTypeInfo("Float16"));
+        builtinTypeInfos[BUILTIN_F32]     = RTSupport::TypeInfo(getTypeInfo("Float32"));
+        builtinTypeInfos[BUILTIN_F64]     = RTSupport::TypeInfo(getTypeInfo("Float64"));
     }
 
     return 0;

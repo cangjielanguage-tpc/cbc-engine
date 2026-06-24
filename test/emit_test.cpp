@@ -306,7 +306,7 @@ TEST(EmitTest, Simple_Neg)
     Cbc::RT::Log(code, Stream::Disasm::rt);
 
     auto res = Interpret(code, U32(0), U32(10));
-    EXPECT_EQ(res.u32, -10);
+    EXPECT_EQ((int32_t) res.u32, -10);
 }
 
 TEST(EmitTest, Simple_FNeg)

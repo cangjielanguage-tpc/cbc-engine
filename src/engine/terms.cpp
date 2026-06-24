@@ -238,7 +238,7 @@ int TermId::Width()
     }
 }
 
-Term Term::Predefined(TermKind tk)
+GlobalTerm Term::Predefined(TermKind tk)
 {
     int num = static_cast<int>(tk);
     return GlobalTerm(Builtins().Primitive(num));
@@ -309,6 +309,8 @@ static bool CompareTermData(TermData* origin, TermData* another)
         return true;
     }
 }
+
+Term::Term() : Term(Term::Predefined(TermKind::NIL)) {}
 
 Term::Term(LocalTerm local) : data(local.data) {}
 
@@ -517,7 +519,7 @@ GlobalTerm TermManager::Globalize(Term& term)
     // cache miss; evacuate term and update cache
     auto data = static_cast<TermData*>(malloc(sizeof(TermData) + termData->length * sizeof(Term)));
     if (data == nullptr) {
-        throw std::bad_alloc();
+        FATAL("Out of memory");
     }
 
     for (int i = 0; i < term.GetLength(); i++) {
@@ -576,6 +578,27 @@ Term TermManager::NewAotTerm(
     } else {
         id = AotRecTermId(InternString(name));
     }
+    data->InitAfterSubterms(id, arity, flags);
+    return Term(LocalTerm(data));
+}
+
+Term TermManager::NewTermWithId(Session& session, TermId id, bool isReference, std::vector<Term> const& subterms)
+{
+    auto& heap     = session.Allocator();
+    auto data      = AllocateTerm(heap, subterms.size());
+    bool isGeneric = false;
+    auto arity     = subterms.size();
+    for (int i = 0; i < arity; i++) {
+        data->subterms[i] = subterms[i];
+        isGeneric         = isGeneric || subterms[i].IsGeneric();
+    }
+
+    TermFlags flags = {
+        .isLocal       = true,
+        .isReference   = isReference,
+        .isAotPromoted = false,
+        .isGeneric     = isGeneric,
+    };
     data->InitAfterSubterms(id, arity, flags);
     return Term(LocalTerm(data));
 }
@@ -868,13 +891,13 @@ size_t TermManager::InternString(std::string_view str)
     return internTable.InternAndGetId(str);
 }
 
-Utils::StringPool::ZeroTerminatedView TermManager::GetNameOfAotType(AotRefTermId type)
+Utils::StringPool::String TermManager::GetNameOfAotType(AotRefTermId type)
 {
     std::lock_guard guard(lock);
     return internTable.GetStringById(type.GetNum());
 }
 
-Utils::StringPool::ZeroTerminatedView TermManager::GetNameOfAotType(AotRecTermId type)
+Utils::StringPool::String TermManager::GetNameOfAotType(AotRecTermId type)
 {
     std::lock_guard guard(lock);
     return internTable.GetStringById(type.GetNum());
@@ -948,5 +971,14 @@ Term ClassSubstitution::SubstituteClassTv(uint8_t typeVar)
 }
 
 Term ClassSubstitution::SubstituteFuncTv(uint8_t typeVar) { return Term::FuncTypeVariable(typeVar); }
+
+ArraySubstitution::ArraySubstitution(Session& session, std::vector<Term> const& terms)
+    : Substitution(session),
+      terms(terms)
+{}
+
+Term ArraySubstitution::SubstituteFuncTv(uint8_t typeVar) { return Term::FuncTypeVariable(typeVar); }
+
+Term ArraySubstitution::SubstituteClassTv(uint8_t typeVar) { return terms.at(typeVar); }
 
 } // namespace Engine

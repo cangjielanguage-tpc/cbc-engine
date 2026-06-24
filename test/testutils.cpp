@@ -1,6 +1,7 @@
 #include "testutils.h"
 #include "engine/symlevel/io/filesystem.h"
 #include "stdio.h"
+#include <filesystem>
 #include <gtest/gtest.h>
 #include <memory>
 #include <optional>

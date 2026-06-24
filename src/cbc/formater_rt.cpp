@@ -104,6 +104,8 @@ private:
     {
         if (ir == IReg::IRZ) {
             stream << "IRZ";
+        } else if (ir == IReg::IR_ACC) {
+            stream << "IR_ACC";
         } else {
             stream << "IR" << ir.Raw();
         }

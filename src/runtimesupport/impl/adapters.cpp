@@ -36,7 +36,7 @@ void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* f
         }
     }
     if (i == TRAMPOLINE_COUNT) {
-        throw std::runtime_error("Too many direct calls");
+        FATAL("Too many direct call links");
     }
     directCallFuhsCount++;
 

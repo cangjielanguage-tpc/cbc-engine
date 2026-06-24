@@ -1,7 +1,5 @@
 #pragma once
 
-#include <cstdint>
-#include <string>
 #include <string_view>
 #include <unordered_map>
 #include <vector>
@@ -10,20 +8,20 @@ namespace Utils {
 
 class StringPool {
 public:
-    struct ZeroTerminatedView : public std::string_view {
-        friend class StringPool;
+    struct String { // std::string has small-string optimization
+        char* str;
+        size_t size;
 
-    private:
-        ZeroTerminatedView(std::string const& str);
+        operator std::string_view();
     };
 
-    ZeroTerminatedView Intern(std::string_view str);
+    String Intern(std::string_view str);
     size_t InternAndGetId(std::string_view str);
-    ZeroTerminatedView GetStringById(size_t id);
+    String GetStringById(size_t id);
 
 private:
     std::unordered_map<std::string_view, size_t> map;
-    std::vector<std::string> strings;
+    std::vector<String> strings;
 };
 
 }

@@ -94,6 +94,11 @@
     X(StoreUntypedImm, StoreUntypedImm)                                                                                \
     X(LoadArray, LoadArray)                                                                                            \
     X(StoreArray, StoreArray)                                                                                          \
+    X(TypeArg, TypeArg)                                                                                                \
+    X(Box, Box)                                                                                                        \
+    X(BoxT, BoxT)                                                                                                      \
+    X(Unbox, Unbox)                                                                                                    \
+    X(UnboxT, UnboxT)                                                                                                  \
     X(_END, Unreachable)
 
 #define ISA_MEM_OPCODES(X)                                                                                             \
@@ -116,7 +121,7 @@
 
 #define ISA_REG_SYM_GROUP_OPCODES(X)                                                                                   \
     X(LoadTypeInfoSig)                                                                                                 \
-    X(LoadTypeInfoFtc)                                                                                                 \
+    X(LoadTypeInfoGeneric)                                                                                             \
     X(NewObj)                                                                                                          \
     X(CallDirect)                                                                                                      \
     X(CallVirt)                                                                                                        \
