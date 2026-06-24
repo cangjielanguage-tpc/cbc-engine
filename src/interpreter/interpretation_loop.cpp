@@ -1051,4 +1051,3 @@ void Interpretation::InterpretationEnd(DynamicFunctionHandle* handle, Ectype* ec
 }
 
 RTSupport::TypeInfo Interpretation::builtinTypeInfos[BUILTIN_COUNT];
-

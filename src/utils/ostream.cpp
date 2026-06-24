@@ -150,7 +150,7 @@ std::string StringBuffer::ToString() { return std::string(data.get(), size); }
 
 char* StringBuffer::ToCString()
 {
-    char* mem = (char*) malloc(size + 1);
+    char* mem = (char*)malloc(size + 1);
     if (!mem) {
         return nullptr;
     }

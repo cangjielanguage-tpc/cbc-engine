@@ -309,25 +309,24 @@ struct IsaDisasm : public IsaParser {
         stream << "starr." << stk.ToStr() << " " << arr.ToStr() << ", " << idx.ToStr() << ", " << Fmt(src, stk.IsFloat()) << endl;
     }
 
-    void TypeArg(IReg ti, int idx, IReg dst) override {
+    void TypeArg(IReg ti, int idx, IReg dst) override
+    {
         stream << "type.arg " << ti.ToStr() << ", " << idx << ", " << dst.ToStr();
     }
 
-    void Box(AnyReg src, IReg dst, Engine::TermKind tk) override {
-        stream << "box." << (uint8_t) tk << " " << src << ", " << dst.ToStr() << endl; // TODO: prettify
+    void Box(AnyReg src, IReg dst, Engine::TermKind tk) override
+    {
+        stream << "box." << (uint8_t)tk << " " << src << ", " << dst.ToStr() << endl; // TODO: prettify
     }
 
-    void BoxT(uint16_t srcTs, IReg dst) override {
-        stream << "box.t " << srcTs << ", " << dst.ToStr() << endl;
+    void BoxT(uint16_t srcTs, IReg dst) override { stream << "box.t " << srcTs << ", " << dst.ToStr() << endl; }
+
+    void Unbox(AnyReg dst, IReg src, Engine::TermKind tk) override
+    {
+        stream << "unbox." << (uint8_t)tk << " " << dst << ", " << src.ToStr() << endl; // TODO: prettify
     }
 
-    void Unbox(AnyReg dst, IReg src, Engine::TermKind tk) override {
-        stream << "unbox." << (uint8_t) tk << " " << dst << ", " << src.ToStr() << endl; // TODO: prettify
-    }
-
-    void UnboxT(uint16_t dstTs, IReg src) override {
-        stream << "unbox.t " << dstTs << ", " << src.ToStr() << endl;
-    }
+    void UnboxT(uint16_t dstTs, IReg src) override { stream << "unbox.t " << dstTs << ", " << src.ToStr() << endl; }
 
     class PrintingMemSpace : public MemSpace {
     public:

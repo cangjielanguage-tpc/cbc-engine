@@ -10,10 +10,10 @@
 #include "cjnative.h"
 #include "engine/engine.h"
 #include "engine/options.h"
-#include "engine/symlevel/io/filesystem.h"
-#include "engine/symlevel/member_index.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/dependencies.h"
+#include "engine/symlevel/io/filesystem.h"
+#include "engine/symlevel/member_index.h"
 #include "engine/symlevel/reader.h"
 #include "gc_support.h"
 #include "interpreter/ectype.h"
@@ -339,19 +339,19 @@ CBC_EXPORT int interpreter_bridge_init(
 
     {
         using namespace Interpretation;
-        auto getTypeInfo = g_CJNativeInterfaceInstance.typeInfo;
+        auto getTypeInfo                  = g_CJNativeInterfaceInstance.typeInfo;
         builtinTypeInfos[BUILTIN_BOOLEAN] = RTSupport::TypeInfo(getTypeInfo("Bool"));
-        builtinTypeInfos[BUILTIN_U8] = RTSupport::TypeInfo(getTypeInfo("UInt8"));
-        builtinTypeInfos[BUILTIN_U16] = RTSupport::TypeInfo(getTypeInfo("UInt16"));
-        builtinTypeInfos[BUILTIN_U32] = RTSupport::TypeInfo(getTypeInfo("UInt32"));
-        builtinTypeInfos[BUILTIN_U64] = RTSupport::TypeInfo(getTypeInfo("UInt64"));
-        builtinTypeInfos[BUILTIN_I8] = RTSupport::TypeInfo(getTypeInfo("Int8"));
-        builtinTypeInfos[BUILTIN_I16] = RTSupport::TypeInfo(getTypeInfo("Int16"));
-        builtinTypeInfos[BUILTIN_I32] = RTSupport::TypeInfo(getTypeInfo("Int32"));
-        builtinTypeInfos[BUILTIN_I64] = RTSupport::TypeInfo(getTypeInfo("Int64"));
-        builtinTypeInfos[BUILTIN_F16] = RTSupport::TypeInfo(getTypeInfo("Float16"));
-        builtinTypeInfos[BUILTIN_F32] = RTSupport::TypeInfo(getTypeInfo("Float32"));
-        builtinTypeInfos[BUILTIN_F64] = RTSupport::TypeInfo(getTypeInfo("Float64"));
+        builtinTypeInfos[BUILTIN_U8]      = RTSupport::TypeInfo(getTypeInfo("UInt8"));
+        builtinTypeInfos[BUILTIN_U16]     = RTSupport::TypeInfo(getTypeInfo("UInt16"));
+        builtinTypeInfos[BUILTIN_U32]     = RTSupport::TypeInfo(getTypeInfo("UInt32"));
+        builtinTypeInfos[BUILTIN_U64]     = RTSupport::TypeInfo(getTypeInfo("UInt64"));
+        builtinTypeInfos[BUILTIN_I8]      = RTSupport::TypeInfo(getTypeInfo("Int8"));
+        builtinTypeInfos[BUILTIN_I16]     = RTSupport::TypeInfo(getTypeInfo("Int16"));
+        builtinTypeInfos[BUILTIN_I32]     = RTSupport::TypeInfo(getTypeInfo("Int32"));
+        builtinTypeInfos[BUILTIN_I64]     = RTSupport::TypeInfo(getTypeInfo("Int64"));
+        builtinTypeInfos[BUILTIN_F16]     = RTSupport::TypeInfo(getTypeInfo("Float16"));
+        builtinTypeInfos[BUILTIN_F32]     = RTSupport::TypeInfo(getTypeInfo("Float32"));
+        builtinTypeInfos[BUILTIN_F64]     = RTSupport::TypeInfo(getTypeInfo("Float64"));
     }
 
     return 0;

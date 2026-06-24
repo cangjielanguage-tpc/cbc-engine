@@ -95,9 +95,9 @@
     X(LoadArray, LoadArray)                                                                                            \
     X(StoreArray, StoreArray)                                                                                          \
     X(TypeArg, TypeArg)                                                                                                \
-    X(Box, Box)                                                                                                      \
+    X(Box, Box)                                                                                                        \
     X(BoxT, BoxT)                                                                                                      \
-    X(Unbox, Unbox)                                                                                                  \
+    X(Unbox, Unbox)                                                                                                    \
     X(UnboxT, UnboxT)                                                                                                  \
     X(_END, Unreachable)
 

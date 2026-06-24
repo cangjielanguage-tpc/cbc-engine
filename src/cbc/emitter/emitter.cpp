@@ -855,7 +855,7 @@ void Emitter::LoadTypeInfo(RTSupport::TypeInfo typeInfo)
 
 void Emitter::NewBox(Interpretation::BuiltinType t)
 {
-    Encode(segment, RT::B2xr { .opc = RT::Opcode::NEWBOX, .xr = { .imm = t, .r = IReg::IRZ }});
+    Encode(segment, RT::B2xr { .opc = RT::Opcode::NEWBOX, .xr = { .imm = t, .r = IReg::IRZ } });
 }
 
 } // namespace Emitter
