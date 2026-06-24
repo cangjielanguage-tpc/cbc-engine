@@ -13,6 +13,9 @@ execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink
 set(CMAKE_CXX_STANDARD 17)
 include(CTest)
 
+option(CBC_BUILD_RUNTIME "Build the cbcengine runtime shared library" ON)
+option(CBC_BUILD_DISASM "Build the disasm command-line tool" ON)
+
 set(DEBUG_OPTIONS "-DCBC_ENGINE_IMMEDIATE_ASSERTION -DCBC_ENGINE_PRETTY_FUNC_NAME")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-stack-protector -fomit-frame-pointer")
@@ -31,7 +34,9 @@ file(GLOB_RECURSE COMMON_LIB_SOURCES CONFIGURE_DEPENDS "src/*.cpp")
 list(FILTER COMMON_LIB_SOURCES EXCLUDE REGEX "src/runtimesupport/.*")
 list(FILTER COMMON_LIB_SOURCES EXCLUDE REGEX "src/arch_os/.*")
 
-add_subdirectory(src/arch_os/)
+if(CBC_BUILD_RUNTIME)
+  add_subdirectory(src/arch_os/)
+endif()
 
 set(LIB_SOURCES ${COMMON_LIB_SOURCES})
 
@@ -47,29 +52,33 @@ if(UNIT_TEST_MODE)
   target_compile_definitions(cbc_lib PRIVATE UNIT_TEST_MODE)
 endif()
 
-file(GLOB_RECURSE ENGINE_SOURCES CONFIGURE_DEPENDS "src/runtimesupport/*.cpp")
+if(CBC_BUILD_RUNTIME)
+  file(GLOB_RECURSE ENGINE_SOURCES CONFIGURE_DEPENDS "src/runtimesupport/*.cpp")
 
-# NOTE: platform-specific sources are supported only for cbcengine shared lib
-add_library(cbcengine SHARED ${PLATFORM_SOURCES} ${ENGINE_SOURCES})
-target_include_directories(cbcengine PUBLIC "include")
-target_include_directories(cbcengine PUBLIC "third_party/mrt/include")
-target_include_directories(cbc_lib PRIVATE "${PLATFORM_DIR}")
-target_link_libraries(cbcengine PRIVATE cbc_lib)
+  # NOTE: platform-specific sources are supported only for cbcengine shared lib
+  add_library(cbcengine SHARED ${PLATFORM_SOURCES} ${ENGINE_SOURCES})
+  target_include_directories(cbcengine PUBLIC "include")
+  target_include_directories(cbcengine PUBLIC "third_party/mrt/include")
+  target_include_directories(cbc_lib PRIVATE "${PLATFORM_DIR}")
+  target_link_libraries(cbcengine PRIVATE cbc_lib)
 
-if(NOT APPLE)
-  target_link_options(cbcengine PRIVATE
-    "-Wl,-z,noexecstack"
-    "-Wl,-z,relro"
-    "-Wl,-z,now")
+  if(NOT APPLE)
+    target_link_options(cbcengine PRIVATE
+      "-Wl,-z,noexecstack"
+      "-Wl,-z,relro"
+      "-Wl,-z,now")
+  endif()
+
+  set_target_properties(cbcengine PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+  if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    set_target_properties(cbcengine PROPERTIES OUTPUT_NAME "cangjie-interpreter")
+  endif()
 endif()
 
-set_target_properties(cbcengine PROPERTIES POSITION_INDEPENDENT_CODE ON)
-
-if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
-  set_target_properties(cbcengine PROPERTIES OUTPUT_NAME "cangjie-interpreter")
+if(CBC_BUILD_DISASM AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
+  add_subdirectory(tools/dis)
 endif()
-
-add_subdirectory(tools/dis)
 
 if(BUILD_TESTING)
   add_subdirectory(test)

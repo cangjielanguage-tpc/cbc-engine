@@ -23,6 +23,10 @@ ANDROID_PLATFORM = "android-26"
 ANDROID_ABI = "arm64-v8a"
 
 
+def is_ios_target(target_os):
+    return target_os in ["ios", "ios-sim"]
+
+
 def run_command(command, cwd=None):
     try:
         subprocess.run(command, shell=True, check=True, cwd=cwd)
@@ -96,12 +100,13 @@ def prepare_cmake_options(args, project_dir):
         return (
             f"{build_type}"
             f"-DBUILD_TESTING={build_testing} "
+            f"-DCBC_BUILD_RUNTIME=ON "
             f"-DCMAKE_TOOLCHAIN_FILE={toolchain_path} "
             f"-DANDROID_PLATFORM={ANDROID_PLATFORM} "
             f"-DANDROID_ABI={ANDROID_ABI} "
         )
 
-    elif args.target_os in ["ios", "ios-sim"]:
+    elif is_ios_target(args.target_os):
         if detect_host_os() != "macos":
             fail(f"{args.target_os} builds require macOS and the Xcode command-line tools")
 
@@ -112,6 +117,8 @@ def prepare_cmake_options(args, project_dir):
         return (
             f"{build_type}"
             f"-DBUILD_TESTING={build_testing} "
+            f"-DCBC_BUILD_RUNTIME=ON "
+            f"-DCBC_BUILD_DISASM=OFF "
             f"-DCMAKE_TOOLCHAIN_FILE={toolchain_path} "
         )
 
@@ -122,8 +129,54 @@ def prepare_cmake_options(args, project_dir):
     return (
         f"{build_type}"
         f"-DBUILD_TESTING={build_testing} "
+        f"-DCBC_BUILD_RUNTIME=ON "
         f"-DCMAKE_TOOLCHAIN_FILE={toolchain_path} "
     )
+
+
+def remove_stale_ios_disasm(build_dir):
+    for artifact in [
+        Path(build_dir) / "tools/dis/disasm.app",
+        Path(build_dir) / "tools/dis/disasm",
+    ]:
+        if artifact.exists():
+            print(f"Removing stale iOS disasm artifact: {artifact}")
+            if artifact.is_dir() and not artifact.is_symlink():
+                shutil.rmtree(artifact)
+            else:
+                artifact.unlink()
+
+
+def host_tools_build_dir(build_root_dir, host_os, host_arch):
+    return f"{build_root_dir}/host-tools_{target_name(host_os, host_arch)}"
+
+
+def build_host_disasm(args, project_dir, build_root_dir, host_os, host_arch):
+    build_dir = host_tools_build_dir(build_root_dir, host_os, host_arch)
+
+    if not os.path.exists(build_dir):
+        os.makedirs(build_dir)
+
+    cmake_options = (
+        f"-DCMAKE_BUILD_TYPE={args.build_type.capitalize()} "
+        f"-DBUILD_TESTING=OFF "
+        f"-DCBC_BUILD_RUNTIME=OFF "
+        f"-DCBC_BUILD_DISASM=ON "
+    )
+    cmake_cmd = (
+        f"cmake {project_dir} "
+        f"{cmake_options}"
+    )
+    make_cmd = f"make -j{args.jobs} disasm"
+
+    print(
+        "--- Configuring "
+        f"({args.build_type}) for host tools {target_name(host_os, host_arch)} ---"
+    )
+    run_command(cmake_cmd, cwd=build_dir)
+
+    print(f"--- Building host disasm with {args.jobs} jobs ---")
+    run_command(make_cmd, cwd=build_dir)
 
 
 def build(args, project_dir, build_dir):
@@ -139,6 +192,9 @@ def build(args, project_dir, build_dir):
         )
 
     cmake_options = prepare_cmake_options(args, project_dir)
+
+    if is_ios_target(args.target_os):
+        remove_stale_ios_disasm(build_dir)
 
     if not os.path.exists(build_dir):
         os.makedirs(build_dir)
@@ -163,6 +219,10 @@ def build(args, project_dir, build_dir):
 
     print(f"--- Building with {args.jobs} jobs ---")
     run_command(make_cmd, cwd=build_dir)
+
+    if is_ios_target(args.target_os):
+        build_root_dir = str(Path(build_dir).parent)
+        build_host_disasm(args, project_dir, build_root_dir, host_os, host_arch)
 
     if args.run_tests:
         print("------------------------------------------------")

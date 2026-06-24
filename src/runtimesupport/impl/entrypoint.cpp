@@ -1,5 +1,6 @@
 #include "runtimesupport/impl/entrypoint.h"
 
+#include <dlfcn.h>
 #include <filesystem>
 #include <mutex>
 #include <system_error>
@@ -43,6 +44,123 @@ static void NativeLog(std::string message)
 
     static char tag[] = "Interpreter";
     logger(21, tag, message.data());
+}
+
+static const char* TypeInfoName(DYN_TypeInfo* ti)
+{
+    if (ti == nullptr) {
+        return "<null>";
+    }
+    if (ti->typeInfoName == nullptr) {
+        return "<unnamed>";
+    }
+    return ti->typeInfoName;
+}
+
+static void LogFunctionPointer(const char* prefix, size_t extDefIndex, size_t slotIndex, DYN_FuncPtr ptr)
+{
+    RTSupport::Log::rt.Log(Logging::Level::INFO, [prefix, extDefIndex, slotIndex, ptr](Stream::Output& out) {
+        Dl_info info {};
+        if (ptr != nullptr && dladdr(ptr, &info) != 0) {
+            out.PrintFmtLn(
+                "%s extDef[%zu].funcTable[%zu] = %p -> %s (%p) in %s",
+                prefix,
+                extDefIndex,
+                slotIndex,
+                ptr,
+                info.dli_sname != nullptr ? info.dli_sname : "<unnamed>",
+                info.dli_saddr,
+                info.dli_fname != nullptr ? info.dli_fname : "<unknown>"
+            );
+            return;
+        }
+
+        out.PrintFmtLn("%s extDef[%zu].funcTable[%zu] = %p -> <unresolved>", prefix, extDefIndex, slotIndex, ptr);
+    });
+}
+
+static void LogPatchExtensionDataTable(const char* phase, DYN_TypeInfo* ti)
+{
+    static constexpr size_t MAX_EXT_DEFS_TO_LOG     = 16;
+    static constexpr uint16_t MAX_FUNC_SLOTS_TO_LOG = 4;
+
+    RTSupport::Log::rt.Log(Logging::Level::INFO, [phase, ti](Stream::Output& out) {
+        if (ti == nullptr) {
+            out.PrintFmtLn("%s patch type info is null", phase);
+            return;
+        }
+
+        out.PrintFmtLn(
+            "%s patch type info %p name=%s validInheritNum=%u vExtensionDataStart=%p",
+            phase,
+            ti,
+            TypeInfoName(ti),
+            ti->validInheritNum,
+            ti->vExtensionDataStart
+        );
+    });
+
+    if (ti == nullptr || ti->vExtensionDataStart == nullptr) {
+        return;
+    }
+
+    for (size_t extDefIndex = 0; extDefIndex < MAX_EXT_DEFS_TO_LOG; ++extDefIndex) {
+        auto edef = ti->vExtensionDataStart[extDefIndex];
+        if (edef == nullptr) {
+            RTSupport::Log::rt.Log(Logging::Level::INFO, [phase, extDefIndex](Stream::Output& out) {
+                out.PrintFmtLn("%s extDef[%zu] = <null>", phase, extDefIndex);
+            });
+            return;
+        }
+
+        RTSupport::Log::rt.Log(Logging::Level::INFO, [phase, extDefIndex, edef](Stream::Output& out) {
+            if (edef->isInterfaceTypeInfo) {
+                out.PrintFmtLn(
+                    "%s extDef[%zu]=%p argNum=%u isInterfaceTypeInfo=%u flag=0x%02x funcTableSize=%u "
+                    "target=%s interface=%s funcTable=%p",
+                    phase,
+                    extDefIndex,
+                    edef,
+                    edef->argNum,
+                    edef->isInterfaceTypeInfo,
+                    edef->flag,
+                    edef->funcTableSize,
+                    TypeInfoName(edef->ti),
+                    TypeInfoName(edef->interfaceTypeInfo),
+                    edef->funcTable
+                );
+                return;
+            }
+
+            out.PrintFmtLn(
+                "%s extDef[%zu]=%p argNum=%u isInterfaceTypeInfo=%u flag=0x%02x funcTableSize=%u "
+                "target=%s interfaceFn=%p funcTable=%p",
+                phase,
+                extDefIndex,
+                edef,
+                edef->argNum,
+                edef->isInterfaceTypeInfo,
+                edef->flag,
+                edef->funcTableSize,
+                TypeInfoName(edef->ti),
+                edef->interfaceFn,
+                edef->funcTable
+            );
+        });
+
+        if (edef->funcTable == nullptr) {
+            continue;
+        }
+
+        uint16_t slotLimit = edef->funcTableSize < MAX_FUNC_SLOTS_TO_LOG ? edef->funcTableSize : MAX_FUNC_SLOTS_TO_LOG;
+        for (uint16_t slotIndex = 0; slotIndex < slotLimit; ++slotIndex) {
+            LogFunctionPointer(phase, extDefIndex, slotIndex, edef->funcTable[slotIndex]);
+        }
+    }
+
+    RTSupport::Log::rt.Log(Logging::Level::WARN, [](Stream::Output& out) {
+        out << "extension-data logging stopped before a null terminator" << Stream::endl;
+    });
 }
 
 static void InitEnvOpts()
@@ -191,7 +309,15 @@ static void PerformPatching()
                 out.PrintFmtLn("patch type info found: %s", patchClassName.c_str());
             });
 
+            LogPatchExtensionDataTable("before patch", ti);
+
             // Corresponding extension def (TODO: check it)
+            if (ti->vExtensionDataStart == nullptr || ti->vExtensionDataStart[1] == nullptr) {
+                RTSupport::Log::rt.Log(Logging::Level::ERROR, [](Stream::Output& out) {
+                    out << "patch extension data vExtensionDataStart[1] is not available" << Stream::endl;
+                });
+                return;
+            }
             auto edef = ti->vExtensionDataStart[1];
 
             def.GetMethods().ForEach(session, [&](Symlevel::MethodDefinition& mdef) {
@@ -214,9 +340,26 @@ static void PerformPatching()
                     auto fuh = fuhManager.AcquireTagged(session, mdef.GetIdentifier());
                     auto ptr = fuhManager.GetFunctionPtrForDirectCall(fuh);
 
+                    if (edef->funcTable == nullptr || idx >= edef->funcTableSize) {
+                        RTSupport::Log::rt.Log(Logging::Level::ERROR, [&idx, edef](Stream::Output& out) {
+                            out.PrintFmtLn(
+                                "cannot patch funcTable[%d]: funcTable=%p funcTableSize=%u",
+                                idx,
+                                edef->funcTable,
+                                edef->funcTableSize
+                            );
+                        });
+                        return;
+                    }
+
+                    LogFunctionPointer("patch old", 1, idx, edef->funcTable[idx]);
+                    LogFunctionPointer("patch new", 1, idx, ptr);
                     edef->funcTable[idx] = ptr;
+                    LogFunctionPointer("patch stored", 1, idx, edef->funcTable[idx]);
                 }
             });
+
+            LogPatchExtensionDataTable("after patch", ti);
 
             // Set patched flag
             auto& deps = file.GetDependencies();

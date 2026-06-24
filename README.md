@@ -34,6 +34,8 @@ python3 build.py build --target-os=ios-sim --target-arch=aarch64
 
 3) Library is located in `output/<target-os>_<target-arch>/libcbcengine.so`.
 For iOS, the output is `output/<target-os>_aarch64/libcangjie-interpreter.dylib`.
+iOS device and simulator builds also build the host `disasm` tool for macOS at
+`output/host-tools_macos_<host-arch>/tools/dis/disasm`.
 
 ## How to run tests
 
