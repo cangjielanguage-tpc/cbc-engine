@@ -133,7 +133,17 @@ void FileOutput::Flush() const { fflush(dest); }
 
 void FileOutput::VPrintFmt(const char* fmt, va_list argp) { vfprintf(dest, fmt, argp); }
 
-void PlatformLogOutput::NewLine() {}
+void PlatformLogOutput::Flush() const
+{
+    if (buffer.empty()) {
+        return;
+    }
+
+    Log(buffer.c_str());
+    buffer.clear();
+}
+
+void PlatformLogOutput::NewLine() { Flush(); }
 
 void PlatformLogOutput::VPrintFmt(const char* fmt, va_list argp)
 {
@@ -143,10 +153,14 @@ void PlatformLogOutput::VPrintFmt(const char* fmt, va_list argp)
         return;
     }
 
-    Log(message);
+    size_t messageSize = static_cast<size_t>(written);
+    messageSize        = std::min(messageSize, sizeof(message) - 1);
+
+    auto available = PLATFORM_LOG_MAX_MESSAGE_SIZE - 1 - buffer.size();
+    buffer.append(message, std::min(messageSize, available));
 }
 
-void IOSPlatformLogOutput::Log(const char* message)
+void IOSPlatformLogOutput::Log(const char* message) const
 {
 #if CBC_ENGINE_STREAM_IOS_OS_LOG
     os_log(OS_LOG_DEFAULT, "%{public}s", message);
