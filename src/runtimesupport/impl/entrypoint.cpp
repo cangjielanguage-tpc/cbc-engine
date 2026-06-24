@@ -104,7 +104,7 @@ static void PerformPatching()
             pkgName = pkgName.substr(3);
 
             RTSupport::Log::rt.Log(Logging::Level::INFO, [&pkgName](Stream::Output& out) {
-                out.PrintFmtLn("patching package %s", pkgName);
+                out << "patching package " << pkgName << Stream::endl;
             });
 
             auto patchPrefix = "$" + std::string(pkgName);
@@ -116,13 +116,13 @@ static void PerformPatching()
             auto ti = g_CJNativeInterfaceInstance.typeInfo(patchClassName.c_str());
             if (ti == nullptr) {
                 RTSupport::Log::rt.Log(Logging::Level::ERROR, [&patchClassName](Stream::Output& out) {
-                    out.PrintFmtLn("patch type info not found: %s", patchClassName.c_str());
+                    out << "patch type info not found: " << patchClassName << Stream::endl;
                 });
                 return;
             }
 
             RTSupport::Log::rt.Log(Logging::Level::INFO, [&patchClassName](Stream::Output& out) {
-                out.PrintFmtLn("patch type info found: %s", patchClassName.c_str());
+                out << "patch type info found: " << patchClassName << Stream::endl;
             });
 
             // Corresponding extension def (TODO: check it)
@@ -142,7 +142,7 @@ static void PerformPatching()
 
                     RTSupport::Log::rt.Log(Logging::Level::INFO, [&idx, &session, &mdef](Stream::Output& out) {
                         auto funcName = Symlevel::Reader::Read(session, mdef.Name());
-                        out.PrintFmtLn("patching funcTable[%d] with %s", idx, funcName);
+                        out << "patching funcTable[" << idx << "] with " << funcName << Stream::endl;
                     });
 
                     auto fuh = fuhManager.AcquireTagged(session, mdef.GetIdentifier());
@@ -157,13 +157,13 @@ static void PerformPatching()
             auto flag = deps.FindTarget(patchFlagName);
             if (flag == nullptr) {
                 RTSupport::Log::rt.Log(Logging::Level::ERROR, [&patchFlagName](Stream::Output& out) {
-                    out.PrintFmtLn("patch flag field not found: %s", patchFlagName.c_str());
+                    out << "patch flag field not found: " << patchFlagName << Stream::endl;
                 });
                 return;
             }
 
             RTSupport::Log::rt.Log(Logging::Level::INFO, [&patchFlagName](Stream::Output& out) {
-                out.PrintFmtLn("patch flag field found: %s", patchFlagName.c_str());
+                out << "patch flag field found: " << patchFlagName << Stream::endl;
             });
 
             *(bool*) flag = true;
@@ -253,7 +253,7 @@ CBC_EXPORT int interpreter_bridge_init(
     struct INT_InterpreterInterface* interpInterf,
     struct DYN_CJNativeInterface* rtInterf,
     int size,
-    const char* const* options
+    const char** options
 );
 
 CBC_EXPORT void engine_set_cbcpath(char const* cbcPath) { g_cbcPath = cbcPath; }
@@ -292,7 +292,7 @@ CBC_EXPORT int interpreter_bridge_init(
     struct INT_InterpreterInterface* interpInterf,
     struct DYN_CJNativeInterface* rtInterf,
     int size,
-    const char* const* options
+    const char** options
 )
 {
     static_assert(std::is_same_v<decltype(&interpreter_bridge_init), INT_InitInterpreter>);

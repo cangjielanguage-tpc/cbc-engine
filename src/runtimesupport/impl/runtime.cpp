@@ -73,7 +73,7 @@ void* Execution::Spawn() { return reinterpret_cast<void*>(&Asm::engine_i2_spawn)
 
 bool Execution::IsPendingSafePoint()
 {
-    return g_CJNativeInterfaceInstance.isPendingSafePoint(g_CJNativeInterfaceInstance.getThreadLocalData());
+    return g_CJNativeInterfaceInstance.isPendingSafePoint(g_CJNativeInterfaceInstance.getThreadLocalData()) != 0;
 }
 
 TypeInfo Execution::GetTypeInfo(Reference base)
@@ -108,7 +108,7 @@ uint32_t Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool adjustByHeader
 
 bool Execution::IsInstanceOf(Reference base, TypeInfo ti)
 {
-    return g_CJNativeInterfaceInstance.instanceOf(reinterpret_cast<DYN_ObjRef>(base.value), UnpackTypeInfo(ti));
+    return g_CJNativeInterfaceInstance.instanceOf(reinterpret_cast<DYN_ObjRef>(base.value), UnpackTypeInfo(ti)) != 0;
 }
 
 bool Execution::IsGlobalStruct(Reference base, uintptr_t derived)
