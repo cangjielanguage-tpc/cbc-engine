@@ -217,12 +217,16 @@ static void IterateFramesWithState(
     DYN_CJThreadSpecificData threadSpecificData, void (*callback)(DYN_VisitingState, void*), void* ctx
 )
 {
-    GCSupport::IterateFramesWithState(threadSpecificData, callback, ctx);
+    if (g_Initialized) {
+        GCSupport::IterateFramesWithState(threadSpecificData, callback, ctx);
+    }
 }
 
 static void VisitFrameRootsMarking(DYN_VisitingState state, INT_FrameDesc frame_desc, DYN_RootVisitor root_visitor)
 {
-    GCSupport::VisitGCFrameRoots(state, frame_desc, root_visitor);
+    if (g_Initialized) {
+        GCSupport::VisitGCFrameRoots(state, frame_desc, root_visitor);
+    }
 }
 
 static void VisitFrameRootsAdjusting(
@@ -232,7 +236,9 @@ static void VisitFrameRootsAdjusting(
     DYN_DerivedPtrVisitor derived_ptr_visitor
 )
 {
-    GCSupport::VisitGCFrameRoots(state, frame_desc, root_visitor);
+    if (g_Initialized) {
+        GCSupport::VisitGCFrameRoots(state, frame_desc, root_visitor);
+    }
 }
 
 static void VisitFrameRootsExpansion(
@@ -245,7 +251,12 @@ static void VisitFrameRootsExpansion(
     /* no-op */
 }
 
-static void VisitGlobalRoots(DYN_RootVisitor visitor) { GCSupport::VisitGlobalRoots(visitor); }
+static void VisitGlobalRoots(DYN_RootVisitor visitor)
+{
+    if (g_Initialized) {
+        GCSupport::VisitGlobalRoots(visitor);
+    }
+}
 
 extern "C" {
 /// This symbol is exported to the runtime, which would initialize engine.
@@ -336,6 +347,10 @@ CBC_EXPORT int interpreter_bridge_init(
     if (!g_patchCbc.empty()) {
         PerformPatching();
     }
+    // If CBC patch is not found, engine will be left uninitialized.
+    // But Cangjie runtime will still be calling provided interpreter callbacks.
+    // So behavior of INT_InterpreterInterface callbacks with uninitialized engine should be changed:
+    // 1. GC roots visitors should be no-op (since no roots can be created without engine initialization).
 
     {
         using namespace Interpretation;
