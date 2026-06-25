@@ -4,7 +4,7 @@
 #include <stdio.h>
 
 [[noreturn]]
-static void ReportFailure(const char* filename, int line, const char* func, const char* fmt, ...)
+void ReportFailure(const char* filename, int line, const char* func, const char* fmt, ...)
 {
     fprintf(stderr, "%s:%d: assertion failed in %s: ", filename, line, func);
     va_list args;
