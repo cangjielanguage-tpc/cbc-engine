@@ -793,6 +793,25 @@ OFFS_REG_IDX64: {
     memspaceOffsetAcc += interpreter.MemOffsetReg(args.xr.r.IR()) * interpreter.MemOffset(args.imm64.imm);
     MEM_NEXT;
 }
+R_READ_STRUCT: {
+    auto args = MStructFieldOp::Decode(reader);
+    LOG_INSTR;
+    auto dst   = ectype->GetPrimitive(args.rr.x.IR()).u64;
+    auto base  = ectype->GetReference(args.rr.y.IR());
+    auto field = base.value + memspaceOffsetAcc;
+    RTSupport::Execution::ReadStructField(dst, base, field, args.ti, handle);
+    NEXT;
+}
+R_WRITE_STRUCT: {
+    auto args = MStructFieldOp::Decode(reader);
+    LOG_INSTR;
+    auto src   = ectype->GetPrimitive(args.rr.x.IR()).u64;
+    auto base  = ectype->GetReference(args.rr.y.IR());
+    auto field = base.value + memspaceOffsetAcc;
+    RTSupport::Execution::WriteStructField(src, base, field, args.ti, handle);
+    NEXT;
+}
+
 #define RLD(ldk)                                                                                                       \
     RLD_##ldk:                                                                                                         \
     {                                                                                                                  \

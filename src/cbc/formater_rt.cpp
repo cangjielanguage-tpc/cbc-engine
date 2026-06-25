@@ -490,6 +490,13 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M10rri64 a
     formatter.Format();
 }
 
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, MStructFieldOp args)
+{
+    Operand operands[] = { args.rr.x, args.rr.y, args.ti.UInt() };
+    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    formatter.Format();
+}
+
 void LogBaseSpaceInstruction(
     uint32_t opc, Interpretation::LiteralTable* table, Stream::Output& stream, Decoder::ByteReader& reader
 )

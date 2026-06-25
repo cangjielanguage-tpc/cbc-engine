@@ -46,6 +46,9 @@ public:
         void OffsetRegIdx(IReg reg, uint64_t size);
 
         // tail instructions
+        void WriteStructFieldObj(IReg src, IReg base, RTSupport::TypeInfo structTypeInfo);
+        void ReadStructFieldObj(IReg dst, IReg base, RTSupport::TypeInfo structTypeInfo);
+
         void LoadObj(LoadAccessKind ldk, Reg dst, IReg base);
         void StoreObj(StoreAccessKind stk, Reg src, IReg base);
         void StoreObjImm(StoreAccessKind stk, Reg base, uint64_t imm);

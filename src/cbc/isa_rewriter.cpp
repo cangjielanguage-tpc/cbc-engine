@@ -5,6 +5,7 @@
 #include "cbc/frame.h"
 #include "cbc/isa.h"
 #include "cbc/isa_disasm.h"
+#include "cbc/isa_parser.h"
 #include "engine/engine.h"
 #include "engine/resolving_output.h"
 #include "engine/symlevel/code.h"
@@ -136,7 +137,7 @@ struct IsaRewriter : public IsaParser {
         Resolver& resolver,
         Engine::Session& session,
         IO::FileId fileId,
-        MethodCode code,
+        MethodCode& code,
         FrameLayout frameLayout,
         Emitter::Emitter& emit
     )
@@ -144,6 +145,7 @@ struct IsaRewriter : public IsaParser {
           resolver(resolver),
           session(session),
           fileId(fileId),
+          code(code),
           emit(emit),
           frameLayout(frameLayout),
           startPosition(0),
@@ -153,6 +155,7 @@ struct IsaRewriter : public IsaParser {
     Engine::Session& session;
     IO::FileId fileId;
     Resolver& resolver;
+    MethodCode& code;
     Emitter::Emitter& emit;
     FrameLayout frameLayout;
     size_t bytecodeSize;
@@ -754,7 +757,28 @@ struct IsaRewriter : public IsaParser {
         }
     }
 
-    void BoxT(uint16_t srcTs, IReg dst) override { FATAL("Not implemented"); }
+    void BoxT(uint16_t srcTs, IReg dst) override
+    {
+        auto type = resolver.Query(Index<Type>(code.StackAllocSigs()[srcTs]));
+        if (!type.has_value()) {
+            Fail();
+            return;
+        }
+        auto ti = type.value()->GetTypeInfo();
+        if (!ti.has_value()) {
+            Fail();
+            return;
+        }
+        auto typeInfo = ti.value();
+        auto offset   = frameLayout.typedOffset[srcTs];
+        emit.NewBox(typeInfo);
+        BindStatePoint();
+        AdjustReg(dst, IReg::IR_ACC);
+        emit.LoadFrame(Format::LoadAccessKind::LEA, IReg::IR_ACC, offset);
+        auto ms = emit.OpenMemSpace();
+        ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
+        ms.WriteStructFieldObj(IReg::IR_ACC, dst, typeInfo);
+    }
 
     void Unbox(AnyReg dst, IReg src, uint16_t type) override
     {
@@ -781,7 +805,25 @@ struct IsaRewriter : public IsaParser {
         }
     }
 
-    void UnboxT(uint16_t dstTs, IReg src) override { FATAL("Not implemented"); }
+    void UnboxT(uint16_t dstTs, IReg src) override
+    {
+        auto type = resolver.Query(Index<Type>(code.StackAllocSigs()[dstTs]));
+        if (!type.has_value()) {
+            Fail();
+            return;
+        }
+        auto ti = type.value()->GetTypeInfo();
+        if (!ti.has_value()) {
+            Fail();
+            return;
+        }
+        auto typeInfo = ti.value();
+        auto offset   = frameLayout.typedOffset[dstTs];
+        emit.LoadFrame(Format::LoadAccessKind::LEA, IReg::IR_ACC, offset);
+        auto ms = emit.OpenMemSpace();
+        ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
+        ms.ReadStructFieldObj(IReg::IR_ACC, src, typeInfo);
+    }
 
     struct MemSpaceRewriter : public MemSpace {
         MemSpaceRewriter(MemSpaceEmitter emit)
@@ -1171,7 +1213,7 @@ static std::string Descriptor(Engine::Session& session, Engine::Identifier<Symle
 
 Interpretation::ExecBytecodeInfo Rewrite(
     Engine::Session& session,
-    MethodCode code,
+    MethodCode& code,
     Resolver& resolver,
     Memory::Heap& heap,
     Engine::Identifier<Symlevel::MethodDefinition> method

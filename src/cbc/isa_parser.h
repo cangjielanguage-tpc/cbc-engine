@@ -13,7 +13,7 @@ using MethodCode = Symlevel::Code;
 
 class IsaParser {
 public:
-    IsaParser(Cbc::MethodCode code);
+    IsaParser(Cbc::MethodCode& code);
     IsaParser(Decoder::FatByteReader reader);
     IsaParser(uint8_t* start, uint8_t* end);
 

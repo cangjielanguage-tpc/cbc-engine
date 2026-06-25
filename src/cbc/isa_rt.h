@@ -99,6 +99,8 @@
     X(OFFS64, M9i64, "offs.64 $0U64", false)                                                                           \
     X(OFFS_REG, M2xr, "offs.r $1ir", false)                                                                            \
     X(OFFS_REG_IDX64, M10xri64, "offs.r.idx.64 [$1ir * $2U64]", false)                                                 \
+    X(R_READ_STRUCT, MStructFieldOp, "r.read.struct $0ir $1ir $3U64", true)                                            \
+    X(R_WRITE_STRUCT, MStructFieldOp, "r.write.struct $0ir $1ir $3U64", true)                                          \
     X(RLD_U8, M2rr, "rld.u8 $0ir $1ir }", true)                                                                        \
     X(RLD_U16, M2rr, "rld.u16 $0ir $1ir }", true)                                                                      \
     X(RLD_32, M2rr, "rld.32 $0ir $1ir }", true)                                                                        \
@@ -503,6 +505,20 @@ struct StructFieldOp {
         auto field = Format::RR::Decode(reader);
         auto ti    = reader.Read<RTSupport::TypeInfo>();
         return StructFieldOp { opc, rr, field, ti };
+    }
+};
+
+struct MStructFieldOp {
+    MemOpcode opc;
+    Format::RR rr;
+    RTSupport::TypeInfo ti;
+
+    static MStructFieldOp Decode(Decoder::ByteReader& reader)
+    {
+        auto opc = MemOpcode::Decode(reader);
+        auto rr  = Format::RR::Decode(reader);
+        auto ti  = reader.Read<RTSupport::TypeInfo>();
+        return MStructFieldOp { opc, rr, ti };
     }
 };
 

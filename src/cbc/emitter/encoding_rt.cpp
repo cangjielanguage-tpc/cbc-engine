@@ -224,6 +224,13 @@ void Encode(ByteBuffer& buf, RT::StructFieldOp command)
     buf.AddW64(Bits::Raw64(command.ti));
 }
 
+void Encode(ByteBuffer& buf, RT::MStructFieldOp command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.rr);
+    buf.AddW64(Bits::Raw64(command.ti));
+}
+
 void Encode(ByteBuffer& buf, RT::M3rri8 command)
 {
     Encode(buf, command.opc);
