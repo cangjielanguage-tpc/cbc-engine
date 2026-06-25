@@ -58,23 +58,23 @@ declare_hidden engine_cjthread_specific_offset
 .section .bss
 #endif
 
-.p2align 4
+.balign 16
 engine_universal_direct_function_handles:
   .skip 8 * TRAMPOLINE_COUNT
 
-.p2align 4
+.balign 16
 engine_newobject_function:
   .skip 8
 
-.p2align 4
+.balign 16
 engine_newarray_function:
   .skip 8
 
-.p2align 4
+.balign 16
 engine_carrier_specific_offset:
   .skip 8
 
-.p2align 4
+.balign 16
 engine_cjthread_specific_offset:
   .skip 8
 
@@ -85,7 +85,7 @@ engine_cjthread_specific_offset:
 .section .text
 #endif
 
-.p2align 4
+.balign 16
 engine_universal_direct_call:
 #ifdef __APPLE__
   adrp  x10, engine_universal_direct_function_handles@PAGE
@@ -99,7 +99,7 @@ engine_universal_direct_call:
   br    x10
 
 
-.p2align 4
+.balign 16
 engine_trampolines_direct_start:
 .macro repeat_trampoline_direct count
   .set i, 0
@@ -112,7 +112,7 @@ engine_trampolines_direct_start:
   repeat_trampoline_direct TRAMPOLINE_COUNT
 
 
-.p2align 4
+.balign 16
 engine_universal_dyn_call:
   ldr   x10, [x0]
   ldr   x10, [x10, #TYPEINFO_DATA_MT_OFFSET] // TODO: consider tail array
@@ -121,7 +121,7 @@ engine_universal_dyn_call:
   br    x10
 
 
-.p2align 4
+.balign 16
 engine_trampolines_dyn_start:
 .macro repeat_trampoline_dyn count
   .set i, 0
@@ -137,7 +137,7 @@ engine_trampolines_dyn_start:
 #define ECTYPE_REG x19
 #define LITERALS_REG x20
 
-.p2align 4
+.balign 16
 engine_c2i_call_pc_start:
 engine_iregs_only_c2i_call:
   stp   x29, x30, [sp, #-16]!
@@ -218,7 +218,7 @@ engine_c2i_call_pc_end:
   brk   #0
 
 
-.p2align 4
+.balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: fuh)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
@@ -228,7 +228,7 @@ engine_i2i_call:
   b     .Lrestart_interpretation
 
 
-.p2align 4
+.balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: target)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
@@ -253,7 +253,7 @@ engine_i2c_call:
   b     .Lrestart_interpretation
 
 
-.p2align 4
+.balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
@@ -271,7 +271,7 @@ engine_i2_newobject:
   str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8)]
   b     .Lrestart_interpretation
 
-.p2align 4
+.balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo, x1: length)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
@@ -290,12 +290,12 @@ engine_i2_newarray:
   str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8)]
   b     .Lrestart_interpretation
 
-.p2align 4
+.balign 16
 engine_i2_gcpoint:
   blr x0
   b .Lrestart_interpretation
 
-.p2align 4
+.balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: fuh)
 // preserved: TLS_REG, ECTYPE_REG, x29
 perform_2i_call:
