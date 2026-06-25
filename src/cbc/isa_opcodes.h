@@ -99,6 +99,8 @@
     X(BoxT, BoxT)                                                                                                      \
     X(Unbox, Unbox)                                                                                                    \
     X(UnboxT, UnboxT)                                                                                                  \
+    X(BoxRec, BoxRec)                                                                                                  \
+    X(UnboxRec, UnboxRec)                                                                                              \
     X(_END, Unreachable)
 
 #define ISA_MEM_OPCODES(X)                                                                                             \

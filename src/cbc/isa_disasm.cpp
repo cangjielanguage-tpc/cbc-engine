@@ -314,14 +314,14 @@ struct IsaDisasm : public IsaParser {
         stream << "type.arg " << ti.ToStr() << ", " << idx << ", " << dst.ToStr();
     }
 
-    void Box(AnyReg src, IReg dst, Engine::TermKind tk) override
+    void Box(AnyReg src, IReg dst, uint16_t tk) override
     {
         stream << "box." << (uint8_t)tk << " " << src << ", " << dst.ToStr() << endl; // TODO: prettify
     }
 
     void BoxT(uint16_t srcTs, IReg dst) override { stream << "box.t " << srcTs << ", " << dst.ToStr() << endl; }
 
-    void Unbox(AnyReg dst, IReg src, Engine::TermKind tk) override
+    void Unbox(AnyReg dst, IReg src, uint16_t tk) override
     {
         stream << "unbox." << (uint8_t)tk << " " << dst << ", " << src.ToStr() << endl; // TODO: prettify
     }

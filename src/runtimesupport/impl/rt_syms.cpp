@@ -65,10 +65,14 @@ void Initialize(DYN_CJNativeInterface* interf)
         return;
     }
 
-    // verify that we didn't opened new library.
+    // verify that we didn't opened new library (any other exported symbol can be used).
     auto stackGrowStub = handle->Sym("CJ_MCC_StackGrowStub");
     Asm::engine_newthread_nret_function =
         handle->Func<decltype(Asm::engine_newthread_nret_function)>("CJ_MCC_NewCJThreadNoReturn");
+
+    WriteStructField = handle->Func<decltype(WriteStructField)>("CJ_MCC_WriteStructField");
+    ReadStructField  = handle->Func<decltype(ReadStructField)>("CJ_MCC_ReadStructField");
+
     if (stackGrowStub != interf->stackGrowStub) {
         auto& stream = Log::init.Stream(Logging::Level::ERROR);
         stream << "incorrect stack grow stub address ";

@@ -721,20 +721,65 @@ struct IsaRewriter : public IsaParser {
         }
     }
 
-    void Box(AnyReg src, IReg dst, Engine::TermKind tk) override
+    void Box(AnyReg src, IReg dst, uint16_t type) override
     {
-        auto term     = Engine::Term::Predefined(tk);
-        auto& manager = Engine::TypeInfoManager::Of(session);
-        auto bt       = ToBuiltin(tk);
-        emit.NewBox(bt); // Spoils IR_ACC
-        BindStatePoint();
-        AdjustReg(dst, IReg::IR_ACC);
-        emit.StoreObj(Stk(bt), src, dst, RTSupport::MetaInfo::ObjectHeaderSize());
+        if (type < Engine::Term::FIRST_NON_PRIMITIVE) {
+            auto tk       = Engine::TermKind(type);
+            auto term     = Engine::Term::Predefined(tk);
+            auto& manager = Engine::TypeInfoManager::Of(session);
+            auto bt       = ToBuiltin(tk);
+            emit.NewBox(bt); // Spoils IR_ACC
+            BindStatePoint();
+            AdjustReg(dst, IReg::IR_ACC);
+            emit.StoreObj(Stk(bt), src, dst, RTSupport::MetaInfo::ObjectHeaderSize());
+        } else {
+            auto t = resolver.Query(Index<Type>(type));
+            if (!t.has_value()) {
+                Fail();
+                return;
+            }
+            auto ti = t.value()->GetTypeInfo();
+            if (!ti.has_value()) {
+                Fail();
+                return;
+            }
+            auto typeInfo = ti.value();
+            emit.NewBox(typeInfo); // Spoils IR_ACC
+            BindStatePoint();
+            AdjustReg(dst, IReg::IR_ACC);
+            emit.LoadObj(
+                Format::LoadAccessKind::LEA, IReg::IR_ACC, IReg::IR_ACC, RTSupport::MetaInfo::ObjectHeaderSize()
+            );
+            emit.WriteStructField(IReg::From(src), dst, IReg::IR_ACC, typeInfo);
+        }
     }
 
     void BoxT(uint16_t srcTs, IReg dst) override { FATAL("Not implemented"); }
 
-    void Unbox(AnyReg dst, IReg src, Engine::TermKind tk) override { FATAL("Not implemented"); }
+    void Unbox(AnyReg dst, IReg src, uint16_t type) override
+    {
+        if (type < Engine::Term::FIRST_NON_PRIMITIVE) {
+            auto tk       = Engine::TermKind(type);
+            auto term     = Engine::Term::Predefined(tk);
+            auto& manager = Engine::TypeInfoManager::Of(session);
+            auto bt       = ToBuiltin(tk);
+            emit.LoadObj(Ldk(bt), dst, src, RTSupport::MetaInfo::ObjectHeaderSize());
+        } else {
+            auto t = resolver.Query(Index<Type>(type));
+            if (!t.has_value()) {
+                Fail();
+                return;
+            }
+            auto ti = t.value()->GetTypeInfo();
+            if (!ti.has_value()) {
+                Fail();
+                return;
+            }
+            auto typeInfo = ti.value();
+            emit.LoadObj(Format::LoadAccessKind::LEA, IReg::IR_ACC, src, RTSupport::MetaInfo::ObjectHeaderSize());
+            emit.ReadStructField(IReg::From(dst), src, IReg::IR_ACC, typeInfo);
+        }
+    }
 
     void UnboxT(uint16_t dstTs, IReg src) override { FATAL("Not implemented"); }
 
@@ -1151,6 +1196,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
             }
             out.NewLine();
         });
+        // FIXME: use stub that throws
         FATAL("Rewriter failed: cannot rewrite code.");
     }
 

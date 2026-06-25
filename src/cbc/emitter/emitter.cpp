@@ -5,6 +5,7 @@
 #include "cbc/isa.h"
 #include "cbc/isa_rt.h"
 #include "emitter.h"
+#include "runtimesupport/runtime.h"
 #include "utils/heap.h"
 #include "utils/math.h"
 
@@ -856,6 +857,27 @@ void Emitter::LoadTypeInfo(RTSupport::TypeInfo typeInfo)
 void Emitter::NewBox(Interpretation::BuiltinType t)
 {
     Encode(segment, RT::B2xr { .opc = RT::Opcode::NEWBOX, .xr = { .imm = t, .r = IReg::IRZ } });
+}
+
+void Emitter::NewBox(RTSupport::TypeInfo typeInfo)
+{
+    Encode(segment, RT::B9i64 { .opc = RT::Opcode::NEWBOX2, .imm64 = { reinterpret_cast<uint64_t>(typeInfo.Raw()) } });
+}
+
+void Emitter::ReadStructField(IReg dst, IReg base, IReg field, RTSupport::TypeInfo ti)
+{
+    RT::StructFieldOp command = {
+        .opc = RT::Opcode::READ_STRUCT_FIELD, .rr = { dst, base }, .field = { field, field }, .ti = ti
+    };
+    Encode(segment, command);
+}
+
+void Emitter::WriteStructField(IReg src, IReg base, IReg field, RTSupport::TypeInfo ti)
+{
+    RT::StructFieldOp command = {
+        .opc = RT::Opcode::WRITE_STRUCT_FIELD, .rr = { src, base }, .field = { field, field }, .ti = ti
+    };
+    Encode(segment, command);
 }
 
 } // namespace Emitter

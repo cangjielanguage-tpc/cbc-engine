@@ -2,6 +2,7 @@
 
 #include "decoder.h"
 #include "isa.h"
+#include "runtimesupport/runtime.h"
 
 // X parameters: opcode, encoding format, string format
 #define CBC_RT_OPCODES(X)                                                                                              \
@@ -85,6 +86,9 @@
     X(LOAD_GENERIC_TI, B9i64, "load.generic.ti $0U64")                                                                 \
     X(IOF, IOF, "iof $0ir $1ir $2U64")                                                                                 \
     X(NEWBOX, B2xr, "newbox $0U8")                                                                                     \
+    X(NEWBOX2, B9i64, "newbox2 $0U64")                                                                                 \
+    X(READ_STRUCT_FIELD, StructFieldOp, "read.struct.field $0ir $1ir $2ir $4U64")                                      \
+    X(WRITE_STRUCT_FIELD, StructFieldOp, "write.struct.field $0ir $1ir $2ir $4U64")                                    \
     X(THROW, B2xr, "throw $1ir")
 
 // X parameters: opcode, encoding format, string format, is tail
@@ -477,13 +481,28 @@ struct IOF {
     Format::RR rr;
     uint64_t imm64;
 
-
     static IOF Decode(Decoder::ByteReader& reader)
     {
         auto opc  = Opcode::Decode(reader);
         auto rr   = Format::RR::Decode(reader);
         auto imm64 = reader.Read64();
         return IOF { opc, rr, imm64 };
+    }
+};
+
+struct StructFieldOp {
+    Opcode opc;
+    Format::RR rr;
+    Format::RR field;
+    RTSupport::TypeInfo ti;
+
+    static StructFieldOp Decode(Decoder::ByteReader& reader)
+    {
+        auto opc   = Opcode::Decode(reader);
+        auto rr    = Format::RR::Decode(reader);
+        auto field = Format::RR::Decode(reader);
+        auto ti    = reader.Read<RTSupport::TypeInfo>();
+        return StructFieldOp { opc, rr, field, ti };
     }
 };
 

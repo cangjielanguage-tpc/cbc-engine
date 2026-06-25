@@ -349,7 +349,6 @@ NEWOBJ: {
 
     return { func, type.Raw() };
 }
-
 NEWBOX: {
     auto args = B2xr::Decode(reader);
     LOG_INSTR;
@@ -362,7 +361,36 @@ NEWBOX: {
 
     return { func, btype.Raw() };
 }
+NEWBOX2: {
+    auto args = B9i64::Decode(reader);
+    LOG_INSTR;
+    auto type = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
 
+    // Puts result to `IR1`.
+    auto func = RTSupport::Execution::AllocateObjectInstanceAcc();
+
+    reader0 = reader; // save current pc
+
+    return { func, type.Raw() };
+}
+READ_STRUCT_FIELD: {
+    auto args = StructFieldOp::Decode(reader);
+    LOG_INSTR;
+    auto dst   = ectype->GetPrimitive(args.rr.x.IR()).u64;
+    auto base  = ectype->GetReference(args.rr.y.IR());
+    auto field = ectype->GetPrimitive(args.field.x.IR()).u64;
+    RTSupport::Execution::ReadStructField(dst, base, field, args.ti, handle);
+    NEXT;
+}
+WRITE_STRUCT_FIELD: {
+    auto args = StructFieldOp::Decode(reader);
+    LOG_INSTR;
+    auto src   = ectype->GetPrimitive(args.rr.x.IR()).u64;
+    auto base  = ectype->GetReference(args.rr.y.IR());
+    auto field = ectype->GetPrimitive(args.field.x.IR()).u64;
+    RTSupport::Execution::WriteStructField(src, base, field, args.ti, handle);
+    NEXT;
+}
 INITCLOSURE: {
     auto args = B1::Decode(reader);
     LOG_INSTR;
@@ -387,6 +415,7 @@ SPAWN: {
     LOG_INSTR;
     auto type = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
 
+    // TODO: it seems that spawn could be called directly
     // Puts result to `IR1`.
     auto func = RTSupport::Execution::Spawn();
 

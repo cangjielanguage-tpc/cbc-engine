@@ -46,6 +46,16 @@ Reference Execution::ReadObjectStatic(void* location, ThreadHandle th) { FATAL("
 
 void Execution::WriteObjectStatic(void* location, Reference object, ThreadHandle th) { FATAL("Should not be called"); }
 
+void Execution::WriteStructField(uintptr_t src, Reference base, uintptr_t field, TypeInfo ti, ThreadHandle th)
+{
+    FATAL("Should not be called");
+}
+
+void Execution::ReadStructField(uintptr_t dst, Reference base, uintptr_t field, TypeInfo ti, ThreadHandle th)
+{
+    FATAL("Should not be called");
+}
+
 uint32_t Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool isRef) { FATAL("Should not reach here"); }
 
 TypeInfo Execution::GetTypeInfo(Reference base) { FATAL("Should not be called"); }

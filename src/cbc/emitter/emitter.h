@@ -205,6 +205,10 @@ public:
     void LoadTypeInfo(RTSupport::TypeInfo typeInfo);
 
     void NewBox(Interpretation::BuiltinType t);
+    void NewBox(RTSupport::TypeInfo typeInfo);
+
+    void WriteStructField(IReg src, IReg base, IReg field, RTSupport::TypeInfo ti);
+    void ReadStructField(IReg dst, IReg base, IReg field, RTSupport::TypeInfo ti);
 
     void Throw(IReg dst);
 

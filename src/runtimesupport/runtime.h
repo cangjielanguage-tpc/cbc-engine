@@ -42,6 +42,8 @@ public:
 
     inline void* Raw() const { return value; }
 
+    inline uintptr_t UInt() const { return reinterpret_cast<uintptr_t>(value); }
+
 private:
     void* value;
 };
@@ -79,6 +81,9 @@ struct Execution {
     static void WriteArrayElem(Reference array, uint64_t index, Reference object, ThreadHandle th);
     static Reference ReadObjectStatic(void* location, ThreadHandle th);
     static void WriteObjectStatic(void* location, Reference object, ThreadHandle th);
+
+    static void WriteStructField(uintptr_t src, Reference base, uintptr_t field, TypeInfo ti, ThreadHandle th);
+    static void ReadStructField(uintptr_t dst, Reference base, uintptr_t field, TypeInfo ti, ThreadHandle th);
 
     static TypeInfo GetTypeInfo(Reference base);
 

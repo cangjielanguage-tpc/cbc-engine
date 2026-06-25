@@ -24,7 +24,7 @@ struct Operand {
 
     uint32_t U32() { return static_cast<uint32_t>(value); }
 
-    uint64_t U64() { return static_cast<uint32_t>(value); }
+    uint64_t U64() { return static_cast<uint64_t>(value); }
 
     Format::LoadAccessKind Ldk() { return Format::LoadAccessKind::From(U8()); }
 
@@ -368,6 +368,13 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B11i16i64 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B13i64i32 args)
 {
     Operand operands[] = { args.imm64.imm, args.imm32.imm };
+    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    formatter.Format();
+}
+
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, StructFieldOp args)
+{
+    Operand operands[] = { args.rr.x, args.rr.y, args.field.x, args.field.y, args.ti.UInt() };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
