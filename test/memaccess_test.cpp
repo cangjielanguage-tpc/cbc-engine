@@ -509,8 +509,8 @@ TEST_F(MemoryAccess, TestFrameImm)
     auto res  = Interpret(code, frame, U32(0), U64(0));
 
     EXPECT_EQ(
-        code.bytecodeSize, 13 * 4 + 5 * 2 + 4 * 3 + 3 * 5 + 1 * 9 + 1
-    ); // 13x(MemOpen+Offs) + 5xM2i8 + 4xM3i16 + 3xM5i32 + 1xM9i64 + Ret
+        code.bytecodeSize, 13 * 4 + 5 * 2 + 4 * 3 + 3 * 5 + 1 * 9 + 1 - 3
+    ); // 13x(MemOpen+Offs) + 5xM2i8 + 4xM3i16 + 3xM5i32 + 1xM9i64 + Ret - 1xM3i16
 
     EXPECT_EQ(frameSlots[0], 0x0000000400030201);
     EXPECT_EQ(frameSlots[1], 0x0000000000000008);
