@@ -6,6 +6,7 @@
 #include "cbc/decoder.h"
 #include "cbc/frame.h"
 #include "cbc/isa.h"
+#include "engine/options.h"
 #include "engine/typeinfo_manager.h"
 #include "interpreter.h"
 #include "interpreter/ectype.h"
