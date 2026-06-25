@@ -78,7 +78,9 @@ if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
   set_target_properties(cbcengine PROPERTIES OUTPUT_NAME "cangjie-interpreter")
 endif()
 
-add_subdirectory(tools/dis)
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
+  add_subdirectory(tools/dis)
+endif()
 
 if(BUILD_TESTING)
   add_subdirectory(test)
