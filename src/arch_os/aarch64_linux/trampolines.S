@@ -13,8 +13,10 @@
     #define engine_i2i_call _engine_i2i_call
     #define engine_i2c_call _engine_i2c_call
     #define engine_i2_newobject _engine_i2_newobject
+    #define engine_i2_newobject_acc _engine_i2_newobject_acc
     #define engine_i2_newarray _engine_i2_newarray
     #define engine_i2_gcpoint _engine_i2_gcpoint
+    #define engine_i2_spawn _engine_i2_spawn
     #define engine_universal_direct_function_handles _engine_universal_direct_function_handles
     #define engine_tls_function _engine_tls_function
     #define engine_newobject_function _engine_newobject_function
@@ -366,8 +368,13 @@ engine_i2_newobject:
 // TLS_REG can be changed after context-switch
 engine_i2_newobject_acc:
   // jumped from .Linterpreter_call without return address to return
+#ifdef __APPLE__
+  adrp  x10, engine_newobject_function@PAGE
+  ldr   x10, [x10, engine_newobject_function@PAGEOFF]
+#else
   adrp  x10, engine_newobject_function
   ldr   x10, [x10, :lo12:engine_newobject_function]
+#endif
   blr   x10
 
   str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE * ECTYPE_IACC_NUM)]
@@ -411,8 +418,13 @@ engine_i2_spawn:
   adr   x0, engine_fake_execute_closure
   mov   x2, 0
 
+#ifdef __APPLE__
+  adrp  x4, engine_newthread_nret_function@PAGE
+  ldr   x4, [x4, engine_newthread_nret_function@PAGEOFF]
+#else
   adrp  x4, engine_newthread_nret_function
   ldr   x4, [x4, :lo12:engine_newthread_nret_function]
+#endif
   blr   x4
   b     .Lrestart_interpretation
 
