@@ -215,6 +215,7 @@ struct IsaRewriter : public IsaParser {
     {
         if (cc.IsFloatingPoint()) {
             // FIXME: support floats
+            emit.Bcc(cc, width, FReg::From(l), FReg::From(r), InstructionLabel(Pos() + delta));
         } else {
             emit.Bcc(cc, width, IReg::From(l), IReg::From(r), InstructionLabel(Pos() + delta));
         }

@@ -140,7 +140,7 @@ public:
 
 class BccFixup : public Fixup {
 public:
-    BccFixup(Symbol _sym, CC _cc, Width _width, IReg _left, IReg _right)
+    BccFixup(Symbol _sym, CC _cc, Width _width, Reg _left, Reg _right)
         : Fixup(_sym),
           cc(_cc),
           width(_width),
@@ -185,8 +185,8 @@ public:
 private:
     CC cc;
     Width width;
-    IReg left;
-    IReg right;
+    Reg left;
+    Reg right;
 };
 
 class BccImmFixup : public Fixup {
@@ -462,7 +462,7 @@ void Emitter::FMovI64(FReg d, double imm)
     );
 }
 
-void Emitter::Bcc(CC cc, Width width, IReg l, IReg r, Label label)
+void Emitter::Bcc(CC cc, Width width, Reg l, Reg r, Label label)
 {
     ASSERT(width == Width::W32 || width == Width::W64);
     AddFixup(std::make_unique<BccFixup>(label, cc, width, l, r));
