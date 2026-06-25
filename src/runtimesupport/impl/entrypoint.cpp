@@ -347,7 +347,7 @@ CBC_EXPORT int interpreter_bridge_init(
 
     if (!g_patchCbc.empty()) {
         PerformPatching();
-    }
+    } // otherwise engine will left uninitialized, which changes the behavior of INT_InterpreterInterface callbacks
 
     return 0;
 }
