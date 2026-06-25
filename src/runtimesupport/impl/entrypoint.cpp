@@ -1,5 +1,6 @@
 #include "runtimesupport/impl/entrypoint.h"
 
+#include <filesystem>
 #include <mutex>
 #include <system_error>
 
