@@ -2,6 +2,7 @@
 
 #include "engine/engine.h"
 #include "engine/identifiers.h"
+#include "engine/symlevel/flags.h"
 #include "string.h"
 #include "term.h"
 
@@ -13,6 +14,7 @@ struct MethodReference {
     Engine::Identifier<String> name;
     Engine::RefIdentifier<Term> refType;
     Engine::RefIdentifier<Term> methodSig;
+    MethodRefFlags flags;
 };
 
 struct FieldReference {
