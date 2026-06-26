@@ -2,6 +2,7 @@
 
 #include "decoder.h"
 #include "isa.h"
+#include "runtimesupport/runtime.h"
 
 // X parameters: opcode, encoding format, string format
 #define CBC_RT_OPCODES(X)                                                                                              \
@@ -81,7 +82,13 @@
     X(STRING_INIT, B13i64i32, "string.init $0U64 $1U32")                                                               \
     X(NULLCHECK, B2xr, "nullcheck $1ir")                                                                               \
     X(DIVCHECK, B2xr, "divcheck $1ir")                                                                                 \
+    X(LOAD_TI, B9i64, "load.ti $0U64")                                                                                 \
+    X(LOAD_GENERIC_TI, B9i64, "load.generic.ti $0U64")                                                                 \
     X(IOF, IOF, "iof $0ir $1ir $2U64")                                                                                 \
+    X(NEWBOX, B2xr, "newbox $0U8")                                                                                     \
+    X(NEWBOX2, B9i64, "newbox2 $0U64")                                                                                 \
+    X(READ_STRUCT_FIELD, StructFieldOp, "read.struct.field $0ir $1ir $2ir $4U64")                                      \
+    X(WRITE_STRUCT_FIELD, StructFieldOp, "write.struct.field $0ir $1ir $2ir $4U64")                                    \
     X(THROW, B2xr, "throw $1ir")
 
 // X parameters: opcode, encoding format, string format, is tail
@@ -92,6 +99,8 @@
     X(OFFS64, M9i64, "offs.64 $0U64", false)                                                                           \
     X(OFFS_REG, M2xr, "offs.r $1ir", false)                                                                            \
     X(OFFS_REG_IDX64, M10xri64, "offs.r.idx.64 [$1ir * $2U64]", false)                                                 \
+    X(R_READ_STRUCT, MStructFieldOp, "r.read.struct $0ir $1ir $3U64", true)                                            \
+    X(R_WRITE_STRUCT, MStructFieldOp, "r.write.struct $0ir $1ir $3U64", true)                                          \
     X(RLD_U8, M2rr, "rld.u8 $0ir $1ir }", true)                                                                        \
     X(RLD_U16, M2rr, "rld.u16 $0ir $1ir }", true)                                                                      \
     X(RLD_32, M2rr, "rld.32 $0ir $1ir }", true)                                                                        \
@@ -474,13 +483,42 @@ struct IOF {
     Format::RR rr;
     uint64_t imm64;
 
-
     static IOF Decode(Decoder::ByteReader& reader)
     {
         auto opc  = Opcode::Decode(reader);
         auto rr   = Format::RR::Decode(reader);
         auto imm64 = reader.Read64();
         return IOF { opc, rr, imm64 };
+    }
+};
+
+struct StructFieldOp {
+    Opcode opc;
+    Format::RR rr;
+    Format::RR field;
+    RTSupport::TypeInfo ti;
+
+    static StructFieldOp Decode(Decoder::ByteReader& reader)
+    {
+        auto opc   = Opcode::Decode(reader);
+        auto rr    = Format::RR::Decode(reader);
+        auto field = Format::RR::Decode(reader);
+        auto ti    = reader.Read<RTSupport::TypeInfo>();
+        return StructFieldOp { opc, rr, field, ti };
+    }
+};
+
+struct MStructFieldOp {
+    MemOpcode opc;
+    Format::RR rr;
+    RTSupport::TypeInfo ti;
+
+    static MStructFieldOp Decode(Decoder::ByteReader& reader)
+    {
+        auto opc = MemOpcode::Decode(reader);
+        auto rr  = Format::RR::Decode(reader);
+        auto ti  = reader.Read<RTSupport::TypeInfo>();
+        return MStructFieldOp { opc, rr, ti };
     }
 };
 

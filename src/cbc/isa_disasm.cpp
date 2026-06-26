@@ -1,5 +1,6 @@
 #include "cbc/decoder.h"
 #include "cbc/isa.h"
+#include "engine/terms.h"
 #include "isa_parser.h"
 #include "resolution/resolution.h"
 #include "utils/ostream.h"
@@ -165,9 +166,9 @@ struct IsaDisasm : public IsaParser {
         stream << "st.obj" << " " << rb.ToStr() << ", " << rd << ", " << field << endl;
     }
 
-    void LoadTypeInfoFtc(IReg dst, uint16_t ftc) override
+    void LoadTypeInfoGeneric(IReg dst, uint16_t typeId) override
     {
-        stream << "load.typeinfo.ftc" << " " << dst.ToStr() << ", " << ftc << endl;
+        stream << "load.typeinfo.generic" << " " << dst.ToStr() << ", " << typeId << endl;
     }
 
     void LoadTypeInfoSig(IReg dst, uint16_t type) override
@@ -307,6 +308,25 @@ struct IsaDisasm : public IsaParser {
     {
         stream << "starr." << stk.ToStr() << " " << arr.ToStr() << ", " << idx.ToStr() << ", " << Fmt(src, stk.IsFloat()) << endl;
     }
+
+    void TypeArg(IReg ti, int idx, IReg dst) override
+    {
+        stream << "type.arg " << ti.ToStr() << ", " << idx << ", " << dst.ToStr();
+    }
+
+    void Box(AnyReg src, IReg dst, uint16_t tk) override
+    {
+        stream << "box." << (uint8_t)tk << " " << src << ", " << dst.ToStr() << endl; // TODO: prettify
+    }
+
+    void BoxT(uint16_t srcTs, IReg dst) override { stream << "box.t " << srcTs << ", " << dst.ToStr() << endl; }
+
+    void Unbox(AnyReg dst, IReg src, uint16_t tk) override
+    {
+        stream << "unbox." << (uint8_t)tk << " " << dst << ", " << src.ToStr() << endl; // TODO: prettify
+    }
+
+    void UnboxT(uint16_t dstTs, IReg src) override { stream << "unbox.t " << dstTs << ", " << src.ToStr() << endl; }
 
     class PrintingMemSpace : public MemSpace {
     public:

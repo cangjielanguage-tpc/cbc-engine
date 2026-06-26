@@ -5,6 +5,7 @@
 #include "cbc/decoder.h"
 #include "cbc/isa.h"
 #include "engine/symlevel/code.h"
+#include "engine/terms.h"
 
 namespace Cbc {
 
@@ -12,7 +13,7 @@ using MethodCode = Symlevel::Code;
 
 class IsaParser {
 public:
-    IsaParser(Cbc::MethodCode code);
+    IsaParser(Cbc::MethodCode& code);
     IsaParser(Decoder::FatByteReader reader);
     IsaParser(uint8_t* start, uint8_t* end);
 
@@ -58,7 +59,8 @@ protected:
     virtual void LoadField(IReg rb, AnyReg rs, uint16_t field)  = 0;
     virtual void StoreField(IReg rb, AnyReg rd, uint16_t field) = 0;
 
-    virtual void LoadTypeInfoFtc(IReg dst, uint16_t ftc)  = 0;
+    virtual void LoadTypeInfoGeneric(IReg dst, uint16_t typeId) = 0;
+
     virtual void LoadTypeInfoSig(IReg dst, uint16_t type) = 0;
     virtual void NewObj(IReg dst, uint16_t type)          = 0;
     virtual void CallDirect(IReg dst, uint16_t method)    = 0;
@@ -100,6 +102,13 @@ protected:
 
     virtual void LoadArray(AnyReg dst, Format::LoadAccessKind ldk, IReg arr, IReg idx) = 0;
     virtual void StoreArray(AnyReg src, Format::StoreAccessKind stk, IReg arr, IReg idx) = 0;
+
+    virtual void TypeArg(IReg ti, int idx, IReg dst)            = 0;
+    virtual void Box(AnyReg src, IReg dst, uint16_t type)       = 0;
+    virtual void BoxT(uint16_t srcTs, IReg dst)                 = 0;
+
+    virtual void Unbox(AnyReg dst, IReg src, uint16_t type)       = 0;
+    virtual void UnboxT(uint16_t dstTs, IReg src)                 = 0;
 
     class MemSpace {
     public:

@@ -35,6 +35,7 @@ void Encode(ByteBuffer& buf, RT::B10xri64 command);
 void Encode(ByteBuffer& buf, RT::B9i64 command);
 void Encode(ByteBuffer& buf, RT::B11i16i64 command);
 void Encode(ByteBuffer& buf, RT::B13i64i32 command);
+void Encode(ByteBuffer& buf, RT::StructFieldOp command);
 
 void Encode(ByteBuffer& buf, RT::MemOpcode opc);
 void Encode(ByteBuffer& buf, RT::M2i8 command);
@@ -52,6 +53,7 @@ void Encode(ByteBuffer& buf, RT::M3rri8 command);
 void Encode(ByteBuffer& buf, RT::M4rri16 command);
 void Encode(ByteBuffer& buf, RT::M6rri32 command);
 void Encode(ByteBuffer& buf, RT::M10rri64 command);
+void Encode(ByteBuffer& buf, RT::MStructFieldOp command);
 
 } // namespace Emitter
 } // namespace Cbc

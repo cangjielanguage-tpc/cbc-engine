@@ -24,7 +24,7 @@ void* Arena::DoAllocateSlow(size_t bytes)
     if (bytes > MAX_ALLOC_SIZE) {
         void* mem = malloc(bytes + sizeof(Chunk));
         if (mem == nullptr) {
-            throw std::bad_alloc();
+            FATAL("Out of memory");
         }
         Chunk* newChunk = reinterpret_cast<Chunk*>(mem);
         newChunk->next  = chunks;
@@ -38,7 +38,7 @@ void* Arena::DoAllocateSlow(size_t bytes)
 
     void* mem = reinterpret_cast<Chunk*>(malloc(CHUNK_SIZE));
     if (mem == nullptr) {
-        throw std::bad_alloc();
+        FATAL("Out of memory");
     }
     Chunk* newChunk = reinterpret_cast<Chunk*>(mem);
     uintptr_t end   = reinterpret_cast<uintptr_t>(mem) + CHUNK_SIZE;

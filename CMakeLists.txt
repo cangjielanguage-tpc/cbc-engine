@@ -15,7 +15,6 @@ include(CTest)
 
 set(DEBUG_OPTIONS "-DCBC_ENGINE_IMMEDIATE_ASSERTION -DCBC_ENGINE_PRETTY_FUNC_NAME")
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-stack-protector -fomit-frame-pointer")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -gz ${DEBUG_OPTIONS}")
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
 
@@ -41,6 +40,13 @@ set_target_properties(cbc_lib PROPERTIES
   CXX_VISIBILITY_PRESET hidden
   POSITION_INDEPENDENT_CODE ON)
 
+target_compile_options(cbc_lib PRIVATE
+  -fno-plt
+  -fno-stack-protector
+  -fno-omit-frame-pointer
+  -fno-exceptions
+)
+
 target_include_directories(cbc_lib PUBLIC "src")
 
 if(UNIT_TEST_MODE)
@@ -54,12 +60,15 @@ add_library(cbcengine SHARED ${PLATFORM_SOURCES} ${ENGINE_SOURCES})
 target_include_directories(cbcengine PUBLIC "include")
 target_include_directories(cbcengine PUBLIC "third_party/mrt/include")
 target_include_directories(cbc_lib PRIVATE "${PLATFORM_DIR}")
-target_link_libraries(cbcengine PRIVATE cbc_lib)
+target_link_libraries(cbcengine PRIVATE
+  cbc_lib
+)
 
 target_link_options(cbcengine PRIVATE
   "-Wl,-z,noexecstack"
   "-Wl,-z,relro"
-  "-Wl,-z,now")
+  "-Wl,-z,now"
+)
 
 set_target_properties(cbcengine PROPERTIES POSITION_INDEPENDENT_CODE ON)
 

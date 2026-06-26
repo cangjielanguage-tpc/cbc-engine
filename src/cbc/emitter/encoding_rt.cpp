@@ -1,5 +1,6 @@
 #include "cbc/isa_rt.h"
 #include "segment.h"
+#include "utils/reinterpretation.h"
 
 namespace Cbc {
 namespace Emitter {
@@ -213,6 +214,21 @@ void Encode(ByteBuffer& buf, RT::B13i64i32 command)
     Encode(buf, command.opc);
     Encode(buf, command.imm64);
     Encode(buf, command.imm32);
+}
+
+void Encode(ByteBuffer& buf, RT::StructFieldOp command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.rr);
+    Encode(buf, command.field);
+    buf.AddW64(Bits::Raw64(command.ti));
+}
+
+void Encode(ByteBuffer& buf, RT::MStructFieldOp command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.rr);
+    buf.AddW64(Bits::Raw64(command.ti));
 }
 
 void Encode(ByteBuffer& buf, RT::M3rri8 command)

@@ -22,6 +22,8 @@ MemSpaceEmitter Emitter::OpenMemSpace()
 
 void MemSpaceEmitter::Offset(uint64_t offset)
 {
+    if (offset == 0)
+        return;
     if (MathUtils::IsNBits(offset, 16)) {
         Encode(
             segment,
@@ -109,6 +111,18 @@ static RT::MemOpcode ComputeStoreAccessKind(Format::StoreAccessKind stk, RT::Mem
         default:                      FATAL("unexpected stk: %d", stk);
     }
     return RT::MemOpcode(start + delta);
+}
+
+void MemSpaceEmitter::WriteStructFieldObj(IReg src, IReg base, RTSupport::TypeInfo structTypeInfo)
+{
+    RT::MStructFieldOp command = { .opc = RT::MemOpcode::R_WRITE_STRUCT, .rr = { src, base }, .ti = structTypeInfo };
+    Encode(segment, command);
+}
+
+void MemSpaceEmitter::ReadStructFieldObj(IReg dst, IReg base, RTSupport::TypeInfo structTypeInfo)
+{
+    RT::MStructFieldOp command = { .opc = RT::MemOpcode::R_READ_STRUCT, .rr = { dst, base }, .ti = structTypeInfo };
+    Encode(segment, command);
 }
 
 void MemSpaceEmitter::LoadObj(LoadAccessKind ldk, Reg dst, IReg base)

@@ -14,6 +14,14 @@ enum RTLogLevel {
     RTLOG_OFF
 };
 
+enum RTErrorCode {
+    E_OK      = 0,
+    E_ARGS    = -1,
+    E_TIMEOUT = -2,
+    E_STATE   = -3,
+    E_FAILED  = -4
+};
+
 struct HeapParam {
     size_t regionSize;
     size_t heapSize;
@@ -49,11 +57,19 @@ struct RuntimeParam {
     struct ConcurrencyParam coParam;
 };
 
+/*
+ * @struct InterpreterParam
+ * @brief Data structure for interpreter configuration parameters.
+ */
 struct InterpreterParam {
+    /* Interpreter dynamic library name. */
     const char* interpreterLibName;
+    /* Number of startup arguments passed to interpreter. */
     int interpreterArgsCount;
-    const char* const* interpreterArgs;
+    /* Startup argument list passed to interpreter. */
+    const char** interpreterArgs;
+    /* Optional app library handle used by interpreter to resolve application symbols. */
+    void* appLibHandle;
 };
-
 
 #endif

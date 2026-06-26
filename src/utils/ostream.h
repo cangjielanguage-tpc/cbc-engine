@@ -79,6 +79,7 @@ public:
 
     void VPrintFmt(const char* fmt, va_list argp) override;
     std::string ToString();
+    char* ToCString();
     void Clear();
 
 private:

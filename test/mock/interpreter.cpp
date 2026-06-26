@@ -6,8 +6,10 @@
 #include "cbc/decoder.h"
 #include "cbc/frame.h"
 #include "engine/options.h"
+#include "cbc/isa.h"
 #include "engine/typeinfo_manager.h"
 #include "interpreter.h"
+#include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
 #include "interpreter/interpretation_loop.h"
 #include "interpreter/loggers.h"
@@ -77,7 +79,24 @@ Value::Primitive Interpret(
     heap.Reset();
 
     Interpretation::Ectype ectype {};
+    uint8_t bufIrs[sizeof(ectype.iregs)];
+    uint8_t bufFrs[sizeof(ectype.fregs)];
+
+    uint32_t prng = 1;
+    for (int i = 0; i < sizeof(bufIrs); i++) {
+        prng = 1664525 * prng + 1013904223;
+        bufIrs[i] = (prng >> 16) & 0xff;
+    }
+    for (int i = 0; i < sizeof(bufFrs); i++) {
+        prng = 1664525 * prng + 1013904223;
+        bufFrs[i] = (prng >> 16) & 0xff;
+    }
+
+    memcpy(&ectype.iregs, bufIrs, sizeof(bufIrs));
+    memcpy(&ectype.fregs, bufFrs, sizeof(bufFrs));
+
     Decoder::ByteReader s(code.bytecode, code.bytecode, code.bytecode + code.bytecodeSize);
+    ectype.iregs[0].primitive = Value::Primitive { .u64 = 0 };
     ectype.Put(IReg::IR1, ir1);
     ectype.Put(IReg::IR2, ir2);
     ectype.Put(FReg::FR0, fr0);
@@ -193,7 +212,6 @@ void InitializeMockInterpreter()
     using namespace Interpretation;
     Engine::InitEnvOptions();
     auto i2call = reinterpret_cast<Interpretation::I2Call>(&Interpretation::InterpreterI2CallTest);
-    static_assert(IReg::COUNT == 14);
 }
 
 namespace RTSupport {
@@ -207,6 +225,11 @@ std::optional<TypeInfo> CreateTypeInfo(
     return std::nullopt;
 }
 
+Engine::GlobalTerm ReconstructTerm(Engine::Session& session, Engine::TypeInfoManager& manager, TypeInfo ti)
+{
+    FATAL("Should not be called");
+}
+
 Reference Execution::ReadObjectInstance(Reference base, size_t offset, ThreadHandle th)
 {
     return Reference { .value = *reinterpret_cast<uintptr_t*>(base.value + offset) };
@@ -215,6 +238,16 @@ Reference Execution::ReadObjectInstance(Reference base, size_t offset, ThreadHan
 void Execution::WriteObjectInstance(Reference base, size_t offset, Reference object, ThreadHandle th)
 {
     *reinterpret_cast<uintptr_t*>(base.value + offset) = object.value;
+}
+
+void Execution::WriteStructField(uintptr_t src, Reference base, uintptr_t field, TypeInfo ti, ThreadHandle th)
+{
+    FATAL("Should not be called");
+}
+
+void Execution::ReadStructField(uintptr_t dst, Reference base, uintptr_t field, TypeInfo ti, ThreadHandle th)
+{
+    FATAL("Should not be called");
 }
 
 Reference Execution::ReadArrayElem(Reference array, uint64_t index, ThreadHandle th)
@@ -263,6 +296,8 @@ void* Execution::GetInterfaceTarget(Reference base, TypeInfo ti, int methodNum)
 
 void* Execution::AllocateObjectInstance() { return reinterpret_cast<void*>(&Interpretation::MockNewObj); }
 
+void* Execution::AllocateObjectInstanceAcc() { return reinterpret_cast<void*>(&Interpretation::MockNewObj); }
+
 void* Execution::AllocateArrayInstance() { return reinterpret_cast<void*>(&Interpretation::MockNewObj); }
 
 void* Execution::GcPointTrampoline() { FATAL("Should not reach here"); }
@@ -274,6 +309,11 @@ void* Execution::Spawn() { FATAL("Should not reach here"); }
 bool Execution::IsPendingSafePoint() { return false; }
 
 bool Execution::IsInstanceOf(Reference base, TypeInfo ti) { FATAL("Should not reach here"); }
+
+TypeInfo Execution::LoadTypeInfo(Engine::GlobalTerm term, Interpretation::Ectype* ectype, void* stackSlots)
+{
+    FATAL("Should not reach here");
+}
 
 bool Execution::IsGlobalStruct(Reference base, uintptr_t derived) { FATAL("Should not reach here"); }
 
@@ -308,5 +348,7 @@ bool MetaInfo::IsReferenceType(TypeInfo ti) { return false; }
 void MetaInfo::VisitReferences(TypeInfo ti, std::function<void(uint32_t)> visitor) { FATAL("Should not be called"); }
 
 TypeInfo MetaInfo::ByteArrayTypeInfo() { return TypeInfo(nullptr); }
+
+TypeInfoUUID MetaInfo::GetUUID(TypeInfo ti) { return 0; }
 
 } // namespace RTSupport

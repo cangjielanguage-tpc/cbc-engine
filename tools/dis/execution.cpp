@@ -20,6 +20,11 @@ std::optional<TypeInfo> CreateTypeInfo(
     FATAL("Should not be called");
 }
 
+Engine::GlobalTerm ReconstructTerm(Engine::Session& session, Engine::TypeInfoManager& manager, TypeInfo ti)
+{
+    FATAL("Should not be called");
+}
+
 Reference Execution::ReadObjectInstance(Reference base, size_t offset, ThreadHandle th)
 {
     FATAL("Should not be called :)");
@@ -41,6 +46,16 @@ Reference Execution::ReadObjectStatic(void* location, ThreadHandle th) { FATAL("
 
 void Execution::WriteObjectStatic(void* location, Reference object, ThreadHandle th) { FATAL("Should not be called"); }
 
+void Execution::WriteStructField(uintptr_t src, Reference base, uintptr_t field, TypeInfo ti, ThreadHandle th)
+{
+    FATAL("Should not be called");
+}
+
+void Execution::ReadStructField(uintptr_t dst, Reference base, uintptr_t field, TypeInfo ti, ThreadHandle th)
+{
+    FATAL("Should not be called");
+}
+
 uint32_t Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool isRef) { FATAL("Should not reach here"); }
 
 TypeInfo Execution::GetTypeInfo(Reference base) { FATAL("Should not be called"); }
@@ -50,6 +65,8 @@ void* Execution::GetVirtualTarget(Reference base, int extDefNum, int methodNum) 
 void* Execution::GetInterfaceTarget(Reference base, TypeInfo ti, int methodNum) { FATAL("Should not reach here."); }
 
 void* Execution::AllocateObjectInstance() { FATAL("Should not reach here"); }
+
+void* Execution::AllocateObjectInstanceAcc() { FATAL("Should not reach here"); }
 
 void* Execution::AllocateArrayInstance() { FATAL("Should not reach here"); }
 
@@ -62,6 +79,11 @@ void* Execution::GcPoint() { FATAL("Should not reach here"); }
 bool Execution::IsPendingSafePoint() { return false; }
 
 bool Execution::IsInstanceOf(Reference base, TypeInfo ti) { FATAL("Should not reach here"); }
+
+TypeInfo Execution::LoadTypeInfo(Engine::GlobalTerm term, Interpretation::Ectype* ectype, void* stackSlots)
+{
+    FATAL("Should not reach here");
+}
 
 bool Execution::IsGlobalStruct(Reference base, uintptr_t derived) { FATAL("Should not reach here"); }
 
@@ -96,5 +118,7 @@ bool MetaInfo::IsReferenceType(TypeInfo ti) { return false; }
 void MetaInfo::VisitReferences(TypeInfo ti, std::function<void(uint32_t)> visitor) { FATAL("Should not be called"); }
 
 TypeInfo MetaInfo::ByteArrayTypeInfo() { return TypeInfo(nullptr); }
+
+TypeInfoUUID MetaInfo::GetUUID(TypeInfo ti) { return 0; }
 
 } // namespace RTSupport
