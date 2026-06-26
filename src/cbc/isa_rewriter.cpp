@@ -1052,6 +1052,7 @@ struct IsaRewriter : public IsaParser {
                 // IRZ means static record field, so whole position is encoded in accumulated offset
                 // FIXME: encode as separate operation
                 msr.emit.StoreRecImm(Stk(msr.lastFieldKind), IReg::IRZ, imm);
+                break;
             case HEAD_NONE: FATAL("unreachable");
         }
     }
