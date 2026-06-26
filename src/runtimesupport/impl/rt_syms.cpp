@@ -1,5 +1,6 @@
 #include "rt_syms.h"
 #include "runtimesupport/impl/asm_trampolines.h"
+#include "utils/assertion.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
 #include "utils/rt_logger.h"
@@ -8,27 +9,37 @@
 
 namespace RTSupport {
 
+#define HELPER_LIB_NAME "libcbcengine-helper.so"
+
 // merge with LibHandle
 struct Handle {
     void* handle;
     std::string name;
-    bool autoclose;
 
-    Handle(void* handle, std::string&& name, bool autoclose)
-        : handle(handle),
-          name(std::move(name)),
-          autoclose(autoclose)
-    {}
+    Handle() : handle(nullptr) {}
+
+    Handle(void* handle, std::string&& name) : handle(handle), name(std::move(name)) {}
 
     Handle(Handle const& handle) = delete;
 
     Handle(Handle&& handle) : handle(handle.handle) { handle.handle = nullptr; }
 
-    static std::optional<Handle> Open(std::string&& str, bool autoclose = true)
+    Handle& operator=(Handle&& other)
+    {
+        if (handle != nullptr) {
+            FATAL("Trying to rewrite existing handle");
+        }
+        name         = std::move(other.name);
+        handle       = other.handle;
+        other.handle = nullptr;
+        return *this;
+    }
+
+    static std::optional<Handle> Open(std::string&& str)
     {
         void* handle = dlopen(str.c_str(), RTLD_LAZY);
         if (handle) {
-            return Handle(handle, std::move(str), autoclose);
+            return Handle(handle, std::move(str));
         } else {
             return std::nullopt;
         }
@@ -47,11 +58,13 @@ struct Handle {
 
     ~Handle()
     {
-        if (handle && autoclose) {
+        if (handle) {
             dlclose(handle);
         }
     }
 };
+
+Handle g_helperLibHandle;
 
 void Initialize(DYN_CJNativeInterface* interf)
 {
@@ -80,17 +93,19 @@ void Initialize(DYN_CJNativeInterface* interf)
         stream << interf->stackGrowStub << " " << stackGrowStub << Stream::endl;
         return;
     }
-}
 
-void* GetSymbolAddr(const char* libName, const char* symName)
-{
-    auto handle = Handle::Open(libName, false);
-    if (!handle.has_value()) {
-        Log::init.Stream(Logging::Level::ERROR) << "failed to open lib " << libName << Stream::endl;
-        return nullptr;
+    auto helperHandleOpt = Handle::Open(HELPER_LIB_NAME);
+    if (!helperHandleOpt.has_value()) {
+        Log::init.Stream(Logging::Level::ERROR) << "failed to open lib " << HELPER_LIB_NAME << Stream::endl;
+        return;
     }
 
-    auto sym = handle->Sym(symName);
+    g_helperLibHandle = std::move(*helperHandleOpt);
+}
+
+void* GetHelperSymbolAddr(const char* symName)
+{
+    auto sym = g_helperLibHandle.Sym(symName);
     if (sym == nullptr) {
         Log::init.Stream(Logging::Level::ERROR) << "failed to find symbol " << symName << Stream::endl;
         return nullptr;

@@ -69,6 +69,7 @@ engine_cjthread_specific_offset:
 #define TLS_REG r15
 #define ECTYPE_REG rbx
 #define LITERALS_REG r14
+#define FUH_SLOT 0x8
 
 .macro push_lst regs:vararg
   .irp reg, \regs
@@ -345,14 +346,14 @@ perform_2i_call:
   mov   [rbp - READER_SLOT], rsi       // cursor
 
 #ifndef NDEBUG
-  mov   rdi, [rbp - 0x8]
+  mov   rdi, [rbp - FUH_SLOT]
   mov   rsi, ECTYPE_REG
   call  engine_log_int_start
 #endif
 
   mov   rdx, rsp // save current sp for registers saving to the bottom of frame
 
-  mov   rax, [rbp - 0x8] // load Function Handle
+  mov   rax, [rbp - FUH_SLOT] // load Function Handle
   mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
 
   // current rsp is 16-byte aligned
@@ -409,12 +410,12 @@ perform_2i_call:
 .Lend_interpretation:
 
 #ifndef NDEBUG
-  mov   rdi, [rbp - 0x8]
+  mov   rdi, [rbp - FUH_SLOT]
   mov   rsi, ECTYPE_REG
   call  engine_log_int_end
 #endif
 
-  mov   rax, [rbp - 0x8] // load Function Handle
+  mov   rax, [rbp - FUH_SLOT] // load Function Handle
   mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
 
   mov   edx, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
@@ -464,7 +465,7 @@ common_landing_pad:
 engine_handle_exception:
   mov   r12, rdi
 
-  mov   rdi, QWORD PTR [rbp - 0x8]         // fuh
+  mov   rdi, QWORD PTR [rbp - FUH_SLOT]
   lea   rsi, QWORD PTR [rbp - READER_SLOT] // reader
   call  engine_get_exception_handler
 
@@ -477,7 +478,7 @@ engine_handle_exception:
 
 .Lunwind_top_frame:
   // Restore spilled non-volatile regs before clearing the frame
-  mov   rax, QWORD PTR [rbp - 0x8] // fuh
+  mov   rax, QWORD PTR [rbp - FUH_SLOT]
   mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
   mov   edx, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   add   rdx, rsp // start of saved regs area
@@ -501,7 +502,7 @@ engine_handle_exception:
   cmp   rdi, rax
   jae   .Lhandle_next_dyn_func
 
-  // Unwind current frame and next (C2I) and when there are no interpreter frames
+  // Unwind C2I frame and when there are no interpreter frames
   // throw exception using CJNative runtime (as it usually done in AOT code)
 .Llast_interpreter_frame_unwinding:
   mov   rdi, r12 // set exception pointer as argument

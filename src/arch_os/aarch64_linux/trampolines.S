@@ -31,6 +31,8 @@ declare_hidden engine_carrier_specific_offset
 declare_hidden engine_cjthread_specific_offset
 declare_hidden engine_i2_spawn
 declare_hidden engine_throw_out_of_interpreter
+declare_hidden engine_throw_implicit_exception
+declare_hidden engine_implicit_exception_thrower
 declare_hidden engine_handle_exception
 declare_hidden common_landing_pad
 
@@ -46,6 +48,8 @@ engine_universal_direct_function_handles:
 engine_tls_function:              // 0x0
   .skip 8
 engine_throw_out_of_interpreter:  // 0x8
+  .skip 8
+engine_implicit_exception_thrower:
   .skip 8
 engine_newobject_function:        // 0x10
   .skip 8
@@ -107,6 +111,7 @@ engine_trampolines_dyn_start:
 #define TLS_REG x28
 #define ECTYPE_REG x19
 #define LITERALS_REG x20
+#define FUH_SLOT #-0x8
 
 .balign 16
 engine_c2i_call_pc_start:
@@ -325,12 +330,10 @@ perform_2i_call:
   ldr   LITERALS_REG, [x9, #EXEC_BYTECODE_INFO_LITERALS_OFFSET]
   ldr   x1, [x9, #EXEC_BYTECODE_INFO_BYTECODE_OFFSET]
   sub   x10, x29, #READER_SLOT
-#ifndef NDEBUG
   ldr   x8, [x9, #EXEC_BYTECODE_INFO_BYTECODE_SIZE_OFFSET]
   add   x8, x8, x1
   str   x8, [x10, #0x10]
   str   x1, [x10, #0x8]
-#endif
   str   x1, [x10]
 
   mov   x1, sp // save current sp for registers saving to the bottom of frame
@@ -382,7 +385,7 @@ perform_2i_call:
 
 .Lend_interpretation:
 
-  ldr   x9, [x29, #-0x8] // load Function Handle
+  ldr   x9, [x29, FUH_SLOT] // load Function Handle
   ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
 
   ldr   w1, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
@@ -425,6 +428,16 @@ engine_fake_execute_closure:
   ldr   x2, [x0, #0x10]
   br    x2
 
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: exception type)
+// preserved: ECTYPE_REG, x29
+// TLS_REG can be changed after context-switch
+engine_throw_implicit_exception:
+  // jumped from .Linterpreter_call without return address to return
+  adrp  x9, engine_implicit_exception_thrower
+  ldr   x9, [x9, :lo12:engine_implicit_exception_thrower]
+  blr   x9
+  brk   #0 // should not return, as exception is thrown inside call
+
 // expects: (ECTYPE_REG: ectype)
 // When exception is thrown from CJNative code to interpreter, execution of
 // interpreter exception handling starts here
@@ -442,7 +455,7 @@ common_landing_pad:
 engine_handle_exception:
   mov   x21, x0
 
-  ldr   x0, [x29, #-0x8]      // fuh
+  ldr   x0, [x29, FUH_SLOT]
   sub   x1, x29, #READER_SLOT // reader
   bl    engine_get_exception_handler
 
@@ -454,7 +467,7 @@ engine_handle_exception:
 
 .Lunwind_top_frame:
   // Restore spilled non-volatile regs before clearing the frame
-  ldr   x9, [x29, #-0x8]      // fuh
+  ldr   x9, [x29, FUH_SLOT]
   ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
   ldr   w1, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   mov   x2, sp

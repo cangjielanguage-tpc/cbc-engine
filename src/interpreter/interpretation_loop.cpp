@@ -78,12 +78,14 @@ Interpretation::Thunk engine_interpretation_loop(
 #define THROW_EXPLICIT(exception)                                                                                      \
     do {                                                                                                               \
         exceptionObj = exception;                                                                                      \
-        goto HANDLE_EXCEPTION;                                                                                         \
+        auto func    = RTSupport::Execution::HandleException();                                                        \
+        reader0      = reader; /* save current pc */                                                                   \
+        return { func, reinterpret_cast<void*>(exceptionObj) };                                                        \
     } while (0)
 
 #define THROW_IMPLICIT(type)                                                                                           \
     do {                                                                                                               \
-        reader0 = readerBeforeInstr;                                                                                   \
+        reader0 = reader;                                                                                              \
         return { RTSupport::Execution::ThrowImplicitException(), reinterpret_cast<void*>(type) };                      \
     } while (0)
 
@@ -673,7 +675,7 @@ NULLCHECK: {
     auto args = B2xr::Decode(reader);
     LOG_INSTR;
     auto ref = ectype->GetReference(args.xr.r.IR());
-    NEXT_OR_THROW(ref.value != 0, ImplicitException::Type::NoneValueException);
+    NEXT_OR_THROW(ref.value != 0, Type::NoneValueException);
 }
 
 DIVCHECK: {
@@ -681,7 +683,7 @@ DIVCHECK: {
     auto args = B2xr::Decode(reader);
     LOG_INSTR;
     auto div = ectype->GetPrimitive(args.xr.r.IR());
-    NEXT_OR_THROW(div.u64 != 0, ImplicitException::Type::ArithmeticException);
+    NEXT_OR_THROW(div.u64 != 0, Type::ArithmeticException);
 }
 
 IOF: {
@@ -1003,13 +1005,6 @@ OFFS_REG_IDX64: {
     FSTI(64, 32, M5i32)
     FSTI(64, 64, M9i64)
 #undef FSTI
-
-HANDLE_EXCEPTION: {
-    auto func = RTSupport::Execution::HandleException();
-    reader0   = reader; // save current pc
-
-    return { func, reinterpret_cast<void*>(exceptionObj) };
-}
 
 #undef MEM_NEXT
 #undef NEXT
