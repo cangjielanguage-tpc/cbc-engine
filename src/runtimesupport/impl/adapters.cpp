@@ -1,6 +1,9 @@
 #include "runtimesupport/adapters.h"
 #include "asm_trampolines.h"
 #include "interpreter/code.h"
+#include "interpreter/function_handle.h"
+#include "runtimesupport/impl/typeinfo_ext.h"
+#include "utils/assertion.h"
 
 namespace RTSupport {
 

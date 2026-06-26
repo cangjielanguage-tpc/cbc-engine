@@ -3,6 +3,7 @@
 
 #include "engine/typeinfo_manager.h"
 #include "interpreter/function_handle.h"
+#include "interpreter/interpretation_loop.h"
 #include "runtimesupport/adapters.h"
 #include "runtimesupport/runtime.h"
 #include "utils/assertion.h"
@@ -60,9 +61,15 @@ uint32_t Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool isRef) { FATAL
 
 TypeInfo Execution::GetTypeInfo(Reference base) { FATAL("Should not be called"); }
 
-void* Execution::GetVirtualTarget(Reference base, int extDefNum, int methodNum) { FATAL("Should not reach here."); }
+Interpretation::Thunk Execution::GetVirtualThunk(Reference base, int extDefNum, int methodNum)
+{
+    FATAL("Should not reach here.");
+}
 
-void* Execution::GetInterfaceTarget(Reference base, TypeInfo ti, int methodNum) { FATAL("Should not reach here."); }
+Interpretation::Thunk Execution::GetInterfaceThunk(Reference base, TypeInfo ti, int methodNum)
+{
+    FATAL("Should not reach here.");
+}
 
 void* Execution::AllocateObjectInstance() { FATAL("Should not reach here"); }
 
