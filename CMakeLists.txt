@@ -75,7 +75,7 @@ endif()
 set_target_properties(cbcengine PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
-  set_target_properties(cbcengine PROPERTIES OUTPUT_NAME "cangjie-interpreter")
+  set_target_properties(cbcengine PROPERTIES OUTPUT_NAME "cbcengine")
 endif()
 
 if(NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
