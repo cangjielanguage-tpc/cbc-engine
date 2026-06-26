@@ -165,6 +165,7 @@ engine_trampolines_dyn_end:
 .balign 16
 c2i_prepare_ectype:
   push_lst rdi, rsi, rdx, rcx, r8, r9
+  push  rdi // alignment
 
   mov   rdi, r12
   call  engine_fiber_data_init
@@ -172,6 +173,7 @@ c2i_prepare_ectype:
   mov   ECTYPE_REG, rax
   mov   rax, [rbp - 0x30] // restore fuh
 
+  pop   rdi
   pop_lst r9, r8, rcx, rdx, rsi, rdi
   ret
 
