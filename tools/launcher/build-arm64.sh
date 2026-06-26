@@ -35,4 +35,4 @@ cjc trampoline.cj --output-type=staticlib
 ar rcs libtrampoline.a trampoline.o
 
 cjc libtrampoline.a entry.cj --output-type=dylib
-cjc helper.cj --output-type=dylib
+cjc cbcengine-helper.cj --output-type=dylib

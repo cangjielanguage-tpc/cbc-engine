@@ -136,7 +136,7 @@ Reference Execution::GetLocalBasePtr()
 
 void Execution::RegisterImplicitExceptionsThrower()
 {
-    auto funcAddr = NOTNULL(GetSymbolAddr("libhelper.so", "_CN7default22throwImplicitExceptionHl"));
+    auto funcAddr                          = NOTNULL(GetHelperSymbolAddr("_CN7default22throwImplicitExceptionHl"));
     Asm::engine_implicit_exception_thrower = reinterpret_cast<void (*)(int)>(funcAddr);
 }
 

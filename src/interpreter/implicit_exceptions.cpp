@@ -1,7 +1,9 @@
 #include "implicit_exceptions.h"
 
+#include "runtimesupport/runtime.h"
+
 namespace Interpretation {
 
-void ImplicitException::RegisterExceptionThrower() { RTSupport::Execution::RegisterImplicitExceptionsThrower(); }
+void RegisterExceptionThrower() { RTSupport::Execution::RegisterImplicitExceptionsThrower(); }
 
 } // namespace Interpretation
