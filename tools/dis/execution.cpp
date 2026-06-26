@@ -99,11 +99,15 @@ void* Adapters::I2ICallInstance() { FATAL("Should not reach here"); }
 
 static void C2ICall() { FATAL("Should not reach here"); }
 
+void* Adapters::GenericC2ICallInstance() { FATAL("Should not reach here"); }
+
 void* Adapters::IregOnlyC2ICallInstance() { FATAL("Should not reach here."); }
 
 void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* fuh) { FATAL("Should not reach here."); }
 
 const char* MetaInfo::GetName(TypeInfo ti) { return nullptr; }
+
+void* Adapters::C2ICall(uint32_t intArgCount, uint32_t floatArgCount) { FATAL("should not reach here"); }
 
 uint32_t MetaInfo::GetTypeSize(TypeInfo ti) { return 0; }
 

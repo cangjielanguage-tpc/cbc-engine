@@ -1,4 +1,5 @@
 #include "asm_export.h"
+#include "abi.inc"
 
 .macro declare_hidden sym
   .global \sym
@@ -14,6 +15,7 @@ declare_hidden engine_c2i_call_pc_start
 declare_hidden engine_c2i_call_pc_end
 declare_hidden engine_trampolines_dyn_start
 declare_hidden engine_trampolines_direct_start
+declare_hidden engine_all_regs_c2i_call
 declare_hidden engine_iregs_only_c2i_call
 declare_hidden engine_i2i_call
 declare_hidden engine_i2c_call
@@ -98,13 +100,7 @@ engine_trampolines_dyn_start:
 .endm
   repeat_trampoline_dyn TRAMPOLINE_COUNT
 
-#define TLS_REG x28
-#define ECTYPE_REG x19
-#define LITERALS_REG x20
-
-.balign 16
-engine_c2i_call_pc_start:
-engine_iregs_only_c2i_call:
+.macro engine_c2i_call ireg_count freg_count
   stp   x29, x30, [sp, #-16]!
   mov   x29, sp
 
@@ -123,24 +119,18 @@ engine_iregs_only_c2i_call:
   add   x21, x21, ECTYPE_REG // address of slot in fiber data that contains ectype addr
   ldr   ECTYPE_REG, [x21]    // ectype addr
 
-  cbz   ECTYPE_REG, .Lc2i_prepare_ectype
-
-.Lc2i_args_preparation:
+  cbz   ECTYPE_REG, .Lc2i_prepare_ectype\@
+.Lc2i_args_preparation\@:
   // TODO support correct sret handling
-  str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8 )]
-  str   x1, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x10)]
-  str   x2, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x18)]
-  str   x3, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x20)]
-  str   x4, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x28)]
-  str   x5, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x30)]
-  str   x6, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x38)]
-  str   x7, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x40)]
-  str   x8, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x48)]
+
+  c2i_emit_iregs_abi \ireg_count
+  c2i_emit_fregs_abi \freg_count
 
   mov   x0, x9
   bl    perform_2i_call
 
   ldr   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8)]
+  ldr   d0, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET)]
 
   add   sp, sp, #16 // remove FunctionHandle
   ldp   x27, x28, [sp], #16
@@ -151,7 +141,14 @@ engine_iregs_only_c2i_call:
   ldp   x29, x30, [sp], #16
   ret
 
-.Lc2i_prepare_ectype:
+.Lc2i_prepare_ectype\@:
+  bl c2i_prepare_ectype
+  b     .Lc2i_args_preparation\@
+.endm
+
+.balign 16
+c2i_prepare_ectype:
+  stp   x29, x30, [sp, #-16]!
   stp   x0, x1, [sp, #-16]!
   stp   x2, x3, [sp, #-16]!
   stp   x4, x5, [sp, #-16]!
@@ -167,7 +164,19 @@ engine_iregs_only_c2i_call:
   ldp   x4, x5, [sp], #16
   ldp   x2, x3, [sp], #16
   ldp   x0, x1, [sp], #16
-  b     .Lc2i_args_preparation
+  ldp   x29, x30, [sp], #16
+  ret
+
+
+.balign 16
+// label that has to cover all c2i calls to range-check them
+engine_c2i_call_pc_start:
+engine_iregs_only_c2i_call:
+  engine_c2i_call IREG_ABI_AMOUNT 0
+
+.balign 16
+engine_all_regs_c2i_call:
+  engine_c2i_call IREG_ABI_AMOUNT FREG_ABI_AMOUNT
 
 engine_c2i_call_pc_end:
   brk   #0
@@ -182,30 +191,29 @@ engine_i2i_call:
   bl    perform_2i_call
   b     .Lrestart_interpretation
 
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: target)
+// preserved: ECTYPE_REG, x29
+// TLS_REG can be changed after context-switch
+.macro engine_i2c ireg_count freg_count
+  // jumped from .Linterpreter_call without return address to return
+  mov   x9, x0
+
+  i2c_emit_iregs_abi \ireg_count
+  i2c_emit_fregs_abi \freg_count
+
+  blr   x9
+
+  str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8)]
+
+  b     .Lrestart_interpretation
+.endm
 
 .balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: target)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
 engine_i2c_call:
-  // jumped from .Linterpreter_call without return address to return
-  mov   x9, x0
-
-  ldr   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8 )]
-  ldr   x1, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x10)]
-  ldr   x2, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x18)]
-  ldr   x3, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x20)]
-  ldr   x4, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x28)]
-  ldr   x5, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x30)]
-  ldr   x6, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x38)]
-  ldr   x7, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x40)]
-  ldr   x8, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x48)]
-
-  blr    x9
-
-  str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8)]
-
-  b     .Lrestart_interpretation
+  engine_i2c IREG_ABI_AMOUNT FREG_ABI_AMOUNT
 
 
 .balign 16

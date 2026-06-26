@@ -5,6 +5,12 @@
 
 #define LOCAL_SLOTS_OFFSET 0x18
 
+#define TLS_REG x28
+#define ECTYPE_REG x19
+#define LITERALS_REG x20
+#define IREG_ABI_AMOUNT 9
+#define FREG_ABI_AMOUNT 8
+
 #ifndef NDEBUG
     #define READER_SLOTS_SIZE 0x18
 #else

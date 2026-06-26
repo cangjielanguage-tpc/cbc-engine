@@ -6,6 +6,7 @@
 #include "cbc/decoder.h"
 #include "cbc/frame.h"
 #include "cbc/isa.h"
+#include "engine/options.h"
 #include "engine/typeinfo_manager.h"
 #include "interpreter.h"
 #include "interpreter/ectype.h"
@@ -16,7 +17,6 @@
 #include "runtimesupport/runtime.h"
 #include "utils/assertion.h"
 #include "utils/logger.h"
-#include "engine/options.h"
 
 static constexpr int HEAP_SIZE = 16384;
 static LimitedHeap<HEAP_SIZE> heap;
@@ -84,11 +84,11 @@ Value::Primitive Interpret(
 
     uint32_t prng = 1;
     for (int i = 0; i < sizeof(bufIrs); i++) {
-        prng = 1664525 * prng + 1013904223;
+        prng      = 1664525 * prng + 1013904223;
         bufIrs[i] = (prng >> 16) & 0xff;
     }
     for (int i = 0; i < sizeof(bufFrs); i++) {
-        prng = 1664525 * prng + 1013904223;
+        prng      = 1664525 * prng + 1013904223;
         bufFrs[i] = (prng >> 16) & 0xff;
     }
 
@@ -329,7 +329,11 @@ static void C2ICall() { FATAL("Should not reach here. Mock c2i"); }
 
 void* Adapters::GetDynCallTrampoline(int idx) { FATAL("Should not reach here"); }
 
+void* Adapters::GenericC2ICallInstance() { return reinterpret_cast<void*>(&C2ICall); }
+
 void* Adapters::IregOnlyC2ICallInstance() { return reinterpret_cast<void*>(&C2ICall); }
+
+void* Adapters::C2ICall(uint32_t intArgCount, uint32_t floatArgCount) { return reinterpret_cast<void*>(&C2ICall); }
 
 void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* fuh) { FATAL("Should not reach here."); }
 

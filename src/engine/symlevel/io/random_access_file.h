@@ -1,9 +1,9 @@
 #pragma once
 
 #include <cstdint>
-#include <vector>
 #include <memory>
 #include <string_view>
+#include <vector>
 
 namespace IO {
 
