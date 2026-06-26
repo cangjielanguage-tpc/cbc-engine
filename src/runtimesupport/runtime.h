@@ -5,14 +5,14 @@
 
 #include "engine/terms.h"
 #include "interpreter/ectype.h"
+#include "interpreter/int_thunk.h"
 #include <cstdint>
 #include <functional>
-#include <optional>
 
 namespace RTSupport {
 
 // TypeInfo flags
-static constexpr uint64_t GCTIB_SIGN_BIT         = (1lu << 63);
+static constexpr uint64_t GCTIB_SIGN_BIT = (1lu << 63);
 static constexpr uint32_t GCTIB_MAX_SHORT_OFFSET = sizeof(void*) * 62;
 
 #if defined(__x86_64__) || defined(_M_X64)
@@ -88,8 +88,9 @@ struct Execution {
 
     static TypeInfo GetTypeInfo(Reference base);
 
-    static void* GetVirtualTarget(Reference base, int extDefNum, int methodNum);
-    static void* GetInterfaceTarget(Reference base, TypeInfo ti, int methodNum);
+    static Interpretation::Thunk GetVirtualThunk(Reference base, int extDefNum, int methodNum);
+
+    static Interpretation::Thunk GetInterfaceThunk(Reference base, TypeInfo ti, int methodNum);
 
     static uint32_t GetFieldOffset(TypeInfo ti, int ordinal, bool adjustByHeader);
 

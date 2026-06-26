@@ -6,14 +6,10 @@
 #include "interpreter/function_handle.h"
 #include "literals.h"
 #include "runtimesupport/runtime.h"
+#include "int_thunk.h"
 #include <cstdint>
 
 namespace Interpretation {
-
-struct Thunk {
-    void* function;
-    void* arg;
-};
 
 enum BuiltinType : uint8_t {
     BUILTIN_BOOLEAN,

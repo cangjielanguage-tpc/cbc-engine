@@ -16,6 +16,7 @@
 declare_hidden engine_c2i_call_pc_start
 declare_hidden engine_c2i_call_pc_end
 declare_hidden engine_trampolines_dyn_start
+declare_hidden engine_trampolines_dyn_end
 declare_hidden engine_trampolines_direct_start
 declare_hidden engine_all_regs_c2i_call
 declare_hidden engine_iregs_only_c2i_call
@@ -110,6 +111,7 @@ engine_trampolines_dyn_start:
   .endr
 .endm
   repeat_trampoline_dyn TRAMPOLINE_COUNT
+engine_trampolines_dyn_end:
 
 
 // expects: (TLS_REG: th, rax: fuh)

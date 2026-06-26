@@ -5,6 +5,7 @@
 #include "../testutils.h"
 #include "cbc/decoder.h"
 #include "cbc/frame.h"
+#include "engine/options.h"
 #include "cbc/isa.h"
 #include "engine/options.h"
 #include "engine/typeinfo_manager.h"
@@ -284,12 +285,12 @@ TypeInfo Execution::GetTypeInfo(Reference base)
     return *header;
 }
 
-void* Execution::GetVirtualTarget(Reference base, int extDefNum, int methodNum)
+Interpretation::Thunk Execution::GetVirtualThunk(Reference base, int extDefNum, int methodNum)
 {
     FATAL("Should not reach here. I2C virtual call");
 }
 
-void* Execution::GetInterfaceTarget(Reference base, TypeInfo ti, int methodNum)
+Interpretation::Thunk Execution::GetInterfaceThunk(Reference base, TypeInfo ti, int methodNum)
 {
     FATAL("Should not reach here. I2C interface call");
 }

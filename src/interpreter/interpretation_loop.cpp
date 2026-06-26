@@ -4,6 +4,7 @@
 #include "cbc/isa_rt.h"
 #include "engine/terms.h"
 #include "interpreter.h"
+#include "interpreter/code.h"
 #include "interpreter/ectype.h"
 #include "interpreter/loggers.h"
 #include "runtimesupport/adapters.h"
@@ -75,7 +76,7 @@ Interpretation::Thunk engine_interpretation_loop(
     // [int] (stack depth) < (bc pos): instruction
     #define LOG_INSTR                                                                                                  \
         do {                                                                                                           \
-            logger.PrintFmt("#0x%lx < 0x%03lx: ", frame.start, pos - start);                                  \
+            logger.PrintFmt("#0x%lx < 0x%03lx: ", frame.start, pos - start);                                           \
             pos = reader.Cursor();                                                                                     \
             Cbc::RT::Log(literals, logger, args);                                                                      \
         } while (0)
@@ -509,7 +510,7 @@ PREP_TYPED: {
     auto args = B13i64i32::Decode(reader);
     LOG_INSTR;
     auto typedOffset = args.imm32.imm;
-    auto typeInfo = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
+    auto typeInfo    = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
     MetaInfo::VisitReferences(typeInfo, [&](uint32_t offset) {
         interpreter.StoreFrameImm(StoreAccessKind::ST_64, 0, typedOffset + offset);
     });
@@ -629,7 +630,7 @@ VIRTUAL_CALL: {
     auto vnum      = args.imm1.imm;
     auto extDefNum = args.imm2.imm;
 
-    auto function = Execution::GetVirtualTarget(ectype->GetReference(IReg::IR1), extDefNum, vnum);
+    auto reference = ectype->GetReference(IReg::IR1);
 
     // For proper support of fibers, the following call MUST drop the current frame.
     // This can not be guaranteed by C++ compiler consistently, because TCO
@@ -641,16 +642,15 @@ VIRTUAL_CALL: {
 
     reader0 = reader; // save current pc
 
-    // FIXME: avoid I2C->C2I adapters for pure I2I call.
-    return { Adapters::GenericI2CCallInstance(), function };
+    return Execution::GetVirtualThunk(reference, extDefNum, vnum);
 }
 
 INTERFACE_CALL: {
     auto args = B11i16i64::Decode(reader);
     LOG_INSTR;
-    auto num      = args.imm16.imm;
-    auto typeInfo = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
-    auto function = Execution::GetInterfaceTarget(ectype->GetReference(IReg::IR1), typeInfo, num);
+    auto num       = args.imm16.imm;
+    auto typeInfo  = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
+    auto reference = ectype->GetReference(IReg::IR1);
 
     // For proper support of fibers, the following call MUST drop the current frame.
     // This can not be guaranteed by C++ compiler consistently, because TCO
@@ -662,8 +662,7 @@ INTERFACE_CALL: {
 
     reader0 = reader; // save current pc
 
-    // FIXME: avoid I2C->C2I adapters for pure I2I call.
-    return { Adapters::GenericI2CCallInstance(), function };
+    return Execution::GetInterfaceThunk(reference, typeInfo, num);
 }
 
 STRING_INIT: {
@@ -730,8 +729,8 @@ LOAD_TI: {
 IOF: {
     auto args = IOF::Decode(reader);
     LOG_INSTR;
-    auto dst = args.rr.x.IR();
-    auto ref = ectype->GetReference(args.rr.y.IR());
+    auto dst      = args.rr.x.IR();
+    auto ref      = ectype->GetReference(args.rr.y.IR());
     auto typeInfo = TypeInfo(static_cast<uintptr_t>(args.imm64));
     ectype->Put(dst, Value::Primitive { .u64 = Execution::IsInstanceOf(ref, typeInfo) });
     NEXT;
@@ -744,8 +743,8 @@ THROW: {
     if (ref.value == 0) {
         FATAL("unexpected null in THROW");
     }
-    uintptr_t** header  = reinterpret_cast<uintptr_t**>(ref.value);
-    auto typeInfo = TypeInfo(*header);
+    uintptr_t** header = reinterpret_cast<uintptr_t**>(ref.value);
+    auto typeInfo      = TypeInfo(*header);
     FATAL("Throw %s", MetaInfo::GetName(typeInfo)); // TODO: throw exception
 }
 
@@ -879,9 +878,9 @@ R_WRITE_STRUCT: {
     {                                                                                                                  \
         auto args = M3xrrr::Decode(reader);                                                                            \
         LOG_INSTR;                                                                                                     \
-        bool successful =                                                                                              \
-            interpreter.LoadDerived(Format::LoadAccessKind::LD_##ldk, args.xr.r, args.rr.x.IR(), args.rr.y.IR(),       \
-                                                                      memspaceOffsetAcc);                              \
+        bool successful = interpreter.LoadDerived(                                                                     \
+            Format::LoadAccessKind::LD_##ldk, args.xr.r, args.rr.x.IR(), args.rr.y.IR(), memspaceOffsetAcc             \
+        );                                                                                                             \
         NEXT_COND(successful);                                                                                         \
     }
     DLD(U8)
@@ -901,9 +900,9 @@ R_WRITE_STRUCT: {
     {                                                                                                                  \
         auto args = M3xrrr::Decode(reader);                                                                            \
         LOG_INSTR;                                                                                                     \
-        bool successful =                                                                                              \
-            interpreter.StoreDerived(Format::StoreAccessKind::ST_##stk, args.xr.r, args.rr.x.IR(), args.rr.y.IR(),     \
-                                                                        memspaceOffsetAcc);                            \
+        bool successful = interpreter.StoreDerived(                                                                    \
+            Format::StoreAccessKind::ST_##stk, args.xr.r, args.rr.x.IR(), args.rr.y.IR(), memspaceOffsetAcc            \
+        );                                                                                                             \
         NEXT_COND(successful);                                                                                         \
     }
     DST(8)
