@@ -467,6 +467,7 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto method = m.value();
+        // TODO: use method->sret to determine receiver position
         emit.VirtualCall(method->methodNum, method->extDefNum);
         BindStatePoint();
         AdjustReg(dst, IReg::IR1);
@@ -485,6 +486,7 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
+        // TODO: use method->sret to determine receiver position
         emit.InterfaceCall(method->methodNum, *ti);
         BindStatePoint();
         AdjustReg(dst, IReg::IR1);

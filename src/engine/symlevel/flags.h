@@ -33,6 +33,9 @@ namespace Symlevel {
     X(PKG_INIT)                                                                                                        \
     X(LIT_INIT)
 
+#define METHOD_REF_FLAGS(X)                                                                                            \
+    X(SRET)
+
 #define FLAG_LIST(flag) flag,
 #define FLAG_C_STR(flag)                                                                                               \
     case flag: return #flag;
@@ -89,6 +92,32 @@ private:
     Value value;
 };
 
+struct MethodRefFlag {
+public:
+    enum Value : uint8_t {
+        METHOD_REF_FLAGS(FLAG_LIST)
+    };
+
+    static constexpr Value values[] = { METHOD_REF_FLAGS(FLAG_LIST) };
+
+    constexpr MethodRefFlag(const Value value) : value(value) {}
+
+    constexpr operator Value() const { return value; }
+
+    constexpr char const* CStr() const
+    {
+        switch (value) {
+            METHOD_REF_FLAGS(FLAG_C_STR)
+        }
+        return "<invalid>";
+    }
+
+    constexpr std::string_view ToString() const { return std::string_view(CStr()); }
+
+private:
+    Value value;
+};
+
 struct TypeFlag {
 public:
     enum Value : uint32_t {
@@ -118,6 +147,7 @@ private:
 #undef TYPE_FLAGS
 #undef FIELD_FLAGS
 #undef METHOD_FLAGS
+#undef METHOD_REF_FLAGS
 #undef FLAG_C_STR
 #undef FLAG_LIST
 
@@ -188,6 +218,30 @@ private:
 
     static_assert(AccessKind::BIT_COUNT + 30 == sizeof(uint32_t) * 8);
 };
+
+struct MethodRefFlags {
+public:
+    constexpr MethodRefFlags() : flagsRaw(0) {}
+
+    constexpr MethodRefFlags(uint8_t mask) : flagsRaw(mask) {}
+
+    constexpr bool Is(MethodRefFlag flag) const { return flagsRaw & (1 << flag); }
+
+    constexpr bool IsNot(MethodRefFlag flag) const { return !Is(flag); }
+
+    constexpr MethodRefFlags Or(MethodRefFlag flag) const
+    {
+        MethodRefFlags copy  = *this;
+        copy.flagsRaw   |= 1 << flag;
+        return copy;
+    }
+
+    std::string ToString() const;
+
+private:
+    uint8_t flagsRaw;
+};
+
 
 struct TypeFlags {
 public:
