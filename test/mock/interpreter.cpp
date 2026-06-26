@@ -5,8 +5,8 @@
 #include "../testutils.h"
 #include "cbc/decoder.h"
 #include "cbc/frame.h"
-#include "engine/options.h"
 #include "cbc/isa.h"
+#include "engine/options.h"
 #include "engine/typeinfo_manager.h"
 #include "interpreter.h"
 #include "interpreter/ectype.h"
@@ -84,11 +84,11 @@ Value::Primitive Interpret(
 
     uint32_t prng = 1;
     for (int i = 0; i < sizeof(bufIrs); i++) {
-        prng = 1664525 * prng + 1013904223;
+        prng      = 1664525 * prng + 1013904223;
         bufIrs[i] = (prng >> 16) & 0xff;
     }
     for (int i = 0; i < sizeof(bufFrs); i++) {
-        prng = 1664525 * prng + 1013904223;
+        prng      = 1664525 * prng + 1013904223;
         bufFrs[i] = (prng >> 16) & 0xff;
     }
 

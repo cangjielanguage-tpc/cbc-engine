@@ -12,7 +12,7 @@
 namespace RTSupport {
 
 // TypeInfo flags
-static constexpr uint64_t GCTIB_SIGN_BIT = (1lu << 63);
+static constexpr uint64_t GCTIB_SIGN_BIT         = (1lu << 63);
 static constexpr uint32_t GCTIB_MAX_SHORT_OFFSET = sizeof(void*) * 62;
 
 #if defined(__x86_64__) || defined(_M_X64)
@@ -21,16 +21,16 @@ static constexpr uintptr_t DERIVED_PTR_GLOBAL_FLAG = 0x1;
 static constexpr uintptr_t DERIVED_PTR_GLOBAL_FLAG = 1ULL << 63;
 #endif
 
-    using TypeInfoUUID = uint32_t;
+using TypeInfoUUID = uint32_t;
 
-    class ThreadHandle {
-    public:
-        explicit ThreadHandle(void* _value) : value(_value) {}
+class ThreadHandle {
+public:
+    explicit ThreadHandle(void* _value) : value(_value) {}
 
-        inline void* Raw() const { return value; }
+    inline void* Raw() const { return value; }
 
-    private:
-        void* value;
+private:
+    void* value;
 };
 
 class TypeInfo {

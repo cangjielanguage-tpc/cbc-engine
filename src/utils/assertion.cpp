@@ -1,7 +1,7 @@
 
+#include "assertion.h"
 #include <stdarg.h>
 #include <stdio.h>
-#include "assertion.h"
 
 [[noreturn]]
 void ReportFailure(const char* filename, int line, const char* func, const char* fmt, ...)

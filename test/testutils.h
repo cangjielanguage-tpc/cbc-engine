@@ -2,8 +2,8 @@
 #define TESTUTILS_H
 
 #include "engine/symlevel/io/random_access_file.h"
-#include "utils/heap.h"
 #include "utils/assertion.h"
+#include "utils/heap.h"
 #include <memory>
 
 template <size_t limit> class LimitedHeap : public Memory::Heap {

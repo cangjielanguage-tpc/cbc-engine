@@ -103,12 +103,12 @@ protected:
     virtual void LoadArray(AnyReg dst, Format::LoadAccessKind ldk, IReg arr, IReg idx) = 0;
     virtual void StoreArray(AnyReg src, Format::StoreAccessKind stk, IReg arr, IReg idx) = 0;
 
-    virtual void TypeArg(IReg ti, int idx, IReg dst)            = 0;
-    virtual void Box(AnyReg src, IReg dst, uint16_t type)       = 0;
-    virtual void BoxT(uint16_t srcTs, IReg dst)                 = 0;
+    virtual void TypeArg(IReg ti, int idx, IReg dst)      = 0;
+    virtual void Box(AnyReg src, IReg dst, uint16_t type) = 0;
+    virtual void BoxT(uint16_t srcTs, IReg dst)           = 0;
 
-    virtual void Unbox(AnyReg dst, IReg src, uint16_t type)       = 0;
-    virtual void UnboxT(uint16_t dstTs, IReg src)                 = 0;
+    virtual void Unbox(AnyReg dst, IReg src, uint16_t type) = 0;
+    virtual void UnboxT(uint16_t dstTs, IReg src)           = 0;
 
     class MemSpace {
     public:

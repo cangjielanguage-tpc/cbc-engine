@@ -61,5 +61,4 @@ void ReportFailure(const char* filename, int line, const char* func, const char*
             return _ptr;                                                                                               \
         }())
 
-
 #endif // ifdef NDEBUG

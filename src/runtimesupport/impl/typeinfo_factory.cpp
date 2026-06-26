@@ -788,7 +788,7 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, Engine::TypeInfoMan
             break;
     }
 
-    bool isRef  = typeInfo->type < 0;
+    bool isRef = typeInfo->type < 0;
 
     switch (typeInfo->type) {
         case TYPE_KIND_TEMP_ENUM:
