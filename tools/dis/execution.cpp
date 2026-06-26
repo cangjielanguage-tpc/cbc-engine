@@ -26,12 +26,17 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, Engine::TypeInfoMan
     FATAL("Should not be called");
 }
 
-Reference Execution::ReadObjectInstance(Reference base, size_t offset, ThreadHandle th)
+void Execution::WriteGeneric(Reference base, uintptr_t field, Reference object, size_t size, ThreadHandle th)
+{
+    FATAL("Should not be called");
+}
+
+Reference Execution::ReadObjectInstance(Reference base, uintptr_t field, ThreadHandle th)
 {
     FATAL("Should not be called :)");
 }
 
-void Execution::WriteObjectInstance(Reference base, size_t offset, Reference object, ThreadHandle th)
+void Execution::WriteObjectInstance(Reference base, uintptr_t field, Reference object, ThreadHandle th)
 {
     FATAL("Should not be called");
 }
@@ -77,6 +82,8 @@ void* Execution::AllocateObjectInstanceAcc() { FATAL("Should not reach here"); }
 
 void* Execution::AllocateArrayInstance() { FATAL("Should not reach here"); }
 
+void* Execution::LoadGeneric() { FATAL("Should not reach here"); }
+
 void* Execution::GcPointTrampoline() { FATAL("Should not reach here"); }
 
 void* Execution::Spawn() { FATAL("Should not reach here"); }
@@ -91,6 +98,8 @@ TypeInfo Execution::LoadTypeInfo(Engine::GlobalTerm term, Interpretation::Ectype
 {
     FATAL("Should not reach here");
 }
+
+bool Execution::IsReference(TypeInfo ti) { return true; }
 
 bool Execution::IsGlobalStruct(Reference base, uintptr_t derived) { FATAL("Should not reach here"); }
 

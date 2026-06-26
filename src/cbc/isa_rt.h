@@ -138,6 +138,7 @@
     X(DLD_64, M3xrrr, "dld.64 $1ir $2ir $3ir }", true)                                                                 \
     X(DLD_S32TO64, M3xrrr, "dld.s32to64 $1ir $2ir $3ir }", true)                                                       \
     X(DLD_REF, M3xrrr, "dld.ref $1ir $2ir $3ir }", true)                                                               \
+    X(DLD_GENERIC, M3rrrr, "dld.g $1ir $2ir $3ir }", true)                                                             \
     X(DST_8, M3xrrr, "dst.8 $1ir $2ir $3ir }", true)                                                                   \
     X(DST_16, M3xrrr, "dst.16 $1ir $2ir $3ir }", true)                                                                 \
     X(DST_32, M3xrrr, "dst.32 $1ir $2ir $3ir }", true)                                                                 \
@@ -145,6 +146,7 @@
     X(DST_REF, M3xrrr, "dst.ref $1ir $2ir $3ir }", true)                                                               \
     X(DST_F32, M3xrrr, "dst.f32 $1fr $2ir $3ir }", true)                                                               \
     X(DST_F64, M3xrrr, "dst.f64 $rfr $2ir $3ir }", true)                                                               \
+    X(DST_GENERIC, M3rrrr, "dst.g $1ir $2ir $3ir }", true)                                                             \
     X(DSTI_8_8, M3rri8, "dsti.8.8 $0ir $1ir $2U8 }", true)                                                             \
     X(DSTI_16_8, M3rri8, "dsti.16.8 $0ir $1ir $2U8 }", true)                                                           \
     X(DSTI_16_16, M4rri16, "dsti.16.16 $0ir $1ir $2U16 }", true)                                                       \
@@ -785,6 +787,20 @@ struct M3xrrr {
         auto xr  = Format::XR::Decode(reader);
         auto rr  = Format::RR::Decode(reader);
         return M3xrrr { opc, xr, rr };
+    }
+};
+
+struct M3rrrr {
+    MemOpcode opc;
+    Format::RR rr1;
+    Format::RR rr2;
+
+    inline static M3rrrr Decode(Decoder::ByteReader& reader)
+    {
+        auto opc = MemOpcode::Decode(reader);
+        auto rr1 = Format::RR::Decode(reader);
+        auto rr2 = Format::RR::Decode(reader);
+        return M3rrrr { opc, rr1, rr2 };
     }
 };
 

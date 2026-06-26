@@ -811,6 +811,55 @@ R_WRITE_STRUCT: {
     NEXT;
 }
 
+DLD_GENERIC: {
+    auto args = M3rrrr::Decode(reader);
+    LOG_INSTR;
+    // TODO: reorder args, so it would require less bit-shifting
+    auto derivedReg = args.rr1.x.IR();
+    auto tiReg      = args.rr1.y.IR();
+    auto dstReg     = args.rr2.x.IR();
+    auto baseReg    = args.rr2.y.IR();
+
+    auto typeInfo = TypeInfo(ectype->GetPrimitive(tiReg).u64);
+    if (RTSupport::Execution::IsReference(typeInfo)) {
+        auto base    = ectype->GetReference(baseReg);
+        auto derived = ectype->GetReference(derivedReg);
+        auto obj     = RTSupport::Execution::ReadObjectInstance(base, derived.value + memspaceOffsetAcc, handle);
+        ectype->Put(dstReg, obj);
+        NEXT;
+    } else {
+        // The operation require two steps: box allocation and ReadGeneric invocation.
+        // Because box allocation can provoke GC or throw, we should not perform it with C++ frame on the stack.
+
+        // on x64 and aarch64 pointers are 48-bit values
+        uint64_t rawTi  = typeInfo.UInt();
+        uint64_t packed = 0ULL | dstReg | (baseReg << 4) | (derivedReg << 8) | rawTi << 12;
+        return { .function = RTSupport::Execution::LoadGeneric(), .argUInt = packed };
+    }
+}
+DST_GENERIC: {
+    auto args = M3rrrr::Decode(reader);
+    LOG_INSTR;
+    auto derivedReg = args.rr1.x.IR();
+    auto tiReg      = args.rr1.y.IR();
+    auto srcReg     = args.rr2.x.IR();
+    auto baseReg    = args.rr2.y.IR();
+
+    auto base    = ectype->GetReference(baseReg);
+    auto derived = ectype->GetReference(derivedReg);
+    auto obj     = ectype->GetReference(srcReg);
+
+    auto typeInfo = TypeInfo(ectype->GetPrimitive(tiReg).u64);
+    if (RTSupport::Execution::IsReference(typeInfo)) {
+        RTSupport::Execution::WriteObjectInstance(base, derived.value + memspaceOffsetAcc, obj, handle);
+        NEXT;
+    } else {
+        uint32_t size = RTSupport::MetaInfo::GetTypeSize(typeInfo);
+        RTSupport::Execution::WriteGeneric(base, derived.value + memspaceOffsetAcc, obj, size, handle);
+        NEXT;
+    }
+}
+
 #define RLD(ldk)                                                                                                       \
     RLD_##ldk:                                                                                                         \
     {                                                                                                                  \

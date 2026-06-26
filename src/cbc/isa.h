@@ -723,8 +723,6 @@ public:
 
     inline Format::LoadAccessKind LDK() const { return Format::LoadAccessKind::From(imm); }
 
-    inline IReg IR() const { return IReg::From(imm); }
-
 private:
     uint8_t imm;
 };

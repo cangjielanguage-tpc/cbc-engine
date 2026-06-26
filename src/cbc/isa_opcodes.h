@@ -101,6 +101,8 @@
     X(UnboxT, UnboxT)                                                                                                  \
     X(BoxRec, BoxRec)                                                                                                  \
     X(UnboxRec, UnboxRec)                                                                                              \
+    X(Offset, Offset)                                                                                                  \
+    X(AddOffset, AddOffset)                                                                                            \
     X(_END, Unreachable)
 
 #define ISA_MEM_OPCODES(X)                                                                                             \
@@ -119,6 +121,12 @@
     X(CopyTyped, MemTailCopyTyped)                                                                                     \
     X(CopyHandle, MemTailCopyHandle)                                                                                   \
     X(ConstIndex, MemBodyConstIndex)                                                                                   \
+    X(FieldGeneric, MemBodyFieldGeneric)                                                                               \
+    X(ConstIndexGeneric, MemBodyConstIndexGeneric)                                                                     \
+    X(IndexGeneric, MemBodyIndexGeneric)                                                                               \
+    X(LoadGeneric, MemTailLoadGeneric)                                                                                 \
+    X(StoreGeneric, MemTailStoreGeneric)                                                                               \
+    X(Offset, MemBodyOffset)                                                                                           \
     X(_END, UnreachableMem)
 
 #define ISA_REG_SYM_GROUP_OPCODES(X)                                                                                   \

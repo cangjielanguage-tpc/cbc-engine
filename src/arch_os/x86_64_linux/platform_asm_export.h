@@ -3,7 +3,7 @@
 
 #define FUH_SLOT_OFFSET 0x8
 
-#define LOCAL_SLOTS_OFFSET 0x18
+#define LOCAL_SLOTS_OFFSET 0x20
 
 #define TLS_REG r15
 #define ECTYPE_REG rbx
@@ -11,6 +11,9 @@
 #define LITERALS_REG r14
 #define IREG_ABI_AMOUNT 6
 #define FREG_ABI_AMOUNT 8
+
+#define NON_VOL_TMP_REG r13
+#define NON_VOL_TMP_REGd r13d
 
 #ifndef NDEBUG
     #define READER_SLOTS_SIZE 0x18

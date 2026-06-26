@@ -49,6 +49,7 @@ void Encode(ByteBuffer& buf, RT::M10xri64 command);
 void Encode(ByteBuffer& buf, RT::M2rr command);
 void Encode(ByteBuffer& buf, RT::M2xr command);
 void Encode(ByteBuffer& buf, RT::M3xrrr command);
+void Encode(ByteBuffer& buf, RT::M3rrrr command);
 void Encode(ByteBuffer& buf, RT::M3rri8 command);
 void Encode(ByteBuffer& buf, RT::M4rri16 command);
 void Encode(ByteBuffer& buf, RT::M6rri32 command);

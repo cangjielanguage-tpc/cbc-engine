@@ -659,6 +659,16 @@ struct IsaParserImpl {
         parser.UnboxT(dst, src);
     }
 
+    static void Offset(IsaParser& parser)
+    {
+        auto [dst, ti, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+    }
+
+    static void AddOffset(IsaParser& parser)
+    {
+        auto [dst, ti, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+    }
+
     static void MemHeadReg(IsaParser& parser)
     {
         auto ms = parser.OpenMemSpace();
@@ -697,6 +707,30 @@ struct IsaParserImpl {
         auto [ts] = ByteReaderM(parser.reader).ReadU16().Get();
         parser.MemHeadTyped(*ms, ts);
         ParseMemExpr(parser, *ms);
+    }
+
+    static bool MemBodyFieldGeneric(IsaParser& parser, IsaParser::MemSpace& ms)
+    {
+        auto [f, ti] = ByteReaderM(parser.reader).ReadU16().ReadU4Skip4().Get();
+        return false;
+    }
+
+    static bool MemBodyIndexGeneric(IsaParser& parser, IsaParser::MemSpace& ms)
+    {
+        auto [refType, reg, ti] = ByteReaderM(parser.reader).ReadU16().ReadU4().ReadU4().Get();
+        return false;
+    }
+
+    static bool MemBodyConstIndexGeneric(IsaParser& parser, IsaParser::MemSpace& ms)
+    {
+        auto [idx, refType, ti] = ByteReaderM(parser.reader).ReadSLEB().ReadU16().ReadU4Skip4().Get();
+        return false;
+    }
+
+    static bool MemBodyOffset(IsaParser& parser, IsaParser::MemSpace& ms)
+    {
+        auto [reg] = ByteReaderM(parser.reader).ReadU4Skip4().Get();
+        return false;
     }
 
     static bool MemBodyField1(IsaParser& parser, IsaParser::MemSpace& ms)
@@ -739,6 +773,18 @@ struct IsaParserImpl {
         auto [idx, elemType] = ByteReaderM(parser.reader).ReadSLEB().ReadU16().Get();
         parser.MemBodyConstIndex(ms, idx, elemType);
         return false;
+    }
+
+    static bool MemTailLoadGeneric(IsaParser& parser, IsaParser::MemSpace& ms)
+    {
+        auto [dst, ti] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
+        return true;
+    }
+
+    static bool MemTailStoreGeneric(IsaParser& parser, IsaParser::MemSpace& ms)
+    {
+        auto [src, ti] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
+        return true;
     }
 
     static bool MemTailLoad(IsaParser& parser, IsaParser::MemSpace& ms)

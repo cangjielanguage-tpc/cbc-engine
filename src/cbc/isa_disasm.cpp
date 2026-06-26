@@ -469,6 +469,36 @@ struct IsaDisasm : public IsaParser {
         stream << "mem.copy.handle" << " " << base.ToStr() << ", " << offset.ToStr();
     }
 
+    void MemBodyConstIndexGeneric(MemSpace& ms, int64_t idx, uint16_t refType, IReg ti) override
+    {
+        PrintMemPos();
+        stream << "mem.const.index.g" << " " << idx << ", " << refType << ", " << endl;
+    }
+
+    void MemBodyIndexGeneric(MemSpace& ms, IReg reg, uint16_t refType, IReg ti) override
+    {
+        PrintMemPos();
+        stream << "mem.index.g" << " " << reg.ToStr() << ", " << refType << ", " << ti.ToStr() << endl;
+    }
+
+    void MemBodyFieldGeneric(MemSpace& ms, uint16_t field, IReg ti) override
+    {
+        PrintMemPos();
+        stream << "mem.field.g" << " " << field << " " << ti.ToStr() << endl;
+    }
+
+    void MemTailStoreGeneric(MemSpace& ms, IReg src, IReg ti) override
+    {
+        PrintMemPos();
+        stream << "mem.store.g" << " " << src << " " << ti.ToStr() << endl;
+    }
+
+    void MemTailLoadGeneric(MemSpace& ms, IReg dst, IReg ti) override
+    {
+        PrintMemPos();
+        stream << "mem.load.g" << " " << dst << " " << ti.ToStr() << endl;
+    }
+
     void PrintMemPos()
     {
         PrintPos();

@@ -65,6 +65,11 @@ public:
         void StoreFrame(StoreAccessKind stk, Reg src);
         void StoreFrameImm(StoreAccessKind stk, uint64_t imm);
 
+        void LoadGeneric(IReg dst, IReg base, IReg typeInfo);
+        void StoreGeneric(IReg src, IReg base, IReg typeInfo);
+        void LoadDerivedGeneric(IReg dst, IReg base, IReg derived, IReg typeInfo);
+        void StoreDerivedGeneric(IReg src, IReg base, IReg derived, IReg typeInfo);
+
     private:
         template <typename AccessKind> void LoadStore(AccessKind akind, Reg v, IReg base, RT::MemOpcode opc)
         {

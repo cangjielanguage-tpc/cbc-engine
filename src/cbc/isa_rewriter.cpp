@@ -825,22 +825,22 @@ struct IsaRewriter : public IsaParser {
         ms.ReadStructFieldObj(IReg::IR_ACC, src, typeInfo);
     }
 
-    struct MemSpaceRewriter : public MemSpace {
-        MemSpaceRewriter(MemSpaceEmitter emit)
-            : MemSpace(),
-            emit(emit),
-            base(std::nullopt),
-            derived(std::nullopt),
-            ref(false),
-            frame(false),
-            lastFieldKind(CbcTypeKind::INVALID)
-        {}
+    enum HeadKind {
+        HEAD_NONE,
+        HEAD_OBJ,
+        HEAD_REC,
+        HEAD_DERIVED,
+        HEAD_STATIC,
+        HEAD_FRAME
+    };
 
+    struct MemSpaceRewriter : public MemSpace {
+        MemSpaceRewriter(MemSpaceEmitter emit) : MemSpace(), emit(emit), lastFieldKind(CbcTypeKind::INVALID) {}
+
+        HeadKind kind { HEAD_NONE };
         MemSpaceEmitter emit;
-        std::optional<IReg> base;
-        std::optional<IReg> derived;
-        bool ref;
-        bool frame;
+        IReg base { IReg::IRZ };
+        IReg derived { IReg::IRZ };
         CbcTypeKind lastFieldKind;
     };
 
@@ -873,14 +873,15 @@ struct IsaRewriter : public IsaParser {
     {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
         msr.base = base;
-        msr.ref = isRef;
+        msr.kind  = isRef ? HEAD_OBJ : HEAD_REC;
     }
 
     void MemHeadField(MemSpace& ms, IReg base, uint16_t fieldId) override
     {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
         msr.base = base;
-        msr.ref = FieldOffset(msr, fieldId);
+        auto isRef = FieldOffset(msr, fieldId);
+        msr.kind   = isRef ? HEAD_OBJ : HEAD_REC;
     }
 
     void MemHeadStatic(MemSpace& ms, uint16_t fieldId) override
@@ -895,6 +896,7 @@ struct IsaRewriter : public IsaParser {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
         msr.emit.Offset(field->location);
         msr.lastFieldKind = field->fieldType->GetKind();
+        msr.kind          = HEAD_STATIC;
     }
 
     void MemHeadHandle(MemSpace& ms, IReg base, IReg derived) override
@@ -902,13 +904,14 @@ struct IsaRewriter : public IsaParser {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
         msr.base = base;
         msr.derived = derived;
+        msr.kind    = HEAD_DERIVED;
     }
 
     void MemHeadTyped(MemSpace& ms, uint16_t ts) override
     {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
         msr.emit.Offset(frameLayout.typedOffset.at(ts));
-        msr.frame = true;
+        msr.kind = HEAD_FRAME;
     }
 
     void MemBodyField1(MemSpace& ms, uint16_t f1) override
@@ -1005,20 +1008,16 @@ struct IsaRewriter : public IsaParser {
         for (auto r : refs) {
             FieldOffset(msr, r);
         }
-        if (msr.base.has_value()) {
-            if (msr.derived.has_value()) {
-                msr.emit.LoadDerived(Ldk(msr.lastFieldKind), dst, msr.base.value(), msr.derived.value());
-            } else if (msr.ref) {
-                msr.emit.LoadObj(Ldk(msr.lastFieldKind), dst, msr.base.value());
-            } else {
-                msr.emit.LoadRec(Ldk(msr.lastFieldKind), dst, msr.base.value());
-            }
-        } else if (msr.frame) {
-            msr.emit.LoadFrame(Ldk(msr.lastFieldKind), dst);
-        } else {
-            // IRZ means static record field, so whole position is encoded in accumulated offset
-            // FIXME: encode as separate operation
-            msr.emit.LoadRec(Ldk(msr.lastFieldKind), dst, IReg::IRZ);
+        switch (msr.kind) {
+            case HEAD_OBJ:     msr.emit.LoadObj(Ldk(msr.lastFieldKind), dst, msr.base); break;
+            case HEAD_REC:     msr.emit.LoadRec(Ldk(msr.lastFieldKind), dst, msr.base); break;
+            case HEAD_DERIVED: msr.emit.LoadDerived(Ldk(msr.lastFieldKind), dst, msr.base, msr.derived); break;
+            case HEAD_FRAME:   msr.emit.LoadFrame(Ldk(msr.lastFieldKind), dst); break;
+            case HEAD_STATIC:
+                // IRZ means static record field, so whole position is encoded in accumulated offset
+                // FIXME: encode as separate operation
+                msr.emit.LoadRec(Ldk(msr.lastFieldKind), dst, IReg::IRZ);
+            case HEAD_NONE: FATAL("unreachable");
         }
     }
 
@@ -1028,41 +1027,66 @@ struct IsaRewriter : public IsaParser {
         for (auto r : refs) {
             FieldOffset(msr, r);
         }
-        if (msr.base.has_value()) {
-            if (msr.derived.has_value()) {
-                msr.emit.StoreDerived(Stk(msr.lastFieldKind), src, msr.base.value(), msr.derived.value());
-            } else if (msr.ref) {
-                msr.emit.StoreObj(Stk(msr.lastFieldKind), src, msr.base.value());
-            } else {
-                msr.emit.StoreRec(Stk(msr.lastFieldKind), src, msr.base.value());
-            }
-        } else if (msr.frame) {
-            msr.emit.StoreFrame(Stk(msr.lastFieldKind), src);
-        } else {
-            // IRZ means static record field, so whole position is encoded in accumulated offset
-            // FIXME: encode as separate operation
-            msr.emit.StoreRec(Stk(msr.lastFieldKind), src, IReg::IRZ);
+        switch (msr.kind) {
+            case HEAD_OBJ:     msr.emit.StoreObj(Stk(msr.lastFieldKind), src, msr.base); break;
+            case HEAD_REC:     msr.emit.StoreRec(Stk(msr.lastFieldKind), src, msr.base); break;
+            case HEAD_DERIVED: msr.emit.StoreDerived(Stk(msr.lastFieldKind), src, msr.base, msr.derived); break;
+            case HEAD_FRAME:   msr.emit.StoreFrame(Stk(msr.lastFieldKind), src); break;
+            case HEAD_STATIC:
+                // IRZ means static record field, so whole position is encoded in accumulated offset
+                // FIXME: encode as separate operation
+                msr.emit.StoreRec(Stk(msr.lastFieldKind), src, IReg::IRZ);
+            case HEAD_NONE: FATAL("unreachable");
         }
     }
 
     void MemTailStoreImm(MemSpace& ms, uint64_t imm) override
     {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
-        if (msr.base.has_value()) {
-            if (msr.derived.has_value()) {
-                msr.emit.StoreDerivedImm(Stk(msr.lastFieldKind), msr.base.value(), msr.derived.value(), imm);
-            } else if (msr.ref) {
-                msr.emit.StoreObjImm(Stk(msr.lastFieldKind), msr.base.value(), imm);
-            } else {
-                msr.emit.StoreRecImm(Stk(msr.lastFieldKind), msr.base.value(), imm);
-            }
-        } else if (msr.frame) {
-            msr.emit.StoreFrameImm(Stk(msr.lastFieldKind), imm);
-        } else {
-            // IRZ means static record field, so whole position is encoded in accumulated offset
-            // FIXME: encode as separate operation
-            msr.emit.StoreRecImm(Stk(msr.lastFieldKind), IReg::IRZ, imm);
+        switch (msr.kind) {
+            case HEAD_OBJ:     msr.emit.StoreObjImm(Stk(msr.lastFieldKind), msr.base, imm); break;
+            case HEAD_REC:     msr.emit.StoreRecImm(Stk(msr.lastFieldKind), msr.base, imm); break;
+            case HEAD_DERIVED: msr.emit.StoreDerivedImm(Stk(msr.lastFieldKind), msr.base, msr.derived, imm); break;
+            case HEAD_FRAME:   msr.emit.StoreFrameImm(Stk(msr.lastFieldKind), imm); break;
+            case HEAD_STATIC:
+                // IRZ means static record field, so whole position is encoded in accumulated offset
+                // FIXME: encode as separate operation
+                msr.emit.StoreRecImm(Stk(msr.lastFieldKind), IReg::IRZ, imm);
+            case HEAD_NONE: FATAL("unreachable");
         }
+    }
+
+    void MemBodyConstIndexGeneric(MemSpace& ms, int64_t idx, uint16_t refType, IReg ti) override {}
+
+    void MemBodyIndexGeneric(MemSpace& ms, IReg reg, uint16_t refType, IReg ti) override {}
+
+    void MemBodyFieldGeneric(MemSpace& ms, uint16_t field, IReg ti) override {}
+
+    void MemTailStoreGeneric(MemSpace& ms, IReg src, IReg ti) override
+    {
+        auto& msr = static_cast<MemSpaceRewriter&>(ms);
+        switch (msr.kind) {
+            case HEAD_OBJ:     msr.emit.StoreGeneric(src, msr.base, ti); break;
+            case HEAD_DERIVED: msr.emit.StoreDerivedGeneric(src, msr.base, msr.derived, ti); break;
+            case HEAD_REC:
+            case HEAD_FRAME:
+            case HEAD_STATIC:
+            case HEAD_NONE:    FATAL("unexpected kind %d", msr.kind);
+        }
+    }
+
+    void MemTailLoadGeneric(MemSpace& ms, IReg dst, IReg ti) override
+    {
+        auto& msr = static_cast<MemSpaceRewriter&>(ms);
+        switch (msr.kind) {
+            case HEAD_OBJ:     msr.emit.LoadGeneric(dst, msr.base, ti); break;
+            case HEAD_DERIVED: msr.emit.LoadDerivedGeneric(dst, msr.base, msr.derived, ti); break;
+            case HEAD_REC:
+            case HEAD_FRAME:
+            case HEAD_STATIC:
+            case HEAD_NONE:    FATAL("unexpected kind %d", msr.kind);
+        }
+        BindStatePoint();
     }
 
     void MemTailCopyReg(MemSpace& ms, IReg dst, uint16_t recType) override
