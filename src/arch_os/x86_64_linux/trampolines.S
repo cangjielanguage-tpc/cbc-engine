@@ -247,24 +247,24 @@ engine_i2_load_generic:
   // [8..12) - field reg
   // [12..64) - typeInfo
 
-  mov   NON_VOL_TMP_REG, rdi
+  mov   EXTRA_REG, rdi
   // allocate box
   call  [rip + engine_newobject_function]
   mov   rdi, rax // put box as dst param of read generic
 
   // save box to dst reg
-  mov   eax, NON_VOL_TMP_REGd
+  mov   eax, EXTRA_REGd
   and   eax, 3
   mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8 * rax], rdi
 
   // obj (base) param
-  mov   esi, NON_VOL_TMP_REGd
+  mov   esi, EXTRA_REGd
   shr   esi, 4
   and   esi, 3
   mov   rsi, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8 * rsi]
 
   // field param
-  mov   edx, NON_VOL_TMP_REGd
+  mov   edx, EXTRA_REGd
   shr   edx, 8
   and   edx, 3
   mov   rdx, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8 * rdx]
@@ -338,22 +338,11 @@ perform_2i_call:
   push  rdi // rbp - 0x8 : FunctionHandle for frame scanning
   push  ECTYPE_REG // rbp - 0x10
   push  LITERALS_REG // rbp - 0x18
-  push  NON_VOL_TMP_REG // rbp - 0x20
+  push  EXTRA_REG // rbp - 0x20
 
-.set OFFS_ADDEND, 0x0
+  // reserve slots and align stack
+  sub   rsp, LOCAL_SLOTS_OFFSET - EXTRA_SAVED_REG_OFFSET
 
-.macro declare_slot var, size
-  .set OFFS_ADDEND, OFFS_ADDEND + \size
-  .set \var, LOCAL_SLOTS_OFFSET + OFFS_ADDEND
-.endm
-
-  declare_slot READER_SLOT, READER_SLOTS_SIZE
-
-  //.balign stack
-  .if (LOCAL_SLOTS_OFFSET + OFFS_ADDEND) % 0x10 != 0
-    .set OFFS_ADDEND, OFFS_ADDEND + 0x8
-  .endif
-  sub   rsp, OFFS_ADDEND
   // FIXME: perform stack check here!
 
   // We need to support fibers with movable stacks,
@@ -378,13 +367,13 @@ perform_2i_call:
 #ifndef NDEBUG
   mov   r8, [rax + EXEC_BYTECODE_INFO_BYTECODE_SIZE_OFFSET]
   add   r8, rsi
-  mov   [rbp - READER_SLOT + 0x10], r8
-  mov   [rbp - READER_SLOT + 0x8], rsi
+  mov   [rbp - READER_SLOT_OFFSET + 0x10], r8
+  mov   [rbp - READER_SLOT_OFFSET + 0x8], rsi
 #endif
-  mov   [rbp - READER_SLOT], rsi
+  mov   [rbp - READER_SLOT_OFFSET], rsi
 
 #ifndef NDEBUG
-  mov   rdi, [rbp - 0x8]
+  mov   rdi, [rbp - FUH_SLOT_OFFSET]
   mov   rsi, ECTYPE_REG
   call  engine_log_int_start
 #endif
@@ -398,6 +387,9 @@ perform_2i_call:
   mov   r8d, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   sub   rsp, r8
 
+  // TODO:
+  //  - transform mask to list of 3-bit values.
+  //  - use single loop
 .macro PUSH_IREGS mask_reg, stack_reg, exec_info_reg
     movzx   \mask_reg, WORD PTR [\exec_info_reg + EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
     .irp reg, 8,9,10,11,12,13
@@ -432,7 +424,7 @@ perform_2i_call:
   mov   rsi, rsp
   mov   rdx, TLS_REG
   mov   rcx, LITERALS_REG
-  lea   r8, [rbp - READER_SLOT]
+  lea   r8, [rbp - READER_SLOT_OFFSET]
 
   call  engine_interpretation_loop
 
@@ -448,12 +440,12 @@ perform_2i_call:
 .Lend_interpretation:
 
 #ifndef NDEBUG
-  mov   rdi, [rbp - 0x8]
+  mov   rdi, [rbp - FUH_SLOT_OFFSET]
   mov   rsi, ECTYPE_REG
   call  engine_log_int_end
 #endif
 
-  mov   rax, [rbp - 0x8] // load Function Handle
+  mov   rax, [rbp - FUH_SLOT_OFFSET]
   mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
 
   mov   edx, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
@@ -488,9 +480,9 @@ perform_2i_call:
   POP_IREGS ecx, rdx, rax
   POP_FREGS ecx, rdx, rax
 
-  mov   NON_VOL_TMP_REG, [rbp - 0x20]
-  mov   LITERALS_REG, [rbp - 0x18]
-  mov   ECTYPE_REG, [rbp - 0x10]
+  mov   EXTRA_REG, [rbp - EXTRA_SAVED_REG_OFFSET]
+  mov   LITERALS_REG, [rbp - LITERALS_REG_SAVED_SLOT_OFFSET]
+  mov   ECTYPE_REG, [rbp - ECTYPE_REG_SAVED_SLOT_OFFSET]
 
   mov   rsp, rbp
   pop   rbp

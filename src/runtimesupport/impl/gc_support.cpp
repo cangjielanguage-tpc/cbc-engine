@@ -49,12 +49,12 @@ public:
         }
     }
 
-    void UpdateRegLocations(std::bitset<ECTYPE_IREGS_COUNT> savedRegsMask, Placeholder spillsEnd)
+    void UpdateRegLocations(std::bitset<ECTYPE_IREGS_COUNT> savedRegsMask, Placeholder calleeSavedRegsEnd)
     {
-        Placeholder spillAddr = spillsEnd;
+        Placeholder addr = calleeSavedRegsEnd;
         for (uint32_t regN = IReg::FIRST_NON_VOL; regN < IReg::COUNT; regN++) {
             if (savedRegsMask.test(regN - IReg::FIRST_NON_VOL)) {
-                regLocationMap[regN] = --spillAddr;
+                regLocationMap[regN] = --addr;
             }
         }
     }
@@ -93,10 +93,10 @@ void VisitGCFrameRoots(DYN_VisitingState state, INT_FrameDesc frame_desc, DYN_Ro
     using namespace Interpretation;
     auto regsLocationTable = reinterpret_cast<RegistersTable*>(state);
 
-    const auto readerOffset = LOCAL_SLOTS_OFFSET + READER_SLOTS_SIZE;
+    const auto localsOffset = LOCAL_SLOTS_OFFSET;
 
     auto fuh    = *reinterpret_cast<DynamicFunctionHandle**>((uint8_t*)frame_desc.fp - FUH_SLOT_OFFSET);
-    auto reader = reinterpret_cast<Decoder::ByteReader*>((uint8_t*)frame_desc.fp - readerOffset);
+    auto reader = reinterpret_cast<Decoder::ByteReader*>((uint8_t*)frame_desc.fp - READER_SLOT_OFFSET);
     auto bc     = NOTNULL(fuh->bytecode.load());
 
     uint32_t curPos = reinterpret_cast<uintptr_t>(reader->Cursor()) - reinterpret_cast<uintptr_t>(bc->code.bytecode);
@@ -118,8 +118,8 @@ void VisitGCFrameRoots(DYN_VisitingState state, INT_FrameDesc frame_desc, DYN_Ro
         return;
     }
 
-    auto spillsEnd = ((uint8_t*)frame_desc.fp) - readerOffset;
-    auto slotsStartAddr = ((uint8_t*)frame_desc.fp) - (readerOffset + bc->frameSize);
+    auto calleeSavedRegsEnd = ((uint8_t*)frame_desc.fp) - localsOffset;
+    auto slotsStartAddr = ((uint8_t*)frame_desc.fp) - (localsOffset + bc->frameSize);
 
     RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Output& out) {
         out.PrintFmtLn(
@@ -177,7 +177,7 @@ void VisitGCFrameRoots(DYN_VisitingState state, INT_FrameDesc frame_desc, DYN_Ro
             out << "update regs table, saved regs: " << savedRegsMap.to_string().c_str() << endl;
         });
 
-        regsLocationTable->UpdateRegLocations(savedRegsMap, reinterpret_cast<Placeholder>(spillsEnd));
+        regsLocationTable->UpdateRegLocations(savedRegsMap, reinterpret_cast<Placeholder>(calleeSavedRegsEnd));
     }
 
     RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Output& out) {
