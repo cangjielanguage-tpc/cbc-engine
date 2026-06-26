@@ -164,7 +164,7 @@ BCC32I: {
     auto args = B4xi12rr::Decode(reader);
     LOG_INSTR;
     int64_t delta = interpreter.template Bcc<ImmKind::VALUE, Width::W32>(
-        args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
+        args.xi12.imm4.CC(), args.rr.x, args.rr.y, args.xi12.imm12
     );
     JUMP;
 }
@@ -172,7 +172,7 @@ BCC32L: {
     auto args = B4xi12rr::Decode(reader);
     LOG_INSTR;
     int64_t delta = interpreter.template Bcc<ImmKind::LITERAL, Width::W32>(
-        args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
+        args.xi12.imm4.CC(), args.rr.x, args.rr.y, args.xi12.imm12
     );
     JUMP;
 }
@@ -180,7 +180,7 @@ BCC64I: {
     auto args = B4xi12rr::Decode(reader);
     LOG_INSTR;
     int64_t delta = interpreter.template Bcc<ImmKind::VALUE, Width::W64>(
-        args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
+        args.xi12.imm4.CC(), args.rr.x, args.rr.y, args.xi12.imm12
     );
     JUMP;
 }
@@ -188,7 +188,7 @@ BCC64L: {
     auto args = B4xi12rr::Decode(reader);
     LOG_INSTR;
     int64_t delta = interpreter.template Bcc<ImmKind::LITERAL, Width::W64>(
-        args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
+        args.xi12.imm4.CC(), args.rr.x, args.rr.y, args.xi12.imm12
     );
     JUMP;
 }

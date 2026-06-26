@@ -349,9 +349,13 @@ public:
     }
 
     template <RT::ImmKind::Value immKind, Width::Value width>
-    inline int64_t Bcc(CC cc, IReg l, IReg r, uint16_t offsetValue)
+    inline int64_t Bcc(CC cc, Reg l, Reg r, uint16_t offsetValue)
     {
-        return Cmp<width>(cc, l, r) ? DecodeImmediate<immKind>(literals, offsetValue) : 0;
+        if (cc.IsFloatingPoint()) {
+            return Cmp<width>(cc, l.FR(), r.FR()) ? DecodeImmediate<immKind>(literals, offsetValue) : 0;
+        } else {
+            return Cmp<width>(cc, l.IR(), r.IR()) ? DecodeImmediate<immKind>(literals, offsetValue) : 0;
+        }
     }
 
     template <RT::ImmKind::Value immValueKind, RT::ImmKind::Value immOffsetKind, Width::Value width>

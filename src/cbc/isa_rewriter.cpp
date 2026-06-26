@@ -218,6 +218,7 @@ struct IsaRewriter : public IsaParser {
     {
         if (cc.IsFloatingPoint()) {
             // FIXME: support floats
+            emit.Bcc(cc, width, FReg::From(l), FReg::From(r), InstructionLabel(Pos() + delta));
         } else {
             emit.Bcc(cc, width, IReg::From(l), IReg::From(r), InstructionLabel(Pos() + delta));
         }
@@ -466,6 +467,7 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto method = m.value();
+        // TODO: use method->sret to determine receiver position
         emit.VirtualCall(method->methodNum, method->extDefNum);
         BindStatePoint();
         AdjustReg(dst, IReg::IR1);
@@ -484,6 +486,7 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
+        // TODO: use method->sret to determine receiver position
         emit.InterfaceCall(method->methodNum, *ti);
         BindStatePoint();
         AdjustReg(dst, IReg::IR1);
