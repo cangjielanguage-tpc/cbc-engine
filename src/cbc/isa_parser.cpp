@@ -623,6 +623,18 @@ struct IsaParserImpl {
         parser.TypeArg(ti, idx, dst);
     }
 
+    static void BoxRec(IsaParser& parser)
+    {
+        auto [src, dst, tk] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.Box(src, dst, tk);
+    }
+
+    static void UnboxRec(IsaParser& parser)
+    {
+        auto [src, dst, tk] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.Box(src, dst, tk);
+    }
+
     static void Box(IsaParser& parser)
     {
         auto [src, dst, tk] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU8().Get();
@@ -865,6 +877,6 @@ IsaParser::IsaParser(Decoder::FatByteReader reader) : reader(reader) {}
 
 IsaParser::IsaParser(uint8_t* start, uint8_t* end) : reader(start, start, end) {}
 
-IsaParser::IsaParser(Cbc::MethodCode code) : IsaParser(code.CodePtr(), code.CodePtr() + code.CodeSize()) {}
+IsaParser::IsaParser(Cbc::MethodCode& code) : IsaParser(code.CodePtr(), code.CodePtr() + code.CodeSize()) {}
 
 } // namespace Cbc

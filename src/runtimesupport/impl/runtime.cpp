@@ -59,6 +59,19 @@ void Execution::WriteObjectStatic(void* location, Reference object, ThreadHandle
     );
 }
 
+void Execution::WriteStructField(uintptr_t src, Reference base, uintptr_t field, TypeInfo ti, ThreadHandle th)
+{
+    auto type = UnpackTypeInfo(ti);
+    auto size = type->instanceSize;
+    RTSupport::WriteStructField(base.value, field, size, src, size, type->gctib);
+}
+
+void Execution::ReadStructField(uintptr_t dst, Reference base, uintptr_t field, TypeInfo ti, ThreadHandle th)
+{
+    auto type = UnpackTypeInfo(ti);
+    RTSupport::ReadStructField(dst, base.value, field, type->instanceSize, type->gctib);
+}
+
 void* Execution::AllocateObjectInstance() { return reinterpret_cast<void*>(&Asm::engine_i2_newobject); }
 
 void* Execution::AllocateObjectInstanceAcc() { return reinterpret_cast<void*>(&Asm::engine_i2_newobject_acc); }

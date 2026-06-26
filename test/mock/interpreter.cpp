@@ -240,6 +240,16 @@ void Execution::WriteObjectInstance(Reference base, size_t offset, Reference obj
     *reinterpret_cast<uintptr_t*>(base.value + offset) = object.value;
 }
 
+void Execution::WriteStructField(uintptr_t src, Reference base, uintptr_t field, TypeInfo ti, ThreadHandle th)
+{
+    FATAL("Should not be called");
+}
+
+void Execution::ReadStructField(uintptr_t dst, Reference base, uintptr_t field, TypeInfo ti, ThreadHandle th)
+{
+    FATAL("Should not be called");
+}
+
 Reference Execution::ReadArrayElem(Reference array, uint64_t index, ThreadHandle th)
 {
     return Reference { .value = *reinterpret_cast<uintptr_t*>(
