@@ -578,9 +578,10 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         builder.instanceSize = 0;
     }
 
-    builder.typeArgsNum = term.GetLength();
-    if (builder.typeArgsNum > 0) {
-        builder.typeArgs = Alloc<DYN_TypeInfo*>(builder.typeArgsNum);
+    builder.typeArgsNum = 0; // Otherwise, runtime would expect type template to be present.
+    int typeArgsNum = term.GetLength();
+    if (typeArgsNum > 0) {
+        builder.typeArgs = Alloc<DYN_TypeInfo*>(typeArgsNum);
         if (builder.typeArgs == nullptr) {
             return std::nullopt;
         }
@@ -589,7 +590,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         if (!resolved) {
             return std::nullopt;
         }
-        for (int i = 0; i < builder.typeArgsNum; i++) {
+        for (int i = 0; i < typeArgsNum; i++) {
             builder.typeArgs[i] = typeInfos[i];
         }
     }
