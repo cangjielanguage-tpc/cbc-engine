@@ -140,7 +140,7 @@
     X(DLD_64, M3xrrr, "dld.64 $1ir $2ir $3ir }", true)                                                                 \
     X(DLD_S32TO64, M3xrrr, "dld.s32to64 $1ir $2ir $3ir }", true)                                                       \
     X(DLD_REF, M3xrrr, "dld.ref $1ir $2ir $3ir }", true)                                                               \
-    X(DLD_GENERIC, M3rrrr, "dld.g $1ir $2ir $3ir }", true)                                                             \
+    X(DLD_GENERIC, M3rrrr, "dld.g $0ir $1ir $2ir $3ir }", true)                                                             \
     X(DST_8, M3xrrr, "dst.8 $1ir $2ir $3ir }", true)                                                                   \
     X(DST_16, M3xrrr, "dst.16 $1ir $2ir $3ir }", true)                                                                 \
     X(DST_32, M3xrrr, "dst.32 $1ir $2ir $3ir }", true)                                                                 \

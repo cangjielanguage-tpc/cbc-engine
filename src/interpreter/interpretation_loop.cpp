@@ -832,21 +832,22 @@ DLD_GENERIC: {
     auto tiReg      = args.rr1.y.IR();
     auto dstReg     = args.rr2.x.IR();
     auto baseReg    = args.rr2.y.IR();
+    auto derived = ectype->GetReference(derivedReg);
 
     auto typeInfo = TypeInfo(ectype->GetPrimitive(tiReg).u64);
     if (RTSupport::Execution::IsReference(typeInfo)) {
         auto base    = ectype->GetReference(baseReg);
-        auto derived = ectype->GetReference(derivedReg);
         auto obj     = RTSupport::Execution::ReadObjectInstance(base, derived.value + memspaceOffsetAcc, handle);
         ectype->Put(dstReg, obj);
         NEXT;
     } else {
         // The operation require two steps: box allocation and ReadGeneric invocation.
         // Because box allocation can provoke GC or throw, we should not perform it with C++ frame on the stack.
+        ectype->Put(IReg::IR_ACC, Value::Reference{ derived.value + memspaceOffsetAcc });
 
         // on x64 and aarch64 pointers are 48-bit values
         uint64_t rawTi  = typeInfo.UInt();
-        uint64_t packed = 0ULL | dstReg | (baseReg << 4) | (derivedReg << 8) | rawTi << 12;
+        uint64_t packed = 0ULL | dstReg | (baseReg << 4) | (IReg::IR_ACC << 8) | rawTi << 12;
         reader0 = reader;
         return { .function = RTSupport::Execution::LoadGeneric(), .argUInt = packed };
     }
