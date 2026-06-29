@@ -674,7 +674,7 @@ DIRECT_CALL_2C: {
     return { Adapters::GenericI2CCallInstance(), reinterpret_cast<void*>(target) };
 }
 VIRTUAL_CALL: {
-    auto args = B5i16i16::Decode(reader);
+    auto args = VirtualCall::Decode(reader);
     LOG_INSTR;
     auto vnum      = args.imm1.imm;
     auto extDefNum = args.imm2.imm;
@@ -695,7 +695,7 @@ VIRTUAL_CALL: {
 }
 
 INTERFACE_CALL: {
-    auto args = B11i16i64::Decode(reader);
+    auto args = InterfaceCall::Decode(reader);
     LOG_INSTR;
     auto num       = args.imm16.imm;
     auto typeInfo  = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));

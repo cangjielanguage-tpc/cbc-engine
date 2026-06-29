@@ -75,8 +75,8 @@
     X(CONVERT, B3xxrr, "convert $0ct $1ct $2ir $3ir") /* FIXME: ir/fr */                                               \
     X(DIRECT_CALL_2I, B3xi12, "call.2i $1I12L")                                                                        \
     X(DIRECT_CALL_2C, B3xi12, "call.2c $1I12L")                                                                        \
-    X(VIRTUAL_CALL, B5i16i16, "vcall $0U16 $1U16")                                                                     \
-    X(INTERFACE_CALL, B11i16i64, "icall $0U16 $1U64")                                                                  \
+    X(VIRTUAL_CALL, VirtualCall, "vcall $0U16 $1U16")                                                                  \
+    X(INTERFACE_CALL, InterfaceCall, "icall $0U16 $1U64")                                                              \
     X(MEMSPACE, B1, "memspace {")                                                                                      \
     X(GC_POINT, B1, "gcpoint")                                                                                         \
     X(BFXS, BFX, "bfxs $0ir $1ir $2U8 $3U8")                                                                           \
@@ -545,19 +545,19 @@ struct B5xi12ri12 {
     }
 };
 
-struct B5i16i16 {
+struct VirtualCall {
     static constexpr int SIZE = 5;
 
     Opcode opc;
     Format::Imm16 imm1;
     Format::Imm16 imm2;
 
-    static B5i16i16 Decode(Decoder::ByteReader& reader)
+    static VirtualCall Decode(Decoder::ByteReader& reader)
     {
         auto opc  = Opcode::Decode(reader);
         auto imm1 = Format::Imm16::Decode(reader);
         auto imm2 = Format::Imm16::Decode(reader);
-        return B5i16i16 { opc, imm1, imm2 };
+        return VirtualCall { opc, imm1, imm2 };
     }
 };
 
@@ -649,17 +649,17 @@ struct B10xri64 {
     }
 };
 
-struct B11i16i64 {
+struct InterfaceCall {
     Opcode opc;
     Format::Imm16 imm16;
     Format::Imm64 imm64;
 
-    static B11i16i64 Decode(Decoder::ByteReader& reader)
+    static InterfaceCall Decode(Decoder::ByteReader& reader)
     {
         auto opc   = Opcode::Decode(reader);
         auto imm16 = Format::Imm16::Decode(reader);
         auto imm64 = Format::Imm64::Decode(reader);
-        return B11i16i64 { opc, imm16, imm64 };
+        return InterfaceCall { opc, imm16, imm64 };
     }
 };
 

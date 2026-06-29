@@ -803,7 +803,7 @@ void Emitter::VirtualCall(uint16_t vnum, uint16_t extDefNum)
 {
     Encode(
         segment,
-        RT::B5i16i16 {
+        RT::VirtualCall {
             .opc  = RT::Opcode::VIRTUAL_CALL,
             .imm1 = Imm16 { .imm = vnum },
             .imm2 = Imm16 { .imm = extDefNum },
@@ -815,7 +815,7 @@ void Emitter::InterfaceCall(uint16_t methodNum, RTSupport::TypeInfo typeInfo)
 {
     Encode(
         segment,
-        RT::B11i16i64 {
+        RT::InterfaceCall {
             .opc   = RT::Opcode::INTERFACE_CALL,
             .imm16 = { methodNum },
             .imm64 = { .imm = reinterpret_cast<uint64_t>(typeInfo.Raw()) },

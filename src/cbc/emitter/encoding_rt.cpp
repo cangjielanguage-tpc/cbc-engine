@@ -176,7 +176,7 @@ void Encode(ByteBuffer& buf, RT::B5xi12ri12 command)
     Encode(buf, command.ri12);
 }
 
-void Encode(ByteBuffer& buf, RT::B5i16i16 command)
+void Encode(ByteBuffer& buf, RT::VirtualCall command)
 {
     Encode(buf, command.opc);
     Encode(buf, command.imm1);
@@ -209,7 +209,7 @@ void Encode(ByteBuffer& buf, RT::B9i64 command)
     Encode(buf, command.imm64);
 }
 
-void Encode(ByteBuffer& buf, RT::B11i16i64 command)
+void Encode(ByteBuffer& buf, RT::InterfaceCall command)
 {
     Encode(buf, command.opc);
     Encode(buf, command.imm16);
