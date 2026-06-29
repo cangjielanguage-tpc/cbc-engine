@@ -542,15 +542,15 @@ struct VirtualCall {
     static constexpr int SIZE = 5;
 
     Opcode opc;
-    Format::Imm16 imm1;
-    Format::Imm16 imm2;
+    uint16_t vnum;
+    uint16_t edef;
 
     static VirtualCall Decode(Decoder::ByteReader& reader)
     {
         auto opc  = Opcode::Decode(reader);
-        auto imm1 = Format::Imm16::Decode(reader);
-        auto imm2 = Format::Imm16::Decode(reader);
-        return VirtualCall { opc, imm1, imm2 };
+        auto vnum = reader.Read16();
+        auto edef = reader.Read16();
+        return VirtualCall { opc, vnum, edef };
     }
 };
 
@@ -628,15 +628,15 @@ struct B10xri64 {
 
 struct InterfaceCall {
     Opcode opc;
-    Format::Imm16 imm16;
-    Format::Imm64 imm64;
+    uint16_t vnum;
+    uint64_t ti;
 
     static InterfaceCall Decode(Decoder::ByteReader& reader)
     {
-        auto opc   = Opcode::Decode(reader);
-        auto imm16 = Format::Imm16::Decode(reader);
-        auto imm64 = Format::Imm64::Decode(reader);
-        return InterfaceCall { opc, imm16, imm64 };
+        auto opc  = Opcode::Decode(reader);
+        auto vnum = reader.Read16();
+        auto ti   = reader.Read64();
+        return InterfaceCall { opc, vnum, ti };
     }
 };
 
