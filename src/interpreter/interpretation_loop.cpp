@@ -679,7 +679,14 @@ VIRTUAL_CALL: {
     auto vnum      = args.vnum;
     auto extDefNum = args.edef;
 
-    auto reference = ectype->GetReference(IReg::IR1);
+#if defined(__x86_64__) || defined(_M_X64)
+    auto receiver = args.sret ? IReg::IR2 : IReg::IR1;
+#elif defined(__aarch64__) || defined(_M_ARM64)
+    // On aarch64 receiver location does not depend on sret,
+    // because sret has dedicated register IR9.
+    auto receiver = IReg::IR1;
+#endif
+    auto reference = ectype->GetReference(receiver);
 
     // For proper support of fibers, the following call MUST drop the current frame.
     // This can not be guaranteed by C++ compiler consistently, because TCO
@@ -699,7 +706,14 @@ INTERFACE_CALL: {
     LOG_INSTR;
     auto num       = args.vnum;
     auto typeInfo  = TypeInfo(static_cast<uintptr_t>(args.ti));
-    auto reference = ectype->GetReference(IReg::IR1);
+#if defined(__x86_64__) || defined(_M_X64)
+    auto receiver = args.sret ? IReg::IR2 : IReg::IR1;
+#elif defined(__aarch64__) || defined(_M_ARM64)
+    // On aarch64 receiver location does not depend on sret,
+    // because sret has dedicated register IR9.
+    auto receiver = IReg::IR1;
+#endif
+    auto reference = ectype->GetReference(receiver);
 
     // For proper support of fibers, the following call MUST drop the current frame.
     // This can not be guaranteed by C++ compiler consistently, because TCO

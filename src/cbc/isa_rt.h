@@ -551,13 +551,15 @@ struct VirtualCall {
     Opcode opc;
     uint16_t vnum;
     uint16_t edef;
+    uint8_t sret;
 
     static VirtualCall Decode(Decoder::ByteReader& reader)
     {
         auto opc  = Opcode::Decode(reader);
         auto vnum = reader.Read16();
         auto edef = reader.Read16();
-        return VirtualCall { opc, vnum, edef };
+        auto sret = reader.Read8();
+        return VirtualCall { opc, vnum, edef, sret };
     }
 };
 
@@ -653,13 +655,15 @@ struct InterfaceCall {
     Opcode opc;
     uint16_t vnum;
     uint64_t ti;
+    uint8_t sret;
 
     static InterfaceCall Decode(Decoder::ByteReader& reader)
     {
         auto opc  = Opcode::Decode(reader);
         auto vnum = reader.Read16();
         auto ti   = reader.Read64();
-        return InterfaceCall { opc, vnum, ti };
+        auto sret = reader.Read8();
+        return InterfaceCall { opc, vnum, ti, sret };
     }
 };
 
