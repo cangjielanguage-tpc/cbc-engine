@@ -527,8 +527,9 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         builder.fieldNum     = layout->fields.size();
 
         builder.fields = Alloc<DYN_TypeInfo*>(builder.fieldNum);
+        builder.fieldOffsets = Alloc<uint32_t>(builder.fieldNum);
 
-        if (builder.fields == nullptr && builder.fieldNum != 0) {
+        if (builder.fieldNum != 0 && (builder.fieldOffsets == nullptr || builder.fieldOffsets == nullptr)) {
             return std::nullopt;
         }
 
@@ -541,13 +542,13 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             if (!typeInfo.has_value()) {
                 return std::nullopt;
             }
-            builder.fields[idx++] = UnpackTypeInfo(*typeInfo);
-
             auto optOffs = field.offset;
-
             if (!optOffs.has_value()) {
                 return std::nullopt;
             }
+            auto fieldId = idx++;
+            builder.fields[fieldId] = UnpackTypeInfo(*typeInfo);
+            builder.fieldOffsets[fieldId] = *optOffs;
             fieldManager->FillRefOffsets(fieldType, refFieldOffs, optOffs.value());
         }
 
