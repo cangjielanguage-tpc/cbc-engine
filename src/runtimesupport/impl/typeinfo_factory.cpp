@@ -259,6 +259,9 @@ static MethodTableMember GetTableMember(
         return { manager.Acquire(session, methodId), Adapters::GetDynCallTrampoline(entryIdx) };
     }
 }
+static bool QuerySubterms(
+    std::vector<DYN_TypeInfo*>& typeInfos, Engine::Session& session, Engine::TypeInfoManager& manager, Engine::Term term
+);
 
 static std::optional<TypeInfo> QueryTypeInfoAOT(
     Engine::Session& session, Engine::TypeInfoManager& manager, char const* typeName, Engine::Term term
@@ -287,12 +290,15 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
     TypeInfoBuilder builder(currentTypeInfo);
 
-    Stream::StringBuffer stringBuffer;
-    Engine::Term(term).GetName(session, stringBuffer);
+    {
+        Stream::StringBuffer stringBuffer;
+        Engine::Term(term).GetName(session, stringBuffer);
 
-    // Not guaranteed that name is constructed in the same way as CJNative does.
-    // TODO: does it matter?
-    builder.name = stringBuffer.ToCString();
+        // Not guaranteed that name is constructed in the same way as CJNative does.
+        // TODO: does it matter?
+        builder.name = stringBuffer.ToCString();
+    }
+
     if (builder.name == nullptr) {
         return std::nullopt;
     }
@@ -570,6 +576,22 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         builder.fields       = nullptr;
         builder.align        = 1;
         builder.instanceSize = 0;
+    }
+
+    builder.typeArgsNum = term.GetLength();
+    if (builder.typeArgsNum > 0) {
+        builder.typeArgs = Alloc<DYN_TypeInfo*>(builder.typeArgsNum);
+        if (builder.typeArgs == nullptr) {
+            return std::nullopt;
+        }
+        std::vector<DYN_TypeInfo*> typeInfos;
+        auto resolved = QuerySubterms(typeInfos, session, manager, term);
+        if (!resolved) {
+            return std::nullopt;
+        }
+        for (int i = 0; i < builder.typeArgsNum; i++) {
+            builder.typeArgs[i] = typeInfos[i];
+        }
     }
 
     return TypeInfo(builder.Build());
