@@ -24,8 +24,3 @@
 #define EXTRA_REG x21
 #define EXTRA_REGd w21
 
-#ifndef NDEBUG
-    #define READER_SLOTS_SIZE 0x18
-#else
-    #define READER_SLOTS_SIZE 0x8
-#endif
