@@ -119,7 +119,7 @@ void VisitGCFrameRoots(DYN_VisitingState state, INT_FrameDesc frame_desc, DYN_Ro
     }
 
     auto calleeSavedRegsEnd = ((uint8_t*)frame_desc.fp) - localsOffset;
-    auto slotsStartAddr = ((uint8_t*)frame_desc.fp) - (localsOffset + bc->frameSize);
+    auto slotsStartAddr     = ((uint8_t*)frame_desc.fp) - (localsOffset + bc->frameSize);
 
     RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Output& out) {
         out.PrintFmtLn(

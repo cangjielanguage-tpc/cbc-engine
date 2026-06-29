@@ -259,6 +259,7 @@ static MethodTableMember GetTableMember(
         return { manager.Acquire(session, methodId), Adapters::GetDynCallTrampoline(entryIdx) };
     }
 }
+
 static bool QuerySubterms(
     std::vector<DYN_TypeInfo*>& typeInfos, Engine::Session& session, Engine::TypeInfoManager& manager, Engine::Term term
 );
@@ -546,8 +547,8 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             if (!optOffs.has_value()) {
                 return std::nullopt;
             }
-            auto fieldId = idx++;
-            builder.fields[fieldId] = UnpackTypeInfo(*typeInfo);
+            auto fieldId                  = idx++;
+            builder.fields[fieldId]       = UnpackTypeInfo(*typeInfo);
             builder.fieldOffsets[fieldId] = *optOffs;
             fieldManager->FillRefOffsets(fieldType, refFieldOffs, optOffs.value());
         }
@@ -580,7 +581,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
     }
 
     builder.typeArgsNum = 0; // Otherwise, runtime would expect type template to be present.
-    int typeArgsNum = term.GetLength();
+    int typeArgsNum     = term.GetLength();
     if (typeArgsNum > 0) {
         builder.typeArgs = Alloc<DYN_TypeInfo*>(typeArgsNum);
         if (builder.typeArgs == nullptr) {

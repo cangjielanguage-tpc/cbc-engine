@@ -769,7 +769,7 @@ struct IsaRewriter : public IsaParser {
                 return;
             }
             auto typeInfo = ti.value();
-            auto isrc = IReg::From(dst);
+            auto isrc     = IReg::From(dst);
 
             emit.NewBox(typeInfo); // Spoils IR_ACC
             BindStatePoint();
@@ -1093,10 +1093,7 @@ struct IsaRewriter : public IsaParser {
         FATAL("not implemented");
     }
 
-    void MemBodyIndexGeneric(MemSpace& ms, IReg reg, uint16_t elemType, IReg ti) override
-    {
-        FATAL("not implemented");
-    }
+    void MemBodyIndexGeneric(MemSpace& ms, IReg reg, uint16_t elemType, IReg ti) override { FATAL("not implemented"); }
 
     void MemBodyFieldGeneric(MemSpace& ms, uint16_t fieldId, IReg ti) override
     {

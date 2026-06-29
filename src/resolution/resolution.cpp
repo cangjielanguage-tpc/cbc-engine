@@ -567,7 +567,7 @@ template <typename Field> std::optional<Field> ResolveField(Resolver::Impl& reso
                 if (optoffset.has_value()) {
                     auto offset  = *optoffset;
                     offset      += (ref.refType.IsReference() ? RTSupport::MetaInfo::ObjectHeaderSize() : 0);
-                    optoffset = offset;
+                    optoffset    = offset;
                 }
                 return InstanceField { refType, ref.name, fieldType, ordinal, optoffset };
             } else {
