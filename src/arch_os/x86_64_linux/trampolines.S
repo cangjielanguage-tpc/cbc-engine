@@ -254,19 +254,19 @@ engine_i2_load_generic:
 
   // save box to dst reg
   mov   eax, EXTRA_REGd
-  and   eax, 3
+  and   eax, 0xf
   mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8 * rax], rdi
 
   // obj (base) param
   mov   esi, EXTRA_REGd
   shr   esi, 4
-  and   esi, 3
+  and   esi, 0xf
   mov   rsi, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8 * rsi]
 
   // field param
   mov   edx, EXTRA_REGd
   shr   edx, 8
-  and   edx, 3
+  and   edx, 0xf
   mov   rdx, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8 * rdx]
 
   // size param

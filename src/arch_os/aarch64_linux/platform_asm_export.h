@@ -1,15 +1,28 @@
 #define DIRECT_CALL_TRAMPOLINE_SIZE 8
 #define DYN_CALL_TRAMPOLINE_SIZE 8
 
-#define FUH_SLOT_OFFSET 0x8
+#ifndef NDEBUG
+    #define READER_SLOTS_SIZE 0x18
+#else
+    #define READER_SLOTS_SIZE 0x8
+#endif
 
-#define LOCAL_SLOTS_OFFSET 0x18
+#define FUH_SLOT_OFFSET 0x8
+#define FUH_SLOT_OFFSET                0x8
+#define ECTYPE_REG_SAVED_SLOT_OFFSET   (FUH_SLOT_OFFSET                + 0x8)
+#define LITERALS_REG_SAVED_SLOT_OFFSET (ECTYPE_REG_SAVED_SLOT_OFFSET   + 0x8)
+#define EXTRA_SAVED_REG_OFFSET         (LITERALS_REG_SAVED_SLOT_OFFSET + 0x8)
+#define READER_SLOT_OFFSET             (EXTRA_SAVED_REG_OFFSET         + READER_SLOTS_SIZE)
+#define LOCAL_SLOTS_OFFSET             ((READER_SLOT_OFFSET + 0xf) & ~0xf)
 
 #define TLS_REG x28
 #define ECTYPE_REG x19
 #define LITERALS_REG x20
 #define IREG_ABI_AMOUNT 9
 #define FREG_ABI_AMOUNT 8
+
+#define EXTRA_REG x21
+#define EXTRA_REGd r13d
 
 #ifndef NDEBUG
     #define READER_SLOTS_SIZE 0x18

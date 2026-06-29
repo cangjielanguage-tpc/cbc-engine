@@ -26,6 +26,8 @@ declare_hidden engine_i2_newarray
 declare_hidden engine_i2_gcpoint
 declare_hidden engine_universal_direct_function_handles
 declare_hidden engine_tls_function
+declare_hidden engine_read_generic
+declare_hidden engine_i2_load_generic
 declare_hidden engine_newobject_function
 declare_hidden engine_newarray_function
 declare_hidden engine_newthread_nret_function
@@ -42,17 +44,19 @@ engine_universal_direct_function_handles:
 
 .balign 64
 .Lfunc_anchor:
-engine_tls_function:              // 0x0
+engine_tls_function:
   .skip 8
-engine_newobject_function:        // 0x8
+engine_newobject_function:
   .skip 8
-engine_newarray_function:         // 0x10
+engine_newarray_function:
   .skip 8
-engine_newthread_nret_function:   // 0x18
+engine_newthread_nret_function:
   .skip 8
-engine_carrier_specific_offset:   // 0x20
+engine_read_generic:
   .skip 8
-engine_cjthread_specific_offset:  // 0x28
+engine_carrier_specific_offset:
+  .skip 8
+engine_cjthread_specific_offset:
   .skip 8
 
 // --- SECTION TEXT ---
@@ -230,6 +234,44 @@ get_tls:
 .endm
 
 .balign 16
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: mask)
+// preserved: ECTYPE_REG, rbp
+engine_i2_load_generic:
+  // mask is expected in form of:
+  // [0..4) - dst reg
+  // [4..8) - base reg
+  // [8..12) - field reg
+  // [12..64) - typeInfo
+
+  mov   EXTRA_REG, x0
+  // allocate box
+  call  [rip + engine_newobject_function]
+  // box is already on dst param of read generic
+
+  add   x7, ECTYPE_REG, ECTYPE_IREGS_OFFSET
+
+  // save box to dst reg
+  and   w1, EXTRA_REGd, 0xf
+  str   x0, [x7, x1, lsl 3]
+
+  // obj (base) param
+  ubfx  w1, EXTRA_REGd, 4, 4
+  ldr   x1, [x7, x1, lsl 3]
+
+  // field param
+  ubfx  w2, EXTRA_REGd, 8, 4
+  ldr   x2, [x7, x2, lsl 3]
+
+  // size param
+  ldr   x3, [x0] // get header
+  ldr   x3, [x3, #TYPEINFO_INSTANCESIZE_OFFSET]
+  // perform generic read
+  adrp  x4, engine_read_generic
+  ldr   x4, [x4, :lo12:engine_read_generic]
+  blr   x4
+  b     .Lrestart_interpretation
+
+.balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
@@ -304,23 +346,11 @@ perform_2i_call:
   // fp-0x8: FunctionHandle for frame scanning,
   // fp-0x10: Ectype
   // fp-0x18: Literals
-  stp   ECTYPE_REG, x0, [sp, #-16]!
-  str   LITERALS_REG, [sp, #-8]!
+  // fp-0x20: Extra saved reg
+  stp   ECTYPE_REG, x0, [sp, #-0x10]!
+  stp   LITERALS_REG, EXTRA_REG, [sp, #-0x10]!
 
-.set OFFS_ADDEND, 0x0
-
-.macro declare_slot var, size
-  .set OFFS_ADDEND, OFFS_ADDEND + \size
-  .set \var, LOCAL_SLOTS_OFFSET + OFFS_ADDEND
-.endm
-
-  declare_slot READER_SLOT, READER_SLOTS_SIZE
-
-  //.balign stack
-  .if (LOCAL_SLOTS_OFFSET + OFFS_ADDEND) % 0x10 != 0
-    .set OFFS_ADDEND, OFFS_ADDEND + 0x8
-  .endif
-  sub   sp, sp, OFFS_ADDEND
+  sub   sp, sp, LOCAL_SLOTS_OFFSET - EXTRA_SAVED_REG_OFFSET
   // FIXME: perform stack check here!
 
   // We need to support fibers with movable stacks,
@@ -343,12 +373,12 @@ perform_2i_call:
 
   ldr   LITERALS_REG, [x9, #EXEC_BYTECODE_INFO_LITERALS_OFFSET]
   ldr   x1, [x9, #EXEC_BYTECODE_INFO_BYTECODE_OFFSET]
-  sub   x10, x29, #READER_SLOT
+  sub   x10, x29, #READER_SLOT_OFFSET
 #ifndef NDEBUG
   ldr   x8, [x9, #EXEC_BYTECODE_INFO_BYTECODE_SIZE_OFFSET]
   add   x8, x8, x1
-  str   x8, [x10, #0x10]
-  str   x1, [x10, #0x8]
+  str   x8, [x29, #0x10]
+  str   x1, [x29, #0x8]
 #endif
   str   x1, [x10]
 
@@ -431,7 +461,11 @@ perform_2i_call:
   POP_IREGS w8, x1, x9
   POP_FREGS w8, x1, x9
 
-  ldr   LITERALS_REG, [x29, #-0x18]
+  .if (LITERALS_REG_SAVED_SLOT_OFFSET + 0x8 != EXTRA_SAVED_REG_OFFSET)
+    .error "offsets are not consecutive"
+  .endif
+  ldp   LITERALS_REG, EXTRA_REG, [x29, #-EXTRA_SAVED_REG_OFFSET]
+  ldr   ECTYPE_REG, [x29, #-LITERALS_REG_SAVED_SLOT_OFFSET]
 
   mov   sp, x29
   ldp   x29, x30, [sp], #16
