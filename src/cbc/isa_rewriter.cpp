@@ -1064,7 +1064,20 @@ struct IsaRewriter : public IsaParser {
 
     void MemBodyIndexGeneric(MemSpace& ms, IReg reg, uint16_t refType, IReg ti) override {}
 
-    void MemBodyFieldGeneric(MemSpace& ms, uint16_t field, IReg ti) override {}
+    void MemBodyFieldGeneric(MemSpace& ms, uint16_t fieldId, IReg ti) override
+    {
+        auto& msr = static_cast<MemSpaceRewriter&>(ms);
+        auto f    = resolver.Query(Index<InstanceField>(fieldId));
+        if (!f.has_value()) {
+            Fail();
+            return;
+        }
+        auto field = f.value();
+        if (field->refType->GetKind() == Resolution::CbcTypeKind::REF) {
+            msr.emit.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
+        }
+        msr.emit.GenericField(field->ordinal, ti);
+    }
 
     void MemTailStoreGeneric(MemSpace& ms, IReg src, IReg ti) override
     {

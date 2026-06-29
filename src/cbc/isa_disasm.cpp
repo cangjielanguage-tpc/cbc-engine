@@ -311,7 +311,7 @@ struct IsaDisasm : public IsaParser {
 
     void TypeArg(IReg ti, int idx, IReg dst) override
     {
-        stream << "type.arg " << ti.ToStr() << ", " << idx << ", " << dst.ToStr();
+        stream << "type.arg " << ti.ToStr() << ", " << idx << ", " << dst.ToStr() << endl;
     }
 
     void Box(AnyReg src, IReg dst, uint16_t tk) override

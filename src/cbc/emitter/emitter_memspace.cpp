@@ -360,5 +360,15 @@ void MemSpaceEmitter::StoreDerivedGeneric(IReg src, IReg base, IReg derived, IRe
     Encode(segment, command);
 }
 
+void MemSpaceEmitter::GenericField(int ordinal, IReg typeInfo)
+{
+    auto command = RT::M6rri32 {
+        .opc   = RT::MemOpcode::GENERIC_FIELD,
+        .rr    = { typeInfo, typeInfo },
+        .imm32 = { (uint32_t)ordinal },
+    };
+    Encode(segment, command);
+}
+
 } // namespace Emitter
 } // namespace Cbc

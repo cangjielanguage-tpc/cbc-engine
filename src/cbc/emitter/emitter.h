@@ -70,6 +70,8 @@ public:
         void LoadDerivedGeneric(IReg dst, IReg base, IReg derived, IReg typeInfo);
         void StoreDerivedGeneric(IReg src, IReg base, IReg derived, IReg typeInfo);
 
+        void GenericField(int ordinal, IReg typeInfo);
+
     private:
         template <typename AccessKind> void LoadStore(AccessKind akind, Reg v, IReg base, RT::MemOpcode opc)
         {

@@ -873,6 +873,15 @@ DST_GENERIC: {
     }
 }
 
+GENERIC_FIELD: {
+    auto args = M6rri32::Decode(reader);
+    LOG_INSTR;
+    auto ti            = TypeInfo(ectype->GetPrimitive(args.rr.x.IR()).u64);
+    auto offs          = RTSupport::Execution::GetFieldOffset(ti, args.imm32.imm, false);
+    memspaceOffsetAcc += offs;
+    MEM_NEXT;
+}
+
 #define RLD(ldk)                                                                                                       \
     RLD_##ldk:                                                                                                         \
     {                                                                                                                  \
