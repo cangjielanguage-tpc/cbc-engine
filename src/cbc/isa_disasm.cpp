@@ -464,21 +464,28 @@ struct IsaDisasm : public IsaParser {
         Refs(refs);
     }
 
+    void MemBodyOffset(MemSpace& ms, IReg offset) override
+    {
+        PrintMemPos();
+        stream << "mem.body.offs" << " " << offset.ToStr() << endl;
+    }
+
     void MemTailCopyHandle(MemSpace& ms, IReg base, IReg offset) override
     {
+        PrintMemPos();
         stream << "mem.copy.handle" << " " << base.ToStr() << ", " << offset.ToStr();
     }
 
-    void MemBodyConstIndexGeneric(MemSpace& ms, int64_t idx, uint16_t refType, IReg ti) override
+    void MemBodyConstIndexGeneric(MemSpace& ms, int64_t idx, uint16_t elemType, IReg ti) override
     {
         PrintMemPos();
-        stream << "mem.const.index.g" << " " << idx << ", " << refType << ", " << endl;
+        stream << "mem.const.index.g" << " " << idx << ", " << elemType << ", " << endl;
     }
 
-    void MemBodyIndexGeneric(MemSpace& ms, IReg reg, uint16_t refType, IReg ti) override
+    void MemBodyIndexGeneric(MemSpace& ms, IReg reg, uint16_t elemType, IReg ti) override
     {
         PrintMemPos();
-        stream << "mem.index.g" << " " << reg.ToStr() << ", " << refType << ", " << ti.ToStr() << endl;
+        stream << "mem.index.g" << " " << reg.ToStr() << ", " << elemType << ", " << ti.ToStr() << endl;
     }
 
     void MemBodyFieldGeneric(MemSpace& ms, uint16_t field, IReg ti) override

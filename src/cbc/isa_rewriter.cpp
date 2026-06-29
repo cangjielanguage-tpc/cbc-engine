@@ -1060,9 +1060,21 @@ struct IsaRewriter : public IsaParser {
         }
     }
 
-    void MemBodyConstIndexGeneric(MemSpace& ms, int64_t idx, uint16_t refType, IReg ti) override {}
+    void MemBodyOffset(MemSpace& ms, IReg offset) override
+    {
+        auto& msr = static_cast<MemSpaceRewriter&>(ms);
+        msr.emit.OffsetReg(offset);
+    }
 
-    void MemBodyIndexGeneric(MemSpace& ms, IReg reg, uint16_t refType, IReg ti) override {}
+    void MemBodyConstIndexGeneric(MemSpace& ms, int64_t idx, uint16_t elemType, IReg ti) override
+    {
+        FATAL("not implemented");
+    }
+
+    void MemBodyIndexGeneric(MemSpace& ms, IReg reg, uint16_t elemType, IReg ti) override
+    {
+        FATAL("not implemented");
+    }
 
     void MemBodyFieldGeneric(MemSpace& ms, uint16_t fieldId, IReg ti) override
     {

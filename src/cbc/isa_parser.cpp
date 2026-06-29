@@ -712,24 +712,28 @@ struct IsaParserImpl {
     static bool MemBodyFieldGeneric(IsaParser& parser, IsaParser::MemSpace& ms)
     {
         auto [f, ti] = ByteReaderM(parser.reader).ReadU16().ReadU4Skip4().Get();
+        parser.MemBodyFieldGeneric(ms, f, ti);
         return false;
     }
 
     static bool MemBodyIndexGeneric(IsaParser& parser, IsaParser::MemSpace& ms)
     {
-        auto [refType, reg, ti] = ByteReaderM(parser.reader).ReadU16().ReadU4().ReadU4().Get();
+        auto [elemType, reg, ti] = ByteReaderM(parser.reader).ReadU16().ReadU4().ReadU4().Get();
+        parser.MemBodyIndexGeneric(ms, reg, elemType, ti);
         return false;
     }
 
     static bool MemBodyConstIndexGeneric(IsaParser& parser, IsaParser::MemSpace& ms)
     {
-        auto [idx, refType, ti] = ByteReaderM(parser.reader).ReadSLEB().ReadU16().ReadU4Skip4().Get();
+        auto [idx, elemType, ti] = ByteReaderM(parser.reader).ReadSLEB().ReadU16().ReadU4Skip4().Get();
+        parser.MemBodyConstIndexGeneric(ms, idx, elemType, ti);
         return false;
     }
 
     static bool MemBodyOffset(IsaParser& parser, IsaParser::MemSpace& ms)
     {
         auto [reg] = ByteReaderM(parser.reader).ReadU4Skip4().Get();
+        parser.MemBodyOffset(ms, reg);
         return false;
     }
 
@@ -778,12 +782,14 @@ struct IsaParserImpl {
     static bool MemTailLoadGeneric(IsaParser& parser, IsaParser::MemSpace& ms)
     {
         auto [dst, ti] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
+        parser.MemTailLoadGeneric(ms, dst, ti);
         return true;
     }
 
     static bool MemTailStoreGeneric(IsaParser& parser, IsaParser::MemSpace& ms)
     {
         auto [src, ti] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
+        parser.MemTailStoreGeneric(ms, src, ti);
         return true;
     }
 
