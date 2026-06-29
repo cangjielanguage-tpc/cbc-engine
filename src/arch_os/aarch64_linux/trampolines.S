@@ -375,14 +375,13 @@ perform_2i_call:
 
   ldr   LITERALS_REG, [x9, #EXEC_BYTECODE_INFO_LITERALS_OFFSET]
   ldr   x1, [x9, #EXEC_BYTECODE_INFO_BYTECODE_OFFSET]
-  sub   x10, x29, #READER_SLOT_OFFSET
 #ifndef NDEBUG
   ldr   x8, [x9, #EXEC_BYTECODE_INFO_BYTECODE_SIZE_OFFSET]
   add   x8, x8, x1
-  str   x8, [x29, #0x10]
-  str   x1, [x29, #0x8]
+  str   x8, [x29, #-READER_SLOT_OFFSET + 0x10]
+  str   x1, [x29, #-READER_SLOT_OFFSET + 0x8]
 #endif
-  str   x1, [x10]
+  str   x1, [x29, #READER_SLOT_OFFSET]
 
   mov   x1, sp // save current sp for registers saving to the bottom of frame
 
@@ -463,11 +462,8 @@ perform_2i_call:
   POP_IREGS w8, x1, x9
   POP_FREGS w8, x1, x9
 
-  .if (LITERALS_REG_SAVED_SLOT_OFFSET + 0x8 != EXTRA_SAVED_REG_OFFSET)
-    .error "offsets are not consecutive"
-  .endif
-  ldp   LITERALS_REG, EXTRA_REG, [x29, #-EXTRA_SAVED_REG_OFFSET]
   ldr   ECTYPE_REG, [x29, #-ECTYPE_REG_SAVED_SLOT_OFFSET]
+  ldp   EXTRA_REG, LITERALS_REG, [x29, #-EXTRA_SAVED_REG_OFFSET]
 
   mov   sp, x29
   ldp   x29, x30, [sp], #16
