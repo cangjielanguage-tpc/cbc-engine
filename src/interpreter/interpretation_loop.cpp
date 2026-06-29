@@ -676,8 +676,8 @@ DIRECT_CALL_2C: {
 VIRTUAL_CALL: {
     auto args = VirtualCall::Decode(reader);
     LOG_INSTR;
-    auto vnum      = args.imm1.imm;
-    auto extDefNum = args.imm2.imm;
+    auto vnum      = args.vnum;
+    auto extDefNum = args.edef;
 
     auto reference = ectype->GetReference(IReg::IR1);
 
@@ -697,8 +697,8 @@ VIRTUAL_CALL: {
 INTERFACE_CALL: {
     auto args = InterfaceCall::Decode(reader);
     LOG_INSTR;
-    auto num       = args.imm16.imm;
-    auto typeInfo  = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
+    auto num       = args.vnum;
+    auto typeInfo  = TypeInfo(static_cast<uintptr_t>(args.ti));
     auto reference = ectype->GetReference(IReg::IR1);
 
     // For proper support of fibers, the following call MUST drop the current frame.
