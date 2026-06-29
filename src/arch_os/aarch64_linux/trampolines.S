@@ -350,10 +350,9 @@ perform_2i_call:
   // fp-0x10: Ectype
   // fp-0x18: Literals
   // fp-0x20: Extra saved reg
-  stp   ECTYPE_REG, x0, [sp, #-0x10]!
-  stp   LITERALS_REG, EXTRA_REG, [sp, #-0x10]!
-
-  sub   sp, sp, LOCAL_SLOTS_OFFSET - EXTRA_SAVED_REG_OFFSET
+  sub   sp, sp, LOCAL_SLOTS_OFFSET
+  stp   ECTYPE_REG, x0,           [x29, #-ECTYPE_REG_SAVED_SLOT_OFFSET]
+  stp   EXTRA_REG,  LITERALS_REG, [x29, #-EXTRA_SAVED_REG_OFFSET]
   // FIXME: perform stack check here!
 
   // We need to support fibers with movable stacks,
@@ -468,7 +467,7 @@ perform_2i_call:
     .error "offsets are not consecutive"
   .endif
   ldp   LITERALS_REG, EXTRA_REG, [x29, #-EXTRA_SAVED_REG_OFFSET]
-  ldr   ECTYPE_REG, [x29, #-LITERALS_REG_SAVED_SLOT_OFFSET]
+  ldr   ECTYPE_REG, [x29, #-ECTYPE_REG_SAVED_SLOT_OFFSET]
 
   mov   sp, x29
   ldp   x29, x30, [sp], #16
