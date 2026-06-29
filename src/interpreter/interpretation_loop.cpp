@@ -847,6 +847,7 @@ DLD_GENERIC: {
         // on x64 and aarch64 pointers are 48-bit values
         uint64_t rawTi  = typeInfo.UInt();
         uint64_t packed = 0ULL | dstReg | (baseReg << 4) | (derivedReg << 8) | rawTi << 12;
+        reader0 = reader;
         return { .function = RTSupport::Execution::LoadGeneric(), .argUInt = packed };
     }
 }
