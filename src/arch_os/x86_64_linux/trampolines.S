@@ -249,6 +249,7 @@ engine_i2_load_generic:
 
   mov   EXTRA_REG, rdi
   // allocate box
+  shr   rdi, 12
   call  [rip + engine_newobject_function]
   mov   rdi, rax // put box as dst param of read generic
 
