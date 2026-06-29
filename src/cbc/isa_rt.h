@@ -70,6 +70,7 @@
     X(SCCI64I, B4xi12rr, "scci.64 $0cc $2ir $3ir $1I12")                                                               \
     X(SCCI32L, B4xi12rr, "scci.32 $0cc $2ir $3ir $1I12L")                                                              \
     X(SCCI64L, B4xi12rr, "scci.64 $0cc $2ir $3ir $1I12L")                                                              \
+    X(TYPE_ARG, B4xi12rr, "type.arg $2ir $3ir $1I12")                                                                  \
     X(CONVERT, B3xxrr, "convert $0ct $1ct $2ir $3ir") /* FIXME: ir/fr */                                               \
     X(DIRECT_CALL_2I, B3xi12, "call.2i $1I12L")                                                                        \
     X(DIRECT_CALL_2C, B3xi12, "call.2c $1I12L")                                                                        \

@@ -137,4 +137,6 @@ TypeInfo MetaInfo::ByteArrayTypeInfo() { return TypeInfo(nullptr); }
 
 TypeInfoUUID MetaInfo::GetUUID(TypeInfo ti) { return 0; }
 
+TypeInfo Execution::TypeArg(TypeInfo ti, uint32_t idx) { return TypeInfo(nullptr); }
+
 } // namespace RTSupport

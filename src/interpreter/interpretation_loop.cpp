@@ -572,6 +572,19 @@ SCCI64L: {
     );
     NEXT;
 }
+TYPE_ARG: {
+    auto args = B4xi12rr::Decode(reader);
+    LOG_INSTR;
+    auto dst = args.rr.x.IR();
+    auto ti  = args.rr.y.IR();
+    auto idx = args.xi12.imm12;
+
+    auto typeInfo = TypeInfo(ectype->GetPrimitive(ti).u64);
+    auto res      = Execution::TypeArg(typeInfo, idx);
+    ectype->Put(dst, Value::Primitive { res.UInt() });
+
+    NEXT;
+}
 CONVERT: {
     auto args = B3xxrr::Decode(reader);
     LOG_INSTR;

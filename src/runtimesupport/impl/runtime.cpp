@@ -3,16 +3,17 @@
 #include "RuntimeTypes.h"
 #include "asm_trampolines.h"
 #include "cjnative.h"
+#include "engine/engine.h"
+#include "engine/terms.h"
+#include "engine/typeinfo_manager.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
 #include "interpreter/interpretation_loop.h"
 #include "runtimesupport/adapters.h"
-#include "engine/engine.h"
-#include "engine/terms.h"
-#include "engine/typeinfo_manager.h"
 #include "runtimesupport/impl/rt_syms.h"
 #include "runtimesupport/impl/typeinfo_ext.h"
 #include "utils/assertion.h"
+#include <cstddef>
 #include <cstdint>
 
 namespace RTSupport {
@@ -255,6 +256,12 @@ TypeInfo MetaInfo::ByteArrayTypeInfo()
     ASSERT(ti != nullptr);
 
     return TypeInfo(ti);
+}
+
+TypeInfo Execution::TypeArg(TypeInfo ti, uint32_t idx)
+{
+    auto typeInfo = UnpackTypeInfo(ti);
+    return TypeInfo(typeInfo->typeArgs[idx]);
 }
 
 TypeInfoUUID MetaInfo::GetUUID(TypeInfo ti) { return g_CJNativeInterfaceInstance.getTypeInfoUUID(UnpackTypeInfo(ti)); }

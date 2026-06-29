@@ -594,6 +594,17 @@ void Emitter::StoreArray(StoreAccessKind stk, Reg src, IReg base, IReg idx)
     });
 }
 
+void Emitter::TypeArg(IReg dst, IReg typeInfo, int idx)
+{
+    RT::B4xi12rr command = {
+        // FIXME: use i16
+        .opc  = RT::Opcode::TYPE_ARG,
+        .xi12 = { 0, idx },
+        .rr   = { dst, typeInfo },
+    };
+    Encode(segment, command);
+}
+
 void Emitter::LoadRec(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset)
 {
     if (MathUtils::IsNBits(offset, 12)) {

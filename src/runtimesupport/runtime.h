@@ -105,6 +105,8 @@ struct Execution {
     static bool IsGlobalStruct(Reference base, uintptr_t derived);
     static Reference GetGlobalBasePtr();
     static Reference GetLocalBasePtr();
+
+    static TypeInfo TypeArg(TypeInfo ti, uint32_t idx);
 };
 
 struct MetaInfo {

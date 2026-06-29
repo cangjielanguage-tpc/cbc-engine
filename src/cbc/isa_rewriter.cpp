@@ -702,7 +702,7 @@ struct IsaRewriter : public IsaParser {
         emit.StoreArray(stk, src, arr, idx);
     }
 
-    void TypeArg(IReg ti, int idx, IReg dst) override { FATAL("Not implemented"); }
+    void TypeArg(IReg ti, int idx, IReg dst) override { emit.TypeArg(dst, ti, idx); }
 
     Interpretation::BuiltinType ToBuiltin(Engine::TermKind tk)
     {
