@@ -113,7 +113,7 @@ private:
 
     void Write(FReg fr) { stream << "FR" << fr.Raw(); }
 
-    void Write(uint64_t v) { stream.PrintFmt("0x%lx", v); }
+    void Write(uint64_t v) { stream.PrintFmt("0x%llx", v); }
 
     void Write(int64_t v) { stream << v; }
 
