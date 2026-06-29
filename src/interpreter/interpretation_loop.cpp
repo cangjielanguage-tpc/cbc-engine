@@ -630,7 +630,7 @@ VIRTUAL_CALL: {
     auto vnum      = args.vnum;
     auto extDefNum = args.edef;
 
-    auto reference = ectype->GetReference(IReg::IR1);
+    auto reference = ectype->GetReference(args.sret ? IReg::IR2 : IReg::IR1);
 
     // For proper support of fibers, the following call MUST drop the current frame.
     // This can not be guaranteed by C++ compiler consistently, because TCO
@@ -650,7 +650,7 @@ INTERFACE_CALL: {
     LOG_INSTR;
     auto num       = args.vnum;
     auto typeInfo  = TypeInfo(static_cast<uintptr_t>(args.ti));
-    auto reference = ectype->GetReference(IReg::IR1);
+    auto reference = ectype->GetReference(args.sret ? IReg::IR2 : IReg::IR1);
 
     // For proper support of fibers, the following call MUST drop the current frame.
     // This can not be guaranteed by C++ compiler consistently, because TCO

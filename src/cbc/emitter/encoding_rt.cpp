@@ -174,6 +174,7 @@ void Encode(ByteBuffer& buf, RT::VirtualCall command)
     Encode(buf, command.opc);
     buf.AddW16(command.vnum);
     buf.AddW16(command.edef);
+    buf.AddW8(command.sret);
 }
 
 void Encode(ByteBuffer& buf, RT::B5i32 command)
@@ -207,6 +208,7 @@ void Encode(ByteBuffer& buf, RT::InterfaceCall command)
     Encode(buf, command.opc);
     buf.AddW16(command.vnum);
     buf.AddW64(command.ti);
+    buf.AddW8(command.sret);
 }
 
 void Encode(ByteBuffer& buf, RT::B13i64i32 command)

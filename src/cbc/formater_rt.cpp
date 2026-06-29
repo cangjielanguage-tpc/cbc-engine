@@ -311,7 +311,7 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B5xi12ri12
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, VirtualCall args)
 {
-    Operand operands[] = { args.vnum, args.edef };
+    Operand operands[] = { args.vnum, args.edef, args.sret };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
@@ -360,7 +360,7 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B9i64 args
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, InterfaceCall args)
 {
-    Operand operands[] = { args.vnum, args.ti };
+    Operand operands[] = { args.vnum, args.ti, args.sret };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
