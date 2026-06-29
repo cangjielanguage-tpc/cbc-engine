@@ -22,7 +22,7 @@
 #define FREG_ABI_AMOUNT 8
 
 #define EXTRA_REG x21
-#define EXTRA_REGd r13d
+#define EXTRA_REGd w21
 
 #ifndef NDEBUG
     #define READER_SLOTS_SIZE 0x18

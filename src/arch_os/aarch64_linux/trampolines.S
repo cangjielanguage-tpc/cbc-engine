@@ -245,7 +245,9 @@ engine_i2_load_generic:
 
   mov   EXTRA_REG, x0
   // allocate box
-  call  [rip + engine_newobject_function]
+  adrp  x4, engine_newobject_function
+  ldr   x4, [x4, :lo12:engine_newobject_function]
+  blr   x4
   // box is already on dst param of read generic
 
   add   x7, ECTYPE_REG, ECTYPE_IREGS_OFFSET
@@ -416,7 +418,7 @@ perform_2i_call:
   mov   x1, sp
   mov   x2, TLS_REG
   mov   x3, LITERALS_REG
-  sub   x4, x29, #READER_SLOT
+  sub   x4, x29, #READER_SLOT_OFFSET
 
   bl    engine_interpretation_loop
 
