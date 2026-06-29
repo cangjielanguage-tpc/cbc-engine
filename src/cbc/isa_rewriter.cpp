@@ -733,8 +733,8 @@ struct IsaRewriter : public IsaParser {
             auto bt       = ToBuiltin(tk);
             emit.NewBox(bt); // Spoils IR_ACC
             BindStatePoint();
+            emit.StoreObj(Stk(bt), src, IReg::IR_ACC, RTSupport::MetaInfo::ObjectHeaderSize());
             AdjustReg(dst, IReg::IR_ACC);
-            emit.StoreObj(Stk(bt), src, dst, RTSupport::MetaInfo::ObjectHeaderSize());
         } else {
             auto t = resolver.Query(Index<Type>(type));
             if (!t.has_value()) {
@@ -747,13 +747,14 @@ struct IsaRewriter : public IsaParser {
                 return;
             }
             auto typeInfo = ti.value();
+            auto isrc = IReg::From(dst);
+
             emit.NewBox(typeInfo); // Spoils IR_ACC
             BindStatePoint();
+            auto ms = emit.OpenMemSpace();
+            ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
+            ms.WriteStructFieldObj(isrc, IReg::IR_ACC, typeInfo);
             AdjustReg(dst, IReg::IR_ACC);
-            emit.LoadObj(
-                Format::LoadAccessKind::LEA, IReg::IR_ACC, IReg::IR_ACC, RTSupport::MetaInfo::ObjectHeaderSize()
-            );
-            emit.WriteStructField(IReg::From(src), dst, IReg::IR_ACC, typeInfo);
         }
     }
 
