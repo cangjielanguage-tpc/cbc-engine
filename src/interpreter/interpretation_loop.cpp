@@ -572,6 +572,15 @@ SCCI64L: {
     );
     NEXT;
 }
+OFFSET: {
+    auto args = Offset::Decode(reader);
+    LOG_INSTR;
+    auto dst  = args.rr.x.IR();
+    auto ti   = TypeInfo(ectype->GetPrimitive(args.rr.y.IR()).u64);
+    auto offs = RTSupport::Execution::GetFieldOffset(ti, args.idx, false);
+    ectype->Put(dst, Value::Primitive { offs });
+    NEXT;
+}
 TYPE_ARG: {
     auto args = B4xi12rr::Decode(reader);
     LOG_INSTR;

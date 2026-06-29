@@ -176,6 +176,12 @@ struct IsaDisasm : public IsaParser {
         stream << "load.typeinfo.sig" << " " << dst.ToStr() << ", " << type << endl;
     }
 
+    void Offset(IReg dst, IReg ti, uint16_t field, bool accumulate) override
+    {
+        auto name = accumulate ? "add.offs" : "offs";
+        stream << name << " " << dst.ToStr() << ", " << ti.ToStr() << " " << field << endl;
+    }
+
     void NewObj(IReg dst, uint16_t type) override { stream << "newobj" << " " << dst.ToStr() << ", " << type << endl; }
 
     void NewClosure(IReg dst, uint16_t type) override

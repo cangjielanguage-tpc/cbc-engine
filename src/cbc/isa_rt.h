@@ -3,6 +3,7 @@
 #include "decoder.h"
 #include "isa.h"
 #include "runtimesupport/runtime.h"
+#include <cstdint>
 
 // X parameters: opcode, encoding format, string format
 #define CBC_RT_OPCODES(X)                                                                                              \
@@ -88,6 +89,7 @@
     X(IOF, IOF, "iof $0ir $1ir $2U64")                                                                                 \
     X(NEWBOX, B2xr, "newbox $0U8")                                                                                     \
     X(NEWBOX2, B9i64, "newbox2 $0U64")                                                                                 \
+    X(OFFSET, B6xri32, "offset $1ir $2U32 }")                                                                          \
     X(READ_STRUCT_FIELD, StructFieldOp, "read.struct.field $0ir $1ir $2ir $4U64")                                      \
     X(WRITE_STRUCT_FIELD, StructFieldOp, "write.struct.field $0ir $1ir $2ir $4U64")                                    \
     X(THROW, B2xr, "throw $1ir")
@@ -585,6 +587,22 @@ struct B6xri32 {
         auto xr    = Format::XR::Decode(reader);
         auto imm32 = Format::Imm32::Decode(reader);
         return B6xri32 { opc, xr, imm32 };
+    }
+};
+
+struct Offset {
+    static constexpr int SIZE = 6;
+
+    Opcode opc;
+    Format::RR rr;
+    uint32_t idx;
+
+    static Offset Decode(Decoder::ByteReader& reader)
+    {
+        auto opc = Opcode::Decode(reader);
+        auto rr  = Format::RR::Decode(reader);
+        auto imm = reader.Read32();
+        return Offset { opc, rr, imm };
     }
 };
 

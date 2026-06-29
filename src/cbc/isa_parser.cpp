@@ -662,11 +662,13 @@ struct IsaParserImpl {
     static void Offset(IsaParser& parser)
     {
         auto [dst, ti, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.Offset(dst, ti, field, false);
     }
 
     static void AddOffset(IsaParser& parser)
     {
         auto [dst, ti, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.Offset(dst, ti, field, true);
     }
 
     static void MemHeadReg(IsaParser& parser)

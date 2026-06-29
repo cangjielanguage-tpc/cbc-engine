@@ -875,6 +875,13 @@ void Emitter::NewBox(RTSupport::TypeInfo typeInfo)
     Encode(segment, RT::B9i64 { .opc = RT::Opcode::NEWBOX2, .imm64 = { reinterpret_cast<uint64_t>(typeInfo.Raw()) } });
 }
 
+void Emitter::Offset(IReg dst, int ordinal, IReg typeInfo)
+{
+    segment.AddW8(RT::Opcode::OFFSET);
+    Encode(segment, Format::RR { dst, typeInfo });
+    segment.AddW32(ordinal); // TODO: encode efficiently
+}
+
 void Emitter::ReadStructField(IReg dst, IReg base, IReg field, RTSupport::TypeInfo ti)
 {
     RT::StructFieldOp command = {

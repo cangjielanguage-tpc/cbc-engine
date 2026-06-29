@@ -410,6 +410,28 @@ struct IsaRewriter : public IsaParser {
         emit.MovImm(Format::Width::W64, dst, reinterpret_cast<uintptr_t>(ti.Raw()));
     }
 
+    void Offset(IReg dst, IReg ti, uint16_t fieldId, bool accumulate) override
+    {
+        auto f = resolver.Query(Index<InstanceField>(fieldId));
+        if (!f.has_value()) {
+            Fail();
+            return;
+        }
+        auto field = f.value();
+
+        // TODO: one instruction
+        if (accumulate) {
+            emit.Offset(IReg::IR_ACC, field->ordinal, ti);
+            emit.Add(Format::Width::W64, dst, dst, IReg::IR_ACC);
+        } else {
+            emit.Offset(dst, field->ordinal, ti);
+        }
+
+        if (field->refType->GetKind() == Resolution::CbcTypeKind::REF) {
+            emit.AddI(Format::Width::W64, dst, dst, RTSupport::MetaInfo::ObjectHeaderSize());
+        }
+    }
+
     std::optional<Type*> NewObject(IReg dst, uint16_t typeId, New kind)
     {
         auto t = resolver.Query(Index<Type>(typeId));

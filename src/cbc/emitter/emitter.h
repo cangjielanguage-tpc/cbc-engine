@@ -217,6 +217,7 @@ public:
 
     void NewBox(Interpretation::BuiltinType t);
     void NewBox(RTSupport::TypeInfo typeInfo);
+    void Offset(IReg dst, int ordinal, IReg typeInfo);
 
     void WriteStructField(IReg src, IReg base, IReg field, RTSupport::TypeInfo ti);
     void ReadStructField(IReg dst, IReg base, IReg field, RTSupport::TypeInfo ti);

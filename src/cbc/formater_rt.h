@@ -30,6 +30,7 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B9i64 args
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B11i16i64 args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B13i64i32 args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, StructFieldOp args);
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, Offset args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M1 args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M2rr args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M2xr args);
