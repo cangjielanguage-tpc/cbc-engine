@@ -344,6 +344,26 @@ engine_i2_spawn:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: fuh)
 // preserved: TLS_REG, ECTYPE_REG, x29
 perform_2i_call:
+// The final layout of the frame is following:
+// +------------------------------------+
+// | Return Address                     |
+// +------------------------------------+
+// | Saved Frame Pointer (Old FP)       |
+// +------------------------------------+>\ <-- FP
+// | FuH (rdi)                          |  \
+// +------------------------------------+  |
+// | ECTYPE_REG                         |  |
+// +------------------------------------+  |
+// | LITERALS_REG                       |  |
+// +------------------------------------+  | -- LOCAL_SLOTS_OFFSET
+// | EXTRA_REG                          |  |
+// +------------------------------------+  |
+// | Reader                             |  |
+// +------------------------------------+  |
+// | Alignment  (0 or 8)                |  /
+// +------------------------------------+>/
+// | Dynamic Locals (locals_size)       |
+// +------------------------------------+ <-- SP
   stp   x29, x30, [sp, #-16]!
   mov   x29, sp
   // fp-0x8: FunctionHandle for frame scanning,
