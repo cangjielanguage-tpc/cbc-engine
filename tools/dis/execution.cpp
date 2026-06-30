@@ -113,7 +113,10 @@ TypeInfo Execution::LoadTypeInfo(Engine::GlobalTerm term, Interpretation::Ectype
 
 bool Execution::IsReference(TypeInfo ti) { return true; }
 
-bool Execution::IsGlobalStruct(Reference base, uintptr_t derived) { FATAL("Should not reach here"); }
+StructLocationKind Execution::GetStructLocationKind(Reference base, uintptr_t derived)
+{
+    FATAL("Should not reach here");
+}
 
 Reference Execution::GetGlobalBasePtr() { FATAL("Should not reach here"); }
 

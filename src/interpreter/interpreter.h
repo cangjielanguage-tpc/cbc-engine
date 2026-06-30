@@ -132,12 +132,11 @@ public:
     {
         auto obj = ectype->GetReference(base);
         auto derivedAddr = ectype->GetPrimitive(derived).u64;
-        if (RTSupport::Execution::IsGlobalStruct(obj, derivedAddr)) {
-            return LoadRec(ldk, dst, IReg::IRZ, derivedAddr + offset);
-        } else if (obj.value == 0) {
-            return LoadRec(ldk, dst, base, offset);
-        } else {
-            return LoadObj(ldk, dst, base, derived + offset);
+        auto locationKind = RTSupport::Execution::GetStructLocationKind(obj, derivedAddr);
+        switch (locationKind) {
+            case RTSupport::LOCAL:  return LoadRec(ldk, dst, base, offset);
+            case RTSupport::GLOBAL: return LoadRec(ldk, dst, IReg::IRZ, derivedAddr + offset);
+            case RTSupport::HEAP:   return LoadObj(ldk, dst, base, derived + offset);
         }
     }
 
@@ -145,12 +144,11 @@ public:
     {
         auto obj = ectype->GetReference(base);
         auto derivedAddr = ectype->GetPrimitive(derived).u64;
-        if (RTSupport::Execution::IsGlobalStruct(obj, derivedAddr)) {
-            return StoreRec(stk, src, IReg::IRZ, derivedAddr + offset);
-        } else if (obj.value == 0) {
-            return StoreRec(stk, src, derived, offset);
-        } else {
-            return StoreObj(stk, src, base, (derivedAddr - obj.value) + offset);
+        auto locationKind = RTSupport::Execution::GetStructLocationKind(obj, derivedAddr);
+        switch (locationKind) {
+            case RTSupport::LOCAL:  return StoreRec(stk, src, IReg::IRZ, derivedAddr + offset);
+            case RTSupport::GLOBAL: return StoreRec(stk, src, derived, offset);
+            case RTSupport::HEAP:   return StoreObj(stk, src, base, (derivedAddr - obj.value) + offset);
         }
     }
 
@@ -158,12 +156,11 @@ public:
     {
         auto obj         = ectype->GetReference(base);
         auto derivedAddr = ectype->GetPrimitive(derived).u64;
-        if (RTSupport::Execution::IsGlobalStruct(obj, derivedAddr)) {
-            return StoreRecImm(stk, IReg::IRZ, derivedAddr + offset, imm);
-        } else if (obj.value == 0) {
-            return StoreRecImm(stk, derived, offset, imm);
-        } else {
-            return StoreObjImm(stk, base, (derivedAddr - obj.value) + offset, imm);
+        auto locationKind = RTSupport::Execution::GetStructLocationKind(obj, derivedAddr);
+        switch (locationKind) {
+            case RTSupport::LOCAL:  return StoreRecImm(stk, IReg::IRZ, derivedAddr + offset, imm);
+            case RTSupport::GLOBAL: return StoreRecImm(stk, derived, offset, imm);
+            case RTSupport::HEAP:   return StoreObjImm(stk, base, (derivedAddr - obj.value) + offset, imm);
         }
     }
 

@@ -238,7 +238,7 @@ static void VisitFrameRootsAdjusting(
 )
 {
     if (g_Initialized) {
-        GCSupport::VisitGCFrameRoots(state, frame_desc, root_visitor);
+        GCSupport::VisitGCFrameRoots(state, frame_desc, root_visitor, derived_ptr_visitor);
     }
 }
 
