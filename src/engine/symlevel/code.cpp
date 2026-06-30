@@ -145,6 +145,8 @@ void Code::Print(Engine::Session& session, Stream::Output& out)
     for (auto& li : GetLivenessInfo(session)) {
         out4 << "cbcPos: " << li.cbcPos << ", regMask: " << li.regMask << ", ";
         Std::Vector::Print(out4, li.refSlotNums);
+        out4 << ", ";
+        Std::Vector::Print(out4, li.mutPairs);
         out4 << endl;
     }
 
