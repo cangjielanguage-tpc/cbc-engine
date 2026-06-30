@@ -1,5 +1,6 @@
 #pragma once
 
+#include "cbc/isa.h"
 #include "engine/engine.h"
 #include "utils/ostream.h"
 
@@ -21,6 +22,7 @@ struct LivenessInfo {
     uint32_t cbcPos;
     uint16_t regMask;
     std::vector<uint32_t> refSlotNums;
+    std::vector<std::pair<uint32_t, uint32_t>> mutPairs;
 };
 
 struct RawLivenessInfo {

@@ -197,13 +197,23 @@ bool Execution::IsReference(TypeInfo ti)
     return UnpackTypeInfo(ti)->type < 0;
 }
 
-bool Execution::IsGlobalStruct(Reference base, uintptr_t derived)
+StructLocationKind Execution::GetStructLocationKind(Reference base, uintptr_t derived)
 {
+    if (base.value == 0) {
+        return LOCAL;
+    }
+
 #if defined(__x86_64__) || defined(_M_X64)
-    return (base.value & DERIVED_PTR_GLOBAL_FLAG) != 0;
+    if ((base.value & DERIVED_PTR_GLOBAL_FLAG) != 0) {
+        return StructLocationKind::GLOBAL;
+    }
 #elif defined(__aarch64__) || defined(_M_ARM64)
-    return (derived & DERIVED_PTR_GLOBAL_FLAG) != 0;
+    if ((derived & DERIVED_PTR_GLOBAL_FLAG) != 0) {
+        return StructLocationKind::GLOBAL;
+    }
 #endif
+
+    return HEAP;
 }
 
 Reference Execution::GetGlobalBasePtr()
