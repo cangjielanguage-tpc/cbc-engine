@@ -247,7 +247,7 @@ engine_i2_load_generic:
   // allocate box
   adrp  x4, engine_newobject_function
   ldr   x4, [x4, :lo12:engine_newobject_function]
-  ubfx  x0, x0, 12, 52
+  lsr   x0, x0, 12
   blr   x4
   // box is already on dst param of read generic
 
