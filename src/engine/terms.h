@@ -95,9 +95,6 @@ public:
 
     TermKind GetKind() { return kind; }
 
-    bool IsReference();
-    int Width();
-
     uint32_t Hash()
     {
         std::hash<uint64_t> hash;

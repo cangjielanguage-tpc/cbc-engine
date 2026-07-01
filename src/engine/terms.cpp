@@ -181,49 +181,6 @@ struct BuiltinTerms {
 
 static BuiltinTerms g_Builtins;
 
-bool TermId::IsReference()
-{
-    switch (GetKind()) {
-        case TermKind::AOT_TYPE:
-        case TermKind::TYPE:
-        case TermKind::NULLABLE:
-        case TermKind::NON_NULLABLE:
-        case TermKind::CANGJIE_ARRAY:
-        case TermKind::FUNC_TYPE_VAR:
-        case TermKind::CLASS_TYPE_VAR: return true;
-
-        default: return false;
-    }
-}
-
-int TermId::Width()
-{
-    switch (GetKind()) {
-        case TermKind::BOOLEAN:
-        case TermKind::U8:
-        case TermKind::I8:        return sizeof(uint8_t);
-        case TermKind::U16:
-        case TermKind::I16:
-        case TermKind::F16:       return sizeof(uint16_t);
-        case TermKind::U32:
-        case TermKind::I32:
-        case TermKind::F32:
-        case TermKind::UCHAR32:   return sizeof(uint32_t);
-        case TermKind::U64:
-        case TermKind::I64:
-        case TermKind::F64:
-        case TermKind::C_POINTER:
-        case TermKind::IADDR:
-        case TermKind::UADDR:     return sizeof(uint64_t);
-        default:
-            if (IsReference()) {
-                return sizeof(uint64_t);
-            }
-            FATAL("Not supported yet %d", GetKind());
-            return 0;
-    }
-}
-
 GlobalTerm Term::Predefined(TermKind tk)
 {
     int num = static_cast<int>(tk);
