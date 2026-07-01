@@ -129,7 +129,7 @@ private:
     uint8_t* cursor;
 };
 
-#if !defined(NDEGUB)
+#if !defined(NDEBUG)
 struct ByteReader : public FatByteReader {
     ByteReader(uint8_t* cursor, uint8_t* start, uint8_t* end) : FatByteReader(cursor, start, end) {}
 };

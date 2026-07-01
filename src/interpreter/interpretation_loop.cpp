@@ -67,8 +67,6 @@ Interpretation::Thunk engine_interpretation_loop(
         NEXT;
 #endif
 
-    uintptr_t exceptionObj = 0;
-
 #define NEXT_OR_THROW(successful, type)                                                                                \
     do {                                                                                                               \
         if (successful) {                                                                                              \
@@ -80,9 +78,9 @@ Interpretation::Thunk engine_interpretation_loop(
 
 #define THROW_EXPLICIT(exception)                                                                                      \
     do {                                                                                                               \
-        exceptionObj = exception;                                                                                      \
-        auto func    = RTSupport::Execution::HandleException();                                                        \
-        reader0      = reader; /* save current pc */                                                                   \
+        uintptr_t exceptionObj = exception;                                                                            \
+        auto func              = RTSupport::Execution::HandleException();                                              \
+        reader0                = reader; /* save current pc */                                                         \
         return { func, reinterpret_cast<void*>(exceptionObj) };                                                        \
     } while (0)
 

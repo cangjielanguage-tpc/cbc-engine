@@ -491,8 +491,7 @@ common_landing_pad:
   jmp engine_handle_exception
 
 // expects: (ECTYPE_REG: ectype, rdi: exception reference)
-//
-// Returns to interpretation loop with exception reference on ectype.SR0
+// Returns to interpretation loop with exception reference on ACC_REG
 // or throws exception reference using CJNative runtime interface if there is no any exception handler in consecutive interpreter frames.
 // Precondition: top frame is interpreter frame.
 .align 16
