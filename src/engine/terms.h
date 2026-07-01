@@ -4,6 +4,7 @@
 #include "engine/identifiers.h"
 #include "symlevel/string.h"
 #include "utils/assertion.h"
+#include "utils/iterators.h"
 #include "utils/ostream.h"
 #include "utils/reinterpretation.h"
 #include "utils/string_pool.h"
@@ -134,6 +135,19 @@ struct TermFlags {
 };
 
 struct Term {
+    struct SubTermGenerator {
+        TermData* term;
+        uint32_t cursor;
+        uint32_t end;
+
+        std::optional<Term> operator()();
+    };
+
+    struct Hasher {
+        uint64_t operator()(Term const& term) const { return term.Hash(); }
+    };
+
+    using Range                                   = Iterators::SimpleRange<SubTermGenerator>;
     static constexpr uint16_t FIRST_NON_PRIMITIVE = static_cast<uint16_t>(TermKind::UNDEFINED);
 
     static Term Definition(Session& session, Identifier<Symlevel::TypeDefinition> type);
@@ -166,12 +180,9 @@ struct Term {
     bool IsGeneric() const;
 
     TermFlags Flags() const;
+    Range SubTerms() const;
 
     bool IsFloat() const;
-
-    struct Hasher {
-        uint64_t operator()(Term const& term) const { return term.Hash(); }
-    };
 
     TermData* data;
 };

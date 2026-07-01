@@ -11,6 +11,7 @@
 #include "string.h"
 #include "utils/assertion.h"
 #include "utils/heap.h"
+#include "utils/iterators.h"
 #include "utils/ostream.h"
 #include <alloca.h>
 #include <cstdint>
@@ -904,6 +905,16 @@ bool Term::IsAotPromoted() const { return data->flags.isAotPromoted; }
 bool Term::IsGeneric() const { return data->flags.isGeneric; }
 
 TermFlags Term::Flags() const { return data->flags; }
+
+Term::Range Term::SubTerms() const { return Iterators::MakeRange(Term::SubTermGenerator { data, 0, GetLength() }); }
+
+std::optional<Term> Term::SubTermGenerator::operator()()
+{
+    if (cursor < end) {
+        return term->subterms[cursor++];
+    }
+    return std::nullopt;
+}
 
 Term Substitution::Substitute(Term term)
 {

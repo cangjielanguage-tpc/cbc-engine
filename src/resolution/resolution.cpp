@@ -18,6 +18,7 @@
 #include "runtimesupport/adapters.h"
 #include "runtimesupport/runtime.h"
 #include "utils/assertion.h"
+#include "utils/iterators.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
 #include <cstdint>
@@ -331,8 +332,8 @@ struct ResolverProxy {
             params.push_back(Type(signature.Subterm(i), resolver));
         }
         return {
-            .params  = std::move(params),
-            .resType = Type(signature.Subterm(retTypeIdx), resolver),
+            .resolver = &resolver,
+            .term     = signature,
         };
     }
 
@@ -663,12 +664,12 @@ Stream::Output& operator<<(Stream::Output& stream, MethodSignature const& sig)
 {
     stream << "(";
     auto sep = " ";
-    for (auto& t : sig.params) {
+    for (auto t : sig.Params()) {
         stream << sep << t;
         sep = ", ";
     }
     stream << ")";
-    stream << sig.resType;
+    stream << sig.ResType();
     return stream;
 }
 
@@ -695,5 +696,14 @@ Stream::Output& operator<<(Stream::Output& stream, StaticField const& field)
     stream << field.refType << '.' << field.name << '.' << field.fieldType;
     return stream;
 }
+
+Type MethodSignature::ResType() const { return Type(term.Subterm(term.GetLength() - 1), resolver); }
+
+Term::Range MethodSignature::Params() const
+{
+    return Iterators::MakeRange(Term::SubTermGenerator { term.data, 0, term.GetLength() - 1 });
+}
+
+uint32_t MethodSignature::ParamCount() const { return term.GetLength() - 1; }
 
 } // namespace Resolution

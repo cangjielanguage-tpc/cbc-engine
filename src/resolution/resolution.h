@@ -8,6 +8,7 @@
 #include "engine/typeinfo_manager.h"
 #include "interpreter/function_handle.h"
 #include "runtimesupport/runtime.h"
+#include "utils/iterators.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
 #include <cstdint>
@@ -60,8 +61,12 @@ public:
 };
 
 struct MethodSignature {
-    std::vector<Type> params;
-    Type resType;
+    Resolver* resolver;
+    Engine::Term term;
+
+    Type ResType() const;
+    Engine::Term::Range Params() const;
+    uint32_t ParamCount() const;
 };
 
 struct DirectCall {
