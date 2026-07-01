@@ -93,7 +93,7 @@ public:
             return false;
         }
         if (ldk == LoadAccessKind::LD_REF) {
-            ectype->Put(dst.IR(), RTSupport::Execution::ReadObjectInstance(obj, offset, handle));
+            ectype->Put(dst.IR(), RTSupport::Execution::ReadObjectInstance(obj, obj.value + offset, handle));
         } else {
             MemoryLocation(obj.value, offset).LoadPrim(ldk, dst, ectype);
         }
@@ -107,7 +107,7 @@ public:
             return false;
         }
         if (stk == StoreAccessKind::ST_REF) {
-            RTSupport::Execution::WriteObjectInstance(obj, offset, ectype->GetReference(src.IR()), handle);
+            RTSupport::Execution::WriteObjectInstance(obj, obj.value + offset, ectype->GetReference(src.IR()), handle);
         } else {
             MemoryLocation(obj.value, offset).StorePrim(stk, src, ectype);
         }

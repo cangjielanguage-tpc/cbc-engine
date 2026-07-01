@@ -3,6 +3,7 @@
 #include "utils/logger.h"
 #include "utils/ostream.h"
 #include "utils/rt_logger.h"
+#include <cstdint>
 #include <dlfcn.h>
 #include <optional>
 
@@ -12,6 +13,8 @@ void (*WriteStructField)(
     uintptr_t base, uintptr_t field, size_t fieldLen, uintptr_t src, size_t srcLen, DYN_GCTib gctib
 );
 void (*ReadStructField)(uintptr_t dst, uintptr_t base, uintptr_t field, size_t fieldLen, DYN_GCTib gctib);
+
+void (*WriteGeneric)(uintptr_t base, uintptr_t field, uintptr_t obj, size_t size);
 
 // merge with LibHandle
 struct Handle {
@@ -74,6 +77,9 @@ void Initialize(DYN_CJNativeInterface* interf)
     auto stackGrowStub = handle->Sym("CJ_MCC_StackGrowStub");
     Asm::engine_newthread_nret_function =
         handle->Func<decltype(Asm::engine_newthread_nret_function)>("CJ_MCC_NewCJThreadNoReturn");
+
+    Asm::engine_read_generic = handle->Func<decltype(Asm::engine_read_generic)>("CJ_MCC_ReadGeneric");
+    WriteGeneric             = handle->Func<decltype(WriteGeneric)>("CJ_MCC_WriteGeneric");
 
     WriteStructField = handle->Func<decltype(WriteStructField)>("CJ_MCC_WriteStructField");
     ReadStructField  = handle->Func<decltype(ReadStructField)>("CJ_MCC_ReadStructField");

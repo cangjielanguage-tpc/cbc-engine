@@ -160,6 +160,13 @@ void Encode(ByteBuffer& buf, RT::M3xrrr command)
     Encode(buf, command.rr);
 }
 
+void Encode(ByteBuffer& buf, RT::M3rrrr command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.rr1);
+    Encode(buf, command.rr2);
+}
+
 void Encode(ByteBuffer& buf, Format::RImm12 ri12) { buf.AddW16(Format::RImm12::Raw(ri12)); }
 
 void Encode(ByteBuffer& buf, RT::B5xi12ri12 command)

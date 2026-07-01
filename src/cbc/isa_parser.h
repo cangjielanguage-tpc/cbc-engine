@@ -100,7 +100,7 @@ protected:
     virtual void StoreTyped(AnyReg src, uint16_t ts, uint16_t field)      = 0;
     virtual void StoreTypedImm(uint64_t imm, uint16_t ts, uint16_t field) = 0;
 
-    virtual void LoadArray(AnyReg dst, Format::LoadAccessKind ldk, IReg arr, IReg idx) = 0;
+    virtual void LoadArray(AnyReg dst, Format::LoadAccessKind ldk, IReg arr, IReg idx)   = 0;
     virtual void StoreArray(AnyReg src, Format::StoreAccessKind stk, IReg arr, IReg idx) = 0;
 
     virtual void TypeArg(IReg ti, int idx, IReg dst)      = 0;
@@ -109,6 +109,8 @@ protected:
 
     virtual void Unbox(AnyReg dst, IReg src, uint16_t type) = 0;
     virtual void UnboxT(uint16_t dstTs, IReg src)           = 0;
+
+    virtual void Offset(IReg dst, IReg ti, uint16_t field, bool accumulate) = 0;
 
     class MemSpace {
     public:
@@ -139,6 +141,13 @@ protected:
     virtual void MemTailCopyStatic(MemSpace& ms, std::vector<uint16_t> refs) = 0;
     virtual void MemTailCopyTyped(MemSpace& ms, uint16_t ts, std::vector<uint16_t> refs) = 0;
     virtual void MemTailCopyHandle(MemSpace& ms, IReg base, IReg offset) = 0;
+
+    virtual void MemBodyOffset(MemSpace& ms, IReg offset)                                        = 0;
+    virtual void MemBodyConstIndexGeneric(MemSpace& ms, int64_t idx, uint16_t elemType, IReg ti) = 0;
+    virtual void MemBodyIndexGeneric(MemSpace& ms, IReg reg, uint16_t elemType, IReg ti)         = 0;
+    virtual void MemBodyFieldGeneric(MemSpace& ms, uint16_t field, IReg ti)                      = 0;
+    virtual void MemTailStoreGeneric(MemSpace& ms, IReg src, IReg ti)                            = 0;
+    virtual void MemTailLoadGeneric(MemSpace& ms, IReg dst, IReg ti)                             = 0;
 
     friend class IsaParserImpl;
     Decoder::FatByteReader reader;

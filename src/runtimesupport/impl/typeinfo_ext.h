@@ -13,6 +13,7 @@ struct CbcTypeInfo {
 };
 
 static_assert(offsetof(CbcTypeInfo, dataMT) == TYPEINFO_DATA_MT_OFFSET);
+static_assert(offsetof(DYN_TypeInfo, instanceSize) == TYPEINFO_INSTANCESIZE_OFFSET);
 
 static DYN_TypeInfo* UnpackTypeInfo(TypeInfo ti) { return reinterpret_cast<DYN_TypeInfo*>(ti.Raw()); }
 

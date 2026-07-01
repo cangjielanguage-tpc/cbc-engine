@@ -66,6 +66,8 @@ struct Execution {
     // dst = IR1
     static void* AllocateArrayInstance();
 
+    static void* LoadGeneric();
+
     static void* GcPoint();
 
     static void* GcPointTrampoline();
@@ -76,8 +78,9 @@ struct Execution {
 
     static size_t ArrayLength(Reference array);
 
-    static Reference ReadObjectInstance(Reference base, size_t offset, ThreadHandle th);
-    static void WriteObjectInstance(Reference base, size_t offset, Reference object, ThreadHandle th);
+    static void WriteGeneric(Reference base, uintptr_t field, Reference object, size_t size, ThreadHandle th);
+    static Reference ReadObjectInstance(Reference base, uintptr_t field, ThreadHandle th);
+    static void WriteObjectInstance(Reference base, uintptr_t field, Reference object, ThreadHandle th);
     static Reference ReadArrayElem(Reference array, uint64_t index, ThreadHandle th);
     static void WriteArrayElem(Reference array, uint64_t index, Reference object, ThreadHandle th);
     static Reference ReadObjectStatic(void* location, ThreadHandle th);
@@ -98,9 +101,12 @@ struct Execution {
 
     static TypeInfo LoadTypeInfo(Engine::GlobalTerm term, Interpretation::Ectype* ectype, void* stackSlots);
 
+    static bool IsReference(TypeInfo ti);
     static bool IsGlobalStruct(Reference base, uintptr_t derived);
     static Reference GetGlobalBasePtr();
     static Reference GetLocalBasePtr();
+
+    static TypeInfo TypeArg(TypeInfo ti, uint32_t idx);
 };
 
 struct MetaInfo {

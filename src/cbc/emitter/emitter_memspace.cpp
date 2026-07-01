@@ -1,6 +1,7 @@
 #include <cstring>
 #include <utility>
 
+#include "cbc/isa.h"
 #include "cbc/isa_rt.h"
 #include "emitter.h"
 #include "encoding_rt.h"
@@ -333,6 +334,40 @@ void MemSpaceEmitter::StoreObjImm(StoreAccessKind stk, Reg base, uint64_t imm)
         RT::MemOpcode::RSTI_END_OPCODE,
         XRImmBuilder { Format::XR { .imm = 0, .r = base.IR() } }
     );
+}
+
+void MemSpaceEmitter::LoadGeneric(IReg dst, IReg base, IReg typeInfo)
+{
+    auto command = RT::M3rrrr { .opc = RT::MemOpcode::DLD_GENERIC, .rr1 = { base, typeInfo }, .rr2 = { dst, base } };
+    Encode(segment, command);
+}
+
+void MemSpaceEmitter::StoreGeneric(IReg src, IReg base, IReg typeInfo)
+{
+    auto command = RT::M3rrrr { .opc = RT::MemOpcode::DST_GENERIC, .rr1 = { base, typeInfo }, .rr2 = { src, base } };
+    Encode(segment, command);
+}
+
+void MemSpaceEmitter::LoadDerivedGeneric(IReg dst, IReg base, IReg derived, IReg typeInfo)
+{
+    auto command = RT::M3rrrr { .opc = RT::MemOpcode::DLD_GENERIC, .rr1 = { derived, typeInfo }, .rr2 = { dst, base } };
+    Encode(segment, command);
+}
+
+void MemSpaceEmitter::StoreDerivedGeneric(IReg src, IReg base, IReg derived, IReg typeInfo)
+{
+    auto command = RT::M3rrrr { .opc = RT::MemOpcode::DST_GENERIC, .rr1 = { derived, typeInfo }, .rr2 = { src, base } };
+    Encode(segment, command);
+}
+
+void MemSpaceEmitter::GenericField(int ordinal, IReg typeInfo)
+{
+    auto command = RT::M6rri32 {
+        .opc   = RT::MemOpcode::GENERIC_FIELD,
+        .rr    = { typeInfo, typeInfo },
+        .imm32 = { (uint32_t)ordinal },
+    };
+    Encode(segment, command);
 }
 
 } // namespace Emitter

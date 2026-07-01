@@ -65,6 +65,13 @@ public:
         void StoreFrame(StoreAccessKind stk, Reg src);
         void StoreFrameImm(StoreAccessKind stk, uint64_t imm);
 
+        void LoadGeneric(IReg dst, IReg base, IReg typeInfo);
+        void StoreGeneric(IReg src, IReg base, IReg typeInfo);
+        void LoadDerivedGeneric(IReg dst, IReg base, IReg derived, IReg typeInfo);
+        void StoreDerivedGeneric(IReg src, IReg base, IReg derived, IReg typeInfo);
+
+        void GenericField(int ordinal, IReg typeInfo);
+
     private:
         template <typename AccessKind> void LoadStore(AccessKind akind, Reg v, IReg base, RT::MemOpcode opc)
         {
@@ -174,6 +181,7 @@ public:
     void StoreStatic(StoreAccessKind sdk, Reg src, Symbol offSym);
     void LoadRec(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset);
     void StoreRec(StoreAccessKind stk, Reg src, IReg base, uint32_t offset);
+    void TypeArg(IReg dst, IReg typeInfo, int idx);
 
     void LoadFrame(LoadAccessKind ldk, Reg dst, uint32_t offset);
     void StoreFrame(StoreAccessKind stk, Reg src, uint32_t offset);
@@ -209,6 +217,7 @@ public:
 
     void NewBox(Interpretation::BuiltinType t);
     void NewBox(RTSupport::TypeInfo typeInfo);
+    void Offset(IReg dst, int ordinal, IReg typeInfo);
 
     void WriteStructField(IReg src, IReg base, IReg field, RTSupport::TypeInfo ti);
     void ReadStructField(IReg dst, IReg base, IReg field, RTSupport::TypeInfo ti);

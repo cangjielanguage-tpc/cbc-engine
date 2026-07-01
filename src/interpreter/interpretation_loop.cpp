@@ -572,6 +572,28 @@ SCCI64L: {
     );
     NEXT;
 }
+OFFSET: {
+    auto args = Offset::Decode(reader);
+    LOG_INSTR;
+    auto dst  = args.rr.x.IR();
+    auto ti   = TypeInfo(ectype->GetPrimitive(args.rr.y.IR()).u64);
+    auto offs = RTSupport::Execution::GetFieldOffset(ti, args.idx, false);
+    ectype->Put(dst, Value::Primitive { offs });
+    NEXT;
+}
+TYPE_ARG: {
+    auto args = B4xi12rr::Decode(reader);
+    LOG_INSTR;
+    auto dst = args.rr.x.IR();
+    auto ti  = args.rr.y.IR();
+    auto idx = args.xi12.imm12;
+
+    auto typeInfo = TypeInfo(ectype->GetPrimitive(ti).u64);
+    auto res      = Execution::TypeArg(typeInfo, idx);
+    ectype->Put(dst, Value::Primitive { res.UInt() });
+
+    NEXT;
+}
 CONVERT: {
     auto args = B3xxrr::Decode(reader);
     LOG_INSTR;
@@ -809,6 +831,66 @@ R_WRITE_STRUCT: {
     auto field = base.value + memspaceOffsetAcc;
     RTSupport::Execution::WriteStructField(src, base, field, args.ti, handle);
     NEXT;
+}
+
+DLD_GENERIC: {
+    auto args = M3rrrr::Decode(reader);
+    LOG_INSTR;
+    // TODO: reorder args, so it would require less bit-shifting
+    auto derivedReg = args.rr1.x.IR();
+    auto tiReg      = args.rr1.y.IR();
+    auto dstReg     = args.rr2.x.IR();
+    auto baseReg    = args.rr2.y.IR();
+    auto derived    = ectype->GetReference(derivedReg);
+
+    auto typeInfo = TypeInfo(ectype->GetPrimitive(tiReg).u64);
+    if (RTSupport::Execution::IsReference(typeInfo)) {
+        auto base = ectype->GetReference(baseReg);
+        auto obj  = RTSupport::Execution::ReadObjectInstance(base, derived.value + memspaceOffsetAcc, handle);
+        ectype->Put(dstReg, obj);
+        NEXT;
+    } else {
+        // The operation require two steps: box allocation and ReadGeneric invocation.
+        // Because box allocation can provoke GC or throw, we should not perform it with C++ frame on the stack.
+        ectype->Put(IReg::IR_ACC, Value::Reference { derived.value + memspaceOffsetAcc });
+
+        // on x64 and aarch64 pointers are 48-bit values
+        uint64_t rawTi  = typeInfo.UInt();
+        uint64_t packed = 0ULL | dstReg | (baseReg << 4) | (IReg::IR_ACC << 8) | rawTi << 12;
+        reader0         = reader;
+        return { .function = RTSupport::Execution::LoadGeneric(), .argUInt = packed };
+    }
+}
+DST_GENERIC: {
+    auto args = M3rrrr::Decode(reader);
+    LOG_INSTR;
+    auto derivedReg = args.rr1.x.IR();
+    auto tiReg      = args.rr1.y.IR();
+    auto srcReg     = args.rr2.x.IR();
+    auto baseReg    = args.rr2.y.IR();
+
+    auto base    = ectype->GetReference(baseReg);
+    auto derived = ectype->GetReference(derivedReg);
+    auto obj     = ectype->GetReference(srcReg);
+
+    auto typeInfo = TypeInfo(ectype->GetPrimitive(tiReg).u64);
+    if (RTSupport::Execution::IsReference(typeInfo)) {
+        RTSupport::Execution::WriteObjectInstance(base, derived.value + memspaceOffsetAcc, obj, handle);
+        NEXT;
+    } else {
+        uint32_t size = RTSupport::MetaInfo::GetTypeSize(typeInfo);
+        RTSupport::Execution::WriteGeneric(base, derived.value + memspaceOffsetAcc, obj, size, handle);
+        NEXT;
+    }
+}
+
+GENERIC_FIELD: {
+    auto args = M6rri32::Decode(reader);
+    LOG_INSTR;
+    auto ti            = TypeInfo(ectype->GetPrimitive(args.rr.x.IR()).u64);
+    auto offs          = RTSupport::Execution::GetFieldOffset(ti, args.imm32.imm, false);
+    memspaceOffsetAcc += offs;
+    MEM_NEXT;
 }
 
 #define RLD(ldk)                                                                                                       \

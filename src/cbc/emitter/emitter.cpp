@@ -594,6 +594,17 @@ void Emitter::StoreArray(StoreAccessKind stk, Reg src, IReg base, IReg idx)
     });
 }
 
+void Emitter::TypeArg(IReg dst, IReg typeInfo, int idx)
+{
+    RT::B4xi12rr command = {
+        // FIXME: use i16
+        .opc  = RT::Opcode::TYPE_ARG,
+        .xi12 = { 0, idx },
+        .rr   = { dst, typeInfo },
+    };
+    Encode(segment, command);
+}
+
 void Emitter::LoadRec(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset)
 {
     if (MathUtils::IsNBits(offset, 12)) {
@@ -862,6 +873,13 @@ void Emitter::NewBox(Interpretation::BuiltinType t)
 void Emitter::NewBox(RTSupport::TypeInfo typeInfo)
 {
     Encode(segment, RT::B9i64 { .opc = RT::Opcode::NEWBOX2, .imm64 = { reinterpret_cast<uint64_t>(typeInfo.Raw()) } });
+}
+
+void Emitter::Offset(IReg dst, int ordinal, IReg typeInfo)
+{
+    segment.AddW8(RT::Opcode::OFFSET);
+    Encode(segment, Format::RR { dst, typeInfo });
+    segment.AddW32(ordinal); // TODO: encode efficiently
 }
 
 void Emitter::ReadStructField(IReg dst, IReg base, IReg field, RTSupport::TypeInfo ti)

@@ -569,12 +569,12 @@ template <typename Field> std::optional<Field> ResolveField(Resolver::Impl& reso
                     }
                     return offset;
                 }();
-                if (!optoffset.has_value()) {
-                    return std::nullopt;
+                if (optoffset.has_value()) {
+                    auto offset  = *optoffset;
+                    offset      += (ref.refType.IsReference() ? RTSupport::MetaInfo::ObjectHeaderSize() : 0);
+                    optoffset    = offset;
                 }
-                auto offset  = *optoffset;
-                offset      += (ref.refType.IsReference() ? RTSupport::MetaInfo::ObjectHeaderSize() : 0);
-                return InstanceField { refType, ref.name, fieldType, ordinal, offset };
+                return InstanceField { refType, ref.name, fieldType, ordinal, optoffset };
             } else {
                 if (ref.refType.IsAotPromoted()) {
                     return ResolveAotStaticField(resolver, ref);
