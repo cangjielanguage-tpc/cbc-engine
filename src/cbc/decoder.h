@@ -66,8 +66,6 @@ public:
 
     inline uint8_t* Cursor() { return cursor; }
 
-    inline uintptr_t Pos() { return cursor - start; }
-
     inline bool EndOfMem(uint8_t* memEnd) { return cursor >= memEnd; }
 
     inline bool IsEndReached() { return cursor >= end; }
@@ -131,9 +129,15 @@ private:
     uint8_t* cursor;
 };
 
+#if !defined(NDEGUB)
 struct ByteReader : public FatByteReader {
     ByteReader(uint8_t* cursor, uint8_t* start, uint8_t* end) : FatByteReader(cursor, start, end) {}
 };
+#else
+struct ByteReader : public UncheckedByteReader {
+    ByteReader(uint8_t* cursor, uint8_t* start, uint8_t* end) : UncheckedByteReader(cursor) {}
+};
+#endif // defined(NDEBUG)
 
 template <typename... ts> struct ByteReaderM;
 

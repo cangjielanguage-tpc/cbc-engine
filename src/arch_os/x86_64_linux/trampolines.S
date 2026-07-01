@@ -90,7 +90,7 @@ engine_cjthread_specific_offset:
         jz      .L\@skipireg\reg
         sub     \stack_reg, 8
         mov     rsi, QWORD PTR [\stack_reg]
-        mov     QWORD PTR [ECTYPE_REG + ECTYPE_IREGS_OFFSET + \reg*8], rsi
+        mov     QWORD PTR [ECTYPE_REG + ECTYPE_IREGS_OFFSET + \reg*ECTYPE_REG_SIZE], rsi
 .L\@skipireg\reg:
     .endr
 .endm
@@ -103,7 +103,7 @@ engine_cjthread_specific_offset:
         jz      .L\@skipfreg\reg
         sub     \stack_reg, 8
         mov     rsi, QWORD PTR [\stack_reg]
-        mov     QWORD PTR [ECTYPE_REG + ECTYPE_FREGS_OFFSET + \reg*8], rsi
+        mov     QWORD PTR [ECTYPE_REG + ECTYPE_FREGS_OFFSET + \reg*ECTYPE_REG_SIZE], rsi
 .L\@skipfreg\reg:
     .endr
 .endm
@@ -371,21 +371,23 @@ perform_2i_call:
   mov   rsi, [rax + EXEC_BYTECODE_INFO_BYTECODE_OFFSET]
 
   // construct reader
+#ifndef NDEBUG
   mov   r8, [rax + EXEC_BYTECODE_INFO_BYTECODE_SIZE_OFFSET]
   add   r8, rsi
   mov   [rbp - READER_SLOT + 0x10], r8 // end
   mov   [rbp - READER_SLOT + 0x8], rsi // start
+#endif
   mov   [rbp - READER_SLOT], rsi       // cursor
 
 #ifndef NDEBUG
-  mov   rdi, [rbp - FUH_SLOT]
+  mov   rdi, [rbp - FUH_SLOT_OFFSET]
   mov   rsi, ECTYPE_REG
   call  engine_log_int_start
 #endif
 
   mov   rdx, rsp // save current sp for registers saving to the bottom of frame
 
-  mov   rax, [rbp - FUH_SLOT] // load Function Handle
+  mov   rax, [rbp - FUH_SLOT_OFFSET] // load Function Handle
   mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
 
   // current rsp is 16-byte.baligned
@@ -442,12 +444,12 @@ perform_2i_call:
 .Lend_interpretation:
 
 #ifndef NDEBUG
-  mov   rdi, [rbp - FUH_SLOT]
+  mov   rdi, [rbp - FUH_SLOT_OFFSET]
   mov   rsi, ECTYPE_REG
   call  engine_log_int_end
 #endif
 
-  mov   rax, [rbp - FUH_SLOT] // load Function Handle
+  mov   rax, [rbp - FUH_SLOT_OFFSET] // load Function Handle
   mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
 
   mov   edx, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
@@ -497,20 +499,20 @@ common_landing_pad:
 engine_handle_exception:
   mov   r12, rdi
 
-  mov   rdi, QWORD PTR [rbp - FUH_SLOT]
+  mov   rdi, QWORD PTR [rbp - FUH_SLOT_OFFSET]
   lea   rsi, QWORD PTR [rbp - READER_SLOT] // reader
   call  engine_get_exception_handler
 
   test  al, al
   jz   .Lunwind_top_frame
 
-  // Handler is found, set exception object to SREG and continue interpretation
-  mov   QWORD PTR [ECTYPE_REG + ECTYPE_SREGS_OFFSET + 0], r12
+  // Handler is found, set exception object to ACC_REG and continue interpretation
+  mov   QWORD PTR [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 14*ECTYPE_REG_SIZE], r12
   jmp   .Lrestart_interpretation
 
 .Lunwind_top_frame:
   // Restore spilled non-volatile regs before clearing the frame
-  mov   rax, QWORD PTR [rbp - FUH_SLOT]
+  mov   rax, QWORD PTR [rbp - FUH_SLOT_OFFSET]
   mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
   mov   edx, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   add   rdx, rsp // start of saved regs area

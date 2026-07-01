@@ -8,6 +8,4 @@ enum class Type {
     // TODO: add other types when needed
 };
 
-void RegisterExceptionThrower();
-
 } // namespace Interpretation

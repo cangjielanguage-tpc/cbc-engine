@@ -107,7 +107,6 @@ struct Execution {
     static Reference GetGlobalBasePtr();
     static Reference GetLocalBasePtr();
 
-    static void RegisterImplicitExceptionsThrower();
     static Reference GetPendingException();
     static Reference GetAndClearPendingException();
 };

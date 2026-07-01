@@ -9,8 +9,6 @@
 
 namespace RTSupport {
 
-#define HELPER_LIB_NAME "libcbcengine-helper.so"
-
 void (*WriteStructField)(
     uintptr_t base, uintptr_t field, size_t fieldLen, uintptr_t src, size_t srcLen, DYN_GCTib gctib
 );
@@ -21,24 +19,11 @@ struct Handle {
     void* handle;
     std::string name;
 
-    Handle() : handle(nullptr) {}
-
     Handle(void* handle, std::string&& name) : handle(handle), name(std::move(name)) {}
 
     Handle(Handle const& handle) = delete;
 
     Handle(Handle&& handle) : handle(handle.handle) { handle.handle = nullptr; }
-
-    Handle& operator=(Handle&& other)
-    {
-        if (handle != nullptr) {
-            FATAL("Trying to rewrite existing handle");
-        }
-        name         = std::move(other.name);
-        handle       = other.handle;
-        other.handle = nullptr;
-        return *this;
-    }
 
     static std::optional<Handle> Open(std::string&& str)
     {
@@ -68,8 +53,6 @@ struct Handle {
         }
     }
 };
-
-Handle g_helperLibHandle;
 
 void Initialize(DYN_CJNativeInterface* interf)
 {
@@ -103,24 +86,21 @@ void Initialize(DYN_CJNativeInterface* interf)
         return;
     }
 
-    auto helperHandleOpt = Handle::Open(HELPER_LIB_NAME);
+    const char* helperLibName = "libcbcengine-helper.so";
+    auto helperHandleOpt      = Handle::Open(helperLibName);
     if (!helperHandleOpt.has_value()) {
-        Log::init.Stream(Logging::Level::ERROR) << "failed to open lib " << HELPER_LIB_NAME << Stream::endl;
+        Log::init.Stream(Logging::Level::ERROR) << "failed to open lib " << helperLibName << Stream::endl;
         return;
     }
 
-    g_helperLibHandle = std::move(*helperHandleOpt);
-}
-
-void* GetHelperSymbolAddr(const char* symName)
-{
-    auto sym = g_helperLibHandle.Sym(symName);
-    if (sym == nullptr) {
-        Log::init.Stream(Logging::Level::ERROR) << "failed to find symbol " << symName << Stream::endl;
-        return nullptr;
+    const char* throwerName = "_CN7default22throwImplicitExceptionHl";
+    auto throwerSym         = helperHandleOpt.value().Sym(throwerName);
+    if (throwerSym == nullptr) {
+        Log::init.Stream(Logging::Level::ERROR) << "failed to find symbol " << throwerName << Stream::endl;
+        return;
     }
 
-    return sym;
+    Asm::engine_implicit_exception_thrower = reinterpret_cast<void (*)(int)>(throwerSym);
 }
 
 } // namespace RTSupport

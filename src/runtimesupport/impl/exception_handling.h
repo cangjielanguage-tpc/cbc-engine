@@ -4,5 +4,5 @@
 #include <stdint.h>
 
 extern "C" uint8_t engine_get_exception_handler(
-    Interpretation::DynamicFunctionHandle* handle, Decoder::FatByteReader& reader
+    Interpretation::DynamicFunctionHandle* handle, Decoder::ByteReader& reader
 );

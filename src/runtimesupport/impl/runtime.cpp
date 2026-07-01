@@ -197,12 +197,6 @@ Reference Execution::GetGlobalBasePtr()
 
 Reference Execution::GetLocalBasePtr() { return Reference { .value = 0 }; }
 
-void Execution::RegisterImplicitExceptionsThrower()
-{
-    auto funcAddr                          = NOTNULL(GetHelperSymbolAddr("_CN7default22throwImplicitExceptionHl"));
-    Asm::engine_implicit_exception_thrower = reinterpret_cast<void (*)(int)>(funcAddr);
-}
-
 Reference Execution::GetPendingException()
 {
     return Reference { .value = reinterpret_cast<uintptr_t>(g_CJNativeInterfaceInstance.getPendingException()) };

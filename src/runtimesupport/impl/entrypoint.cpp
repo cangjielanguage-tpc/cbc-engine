@@ -374,8 +374,6 @@ CBC_EXPORT int interpreter_bridge_init(
         builtinTypeInfos[BUILTIN_F64]     = RTSupport::TypeInfo(getTypeInfo("Float64"));
     }
 
-    Interpretation::RegisterExceptionThrower();
-
     return 0;
 }
 

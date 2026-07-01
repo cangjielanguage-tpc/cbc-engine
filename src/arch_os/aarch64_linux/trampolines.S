@@ -355,10 +355,12 @@ perform_2i_call:
   ldr   LITERALS_REG, [x9, #EXEC_BYTECODE_INFO_LITERALS_OFFSET]
   ldr   x1, [x9, #EXEC_BYTECODE_INFO_BYTECODE_OFFSET]
   sub   x10, x29, #READER_SLOT
+#ifndef NDEBUG
   ldr   x8, [x9, #EXEC_BYTECODE_INFO_BYTECODE_SIZE_OFFSET]
   add   x8, x8, x1
   str   x8, [x10, #0x10]
   str   x1, [x10, #0x8]
+#endif
   str   x1, [x10]
 
   mov   x1, sp // save current sp for registers saving to the bottom of frame
@@ -410,7 +412,7 @@ perform_2i_call:
 
 .Lend_interpretation:
 
-  ldr   x9, [x29, FUH_SLOT] // load Function Handle
+  ldr   x9, [x29, FUH_SLOT_OFFSET] // load Function Handle
   ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
 
   ldr   w1, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
@@ -422,7 +424,7 @@ perform_2i_call:
     .irp reg, 10,11,12,13
         tbz \mask_reg, #(\reg-8), .L\@skipireg\reg
         ldr x2, [\stack_reg, #-0x8]!
-        str x2, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + \reg*8)]
+        str x2, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + \reg*ECTYPE_REG_SIZE)]
 .L\@skipireg\reg:
     .endr
 .endm
@@ -432,7 +434,7 @@ perform_2i_call:
     .irp reg, 8,9,10,11,12,13,14,15
         tbz \mask_reg, #(\reg-8), .L\@skipfreg\reg
         ldr d2, [\stack_reg, #-0x8]!
-        str d2, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET + \reg*8)]
+        str d2, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET + \reg*ECTYPE_REG_SIZE)]
 .L\@skipfreg\reg:
     .endr
 .endm
@@ -480,19 +482,19 @@ common_landing_pad:
 engine_handle_exception:
   mov   x21, x0
 
-  ldr   x0, [x29, FUH_SLOT]
+  ldr   x0, [x29, FUH_SLOT_OFFSET]
   sub   x1, x29, #READER_SLOT // reader
   bl    engine_get_exception_handler
 
   cbz   w0, .Lunwind_top_frame
 
-  // Handler is found, set exception object to SREG and continue interpretation
-  str   x21, [ECTYPE_REG, #ECTYPE_SREGS_OFFSET]
+  // Handler is found, set exception object to ACC_REG and continue interpretation
+  str   x21, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET + 14*ECTYPE_REG_SIZE)]
   b     .Lrestart_interpretation
 
 .Lunwind_top_frame:
   // Restore spilled non-volatile regs before clearing the frame
-  ldr   x9, [x29, FUH_SLOT]
+  ldr   x9, [x29, FUH_SLOT_OFFSET]
   ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
   ldr   w1, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   mov   x2, sp

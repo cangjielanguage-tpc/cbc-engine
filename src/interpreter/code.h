@@ -39,7 +39,7 @@ struct ExecBytecodeInfo {
     uint16_t const untypedSlotCount;
     uint32_t const frameSize;
     GcInfo const gcInfo;
-    InstructionOffsetsIndex const offsetsIndex;
+    InstructionOffsetsIndex const offsetsIndex; // TODO: optimize RAM footprint
 
     friend Stream::Output& operator<<(Stream::Output& out, const ExecBytecodeInfo& bc);
 };

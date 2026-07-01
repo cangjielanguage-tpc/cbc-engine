@@ -4,6 +4,7 @@
 
 #include <optional>
 #include <stdint.h>
+#include <unistd.h>
 #include <unordered_map>
 #include <variant>
 #include <vector>

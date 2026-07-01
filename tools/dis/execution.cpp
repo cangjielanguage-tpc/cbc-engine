@@ -110,8 +110,6 @@ Reference Execution::GetGlobalBasePtr() { FATAL("Should not reach here"); }
 
 Reference Execution::GetLocalBasePtr() { FATAL("Should not reach here"); }
 
-void Execution::RegisterImplicitExceptionsThrower() { FATAL("Should not reach here"); }
-
 Reference Execution::GetPendingException()
 {
     FATAL("Should not reach here");

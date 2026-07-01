@@ -69,12 +69,11 @@ Interpretation::Thunk engine_interpretation_loop(
 
     uintptr_t exceptionObj = 0;
 
-#define NEXT_OR_THROW(successfull, type)                                                                               \
+#define NEXT_OR_THROW(successful, type)                                                                                \
     do {                                                                                                               \
-        if (successfull) {                                                                                             \
+        if (successful) {                                                                                              \
             NEXT;                                                                                                      \
         } else {                                                                                                       \
-            reader = readerBeforeInstr;                                                                                \
             THROW_IMPLICIT(type);                                                                                      \
         }                                                                                                              \
     } while (0)
@@ -716,7 +715,6 @@ STRING_INIT: {
 }
 
 NULLCHECK: {
-    auto readerBeforeInstr = reader;
     auto args = B2xr::Decode(reader);
     LOG_INSTR;
     auto ref = ectype->GetReference(args.xr.r.IR());
@@ -724,7 +722,6 @@ NULLCHECK: {
 }
 
 DIVCHECK: {
-    auto readerBeforeInstr = reader;
     auto args = B2xr::Decode(reader);
     LOG_INSTR;
     auto div = ectype->GetPrimitive(args.xr.r.IR());
@@ -765,10 +762,10 @@ IOF: {
 CATCH: {
     auto args = B2xr::Decode(reader);
     LOG_INSTR;
-    auto exceptionObj = ectype->GetSReg(0);
-    ASSERTION(exceptionObj.u64 != 0, "catch expected non-null exception object");
-    ectype->Put(args.xr.r.IR(), Value::Reference { .value = exceptionObj.u64 });
-    NEXT;
+    auto exceptionObj = ectype->GetReference(IReg::IR_ACC);
+    bool successful   = exceptionObj.value != 0;
+    ectype->Put(args.xr.r.IR(), Value::Reference { .value = exceptionObj.value });
+    NEXT_COND(successful);
 }
 
 THROW: {
