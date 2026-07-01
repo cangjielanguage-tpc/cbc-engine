@@ -329,7 +329,7 @@ struct IsaRewriter : public IsaParser {
         }
         auto field  = f.value();
         auto symbol = emit.NewAddressSym(field->location);
-        emit.LoadStatic(Ldk(field->fieldType->GetKind()), r, symbol);
+        emit.LoadStatic(Ldk(field->fieldType.GetKind()), r, symbol);
     }
 
     void StoreStatic(AnyReg r, uint16_t fieldId) override
@@ -341,7 +341,7 @@ struct IsaRewriter : public IsaParser {
         }
         auto field  = f.value();
         auto symbol = emit.NewAddressSym(field->location);
-        emit.StoreStatic(Stk(field->fieldType->GetKind()), r, symbol);
+        emit.StoreStatic(Stk(field->fieldType.GetKind()), r, symbol);
     }
 
     void LoadField(IReg rb, AnyReg rd, uint16_t fieldId) override
@@ -353,7 +353,7 @@ struct IsaRewriter : public IsaParser {
         }
         auto field = f.value();
         if (field->offset.has_value()) {
-            emit.LoadObj(Ldk(field->fieldType->GetKind()), rd, rb, field->offset.value());
+            emit.LoadObj(Ldk(field->fieldType.GetKind()), rd, rb, field->offset.value());
         } else {
             errStream << "Failed to get offset of field " << *field << Stream::endl;
             Fail();
@@ -369,10 +369,10 @@ struct IsaRewriter : public IsaParser {
         }
         auto field = f.value();
         if (field->offset.has_value()) {
-            if (field->refType->GetKind() == Resolution::CbcTypeKind::REF) {
-                emit.StoreObj(Stk(field->fieldType->GetKind()), rs, rb, field->offset.value());
+            if (field->refType.GetKind() == Resolution::CbcTypeKind::REF) {
+                emit.StoreObj(Stk(field->fieldType.GetKind()), rs, rb, field->offset.value());
             } else {
-                emit.StoreRec(Stk(field->fieldType->GetKind()), rs, rb, field->offset.value());
+                emit.StoreRec(Stk(field->fieldType.GetKind()), rs, rb, field->offset.value());
             }
         } else {
             errStream << "Failed to get offset of field " << *field << Stream::endl;
@@ -402,13 +402,13 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto type = t.value();
-        if (!type->GetTypeInfo().has_value()) {
-            errStream << "Failed to get type info of " << *type << Stream::endl;
+        if (!type.GetTypeInfo().has_value()) {
+            errStream << "Failed to get type info of " << type << Stream::endl;
             Fail();
             return;
         }
 
-        auto ti = type->GetTypeInfo().value();
+        auto ti = type.GetTypeInfo().value();
         emit.MovImm(Format::Width::W64, dst, reinterpret_cast<uintptr_t>(ti.Raw()));
     }
 
@@ -429,12 +429,12 @@ struct IsaRewriter : public IsaParser {
             emit.Offset(dst, field->ordinal, ti);
         }
 
-        if (field->refType->GetKind() == Resolution::CbcTypeKind::REF) {
+        if (field->refType.GetKind() == Resolution::CbcTypeKind::REF) {
             emit.AddI(Format::Width::W64, dst, dst, RTSupport::MetaInfo::ObjectHeaderSize());
         }
     }
 
-    std::optional<Type*> NewObject(IReg dst, uint16_t typeId, New kind)
+    std::optional<Type> NewObject(IReg dst, uint16_t typeId, New kind)
     {
         auto t = resolver.Query(Index<Type>(typeId));
         if (!t.has_value()) {
@@ -442,13 +442,13 @@ struct IsaRewriter : public IsaParser {
             return std::nullopt;
         }
         auto type = t.value();
-        if (!type->GetTypeInfo().has_value()) {
-            errStream << "Failed to get type info of " << *type << Stream::endl;
+        if (!type.GetTypeInfo().has_value()) {
+            errStream << "Failed to get type info of " << type << Stream::endl;
             Fail();
             return std::nullopt;
         }
 
-        auto typeInfo = type->GetTypeInfo().value();
+        auto typeInfo = type.GetTypeInfo().value();
         switch (kind) {
             case New::Obj: emit.NewObj(typeInfo); break;
             case New::Arr: emit.NewArr(typeInfo); break;
@@ -504,7 +504,7 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto method = m.value();
-        auto ti     = method->refType->GetTypeInfo();
+        auto ti     = method->refType.GetTypeInfo();
         if (!ti.has_value()) {
             Fail();
             return;
@@ -525,7 +525,7 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto type        = t.value();
-        auto optTypeInfo = type->GetTypeInfo();
+        auto optTypeInfo = type.GetTypeInfo();
         if (!optTypeInfo.has_value()) {
             Fail();
             return;
@@ -607,13 +607,13 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto type = t.value();
-        if (!type->GetTypeInfo().has_value()) {
-            errStream << "Failed to get type info of " << *type << Stream::endl;
+        if (!type.GetTypeInfo().has_value()) {
+            errStream << "Failed to get type info of " << type << Stream::endl;
             Fail();
             return;
         }
 
-        auto typeInfo = type->GetTypeInfo().value();
+        auto typeInfo = type.GetTypeInfo().value();
         emit.InstanceOf(dst, obj, typeInfo);
     }
 
@@ -677,7 +677,7 @@ struct IsaRewriter : public IsaParser {
         auto field = f.value();
         if (field->offset.has_value()) {
             auto offset = frameLayout.typedOffset.at(ts) + field->offset.value();
-            emit.LoadFrame(Ldk(field->fieldType->GetKind()), dst, offset);
+            emit.LoadFrame(Ldk(field->fieldType.GetKind()), dst, offset);
         } else {
             errStream << "Failed to get offset of field " << *field << Stream::endl;
             Fail();
@@ -694,7 +694,7 @@ struct IsaRewriter : public IsaParser {
         auto field = f.value();
         if (field->offset.has_value()) {
             auto offset = frameLayout.typedOffset.at(ts) + field->offset.value();
-            emit.StoreFrame(Stk(field->fieldType->GetKind()), src, offset);
+            emit.StoreFrame(Stk(field->fieldType.GetKind()), src, offset);
         } else {
             errStream << "Failed to get offset of field " << *field << Stream::endl;
             Fail();
@@ -711,7 +711,7 @@ struct IsaRewriter : public IsaParser {
         auto field = f.value();
         if (field->offset.has_value()) {
             auto offset = frameLayout.typedOffset.at(ts) + field->offset.value();
-            emit.StoreFrameImm(Stk(field->fieldType->GetKind()), imm, offset);
+            emit.StoreFrameImm(Stk(field->fieldType.GetKind()), imm, offset);
         } else {
             errStream << "Failed to get offset of field " << *field << Stream::endl;
             Fail();
@@ -767,7 +767,7 @@ struct IsaRewriter : public IsaParser {
                 Fail();
                 return;
             }
-            auto ti = t.value()->GetTypeInfo();
+            auto ti = t.value().GetTypeInfo();
             if (!ti.has_value()) {
                 Fail();
                 return;
@@ -791,7 +791,7 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
-        auto ti = type.value()->GetTypeInfo();
+        auto ti = type.value().GetTypeInfo();
         if (!ti.has_value()) {
             Fail();
             return;
@@ -821,7 +821,7 @@ struct IsaRewriter : public IsaParser {
                 Fail();
                 return;
             }
-            auto ti = t.value()->GetTypeInfo();
+            auto ti = t.value().GetTypeInfo();
             if (!ti.has_value()) {
                 Fail();
                 return;
@@ -839,7 +839,7 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
-        auto ti = type.value()->GetTypeInfo();
+        auto ti = type.value().GetTypeInfo();
         if (!ti.has_value()) {
             Fail();
             return;
@@ -882,8 +882,8 @@ struct IsaRewriter : public IsaParser {
         if (field->offset.has_value()) {
             // TODO: accumulate offset for field sequence
             msr.emit.Offset(field->offset.value());
-            msr.lastFieldKind = field->fieldType->GetKind();
-            return field->refType->GetKind() == CbcTypeKind::REF;
+            msr.lastFieldKind = field->fieldType.GetKind();
+            return field->refType.GetKind() == CbcTypeKind::REF;
         } else {
             errStream << "Failed to get offset of field " << *field << Stream::endl;
             Fail();
@@ -922,7 +922,7 @@ struct IsaRewriter : public IsaParser {
 
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
         msr.emit.Offset(field->location);
-        msr.lastFieldKind = field->fieldType->GetKind();
+        msr.lastFieldKind = field->fieldType.GetKind();
         msr.kind          = HEAD_STATIC;
     }
 
@@ -981,7 +981,7 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         // FIXME: support const indicies for arrays
-        auto f = resolver.QueryTupleElement(*t, idx);
+        auto f = resolver.QueryTupleElement(t.value(), idx);
         if (!f.has_value()) {
             Fail();
             return;
@@ -993,7 +993,7 @@ struct IsaRewriter : public IsaParser {
         }
         auto offset = *field->offset;
         msr.emit.Offset(offset);
-        msr.lastFieldKind = field->fieldType->GetKind();
+        msr.lastFieldKind = field->fieldType.GetKind();
     }
 
     void MemBodyIndex(MemSpace& ms, IReg reg, uint16_t typeId, bool checked) override
@@ -1010,15 +1010,15 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto type = t.value();
-        if (!type->GetTypeInfo().has_value()) {
-            errStream << "Failed to get type info of " << *type << Stream::endl;
+        if (!type.GetTypeInfo().has_value()) {
+            errStream << "Failed to get type info of " << type << Stream::endl;
             Fail();
             return;
         }
 
-        ASSERT(type->GetKind() == CbcTypeKind::REC);
+        ASSERT(type.GetKind() == CbcTypeKind::REC);
 
-        auto size = type->GetFlatSize();
+        auto size = type.GetFlatSize();
         if (!size.has_value()) {
             Fail();
             return;
@@ -1108,7 +1108,7 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto field = f.value();
-        if (field->refType->GetKind() == Resolution::CbcTypeKind::REF) {
+        if (field->refType.GetKind() == Resolution::CbcTypeKind::REF) {
             msr.emit.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
         }
         msr.emit.GenericField(field->ordinal, ti);
@@ -1219,14 +1219,14 @@ static std::optional<FrameLayout> makeFrameLayout(Symlevel::Code code, Resolver&
             return std::nullopt;
         }
         auto type = typeOpt.value();
-        if (type->GetKind() != CbcTypeKind::REC) {
+        if (type.GetKind() != CbcTypeKind::REC) {
             return std::nullopt;
         }
-        auto size = type->GetFlatSize();
+        auto size = type.GetFlatSize();
         if (!size.has_value()) {
             return std::nullopt;
         }
-        auto typeInfo = type->GetTypeInfo();
+        auto typeInfo = type.GetTypeInfo();
         if (!typeInfo.has_value()) {
             return std::nullopt;
         }

@@ -21,7 +21,7 @@ void* CountRegs(Engine::Term& signature)
         auto subterm = signature.Subterm(i);
         if (subterm.IsFloat()) {
             floats++;
-        } else if (subterm.IsInteger()) {
+        } else {
             integers++;
         }
     }
