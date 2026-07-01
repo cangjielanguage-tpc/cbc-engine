@@ -29,6 +29,7 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3xi12 arg
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B9i64 args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B11i16i64 args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B13i64i32 args);
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, StructFieldOp args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M1 args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M2rr args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M2xr args);
@@ -45,6 +46,7 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M3rri8 arg
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M4rri16 args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M6rri32 args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M10rri64 args);
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, MStructFieldOp args);
 
 } // namespace RT
 } // namespace Cbc

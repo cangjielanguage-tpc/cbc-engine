@@ -84,8 +84,7 @@ enum Tag : uint8_t {
 
 static TermData* AllocateTerm(Memory::Heap& allocator, size_t subtermCount = 0)
 {
-    return static_cast<TermData*>(
-        allocator.Allocate(sizeof(TermData) + subtermCount * sizeof(Term), alignof(TermData))
+    return static_cast<TermData*>(allocator.Allocate(sizeof(TermData) + subtermCount * sizeof(Term), alignof(TermData))
     );
 }
 
@@ -238,7 +237,7 @@ int TermId::Width()
     }
 }
 
-Term Term::Predefined(TermKind tk)
+GlobalTerm Term::Predefined(TermKind tk)
 {
     int num = static_cast<int>(tk);
     return GlobalTerm(Builtins().Primitive(num));
@@ -310,6 +309,8 @@ static bool CompareTermData(TermData* origin, TermData* another)
     }
 }
 
+Term::Term() : Term(Term::Predefined(TermKind::NIL)) {}
+
 Term::Term(LocalTerm local) : data(local.data) {}
 
 Term::Term(GlobalTerm global) : data(global.data) {}
@@ -333,6 +334,17 @@ Term Term::Subterm(uint32_t i) const { return data->subterms[i]; }
 TermId Term::GetId() const { return data->identifier; }
 
 TermKind Term::GetKind() const { return data->identifier.GetKind(); }
+
+bool Term::IsFReg() const
+{
+    switch (GetKind()) {
+        case TermKind::F32:
+        case TermKind::F64: return true;
+        default:            return false;
+    }
+}
+
+bool Term::IsIReg() const { return !IsFReg(); }
 
 uint32_t Term::GetLength() const { return data->length; }
 
@@ -358,7 +370,7 @@ void Term::GetName(Session& session, Stream::Output& stream) const
         stream << suffix;
     };
 
-    using TK = TermKind;
+    using TK  = TermKind;
     auto kind = GetKind();
     switch (kind) {
         case TK::NIL:     stream << "nil"; break;
@@ -434,7 +446,7 @@ void Term::GetName(Session& session, Stream::Output& stream) const
         }
 
         case TK::AOT_TYPE:
-        case TK::AOT_REC: {
+        case TK::AOT_REC:  {
             auto& manager = TermManager::Of(session);
             std::string_view name;
             if (kind == TermKind::AOT_TYPE) {
@@ -517,13 +529,13 @@ GlobalTerm TermManager::Globalize(Term& term)
     // cache miss; evacuate term and update cache
     auto data = static_cast<TermData*>(malloc(sizeof(TermData) + termData->length * sizeof(Term)));
     if (data == nullptr) {
-        throw std::bad_alloc();
+        FATAL("Out of memory");
     }
 
     for (int i = 0; i < term.GetLength(); i++) {
         data->subterms[i] = termData->subterms[i];
     }
-    auto flags = termData->flags;
+    auto flags    = termData->flags;
     flags.isLocal = false;
     data->Init(termData->identifier, termData->hash, termData->length, flags);
 
@@ -576,6 +588,27 @@ Term TermManager::NewAotTerm(
     } else {
         id = AotRecTermId(InternString(name));
     }
+    data->InitAfterSubterms(id, arity, flags);
+    return Term(LocalTerm(data));
+}
+
+Term TermManager::NewTermWithId(Session& session, TermId id, bool isReference, std::vector<Term> const& subterms)
+{
+    auto& heap     = session.Allocator();
+    auto data      = AllocateTerm(heap, subterms.size());
+    bool isGeneric = false;
+    auto arity     = subterms.size();
+    for (int i = 0; i < arity; i++) {
+        data->subterms[i] = subterms[i];
+        isGeneric         = isGeneric || subterms[i].IsGeneric();
+    }
+
+    TermFlags flags = {
+        .isLocal       = true,
+        .isReference   = isReference,
+        .isAotPromoted = false,
+        .isGeneric     = isGeneric,
+    };
     data->InitAfterSubterms(id, arity, flags);
     return Term(LocalTerm(data));
 }
@@ -868,13 +901,13 @@ size_t TermManager::InternString(std::string_view str)
     return internTable.InternAndGetId(str);
 }
 
-Utils::StringPool::ZeroTerminatedView TermManager::GetNameOfAotType(AotRefTermId type)
+Utils::StringPool::String TermManager::GetNameOfAotType(AotRefTermId type)
 {
     std::lock_guard guard(lock);
     return internTable.GetStringById(type.GetNum());
 }
 
-Utils::StringPool::ZeroTerminatedView TermManager::GetNameOfAotType(AotRecTermId type)
+Utils::StringPool::String TermManager::GetNameOfAotType(AotRecTermId type)
 {
     std::lock_guard guard(lock);
     return internTable.GetStringById(type.GetNum());
@@ -889,14 +922,15 @@ Term TermManager::Resolve(Session& session, RefIdentifier<Term> ident)
 
     auto& manager = TermManager::Of(session);
 
-    TermResolver resolver { .regionData = file.GetRegionData(),
-                            .session    = session,
-                            .heap       = session.Allocator(),
-                            .fileId     = ident.GetFileId(),
-                            .region     = ident.GetIndex().GetRegion(),
-                            .raf        = *raf,
-                            .file       = file,
-                            .manager    = manager,
+    TermResolver resolver {
+        .regionData = file.GetRegionData(),
+        .session    = session,
+        .heap       = session.Allocator(),
+        .fileId     = ident.GetFileId(),
+        .region     = ident.GetIndex().GetRegion(),
+        .raf        = *raf,
+        .file       = file,
+        .manager    = manager,
     };
 
     // TODO: cache
@@ -948,5 +982,14 @@ Term ClassSubstitution::SubstituteClassTv(uint8_t typeVar)
 }
 
 Term ClassSubstitution::SubstituteFuncTv(uint8_t typeVar) { return Term::FuncTypeVariable(typeVar); }
+
+ArraySubstitution::ArraySubstitution(Session& session, std::vector<Term> const& terms)
+    : Substitution(session),
+      terms(terms)
+{}
+
+Term ArraySubstitution::SubstituteFuncTv(uint8_t typeVar) { return Term::FuncTypeVariable(typeVar); }
+
+Term ArraySubstitution::SubstituteClassTv(uint8_t typeVar) { return terms.at(typeVar); }
 
 } // namespace Engine

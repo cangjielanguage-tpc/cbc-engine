@@ -5,6 +5,7 @@
 #include "cbc/isa.h"
 #include "cbc/isa_rt.h"
 #include "emitter.h"
+#include "runtimesupport/runtime.h"
 #include "utils/heap.h"
 #include "utils/math.h"
 
@@ -140,7 +141,7 @@ public:
 
 class BccFixup : public Fixup {
 public:
-    BccFixup(Symbol _sym, CC _cc, Width _width, IReg _left, IReg _right)
+    BccFixup(Symbol _sym, CC _cc, Width _width, Reg _left, Reg _right)
         : Fixup(_sym),
           cc(_cc),
           width(_width),
@@ -185,8 +186,8 @@ public:
 private:
     CC cc;
     Width width;
-    IReg left;
-    IReg right;
+    Reg left;
+    Reg right;
 };
 
 class BccImmFixup : public Fixup {
@@ -462,7 +463,7 @@ void Emitter::FMovI64(FReg d, double imm)
     );
 }
 
-void Emitter::Bcc(CC cc, Width width, IReg l, IReg r, Label label)
+void Emitter::Bcc(CC cc, Width width, Reg l, Reg r, Label label)
 {
     ASSERT(width == Width::W32 || width == Width::W64);
     AddFixup(std::make_unique<BccFixup>(label, cc, width, l, r));
@@ -842,6 +843,44 @@ void Emitter::Throw(IReg reg)
 }
 
 void Emitter::Catch(IReg reg) { Encode(segment, RT::B2xr { .opc = RT::Opcode::CATCH, .xr = { .imm = 0, .r = reg } }); }
+
+void Emitter::LoadGenericTypeInfo(void* termData)
+{
+    auto d = reinterpret_cast<uintptr_t>(termData);
+    Encode(segment, RT::B9i64 { .opc = RT::Opcode::LOAD_GENERIC_TI, .imm64 = { d } });
+}
+
+void Emitter::LoadTypeInfo(RTSupport::TypeInfo typeInfo)
+{
+    auto d = reinterpret_cast<uintptr_t>(typeInfo.Raw());
+    Encode(segment, RT::B9i64 { .opc = RT::Opcode::LOAD_TI, .imm64 = { d } });
+}
+
+void Emitter::NewBox(Interpretation::BuiltinType t)
+{
+    Encode(segment, RT::B2xr { .opc = RT::Opcode::NEWBOX, .xr = { .imm = t, .r = IReg::IRZ } });
+}
+
+void Emitter::NewBox(RTSupport::TypeInfo typeInfo)
+{
+    Encode(segment, RT::B9i64 { .opc = RT::Opcode::NEWBOX2, .imm64 = { reinterpret_cast<uint64_t>(typeInfo.Raw()) } });
+}
+
+void Emitter::ReadStructField(IReg dst, IReg base, IReg field, RTSupport::TypeInfo ti)
+{
+    RT::StructFieldOp command = {
+        .opc = RT::Opcode::READ_STRUCT_FIELD, .rr = { dst, base }, .field = { field, field }, .ti = ti
+    };
+    Encode(segment, command);
+}
+
+void Emitter::WriteStructField(IReg src, IReg base, IReg field, RTSupport::TypeInfo ti)
+{
+    RT::StructFieldOp command = {
+        .opc = RT::Opcode::WRITE_STRUCT_FIELD, .rr = { src, base }, .field = { field, field }, .ti = ti
+    };
+    Encode(segment, command);
+}
 
 } // namespace Emitter
 } // namespace Cbc

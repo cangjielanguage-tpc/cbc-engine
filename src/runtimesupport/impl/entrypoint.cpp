@@ -1,13 +1,11 @@
 #include "runtimesupport/impl/entrypoint.h"
 
 #include <algorithm>
-#include <filesystem>
 #include <mutex>
 
 #include "RTInterface.h"
 #include "asm_export.h"
 #include "asm_trampolines.h"
-#include "cbc/isa.h"
 #include "cbc/isa_disasm.h"
 #include "cbc_engine.h"
 #include "cjnative.h"
@@ -21,6 +19,7 @@
 #include "gc_support.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
+#include "interpreter/interpretation_loop.h"
 #include "interpreter/implicit_exceptions.h"
 #include "interpreter/loggers.h"
 #include "runtimesupport/impl/rt_syms.h"
@@ -107,7 +106,7 @@ static void PerformPatching()
             pkgName = pkgName.substr(3);
 
             RTSupport::Log::rt.Log(Logging::Level::INFO, [&pkgName](Stream::Output& out) {
-                out.PrintFmtLn("patching package %s", pkgName);
+                out << "patching package " << pkgName << Stream::endl;
             });
 
             auto patchPrefix = "$" + std::string(pkgName);
@@ -119,13 +118,13 @@ static void PerformPatching()
             auto ti = g_CJNativeInterfaceInstance.typeInfo(patchClassName.c_str());
             if (ti == nullptr) {
                 RTSupport::Log::rt.Log(Logging::Level::ERROR, [&patchClassName](Stream::Output& out) {
-                    out.PrintFmtLn("patch type info not found: %s", patchClassName.c_str());
+                    out << "patch type info not found: " << patchClassName << Stream::endl;
                 });
                 return;
             }
 
             RTSupport::Log::rt.Log(Logging::Level::INFO, [&patchClassName](Stream::Output& out) {
-                out.PrintFmtLn("patch type info found: %s", patchClassName.c_str());
+                out << "patch type info found: " << patchClassName << Stream::endl;
             });
 
             // Corresponding extension def (TODO: check it)
@@ -145,7 +144,7 @@ static void PerformPatching()
 
                     RTSupport::Log::rt.Log(Logging::Level::INFO, [&idx, &session, &mdef](Stream::Output& out) {
                         auto funcName = Symlevel::Reader::Read(session, mdef.Name());
-                        out.PrintFmtLn("patching funcTable[%d] with %s", idx, funcName);
+                        out << "patching funcTable[" << idx << "] with " << funcName << Stream::endl;
                     });
 
                     auto fuh = fuhManager.AcquireTagged(session, mdef.GetIdentifier());
@@ -160,13 +159,13 @@ static void PerformPatching()
             auto flag = deps.FindTarget(patchFlagName);
             if (flag == nullptr) {
                 RTSupport::Log::rt.Log(Logging::Level::ERROR, [&patchFlagName](Stream::Output& out) {
-                    out.PrintFmtLn("patch flag field not found: %s", patchFlagName.c_str());
+                    out << "patch flag field not found: " << patchFlagName << Stream::endl;
                 });
                 return;
             }
 
             RTSupport::Log::rt.Log(Logging::Level::INFO, [&patchFlagName](Stream::Output& out) {
-                out.PrintFmtLn("patch flag field found: %s", patchFlagName.c_str());
+                out << "patch flag field found: " << patchFlagName << Stream::endl;
             });
 
             *(bool*) flag = true;
@@ -220,12 +219,16 @@ static void IterateFramesWithState(
     DYN_CJThreadSpecificData threadSpecificData, void (*callback)(DYN_VisitingState, void*), void* ctx
 )
 {
-    GCSupport::IterateFramesWithState(threadSpecificData, callback, ctx);
+    if (g_Initialized) {
+        GCSupport::IterateFramesWithState(threadSpecificData, callback, ctx);
+    }
 }
 
 static void VisitFrameRootsMarking(DYN_VisitingState state, INT_FrameDesc frame_desc, DYN_RootVisitor root_visitor)
 {
-    GCSupport::VisitGCFrameRoots(state, frame_desc, root_visitor);
+    if (g_Initialized) {
+        GCSupport::VisitGCFrameRoots(state, frame_desc, root_visitor);
+    }
 }
 
 static void VisitFrameRootsAdjusting(
@@ -235,7 +238,9 @@ static void VisitFrameRootsAdjusting(
     DYN_DerivedPtrVisitor derived_ptr_visitor
 )
 {
-    GCSupport::VisitGCFrameRoots(state, frame_desc, root_visitor);
+    if (g_Initialized) {
+        GCSupport::VisitGCFrameRoots(state, frame_desc, root_visitor);
+    }
 }
 
 static void VisitFrameRootsExpansion(
@@ -248,7 +253,12 @@ static void VisitFrameRootsExpansion(
     /* no-op */
 }
 
-static void VisitGlobalRoots(DYN_RootVisitor visitor) { GCSupport::VisitGlobalRoots(visitor); }
+static void VisitGlobalRoots(DYN_RootVisitor visitor)
+{
+    if (g_Initialized) {
+        GCSupport::VisitGlobalRoots(visitor);
+    }
+}
 
 extern "C" {
 /// This symbol is exported to the runtime, which would initialize engine.
@@ -256,7 +266,7 @@ CBC_EXPORT int interpreter_bridge_init(
     struct INT_InterpreterInterface* interpInterf,
     struct DYN_CJNativeInterface* rtInterf,
     int size,
-    const char* const* options
+    const char** options
 );
 
 CBC_EXPORT void engine_set_cbcpath(char const* cbcPath) { g_cbcPath = cbcPath; }
@@ -295,7 +305,7 @@ CBC_EXPORT int interpreter_bridge_init(
     struct INT_InterpreterInterface* interpInterf,
     struct DYN_CJNativeInterface* rtInterf,
     int size,
-    const char* const* options
+    const char** options
 )
 {
     static_assert(std::is_same_v<decltype(&interpreter_bridge_init), INT_InitInterpreter>);
@@ -341,6 +351,27 @@ CBC_EXPORT int interpreter_bridge_init(
 
     if (!g_patchCbc.empty()) {
         PerformPatching();
+    }
+    // If CBC patch is not found, engine will be left uninitialized.
+    // But Cangjie runtime will still be calling provided interpreter callbacks.
+    // So behavior of INT_InterpreterInterface callbacks with uninitialized engine should be changed:
+    // 1. GC roots visitors should be no-op (since no roots can be created without engine initialization).
+
+    {
+        using namespace Interpretation;
+        auto getTypeInfo                  = g_CJNativeInterfaceInstance.typeInfo;
+        builtinTypeInfos[BUILTIN_BOOLEAN] = RTSupport::TypeInfo(getTypeInfo("Bool"));
+        builtinTypeInfos[BUILTIN_U8]      = RTSupport::TypeInfo(getTypeInfo("UInt8"));
+        builtinTypeInfos[BUILTIN_U16]     = RTSupport::TypeInfo(getTypeInfo("UInt16"));
+        builtinTypeInfos[BUILTIN_U32]     = RTSupport::TypeInfo(getTypeInfo("UInt32"));
+        builtinTypeInfos[BUILTIN_U64]     = RTSupport::TypeInfo(getTypeInfo("UInt64"));
+        builtinTypeInfos[BUILTIN_I8]      = RTSupport::TypeInfo(getTypeInfo("Int8"));
+        builtinTypeInfos[BUILTIN_I16]     = RTSupport::TypeInfo(getTypeInfo("Int16"));
+        builtinTypeInfos[BUILTIN_I32]     = RTSupport::TypeInfo(getTypeInfo("Int32"));
+        builtinTypeInfos[BUILTIN_I64]     = RTSupport::TypeInfo(getTypeInfo("Int64"));
+        builtinTypeInfos[BUILTIN_F16]     = RTSupport::TypeInfo(getTypeInfo("Float16"));
+        builtinTypeInfos[BUILTIN_F32]     = RTSupport::TypeInfo(getTypeInfo("Float32"));
+        builtinTypeInfos[BUILTIN_F64]     = RTSupport::TypeInfo(getTypeInfo("Float64"));
     }
 
     Interpretation::RegisterExceptionThrower();

@@ -2,9 +2,9 @@
 #define TESTUTILS_H
 
 #include "engine/symlevel/io/random_access_file.h"
+#include "utils/assertion.h"
 #include "utils/heap.h"
 #include <memory>
-#include <stdexcept>
 
 template <size_t limit> class LimitedHeap : public Memory::Heap {
 public:
@@ -24,7 +24,7 @@ public:
             cursor = newCursor;
             return (void*)result;
         }
-        throw std::runtime_error("Not enough memory");
+        FATAL("Not enough memory");
     }
 
     void Free(void* p, size_t bytes, size_t alignment) override {}

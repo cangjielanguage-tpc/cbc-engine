@@ -179,6 +179,7 @@ struct ResolvedMethodReference {
     std::string_view name;
     Term signature;
     RefIdentifier<Symlevel::MethodReference> identifier;
+    Symlevel::MethodRefFlags flags;
     bool isResolved;
 
     std::string GetFullName(Session& session)
@@ -212,6 +213,7 @@ static ResolvedMethodReference ResolveReference(
     auto refType   = manager.Resolve(session, parsedRef.refType);
     auto name      = Symlevel::String::Parse(session, parsedRef.name);
     auto signature = manager.Resolve(session, parsedRef.methodSig);
+    auto flags     = parsedRef.flags;
 
     bool isResolved = true;
     if (refType.GetKind() == TermKind::UNDEFINED || signature.GetKind() == TermKind::UNDEFINED) {
@@ -223,7 +225,7 @@ static ResolvedMethodReference ResolveReference(
         isResolved = false;
     }
 
-    return { refType, name, signature, identifier, isResolved };
+    return { refType, name, signature, identifier, flags, isResolved };
 }
 
 template <typename Call> static ResolvedMethodReference ResolveReference(Resolver::Impl& resolver, Index<Call> index)
@@ -268,6 +270,7 @@ static std::optional<VirtualCall> ResolveCbcCall(Resolver::Impl& resolver, Resol
     auto& manager = MethodTableManager::Of(resolver.session);
     auto optMT    = manager.GetMethodTable(resolver.session, ref.refType);
     auto refType  = resolver.GetType(ref.refType);
+    auto sret     = ref.flags.Is(Symlevel::MethodRefFlag::SRET);
 
     if (!optMT.has_value()) {
         return std::nullopt;
@@ -288,7 +291,7 @@ static std::optional<VirtualCall> ResolveCbcCall(Resolver::Impl& resolver, Resol
     }
 
     auto sig = ConstructSignature(resolver, ref);
-    return VirtualCall { refType, ref.name, std::move(sig), resolved->methodNum, resolved->subTableNum };
+    return VirtualCall { refType, ref.name, std::move(sig), resolved->methodNum, resolved->subTableNum, sret };
 }
 
 static std::optional<InterfaceCall> ResolveCall(Resolver::Impl& resolver, Index<InterfaceCall> id)
@@ -299,12 +302,13 @@ static std::optional<InterfaceCall> ResolveCall(Resolver::Impl& resolver, Index<
         return std::nullopt;
     }
     auto refType = resolver.GetType(ref.refType);
+    auto sret    = ref.flags.Is(Symlevel::MethodRefFlag::SRET);
 
     switch (ref.refType.GetKind()) {
         case TermKind::TYPE: {
             auto call = ResolveCbcCall(resolver, ref);
             if (call.has_value()) {
-                return InterfaceCall { call->refType, call->name, std::move(call->signature), call->methodNum };
+                return InterfaceCall { call->refType, call->name, std::move(call->signature), call->methodNum, sret };
             }
             return std::nullopt;
         }
@@ -313,7 +317,7 @@ static std::optional<InterfaceCall> ResolveCall(Resolver::Impl& resolver, Index<
             /// FIXME: interface calls
             auto data = file.GetInterfaceCallAotTable().GetData(resolver.session, ref.identifier.GetIndex());
             auto sig  = ConstructSignature(resolver, ref);
-            return InterfaceCall { refType, ref.name, std::move(sig), data.inum };
+            return InterfaceCall { refType, ref.name, std::move(sig), data.inum, sret };
         }
 
         default: {
@@ -331,6 +335,7 @@ static std::optional<VirtualCall> ResolveCall(Resolver::Impl& resolver, Index<Vi
         return std::nullopt;
     }
     auto refType = resolver.GetType(ref.refType);
+    auto sret    = ref.flags.Is(Symlevel::MethodRefFlag::SRET);
 
     switch (ref.refType.GetKind()) {
         case TermKind::TYPE: {
@@ -340,7 +345,7 @@ static std::optional<VirtualCall> ResolveCall(Resolver::Impl& resolver, Index<Vi
         case TermKind::AOT_TYPE: {
             auto data = file.GetVirtualCallAotTable().GetData(resolver.session, ref.identifier.GetIndex());
             auto sig  = ConstructSignature(resolver, ref);
-            return VirtualCall { refType, ref.name, std::move(sig), data.methodNum, data.extDefNum };
+            return VirtualCall { refType, ref.name, std::move(sig), data.methodNum, data.extDefNum, sret };
         }
 
         default: {

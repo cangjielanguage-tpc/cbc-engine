@@ -3,6 +3,13 @@
 #include "RuntimeTypes.h"
 #include "asm_trampolines.h"
 #include "cjnative.h"
+#include "interpreter/ectype.h"
+#include "interpreter/function_handle.h"
+#include "interpreter/interpretation_loop.h"
+#include "runtimesupport/adapters.h"
+#include "engine/engine.h"
+#include "engine/terms.h"
+#include "engine/typeinfo_manager.h"
 #include "interpreter/implicit_exceptions.h"
 #include "runtimesupport/impl/rt_syms.h"
 #include "runtimesupport/impl/typeinfo_ext.h"
@@ -57,7 +64,22 @@ void Execution::WriteObjectStatic(void* location, Reference object, ThreadHandle
     );
 }
 
+void Execution::WriteStructField(uintptr_t src, Reference base, uintptr_t field, TypeInfo ti, ThreadHandle th)
+{
+    auto type = UnpackTypeInfo(ti);
+    auto size = type->instanceSize;
+    RTSupport::WriteStructField(base.value, field, size, src, size, type->gctib);
+}
+
+void Execution::ReadStructField(uintptr_t dst, Reference base, uintptr_t field, TypeInfo ti, ThreadHandle th)
+{
+    auto type = UnpackTypeInfo(ti);
+    RTSupport::ReadStructField(dst, base.value, field, type->instanceSize, type->gctib);
+}
+
 void* Execution::AllocateObjectInstance() { return reinterpret_cast<void*>(&Asm::engine_i2_newobject); }
+
+void* Execution::AllocateObjectInstanceAcc() { return reinterpret_cast<void*>(&Asm::engine_i2_newobject_acc); }
 
 void* Execution::AllocateArrayInstance() { return reinterpret_cast<void*>(&Asm::engine_i2_newarray); }
 
@@ -73,7 +95,7 @@ void* Execution::Spawn() { return reinterpret_cast<void*>(&Asm::engine_i2_spawn)
 
 bool Execution::IsPendingSafePoint()
 {
-    return g_CJNativeInterfaceInstance.isPendingSafePoint(g_CJNativeInterfaceInstance.getThreadLocalData());
+    return g_CJNativeInterfaceInstance.isPendingSafePoint(g_CJNativeInterfaceInstance.getThreadLocalData()) != 0;
 }
 
 TypeInfo Execution::GetTypeInfo(Reference base)
@@ -82,20 +104,64 @@ TypeInfo Execution::GetTypeInfo(Reference base)
     return *header;
 }
 
-void* Execution::GetVirtualTarget(Reference base, int extDefNum, int methodNum)
+static char* GetDynCallTrampolinesStart() { return reinterpret_cast<char*>(&Asm::engine_trampolines_dyn_start); }
+
+static size_t GetDynCallTrampolinesLength()
 {
-    DYN_TypeInfo** header  = reinterpret_cast<DYN_TypeInfo**>(base.value);
-    auto typeInfo          = *header;
-    auto target            = typeInfo->vExtensionDataStart[extDefNum]->funcTable[methodNum];
-    return target;
+    auto begin = GetDynCallTrampolinesStart();
+    auto end   = reinterpret_cast<char*>(&Asm::engine_trampolines_dyn_end);
+    return end - begin;
 }
 
-void* Execution::GetInterfaceTarget(Reference base, TypeInfo interf, int methodNum)
+static bool IsDynCallTrampoline(void* function)
 {
-    DYN_TypeInfo** header  = reinterpret_cast<DYN_TypeInfo**>(base.value);
-    auto typeInfo          = *header;
-    DYN_FuncPtr* table     = g_CJNativeInterfaceInstance.getMTable(typeInfo, UnpackTypeInfo(interf));
-    return table[methodNum];
+    auto trampolinesStart = reinterpret_cast<size_t>(GetDynCallTrampolinesStart());
+    auto funcPos          = reinterpret_cast<size_t>(function) - trampolinesStart;
+    return funcPos <= GetDynCallTrampolinesLength();
+}
+
+static size_t DynCallTrampolineIdx(void* trampoline)
+{
+    ASSERT(IsDynCallTrampoline(trampoline));
+    auto trampolinesStart = reinterpret_cast<size_t>(GetDynCallTrampolinesStart());
+    auto funcIdx          = (reinterpret_cast<size_t>(trampoline) - trampolinesStart) / DYN_CALL_TRAMPOLINE_SIZE;
+    return funcIdx;
+}
+
+static Interpretation::FunctionHandle* GetDynamicCall(void* fn, CbcTypeInfo* cti)
+{
+    return cti->dataMT[DynCallTrampolineIdx(fn)];
+}
+
+static Interpretation::Thunk GetDynCallThunk(void* fn, TypeInfo ti)
+{
+    if (IsDynCallTrampoline(fn)) {
+        // Fast path: it is trampoline, meaning i2i call. We just get fuh and run i2i call as usual.
+        auto fuh = GetDynamicCall(fn, reinterpret_cast<CbcTypeInfo*>(ti.Raw()));
+        return { Adapters::I2ICallInstance(), reinterpret_cast<void*>(fuh) };
+    }
+
+    return { Adapters::GenericI2CCallInstance(), fn };
+}
+
+Interpretation::Thunk Execution::GetVirtualThunk(Reference base, int extDefNum, int methodNum)
+{
+    DYN_TypeInfo** header = reinterpret_cast<DYN_TypeInfo**>(base.value);
+    auto dynTypeInfo      = *header;
+    auto target           = dynTypeInfo->vExtensionDataStart[extDefNum]->funcTable[methodNum];
+    auto typeInfo         = TypeInfo(dynTypeInfo);
+    return GetDynCallThunk(target, typeInfo);
+}
+
+Interpretation::Thunk Execution::GetInterfaceThunk(Reference base, TypeInfo interf, int methodNum)
+{
+    DYN_TypeInfo** header = reinterpret_cast<DYN_TypeInfo**>(base.value);
+    auto dynTypeInfo      = *header;
+    DYN_FuncPtr* table    = g_CJNativeInterfaceInstance.getMTable(dynTypeInfo, UnpackTypeInfo(interf));
+    auto target           = table[methodNum];
+
+    auto typeInfo = TypeInfo(dynTypeInfo);
+    return GetDynCallThunk(target, typeInfo);
 }
 
 uint32_t Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool adjustByHeader)
@@ -108,7 +174,7 @@ uint32_t Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool adjustByHeader
 
 bool Execution::IsInstanceOf(Reference base, TypeInfo ti)
 {
-    return g_CJNativeInterfaceInstance.instanceOf(reinterpret_cast<DYN_ObjRef>(base.value), UnpackTypeInfo(ti));
+    return g_CJNativeInterfaceInstance.instanceOf(reinterpret_cast<DYN_ObjRef>(base.value), UnpackTypeInfo(ti)) != 0;
 }
 
 bool Execution::IsGlobalStruct(Reference base, uintptr_t derived)
@@ -129,10 +195,7 @@ Reference Execution::GetGlobalBasePtr()
 #endif
 }
 
-Reference Execution::GetLocalBasePtr()
-{
-    return Reference { .value = 0 };
-}
+Reference Execution::GetLocalBasePtr() { return Reference { .value = 0 }; }
 
 void Execution::RegisterImplicitExceptionsThrower()
 {
@@ -186,7 +249,7 @@ void MetaInfo::VisitReferences(TypeInfo ti, std::function<void(uint32_t)> visito
         return;
     }
 
-    auto bitmap = mrtti->gctib.raw & ~GCTIB_SIGN_BIT;
+    auto bitmap          = mrtti->gctib.raw & ~GCTIB_SIGN_BIT;
     uint32_t startOffset = IsReferenceType(ti) ? ObjectHeaderSize() : 0;
     for (uint32_t offset = startOffset; bitmap != 0; offset += sizeof(uintptr_t), bitmap >>= 1) {
         if ((bitmap & 1) != 0) {
@@ -202,6 +265,31 @@ TypeInfo MetaInfo::ByteArrayTypeInfo()
     ASSERT(ti != nullptr);
 
     return TypeInfo(ti);
+}
+
+TypeInfoUUID MetaInfo::GetUUID(TypeInfo ti) { return g_CJNativeInterfaceInstance.getTypeInfoUUID(UnpackTypeInfo(ti)); }
+
+TypeInfo Execution::LoadTypeInfo(Engine::GlobalTerm term, Interpretation::Ectype* ectype, void* stackSlots)
+{
+    // FIXME: optimize!
+    auto length = term.GetLength();
+    if (length > 6) {
+        FATAL("not supported yet");
+    }
+    Engine::Session session(Engine::GetEngineInstance());
+    auto& tiManager = Engine::TypeInfoManager::Of(session);
+    std::vector<Engine::Term> terms;
+    for (int i = 0; i < length; i++) {
+        auto ti = reinterpret_cast<DYN_TypeInfo*>(ectype->iregs[1 + i].primitive.u64);
+        terms.push_back(tiManager.AcquireTerm(session, TypeInfo(ti)));
+    }
+
+    Engine::ArraySubstitution sub(session, terms);
+    auto type = sub.Substitute(term);
+
+    // resolution error should be handled in rewriter.
+    auto res = tiManager.AcquireTypeInfo(session, type);
+    return res.value();
 }
 
 } // namespace RTSupport

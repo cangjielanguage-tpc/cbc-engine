@@ -1,5 +1,6 @@
 #include <cstdint>
 
+#include "engine/terms.h"
 #include "isa.h"
 #include "isa_opcodes.h"
 #include "isa_parser.h"
@@ -75,6 +76,12 @@ public:
     {
         ASSERT(MathUtils::IsNBits(value, 1));
         return static_cast<bool>(value);
+    }
+
+    inline operator Engine::TermKind()
+    {
+        ASSERT(value < Engine::FIRST_NON_PRIMITIVE);
+        return static_cast<Engine::TermKind>(value);
     }
 
     inline operator IReg() { return IReg::From(*this); }
@@ -479,7 +486,6 @@ struct IsaParserImpl {
         class RegSymGroup opc = opc_;
         switch (opc) {
             case Cbc::RegSymGroup::LoadTypeInfoSig: parser.LoadTypeInfoSig(dst, id); break;
-            case Cbc::RegSymGroup::LoadTypeInfoFtc: parser.LoadTypeInfoFtc(dst, id); break;
             case Cbc::RegSymGroup::NewObj:          parser.NewObj(dst, id); break;
             case Cbc::RegSymGroup::CallDirect:      parser.CallDirect(dst, id); break;
             case Cbc::RegSymGroup::CallVirt:        parser.CallVirtual(dst, id); break;
@@ -488,6 +494,8 @@ struct IsaParserImpl {
             case Cbc::RegSymGroup::SpawnFuture:     parser.SpawnFuture(dst, id); break;
             case Cbc::RegSymGroup::CallClosure:     parser.CallClosure(dst, id); break;
             case Cbc::RegSymGroup::NewClosure:      parser.NewClosure(dst, id); break;
+
+            case Cbc::RegSymGroup::LoadTypeInfoGeneric: parser.LoadTypeInfoGeneric(dst, id); break;
 
             default: {
                 FATAL("Should not reach here");
@@ -607,6 +615,48 @@ struct IsaParserImpl {
     {
         auto [src, stk, arr, idx] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
         parser.StoreArray(src, stk, arr, idx);
+    }
+
+    static void TypeArg(IsaParser& parser)
+    {
+        auto [ti, dst, idx] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadSLEB().Get();
+        parser.TypeArg(ti, idx, dst);
+    }
+
+    static void BoxRec(IsaParser& parser)
+    {
+        auto [src, dst, tk] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.Box(src, dst, tk);
+    }
+
+    static void UnboxRec(IsaParser& parser)
+    {
+        auto [src, dst, tk] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.Box(src, dst, tk);
+    }
+
+    static void Box(IsaParser& parser)
+    {
+        auto [src, dst, tk] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU8().Get();
+        parser.Box(src, dst, tk);
+    }
+
+    static void BoxT(IsaParser& parser)
+    {
+        auto [_, dst, src] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.BoxT(src, dst);
+    }
+
+    static void Unbox(IsaParser& parser)
+    {
+        auto [dst, src, tk] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU8().Get();
+        parser.Unbox(dst, src, tk);
+    }
+
+    static void UnboxT(IsaParser& parser)
+    {
+        auto [_, src, dst] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.UnboxT(dst, src);
     }
 
     static void MemHeadReg(IsaParser& parser)
@@ -827,6 +877,6 @@ IsaParser::IsaParser(Decoder::FatByteReader reader) : reader(reader) {}
 
 IsaParser::IsaParser(uint8_t* start, uint8_t* end) : reader(start, start, end) {}
 
-IsaParser::IsaParser(Cbc::MethodCode code) : IsaParser(code.CodePtr(), code.CodePtr() + code.CodeSize()) {}
+IsaParser::IsaParser(Cbc::MethodCode& code) : IsaParser(code.CodePtr(), code.CodePtr() + code.CodeSize()) {}
 
 } // namespace Cbc

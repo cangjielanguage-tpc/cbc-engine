@@ -28,6 +28,57 @@
 
 namespace RTSupport {
 
+// TypeInfo flags
+static constexpr uint8_t HAS_REF_FIELD    = 0b00000001;
+static constexpr uint8_t HAS_FINALIZER    = 0b00000010;
+static constexpr uint8_t FUTURE_CLASS     = 0b00000100;
+static constexpr uint8_t MUTEX_CLASS      = 0b00001000;
+static constexpr uint8_t MONITOR_CLASS    = 0b00010000;
+static constexpr uint8_t WAIT_QUEUE_CLASS = 0b00100000;
+static constexpr uint8_t HAS_REFLECTION   = 0b01000000;
+static constexpr uint8_t HAS_EXT_PART     = 0b10000000;
+
+enum TypeKind : int8_t {
+    // reference type
+    TYPE_KIND_CLASS          = -128,
+    TYPE_KIND_INTERFACE      = -127,
+    TYPE_KIND_RAWARRAY       = -126,
+    TYPE_KIND_FUNC           = -125,
+    TYPE_KIND_TEMP_ENUM      = -124,
+    TYPE_KIND_WEAKREF_CLASS  = -123,
+    TYPE_KIND_FOREIGN_PROXY  = -122,
+    TYPE_KIND_EXPORTED_REF   = -121,
+    TYPE_KIND_GENERIC_TI     = -1,
+    TYPE_KIND_GENERIC_CUSTOM = -2,
+
+    // value type
+    TYPE_KIND_NOTHING = 0,
+    TYPE_KIND_UNIT,
+    TYPE_KIND_BOOL,
+    TYPE_KIND_RUNE,
+    TYPE_KIND_UINT8,
+    TYPE_KIND_UINT16 = 5,
+    TYPE_KIND_UINT32,
+    TYPE_KIND_UINT64,
+    TYPE_KIND_UINT_NATIVE,
+    TYPE_KIND_INT8,
+    TYPE_KIND_INT16 = 10,
+    TYPE_KIND_INT32,
+    TYPE_KIND_INT64,
+    TYPE_KIND_INT_NATIVE,
+    TYPE_KIND_FLOAT16,
+    TYPE_KIND_FLOAT32 = 15,
+    TYPE_KIND_FLOAT64,
+    TYPE_KIND_CSTRING,
+    TYPE_KIND_CPOINTER,
+    TYPE_KIND_CFUNC,
+    TYPE_KIND_VARRAY = 20,
+    TYPE_KIND_TUPLE,
+    TYPE_KIND_STRUCT,
+    TYPE_KIND_ENUM,
+    TYPE_KIND_MAX,
+};
+
 template <typename T> static T* Alloc(size_t cnt = 1) { return reinterpret_cast<T*>(std::malloc(sizeof(T) * cnt)); }
 
 static std::optional<TypeInfo> QueryTypeInfoAOTByName(char const* str);
@@ -46,6 +97,33 @@ static char* ConstructTypeInfoName(std::string_view str)
 
     return cStr;
 }
+
+/// OuterTI plays the role of "class type context".
+/// Example:
+/// interface J<T> {
+///     func foo(): Unit
+/// }
+/// interface I<T, K> <: J<T> {
+///     func foo(): Unit {
+///         // outerTI == TypeInfo[I<T, K>]
+///         // Use(outerTI.typeArgs[0], outerTi.typeArgs[1])
+///         Use(T, K)
+///     }
+/// }
+/// class Foo <: I<Int64, Int64> {}
+/// func use(f: Foo) {
+///     // outerTI := GetMethodOuterTI(f.ti, TypeInfo[I<i64, i64>], foo_idx)
+///     f.foo()
+/// }
+/// To use `T` and `K` type vars in `foo` an extra parameter `outerTI` will be passed,
+/// which holds TypeInfo of `I<T, K>`.
+///
+/// These outer ti instances are stored in function table as:
+/// [f0, f1, .., fn, ti0, ti1, .., tin]
+union OuterTIFuncUnion {
+    DYN_FuncPtr func;
+    DYN_TypeInfo* typeInfo;
+};
 
 /// This class is almost 1-to-1 maps to fields of TypeInfo.
 /// The builder is needed mainly to properly manage memory in case of unexpected
@@ -81,7 +159,7 @@ struct TypeInfoBuilder {
     DYN_TypeInfo* componentTypeInfo = nullptr;
 
     DYN_ExtensionData** extDefs     = nullptr;
-    DYN_FuncPtr* flatMethods        = nullptr;
+    OuterTIFuncUnion* flatMethods   = nullptr;
     DYN_ExtensionData* flatExtDefs  = nullptr;
 
     Interpretation::FunctionHandle** dataMT = nullptr;
@@ -182,6 +260,10 @@ static MethodTableMember GetTableMember(
     }
 }
 
+static std::optional<TypeInfo> QueryTypeInfoAOT(
+    Engine::Session& session, Engine::TypeInfoManager& manager, char const* typeName, Engine::Term term
+);
+
 // TODO: factory class, so it can hold state other managers without recreating them
 static std::optional<TypeInfo> CreateTypeInfoDyn(
     Engine::Session& session, Engine::TypeInfoManager& manager, Engine::GlobalTerm term
@@ -193,6 +275,11 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
     auto type = Symlevel::Reader::Read(session, ident);
     auto name = Symlevel::Reader::Read(session, type.GetName());
 
+    if (type.GetFlags().Is(Symlevel::TypeFlag::AOT)) {
+        std::string copiedName(name);
+        return QueryTypeInfoAOT(session, manager, copiedName.c_str(), term);
+    }
+
     auto currentTypeInfo = Alloc<CbcTypeInfo>();
     if (!currentTypeInfo) {
         return std::nullopt;
@@ -200,14 +287,14 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
     TypeInfoBuilder builder(currentTypeInfo);
 
-    // TODO: construct proper name
-    builder.name = ConstructTypeInfoName(name);
+    Stream::StringBuffer stringBuffer;
+    Engine::Term(term).GetName(session, stringBuffer);
+
+    // Not guaranteed that name is constructed in the same way as CJNative does.
+    // TODO: does it matter?
+    builder.name = stringBuffer.ToCString();
     if (builder.name == nullptr) {
         return std::nullopt;
-    }
-
-    if (type.GetFlags().Is(Symlevel::TypeFlag::AOT)) {
-        return QueryTypeInfoAOTByName(builder.name);
     }
 
     bool needExtDefs;
@@ -273,13 +360,24 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         auto mt = *optMT;
 
         auto extDefCount = mt->ClassCount() + mt->InterfaceCount();
+        builder.validInheritNum = extDefCount;
 
         // To simplify memory management here, we will preallocate "flat" arrays
         // where corresponding structures would be filled out.
         // E.g. function tables are essentionally views in the big array.
 
-        builder.dataMT      = Alloc<Interpretation::FunctionHandle*>(mt->EntryCount());
-        builder.flatMethods = Alloc<DYN_FuncPtr>(mt->EntryCount());
+        auto entryCount = mt->EntryCount();
+
+        struct FuncDesc {
+            DYN_FuncPtr ptr;
+            Engine::Term declaredType;
+        };
+
+        std::vector<FuncDesc> funcDescs;
+        funcDescs.resize(entryCount);
+
+        builder.dataMT      = Alloc<Interpretation::FunctionHandle*>(entryCount);
+        builder.flatMethods = Alloc<OuterTIFuncUnion>(2 * entryCount);
         builder.extDefs     = Alloc<DYN_ExtensionData*>(extDefCount + 1);
         builder.flatExtDefs = Alloc<DYN_ExtensionData>(extDefCount);
 
@@ -291,9 +389,8 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         int entryIdx = 0;
         for (auto entry : mt->Entries()) {
             auto tm = GetTableMember(session, entry.method, entryIdx);
-
-            builder.dataMT[entryIdx]      = tm.handle;
-            builder.flatMethods[entryIdx] = tm.function;
+            builder.dataMT[entryIdx] = tm.handle;
+            funcDescs[entryIdx]      = FuncDesc { tm.function, entry.genericContext };
             entryIdx++;
         }
 
@@ -304,15 +401,35 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
         builder.extDefs[extDefCount] = nullptr;
 
-        auto prepareExtDef = [&builder,
-                              currentTypeInfo,
-                              &queryTypeInfo](DYN_ExtensionData& extDef, Engine::MethodSubTable const& smt) -> bool {
-            auto funcTableStart        = &builder.flatMethods[smt.StartPos()];
-            extDef.funcTable           = funcTableStart;
-            extDef.funcTableSize       = smt.EndPos() - smt.StartPos();
+        auto prepareExtDef = [&builder, currentTypeInfo, &queryTypeInfo, &funcDescs](
+                                 DYN_ExtensionData& extDef, Engine::MethodSubTable const& smt
+                             ) -> bool {
+            // We are maintaining disjoint sub method table ranges!
+            auto start      = smt.StartPos();
+            auto end        = smt.EndPos();
+            auto entryCount = end - start;
+
+            // first `entryCount` slots are func ptrs, next `entryCount` slots are outer ti's.
+            auto ft = &builder.flatMethods[2 * start];
+            auto tt = &builder.flatMethods[2 * start + entryCount];
+
+            for (int i = 0; i < entryCount; i++) {
+                auto desc              = funcDescs[start + i];
+                auto funcDeclaringType = queryTypeInfo(desc.declaredType);
+                if (!funcDeclaringType.has_value()) {
+                    return false;
+                }
+                ft[i].func     = desc.ptr;
+                tt[i].typeInfo = UnpackTypeInfo(*funcDeclaringType);
+            }
+
+            uint8_t hasOuterTIFastPath = 0b00000001;
+
+            extDef.funcTable           = reinterpret_cast<DYN_FuncPtr*>(ft);
+            extDef.funcTableSize       = entryCount;
             extDef.argNum              = 0;
             extDef.isInterfaceTypeInfo = 1;
-            extDef.flag                = 0b00000000;
+            extDef.flag                = hasOuterTIFastPath;
             extDef.whereCondFn         = nullptr;
 
             extDef.ti = &currentTypeInfo->base;
@@ -472,12 +589,9 @@ char const* GetAotTypeName(Engine::Session& session, Engine::Term term)
 {
     auto& manager = Engine::TermManager::Of(session);
     switch (term.GetKind()) {
-    case Engine::TermKind::AOT_TYPE:
-        return manager.GetNameOfAotType(Engine::AotRefTermId(term)).data();
-    case Engine::TermKind::AOT_REC:
-        return manager.GetNameOfAotType(Engine::AotRecTermId(term)).data();
-    default:
-        FATAL("Unexpected kind");
+        case Engine::TermKind::AOT_TYPE: return manager.GetNameOfAotType(Engine::AotRefTermId(term)).str;
+        case Engine::TermKind::AOT_REC:  return manager.GetNameOfAotType(Engine::AotRecTermId(term)).str;
+        default:                         FATAL("Unexpected kind");
     }
 }
 
@@ -532,7 +646,7 @@ static std::optional<TypeInfo> QueryTypeInfoAOT(
 
         Log::typeinfo.Log(Logging::Level::TRACE, [&session, &term](Stream::Output& out) {
             Stream::ResolvingOutput stream(session, out);
-            stream << "querying generic " << term << Stream::endl;
+            stream << "querying aot generic " << term << Stream::endl;
         });
 
         bool allResolved = QuerySubterms(infos, session, manager, term);
@@ -617,7 +731,6 @@ std::optional<TypeInfo> CreateTypeInfo(
             case Engine::TermKind::TYPE:    return CreateTypeInfoDyn(session, manager, term);
 
             case Engine::TermKind::AOT_TYPE:
-                return QueryTypeInfoAOT(session, manager, GetAotTypeName(session, term), term);
             case Engine::TermKind::AOT_REC:
                 return QueryTypeInfoAOT(session, manager, GetAotTypeName(session, term), term);
 
@@ -655,6 +768,139 @@ std::optional<TypeInfo> CreateTypeInfo(
         }
     });
     return ti;
+}
+
+Engine::GlobalTerm ReconstructTerm(Engine::Session& session, Engine::TypeInfoManager& manager, TypeInfo ti)
+{
+    using namespace Engine;
+    DYN_TypeInfo* typeInfo = UnpackTypeInfo(ti);
+
+    bool isGeneric, shouldUseComponentType;
+    switch (typeInfo->type) {
+        case TYPE_KIND_CPOINTER:
+        case TYPE_KIND_RAWARRAY:
+            isGeneric              = true;
+            shouldUseComponentType = true;
+            break;
+        default:
+            isGeneric              = typeInfo->typeArgsNum > 0;
+            shouldUseComponentType = false;
+            break;
+    }
+
+    bool isRef = typeInfo->type < 0;
+
+    switch (typeInfo->type) {
+        case TYPE_KIND_TEMP_ENUM:
+        case TYPE_KIND_FUNC:
+        case TYPE_KIND_GENERIC_CUSTOM:
+        case TYPE_KIND_GENERIC_TI:
+        case TYPE_KIND_FOREIGN_PROXY:
+        case TYPE_KIND_WEAKREF_CLASS:
+        case TYPE_KIND_VARRAY:
+        case TYPE_KIND_ENUM:           FATAL("type kind %d not implemented yet", typeInfo->type);
+    }
+
+    if (isGeneric) {
+        auto& termManager = TermManager::Of(session);
+
+        struct DYN_TypeInfo* singleTypeSubterms[1];
+
+        struct DYN_TypeInfo** subTypes;
+        int argNum;
+        if (shouldUseComponentType) {
+            singleTypeSubterms[0] = typeInfo->componentTypeInfo;
+            subTypes              = singleTypeSubterms;
+            argNum                = 1;
+        } else {
+            subTypes = typeInfo->typeArgs;
+            argNum   = typeInfo->typeArgsNum;
+        }
+
+        // TODO: do not use vectors!
+        std::vector<Term> subTerms;
+        subTerms.resize(argNum);
+        for (int i = 0; i < argNum; i++) {
+            subTerms[i] = manager.AcquireTerm(session, TypeInfo(subTypes[i]));
+        }
+
+        auto g = [&subTerms, &session, &termManager](TermId tk, bool isRef) {
+            auto term = termManager.NewTermWithId(session, tk, isRef, subTerms);
+            return termManager.Globalize(term);
+        };
+
+        switch (typeInfo->type) {
+            case TYPE_KIND_RAWARRAY: return g(TagTermId(TermKind::CANGJIE_ARRAY), true);
+            case TYPE_KIND_CPOINTER: return g(TagTermId(TermKind::C_POINTER), true);
+            case TYPE_KIND_TUPLE:    return g(TagTermId(TermKind::TUPLE), true);
+
+            case TYPE_KIND_STRUCT:
+            case TYPE_KIND_INTERFACE:
+            case TYPE_KIND_CLASS:     break;
+
+            default: FATAL("Unexpected type kind %d", typeInfo->type);
+        }
+
+        // treats the rest as Aot type
+
+        // FIXME: union field
+        // FIXME: explicit DYN_TypeTemplate* type
+        struct TypeTemplate {
+            char* name;
+        };
+
+        auto typeTemplate = reinterpret_cast<TypeTemplate*>(typeInfo->finalizerMethod);
+        auto name         = typeTemplate->name;
+
+        Term term;
+        if (isRef) {
+            term = termManager.NewAotRefTerm(session, name, subTerms);
+        } else {
+            term = termManager.NewAotRecTerm(session, name, subTerms);
+        }
+        return termManager.Globalize(term);
+    } else {
+        auto g = Term::Predefined;
+        switch (typeInfo->type) {
+            case TYPE_KIND_NOTHING:     return g(TermKind::NOTHING);
+            case TYPE_KIND_UNIT:        return g(TermKind::UNIT);
+            case TYPE_KIND_BOOL:        return g(TermKind::BOOLEAN);
+            case TYPE_KIND_RUNE:        return g(TermKind::UCHAR32);
+            case TYPE_KIND_UINT8:       return g(TermKind::U8);
+            case TYPE_KIND_UINT16:      return g(TermKind::U16);
+            case TYPE_KIND_UINT32:      return g(TermKind::U32);
+            case TYPE_KIND_UINT64:      return g(TermKind::U64);
+            case TYPE_KIND_UINT_NATIVE: return g(TermKind::UADDR);
+            case TYPE_KIND_INT8:        return g(TermKind::I8);
+            case TYPE_KIND_INT16:       return g(TermKind::I16);
+            case TYPE_KIND_INT32:       return g(TermKind::I32);
+            case TYPE_KIND_INT64:       return g(TermKind::I64);
+            case TYPE_KIND_INT_NATIVE:  return g(TermKind::IADDR);
+            case TYPE_KIND_FLOAT16:     return g(TermKind::F16);
+            case TYPE_KIND_FLOAT32:     return g(TermKind::F32);
+            case TYPE_KIND_FLOAT64:     return g(TermKind::F64);
+
+            case TYPE_KIND_STRUCT:
+            case TYPE_KIND_INTERFACE:
+            case TYPE_KIND_CLASS:     break;
+
+            default: FATAL("Unexpected type kind %d", typeInfo->type);
+        }
+
+        // treats the rest as Aot type
+        std::vector<Term> noSubTerms;
+
+        auto& termManager = TermManager::Of(session);
+        auto name         = typeInfo->typeInfoName;
+
+        Term term;
+        if (isRef) {
+            term = termManager.NewAotRefTerm(session, name, noSubTerms);
+        } else {
+            term = termManager.NewAotRecTerm(session, name, noSubTerms);
+        }
+        return termManager.Globalize(term);
+    }
 }
 
 } // namespace RTSupport

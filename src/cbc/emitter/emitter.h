@@ -9,6 +9,7 @@
 #include "cbc/isa.h"
 #include "encoding_rt.h"
 #include "interpreter/code.h"
+#include "interpreter/interpretation_loop.h"
 #include "interpreter/literals.h"
 #include "runtimesupport/runtime.h"
 #include "utils/heap.h"
@@ -45,6 +46,9 @@ public:
         void OffsetRegIdx(IReg reg, uint64_t size);
 
         // tail instructions
+        void WriteStructFieldObj(IReg src, IReg base, RTSupport::TypeInfo structTypeInfo);
+        void ReadStructFieldObj(IReg dst, IReg base, RTSupport::TypeInfo structTypeInfo);
+
         void LoadObj(LoadAccessKind ldk, Reg dst, IReg base);
         void StoreObj(StoreAccessKind stk, Reg src, IReg base);
         void StoreObjImm(StoreAccessKind stk, Reg base, uint64_t imm);
@@ -152,7 +156,7 @@ public:
     void FMovI64(FReg d, double imm);
     void MovRef(IReg d, IReg s);
 
-    void Bcc(CC cc, Width width, IReg l, IReg r, Label label);
+    void Bcc(CC cc, Width width, Reg l, Reg r, Label label);
     void BccImm(CC cc, Width width, IReg l, uint64_t r, Label label);
     void Nop();
     void Jmp(Label label);
@@ -200,6 +204,14 @@ public:
     void NullCheck(IReg r);
 
     void InstanceOf(IReg dst, IReg obj, RTSupport::TypeInfo typeInfo);
+    void LoadGenericTypeInfo(void* termData);
+    void LoadTypeInfo(RTSupport::TypeInfo typeInfo);
+
+    void NewBox(Interpretation::BuiltinType t);
+    void NewBox(RTSupport::TypeInfo typeInfo);
+
+    void WriteStructField(IReg src, IReg base, IReg field, RTSupport::TypeInfo ti);
+    void ReadStructField(IReg dst, IReg base, IReg field, RTSupport::TypeInfo ti);
 
     void Throw(IReg dst);
     void Catch(IReg dst);

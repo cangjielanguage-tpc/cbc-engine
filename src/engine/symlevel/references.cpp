@@ -14,7 +14,8 @@ MethodReference ParseReference(
     auto nameOffset   = Engine::Identifier<String>(Offset<String>(reader.ReadU32()), fileId);
     auto refTypeIdx   = Engine::RefIdentifier(RefId<Term>(region, reader.ReadULEB()), fileId);
     auto methodSigIdx = Engine::RefIdentifier(RefId<Term>(region, reader.ReadULEB()), fileId);
-    return { nameOffset, refTypeIdx, methodSigIdx };
+    auto flags        = MethodRefFlags(reader.ReadU8());
+    return { nameOffset, refTypeIdx, methodSigIdx, flags };
 }
 
 FieldReference ParseReference(

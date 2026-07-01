@@ -26,6 +26,7 @@
 ///
 /// To work properly with handles in rewriter an specialized wrapper
 /// is needed.
+/// TODO: remove excessive encapsulation. `Term` is already good enough representation for type.
 
 namespace Resolution {
 
@@ -96,6 +97,7 @@ struct VirtualCall {
     MethodSignature signature;
     int methodNum;
     int extDefNum;
+    bool sret;
 };
 
 struct InterfaceCall {
@@ -103,6 +105,7 @@ struct InterfaceCall {
     std::string_view name;
     MethodSignature signature;
     int methodNum;
+    bool sret;
 };
 
 struct InstanceField {

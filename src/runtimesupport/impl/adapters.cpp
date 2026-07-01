@@ -1,6 +1,9 @@
 #include "runtimesupport/adapters.h"
 #include "asm_trampolines.h"
 #include "interpreter/code.h"
+#include "interpreter/function_handle.h"
+#include "runtimesupport/impl/typeinfo_ext.h"
+#include "utils/assertion.h"
 
 namespace RTSupport {
 
@@ -8,7 +11,18 @@ void* Adapters::GenericI2CCallInstance() { return reinterpret_cast<void*>(&Asm::
 
 void* Adapters::I2ICallInstance() { return reinterpret_cast<void*>(&Asm::engine_i2i_call); }
 
+void* Adapters::GenericC2ICallInstance() { return reinterpret_cast<void*>(&Asm::engine_all_regs_c2i_call); }
+
 void* Adapters::IregOnlyC2ICallInstance() { return reinterpret_cast<void*>(&Asm::engine_iregs_only_c2i_call); }
+
+void* Adapters::C2ICall(uint32_t intArgCount, uint32_t floatArgCount)
+{
+    if (floatArgCount == 0) {
+        return Adapters::IregOnlyC2ICallInstance();
+    } else {
+        return Adapters::GenericC2ICallInstance();
+    }
+}
 
 std::mutex g_directCallFuhsMutex;
 static size_t directCallFuhsCount;
@@ -36,7 +50,7 @@ void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* f
         }
     }
     if (i == TRAMPOLINE_COUNT) {
-        throw std::runtime_error("Too many direct calls");
+        FATAL("Too many direct call links");
     }
     directCallFuhsCount++;
 

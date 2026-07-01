@@ -6,7 +6,6 @@
 #include "interpreter/loggers.h"
 #include <cstddef>
 
-#define SERVICE_REGS_COUNT 1
 #define MAGIC_WORD 0xCBC0C0DE
 
 namespace Interpretation {
@@ -41,10 +40,6 @@ struct FRegContainer {
     Value::Primitive primitive;
 };
 
-union SRegContainer {
-    Value::Primitive primitive;
-};
-
 enum class Mark : uint8_t {
     PRIMITIVE = 0,
     REFERENCE = 1
@@ -53,7 +48,7 @@ enum class Mark : uint8_t {
 class Ectype {
 public:
     // zero-initialize everything (including marks)
-    Ectype() : iregs {}, fregs {}, sregs {} {}
+    Ectype() : iregs {}, fregs {} {}
 
     inline void Put(IReg reg, Value::Primitive primitive)
     {
@@ -88,18 +83,6 @@ public:
         fregs[reg].primitive = primitive;
     }
 
-    inline void PutSReg(int reg, Value::Primitive primitive)
-    {
-        ASSERT(reg < SERVICE_REGS_COUNT);
-        sregs[reg].primitive = primitive;
-    }
-
-    inline Value::Primitive GetSReg(int reg)
-    {
-        ASSERT(reg < SERVICE_REGS_COUNT);
-        return sregs[reg].primitive;
-    }
-
     inline Value::Reference GetReference(IReg reg) { return iregs[reg].reference; }
 
     inline Value::Primitive GetPrimitive(IReg reg) { return iregs[reg].primitive; }
@@ -114,14 +97,9 @@ public:
         return this;
     }
 
-private:
     friend class EctypeInvariants;
     IRegContainer iregs[IReg::COUNT];
     FRegContainer fregs[FReg::COUNT];
-
-    /// Service registers can be used for internal interpreter operations (e.g. for exception handling)
-    /// and should not be reachable from CBC bytecode. Not traceable, put references here with the great care.
-    SRegContainer sregs[SERVICE_REGS_COUNT];
 
     uint32_t magic = MAGIC_WORD;
 };
@@ -129,7 +107,7 @@ private:
 class EctypeInvariants {
     static_assert(offsetof(Ectype, iregs) == ECTYPE_IREGS_OFFSET);
     static_assert(offsetof(Ectype, fregs) == ECTYPE_FREGS_OFFSET);
-    static_assert(offsetof(Ectype, sregs) == ECTYPE_SREGS_OFFSET);
+    static_assert(IReg::COUNT == ECTYPE_IREGS_COUNT);
 };
 
 } // namespace Interpretation
