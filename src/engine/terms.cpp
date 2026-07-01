@@ -84,15 +84,14 @@ static TermData* AllocateTerm(Memory::Heap& allocator, size_t subtermCount = 0)
 }
 
 struct BuiltinTerms {
-    void* memory{};
-    void* primitives{};
-    void* classTypeVars{};
-    void* funcTypeVars{};
+    void* memory;
+    void* primitives;
+    void* classTypeVars;
+    void* funcTypeVars;
 
     static constexpr size_t TV_COUNT   = 256;
     static constexpr size_t PRIM_COUNT = FIRST_NON_PRIMITIVE;
 
-    BuiltinTerms(){}
     BuiltinTerms(BuiltinTerms const&) = delete;
 
     ~BuiltinTerms() { std::free(memory); }
@@ -122,7 +121,7 @@ struct BuiltinTerms {
         return DataAt(funcTypeVars, i);
     }
 
-    void Initialize()
+    BuiltinTerms()
     {
         size_t seed = 0xf123123a;
 
@@ -181,11 +180,6 @@ struct BuiltinTerms {
 };
 
 static BuiltinTerms g_Builtins;
-
-[[gnu::constructor]]
-static void InitializeBuiltins() {
-    g_Builtins.Initialize();
-}
 
 bool TermId::IsReference()
 {
