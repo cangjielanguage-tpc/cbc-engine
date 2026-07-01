@@ -143,7 +143,9 @@ struct ResolvedFieldReference {
 };
 
 struct ResolverProxy {
-    static std::optional<InstanceField> ResolveAotInstanceField(Resolver& resolver, ResolvedFieldReference& ref)
+    static std::optional<InstanceField::Content> ResolveAotInstanceField(
+        Resolver& resolver, ResolvedFieldReference& ref
+    )
     {
         auto refType     = resolver.Wrap(ref.refType);
         auto fieldType   = resolver.Wrap(ref.fieldType);
@@ -152,10 +154,10 @@ struct ResolverProxy {
         auto offset      = RTSupport::Execution::GetFieldOffset(
             refType.GetTypeInfo().value(), data.ordinal, ref.refType.IsReference()
         );
-        return InstanceField { refType, ref.name, fieldType, data.ordinal, offset };
+        return InstanceField::Content { refType, ref.name, fieldType, data.ordinal, offset };
     }
 
-    static std::optional<StaticField> ResolveAotStaticField(Resolver& resolver, ResolvedFieldReference& ref)
+    static std::optional<StaticField::Content> ResolveAotStaticField(Resolver& resolver, ResolvedFieldReference& ref)
     {
         auto refType     = resolver.Wrap(ref.refType);
         auto fieldType   = resolver.Wrap(ref.fieldType);
@@ -169,10 +171,11 @@ struct ResolverProxy {
             });
             return std::nullopt;
         }
-        return StaticField { refType, ref.name, fieldType, reinterpret_cast<uintptr_t>(location) };
+        return StaticField::Content { refType, ref.name, fieldType, reinterpret_cast<uintptr_t>(location) };
     }
 
-    template <typename Field> static std::optional<Field> ResolveField(Resolver& resolver, Index<Field> id)
+    template <typename Field>
+    static std::optional<typename Field::Content> ResolveField(Resolver& resolver, Index<Field> id)
     {
         auto fileId = resolver.method.GetFileId();
 
@@ -229,7 +232,7 @@ struct ResolverProxy {
                         offset      += (ref.refType.IsReference() ? RTSupport::MetaInfo::ObjectHeaderSize() : 0);
                         optoffset    = offset;
                     }
-                    return InstanceField { refType, ref.name, fieldType, ordinal, optoffset };
+                    return InstanceField::Content { refType, ref.name, fieldType, ordinal, optoffset };
                 } else {
                     if (ref.refType.IsAotPromoted()) {
                         return ResolveAotStaticField(resolver, ref);
@@ -258,7 +261,7 @@ struct ResolverProxy {
                     uintptr_t location = StaticsManager::Of(resolver.session)
                                              .GetLocation(resolver.session, typeDefIdent, fieldDefIdentOpt.value());
 
-                    return StaticField { refType, ref.name, fieldType, location };
+                    return StaticField::Content { refType, ref.name, fieldType, location };
                 }
             }
             default: {
@@ -268,7 +271,7 @@ struct ResolverProxy {
         }
     }
 
-    template <typename T> static std::optional<T*> ProbeCache(Index<T> id, Resolver::Cache<T>& cache)
+    template <typename T> static std::optional<typename T::Content*> ProbeCache(Index<T> id, Resolver::Cache<T>& cache)
     {
         auto it = cache.find(id.GetValue());
         if (it != cache.end()) {
@@ -337,7 +340,7 @@ struct ResolverProxy {
         };
     }
 
-    static std::optional<VirtualCall> ResolveCbcCall(Resolver& resolver, ResolvedMethodReference& ref)
+    static std::optional<VirtualCall::Content> ResolveCbcCall(Resolver& resolver, ResolvedMethodReference& ref)
     {
         auto& manager = MethodTableManager::Of(resolver.session);
         auto optMT    = manager.GetMethodTable(resolver.session, ref.refType);
@@ -363,10 +366,11 @@ struct ResolverProxy {
         }
 
         auto sig = ConstructSignature(resolver, ref);
-        return VirtualCall { refType, ref.name, std::move(sig), resolved->methodNum, resolved->subTableNum, sret };
+        return VirtualCall::Content { refType, ref.name, std::move(sig), resolved->methodNum, resolved->subTableNum,
+                                      sret };
     }
 
-    static std::optional<InterfaceCall> ResolveCall(Resolver& resolver, Index<InterfaceCall> id)
+    static std::optional<InterfaceCall::Content> ResolveCall(Resolver& resolver, Index<InterfaceCall> id)
     {
         auto [file, raf] = resolver.session.File(resolver.method.GetFileId());
         auto ref         = ResolveReference(resolver, id);
@@ -380,7 +384,7 @@ struct ResolverProxy {
             case TermKind::TYPE: {
                 auto call = ResolveCbcCall(resolver, ref);
                 if (call.has_value()) {
-                    return InterfaceCall {
+                    return InterfaceCall::Content {
                         call->refType, call->name, std::move(call->signature), call->methodNum, sret
                     };
                 }
@@ -391,7 +395,7 @@ struct ResolverProxy {
                 /// FIXME: interface calls
                 auto data = file.GetInterfaceCallAotTable().GetData(resolver.session, ref.identifier.GetIndex());
                 auto sig  = ConstructSignature(resolver, ref);
-                return InterfaceCall { refType, ref.name, std::move(sig), data.inum, sret };
+                return InterfaceCall::Content { refType, ref.name, std::move(sig), data.inum, sret };
             }
 
             default: {
@@ -402,7 +406,7 @@ struct ResolverProxy {
         }
     }
 
-    static std::optional<VirtualCall> ResolveCall(Resolver& resolver, Index<VirtualCall> id)
+    static std::optional<VirtualCall::Content> ResolveCall(Resolver& resolver, Index<VirtualCall> id)
     {
         auto [file, raf] = resolver.session.File(resolver.method.GetFileId());
         auto ref         = ResolveReference(resolver, id);
@@ -420,7 +424,7 @@ struct ResolverProxy {
             case TermKind::AOT_TYPE: {
                 auto data = file.GetVirtualCallAotTable().GetData(resolver.session, ref.identifier.GetIndex());
                 auto sig  = ConstructSignature(resolver, ref);
-                return VirtualCall { refType, ref.name, std::move(sig), data.methodNum, data.extDefNum, sret };
+                return VirtualCall::Content { refType, ref.name, std::move(sig), data.methodNum, data.extDefNum, sret };
             }
 
             default: {
@@ -431,7 +435,7 @@ struct ResolverProxy {
         }
     }
 
-    static std::optional<DirectCall> ResolveAotDirectCall(Resolver& resolver, ResolvedMethodReference& ref)
+    static std::optional<DirectCall::Content> ResolveAotDirectCall(Resolver& resolver, ResolvedMethodReference& ref)
     {
         auto [file, raf] = resolver.session.File(resolver.method.GetFileId());
         auto data        = file.GetDirectCallAotTable().GetData(resolver.session, ref.identifier.GetIndex());
@@ -455,10 +459,10 @@ struct ResolverProxy {
         };
 
         auto refType = resolver.Wrap(ref.refType);
-        return DirectCall { refType, ref.name, std::move(sig), callData };
+        return DirectCall::Content { refType, ref.name, std::move(sig), callData };
     }
 
-    static std::optional<DirectCall> ResolveCall(Resolver& resolver, Index<DirectCall> id)
+    static std::optional<DirectCall::Content> ResolveCall(Resolver& resolver, Index<DirectCall> id)
     {
         auto [file, raf] = resolver.session.File(resolver.method.GetFileId());
         auto ref         = ResolveReference(resolver, id);
@@ -506,11 +510,11 @@ struct ResolverProxy {
                         .funcPtr    = reinterpret_cast<uintptr_t>(fuh->function),
                         .i2cAdapter = fuh->base.i2call,
                     };
-                    return DirectCall { refType, ref.name, std::move(sig), data };
+                    return DirectCall::Content { refType, ref.name, std::move(sig), data };
                 } else {
                     auto dynFuh               = std::get<Interpretation::DynamicFunctionHandle*>(fuh);
                     DirectCall::CallData data = dynFuh;
-                    return DirectCall { refType, ref.name, std::move(sig), data };
+                    return DirectCall::Content { refType, ref.name, std::move(sig), data };
                 }
             }
 
@@ -527,72 +531,72 @@ struct ResolverProxy {
     }
 };
 
-std::optional<VirtualCall const*> Resolver::Query(Index<VirtualCall> id)
+std::optional<VirtualCall> Resolver::Query(Index<VirtualCall> id)
 {
     if (auto opt = ResolverProxy::ProbeCache(id, dynamicCalls); opt.has_value()) {
-        return opt.value();
+        return VirtualCall { opt.value() };
     }
     if (auto opt = ResolverProxy::ResolveCall(*this, id); opt.has_value()) {
-        auto res = session.Allocator().New<VirtualCall>(opt.value());
+        auto res = session.Allocator().New<VirtualCall::Content>(opt.value());
         dynamicCalls.insert({ id.GetValue(), res });
-        return res;
+        return VirtualCall { res };
     }
     return std::nullopt;
 }
 
-std::optional<InterfaceCall const*> Resolver::Query(Index<InterfaceCall> id)
+std::optional<InterfaceCall> Resolver::Query(Index<InterfaceCall> id)
 {
     if (auto opt = ResolverProxy::ProbeCache(id, interfaceCalls); opt.has_value()) {
-        return opt.value();
+        return InterfaceCall { opt.value() };
     }
     if (auto opt = ResolverProxy::ResolveCall(*this, id); opt.has_value()) {
-        auto res = session.Allocator().New<InterfaceCall>(opt.value());
+        auto res = session.Allocator().New<InterfaceCall::Content>(opt.value());
         interfaceCalls.insert({ id.GetValue(), res });
-        return res;
+        return InterfaceCall { res };
     }
     return std::nullopt;
 }
 
-std::optional<DirectCall const*> Resolver::Query(Index<DirectCall> id)
+std::optional<DirectCall> Resolver::Query(Index<DirectCall> id)
 {
     if (auto opt = ResolverProxy::ProbeCache(id, directCalls); opt.has_value()) {
-        return opt.value();
+        return DirectCall { opt.value() };
     }
     if (auto opt = ResolverProxy::ResolveCall(*this, id); opt.has_value()) {
-        auto res = session.Allocator().New<DirectCall>(opt.value());
+        auto res = session.Allocator().New<DirectCall::Content>(opt.value());
         directCalls.insert({ id.GetValue(), res });
-        return res;
+        return DirectCall { res };
     }
     return std::nullopt;
 }
 
-std::optional<InstanceField const*> Resolver::Query(Index<InstanceField> id)
+std::optional<InstanceField> Resolver::Query(Index<InstanceField> id)
 {
     if (auto opt = ResolverProxy::ProbeCache(id, instanceFields); opt.has_value()) {
-        return opt.value();
+        return InstanceField { opt.value() };
     }
     if (auto opt = ResolverProxy::ResolveField(*this, id); opt.has_value()) {
-        auto res = session.Allocator().New<InstanceField>(opt.value());
+        auto res = session.Allocator().New<InstanceField::Content>(opt.value());
         instanceFields.insert({ id.GetValue(), res });
-        return res;
+        return InstanceField { res };
     }
     return std::nullopt;
 }
 
-std::optional<StaticField const*> Resolver::Query(Index<StaticField> id)
+std::optional<StaticField> Resolver::Query(Index<StaticField> id)
 {
     if (auto opt = ResolverProxy::ProbeCache(id, staticFields); opt.has_value()) {
-        return opt.value();
+        return StaticField { opt.value() };
     }
     if (auto opt = ResolverProxy::ResolveField(*this, id); opt.has_value()) {
-        auto res = session.Allocator().New<StaticField>(opt.value());
+        auto res = session.Allocator().New<StaticField::Content>(opt.value());
         staticFields.insert({ id.GetValue(), res });
-        return res;
+        return StaticField { res };
     }
     return std::nullopt;
 }
 
-std::optional<InstanceField const*> Resolver::QueryTupleElement(Type refType, uint32_t idx)
+std::optional<InstanceField> Resolver::QueryTupleElement(Type refType, uint32_t idx)
 {
     auto term = refType.term;
     ASSERT(term.GetKind() == TermKind::TUPLE);
@@ -604,14 +608,14 @@ std::optional<InstanceField const*> Resolver::QueryTupleElement(Type refType, ui
     auto typeInfo       = *optTypeInfo;
     auto offset         = RTSupport::Execution::GetFieldOffset(typeInfo, idx, false);
     auto fieldType      = Type(term.Subterm(idx), this);
-    InstanceField field = {
+    InstanceField::Content field = {
         .refType   = refType,
         .name      = "",
         .fieldType = fieldType,
         .ordinal   = idx,
         .offset    = offset,
     };
-    return session.Allocator().New<InstanceField>(field);
+    return InstanceField { session.Allocator().New<InstanceField::Content>(field) };
 }
 
 std::optional<Type> Resolver::QueryFutureByFunctional(Index<Type> id)
@@ -660,8 +664,9 @@ Stream::Output& operator<<(Stream::Output& stream, Type const& type)
     return stream;
 }
 
-Stream::Output& operator<<(Stream::Output& stream, MethodSignature const& sig)
+Stream::Output& operator<<(Stream::Output& out, MethodSignature const& sig)
 {
+    Stream::ResolvingOutput stream(sig.resolver->session, out);
     stream << "(";
     auto sep = " ";
     for (auto t : sig.Params()) {
@@ -670,30 +675,30 @@ Stream::Output& operator<<(Stream::Output& stream, MethodSignature const& sig)
     }
     stream << ")";
     stream << sig.ResType();
-    return stream;
+    return out;
 }
 
 Stream::Output& operator<<(Stream::Output& stream, DirectCall const& call)
 {
-    stream << call.refType << '.' << call.name << call.signature;
+    stream << call->refType << '.' << call->name << call->signature;
     return stream;
 }
 
 Stream::Output& operator<<(Stream::Output& stream, VirtualCall const& call)
 {
-    stream << call.refType << '.' << call.name << call.signature;
+    stream << call->refType << '.' << call->name << call->signature;
     return stream;
 }
 
 Stream::Output& operator<<(Stream::Output& stream, InstanceField const& field)
 {
-    stream << field.refType << '.' << field.name << '.' << field.fieldType;
+    stream << field->refType << '.' << field->name << '.' << field->fieldType;
     return stream;
 }
 
 Stream::Output& operator<<(Stream::Output& stream, StaticField const& field)
 {
-    stream << field.refType << '.' << field.name << '.' << field.fieldType;
+    stream << field->refType << '.' << field->name << '.' << field->fieldType;
     return stream;
 }
 

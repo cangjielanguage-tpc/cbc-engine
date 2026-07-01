@@ -360,7 +360,7 @@ struct IsaRewriter : public IsaParser {
         if (field->offset.has_value()) {
             emit.LoadObj(Ldk(field->fieldType.GetKind()), rd, rb, field->offset.value());
         } else {
-            errStream << "Failed to get offset of field " << *field << Stream::endl;
+            errStream << "Failed to get offset of field " << field << Stream::endl;
             Fail();
         }
     }
@@ -380,7 +380,7 @@ struct IsaRewriter : public IsaParser {
                 emit.StoreRec(Stk(field->fieldType.GetKind()), rs, rb, field->offset.value());
             }
         } else {
-            errStream << "Failed to get offset of field " << *field << Stream::endl;
+            errStream << "Failed to get offset of field " << field << Stream::endl;
             Fail();
         }
     }
@@ -684,7 +684,7 @@ struct IsaRewriter : public IsaParser {
             auto offset = frameLayout.typedOffset.at(ts) + field->offset.value();
             emit.LoadFrame(Ldk(field->fieldType.GetKind()), dst, offset);
         } else {
-            errStream << "Failed to get offset of field " << *field << Stream::endl;
+            errStream << "Failed to get offset of field " << field << Stream::endl;
             Fail();
         }
     }
@@ -701,7 +701,7 @@ struct IsaRewriter : public IsaParser {
             auto offset = frameLayout.typedOffset.at(ts) + field->offset.value();
             emit.StoreFrame(Stk(field->fieldType.GetKind()), src, offset);
         } else {
-            errStream << "Failed to get offset of field " << *field << Stream::endl;
+            errStream << "Failed to get offset of field " << field << Stream::endl;
             Fail();
         }
     }
@@ -718,7 +718,7 @@ struct IsaRewriter : public IsaParser {
             auto offset = frameLayout.typedOffset.at(ts) + field->offset.value();
             emit.StoreFrameImm(Stk(field->fieldType.GetKind()), imm, offset);
         } else {
-            errStream << "Failed to get offset of field " << *field << Stream::endl;
+            errStream << "Failed to get offset of field " << field << Stream::endl;
             Fail();
         }
     }
@@ -890,7 +890,7 @@ struct IsaRewriter : public IsaParser {
             msr.lastFieldKind = field->fieldType.GetKind();
             return field->refType.GetKind() == CbcTypeKind::REF;
         } else {
-            errStream << "Failed to get offset of field " << *field << Stream::endl;
+            errStream << "Failed to get offset of field " << field << Stream::endl;
             Fail();
             return false;
         }

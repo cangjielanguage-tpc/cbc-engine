@@ -74,45 +74,89 @@ struct DirectCall {
         uintptr_t funcPtr;
         Interpretation::I2Call i2cAdapter;
     };
-
     using CallData = std::variant<Compiled, Interpretation::DynamicFunctionHandle*>;
 
-    Type refType;
-    std::string_view name;
-    MethodSignature signature;
-    CallData data;
+    struct Content {
+        Type refType;
+        std::string_view name;
+        MethodSignature signature;
+        CallData data;
+    };
+
+    Content* operator->() const { return content; };
+
+    DirectCall(Content* content) : content(content) {}
+
+private:
+    Content* content;
 };
 
 struct VirtualCall {
-    Type refType;
-    std::string_view name;
-    MethodSignature signature;
-    int methodNum;
-    int extDefNum;
-    bool sret;
+    struct Content {
+        Type refType;
+        std::string_view name;
+        MethodSignature signature;
+        int methodNum;
+        int extDefNum;
+        bool sret;
+    };
+
+    Content* operator->() const { return content; };
+
+    VirtualCall(Content* content) : content(content) {}
+
+private:
+    Content* content;
 };
 
 struct InterfaceCall {
-    Type refType;
-    std::string_view name;
-    MethodSignature signature;
-    int methodNum;
-    bool sret;
+    struct Content {
+        Type refType;
+        std::string_view name;
+        MethodSignature signature;
+        int methodNum;
+        bool sret;
+    };
+
+    Content* operator->() const { return content; };
+
+    InterfaceCall(Content* content) : content(content) {}
+
+private:
+    Content* content;
 };
 
 struct InstanceField {
-    Type refType;
-    std::string_view name;
-    Type fieldType;
-    uint32_t ordinal;
-    std::optional<uint32_t> offset;
+    struct Content {
+        Type refType;
+        std::string_view name;
+        Type fieldType;
+        uint32_t ordinal;
+        std::optional<uint32_t> offset;
+    };
+
+    Content* operator->() const { return content; };
+
+    InstanceField(Content* content) : content(content) {}
+
+private:
+    Content* content;
 };
 
 struct StaticField {
-    Type refType;
-    std::string_view name;
-    Type fieldType;
-    uintptr_t location;
+    struct Content {
+        Type refType;
+        std::string_view name;
+        Type fieldType;
+        uintptr_t location;
+    };
+
+    Content* operator->() const { return content; };
+
+    StaticField(Content* content) : content(content) {}
+
+private:
+    Content* content;
 };
 
 Stream::Output& operator<<(Stream::Output& stream, Type const& type);
@@ -141,15 +185,15 @@ struct Resolver {
     Type Wrap(Engine::Term term);
 
     std::optional<Type> Query(Index<Type> id);
-    std::optional<DirectCall const*> Query(Index<DirectCall> id);
-    std::optional<VirtualCall const*> Query(Index<VirtualCall> id);
-    std::optional<InterfaceCall const*> Query(Index<InterfaceCall> id);
-    std::optional<InstanceField const*> Query(Index<InstanceField> id);
-    std::optional<StaticField const*> Query(Index<StaticField> id);
+    std::optional<DirectCall> Query(Index<DirectCall> id);
+    std::optional<VirtualCall> Query(Index<VirtualCall> id);
+    std::optional<InterfaceCall> Query(Index<InterfaceCall> id);
+    std::optional<InstanceField> Query(Index<InstanceField> id);
+    std::optional<StaticField> Query(Index<StaticField> id);
 
     std::optional<Type> QueryFutureByFunctional(Index<Type> id);
 
-    std::optional<InstanceField const*> QueryTupleElement(Type refType, uint32_t idx);
+    std::optional<InstanceField> QueryTupleElement(Type refType, uint32_t idx);
 
     std::string_view QueryString(uint32_t stringOffs);
 
@@ -158,11 +202,12 @@ struct Resolver {
     CbcTypeKind GetKind(Type type);
     std::optional<uint32_t> GetFlatSize(Type type);
 
-    template <typename T> using Cache = std::unordered_map<int, T*>;
+    template <typename T> using Cache = std::unordered_map<int, typename T::Content*>;
+
+    Engine::Session& session;
 
 private:
     friend class ResolverProxy;
-    Engine::Session& session;
     Engine::Identifier<Symlevel::MethodDefinition> method;
     uint8_t regionId { 0 };
     Engine::TypeInfoManager& tiManager;
