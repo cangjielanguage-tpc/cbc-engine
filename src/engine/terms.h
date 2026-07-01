@@ -75,6 +75,7 @@ enum class TermKind : uint8_t {
     CANGJIE_ARRAY,
     FUNCTIONAL,
     TUPLE,
+    BOX,
     // builtin types end
 
     TYPE,
@@ -126,10 +127,11 @@ struct TagTermId : public TermId {
 };
 
 struct TermFlags {
-    uint16_t isLocal : 1;
-    uint16_t isReference : 1;
-    uint16_t isAotPromoted : 1;
-    uint16_t isGeneric : 1;
+    uint32_t isLocal : 1;
+    uint32_t isReference : 1;
+    uint32_t isAotPromoted : 1;
+    uint32_t isGeneric : 1;
+    uint32_t isFixedSize : 1;
 
     TermFlags() = delete;
 };
@@ -194,6 +196,9 @@ struct LocalTerm : public Term {
 
 struct GlobalTerm : public Term {
     GlobalTerm(TermData* data);
+
+    GlobalTerm Subterm(uint32_t i) const { return Term::Subterm(i).AsGlobal(); }
+
     bool operator==(const GlobalTerm& another) const;
     bool operator!=(const GlobalTerm& another) const;
 };
@@ -305,13 +310,11 @@ public:
 
     Term NewTermWithId(Session& session, TermId id, bool isReference, std::vector<Term> const& subterms);
 
-    Term NewAotRefTerm(Session& session, std::string_view name, std::vector<Term> const& subterms);
-    Term NewAotRecTerm(Session& session, std::string_view name, std::vector<Term> const& subterms);
+    Term NewAotTerm(Session& session, std::string_view name, std::vector<Term> const& subterms, bool isReference);
 
     Utils::StringPool::String GetNameOfAotType(AotTermId type);
 
 private:
-    Term NewAotTerm(Session& session, std::string_view name, std::vector<Term> const& subterms, bool isReference);
     size_t InternString(std::string_view str);
 
     struct Hasher {

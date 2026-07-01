@@ -873,12 +873,7 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, Engine::TypeInfoMan
         auto typeTemplate = reinterpret_cast<TypeTemplate*>(typeInfo->finalizerMethod);
         auto name         = typeTemplate->name;
 
-        Term term;
-        if (isRef) {
-            term = termManager.NewAotRefTerm(session, name, subTerms);
-        } else {
-            term = termManager.NewAotRecTerm(session, name, subTerms);
-        }
+        Term term = termManager.NewAotTerm(session, name, subTerms, isRef);
         return termManager.Globalize(term);
     } else {
         auto g = Term::Predefined;
@@ -914,12 +909,7 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, Engine::TypeInfoMan
         auto& termManager = TermManager::Of(session);
         auto name         = typeInfo->typeInfoName;
 
-        Term term;
-        if (isRef) {
-            term = termManager.NewAotRefTerm(session, name, noSubTerms);
-        } else {
-            term = termManager.NewAotRecTerm(session, name, noSubTerms);
-        }
+        Term term = termManager.NewAotTerm(session, name, noSubTerms, isRef);
         return termManager.Globalize(term);
     }
 }

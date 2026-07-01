@@ -27,6 +27,9 @@ struct TermHasher {
 struct BasicTypeInfoManager : public TypeInfoManager {
     std::optional<RTSupport::TypeInfo> AcquireTypeInfo(Session& session, GlobalTerm term) override
     {
+        if (term.GetKind() == TermKind::BOX) {
+            term = term.Subterm(0);
+        }
         auto it = storage.find(term);
         if (storage.end() != it) {
             auto state = it->second;
