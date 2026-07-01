@@ -173,7 +173,12 @@ struct IsaRewriter : public IsaParser {
 
     std::vector<StatePoint> statePoints;
 
-    std::vector<size_t> failedPositions;
+    struct FailureMessage {
+        size_t position;
+        std::string message;
+    };
+
+    std::vector<FailureMessage> failureMessages;
 
     // TODO: remove or it is needed for exceptions?
     InstructionOffsetsIndex BuildOffsetsIndex() { return InstructionOffsetsIndex::Create(emit, instructionLabel); }
@@ -1185,7 +1190,7 @@ struct IsaRewriter : public IsaParser {
         IsaParser::End();
     }
 
-    void Fail() { failedPositions.push_back(startPosition); }
+    void Fail(std::string&& msg = "") { failureMessages.push_back({ startPosition, std::move(msg) }); }
 
     void StopRewrite()
     {
@@ -1306,13 +1311,12 @@ Interpretation::ExecBytecodeInfo Rewrite(
     auto rewriter = IsaRewriter(resolver, session, method.GetFileId(), code, *frameLayout, emitter);
     rewriter.ParseAll();
 
-    if (!rewriter.failedPositions.empty()) {
+    if (!rewriter.failureMessages.empty()) {
         Interpretation::Log::preparation.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
             out << "Failed to rewrite method at positions: ";
-            for (auto pos : rewriter.failedPositions) {
-                out << pos << ", ";
+            for (auto failure : rewriter.failureMessages) {
+                out << failure.position << ": " << failure.message << endl;
             }
-            out.NewLine();
         });
         // FIXME: use stub that throws
         FATAL("Rewriter failed: cannot rewrite code.");
