@@ -84,14 +84,15 @@ static TermData* AllocateTerm(Memory::Heap& allocator, size_t subtermCount = 0)
 }
 
 struct BuiltinTerms {
-    void* memory;
-    void* primitives;
-    void* classTypeVars;
-    void* funcTypeVars;
+    void* memory{};
+    void* primitives{};
+    void* classTypeVars{};
+    void* funcTypeVars{};
 
     static constexpr size_t TV_COUNT   = 256;
     static constexpr size_t PRIM_COUNT = FIRST_NON_PRIMITIVE;
 
+    BuiltinTerms(){}
     BuiltinTerms(BuiltinTerms const&) = delete;
 
     ~BuiltinTerms() { std::free(memory); }
@@ -121,7 +122,7 @@ struct BuiltinTerms {
         return DataAt(funcTypeVars, i);
     }
 
-    static BuiltinTerms Create()
+    void Initialize()
     {
         size_t seed = 0xf123123a;
 
@@ -172,14 +173,18 @@ struct BuiltinTerms {
             data->flags      = tvFlags;
         }
 
-        return { memory, primitives, classTypeVars, funcTypeVars };
+        this->memory = memory;
+        this->primitives = primitives;
+        this->classTypeVars = classTypeVars;
+        this->funcTypeVars = funcTypeVars;
     }
 };
 
-static BuiltinTerms const& Builtins()
-{
-    static auto instance = BuiltinTerms::Create();
-    return instance;
+static BuiltinTerms g_Builtins;
+
+[[gnu::constructor]]
+static void InitializeBuiltins() {
+    g_Builtins.Initialize();
 }
 
 bool TermId::IsReference()
@@ -228,12 +233,12 @@ int TermId::Width()
 GlobalTerm Term::Predefined(TermKind tk)
 {
     int num = static_cast<int>(tk);
-    return GlobalTerm(Builtins().Primitive(num));
+    return GlobalTerm(g_Builtins.Primitive(num));
 }
 
-Term Term::ClassTypeVariable(uint8_t tv) { return GlobalTerm(Builtins().ClassTv(tv)); }
+Term Term::ClassTypeVariable(uint8_t tv) { return GlobalTerm(g_Builtins.ClassTv(tv)); }
 
-Term Term::FuncTypeVariable(uint8_t tv) { return GlobalTerm(Builtins().FuncTv(tv)); }
+Term Term::FuncTypeVariable(uint8_t tv) { return GlobalTerm(g_Builtins.FuncTv(tv)); }
 
 Term Term::Definition(Session& session, Identifier<Symlevel::TypeDefinition> type)
 {
