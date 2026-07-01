@@ -260,6 +260,14 @@ static void VisitGlobalRoots(DYN_RootVisitor visitor)
     }
 }
 
+// TODO implement
+static void FrameInfoProvider(DYN_FramePointer fp, DYN_InstructionPointer ip, INT_InterpretedFrameInfo* info)
+{
+    info->bcPos = 0;
+    info->fuh   = nullptr;
+    return;
+}
+
 extern "C" {
 /// This symbol is exported to the runtime, which would initialize engine.
 CBC_EXPORT int interpreter_bridge_init(
@@ -337,6 +345,8 @@ CBC_EXPORT int interpreter_bridge_init(
     interpInterf->visitFrameRootsMarking   = &VisitFrameRootsMarking;
     interpInterf->visitFrameRootsAdjusting = &VisitFrameRootsAdjusting;
     interpInterf->visitGlobalRoots         = &VisitGlobalRoots;
+
+    interpInterf->frameInfoProvider = &FrameInfoProvider;
 
     interpInterf->landingPad = Asm::common_landing_pad;
 
