@@ -18,7 +18,7 @@ uint8_t engine_get_exception_handler(Interpretation::DynamicFunctionHandle* hand
 
     uint8_t* bcStart = bytecode->code.bytecode;
     uint8_t* bcEnd   = bcStart + bytecode->code.bytecodeSize;
-    ASSERT(bcStart <= reader.Cursor() && reader.Cursor() < bcEnd);
+    ASSERT(bcStart <= reader.Cursor() && reader.Cursor() <= bcEnd);
 
     auto bcPos      = reader.Cursor() - bcStart;
     auto exPos      = bcPos - 1;
