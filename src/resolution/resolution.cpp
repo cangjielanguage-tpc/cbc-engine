@@ -134,7 +134,6 @@ struct SimpleType : public Type {
             case TK::C_POINTER:      return CbcTypeKind::U64;
             case TK::FUNCTIONAL:     return CbcTypeKind::REF;
             case TK::TUPLE:          return CbcTypeKind::REC;
-            case TK::GENERIC_METHOD: return CbcTypeKind::INVALID;
             case TK::CANGJIE_ARRAY:  return CbcTypeKind::REF;
             case TK::LAST:           return CbcTypeKind::INVALID;
             case TK::AOT_TYPE:

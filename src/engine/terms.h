@@ -81,7 +81,6 @@ enum class TermKind : uint8_t {
     AOT_REC,
     CLASS_TYPE_VAR,
     FUNC_TYPE_VAR,
-    GENERIC_METHOD,
     LAST
 };
 
@@ -168,8 +167,7 @@ struct Term {
 
     TermFlags Flags() const;
 
-    bool IsIReg() const;
-    bool IsFReg() const;
+    bool IsFloat() const;
 
     struct Hasher {
         uint64_t operator()(Term const& term) const { return term.Hash(); }

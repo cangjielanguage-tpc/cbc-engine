@@ -19,9 +19,9 @@ void* CountRegs(Engine::Term& signature)
 
     for (size_t i = 0; i < size; i++) {
         auto subterm = signature.Subterm(i);
-        if (subterm.IsFReg()) {
+        if (subterm.IsFloat()) {
             floats++;
-        } else if (subterm.IsIReg()) {
+        } else if (subterm.IsInteger()) {
             integers++;
         }
     }

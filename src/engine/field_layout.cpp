@@ -135,7 +135,6 @@ struct FLManager : public FieldLayoutManager {
             case TK::NIL:
             case TK::NOTHING:
             case TK::UNDEFINED:
-            case TK::GENERIC_METHOD:
             case TK::LAST:           return std::nullopt;
 
             default: {

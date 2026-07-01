@@ -322,7 +322,7 @@ TermId Term::GetId() const { return data->identifier; }
 
 TermKind Term::GetKind() const { return data->identifier.GetKind(); }
 
-bool Term::IsFReg() const
+bool Term::IsFloat() const
 {
     switch (GetKind()) {
         case TermKind::F32:
@@ -330,8 +330,6 @@ bool Term::IsFReg() const
         default:            return false;
     }
 }
-
-bool Term::IsIReg() const { return !IsFReg(); }
 
 uint32_t Term::GetLength() const { return data->length; }
 
@@ -451,11 +449,6 @@ void Term::GetName(Session& session, Stream::Output& stream) const
         case TK::FUNC_TYPE_VAR: {
             auto tv = FuncTvTermId(*this).GetNum();
             stream << "%%" << tv;
-            break;
-        }
-
-        case TK::GENERIC_METHOD: {
-            stream << "$GMunimplemented";
             break;
         }
 
