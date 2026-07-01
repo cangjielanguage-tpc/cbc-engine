@@ -20,7 +20,8 @@ uint8_t engine_get_exception_handler(Interpretation::DynamicFunctionHandle* hand
     uint8_t* bcEnd   = bcStart + bytecode->code.bytecodeSize;
     ASSERT(bcStart <= reader.Cursor() && reader.Cursor() < bcEnd);
 
-    auto bcPos      = reader.Cursor() - bcStart - 1;
+    auto bcPos      = reader.Cursor() - bcStart;
+    auto exPos      = bcPos - 1;
     auto methodCode = Symlevel::Code::Resolve(session, methodDef.MethodCode().value());
     auto regions    = methodCode.GetExceptionRegions(session);
     auto it         = std::find_if(regions.begin(), regions.end(), [&](const Symlevel::ExceptionRegion& region) {
@@ -32,7 +33,7 @@ uint8_t engine_get_exception_handler(Interpretation::DynamicFunctionHandle* hand
             return false;
         }
 
-        return regStart.value() <= bcPos && bcPos <= regEnd.value();
+        return regStart.value() <= exPos && exPos <= regEnd.value();
     });
 
     if (it == regions.end()) {
