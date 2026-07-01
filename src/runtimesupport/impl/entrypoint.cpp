@@ -1,8 +1,10 @@
 #include "runtimesupport/impl/entrypoint.h"
 
+#include <cstring>
 #include <filesystem>
 #include <mutex>
 #include <system_error>
+#include <vector>
 
 #include "RTInterface.h"
 #include "asm_export.h"
@@ -34,6 +36,8 @@ static bool g_Initialized;
 static bool g_OptionsInitialized;
 static bool g_Patched;
 
+static constexpr const char* APP_LIB_HANDLE_ARG = "app.lib.handle";
+
 static void NativeLog(std::string message)
 {
     auto logger = g_CJNativeInterfaceInstance.nativeLogger;
@@ -52,6 +56,29 @@ static void InitEnvOpts()
         Engine::InitEnvOptions();
         g_OptionsInitialized = true;
     }
+}
+
+static void ParseBridgeOptions(int size, const char** options)
+{
+    std::vector<const char*> engineOptions;
+    engineOptions.reserve(size > 0 ? static_cast<size_t>(size) : 0);
+
+    for (int i = 0; i < size && options != nullptr; ++i) {
+        const char* option = options[i];
+        if (option != nullptr && std::strcmp(option, APP_LIB_HANDLE_ARG) == 0) {
+            if (i + 1 < size) {
+                g_appLibHandle = const_cast<char*>(options[i + 1]);
+                ++i;
+            } else {
+                NativeLog("app library handle argument is missing value");
+            }
+            continue;
+        }
+
+        engineOptions.push_back(option);
+    }
+
+    Engine::g_table.ParseAndSet(static_cast<int>(engineOptions.size()), engineOptions.data());
 }
 
 static void DiscoverPatchCbcFromAppStorage()
@@ -396,7 +423,7 @@ CBC_EXPORT int interpreter_bridge_init(
 
     // Order matters
     InitEnvOpts();
-    Engine::g_table.ParseAndSet(size, options);
+    ParseBridgeOptions(size, options);
 
     DiscoverPatchCbcFromAppStorage();
 
