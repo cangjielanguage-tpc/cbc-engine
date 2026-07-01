@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace Interpretation {
 
 /// Some operations could not be called from c++ directly, because of it the interpretation loop is divided by:
@@ -8,7 +10,11 @@ namespace Interpretation {
 /// See more details in `interpretation_loop.cpp`.
 struct Thunk {
     void* function;
-    void* arg;
+
+    union {
+        void* arg;
+        uint64_t argUInt;
+    };
 };
 
 }

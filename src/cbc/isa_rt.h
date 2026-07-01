@@ -3,6 +3,7 @@
 #include "decoder.h"
 #include "isa.h"
 #include "runtimesupport/runtime.h"
+#include <cstdint>
 
 // X parameters: opcode, encoding format, string format
 #define CBC_RT_OPCODES(X)                                                                                              \
@@ -70,6 +71,7 @@
     X(SCCI64I, B4xi12rr, "scci.64 $0cc $2ir $3ir $1I12")                                                               \
     X(SCCI32L, B4xi12rr, "scci.32 $0cc $2ir $3ir $1I12L")                                                              \
     X(SCCI64L, B4xi12rr, "scci.64 $0cc $2ir $3ir $1I12L")                                                              \
+    X(TYPE_ARG, B4xi12rr, "type.arg $2ir $3ir $1I12")                                                                  \
     X(CONVERT, B3xxrr, "convert $0ct $1ct $2ir $3ir") /* FIXME: ir/fr */                                               \
     X(DIRECT_CALL_2I, B3xi12, "call.2i $1I12L")                                                                        \
     X(DIRECT_CALL_2C, B3xi12, "call.2c $1I12L")                                                                        \
@@ -87,6 +89,7 @@
     X(IOF, IOF, "iof $0ir $1ir $2U64")                                                                                 \
     X(NEWBOX, B2xr, "newbox $0U8")                                                                                     \
     X(NEWBOX2, B9i64, "newbox2 $0U64")                                                                                 \
+    X(OFFSET, B6xri32, "offset $1ir $2U32 }")                                                                          \
     X(READ_STRUCT_FIELD, StructFieldOp, "read.struct.field $0ir $1ir $2ir $4U64")                                      \
     X(WRITE_STRUCT_FIELD, StructFieldOp, "write.struct.field $0ir $1ir $2ir $4U64")                                    \
     X(THROW, B2xr, "throw $1ir")                                                                                       \
@@ -99,6 +102,7 @@
     X(OFFS32, M5i32, "offs.32 $0U32", false)                                                                           \
     X(OFFS64, M9i64, "offs.64 $0U64", false)                                                                           \
     X(OFFS_REG, M2xr, "offs.r $1ir", false)                                                                            \
+    X(GENERIC_FIELD, M6xri32, "generic.field $1ir $2U32 }", false)                                                     \
     X(OFFS_REG_IDX64, M10xri64, "offs.r.idx.64 [$1ir * $2U64]", false)                                                 \
     X(R_READ_STRUCT, MStructFieldOp, "r.read.struct $0ir $1ir $3U64", true)                                            \
     X(R_WRITE_STRUCT, MStructFieldOp, "r.write.struct $0ir $1ir $3U64", true)                                          \
@@ -139,6 +143,7 @@
     X(DLD_64, M3xrrr, "dld.64 $1ir $2ir $3ir }", true)                                                                 \
     X(DLD_S32TO64, M3xrrr, "dld.s32to64 $1ir $2ir $3ir }", true)                                                       \
     X(DLD_REF, M3xrrr, "dld.ref $1ir $2ir $3ir }", true)                                                               \
+    X(DLD_GENERIC, M3rrrr, "dld.g $0ir $1ir $2ir $3ir }", true)                                                        \
     X(DST_8, M3xrrr, "dst.8 $1ir $2ir $3ir }", true)                                                                   \
     X(DST_16, M3xrrr, "dst.16 $1ir $2ir $3ir }", true)                                                                 \
     X(DST_32, M3xrrr, "dst.32 $1ir $2ir $3ir }", true)                                                                 \
@@ -146,6 +151,7 @@
     X(DST_REF, M3xrrr, "dst.ref $1ir $2ir $3ir }", true)                                                               \
     X(DST_F32, M3xrrr, "dst.f32 $1fr $2ir $3ir }", true)                                                               \
     X(DST_F64, M3xrrr, "dst.f64 $rfr $2ir $3ir }", true)                                                               \
+    X(DST_GENERIC, M3rrrr, "dst.g $1ir $2ir $3ir }", true)                                                             \
     X(DSTI_8_8, M3rri8, "dsti.8.8 $0ir $1ir $2U8 }", true)                                                             \
     X(DSTI_16_8, M3rri8, "dsti.16.8 $0ir $1ir $2U8 }", true)                                                           \
     X(DSTI_16_16, M4rri16, "dsti.16.16 $0ir $1ir $2U16 }", true)                                                       \
@@ -585,6 +591,22 @@ struct B6xri32 {
     }
 };
 
+struct Offset {
+    static constexpr int SIZE = 6;
+
+    Opcode opc;
+    Format::RR rr;
+    uint32_t idx;
+
+    static Offset Decode(Decoder::ByteReader& reader)
+    {
+        auto opc = Opcode::Decode(reader);
+        auto rr  = Format::RR::Decode(reader);
+        auto imm = reader.Read32();
+        return Offset { opc, rr, imm };
+    }
+};
+
 struct B9i64 {
     Opcode opc;
     Format::Imm64 imm64;
@@ -786,6 +808,20 @@ struct M3xrrr {
         auto xr  = Format::XR::Decode(reader);
         auto rr  = Format::RR::Decode(reader);
         return M3xrrr { opc, xr, rr };
+    }
+};
+
+struct M3rrrr {
+    MemOpcode opc;
+    Format::RR rr1;
+    Format::RR rr2;
+
+    inline static M3rrrr Decode(Decoder::ByteReader& reader)
+    {
+        auto opc = MemOpcode::Decode(reader);
+        auto rr1 = Format::RR::Decode(reader);
+        auto rr2 = Format::RR::Decode(reader);
+        return M3rrrr { opc, rr1, rr2 };
     }
 };
 

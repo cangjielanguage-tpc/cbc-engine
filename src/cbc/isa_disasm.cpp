@@ -176,6 +176,12 @@ struct IsaDisasm : public IsaParser {
         stream << "load.typeinfo.sig" << " " << dst.ToStr() << ", " << type << endl;
     }
 
+    void Offset(IReg dst, IReg ti, uint16_t field, bool accumulate) override
+    {
+        auto name = accumulate ? "add.offs" : "offs";
+        stream << name << " " << dst.ToStr() << ", " << ti.ToStr() << " " << field << endl;
+    }
+
     void NewObj(IReg dst, uint16_t type) override { stream << "newobj" << " " << dst.ToStr() << ", " << type << endl; }
 
     void NewClosure(IReg dst, uint16_t type) override
@@ -311,7 +317,7 @@ struct IsaDisasm : public IsaParser {
 
     void TypeArg(IReg ti, int idx, IReg dst) override
     {
-        stream << "type.arg " << ti.ToStr() << ", " << idx << ", " << dst.ToStr();
+        stream << "type.arg " << ti.ToStr() << ", " << idx << ", " << dst.ToStr() << endl;
     }
 
     void Box(AnyReg src, IReg dst, uint16_t tk) override
@@ -464,9 +470,46 @@ struct IsaDisasm : public IsaParser {
         Refs(refs);
     }
 
+    void MemBodyOffset(MemSpace& ms, IReg offset) override
+    {
+        PrintMemPos();
+        stream << "mem.body.offs" << " " << offset.ToStr() << endl;
+    }
+
     void MemTailCopyHandle(MemSpace& ms, IReg base, IReg offset) override
     {
+        PrintMemPos();
         stream << "mem.copy.handle" << " " << base.ToStr() << ", " << offset.ToStr();
+    }
+
+    void MemBodyConstIndexGeneric(MemSpace& ms, int64_t idx, uint16_t elemType, IReg ti) override
+    {
+        PrintMemPos();
+        stream << "mem.const.index.g" << " " << idx << ", " << elemType << ", " << endl;
+    }
+
+    void MemBodyIndexGeneric(MemSpace& ms, IReg reg, uint16_t elemType, IReg ti) override
+    {
+        PrintMemPos();
+        stream << "mem.index.g" << " " << reg.ToStr() << ", " << elemType << ", " << ti.ToStr() << endl;
+    }
+
+    void MemBodyFieldGeneric(MemSpace& ms, uint16_t field, IReg ti) override
+    {
+        PrintMemPos();
+        stream << "mem.field.g" << " " << field << " " << ti.ToStr() << endl;
+    }
+
+    void MemTailStoreGeneric(MemSpace& ms, IReg src, IReg ti) override
+    {
+        PrintMemPos();
+        stream << "mem.store.g" << " " << src << " " << ti.ToStr() << endl;
+    }
+
+    void MemTailLoadGeneric(MemSpace& ms, IReg dst, IReg ti) override
+    {
+        PrintMemPos();
+        stream << "mem.load.g" << " " << dst << " " << ti.ToStr() << endl;
     }
 
     void PrintMemPos()

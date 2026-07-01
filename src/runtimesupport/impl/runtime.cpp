@@ -3,35 +3,41 @@
 #include "RuntimeTypes.h"
 #include "asm_trampolines.h"
 #include "cjnative.h"
+#include "engine/engine.h"
+#include "engine/terms.h"
+#include "engine/typeinfo_manager.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
 #include "interpreter/interpretation_loop.h"
 #include "runtimesupport/adapters.h"
-#include "engine/engine.h"
-#include "engine/terms.h"
-#include "engine/typeinfo_manager.h"
 #include "interpreter/implicit_exceptions.h"
 #include "runtimesupport/impl/rt_syms.h"
 #include "runtimesupport/impl/typeinfo_ext.h"
 #include "utils/assertion.h"
+#include <cstddef>
 #include <cstdint>
 
 namespace RTSupport {
 
 using Reference = Interpretation::Value::Reference;
 
-Reference Execution::ReadObjectInstance(Reference base, size_t offset, ThreadHandle th)
+void Execution::WriteGeneric(Reference base, uintptr_t field, Reference object, size_t size, ThreadHandle th)
+{
+    RTSupport::WriteGeneric(base.value, field, object.value, size);
+}
+
+Reference Execution::ReadObjectInstance(Reference base, uintptr_t field, ThreadHandle th)
 {
     return Reference { .value = reinterpret_cast<uintptr_t>(g_CJNativeInterfaceInstance.readInstanceField(
-                           reinterpret_cast<DYN_ObjRef>(base.value), reinterpret_cast<DYN_FieldRef>(base.value + offset)
+                           reinterpret_cast<DYN_ObjRef>(base.value), reinterpret_cast<DYN_FieldRef>(field)
                        )) };
 }
 
-void Execution::WriteObjectInstance(Reference base, size_t offset, Reference object, ThreadHandle th)
+void Execution::WriteObjectInstance(Reference base, uintptr_t field, Reference object, ThreadHandle th)
 {
     g_CJNativeInterfaceInstance.writeInstanceField(
         reinterpret_cast<DYN_ObjRef>(base.value),
-        reinterpret_cast<DYN_FieldRef>(base.value + offset),
+        reinterpret_cast<DYN_FieldRef>(field),
         reinterpret_cast<DYN_ObjRef>(object.value)
     );
 }
@@ -90,6 +96,8 @@ void* Execution::ThrowImplicitException() { return reinterpret_cast<void*>(&Asm:
 void* Execution::GcPoint() { return reinterpret_cast<void*>(g_CJNativeInterfaceInstance.safePoint); }
 
 void* Execution::GcPointTrampoline() { return reinterpret_cast<void*>(&Asm::engine_i2_gcpoint); }
+
+void* Execution::LoadGeneric() { return reinterpret_cast<void*>(&Asm::engine_i2_load_generic); }
 
 void* Execution::Spawn() { return reinterpret_cast<void*>(&Asm::engine_i2_spawn); }
 
@@ -177,6 +185,13 @@ bool Execution::IsInstanceOf(Reference base, TypeInfo ti)
     return g_CJNativeInterfaceInstance.instanceOf(reinterpret_cast<DYN_ObjRef>(base.value), UnpackTypeInfo(ti)) != 0;
 }
 
+bool Execution::IsReference(TypeInfo ti)
+{
+    // Reference type are encoded with negative int8_t values.
+    // @see typeinfo_factory.cpp
+    return UnpackTypeInfo(ti)->type < 0;
+}
+
 bool Execution::IsGlobalStruct(Reference base, uintptr_t derived)
 {
 #if defined(__x86_64__) || defined(_M_X64)
@@ -259,6 +274,12 @@ TypeInfo MetaInfo::ByteArrayTypeInfo()
     ASSERT(ti != nullptr);
 
     return TypeInfo(ti);
+}
+
+TypeInfo Execution::TypeArg(TypeInfo ti, uint32_t idx)
+{
+    auto typeInfo = UnpackTypeInfo(ti);
+    return TypeInfo(typeInfo->typeArgs[idx]);
 }
 
 TypeInfoUUID MetaInfo::GetUUID(TypeInfo ti) { return g_CJNativeInterfaceInstance.getTypeInfoUUID(UnpackTypeInfo(ti)); }

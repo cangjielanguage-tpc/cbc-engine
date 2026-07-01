@@ -12,4 +12,6 @@ extern void (*WriteStructField)(
 );
 extern void (*ReadStructField)(uintptr_t dst, uintptr_t base, uintptr_t field, size_t fieldLen, DYN_GCTib gctib);
 
+extern void (*WriteGeneric)(uintptr_t base, uintptr_t field, uintptr_t obj, size_t size);
+
 } // namespace RTSupport
