@@ -388,14 +388,12 @@ struct IsaRewriter : public IsaParser {
     void LoadTypeInfoGeneric(IReg dst, uint16_t typeId) override
     {
         using namespace Engine;
-        auto refId = Symlevel::RefId<Term>(0, typeId);
-        auto ident = RefIdentifier<Term>(refId, fileId);
-        auto term  = TermManager::Resolve(session, ident);
-        if (term.GetKind() == TermKind::UNDEFINED) {
+        auto type = resolver.Query(Index<Type>(typeId));
+        if (!type.has_value()) {
             Fail();
             return;
         }
-        emit.LoadGenericTypeInfo(Bits::Raw64(term));
+        emit.LoadGenericTypeInfo(Bits::Raw64(type->term));
         AdjustReg(dst, IReg::IR1);
     }
 
@@ -406,15 +404,13 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
-        auto type = t.value();
-        if (!type.GetTypeInfo().has_value()) {
-            errStream << "Failed to get type info of " << type << Stream::endl;
+        auto ti = t->GetTypeInfo();
+        if (!ti.has_value()) {
+            errStream << "Failed to get type info of " << *t << Stream::endl;
             Fail();
             return;
         }
-
-        auto ti = type.GetTypeInfo().value();
-        emit.MovImm(Format::Width::W64, dst, reinterpret_cast<uintptr_t>(ti.Raw()));
+        emit.MovImm(Format::Width::W64, dst, ti->UInt());
     }
 
     void Offset(IReg dst, IReg ti, uint16_t fieldId, bool accumulate) override
@@ -446,21 +442,21 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return std::nullopt;
         }
-        auto type = t.value();
-        if (!type.GetTypeInfo().has_value()) {
-            errStream << "Failed to get type info of " << type << Stream::endl;
+        auto ti = t->GetTypeInfo();
+        if (!ti.has_value()) {
+            errStream << "Failed to get type info of " << *t << Stream::endl;
             Fail();
             return std::nullopt;
         }
 
-        auto typeInfo = type.GetTypeInfo().value();
+        auto typeInfo = *ti;
         switch (kind) {
             case New::Obj: emit.NewObj(typeInfo); break;
             case New::Arr: emit.NewArr(typeInfo); break;
         }
         BindStatePoint();
         AdjustReg(dst, IReg::IR1);
-        return type;
+        return *t;
     }
 
     void NewObj(IReg dst, uint16_t typeId) override { NewObject(dst, typeId, New::Obj); }
