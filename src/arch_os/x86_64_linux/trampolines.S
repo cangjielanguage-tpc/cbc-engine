@@ -185,7 +185,7 @@ engine_trampolines_dyn_end:
   mov   rdi, rax
   call perform_2i_call
 
-  mov   rax,  [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8]
+  mov   rax,  [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE]
 
   pop   rbx // remove FunctionHandle
   pop   rbx
@@ -256,7 +256,7 @@ engine_i2i_call:
 
   call r10
 
-  mov [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8], rax
+  mov [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE], rax
 
   jmp .Lrestart_interpretation
 .endm
@@ -321,7 +321,7 @@ engine_i2_load_generic:
 engine_i2_newobject:
   // jumped from .Linterpreter_call without return address to return
   call  [rip + engine_newobject_function]
-  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8], rax
+  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE], rax
   restore_tls
   jmp   .Lrestart_interpretation
 
@@ -332,7 +332,7 @@ engine_i2_newobject:
 engine_i2_newobject_acc:
   // jumped from .Linterpreter_call without return address to return
   call  [rip + engine_newobject_function]
-  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8 * 14], rax // move to acc register
+  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE * ECTYPE_IACC_NUM], rax // move to acc register
   restore_tls
   jmp   .Lrestart_interpretation
 
@@ -344,7 +344,7 @@ engine_i2_newarray:
   // jumped from .Linterpreter_call without return address to return
   mov   rsi, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x10]
   call  [rip + engine_newarray_function]
-  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8], rax
+  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE], rax
   restore_tls
   jmp   .Lrestart_interpretation
 
@@ -359,7 +359,7 @@ engine_i2_gcpoint:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
 // preserved: ECTYPE_REG, rbp
 engine_i2_spawn:
-  mov   rsi, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8]
+  mov   rsi, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE]
   mov   rcx, rdi
   lea   rdi, [rip + engine_fake_execute_closure]
   xor   edx, edx
@@ -555,14 +555,14 @@ engine_handle_exception:
   mov   r12, rdi
 
   mov   rdi, QWORD PTR [rbp - FUH_SLOT_OFFSET]
-  lea   rsi, QWORD PTR [rbp - READER_SLOT] // reader
+  lea   rsi, QWORD PTR [rbp - READER_SLOT_OFFSET] // reader
   call  engine_get_exception_handler
 
   test  al, al
   jz   .Lunwind_top_frame
 
   // Handler is found, set exception object to ACC_REG and continue interpretation
-  mov   QWORD PTR [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 14*ECTYPE_REG_SIZE], r12
+  mov   QWORD PTR [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_IACC_NUM * ECTYPE_REG_SIZE], r12
   jmp   .Lrestart_interpretation
 
 .Lunwind_top_frame:

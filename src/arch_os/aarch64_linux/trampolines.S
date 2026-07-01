@@ -220,7 +220,7 @@ engine_i2i_call:
 
   blr   x9
 
-  str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8)]
+  str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE)]
 
   b     .Lrestart_interpretation
 .endm
@@ -295,7 +295,7 @@ engine_i2_newobject:
   ldr   x10, [x10, :lo12:engine_newobject_function]
   blr   x10
 
-  str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8)]
+  str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE)]
   restore_tls
 
   b     .Lrestart_interpretation
@@ -310,7 +310,7 @@ engine_i2_newobject_acc:
   ldr   x10, [x10, :lo12:engine_newobject_function]
   blr   x10
 
-  str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8 * 14)]
+  str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE * ECTYPE_IACC_NUM)]
   restore_tls
 
   b     .Lrestart_interpretation
@@ -326,7 +326,7 @@ engine_i2_newarray:
   ldr   x10, [x10, :lo12:engine_newarray_function]
   blr   x10
 
-  str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8)]
+  str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE)]
   restore_tls
 
   b     .Lrestart_interpretation
@@ -341,7 +341,7 @@ engine_i2_gcpoint:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo)
 // preserved: ECTYPE_REG, x29
 engine_i2_spawn:
-  ldr   x1, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8)]
+  ldr   x1, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE)]
   mov   x3, x0
   adr   x0, engine_fake_execute_closure
   mov   x2, 0
@@ -463,7 +463,7 @@ perform_2i_call:
 
 .Lend_interpretation:
 
-  ldr   x9, [x29, FUH_SLOT_OFFSET] // load Function Handle
+  ldr   x9, [x29, #-FUH_SLOT_OFFSET] // load Function Handle
   ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
 
   ldr   w1, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
@@ -533,19 +533,19 @@ common_landing_pad:
 engine_handle_exception:
   mov   x21, x0
 
-  ldr   x0, [x29, FUH_SLOT_OFFSET]
-  sub   x1, x29, #READER_SLOT // reader
+  ldr   x0, [x29, #-FUH_SLOT_OFFSET]
+  sub   x1, x29, #READER_SLOT_OFFSET // reader
   bl    engine_get_exception_handler
 
   cbz   w0, .Lunwind_top_frame
 
   // Handler is found, set exception object to ACC_REG and continue interpretation
-  str   x21, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET + 14*ECTYPE_REG_SIZE)]
+  str   x21, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + ECTYPE_IACC_NUM * ECTYPE_REG_SIZE)]
   b     .Lrestart_interpretation
 
 .Lunwind_top_frame:
   // Restore spilled non-volatile regs before clearing the frame
-  ldr   x9, [x29, FUH_SLOT_OFFSET]
+  ldr   x9, [x29, #-FUH_SLOT_OFFSET]
   ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
   ldr   w1, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   mov   x2, sp
