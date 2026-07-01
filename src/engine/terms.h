@@ -11,7 +11,6 @@
 #include <mutex>
 #include <string_view>
 #include <unordered_set>
-#include <variant>
 
 /// `Term` is an symbolic representation of any type that is supported in CBC.
 /// It can represent primitives (e.g. I32), builtins (e.g. ARRAY) or user-defined types (e.g. TYPE).
@@ -241,8 +240,7 @@ template <typename Num, TermKind tk> struct _NumberedTermId : public TermId {
 };
 
 using ArrayTermId = _SpecializedTermId<Identifier<Symlevel::String>, TermKind::CANGJIE_ARRAY>;
-using AotRefTermId = _NumberedTermId<uint32_t, TermKind::AOT_TYPE>;
-using AotRecTermId = _NumberedTermId<uint32_t, TermKind::AOT_REC>;
+using AotTermId    = _NumberedTermId<uint32_t, TermKind::AOT_TYPE>;
 using TypeTermId   = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::TYPE>;
 using UndefTermId  = _SpecializedTermId<RefIdentifier<Term>, TermKind::UNDEFINED>;
 
@@ -317,8 +315,7 @@ public:
     Term NewAotRefTerm(Session& session, std::string_view name, std::vector<Term> const& subterms);
     Term NewAotRecTerm(Session& session, std::string_view name, std::vector<Term> const& subterms);
 
-    Utils::StringPool::String GetNameOfAotType(AotRefTermId type);
-    Utils::StringPool::String GetNameOfAotType(AotRecTermId type);
+    Utils::StringPool::String GetNameOfAotType(AotTermId type);
 
 private:
     Term NewAotTerm(Session& session, std::string_view name, std::vector<Term> const& subterms, bool isReference);

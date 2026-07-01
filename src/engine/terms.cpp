@@ -445,15 +445,9 @@ void Term::GetName(Session& session, Stream::Output& stream) const
             break;
         }
 
-        case TK::AOT_TYPE:
-        case TK::AOT_REC:  {
+        case TK::AOT_TYPE: {
             auto& manager = TermManager::Of(session);
-            std::string_view name;
-            if (kind == TermKind::AOT_TYPE) {
-                name = manager.GetNameOfAotType(AotRefTermId(*this));
-            } else {
-                name = manager.GetNameOfAotType(AotRecTermId(*this));
-            }
+            std::string_view name = manager.GetNameOfAotType(AotTermId(*this));
             stream << name;
             if (int len = GetLength(); len > 0) {
                 printSubTerms("<", ">", len);
@@ -583,10 +577,8 @@ Term TermManager::NewAotTerm(
         }());
         id                  = TypeTermId(*type);
         flags.isAotPromoted = true;
-    } else if (isReference) {
-        id = AotRefTermId(InternString(name));
     } else {
-        id = AotRecTermId(InternString(name));
+        id = AotTermId(InternString(name));
     }
     data->InitAfterSubterms(id, arity, flags);
     return Term(LocalTerm(data));
@@ -770,11 +762,7 @@ struct TermResolver {
         };
         auto internedName = manager.InternString(name);
 
-        if (flags.isReference) {
-            data->InitAfterSubterms(AotRefTermId(internedName), length, flags);
-        } else {
-            data->InitAfterSubterms(AotRecTermId(internedName), length, flags);
-        }
+        data->InitAfterSubterms(AotTermId(internedName), length, flags);
         return Term(LocalTerm(data));
     }
 
@@ -901,13 +889,7 @@ size_t TermManager::InternString(std::string_view str)
     return internTable.InternAndGetId(str);
 }
 
-Utils::StringPool::String TermManager::GetNameOfAotType(AotRefTermId type)
-{
-    std::lock_guard guard(lock);
-    return internTable.GetStringById(type.GetNum());
-}
-
-Utils::StringPool::String TermManager::GetNameOfAotType(AotRecTermId type)
+Utils::StringPool::String TermManager::GetNameOfAotType(AotTermId type)
 {
     std::lock_guard guard(lock);
     return internTable.GetStringById(type.GetNum());

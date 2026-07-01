@@ -134,10 +134,10 @@ struct SimpleType : public Type {
             case TK::C_POINTER:      return CbcTypeKind::U64;
             case TK::FUNCTIONAL:     return CbcTypeKind::REF;
             case TK::TUPLE:          return CbcTypeKind::REC;
-            case TK::AOT_REC:        return CbcTypeKind::REC;
             case TK::GENERIC_METHOD: return CbcTypeKind::INVALID;
             case TK::CANGJIE_ARRAY:  return CbcTypeKind::REF;
             case TK::LAST:           return CbcTypeKind::INVALID;
+            case TK::AOT_TYPE:
             case TK::TYPE:           return term.IsReference() ? CbcTypeKind::REF : CbcTypeKind::REC;
 
             default:
@@ -437,7 +437,6 @@ static std::optional<DirectCall> ResolveCall(Resolver::Impl& resolver, Index<Dir
             }
         }
 
-        case TermKind::AOT_REC:
         case TermKind::AOT_TYPE: {
             return ResolveAotDirectCall(resolver, ref);
         }
@@ -535,7 +534,6 @@ template <typename Field> std::optional<Field> ResolveField(Resolver::Impl& reso
     auto fieldType   = resolver.GetType(ref.fieldType);
 
     switch (ref.refType.GetKind()) {
-        case TermKind::AOT_REC:
         case TermKind::AOT_TYPE: {
             if constexpr (std::is_same_v<Field, InstanceField>) {
                 return ResolveAotInstanceField(resolver, ref);

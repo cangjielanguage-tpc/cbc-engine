@@ -86,7 +86,6 @@ struct FLManager : public FieldLayoutManager {
             case TK::BSTRING:
             case TK::C_POINTER: return 8;
 
-            case TK::AOT_TYPE:
             case TK::NULLABLE:
             case TK::NON_NULLABLE:
             case TK::FUNCTIONAL:
@@ -106,7 +105,9 @@ struct FLManager : public FieldLayoutManager {
                 return std::nullopt;
             }
 
-            case TK::AOT_REC: {
+            case TK::AOT_TYPE: {
+                if (term.IsReference())
+                    return sizeof(void*);
                 auto ti = typeInfoManager.AcquireTypeInfo(session, term);
                 if (!ti.has_value()) {
                     return std::nullopt;
@@ -146,13 +147,12 @@ struct FLManager : public FieldLayoutManager {
     /// The alignment of a field of given type and its alignment.
     uint8_t GetFlatAlignment(Term term) override
     {
+        if (term.IsReference()) {
+            return sizeof(void*);
+        }
         switch (term.GetKind()) {
             case TermKind::TYPE: {
-                auto ident = TypeTermId(term).GetIdentifier();
-                auto kind  = Symlevel::TypeDefinition::Resolve(session, ident).GetFlags().GetTypeKind();
-                if (kind != Symlevel::TypeKind::RECORD) {
-                    return sizeof(void*);
-                }
+                auto ident     = TypeTermId(term).GetIdentifier();
                 auto optlayout = GetLayout(term);
                 if (optlayout.has_value()) {
                     auto layout = *optlayout;
@@ -160,7 +160,7 @@ struct FLManager : public FieldLayoutManager {
                 }
                 return MAX_ALIGN;
             }
-            case TermKind::AOT_REC: {
+            case TermKind::AOT_TYPE: {
                 auto ti = typeInfoManager.AcquireTypeInfo(session, term);
                 if (!ti.has_value()) {
                     return MAX_ALIGN;
@@ -185,7 +185,7 @@ struct FLManager : public FieldLayoutManager {
         ASSERT(!term.IsGeneric());
         if (term.IsReference()) {
             offsets.push_back(disp);
-        } else if (term.GetKind() == TermKind::AOT_REC) {
+        } else if (term.GetKind() == TermKind::AOT_TYPE) {
             auto typeInfo = typeInfoManager.AcquireTypeInfo(session, term);
             if (!typeInfo.has_value()) {
                 return;

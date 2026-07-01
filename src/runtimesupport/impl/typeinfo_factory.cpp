@@ -612,12 +612,9 @@ static std::optional<TypeInfo> QueryTypeInfoAOTByName(char const* str)
 
 char const* GetAotTypeName(Engine::Session& session, Engine::Term term)
 {
+    ASSERT(term.GetKind() == Engine::TermKind::AOT_TYPE);
     auto& manager = Engine::TermManager::Of(session);
-    switch (term.GetKind()) {
-        case Engine::TermKind::AOT_TYPE: return manager.GetNameOfAotType(Engine::AotRefTermId(term)).str;
-        case Engine::TermKind::AOT_REC:  return manager.GetNameOfAotType(Engine::AotRecTermId(term)).str;
-        default:                         FATAL("Unexpected kind");
-    }
+    return manager.GetNameOfAotType(Engine::AotTermId(term)).str;
 }
 
 /// Find typeinfos of subterms with `nulls` on place of subterms that are not found.
@@ -756,7 +753,6 @@ std::optional<TypeInfo> CreateTypeInfo(
             case Engine::TermKind::TYPE:    return CreateTypeInfoDyn(session, manager, term);
 
             case Engine::TermKind::AOT_TYPE:
-            case Engine::TermKind::AOT_REC:
                 return QueryTypeInfoAOT(session, manager, GetAotTypeName(session, term), term);
 
             case Engine::TermKind::CANGJIE_ARRAY: return QueryTypeInfoAOT(session, manager, "RawArray", term);
