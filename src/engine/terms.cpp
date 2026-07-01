@@ -22,15 +22,6 @@
 
 namespace Engine {
 
-struct TermFlags {
-    uint16_t isLocal : 1;
-    uint16_t isReference : 1;
-    uint16_t isAotPromoted : 1;
-    uint16_t isGeneric : 1;
-
-    TermFlags() = delete;
-};
-
 /// Internal representation of `Term`.
 /// The main things which are needed to represent term is an identifier and subterms.
 /// The length of subterm array is bounded by 2^16, so in the leftover memory
@@ -311,11 +302,7 @@ static bool CompareTermData(TermData* origin, TermData* another)
 
 Term::Term() : Term(Term::Predefined(TermKind::NIL)) {}
 
-Term::Term(LocalTerm local) : data(local.data) {}
-
-Term::Term(GlobalTerm global) : data(global.data) {}
-
-Term::Term(Term const& term) : data(term.data) {}
+Term::Term(TermData* data) : data(data) {}
 
 LocalTerm Term::AsLocal()
 {
@@ -484,17 +471,15 @@ bool Term::operator==(const Term& another) const { return CompareTermData(this->
 
 bool Term::IsLocal() const { return data->flags.isLocal; }
 
-Term LocalTerm::Subterm(uint32_t i) const { return this->data->subterms[i]; }
+LocalTerm::LocalTerm(TermData* data) : Term(data) { ASSERT(data->flags.isLocal); }
 
-LocalTerm::LocalTerm(TermData* data) : data(data) { ASSERT(data->flags.isLocal); }
+GlobalTerm::GlobalTerm(TermData* data) : Term(data) { ASSERT(!data->flags.isLocal); }
 
 GlobalTerm LocalTerm::Publish(Session& session)
 {
     Term term(*this);
     return TermManager::Of(session).Globalize(term);
 }
-
-GlobalTerm GlobalTerm::Subterm(uint32_t i) const { return this->data->subterms[i].AsGlobal(); }
 
 bool GlobalTerm::operator==(const GlobalTerm& another) const { return data == another.data; }
 
@@ -924,6 +909,8 @@ bool Term::IsReference() const { return data->flags.isReference; }
 bool Term::IsAotPromoted() const { return data->flags.isAotPromoted; }
 
 bool Term::IsGeneric() const { return data->flags.isGeneric; }
+
+TermFlags Term::Flags() const { return data->flags; }
 
 Term Substitution::Substitute(Term term)
 {

@@ -731,11 +731,10 @@ LOAD_GENERIC_TI: {
     auto args = B9i64::Decode(reader);
     LOG_INSTR;
     auto termValue = args.imm64.imm;
-    Engine::TermData* data;
-    static_assert(sizeof(data) == sizeof(termValue));
-    memcpy(&data, &termValue, sizeof(termValue));
-    Engine::GlobalTerm term(data);
-    auto ti = Execution::LoadTypeInfo(term, ectype, reinterpret_cast<void*>(frame.start));
+    Engine::Term term { nullptr };
+    static_assert(sizeof(term) == sizeof(termValue));
+    memcpy(&term, &termValue, sizeof(termValue));
+    auto ti = Execution::LoadTypeInfo(term.AsGlobal(), ectype, reinterpret_cast<void*>(frame.start));
     ectype->Put(IReg::IR1, Value::Primitive { .u64 = reinterpret_cast<uintptr_t>(ti.Raw()) });
     NEXT;
 }

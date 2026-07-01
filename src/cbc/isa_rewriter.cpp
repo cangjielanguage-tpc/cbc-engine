@@ -24,6 +24,7 @@
 #include "utils/logger.h"
 #include "utils/math.h"
 #include "utils/ostream.h"
+#include "utils/reinterpretation.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -389,7 +390,7 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
-        emit.LoadGenericTypeInfo(term.data);
+        emit.LoadGenericTypeInfo(Bits::Raw64(term));
         AdjustReg(dst, IReg::IR1);
     }
 

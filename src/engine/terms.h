@@ -125,11 +125,17 @@ struct TagTermId : public TermId {
     explicit constexpr TagTermId(TermId ident) : TermId(ident) { ASSERT(info == 0); }
 };
 
-class Term {
-public:
-    static constexpr uint16_t FIRST_NON_PRIMITIVE = static_cast<uint16_t>(TermKind::UNDEFINED);
+struct TermFlags {
+    uint16_t isLocal : 1;
+    uint16_t isReference : 1;
+    uint16_t isAotPromoted : 1;
+    uint16_t isGeneric : 1;
 
-    TermData* data;
+    TermFlags() = delete;
+};
+
+struct Term {
+    static constexpr uint16_t FIRST_NON_PRIMITIVE = static_cast<uint16_t>(TermKind::UNDEFINED);
 
     static Term Definition(Session& session, Identifier<Symlevel::TypeDefinition> type);
     static GlobalTerm Predefined(TermKind tk);
@@ -138,9 +144,7 @@ public:
     static Term FuncTypeVariable(uint8_t tv);
 
     Term();
-    Term(LocalTerm local);
-    Term(GlobalTerm global);
-    Term(Term const& term);
+    Term(TermData* data);
 
     TermId GetId() const;
     TermKind GetKind() const;
@@ -161,52 +165,31 @@ public:
     bool IsReference() const;
     bool IsAotPromoted() const;
     bool IsGeneric() const;
+
+    TermFlags Flags() const;
+
     bool IsIReg() const;
     bool IsFReg() const;
 
     struct Hasher {
         uint64_t operator()(Term const& term) const { return term.Hash(); }
     };
-};
 
-class LocalTerm {
-public:
-    LocalTerm(TermData* data);
-    Term Subterm(uint32_t i) const;
-
-    GlobalTerm Publish(Session& session);
-
-    TermId GetId() const { return Term(*this).GetId(); }
-
-    uint32_t GetLength() const { return Term(*this).GetLength(); }
-
-    uint32_t Hash() const { return Term(*this).GetLength(); }
-
-private:
-    friend class Term;
     TermData* data;
 };
 
-class GlobalTerm {
-public:
-    GlobalTerm(TermData* data) : data(data) {}
+struct LocalTerm : public Term {
+    LocalTerm(TermData* data);
+    GlobalTerm Publish(Session& session);
+};
 
-    GlobalTerm Subterm(uint32_t i) const;
-
-    TermId GetId() const { return Term(*this).GetId(); }
-
-    uint32_t GetLength() const { return Term(*this).GetLength(); }
-
-    uint32_t Hash() const { return Term(*this).GetLength(); }
-
+struct GlobalTerm : public Term {
+    GlobalTerm(TermData* data);
     bool operator==(const GlobalTerm& another) const;
     bool operator!=(const GlobalTerm& another) const;
-
-private:
-    friend class Term;
-    TermData* data;
 };
 
+/// Term identifier that have `Identifer` as its part.
 template <typename Id, TermKind tk> struct _SpecializedTermId : public TermId {
     _SpecializedTermId(Id identifier) : TermId(tk, Bits::Raw64(identifier.Pack())) {}
 
@@ -226,6 +209,7 @@ template <typename Id, TermKind tk> struct _SpecializedTermId : public TermId {
     }
 };
 
+/// Term identifier that have integer number as its part.
 template <typename Num, TermKind tk> struct _NumberedTermId : public TermId {
     explicit _NumberedTermId(Num number) : TermId(tk, number) {}
 
@@ -240,9 +224,9 @@ template <typename Num, TermKind tk> struct _NumberedTermId : public TermId {
 };
 
 using ArrayTermId = _SpecializedTermId<Identifier<Symlevel::String>, TermKind::CANGJIE_ARRAY>;
-using AotTermId    = _NumberedTermId<uint32_t, TermKind::AOT_TYPE>;
-using TypeTermId   = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::TYPE>;
-using UndefTermId  = _SpecializedTermId<RefIdentifier<Term>, TermKind::UNDEFINED>;
+using AotTermId   = _NumberedTermId<uint32_t, TermKind::AOT_TYPE>;
+using TypeTermId  = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::TYPE>;
+using UndefTermId = _SpecializedTermId<RefIdentifier<Term>, TermKind::UNDEFINED>;
 
 using ClassTvTermId = _NumberedTermId<uint8_t, TermKind::CLASS_TYPE_VAR>;
 using FuncTvTermId  = _NumberedTermId<uint8_t, TermKind::FUNC_TYPE_VAR>;
