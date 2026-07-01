@@ -19,11 +19,24 @@ struct Handle {
     void* handle;
     std::string name;
 
+    Handle() : handle(nullptr) {}
+
     Handle(void* handle, std::string&& name) : handle(handle), name(std::move(name)) {}
 
     Handle(Handle const& handle) = delete;
 
     Handle(Handle&& handle) : handle(handle.handle) { handle.handle = nullptr; }
+
+    Handle& operator=(Handle&& other)
+    {
+        if (handle != nullptr) {
+            FATAL("Trying to rewrite existing handle");
+        }
+        name         = std::move(other.name);
+        handle       = other.handle;
+        other.handle = nullptr;
+        return *this;
+    }
 
     static std::optional<Handle> Open(std::string&& str)
     {
@@ -53,6 +66,9 @@ struct Handle {
         }
     }
 };
+
+// Prolongs lifetime of helper lib handle after finish of Initialize.
+Handle g_helperLibHandle;
 
 void Initialize(DYN_CJNativeInterface* interf)
 {
@@ -100,6 +116,7 @@ void Initialize(DYN_CJNativeInterface* interf)
         return;
     }
 
+    g_helperLibHandle                      = std::move(helperHandleOpt.value());
     Asm::engine_implicit_exception_thrower = reinterpret_cast<void (*)(int)>(throwerSym);
 }
 
