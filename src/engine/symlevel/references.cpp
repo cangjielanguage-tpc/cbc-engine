@@ -22,7 +22,8 @@ MethodReference ParseReference(
     if (parsedFlags & 0x1) flags = flags.Or(MethodRefFlag::SRET);
     if (parsedFlags & 0x2) flags = flags.Or(MethodRefFlag::HAS_THIS_TI);
     if (parsedFlags & 0x4) flags = flags.Or(MethodRefFlag::HAS_OUTER_TI);
-    if (parsedFlags & 0x8) flags = flags.Or(MethodRefFlag::HAS_BASE_PTR);
+    if (parsedFlags & 0x8)
+        flags = flags.Or(MethodRefFlag::MUT);
     if (parsedFlags & 0x10) flags = flags.Or(MethodRefFlag::HAS_FTVARS);
     if (parsedFlags & 0x20) flags = flags.Or(MethodRefFlag::AOT);
 

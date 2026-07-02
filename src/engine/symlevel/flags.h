@@ -40,9 +40,9 @@ namespace Symlevel {
     X(SRET)                                                                                                            \
     X(HAS_THIS_TI)                                                                                                     \
     X(HAS_OUTER_TI)                                                                                                    \
-    X(HAS_BASE_PTR)                                                                                                    \
+    X(MUT)                                                                                                             \
     X(HAS_FTVARS)                                                                                                      \
-    X(AOT)                                                                                                             \
+    X(AOT)
 
 #define FLAG_LIST(flag) flag,
 #define FLAG_C_STR(flag)                                                                                               \

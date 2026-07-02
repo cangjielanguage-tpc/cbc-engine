@@ -76,86 +76,74 @@ private:
 
 class FieldDefinition {
 public:
+    struct Content {
+        Engine::Identifier<FieldDefinition> identifier;
+        Offset<String> nameOffset;
+        Engine::RefIdentifier<Term> fieldType;
+        FieldFlags flags;
+    };
     static FieldDefinition Parse(Engine::Session& session, IO::FileId fileId, Offset<FieldDefinition> offset);
     static FieldDefinition Resolve(Engine::Session& session, Engine::Identifier<FieldDefinition> identifier);
     static String ParseName(Engine::Session& session, IO::FileId fileId, Offset<FieldDefinition> offset);
 
-    inline Engine::Identifier<String> GetName() const { return Engine::Identifier(nameOffset, identifier.GetFileId()); }
+    inline Engine::Identifier<String> GetName() const { return Engine::Identifier(content.nameOffset, content.identifier.GetFileId()); }
 
-    inline Engine::RefIdentifier<Term> FieldType() const { return fieldType; }
+    inline Engine::RefIdentifier<Term> FieldType() const { return content.fieldType; }
 
-    inline Engine::Identifier<FieldDefinition> Identifier() { return identifier; }
+    inline Engine::Identifier<FieldDefinition> Identifier() { return content.identifier; }
 
-    inline FieldFlags Flags() const { return flags; }
+    inline FieldFlags Flags() const { return content.flags; }
 
 private:
-    FieldDefinition(
-        Engine::Identifier<FieldDefinition> identifier,
-        Offset<String> nameOffset,
-        Engine::RefIdentifier<Term> fieldType,
-        FieldFlags flags,
-        std::vector<uint64_t> constValue
-    )
-        : identifier(identifier),
-          nameOffset(nameOffset),
-          fieldType(fieldType),
-          flags(flags),
-          constValue(constValue)
-    {}
+    FieldDefinition(Content&& content) : content(content) {}
 
-    Engine::Identifier<FieldDefinition> identifier;
-    Offset<String> nameOffset;
-    Engine::RefIdentifier<Term> fieldType;
-    FieldFlags flags;
-    std::vector<uint64_t> constValue;
+    Content content;
 };
 
 class MethodDefinition {
 public:
+    struct Content {
+        Engine::Identifier<MethodDefinition> identifier;
+        Engine::RefIdentifier<Term> signature;
+        Offset<String> nameOffset;
+        MethodFlags flags;
+        uint8_t arity;
+
+        std::optional<Engine::Identifier<Code>> code             = std::nullopt;
+        std::optional<Engine::Identifier<String>> sourceFile     = std::nullopt;
+        std::optional<Engine::Identifier<String>> sourceFullName = std::nullopt;
+        std::optional<Engine::Identifier<String>> linkageName    = std::nullopt;
+    };
     static MethodDefinition Parse(Engine::Session& session, IO::FileId fileId, Offset<MethodDefinition> offset);
     static MethodDefinition Resolve(Engine::Session& session, Engine::Identifier<MethodDefinition> identifier);
     static String ParseName(Engine::Session& session, IO::FileId fileId, Offset<MethodDefinition> offset);
 
-    inline Engine::Identifier<String> Name() const { return Engine::Identifier(nameOffset, identifier.GetFileId()); }
+    inline Engine::Identifier<String> Name() const { return Engine::Identifier(content.nameOffset, content.identifier.GetFileId()); }
 
-    inline Engine::RefIdentifier<Term> Signature() const { return signature; }
+    inline Engine::RefIdentifier<Term> Signature() const { return content.signature; }
 
-    inline std::optional<Engine::Identifier<Code>> MethodCode() const { return code; }
+    inline std::optional<Engine::Identifier<Code>> MethodCode() const { return content.code; }
 
-    std::optional<Engine::Identifier<String>> SourceFile() const { return sourceFile; }
+    std::optional<Engine::Identifier<String>> SourceFile() const { return content.sourceFile; }
 
-    std::optional<Engine::Identifier<String>> SourceFullName() const { return sourceFullName; }
+    std::optional<Engine::Identifier<String>> SourceFullName() const { return content.sourceFullName; }
 
-    std::optional<Engine::Identifier<String>> LinkageName() const { return linkageName; }
+    std::optional<Engine::Identifier<String>> LinkageName() const { return content.linkageName; }
 
-    inline IO::FileId FileId() const { return identifier.GetFileId(); }
+    inline IO::FileId FileId() const { return content.identifier.GetFileId(); }
 
-    Engine::Identifier<MethodDefinition> GetIdentifier() const { return identifier; }
+    Engine::Identifier<MethodDefinition> GetIdentifier() const { return content.identifier; }
 
-    MethodFlags GetFlags() const { return flags; }
+    MethodFlags GetFlags() const { return content.flags; }
+
+    MethodRefFlags GetABIFlags() const;
+
+    Content const* operator->() const { return &content; }
 
 private:
-    MethodDefinition(
-        Engine::Identifier<MethodDefinition> identifier,
-        Offset<String> nameOffset,
-        Engine::RefIdentifier<Term> signature,
-        MethodFlags flags
-    )
-        : identifier(identifier),
-          nameOffset(nameOffset),
-          signature(signature),
-          flags(flags)
-    {}
+    MethodDefinition(Content&& content) : content(content) {}
 
-    Engine::Identifier<MethodDefinition> identifier;
-    Engine::RefIdentifier<Term> signature;
-    Offset<String> nameOffset;
-    MethodFlags flags;
-
-    std::optional<Engine::Identifier<Code>> code             = std::nullopt;
-    std::optional<Engine::Identifier<String>> sourceFile     = std::nullopt;
-    std::optional<Engine::Identifier<String>> sourceFullName = std::nullopt;
-    std::optional<Engine::Identifier<String>> linkageName    = std::nullopt;
+    Content content;
 };
 
 } // namespace Symlevel
