@@ -110,6 +110,16 @@ public:
         Term signature;
     };
 
+    /// Resolve the reference passed in hierarchy, e.g.:
+    /// interfaces:
+    ///   I: foo(0), bar(1), baz(2)
+    ///   J <: I: qwe(0)
+    /// class Foo <: I & J {}
+    ///
+    /// reference:
+    /// - J.foo will be resolved up to (I, 0)
+    /// - J.baz will be resolved up to (I, 2)
+    /// - J.qwe will be resolved up to (J, 0)
     std::optional<MethodTableEntry> Resolve(Session& session, Reference const& reference) const;
 
     void ResolveAll(Session& session, Reference const& reference, std::vector<MethodTableEntry>& buffer) const;
