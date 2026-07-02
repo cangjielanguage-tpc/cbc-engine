@@ -1,8 +1,10 @@
 #include "runtimesupport/impl/entrypoint.h"
 
+#include <cstdio>
 #include <cstring>
 #include <filesystem>
 #include <mutex>
+#include <string>
 #include <system_error>
 #include <vector>
 
@@ -47,6 +49,42 @@ static void NativeLog(std::string message)
 
     static char tag[] = "Interpreter";
     logger(21, tag, message.data());
+}
+
+static std::string PointerToString(void const* ptr)
+{
+    char buffer[32];
+    std::snprintf(buffer, sizeof(buffer), "%p", ptr);
+    return buffer;
+}
+
+static void LogBridgeOptions(int size, const char** options)
+{
+    NativeLog("Interpreter bridge init options count: " + std::to_string(size));
+    if (size <= 0) {
+        return;
+    }
+
+    if (options == nullptr) {
+        NativeLog("Interpreter bridge init options: <null>");
+        return;
+    }
+
+    for (int i = 0; i < size; ++i) {
+        const char* option = options[i];
+        std::string prefix = "Interpreter bridge init option[" + std::to_string(i) + "]: ";
+        if (option != nullptr && std::strcmp(option, APP_LIB_HANDLE_ARG) == 0) {
+            if (i + 1 < size) {
+                NativeLog(prefix + APP_LIB_HANDLE_ARG + "=<handle " + PointerToString(options[i + 1]) + ">");
+                ++i;
+            } else {
+                NativeLog(prefix + APP_LIB_HANDLE_ARG + "=<missing>");
+            }
+            continue;
+        }
+
+        NativeLog(prefix + (option != nullptr ? option : "<null>"));
+    }
 }
 
 static void InitEnvOpts()
@@ -420,6 +458,7 @@ CBC_EXPORT int interpreter_bridge_init(
     g_CJNativeInterfaceInstance = *rtInterf;
 
     NativeLog("Interpreter bridge init started");
+    LogBridgeOptions(size, options);
 
     // Order matters
     InitEnvOpts();
