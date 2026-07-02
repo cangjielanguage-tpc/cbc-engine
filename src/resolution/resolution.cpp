@@ -8,6 +8,7 @@
 #include "engine/symlevel/aot_table.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/dependencies.h"
+#include "engine/symlevel/flags.h"
 #include "engine/symlevel/io/file_id.h"
 #include "engine/symlevel/reader.h"
 #include "engine/symlevel/references.h"
@@ -380,29 +381,18 @@ struct ResolverProxy {
         auto refType = resolver.Wrap(ref.refType);
         auto sret    = ref.flags.Is(Symlevel::MethodRefFlag::SRET);
 
-        switch (ref.refType.GetKind()) {
-            case TermKind::TYPE: {
-                auto call = ResolveCbcCall(resolver, ref);
-                if (call.has_value()) {
-                    return InterfaceCall::Content {
-                        call->refType, call->name, std::move(call->signature), call->methodNum, sret
-                    };
-                }
-                return std::nullopt;
-            }
-
-            case TermKind::AOT_TYPE: {
-                /// FIXME: interface calls
+        if (ref.flags.Is(Symlevel::MethodRefFlag::AOT)) {
                 auto data = file.GetInterfaceCallAotTable().GetData(resolver.session, ref.identifier.GetIndex());
                 auto sig  = ConstructSignature(resolver, ref);
                 return InterfaceCall::Content { refType, ref.name, std::move(sig), data.inum, sret };
+        } else {
+            auto call = ResolveCbcCall(resolver, ref);
+            if (call.has_value()) {
+                return InterfaceCall::Content {
+                    call->refType, call->name, std::move(call->signature), call->methodNum, sret
+                };
             }
-
-            default: {
-                log.Stream(Logging::Level::FATAL)
-                    << "Unexpected ref type in reference " << id.GetValue() << Stream::endl;
-                return std::nullopt;
-            }
+            return std::nullopt;
         }
     }
 
@@ -416,22 +406,12 @@ struct ResolverProxy {
         auto refType = resolver.Wrap(ref.refType);
         auto sret    = ref.flags.Is(Symlevel::MethodRefFlag::SRET);
 
-        switch (ref.refType.GetKind()) {
-            case TermKind::TYPE: {
-                return ResolveCbcCall(resolver, ref);
-            }
-
-            case TermKind::AOT_TYPE: {
-                auto data = file.GetVirtualCallAotTable().GetData(resolver.session, ref.identifier.GetIndex());
-                auto sig  = ConstructSignature(resolver, ref);
-                return VirtualCall::Content { refType, ref.name, std::move(sig), data.methodNum, data.extDefNum, sret };
-            }
-
-            default: {
-                log.Stream(Logging::Level::FATAL)
-                    << "Unexpected ref type in reference " << id.GetValue() << Stream::endl;
-                return std::nullopt;
-            }
+        if (ref.flags.Is(Symlevel::MethodRefFlag::AOT)) {
+            auto data = file.GetVirtualCallAotTable().GetData(resolver.session, ref.identifier.GetIndex());
+            auto sig  = ConstructSignature(resolver, ref);
+            return VirtualCall::Content { refType, ref.name, std::move(sig), data.methodNum, data.extDefNum, sret };
+        } else {
+            return ResolveCbcCall(resolver, ref);
         }
     }
 

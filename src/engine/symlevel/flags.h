@@ -34,7 +34,12 @@ namespace Symlevel {
     X(LIT_INIT)
 
 #define METHOD_REF_FLAGS(X)                                                                                            \
-    X(SRET)
+    X(SRET)                                                                                                            \
+    X(HAS_THIS_TI)                                                                                                     \
+    X(HAS_OUTER_TI)                                                                                                    \
+    X(HAS_BASE_PTR)                                                                                                    \
+    X(HAS_FTVARS)                                                                                                      \
+    X(AOT)                                                                                                             \
 
 #define FLAG_LIST(flag) flag,
 #define FLAG_C_STR(flag)                                                                                               \
