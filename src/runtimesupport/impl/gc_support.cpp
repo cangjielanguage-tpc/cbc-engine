@@ -51,7 +51,7 @@ public:
         }
     }
 
-    void UpdateRegLocations(Interpretation::RegisterList savedRegs, Placeholder calleeSavedRegsEnd)
+    void UpdateRegLocations(Interpretation::NonVolatileRegs savedRegs, Placeholder calleeSavedRegsEnd)
     {
         Placeholder addr = calleeSavedRegsEnd;
         while (!savedRegs.IsEmpty()) {

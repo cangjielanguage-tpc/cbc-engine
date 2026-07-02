@@ -1320,8 +1320,8 @@ Interpretation::ExecBytecodeInfo Rewrite(
 
     return Interpretation::ExecBytecodeInfo {
         .code             = rewrittenCode,
-        .savedIRegs       = Interpretation::RegisterList(code.UsedNonVolIRegMask()),
-        .savedFRegs       = Interpretation::RegisterList(code.UsedNonVolFRegMask()),
+        .savedIRegs       = Interpretation::NonVolatileRegs(code.UsedNonVolIRegMask() << IReg::FIRST_NON_VOL),
+        .savedFRegs       = Interpretation::NonVolatileRegs(code.UsedNonVolFRegMask() << FReg::FIRST_NON_VOL),
         .frameSize        = frameLayout->frameSize,
         .untypedSlotCount = static_cast<uint16_t>(code.UntypedSlotCount()),
         .gcInfo =

@@ -33,11 +33,11 @@ struct GcInfo {
 };
 
 // List of non-zero registers used for storing non-volatile regs.
-struct RegisterList {
+struct NonVolatileRegs {
     uint64_t value {};
 
     // Encode register list from given mask.
-    explicit RegisterList(uint16_t mask)
+    explicit NonVolatileRegs(uint16_t mask)
     {
         // [reg_0: u4, reg_1: u4, .., reg_n: u4, zeros]
         uint64_t list   = 0;
@@ -69,8 +69,8 @@ struct RegisterList {
 
 struct ExecBytecodeInfo {
     Code const code;
-    RegisterList savedIRegs;
-    RegisterList savedFRegs;
+    NonVolatileRegs savedIRegs;
+    NonVolatileRegs savedFRegs;
     uint32_t const frameSize;
     uint16_t const untypedSlotCount;
     GcInfo const gcInfo;
