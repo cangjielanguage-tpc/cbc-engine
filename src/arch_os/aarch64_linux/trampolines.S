@@ -9,6 +9,8 @@
 .extern engine_prepare_bytecode
 .extern engine_interpretation_loop
 .extern engine_fiber_data_init
+.extern engine_get_exception_handler
+.extern engine_get_and_clear_pending_exception
 
 // exported
 declare_hidden engine_c2i_call_pc_start
@@ -34,6 +36,11 @@ declare_hidden engine_newthread_nret_function
 declare_hidden engine_carrier_specific_offset
 declare_hidden engine_cjthread_specific_offset
 declare_hidden engine_i2_spawn
+declare_hidden engine_throw_out_of_interpreter
+declare_hidden engine_throw_implicit_exception
+declare_hidden engine_implicit_exception_thrower
+declare_hidden engine_handle_exception
+declare_hidden common_landing_pad
 
 // --- SECTION BSS ---
 .section .bss
@@ -45,6 +52,10 @@ engine_universal_direct_function_handles:
 .balign 64
 .Lfunc_anchor:
 engine_tls_function:
+  .skip 8
+engine_throw_out_of_interpreter:
+  .skip 8
+engine_implicit_exception_thrower:
   .skip 8
 engine_newobject_function:
   .skip 8
@@ -209,7 +220,7 @@ engine_i2i_call:
 
   blr   x9
 
-  str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8)]
+  str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE)]
 
   b     .Lrestart_interpretation
 .endm
@@ -284,7 +295,7 @@ engine_i2_newobject:
   ldr   x10, [x10, :lo12:engine_newobject_function]
   blr   x10
 
-  str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8)]
+  str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE)]
   restore_tls
 
   b     .Lrestart_interpretation
@@ -299,7 +310,7 @@ engine_i2_newobject_acc:
   ldr   x10, [x10, :lo12:engine_newobject_function]
   blr   x10
 
-  str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8 * 14)]
+  str   x0, [ECTYPE_REG, #ECTYPE_IACC_OFFSET]
   restore_tls
 
   b     .Lrestart_interpretation
@@ -315,7 +326,7 @@ engine_i2_newarray:
   ldr   x10, [x10, :lo12:engine_newarray_function]
   blr   x10
 
-  str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8)]
+  str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE)]
   restore_tls
 
   b     .Lrestart_interpretation
@@ -330,7 +341,7 @@ engine_i2_gcpoint:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo)
 // preserved: ECTYPE_REG, x29
 engine_i2_spawn:
-  ldr   x1, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8)]
+  ldr   x1, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE)]
   mov   x3, x0
   adr   x0, engine_fake_execute_closure
   mov   x2, 0
@@ -401,7 +412,7 @@ perform_2i_call:
   str   x8, [x29, #-READER_SLOT_OFFSET + 0x10]
   str   x1, [x29, #-READER_SLOT_OFFSET + 0x8]
 #endif
-  str   x1, [x29, #READER_SLOT_OFFSET]
+  str   x1, [x29, #-READER_SLOT_OFFSET]
 
   mov   x1, sp // save current sp for registers saving to the bottom of frame
 
@@ -452,7 +463,7 @@ perform_2i_call:
 
 .Lend_interpretation:
 
-  ldr   x9, [x29, #-0x8] // load Function Handle
+  ldr   x9, [x29, #-FUH_SLOT_OFFSET] // load Function Handle
   ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
 
   ldr   w1, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
@@ -462,20 +473,20 @@ perform_2i_call:
 .macro POP_IREGS mask_reg, stack_reg, exec_info_reg
     ldrh  \mask_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
     .irp reg, 10,11,12,13
-        tbz \mask_reg, #(\reg-8), .Lloadireg\reg
+        tbz \mask_reg, #(\reg-8), .L\@skipireg\reg
         ldr x2, [\stack_reg, #-0x8]!
-        str x2, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + \reg*8)]
-.Lloadireg\reg:
+        str x2, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + \reg*ECTYPE_REG_SIZE)]
+.L\@skipireg\reg:
     .endr
 .endm
 
 .macro POP_FREGS mask_reg, stack_reg, exec_info_reg
     ldrh  \mask_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_FREGS_OFFSET]
     .irp reg, 8,9,10,11,12,13,14,15
-        tbz \mask_reg, #(\reg-8), .Lloadfreg\reg
+        tbz \mask_reg, #(\reg-8), .L\@skipfreg\reg
         ldr d2, [\stack_reg, #-0x8]!
-        str d2, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET + \reg*8)]
-.Lloadfreg\reg:
+        str d2, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET + \reg*ECTYPE_REG_SIZE)]
+.L\@skipfreg\reg:
     .endr
 .endm
 
@@ -495,3 +506,100 @@ engine_fake_execute_closure:
   // (x8: sret, x0: ()T, x1: TypeInfo[Future[T]]
   ldr   x2, [x0, #0x10]
   br    x2
+
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: exception type)
+// preserved: ECTYPE_REG, x29
+// TLS_REG can be changed after context-switch
+engine_throw_implicit_exception:
+  // jumped from .Linterpreter_call without return address to return
+  adrp  x9, engine_implicit_exception_thrower
+  ldr   x9, [x9, :lo12:engine_implicit_exception_thrower]
+  blr   x9
+  brk   #0 // should not return, as exception is thrown inside call
+
+// expects: (ECTYPE_REG: ectype)
+// When exception is thrown from CJNative code to interpreter, execution of
+// interpreter exception handling starts here
+// TODO obtain exception using PostThrowException from RT interface
+common_landing_pad:
+  bl engine_get_and_clear_pending_exception
+  b engine_handle_exception
+
+// expects: (ECTYPE_REG: ectype, x0: exception reference)
+// Returns to interpretation loop with exception reference on ACC_REG
+// or throws exception reference using CJNative runtime interface if there is no any exception handler in consecutive interpreter frames.
+// Precondition: top frame is interpreter frame.
+.balign 16
+engine_handle_exception:
+  mov   x21, x0
+
+  ldr   x0, [x29, #-FUH_SLOT_OFFSET]
+  sub   x1, x29, #READER_SLOT_OFFSET // reader
+  bl    engine_get_exception_handler
+
+  cbz   w0, .Lunwind_top_frame
+
+  // Handler is found, set exception object to ACC_REG and continue interpretation
+  str   x21, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + ECTYPE_IACC_NUM * ECTYPE_REG_SIZE)]
+  b     .Lrestart_interpretation
+
+.Lunwind_top_frame:
+  // Restore spilled non-volatile regs before clearing the frame
+  ldr   x9, [x29, #-FUH_SLOT_OFFSET]
+  ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
+  ldr   w1, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
+  mov   x2, sp
+  add   x1, x1, x2            // start of saved regs area
+
+  POP_IREGS w8, x1, x9
+  POP_FREGS w8, x1, x9
+
+  ldr   LITERALS_REG, [x29, #-0x18]
+  ldr   ECTYPE_REG, [x29, #-0x10]
+
+  // Clear top frame
+  mov   sp, x29
+  ldp   x29, x30, [sp], #16
+
+  // Check if next method is C2I adapter
+  adrp  x9, engine_c2i_call_pc_start
+  add   x9, x9, :lo12:engine_c2i_call_pc_start
+  cmp   x30, x9
+  b.lo  .Lhandle_next_dyn_func
+  adrp  x9, engine_c2i_call_pc_end
+  add   x9, x9, :lo12:engine_c2i_call_pc_end
+  cmp   x30, x9
+  b.hs  .Lhandle_next_dyn_func
+
+  // Unwind next frame (C2I) and when there are no interpreter frames
+  // throw exception using CJNative runtime (as it usually done in AOT code)
+.Llast_interpreter_frame_unwinding:
+  mov   x0, x21              // set exception pointer as argument
+
+  // Restore C2I saved regs
+  add   sp, sp, #16          // skip saved fuh
+  ldp   x27, x28, [sp], #16
+  ldp   x23, x24, [sp], #16
+  ldp   x21, x22, [sp], #16
+  ldp   x19, x20, [sp], #16
+  ldp   x29, x30, [sp], #16
+
+  // Now stack has the following layout:
+  //
+  // |                     |
+  // |         ...         |
+  // | AOT func frame data |
+  // |---------------------|
+  //
+  // x30: AOT func ret ip
+  //
+  // So br to engine_throw_out_of_interpreter can be seen as blr from AOT function.
+
+  adrp  x9, engine_throw_out_of_interpreter
+  ldr   x9, [x9, :lo12:engine_throw_out_of_interpreter]
+  br    x9
+  brk   #0
+
+.Lhandle_next_dyn_func:
+  mov   x0, x21
+  b     engine_handle_exception

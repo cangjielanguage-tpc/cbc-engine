@@ -92,7 +92,8 @@
     X(OFFSET, B6xri32, "offset $1ir $2U32 }")                                                                          \
     X(READ_STRUCT_FIELD, StructFieldOp, "read.struct.field $0ir $1ir $2ir $4U64")                                      \
     X(WRITE_STRUCT_FIELD, StructFieldOp, "write.struct.field $0ir $1ir $2ir $4U64")                                    \
-    X(THROW, B2xr, "throw $1ir")
+    X(THROW, B2xr, "throw $1ir")                                                                                       \
+    X(CATCH, B2xr, "catch $1ir")
 
 // X parameters: opcode, encoding format, string format, is tail
 #define CBC_RT_MEMOPCODES(X)                                                                                           \

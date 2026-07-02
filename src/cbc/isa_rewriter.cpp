@@ -594,7 +594,7 @@ struct IsaRewriter : public IsaParser {
 
     void NullCheck(IReg reg) override { emit.NullCheck(reg); }
 
-    void Catch(IReg reg) override { FATAL("not implemented"); }
+    void Catch(IReg reg) override { emit.Catch(reg); }
 
     void Throw(IReg reg) override { emit.Throw(reg); }
 
@@ -1331,6 +1331,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
                 .positionalInfo = std::move(CalculatePositionalGCInfo(session, code, emitter, rewriter.statePoints)),
                 .typedSlotsInfo = std::move((*frameLayout).typedSlotsInfo),
             },
+        .offsetsIndex = std::move(rewriter.BuildOffsetsIndex()),
     };
 }
 

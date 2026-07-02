@@ -854,6 +854,8 @@ void Emitter::Throw(IReg reg)
     Encode(segment, RT::B2xr { .opc = RT::Opcode::THROW, .xr = { .imm = 0, .r = reg } });
 }
 
+void Emitter::Catch(IReg reg) { Encode(segment, RT::B2xr { .opc = RT::Opcode::CATCH, .xr = { .imm = 0, .r = reg } }); }
+
 void Emitter::LoadGenericTypeInfo(uintptr_t termData)
 {
     Encode(segment, RT::B9i64 { .opc = RT::Opcode::LOAD_GENERIC_TI, .imm64 = { termData } });

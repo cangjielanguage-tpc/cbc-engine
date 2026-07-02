@@ -1,5 +1,7 @@
 #include "offsets_index.h"
 
+#include "emitter/emitter.h"
+
 #include <algorithm>
 
 namespace Cbc {

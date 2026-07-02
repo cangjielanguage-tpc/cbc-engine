@@ -3,6 +3,11 @@
 
 namespace Symlevel {
 
+Code Code::Resolve(Engine::Session& session, Engine::Identifier<Code> identifier)
+{
+    return Parse(session, identifier.GetFileId(), identifier.GetOffset());
+}
+
 Code Code::Parse(Engine::Session& session, IO::FileId fileId, Offset<Code> offset)
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetCodeSectionOffs() + offset);

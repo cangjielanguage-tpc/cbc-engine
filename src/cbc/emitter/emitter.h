@@ -223,6 +223,7 @@ public:
     void ReadStructField(IReg dst, IReg base, IReg field, RTSupport::TypeInfo ti);
 
     void Throw(IReg dst);
+    void Catch(IReg dst);
 
     MemSpace OpenMemSpace();
 

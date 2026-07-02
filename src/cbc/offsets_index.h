@@ -1,14 +1,20 @@
 #pragma once
 
-#include "emitter/emitter.h"
 #include "utils/assertion.h"
 
 #include <optional>
 #include <stdint.h>
+#include <unistd.h>
+#include <unordered_map>
 #include <variant>
 #include <vector>
 
 namespace Cbc {
+
+namespace Emitter {
+class Emitter;
+class Label;
+} // namespace Emitter
 
 enum InstructionType {
     CBC,

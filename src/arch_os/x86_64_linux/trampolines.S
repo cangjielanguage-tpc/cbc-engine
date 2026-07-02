@@ -11,6 +11,8 @@
 .extern engine_prepare_bytecode
 .extern engine_interpretation_loop
 .extern engine_fiber_data_init
+.extern engine_get_exception_handler
+.extern engine_get_and_clear_pending_exception
 
 // exported
 declare_hidden engine_c2i_call_pc_start
@@ -30,9 +32,14 @@ declare_hidden engine_universal_direct_function_handles
 declare_hidden engine_tls_function
 declare_hidden engine_read_generic
 declare_hidden engine_i2_load_generic
+declare_hidden engine_throw_out_of_interpreter
+declare_hidden engine_throw_implicit_exception
+declare_hidden engine_implicit_exception_thrower
 declare_hidden engine_newobject_function
 declare_hidden engine_newarray_function
 declare_hidden engine_newthread_nret_function
+declare_hidden engine_handle_exception
+declare_hidden common_landing_pad
 declare_hidden engine_carrier_specific_offset
 declare_hidden engine_cjthread_specific_offset
 declare_hidden engine_i2_spawn
@@ -46,6 +53,10 @@ engine_universal_direct_function_handles:
 
 .balign 64
 engine_tls_function:
+  .skip 8
+engine_throw_out_of_interpreter:
+  .skip 8
+engine_implicit_exception_thrower:
   .skip 8
 engine_newobject_function:
   .skip 8
@@ -73,6 +84,32 @@ engine_cjthread_specific_offset:
   .irp reg, \regs
     pop  \reg
   .endr
+.endm
+
+.macro POP_IREGS mask_reg, stack_reg, exec_info_reg
+    movzx   \mask_reg, WORD PTR [\exec_info_reg + EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
+    .irp reg, 8,9,10,11,12,13
+        .set _bit, (\reg - 8)
+        test    \mask_reg, (1 << _bit)
+        jz      .L\@skipireg\reg
+        sub     \stack_reg, 8
+        mov     rsi, QWORD PTR [\stack_reg]
+        mov     QWORD PTR [ECTYPE_REG + ECTYPE_IREGS_OFFSET + \reg*ECTYPE_REG_SIZE], rsi
+.L\@skipireg\reg:
+    .endr
+.endm
+
+.macro POP_FREGS mask_reg, stack_reg, exec_info_reg
+    movzx   \mask_reg, WORD PTR [\exec_info_reg + EXEC_BYTECODE_INFO_SAVED_FREGS_OFFSET]
+    .irp reg, 8,9,10,11,12,13,14,15
+        .set _bit, (\reg - 8)
+        test    \mask_reg, (1 << _bit)
+        jz      .L\@skipfreg\reg
+        sub     \stack_reg, 8
+        mov     rsi, QWORD PTR [\stack_reg]
+        mov     QWORD PTR [ECTYPE_REG + ECTYPE_FREGS_OFFSET + \reg*ECTYPE_REG_SIZE], rsi
+.L\@skipfreg\reg:
+    .endr
 .endm
 
 .balign 16
@@ -148,7 +185,7 @@ engine_trampolines_dyn_end:
   mov   rdi, rax
   call perform_2i_call
 
-  mov   rax,  [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8]
+  mov   rax,  [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE]
 
   pop   rbx // remove FunctionHandle
   pop   rbx
@@ -219,7 +256,7 @@ engine_i2i_call:
 
   call r10
 
-  mov [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8], rax
+  mov [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE], rax
 
   jmp .Lrestart_interpretation
 .endm
@@ -277,7 +314,6 @@ engine_i2_load_generic:
   call  [rip + engine_read_generic]
   jmp   .Lrestart_interpretation
 
-
 .balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
 // preserved: ECTYPE_REG, rbp
@@ -285,7 +321,7 @@ engine_i2_load_generic:
 engine_i2_newobject:
   // jumped from .Linterpreter_call without return address to return
   call  [rip + engine_newobject_function]
-  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8], rax
+  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE], rax
   restore_tls
   jmp   .Lrestart_interpretation
 
@@ -296,7 +332,7 @@ engine_i2_newobject:
 engine_i2_newobject_acc:
   // jumped from .Linterpreter_call without return address to return
   call  [rip + engine_newobject_function]
-  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8 * 14], rax // move to acc register
+  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE * ECTYPE_IACC_NUM], rax // move to acc register
   restore_tls
   jmp   .Lrestart_interpretation
 
@@ -308,12 +344,12 @@ engine_i2_newarray:
   // jumped from .Linterpreter_call without return address to return
   mov   rsi, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x10]
   call  [rip + engine_newarray_function]
-  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8], rax
+  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE], rax
   restore_tls
   jmp   .Lrestart_interpretation
 
-// expects: (ECTYPE_REG: ectype, rdi: safe_point_f)
 .balign 16
+// expects: (ECTYPE_REG: ectype, rdi: safe_point_f)
 engine_i2_gcpoint:
   call rdi
   restore_tls
@@ -323,7 +359,7 @@ engine_i2_gcpoint:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
 // preserved: ECTYPE_REG, rbp
 engine_i2_spawn:
-  mov   rsi, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8]
+  mov   rsi, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE]
   mov   rcx, rdi
   lea   rdi, [rip + engine_fake_execute_closure]
   xor   edx, edx
@@ -385,13 +421,15 @@ perform_2i_call:
 
   mov   LITERALS_REG, [rax + EXEC_BYTECODE_INFO_LITERALS_OFFSET]
   mov   rsi, [rax + EXEC_BYTECODE_INFO_BYTECODE_OFFSET]
+
+  // construct reader
 #ifndef NDEBUG
   mov   r8, [rax + EXEC_BYTECODE_INFO_BYTECODE_SIZE_OFFSET]
   add   r8, rsi
-  mov   [rbp - READER_SLOT_OFFSET + 0x10], r8
-  mov   [rbp - READER_SLOT_OFFSET + 0x8], rsi
+  mov   [rbp - READER_SLOT_OFFSET + 0x10], r8 // end
+  mov   [rbp - READER_SLOT_OFFSET + 0x8], rsi // start
 #endif
-  mov   [rbp - READER_SLOT_OFFSET], rsi
+  mov   [rbp - READER_SLOT_OFFSET], rsi // cursor
 
 #ifndef NDEBUG
   mov   rdi, [rbp - FUH_SLOT_OFFSET]
@@ -401,7 +439,7 @@ perform_2i_call:
 
   mov   rdx, rsp // save current sp for registers saving to the bottom of frame
 
-  mov   rax, [rbp - 0x8] // load Function Handle
+  mov   rax, [rbp - FUH_SLOT_OFFSET] // load Function Handle
   mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
 
   // current rsp is 16-byte.baligned
@@ -472,32 +510,6 @@ perform_2i_call:
   mov   edx, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   add   rdx, rsp // add frame size to locate saved registers
 
-.macro POP_IREGS mask_reg, stack_reg, exec_info_reg
-    movzx   \mask_reg, WORD PTR [\exec_info_reg + EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
-    .irp reg, 8,9,10,11,12,13
-        .set _bit, (\reg - 8)
-        test    \mask_reg, (1 << _bit)
-        jz      .Lloadireg\reg
-        sub     \stack_reg, 8
-        mov     rsi, QWORD PTR [\stack_reg]
-        mov     QWORD PTR [ECTYPE_REG + ECTYPE_IREGS_OFFSET + \reg*8], rsi
-.Lloadireg\reg:
-    .endr
-.endm
-
-.macro POP_FREGS mask_reg, stack_reg, exec_info_reg
-    movzx   \mask_reg, WORD PTR [\exec_info_reg + EXEC_BYTECODE_INFO_SAVED_FREGS_OFFSET]
-    .irp reg, 8,9,10,11,12,13,14,15
-        .set _bit, (\reg - 8)
-        test    \mask_reg, (1 << _bit)
-        jz      .Lloadfreg\reg
-        sub     \stack_reg, 8
-        mov     rsi, QWORD PTR [\stack_reg]
-        mov     QWORD PTR [ECTYPE_REG + ECTYPE_FREGS_OFFSET + \reg*8], rsi
-.Lloadfreg\reg:
-    .endr
-.endm
-
   POP_IREGS ecx, rdx, rax
   POP_FREGS ecx, rdx, rax
 
@@ -516,3 +528,98 @@ engine_fake_execute_closure:
   mov   rcx, [rsi + 0x10] // get $i (instantiated) version of closure function
   mov   rdi, rsi
   jmp   rcx
+
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: exception type)
+// preserved: ECTYPE_REG, rbp
+// TLS_REG can be changed after context-switch
+engine_throw_implicit_exception:
+  // jumped from .Linterpreter_call without return address to return
+  call  [rip + engine_implicit_exception_thrower]
+  ud2 // should not return, as exception is thrown inside call
+
+// expects: (ECTYPE_REG: ectype)
+// When exception is thrown from CJNative code to interpreter, execution of
+// interpreter exception handling starts here
+// TODO obtain exception using PostThrowException from RT interface
+common_landing_pad:
+  call engine_get_and_clear_pending_exception
+  mov rdi, rax
+  jmp engine_handle_exception
+
+// expects: (ECTYPE_REG: ectype, rdi: exception reference)
+// Returns to interpretation loop with exception reference on ACC_REG
+// or throws exception reference using CJNative runtime interface if there is no any exception handler in consecutive interpreter frames.
+// Precondition: top frame is interpreter frame.
+.align 16
+engine_handle_exception:
+  mov   r12, rdi
+
+  mov   rdi, QWORD PTR [rbp - FUH_SLOT_OFFSET]
+  lea   rsi, QWORD PTR [rbp - READER_SLOT_OFFSET] // reader
+  call  engine_get_exception_handler
+
+  test  al, al
+  jz   .Lunwind_top_frame
+
+  // Handler is found, set exception object to ACC_REG and continue interpretation
+  mov   QWORD PTR [ECTYPE_REG + ECTYPE_IACC_OFFSET], r12
+  jmp   .Lrestart_interpretation
+
+.Lunwind_top_frame:
+  // Restore spilled non-volatile regs before clearing the frame
+  mov   rax, QWORD PTR [rbp - FUH_SLOT_OFFSET]
+  mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
+  mov   edx, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
+  add   rdx, rsp // start of saved regs area
+
+  POP_IREGS ecx, rdx, rax
+  POP_FREGS ecx, rdx, rax
+
+  mov   LITERALS_REG, [rbp - 0x18]
+  mov   ECTYPE_REG, [rbp - 0x10]
+
+  // Clear top frame
+  mov rsp, rbp
+  pop rbp
+  pop rdi // ret addr
+
+  // Check if next method is C2I adapter
+  lea   rax, [rip + engine_c2i_call_pc_start]
+  cmp   rdi, rax
+  jb    .Lhandle_next_dyn_func
+  lea   rax, [rip + engine_c2i_call_pc_end]
+  cmp   rdi, rax
+  jae   .Lhandle_next_dyn_func
+
+  // Unwind C2I frame and when there are no interpreter frames
+  // throw exception using CJNative runtime (as it usually done in AOT code)
+.Llast_interpreter_frame_unwinding:
+  mov   rdi, r12 // set exception pointer as argument
+
+  // TODO use macros here
+  // Restore C2I saved regs
+  pop   rbx // pop saved fuh
+  pop   rbx
+  pop   r12
+  pop   r13
+  pop   r14
+  pop   rbp // pop TLD
+  pop   rbp
+
+  // Now stack has the following layout:
+  //
+  // |                     |
+  // |         ...         |
+  // | AOT func frame data |
+  // |---------------------|
+  // |   AOT func ret ip   |
+  // |---------------------|
+  //
+  // So jumping to engine_throw_out_of_interpreter can be seen as call from AOT function.
+
+  jmp   [rip + engine_throw_out_of_interpreter]
+  ud2
+
+.Lhandle_next_dyn_func:
+  mov   rdi, r12
+  jmp   engine_handle_exception
