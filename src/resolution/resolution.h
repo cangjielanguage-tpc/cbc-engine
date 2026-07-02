@@ -84,6 +84,7 @@ struct DirectCall {
     };
 
     Content* operator->() const { return content; };
+    Content* Get() const { return content; };
 
     DirectCall(Content* content) : content(content) {}
 
@@ -102,6 +103,7 @@ struct VirtualCall {
     };
 
     Content* operator->() const { return content; };
+    Content* Get() const { return content; };
 
     VirtualCall(Content* content) : content(content) {}
 
@@ -119,6 +121,7 @@ struct InterfaceCall {
     };
 
     Content* operator->() const { return content; };
+    Content* Get() const { return content; };
 
     InterfaceCall(Content* content) : content(content) {}
 
@@ -136,6 +139,7 @@ struct InstanceField {
     };
 
     Content* operator->() const { return content; };
+    Content* Get() const { return content; };
 
     InstanceField(Content* content) : content(content) {}
 
@@ -152,6 +156,7 @@ struct StaticField {
     };
 
     Content* operator->() const { return content; };
+    Content* Get() const { return content; };
 
     StaticField(Content* content) : content(content) {}
 

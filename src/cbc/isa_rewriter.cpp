@@ -180,7 +180,6 @@ struct IsaRewriter : public IsaParser {
 
     std::vector<FailureMessage> failureMessages;
 
-    // TODO: remove or it is needed for exceptions?
     InstructionOffsetsIndex BuildOffsetsIndex() { return InstructionOffsetsIndex::Create(emit, instructionLabel); }
 
     Emitter::Label InstructionLabel(ssize_t position)
@@ -618,7 +617,10 @@ struct IsaRewriter : public IsaParser {
         emit.InstanceOf(dst, obj, typeInfo);
     }
 
-    void LoadTypeInfoObj(IReg dst, IReg obj) override { FATAL("not implemented"); }
+    void LoadTypeInfoObj(IReg dst, IReg obj) override
+    {
+        emit.LoadObj(Format::LoadAccessKind::LD_64, dst, obj, 0);
+    }
 
     void InitObj(uint16_t ts) override { FATAL("not implemented"); }
 
