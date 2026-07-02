@@ -32,12 +32,47 @@ struct GcInfo {
     std::vector<std::pair<uint32_t, void*>> typedSlotsInfo;
 };
 
+// List of non-zero registers used for storing non-volatile regs.
+struct RegisterList {
+    uint64_t value {};
+
+    // Encode register list from given mask.
+    explicit RegisterList(uint16_t mask)
+    {
+        // [reg_0: u4, reg_1: u4, .., reg_n: u4, zeros]
+        uint64_t list   = 0;
+        uint64_t reg    = 0;
+        uint64_t p      = 1;
+        uint64_t offset = 0;
+        // Ascending order
+        while (reg < 16) {
+            if (mask & p) {
+                list    = list | (reg << offset);
+                offset += 4;
+            }
+            reg++;
+            p <<= 1;
+        }
+        value = list;
+    }
+
+    // Extract one register from register list.
+    uint8_t ExtractReg()
+    {
+        uint64_t result = value & 0xf;
+        value           = value >> 4;
+        return result;
+    }
+
+    bool IsEmpty() { return value == 0; }
+};
+
 struct ExecBytecodeInfo {
     Code const code;
-    uint16_t const savedIRegs;
-    uint16_t const savedFRegs;
-    uint16_t const untypedSlotCount;
+    RegisterList savedIRegs;
+    RegisterList savedFRegs;
     uint32_t const frameSize;
+    uint16_t const untypedSlotCount;
     GcInfo const gcInfo;
     InstructionOffsetsIndex const offsetsIndex; // TODO: optimize RAM footprint
 

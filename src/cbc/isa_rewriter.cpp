@@ -1320,10 +1320,10 @@ Interpretation::ExecBytecodeInfo Rewrite(
 
     return Interpretation::ExecBytecodeInfo {
         .code             = rewrittenCode,
-        .savedIRegs       = code.UsedNonVolIRegMask(),
-        .savedFRegs       = code.UsedNonVolFRegMask(),
-        .untypedSlotCount = static_cast<uint16_t>(code.UntypedSlotCount()),
+        .savedIRegs       = Interpretation::RegisterList(code.UsedNonVolIRegMask()),
+        .savedFRegs       = Interpretation::RegisterList(code.UsedNonVolFRegMask()),
         .frameSize        = frameLayout->frameSize,
+        .untypedSlotCount = static_cast<uint16_t>(code.UntypedSlotCount()),
         .gcInfo =
             Interpretation::GcInfo {
                 .positionalInfo = std::move(CalculatePositionalGCInfo(session, code, emitter, rewriter.statePoints)),
