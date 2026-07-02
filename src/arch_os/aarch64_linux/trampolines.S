@@ -412,7 +412,7 @@ perform_2i_call:
   str   x8, [x29, #-READER_SLOT_OFFSET + 0x10]
   str   x1, [x29, #-READER_SLOT_OFFSET + 0x8]
 #endif
-  str   x1, [x29, #READER_SLOT_OFFSET]
+  str   x1, [x29, #-READER_SLOT_OFFSET]
 
   mov   x1, sp // save current sp for registers saving to the bottom of frame
 
