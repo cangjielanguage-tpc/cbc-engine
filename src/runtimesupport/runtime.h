@@ -6,6 +6,7 @@
 #include "engine/terms.h"
 #include "interpreter/ectype.h"
 #include "interpreter/int_thunk.h"
+#include "interpreter/implicit_exceptions.h"
 #include <cstdint>
 #include <functional>
 
@@ -68,6 +69,10 @@ struct Execution {
 
     static void* LoadGeneric();
 
+    static void* HandleException();
+
+    static void* ThrowImplicitException();
+
     static void* GcPoint();
 
     static void* GcPointTrampoline();
@@ -107,6 +112,9 @@ struct Execution {
     static Reference GetLocalBasePtr();
 
     static TypeInfo TypeArg(TypeInfo ti, uint32_t idx);
+
+    static Reference GetPendingException();
+    static Reference GetAndClearPendingException();
 };
 
 struct MetaInfo {

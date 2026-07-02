@@ -1,5 +1,6 @@
 #include "runtimesupport/impl/entrypoint.h"
 
+#include <algorithm>
 #include <mutex>
 
 #include "RTInterface.h"
@@ -19,6 +20,7 @@
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
 #include "interpreter/interpretation_loop.h"
+#include "interpreter/implicit_exceptions.h"
 #include "interpreter/loggers.h"
 #include "runtimesupport/impl/rt_syms.h"
 #include "utils/logger.h"
@@ -258,6 +260,14 @@ static void VisitGlobalRoots(DYN_RootVisitor visitor)
     }
 }
 
+// TODO implement
+static void FrameInfoProvider(DYN_FramePointer fp, DYN_InstructionPointer ip, INT_InterpretedFrameInfo* info)
+{
+    info->bcPos = 0;
+    info->fuh   = nullptr;
+    return;
+}
+
 extern "C" {
 /// This symbol is exported to the runtime, which would initialize engine.
 CBC_EXPORT int interpreter_bridge_init(
@@ -336,10 +346,15 @@ CBC_EXPORT int interpreter_bridge_init(
     interpInterf->visitFrameRootsAdjusting = &VisitFrameRootsAdjusting;
     interpInterf->visitGlobalRoots         = &VisitGlobalRoots;
 
+    interpInterf->frameInfoProvider = &FrameInfoProvider;
+
+    interpInterf->landingPad = Asm::common_landing_pad;
+
     Asm::engine_carrier_specific_offset  = g_CJNativeInterfaceInstance.carrierSpecificOffset;
     Asm::engine_cjthread_specific_offset = g_CJNativeInterfaceInstance.cjThreadSpecificOffset;
 
     Asm::engine_tls_function = g_CJNativeInterfaceInstance.getThreadLocalData;
+    Asm::engine_throw_out_of_interpreter = g_CJNativeInterfaceInstance.throwException;
     Asm::engine_newobject_function = g_CJNativeInterfaceInstance.objectAlloc;
     Asm::engine_newarray_function = g_CJNativeInterfaceInstance.arrayAlloc;
     RTSupport::Initialize(&g_CJNativeInterfaceInstance);

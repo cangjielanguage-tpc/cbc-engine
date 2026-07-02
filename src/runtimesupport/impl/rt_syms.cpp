@@ -1,5 +1,6 @@
 #include "rt_syms.h"
 #include "runtimesupport/impl/asm_trampolines.h"
+#include "utils/assertion.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
 #include "utils/rt_logger.h"
@@ -21,11 +22,24 @@ struct Handle {
     void* handle;
     std::string name;
 
+    Handle() : handle(nullptr) {}
+
     Handle(void* handle, std::string&& name) : handle(handle), name(std::move(name)) {}
 
     Handle(Handle const& handle) = delete;
 
     Handle(Handle&& handle) : handle(handle.handle) { handle.handle = nullptr; }
+
+    Handle& operator=(Handle&& other)
+    {
+        if (handle != nullptr) {
+            FATAL("Trying to rewrite existing handle");
+        }
+        name         = std::move(other.name);
+        handle       = other.handle;
+        other.handle = nullptr;
+        return *this;
+    }
 
     static std::optional<Handle> Open(std::string&& str)
     {
@@ -55,6 +69,9 @@ struct Handle {
         }
     }
 };
+
+// Prolongs lifetime of helper lib handle after finish of Initialize.
+Handle g_helperLibHandle;
 
 void Initialize(DYN_CJNativeInterface* interf)
 {
@@ -90,6 +107,23 @@ void Initialize(DYN_CJNativeInterface* interf)
         stream << interf->stackGrowStub << " " << stackGrowStub << Stream::endl;
         return;
     }
+
+    const char* helperLibName = "libcbcengine-helper.so";
+    auto helperHandleOpt      = Handle::Open(helperLibName);
+    if (!helperHandleOpt.has_value()) {
+        Log::init.Stream(Logging::Level::ERROR) << "failed to open lib " << helperLibName << Stream::endl;
+        return;
+    }
+
+    const char* throwerName = "_CN7default22throwImplicitExceptionHl";
+    auto throwerSym         = helperHandleOpt.value().Sym(throwerName);
+    if (throwerSym == nullptr) {
+        Log::init.Stream(Logging::Level::ERROR) << "failed to find symbol " << throwerName << Stream::endl;
+        return;
+    }
+
+    g_helperLibHandle                      = std::move(helperHandleOpt.value());
+    Asm::engine_implicit_exception_thrower = reinterpret_cast<void (*)(int)>(throwerSym);
 }
 
 } // namespace RTSupport

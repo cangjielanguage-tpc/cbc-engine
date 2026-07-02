@@ -84,6 +84,18 @@ void* Execution::AllocateArrayInstance() { FATAL("Should not reach here"); }
 
 void* Execution::LoadGeneric() { FATAL("Should not reach here"); }
 
+void* Execution::HandleException()
+{
+    FATAL("Should not reach here");
+    return nullptr;
+}
+
+void* Execution::ThrowImplicitException()
+{
+    FATAL("Should not reach here");
+    return nullptr;
+}
+
 void* Execution::GcPointTrampoline() { FATAL("Should not reach here"); }
 
 void* Execution::Spawn() { FATAL("Should not reach here"); }
@@ -106,6 +118,18 @@ bool Execution::IsGlobalStruct(Reference base, uintptr_t derived) { FATAL("Shoul
 Reference Execution::GetGlobalBasePtr() { FATAL("Should not reach here"); }
 
 Reference Execution::GetLocalBasePtr() { FATAL("Should not reach here"); }
+
+Reference Execution::GetPendingException()
+{
+    FATAL("Should not reach here");
+    return Reference { .value = 0 };
+}
+
+Reference Execution::GetAndClearPendingException()
+{
+    FATAL("Should not reach here");
+    return Reference { .value = 0 };
+}
 
 void* Adapters::GenericI2CCallInstance() { FATAL("Should not reach here"); }
 

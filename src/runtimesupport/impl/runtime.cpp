@@ -10,6 +10,7 @@
 #include "interpreter/function_handle.h"
 #include "interpreter/interpretation_loop.h"
 #include "runtimesupport/adapters.h"
+#include "interpreter/implicit_exceptions.h"
 #include "runtimesupport/impl/rt_syms.h"
 #include "runtimesupport/impl/typeinfo_ext.h"
 #include "utils/assertion.h"
@@ -87,6 +88,10 @@ void* Execution::AllocateObjectInstance() { return reinterpret_cast<void*>(&Asm:
 void* Execution::AllocateObjectInstanceAcc() { return reinterpret_cast<void*>(&Asm::engine_i2_newobject_acc); }
 
 void* Execution::AllocateArrayInstance() { return reinterpret_cast<void*>(&Asm::engine_i2_newarray); }
+
+void* Execution::HandleException() { return reinterpret_cast<void*>(&Asm::engine_handle_exception); }
+
+void* Execution::ThrowImplicitException() { return reinterpret_cast<void*>(&Asm::engine_throw_implicit_exception); }
 
 void* Execution::GcPoint() { return reinterpret_cast<void*>(g_CJNativeInterfaceInstance.safePoint); }
 
@@ -206,6 +211,19 @@ Reference Execution::GetGlobalBasePtr()
 }
 
 Reference Execution::GetLocalBasePtr() { return Reference { .value = 0 }; }
+
+Reference Execution::GetPendingException()
+{
+    return Reference { .value = reinterpret_cast<uintptr_t>(g_CJNativeInterfaceInstance.getPendingException()) };
+}
+
+Reference Execution::GetAndClearPendingException()
+{
+    return Reference { .value =
+                           reinterpret_cast<uintptr_t>(g_CJNativeInterfaceInstance.getAndClearPendingException()) };
+}
+
+extern "C" Reference engine_get_and_clear_pending_exception() { return Execution::GetAndClearPendingException(); }
 
 const char* MetaInfo::GetName(TypeInfo ti)
 {

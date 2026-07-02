@@ -3,7 +3,10 @@
 #include "cbc/isa.h"
 #include "cbc/isa_rt.h"
 #include "engine/terms.h"
+#include "engine/symlevel/code.h"
+#include "engine/symlevel/definitions.h"
 #include "interpreter.h"
+#include "interpreter/implicit_exceptions.h"
 #include "interpreter/code.h"
 #include "interpreter/ectype.h"
 #include "interpreter/loggers.h"
@@ -13,6 +16,7 @@
 #include "utils/logger.h"
 #include "utils/math.h"
 #include "utils/ostream.h"
+
 #include <cmath>
 #include <cstdint>
 
@@ -62,6 +66,29 @@ Interpretation::Thunk engine_interpretation_loop(
         pos = reader.Cursor();                                                                                         \
         NEXT;
 #endif
+
+#define NEXT_OR_THROW(successful, type)                                                                                \
+    do {                                                                                                               \
+        if (successful) {                                                                                              \
+            NEXT;                                                                                                      \
+        } else {                                                                                                       \
+            THROW_IMPLICIT(type);                                                                                      \
+        }                                                                                                              \
+    } while (0)
+
+#define THROW_EXPLICIT(exception)                                                                                      \
+    do {                                                                                                               \
+        uintptr_t exceptionObj = exception;                                                                            \
+        auto func              = RTSupport::Execution::HandleException();                                              \
+        reader0                = reader; /* save current pc */                                                         \
+        return { func, reinterpret_cast<void*>(exceptionObj) };                                                        \
+    } while (0)
+
+#define THROW_IMPLICIT(type)                                                                                           \
+    do {                                                                                                               \
+        reader0 = reader;                                                                                              \
+        return { RTSupport::Execution::ThrowImplicitException(), reinterpret_cast<void*>(type) };                      \
+    } while (0)
 
 #define CBC_RT_LABEL(opc, encoding, fmt) &&opc,
 #define CBC_RT_MEM_LABEL(opc, encoding, fmt, tail) &&opc,
@@ -711,20 +738,14 @@ NULLCHECK: {
     auto args = B2xr::Decode(reader);
     LOG_INSTR;
     auto ref = ectype->GetReference(args.xr.r.IR());
-    if (ref.value == 0) {
-        FATAL("null check failed"); // TODO: throw exception
-    }
-    NEXT;
+    NEXT_OR_THROW(ref.value != 0, Type::NoneValueException);
 }
 
 DIVCHECK: {
     auto args = B2xr::Decode(reader);
     LOG_INSTR;
     auto div = ectype->GetPrimitive(args.xr.r.IR());
-    if (div.u64 == 0) {
-        FATAL("div check failed"); // TODO: throw exception
-    }
-    NEXT;
+    NEXT_OR_THROW(div.u64 != 0, Type::ArithmeticException);
 }
 
 LOAD_GENERIC_TI: {
@@ -758,6 +779,15 @@ IOF: {
     NEXT;
 }
 
+CATCH: {
+    auto args = B2xr::Decode(reader);
+    LOG_INSTR;
+    auto exceptionObj = ectype->GetReference(IReg::IR_ACC);
+    bool successful   = exceptionObj.value != 0;
+    ectype->Put(args.xr.r.IR(), Value::Reference { .value = exceptionObj.value });
+    NEXT_COND(successful);
+}
+
 THROW: {
     auto args = B2xr::Decode(reader);
     LOG_INSTR;
@@ -765,9 +795,7 @@ THROW: {
     if (ref.value == 0) {
         FATAL("unexpected null in THROW");
     }
-    uintptr_t** header = reinterpret_cast<uintptr_t**>(ref.value);
-    auto typeInfo      = TypeInfo(*header);
-    FATAL("Throw %s", MetaInfo::GetName(typeInfo)); // TODO: throw exception
+    THROW_EXPLICIT(ref.value);
 }
 
 MEMSPACE: {

@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "asm_export.h"
+#include "cbc/offsets_index.h"
 #include "literals.h"
 #include "utils/misc.h"
 #include "utils/ostream.h"
@@ -38,6 +39,7 @@ struct ExecBytecodeInfo {
     uint16_t const untypedSlotCount;
     uint32_t const frameSize;
     GcInfo const gcInfo;
+    InstructionOffsetsIndex const offsetsIndex; // TODO: optimize RAM footprint
 
     friend Stream::Output& operator<<(Stream::Output& out, const ExecBytecodeInfo& bc);
 };
