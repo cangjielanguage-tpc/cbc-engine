@@ -86,68 +86,62 @@ engine_cjthread_specific_offset:
   .endr
 .endm
 
-.macro PUSH_IREGS mask_reg, stack_reg, exec_info_reg, extra_reg
-    mov   \mask_reg, QWORD PTR [\exec_info_reg + EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
-    test  \mask_reg, \mask_reg
-    je    .L\@end
-.L\@save_reg:
-    mov   \extra_reg, \mask_reg
-    and   \extra_reg, 15
-    shr   \mask_reg, 4
-    mov   \extra_reg, QWORD PTR [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE * \extra_reg]
+.macro PUSH_REGS list_reg, stack_reg, exec_info_reg, tmp
+    mov   \list_reg, QWORD PTR [\exec_info_reg + EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
+    test  \list_reg, \list_reg
+    je    .L\@iend
+.L\@icopy:
+    mov   \tmp, \list_reg
+    and   \tmp, 15
+    shr   \list_reg, 4
+    mov   \tmp, QWORD PTR [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE * \tmp]
     sub   \stack_reg, ECTYPE_REG_SIZE
-    mov   QWORD PTR [\stack_reg], \extra_reg
-    test  \mask_reg, \mask_reg
-    jne   .L\@save_reg
-.L\@end:
+    mov   QWORD PTR [\stack_reg], \tmp
+    test  \list_reg, \list_reg
+    jne   .L\@icopy
+.L\@iend:
+    mov   \list_reg, QWORD PTR [\exec_info_reg + EXEC_BYTECODE_INFO_SAVED_FREGS_OFFSET]
+    test  \list_reg, \list_reg
+    je    .L\@fend
+.L\@fcopy:
+    mov   \tmp, \list_reg
+    and   \tmp, 15
+    shr   \list_reg, 4
+    mov   \tmp, QWORD PTR [ECTYPE_REG + ECTYPE_FREGS_OFFSET + ECTYPE_REG_SIZE * \tmp]
+    sub   \stack_reg, ECTYPE_REG_SIZE
+    mov   QWORD PTR [\stack_reg], \tmp
+    test  \list_reg, \list_reg
+    jne   .L\@fcopy
+.L\@fend:
 .endm
 
-.macro PUSH_FREGS mask_reg, stack_reg, exec_info_reg, extra_reg
-    mov   \mask_reg, QWORD PTR [\exec_info_reg + EXEC_BYTECODE_INFO_SAVED_FREGS_OFFSET]
-    test  \mask_reg, \mask_reg
-    je    .L\@end
-.L\@save_reg:
-    mov   \extra_reg, \mask_reg
-    and   \extra_reg, 15
-    shr   \mask_reg, 4
-    mov   \extra_reg, QWORD PTR [ECTYPE_REG + ECTYPE_FREGS_OFFSET + ECTYPE_REG_SIZE * \extra_reg]
+.macro POP_REGS list_reg, stack_reg, exec_info_reg, tmp1, tmp2
+    mov   \list_reg, QWORD PTR [\exec_info_reg + EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
+    test  \list_reg, \list_reg
+    je    .L\@iend
+.L\@icopy:
+    mov   \tmp2, \list_reg
+    and   \tmp2, 15
+    shr   \list_reg, 4
     sub   \stack_reg, ECTYPE_REG_SIZE
-    mov   QWORD PTR [\stack_reg], \extra_reg
-    test  \mask_reg, \mask_reg
-    jne   .L\@save_reg
-.L\@end:
-.endm
-
-.macro POP_IREGS mask_reg, stack_reg, exec_info_reg, extra_reg1, extra_reg2
-    mov   \mask_reg, QWORD PTR [\exec_info_reg + EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
-    test  \mask_reg, \mask_reg
-    je    .L\@end
-.L\@save_reg:
-    mov   \extra_reg2, \mask_reg
-    and   \extra_reg2, 15
-    shr   \mask_reg, 4
+    mov   \tmp1, QWORD PTR [\stack_reg]
+    mov   QWORD PTR [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE * \tmp2], \tmp1
+    test  \list_reg, \list_reg
+    jne   .L\@icopy
+.L\@iend:
+    mov   \list_reg, QWORD PTR [\exec_info_reg + EXEC_BYTECODE_INFO_SAVED_FREGS_OFFSET]
+    test  \list_reg, \list_reg
+    je    .L\@fend
+.L\@fcopy:
+    mov   \tmp2, \list_reg
+    and   \tmp2, 15
+    shr   \list_reg, 4
     sub   \stack_reg, ECTYPE_REG_SIZE
-    mov   \extra_reg1, QWORD PTR [\stack_reg]
-    mov   QWORD PTR [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE * \extra_reg2], \extra_reg1
-    test  \mask_reg, \mask_reg
-    jne   .L\@save_reg
-.L\@end:
-.endm
-
-.macro POP_FREGS mask_reg, stack_reg, exec_info_reg, extra_reg1, extra_reg2
-    mov   \mask_reg, QWORD PTR [\exec_info_reg + EXEC_BYTECODE_INFO_SAVED_FREGS_OFFSET]
-    test  \mask_reg, \mask_reg
-    je    .L\@end
-.L\@save_reg:
-    mov   \extra_reg2, \mask_reg
-    and   \extra_reg2, 15
-    shr   \mask_reg, 4
-    sub   \stack_reg, ECTYPE_REG_SIZE
-    mov   \extra_reg1, QWORD PTR [\stack_reg]
-    mov   QWORD PTR [ECTYPE_REG + ECTYPE_FREGS_OFFSET + ECTYPE_REG_SIZE * \extra_reg2], \extra_reg1
-    test  \mask_reg, \mask_reg
-    jne   .L\@save_reg
-.L\@end:
+    mov   \tmp1, QWORD PTR [\stack_reg]
+    mov   QWORD PTR [ECTYPE_REG + ECTYPE_FREGS_OFFSET + ECTYPE_REG_SIZE * \tmp2], \tmp1
+    test  \list_reg, \list_reg
+    jne   .L\@fcopy
+.L\@fend:
 .endm
 
 .balign 16
@@ -484,8 +478,7 @@ perform_2i_call:
   mov   r8d, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   sub   rsp, r8
 
-  PUSH_IREGS rcx, rdx, rax, rsi
-  PUSH_FREGS rcx, rdx, rax, rsi
+  PUSH_REGS rcx, rdx, rax, rsi
 
 .Lrestart_interpretation:
   mov   rdi, ECTYPE_REG
@@ -519,8 +512,7 @@ perform_2i_call:
   mov   edx, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   add   rdx, rsp // add frame size to locate saved registers
 
-  POP_IREGS rcx, rdx, rax, rsi, rdi
-  POP_FREGS rcx, rdx, rax, rsi, rdi
+  POP_REGS rcx, rdx, rax, rsi, rdi
 
   mov   EXTRA_REG, [rbp - EXTRA_SAVED_REG_OFFSET]
   mov   LITERALS_REG, [rbp - LITERALS_REG_SAVED_SLOT_OFFSET]
@@ -581,8 +573,7 @@ engine_handle_exception:
   mov   edx, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   add   rdx, rsp // start of saved regs area
 
-  POP_IREGS rcx, rdx, rax, rsi, rax
-  POP_FREGS rcx, rdx, rax, rsi, rax
+  POP_REGS rcx, rdx, rax, rsi, rax
 
   mov   LITERALS_REG, [rbp - 0x18]
   mov   ECTYPE_REG, [rbp - 0x10]
