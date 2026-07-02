@@ -118,6 +118,11 @@ public:
 
     inline Engine::Identifier<String> Name() const { return Engine::Identifier(nameOffset, identifier.GetFileId()); }
 
+    inline Engine::Identifier<String> TypeName() const
+    {
+        return Engine::Identifier(typeNameOffset, identifier.GetFileId());
+    }
+
     inline Engine::RefIdentifier<Term> Signature() const { return signature; }
 
     inline std::optional<Engine::Identifier<Code>> MethodCode() const { return code; }
@@ -138,11 +143,13 @@ private:
     MethodDefinition(
         Engine::Identifier<MethodDefinition> identifier,
         Offset<String> nameOffset,
+        Offset<String> typeNameOffset,
         Engine::RefIdentifier<Term> signature,
         MethodFlags flags
     )
         : identifier(identifier),
           nameOffset(nameOffset),
+          typeNameOffset(typeNameOffset),
           signature(signature),
           flags(flags)
     {}
@@ -150,6 +157,7 @@ private:
     Engine::Identifier<MethodDefinition> identifier;
     Engine::RefIdentifier<Term> signature;
     Offset<String> nameOffset;
+    Offset<String> typeNameOffset;
     MethodFlags flags;
 
     std::optional<Engine::Identifier<Code>> code             = std::nullopt;

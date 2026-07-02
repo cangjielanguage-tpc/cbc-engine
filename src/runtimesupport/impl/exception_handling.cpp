@@ -4,6 +4,10 @@
 
 #include "engine/symlevel/code.h"
 #include "engine/symlevel/definitions.h"
+#include "engine/terms.h"
+#include "interpreter/function_handle.h"
+
+namespace EHSupport {
 
 uint8_t engine_get_exception_handler(Interpretation::DynamicFunctionHandle* handle, Decoder::ByteReader& reader)
 {
@@ -50,3 +54,84 @@ uint8_t engine_get_exception_handler(Interpretation::DynamicFunctionHandle* hand
     reader.Advance(delta);
     return true;
 }
+
+void FrameInfoProvider(DYN_InstructionPointer ip, DYN_FramePointer fp, INT_InterpretedFrameInfo* info)
+{
+    auto fuh      = *reinterpret_cast<Interpretation::DynamicFunctionHandle**>((uint8_t*)fp - FUH_SLOT_OFFSET);
+    auto reader   = reinterpret_cast<Decoder::ByteReader*>((uint8_t*)fp - READER_SLOT_OFFSET);
+    auto bytecode = fuh->bytecode.load();
+
+    uint8_t* bcStart = bytecode->code.bytecode;
+    uint8_t* bcEnd   = bcStart + bytecode->code.bytecodeSize;
+    ASSERT(bcStart <= reader->Cursor() && reader->Cursor() <= bcEnd);
+
+    info->bcPos = reinterpret_cast<INT_BytecodePos>(reader->Cursor() - bcStart);
+    info->fuh   = fuh;
+}
+
+static char* AllocateString(std::string_view sv)
+{
+    char* buffer = new char[sv.size() + 1];
+    std::memcpy(buffer, sv.data(), sv.size());
+    buffer[sv.size()] = 0;
+    return buffer;
+}
+
+static void FreeStrings(char* methodName, char* className, char* fileName)
+{
+    ASSERT(methodName != nullptr && className != nullptr && fileName != nullptr);
+    delete[] methodName;
+    delete[] className;
+    delete[] fileName;
+}
+
+// TODO support getting src line by bytecode posiiton
+void FrameDescProvider(INT_FunctionHandle fuh, INT_BytecodePos pos, INT_InterpretedFrameDesc* frameDesc)
+{
+    Engine::Session session(Engine::GetEngineInstance());
+    auto dynFuh = static_cast<const Interpretation::DynamicFunctionHandle*>(fuh);
+
+    auto methodDef = Symlevel::MethodDefinition::Resolve(session, dynFuh->methodDef);
+    if (!methodDef.MethodCode().has_value()) {
+        FATAL("Couldn't get method definition for stacktrace from FuH: %p", dynFuh);
+        return;
+    }
+
+    // Method name
+    {
+        std::string methodNameWithArgs;
+        auto methodName = Symlevel::String::Parse(session, methodDef.Name());
+        methodNameWithArgs.append(methodName).append("(");
+
+        auto sig      = Engine::TermManager::Resolve(session, methodDef.Signature());
+        int retSigIdx = sig.GetLength() - 1;
+        for (int i = 0; i < retSigIdx; i++) {
+            auto argTerm = sig.Subterm(i);
+            methodNameWithArgs.append(argTerm.GetName(session));
+            if (i != retSigIdx - 1) {
+                methodNameWithArgs.append(", ");
+            }
+        }
+        methodNameWithArgs.append(")");
+
+        frameDesc->methodName = AllocateString(methodNameWithArgs);
+    }
+
+    // Type name
+    {
+        auto typeName        = Symlevel::String::Parse(session, methodDef.TypeName());
+        frameDesc->className = AllocateString(typeName);
+    }
+
+    // File name
+    if (methodDef.SourceFile().has_value()) {
+        auto fileName       = Symlevel::String::Parse(session, methodDef.SourceFullName().value());
+        frameDesc->fileName = AllocateString(fileName);
+    } else {
+        frameDesc->fileName = AllocateString("unknown"); // should it be possible?
+    }
+
+    frameDesc->freeResources = FreeStrings;
+}
+
+} // namespace EHSupport
