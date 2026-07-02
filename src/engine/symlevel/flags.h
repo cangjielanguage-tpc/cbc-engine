@@ -246,6 +246,14 @@ public:
 
     std::string ToString() const;
 
+    bool operator==(MethodRefFlags const& another) const {
+        return flagsRaw == another.flagsRaw;
+    }
+
+    bool operator!=(MethodRefFlags const& another) const {
+        return flagsRaw != another.flagsRaw;
+    }
+
 private:
     uint8_t flagsRaw;
 };

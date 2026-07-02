@@ -366,6 +366,15 @@ struct ResolverProxy {
             return std::nullopt;
         }
 
+        auto method = Symlevel::Reader::Read(resolver.session, resolved->method);
+        auto actualFlags = method.GetABIFlags();
+        if (actualFlags != ref.flags) {
+            log.Log(Logging::Level::ERROR, [&](Stream::Output& stream) {
+                stream << "Resolved method is abi incompatible " << ref.GetFullName(resolver.session) << Stream::endl;
+            });
+            return std::nullopt;
+        }
+
         auto sig = ConstructSignature(resolver, ref);
         return VirtualCall::Content { refType, ref.name, std::move(sig), resolved->methodNum, resolved->subTableNum,
                                       sret };
