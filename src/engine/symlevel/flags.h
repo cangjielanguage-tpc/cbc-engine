@@ -23,15 +23,18 @@ namespace Symlevel {
     X(FINAL)
 
 #define METHOD_FLAGS(X)                                                                                                \
-    X(FINAL)                                                                                                           \
     X(STATIC)                                                                                                          \
-    X(VIRTUAL)                                                                                                         \
-    X(ABSTRACT)                                                                                                        \
+    X(FINAL)                                                                                                           \
     X(FOREIGN)                                                                                                         \
+    X(ABSTRACT)                                                                                                        \
     X(MUT)                                                                                                             \
+    X(VIRTUAL)                                                                                                         \
     X(AOT)                                                                                                             \
     X(PKG_INIT)                                                                                                        \
-    X(LIT_INIT)
+    X(LIT_INIT)                                                                                                        \
+    X(SRET)                                                                                                            \
+    X(HAS_THIS_TI)                                                                                                     \
+    X(HAS_OUTER_TI)
 
 #define METHOD_REF_FLAGS(X)                                                                                            \
     X(SRET)                                                                                                            \

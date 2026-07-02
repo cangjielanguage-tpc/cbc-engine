@@ -168,24 +168,30 @@ MethodDefinition MethodDefinition::Parse(Engine::Session& session, IO::FileId fi
     if (testMask(0b11, 0b11))
         flags = flags.With(AccessKind::PROTECTED);
 
-    if (test(0x004))
+    if (test(0x0004))
         flags = flags.Or(MethodFlag::STATIC);
-    if (test(0x008))
+    if (test(0x0008))
         flags = flags.Or(MethodFlag::FINAL);
-    if (test(0x010))
+    if (test(0x0010))
         flags = flags.Or(MethodFlag::FOREIGN);
-    if (test(0x020))
+    if (test(0x0020))
         flags = flags.Or(MethodFlag::ABSTRACT);
-    if (test(0x040))
+    if (test(0x0040))
         flags = flags.Or(MethodFlag::MUT);
-    if (test(0x080))
+    if (test(0x0080))
         flags = flags.Or(MethodFlag::VIRTUAL);
-    if (test(0x100))
+    if (test(0x0100))
         flags = flags.Or(MethodFlag::AOT);
-    if (test(0x200))
+    if (test(0x0200))
         flags = flags.Or(MethodFlag::PKG_INIT);
-    if (test(0x400))
+    if (test(0x0400))
         flags = flags.Or(MethodFlag::LIT_INIT);
+    if (test(0x0800))
+        flags = flags.Or(MethodFlag::SRET);
+    if (test(0x1000))
+        flags = flags.Or(MethodFlag::HAS_THIS_TI);
+    if (test(0x2000))
+        flags = flags.Or(MethodFlag::HAS_OUTER_TI);
 
     MethodDefinition def(Engine::Identifier(offset, fileId), nameOffset, signature, flags);
 
