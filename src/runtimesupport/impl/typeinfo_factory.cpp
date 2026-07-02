@@ -12,6 +12,7 @@
 #include "engine/symlevel/type_kind.h"
 #include "engine/terms.h"
 #include "interpreter/function_handle.h"
+#include "interpreter/interpretation_loop.h"
 #include "runtimesupport/adapters.h"
 #include "runtimesupport/impl/cjnative.h"
 #include "runtimesupport/impl/typeinfo_ext.h"
@@ -747,7 +748,8 @@ std::optional<TypeInfo> CreateTypeInfo(
 
     ASSERT(!Engine::Term(term).IsGeneric());
 
-    auto createTypeInfo = [&]() {
+    auto createTypeInfo = [&]() -> std::optional<TypeInfo> {
+        using namespace Interpretation;
         auto termIdent = term.GetId();
         switch (termIdent.GetKind()) {
             case Engine::TermKind::TYPE:    return CreateTypeInfoDyn(session, manager, term);
@@ -760,18 +762,18 @@ std::optional<TypeInfo> CreateTypeInfo(
             case Engine::TermKind::FUNCTIONAL: return QueryFunctional(session, manager, term);
             case Engine::TermKind::TUPLE:      return QueryTypeInfoAOT(session, manager, "Tuple", term);
 
-            case Engine::TermKind::BOOLEAN: return QueryTypeInfoAOTByName("Bool");
-            case Engine::TermKind::U8:      return QueryTypeInfoAOTByName("UInt8");
-            case Engine::TermKind::I8:      return QueryTypeInfoAOTByName("Int8");
-            case Engine::TermKind::U16:     return QueryTypeInfoAOTByName("UInt16");
-            case Engine::TermKind::I16:     return QueryTypeInfoAOTByName("Int16");
-            case Engine::TermKind::U32:     return QueryTypeInfoAOTByName("UInt32");
-            case Engine::TermKind::I32:     return QueryTypeInfoAOTByName("Int32");
-            case Engine::TermKind::U64:     return QueryTypeInfoAOTByName("UInt64");
-            case Engine::TermKind::I64:     return QueryTypeInfoAOTByName("Int64");
-            case Engine::TermKind::F16:     return QueryTypeInfoAOTByName("Float16");
-            case Engine::TermKind::F32:     return QueryTypeInfoAOTByName("Float32");
-            case Engine::TermKind::F64:     return QueryTypeInfoAOTByName("Float64");
+            case Engine::TermKind::BOOLEAN: return builtinTypeInfos[BUILTIN_BOOLEAN];
+            case Engine::TermKind::U8:      return builtinTypeInfos[BUILTIN_U8];
+            case Engine::TermKind::I8:      return builtinTypeInfos[BUILTIN_I8];
+            case Engine::TermKind::U16:     return builtinTypeInfos[BUILTIN_U16];
+            case Engine::TermKind::I16:     return builtinTypeInfos[BUILTIN_I16];
+            case Engine::TermKind::U32:     return builtinTypeInfos[BUILTIN_U32];
+            case Engine::TermKind::I32:     return builtinTypeInfos[BUILTIN_I32];
+            case Engine::TermKind::U64:     return builtinTypeInfos[BUILTIN_U64];
+            case Engine::TermKind::I64:     return builtinTypeInfos[BUILTIN_I64];
+            case Engine::TermKind::F16:     return builtinTypeInfos[BUILTIN_F16];
+            case Engine::TermKind::F32:     return builtinTypeInfos[BUILTIN_F32];
+            case Engine::TermKind::F64:     return builtinTypeInfos[BUILTIN_F64];
 
             default: {
                 FATAL("Not supported yet %d", termIdent.GetKind());

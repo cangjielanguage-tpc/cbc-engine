@@ -626,7 +626,6 @@ struct IsaRewriter : public IsaParser {
     {
         auto str = resolver.QueryString(offset);
         // FIXME: string intern!
-        Interpretation::StringStorage* storage = nullptr;
         if (str.size() > UINT32_MAX) {
             // TODO: log
             Fail();
@@ -638,10 +637,7 @@ struct IsaRewriter : public IsaParser {
             FATAL("out of memory"); // FIXME: rewrite to throwing stub
         }
 
-        storage           = reinterpret_cast<Interpretation::StringStorage*>(mem);
-        storage->size     = size;
-        storage->typeInfo = RTSupport::MetaInfo::ByteArrayTypeInfo();
-
+        auto storage = new (mem) Interpretation::StringStorage { RTSupport::MetaInfo::ByteArrayTypeInfo(), size };
         std::memcpy(storage->string, str.data(), size);
         storage->string[size] = 0;
         emit.StringLit(storage, frameLayout.typedOffset.at(ts));
