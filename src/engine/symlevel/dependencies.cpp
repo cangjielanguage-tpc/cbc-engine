@@ -1,10 +1,16 @@
 #include "dependencies.h"
 #include "io/stream_file_reader.h"
+#include "runtimesupport/impl/entrypoint.h"
+#include "utils/logger.h"
+#include "utils/ostream.h"
 
 #include <algorithm>
 #include <stdio.h>
 
 namespace Symlevel {
+
+static Stream::Descripted dependenciesStream(Stream::cerr, "[deps] ");
+static Logging::Logger dependenciesLog(&dependenciesStream, Logging::Level::ERROR);
 
 std::vector<std::string> Dependencies::parse(IO::FileId fileId, IO::RandomAccessFile& file, uint32_t offset)
 {
@@ -65,7 +71,18 @@ Dependencies Dependencies::Read(
         handles      = std::vector<LibHandle>(aotDeps.size());
 
         std::transform(aotDeps.begin(), aotDeps.end(), std::back_inserter(handles), [](std::string dep) {
-            std::string libName = convertToLibName(dep);
+            std::string libName = dep;
+            if (dep == "testnw_long_link") {
+                dependenciesLog.Stream(Logging::Level::ERROR)
+                    << "Using hardcoded AOT dependency name: " << dep << Stream::endl;
+                if (g_appLibHandle != nullptr) {
+                    return g_appLibHandle;
+                }
+                dependenciesLog.Stream(Logging::Level::ERROR)
+                    << "App library handle is not set, falling back to dlopen for: " << dep << Stream::endl;
+            } else {
+                libName = convertToLibName(dep);
+            }
             LibHandle handle    = dlopen(libName.c_str(), RTLD_LAZY);
             if (!handle) {
                 ASSERTION(false, dlerror());
@@ -87,6 +104,9 @@ Dependencies::Dependencies(std::vector<std::string> cbcDeps, std::vector<LibHand
 Dependencies::~Dependencies()
 {
     for (LibHandle handle : aotHandles) {
+        if (handle == g_appLibHandle) {
+            continue;
+        }
         if (!dlclose(handle)) {
             ASSERTION(false, dlerror());
         }
