@@ -8,17 +8,21 @@
     #define engine_c2i_call_pc_start _engine_c2i_call_pc_start
     #define engine_c2i_call_pc_end _engine_c2i_call_pc_end
     #define engine_trampolines_dyn_start _engine_trampolines_dyn_start
+    #define engine_trampolines_dyn_end _engine_trampolines_dyn_end
     #define engine_trampolines_direct_start _engine_trampolines_direct_start
+    #define engine_all_regs_c2i_call _engine_all_regs_c2i_call
     #define engine_iregs_only_c2i_call _engine_iregs_only_c2i_call
     #define engine_i2i_call _engine_i2i_call
     #define engine_i2c_call _engine_i2c_call
     #define engine_i2_newobject _engine_i2_newobject
     #define engine_i2_newobject_acc _engine_i2_newobject_acc
     #define engine_i2_newarray _engine_i2_newarray
+    #define engine_i2_load_generic _engine_i2_load_generic
     #define engine_i2_gcpoint _engine_i2_gcpoint
     #define engine_i2_spawn _engine_i2_spawn
     #define engine_universal_direct_function_handles _engine_universal_direct_function_handles
     #define engine_tls_function _engine_tls_function
+    #define engine_read_generic _engine_read_generic
     #define engine_newobject_function _engine_newobject_function
     #define engine_newarray_function _engine_newarray_function
     #define engine_newthread_nret_function _engine_newthread_nret_function
@@ -241,11 +245,11 @@ c2i_prepare_ectype:
 // label that has to cover all c2i calls to range-check them
 engine_c2i_call_pc_start:
 engine_iregs_only_c2i_call:
-  engine_c2i_call IREG_ABI_AMOUNT 0
+  engine_c2i_call IREG_ABI_AMOUNT, 0
 
 .balign 16
 engine_all_regs_c2i_call:
-  engine_c2i_call IREG_ABI_AMOUNT FREG_ABI_AMOUNT
+  engine_c2i_call IREG_ABI_AMOUNT, FREG_ABI_AMOUNT
 
 engine_c2i_call_pc_end:
   brk   #0
@@ -282,7 +286,7 @@ engine_i2i_call:
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
 engine_i2c_call:
-  engine_i2c IREG_ABI_AMOUNT FREG_ABI_AMOUNT
+  engine_i2c IREG_ABI_AMOUNT, FREG_ABI_AMOUNT
 
 
 .balign 16
@@ -313,8 +317,13 @@ engine_i2_load_generic:
 
   mov   EXTRA_REG, x0
   // allocate box
+#ifdef __APPLE__
+  adrp  x4, engine_newobject_function@PAGE
+  ldr   x4, [x4, engine_newobject_function@PAGEOFF]
+#else
   adrp  x4, engine_newobject_function
   ldr   x4, [x4, :lo12:engine_newobject_function]
+#endif
   lsr   x0, x0, 12
   blr   x4
   // box is already on dst param of read generic
@@ -337,8 +346,13 @@ engine_i2_load_generic:
   ldr   x3, [x0] // get header
   ldr   x3, [x3, #TYPEINFO_INSTANCESIZE_OFFSET]
   // perform generic read
+#ifdef __APPLE__
+  adrp  x4, engine_read_generic@PAGE
+  ldr   x4, [x4, engine_read_generic@PAGEOFF]
+#else
   adrp  x4, engine_read_generic
   ldr   x4, [x4, :lo12:engine_read_generic]
+#endif
   blr   x4
   b     .Lrestart_interpretation
 
