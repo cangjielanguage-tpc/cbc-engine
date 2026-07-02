@@ -5,6 +5,8 @@
     #define engine_prepare_bytecode _engine_prepare_bytecode
     #define engine_interpretation_loop _engine_interpretation_loop
     #define engine_fiber_data_init _engine_fiber_data_init
+    #define engine_get_exception_handler _engine_get_exception_handler
+    #define engine_get_and_clear_pending_exception _engine_get_and_clear_pending_exception
     #define engine_c2i_call_pc_start _engine_c2i_call_pc_start
     #define engine_c2i_call_pc_end _engine_c2i_call_pc_end
     #define engine_trampolines_dyn_start _engine_trampolines_dyn_start
@@ -28,6 +30,11 @@
     #define engine_newthread_nret_function _engine_newthread_nret_function
     #define engine_carrier_specific_offset _engine_carrier_specific_offset
     #define engine_cjthread_specific_offset _engine_cjthread_specific_offset
+    #define engine_throw_out_of_interpreter _engine_throw_out_of_interpreter
+    #define engine_throw_implicit_exception _engine_throw_implicit_exception
+    #define engine_implicit_exception_thrower _engine_implicit_exception_thrower
+    #define engine_handle_exception _engine_handle_exception
+    #define common_landing_pad _common_landing_pad
 #endif
 
 .macro declare_hidden sym
@@ -603,8 +610,13 @@ engine_fake_execute_closure:
 // TLS_REG can be changed after context-switch
 engine_throw_implicit_exception:
   // jumped from .Linterpreter_call without return address to return
+#ifdef __APPLE__
+  adrp  x9, engine_implicit_exception_thrower@PAGE
+  ldr   x9, [x9, engine_implicit_exception_thrower@PAGEOFF]
+#else
   adrp  x9, engine_implicit_exception_thrower
   ldr   x9, [x9, :lo12:engine_implicit_exception_thrower]
+#endif
   blr   x9
   brk   #0 // should not return, as exception is thrown inside call
 
@@ -653,12 +665,22 @@ engine_handle_exception:
   ldp   x29, x30, [sp], #16
 
   // Check if next method is C2I adapter
+#ifdef __APPLE__
+  adrp  x9, engine_c2i_call_pc_start@PAGE
+  add   x9, x9, engine_c2i_call_pc_start@PAGEOFF
+#else
   adrp  x9, engine_c2i_call_pc_start
   add   x9, x9, :lo12:engine_c2i_call_pc_start
+#endif
   cmp   x30, x9
   b.lo  .Lhandle_next_dyn_func
+#ifdef __APPLE__
+  adrp  x9, engine_c2i_call_pc_end@PAGE
+  add   x9, x9, engine_c2i_call_pc_end@PAGEOFF
+#else
   adrp  x9, engine_c2i_call_pc_end
   add   x9, x9, :lo12:engine_c2i_call_pc_end
+#endif
   cmp   x30, x9
   b.hs  .Lhandle_next_dyn_func
 
@@ -686,8 +708,13 @@ engine_handle_exception:
   //
   // So br to engine_throw_out_of_interpreter can be seen as blr from AOT function.
 
+#ifdef __APPLE__
+  adrp  x9, engine_throw_out_of_interpreter@PAGE
+  ldr   x9, [x9, engine_throw_out_of_interpreter@PAGEOFF]
+#else
   adrp  x9, engine_throw_out_of_interpreter
   ldr   x9, [x9, :lo12:engine_throw_out_of_interpreter]
+#endif
   br    x9
   brk   #0
 
