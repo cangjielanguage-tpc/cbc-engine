@@ -1,5 +1,6 @@
 #include "references.h"
 #include "engine/symlevel/flags.h"
+#include "engine/terms.h"
 #include "io/stream_file_reader.h"
 #include "region_data.h"
 #include <cstdint>
@@ -13,9 +14,9 @@ MethodReference ParseReference(
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetMethodRefSectionOffs() + offset);
 
     auto nameOffset   = Engine::Identifier<String>(Offset<String>(reader.ReadU32()), fileId);
+    auto parsedFlags  = reader.ReadU8();
     auto refTypeIdx   = Engine::RefIdentifier(RefId<Term>(region, reader.ReadULEB()), fileId);
     auto methodSigIdx = Engine::RefIdentifier(RefId<Term>(region, reader.ReadULEB()), fileId);
-    auto parsedFlags  = reader.ReadU8();
 
     MethodRefFlags flags;
     if (parsedFlags & 0x1) flags = flags.Or(MethodRefFlag::SRET);
@@ -25,7 +26,14 @@ MethodReference ParseReference(
     if (parsedFlags & 0x10) flags = flags.Or(MethodRefFlag::HAS_FTVARS);
     if (parsedFlags & 0x20) flags = flags.Or(MethodRefFlag::AOT);
 
-    return { nameOffset, refTypeIdx, methodSigIdx, flags };
+    static constexpr auto NIL_ID = RefId<Term>(0, (uint16_t) Engine::TermKind::NIL);
+
+    Engine::RefIdentifier<Term> tvars(NIL_ID, fileId);
+    if (flags.Is(MethodRefFlag::HAS_FTVARS)) {
+        tvars = Engine::RefIdentifier(RefId<Term>(region, reader.ReadULEB()), fileId);
+    }
+
+    return { nameOffset, refTypeIdx, methodSigIdx, tvars, flags };
 }
 
 FieldReference ParseReference(
