@@ -1,41 +1,6 @@
 #include "asm_export.h"
 #include "abi.inc"
-
-#ifdef __APPLE__
-    #define engine_prepare_bytecode _engine_prepare_bytecode
-    #define engine_interpretation_loop _engine_interpretation_loop
-    #define engine_fiber_data_init _engine_fiber_data_init
-    #define engine_get_exception_handler _engine_get_exception_handler
-    #define engine_get_and_clear_pending_exception _engine_get_and_clear_pending_exception
-    #define engine_c2i_call_pc_start _engine_c2i_call_pc_start
-    #define engine_c2i_call_pc_end _engine_c2i_call_pc_end
-    #define engine_trampolines_dyn_start _engine_trampolines_dyn_start
-    #define engine_trampolines_dyn_end _engine_trampolines_dyn_end
-    #define engine_trampolines_direct_start _engine_trampolines_direct_start
-    #define engine_all_regs_c2i_call _engine_all_regs_c2i_call
-    #define engine_iregs_only_c2i_call _engine_iregs_only_c2i_call
-    #define engine_i2i_call _engine_i2i_call
-    #define engine_i2c_call _engine_i2c_call
-    #define engine_i2_newobject _engine_i2_newobject
-    #define engine_i2_newobject_acc _engine_i2_newobject_acc
-    #define engine_i2_newarray _engine_i2_newarray
-    #define engine_i2_load_generic _engine_i2_load_generic
-    #define engine_i2_gcpoint _engine_i2_gcpoint
-    #define engine_i2_spawn _engine_i2_spawn
-    #define engine_universal_direct_function_handles _engine_universal_direct_function_handles
-    #define engine_tls_function _engine_tls_function
-    #define engine_read_generic _engine_read_generic
-    #define engine_newobject_function _engine_newobject_function
-    #define engine_newarray_function _engine_newarray_function
-    #define engine_newthread_nret_function _engine_newthread_nret_function
-    #define engine_carrier_specific_offset _engine_carrier_specific_offset
-    #define engine_cjthread_specific_offset _engine_cjthread_specific_offset
-    #define engine_throw_out_of_interpreter _engine_throw_out_of_interpreter
-    #define engine_throw_implicit_exception _engine_throw_implicit_exception
-    #define engine_implicit_exception_thrower _engine_implicit_exception_thrower
-    #define engine_handle_exception _engine_handle_exception
-    #define common_landing_pad _common_landing_pad
-#endif
+#include "shared.inc"
 
 #ifdef __APPLE__
     #define Page(sym) sym@PAGE
@@ -45,50 +10,11 @@
     #define PageOff(sym) :lo12:sym
 #endif
 
-.macro declare_hidden sym
-  .global \sym
-#ifdef __APPLE__
-  .private_extern \sym
-#else
-  .hidden \sym
-#endif
-.endm
-
-.extern engine_prepare_bytecode
-.extern engine_interpretation_loop
-.extern engine_fiber_data_init
-.extern engine_get_exception_handler
-.extern engine_get_and_clear_pending_exception
-
-// exported
-declare_hidden engine_c2i_call_pc_start
-declare_hidden engine_c2i_call_pc_end
-declare_hidden engine_trampolines_dyn_start
-declare_hidden engine_trampolines_dyn_end
-declare_hidden engine_trampolines_direct_start
-declare_hidden engine_all_regs_c2i_call
-declare_hidden engine_iregs_only_c2i_call
-declare_hidden engine_i2i_call
-declare_hidden engine_i2c_call
-declare_hidden engine_i2_newobject
-declare_hidden engine_i2_newobject_acc
-declare_hidden engine_i2_newarray
-declare_hidden engine_i2_gcpoint
-declare_hidden engine_universal_direct_function_handles
-declare_hidden engine_tls_function
-declare_hidden engine_read_generic
-declare_hidden engine_i2_load_generic
-declare_hidden engine_newobject_function
-declare_hidden engine_newarray_function
-declare_hidden engine_newthread_nret_function
-declare_hidden engine_carrier_specific_offset
-declare_hidden engine_cjthread_specific_offset
-declare_hidden engine_i2_spawn
-declare_hidden engine_throw_out_of_interpreter
-declare_hidden engine_throw_implicit_exception
-declare_hidden engine_implicit_exception_thrower
-declare_hidden engine_handle_exception
-declare_hidden common_landing_pad
+Extern(engine_prepare_bytecode)
+Extern(engine_interpretation_loop)
+Extern(engine_fiber_data_init)
+Extern(engine_get_exception_handler)
+Extern(engine_get_and_clear_pending_exception)
 
 // --- SECTION BSS ---
 #ifdef __APPLE__
@@ -98,28 +24,28 @@ declare_hidden common_landing_pad
 #endif
 
 .balign 16
-engine_universal_direct_function_handles:
+DeclareHidden(engine_universal_direct_function_handles):
   .skip 8 * TRAMPOLINE_COUNT
 
 .balign 64
 .Lfunc_anchor:
-engine_tls_function:
+DeclareHidden(engine_tls_function):
   .skip 8
-engine_throw_out_of_interpreter:
+DeclareHidden(engine_throw_out_of_interpreter):
   .skip 8
-engine_implicit_exception_thrower:
+DeclareHidden(engine_implicit_exception_thrower):
   .skip 8
-engine_newobject_function:
+DeclareHidden(engine_newobject_function):
   .skip 8
-engine_newarray_function:
+DeclareHidden(engine_newarray_function):
   .skip 8
-engine_newthread_nret_function:
+DeclareHidden(engine_newthread_nret_function):
   .skip 8
-engine_read_generic:
+DeclareHidden(engine_read_generic):
   .skip 8
-engine_carrier_specific_offset:
+DeclareHidden(engine_carrier_specific_offset):
   .skip 8
-engine_cjthread_specific_offset:
+DeclareHidden(engine_cjthread_specific_offset):
   .skip 8
 
 // --- SECTION TEXT ---
@@ -130,7 +56,7 @@ engine_cjthread_specific_offset:
 #endif
 
 .balign 16
-engine_universal_direct_call:
+DeclareHidden(engine_universal_direct_call):
   adrp  x10, Page(engine_universal_direct_function_handles)
   add   x10, x10, PageOff(engine_universal_direct_function_handles)
   ldr   x9, [x10, x9, lsl #3] // put FuH on x9
@@ -139,7 +65,7 @@ engine_universal_direct_call:
 
 
 .balign 16
-engine_trampolines_direct_start:
+DeclareHidden(engine_trampolines_direct_start):
 .macro repeat_trampoline_direct count
   .set i, 0
   .rept \count
@@ -152,7 +78,7 @@ engine_trampolines_direct_start:
 
 
 .balign 16
-engine_universal_dyn_call:
+DeclareHidden(engine_universal_dyn_call):
   ldr   x10, [x0]
   ldr   x10, [x10, #TYPEINFO_DATA_MT_OFFSET] // TODO: consider tail array
   ldr   x9, [x10, x9, lsl #3] // put FuH on x9
@@ -161,7 +87,7 @@ engine_universal_dyn_call:
 
 
 .balign 16
-engine_trampolines_dyn_start:
+DeclareHidden(engine_trampolines_dyn_start):
 .macro repeat_trampoline_dyn count
   .set i, 0
   .rept \count
@@ -171,7 +97,7 @@ engine_trampolines_dyn_start:
   .endr
 .endm
   repeat_trampoline_dyn TRAMPOLINE_COUNT
-engine_trampolines_dyn_end:
+DeclareHidden(engine_trampolines_dyn_end):
 
 .macro engine_c2i_call ireg_count freg_count
   stp   x29, x30, [sp, #-16]!
@@ -243,15 +169,15 @@ c2i_prepare_ectype:
 
 .balign 16
 // label that has to cover all c2i calls to range-check them
-engine_c2i_call_pc_start:
-engine_iregs_only_c2i_call:
+DeclareHidden(engine_c2i_call_pc_start):
+DeclareHidden(engine_iregs_only_c2i_call):
   engine_c2i_call IREG_ABI_AMOUNT, 0
 
 .balign 16
-engine_all_regs_c2i_call:
+DeclareHidden(engine_all_regs_c2i_call):
   engine_c2i_call IREG_ABI_AMOUNT, FREG_ABI_AMOUNT
 
-engine_c2i_call_pc_end:
+DeclareHidden(engine_c2i_call_pc_end):
   brk   #0
 
 
@@ -259,7 +185,7 @@ engine_c2i_call_pc_end:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: fuh)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
-engine_i2i_call:
+DeclareHidden(engine_i2i_call):
   // jumped from .Linterpreter_call without return address to return
   bl    perform_2i_call
   b     .Lrestart_interpretation
@@ -285,7 +211,7 @@ engine_i2i_call:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: target)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
-engine_i2c_call:
+DeclareHidden(engine_i2c_call):
   engine_i2c IREG_ABI_AMOUNT, FREG_ABI_AMOUNT
 
 
@@ -303,7 +229,7 @@ get_tls:
 .balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: mask)
 // preserved: ECTYPE_REG, rbp
-engine_i2_load_generic:
+DeclareHidden(engine_i2_load_generic):
   // mask is expected in form of:
   // [0..4) - dst reg
   // [4..8) - base reg
@@ -345,7 +271,7 @@ engine_i2_load_generic:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
-engine_i2_newobject:
+DeclareHidden(engine_i2_newobject):
   // jumped from .Linterpreter_call without return address to return
   adrp  x10, Page(engine_newobject_function)
   ldr   x10, [x10, PageOff(engine_newobject_function)]
@@ -360,7 +286,7 @@ engine_i2_newobject:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
-engine_i2_newobject_acc:
+DeclareHidden(engine_i2_newobject_acc):
   // jumped from .Linterpreter_call without return address to return
   adrp  x10, Page(engine_newobject_function)
   ldr   x10, [x10, PageOff(engine_newobject_function)]
@@ -375,7 +301,7 @@ engine_i2_newobject_acc:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
-engine_i2_newarray:
+DeclareHidden(engine_i2_newarray):
   // jumped from .Linterpreter_call without return address to return
   ldr   x1, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x10)]
   adrp  x10, Page(engine_newarray_function)
@@ -388,7 +314,7 @@ engine_i2_newarray:
   b     .Lrestart_interpretation
 
 .balign 16
-engine_i2_gcpoint:
+DeclareHidden(engine_i2_gcpoint):
   blr   x0
   restore_tls
   b     .Lrestart_interpretation
@@ -396,7 +322,7 @@ engine_i2_gcpoint:
 .balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo)
 // preserved: ECTYPE_REG, x29
-engine_i2_spawn:
+DeclareHidden(engine_i2_spawn):
   ldr   x1, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE)]
   mov   x3, x0
   adr   x0, engine_fake_execute_closure
@@ -558,7 +484,7 @@ perform_2i_call:
 
 // fake execute closure function
 .balign 16
-engine_fake_execute_closure:
+DeclareHidden(engine_fake_execute_closure):
   // (x8: sret, x0: ()T, x1: TypeInfo[Future[T]]
   ldr   x2, [x0, #0x10]
   br    x2
@@ -566,7 +492,7 @@ engine_fake_execute_closure:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: exception type)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
-engine_throw_implicit_exception:
+DeclareHidden(engine_throw_implicit_exception):
   // jumped from .Linterpreter_call without return address to return
   adrp  x9, Page(engine_implicit_exception_thrower)
   ldr   x9, [x9, PageOff(engine_implicit_exception_thrower)]
@@ -586,7 +512,7 @@ common_landing_pad:
 // or throws exception reference using CJNative runtime interface if there is no any exception handler in consecutive interpreter frames.
 // Precondition: top frame is interpreter frame.
 .balign 16
-engine_handle_exception:
+DeclareHidden(engine_handle_exception):
   mov   x21, x0
 
   ldr   x0, [x29, #-FUH_SLOT_OFFSET]

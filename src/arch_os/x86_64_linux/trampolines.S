@@ -2,73 +2,39 @@
 
 #include "asm_export.h"
 #include "abi.inc"
+#include "shared.inc"
 
-.macro declare_hidden sym
-  .global \sym
-  .hidden \sym
-.endm
-
-.extern engine_prepare_bytecode
-.extern engine_interpretation_loop
-.extern engine_fiber_data_init
-.extern engine_get_exception_handler
-.extern engine_get_and_clear_pending_exception
-
-// exported
-declare_hidden engine_c2i_call_pc_start
-declare_hidden engine_c2i_call_pc_end
-declare_hidden engine_trampolines_dyn_start
-declare_hidden engine_trampolines_dyn_end
-declare_hidden engine_trampolines_direct_start
-declare_hidden engine_all_regs_c2i_call
-declare_hidden engine_iregs_only_c2i_call
-declare_hidden engine_i2i_call
-declare_hidden engine_i2c_call
-declare_hidden engine_i2_newobject
-declare_hidden engine_i2_newobject_acc
-declare_hidden engine_i2_newarray
-declare_hidden engine_i2_gcpoint
-declare_hidden engine_universal_direct_function_handles
-declare_hidden engine_tls_function
-declare_hidden engine_read_generic
-declare_hidden engine_i2_load_generic
-declare_hidden engine_throw_out_of_interpreter
-declare_hidden engine_throw_implicit_exception
-declare_hidden engine_implicit_exception_thrower
-declare_hidden engine_newobject_function
-declare_hidden engine_newarray_function
-declare_hidden engine_newthread_nret_function
-declare_hidden engine_handle_exception
-declare_hidden common_landing_pad
-declare_hidden engine_carrier_specific_offset
-declare_hidden engine_cjthread_specific_offset
-declare_hidden engine_i2_spawn
+Extern(engine_prepare_bytecode)
+Extern(engine_interpretation_loop)
+Extern(engine_fiber_data_init)
+Extern(engine_get_exception_handler)
+Extern(engine_get_and_clear_pending_exception)
 
 // --- SECTION BSS ---
 .section .bss
 
 .balign 16
-engine_universal_direct_function_handles:
+DeclareHidden(engine_universal_direct_function_handles):
   .skip 8 * TRAMPOLINE_COUNT
 
 .balign 64
-engine_tls_function:
+DeclareHidden(engine_tls_function):
   .skip 8
-engine_throw_out_of_interpreter:
+DeclareHidden(engine_throw_out_of_interpreter):
   .skip 8
-engine_implicit_exception_thrower:
+DeclareHidden(engine_implicit_exception_thrower):
   .skip 8
-engine_newobject_function:
+DeclareHidden(engine_newobject_function):
   .skip 8
-engine_newarray_function:
+DeclareHidden(engine_newarray_function):
   .skip 8
-engine_newthread_nret_function:
+DeclareHidden(engine_newthread_nret_function):
   .skip 8
-engine_read_generic:
+DeclareHidden(engine_read_generic):
   .skip 8
-engine_carrier_specific_offset:
+DeclareHidden(engine_carrier_specific_offset):
   .skip 8
-engine_cjthread_specific_offset:
+DeclareHidden(engine_cjthread_specific_offset):
   .skip 8
 
 // --- SECTION TEXT ---
@@ -113,14 +79,14 @@ engine_cjthread_specific_offset:
 .endm
 
 .balign 16
-engine_universal_direct_call:
+DeclareHidden(engine_universal_direct_call):
   lea   r10, [rip + engine_universal_direct_function_handles]
   mov   rax, [r10 + rax * 8] // put FuH on rax
   jmp   [rax + FUNCTION_HANDLE_C2CALL_OFFSET]
 
 
 .balign 16
-engine_trampolines_direct_start:
+DeclareHidden(engine_trampolines_direct_start):
 .macro repeat_trampoline_direct count
   .set i, 0
   .rept \count
@@ -133,7 +99,7 @@ engine_trampolines_direct_start:
 
 
 .balign 16
-engine_universal_dyn_call:
+DeclareHidden(engine_universal_dyn_call):
   mov   r10, [rdi] // get TypeInfo
   // TODO: consider tail array
   mov   r10, [r10 + TYPEINFO_DATA_MT_OFFSET] // data mt array
@@ -142,7 +108,7 @@ engine_universal_dyn_call:
 
 
 .balign 16
-engine_trampolines_dyn_start:
+DeclareHidden(engine_trampolines_dyn_start):
 .macro repeat_trampoline_dyn count
   .set i, 0
   .rept \count
@@ -152,7 +118,7 @@ engine_trampolines_dyn_start:
   .endr
 .endm
   repeat_trampoline_dyn TRAMPOLINE_COUNT
-engine_trampolines_dyn_end:
+DeclareHidden(engine_trampolines_dyn_end):
 
 // expects: (TLS_REG: th, rax: fuh)
 // System-V abi, except r15 can be changed after context-switches
@@ -223,24 +189,24 @@ c2i_prepare_ectype:
 // expects: (TLS_REG: th, rax: fuh)
 // System-V abi, except r15 can be changed after context-switches
 // label that is used to range-check all c2i call variations
-engine_c2i_call_pc_start:
-engine_all_regs_c2i_call:
+DeclareHidden(engine_c2i_call_pc_start):
+DeclareHidden(engine_all_regs_c2i_call):
   engine_c2i_call IREG_ABI_AMOUNT FREG_ABI_AMOUNT
 
 .balign 16
 // variation of c2i call that only passes iregs
-engine_iregs_only_c2i_call:
+DeclareHidden(engine_iregs_only_c2i_call):
   engine_c2i_call IREG_ABI_AMOUNT 0
 
 // label that is used to range-check all c2i call variations
-engine_c2i_call_pc_end:
+DeclareHidden(engine_c2i_call_pc_end):
   ud2
 
 .balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: fuh)
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
-engine_i2i_call:
+DeclareHidden(engine_i2i_call):
   // jumped from .Linterpreter_call without return address to return
   call  perform_2i_call
   jmp   .Lrestart_interpretation
@@ -265,7 +231,7 @@ engine_i2i_call:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: target)
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
-engine_i2c_call:
+DeclareHidden(engine_i2c_call):
   // jumped from .Linterpreter_call without return address to return
   i2c_call IREG_ABI_AMOUNT FREG_ABI_AMOUNT
 
@@ -277,7 +243,7 @@ engine_i2c_call:
 .balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: mask)
 // preserved: ECTYPE_REG, rbp
-engine_i2_load_generic:
+DeclareHidden(engine_i2_load_generic):
   // mask is expected in form of:
   // [0..4) - dst reg
   // [4..8) - base reg
@@ -318,7 +284,7 @@ engine_i2_load_generic:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
-engine_i2_newobject:
+DeclareHidden(engine_i2_newobject):
   // jumped from .Linterpreter_call without return address to return
   call  [rip + engine_newobject_function]
   mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE], rax
@@ -329,7 +295,7 @@ engine_i2_newobject:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
-engine_i2_newobject_acc:
+DeclareHidden(engine_i2_newobject_acc):
   // jumped from .Linterpreter_call without return address to return
   call  [rip + engine_newobject_function]
   mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE * ECTYPE_IACC_NUM], rax // move to acc register
@@ -340,7 +306,7 @@ engine_i2_newobject_acc:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
-engine_i2_newarray:
+DeclareHidden(engine_i2_newarray):
   // jumped from .Linterpreter_call without return address to return
   mov   rsi, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x10]
   call  [rip + engine_newarray_function]
@@ -350,7 +316,7 @@ engine_i2_newarray:
 
 .balign 16
 // expects: (ECTYPE_REG: ectype, rdi: safe_point_f)
-engine_i2_gcpoint:
+DeclareHidden(engine_i2_gcpoint):
   call rdi
   restore_tls
   jmp  .Lrestart_interpretation
@@ -358,7 +324,7 @@ engine_i2_gcpoint:
 .balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
 // preserved: ECTYPE_REG, rbp
-engine_i2_spawn:
+DeclareHidden(engine_i2_spawn):
   mov   rsi, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE]
   mov   rcx, rdi
   lea   rdi, [rip + engine_fake_execute_closure]
@@ -523,7 +489,7 @@ perform_2i_call:
 
 // fake execute closure function
 .align 16
-engine_fake_execute_closure:
+DeclareHidden(engine_fake_execute_closure):
   // (rdi: sret, rsi: ()T, rdx: TypeInfo[Future[T]]
   mov   rcx, [rsi + 0x10] // get $i (instantiated) version of closure function
   mov   rdi, rsi
@@ -532,7 +498,7 @@ engine_fake_execute_closure:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: exception type)
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
-engine_throw_implicit_exception:
+DeclareHidden(engine_throw_implicit_exception):
   // jumped from .Linterpreter_call without return address to return
   call  [rip + engine_implicit_exception_thrower]
   ud2 // should not return, as exception is thrown inside call
@@ -551,7 +517,7 @@ common_landing_pad:
 // or throws exception reference using CJNative runtime interface if there is no any exception handler in consecutive interpreter frames.
 // Precondition: top frame is interpreter frame.
 .align 16
-engine_handle_exception:
+DeclareHidden(engine_handle_exception):
   mov   r12, rdi
 
   mov   rdi, QWORD PTR [rbp - FUH_SLOT_OFFSET]
