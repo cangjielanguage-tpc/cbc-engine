@@ -507,7 +507,7 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M10rri64 a
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, MStructFieldOp args)
 {
     Operand operands[] = { args.rr.x, args.rr.y, args.ti.UInt() };
-    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 

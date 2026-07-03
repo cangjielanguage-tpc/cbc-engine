@@ -103,9 +103,9 @@
     X(OFFS64, M9i64, "offs.64 $0U64", false)                                                                           \
     X(OFFS_REG, M2xr, "offs.r $1ir", false)                                                                            \
     X(GENERIC_FIELD, M6xri32, "generic.field $1ir $2U32 }", false)                                                     \
-    X(OFFS_REG_IDX64, M10xri64, "offs.r.idx.64 [$1ir * $2U64]", false)                                                 \
-    X(R_READ_STRUCT, MStructFieldOp, "r.read.struct $0ir $1ir $3U64", true)                                            \
-    X(R_WRITE_STRUCT, MStructFieldOp, "r.write.struct $0ir $1ir $3U64", true)                                          \
+    X(OFFS_REG_IDX64, M10xri64, "offs.r.idx.64 [$1ir * $2U64] }", false)                                               \
+    X(R_READ_STRUCT, MStructFieldOp, "r.read.struct $0ir $1ir $2U64 }", true)                                          \
+    X(R_WRITE_STRUCT, MStructFieldOp, "r.write.struct $0ir $1ir $2U64 }", true)                                        \
     X(RLD_U8, M2rr, "rld.u8 $0ir $1ir }", true)                                                                        \
     X(RLD_U16, M2rr, "rld.u16 $0ir $1ir }", true)                                                                      \
     X(RLD_32, M2rr, "rld.32 $0ir $1ir }", true)                                                                        \
