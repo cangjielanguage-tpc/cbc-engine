@@ -503,7 +503,7 @@ DeclareHidden(engine_throw_implicit_exception):
 // When exception is thrown from CJNative code to interpreter, execution of
 // interpreter exception handling starts here
 // TODO obtain exception using PostThrowException from RT interface
-common_landing_pad:
+DeclareHidden(common_landing_pad):
   bl engine_get_and_clear_pending_exception
   b engine_handle_exception
 
