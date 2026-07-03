@@ -573,7 +573,7 @@ engine_handle_exception:
   mov   edx, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   add   rdx, rsp // start of saved regs area
 
-  POP_REGS rcx, rdx, rax, rsi, rax
+  POP_REGS rcx, rdx, rax, rsi, rdi
 
   mov   LITERALS_REG, [rbp - 0x18]
   mov   ECTYPE_REG, [rbp - 0x10]
