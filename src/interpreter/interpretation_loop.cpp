@@ -1209,7 +1209,10 @@ void engine_log_int_end(DynamicFunctionHandle* handle, Ectype* ectype)
 
 Thunk Interpretation::InterpretationLoop(
     Ectype* ectype, Frame frame, RTSupport::ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
-) __attribute__((alias("engine_interpretation_loop")));
+)
+{
+    return engine_interpretation_loop(ectype, frame, handle, literals, reader0);
+}
 
 void Interpretation::InterpretationStart(DynamicFunctionHandle* handle, Ectype* ectype)
 {

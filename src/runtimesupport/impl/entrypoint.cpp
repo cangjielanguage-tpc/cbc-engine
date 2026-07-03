@@ -182,9 +182,7 @@ static void PerformPatching()
 
 static void FiberStart(DYN_CJThreadSpecificData* data) { *data = nullptr; }
 
-extern "C" Interpretation::Ectype* FiberDataInit(DYN_CJThreadSpecificData* data) __asm__("engine_fiber_data_init");
-
-Interpretation::Ectype* FiberDataInit(DYN_CJThreadSpecificData* data)
+extern "C" Interpretation::Ectype* engine_fiber_data_init(DYN_CJThreadSpecificData* data)
 {
     ASSERTION(*data == nullptr, "Incorrect data value: %p", *data);
 

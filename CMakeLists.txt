@@ -64,15 +64,23 @@ target_link_libraries(cbcengine PRIVATE
   cbc_lib
 )
 
-target_link_options(cbcengine PRIVATE
-  "-Wl,-z,noexecstack"
-  "-Wl,-z,relro"
-  "-Wl,-z,now"
-)
+if(NOT APPLE)
+  target_link_options(cbcengine PRIVATE
+    "-Wl,-z,noexecstack"
+    "-Wl,-z,relro"
+    "-Wl,-z,now"
+  )
+endif()
 
 set_target_properties(cbcengine PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-add_subdirectory(tools/dis)
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+  set_target_properties(cbcengine PROPERTIES OUTPUT_NAME "cbcengine")
+endif()
+
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
+  add_subdirectory(tools/dis)
+endif()
 
 if(BUILD_TESTING)
   add_subdirectory(test)
