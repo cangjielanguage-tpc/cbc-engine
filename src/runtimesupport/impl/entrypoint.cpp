@@ -16,11 +16,12 @@
 #include "engine/symlevel/io/filesystem.h"
 #include "engine/symlevel/member_index.h"
 #include "engine/symlevel/reader.h"
+#include "exception_handling.h"
 #include "gc_support.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
-#include "interpreter/interpretation_loop.h"
 #include "interpreter/implicit_exceptions.h"
+#include "interpreter/interpretation_loop.h"
 #include "interpreter/loggers.h"
 #include "runtimesupport/impl/rt_syms.h"
 #include "utils/logger.h"
@@ -258,12 +259,18 @@ static void VisitGlobalRoots(DYN_RootVisitor visitor)
     }
 }
 
-// TODO implement
-static void FrameInfoProvider(DYN_FramePointer fp, DYN_InstructionPointer ip, INT_InterpretedFrameInfo* info)
+static void FrameInfoProvider(DYN_InstructionPointer ip, DYN_FramePointer fp, INT_InterpretedFrameInfo* info)
 {
-    info->bcPos = 0;
-    info->fuh   = nullptr;
-    return;
+    if (g_Initialized) {
+        EHSupport::FrameInfoProvider(ip, fp, info);
+    }
+}
+
+static void FrameDescProvider(INT_FunctionHandle fuh, INT_BytecodePos pos, INT_InterpretedFrameDesc* frameDesc)
+{
+    if (g_Initialized) {
+        EHSupport::FrameDescProvider(fuh, pos, frameDesc);
+    }
 }
 
 extern "C" {
@@ -345,6 +352,7 @@ CBC_EXPORT int interpreter_bridge_init(
     interpInterf->visitGlobalRoots         = &VisitGlobalRoots;
 
     interpInterf->frameInfoProvider = &FrameInfoProvider;
+    interpInterf->frameDescProvider = &FrameDescProvider;
 
     interpInterf->landingPad = Asm::common_landing_pad;
 

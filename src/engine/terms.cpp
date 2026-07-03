@@ -373,26 +373,26 @@ void Term::GetName(Session& session, Stream::Output& stream) const
     using TK  = TermKind;
     auto kind = GetKind();
     switch (kind) {
-        case TK::NIL:     stream << "nil"; break;
-        case TK::VOID:    stream << "void"; break;
-        case TK::UNIT:    stream << "unit"; break;
-        case TK::NOTHING: stream << "nothing"; break;
-        case TK::BOOLEAN: stream << "bool"; break;
-        case TK::I8:      stream << "i8"; break;
-        case TK::U8:      stream << "u8"; break;
-        case TK::I16:     stream << "i16"; break;
-        case TK::U16:     stream << "u16"; break;
-        case TK::I32:     stream << "i32"; break;
-        case TK::U32:     stream << "u32"; break;
-        case TK::UCHAR32: stream << "uchar32"; break;
-        case TK::I64:     stream << "i64"; break;
-        case TK::U64:     stream << "u64"; break;
-        case TK::IADDR:   stream << "iaddr"; break;
-        case TK::UADDR:   stream << "uaddr"; break;
-        case TK::BSTRING: stream << "bstr"; break;
-        case TK::F16:     stream << "f16"; break;
-        case TK::F32:     stream << "f32"; break;
-        case TK::F64:     stream << "f64"; break;
+        case TK::NIL:     stream << "Nil"; break;
+        case TK::VOID:    stream << "Void"; break;
+        case TK::UNIT:    stream << "Unit"; break;
+        case TK::NOTHING: stream << "Nothing"; break;
+        case TK::BOOLEAN: stream << "Bool"; break;
+        case TK::I8:      stream << "Int8"; break;
+        case TK::U8:      stream << "UInt8"; break;
+        case TK::I16:     stream << "Int16"; break;
+        case TK::U16:     stream << "UInt16"; break;
+        case TK::I32:     stream << "Int32"; break;
+        case TK::U32:     stream << "UInt32"; break;
+        case TK::UCHAR32: stream << "UChar32"; break;
+        case TK::I64:     stream << "Int64"; break;
+        case TK::U64:     stream << "UInt64"; break;
+        case TK::IADDR:   stream << "IAddr"; break;
+        case TK::UADDR:   stream << "UAddr"; break;
+        case TK::BSTRING: stream << "BString"; break;
+        case TK::F16:     stream << "Float16"; break;
+        case TK::F32:     stream << "Float32"; break;
+        case TK::F64:     stream << "Float64"; break;
 
         case TK::UNDEFINED: {
             auto undef  = UndefTermId(*this).GetIdentifier();
@@ -404,7 +404,7 @@ void Term::GetName(Session& session, Stream::Output& stream) const
         }
 
         case TK::C_POINTER: {
-            stream << "$cpointer<";
+            stream << "CPointer<";
             Subterm(0).GetName(session, stream);
             stream << '>';
             break;
@@ -425,13 +425,13 @@ void Term::GetName(Session& session, Stream::Output& stream) const
         }
 
         case TK::FUNCTIONAL: {
-            printSubTerms("(", ")", GetLength() - 1);
+            printSubTerms("(", ") -> ", GetLength() - 1);
             Subterm(GetLength() - 1).GetName(session, stream);
             break;
         }
 
         case TK::TUPLE: {
-            printSubTerms("[", "]", GetLength());
+            printSubTerms("(", ")", GetLength());
             break;
         }
 

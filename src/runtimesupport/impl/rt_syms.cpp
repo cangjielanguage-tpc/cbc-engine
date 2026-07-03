@@ -119,7 +119,7 @@ void Initialize(DYN_CJNativeInterface* interf)
         return;
     }
 
-    const char* throwerName = "_CN7default22throwImplicitExceptionHl";
+    const char* throwerName = "_CN32cangjie.runtime.cbcengine.helper22throwImplicitExceptionHl";
     auto throwerSym         = helperHandleOpt.value().Sym(throwerName);
     if (throwerSym == nullptr) {
         Log::init.Stream(Logging::Level::ERROR) << "failed to find symbol " << throwerName << Stream::endl;
