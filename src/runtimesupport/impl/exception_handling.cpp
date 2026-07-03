@@ -97,6 +97,11 @@ void FrameDescProvider(INT_FunctionHandle fuh, INT_BytecodePos pos, INT_Interpre
         return;
     }
 
+    // Line number
+    {
+        frameDesc->lineNumber = 0; // TODO: implement
+    }
+
     // Method name
     {
         std::string methodNameWithArgs;
@@ -119,8 +124,24 @@ void FrameDescProvider(INT_FunctionHandle fuh, INT_BytecodePos pos, INT_Interpre
 
     // Type name
     {
-        auto typeName        = Symlevel::String::Parse(session, methodDef.TypeName());
-        frameDesc->className = AllocateString(typeName);
+        auto typeNameView = Symlevel::String::Parse(session, methodDef.TypeName());
+        size_t size       = typeNameView.size();
+
+        size_t delimPos = typeNameView.find(':');
+        if (delimPos == std::string_view::npos) {
+            // method is in a package
+            frameDesc->className = AllocateString(typeNameView);
+        } else {
+            // method in a class
+            std::string typeName;
+            typeName.reserve(typeNameView.size() + 1);
+
+            typeName.append(typeNameView.substr(0, delimPos));
+            typeName.append("::");
+            typeName.append(typeNameView.substr(delimPos + 1));
+
+            frameDesc->className = AllocateString(typeName);
+        }
     }
 
     // File name
