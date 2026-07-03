@@ -86,6 +86,7 @@ static void FreeStrings(char* methodName, char* className, char* fileName)
 }
 
 // TODO support getting src line by bytecode posiiton
+// TODO print "<...>" if type or method arity is > 1
 void FrameDescProvider(INT_FunctionHandle fuh, INT_BytecodePos pos, INT_InterpretedFrameDesc* frameDesc)
 {
     Engine::Session session(Engine::GetEngineInstance());
