@@ -20,14 +20,14 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B4xi12rr a
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, BFX args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, IOF args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B5xi12ri12 args);
-void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B5i16i16 args);
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, VirtualCall args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B5i32 args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3xrrr args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3xxrr args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B4xi12xr args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3xi12 args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B9i64 args);
-void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B11i16i64 args);
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, InterfaceCall args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B13i64i32 args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, StructFieldOp args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, Offset args);
