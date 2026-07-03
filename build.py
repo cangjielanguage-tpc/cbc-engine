@@ -21,11 +21,24 @@ SUPPORTED_TARGETS = {
 
 ANDROID_PLATFORM = "android-26"
 ANDROID_ABI = "arm64-v8a"
+IOS_HELPER_TARGETS = {
+    "ios": ("iphoneos", "aarch64-apple-ios"),
+    "ios-sim": ("iphonesimulator", "aarch64-apple-ios-simulator"),
+}
+HELPER_LIB_NAME = "libcbcengine-helper.dylib"
 
 
 def run_command(command, cwd=None):
     try:
         subprocess.run(command, shell=True, check=True, cwd=cwd)
+    except subprocess.CalledProcessError as e:
+        print(f"Error: Command failed with exit code {e.returncode}")
+        sys.exit(e.returncode)
+
+
+def run_command_args(command, cwd=None, env=None):
+    try:
+        subprocess.run(command, check=True, cwd=cwd, env=env)
     except subprocess.CalledProcessError as e:
         print(f"Error: Command failed with exit code {e.returncode}")
         sys.exit(e.returncode)
@@ -126,6 +139,23 @@ def prepare_cmake_options(args, project_dir):
     )
 
 
+def get_xcode_sdkroot(sdk):
+    try:
+        sdkroot = subprocess.check_output(
+            ["xcrun", "--sdk", sdk, "--show-sdk-path"],
+            text=True,
+        ).strip()
+    except FileNotFoundError:
+        fail("xcrun was not found. Install the Xcode command-line tools.")
+    except subprocess.CalledProcessError as e:
+        print(f"Error: xcrun failed with exit code {e.returncode}")
+        sys.exit(e.returncode)
+
+    if not sdkroot:
+        fail(f"xcrun returned an empty SDK path for {sdk}")
+    return sdkroot
+
+
 def build(args, project_dir, build_dir):
     validate_target(args.target_os, args.target_arch)
     host_os = detect_host_os()
@@ -171,6 +201,50 @@ def build(args, project_dir, build_dir):
         run_command(f"ctest --output-on-failure -j{args.jobs}", cwd=build_dir)
 
 
+def build_helper_lib(args, project_dir, build_dir):
+    if detect_host_os() != "macos":
+        fail("iOS helper library builds require macOS and the Xcode command-line tools")
+
+    if args.target_arch != "aarch64" or args.target_os not in IOS_HELPER_TARGETS:
+        fail(
+            "Unsupported helper target combination: "
+            f"--target-os={args.target_os}, --target-arch={args.target_arch}"
+        )
+
+    cangjie_home = os.environ.get("CANGJIE_HOME")
+    if cangjie_home is None:
+        fail("CANGJIE_HOME must be set for iOS helper library builds. Source <CANGJIE_SDK>/envsetup.sh first.")
+
+    cjc_path = Path(cangjie_home) / "bin/cjc"
+    if not cjc_path.is_file():
+        fail(f"Cangjie compiler does not exist: {cjc_path}")
+
+    helper_source = Path(project_dir) / "tools/launcher/cbcengine-helper.cj"
+    if not helper_source.is_file():
+        fail(f"Helper source does not exist: {helper_source}")
+
+    sdk, cjc_target = IOS_HELPER_TARGETS[args.target_os]
+    sdkroot = get_xcode_sdkroot(sdk)
+    build_path = Path(build_dir)
+    build_path.mkdir(parents=True, exist_ok=True)
+    output_path = build_path / HELPER_LIB_NAME
+
+    print(f"--- Building {HELPER_LIB_NAME} for {target_name(args.target_os, args.target_arch)} ---")
+    env = os.environ.copy()
+    env["SDKROOT"] = sdkroot
+    command = [
+        str(cjc_path),
+        str(helper_source),
+        "--output-type=dylib",
+        "--target",
+        cjc_target,
+        "-o",
+        str(output_path),
+    ]
+    run_command_args(command, cwd=build_dir, env=env)
+    print(f"Output: {output_path}")
+
+
 def main():
     host_os = detect_host_os()
     host_arch = detect_host_arch()
@@ -204,6 +278,16 @@ def main():
                               default=multiprocessing.cpu_count(),
                               help=f"Number of parallel jobs (default: {multiprocessing.cpu_count()})")
 
+    helper_parser = subparsers.add_parser("build-helper-lib", help="build libcbcengine-helper.dylib")
+    helper_parser.add_argument("--target-os",
+                               choices=list(IOS_HELPER_TARGETS.keys()),
+                               required=True,
+                               help="Target operating system")
+    helper_parser.add_argument("--target-arch",
+                               choices=["aarch64"],
+                               default="aarch64",
+                               help="Target architecture (default: aarch64)")
+
     subparsers.add_parser("clean", help="clean build artifacts")
 
     args = parser.parse_args()
@@ -221,6 +305,14 @@ def main():
         print(f"Target arch:       {args.target_arch}")
 
         build(args, project_dir, build_dir)
+    elif args.command == "build-helper-lib":
+        build_dir = build_root_dir + f"/{target_name(args.target_os, args.target_arch)}"
+        print(f"Project directory: {project_dir}")
+        print(f"Build directory:   {build_dir}")
+        print(f"Target OS:         {args.target_os}")
+        print(f"Target arch:       {args.target_arch}")
+
+        build_helper_lib(args, project_dir, build_dir)
 
 
 if __name__ == "__main__":
