@@ -37,6 +37,14 @@
     #define common_landing_pad _common_landing_pad
 #endif
 
+#ifdef __APPLE__
+    #define Page(sym) sym@PAGE
+    #define PageOff(sym) sym@PAGEOFF
+#else
+    #define Page(sym) sym
+    #define PageOff(sym) :lo12:sym
+#endif
+
 .macro declare_hidden sym
   .global \sym
 #ifdef __APPLE__
@@ -123,13 +131,8 @@ engine_cjthread_specific_offset:
 
 .balign 16
 engine_universal_direct_call:
-#ifdef __APPLE__
-  adrp  x10, engine_universal_direct_function_handles@PAGE
-  add   x10, x10, engine_universal_direct_function_handles@PAGEOFF
-#else
-  adrp  x10, engine_universal_direct_function_handles
-  add   x10, x10, :lo12:engine_universal_direct_function_handles
-#endif
+  adrp  x10, Page(engine_universal_direct_function_handles)
+  add   x10, x10, PageOff(engine_universal_direct_function_handles)
   ldr   x9, [x10, x9, lsl #3] // put FuH on x9
   ldr   x10, [x9, #FUNCTION_HANDLE_C2CALL_OFFSET]
   br    x10
@@ -181,21 +184,11 @@ engine_trampolines_dyn_end:
 
   str   x9, [sp, #-16]! // x29 - 0x50 : FunctionHandle that will help to scan saved regs
 
-#ifdef __APPLE__
-  adrp  ECTYPE_REG, engine_carrier_specific_offset@PAGE
-  ldr   ECTYPE_REG, [ECTYPE_REG, engine_carrier_specific_offset@PAGEOFF]
-#else
-  adrp  ECTYPE_REG, engine_carrier_specific_offset
-  ldr   ECTYPE_REG, [ECTYPE_REG, :lo12:engine_carrier_specific_offset]
-#endif
+  adrp  ECTYPE_REG, Page(engine_carrier_specific_offset)
+  ldr   ECTYPE_REG, [ECTYPE_REG, PageOff(engine_carrier_specific_offset)]
   ldr   x21, [TLS_REG, ECTYPE_REG]
-#ifdef __APPLE__
-  adrp  ECTYPE_REG, engine_cjthread_specific_offset@PAGE
-  ldr   ECTYPE_REG, [ECTYPE_REG, engine_cjthread_specific_offset@PAGEOFF]
-#else
-  adrp  ECTYPE_REG, engine_cjthread_specific_offset
-  ldr   ECTYPE_REG, [ECTYPE_REG, :lo12:engine_cjthread_specific_offset]
-#endif
+  adrp  ECTYPE_REG, Page(engine_cjthread_specific_offset)
+  ldr   ECTYPE_REG, [ECTYPE_REG, PageOff(engine_cjthread_specific_offset)]
   add   x21, x21, ECTYPE_REG // address of slot in fiber data that contains ectype addr
   ldr   ECTYPE_REG, [x21]    // ectype addr
 
@@ -298,13 +291,8 @@ engine_i2c_call:
 
 .balign 16
 get_tls:
-#ifdef __APPLE__
-  adrp  x10, engine_tls_function@PAGE
-  ldr   x10, [x10, engine_tls_function@PAGEOFF]
-#else
-  adrp  x10, engine_tls_function
-  ldr   x10, [x10, :lo12:engine_tls_function]
-#endif
+  adrp  x10, Page(engine_tls_function)
+  ldr   x10, [x10, PageOff(engine_tls_function)]
   br    x10
 
 .macro restore_tls // spoils volatile registers!
@@ -324,13 +312,8 @@ engine_i2_load_generic:
 
   mov   EXTRA_REG, x0
   // allocate box
-#ifdef __APPLE__
-  adrp  x4, engine_newobject_function@PAGE
-  ldr   x4, [x4, engine_newobject_function@PAGEOFF]
-#else
-  adrp  x4, engine_newobject_function
-  ldr   x4, [x4, :lo12:engine_newobject_function]
-#endif
+  adrp  x4, Page(engine_newobject_function)
+  ldr   x4, [x4, PageOff(engine_newobject_function)]
   lsr   x0, x0, 12
   blr   x4
   // box is already on dst param of read generic
@@ -353,13 +336,8 @@ engine_i2_load_generic:
   ldr   x3, [x0] // get header
   ldr   x3, [x3, #TYPEINFO_INSTANCESIZE_OFFSET]
   // perform generic read
-#ifdef __APPLE__
-  adrp  x4, engine_read_generic@PAGE
-  ldr   x4, [x4, engine_read_generic@PAGEOFF]
-#else
-  adrp  x4, engine_read_generic
-  ldr   x4, [x4, :lo12:engine_read_generic]
-#endif
+  adrp  x4, Page(engine_read_generic)
+  ldr   x4, [x4, PageOff(engine_read_generic)]
   blr   x4
   b     .Lrestart_interpretation
 
@@ -369,13 +347,8 @@ engine_i2_load_generic:
 // TLS_REG can be changed after context-switch
 engine_i2_newobject:
   // jumped from .Linterpreter_call without return address to return
-#ifdef __APPLE__
-  adrp  x10, engine_newobject_function@PAGE
-  ldr   x10, [x10, engine_newobject_function@PAGEOFF]
-#else
-  adrp  x10, engine_newobject_function
-  ldr   x10, [x10, :lo12:engine_newobject_function]
-#endif
+  adrp  x10, Page(engine_newobject_function)
+  ldr   x10, [x10, PageOff(engine_newobject_function)]
   blr   x10
 
   str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE)]
@@ -389,13 +362,8 @@ engine_i2_newobject:
 // TLS_REG can be changed after context-switch
 engine_i2_newobject_acc:
   // jumped from .Linterpreter_call without return address to return
-#ifdef __APPLE__
-  adrp  x10, engine_newobject_function@PAGE
-  ldr   x10, [x10, engine_newobject_function@PAGEOFF]
-#else
-  adrp  x10, engine_newobject_function
-  ldr   x10, [x10, :lo12:engine_newobject_function]
-#endif
+  adrp  x10, Page(engine_newobject_function)
+  ldr   x10, [x10, PageOff(engine_newobject_function)]
   blr   x10
 
   str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE * ECTYPE_IACC_NUM)]
@@ -410,13 +378,8 @@ engine_i2_newobject_acc:
 engine_i2_newarray:
   // jumped from .Linterpreter_call without return address to return
   ldr   x1, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x10)]
-#ifdef __APPLE__
-  adrp  x10, engine_newarray_function@PAGE
-  ldr   x10, [x10, engine_newarray_function@PAGEOFF]
-#else
-  adrp  x10, engine_newarray_function
-  ldr   x10, [x10, :lo12:engine_newarray_function]
-#endif
+  adrp  x10, Page(engine_newarray_function)
+  ldr   x10, [x10, PageOff(engine_newarray_function)]
   blr   x10
 
   str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE)]
@@ -439,13 +402,8 @@ engine_i2_spawn:
   adr   x0, engine_fake_execute_closure
   mov   x2, 0
 
-#ifdef __APPLE__
-  adrp  x4, engine_newthread_nret_function@PAGE
-  ldr   x4, [x4, engine_newthread_nret_function@PAGEOFF]
-#else
-  adrp  x4, engine_newthread_nret_function
-  ldr   x4, [x4, :lo12:engine_newthread_nret_function]
-#endif
+  adrp  x4, Page(engine_newthread_nret_function)
+  ldr   x4, [x4, PageOff(engine_newthread_nret_function)]
   blr   x4
   b     .Lrestart_interpretation
 
@@ -610,13 +568,8 @@ engine_fake_execute_closure:
 // TLS_REG can be changed after context-switch
 engine_throw_implicit_exception:
   // jumped from .Linterpreter_call without return address to return
-#ifdef __APPLE__
-  adrp  x9, engine_implicit_exception_thrower@PAGE
-  ldr   x9, [x9, engine_implicit_exception_thrower@PAGEOFF]
-#else
-  adrp  x9, engine_implicit_exception_thrower
-  ldr   x9, [x9, :lo12:engine_implicit_exception_thrower]
-#endif
+  adrp  x9, Page(engine_implicit_exception_thrower)
+  ldr   x9, [x9, PageOff(engine_implicit_exception_thrower)]
   blr   x9
   brk   #0 // should not return, as exception is thrown inside call
 
@@ -665,22 +618,12 @@ engine_handle_exception:
   ldp   x29, x30, [sp], #16
 
   // Check if next method is C2I adapter
-#ifdef __APPLE__
-  adrp  x9, engine_c2i_call_pc_start@PAGE
-  add   x9, x9, engine_c2i_call_pc_start@PAGEOFF
-#else
-  adrp  x9, engine_c2i_call_pc_start
-  add   x9, x9, :lo12:engine_c2i_call_pc_start
-#endif
+  adrp  x9, Page(engine_c2i_call_pc_start)
+  add   x9, x9, PageOff(engine_c2i_call_pc_start)
   cmp   x30, x9
   b.lo  .Lhandle_next_dyn_func
-#ifdef __APPLE__
-  adrp  x9, engine_c2i_call_pc_end@PAGE
-  add   x9, x9, engine_c2i_call_pc_end@PAGEOFF
-#else
-  adrp  x9, engine_c2i_call_pc_end
-  add   x9, x9, :lo12:engine_c2i_call_pc_end
-#endif
+  adrp  x9, Page(engine_c2i_call_pc_end)
+  add   x9, x9, PageOff(engine_c2i_call_pc_end)
   cmp   x30, x9
   b.hs  .Lhandle_next_dyn_func
 
@@ -708,13 +651,8 @@ engine_handle_exception:
   //
   // So br to engine_throw_out_of_interpreter can be seen as blr from AOT function.
 
-#ifdef __APPLE__
-  adrp  x9, engine_throw_out_of_interpreter@PAGE
-  ldr   x9, [x9, engine_throw_out_of_interpreter@PAGEOFF]
-#else
-  adrp  x9, engine_throw_out_of_interpreter
-  ldr   x9, [x9, :lo12:engine_throw_out_of_interpreter]
-#endif
+  adrp  x9, Page(engine_throw_out_of_interpreter)
+  ldr   x9, [x9, PageOff(engine_throw_out_of_interpreter)]
   br    x9
   brk   #0
 

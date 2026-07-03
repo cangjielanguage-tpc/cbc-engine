@@ -275,15 +275,7 @@ static void PerformPatching()
 
 static void FiberStart(DYN_CJThreadSpecificData* data) { *data = nullptr; }
 
-#if defined(__APPLE__)
-    #define FIBER_INIT_ASM_LABEL "_engine_fiber_data_init"
-#else
-    #define FIBER_INIT_ASM_LABEL "engine_fiber_data_init"
-#endif
-
-extern "C" Interpretation::Ectype* FiberDataInit(DYN_CJThreadSpecificData* data) __asm__(FIBER_INIT_ASM_LABEL);
-
-Interpretation::Ectype* FiberDataInit(DYN_CJThreadSpecificData* data)
+extern "C" Interpretation::Ectype* engine_fiber_data_init(DYN_CJThreadSpecificData* data)
 {
     ASSERTION(*data == nullptr, "Incorrect data value: %p", *data);
 
