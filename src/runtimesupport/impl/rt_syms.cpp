@@ -108,7 +108,11 @@ void Initialize(DYN_CJNativeInterface* interf)
         return;
     }
 
+#if defined(__APPLE__)
+    const char* helperLibName = "libcbcengine-helper.dylib";
+#else
     const char* helperLibName = "libcbcengine-helper.so";
+#endif
     auto helperHandleOpt      = Handle::Open(helperLibName);
     if (!helperHandleOpt.has_value()) {
         Log::init.Stream(Logging::Level::ERROR) << "failed to open lib " << helperLibName << Stream::endl;
