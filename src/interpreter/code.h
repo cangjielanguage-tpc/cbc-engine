@@ -34,7 +34,11 @@ struct GcInfo {
 
 // List of non-zero registers used for storing non-volatile regs.
 struct NonVolatileRegs {
+    static constexpr int REG_DATA_SIZE = 4;
+    static constexpr int REGS_MAX_NUM  = 16;
     uint64_t value {};
+
+    static_assert(REG_DATA_SIZE * REGS_MAX_NUM == 8 * sizeof(value));
 
     // Encode register list from given mask.
     explicit NonVolatileRegs(uint16_t mask)
@@ -45,10 +49,10 @@ struct NonVolatileRegs {
         uint64_t p      = 1;
         uint64_t offset = 0;
         // Ascending order
-        while (reg < 16) {
+        while (reg < REGS_MAX_NUM) {
             if (mask & p) {
                 list    = list | (reg << offset);
-                offset += 4;
+                offset += REG_DATA_SIZE;
             }
             reg++;
             p <<= 1;
@@ -59,8 +63,8 @@ struct NonVolatileRegs {
     // Extract one register from register list.
     uint8_t ExtractReg()
     {
-        uint64_t result = value & 0xf;
-        value           = value >> 4;
+        uint64_t result = value & (REGS_MAX_NUM - 1);
+        value           = value >> REG_DATA_SIZE;
         return result;
     }
 
