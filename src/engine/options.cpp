@@ -31,6 +31,7 @@ constexpr Option globalOptionsArray[] = {
     { "cbc.path", &g_cbcPath, &SetStringValue },
     { "cbc.main", &g_mainCbc, &SetStringValue },
     { "cbc.patch", &g_patchCbc, &SetStringValue },
+    { "app.storage.path", &g_appStoragePath, &SetStringValue },
 };
 
 namespace Engine {
