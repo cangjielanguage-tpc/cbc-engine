@@ -77,22 +77,22 @@ engine_cjthread_specific_offset:
     ldr   \list_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
     cbz   \list_reg, .L\@iend
     add   \tmp2, ECTYPE_REG, ECTYPE_IREGS_OFFSET
-.L\@copy:
-    and   \tmp1, \list_reg, 15
-    lsr   \list_reg, \list_reg, 4
-    ldr   \tmp1, [\tmp2, \tmp1, lsl #3]
-    str   \tmp1, [\stack_reg, #-ECTYPE_REG_SIZE]!
-    cbnz  \list_reg, .L\@copy
-.L\@iend:
-    ldr   \list_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_FREGS_OFFSET]
-    cbz   \list_reg, .L\@fend
-    add   \tmp2, ECTYPE_REG, ECTYPE_FREGS_OFFSET
 .L\@icopy:
     and   \tmp1, \list_reg, 15
     lsr   \list_reg, \list_reg, 4
     ldr   \tmp1, [\tmp2, \tmp1, lsl #3]
     str   \tmp1, [\stack_reg, #-ECTYPE_REG_SIZE]!
     cbnz  \list_reg, .L\@icopy
+.L\@iend:
+    ldr   \list_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_FREGS_OFFSET]
+    cbz   \list_reg, .L\@fend
+    add   \tmp2, ECTYPE_REG, ECTYPE_FREGS_OFFSET
+.L\@fcopy:
+    and   \tmp1, \list_reg, 15
+    lsr   \list_reg, \list_reg, 4
+    ldr   \tmp1, [\tmp2, \tmp1, lsl #3]
+    str   \tmp1, [\stack_reg, #-ECTYPE_REG_SIZE]!
+    cbnz  \list_reg, .L\@fcopy
 .L\@fend:
 .endm
 
