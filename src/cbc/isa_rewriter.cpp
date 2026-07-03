@@ -770,7 +770,7 @@ struct IsaRewriter : public IsaParser {
                 return;
             }
             auto typeInfo = ti.value();
-            auto isrc     = IReg::From(dst);
+            auto isrc     = IReg::From(src);
 
             emit.NewBox(typeInfo); // Spoils IR_ACC
             BindStatePoint();
