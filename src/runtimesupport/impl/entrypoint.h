@@ -5,3 +5,5 @@
 inline std::string g_cbcPath;
 inline std::string g_mainCbc;
 inline std::string g_patchCbc;
+inline std::string g_appStoragePath;
+inline void* g_appLibHandle = nullptr;
