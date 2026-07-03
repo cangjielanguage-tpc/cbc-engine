@@ -1,7 +1,11 @@
 #include "runtimesupport/impl/entrypoint.h"
 
 #include <algorithm>
+#include <cstring>
+#include <filesystem>
 #include <mutex>
+#include <system_error>
+#include <vector>
 
 #include "RTInterface.h"
 #include "asm_export.h"
@@ -35,6 +39,19 @@ static bool g_Initialized;
 static bool g_OptionsInitialized;
 static bool g_Patched;
 
+static constexpr const char* APP_LIB_HANDLE_ARG = "app.lib.handle";
+
+static void NativeLog(std::string message)
+{
+    auto logger = g_CJNativeInterfaceInstance.nativeLogger;
+    if (logger == nullptr) {
+        return;
+    }
+
+    static char tag[] = "Interpreter";
+    logger(21, tag, message.data());
+}
+
 static void InitEnvOpts()
 {
     std::lock_guard guard(g_InitializationGuard);
@@ -42,6 +59,82 @@ static void InitEnvOpts()
         Engine::InitEnvOptions();
         g_OptionsInitialized = true;
     }
+}
+
+static void ParseBridgeOptions(int size, const char** options)
+{
+    std::vector<const char*> engineOptions;
+    engineOptions.reserve(size > 0 ? static_cast<size_t>(size) : 0);
+
+    for (int i = 0; i < size && options != nullptr; ++i) {
+        const char* option = options[i];
+        if (option != nullptr && std::strcmp(option, APP_LIB_HANDLE_ARG) == 0) {
+            if (i + 1 < size) {
+                g_appLibHandle = const_cast<char*>(options[i + 1]);
+                ++i;
+            } else {
+                NativeLog("app library handle argument is missing value");
+            }
+            continue;
+        }
+
+        engineOptions.push_back(option);
+    }
+
+    Engine::g_table.ParseAndSet(static_cast<int>(engineOptions.size()), engineOptions.data());
+}
+
+static void DiscoverPatchCbcFromAppStorage()
+{
+    if (g_appStoragePath.empty() || !g_cbcPath.empty() || !g_patchCbc.empty()) {
+        return;
+    }
+
+    auto cbcDir = std::filesystem::path(g_appStoragePath) / "cbc";
+
+    std::error_code ec;
+    if (!std::filesystem::is_directory(cbcDir, ec)) {
+        if (ec) {
+            NativeLog("failed to access app storage cbc directory: " + cbcDir.string());
+        } else {
+            NativeLog("app storage cbc directory does not exist: " + cbcDir.string());
+        }
+        return;
+    }
+
+    std::filesystem::directory_iterator it(cbcDir, std::filesystem::directory_options::skip_permission_denied, ec);
+    if (ec) {
+        NativeLog("failed to scan app storage cbc directory: " + cbcDir.string());
+        return;
+    }
+
+    std::filesystem::path patchCbc;
+    std::filesystem::directory_iterator end;
+    while (it != end) {
+        auto const& entry = *it;
+        std::error_code fileEc;
+        if (entry.is_regular_file(fileEc) && entry.path().extension() == ".cbc") {
+            if (!patchCbc.empty()) {
+                NativeLog("multiple .cbc files found in app storage cbc directory: " + cbcDir.string());
+                return;
+            }
+            patchCbc = entry.path();
+        }
+
+        it.increment(ec);
+        if (ec) {
+            NativeLog("failed to scan app storage cbc directory: " + cbcDir.string());
+            return;
+        }
+    }
+
+    if (patchCbc.empty()) {
+        NativeLog("no .cbc files found in app storage cbc directory: " + cbcDir.string());
+        return;
+    }
+
+    g_patchCbc = patchCbc.string();
+    NativeLog("using app storage patch cbc: " + g_patchCbc);
 }
 
 /// Initialize engine from launcher.
@@ -333,11 +426,16 @@ CBC_EXPORT int interpreter_bridge_init(
         return 1;
     }
 
+    g_CJNativeInterfaceInstance = *rtInterf;
+
+    NativeLog("Interpreter bridge init started");
+
     // Order matters
     InitEnvOpts();
-    Engine::g_table.ParseAndSet(size, options);
+    ParseBridgeOptions(size, options);
 
-    g_CJNativeInterfaceInstance            = *rtInterf;
+    DiscoverPatchCbcFromAppStorage();
+
     interpInterf->version                  = INT_INTERPRETER_INTERFACE_VERSION;
     interpInterf->cjThreadSpecificDataSize = sizeof(Interpretation::Ectype);
     interpInterf->c2iStubStartAddr         = reinterpret_cast<uintptr_t>(&Asm::engine_c2i_call_pc_start);
@@ -393,6 +491,8 @@ CBC_EXPORT int interpreter_bridge_init(
         builtinTypeInfos[BUILTIN_F64]     = RTSupport::TypeInfo(getTypeInfo("Float64"));
         builtinTypeInfos[BUILTIN_RUNE]    = RTSupport::TypeInfo(getTypeInfo("Rune"));
     }
+
+    NativeLog("Interpreter bridge init finished");
 
     return 0;
 }
