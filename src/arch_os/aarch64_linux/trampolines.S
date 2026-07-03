@@ -107,9 +107,9 @@ engine_cjthread_specific_offset:
     str   \tmp3, [\tmp2, \tmp1, lsl #3]
     cbnz  \list_reg, .L\@icopy
 .L\@iend:
-    ldr   \list_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
+    ldr   \list_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_FREGS_OFFSET]
     cbz   \list_reg, .L\@fend
-    add   \tmp2, ECTYPE_REG, ECTYPE_IREGS_OFFSET
+    add   \tmp2, ECTYPE_REG, ECTYPE_FREGS_OFFSET
 .L\@fcopy:
     ldr   \tmp3, [\stack_reg, #-ECTYPE_REG_SIZE]!
     and   \tmp1, \list_reg, 15
@@ -495,7 +495,7 @@ perform_2i_call:
   mov   x2, sp
   add   x1, x1, x2 // add frame size to locate saved registers
 
-  POP_REGS w8, x1, x9, x2, x3, x4
+  POP_REGS x8, x1, x9, x2, x3, x4
 
   ldr   ECTYPE_REG, [x29, #-ECTYPE_REG_SAVED_SLOT_OFFSET]
   ldp   EXTRA_REG, LITERALS_REG, [x29, #-EXTRA_SAVED_REG_OFFSET]
@@ -555,7 +555,7 @@ engine_handle_exception:
   mov   x2, sp
   add   x1, x1, x2            // start of saved regs area
 
-  POP_REGS w8, x1, x9, x2, x3, x4
+  POP_REGS x8, x1, x9, x2, x3, x4
 
   ldr   LITERALS_REG, [x29, #-0x18]
   ldr   ECTYPE_REG, [x29, #-0x10]
