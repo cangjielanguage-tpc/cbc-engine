@@ -277,6 +277,7 @@ engine_i2i_call:
   blr   x9
 
   str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE)]
+  str   d0, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET)]
 
   b     .Lrestart_interpretation
 .endm
