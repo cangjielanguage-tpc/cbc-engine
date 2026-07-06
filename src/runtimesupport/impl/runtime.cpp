@@ -23,7 +23,9 @@ using Reference = Interpretation::Value::Reference;
 
 void Execution::WriteGeneric(Reference base, uintptr_t field, Reference object, size_t size, ThreadHandle th)
 {
-    RTSupport::WriteGeneric(base.value, field, object.value, size);
+    RTSupport::WriteGeneric(
+        reinterpret_cast<DYN_ObjRef>(base.value), field, reinterpret_cast<DYN_ObjRef>(object.value), size
+    );
 }
 
 Reference Execution::ReadObjectInstance(Reference base, uintptr_t field, ThreadHandle th)
@@ -74,13 +76,13 @@ void Execution::WriteStructField(uintptr_t src, Reference base, uintptr_t field,
 {
     auto type = UnpackTypeInfo(ti);
     auto size = type->instanceSize;
-    RTSupport::WriteStructField(base.value, field, size, src, size, type->gctib);
+    RTSupport::WriteStructField(reinterpret_cast<DYN_ObjRef>(base.value), field, src, size, type->gctib);
 }
 
 void Execution::ReadStructField(uintptr_t dst, Reference base, uintptr_t field, TypeInfo ti, ThreadHandle th)
 {
     auto type = UnpackTypeInfo(ti);
-    RTSupport::ReadStructField(dst, base.value, field, type->instanceSize, type->gctib);
+    RTSupport::ReadStructField(dst, reinterpret_cast<DYN_ObjRef>(base.value), field, type->instanceSize, type->gctib);
 }
 
 void* Execution::AllocateObjectInstance() { return reinterpret_cast<void*>(&Asm::engine_i2_newobject); }
