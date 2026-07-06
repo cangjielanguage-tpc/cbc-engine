@@ -764,6 +764,7 @@ std::optional<TypeInfo> CreateTypeInfo(
             case Engine::TermKind::FUNCTIONAL: return QueryFunctional(session, manager, term);
             case Engine::TermKind::TUPLE:      return QueryTypeInfoAOT(session, manager, "Tuple", term);
 
+            case Engine::TermKind::UNIT:    return QueryTypeInfoAOTByName("Unit");
             case Engine::TermKind::BOOLEAN: return QueryTypeInfoAOTByName("Bool");
             case Engine::TermKind::U8:      return QueryTypeInfoAOTByName("UInt8");
             case Engine::TermKind::I8:      return QueryTypeInfoAOTByName("Int8");
@@ -773,9 +774,12 @@ std::optional<TypeInfo> CreateTypeInfo(
             case Engine::TermKind::I32:     return QueryTypeInfoAOTByName("Int32");
             case Engine::TermKind::U64:     return QueryTypeInfoAOTByName("UInt64");
             case Engine::TermKind::I64:     return QueryTypeInfoAOTByName("Int64");
+            case Engine::TermKind::UADDR:   return QueryTypeInfoAOTByName("UIntNative");
+            case Engine::TermKind::IADDR:   return QueryTypeInfoAOTByName("IntNative");
             case Engine::TermKind::F16:     return QueryTypeInfoAOTByName("Float16");
             case Engine::TermKind::F32:     return QueryTypeInfoAOTByName("Float32");
             case Engine::TermKind::F64:     return QueryTypeInfoAOTByName("Float64");
+            case Engine::TermKind::UCHAR32: return QueryTypeInfoAOTByName("Rune");
 
             default: {
                 FATAL("Not supported yet %d", termIdent.GetKind());
