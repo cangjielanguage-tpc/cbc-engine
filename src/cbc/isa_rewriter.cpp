@@ -575,8 +575,8 @@ struct IsaRewriter : public IsaParser {
 
     void FRet(Format::Width width, FReg src) override
     {
-        if (src != FReg::FR1) {
-            emit.Mov(FReg::FR1, src);
+        if (src != FReg::FR0) {
+            emit.Mov(FReg::FR0, src);
         }
         emit.Ret();
     }

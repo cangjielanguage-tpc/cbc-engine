@@ -631,8 +631,8 @@ struct IsaParserImpl {
 
     static void UnboxRec(IsaParser& parser)
     {
-        auto [src, dst, tk] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
-        parser.Box(src, dst, tk);
+        auto [dst, src, tk] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.Unbox(dst, src, tk);
     }
 
     static void Box(IsaParser& parser)

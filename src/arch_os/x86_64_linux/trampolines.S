@@ -218,6 +218,7 @@ engine_trampolines_dyn_end:
   call perform_2i_call
 
   mov   rax,  [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE]
+  movq  xmm0, [ECTYPE_REG + ECTYPE_FREGS_OFFSET]
 
   pop   rbx // remove FunctionHandle
   pop   rbx
@@ -288,7 +289,8 @@ engine_i2i_call:
 
   call r10
 
-  mov [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE], rax
+  mov  [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE], rax
+  movq [ECTYPE_REG + ECTYPE_FREGS_OFFSET], xmm0
 
   jmp .Lrestart_interpretation
 .endm

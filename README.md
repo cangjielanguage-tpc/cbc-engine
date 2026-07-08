@@ -25,7 +25,24 @@ export ANDROID_NDK_HOME=/path/to/android-ndk
 python3 build.py build --target-os=android --target-arch=aarch64
 ```
 
-3) Library is located in `output/<target-os>_<target-arch>/libcbcengine.so`
+For iOS device and simulator builds, run the build directly on macOS with Xcode installed:
+
+```bash
+python3 build.py build --target-os=ios --target-arch=aarch64
+python3 build.py build --target-os=ios-sim --target-arch=aarch64
+```
+
+To build the helper library:
+1. \[for iOS\] Install XCode.
+2. Setup the Cangjie SDK environment (`source <CANGJIE_SDK>/envsetup.sh`) and run:
+
+```bash
+python3 build.py build-helper-lib --target-os=ios --target-arch=aarch64
+python3 build.py build-helper-lib --target-os=ios-sim --target-arch=aarch64
+```
+
+3) Library is located in `output/<target-os>_<target-arch>/libcbcengine.<so/dylib>`.
+Helper library is located in `output/<target-os>_aarch64/libcbcengine-helper.<so/dylib>`.
 
 ## How to run tests
 

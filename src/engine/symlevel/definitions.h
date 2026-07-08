@@ -105,6 +105,7 @@ public:
     struct Content {
         Engine::Identifier<MethodDefinition> identifier;
         Engine::RefIdentifier<Term> signature;
+        Offset<String> typeNameOffset;
         Offset<String> nameOffset;
         MethodFlags flags;
         uint8_t arity;
@@ -119,6 +120,11 @@ public:
     static String ParseName(Engine::Session& session, IO::FileId fileId, Offset<MethodDefinition> offset);
 
     inline Engine::Identifier<String> Name() const { return Engine::Identifier(content.nameOffset, content.identifier.GetFileId()); }
+
+    inline Engine::Identifier<String> TypeName() const
+    {
+        return Engine::Identifier(content.typeNameOffset, content.identifier.GetFileId());
+    }
 
     inline Engine::RefIdentifier<Term> Signature() const { return content.signature; }
 

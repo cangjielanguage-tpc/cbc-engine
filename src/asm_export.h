@@ -1,4 +1,10 @@
-#if defined(__x86_64__) || defined(_M_X64)
+#if defined(__APPLE__) && __has_include(<TargetConditionals.h>)
+    #include <TargetConditionals.h>
+#endif
+
+#if defined(TARGET_OS_IOS) && TARGET_OS_IOS && (defined(__aarch64__) || defined(_M_ARM64))
+    #include "arch_os/aarch64_ios/platform_asm_export.h"
+#elif defined(__x86_64__) || defined(_M_X64)
     #include "arch_os/x86_64_linux/platform_asm_export.h"
 #elif defined(__aarch64__) || defined(_M_ARM64)
     #include "arch_os/aarch64_linux/platform_asm_export.h"
