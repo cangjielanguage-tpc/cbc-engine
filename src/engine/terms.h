@@ -68,7 +68,6 @@ enum class TermKind : uint8_t {
 
     UNDEFINED, // resolution error
 
-    // builtin types start
     C_POINTER,
     NULLABLE,
     NON_NULLABLE,
@@ -76,12 +75,15 @@ enum class TermKind : uint8_t {
     FUNCTIONAL,
     TUPLE,
     BOX,
-    // builtin types end
-
     TYPE,
     AOT_TYPE,
     CLASS_TYPE_VAR,
     FUNC_TYPE_VAR,
+    GENERIC_OPTION,
+    NULLABLE_OPTION,
+    UNION_OPTION,
+    UNION_ENUM,
+    PRIMITIVE_ENUM,
     LAST
 };
 
@@ -238,6 +240,12 @@ using AotTermId   = _NumberedTermId<uint32_t, TermKind::AOT_TYPE>;
 using TypeTermId  = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::TYPE>;
 using UndefTermId = _SpecializedTermId<RefIdentifier<Term>, TermKind::UNDEFINED>;
 
+using GenericOptionId  = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::GENERIC_OPTION>;
+using NullableOptionId = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::NULLABLE_OPTION>;
+using UnionOptionId    = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::UNION_OPTION>;
+using UnionEnumId      = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::UNION_ENUM>;
+using PrimitiveEnumId  = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::PRIMITIVE_ENUM>;
+
 using ClassTvTermId = _NumberedTermId<uint8_t, TermKind::CLASS_TYPE_VAR>;
 using FuncTvTermId  = _NumberedTermId<uint8_t, TermKind::FUNC_TYPE_VAR>;
 
@@ -264,13 +272,15 @@ protected:
 class ClassSubstitution : public Substitution {
 public:
     ClassSubstitution(Session& session, Term term);
+    ClassSubstitution(Session& session, Term* terms, uint32_t termCount);
 
 protected:
     Term SubstituteClassTv(uint8_t typeVar) override;
     Term SubstituteFuncTv(uint8_t typeVar) override;
 
 private:
-    Term term;
+    Term* terms;
+    uint32_t termCount;
 };
 
 /// Routine that substitutes class type variables with corresponding subterms provided in vector.

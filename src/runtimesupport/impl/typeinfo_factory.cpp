@@ -25,9 +25,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
-#include <limits>
 #include <optional>
-#include <utility>
 
 namespace RTSupport {
 
@@ -143,10 +141,10 @@ struct TypeInfoBuilder {
     int8_t type;
     uint8_t flag      = 0;
     uint16_t fieldNum = 0;
-    //
-    // assume that there is no 32-bit size objects
-    int32_t instanceSize  = -1;
-    int32_t componentSize = -1;
+
+    // holds uint32_t
+    int64_t instanceSize  = -1;
+    int64_t componentSize = -1;
 
     DYN_GCTib gctib { .raw = GCTIB_SIGN_BIT };
     StdGCTib* longgctib = nullptr;
@@ -357,25 +355,29 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
     auto typeKind = type.GetFlags().GetTypeKind();
     switch (typeKind) {
         case Symlevel::TypeKind::INTERFACE:
-            builder.type = -127;
+            builder.type = TYPE_KIND_INTERFACE;
             needExtDefs  = true;
             needFields   = false;
             break;
         case Symlevel::TypeKind::RECORD:
-            builder.type = 22;
+            builder.type = TYPE_KIND_STRUCT;
             needExtDefs  = true;
             needFields   = true;
             break;
         case Symlevel::TypeKind::CLASS:
-            builder.type = -128;
+            builder.type = TYPE_KIND_CLASS;
             needExtDefs  = true;
             needFields   = true;
             break;
         case Symlevel::TypeKind::LAMBDA:
-            builder.type = -128;
+            builder.type = TYPE_KIND_CLASS;
             needExtDefs  = false;
             needFields   = true;
             break;
+        case Symlevel::TypeKind::ENUM:
+            builder.type = TYPE_KIND_ENUM;
+            needExtDefs  = true;
+            needFields   = true;
         default: FATAL("unreachable type kind");
     }
 
@@ -787,6 +789,8 @@ std::optional<TypeInfo> CreateTypeInfo(
         using namespace Interpretation;
         auto termIdent = term.GetId();
         switch (termIdent.GetKind()) {
+            case Engine::TermKind::NULLABLE_OPTION:
+            case Engine::TermKind::UNION_OPTION:
             case Engine::TermKind::TYPE: return CreateTypeInfoDyn(session, manager, term);
 
             case Engine::TermKind::AOT_TYPE:

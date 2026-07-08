@@ -1,5 +1,6 @@
 #include "field_layout.h"
 #include "engine/engine.h"
+#include "engine/identifiers.h"
 #include "engine/resolving_output.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/flags.h"
@@ -48,9 +49,16 @@ struct FLManager : public FieldLayoutManager {
         }
 
         std::optional<FieldLayout> layout = std::nullopt;
-        if (term.GetKind() != TermKind::TYPE) {
-            return std::nullopt;
-        } else if (auto it = cache.find(term); it != cache.end()) {
+
+        switch (term.GetKind()) {
+            case TermKind::TYPE:
+            case TermKind::UNION_ENUM:
+            case TermKind::UNION_OPTION: break;
+
+            default: return std::nullopt;
+        }
+
+        if (auto it = cache.find(term); it != cache.end()) {
             // FIXME: recursion detection
             return it->second;
         } else {
@@ -62,7 +70,7 @@ struct FLManager : public FieldLayoutManager {
         }
     }
 
-    /// The size of a field of given type and its alignment.
+    /// The size of a field of given type.
     std::optional<uint32_t> GetFlatSize(Term term) override
     {
         using TK = TermKind;
@@ -92,55 +100,32 @@ struct FLManager : public FieldLayoutManager {
             case TK::C_POINTER: return 8;
 
             case TK::NULLABLE:
-            case TK::NON_NULLABLE:
             case TK::FUNCTIONAL:
-            case TK::CANGJIE_ARRAY: return sizeof(void*);
+            case TK::NON_NULLABLE:
+            case TK::CANGJIE_ARRAY:
+            case TK::NULLABLE_OPTION: return sizeof(void*);
 
-            case TK::TYPE: {
-                auto ident = TypeTermId(term).GetIdentifier();
-                auto kind  = Symlevel::TypeDefinition::Resolve(session, ident).GetFlags().GetTypeKind();
-                if (kind != Symlevel::TypeKind::RECORD) {
-                    return sizeof(void*);
-                }
-                auto optlayout = GetLayout(term);
-                if (optlayout.has_value()) {
-                    auto layout = *optlayout;
-                    return layout->desc.size;
-                }
-                return std::nullopt;
+            case TK::PRIMITIVE_ENUM: {
+                auto id   = PrimitiveEnumId(term.GetId());
+                auto def  = Symlevel::Reader::Read(session, id.GetIdentifier());
+                auto term = TermManager::Resolve(session, def->superOrEnumType);
+                return GetFlatSize(term);
             }
 
-            case TK::AOT_TYPE: {
-                if (term.IsReference())
-                    return sizeof(void*);
-                auto ti = typeInfoManager.AcquireTypeInfo(session, term);
-                if (!ti.has_value()) {
-                    return std::nullopt;
-                }
-                return RTSupport::MetaInfo::GetTypeSize(*ti);
-            }
+            case TK::TYPE:
+            case TK::UNION_ENUM:
+            case TK::UNION_OPTION: return GetCbcFlatSize(term);
 
-            case TK::TUPLE: {
-                auto length   = term.GetLength();
-                uint32_t size = 0;
-                for (int i = 0; i < length; i++) {
-                    auto subterm = term.Subterm(i);
-                    auto optSize = GetFlatSize(subterm);
-                    if (!optSize.has_value()) {
-                        return std::nullopt;
-                    }
-                    size += *optSize;
-                }
-                return size;
-            }
+            case TK::TUPLE:
+            case TK::AOT_TYPE: return GetAotFlatSize(term);
 
+            case TK::GENERIC_OPTION:
             case TK::FUNC_TYPE_VAR:
             case TK::CLASS_TYPE_VAR: return std::nullopt;
 
             case TK::NIL:
             case TK::NOTHING:
-            case TK::UNDEFINED:
-            case TK::LAST:           return std::nullopt;
+            case TK::UNDEFINED: return std::nullopt;
 
             default: {
                 FATAL("Unexpected kind %d", term.GetKind());
@@ -148,13 +133,21 @@ struct FLManager : public FieldLayoutManager {
         }
     }
 
-    /// The alignment of a field of given type and its alignment.
+    /// The alignment of a field of given type.
     uint8_t GetFlatAlignment(Term term) override
     {
         if (term.IsReference()) {
             return sizeof(void*);
         }
         switch (term.GetKind()) {
+            case TermKind::PRIMITIVE_ENUM: {
+                auto id   = PrimitiveEnumId(term.GetId());
+                auto def  = Symlevel::Reader::Read(session, id.GetIdentifier());
+                auto term = TermManager::Resolve(session, def->superOrEnumType);
+                return GetFlatAlignment(term);
+            }
+            case TermKind::UNION_OPTION:
+            case TermKind::UNION_ENUM:
             case TermKind::TYPE: {
                 auto ident     = TypeTermId(term).GetIdentifier();
                 auto optlayout = GetLayout(term);
@@ -173,7 +166,7 @@ struct FLManager : public FieldLayoutManager {
             }
 
             default: {
-                // for primitives and reference types
+                // for primitives types
                 // alignment is the same as the size.
                 auto size = GetFlatSize(term);
                 if (size.has_value()) {
@@ -189,47 +182,139 @@ struct FLManager : public FieldLayoutManager {
         ASSERT(!term.IsGeneric());
         if (term.IsReference()) {
             offsets.push_back(disp);
-        } else if (term.GetKind() == TermKind::AOT_TYPE) {
-            auto typeInfo = typeInfoManager.AcquireTypeInfo(session, term);
-            if (!typeInfo.has_value()) {
-                return;
-            }
-
-            typeInfo->VisitReferenceOffsets([&offsets, disp](uint32_t offset) { offsets.push_back(offset + disp); });
-        } else if (term.GetKind() == TermKind::TYPE) {
-            ASSERT(!term.IsReference());
-            // Absent offsets must be handled separately.
-            // Here we will just ignore possible errors.
-            auto optlayout = GetLayout(term);
-            if (!optlayout.has_value()) {
-                return;
-            }
-            for (auto& field : (**optlayout).fields) {
-                if (!field.offset.has_value()) {
+            return;
+        }
+        switch (term.GetKind()) {
+            case TermKind::UNION_OPTION:
+            case TermKind::AOT_TYPE:     {
+                auto typeInfo = typeInfoManager.AcquireTypeInfo(session, term);
+                if (!typeInfo.has_value()) {
                     return;
                 }
-                auto offset = *field.offset + disp;
-                FillRefOffsets(field.fieldType, offsets, offset);
+
+                typeInfo->VisitReferenceOffsets([&offsets, disp](uint32_t offset) { offsets.push_back(offset + disp); }
+                );
+            }
+
+            case TermKind::TYPE: {
+                ASSERT(!term.IsReference());
+                // Absent offsets must be handled separately.
+                // Here we will just ignore possible errors.
+                auto optlayout = GetLayout(term);
+                if (!optlayout.has_value()) {
+                    return;
+                }
+                for (auto& field : (**optlayout).fields) {
+                    if (!field.offset.has_value()) {
+                        return;
+                    }
+                    auto offset = *field.offset + disp;
+                    FillRefOffsets(field.fieldType, offsets, offset);
+                }
+            }
+            default: {
+                /* pass */
             }
         }
     }
 
 private:
+    std::optional<uint32_t> GetAotFlatSize(Term term)
+    {
+        if (term.IsReference())
+            return sizeof(void*);
+        auto ti = typeInfoManager.AcquireTypeInfo(session, term);
+        if (!ti.has_value()) {
+            return std::nullopt;
+        }
+        return RTSupport::MetaInfo::GetTypeSize(*ti);
+    }
+
+    std::optional<uint32_t> GetCbcFlatSize(Term term)
+    {
+        if (term.IsReference()) {
+            return sizeof(void*);
+        }
+        auto optlayout = GetLayout(term);
+        if (optlayout.has_value()) {
+            auto layout = *optlayout;
+            return layout->desc.size;
+        }
+        return std::nullopt;
+    }
+
+    struct SizeAlignmentAccumulator {
+        std::optional<uint32_t> size;
+        uint8_t alignment;
+
+        std::optional<uint32_t> AddField(std::optional<uint32_t> fieldSize, uint8_t fieldAlignment)
+        {
+            std::optional<uint32_t> offset = std::nullopt;
+            if (size.has_value()) {
+                auto offs = MathUtils::AlignUp(*size, fieldAlignment);
+                size      = offs;
+                offset    = offs;
+                if (fieldSize.has_value()) {
+                    size = *size + *fieldSize;
+                }
+            }
+            if (!fieldSize.has_value()) {
+                size      = std::nullopt;
+                alignment = MAX_ALIGN;
+            }
+            alignment = std::max(alignment, fieldAlignment);
+            return offset;
+        }
+    };
+
     std::optional<FieldLayout> BuildLayout(Term term)
     {
         Log::fields.Log(Logging::Level::INFO, [&](Stream::Output& out_) {
             Stream::ResolvingOutput out(session, out_);
             out << "starting to build layout for " << term << Stream::endl;
         });
-        auto type = TypeTermId(term);
-        auto def  = Symlevel::Reader::Read(session, type.GetIdentifier());
+
+        auto kind = term.GetKind();
+        auto def  = Symlevel::Reader::Read(session, [&]() {
+            switch (kind) {
+                case TermKind::TYPE:         return TypeTermId(term).GetIdentifier();
+                case TermKind::UNION_OPTION: return UnionOptionId(term).GetIdentifier();
+                case TermKind::UNION_ENUM:   return UnionEnumId(term).GetIdentifier();
+                default:                     FATAL("unreachable");
+            }
+        }());
 
         std::optional<FieldLayout> layout {};
 
         if (def.GetFlags().Is(Symlevel::TypeFlag::AOT)) {
             layout = BuildLayoutAot(term, def);
-        } else {
+        } else if (kind == TermKind::TYPE) {
             layout = BuildLayoutCbc(term, def);
+        } else if (kind == TermKind::UNION_OPTION) {
+            SizeAlignmentAccumulator acc { sizeof(uint32_t), alignof(uint32_t) };
+            auto someType = TermManager::Resolve(session, def->superOrEnumType);
+            acc.AddField(GetFlatSize(someType), GetFlatAlignment(someType));
+            layout = FieldLayout::Content { .desc = { acc.size, acc.alignment } };
+        } else if (kind == TermKind::UNION_ENUM) {
+            // for some reason CJNative packs their enums tightly
+            uint8_t alignment = 1;
+
+            bool failed   = false;
+            uint32_t size = 0;
+            for (auto fieldTypeId : def->unionFields.Values(session)) {
+                auto fieldType = TermManager::Resolve(session, fieldTypeId);
+                auto fieldSize = GetFlatSize(fieldType);
+                if (!fieldSize) {
+                    failed = true;
+                    break;
+                }
+                size = std::max(size, *fieldSize);
+            }
+            if (failed) {
+                layout = std::nullopt;
+            } else {
+                layout = FieldLayout::Content { .desc = { size, alignment } };
+            }
         }
 
         Log::fields.Log(Logging::Level::DEBUG, [&](Stream::Output& out_) {
@@ -305,8 +390,7 @@ private:
         }
         FieldLayout::Content layout(std::move(*optlayout));
 
-        auto& alignment = layout.desc.alignment;
-        auto& size      = layout.desc.size;
+        SizeAlignmentAccumulator acc { layout.desc.size, layout.desc.alignment };
 
         for (auto fieldId : def.GetInstanceFields().Values(session)) {
             auto def            = Symlevel::Reader::Read(session, fieldId);
@@ -315,28 +399,13 @@ private:
             auto fieldSize      = GetFlatSize(fieldType);
             auto fieldAlignment = GetFlatAlignment(fieldType);
 
-            std::optional<uint32_t> offset = std::nullopt;
-
-            if (size.has_value()) {
-                auto offs = MathUtils::AlignUp(*size, fieldAlignment);
-                size      = offs;
-                offset    = offs;
-                if (fieldSize.has_value()) {
-                    size = *size + *fieldSize;
-                }
-            }
-            if (!fieldSize.has_value()) {
-                size      = std::nullopt;
-                alignment = MAX_ALIGN;
-            }
-            alignment = std::max(alignment, fieldAlignment);
-
+            auto offset = acc.AddField(fieldSize, fieldAlignment);
             layout.fields.emplace_back(FieldLayout::Entry {
                 .definition = fieldId, .fieldType = fieldType, .offset = offset });
         }
 
-        layout.desc.size      = size;
-        layout.desc.alignment = alignment;
+        layout.desc.size      = acc.size;
+        layout.desc.alignment = acc.alignment;
 
         return FieldLayout(std::move(layout));
     }

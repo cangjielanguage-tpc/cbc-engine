@@ -75,6 +75,11 @@ enum Tag : uint8_t {
     TUPLE             = 0x12,
     BOX               = 0x13,
     FST               = 0x14,
+    GENERIC_OPTION    = 0x15,
+    NULLABLE_OPTION   = 0x16,
+    UNION_OPTION      = 0x17,
+    UNION_ENUM        = 0x18,
+    PRIMITIVE_ENUM    = 0x19,
 };
 
 static TermData* AllocateTerm(Memory::Heap& allocator, size_t subtermCount = 0)
@@ -650,6 +655,84 @@ struct TermResolver {
         return Term(LocalTerm(data));
     }
 
+    Term ResolveOptionTerm(
+        IO::StreamFileReader& reader,
+        Symlevel::String name,
+        int expectedLength,
+        Symlevel::RefId<Term> refId,
+        Tag tag
+    )
+    {
+        using namespace Symlevel;
+
+        auto type = session.GetEngine().FindType(session, name);
+        if (!type.has_value()) {
+            return NewUndefined(refId);
+        }
+        auto identifier = type.value();
+
+        auto def = Symlevel::TypeDefinition::Resolve(session, identifier);
+
+        bool optionLikeEnum = false;
+        switch (def->enumKind) {
+            case Symlevel::EnumKind::OPTION0:
+            case Symlevel::EnumKind::OPTION1:
+                optionLikeEnum = true;
+            default: {}
+        }
+
+        bool undefined   = false;
+        bool isReference = false;
+        TermId id = TagTermId(TermKind::NIL);
+        switch (tag) {
+            case GENERIC_OPTION:
+                isReference = true;
+                undefined = !optionLikeEnum;
+                id = GenericOptionId(identifier);
+                break;
+            case NULLABLE_OPTION:
+                isReference = true;
+                undefined = !optionLikeEnum;
+                id = NullableOptionId(identifier);
+                break;
+            case UNION_OPTION:
+                isReference = false;
+                undefined = !optionLikeEnum;
+                id = UnionOptionId(identifier);
+                break;
+            case UNION_ENUM:
+                undefined = def->enumKind != Symlevel::EnumKind::UNION;
+                id = UnionEnumId(identifier);
+                break;
+            case PRIMITIVE_ENUM:
+                undefined = def->enumKind != Symlevel::EnumKind::PRIMITIVE;
+                id = PrimitiveEnumId(identifier);
+                break;
+            default: {}
+        }
+
+        if (undefined || def->arity != expectedLength) {
+            return NewUndefined(refId);
+        }
+
+        auto data      = AllocateTerm(heap, expectedLength);
+        bool isGeneric = false;
+        if (!ReadSubTerms(data, &isGeneric, expectedLength, reader)) {
+            return NewUndefined(refId);
+        }
+
+        data->InitAfterSubterms(
+            id,
+            expectedLength,
+            {
+                .isLocal       = true,
+                .isReference   = isReference,
+                .isGeneric     = isGeneric,
+            }
+        );
+        return Term(LocalTerm(data));
+    }
+
     Term ResolveAotType(
         IO::StreamFileReader& reader,
         Symlevel::Offset<Symlevel::String> nameOffs,
@@ -808,6 +891,16 @@ struct TermResolver {
                 subterm.data->flags.isFixedSize = true;
                 return subterm;
             }
+            case UNION_ENUM:
+            case PRIMITIVE_ENUM:
+            case UNION_OPTION:
+            case NULLABLE_OPTION:
+            case GENERIC_OPTION: {
+                auto nameOffs = Offset<String>(reader.ReadULEB());
+                auto name = Reader::Read(session, fileId, nameOffs);
+                auto arity = reader.ReadU8();
+                return ResolveOptionTerm(reader, name, arity, refId, tag);
+            }
             default: {
                 FATAL("Not implemented for tag %d", tag);
                 return NewUndefined(refId);
@@ -893,19 +986,45 @@ Term Substitution::Substitute(Term term)
         }
         flags.isLocal   = true;
         flags.isGeneric = isGeneric;
-        newData->InitAfterSubterms(data->identifier, length, flags);
+        auto identifier = data->identifier;
+        if (identifier.GetKind() == TermKind::GENERIC_OPTION) {
+            // Generic option designates an option that wraps a type variable.
+            // After substituion, option can change its type to Nullable or Union option.
+            auto gIdentifier = GenericOptionId(identifier);
+            auto typeDefId = gIdentifier.GetIdentifier();
+            auto def = Symlevel::Reader::Read(session, typeDefId);
+            auto someType = TermManager::Resolve(session, def->superOrEnumType);
+
+            ClassSubstitution sub(session, newData->subterms, length);
+            someType = sub.Substitute(someType);
+
+            if (someType.GetKind() == TermKind::CLASS_TYPE_VAR) {
+                identifier = identifier; // no changes
+            } else if (someType.GetKind() == TermKind::FUNC_TYPE_VAR) {
+                identifier = identifier; // no changes
+            } else if (someType.IsReference()) {
+                identifier = NullableOptionId(typeDefId);
+                flags.isReference = true;
+            } else {
+                identifier = UnionOptionId(typeDefId);
+                flags.isReference = false;
+            }
+        }
+        newData->InitAfterSubterms(identifier, length, flags);
         return LocalTerm(newData);
     }
 }
 
 Substitution::Substitution(Session& session) : session(session) {}
 
-ClassSubstitution::ClassSubstitution(Session& session, Term term) : Substitution(session), term(term) {}
+ClassSubstitution::ClassSubstitution(Session& session, Term term) : ClassSubstitution(session, term.data->subterms, term.data->length) {}
+
+ClassSubstitution::ClassSubstitution(Session& session, Term* terms, uint32_t termCount) :Substitution(session), terms(terms), termCount(termCount) {}
 
 Term ClassSubstitution::SubstituteClassTv(uint8_t typeVar)
 {
-    ASSERT(typeVar < term.GetLength());
-    return term.Subterm(typeVar);
+    ASSERT(typeVar < termCount);
+    return terms[typeVar];
 }
 
 Term ClassSubstitution::SubstituteFuncTv(uint8_t typeVar) { return Term::FuncTypeVariable(typeVar); }
