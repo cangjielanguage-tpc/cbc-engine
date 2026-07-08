@@ -156,6 +156,7 @@ MethodDefinition MethodDefinition::Parse(Engine::Session& session, IO::FileId fi
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetMethodDefSectionOffs() + offset);
 
     auto nameOffset  = Offset<String>(reader.ReadU32());
+    auto typeNameOffset = Offset<String>(reader.ReadU32());
     auto regionId    = reader.ReadU8();
     auto signature   = Engine::RefIdentifier(RefId<Term>(regionId, reader.ReadULEB()), fileId);
     auto parsedFlags = reader.ReadU16();
@@ -198,7 +199,7 @@ MethodDefinition MethodDefinition::Parse(Engine::Session& session, IO::FileId fi
     if (test(0x2000))
         flags = flags.Or(MethodFlag::HAS_OUTER_TI);
 
-    MethodDefinition::Content def{ Engine::Identifier(offset, fileId), signature, nameOffset, flags};
+    MethodDefinition::Content def{ Engine::Identifier(offset, fileId), signature, typeNameOffset, nameOffset, flags};
 
     for (auto tag = reader.ReadU8(); tag != 0; tag = reader.ReadU8()) {
         switch (tag) {

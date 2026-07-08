@@ -490,8 +490,7 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto method = m.value();
-        // TODO: use method->sret to determine receiver position
-        emit.VirtualCall(method->methodNum, method->extDefNum);
+        emit.VirtualCall(method->methodNum, method->extDefNum, method->sret);
         BindStatePoint();
         AdjustReg(dst, IReg::IR1);
     }
@@ -509,8 +508,7 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
-        // TODO: use method->sret to determine receiver position
-        emit.InterfaceCall(method->methodNum, *ti);
+        emit.InterfaceCall(method->methodNum, *ti, method->sret);
         BindStatePoint();
         AdjustReg(dst, IReg::IR1);
     }
@@ -577,8 +575,8 @@ struct IsaRewriter : public IsaParser {
 
     void FRet(Format::Width width, FReg src) override
     {
-        if (src != FReg::FR1) {
-            emit.Mov(FReg::FR1, src);
+        if (src != FReg::FR0) {
+            emit.Mov(FReg::FR0, src);
         }
         emit.Ret();
     }
@@ -772,7 +770,7 @@ struct IsaRewriter : public IsaParser {
                 return;
             }
             auto typeInfo = ti.value();
-            auto isrc     = IReg::From(dst);
+            auto isrc     = IReg::From(src);
 
             emit.NewBox(typeInfo); // Spoils IR_ACC
             BindStatePoint();

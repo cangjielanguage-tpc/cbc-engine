@@ -674,12 +674,19 @@ DIRECT_CALL_2C: {
     return { Adapters::GenericI2CCallInstance(), reinterpret_cast<void*>(target) };
 }
 VIRTUAL_CALL: {
-    auto args = B5i16i16::Decode(reader);
+    auto args = VirtualCall::Decode(reader);
     LOG_INSTR;
-    auto vnum      = args.imm1.imm;
-    auto extDefNum = args.imm2.imm;
+    auto vnum      = args.vnum;
+    auto extDefNum = args.edef;
 
-    auto reference = ectype->GetReference(IReg::IR1);
+#if defined(__x86_64__) || defined(_M_X64)
+    auto receiver = args.sret ? IReg::IR2 : IReg::IR1;
+#elif defined(__aarch64__) || defined(_M_ARM64)
+    // On aarch64 receiver location does not depend on sret,
+    // because sret has dedicated register IR9.
+    auto receiver = IReg::IR1;
+#endif
+    auto reference = ectype->GetReference(receiver);
 
     // For proper support of fibers, the following call MUST drop the current frame.
     // This can not be guaranteed by C++ compiler consistently, because TCO
@@ -695,11 +702,18 @@ VIRTUAL_CALL: {
 }
 
 INTERFACE_CALL: {
-    auto args = B11i16i64::Decode(reader);
+    auto args = InterfaceCall::Decode(reader);
     LOG_INSTR;
-    auto num       = args.imm16.imm;
-    auto typeInfo  = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
-    auto reference = ectype->GetReference(IReg::IR1);
+    auto num       = args.vnum;
+    auto typeInfo  = TypeInfo(static_cast<uintptr_t>(args.ti));
+#if defined(__x86_64__) || defined(_M_X64)
+    auto receiver = args.sret ? IReg::IR2 : IReg::IR1;
+#elif defined(__aarch64__) || defined(_M_ARM64)
+    // On aarch64 receiver location does not depend on sret,
+    // because sret has dedicated register IR9.
+    auto receiver = IReg::IR1;
+#endif
+    auto reference = ectype->GetReference(receiver);
 
     // For proper support of fibers, the following call MUST drop the current frame.
     // This can not be guaranteed by C++ compiler consistently, because TCO
@@ -1194,7 +1208,10 @@ void engine_log_int_end(DynamicFunctionHandle* handle, Ectype* ectype)
 
 Thunk Interpretation::InterpretationLoop(
     Ectype* ectype, Frame frame, RTSupport::ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
-) __attribute__((alias("engine_interpretation_loop")));
+)
+{
+    return engine_interpretation_loop(ectype, frame, handle, literals, reader0);
+}
 
 void Interpretation::InterpretationStart(DynamicFunctionHandle* handle, Ectype* ectype)
 {

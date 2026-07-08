@@ -800,26 +800,28 @@ void Emitter::DirectCall2c(Symbol target)
     AddFixup(std::make_unique<Literal12Fixup>(i4, target));
 }
 
-void Emitter::VirtualCall(uint16_t vnum, uint16_t extDefNum)
+void Emitter::VirtualCall(uint16_t vnum, uint16_t extDefNum, bool sret)
 {
     Encode(
         segment,
-        RT::B5i16i16 {
+        RT::VirtualCall {
             .opc  = RT::Opcode::VIRTUAL_CALL,
-            .imm1 = Imm16 { .imm = vnum },
-            .imm2 = Imm16 { .imm = extDefNum },
+            .vnum = vnum,
+            .edef = extDefNum,
+            .sret = static_cast<uint8_t>(sret),
         }
     );
 }
 
-void Emitter::InterfaceCall(uint16_t methodNum, RTSupport::TypeInfo typeInfo)
+void Emitter::InterfaceCall(uint16_t methodNum, RTSupport::TypeInfo typeInfo, bool sret)
 {
     Encode(
         segment,
-        RT::B11i16i64 {
-            .opc   = RT::Opcode::INTERFACE_CALL,
-            .imm16 = { methodNum },
-            .imm64 = { .imm = reinterpret_cast<uint64_t>(typeInfo.Raw()) },
+        RT::InterfaceCall {
+            .opc  = RT::Opcode::INTERFACE_CALL,
+            .vnum = methodNum,
+            .ti   = reinterpret_cast<uint64_t>(typeInfo.Raw()),
+            .sret = static_cast<uint8_t>(sret),
         }
     );
 }

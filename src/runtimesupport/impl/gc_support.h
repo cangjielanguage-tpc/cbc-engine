@@ -11,4 +11,5 @@ void IterateFramesWithState(
 void VisitGCFrameRoots(DYN_VisitingState state, INT_FrameDesc frame_desc, DYN_RootVisitor root_visitor);
 
 void VisitGlobalRoots(DYN_RootVisitor visitor);
-}
+
+} // namespace GCSupport

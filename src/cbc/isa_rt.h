@@ -75,8 +75,8 @@
     X(CONVERT, B3xxrr, "convert $0ct $1ct $2ir $3ir") /* FIXME: ir/fr */                                               \
     X(DIRECT_CALL_2I, B3xi12, "call.2i $1I12L")                                                                        \
     X(DIRECT_CALL_2C, B3xi12, "call.2c $1I12L")                                                                        \
-    X(VIRTUAL_CALL, B5i16i16, "vcall $0U16 $1U16")                                                                     \
-    X(INTERFACE_CALL, B11i16i64, "icall $0U16 $1U64")                                                                  \
+    X(VIRTUAL_CALL, VirtualCall, "vcall $0U16 $1U16")                                                                  \
+    X(INTERFACE_CALL, InterfaceCall, "icall $0U16 $1U64")                                                              \
     X(MEMSPACE, B1, "memspace {")                                                                                      \
     X(GC_POINT, B1, "gcpoint")                                                                                         \
     X(BFXS, BFX, "bfxs $0ir $1ir $2U8 $3U8")                                                                           \
@@ -103,9 +103,9 @@
     X(OFFS64, M9i64, "offs.64 $0U64", false)                                                                           \
     X(OFFS_REG, M2xr, "offs.r $1ir", false)                                                                            \
     X(GENERIC_FIELD, M6xri32, "generic.field $1ir $2U32 }", false)                                                     \
-    X(OFFS_REG_IDX64, M10xri64, "offs.r.idx.64 [$1ir * $2U64]", false)                                                 \
-    X(R_READ_STRUCT, MStructFieldOp, "r.read.struct $0ir $1ir $3U64", true)                                            \
-    X(R_WRITE_STRUCT, MStructFieldOp, "r.write.struct $0ir $1ir $3U64", true)                                          \
+    X(OFFS_REG_IDX64, M10xri64, "offs.r.idx.64 [$1ir * $2U64] }", false)                                               \
+    X(R_READ_STRUCT, MStructFieldOp, "r.read.struct $0ir $1ir $2U64 }", true)                                          \
+    X(R_WRITE_STRUCT, MStructFieldOp, "r.write.struct $0ir $1ir $2U64 }", true)                                        \
     X(RLD_U8, M2rr, "rld.u8 $0ir $1ir }", true)                                                                        \
     X(RLD_U16, M2rr, "rld.u16 $0ir $1ir }", true)                                                                      \
     X(RLD_32, M2rr, "rld.32 $0ir $1ir }", true)                                                                        \
@@ -545,19 +545,21 @@ struct B5xi12ri12 {
     }
 };
 
-struct B5i16i16 {
+struct VirtualCall {
     static constexpr int SIZE = 5;
 
     Opcode opc;
-    Format::Imm16 imm1;
-    Format::Imm16 imm2;
+    uint16_t vnum;
+    uint16_t edef;
+    uint8_t sret;
 
-    static B5i16i16 Decode(Decoder::ByteReader& reader)
+    static VirtualCall Decode(Decoder::ByteReader& reader)
     {
         auto opc  = Opcode::Decode(reader);
-        auto imm1 = Format::Imm16::Decode(reader);
-        auto imm2 = Format::Imm16::Decode(reader);
-        return B5i16i16 { opc, imm1, imm2 };
+        auto vnum = reader.Read16();
+        auto edef = reader.Read16();
+        auto sret = reader.Read8();
+        return VirtualCall { opc, vnum, edef, sret };
     }
 };
 
@@ -649,17 +651,19 @@ struct B10xri64 {
     }
 };
 
-struct B11i16i64 {
+struct InterfaceCall {
     Opcode opc;
-    Format::Imm16 imm16;
-    Format::Imm64 imm64;
+    uint16_t vnum;
+    uint64_t ti;
+    uint8_t sret;
 
-    static B11i16i64 Decode(Decoder::ByteReader& reader)
+    static InterfaceCall Decode(Decoder::ByteReader& reader)
     {
-        auto opc   = Opcode::Decode(reader);
-        auto imm16 = Format::Imm16::Decode(reader);
-        auto imm64 = Format::Imm64::Decode(reader);
-        return B11i16i64 { opc, imm16, imm64 };
+        auto opc  = Opcode::Decode(reader);
+        auto vnum = reader.Read16();
+        auto ti   = reader.Read64();
+        auto sret = reader.Read8();
+        return InterfaceCall { opc, vnum, ti, sret };
     }
 };
 
