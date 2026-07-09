@@ -74,24 +74,6 @@ protected:
     FILE* dest;
 };
 
-class PlatformLogOutput : public Output {
-public:
-    void Flush() const override;
-    void NewLine() override;
-    void VPrintFmt(const char* fmt, va_list argp) override;
-
-protected:
-    virtual void Log(const char* message) const = 0;
-
-private:
-    mutable std::string buffer;
-};
-
-class IOSPlatformLogOutput : public PlatformLogOutput {
-protected:
-    void Log(const char* message) const override;
-};
-
 class StringBuffer : public Output {
 public:
     StringBuffer();

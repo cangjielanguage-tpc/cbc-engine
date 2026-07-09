@@ -24,7 +24,22 @@ namespace Stream {
 
 namespace {
 
+#if CBC_ENGINE_STREAM_IOS_OS_LOG
 constexpr size_t PLATFORM_LOG_MAX_MESSAGE_SIZE = 4096;
+
+class IOSPlatformLogOutput : public Output {
+public:
+    IOSPlatformLogOutput() : Output(), buffer(), bufferSize(0) {}
+
+    void Flush() const override;
+    void NewLine() override;
+    void VPrintFmt(const char* fmt, va_list argp) override;
+
+private:
+    mutable StringBuffer buffer; // mutable because Flush() is const
+    mutable size_t bufferSize;
+};
+#endif
 
 } // namespace
 
@@ -135,19 +150,26 @@ void FileOutput::Flush() const { fflush(dest); }
 
 void FileOutput::VPrintFmt(const char* fmt, va_list argp) { vfprintf(dest, fmt, argp); }
 
-void PlatformLogOutput::Flush() const
+#if CBC_ENGINE_STREAM_IOS_OS_LOG
+void IOSPlatformLogOutput::Flush() const
 {
-    if (buffer.empty()) {
+    if (bufferSize == 0) {
         return;
     }
 
-    Log(buffer.c_str());
-    buffer.clear();
+    char* message = buffer.ToCString();
+    if (message != nullptr) {
+        os_log(OS_LOG_DEFAULT, "%{public}s", message);
+        free(message);
+    }
+
+    buffer.Clear();
+    bufferSize = 0;
 }
 
-void PlatformLogOutput::NewLine() { Flush(); }
+void IOSPlatformLogOutput::NewLine() { Flush(); }
 
-void PlatformLogOutput::VPrintFmt(const char* fmt, va_list argp)
+void IOSPlatformLogOutput::VPrintFmt(const char* fmt, va_list argp)
 {
     char message[PLATFORM_LOG_MAX_MESSAGE_SIZE];
     int written = vsnprintf(message, sizeof(message), fmt, argp);
@@ -158,18 +180,16 @@ void PlatformLogOutput::VPrintFmt(const char* fmt, va_list argp)
     size_t messageSize = static_cast<size_t>(written);
     messageSize        = std::min(messageSize, sizeof(message) - 1);
 
-    auto available = PLATFORM_LOG_MAX_MESSAGE_SIZE - 1 - buffer.size();
-    buffer.append(message, std::min(messageSize, available));
-}
+    auto available  = PLATFORM_LOG_MAX_MESSAGE_SIZE - 1 - bufferSize;
+    auto appendSize = std::min(messageSize, available);
+    if (appendSize == 0) {
+        return;
+    }
 
-void IOSPlatformLogOutput::Log(const char* message) const
-{
-#if CBC_ENGINE_STREAM_IOS_OS_LOG
-    os_log(OS_LOG_DEFAULT, "%{public}s", message);
-#else
-    (void)message;
-#endif
+    buffer.PrintFmt("%.*s", static_cast<int>(appendSize), message);
+    bufferSize += appendSize;
 }
+#endif
 
 StringBuffer::StringBuffer() : data(nullptr), size(0), capacity(0) {}
 
@@ -189,13 +209,15 @@ void StringBuffer::VPrintFmt(const char* fmt, va_list argp)
         return;
     }
 
-    if (required > capacity - size) {
+    if (static_cast<size_t>(required) + 1 > capacity - size) {
         // extra zero should be counted
         auto newCapacity = std::max(INITIAL_CAPACITY, size + required + 1);
         newCapacity      = std::max(newCapacity, 2 * capacity);
 
         auto newMem = std::make_unique<char[]>(newCapacity);
-        std::copy(data.get(), data.get() + capacity, newMem.get());
+        if (size != 0) {
+            std::copy(data.get(), data.get() + size, newMem.get());
+        }
         capacity = newCapacity;
         data     = std::move(newMem);
     }
