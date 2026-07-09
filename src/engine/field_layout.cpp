@@ -323,10 +323,6 @@ private:
                 }
             }
             if (!fieldSize.has_value()) {
-                Log::fields.Log(Logging::Level::ERROR, [&](Stream::Output& out_) {
-                    Stream::ResolvingOutput out(session, out_);
-                    out << "failed to obtain field size " << def << Stream::endl;
-                });
                 size      = std::nullopt;
                 alignment = MAX_ALIGN;
             }
