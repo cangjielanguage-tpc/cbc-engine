@@ -150,7 +150,7 @@
     X(DST_64, M3xrrr, "dst.64 $1ir $2ir $3ir }", true)                                                                 \
     X(DST_REF, M3xrrr, "dst.ref $1ir $2ir $3ir }", true)                                                               \
     X(DST_F32, M3xrrr, "dst.f32 $1fr $2ir $3ir }", true)                                                               \
-    X(DST_F64, M3xrrr, "dst.f64 $rfr $2ir $3ir }", true)                                                               \
+    X(DST_F64, M3xrrr, "dst.f64 $1fr $2ir $3ir }", true)                                                               \
     X(DST_GENERIC, M3rrrr, "dst.g $1ir $2ir $3ir }", true)                                                             \
     X(DSTI_8_8, M3rri8, "dsti.8.8 $0ir $1ir $2U8 }", true)                                                             \
     X(DSTI_16_8, M3rri8, "dsti.16.8 $0ir $1ir $2U8 }", true)                                                           \

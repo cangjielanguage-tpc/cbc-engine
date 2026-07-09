@@ -66,15 +66,15 @@ static LDK Ldk(CbcTypeKind tk)
         case TK::REC:  return LDK::LEA; // record types: load effective address
 
         default: {
-            FATAL("Not supported template kind");
+            FATAL("Not supported type kind %d", tk);
             return LDK::LD_S8;
         }
     }
 }
 
-static STK Stk(TK typeIdentifier)
+static STK Stk(TK tk)
 {
-    switch (typeIdentifier) {
+    switch (tk) {
         case TK::U8:
         case TK::I8:  return STK::ST_8;
         case TK::U16:
@@ -90,7 +90,7 @@ static STK Stk(TK typeIdentifier)
         case TK::REF:  return STK::ST_REF;
 
         default: {
-            FATAL("Not supported template kind");
+            FATAL("Not supported type kind %d", tk);
             return STK::ST_8;
         }
     }

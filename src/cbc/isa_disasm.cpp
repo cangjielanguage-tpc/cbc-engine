@@ -503,13 +503,13 @@ struct IsaDisasm : public IsaParser {
     void MemTailStoreGeneric(MemSpace& ms, IReg src, IReg ti) override
     {
         PrintMemPos();
-        stream << "mem.store.g" << " " << src << " " << ti.ToStr() << endl;
+        stream << "mem.store.g" << " " << src << " " << ti.ToStr();
     }
 
     void MemTailLoadGeneric(MemSpace& ms, IReg dst, IReg ti) override
     {
         PrintMemPos();
-        stream << "mem.load.g" << " " << dst << " " << ti.ToStr() << endl;
+        stream << "mem.load.g" << " " << dst << " " << ti.ToStr();
     }
 
     void PrintMemPos()
