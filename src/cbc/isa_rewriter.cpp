@@ -1108,6 +1108,7 @@ struct IsaRewriter : public IsaParser {
         if (field->refType->GetKind() == Resolution::CbcTypeKind::REF) {
             msr.emit.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
         }
+        msr.lastFieldKind = field->fieldType->GetKind();
         msr.emit.GenericField(field->ordinal, ti);
     }
 
