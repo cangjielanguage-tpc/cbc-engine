@@ -3,6 +3,7 @@
 #include "asm_export.h"
 #include "cjnative.h"
 #include "engine/statics_manager.h"
+#include "interpreter/code.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
 #include "runtimesupport/runtime.h"
@@ -10,6 +11,7 @@
 #include "utils/rt_logger.h"
 
 #include <bitset>
+#include <cstdint>
 
 namespace GCSupport {
 
@@ -49,13 +51,12 @@ public:
         }
     }
 
-    void UpdateRegLocations(std::bitset<ECTYPE_IREGS_COUNT> savedRegsMask, Placeholder calleeSavedRegsEnd)
+    void UpdateRegLocations(Interpretation::NonVolatileRegs savedRegs, Placeholder calleeSavedRegsEnd)
     {
         Placeholder addr = calleeSavedRegsEnd;
-        for (uint32_t regN = IReg::FIRST_NON_VOL; regN < IReg::COUNT; regN++) {
-            if (savedRegsMask.test(regN - IReg::FIRST_NON_VOL)) {
-                regLocationMap[regN] = --addr;
-            }
+        while (!savedRegs.IsEmpty()) {
+            uint32_t regN        = savedRegs.ExtractReg();
+            regLocationMap[regN] = --addr;
         }
     }
 
@@ -171,10 +172,16 @@ void VisitGCFrameRoots(DYN_VisitingState state, INT_FrameDesc frame_desc, DYN_Ro
         regsLocationTable->VisitAliveRegs(aliveRegsMap, rootVisitor);
     }
 
-    auto savedRegsMap = std::bitset<ECTYPE_IREGS_COUNT>(bc->savedIRegs);
+    auto savedRegsMap = bc->savedIRegs;
     {
         RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) {
-            out << "update regs table, saved regs: " << savedRegsMap.to_string().c_str() << endl;
+            auto regs     = savedRegsMap;
+            uint16_t mask = 0;
+            while (!regs.IsEmpty()) {
+                mask |= 1 << regs.ExtractReg();
+            }
+            std::bitset<ECTYPE_IREGS_COUNT> bitset(mask);
+            out << "update regs table, saved regs: " << bitset.to_string().c_str() << endl;
         });
 
         regsLocationTable->UpdateRegLocations(savedRegsMap, reinterpret_cast<Placeholder>(calleeSavedRegsEnd));

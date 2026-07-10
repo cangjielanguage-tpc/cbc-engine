@@ -129,6 +129,52 @@ engine_cjthread_specific_offset:
 .section .text
 #endif
 
+.macro PUSH_REGS list_reg, stack_reg, exec_info_reg, tmp1, tmp2
+    ldr   \list_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
+    cbz   \list_reg, .L\@iend
+    add   \tmp2, ECTYPE_REG, ECTYPE_IREGS_OFFSET
+.L\@icopy:
+    and   \tmp1, \list_reg, 15
+    lsr   \list_reg, \list_reg, 4
+    ldr   \tmp1, [\tmp2, \tmp1, lsl #3]
+    str   \tmp1, [\stack_reg, #-ECTYPE_REG_SIZE]!
+    cbnz  \list_reg, .L\@icopy
+.L\@iend:
+    ldr   \list_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_FREGS_OFFSET]
+    cbz   \list_reg, .L\@fend
+    add   \tmp2, ECTYPE_REG, ECTYPE_FREGS_OFFSET
+.L\@fcopy:
+    and   \tmp1, \list_reg, 15
+    lsr   \list_reg, \list_reg, 4
+    ldr   \tmp1, [\tmp2, \tmp1, lsl #3]
+    str   \tmp1, [\stack_reg, #-ECTYPE_REG_SIZE]!
+    cbnz  \list_reg, .L\@fcopy
+.L\@fend:
+.endm
+
+.macro POP_REGS list_reg, stack_reg, exec_info_reg, tmp1, tmp2, tmp3
+    ldr   \list_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
+    cbz   \list_reg, .L\@iend
+    add   \tmp2, ECTYPE_REG, ECTYPE_IREGS_OFFSET
+.L\@icopy:
+    ldr   \tmp3, [\stack_reg, #-ECTYPE_REG_SIZE]!
+    and   \tmp1, \list_reg, 15
+    lsr   \list_reg, \list_reg, 4
+    str   \tmp3, [\tmp2, \tmp1, lsl #3]
+    cbnz  \list_reg, .L\@icopy
+.L\@iend:
+    ldr   \list_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_FREGS_OFFSET]
+    cbz   \list_reg, .L\@fend
+    add   \tmp2, ECTYPE_REG, ECTYPE_FREGS_OFFSET
+.L\@fcopy:
+    ldr   \tmp3, [\stack_reg, #-ECTYPE_REG_SIZE]!
+    and   \tmp1, \list_reg, 15
+    lsr   \list_reg, \list_reg, 4
+    str   \tmp3, [\tmp2, \tmp1, lsl #3]
+    cbnz  \list_reg, .L\@fcopy
+.L\@fend:
+.endm
+
 .balign 16
 engine_universal_direct_call:
   adrp  x10, Page(engine_universal_direct_function_handles)
@@ -477,28 +523,7 @@ perform_2i_call:
   ldr   w8, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   sub   sp, sp, x8
 
-.macro PUSH_IREGS mask_reg, stack_reg, exec_info_reg
-    ldrh  \mask_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
-    .irp reg, 10,11,12,13
-        tbz \mask_reg, #(\reg-8), .Lsaveireg\reg
-        ldr x2, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + \reg*ECTYPE_REG_SIZE)]
-        str x2, [\stack_reg, #-ECTYPE_REG_SIZE]!
-.Lsaveireg\reg:
-    .endr
-.endm
-
-.macro PUSH_FREGS mask_reg, stack_reg, exec_info_reg
-    ldrh  \mask_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_FREGS_OFFSET]
-    .irp reg, 8,9,10,11,12,13,14,15
-        tbz \mask_reg, #(\reg-8), .Lsavefreg\reg
-        ldr d2, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET + \reg*ECTYPE_REG_SIZE)]
-        str d2, [\stack_reg, #-ECTYPE_REG_SIZE]!
-.Lsavefreg\reg:
-    .endr
-.endm
-
-  PUSH_IREGS w8, x1, x9
-  PUSH_FREGS w8, x1, x9
+  PUSH_REGS x8, x1, x9, x2, x3
 
 .Lrestart_interpretation:
   mov   x0, ECTYPE_REG
@@ -527,28 +552,7 @@ perform_2i_call:
   mov   x2, sp
   add   x1, x1, x2 // add frame size to locate saved registers
 
-.macro POP_IREGS mask_reg, stack_reg, exec_info_reg
-    ldrh  \mask_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
-    .irp reg, 10,11,12,13
-        tbz \mask_reg, #(\reg-8), .L\@skipireg\reg
-        ldr x2, [\stack_reg, #-0x8]!
-        str x2, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + \reg*ECTYPE_REG_SIZE)]
-.L\@skipireg\reg:
-    .endr
-.endm
-
-.macro POP_FREGS mask_reg, stack_reg, exec_info_reg
-    ldrh  \mask_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_FREGS_OFFSET]
-    .irp reg, 8,9,10,11,12,13,14,15
-        tbz \mask_reg, #(\reg-8), .L\@skipfreg\reg
-        ldr d2, [\stack_reg, #-0x8]!
-        str d2, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET + \reg*ECTYPE_REG_SIZE)]
-.L\@skipfreg\reg:
-    .endr
-.endm
-
-  POP_IREGS w8, x1, x9
-  POP_FREGS w8, x1, x9
+  POP_REGS x8, x1, x9, x2, x3, x4
 
   ldr   ECTYPE_REG, [x29, #-ECTYPE_REG_SAVED_SLOT_OFFSET]
   ldp   EXTRA_REG, LITERALS_REG, [x29, #-EXTRA_SAVED_REG_OFFSET]
@@ -608,8 +612,7 @@ engine_handle_exception:
   mov   x2, sp
   add   x1, x1, x2            // start of saved regs area
 
-  POP_IREGS w8, x1, x9
-  POP_FREGS w8, x1, x9
+  POP_REGS x8, x1, x9, x2, x3, x4
 
   ldr   LITERALS_REG, [x29, #-0x18]
   ldr   ECTYPE_REG, [x29, #-0x10]

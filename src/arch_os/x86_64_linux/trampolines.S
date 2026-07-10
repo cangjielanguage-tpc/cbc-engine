@@ -86,30 +86,62 @@ engine_cjthread_specific_offset:
   .endr
 .endm
 
-.macro POP_IREGS mask_reg, stack_reg, exec_info_reg
-    movzx   \mask_reg, WORD PTR [\exec_info_reg + EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
-    .irp reg, 8,9,10,11,12,13
-        .set _bit, (\reg - 8)
-        test    \mask_reg, (1 << _bit)
-        jz      .L\@skipireg\reg
-        sub     \stack_reg, 8
-        mov     rsi, QWORD PTR [\stack_reg]
-        mov     QWORD PTR [ECTYPE_REG + ECTYPE_IREGS_OFFSET + \reg*ECTYPE_REG_SIZE], rsi
-.L\@skipireg\reg:
-    .endr
+.macro PUSH_REGS list_reg, stack_reg, exec_info_reg, tmp
+    mov   \list_reg, QWORD PTR [\exec_info_reg + EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
+    test  \list_reg, \list_reg
+    je    .L\@iend
+.L\@icopy:
+    mov   \tmp, \list_reg
+    and   \tmp, 15
+    shr   \list_reg, 4
+    mov   \tmp, QWORD PTR [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE * \tmp]
+    sub   \stack_reg, ECTYPE_REG_SIZE
+    mov   QWORD PTR [\stack_reg], \tmp
+    test  \list_reg, \list_reg
+    jne   .L\@icopy
+.L\@iend:
+    mov   \list_reg, QWORD PTR [\exec_info_reg + EXEC_BYTECODE_INFO_SAVED_FREGS_OFFSET]
+    test  \list_reg, \list_reg
+    je    .L\@fend
+.L\@fcopy:
+    mov   \tmp, \list_reg
+    and   \tmp, 15
+    shr   \list_reg, 4
+    mov   \tmp, QWORD PTR [ECTYPE_REG + ECTYPE_FREGS_OFFSET + ECTYPE_REG_SIZE * \tmp]
+    sub   \stack_reg, ECTYPE_REG_SIZE
+    mov   QWORD PTR [\stack_reg], \tmp
+    test  \list_reg, \list_reg
+    jne   .L\@fcopy
+.L\@fend:
 .endm
 
-.macro POP_FREGS mask_reg, stack_reg, exec_info_reg
-    movzx   \mask_reg, WORD PTR [\exec_info_reg + EXEC_BYTECODE_INFO_SAVED_FREGS_OFFSET]
-    .irp reg, 8,9,10,11,12,13,14,15
-        .set _bit, (\reg - 8)
-        test    \mask_reg, (1 << _bit)
-        jz      .L\@skipfreg\reg
-        sub     \stack_reg, 8
-        mov     rsi, QWORD PTR [\stack_reg]
-        mov     QWORD PTR [ECTYPE_REG + ECTYPE_FREGS_OFFSET + \reg*ECTYPE_REG_SIZE], rsi
-.L\@skipfreg\reg:
-    .endr
+.macro POP_REGS list_reg, stack_reg, exec_info_reg, tmp1, tmp2
+    mov   \list_reg, QWORD PTR [\exec_info_reg + EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
+    test  \list_reg, \list_reg
+    je    .L\@iend
+.L\@icopy:
+    mov   \tmp2, \list_reg
+    and   \tmp2, 15
+    shr   \list_reg, 4
+    sub   \stack_reg, ECTYPE_REG_SIZE
+    mov   \tmp1, QWORD PTR [\stack_reg]
+    mov   QWORD PTR [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE * \tmp2], \tmp1
+    test  \list_reg, \list_reg
+    jne   .L\@icopy
+.L\@iend:
+    mov   \list_reg, QWORD PTR [\exec_info_reg + EXEC_BYTECODE_INFO_SAVED_FREGS_OFFSET]
+    test  \list_reg, \list_reg
+    je    .L\@fend
+.L\@fcopy:
+    mov   \tmp2, \list_reg
+    and   \tmp2, 15
+    shr   \list_reg, 4
+    sub   \stack_reg, ECTYPE_REG_SIZE
+    mov   \tmp1, QWORD PTR [\stack_reg]
+    mov   QWORD PTR [ECTYPE_REG + ECTYPE_FREGS_OFFSET + ECTYPE_REG_SIZE * \tmp2], \tmp1
+    test  \list_reg, \list_reg
+    jne   .L\@fcopy
+.L\@fend:
 .endm
 
 .balign 16
@@ -448,37 +480,7 @@ perform_2i_call:
   mov   r8d, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   sub   rsp, r8
 
-  // TODO:
-  //  - transform mask to list of 3-bit values.
-  //  - use single loop
-.macro PUSH_IREGS mask_reg, stack_reg, exec_info_reg
-    movzx   \mask_reg, WORD PTR [\exec_info_reg + EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
-    .irp reg, 8,9,10,11,12,13
-        .set _bit, (\reg - 8)
-        test    \mask_reg, (1 << _bit)
-        jz      .Lsaveireg\reg
-        mov     rsi, QWORD PTR [ECTYPE_REG + ECTYPE_IREGS_OFFSET + \reg*ECTYPE_REG_SIZE]
-        sub     \stack_reg, ECTYPE_REG_SIZE
-        mov     QWORD PTR [\stack_reg], rsi
-.Lsaveireg\reg:
-    .endr
-.endm
-
-.macro PUSH_FREGS mask_reg, stack_reg, exec_info_reg
-    movzx   \mask_reg, WORD PTR [\exec_info_reg + EXEC_BYTECODE_INFO_SAVED_FREGS_OFFSET]
-    .irp reg, 8,9,10,11,12,13,14,15
-        .set _bit, (\reg - 8)
-        test    \mask_reg, (1 << _bit)
-        jz      .Lsavefreg\reg
-        mov     rsi, QWORD PTR [ECTYPE_REG + ECTYPE_FREGS_OFFSET + \reg*ECTYPE_REG_SIZE]
-        sub     \stack_reg, ECTYPE_REG_SIZE
-        mov     QWORD PTR [\stack_reg], rsi
-.Lsavefreg\reg:
-    .endr
-.endm
-
-  PUSH_IREGS ecx, rdx, rax
-  PUSH_FREGS ecx, rdx, rax
+  PUSH_REGS rcx, rdx, rax, rsi
 
 .Lrestart_interpretation:
   mov   rdi, ECTYPE_REG
@@ -512,8 +514,7 @@ perform_2i_call:
   mov   edx, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   add   rdx, rsp // add frame size to locate saved registers
 
-  POP_IREGS ecx, rdx, rax
-  POP_FREGS ecx, rdx, rax
+  POP_REGS rcx, rdx, rax, rsi, rdi
 
   mov   EXTRA_REG, [rbp - EXTRA_SAVED_REG_OFFSET]
   mov   LITERALS_REG, [rbp - LITERALS_REG_SAVED_SLOT_OFFSET]
@@ -574,8 +575,7 @@ engine_handle_exception:
   mov   edx, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   add   rdx, rsp // start of saved regs area
 
-  POP_IREGS ecx, rdx, rax
-  POP_FREGS ecx, rdx, rax
+  POP_REGS rcx, rdx, rax, rsi, rdi
 
   mov   LITERALS_REG, [rbp - 0x18]
   mov   ECTYPE_REG, [rbp - 0x10]

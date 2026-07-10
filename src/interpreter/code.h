@@ -32,12 +32,51 @@ struct GcInfo {
     std::vector<std::pair<uint32_t, void*>> typedSlotsInfo;
 };
 
+// List of non-zero registers used for storing non-volatile regs.
+struct NonVolatileRegs {
+    static constexpr int REG_DATA_SIZE = 4;
+    static constexpr int REGS_MAX_NUM  = 16;
+    uint64_t value {};
+
+    static_assert(REG_DATA_SIZE * REGS_MAX_NUM == 8 * sizeof(value));
+
+    // Encode register list from given mask.
+    explicit NonVolatileRegs(uint16_t mask)
+    {
+        // [reg_0: u4, reg_1: u4, .., reg_n: u4, zeros]
+        uint64_t list   = 0;
+        uint64_t reg    = 0;
+        uint64_t p      = 1;
+        uint64_t offset = 0;
+        // Ascending order
+        while (reg < REGS_MAX_NUM) {
+            if (mask & p) {
+                list    = list | (reg << offset);
+                offset += REG_DATA_SIZE;
+            }
+            reg++;
+            p <<= 1;
+        }
+        value = list;
+    }
+
+    // Extract one register from register list.
+    uint8_t ExtractReg()
+    {
+        uint64_t result = value & (REGS_MAX_NUM - 1);
+        value           = value >> REG_DATA_SIZE;
+        return result;
+    }
+
+    bool IsEmpty() { return value == 0; }
+};
+
 struct ExecBytecodeInfo {
     Code const code;
-    uint16_t const savedIRegs;
-    uint16_t const savedFRegs;
-    uint16_t const untypedSlotCount;
+    NonVolatileRegs savedIRegs;
+    NonVolatileRegs savedFRegs;
     uint32_t const frameSize;
+    uint16_t const untypedSlotCount;
     GcInfo const gcInfo;
     InstructionOffsetsIndex const offsetsIndex; // TODO: optimize RAM footprint
 
