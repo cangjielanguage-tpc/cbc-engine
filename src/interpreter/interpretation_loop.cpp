@@ -2,13 +2,13 @@
 #include "cbc/formater_rt.h"
 #include "cbc/isa.h"
 #include "cbc/isa_rt.h"
-#include "engine/terms.h"
 #include "engine/symlevel/code.h"
 #include "engine/symlevel/definitions.h"
+#include "engine/terms.h"
 #include "interpreter.h"
-#include "interpreter/implicit_exceptions.h"
 #include "interpreter/code.h"
 #include "interpreter/ectype.h"
+#include "interpreter/implicit_exceptions.h"
 #include "interpreter/loggers.h"
 #include "runtimesupport/adapters.h"
 #include "runtimesupport/runtime.h"
@@ -538,7 +538,7 @@ PREP_TYPED: {
     LOG_INSTR;
     auto typedOffset = args.imm32.imm;
     auto typeInfo    = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
-    MetaInfo::VisitReferences(typeInfo, [&](uint32_t offset) {
+    typeInfo.VisitReferenceOffsets([&](uint32_t offset) {
         interpreter.StoreFrameImm(StoreAccessKind::ST_64, 0, typedOffset + offset);
     });
     NEXT;

@@ -5,7 +5,6 @@
 #include "../testutils.h"
 #include "cbc/decoder.h"
 #include "cbc/frame.h"
-#include "engine/options.h"
 #include "cbc/isa.h"
 #include "engine/options.h"
 #include "engine/typeinfo_manager.h"
@@ -379,12 +378,14 @@ uint8_t MetaInfo::GetAlign(TypeInfo ti) { return alignof(max_align_t); }
 
 bool MetaInfo::IsReferenceType(TypeInfo ti) { return false; }
 
-void MetaInfo::VisitReferences(TypeInfo ti, std::function<void(uint32_t)> visitor) { FATAL("Should not be called"); }
-
 TypeInfo MetaInfo::ByteArrayTypeInfo() { return TypeInfo(nullptr); }
 
 TypeInfoUUID MetaInfo::GetUUID(TypeInfo ti) { return 0; }
 
 TypeInfo Execution::TypeArg(TypeInfo ti, uint32_t idx) { return TypeInfo(nullptr); }
+
+using OffsetVisitor = std::function<void(uint32_t)>;
+
+void TypeInfo::VisitReferenceOffsets(OffsetVisitor const&) { FATAL("Should not reach here"); }
 
 } // namespace RTSupport

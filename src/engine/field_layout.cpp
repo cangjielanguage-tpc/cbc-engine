@@ -190,9 +190,8 @@ struct FLManager : public FieldLayoutManager {
             if (!typeInfo.has_value()) {
                 return;
             }
-            RTSupport::MetaInfo::VisitReferences(typeInfo.value(), [&offsets, disp](uint32_t offset) {
-                offsets.push_back(offset + disp);
-            });
+
+            typeInfo->VisitReferenceOffsets([&offsets, disp](uint32_t offset) { offsets.push_back(offset + disp); });
         } else if (term.GetKind() == TermKind::TYPE) {
             ASSERT(!term.IsReference());
             // Absent offsets must be handled separately.
@@ -357,10 +356,8 @@ private:
         } else {
             switch (super.GetKind()) {
                 case TermKind::NIL:
-                case TermKind::FUNCTIONAL:
-                    break;
-                default:
-                    ASSERTION(false, "only nil or type term kinds are expected for super");
+                case TermKind::FUNCTIONAL: break;
+                default:                   ASSERTION(false, "only nil or type term kinds are expected for super");
             }
 
             FieldLayout::Content base;
