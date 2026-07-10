@@ -10,12 +10,10 @@
 
 namespace RTSupport {
 
-void (*WriteStructField)(
-    uintptr_t base, uintptr_t field, size_t fieldLen, uintptr_t src, size_t srcLen, DYN_GCTib gctib
-);
-void (*ReadStructField)(uintptr_t dst, uintptr_t base, uintptr_t field, size_t fieldLen, DYN_GCTib gctib);
+DYN_WriteStructFieldFn WriteStructField;
+DYN_ReadStructFieldFn ReadStructField;
 
-void (*WriteGeneric)(uintptr_t base, uintptr_t field, uintptr_t obj, size_t size);
+DYN_WriteGenericFieldFn WriteGeneric;
 
 // merge with LibHandle
 struct Handle {
@@ -95,11 +93,11 @@ void Initialize(DYN_CJNativeInterface* interf)
     Asm::engine_newthread_nret_function =
         handle->Func<decltype(Asm::engine_newthread_nret_function)>("CJ_MCC_NewCJThreadNoReturn");
 
-    Asm::engine_read_generic = handle->Func<decltype(Asm::engine_read_generic)>("CJ_MCC_ReadGeneric");
-    WriteGeneric             = handle->Func<decltype(WriteGeneric)>("CJ_MCC_WriteGeneric");
+    Asm::engine_read_generic = interf->readGenericField;
+    WriteGeneric             = interf->writeGenericField;
 
-    WriteStructField = handle->Func<decltype(WriteStructField)>("CJ_MCC_WriteStructField");
-    ReadStructField  = handle->Func<decltype(ReadStructField)>("CJ_MCC_ReadStructField");
+    WriteStructField = interf->writeStructField;
+    ReadStructField  = interf->readStructField;
 
     if (stackGrowStub != interf->stackGrowStub) {
         auto& stream = Log::init.Stream(Logging::Level::ERROR);

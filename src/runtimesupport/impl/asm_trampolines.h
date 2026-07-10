@@ -38,7 +38,7 @@ extern void* (*engine_newthread_nret_function)(void*, DYN_ObjRef, void*, DYN_Typ
 extern void* (*engine_newarray_function)(DYN_TypeInfo*, uint64_t);
 extern void* engine_universal_direct_function_handles[TRAMPOLINE_COUNT];
 
-extern void (*engine_read_generic)(void* dstPtr, void* obj, void* fieldPtr, size_t size);
+extern DYN_ReadGenericFieldFn engine_read_generic;
 
 extern size_t engine_carrier_specific_offset;
 extern size_t engine_cjthread_specific_offset;
