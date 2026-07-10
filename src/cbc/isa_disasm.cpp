@@ -150,7 +150,10 @@ struct IsaDisasm : public IsaParser {
 
     void GcPoint() override { stream << "gcpoint" << endl; }
 
-    void LoadStackRec(IReg r, uint16_t ts) override { stream << "ld.stack.rec" << " " << r << ", " << ts << endl; }
+    void LoadStackRec(IReg r, uint16_t ts) override
+    {
+        stream << "ld.stack.rec" << " " << r.ToStr() << ", " << ts << endl;
+    }
 
     void LoadStatic(AnyReg r, uint16_t field) override { stream << "ld.static" << " " << r << ", " << field << endl; }
 
