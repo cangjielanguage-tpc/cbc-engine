@@ -42,6 +42,11 @@ struct FLManager : public FieldLayoutManager {
             Stream::ResolvingOutput out(session, out_);
             out << "requested field layout for " << term << Stream::endl;
         });
+
+        if (term.GetKind() == TermKind::BOX) {
+            term = term.Subterm(0);
+        }
+
         std::optional<FieldLayout> layout = std::nullopt;
         if (term.GetKind() != TermKind::TYPE) {
             return std::nullopt;
