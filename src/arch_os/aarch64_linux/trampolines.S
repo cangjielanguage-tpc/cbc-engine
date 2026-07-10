@@ -367,7 +367,7 @@ engine_i2_newobject_acc:
   ldr   x10, [x10, PageOff(engine_newobject_function)]
   blr   x10
 
-  str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE * ECTYPE_IACC_NUM)]
+  str   x0, [ECTYPE_REG, #ECTYPE_IACC_OFFSET]
   restore_tls
 
   b     .Lrestart_interpretation

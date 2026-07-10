@@ -51,16 +51,14 @@ StaticFieldsBundle::StaticFieldsBundle(
 SlotKind ComputeSlotKind(Session& session, FieldLayoutManager& flm, Symlevel::FieldDefinition& definition)
 {
     auto fieldType = TermManager::Resolve(session, definition.FieldType());
-    if (fieldType.GetKind() == TermKind::AOT_REC) {
-        return RECORD;
-    }
-    if (fieldType.GetKind() == TermKind::TYPE) {
-        return fieldType.IsReference() ? REFERENCE : RECORD;
-    }
-    if (fieldType.GetId().IsReference()) {
+    if (fieldType.IsReference()) {
         return REFERENCE;
     }
-    return PRIMITIVE;
+    switch (fieldType.GetKind()) {
+        case TermKind::AOT_TYPE:
+        case TermKind::TYPE:     return RECORD;
+        default:                 return PRIMITIVE;
+    }
 }
 
 uintptr_t StaticFieldsBundle::GetLocation(Session& session, TypeIdent typeIdent, FieldIdent fieldIdent)

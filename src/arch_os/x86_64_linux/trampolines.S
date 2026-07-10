@@ -564,7 +564,7 @@ engine_handle_exception:
   jz   .Lunwind_top_frame
 
   // Handler is found, set exception object to ACC_REG and continue interpretation
-  mov   QWORD PTR [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_IACC_NUM * ECTYPE_REG_SIZE], r12
+  mov   QWORD PTR [ECTYPE_REG + ECTYPE_IACC_OFFSET], r12
   jmp   .Lrestart_interpretation
 
 .Lunwind_top_frame:

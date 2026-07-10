@@ -74,7 +74,7 @@ TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId
         switch (tag) {
             case 0x1: def.interfaces = RefSequence<Term>::Parse(reader, fileId, regionId); break;
             case 0x5: def.arity = reader.ReadULEB(); break; // TODO: check range
-            default:  FATAL("unexpected tag: %d", tag); std::exit(2);
+            default:  FATAL("unexpected tag: %d", tag);
         }
     }
     return TypeDefinition(std::move(def));
@@ -128,9 +128,14 @@ FieldDefinition FieldDefinition::Parse(Engine::Session& session, IO::FileId file
     if (test(0x20))
         flags = flags.Or(FieldFlag::AOT);
 
-    return FieldDefinition(
-        Engine::Identifier<FieldDefinition>(offset, fileId), nameOffset, fieldType, flags, {}
-    );
+    FieldDefinition::Content content {
+        .identifier = Engine::Identifier(offset, fileId),
+        .nameOffset = nameOffset,
+        .fieldType = fieldType,
+        .flags = flags,
+    };
+
+    return FieldDefinition(std::move(content));
 }
 
 FieldDefinition FieldDefinition::Resolve(Engine::Session& session, Engine::Identifier<FieldDefinition> identifier)
@@ -169,26 +174,32 @@ MethodDefinition MethodDefinition::Parse(Engine::Session& session, IO::FileId fi
     if (testMask(0b11, 0b11))
         flags = flags.With(AccessKind::PROTECTED);
 
-    if (test(0x004))
+    if (test(0x0004))
         flags = flags.Or(MethodFlag::STATIC);
-    if (test(0x008))
+    if (test(0x0008))
         flags = flags.Or(MethodFlag::FINAL);
-    if (test(0x010))
+    if (test(0x0010))
         flags = flags.Or(MethodFlag::FOREIGN);
-    if (test(0x020))
+    if (test(0x0020))
         flags = flags.Or(MethodFlag::ABSTRACT);
-    if (test(0x040))
+    if (test(0x0040))
         flags = flags.Or(MethodFlag::MUT);
-    if (test(0x080))
+    if (test(0x0080))
         flags = flags.Or(MethodFlag::VIRTUAL);
-    if (test(0x100))
+    if (test(0x0100))
         flags = flags.Or(MethodFlag::AOT);
-    if (test(0x200))
+    if (test(0x0200))
         flags = flags.Or(MethodFlag::PKG_INIT);
-    if (test(0x400))
+    if (test(0x0400))
         flags = flags.Or(MethodFlag::LIT_INIT);
+    if (test(0x0800))
+        flags = flags.Or(MethodFlag::SRET);
+    if (test(0x1000))
+        flags = flags.Or(MethodFlag::HAS_THIS_TI);
+    if (test(0x2000))
+        flags = flags.Or(MethodFlag::HAS_OUTER_TI);
 
-    MethodDefinition def(Engine::Identifier(offset, fileId), nameOffset, typeNameOffset, signature, flags);
+    MethodDefinition::Content def{ Engine::Identifier(offset, fileId), signature, typeNameOffset, nameOffset, flags};
 
     for (auto tag = reader.ReadU8(); tag != 0; tag = reader.ReadU8()) {
         switch (tag) {
@@ -196,11 +207,29 @@ MethodDefinition MethodDefinition::Parse(Engine::Session& session, IO::FileId fi
             case 0x2: def.sourceFullName = Engine::Identifier(Offset<String>(reader.ReadULEB()), fileId); break;
             case 0x3: def.sourceFile = Engine::Identifier(Offset<String>(reader.ReadULEB()), fileId); break;
             case 0x4: def.linkageName = Engine::Identifier(Offset<String>(reader.ReadULEB()), fileId); break;
-            default:  FATAL("unexpected tag: %d", tag); std::exit(2);
+            case 0x5: def.arity = reader.ReadULEB(); break; // TODO: check range
+            default:  FATAL("unexpected tag: %d", tag);
         }
     }
 
     return def;
+}
+
+MethodRefFlags MethodDefinition::GetABIFlags() const
+{
+    MethodRefFlags flags;
+    auto defFlags = content.flags;
+    if (defFlags.Is(MethodFlag::SRET))
+        flags = flags.Or(MethodRefFlag::SRET);
+    if (defFlags.Is(MethodFlag::HAS_OUTER_TI))
+        flags = flags.Or(MethodRefFlag::HAS_OUTER_TI);
+    if (defFlags.Is(MethodFlag::HAS_THIS_TI))
+        flags = flags.Or(MethodRefFlag::HAS_THIS_TI);
+    if (defFlags.Is(MethodFlag::MUT))
+        flags = flags.Or(MethodRefFlag::MUT);
+    if (content.arity > 0)
+        flags = flags.Or(MethodRefFlag::HAS_FTVARS);
+    return flags;
 }
 
 MethodDefinition MethodDefinition::Resolve(Engine::Session& session, Engine::Identifier<MethodDefinition> identifier)

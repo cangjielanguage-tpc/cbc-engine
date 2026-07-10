@@ -548,7 +548,7 @@ struct IsaResolvingDisasm : IsaDisasm {
             return;
         }
         auto method = m.value();
-        stream << "call.virtual " << dst.ToStr() << ", " << *method;
+        stream << "call.virtual " << dst.ToStr() << ", " << method;
         stream << " (" << method->extDefNum << "," << method->methodNum << ")";
         stream << endl;
     }

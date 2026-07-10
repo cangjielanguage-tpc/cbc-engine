@@ -23,18 +23,26 @@ namespace Symlevel {
     X(FINAL)
 
 #define METHOD_FLAGS(X)                                                                                                \
-    X(FINAL)                                                                                                           \
     X(STATIC)                                                                                                          \
-    X(VIRTUAL)                                                                                                         \
-    X(ABSTRACT)                                                                                                        \
+    X(FINAL)                                                                                                           \
     X(FOREIGN)                                                                                                         \
+    X(ABSTRACT)                                                                                                        \
     X(MUT)                                                                                                             \
+    X(VIRTUAL)                                                                                                         \
     X(AOT)                                                                                                             \
     X(PKG_INIT)                                                                                                        \
-    X(LIT_INIT)
+    X(LIT_INIT)                                                                                                        \
+    X(SRET)                                                                                                            \
+    X(HAS_THIS_TI)                                                                                                     \
+    X(HAS_OUTER_TI)
 
 #define METHOD_REF_FLAGS(X)                                                                                            \
-    X(SRET)
+    X(SRET)                                                                                                            \
+    X(HAS_THIS_TI)                                                                                                     \
+    X(HAS_OUTER_TI)                                                                                                    \
+    X(MUT)                                                                                                             \
+    X(HAS_FTVARS)                                                                                                      \
+    X(AOT)
 
 #define FLAG_LIST(flag) flag,
 #define FLAG_C_STR(flag)                                                                                               \
@@ -237,6 +245,14 @@ public:
     }
 
     std::string ToString() const;
+
+    bool operator==(MethodRefFlags const& another) const {
+        return flagsRaw == another.flagsRaw;
+    }
+
+    bool operator!=(MethodRefFlags const& another) const {
+        return flagsRaw != another.flagsRaw;
+    }
 
 private:
     uint8_t flagsRaw;

@@ -1,6 +1,7 @@
 #include "engine/terms.h"
 #include "engine/engine.h"
 #include "engine/identifiers.h"
+#include "engine/resolving_output.h"
 #include "engine/symlevel/cbc_file.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/io/file_id.h"
@@ -11,6 +12,7 @@
 #include "string.h"
 #include "utils/assertion.h"
 #include "utils/heap.h"
+#include "utils/iterators.h"
 #include "utils/ostream.h"
 #include <alloca.h>
 #include <cstdint>
@@ -21,15 +23,6 @@
 #include <unordered_set>
 
 namespace Engine {
-
-struct TermFlags {
-    uint16_t isLocal : 1;
-    uint16_t isReference : 1;
-    uint16_t isAotPromoted : 1;
-    uint16_t isGeneric : 1;
-
-    TermFlags() = delete;
-};
 
 /// Internal representation of `Term`.
 /// The main things which are needed to represent term is an identifier and subterms.
@@ -80,6 +73,8 @@ enum Tag : uint8_t {
     GENERIC_AOT_REF   = 0x10,
     GENERIC_AOT_REC   = 0x11,
     TUPLE             = 0x12,
+    BOX               = 0x13,
+    FST               = 0x14,
 };
 
 static TermData* AllocateTerm(Memory::Heap& allocator, size_t subtermCount = 0)
@@ -126,7 +121,7 @@ struct BuiltinTerms {
         return DataAt(funcTypeVars, i);
     }
 
-    static BuiltinTerms Create()
+    BuiltinTerms()
     {
         size_t seed = 0xf123123a;
 
@@ -145,17 +140,10 @@ struct BuiltinTerms {
         void* classTypeVars = DataAt(memory, PRIM_COUNT);
         void* funcTypeVars  = DataAt(memory, PRIM_COUNT + TV_COUNT);
 
-        TermFlags primFlags = {
-            .isLocal       = false,
-            .isReference   = false,
-            .isAotPromoted = false,
-            .isGeneric     = false,
-        };
+        TermFlags primFlags = {0};
 
         TermFlags tvFlags = {
-            .isLocal       = false,
             .isReference   = true,
-            .isAotPromoted = false,
             .isGeneric     = true,
         };
 
@@ -184,68 +172,24 @@ struct BuiltinTerms {
             data->flags      = tvFlags;
         }
 
-        return { memory, primitives, classTypeVars, funcTypeVars };
+        this->memory = memory;
+        this->primitives = primitives;
+        this->classTypeVars = classTypeVars;
+        this->funcTypeVars = funcTypeVars;
     }
 };
 
-static BuiltinTerms const& Builtins()
-{
-    static auto instance = BuiltinTerms::Create();
-    return instance;
-}
-
-bool TermId::IsReference()
-{
-    switch (GetKind()) {
-        case TermKind::AOT_TYPE:
-        case TermKind::TYPE:
-        case TermKind::NULLABLE:
-        case TermKind::NON_NULLABLE:
-        case TermKind::CANGJIE_ARRAY:
-        case TermKind::FUNC_TYPE_VAR:
-        case TermKind::CLASS_TYPE_VAR: return true;
-
-        default: return false;
-    }
-}
-
-int TermId::Width()
-{
-    switch (GetKind()) {
-        case TermKind::BOOLEAN:
-        case TermKind::U8:
-        case TermKind::I8:        return sizeof(uint8_t);
-        case TermKind::U16:
-        case TermKind::I16:
-        case TermKind::F16:       return sizeof(uint16_t);
-        case TermKind::U32:
-        case TermKind::I32:
-        case TermKind::F32:
-        case TermKind::UCHAR32:   return sizeof(uint32_t);
-        case TermKind::U64:
-        case TermKind::I64:
-        case TermKind::F64:
-        case TermKind::C_POINTER:
-        case TermKind::IADDR:
-        case TermKind::UADDR:     return sizeof(uint64_t);
-        default:
-            if (IsReference()) {
-                return sizeof(uint64_t);
-            }
-            FATAL("Not supported yet %d", GetKind());
-            return 0;
-    }
-}
+static BuiltinTerms g_Builtins;
 
 GlobalTerm Term::Predefined(TermKind tk)
 {
     int num = static_cast<int>(tk);
-    return GlobalTerm(Builtins().Primitive(num));
+    return GlobalTerm(g_Builtins.Primitive(num));
 }
 
-Term Term::ClassTypeVariable(uint8_t tv) { return GlobalTerm(Builtins().ClassTv(tv)); }
+Term Term::ClassTypeVariable(uint8_t tv) { return GlobalTerm(g_Builtins.ClassTv(tv)); }
 
-Term Term::FuncTypeVariable(uint8_t tv) { return GlobalTerm(Builtins().FuncTv(tv)); }
+Term Term::FuncTypeVariable(uint8_t tv) { return GlobalTerm(g_Builtins.FuncTv(tv)); }
 
 Term Term::Definition(Session& session, Identifier<Symlevel::TypeDefinition> type)
 {
@@ -311,11 +255,7 @@ static bool CompareTermData(TermData* origin, TermData* another)
 
 Term::Term() : Term(Term::Predefined(TermKind::NIL)) {}
 
-Term::Term(LocalTerm local) : data(local.data) {}
-
-Term::Term(GlobalTerm global) : data(global.data) {}
-
-Term::Term(Term const& term) : data(term.data) {}
+Term::Term(TermData* data) : data(data) {}
 
 LocalTerm Term::AsLocal()
 {
@@ -335,7 +275,7 @@ TermId Term::GetId() const { return data->identifier; }
 
 TermKind Term::GetKind() const { return data->identifier.GetKind(); }
 
-bool Term::IsFReg() const
+bool Term::IsFloat() const
 {
     switch (GetKind()) {
         case TermKind::F32:
@@ -343,8 +283,6 @@ bool Term::IsFReg() const
         default:            return false;
     }
 }
-
-bool Term::IsIReg() const { return !IsFReg(); }
 
 uint32_t Term::GetLength() const { return data->length; }
 
@@ -357,14 +295,14 @@ std::string Term::GetName(Session& session) const
     return buf.ToString();
 }
 
-void Term::GetName(Session& session, Stream::Output& stream) const
+void Term::GetName(Session& session, Stream::Output& out) const
 {
+    Stream::ResolvingOutput stream(session, out);
     auto printSubTerms = [&](std::string_view prefix, std::string_view suffix, int len) {
         stream << prefix;
         auto separator = "";
         for (int i = 0; i < len; i++) {
-            stream << separator;
-            Subterm(i).GetName(session, stream);
+            stream << separator << Subterm(i);
             separator = ", ";
         }
         stream << suffix;
@@ -399,34 +337,33 @@ void Term::GetName(Session& session, Stream::Output& stream) const
             auto file   = undef.GetFileId();
             auto region = undef.GetIndex().GetRegion();
             auto index  = undef.GetIndex().GetIndex();
-            stream.PrintFmt("$unresolved<%u,%u,%u>", file.id, region, index);
+            out.PrintFmt("$unresolved<%u,%u,%u>", file.id, region, index);
+            break;
+        }
+
+        case TK::BOX: {
+            stream << "$box<" << Subterm(0) << '>';
             break;
         }
 
         case TK::C_POINTER: {
-            stream << "CPointer<";
-            Subterm(0).GetName(session, stream);
-            stream << '>';
+            stream << "CPointer<" << Subterm(0) << '>';
             break;
         }
 
         case TK::NULLABLE: {
-            stream << "$nullable<";
-            Subterm(0).GetName(session, stream);
-            stream << '>';
+            stream << "$nullable<" << Subterm(0) << '>';
             break;
         }
 
         case TK::CANGJIE_ARRAY: {
-            stream << "RawArray<";
-            Subterm(0).GetName(session, stream);
-            stream << '>';
+            stream << "$array<" << Subterm(0) << '>';
             break;
         }
 
         case TK::FUNCTIONAL: {
             printSubTerms("(", ") -> ", GetLength() - 1);
-            Subterm(GetLength() - 1).GetName(session, stream);
+            stream << Subterm(GetLength() - 1);
             break;
         }
 
@@ -445,15 +382,9 @@ void Term::GetName(Session& session, Stream::Output& stream) const
             break;
         }
 
-        case TK::AOT_TYPE:
-        case TK::AOT_REC:  {
+        case TK::AOT_TYPE: {
             auto& manager = TermManager::Of(session);
-            std::string_view name;
-            if (kind == TermKind::AOT_TYPE) {
-                name = manager.GetNameOfAotType(AotRefTermId(*this));
-            } else {
-                name = manager.GetNameOfAotType(AotRecTermId(*this));
-            }
+            std::string_view name = manager.GetNameOfAotType(AotTermId(*this));
             stream << name;
             if (int len = GetLength(); len > 0) {
                 printSubTerms("<", ">", len);
@@ -473,11 +404,6 @@ void Term::GetName(Session& session, Stream::Output& stream) const
             break;
         }
 
-        case TK::GENERIC_METHOD: {
-            stream << "$GMunimplemented";
-            break;
-        }
-
         default: {
             FATAL("Unexpected case %d", GetKind());
         }
@@ -490,17 +416,15 @@ bool Term::operator==(const Term& another) const { return CompareTermData(this->
 
 bool Term::IsLocal() const { return data->flags.isLocal; }
 
-Term LocalTerm::Subterm(uint32_t i) const { return this->data->subterms[i]; }
+LocalTerm::LocalTerm(TermData* data) : Term(data) { ASSERT(data->flags.isLocal); }
 
-LocalTerm::LocalTerm(TermData* data) : data(data) { ASSERT(data->flags.isLocal); }
+GlobalTerm::GlobalTerm(TermData* data) : Term(data) { ASSERT(!data->flags.isLocal); }
 
 GlobalTerm LocalTerm::Publish(Session& session)
 {
     Term term(*this);
     return TermManager::Of(session).Globalize(term);
 }
-
-GlobalTerm GlobalTerm::Subterm(uint32_t i) const { return this->data->subterms[i].AsGlobal(); }
 
 bool GlobalTerm::operator==(const GlobalTerm& another) const { return data == another.data; }
 
@@ -571,7 +495,6 @@ Term TermManager::NewAotTerm(
     TermFlags flags = {
         .isLocal       = true,
         .isReference   = isReference,
-        .isAotPromoted = false,
         .isGeneric     = isGeneric,
     };
 
@@ -583,10 +506,8 @@ Term TermManager::NewAotTerm(
         }());
         id                  = TypeTermId(*type);
         flags.isAotPromoted = true;
-    } else if (isReference) {
-        id = AotRefTermId(InternString(name));
     } else {
-        id = AotRecTermId(InternString(name));
+        id = AotTermId(InternString(name));
     }
     data->InitAfterSubterms(id, arity, flags);
     return Term(LocalTerm(data));
@@ -606,21 +527,10 @@ Term TermManager::NewTermWithId(Session& session, TermId id, bool isReference, s
     TermFlags flags = {
         .isLocal       = true,
         .isReference   = isReference,
-        .isAotPromoted = false,
         .isGeneric     = isGeneric,
     };
     data->InitAfterSubterms(id, arity, flags);
     return Term(LocalTerm(data));
-}
-
-Term TermManager::NewAotRefTerm(Session& session, std::string_view name, std::vector<Term> const& subterms)
-{
-    return NewAotTerm(session, name, subterms, true);
-}
-
-Term TermManager::NewAotRecTerm(Session& session, std::string_view name, std::vector<Term> const& subterms)
-{
-    return NewAotTerm(session, name, subterms, false);
 }
 
 uint64_t TermManager::Hasher::operator()(TermData* const& data) const { return data->hash; }
@@ -765,16 +675,11 @@ struct TermResolver {
         TermFlags flags = {
             .isLocal       = true,
             .isReference   = isReference,
-            .isAotPromoted = false,
             .isGeneric     = isGeneric,
         };
         auto internedName = manager.InternString(name);
 
-        if (flags.isReference) {
-            data->InitAfterSubterms(AotRefTermId(internedName), length, flags);
-        } else {
-            data->InitAfterSubterms(AotRecTermId(internedName), length, flags);
-        }
+        data->InitAfterSubterms(AotTermId(internedName), length, flags);
         return Term(LocalTerm(data));
     }
 
@@ -824,7 +729,6 @@ struct TermResolver {
                 TermFlags flags = {
                     .isLocal       = true,
                     .isReference   = true,
-                    .isAotPromoted = false,
                     .isGeneric     = isGeneric,
                 };
                 data->InitAfterSubterms(TagTermId(TermKind::FUNCTIONAL), len, flags);
@@ -840,8 +744,6 @@ struct TermResolver {
                 }
                 TermFlags flags = {
                     .isLocal       = true,
-                    .isReference   = false,
-                    .isAotPromoted = false,
                     .isGeneric     = isGeneric,
                 };
                 data->InitAfterSubterms(TagTermId(TermKind::TUPLE), len, flags);
@@ -853,11 +755,9 @@ struct TermResolver {
                 if (!ReadSubTerms(data, &isGeneric, 1, reader)) {
                     return NewUndefined(refId);
                 }
-
                 TermFlags flags = {
                     .isLocal       = true,
                     .isReference   = true,
-                    .isAotPromoted = false,
                     .isGeneric     = isGeneric,
                 };
                 data->InitAfterSubterms(TagTermId(TermKind::NULLABLE), 1, flags);
@@ -877,15 +777,36 @@ struct TermResolver {
                 if (!ReadSubTerms(data, &isGeneric, 1, reader)) {
                     return NewUndefined(refId);
                 }
-
                 TermFlags flags = {
                     .isLocal       = true,
                     .isReference   = true,
-                    .isAotPromoted = false,
                     .isGeneric     = isGeneric,
                 };
                 data->InitAfterSubterms(TagTermId(TermKind::CANGJIE_ARRAY), 1, flags);
                 return Term(LocalTerm(data));
+            }
+            case BOX: {
+                auto* data     = AllocateTerm(heap, 1);
+                bool isGeneric = false;
+                if (!ReadSubTerms(data, &isGeneric, 1, reader)) {
+                    return NewUndefined(refId);
+                }
+                TermFlags flags = {
+                    .isLocal = true,
+                    .isReference = true,
+                    .isGeneric = isGeneric,
+                };
+                data->InitAfterSubterms(TagTermId(TermKind::BOX), 1, flags);
+                return Term(LocalTerm(data));
+            }
+            case FST: {
+                auto subtermIdx = reader.ReadULEB();
+                auto subterm    = Resolve(RefId<Term>(region, subtermIdx));
+                if (subterm.GetKind() == TermKind::UNDEFINED) {
+                    return NewUndefined(refId);
+                }
+                subterm.data->flags.isFixedSize = true;
+                return subterm;
             }
             default: {
                 FATAL("Not implemented for tag %d", tag);
@@ -901,13 +822,7 @@ size_t TermManager::InternString(std::string_view str)
     return internTable.InternAndGetId(str);
 }
 
-Utils::StringPool::String TermManager::GetNameOfAotType(AotRefTermId type)
-{
-    std::lock_guard guard(lock);
-    return internTable.GetStringById(type.GetNum());
-}
-
-Utils::StringPool::String TermManager::GetNameOfAotType(AotRecTermId type)
+Utils::StringPool::String TermManager::GetNameOfAotType(AotTermId type)
 {
     std::lock_guard guard(lock);
     return internTable.GetStringById(type.GetNum());
@@ -942,6 +857,18 @@ bool Term::IsReference() const { return data->flags.isReference; }
 bool Term::IsAotPromoted() const { return data->flags.isAotPromoted; }
 
 bool Term::IsGeneric() const { return data->flags.isGeneric; }
+
+TermFlags Term::Flags() const { return data->flags; }
+
+Term::Range Term::SubTerms() const { return Iterators::MakeRange(Term::SubTermGenerator { data, 0, GetLength() }); }
+
+std::optional<Term> Term::SubTermGenerator::operator()()
+{
+    if (cursor < end) {
+        return term->subterms[cursor++];
+    }
+    return std::nullopt;
+}
 
 Term Substitution::Substitute(Term term)
 {

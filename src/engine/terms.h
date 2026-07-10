@@ -4,6 +4,7 @@
 #include "engine/identifiers.h"
 #include "symlevel/string.h"
 #include "utils/assertion.h"
+#include "utils/iterators.h"
 #include "utils/ostream.h"
 #include "utils/reinterpretation.h"
 #include "utils/string_pool.h"
@@ -11,7 +12,6 @@
 #include <mutex>
 #include <string_view>
 #include <unordered_set>
-#include <variant>
 
 /// `Term` is an symbolic representation of any type that is supported in CBC.
 /// It can represent primitives (e.g. I32), builtins (e.g. ARRAY) or user-defined types (e.g. TYPE).
@@ -75,14 +75,13 @@ enum class TermKind : uint8_t {
     CANGJIE_ARRAY,
     FUNCTIONAL,
     TUPLE,
+    BOX,
     // builtin types end
 
     TYPE,
     AOT_TYPE,
-    AOT_REC,
     CLASS_TYPE_VAR,
     FUNC_TYPE_VAR,
-    GENERIC_METHOD,
     LAST
 };
 
@@ -94,9 +93,6 @@ public:
     static constexpr auto INFO_PART_BIT_SIZE = 64 - KIND_PART_BIT_SIZE;
 
     TermKind GetKind() { return kind; }
-
-    bool IsReference();
-    int Width();
 
     uint32_t Hash()
     {
@@ -126,11 +122,31 @@ struct TagTermId : public TermId {
     explicit constexpr TagTermId(TermId ident) : TermId(ident) { ASSERT(info == 0); }
 };
 
-class Term {
-public:
-    static constexpr uint16_t FIRST_NON_PRIMITIVE = static_cast<uint16_t>(TermKind::UNDEFINED);
+struct TermFlags {
+    uint32_t isLocal : 1;
+    uint32_t isReference : 1;
+    uint32_t isAotPromoted : 1;
+    uint32_t isGeneric : 1;
+    uint32_t isFixedSize : 1;
 
-    TermData* data;
+    TermFlags() = delete;
+};
+
+struct Term {
+    struct SubTermGenerator {
+        TermData* term;
+        uint32_t cursor;
+        uint32_t end;
+
+        std::optional<Term> operator()();
+    };
+
+    struct Hasher {
+        uint64_t operator()(Term const& term) const { return term.Hash(); }
+    };
+
+    using Range                                   = Iterators::SimpleRange<SubTermGenerator>;
+    static constexpr uint16_t FIRST_NON_PRIMITIVE = static_cast<uint16_t>(TermKind::UNDEFINED);
 
     static Term Definition(Session& session, Identifier<Symlevel::TypeDefinition> type);
     static GlobalTerm Predefined(TermKind tk);
@@ -139,9 +155,7 @@ public:
     static Term FuncTypeVariable(uint8_t tv);
 
     Term();
-    Term(LocalTerm local);
-    Term(GlobalTerm global);
-    Term(Term const& term);
+    Term(TermData* data);
 
     TermId GetId() const;
     TermKind GetKind() const;
@@ -162,52 +176,30 @@ public:
     bool IsReference() const;
     bool IsAotPromoted() const;
     bool IsGeneric() const;
-    bool IsIReg() const;
-    bool IsFReg() const;
 
-    struct Hasher {
-        uint64_t operator()(Term const& term) const { return term.Hash(); }
-    };
-};
+    TermFlags Flags() const;
+    Range SubTerms() const;
 
-class LocalTerm {
-public:
-    LocalTerm(TermData* data);
-    Term Subterm(uint32_t i) const;
+    bool IsFloat() const;
 
-    GlobalTerm Publish(Session& session);
-
-    TermId GetId() const { return Term(*this).GetId(); }
-
-    uint32_t GetLength() const { return Term(*this).GetLength(); }
-
-    uint32_t Hash() const { return Term(*this).GetLength(); }
-
-private:
-    friend class Term;
     TermData* data;
 };
 
-class GlobalTerm {
-public:
-    GlobalTerm(TermData* data) : data(data) {}
+struct LocalTerm : public Term {
+    LocalTerm(TermData* data);
+    GlobalTerm Publish(Session& session);
+};
 
-    GlobalTerm Subterm(uint32_t i) const;
+struct GlobalTerm : public Term {
+    GlobalTerm(TermData* data);
 
-    TermId GetId() const { return Term(*this).GetId(); }
-
-    uint32_t GetLength() const { return Term(*this).GetLength(); }
-
-    uint32_t Hash() const { return Term(*this).GetLength(); }
+    GlobalTerm Subterm(uint32_t i) const { return Term::Subterm(i).AsGlobal(); }
 
     bool operator==(const GlobalTerm& another) const;
     bool operator!=(const GlobalTerm& another) const;
-
-private:
-    friend class Term;
-    TermData* data;
 };
 
+/// Term identifier that have `Identifer` as its part.
 template <typename Id, TermKind tk> struct _SpecializedTermId : public TermId {
     _SpecializedTermId(Id identifier) : TermId(tk, Bits::Raw64(identifier.Pack())) {}
 
@@ -227,6 +219,7 @@ template <typename Id, TermKind tk> struct _SpecializedTermId : public TermId {
     }
 };
 
+/// Term identifier that have integer number as its part.
 template <typename Num, TermKind tk> struct _NumberedTermId : public TermId {
     explicit _NumberedTermId(Num number) : TermId(tk, number) {}
 
@@ -241,10 +234,9 @@ template <typename Num, TermKind tk> struct _NumberedTermId : public TermId {
 };
 
 using ArrayTermId = _SpecializedTermId<Identifier<Symlevel::String>, TermKind::CANGJIE_ARRAY>;
-using AotRefTermId = _NumberedTermId<uint32_t, TermKind::AOT_TYPE>;
-using AotRecTermId = _NumberedTermId<uint32_t, TermKind::AOT_REC>;
-using TypeTermId   = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::TYPE>;
-using UndefTermId  = _SpecializedTermId<RefIdentifier<Term>, TermKind::UNDEFINED>;
+using AotTermId   = _NumberedTermId<uint32_t, TermKind::AOT_TYPE>;
+using TypeTermId  = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::TYPE>;
+using UndefTermId = _SpecializedTermId<RefIdentifier<Term>, TermKind::UNDEFINED>;
 
 using ClassTvTermId = _NumberedTermId<uint8_t, TermKind::CLASS_TYPE_VAR>;
 using FuncTvTermId  = _NumberedTermId<uint8_t, TermKind::FUNC_TYPE_VAR>;
@@ -314,14 +306,11 @@ public:
 
     Term NewTermWithId(Session& session, TermId id, bool isReference, std::vector<Term> const& subterms);
 
-    Term NewAotRefTerm(Session& session, std::string_view name, std::vector<Term> const& subterms);
-    Term NewAotRecTerm(Session& session, std::string_view name, std::vector<Term> const& subterms);
+    Term NewAotTerm(Session& session, std::string_view name, std::vector<Term> const& subterms, bool isReference);
 
-    Utils::StringPool::String GetNameOfAotType(AotRefTermId type);
-    Utils::StringPool::String GetNameOfAotType(AotRecTermId type);
+    Utils::StringPool::String GetNameOfAotType(AotTermId type);
 
 private:
-    Term NewAotTerm(Session& session, std::string_view name, std::vector<Term> const& subterms, bool isReference);
     size_t InternString(std::string_view str);
 
     struct Hasher {

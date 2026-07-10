@@ -12,6 +12,7 @@
 #include "engine/symlevel/type_kind.h"
 #include "engine/terms.h"
 #include "interpreter/function_handle.h"
+#include "interpreter/interpretation_loop.h"
 #include "runtimesupport/adapters.h"
 #include "runtimesupport/impl/cjnative.h"
 #include "runtimesupport/impl/typeinfo_ext.h"
@@ -647,12 +648,9 @@ static std::optional<TypeInfo> QueryTypeInfoAOTByName(char const* str)
 
 char const* GetAotTypeName(Engine::Session& session, Engine::Term term)
 {
+    ASSERT(term.GetKind() == Engine::TermKind::AOT_TYPE);
     auto& manager = Engine::TermManager::Of(session);
-    switch (term.GetKind()) {
-        case Engine::TermKind::AOT_TYPE: return manager.GetNameOfAotType(Engine::AotRefTermId(term)).str;
-        case Engine::TermKind::AOT_REC:  return manager.GetNameOfAotType(Engine::AotRecTermId(term)).str;
-        default:                         FATAL("Unexpected kind");
-    }
+    return manager.GetNameOfAotType(Engine::AotTermId(term)).str;
 }
 
 /// Find typeinfos of subterms with `nulls` on place of subterms that are not found.
@@ -785,13 +783,13 @@ std::optional<TypeInfo> CreateTypeInfo(
 
     ASSERT(!Engine::Term(term).IsGeneric());
 
-    auto createTypeInfo = [&]() {
+    auto createTypeInfo = [&]() -> std::optional<TypeInfo> {
+        using namespace Interpretation;
         auto termIdent = term.GetId();
         switch (termIdent.GetKind()) {
             case Engine::TermKind::TYPE: return CreateTypeInfoDyn(session, manager, term);
 
             case Engine::TermKind::AOT_TYPE:
-            case Engine::TermKind::AOT_REC:
                 return QueryTypeInfoAOT(session, manager, GetAotTypeName(session, term), term);
 
             case Engine::TermKind::CANGJIE_ARRAY: return QueryTypeInfoAOT(session, manager, "RawArray", term);
@@ -799,22 +797,22 @@ std::optional<TypeInfo> CreateTypeInfo(
             case Engine::TermKind::FUNCTIONAL: return QueryFunctional(session, manager, term);
             case Engine::TermKind::TUPLE:      return QueryTypeInfoAOT(session, manager, "Tuple", term);
 
-            case Engine::TermKind::UNIT:    return QueryTypeInfoAOTByName("Unit");
-            case Engine::TermKind::BOOLEAN: return QueryTypeInfoAOTByName("Bool");
-            case Engine::TermKind::U8:      return QueryTypeInfoAOTByName("UInt8");
-            case Engine::TermKind::I8:      return QueryTypeInfoAOTByName("Int8");
-            case Engine::TermKind::U16:     return QueryTypeInfoAOTByName("UInt16");
-            case Engine::TermKind::I16:     return QueryTypeInfoAOTByName("Int16");
-            case Engine::TermKind::U32:     return QueryTypeInfoAOTByName("UInt32");
-            case Engine::TermKind::I32:     return QueryTypeInfoAOTByName("Int32");
-            case Engine::TermKind::U64:     return QueryTypeInfoAOTByName("UInt64");
-            case Engine::TermKind::I64:     return QueryTypeInfoAOTByName("Int64");
-            case Engine::TermKind::UADDR:   return QueryTypeInfoAOTByName("UIntNative");
-            case Engine::TermKind::IADDR:   return QueryTypeInfoAOTByName("IntNative");
-            case Engine::TermKind::F16:     return QueryTypeInfoAOTByName("Float16");
-            case Engine::TermKind::F32:     return QueryTypeInfoAOTByName("Float32");
-            case Engine::TermKind::F64:     return QueryTypeInfoAOTByName("Float64");
-            case Engine::TermKind::UCHAR32: return QueryTypeInfoAOTByName("Rune");
+            case Engine::TermKind::UNIT:    return builtinTypeInfos[BUILTIN_UNIT];
+            case Engine::TermKind::BOOLEAN: return builtinTypeInfos[BUILTIN_BOOLEAN];
+            case Engine::TermKind::U8:      return builtinTypeInfos[BUILTIN_U8];
+            case Engine::TermKind::I8:      return builtinTypeInfos[BUILTIN_I8];
+            case Engine::TermKind::U16:     return builtinTypeInfos[BUILTIN_U16];
+            case Engine::TermKind::I16:     return builtinTypeInfos[BUILTIN_I16];
+            case Engine::TermKind::U32:     return builtinTypeInfos[BUILTIN_U32];
+            case Engine::TermKind::I32:     return builtinTypeInfos[BUILTIN_I32];
+            case Engine::TermKind::U64:     return builtinTypeInfos[BUILTIN_U64];
+            case Engine::TermKind::I64:     return builtinTypeInfos[BUILTIN_I64];
+            case Engine::TermKind::UADDR:   return builtinTypeInfos[BUILTIN_UADDR];
+            case Engine::TermKind::IADDR:   return builtinTypeInfos[BUILTIN_IADDR];
+            case Engine::TermKind::F16:     return builtinTypeInfos[BUILTIN_F16];
+            case Engine::TermKind::F32:     return builtinTypeInfos[BUILTIN_F32];
+            case Engine::TermKind::F64:     return builtinTypeInfos[BUILTIN_F64];
+            case Engine::TermKind::UCHAR32: return builtinTypeInfos[BUILTIN_RUNE];
 
             default: {
                 FATAL("Not supported yet %d", termIdent.GetKind());
@@ -916,12 +914,7 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, Engine::TypeInfoMan
         auto typeTemplate = reinterpret_cast<TypeTemplate*>(typeInfo->finalizerMethod);
         auto name         = typeTemplate->name;
 
-        Term term;
-        if (isRef) {
-            term = termManager.NewAotRefTerm(session, name, subTerms);
-        } else {
-            term = termManager.NewAotRecTerm(session, name, subTerms);
-        }
+        Term term = termManager.NewAotTerm(session, name, subTerms, isRef);
         return termManager.Globalize(term);
     } else {
         auto g = Term::Predefined;
@@ -957,12 +950,7 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, Engine::TypeInfoMan
         auto& termManager = TermManager::Of(session);
         auto name         = typeInfo->typeInfoName;
 
-        Term term;
-        if (isRef) {
-            term = termManager.NewAotRefTerm(session, name, noSubTerms);
-        } else {
-            term = termManager.NewAotRecTerm(session, name, noSubTerms);
-        }
+        Term term = termManager.NewAotTerm(session, name, noSubTerms, isRef);
         return termManager.Globalize(term);
     }
 }

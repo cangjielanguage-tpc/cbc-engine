@@ -1,8 +1,14 @@
 #pragma once
 
 #include "engine/engine.h"
+#include "engine/field_layout.h"
+#include "engine/identifiers.h"
+#include "engine/symlevel/definitions.h"
+#include "engine/terms.h"
+#include "engine/typeinfo_manager.h"
 #include "interpreter/function_handle.h"
 #include "runtimesupport/runtime.h"
+#include "utils/iterators.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
 #include <cstdint>
@@ -10,24 +16,7 @@
 #include <string_view>
 #include <vector>
 
-/// This namespace provides an facade to access symlevel from rewriter.
-///
-/// It encapsulates symlevel implementation details and memory management from users.
-/// This layer mostly consists of the resolver itself, which is provides
-/// an mapping from bytecode encoded indicies to the handles, through which symlevel can be accessed.
-///
-/// Handles are represented by instances of `Type`, `Field` or `Method`,
-/// which are essentially an wrapper around references to corresponding entitites.
-///
-/// The handles are mostly consists of `optional` properties.
-/// The presence of the property is decided by:
-/// - actual kind of referenced entity;
-/// - resolution success.
-///
-/// To work properly with handles in rewriter an specialized wrapper
-/// is needed.
-/// TODO: remove excessive encapsulation. `Term` is already good enough representation for type.
-
+/// This namespace provides resolution functionality, that accesses engine and symlevel.
 namespace Resolution {
 
 extern Logging::Logger log;
@@ -55,26 +44,29 @@ enum class CbcTypeKind {
 /// The handle that represents a type.
 class Type {
 public:
-    virtual ~Type() = default;
-
-    /// Full name of the type.
-    virtual void GetFullName(Stream::Output& stream) const = 0;
-
     /// Runtime type info.
-    virtual std::optional<RTSupport::TypeInfo> GetTypeInfo() = 0;
+    std::optional<RTSupport::TypeInfo> GetTypeInfo() const;
 
-    virtual CbcTypeKind GetKind() = 0;
+    CbcTypeKind GetKind() const;
 
     /// The size of a field of given type.
-    virtual std::optional<uint32_t> GetFlatSize() = 0;
+    std::optional<uint32_t> GetFlatSize() const;
 
-    /// Fills reference offsets for this type.
-    virtual void FillRefOffsets(std::vector<uint32_t>& offsets, uint32_t disp) = 0;
+    Type(Engine::Term term, Resolver& resolver) : term(term), resolver(&resolver) {}
+
+    Type(Engine::Term term, Resolver* resolver) : term(term), resolver(resolver) {}
+
+    Engine::Term term;
+    Resolver* resolver;
 };
 
 struct MethodSignature {
-    std::vector<Type*> params;
-    Type* resType;
+    Resolver* resolver;
+    Engine::Term term;
+
+    Type ResType() const;
+    Engine::Term::Range Params() const;
+    uint32_t ParamCount() const;
 };
 
 struct DirectCall {
@@ -82,45 +74,94 @@ struct DirectCall {
         uintptr_t funcPtr;
         Interpretation::I2Call i2cAdapter;
     };
-
     using CallData = std::variant<Compiled, Interpretation::DynamicFunctionHandle*>;
 
-    Type* refType;
-    std::string_view name;
-    MethodSignature signature;
-    CallData data;
+    struct Content {
+        Type refType;
+        std::string_view name;
+        MethodSignature signature;
+        CallData data;
+    };
+
+    Content* operator->() const { return content; };
+    Content* Get() const { return content; };
+
+    DirectCall(Content* content) : content(content) {}
+
+private:
+    Content* content;
 };
 
 struct VirtualCall {
-    Type* refType;
-    std::string_view name;
-    MethodSignature signature;
-    int methodNum;
-    int extDefNum;
-    bool sret;
+    struct Content {
+        Type refType;
+        std::string_view name;
+        MethodSignature signature;
+        int methodNum;
+        int extDefNum;
+        bool sret;
+    };
+
+    Content* operator->() const { return content; };
+    Content* Get() const { return content; };
+
+    VirtualCall(Content* content) : content(content) {}
+
+private:
+    Content* content;
 };
 
 struct InterfaceCall {
-    Type* refType;
-    std::string_view name;
-    MethodSignature signature;
-    int methodNum;
-    bool sret;
+    struct Content {
+        Type refType;
+        std::string_view name;
+        MethodSignature signature;
+        int methodNum;
+        bool sret;
+    };
+
+    Content* operator->() const { return content; };
+    Content* Get() const { return content; };
+
+    InterfaceCall(Content* content) : content(content) {}
+
+private:
+    Content* content;
 };
 
 struct InstanceField {
-    Type* refType;
-    std::string_view name;
-    Type* fieldType;
-    uint32_t ordinal;
-    std::optional<uint32_t> offset;
+    struct Content {
+        Type refType;
+        std::string_view name;
+        Type fieldType;
+        uint32_t ordinal;
+        std::optional<uint32_t> offset;
+    };
+
+    Content* operator->() const { return content; };
+    Content* Get() const { return content; };
+
+    InstanceField(Content* content) : content(content) {}
+
+private:
+    Content* content;
 };
 
 struct StaticField {
-    Type* refType;
-    std::string_view name;
-    Type* fieldType;
-    uintptr_t location;
+    struct Content {
+        Type refType;
+        std::string_view name;
+        Type fieldType;
+        uintptr_t location;
+    };
+
+    Content* operator->() const { return content; };
+    Content* Get() const { return content; };
+
+    StaticField(Content* content) : content(content) {}
+
+private:
+    Content* content;
 };
 
 Stream::Output& operator<<(Stream::Output& stream, Type const& type);
@@ -143,29 +184,47 @@ private:
 };
 
 /// Resolver of identifiers in the context of `method`.
-class Resolver {
-public:
+struct Resolver {
     Resolver(Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> method);
-    Resolver(Resolver&& another);
-    ~Resolver();
 
-    std::optional<Type*> Query(Index<Type> id);
-    std::optional<DirectCall const*> Query(Index<DirectCall> id);
-    std::optional<VirtualCall const*> Query(Index<VirtualCall> id);
-    std::optional<InterfaceCall const*> Query(Index<InterfaceCall> id);
-    std::optional<InstanceField const*> Query(Index<InstanceField> id);
-    std::optional<StaticField const*> Query(Index<StaticField> id);
+    Type Wrap(Engine::Term term);
 
-    std::optional<Type*> QueryFutureByFunctional(Index<Type> id);
+    std::optional<Type> Query(Index<Type> id);
+    std::optional<DirectCall> Query(Index<DirectCall> id);
+    std::optional<VirtualCall> Query(Index<VirtualCall> id);
+    std::optional<InterfaceCall> Query(Index<InterfaceCall> id);
+    std::optional<InstanceField> Query(Index<InstanceField> id);
+    std::optional<StaticField> Query(Index<StaticField> id);
 
-    std::optional<InstanceField const*> QueryTupleElement(Type* refType, uint32_t idx);
+    std::optional<Type> QueryFutureByFunctional(Index<Type> id);
+
+    std::optional<InstanceField> QueryTupleElement(Type refType, uint32_t idx);
 
     std::string_view QueryString(uint32_t stringOffs);
 
-    class Impl;
+    void GetFullName(Type type, Stream::Output& stream);
+    std::optional<RTSupport::TypeInfo> GetTypeInfo(Type type);
+    CbcTypeKind GetKind(Type type);
+    std::optional<uint32_t> GetFlatSize(Type type);
+
+    template <typename T> using Cache = std::unordered_map<int, typename T::Content*>;
+
+    Engine::Session& session;
+
+    Engine::TypeInfoManager& tiManager;
+    std::unique_ptr<Engine::FieldLayoutManager> fieldManager;
+    Engine::TermManager& termManager;
 
 private:
-    std::unique_ptr<Impl> impl;
+    friend class ResolverProxy;
+    Engine::Identifier<Symlevel::MethodDefinition> method;
+    uint8_t regionId { 0 };
+
+    Cache<VirtualCall> dynamicCalls;
+    Cache<InterfaceCall> interfaceCalls;
+    Cache<DirectCall> directCalls;
+    Cache<InstanceField> instanceFields;
+    Cache<StaticField> staticFields;
 };
 
 } // namespace Resolution

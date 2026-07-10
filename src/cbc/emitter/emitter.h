@@ -212,7 +212,7 @@ public:
     void NullCheck(IReg r);
 
     void InstanceOf(IReg dst, IReg obj, RTSupport::TypeInfo typeInfo);
-    void LoadGenericTypeInfo(void* termData);
+    void LoadGenericTypeInfo(uintptr_t termData);
     void LoadTypeInfo(RTSupport::TypeInfo typeInfo);
 
     void NewBox(Interpretation::BuiltinType t);
