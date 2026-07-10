@@ -67,15 +67,15 @@ static LDK Ldk(CbcTypeKind tk)
         case TK::REC:  return LDK::LEA; // record types: load effective address
 
         default: {
-            FATAL("Not supported template kind");
+            FATAL("Not supported type kind %d", tk);
             return LDK::LD_S8;
         }
     }
 }
 
-static STK Stk(TK typeIdentifier)
+static STK Stk(TK tk)
 {
-    switch (typeIdentifier) {
+    switch (tk) {
         case TK::U8:
         case TK::I8:  return STK::ST_8;
         case TK::U16:
@@ -91,7 +91,7 @@ static STK Stk(TK typeIdentifier)
         case TK::REF:  return STK::ST_REF;
 
         default: {
-            FATAL("Not supported template kind");
+            FATAL("Not supported type kind %d", tk);
             return STK::ST_8;
         }
     }
@@ -100,6 +100,7 @@ static STK Stk(TK typeIdentifier)
 STK Stk(Interpretation::BuiltinType bt)
 {
     switch (bt) {
+        case Interpretation::BUILTIN_UNIT:    ASSERT("Should not reach here");
         case Interpretation::BUILTIN_BOOLEAN: return STK::ST_8;
         case Interpretation::BUILTIN_U8:      return STK::ST_8;
         case Interpretation::BUILTIN_I8:      return STK::ST_8;
@@ -109,15 +110,19 @@ STK Stk(Interpretation::BuiltinType bt)
         case Interpretation::BUILTIN_I32:     return STK::ST_32;
         case Interpretation::BUILTIN_U64:     return STK::ST_64;
         case Interpretation::BUILTIN_I64:     return STK::ST_64;
+        case Interpretation::BUILTIN_UADDR:   return STK::ST_64;
+        case Interpretation::BUILTIN_IADDR:   return STK::ST_64;
         case Interpretation::BUILTIN_F16:     return STK::ST_16;
         case Interpretation::BUILTIN_F32:     return STK::ST_F32;
         case Interpretation::BUILTIN_F64:     return STK::ST_F64;
+        case Interpretation::BUILTIN_RUNE:    return STK::ST_32;
     }
 }
 
 LDK Ldk(Interpretation::BuiltinType bt)
 {
     switch (bt) {
+        case Interpretation::BUILTIN_UNIT:    ASSERT("Should not reach here");
         case Interpretation::BUILTIN_BOOLEAN: return LDK::LD_U8;
         case Interpretation::BUILTIN_U8:      return LDK::LD_U8;
         case Interpretation::BUILTIN_I8:      return LDK::LD_S8;
@@ -127,9 +132,12 @@ LDK Ldk(Interpretation::BuiltinType bt)
         case Interpretation::BUILTIN_I32:     return LDK::LD_32;
         case Interpretation::BUILTIN_U64:     return LDK::LD_64;
         case Interpretation::BUILTIN_I64:     return LDK::LD_64;
+        case Interpretation::BUILTIN_UADDR:   return LDK::LD_64;
+        case Interpretation::BUILTIN_IADDR:   return LDK::LD_64;
         case Interpretation::BUILTIN_F16:     return LDK::LD_U16;
         case Interpretation::BUILTIN_F32:     return LDK::LD_F32;
         case Interpretation::BUILTIN_F64:     return LDK::LD_F64;
+        case Interpretation::BUILTIN_RUNE:    return LDK::LD_32;
     }
 }
 
@@ -749,7 +757,7 @@ struct IsaRewriter : public IsaParser {
 
     void Box(AnyReg src, IReg dst, uint16_t type) override
     {
-        if (type < Engine::Term::FIRST_NON_PRIMITIVE) {
+        if (type != Interpretation::BUILTIN_UNIT && type < Engine::Term::FIRST_NON_PRIMITIVE) {
             auto tk       = Engine::TermKind(type);
             auto term     = Engine::Term::Predefined(tk);
             auto& manager = Engine::TypeInfoManager::Of(session);
@@ -806,7 +814,7 @@ struct IsaRewriter : public IsaParser {
 
     void Unbox(AnyReg dst, IReg src, uint16_t type) override
     {
-        if (type < Engine::Term::FIRST_NON_PRIMITIVE) {
+        if (type != Interpretation::BUILTIN_UNIT && type < Engine::Term::FIRST_NON_PRIMITIVE) {
             auto tk       = Engine::TermKind(type);
             auto term     = Engine::Term::Predefined(tk);
             auto& manager = Engine::TypeInfoManager::Of(session);
@@ -1108,6 +1116,7 @@ struct IsaRewriter : public IsaParser {
         if (field->refType.GetKind() == Resolution::CbcTypeKind::REF) {
             msr.emit.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
         }
+        msr.lastFieldKind = field->fieldType.GetKind();
         msr.emit.GenericField(field->ordinal, ti);
     }
 

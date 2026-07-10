@@ -376,6 +376,7 @@ CBC_EXPORT int interpreter_bridge_init(
     {
         using namespace Interpretation;
         auto getTypeInfo                  = g_CJNativeInterfaceInstance.typeInfo;
+        builtinTypeInfos[BUILTIN_UNIT]    = RTSupport::TypeInfo(getTypeInfo("Unit"));
         builtinTypeInfos[BUILTIN_BOOLEAN] = RTSupport::TypeInfo(getTypeInfo("Bool"));
         builtinTypeInfos[BUILTIN_U8]      = RTSupport::TypeInfo(getTypeInfo("UInt8"));
         builtinTypeInfos[BUILTIN_U16]     = RTSupport::TypeInfo(getTypeInfo("UInt16"));
@@ -385,9 +386,12 @@ CBC_EXPORT int interpreter_bridge_init(
         builtinTypeInfos[BUILTIN_I16]     = RTSupport::TypeInfo(getTypeInfo("Int16"));
         builtinTypeInfos[BUILTIN_I32]     = RTSupport::TypeInfo(getTypeInfo("Int32"));
         builtinTypeInfos[BUILTIN_I64]     = RTSupport::TypeInfo(getTypeInfo("Int64"));
+        builtinTypeInfos[BUILTIN_UADDR]   = RTSupport::TypeInfo(getTypeInfo("UIntNative"));
+        builtinTypeInfos[BUILTIN_IADDR]   = RTSupport::TypeInfo(getTypeInfo("IntNative"));
         builtinTypeInfos[BUILTIN_F16]     = RTSupport::TypeInfo(getTypeInfo("Float16"));
         builtinTypeInfos[BUILTIN_F32]     = RTSupport::TypeInfo(getTypeInfo("Float32"));
         builtinTypeInfos[BUILTIN_F64]     = RTSupport::TypeInfo(getTypeInfo("Float64"));
+        builtinTypeInfos[BUILTIN_RUNE]    = RTSupport::TypeInfo(getTypeInfo("Rune"));
     }
 
     return 0;

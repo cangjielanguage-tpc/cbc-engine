@@ -12,6 +12,7 @@
 namespace Interpretation {
 
 enum BuiltinType : uint8_t {
+    BUILTIN_UNIT,
     BUILTIN_BOOLEAN,
     BUILTIN_U8,
     BUILTIN_I8,
@@ -21,12 +22,15 @@ enum BuiltinType : uint8_t {
     BUILTIN_I32,
     BUILTIN_U64,
     BUILTIN_I64,
+    BUILTIN_UADDR,
+    BUILTIN_IADDR,
     BUILTIN_F16,
     BUILTIN_F32,
     BUILTIN_F64,
+    BUILTIN_RUNE,
 };
 
-static constexpr auto BUILTIN_COUNT = BUILTIN_F64 + 1;
+static constexpr auto BUILTIN_COUNT = BUILTIN_RUNE + 1;
 
 // Used by interpretation loop to access type infos of builtin types.
 // Initialized by engine before interpretation.
