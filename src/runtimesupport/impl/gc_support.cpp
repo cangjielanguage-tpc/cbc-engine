@@ -26,12 +26,12 @@ static void VisitRoot(DYN_RootVisitor rootVisitor, Placeholder ph)
     g_CJNativeInterfaceInstance.visitRootFromInterpreter(rootVisitor, ph);
 }
 
-static void VisitMutPair(DYN_DerivedPtrVisitor derivedPtrVisitor, Placeholder basePh, Placeholder derivedPh)
+static void VisitMutPair(DYN_DerivedPtrVisitor derivedPtrVisitor, DYN_ObjRef base, Placeholder derivedPh)
 {
     RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) {
-        out.PrintFmtLn("visiting mut pair (%p, %p), value=(%p, %p)", basePh, derivedPh, *basePh, *derivedPh);
+        out.PrintFmtLn("visiting derived placeholder=%p, mut pair=(%p, %p)", derivedPh, base, *derivedPh);
     });
-    g_CJNativeInterfaceInstance.visitDerivedPtrFromInterpreter(derivedPtrVisitor, basePh, derivedPh);
+    g_CJNativeInterfaceInstance.visitDerivedPtrFromInterpreter(derivedPtrVisitor, base, derivedPh);
 }
 
 class RegistersTable {
@@ -157,6 +157,12 @@ void VisitGCFrameRoots(
         );
     });
 
+    std::vector<uintptr_t> oldBaseRefs;
+    for (auto& pair : positionalInfo->mutPairs) {
+        auto basePh = GetResourceLocation(pair.first, slotsStartAddr, regsLocationTable);
+        oldBaseRefs.push_back(*basePh);
+    }
+
     for (auto& refSlotOffset : NOTNULL(positionalInfo)->untypedRefSlotsInfo) {
         auto refLocation = reinterpret_cast<Placeholder>(slotsStartAddr + refSlotOffset);
         RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) { out << refSlotOffset << ": "; });
@@ -200,14 +206,16 @@ void VisitGCFrameRoots(
         // Heap adjusting is in process
 
         auto derivedPtrVisitor = *derivedPtrVisitorOpt;
-        for (auto& pair : positionalInfo->mutPairs) {
-            auto basePh    = GetResourceLocation(pair.first, slotsStartAddr, regsLocationTable);
+        for (int i = 0; i < positionalInfo->mutPairs.size(); i++) {
+            auto pair      = positionalInfo->mutPairs[i];
             auto derivedPh = GetResourceLocation(pair.second, slotsStartAddr, regsLocationTable);
 
-            auto baseRef = Interpretation::Value::Reference { .value = *basePh };
+            auto baseRef = Value::Reference { .value = oldBaseRefs[i] };
             auto locKind = RTSupport::Execution::GetStructLocationKind(baseRef, *derivedPh);
             if (locKind == RTSupport::HEAP) {
-                VisitMutPair(derivedPtrVisitor, basePh, derivedPh); // Adjust derived pointer
+                VisitMutPair(
+                    derivedPtrVisitor, reinterpret_cast<DYN_ObjRef>(oldBaseRefs[i]), derivedPh
+                ); // Adjust derived pointer
             }
         }
     }
