@@ -211,13 +211,14 @@ struct Resolver {
 
     Engine::Session& session;
 
+    Engine::TypeInfoManager& tiManager;
+    std::unique_ptr<Engine::FieldLayoutManager> fieldManager;
+    Engine::TermManager& termManager;
+
 private:
     friend class ResolverProxy;
     Engine::Identifier<Symlevel::MethodDefinition> method;
     uint8_t regionId { 0 };
-    Engine::TypeInfoManager& tiManager;
-    std::unique_ptr<Engine::FieldLayoutManager> fieldManager;
-    Engine::TermManager& termManager;
 
     Cache<VirtualCall> dynamicCalls;
     Cache<InterfaceCall> interfaceCalls;

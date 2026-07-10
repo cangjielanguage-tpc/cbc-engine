@@ -11,7 +11,6 @@
 #include "engine/symlevel/code.h"
 #include "engine/symlevel/io/file_id.h"
 #include "engine/terms.h"
-#include "engine/typeinfo_manager.h"
 #include "interpreter/code.h"
 #include "interpreter/function_handle.h"
 #include "interpreter/interpretation_loop.h"
@@ -400,7 +399,8 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
-        emit.LoadGenericTypeInfo(Bits::Raw64(type->term));
+        auto term = resolver.termManager.Globalize(type->term);
+        emit.LoadGenericTypeInfo(Bits::Raw64(term));
         AdjustReg(dst, IReg::IR1);
     }
 
@@ -760,7 +760,6 @@ struct IsaRewriter : public IsaParser {
         if (type != Interpretation::BUILTIN_UNIT && type < Engine::Term::FIRST_NON_PRIMITIVE) {
             auto tk       = Engine::TermKind(type);
             auto term     = Engine::Term::Predefined(tk);
-            auto& manager = Engine::TypeInfoManager::Of(session);
             auto bt       = ToBuiltin(tk);
             emit.NewBox(bt); // Spoils IR_ACC
             BindStatePoint();
@@ -817,7 +816,6 @@ struct IsaRewriter : public IsaParser {
         if (type != Interpretation::BUILTIN_UNIT && type < Engine::Term::FIRST_NON_PRIMITIVE) {
             auto tk       = Engine::TermKind(type);
             auto term     = Engine::Term::Predefined(tk);
-            auto& manager = Engine::TypeInfoManager::Of(session);
             auto bt       = ToBuiltin(tk);
             emit.LoadObj(Ldk(bt), dst, src, RTSupport::MetaInfo::ObjectHeaderSize());
         } else {

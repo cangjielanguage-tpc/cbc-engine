@@ -766,6 +766,8 @@ LOAD_GENERIC_TI: {
     auto args = B9i64::Decode(reader);
     LOG_INSTR;
     auto termValue = args.imm64.imm;
+
+    // Raw reinterpetation of 64 bit value.
     Engine::Term term { nullptr };
     static_assert(sizeof(term) == sizeof(termValue));
     memcpy(&term, &termValue, sizeof(termValue));
