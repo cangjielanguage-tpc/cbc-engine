@@ -5,8 +5,8 @@
 
 #include "engine/terms.h"
 #include "interpreter/ectype.h"
-#include "interpreter/int_thunk.h"
 #include "interpreter/implicit_exceptions.h"
+#include "interpreter/int_thunk.h"
 #include <cstdint>
 #include <functional>
 
@@ -14,7 +14,6 @@ namespace RTSupport {
 
 // TypeInfo flags
 static constexpr uint64_t GCTIB_SIGN_BIT = (1lu << 63);
-static constexpr uint32_t GCTIB_MAX_SHORT_OFFSET = sizeof(void*) * 62;
 
 #if defined(__x86_64__) || defined(_M_X64)
 static constexpr uintptr_t DERIVED_PTR_GLOBAL_FLAG = 0x1;
@@ -23,6 +22,8 @@ static constexpr uintptr_t DERIVED_PTR_GLOBAL_FLAG = 1ULL << 63;
 #endif
 
 using TypeInfoUUID = uint32_t;
+
+using OffsetVisitor = std::function<void(uint32_t)>;
 
 class ThreadHandle {
 public:
@@ -42,12 +43,25 @@ public:
 
     TypeInfo() : value(nullptr) {}
 
+    void VisitReferenceOffsets(OffsetVisitor const& f);
+
     inline void* Raw() const { return value; }
 
     inline uintptr_t UInt() const { return reinterpret_cast<uintptr_t>(value); }
 
 private:
     void* value;
+};
+
+// should have the same layout as StdGCTib in cangjie_runtime/runtime/src/ObjectModel/MClass.h
+struct StdGCTib {
+    uint32_t nBitmapWords;
+    uint8_t bitmapWords[];
+};
+
+// should have the same layout as ShortGCTib in cangjie_runtime/runtime/src/ObjectModel/MClass.h
+struct ShortGCTib {
+    uintptr_t bitmap;
 };
 
 struct Execution {
@@ -123,10 +137,6 @@ struct MetaInfo {
     static uint8_t GetAlign(TypeInfo ti);
 
     static bool IsReferenceType(TypeInfo ti);
-
-    // Visits offsets of reference fields in GCTib.
-    // NOTE: offsets are relative to object/struct start address.
-    static void VisitReferences(TypeInfo ti, std::function<void(uint32_t)> visitor);
 
     static uint32_t ObjectHeaderSize() { return sizeof(void*); }
 

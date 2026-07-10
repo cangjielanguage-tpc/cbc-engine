@@ -24,7 +24,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <limits>
 #include <optional>
+#include <utility>
 
 namespace RTSupport {
 
@@ -145,22 +147,23 @@ struct TypeInfoBuilder {
     int32_t instanceSize  = -1;
     int32_t componentSize = -1;
 
-    DYN_GCTib gctib { .raw = GCTIB_SIGN_BIT }; // TODO: gctib builder
-    uint32_t uuid = 0;
+    DYN_GCTib gctib { .raw = GCTIB_SIGN_BIT };
+    StdGCTib* longgctib = nullptr;
+    uint32_t uuid       = 0;
     uint8_t align;
-    int8_t typeArgsNum           = 0;
-    uint16_t validInheritNum     = 0;
-    uint32_t* fieldOffsets       = nullptr;
-    DYN_FuncPtr finalizerMethod  = nullptr;
-    DYN_TypeInfo** typeArgs      = nullptr;
-    DYN_TypeInfo** fields        = nullptr;
+    int8_t typeArgsNum          = 0;
+    uint16_t validInheritNum    = 0;
+    uint32_t* fieldOffsets      = nullptr;
+    DYN_FuncPtr finalizerMethod = nullptr;
+    DYN_TypeInfo** typeArgs     = nullptr;
+    DYN_TypeInfo** fields       = nullptr;
 
     DYN_TypeInfo* superTypeInfo     = nullptr;
     DYN_TypeInfo* componentTypeInfo = nullptr;
 
-    DYN_ExtensionData** extDefs     = nullptr;
-    OuterTIFuncUnion* flatMethods   = nullptr;
-    DYN_ExtensionData* flatExtDefs  = nullptr;
+    DYN_ExtensionData** extDefs    = nullptr;
+    OuterTIFuncUnion* flatMethods  = nullptr;
+    DYN_ExtensionData* flatExtDefs = nullptr;
 
     Interpretation::FunctionHandle** dataMT = nullptr;
 
@@ -216,6 +219,7 @@ struct TypeInfoBuilder {
     {
         if (!built) {
             // free is no-op on nulls.
+            std::free(longgctib);
             std::free(fieldOffsets);
             std::free(name);
             std::free(typeArgs);
@@ -255,7 +259,7 @@ static MethodTableMember GetTableMember(
         auto staticFuh = std::get<Interpretation::StaticFunctionHandle*>(fuh);
         return { &staticFuh->base, staticFuh->function };
     } else {
-        auto& manager  = Interpretation::FunctionHandleManager::Of(session);
+        auto& manager = Interpretation::FunctionHandleManager::Of(session);
         return { manager.Acquire(session, methodId), Adapters::GetDynCallTrampoline(entryIdx) };
     }
 }
@@ -268,12 +272,54 @@ static std::optional<TypeInfo> QueryTypeInfoAOT(
     Engine::Session& session, Engine::TypeInfoManager& manager, char const* typeName, Engine::Term term
 );
 
+static constexpr uint32_t GCTIB_MAX_SHORT_OFFSET = sizeof(void*) * 62;
+
+static std::optional<DYN_GCTib> ConstructGCTib(TypeInfoBuilder& builder, std::vector<uint32_t>& refFieldOffs)
+{
+    if (refFieldOffs.empty()) {
+        return std::make_optional<DYN_GCTib>(DYN_GCTib { .raw = 1ul << 63 });
+    }
+
+    auto maxOffset = *std::max_element(refFieldOffs.begin(), refFieldOffs.end());
+    if (maxOffset < GCTIB_MAX_SHORT_OFFSET) {
+        // Fast path: maximum offset to the reference field is small. We fit it into inline bitset gctib
+        uintptr_t gctib = 1ul << 63;
+        size_t i        = 1;
+        for (auto offs : refFieldOffs) {
+            gctib |= (1 << offs / sizeof(uintptr_t));
+        }
+        return std::make_optional<DYN_GCTib>(DYN_GCTib { .raw = gctib });
+    } else {
+        // Slow path: it doesn't fit into inline gctib. Thus we construct gctib on the heap and gctib becomes ptr
+        StdGCTib* gctib;
+
+        constexpr uint32_t refAlignment = 8;
+
+        auto bitsPerElement = sizeof(gctib->bitmapWords[0]) * 8;
+        auto maxIndex       = maxOffset / refAlignment;
+        auto maskCount      = maxIndex / refAlignment + 1;
+        auto allocAmount    = gctib->nBitmapWords * sizeof(gctib->bitmapWords[0]) + sizeof(*gctib);
+        gctib               = static_cast<StdGCTib*>(std::calloc(1, allocAmount));
+        gctib->nBitmapWords = maskCount;
+        if (!gctib) {
+            return std::nullopt;
+        }
+        for (auto offs : refFieldOffs) {
+            auto ref                  = offs / sizeof(uintptr_t);
+            auto slot                 = ref / bitsPerElement;
+            auto localSlot            = ref % bitsPerElement;
+            gctib->bitmapWords[slot] |= (1 << localSlot);
+        }
+        builder.longgctib = gctib;
+        return std::make_optional<DYN_GCTib>(DYN_GCTib { .ptr = gctib });
+    }
+}
+
 // TODO: factory class, so it can hold state other managers without recreating them
 static std::optional<TypeInfo> CreateTypeInfoDyn(
     Engine::Session& session, Engine::TypeInfoManager& manager, Engine::GlobalTerm term
 )
 {
-
     auto ident = Engine::TypeTermId(term).GetIdentifier();
 
     auto type = Symlevel::Reader::Read(session, ident);
@@ -354,8 +400,8 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
     }
 
     if (needExtDefs) { // fill out ext defs
-        auto& manager    = Engine::MethodTableManager::Of(session);
-        auto optMT       = manager.GetMethodTable(session, term);
+        auto& manager = Engine::MethodTableManager::Of(session);
+        auto optMT    = manager.GetMethodTable(session, term);
 
         if (!optMT.has_value()) {
             Log::typeinfo.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
@@ -366,7 +412,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         }
         auto mt = *optMT;
 
-        auto extDefCount = mt->ClassCount() + mt->InterfaceCount();
+        auto extDefCount        = mt->ClassCount() + mt->InterfaceCount();
         builder.validInheritNum = extDefCount;
 
         // To simplify memory management here, we will preallocate "flat" arrays
@@ -395,7 +441,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         // fill out flat methods table and data method table
         int entryIdx = 0;
         for (auto entry : mt->Entries()) {
-            auto tm = GetTableMember(session, entry.method, entryIdx);
+            auto tm                  = GetTableMember(session, entry.method, entryIdx);
             builder.dataMT[entryIdx] = tm.handle;
             funcDescs[entryIdx]      = FuncDesc { tm.function, entry.genericContext };
             entryIdx++;
@@ -527,7 +573,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         builder.instanceSize = layout->desc.size.value();
         builder.fieldNum     = layout->fields.size();
 
-        builder.fields = Alloc<DYN_TypeInfo*>(builder.fieldNum);
+        builder.fields       = Alloc<DYN_TypeInfo*>(builder.fieldNum);
         builder.fieldOffsets = Alloc<uint32_t>(builder.fieldNum);
 
         if (builder.fieldNum != 0 && (builder.fieldOffsets == nullptr || builder.fieldOffsets == nullptr)) {
@@ -539,7 +585,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         size_t idx = 0;
         for (auto& field : layout->fields) {
             auto fieldType = field.fieldType;
-            auto typeInfo = queryTypeInfo(fieldType);
+            auto typeInfo  = queryTypeInfo(fieldType);
             if (!typeInfo.has_value()) {
                 return std::nullopt;
             }
@@ -556,22 +602,11 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         if (!refFieldOffs.empty()) {
             builder.flag |= HAS_REF_FIELD;
 
-            auto maxOffset = std::max_element(refFieldOffs.begin(), refFieldOffs.end());
-            if (*maxOffset > GCTIB_MAX_SHORT_OFFSET) {
-                // TODO: support large GCTib
-                Log::typeinfo.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
-                    Stream::ResolvingOutput stream(session, out);
-                    stream << "Not implemented large object GCTib for " << term << Stream::endl;
-                });
+            auto gctib = ConstructGCTib(builder, refFieldOffs);
+            if (!gctib.has_value()) {
                 return std::nullopt;
             }
-
-            uint64_t gctib = GCTIB_SIGN_BIT;
-            for (auto offs : refFieldOffs) {
-                gctib |= 1 << (offs / sizeof(uintptr_t));
-            }
-
-            builder.gctib.raw = gctib;
+            builder.gctib = *gctib;
         }
     } else {
         builder.fieldNum     = 0;
@@ -753,7 +788,7 @@ std::optional<TypeInfo> CreateTypeInfo(
     auto createTypeInfo = [&]() {
         auto termIdent = term.GetId();
         switch (termIdent.GetKind()) {
-            case Engine::TermKind::TYPE:    return CreateTypeInfoDyn(session, manager, term);
+            case Engine::TermKind::TYPE: return CreateTypeInfoDyn(session, manager, term);
 
             case Engine::TermKind::AOT_TYPE:
             case Engine::TermKind::AOT_REC:

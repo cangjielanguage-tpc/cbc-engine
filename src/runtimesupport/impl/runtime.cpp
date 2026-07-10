@@ -8,9 +8,9 @@
 #include "engine/typeinfo_manager.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
+#include "interpreter/implicit_exceptions.h"
 #include "interpreter/interpretation_loop.h"
 #include "runtimesupport/adapters.h"
-#include "interpreter/implicit_exceptions.h"
 #include "runtimesupport/impl/rt_syms.h"
 #include "runtimesupport/impl/typeinfo_ext.h"
 #include "utils/assertion.h"
@@ -18,8 +18,11 @@
 #include <cstdint>
 
 namespace RTSupport {
-
 using Reference = Interpretation::Value::Reference;
+
+constexpr uint32_t REF_FIELD_SIZE = sizeof(void*);
+
+static bool IsInlineGCTib(DYN_GCTib tib) { return static_cast<bool>(tib.raw & GCTIB_SIGN_BIT); }
 
 void Execution::WriteGeneric(Reference base, uintptr_t field, Reference object, size_t size, ThreadHandle th)
 {
@@ -251,24 +254,6 @@ bool MetaInfo::IsReferenceType(TypeInfo ti)
     return mrtti->type < 0;
 }
 
-void MetaInfo::VisitReferences(TypeInfo ti, std::function<void(uint32_t)> visitor)
-{
-    auto mrtti = UnpackTypeInfo(ti);
-
-    if ((mrtti->gctib.raw & GCTIB_SIGN_BIT) == 0) {
-        FATAL("pointer gctib format is not supported yet");
-        return;
-    }
-
-    auto bitmap          = mrtti->gctib.raw & ~GCTIB_SIGN_BIT;
-    uint32_t startOffset = IsReferenceType(ti) ? ObjectHeaderSize() : 0;
-    for (uint32_t offset = startOffset; bitmap != 0; offset += sizeof(uintptr_t), bitmap >>= 1) {
-        if ((bitmap & 1) != 0) {
-            visitor(offset);
-        }
-    }
-}
-
 TypeInfo MetaInfo::ByteArrayTypeInfo()
 {
     auto typeName = "RawArray<UInt8>";
@@ -307,6 +292,56 @@ TypeInfo Execution::LoadTypeInfo(Engine::GlobalTerm term, Interpretation::Ectype
     // resolution error should be handled in rewriter.
     auto res = tiManager.AcquireTypeInfo(session, type);
     return res.value();
+}
+
+static void VisitInlineGCTib(ShortGCTib tib, OffsetVisitor const& visitor)
+{
+    auto info =
+        tib.bitmap &
+        (~GCTIB_SIGN_BIT); // sign bit signalizes if its a inline or a heap version. it doesn't contain information.
+    auto offset = 0;
+    while (info != 0) {
+        if (info & 1) {
+            // indexed field contains reference. visit!
+            visitor(offset);
+        }
+        info   >>= 1;
+        offset  += REF_FIELD_SIZE;
+    }
+}
+
+static void VisitBitmap(uint8_t bitmap, OffsetVisitor const& visitor, size_t offset)
+{
+    while (bitmap != 0) {
+        if (bitmap & 1) {
+            visitor(offset);
+        }
+        bitmap >>= 1;
+        offset  += REF_FIELD_SIZE;
+    }
+}
+
+static void VisitHeapedGCTib(StdGCTib const& gctib, OffsetVisitor const& visitor)
+{
+    auto offset = 0;
+    for (uint32_t i; i < gctib.nBitmapWords; i++) {
+        auto bitmap = gctib.bitmapWords[i];
+        VisitBitmap(bitmap, visitor, offset);
+        offset += REF_FIELD_SIZE * 8;
+    }
+}
+
+void TypeInfo::VisitReferenceOffsets(OffsetVisitor const& f)
+{
+    auto mrtti = UnpackTypeInfo(*this);
+    auto gctib = mrtti->gctib;
+    if (IsInlineGCTib(gctib)) {
+        auto wrap = ShortGCTib { gctib.raw };
+        VisitInlineGCTib(wrap, f);
+    } else {
+        auto stdgctib = reinterpret_cast<StdGCTib*>(gctib.ptr);
+        VisitHeapedGCTib(*stdgctib, f);
+    }
 }
 
 } // namespace RTSupport
