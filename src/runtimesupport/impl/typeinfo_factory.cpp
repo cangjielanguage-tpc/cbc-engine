@@ -314,12 +314,20 @@ static std::optional<DYN_GCTib> ConstructGCTib(TypeInfoBuilder& builder, std::ve
     }
 }
 
-// TODO: factory class, so it can hold state other managers without recreating them
+// TODO: factory class, so it can hold state of other managers without recreating them.
+// TODO: split function to smaller ones.
 static std::optional<TypeInfo> CreateTypeInfoDyn(
     Engine::Session& session, Engine::TypeInfoManager& manager, Engine::GlobalTerm term
 )
 {
-    auto ident = Engine::TypeTermId(term).GetIdentifier();
+    auto ident = [term]() {
+        switch (term.GetKind()) {
+            case Engine::TermKind::TYPE:            return Engine::TypeTermId(term).GetIdentifier();
+            case Engine::TermKind::UNION_OPTION:    return Engine::UnionOptionId(term).GetIdentifier();
+            case Engine::TermKind::NULLABLE_OPTION: return Engine::NullableOptionId(term).GetIdentifier();
+            default:                                FATAL("Unreachable");
+        }
+    }();
 
     auto type = Symlevel::Reader::Read(session, ident);
     auto name = Symlevel::Reader::Read(session, type.GetName());
@@ -377,7 +385,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         case Symlevel::TypeKind::ENUM:
             builder.type = TYPE_KIND_ENUM;
             needExtDefs  = true;
-            needFields   = true;
+            needFields   = false;
         default: FATAL("unreachable type kind");
     }
 
@@ -611,9 +619,67 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             }
             builder.gctib = *gctib;
         }
+    } else if (term.GetKind() == Engine::TermKind::NULLABLE_OPTION) {
+        auto underlying = Engine::TermManager::Resolve(session, type.GetEnumType());
+        underlying      = substitute.Substitute(underlying);
+
+        builder.fieldNum = 1;
+
+        builder.fields       = Alloc<DYN_TypeInfo*>(builder.fieldNum);
+        builder.fieldOffsets = Alloc<uint32_t>(builder.fieldNum);
+
+        if (builder.fieldNum != 0 && (builder.fieldOffsets == nullptr || builder.fieldOffsets == nullptr)) {
+            return std::nullopt;
+        }
+
+        auto underlyingTI = queryTypeInfo(underlying);
+        if (!underlyingTI) {
+            return std::nullopt;
+        }
+
+        builder.fieldOffsets[0] = 0;
+        builder.fields[0]       = UnpackTypeInfo(*underlyingTI);
+        builder.gctib           = { .raw = (1ul << 63) | 1 };
+        builder.align           = sizeof(void*);
+        builder.instanceSize    = sizeof(void*);
+    } else if (term.GetKind() == Engine::TermKind::UNION_OPTION) {
+        auto fieldManager = Engine::FieldLayoutManager::New(session, manager);
+        auto underlying   = Engine::TermManager::Resolve(session, type.GetEnumType());
+        underlying        = substitute.Substitute(underlying);
+
+        builder.fieldNum = 1;
+
+        builder.fields       = Alloc<DYN_TypeInfo*>(builder.fieldNum);
+        builder.fieldOffsets = Alloc<uint32_t>(builder.fieldNum);
+
+        if (builder.fieldNum != 0 && (builder.fieldOffsets == nullptr || builder.fieldOffsets == nullptr)) {
+            return std::nullopt;
+        }
+
+        auto underlyingTI = queryTypeInfo(underlying);
+        if (!underlyingTI) {
+            return std::nullopt;
+        }
+        // calculation of size/alignment for such kind of term is supported, but without explicit fields
+        auto optLayout = fieldManager->GetLayout(term);
+        if (!optLayout) {
+            return std::nullopt;
+        }
+        auto layout = *optLayout;
+        auto size   = layout->desc.size;
+        if (!size) {
+            return std::nullopt;
+        }
+
+        builder.fieldOffsets[0] = sizeof(uint32_t);
+        builder.fields[0]       = UnpackTypeInfo(*underlyingTI);
+        builder.gctib           = { .raw = (1ul << 63) | 1 };
+        builder.align           = layout->desc.alignment;
+        builder.instanceSize    = *size;
     } else {
         builder.fieldNum     = 0;
         builder.fields       = nullptr;
+        builder.fieldOffsets = nullptr;
         builder.align        = 1;
         builder.instanceSize = 0;
     }

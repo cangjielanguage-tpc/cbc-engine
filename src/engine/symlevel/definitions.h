@@ -17,8 +17,8 @@ namespace Symlevel {
 enum class EnumKind : uint8_t {
     NOT_ENUM,
     UNION,
-    OPTION0,
-    OPTION1,
+    OPTION0, // enum { Some(T); None }
+    OPTION1, // enum { None; Some(T) }
     PRIMITIVE,
 };
 
@@ -70,7 +70,17 @@ public:
     OffsetSequence<FieldDefinition> const GetInstanceFields() const { return content.instanceFields; }
 
     Engine::RefIdentifier<Term> const GetSuperType() const {
-        ASSERT(content.enumKind == EnumKind::NOT_ENUM);
+        if (content.enumKind != EnumKind::NOT_ENUM) {
+            return Engine::RefIdentifier(RefId<Term>(0, 0), 0); // NIL TERM
+        }
+        return content.superOrEnumType;
+    }
+
+    Engine::RefIdentifier<Term> const GetEnumType() const
+    {
+        if (content.enumKind == EnumKind::NOT_ENUM) {
+            return Engine::RefIdentifier(RefId<Term>(0, 0), 0); // NIL TERM
+        }
         return content.superOrEnumType;
     }
 

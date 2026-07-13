@@ -936,7 +936,7 @@ Term Substitution::Substitute(Term term)
             auto gIdentifier = GenericOptionId(identifier);
             auto typeDefId = gIdentifier.GetIdentifier();
             auto def = Symlevel::Reader::Read(session, typeDefId);
-            auto someType = TermManager::Resolve(session, def->superOrEnumType);
+            auto someType    = TermManager::Resolve(session, def.GetEnumType());
 
             ClassSubstitution sub(session, newData->subterms, length);
             someType = sub.Substitute(someType);

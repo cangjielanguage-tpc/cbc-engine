@@ -93,12 +93,12 @@ struct FLManager : public FieldLayoutManager {
 
             case TK::I64:
             case TK::U64:
-            case TK::F64:
+            case TK::F64: return 8;
+
             case TK::IADDR:
             case TK::UADDR:
             case TK::BSTRING:
-            case TK::C_POINTER: return 8;
-
+            case TK::C_POINTER:
             case TK::NULLABLE:
             case TK::FUNCTIONAL:
             case TK::NON_NULLABLE:
@@ -108,7 +108,7 @@ struct FLManager : public FieldLayoutManager {
             case TK::PRIMITIVE_ENUM: {
                 auto id   = PrimitiveEnumId(term.GetId());
                 auto def  = Symlevel::Reader::Read(session, id.GetIdentifier());
-                auto term = TermManager::Resolve(session, def->superOrEnumType);
+                auto term = TermManager::Resolve(session, def.GetEnumType());
                 return GetFlatSize(term);
             }
 
@@ -143,7 +143,7 @@ struct FLManager : public FieldLayoutManager {
             case TermKind::PRIMITIVE_ENUM: {
                 auto id   = PrimitiveEnumId(term.GetId());
                 auto def  = Symlevel::Reader::Read(session, id.GetIdentifier());
-                auto term = TermManager::Resolve(session, def->superOrEnumType);
+                auto term = TermManager::Resolve(session, def.GetEnumType());
                 return GetFlatAlignment(term);
             }
             case TermKind::UNION_OPTION:
@@ -292,7 +292,7 @@ private:
             layout = BuildLayoutCbc(term, def);
         } else if (kind == TermKind::UNION_OPTION) {
             SizeAlignmentAccumulator acc { sizeof(uint32_t), alignof(uint32_t) };
-            auto someType = TermManager::Resolve(session, def->superOrEnumType);
+            auto someType = TermManager::Resolve(session, def.GetEnumType());
             acc.AddField(GetFlatSize(someType), GetFlatAlignment(someType));
             layout = FieldLayout::Content { .desc = { acc.size, acc.alignment } };
         } else if (kind == TermKind::UNION_ENUM) {
@@ -315,6 +315,8 @@ private:
             } else {
                 layout = FieldLayout::Content { .desc = { size, alignment } };
             }
+        } else if (kind == TermKind::NULLABLE_OPTION) {
+            layout = FieldLayout::Content { .desc = { sizeof(void*), sizeof(void*) } };
         }
 
         Log::fields.Log(Logging::Level::DEBUG, [&](Stream::Output& out_) {
