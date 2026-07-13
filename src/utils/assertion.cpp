@@ -2,6 +2,7 @@
 #include "assertion.h"
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 [[noreturn]]
 void ReportFailure(const char* filename, int line, const char* func, const char* fmt, ...)
@@ -19,16 +20,22 @@ void ReportFailure(const char* filename, int line, const char* func, const char*
     fflush(stderr);
 
 #if ASSERTION_IOS_OS_LOG
-    char message[4096];
-    int written = vsnprintf(message, sizeof(message), fmt, logArgs);
-    va_end(logArgs);
-    if (written < 0) {
-        snprintf(message, sizeof(message), "<failed to format assertion message>");
+    constexpr size_t messageSize = 4096;
+    char* messageBuffer          = static_cast<char*>(malloc(messageSize));
+    if (messageBuffer != nullptr) {
+        int written = vsnprintf(messageBuffer, messageSize, fmt, logArgs);
+        if (written < 0) {
+            snprintf(messageBuffer, messageSize, "<failed to format assertion message>");
+        }
     }
+    va_end(logArgs);
+
+    const char* message = messageBuffer != nullptr ? messageBuffer : "<failed to allocate assertion message>";
 
     os_log_error(
         OS_LOG_DEFAULT, "%{public}s:%d: assertion failed in %{public}s: %{public}s", filename, line, func, message
     );
+    free(messageBuffer);
 #endif
 
     ASSERTION_TRAP();

@@ -79,6 +79,7 @@ public:
     StringBuffer();
 
     void VPrintFmt(const char* fmt, va_list argp) override;
+    size_t Size() const;
     std::string ToString();
     char* ToCString();
     void Clear();

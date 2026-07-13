@@ -25,11 +25,9 @@ namespace Stream {
 namespace {
 
 #if CBC_ENGINE_STREAM_IOS_OS_LOG
-constexpr size_t PLATFORM_LOG_MAX_MESSAGE_SIZE = 4096;
-
 class IOSPlatformLogOutput : public Output {
 public:
-    IOSPlatformLogOutput() : Output(), buffer(), bufferSize(0) {}
+    IOSPlatformLogOutput() : Output(), buffer() {}
 
     void Flush() const override;
     void NewLine() override;
@@ -37,7 +35,6 @@ public:
 
 private:
     mutable StringBuffer buffer; // mutable because Flush() is const
-    mutable size_t bufferSize;
 };
 #endif
 
@@ -153,7 +150,7 @@ void FileOutput::VPrintFmt(const char* fmt, va_list argp) { vfprintf(dest, fmt, 
 #if CBC_ENGINE_STREAM_IOS_OS_LOG
 void IOSPlatformLogOutput::Flush() const
 {
-    if (bufferSize == 0) {
+    if (buffer.Size() == 0) {
         return;
     }
 
@@ -164,36 +161,18 @@ void IOSPlatformLogOutput::Flush() const
     }
 
     buffer.Clear();
-    bufferSize = 0;
 }
 
 void IOSPlatformLogOutput::NewLine() { Flush(); }
 
-void IOSPlatformLogOutput::VPrintFmt(const char* fmt, va_list argp)
-{
-    char message[PLATFORM_LOG_MAX_MESSAGE_SIZE];
-    int written = vsnprintf(message, sizeof(message), fmt, argp);
-    if (written < 0) {
-        return;
-    }
-
-    size_t messageSize = static_cast<size_t>(written);
-    messageSize        = std::min(messageSize, sizeof(message) - 1);
-
-    auto available  = PLATFORM_LOG_MAX_MESSAGE_SIZE - 1 - bufferSize;
-    auto appendSize = std::min(messageSize, available);
-    if (appendSize == 0) {
-        return;
-    }
-
-    buffer.PrintFmt("%.*s", static_cast<int>(appendSize), message);
-    bufferSize += appendSize;
-}
+void IOSPlatformLogOutput::VPrintFmt(const char* fmt, va_list argp) { buffer.VPrintFmt(fmt, argp); }
 #endif
 
 StringBuffer::StringBuffer() : data(nullptr), size(0), capacity(0) {}
 
 void StringBuffer::Clear() { size = 0; }
+
+size_t StringBuffer::Size() const { return size; }
 
 void StringBuffer::VPrintFmt(const char* fmt, va_list argp)
 {
