@@ -295,7 +295,7 @@ std::optional<std::shared_ptr<MethodTable>> MethodTableManager::GetMethodTable(S
     } else if (term.GetKind() == TermKind::UNDEFINED) {
         result = std::nullopt;
     } else {
-        auto type = TypeTermId(term).GetIdentifier();
+        auto type = ExtractTypeDefIdentifier(term);
         auto table = GetMethodTable(session, type);
         if (!table.has_value()) {
             result = std::nullopt;
