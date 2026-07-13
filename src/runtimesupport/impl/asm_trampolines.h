@@ -29,6 +29,7 @@ extern void engine_iregs_only_c2i_call();
 extern void engine_all_regs_c2i_call();
 extern void engine_i2i_call();
 extern void engine_i2c_call();
+extern void engine_i2c_iregs();
 extern void common_landing_pad();
 extern void* (*engine_tls_function)();
 extern void (*engine_implicit_exception_thrower)(int kind);

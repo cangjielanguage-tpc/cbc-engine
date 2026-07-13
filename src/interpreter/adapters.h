@@ -11,6 +11,7 @@ enum class CallAdapter : uint8_t {
     IREG_C2I,
     C2I,
     I2C,
+    IREG_I2C,
     LAST
 };
 

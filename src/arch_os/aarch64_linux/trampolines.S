@@ -16,6 +16,7 @@
     #define engine_iregs_only_c2i_call _engine_iregs_only_c2i_call
     #define engine_i2i_call _engine_i2i_call
     #define engine_i2c_call _engine_i2c_call
+    #define engine_i2c_iregs _engine_i2c_iregs
     #define engine_i2_newobject _engine_i2_newobject
     #define engine_i2_newobject_acc _engine_i2_newobject_acc
     #define engine_i2_newarray _engine_i2_newarray
@@ -70,6 +71,7 @@ declare_hidden engine_all_regs_c2i_call
 declare_hidden engine_iregs_only_c2i_call
 declare_hidden engine_i2i_call
 declare_hidden engine_i2c_call
+declare_hidden engine_i2c_iregs
 declare_hidden engine_i2_newobject
 declare_hidden engine_i2_newobject_acc
 declare_hidden engine_i2_newarray
@@ -334,6 +336,10 @@ engine_i2i_call:
 // TLS_REG can be changed after context-switch
 engine_i2c_call:
   engine_i2c IREG_ABI_AMOUNT, FREG_ABI_AMOUNT
+
+.balign 16
+engine_i2c_iregs:
+  engine_i2c IREG_ABI_AMOUNT, 0
 
 
 .balign 16

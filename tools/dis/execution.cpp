@@ -170,4 +170,6 @@ using OffsetVisitor = std::function<void(uint32_t)>;
 
 void TypeInfo::VisitReferenceOffsets(OffsetVisitor const&) { FATAL("Should not reach here"); }
 
+void* Adapters::I2CIReg() { FATAL("Should not reach here"); }
+
 } // namespace RTSupport

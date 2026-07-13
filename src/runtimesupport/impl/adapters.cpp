@@ -15,6 +15,8 @@ void* Adapters::GenericC2ICallInstance() { return reinterpret_cast<void*>(&Asm::
 
 void* Adapters::IregOnlyC2ICallInstance() { return reinterpret_cast<void*>(&Asm::engine_iregs_only_c2i_call); }
 
+void* Adapters::I2CIReg() { return reinterpret_cast<void*>(&Asm::engine_i2c_iregs); }
+
 void* Adapters::C2ICall(uint32_t intArgCount, uint32_t floatArgCount)
 {
     if (floatArgCount == 0) {

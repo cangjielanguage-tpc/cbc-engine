@@ -24,6 +24,7 @@ declare_hidden engine_all_regs_c2i_call
 declare_hidden engine_iregs_only_c2i_call
 declare_hidden engine_i2i_call
 declare_hidden engine_i2c_call
+declare_hidden engine_i2c_iregs
 declare_hidden engine_i2_newobject
 declare_hidden engine_i2_newobject_acc
 declare_hidden engine_i2_newarray
@@ -302,6 +303,10 @@ engine_i2i_call:
 engine_i2c_call:
   // jumped from .Linterpreter_call without return address to return
   i2c_call IREG_ABI_AMOUNT FREG_ABI_AMOUNT
+
+.balign 16
+engine_i2c_iregs:
+  i2c_call IREG_ABI_AMOUNT 0
 
 .macro restore_tls // spoils volatile registers!
   call  [rip + engine_tls_function]

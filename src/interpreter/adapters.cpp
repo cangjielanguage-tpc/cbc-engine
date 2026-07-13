@@ -19,6 +19,7 @@ static std::array<void*, ADAPTERS_AMOUNT> adapters = {
     RTSupport::Adapters::IregOnlyC2ICallInstance(),
     RTSupport::Adapters::GenericC2ICallInstance(),
     RTSupport::Adapters::GenericI2CCallInstance(),
+    RTSupport::Adapters::I2CIReg(),
 };
 
 struct RegRequirements {
@@ -49,13 +50,21 @@ static RegRequirements CountRegs(Engine::Term& signature)
 CallAdapter AdapterFor(Resolution::VirtualCall const& vc)
 {
     auto requirements = CountRegs(vc->signature.term);
-    return CallAdapter::I2C;
+    if (requirements.floatregs == 0) {
+        return CallAdapter::IREG_I2C;
+    } else {
+        return CallAdapter::I2C;
+    }
 }
 
-CallAdapter AdapterFor(Resolution::InterfaceCall const& vc)
+CallAdapter AdapterFor(Resolution::InterfaceCall const& ic)
 {
-    auto requirements = CountRegs(vc->signature.term);
-    return CallAdapter::I2C;
+    auto requirements = CountRegs(ic->signature.term);
+    if (requirements.floatregs == 0) {
+        return CallAdapter::IREG_I2C;
+    } else {
+        return CallAdapter::I2C;
+    }
 }
 
 void* AdapterOf(CallAdapter adapter) { return adapters[static_cast<size_t>(adapter)]; }
