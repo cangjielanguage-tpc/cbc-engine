@@ -53,6 +53,7 @@ struct FLManager : public FieldLayoutManager {
         switch (term.GetKind()) {
             case TermKind::TYPE:
             case TermKind::UNION_ENUM:
+            case TermKind::NULLABLE_OPTION:
             case TermKind::UNION_OPTION: break;
 
             default: return std::nullopt;
@@ -149,7 +150,7 @@ struct FLManager : public FieldLayoutManager {
             case TermKind::UNION_OPTION:
             case TermKind::UNION_ENUM:
             case TermKind::TYPE: {
-                auto ident     = TypeTermId(term).GetIdentifier();
+                auto ident     = ExtractTypeDefIdentifier(term);
                 auto optlayout = GetLayout(term);
                 if (optlayout.has_value()) {
                     auto layout = *optlayout;
