@@ -7,6 +7,7 @@
 #include "engine/method_table.h"
 #include "engine/resolving_output.h"
 #include "engine/symlevel/definitions.h"
+#include "engine/symlevel/dependencies.h"
 #include "engine/symlevel/flags.h"
 #include "engine/symlevel/reader.h"
 #include "engine/symlevel/type_kind.h"
@@ -653,6 +654,20 @@ char const* GetAotTypeName(Engine::Session& session, Engine::Term term)
     return manager.GetNameOfAotType(Engine::AotTermId(term)).str;
 }
 
+static void* FindTypeSymbol(Engine::Session& session, char const* typeName, char const* suffix)
+{
+    auto typeInfoName = std::string(typeName) + std::string(suffix);
+    for (auto& file : session.GetEngine().Files()) {
+        auto& deps = file.GetDependencies();
+        auto sym = deps.FindTarget(typeInfoName.c_str());
+        if (sym != nullptr) {
+            return sym;
+        }
+    }
+
+    return nullptr;
+}
+
 /// Find typeinfos of subterms with `nulls` on place of subterms that are not found.
 /// Returns `true` if all typeinfos of subterms are found.
 static bool QuerySubterms(
@@ -686,10 +701,16 @@ static void* QueryTypeTemplate(Engine::Session& session, char const* typeName)
 {
     auto typeTemplate = g_CJNativeInterfaceInstance.typeTemplate(typeName);
     if (!typeTemplate) {
-        Log::typeinfo.Log(Logging::Level::ERROR, [&session, &typeName](Stream::Output& out) {
-            Stream::ResolvingOutput stream(session, out);
-            stream << "failed to query template " << typeName << Stream::endl;
-        });
+        // CJNative runtime can't find typeInfo with multiple ':' in it.
+        // So we need to try to find it with just dlsym.
+
+        typeTemplate = (DYN_TypeInfo*) FindTypeSymbol(session, typeName, ".tt");
+        if (typeTemplate == nullptr) {
+            Log::typeinfo.Log(Logging::Level::ERROR, [&session, &typeName](Stream::Output& out) {
+                Stream::ResolvingOutput stream(session, out);
+                stream << "failed to query template " << typeName << Stream::endl;
+            });
+        }
     }
     return typeTemplate;
 }
@@ -726,11 +747,17 @@ static std::optional<TypeInfo> QueryTypeInfoAOT(
 
         auto typeInfo = g_CJNativeInterfaceInstance.typeInfo(typeName);
         if (typeInfo == nullptr) {
-            Log::typeinfo.Log(Logging::Level::ERROR, [&session, &term](Stream::Output& out) {
-                Stream::ResolvingOutput stream(session, out);
-                stream << "failed to query " << term << Stream::endl;
-            });
-            return std::nullopt;
+            // CJNative runtime can't find typeInfo with multiple ':' in it.
+            // So we need to try to find it with just dlsym.
+
+            typeInfo = (DYN_TypeInfo*) FindTypeSymbol(session, typeName, ".ti");
+            if (typeInfo == nullptr) {
+                Log::typeinfo.Log(Logging::Level::ERROR, [&session, &term](Stream::Output& out) {
+                    Stream::ResolvingOutput stream(session, out);
+                    stream << "failed to query " << term << Stream::endl;
+                });
+                return std::nullopt;
+            }
         }
         return TypeInfo(typeInfo);
     }
