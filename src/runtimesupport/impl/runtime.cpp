@@ -6,6 +6,7 @@
 #include "engine/engine.h"
 #include "engine/terms.h"
 #include "engine/typeinfo_manager.h"
+#include "interpreter/adapters.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
 #include "interpreter/implicit_exceptions.h"
@@ -146,7 +147,7 @@ static Interpretation::FunctionHandle* GetDynamicCall(void* fn, CbcTypeInfo* cti
     return cti->dataMT[DynCallTrampolineIdx(fn)];
 }
 
-static Interpretation::Thunk GetDynCallThunk(void* fn, TypeInfo ti)
+static Interpretation::Thunk GetDynCallThunk(void* fn, TypeInfo ti, Interpretation::CallAdapter adapter)
 {
     if (IsDynCallTrampoline(fn)) {
         // Fast path: it is trampoline, meaning i2i call. We just get fuh and run i2i call as usual.
@@ -154,27 +155,29 @@ static Interpretation::Thunk GetDynCallThunk(void* fn, TypeInfo ti)
         return { Adapters::I2ICallInstance(), reinterpret_cast<void*>(fuh) };
     }
 
-    return { Adapters::GenericI2CCallInstance(), fn };
+    return { Interpretation::AdapterOf(adapter), fn };
 }
 
-Interpretation::Thunk Execution::GetVirtualThunk(Reference base, int extDefNum, int methodNum)
+Interpretation::Thunk Execution::GetVirtualThunk(Reference base, int extDefNum, int methodNum, uint8_t adapter)
 {
     DYN_TypeInfo** header = reinterpret_cast<DYN_TypeInfo**>(base.value);
     auto dynTypeInfo      = *header;
     auto target           = dynTypeInfo->vExtensionDataStart[extDefNum]->funcTable[methodNum];
     auto typeInfo         = TypeInfo(dynTypeInfo);
-    return GetDynCallThunk(target, typeInfo);
+    auto callAdapter      = static_cast<Interpretation::CallAdapter>(adapter);
+    return GetDynCallThunk(target, typeInfo, callAdapter);
 }
 
-Interpretation::Thunk Execution::GetInterfaceThunk(Reference base, TypeInfo interf, int methodNum)
+Interpretation::Thunk Execution::GetInterfaceThunk(Reference base, TypeInfo interf, int methodNum, uint8_t adapter)
 {
     DYN_TypeInfo** header = reinterpret_cast<DYN_TypeInfo**>(base.value);
     auto dynTypeInfo      = *header;
     DYN_FuncPtr* table    = g_CJNativeInterfaceInstance.getMTable(dynTypeInfo, UnpackTypeInfo(interf));
     auto target           = table[methodNum];
 
-    auto typeInfo = TypeInfo(dynTypeInfo);
-    return GetDynCallThunk(target, typeInfo);
+    auto typeInfo    = TypeInfo(dynTypeInfo);
+    auto callAdapter = static_cast<Interpretation::CallAdapter>(adapter);
+    return GetDynCallThunk(target, typeInfo, callAdapter);
 }
 
 uint32_t Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool adjustByHeader)

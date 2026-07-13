@@ -6,6 +6,7 @@
 #include "engine/symlevel/definitions.h"
 #include "engine/terms.h"
 #include "interpreter.h"
+#include "interpreter/adapters.h"
 #include "interpreter/code.h"
 #include "interpreter/ectype.h"
 #include "interpreter/implicit_exceptions.h"
@@ -676,8 +677,9 @@ DIRECT_CALL_2C: {
 VIRTUAL_CALL: {
     auto args = VirtualCall::Decode(reader);
     LOG_INSTR;
-    auto vnum      = args.vnum;
-    auto extDefNum = args.edef;
+    auto vnum        = args.vnum;
+    auto extDefNum   = args.edef;
+    auto callAdapter = args.adapterIdx;
 
 #if defined(__x86_64__) || defined(_M_X64)
     auto receiver = args.sret ? IReg::IR2 : IReg::IR1;
@@ -698,14 +700,15 @@ VIRTUAL_CALL: {
 
     reader0 = reader; // save current pc
 
-    return Execution::GetVirtualThunk(reference, extDefNum, vnum);
+    return Execution::GetVirtualThunk(reference, extDefNum, vnum, callAdapter);
 }
 
 INTERFACE_CALL: {
     auto args = InterfaceCall::Decode(reader);
     LOG_INSTR;
-    auto num       = args.vnum;
-    auto typeInfo  = TypeInfo(static_cast<uintptr_t>(args.ti));
+    auto num         = args.vnum;
+    auto typeInfo    = TypeInfo(static_cast<uintptr_t>(args.ti));
+    auto callAdapter = args.adapterIdx;
 #if defined(__x86_64__) || defined(_M_X64)
     auto receiver = args.sret ? IReg::IR2 : IReg::IR1;
 #elif defined(__aarch64__) || defined(_M_ARM64)
@@ -725,7 +728,7 @@ INTERFACE_CALL: {
 
     reader0 = reader; // save current pc
 
-    return Execution::GetInterfaceThunk(reference, typeInfo, num);
+    return Execution::GetInterfaceThunk(reference, typeInfo, num, callAdapter);
 }
 
 STRING_INIT: {

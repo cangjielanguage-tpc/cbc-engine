@@ -8,6 +8,7 @@
 #include "cbc/emitter/symbols.h"
 #include "cbc/isa.h"
 #include "encoding_rt.h"
+#include "interpreter/adapters.h"
 #include "interpreter/code.h"
 #include "interpreter/interpretation_loop.h"
 #include "interpreter/literals.h"
@@ -203,8 +204,10 @@ public:
     void DirectCall2i(Symbol fuh);
     void DirectCall2c(Symbol target);
 
-    void VirtualCall(uint16_t vnum, uint16_t extDefNum, bool sret);
-    void InterfaceCall(uint16_t methodNum, RTSupport::TypeInfo typeInfo, bool sret);
+    void VirtualCall(uint16_t vnum, uint16_t extDefNum, bool sret, Interpretation::CallAdapter adapter);
+    void InterfaceCall(
+        uint16_t methodNum, RTSupport::TypeInfo typeInfo, bool sret, Interpretation::CallAdapter adapter
+    );
 
     void StringLit(Interpretation::StringStorage* literal, uint32_t frameOffs);
 

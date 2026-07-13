@@ -6,6 +6,7 @@
 #include "cbc/isa.h"
 #include "cbc/isa_rt.h"
 #include "emitter.h"
+#include "interpreter/adapters.h"
 #include "runtimesupport/runtime.h"
 #include "utils/heap.h"
 #include "utils/math.h"
@@ -663,11 +664,12 @@ void Emitter::StoreFrameImm(StoreAccessKind stk, uint64_t imm, uint32_t offset)
 
 void Emitter::PrepareTyped(RTSupport::TypeInfo typeInfo, uint32_t offset)
 {
-    Encode(segment, RT::B13i64i32 {
-        .opc = RT::Opcode::PREP_TYPED,
-        .imm64 = { .imm = reinterpret_cast<uint64_t>(typeInfo.Raw()) },
-        .imm32 = { .imm = offset }
-    });
+    Encode(
+        segment,
+        RT::B13i64i32 { .opc   = RT::Opcode::PREP_TYPED,
+                        .imm64 = { .imm = reinterpret_cast<uint64_t>(typeInfo.Raw()) },
+                        .imm32 = { .imm = offset } }
+    );
 }
 
 void Emitter::SCC(CC cc, Width width, IReg d, IReg l, IReg r)
@@ -753,27 +755,13 @@ void Emitter::Convert(ConvertType toType, ConvertType fromType, Reg to, Reg from
     });
 }
 
-void Emitter::BFXS(IReg dst, IReg src, uint8_t offset, uint8_t size)
-{
-    BFX(RT::Opcode::BFXS, dst, src, offset, size);
-}
+void Emitter::BFXS(IReg dst, IReg src, uint8_t offset, uint8_t size) { BFX(RT::Opcode::BFXS, dst, src, offset, size); }
 
-void Emitter::BFXZ(IReg dst, IReg src, uint8_t offset, uint8_t size)
-{
-    BFX(RT::Opcode::BFXZ, dst, src, offset, size);
-}
+void Emitter::BFXZ(IReg dst, IReg src, uint8_t offset, uint8_t size) { BFX(RT::Opcode::BFXZ, dst, src, offset, size); }
 
 void Emitter::BFX(RT::Opcode opcode, IReg dst, IReg src, uint8_t offset, uint8_t size)
 {
-    Encode(segment, RT::BFX {
-        .opc = opcode,
-        .rr = {
-            .x = dst,
-            .y = src
-        },
-        .offs = offset,
-        .size = size
-    });
+    Encode(segment, RT::BFX { .opc = opcode, .rr = { .x = dst, .y = src }, .offs = offset, .size = size });
 }
 
 void Emitter::GcPoint()
@@ -800,28 +788,32 @@ void Emitter::DirectCall2c(Symbol target)
     AddFixup(std::make_unique<Literal12Fixup>(i4, target));
 }
 
-void Emitter::VirtualCall(uint16_t vnum, uint16_t extDefNum, bool sret)
+void Emitter::VirtualCall(uint16_t vnum, uint16_t extDefNum, bool sret, Interpretation::CallAdapter adapter)
 {
     Encode(
         segment,
         RT::VirtualCall {
-            .opc  = RT::Opcode::VIRTUAL_CALL,
-            .vnum = vnum,
-            .edef = extDefNum,
-            .sret = static_cast<uint8_t>(sret),
+            .opc        = RT::Opcode::VIRTUAL_CALL,
+            .vnum       = vnum,
+            .edef       = extDefNum,
+            .sret       = static_cast<uint8_t>(sret),
+            .adapterIdx = static_cast<uint8_t>(adapter),
         }
     );
 }
 
-void Emitter::InterfaceCall(uint16_t methodNum, RTSupport::TypeInfo typeInfo, bool sret)
+void Emitter::InterfaceCall(
+    uint16_t methodNum, RTSupport::TypeInfo typeInfo, bool sret, Interpretation::CallAdapter adapter
+)
 {
     Encode(
         segment,
         RT::InterfaceCall {
-            .opc  = RT::Opcode::INTERFACE_CALL,
-            .vnum = methodNum,
-            .ti   = reinterpret_cast<uint64_t>(typeInfo.Raw()),
-            .sret = static_cast<uint8_t>(sret),
+            .opc        = RT::Opcode::INTERFACE_CALL,
+            .vnum       = methodNum,
+            .ti         = reinterpret_cast<uint64_t>(typeInfo.Raw()),
+            .sret       = static_cast<uint8_t>(sret),
+            .adapterIdx = static_cast<uint8_t>(adapter),
         }
     );
 }
@@ -848,13 +840,14 @@ void Emitter::NullCheck(IReg r)
 
 void Emitter::InstanceOf(IReg dst, IReg obj, RTSupport::TypeInfo typeInfo)
 {
-    Encode(segment, RT::IOF { .opc = RT::Opcode::IOF, .rr = { .x = dst, .y = obj }, .imm64 = reinterpret_cast<uint64_t>(typeInfo.Raw()) });
+    Encode(
+        segment,
+        RT::IOF {
+            .opc = RT::Opcode::IOF, .rr = { .x = dst, .y = obj }, .imm64 = reinterpret_cast<uint64_t>(typeInfo.Raw()) }
+    );
 }
 
-void Emitter::Throw(IReg reg)
-{
-    Encode(segment, RT::B2xr { .opc = RT::Opcode::THROW, .xr = { .imm = 0, .r = reg } });
-}
+void Emitter::Throw(IReg reg) { Encode(segment, RT::B2xr { .opc = RT::Opcode::THROW, .xr = { .imm = 0, .r = reg } }); }
 
 void Emitter::Catch(IReg reg) { Encode(segment, RT::B2xr { .opc = RT::Opcode::CATCH, .xr = { .imm = 0, .r = reg } }); }
 

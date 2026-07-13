@@ -9,6 +9,7 @@
 #include "engine/options.h"
 #include "engine/typeinfo_manager.h"
 #include "interpreter.h"
+#include "interpreter/adapters.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
 #include "interpreter/interpretation_loop.h"
@@ -289,12 +290,12 @@ TypeInfo Execution::GetTypeInfo(Reference base)
     return *header;
 }
 
-Interpretation::Thunk Execution::GetVirtualThunk(Reference base, int extDefNum, int methodNum)
+Interpretation::Thunk Execution::GetVirtualThunk(Reference base, int extDefNum, int methodNum, uint8_t adapter)
 {
     FATAL("Should not reach here. I2C virtual call");
 }
 
-Interpretation::Thunk Execution::GetInterfaceThunk(Reference base, TypeInfo ti, int methodNum)
+Interpretation::Thunk Execution::GetInterfaceThunk(Reference base, TypeInfo ti, int methodNum, uint8_t adapter)
 {
     FATAL("Should not reach here. I2C interface call");
 }
@@ -357,11 +358,11 @@ Reference Execution::GetAndClearPendingException()
     return Reference { .value = 0 };
 }
 
-void* Adapters::GenericI2CCallInstance() { FATAL("Should not reach here. Mock i2c"); }
-
 void* Adapters::I2ICallInstance() { return reinterpret_cast<void*>(&Interpretation::InterpreterI2CallTest); }
 
 static void C2ICall() { FATAL("Should not reach here. Mock c2i"); }
+
+void* Adapters::GenericI2CCallInstance() { return reinterpret_cast<void*>(&C2ICall); }
 
 void* Adapters::GetDynCallTrampoline(int idx) { FATAL("Should not reach here"); }
 

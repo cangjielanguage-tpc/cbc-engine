@@ -116,9 +116,9 @@ struct Execution {
 
     static TypeInfo GetTypeInfo(Reference base);
 
-    static Interpretation::Thunk GetVirtualThunk(Reference base, int extDefNum, int methodNum);
+    static Interpretation::Thunk GetVirtualThunk(Reference base, int extDefNum, int methodNum, uint8_t adapter);
 
-    static Interpretation::Thunk GetInterfaceThunk(Reference base, TypeInfo ti, int methodNum);
+    static Interpretation::Thunk GetInterfaceThunk(Reference base, TypeInfo ti, int methodNum, uint8_t adapter);
 
     static uint32_t GetFieldOffset(TypeInfo ti, int ordinal, bool adjustByHeader);
 

@@ -3,6 +3,7 @@
 #include <functional>
 
 #include "engine/typeinfo_manager.h"
+#include "interpreter/adapters.h"
 #include "interpreter/function_handle.h"
 #include "interpreter/interpretation_loop.h"
 #include "runtimesupport/adapters.h"
@@ -67,12 +68,12 @@ uint32_t Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool isRef) { FATAL
 
 TypeInfo Execution::GetTypeInfo(Reference base) { FATAL("Should not be called"); }
 
-Interpretation::Thunk Execution::GetVirtualThunk(Reference base, int extDefNum, int methodNum)
+Interpretation::Thunk Execution::GetVirtualThunk(Reference base, int extDefNum, int methodNum, uint8_t adapter)
 {
     FATAL("Should not reach here.");
 }
 
-Interpretation::Thunk Execution::GetInterfaceThunk(Reference base, TypeInfo ti, int methodNum)
+Interpretation::Thunk Execution::GetInterfaceThunk(Reference base, TypeInfo ti, int methodNum, uint8_t adapter)
 {
     FATAL("Should not reach here.");
 }

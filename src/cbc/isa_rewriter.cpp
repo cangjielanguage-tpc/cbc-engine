@@ -11,6 +11,7 @@
 #include "engine/symlevel/code.h"
 #include "engine/symlevel/io/file_id.h"
 #include "engine/terms.h"
+#include "interpreter/adapters.h"
 #include "interpreter/code.h"
 #include "interpreter/function_handle.h"
 #include "interpreter/interpretation_loop.h"
@@ -175,7 +176,7 @@ struct IsaRewriter : public IsaParser {
     // positions, where GC metadata is expected to be attached
     struct StatePoint {
         Emitter::Label label; // position in rewritten code
-        ssize_t originalPos; // position in original code
+        ssize_t originalPos;  // position in original code
     };
 
     std::vector<StatePoint> statePoints;
@@ -202,11 +203,12 @@ struct IsaRewriter : public IsaParser {
         }
     }
 
-    void BindStatePoint() {
+    void BindStatePoint()
+    {
         auto label = emit.NewLabel();
         emit.Bind(label);
         StatePoint point {
-            .label = label,
+            .label       = label,
             .originalPos = Pos(), // attached to the end of instruction
         };
         statePoints.push_back(point);
@@ -310,7 +312,7 @@ struct IsaRewriter : public IsaParser {
     void PrepareRecord(uint16_t ts) override
     {
         auto tsi = frameLayout.typedSlotsInfo[ts];
-        auto ti = RTSupport::TypeInfo(tsi.second);
+        auto ti  = RTSupport::TypeInfo(tsi.second);
         emit.PrepareTyped(ti, tsi.first);
     }
 
@@ -498,7 +500,7 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto method = m.value();
-        emit.VirtualCall(method->methodNum, method->extDefNum, method->sret);
+        emit.VirtualCall(method->methodNum, method->extDefNum, method->sret, Interpretation::AdapterFor(method));
         BindStatePoint();
         AdjustReg(dst, IReg::IR1);
     }
@@ -516,7 +518,7 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
-        emit.InterfaceCall(method->methodNum, *ti, method->sret);
+        emit.InterfaceCall(method->methodNum, *ti, method->sret, Interpretation::AdapterFor(method));
         BindStatePoint();
         AdjustReg(dst, IReg::IR1);
     }
@@ -623,10 +625,7 @@ struct IsaRewriter : public IsaParser {
         emit.InstanceOf(dst, obj, typeInfo);
     }
 
-    void LoadTypeInfoObj(IReg dst, IReg obj) override
-    {
-        emit.LoadObj(Format::LoadAccessKind::LD_64, dst, obj, 0);
-    }
+    void LoadTypeInfoObj(IReg dst, IReg obj) override { emit.LoadObj(Format::LoadAccessKind::LD_64, dst, obj, 0); }
 
     void InitObj(uint16_t ts) override { FATAL("not implemented"); }
 
@@ -758,9 +757,9 @@ struct IsaRewriter : public IsaParser {
     void Box(AnyReg src, IReg dst, uint16_t type) override
     {
         if (type != Interpretation::BUILTIN_UNIT && type < Engine::Term::FIRST_NON_PRIMITIVE) {
-            auto tk       = Engine::TermKind(type);
-            auto term     = Engine::Term::Predefined(tk);
-            auto bt       = ToBuiltin(tk);
+            auto tk   = Engine::TermKind(type);
+            auto term = Engine::Term::Predefined(tk);
+            auto bt   = ToBuiltin(tk);
             emit.NewBox(bt); // Spoils IR_ACC
             BindStatePoint();
             emit.StoreObj(Stk(bt), src, IReg::IR_ACC, RTSupport::MetaInfo::ObjectHeaderSize());
@@ -814,9 +813,9 @@ struct IsaRewriter : public IsaParser {
     void Unbox(AnyReg dst, IReg src, uint16_t type) override
     {
         if (type != Interpretation::BUILTIN_UNIT && type < Engine::Term::FIRST_NON_PRIMITIVE) {
-            auto tk       = Engine::TermKind(type);
-            auto term     = Engine::Term::Predefined(tk);
-            auto bt       = ToBuiltin(tk);
+            auto tk   = Engine::TermKind(type);
+            auto term = Engine::Term::Predefined(tk);
+            auto bt   = ToBuiltin(tk);
             emit.LoadObj(Ldk(bt), dst, src, RTSupport::MetaInfo::ObjectHeaderSize());
         } else {
             auto t = resolver.Query(Index<Type>(type));
@@ -902,14 +901,14 @@ struct IsaRewriter : public IsaParser {
     void MemHeadReg(MemSpace& ms, IReg base, bool isRef) override
     {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
-        msr.base = base;
+        msr.base  = base;
         msr.kind  = isRef ? HEAD_OBJ : HEAD_REC;
     }
 
     void MemHeadField(MemSpace& ms, IReg base, uint16_t fieldId) override
     {
-        auto& msr = static_cast<MemSpaceRewriter&>(ms);
-        msr.base = base;
+        auto& msr  = static_cast<MemSpaceRewriter&>(ms);
+        msr.base   = base;
         auto isRef = FieldOffset(msr, fieldId);
         msr.kind   = isRef ? HEAD_OBJ : HEAD_REC;
     }
@@ -921,7 +920,7 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
-        auto field  = f.value();
+        auto field = f.value();
 
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
         msr.emit.Offset(field->location);
@@ -931,8 +930,8 @@ struct IsaRewriter : public IsaParser {
 
     void MemHeadHandle(MemSpace& ms, IReg base, IReg derived) override
     {
-        auto& msr = static_cast<MemSpaceRewriter&>(ms);
-        msr.base = base;
+        auto& msr   = static_cast<MemSpaceRewriter&>(ms);
+        msr.base    = base;
         msr.derived = derived;
         msr.kind    = HEAD_DERIVED;
     }
@@ -1145,10 +1144,7 @@ struct IsaRewriter : public IsaParser {
         BindStatePoint();
     }
 
-    void MemTailCopyReg(MemSpace& ms, IReg dst, uint16_t recType) override
-    {
-        FATAL("MemTailCopyReg");
-    }
+    void MemTailCopyReg(MemSpace& ms, IReg dst, uint16_t recType) override { FATAL("MemTailCopyReg"); }
 
     void MemTailCopyInterior(MemSpace& ms, IReg dst, std::vector<uint16_t> refs) override
     {
@@ -1160,20 +1156,11 @@ struct IsaRewriter : public IsaParser {
         FATAL("MemTailCopyInteriorArr");
     }
 
-    void MemTailCopyStatic(MemSpace& ms, std::vector<uint16_t> refs) override
-    {
-        FATAL("MemTailCopyStatic");
-    }
+    void MemTailCopyStatic(MemSpace& ms, std::vector<uint16_t> refs) override { FATAL("MemTailCopyStatic"); }
 
-    void MemTailCopyTyped(MemSpace& ms, uint16_t ts, std::vector<uint16_t> refs) override
-    {
-        FATAL("MemTailCopyTyped");
-    }
+    void MemTailCopyTyped(MemSpace& ms, uint16_t ts, std::vector<uint16_t> refs) override { FATAL("MemTailCopyTyped"); }
 
-    void MemTailCopyHandle(MemSpace& ms, IReg base, IReg offset) override
-    {
-        FATAL("MemTailCopyHandle");
-    }
+    void MemTailCopyHandle(MemSpace& ms, IReg base, IReg offset) override { FATAL("MemTailCopyHandle"); }
 
     void ParseOne() override
     {
@@ -1247,7 +1234,10 @@ static std::optional<FrameLayout> makeFrameLayout(Symlevel::Code code, Resolver&
 }
 
 static std::vector<Interpretation::PositionalInfo> CalculatePositionalGCInfo(
-    Engine::Session& session, const MethodCode& code, Emitter::Emitter const& emitter, std::vector<IsaRewriter::StatePoint> const& statePoints
+    Engine::Session& session,
+    const MethodCode& code,
+    Emitter::Emitter const& emitter,
+    std::vector<IsaRewriter::StatePoint> const& statePoints
 )
 {
     auto livenessInfo = code.GetLivenessInfo(session);
@@ -1258,13 +1248,13 @@ static std::vector<Interpretation::PositionalInfo> CalculatePositionalGCInfo(
     std::unordered_map<ssize_t, Symlevel::LivenessInfo const&> infos;
 
     for (const auto& info : livenessInfo) {
-        infos.insert({info.cbcPos, info});
+        infos.insert({ info.cbcPos, info });
     }
 
     for (auto& point : statePoints) {
-        auto originalPos = point.originalPos;
+        auto originalPos  = point.originalPos;
         auto rewrittenPos = emitter.LabelPosition(point.label);
-        auto it = infos.find(originalPos);
+        auto it           = infos.find(originalPos);
         if (it == infos.end()) {
             FATAL("Unknown position");
         } else if (rewrittenPos > UINT32_MAX) {
