@@ -69,9 +69,9 @@ enum class TermKind : uint8_t {
     UNDEFINED, // resolution error
 
     C_POINTER,
-    NULLABLE,
-    NON_NULLABLE,
-    CANGJIE_ARRAY,
+    NULLABLE,      // TODO: delete
+    NON_NULLABLE,  // TODO: delete
+    CANGJIE_ARRAY, // TODO: rename
     FUNCTIONAL,
     TUPLE,
     BOX,
@@ -118,11 +118,11 @@ protected:
     uint64_t info : INFO_PART_BIT_SIZE;
 };
 
-struct TagTermId : public TermId {
-    constexpr TagTermId(TermKind kind) : TermId(kind, 0) {}
-
-    explicit constexpr TagTermId(TermId ident) : TermId(ident) { ASSERT(info == 0); }
-};
+static constexpr int F_LOCAL        = 0x1;
+static constexpr int F_REFERENCE    = 0x2;
+static constexpr int F_AOT_PROMOTED = 0x4;
+static constexpr int F_GENERIC      = 0x8;
+static constexpr int F_FST          = 0x10;
 
 struct TermFlags {
     uint32_t isLocal : 1;
@@ -132,6 +132,7 @@ struct TermFlags {
     uint32_t isFixedSize : 1;
 
     TermFlags() = delete;
+    constexpr TermFlags(int flags);
 };
 
 struct Term {
@@ -199,6 +200,12 @@ struct GlobalTerm : public Term {
 
     bool operator==(const GlobalTerm& another) const;
     bool operator!=(const GlobalTerm& another) const;
+};
+
+struct TagTermId : public TermId {
+    constexpr TagTermId(TermKind kind) : TermId(kind, 0) {}
+
+    explicit constexpr TagTermId(TermId ident) : TermId(ident) { ASSERT(info == 0); }
 };
 
 /// Term identifier that have `Identifer` as its part.
