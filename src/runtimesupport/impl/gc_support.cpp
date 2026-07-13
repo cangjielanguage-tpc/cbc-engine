@@ -26,12 +26,12 @@ static void VisitRoot(DYN_RootVisitor rootVisitor, Placeholder ph)
     g_CJNativeInterfaceInstance.visitRootFromInterpreter(rootVisitor, ph);
 }
 
-static void VisitMutPair(DYN_DerivedPtrVisitor derivedPtrVisitor, DYN_ObjRef base, Placeholder derivedPh)
+static void VisitMutPair(DYN_DerivedPtrVisitor derivedPtrVisitor, Placeholder basePh, Placeholder derivedPh)
 {
     RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) {
-        out.PrintFmtLn("visiting derived placeholder=%p, mut pair=(%p, %p)", derivedPh, base, *derivedPh);
+        out.PrintFmtLn("visiting derived placeholder=%p, mut pair=(%p, %p)", derivedPh, *basePh, *derivedPh);
     });
-    g_CJNativeInterfaceInstance.visitDerivedPtrFromInterpreter(derivedPtrVisitor, base, derivedPh);
+    g_CJNativeInterfaceInstance.visitDerivedPtrFromInterpreter(derivedPtrVisitor, basePh, derivedPh);
 }
 
 class RegistersTable {
@@ -157,10 +157,19 @@ void VisitGCFrameRoots(
         );
     });
 
-    std::vector<uintptr_t> oldBaseRefs;
-    for (auto& pair : positionalInfo->mutPairs) {
-        auto basePh = GetResourceLocation(pair.first, slotsStartAddr, regsLocationTable);
-        oldBaseRefs.push_back(*basePh);
+    if (derivedPtrVisitorOpt.has_value()) {
+        // Heap adjusting is in process
+        auto derivedPtrVisitor = *derivedPtrVisitorOpt;
+        for (auto& pair : positionalInfo->mutPairs) {
+            auto basePh    = GetResourceLocation(pair.first, slotsStartAddr, regsLocationTable);
+            auto derivedPh = GetResourceLocation(pair.second, slotsStartAddr, regsLocationTable);
+
+            auto baseRef = Value::Reference { .value = *basePh };
+            auto locKind = RTSupport::Execution::GetStructLocationKind(baseRef, *derivedPh);
+            if (locKind == RTSupport::HEAP) {
+                VisitMutPair(derivedPtrVisitor, basePh, derivedPh); // Adjust derived pointer
+            }
+        }
     }
 
     for (auto& refSlotOffset : NOTNULL(positionalInfo)->untypedRefSlotsInfo) {
@@ -200,24 +209,6 @@ void VisitGCFrameRoots(
         });
 
         regsLocationTable->VisitAliveRegs(aliveRegsMap, rootVisitor);
-    }
-
-    if (derivedPtrVisitorOpt.has_value()) {
-        // Heap adjusting is in process
-
-        auto derivedPtrVisitor = *derivedPtrVisitorOpt;
-        for (int i = 0; i < positionalInfo->mutPairs.size(); i++) {
-            auto pair      = positionalInfo->mutPairs[i];
-            auto derivedPh = GetResourceLocation(pair.second, slotsStartAddr, regsLocationTable);
-
-            auto baseRef = Value::Reference { .value = oldBaseRefs[i] };
-            auto locKind = RTSupport::Execution::GetStructLocationKind(baseRef, *derivedPh);
-            if (locKind == RTSupport::HEAP) {
-                VisitMutPair(
-                    derivedPtrVisitor, reinterpret_cast<DYN_ObjRef>(oldBaseRefs[i]), derivedPh
-                ); // Adjust derived pointer
-            }
-        }
     }
 
     auto savedRegsMap = bc->savedIRegs;
