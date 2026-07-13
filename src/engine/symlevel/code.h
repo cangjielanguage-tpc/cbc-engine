@@ -18,6 +18,7 @@ struct RawExceptionTable {
     uint32_t end;
 };
 
+// Remove heap-allocated fields in case of moving those structures allocation into arena
 struct LivenessInfo {
     uint32_t cbcPos;
     uint16_t regMask;
