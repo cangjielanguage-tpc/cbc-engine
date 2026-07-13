@@ -366,8 +366,23 @@ void Term::GetName(Session& session, Stream::Output& out) const
             break;
         }
 
+        case TK::UNION_ENUM:
+        case TK::NULLABLE_OPTION:
+        case TK::UNION_OPTION:
+        case TK::PRIMITIVE_ENUM:
+        case TK::GENERIC_OPTION:
         case TK::TYPE: {
-            auto ident = TypeTermId(*this).GetIdentifier();
+            auto ident = [kind, this]() {
+                switch (kind) {
+                    case TK::UNION_ENUM:      return UnionEnumId(*this).GetIdentifier();
+                    case TK::NULLABLE_OPTION: return NullableOptionId(*this).GetIdentifier();
+                    case TK::UNION_OPTION:    return UnionOptionId(*this).GetIdentifier();
+                    case TK::PRIMITIVE_ENUM:  return PrimitiveEnumId(*this).GetIdentifier();
+                    case TK::GENERIC_OPTION:  return GenericOptionId(*this).GetIdentifier();
+                    case TK::TYPE:            return TypeTermId(*this).GetIdentifier();
+                    default:                  FATAL("unreachable");
+                }
+            }();
             auto type  = Symlevel::TypeDefinition::Resolve(session, ident);
             stream << Symlevel::Reader::Read(session, type.GetName());
             if (int len = GetLength(); len > 0) {
