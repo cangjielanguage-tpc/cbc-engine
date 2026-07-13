@@ -317,6 +317,7 @@ std::optional<std::shared_ptr<MethodTable>> MethodTableManager::GetMethodTable(S
 /// is not functionally required.
 struct CachingMethodTableManager : public MethodTableManager {
     using Ident = Identifier<TypeDefinition>;
+    // FIXME: this global caching is not efficient. Either remove caching entirely or use per-session cache.
     std::unordered_map<GlobalTerm, std::shared_ptr<MethodTable>, Term::Hasher> tables;
 
     /// Returns an method table for the given type definition.
