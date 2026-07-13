@@ -179,16 +179,16 @@ public:
 
     virtual ~MethodTableManager() = default;
 
-    /// Returns an method table for the given type definition.
+    /// Returns an method table for the given type.
     virtual std::optional<std::shared_ptr<MethodTable>> GetMethodTable(
-        Session& session, Identifier<Symlevel::TypeDefinition> type
+        Session& session, GlobalTerm term
     ) = 0;
 
     /// Returns an method table for the given type.
     std::optional<std::shared_ptr<MethodTable>> GetMethodTable(Session& session, Term term);
 
 protected:
-    std::optional<MethodTable> BuildTable(Session& session, Identifier<Symlevel::TypeDefinition> type);
+    std::optional<MethodTable> BuildTable(Session& session, GlobalTerm type);
     MethodTable BaseTable();
 };
 
