@@ -379,6 +379,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             builder.type = TYPE_KIND_ENUM;
             needExtDefs  = true;
             needFields   = false;
+            break;
         default: FATAL("unreachable type kind");
     }
 
