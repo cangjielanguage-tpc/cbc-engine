@@ -25,6 +25,12 @@ using TypeInfoUUID = uint32_t;
 
 using OffsetVisitor = std::function<void(uint32_t)>;
 
+enum StructLocationKind {
+    LOCAL,
+    GLOBAL,
+    HEAP,
+};
+
 class ThreadHandle {
 public:
     explicit ThreadHandle(void* _value) : value(_value) {}
@@ -121,7 +127,7 @@ struct Execution {
     static TypeInfo LoadTypeInfo(Engine::GlobalTerm term, Interpretation::Ectype* ectype, void* stackSlots);
 
     static bool IsReference(TypeInfo ti);
-    static bool IsGlobalStruct(Reference base, uintptr_t derived);
+    static StructLocationKind GetStructLocationKind(Reference base, uintptr_t derived);
     static Reference GetGlobalBasePtr();
     static Reference GetLocalBasePtr();
 

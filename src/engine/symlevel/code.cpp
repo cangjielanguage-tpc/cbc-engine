@@ -84,15 +84,24 @@ std::vector<LivenessInfo> Code::GetLivenessInfo(Engine::Session& session) const
             .regMask = reader.ReadU16(),
         };
 
-        uint32_t n = reader.ReadULEB();
+        uint32_t slotsN = reader.ReadULEB();
         std::vector<uint32_t> slots;
-        slots.reserve(n);
+        slots.reserve(slotsN);
 
-        for (uint32_t idx = 0; idx < n; idx++) {
+        for (uint32_t idx = 0; idx < slotsN; idx++) {
             slots.push_back(reader.ReadULEB());
         }
-
         info.refSlotNums = std::move(slots);
+
+        uint32_t pairsN = reader.ReadULEB();
+        std::vector<std::pair<uint32_t, uint32_t>> mutPairs;
+        mutPairs.reserve(pairsN);
+
+        for (uint32_t idx = 0; idx < pairsN; idx++) {
+            mutPairs.push_back(std::pair(reader.ReadULEB(), reader.ReadULEB()));
+        }
+        info.mutPairs = std::move(mutPairs);
+
         livenessInfo.push_back(std::move(info));
     }
 
@@ -136,6 +145,8 @@ void Code::Print(Engine::Session& session, Stream::Output& out)
     for (auto& li : GetLivenessInfo(session)) {
         out4 << "cbcPos: " << li.cbcPos << ", regMask: " << li.regMask << ", ";
         Std::Vector::Print(out4, li.refSlotNums);
+        out4 << ", ";
+        Std::Vector::Print(out4, li.mutPairs);
         out4 << endl;
     }
 

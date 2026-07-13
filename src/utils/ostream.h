@@ -60,6 +60,11 @@ public:
     void Print(const long long* p);
     void Print(const unsigned long long* p);
     void Print(const void* p);
+
+    template <typename T1, typename T2> void Print(const std::pair<T1, T2> pair)
+    {
+        *this << "(" << pair.first << ", " << pair.second << ")";
+    }
 };
 
 class FileOutput : public Output {

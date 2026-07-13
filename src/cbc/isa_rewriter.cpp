@@ -1272,11 +1272,22 @@ static std::vector<Interpretation::PositionalInfo> CalculatePositionalGCInfo(
         }
         auto& info = it->second;
 
-        posInfo.push_back({ .rewrittenPos = (uint32_t) rewrittenPos, .regMask = info.regMask, .untypedRefSlotsInfo = {} });
+        posInfo.push_back({ .rewrittenPos        = (uint32_t)rewrittenPos,
+                            .regMask             = info.regMask,
+                            .untypedRefSlotsInfo = {},
+                            .mutPairs            = {} });
 
         posInfo.back().untypedRefSlotsInfo.reserve(info.refSlotNums.size());
         for (const auto& slotN : info.refSlotNums) {
             posInfo.back().untypedRefSlotsInfo.push_back(slotN * STACK_SLOT_SIZE);
+        }
+
+        posInfo.back().mutPairs.reserve(info.mutPairs.size());
+        for (const auto& pair : info.mutPairs) {
+            auto mutRes = std::pair(
+                Interpretation::Resource { .idx = pair.first }, Interpretation::Resource { .idx = pair.second }
+            );
+            posInfo.back().mutPairs.push_back(mutRes);
         }
     }
 
