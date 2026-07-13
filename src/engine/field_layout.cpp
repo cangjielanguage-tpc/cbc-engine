@@ -292,11 +292,14 @@ private:
         } else if (kind == TermKind::TYPE) {
             layout = BuildLayoutCbc(term, def);
         } else if (kind == TermKind::UNION_OPTION) {
+            ClassSubstitution substitute(session, term);
             SizeAlignmentAccumulator acc { sizeof(uint32_t), alignof(uint32_t) };
             auto someType = TermManager::Resolve(session, def.GetEnumType());
+            someType = substitute.Substitute(someType);
             acc.AddField(GetFlatSize(someType), GetFlatAlignment(someType));
             layout = FieldLayout::Content { .desc = { acc.size, acc.alignment } };
         } else if (kind == TermKind::UNION_ENUM) {
+            ClassSubstitution substitute(session, term);
             // for some reason CJNative packs their enums tightly
             uint8_t alignment = 1;
 
@@ -304,6 +307,7 @@ private:
             uint32_t size = 0;
             for (auto fieldTypeId : def->unionFields.Values(session)) {
                 auto fieldType = TermManager::Resolve(session, fieldTypeId);
+                fieldType = substitute.Substitute(fieldType);
                 auto fieldSize = GetFlatSize(fieldType);
                 if (!fieldSize) {
                     failed = true;
