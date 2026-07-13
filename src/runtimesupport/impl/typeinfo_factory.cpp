@@ -320,14 +320,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
     Engine::Session& session, Engine::TypeInfoManager& manager, Engine::GlobalTerm term
 )
 {
-    auto ident = [term]() {
-        switch (term.GetKind()) {
-            case Engine::TermKind::TYPE:            return Engine::TypeTermId(term).GetIdentifier();
-            case Engine::TermKind::UNION_OPTION:    return Engine::UnionOptionId(term).GetIdentifier();
-            case Engine::TermKind::NULLABLE_OPTION: return Engine::NullableOptionId(term).GetIdentifier();
-            default:                                FATAL("Unreachable");
-        }
-    }();
+    auto ident = Engine::ExtractTypeDefIdentifier(term);
 
     auto type = Symlevel::Reader::Read(session, ident);
     auto name = Symlevel::Reader::Read(session, type.GetName());

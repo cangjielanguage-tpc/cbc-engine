@@ -103,6 +103,7 @@
     X(UnboxRec, UnboxRec)                                                                                              \
     X(Offset, Offset)                                                                                                  \
     X(AddOffset, AddOffset)                                                                                            \
+    X(Tag, Tag)                                                                                                        \
     X(_END, Unreachable)
 
 #define ISA_MEM_OPCODES(X)                                                                                             \

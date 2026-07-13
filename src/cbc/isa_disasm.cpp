@@ -182,6 +182,11 @@ struct IsaDisasm : public IsaParser {
         stream << name << " " << dst.ToStr() << ", " << ti.ToStr() << " " << field << endl;
     }
 
+    void Tag(IReg dst, IReg src, uint16_t typeId) override
+    {
+        stream << "tag " << dst.ToStr() << ", " << src.ToStr() << endl;
+    }
+
     void NewObj(IReg dst, uint16_t type) override { stream << "newobj" << " " << dst.ToStr() << ", " << type << endl; }
 
     void NewClosure(IReg dst, uint16_t type) override

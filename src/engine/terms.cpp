@@ -372,17 +372,7 @@ void Term::GetName(Session& session, Stream::Output& out) const
         case TK::PRIMITIVE_ENUM:
         case TK::GENERIC_OPTION:
         case TK::TYPE: {
-            auto ident = [kind, this]() {
-                switch (kind) {
-                    case TK::UNION_ENUM:      return UnionEnumId(*this).GetIdentifier();
-                    case TK::NULLABLE_OPTION: return NullableOptionId(*this).GetIdentifier();
-                    case TK::UNION_OPTION:    return UnionOptionId(*this).GetIdentifier();
-                    case TK::PRIMITIVE_ENUM:  return PrimitiveEnumId(*this).GetIdentifier();
-                    case TK::GENERIC_OPTION:  return GenericOptionId(*this).GetIdentifier();
-                    case TK::TYPE:            return TypeTermId(*this).GetIdentifier();
-                    default:                  FATAL("unreachable");
-                }
-            }();
+            auto ident = ExtractTypeDefIdentifier(*this);
             auto type  = Symlevel::TypeDefinition::Resolve(session, ident);
             stream << Symlevel::Reader::Read(session, type.GetName());
             if (int len = GetLength(); len > 0) {
@@ -980,5 +970,18 @@ ArraySubstitution::ArraySubstitution(Session& session, std::vector<Term> const& 
 Term ArraySubstitution::SubstituteFuncTv(uint8_t typeVar) { return Term::FuncTypeVariable(typeVar); }
 
 Term ArraySubstitution::SubstituteClassTv(uint8_t typeVar) { return terms.at(typeVar); }
+
+Identifier<Symlevel::TypeDefinition> ExtractTypeDefIdentifier(Term term)
+{
+    switch (term.GetKind()) {
+        case TermKind::UNION_ENUM:      return UnionEnumId(term).GetIdentifier();
+        case TermKind::NULLABLE_OPTION: return NullableOptionId(term).GetIdentifier();
+        case TermKind::UNION_OPTION:    return UnionOptionId(term).GetIdentifier();
+        case TermKind::PRIMITIVE_ENUM:  return PrimitiveEnumId(term).GetIdentifier();
+        case TermKind::GENERIC_OPTION:  return GenericOptionId(term).GetIdentifier();
+        case TermKind::TYPE:            return TypeTermId(term).GetIdentifier();
+        default:                        FATAL("unexpected kind %d", term.GetKind());
+    }
+}
 
 } // namespace Engine

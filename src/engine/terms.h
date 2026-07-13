@@ -256,6 +256,8 @@ using PrimitiveEnumId  = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>
 using ClassTvTermId = _NumberedTermId<uint8_t, TermKind::CLASS_TYPE_VAR>;
 using FuncTvTermId  = _NumberedTermId<uint8_t, TermKind::FUNC_TYPE_VAR>;
 
+Identifier<Symlevel::TypeDefinition> ExtractTypeDefIdentifier(Term term);
+
 /// Routine that substitutes terms in places of type variables.
 /// To perform an substitution a mapping `TV -> Term` is required.
 /// The form of mapping is represented by different implementations.

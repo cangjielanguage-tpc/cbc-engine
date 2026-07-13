@@ -9,7 +9,9 @@
 #include "engine/engine.h"
 #include "engine/resolving_output.h"
 #include "engine/symlevel/code.h"
+#include "engine/symlevel/definitions.h"
 #include "engine/symlevel/io/file_id.h"
+#include "engine/symlevel/reader.h"
 #include "engine/terms.h"
 #include "interpreter/code.h"
 #include "interpreter/function_handle.h"
@@ -439,6 +441,31 @@ struct IsaRewriter : public IsaParser {
 
         if (field->refType.GetKind() == Resolution::CbcTypeKind::REF) {
             emit.AddI(Format::Width::W64, dst, dst, RTSupport::MetaInfo::ObjectHeaderSize());
+        }
+    }
+
+    void Tag(IReg dst, IReg src, uint16_t typeId) override
+    {
+        auto t = resolver.Query(Index<Type>(typeId));
+        if (!t.has_value()) {
+            return Fail("resolution failure");
+        }
+        auto type = *t;
+        if (type.term.GetKind() == Engine::TermKind::UNION_OPTION) {
+            emit.LoadRec(Ldk(Interpretation::BUILTIN_I32), dst, src, 0);
+        } else {
+            auto typeDefId = Engine::ExtractTypeDefIdentifier(type.term);
+            auto typeDef   = Symlevel::Reader::Read(session, typeDefId);
+
+            switch (typeDef->enumKind) {
+                case Symlevel::EnumKind::OPTION0: // enum { None, Some(T) }
+                    emit.SCC(Format::CC::RNE, Format::Width::W64, dst, src, IReg::IRZ);
+                    break;
+                case Symlevel::EnumKind::OPTION1: // enum { Some(T), None }
+                    emit.SCC(Format::CC::REQ, Format::Width::W64, dst, src, IReg::IRZ);
+                    break;
+                default: return Fail("unexpected enum kind");
+            }
         }
     }
 
