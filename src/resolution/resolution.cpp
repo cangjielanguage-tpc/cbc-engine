@@ -147,7 +147,7 @@ struct ResolverProxy {
     /// Routine that substitutes type variables with `stub`.
     class StubSubstitution : public Substitution {
     public:
-        StubSubstitution(Session& session, Term term);
+        StubSubstitution(Session& session, Term term) : Substitution(session), stub(term) {}
 
     protected:
         Term SubstituteClassTv(uint8_t typeVar) override { return stub; }
