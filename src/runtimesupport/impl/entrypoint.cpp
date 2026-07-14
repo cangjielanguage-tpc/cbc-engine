@@ -430,6 +430,12 @@ CBC_EXPORT int interpreter_bridge_init(
 )
 {
     static_assert(std::is_same_v<decltype(&interpreter_bridge_init), INT_InitInterpreter>);
+
+    g_CJNativeInterfaceInstance = *rtInterf;
+
+    // Order matters
+    InitEnvOpts();
+    ParseBridgeOptions(size, options);
     if (rtInterf == nullptr || rtInterf->version != DYN_CJNATIVE_INTERFACE_VERSION) {
         RTSupport::Log::rt.Log(Logging::Level::ERROR, [rtInterf](Stream::Output& out) {
             out.PrintFmtLn(
@@ -441,14 +447,11 @@ CBC_EXPORT int interpreter_bridge_init(
         return 1;
     }
 
-    g_CJNativeInterfaceInstance = *rtInterf;
-
     RTSupport::Log::rt.Log(Logging::Level::TRACE, [rtInterf](Stream::Output& out) {
-            out.PrintFmtLn("Interpreter bridge init started");
+        out.PrintFmtLn("interpreter_bridge_init started");
     });
-    // Order matters
-    InitEnvOpts();
-    ParseBridgeOptions(size, options);
+
+    DiscoverPatchCbcFromAppStorage();
 
     interpInterf->version                  = INT_INTERPRETER_INTERFACE_VERSION;
     interpInterf->cjThreadSpecificDataSize = sizeof(Interpretation::Ectype);
@@ -506,7 +509,7 @@ CBC_EXPORT int interpreter_bridge_init(
         builtinTypeInfos[BUILTIN_RUNE]    = RTSupport::TypeInfo(getTypeInfo("Rune"));
     }
 
-    RTSupport::Log::rt.Log(Logging::Level::TRACE, [rtInterf](Stream::Output& out) {
+    RTSupport::Log::rt.Log(Logging::Level::TRACE, [](Stream::Output& out) {
         out.PrintFmtLn("Interpreter bridge init finished");
     });
 
