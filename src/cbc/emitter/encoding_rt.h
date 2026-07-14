@@ -24,6 +24,7 @@ void Encode(ByteBuffer& buf, RT::B3xri8 command);
 void Encode(ByteBuffer& buf, RT::B4xri16 command);
 void Encode(ByteBuffer& buf, RT::B3xrrr command);
 void Encode(ByteBuffer& buf, RT::B3xxrr command);
+void Encode(ByteBuffer& buf, RT::B3xi12 command);
 void Encode(ByteBuffer& buf, RT::B4xi12rr command);
 void Encode(ByteBuffer& buf, RT::BFX command);
 void Encode(ByteBuffer& buf, RT::IOF command);

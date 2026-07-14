@@ -673,8 +673,9 @@ struct IsaParserImpl {
 
     static void TagGeneric(IsaParser& parser)
     {
-        auto [dst, src, typeId] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
-        parser.TagGeneric(dst, src, typeId);
+        auto [dst, src, tiReg, _, typeId] =
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+        parser.TagGeneric(dst, src, tiReg, typeId);
     }
 
     static void MemHeadReg(IsaParser& parser)

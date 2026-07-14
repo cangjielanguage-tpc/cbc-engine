@@ -444,7 +444,37 @@ struct IsaRewriter : public IsaParser {
         }
     }
 
-    void TagGeneric(IReg dst, IReg src, uint16_t typeId) override { FATAL("not implemented"); }
+    void TagGeneric(IReg dst, IReg src, IReg ti, uint16_t typeId) override
+    {
+        auto t = resolver.Query(Index<Type>(typeId));
+        if (!t.has_value()) {
+            return Fail("resolution failure");
+        }
+
+        auto type      = *t;
+        auto typeDefId = Engine::ExtractTypeDefIdentifier(type.term);
+        auto typeDef   = Symlevel::Reader::Read(session, typeDefId);
+
+        auto refPath = emit.NewLabel();
+        auto end     = emit.NewLabel();
+        emit.BranchIfRef(ti, refPath);
+        emit.LoadObj(LDK::LD_32, dst, src, RTSupport::MetaInfo::ObjectHeaderSize());
+        emit.Jmp(end);
+        emit.Bind(refPath);
+
+        emit.LoadObj(LDK::LD_REF, dst, src, RTSupport::MetaInfo::ObjectHeaderSize());
+        switch (typeDef->enumKind) {
+            case Symlevel::EnumKind::OPTION0: // enum { None, Some(T) }
+                emit.SCC(Format::CC::RNE, Format::Width::W64, dst, dst, IReg::IRZ);
+                break;
+            case Symlevel::EnumKind::OPTION1: // enum { Some(T), None }
+                emit.SCC(Format::CC::REQ, Format::Width::W64, dst, dst, IReg::IRZ);
+                break;
+            default: return Fail("unexpected enum kind");
+        }
+
+        emit.Bind(end);
+    }
 
     std::optional<Type> NewObject(IReg dst, uint16_t typeId, New kind)
     {

@@ -182,7 +182,7 @@ struct IsaDisasm : public IsaParser {
         stream << name << " " << dst.ToStr() << ", " << ti.ToStr() << " " << field << endl;
     }
 
-    void TagGeneric(IReg dst, IReg src, uint16_t typeId) override
+    void TagGeneric(IReg dst, IReg src, IReg ti, uint16_t typeId) override
     {
         stream << "tag.g " << dst.ToStr() << ", " << src.ToStr() << endl;
     }

@@ -283,6 +283,18 @@ BCCL64L: {
     );
     JUMP;
 }
+BRANCH_IS_REF: {
+    auto args = B3xi12::Decode(reader);
+    LOG_INSTR;
+    auto tiReg    = IReg::From(args.xi12.imm4);
+    auto ti       = TypeInfo(ectype->GetPrimitive(tiReg).u64);
+    int64_t delta = 0;
+    if (RTSupport::Execution::IsReference(ti)) {
+        uint16_t value = args.xi12.imm12;
+        delta          = MathUtils::SignExtend<int64_t>(value, 12);
+    }
+    JUMP;
+}
 JMP32: {
     auto args = B5i32::Decode(reader);
     LOG_INSTR;

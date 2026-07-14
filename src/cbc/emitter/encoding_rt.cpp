@@ -65,6 +65,12 @@ void Encode(ByteBuffer& buf, RT::B3xxrr command)
     Encode(buf, command.rr);
 }
 
+void Encode(ByteBuffer& buf, RT::B3xi12 command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.xi12);
+}
+
 void Encode(ByteBuffer& buf, RT::B4xi12rr command)
 {
     Encode(buf, command.opc);
