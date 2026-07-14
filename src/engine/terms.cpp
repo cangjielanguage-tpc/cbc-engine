@@ -75,8 +75,7 @@ enum Tag : uint8_t {
     TUPLE             = 0x12,
     BOX               = 0x13,
     FST               = 0x14,
-    NULLABLE_OPTION   = 0x16,
-    UNION_OPTION      = 0x17,
+    OPTION            = 0x15,
     UNION_ENUM        = 0x18,
     PRIMITIVE_ENUM    = 0x19,
 };
@@ -664,16 +663,11 @@ struct TermResolver {
         bool isReference = false;
         TermId id = TagTermId(TermKind::NIL);
         switch (tag) {
-            case NULLABLE_OPTION:
-                isReference = true;
+            case OPTION: {
                 undefined = !optionLikeEnum;
                 id          = OptionId(identifier);
                 break;
-            case UNION_OPTION:
-                isReference = false;
-                undefined = !optionLikeEnum;
-                id          = OptionId(identifier);
-                break;
+            }
             case UNION_ENUM:
                 undefined = def->enumKind != Symlevel::EnumKind::UNION;
                 id = UnionEnumId(identifier);
@@ -696,6 +690,12 @@ struct TermResolver {
         }
 
         TermFlags flags   = F_LOCAL;
+        if (tag == OPTION) {
+            auto underlying = TermManager::Resolve(session, def.GetEnumType());
+            ArraySubstitution sub(session, data->subterms, expectedLength);
+            underlying  = sub.Substitute(underlying);
+            isReference = underlying.IsReference();
+        }
         flags.isReference = isReference;
         flags.isGeneric   = isGeneric;
 
@@ -818,8 +818,7 @@ struct TermResolver {
             }
             case UNION_ENUM:
             case PRIMITIVE_ENUM:
-            case UNION_OPTION:
-            case NULLABLE_OPTION: {
+            case OPTION: {
                 auto nameOffs = Offset<String>(reader.ReadULEB());
                 auto name = Reader::Read(session, fileId, nameOffs);
                 auto arity = reader.ReadU8();
@@ -930,13 +929,22 @@ Term ClassSubstitution::SubstituteClassTv(uint8_t typeVar)
 Term ClassSubstitution::SubstituteFuncTv(uint8_t typeVar) { return Term::FuncTypeVariable(typeVar); }
 
 ArraySubstitution::ArraySubstitution(Session& session, std::vector<Term> const& terms)
+    : ArraySubstitution(session, terms.data(), terms.size())
+{}
+
+ArraySubstitution::ArraySubstitution(Session& session, Term const* terms, size_t size)
     : Substitution(session),
-      terms(terms)
+      terms(terms),
+      size(size)
 {}
 
 Term ArraySubstitution::SubstituteFuncTv(uint8_t typeVar) { return Term::FuncTypeVariable(typeVar); }
 
-Term ArraySubstitution::SubstituteClassTv(uint8_t typeVar) { return terms.at(typeVar); }
+Term ArraySubstitution::SubstituteClassTv(uint8_t typeVar)
+{
+    ASSERT(typeVar < size);
+    return terms[typeVar];
+}
 
 Identifier<Symlevel::TypeDefinition> ExtractTypeDefIdentifier(Term term)
 {

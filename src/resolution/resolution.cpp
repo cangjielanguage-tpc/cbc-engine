@@ -91,6 +91,7 @@ CbcTypeKind Resolver::GetKind(Type type)
         case TK::CANGJIE_ARRAY: return CbcTypeKind::REF;
         case TK::LAST:          return CbcTypeKind::INVALID;
         case TK::AOT_TYPE:
+        case TK::OPTION:
         case TK::TYPE:          return term.IsReference() ? CbcTypeKind::REF : CbcTypeKind::REC;
 
         default:
