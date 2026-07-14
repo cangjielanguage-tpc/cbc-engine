@@ -126,7 +126,7 @@ void VisitGCFrameRoots(
 
     uint32_t curPos = reinterpret_cast<uintptr_t>(reader->Cursor()) - reinterpret_cast<uintptr_t>(bc->code.bytecode);
 
-    const PositionalInfo* positionalInfo = nullptr;
+    const GCPositionalInfo* positionalInfo = nullptr;
     for (auto& info : bc->gcInfo.positionalInfo) {
         if (info.rewrittenPos == curPos) {
             positionalInfo = &info;

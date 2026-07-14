@@ -1246,17 +1246,19 @@ static std::optional<FrameLayout> makeFrameLayout(Symlevel::Code code, Resolver&
     return FrameLayout { std::move(typedOffset), std::move(typedSlotsInfo), untypedSlotsSize, frameSize };
 }
 
-static std::vector<Interpretation::PositionalInfo> CalculatePositionalGCInfo(
-    Engine::Session& session, const MethodCode& code, Emitter::Emitter const& emitter, std::vector<IsaRewriter::StatePoint> const& statePoints
+static std::vector<Interpretation::GCPositionalInfo> CalculatePositionalGCInfo(
+    Engine::Session& session,
+    const MethodCode& code,
+    Emitter::Emitter const& emitter,
+    std::vector<IsaRewriter::StatePoint> const& statePoints
 )
 {
     auto livenessInfo = code.GetLivenessInfo(session);
 
-    std::vector<Interpretation::PositionalInfo> posInfo;
+    std::vector<Interpretation::GCPositionalInfo> posInfo;
     posInfo.reserve(livenessInfo.size());
 
     std::unordered_map<ssize_t, Symlevel::LivenessInfo const&> infos;
-
     for (const auto& info : livenessInfo) {
         infos.insert({info.cbcPos, info});
     }
@@ -1288,6 +1290,46 @@ static std::vector<Interpretation::PositionalInfo> CalculatePositionalGCInfo(
                 Interpretation::Resource { .idx = pair.first }, Interpretation::Resource { .idx = pair.second }
             );
             posInfo.back().mutPairs.push_back(mutRes);
+        }
+    }
+
+    return posInfo;
+}
+
+static std::vector<Interpretation::StackPtrsPositionalInfo> CalculateStackPtrsPositionalInfo(
+    Engine::Session& session,
+    const MethodCode& code,
+    Emitter::Emitter const& emitter,
+    std::vector<IsaRewriter::StatePoint> const& statePoints
+)
+{
+    auto stackPtrsInfo = code.GetStackPtrsInfo(session);
+
+    std::vector<Interpretation::StackPtrsPositionalInfo> posInfo;
+    posInfo.reserve(stackPtrsInfo.size());
+
+    std::unordered_map<ssize_t, Symlevel::StackPtrsInfo const&> infos;
+    for (const auto& info : stackPtrsInfo) {
+        infos.insert({ info.cbcPos, info });
+    }
+
+    for (auto& point : statePoints) {
+        auto originalPos  = point.originalPos;
+        auto rewrittenPos = emitter.LabelPosition(point.label);
+        auto it           = infos.find(originalPos);
+        if (it == infos.end()) {
+            // Stack ptrs info is collected for a subset of state points
+            continue;
+        } else if (rewrittenPos > UINT32_MAX) {
+            FATAL("Position too big");
+        }
+        auto& info = it->second;
+
+        posInfo.push_back({ .rewrittenPos = (uint32_t)rewrittenPos, .resources = {} });
+
+        posInfo.back().resources.reserve(info.resources.size());
+        for (const auto& res : info.resources) {
+            posInfo.back().resources.push_back(Interpretation::Resource { .idx = res });
         }
     }
 
@@ -1345,6 +1387,10 @@ Interpretation::ExecBytecodeInfo Rewrite(
                 .positionalInfo = std::move(CalculatePositionalGCInfo(session, code, emitter, rewriter.statePoints)),
                 .typedSlotsInfo = std::move((*frameLayout).typedSlotsInfo),
             },
+        .stackPtrsInfo =
+            Interpretation::StackPtrsInfo {
+                .positionalInfo =
+                    std::move(CalculateStackPtrsPositionalInfo(session, code, emitter, rewriter.statePoints)) },
         .offsetsIndex = std::move(rewriter.BuildOffsetsIndex()),
     };
 }

@@ -39,16 +39,25 @@ struct Resource {
     }
 };
 
-struct PositionalInfo {
+struct GCPositionalInfo {
     uint32_t rewrittenPos;
     uint16_t regMask;
     std::vector<uint32_t> untypedRefSlotsInfo;
     std::vector<std::pair<Resource, Resource>> mutPairs;
 };
 
+struct StackPtrsPositionalInfo {
+    uint32_t rewrittenPos;
+    std::vector<Resource> resources;
+};
+
 struct GcInfo {
-    std::vector<PositionalInfo> positionalInfo;
+    std::vector<GCPositionalInfo> positionalInfo;
     std::vector<std::pair<uint32_t, void*>> typedSlotsInfo;
+};
+
+struct StackPtrsInfo {
+    std::vector<StackPtrsPositionalInfo> positionalInfo;
 };
 
 // List of non-zero registers used for storing non-volatile regs.
@@ -97,6 +106,7 @@ struct ExecBytecodeInfo {
     uint32_t const frameSize;
     uint16_t const untypedSlotCount;
     GcInfo const gcInfo;
+    StackPtrsInfo stackPtrsInfo;
     InstructionOffsetsIndex const offsetsIndex; // TODO: optimize RAM footprint
 
     friend Stream::Output& operator<<(Stream::Output& out, const ExecBytecodeInfo& bc);
