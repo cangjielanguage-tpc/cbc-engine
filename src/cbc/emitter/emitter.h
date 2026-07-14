@@ -229,6 +229,14 @@ public:
     void WriteStructField(IReg src, IReg base, IReg field, RTSupport::TypeInfo ti);
     void ReadStructField(IReg dst, IReg base, IReg field, RTSupport::TypeInfo ti);
 
+    void AtomicLoad(IReg dst, Format::LoadAccessKind ldk, IReg obj, uint16_t offset);
+    void AtomicStore(IReg src, Format::StoreAccessKind stk, IReg obj, uint16_t offset);
+
+    void CAS(IReg dst, Width width, IReg obj, IReg src1, IReg src2, uint16_t offset);
+    void CASRef(IReg dst, IReg obj, IReg src1, IReg src2, uint16_t offset);
+    void CAS(RT::Opcode opc, IReg dst, IReg obj, IReg src1, IReg src2, uint16_t offset);
+    void AtomicOp(RT::Opcode opc, IReg dst, IReg obj, IReg src, uint16_t offset);
+
     void Throw(IReg dst);
     void Catch(IReg dst);
 

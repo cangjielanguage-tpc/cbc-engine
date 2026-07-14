@@ -125,6 +125,19 @@ protected:
         IReg dst, IReg src, IReg underlyingTypeInfo, IReg optionTypeInfo, uint16_t optionTypeInfoId
     ) = 0;
 
+    virtual void AtomicLoad(IReg dst, IReg obj, uint16_t fieldId) = 0;
+    virtual void AtomicStore(IReg src, IReg obj, uint16_t fieldId) = 0;
+
+    virtual void CAS(IReg dst, IReg obj, IReg src1, IReg src2, uint16_t fieldId) = 0;
+
+    virtual void AtomicSwap(IReg dst, IReg obj, IReg src, uint16_t fieldId) = 0;
+
+    virtual void AtomicFetchAdd(IReg dst, IReg obj, IReg src, uint16_t fieldId) = 0;
+    virtual void AtomicFetchSub(IReg dst, IReg obj, IReg src, uint16_t fieldId) = 0;
+    virtual void AtomicFetchAnd(IReg dst, IReg obj, IReg src, uint16_t fieldId) = 0;
+    virtual void AtomicFetchOr(IReg dst, IReg obj, IReg src, uint16_t fieldId) = 0;
+    virtual void AtomicFetchXor(IReg dst, IReg obj, IReg src, uint16_t fieldId) = 0;
+
     class MemSpace {
     public:
         virtual ~MemSpace() = default;
