@@ -444,10 +444,7 @@ struct IsaRewriter : public IsaParser {
         }
     }
 
-    void Tag(IReg dst, IReg src, uint16_t typeId) override
-    {
-
-    }
+    void TagGeneric(IReg dst, IReg src, uint16_t typeId) override { FATAL("not implemented"); }
 
     std::optional<Type> NewObject(IReg dst, uint16_t typeId, New kind)
     {
