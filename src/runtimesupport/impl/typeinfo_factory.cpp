@@ -604,7 +604,13 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             fieldManager->FillRefOffsets(fieldType, refFieldOffs, optOffs.value());
         }
 
-        if (!refFieldOffs.empty()) {
+        // options has insconsistent .offsets property and gctib in cjnative
+        // why??
+        if (term.GetKind() == Engine::TermKind::OPTION && term.IsReference()) {
+            builder.gctib = { .raw = (1ull << 63) | 1 };
+        } else if (term.GetKind() == Engine::TermKind::OPTION && !term.IsReference()) {
+            builder.gctib = { .raw = (1ull << 63) | 0 };
+        } else if (!refFieldOffs.empty()) {
             builder.flag |= HAS_REF_FIELD;
 
             auto gctib = ConstructGCTib(builder, refFieldOffs);
@@ -613,13 +619,13 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             }
             builder.gctib = *gctib;
         }
-    } else {
-        builder.fieldNum     = 0;
-        builder.fields       = nullptr;
-        builder.fieldOffsets = nullptr;
-        builder.align        = 1;
-        builder.instanceSize = 0;
-    }
+        } else {
+            builder.fieldNum     = 0;
+            builder.fields       = nullptr;
+            builder.fieldOffsets = nullptr;
+            builder.align        = 1;
+            builder.instanceSize = 0;
+        }
 
     builder.typeArgsNum = 0; // Otherwise, runtime would expect type template to be present.
     int typeArgsNum     = term.GetLength();

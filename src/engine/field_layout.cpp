@@ -304,6 +304,8 @@ private:
             someType = substitute.Substitute(someType);
             acc.AddField(content.fields, someType, std::nullopt);
 
+            content.desc.alignment = acc.alignment;
+            content.desc.size      = acc.size;
             layout = std::move(content);
         } else if (kind == TermKind::OPTION && term.IsReference()) {
             ClassSubstitution substitute(session, term);
@@ -315,6 +317,8 @@ private:
             someType      = substitute.Substitute(someType);
             acc.AddField(content.fields, someType, std::nullopt);
 
+            content.desc.alignment = acc.alignment;
+            content.desc.size      = acc.size;
             layout = std::move(content);
         } else if (kind == TermKind::UNION_ENUM) {
             ClassSubstitution substitute(session, term);
