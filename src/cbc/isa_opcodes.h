@@ -103,6 +103,15 @@
     X(UnboxRec, UnboxRec)                                                                                              \
     X(Offset, Offset)                                                                                                  \
     X(AddOffset, AddOffset)                                                                                            \
+    X(AtomicLoad, AtomicLoad)                                                                                          \
+    X(AtomicStore, AtomicStore)                                                                                        \
+    X(CAS, CAS)                                                                                                        \
+    X(Swap, AtomicSwap)                                                                                                \
+    X(AtomicAdd, AtomicAdd)                                                                                            \
+    X(AtomicSub, AtomicSub)                                                                                            \
+    X(AtomicAnd, AtomicAnd)                                                                                            \
+    X(AtomicOr, AtomicOr)                                                                                              \
+    X(AtomicXor, AtomicXor)                                                                                            \
     X(_END, Unreachable)
 
 #define ISA_MEM_OPCODES(X)                                                                                             \

@@ -470,6 +470,8 @@ public:
         W16 = 0b01,
         W32 = 0b10,
         W64 = 0b11,
+
+        LAST = W64
     };
 
     constexpr Width(const Value raw) : _value(raw) {}
@@ -479,6 +481,12 @@ public:
     constexpr uint32_t NBytes() const { return 1 << _value; }
 
     constexpr uint32_t NBits() const { return NBytes() * 8; }
+
+    constexpr static Width From(uint8_t value)
+    {
+        ASSERT(value <= Value::LAST);
+        return Value(value);
+    }
 
     constexpr const char* CStr()
     {

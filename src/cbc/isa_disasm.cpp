@@ -185,6 +185,61 @@ struct IsaDisasm : public IsaParser {
         stream << name << " " << dst.ToStr() << ", " << ti.ToStr() << " " << field << endl;
     }
 
+    void AtomicLoad(IReg dst, Format::LoadAccessKind ldk, IReg obj, uint16_t field) override
+    {
+        stream << "atomic.load." << ldk.ToStr() << " " << dst.ToStr() << ", " << obj.ToStr() << ", "  << field << endl;
+    }
+
+    void AtomicStore(IReg src, Format::StoreAccessKind sak, IReg obj, uint16_t field) override
+    {
+        stream << "atomic.store." << sak.ToStr() << " " << src.ToStr() << ", " << obj.ToStr() << ", "  << field << endl;
+    }
+
+    void CAS(IReg dst, Format::Width width, IReg obj, IReg src1, IReg src2, uint16_t field) override
+    {
+        stream << "cas." << Sz(width) << " " << dst.ToStr() << ", " << obj.ToStr() << ", " << src1.ToStr() << ", " << src2.ToStr() << ", " << field << endl;
+    }
+
+    void CASRef(IReg dst, IReg obj, IReg src1, IReg src2, uint16_t field) override
+    {
+        stream << "cas.ref" << " " << dst.ToStr() << ", " << obj.ToStr() << ", " << src1.ToStr() << ", " << src2.ToStr() << ", " << field << endl;
+    }
+
+    void AtomicSwap(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) override
+    {
+        stream << "atomic.swap." << Sz(width) << " " << dst.ToStr() << ", " << obj.ToStr() << ", " << src.ToStr() << ", " << field << endl;
+    }
+
+    void AtomicSwapRef(IReg dst, IReg obj, IReg src, uint16_t field) override
+    {
+        stream << "atomic.swap.ref" << " " << dst.ToStr() << ", " << obj.ToStr() << ", " << src.ToStr() << ", " << field << endl;
+    }
+
+    void AtomicAdd(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) override
+    {
+        stream << "atomic.add." << Sz(width) << " " << dst.ToStr() << ", " << obj.ToStr() << ", " << src.ToStr() << ", " << field << endl;
+    }
+
+    void AtomicSub(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) override
+    {
+        stream << "atomic.sub." << Sz(width) << " " << dst.ToStr() << ", " << obj.ToStr() << ", " << src.ToStr() << ", " << field << endl;
+    }
+
+    void AtomicAnd(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) override
+    {
+        stream << "atomic.and." << Sz(width) << " " << dst.ToStr() << ", " << obj.ToStr() << ", " << src.ToStr() << ", " << field << endl;
+    }
+
+    void AtomicOr(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) override
+    {
+        stream << "atomic.or." << Sz(width) << " " << dst.ToStr() << ", " << obj.ToStr() << ", " << src.ToStr() << ", " << field << endl;
+    }
+
+    void AtomicXor(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) override
+    {
+        stream << "atomic.xor." << Sz(width) << " " << dst.ToStr() << ", " << obj.ToStr() << ", " << src.ToStr() << ", " << field << endl;
+    }
+
     void NewObj(IReg dst, uint16_t type) override { stream << "newobj" << " " << dst.ToStr() << ", " << type << endl; }
 
     void NewClosure(IReg dst, uint16_t type) override
