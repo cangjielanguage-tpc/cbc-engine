@@ -150,10 +150,7 @@ struct IsaDisasm : public IsaParser {
 
     void GcPoint() override { stream << "gcpoint" << endl; }
 
-    void LoadStackRec(IReg r, uint16_t ts) override
-    {
-        stream << "ld.stack.rec" << " " << r.ToStr() << ", " << ts << endl;
-    }
+    void LoadStackRec(IReg r, uint16_t ts) override { stream << "ld.stack.rec" << " " << r << ", " << ts << endl; }
 
     void LoadRawMemory(AnyReg dst, IReg base, int64_t offset, Format::LoadAccessKind ldk) override
     {
@@ -266,29 +263,29 @@ struct IsaDisasm : public IsaParser {
         stream << "atomic.swap.ref" << " " << dst.ToStr() << ", " << obj.ToStr() << ", " << src.ToStr() << ", " << field << endl;
     }
 
-    void AtomicAdd(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) override
+    void AtomicFetchAdd(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) override
     {
-        stream << "atomic.add." << Sz(width) << " " << dst.ToStr() << ", " << obj.ToStr() << ", " << src.ToStr() << ", " << field << endl;
+        stream << "atomic.fetch.add." << Sz(width) << " " << dst.ToStr() << ", " << obj.ToStr() << ", " << src.ToStr() << ", " << field << endl;
     }
 
-    void AtomicSub(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) override
+    void AtomicFetchSub(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) override
     {
-        stream << "atomic.sub." << Sz(width) << " " << dst.ToStr() << ", " << obj.ToStr() << ", " << src.ToStr() << ", " << field << endl;
+        stream << "atomic.fetch.sub." << Sz(width) << " " << dst.ToStr() << ", " << obj.ToStr() << ", " << src.ToStr() << ", " << field << endl;
     }
 
-    void AtomicAnd(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) override
+    void AtomicFetchAnd(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) override
     {
-        stream << "atomic.and." << Sz(width) << " " << dst.ToStr() << ", " << obj.ToStr() << ", " << src.ToStr() << ", " << field << endl;
+        stream << "atomic.fetch.and." << Sz(width) << " " << dst.ToStr() << ", " << obj.ToStr() << ", " << src.ToStr() << ", " << field << endl;
     }
 
-    void AtomicOr(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) override
+    void AtomicFetchOr(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) override
     {
-        stream << "atomic.or." << Sz(width) << " " << dst.ToStr() << ", " << obj.ToStr() << ", " << src.ToStr() << ", " << field << endl;
+        stream << "atomic.fetch.or." << Sz(width) << " " << dst.ToStr() << ", " << obj.ToStr() << ", " << src.ToStr() << ", " << field << endl;
     }
 
-    void AtomicXor(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) override
+    void AtomicFetchXor(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) override
     {
-        stream << "atomic.xor." << Sz(width) << " " << dst.ToStr() << ", " << obj.ToStr() << ", " << src.ToStr() << ", " << field << endl;
+        stream << "atomic.fetch.xor." << Sz(width) << " " << dst.ToStr() << ", " << obj.ToStr() << ", " << src.ToStr() << ", " << field << endl;
     }
 
     void NewObj(IReg dst, uint16_t type) override { stream << "newobj" << " " << dst.ToStr() << ", " << type << endl; }
