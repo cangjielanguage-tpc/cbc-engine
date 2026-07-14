@@ -472,27 +472,27 @@ struct IsaRewriter : public IsaParser {
         FATAL("not implemented");
     }
 
-    void AtomicAdd(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) override
+    void AtomicFetchAdd(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) override
     {
         FATAL("not implemented");
     }
 
-    void AtomicSub(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) override
+    void AtomicFetchSub(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) override
     {
         FATAL("not implemented");
     }
 
-    void AtomicAnd(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) override
+    void AtomicFetchAnd(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) override
     {
         FATAL("not implemented");
     }
 
-    void AtomicOr(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) override
+    void AtomicFetchOr(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) override
     {
         FATAL("not implemented");
     }
 
-    void AtomicXor(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) override
+    void AtomicFetchXor(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) override
     {
         FATAL("not implemented");
     }
