@@ -1,13 +1,15 @@
 #include "runtimesupport/impl/entrypoint.h"
 
-#include <algorithm>
 #include <mutex>
+#include <type_traits>
+#include <utility>
 
 #include "RTInterface.h"
 #include "asm_export.h"
 #include "asm_trampolines.h"
 #include "cbc/isa_disasm.h"
 #include "cbc_engine.h"
+#include "cbc_loader.h"
 #include "cjnative.h"
 #include "engine/engine.h"
 #include "engine/options.h"
@@ -45,7 +47,7 @@ static void InitEnvOpts()
 }
 
 /// Initialize engine from launcher.
-static void EnsureEngineInitialized(std::string cbcFile)
+static void EnsureEngineInitialized()
 {
     InitEnvOpts();
     std::lock_guard guard(g_InitializationGuard);
@@ -59,13 +61,20 @@ static void EnsureEngineInitialized(std::string cbcFile)
 
     Engine::Loader loader;
 
-    auto file = IO::TryOpenFile(cbcFile);
-    if (file.has_value()) {
-        loader.Load(std::move(file.value()), cbcFile);
-    } else {
-        RTSupport::Log::rt.Log(Logging::Level::WARN, [&cbcFile](Stream::Output& out) {
-            out.PrintFmtLn("engine init: no such file or directory %s", cbcFile.c_str());
-        });
+    if (!g_cbcPath.empty()) {
+        // TODO: support ':'-delimited directories in cbc.path
+        RTSupport::LoadCbcFilesFromDirectory(loader, g_cbcPath, g_mainCbc);
+    }
+
+    if (!g_mainCbc.empty()) {
+        auto file = IO::TryOpenFile(g_mainCbc);
+        if (file.has_value()) {
+            loader.Load(std::move(file.value()), g_mainCbc);
+        } else {
+            RTSupport::Log::rt.Log(Logging::Level::WARN, [](Stream::Output& out) {
+                out.PrintFmtLn("engine init: no such file or directory %s", g_mainCbc.c_str());
+            });
+        }
     }
     loader.Build();
 
@@ -78,7 +87,7 @@ static void EnsureEngineInitialized(std::string cbcFile)
 
 static void PerformPatching()
 {
-    EnsureEngineInitialized(g_patchCbc);
+    EnsureEngineInitialized();
 
     std::lock_guard guard(g_InitializationGuard);
     if (g_Patched) {
@@ -101,7 +110,7 @@ static void PerformPatching()
         for (auto type : ti.Entries(session)) {
             auto def = Symlevel::Reader::Read(session, type);
             if (!def.GetFlags().Is(Symlevel::TypeFlag::PATCH)) {
-                return;
+                continue;
             }
 
             auto pkgName = Symlevel::Reader::Read(session, def.GetName());
@@ -122,7 +131,7 @@ static void PerformPatching()
                 RTSupport::Log::rt.Log(Logging::Level::ERROR, [&patchClassName](Stream::Output& out) {
                     out << "patch type info not found: " << patchClassName << Stream::endl;
                 });
-                return;
+                continue;
             }
 
             RTSupport::Log::rt.Log(Logging::Level::INFO, [&patchClassName](Stream::Output& out) {
@@ -164,7 +173,7 @@ static void PerformPatching()
                 RTSupport::Log::rt.Log(Logging::Level::ERROR, [&patchFlagName](Stream::Output& out) {
                     out << "patch flag field not found: " << patchFlagName << Stream::endl;
                 });
-                return;
+                continue;
             }
 
             RTSupport::Log::rt.Log(Logging::Level::INFO, [&patchFlagName](Stream::Output& out) {
@@ -287,7 +296,7 @@ CBC_EXPORT void engine_set_cbcpath(char const* cbcPath) { g_cbcPath = cbcPath; }
 
 CBC_EXPORT void engine_set_main_cbc(char const* mainCbc) { g_mainCbc = mainCbc; }
 
-CBC_EXPORT void engine_initialize() { EnsureEngineInitialized(g_mainCbc); }
+CBC_EXPORT void engine_initialize() { EnsureEngineInitialized(); }
 
 CBC_EXPORT void engine_enable_dasm() { Interpretation::Log::preparation.SetLogLevel(Logging::Level::TRACE); }
 
@@ -366,7 +375,7 @@ CBC_EXPORT int interpreter_bridge_init(
     Asm::engine_newarray_function = g_CJNativeInterfaceInstance.arrayAlloc;
     RTSupport::Initialize(&g_CJNativeInterfaceInstance);
 
-    if (!g_patchCbc.empty()) {
+    if (g_mainCbc.empty()) {
         PerformPatching();
     }
     // If CBC patch is not found, engine will be left uninitialized.
