@@ -907,6 +907,15 @@ Term Substitution::Substitute(Term term)
             newData->subterms[i] = Substitute(data->subterms[i]);
             isGeneric            = isGeneric || newData->subterms[i].IsGeneric();
         }
+        if (term.GetKind() == TermKind::OPTION) {
+            auto id = ExtractTypeDefIdentifier(term);
+            auto def = Symlevel::Reader::Read(session, id);
+            auto underlying = TermManager::Resolve(session, def.GetEnumType());
+
+            ArraySubstitution sub(session, newData->subterms, length);
+            underlying = sub.Substitute(underlying);
+            flags.isReference = underlying.IsReference();
+        }
         flags.isLocal   = true;
         flags.isGeneric = isGeneric;
         newData->InitAfterSubterms(data->identifier, length, flags);

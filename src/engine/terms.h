@@ -275,6 +275,7 @@ protected:
 
 /// Routine that substitutes class type variables with corresponding subterms of `term`.
 /// Function type vars are mapped to themselves.
+/// FIXME: Merge with ArraySubstitution
 class ClassSubstitution : public Substitution {
 public:
     ClassSubstitution(Session& session, Term term);
@@ -291,6 +292,7 @@ private:
 
 /// Routine that substitutes class type variables with corresponding subterms provided in vector.
 /// Function type vars are mapped to themselves.
+/// FIXME: Merge with ClassSubstitution
 class ArraySubstitution : public Substitution {
 public:
     ArraySubstitution(Session& session, std::vector<Term> const& terms);
