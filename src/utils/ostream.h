@@ -5,6 +5,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string>
+#include <string_view>
 
 namespace Stream {
 
@@ -83,6 +84,7 @@ public:
     StringBuffer();
 
     void VPrintFmt(const char* fmt, va_list argp) override;
+    size_t Size() const;
     std::string ToString();
     char* ToCString();
     void Clear();
@@ -124,7 +126,7 @@ private:
 };
 
 extern FileOutput cout;
-extern FileOutput cerr;
+extern Output& cerr;
 
 namespace Disasm {
 extern Descripted isa;

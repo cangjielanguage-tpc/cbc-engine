@@ -1,6 +1,7 @@
 #include "utils/ostream.h"
 
 #include "utils/assertion.h"
+#include <algorithm>
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
@@ -8,10 +9,46 @@
 #include <memory>
 #include <utility>
 
+#if defined(__APPLE__) && __has_include(<TargetConditionals.h>)
+    #include <TargetConditionals.h>
+#endif
+
+#if defined(TARGET_OS_IOS) && TARGET_OS_IOS && __has_include(<os/log.h>)
+    #include <os/log.h>
+    #define CBC_ENGINE_STREAM_IOS_OS_LOG 1
+#else
+    #define CBC_ENGINE_STREAM_IOS_OS_LOG 0
+#endif
+
 namespace Stream {
 
+namespace {
+
+#if CBC_ENGINE_STREAM_IOS_OS_LOG
+class IOSPlatformLogOutput : public Output {
+public:
+    IOSPlatformLogOutput() : Output(), buffer() {}
+
+    void Flush() const override;
+    void NewLine() override;
+    void VPrintFmt(const char* fmt, va_list argp) override;
+
+private:
+    mutable StringBuffer buffer; // mutable because Flush() is const
+};
+#endif
+
+} // namespace
+
 FileOutput cout(stdout);
-FileOutput cerr(stderr);
+
+#if CBC_ENGINE_STREAM_IOS_OS_LOG
+IOSPlatformLogOutput cerrOutput;
+#else
+FileOutput cerrOutput(stderr);
+#endif
+
+Output& cerr = cerrOutput;
 Descripted Disasm::isa(cerr, "[dis-isa] ");
 Descripted Disasm::rt(cerr, "[dis-rt] ");
 
@@ -110,9 +147,32 @@ void FileOutput::Flush() const { fflush(dest); }
 
 void FileOutput::VPrintFmt(const char* fmt, va_list argp) { vfprintf(dest, fmt, argp); }
 
+#if CBC_ENGINE_STREAM_IOS_OS_LOG
+void IOSPlatformLogOutput::Flush() const
+{
+    if (buffer.Size() == 0) {
+        return;
+    }
+
+    char* message = buffer.ToCString();
+    if (message != nullptr) {
+        os_log(OS_LOG_DEFAULT, "%{public}s", message);
+        free(message);
+    }
+
+    buffer.Clear();
+}
+
+void IOSPlatformLogOutput::NewLine() { Flush(); }
+
+void IOSPlatformLogOutput::VPrintFmt(const char* fmt, va_list argp) { buffer.VPrintFmt(fmt, argp); }
+#endif
+
 StringBuffer::StringBuffer() : data(nullptr), size(0), capacity(0) {}
 
 void StringBuffer::Clear() { size = 0; }
+
+size_t StringBuffer::Size() const { return size; }
 
 void StringBuffer::VPrintFmt(const char* fmt, va_list argp)
 {
@@ -128,13 +188,15 @@ void StringBuffer::VPrintFmt(const char* fmt, va_list argp)
         return;
     }
 
-    if (required > capacity - size) {
+    if (static_cast<size_t>(required) + 1 > capacity - size) {
         // extra zero should be counted
         auto newCapacity = std::max(INITIAL_CAPACITY, size + required + 1);
         newCapacity      = std::max(newCapacity, 2 * capacity);
 
         auto newMem = std::make_unique<char[]>(newCapacity);
-        std::copy(data.get(), data.get() + capacity, newMem.get());
+        if (size != 0) {
+            std::copy(data.get(), data.get() + size, newMem.get());
+        }
         capacity = newCapacity;
         data     = std::move(newMem);
     }
