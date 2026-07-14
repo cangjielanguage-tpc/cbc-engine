@@ -689,7 +689,6 @@ struct IsaParserImpl {
         parser.AtomicStore(src, sak, obj, field);
     }
 
-    // TODO deduplicate with AtomicSwap
     static void CAS(IsaParser& parser)
     {
         auto [width, dst, obj, src1, src2, field] = ByteReaderM(parser.reader).ReadU8().ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
@@ -704,7 +703,6 @@ struct IsaParserImpl {
         }
     }
 
-    // TODO deduplicate with CAS
     static void AtomicSwap(IsaParser& parser)
     {
         auto [width, dst, obj, src, field] = ByteReaderM(parser.reader).ReadU8().ReadU4().ReadU4().ReadU4Skip4().ReadU16().Get();
