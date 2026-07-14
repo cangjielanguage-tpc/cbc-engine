@@ -79,8 +79,7 @@ enum class TermKind : uint8_t {
     AOT_TYPE,
     CLASS_TYPE_VAR,
     FUNC_TYPE_VAR,
-    GENERIC_OPTION,
-    NULLABLE_OPTION,
+    OPTION,
     UNION_OPTION,
     UNION_ENUM,
     PRIMITIVE_ENUM,
@@ -247,11 +246,9 @@ using AotTermId   = _NumberedTermId<uint32_t, TermKind::AOT_TYPE>;
 using TypeTermId  = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::TYPE>;
 using UndefTermId = _SpecializedTermId<RefIdentifier<Term>, TermKind::UNDEFINED>;
 
-using GenericOptionId  = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::GENERIC_OPTION>;
-using NullableOptionId = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::NULLABLE_OPTION>;
-using UnionOptionId    = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::UNION_OPTION>;
-using UnionEnumId      = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::UNION_ENUM>;
-using PrimitiveEnumId  = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::PRIMITIVE_ENUM>;
+using OptionId        = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::OPTION>;
+using UnionEnumId     = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::UNION_ENUM>;
+using PrimitiveEnumId = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::PRIMITIVE_ENUM>;
 
 using ClassTvTermId = _NumberedTermId<uint8_t, TermKind::CLASS_TYPE_VAR>;
 using FuncTvTermId  = _NumberedTermId<uint8_t, TermKind::FUNC_TYPE_VAR>;

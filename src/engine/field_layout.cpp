@@ -53,8 +53,7 @@ struct FLManager : public FieldLayoutManager {
         switch (term.GetKind()) {
             case TermKind::TYPE:
             case TermKind::UNION_ENUM:
-            case TermKind::NULLABLE_OPTION:
-            case TermKind::UNION_OPTION: break;
+            case TermKind::OPTION:     break;
 
             default: return std::nullopt;
         }
@@ -75,6 +74,9 @@ struct FLManager : public FieldLayoutManager {
     std::optional<uint32_t> GetFlatSize(Term term) override
     {
         using TK = TermKind;
+        if (term.IsReference()) {
+            return sizeof(void*);
+        }
         switch (term.GetKind()) {
             case TK::VOID:
             case TK::UNIT: return 0;
@@ -102,9 +104,7 @@ struct FLManager : public FieldLayoutManager {
             case TK::C_POINTER:
             case TK::NULLABLE:
             case TK::FUNCTIONAL:
-            case TK::NON_NULLABLE:
-            case TK::CANGJIE_ARRAY:
-            case TK::NULLABLE_OPTION: return sizeof(void*);
+            case TK::NON_NULLABLE: return sizeof(void*);
 
             case TK::PRIMITIVE_ENUM: {
                 auto id   = PrimitiveEnumId(term.GetId());
@@ -115,12 +115,11 @@ struct FLManager : public FieldLayoutManager {
 
             case TK::TYPE:
             case TK::UNION_ENUM:
-            case TK::UNION_OPTION: return GetCbcFlatSize(term);
+            case TK::OPTION:     return GetCbcFlatSize(term);
 
             case TK::TUPLE:
             case TK::AOT_TYPE: return GetAotFlatSize(term);
 
-            case TK::GENERIC_OPTION:
             case TK::FUNC_TYPE_VAR:
             case TK::CLASS_TYPE_VAR: return std::nullopt;
 
@@ -147,7 +146,7 @@ struct FLManager : public FieldLayoutManager {
                 auto term = TermManager::Resolve(session, def.GetEnumType());
                 return GetFlatAlignment(term);
             }
-            case TermKind::UNION_OPTION:
+            case TermKind::OPTION:
             case TermKind::UNION_ENUM:
             case TermKind::TYPE: {
                 auto ident     = ExtractTypeDefIdentifier(term);
@@ -186,7 +185,7 @@ struct FLManager : public FieldLayoutManager {
             return;
         }
         switch (term.GetKind()) {
-            case TermKind::UNION_OPTION:
+            case TermKind::OPTION:
             case TermKind::AOT_TYPE:     {
                 auto typeInfo = typeInfoManager.AcquireTypeInfo(session, term);
                 if (!typeInfo.has_value()) {
@@ -276,14 +275,7 @@ private:
         });
 
         auto kind = term.GetKind();
-        auto def  = Symlevel::Reader::Read(session, [&]() {
-            switch (kind) {
-                case TermKind::TYPE:         return TypeTermId(term).GetIdentifier();
-                case TermKind::UNION_OPTION: return UnionOptionId(term).GetIdentifier();
-                case TermKind::UNION_ENUM:   return UnionEnumId(term).GetIdentifier();
-                default:                     FATAL("unreachable");
-            }
-        }());
+        auto def  = Symlevel::Reader::Read(session, ExtractTypeDefIdentifier(term));
 
         std::optional<FieldLayout> layout {};
 
@@ -291,13 +283,15 @@ private:
             layout = BuildLayoutAot(term, def);
         } else if (kind == TermKind::TYPE) {
             layout = BuildLayoutCbc(term, def);
-        } else if (kind == TermKind::UNION_OPTION) {
+        } else if (kind == TermKind::OPTION && !term.IsReference()) {
             ClassSubstitution substitute(session, term);
             SizeAlignmentAccumulator acc { sizeof(uint32_t), alignof(uint32_t) };
             auto someType = TermManager::Resolve(session, def.GetEnumType());
             someType = substitute.Substitute(someType);
             acc.AddField(GetFlatSize(someType), GetFlatAlignment(someType));
             layout = FieldLayout::Content { .desc = { acc.size, acc.alignment } };
+        } else if (kind == TermKind::OPTION && term.IsReference()) {
+            layout = FieldLayout::Content { .desc = { sizeof(void*), sizeof(void*) } };
         } else if (kind == TermKind::UNION_ENUM) {
             ClassSubstitution substitute(session, term);
             // for some reason CJNative packs their enums tightly
@@ -320,8 +314,6 @@ private:
             } else {
                 layout = FieldLayout::Content { .desc = { size, alignment } };
             }
-        } else if (kind == TermKind::NULLABLE_OPTION) {
-            layout = FieldLayout::Content { .desc = { sizeof(void*), sizeof(void*) } };
         }
 
         Log::fields.Log(Logging::Level::DEBUG, [&](Stream::Output& out_) {

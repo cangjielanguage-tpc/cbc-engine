@@ -75,7 +75,6 @@ enum Tag : uint8_t {
     TUPLE             = 0x12,
     BOX               = 0x13,
     FST               = 0x14,
-    GENERIC_OPTION    = 0x15,
     NULLABLE_OPTION   = 0x16,
     UNION_OPTION      = 0x17,
     UNION_ENUM        = 0x18,
@@ -367,10 +366,8 @@ void Term::GetName(Session& session, Stream::Output& out) const
         }
 
         case TK::UNION_ENUM:
-        case TK::NULLABLE_OPTION:
-        case TK::UNION_OPTION:
+        case TK::OPTION:
         case TK::PRIMITIVE_ENUM:
-        case TK::GENERIC_OPTION:
         case TK::TYPE: {
             auto ident = ExtractTypeDefIdentifier(*this);
             auto type  = Symlevel::TypeDefinition::Resolve(session, ident);
@@ -667,20 +664,15 @@ struct TermResolver {
         bool isReference = false;
         TermId id = TagTermId(TermKind::NIL);
         switch (tag) {
-            case GENERIC_OPTION:
-                isReference = true;
-                undefined = !optionLikeEnum;
-                id = GenericOptionId(identifier);
-                break;
             case NULLABLE_OPTION:
                 isReference = true;
                 undefined = !optionLikeEnum;
-                id = NullableOptionId(identifier);
+                id          = OptionId(identifier);
                 break;
             case UNION_OPTION:
                 isReference = false;
                 undefined = !optionLikeEnum;
-                id = UnionOptionId(identifier);
+                id          = OptionId(identifier);
                 break;
             case UNION_ENUM:
                 undefined = def->enumKind != Symlevel::EnumKind::UNION;
@@ -827,8 +819,7 @@ struct TermResolver {
             case UNION_ENUM:
             case PRIMITIVE_ENUM:
             case UNION_OPTION:
-            case NULLABLE_OPTION:
-            case GENERIC_OPTION: {
+            case NULLABLE_OPTION: {
                 auto nameOffs = Offset<String>(reader.ReadULEB());
                 auto name = Reader::Read(session, fileId, nameOffs);
                 auto arity = reader.ReadU8();
@@ -919,31 +910,7 @@ Term Substitution::Substitute(Term term)
         }
         flags.isLocal   = true;
         flags.isGeneric = isGeneric;
-        auto identifier = data->identifier;
-        if (identifier.GetKind() == TermKind::GENERIC_OPTION) {
-            // Generic option designates an option that wraps a type variable.
-            // After substituion, option can change its type to Nullable or Union option.
-            auto gIdentifier = GenericOptionId(identifier);
-            auto typeDefId = gIdentifier.GetIdentifier();
-            auto def = Symlevel::Reader::Read(session, typeDefId);
-            auto someType    = TermManager::Resolve(session, def.GetEnumType());
-
-            ClassSubstitution sub(session, newData->subterms, length);
-            someType = sub.Substitute(someType);
-
-            if (someType.GetKind() == TermKind::CLASS_TYPE_VAR) {
-                identifier = identifier; // no changes
-            } else if (someType.GetKind() == TermKind::FUNC_TYPE_VAR) {
-                ASSERTION(false, "ftvars are not expected in type definition");
-            } else if (someType.IsReference()) {
-                identifier = NullableOptionId(typeDefId);
-                flags.isReference = true;
-            } else {
-                identifier = UnionOptionId(typeDefId);
-                flags.isReference = false;
-            }
-        }
-        newData->InitAfterSubterms(identifier, length, flags);
+        newData->InitAfterSubterms(data->identifier, length, flags);
         return LocalTerm(newData);
     }
 }
@@ -975,10 +942,8 @@ Identifier<Symlevel::TypeDefinition> ExtractTypeDefIdentifier(Term term)
 {
     switch (term.GetKind()) {
         case TermKind::UNION_ENUM:      return UnionEnumId(term).GetIdentifier();
-        case TermKind::NULLABLE_OPTION: return NullableOptionId(term).GetIdentifier();
-        case TermKind::UNION_OPTION:    return UnionOptionId(term).GetIdentifier();
+        case TermKind::OPTION:          return OptionId(term).GetIdentifier();
         case TermKind::PRIMITIVE_ENUM:  return PrimitiveEnumId(term).GetIdentifier();
-        case TermKind::GENERIC_OPTION:  return GenericOptionId(term).GetIdentifier();
         case TermKind::TYPE:            return TypeTermId(term).GetIdentifier();
         default:                        FATAL("unexpected kind %d", term.GetKind());
     }

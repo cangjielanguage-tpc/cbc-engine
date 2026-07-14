@@ -446,27 +446,7 @@ struct IsaRewriter : public IsaParser {
 
     void Tag(IReg dst, IReg src, uint16_t typeId) override
     {
-        auto t = resolver.Query(Index<Type>(typeId));
-        if (!t.has_value()) {
-            return Fail("resolution failure");
-        }
-        auto type = *t;
-        if (type.term.GetKind() == Engine::TermKind::UNION_OPTION) {
-            emit.LoadRec(Ldk(Interpretation::BUILTIN_I32), dst, src, 0);
-        } else {
-            auto typeDefId = Engine::ExtractTypeDefIdentifier(type.term);
-            auto typeDef   = Symlevel::Reader::Read(session, typeDefId);
 
-            switch (typeDef->enumKind) {
-                case Symlevel::EnumKind::OPTION0: // enum { None, Some(T) }
-                    emit.SCC(Format::CC::RNE, Format::Width::W64, dst, src, IReg::IRZ);
-                    break;
-                case Symlevel::EnumKind::OPTION1: // enum { Some(T), None }
-                    emit.SCC(Format::CC::REQ, Format::Width::W64, dst, src, IReg::IRZ);
-                    break;
-                default: return Fail("unexpected enum kind");
-            }
-        }
     }
 
     std::optional<Type> NewObject(IReg dst, uint16_t typeId, New kind)

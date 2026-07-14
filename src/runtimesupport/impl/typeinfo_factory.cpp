@@ -613,7 +613,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             }
             builder.gctib = *gctib;
         }
-    } else if (term.GetKind() == Engine::TermKind::NULLABLE_OPTION) {
+    } else if (term.GetKind() == Engine::TermKind::OPTION && term.IsReference()) {
         auto underlying = Engine::TermManager::Resolve(session, type.GetEnumType());
         underlying      = substitute.Substitute(underlying);
 
@@ -636,7 +636,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         builder.gctib           = { .raw = (1ul << 63) | 1 };
         builder.align           = sizeof(void*);
         builder.instanceSize    = sizeof(void*);
-    } else if (term.GetKind() == Engine::TermKind::UNION_OPTION) {
+    } else if (term.GetKind() == Engine::TermKind::OPTION && !term.IsReference()) {
         auto fieldManager = Engine::FieldLayoutManager::New(session, manager);
         auto underlying   = Engine::TermManager::Resolve(session, type.GetEnumType());
         underlying        = substitute.Substitute(underlying);
@@ -849,8 +849,7 @@ std::optional<TypeInfo> CreateTypeInfo(
         using namespace Interpretation;
         auto termIdent = term.GetId();
         switch (termIdent.GetKind()) {
-            case Engine::TermKind::NULLABLE_OPTION:
-            case Engine::TermKind::UNION_OPTION:
+            case Engine::TermKind::OPTION:
             case Engine::TermKind::TYPE: return CreateTypeInfoDyn(session, manager, term);
 
             case Engine::TermKind::AOT_TYPE:
