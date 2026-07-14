@@ -112,6 +112,15 @@
     X(CallInterfGeneric, CallInterfGeneric)                                                                            \
     X(AssignGeneric, AssignGeneric)                                                                                    \
     X(InstanceOfGeneric, InstanceOfGeneric)                                                                            \
+    X(AtomicLoad, AtomicLoad)                                                                                          \
+    X(AtomicStore, AtomicStore)                                                                                        \
+    X(CAS, CAS)                                                                                                        \
+    X(Swap, AtomicSwap)                                                                                                \
+    X(AtomicAdd, AtomicFetchAdd)                                                                                            \
+    X(AtomicSub, AtomicFetchSub)                                                                                            \
+    X(AtomicAnd, AtomicFetchAnd)                                                                                            \
+    X(AtomicOr, AtomicFetchOr)                                                                                              \
+    X(AtomicXor, AtomicFetchXor)                                                                                            \
     X(_END, Unreachable)
 
 #define ISA_MEM_OPCODES(X)                                                                                             \

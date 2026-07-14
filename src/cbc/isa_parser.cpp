@@ -100,6 +100,12 @@ public:
 
     inline operator RegGroup() { return RegGroup::From(*this); }
 
+    inline operator Width()
+    {
+        ASSERT(MathUtils::IsNBits(value, 8));
+        return Width::From(*this);
+    }
+
 private:
     uint64_t value;
 };
@@ -727,6 +733,76 @@ struct IsaParserImpl {
         auto [dst, src, underlyingTiReg, optionTiReg, typeId] =
             ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
         parser.NewSomeGeneric(dst, src, underlyingTiReg, optionTiReg, typeId);
+    }
+
+    static void AtomicLoad(IsaParser& parser)
+    {
+        auto [dst, ldk, obj, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4Skip4().ReadU16().Get();
+        parser.AtomicLoad(dst, ldk, obj, field);
+    }
+
+    static void AtomicStore(IsaParser& parser)
+    {
+        auto [src, sak, obj, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4Skip4().ReadU16().Get();
+        parser.AtomicStore(src, sak, obj, field);
+    }
+
+    static void CAS(IsaParser& parser)
+    {
+        auto [width, dst, obj, src1, src2, field] = ByteReaderM(parser.reader).ReadU8().ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+        switch (uint8_t rawWidth = width) {
+            case 0x1: parser.CAS(dst, Width::W8, obj, src1, src2, field); break;
+            case 0x2: parser.CAS(dst, Width::W16, obj, src1, src2, field); break;
+            case 0x3: parser.CAS(dst, Width::W32, obj, src1, src2, field); break;
+            case 0x4: parser.CAS(dst, Width::W64, obj, src1, src2, field); break;
+            case 0x7: parser.CASRef(dst, obj, src1, src2, field); break;
+            default:
+                FATAL("Should not reach here");
+        }
+    }
+
+    static void AtomicSwap(IsaParser& parser)
+    {
+        auto [width, dst, obj, src, field] = ByteReaderM(parser.reader).ReadU8().ReadU4().ReadU4().ReadU4Skip4().ReadU16().Get();
+        switch (uint8_t rawWidth = width) {
+            case 0x1: parser.AtomicSwap(dst, Width::W8, obj, src, field); break;
+            case 0x2: parser.AtomicSwap(dst, Width::W16, obj, src, field); break;
+            case 0x3: parser.AtomicSwap(dst, Width::W32, obj, src, field); break;
+            case 0x4: parser.AtomicSwap(dst, Width::W64, obj, src, field); break;
+            case 0x7: parser.AtomicSwapRef(dst, obj, src, field); break;
+            default:
+                FATAL("Should not reach here");
+        }
+    }
+
+    static void AtomicFetchAdd(IsaParser& parser)
+    {
+        auto [width, dst, obj, src, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+        parser.AtomicFetchAdd(dst, width, obj, src, field);
+    }
+
+    static void AtomicFetchSub(IsaParser& parser)
+    {
+        auto [width, dst, obj, src, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+        parser.AtomicFetchSub(dst, width, obj, src, field);
+    }
+
+    static void AtomicFetchAnd(IsaParser& parser)
+    {
+        auto [width, dst, obj, src, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+        parser.AtomicFetchAnd(dst, width, obj, src, field);
+    }
+
+    static void AtomicFetchOr(IsaParser& parser)
+    {
+        auto [width, dst, obj, src, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+        parser.AtomicFetchOr(dst, width, obj, src, field);
+    }
+
+    static void AtomicFetchXor(IsaParser& parser)
+    {
+        auto [width, dst, obj, src, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+        parser.AtomicFetchXor(dst, width, obj, src, field);
     }
 
     static void MemHeadReg(IsaParser& parser)

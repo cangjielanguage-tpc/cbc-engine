@@ -125,6 +125,22 @@ protected:
         IReg dst, IReg src, IReg underlyingTypeInfo, IReg optionTypeInfo, uint16_t optionTypeInfoId
     ) = 0;
 
+    virtual void AtomicLoad(IReg dst, Format::LoadAccessKind ldk, IReg obj, uint16_t field) = 0;
+
+    virtual void AtomicStore(IReg src, Format::StoreAccessKind sak, IReg obj, uint16_t field) = 0;
+
+    virtual void CAS(IReg dst, Format::Width width, IReg obj, IReg src1, IReg src2, uint16_t field) = 0;
+    virtual void CASRef(IReg dst, IReg obj, IReg src1, IReg src2, uint16_t field) = 0;
+
+    virtual void AtomicSwap(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) = 0;
+    virtual void AtomicSwapRef(IReg dst, IReg obj, IReg src, uint16_t field) = 0;
+
+    virtual void AtomicFetchAdd(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) = 0;
+    virtual void AtomicFetchSub(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) = 0;
+    virtual void AtomicFetchAnd(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) = 0;
+    virtual void AtomicFetchOr(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) = 0;
+    virtual void AtomicFetchXor(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) = 0;
+
     class MemSpace {
     public:
         virtual ~MemSpace() = default;

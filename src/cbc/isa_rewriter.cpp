@@ -612,6 +612,61 @@ struct IsaRewriter : public IsaParser {
 
     void InstanceOfGeneric(IReg dst, IReg obj, IReg ti) override { emit.InstanceOfGeneric(dst, obj, ti); }
 
+    void AtomicLoad(IReg dst, Format::LoadAccessKind ldk, IReg obj, uint16_t field) override
+    {
+        FATAL("not implemented");
+    }
+
+    void AtomicStore(IReg src, Format::StoreAccessKind sak, IReg obj, uint16_t field) override
+    {
+        FATAL("not implemented");
+    }
+
+    void CAS(IReg dst, Format::Width width, IReg obj, IReg src1, IReg src2, uint16_t field) override
+    {
+        FATAL("not implemented");
+    }
+
+    void CASRef(IReg dst, IReg obj, IReg src1, IReg src2, uint16_t field) override
+    {
+        FATAL("not implemented");
+    }
+
+    void AtomicSwap(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) override
+    {
+        FATAL("not implemented");
+    }
+
+    void AtomicSwapRef(IReg dst, IReg obj, IReg src, uint16_t field) override
+    {
+        FATAL("not implemented");
+    }
+
+    void AtomicFetchAdd(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) override
+    {
+        FATAL("not implemented");
+    }
+
+    void AtomicFetchSub(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) override
+    {
+        FATAL("not implemented");
+    }
+
+    void AtomicFetchAnd(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) override
+    {
+        FATAL("not implemented");
+    }
+
+    void AtomicFetchOr(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) override
+    {
+        FATAL("not implemented");
+    }
+
+    void AtomicFetchXor(IReg dst, Format::Width width, IReg obj, IReg src, uint16_t field) override
+    {
+        FATAL("not implemented");
+    }
+
     std::optional<Type> NewObject(IReg dst, uint16_t typeId, New kind)
     {
         auto t = resolver.Query(Index<Type>(typeId));
