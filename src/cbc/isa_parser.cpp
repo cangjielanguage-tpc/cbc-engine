@@ -775,31 +775,31 @@ struct IsaParserImpl {
         }
     }
 
-    static void AtomicAdd(IsaParser& parser)
+    static void AtomicFetchAdd(IsaParser& parser)
     {
         auto [width, dst, obj, src, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
         parser.AtomicFetchAdd(dst, width, obj, src, field);
     }
 
-    static void AtomicSub(IsaParser& parser)
+    static void AtomicFetchSub(IsaParser& parser)
     {
         auto [width, dst, obj, src, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
         parser.AtomicFetchSub(dst, width, obj, src, field);
     }
 
-    static void AtomicAnd(IsaParser& parser)
+    static void AtomicFetchAnd(IsaParser& parser)
     {
         auto [width, dst, obj, src, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
         parser.AtomicFetchAnd(dst, width, obj, src, field);
     }
 
-    static void AtomicOr(IsaParser& parser)
+    static void AtomicFetchOr(IsaParser& parser)
     {
         auto [width, dst, obj, src, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
         parser.AtomicFetchOr(dst, width, obj, src, field);
     }
 
-    static void AtomicXor(IsaParser& parser)
+    static void AtomicFetchXor(IsaParser& parser)
     {
         auto [width, dst, obj, src, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
         parser.AtomicFetchXor(dst, width, obj, src, field);

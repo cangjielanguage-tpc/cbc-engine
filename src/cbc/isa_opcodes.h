@@ -116,11 +116,11 @@
     X(AtomicStore, AtomicStore)                                                                                        \
     X(CAS, CAS)                                                                                                        \
     X(Swap, AtomicSwap)                                                                                                \
-    X(AtomicAdd, AtomicAdd)                                                                                            \
-    X(AtomicSub, AtomicSub)                                                                                            \
-    X(AtomicAnd, AtomicAnd)                                                                                            \
-    X(AtomicOr, AtomicOr)                                                                                              \
-    X(AtomicXor, AtomicXor)                                                                                            \
+    X(AtomicAdd, AtomicFetchAdd)                                                                                            \
+    X(AtomicSub, AtomicFetchSub)                                                                                            \
+    X(AtomicAnd, AtomicFetchAnd)                                                                                            \
+    X(AtomicOr, AtomicFetchOr)                                                                                              \
+    X(AtomicXor, AtomicFetchXor)                                                                                            \
     X(_END, Unreachable)
 
 #define ISA_MEM_OPCODES(X)                                                                                             \
