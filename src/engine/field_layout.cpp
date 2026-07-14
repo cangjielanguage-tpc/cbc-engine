@@ -413,18 +413,13 @@ private:
         }
         FieldLayout::Content layout(std::move(*optlayout));
 
-        SizeAlignmentAccumulator acc { layout.desc.size, layout.desc.alignment };
+        SizeAlignmentAccumulator acc { this, layout.desc.size, layout.desc.alignment };
 
         for (auto fieldId : def.GetInstanceFields().Values(session)) {
-            auto def            = Symlevel::Reader::Read(session, fieldId);
-            auto fieldType      = TermManager::Resolve(session, def.FieldType());
-            fieldType           = substitute(fieldType);
-            auto fieldSize      = GetFlatSize(fieldType);
-            auto fieldAlignment = GetFlatAlignment(fieldType);
-
-            auto offset = acc.AddField(fieldSize, fieldAlignment);
-            layout.fields.emplace_back(FieldLayout::Entry {
-                .definition = fieldId, .fieldType = fieldType, .offset = offset });
+            auto def       = Symlevel::Reader::Read(session, fieldId);
+            auto fieldType = TermManager::Resolve(session, def.FieldType());
+            fieldType      = substitute(fieldType);
+            acc.AddField(layout.fields, fieldType, fieldId);
         }
 
         layout.desc.size      = acc.size;
