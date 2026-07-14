@@ -172,6 +172,7 @@ public:
     void InitClosure();
     void Spawn(RTSupport::TypeInfo typeInfo);
 
+    void NewObjGenericOnAcc(IReg ti);
     void NewObj(RTSupport::TypeInfo typeInfo);
     void NewArr(RTSupport::TypeInfo typeInfo);
     void LoadObj(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset);

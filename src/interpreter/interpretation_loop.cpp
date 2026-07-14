@@ -377,13 +377,26 @@ FUN64: {
         interpreter.template Unary<Width::W64>(args.xr.imm.FloatOperations(), args.xr.r.FR(), args.rr.y.FR());
     NEXT_COND(successful);
 }
+NEWOBJ_G: {
+    auto args = B2rr::Decode(reader);
+    LOG_INSTR;
+    auto tiReg = args.rr.x;
+    auto type  = TypeInfo(ectype->GetPrimitive(tiReg.IR()).u64);
+
+    // Puts result to `IR_ACC`.
+    auto func = Execution::AllocateObjectInstanceAcc();
+
+    reader0 = reader; // save current pc
+
+    return { func, type.Raw() };
+}
 NEWOBJ: {
     auto args = B9i64::Decode(reader);
     LOG_INSTR;
     auto type = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
 
     // Puts result to `IR1`.
-    auto func = RTSupport::Execution::AllocateObjectInstance();
+    auto func = Execution::AllocateObjectInstance();
 
     reader0 = reader; // save current pc
 
@@ -395,7 +408,7 @@ NEWBOX: {
     auto btype = builtinTypeInfos[args.xr.imm];
 
     // Puts result to `IR1`.
-    auto func = RTSupport::Execution::AllocateObjectInstanceAcc();
+    auto func = Execution::AllocateObjectInstanceAcc();
 
     reader0 = reader; // save current pc
 

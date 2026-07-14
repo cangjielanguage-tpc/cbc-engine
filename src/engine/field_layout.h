@@ -16,7 +16,7 @@ namespace Engine {
 class FieldLayout {
 public:
     struct Entry {
-        Identifier<Symlevel::FieldDefinition> definition;
+        std::optional<Identifier<Symlevel::FieldDefinition>> definition;
         Term fieldType;
         std::optional<uint32_t> offset;
     };

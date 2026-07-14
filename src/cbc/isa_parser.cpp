@@ -678,6 +678,27 @@ struct IsaParserImpl {
         parser.TagGeneric(dst, src, tiReg, typeId);
     }
 
+    static void PayloadGeneric(IsaParser& parser)
+    {
+        auto [dst, src, underlyingTiReg, optionTiReg, typeId] =
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+        parser.PayloadGeneric(dst, src, underlyingTiReg, optionTiReg, typeId);
+    }
+
+    static void NewNoneGeneric(IsaParser& parser)
+    {
+        auto [dst, underlyingTiReg, optionTiReg, _, typeId] =
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+        parser.NewNoneGeneric(dst, underlyingTiReg, optionTiReg, typeId);
+    }
+
+    static void NewSomeGeneric(IsaParser& parser)
+    {
+        auto [dst, src, underlyingTiReg, optionTiReg, typeId] =
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+        parser.NewSomeGeneric(dst, src, underlyingTiReg, optionTiReg, typeId);
+    }
+
     static void MemHeadReg(IsaParser& parser)
     {
         auto ms = parser.OpenMemSpace();

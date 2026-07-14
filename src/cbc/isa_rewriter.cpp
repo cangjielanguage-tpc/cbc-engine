@@ -458,7 +458,7 @@ struct IsaRewriter : public IsaParser {
         auto refPath = emit.NewLabel();
         auto end     = emit.NewLabel();
         emit.BranchIfRef(ti, refPath);
-        emit.LoadObj(LDK::LD_32, dst, src, RTSupport::MetaInfo::ObjectHeaderSize());
+        emit.LoadObj(LDK::LD_U8, dst, src, RTSupport::MetaInfo::ObjectHeaderSize());
         emit.Jmp(end);
         emit.Bind(refPath);
 
@@ -474,6 +474,99 @@ struct IsaRewriter : public IsaParser {
         }
 
         emit.Bind(end);
+    }
+
+    void PayloadGeneric(IReg dst, IReg src, IReg underlyingTypeInfo, IReg optionTypeInfo, uint16_t optionTypeInfoId)
+        override
+    {
+        auto t = resolver.Query(Index<Type>(optionTypeInfoId));
+        if (!t.has_value()) {
+            return Fail("resolution failure");
+        }
+
+        auto type      = *t;
+        auto typeDefId = Engine::ExtractTypeDefIdentifier(type.term);
+        auto typeDef   = Symlevel::Reader::Read(session, typeDefId);
+        auto refPath   = emit.NewLabel();
+        auto end       = emit.NewLabel();
+        emit.BranchIfRef(underlyingTypeInfo, refPath);
+        {
+            auto ms = emit.OpenMemSpace();
+            ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
+            ms.GenericField(1, optionTypeInfo);
+            ms.LoadGeneric(dst, src, underlyingTypeInfo);
+            BindStatePoint();
+        }
+        emit.Jmp(end);
+        emit.Bind(refPath);
+        {
+            auto ms = emit.OpenMemSpace();
+            ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
+            ms.LoadGeneric(dst, src, underlyingTypeInfo);
+            BindStatePoint();
+        }
+        emit.Bind(end);
+    }
+
+    void NewNoneGeneric(IReg dst, IReg underlyingTypeInfo, IReg optionTypeInfo, uint16_t optionTypeInfoId) override
+    {
+        auto t = resolver.Query(Index<Type>(optionTypeInfoId));
+        if (!t.has_value()) {
+            return Fail("resolution failure");
+        }
+        auto type      = *t;
+        auto typeDefId = Engine::ExtractTypeDefIdentifier(type.term);
+        auto typeDef   = Symlevel::Reader::Read(session, typeDefId);
+
+        auto end = emit.NewLabel();
+        emit.NewObjGenericOnAcc(optionTypeInfo);
+        BindStatePoint();
+        emit.BranchIfRef(underlyingTypeInfo, end);
+        if (typeDef->enumKind == Symlevel::EnumKind::OPTION1) {
+            auto ms = emit.OpenMemSpace();
+            ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
+            ms.StoreObjImm(STK::ST_8, IReg::IR_ACC, 1);
+        }
+        emit.Bind(end);
+        emit.Mov(dst, IReg::IR_ACC);
+    }
+
+    void NewSomeGeneric(IReg dst, IReg src, IReg underlyingTypeInfo, IReg optionTypeInfo, uint16_t optionTypeInfoId)
+        override
+    {
+        auto t = resolver.Query(Index<Type>(optionTypeInfoId));
+        if (!t.has_value()) {
+            return Fail("resolution failure");
+        }
+
+        auto type      = *t;
+        auto typeDefId = Engine::ExtractTypeDefIdentifier(type.term);
+        auto typeDef   = Symlevel::Reader::Read(session, typeDefId);
+        auto refPath   = emit.NewLabel();
+        auto end       = emit.NewLabel();
+        emit.NewObjGenericOnAcc(optionTypeInfo);
+        BindStatePoint();
+        emit.BranchIfRef(underlyingTypeInfo, refPath);
+        {
+            auto ms = emit.OpenMemSpace();
+            ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
+            ms.GenericField(1, optionTypeInfo);
+            ms.StoreGeneric(src, IReg::IR_ACC, underlyingTypeInfo);
+        }
+        if (typeDef->enumKind == Symlevel::EnumKind::OPTION0) {
+            auto ms = emit.OpenMemSpace();
+            ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
+            ms.StoreObjImm(STK::ST_8, IReg::IR_ACC, 1);
+        }
+        emit.Jmp(end);
+        emit.Bind(refPath);
+        {
+            auto ms = emit.OpenMemSpace();
+            ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
+            ms.StoreGeneric(src, IReg::IR_ACC, underlyingTypeInfo);
+        }
+        emit.Bind(end);
+        emit.Mov(dst, IReg::IR_ACC);
     }
 
     std::optional<Type> NewObject(IReg dst, uint16_t typeId, New kind)

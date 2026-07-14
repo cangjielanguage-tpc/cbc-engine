@@ -184,7 +184,27 @@ struct IsaDisasm : public IsaParser {
 
     void TagGeneric(IReg dst, IReg src, IReg ti, uint16_t typeId) override
     {
-        stream << "tag.g " << dst.ToStr() << ", " << src.ToStr() << endl;
+        stream << "tag.g " << dst.ToStr() << ", " << src.ToStr() << ", " << ti.ToStr() << ", " << typeId << endl;
+    }
+
+    void PayloadGeneric(IReg dst, IReg src, IReg underlyingTypeInfo, IReg optionTypeInfo, uint16_t optionTypeInfoId)
+        override
+    {
+        stream << "payload.g " << dst.ToStr() << ", " << src.ToStr() << ", " << underlyingTypeInfo.ToStr();
+        stream << "< " << optionTypeInfo.ToStr() << ", " << optionTypeInfoId << endl;
+    }
+
+    void NewNoneGeneric(IReg dst, IReg underlyingTypeInfo, IReg optionTypeInfo, uint16_t optionTypeInfoId) override
+    {
+        stream << "new.none.g " << dst.ToStr() << ", " << underlyingTypeInfo.ToStr() << ", " << optionTypeInfo.ToStr()
+               << ", " << optionTypeInfoId << endl;
+    }
+
+    void NewSomeGeneric(IReg dst, IReg src, IReg underlyingTypeInfo, IReg optionTypeInfo, uint16_t optionTypeInfoId)
+        override
+    {
+        stream << "new.some.g " << dst.ToStr() << ", " << src.ToStr() << ", " << underlyingTypeInfo.ToStr();
+        stream << ", " << optionTypeInfo.ToStr() << ", " << optionTypeInfoId << endl;
     }
 
     void NewObj(IReg dst, uint16_t type) override { stream << "newobj" << " " << dst.ToStr() << ", " << type << endl; }

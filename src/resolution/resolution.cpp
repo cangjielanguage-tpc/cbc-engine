@@ -249,7 +249,9 @@ struct ResolverProxy {
                     auto optoffset   = [&]() {
                         std::optional<uint32_t> offset {};
                         for (auto& field : layout->fields) {
-                            auto def  = Symlevel::Reader::Read(resolver.session, field.definition);
+                            if (!field.definition)
+                                continue;
+                            auto def  = Symlevel::Reader::Read(resolver.session, *field.definition);
                             auto name = Symlevel::Reader::Read(resolver.session, def.GetName());
                             if (field.fieldType == ref.fieldType && name.compare(ref.name) == 0) {
                                 offset = field.offset;

@@ -244,8 +244,19 @@ private:
     }
 
     struct SizeAlignmentAccumulator {
+        FLManager* manager;
         std::optional<uint32_t> size;
         uint8_t alignment;
+
+        void AddField(
+            std::vector<FieldLayout::Entry>& entries,
+            Term type,
+            std::optional<Identifier<Symlevel::FieldDefinition>> fdef
+        )
+        {
+            auto offset = AddField(manager->GetFlatSize(type), manager->GetFlatAlignment(type));
+            entries.emplace_back(FieldLayout::Entry { .definition = fdef, .fieldType = type, .offset = offset });
+        }
 
         std::optional<uint32_t> AddField(std::optional<uint32_t> fieldSize, uint8_t fieldAlignment)
         {
@@ -285,13 +296,26 @@ private:
             layout = BuildLayoutCbc(term, def);
         } else if (kind == TermKind::OPTION && !term.IsReference()) {
             ClassSubstitution substitute(session, term);
-            SizeAlignmentAccumulator acc { sizeof(uint32_t), alignof(uint32_t) };
+            SizeAlignmentAccumulator acc { this, 0, 1 };
+            FieldLayout::Content content;
+            acc.AddField(content.fields, Term::Predefined(TermKind::BOOLEAN), std::nullopt);
+
             auto someType = TermManager::Resolve(session, def.GetEnumType());
             someType = substitute.Substitute(someType);
-            acc.AddField(GetFlatSize(someType), GetFlatAlignment(someType));
-            layout = FieldLayout::Content { .desc = { acc.size, acc.alignment } };
+            acc.AddField(content.fields, someType, std::nullopt);
+
+            layout = std::move(content);
         } else if (kind == TermKind::OPTION && term.IsReference()) {
-            layout = FieldLayout::Content { .desc = { sizeof(void*), sizeof(void*) } };
+            ClassSubstitution substitute(session, term);
+            SizeAlignmentAccumulator acc { this, 0, 1 };
+            FieldLayout::Content content;
+            acc.AddField(content.fields, Term::Predefined(TermKind::UNIT), std::nullopt);
+
+            auto someType = TermManager::Resolve(session, def.GetEnumType());
+            someType      = substitute.Substitute(someType);
+            acc.AddField(content.fields, someType, std::nullopt);
+
+            layout = std::move(content);
         } else if (kind == TermKind::UNION_ENUM) {
             ClassSubstitution substitute(session, term);
             // for some reason CJNative packs their enums tightly

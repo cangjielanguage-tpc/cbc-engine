@@ -42,6 +42,7 @@
     X(FUN32, B3xrrr, "$0fop.32 $1fr $3fr")                                                                             \
     X(FUN64, B3xrrr, "$0fop.64 $1fr $3fr")                                                                             \
     X(NEWOBJ, B9i64, "newobj IR1, $0U64")                                                                              \
+    X(NEWOBJ_G, B2rr, "newobj.g $0ir")                                                                                 \
     X(NEWARR, B9i64, "newarr IR1, IR2, $0U64")                                                                         \
     X(INITCLOSURE, B1, "init.closure")                                                                                 \
     X(SPAWN, B9i64, "spawn $0U64")                                                                                     \
