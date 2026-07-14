@@ -1,7 +1,9 @@
 #include "runtimesupport/impl/entrypoint.h"
 
 #include <algorithm>
+#include <filesystem>
 #include <mutex>
+#include <system_error>
 
 #include "RTInterface.h"
 #include "asm_export.h"
@@ -34,6 +36,64 @@ static std::mutex g_InitializationGuard;
 static bool g_Initialized;
 static bool g_OptionsInitialized;
 static bool g_Patched;
+
+static void LogAppStorageDiscovery(std::string const& message)
+{
+    RTSupport::Log::rt.Log(Logging::Level::DEBUG, [&message](Stream::Output& out) { out << message << Stream::endl; });
+}
+
+static void DiscoverPatchCbcFromAppStorage()
+{
+    if (g_appStoragePath.empty() || !g_cbcPath.empty() || !g_patchCbc.empty()) {
+        return;
+    }
+
+    auto cbcDir = std::filesystem::path(g_appStoragePath) / "cbc";
+
+    std::error_code errCode;
+    if (!std::filesystem::is_directory(cbcDir, errCode)) {
+        if (errCode) {
+            LogAppStorageDiscovery("failed to access app storage cbc directory: " + cbcDir.string());
+        } else {
+            LogAppStorageDiscovery("app storage cbc directory does not exist: " + cbcDir.string());
+        }
+        return;
+    }
+
+    std::filesystem::directory_iterator it(cbcDir, std::filesystem::directory_options::skip_permission_denied, errCode);
+    if (errCode) {
+        LogAppStorageDiscovery("failed to scan app storage cbc directory: " + cbcDir.string());
+        return;
+    }
+
+    std::filesystem::path patchCbc;
+    std::filesystem::directory_iterator end;
+    while (it != end) {
+        auto const& entry = *it;
+        std::error_code fileEc;
+        if (entry.is_regular_file(fileEc) && entry.path().extension() == ".cbc") {
+            if (!patchCbc.empty()) {
+                LogAppStorageDiscovery("multiple .cbc files found in app storage cbc directory: " + cbcDir.string());
+                return;
+            }
+            patchCbc = entry.path();
+        }
+
+        it.increment(errCode);
+        if (errCode) {
+            LogAppStorageDiscovery("failed to scan app storage cbc directory: " + cbcDir.string());
+            return;
+        }
+    }
+
+    if (patchCbc.empty()) {
+        LogAppStorageDiscovery("no .cbc files found in app storage cbc directory: " + cbcDir.string());
+        return;
+    }
+
+    g_patchCbc = patchCbc.string();
+    LogAppStorageDiscovery("using app storage patch cbc: " + g_patchCbc);
+}
 
 static void InitEnvOpts()
 {
@@ -336,6 +396,7 @@ CBC_EXPORT int interpreter_bridge_init(
     // Order matters
     InitEnvOpts();
     Engine::g_table.ParseAndSet(size, options);
+    DiscoverPatchCbcFromAppStorage();
 
     g_CJNativeInterfaceInstance            = *rtInterf;
     interpInterf->version                  = INT_INTERPRETER_INTERFACE_VERSION;
