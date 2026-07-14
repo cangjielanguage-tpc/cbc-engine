@@ -100,6 +100,12 @@ public:
 
     inline operator RegGroup() { return RegGroup::From(*this); }
 
+    inline operator Width()
+    {
+        ASSERT(MathUtils::IsNBits(value, 8));
+        return Width::From(*this);
+    }
+
 private:
     uint64_t value;
 };
@@ -727,6 +733,85 @@ struct IsaParserImpl {
         auto [dst, src, underlyingTiReg, optionTiReg, typeId] =
             ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
         parser.NewSomeGeneric(dst, src, underlyingTiReg, optionTiReg, typeId);
+    }
+
+    static void AtomicLoad(IsaParser& parser)
+    {
+        auto [dst, ldk, obj, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4Skip4().ReadU16().Get();
+        parser.AtomicLoad(dst, ldk, obj, field);
+    }
+
+    static void AtomicStore(IsaParser& parser)
+    {
+        auto [src, sak, obj, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4Skip4().ReadU16().Get();
+        parser.AtomicStore(src, sak, obj, field);
+    }
+
+    // TODO deduplicates with AtomicSwap
+    static void CAS(IsaParser& parser)
+    {
+        auto [width, dst, obj, src1, src2, field] = ByteReaderM(parser.reader).ReadU8().ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+        uint8_t rawWidth = width;
+        // width in compiler's assembler starts with W0
+        ASSERT(rawWidth > 0);
+        if (constexpr auto maxWidth = static_cast<uint8_t>(Width::LAST); rawWidth <= maxWidth + 1) {
+            auto w = Width(Value(rawWidth - 1));
+            parser.CAS(dst, w, obj, src1, src2, field);
+            // TODO move 7 (ref) to Format::Width?
+        } else if (rawWidth == 7) {
+            parser.CASRef(dst, obj, src1, src2, field);
+        } else {
+            FATAL("Should not reach here: %d", rawWidth);
+        }
+    }
+
+    // TODO deduplicates with CAS
+    static void AtomicSwap(IsaParser& parser)
+    {
+        auto [width, dst, obj, src, field] = ByteReaderM(parser.reader).ReadU8().ReadU4().ReadU4().ReadU4Skip4().ReadU16().Get();
+        uint8_t rawWidth = width;
+        // width in compiler's assembler starts with W0
+
+        ASSERT(rawWidth > 0);
+        if (constexpr auto maxWidth = static_cast<uint8_t>(Width::LAST); rawWidth <= maxWidth + 1) {
+            auto w = Width(Value(rawWidth - 1));
+            parser.AtomicSwap(dst, w, obj, src, field);
+            // TODO move 7 (ref) to Format::Width?
+        } else if (rawWidth == 7) {
+            parser.AtomicSwapRef(dst, obj, src, field);
+        } else {
+            FATAL("Should not reach here");
+        }
+    }
+
+    static void AtomicAdd(IsaParser& parser)
+    {
+        auto [width, dst, obj, src, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+        parser.AtomicAdd(dst, width, obj, src, field);
+    }
+
+    static void AtomicSub(IsaParser& parser)
+    {
+        auto [width, dst, obj, src, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+        parser.AtomicSub(dst, width, obj, src, field);
+    }
+
+    static void AtomicAnd(IsaParser& parser)
+    {
+        auto [width, dst, obj, src, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+        parser.AtomicAnd(dst, width, obj, src, field);
+    }
+
+    static void AtomicOr(IsaParser& parser)
+    {
+        auto [width, dst, obj, src, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+        parser.AtomicOr(dst, width, obj, src, field);
+    }
+
+    static void AtomicXor(IsaParser& parser)
+    {
+        auto [width, dst, obj, src, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+        parser.AtomicXor(dst, width, obj, src, field);
     }
 
     static void MemHeadReg(IsaParser& parser)
