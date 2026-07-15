@@ -968,9 +968,11 @@ Term MethodSignatureSubstitution::SubstituteFuncTv(uint8_t typeVar) { return Ter
 Term MethodSignatureSubstitution::SubstituteClassTv(uint8_t typeVar)
 {
     auto substituted = sub.SubstituteClassTv(typeVar);
-    if (depth == 0 && !substituted.IsReference()) {
+    if (depth == 1 && !substituted.IsReference()) {
         // To prevent method resolution ambiguity, outermost type variables which
         // are substituted as records/primitives must be wrapped as boxes.
+        // depth == 0 -> method signature itself
+        // depth == 1 -> method signature arguments
         Term subterms[] = { substituted };
         substituted     = NewTermWithId(session, TagTermId(TermKind::BOX), true, subterms, 1);
     }
