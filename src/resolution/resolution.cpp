@@ -511,6 +511,15 @@ struct ResolverProxy {
                             return m;
                         }
                     }
+
+                    for (auto m : type.GetVirtualMethods().Values(resolver.session)) {
+                        auto def = Symlevel::Reader::Read(resolver.session, m);
+                        auto sig = TermManager::Resolve(resolver.session, def.Signature());
+                        if (sig == ref.signature) {
+                            return m;
+                        }
+                    }
+
                     log.Log(Logging::Level::ERROR, [&](Stream::Output& stream) {
                         stream << "Failed to resolve method " << ref.GetFullName(resolver.session) << Stream::endl;
                     });
