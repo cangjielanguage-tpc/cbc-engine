@@ -91,8 +91,9 @@ def detect_host_os():
 
 
 def prepare_cmake_options(args, project_dir):
-    build_type = f"-DCMAKE_BUILD_TYPE={args.build_type.capitalize()} "
-    build_testing = "ON" if args.run_tests else "OFF"
+    build_type     = f"-DCMAKE_BUILD_TYPE={args.build_type.capitalize()} "
+    build_testing  = "ON" if args.run_tests else "OFF"
+    build_int_syms = "ON" if args.enable_int_syms else "OFF"
 
     if args.target_os == "android":
         android_ndk_home = os.environ.get("ANDROID_NDK_HOME")
@@ -112,6 +113,7 @@ def prepare_cmake_options(args, project_dir):
             f"-DCMAKE_TOOLCHAIN_FILE={toolchain_path} "
             f"-DANDROID_PLATFORM={ANDROID_PLATFORM} "
             f"-DANDROID_ABI={ANDROID_ABI} "
+            f"-DINT_SYMS={build_int_syms} "
         )
 
     elif args.target_os in ["ios", "ios-sim"]:
@@ -126,6 +128,7 @@ def prepare_cmake_options(args, project_dir):
             f"{build_type}"
             f"-DBUILD_TESTING={build_testing} "
             f"-DCMAKE_TOOLCHAIN_FILE={toolchain_path} "
+            f"-DINT_SYMS={build_int_syms} "
         )
 
     toolchain_files_dir = f"{project_dir}/cmake/toolchains"
@@ -136,6 +139,7 @@ def prepare_cmake_options(args, project_dir):
         f"{build_type}"
         f"-DBUILD_TESTING={build_testing} "
         f"-DCMAKE_TOOLCHAIN_FILE={toolchain_path} "
+        f"-DINT_SYMS={build_int_syms} "
     )
 
 
@@ -277,6 +281,10 @@ def main():
                               type=int,
                               default=multiprocessing.cpu_count(),
                               help=f"Number of parallel jobs (default: {multiprocessing.cpu_count()})")
+    build_parser.add_argument("--int-syms",
+                              dest="enable_int_syms",
+                              action="store_true",
+                              help="Enable interpreter labels symbols(slight performance penalty)")
 
     helper_parser = subparsers.add_parser("build-helper-lib", help="build libcbcengine-helper.dylib")
     helper_parser.add_argument("--target-os",
