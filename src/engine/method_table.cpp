@@ -242,6 +242,7 @@ std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, Glob
     // to the subtable of current type.
     auto thisType      = type;
     auto oldEntryCount = newTable.EntryCount();
+    MethodSignatureSubstitution methodSigSub(session, type);
 
     std::vector<MethodTableEntry> entryBuffer;
     for (auto methodId : def.GetVirtualMethods().Values(session)) {
@@ -251,8 +252,11 @@ std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, Glob
         };
 
         auto method = Reader::Read(session, methodId);
+        auto methodSig = TermManager::Resolve(session, method.Signature());
+        methodSig = methodSigSub.Substitute(methodSig);
+
         MethodTable::Reference ref { .name      = Reader::Read(session, method.Name()),
-                                     .signature = TermManager::Resolve(session, method.Signature()) };
+                                     .signature = methodSig };
 
         // TODO: Do not override protected methods that are not visible from the current type.
         newTable.ResolveAll(session, ref, entryBuffer);
