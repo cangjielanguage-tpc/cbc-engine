@@ -506,12 +506,12 @@ Term TermManager::NewAotTerm(
     return Term(LocalTerm(data));
 }
 
-Term TermManager::NewTermWithId(Session& session, TermId id, bool isReference, std::vector<Term> const& subterms)
+static Term NewTermWithId(Session& session, TermId id, bool isReference, Term const* subterms, size_t termCount)
 {
     auto& heap     = session.Allocator();
-    auto data      = AllocateTerm(heap, subterms.size());
+    auto data      = AllocateTerm(heap, termCount);
     bool isGeneric = false;
-    auto arity     = subterms.size();
+    auto arity     = termCount;
     for (int i = 0; i < arity; i++) {
         data->subterms[i] = subterms[i];
         isGeneric         = isGeneric || subterms[i].IsGeneric();
@@ -522,6 +522,11 @@ Term TermManager::NewTermWithId(Session& session, TermId id, bool isReference, s
     flags.isGeneric   = isGeneric;
     data->InitAfterSubterms(id, arity, flags);
     return Term(LocalTerm(data));
+}
+
+Term TermManager::NewTermWithId(Session& session, TermId id, bool isReference, std::vector<Term> const& subterms)
+{
+    return ::Engine::NewTermWithId(session, id, isReference, subterms.data(), subterms.size());
 }
 
 uint64_t TermManager::Hasher::operator()(TermData* const& data) const { return data->hash; }
@@ -692,7 +697,7 @@ struct TermResolver {
         TermFlags flags   = F_LOCAL;
         if (tag == OPTION) {
             auto underlying = TermManager::Resolve(session, def.GetEnumType());
-            ArraySubstitution sub(session, data->subterms, expectedLength);
+            ClassSubstitution sub(session, data->subterms, expectedLength);
             underlying  = sub.Substitute(underlying);
             isReference = underlying.IsReference();
         }
@@ -903,16 +908,20 @@ Term Substitution::Substitute(Term term)
         auto newData   = AllocateTerm(session.Allocator(), length);
         auto flags     = data->flags;
         auto isGeneric = false;
+
+        depth++;
         for (int i = 0; i < length; i++) {
             newData->subterms[i] = Substitute(data->subterms[i]);
             isGeneric            = isGeneric || newData->subterms[i].IsGeneric();
         }
+        depth--;
+
         if (term.GetKind() == TermKind::OPTION) {
             auto id = ExtractTypeDefIdentifier(term);
             auto def = Symlevel::Reader::Read(session, id);
             auto underlying = TermManager::Resolve(session, def.GetEnumType());
 
-            ArraySubstitution sub(session, newData->subterms, length);
+            ClassSubstitution sub(session, newData->subterms, length);
             underlying = sub.Substitute(underlying);
             flags.isReference = underlying.IsReference();
         }
@@ -927,32 +936,45 @@ Substitution::Substitution(Session& session) : session(session) {}
 
 ClassSubstitution::ClassSubstitution(Session& session, Term term) : ClassSubstitution(session, term.data->subterms, term.data->length) {}
 
-ClassSubstitution::ClassSubstitution(Session& session, Term* terms, uint32_t termCount) :Substitution(session), terms(terms), termCount(termCount) {}
-
-Term ClassSubstitution::SubstituteClassTv(uint8_t typeVar)
-{
-    ASSERT(typeVar < termCount);
-    return terms[typeVar];
-}
-
-Term ClassSubstitution::SubstituteFuncTv(uint8_t typeVar) { return Term::FuncTypeVariable(typeVar); }
-
-ArraySubstitution::ArraySubstitution(Session& session, std::vector<Term> const& terms)
-    : ArraySubstitution(session, terms.data(), terms.size())
+ClassSubstitution::ClassSubstitution(Session& session, std::vector<Term> const& terms)
+    : ClassSubstitution(session, terms.data(), terms.size())
 {}
 
-ArraySubstitution::ArraySubstitution(Session& session, Term const* terms, size_t size)
+ClassSubstitution::ClassSubstitution(Session& session, Term const* terms, size_t size)
     : Substitution(session),
       terms(terms),
       size(size)
 {}
 
-Term ArraySubstitution::SubstituteFuncTv(uint8_t typeVar) { return Term::FuncTypeVariable(typeVar); }
+Term ClassSubstitution::SubstituteFuncTv(uint8_t typeVar) { return Term::FuncTypeVariable(typeVar); }
 
-Term ArraySubstitution::SubstituteClassTv(uint8_t typeVar)
+Term ClassSubstitution::SubstituteClassTv(uint8_t typeVar)
 {
     ASSERT(typeVar < size);
     return terms[typeVar];
+}
+
+MethodSignatureSubstitution::MethodSignatureSubstitution(Session& session, Term term)
+    : MethodSignatureSubstitution(session, term.data->subterms, term.data->length)
+{}
+
+MethodSignatureSubstitution::MethodSignatureSubstitution(Session& session, Term const* terms, size_t size)
+    : Substitution(session),
+      sub(session, terms, size)
+{}
+
+Term MethodSignatureSubstitution::SubstituteFuncTv(uint8_t typeVar) { return Term::FuncTypeVariable(typeVar); }
+
+Term MethodSignatureSubstitution::SubstituteClassTv(uint8_t typeVar)
+{
+    auto substituted = sub.SubstituteClassTv(typeVar);
+    if (depth == 0 && !substituted.IsReference()) {
+        // To prevent method resolution ambiguity, outermost type variables which
+        // are substituted as records/primitives must be wrapped as boxes.
+        Term subterms[] = { substituted };
+        substituted     = NewTermWithId(session, TagTermId(TermKind::BOX), true, subterms, 1);
+    }
+    return substituted;
 }
 
 Identifier<Symlevel::TypeDefinition> ExtractTypeDefIdentifier(Term term)

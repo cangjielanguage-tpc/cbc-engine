@@ -79,7 +79,7 @@ static bool Compare(Session& session, MethodTable::Reference const& reference, M
         return false;
     }
 
-    ClassSubstitution sub(session, entry.genericContext);
+    MethodSignatureSubstitution sub(session, entry.genericContext);
     auto signature = TermManager::Resolve(session, method.Signature());
     signature = sub.Substitute(signature);
     return signature == reference.signature;

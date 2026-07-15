@@ -267,44 +267,41 @@ public:
 
     inline Term operator()(Term term) { return Substitute(term); }
 
-protected:
     virtual Term SubstituteClassTv(uint8_t typeVar) = 0;
     virtual Term SubstituteFuncTv(uint8_t typeVar)  = 0;
+
     Session& session;
+    int depth = 0;
 };
 
-/// Routine that substitutes class type variables with corresponding subterms of `term`.
+/// Routine that substitutes class type variables with corresponding subterms provided as array.
 /// Function type vars are mapped to themselves.
-/// FIXME: Merge with ArraySubstitution
 class ClassSubstitution : public Substitution {
 public:
     ClassSubstitution(Session& session, Term term);
-    ClassSubstitution(Session& session, Term* terms, uint32_t termCount);
+    ClassSubstitution(Session& session, std::vector<Term> const& terms);
+    ClassSubstitution(Session& session, Term const* terms, size_t size);
 
-protected:
-    Term SubstituteClassTv(uint8_t typeVar) override;
-    Term SubstituteFuncTv(uint8_t typeVar) override;
-
-private:
-    Term* terms;
-    uint32_t termCount;
-};
-
-/// Routine that substitutes class type variables with corresponding subterms provided in vector.
-/// Function type vars are mapped to themselves.
-/// FIXME: Merge with ClassSubstitution
-class ArraySubstitution : public Substitution {
-public:
-    ArraySubstitution(Session& session, std::vector<Term> const& terms);
-    ArraySubstitution(Session& session, Term const* terms, size_t size);
-
-protected:
     Term SubstituteClassTv(uint8_t typeVar) override;
     Term SubstituteFuncTv(uint8_t typeVar) override;
 
 private:
     Term const* terms;
     size_t size;
+};
+
+/// Routine that substitutes type variables in the
+/// TODO: handle function type vars
+class MethodSignatureSubstitution : public Substitution {
+public:
+    MethodSignatureSubstitution(Session& session, Term term);
+    MethodSignatureSubstitution(Session& session, Term const* terms, size_t size);
+
+    Term SubstituteClassTv(uint8_t typeVar) override;
+    Term SubstituteFuncTv(uint8_t typeVar) override;
+
+private:
+    ClassSubstitution sub;
 };
 
 /// Term manager provides utilities for caching (and interning) of global terms,
