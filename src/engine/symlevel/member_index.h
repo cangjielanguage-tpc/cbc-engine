@@ -51,7 +51,6 @@ public:
 
         std::optional<Engine::Identifier<T>> operator()()
         {
-            auto res = gen();
             for (auto res = gen(); res; res = gen()) {
                 auto offs = Offset<T>(*res);
                 auto name = Reader::ReadName(*session, gen.index->fileId, offs);

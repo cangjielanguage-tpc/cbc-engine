@@ -77,7 +77,7 @@ static uint32_t ReadAt(IO::RandomAccessFile* raf, uint32_t offs) { return IO::St
 std::optional<uint32_t> MemberIndex::Generator::operator()()
 {
     if (cursor < endIdx) {
-        uint32_t offs = index->bucketTableStart + cursor * sizeof(uint32_t);
+        uint32_t offs = index->bucketsStart + cursor * sizeof(uint32_t);
         cursor++;
         return ReadAt(raf, offs);
     }
