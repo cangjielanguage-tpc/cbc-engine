@@ -297,7 +297,7 @@ std::optional<std::shared_ptr<MethodTable>> MethodTableManager::GetMethodTable(S
         result = std::nullopt;
     } else {
         auto gterm = TermManager::Of(session).Globalize(term);
-        result = GetMethodTable(session, gterm);
+        result     = GetMethodTableCached(session, gterm);
     }
 
     Log::mt.Log(Logging::Level::DEBUG, [&](Output& stream) {
@@ -323,8 +323,7 @@ struct CachingMethodTableManager : public MethodTableManager {
     std::unordered_map<GlobalTerm, std::shared_ptr<MethodTable>, Term::Hasher> tables;
 
     /// Returns an method table for the given type definition.
-    std::optional<std::shared_ptr<MethodTable>> GetMethodTable(Session& session, GlobalTerm type)
-        override
+    std::optional<std::shared_ptr<MethodTable>> GetMethodTableCached(Session& session, GlobalTerm type) override
     {
         auto& tables = this->tables;
 
@@ -352,11 +351,10 @@ struct LockedMethodTableManager : public MethodTableManager {
     CachingMethodTableManager delegate;
     std::mutex lock;
 
-    std::optional<std::shared_ptr<MethodTable>> GetMethodTable(Session& session, GlobalTerm type)
-        override
+    std::optional<std::shared_ptr<MethodTable>> GetMethodTableCached(Session& session, GlobalTerm type) override
     {
         std::lock_guard guard(lock);
-        return delegate.GetMethodTable(session, type);
+        return delegate.GetMethodTableCached(session, type);
     }
 };
 
