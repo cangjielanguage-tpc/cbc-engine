@@ -698,8 +698,12 @@ struct TermResolver {
         if (tag == OPTION) {
             auto underlying = TermManager::Resolve(session, def.GetEnumType());
             ClassSubstitution sub(session, data->subterms, expectedLength);
-            underlying  = sub.Substitute(underlying);
-            isReference = underlying.IsReference();
+            underlying = sub.Substitute(underlying);
+            auto kind  = underlying.GetKind();
+
+            // Option of nullable-option is not nullable-option.
+            bool canBeNullableOption = (kind == TermKind::TYPE || kind == TermKind::AOT_TYPE);
+            isReference = canBeNullableOption && underlying.IsReference();
         }
         flags.isReference = isReference;
         flags.isGeneric   = isGeneric;
@@ -923,7 +927,11 @@ Term Substitution::Substitute(Term term)
 
             ClassSubstitution sub(session, newData->subterms, length);
             underlying = sub.Substitute(underlying);
-            flags.isReference = underlying.IsReference();
+            auto kind  = underlying.GetKind();
+
+            // Option of nullable-option is not nullable-option.
+            bool canBeNullableOption = (kind == TermKind::TYPE || kind == TermKind::AOT_TYPE);
+            flags.isReference = canBeNullableOption && underlying.IsReference();
         }
         flags.isLocal   = true;
         flags.isGeneric = isGeneric;
