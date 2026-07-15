@@ -10,6 +10,10 @@ TEST(Stream, string)
     buf.PrintFmt("%s %d", "abc", 12);
     buf.PrintFmt(" %s %d", "cba", 23);
     ASSERT_EQ("abc 12 cba 23", buf.ToString());
+    ASSERT_EQ(buf.ToString().size(), buf.Size());
+
+    buf.Clear();
+    ASSERT_EQ(0, buf.Size());
 }
 
 TEST(Stream, descripted)

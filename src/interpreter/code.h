@@ -21,10 +21,29 @@ struct Code {
     // TODO: add offsets converter
 };
 
+struct Resource {
+    uint32_t idx;
+
+    bool IsReg() { return idx < Cbc::IReg::COUNT; }
+
+    IReg AsReg()
+    {
+        ASSERT(IsReg());
+        return IReg(static_cast<IReg::Value>(idx));
+    }
+
+    uint32_t AsSlotNum()
+    {
+        ASSERT(!IsReg());
+        return idx;
+    }
+};
+
 struct PositionalInfo {
     uint32_t rewrittenPos;
     uint16_t regMask;
     std::vector<uint32_t> untypedRefSlotsInfo;
+    std::vector<std::pair<Resource, Resource>> mutPairs;
 };
 
 struct GcInfo {

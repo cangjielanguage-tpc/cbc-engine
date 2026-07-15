@@ -5,6 +5,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string>
+#include <string_view>
 
 namespace Stream {
 
@@ -60,6 +61,11 @@ public:
     void Print(const long long* p);
     void Print(const unsigned long long* p);
     void Print(const void* p);
+
+    template <typename T1, typename T2> void Print(const std::pair<T1, T2> pair)
+    {
+        *this << "(" << pair.first << ", " << pair.second << ")";
+    }
 };
 
 class FileOutput : public Output {
@@ -78,6 +84,7 @@ public:
     StringBuffer();
 
     void VPrintFmt(const char* fmt, va_list argp) override;
+    size_t Size() const;
     std::string ToString();
     char* ToCString();
     void Clear();
@@ -119,7 +126,7 @@ private:
 };
 
 extern FileOutput cout;
-extern FileOutput cerr;
+extern Output& cerr;
 
 namespace Disasm {
 extern Descripted isa;
