@@ -11,6 +11,7 @@
 #include "symlevel/reader.h"
 #include "utils/heap.h"
 #include <memory>
+#include <optional>
 
 namespace Engine {
 
@@ -132,7 +133,7 @@ std::optional<CbcFile*> Engine::Impl::FindCbcFile(std::string_view filePath)
 std::optional<Identifier<Symlevel::TypeDefinition>> Engine::FindType(Session& session, std::string_view typeName)
 {
     for (auto& file : impl->files) {
-        auto res = file.GetTypeIndex().FindType(session, typeName);
+        auto res = file.GetTypeIndex().Find(session, typeName);
         if (res.has_value()) {
             return res;
         }
@@ -142,6 +143,32 @@ std::optional<Identifier<Symlevel::TypeDefinition>> Engine::FindType(Session& se
 }
 
 std::vector<Symlevel::CbcFile> const& Engine::Files() const { return impl->files; }
+
+std::optional<Identifier<MethodDefinition>> Engine::FindMethod(
+    Session& session, std::string_view filePath, std::string_view typeName, std::string_view methodName
+)
+{
+    auto file = impl->FindCbcFile(filePath);
+    if (!file.has_value()) {
+        return std::nullopt;
+    }
+    auto f        = file.value();
+    auto declType = f->GetTypeIndex().Find(session, typeName);
+    if (declType.has_value()) {
+        auto type               = Symlevel::TypeDefinition::Resolve(session, declType.value());
+        const auto& methodIndex = type.GetMethods();
+
+        std::optional<Identifier<MethodDefinition>> result = std::nullopt;
+        int mcount                                         = 0;
+        for (auto m : methodIndex.FindAll(session, methodName)) {
+            mcount++;
+            result = m;
+        }
+        ASSERTION(mcount == 1, "unexpected method count");
+        return result;
+    }
+    return std::nullopt;
+}
 
 std::optional<Identifier<MethodDefinition>> Engine::FindMain(Session& session, std::string_view filePath)
 {
@@ -154,38 +181,8 @@ std::optional<Identifier<MethodDefinition>> Engine::FindMain(Session& session, s
     if (!mainTypeName.has_value()) {
         return std::nullopt;
     }
-    auto mainName = Symlevel::Reader::Read(session, mainTypeName.value());
-    auto declType = f->GetTypeIndex().FindType(session, mainName);
-    if (declType.has_value()) {
-        auto type               = Symlevel::TypeDefinition::Resolve(session, declType.value());
-        const auto& methodIndex = type.GetMethods();
-        auto methods            = methodIndex.FindMethods(session, std::string_view("main"));
-
-        // TODO: throw?
-        ASSERTION(methods.size() == 1, "unexpected \"main\" method count");
-        return methods[0];
-    }
-    return std::nullopt;
-}
-
-std::optional<Identifier<MethodDefinition>> Engine::FindMethod(
-    Session& session, std::string_view filePath, std::string_view typeName, std::string_view methodName
-)
-{
-    auto file = impl->FindCbcFile(filePath);
-    if (!file.has_value()) {
-        return std::nullopt;
-    }
-    auto f        = file.value();
-    auto declType = f->GetTypeIndex().FindType(session, typeName);
-    if (declType.has_value()) {
-        auto type               = Symlevel::TypeDefinition::Resolve(session, declType.value());
-        const auto& methodIndex = type.GetMethods();
-        auto methods            = methodIndex.FindMethods(session, methodName);
-        ASSERTION(methods.size() == 1, "unexpected \"main\" method count");
-        return methods[0];
-    }
-    return std::nullopt;
+    auto type = Symlevel::Reader::Read(session, *mainTypeName);
+    return FindMethod(session, filePath, type, "main");
 }
 
 } // namespace Engine

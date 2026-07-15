@@ -1,4 +1,5 @@
 #include "statics_manager.h"
+#include "engine/symlevel/reader.h"
 #include "field_layout.h"
 #include "symlevel/definitions.h"
 #include "symlevel/flags.h"
@@ -71,18 +72,19 @@ uintptr_t StaticFieldsBundle::GetLocation(Session& session, TypeIdent typeIdent,
     uint32_t untypedSlotIdx  = 0;
     uint32_t typedSlotOffset = 0;
 
-    typeDef.GetFields().Find(session, [&](Symlevel::FieldDefinition& field) {
+    for (auto fieldId : typeDef.GetFields().Entries(session)) {
+        auto field = Symlevel::Reader::Read(session, fieldId);
         if (field.Flags().IsNot(Symlevel::FieldFlag::STATIC)) {
-            return false;
+            continue;
         }
 
         auto kind = ComputeSlotKind(session, *flm, field);
         if (targetKind != kind) {
-            return false;
+            continue;
         }
 
         if (fieldIdent == field.Identifier()) {
-            return true;
+            break;
         }
 
         // advance state for next iteration
@@ -99,9 +101,7 @@ uintptr_t StaticFieldsBundle::GetLocation(Session& session, TypeIdent typeIdent,
                 break;
             }
         }
-
-        return false;
-    });
+    };
 
     switch (targetKind) {
         case REFERENCE:
@@ -146,9 +146,11 @@ StaticFieldsBundle StaticsManager::CreateBundle(Session& session, TypeIdent type
     uint32_t recordSlotsSize = 0;
     std::vector<StaticTypedSlotInfo> typedSlotsInfo;
 
-    typeDef.GetFields().Find(session, [&](Symlevel::FieldDefinition& field) {
+    for (auto fieldId : typeDef.GetFields().Entries(session)) {
+        auto field = Symlevel::Reader::Read(session, fieldId);
+
         if (field.Flags().IsNot(Symlevel::FieldFlag::STATIC)) {
-            return false;
+            continue;
         }
 
         auto kind = ComputeSlotKind(session, *flm, field);
@@ -171,9 +173,7 @@ StaticFieldsBundle StaticsManager::CreateBundle(Session& session, TypeIdent type
                 break;
             }
         }
-
-        return false;
-    });
+    };
 
     return StaticFieldsBundle(refFieldsNum, primFieldsNum, recordFieldsNum, recordSlotsSize, std::move(typedSlotsInfo));
 }

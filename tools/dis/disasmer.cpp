@@ -2,6 +2,7 @@
 #include "engine/identifiers.h"
 #include "engine/symlevel/io/filesystem.h"
 #include "engine/symlevel/io/stream_file_reader.h"
+#include "engine/symlevel/reader.h"
 #include "engine/symlevel/references.h"
 #include "engine/symlevel/region_data.h"
 #include <cstdint>
@@ -94,7 +95,12 @@ void Disasmer::DisasmOf(CbcFile const& file)
     Version(file.GetVersionMetadata());
 
     auto ti = file.GetTypeIndex();
-    Region("types", [&]() { ti.ForEach(*session, [&](TypeDefinition& def) { Type(def); }); });
+    Region("types", [&]() {
+        for (auto type : ti.Entries(*session)) {
+            auto def = Symlevel::Reader::Read(*session, type);
+            Type(def);
+        }
+    });
     Region("region data", [&]() { RData(file.GetRegionData(), 0); });
 }
 

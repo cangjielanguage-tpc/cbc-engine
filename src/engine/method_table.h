@@ -180,9 +180,7 @@ public:
     virtual ~MethodTableManager() = default;
 
     /// Returns an method table for the given type.
-    virtual std::optional<std::shared_ptr<MethodTable>> GetMethodTable(
-        Session& session, GlobalTerm term
-    ) = 0;
+    virtual std::optional<std::shared_ptr<MethodTable>> GetMethodTableCached(Session& session, GlobalTerm term) = 0;
 
     /// Returns an method table for the given type.
     std::optional<std::shared_ptr<MethodTable>> GetMethodTable(Session& session, Term term);

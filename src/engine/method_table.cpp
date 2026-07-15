@@ -79,7 +79,9 @@ static bool Compare(Session& session, MethodTable::Reference const& reference, M
         return false;
     }
 
+    MethodSignatureSubstitution sub(session, entry.genericContext);
     auto signature = TermManager::Resolve(session, method.Signature());
+    signature = sub.Substitute(signature);
     return signature == reference.signature;
 }
 
@@ -240,6 +242,7 @@ std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, Glob
     // to the subtable of current type.
     auto thisType      = type;
     auto oldEntryCount = newTable.EntryCount();
+    MethodSignatureSubstitution methodSigSub(session, type);
 
     std::vector<MethodTableEntry> entryBuffer;
     for (auto methodId : def.GetVirtualMethods().Values(session)) {
@@ -249,8 +252,11 @@ std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, Glob
         };
 
         auto method = Reader::Read(session, methodId);
+        auto methodSig = TermManager::Resolve(session, method.Signature());
+        methodSig = methodSigSub.Substitute(methodSig);
+
         MethodTable::Reference ref { .name      = Reader::Read(session, method.Name()),
-                                     .signature = TermManager::Resolve(session, method.Signature()) };
+                                     .signature = methodSig };
 
         // TODO: Do not override protected methods that are not visible from the current type.
         newTable.ResolveAll(session, ref, entryBuffer);
@@ -295,7 +301,7 @@ std::optional<std::shared_ptr<MethodTable>> MethodTableManager::GetMethodTable(S
         result = std::nullopt;
     } else {
         auto gterm = TermManager::Of(session).Globalize(term);
-        result = GetMethodTable(session, gterm);
+        result     = GetMethodTableCached(session, gterm);
     }
 
     Log::mt.Log(Logging::Level::DEBUG, [&](Output& stream) {
@@ -321,8 +327,7 @@ struct CachingMethodTableManager : public MethodTableManager {
     std::unordered_map<GlobalTerm, std::shared_ptr<MethodTable>, Term::Hasher> tables;
 
     /// Returns an method table for the given type definition.
-    std::optional<std::shared_ptr<MethodTable>> GetMethodTable(Session& session, GlobalTerm type)
-        override
+    std::optional<std::shared_ptr<MethodTable>> GetMethodTableCached(Session& session, GlobalTerm type) override
     {
         auto& tables = this->tables;
 
@@ -350,11 +355,10 @@ struct LockedMethodTableManager : public MethodTableManager {
     CachingMethodTableManager delegate;
     std::mutex lock;
 
-    std::optional<std::shared_ptr<MethodTable>> GetMethodTable(Session& session, GlobalTerm type)
-        override
+    std::optional<std::shared_ptr<MethodTable>> GetMethodTableCached(Session& session, GlobalTerm type) override
     {
         std::lock_guard guard(lock);
-        return delegate.GetMethodTable(session, type);
+        return delegate.GetMethodTableCached(session, type);
     }
 };
 

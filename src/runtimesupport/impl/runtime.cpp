@@ -296,7 +296,7 @@ TypeInfo Execution::LoadTypeInfo(Engine::GlobalTerm term, Interpretation::Ectype
         terms.push_back(tiManager.AcquireTerm(session, TypeInfo(ti)));
     }
 
-    Engine::ArraySubstitution sub(session, terms);
+    Engine::ClassSubstitution sub(session, terms);
     auto type = sub.Substitute(term);
 
     // resolution error should be handled in rewriter.

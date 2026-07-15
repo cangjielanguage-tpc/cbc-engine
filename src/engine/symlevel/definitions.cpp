@@ -28,10 +28,10 @@ TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId
     auto parsedFlags = reader.ReadU16();
     auto superType   = Engine::RefIdentifier(RefId<Term>(regionId, reader.ReadULEB()), fileId);
 
-    auto methodIndex = MethodIndex::Read(reader, fileId);
+    auto methodIndex = MethodIndex(reader, fileId);
     auto dynMethods  = OffsetSequence<MethodDefinition>::Parse(reader, fileId);
 
-    auto fieldIndex     = FieldIndex::Read(reader, fileId);
+    auto fieldIndex     = FieldIndex(reader, fileId);
     auto instanceFields = OffsetSequence<FieldDefinition>::Parse(reader, fileId);
 
     auto test = [parsedFlags](uint32_t bits) { return (parsedFlags & bits) != 0; };

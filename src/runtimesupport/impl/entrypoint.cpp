@@ -98,7 +98,8 @@ static void PerformPatching()
     for (auto& file : engine.Files()) {
         // TODO: list patches in CBC file header
         auto ti = file.GetTypeIndex();
-        ti.ForEach(session, [&](Symlevel::TypeDefinition& def) {
+        for (auto type : ti.Entries(session)) {
+            auto def = Symlevel::Reader::Read(session, type);
             if (!def.GetFlags().Is(Symlevel::TypeFlag::PATCH)) {
                 return;
             }
@@ -131,7 +132,8 @@ static void PerformPatching()
             // Corresponding extension def (TODO: check it)
             auto edef = ti->vExtensionDataStart[1];
 
-            def.GetMethods().ForEach(session, [&](Symlevel::MethodDefinition& mdef) {
+            for (auto mdefId : def.GetMethods().Entries(session)) {
+                auto mdef = Symlevel::Reader::Read(session, mdefId);
 
                 auto idx = -1;
                 if (mdef.GetFlags().Is(Symlevel::MethodFlag::PKG_INIT)) {
@@ -153,7 +155,7 @@ static void PerformPatching()
 
                     edef->funcTable[idx] = ptr;
                 }
-            });
+            };
 
             // Set patched flag
             auto& deps = file.GetDependencies();
@@ -170,8 +172,7 @@ static void PerformPatching()
             });
 
             *(bool*) flag = true;
-        });
-
+        };
     }
 
     RTSupport::Log::rt.Log(Logging::Level::INFO, [](Stream::Output& out) {

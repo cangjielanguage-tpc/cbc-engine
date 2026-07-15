@@ -276,7 +276,7 @@ struct ResolverProxy {
                     auto typeDefIdent = TypeTermId(ref.refType).GetIdentifier();
                     auto typeDef      = Symlevel::TypeDefinition::Resolve(resolver.session, typeDefIdent);
 
-                    auto fieldDefIdentOpt = typeDef.GetFields().FindField(resolver.session, ref.name);
+                    auto fieldDefIdentOpt = typeDef.GetFields().Find(resolver.session, ref.name);
                     if (!fieldDefIdentOpt.has_value()) {
                         log.Stream(Logging::Level::ERROR)
                             << "Field definition search failed " << id.GetValue() << Stream::endl;
@@ -502,15 +502,22 @@ struct ResolverProxy {
 
                 // FIXME: search in hierarchy
                 auto method = [&]() -> std::optional<Identifier<Symlevel::MethodDefinition>> {
-                    auto methods = type.GetMethods().FindMethods(resolver.session, ref.name);
-
-                    for (auto m : methods) {
+                    for (auto m : type.GetMethods().FindAll(resolver.session, ref.name)) {
                         auto def = Symlevel::Reader::Read(resolver.session, m);
                         auto sig = TermManager::Resolve(resolver.session, def.Signature());
                         if (sig == ref.signature) {
                             return m;
                         }
                     }
+
+                    for (auto m : type.GetVirtualMethods().Values(resolver.session)) {
+                        auto def = Symlevel::Reader::Read(resolver.session, m);
+                        auto sig = TermManager::Resolve(resolver.session, def.Signature());
+                        if (sig == ref.signature) {
+                            return m;
+                        }
+                    }
+
                     log.Log(Logging::Level::ERROR, [&](Stream::Output& stream) {
                         stream << "Failed to resolve method " << ref.GetFullName(resolver.session) << Stream::endl;
                     });
