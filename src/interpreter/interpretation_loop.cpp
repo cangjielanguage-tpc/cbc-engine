@@ -90,13 +90,13 @@ Interpretation::Thunk engine_interpretation_loop(
         return { RTSupport::Execution::ThrowImplicitException(), reinterpret_cast<void*>(type) };                      \
     } while (0)
 
-#define LABEL(symbol_name)                                                                                             \
-    __asm__(".globl " #symbol_name "\n"                                                                                \
-            ".type " #symbol_name ", @function\n" #symbol_name ":\n");                                                 \
-    symbol_name
+#define LABEL(symbol_name, code)                                                                                       \
+    symbol_name:                                                                                                       \
+    __asm__ volatile(".globl INTERPRETER_COMMAND_" #symbol_name "\nINTERPRETER_COMMAND_" #symbol_name " = .\n"         \
+                     ".type INTERPRETER_COMMAND_" #symbol_name ", @function\n");                                       \
+    code;
 
-#define CODE_SIZE(symbol_name) __asm__(".size " #symbol_name ", .-" #symbol_name "\n")
-
+#define CODE_SIZE(symbol_name)
 #define CBC_RT_LABEL(opc, encoding, fmt) &&opc,
 #define CBC_RT_MEM_LABEL(opc, encoding, fmt, tail) &&opc,
     static void* MAIN_TABLE[] = { CBC_RT_OPCODES(CBC_RT_LABEL) };
@@ -136,58 +136,58 @@ Interpretation::Thunk engine_interpretation_loop(
 
     // clang-format off
     // -- Main opcode table --
-LABEL(HALT): {
+LABEL(HALT, {
     FATAL("halt");
     return {};
-}
-LABEL(RET): {
+})
+LABEL(RET, {
     auto args = B1::Decode(reader);
     DEBUG_INFO("RET");
     return {};
     CODE_SIZE(RET);
-}
-LABEL(NOP): {
+})
+LABEL(NOP, {
     auto args = B1::Decode(reader);
     DEBUG_INFO("NOP");
     NEXT;
     CODE_SIZE(NOP);
-}
-LABEL(MOV): {
+})
+LABEL(MOV, {
     auto args = B2rr::Decode(reader);
     DEBUG_INFO("MOV");
     interpreter.Mov(args.rr.x.IR(), args.rr.y.IR());
     NEXT;
     CODE_SIZE(MOV);
-}
-LABEL(MOVI): {
+})
+LABEL(MOVI, {
     auto args = B2xr::Decode(reader);
     DEBUG_INFO("MOVI");
     interpreter.MovI(args.xr.r.IR(), MathUtils::SignExtend(static_cast<uint64_t>(args.xr.imm), 4));
     NEXT;
     CODE_SIZE(MOVI);
-}
-LABEL(FMOV): {
+})
+LABEL(FMOV, {
     auto args = B2rr::Decode(reader);
     DEBUG_INFO("FMOV");
     interpreter.Mov(args.rr.x.FR(), args.rr.y.FR());
     NEXT;
     CODE_SIZE(FMOV);
-}
-LABEL(MOVI2F): {
+})
+LABEL(MOVI2F, {
     auto args = B2rr::Decode(reader);
     DEBUG_INFO("MOVI2F");
     interpreter.Mov(args.rr.x.FR(), args.rr.y.IR());
     NEXT;
     CODE_SIZE(MOVI2F);
-}
-LABEL(MOVF2I): {
+})
+LABEL(MOVF2I,{
     auto args = B2rr::Decode(reader);
     DEBUG_INFO("MOVF2I");
     interpreter.Mov(args.rr.x.IR(), args.rr.y.FR());
     NEXT;
     CODE_SIZE(MOVF2I);
-}
-LABEL(GC_POINT): {
+})
+LABEL(GC_POINT, ) {
     auto args = B1::Decode(reader);
     DEBUG_INFO("GCPOINT");
     bool is_sp = RTSupport::Execution::IsPendingSafePoint();
@@ -200,129 +200,129 @@ LABEL(GC_POINT): {
     return { RTSupport::Execution::GcPointTrampoline(), RTSupport::Execution::GcPoint() };
     CODE_SIZE(GC_POINT);
 }
-LABEL(FMOVI32): {
+LABEL(FMOVI32, {
     auto args = B6xri32::Decode(reader);
     DEBUG_INFO("FMOVI32");
     interpreter.MovI(args.xr.r.FR(), args.imm32.fimm);
     NEXT;
     CODE_SIZE(FMOVI32);
-}
-LABEL(FMOVI64): {
+})
+LABEL(FMOVI64, {
     auto args = B10xri64::Decode(reader);
     DEBUG_INFO("FMOVI64");
     interpreter.MovI(args.xr.r.FR(), args.imm64.dimm);
     NEXT;
     CODE_SIZE(FMOVI64);
-}
-LABEL(BCC32I): {
+})
+LABEL(BCC32I, {
     auto args = B4xi12rr::Decode(reader);
     DEBUG_INFO("BCC32I");
-    int64_t delta = interpreter.template Bcc<ImmKind::VALUE, Width::W32>(
+    int64_t delta = (interpreter.template Bcc<ImmKind::VALUE, Width::W32>(
         args.xi12.imm4.CC(), args.rr.x, args.rr.y, args.xi12.imm12
-    );
+    ));
     JUMP;
     CODE_SIZE(BCC32I);
-}
-LABEL(BCC32L): {
+});
+LABEL(BCC32L, {
     auto args = B4xi12rr::Decode(reader);
     DEBUG_INFO("BCC32L");
-    int64_t delta = interpreter.template Bcc<ImmKind::LITERAL, Width::W32>(
+    int64_t delta = (interpreter.template Bcc<ImmKind::LITERAL, Width::W32>(
         args.xi12.imm4.CC(), args.rr.x, args.rr.y, args.xi12.imm12
-    );
+    ));
     JUMP;
     CODE_SIZE(BCC32L);
-}
-LABEL(BCC64I): {
+})
+LABEL(BCC64I, {
     auto args = B4xi12rr::Decode(reader);
     DEBUG_INFO("BCC64I");
-    int64_t delta = interpreter.template Bcc<ImmKind::VALUE, Width::W64>(
+    int64_t delta = (interpreter.template Bcc<ImmKind::VALUE, Width::W64>(
         args.xi12.imm4.CC(), args.rr.x, args.rr.y, args.xi12.imm12
-    );
+    ));
     JUMP;
     CODE_SIZE(BCC64I);
-}
-LABEL(BCC64L): {
+})
+LABEL(BCC64L, {
     auto args = B4xi12rr::Decode(reader);
     DEBUG_INFO("BCC64L");
-    int64_t delta = interpreter.template Bcc<ImmKind::LITERAL, Width::W64>(
+    int64_t delta = (interpreter.template Bcc<ImmKind::LITERAL, Width::W64>(
         args.xi12.imm4.CC(), args.rr.x, args.rr.y, args.xi12.imm12
-    );
+    ));
     JUMP;
     CODE_SIZE(BCC64L);
-}
-LABEL(BCCI32I): {
+})
+LABEL(BCCI32I, {
     auto args = B5xi12ri12::Decode(reader);
     DEBUG_INFO("BCCI32I");
-    int64_t delta = interpreter.template BccImm<ImmKind::VALUE, ImmKind::VALUE, Width::W32>(
+    int64_t delta = (interpreter.template BccImm<ImmKind::VALUE, ImmKind::VALUE, Width::W32>(
         args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
-    );
+    ));
     JUMP;
     CODE_SIZE(BCCI32I);
-}
-LABEL(BCCI64I): {
+})
+LABEL(BCCI64I, {
     auto args = B5xi12ri12::Decode(reader);
     DEBUG_INFO("BCCI64I");
-    int64_t delta = interpreter.template BccImm<ImmKind::VALUE, ImmKind::VALUE, Width::W64>(
+    int64_t delta = (interpreter.template BccImm<ImmKind::VALUE, ImmKind::VALUE, Width::W64>(
         args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
-    );
+    ));
     JUMP;
     CODE_SIZE(BCCI64I);
-}
-LABEL(BCCI32L): {
+})
+LABEL(BCCI32L, {
     auto args = B5xi12ri12::Decode(reader);
     DEBUG_INFO("BCCI32L");
-    int64_t delta = interpreter.template BccImm<ImmKind::VALUE, ImmKind::LITERAL, Width::W32>(
+    int64_t delta = (interpreter.template BccImm<ImmKind::VALUE, ImmKind::LITERAL, Width::W32>(
         args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
-    );
+    ));
     JUMP;
     CODE_SIZE(BCCI32L);
-}
-LABEL(BCCI64L): {
+})
+LABEL(BCCI64L, {
     auto args = B5xi12ri12::Decode(reader);
     DEBUG_INFO("BCCI64L");
-    int64_t delta = interpreter.template BccImm<ImmKind::VALUE, ImmKind::LITERAL, Width::W64>(
+    int64_t delta = (interpreter.template BccImm<ImmKind::VALUE, ImmKind::LITERAL, Width::W64>(
         args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
-    );
+    ));
     JUMP;
     CODE_SIZE(BCCI64L);
-}
-LABEL(BCCL32I): {
+})
+LABEL(BCCL32I, {
     auto args = B5xi12ri12::Decode(reader);
     DEBUG_INFO("BCCL32I");
-    int64_t delta = interpreter.template BccImm<ImmKind::LITERAL, ImmKind::VALUE, Width::W32>(
+    int64_t delta = (interpreter.template BccImm<ImmKind::LITERAL, ImmKind::VALUE, Width::W32>(
         args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
-    );
+    ));
     JUMP;
     CODE_SIZE(BCCL32I);
-}
-LABEL(BCCL64I): {
+})
+LABEL(BCCL64I, {
     auto args = B5xi12ri12::Decode(reader);
     DEBUG_INFO("BCCL64I");
-    int64_t delta = interpreter.template BccImm<ImmKind::LITERAL, ImmKind::VALUE, Width::W64>(
+    int64_t delta = (interpreter.template BccImm<ImmKind::LITERAL, ImmKind::VALUE, Width::W64>(
         args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
-    );
+    ));
     JUMP;
     CODE_SIZE(BCCL64I);
-}
-LABEL(BCCL32L): {
+})
+LABEL(BCCL32L, {
     auto args = B5xi12ri12::Decode(reader);
     DEBUG_INFO("BCCL32L");
-    int64_t delta = interpreter.template BccImm<ImmKind::LITERAL, ImmKind::LITERAL, Width::W32>(
+    int64_t delta = (interpreter.template BccImm<ImmKind::LITERAL, ImmKind::LITERAL, Width::W32>(
         args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
-    );
+    ));
     JUMP;
     CODE_SIZE(BCCL32L);
-}
-LABEL(BCCL64L): {
+})
+LABEL(BCCL64L, {
     auto args = B5xi12ri12::Decode(reader);
     DEBUG_INFO("BCCL64L");
-    int64_t delta = interpreter.template BccImm<ImmKind::LITERAL, ImmKind::LITERAL, Width::W64>(
+    int64_t delta = (interpreter.template BccImm<ImmKind::LITERAL, ImmKind::LITERAL, Width::W64>(
         args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
-    );
+    ));
     JUMP;
     CODE_SIZE(BCCL64L);
 }
-LABEL(BRANCH_IS_REF): {
+LABEL(BRANCH_IS_REF, {
     auto args = B3xi12::Decode(reader);
     DEBUG_INFO("BRANCH_IS_REF");
     auto tiReg    = IReg::From(args.xi12.imm4);
@@ -333,97 +333,98 @@ LABEL(BRANCH_IS_REF): {
         delta          = MathUtils::SignExtend<int64_t>(value, 12);
     }
     JUMP;
-}
-LABEL(JMP32): {
+})
+})
+LABEL(JMP32, {
     auto args = B5i32::Decode(reader);
     DEBUG_INFO("JMP32");
     int64_t delta = interpreter.Jmp(args.imm32.imm);
     JUMP;
     CODE_SIZE(JMP32);
-}
-LABEL(BIN32): {
+})
+LABEL(BIN32, {
     auto args = B3xrrr::Decode(reader);
     DEBUG_INFO("BIN32");
     bool successful =
-        interpreter.template Binary<Width::W32>(args.xr.imm.Common(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
+        (interpreter.template Binary<Width::W32>(args.xr.imm.Common(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR()));
     NEXT_COND(successful);
     CODE_SIZE(BIN32);
-}
-LABEL(BIN64): {
+})
+LABEL(BIN64, {
     auto args = B3xrrr::Decode(reader);
     DEBUG_INFO("BIN64");
     bool successful =
-        interpreter.template Binary<Width::W64>(args.xr.imm.Common(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
+        (interpreter.template Binary<Width::W64>(args.xr.imm.Common(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR()));
     NEXT_COND(successful);
     CODE_SIZE(BIN64);
-}
-LABEL(BINI32I): {
+})
+LABEL(BINI32I, {
     auto args = B4xi12rr::Decode(reader);
     DEBUG_INFO("BINI32I");
-    bool successful = interpreter.template BinaryImm<ImmKind::VALUE, Width::W32>(
+    bool successful = (interpreter.template BinaryImm<ImmKind::VALUE, Width::W32>(
         args.xi12.imm4.Common(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
-    );
+    ));
     NEXT_COND(successful);
     CODE_SIZE(BINI32I);
-}
-LABEL(BINI64I): {
+})
+LABEL(BINI64I, {
     auto args = B4xi12rr::Decode(reader);
     DEBUG_INFO("BINI64I");
-    bool successful = interpreter.template BinaryImm<ImmKind::VALUE, Width::W64>(
+    bool successful = (interpreter.template BinaryImm<ImmKind::VALUE, Width::W64>(
         args.xi12.imm4.Common(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
-    );
+    ));
     NEXT_COND(successful);
     CODE_SIZE(BINI64I);
-}
-LABEL(BINI32L): {
+})
+LABEL(BINI32L, {
     auto args = B4xi12rr::Decode(reader);
     DEBUG_INFO("BINI32L");
-    bool successful = interpreter.template BinaryImm<ImmKind::LITERAL, Width::W32>(
+    bool successful = (interpreter.template BinaryImm<ImmKind::LITERAL, Width::W32>(
         args.xi12.imm4.Common(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
-    );
+    ));
     NEXT_COND(successful);
     CODE_SIZE(BINI32L);
-}
-LABEL(BINI64L): {
+})
+LABEL(BINI64L, {
     auto args = B4xi12rr::Decode(reader);
     DEBUG_INFO("BINI64L");
-    bool successful = interpreter.template BinaryImm<ImmKind::LITERAL, Width::W64>(
+    bool successful = (interpreter.template BinaryImm<ImmKind::LITERAL, Width::W64>(
         args.xi12.imm4.Common(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
-    );
+    ));
     NEXT_COND(successful);
     CODE_SIZE(BINI64L);
-}
-LABEL(FBIN32): {
+})
+LABEL(FBIN32, {
     auto args = B3xrrr::Decode(reader);
     DEBUG_INFO("FBIN32");
-    bool successful = interpreter.template Binary<Width::W32>(
+    bool successful = (interpreter.template Binary<Width::W32>(
         args.xr.imm.FloatOperations(), args.xr.r.FR(), args.rr.x.FR(), args.rr.y.FR()
-    );
+    ));
     NEXT_COND(successful);
-}
-LABEL(FBIN64): {
+})
+LABEL(FBIN64, {
     auto args = B3xrrr::Decode(reader);
     DEBUG_INFO("FBIN64");
-    bool successful = interpreter.template Binary<Width::W64>(
+    bool successful = (interpreter.template Binary<Width::W64>(
         args.xr.imm.FloatOperations(), args.xr.r.FR(), args.rr.x.FR(), args.rr.y.FR()
-    );
+    ));
     NEXT_COND(successful);
-}
-LABEL(FUN32): {
+})
+LABEL(FUN32, {
     auto args = B3xrrr::Decode(reader);
     DEBUG_INFO("FUN32");
     bool successful =
-        interpreter.template Unary<Width::W32>(args.xr.imm.FloatOperations(), args.xr.r.FR(), args.rr.y.FR());
+        (interpreter.template Unary<Width::W32>(args.xr.imm.FloatOperations(), args.xr.r.FR(), args.rr.y.FR()));
     NEXT_COND(successful);
-}
-LABEL(FUN64): {
+})
+LABEL(FUN64, {
     auto args = B3xrrr::Decode(reader);
     DEBUG_INFO("FUN64");
     bool successful =
-        interpreter.template Unary<Width::W64>(args.xr.imm.FloatOperations(), args.xr.r.FR(), args.rr.y.FR());
+        (interpreter.template Unary<Width::W64>(args.xr.imm.FloatOperations(), args.xr.r.FR(), args.rr.y.FR()));
     NEXT_COND(successful);
 }
-LABEL(NEWOBJ_G): {
+LABEL(NEWOBJ_G, {
     auto args = B2rr::Decode(reader);
     DEBUG_INFO("NEWOBJ_G");
     auto tiReg = args.rr.x;
@@ -434,9 +435,10 @@ LABEL(NEWOBJ_G): {
 
     reader0 = reader; // save current pc
 
-    return { func, type.Raw() };
-}
-LABEL(NEWOBJ): {
+    ({return { func, type.Raw() };});
+})
+})
+LABEL(NEWOBJ, {
     auto args = B9i64::Decode(reader);
     DEBUG_INFO("NEWOBJ");
     auto type = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
@@ -446,10 +448,10 @@ LABEL(NEWOBJ): {
 
     reader0 = reader; // save current pc
 
-    return { func, type.Raw() };
+    ({return { func, type.Raw() };});
     CODE_SIZE(NEWOBJ);
-}
-LABEL(NEWBOX): {
+})
+LABEL(NEWBOX, {
     auto args = B2xr::Decode(reader);
     DEBUG_INFO("NEWBOX");
     auto btype = builtinTypeInfos[args.xr.imm];
@@ -459,9 +461,9 @@ LABEL(NEWBOX): {
 
     reader0 = reader; // save current pc
 
-    return { func, btype.Raw() };
-}
-LABEL(NEWBOX2): {
+    ({return { func, btype.Raw() };});
+})
+LABEL(NEWBOX2, {
     auto args = B9i64::Decode(reader);
     DEBUG_INFO("NEWBOX2");
     auto type = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
@@ -471,9 +473,9 @@ LABEL(NEWBOX2): {
 
     reader0 = reader; // save current pc
 
-    return { func, type.Raw() };
-}
-LABEL(READ_STRUCT_FIELD): {
+    ({return { func, type.Raw() }; });
+})
+LABEL(READ_STRUCT_FIELD, {
     auto args = StructFieldOp::Decode(reader);
     DEBUG_INFO("READ_STRUCT_FIELD");
     auto dst   = ectype->GetPrimitive(args.rr.x.IR()).u64;
@@ -481,8 +483,8 @@ LABEL(READ_STRUCT_FIELD): {
     auto field = ectype->GetPrimitive(args.field.x.IR()).u64;
     RTSupport::Execution::ReadStructField(dst, base, field, args.ti, handle);
     NEXT;
-}
-LABEL(WRITE_STRUCT_FIELD): {
+})
+LABEL(WRITE_STRUCT_FIELD, {
     auto args = StructFieldOp::Decode(reader);
     DEBUG_INFO("WRITE_STRUCT_FIELD");
     auto src   = ectype->GetPrimitive(args.rr.x.IR()).u64;
@@ -490,8 +492,8 @@ LABEL(WRITE_STRUCT_FIELD): {
     auto field = ectype->GetPrimitive(args.field.x.IR()).u64;
     RTSupport::Execution::WriteStructField(src, base, field, args.ti, handle);
     NEXT;
-}
-LABEL(INITCLOSURE): {
+})
+LABEL(INITCLOSURE, {
     auto args = B1::Decode(reader);
     DEBUG_INFO("INITCLOSURE");
 
@@ -509,8 +511,8 @@ LABEL(INITCLOSURE): {
     closure->generic      = Adapters::GetDynCallTrampoline(0);
     closure->instantiated = Adapters::GetDynCallTrampoline(1);
     NEXT;
-}
-LABEL(SPAWN): {
+})
+LABEL(SPAWN, {
     auto args = B9i64::Decode(reader);
     DEBUG_INFO("SPAWN");
     auto type = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
@@ -521,9 +523,9 @@ LABEL(SPAWN): {
 
     reader0 = reader; // save current pc
 
-    return { func, type.Raw() };
-}
-LABEL(NEWARR): {
+    ({return { func, type.Raw() };});
+})
+LABEL(NEWARR, {
     auto args = B9i64::Decode(reader);
     DEBUG_INFO("NEWARR");
     auto type = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
@@ -533,79 +535,79 @@ LABEL(NEWARR): {
 
     reader0 = reader; // save current pc
 
-    return { func, type.Raw() };
-}
-LABEL(LOAD_ADDR): {
+    ({return { func, type.Raw() };});
+})
+LABEL(LOAD_ADDR, {
     auto args = B2xr::Decode(reader);
     DEBUG_INFO("LOAD_ADDR");
     auto location   = literals->at(reader.Read16()).u64;
     bool successful = interpreter.LoadAddr(args.xr.imm.LDK(), args.xr.r, location);
     NEXT_COND(successful);
-}
-LABEL(STORE_ADDR): {
+})
+LABEL(STORE_ADDR, {
     auto args = B2xr::Decode(reader);
     DEBUG_INFO("STORE_ADDR");
     auto location   = literals->at(reader.Read16()).u64;
     bool successful = interpreter.StoreAddr(args.xr.imm.STK(), args.xr.r, location);
     NEXT_COND(successful);
-}
-LABEL(LOAD_OBJ_F):
-LABEL(LOAD_OBJ): {
+})
+LABEL(LOAD_OBJ_F,
+LABEL(LOAD_OBJ, {
     auto args = B4xi12rr::Decode(reader);
     DEBUG_INFO("LOAD_OBJ");
     bool successful = interpreter.LoadObj(args.xi12.imm4.LDK(), args.rr.x, args.rr.y.IR(), args.xi12.imm12);
     NEXT_COND(successful);
-}
-LABEL(STORE_OBJ_F):
-LABEL(STORE_OBJ): {
+}))
+LABEL(STORE_OBJ_F,
+LABEL(STORE_OBJ, {
     auto args = B4xi12rr::Decode(reader);
     DEBUG_INFO("STORE_OBJ");
     bool successful = interpreter.StoreObj(args.xi12.imm4.STK(), args.rr.x, args.rr.y.IR(), args.xi12.imm12);
     NEXT_COND(successful);
-}
-LABEL(LOAD_ARR_F):
-LABEL(LOAD_ARR): {
+}))
+LABEL(LOAD_ARR_F,
+LABEL(LOAD_ARR, {
     auto args = B3xrrr::Decode(reader);
     DEBUG_INFO("LOAD_ARR");
     bool successful = interpreter.LoadArray(args.xr.imm.LDK(), args.xr.r, args.rr.x.IR(), args.rr.y.IR());
     NEXT_COND(successful);
-}
-LABEL(STORE_ARR_F):
-LABEL(STORE_ARR): {
+}))
+LABEL(STORE_ARR_F,
+LABEL(STORE_ARR, {
     auto args = B3xrrr::Decode(reader);
     DEBUG_INFO("STORE_ARR");
     bool successful = interpreter.StoreArray(args.xr.imm.STK(), args.xr.r, args.rr.x.IR(), args.rr.y.IR());
     NEXT_COND(successful);
-}
-LABEL(LOAD_REC_F):
-LABEL(LOAD_REC): {
+}))
+LABEL(LOAD_REC_F,
+LABEL(LOAD_REC, {
     auto args = B4xi12rr::Decode(reader);
     DEBUG_INFO("LOAD_REC");
     bool successful = interpreter.LoadRec(args.xi12.imm4.LDK(), args.rr.x, args.rr.y.IR(), args.xi12.imm12);
     NEXT_COND(successful);
-}
-LABEL(STORE_REC_F):
-LABEL(STORE_REC): {
+}))
+LABEL(STORE_REC_F,
+LABEL(STORE_REC, {
     auto args = B4xi12rr::Decode(reader);
     DEBUG_INFO("STORE_REC");
     bool successful = interpreter.StoreRec(args.xi12.imm4.STK(), args.rr.x, args.rr.y.IR(), args.xi12.imm12);
     NEXT_COND(successful);
-}
-LABEL(LOAD_FRAME_F):
-LABEL(LOAD_FRAME): {
+}))
+LABEL(LOAD_FRAME_F,
+LABEL(LOAD_FRAME, {
     auto args = B4xi12rr::Decode(reader);
     DEBUG_INFO("LOAD_FRAME");
     bool successful = interpreter.LoadFrame(args.xi12.imm4.LDK(), args.rr.x, args.xi12.imm12);
     NEXT_COND(successful);
-}
-LABEL(STORE_FRAME_F):
-LABEL(STORE_FRAME): {
+}))
+LABEL(STORE_FRAME_F,
+LABEL(STORE_FRAME, {
     auto args = B4xi12rr::Decode(reader);
     DEBUG_INFO("STORE_FRAME");
     bool successful = interpreter.StoreFrame(args.xi12.imm4.STK(), args.rr.x, args.xi12.imm12);
     NEXT_COND(successful);
-}
-LABEL(PREP_TYPED): {
+}))
+LABEL(PREP_TYPED, {
     auto args = B13i64i32::Decode(reader);
     DEBUG_INFO("PREP_TYPED");
     auto typedOffset = args.imm32.imm;
@@ -614,64 +616,64 @@ LABEL(PREP_TYPED): {
         interpreter.StoreFrameImm(StoreAccessKind::ST_64, 0, typedOffset + offset);
     });
     NEXT;
-}
-LABEL(SCC32): {
+})
+LABEL(SCC32, {
     auto args = B3xrrr::Decode(reader);
     DEBUG_INFO("SCC32");
     interpreter.template SCC<Width::W32>(args.xr.imm.CC(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
     NEXT;
-}
-LABEL(SCC64): {
+})
+LABEL(SCC64, {
     auto args = B3xrrr::Decode(reader);
     DEBUG_INFO("SCC64");
     interpreter.template SCC<Width::W64>(args.xr.imm.CC(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
     NEXT;
-}
-LABEL(FSCC32): {
+})
+LABEL(FSCC32, {
     auto args = B3xrrr::Decode(reader);
     DEBUG_INFO("FSCC32");
     interpreter.template SCC<Width::W32>(args.xr.imm.CC(), args.xr.r.IR(), args.rr.x.FR(), args.rr.y.FR());
     NEXT;
-}
-LABEL(FSCC64): {
+})
+LABEL(FSCC64, {
     auto args = B3xrrr::Decode(reader);
     DEBUG_INFO("FSCC64");
     interpreter.template SCC<Width::W64>(args.xr.imm.CC(), args.xr.r.IR(), args.rr.x.FR(), args.rr.y.FR());
     NEXT;
-}
-LABEL(SCCI32I): {
+})
+LABEL(SCCI32I, {
     auto args = B4xi12rr::Decode(reader);
     DEBUG_INFO("SCCI32I");
-    interpreter.template SCCImm<ImmKind::VALUE, Width::W32>(
+    (interpreter.template SCCImm<ImmKind::VALUE, Width::W32>(
         args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
-    );
+    ));
     NEXT;
-}
-LABEL(SCCI64I): {
+})
+LABEL(SCCI64I, {
     auto args = B4xi12rr::Decode(reader);
     DEBUG_INFO("SCCI64I");
-    interpreter.template SCCImm<ImmKind::VALUE, Width::W64>(
+    (interpreter.template SCCImm<ImmKind::VALUE, Width::W64>(
         args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
-    );
+    ));
     NEXT;
-}
-LABEL(SCCI32L): {
+})
+LABEL(SCCI32L, {
     auto args = B4xi12rr::Decode(reader);
     DEBUG_INFO("SCCI32L");
-    interpreter.template SCCImm<ImmKind::LITERAL, Width::W32>(
+    (interpreter.template SCCImm<ImmKind::LITERAL, Width::W32>(
         args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
-    );
+    ));
     NEXT;
-}
-LABEL(SCCI64L): {
+})
+LABEL(SCCI64L, {
     auto args = B4xi12rr::Decode(reader);
     DEBUG_INFO("SCCI64L");
-    interpreter.template SCCImm<ImmKind::LITERAL, Width::W64>(
+    (interpreter.template SCCImm<ImmKind::LITERAL, Width::W64>(
         args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
-    );
+    ));
     NEXT;
-}
-LABEL(OFFSET): {
+})
+LABEL(OFFSET, {
     auto args = Offset::Decode(reader);
     DEBUG_INFO("OFFSET");
     auto dst  = args.rr.x.IR();
@@ -679,8 +681,8 @@ LABEL(OFFSET): {
     auto offs = RTSupport::Execution::GetFieldOffset(ti, args.idx, false);
     ectype->Put(dst, Value::Primitive { offs });
     NEXT;
-}
-LABEL(TYPE_ARG): {
+})
+LABEL(TYPE_ARG, {
     auto args = B4xi12rr::Decode(reader);
     DEBUG_INFO("TYPE_ARG");
     auto dst = args.rr.x.IR();
@@ -692,26 +694,26 @@ LABEL(TYPE_ARG): {
     ectype->Put(dst, Value::Primitive { res.UInt() });
 
     NEXT;
-}
-LABEL(CONVERT): {
+})
+LABEL(CONVERT, {
     auto args = B3xxrr::Decode(reader);
     DEBUG_INFO("CONVERT");
     interpreter.Convert(args.xx.imm1.ConvertType(), args.xx.imm2.ConvertType(), args.rr.x, args.rr.y);
     NEXT;
-}
-LABEL(BFXS): {
+})
+LABEL(BFXS, {
     auto args = BFX::Decode(reader);
     DEBUG_INFO("BFXS");
     interpreter.BitFieldExtract(args.rr.x, args.rr.y, args.offs, args.size, true);
     NEXT;
-}
-LABEL(BFXZ): {
+})
+LABEL(BFXZ, {
     auto args = BFX::Decode(reader);
     DEBUG_INFO("BFXZ");
     interpreter.BitFieldExtract(args.rr.x, args.rr.y, args.offs, args.size, false);
     NEXT;
-}
-LABEL(DIRECT_CALL_2I): {
+})
+LABEL(DIRECT_CALL_2I, {
     auto args = B3xi12::Decode(reader);
     DEBUG_INFO("DIRECT_CALL_2I");
     uint16_t imm = args.xi12.imm12;
@@ -726,9 +728,9 @@ LABEL(DIRECT_CALL_2I): {
 
     reader0 = reader; // save current pc
 
-    return { fuh->i2call, reinterpret_cast<void*>(fuh) };
-}
-LABEL(DIRECT_CALL_2C): {
+    ({return { fuh->i2call, reinterpret_cast<void*>(fuh) };});
+})
+LABEL(DIRECT_CALL_2C, {
     auto args = B3xi12::Decode(reader);
     DEBUG_INFO("DIRECT_CALL_2C");
     uint16_t imm = args.xi12.imm12;
@@ -743,9 +745,9 @@ LABEL(DIRECT_CALL_2C): {
 
     reader0 = reader; // save current pc
 
-    return { Adapters::GenericI2CCallInstance(), reinterpret_cast<void*>(target) };
-}
-LABEL(VIRTUAL_CALL): {
+    return { (Adapters::GenericI2CCallInstance(), reinterpret_cast<void*>(target)) };
+})
+LABEL(VIRTUAL_CALL, {
     auto args = VirtualCall::Decode(reader);
     DEBUG_INFO("VIRTUAL_CALL");
     auto vnum      = args.vnum;
@@ -771,9 +773,9 @@ LABEL(VIRTUAL_CALL): {
     reader0 = reader; // save current pc
 
     return Execution::GetVirtualThunk(reference, extDefNum, vnum);
-}
+})
 
-LABEL(INTERFACE_CALL): {
+LABEL(INTERFACE_CALL, {
     auto args = InterfaceCall::Decode(reader);
     DEBUG_INFO("INTERFACE_CALL");
     auto num      = args.vnum;
@@ -798,9 +800,9 @@ LABEL(INTERFACE_CALL): {
     reader0 = reader; // save current pc
 
     return Execution::GetInterfaceThunk(reference, typeInfo, num);
-}
+})
 
-LABEL(STRING_INIT): {
+LABEL(STRING_INIT, {
     auto args = B13i64i32::Decode(reader);
     DEBUG_INFO("STRING_INIT");
     auto ref  = reinterpret_cast<StringStorage*>(args.imm64.imm);
@@ -818,23 +820,23 @@ LABEL(STRING_INIT): {
     recordLoc->start  = 0;
     recordLoc->length = ref->size;
     NEXT;
-}
+})
 
-LABEL(NULLCHECK): {
+LABEL(NULLCHECK, {
     auto args = B2xr::Decode(reader);
     DEBUG_INFO("NULLCHECK");
     auto ref = ectype->GetReference(args.xr.r.IR());
     NEXT_OR_THROW(ref.value != 0, Type::NoneValueException);
-}
+})
 
-LABEL(DIVCHECK): {
+LABEL(DIVCHECK, {
     auto args = B2xr::Decode(reader);
     DEBUG_INFO("DIVCHECK");
     auto div = ectype->GetPrimitive(args.xr.r.IR());
     NEXT_OR_THROW(div.u64 != 0, Type::ArithmeticException);
-}
+})
 
-LABEL(LOAD_GENERIC_TI): {
+LABEL(LOAD_GENERIC_TI, {
     auto args = B9i64::Decode(reader);
     DEBUG_INFO("LOAD_GENERIC_TI");
     auto termValue = args.imm64.imm;
@@ -846,17 +848,17 @@ LABEL(LOAD_GENERIC_TI): {
     auto ti = Execution::LoadTypeInfo(term.AsGlobal(), ectype, reinterpret_cast<void*>(frame.start));
     ectype->Put(IReg::IR1, Value::Primitive { .u64 = reinterpret_cast<uintptr_t>(ti.Raw()) });
     NEXT;
-}
+})
 
-LABEL(LOAD_TI): {
+LABEL(LOAD_TI, {
     auto args = B9i64::Decode(reader);
     DEBUG_INFO("LOAD_TI");
     auto ti = args.imm64.imm;
     ectype->Put(IReg::IR1, Value::Primitive { .u64 = ti });
     NEXT;
-}
+})
 
-LABEL(IOF): {
+LABEL(IOF, {
     auto args = IOF::Decode(reader);
     DEBUG_INFO("IOF");
     auto dst      = args.rr.x.IR();
@@ -864,18 +866,18 @@ LABEL(IOF): {
     auto typeInfo = TypeInfo(static_cast<uintptr_t>(args.imm64));
     ectype->Put(dst, Value::Primitive { .u64 = Execution::IsInstanceOf(ref, typeInfo) });
     NEXT;
-}
+})
 
-LABEL(CATCH): {
+LABEL(CATCH, {
     auto args = B2xr::Decode(reader);
     DEBUG_INFO("CATCH");
     auto exceptionObj = ectype->GetReference(IReg::IR_ACC);
     bool successful   = exceptionObj.value != 0;
     ectype->Put(args.xr.r.IR(), Value::Reference { .value = exceptionObj.value });
     NEXT_COND(successful);
-}
+})
 
-LABEL(THROW): {
+LABEL(THROW, {
     auto args = B2xr::Decode(reader);
     DEBUG_INFO("THROW");
     auto ref = ectype->GetReference(args.xr.r.IR());
@@ -883,53 +885,53 @@ LABEL(THROW): {
         FATAL("unexpected null in THROW");
     }
     THROW_EXPLICIT(ref.value);
-}
+})
 
-LABEL(MEMSPACE): {
+LABEL(MEMSPACE, {
     auto args = B1::Decode(reader);
     DEBUG_INFO("MEMSPACE");
     memspaceOffsetAcc = 0;
     MEM_NEXT;
-}
+})
 
     // -- MemSpace opcode table --
 
-LABEL(MEM_HALT): {
+LABEL(MEM_HALT, {
     FATAL("halt");
     return {};
-}
+})
 
-LABEL(OFFS16): {
+LABEL(OFFS16, {
     auto args = M3i16::Decode(reader);
     DEBUG_INFO("OFFS16");
     memspaceOffsetAcc += interpreter.MemOffset(args.imm16);
     MEM_NEXT;
-}
-LABEL(OFFS32): {
+})
+LABEL(OFFS32, {
     auto args = M5i32::Decode(reader);
     DEBUG_INFO("OFFS32");
     memspaceOffsetAcc += interpreter.MemOffset(args.imm32);
     MEM_NEXT;
-}
-LABEL(OFFS64): {
+})
+LABEL(OFFS64, {
     auto args = M9i64::Decode(reader);
     DEBUG_INFO("OFFS64");
     memspaceOffsetAcc += interpreter.MemOffset(args.imm64);
     MEM_NEXT;
-}
-LABEL(OFFS_REG): {
+})
+LABEL(OFFS_REG, {
     auto args = M2xr::Decode(reader);
     DEBUG_INFO("OFFS_REG");
     memspaceOffsetAcc += interpreter.MemOffsetReg(args.xr.r.IR());
     MEM_NEXT;
-}
-LABEL(OFFS_REG_IDX64): {
+})
+LABEL(OFFS_REG_IDX64, {
     auto args = M10xri64::Decode(reader);
     DEBUG_INFO("OFFS_REG_IDX64");
     memspaceOffsetAcc += interpreter.MemOffsetReg(args.xr.r.IR()) * interpreter.MemOffset(args.imm64.imm);
     MEM_NEXT;
-}
-LABEL(R_READ_STRUCT): {
+})
+LABEL(R_READ_STRUCT, {
     auto args = MStructFieldOp::Decode(reader);
     DEBUG_INFO("R_READ_STRUCT");
     auto dst   = ectype->GetPrimitive(args.rr.x.IR()).u64;
@@ -937,8 +939,8 @@ LABEL(R_READ_STRUCT): {
     auto field = base.value + memspaceOffsetAcc;
     RTSupport::Execution::ReadStructField(dst, base, field, args.ti, handle);
     NEXT;
-}
-LABEL(R_WRITE_STRUCT): {
+})
+LABEL(R_WRITE_STRUCT, {
     auto args = MStructFieldOp::Decode(reader);
     DEBUG_INFO("R_WRITE_STRUCT");
     auto src   = ectype->GetPrimitive(args.rr.x.IR()).u64;
@@ -946,9 +948,9 @@ LABEL(R_WRITE_STRUCT): {
     auto field = base.value + memspaceOffsetAcc;
     RTSupport::Execution::WriteStructField(src, base, field, args.ti, handle);
     NEXT;
-}
+})
 
-LABEL(DLD_GENERIC): {
+LABEL(DLD_GENERIC, {
     auto args = M3rrrr::Decode(reader);
     DEBUG_INFO("DLD_GENERIC");
     // TODO: reorder args, so it would require less bit-shifting
@@ -973,10 +975,10 @@ LABEL(DLD_GENERIC): {
         uint64_t rawTi  = typeInfo.UInt();
         uint64_t packed = 0ULL | dstReg | (baseReg << 4) | (IReg::IR_ACC << 8) | rawTi << 12;
         reader0         = reader;
-        return { .function = RTSupport::Execution::LoadGeneric(), .argUInt = packed };
+        ({ return { .function = RTSupport::Execution::LoadGeneric(), .argUInt = packed };});
     }
-}
-LABEL(DST_GENERIC): {
+})
+LABEL(DST_GENERIC, {
     auto args = M3rrrr::Decode(reader);
     DEBUG_INFO("DST_GENERIC");
     auto derivedReg = args.rr1.x.IR();
@@ -997,26 +999,26 @@ LABEL(DST_GENERIC): {
         RTSupport::Execution::WriteGeneric(base, derived.value + memspaceOffsetAcc, obj, size, handle);
         NEXT;
     }
-}
+})
 
-LABEL(GENERIC_FIELD): {
+LABEL(GENERIC_FIELD, {
     auto args = M6rri32::Decode(reader);
     DEBUG_INFO("GENERIC_FIELD");
     auto ti            = TypeInfo(ectype->GetPrimitive(args.rr.x.IR()).u64);
     auto offs          = RTSupport::Execution::GetFieldOffset(ti, args.imm32.imm, false);
     memspaceOffsetAcc += offs;
     MEM_NEXT;
-}
+})
 
 #define RLD(ldk)                                                                                                       \
-    LABEL(RLD_##ldk):                                                                                                         \
+    LABEL(RLD_##ldk,                                                                                                   \
     {                                                                                                                  \
         auto args = M2rr::Decode(reader);                                                                              \
         DEBUG_INFO("RLD_" #ldk);                                                                                       \
         bool successful =                                                                                              \
             interpreter.LoadObj(Format::LoadAccessKind::LD_##ldk, args.rr.x, args.rr.y.IR(), memspaceOffsetAcc);       \
         NEXT_COND(successful);                                                                                         \
-    }
+    })
     RLD(U8)
     RLD(U16)
     RLD(32)
@@ -1030,14 +1032,14 @@ LABEL(GENERIC_FIELD): {
 #undef RLD
 
 #define RST(stk)                                                                                                       \
-    LABEL(RST_##stk):                                                                                                         \
+    LABEL(RST_##stk,                                                                                                          \
     {                                                                                                                  \
         auto args = M2rr::Decode(reader);                                                                              \
         DEBUG_INFO("RST_" #stk);                                                                                       \
         bool successful =                                                                                              \
             interpreter.StoreObj(Format::StoreAccessKind::ST_##stk, args.rr.x, args.rr.y.IR(), memspaceOffsetAcc);     \
         NEXT_COND(successful);                                                                                         \
-    }
+    })
     RST(8)
     RST(16)
     RST(32)
@@ -1048,7 +1050,7 @@ LABEL(GENERIC_FIELD): {
 #undef RST
 
 #define RSTI(memSize, immSize, encoding)                                                                               \
-    LABEL(RSTI_##memSize##_##immSize):                                                                                        \
+    LABEL(RSTI_##memSize##_##immSize,                                                                                        \
     {                                                                                                                  \
         auto args = encoding::Decode(reader);                                                                          \
         DEBUG_INFO("RSTI_" #memSize "_" #immSize);                                                                     \
@@ -1057,7 +1059,7 @@ LABEL(GENERIC_FIELD): {
         bool successful =                                                                                              \
             interpreter.StoreObjImm(Format::StoreAccessKind::ST_##memSize, base, memspaceOffsetAcc, imm);              \
         NEXT_COND(successful);                                                                                         \
-    }
+    })
     RSTI(8, 8, M3xri8)
     RSTI(16, 8, M3xri8)
     RSTI(16, 16, M4xri16)
@@ -1071,7 +1073,7 @@ LABEL(GENERIC_FIELD): {
 #undef RSTI
 
 #define DLD(ldk)                                                                                                       \
-    LABEL(DLD_##ldk):                                                                                                         \
+    LABEL(DLD_##ldk,                                                                                                        \
     {                                                                                                                  \
         auto args = M3xrrr::Decode(reader);                                                                            \
         DEBUG_INFO("DLD_" #ldk);                                                                                       \
@@ -1079,7 +1081,7 @@ LABEL(GENERIC_FIELD): {
             Format::LoadAccessKind::LD_##ldk, args.xr.r, args.rr.x.IR(), args.rr.y.IR(), memspaceOffsetAcc             \
         );                                                                                                             \
         NEXT_COND(successful);                                                                                         \
-    }
+    })
     DLD(U8)
     DLD(U16)
     DLD(32)
@@ -1093,7 +1095,7 @@ LABEL(GENERIC_FIELD): {
 #undef DLD
 
 #define DST(stk)                                                                                                       \
-    LABEL(DST_##stk):                                                                                                         \
+    LABEL(DST_##stk,                                                                                                         \
     {                                                                                                                  \
         auto args = M3xrrr::Decode(reader);                                                                            \
         DEBUG_INFO("DST_" #stk);                                                                                       \
@@ -1101,7 +1103,7 @@ LABEL(GENERIC_FIELD): {
             Format::StoreAccessKind::ST_##stk, args.xr.r, args.rr.x.IR(), args.rr.y.IR(), memspaceOffsetAcc            \
         );                                                                                                             \
         NEXT_COND(successful);                                                                                         \
-    }
+    })
     DST(8)
     DST(16)
     DST(32)
@@ -1112,7 +1114,7 @@ LABEL(GENERIC_FIELD): {
 #undef DST
 
 #define DSTI(memSize, immSize, encoding)                                                                               \
-    LABEL(DSTI_##memSize##_##immSize):                                                                                        \
+    LABEL(DSTI_##memSize##_##immSize,                                                                                        \
     {                                                                                                                  \
         auto args = encoding::Decode(reader);                                                                          \
         DEBUG_INFO("DSTI_" #memSize "_" #immSize);                                                                     \
@@ -1122,7 +1124,7 @@ LABEL(GENERIC_FIELD): {
         bool successful =                                                                                              \
             interpreter.StoreDerivedImm(Format::StoreAccessKind::ST_##memSize, base, derived, memspaceOffsetAcc, imm); \
         NEXT_COND(successful);                                                                                         \
-    }
+    })
     DSTI(8, 8, M3rri8)
     DSTI(16, 8, M3rri8)
     DSTI(16, 16, M4rri16)
@@ -1136,14 +1138,14 @@ LABEL(GENERIC_FIELD): {
 #undef DSTI
 
 #define SLD(ldk)                                                                                                       \
-    LABEL(SLD_##ldk):                                                                                                         \
+    LABEL(SLD_##ldk,                                                                                                         \
     {                                                                                                                  \
         auto args = M2rr::Decode(reader);                                                                              \
         DEBUG_INFO("SLD_" #ldk);                                                                                       \
         bool successful =                                                                                              \
             interpreter.LoadRec(Format::LoadAccessKind::LD_##ldk, args.rr.x, args.rr.y.IR(), memspaceOffsetAcc);       \
         NEXT_COND(successful);                                                                                         \
-    }
+    })
     SLD(U8)
     SLD(U16)
     SLD(32)
@@ -1157,14 +1159,14 @@ LABEL(GENERIC_FIELD): {
 #undef SLD
 
 #define SST(stk)                                                                                                       \
-    LABEL(SST_##stk):                                                                                                         \
+    LABEL(SST_##stk,                                                                                                         \
     {                                                                                                                  \
         auto args = M2rr::Decode(reader);                                                                              \
         DEBUG_INFO("SST_" #stk);                                                                                       \
         bool successful =                                                                                              \
             interpreter.StoreRec(Format::StoreAccessKind::ST_##stk, args.rr.x, args.rr.y.IR(), memspaceOffsetAcc);     \
         NEXT_COND(successful);                                                                                         \
-    }
+    })
     SST(8)
     SST(16)
     SST(32)
@@ -1175,7 +1177,7 @@ LABEL(GENERIC_FIELD): {
 #undef SST
 
 #define SSTI(memSize, immSize, encoding)                                                                               \
-    LABEL(SSTI_##memSize##_##immSize):                                                                                        \
+    LABEL(SSTI_##memSize##_##immSize,                                                                                        \
     {                                                                                                                  \
         auto args = encoding::Decode(reader);                                                                          \
         DEBUG_INFO("SSTI_" #memSize "_" #immSize);                                                                     \
@@ -1184,7 +1186,7 @@ LABEL(GENERIC_FIELD): {
         bool successful =                                                                                              \
             interpreter.StoreRecImm(Format::StoreAccessKind::ST_##memSize, base, memspaceOffsetAcc, imm);              \
         NEXT_COND(successful);                                                                                         \
-    }
+    })
     SSTI(8, 8, M3xri8)
     SSTI(16, 8, M3xri8)
     SSTI(16, 16, M4xri16)
@@ -1198,13 +1200,13 @@ LABEL(GENERIC_FIELD): {
 #undef SSTI
 
 #define FLD(ldk)                                                                                                       \
-    LABEL(FLD_##ldk):                                                                                                         \
+    LABEL(FLD_##ldk,                                                                                                         \
     {                                                                                                                  \
         auto args = M2rr::Decode(reader);                                                                              \
         DEBUG_INFO("FLD_" #ldk);                                                                                       \
         bool successful = interpreter.LoadFrame(Format::LoadAccessKind::LD_##ldk, args.rr.x, memspaceOffsetAcc);       \
         NEXT_COND(successful);                                                                                         \
-    }
+    })
     FLD(U8)
     FLD(U16)
     FLD(32)
@@ -1218,13 +1220,13 @@ LABEL(GENERIC_FIELD): {
 #undef FLD
 
 #define FST(stk)                                                                                                       \
-    LABEL(FST_##stk):                                                                                                         \
+    LABEL(FST_##stk,                                                                                                         \
     {                                                                                                                  \
         auto args = M2rr::Decode(reader);                                                                              \
         DEBUG_INFO("FST_" #stk);                                                                                       \
         bool successful = interpreter.StoreFrame(Format::StoreAccessKind::ST_##stk, args.rr.x, memspaceOffsetAcc);     \
         NEXT_COND(successful);                                                                                         \
-    }
+    })
     FST(8)
     FST(16)
     FST(32)
@@ -1235,14 +1237,14 @@ LABEL(GENERIC_FIELD): {
 #undef FST
 
 #define FSTI(memSize, immSize, encoding)                                                                               \
-    LABEL(FSTI_##memSize##_##immSize):                                                                                        \
+    LABEL(FSTI_##memSize##_##immSize,                                                                                        \
     {                                                                                                                  \
         auto args = encoding::Decode(reader);                                                                          \
         DEBUG_INFO("FSTI_" #memSize "_" #immSize);                                                                     \
         uint64_t imm    = MathUtils::SignExtend(static_cast<uint64_t>(args.imm##immSize), immSize);                    \
         bool successful = interpreter.StoreFrameImm(Format::StoreAccessKind::ST_##memSize, imm, memspaceOffsetAcc);    \
         NEXT_COND(successful);                                                                                         \
-    }
+    })
     FSTI(8, 8, M2i8)
     FSTI(16, 8, M2i8)
     FSTI(16, 16, M3i16)
