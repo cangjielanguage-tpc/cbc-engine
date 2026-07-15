@@ -59,7 +59,7 @@ enum Tag : uint8_t {
     AOT_REF           = 0x2,
     CANGJIE_ARRAY     = 0x3,
     VARRAY            = 0x4,
-    ENUM_WRAPPER      = 0x5,
+    ENUM_WRAPPER      = 0x5, // TODO: delete
     C_POINTER         = 0x6,
     FUNC_TYPE_VAR     = 0x7,
     CLASS_TYPE_VAR    = 0x8,
@@ -75,6 +75,9 @@ enum Tag : uint8_t {
     TUPLE             = 0x12,
     BOX               = 0x13,
     FST               = 0x14,
+    OPTION            = 0x15,
+    UNION_ENUM        = 0x18,
+    PRIMITIVE_ENUM    = 0x19,
 };
 
 static TermData* AllocateTerm(Memory::Heap& allocator, size_t subtermCount = 0)
@@ -82,6 +85,14 @@ static TermData* AllocateTerm(Memory::Heap& allocator, size_t subtermCount = 0)
     return static_cast<TermData*>(allocator.Allocate(sizeof(TermData) + subtermCount * sizeof(Term), alignof(TermData))
     );
 }
+
+constexpr TermFlags::TermFlags(int flags)
+    : isLocal((flags & F_LOCAL) != 0),
+      isReference((flags & F_REFERENCE) != 0),
+      isAotPromoted((flags & F_AOT_PROMOTED) != 0),
+      isGeneric((flags & F_GENERIC) != 0),
+      isFixedSize((flags & F_FST) != 0)
+{}
 
 struct BuiltinTerms {
     void* memory;
@@ -140,12 +151,8 @@ struct BuiltinTerms {
         void* classTypeVars = DataAt(memory, PRIM_COUNT);
         void* funcTypeVars  = DataAt(memory, PRIM_COUNT + TV_COUNT);
 
-        TermFlags primFlags = {0};
-
-        TermFlags tvFlags = {
-            .isReference   = true,
-            .isGeneric     = true,
-        };
+        TermFlags primFlags = 0;
+        TermFlags tvFlags   = F_REFERENCE | F_GENERIC;
 
         for (size_t i = 0; i < PRIM_COUNT; i++) {
             auto kind        = TermKind(i);
@@ -202,16 +209,10 @@ Term Term::Definition(Session& session, Identifier<Symlevel::TypeDefinition> typ
     for (uint8_t i = 0; i < arity; i++) {
         data->subterms[i] = ClassTypeVariable(i);
     }
-    data->InitAfterSubterms(
-        TypeTermId(type),
-        arity,
-        {
-            .isLocal       = true,
-            .isReference   = !isRec,
-            .isAotPromoted = false,
-            .isGeneric     = (arity > 0),
-        }
-    );
+    TermFlags flags   = F_LOCAL;
+    flags.isReference = !isRec;
+    flags.isGeneric   = (arity > 0);
+    data->InitAfterSubterms(TypeTermId(type), arity, flags);
     return LocalTerm(data);
 }
 
@@ -219,16 +220,7 @@ static Term Undefined(Session& session, RefIdentifier<Term> termId)
 {
     // TODO: assertions for length
     auto* data = AllocateTerm(session.Allocator());
-    data->InitAfterSubterms(
-        UndefTermId(termId),
-        0,
-        {
-            .isLocal       = true,
-            .isReference   = !false,
-            .isAotPromoted = false,
-            .isGeneric     = false,
-        }
-    );
+    data->InitAfterSubterms(UndefTermId(termId), 0, F_LOCAL);
     return LocalTerm(data);
 }
 
@@ -372,8 +364,11 @@ void Term::GetName(Session& session, Stream::Output& out) const
             break;
         }
 
+        case TK::UNION_ENUM:
+        case TK::OPTION:
+        case TK::PRIMITIVE_ENUM:
         case TK::TYPE: {
-            auto ident = TypeTermId(*this).GetIdentifier();
+            auto ident = ExtractTypeDefIdentifier(*this);
             auto type  = Symlevel::TypeDefinition::Resolve(session, ident);
             stream << Symlevel::Reader::Read(session, type.GetName());
             if (int len = GetLength(); len > 0) {
@@ -492,11 +487,9 @@ Term TermManager::NewAotTerm(
     }
 
     TermId id       = TagTermId(TermKind::NOTHING);
-    TermFlags flags = {
-        .isLocal       = true,
-        .isReference   = isReference,
-        .isGeneric     = isGeneric,
-    };
+    TermFlags flags   = F_LOCAL;
+    flags.isReference = isReference;
+    flags.isGeneric   = isGeneric;
 
     auto type = session.GetEngine().FindType(session, name);
     if (type.has_value()) {
@@ -524,11 +517,9 @@ Term TermManager::NewTermWithId(Session& session, TermId id, bool isReference, s
         isGeneric         = isGeneric || subterms[i].IsGeneric();
     }
 
-    TermFlags flags = {
-        .isLocal       = true,
-        .isReference   = isReference,
-        .isGeneric     = isGeneric,
-    };
+    TermFlags flags   = F_LOCAL;
+    flags.isReference = isReference;
+    flags.isGeneric   = isGeneric;
     data->InitAfterSubterms(id, arity, flags);
     return Term(LocalTerm(data));
 }
@@ -637,16 +628,78 @@ struct TermResolver {
             return NewUndefined(refId);
         }
 
-        data->InitAfterSubterms(
-            TypeTermId(identifier),
-            expectedLength,
-            {
-                .isLocal       = true,
-                .isReference   = isReference,
-                .isAotPromoted = wasAot,
-                .isGeneric     = isGeneric,
+        TermFlags flags     = F_LOCAL;
+        flags.isReference   = isReference;
+        flags.isGeneric     = isGeneric;
+        flags.isAotPromoted = wasAot;
+
+        data->InitAfterSubterms(TypeTermId(identifier), expectedLength, flags);
+        return Term(LocalTerm(data));
+    }
+
+    Term ResolveEnumTerm(
+        IO::StreamFileReader& reader, Symlevel::String name, int expectedLength, Symlevel::RefId<Term> refId, Tag tag
+    )
+    {
+        using namespace Symlevel;
+
+        auto type = session.GetEngine().FindType(session, name);
+        if (!type.has_value()) {
+            return NewUndefined(refId);
+        }
+        auto identifier = type.value();
+
+        auto def = Symlevel::TypeDefinition::Resolve(session, identifier);
+
+        bool optionLikeEnum = false;
+        switch (def->enumKind) {
+            case Symlevel::EnumKind::OPTION0:
+            case Symlevel::EnumKind::OPTION1:
+                optionLikeEnum = true;
+            default: {}
+        }
+
+        bool undefined   = false;
+        bool isReference = false;
+        TermId id = TagTermId(TermKind::NIL);
+        switch (tag) {
+            case OPTION: {
+                undefined = !optionLikeEnum;
+                id          = OptionId(identifier);
+                break;
             }
-        );
+            case UNION_ENUM:
+                undefined = def->enumKind != Symlevel::EnumKind::UNION;
+                id = UnionEnumId(identifier);
+                break;
+            case PRIMITIVE_ENUM:
+                undefined = def->enumKind != Symlevel::EnumKind::PRIMITIVE;
+                id = PrimitiveEnumId(identifier);
+                break;
+            default: {}
+        }
+
+        if (undefined || def->arity != expectedLength) {
+            return NewUndefined(refId);
+        }
+
+        auto data      = AllocateTerm(heap, expectedLength);
+        bool isGeneric = false;
+        if (!ReadSubTerms(data, &isGeneric, expectedLength, reader)) {
+            return NewUndefined(refId);
+        }
+
+        TermFlags flags   = F_LOCAL;
+        if (tag == OPTION) {
+            auto underlying = TermManager::Resolve(session, def.GetEnumType());
+            ArraySubstitution sub(session, data->subterms, expectedLength);
+            underlying  = sub.Substitute(underlying);
+            isReference = underlying.IsReference();
+        }
+        flags.isReference = isReference;
+        flags.isGeneric   = isGeneric;
+
+        data->InitAfterSubterms(id, expectedLength, flags);
         return Term(LocalTerm(data));
     }
 
@@ -672,14 +725,25 @@ struct TermResolver {
         if (!ReadSubTerms(data, &isGeneric, length, reader)) {
             return NewUndefined(refId);
         }
-        TermFlags flags = {
-            .isLocal       = true,
-            .isReference   = isReference,
-            .isGeneric     = isGeneric,
-        };
+        TermFlags flags   = F_LOCAL;
+        flags.isReference = isReference;
+        flags.isGeneric   = isGeneric;
         auto internedName = manager.InternString(name);
 
         data->InitAfterSubterms(AotTermId(internedName), length, flags);
+        return Term(LocalTerm(data));
+    }
+
+    Term NewTerm(IO::StreamFileReader& reader, Symlevel::RefId<Term> refId, TermId id, uint16_t length, TermFlags flags)
+    {
+        auto* data = AllocateTerm(heap, length);
+
+        bool isGeneric = false;
+        if (!ReadSubTerms(data, &isGeneric, length, reader)) {
+            return NewUndefined(refId);
+        }
+        flags.isGeneric = isGeneric;
+        data->InitAfterSubterms(id, length, flags);
         return Term(LocalTerm(data));
     }
 
@@ -720,48 +784,14 @@ struct TermResolver {
             }
             case FUNCTIONAL: {
                 auto len   = reader.ReadU8() + 1; // +1 for ret type
-                auto* data = AllocateTerm(heap, len);
-
-                bool isGeneric = false;
-                if (!ReadSubTerms(data, &isGeneric, len, reader)) {
-                    return NewUndefined(refId);
-                }
-                TermFlags flags = {
-                    .isLocal       = true,
-                    .isReference   = true,
-                    .isGeneric     = isGeneric,
-                };
-                data->InitAfterSubterms(TagTermId(TermKind::FUNCTIONAL), len, flags);
-                return Term(LocalTerm(data));
+                return NewTerm(reader, refId, TagTermId(TermKind::FUNCTIONAL), len, F_LOCAL | F_REFERENCE);
             }
             case TUPLE: {
                 auto len   = reader.ReadULEB();
-                auto* data = AllocateTerm(heap, len);
-
-                bool isGeneric = false;
-                if (!ReadSubTerms(data, &isGeneric, len, reader)) {
-                    return NewUndefined(refId);
-                }
-                TermFlags flags = {
-                    .isLocal       = true,
-                    .isGeneric     = isGeneric,
-                };
-                data->InitAfterSubterms(TagTermId(TermKind::TUPLE), len, flags);
-                return Term(LocalTerm(data));
+                return NewTerm(reader, refId, TagTermId(TermKind::TUPLE), len, F_LOCAL);
             }
             case NULLABLE: {
-                auto* data     = AllocateTerm(heap, 1);
-                bool isGeneric = false;
-                if (!ReadSubTerms(data, &isGeneric, 1, reader)) {
-                    return NewUndefined(refId);
-                }
-                TermFlags flags = {
-                    .isLocal       = true,
-                    .isReference   = true,
-                    .isGeneric     = isGeneric,
-                };
-                data->InitAfterSubterms(TagTermId(TermKind::NULLABLE), 1, flags);
-                return Term(LocalTerm(data));
+                return NewTerm(reader, refId, TagTermId(TermKind::NULLABLE), 1, F_LOCAL | F_REFERENCE);
             }
             case CLASS_TYPE_VAR: {
                 auto id = reader.ReadU8();
@@ -772,32 +802,10 @@ struct TermResolver {
                 return Term::FuncTypeVariable(id);
             }
             case CANGJIE_ARRAY: {
-                auto* data     = AllocateTerm(heap, 1);
-                bool isGeneric = false;
-                if (!ReadSubTerms(data, &isGeneric, 1, reader)) {
-                    return NewUndefined(refId);
-                }
-                TermFlags flags = {
-                    .isLocal       = true,
-                    .isReference   = true,
-                    .isGeneric     = isGeneric,
-                };
-                data->InitAfterSubterms(TagTermId(TermKind::CANGJIE_ARRAY), 1, flags);
-                return Term(LocalTerm(data));
+                return NewTerm(reader, refId, TagTermId(TermKind::CANGJIE_ARRAY), 1, F_LOCAL | F_REFERENCE);
             }
             case BOX: {
-                auto* data     = AllocateTerm(heap, 1);
-                bool isGeneric = false;
-                if (!ReadSubTerms(data, &isGeneric, 1, reader)) {
-                    return NewUndefined(refId);
-                }
-                TermFlags flags = {
-                    .isLocal = true,
-                    .isReference = true,
-                    .isGeneric = isGeneric,
-                };
-                data->InitAfterSubterms(TagTermId(TermKind::BOX), 1, flags);
-                return Term(LocalTerm(data));
+                return NewTerm(reader, refId, TagTermId(TermKind::BOX), 1, F_LOCAL | F_REFERENCE);
             }
             case FST: {
                 auto subtermIdx = reader.ReadULEB();
@@ -807,6 +815,14 @@ struct TermResolver {
                 }
                 subterm.data->flags.isFixedSize = true;
                 return subterm;
+            }
+            case UNION_ENUM:
+            case PRIMITIVE_ENUM:
+            case OPTION: {
+                auto nameOffs = Offset<String>(reader.ReadULEB());
+                auto name = Reader::Read(session, fileId, nameOffs);
+                auto arity = reader.ReadU8();
+                return ResolveEnumTerm(reader, name, arity, refId, tag);
             }
             default: {
                 FATAL("Not implemented for tag %d", tag);
@@ -891,6 +907,15 @@ Term Substitution::Substitute(Term term)
             newData->subterms[i] = Substitute(data->subterms[i]);
             isGeneric            = isGeneric || newData->subterms[i].IsGeneric();
         }
+        if (term.GetKind() == TermKind::OPTION) {
+            auto id = ExtractTypeDefIdentifier(term);
+            auto def = Symlevel::Reader::Read(session, id);
+            auto underlying = TermManager::Resolve(session, def.GetEnumType());
+
+            ArraySubstitution sub(session, newData->subterms, length);
+            underlying = sub.Substitute(underlying);
+            flags.isReference = underlying.IsReference();
+        }
         flags.isLocal   = true;
         flags.isGeneric = isGeneric;
         newData->InitAfterSubterms(data->identifier, length, flags);
@@ -900,23 +925,45 @@ Term Substitution::Substitute(Term term)
 
 Substitution::Substitution(Session& session) : session(session) {}
 
-ClassSubstitution::ClassSubstitution(Session& session, Term term) : Substitution(session), term(term) {}
+ClassSubstitution::ClassSubstitution(Session& session, Term term) : ClassSubstitution(session, term.data->subterms, term.data->length) {}
+
+ClassSubstitution::ClassSubstitution(Session& session, Term* terms, uint32_t termCount) :Substitution(session), terms(terms), termCount(termCount) {}
 
 Term ClassSubstitution::SubstituteClassTv(uint8_t typeVar)
 {
-    ASSERT(typeVar < term.GetLength());
-    return term.Subterm(typeVar);
+    ASSERT(typeVar < termCount);
+    return terms[typeVar];
 }
 
 Term ClassSubstitution::SubstituteFuncTv(uint8_t typeVar) { return Term::FuncTypeVariable(typeVar); }
 
 ArraySubstitution::ArraySubstitution(Session& session, std::vector<Term> const& terms)
+    : ArraySubstitution(session, terms.data(), terms.size())
+{}
+
+ArraySubstitution::ArraySubstitution(Session& session, Term const* terms, size_t size)
     : Substitution(session),
-      terms(terms)
+      terms(terms),
+      size(size)
 {}
 
 Term ArraySubstitution::SubstituteFuncTv(uint8_t typeVar) { return Term::FuncTypeVariable(typeVar); }
 
-Term ArraySubstitution::SubstituteClassTv(uint8_t typeVar) { return terms.at(typeVar); }
+Term ArraySubstitution::SubstituteClassTv(uint8_t typeVar)
+{
+    ASSERT(typeVar < size);
+    return terms[typeVar];
+}
+
+Identifier<Symlevel::TypeDefinition> ExtractTypeDefIdentifier(Term term)
+{
+    switch (term.GetKind()) {
+        case TermKind::UNION_ENUM:      return UnionEnumId(term).GetIdentifier();
+        case TermKind::OPTION:          return OptionId(term).GetIdentifier();
+        case TermKind::PRIMITIVE_ENUM:  return PrimitiveEnumId(term).GetIdentifier();
+        case TermKind::TYPE:            return TypeTermId(term).GetIdentifier();
+        default:                        FATAL("unexpected kind %d", term.GetKind());
+    }
+}
 
 } // namespace Engine

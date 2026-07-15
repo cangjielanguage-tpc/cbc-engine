@@ -26,9 +26,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
-#include <limits>
 #include <optional>
-#include <utility>
 
 namespace RTSupport {
 
@@ -144,10 +142,10 @@ struct TypeInfoBuilder {
     int8_t type;
     uint8_t flag      = 0;
     uint16_t fieldNum = 0;
-    //
-    // assume that there is no 32-bit size objects
-    int32_t instanceSize  = -1;
-    int32_t componentSize = -1;
+
+    // holds uint32_t
+    int64_t instanceSize  = -1;
+    int64_t componentSize = -1;
 
     DYN_GCTib gctib { .raw = GCTIB_SIGN_BIT };
     StdGCTib* longgctib = nullptr;
@@ -317,12 +315,13 @@ static std::optional<DYN_GCTib> ConstructGCTib(TypeInfoBuilder& builder, std::ve
     }
 }
 
-// TODO: factory class, so it can hold state other managers without recreating them
+// TODO: factory class, so it can hold state of other managers without recreating them.
+// TODO: split function to smaller ones.
 static std::optional<TypeInfo> CreateTypeInfoDyn(
     Engine::Session& session, Engine::TypeInfoManager& manager, Engine::GlobalTerm term
 )
 {
-    auto ident = Engine::TypeTermId(term).GetIdentifier();
+    auto ident = Engine::ExtractTypeDefIdentifier(term);
 
     auto type = Symlevel::Reader::Read(session, ident);
     auto name = Symlevel::Reader::Read(session, type.GetName());
@@ -358,23 +357,28 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
     auto typeKind = type.GetFlags().GetTypeKind();
     switch (typeKind) {
         case Symlevel::TypeKind::INTERFACE:
-            builder.type = -127;
+            builder.type = TYPE_KIND_INTERFACE;
             needExtDefs  = true;
             needFields   = false;
             break;
         case Symlevel::TypeKind::RECORD:
-            builder.type = 22;
+            builder.type = TYPE_KIND_STRUCT;
             needExtDefs  = true;
             needFields   = true;
             break;
         case Symlevel::TypeKind::CLASS:
-            builder.type = -128;
+            builder.type = TYPE_KIND_CLASS;
             needExtDefs  = true;
             needFields   = true;
             break;
         case Symlevel::TypeKind::LAMBDA:
-            builder.type = -128;
+            builder.type = TYPE_KIND_CLASS;
             needExtDefs  = false;
+            needFields   = true;
+            break;
+        case Symlevel::TypeKind::ENUM:
+            builder.type = TYPE_KIND_ENUM;
+            needExtDefs  = true;
             needFields   = true;
             break;
         default: FATAL("unreachable type kind");
@@ -601,7 +605,13 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             fieldManager->FillRefOffsets(fieldType, refFieldOffs, optOffs.value());
         }
 
-        if (!refFieldOffs.empty()) {
+        // options has insconsistent .offsets property and gctib in cjnative
+        // why??
+        if (term.GetKind() == Engine::TermKind::OPTION && term.IsReference()) {
+            builder.gctib = { .raw = (1ull << 63) | 1 };
+        } else if (term.GetKind() == Engine::TermKind::OPTION && !term.IsReference()) {
+            builder.gctib = { .raw = (1ull << 63) | 0 };
+        } else if (!refFieldOffs.empty()) {
             builder.flag |= HAS_REF_FIELD;
 
             auto gctib = ConstructGCTib(builder, refFieldOffs);
@@ -610,12 +620,13 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             }
             builder.gctib = *gctib;
         }
-    } else {
-        builder.fieldNum     = 0;
-        builder.fields       = nullptr;
-        builder.align        = 1;
-        builder.instanceSize = 0;
-    }
+        } else {
+            builder.fieldNum     = 0;
+            builder.fields       = nullptr;
+            builder.fieldOffsets = nullptr;
+            builder.align        = 1;
+            builder.instanceSize = 0;
+        }
 
     builder.typeArgsNum = 0; // Otherwise, runtime would expect type template to be present.
     int typeArgsNum     = term.GetLength();
@@ -814,6 +825,7 @@ std::optional<TypeInfo> CreateTypeInfo(
         using namespace Interpretation;
         auto termIdent = term.GetId();
         switch (termIdent.GetKind()) {
+            case Engine::TermKind::OPTION:
             case Engine::TermKind::TYPE: return CreateTypeInfoDyn(session, manager, term);
 
             case Engine::TermKind::AOT_TYPE:

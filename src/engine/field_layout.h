@@ -16,7 +16,7 @@ namespace Engine {
 class FieldLayout {
 public:
     struct Entry {
-        Identifier<Symlevel::FieldDefinition> definition;
+        std::optional<Identifier<Symlevel::FieldDefinition>> definition;
         Term fieldType;
         std::optional<uint32_t> offset;
     };
@@ -57,7 +57,7 @@ public:
     /// The alignment of a field of given type and its alignment.
     virtual uint8_t GetFlatAlignment(Term term) = 0;
 
-    /// Fills out the `offsets` vector with all reference offsets of type `term`.
+    /// Fills out the `offsets` vector with all reference offsets of a value of type `Term`.
     virtual void FillRefOffsets(Term term, std::vector<uint32_t>& offsets, uint32_t disp) = 0;
 
     virtual ~FieldLayoutManager();

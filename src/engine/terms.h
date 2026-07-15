@@ -68,20 +68,21 @@ enum class TermKind : uint8_t {
 
     UNDEFINED, // resolution error
 
-    // builtin types start
     C_POINTER,
-    NULLABLE,
-    NON_NULLABLE,
-    CANGJIE_ARRAY,
+    NULLABLE,      // TODO: delete
+    NON_NULLABLE,  // TODO: delete
+    CANGJIE_ARRAY, // TODO: rename
     FUNCTIONAL,
     TUPLE,
     BOX,
-    // builtin types end
-
     TYPE,
     AOT_TYPE,
     CLASS_TYPE_VAR,
     FUNC_TYPE_VAR,
+    OPTION,
+    UNION_OPTION,
+    UNION_ENUM,
+    PRIMITIVE_ENUM,
     LAST
 };
 
@@ -116,11 +117,11 @@ protected:
     uint64_t info : INFO_PART_BIT_SIZE;
 };
 
-struct TagTermId : public TermId {
-    constexpr TagTermId(TermKind kind) : TermId(kind, 0) {}
-
-    explicit constexpr TagTermId(TermId ident) : TermId(ident) { ASSERT(info == 0); }
-};
+static constexpr int F_LOCAL        = 0x1;
+static constexpr int F_REFERENCE    = 0x2;
+static constexpr int F_AOT_PROMOTED = 0x4;
+static constexpr int F_GENERIC      = 0x8;
+static constexpr int F_FST          = 0x10;
 
 struct TermFlags {
     uint32_t isLocal : 1;
@@ -130,6 +131,7 @@ struct TermFlags {
     uint32_t isFixedSize : 1;
 
     TermFlags() = delete;
+    constexpr TermFlags(int flags);
 };
 
 struct Term {
@@ -199,6 +201,12 @@ struct GlobalTerm : public Term {
     bool operator!=(const GlobalTerm& another) const;
 };
 
+struct TagTermId : public TermId {
+    constexpr TagTermId(TermKind kind) : TermId(kind, 0) {}
+
+    explicit constexpr TagTermId(TermId ident) : TermId(ident) { ASSERT(info == 0); }
+};
+
 /// Term identifier that have `Identifer` as its part.
 template <typename Id, TermKind tk> struct _SpecializedTermId : public TermId {
     _SpecializedTermId(Id identifier) : TermId(tk, Bits::Raw64(identifier.Pack())) {}
@@ -238,8 +246,14 @@ using AotTermId   = _NumberedTermId<uint32_t, TermKind::AOT_TYPE>;
 using TypeTermId  = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::TYPE>;
 using UndefTermId = _SpecializedTermId<RefIdentifier<Term>, TermKind::UNDEFINED>;
 
+using OptionId        = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::OPTION>;
+using UnionEnumId     = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::UNION_ENUM>;
+using PrimitiveEnumId = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::PRIMITIVE_ENUM>;
+
 using ClassTvTermId = _NumberedTermId<uint8_t, TermKind::CLASS_TYPE_VAR>;
 using FuncTvTermId  = _NumberedTermId<uint8_t, TermKind::FUNC_TYPE_VAR>;
+
+Identifier<Symlevel::TypeDefinition> ExtractTypeDefIdentifier(Term term);
 
 /// Routine that substitutes terms in places of type variables.
 /// To perform an substitution a mapping `TV -> Term` is required.
@@ -261,30 +275,36 @@ protected:
 
 /// Routine that substitutes class type variables with corresponding subterms of `term`.
 /// Function type vars are mapped to themselves.
+/// FIXME: Merge with ArraySubstitution
 class ClassSubstitution : public Substitution {
 public:
     ClassSubstitution(Session& session, Term term);
+    ClassSubstitution(Session& session, Term* terms, uint32_t termCount);
 
 protected:
     Term SubstituteClassTv(uint8_t typeVar) override;
     Term SubstituteFuncTv(uint8_t typeVar) override;
 
 private:
-    Term term;
+    Term* terms;
+    uint32_t termCount;
 };
 
 /// Routine that substitutes class type variables with corresponding subterms provided in vector.
 /// Function type vars are mapped to themselves.
+/// FIXME: Merge with ClassSubstitution
 class ArraySubstitution : public Substitution {
 public:
     ArraySubstitution(Session& session, std::vector<Term> const& terms);
+    ArraySubstitution(Session& session, Term const* terms, size_t size);
 
 protected:
     Term SubstituteClassTv(uint8_t typeVar) override;
     Term SubstituteFuncTv(uint8_t typeVar) override;
 
 private:
-    std::vector<Term> const& terms;
+    Term const* terms;
+    size_t size;
 };
 
 /// Term manager provides utilities for caching (and interning) of global terms,

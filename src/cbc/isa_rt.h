@@ -30,6 +30,7 @@
     X(BCCL32L, B5xi12ri12, "bcc.32 $0cc $2ir $3I12L $1I12L")                                                           \
     X(BCCL64L, B5xi12ri12, "bcc.64 $0cc $2ir $3I12L $1I12L")                                                           \
     X(JMP32, B5i32, "jmp $0I32")                                                                                       \
+    X(BRANCH_IS_REF, B3xi12, "branch.is.ref $0ir $1I12")                                                               \
     X(BIN32, B3xrrr, "$0bin.32 $1ir $2ir $3ir")                                                                        \
     X(BIN64, B3xrrr, "$0bin.64 $1ir $2ir $3ir")                                                                        \
     X(BINI32I, B4xi12rr, "$0bin.32 $2ir $3ir $1I12")                                                                   \
@@ -41,6 +42,7 @@
     X(FUN32, B3xrrr, "$0fop.32 $1fr $3fr")                                                                             \
     X(FUN64, B3xrrr, "$0fop.64 $1fr $3fr")                                                                             \
     X(NEWOBJ, B9i64, "newobj IR1, $0U64")                                                                              \
+    X(NEWOBJ_G, B2rr, "newobj.g $0ir")                                                                                 \
     X(NEWARR, B9i64, "newarr IR1, IR2, $0U64")                                                                         \
     X(INITCLOSURE, B1, "init.closure")                                                                                 \
     X(SPAWN, B9i64, "spawn $0U64")                                                                                     \
@@ -426,6 +428,8 @@ struct B3xxrr {
 };
 
 struct B3xi12 {
+    static constexpr int SIZE = 3;
+
     Opcode opc;
     Format::XImm12 xi12;
 

@@ -103,6 +103,10 @@
     X(UnboxRec, UnboxRec)                                                                                              \
     X(Offset, Offset)                                                                                                  \
     X(AddOffset, AddOffset)                                                                                            \
+    X(TagGeneric, TagGeneric)                                                                                          \
+    X(PayloadGeneric, PayloadGeneric)                                                                                  \
+    X(NewNoneGeneric, NewNoneGeneric)                                                                                  \
+    X(NewSomeGeneric, NewSomeGeneric)                                                                                  \
     X(_END, Unreachable)
 
 #define ISA_MEM_OPCODES(X)                                                                                             \

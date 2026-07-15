@@ -91,6 +91,7 @@ CbcTypeKind Resolver::GetKind(Type type)
         case TK::CANGJIE_ARRAY: return CbcTypeKind::REF;
         case TK::LAST:          return CbcTypeKind::INVALID;
         case TK::AOT_TYPE:
+        case TK::OPTION:
         case TK::TYPE:          return term.IsReference() ? CbcTypeKind::REF : CbcTypeKind::REC;
 
         default:
@@ -144,6 +145,20 @@ struct ResolvedFieldReference {
 };
 
 struct ResolverProxy {
+    /// Routine that substitutes type variables with `stub`.
+    class StubSubstitution : public Substitution {
+    public:
+        StubSubstitution(Session& session, Term term) : Substitution(session), stub(term) {}
+
+    protected:
+        Term SubstituteClassTv(uint8_t typeVar) override { return stub; }
+
+        Term SubstituteFuncTv(uint8_t typeVar) override { return stub; }
+
+    private:
+        Term stub;
+    };
+
     static std::optional<InstanceField::Content> ResolveAotInstanceField(
         Resolver& resolver, ResolvedFieldReference& ref
     )
@@ -152,9 +167,25 @@ struct ResolverProxy {
         auto fieldType   = resolver.Wrap(ref.fieldType);
         auto [file, raf] = resolver.session.File(resolver.method.GetFileId());
         auto data        = file.GetInstanceFieldAotTable().GetData(resolver.session, ref.identifier.GetIndex());
-        auto offset      = RTSupport::Execution::GetFieldOffset(
-            refType.GetTypeInfo().value(), data.ordinal, ref.refType.IsReference()
-        );
+
+        auto refTypeFlags                     = refType.term.Flags();
+        std::optional<uint32_t> offset        = std::nullopt;
+        std::optional<RTSupport::TypeInfo> ti = std::nullopt;
+
+        if (refTypeFlags.isGeneric && refTypeFlags.isFixedSize) {
+            // We can not query TypeInfo for generic type to access its field.
+            // Since refType is fixed size type, we can query TI of any instantiation
+            // of given type which will have the exact same field layout generic one.
+            StubSubstitution sub(resolver.session, Term::Predefined(TermKind::I64));
+            auto concrete = sub.Substitute(refType.term);
+            ti            = resolver.tiManager.AcquireTypeInfo(resolver.session, concrete);
+        } else if (!refTypeFlags.isGeneric) {
+            ti = refType.GetTypeInfo();
+        }
+
+        if (ti) { // for generic instance fields
+            offset = RTSupport::Execution::GetFieldOffset(*ti, data.ordinal, ref.refType.IsReference());
+        }
         return InstanceField::Content { refType, ref.name, fieldType, data.ordinal, offset };
     }
 
@@ -218,7 +249,9 @@ struct ResolverProxy {
                     auto optoffset   = [&]() {
                         std::optional<uint32_t> offset {};
                         for (auto& field : layout->fields) {
-                            auto def  = Symlevel::Reader::Read(resolver.session, field.definition);
+                            if (!field.definition)
+                                continue;
+                            auto def  = Symlevel::Reader::Read(resolver.session, *field.definition);
                             auto name = Symlevel::Reader::Read(resolver.session, def.GetName());
                             if (field.fieldType == ref.fieldType && name.compare(ref.name) == 0) {
                                 offset = field.offset;

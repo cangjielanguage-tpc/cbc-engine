@@ -11,7 +11,8 @@ public:
         CLASS,
         INTERFACE,
         LAMBDA,
-        RECORD
+        RECORD,
+        ENUM
     };
 
     static constexpr int BIT_COUNT = 3;
@@ -26,6 +27,8 @@ public:
             case CLASS:     return "CLASS";
             case INTERFACE: return "INTERFACE";
             case RECORD:    return "RECORD";
+            case LAMBDA:    return "LAMBDA";
+            case ENUM:      return "ENUM";
             default:        return "<unknown>";
         }
     }

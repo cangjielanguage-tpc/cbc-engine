@@ -7,6 +7,7 @@
 #include "cbc/isa_rt.h"
 #include "emitter.h"
 #include "runtimesupport/runtime.h"
+#include "utils/assertion.h"
 #include "utils/heap.h"
 #include "utils/math.h"
 
@@ -138,6 +139,27 @@ public:
                         .imm32 = Imm32 { .imm = static_cast<uint32_t>(distance) } }
         );
     }
+};
+
+class BrIfRef : public Fixup {
+public:
+    BrIfRef(Symbol sym, IReg typeInfo) : Fixup(sym), typeInfo(typeInfo) {}
+
+    int32_t Size() const override { return RT::B3xi12::SIZE; }
+
+    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+        const override
+    {
+        int32_t distance = Distance(symbols, this->symbol);
+        ASSERTION(MathUtils::IsNBitsSigned(distance, 12), "has only short encoding");
+
+        Segment::View buf = segment.At(static_cast<size_t>(position));
+        RT::B3xi12 command { .opc = RT::Opcode::BRANCH_IS_REF, .xi12 = { .imm4 = { typeInfo }, .imm12 = distance } };
+        Encode(buf, command);
+    }
+
+private:
+    IReg typeInfo;
 };
 
 class BccFixup : public Fixup {
@@ -470,6 +492,8 @@ void Emitter::Bcc(CC cc, Width width, Reg l, Reg r, Label label)
     AddFixup(std::make_unique<BccFixup>(label, cc, width, l, r));
 }
 
+void Emitter::BranchIfRef(IReg typeInfo, Label label) { AddFixup(std::make_unique<BrIfRef>(label, typeInfo)); }
+
 void Emitter::BccImm(CC cc, Width width, IReg l, uint64_t r, Label label)
 {
     ASSERT(width == Width::W32 || width == Width::W64);
@@ -481,6 +505,8 @@ void Emitter::Nop() { Encode(segment, RT::B1 { RT::Opcode::NOP }); }
 void Emitter::Jmp(Label label) { AddFixup(std::make_unique<JmpFixup>(label)); }
 
 void Emitter::Ret() { Encode(segment, RT::B1 { RT::Opcode::RET }); }
+
+void Emitter::NewObjGenericOnAcc(IReg ti) { Encode(segment, RT::B2rr { .opc = RT::Opcode::NEWOBJ_G, .rr = { ti, ti } }); }
 
 void Emitter::NewObj(RTSupport::TypeInfo typeInfo)
 {

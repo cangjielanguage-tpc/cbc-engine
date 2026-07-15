@@ -178,15 +178,15 @@ std::optional<MethodTableEntry> MethodSubTable::EntryGenerator::operator()()
 
 // ---- MethodTable building ----
 
-std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, Identifier<TypeDefinition> type)
+std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, GlobalTerm type)
 {
-    auto def   = Reader::Read(session, type);
+    auto def   = Reader::Read(session, ExtractTypeDefIdentifier(type));
     auto flags = def.GetFlags();
 
     // 1. Get table of super type for claseses or empty table for other types
     MethodTable newTable {};
 
-    ClassSubstitution substitute(session, Term::Definition(session, type));
+    ClassSubstitution substitute(session, type);
 
     if (flags.Is(TypeKind::CLASS)) {
         auto superType = TermManager::Resolve(session, def.GetSuperType());
@@ -238,8 +238,7 @@ std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, Iden
 
     // 3. Patch all overriden methods and add newly declared methods
     // to the subtable of current type.
-    // TODO: make term with type variables
-    auto thisType      = Term::Definition(session, type);
+    auto thisType      = type;
     auto oldEntryCount = newTable.EntryCount();
 
     std::vector<MethodTableEntry> entryBuffer;
@@ -295,28 +294,8 @@ std::optional<std::shared_ptr<MethodTable>> MethodTableManager::GetMethodTable(S
     } else if (term.GetKind() == TermKind::UNDEFINED) {
         result = std::nullopt;
     } else {
-        auto type = TypeTermId(term).GetIdentifier();
-        auto table = GetMethodTable(session, type);
-        if (!table.has_value()) {
-            result = std::nullopt;
-        } else {
-            ClassSubstitution substitute(session, term);
-            MethodTable t = **table;
-
-            for (auto& e : t.allEntries) {
-                e.genericContext = substitute(e.genericContext);
-            }
-
-            for (auto& st : t.classTables) {
-                st.genericContext = substitute(st.genericContext);
-            }
-
-            for (auto& st : t.interfaceTables) {
-                st.genericContext = substitute(st.genericContext);
-            }
-
-            result = std::make_shared<MethodTable>(std::move(t));
-        }
+        auto gterm = TermManager::Of(session).Globalize(term);
+        result = GetMethodTable(session, gterm);
     }
 
     Log::mt.Log(Logging::Level::DEBUG, [&](Output& stream) {
@@ -338,15 +317,16 @@ std::optional<std::shared_ptr<MethodTable>> MethodTableManager::GetMethodTable(S
 /// is not functionally required.
 struct CachingMethodTableManager : public MethodTableManager {
     using Ident = Identifier<TypeDefinition>;
-    std::unordered_map<Ident::Packed, std::shared_ptr<MethodTable>, Ident::Hasher> tables;
+    // FIXME: this global caching is not efficient. Either remove caching entirely or use per-session cache.
+    std::unordered_map<GlobalTerm, std::shared_ptr<MethodTable>, Term::Hasher> tables;
 
     /// Returns an method table for the given type definition.
-    std::optional<std::shared_ptr<MethodTable>> GetMethodTable(Session& session, Identifier<TypeDefinition> type)
+    std::optional<std::shared_ptr<MethodTable>> GetMethodTable(Session& session, GlobalTerm type)
         override
     {
         auto& tables = this->tables;
 
-        auto it = tables.find(type.Pack());
+        auto it = tables.find(type);
         if (it != tables.end()) {
             return it->second;
         }
@@ -361,8 +341,7 @@ struct CachingMethodTableManager : public MethodTableManager {
         mt.Globalize(session);
 
         auto res = std::make_shared<MethodTable>(std::move(mt));
-
-        tables.insert({ type.Pack(), res });
+        tables.insert_or_assign(type, res);
         return res;
     }
 };
@@ -371,7 +350,7 @@ struct LockedMethodTableManager : public MethodTableManager {
     CachingMethodTableManager delegate;
     std::mutex lock;
 
-    std::optional<std::shared_ptr<MethodTable>> GetMethodTable(Session& session, Identifier<TypeDefinition> type)
+    std::optional<std::shared_ptr<MethodTable>> GetMethodTable(Session& session, GlobalTerm type)
         override
     {
         std::lock_guard guard(lock);

@@ -111,6 +111,14 @@ protected:
     virtual void UnboxT(uint16_t dstTs, IReg src)           = 0;
 
     virtual void Offset(IReg dst, IReg ti, uint16_t field, bool accumulate) = 0;
+    virtual void TagGeneric(IReg dst, IReg src, IReg tiReg, uint16_t typeId) = 0;
+    virtual void PayloadGeneric(
+        IReg dst, IReg src, IReg underlyingTypeInfo, IReg optionTypeInfo, uint16_t optionTypeInfoId
+    )                                                                                                              = 0;
+    virtual void NewNoneGeneric(IReg dst, IReg underlyingTypeInfo, IReg optionTypeInfo, uint16_t optionTypeInfoId) = 0;
+    virtual void NewSomeGeneric(
+        IReg dst, IReg src, IReg underlyingTypeInfo, IReg optionTypeInfo, uint16_t optionTypeInfoId
+    ) = 0;
 
     class MemSpace {
     public:

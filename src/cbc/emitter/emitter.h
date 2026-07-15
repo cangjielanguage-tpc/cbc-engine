@@ -163,6 +163,7 @@ public:
     void FMovI64(FReg d, double imm);
     void MovRef(IReg d, IReg s);
 
+    void BranchIfRef(IReg typeInfo, Label label);
     void Bcc(CC cc, Width width, Reg l, Reg r, Label label);
     void BccImm(CC cc, Width width, IReg l, uint64_t r, Label label);
     void Nop();
@@ -171,6 +172,7 @@ public:
     void InitClosure();
     void Spawn(RTSupport::TypeInfo typeInfo);
 
+    void NewObjGenericOnAcc(IReg ti);
     void NewObj(RTSupport::TypeInfo typeInfo);
     void NewArr(RTSupport::TypeInfo typeInfo);
     void LoadObj(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset);

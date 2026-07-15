@@ -9,7 +9,9 @@
 #include "engine/engine.h"
 #include "engine/resolving_output.h"
 #include "engine/symlevel/code.h"
+#include "engine/symlevel/definitions.h"
 #include "engine/symlevel/io/file_id.h"
+#include "engine/symlevel/reader.h"
 #include "engine/terms.h"
 #include "interpreter/code.h"
 #include "interpreter/function_handle.h"
@@ -440,6 +442,131 @@ struct IsaRewriter : public IsaParser {
         if (field->refType.GetKind() == Resolution::CbcTypeKind::REF) {
             emit.AddI(Format::Width::W64, dst, dst, RTSupport::MetaInfo::ObjectHeaderSize());
         }
+    }
+
+    void TagGeneric(IReg dst, IReg src, IReg ti, uint16_t typeId) override
+    {
+        auto t = resolver.Query(Index<Type>(typeId));
+        if (!t.has_value()) {
+            return Fail("resolution failure");
+        }
+
+        auto type      = *t;
+        auto typeDefId = Engine::ExtractTypeDefIdentifier(type.term);
+        auto typeDef   = Symlevel::Reader::Read(session, typeDefId);
+
+        auto refPath = emit.NewLabel();
+        auto end     = emit.NewLabel();
+        emit.BranchIfRef(ti, refPath);
+        emit.LoadObj(LDK::LD_U8, dst, src, RTSupport::MetaInfo::ObjectHeaderSize());
+        emit.Jmp(end);
+        emit.Bind(refPath);
+
+        emit.LoadObj(LDK::LD_REF, dst, src, RTSupport::MetaInfo::ObjectHeaderSize());
+        switch (typeDef->enumKind) {
+            case Symlevel::EnumKind::OPTION0: // enum { None, Some(T) }
+                emit.SCC(Format::CC::RNE, Format::Width::W64, dst, dst, IReg::IRZ);
+                break;
+            case Symlevel::EnumKind::OPTION1: // enum { Some(T), None }
+                emit.SCC(Format::CC::REQ, Format::Width::W64, dst, dst, IReg::IRZ);
+                break;
+            default: return Fail("unexpected enum kind");
+        }
+
+        emit.Bind(end);
+    }
+
+    void PayloadGeneric(IReg dst, IReg src, IReg underlyingTypeInfo, IReg optionTypeInfo, uint16_t optionTypeInfoId)
+        override
+    {
+        auto t = resolver.Query(Index<Type>(optionTypeInfoId));
+        if (!t.has_value()) {
+            return Fail("resolution failure");
+        }
+
+        auto type      = *t;
+        auto typeDefId = Engine::ExtractTypeDefIdentifier(type.term);
+        auto typeDef   = Symlevel::Reader::Read(session, typeDefId);
+        auto refPath   = emit.NewLabel();
+        auto end       = emit.NewLabel();
+        emit.BranchIfRef(underlyingTypeInfo, refPath);
+        {
+            auto ms = emit.OpenMemSpace();
+            ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
+            ms.GenericField(1, optionTypeInfo);
+            ms.LoadGeneric(dst, src, underlyingTypeInfo);
+            BindStatePoint();
+        }
+        emit.Jmp(end);
+        emit.Bind(refPath);
+        {
+            auto ms = emit.OpenMemSpace();
+            ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
+            ms.LoadGeneric(dst, src, underlyingTypeInfo);
+            BindStatePoint();
+        }
+        emit.Bind(end);
+    }
+
+    void NewNoneGeneric(IReg dst, IReg underlyingTypeInfo, IReg optionTypeInfo, uint16_t optionTypeInfoId) override
+    {
+        auto t = resolver.Query(Index<Type>(optionTypeInfoId));
+        if (!t.has_value()) {
+            return Fail("resolution failure");
+        }
+        auto type      = *t;
+        auto typeDefId = Engine::ExtractTypeDefIdentifier(type.term);
+        auto typeDef   = Symlevel::Reader::Read(session, typeDefId);
+
+        auto end = emit.NewLabel();
+        emit.NewObjGenericOnAcc(optionTypeInfo);
+        BindStatePoint();
+        emit.BranchIfRef(underlyingTypeInfo, end);
+        if (typeDef->enumKind == Symlevel::EnumKind::OPTION1) {
+            auto ms = emit.OpenMemSpace();
+            ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
+            ms.StoreObjImm(STK::ST_8, IReg::IR_ACC, 1);
+        }
+        emit.Bind(end);
+        emit.Mov(dst, IReg::IR_ACC);
+    }
+
+    void NewSomeGeneric(IReg dst, IReg src, IReg underlyingTypeInfo, IReg optionTypeInfo, uint16_t optionTypeInfoId)
+        override
+    {
+        auto t = resolver.Query(Index<Type>(optionTypeInfoId));
+        if (!t.has_value()) {
+            return Fail("resolution failure");
+        }
+
+        auto type      = *t;
+        auto typeDefId = Engine::ExtractTypeDefIdentifier(type.term);
+        auto typeDef   = Symlevel::Reader::Read(session, typeDefId);
+        auto refPath   = emit.NewLabel();
+        auto end       = emit.NewLabel();
+        emit.NewObjGenericOnAcc(optionTypeInfo);
+        BindStatePoint();
+        emit.BranchIfRef(underlyingTypeInfo, refPath);
+        {
+            auto ms = emit.OpenMemSpace();
+            ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
+            ms.GenericField(1, optionTypeInfo);
+            ms.StoreGeneric(src, IReg::IR_ACC, underlyingTypeInfo);
+        }
+        if (typeDef->enumKind == Symlevel::EnumKind::OPTION0) {
+            auto ms = emit.OpenMemSpace();
+            ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
+            ms.StoreObjImm(STK::ST_8, IReg::IR_ACC, 1);
+        }
+        emit.Jmp(end);
+        emit.Bind(refPath);
+        {
+            auto ms = emit.OpenMemSpace();
+            ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
+            ms.StoreGeneric(src, IReg::IR_ACC, underlyingTypeInfo);
+        }
+        emit.Bind(end);
+        emit.Mov(dst, IReg::IR_ACC);
     }
 
     std::optional<Type> NewObject(IReg dst, uint16_t typeId, New kind)
