@@ -163,24 +163,29 @@ void Code::Print(Engine::Session& session, Stream::Output& out)
          << "maxCalleeStackArgsCount: " << maxCalleeStackArgsCount << endl;
 
     out2 << "ExceptionTable {" << endl;
-
-    for (auto& [start, end, target] : GetExceptionRegions(session)) {
+    for (const auto& [start, end, target] : GetExceptionRegions(session)) {
         out2 << "  [" << start << ", " << end << ") -> " << target << endl;
     }
-
     out2 << "}" << endl;
 
     out2 << "LivenessInfo {" << endl;
-
-    for (auto& li : GetLivenessInfo(session)) {
+    for (const auto& li : GetLivenessInfo(session)) {
         out4 << "cbcPos: " << li.cbcPos << ", regMask: " << li.regMask << ", ";
         Std::Vector::Print(out4, li.refSlotNums);
         out4 << ", ";
         Std::Vector::Print(out4, li.mutPairs);
         out4 << endl;
     }
-
     out2 << "}" << endl;
+
+    out2 << "StackPtrsInfo {" << endl;
+    for (const auto& spi : GetStackPtrsInfo(session)) {
+        out4 << "cbcPos: " << spi.cbcPos << ", ";
+        Std::Vector::Print(out4, spi.resources);
+        out << endl;
+    }
+    out2 << "}" << endl;
+
     out << "}" << endl;
 }
 
