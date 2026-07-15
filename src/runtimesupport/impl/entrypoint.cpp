@@ -24,6 +24,7 @@
 #include "interpreter/interpretation_loop.h"
 #include "interpreter/loggers.h"
 #include "runtimesupport/impl/rt_syms.h"
+#include "stack_expansion.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
 #include "utils/rt_logger.h"
@@ -249,7 +250,9 @@ static void VisitFrameRootsExpansion(
     DYN_DerivedPtrVisitor derivedPtrVisitor
 )
 {
-    /* no-op */
+    if (g_Initialized) {
+        StackExpansion::VisitFrameRootsForStackPtrs(state, frameDesc, stackPtrVisitor, derivedPtrVisitor);
+    }
 }
 
 static void VisitGlobalRoots(DYN_RootVisitor visitor)

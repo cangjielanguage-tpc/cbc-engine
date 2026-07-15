@@ -30,6 +30,8 @@ extern void engine_all_regs_c2i_call();
 extern void engine_i2i_call();
 extern void engine_i2c_call();
 extern void common_landing_pad();
+extern void engine_ectype_saving_stub_pc_start();
+extern void engine_ectype_saving_stub_pc_end();
 extern void (*engine_stack_grow_stub)();
 extern void* (*engine_tls_function)();
 extern void (*engine_implicit_exception_thrower)(int kind);

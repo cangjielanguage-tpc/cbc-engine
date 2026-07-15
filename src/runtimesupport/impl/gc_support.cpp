@@ -3,20 +3,16 @@
 #include "asm_export.h"
 #include "cjnative.h"
 #include "engine/statics_manager.h"
-#include "interpreter/code.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
+#include "reg_table.h"
 #include "runtimesupport/runtime.h"
 #include "utils/logger.h"
 #include "utils/rt_logger.h"
 
-#include <bitset>
-#include <cstdint>
-
 namespace GCSupport {
 
 using namespace Stream;
-using Placeholder = uintptr_t*;
 
 static void VisitRoot(DYN_RootVisitor rootVisitor, Placeholder ph)
 {
@@ -33,46 +29,6 @@ static void VisitMutPair(DYN_DerivedPtrVisitor derivedPtrVisitor, Placeholder ba
     });
     g_CJNativeInterfaceInstance.visitDerivedPtrFromInterpreter(derivedPtrVisitor, basePh, derivedPh);
 }
-
-class RegistersTable {
-    using IReg = Cbc::IReg;
-
-public:
-    RegistersTable(Interpretation::Ectype* ectype)
-    {
-        uintptr_t ectypeAddr = reinterpret_cast<uintptr_t>(ectype);
-        for (uint32_t regN = 0; regN < IReg::COUNT; regN++) {
-            IReg reg             = IReg::From(regN);
-            regLocationMap[regN] = reinterpret_cast<Placeholder>(ectype->GetIRegLocation(reg));
-        }
-    }
-
-    void VisitAliveRegs(std::bitset<ECTYPE_IREGS_COUNT> aliveRegsMap, DYN_RootVisitor rootVisitor)
-    {
-        for (uint32_t regN = 0; regN < IReg::COUNT; regN++) {
-            if (aliveRegsMap.test(regN)) {
-                RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) {
-                    out << IReg::From(regN).CStr() << ": ";
-                });
-                VisitRoot(rootVisitor, regLocationMap[regN]);
-            }
-        }
-    }
-
-    void UpdateRegLocations(Interpretation::NonVolatileRegs savedRegs, Placeholder calleeSavedRegsEnd)
-    {
-        Placeholder addr = calleeSavedRegsEnd;
-        while (!savedRegs.IsEmpty()) {
-            uint32_t regN        = savedRegs.ExtractReg();
-            regLocationMap[regN] = --addr;
-        }
-    }
-
-    Placeholder GetRegLocation(IReg reg) { return regLocationMap[reg.Raw()]; }
-
-private:
-    Placeholder regLocationMap[IReg::COUNT];
-};
 
 void IterateFramesWithState(
     DYN_CJThreadSpecificData threadSpecificData, void (*callback)(DYN_VisitingState, void*), void* ctx
@@ -208,7 +164,7 @@ void VisitGCFrameRoots(
             out << "visit alive regs, alive regs: " << aliveRegsMap.to_string().c_str() << endl;
         });
 
-        regsLocationTable->VisitAliveRegs(aliveRegsMap, rootVisitor);
+        regsLocationTable->VisitAliveRegs(aliveRegsMap, [&](Placeholder ph) { VisitRoot(rootVisitor, ph); });
     }
 
     auto savedRegsMap = bc->savedIRegs;

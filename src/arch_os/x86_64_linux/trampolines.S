@@ -44,6 +44,8 @@ declare_hidden engine_carrier_specific_offset
 declare_hidden engine_cjthread_specific_offset
 declare_hidden engine_i2_spawn
 declare_hidden engine_stack_grow_stub
+declare_hidden engine_ectype_saving_stub_pc_start
+declare_hidden engine_ectype_saving_stub_pc_end
 
 // --- SECTION BSS ---
 .section .bss
@@ -660,6 +662,7 @@ engine_handle_exception:
 // expects: (TLS_REG: valid TLS, rsp: top of stack (including current frame), r8: frame size)
 // Expands stack and returns to perfrom 2i call or throws SOE if stack expansion is impossible
 .balign 16
+engine_ectype_saving_stub_pc_start:
 expand_stack_or_throw_soe:
   add   rsp, r8   // rsp state on prologue
   mov   rax, 0x20 // adjusted size (TODO: it's meaning is not really known, need to investigate more)
@@ -670,3 +673,4 @@ expand_stack_or_throw_soe:
   
   sub   rsp, r8   // stack grow stub preserves all registers, so r8 will not be changed
   jmp   .Lafter_stack_check
+engine_ectype_saving_stub_pc_end:
