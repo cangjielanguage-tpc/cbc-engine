@@ -45,14 +45,15 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
         return res->second;
     }
 
+    auto method = Symlevel::Reader::Read(session, methodDef);
+
     Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
         Stream::ResolvingOutput stream(session, out);
-        stream << "starting to build fuh for " << methodDef << Stream::endl;
+        stream << "starting to build fuh for " << methodDef << " (" << Stream::Detailed(method.TypeName()) << "."
+               << Stream::Detailed(method.Name()) << Stream::Detailed(method.Signature()) << ")" << Stream::endl;
     });
 
-    auto method = Symlevel::Reader::Read(session, methodDef);
-    auto flags  = method.GetFlags();
-
+    auto flags = method.GetFlags();
     ASSERTION(!flags.Is(MethodFlag::ABSTRACT), "Only methods that can be actually called can have FUH");
 
     auto newStaticFuh = [&]() -> StaticFunctionHandle* {
@@ -66,7 +67,8 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
             using namespace Stream;
             Stream::ResolvingOutput stream(session, out);
             stream << "failed to resolve aot method" << endl;
-            stream << "  name: " << Detailed(method.Name()) << Detailed(method.Signature()) << endl;
+            stream << "  name: " << Detailed(method.TypeName()) << "." << Detailed(method.Name())
+                   << Detailed(method.Signature()) << endl;
             stream << "  linkageName: " << linkageName << endl;
         });
 

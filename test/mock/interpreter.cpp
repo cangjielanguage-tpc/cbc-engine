@@ -374,7 +374,7 @@ void* Adapters::I2ICallInstance() { return reinterpret_cast<void*>(&Interpretati
 
 static void C2ICall() { FATAL("Should not reach here. Mock c2i"); }
 
-void* Adapters::GetDynCallTrampoline(int idx) { FATAL("Should not reach here"); }
+void* Adapters::GetDynCallTrampoline(int idx, bool sret) { FATAL("Should not reach here"); }
 
 void* Adapters::GenericC2ICallInstance() { return reinterpret_cast<void*>(&C2ICall); }
 

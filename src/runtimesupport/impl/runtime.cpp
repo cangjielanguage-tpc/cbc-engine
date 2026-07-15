@@ -119,26 +119,26 @@ TypeInfo Execution::GetTypeInfo(Reference base)
 
 static char* GetDynCallTrampolinesStart() { return reinterpret_cast<char*>(&Asm::engine_trampolines_dyn_start); }
 
-static size_t GetDynCallTrampolinesLength()
+static char* GetDynCallTrampolinesEnd() { return reinterpret_cast<char*>(&Asm::engine_trampolines_dyn_sret_end); }
+
+static bool IsFunctionInRange(void* function, char* begin, char* end)
 {
-    auto begin = GetDynCallTrampolinesStart();
-    auto end   = reinterpret_cast<char*>(&Asm::engine_trampolines_dyn_end);
-    return end - begin;
+    auto address = reinterpret_cast<uintptr_t>(function);
+    return address >= reinterpret_cast<uintptr_t>(begin) && address < reinterpret_cast<uintptr_t>(end);
 }
 
 static bool IsDynCallTrampoline(void* function)
 {
-    auto trampolinesStart = reinterpret_cast<size_t>(GetDynCallTrampolinesStart());
-    auto funcPos          = reinterpret_cast<size_t>(function) - trampolinesStart;
-    return funcPos <= GetDynCallTrampolinesLength();
+    return IsFunctionInRange(function, GetDynCallTrampolinesStart(), GetDynCallTrampolinesEnd());
 }
 
 static size_t DynCallTrampolineIdx(void* trampoline)
 {
     ASSERT(IsDynCallTrampoline(trampoline));
-    auto trampolinesStart = reinterpret_cast<size_t>(GetDynCallTrampolinesStart());
-    auto funcIdx          = (reinterpret_cast<size_t>(trampoline) - trampolinesStart) / DYN_CALL_TRAMPOLINE_SIZE;
-    return funcIdx;
+
+    auto funcIdx = (reinterpret_cast<size_t>(trampoline) - reinterpret_cast<size_t>(GetDynCallTrampolinesStart())) /
+                   DYN_CALL_TRAMPOLINE_SIZE;
+    return funcIdx % TRAMPOLINE_COUNT;
 }
 
 static Interpretation::FunctionHandle* GetDynamicCall(void* fn, CbcTypeInfo* cti)

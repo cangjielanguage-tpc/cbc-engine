@@ -19,6 +19,8 @@ declare_hidden engine_c2i_call_pc_start
 declare_hidden engine_c2i_call_pc_end
 declare_hidden engine_trampolines_dyn_start
 declare_hidden engine_trampolines_dyn_end
+declare_hidden engine_trampolines_dyn_sret_start
+declare_hidden engine_trampolines_dyn_sret_end
 declare_hidden engine_trampolines_direct_start
 declare_hidden engine_all_regs_c2i_call
 declare_hidden engine_iregs_only_c2i_call
@@ -174,6 +176,15 @@ engine_universal_dyn_call:
 
 
 .balign 16
+engine_universal_dyn_sret_call:
+  mov   r10, [rsi] // get TypeInfo from SRET call receiver (2nd argument)
+  // TODO: consider tail array
+  mov   r10, [r10 + TYPEINFO_DATA_MT_OFFSET] // data mt array
+  mov   rax, [r10 + rax * 0x8] // put FuH on rax
+  jmp   [rax + FUNCTION_HANDLE_C2CALL_OFFSET]
+
+
+.balign 16
 engine_trampolines_dyn_start:
 .macro repeat_trampoline_dyn count
   .set i, 0
@@ -185,6 +196,17 @@ engine_trampolines_dyn_start:
 .endm
   repeat_trampoline_dyn TRAMPOLINE_COUNT
 engine_trampolines_dyn_end:
+engine_trampolines_dyn_sret_start: // should come right after engine_trampolines_dyn_end
+.macro repeat_trampoline_dyn_sret count
+  .set i, 0
+  .rept \count
+      mov.d32 eax, i
+      jmp.d32 engine_universal_dyn_sret_call
+      .set i, i + 1
+  .endr
+.endm
+  repeat_trampoline_dyn_sret TRAMPOLINE_COUNT
+engine_trampolines_dyn_sret_end:
 
 // expects: (TLS_REG: th, rax: fuh)
 // System-V abi, except r15 can be changed after context-switches
