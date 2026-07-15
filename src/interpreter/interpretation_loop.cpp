@@ -91,8 +91,11 @@ Interpretation::Thunk engine_interpretation_loop(
     } while (0)
 
 #define LABEL(symbol_name)                                                                                             \
-    __asm__(".globl " #symbol_name "\n" #symbol_name " = .");                                                          \
+    __asm__(".globl " #symbol_name "\n"                                                                                \
+            ".type " #symbol_name ", @function\n" #symbol_name ":\n");                                                 \
     symbol_name
+
+#define CODE_SIZE(symbol_name) __asm__(".size " #symbol_name ", .-" #symbol_name "\n")
 
 #define CBC_RT_LABEL(opc, encoding, fmt) &&opc,
 #define CBC_RT_MEM_LABEL(opc, encoding, fmt, tail) &&opc,
@@ -141,41 +144,48 @@ LABEL(RET): {
     auto args = B1::Decode(reader);
     DEBUG_INFO("RET");
     return {};
+    CODE_SIZE(RET);
 }
 LABEL(NOP): {
     auto args = B1::Decode(reader);
     DEBUG_INFO("NOP");
     NEXT;
+    CODE_SIZE(NOP);
 }
 LABEL(MOV): {
     auto args = B2rr::Decode(reader);
     DEBUG_INFO("MOV");
     interpreter.Mov(args.rr.x.IR(), args.rr.y.IR());
     NEXT;
+    CODE_SIZE(MOV);
 }
 LABEL(MOVI): {
     auto args = B2xr::Decode(reader);
     DEBUG_INFO("MOVI");
     interpreter.MovI(args.xr.r.IR(), MathUtils::SignExtend(static_cast<uint64_t>(args.xr.imm), 4));
     NEXT;
+    CODE_SIZE(MOVI);
 }
 LABEL(FMOV): {
     auto args = B2rr::Decode(reader);
     DEBUG_INFO("FMOV");
     interpreter.Mov(args.rr.x.FR(), args.rr.y.FR());
     NEXT;
+    CODE_SIZE(FMOV);
 }
 LABEL(MOVI2F): {
     auto args = B2rr::Decode(reader);
     DEBUG_INFO("MOVI2F");
     interpreter.Mov(args.rr.x.FR(), args.rr.y.IR());
     NEXT;
+    CODE_SIZE(MOVI2F);
 }
 LABEL(MOVF2I): {
     auto args = B2rr::Decode(reader);
     DEBUG_INFO("MOVF2I");
     interpreter.Mov(args.rr.x.IR(), args.rr.y.FR());
     NEXT;
+    CODE_SIZE(MOVF2I);
 }
 LABEL(GC_POINT): {
     auto args = B1::Decode(reader);
@@ -188,18 +198,21 @@ LABEL(GC_POINT): {
     reader0 = reader;
 
     return { RTSupport::Execution::GcPointTrampoline(), RTSupport::Execution::GcPoint() };
+    CODE_SIZE(GC_POINT);
 }
 LABEL(FMOVI32): {
     auto args = B6xri32::Decode(reader);
     DEBUG_INFO("FMOVI32");
     interpreter.MovI(args.xr.r.FR(), args.imm32.fimm);
     NEXT;
+    CODE_SIZE(FMOVI32);
 }
 LABEL(FMOVI64): {
     auto args = B10xri64::Decode(reader);
     DEBUG_INFO("FMOVI64");
     interpreter.MovI(args.xr.r.FR(), args.imm64.dimm);
     NEXT;
+    CODE_SIZE(FMOVI64);
 }
 LABEL(BCC32I): {
     auto args = B4xi12rr::Decode(reader);
@@ -208,6 +221,7 @@ LABEL(BCC32I): {
         args.xi12.imm4.CC(), args.rr.x, args.rr.y, args.xi12.imm12
     );
     JUMP;
+    CODE_SIZE(BCC32I);
 }
 LABEL(BCC32L): {
     auto args = B4xi12rr::Decode(reader);
@@ -216,6 +230,7 @@ LABEL(BCC32L): {
         args.xi12.imm4.CC(), args.rr.x, args.rr.y, args.xi12.imm12
     );
     JUMP;
+    CODE_SIZE(BCC32L);
 }
 LABEL(BCC64I): {
     auto args = B4xi12rr::Decode(reader);
@@ -224,6 +239,7 @@ LABEL(BCC64I): {
         args.xi12.imm4.CC(), args.rr.x, args.rr.y, args.xi12.imm12
     );
     JUMP;
+    CODE_SIZE(BCC64I);
 }
 LABEL(BCC64L): {
     auto args = B4xi12rr::Decode(reader);
@@ -232,6 +248,7 @@ LABEL(BCC64L): {
         args.xi12.imm4.CC(), args.rr.x, args.rr.y, args.xi12.imm12
     );
     JUMP;
+    CODE_SIZE(BCC64L);
 }
 LABEL(BCCI32I): {
     auto args = B5xi12ri12::Decode(reader);
@@ -240,6 +257,7 @@ LABEL(BCCI32I): {
         args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
     );
     JUMP;
+    CODE_SIZE(BCCI32I);
 }
 LABEL(BCCI64I): {
     auto args = B5xi12ri12::Decode(reader);
@@ -248,6 +266,7 @@ LABEL(BCCI64I): {
         args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
     );
     JUMP;
+    CODE_SIZE(BCCI64I);
 }
 LABEL(BCCI32L): {
     auto args = B5xi12ri12::Decode(reader);
@@ -256,6 +275,7 @@ LABEL(BCCI32L): {
         args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
     );
     JUMP;
+    CODE_SIZE(BCCI32L);
 }
 LABEL(BCCI64L): {
     auto args = B5xi12ri12::Decode(reader);
@@ -264,6 +284,7 @@ LABEL(BCCI64L): {
         args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
     );
     JUMP;
+    CODE_SIZE(BCCI64L);
 }
 LABEL(BCCL32I): {
     auto args = B5xi12ri12::Decode(reader);
@@ -272,6 +293,7 @@ LABEL(BCCL32I): {
         args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
     );
     JUMP;
+    CODE_SIZE(BCCL32I);
 }
 LABEL(BCCL64I): {
     auto args = B5xi12ri12::Decode(reader);
@@ -280,6 +302,7 @@ LABEL(BCCL64I): {
         args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
     );
     JUMP;
+    CODE_SIZE(BCCL64I);
 }
 LABEL(BCCL32L): {
     auto args = B5xi12ri12::Decode(reader);
@@ -288,6 +311,7 @@ LABEL(BCCL32L): {
         args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
     );
     JUMP;
+    CODE_SIZE(BCCL32L);
 }
 LABEL(BCCL64L): {
     auto args = B5xi12ri12::Decode(reader);
@@ -296,6 +320,7 @@ LABEL(BCCL64L): {
         args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
     );
     JUMP;
+    CODE_SIZE(BCCL64L);
 }
 LABEL(BRANCH_IS_REF): {
     auto args = B3xi12::Decode(reader);
@@ -314,6 +339,7 @@ LABEL(JMP32): {
     DEBUG_INFO("JMP32");
     int64_t delta = interpreter.Jmp(args.imm32.imm);
     JUMP;
+    CODE_SIZE(JMP32);
 }
 LABEL(BIN32): {
     auto args = B3xrrr::Decode(reader);
@@ -321,6 +347,7 @@ LABEL(BIN32): {
     bool successful =
         interpreter.template Binary<Width::W32>(args.xr.imm.Common(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
     NEXT_COND(successful);
+    CODE_SIZE(BIN32);
 }
 LABEL(BIN64): {
     auto args = B3xrrr::Decode(reader);
@@ -328,6 +355,7 @@ LABEL(BIN64): {
     bool successful =
         interpreter.template Binary<Width::W64>(args.xr.imm.Common(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
     NEXT_COND(successful);
+    CODE_SIZE(BIN64);
 }
 LABEL(BINI32I): {
     auto args = B4xi12rr::Decode(reader);
@@ -336,6 +364,7 @@ LABEL(BINI32I): {
         args.xi12.imm4.Common(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
     );
     NEXT_COND(successful);
+    CODE_SIZE(BINI32I);
 }
 LABEL(BINI64I): {
     auto args = B4xi12rr::Decode(reader);
@@ -344,6 +373,7 @@ LABEL(BINI64I): {
         args.xi12.imm4.Common(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
     );
     NEXT_COND(successful);
+    CODE_SIZE(BINI64I);
 }
 LABEL(BINI32L): {
     auto args = B4xi12rr::Decode(reader);
@@ -352,6 +382,7 @@ LABEL(BINI32L): {
         args.xi12.imm4.Common(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
     );
     NEXT_COND(successful);
+    CODE_SIZE(BINI32L);
 }
 LABEL(BINI64L): {
     auto args = B4xi12rr::Decode(reader);
@@ -360,6 +391,7 @@ LABEL(BINI64L): {
         args.xi12.imm4.Common(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
     );
     NEXT_COND(successful);
+    CODE_SIZE(BINI64L);
 }
 LABEL(FBIN32): {
     auto args = B3xrrr::Decode(reader);
@@ -415,6 +447,7 @@ LABEL(NEWOBJ): {
     reader0 = reader; // save current pc
 
     return { func, type.Raw() };
+    CODE_SIZE(NEWOBJ);
 }
 LABEL(NEWBOX): {
     auto args = B2xr::Decode(reader);
