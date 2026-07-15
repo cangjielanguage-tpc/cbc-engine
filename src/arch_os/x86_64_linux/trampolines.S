@@ -637,6 +637,26 @@ engine_handle_exception:
   mov   rdi, r12
   jmp   engine_handle_exception
 
+.macro save_all_iregs scratch_reg
+  sub   rsp, ECTYPE_IREGS_COUNT * ECTYPE_REG_SIZE
+  .set _offset, 0
+  .rept ECTYPE_IREGS_COUNT
+    mov    \scratch_reg, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + _offset]
+    mov    [rsp + _offset], \scratch_reg
+    .set   _offset, _offset + ECTYPE_REG_SIZE
+  .endr
+.endm
+
+.macro restore_all_iregs scratch_reg
+  .set _offset, 0
+  .rept ECTYPE_IREGS_COUNT
+    mov    \scratch_reg, [rsp + _offset]
+    mov    [ECTYPE_REG + ECTYPE_IREGS_OFFSET + _offset], \scratch_reg
+    .set   _offset, _offset + ECTYPE_REG_SIZE
+  .endr
+  add   rsp, ECTYPE_IREGS_COUNT * ECTYPE_REG_SIZE
+.endm
+
 // expects: (TLS_REG: valid TLS, rsp: top of stack (including current frame), r8: frame size)
 // Expands stack and returns to perfrom 2i call or throws SOE if stack expansion is impossible
 .balign 16
@@ -644,7 +664,9 @@ expand_stack_or_throw_soe:
   add   rsp, r8   // rsp state on prologue
   mov   rax, 0x20 // adjusted size (TODO: it's meaning is not really known, need to investigate more)
   
-  call  engine_stack_grow_stub
+  save_all_iregs rax
+  call  [rip + engine_stack_grow_stub]
+  restore_all_iregs rax
   
   sub   rsp, r8   // stack grow stub preserves all registers, so r8 will not be changed
   jmp   .Lafter_stack_check
