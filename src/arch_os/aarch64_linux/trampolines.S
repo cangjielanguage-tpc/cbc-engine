@@ -281,6 +281,7 @@ c2i_prepare_ectype:
   stp   x2, x3, [sp, #-16]!
   stp   x4, x5, [sp, #-16]!
   stp   x6, x7, [sp, #-16]!
+  str   x8, [sp, #-16]!
 
   mov   x0, x21
   bl    engine_fiber_data_init
@@ -288,6 +289,7 @@ c2i_prepare_ectype:
   mov   ECTYPE_REG, x0
   ldr   x9, [x29, #-0x50] // restore fuh
 
+  ldr   x8, [sp], #16
   ldp   x6, x7, [sp], #16
   ldp   x4, x5, [sp], #16
   ldp   x2, x3, [sp], #16
