@@ -58,10 +58,13 @@ void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* f
     return GetAddressOfDirectCallTrampoline(i);
 }
 
-void* Adapters::GetDynCallTrampoline(int fuhIdx)
+void* Adapters::GetDynCallTrampoline(int fuhIdx) { return GetDynCallTrampoline(fuhIdx, false); }
+
+void* Adapters::GetDynCallTrampoline(int fuhIdx, bool sret)
 {
-    auto start = reinterpret_cast<char*>(&Asm::engine_trampolines_dyn_start);
-    return start + fuhIdx * DIRECT_CALL_TRAMPOLINE_SIZE;
+    auto start = sret ? reinterpret_cast<char*>(&Asm::engine_trampolines_dyn_sret_start)
+                      : reinterpret_cast<char*>(&Asm::engine_trampolines_dyn_start);
+    return start + fuhIdx * DYN_CALL_TRAMPOLINE_SIZE;
 }
 
 } // namespace RTSupport

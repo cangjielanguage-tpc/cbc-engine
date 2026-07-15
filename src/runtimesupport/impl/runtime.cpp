@@ -117,27 +117,43 @@ TypeInfo Execution::GetTypeInfo(Reference base)
     return *header;
 }
 
-static char* GetDynCallTrampolinesStart() { return reinterpret_cast<char*>(&Asm::engine_trampolines_dyn_start); }
-
-static size_t GetDynCallTrampolinesLength()
+static char* GetDynCallTrampolinesStart(bool sret)
 {
-    auto begin = GetDynCallTrampolinesStart();
-    auto end   = reinterpret_cast<char*>(&Asm::engine_trampolines_dyn_end);
-    return end - begin;
+    return sret ? reinterpret_cast<char*>(&Asm::engine_trampolines_dyn_sret_start)
+                : reinterpret_cast<char*>(&Asm::engine_trampolines_dyn_start);
+}
+
+static char* GetDynCallTrampolinesEnd(bool sret)
+{
+    return sret ? reinterpret_cast<char*>(&Asm::engine_trampolines_dyn_sret_end)
+                : reinterpret_cast<char*>(&Asm::engine_trampolines_dyn_end);
+}
+
+static bool IsFunctionInRange(void* function, char* begin, char* end)
+{
+    auto address = reinterpret_cast<uintptr_t>(function);
+    return address >= reinterpret_cast<uintptr_t>(begin) && address < reinterpret_cast<uintptr_t>(end);
 }
 
 static bool IsDynCallTrampoline(void* function)
 {
-    auto trampolinesStart = reinterpret_cast<size_t>(GetDynCallTrampolinesStart());
-    auto funcPos          = reinterpret_cast<size_t>(function) - trampolinesStart;
-    return funcPos <= GetDynCallTrampolinesLength();
+    return IsFunctionInRange(function, GetDynCallTrampolinesStart(false), GetDynCallTrampolinesEnd(false)) ||
+           IsFunctionInRange(function, GetDynCallTrampolinesStart(true), GetDynCallTrampolinesEnd(true));
 }
 
 static size_t DynCallTrampolineIdx(void* trampoline)
 {
     ASSERT(IsDynCallTrampoline(trampoline));
-    auto trampolinesStart = reinterpret_cast<size_t>(GetDynCallTrampolinesStart());
-    auto funcIdx          = (reinterpret_cast<size_t>(trampoline) - trampolinesStart) / DYN_CALL_TRAMPOLINE_SIZE;
+
+    const char* trampolinesStart;
+    if (IsFunctionInRange(trampoline, GetDynCallTrampolinesStart(true), GetDynCallTrampolinesEnd(true))) {
+        trampolinesStart = GetDynCallTrampolinesStart(true);
+    } else {
+        trampolinesStart = GetDynCallTrampolinesStart(false);
+    }
+
+    auto funcIdx =
+        (reinterpret_cast<size_t>(trampoline) - reinterpret_cast<size_t>(trampolinesStart)) / DYN_CALL_TRAMPOLINE_SIZE;
     return funcIdx;
 }
 
