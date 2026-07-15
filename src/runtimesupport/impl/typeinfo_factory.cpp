@@ -262,7 +262,8 @@ static MethodTableMember GetTableMember(
         return { &staticFuh->base, staticFuh->function };
     } else {
         auto& manager = Interpretation::FunctionHandleManager::Of(session);
-        return { manager.Acquire(session, methodId), Adapters::GetDynCallTrampoline(entryIdx) };
+        return { manager.Acquire(session, methodId),
+                 Adapters::GetDynCallTrampoline(entryIdx, flags.Is(Symlevel::MethodFlag::SRET)) };
     }
 }
 
