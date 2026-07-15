@@ -90,6 +90,10 @@ Interpretation::Thunk engine_interpretation_loop(
         return { RTSupport::Execution::ThrowImplicitException(), reinterpret_cast<void*>(type) };                      \
     } while (0)
 
+#define LABEL(symbol_name)                                                                                             \
+    __asm__(".globl " #symbol_name "\n" #symbol_name " = .");                                                          \
+    symbol_name
+
 #define CBC_RT_LABEL(opc, encoding, fmt) &&opc,
 #define CBC_RT_MEM_LABEL(opc, encoding, fmt, tail) &&opc,
     static void* MAIN_TABLE[] = { CBC_RT_OPCODES(CBC_RT_LABEL) };
@@ -98,6 +102,8 @@ Interpretation::Thunk engine_interpretation_loop(
 
 #ifdef NDEBUG
     #define LOG_INSTR
+    #define SET_LABEL(instr_name) (void)(instr_name)
+    #define DEBUG_INFO(instr_name) LABEL_SYMBOL(instr_name)
 #else
     // Logging format is:
     // [int] (stack depth) < (bc pos): instruction
@@ -107,10 +113,17 @@ Interpretation::Thunk engine_interpretation_loop(
             pos = reader.Cursor();                                                                                     \
             Cbc::RT::Log(literals, logger, args);                                                                      \
         }
+    #define SET_LABEL(instr_name) label = instr_name;
+
+    #define DEBUG_INFO(instr_name)                                                                                     \
+        LOG_INSTR;                                                                                                     \
+        SET_LABEL(instr_name);
+
     // TODO: add ectype ptr as ID of thread.
     auto start   = reader.Start();
     auto pos     = reader.Cursor();
     auto& logger = Log::interpretation.Stream(Logging::Level::TRACE);
+    __attribute__((used)) static volatile const char* label;
 #endif
 
     uint64_t memspaceOffsetAcc = 0;
@@ -118,54 +131,55 @@ Interpretation::Thunk engine_interpretation_loop(
     // jump to the instruction handler.
     NEXT;
 
-// -- Main opcode table --
-HALT: {
+    // clang-format off
+    // -- Main opcode table --
+LABEL(HALT): {
     FATAL("halt");
     return {};
 }
-RET: {
+LABEL(RET): {
     auto args = B1::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("RET");
     return {};
 }
-NOP: {
+LABEL(NOP): {
     auto args = B1::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("NOP");
     NEXT;
 }
-MOV: {
+LABEL(MOV): {
     auto args = B2rr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("MOV");
     interpreter.Mov(args.rr.x.IR(), args.rr.y.IR());
     NEXT;
 }
-MOVI: {
+LABEL(MOVI): {
     auto args = B2xr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("MOVI");
     interpreter.MovI(args.xr.r.IR(), MathUtils::SignExtend(static_cast<uint64_t>(args.xr.imm), 4));
     NEXT;
 }
-FMOV: {
+LABEL(FMOV): {
     auto args = B2rr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("FMOV");
     interpreter.Mov(args.rr.x.FR(), args.rr.y.FR());
     NEXT;
 }
-MOVI2F: {
+LABEL(MOVI2F): {
     auto args = B2rr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("MOVI2F");
     interpreter.Mov(args.rr.x.FR(), args.rr.y.IR());
     NEXT;
 }
-MOVF2I: {
+LABEL(MOVF2I): {
     auto args = B2rr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("MOVF2I");
     interpreter.Mov(args.rr.x.IR(), args.rr.y.FR());
     NEXT;
 }
-GC_POINT: {
+LABEL(GC_POINT): {
     auto args = B1::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("GCPOINT");
     bool is_sp = RTSupport::Execution::IsPendingSafePoint();
     if (!is_sp) {
         NEXT;
@@ -175,117 +189,117 @@ GC_POINT: {
 
     return { RTSupport::Execution::GcPointTrampoline(), RTSupport::Execution::GcPoint() };
 }
-FMOVI32: {
+LABEL(FMOVI32): {
     auto args = B6xri32::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("FMOVI32");
     interpreter.MovI(args.xr.r.FR(), args.imm32.fimm);
     NEXT;
 }
-FMOVI64: {
+LABEL(FMOVI64): {
     auto args = B10xri64::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("FMOVI64");
     interpreter.MovI(args.xr.r.FR(), args.imm64.dimm);
     NEXT;
 }
-BCC32I: {
+LABEL(BCC32I): {
     auto args = B4xi12rr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("BCC32I");
     int64_t delta = interpreter.template Bcc<ImmKind::VALUE, Width::W32>(
         args.xi12.imm4.CC(), args.rr.x, args.rr.y, args.xi12.imm12
     );
     JUMP;
 }
-BCC32L: {
+LABEL(BCC32L): {
     auto args = B4xi12rr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("BCC32L");
     int64_t delta = interpreter.template Bcc<ImmKind::LITERAL, Width::W32>(
         args.xi12.imm4.CC(), args.rr.x, args.rr.y, args.xi12.imm12
     );
     JUMP;
 }
-BCC64I: {
+LABEL(BCC64I): {
     auto args = B4xi12rr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("BCC64I");
     int64_t delta = interpreter.template Bcc<ImmKind::VALUE, Width::W64>(
         args.xi12.imm4.CC(), args.rr.x, args.rr.y, args.xi12.imm12
     );
     JUMP;
 }
-BCC64L: {
+LABEL(BCC64L): {
     auto args = B4xi12rr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("BCC64L");
     int64_t delta = interpreter.template Bcc<ImmKind::LITERAL, Width::W64>(
         args.xi12.imm4.CC(), args.rr.x, args.rr.y, args.xi12.imm12
     );
     JUMP;
 }
-BCCI32I: {
+LABEL(BCCI32I): {
     auto args = B5xi12ri12::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("BCCI32I");
     int64_t delta = interpreter.template BccImm<ImmKind::VALUE, ImmKind::VALUE, Width::W32>(
         args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
     );
     JUMP;
 }
-BCCI64I: {
+LABEL(BCCI64I): {
     auto args = B5xi12ri12::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("BCCI64I");
     int64_t delta = interpreter.template BccImm<ImmKind::VALUE, ImmKind::VALUE, Width::W64>(
         args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
     );
     JUMP;
 }
-BCCI32L: {
+LABEL(BCCI32L): {
     auto args = B5xi12ri12::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("BCCI32L");
     int64_t delta = interpreter.template BccImm<ImmKind::VALUE, ImmKind::LITERAL, Width::W32>(
         args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
     );
     JUMP;
 }
-BCCI64L: {
+LABEL(BCCI64L): {
     auto args = B5xi12ri12::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("BCCI64L");
     int64_t delta = interpreter.template BccImm<ImmKind::VALUE, ImmKind::LITERAL, Width::W64>(
         args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
     );
     JUMP;
 }
-BCCL32I: {
+LABEL(BCCL32I): {
     auto args = B5xi12ri12::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("BCCL32I");
     int64_t delta = interpreter.template BccImm<ImmKind::LITERAL, ImmKind::VALUE, Width::W32>(
         args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
     );
     JUMP;
 }
-BCCL64I: {
+LABEL(BCCL64I): {
     auto args = B5xi12ri12::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("BCCL64I");
     int64_t delta = interpreter.template BccImm<ImmKind::LITERAL, ImmKind::VALUE, Width::W64>(
         args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
     );
     JUMP;
 }
-BCCL32L: {
+LABEL(BCCL32L): {
     auto args = B5xi12ri12::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("BCCL32L");
     int64_t delta = interpreter.template BccImm<ImmKind::LITERAL, ImmKind::LITERAL, Width::W32>(
         args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
     );
     JUMP;
 }
-BCCL64L: {
+LABEL(BCCL64L): {
     auto args = B5xi12ri12::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("BCCL64L");
     int64_t delta = interpreter.template BccImm<ImmKind::LITERAL, ImmKind::LITERAL, Width::W64>(
         args.xi12.imm4.CC(), args.ri12.r.IR(), args.ri12.imm12, args.xi12.imm12
     );
     JUMP;
 }
-BRANCH_IS_REF: {
+LABEL(BRANCH_IS_REF): {
     auto args = B3xi12::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("BRANCH_IS_REF");
     auto tiReg    = IReg::From(args.xi12.imm4);
     auto ti       = TypeInfo(ectype->GetPrimitive(tiReg).u64);
     int64_t delta = 0;
@@ -295,91 +309,91 @@ BRANCH_IS_REF: {
     }
     JUMP;
 }
-JMP32: {
+LABEL(JMP32): {
     auto args = B5i32::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("JMP32");
     int64_t delta = interpreter.Jmp(args.imm32.imm);
     JUMP;
 }
-BIN32: {
+LABEL(BIN32): {
     auto args = B3xrrr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("BIN32");
     bool successful =
         interpreter.template Binary<Width::W32>(args.xr.imm.Common(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
     NEXT_COND(successful);
 }
-BIN64: {
+LABEL(BIN64): {
     auto args = B3xrrr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("BIN64");
     bool successful =
         interpreter.template Binary<Width::W64>(args.xr.imm.Common(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
     NEXT_COND(successful);
 }
-BINI32I: {
+LABEL(BINI32I): {
     auto args = B4xi12rr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("BINI32I");
     bool successful = interpreter.template BinaryImm<ImmKind::VALUE, Width::W32>(
         args.xi12.imm4.Common(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
     );
     NEXT_COND(successful);
 }
-BINI64I: {
+LABEL(BINI64I): {
     auto args = B4xi12rr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("BINI64I");
     bool successful = interpreter.template BinaryImm<ImmKind::VALUE, Width::W64>(
         args.xi12.imm4.Common(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
     );
     NEXT_COND(successful);
 }
-BINI32L: {
+LABEL(BINI32L): {
     auto args = B4xi12rr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("BINI32L");
     bool successful = interpreter.template BinaryImm<ImmKind::LITERAL, Width::W32>(
         args.xi12.imm4.Common(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
     );
     NEXT_COND(successful);
 }
-BINI64L: {
+LABEL(BINI64L): {
     auto args = B4xi12rr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("BINI64L");
     bool successful = interpreter.template BinaryImm<ImmKind::LITERAL, Width::W64>(
         args.xi12.imm4.Common(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
     );
     NEXT_COND(successful);
 }
-FBIN32: {
+LABEL(FBIN32): {
     auto args = B3xrrr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("FBIN32");
     bool successful = interpreter.template Binary<Width::W32>(
         args.xr.imm.FloatOperations(), args.xr.r.FR(), args.rr.x.FR(), args.rr.y.FR()
     );
     NEXT_COND(successful);
 }
-FBIN64: {
+LABEL(FBIN64): {
     auto args = B3xrrr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("FBIN64");
     bool successful = interpreter.template Binary<Width::W64>(
         args.xr.imm.FloatOperations(), args.xr.r.FR(), args.rr.x.FR(), args.rr.y.FR()
     );
     NEXT_COND(successful);
 }
-FUN32: {
+LABEL(FUN32): {
     auto args = B3xrrr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("FUN32");
     bool successful =
         interpreter.template Unary<Width::W32>(args.xr.imm.FloatOperations(), args.xr.r.FR(), args.rr.y.FR());
     NEXT_COND(successful);
 }
-FUN64: {
+LABEL(FUN64): {
     auto args = B3xrrr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("FUN64");
     bool successful =
         interpreter.template Unary<Width::W64>(args.xr.imm.FloatOperations(), args.xr.r.FR(), args.rr.y.FR());
     NEXT_COND(successful);
 }
-NEWOBJ_G: {
+LABEL(NEWOBJ_G): {
     auto args = B2rr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("NEWOBJ_G");
     auto tiReg = args.rr.x;
     auto type  = TypeInfo(ectype->GetPrimitive(tiReg.IR()).u64);
 
@@ -390,9 +404,9 @@ NEWOBJ_G: {
 
     return { func, type.Raw() };
 }
-NEWOBJ: {
+LABEL(NEWOBJ): {
     auto args = B9i64::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("NEWOBJ");
     auto type = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
 
     // Puts result to `IR1`.
@@ -402,9 +416,9 @@ NEWOBJ: {
 
     return { func, type.Raw() };
 }
-NEWBOX: {
+LABEL(NEWBOX): {
     auto args = B2xr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("NEWBOX");
     auto btype = builtinTypeInfos[args.xr.imm];
 
     // Puts result to `IR1`.
@@ -414,9 +428,9 @@ NEWBOX: {
 
     return { func, btype.Raw() };
 }
-NEWBOX2: {
+LABEL(NEWBOX2): {
     auto args = B9i64::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("NEWBOX2");
     auto type = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
 
     // Puts result to `IR1`.
@@ -426,27 +440,27 @@ NEWBOX2: {
 
     return { func, type.Raw() };
 }
-READ_STRUCT_FIELD: {
+LABEL(READ_STRUCT_FIELD): {
     auto args = StructFieldOp::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("READ_STRUCT_FIELD");
     auto dst   = ectype->GetPrimitive(args.rr.x.IR()).u64;
     auto base  = ectype->GetReference(args.rr.y.IR());
     auto field = ectype->GetPrimitive(args.field.x.IR()).u64;
     RTSupport::Execution::ReadStructField(dst, base, field, args.ti, handle);
     NEXT;
 }
-WRITE_STRUCT_FIELD: {
+LABEL(WRITE_STRUCT_FIELD): {
     auto args = StructFieldOp::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("WRITE_STRUCT_FIELD");
     auto src   = ectype->GetPrimitive(args.rr.x.IR()).u64;
     auto base  = ectype->GetReference(args.rr.y.IR());
     auto field = ectype->GetPrimitive(args.field.x.IR()).u64;
     RTSupport::Execution::WriteStructField(src, base, field, args.ti, handle);
     NEXT;
 }
-INITCLOSURE: {
+LABEL(INITCLOSURE): {
     auto args = B1::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("INITCLOSURE");
 
     struct ClosureObj {
         void* header;
@@ -463,9 +477,9 @@ INITCLOSURE: {
     closure->instantiated = Adapters::GetDynCallTrampoline(1);
     NEXT;
 }
-SPAWN: {
+LABEL(SPAWN): {
     auto args = B9i64::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("SPAWN");
     auto type = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
 
     // TODO: it seems that spawn could be called directly
@@ -476,9 +490,9 @@ SPAWN: {
 
     return { func, type.Raw() };
 }
-NEWARR: {
+LABEL(NEWARR): {
     auto args = B9i64::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("NEWARR");
     auto type = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
 
     // Puts result to `IR1`, expects length to be passed on `IR2`.
@@ -488,79 +502,79 @@ NEWARR: {
 
     return { func, type.Raw() };
 }
-LOAD_ADDR: {
+LABEL(LOAD_ADDR): {
     auto args = B2xr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("LOAD_ADDR");
     auto location   = literals->at(reader.Read16()).u64;
     bool successful = interpreter.LoadAddr(args.xr.imm.LDK(), args.xr.r, location);
     NEXT_COND(successful);
 }
-STORE_ADDR: {
+LABEL(STORE_ADDR): {
     auto args = B2xr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("STORE_ADDR");
     auto location   = literals->at(reader.Read16()).u64;
     bool successful = interpreter.StoreAddr(args.xr.imm.STK(), args.xr.r, location);
     NEXT_COND(successful);
 }
-LOAD_OBJ_F:
-LOAD_OBJ: {
+LABEL(LOAD_OBJ_F):
+LABEL(LOAD_OBJ): {
     auto args = B4xi12rr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("LOAD_OBJ");
     bool successful = interpreter.LoadObj(args.xi12.imm4.LDK(), args.rr.x, args.rr.y.IR(), args.xi12.imm12);
     NEXT_COND(successful);
 }
-STORE_OBJ_F:
-STORE_OBJ: {
+LABEL(STORE_OBJ_F):
+LABEL(STORE_OBJ): {
     auto args = B4xi12rr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("STORE_OBJ");
     bool successful = interpreter.StoreObj(args.xi12.imm4.STK(), args.rr.x, args.rr.y.IR(), args.xi12.imm12);
     NEXT_COND(successful);
 }
-LOAD_ARR_F:
-LOAD_ARR: {
+LABEL(LOAD_ARR_F):
+LABEL(LOAD_ARR): {
     auto args = B3xrrr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("LOAD_ARR");
     bool successful = interpreter.LoadArray(args.xr.imm.LDK(), args.xr.r, args.rr.x.IR(), args.rr.y.IR());
     NEXT_COND(successful);
 }
-STORE_ARR_F:
-STORE_ARR: {
+LABEL(STORE_ARR_F):
+LABEL(STORE_ARR): {
     auto args = B3xrrr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("STORE_ARR");
     bool successful = interpreter.StoreArray(args.xr.imm.STK(), args.xr.r, args.rr.x.IR(), args.rr.y.IR());
     NEXT_COND(successful);
 }
-LOAD_REC_F:
-LOAD_REC: {
+LABEL(LOAD_REC_F):
+LABEL(LOAD_REC): {
     auto args = B4xi12rr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("LOAD_REC");
     bool successful = interpreter.LoadRec(args.xi12.imm4.LDK(), args.rr.x, args.rr.y.IR(), args.xi12.imm12);
     NEXT_COND(successful);
 }
-STORE_REC_F:
-STORE_REC: {
+LABEL(STORE_REC_F):
+LABEL(STORE_REC): {
     auto args = B4xi12rr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("STORE_REC");
     bool successful = interpreter.StoreRec(args.xi12.imm4.STK(), args.rr.x, args.rr.y.IR(), args.xi12.imm12);
     NEXT_COND(successful);
 }
-LOAD_FRAME_F:
-LOAD_FRAME: {
+LABEL(LOAD_FRAME_F):
+LABEL(LOAD_FRAME): {
     auto args = B4xi12rr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("LOAD_FRAME");
     bool successful = interpreter.LoadFrame(args.xi12.imm4.LDK(), args.rr.x, args.xi12.imm12);
     NEXT_COND(successful);
 }
-STORE_FRAME_F:
-STORE_FRAME: {
+LABEL(STORE_FRAME_F):
+LABEL(STORE_FRAME): {
     auto args = B4xi12rr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("STORE_FRAME");
     bool successful = interpreter.StoreFrame(args.xi12.imm4.STK(), args.rr.x, args.xi12.imm12);
     NEXT_COND(successful);
 }
-PREP_TYPED: {
+LABEL(PREP_TYPED): {
     auto args = B13i64i32::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("PREP_TYPED");
     auto typedOffset = args.imm32.imm;
     auto typeInfo    = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
     typeInfo.VisitReferenceOffsets([&](uint32_t offset) {
@@ -568,74 +582,74 @@ PREP_TYPED: {
     });
     NEXT;
 }
-SCC32: {
+LABEL(SCC32): {
     auto args = B3xrrr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("SCC32");
     interpreter.template SCC<Width::W32>(args.xr.imm.CC(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
     NEXT;
 }
-SCC64: {
+LABEL(SCC64): {
     auto args = B3xrrr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("SCC64");
     interpreter.template SCC<Width::W64>(args.xr.imm.CC(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
     NEXT;
 }
-FSCC32: {
+LABEL(FSCC32): {
     auto args = B3xrrr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("FSCC32");
     interpreter.template SCC<Width::W32>(args.xr.imm.CC(), args.xr.r.IR(), args.rr.x.FR(), args.rr.y.FR());
     NEXT;
 }
-FSCC64: {
+LABEL(FSCC64): {
     auto args = B3xrrr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("FSCC64");
     interpreter.template SCC<Width::W64>(args.xr.imm.CC(), args.xr.r.IR(), args.rr.x.FR(), args.rr.y.FR());
     NEXT;
 }
-SCCI32I: {
+LABEL(SCCI32I): {
     auto args = B4xi12rr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("SCCI32I");
     interpreter.template SCCImm<ImmKind::VALUE, Width::W32>(
         args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
     );
     NEXT;
 }
-SCCI64I: {
+LABEL(SCCI64I): {
     auto args = B4xi12rr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("SCCI64I");
     interpreter.template SCCImm<ImmKind::VALUE, Width::W64>(
         args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
     );
     NEXT;
 }
-SCCI32L: {
+LABEL(SCCI32L): {
     auto args = B4xi12rr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("SCCI32L");
     interpreter.template SCCImm<ImmKind::LITERAL, Width::W32>(
         args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
     );
     NEXT;
 }
-SCCI64L: {
+LABEL(SCCI64L): {
     auto args = B4xi12rr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("SCCI64L");
     interpreter.template SCCImm<ImmKind::LITERAL, Width::W64>(
         args.xi12.imm4.CC(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12
     );
     NEXT;
 }
-OFFSET: {
+LABEL(OFFSET): {
     auto args = Offset::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("OFFSET");
     auto dst  = args.rr.x.IR();
     auto ti   = TypeInfo(ectype->GetPrimitive(args.rr.y.IR()).u64);
     auto offs = RTSupport::Execution::GetFieldOffset(ti, args.idx, false);
     ectype->Put(dst, Value::Primitive { offs });
     NEXT;
 }
-TYPE_ARG: {
+LABEL(TYPE_ARG): {
     auto args = B4xi12rr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("TYPE_ARG");
     auto dst = args.rr.x.IR();
     auto ti  = args.rr.y.IR();
     auto idx = args.xi12.imm12;
@@ -646,27 +660,27 @@ TYPE_ARG: {
 
     NEXT;
 }
-CONVERT: {
+LABEL(CONVERT): {
     auto args = B3xxrr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("CONVERT");
     interpreter.Convert(args.xx.imm1.ConvertType(), args.xx.imm2.ConvertType(), args.rr.x, args.rr.y);
     NEXT;
 }
-BFXS: {
+LABEL(BFXS): {
     auto args = BFX::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("BFXS");
     interpreter.BitFieldExtract(args.rr.x, args.rr.y, args.offs, args.size, true);
     NEXT;
 }
-BFXZ: {
+LABEL(BFXZ): {
     auto args = BFX::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("BFXZ");
     interpreter.BitFieldExtract(args.rr.x, args.rr.y, args.offs, args.size, false);
     NEXT;
 }
-DIRECT_CALL_2I: {
+LABEL(DIRECT_CALL_2I): {
     auto args = B3xi12::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("DIRECT_CALL_2I");
     uint16_t imm = args.xi12.imm12;
     auto fuh     = reinterpret_cast<FunctionHandle*>(literals->at(imm).uintptr);
     // For proper support of fibers, the following call MUST drop the current frame.
@@ -681,9 +695,9 @@ DIRECT_CALL_2I: {
 
     return { fuh->i2call, reinterpret_cast<void*>(fuh) };
 }
-DIRECT_CALL_2C: {
+LABEL(DIRECT_CALL_2C): {
     auto args = B3xi12::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("DIRECT_CALL_2C");
     uint16_t imm = args.xi12.imm12;
     auto target  = literals->at(imm).uintptr;
     // For proper support of fibers, the following call MUST drop the current frame.
@@ -698,9 +712,9 @@ DIRECT_CALL_2C: {
 
     return { Adapters::GenericI2CCallInstance(), reinterpret_cast<void*>(target) };
 }
-VIRTUAL_CALL: {
+LABEL(VIRTUAL_CALL): {
     auto args = VirtualCall::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("VIRTUAL_CALL");
     auto vnum      = args.vnum;
     auto extDefNum = args.edef;
 
@@ -726,11 +740,11 @@ VIRTUAL_CALL: {
     return Execution::GetVirtualThunk(reference, extDefNum, vnum);
 }
 
-INTERFACE_CALL: {
+LABEL(INTERFACE_CALL): {
     auto args = InterfaceCall::Decode(reader);
-    LOG_INSTR;
-    auto num       = args.vnum;
-    auto typeInfo  = TypeInfo(static_cast<uintptr_t>(args.ti));
+    DEBUG_INFO("INTERFACE_CALL");
+    auto num      = args.vnum;
+    auto typeInfo = TypeInfo(static_cast<uintptr_t>(args.ti));
 #if defined(__x86_64__) || defined(_M_X64)
     auto receiver = args.sret ? IReg::IR2 : IReg::IR1;
 #elif defined(__aarch64__) || defined(_M_ARM64)
@@ -753,9 +767,9 @@ INTERFACE_CALL: {
     return Execution::GetInterfaceThunk(reference, typeInfo, num);
 }
 
-STRING_INIT: {
+LABEL(STRING_INIT): {
     auto args = B13i64i32::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("STRING_INIT");
     auto ref  = reinterpret_cast<StringStorage*>(args.imm64.imm);
     auto offs = args.imm32.imm;
 
@@ -773,23 +787,23 @@ STRING_INIT: {
     NEXT;
 }
 
-NULLCHECK: {
+LABEL(NULLCHECK): {
     auto args = B2xr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("NULLCHECK");
     auto ref = ectype->GetReference(args.xr.r.IR());
     NEXT_OR_THROW(ref.value != 0, Type::NoneValueException);
 }
 
-DIVCHECK: {
+LABEL(DIVCHECK): {
     auto args = B2xr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("DIVCHECK");
     auto div = ectype->GetPrimitive(args.xr.r.IR());
     NEXT_OR_THROW(div.u64 != 0, Type::ArithmeticException);
 }
 
-LOAD_GENERIC_TI: {
+LABEL(LOAD_GENERIC_TI): {
     auto args = B9i64::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("LOAD_GENERIC_TI");
     auto termValue = args.imm64.imm;
 
     // Raw reinterpetation of 64 bit value.
@@ -801,17 +815,17 @@ LOAD_GENERIC_TI: {
     NEXT;
 }
 
-LOAD_TI: {
+LABEL(LOAD_TI): {
     auto args = B9i64::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("LOAD_TI");
     auto ti = args.imm64.imm;
     ectype->Put(IReg::IR1, Value::Primitive { .u64 = ti });
     NEXT;
 }
 
-IOF: {
+LABEL(IOF): {
     auto args = IOF::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("IOF");
     auto dst      = args.rr.x.IR();
     auto ref      = ectype->GetReference(args.rr.y.IR());
     auto typeInfo = TypeInfo(static_cast<uintptr_t>(args.imm64));
@@ -819,18 +833,18 @@ IOF: {
     NEXT;
 }
 
-CATCH: {
+LABEL(CATCH): {
     auto args = B2xr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("CATCH");
     auto exceptionObj = ectype->GetReference(IReg::IR_ACC);
     bool successful   = exceptionObj.value != 0;
     ectype->Put(args.xr.r.IR(), Value::Reference { .value = exceptionObj.value });
     NEXT_COND(successful);
 }
 
-THROW: {
+LABEL(THROW): {
     auto args = B2xr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("THROW");
     auto ref = ectype->GetReference(args.xr.r.IR());
     if (ref.value == 0) {
         FATAL("unexpected null in THROW");
@@ -838,62 +852,62 @@ THROW: {
     THROW_EXPLICIT(ref.value);
 }
 
-MEMSPACE: {
+LABEL(MEMSPACE): {
     auto args = B1::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("MEMSPACE");
     memspaceOffsetAcc = 0;
     MEM_NEXT;
 }
 
     // -- MemSpace opcode table --
 
-MEM_HALT: {
+LABEL(MEM_HALT): {
     FATAL("halt");
     return {};
 }
 
-OFFS16: {
+LABEL(OFFS16): {
     auto args = M3i16::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("OFFS16");
     memspaceOffsetAcc += interpreter.MemOffset(args.imm16);
     MEM_NEXT;
 }
-OFFS32: {
+LABEL(OFFS32): {
     auto args = M5i32::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("OFFS32");
     memspaceOffsetAcc += interpreter.MemOffset(args.imm32);
     MEM_NEXT;
 }
-OFFS64: {
+LABEL(OFFS64): {
     auto args = M9i64::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("OFFS64");
     memspaceOffsetAcc += interpreter.MemOffset(args.imm64);
     MEM_NEXT;
 }
-OFFS_REG: {
+LABEL(OFFS_REG): {
     auto args = M2xr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("OFFS_REG");
     memspaceOffsetAcc += interpreter.MemOffsetReg(args.xr.r.IR());
     MEM_NEXT;
 }
-OFFS_REG_IDX64: {
+LABEL(OFFS_REG_IDX64): {
     auto args = M10xri64::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("OFFS_REG_IDX64");
     memspaceOffsetAcc += interpreter.MemOffsetReg(args.xr.r.IR()) * interpreter.MemOffset(args.imm64.imm);
     MEM_NEXT;
 }
-R_READ_STRUCT: {
+LABEL(R_READ_STRUCT): {
     auto args = MStructFieldOp::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("R_READ_STRUCT");
     auto dst   = ectype->GetPrimitive(args.rr.x.IR()).u64;
     auto base  = ectype->GetReference(args.rr.y.IR());
     auto field = base.value + memspaceOffsetAcc;
     RTSupport::Execution::ReadStructField(dst, base, field, args.ti, handle);
     NEXT;
 }
-R_WRITE_STRUCT: {
+LABEL(R_WRITE_STRUCT): {
     auto args = MStructFieldOp::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("R_WRITE_STRUCT");
     auto src   = ectype->GetPrimitive(args.rr.x.IR()).u64;
     auto base  = ectype->GetReference(args.rr.y.IR());
     auto field = base.value + memspaceOffsetAcc;
@@ -901,9 +915,9 @@ R_WRITE_STRUCT: {
     NEXT;
 }
 
-DLD_GENERIC: {
+LABEL(DLD_GENERIC): {
     auto args = M3rrrr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("DLD_GENERIC");
     // TODO: reorder args, so it would require less bit-shifting
     auto derivedReg = args.rr1.x.IR();
     auto tiReg      = args.rr1.y.IR();
@@ -929,9 +943,9 @@ DLD_GENERIC: {
         return { .function = RTSupport::Execution::LoadGeneric(), .argUInt = packed };
     }
 }
-DST_GENERIC: {
+LABEL(DST_GENERIC): {
     auto args = M3rrrr::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("DST_GENERIC");
     auto derivedReg = args.rr1.x.IR();
     auto tiReg      = args.rr1.y.IR();
     auto srcReg     = args.rr2.x.IR();
@@ -952,9 +966,9 @@ DST_GENERIC: {
     }
 }
 
-GENERIC_FIELD: {
+LABEL(GENERIC_FIELD): {
     auto args = M6rri32::Decode(reader);
-    LOG_INSTR;
+    DEBUG_INFO("GENERIC_FIELD");
     auto ti            = TypeInfo(ectype->GetPrimitive(args.rr.x.IR()).u64);
     auto offs          = RTSupport::Execution::GetFieldOffset(ti, args.imm32.imm, false);
     memspaceOffsetAcc += offs;
@@ -962,10 +976,10 @@ GENERIC_FIELD: {
 }
 
 #define RLD(ldk)                                                                                                       \
-    RLD_##ldk:                                                                                                         \
+    LABEL(RLD_##ldk):                                                                                                         \
     {                                                                                                                  \
         auto args = M2rr::Decode(reader);                                                                              \
-        LOG_INSTR;                                                                                                     \
+        DEBUG_INFO("RLD_" #ldk);                                                                                       \
         bool successful =                                                                                              \
             interpreter.LoadObj(Format::LoadAccessKind::LD_##ldk, args.rr.x, args.rr.y.IR(), memspaceOffsetAcc);       \
         NEXT_COND(successful);                                                                                         \
@@ -983,10 +997,10 @@ GENERIC_FIELD: {
 #undef RLD
 
 #define RST(stk)                                                                                                       \
-    RST_##stk:                                                                                                         \
+    LABEL(RST_##stk):                                                                                                         \
     {                                                                                                                  \
         auto args = M2rr::Decode(reader);                                                                              \
-        LOG_INSTR;                                                                                                     \
+        DEBUG_INFO("RST_" #stk);                                                                                       \
         bool successful =                                                                                              \
             interpreter.StoreObj(Format::StoreAccessKind::ST_##stk, args.rr.x, args.rr.y.IR(), memspaceOffsetAcc);     \
         NEXT_COND(successful);                                                                                         \
@@ -1001,10 +1015,10 @@ GENERIC_FIELD: {
 #undef RST
 
 #define RSTI(memSize, immSize, encoding)                                                                               \
-    RSTI_##memSize##_##immSize:                                                                                        \
+    LABEL(RSTI_##memSize##_##immSize):                                                                                        \
     {                                                                                                                  \
         auto args = encoding::Decode(reader);                                                                          \
-        LOG_INSTR;                                                                                                     \
+        DEBUG_INFO("RSTI_" #memSize "_" #immSize);                                                                     \
         uint64_t imm = MathUtils::SignExtend(static_cast<uint64_t>(args.imm##immSize.imm), immSize);                   \
         IReg base    = args.xr.r.IR();                                                                                 \
         bool successful =                                                                                              \
@@ -1024,10 +1038,10 @@ GENERIC_FIELD: {
 #undef RSTI
 
 #define DLD(ldk)                                                                                                       \
-    DLD_##ldk:                                                                                                         \
+    LABEL(DLD_##ldk):                                                                                                         \
     {                                                                                                                  \
         auto args = M3xrrr::Decode(reader);                                                                            \
-        LOG_INSTR;                                                                                                     \
+        DEBUG_INFO("DLD_" #ldk);                                                                                       \
         bool successful = interpreter.LoadDerived(                                                                     \
             Format::LoadAccessKind::LD_##ldk, args.xr.r, args.rr.x.IR(), args.rr.y.IR(), memspaceOffsetAcc             \
         );                                                                                                             \
@@ -1046,10 +1060,10 @@ GENERIC_FIELD: {
 #undef DLD
 
 #define DST(stk)                                                                                                       \
-    DST_##stk:                                                                                                         \
+    LABEL(DST_##stk):                                                                                                         \
     {                                                                                                                  \
         auto args = M3xrrr::Decode(reader);                                                                            \
-        LOG_INSTR;                                                                                                     \
+        DEBUG_INFO("DST_" #stk);                                                                                       \
         bool successful = interpreter.StoreDerived(                                                                    \
             Format::StoreAccessKind::ST_##stk, args.xr.r, args.rr.x.IR(), args.rr.y.IR(), memspaceOffsetAcc            \
         );                                                                                                             \
@@ -1065,10 +1079,10 @@ GENERIC_FIELD: {
 #undef DST
 
 #define DSTI(memSize, immSize, encoding)                                                                               \
-    DSTI_##memSize##_##immSize:                                                                                        \
+    LABEL(DSTI_##memSize##_##immSize):                                                                                        \
     {                                                                                                                  \
         auto args = encoding::Decode(reader);                                                                          \
-        LOG_INSTR;                                                                                                     \
+        DEBUG_INFO("DSTI_" #memSize "_" #immSize);                                                                     \
         uint64_t imm = MathUtils::SignExtend(static_cast<uint64_t>(args.imm##immSize.imm), immSize);                   \
         IReg base    = args.rr.x.IR();                                                                                 \
         IReg derived = args.rr.y.IR();                                                                                 \
@@ -1089,10 +1103,10 @@ GENERIC_FIELD: {
 #undef DSTI
 
 #define SLD(ldk)                                                                                                       \
-    SLD_##ldk:                                                                                                         \
+    LABEL(SLD_##ldk):                                                                                                         \
     {                                                                                                                  \
         auto args = M2rr::Decode(reader);                                                                              \
-        LOG_INSTR;                                                                                                     \
+        DEBUG_INFO("SLD_" #ldk);                                                                                       \
         bool successful =                                                                                              \
             interpreter.LoadRec(Format::LoadAccessKind::LD_##ldk, args.rr.x, args.rr.y.IR(), memspaceOffsetAcc);       \
         NEXT_COND(successful);                                                                                         \
@@ -1110,10 +1124,10 @@ GENERIC_FIELD: {
 #undef SLD
 
 #define SST(stk)                                                                                                       \
-    SST_##stk:                                                                                                         \
+    LABEL(SST_##stk):                                                                                                         \
     {                                                                                                                  \
         auto args = M2rr::Decode(reader);                                                                              \
-        LOG_INSTR;                                                                                                     \
+        DEBUG_INFO("SST_" #stk);                                                                                       \
         bool successful =                                                                                              \
             interpreter.StoreRec(Format::StoreAccessKind::ST_##stk, args.rr.x, args.rr.y.IR(), memspaceOffsetAcc);     \
         NEXT_COND(successful);                                                                                         \
@@ -1128,10 +1142,10 @@ GENERIC_FIELD: {
 #undef SST
 
 #define SSTI(memSize, immSize, encoding)                                                                               \
-    SSTI_##memSize##_##immSize:                                                                                        \
+    LABEL(SSTI_##memSize##_##immSize):                                                                                        \
     {                                                                                                                  \
         auto args = encoding::Decode(reader);                                                                          \
-        LOG_INSTR;                                                                                                     \
+        DEBUG_INFO("SSTI_" #memSize "_" #immSize);                                                                     \
         uint64_t imm = MathUtils::SignExtend(static_cast<uint64_t>(args.imm##immSize.imm), immSize);                   \
         IReg base    = args.xr.r.IR();                                                                                 \
         bool successful =                                                                                              \
@@ -1151,10 +1165,10 @@ GENERIC_FIELD: {
 #undef SSTI
 
 #define FLD(ldk)                                                                                                       \
-    FLD_##ldk:                                                                                                         \
+    LABEL(FLD_##ldk):                                                                                                         \
     {                                                                                                                  \
         auto args = M2rr::Decode(reader);                                                                              \
-        LOG_INSTR;                                                                                                     \
+        DEBUG_INFO("FLD_" #ldk);                                                                                       \
         bool successful = interpreter.LoadFrame(Format::LoadAccessKind::LD_##ldk, args.rr.x, memspaceOffsetAcc);       \
         NEXT_COND(successful);                                                                                         \
     }
@@ -1171,10 +1185,10 @@ GENERIC_FIELD: {
 #undef FLD
 
 #define FST(stk)                                                                                                       \
-    FST_##stk:                                                                                                         \
+    LABEL(FST_##stk):                                                                                                         \
     {                                                                                                                  \
         auto args = M2rr::Decode(reader);                                                                              \
-        LOG_INSTR;                                                                                                     \
+        DEBUG_INFO("FST_" #stk);                                                                                       \
         bool successful = interpreter.StoreFrame(Format::StoreAccessKind::ST_##stk, args.rr.x, memspaceOffsetAcc);     \
         NEXT_COND(successful);                                                                                         \
     }
@@ -1188,10 +1202,10 @@ GENERIC_FIELD: {
 #undef FST
 
 #define FSTI(memSize, immSize, encoding)                                                                               \
-    FSTI_##memSize##_##immSize:                                                                                        \
+    LABEL(FSTI_##memSize##_##immSize):                                                                                        \
     {                                                                                                                  \
         auto args = encoding::Decode(reader);                                                                          \
-        LOG_INSTR;                                                                                                     \
+        DEBUG_INFO("FSTI_" #memSize "_" #immSize);                                                                     \
         uint64_t imm    = MathUtils::SignExtend(static_cast<uint64_t>(args.imm##immSize), immSize);                    \
         bool successful = interpreter.StoreFrameImm(Format::StoreAccessKind::ST_##memSize, imm, memspaceOffsetAcc);    \
         NEXT_COND(successful);                                                                                         \
@@ -1212,6 +1226,8 @@ GENERIC_FIELD: {
 #undef NEXT
 #undef NEXT_COND
 }
+
+// clang-format on
 
 void engine_log_int_start(DynamicFunctionHandle* handle, Ectype* ectype)
 {
