@@ -85,7 +85,7 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
 
     CbcFile::Impl impl {
         .versionMetadata       = versionMetadata,
-        .typeIndex             = TypeIndex::Read(typeIndexReader, fileId),
+        .typeIndex             = TypeIndex(typeIndexReader, fileId),
         .regionData            = RegionData::Read(fileId, file, regionOffset),
         .directCallAotTable    = DirectCallAotTable::Read(fileId, file, directCallAotTableOffset),
         .virtualCallAotTable   = VirtualCallAotTable::Read(fileId, file, virtualCallAotTableOffset),
