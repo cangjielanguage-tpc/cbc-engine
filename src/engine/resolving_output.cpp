@@ -190,8 +190,13 @@ ResolvingOutput& ResolvingOutput::operator<<(Engine::MethodTable const& mt)
 
     auto writeEntry = [&](Engine::MethodTableEntry& entry) {
         auto def = Symlevel::Reader::Read(session, entry.method);
+
+        Engine::ClassSubstitution sub(session, entry.genericContext);
+        auto signature = Engine::TermManager::Resolve(session, def.Signature());
+        signature = sub.Substitute(signature);
+
         out << "      " << entry.methodNum << ": ";
-        out << Detailed(def.Name()) << Detailed(def.Signature());
+        out << Detailed(def.Name()) << signature;
         out << ", from: " << entry.genericContext << endl;
     };
 
