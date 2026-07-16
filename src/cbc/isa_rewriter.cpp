@@ -1371,18 +1371,30 @@ static std::optional<FrameLayout> makeFrameLayout(Symlevel::Code code, Resolver&
     for (uint32_t i = 0; i < code.StackAllocSigsCount(); i++) {
         auto typeOpt = resolver.Query(Index<Type>(code.StackAllocSigs()[i]));
         if (!typeOpt.has_value()) {
+            Interpretation::Log::preparation.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
+                out << "Failed to query type at stack-alloc index " << i << Stream::endl;
+            });
             return std::nullopt;
         }
         auto type = typeOpt.value();
         if (type.GetKind() != CbcTypeKind::REC) {
+            Interpretation::Log::preparation.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
+                out << "Unexpected kind " << (uint8_t) type.GetKind() << " at stack-alloc index " << i << " for type " << type << Stream::endl;
+            });
             return std::nullopt;
         }
         auto size = type.GetFlatSize();
         if (!size.has_value()) {
+            Interpretation::Log::preparation.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
+                out << "Unknown size at stack-alloc index " << i << " for type " << type << Stream::endl;
+            });
             return std::nullopt;
         }
         auto typeInfo = type.GetTypeInfo();
         if (!typeInfo.has_value()) {
+            Interpretation::Log::preparation.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
+                out << "Failed to obtain type info at stack-alloc index " << i << " for type " << type << Stream::endl;
+            });
             return std::nullopt;
         }
         auto typeInfoPtr = typeInfo->Raw();
