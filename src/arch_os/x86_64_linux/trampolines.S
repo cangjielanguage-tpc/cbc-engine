@@ -486,8 +486,8 @@ perform_2i_call:
   sub   rsp, r8
 
 .Lstack_check:
-  mov   rax, [TLS_REG + TLS_STACK_BORDER_OFFSET]
-  cmp   rax, rsp
+  mov   r9, [TLS_REG + TLS_STACK_BORDER_OFFSET]
+  cmp   r9, rsp
   jbe   expand_stack_or_throw_soe
 .Lafter_stack_check:
 
@@ -674,5 +674,10 @@ expand_stack_or_throw_soe:
   
   restore_all_iregs rax  
   sub   rsp, r8    // stack grow stub preserves all registers, so r8 will not be changed
+
+  // restore spoiled rax value 
+  mov   rax, [rbp - FUH_SLOT_OFFSET]
+  mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
+
   jmp   .Lafter_stack_check
 engine_ectype_saving_stub_pc_end:
