@@ -169,7 +169,7 @@ public:
     void Nop();
     void Jmp(Label label);
 
-    void InitClosure();
+    void InitClosure(bool instantiatedSret);
     void Spawn(RTSupport::TypeInfo typeInfo);
 
     void NewObjGenericOnAcc(IReg ti);

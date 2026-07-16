@@ -7,9 +7,11 @@
 #include "cbc/isa_disasm.h"
 #include "cbc/isa_parser.h"
 #include "engine/engine.h"
+#include "engine/method_table.h"
 #include "engine/resolving_output.h"
 #include "engine/symlevel/code.h"
 #include "engine/symlevel/definitions.h"
+#include "engine/symlevel/flags.h"
 #include "engine/symlevel/io/file_id.h"
 #include "engine/symlevel/reader.h"
 #include "engine/terms.h"
@@ -709,8 +711,30 @@ struct IsaRewriter : public IsaParser {
 
     void NewClosure(IReg dst, uint16_t typeId) override
     {
-        NewObj(IReg::IR1, typeId); // has BindStatePoint call inside
-        emit.InitClosure();
+        auto type = NewObject(IReg::IR1, typeId, New::Obj); // has BindStatePoint call inside
+        if (!type.has_value()) {
+            return;
+        }
+
+        auto& manager = Engine::MethodTableManager::Of(resolver.session);
+        auto optMT    = manager.GetMethodTable(resolver.session, type->term);
+        if (!optMT.has_value()) {
+            errStream << "Failed to build method table for closure " << *type << Stream::endl;
+            Fail();
+            return;
+        }
+
+        auto mt = *optMT;
+        ASSERTION(mt->EntryCount() == 2, "Closures should have only two virtual methods");
+
+        auto entries           = mt->Entries();
+        auto instantiatedEntry = entries.begin();
+        ++instantiatedEntry;
+
+        auto instantiatedMethod = Symlevel::Reader::Read(resolver.session, instantiatedEntry->method);
+        auto instantiatedSret   = instantiatedMethod.GetFlags().Is(Symlevel::MethodFlag::SRET);
+
+        emit.InitClosure(instantiatedSret);
         AdjustReg(dst, IReg::IR1);
     }
 
