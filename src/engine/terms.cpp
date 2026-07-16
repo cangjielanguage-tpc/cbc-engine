@@ -27,7 +27,7 @@ namespace Engine {
 /// Internal representation of `Term`.
 /// The main things which are needed to represent term is an identifier and subterms.
 /// The length of subterm array is bounded by 2^16, so in the leftover memory
-/// we fit additional fields `hash` and `isLocal`.
+/// we fit additional fields `hash` and `flags`.
 struct TermData {
     TermId identifier;
     uint32_t hash;
@@ -95,22 +95,18 @@ constexpr TermFlags::TermFlags(int flags)
 {}
 
 struct BuiltinTerms {
-    void* memory;
-    void* primitives;
-    void* classTypeVars;
-    void* funcTypeVars;
-
     static constexpr size_t TV_COUNT   = 256;
     static constexpr size_t PRIM_COUNT = FIRST_NON_PRIMITIVE;
 
+    static char primitives[sizeof(TermData) * PRIM_COUNT];
+    static char classTypeVars[sizeof(TermData) * TV_COUNT];
+    static char funcTypeVars[sizeof(TermData) * TV_COUNT];
+
     BuiltinTerms(BuiltinTerms const&) = delete;
 
-    ~BuiltinTerms() { std::free(memory); }
-
-    inline static TermData* DataAt(void* memory, size_t idx)
+    static TermData* DataAt(char* ptr, size_t idx)
     {
-        char* ptr  = reinterpret_cast<char*>(memory);
-        ptr       += sizeof(TermData) * idx;
+        ptr += sizeof(TermData) * idx;
         return reinterpret_cast<TermData*>(ptr);
     }
 
@@ -143,14 +139,6 @@ struct BuiltinTerms {
             return seed                 = next;
         };
 
-        void* memory = std::malloc(sizeof(TermData) * (TV_COUNT + TV_COUNT + PRIM_COUNT));
-        if (!memory)
-            FATAL("Failed to allocate builtin terms");
-
-        void* primitives    = DataAt(memory, 0);
-        void* classTypeVars = DataAt(memory, PRIM_COUNT);
-        void* funcTypeVars  = DataAt(memory, PRIM_COUNT + TV_COUNT);
-
         TermFlags primFlags = 0;
         TermFlags tvFlags   = F_REFERENCE | F_GENERIC;
 
@@ -178,11 +166,6 @@ struct BuiltinTerms {
             data->identifier = FuncTvTermId(i);
             data->flags      = tvFlags;
         }
-
-        this->memory = memory;
-        this->primitives = primitives;
-        this->classTypeVars = classTypeVars;
-        this->funcTypeVars = funcTypeVars;
     }
 };
 
