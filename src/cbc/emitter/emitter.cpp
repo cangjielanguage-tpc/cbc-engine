@@ -815,9 +815,9 @@ void Emitter::GcPoint()
 void Emitter::CallClosure(bool sret)
 {
     if (sret) {
-        segment.AddW8(RT::Opcode::CALL_CLOSURE);
-    } else {
         segment.AddW8(RT::Opcode::CALL_CLOSURE_SRET);
+    } else {
+        segment.AddW8(RT::Opcode::CALL_CLOSURE);
     }
 }
 
