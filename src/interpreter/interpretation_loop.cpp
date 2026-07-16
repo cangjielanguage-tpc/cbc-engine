@@ -321,7 +321,7 @@ LABEL(BCCL64L, {
     ));
     JUMP;
     CODE_SIZE(BCCL64L);
-}
+})
 LABEL(BRANCH_IS_REF, {
     auto args = B3xi12::Decode(reader);
     DEBUG_INFO("BRANCH_IS_REF");
@@ -333,7 +333,6 @@ LABEL(BRANCH_IS_REF, {
         delta          = MathUtils::SignExtend<int64_t>(value, 12);
     }
     JUMP;
-})
 })
 LABEL(JMP32, {
     auto args = B5i32::Decode(reader);
@@ -423,7 +422,7 @@ LABEL(FUN64, {
     bool successful =
         (interpreter.template Unary<Width::W64>(args.xr.imm.FloatOperations(), args.xr.r.FR(), args.rr.y.FR()));
     NEXT_COND(successful);
-}
+})
 LABEL(NEWOBJ_G, {
     auto args = B2rr::Decode(reader);
     DEBUG_INFO("NEWOBJ_G");
@@ -436,7 +435,6 @@ LABEL(NEWOBJ_G, {
     reader0 = reader; // save current pc
 
     ({return { func, type.Raw() };});
-})
 })
 LABEL(NEWOBJ, {
     auto args = B9i64::Decode(reader);
