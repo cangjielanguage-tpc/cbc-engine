@@ -675,6 +675,7 @@ expand_stack_or_throw_soe:
   call  [rip + engine_stack_grow_stub]
 
   restore_all_iregs rax
+  mov   rdx, rsp   // update rdx after stack movement
   sub   rsp, r8    // stack grow stub preserves all registers, so r8 will not be changed
 
   // restore spoiled rax value
