@@ -1,4 +1,5 @@
 #include "stack_expansion.h"
+#include "asm_export.h"
 #include "asm_trampolines.h"
 #include "cjnative.h"
 #include "gc_support.h"
@@ -40,7 +41,7 @@ static std::pair<const GCPositionalInfo*, const StackPtrsPositionalInfo*> FindPo
     if (!gcPosInfo || !stackPtrsPosInfo) {
         RTSupport::Log::gc.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
             const char* prefix = !gcPosInfo ? "gc" : "stack ptrs";
-            out.PrintFmtLn("%s info not found (pos=%p)", prefix, pos);
+            out.PrintFmtLn("%s info not found (pos=%lu)", prefix, pos);
         });
     }
 
@@ -100,7 +101,7 @@ void VisitFrameRootsForStackPtrs(
 uint32_t GetFrameSize(DYN_FramePointer fp)
 {
     auto fuh = *reinterpret_cast<DynamicFunctionHandle**>((uint8_t*)fp - FUH_SLOT_OFFSET);
-    return fuh->bytecode.load()->frameSize;
+    return fuh->bytecode.load()->frameSize + ADDITIONAL_STACK_SPACE;
 }
 
 } // namespace StackExpansion
