@@ -452,8 +452,6 @@ CBC_EXPORT int interpreter_bridge_init(
         out.PrintFmtLn("interpreter_bridge_init started");
     });
 
-    DiscoverPatchCbcFromAppStorage();
-
     interpInterf->version                  = INT_INTERPRETER_INTERFACE_VERSION;
     interpInterf->cjThreadSpecificDataSize = sizeof(Interpretation::Ectype);
     interpInterf->c2iStubStartAddr         = reinterpret_cast<uintptr_t>(&Asm::engine_c2i_call_pc_start);
