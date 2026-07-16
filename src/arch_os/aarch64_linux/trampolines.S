@@ -245,6 +245,8 @@ engine_trampolines_dyn_end:
   c2i_emit_iregs_abi \ireg_count
   c2i_emit_fregs_abi \freg_count
 
+  add   x1, x29, 0x10
+  str   x1, [ECTYPE_REG, #TAIL_REG_OFFS]
   mov   x0, x9
   bl    perform_2i_call
 
@@ -306,7 +308,10 @@ engine_c2i_call_pc_end:
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
 engine_i2i_call:
-  // jumped from .Linterpreter_call without return address to return
+  // stack parameters are starting right at the top of the interpreted frame
+  mov   x1, sp
+  str   x1, [ECTYPE_REG, #TAIL_REG_OFFS]
+
   bl    perform_2i_call
   b     .Lrestart_interpretation
 
@@ -614,8 +619,8 @@ engine_handle_exception:
 
   POP_REGS x8, x1, x9, x2, x3, x4
 
-  ldr   LITERALS_REG, [x29, #-0x18]
-  ldr   ECTYPE_REG, [x29, #-0x10]
+  ldr   ECTYPE_REG, [x29, #-ECTYPE_REG_SAVED_SLOT_OFFSET]
+  ldp   EXTRA_REG, LITERALS_REG, [x29, #-EXTRA_SAVED_REG_OFFSET]
 
   // Clear top frame
   mov   sp, x29

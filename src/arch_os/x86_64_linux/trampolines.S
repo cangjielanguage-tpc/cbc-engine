@@ -213,7 +213,8 @@ engine_trampolines_dyn_end:
   c2i_emit_iregs_abi \ireg_count
   c2i_emit_fregs_abi \freg_count
 
-
+  lea   rsi, [rbp + 0x10] // skip saved rbp and retaddr
+  mov   [ECTYPE_REG + TAIL_REG_OFFS], rsi // save stack parameters of caller as tail reg
   mov   rdi, rax
   call perform_2i_call
 
@@ -274,7 +275,9 @@ engine_c2i_call_pc_end:
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
 engine_i2i_call:
-  // jumped from .Linterpreter_call without return address to return
+  // stack parameters are starting right at the top of the interpreted frame
+  mov   [ECTYPE_REG + TAIL_REG_OFFS], rsp
+
   call  perform_2i_call
   jmp   .Lrestart_interpretation
 
@@ -426,10 +429,10 @@ perform_2i_call:
 // +------------------------------------+ <-- SP
   push  rbp
   mov   rbp, rsp
-  push  rdi // rbp - 0x8 : FunctionHandle for frame scanning
-  push  ECTYPE_REG // rbp - 0x10
+  push  rdi          // rbp - 0x8 : FunctionHandle for frame scanning
+  push  ECTYPE_REG   // rbp - 0x10
   push  LITERALS_REG // rbp - 0x18
-  push  EXTRA_REG // rbp - 0x20
+  push  EXTRA_REG    // rbp - 0x20
 
   // reserve slots and align stack
   sub   rsp, LOCAL_SLOTS_OFFSET - EXTRA_SAVED_REG_OFFSET
@@ -577,8 +580,9 @@ engine_handle_exception:
 
   POP_REGS rcx, rdx, rax, rsi, rdi
 
-  mov   LITERALS_REG, [rbp - 0x18]
-  mov   ECTYPE_REG, [rbp - 0x10]
+  mov   EXTRA_REG,    [rbp - EXTRA_SAVED_REG_OFFSET]
+  mov   LITERALS_REG, [rbp - LITERALS_REG_SAVED_SLOT_OFFSET]
+  mov   ECTYPE_REG,   [rbp - ECTYPE_REG_SAVED_SLOT_OFFSET]
 
   // Clear top frame
   mov rsp, rbp
