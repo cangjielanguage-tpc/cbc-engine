@@ -677,6 +677,7 @@ struct IsaRewriter : public IsaParser {
     void CallClosure(IReg dst, uint16_t typeId, bool generic) override
     {
         if (generic) {
+            // Generic calls of closure are always considered as `sret`.
             emit.CallClosureGeneric();
             BindStatePoint();
             return;
@@ -688,7 +689,11 @@ struct IsaRewriter : public IsaParser {
         }
         auto term    = t->term;
         auto retType = term.Subterm(term.GetLength() - 1);
-        emit.CallClosure(resolver.Wrap(retType).GetKind() == TK::REC);
+
+        // For instantiated version of closure `sret` can be computed
+        // by retType kind.
+        bool sret = (resolver.Wrap(retType).GetKind() == TK::REC);
+        emit.CallClosure(sret);
         BindStatePoint();
     }
 
