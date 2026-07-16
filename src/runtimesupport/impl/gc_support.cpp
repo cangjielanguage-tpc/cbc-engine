@@ -5,7 +5,6 @@
 #include "engine/statics_manager.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
-#include "reg_table.h"
 #include "runtimesupport/runtime.h"
 #include "utils/logger.h"
 #include "utils/rt_logger.h"
@@ -14,7 +13,7 @@ namespace GCSupport {
 
 using namespace Stream;
 
-static void VisitRoot(DYN_RootVisitor rootVisitor, Placeholder ph)
+void VisitRoot(DYN_RootVisitor rootVisitor, Placeholder ph)
 {
     RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) {
         out.PrintFmtLn("visiting %p, value=%p", ph, *ph);
@@ -22,7 +21,7 @@ static void VisitRoot(DYN_RootVisitor rootVisitor, Placeholder ph)
     g_CJNativeInterfaceInstance.visitRootFromInterpreter(rootVisitor, ph);
 }
 
-static void VisitMutPair(DYN_DerivedPtrVisitor derivedPtrVisitor, Placeholder basePh, Placeholder derivedPh)
+void VisitMutPair(DYN_DerivedPtrVisitor derivedPtrVisitor, Placeholder basePh, Placeholder derivedPh)
 {
     RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) {
         out.PrintFmtLn("visiting derived placeholder=%p, mut pair=(%p, %p)", derivedPh, *basePh, *derivedPh);

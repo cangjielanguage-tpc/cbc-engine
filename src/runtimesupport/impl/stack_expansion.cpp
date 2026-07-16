@@ -1,6 +1,7 @@
 #include "stack_expansion.h"
 #include "asm_trampolines.h"
 #include "cjnative.h"
+#include "gc_support.h"
 #include "interpreter/function_handle.h"
 #include "reg_table.h"
 
@@ -8,22 +9,6 @@ namespace StackExpansion {
 
 using namespace GCSupport;
 using namespace Interpretation;
-
-static void VisitRoot(DYN_RootVisitor rootVisitor, Placeholder ph)
-{
-    RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
-        out.PrintFmtLn("visiting %p, value=%p", ph, *ph);
-    });
-    g_CJNativeInterfaceInstance.visitRootFromInterpreter(rootVisitor, ph);
-}
-
-static void VisitMutPair(DYN_DerivedPtrVisitor derivedPtrVisitor, Placeholder basePh, Placeholder derivedPh)
-{
-    RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
-        out.PrintFmtLn("visiting derived placeholder=%p, mut pair=(%p, %p)", derivedPh, *basePh, *derivedPh);
-    });
-    g_CJNativeInterfaceInstance.visitDerivedPtrFromInterpreter(derivedPtrVisitor, basePh, derivedPh);
-}
 
 // Checks if the received ip is an ip of frame in which stack check is occured.
 static bool isTopInterpreterFrame(uintptr_t ip)

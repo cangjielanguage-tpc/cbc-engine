@@ -662,6 +662,7 @@ engine_handle_exception:
 .endm
 
 // expects: (TLS_REG: valid TLS, rsp: top of stack (including the whole current frame), r8: frame size)
+// preserves: all registers
 // Expands stack and returns to perform 2i call or throws SOE if stack expansion is impossible
 .balign 16
 engine_ectype_saving_stub_pc_start:
@@ -671,11 +672,11 @@ expand_stack_or_throw_soe:
 
   mov   rax, 0x20  // adjusted size (TODO: its meaning is not really known, need to investigate more)
   call  [rip + engine_stack_grow_stub]
-  
-  restore_all_iregs rax  
+
+  restore_all_iregs rax
   sub   rsp, r8    // stack grow stub preserves all registers, so r8 will not be changed
 
-  // restore spoiled rax value 
+  // restore spoiled rax value
   mov   rax, [rbp - FUH_SLOT_OFFSET]
   mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
 
