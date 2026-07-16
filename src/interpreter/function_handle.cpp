@@ -50,8 +50,8 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
     Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
         using namespace Stream;
         ResolvingOutput stream(session, out);
-        stream << "starting to build fuh for " << methodDef << " {" << Detailed(method.Name())
-               << Detailed(method.Signature()) << "}" << endl;
+        stream << "starting to build fuh for " << methodDef << " (" << Detailed(method.Name())
+               << Detailed(method.Signature()) << ")" << endl;
     });
 
     auto flags = method.GetFlags();
