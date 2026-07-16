@@ -98,9 +98,9 @@ struct BuiltinTerms {
     static constexpr size_t TV_COUNT   = 256;
     static constexpr size_t PRIM_COUNT = FIRST_NON_PRIMITIVE;
 
-    static char primitives[sizeof(TermData) * PRIM_COUNT];
-    static char classTypeVars[sizeof(TermData) * TV_COUNT];
-    static char funcTypeVars[sizeof(TermData) * TV_COUNT];
+    static inline char primitives[sizeof(TermData) * PRIM_COUNT];
+    static inline char classTypeVars[sizeof(TermData) * TV_COUNT];
+    static inline char funcTypeVars[sizeof(TermData) * TV_COUNT];
 
     BuiltinTerms(BuiltinTerms const&) = delete;
 
@@ -110,19 +110,19 @@ struct BuiltinTerms {
         return reinterpret_cast<TermData*>(ptr);
     }
 
-    inline TermData* Primitive(size_t i) const
+    static TermData* Primitive(size_t i)
     {
         ASSERT(i < PRIM_COUNT);
         return DataAt(primitives, i);
     }
 
-    inline TermData* ClassTv(size_t i) const
+    static TermData* ClassTv(size_t i)
     {
         ASSERT(i < TV_COUNT);
         return DataAt(classTypeVars, i);
     }
 
-    inline TermData* FuncTv(size_t i) const
+    static TermData* FuncTv(size_t i)
     {
         ASSERT(i < TV_COUNT);
         return DataAt(funcTypeVars, i);
