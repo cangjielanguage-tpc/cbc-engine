@@ -16,7 +16,7 @@ using namespace Interpretation;
 static bool isTopInterpreterFrame(uintptr_t ip)
 {
     uintptr_t start = reinterpret_cast<uintptr_t>(&Asm::engine_ectype_saving_stub_pc_start);
-    uintptr_t end   = reinterpret_cast<uintptr_t>(&Asm::engine_ectype_saving_stub_pc_start);
+    uintptr_t end   = reinterpret_cast<uintptr_t>(&Asm::engine_ectype_saving_stub_pc_end);
     return start <= ip && ip < end;
 }
 
