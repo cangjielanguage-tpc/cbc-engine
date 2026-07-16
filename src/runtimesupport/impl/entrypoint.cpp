@@ -41,7 +41,12 @@ static bool g_OptionsInitialized;
 static bool g_Patched;
 
 struct DirectoryCloser {
-    void operator()(DIR* directory) const { closedir(directory); }
+    void operator()(DIR* directory) const
+    {
+        if (directory != nullptr) {
+            closedir(directory);
+        }
+    }
 };
 
 static void LogAppStorageDiscovery(std::string const& message)
@@ -84,8 +89,10 @@ static void DiscoverPatchCbcFromAppStorage()
         }
 
         std::string_view fileName(entry->d_name);
-        if (fileName.size() <= cbcExtension.size() ||
-            fileName.compare(fileName.size() - cbcExtension.size(), cbcExtension.size(), cbcExtension) != 0) {
+        if (fileName.size() <= cbcExtension.size()) {
+            continue;
+        }
+        if (fileName.compare(fileName.size() - cbcExtension.size(), cbcExtension.size(), cbcExtension) != 0) {
             continue;
         }
 
