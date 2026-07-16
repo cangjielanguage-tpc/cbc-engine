@@ -107,6 +107,8 @@
     X(PayloadGeneric, PayloadGeneric)                                                                                  \
     X(NewNoneGeneric, NewNoneGeneric)                                                                                  \
     X(NewSomeGeneric, NewSomeGeneric)                                                                                  \
+    X(LoadRawMemory, LoadRawMemory)                                                                                    \
+    X(StoreRawMemory, StoreRawMemory)                                                                                  \
     X(_END, Unreachable)
 
 #define ISA_MEM_OPCODES(X)                                                                                             \
