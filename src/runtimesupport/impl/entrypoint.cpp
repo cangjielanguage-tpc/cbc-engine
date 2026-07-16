@@ -1,9 +1,12 @@
 #include "runtimesupport/impl/entrypoint.h"
 
 #include <algorithm>
-#include <filesystem>
+#include <cerrno>
+#include <dirent.h>
+#include <memory>
 #include <mutex>
-#include <system_error>
+#include <string_view>
+#include <sys/stat.h>
 
 #include "RTInterface.h"
 #include "asm_export.h"
@@ -37,6 +40,10 @@ static bool g_Initialized;
 static bool g_OptionsInitialized;
 static bool g_Patched;
 
+struct DirectoryCloser {
+    void operator()(DIR* directory) const { closedir(directory); }
+};
+
 static void LogAppStorageDiscovery(std::string const& message)
 {
     RTSupport::Log::rt.Log(Logging::Level::DEBUG, [&message](Stream::Output& out) { out << message << Stream::endl; });
@@ -48,50 +55,60 @@ static void DiscoverPatchCbcFromAppStorage()
         return;
     }
 
-    auto cbcDir = std::filesystem::path(g_appStoragePath) / "cbc";
+    auto cbcDir = g_appStoragePath;
+    if (cbcDir.back() != '/') {
+        cbcDir += '/';
+    }
+    cbcDir += "cbc";
 
-    std::error_code errCode;
-    if (!std::filesystem::is_directory(cbcDir, errCode)) {
-        if (errCode) {
-            LogAppStorageDiscovery("failed to access app storage cbc directory: " + cbcDir.string());
-        } else {
-            LogAppStorageDiscovery("app storage cbc directory does not exist: " + cbcDir.string());
-        }
+    errno = 0;
+    std::unique_ptr<DIR, DirectoryCloser> directory(opendir(cbcDir.c_str()));
+    if (directory == nullptr) {
+        auto const message = errno == ENOENT || errno == ENOTDIR ? "app storage cbc directory does not exist: "
+                                                                 : "failed to access app storage cbc directory: ";
+        LogAppStorageDiscovery(message + cbcDir);
         return;
     }
 
-    std::filesystem::directory_iterator it(cbcDir, std::filesystem::directory_options::skip_permission_denied, errCode);
-    if (errCode) {
-        LogAppStorageDiscovery("failed to scan app storage cbc directory: " + cbcDir.string());
-        return;
-    }
-
-    std::filesystem::path patchCbc;
-    std::filesystem::directory_iterator end;
-    while (it != end) {
-        auto const& entry = *it;
-        std::error_code fileEc;
-        if (entry.is_regular_file(fileEc) && entry.path().extension() == ".cbc") {
-            if (!patchCbc.empty()) {
-                LogAppStorageDiscovery("multiple .cbc files found in app storage cbc directory: " + cbcDir.string());
+    constexpr std::string_view cbcExtension = ".cbc";
+    std::string patchCbc;
+    while (true) {
+        errno       = 0;
+        auto* entry = readdir(directory.get());
+        if (entry == nullptr) {
+            if (errno != 0) {
+                LogAppStorageDiscovery("failed to scan app storage cbc directory: " + cbcDir);
                 return;
             }
-            patchCbc = entry.path();
+            break;
         }
 
-        it.increment(errCode);
-        if (errCode) {
-            LogAppStorageDiscovery("failed to scan app storage cbc directory: " + cbcDir.string());
+        std::string_view fileName(entry->d_name);
+        if (fileName.size() <= cbcExtension.size() ||
+            fileName.compare(fileName.size() - cbcExtension.size(), cbcExtension.size(), cbcExtension) != 0) {
+            continue;
+        }
+
+        auto candidate = cbcDir + "/" + std::string(fileName);
+        // check if it is a regular file
+        struct stat fileStat {};
+        if (stat(candidate.c_str(), &fileStat) != 0 || !S_ISREG(fileStat.st_mode)) {
+            continue;
+        }
+
+        if (!patchCbc.empty()) {
+            LogAppStorageDiscovery("multiple .cbc files found in app storage cbc directory: " + cbcDir);
             return;
         }
+        patchCbc = std::move(candidate);
     }
 
     if (patchCbc.empty()) {
-        LogAppStorageDiscovery("no .cbc files found in app storage cbc directory: " + cbcDir.string());
+        LogAppStorageDiscovery("no .cbc files found in app storage cbc directory: " + cbcDir);
         return;
     }
 
-    g_patchCbc = patchCbc.string();
+    g_patchCbc = std::move(patchCbc);
     LogAppStorageDiscovery("using app storage patch cbc: " + g_patchCbc);
 }
 
