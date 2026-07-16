@@ -32,4 +32,6 @@ private:
     Placeholder regLocationMap[IReg::COUNT];
 };
 
+Placeholder GetResourceLocation(Interpretation::Resource resource, uint8_t* slotsStartAddr, RegistersTable* regTable);
+
 } // namespace GCSupport

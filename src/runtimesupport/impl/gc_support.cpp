@@ -55,15 +55,6 @@ void IterateFramesWithState(
     });
 }
 
-Placeholder GetResourceLocation(Interpretation::Resource resource, uint8_t* slotsStartAddr, RegistersTable* regTable)
-{
-    if (resource.IsReg()) {
-        return regTable->GetRegLocation(resource.AsReg());
-    } else {
-        return reinterpret_cast<Placeholder>(slotsStartAddr + (resource.AsSlotNum() * 8)); // TODO named constant
-    }
-}
-
 void VisitGCFrameRoots(
     DYN_VisitingState state,
     INT_FrameDesc frame_desc,
@@ -93,7 +84,11 @@ void VisitGCFrameRoots(
     if (!positionalInfo) {
         RTSupport::Log::gc.Log(Logging::Level::ERROR, [&](Output& out) {
             out.PrintFmtLn(
-                "cannot translate position (fuh=%p, ip=%p, fp=%p, pos=%p)", fuh, frame_desc.ip, frame_desc.fp, curPos
+                "cannot find info for position (fuh=%p, ip=%p, fp=%p, pos=%p)",
+                fuh,
+                frame_desc.ip,
+                frame_desc.fp,
+                curPos
             );
         });
         return;
