@@ -690,8 +690,7 @@ struct IsaRewriter : public IsaParser {
     void Scc(Format::Width width, Format::CC cc, IReg d, AnyReg l, AnyReg r) override
     {
         if (cc.IsFloatingPoint()) {
-            // FIXME: support for floats
-            FATAL("not implemented");
+            emit.SCC(cc, width, d, FReg::From(l), FReg::From(r));
         } else {
             emit.SCC(cc, width, d, IReg::From(l), IReg::From(r));
         }
