@@ -487,7 +487,7 @@ perform_2i_call:
 
 .Lstack_check:
   mov   r9, [TLS_REG + TLS_STACK_BORDER_OFFSET]
-  cmp   r9, rsp
+  cmp   rsp, r9
   jbe   expand_stack_or_throw_soe
 .Lafter_stack_check:
 

@@ -60,7 +60,7 @@ static void init_cangjie_runtime() {
         },
         .coParam = {
             .thStackSize = 2 * 1024,
-            .coStackSize = 2 * 1024,
+            .coStackSize = 2,
             .processorNum = 8,
         },
     };
