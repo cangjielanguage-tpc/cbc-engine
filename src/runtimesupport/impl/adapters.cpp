@@ -58,8 +58,6 @@ void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* f
     return GetAddressOfDirectCallTrampoline(i);
 }
 
-void* Adapters::GetDynCallTrampoline(int fuhIdx) { return GetDynCallTrampoline(fuhIdx, false); }
-
 void* Adapters::GetDynCallTrampoline(int fuhIdx, bool sret)
 {
     auto start = sret ? reinterpret_cast<char*>(&Asm::engine_trampolines_dyn_sret_start)

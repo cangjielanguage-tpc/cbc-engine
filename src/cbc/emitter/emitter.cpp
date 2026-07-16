@@ -496,7 +496,11 @@ void Emitter::NewArr(RTSupport::TypeInfo typeInfo)
     );
 }
 
-void Emitter::InitClosure() { Encode(segment, RT::B1 { RT::Opcode::INITCLOSURE }); }
+void Emitter::InitClosure(bool instantiatedSret)
+{
+    auto opcode = instantiatedSret ? RT::Opcode::INITCLOSURE_SRET : RT::Opcode::INITCLOSURE;
+    Encode(segment, RT::B1 { opcode });
+}
 
 void Emitter::Spawn(RTSupport::TypeInfo typeInfo)
 {

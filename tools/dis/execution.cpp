@@ -137,7 +137,7 @@ Reference Execution::GetAndClearPendingException()
 
 void* Adapters::GenericI2CCallInstance() { FATAL("Should not reach here"); }
 
-void* Adapters::GetDynCallTrampoline(int idx) { FATAL("Should not reach here"); }
+void* Adapters::GetDynCallTrampoline(int idx, bool sret) { FATAL("Should not reach here"); }
 
 void* Adapters::I2ICallInstance() { FATAL("Should not reach here"); }
 

@@ -168,7 +168,7 @@ public:
     void Nop();
     void Jmp(Label label);
 
-    void InitClosure();
+    void InitClosure(bool instantiatedSret);
     void Spawn(RTSupport::TypeInfo typeInfo);
 
     void NewObj(RTSupport::TypeInfo typeInfo);
