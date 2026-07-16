@@ -76,8 +76,8 @@ enum Tag : uint8_t {
     BOX               = 0x13,
     FST               = 0x14,
     OPTION            = 0x15,
-    UNION_ENUM        = 0x18,
-    PRIMITIVE_ENUM    = 0x19,
+    UNION_ENUM        = 0x16,
+    PRIMITIVE_ENUM    = 0x17,
 };
 
 static TermData* AllocateTerm(Memory::Heap& allocator, size_t subtermCount = 0)

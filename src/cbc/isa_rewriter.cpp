@@ -922,7 +922,8 @@ struct IsaRewriter : public IsaParser {
                 Fail();
                 return;
             }
-            auto ti = t.value().GetTypeInfo();
+            auto type = t.value();
+            auto ti = type.GetTypeInfo();
             if (!ti.has_value()) {
                 Fail();
                 return;
@@ -934,7 +935,11 @@ struct IsaRewriter : public IsaParser {
             BindStatePoint();
             auto ms = emit.OpenMemSpace();
             ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
-            ms.WriteStructFieldObj(isrc, IReg::IR_ACC, typeInfo);
+            if (type.GetKind() == CbcTypeKind::REF) {
+                ms.StoreObj(Format::StoreAccessKind::ST_REF, isrc, IReg::IR_ACC);
+            } else {
+                ms.WriteStructFieldObj(isrc, IReg::IR_ACC, typeInfo);
+            }
             AdjustReg(dst, IReg::IR_ACC);
         }
     }
