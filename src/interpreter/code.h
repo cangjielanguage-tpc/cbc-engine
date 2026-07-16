@@ -35,7 +35,7 @@ struct Resource {
     uint32_t AsSlotNum()
     {
         ASSERT(!IsReg());
-        return idx;
+        return idx - Cbc::IReg::COUNT;
     }
 };
 

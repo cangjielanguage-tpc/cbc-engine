@@ -2,6 +2,7 @@
 #include "asm_export.h"
 #include "asm_trampolines.h"
 #include "cjnative.h"
+#include "engine/symlevel/definitions.h"
 #include "gc_support.h"
 #include "interpreter/function_handle.h"
 #include "reg_table.h"
@@ -48,6 +49,7 @@ static std::pair<const GCPositionalInfo*, const StackPtrsPositionalInfo*> FindPo
     return std::pair(gcPosInfo, stackPtrsPosInfo);
 }
 
+// TODO: support for frame arguments
 void VisitFrameRootsForStackPtrs(
     DYN_VisitingState state,
     INT_FrameDesc frameDesc,
@@ -55,9 +57,12 @@ void VisitFrameRootsForStackPtrs(
     DYN_DerivedPtrVisitor derivedPtrVisitor
 )
 {
+    using namespace RTSupport;
+
     auto regTable = reinterpret_cast<GCSupport::RegistersTable*>(state);
     auto fuh      = *reinterpret_cast<DynamicFunctionHandle**>((uint8_t*)frameDesc.fp - FUH_SLOT_OFFSET);
     auto bc       = NOTNULL(fuh->bytecode.load());
+    auto slotsStartAddr = ((uint8_t*)frameDesc.fp) - (LOCAL_SLOTS_OFFSET + bc->frameSize);
 
     RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Stream::Output& out) {
         out.PrintFmtLn(
@@ -66,6 +71,10 @@ void VisitFrameRootsForStackPtrs(
     });
 
     if (isTopInterpreterFrame(reinterpret_cast<uintptr_t>(frameDesc.ip))) {
+        RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
+            out.PrintFmtLn("found top frame (ip=%p, fp=%p)", frameDesc.ip, frameDesc.fp);
+        });
+
         auto dumpSize      = ((ECTYPE_IREGS_COUNT * ECTYPE_REG_SIZE) + 15) & ~15;
         auto dumpStartAddr = ((uint8_t*)frameDesc.fp) - (LOCAL_SLOTS_OFFSET + dumpSize);
 
@@ -75,12 +84,44 @@ void VisitFrameRootsForStackPtrs(
             regAddr += ECTYPE_REG_SIZE;
         }
 
+        Engine::Session session(Engine::GetEngineInstance());
+        auto methodDef = Symlevel::MethodDefinition::Resolve(session, fuh->methodDef);
+        if (!methodDef.MethodCode().has_value()) {
+            return;
+        }
+
+        uint32_t argIdx = 0;
+
+        if (methodDef.GetFlags().Is(Symlevel::MethodFlag::SRET)) {
+            RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
+                out.PrintFmtLn("found sret (argIdx=%u)", argIdx);
+            });
+            auto sretPh = GetResourceLocation(Resource { .idx = argIdx }, slotsStartAddr, regTable);
+            VisitRoot(stackPtrVisitor, sretPh);
+
+            argIdx++;
+        }
+
+        if (methodDef.GetFlags().Is(Symlevel::MethodFlag::MUT)) {
+            auto derivedPh = GetResourceLocation(Resource { .idx = argIdx }, slotsStartAddr, regTable);
+            auto basePh    = GetResourceLocation(Resource { .idx = argIdx + 1 }, slotsStartAddr, regTable);
+            auto kind      = Execution::GetStructLocationKind(Value::Reference { .value = *basePh }, *derivedPh);
+
+            if (kind == LOCAL) {
+                RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
+                    out.PrintFmtLn("found derived ptr (argIdx=%u)", argIdx);
+                });
+                VisitMutPair(derivedPtrVisitor, basePh, derivedPh);
+
+                argIdx += 2; // also skip base ptr
+            }
+        }
+
         // TODO get method signature
-        // TODO adjust args placeholders (sret, maybe derived ptr, record args) according to signature
+        // TODO adjust args placeholders (record args) according to signature
     } else {
         auto reader = reinterpret_cast<Decoder::ByteReader*>((uint8_t*)frameDesc.fp - READER_SLOT_OFFSET);
         auto curPos = reinterpret_cast<uintptr_t>(reader->Cursor()) - reinterpret_cast<uintptr_t>(bc->code.bytecode);
-        auto slotsStartAddr = ((uint8_t*)frameDesc.fp) - (LOCAL_SLOTS_OFFSET + bc->frameSize);
         auto calleeSavedRegsEnd = ((uint8_t*)frameDesc.fp) - LOCAL_SLOTS_OFFSET;
 
         auto [gcPosInfo, stackPtrsInfo] = FindPositionalInfo(bc, curPos);
@@ -90,9 +131,8 @@ void VisitFrameRootsForStackPtrs(
                 auto basePh    = GetResourceLocation(pair.first, slotsStartAddr, regTable);
                 auto derivedPh = GetResourceLocation(pair.second, slotsStartAddr, regTable);
 
-                auto baseRef = Value::Reference { .value = *basePh };
-                auto locKind = RTSupport::Execution::GetStructLocationKind(baseRef, *derivedPh);
-                if (locKind == RTSupport::LOCAL) {
+                auto kind = Execution::GetStructLocationKind(Value::Reference { .value = *basePh }, *derivedPh);
+                if (kind == RTSupport::LOCAL) {
                     VisitMutPair(derivedPtrVisitor, basePh, derivedPh);
                 }
             }
