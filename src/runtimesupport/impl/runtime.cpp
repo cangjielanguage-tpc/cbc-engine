@@ -157,6 +157,22 @@ static Interpretation::Thunk GetDynCallThunk(void* fn, TypeInfo ti)
     return { Adapters::GenericI2CCallInstance(), fn };
 }
 
+Interpretation::Thunk Execution::GetClosureThunk(Reference base, bool isInstantiated)
+{
+    struct FullLayout {
+        DYN_TypeInfo* header;
+        void* genericFunc;
+        void* intantiatedFunc;
+    };
+
+    // Avoid cast of `base.value` to `FullLayout*` to avoid UB, which observed as:
+    // "compiler can speculatively read unexisting field".
+    auto offset           = isInstantiated ? offsetof(FullLayout, intantiatedFunc) : offsetof(FullLayout, genericFunc);
+    void* func            = *reinterpret_cast<void**>(base.value + offset);
+    DYN_TypeInfo** header = reinterpret_cast<DYN_TypeInfo**>(base.value);
+    return GetDynCallThunk(func, TypeInfo(*header));
+}
+
 Interpretation::Thunk Execution::GetVirtualThunk(Reference base, int extDefNum, int methodNum)
 {
     DYN_TypeInfo** header = reinterpret_cast<DYN_TypeInfo**>(base.value);

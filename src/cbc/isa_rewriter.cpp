@@ -674,10 +674,22 @@ struct IsaRewriter : public IsaParser {
         FATAL("not implemented");
     }
 
-    void CallClosure(IReg dst, uint16_t type) override
+    void CallClosure(IReg dst, uint16_t typeId, bool generic) override
     {
+        if (generic) {
+            emit.CallClosureGeneric();
+            BindStatePoint();
+            return;
+        }
+
+        auto t = resolver.Query(Index<Type>(typeId));
+        if (!t.has_value() || t->term.GetKind() != Engine::TermKind::FUNCTIONAL) {
+            return Fail("failed to resolve type");
+        }
+        auto term    = t->term;
+        auto retType = term.Subterm(term.GetLength() - 1);
+        emit.CallClosure(resolver.Wrap(retType).GetKind() == TK::REC);
         BindStatePoint();
-        FATAL("not implemented");
     }
 
     void NewClosure(IReg dst, uint16_t typeId) override

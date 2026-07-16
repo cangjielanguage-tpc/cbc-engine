@@ -202,6 +202,9 @@ public:
 
     void GcPoint();
 
+    void CallClosure(bool sret);
+    void CallClosureGeneric();
+
     void DirectCall2i(Symbol fuh);
     void DirectCall2c(Symbol target);
 

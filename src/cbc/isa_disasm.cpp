@@ -242,9 +242,10 @@ struct IsaDisasm : public IsaParser {
         stream << "spawn.future" << " " << future.ToStr() << ", " << type << endl;
     }
 
-    void CallClosure(IReg dst, uint16_t type) override
+    void CallClosure(IReg dst, uint16_t type, bool generic) override
     {
-        stream << "call.closure" << " " << dst.ToStr() << ", " << type << endl;
+        auto suffix = generic ? ".g " : " ";
+        stream << "call.closure" << suffix << dst.ToStr() << ", " << type << endl;
     }
 
     void Scc(Format::Width width, Format::CC cc, IReg d, AnyReg l, AnyReg r) override

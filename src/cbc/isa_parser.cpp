@@ -482,6 +482,9 @@ struct IsaParserImpl {
 
     static void RegSymGroup(IsaParser& parser)
     {
+        static constexpr bool GENERIC     = true;
+        static constexpr bool NOT_GENERIC = false;
+
         auto [opc_, dst, id]  = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
         class RegSymGroup opc = opc_;
         switch (opc) {
@@ -492,9 +495,10 @@ struct IsaParserImpl {
             case Cbc::RegSymGroup::CallInterf:      parser.CallInterf(dst, id); break;
             case Cbc::RegSymGroup::Spawn:           parser.Spawn(dst, id); break;
             case Cbc::RegSymGroup::SpawnFuture:     parser.SpawnFuture(dst, id); break;
-            case Cbc::RegSymGroup::CallClosure:     parser.CallClosure(dst, id); break;
+            case Cbc::RegSymGroup::CallClosure:     parser.CallClosure(dst, id, NOT_GENERIC); break;
             case Cbc::RegSymGroup::NewClosure:      parser.NewClosure(dst, id); break;
 
+            case Cbc::RegSymGroup::CallClosureGeneric:  parser.CallClosure(dst, id, GENERIC); break;
             case Cbc::RegSymGroup::LoadTypeInfoGeneric: parser.LoadTypeInfoGeneric(dst, id); break;
 
             default: {
