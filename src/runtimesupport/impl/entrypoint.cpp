@@ -262,6 +262,12 @@ static void VisitGlobalRoots(DYN_RootVisitor visitor)
     }
 }
 
+static uint32_t GetFrameSize(DYN_FramePointer fp)
+{
+    ASSERTION(g_Initialized, "GetFrameSize cannot be called if there are no interpreter frames");
+    return StackExpansion::GetFrameSize(fp);
+}
+
 static void FrameInfoProvider(DYN_InstructionPointer ip, DYN_FramePointer fp, INT_InterpretedFrameInfo* info)
 {
     if (g_Initialized) {
@@ -354,6 +360,7 @@ CBC_EXPORT int interpreter_bridge_init(
     interpInterf->visitFrameRootsAdjusting = &VisitFrameRootsAdjusting;
     interpInterf->visitGlobalRoots         = &VisitGlobalRoots;
 
+    interpInterf->getFrameSize      = &GetFrameSize;
     interpInterf->frameInfoProvider = &FrameInfoProvider;
     interpInterf->frameDescProvider = &FrameDescProvider;
 

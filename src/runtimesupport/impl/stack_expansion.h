@@ -11,4 +11,6 @@ void VisitFrameRootsForStackPtrs(
     DYN_DerivedPtrVisitor derivedPtrVisitor
 );
 
+uint32_t GetFrameSize(DYN_FramePointer fp);
+
 } // namespace StackExpansion

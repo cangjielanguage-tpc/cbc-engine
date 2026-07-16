@@ -1,8 +1,11 @@
 #include "stack_expansion.h"
 #include "asm_trampolines.h"
+#include "interpreter/function_handle.h"
 #include "reg_table.h"
 
 namespace StackExpansion {
+
+using namespace Interpretation;
 
 // Checks if the received ip is an ip of frame in which stack check is occured.
 static bool isTopInterpreterFrame(uintptr_t ip)
@@ -28,6 +31,12 @@ void VisitFrameRootsForStackPtrs(
     } else {
         // TODO adjust resources according to stack ptr maps
     }
+}
+
+uint32_t GetFrameSize(DYN_FramePointer fp)
+{
+    auto fuh = *reinterpret_cast<DynamicFunctionHandle**>((uint8_t*)fp - FUH_SLOT_OFFSET);
+    return fuh->bytecode.load()->frameSize;
 }
 
 } // namespace StackExpansion
