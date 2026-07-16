@@ -26,6 +26,23 @@ using namespace Interpretation;
 using namespace Cbc::RT;
 using namespace RTSupport;
 
+static void InitializeClosure(Ectype* ectype, bool instantiatedSret)
+{
+    struct ClosureObj {
+        void* header;
+        void* generic;
+        void* instantiated;
+    };
+
+    /// CBC-provided closures always have two fields reserved for function pointers to
+    /// generic and instantiated versions of the function. The generic version uses SRET
+    /// because type-variable results are returned indirectly.
+    auto closure = reinterpret_cast<ClosureObj*>(ectype->GetReference(IReg::IR1).value);
+
+    closure->generic      = Adapters::GetDynCallTrampoline(0, true);
+    closure->instantiated = Adapters::GetDynCallTrampoline(1, instantiatedSret);
+}
+
 extern "C" {
 
 /// The interpretation loop can be used in two scenarios:
@@ -449,20 +466,13 @@ WRITE_STRUCT_FIELD: {
 INITCLOSURE: {
     auto args = B1::Decode(reader);
     LOG_INSTR;
-
-    struct ClosureObj {
-        void* header;
-        void* generic;
-        void* instantiated;
-    };
-
-    /// CBC-provided closures are always have two fields reserved with
-    /// function pointers to generic and instantiated versions of function.
-    /// Two fields are always reserved for this functions, even if `instantiated` part is never used.
-    auto closure = reinterpret_cast<ClosureObj*>(ectype->GetReference(IReg::IR1).value);
-
-    closure->generic      = Adapters::GetDynCallTrampoline(0);
-    closure->instantiated = Adapters::GetDynCallTrampoline(1);
+    InitializeClosure(ectype, false);
+    NEXT;
+}
+INITCLOSURE_SRET: {
+    auto args = B1::Decode(reader);
+    LOG_INSTR;
+    InitializeClosure(ectype, true);
     NEXT;
 }
 SPAWN: {
