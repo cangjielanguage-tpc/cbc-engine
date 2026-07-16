@@ -49,40 +49,30 @@ struct DirectoryCloser {
     }
 };
 
-static void LogAppStorageDiscovery(std::string const& message)
+static void LogCbcDirectoryScan(std::string const& message)
 {
-    RTSupport::Log::rt.Log(Logging::Level::DEBUG, [&message](Stream::Output& out) { out << message << Stream::endl; });
+    RTSupport::Log::rt.Log(Logging::Level::TRACE, [&message](Stream::Output& out) { out << message << Stream::endl; });
 }
 
-static void DiscoverPatchCbcFromAppStorage()
+static void LoadCbcFilesFromDirectory(Engine::Loader& loader, std::string const& cbcDir)
 {
-    if (g_appStoragePath.empty() || !g_cbcPath.empty() || !g_patchCbc.empty()) {
-        return;
-    }
-
-    auto cbcDir = g_appStoragePath;
-    if (cbcDir.back() != '/') {
-        cbcDir += '/';
-    }
-    cbcDir += "cbc";
-
     errno = 0;
     std::unique_ptr<DIR, DirectoryCloser> directory(opendir(cbcDir.c_str()));
     if (directory == nullptr) {
-        auto const message = errno == ENOENT || errno == ENOTDIR ? "app storage cbc directory does not exist: "
-                                                                 : "failed to access app storage cbc directory: ";
-        LogAppStorageDiscovery(message + cbcDir);
+        auto const message =
+            errno == ENOENT || errno == ENOTDIR ? "cbc directory does not exist: " : "failed to access cbc directory: ";
+        LogCbcDirectoryScan(message + cbcDir);
         return;
     }
 
     constexpr std::string_view cbcExtension = ".cbc";
-    std::string patchCbc;
+    bool foundCbc                           = false;
     while (true) {
         errno       = 0;
         auto* entry = readdir(directory.get());
         if (entry == nullptr) {
             if (errno != 0) {
-                LogAppStorageDiscovery("failed to scan app storage cbc directory: " + cbcDir);
+                LogCbcDirectoryScan("failed to scan cbc directory: " + cbcDir);
                 return;
             }
             break;
@@ -96,27 +86,30 @@ static void DiscoverPatchCbcFromAppStorage()
             continue;
         }
 
-        auto candidate = cbcDir + "/" + std::string(fileName);
-        // check if it is a regular file
+        auto candidate = cbcDir;
+        if (!candidate.empty() && candidate.back() != '/') {
+            candidate += '/';
+        }
+        candidate += fileName;
+
         struct stat fileStat {};
         if (stat(candidate.c_str(), &fileStat) != 0 || !S_ISREG(fileStat.st_mode)) {
             continue;
         }
 
-        if (!patchCbc.empty()) {
-            LogAppStorageDiscovery("multiple .cbc files found in app storage cbc directory: " + cbcDir);
-            return;
+        foundCbc  = true;
+        auto file = IO::TryOpenFile(candidate);
+        if (!file.has_value()) {
+            LogCbcDirectoryScan("failed to open cbc file: " + candidate);
+            continue;
         }
-        patchCbc = std::move(candidate);
+        LogCbcDirectoryScan("successfully opened cbc file: " + candidate);
+        loader.Load(std::move(file.value()), candidate);
     }
 
-    if (patchCbc.empty()) {
-        LogAppStorageDiscovery("no .cbc files found in app storage cbc directory: " + cbcDir);
-        return;
+    if (!foundCbc) {
+        LogCbcDirectoryScan("no .cbc files found in cbc directory: " + cbcDir);
     }
-
-    g_patchCbc = std::move(patchCbc);
-    LogAppStorageDiscovery("using app storage patch cbc: " + g_patchCbc);
 }
 
 static void InitEnvOpts()
@@ -129,7 +122,7 @@ static void InitEnvOpts()
 }
 
 /// Initialize engine from launcher.
-static void EnsureEngineInitialized(std::string cbcFile)
+static void EnsureEngineInitialized()
 {
     InitEnvOpts();
     std::lock_guard guard(g_InitializationGuard);
@@ -143,13 +136,20 @@ static void EnsureEngineInitialized(std::string cbcFile)
 
     Engine::Loader loader;
 
-    auto file = IO::TryOpenFile(cbcFile);
-    if (file.has_value()) {
-        loader.Load(std::move(file.value()), cbcFile);
-    } else {
-        RTSupport::Log::rt.Log(Logging::Level::WARN, [&cbcFile](Stream::Output& out) {
-            out.PrintFmtLn("engine init: no such file or directory %s", cbcFile.c_str());
-        });
+    if (!g_cbcPath.empty()) {
+        // TODO: support ':'-delimited directories in cbc.path
+        LoadCbcFilesFromDirectory(loader, g_cbcPath);
+    }
+
+    if (!g_mainCbc.empty()) {
+        auto file = IO::TryOpenFile(g_mainCbc);
+        if (file.has_value()) {
+            loader.Load(std::move(file.value()), g_mainCbc);
+        } else {
+            RTSupport::Log::rt.Log(Logging::Level::WARN, [](Stream::Output& out) {
+                out.PrintFmtLn("engine init: no such file or directory %s", g_mainCbc.c_str());
+            });
+        }
     }
     loader.Build();
 
@@ -162,7 +162,7 @@ static void EnsureEngineInitialized(std::string cbcFile)
 
 static void PerformPatching()
 {
-    EnsureEngineInitialized(g_patchCbc);
+    EnsureEngineInitialized();
 
     std::lock_guard guard(g_InitializationGuard);
     if (g_Patched) {
@@ -185,7 +185,7 @@ static void PerformPatching()
         for (auto type : ti.Entries(session)) {
             auto def = Symlevel::Reader::Read(session, type);
             if (!def.GetFlags().Is(Symlevel::TypeFlag::PATCH)) {
-                return;
+                continue;
             }
 
             auto pkgName = Symlevel::Reader::Read(session, def.GetName());
@@ -206,7 +206,7 @@ static void PerformPatching()
                 RTSupport::Log::rt.Log(Logging::Level::ERROR, [&patchClassName](Stream::Output& out) {
                     out << "patch type info not found: " << patchClassName << Stream::endl;
                 });
-                return;
+                continue;
             }
 
             RTSupport::Log::rt.Log(Logging::Level::INFO, [&patchClassName](Stream::Output& out) {
@@ -248,7 +248,7 @@ static void PerformPatching()
                 RTSupport::Log::rt.Log(Logging::Level::ERROR, [&patchFlagName](Stream::Output& out) {
                     out << "patch flag field not found: " << patchFlagName << Stream::endl;
                 });
-                return;
+                continue;
             }
 
             RTSupport::Log::rt.Log(Logging::Level::INFO, [&patchFlagName](Stream::Output& out) {
@@ -371,7 +371,7 @@ CBC_EXPORT void engine_set_cbcpath(char const* cbcPath) { g_cbcPath = cbcPath; }
 
 CBC_EXPORT void engine_set_main_cbc(char const* mainCbc) { g_mainCbc = mainCbc; }
 
-CBC_EXPORT void engine_initialize() { EnsureEngineInitialized(g_mainCbc); }
+CBC_EXPORT void engine_initialize() { EnsureEngineInitialized(); }
 
 CBC_EXPORT void engine_enable_dasm() { Interpretation::Log::preparation.SetLogLevel(Logging::Level::TRACE); }
 
@@ -421,7 +421,6 @@ CBC_EXPORT int interpreter_bridge_init(
     // Order matters
     InitEnvOpts();
     Engine::g_table.ParseAndSet(size, options);
-    DiscoverPatchCbcFromAppStorage();
 
     g_CJNativeInterfaceInstance            = *rtInterf;
     interpInterf->version                  = INT_INTERPRETER_INTERFACE_VERSION;
@@ -451,7 +450,7 @@ CBC_EXPORT int interpreter_bridge_init(
     Asm::engine_newarray_function = g_CJNativeInterfaceInstance.arrayAlloc;
     RTSupport::Initialize(&g_CJNativeInterfaceInstance);
 
-    if (!g_patchCbc.empty()) {
+    if (g_mainCbc.empty()) {
         PerformPatching();
     }
     // If CBC patch is not found, engine will be left uninitialized.
