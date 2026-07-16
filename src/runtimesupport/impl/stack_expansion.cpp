@@ -66,13 +66,22 @@ void VisitFrameRootsForStackPtrs(
     });
 
     if (isTopInterpreterFrame(reinterpret_cast<uintptr_t>(frameDesc.ip))) {
-        // TODO get dump of ectype regs
+        auto dumpSize      = ((ECTYPE_IREGS_COUNT * ECTYPE_REG_SIZE) + 15) & ~15;
+        auto dumpStartAddr = ((uint8_t*)frameDesc.fp) - (LOCAL_SLOTS_OFFSET + dumpSize);
+
+        Placeholder regAddr = reinterpret_cast<Placeholder>(dumpStartAddr);
+        for (int regIdx = 0; regIdx < IReg::COUNT; regIdx++) {
+            regTable->UpdateRegLocation(IReg::From(regIdx), regAddr);
+            regAddr += ECTYPE_REG_SIZE;
+        }
+
         // TODO get method signature
         // TODO adjust args placeholders (sret, maybe derived ptr, record args) according to signature
     } else {
         auto reader = reinterpret_cast<Decoder::ByteReader*>((uint8_t*)frameDesc.fp - READER_SLOT_OFFSET);
         auto curPos = reinterpret_cast<uintptr_t>(reader->Cursor()) - reinterpret_cast<uintptr_t>(bc->code.bytecode);
         auto slotsStartAddr = ((uint8_t*)frameDesc.fp) - (LOCAL_SLOTS_OFFSET + bc->frameSize);
+        auto calleeSavedRegsEnd = ((uint8_t*)frameDesc.fp) - LOCAL_SLOTS_OFFSET;
 
         auto [gcPosInfo, stackPtrsInfo] = FindPositionalInfo(bc, curPos);
 
@@ -95,6 +104,9 @@ void VisitFrameRootsForStackPtrs(
                 VisitRoot(stackPtrVisitor, placeholder);
             }
         }
+
+        auto savedRegsMap = bc->savedIRegs;
+        regTable->UpdateRegLocations(savedRegsMap, reinterpret_cast<Placeholder>(calleeSavedRegsEnd));
     }
 }
 
