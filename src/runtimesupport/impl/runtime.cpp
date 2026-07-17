@@ -185,7 +185,7 @@ Interpretation::Thunk Execution::GetVirtualThunk(Reference base, int extDefNum, 
 TypeInfo Execution::GetMethodOuterTi(TypeInfo where, TypeInfo interf, int methodNum)
 {
     return TypeInfo(
-        g_CJNativeInterfaceInstance.getMethodOuterTI(UnpackTypeInfo(interf), UnpackTypeInfo(where), methodNum)
+        g_CJNativeInterfaceInstance.getMethodOuterTI(UnpackTypeInfo(where), UnpackTypeInfo(interf), methodNum)
     );
 }
 
