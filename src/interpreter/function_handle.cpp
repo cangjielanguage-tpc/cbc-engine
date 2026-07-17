@@ -48,14 +48,12 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
     auto method = Symlevel::Reader::Read(session, methodDef);
 
     Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
-        using namespace Stream;
-        ResolvingOutput stream(session, out);
-        stream << "starting to build fuh for " << methodDef << " (" << Detailed(method.Name())
-               << Detailed(method.Signature()) << ")" << endl;
+        Stream::ResolvingOutput stream(session, out);
+        stream << "starting to build fuh for " << methodDef << " (" << Stream::Detailed(method.Name())
+               << Stream::Detailed(method.Signature()) << ")" << Stream::endl;
     });
 
     auto flags = method.GetFlags();
-
     ASSERTION(!flags.Is(MethodFlag::ABSTRACT), "Only methods that can be actually called can have FUH");
 
     auto newStaticFuh = [&]() -> StaticFunctionHandle* {
