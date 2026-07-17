@@ -109,6 +109,7 @@
     X(NewSomeGeneric, NewSomeGeneric)                                                                                  \
     X(LoadRawMemory, LoadRawMemory)                                                                                    \
     X(StoreRawMemory, StoreRawMemory)                                                                                  \
+    X(CallInterfGeneric, CallInterfGeneric)                                                                            \
     X(_END, Unreachable)
 
 #define ISA_MEM_OPCODES(X)                                                                                             \
@@ -147,7 +148,6 @@
     X(CallClosure)                                                                                                     \
     X(NewClosure)                                                                                                      \
     X(CallClosureGeneric)                                                                                              \
-    X(CallInterfGeneric)                                                                                               \
     X(_END)
 
 #define ISA_REG_GROUP_OPCODES(X)                                                                                       \

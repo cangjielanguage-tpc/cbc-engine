@@ -1,5 +1,6 @@
 #include "interpretation_loop.h"
 #include "cbc/formater_rt.h"
+#include "cbc/frame.h"
 #include "cbc/isa.h"
 #include "cbc/isa_rt.h"
 #include "engine/symlevel/code.h"
@@ -756,7 +757,7 @@ INTERFACE_CALL: {
     auto args = InterfaceCall::Decode(reader);
     LOG_INSTR;
     auto num       = args.vnum;
-    auto typeInfo  = TypeInfo(static_cast<uintptr_t>(args.ti));
+    auto interf    = TypeInfo(static_cast<uintptr_t>(args.ti));
 
     auto receiver = IReg::IR1;
     if (HAS_SRET_SHIFT && args.sret) {
@@ -764,6 +765,13 @@ INTERFACE_CALL: {
     }
     auto reference = ectype->GetReference(receiver);
 
+    struct Object {
+        TypeInfo header;
+    };
+
+    Object* object = reinterpret_cast<Object*>(reference.value);
+    auto typeInfo  = object->header;
+
     // For proper support of fibers, the following call MUST drop the current frame.
     // This can not be guaranteed by C++ compiler consistently, because TCO
     // is not guaranteed and `mustcall` attribute is not supported
@@ -774,15 +782,14 @@ INTERFACE_CALL: {
 
     reader0 = reader; // save current pc
 
-    return Execution::GetInterfaceThunk(reference, typeInfo, num);
+    return Execution::GetInterfaceThunk(typeInfo, interf, num);
 }
-
 INTERFACE_CALL_GENERIC: {
     auto args = InterfaceCallGeneric::Decode(reader);
     LOG_INSTR;
-    auto num       = args.vnum;
-    uint8_t sret   = args.xr.imm;
-    auto typeInfo  = TypeInfo(ectype->GetPrimitive(args.xr.r.IR()).u64);
+    auto num    = args.vnum;
+    auto sret   = args.sret;
+    auto interf = TypeInfo(ectype->GetPrimitive(IReg::TAIL_REG).u64);
 
     auto receiver = IReg::IR1;
     if (HAS_SRET_SHIFT && sret) {
@@ -790,6 +797,25 @@ INTERFACE_CALL_GENERIC: {
     }
     auto reference = ectype->GetReference(receiver);
 
+    struct Object {
+        TypeInfo header;
+    };
+
+    Object* object = reinterpret_cast<Object*>(reference.value);
+    auto typeInfo  = object->header;
+
+    auto outerTI = Execution::GetMethodOuterTi(typeInfo, interf, num);
+
+    if (IReg::VIRT_COUNT < args.argn) {
+        ectype->Put(IReg::From(args.argn), Value::Primitive { outerTI.UInt() });
+    } else {
+        // FIXME: share the same offset calculation logic as in rewriter.
+        auto untypedSlot = args.argn - IReg::VIRT_COUNT;
+        auto slotOffset  = untypedSlot * STACK_SLOT_SIZE;
+        auto location    = reinterpret_cast<TypeInfo*>(frame.start + slotOffset);
+        *location        = outerTI;
+    }
+
     // For proper support of fibers, the following call MUST drop the current frame.
     // This can not be guaranteed by C++ compiler consistently, because TCO
     // is not guaranteed and `mustcall` attribute is not supported
@@ -800,7 +826,7 @@ INTERFACE_CALL_GENERIC: {
 
     reader0 = reader; // save current pc
 
-    return Execution::GetInterfaceThunk(reference, typeInfo, num);
+    return Execution::GetInterfaceThunk(typeInfo, interf, num);
 }
 
 STRING_INIT: {

@@ -228,7 +228,8 @@ void Encode(ByteBuffer& buf, RT::InterfaceCallGeneric command)
 {
     Encode(buf, command.opc);
     buf.AddW16(command.vnum);
-    Encode(buf, command.xr);
+    buf.AddW16(command.argn);
+    buf.AddW8(command.sret);
 }
 
 void Encode(ByteBuffer& buf, RT::B13i64i32 command)

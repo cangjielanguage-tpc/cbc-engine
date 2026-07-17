@@ -173,9 +173,17 @@ public:
 #define IREG_ENUM(opc) opc,
 
     enum Value : uint8_t {
-        IREG_VALUES(IREG_ENUM) FIRST_NON_VOL = IR8
+        IREG_VALUES(IREG_ENUM)
+        // FIXME: This value is not first non-volatile register
+        //        and is only used to shift non-volatile register mask!
+        //        Rename it or fix mask-shifting logic in compiler.
+        FIRST_NON_VOL = IR8
     };
 
+    // Number of registers that compiler uses.
+    static constexpr int VIRT_COUNT = 14;
+
+    // Actual number of registers.
     static constexpr int COUNT = 15;
 
     constexpr IReg(const Value raw) : _value(raw) {}
