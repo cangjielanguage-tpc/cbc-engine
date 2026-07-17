@@ -948,5 +948,10 @@ void Emitter::WriteStructField(IReg src, IReg base, IReg field, RTSupport::TypeI
     Encode(segment, command);
 }
 
+void Emitter::AssignGeneric(IReg dst, IReg src, IReg ti)
+{
+    Encode(segment, RT::B3xrrr { .opc = RT::Opcode::ASSIGN_GENERIC, .xr = { 0, dst }, .rr = { src, ti } });
+}
+
 } // namespace Emitter
 } // namespace Cbc

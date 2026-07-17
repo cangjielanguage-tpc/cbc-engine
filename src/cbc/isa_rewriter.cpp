@@ -579,6 +579,8 @@ struct IsaRewriter : public IsaParser {
         emit.Mov(dst, IReg::IR_ACC);
     }
 
+    void AssignGeneric(IReg dst, IReg src, IReg ti) override {}
+
     std::optional<Type> NewObject(IReg dst, uint16_t typeId, New kind)
     {
         auto t = resolver.Query(Index<Type>(typeId));

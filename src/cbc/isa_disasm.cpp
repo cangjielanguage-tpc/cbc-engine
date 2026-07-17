@@ -222,6 +222,13 @@ struct IsaDisasm : public IsaParser {
         stream << ", " << optionTypeInfo.ToStr() << ", " << optionTypeInfoId << endl;
     }
 
+    void AssignGeneric(IReg dst, IReg src, IReg ti) override
+    {
+        stream << "assign.g" << dst.ToStr() << ", ";
+        stream << src.ToStr() << ", ";
+        stream << ti.ToStr() << endl;
+    }
+
     void NewObj(IReg dst, uint16_t type) override { stream << "newobj" << " " << dst.ToStr() << ", " << type << endl; }
 
     void NewClosure(IReg dst, uint16_t type) override
