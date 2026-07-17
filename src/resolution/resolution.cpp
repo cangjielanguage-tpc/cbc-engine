@@ -492,70 +492,58 @@ struct ResolverProxy {
             return std::nullopt;
         }
 
-        switch (ref.refType.GetKind()) {
-            case TermKind::TYPE: {
-                if (ref.refType.IsAotPromoted()) {
-                    return ResolveAotDirectCall(resolver, ref);
-                }
-                auto termIdent = TypeTermId(ref.refType);
-                auto type      = Symlevel::TypeDefinition::Resolve(resolver.session, termIdent.GetIdentifier());
+        if (ref.flags.Is(Symlevel::MethodRefFlag::AOT)) {
+            return ResolveAotDirectCall(resolver, ref);
+        }
 
-                // FIXME: search in hierarchy
-                auto method = [&]() -> std::optional<Identifier<Symlevel::MethodDefinition>> {
-                    for (auto m : type.GetMethods().FindAll(resolver.session, ref.name)) {
-                        auto def = Symlevel::Reader::Read(resolver.session, m);
-                        auto sig = TermManager::Resolve(resolver.session, def.Signature());
-                        if (sig == ref.signature) {
-                            return m;
-                        }
-                    }
 
-                    for (auto m : type.GetVirtualMethods().Values(resolver.session)) {
-                        auto def = Symlevel::Reader::Read(resolver.session, m);
-                        auto sig = TermManager::Resolve(resolver.session, def.Signature());
-                        if (sig == ref.signature) {
-                            return m;
-                        }
-                    }
+        auto termIdent = TypeTermId(ref.refType);
+        auto type      = Symlevel::TypeDefinition::Resolve(resolver.session, termIdent.GetIdentifier());
 
-                    log.Log(Logging::Level::ERROR, [&](Stream::Output& stream) {
-                        stream << "Failed to resolve method " << ref.GetFullName(resolver.session) << Stream::endl;
-                    });
-                    return std::nullopt;
-                }();
-
-                if (!method.has_value()) {
-                    return std::nullopt;
-                }
-
-                auto fuh = Interpretation::FunctionHandleManager::Of(resolver.session)
-                               .AcquireTagged(resolver.session, method.value());
-                auto sig     = ConstructSignature(resolver, ref);
-                auto refType = resolver.Wrap(ref.refType);
-                // TODO: simplify
-                if (auto* staticFuh = std::get_if<Interpretation::StaticFunctionHandle*>(&fuh)) {
-                    auto fuh                  = *staticFuh;
-                    DirectCall::CallData data = DirectCall::Compiled {
-                        .funcPtr    = reinterpret_cast<uintptr_t>(fuh->function),
-                        .i2cAdapter = fuh->base.i2call,
-                    };
-                    return DirectCall::Content { refType, ref.name, std::move(sig), data };
-                } else {
-                    auto dynFuh               = std::get<Interpretation::DynamicFunctionHandle*>(fuh);
-                    DirectCall::CallData data = dynFuh;
-                    return DirectCall::Content { refType, ref.name, std::move(sig), data };
+        // FIXME: search in hierarchy
+        auto method = [&]() -> std::optional<Identifier<Symlevel::MethodDefinition>> {
+            for (auto m : type.GetMethods().FindAll(resolver.session, ref.name)) {
+                auto def = Symlevel::Reader::Read(resolver.session, m);
+                auto sig = TermManager::Resolve(resolver.session, def.Signature());
+                if (sig == ref.signature) {
+                    return m;
                 }
             }
 
-            case TermKind::AOT_TYPE: {
-                return ResolveAotDirectCall(resolver, ref);
+            for (auto m : type.GetVirtualMethods().Values(resolver.session)) {
+                auto def = Symlevel::Reader::Read(resolver.session, m);
+                auto sig = TermManager::Resolve(resolver.session, def.Signature());
+                if (sig == ref.signature) {
+                    return m;
+                }
             }
 
-            default: {
-                log.Stream(Logging::Level::FATAL)
-                    << "Unexpected ref type in reference " << id.GetValue() << Stream::endl;
-                return std::nullopt;
-            }
+            log.Log(Logging::Level::ERROR, [&](Stream::Output& stream) {
+                stream << "Failed to resolve method " << ref.GetFullName(resolver.session) << Stream::endl;
+            });
+            return std::nullopt;
+        }();
+
+        if (!method.has_value()) {
+            return std::nullopt;
+        }
+
+        auto fuh = Interpretation::FunctionHandleManager::Of(resolver.session)
+                       .AcquireTagged(resolver.session, method.value());
+        auto sig     = ConstructSignature(resolver, ref);
+        auto refType = resolver.Wrap(ref.refType);
+        // TODO: simplify
+        if (auto* staticFuh = std::get_if<Interpretation::StaticFunctionHandle*>(&fuh)) {
+            auto fuh                  = *staticFuh;
+            DirectCall::CallData data = DirectCall::Compiled {
+                .funcPtr    = reinterpret_cast<uintptr_t>(fuh->function),
+                .i2cAdapter = fuh->base.i2call,
+            };
+            return DirectCall::Content { refType, ref.name, std::move(sig), data };
+        } else {
+            auto dynFuh               = std::get<Interpretation::DynamicFunctionHandle*>(fuh);
+            DirectCall::CallData data = dynFuh;
+            return DirectCall::Content { refType, ref.name, std::move(sig), data };
         }
     }
 };

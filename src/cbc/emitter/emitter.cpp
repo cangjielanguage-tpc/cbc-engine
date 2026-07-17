@@ -863,6 +863,18 @@ void Emitter::InterfaceCall(uint16_t methodNum, RTSupport::TypeInfo typeInfo, bo
     );
 }
 
+void Emitter::InterfaceCallGeneric(uint16_t methodNum, IReg interfaceTi, bool sret)
+{
+    Encode(
+        segment,
+        RT::InterfaceCallGeneric {
+            .opc  = RT::Opcode::INTERFACE_CALL_GENERIC,
+            .vnum = methodNum,
+            .xr   = { sret, interfaceTi },
+        }
+    );
+}
+
 void Emitter::StringLit(Interpretation::StringStorage* literal, uint32_t frameOffs)
 {
     Encode(
