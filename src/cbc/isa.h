@@ -178,6 +178,8 @@ public:
 
     static constexpr int COUNT = 15;
 
+    static constexpr int COUNT_ISA_ONLY = 14;
+
     constexpr IReg(const Value raw) : _value(raw) {}
 
     constexpr operator Value() const { return _value; }

@@ -174,6 +174,7 @@ struct Term {
 
     Term Subterm(uint32_t i) const;
     bool IsReference() const;
+    bool IsRecord() const;
     bool IsAotPromoted() const;
     bool IsGeneric() const;
 

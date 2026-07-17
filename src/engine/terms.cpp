@@ -854,6 +854,11 @@ Term TermManager::Resolve(Session& session, RefIdentifier<Term> ident)
 
 bool Term::IsReference() const { return data->flags.isReference; }
 
+bool Term::IsRecord() const
+{
+    return (GetKind() == TermKind::AOT_TYPE || GetKind() == TermKind::TYPE) && !IsReference();
+}
+
 bool Term::IsAotPromoted() const { return data->flags.isAotPromoted; }
 
 bool Term::IsGeneric() const { return data->flags.isGeneric; }

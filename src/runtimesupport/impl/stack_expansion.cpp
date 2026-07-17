@@ -6,6 +6,7 @@
 #include "gc_support.h"
 #include "interpreter/function_handle.h"
 #include "reg_table.h"
+#include "resolution/resolution.h"
 
 namespace StackExpansion {
 
@@ -49,6 +50,8 @@ static std::pair<const GCPositionalInfo*, const StackPtrsPositionalInfo*> FindPo
     return std::pair(gcPosInfo, stackPtrsPosInfo);
 }
 
+void needSupportForFrameArgs(uint32_t argIdx) { ASSERT(Resource { .idx = argIdx }.IsReg()); }
+
 // TODO: support for frame arguments
 void VisitFrameRootsForStackPtrs(
     DYN_VisitingState state,
@@ -70,7 +73,13 @@ void VisitFrameRootsForStackPtrs(
         );
     });
 
+    // Frame pointer is also a pointer to stack, so it needs to be adjusted.
+    VisitRoot(stackPtrVisitor, (Placeholder)frameDesc.fp);
+
     if (isTopInterpreterFrame(reinterpret_cast<uintptr_t>(frameDesc.ip))) {
+        // Detected frame is in which prologue stack check happens.
+        // There are no stack ptr maps for prologue, find roots by abi and signature info.
+
         RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
             out.PrintFmtLn("found top frame (ip=%p, fp=%p)", frameDesc.ip, frameDesc.fp);
         });
@@ -78,24 +87,27 @@ void VisitFrameRootsForStackPtrs(
         auto dumpSize      = ((ECTYPE_IREGS_COUNT * ECTYPE_REG_SIZE) + 15) & ~15;
         auto dumpStartAddr = ((uint8_t*)frameDesc.fp) - (LOCAL_SLOTS_OFFSET + dumpSize);
 
-        Placeholder regAddr = reinterpret_cast<Placeholder>(dumpStartAddr);
+        uint8_t* regAddr = dumpStartAddr;
         for (int regIdx = 0; regIdx < IReg::COUNT; regIdx++) {
-            regTable->UpdateRegLocation(IReg::From(regIdx), regAddr);
+            regTable->UpdateRegLocation(IReg::From(regIdx), reinterpret_cast<Placeholder>(regAddr));
             regAddr += ECTYPE_REG_SIZE;
         }
 
         Engine::Session session(Engine::GetEngineInstance());
-        auto methodDef = Symlevel::MethodDefinition::Resolve(session, fuh->methodDef);
+        auto methodDefIdent = fuh->methodDef;
+        auto methodDef      = Symlevel::MethodDefinition::Resolve(session, methodDefIdent);
         if (!methodDef.MethodCode().has_value()) {
             return;
         }
 
-        uint32_t argIdx = 0;
+        uint32_t argIdx = 1; // IR1
 
         if (methodDef.GetFlags().Is(Symlevel::MethodFlag::SRET)) {
             RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
                 out.PrintFmtLn("found sret (argIdx=%u)", argIdx);
             });
+
+            needSupportForFrameArgs(argIdx);
             auto sretPh = GetResourceLocation(Resource { .idx = argIdx }, slotsStartAddr, regTable);
             VisitRoot(stackPtrVisitor, sretPh);
 
@@ -103,6 +115,9 @@ void VisitFrameRootsForStackPtrs(
         }
 
         if (methodDef.GetFlags().Is(Symlevel::MethodFlag::MUT)) {
+            needSupportForFrameArgs(argIdx);
+            needSupportForFrameArgs(argIdx + 1);
+
             auto derivedPh = GetResourceLocation(Resource { .idx = argIdx }, slotsStartAddr, regTable);
             auto basePh    = GetResourceLocation(Resource { .idx = argIdx + 1 }, slotsStartAddr, regTable);
             auto kind      = Execution::GetStructLocationKind(Value::Reference { .value = *basePh }, *derivedPh);
@@ -117,9 +132,22 @@ void VisitFrameRootsForStackPtrs(
             }
         }
 
-        // TODO get method signature
-        // TODO adjust args placeholders (record args) according to signature
+        auto methodSig = Engine::TermManager::Resolve(session, methodDef.Signature());
+        for (int subtermIdx = 0; subtermIdx < methodSig.GetLength() - 1 /* without ret type term */; subtermIdx++) {
+            if (methodSig.Subterm(subtermIdx).IsRecord()) {
+                RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
+                    out.PrintFmtLn("found rec arg (argIdx=%u)", argIdx);
+                });
+
+                needSupportForFrameArgs(argIdx);
+                auto argPh = GetResourceLocation(Resource { .idx = argIdx }, slotsStartAddr, regTable);
+                VisitRoot(stackPtrVisitor, argPh);
+            }
+            argIdx++;
+        }
     } else {
+        // One of the caller frames, use stack ptr maps provided by compiler.
+
         auto reader = reinterpret_cast<Decoder::ByteReader*>((uint8_t*)frameDesc.fp - READER_SLOT_OFFSET);
         auto curPos = reinterpret_cast<uintptr_t>(reader->Cursor()) - reinterpret_cast<uintptr_t>(bc->code.bytecode);
         auto calleeSavedRegsEnd = ((uint8_t*)frameDesc.fp) - LOCAL_SLOTS_OFFSET;

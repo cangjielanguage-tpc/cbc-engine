@@ -24,7 +24,7 @@ struct Code {
 struct Resource {
     uint32_t idx;
 
-    bool IsReg() { return idx < Cbc::IReg::COUNT; }
+    bool IsReg() { return idx < Cbc::IReg::COUNT_ISA_ONLY; }
 
     IReg AsReg()
     {
@@ -35,7 +35,7 @@ struct Resource {
     uint32_t AsSlotNum()
     {
         ASSERT(!IsReg());
-        return idx - Cbc::IReg::COUNT;
+        return idx - Cbc::IReg::COUNT_ISA_ONLY;
     }
 };
 
