@@ -658,7 +658,7 @@ struct IsaRewriter : public IsaParser {
         AdjustReg(dst, IReg::IR1);
     }
 
-    void CallInterfGeneric(IReg interfaceTi, uint16_t methodId) override
+    void CallInterfGeneric(uint16_t argnum, uint16_t methodId) override
     {
         auto m = resolver.Query(Index<InterfaceCall>(methodId));
         if (!m.has_value()) {
@@ -666,7 +666,7 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto method = m.value();
-        emit.InterfaceCallGeneric(method->methodNum, interfaceTi, method->sret);
+        emit.InterfaceCallGeneric(method->methodNum, argnum, method->sret);
         BindStatePoint();
     }
 
@@ -818,7 +818,7 @@ struct IsaRewriter : public IsaParser {
 
     void ArrayIndexCheck(IReg length, IReg index) override { FATAL("not implemented"); }
 
-    uint32_t UntypedSlotOffset(uint16_t us) { return us * STACK_SLOT_SIZE; }
+    static uint32_t UntypedSlotOffset(uint16_t us) { return us * STACK_SLOT_SIZE; }
 
     void LoadUntyped(AnyReg dst, Format::LoadAccessKind ldk, uint16_t us) override
     {

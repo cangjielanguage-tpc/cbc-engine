@@ -367,7 +367,7 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, InterfaceC
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, InterfaceCallGeneric args)
 {
-    Operand operands[] = { args.vnum, args.xr.imm, args.xr.r };
+    Operand operands[] = { args.vnum, args.argn, args.sret };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }

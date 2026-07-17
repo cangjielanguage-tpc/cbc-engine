@@ -69,7 +69,7 @@ protected:
     virtual void CallDirect(IReg dst, uint16_t method)    = 0;
     virtual void CallVirtual(IReg dst, uint16_t method)   = 0;
     virtual void CallInterf(IReg dst, uint16_t method)    = 0;
-    virtual void CallInterfGeneric(IReg interfaceTi, uint16_t method) = 0;
+    virtual void CallInterfGeneric(uint16_t argnum, uint16_t method) = 0;
     virtual void Spawn(IReg closure, uint16_t type)       = 0;
     virtual void SpawnFuture(IReg future, uint16_t type)  = 0;
     virtual void CallClosure(IReg dst, uint16_t type, bool generic) = 0;

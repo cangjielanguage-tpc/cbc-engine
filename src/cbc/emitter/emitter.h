@@ -210,7 +210,7 @@ public:
 
     void VirtualCall(uint16_t vnum, uint16_t extDefNum, bool sret);
     void InterfaceCall(uint16_t methodNum, RTSupport::TypeInfo typeInfo, bool sret);
-    void InterfaceCallGeneric(uint16_t methodNum, IReg interfaceTi, bool sret);
+    void InterfaceCallGeneric(uint16_t methodNum, uint16_t argnum, bool sret);
 
     void StringLit(Interpretation::StringStorage* literal, uint32_t frameOffs);
 

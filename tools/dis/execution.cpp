@@ -77,7 +77,12 @@ Interpretation::Thunk Execution::GetVirtualThunk(Reference base, int extDefNum, 
     FATAL("Should not reach here.");
 }
 
-Interpretation::Thunk Execution::GetInterfaceThunk(Reference base, TypeInfo ti, int methodNum)
+TypeInfo Execution::GetMethodOuterTi(TypeInfo where, TypeInfo interf, int methodNum)
+{
+    FATAL("Should not reach here.");
+}
+
+Interpretation::Thunk Execution::GetInterfaceThunk(TypeInfo where, TypeInfo ti, int methodNum)
 {
     FATAL("Should not reach here.");
 }

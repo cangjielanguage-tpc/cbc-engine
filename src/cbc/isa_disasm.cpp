@@ -244,9 +244,9 @@ struct IsaDisasm : public IsaParser {
         stream << "call.interf" << " " << dst.ToStr() << ", " << method << endl;
     }
 
-    void CallInterfGeneric(IReg interfaceTi, uint16_t method) override
+    void CallInterfGeneric(uint16_t argnum, uint16_t method) override
     {
-        stream << "call.interf.g" << " " << interfaceTi.ToStr() << ", " << method << endl;
+        stream << "call.interf.g" << " " << argnum << ", " << method << endl;
     }
 
     void Spawn(IReg closure, uint16_t type) override

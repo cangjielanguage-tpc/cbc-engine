@@ -488,6 +488,12 @@ struct IsaParserImpl {
         parser.LoadTypeInfoObj(dst, obj);
     }
 
+    static void CallInterfGeneric(IsaParser& parser)
+    {
+        auto [argnum, methodId] = ByteReaderM(parser.reader).ReadU16().ReadU16().Get();
+        parser.CallInterfGeneric(argnum, methodId);
+    }
+
     static void RegSymGroup(IsaParser& parser)
     {
         static constexpr bool GENERIC     = true;
@@ -508,7 +514,6 @@ struct IsaParserImpl {
 
             case Cbc::RegSymGroup::CallClosureGeneric:  parser.CallClosure(dst, id, GENERIC); break;
             case Cbc::RegSymGroup::LoadTypeInfoGeneric: parser.LoadTypeInfoGeneric(dst, id); break;
-            case Cbc::RegSymGroup::CallInterfGeneric:   parser.CallInterfGeneric(dst, id); break;
 
             default: {
                 FATAL("Should not reach here");
