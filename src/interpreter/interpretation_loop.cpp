@@ -777,6 +777,32 @@ INTERFACE_CALL: {
     return Execution::GetInterfaceThunk(reference, typeInfo, num);
 }
 
+INTERFACE_CALL_GENERIC: {
+    auto args = InterfaceCallGeneric::Decode(reader);
+    LOG_INSTR;
+    auto num       = args.vnum;
+    uint8_t sret   = args.xr.imm;
+    auto typeInfo  = TypeInfo(ectype->GetPrimitive(args.xr.r.IR()).u64);
+
+    auto receiver = IReg::IR1;
+    if (HAS_SRET_SHIFT && sret) {
+        receiver = Cbc::IReg::IR2;
+    }
+    auto reference = ectype->GetReference(receiver);
+
+    // For proper support of fibers, the following call MUST drop the current frame.
+    // This can not be guaranteed by C++ compiler consistently, because TCO
+    // is not guaranteed and `mustcall` attribute is not supported
+    // fully by gcc/clang compilers.
+    //
+    // Instead, the following call will drop the current frame manually
+    // (outside of unit-test framework).
+
+    reader0 = reader; // save current pc
+
+    return Execution::GetInterfaceThunk(reference, typeInfo, num);
+}
+
 STRING_INIT: {
     auto args = B13i64i32::Decode(reader);
     LOG_INSTR;

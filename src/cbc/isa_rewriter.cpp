@@ -658,6 +658,18 @@ struct IsaRewriter : public IsaParser {
         AdjustReg(dst, IReg::IR1);
     }
 
+    void CallInterfGeneric(IReg interfaceTi, uint16_t methodId) override
+    {
+        auto m = resolver.Query(Index<InterfaceCall>(methodId));
+        if (!m.has_value()) {
+            Fail();
+            return;
+        }
+        auto method = m.value();
+        emit.InterfaceCallGeneric(method->methodNum, interfaceTi, method->sret);
+        BindStatePoint();
+    }
+
     void Spawn(IReg closure, uint16_t typeId) override
     {
         AdjustReg(IReg::IR1, closure);

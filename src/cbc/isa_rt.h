@@ -82,6 +82,7 @@
     X(DIRECT_CALL_2C, B3xi12, "call.2c $1I12L")                                                                        \
     X(VIRTUAL_CALL, VirtualCall, "vcall $0U16 $1U16")                                                                  \
     X(INTERFACE_CALL, InterfaceCall, "icall $0U16 $1U64")                                                              \
+    X(INTERFACE_CALL_GENERIC, InterfaceCallGeneric, "icall.g $0U16 $2ir")                                              \
     X(MEMSPACE, B1, "memspace {")                                                                                      \
     X(GC_POINT, B1, "gcpoint")                                                                                         \
     X(BFXS, BFX, "bfxs $0ir $1ir $2U8 $3U8")                                                                           \
@@ -671,6 +672,20 @@ struct InterfaceCall {
         auto ti   = reader.Read64();
         auto sret = reader.Read8();
         return InterfaceCall { opc, vnum, ti, sret };
+    }
+};
+
+struct InterfaceCallGeneric {
+    Opcode opc;
+    uint16_t vnum;
+    Format::XR xr;
+
+    static InterfaceCallGeneric Decode(Decoder::ByteReader& reader)
+    {
+        auto opc  = Opcode::Decode(reader);
+        auto vnum = reader.Read16();
+        auto xr   = Format::XR::Decode(reader);
+        return InterfaceCallGeneric { opc, vnum, xr };
     }
 };
 

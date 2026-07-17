@@ -514,6 +514,7 @@ struct IsaParserImpl {
 
             case Cbc::RegSymGroup::CallClosureGeneric:  parser.CallClosure(dst, id, GENERIC); break;
             case Cbc::RegSymGroup::LoadTypeInfoGeneric: parser.LoadTypeInfoGeneric(dst, id); break;
+            case Cbc::RegSymGroup::CallInterfGeneric:   parser.CallInterfGeneric(dst, id); break;
 
             default: {
                 FATAL("Should not reach here");
