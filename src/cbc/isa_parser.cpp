@@ -463,12 +463,6 @@ struct IsaParserImpl {
         parser.PrepareRecord(id);
     }
 
-    static void ZeroRefs(IsaParser& parser)
-    {
-        auto [id] = ByteReaderM(parser.reader).ReadU16().Get();
-        parser.PrepareRecord(id);
-    }
-
     template <Width::Value width> static void Scc(IsaParser& parser)
     {
         auto [cc, dst, lhs, rhs] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();

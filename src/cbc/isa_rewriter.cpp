@@ -756,8 +756,6 @@ struct IsaRewriter : public IsaParser {
 
     void Throw(IReg reg) override { emit.Throw(reg); }
 
-    void ZeroRefs(uint16_t ts) override { FATAL("not implemented"); }
-
     void InstanceOf(IReg dst, IReg obj, uint16_t typeId) override
     {
         auto t = resolver.Query(Index<Type>(typeId));

@@ -85,8 +85,6 @@ protected:
     virtual void Catch(IReg reg)                     = 0;
     virtual void Throw(IReg reg)                     = 0;
 
-    virtual void ZeroRefs(uint16_t ts) = 0;
-
     virtual void InstanceOf(IReg dst, IReg obj, uint16_t type) = 0;
     virtual void LoadTypeInfoObj(IReg dst, IReg obj)           = 0;
     virtual void InitObj(uint16_t ts)                          = 0;

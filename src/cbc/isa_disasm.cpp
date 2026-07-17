@@ -287,8 +287,6 @@ struct IsaDisasm : public IsaParser {
 
     void Throw(IReg reg) override { stream << "throw" << " " << reg.ToStr() << endl; }
 
-    void ZeroRefs(uint16_t ts) override { stream << "zerorefs" << " " << ts << endl; }
-
     void InstanceOf(IReg dst, IReg obj, uint16_t type) override
     {
         stream << "iof" << " " << dst.ToStr() << ", " << obj.ToStr() << ", " << type << endl;

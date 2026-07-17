@@ -63,7 +63,7 @@
     X(NewArr, NewArr)                                                                                                  \
     X(GcPoint, GcPoint)                                                                                                \
     X(PrepareRecord, PrepareRecord)                                                                                    \
-    X(ZeroRefs, ZeroRefs)                                                                                              \
+    X(TodoDelete, PrepareRecord)                                                                                       \
     X(Scc32, Scc<Width::W32>)                                                                                          \
     X(Scc64, Scc<Width::W64>)                                                                                          \
     X(SccImm32, SccImm<Width::W32>)                                                                                    \
