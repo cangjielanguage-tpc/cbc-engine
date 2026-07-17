@@ -155,6 +155,18 @@ struct IsaDisasm : public IsaParser {
         stream << "ld.stack.rec" << " " << r.ToStr() << ", " << ts << endl;
     }
 
+    void LoadRawMemory(AnyReg dst, IReg base, int64_t offset, Format::LoadAccessKind ldk) override
+    {
+        stream << "ld.raw.mem." << ldk.ToStr() << " " << Fmt(dst, ldk.IsFloat()) << ", " << base.ToStr() << ", "
+               << offset << endl;
+    }
+
+    void StoreRawMemory(AnyReg src, IReg base, int64_t offset, Format::StoreAccessKind stk) override
+    {
+        stream << "st.raw.mem." << stk.ToStr() << " " << Fmt(src, stk.IsFloat()) << ", " << base.ToStr() << ", "
+               << offset << endl;
+    }
+
     void LoadStatic(AnyReg r, uint16_t field) override { stream << "ld.static" << " " << r << ", " << field << endl; }
 
     void StoreStatic(AnyReg r, uint16_t field) override { stream << "st.static" << " " << r << ", " << field << endl; }
@@ -242,9 +254,10 @@ struct IsaDisasm : public IsaParser {
         stream << "spawn.future" << " " << future.ToStr() << ", " << type << endl;
     }
 
-    void CallClosure(IReg dst, uint16_t type) override
+    void CallClosure(IReg dst, uint16_t type, bool generic) override
     {
-        stream << "call.closure" << " " << dst.ToStr() << ", " << type << endl;
+        auto suffix = generic ? ".g " : " ";
+        stream << "call.closure" << suffix << dst.ToStr() << ", " << type << endl;
     }
 
     void Scc(Format::Width width, Format::CC cc, IReg d, AnyReg l, AnyReg r) override
@@ -273,8 +286,6 @@ struct IsaDisasm : public IsaParser {
     void Catch(IReg reg) override { stream << "catch" << " " << reg.ToStr() << endl; }
 
     void Throw(IReg reg) override { stream << "throw" << " " << reg.ToStr() << endl; }
-
-    void ZeroRefs(uint16_t ts) override { stream << "zerorefs" << " " << ts << endl; }
 
     void InstanceOf(IReg dst, IReg obj, uint16_t type) override
     {

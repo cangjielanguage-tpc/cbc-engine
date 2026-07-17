@@ -328,9 +328,19 @@ struct IsaRewriter : public IsaParser {
         BindStatePoint();
     }
 
-    virtual void LoadStackRec(IReg r, uint16_t ts) override
+    void LoadStackRec(IReg r, uint16_t ts) override
     {
         emit.LoadFrame(Format::LoadAccessKind::LEA, r, frameLayout.typedOffset.at(ts));
+    }
+
+    void LoadRawMemory(AnyReg dst, IReg base, int64_t offset, Format::LoadAccessKind ldk) override
+    {
+        emit.LoadRec(ldk, dst, base, offset);
+    }
+
+    void StoreRawMemory(AnyReg src, IReg base, int64_t offset, Format::StoreAccessKind stk) override
+    {
+        emit.StoreRec(stk, src, base, offset);
     }
 
     void LoadStatic(AnyReg r, uint16_t fieldId) override
@@ -674,10 +684,27 @@ struct IsaRewriter : public IsaParser {
         FATAL("not implemented");
     }
 
-    void CallClosure(IReg dst, uint16_t type) override
+    void CallClosure(IReg dst, uint16_t typeId, bool generic) override
     {
+        if (generic) {
+            // Generic calls of closure are always considered as `sret`.
+            emit.CallClosureGeneric();
+            BindStatePoint();
+            return;
+        }
+
+        auto t = resolver.Query(Index<Type>(typeId));
+        if (!t.has_value() || t->term.GetKind() != Engine::TermKind::FUNCTIONAL) {
+            return Fail("failed to resolve type");
+        }
+        auto term    = t->term;
+        auto retType = term.Subterm(term.GetLength() - 1);
+
+        // For instantiated version of closure `sret` can be computed
+        // by retType kind.
+        bool sret = (resolver.Wrap(retType).GetKind() == TK::REC);
+        emit.CallClosure(sret);
         BindStatePoint();
-        FATAL("not implemented");
     }
 
     void NewClosure(IReg dst, uint16_t typeId) override
@@ -690,8 +717,7 @@ struct IsaRewriter : public IsaParser {
     void Scc(Format::Width width, Format::CC cc, IReg d, AnyReg l, AnyReg r) override
     {
         if (cc.IsFloatingPoint()) {
-            // FIXME: support for floats
-            FATAL("not implemented");
+            emit.SCC(cc, width, d, FReg::From(l), FReg::From(r));
         } else {
             emit.SCC(cc, width, d, IReg::From(l), IReg::From(r));
         }
@@ -729,8 +755,6 @@ struct IsaRewriter : public IsaParser {
     void Catch(IReg reg) override { emit.Catch(reg); }
 
     void Throw(IReg reg) override { emit.Throw(reg); }
-
-    void ZeroRefs(uint16_t ts) override { FATAL("not implemented"); }
 
     void InstanceOf(IReg dst, IReg obj, uint16_t typeId) override
     {

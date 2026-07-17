@@ -67,6 +67,11 @@ uint32_t Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool isRef) { FATAL
 
 TypeInfo Execution::GetTypeInfo(Reference base) { FATAL("Should not be called"); }
 
+Interpretation::Thunk Execution::GetClosureThunk(Reference base, bool isInstantiated)
+{
+    FATAL("Should not reach here.");
+}
+
 Interpretation::Thunk Execution::GetVirtualThunk(Reference base, int extDefNum, int methodNum)
 {
     FATAL("Should not reach here.");

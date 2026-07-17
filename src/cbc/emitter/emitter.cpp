@@ -812,6 +812,17 @@ void Emitter::GcPoint()
     );
 }
 
+void Emitter::CallClosure(bool sret)
+{
+    if (sret) {
+        segment.AddW8(RT::Opcode::CALL_CLOSURE_SRET);
+    } else {
+        segment.AddW8(RT::Opcode::CALL_CLOSURE);
+    }
+}
+
+void Emitter::CallClosureGeneric() { segment.AddW8(RT::Opcode::CALL_CLOSURE_GENERIC); }
+
 void Emitter::DirectCall2i(Symbol fuh)
 {
     segment.AddW8(RT::Opcode::DIRECT_CALL_2I);

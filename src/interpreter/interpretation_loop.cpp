@@ -10,6 +10,7 @@
 #include "interpreter/ectype.h"
 #include "interpreter/implicit_exceptions.h"
 #include "interpreter/loggers.h"
+#include "interpreter/platform_traits.h"
 #include "runtimesupport/adapters.h"
 #include "runtimesupport/runtime.h"
 #include "utils/assertion.h"
@@ -698,19 +699,44 @@ DIRECT_CALL_2C: {
 
     return { Adapters::GenericI2CCallInstance(), reinterpret_cast<void*>(target) };
 }
+CALL_CLOSURE_SRET: {
+    if constexpr (HAS_SRET_SHIFT) {
+        auto args = B1::Decode(reader);
+        LOG_INSTR;
+        auto reference = ectype->GetReference(IReg::IR2);
+        reader0        = reader;
+        return Execution::GetClosureThunk(reference, true);
+    }
+    // fallthrough
+}
+CALL_CLOSURE: {
+    auto args = B1::Decode(reader);
+    LOG_INSTR;
+    auto reference = ectype->GetReference(IReg::IR1);
+    reader0        = reader;
+    return Execution::GetClosureThunk(reference, true);
+}
+CALL_CLOSURE_GENERIC: {
+    auto args = B1::Decode(reader);
+    LOG_INSTR;
+    auto receiver = IReg::IR1;
+    if (HAS_SRET_SHIFT) { // generic closure calls are always considered as `sret`
+        receiver = Cbc::IReg::IR2;
+    }
+    auto reference = ectype->GetReference(receiver);
+    reader0        = reader;
+    return Execution::GetClosureThunk(reference, false);
+}
 VIRTUAL_CALL: {
     auto args = VirtualCall::Decode(reader);
     LOG_INSTR;
     auto vnum      = args.vnum;
     auto extDefNum = args.edef;
 
-#if defined(__x86_64__) || defined(_M_X64)
-    auto receiver = args.sret ? IReg::IR2 : IReg::IR1;
-#elif defined(__aarch64__) || defined(_M_ARM64)
-    // On aarch64 receiver location does not depend on sret,
-    // because sret has dedicated register IR9.
     auto receiver = IReg::IR1;
-#endif
+    if (HAS_SRET_SHIFT && args.sret) {
+        receiver = Cbc::IReg::IR2;
+    }
     auto reference = ectype->GetReference(receiver);
 
     // For proper support of fibers, the following call MUST drop the current frame.
@@ -731,13 +757,11 @@ INTERFACE_CALL: {
     LOG_INSTR;
     auto num       = args.vnum;
     auto typeInfo  = TypeInfo(static_cast<uintptr_t>(args.ti));
-#if defined(__x86_64__) || defined(_M_X64)
-    auto receiver = args.sret ? IReg::IR2 : IReg::IR1;
-#elif defined(__aarch64__) || defined(_M_ARM64)
-    // On aarch64 receiver location does not depend on sret,
-    // because sret has dedicated register IR9.
+
     auto receiver = IReg::IR1;
-#endif
+    if (HAS_SRET_SHIFT && args.sret) {
+        receiver = Cbc::IReg::IR2;
+    }
     auto reference = ectype->GetReference(receiver);
 
     // For proper support of fibers, the following call MUST drop the current frame.

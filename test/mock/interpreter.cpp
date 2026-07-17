@@ -289,6 +289,11 @@ TypeInfo Execution::GetTypeInfo(Reference base)
     return *header;
 }
 
+Interpretation::Thunk Execution::GetClosureThunk(Reference base, bool isInstantiated)
+{
+    FATAL("Should not reach here.");
+}
+
 Interpretation::Thunk Execution::GetVirtualThunk(Reference base, int extDefNum, int methodNum)
 {
     FATAL("Should not reach here. I2C virtual call");

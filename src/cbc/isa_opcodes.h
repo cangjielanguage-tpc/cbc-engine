@@ -63,7 +63,7 @@
     X(NewArr, NewArr)                                                                                                  \
     X(GcPoint, GcPoint)                                                                                                \
     X(PrepareRecord, PrepareRecord)                                                                                    \
-    X(ZeroRefs, ZeroRefs)                                                                                              \
+    X(TodoDelete, PrepareRecord)                                                                                       \
     X(Scc32, Scc<Width::W32>)                                                                                          \
     X(Scc64, Scc<Width::W64>)                                                                                          \
     X(SccImm32, SccImm<Width::W32>)                                                                                    \
@@ -107,6 +107,8 @@
     X(PayloadGeneric, PayloadGeneric)                                                                                  \
     X(NewNoneGeneric, NewNoneGeneric)                                                                                  \
     X(NewSomeGeneric, NewSomeGeneric)                                                                                  \
+    X(LoadRawMemory, LoadRawMemory)                                                                                    \
+    X(StoreRawMemory, StoreRawMemory)                                                                                  \
     X(_END, Unreachable)
 
 #define ISA_MEM_OPCODES(X)                                                                                             \
@@ -144,6 +146,7 @@
     X(SpawnFuture)                                                                                                     \
     X(CallClosure)                                                                                                     \
     X(NewClosure)                                                                                                      \
+    X(CallClosureGeneric)                                                                                              \
     X(_END)
 
 #define ISA_REG_GROUP_OPCODES(X)                                                                                       \

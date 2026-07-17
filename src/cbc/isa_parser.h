@@ -53,6 +53,9 @@ protected:
 
     virtual void GcPoint() = 0;
 
+    virtual void LoadRawMemory(AnyReg dst, IReg base, int64_t offset, Format::LoadAccessKind ldk)   = 0;
+    virtual void StoreRawMemory(AnyReg src, IReg base, int64_t offset, Format::StoreAccessKind stk) = 0;
+
     virtual void LoadStackRec(IReg r, uint16_t ts)              = 0;
     virtual void LoadStatic(AnyReg r, uint16_t field)           = 0;
     virtual void StoreStatic(AnyReg r, uint16_t field)          = 0;
@@ -68,7 +71,7 @@ protected:
     virtual void CallInterf(IReg dst, uint16_t method)    = 0;
     virtual void Spawn(IReg closure, uint16_t type)       = 0;
     virtual void SpawnFuture(IReg future, uint16_t type)  = 0;
-    virtual void CallClosure(IReg dst, uint16_t type)     = 0;
+    virtual void CallClosure(IReg dst, uint16_t type, bool generic) = 0;
     virtual void NewClosure(IReg dst, uint16_t type)      = 0;
 
     virtual void Scc(Format::Width width, Format::CC cc, IReg d, AnyReg l, AnyReg r)      = 0;
@@ -81,8 +84,6 @@ protected:
     virtual void NullCheck(IReg reg)                 = 0;
     virtual void Catch(IReg reg)                     = 0;
     virtual void Throw(IReg reg)                     = 0;
-
-    virtual void ZeroRefs(uint16_t ts) = 0;
 
     virtual void InstanceOf(IReg dst, IReg obj, uint16_t type) = 0;
     virtual void LoadTypeInfoObj(IReg dst, IReg obj)           = 0;

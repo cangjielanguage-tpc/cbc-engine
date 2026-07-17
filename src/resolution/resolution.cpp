@@ -671,6 +671,9 @@ std::optional<Type> Resolver::Query(Index<Type> id)
     auto refId = Symlevel::RefId<Term>(regionId, id.GetValue());
     auto ident = RefIdentifier<Term>(refId, method.GetFileId());
     auto term  = termManager.Resolve(session, ident);
+    if (term.GetKind() == TermKind::UNDEFINED) {
+        return std::nullopt;
+    }
     return Type(term, this);
 }
 

@@ -413,6 +413,20 @@ struct IsaParserImpl {
 
     static void GcPoint(IsaParser& parser) { parser.GcPoint(); }
 
+    static void LoadRawMemory(IsaParser& parser)
+    {
+        auto [dst, base, ldk, low4, hibits] =
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadSLEB().Get();
+        parser.LoadRawMemory(dst, base, MergeLowHi(low4, hibits), ldk);
+    }
+
+    static void StoreRawMemory(IsaParser& parser)
+    {
+        auto [src, base, stk, low4, hibits] =
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadSLEB().Get();
+        parser.StoreRawMemory(src, base, MergeLowHi(low4, hibits), stk);
+    }
+
     static void LoadStatic(IsaParser& parser)
     {
         auto [r, id] = ByteReaderM(parser.reader).ReadU4Skip4().ReadU16().Get();
@@ -449,12 +463,6 @@ struct IsaParserImpl {
         parser.PrepareRecord(id);
     }
 
-    static void ZeroRefs(IsaParser& parser)
-    {
-        auto [id] = ByteReaderM(parser.reader).ReadU16().Get();
-        parser.PrepareRecord(id);
-    }
-
     template <Width::Value width> static void Scc(IsaParser& parser)
     {
         auto [cc, dst, lhs, rhs] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
@@ -482,6 +490,9 @@ struct IsaParserImpl {
 
     static void RegSymGroup(IsaParser& parser)
     {
+        static constexpr bool GENERIC     = true;
+        static constexpr bool NOT_GENERIC = false;
+
         auto [opc_, dst, id]  = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
         class RegSymGroup opc = opc_;
         switch (opc) {
@@ -492,9 +503,10 @@ struct IsaParserImpl {
             case Cbc::RegSymGroup::CallInterf:      parser.CallInterf(dst, id); break;
             case Cbc::RegSymGroup::Spawn:           parser.Spawn(dst, id); break;
             case Cbc::RegSymGroup::SpawnFuture:     parser.SpawnFuture(dst, id); break;
-            case Cbc::RegSymGroup::CallClosure:     parser.CallClosure(dst, id); break;
+            case Cbc::RegSymGroup::CallClosure:     parser.CallClosure(dst, id, NOT_GENERIC); break;
             case Cbc::RegSymGroup::NewClosure:      parser.NewClosure(dst, id); break;
 
+            case Cbc::RegSymGroup::CallClosureGeneric:  parser.CallClosure(dst, id, GENERIC); break;
             case Cbc::RegSymGroup::LoadTypeInfoGeneric: parser.LoadTypeInfoGeneric(dst, id); break;
 
             default: {
