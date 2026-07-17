@@ -829,6 +829,20 @@ INTERFACE_CALL_GENERIC: {
     return Execution::GetInterfaceThunk(typeInfo, interf, num);
 }
 
+ASSIGN_GENERIC: {
+    auto args = B3xrrr::Decode(reader);
+    auto rdst = args.xr.r.IR();
+    auto rsrc = args.rr.x.IR();
+    auto rti  = args.rr.y.IR();
+
+    auto src = ectype->GetReference(rsrc);
+    auto dst = ectype->GetReference(rdst);
+    auto ti  = TypeInfo(ectype->GetPrimitive(rti).u64);
+
+    Execution::WriteStructField(src.value, dst, dst.value + MetaInfo::ObjectHeaderSize(), ti, handle);
+    NEXT;
+}
+
 STRING_INIT: {
     auto args = B13i64i32::Decode(reader);
     LOG_INSTR;

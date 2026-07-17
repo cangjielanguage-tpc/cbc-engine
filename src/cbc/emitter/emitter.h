@@ -231,6 +231,8 @@ public:
     void Throw(IReg dst);
     void Catch(IReg dst);
 
+    void AssignGeneric(IReg dst, IReg src, IReg ti);
+
     MemSpace OpenMemSpace();
 
 private:
