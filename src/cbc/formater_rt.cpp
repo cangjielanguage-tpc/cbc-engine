@@ -379,6 +379,13 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, StructFiel
     formatter.Format();
 }
 
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, AtomicOp args)
+{
+    Operand operands[] = { args.rr1.x, args.rr1.y, args.rr2.x, args.rr2.y, args.offset };
+    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    formatter.Format();
+}
+
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, Offset args)
 {
     Operand operands[] = { args.rr.x, args.rr.y, args.idx };

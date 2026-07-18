@@ -902,5 +902,55 @@ void Emitter::WriteStructField(IReg src, IReg base, IReg field, RTSupport::TypeI
     Encode(segment, command);
 }
 
+void Emitter::AtomicLoad(IReg dst, Format::LoadAccessKind ldk, IReg obj, uint16_t offset)
+{
+    Encode(segment, RT::B4xi12rr {
+        .opc = RT::Opcode::ATOMIC_LOAD,
+        .xi12 = {
+            .imm4 = Imm4(ldk),
+            .imm12 = offset,
+        },
+        .rr = {
+            .x = dst,
+            .y = obj,
+        }
+    });
+}
+
+void Emitter::AtomicStore(IReg dst, Format::StoreAccessKind stk, IReg obj, uint16_t offset)
+{
+    Encode(segment, RT::B4xi12rr {
+        .opc = RT::Opcode::ATOMIC_STORE,
+        .xi12 = {
+            .imm4 = Imm4(stk),
+            .imm12 = offset,
+        },
+        .rr = {
+            .x = dst,
+            .y = obj,
+        }
+    });
+}
+
+void Emitter::CAS(RT::Opcode opc, IReg dst, IReg obj, IReg src1, IReg src2, uint16_t offset)
+{
+    Encode(segment, RT::AtomicOp {
+        .opc = opc,
+        .rr1 = { dst, obj },
+        .rr2 = { src1, src2 },
+        .offset = offset,
+    });
+}
+
+void Emitter::AtomicOp(RT::Opcode opc, IReg dst, IReg obj, IReg src, uint16_t offset)
+{
+    Encode(segment, RT::AtomicOp {
+        .opc = opc,
+        .rr1 = { dst, obj },
+        .rr2 = { src, 0 },
+        .offset = offset,
+    });
+}
+
 } // namespace Emitter
 } // namespace Cbc
