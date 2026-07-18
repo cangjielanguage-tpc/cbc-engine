@@ -182,10 +182,16 @@ Interpretation::Thunk Execution::GetVirtualThunk(Reference base, int extDefNum, 
     return GetDynCallThunk(target, typeInfo);
 }
 
-Interpretation::Thunk Execution::GetInterfaceThunk(Reference base, TypeInfo interf, int methodNum)
+TypeInfo Execution::GetMethodOuterTi(TypeInfo where, TypeInfo interf, int methodNum)
 {
-    DYN_TypeInfo** header = reinterpret_cast<DYN_TypeInfo**>(base.value);
-    auto dynTypeInfo      = *header;
+    return TypeInfo(
+        g_CJNativeInterfaceInstance.getMethodOuterTI(UnpackTypeInfo(where), UnpackTypeInfo(interf), methodNum)
+    );
+}
+
+Interpretation::Thunk Execution::GetInterfaceThunk(TypeInfo where, TypeInfo interf, int methodNum)
+{
+    auto dynTypeInfo      = UnpackTypeInfo(where);
     DYN_FuncPtr* table    = g_CJNativeInterfaceInstance.getMTable(dynTypeInfo, UnpackTypeInfo(interf));
     auto target           = table[methodNum];
 

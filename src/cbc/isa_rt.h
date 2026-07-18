@@ -82,6 +82,7 @@
     X(DIRECT_CALL_2C, B3xi12, "call.2c $1I12L")                                                                        \
     X(VIRTUAL_CALL, VirtualCall, "vcall $0U16 $1U16")                                                                  \
     X(INTERFACE_CALL, InterfaceCall, "icall $0U16 $1U64")                                                              \
+    X(INTERFACE_CALL_GENERIC, InterfaceCallGeneric, "icall.g.$2U8 $0U16 $1U16")                                        \
     X(MEMSPACE, B1, "memspace {")                                                                                      \
     X(GC_POINT, B1, "gcpoint")                                                                                         \
     X(BFXS, BFX, "bfxs $0ir $1ir $2U8 $3U8")                                                                           \
@@ -98,7 +99,9 @@
     X(READ_STRUCT_FIELD, StructFieldOp, "read.struct.field $0ir $1ir $2ir $4U64")                                      \
     X(WRITE_STRUCT_FIELD, StructFieldOp, "write.struct.field $0ir $1ir $2ir $4U64")                                    \
     X(THROW, B2xr, "throw $1ir")                                                                                       \
-    X(CATCH, B2xr, "catch $1ir")
+    X(CATCH, B2xr, "catch $1ir")                                                                                       \
+    X(ASSIGN_GENERIC, B3xrrr, "assign.g $1ir $2ir $3ir")                                                               \
+    X(IOF_GENERIC, B3xrrr, "iof.g $1ir $2ir $3ir")
 
 // X parameters: opcode, encoding format, string format, is tail
 #define CBC_RT_MEMOPCODES(X)                                                                                           \
@@ -671,6 +674,22 @@ struct InterfaceCall {
         auto ti   = reader.Read64();
         auto sret = reader.Read8();
         return InterfaceCall { opc, vnum, ti, sret };
+    }
+};
+
+struct InterfaceCallGeneric {
+    Opcode opc;
+    uint16_t vnum;
+    uint16_t argn;
+    uint8_t sret; // TODO: add two instruction for sret/non-sret versions
+
+    static InterfaceCallGeneric Decode(Decoder::ByteReader& reader)
+    {
+        auto opc  = Opcode::Decode(reader);
+        auto vnum = reader.Read16();
+        auto argn = reader.Read16();
+        auto sret = reader.Read8();
+        return InterfaceCallGeneric { opc, vnum, argn, sret };
     }
 };
 

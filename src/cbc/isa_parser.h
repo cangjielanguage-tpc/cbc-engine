@@ -62,6 +62,9 @@ protected:
     virtual void LoadField(IReg rb, AnyReg rs, uint16_t field)  = 0;
     virtual void StoreField(IReg rb, AnyReg rd, uint16_t field) = 0;
 
+    virtual void AssignGeneric(IReg dst, IReg src, IReg ti) = 0;
+    virtual void InstanceOfGeneric(IReg dst, IReg obj, IReg ti) = 0;
+
     virtual void LoadTypeInfoGeneric(IReg dst, uint16_t typeId) = 0;
 
     virtual void LoadTypeInfoSig(IReg dst, uint16_t type) = 0;
@@ -69,6 +72,7 @@ protected:
     virtual void CallDirect(IReg dst, uint16_t method)    = 0;
     virtual void CallVirtual(IReg dst, uint16_t method)   = 0;
     virtual void CallInterf(IReg dst, uint16_t method)    = 0;
+    virtual void CallInterfGeneric(uint16_t argnum, uint16_t method) = 0;
     virtual void Spawn(IReg closure, uint16_t type)       = 0;
     virtual void SpawnFuture(IReg future, uint16_t type)  = 0;
     virtual void CallClosure(IReg dst, uint16_t type, bool generic) = 0;

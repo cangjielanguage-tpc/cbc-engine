@@ -138,6 +138,12 @@ ResolvingOutput& ResolvingOutput::TypeDefinition(Symlevel::TypeDefinition const&
     Region(StringOf(td.GetName()), [&]() {
         out << "super: " << Detailed(td.GetSuperType()) << endl;
 
+        Region("interfaces", [&]() {
+            for (auto id : td.GetInterfaces().Values(session)) {
+                out << Detailed(id) << endl;
+            }
+        });
+
         Region("fields", [&]() {
             for (auto field : td.GetFields().Entries(session)) {
                 out << Detailed(field) << endl;

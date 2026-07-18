@@ -222,6 +222,20 @@ struct IsaDisasm : public IsaParser {
         stream << ", " << optionTypeInfo.ToStr() << ", " << optionTypeInfoId << endl;
     }
 
+    void AssignGeneric(IReg dst, IReg src, IReg ti) override
+    {
+        stream << "assign.g" << dst.ToStr() << ", ";
+        stream << src.ToStr() << ", ";
+        stream << ti.ToStr() << endl;
+    }
+
+    void InstanceOfGeneric(IReg dst, IReg obj, IReg ti) override
+    {
+        stream << "iof.g" << dst.ToStr() << ", ";
+        stream << obj.ToStr() << ", ";
+        stream << ti.ToStr() << endl;
+    }
+
     void NewObj(IReg dst, uint16_t type) override { stream << "newobj" << " " << dst.ToStr() << ", " << type << endl; }
 
     void NewClosure(IReg dst, uint16_t type) override
@@ -242,6 +256,11 @@ struct IsaDisasm : public IsaParser {
     void CallInterf(IReg dst, uint16_t method) override
     {
         stream << "call.interf" << " " << dst.ToStr() << ", " << method << endl;
+    }
+
+    void CallInterfGeneric(uint16_t argnum, uint16_t method) override
+    {
+        stream << "call.interf.g" << " " << argnum << ", " << method << endl;
     }
 
     void Spawn(IReg closure, uint16_t type) override

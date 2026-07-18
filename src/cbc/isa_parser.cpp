@@ -488,6 +488,24 @@ struct IsaParserImpl {
         parser.LoadTypeInfoObj(dst, obj);
     }
 
+    static void AssignGeneric(IsaParser& parser)
+    {
+        auto [dst, src, ti, _] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
+        parser.AssignGeneric(dst, src, ti);
+    }
+
+    static void InstanceOfGeneric(IsaParser& parser)
+    {
+        auto [dst, obj, ti, _] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
+        parser.InstanceOfGeneric(dst, obj, ti);
+    }
+
+    static void CallInterfGeneric(IsaParser& parser)
+    {
+        auto [argnum, methodId] = ByteReaderM(parser.reader).ReadU16().ReadU16().Get();
+        parser.CallInterfGeneric(argnum, methodId);
+    }
+
     static void RegSymGroup(IsaParser& parser)
     {
         static constexpr bool GENERIC     = true;

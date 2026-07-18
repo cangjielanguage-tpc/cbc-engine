@@ -1,5 +1,6 @@
 #include "interpretation_loop.h"
 #include "cbc/formater_rt.h"
+#include "cbc/frame.h"
 #include "cbc/isa.h"
 #include "cbc/isa_rt.h"
 #include "engine/symlevel/code.h"
@@ -756,13 +757,20 @@ INTERFACE_CALL: {
     auto args = InterfaceCall::Decode(reader);
     LOG_INSTR;
     auto num       = args.vnum;
-    auto typeInfo  = TypeInfo(static_cast<uintptr_t>(args.ti));
+    auto interf    = TypeInfo(static_cast<uintptr_t>(args.ti));
 
     auto receiver = IReg::IR1;
     if (HAS_SRET_SHIFT && args.sret) {
         receiver = Cbc::IReg::IR2;
     }
     auto reference = ectype->GetReference(receiver);
+
+    struct Object {
+        TypeInfo header;
+    };
+
+    Object* object = reinterpret_cast<Object*>(reference.value);
+    auto typeInfo  = object->header;
 
     // For proper support of fibers, the following call MUST drop the current frame.
     // This can not be guaranteed by C++ compiler consistently, because TCO
@@ -774,7 +782,77 @@ INTERFACE_CALL: {
 
     reader0 = reader; // save current pc
 
-    return Execution::GetInterfaceThunk(reference, typeInfo, num);
+    return Execution::GetInterfaceThunk(typeInfo, interf, num);
+}
+INTERFACE_CALL_GENERIC: {
+    auto args = InterfaceCallGeneric::Decode(reader);
+    LOG_INSTR;
+    auto num    = args.vnum;
+    auto sret   = args.sret;
+    auto interf = TypeInfo(ectype->GetPrimitive(IReg::TAIL_REG).u64);
+
+    auto receiver = IReg::IR1;
+    if (HAS_SRET_SHIFT && sret) {
+        receiver = Cbc::IReg::IR2;
+    }
+    auto reference = ectype->GetReference(receiver);
+
+    struct Object {
+        TypeInfo header;
+    };
+
+    Object* object = reinterpret_cast<Object*>(reference.value);
+    auto typeInfo  = object->header;
+
+    auto outerTI = Execution::GetMethodOuterTi(typeInfo, interf, num);
+
+    if (IReg::VIRT_COUNT < args.argn) {
+        ectype->Put(IReg::From(args.argn), Value::Primitive { outerTI.UInt() });
+    } else {
+        // FIXME: share the same offset calculation logic as in rewriter.
+        auto untypedSlot = args.argn - IReg::VIRT_COUNT;
+        auto slotOffset  = untypedSlot * STACK_SLOT_SIZE;
+        auto location    = reinterpret_cast<TypeInfo*>(frame.start + slotOffset);
+        *location        = outerTI;
+    }
+
+    // For proper support of fibers, the following call MUST drop the current frame.
+    // This can not be guaranteed by C++ compiler consistently, because TCO
+    // is not guaranteed and `mustcall` attribute is not supported
+    // fully by gcc/clang compilers.
+    //
+    // Instead, the following call will drop the current frame manually
+    // (outside of unit-test framework).
+
+    reader0 = reader; // save current pc
+
+    return Execution::GetInterfaceThunk(typeInfo, interf, num);
+}
+
+ASSIGN_GENERIC: {
+    auto args = B3xrrr::Decode(reader);
+    auto rdst = args.xr.r.IR();
+    auto rsrc = args.rr.x.IR();
+    auto rti  = args.rr.y.IR();
+
+    auto src = ectype->GetReference(rsrc);
+    auto dst = ectype->GetReference(rdst);
+    auto ti  = TypeInfo(ectype->GetPrimitive(rti).u64);
+
+    Execution::WriteStructField(src.value + MetaInfo::ObjectHeaderSize(), dst, dst.value + MetaInfo::ObjectHeaderSize(), ti, handle);
+    NEXT;
+}
+
+IOF_GENERIC: {
+    auto args = B3xrrr::Decode(reader);
+    auto dst  = args.xr.r.IR();
+    auto robj = args.rr.x.IR();
+    auto rti  = args.rr.y.IR();
+
+    auto obj = ectype->GetReference(robj);
+    auto ti  = TypeInfo(ectype->GetPrimitive(rti).u64);
+    ectype->Put(dst, Value::Primitive { .u64 = Execution::IsInstanceOf(obj, ti) });
+    NEXT;
 }
 
 STRING_INIT: {

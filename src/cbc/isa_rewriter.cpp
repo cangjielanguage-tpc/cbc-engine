@@ -474,11 +474,11 @@ struct IsaRewriter : public IsaParser {
 
         emit.LoadObj(LDK::LD_REF, dst, src, RTSupport::MetaInfo::ObjectHeaderSize());
         switch (typeDef->enumKind) {
-            case Symlevel::EnumKind::OPTION0: // enum { None, Some(T) }
-                emit.SCC(Format::CC::RNE, Format::Width::W64, dst, dst, IReg::IRZ);
-                break;
-            case Symlevel::EnumKind::OPTION1: // enum { Some(T), None }
+            case Symlevel::EnumKind::OPTION0: // enum { Some(T), None }
                 emit.SCC(Format::CC::REQ, Format::Width::W64, dst, dst, IReg::IRZ);
+                break;
+            case Symlevel::EnumKind::OPTION1: // enum { None, Some(T) }
+                emit.SCC(Format::CC::RNE, Format::Width::W64, dst, dst, IReg::IRZ);
                 break;
             default: return Fail("unexpected enum kind");
         }
@@ -579,6 +579,10 @@ struct IsaRewriter : public IsaParser {
         emit.Mov(dst, IReg::IR_ACC);
     }
 
+    void AssignGeneric(IReg dst, IReg src, IReg ti) override { emit.AssignGeneric(dst, src, ti); }
+
+    void InstanceOfGeneric(IReg dst, IReg obj, IReg ti) override { emit.InstanceOfGeneric(dst, obj, ti); }
+
     std::optional<Type> NewObject(IReg dst, uint16_t typeId, New kind)
     {
         auto t = resolver.Query(Index<Type>(typeId));
@@ -656,6 +660,18 @@ struct IsaRewriter : public IsaParser {
         emit.InterfaceCall(method->methodNum, *ti, method->sret);
         BindStatePoint();
         AdjustReg(dst, IReg::IR1);
+    }
+
+    void CallInterfGeneric(uint16_t argnum, uint16_t methodId) override
+    {
+        auto m = resolver.Query(Index<InterfaceCall>(methodId));
+        if (!m.has_value()) {
+            Fail();
+            return;
+        }
+        auto method = m.value();
+        emit.InterfaceCallGeneric(method->methodNum, argnum, method->sret);
+        BindStatePoint();
     }
 
     void Spawn(IReg closure, uint16_t typeId) override
@@ -806,7 +822,7 @@ struct IsaRewriter : public IsaParser {
 
     void ArrayIndexCheck(IReg length, IReg index) override { FATAL("not implemented"); }
 
-    uint32_t UntypedSlotOffset(uint16_t us) { return us * STACK_SLOT_SIZE; }
+    static uint32_t UntypedSlotOffset(uint16_t us) { return us * STACK_SLOT_SIZE; }
 
     void LoadUntyped(AnyReg dst, Format::LoadAccessKind ldk, uint16_t us) override
     {
@@ -922,7 +938,8 @@ struct IsaRewriter : public IsaParser {
                 Fail();
                 return;
             }
-            auto ti = t.value().GetTypeInfo();
+            auto type = t.value();
+            auto ti   = type.GetTypeInfo();
             if (!ti.has_value()) {
                 Fail();
                 return;
@@ -934,7 +951,11 @@ struct IsaRewriter : public IsaParser {
             BindStatePoint();
             auto ms = emit.OpenMemSpace();
             ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
-            ms.WriteStructFieldObj(isrc, IReg::IR_ACC, typeInfo);
+            if (type.GetKind() == CbcTypeKind::REF) {
+                ms.StoreObj(Format::StoreAccessKind::ST_REF, isrc, IReg::IR_ACC);
+            } else {
+                ms.WriteStructFieldObj(isrc, IReg::IR_ACC, typeInfo);
+            }
             AdjustReg(dst, IReg::IR_ACC);
         }
     }
@@ -975,14 +996,19 @@ struct IsaRewriter : public IsaParser {
                 Fail();
                 return;
             }
-            auto ti = t.value().GetTypeInfo();
-            if (!ti.has_value()) {
-                Fail();
-                return;
+            auto type = t.value();
+            if (type.GetKind() == CbcTypeKind::REF) {
+                emit.LoadObj(Format::LoadAccessKind::LD_REF, dst, src, RTSupport::MetaInfo::ObjectHeaderSize());
+            } else {
+                auto ti   = type.GetTypeInfo();
+                if (!ti.has_value()) {
+                    Fail();
+                    return;
+                }
+                auto typeInfo = ti.value();
+                emit.LoadObj(Format::LoadAccessKind::LEA, IReg::IR_ACC, src, RTSupport::MetaInfo::ObjectHeaderSize());
+                emit.ReadStructField(IReg::From(dst), src, IReg::IR_ACC, typeInfo);
             }
-            auto typeInfo = ti.value();
-            emit.LoadObj(Format::LoadAccessKind::LEA, IReg::IR_ACC, src, RTSupport::MetaInfo::ObjectHeaderSize());
-            emit.ReadStructField(IReg::From(dst), src, IReg::IR_ACC, typeInfo);
         }
     }
 
@@ -1371,18 +1397,30 @@ static std::optional<FrameLayout> makeFrameLayout(Symlevel::Code code, Resolver&
     for (uint32_t i = 0; i < code.StackAllocSigsCount(); i++) {
         auto typeOpt = resolver.Query(Index<Type>(code.StackAllocSigs()[i]));
         if (!typeOpt.has_value()) {
+            Interpretation::Log::preparation.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
+                out << "Failed to query type at stack-alloc index " << i << Stream::endl;
+            });
             return std::nullopt;
         }
         auto type = typeOpt.value();
         if (type.GetKind() != CbcTypeKind::REC) {
+            Interpretation::Log::preparation.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
+                out << "Unexpected kind " << (uint8_t) type.GetKind() << " at stack-alloc index " << i << " for type " << type << Stream::endl;
+            });
             return std::nullopt;
         }
         auto size = type.GetFlatSize();
         if (!size.has_value()) {
+            Interpretation::Log::preparation.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
+                out << "Unknown size at stack-alloc index " << i << " for type " << type << Stream::endl;
+            });
             return std::nullopt;
         }
         auto typeInfo = type.GetTypeInfo();
         if (!typeInfo.has_value()) {
+            Interpretation::Log::preparation.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
+                out << "Failed to obtain type info at stack-alloc index " << i << " for type " << type << Stream::endl;
+            });
             return std::nullopt;
         }
         auto typeInfoPtr = typeInfo->Raw();

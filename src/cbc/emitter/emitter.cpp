@@ -863,6 +863,15 @@ void Emitter::InterfaceCall(uint16_t methodNum, RTSupport::TypeInfo typeInfo, bo
     );
 }
 
+void Emitter::InterfaceCallGeneric(uint16_t methodNum, uint16_t argnum, bool sret)
+{
+    Encode(
+        segment,
+        RT::InterfaceCallGeneric {
+            .opc = RT::Opcode::INTERFACE_CALL_GENERIC, .vnum = methodNum, .argn = argnum, .sret = sret }
+    );
+}
+
 void Emitter::StringLit(Interpretation::StringStorage* literal, uint32_t frameOffs)
 {
     Encode(
@@ -937,6 +946,16 @@ void Emitter::WriteStructField(IReg src, IReg base, IReg field, RTSupport::TypeI
         .opc = RT::Opcode::WRITE_STRUCT_FIELD, .rr = { src, base }, .field = { field, field }, .ti = ti
     };
     Encode(segment, command);
+}
+
+void Emitter::AssignGeneric(IReg dst, IReg src, IReg ti)
+{
+    Encode(segment, RT::B3xrrr { .opc = RT::Opcode::ASSIGN_GENERIC, .xr = { 0, dst }, .rr = { src, ti } });
+}
+
+void Emitter::InstanceOfGeneric(IReg dst, IReg obj, IReg ti)
+{
+    Encode(segment, RT::B3xrrr { .opc = RT::Opcode::IOF_GENERIC, .xr = { 0, dst }, .rr = { obj, ti } });
 }
 
 } // namespace Emitter

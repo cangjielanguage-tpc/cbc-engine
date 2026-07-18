@@ -109,6 +109,9 @@
     X(NewSomeGeneric, NewSomeGeneric)                                                                                  \
     X(LoadRawMemory, LoadRawMemory)                                                                                    \
     X(StoreRawMemory, StoreRawMemory)                                                                                  \
+    X(CallInterfGeneric, CallInterfGeneric)                                                                            \
+    X(AssignGeneric, AssignGeneric)                                                                                    \
+    X(InstanceOfGeneric, InstanceOfGeneric)                                                                            \
     X(_END, Unreachable)
 
 #define ISA_MEM_OPCODES(X)                                                                                             \
