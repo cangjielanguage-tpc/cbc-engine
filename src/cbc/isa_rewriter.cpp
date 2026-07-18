@@ -579,7 +579,7 @@ struct IsaRewriter : public IsaParser {
         emit.Mov(dst, IReg::IR_ACC);
     }
 
-    void AssignGeneric(IReg dst, IReg src, IReg ti) override {}
+    void AssignGeneric(IReg dst, IReg src, IReg ti) override { emit.AssignGeneric(dst, src, ti); }
 
     std::optional<Type> NewObject(IReg dst, uint16_t typeId, New kind)
     {

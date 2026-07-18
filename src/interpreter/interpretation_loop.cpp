@@ -839,7 +839,7 @@ ASSIGN_GENERIC: {
     auto dst = ectype->GetReference(rdst);
     auto ti  = TypeInfo(ectype->GetPrimitive(rti).u64);
 
-    Execution::WriteStructField(src.value, dst, dst.value + MetaInfo::ObjectHeaderSize(), ti, handle);
+    Execution::WriteStructField(src.value + MetaInfo::ObjectHeaderSize(), dst, dst.value + MetaInfo::ObjectHeaderSize(), ti, handle);
     NEXT;
 }
 
