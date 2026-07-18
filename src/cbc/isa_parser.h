@@ -63,6 +63,7 @@ protected:
     virtual void StoreField(IReg rb, AnyReg rd, uint16_t field) = 0;
 
     virtual void AssignGeneric(IReg dst, IReg src, IReg ti) = 0;
+    virtual void InstanceOfGeneric(IReg dst, IReg obj, IReg ti) = 0;
 
     virtual void LoadTypeInfoGeneric(IReg dst, uint16_t typeId) = 0;
 

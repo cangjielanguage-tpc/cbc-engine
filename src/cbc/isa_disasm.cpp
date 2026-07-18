@@ -229,6 +229,13 @@ struct IsaDisasm : public IsaParser {
         stream << ti.ToStr() << endl;
     }
 
+    void InstanceOfGeneric(IReg dst, IReg obj, IReg ti) override
+    {
+        stream << "iof.g" << dst.ToStr() << ", ";
+        stream << obj.ToStr() << ", ";
+        stream << ti.ToStr() << endl;
+    }
+
     void NewObj(IReg dst, uint16_t type) override { stream << "newobj" << " " << dst.ToStr() << ", " << type << endl; }
 
     void NewClosure(IReg dst, uint16_t type) override

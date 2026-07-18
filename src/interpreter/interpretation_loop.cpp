@@ -843,6 +843,18 @@ ASSIGN_GENERIC: {
     NEXT;
 }
 
+IOF_GENERIC: {
+    auto args = B3xrrr::Decode(reader);
+    auto dst  = args.xr.r.IR();
+    auto robj = args.rr.x.IR();
+    auto rti  = args.rr.y.IR();
+
+    auto obj = ectype->GetReference(robj);
+    auto ti  = TypeInfo(ectype->GetPrimitive(rti).u64);
+    ectype->Put(dst, Value::Primitive { .u64 = Execution::IsInstanceOf(obj, ti) });
+    NEXT;
+}
+
 STRING_INIT: {
     auto args = B13i64i32::Decode(reader);
     LOG_INSTR;

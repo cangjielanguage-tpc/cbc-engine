@@ -953,5 +953,10 @@ void Emitter::AssignGeneric(IReg dst, IReg src, IReg ti)
     Encode(segment, RT::B3xrrr { .opc = RT::Opcode::ASSIGN_GENERIC, .xr = { 0, dst }, .rr = { src, ti } });
 }
 
+void Emitter::InstanceOfGeneric(IReg dst, IReg obj, IReg ti)
+{
+    Encode(segment, RT::B3xrrr { .opc = RT::Opcode::IOF_GENERIC, .xr = { 0, dst }, .rr = { obj, ti } });
+}
+
 } // namespace Emitter
 } // namespace Cbc

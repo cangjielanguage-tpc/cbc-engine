@@ -232,6 +232,7 @@ public:
     void Catch(IReg dst);
 
     void AssignGeneric(IReg dst, IReg src, IReg ti);
+    void InstanceOfGeneric(IReg dst, IReg obj, IReg ti);
 
     MemSpace OpenMemSpace();
 
