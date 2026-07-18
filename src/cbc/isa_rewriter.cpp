@@ -474,11 +474,11 @@ struct IsaRewriter : public IsaParser {
 
         emit.LoadObj(LDK::LD_REF, dst, src, RTSupport::MetaInfo::ObjectHeaderSize());
         switch (typeDef->enumKind) {
-            case Symlevel::EnumKind::OPTION0: // enum { None, Some(T) }
-                emit.SCC(Format::CC::RNE, Format::Width::W64, dst, dst, IReg::IRZ);
-                break;
-            case Symlevel::EnumKind::OPTION1: // enum { Some(T), None }
+            case Symlevel::EnumKind::OPTION0: // enum { Some(T), None }
                 emit.SCC(Format::CC::REQ, Format::Width::W64, dst, dst, IReg::IRZ);
+                break;
+            case Symlevel::EnumKind::OPTION1: // enum { None, Some(T) }
+                emit.SCC(Format::CC::RNE, Format::Width::W64, dst, dst, IReg::IRZ);
                 break;
             default: return Fail("unexpected enum kind");
         }
