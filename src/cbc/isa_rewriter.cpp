@@ -939,7 +939,7 @@ struct IsaRewriter : public IsaParser {
                 return;
             }
             auto type = t.value();
-            auto ti = type.GetTypeInfo();
+            auto ti   = type.GetTypeInfo();
             if (!ti.has_value()) {
                 Fail();
                 return;
@@ -996,14 +996,19 @@ struct IsaRewriter : public IsaParser {
                 Fail();
                 return;
             }
-            auto ti = t.value().GetTypeInfo();
-            if (!ti.has_value()) {
-                Fail();
-                return;
+            auto type = t.value();
+            if (type.GetKind() == CbcTypeKind::REF) {
+                emit.LoadObj(Format::LoadAccessKind::LD_REF, dst, src, RTSupport::MetaInfo::ObjectHeaderSize());
+            } else {
+                auto ti   = type.GetTypeInfo();
+                if (!ti.has_value()) {
+                    Fail();
+                    return;
+                }
+                auto typeInfo = ti.value();
+                emit.LoadObj(Format::LoadAccessKind::LEA, IReg::IR_ACC, src, RTSupport::MetaInfo::ObjectHeaderSize());
+                emit.ReadStructField(IReg::From(dst), src, IReg::IR_ACC, typeInfo);
             }
-            auto typeInfo = ti.value();
-            emit.LoadObj(Format::LoadAccessKind::LEA, IReg::IR_ACC, src, RTSupport::MetaInfo::ObjectHeaderSize());
-            emit.ReadStructField(IReg::From(dst), src, IReg::IR_ACC, typeInfo);
         }
     }
 
