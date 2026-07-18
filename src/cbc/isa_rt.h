@@ -103,7 +103,39 @@
     X(CATCH, B2xr, "catch $1ir")                                                                                       \
     X(LOG, B9i64, "log $0U64")                                                                                         \
     X(ASSIGN_GENERIC, B3xrrr, "assign.g $1ir $2ir $3ir")                                                               \
-    X(IOF_GENERIC, B3xrrr, "iof.g $1ir $2ir $3ir")
+    X(IOF_GENERIC, B3xrrr, "iof.g $1ir $2ir $3ir")                                                                     \
+    X(ATOMIC_FETCH_ADD_8, AtomicOp, "atomic.fetch.add.8 $1ir [$2ir $3U12]")                                            \
+    X(ATOMIC_FETCH_ADD_16, AtomicOp, "atomic.fetch.add.16 $1ir [$2ir $3U12]")                                          \
+    X(ATOMIC_FETCH_ADD_32, AtomicOp, "atomic.fetch.add.32 $1ir [$2ir $3U12]")                                          \
+    X(ATOMIC_FETCH_ADD_64, AtomicOp, "atomic.fetch.add.64 $1ir [$2ir $3U12]")                                          \
+    X(ATOMIC_FETCH_SUB_8, AtomicOp, "atomic.fetch.sub.8 $1ir [$2ir $3U12]")                                            \
+    X(ATOMIC_FETCH_SUB_16, AtomicOp, "atomic.fetch.sub.16 $1ir [$2ir $3U12]")                                          \
+    X(ATOMIC_FETCH_SUB_32, AtomicOp, "atomic.fetch.sub.32 $1ir [$2ir $3U12]")                                          \
+    X(ATOMIC_FETCH_SUB_64, AtomicOp, "atomic.fetch.sub.64 $1ir [$2ir $3U12]")                                          \
+    X(ATOMIC_FETCH_AND_8, AtomicOp, "atomic.fetch.and.8 $1ir [$2ir $3U12]")                                            \
+    X(ATOMIC_FETCH_AND_16, AtomicOp, "atomic.fetch.and.16 $1ir [$2ir $3U12]")                                          \
+    X(ATOMIC_FETCH_AND_32, AtomicOp, "atomic.fetch.and.32 $1ir [$2ir $3U12]")                                          \
+    X(ATOMIC_FETCH_AND_64, AtomicOp, "atomic.fetch.and.64 $1ir [$2ir $3U12]")                                          \
+    X(ATOMIC_FETCH_OR_8, AtomicOp, "atomic.fetch.or.8 $1ir [$2ir $3U12]")                                              \
+    X(ATOMIC_FETCH_OR_16, AtomicOp, "atomic.fetch.or.16 $1ir [$2ir $3U12]")                                            \
+    X(ATOMIC_FETCH_OR_32, AtomicOp, "atomic.fetch.or.32 $1ir [$2ir $3U12]")                                            \
+    X(ATOMIC_FETCH_OR_64, AtomicOp, "atomic.fetch.or.64 $1ir [$2ir $3U12]")                                            \
+    X(ATOMIC_FETCH_XOR_8, AtomicOp, "atomic.fetch.xor.8 $1ir [$2ir $3U12]")                                            \
+    X(ATOMIC_FETCH_XOR_16, AtomicOp, "atomic.fetch.xor.16 $1ir [$2ir $3U12]")                                          \
+    X(ATOMIC_FETCH_XOR_32, AtomicOp, "atomic.fetch.xor.32 $1ir [$2ir $3U12]")                                          \
+    X(ATOMIC_FETCH_XOR_64, AtomicOp, "atomic.fetch.xor.64 $1ir [$2ir $3U12]")                                          \
+    X(CAS_8, AtomicOp, "cas.8 $1ir [$2ir $3U12] $4ir")                                                                 \
+    X(CAS_16, AtomicOp, "cas.16 $1ir [$2ir $3U12] $4ir")                                                               \
+    X(CAS_32, AtomicOp, "cas.32 $1ir [$2ir $3U12] $4ir")                                                               \
+    X(CAS_64, AtomicOp, "cas.64 $1ir [$2ir $3U12] $4ir")                                                               \
+    X(CAS_REF, AtomicOp, "cas.ref $1ir [$2ir $3U12] $4ir")                                                             \
+    X(ATOMIC_SWAP_8, AtomicOp, "atomic.swap.8 $1ir [$2ir $3U12]")                                                      \
+    X(ATOMIC_SWAP_16, AtomicOp, "atomic.swap.16 $1ir [$2ir $3U12]")                                                    \
+    X(ATOMIC_SWAP_32, AtomicOp, "atomic.swap.32 $1ir [$2ir $3U12]")                                                    \
+    X(ATOMIC_SWAP_64, AtomicOp, "atomic.swap.64 $1ir [$2ir $3U12]")                                                    \
+    X(ATOMIC_SWAP_REF, AtomicOp, "atomic.swap.ref $1ir [$2ir $3U12]")                                                  \
+    X(ATOMIC_LOAD, B4xi12rr, "atomic.ld.$0ldk $2ir [$3ir $1U12]")                                                      \
+    X(ATOMIC_STORE, B4xi12rr, "atomic.st.$0stk $2ir [$3ir $1U12]")
 
 // X parameters: opcode, encoding format, string format, is tail
 #define CBC_RT_MEMOPCODES(X)                                                                                           \
@@ -576,6 +608,24 @@ struct VirtualCall {
         auto edef = reader.Read16();
         auto sret = reader.Read8();
         return VirtualCall { opc, vnum, edef, sret };
+    }
+};
+
+struct AtomicOp {
+    static constexpr int SIZE = 5;
+
+    Opcode opc;
+    Format::RR rr1;
+    Format::RR rr2;
+    uint16_t offset;
+
+    static AtomicOp Decode(Decoder::ByteReader& reader)
+    {
+        auto opc   = Opcode::Decode(reader);
+        auto rr1   = Format::RR::Decode(reader);
+        auto rr2   = Format::RR::Decode(reader);
+        auto field = reader.Read16();
+        return AtomicOp { opc, rr1, rr2, field };
     }
 };
 

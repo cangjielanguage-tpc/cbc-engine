@@ -1,4 +1,5 @@
 #include "interpretation_loop.h"
+#include <atomic>
 #include "cbc/formater_rt.h"
 #include "cbc/frame.h"
 #include "cbc/isa.h"
@@ -971,6 +972,99 @@ LABEL(THROW) {
         FATAL("unexpected null in THROW");
     }
     THROW_EXPLICIT(ref.value);
+}
+
+#define ATOMIC_FETCH_CASE(OP, op, size)                                                                                \
+    ATOMIC_FETCH_##OP##_##size: {                                                                                      \
+        auto args = AtomicOp::Decode(reader);                                                                          \
+        LOG_INSTR;                                                                                                     \
+        interpreter.AtomicFetch<uint##size##_t>(                                                                       \
+            args.rr1.x.IR(), args.rr1.y.IR(), args.rr2.x.IR(), args.offset,                                            \
+            [](auto* atomicVal, auto val) { return atomicVal->fetch_##op(val, std::memory_order_seq_cst); }            \
+        );                                                                                                             \
+        NEXT;                                                                                                          \
+    }
+
+    ATOMIC_FETCH_CASE(ADD, add, 8)
+    ATOMIC_FETCH_CASE(ADD, add, 16)
+    ATOMIC_FETCH_CASE(ADD, add, 32)
+    ATOMIC_FETCH_CASE(ADD, add, 64)
+    ATOMIC_FETCH_CASE(SUB, sub, 8)
+    ATOMIC_FETCH_CASE(SUB, sub, 16)
+    ATOMIC_FETCH_CASE(SUB, sub, 32)
+    ATOMIC_FETCH_CASE(SUB, sub, 64)
+    ATOMIC_FETCH_CASE(AND, and, 8)
+    ATOMIC_FETCH_CASE(AND, and, 16)
+    ATOMIC_FETCH_CASE(AND, and, 32)
+    ATOMIC_FETCH_CASE(AND, and, 64)
+    ATOMIC_FETCH_CASE(OR,  or,  8)
+    ATOMIC_FETCH_CASE(OR,  or,  16)
+    ATOMIC_FETCH_CASE(OR,  or,  32)
+    ATOMIC_FETCH_CASE(OR,  or,  64)
+    ATOMIC_FETCH_CASE(XOR, xor, 8)
+    ATOMIC_FETCH_CASE(XOR, xor, 16)
+    ATOMIC_FETCH_CASE(XOR, xor, 32)
+    ATOMIC_FETCH_CASE(XOR, xor, 64)
+#undef ATOMIC_FETCH_CASE
+
+#define CAS_CASE(size)                                                                                                 \
+    CAS_##size: {                                                                                                      \
+        auto args = AtomicOp::Decode(reader);                                                                          \
+        LOG_INSTR;                                                                                                     \
+        interpreter.CASPrim<uint##size##_t>(                                                                           \
+            args.rr1.x.IR(), args.rr1.y.IR(), args.rr2.x.IR(), args.rr2.y.IR(), args.offset                            \
+        );                                                                                                             \
+        NEXT;                                                                                                          \
+    }
+
+    CAS_CASE(8)
+    CAS_CASE(16)
+    CAS_CASE(32)
+    CAS_CASE(64)
+#undef CAS_CASE
+
+CAS_REF: {
+    auto args = AtomicOp::Decode(reader);
+    LOG_INSTR;
+    interpreter.CASRef(args.rr1.x.IR(), args.rr1.y.IR(), args.rr2.x.IR(), args.rr2.y.IR(), args.offset);
+    NEXT;
+}
+
+#define SWAP_CASE(size)                                                                                               \
+    ATOMIC_SWAP_##size: {                                                                                             \
+        auto args = AtomicOp::Decode(reader);                                                                         \
+        LOG_INSTR;                                                                                                    \
+        interpreter.AtomicSwapPrim<uint##size##_t>(                                                                   \
+            args.rr1.x.IR(), args.rr1.y.IR(), args.rr2.x.IR(), args.offset                                            \
+        );                                                                                                            \
+        NEXT;                                                                                                         \
+    }
+
+    SWAP_CASE(8)
+    SWAP_CASE(16)
+    SWAP_CASE(32)
+    SWAP_CASE(64)
+#undef SWAP_CASE
+
+ATOMIC_SWAP_REF: {
+    auto args = AtomicOp::Decode(reader);
+    LOG_INSTR;
+    interpreter.AtomicSwapRef(args.rr1.x.IR(), args.rr1.y.IR(), args.rr2.x.IR(), args.offset);
+    NEXT;
+}
+
+ATOMIC_LOAD: {
+    auto args = B4xi12rr::Decode(reader);
+    LOG_INSTR;
+    interpreter.AtomicLoad(args.xi12.imm4.LDK(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12);
+    NEXT;
+}
+
+ATOMIC_STORE: {
+    auto args = B4xi12rr::Decode(reader);
+    LOG_INSTR;
+    interpreter.AtomicStore(args.xi12.imm4.STK(), args.rr.x.IR(), args.rr.y.IR(), args.xi12.imm12);
+    NEXT;
 }
 
 LABEL(MEMSPACE) {
