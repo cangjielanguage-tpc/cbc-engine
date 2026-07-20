@@ -1124,7 +1124,8 @@ struct IsaRewriter : public IsaParser {
         }
         auto field  = f.value();
         Interpretation::Log::preparation.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
-            out << "STATIC FIELD at " << field->location << ": MemHeadStatic " << field->name << " " << field->refType << Stream::endl;
+            out << "STATIC FIELD at " << field->location << ": MemHeadStatic " << field->name << " " << field->refType
+                << " " << field->fieldType << Stream::endl;
         });
 
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
