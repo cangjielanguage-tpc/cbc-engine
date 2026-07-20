@@ -455,9 +455,10 @@ perform_2i_call:
   push  ECTYPE_REG   // rbp - 0x10
   push  LITERALS_REG // rbp - 0x18
   push  EXTRA_REG    // rbp - 0x20
+  push  rdi          // rbp - 0x28 : check sum
 
   // reserve slots and align stack
-  sub   rsp, LOCAL_SLOTS_OFFSET - EXTRA_SAVED_REG_OFFSET
+  sub   rsp, LOCAL_SLOTS_OFFSET - CHECK_SUM_OFFSET
 
   // FIXME: perform stack check here!
 
@@ -505,6 +506,11 @@ perform_2i_call:
   mov   r8d, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   sub   rsp, r8
 
+  mov   rsi, QWORD PTR [rax + EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
+  xor   rsi, rdx
+  xor   rsi, r8
+  mov   [rbp - CHECK_SUM_OFFSET], rsi
+
   PUSH_REGS rcx, rdx, rax, rsi
 
 .Lrestart_interpretation:
@@ -537,7 +543,16 @@ perform_2i_call:
   mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
 
   mov   edx, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
+  mov   r8d, edx
   add   rdx, rsp // add frame size to locate saved registers
+
+  mov   rsi, QWORD PTR [rax + EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
+  xor   rsi, rdx
+  xor   rsi, r8
+  cmp   rsi, [rbp - CHECK_SUM_OFFSET]
+  je    .Lcheck_sum_ok
+  ud2
+.Lcheck_sum_ok:
 
   POP_REGS rcx, rdx, rax, rsi, rdi
 

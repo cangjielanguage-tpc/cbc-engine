@@ -5,6 +5,7 @@
 #include "cbc/isa.h"
 #include "interpreter/loggers.h"
 #include <cstddef>
+#include <cstdint>
 
 #define MAGIC_WORD 0xCBC0C0DE
 
@@ -101,12 +102,14 @@ public:
     IRegContainer iregs[IReg::COUNT];
     FRegContainer fregs[FReg::COUNT];
 
+    uint64_t hash;
     uint32_t magic = MAGIC_WORD;
 };
 
 class EctypeInvariants {
     static_assert(offsetof(Ectype, iregs) == ECTYPE_IREGS_OFFSET);
     static_assert(offsetof(Ectype, fregs) == ECTYPE_FREGS_OFFSET);
+    static_assert(offsetof(Ectype, hash) == ECTYPE_HASH_OFFSET);
     static_assert(offsetof(Ectype, iregs[IReg::IR_ACC]) == ECTYPE_IACC_OFFSET);
     static_assert(ECTYPE_IACC_NUM == IReg::IR_ACC);
     static_assert(IReg::COUNT == ECTYPE_IREGS_COUNT);
