@@ -7,7 +7,6 @@
 #include "cbc/isa_disasm.h"
 #include "cbc/isa_parser.h"
 #include "engine/engine.h"
-#include "engine/method_table.h"
 #include "engine/resolving_output.h"
 #include "engine/symlevel/code.h"
 #include "engine/symlevel/definitions.h"
@@ -716,26 +715,21 @@ struct IsaRewriter : public IsaParser {
             return;
         }
 
-        auto& manager = Engine::MethodTableManager::Of(resolver.session);
-        auto optMT    = manager.GetMethodTable(resolver.session, type->term);
-        if (!optMT.has_value()) {
-            errStream << "Failed to build method table for closure " << *type << Stream::endl;
-            Fail();
-            return;
+        auto typeDefId = Engine::TypeTermId(type->term).GetIdentifier();
+        auto typeDef   = Symlevel::Reader::Read(resolver.session, typeDefId);
+
+        int idx = 0;
+        for (auto methodId : typeDef.GetVirtualMethods().Values(resolver.session)) {
+            if (idx++ == 1) {
+                auto method = Symlevel::Reader::Read(resolver.session, methodId);
+                auto sret   = method.GetFlags().Is(Symlevel::MethodFlag::SRET);
+
+                emit.InitClosure(sret);
+                AdjustReg(dst, IReg::IR1);
+                return;
+            }
         }
-
-        auto mt = *optMT;
-        ASSERTION(mt->EntryCount() == 2, "Closures should have only two virtual methods");
-
-        auto entries           = mt->Entries();
-        auto instantiatedEntry = entries.begin();
-        ++instantiatedEntry;
-
-        auto instantiatedMethod = Symlevel::Reader::Read(resolver.session, instantiatedEntry->method);
-        auto instantiatedSret   = instantiatedMethod.GetFlags().Is(Symlevel::MethodFlag::SRET);
-
-        emit.InitClosure(instantiatedSret);
-        AdjustReg(dst, IReg::IR1);
+        Fail("failed to find instantiated version of method in closure");
     }
 
     void Scc(Format::Width width, Format::CC cc, IReg d, AnyReg l, AnyReg r) override
