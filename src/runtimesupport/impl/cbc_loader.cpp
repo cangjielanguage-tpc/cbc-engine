@@ -28,9 +28,19 @@ static void LogCbcDirectoryScan(std::string const& message)
     Log::rt.Log(Logging::Level::TRACE, [&message](Stream::Output& out) { out << message << Stream::endl; });
 }
 
+static bool IsSameFile(struct stat const& lhs, struct stat const& rhs)
+{
+    return lhs.st_dev == rhs.st_dev && lhs.st_ino == rhs.st_ino;
+}
+
 } // namespace
 
 void LoadCbcFilesFromDirectory(Engine::Loader& loader, std::string const& cbcDir)
+{
+    LoadCbcFilesFromDirectory(loader, cbcDir, {});
+}
+
+void LoadCbcFilesFromDirectory(Engine::Loader& loader, std::string const& cbcDir, std::string const& excludedCbc)
 {
     errno = 0;
     std::unique_ptr<DIR, DirectoryCloser> directory(opendir(cbcDir.c_str()));
@@ -40,6 +50,9 @@ void LoadCbcFilesFromDirectory(Engine::Loader& loader, std::string const& cbcDir
         LogCbcDirectoryScan(message + cbcDir);
         return;
     }
+
+    struct stat excludedFileStat {};
+    auto hasExcludedFile = !excludedCbc.empty() && stat(excludedCbc.c_str(), &excludedFileStat) == 0;
 
     constexpr std::string_view cbcExtension = ".cbc";
     bool foundCbc                           = false;
@@ -73,7 +86,12 @@ void LoadCbcFilesFromDirectory(Engine::Loader& loader, std::string const& cbcDir
             continue;
         }
 
-        foundCbc  = true;
+        foundCbc = true;
+        if (hasExcludedFile && IsSameFile(fileStat, excludedFileStat)) {
+            LogCbcDirectoryScan("skipping explicitly loaded cbc file: " + candidate);
+            continue;
+        }
+
         auto file = IO::TryOpenFile(candidate);
         if (!file.has_value()) {
             LogCbcDirectoryScan("failed to open cbc file: " + candidate);
