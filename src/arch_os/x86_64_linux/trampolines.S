@@ -44,8 +44,7 @@ declare_hidden engine_carrier_specific_offset
 declare_hidden engine_cjthread_specific_offset
 declare_hidden engine_i2_spawn
 declare_hidden engine_stack_grow_stub
-declare_hidden engine_ectype_saving_stub_pc_start
-declare_hidden engine_ectype_saving_stub_pc_end
+declare_hidden engine_after_stack_grow
 
 // --- SECTION BSS ---
 .section .bss
@@ -666,13 +665,13 @@ engine_handle_exception:
 // preserves: all registers
 // Expands stack and returns to perform 2i call or throws SOE if stack expansion is impossible
 .balign 16
-engine_ectype_saving_stub_pc_start:
 expand_stack_or_throw_soe:
   add   rsp, r8    // rsp state on prologue
   save_all_iregs rax
 
   mov   rax, 0x20  // adjusted size (TODO: its meaning is not really known, need to investigate more)
   call  [rip + engine_stack_grow_stub]
+engine_after_stack_grow:
 
   restore_all_iregs rax
   mov   rdx, rsp   // update rdx after stack movement
@@ -683,4 +682,3 @@ expand_stack_or_throw_soe:
   mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
 
   jmp   .Lafter_stack_check
-engine_ectype_saving_stub_pc_end:

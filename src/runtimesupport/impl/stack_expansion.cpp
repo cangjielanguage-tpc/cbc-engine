@@ -14,11 +14,9 @@ using namespace GCSupport;
 using namespace Interpretation;
 
 // Checks if the received ip is an ip of frame in which stack check is occured.
-static bool isTopInterpreterFrame(uintptr_t ip)
+static bool IsTopInterpreterFrame(uintptr_t ip)
 {
-    uintptr_t start = reinterpret_cast<uintptr_t>(&Asm::engine_ectype_saving_stub_pc_start);
-    uintptr_t end   = reinterpret_cast<uintptr_t>(&Asm::engine_ectype_saving_stub_pc_end);
-    return start <= ip && ip < end;
+    return ip == reinterpret_cast<uintptr_t>(&Asm::engine_after_stack_grow);
 }
 
 static std::pair<const GCPositionalInfo*, const StackPtrsPositionalInfo*> FindPositionalInfo(
@@ -76,7 +74,7 @@ void VisitFrameRootsForStackPtrs(
     // Frame pointer is also a pointer to stack, so it needs to be adjusted.
     VisitRoot(stackPtrVisitor, (Placeholder)frameDesc.fp);
 
-    if (isTopInterpreterFrame(reinterpret_cast<uintptr_t>(frameDesc.ip))) {
+    if (IsTopInterpreterFrame(reinterpret_cast<uintptr_t>(frameDesc.ip))) {
         // Detected frame is in which prologue stack check happens.
         // There are no stack ptr maps for prologue, find roots by abi and signature info.
 
