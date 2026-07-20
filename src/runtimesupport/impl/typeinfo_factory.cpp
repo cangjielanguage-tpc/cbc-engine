@@ -192,7 +192,7 @@ struct TypeInfoBuilder {
         }
 
         result->gctib           = gctib;
-        result->uuid            = uuid;
+        //result->uuid            = uuid;
         result->align           = align;
         result->typeArgsNum     = typeArgsNum;
         result->validInheritNum = validInheritNum;
@@ -348,9 +348,14 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         builder.name = stringBuffer.ToCString();
     }
 
+    currentTypeInfo->base.typeArgsNum = 0;
+    currentTypeInfo->base.typeInfoName = builder.name;
+    currentTypeInfo->base.uuid = 0;
+
     // Register term to allow recursive queries.
     // TODO: handle unbounded recurisive queries.
     manager.RegisterPartial(term, TypeInfo(currentTypeInfo));
+    builder.typeArgsNum = 0; // Otherwise, runtime would expect type template to be present.
 
     if (builder.name == nullptr) {
         return std::nullopt;
@@ -388,6 +393,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             break;
         default: FATAL("unreachable type kind");
     }
+    currentTypeInfo->base.type = builder.type;
 
     auto queryTypeInfo = [&session, &manager, term, currentTypeInfo](Engine::Term t
                          ) -> std::optional<RTSupport::TypeInfo> {
@@ -633,7 +639,6 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         builder.instanceSize = 0;
     }
 
-    builder.typeArgsNum = 0; // Otherwise, runtime would expect type template to be present.
     int typeArgsNum     = term.GetLength();
     if (typeArgsNum > 0) {
         builder.typeArgs = Alloc<DYN_TypeInfo*>(typeArgsNum);
