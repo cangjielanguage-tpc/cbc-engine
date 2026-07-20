@@ -1,18 +1,15 @@
 #include "runtimesupport/impl/entrypoint.h"
 
-#include <algorithm>
-#include <cerrno>
-#include <dirent.h>
-#include <memory>
 #include <mutex>
-#include <string_view>
-#include <sys/stat.h>
+#include <type_traits>
+#include <utility>
 
 #include "RTInterface.h"
 #include "asm_export.h"
 #include "asm_trampolines.h"
 #include "cbc/isa_disasm.h"
 #include "cbc_engine.h"
+#include "cbc_loader.h"
 #include "cjnative.h"
 #include "engine/engine.h"
 #include "engine/options.h"
@@ -40,78 +37,6 @@ static bool g_Initialized;
 static bool g_OptionsInitialized;
 static bool g_Patched;
 
-struct DirectoryCloser {
-    void operator()(DIR* directory) const
-    {
-        if (directory != nullptr) {
-            closedir(directory);
-        }
-    }
-};
-
-static void LogCbcDirectoryScan(std::string const& message)
-{
-    RTSupport::Log::rt.Log(Logging::Level::TRACE, [&message](Stream::Output& out) { out << message << Stream::endl; });
-}
-
-static void LoadCbcFilesFromDirectory(Engine::Loader& loader, std::string const& cbcDir)
-{
-    errno = 0;
-    std::unique_ptr<DIR, DirectoryCloser> directory(opendir(cbcDir.c_str()));
-    if (directory == nullptr) {
-        auto const message =
-            errno == ENOENT || errno == ENOTDIR ? "cbc directory does not exist: " : "failed to access cbc directory: ";
-        LogCbcDirectoryScan(message + cbcDir);
-        return;
-    }
-
-    constexpr std::string_view cbcExtension = ".cbc";
-    bool foundCbc                           = false;
-    while (true) {
-        errno       = 0;
-        auto* entry = readdir(directory.get());
-        if (entry == nullptr) {
-            if (errno != 0) {
-                LogCbcDirectoryScan("failed to scan cbc directory: " + cbcDir);
-                return;
-            }
-            break;
-        }
-
-        std::string_view fileName(entry->d_name);
-        if (fileName.size() <= cbcExtension.size()) {
-            continue;
-        }
-        if (fileName.compare(fileName.size() - cbcExtension.size(), cbcExtension.size(), cbcExtension) != 0) {
-            continue;
-        }
-
-        auto candidate = cbcDir;
-        if (!candidate.empty() && candidate.back() != '/') {
-            candidate += '/';
-        }
-        candidate += fileName;
-
-        struct stat fileStat {};
-        if (stat(candidate.c_str(), &fileStat) != 0 || !S_ISREG(fileStat.st_mode)) {
-            continue;
-        }
-
-        foundCbc  = true;
-        auto file = IO::TryOpenFile(candidate);
-        if (!file.has_value()) {
-            LogCbcDirectoryScan("failed to open cbc file: " + candidate);
-            continue;
-        }
-        LogCbcDirectoryScan("successfully opened cbc file: " + candidate);
-        loader.Load(std::move(file.value()), candidate);
-    }
-
-    if (!foundCbc) {
-        LogCbcDirectoryScan("no .cbc files found in cbc directory: " + cbcDir);
-    }
-}
-
 static void InitEnvOpts()
 {
     std::lock_guard guard(g_InitializationGuard);
@@ -138,7 +63,7 @@ static void EnsureEngineInitialized()
 
     if (!g_cbcPath.empty()) {
         // TODO: support ':'-delimited directories in cbc.path
-        LoadCbcFilesFromDirectory(loader, g_cbcPath);
+        RTSupport::LoadCbcFilesFromDirectory(loader, g_cbcPath);
     }
 
     if (!g_mainCbc.empty()) {
