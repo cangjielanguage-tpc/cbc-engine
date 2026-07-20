@@ -352,6 +352,9 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto field  = f.value();
+        Interpretation::Log::preparation.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
+            out << "STATIC FIELD at " << field->location << ": LoadStatic " << field->name << " " << field->refType << Stream::endl;
+        });
         auto symbol = emit.NewAddressSym(field->location);
         emit.LoadStatic(Ldk(field->fieldType.GetKind()), r, symbol);
     }
@@ -364,6 +367,9 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto field  = f.value();
+        Interpretation::Log::preparation.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
+            out << "STATIC FIELD at " << field->location << ": StoreStatic " << field->name << " " << field->refType << Stream::endl;
+        });
         auto symbol = emit.NewAddressSym(field->location);
         emit.StoreStatic(Stk(field->fieldType.GetKind()), r, symbol);
     }
@@ -1117,6 +1123,9 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto field  = f.value();
+        Interpretation::Log::preparation.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
+            out << "STATIC FIELD at " << field->location << ": MemHeadStatic " << field->name << " " << field->refType << Stream::endl;
+        });
 
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
         msr.emit.Offset(field->location);
