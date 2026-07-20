@@ -1,5 +1,6 @@
 #include "cbc/decoder.h"
 #include "cbc/isa.h"
+#include "engine/resolving_output.h"
 #include "engine/terms.h"
 #include "isa_parser.h"
 #include "resolution/resolution.h"
@@ -609,6 +610,28 @@ struct IsaResolvingDisasm : IsaDisasm {
         stream << "call.virtual " << dst.ToStr() << ", " << method;
         stream << " (" << method->extDefNum << "," << method->methodNum << ")";
         stream << endl;
+    }
+
+    void NewObj(IReg dst, uint16_t type) override
+    {
+        auto t = resolver.Query(Index<Type>(type));
+        if (t) {
+            ResolvingOutput out(resolver.session, stream);
+            out << "newobj " << dst.ToStr() << ", " << t->term << Stream::endl;
+        } else {
+            IsaDisasm::NewObj(dst, type);
+        }
+    }
+
+    void NewClosure(IReg dst, uint16_t type) override
+    {
+        auto t = resolver.Query(Index<Type>(type));
+        if (t) {
+            ResolvingOutput out(resolver.session, stream);
+            out << "new.closure " << dst.ToStr() << ", " << t->term << Stream::endl;
+        } else {
+            IsaDisasm::NewObj(dst, type);
+        }
     }
 
     // TODO: implement rest.
