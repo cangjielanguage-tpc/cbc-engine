@@ -107,7 +107,7 @@ void Initialize(DYN_CJNativeInterface* interf)
     }
 
 #if defined(__APPLE__)
-    const char* helperLibName = "libcbcengine-helper.dylib";
+    const char* helperLibName = "@rpath/libcbcengine-helper.dylib";
 #else
     const char* helperLibName = "libcbcengine-helper.so";
 #endif
