@@ -49,8 +49,8 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
 
     Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
         Stream::ResolvingOutput stream(session, out);
-        stream << "starting to build fuh for " << methodDef << " (" << Stream::Detailed(method.Name())
-               << Stream::Detailed(method.Signature()) << ")" << Stream::endl;
+        stream << "starting to build fuh for " << methodDef << " (" << Stream::Detailed(method.TypeName()) << "."
+               << Stream::Detailed(method.Name()) << Stream::Detailed(method.Signature()) << ")" << Stream::endl;
     });
 
     auto flags = method.GetFlags();
@@ -67,7 +67,8 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
             using namespace Stream;
             Stream::ResolvingOutput stream(session, out);
             stream << "failed to resolve aot method" << endl;
-            stream << "  name: " << Detailed(method.Name()) << Detailed(method.Signature()) << endl;
+            stream << "  name: " << Detailed(method.TypeName()) << "." << Detailed(method.Name())
+                   << Detailed(method.Signature()) << endl;
             stream << "  linkageName: " << linkageName << endl;
         });
 

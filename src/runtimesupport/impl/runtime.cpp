@@ -117,17 +117,9 @@ TypeInfo Execution::GetTypeInfo(Reference base)
     return *header;
 }
 
-static char* GetDynCallTrampolinesStart(bool sret)
-{
-    return sret ? reinterpret_cast<char*>(&Asm::engine_trampolines_dyn_sret_start)
-                : reinterpret_cast<char*>(&Asm::engine_trampolines_dyn_start);
-}
+static char* GetDynCallTrampolinesStart() { return reinterpret_cast<char*>(&Asm::engine_trampolines_dyn_start); }
 
-static char* GetDynCallTrampolinesEnd(bool sret)
-{
-    return sret ? reinterpret_cast<char*>(&Asm::engine_trampolines_dyn_sret_end)
-                : reinterpret_cast<char*>(&Asm::engine_trampolines_dyn_end);
-}
+static char* GetDynCallTrampolinesEnd() { return reinterpret_cast<char*>(&Asm::engine_trampolines_dyn_sret_end); }
 
 static bool IsFunctionInRange(void* function, char* begin, char* end)
 {
@@ -137,24 +129,16 @@ static bool IsFunctionInRange(void* function, char* begin, char* end)
 
 static bool IsDynCallTrampoline(void* function)
 {
-    return IsFunctionInRange(function, GetDynCallTrampolinesStart(false), GetDynCallTrampolinesEnd(false)) ||
-           IsFunctionInRange(function, GetDynCallTrampolinesStart(true), GetDynCallTrampolinesEnd(true));
+    return IsFunctionInRange(function, GetDynCallTrampolinesStart(), GetDynCallTrampolinesEnd());
 }
 
 static size_t DynCallTrampolineIdx(void* trampoline)
 {
     ASSERT(IsDynCallTrampoline(trampoline));
 
-    const char* trampolinesStart;
-    if (IsFunctionInRange(trampoline, GetDynCallTrampolinesStart(true), GetDynCallTrampolinesEnd(true))) {
-        trampolinesStart = GetDynCallTrampolinesStart(true);
-    } else {
-        trampolinesStart = GetDynCallTrampolinesStart(false);
-    }
-
-    auto funcIdx =
-        (reinterpret_cast<size_t>(trampoline) - reinterpret_cast<size_t>(trampolinesStart)) / DYN_CALL_TRAMPOLINE_SIZE;
-    return funcIdx;
+    auto funcIdx = (reinterpret_cast<size_t>(trampoline) - reinterpret_cast<size_t>(GetDynCallTrampolinesStart())) /
+                   DYN_CALL_TRAMPOLINE_SIZE;
+    return funcIdx % TRAMPOLINE_COUNT;
 }
 
 static Interpretation::FunctionHandle* GetDynamicCall(void* fn, CbcTypeInfo* cti)
