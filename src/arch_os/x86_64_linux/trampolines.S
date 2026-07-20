@@ -3,9 +3,51 @@
 #include "asm_export.h"
 #include "abi.inc"
 
+#ifdef __APPLE__
+    #define engine_prepare_bytecode _engine_prepare_bytecode
+    #define engine_interpretation_loop _engine_interpretation_loop
+    #define engine_fiber_data_init _engine_fiber_data_init
+    #define engine_get_exception_handler _engine_get_exception_handler
+    #define engine_get_and_clear_pending_exception _engine_get_and_clear_pending_exception
+    #define engine_log_int_start _engine_log_int_start
+    #define engine_log_int_end _engine_log_int_end
+    #define engine_c2i_call_pc_start _engine_c2i_call_pc_start
+    #define engine_c2i_call_pc_end _engine_c2i_call_pc_end
+    #define engine_trampolines_dyn_start _engine_trampolines_dyn_start
+    #define engine_trampolines_dyn_end _engine_trampolines_dyn_end
+    #define engine_trampolines_direct_start _engine_trampolines_direct_start
+    #define engine_all_regs_c2i_call _engine_all_regs_c2i_call
+    #define engine_iregs_only_c2i_call _engine_iregs_only_c2i_call
+    #define engine_i2i_call _engine_i2i_call
+    #define engine_i2c_call _engine_i2c_call
+    #define engine_i2_newobject _engine_i2_newobject
+    #define engine_i2_newobject_acc _engine_i2_newobject_acc
+    #define engine_i2_newarray _engine_i2_newarray
+    #define engine_i2_load_generic _engine_i2_load_generic
+    #define engine_i2_gcpoint _engine_i2_gcpoint
+    #define engine_i2_spawn _engine_i2_spawn
+    #define engine_universal_direct_function_handles _engine_universal_direct_function_handles
+    #define engine_tls_function _engine_tls_function
+    #define engine_read_generic _engine_read_generic
+    #define engine_newobject_function _engine_newobject_function
+    #define engine_newarray_function _engine_newarray_function
+    #define engine_newthread_nret_function _engine_newthread_nret_function
+    #define engine_carrier_specific_offset _engine_carrier_specific_offset
+    #define engine_cjthread_specific_offset _engine_cjthread_specific_offset
+    #define engine_throw_out_of_interpreter _engine_throw_out_of_interpreter
+    #define engine_throw_implicit_exception _engine_throw_implicit_exception
+    #define engine_implicit_exception_thrower _engine_implicit_exception_thrower
+    #define engine_handle_exception _engine_handle_exception
+    #define common_landing_pad _common_landing_pad
+#endif
+
 .macro declare_hidden sym
   .global \sym
+#ifdef __APPLE__
+  .private_extern \sym
+#else
   .hidden \sym
+#endif
 .endm
 
 .extern engine_prepare_bytecode
@@ -47,7 +89,11 @@ declare_hidden engine_cjthread_specific_offset
 declare_hidden engine_i2_spawn
 
 // --- SECTION BSS ---
+#ifdef __APPLE__
+.section __DATA,__bss
+#else
 .section .bss
+#endif
 
 .balign 16
 engine_universal_direct_function_handles:
@@ -74,7 +120,11 @@ engine_cjthread_specific_offset:
   .skip 8
 
 // --- SECTION TEXT ---
+#ifdef __APPLE__
+.section __TEXT,__text,regular,pure_instructions
+#else
 .section .text
+#endif
 
 .macro push_lst regs:vararg
   .irp reg, \regs
@@ -301,12 +351,12 @@ c2i_prepare_ectype:
 // label that is used to range-check all c2i call variations
 engine_c2i_call_pc_start:
 engine_all_regs_c2i_call:
-  engine_c2i_call IREG_ABI_AMOUNT FREG_ABI_AMOUNT
+  engine_c2i_call IREG_ABI_AMOUNT, FREG_ABI_AMOUNT
 
 .balign 16
 // variation of c2i call that only passes iregs
 engine_iregs_only_c2i_call:
-  engine_c2i_call IREG_ABI_AMOUNT 0
+  engine_c2i_call IREG_ABI_AMOUNT, 0
 
 // label that is used to range-check all c2i call variations
 engine_c2i_call_pc_end:
@@ -497,7 +547,7 @@ perform_2i_call:
 // TLS_REG can be changed after context-switch
 engine_i2c_call:
   // jumped from .Linterpreter_call without return address to return
-  i2c_call IREG_ABI_AMOUNT FREG_ABI_AMOUNT
+  i2c_call IREG_ABI_AMOUNT, FREG_ABI_AMOUNT
 
 .balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: fuh)
@@ -611,7 +661,7 @@ engine_i2_spawn:
 .size perform_2i_call, .-perform_2i_call
 
 // fake execute closure function
-.align 16
+.balign 16
 engine_fake_execute_closure:
   // (rdi: sret, rsi: ()T, rdx: TypeInfo[Future[T]]
   mov   rcx, [rsi + 0x10] // get $i (instantiated) version of closure function
@@ -639,7 +689,7 @@ common_landing_pad:
 // Returns to interpretation loop with exception reference on ACC_REG
 // or throws exception reference using CJNative runtime interface if there is no any exception handler in consecutive interpreter frames.
 // Precondition: top frame is interpreter frame.
-.align 16
+.balign 16
 engine_handle_exception:
   mov   EXTRA_REG, rdi
 
