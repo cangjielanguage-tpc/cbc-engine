@@ -63,7 +63,7 @@ static void EnsureEngineInitialized()
 
     if (!g_cbcPath.empty()) {
         // TODO: support ':'-delimited directories in cbc.path
-        RTSupport::LoadCbcFilesFromDirectory(loader, g_cbcPath);
+        RTSupport::LoadCbcFilesFromDirectory(loader, g_cbcPath, g_mainCbc);
     }
 
     if (!g_mainCbc.empty()) {
