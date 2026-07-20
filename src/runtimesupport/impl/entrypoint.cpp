@@ -109,7 +109,7 @@ static void PerformPatching()
         auto ti = file.GetTypeIndex();
         ti.ForEach(session, [&](Symlevel::TypeDefinition& def) {
             if (!def.GetFlags().Is(Symlevel::TypeFlag::PATCH)) {
-                continue;
+                return;
             }
 
             auto pkgName = Symlevel::Reader::Read(session, def.GetName());
@@ -130,7 +130,7 @@ static void PerformPatching()
                 RTSupport::Log::rt.Log(Logging::Level::ERROR, [&patchClassName](Stream::Output& out) {
                     out << "patch type info not found: " << patchClassName << Stream::endl;
                 });
-                continue;
+                return;
             }
 
             RTSupport::Log::rt.Log(Logging::Level::INFO, [&patchClassName](Stream::Output& out) {
@@ -171,7 +171,7 @@ static void PerformPatching()
                 RTSupport::Log::rt.Log(Logging::Level::ERROR, [&patchFlagName](Stream::Output& out) {
                     out << "patch flag field not found: " << patchFlagName << Stream::endl;
                 });
-                continue;
+                return;
             }
 
             RTSupport::Log::rt.Log(Logging::Level::INFO, [&patchFlagName](Stream::Output& out) {
