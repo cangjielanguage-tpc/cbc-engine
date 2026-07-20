@@ -7,6 +7,7 @@
 #include "interpreter/interpretation_loop.h"
 #include "runtimesupport/adapters.h"
 #include "runtimesupport/runtime.h"
+#include "runtimesupport/typeinfo_factory.h"
 #include "utils/assertion.h"
 
 static constexpr int HEAP_SIZE = 16384;
@@ -16,13 +17,13 @@ namespace RTSupport {
 using Reference = Interpretation::Value::Reference;
 
 std::optional<TypeInfo> CreateTypeInfo(
-    Engine::Session& session, Engine::TypeInfoManager& manager, Engine::GlobalTerm term
+    Engine::Session& session, TypeInfoManager& manager, Engine::GlobalTerm term
 )
 {
     FATAL("Should not be called");
 }
 
-Engine::GlobalTerm ReconstructTerm(Engine::Session& session, Engine::TypeInfoManager& manager, TypeInfo ti)
+Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& manager, TypeInfo ti)
 {
     FATAL("Should not be called");
 }

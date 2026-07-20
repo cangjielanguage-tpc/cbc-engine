@@ -15,6 +15,7 @@
 #include "interpreter/loggers.h"
 #include "runtimesupport/adapters.h"
 #include "runtimesupport/runtime.h"
+#include "runtimesupport/typeinfo_factory.h"
 #include "utils/assertion.h"
 #include "utils/logger.h"
 
@@ -219,13 +220,13 @@ namespace RTSupport {
 using Reference = Interpretation::Value::Reference;
 
 std::optional<TypeInfo> CreateTypeInfo(
-    Engine::Session& session, Engine::TypeInfoManager& manager, Engine::GlobalTerm term
+    Engine::Session& session, TypeInfoManager& manager, Engine::GlobalTerm term
 )
 {
     return std::nullopt;
 }
 
-Engine::GlobalTerm ReconstructTerm(Engine::Session& session, Engine::TypeInfoManager& manager, TypeInfo ti)
+Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& manager, TypeInfo ti)
 {
     FATAL("Should not be called");
 }
