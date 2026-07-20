@@ -341,7 +341,14 @@ struct ResolverProxy {
     {
         auto refId = Symlevel::RefId<Symlevel::MethodReference>(resolver.regionId, index.GetValue());
         auto ident = RefIdentifier<Symlevel::MethodReference>(refId, resolver.method.GetFileId());
-        return ResolveReference(resolver.session, resolver.termManager, ident);
+        auto ref   = ResolveReference(resolver.session, resolver.termManager, ident);
+
+        log.Log(Logging::Level::INFO, [&](Stream::Output& stream) {
+            Stream::ResolvingOutput out(resolver.session, stream);
+            out << "Resolving method: " << ref.refType << "." << ref.name << ref.signature << Stream::endl;
+        });
+
+        return ref;
     }
 
     static ResolvedFieldReference ResolveReference(
