@@ -1,52 +1,44 @@
 #include "statics_manager.h"
+#include "engine/resolving_output.h"
 #include "engine/symlevel/reader.h"
 #include "field_layout.h"
 #include "symlevel/definitions.h"
 #include "symlevel/flags.h"
-#include "symlevel/type_kind.h"
 #include "terms.h"
 #include "typeinfo_manager.h"
 #include "utils/assertion.h"
 #include "utils/math.h"
-#include <algorithm>
-#include <numeric>
+#include "utils/ostream.h"
+#include "utils/rt_logger.h"
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
 
-#define RECORD_ALIGNMENT sizeof(uintptr_t)
+static constexpr size_t RECORD_ALIGNMENT = sizeof(uintptr_t);
 
 namespace Engine {
 
 StaticFieldsBundle::StaticFieldsBundle(
-    uint32_t refFieldsNum,
-    uint32_t primFieldsNum,
-    uint32_t recordFieldsNum,
-    uint32_t recordFieldsSize,
-    std::vector<StaticTypedSlotInfo> typedSlotsInfo
+    uintptr_t refs,
+    uintptr_t primitives,
+    uintptr_t records,
+    uint32_t* recordOffsets,
+    uint32_t* referenceOffsets,
+    uint32_t refCount,
+    uint32_t refOffsetsCount
 )
-    : refFieldsNum(refFieldsNum),
-      primFieldsNum(primFieldsNum),
-      recordFieldsNum(recordFieldsNum),
-      typedSlotsInfo(std::move(typedSlotsInfo))
+    : refs(refs),
+      primitives(primitives),
+      records(records),
+      recordOffsets(recordOffsets),
+      referenceOffsets(referenceOffsets),
+      refCount(refCount),
+      refOffsetsCount(refOffsetsCount)
+{}
+
+StaticFieldsBundle::~StaticFieldsBundle()
 {
-    ASSERTION(
-        std::is_sorted(
-            typedSlotsInfo.begin(),
-            typedSlotsInfo.end(),
-            [](const StaticTypedSlotInfo& a, const StaticTypedSlotInfo& b) { return a.offset < b.offset; }
-        ),
-        "Typed slots info must be sorted by offset"
-    );
-
-    size_t totalMemory = refFieldsNum * sizeof(RefLocation) + primFieldsNum * sizeof(PrimLocation) + recordFieldsSize;
-    rawMemory.resize(totalMemory, 0);
-
-    uint8_t* ptr   = rawMemory.data();
-    refFieldsStart = reinterpret_cast<RefLocation*>(ptr);
-
-    ptr             += refFieldsNum * sizeof(RefLocation);
-    primFieldsStart  = reinterpret_cast<PrimLocation*>(ptr);
-
-    ptr               += primFieldsNum * sizeof(PrimLocation);
-    recordFieldsStart  = ptr;
+    // FIXME: leaks on dlclose
 }
 
 SlotKind ComputeSlotKind(Session& session, FieldLayoutManager& flm, Symlevel::FieldDefinition& definition)
@@ -56,6 +48,8 @@ SlotKind ComputeSlotKind(Session& session, FieldLayoutManager& flm, Symlevel::Fi
         return REFERENCE;
     }
     switch (fieldType.GetKind()) {
+        case TermKind::OPTION:
+        case TermKind::UNION_ENUM:
         case TermKind::AOT_TYPE:
         case TermKind::TYPE:     return RECORD;
         default:                 return PRIMITIVE;
@@ -69,8 +63,8 @@ uintptr_t StaticFieldsBundle::GetLocation(Session& session, TypeIdent typeIdent,
 
     auto flm                 = FieldLayoutManager::New(session);
     auto targetKind          = ComputeSlotKind(session, *flm, fieldDef);
-    uint32_t untypedSlotIdx  = 0;
-    uint32_t typedSlotOffset = 0;
+
+    uint32_t fieldIdx = 0;
 
     for (auto fieldId : typeDef.GetFields().Entries(session)) {
         auto field = Symlevel::Reader::Read(session, fieldId);
@@ -87,49 +81,34 @@ uintptr_t StaticFieldsBundle::GetLocation(Session& session, TypeIdent typeIdent,
             break;
         }
 
-        // advance state for next iteration
-        switch (kind) {
-            case REFERENCE:
-            case PRIMITIVE: untypedSlotIdx++; break;
-            case RECORD:    {
-                auto fterm = TermManager::Resolve(session, field.FieldType());
-                auto size  = flm->GetFlatSize(fterm);
-                if (!size.has_value()) {
-                    FATAL("Couldn't get size for record field: %s", fterm.GetName(session).c_str());
-                }
-                typedSlotOffset += size.value();
-                break;
-            }
-        }
+        fieldIdx++;
     };
 
     switch (targetKind) {
-        case REFERENCE:
-            ASSERTION(untypedSlotIdx < refFieldsNum, "Incorrect static reference field index");
-            return reinterpret_cast<uintptr_t>(refFieldsStart + untypedSlotIdx);
-        case PRIMITIVE:
-            ASSERTION(untypedSlotIdx < primFieldsNum, "Incorrect static primitive field index");
-            return reinterpret_cast<uintptr_t>(primFieldsStart + untypedSlotIdx);
-        case RECORD:
-            ASSERTION(typedSlotOffset <= typedSlotsInfo.back().offset, "Incorrect static record offset");
-            return reinterpret_cast<uintptr_t>(recordFieldsStart + typedSlotOffset);
-        default: FATAL("Not supported yet"); return 0;
+        case REFERENCE: {
+            return this->refs + 8 * fieldIdx;
+        }
+        case PRIMITIVE: {
+            // each slot is 8-byte size
+            // TODO: implement compact representation
+            return this->primitives + 8 * fieldIdx;
+        }
+        case RECORD: auto offs = recordOffsets[fieldIdx]; return records + offs;
     }
 }
 
 void StaticFieldsBundle::VisitRefLocations(std::function<void(RefLocation*)> action) const
 {
-    RefLocation* location = refFieldsStart;
-    for (auto i = 0; i < refFieldsNum; i++) {
+    RefLocation* location = reinterpret_cast<RefLocation*>(refs);
+    auto refCount         = this->refCount;
+    for (auto i = 0; i < refCount; i++) {
         action(location);
         location++;
     }
-}
 
-void StaticFieldsBundle::VisitTypedSlots(std::function<void(uint8_t* base, const StaticTypedSlotInfo&)> action) const
-{
-    for (const auto& info : typedSlotsInfo) {
-        action(recordFieldsStart, info);
+    for (auto i = 0; i < refOffsetsCount; i++) {
+        auto loc = records + referenceOffsets[i];
+        action(reinterpret_cast<RefLocation*>(loc));
     }
 }
 
@@ -137,13 +116,20 @@ StaticFieldsBundle StaticsManager::CreateBundle(Session& session, TypeIdent type
 {
     uint32_t refFieldsNum    = 0;
     uint32_t primFieldsNum   = 0;
-    uint32_t recordFieldsNum = 0;
+
+    RTSupport::Log::gc.Log(Logging::Level::DEBUG, [&](Stream::Output& out0) {
+        Stream::ResolvingOutput out(session, out0);
+        out << "Start building sfb for " << Stream::Detailed(typeIdent) << Stream::endl;
+    });
 
     auto flm     = FieldLayoutManager::New(session);
     auto& tim    = TypeInfoManager::Of(session);
     auto typeDef = Symlevel::TypeDefinition::Resolve(session, typeIdent);
 
-    uint32_t recordSlotsSize = 0;
+    std::vector<uint32_t> refOffsetInRecords;
+    std::vector<uint32_t> recordOffsets;
+
+    uint32_t recordsSize = 0;
     std::vector<StaticTypedSlotInfo> typedSlotsInfo;
 
     for (auto fieldId : typeDef.GetFields().Entries(session)) {
@@ -158,24 +144,55 @@ StaticFieldsBundle StaticsManager::CreateBundle(Session& session, TypeIdent type
             case REFERENCE: refFieldsNum++; break;
             case PRIMITIVE: primFieldsNum++; break;
             case RECORD:    {
-                recordFieldsNum++;
                 auto fterm    = TermManager::Resolve(session, field.FieldType());
                 auto size     = flm->GetFlatSize(fterm);
-                auto typeInfo = tim.AcquireTypeInfo(session, fterm);
-                if (!size.has_value() || !typeInfo.has_value()) {
-                    FATAL("Couldn't get info about record field: %s", fterm.GetName(session).c_str());
-                }
+                auto alignedSize = MathUtils::AlignUp(size.value(), RECORD_ALIGNMENT); // FIXME: size can be absent
+                auto offset      = recordsSize;
+                recordOffsets.push_back(offset);
+                flm->FillRefOffsets(fterm, refOffsetInRecords, offset);
+                recordsSize += alignedSize;
 
-                auto alignedSize = MathUtils::AlignUp(size.value(), RECORD_ALIGNMENT);
-
-                typedSlotsInfo.push_back({ recordSlotsSize, typeInfo->Raw() });
-                recordSlotsSize += alignedSize;
+                RTSupport::Log::gc.Log(Logging::Level::DEBUG, [&](Stream::Output& out0) {
+                    Stream::ResolvingOutput out(session, out0);
+                    out << "record field " << fterm << ". size: " << *size << ". offset: " << offset << Stream::endl;
+                });
                 break;
             }
         }
     };
 
-    return StaticFieldsBundle(refFieldsNum, primFieldsNum, recordFieldsNum, recordSlotsSize, std::move(typedSlotsInfo));
+    size_t totalSize     = primFieldsNum * 8 + refFieldsNum * 8 + recordsSize;
+    void* memory         = malloc(totalSize);
+    uint32_t* recOffsets = (uint32_t*)malloc(sizeof(uint32_t) * recordOffsets.size());
+    uint32_t* refOffsets = (uint32_t*)malloc(sizeof(uint32_t) * refOffsetInRecords.size());
+    if (!memory || !recOffsets || !refOffsets) {
+        FATAL("Out of memory (SFB)");
+    }
+    memset(memory, 0, totalSize);
+
+    uintptr_t mem        = reinterpret_cast<uintptr_t>(memory);
+    uintptr_t primitives = mem;
+    uintptr_t refs       = primitives + primFieldsNum * 8;
+    uintptr_t records    = refs + refFieldsNum * 8;
+
+    for (int i = 0; i < recordOffsets.size(); i++) {
+        recOffsets[i] = recordOffsets[i];
+    }
+    for (int i = 0; i < refOffsetInRecords.size(); i++) {
+        refOffsets[i] = refOffsetInRecords[i];
+    }
+
+    RTSupport::Log::gc.Log(Logging::Level::DEBUG, [&](Stream::Output& out0) {
+        Stream::ResolvingOutput out(session, out0);
+        out << "Built sfb for " << Stream::Detailed(typeIdent) << Stream::endl;
+        out << "Primitives " << primitives << ". Count = " << primFieldsNum << Stream::endl;
+        out << "References " << refs << ". Count = " << refFieldsNum << Stream::endl;
+        out << "Records " << records << ". Size = " << recordsSize << Stream::endl;
+    });
+
+    return StaticFieldsBundle(
+        refs, primitives, records, recOffsets, refOffsets, refFieldsNum, refOffsetInRecords.size()
+    );
 }
 
 uintptr_t StaticsManager::GetLocation(Session& session, TypeIdent typeIdent, FieldIdent fieldIdent)
@@ -201,7 +218,6 @@ void StaticsManager::VisitRefLocations(
 
     for (const auto& [key, bundle] : bundles) {
         bundle.VisitRefLocations(untypedSlotsVisitor);
-        bundle.VisitTypedSlots(typedSlotsVisitor);
     }
 }
 

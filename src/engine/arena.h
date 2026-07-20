@@ -28,10 +28,12 @@ private:
         // To ensure that `memory` field is properly aligned.
         union {
             Chunk* next;
-            char _pad[alignof(std::max_align_t)];
         };
 
-        char memory[];
+        union {
+            char _pad[alignof(std::max_align_t)];
+            char memory[];
+        };
     };
 
     uintptr_t cursor;

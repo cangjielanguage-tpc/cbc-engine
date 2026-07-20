@@ -80,7 +80,6 @@ enum class TermKind : uint8_t {
     CLASS_TYPE_VAR,
     FUNC_TYPE_VAR,
     OPTION,
-    UNION_OPTION,
     UNION_ENUM,
     PRIMITIVE_ENUM,
     LAST

@@ -96,7 +96,12 @@ struct LockedTypeInfoManager : public TypeInfoManager {
     std::optional<RTSupport::TypeInfo> AcquireTypeInfo(Session& session, GlobalTerm term) override
     {
         std::lock_guard guard(lock);
-        return unsafe.AcquireTypeInfo(session, term);
+        auto result = unsafe.AcquireTypeInfo(session, term);
+        if (unsafe.ResolveFixups(session)) {
+            // TODO: logs
+            return std::nullopt;
+        }
+        return result;
     }
 
     GlobalTerm AcquireTerm(Session& session, RTSupport::TypeInfo ti) override
@@ -121,3 +126,27 @@ std::optional<RTSupport::TypeInfo> TypeInfoManager::AcquireTypeInfo(Session& ses
 }
 
 } // namespace Engine
+
+bool RTSupport::TypeInfoManager::ResolveFixups(Engine::Session& session)
+{
+    bool failed = false;
+    while (!fixups.empty()) {
+        Fixup fixup = fixups.back();
+        fixups.pop_back();
+        auto ti = AcquireTypeInfo(session, fixup.term);
+        if (ti) {
+            *fixup.location = *ti;
+        } else {
+            failed = true;
+        }
+    }
+    return failed;
+}
+
+void RTSupport::TypeInfoManager::AddFixups(std::vector<Fixup>& fixups)
+{
+    this->fixups.reserve(fixups.size());
+    for (auto f : fixups) {
+        this->fixups.push_back(f);
+    }
+}

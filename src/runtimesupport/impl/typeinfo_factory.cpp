@@ -192,7 +192,7 @@ struct TypeInfoBuilder {
         }
 
         result->gctib           = gctib;
-        result->uuid            = uuid;
+        //result->uuid            = uuid;
         result->align           = align;
         result->typeArgsNum     = typeArgsNum;
         result->validInheritNum = validInheritNum;
@@ -332,6 +332,8 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         return QueryTypeInfoAOT(session, manager, copiedName.c_str(), term);
     }
 
+    std::vector<TypeInfoManager::Fixup> fixups;
+
     auto currentTypeInfo = Alloc<CbcTypeInfo>();
     if (!currentTypeInfo) {
         return std::nullopt;
@@ -388,13 +390,18 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             break;
         default: FATAL("unreachable type kind");
     }
+    auto& termManager                  = Engine::TermManager::Of(session);
+    auto dynCurTi                      = &currentTypeInfo->base;
+    currentTypeInfo->base.type = builder.type;
+    currentTypeInfo->base.typeArgsNum  = 0;
+    currentTypeInfo->base.typeInfoName = builder.name;
+    currentTypeInfo->base.uuid         = 0;
 
-    auto queryTypeInfo = [&session, &manager, term, currentTypeInfo](Engine::Term t
-                         ) -> std::optional<RTSupport::TypeInfo> {
-        if (t == term) {
-            return TypeInfo(&currentTypeInfo->base);
-        }
-        return manager.AcquireTypeInfo(session, t);
+    auto addFixup = [&session, &manager, &termManager, &fixups](Engine::Term t, DYN_TypeInfo** location) {
+        // FIXME: unaligned accesses
+        auto gterm = termManager.Globalize(t);
+        auto loc   = reinterpret_cast<TypeInfo*>(location);
+        fixups.push_back(TypeInfoManager::Fixup { gterm, loc });
     };
 
     Engine::ClassSubstitution substitute(session, term);
@@ -403,11 +410,8 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
     if (superType.GetKind() == Engine::TermKind::NIL) {
         // nothing TODO
-    } else if (auto superTypeInfo = queryTypeInfo(superType); superTypeInfo.has_value()) {
-        builder.superTypeInfo = UnpackTypeInfo(superTypeInfo.value());
     } else {
-        // TODO: log
-        return std::nullopt;
+        addFixup(superType, &dynCurTi->superTypeInfo);
     }
 
     if (needExtDefs) { // fill out ext defs
@@ -465,9 +469,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
         builder.extDefs[extDefCount] = nullptr;
 
-        auto prepareExtDef = [&builder, currentTypeInfo, &queryTypeInfo, &funcDescs](
-                                 DYN_ExtensionData& extDef, Engine::MethodSubTable const& smt
-                             ) -> bool {
+        auto prepareExtDef = [&](DYN_ExtensionData& extDef, Engine::MethodSubTable const& smt) {
             // We are maintaining disjoint sub method table ranges!
             auto start      = smt.StartPos();
             auto end        = smt.EndPos();
@@ -479,12 +481,8 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
             for (int i = 0; i < entryCount; i++) {
                 auto desc              = funcDescs[start + i];
-                auto funcDeclaringType = queryTypeInfo(desc.declaredType);
-                if (!funcDeclaringType.has_value()) {
-                    return false;
-                }
-                ft[i].func     = desc.ptr;
-                tt[i].typeInfo = UnpackTypeInfo(*funcDeclaringType);
+                addFixup(desc.declaredType, &tt[i].typeInfo);
+                ft[i].func = desc.ptr;
             }
 
             uint8_t hasOuterTIFastPath = 0b00000001;
@@ -498,31 +496,20 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
             extDef.ti = &currentTypeInfo->base;
 
-            auto declaringTypeInfo = queryTypeInfo(smt.DeclaringType());
-            if (declaringTypeInfo.has_value()) {
-                auto unpacked            = UnpackTypeInfo(declaringTypeInfo.value());
-                extDef.interfaceTypeInfo = unpacked;
-                if (unpacked == &currentTypeInfo->base) {
-                    extDef.flag |= 0b10000000;
-                }
-                return true;
-            } else {
-                return false;
+            if (smt.DeclaringType() == term) {
+                extDef.flag |= HAS_EXT_PART;
             }
+            addFixup(smt.DeclaringType(), &extDef.interfaceTypeInfo);
         };
 
         // fill out ext defs
         int extDefIndex = 0;
         for (auto st : mt->Classes()) {
-            if (!prepareExtDef(builder.flatExtDefs[extDefIndex++], st)) {
-                return std::nullopt;
-            }
+            prepareExtDef(builder.flatExtDefs[extDefIndex++], st);
         }
 
         for (auto st : mt->Interfaces()) {
-            if (!prepareExtDef(builder.flatExtDefs[extDefIndex++], st)) {
-                return std::nullopt;
-            }
+            prepareExtDef(builder.flatExtDefs[extDefIndex++], st);
         }
     } else if (typeKind == Symlevel::TypeKind::LAMBDA) {
         auto& manager = Engine::MethodTableManager::Of(session);
@@ -596,16 +583,12 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         size_t idx = 0;
         for (auto& field : layout->fields) {
             auto fieldType = field.fieldType;
-            auto typeInfo  = queryTypeInfo(fieldType);
-            if (!typeInfo.has_value()) {
-                return std::nullopt;
-            }
             auto optOffs = field.offset;
             if (!optOffs.has_value()) {
                 return std::nullopt;
             }
-            auto fieldId                  = idx++;
-            builder.fields[fieldId]       = UnpackTypeInfo(*typeInfo);
+            auto fieldId = idx++;
+            addFixup(fieldType, &builder.fields[fieldId]);
             builder.fieldOffsets[fieldId] = *optOffs;
             fieldManager->FillRefOffsets(fieldType, refFieldOffs, optOffs.value());
         }
@@ -613,6 +596,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         // options has insconsistent .offsets property and gctib in cjnative
         // why??
         if (term.GetKind() == Engine::TermKind::OPTION && term.IsReference()) {
+            builder.flag  |= HAS_REF_FIELD;
             builder.gctib = { .raw = (1ull << 63) | 1 };
         } else if (term.GetKind() == Engine::TermKind::OPTION && !term.IsReference()) {
             builder.gctib = { .raw = (1ull << 63) | 0 };
@@ -633,7 +617,6 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         builder.instanceSize = 0;
     }
 
-    builder.typeArgsNum = 0; // Otherwise, runtime would expect type template to be present.
     int typeArgsNum     = term.GetLength();
     if (typeArgsNum > 0) {
         builder.typeArgs = Alloc<DYN_TypeInfo*>(typeArgsNum);
@@ -650,6 +633,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         }
     }
 
+    manager.AddFixups(fixups);
     return TypeInfo(builder.Build());
 }
 

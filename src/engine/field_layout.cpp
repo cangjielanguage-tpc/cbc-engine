@@ -185,7 +185,6 @@ struct FLManager : public FieldLayoutManager {
             return;
         }
         switch (term.GetKind()) {
-            case TermKind::OPTION:
             case TermKind::AOT_TYPE:     {
                 auto typeInfo = typeInfoManager.AcquireTypeInfo(session, term);
                 if (!typeInfo.has_value()) {
@@ -196,6 +195,7 @@ struct FLManager : public FieldLayoutManager {
                 );
             }
 
+            case TermKind::OPTION:
             case TermKind::TYPE: {
                 ASSERT(!term.IsReference());
                 // Absent offsets must be handled separately.
@@ -290,9 +290,7 @@ private:
 
         std::optional<FieldLayout> layout {};
 
-        if (def.GetFlags().Is(Symlevel::TypeFlag::AOT)) {
-            layout = BuildLayoutAot(term, def);
-        } else if (kind == TermKind::TYPE) {
+        if (kind == TermKind::TYPE) {
             layout = BuildLayoutCbc(term, def);
         } else if (kind == TermKind::OPTION && !term.IsReference()) {
             ClassSubstitution substitute(session, term);
@@ -342,6 +340,8 @@ private:
             } else {
                 layout = FieldLayout::Content { .desc = { size, alignment } };
             }
+        } else if (def.GetFlags().Is(Symlevel::TypeFlag::AOT)) {
+            layout = BuildLayoutAot(term, def);
         }
 
         Log::fields.Log(Logging::Level::DEBUG, [&](Stream::Output& out_) {
