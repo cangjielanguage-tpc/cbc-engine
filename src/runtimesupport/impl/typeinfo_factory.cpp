@@ -318,7 +318,7 @@ static std::optional<DYN_GCTib> ConstructGCTib(TypeInfoBuilder& builder, std::ve
 // TODO: factory class, so it can hold state of other managers without recreating them.
 // TODO: split function to smaller ones.
 static std::optional<TypeInfo> CreateTypeInfoDyn(
-    Engine::Session& session, Engine::TypeInfoManager& manager, Engine::GlobalTerm term
+    Engine::Session& session, TypeInfoManager& manager, Engine::GlobalTerm term
 )
 {
     auto ident = Engine::ExtractTypeDefIdentifier(term);
@@ -346,6 +346,10 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         // TODO: does it matter?
         builder.name = stringBuffer.ToCString();
     }
+
+    // Register term to allow recursive queries.
+    // TODO: handle unbounded recurisive queries.
+    manager.RegisterPartial(term, TypeInfo(currentTypeInfo));
 
     if (builder.name == nullptr) {
         return std::nullopt;
@@ -620,13 +624,13 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             }
             builder.gctib = *gctib;
         }
-        } else {
-            builder.fieldNum     = 0;
-            builder.fields       = nullptr;
-            builder.fieldOffsets = nullptr;
-            builder.align        = 1;
-            builder.instanceSize = 0;
-        }
+    } else {
+        builder.fieldNum     = 0;
+        builder.fields       = nullptr;
+        builder.fieldOffsets = nullptr;
+        builder.align        = 1;
+        builder.instanceSize = 0;
+    }
 
     builder.typeArgsNum = 0; // Otherwise, runtime would expect type template to be present.
     int typeArgsNum     = term.GetLength();
@@ -810,9 +814,7 @@ static std::optional<TypeInfo> QueryFunctional(
     return TypeInfo(closureTypeInfo);
 }
 
-std::optional<TypeInfo> CreateTypeInfo(
-    Engine::Session& session, Engine::TypeInfoManager& manager, Engine::GlobalTerm term
-)
+std::optional<TypeInfo> CreateTypeInfo(Engine::Session& session, TypeInfoManager& manager, Engine::GlobalTerm term)
 {
     Log::typeinfo.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
         Stream::ResolvingOutput stream(session, out);
@@ -871,7 +873,7 @@ std::optional<TypeInfo> CreateTypeInfo(
     return ti;
 }
 
-Engine::GlobalTerm ReconstructTerm(Engine::Session& session, Engine::TypeInfoManager& manager, TypeInfo ti)
+Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& manager, TypeInfo ti)
 {
     using namespace Engine;
     DYN_TypeInfo* typeInfo = UnpackTypeInfo(ti);

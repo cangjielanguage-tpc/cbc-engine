@@ -16,6 +16,7 @@ struct Failed {
 } failed;
 
 struct Pending {
+    TypeInfo ti;
 } pending;
 
 using ResolutionState = std::variant<TypeInfo, Failed, Pending>;
@@ -24,7 +25,7 @@ struct TermHasher {
     uint64_t operator()(GlobalTerm const& term) const { return term.Hash(); }
 };
 
-struct BasicTypeInfoManager : public TypeInfoManager {
+struct BasicTypeInfoManager : public RTSupport::TypeInfoManager {
     std::optional<RTSupport::TypeInfo> AcquireTypeInfo(Session& session, GlobalTerm term) override
     {
         if (term.GetKind() == TermKind::BOX) {
@@ -39,12 +40,15 @@ struct BasicTypeInfoManager : public TypeInfoManager {
                 return std::nullopt;
             } else if (std::holds_alternative<Pending>(state)) {
                 // recursive access
-                storage.insert_or_assign(term, failed);
-                return std::nullopt;
+                auto ti = std::get<Pending>(state).ti;
+                if (ti.Raw() == nullptr) {
+                    return std::nullopt;
+                }
+                return ti;
             }
         }
 
-        storage.insert({ term, Pending {} });
+        storage.insert_or_assign(term, Pending {});
 
         auto result = RTSupport::CreateTypeInfo(session, *this, term);
         if (result.has_value()) {
@@ -64,7 +68,7 @@ struct BasicTypeInfoManager : public TypeInfoManager {
         return result;
     }
 
-    GlobalTerm AcquireTerm(Session& session, RTSupport::TypeInfo ti) override
+    GlobalTerm AcquireTerm(Session& session, TypeInfo ti) override
     {
         auto uuid = RTSupport::MetaInfo::GetUUID(ti);
         auto it   = uuidMap.find(uuid);
@@ -76,6 +80,11 @@ struct BasicTypeInfoManager : public TypeInfoManager {
         auto term = RTSupport::ReconstructTerm(session, *this, ti);
         uuidMap.insert_or_assign(uuid, term);
         return term;
+    }
+
+    void RegisterPartial(GlobalTerm term, TypeInfo typeInfo) override
+    {
+        storage.insert_or_assign(term, Pending { typeInfo });
     }
 
 protected:
