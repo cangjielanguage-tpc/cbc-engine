@@ -67,24 +67,26 @@
 .endm
 
 .macro FUNC_START sym
+#ifdef __ELF__
   .cfi_startproc
-#ifdef __APPLE__
-  .type \sym, $FUNCTION
-#else
   .type \sym, @function
 #endif
 .endm
 
 .macro UNWIND_HINT_PROLOGUE_OFFS offs
+#ifdef __ELF__
   .cfi_def_cfa_offset \offs
   .cfi_offset 29, -\offs
   .cfi_offset 30, -\offs + 8
+#endif
 .endm
 
 .macro UNWIND_HINT_EPILOGUE
+#ifdef __ELF__
   .cfi_restore 30
   .cfi_restore 29
   .cfi_def_cfa_offset 0
+#endif
 .endm
 
 .macro UNWIND_HINT_PROLOGUE
@@ -92,8 +94,8 @@ UNWIND_HINT_PROLOGUE_OFFS 16
 .endm
 
 .macro FUNC_END sym
-  .cfi_endproc
 #ifdef __ELF__
+  .cfi_endproc
   .size \sym, .-\sym
 #endif
 .endm
@@ -423,7 +425,9 @@ FUNC_START perform_2i_call
   stp   x29, x30, [sp, #-16]!
   UNWIND_HINT_PROLOGUE
   mov   x29, sp
+#ifdef __ELF__
   .cfi_def_cfa_register 29
+#endif
   // fp-0x8: FunctionHandle for frame scanning,
   // fp-0x10: Ectype
   // fp-0x18: Literals
