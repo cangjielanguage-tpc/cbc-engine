@@ -53,7 +53,7 @@ void Initialize(DYN_CJNativeInterface* interf)
     }
 
 #if defined(__APPLE__)
-    std::string_view helperLibName = "libcbcengine-helper.dylib";
+    std::string_view helperLibName = "@rpath/libcbcengine-helper.dylib";
 #else
     std::string_view helperLibName = "libcbcengine-helper.so";
 #endif

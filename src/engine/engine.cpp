@@ -9,6 +9,7 @@
 #include "image/io/stream_file_reader.h"
 #include "image/reader.h"
 #include "interpreter/function_handle.h"
+#include "runtimesupport/impl/entrypoint.h"
 #include "utils/assertion.h"
 #include "utils/heap.h"
 #include <cstdint>
@@ -205,9 +206,21 @@ static std::string UpdateSharedObjName(std::string_view name)
 static std::vector<Dependencies> ReadDependencies(Loader::Impl const* loader)
 {
     static constexpr char delim = ':';
+    static constexpr std::string_view applicationDependency = "testnw_long_link";
 
     std::vector<std::shared_ptr<Utils::SharedObject>> objects;
-    auto addObject = [&objects](std::string_view name) {
+    std::shared_ptr<Utils::SharedObject> application;
+    if (g_appLibHandle != nullptr) {
+        application = std::make_shared<Utils::SharedObject>(
+            Utils::SharedObject::FromExternalHandle(g_appLibHandle, applicationDependency)
+        );
+    }
+
+    auto addObject = [&objects, &application](std::string_view name) {
+        if (name == applicationDependency && application) {
+            return application;
+        }
+
         auto soName = UpdateSharedObjName(name);
         // Avoid duplicate dlopen calls
         for (auto& obj : objects) {

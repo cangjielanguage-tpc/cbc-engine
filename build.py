@@ -17,13 +17,15 @@ SUPPORTED_TARGETS = {
     ("android", "aarch64"),
     ("ios", "aarch64"),
     ("ios-sim", "aarch64"),
+    ("ios-sim", "x86_64"),
 }
 
 ANDROID_PLATFORM = "android-26"
 ANDROID_ABI = "arm64-v8a"
 IOS_HELPER_TARGETS = {
-    "ios": ("iphoneos", "aarch64-apple-ios"),
-    "ios-sim": ("iphonesimulator", "aarch64-apple-ios-simulator"),
+    ("ios", "aarch64"): ("iphoneos", "aarch64-apple-ios"),
+    ("ios-sim", "aarch64"): ("iphonesimulator", "aarch64-apple-ios-simulator"),
+    ("ios-sim", "x86_64"): ("iphonesimulator", "x86_64-apple-ios-simulator"),
 }
 HELPER_LIB_NAME = "libcbcengine-helper.dylib"
 
@@ -210,7 +212,8 @@ def build_helper_lib(args, project_dir, build_dir):
     if detect_host_os() != "macos":
         fail("iOS helper library builds require macOS and the Xcode command-line tools")
 
-    if args.target_arch != "aarch64" or args.target_os not in IOS_HELPER_TARGETS:
+    helper_target = (args.target_os, args.target_arch)
+    if helper_target not in IOS_HELPER_TARGETS:
         fail(
             "Unsupported helper target combination: "
             f"--target-os={args.target_os}, --target-arch={args.target_arch}"
@@ -228,7 +231,7 @@ def build_helper_lib(args, project_dir, build_dir):
     if not helper_source.is_file():
         fail(f"Helper source does not exist: {helper_source}")
 
-    sdk, cjc_target = IOS_HELPER_TARGETS[args.target_os]
+    sdk, cjc_target = IOS_HELPER_TARGETS[helper_target]
     sdkroot = get_xcode_sdkroot(sdk)
     build_path = Path(build_dir)
     build_path.mkdir(parents=True, exist_ok=True)
@@ -289,11 +292,11 @@ def main():
 
     helper_parser = subparsers.add_parser("build-helper-lib", help="build libcbcengine-helper.dylib")
     helper_parser.add_argument("--target-os",
-                               choices=list(IOS_HELPER_TARGETS.keys()),
+                               choices=sorted({target_os for target_os, _ in IOS_HELPER_TARGETS}),
                                required=True,
                                help="Target operating system")
     helper_parser.add_argument("--target-arch",
-                               choices=["aarch64"],
+                               choices=TARGET_ARCHES,
                                default="aarch64",
                                help="Target architecture (default: aarch64)")
 

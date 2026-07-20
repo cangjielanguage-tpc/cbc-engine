@@ -1,8 +1,12 @@
 #include "runtimesupport/impl/entrypoint.h"
 
+#include <algorithm>
+#include <cerrno>
+#include <dirent.h>
+#include <memory>
 #include <mutex>
-#include <type_traits>
-#include <utility>
+#include <string_view>
+#include <sys/stat.h>
 
 #include "RTInterface.h"
 #include "asm_export.h"
@@ -36,6 +40,8 @@ static bool g_Initialized;
 static bool g_OptionsInitialized;
 static bool g_Patched;
 
+static constexpr const char* APP_LIB_HANDLE_ARG = "app.lib.handle";
+
 static void InitEnvOpts()
 {
     std::lock_guard guard(g_InitializationGuard);
@@ -43,6 +49,29 @@ static void InitEnvOpts()
         Engine::InitEnvOptions();
         g_OptionsInitialized = true;
     }
+}
+
+static void ParseBridgeOptions(int size, const char** options)
+{
+    std::vector<const char*> engineOptions;
+    engineOptions.reserve(size > 0 ? static_cast<size_t>(size) : 0);
+
+    for (int i = 0; i < size && options != nullptr; ++i) {
+        const char* option = options[i];
+        if (option != nullptr && std::strcmp(option, APP_LIB_HANDLE_ARG) == 0) {
+            if (i + 1 < size) {
+                g_appLibHandle = const_cast<char*>(options[i + 1]);
+                ++i;
+            } else {
+                LogCbcDirectoryScan("app library handle argument is missing value");
+            }
+            continue;
+        }
+
+        engineOptions.push_back(option);
+    }
+
+    Engine::g_table.ParseAndSet(static_cast<int>(engineOptions.size()), engineOptions.data());
 }
 
 /// Initialize engine from launcher.
@@ -318,6 +347,12 @@ CBC_EXPORT int interpreter_bridge_init(
 )
 {
     static_assert(std::is_same_v<decltype(&interpreter_bridge_init), INT_InitInterpreter>);
+
+    g_CJNativeInterfaceInstance = *rtInterf;
+
+    // Order matters
+    InitEnvOpts();
+    ParseBridgeOptions(size, options);
     if (rtInterf == nullptr || rtInterf->version != DYN_CJNATIVE_INTERFACE_VERSION) {
         LOG_ERROR(
             RTSupport::Log::rt,
@@ -328,11 +363,10 @@ CBC_EXPORT int interpreter_bridge_init(
         return 1;
     }
 
-    // Order matters
-    InitEnvOpts();
-    Engine::g_table.ParseAndSet(size, options);
+    RTSupport::Log::rt.Log(Logging::Level::TRACE, [rtInterf](Stream::Output& out) {
+        out.PrintFmtLn("interpreter_bridge_init started");
+    });
 
-    g_CJNativeInterfaceInstance            = *rtInterf;
     interpInterf->version                  = INT_INTERPRETER_INTERFACE_VERSION;
     interpInterf->cjThreadSpecificDataSize = sizeof(Interpretation::Ectype);
     interpInterf->c2iStubStartAddr         = reinterpret_cast<uintptr_t>(&Asm::engine_c2i_call_pc_start);
@@ -391,6 +425,10 @@ CBC_EXPORT int interpreter_bridge_init(
         builtinTypeInfos[BUILTIN_RUNE]    = RTSupport::TypeInfo(getTypeInfo("Rune"));
         builtinTypeInfos[BUILTIN_CSTRING] = RTSupport::TypeInfo(getTypeInfo("CString"));
     }
+
+    RTSupport::Log::rt.Log(Logging::Level::TRACE, [](Stream::Output& out) {
+        out.PrintFmtLn("Interpreter bridge init finished");
+    });
 
     return 0;
 }
