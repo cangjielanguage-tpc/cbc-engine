@@ -827,6 +827,8 @@ std::optional<TypeInfo> CreateTypeInfo(Engine::Session& session, TypeInfoManager
         using namespace Interpretation;
         auto termIdent = term.GetId();
         switch (termIdent.GetKind()) {
+            case Engine::TermKind::UNION_ENUM:
+            case Engine::TermKind::PRIMITIVE_ENUM:
             case Engine::TermKind::OPTION:
             case Engine::TermKind::TYPE: return CreateTypeInfoDyn(session, manager, term);
 

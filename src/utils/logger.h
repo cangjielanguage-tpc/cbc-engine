@@ -19,7 +19,8 @@ enum class Level : int {
     INFO,
     DEBUG,
     TRACE,
-    BLOCK
+    BLOCK,
+    COUNT = BLOCK
 };
 
 class Logger {
@@ -31,15 +32,12 @@ public:
     void SetLogLevel(Level level);
     Level GetLogLevel();
 
-    template <typename F> inline void Log(Level level, F const& logger)
-    {
-        if (level <= this->level) {
-            logger(*output);
-        }
-    }
+    template <typename F> inline void Log(Level level, F const& logger) { logger(*byLevel[(int)level]); }
 
 private:
     Stream::Output* output;
+    Stream::Output* byLevel[(uint32_t)Level::COUNT];
+    Stream::Descripted descriptedByLevel[(uint32_t)Level::COUNT];
     Level level;
 };
 
