@@ -93,8 +93,7 @@ ResolvingOutput& ResolvingOutput::operator<<(Full<Symlevel::MethodDefinition> fu
 ResolvingOutput& ResolvingOutput::operator<<(Symlevel::MethodDefinition const& md)
 {
     auto& out = *this;
-    auto name = Detailed(md.Name());
-    out << name << Detailed(md.Signature());
+    out << Detailed(md.TypeName()) << '.' << Detailed(md.Name()) << Detailed(md.Signature());
     return out;
 }
 

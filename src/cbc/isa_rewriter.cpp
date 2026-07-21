@@ -148,7 +148,7 @@ struct IsaRewriter : public IsaParser {
     IsaRewriter(
         Resolver& resolver,
         Engine::Session& session,
-        IO::FileId fileId,
+        Engine::Identifier<Symlevel::MethodDefinition> method,
         MethodCode& code,
         FrameLayout frameLayout,
         Emitter::Emitter& emit
@@ -156,7 +156,8 @@ struct IsaRewriter : public IsaParser {
         : IsaParser(code),
           resolver(resolver),
           session(session),
-          fileId(fileId),
+          method(method),
+          fileId(method.GetFileId()),
           code(code),
           emit(emit),
           frameLayout(frameLayout),
@@ -165,6 +166,7 @@ struct IsaRewriter : public IsaParser {
     {}
 
     Engine::Session& session;
+    Engine::Identifier<Symlevel::MethodDefinition> method;
     IO::FileId fileId;
     Resolver& resolver;
     MethodCode& code;
@@ -214,6 +216,19 @@ struct IsaRewriter : public IsaParser {
             .originalPos = Pos(), // attached to the end of instruction
         };
         statePoints.push_back(point);
+    }
+
+    char* returnedToMsg = nullptr;
+
+    char* ReturnedToMessage()
+    {
+        if (returnedToMsg) {
+            return returnedToMsg;
+        }
+        Stream::StringBuffer buf;
+        Stream::ResolvingOutput out(session, buf);
+        out << "Returned to: " << method << ' ' << Stream::Detailed(method);
+        return returnedToMsg = buf.ToCString();
     }
 
     ssize_t Pos()
@@ -637,6 +652,9 @@ struct IsaRewriter : public IsaParser {
             BindStatePoint();
         }
         AdjustReg(dst, IReg::IR1);
+        if (Interpretation::Log::interpretation.GetLogLevel() >= Logging::Level::TRACE) {
+            emit.LogInstruction(ReturnedToMessage());
+        }
     }
 
     void CallVirtual(IReg dst, uint16_t methodId) override
@@ -650,6 +668,9 @@ struct IsaRewriter : public IsaParser {
         emit.VirtualCall(method->methodNum, method->extDefNum, method->sret);
         BindStatePoint();
         AdjustReg(dst, IReg::IR1);
+        if (Interpretation::Log::interpretation.GetLogLevel() >= Logging::Level::TRACE) {
+            emit.LogInstruction(ReturnedToMessage());
+        }
     }
 
     void CallInterf(IReg dst, uint16_t methodId) override
@@ -668,6 +689,9 @@ struct IsaRewriter : public IsaParser {
         emit.InterfaceCall(method->methodNum, *ti, method->sret);
         BindStatePoint();
         AdjustReg(dst, IReg::IR1);
+        if (Interpretation::Log::interpretation.GetLogLevel() >= Logging::Level::TRACE) {
+            emit.LogInstruction(ReturnedToMessage());
+        }
     }
 
     void CallInterfGeneric(uint16_t argnum, uint16_t methodId) override
@@ -680,6 +704,9 @@ struct IsaRewriter : public IsaParser {
         auto method = m.value();
         emit.InterfaceCallGeneric(method->methodNum, argnum, method->sret);
         BindStatePoint();
+        if (Interpretation::Log::interpretation.GetLogLevel() >= Logging::Level::TRACE) {
+            emit.LogInstruction(ReturnedToMessage());
+        }
     }
 
     void Spawn(IReg closure, uint16_t typeId) override
@@ -1541,7 +1568,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
         FATAL("Rewriter failed: cannot make frame layout.");
     }
 
-    auto rewriter = IsaRewriter(resolver, session, method.GetFileId(), code, *frameLayout, emitter);
+    auto rewriter = IsaRewriter(resolver, session, method, code, *frameLayout, emitter);
     rewriter.ParseAll();
 
     if (!rewriter.failureMessages.empty()) {
@@ -1583,7 +1610,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
     Resolver resolver(session, method);
     auto code = Symlevel::Reader::Read(session, def.MethodCode().value());
 
-    Interpretation::Log::preparation.Log(Logging::Level::INFO, [&](Stream::Output& out) {
+    Interpretation::Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
         Descripted desc(out, Descriptor(session, method));
         code.Print(session, out);
         Disasm(desc, code, &resolver);
@@ -1591,7 +1618,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
 
     auto res = Rewrite(session, code, resolver, heap, method);
 
-    Interpretation::Log::preparation.Log(Logging::Level::INFO, [&](Stream::Output& out) {
+    Interpretation::Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
         Descripted desc(out, Descriptor(session, method));
 
         desc.PrintFmt("bytecode: %p %zu", res.code.bytecode, res.code.bytecodeSize);
