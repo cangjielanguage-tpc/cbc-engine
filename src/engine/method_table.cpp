@@ -234,7 +234,7 @@ std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, Glob
     }
 
     Log::mt.Log(Logging::Level::DEBUG, [&session, &newTable, &def](Output& stream) {
-        ResolvingOutput out(session, Log::mt.Stream(Logging::Level::ERROR));
+        ResolvingOutput out(session, stream);
         out << "Intermediate table for " << Detailed(def.GetName()) << " " << newTable << endl;
     });
 

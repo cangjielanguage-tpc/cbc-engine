@@ -317,6 +317,18 @@ private:
 
             content.desc.alignment = acc.alignment;
             content.desc.size      = acc.size;
+            layout                 = std::move(content);
+        } else if (kind == TermKind::PRIMITIVE_ENUM) {
+            ClassSubstitution substitute(session, term);
+            SizeAlignmentAccumulator acc { this, 0, 1 };
+            FieldLayout::Content content;
+
+            auto someType = TermManager::Resolve(session, def.GetEnumType());
+            someType      = substitute.Substitute(someType);
+            acc.AddField(content.fields, someType, std::nullopt);
+
+            content.desc.alignment = acc.alignment;
+            content.desc.size      = acc.size;
             layout = std::move(content);
         } else if (kind == TermKind::UNION_ENUM) {
             ClassSubstitution substitute(session, term);
