@@ -66,7 +66,7 @@ static LDK Ldk(CbcTypeKind tk)
 
         case TK::BOOL: return LDK::LD_U8;
         case TK::REF:  return LDK::LD_REF;
-        case TK::REC:  return LDK::LEA; // record types: load effective address
+        case TK::REC:  return LDK::LD_LEA; // record types: load effective address
 
         default: {
             FATAL("Not supported type kind %d", tk);
@@ -346,7 +346,7 @@ struct IsaRewriter : public IsaParser {
 
     void LoadStackRec(IReg r, uint16_t ts) override
     {
-        emit.LoadFrame(Format::LoadAccessKind::LEA, r, frameLayout.typedOffset.at(ts));
+        emit.LoadFrame(Format::LoadAccessKind::LD_LEA, r, frameLayout.typedOffset.at(ts));
     }
 
     void LoadRawMemory(AnyReg dst, IReg base, int64_t offset, Format::LoadAccessKind ldk) override
@@ -1033,7 +1033,7 @@ struct IsaRewriter : public IsaParser {
         emit.NewBox(typeInfo);
         BindStatePoint();
         AdjustReg(dst, IReg::IR_ACC);
-        emit.LoadFrame(Format::LoadAccessKind::LEA, IReg::IR_ACC, offset);
+        emit.LoadFrame(Format::LoadAccessKind::LD_LEA, IReg::IR_ACC, offset);
         auto ms = emit.OpenMemSpace();
         ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
         ms.WriteStructFieldObj(IReg::IR_ACC, dst, typeInfo);
@@ -1062,7 +1062,7 @@ struct IsaRewriter : public IsaParser {
                     return;
                 }
                 auto typeInfo = ti.value();
-                emit.LoadObj(Format::LoadAccessKind::LEA, IReg::IR_ACC, src, RTSupport::MetaInfo::ObjectHeaderSize());
+                emit.LoadObj(Format::LoadAccessKind::LD_LEA, IReg::IR_ACC, src, RTSupport::MetaInfo::ObjectHeaderSize());
                 emit.ReadStructField(IReg::From(dst), src, IReg::IR_ACC, typeInfo);
             }
         }
@@ -1082,7 +1082,7 @@ struct IsaRewriter : public IsaParser {
         }
         auto typeInfo = ti.value();
         auto offset   = frameLayout.typedOffset[dstTs];
-        emit.LoadFrame(Format::LoadAccessKind::LEA, IReg::IR_ACC, offset);
+        emit.LoadFrame(Format::LoadAccessKind::LD_LEA, IReg::IR_ACC, offset);
         auto ms = emit.OpenMemSpace();
         ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
         ms.ReadStructFieldObj(IReg::IR_ACC, src, typeInfo);

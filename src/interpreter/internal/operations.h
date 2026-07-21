@@ -426,7 +426,7 @@ inline void MemoryLocation::LoadPrim(LoadAccessKind::Value ldk, Format::Reg dst,
         case LoadAccessKind::LD_S32TO64: Load<int32_t>(dst, ectype); return;
         case LoadAccessKind::LD_F32:     Load<float>(dst, ectype); return;
         case LoadAccessKind::LD_F64:     Load<double>(dst, ectype); return;
-        case LoadAccessKind::LEA:        Lea(dst, ectype); return;
+        case LoadAccessKind::LD_LEA:     Lea(dst, ectype); return;
         default:                         FATAL("Unexpected ldk");
     }
 }
