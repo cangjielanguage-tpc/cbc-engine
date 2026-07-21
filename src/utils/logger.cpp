@@ -16,7 +16,7 @@ Logger::Logger(Stream::Output* output, Level level)
           Stream::Descripted(*output, ""),         Stream::Descripted(*output, "[FATAL] "),
           Stream::Descripted(*output, "[ERROR] "), Stream::Descripted(*output, "[WARN] "),
           Stream::Descripted(*output, "[INFO] "),  Stream::Descripted(*output, "[DEBUG] "),
-          Stream::Descripted(*output, "[TRACE] "),
+          Stream::Descripted(*output, "[TRACE] "), Stream::Descripted(blackhole, ""),
       }
 {
     SetLogLevel(level);
