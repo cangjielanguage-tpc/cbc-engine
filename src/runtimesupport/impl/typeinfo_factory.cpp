@@ -5,6 +5,7 @@
 #include "engine/field_layout.h"
 #include "engine/identifiers.h"
 #include "engine/method_table.h"
+#include "engine/options.h"
 #include "engine/resolving_output.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/dependencies.h"
@@ -282,10 +283,9 @@ static std::optional<DYN_GCTib> ConstructGCTib(TypeInfoBuilder& builder, std::ve
     }
 
     auto maxOffset = *std::max_element(refFieldOffs.begin(), refFieldOffs.end());
-    if (maxOffset < GCTIB_MAX_SHORT_OFFSET) {
+    if (Engine::useShortGCTib && maxOffset < GCTIB_MAX_SHORT_OFFSET) {
         // Fast path: maximum offset to the reference field is small. We fit it into inline bitset gctib
         uintptr_t gctib = 1ul << 63;
-        size_t i        = 1;
         for (auto offs : refFieldOffs) {
             gctib |= (1 << offs / sizeof(uintptr_t));
         }
@@ -299,12 +299,12 @@ static std::optional<DYN_GCTib> ConstructGCTib(TypeInfoBuilder& builder, std::ve
         auto bitsPerElement = sizeof(gctib->bitmapWords[0]) * 8;
         auto maxIndex       = maxOffset / refAlignment;
         auto maskCount      = maxIndex / refAlignment + 1;
-        auto allocAmount    = gctib->nBitmapWords * sizeof(gctib->bitmapWords[0]) + sizeof(*gctib);
+        auto allocAmount    = maskCount * sizeof(gctib->bitmapWords[0]) + sizeof(*gctib);
         gctib               = static_cast<StdGCTib*>(std::calloc(1, allocAmount));
-        gctib->nBitmapWords = maskCount;
         if (!gctib) {
             return std::nullopt;
         }
+        gctib->nBitmapWords = maskCount;
         for (auto offs : refFieldOffs) {
             auto ref                  = offs / sizeof(uintptr_t);
             auto slot                 = ref / bitsPerElement;
@@ -613,6 +613,16 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             }
             builder.gctib = *gctib;
         }
+
+        Log::typeinfo.Log(Logging::Level::INFO, [&](Stream::Output& out) {
+            Stream::ResolvingOutput stream(session, out);
+            stream << "Ref offsets for " << term << ":" << Stream::endl;
+            for (auto offset : refFieldOffs) {
+                stream << " - " << offset << Stream::endl;
+            }
+            out.PrintFmt("gctib: %lx", builder.gctib.raw);
+            out.NewLine();
+        });
     } else {
         builder.fieldNum     = 0;
         builder.fields       = nullptr;

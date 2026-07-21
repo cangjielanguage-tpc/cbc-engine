@@ -7,6 +7,7 @@
 #include "resolution/resolution.h"
 #include "runtimesupport/impl/entrypoint.h"
 
+#include "utils/options.h"
 #include "utils/rt_logger.h"
 
 using Options::Option;
@@ -17,7 +18,10 @@ using Options::SetLogLevelValue;
 using Options::SetStringValue;
 using Options::Table;
 
+bool Engine::useShortGCTib = true;
+
 constexpr Option globalOptionsArray[] = {
+    { "cbc.use.short.gctib", &Engine::useShortGCTib, &SetBoolValue },
     { "cbc.log.resolution", &Resolution::log, &SetLogLevelValue },
     { "cbc.log.int", &Interpretation::Log::interpretation, &SetLogLevelValue },
     { "cbc.log.preparation", &Interpretation::Log::preparation, &SetLogLevelValue },

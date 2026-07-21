@@ -508,7 +508,18 @@ perform_2i_call:
 
   // current rsp is 16-byte.baligned
   mov   r8d, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
+  mov   rsi, rsp
   sub   rsp, r8
+  mov   rdi, rsp
+  xor   ecx, ecx
+
+.Lloop:
+  cmp   rdi, rsi
+  je    .Lloop_end
+  mov   [rdi], rcx
+  add   rdi, 8
+  jmp   .Lloop
+.Lloop_end:
 
   mov   rsi, QWORD PTR [rax + EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
   xor   rsi, rdx
