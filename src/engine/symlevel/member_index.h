@@ -24,18 +24,20 @@ struct MemberIndex {
     uint32_t bucketsStart;
     uint32_t bucketsSize;
 
-    struct Generator {
-        MemberIndex const* index;
-        IO::RandomAccessFile* raf;
-        uint32_t cursor;
-        uint32_t endIdx;
-
-        std::optional<uint32_t> operator()();
-    };
+    struct Generator;
 
     MemberIndex::Generator AllEntries(Engine::Session& session) const;
     MemberIndex::Generator FindBucket(Engine::Session& session, std::string_view name) const;
     static MemberIndex Read(IO::FileId fileId, IO::StreamFileReader& reader);
+};
+
+struct MemberIndex::Generator {
+    MemberIndex index;
+    IO::RandomAccessFile* raf;
+    uint32_t cursor;
+    uint32_t endIdx;
+
+    std::optional<uint32_t> operator()();
 };
 
 template <typename T> class MemberIndexBase {
@@ -53,9 +55,9 @@ public:
         {
             for (auto res = gen(); res; res = gen()) {
                 auto offs = Offset<T>(*res);
-                auto name = Reader::ReadName(*session, gen.index->fileId, offs);
+                auto name = Reader::ReadName(*session, gen.index.fileId, offs);
                 if (this->name.compare(name) == 0) {
-                    return Engine::Identifier<T>(offs, gen.index->fileId);
+                    return Engine::Identifier<T>(offs, gen.index.fileId);
                 }
             }
             return std::nullopt;
@@ -69,7 +71,7 @@ public:
         {
             auto res = gen();
             if (res) {
-                return Engine::Identifier<T>(Offset<T>(*res), gen.index->fileId);
+                return Engine::Identifier<T>(Offset<T>(*res), gen.index.fileId);
             }
             return std::nullopt;
         }
