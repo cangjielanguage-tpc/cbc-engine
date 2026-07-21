@@ -949,21 +949,26 @@ struct IsaRewriter : public IsaParser {
 
     Interpretation::BuiltinType ToBuiltin(Engine::TermKind tk)
     {
+        using namespace Interpretation;
         switch (tk) {
-            case Engine::TermKind::BOOLEAN: return Interpretation::BUILTIN_BOOLEAN;
-            case Engine::TermKind::U8:      return Interpretation::BUILTIN_U8;
-            case Engine::TermKind::I8:      return Interpretation::BUILTIN_I8;
-            case Engine::TermKind::U16:     return Interpretation::BUILTIN_U16;
-            case Engine::TermKind::I16:     return Interpretation::BUILTIN_I16;
-            case Engine::TermKind::U32:     return Interpretation::BUILTIN_U32;
-            case Engine::TermKind::I32:     return Interpretation::BUILTIN_I32;
-            case Engine::TermKind::U64:     return Interpretation::BUILTIN_U64;
-            case Engine::TermKind::I64:     return Interpretation::BUILTIN_I64;
-            case Engine::TermKind::F16:     return Interpretation::BUILTIN_F16;
-            case Engine::TermKind::F32:     return Interpretation::BUILTIN_F32;
-            case Engine::TermKind::F64:     return Interpretation::BUILTIN_F64;
+            case Engine::TermKind::UNIT:    return BUILTIN_UNIT;
+            case Engine::TermKind::BOOLEAN: return BUILTIN_BOOLEAN;
+            case Engine::TermKind::U8:      return BUILTIN_U8;
+            case Engine::TermKind::I8:      return BUILTIN_I8;
+            case Engine::TermKind::U16:     return BUILTIN_U16;
+            case Engine::TermKind::I16:     return BUILTIN_I16;
+            case Engine::TermKind::U32:     return BUILTIN_U32;
+            case Engine::TermKind::I32:     return BUILTIN_I32;
+            case Engine::TermKind::U64:     return BUILTIN_U64;
+            case Engine::TermKind::I64:     return BUILTIN_I64;
+            case Engine::TermKind::UADDR:   return BUILTIN_UADDR;
+            case Engine::TermKind::IADDR:   return BUILTIN_IADDR;
+            case Engine::TermKind::F16:     return BUILTIN_F16;
+            case Engine::TermKind::F32:     return BUILTIN_F32;
+            case Engine::TermKind::F64:     return BUILTIN_F64;
+            case Engine::TermKind::UCHAR32: return BUILTIN_RUNE;
 
-            default: Fail(); return Interpretation::BUILTIN_I64;
+            default: Fail("unexpected builtin kind"); return Interpretation::BUILTIN_I64;
         }
     }
 
