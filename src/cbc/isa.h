@@ -818,10 +818,11 @@ struct Imm48 {
 
 /// 64 bit; immediate
 union Imm64 {
+    void* ptr;
     uint64_t imm;
     double dimm;
 
-    inline static Imm64 Decode(Decoder::ByteReader& reader) { return Imm64 { reader.Read64() }; }
+    inline static Imm64 Decode(Decoder::ByteReader& reader) { return Imm64 { .imm = reader.Read64() }; }
 };
 
 /// 16 bit; Imm4 and 12-bit immediate
