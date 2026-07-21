@@ -6,6 +6,8 @@ namespace Engine {
 
 using Options::Table;
 
+extern bool useShortGCTib;
+
 void InitEnvOptions();
 extern Table const g_table;
 
