@@ -816,7 +816,7 @@ INTERFACE_CALL_GENERIC: {
 
     auto outerTI = Execution::GetMethodOuterTi(typeInfo, interf, num);
 
-    if (IReg::VIRT_COUNT < args.argn) {
+    if (args.argn < IReg::VIRT_COUNT) {
         ectype->Put(IReg::From(args.argn), Value::Primitive { outerTI.UInt() });
     } else {
         // FIXME: share the same offset calculation logic as in rewriter.
