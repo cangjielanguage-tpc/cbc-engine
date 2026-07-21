@@ -142,6 +142,13 @@ HALT: {
     FATAL("halt");
     return {};
 }
+LOG: {
+    auto args   = B9i64::Decode(reader);
+    auto string = (char*)args.imm64.ptr;
+    auto level  = ectype->funcCtr > Log::skipThreshold ? Logging::Level::TRACE : Logging::Level::BLOCK;
+    Log::interpretation.Log(level, [string](Stream::Output& out) { out << string << Stream::endl; });
+    NEXT;
+}
 RET: {
     auto args = B1::Decode(reader);
     LOG_INSTR;
@@ -1330,7 +1337,7 @@ void engine_log_int_start(DynamicFunctionHandle* handle, Ectype* ectype)
     auto& logger = Log::interpretation.Stream(Logging::Level::DEBUG);
     auto id      = handle->methodDef.GetFileId().id;
     auto offs    = handle->methodDef.GetOffset().value;
-    logger.PrintFmt("Started interpretation of %p (%u;%u)", handle, id, offs);
+    logger.PrintFmt("Started interpretation of %p (%u,%u)", handle, id, offs);
     logger.NewLine();
 }
 
@@ -1339,7 +1346,7 @@ void engine_log_int_end(DynamicFunctionHandle* handle, Ectype* ectype)
     auto& logger = Log::interpretation.Stream(Logging::Level::DEBUG);
     auto id      = handle->methodDef.GetFileId().id;
     auto offs    = handle->methodDef.GetOffset().value;
-    logger.PrintFmt("Stopped interpretation of %p (%u;%u)", handle, id, offs);
+    logger.PrintFmt("Stopped interpretation of %p (%u,%u)", handle, id, offs);
     logger.NewLine();
     logger.Flush();
 }
