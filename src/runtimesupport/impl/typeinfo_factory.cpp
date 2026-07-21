@@ -274,7 +274,7 @@ static std::optional<TypeInfo> QueryTypeInfoAOT(
     Engine::Session& session, Engine::TypeInfoManager& manager, char const* typeName, Engine::Term term
 );
 
-static constexpr uint32_t GCTIB_MAX_SHORT_OFFSET = sizeof(void*) * 62;
+static constexpr uint32_t GCTIB_MAX_SHORT_OFFSET = sizeof(uintptr_t) * 62;
 
 static std::optional<DYN_GCTib> ConstructGCTib(TypeInfoBuilder& builder, std::vector<uint32_t>& refFieldOffs)
 {
@@ -285,9 +285,10 @@ static std::optional<DYN_GCTib> ConstructGCTib(TypeInfoBuilder& builder, std::ve
     auto maxOffset = *std::max_element(refFieldOffs.begin(), refFieldOffs.end());
     if (Engine::useShortGCTib && maxOffset < GCTIB_MAX_SHORT_OFFSET) {
         // Fast path: maximum offset to the reference field is small. We fit it into inline bitset gctib
-        uintptr_t gctib = 1ul << 63;
+        uintptr_t one   = 1;
+        uintptr_t gctib = one << 63;
         for (auto offs : refFieldOffs) {
-            gctib |= (1 << offs / sizeof(uintptr_t));
+            gctib |= (one << (offs / sizeof(uintptr_t)));
         }
         return std::make_optional<DYN_GCTib>(DYN_GCTib { .raw = gctib });
     } else {
