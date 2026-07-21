@@ -806,7 +806,7 @@ INTERFACE_CALL_GENERIC: {
     LOG_INSTR;
     auto num    = args.vnum;
     auto sret   = args.sret;
-    auto interf = TypeInfo(ectype->GetPrimitive(IReg::TAIL_REG).u64);
+    auto interf = TypeInfo(ectype->GetPrimitive(IReg::IR_ACC).u64);
 
     auto receiver = IReg::IR1;
     if (HAS_SRET_SHIFT && sret) {
