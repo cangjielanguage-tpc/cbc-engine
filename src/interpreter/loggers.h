@@ -1,6 +1,7 @@
 #pragma once
 
 #include "utils/logger.h"
+#include <cstdint>
 
 namespace Interpretation {
 namespace Log {
@@ -12,6 +13,7 @@ namespace Log {
 /// NOTE: this logger is enabled only in debug builds.
 /// TODO: separate define to enable in release builds.
 extern Logging::Logger interpretation;
+extern int64_t skipThreshold;
 
 /// Logger for bytecode preparation actions.
 /// TRACE - enable disasm for input and rewritten bytecodes

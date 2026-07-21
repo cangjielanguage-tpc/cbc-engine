@@ -4,6 +4,7 @@
 #include "asm_export.h"
 #include "cbc/isa.h"
 #include "interpreter/loggers.h"
+#include "utils/logger.h"
 #include <cstddef>
 #include <cstdint>
 
@@ -54,7 +55,7 @@ public:
     inline void Put(IReg reg, Value::Primitive primitive)
     {
 #ifndef NDEBUG
-        Log::interpretation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
+        Log::interpretation.Log(LogLevel(), [&](Stream::Output& out) {
             out << reg.ToStr() << " <- " << primitive.u64 << Stream::endl;
         });
 #endif
@@ -65,7 +66,7 @@ public:
     inline void Put(IReg reg, Value::Reference reference)
     {
 #ifndef NDEBUG
-        Log::interpretation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
+        Log::interpretation.Log(LogLevel(), [&](Stream::Output& out) {
             out.PrintFmt("%s <- %p", reg.ToStr().data(), reference.value);
             out.NewLine();
         });
@@ -77,7 +78,7 @@ public:
     inline void Put(FReg reg, Value::Primitive primitive)
     {
 #ifndef NDEBUG
-        Log::interpretation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
+        Log::interpretation.Log(LogLevel(), [&](Stream::Output& out) {
             out << reg.ToStr() << " <- " << primitive.f64 << Stream::endl;
         });
 #endif
@@ -102,14 +103,17 @@ public:
     IRegContainer iregs[IReg::COUNT];
     FRegContainer fregs[FReg::COUNT];
 
-    uint64_t hash;
+    int64_t funcCtr { 0 };
     uint32_t magic = MAGIC_WORD;
+
+private:
+    Logging::Level LogLevel() { return funcCtr > Log::skipThreshold ? Logging::Level::TRACE : Logging::Level::BLOCK; }
 };
 
 class EctypeInvariants {
     static_assert(offsetof(Ectype, iregs) == ECTYPE_IREGS_OFFSET);
     static_assert(offsetof(Ectype, fregs) == ECTYPE_FREGS_OFFSET);
-    static_assert(offsetof(Ectype, hash) == ECTYPE_HASH_OFFSET);
+    static_assert(offsetof(Ectype, funcCtr) == ECTYPE_FUNC_COUNTER_OFFSET);
     static_assert(offsetof(Ectype, iregs[IReg::IR_ACC]) == ECTYPE_IACC_OFFSET);
     static_assert(ECTYPE_IACC_NUM == IReg::IR_ACC);
     static_assert(IReg::COUNT == ECTYPE_IREGS_COUNT);

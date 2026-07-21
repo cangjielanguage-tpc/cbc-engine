@@ -10,9 +10,10 @@
 #include "utils/rt_logger.h"
 
 using Options::Option;
-using Options::SetLogLevelValue;
 using Options::SetAllLogLevels;
 using Options::SetBoolValue;
+using Options::SetIntValue;
+using Options::SetLogLevelValue;
 using Options::SetStringValue;
 using Options::Table;
 
@@ -30,6 +31,7 @@ constexpr Option globalOptionsArray[] = {
     { "cbc.dasm", &Cbc::g_IsRawDisasmEnabled, &SetBoolValue },
     { "cbc.path", &g_cbcPath, &SetStringValue },
     { "cbc.main", &g_mainCbc, &SetStringValue },
+    { "cbc.skip.n.int", &Interpretation::Log::skipThreshold, &SetIntValue },
 };
 
 namespace Engine {

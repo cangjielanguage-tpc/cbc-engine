@@ -19,6 +19,7 @@ enum class Level : int {
     INFO,
     DEBUG,
     TRACE,
+    BLOCK
 };
 
 class Logger {
