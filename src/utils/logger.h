@@ -20,7 +20,7 @@ enum class Level : int {
     DEBUG,
     TRACE,
     BLOCK,
-    COUNT = BLOCK
+    COUNT
 };
 
 class Logger {
