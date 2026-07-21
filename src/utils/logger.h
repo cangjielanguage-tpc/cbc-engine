@@ -2,6 +2,8 @@
 
 #include "utils/ostream.h"
 
+#include <cstdint>
+
 namespace Logging {
 
 /// Logging utilities.
