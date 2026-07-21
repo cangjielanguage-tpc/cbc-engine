@@ -9,14 +9,14 @@ struct DefaultSentinel {};
 /// that allows iterator-like behaviour needed for ranged loops.
 template <typename Generator> class MinimalIterator {
 private:
-    Generator generator;
+    Generator& generator;
     using T = typename decltype(generator())::value_type;
     std::optional<T> current;
 
     void Advance() { current = generator(); }
 
 public:
-    explicit MinimalIterator(Generator generator) : generator(std::move(generator))
+    explicit MinimalIterator(Generator& generator) : generator(generator)
     {
         Advance(); // Fetch first item
     }
