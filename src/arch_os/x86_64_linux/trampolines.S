@@ -492,6 +492,7 @@ perform_2i_call:
   mov   [rbp - READER_SLOT_OFFSET], rsi // cursor
 
 #ifndef NDEBUG
+  inc   dword ptr [ECTYPE_REG + ECTYPE_FUNC_COUNTER_OFFSET]
   mov   rdi, [rbp - FUH_SLOT_OFFSET]
   mov   rsi, ECTYPE_REG
   call  engine_log_int_start

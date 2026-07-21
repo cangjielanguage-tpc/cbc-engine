@@ -3,6 +3,8 @@
 #include "utils/logger.h"
 #include "utils/ostream.h"
 
+#include <charconv>
+#include <cstdint>
 #include <cstdlib>
 #include <string_view>
 #include <vector>
@@ -49,6 +51,16 @@ bool SetBoolValue(Options::Table const&, Options::Option const& option, std::str
     } else {
         return false;
     }
+}
+
+bool SetIntValue(Options::Table const&, Options::Option const& option, std::string_view value)
+{
+    auto end = value.data() + value.size();
+    int64_t res;
+    auto [ptr, ec]               = std::from_chars(value.data(), end, res);
+    *(int64_t*)(option.location) = res;
+
+    return ec == std::errc {} && ptr == end;
 }
 
 bool SetStringValue(Options::Table const&, Options::Option const& option, std::string_view value)

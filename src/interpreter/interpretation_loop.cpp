@@ -121,7 +121,7 @@ Interpretation::Thunk engine_interpretation_loop(
     // Logging format is:
     // [int] (stack depth) < (bc pos): instruction
     #define LOG_INSTR                                                                                                  \
-        if (Log::interpretation.GetLogLevel() <= Logging::Level::TRACE) {                                              \
+        if (ectype->funcCtr > Log::skipThreshold && Log::interpretation.GetLogLevel() <= Logging::Level::TRACE) {      \
             logger.PrintFmt("#0x%lx < 0x%03lx: ", frame.start, pos - start);                                           \
             pos = reader.Cursor();                                                                                     \
             Cbc::RT::Log(literals, logger, args);                                                                      \

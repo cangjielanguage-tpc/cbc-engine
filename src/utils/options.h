@@ -43,6 +43,7 @@ void InitFromEnv(const Table& opts);
 
 bool SetLogLevelValue(Table const&, Option const&, std::string_view value);
 bool SetBoolValue(Table const&, Option const&, std::string_view value);
+bool SetIntValue(Table const&, Option const&, std::string_view value);
 bool SetStringValue(Table const&, Option const&, std::string_view value);
 bool SetAllLogLevels(Table const&, Option const&, std::string_view value);
 
