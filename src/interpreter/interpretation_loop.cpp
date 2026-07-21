@@ -1099,6 +1099,7 @@ GENERIC_FIELD: {
     RLD(64)
     RLD(S32TO64)
     RLD(REF)
+    RLD(LEA)
 #undef RLD
 
 #define RST(stk)                                                                                                       \
@@ -1162,6 +1163,7 @@ GENERIC_FIELD: {
     DLD(64)
     DLD(S32TO64)
     DLD(REF)
+    DLD(LEA)
 #undef DLD
 
 #define DST(stk)                                                                                                       \
@@ -1226,6 +1228,7 @@ GENERIC_FIELD: {
     SLD(64)
     SLD(S32TO64)
     SLD(REF)
+    SLD(LEA)
 #undef SLD
 
 #define SST(stk)                                                                                                       \
@@ -1287,6 +1290,7 @@ GENERIC_FIELD: {
     FLD(64)
     FLD(S32TO64)
     FLD(REF)
+    FLD(LEA)
 #undef FLD
 
 #define FST(stk)                                                                                                       \
