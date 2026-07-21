@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <utility>
 
@@ -910,13 +911,13 @@ void Emitter::Catch(IReg reg) { Encode(segment, RT::B2xr { .opc = RT::Opcode::CA
 
 void Emitter::LoadGenericTypeInfo(uintptr_t termData)
 {
-    Encode(segment, RT::B9i64 { .opc = RT::Opcode::LOAD_GENERIC_TI, .imm64 = { termData } });
+    Encode(segment, RT::B9i64 { .opc = RT::Opcode::LOAD_GENERIC_TI, .imm64 = { .imm = termData } });
 }
 
 void Emitter::LoadTypeInfo(RTSupport::TypeInfo typeInfo)
 {
     auto d = reinterpret_cast<uintptr_t>(typeInfo.Raw());
-    Encode(segment, RT::B9i64 { .opc = RT::Opcode::LOAD_TI, .imm64 = { d } });
+    Encode(segment, RT::B9i64 { .opc = RT::Opcode::LOAD_TI, .imm64 = { .imm = d } });
 }
 
 void Emitter::NewBox(Interpretation::BuiltinType t)
@@ -926,7 +927,7 @@ void Emitter::NewBox(Interpretation::BuiltinType t)
 
 void Emitter::NewBox(RTSupport::TypeInfo typeInfo)
 {
-    Encode(segment, RT::B9i64 { .opc = RT::Opcode::NEWBOX2, .imm64 = { reinterpret_cast<uint64_t>(typeInfo.Raw()) } });
+    Encode(segment, RT::B9i64 { .opc = RT::Opcode::NEWBOX2, .imm64 = { .ptr = typeInfo.Raw() } });
 }
 
 void Emitter::Offset(IReg dst, int ordinal, IReg typeInfo)
@@ -960,6 +961,22 @@ void Emitter::AssignGeneric(IReg dst, IReg src, IReg ti)
 void Emitter::InstanceOfGeneric(IReg dst, IReg obj, IReg ti)
 {
     Encode(segment, RT::B3xrrr { .opc = RT::Opcode::IOF_GENERIC, .xr = { 0, dst }, .rr = { obj, ti } });
+}
+
+void Emitter::LogInstruction(std::string_view string)
+{
+    auto data = (char*)malloc(string.size() + 1);
+    if (data == nullptr) {
+        FATAL("Out of memory");
+    }
+    data[string.size()] = 0;
+    memcpy(data, string.data(), string.size());
+    Encode(segment, RT::B9i64 { .opc = RT::Opcode::LOG, .imm64 = { .ptr = data } });
+}
+
+void Emitter::LogInstruction(char* string)
+{
+    Encode(segment, RT::B9i64 { .opc = RT::Opcode::LOG, .imm64 = { .ptr = string } });
 }
 
 } // namespace Emitter

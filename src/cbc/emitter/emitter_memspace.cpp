@@ -239,7 +239,7 @@ struct XRImmBuilder {
 
     auto I32(RT::MemOpcode opc, uint32_t v) const { return RT::M6xri32 { opc, xr, { v } }; }
 
-    auto I64(RT::MemOpcode opc, uint64_t v) const { return RT::M10xri64 { opc, xr, { v } }; }
+    auto I64(RT::MemOpcode opc, uint64_t v) const { return RT::M10xri64 { opc, xr, { .imm = v } }; }
 };
 
 struct RRImmBuilder {
@@ -251,7 +251,7 @@ struct RRImmBuilder {
 
     auto I32(RT::MemOpcode opc, uint32_t v) const { return RT::M6rri32 { opc, rr, { v } }; }
 
-    auto I64(RT::MemOpcode opc, uint64_t v) const { return RT::M10rri64 { opc, rr, { v } }; }
+    auto I64(RT::MemOpcode opc, uint64_t v) const { return RT::M10rri64 { opc, rr, { .imm = v } }; }
 };
 
 template <typename Builder>
