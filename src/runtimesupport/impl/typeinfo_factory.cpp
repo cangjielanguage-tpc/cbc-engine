@@ -201,11 +201,11 @@ struct TypeInfoBuilder {
         result->typeArgs        = typeArgs;
         result->fields          = fields;
 
-        if (superTypeInfo) {
-            result->superTypeInfo = superTypeInfo;
-        } else if (componentTypeInfo) {
-            result->componentTypeInfo = componentTypeInfo;
-        }
+        // if (superTypeInfo) {
+        //     result->superTypeInfo = superTypeInfo;
+        // } else if (componentTypeInfo) {
+        //     result->componentTypeInfo = componentTypeInfo;
+        // }
 
         result->vExtensionDataStart = extDefs;
         result->mTableDesc          = nullptr;
@@ -390,12 +390,14 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             break;
         default: FATAL("unreachable type kind");
     }
-    auto& termManager                  = Engine::TermManager::Of(session);
-    auto dynCurTi                      = &currentTypeInfo->base;
-    currentTypeInfo->base.type = builder.type;
-    currentTypeInfo->base.typeArgsNum  = 0;
-    currentTypeInfo->base.typeInfoName = builder.name;
-    currentTypeInfo->base.uuid         = 0;
+    auto& termManager = Engine::TermManager::Of(session);
+
+    auto dynCurTi           = &currentTypeInfo->base;
+    dynCurTi->type          = builder.type;
+    dynCurTi->typeArgsNum   = 0;
+    dynCurTi->typeInfoName  = builder.name;
+    dynCurTi->uuid          = 0;
+    dynCurTi->superTypeInfo = (DYN_TypeInfo*)0xffffbbbbaaaa0000;
 
     auto addFixup = [&session, &manager, &termManager, &fixups](Engine::Term t, DYN_TypeInfo** location) {
         // FIXME: unaligned accesses
@@ -409,7 +411,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
     superType      = substitute(superType);
 
     if (superType.GetKind() == Engine::TermKind::NIL) {
-        // nothing TODO
+        dynCurTi->superTypeInfo = nullptr;
     } else {
         addFixup(superType, &dynCurTi->superTypeInfo);
     }
@@ -485,13 +487,15 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
                 ft[i].func = desc.ptr;
             }
 
+            // Values from cjnative runtime.
             uint8_t hasOuterTIFastPath = 0b00000001;
+            uint8_t isFuncTableUpdated = 0b00000110;
 
             extDef.funcTable           = reinterpret_cast<DYN_FuncPtr*>(ft);
             extDef.funcTableSize       = entryCount;
             extDef.argNum              = 0;
             extDef.isInterfaceTypeInfo = 1;
-            extDef.flag                = hasOuterTIFastPath;
+            extDef.flag                = hasOuterTIFastPath | isFuncTableUpdated;
             extDef.whereCondFn         = nullptr;
 
             extDef.ti = &currentTypeInfo->base;
