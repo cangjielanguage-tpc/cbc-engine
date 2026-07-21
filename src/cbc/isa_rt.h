@@ -126,6 +126,7 @@
     X(RLD_64, M2rr, "rld.64 $0ir $1ir }", true)                                                                        \
     X(RLD_S32TO64, M2rr, "rld.s32to64 $0ir $1ir }", true)                                                              \
     X(RLD_REF, M2rr, "rld.ref $0ir $1ir }", true)                                                                      \
+    X(RLD_LEA, M2rr, "rld.lea $0ir $1ir }", true)                                                                      \
     X(RST_8, M2rr, "rst.8 $0ir $1ir }", true)                                                                          \
     X(RST_16, M2rr, "rst.16 $0ir $1ir }", true)                                                                        \
     X(RST_32, M2rr, "rst.32 $0ir $1ir }", true)                                                                        \
@@ -153,6 +154,7 @@
     X(DLD_64, M3xrrr, "dld.64 $1ir $2ir $3ir }", true)                                                                 \
     X(DLD_S32TO64, M3xrrr, "dld.s32to64 $1ir $2ir $3ir }", true)                                                       \
     X(DLD_REF, M3xrrr, "dld.ref $1ir $2ir $3ir }", true)                                                               \
+    X(DLD_LEA, M3xrrr, "dld.lea $1ir $2ir $3ir }", true)                                                               \
     X(DLD_GENERIC, M3rrrr, "dld.g $0ir $1ir $2ir $3ir }", true)                                                        \
     X(DST_8, M3xrrr, "dst.8 $1ir $2ir $3ir }", true)                                                                   \
     X(DST_16, M3xrrr, "dst.16 $1ir $2ir $3ir }", true)                                                                 \
@@ -182,6 +184,7 @@
     X(SLD_64, M2rr, "sld.64 $0ir $1ir }", true)                                                                        \
     X(SLD_S32TO64, M2rr, "sld.s32to64 $0ir $1ir }", true)                                                              \
     X(SLD_REF, M2rr, "sld.ref $0ir $1ir }", true)                                                                      \
+    X(SLD_LEA, M2rr, "sld.lea $0ir $1ir }", true)                                                                      \
     X(SST_8, M2rr, "sst.8 $0ir $1ir }", true)                                                                          \
     X(SST_16, M2rr, "sst.16 $0ir $1ir }", true)                                                                        \
     X(SST_32, M2rr, "sst.32 $0ir $1ir }", true)                                                                        \
@@ -209,6 +212,7 @@
     X(FLD_64, M2rr, "fld.64 $0ir $1ir }", true)                                                                        \
     X(FLD_S32TO64, M2rr, "fld.s32to64 $0ir $1ir }", true)                                                              \
     X(FLD_REF, M2rr, "fld.ref $0ir $1ir }", true)                                                                      \
+    X(FLD_LEA, M2rr, "fld.lea $0ir $1ir }", true)                                                                      \
     X(FST_8, M2rr, "fst.8 $0ir $1ir }", true)                                                                          \
     X(FST_16, M2rr, "fst.16 $0ir $1ir }", true)                                                                        \
     X(FST_32, M2rr, "fst.32 $0ir $1ir }", true)                                                                        \
@@ -288,13 +292,13 @@ public:
 #undef DEFINE_OPCODE
 
     static constexpr auto RLD_START_OPCODE  = RLD_U8;
-    static constexpr auto RLD_END_OPCODE    = RLD_REF;
+    static constexpr auto RLD_END_OPCODE    = RLD_LEA;
     static constexpr auto DLD_START_OPCODE  = DLD_U8;
-    static constexpr auto DLD_END_OPCODE    = DLD_REF;
+    static constexpr auto DLD_END_OPCODE    = DLD_LEA;
     static constexpr auto SLD_START_OPCODE  = SLD_U8;
-    static constexpr auto SLD_END_OPCODE    = SLD_REF;
+    static constexpr auto SLD_END_OPCODE    = SLD_LEA;
     static constexpr auto FLD_START_OPCODE  = FLD_U8;
-    static constexpr auto FLD_END_OPCODE    = FLD_REF;
+    static constexpr auto FLD_END_OPCODE    = FLD_LEA;
     static constexpr auto RST_START_OPCODE  = RST_8;
     static constexpr auto RST_END_OPCODE    = RST_F64;
     static constexpr auto DST_START_OPCODE  = DST_8;
