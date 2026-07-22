@@ -52,14 +52,7 @@ struct BasicTypeInfoManager : public RTSupport::TypeInfoManager {
 
         auto result = RTSupport::CreateTypeInfo(session, *this, term);
         if (result.has_value()) {
-            auto uuid = RTSupport::MetaInfo::GetUUID(result.value());
-            if (auto it = uuidMap.find(uuid); it != uuidMap.end()) {
-                // The `result` Typeinfo already been created before,
-                // which is possible only if we incorrectly reconstructed term
-                // from TypeInfo.
-                FATAL("Unexpected UUID associated term.");
-            }
-            uuidMap.insert_or_assign(uuid, term);
+            typesWithoutUUID.push_back(std::make_pair(term, *result));
             storage.insert_or_assign(term, result.value());
         } else {
             storage.insert_or_assign(term, failed);
@@ -87,7 +80,23 @@ struct BasicTypeInfoManager : public RTSupport::TypeInfoManager {
         storage.insert_or_assign(term, Pending { typeInfo });
     }
 
+    void HandleUUIDs()
+    {
+        for (auto [t, ti] : typesWithoutUUID) {
+            auto uuid = RTSupport::MetaInfo::GetUUID(ti);
+            if (auto it = uuidMap.find(uuid); it != uuidMap.end()) {
+                // The `result` Typeinfo already been created before,
+                // which is possible only if we incorrectly reconstructed term
+                // from TypeInfo.
+                FATAL("Unexpected UUID associated term.");
+            }
+            uuidMap.insert_or_assign(uuid, t);
+        }
+        typesWithoutUUID.clear();
+    }
+
 protected:
+    std::vector<std::pair<GlobalTerm, TypeInfo>> typesWithoutUUID;
     std::unordered_map<GlobalTerm, ResolutionState, TermHasher> storage;
     std::unordered_map<RTSupport::TypeInfoUUID, GlobalTerm> uuidMap;
 };
@@ -96,12 +105,7 @@ struct LockedTypeInfoManager : public TypeInfoManager {
     std::optional<RTSupport::TypeInfo> AcquireTypeInfo(Session& session, GlobalTerm term) override
     {
         std::lock_guard guard(lock);
-        auto result = unsafe.AcquireTypeInfo(session, term);
-        if (unsafe.ResolveFixups(session)) {
-            // TODO: logs
-            return std::nullopt;
-        }
-        return result;
+        return unsafe.AcquireTypeInfo(session, term);
     }
 
     GlobalTerm AcquireTerm(Session& session, RTSupport::TypeInfo ti) override
@@ -126,27 +130,3 @@ std::optional<RTSupport::TypeInfo> TypeInfoManager::AcquireTypeInfo(Session& ses
 }
 
 } // namespace Engine
-
-bool RTSupport::TypeInfoManager::ResolveFixups(Engine::Session& session)
-{
-    bool failed = false;
-    while (!fixups.empty()) {
-        Fixup fixup = fixups.back();
-        fixups.pop_back();
-        auto ti = AcquireTypeInfo(session, fixup.term);
-        if (ti) {
-            *fixup.location = *ti;
-        } else {
-            failed = true;
-        }
-    }
-    return failed;
-}
-
-void RTSupport::TypeInfoManager::AddFixups(std::vector<Fixup>& fixups)
-{
-    this->fixups.reserve(fixups.size());
-    for (auto f : fixups) {
-        this->fixups.push_back(f);
-    }
-}
