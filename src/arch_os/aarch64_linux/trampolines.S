@@ -11,6 +11,8 @@
     #define engine_c2i_call_pc_end _engine_c2i_call_pc_end
     #define engine_trampolines_dyn_start _engine_trampolines_dyn_start
     #define engine_trampolines_dyn_end _engine_trampolines_dyn_end
+    #define engine_trampolines_dyn_sret_start _engine_trampolines_dyn_sret_start
+    #define engine_trampolines_dyn_sret_end _engine_trampolines_dyn_sret_end
     #define engine_trampolines_direct_start _engine_trampolines_direct_start
     #define engine_all_regs_c2i_call _engine_all_regs_c2i_call
     #define engine_iregs_only_c2i_call _engine_iregs_only_c2i_call
@@ -65,6 +67,8 @@ declare_hidden engine_c2i_call_pc_start
 declare_hidden engine_c2i_call_pc_end
 declare_hidden engine_trampolines_dyn_start
 declare_hidden engine_trampolines_dyn_end
+declare_hidden engine_trampolines_dyn_sret_start
+declare_hidden engine_trampolines_dyn_sret_end
 declare_hidden engine_trampolines_direct_start
 declare_hidden engine_all_regs_c2i_call
 declare_hidden engine_iregs_only_c2i_call
@@ -207,6 +211,8 @@ engine_universal_dyn_call:
 
 
 .balign 16
+// AArch64 passes the SRET pointer in x8, leaving the receiver in x0. We can use same trampoline for both SRET and non-SRET.
+engine_trampolines_dyn_sret_start:
 engine_trampolines_dyn_start:
 .macro repeat_trampoline_dyn count
   .set i, 0
@@ -217,6 +223,7 @@ engine_trampolines_dyn_start:
   .endr
 .endm
   repeat_trampoline_dyn TRAMPOLINE_COUNT
+engine_trampolines_dyn_sret_end:
 engine_trampolines_dyn_end:
 
 .macro engine_c2i_call ireg_count freg_count
@@ -274,6 +281,7 @@ c2i_prepare_ectype:
   stp   x2, x3, [sp, #-16]!
   stp   x4, x5, [sp, #-16]!
   stp   x6, x7, [sp, #-16]!
+  str   x8, [sp, #-16]!
 
   mov   x0, x21
   bl    engine_fiber_data_init
@@ -281,6 +289,7 @@ c2i_prepare_ectype:
   mov   ECTYPE_REG, x0
   ldr   x9, [x29, #-0x50] // restore fuh
 
+  ldr   x8, [sp], #16
   ldp   x6, x7, [sp], #16
   ldp   x4, x5, [sp], #16
   ldp   x2, x3, [sp], #16

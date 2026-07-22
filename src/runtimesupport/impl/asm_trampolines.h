@@ -25,6 +25,8 @@ extern void engine_i2_spawn();
 extern void engine_trampolines_direct_start();
 extern void engine_trampolines_dyn_start();
 extern void engine_trampolines_dyn_end();
+extern void engine_trampolines_dyn_sret_start();
+extern void engine_trampolines_dyn_sret_end();
 extern void engine_iregs_only_c2i_call();
 extern void engine_all_regs_c2i_call();
 extern void engine_i2i_call();

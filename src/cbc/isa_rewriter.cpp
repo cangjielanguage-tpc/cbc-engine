@@ -10,6 +10,7 @@
 #include "engine/resolving_output.h"
 #include "engine/symlevel/code.h"
 #include "engine/symlevel/definitions.h"
+#include "engine/symlevel/flags.h"
 #include "engine/symlevel/io/file_id.h"
 #include "engine/symlevel/reader.h"
 #include "engine/terms.h"
@@ -725,9 +726,26 @@ struct IsaRewriter : public IsaParser {
 
     void NewClosure(IReg dst, uint16_t typeId) override
     {
-        NewObj(IReg::IR1, typeId); // has BindStatePoint call inside
-        emit.InitClosure();
-        AdjustReg(dst, IReg::IR1);
+        auto type = NewObject(IReg::IR1, typeId, New::Obj); // has BindStatePoint call inside
+        if (!type.has_value()) {
+            return;
+        }
+
+        auto typeDefId = Engine::TypeTermId(type->term).GetIdentifier();
+        auto typeDef   = Symlevel::Reader::Read(resolver.session, typeDefId);
+
+        int idx = 0;
+        for (auto methodId : typeDef.GetVirtualMethods().Values(resolver.session)) {
+            if (idx++ == 1) {
+                auto method = Symlevel::Reader::Read(resolver.session, methodId);
+                auto sret   = method.GetFlags().Is(Symlevel::MethodFlag::SRET);
+
+                emit.InitClosure(sret);
+                AdjustReg(dst, IReg::IR1);
+                return;
+            }
+        }
+        Fail("failed to find instantiated version of method in closure");
     }
 
     void Scc(Format::Width width, Format::CC cc, IReg d, AnyReg l, AnyReg r) override

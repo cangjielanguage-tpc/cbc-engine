@@ -30,6 +30,22 @@ static constexpr int MIN_I12 = -Cbc::RT::LIT_TABLE_SIZE / 2;
 
 using namespace Cbc::Format;
 
+TEST(EmitTest, InitClosureVariants)
+{
+    Emitter e;
+    e.InitClosure(false);
+    e.InitClosure(true);
+
+    auto code = e.Build(heap);
+    ASSERT_EQ(2, code.bytecodeSize);
+    EXPECT_EQ(static_cast<uint8_t>(RT::Opcode::INITCLOSURE), code.bytecode[0]);
+    EXPECT_EQ(static_cast<uint8_t>(RT::Opcode::INITCLOSURE_SRET), code.bytecode[1]);
+
+    Stream::StringBuffer stream;
+    RT::Log(code, stream);
+    EXPECT_EQ("0x000: init.closure\n0x001: init.closure.sret\n", stream.ToString());
+}
+
 TEST(EmitTest, Simple_ArithB2rr)
 {
     Emitter e;
