@@ -243,7 +243,7 @@ struct TypeInfoBuilder {
                 break;
             case Symlevel::TypeKind::ENUM:
                 type        = TYPE_KIND_ENUM;
-                needExtDefs = true;
+                needExtDefs = !isAot;
                 needFields  = true;
                 break;
             default: FATAL("unreachable type kind");
@@ -268,6 +268,7 @@ struct TypeInfoBuilder {
             ASSERTION(false, "neither of instance or component size was set");
         }
 
+        result->uuid            = 0;
         result->gctib           = gctib;
         result->align           = align;
         result->typeArgsNum     = typeArgsNum;
@@ -951,6 +952,17 @@ std::optional<TypeInfo> CreateTypeInfo(Engine::Session& session, TypeInfoManager
         Stream::ResolvingOutput stream(session, out);
         if (ti.has_value()) {
             stream << "successfuly built " << term << " with " << ti->Raw() << Stream::endl;
+            if (term.GetName(session).compare(
+                    "std.collection:List<std.core:Option<eembc.eembc.com.sun.mep.bench.Chess:ClockWatcher>>"
+                ) == 0) {
+                auto uuid = RTSupport::MetaInfo::GetUUID(*ti);
+                stream << term << " " << UnpackTypeInfo(*ti)->typeInfoName << " has uuid " << uuid << Stream::endl;
+                auto tt        = UnpackTypeInfo(*ti)->finalizerMethod;
+                auto arg       = UnpackTypeInfo(*ti)->typeArgs[0];
+                auto typeInfoG = g_CJNativeInterfaceInstance.getOrCreateTypeInfo(tt, 1, &arg);
+                auto aotuuid   = RTSupport::MetaInfo::GetUUID(TypeInfo(typeInfoG));
+                stream << term << " " << typeInfoG->typeInfoName << " aot has uuid " << aotuuid << Stream::endl;
+            }
         } else {
             stream << "failed to build " << term << Stream::endl;
         }
