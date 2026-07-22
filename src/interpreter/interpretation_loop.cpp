@@ -1341,7 +1341,7 @@ void engine_log_int_start(DynamicFunctionHandle* handle, Ectype* ectype)
     auto& logger = Log::interpretation.Stream(Logging::Level::DEBUG);
     auto id      = handle->methodDef.GetFileId().id;
     auto offs    = handle->methodDef.GetOffset().value;
-    logger.PrintFmt("Started interpretation of %p (%u,%u)", handle, id, offs);
+    logger.PrintFmt("Started interpretation of %p (%u,%u) %ld", handle, id, offs, ectype->funcCtr);
     logger.NewLine();
 }
 

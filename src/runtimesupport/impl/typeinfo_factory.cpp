@@ -656,9 +656,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         // why??
         if (term.GetKind() == Engine::TermKind::OPTION && term.IsReference()) {
             builder.flag  |= HAS_REF_FIELD;
-            builder.gctib = { .raw = (1ull << 63) | 1 };
-        } else if (term.GetKind() == Engine::TermKind::OPTION && !term.IsReference()) {
-            builder.gctib = { .raw = (1ull << 63) | 0 };
+            builder.gctib  = { .raw = (1ull << 63) | 1 };
         } else if (!refFieldOffs.empty()) {
             builder.flag |= HAS_REF_FIELD;
 
