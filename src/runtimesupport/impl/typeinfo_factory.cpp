@@ -28,6 +28,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <optional>
+#include <string_view>
 
 namespace RTSupport {
 
@@ -85,6 +86,7 @@ enum TypeKind : int8_t {
 template <typename T> static T* Alloc(size_t cnt = 1) { return reinterpret_cast<T*>(std::malloc(sizeof(T) * cnt)); }
 
 static std::optional<TypeInfo> QueryTypeInfoAOTByName(char const* str);
+static void* QueryTypeTemplate(Engine::Session& session, char const* typeName);
 
 static char* ConstructTypeInfoName(std::string_view str)
 {
@@ -155,12 +157,11 @@ struct TypeInfoBuilder {
     int8_t typeArgsNum          = 0;
     uint16_t validInheritNum    = 0;
     uint32_t* fieldOffsets      = nullptr;
-    DYN_FuncPtr finalizerMethod = nullptr;
+    DYN_FuncPtr typeTemplateOrFinalizer = nullptr;
     DYN_TypeInfo** typeArgs     = nullptr;
     DYN_TypeInfo** fields       = nullptr;
 
-    DYN_TypeInfo* superTypeInfo     = nullptr;
-    DYN_TypeInfo* componentTypeInfo = nullptr;
+    DYN_TypeInfo* superTypeInfo = nullptr;
 
     DYN_ExtensionData** extDefs    = nullptr;
     OuterTIFuncUnion* flatMethods  = nullptr;
@@ -172,7 +173,82 @@ struct TypeInfoBuilder {
 
     bool built = false;
 
-    TypeInfoBuilder(CbcTypeInfo* typeInfo) : typeInfo(typeInfo) {}
+    std::string_view aotTypeDefName = "";
+    bool isAot                      = false;
+    bool needExtDefs                = false;
+    bool needFields                 = false;
+    bool isLambda                   = false;
+
+    Engine::GlobalTerm term;
+    Engine::Session& session;
+    Engine::Term superType = Engine::Term::Predefined(Engine::TermKind::NIL);
+
+    TypeInfoBuilder(CbcTypeInfo* typeInfo, Engine::Session& session, Engine::GlobalTerm term)
+        : typeInfo(typeInfo),
+          session(session),
+          term(term)
+    {}
+
+    void Identify()
+    {
+        switch (term.GetKind()) {
+            case Engine::TermKind::CANGJIE_ARRAY:
+                type           = TYPE_KIND_RAWARRAY;
+                needExtDefs    = false;
+                needFields     = false;
+                isAot          = true;
+                aotTypeDefName = "RawArray";
+                superType      = term.Subterm(0);
+                flag           = HAS_REF_FIELD;
+                return;
+            case Engine::TermKind::TUPLE:
+                type           = TYPE_KIND_TUPLE;
+                needExtDefs    = false;
+                needFields     = true;
+                isAot          = true;
+                aotTypeDefName = "Tuple";
+                return;
+            default: {
+            }
+        }
+        Engine::ClassSubstitution sub(session, term);
+        auto ident     = Engine::ExtractTypeDefIdentifier(term);
+        auto def       = Symlevel::Reader::Read(session, ident);
+        aotTypeDefName = Symlevel::Reader::Read(session, def.GetName());
+
+        superType = sub.Substitute(Engine::TermManager::Resolve(session, def.GetSuperType()));
+
+        isAot = def.GetFlags().Is(Symlevel::TypeFlag::AOT);
+        switch (def.GetFlags().GetTypeKind()) {
+            case Symlevel::TypeKind::INTERFACE:
+                type        = TYPE_KIND_INTERFACE;
+                needExtDefs = true;
+                needFields  = false;
+                break;
+            case Symlevel::TypeKind::RECORD:
+                type        = TYPE_KIND_STRUCT;
+                needExtDefs = true;
+                needFields  = true;
+                break;
+            case Symlevel::TypeKind::CLASS:
+                type        = TYPE_KIND_CLASS;
+                needExtDefs = true;
+                needFields  = true;
+                break;
+            case Symlevel::TypeKind::LAMBDA:
+                type        = TYPE_KIND_CLASS;
+                needExtDefs = false;
+                needFields  = true;
+                isLambda    = true;
+                break;
+            case Symlevel::TypeKind::ENUM:
+                type        = TYPE_KIND_ENUM;
+                needExtDefs = true;
+                needFields  = true;
+                break;
+            default: FATAL("unreachable type kind");
+        }
+    }
 
     DYN_TypeInfo* Build()
     {
@@ -193,20 +269,16 @@ struct TypeInfoBuilder {
         }
 
         result->gctib           = gctib;
-        //result->uuid            = uuid;
         result->align           = align;
         result->typeArgsNum     = typeArgsNum;
         result->validInheritNum = validInheritNum;
         result->fieldOffsets    = fieldOffsets;
-        result->finalizerMethod = finalizerMethod;
+        // This field is union between finalizer and type template.
+        result->finalizerMethod = typeTemplateOrFinalizer;
         result->typeArgs        = typeArgs;
         result->fields          = fields;
 
-        // if (superTypeInfo) {
-        //     result->superTypeInfo = superTypeInfo;
-        // } else if (componentTypeInfo) {
-        //     result->componentTypeInfo = componentTypeInfo;
-        // }
+        result->superTypeInfo = superTypeInfo;
 
         result->vExtensionDataStart = extDefs;
         result->mTableDesc          = nullptr;
@@ -220,16 +292,16 @@ struct TypeInfoBuilder {
     {
         if (!built) {
             // free is no-op on nulls.
-            std::free(longgctib);
-            std::free(fieldOffsets);
-            std::free(name);
-            std::free(typeArgs);
-            std::free(fields);
-            std::free(dataMT);
-            std::free(flatExtDefs);
-            std::free(extDefs);
-            std::free(flatMethods);
-            std::free(typeInfo);
+            // std::free(longgctib);
+            // std::free(fieldOffsets);
+            // std::free(name);
+            // std::free(typeArgs);
+            // std::free(fields);
+            // std::free(dataMT);
+            // std::free(flatExtDefs);
+            // std::free(extDefs);
+            // std::free(flatMethods);
+            // std::free(typeInfo);
         }
     }
 };
@@ -323,28 +395,22 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
     Engine::Session& session, TypeInfoManager& manager, Engine::GlobalTerm term
 )
 {
-    auto ident = Engine::ExtractTypeDefIdentifier(term);
+    struct TiWrapper {
+        uint64_t magic;
+        CbcTypeInfo info;
+    };
 
-    auto type = Symlevel::Reader::Read(session, ident);
-    auto name = Symlevel::Reader::Read(session, type.GetName());
-
-    if (type.GetFlags().Is(Symlevel::TypeFlag::AOT)) {
-        std::string copiedName(name);
-        return QueryTypeInfoAOT(session, manager, copiedName.c_str(), term);
-    }
-
-    std::vector<TypeInfoManager::Fixup> fixups;
-
-    auto currentTypeInfo = Alloc<CbcTypeInfo>();
-    if (!currentTypeInfo) {
+    auto wrapper = Alloc<TiWrapper>();
+    if (!wrapper) {
         return std::nullopt;
     }
+    wrapper->magic       = 0xfedcba0987654321;
+    auto currentTypeInfo = &wrapper->info;
 
-    TypeInfoBuilder builder(currentTypeInfo);
-
+    TypeInfoBuilder builder(currentTypeInfo, session, term);
     {
         Stream::StringBuffer stringBuffer;
-        Engine::Term(term).GetName(session, stringBuffer);
+        Engine::Term(term).GetName(session, stringBuffer, true);
 
         // Not guaranteed that name is constructed in the same way as CJNative does.
         // TODO: does it matter?
@@ -359,67 +425,36 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         return std::nullopt;
     }
 
-    bool needExtDefs;
-    bool needFields;
+    builder.Identify();
 
-    auto typeKind = type.GetFlags().GetTypeKind();
-    switch (typeKind) {
-        case Symlevel::TypeKind::INTERFACE:
-            builder.type = TYPE_KIND_INTERFACE;
-            needExtDefs  = true;
-            needFields   = false;
-            break;
-        case Symlevel::TypeKind::RECORD:
-            builder.type = TYPE_KIND_STRUCT;
-            needExtDefs  = true;
-            needFields   = true;
-            break;
-        case Symlevel::TypeKind::CLASS:
-            builder.type = TYPE_KIND_CLASS;
-            needExtDefs  = true;
-            needFields   = true;
-            break;
-        case Symlevel::TypeKind::LAMBDA:
-            builder.type = TYPE_KIND_CLASS;
-            needExtDefs  = false;
-            needFields   = true;
-            break;
-        case Symlevel::TypeKind::ENUM:
-            builder.type = TYPE_KIND_ENUM;
-            needExtDefs  = true;
-            needFields   = true;
-            break;
-        default: FATAL("unreachable type kind");
+    if (builder.isAot && term.GetLength() == 0) {
+        std::string typeName(builder.aotTypeDefName);
+        return QueryTypeInfoAOT(session, manager, typeName.c_str(), term);
     }
+
+    bool needExtDefs = builder.needExtDefs;
+    bool needFields  = builder.needFields;
+
     auto& termManager = Engine::TermManager::Of(session);
 
-    auto dynCurTi           = &currentTypeInfo->base;
-    dynCurTi->type          = builder.type;
-    dynCurTi->typeArgsNum   = 0;
-    dynCurTi->typeInfoName  = builder.name;
-    dynCurTi->uuid          = 0;
-    dynCurTi->superTypeInfo = (DYN_TypeInfo*)0xffffbbbbaaaa0000;
-
-    auto addFixup = [&session, &manager, &termManager, &fixups](Engine::Term t, DYN_TypeInfo** location) {
-        // FIXME: unaligned accesses
-        auto gterm = termManager.Globalize(t);
-        auto loc   = reinterpret_cast<TypeInfo*>(location);
-        fixups.push_back(TypeInfoManager::Fixup { gterm, loc });
+    auto acquireTypeInfo = [&manager, &session](Engine::Term term) {
+        ASSERT(term.GetKind() != Engine::TermKind::AOT_TYPE);
+        return manager.AcquireTypeInfo(session, term);
     };
 
+    builder.superTypeInfo = nullptr;
     Engine::ClassSubstitution substitute(session, term);
-    auto superType = Engine::TermManager::Resolve(session, type.GetSuperType());
-    superType      = substitute(superType);
-
-    if (superType.GetKind() == Engine::TermKind::NIL) {
-        dynCurTi->superTypeInfo = nullptr;
-    } else {
-        addFixup(superType, &dynCurTi->superTypeInfo);
+    if (builder.superType.GetKind() != Engine::TermKind::NIL) {
+        if (auto super = acquireTypeInfo(builder.superType); super) {
+            builder.superTypeInfo = UnpackTypeInfo(*super);
+        } else {
+            return std::nullopt;
+        }
     }
 
     if (needExtDefs) { // fill out ext defs
-        auto& manager = Engine::MethodTableManager::Of(session);
-        auto optMT    = manager.GetMethodTable(session, term);
+        auto& methodTableManager = Engine::MethodTableManager::Of(session);
+        auto optMT               = methodTableManager.GetMethodTable(session, term);
 
         if (!optMT.has_value()) {
             Log::typeinfo.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
@@ -472,6 +507,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
         builder.extDefs[extDefCount] = nullptr;
 
+        bool resolutionFailed = false;
         auto prepareExtDef = [&](DYN_ExtensionData& extDef, Engine::MethodSubTable const& smt) {
             // We are maintaining disjoint sub method table ranges!
             auto start      = smt.StartPos();
@@ -483,14 +519,19 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             auto tt = &builder.flatMethods[2 * start + entryCount];
 
             for (int i = 0; i < entryCount; i++) {
-                auto desc              = funcDescs[start + i];
-                addFixup(desc.declaredType, &tt[i].typeInfo);
+                auto desc = funcDescs[start + i];
+                if (auto ti = acquireTypeInfo(desc.declaredType); ti) {
+                    tt[i].typeInfo = UnpackTypeInfo(*ti);
+                } else {
+                    resolutionFailed = true;
+                }
                 ft[i].func = desc.ptr;
             }
 
             // Values from cjnative runtime.
             uint8_t hasOuterTIFastPath = 0b00000001;
             uint8_t isFuncTableUpdated = 0b00000110;
+            uint8_t isDirect           = 0b10000000;
 
             extDef.funcTable           = reinterpret_cast<DYN_FuncPtr*>(ft);
             extDef.funcTableSize       = entryCount;
@@ -502,9 +543,15 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             extDef.ti = &currentTypeInfo->base;
 
             if (smt.DeclaringType() == term) {
-                extDef.flag |= HAS_EXT_PART;
+                extDef.flag |= isDirect;
             }
-            addFixup(smt.DeclaringType(), &extDef.interfaceTypeInfo);
+
+            auto interface = smt.DeclaringType();
+            if (auto ti = acquireTypeInfo(interface); ti) {
+                extDef.interfaceTypeInfo = UnpackTypeInfo(*ti);
+            } else {
+                resolutionFailed = true;
+            }
         };
 
         // fill out ext defs
@@ -516,7 +563,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         for (auto st : mt->Interfaces()) {
             prepareExtDef(builder.flatExtDefs[extDefIndex++], st);
         }
-    } else if (typeKind == Symlevel::TypeKind::LAMBDA) {
+    } else if (builder.isLambda) {
         auto& manager = Engine::MethodTableManager::Of(session);
         auto optMT    = manager.GetMethodTable(session, term);
 
@@ -593,7 +640,11 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
                 return std::nullopt;
             }
             auto fieldId = idx++;
-            addFixup(fieldType, &builder.fields[fieldId]);
+            if (auto ti = acquireTypeInfo(fieldType); ti) {
+                builder.fields[fieldId] = UnpackTypeInfo(*ti);
+            } else {
+                return std::nullopt;
+            }
             builder.fieldOffsets[fieldId] = *optOffs;
             fieldManager->FillRefOffsets(fieldType, refFieldOffs, optOffs.value());
         }
@@ -633,6 +684,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
     }
 
     int typeArgsNum     = term.GetLength();
+    builder.typeArgsNum = 0; // set type arg num to zero (so cjnative runtime won't query type templates)
     if (typeArgsNum > 0) {
         builder.typeArgs = Alloc<DYN_TypeInfo*>(typeArgsNum);
         if (builder.typeArgs == nullptr) {
@@ -646,9 +698,39 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         for (int i = 0; i < typeArgsNum; i++) {
             builder.typeArgs[i] = typeInfos[i];
         }
+        if (builder.isAot) {
+            builder.typeArgsNum = typeArgsNum;
+            std::string name(builder.aotTypeDefName);
+            auto typeTemplate = QueryTypeTemplate(session, name.c_str());
+
+            // FIXME: use RTTypes.h
+            struct TypeTemplate {
+                char* name;
+                int8_t type;
+                int8_t flag;
+                uint16_t fieldNum;
+                uint16_t typeArgNum;
+                uint16_t uuid;
+                void** fieldFns;
+                void* superFn;
+                void* finalizer;
+                void* info;
+                void** extensionDatas;
+                uint16_t validInheritNum;
+            };
+
+            auto tt = (TypeTemplate*)typeTemplate;
+
+            if (builder.type != TYPE_KIND_TUPLE) {
+                ASSERT(tt->typeArgNum == typeArgsNum);
+                ASSERT(tt->type == builder.type);
+                ASSERT(tt->fieldNum == builder.fieldNum);
+            }
+
+            builder.typeTemplateOrFinalizer = typeTemplate;
+        }
     }
 
-    manager.AddFixups(fixups);
     return TypeInfo(builder.Build());
 }
 
@@ -830,15 +912,14 @@ std::optional<TypeInfo> CreateTypeInfo(Engine::Session& session, TypeInfoManager
             case Engine::TermKind::UNION_ENUM:
             case Engine::TermKind::PRIMITIVE_ENUM:
             case Engine::TermKind::OPTION:
-            case Engine::TermKind::TYPE: return CreateTypeInfoDyn(session, manager, term);
+            case Engine::TermKind::TYPE:
+            case Engine::TermKind::TUPLE:
+            case Engine::TermKind::CANGJIE_ARRAY:  return CreateTypeInfoDyn(session, manager, term);
 
             case Engine::TermKind::AOT_TYPE:
                 return QueryTypeInfoAOT(session, manager, GetAotTypeName(session, term), term);
 
-            case Engine::TermKind::CANGJIE_ARRAY: return QueryTypeInfoAOT(session, manager, "RawArray", term);
-
             case Engine::TermKind::FUNCTIONAL: return QueryFunctional(session, manager, term);
-            case Engine::TermKind::TUPLE:      return QueryTypeInfoAOT(session, manager, "Tuple", term);
 
             case Engine::TermKind::UNIT:    return builtinTypeInfos[BUILTIN_UNIT];
             case Engine::TermKind::BOOLEAN: return builtinTypeInfos[BUILTIN_BOOLEAN];
