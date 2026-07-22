@@ -222,7 +222,7 @@ struct TypeInfoBuilder {
         switch (def.GetFlags().GetTypeKind()) {
             case Symlevel::TypeKind::INTERFACE:
                 type        = TYPE_KIND_INTERFACE;
-                needExtDefs = true;
+                needExtDefs = !isAot;
                 needFields  = false;
                 break;
             case Symlevel::TypeKind::RECORD:
@@ -232,7 +232,7 @@ struct TypeInfoBuilder {
                 break;
             case Symlevel::TypeKind::CLASS:
                 type        = TYPE_KIND_CLASS;
-                needExtDefs = true;
+                needExtDefs = !isAot;
                 needFields  = true;
                 break;
             case Symlevel::TypeKind::LAMBDA:
@@ -389,6 +389,8 @@ static std::optional<DYN_GCTib> ConstructGCTib(TypeInfoBuilder& builder, std::ve
     }
 }
 
+static int64_t FakeWhereCond() { return -1; }
+
 // TODO: factory class, so it can hold state of other managers without recreating them.
 // TODO: split function to smaller ones.
 static std::optional<TypeInfo> CreateTypeInfoDyn(
@@ -538,7 +540,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             extDef.argNum              = 0;
             extDef.isInterfaceTypeInfo = 1;
             extDef.flag                = hasOuterTIFastPath | isFuncTableUpdated;
-            extDef.whereCondFn         = nullptr;
+            extDef.whereCondFn         = (void*)&FakeWhereCond;
 
             extDef.ti = &currentTypeInfo->base;
 
