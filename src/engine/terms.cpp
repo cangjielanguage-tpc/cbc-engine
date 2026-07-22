@@ -522,6 +522,8 @@ bool TermManager::Comparator::operator()(TermData* const& left, TermData* const&
         return false;
     } else if (left->length != right->length) {
         return false;
+    } else if (left->identifier != right->identifier) {
+        return false;
     } else {
         auto len = left->length;
         // shallow comparison for cache.
