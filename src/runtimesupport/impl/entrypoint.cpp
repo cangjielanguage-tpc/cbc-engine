@@ -105,6 +105,7 @@ static void LoadCbcFilesFromDirectory(Engine::Loader& loader, std::string const&
             LogCbcDirectoryScan("failed to open cbc file: " + candidate);
             continue;
         }
+        LogCbcDirectoryScan("successfully opened cbc file: " + candidate);
         loader.Load(std::move(file.value()), candidate);
     }
 
@@ -209,7 +210,7 @@ static void PerformPatching()
         for (auto type : ti.Entries(session)) {
             auto def = Symlevel::Reader::Read(session, type);
             if (!def.GetFlags().Is(Symlevel::TypeFlag::PATCH)) {
-                return;
+                continue;
             }
 
             auto pkgName = Symlevel::Reader::Read(session, def.GetName());
