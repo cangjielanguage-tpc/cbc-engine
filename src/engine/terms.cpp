@@ -270,7 +270,7 @@ std::string Term::GetName(Session& session) const
     return buf.ToString();
 }
 
-void Term::GetName(Session& session, Stream::Output& out) const
+void Term::GetName(Session& session, Stream::Output& out, bool pure) const
 {
     Stream::ResolvingOutput stream(session, out);
     auto printSubTerms = [&](std::string_view prefix, std::string_view suffix, int len) {
@@ -282,9 +282,22 @@ void Term::GetName(Session& session, Stream::Output& out) const
         }
         stream << suffix;
     };
-
     using TK  = TermKind;
     auto kind = GetKind();
+
+    auto prefix = "";
+    // [](TK tk, bool pure) {
+    //     if (pure) return "";
+    //     switch (tk) {
+    //         case TermKind::TYPE: return "@";
+    //         case TermKind::AOT_TYPE: return "#";
+    //         case TermKind::UNION_ENUM: return "^";
+    //         case TermKind::OPTION: return "?";
+    //         case TermKind::PRIMITIVE_ENUM: return "&";
+    //         default: return "";
+    //     }
+    // }(kind, pure);
+
     switch (kind) {
         case TK::NIL:     stream << "Nil"; break;
         case TK::VOID:    stream << "Void"; break;
@@ -332,7 +345,7 @@ void Term::GetName(Session& session, Stream::Output& out) const
         }
 
         case TK::CANGJIE_ARRAY: {
-            stream << "$array<" << Subterm(0) << '>';
+            stream << "RawArray<" << Subterm(0) << '>';
             break;
         }
 
@@ -353,7 +366,7 @@ void Term::GetName(Session& session, Stream::Output& out) const
         case TK::TYPE: {
             auto ident = ExtractTypeDefIdentifier(*this);
             auto type  = Symlevel::TypeDefinition::Resolve(session, ident);
-            stream << Symlevel::Reader::Read(session, type.GetName());
+            stream << prefix << Symlevel::Reader::Read(session, type.GetName());
             if (int len = GetLength(); len > 0) {
                 printSubTerms("<", ">", len);
             }
@@ -363,7 +376,7 @@ void Term::GetName(Session& session, Stream::Output& out) const
         case TK::AOT_TYPE: {
             auto& manager = TermManager::Of(session);
             std::string_view name = manager.GetNameOfAotType(AotTermId(*this));
-            stream << name;
+            stream << prefix << name;
             if (int len = GetLength(); len > 0) {
                 printSubTerms("<", ">", len);
             }

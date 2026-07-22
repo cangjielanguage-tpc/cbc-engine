@@ -17,9 +17,6 @@ struct TypeInfoManager : public Engine::TypeInfoManager {
     /// Register partially initialized typeInfo to allow recursive queries during typeinfo creation.
     virtual void RegisterPartial(Engine::GlobalTerm term, TypeInfo typeInfo) = 0;
 
-    bool ResolveFixups(Engine::Session& session);
-    void AddFixups(std::vector<Fixup>& fixups);
-
 private:
     std::vector<Fixup> fixups;
 };
