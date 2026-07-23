@@ -101,7 +101,7 @@
     X(WRITE_STRUCT_FIELD, StructFieldOp, "write.struct.field $0ir $1ir $2ir $4U64")                                    \
     X(THROW, B2xr, "throw $1ir")                                                                                       \
     X(CATCH, B2xr, "catch $1ir")                                                                                       \
-    X(LOG, B9i64, "log $0ir")                                                                                          \
+    X(LOG, B9i64, "log $0U64")                                                                                         \
     X(ASSIGN_GENERIC, B3xrrr, "assign.g $1ir $2ir $3ir")                                                               \
     X(IOF_GENERIC, B3xrrr, "iof.g $1ir $2ir $3ir")
 

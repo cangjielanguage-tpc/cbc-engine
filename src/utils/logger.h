@@ -13,7 +13,7 @@ namespace Logging {
 /// There are an number of different log levels, which determine whether the log would be printed or not.
 /// Loggers are represented as globals in corresponding modules.
 
-enum class Level : int {
+enum Level : int {
     NONE,
     FATAL,
     ERROR,
