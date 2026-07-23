@@ -44,45 +44,44 @@ struct TermData;
 
 enum class TermKind : uint8_t {
     // primitives start
-    NIL,
-    VOID,
-    UNIT,
-    NOTHING,
-    BOOLEAN,
-    I8,
-    U8,
-    I16,
-    U16,
-    I32,
-    U32,
-    UCHAR32,
-    I64,
-    U64,
-    IADDR,
-    UADDR,
-    BSTRING,
-    F16,
-    F32,
-    F64,
+    NIL,     // 0
+    VOID,    // 1
+    UNIT,    // 2
+    NOTHING, // 3
+    BOOLEAN, // 4
+    I8,      // 5
+    U8,      // 6
+    I16,     // 7
+    U16,     // 8
+    I32,     // 9
+    U32,     // 10
+    UCHAR32, // 11
+    I64,     // 12
+    U64,     // 13
+    IADDR,   // 14
+    UADDR,   // 15
+    BSTRING, // 16
+    F16,     // 17
+    F32,     // 18
+    F64,     // 19
     // primitives end
 
-    UNDEFINED, // resolution error
+    UNDEFINED, // 20 resolution error
 
-    C_POINTER,
-    NULLABLE,      // TODO: delete
-    NON_NULLABLE,  // TODO: delete
-    CANGJIE_ARRAY, // TODO: rename
-    FUNCTIONAL,
-    TUPLE,
-    BOX,
-    TYPE,
-    AOT_TYPE,
-    CLASS_TYPE_VAR,
-    FUNC_TYPE_VAR,
-    OPTION,
-    UNION_OPTION,
-    UNION_ENUM,
-    PRIMITIVE_ENUM,
+    C_POINTER,      // 21
+    NULLABLE,       // 22 TODO: delete
+    NON_NULLABLE,   // 23 TODO: delete
+    CANGJIE_ARRAY,  // 24 TODO: rename
+    FUNCTIONAL,     // 25
+    TUPLE,          // 26
+    BOX,            // 27
+    TYPE,           // 28
+    AOT_TYPE,       // 29
+    CLASS_TYPE_VAR, // 30
+    FUNC_TYPE_VAR,  // 31
+    OPTION,         // 32
+    UNION_ENUM,     // 33
+    PRIMITIVE_ENUM, // 34
     LAST
 };
 
@@ -165,7 +164,7 @@ struct Term {
     uint32_t Hash() const;
 
     std::string GetName(Session& session) const;
-    void GetName(Session& session, Stream::Output& stream) const;
+    void GetName(Session& session, Stream::Output& stream, bool pure = false) const;
 
     bool IsLocal() const;
     LocalTerm AsLocal();

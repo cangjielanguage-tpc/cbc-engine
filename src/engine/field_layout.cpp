@@ -50,14 +50,6 @@ struct FLManager : public FieldLayoutManager {
 
         std::optional<FieldLayout> layout = std::nullopt;
 
-        switch (term.GetKind()) {
-            case TermKind::TYPE:
-            case TermKind::UNION_ENUM:
-            case TermKind::OPTION:     break;
-
-            default: return std::nullopt;
-        }
-
         if (auto it = cache.find(term); it != cache.end()) {
             // FIXME: recursion detection
             return it->second;
@@ -185,7 +177,6 @@ struct FLManager : public FieldLayoutManager {
             return;
         }
         switch (term.GetKind()) {
-            case TermKind::OPTION:
             case TermKind::AOT_TYPE:     {
                 auto typeInfo = typeInfoManager.AcquireTypeInfo(session, term);
                 if (!typeInfo.has_value()) {
@@ -196,6 +187,7 @@ struct FLManager : public FieldLayoutManager {
                 );
             }
 
+            case TermKind::OPTION:
             case TermKind::TYPE: {
                 ASSERT(!term.IsReference());
                 // Absent offsets must be handled separately.
@@ -286,20 +278,29 @@ private:
         });
 
         auto kind = term.GetKind();
-        auto def  = Symlevel::Reader::Read(session, ExtractTypeDefIdentifier(term));
 
         std::optional<FieldLayout> layout {};
 
-        if (def.GetFlags().Is(Symlevel::TypeFlag::AOT)) {
-            layout = BuildLayoutAot(term, def);
-        } else if (kind == TermKind::TYPE) {
+        if (kind == TermKind::TYPE) {
+            auto def = Symlevel::Reader::Read(session, ExtractTypeDefIdentifier(term));
             layout = BuildLayoutCbc(term, def);
+        } else if (kind == TermKind::TUPLE) {
+            SizeAlignmentAccumulator acc { this, 0, 1 };
+            FieldLayout::Content content;
+            auto len = term.GetLength();
+            for (int i = 0; i < len; i++) {
+                acc.AddField(content.fields, term.Subterm(i), std::nullopt);
+            }
+            content.desc.alignment = acc.alignment;
+            content.desc.size      = acc.size;
+            layout                 = std::move(content);
         } else if (kind == TermKind::OPTION && !term.IsReference()) {
             ClassSubstitution substitute(session, term);
             SizeAlignmentAccumulator acc { this, 0, 1 };
             FieldLayout::Content content;
             acc.AddField(content.fields, Term::Predefined(TermKind::BOOLEAN), std::nullopt);
 
+            auto def      = Symlevel::Reader::Read(session, ExtractTypeDefIdentifier(term));
             auto someType = TermManager::Resolve(session, def.GetEnumType());
             someType = substitute.Substitute(someType);
             acc.AddField(content.fields, someType, std::nullopt);
@@ -313,6 +314,20 @@ private:
             FieldLayout::Content content;
             acc.AddField(content.fields, Term::Predefined(TermKind::UNIT), std::nullopt);
 
+            auto def      = Symlevel::Reader::Read(session, ExtractTypeDefIdentifier(term));
+            auto someType = TermManager::Resolve(session, def.GetEnumType());
+            someType      = substitute.Substitute(someType);
+            acc.AddField(content.fields, someType, std::nullopt);
+
+            content.desc.alignment = acc.alignment;
+            content.desc.size      = acc.size;
+            layout                 = std::move(content);
+        } else if (kind == TermKind::PRIMITIVE_ENUM) {
+            ClassSubstitution substitute(session, term);
+            SizeAlignmentAccumulator acc { this, 0, 1 };
+            FieldLayout::Content content;
+
+            auto def      = Symlevel::Reader::Read(session, ExtractTypeDefIdentifier(term));
             auto someType = TermManager::Resolve(session, def.GetEnumType());
             someType      = substitute.Substitute(someType);
             acc.AddField(content.fields, someType, std::nullopt);
@@ -327,6 +342,7 @@ private:
 
             bool failed   = false;
             uint32_t size = 0;
+            auto def      = Symlevel::Reader::Read(session, ExtractTypeDefIdentifier(term));
             for (auto fieldTypeId : def->unionFields.Values(session)) {
                 auto fieldType = TermManager::Resolve(session, fieldTypeId);
                 fieldType = substitute.Substitute(fieldType);
@@ -342,6 +358,8 @@ private:
             } else {
                 layout = FieldLayout::Content { .desc = { size, alignment } };
             }
+        } else if (kind == TermKind::AOT_TYPE) {
+            FATAL("Unreachable");
         }
 
         Log::fields.Log(Logging::Level::DEBUG, [&](Stream::Output& out_) {

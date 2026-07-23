@@ -9,8 +9,16 @@
 namespace RTSupport {
 
 struct TypeInfoManager : public Engine::TypeInfoManager {
+    struct Fixup {
+        Engine::GlobalTerm term;
+        TypeInfo* location;
+    };
+
     /// Register partially initialized typeInfo to allow recursive queries during typeinfo creation.
     virtual void RegisterPartial(Engine::GlobalTerm term, TypeInfo typeInfo) = 0;
+
+private:
+    std::vector<Fixup> fixups;
 };
 
 /// Performs creation of type info for the given instance of term.

@@ -66,7 +66,7 @@ static LDK Ldk(CbcTypeKind tk)
 
         case TK::BOOL: return LDK::LD_U8;
         case TK::REF:  return LDK::LD_REF;
-        case TK::REC:  return LDK::LEA; // record types: load effective address
+        case TK::REC:  return LDK::LD_LEA; // record types: load effective address
 
         default: {
             FATAL("Not supported type kind %d", tk);
@@ -147,7 +147,7 @@ struct IsaRewriter : public IsaParser {
     IsaRewriter(
         Resolver& resolver,
         Engine::Session& session,
-        IO::FileId fileId,
+        Engine::Identifier<Symlevel::MethodDefinition> method,
         MethodCode& code,
         FrameLayout frameLayout,
         Emitter::Emitter& emit
@@ -155,7 +155,8 @@ struct IsaRewriter : public IsaParser {
         : IsaParser(code),
           resolver(resolver),
           session(session),
-          fileId(fileId),
+          method(method),
+          fileId(method.GetFileId()),
           code(code),
           emit(emit),
           frameLayout(frameLayout),
@@ -164,6 +165,7 @@ struct IsaRewriter : public IsaParser {
     {}
 
     Engine::Session& session;
+    Engine::Identifier<Symlevel::MethodDefinition> method;
     IO::FileId fileId;
     Resolver& resolver;
     MethodCode& code;
@@ -213,6 +215,32 @@ struct IsaRewriter : public IsaParser {
             .originalPos = Pos(), // attached to the end of instruction
         };
         statePoints.push_back(point);
+    }
+
+    template <typename Method> void EmitLogCall(std::string_view prefix, Method m)
+    {
+        if (Interpretation::Log::interpretation.GetLogLevel() < Logging::Level::TRACE) {
+            return;
+        }
+        Stream::StringBuffer stream;
+        stream << startPosition << ": " << prefix << ' ' << m;
+        emit.LogInstruction(stream.ToCString());
+    }
+
+    char* returnedToMsg = nullptr;
+
+    void EmitReturnedTo()
+    {
+        if (Interpretation::Log::interpretation.GetLogLevel() < Logging::Level::TRACE) {
+            return;
+        }
+        if (!returnedToMsg) {
+            Stream::StringBuffer buf;
+            Stream::ResolvingOutput out(session, buf);
+            out << "Returned to: " << method << ' ' << Stream::Detailed(method);
+            returnedToMsg = buf.ToCString();
+        }
+        emit.LogInstruction(returnedToMsg);
     }
 
     ssize_t Pos()
@@ -331,7 +359,7 @@ struct IsaRewriter : public IsaParser {
 
     void LoadStackRec(IReg r, uint16_t ts) override
     {
-        emit.LoadFrame(Format::LoadAccessKind::LEA, r, frameLayout.typedOffset.at(ts));
+        emit.LoadFrame(Format::LoadAccessKind::LD_LEA, r, frameLayout.typedOffset.at(ts));
     }
 
     void LoadRawMemory(AnyReg dst, IReg base, int64_t offset, Format::LoadAccessKind ldk) override
@@ -620,16 +648,19 @@ struct IsaRewriter : public IsaParser {
         auto method = m.value();
 
         if (auto data = std::get_if<DirectCall::Compiled>(&method->data)) {
+            EmitLogCall("call.2c", method);
             auto sym = emit.NewAddressSym(data->funcPtr);
             emit.DirectCall2c(sym);
             BindStatePoint();
         } else {
+            EmitLogCall("call.2i", method);
             auto fuh = std::get<Interpretation::DynamicFunctionHandle*>(method->data);
             auto sym = emit.NewAddressSym(reinterpret_cast<uintptr_t>(fuh));
             emit.DirectCall2i(sym);
             BindStatePoint();
         }
         AdjustReg(dst, IReg::IR1);
+        EmitReturnedTo();
     }
 
     void CallVirtual(IReg dst, uint16_t methodId) override
@@ -640,9 +671,11 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto method = m.value();
+        EmitLogCall("call.virt", method);
         emit.VirtualCall(method->methodNum, method->extDefNum, method->sret);
         BindStatePoint();
         AdjustReg(dst, IReg::IR1);
+        EmitReturnedTo();
     }
 
     void CallInterf(IReg dst, uint16_t methodId) override
@@ -658,9 +691,11 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
+        EmitLogCall("call.interf", method);
         emit.InterfaceCall(method->methodNum, *ti, method->sret);
         BindStatePoint();
         AdjustReg(dst, IReg::IR1);
+        EmitReturnedTo();
     }
 
     void CallInterfGeneric(uint16_t argnum, uint16_t methodId) override
@@ -671,8 +706,10 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto method = m.value();
+        EmitLogCall("call.interf.g", method);
         emit.InterfaceCallGeneric(method->methodNum, argnum, method->sret);
         BindStatePoint();
+        EmitReturnedTo();
     }
 
     void Spawn(IReg closure, uint16_t typeId) override
@@ -922,21 +959,26 @@ struct IsaRewriter : public IsaParser {
 
     Interpretation::BuiltinType ToBuiltin(Engine::TermKind tk)
     {
+        using namespace Interpretation;
         switch (tk) {
-            case Engine::TermKind::BOOLEAN: return Interpretation::BUILTIN_BOOLEAN;
-            case Engine::TermKind::U8:      return Interpretation::BUILTIN_U8;
-            case Engine::TermKind::I8:      return Interpretation::BUILTIN_I8;
-            case Engine::TermKind::U16:     return Interpretation::BUILTIN_U16;
-            case Engine::TermKind::I16:     return Interpretation::BUILTIN_I16;
-            case Engine::TermKind::U32:     return Interpretation::BUILTIN_U32;
-            case Engine::TermKind::I32:     return Interpretation::BUILTIN_I32;
-            case Engine::TermKind::U64:     return Interpretation::BUILTIN_U64;
-            case Engine::TermKind::I64:     return Interpretation::BUILTIN_I64;
-            case Engine::TermKind::F16:     return Interpretation::BUILTIN_F16;
-            case Engine::TermKind::F32:     return Interpretation::BUILTIN_F32;
-            case Engine::TermKind::F64:     return Interpretation::BUILTIN_F64;
+            case Engine::TermKind::UNIT:    return BUILTIN_UNIT;
+            case Engine::TermKind::BOOLEAN: return BUILTIN_BOOLEAN;
+            case Engine::TermKind::U8:      return BUILTIN_U8;
+            case Engine::TermKind::I8:      return BUILTIN_I8;
+            case Engine::TermKind::U16:     return BUILTIN_U16;
+            case Engine::TermKind::I16:     return BUILTIN_I16;
+            case Engine::TermKind::U32:     return BUILTIN_U32;
+            case Engine::TermKind::I32:     return BUILTIN_I32;
+            case Engine::TermKind::U64:     return BUILTIN_U64;
+            case Engine::TermKind::I64:     return BUILTIN_I64;
+            case Engine::TermKind::UADDR:   return BUILTIN_UADDR;
+            case Engine::TermKind::IADDR:   return BUILTIN_IADDR;
+            case Engine::TermKind::F16:     return BUILTIN_F16;
+            case Engine::TermKind::F32:     return BUILTIN_F32;
+            case Engine::TermKind::F64:     return BUILTIN_F64;
+            case Engine::TermKind::UCHAR32: return BUILTIN_RUNE;
 
-            default: Fail(); return Interpretation::BUILTIN_I64;
+            default: Fail("unexpected builtin kind"); return Interpretation::BUILTIN_I64;
         }
     }
 
@@ -995,7 +1037,7 @@ struct IsaRewriter : public IsaParser {
         emit.NewBox(typeInfo);
         BindStatePoint();
         AdjustReg(dst, IReg::IR_ACC);
-        emit.LoadFrame(Format::LoadAccessKind::LEA, IReg::IR_ACC, offset);
+        emit.LoadFrame(Format::LoadAccessKind::LD_LEA, IReg::IR_ACC, offset);
         auto ms = emit.OpenMemSpace();
         ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
         ms.WriteStructFieldObj(IReg::IR_ACC, dst, typeInfo);
@@ -1024,7 +1066,7 @@ struct IsaRewriter : public IsaParser {
                     return;
                 }
                 auto typeInfo = ti.value();
-                emit.LoadObj(Format::LoadAccessKind::LEA, IReg::IR_ACC, src, RTSupport::MetaInfo::ObjectHeaderSize());
+                emit.LoadObj(Format::LoadAccessKind::LD_LEA, IReg::IR_ACC, src, RTSupport::MetaInfo::ObjectHeaderSize());
                 emit.ReadStructField(IReg::From(dst), src, IReg::IR_ACC, typeInfo);
             }
         }
@@ -1044,7 +1086,7 @@ struct IsaRewriter : public IsaParser {
         }
         auto typeInfo = ti.value();
         auto offset   = frameLayout.typedOffset[dstTs];
-        emit.LoadFrame(Format::LoadAccessKind::LEA, IReg::IR_ACC, offset);
+        emit.LoadFrame(Format::LoadAccessKind::LD_LEA, IReg::IR_ACC, offset);
         auto ms = emit.OpenMemSpace();
         ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
         ms.ReadStructFieldObj(IReg::IR_ACC, src, typeInfo);
@@ -1525,7 +1567,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
         FATAL("Rewriter failed: cannot make frame layout.");
     }
 
-    auto rewriter = IsaRewriter(resolver, session, method.GetFileId(), code, *frameLayout, emitter);
+    auto rewriter = IsaRewriter(resolver, session, method, code, *frameLayout, emitter);
     rewriter.ParseAll();
 
     if (!rewriter.failureMessages.empty()) {
@@ -1567,7 +1609,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
     Resolver resolver(session, method);
     auto code = Symlevel::Reader::Read(session, def.MethodCode().value());
 
-    Interpretation::Log::preparation.Log(Logging::Level::INFO, [&](Stream::Output& out) {
+    Interpretation::Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
         Descripted desc(out, Descriptor(session, method));
         code.Print(session, out);
         Disasm(desc, code, &resolver);
@@ -1575,7 +1617,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
 
     auto res = Rewrite(session, code, resolver, heap, method);
 
-    Interpretation::Log::preparation.Log(Logging::Level::INFO, [&](Stream::Output& out) {
+    Interpretation::Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
         Descripted desc(out, Descriptor(session, method));
 
         desc.PrintFmt("bytecode: %p %zu", res.code.bytecode, res.code.bytecodeSize);

@@ -270,7 +270,7 @@ std::string Term::GetName(Session& session) const
     return buf.ToString();
 }
 
-void Term::GetName(Session& session, Stream::Output& out) const
+void Term::GetName(Session& session, Stream::Output& out, bool pure) const
 {
     Stream::ResolvingOutput stream(session, out);
     auto printSubTerms = [&](std::string_view prefix, std::string_view suffix, int len) {
@@ -282,9 +282,22 @@ void Term::GetName(Session& session, Stream::Output& out) const
         }
         stream << suffix;
     };
-
     using TK  = TermKind;
     auto kind = GetKind();
+
+    auto prefix = "";
+    // [](TK tk, bool pure) {
+    //     if (pure) return "";
+    //     switch (tk) {
+    //         case TermKind::TYPE: return "@";
+    //         case TermKind::AOT_TYPE: return "#";
+    //         case TermKind::UNION_ENUM: return "^";
+    //         case TermKind::OPTION: return "?";
+    //         case TermKind::PRIMITIVE_ENUM: return "&";
+    //         default: return "";
+    //     }
+    // }(kind, pure);
+
     switch (kind) {
         case TK::NIL:     stream << "Nil"; break;
         case TK::VOID:    stream << "Void"; break;
@@ -297,11 +310,11 @@ void Term::GetName(Session& session, Stream::Output& out) const
         case TK::U16:     stream << "UInt16"; break;
         case TK::I32:     stream << "Int32"; break;
         case TK::U32:     stream << "UInt32"; break;
-        case TK::UCHAR32: stream << "UChar32"; break;
+        case TK::UCHAR32: stream << "Rune"; break;
         case TK::I64:     stream << "Int64"; break;
         case TK::U64:     stream << "UInt64"; break;
-        case TK::IADDR:   stream << "IAddr"; break;
-        case TK::UADDR:   stream << "UAddr"; break;
+        case TK::IADDR:   stream << "IntNative"; break;
+        case TK::UADDR:   stream << "UIntNative"; break;
         case TK::BSTRING: stream << "BString"; break;
         case TK::F16:     stream << "Float16"; break;
         case TK::F32:     stream << "Float32"; break;
@@ -332,7 +345,7 @@ void Term::GetName(Session& session, Stream::Output& out) const
         }
 
         case TK::CANGJIE_ARRAY: {
-            stream << "$array<" << Subterm(0) << '>';
+            stream << "RawArray<" << Subterm(0) << '>';
             break;
         }
 
@@ -353,7 +366,7 @@ void Term::GetName(Session& session, Stream::Output& out) const
         case TK::TYPE: {
             auto ident = ExtractTypeDefIdentifier(*this);
             auto type  = Symlevel::TypeDefinition::Resolve(session, ident);
-            stream << Symlevel::Reader::Read(session, type.GetName());
+            stream << prefix << Symlevel::Reader::Read(session, type.GetName());
             if (int len = GetLength(); len > 0) {
                 printSubTerms("<", ">", len);
             }
@@ -363,7 +376,7 @@ void Term::GetName(Session& session, Stream::Output& out) const
         case TK::AOT_TYPE: {
             auto& manager = TermManager::Of(session);
             std::string_view name = manager.GetNameOfAotType(AotTermId(*this));
-            stream << name;
+            stream << prefix << name;
             if (int len = GetLength(); len > 0) {
                 printSubTerms("<", ">", len);
             }
@@ -521,6 +534,8 @@ bool TermManager::Comparator::operator()(TermData* const& left, TermData* const&
     } else if (left->hash != right->hash) {
         return false;
     } else if (left->length != right->length) {
+        return false;
+    } else if (left->identifier != right->identifier) {
         return false;
     } else {
         auto len = left->length;
@@ -795,6 +810,9 @@ struct TermResolver {
             }
             case CANGJIE_ARRAY: {
                 return NewTerm(reader, refId, TagTermId(TermKind::CANGJIE_ARRAY), 1, F_LOCAL | F_REFERENCE);
+            }
+            case C_POINTER: {
+                return NewTerm(reader, refId, TagTermId(TermKind::C_POINTER), 1, F_LOCAL);
             }
             case BOX: {
                 return NewTerm(reader, refId, TagTermId(TermKind::BOX), 1, F_LOCAL | F_REFERENCE);

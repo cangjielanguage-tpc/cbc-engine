@@ -81,16 +81,17 @@ static RT::MemOpcode ComputeLoadAccessKind(LoadAccessKind ldk, RT::MemOpcode sta
     // in the same order as in the switch here.
     uint8_t delta = 0;
     switch (ldk) {
-        case LoadAccessKind::LD_U8:      delta = 0; break;
-        case LoadAccessKind::LD_U16:     delta = 1; break;
-        case LoadAccessKind::LD_32:      delta = 2; break;
-        case LoadAccessKind::LD_S8:      delta = 3; break;
-        case LoadAccessKind::LD_S16:     delta = 4; break;
-        case LoadAccessKind::LD_F32:     delta = 5; break;
-        case LoadAccessKind::LD_F64:     delta = 6; break;
-        case LoadAccessKind::LD_64:      delta = 7; break;
-        case LoadAccessKind::LD_S32TO64: delta = 8; break;
-        case LoadAccessKind::LD_REF:     delta = 9; break;
+        case LoadAccessKind::LD_U8:      delta = 0;  break;
+        case LoadAccessKind::LD_U16:     delta = 1;  break;
+        case LoadAccessKind::LD_32:      delta = 2;  break;
+        case LoadAccessKind::LD_S8:      delta = 3;  break;
+        case LoadAccessKind::LD_S16:     delta = 4;  break;
+        case LoadAccessKind::LD_F32:     delta = 5;  break;
+        case LoadAccessKind::LD_F64:     delta = 6;  break;
+        case LoadAccessKind::LD_64:      delta = 7;  break;
+        case LoadAccessKind::LD_S32TO64: delta = 8;  break;
+        case LoadAccessKind::LD_REF:     delta = 9;  break;
+        case LoadAccessKind::LD_LEA:     delta = 10; break;
         default:                         FATAL("unexpected ldk: %d", ldk);
     }
     return RT::MemOpcode(start + delta);
@@ -239,7 +240,7 @@ struct XRImmBuilder {
 
     auto I32(RT::MemOpcode opc, uint32_t v) const { return RT::M6xri32 { opc, xr, { v } }; }
 
-    auto I64(RT::MemOpcode opc, uint64_t v) const { return RT::M10xri64 { opc, xr, { v } }; }
+    auto I64(RT::MemOpcode opc, uint64_t v) const { return RT::M10xri64 { opc, xr, { .imm = v } }; }
 };
 
 struct RRImmBuilder {
@@ -251,7 +252,7 @@ struct RRImmBuilder {
 
     auto I32(RT::MemOpcode opc, uint32_t v) const { return RT::M6rri32 { opc, rr, { v } }; }
 
-    auto I64(RT::MemOpcode opc, uint64_t v) const { return RT::M10rri64 { opc, rr, { v } }; }
+    auto I64(RT::MemOpcode opc, uint64_t v) const { return RT::M10rri64 { opc, rr, { .imm = v } }; }
 };
 
 template <typename Builder>

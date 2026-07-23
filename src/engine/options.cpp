@@ -7,16 +7,21 @@
 #include "resolution/resolution.h"
 #include "runtimesupport/impl/entrypoint.h"
 
+#include "utils/options.h"
 #include "utils/rt_logger.h"
 
 using Options::Option;
-using Options::SetLogLevelValue;
 using Options::SetAllLogLevels;
 using Options::SetBoolValue;
+using Options::SetIntValue;
+using Options::SetLogLevelValue;
 using Options::SetStringValue;
 using Options::Table;
 
+bool Engine::useShortGCTib = true;
+
 constexpr Option globalOptionsArray[] = {
+    { "cbc.use.short.gctib", &Engine::useShortGCTib, &SetBoolValue },
     { "cbc.log.resolution", &Resolution::log, &SetLogLevelValue },
     { "cbc.log.int", &Interpretation::Log::interpretation, &SetLogLevelValue },
     { "cbc.log.preparation", &Interpretation::Log::preparation, &SetLogLevelValue },
@@ -30,6 +35,7 @@ constexpr Option globalOptionsArray[] = {
     { "cbc.dasm", &Cbc::g_IsRawDisasmEnabled, &SetBoolValue },
     { "cbc.path", &g_cbcPath, &SetStringValue },
     { "cbc.main", &g_mainCbc, &SetStringValue },
+    { "cbc.skip.n.int", &Interpretation::Log::skipThreshold, &SetIntValue },
 };
 
 namespace Engine {

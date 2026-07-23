@@ -52,14 +52,7 @@ struct BasicTypeInfoManager : public RTSupport::TypeInfoManager {
 
         auto result = RTSupport::CreateTypeInfo(session, *this, term);
         if (result.has_value()) {
-            auto uuid = RTSupport::MetaInfo::GetUUID(result.value());
-            if (auto it = uuidMap.find(uuid); it != uuidMap.end()) {
-                // The `result` Typeinfo already been created before,
-                // which is possible only if we incorrectly reconstructed term
-                // from TypeInfo.
-                FATAL("Unexpected UUID associated term.");
-            }
-            uuidMap.insert_or_assign(uuid, term);
+            typesWithoutUUID.push_back(std::make_pair(term, *result));
             storage.insert_or_assign(term, result.value());
         } else {
             storage.insert_or_assign(term, failed);
@@ -87,7 +80,23 @@ struct BasicTypeInfoManager : public RTSupport::TypeInfoManager {
         storage.insert_or_assign(term, Pending { typeInfo });
     }
 
+    void HandleUUIDs()
+    {
+        for (auto [t, ti] : typesWithoutUUID) {
+            auto uuid = RTSupport::MetaInfo::GetUUID(ti);
+            if (auto it = uuidMap.find(uuid); it != uuidMap.end()) {
+                // The `result` Typeinfo already been created before,
+                // which is possible only if we incorrectly reconstructed term
+                // from TypeInfo.
+                FATAL("Unexpected UUID associated term.");
+            }
+            uuidMap.insert_or_assign(uuid, t);
+        }
+        typesWithoutUUID.clear();
+    }
+
 protected:
+    std::vector<std::pair<GlobalTerm, TypeInfo>> typesWithoutUUID;
     std::unordered_map<GlobalTerm, ResolutionState, TermHasher> storage;
     std::unordered_map<RTSupport::TypeInfoUUID, GlobalTerm> uuidMap;
 };

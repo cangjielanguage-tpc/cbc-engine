@@ -619,7 +619,7 @@ public:
     X(LD_U8, 0b0000, "u8")                                                                                             \
     X(LD_U16, 0b0001, "u16")                                                                                           \
     X(LD_32, 0b0010, "32")                                                                                             \
-    X(LEA, 0b0011, "lea")                                                                                              \
+    X(LD_LEA, 0b0011, "lea")                                                                                           \
     X(LD_S8, 0b0100, "s8")                                                                                             \
     X(LD_S16, 0b0101, "s16")                                                                                           \
     X(LD_F32, 0b0110, "f32")                                                                                           \
@@ -818,10 +818,11 @@ struct Imm48 {
 
 /// 64 bit; immediate
 union Imm64 {
+    void* ptr;
     uint64_t imm;
     double dimm;
 
-    inline static Imm64 Decode(Decoder::ByteReader& reader) { return Imm64 { reader.Read64() }; }
+    inline static Imm64 Decode(Decoder::ByteReader& reader) { return Imm64 { .imm = reader.Read64() }; }
 };
 
 /// 16 bit; Imm4 and 12-bit immediate

@@ -297,11 +297,9 @@ engine_c2i_call_pc_end:
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
 engine_i2i_call:
-  // stack parameters are starting right at the top of the interpreted frame
-  mov   [ECTYPE_REG + TAIL_REG_OFFS], rsp
-
-  call  perform_2i_call
-  jmp   .Lrestart_interpretation
+  // FIXME: properly hint that this symbol is part of method perform_2i_call, without jumping.
+  // Actual code is located as part of `perform_2i_call` to make backtrace work in debuggers.
+  jmp .Li2i_call
 
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: target)
 // preserved: ECTYPE_REG, rbp
@@ -325,8 +323,9 @@ engine_i2i_call:
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
 engine_i2c_call:
-  // jumped from .Linterpreter_call without return address to return
-  i2c_call IREG_ABI_AMOUNT FREG_ABI_AMOUNT
+  // FIXME: properly hint that this symbol is part of method perform_2i_call, without jumping.
+  // Actual code is located as part of `perform_2i_call` to make backtrace work in debuggers.
+  jmp .Li2c_call
 
 .macro restore_tls // spoils volatile registers!
   call  [rip + engine_tls_function]
@@ -455,9 +454,10 @@ perform_2i_call:
   push  ECTYPE_REG   // rbp - 0x10
   push  LITERALS_REG // rbp - 0x18
   push  EXTRA_REG    // rbp - 0x20
+  push  rdi          // rbp - 0x28 : check sum
 
   // reserve slots and align stack
-  sub   rsp, LOCAL_SLOTS_OFFSET - EXTRA_SAVED_REG_OFFSET
+  sub   rsp, LOCAL_SLOTS_OFFSET - CHECK_SUM_OFFSET
 
   // FIXME: perform stack check here!
 
@@ -491,6 +491,7 @@ perform_2i_call:
   mov   [rbp - READER_SLOT_OFFSET], rsi // cursor
 
 #ifndef NDEBUG
+  inc   dword ptr [ECTYPE_REG + ECTYPE_FUNC_COUNTER_OFFSET]
   mov   rdi, [rbp - FUH_SLOT_OFFSET]
   mov   rsi, ECTYPE_REG
   call  engine_log_int_start
@@ -503,7 +504,23 @@ perform_2i_call:
 
   // current rsp is 16-byte.baligned
   mov   r8d, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
+  mov   rsi, rsp
   sub   rsp, r8
+  mov   rdi, rsp
+  xor   ecx, ecx
+
+.Lloop:
+  cmp   rdi, rsi
+  je    .Lloop_end
+  mov   [rdi], rcx
+  add   rdi, 8
+  jmp   .Lloop
+.Lloop_end:
+
+  mov   rsi, QWORD PTR [rax + EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
+  xor   rsi, rdx
+  xor   rsi, r8
+  mov   [rbp - CHECK_SUM_OFFSET], rsi
 
   PUSH_REGS rcx, rdx, rax, rsi
 
@@ -537,7 +554,16 @@ perform_2i_call:
   mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
 
   mov   edx, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
+  mov   r8d, edx
   add   rdx, rsp // add frame size to locate saved registers
+
+  mov   rsi, QWORD PTR [rax + EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
+  xor   rsi, rdx
+  xor   rsi, r8
+  cmp   rsi, [rbp - CHECK_SUM_OFFSET]
+  je    .Lcheck_sum_ok
+  ud2
+.Lcheck_sum_ok:
 
   POP_REGS rcx, rdx, rax, rsi, rdi
 
@@ -548,6 +574,17 @@ perform_2i_call:
   mov   rsp, rbp
   pop   rbp
   ret
+
+.Li2c_call:
+  // jumped from .Linterpreter_call without return address to return
+  i2c_call IREG_ABI_AMOUNT FREG_ABI_AMOUNT
+
+.Li2i_call:
+  // stack parameters are starting right at the top of the interpreted frame
+  mov   [ECTYPE_REG + TAIL_REG_OFFS], rsp
+
+  call  perform_2i_call
+  jmp   .Lrestart_interpretation
 
 // fake execute closure function
 .align 16

@@ -122,13 +122,14 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Session& session, DynamicFuncti
 
     auto& logger = Interpretation::Log::preparation;
 
-    logger.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
+    logger.Log(Logging::Level::INFO, [&](Stream::Output& out) {
         using namespace Stream;
         auto def = Reader::Read(session, fuh->methodDef);
         Stream::ResolvingOutput stream(session, out);
         stream << endl << fuh->methodDef << " started preparation of method " << endl;
         stream << "  fuh: " << fuh << endl;
-        stream << "  name: " << Detailed(def.Name()) << Detailed(def.Signature()) << endl;
+        stream << "  name: " << Detailed(def.TypeName()) << '.' << Detailed(def.Name()) << Detailed(def.Signature())
+               << endl;
     });
 
     Resolution::Resolver resolver(session, fuh->methodDef);

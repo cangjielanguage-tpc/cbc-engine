@@ -9,22 +9,35 @@ class Blackhole : public Stream::Output {
 
 Blackhole blackhole;
 
-Logger::Logger(Stream::Output* output, Level level) : level(level), output(output) {}
-
-Logger::Logger(Level level) : level(level), output(&Stream::cerr) {}
-
-Stream::Output& Logger::Stream(Level level)
+Logger::Logger(Stream::Output* output, Level level)
+    : level(level),
+      output(output),
+      descriptedByLevel {
+          Stream::Descripted(*output, ""),         Stream::Descripted(*output, "[FATAL] "),
+          Stream::Descripted(*output, "[ERROR] "), Stream::Descripted(*output, "[WARN] "),
+          Stream::Descripted(*output, "[INFO] "),  Stream::Descripted(*output, "[DEBUG] "),
+          Stream::Descripted(*output, "[TRACE] "), Stream::Descripted(blackhole, ""),
+      }
 {
-    if (level <= this->level) {
-        return *this->output;
-    } else {
-        return blackhole;
-    }
+    SetLogLevel(level);
 }
+
+Logger::Logger(Level level) : Logger(&Stream::cerr, level) {}
+
+Stream::Output& Logger::Stream(Level level) { return *byLevel[(int)level]; }
 
 void Logger::SetStream(Stream::Output* stream) { this->output = stream; }
 
-void Logger::SetLogLevel(Level level) { this->level = level; }
+void Logger::SetLogLevel(Level level)
+{
+    this->level = level;
+    for (int i = 0; i <= level; i++) {
+        byLevel[i] = &descriptedByLevel[i];
+    }
+    for (int i = level + 1; i < Level::COUNT; i++) {
+        byLevel[i] = &blackhole;
+    }
+}
 
 Level Logger::GetLogLevel() { return level; }
 

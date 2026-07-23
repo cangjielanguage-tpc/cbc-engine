@@ -121,7 +121,7 @@ Interpretation::Thunk engine_interpretation_loop(
     // Logging format is:
     // [int] (stack depth) < (bc pos): instruction
     #define LOG_INSTR                                                                                                  \
-        if (Log::interpretation.GetLogLevel() <= Logging::Level::TRACE) {                                              \
+        if (ectype->funcCtr > Log::skipThreshold && Log::interpretation.GetLogLevel() <= Logging::Level::TRACE) {      \
             logger.PrintFmt("#0x%lx < 0x%03lx: ", frame.start, pos - start);                                           \
             pos = reader.Cursor();                                                                                     \
             Cbc::RT::Log(literals, logger, args);                                                                      \
@@ -141,6 +141,13 @@ Interpretation::Thunk engine_interpretation_loop(
 HALT: {
     FATAL("halt");
     return {};
+}
+LOG: {
+    auto args   = B9i64::Decode(reader);
+    auto string = (char*)args.imm64.ptr;
+    auto level  = ectype->funcCtr > Log::skipThreshold ? Logging::Level::TRACE : Logging::Level::BLOCK;
+    Log::interpretation.Log(level, [string](Stream::Output& out) { out << string << Stream::endl; });
+    NEXT;
 }
 RET: {
     auto args = B1::Decode(reader);
@@ -799,7 +806,7 @@ INTERFACE_CALL_GENERIC: {
     LOG_INSTR;
     auto num    = args.vnum;
     auto sret   = args.sret;
-    auto interf = TypeInfo(ectype->GetPrimitive(IReg::TAIL_REG).u64);
+    auto interf = TypeInfo(ectype->GetPrimitive(IReg::IR_ACC).u64);
 
     auto receiver = IReg::IR1;
     if (HAS_SRET_SHIFT && sret) {
@@ -816,7 +823,7 @@ INTERFACE_CALL_GENERIC: {
 
     auto outerTI = Execution::GetMethodOuterTi(typeInfo, interf, num);
 
-    if (IReg::VIRT_COUNT < args.argn) {
+    if (args.argn < IReg::VIRT_COUNT) {
         ectype->Put(IReg::From(args.argn), Value::Primitive { outerTI.UInt() });
     } else {
         // FIXME: share the same offset calculation logic as in rewriter.
@@ -1092,6 +1099,7 @@ GENERIC_FIELD: {
     RLD(64)
     RLD(S32TO64)
     RLD(REF)
+    RLD(LEA)
 #undef RLD
 
 #define RST(stk)                                                                                                       \
@@ -1155,6 +1163,7 @@ GENERIC_FIELD: {
     DLD(64)
     DLD(S32TO64)
     DLD(REF)
+    DLD(LEA)
 #undef DLD
 
 #define DST(stk)                                                                                                       \
@@ -1219,6 +1228,7 @@ GENERIC_FIELD: {
     SLD(64)
     SLD(S32TO64)
     SLD(REF)
+    SLD(LEA)
 #undef SLD
 
 #define SST(stk)                                                                                                       \
@@ -1280,6 +1290,7 @@ GENERIC_FIELD: {
     FLD(64)
     FLD(S32TO64)
     FLD(REF)
+    FLD(LEA)
 #undef FLD
 
 #define FST(stk)                                                                                                       \
@@ -1330,7 +1341,7 @@ void engine_log_int_start(DynamicFunctionHandle* handle, Ectype* ectype)
     auto& logger = Log::interpretation.Stream(Logging::Level::DEBUG);
     auto id      = handle->methodDef.GetFileId().id;
     auto offs    = handle->methodDef.GetOffset().value;
-    logger.PrintFmt("Started interpretation of %p (%u;%u)", handle, id, offs);
+    logger.PrintFmt("Started interpretation of %p (%u,%u) %ld", handle, id, offs, ectype->funcCtr);
     logger.NewLine();
 }
 
@@ -1339,7 +1350,7 @@ void engine_log_int_end(DynamicFunctionHandle* handle, Ectype* ectype)
     auto& logger = Log::interpretation.Stream(Logging::Level::DEBUG);
     auto id      = handle->methodDef.GetFileId().id;
     auto offs    = handle->methodDef.GetOffset().value;
-    logger.PrintFmt("Stopped interpretation of %p (%u;%u)", handle, id, offs);
+    logger.PrintFmt("Stopped interpretation of %p (%u,%u)", handle, id, offs);
     logger.NewLine();
     logger.Flush();
 }

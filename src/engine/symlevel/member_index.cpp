@@ -77,7 +77,7 @@ static uint32_t ReadAt(IO::RandomAccessFile* raf, uint32_t offs) { return IO::St
 std::optional<uint32_t> MemberIndex::Generator::operator()()
 {
     if (cursor < endIdx) {
-        uint32_t offs = index->bucketsStart + cursor * sizeof(uint32_t);
+        uint32_t offs = index.bucketsStart + cursor * sizeof(uint32_t);
         cursor++;
         return ReadAt(raf, offs);
     }
@@ -97,13 +97,13 @@ static uint32_t Hash(std::string_view name)
 MemberIndex::Generator MemberIndex::AllEntries(Engine::Session& session) const
 {
     auto [_, raf] = session.File(fileId);
-    return { this, &raf, 0, bucketsSize };
+    return { *this, &raf, 0, bucketsSize };
 }
 
 MemberIndex::Generator MemberIndex::FindBucket(Engine::Session& session, std::string_view name) const
 {
     if (this->bucketsSize == 0) {
-        return { nullptr, nullptr, 0, 0 };
+        return { *this, nullptr, 0, 0 };
     }
 
     auto [_, raf] = session.File(this->fileId);
@@ -121,7 +121,7 @@ MemberIndex::Generator MemberIndex::FindBucket(Engine::Session& session, std::st
 
     ASSERT(dataStartIdx <= dataEndIdx);
 
-    return { this, &raf, dataStartIdx, dataEndIdx };
+    return { *this, &raf, dataStartIdx, dataEndIdx };
 }
 
 } // namespace Symlevel

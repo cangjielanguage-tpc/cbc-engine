@@ -36,42 +36,38 @@ class StaticFieldsBundle {
 
 public:
     StaticFieldsBundle(
-        uint32_t refFieldsNum,
-        uint32_t primFieldsNum,
-        uint32_t recordFieldsNum,
-        uint32_t recordFieldsSize,
-        std::vector<StaticTypedSlotInfo> typedSlotsInfo
+        uintptr_t refs,
+        uintptr_t primitives,
+        uintptr_t records,
+        uint32_t* recordOffsets,
+        uint32_t* referenceOffsets,
+        uint32_t refCount,
+        uint32_t refOffsetsCount
     );
 
     // underlying vector CAN NOT be copied.
     StaticFieldsBundle(StaticFieldsBundle const& another) = delete;
     StaticFieldsBundle(StaticFieldsBundle&& another) = default;
 
-    ~StaticFieldsBundle() = default;
+    ~StaticFieldsBundle();
 
     uintptr_t GetLocation(Session& session, TypeIdent typeIdent, FieldIdent fieldIdent);
 
     void VisitRefLocations(std::function<void(RefLocation*)> action) const;
 
-    void VisitTypedSlots(std::function<void(uint8_t* base, const StaticTypedSlotInfo&)> action) const;
-
 private:
-    RefLocation* refFieldsStart;
-    uint32_t refFieldsNum;
-    PrimLocation* primFieldsStart;
-    uint32_t primFieldsNum;
-    uint8_t* recordFieldsStart;
-    uint32_t recordFieldsNum;
-
-    std::vector<uint8_t> rawMemory;
-
-    /// Info about typed slots for GC scanning: (offset, typeInfoPtr)
-    std::vector<StaticTypedSlotInfo> typedSlotsInfo;
+    uintptr_t refs;
+    uintptr_t primitives;
+    uintptr_t records;
+    uint32_t* recordOffsets;
+    uint32_t* referenceOffsets;
+    uint32_t refCount;
+    uint32_t refOffsetsCount;
 };
 
 class StaticsManager {
-    using TypeIdent  = struct Identifier<Symlevel::TypeDefinition>;
-    using FieldIdent = struct Identifier<Symlevel::FieldDefinition>;
+    using TypeIdent  = Identifier<Symlevel::TypeDefinition>;
+    using FieldIdent = Identifier<Symlevel::FieldDefinition>;
 
 public:
     static StaticsManager& Of(Engine& engine);
