@@ -310,11 +310,11 @@ void Term::GetName(Session& session, Stream::Output& out, bool pure) const
         case TK::U16:     stream << "UInt16"; break;
         case TK::I32:     stream << "Int32"; break;
         case TK::U32:     stream << "UInt32"; break;
-        case TK::UCHAR32: stream << "UChar32"; break;
+        case TK::UCHAR32: stream << "Rune"; break;
         case TK::I64:     stream << "Int64"; break;
         case TK::U64:     stream << "UInt64"; break;
-        case TK::IADDR:   stream << "IAddr"; break;
-        case TK::UADDR:   stream << "UAddr"; break;
+        case TK::IADDR:   stream << "IntNative"; break;
+        case TK::UADDR:   stream << "UIntNative"; break;
         case TK::BSTRING: stream << "BString"; break;
         case TK::F16:     stream << "Float16"; break;
         case TK::F32:     stream << "Float32"; break;
@@ -830,6 +830,9 @@ struct TermResolver {
                 auto name = Reader::Read(session, fileId, nameOffs);
                 auto arity = reader.ReadU8();
                 return ResolveEnumTerm(reader, name, arity, refId, tag);
+            }
+            case C_POINTER: {
+                return NewTerm(reader, refId, TagTermId(TermKind::C_POINTER), 1, F_LOCAL);
             }
             default: {
                 FATAL("Not implemented for tag %d", tag);
