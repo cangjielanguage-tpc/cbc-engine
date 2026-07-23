@@ -7,4 +7,4 @@ Stream::Descripted preparationStream(Stream::cerr, "[prep] ");
 Logging::Logger Interpretation::Log::interpretation(&interpretationStream);
 Logging::Logger Interpretation::Log::preparation(&preparationStream);
 
-int64_t Interpretation::Log::skipThreshold;
+int64_t Interpretation::Log::skipThreshold = -1;
