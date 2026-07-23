@@ -1,6 +1,7 @@
 #pragma once
 
 #include "utils/heap.h"
+#include <cstddef>
 #include <cstdint>
 
 namespace Engine {
@@ -31,7 +32,7 @@ private:
         };
 
         union {
-            char _pad[alignof(std::max_align_t)];
+            max_align_t _pad;
             char memory[];
         };
     };
