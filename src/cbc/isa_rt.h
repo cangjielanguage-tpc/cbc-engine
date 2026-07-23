@@ -103,8 +103,7 @@
     X(CATCH, B2xr, "catch $1ir")                                                                                       \
     X(LOG, B9i64, "log $0U64")                                                                                         \
     X(ASSIGN_GENERIC, B3xrrr, "assign.g $1ir $2ir $3ir")                                                               \
-    X(IOF_GENERIC, B3xrrr, "iof.g $1ir $2ir $3ir")
-    X(CATCH, B2xr, "catch $1ir")                                                                                       \
+    X(IOF_GENERIC, B3xrrr, "iof.g $1ir $2ir $3ir")                                                                     \
     X(ATOMIC_FETCH_ADD_8, AtomicOp, "atomic.fetch.add.8 $1ir [$2ir $3U12]")                                            \
     X(ATOMIC_FETCH_ADD_16, AtomicOp, "atomic.fetch.add.16 $1ir [$2ir $3U12]")                                          \
     X(ATOMIC_FETCH_ADD_32, AtomicOp, "atomic.fetch.add.32 $1ir [$2ir $3U12]")                                          \
