@@ -834,9 +834,6 @@ struct TermResolver {
                 auto arity = reader.ReadU8();
                 return ResolveEnumTerm(reader, name, arity, refId, tag);
             }
-            case C_POINTER: {
-                return NewTerm(reader, refId, TagTermId(TermKind::C_POINTER), 1, F_LOCAL);
-            }
             default: {
                 FATAL("Not implemented for tag %d", tag);
                 return NewUndefined(refId);
