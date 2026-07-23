@@ -294,138 +294,6 @@ engine_c2i_call_pc_end:
 
 .balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: fuh)
-// preserved: ECTYPE_REG, rbp
-// TLS_REG can be changed after context-switch
-engine_i2i_call:
-  // FIXME: properly hint that this symbol is part of method perform_2i_call, without jumping.
-  // Actual code is located as part of `perform_2i_call` to make backtrace work in debuggers.
-  jmp .Li2i_call
-
-// expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: target)
-// preserved: ECTYPE_REG, rbp
-// TLS_REG can be changed after context-switch
-.macro i2c_call iregs_count fregs_count
-  mov r10, rdi
-
-  i2c_emit_iregs_abi \iregs_count
-  i2c_emit_fregs_abi \fregs_count
-
-  call r10
-
-  mov  [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE], rax
-  movq [ECTYPE_REG + ECTYPE_FREGS_OFFSET], xmm0
-
-  jmp .Lrestart_interpretation
-.endm
-
-.balign 16
-// expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: target)
-// preserved: ECTYPE_REG, rbp
-// TLS_REG can be changed after context-switch
-engine_i2c_call:
-  // FIXME: properly hint that this symbol is part of method perform_2i_call, without jumping.
-  // Actual code is located as part of `perform_2i_call` to make backtrace work in debuggers.
-  jmp .Li2c_call
-
-.macro restore_tls // spoils volatile registers!
-  call  [rip + engine_tls_function]
-  mov   TLS_REG, rax
-.endm
-
-.balign 16
-// expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: mask)
-// preserved: ECTYPE_REG, rbp
-engine_i2_load_generic:
-  // mask is expected in form of:
-  // [0..4) - dst reg
-  // [4..8) - base reg
-  // [8..12) - field reg
-  // [12..64) - typeInfo
-
-  mov   EXTRA_REG, rdi
-  // allocate box
-  shr   rdi, 12
-  call  [rip + engine_newobject_function]
-  mov   rdi, rax // put box as dst param of read generic
-
-  // save box to dst reg
-  mov   eax, EXTRA_REGd
-  and   eax, 0xf
-  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8 * rax], rdi
-
-  // obj (base) param
-  mov   esi, EXTRA_REGd
-  shr   esi, 4
-  and   esi, 0xf
-  mov   rsi, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8 * rsi]
-
-  // field param
-  mov   edx, EXTRA_REGd
-  shr   edx, 8
-  and   edx, 0xf
-  mov   rdx, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8 * rdx]
-
-  // size param
-  mov   rcx, [rdi] // get header
-  mov   ecx, [rcx + TYPEINFO_INSTANCESIZE_OFFSET]
-  // perform generic read
-  call  [rip + engine_read_generic]
-  jmp   .Lrestart_interpretation
-
-.balign 16
-// expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
-// preserved: ECTYPE_REG, rbp
-// TLS_REG can be changed after context-switch
-engine_i2_newobject:
-  // jumped from .Linterpreter_call without return address to return
-  call  [rip + engine_newobject_function]
-  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE], rax
-  restore_tls
-  jmp   .Lrestart_interpretation
-
-.balign 16
-// expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
-// preserved: ECTYPE_REG, rbp
-// TLS_REG can be changed after context-switch
-engine_i2_newobject_acc:
-  // jumped from .Linterpreter_call without return address to return
-  call  [rip + engine_newobject_function]
-  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE * ECTYPE_IACC_NUM], rax // move to acc register
-  restore_tls
-  jmp   .Lrestart_interpretation
-
-.balign 16
-// expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
-// preserved: ECTYPE_REG, rbp
-// TLS_REG can be changed after context-switch
-engine_i2_newarray:
-  // jumped from .Linterpreter_call without return address to return
-  mov   rsi, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x10]
-  call  [rip + engine_newarray_function]
-  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE], rax
-  restore_tls
-  jmp   .Lrestart_interpretation
-
-.balign 16
-// expects: (ECTYPE_REG: ectype, rdi: safe_point_f)
-engine_i2_gcpoint:
-  call rdi
-  restore_tls
-  jmp  .Lrestart_interpretation
-
-.balign 16
-// expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
-// preserved: ECTYPE_REG, rbp
-engine_i2_spawn:
-  mov   rsi, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE]
-  mov   rcx, rdi
-  lea   rdi, [rip + engine_fake_execute_closure]
-  xor   edx, edx
-  call  [rip + engine_newthread_nret_function]
-  jmp  .Lrestart_interpretation
-
-.balign 16
-// expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: fuh)
 // preserved: TLS_REG, ECTYPE_REG, rbp
 perform_2i_call:
 // The final layout of the frame is following:
@@ -575,16 +443,141 @@ perform_2i_call:
   pop   rbp
   ret
 
-.Li2c_call:
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: target)
+// preserved: ECTYPE_REG, rbp
+// TLS_REG can be changed after context-switch
+.macro i2c_call iregs_count fregs_count
+  mov r10, rdi
+
+  i2c_emit_iregs_abi \iregs_count
+  i2c_emit_fregs_abi \fregs_count
+
+  call r10
+
+  mov  [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE], rax
+  movq [ECTYPE_REG + ECTYPE_FREGS_OFFSET], xmm0
+
+  jmp .Lrestart_interpretation
+.endm
+
+.balign 16
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: target)
+// preserved: ECTYPE_REG, rbp
+// TLS_REG can be changed after context-switch
+engine_i2c_call:
   // jumped from .Linterpreter_call without return address to return
   i2c_call IREG_ABI_AMOUNT FREG_ABI_AMOUNT
 
-.Li2i_call:
+.balign 16
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: fuh)
+// preserved: ECTYPE_REG, rbp
+// TLS_REG can be changed after context-switch
+engine_i2i_call:
   // stack parameters are starting right at the top of the interpreted frame
   mov   [ECTYPE_REG + TAIL_REG_OFFS], rsp
 
   call  perform_2i_call
   jmp   .Lrestart_interpretation
+
+.macro restore_tls // spoils volatile registers!
+  call  [rip + engine_tls_function]
+  mov   TLS_REG, rax
+.endm
+
+.balign 16
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: mask)
+// preserved: ECTYPE_REG, rbp
+engine_i2_load_generic:
+  // mask is expected in form of:
+  // [0..4) - dst reg
+  // [4..8) - base reg
+  // [8..12) - field reg
+  // [12..64) - typeInfo
+
+  mov   EXTRA_REG, rdi
+  // allocate box
+  shr   rdi, 12
+  call  [rip + engine_newobject_function]
+  mov   rdi, rax // put box as dst param of read generic
+
+  // save box to dst reg
+  mov   eax, EXTRA_REGd
+  and   eax, 0xf
+  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8 * rax], rdi
+
+  // obj (base) param
+  mov   esi, EXTRA_REGd
+  shr   esi, 4
+  and   esi, 0xf
+  mov   rsi, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8 * rsi]
+
+  // field param
+  mov   edx, EXTRA_REGd
+  shr   edx, 8
+  and   edx, 0xf
+  mov   rdx, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x8 * rdx]
+
+  // size param
+  mov   rcx, [rdi] // get header
+  mov   ecx, [rcx + TYPEINFO_INSTANCESIZE_OFFSET]
+  // perform generic read
+  call  [rip + engine_read_generic]
+  jmp   .Lrestart_interpretation
+
+.balign 16
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
+// preserved: ECTYPE_REG, rbp
+// TLS_REG can be changed after context-switch
+engine_i2_newobject:
+  // jumped from .Linterpreter_call without return address to return
+  call  [rip + engine_newobject_function]
+  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE], rax
+  restore_tls
+  jmp   .Lrestart_interpretation
+
+.balign 16
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
+// preserved: ECTYPE_REG, rbp
+// TLS_REG can be changed after context-switch
+engine_i2_newobject_acc:
+  // jumped from .Linterpreter_call without return address to return
+  call  [rip + engine_newobject_function]
+  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE * ECTYPE_IACC_NUM], rax // move to acc register
+  restore_tls
+  jmp   .Lrestart_interpretation
+
+.balign 16
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
+// preserved: ECTYPE_REG, rbp
+// TLS_REG can be changed after context-switch
+engine_i2_newarray:
+  // jumped from .Linterpreter_call without return address to return
+  mov   rsi, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x10]
+  call  [rip + engine_newarray_function]
+  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE], rax
+  restore_tls
+  jmp   .Lrestart_interpretation
+
+.balign 16
+// expects: (ECTYPE_REG: ectype, rdi: safe_point_f)
+engine_i2_gcpoint:
+  call rdi
+  restore_tls
+  jmp  .Lrestart_interpretation
+
+.balign 16
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
+// preserved: ECTYPE_REG, rbp
+engine_i2_spawn:
+  mov   rsi, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE]
+  mov   rcx, rdi
+  lea   rdi, [rip + engine_fake_execute_closure]
+  xor   edx, edx
+  call  [rip + engine_newthread_nret_function]
+  jmp  .Lrestart_interpretation
+
+// TREAT SYMBOLS ABOVE AS PART OF perform_2i_call
+.size perform_2i_call, .-perform_2i_call
 
 // fake execute closure function
 .align 16
