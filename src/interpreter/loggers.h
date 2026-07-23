@@ -12,6 +12,7 @@ namespace Log {
 ///
 /// NOTE: this logger is enabled only in debug builds.
 /// TODO: separate define to enable in release builds.
+extern Stream::Descripted stream;
 extern Logging::Logger interpretation;
 extern int64_t skipThreshold;
 

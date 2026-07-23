@@ -16,6 +16,7 @@
 #include "utils/ostream.h"
 #include <alloca.h>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <memory>
 #include <mutex>
