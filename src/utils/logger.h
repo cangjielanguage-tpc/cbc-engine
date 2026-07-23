@@ -34,7 +34,12 @@ public:
     void SetLogLevel(Level level);
     Level GetLogLevel();
 
-    template <typename F> inline void Log(Level level, F const& logger) { logger(*byLevel[(int)level]); }
+    template <typename F> inline void Log(Level level, F const& logger)
+    {
+        if (GetLogLevel() >= level) {
+            logger(*byLevel[(int)level]);
+        }
+    }
 
 private:
     Stream::Output* output;
