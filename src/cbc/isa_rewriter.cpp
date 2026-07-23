@@ -218,17 +218,30 @@ struct IsaRewriter : public IsaParser {
         statePoints.push_back(point);
     }
 
+    template <typename Method> void EmitLogCall(std::string_view prefix, Method m)
+    {
+        if (Interpretation::Log::interpretation.GetLogLevel() < Logging::Level::TRACE) {
+            return;
+        }
+        Stream::StringBuffer stream;
+        stream << startPosition << ": " << prefix << ' ' << m;
+        emit.LogInstruction(stream.ToCString());
+    }
+
     char* returnedToMsg = nullptr;
 
-    char* ReturnedToMessage()
+    void EmitReturnedTo()
     {
-        if (returnedToMsg) {
-            return returnedToMsg;
+        if (Interpretation::Log::interpretation.GetLogLevel() < Logging::Level::TRACE) {
+            return;
         }
-        Stream::StringBuffer buf;
-        Stream::ResolvingOutput out(session, buf);
-        out << "Returned to: " << method << ' ' << Stream::Detailed(method);
-        return returnedToMsg = buf.ToCString();
+        if (!returnedToMsg) {
+            Stream::StringBuffer buf;
+            Stream::ResolvingOutput out(session, buf);
+            out << "Returned to: " << method << ' ' << Stream::Detailed(method);
+            returnedToMsg = buf.ToCString();
+        }
+        emit.LogInstruction(returnedToMsg);
     }
 
     ssize_t Pos()
@@ -642,19 +655,19 @@ struct IsaRewriter : public IsaParser {
         auto method = m.value();
 
         if (auto data = std::get_if<DirectCall::Compiled>(&method->data)) {
+            EmitLogCall("call.2c", method);
             auto sym = emit.NewAddressSym(data->funcPtr);
             emit.DirectCall2c(sym);
             BindStatePoint();
         } else {
+            EmitLogCall("call.2i", method);
             auto fuh = std::get<Interpretation::DynamicFunctionHandle*>(method->data);
             auto sym = emit.NewAddressSym(reinterpret_cast<uintptr_t>(fuh));
             emit.DirectCall2i(sym);
             BindStatePoint();
         }
         AdjustReg(dst, IReg::IR1);
-        if (Interpretation::Log::interpretation.GetLogLevel() >= Logging::Level::TRACE) {
-            emit.LogInstruction(ReturnedToMessage());
-        }
+        EmitReturnedTo();
     }
 
     void CallVirtual(IReg dst, uint16_t methodId) override
@@ -665,12 +678,11 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto method = m.value();
+        EmitLogCall("call.virt", method);
         emit.VirtualCall(method->methodNum, method->extDefNum, method->sret);
         BindStatePoint();
         AdjustReg(dst, IReg::IR1);
-        if (Interpretation::Log::interpretation.GetLogLevel() >= Logging::Level::TRACE) {
-            emit.LogInstruction(ReturnedToMessage());
-        }
+        EmitReturnedTo();
     }
 
     void CallInterf(IReg dst, uint16_t methodId) override
@@ -686,12 +698,11 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
+        EmitLogCall("call.interf", method);
         emit.InterfaceCall(method->methodNum, *ti, method->sret);
         BindStatePoint();
         AdjustReg(dst, IReg::IR1);
-        if (Interpretation::Log::interpretation.GetLogLevel() >= Logging::Level::TRACE) {
-            emit.LogInstruction(ReturnedToMessage());
-        }
+        EmitReturnedTo();
     }
 
     void CallInterfGeneric(uint16_t argnum, uint16_t methodId) override
@@ -702,11 +713,10 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto method = m.value();
+        EmitLogCall("call.interf.g", method);
         emit.InterfaceCallGeneric(method->methodNum, argnum, method->sret);
         BindStatePoint();
-        if (Interpretation::Log::interpretation.GetLogLevel() >= Logging::Level::TRACE) {
-            emit.LogInstruction(ReturnedToMessage());
-        }
+        EmitReturnedTo();
     }
 
     void Spawn(IReg closure, uint16_t typeId) override
