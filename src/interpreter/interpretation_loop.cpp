@@ -121,11 +121,13 @@ Interpretation::Thunk engine_interpretation_loop(
     // Logging format is:
     // [int] (stack depth) < (bc pos): instruction
     #define LOG_INSTR                                                                                                  \
-        if (ectype->funcCtr > Log::skipThreshold && Log::interpretation.GetLogLevel() <= Logging::Level::TRACE) {      \
-            logger.PrintFmt("#0x%lx < 0x%03lx: ", frame.start, pos - start);                                           \
-            pos = reader.Cursor();                                                                                     \
-            Cbc::RT::Log(literals, logger, args);                                                                      \
-        }
+        if (ectype->funcCtr > Log::skipThreshold) {                                                                    \
+            Log::interpretation.Log(Logging::TRACE, [&](Stream::Output& logger) {                                      \
+                logger.PrintFmt("#0x%lx < 0x%03lx: ", frame.start, pos - start);                                       \
+                pos = reader.Cursor();                                                                                 \
+                Cbc::RT::Log(literals, logger, args);                                                                  \
+            });                                                                                                        \
+        };
     // TODO: add ectype ptr as ID of thread.
     auto start   = reader.Start();
     auto pos     = reader.Cursor();
@@ -145,8 +147,7 @@ HALT: {
 LOG: {
     auto args   = B9i64::Decode(reader);
     auto string = (char*)args.imm64.ptr;
-    auto level  = ectype->funcCtr > Log::skipThreshold ? Logging::Level::TRACE : Logging::Level::BLOCK;
-    Log::interpretation.Log(level, [string](Stream::Output& out) { out << string << Stream::endl; });
+    Log::stream << string << Stream::endl;
     NEXT;
 }
 RET: {
