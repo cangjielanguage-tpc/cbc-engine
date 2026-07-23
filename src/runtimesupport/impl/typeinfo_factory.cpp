@@ -729,6 +729,8 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             }
 
             builder.typeTemplateOrFinalizer = typeTemplate;
+            builder.validInheritNum = tt->validInheritNum;
+            builder.extDefs = (DYN_ExtensionData**)tt->extensionDatas;
         }
     }
 
