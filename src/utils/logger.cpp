@@ -31,10 +31,10 @@ void Logger::SetStream(Stream::Output* stream) { this->output = stream; }
 void Logger::SetLogLevel(Level level)
 {
     this->level = level;
-    for (int i = 0; i <= (int)level; i++) {
+    for (int i = 0; i <= level; i++) {
         byLevel[i] = &descriptedByLevel[i];
     }
-    for (int i = (int)level + 1; i < (int)Level::COUNT; i++) {
+    for (int i = level + 1; i < Level::COUNT; i++) {
         byLevel[i] = &blackhole;
     }
 }

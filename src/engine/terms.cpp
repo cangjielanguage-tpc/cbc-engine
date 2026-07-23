@@ -811,6 +811,9 @@ struct TermResolver {
             case CANGJIE_ARRAY: {
                 return NewTerm(reader, refId, TagTermId(TermKind::CANGJIE_ARRAY), 1, F_LOCAL | F_REFERENCE);
             }
+            case C_POINTER: {
+                return NewTerm(reader, refId, TagTermId(TermKind::C_POINTER), 1, F_LOCAL);
+            }
             case BOX: {
                 return NewTerm(reader, refId, TagTermId(TermKind::BOX), 1, F_LOCAL | F_REFERENCE);
             }

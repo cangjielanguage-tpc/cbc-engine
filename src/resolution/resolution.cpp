@@ -717,6 +717,12 @@ Stream::Output& operator<<(Stream::Output& stream, VirtualCall const& call)
     return stream;
 }
 
+Stream::Output& operator<<(Stream::Output& stream, InterfaceCall const& call)
+{
+    stream << call->refType << '.' << call->name << call->signature;
+    return stream;
+}
+
 Stream::Output& operator<<(Stream::Output& stream, InstanceField const& field)
 {
     stream << field->refType << '.' << field->name << '.' << field->fieldType;
