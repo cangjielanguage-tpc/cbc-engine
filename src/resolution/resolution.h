@@ -168,6 +168,7 @@ Stream::Output& operator<<(Stream::Output& stream, Type const& type);
 Stream::Output& operator<<(Stream::Output& stream, MethodSignature const& sig);
 Stream::Output& operator<<(Stream::Output& stream, DirectCall const& call);
 Stream::Output& operator<<(Stream::Output& stream, VirtualCall const& call);
+Stream::Output& operator<<(Stream::Output& stream, InterfaceCall const& call);
 Stream::Output& operator<<(Stream::Output& stream, InstanceField const& field);
 Stream::Output& operator<<(Stream::Output& stream, StaticField const& field);
 

@@ -300,11 +300,9 @@ engine_c2i_call_pc_end:
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
 engine_i2i_call:
-  // stack parameters are starting right at the top of the interpreted frame
-  mov   [ECTYPE_REG + TAIL_REG_OFFS], rsp
-
-  call  perform_2i_call
-  jmp   .Lrestart_interpretation
+  // FIXME: properly hint that this symbol is part of method perform_2i_call, without jumping.
+  // Actual code is located as part of `perform_2i_call` to make backtrace work in debuggers.
+  jmp .Li2i_call
 
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: target)
 // preserved: ECTYPE_REG, rbp
@@ -328,8 +326,9 @@ engine_i2i_call:
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
 engine_i2c_call:
-  // jumped from .Linterpreter_call without return address to return
-  i2c_call IREG_ABI_AMOUNT FREG_ABI_AMOUNT
+  // FIXME: properly hint that this symbol is part of method perform_2i_call, without jumping.
+  // Actual code is located as part of `perform_2i_call` to make backtrace work in debuggers.
+  jmp .Li2c_call
 
 .macro restore_tls // spoils volatile registers!
   call  [rip + engine_tls_function]
@@ -578,6 +577,17 @@ perform_2i_call:
   mov   rsp, rbp
   pop   rbp
   ret
+
+.Li2c_call:
+  // jumped from .Linterpreter_call without return address to return
+  i2c_call IREG_ABI_AMOUNT FREG_ABI_AMOUNT
+
+.Li2i_call:
+  // stack parameters are starting right at the top of the interpreted frame
+  mov   [ECTYPE_REG + TAIL_REG_OFFS], rsp
+
+  call  perform_2i_call
+  jmp   .Lrestart_interpretation
 
 // fake execute closure function
 .align 16
