@@ -63,7 +63,9 @@ static void ParseBridgeOptions(int size, const char** options)
                 g_appLibHandle = const_cast<char*>(options[i + 1]);
                 ++i;
             } else {
-                LogCbcDirectoryScan("app library handle argument is missing value");
+                RTSupport::Log::rt.Log(Logging::Level::WARN, [](Stream::Output& out) {
+                    out << "app library handle argument is missing value" << Stream::endl;
+                });
             }
             continue;
         }
