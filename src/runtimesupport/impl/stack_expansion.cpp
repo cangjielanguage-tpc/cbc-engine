@@ -103,15 +103,21 @@ void VisitFrameRootsForStackPtrs(
         uint32_t argIdx = 1; // IR1
 
         if (methodDef.GetFlags().Is(Symlevel::MethodFlag::SRET)) {
+#if defined(__x86_64__) || defined(_M_X64)
+            const uint32_t sretArgIdx = argIdx++;
+#elif defined(__aarch64__) || defined(_M_ARM64)
+            const uint32_t sretArgIdx = IReg::IR9;
+#else
+    #error "unsupported platform"
+#endif
+
             RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
-                out.PrintFmtLn("found sret (argIdx=%u)", argIdx);
+                out.PrintFmtLn("found sret (argIdx=%u)", sretArgIdx);
             });
 
-            needSupportForFrameArgs(argIdx);
-            auto sretPh = GetResourceLocation(Resource { .idx = argIdx }, slotsStartAddr, regTable);
+            needSupportForFrameArgs(sretArgIdx);
+            auto sretPh = GetResourceLocation(Resource { .idx = sretArgIdx }, slotsStartAddr, regTable);
             VisitRoot(stackPtrVisitor, sretPh);
-
-            argIdx++;
         }
 
         if (methodDef.GetFlags().Is(Symlevel::MethodFlag::MUT)) {

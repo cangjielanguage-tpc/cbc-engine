@@ -35,6 +35,9 @@
     #define engine_implicit_exception_thrower _engine_implicit_exception_thrower
     #define engine_handle_exception _engine_handle_exception
     #define common_landing_pad _common_landing_pad
+    #define engine_stack_grow_stub _engine_stack_grow_stub
+    #define engine_ectype_saving_stub_pc_start _engine_ectype_saving_stub_pc_start
+    #define engine_ectype_saving_stub_pc_end _engine_ectype_saving_stub_pc_end
 #endif
 
 #ifdef __APPLE__
@@ -89,6 +92,9 @@ declare_hidden engine_throw_implicit_exception
 declare_hidden engine_implicit_exception_thrower
 declare_hidden engine_handle_exception
 declare_hidden common_landing_pad
+declare_hidden engine_stack_grow_stub
+declare_hidden engine_ectype_saving_stub_pc_start
+declare_hidden engine_ectype_saving_stub_pc_end
 
 // --- SECTION BSS ---
 #ifdef __APPLE__
@@ -120,6 +126,8 @@ engine_read_generic:
 engine_carrier_specific_offset:
   .skip 8
 engine_cjthread_specific_offset:
+  .skip 8
+engine_stack_grow_stub:
   .skip 8
 
 // --- SECTION TEXT ---
@@ -219,16 +227,27 @@ engine_trampolines_dyn_start:
   repeat_trampoline_dyn TRAMPOLINE_COUNT
 engine_trampolines_dyn_end:
 
+.set C2I_FRAME_SIZE, 112
+.set C2I_FUH_OFFSET, 16
+.set C2I_CALLEE_SAVED_OFFSET, 32
+
 .macro engine_c2i_call ireg_count freg_count
-  stp   x29, x30, [sp, #-16]!
+  sub   sp, sp, #C2I_FRAME_SIZE
+  stp   x29, x30, [sp]
   mov   x29, sp
 
-  stp   x19, x20, [sp, #-16]! // x29 - 0x10
-  stp   x21, x22, [sp, #-16]! // x29 - 0x20
-  stp   x23, x24, [sp, #-16]! // x29 - 0x30
-  stp   x27, x28, [sp, #-16]! // x29 - 0x40
-
-  str   x9, [sp, #-16]! // x29 - 0x50 : FunctionHandle that will help to scan saved regs
+  // Keep this layout in sync with runtime's RecordStubCalleeSaved:
+  // fp + 0x00: saved x29
+  // fp + 0x08: saved x30
+  // fp + 0x10: FunctionHandle
+  // fp + 0x18: padding
+  // fp + 0x20..0x68: x19..x28
+  stp   x9,  xzr, [x29, #C2I_FUH_OFFSET]
+  stp   x19, x20, [x29, #C2I_CALLEE_SAVED_OFFSET]
+  stp   x21, x22, [x29, #(C2I_CALLEE_SAVED_OFFSET + 16)]
+  stp   x23, x24, [x29, #(C2I_CALLEE_SAVED_OFFSET + 32)]
+  stp   x25, x26, [x29, #(C2I_CALLEE_SAVED_OFFSET + 48)]
+  stp   x27, x28, [x29, #(C2I_CALLEE_SAVED_OFFSET + 64)]
 
   adrp  ECTYPE_REG, Page(engine_carrier_specific_offset)
   ldr   ECTYPE_REG, [ECTYPE_REG, PageOff(engine_carrier_specific_offset)]
@@ -240,8 +259,6 @@ engine_trampolines_dyn_end:
 
   cbz   ECTYPE_REG, .Lc2i_prepare_ectype\@
 .Lc2i_args_preparation\@:
-  // TODO support correct sret handling
-
   c2i_emit_iregs_abi \ireg_count
   c2i_emit_fregs_abi \freg_count
 
@@ -251,13 +268,13 @@ engine_trampolines_dyn_end:
   ldr   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8)]
   ldr   d0, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET)]
 
-  add   sp, sp, #16 // remove FunctionHandle
-  ldp   x27, x28, [sp], #16
-  ldp   x23, x24, [sp], #16
-  ldp   x21, x22, [sp], #16
-  ldp   x19, x20, [sp], #16
-
-  ldp   x29, x30, [sp], #16
+  ldp   x19, x20, [x29, #C2I_CALLEE_SAVED_OFFSET]
+  ldp   x21, x22, [x29, #(C2I_CALLEE_SAVED_OFFSET + 16)]
+  ldp   x23, x24, [x29, #(C2I_CALLEE_SAVED_OFFSET + 32)]
+  ldp   x25, x26, [x29, #(C2I_CALLEE_SAVED_OFFSET + 48)]
+  ldr   x27,      [x29, #(C2I_CALLEE_SAVED_OFFSET + 64)] // keep refreshed TLS_REG
+  mov   sp, x29
+  ldp   x29, x30, [sp], #C2I_FRAME_SIZE
   ret
 
 .Lc2i_prepare_ectype\@:
@@ -272,13 +289,15 @@ c2i_prepare_ectype:
   stp   x2, x3, [sp, #-16]!
   stp   x4, x5, [sp, #-16]!
   stp   x6, x7, [sp, #-16]!
+  str   x8, [sp, #-16]!
 
   mov   x0, x21
   bl    engine_fiber_data_init
 
   mov   ECTYPE_REG, x0
-  ldr   x9, [x29, #-0x50] // restore fuh
+  ldr   x9, [x29, #C2I_FUH_OFFSET] // restore fuh
 
+  ldr   x8, [sp], #16
   ldp   x6, x7, [sp], #16
   ldp   x4, x5, [sp], #16
   ldp   x2, x3, [sp], #16
@@ -487,7 +506,6 @@ perform_2i_call:
   sub   sp, sp, LOCAL_SLOTS_OFFSET
   stp   ECTYPE_REG, x0,           [x29, #-ECTYPE_REG_SAVED_SLOT_OFFSET]
   stp   EXTRA_REG,  LITERALS_REG, [x29, #-EXTRA_SAVED_REG_OFFSET]
-  // FIXME: perform stack check here!
 
   // We need to support fibers with movable stacks,
   // but to do it safely we need to adjust pointers to stack.
@@ -522,6 +540,13 @@ perform_2i_call:
   // current sp is 16-byte.baligned
   ldr   w8, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   sub   sp, sp, x8
+
+.Lstack_check:
+  ldr   x10, [TLS_REG, #TLS_STACK_BORDER_OFFSET]
+  add   x10, x10, #ADDITIONAL_STACK_SPACE
+  cmp   sp, x10
+  b.ls  expand_stack_or_throw_soe
+.Lafter_stack_check:
 
   PUSH_REGS x8, x1, x9, x2, x3
 
@@ -637,12 +662,13 @@ engine_handle_exception:
   mov   x0, x21              // set exception pointer as argument
 
   // Restore C2I saved regs
-  add   sp, sp, #16          // skip saved fuh
-  ldp   x27, x28, [sp], #16
-  ldp   x23, x24, [sp], #16
-  ldp   x21, x22, [sp], #16
-  ldp   x19, x20, [sp], #16
-  ldp   x29, x30, [sp], #16
+  ldp   x19, x20, [x29, #C2I_CALLEE_SAVED_OFFSET]
+  ldp   x21, x22, [x29, #(C2I_CALLEE_SAVED_OFFSET + 16)]
+  ldp   x23, x24, [x29, #(C2I_CALLEE_SAVED_OFFSET + 32)]
+  ldp   x25, x26, [x29, #(C2I_CALLEE_SAVED_OFFSET + 48)]
+  ldr   x27,      [x29, #(C2I_CALLEE_SAVED_OFFSET + 64)] // keep refreshed TLS_REG
+  mov   sp, x29
+  ldp   x29, x30, [sp], #C2I_FRAME_SIZE
 
   // Now stack has the following layout:
   //
@@ -663,3 +689,50 @@ engine_handle_exception:
 .Lhandle_next_dyn_func:
   mov   x0, x21
   b     engine_handle_exception
+
+.macro save_all_iregs scratch_reg
+  .set _dump_size, ((ECTYPE_IREGS_COUNT * ECTYPE_REG_SIZE) + 15) & ~15
+  sub   sp, sp, _dump_size
+  .set _offset, 0
+  .rept ECTYPE_IREGS_COUNT
+    ldr   \scratch_reg, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + _offset)]
+    str   \scratch_reg, [sp, #_offset]
+    .set _offset, _offset + ECTYPE_REG_SIZE
+  .endr
+.endm
+
+.macro restore_all_iregs scratch_reg
+  .set _dump_size, ((ECTYPE_IREGS_COUNT * ECTYPE_REG_SIZE) + 15) & ~15
+  .set _offset, 0
+  .rept ECTYPE_IREGS_COUNT
+    ldr   \scratch_reg, [sp, #_offset]
+    str   \scratch_reg, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + _offset)]
+    .set _offset, _offset + ECTYPE_REG_SIZE
+  .endr
+  add   sp, sp, _dump_size
+.endm
+
+// expects: (TLS_REG: valid TLS, sp: top of stack (including the whole current frame), x8: frame size)
+// preserves: all registers
+// Expands stack and returns to perform 2i call or throws SOE if stack expansion is impossible
+.balign 16
+engine_ectype_saving_stub_pc_start:
+expand_stack_or_throw_soe:
+  add   sp, sp, x8
+  save_all_iregs x10
+
+  mov   x9, #0x20 // adjusted size, kept in parity with x86_64
+  adrp  x10, Page(engine_stack_grow_stub)
+  ldr   x10, [x10, PageOff(engine_stack_grow_stub)]
+  blr   x10
+
+  restore_all_iregs x10
+  mov   x1, sp
+  sub   sp, sp, x8
+
+  // Restore ExecBytecodeInfo overwritten by the stack-grow argument in x9.
+  ldr   x9, [x29, #-FUH_SLOT_OFFSET]
+  ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
+
+  b     .Lafter_stack_check
+engine_ectype_saving_stub_pc_end:
