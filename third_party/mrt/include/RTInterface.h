@@ -9,6 +9,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <atomic>
 
 #include "RuntimeTypes.h"
 
@@ -89,6 +90,8 @@ typedef struct INT_InterpretedFrameDesc {
     char* fileName;
     void (*freeResources)(char* methodName, char* className, char* fileName);
 } INT_InterpretedFrameDesc;
+
+typedef std::memory_order MEM_ORDER;
 
 // endregion Types
 
@@ -630,6 +633,39 @@ typedef DYN_ObjRef (*DYN_PostThrowExceptionFn)(DYN_ExceptionWrapper exceptionWra
 // - message - log message
 typedef void (*DYN_NativeLoggerFn)(int logLevel, char* tag, char* message);
 
+// Atomically reads the reference.
+// params:
+// - obj - pointer to AtomicReference object
+// - field - pointer to field within AtomicReference object
+// return: reference
+typedef DYN_ObjRef (*DYN_AtomicReadRef)(DYN_ObjRef obj, DYN_FieldRef field, MEM_ORDER order);
+
+// Atomically writes the reference.
+// params:
+// - ref - new reference
+// - obj - pointer to AtomicReference object
+// - field - pointer to field within AtomicReference object
+typedef void (*DYN_AtomicWriteRef)(DYN_ObjRef ref, DYN_ObjRef obj, DYN_FieldRef field, MEM_ORDER order);
+
+// Atomically swaps the reference.
+// params:
+// - ref - new reference
+// - obj - pointer to AtomicReference object
+// - field - pointer to field within AtomicReference object
+// return: old reference
+typedef DYN_ObjRef (*DYN_AtomicSwapRef)(DYN_ObjRef ref, DYN_ObjRef obj, DYN_FieldRef field, MEM_ORDER order);
+
+// CAS.
+// params:
+// - oldRef - reference to compare
+// - newRef - new reference
+// - obj - pointer to AtomicReference object
+// - field - pointer to field within AtomicReference object
+// return: true, if oldRef matches current field value, false otherwise
+// TODO should be bool or uint8_t?
+typedef bool (*DYN_AtomicCompareAndSwapRef)(
+    DYN_ObjRef oldRef, DYN_ObjRef newRef, DYN_ObjRef obj, DYN_FieldRef field, MEM_ORDER succOrder, MEM_ORDER failOrder);
+
 // endregion CJNative interface
 
 // region Interfaces
@@ -723,6 +759,11 @@ struct DYN_CJNativeInterface {
     DYN_I2NStubFn i2nStub;
 
     DYN_NativeLoggerFn nativeLogger;
+
+    DYN_AtomicReadRef atomicReadRef;
+    DYN_AtomicWriteRef atomicWriteRef;
+    DYN_AtomicSwapRef atomicSwapRef;
+    DYN_AtomicCompareAndSwapRef atomicCompareAndSwapRef;
 };
 
 #ifdef __cplusplus

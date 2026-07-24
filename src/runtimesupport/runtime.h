@@ -135,6 +135,12 @@ struct Execution {
 
     static Reference GetPendingException();
     static Reference GetAndClearPendingException();
+
+    static Reference AtomicReadRef(Reference object, uintptr_t field, std::memory_order memOrder);
+    static void AtomicWriteRef(Reference ref, Reference obj, uintptr_t field, std::memory_order memOrder);
+    static Reference AtomicSwapRef(Reference ref, Reference obj, uintptr_t field, std::memory_order memOrder);
+    static bool AtomicCompareAndSwapRef(Reference oldRef, Reference newRef, Reference obj, uintptr_t field,
+        std::memory_order succOrder, std::memory_order failOrder);
 };
 
 struct MetaInfo {

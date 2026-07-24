@@ -163,11 +163,11 @@ public:
         if (!NullCheck(objRef)) {
             return;
         }
-        // TODO: barriers
-        auto* atomicVal  = reinterpret_cast<std::atomic<uintptr_t>*>(objRef.value + field);
-        auto expected    = ectype->GetReference(src1);
-        auto desired     = ectype->GetReference(src2);
-        auto res         = atomicVal->compare_exchange_strong(expected.value, desired.value, std::memory_order_seq_cst);
+        auto expected = ectype->GetReference(src1);
+        auto desired  = ectype->GetReference(src2);
+        auto res      = RTSupport::Execution::AtomicCompareAndSwapRef(
+            expected, desired, objRef, objRef.value + field, std::memory_order_seq_cst, std::memory_order_seq_cst
+        );
         ectype->Put(dst, Value::Primitive { .u64 = res });
     }
 
@@ -190,11 +190,10 @@ public:
         if (!NullCheck(objRef)) {
             return;
         }
-        // TODO: barriers
-        auto* atomicVal = reinterpret_cast<std::atomic<uintptr_t>*>(objRef.value + offset);
-        auto srcRef     = ectype->GetReference(src);
-        auto prev       = atomicVal->exchange(srcRef.value, std::memory_order_seq_cst);
-        ectype->Put(dst, Value::Reference { .value = prev });
+        auto srcRef = ectype->GetReference(src);
+        auto prev =
+            RTSupport::Execution::AtomicSwapRef(srcRef, objRef, objRef.value + offset, std::memory_order_seq_cst);
+        ectype->Put(dst, Value::Reference { .value = prev.value });
     }
 
     inline void AtomicLoad(Format::LoadAccessKind ldk, IReg dst, IReg obj, uint16_t offset)
@@ -229,10 +228,8 @@ public:
         if (!NullCheck(objRef)) {
             return;
         }
-        // TODO: barriers
-        auto* atomicVal = reinterpret_cast<std::atomic<uintptr_t>*>(objRef.value + offset);
-        auto res        = atomicVal->load(std::memory_order_seq_cst);
-        ectype->Put(dst, Value::Reference { .value = res });
+        auto res = RTSupport::Execution::AtomicReadRef(objRef, objRef.value + offset, std::memory_order_seq_cst);
+        ectype->Put(dst, Value::Reference { .value = res.value });
     }
 
     inline void AtomicStore(Format::StoreAccessKind stk, IReg src, IReg obj, uint16_t offset)
@@ -265,10 +262,8 @@ public:
         if (!NullCheck(objRef)) {
             return;
         }
-        // TODO: barriers
-        auto* atomicVal = reinterpret_cast<std::atomic<uintptr_t>*>(objRef.value + offset);
         auto srcRef     = ectype->GetReference(src);
-        atomicVal->store(srcRef.value, std::memory_order_seq_cst);
+        RTSupport::Execution::AtomicWriteRef(srcRef, objRef, objRef.value + offset, std::memory_order_seq_cst);
     }
 
     inline bool LoadDerived(Format::LoadAccessKind ldk, Format::Reg dst, IReg base, IReg derived, uint64_t offset)
