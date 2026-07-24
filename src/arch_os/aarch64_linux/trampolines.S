@@ -288,7 +288,7 @@ c2i_prepare_ectype:
   bl    engine_fiber_data_init
 
   mov   ECTYPE_REG, x0
-  ldr   x9, [x29, #-0x50] // restore fuh
+  ldr   x9, [x29, #-0x60] // restore fuh
 
   ldr   x8, [sp], #16
   ldp   x6, x7, [sp], #16
