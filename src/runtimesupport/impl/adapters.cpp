@@ -29,6 +29,8 @@ static size_t directCallFuhsCount;
 
 extern "C" Interpretation::ExecBytecodeInfo* engine_prepare_bytecode(Interpretation::DynamicFunctionHandle* fuh)
 {
+    static std::mutex m;
+    std::lock_guard guard(m);
     Engine::Session session(Engine::GetEngineInstance());
     auto& manager = Interpretation::FunctionHandleManager::Of(session);
     return manager.Prepare(session, fuh);
