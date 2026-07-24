@@ -37,6 +37,9 @@
     #define engine_implicit_exception_thrower _engine_implicit_exception_thrower
     #define engine_handle_exception _engine_handle_exception
     #define common_landing_pad _common_landing_pad
+    #define engine_stack_grow_stub _engine_stack_grow_stub
+    #define engine_ectype_saving_stub_pc_start _engine_ectype_saving_stub_pc_start
+    #define engine_ectype_saving_stub_pc_end _engine_ectype_saving_stub_pc_end
 #endif
 
 #ifdef __APPLE__
@@ -93,6 +96,9 @@ declare_hidden engine_throw_implicit_exception
 declare_hidden engine_implicit_exception_thrower
 declare_hidden engine_handle_exception
 declare_hidden common_landing_pad
+declare_hidden engine_stack_grow_stub
+declare_hidden engine_ectype_saving_stub_pc_start
+declare_hidden engine_ectype_saving_stub_pc_end
 
 // --- SECTION BSS ---
 #ifdef __APPLE__
@@ -124,6 +130,8 @@ engine_read_generic:
 engine_carrier_specific_offset:
   .skip 8
 engine_cjthread_specific_offset:
+  .skip 8
+engine_stack_grow_stub:
   .skip 8
 
 // --- SECTION TEXT ---
@@ -420,6 +428,13 @@ perform_2i_call:
   str   xzr, [x2], #8
   b     .Lframe_zero_loop
 .Lframe_zero_loop_end:
+
+.Lstack_check:
+  ldr   x10, [TLS_REG, #TLS_STACK_BORDER_OFFSET]
+  add   x10, x10, #ADDITIONAL_STACK_SPACE
+  cmp   sp, x10
+  b.ls  expand_stack_or_throw_soe
+.Lafter_stack_check:
 
   PUSH_REGS x8, x1, x9, x2, x3
 
@@ -725,3 +740,50 @@ engine_handle_exception:
   ldr   x9, [x9, PageOff(engine_throw_out_of_interpreter)]
   br    x9
   brk   #0
+
+.macro save_all_iregs scratch_reg
+  .set _dump_size, ((ECTYPE_IREGS_COUNT * ECTYPE_REG_SIZE) + 15) & ~15
+  sub   sp, sp, _dump_size
+  .set _offset, 0
+  .rept ECTYPE_IREGS_COUNT
+    ldr   \scratch_reg, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + _offset)]
+    str   \scratch_reg, [sp, #_offset]
+    .set _offset, _offset + ECTYPE_REG_SIZE
+  .endr
+.endm
+
+.macro restore_all_iregs scratch_reg
+  .set _dump_size, ((ECTYPE_IREGS_COUNT * ECTYPE_REG_SIZE) + 15) & ~15
+  .set _offset, 0
+  .rept ECTYPE_IREGS_COUNT
+    ldr   \scratch_reg, [sp, #_offset]
+    str   \scratch_reg, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + _offset)]
+    .set _offset, _offset + ECTYPE_REG_SIZE
+  .endr
+  add   sp, sp, _dump_size
+.endm
+
+// expects: (TLS_REG: valid TLS, sp: top of stack (including the whole current frame), x8: frame size)
+// preserves: all registers
+// Expands stack and returns to perform 2i call or throws SOE if stack expansion is impossible
+.balign 16
+engine_ectype_saving_stub_pc_start:
+expand_stack_or_throw_soe:
+  add   sp, sp, x8
+  save_all_iregs x10
+
+  mov   x9, #0x20 // adjusted size, kept in parity with x86_64
+  adrp  x10, Page(engine_stack_grow_stub)
+  ldr   x10, [x10, PageOff(engine_stack_grow_stub)]
+  blr   x10
+
+  restore_all_iregs x10
+  mov   x1, sp
+  sub   sp, sp, x8
+
+  // Restore ExecBytecodeInfo overwritten by the stack-grow argument in x9.
+  ldr   x9, [x29, #-FUH_SLOT_OFFSET]
+  ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
+
+  b     .Lafter_stack_check
+engine_ectype_saving_stub_pc_end:
