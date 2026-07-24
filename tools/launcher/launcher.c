@@ -1,9 +1,10 @@
+#include <assert.h>
+#include <dlfcn.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
-#include <dlfcn.h>
 #include <string.h>
-#include <assert.h>
+#include <unistd.h>
 
 #include "engine.h"
 #include "cj-interface.h"
@@ -38,6 +39,7 @@ struct Parser {
 
 
 static void init_cangjie_runtime() {
+    long int ncpu = sysconf(_SC_NPROCESSORS_ONLN);
     struct RuntimeParam rtParams = {
         .heapParam = {
             .regionSize = 64,
@@ -61,7 +63,7 @@ static void init_cangjie_runtime() {
         .coParam = {
             .thStackSize = 2 * 1024,
             .coStackSize = 2 * 1024,
-            .processorNum = 8,
+            .processorNum = (uint32_t) ncpu,
         },
     };
 
