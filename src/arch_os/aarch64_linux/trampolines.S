@@ -310,6 +310,143 @@ engine_all_regs_c2i_call:
 engine_c2i_call_pc_end:
   brk   #0
 
+.balign 16
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: fuh)
+// preserved: TLS_REG, ECTYPE_REG, x29
+perform_2i_call:
+// The final layout of the frame is following:
+// +------------------------------------+
+// | Return Address                     |
+// +------------------------------------+
+// | Saved Frame Pointer (Old FP)       |
+// +------------------------------------+>\ <-- FP
+// | FuH (x0)                           |  \
+// +------------------------------------+  |
+// | ECTYPE_REG                         |  |
+// +------------------------------------+  |
+// | LITERALS_REG                       |  |
+// +------------------------------------+  | -- LOCAL_SLOTS_OFFSET
+// | EXTRA_REG                          |  |
+// +------------------------------------+  |
+// | CHECK_SUM                          |  |
+// +------------------------------------+  |
+// | Reader                             |  |
+// +------------------------------------+  |
+// | Alignment  (0 or 8)                |  /
+// +------------------------------------+>/
+// | Dynamic Locals (locals_size)       |
+// +------------------------------------+ <-- SP
+  stp   x29, x30, [sp, #-16]!
+  mov   x29, sp
+  // fp-0x8: FunctionHandle for frame scanning,
+  // fp-0x10: Ectype
+  // fp-0x18: Literals
+  // fp-0x20: Extra saved reg
+  // fp-0x28: Check sum (needed for debugging) TODO: support it for aarch64
+  sub   sp, sp, LOCAL_SLOTS_OFFSET
+  stp   ECTYPE_REG, x0,           [x29, #-ECTYPE_REG_SAVED_SLOT_OFFSET]
+  stp   EXTRA_REG,  LITERALS_REG, [x29, #-EXTRA_SAVED_REG_OFFSET]
+  // FIXME: perform stack check here!
+
+  // We need to support fibers with movable stacks,
+  // but to do it safely we need to adjust pointers to stack.
+  // It is impossible to do correctly in C/C++ frames.
+  // So, we will rely on "tail calls" from C++ interpreter loop
+  // to managed compiled code.
+  //
+  // The problem is that we can't rely on tail call optimization
+  // and can't force such behaviour reliably (early 2026).
+  // Instead, we will return Thunk { function, arg } from C++ code to decide
+  // how to continue execution further.
+
+  ldr   x9, [x0, #FUNCTION_HANDLE_BYTECODE_OFFSET]
+  cbnz  x9, .Lhave_bytecode
+  // function handle is already on x0
+  bl    engine_prepare_bytecode
+  mov   x9, x0
+.Lhave_bytecode:
+
+  ldr   LITERALS_REG, [x9, #EXEC_BYTECODE_INFO_LITERALS_OFFSET]
+  ldr   x1, [x9, #EXEC_BYTECODE_INFO_BYTECODE_OFFSET]
+#ifndef NDEBUG
+  ldr   x8, [x9, #EXEC_BYTECODE_INFO_BYTECODE_SIZE_OFFSET]
+  add   x8, x8, x1
+  str   x8, [x29, #-READER_SLOT_OFFSET + 0x10]
+  str   x1, [x29, #-READER_SLOT_OFFSET + 0x8]
+#endif
+  str   x1, [x29, #-READER_SLOT_OFFSET]
+
+#ifndef NDEBUG
+  ldr   w1, [ECTRYPE_REG, #ECTYPE_FUNC_COUNTER_OFFSET]
+  add   w1, w1, #1
+  str   w1, [ECTRYPE_REG, #ECTYPE_FUNC_COUNTER_OFFSET]
+  ldr   x0, [x29, #-FUH_SLOT_OFFSET]
+  mov   x1, ECTYPE_REG
+  bl    engine_log_int_start
+#endif
+
+  mov   x1, sp // save current sp for registers saving to the bottom of frame
+
+  // current sp is 16-byte.baligned
+  ldr   w8, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
+  sub   sp, sp, x8
+
+  mov   x2, sp
+  mov   x3, x1
+
+// FIXME: remove it
+// We are zeroing a whole frame to simplify gc handling,
+// but it should be handled by compiler properly.
+.Lframe_zero_loop:
+  cmp   x2, x3
+  b.eq   .Lframe_zero_loop_end
+  str   xzr, [x2], #8
+  b     .Lframe_zero_loop
+.Lframe_zero_loop_end:
+
+  PUSH_REGS x8, x1, x9, x2, x3
+
+.Lrestart_interpretation:
+  mov   x0, ECTYPE_REG
+  mov   x1, sp
+  mov   x2, TLS_REG
+  mov   x3, LITERALS_REG
+  sub   x4, x29, #READER_SLOT_OFFSET
+
+  bl    engine_interpretation_loop
+
+  // Thunk is returned on x0: function, x1: arg.
+  // If usual return is needed, interpretation_loop will return null.
+  cbz   x0, .Lend_interpretation
+
+  mov   x9, x0
+  mov   x0, x1
+.Linterpreter_call:
+  br    x9
+
+.Lend_interpretation:
+
+#ifndef NDEBUG
+  ldr   x0, [x29, #-FUH_SLOT_OFFSET]
+  mov   x1, ECTYPE_REG
+  bl    engine_log_int_end
+#endif
+
+  ldr   x9, [x29, #-FUH_SLOT_OFFSET] // load Function Handle
+  ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
+
+  ldr   w1, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
+  mov   x2, sp
+  add   x1, x1, x2 // add frame size to locate saved registers
+
+  POP_REGS x8, x1, x9, x2, x3, x4
+
+  ldr   ECTYPE_REG, [x29, #-ECTYPE_REG_SAVED_SLOT_OFFSET]
+  ldp   EXTRA_REG, LITERALS_REG, [x29, #-EXTRA_SAVED_REG_OFFSET]
+
+  mov   sp, x29
+  ldp   x29, x30, [sp], #16
+  ret
 
 .balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: fuh)
@@ -467,143 +604,8 @@ engine_i2_spawn:
   blr   x4
   b     .Lrestart_interpretation
 
-.balign 16
-// expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: fuh)
-// preserved: TLS_REG, ECTYPE_REG, x29
-perform_2i_call:
-// The final layout of the frame is following:
-// +------------------------------------+
-// | Return Address                     |
-// +------------------------------------+
-// | Saved Frame Pointer (Old FP)       |
-// +------------------------------------+>\ <-- FP
-// | FuH (x0)                           |  \
-// +------------------------------------+  |
-// | ECTYPE_REG                         |  |
-// +------------------------------------+  |
-// | LITERALS_REG                       |  |
-// +------------------------------------+  | -- LOCAL_SLOTS_OFFSET
-// | EXTRA_REG                          |  |
-// +------------------------------------+  |
-// | CHECK_SUM                          |  |
-// +------------------------------------+  |
-// | Reader                             |  |
-// +------------------------------------+  |
-// | Alignment  (0 or 8)                |  /
-// +------------------------------------+>/
-// | Dynamic Locals (locals_size)       |
-// +------------------------------------+ <-- SP
-  stp   x29, x30, [sp, #-16]!
-  mov   x29, sp
-  // fp-0x8: FunctionHandle for frame scanning,
-  // fp-0x10: Ectype
-  // fp-0x18: Literals
-  // fp-0x20: Extra saved reg
-  // fp-0x28: Check sum (needed for debugging) TODO: support it for aarch64
-  sub   sp, sp, LOCAL_SLOTS_OFFSET
-  stp   ECTYPE_REG, x0,           [x29, #-ECTYPE_REG_SAVED_SLOT_OFFSET]
-  stp   EXTRA_REG,  LITERALS_REG, [x29, #-EXTRA_SAVED_REG_OFFSET]
-  // FIXME: perform stack check here!
-
-  // We need to support fibers with movable stacks,
-  // but to do it safely we need to adjust pointers to stack.
-  // It is impossible to do correctly in C/C++ frames.
-  // So, we will rely on "tail calls" from C++ interpreter loop
-  // to managed compiled code.
-  //
-  // The problem is that we can't rely on tail call optimization
-  // and can't force such behaviour reliably (early 2026).
-  // Instead, we will return Thunk { function, arg } from C++ code to decide
-  // how to continue execution further.
-
-  ldr   x9, [x0, #FUNCTION_HANDLE_BYTECODE_OFFSET]
-  cbnz  x9, .Lhave_bytecode
-  // function handle is already on x0
-  bl    engine_prepare_bytecode
-  mov   x9, x0
-.Lhave_bytecode:
-
-  ldr   LITERALS_REG, [x9, #EXEC_BYTECODE_INFO_LITERALS_OFFSET]
-  ldr   x1, [x9, #EXEC_BYTECODE_INFO_BYTECODE_OFFSET]
-#ifndef NDEBUG
-  ldr   x8, [x9, #EXEC_BYTECODE_INFO_BYTECODE_SIZE_OFFSET]
-  add   x8, x8, x1
-  str   x8, [x29, #-READER_SLOT_OFFSET + 0x10]
-  str   x1, [x29, #-READER_SLOT_OFFSET + 0x8]
-#endif
-  str   x1, [x29, #-READER_SLOT_OFFSET]
-
-#ifndef NDEBUG
-  ldr   w1, [ECTRYPE_REG, #ECTYPE_FUNC_COUNTER_OFFSET]
-  add   w1, w1, #1
-  str   w1, [ECTRYPE_REG, #ECTYPE_FUNC_COUNTER_OFFSET]
-  ldr   x0, [x29, #-FUH_SLOT_OFFSET]
-  mov   x1, ECTYPE_REG
-  bl    engine_log_int_start
-#endif
-
-  mov   x1, sp // save current sp for registers saving to the bottom of frame
-
-  // current sp is 16-byte.baligned
-  ldr   w8, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
-  sub   sp, sp, x8
-
-  mov   x2, sp
-  mov   x3, x1
-
-// FIXME: remove it
-// We are zeroing a whole frame to simplify gc handling,
-// but it should be handled by compiler properly.
-.Lframe_zero_loop:
-  cmp   x2, x3
-  b.eq   .Lframe_zero_loop_end
-  str   xzr, [x2], #8
-  b     .Lframe_zero_loop
-.Lframe_zero_loop_end:
-
-  PUSH_REGS x8, x1, x9, x2, x3
-
-.Lrestart_interpretation:
-  mov   x0, ECTYPE_REG
-  mov   x1, sp
-  mov   x2, TLS_REG
-  mov   x3, LITERALS_REG
-  sub   x4, x29, #READER_SLOT_OFFSET
-
-  bl    engine_interpretation_loop
-
-  // Thunk is returned on x0: function, x1: arg.
-  // If usual return is needed, interpretation_loop will return null.
-  cbz   x0, .Lend_interpretation
-
-  mov   x9, x0
-  mov   x0, x1
-.Linterpreter_call:
-  br    x9
-
-.Lend_interpretation:
-
-#ifndef NDEBUG
-  ldr   x0, [x29, #-FUH_SLOT_OFFSET]
-  mov   x1, ECTYPE_REG
-  bl    engine_log_int_end
-#endif
-
-  ldr   x9, [x29, #-FUH_SLOT_OFFSET] // load Function Handle
-  ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
-
-  ldr   w1, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
-  mov   x2, sp
-  add   x1, x1, x2 // add frame size to locate saved registers
-
-  POP_REGS x8, x1, x9, x2, x3, x4
-
-  ldr   ECTYPE_REG, [x29, #-ECTYPE_REG_SAVED_SLOT_OFFSET]
-  ldp   EXTRA_REG, LITERALS_REG, [x29, #-EXTRA_SAVED_REG_OFFSET]
-
-  mov   sp, x29
-  ldp   x29, x30, [sp], #16
-  ret
+// TREAT SYMBOLS ABOVE AS PART OF perform_2i_call
+.size perform_2i_call, .-perform_2i_call
 
 // fake execute closure function
 .balign 16
