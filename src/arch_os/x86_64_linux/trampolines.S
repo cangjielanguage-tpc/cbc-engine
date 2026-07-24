@@ -15,6 +15,8 @@
     #define engine_c2i_call_pc_end _engine_c2i_call_pc_end
     #define engine_trampolines_dyn_start _engine_trampolines_dyn_start
     #define engine_trampolines_dyn_end _engine_trampolines_dyn_end
+    #define engine_trampolines_dyn_sret_start _engine_trampolines_dyn_sret_start
+    #define engine_trampolines_dyn_sret_end _engine_trampolines_dyn_sret_end
     #define engine_trampolines_direct_start _engine_trampolines_direct_start
     #define engine_all_regs_c2i_call _engine_all_regs_c2i_call
     #define engine_iregs_only_c2i_call _engine_iregs_only_c2i_call
@@ -214,6 +216,7 @@ engine_trampolines_direct_start:
   .endr
 .endm
   repeat_trampoline_direct TRAMPOLINE_COUNT
+
 
 
 .balign 16
