@@ -387,6 +387,9 @@ perform_2i_call:
   ldr   x0, [x29, #-FUH_SLOT_OFFSET]
   mov   x1, ECTYPE_REG
   bl    engine_log_int_start
+
+  ldr   x9, [x29, #-FUH_SLOT_OFFSET]
+  ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
 #endif
 
   mov   x1, sp // save current sp for registers saving to the bottom of frame
