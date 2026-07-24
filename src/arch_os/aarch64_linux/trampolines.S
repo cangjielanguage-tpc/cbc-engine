@@ -226,17 +226,22 @@ engine_trampolines_dyn_start:
 engine_trampolines_dyn_sret_end:
 engine_trampolines_dyn_end:
 
+#define StubFrameContextSize   (8 * 14)
+#define StubCalleeSaveAreaSize (8 * 4)
+
 .macro engine_c2i_call ireg_count freg_count
-  stp   x29, x30, [sp, #-16]!
+  mov   x12, sp
+  stp   x29, x30, [sp, #-StubFrameContextSize]!
   mov   x29, sp
 
-  stp   x19, x20, [sp, #-16]! // x29 - 0x10
-  stp   x21, x22, [sp, #-16]! // x29 - 0x20
-  stp   x23, x24, [sp, #-16]! // x29 - 0x30
-  stp   x25, x26, [sp, #-16]! // x29 - 0x40
-  stp   x27, x28, [sp, #-16]! // x29 - 0x50
+  stp   x19, x20, [sp, #StubCalleeSaveAreaSize]
+  stp   x21, x22, [sp, #StubCalleeSaveAreaSize+0x10]
+  stp   x23, x24, [sp, #StubCalleeSaveAreaSize+0x20]
+  stp   x25, x26, [sp, #StubCalleeSaveAreaSize+0x30]
+  stp   x27, x28, [sp, #StubCalleeSaveAreaSize+0x40]
 
-  str   x9, [sp, #-16]! // x29 - 0x60 : FunctionHandle that will help to scan saved regs
+  mov   x27, x12 // previous stack top
+  mov   x26, x9  // save fuh
 
   adrp  ECTYPE_REG, Page(engine_carrier_specific_offset)
   ldr   ECTYPE_REG, [ECTYPE_REG, PageOff(engine_carrier_specific_offset)]
@@ -248,26 +253,23 @@ engine_trampolines_dyn_end:
 
   cbz   ECTYPE_REG, .Lc2i_prepare_ectype\@
 .Lc2i_args_preparation\@:
-  // TODO support correct sret handling
 
   c2i_emit_iregs_abi \ireg_count
   c2i_emit_fregs_abi \freg_count
 
-  add   x1, x29, 0x10
-  str   x1, [ECTYPE_REG, #TAIL_REG_OFFS]
-  mov   x0, x9
+  str   x27, [ECTYPE_REG, #TAIL_REG_OFFS]
+  mov   x0, x26
   bl    perform_2i_call
 
   ldr   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8)]
   ldr   d0, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET)]
 
-  ldp   x19, x20, [x29, #-0x10]
-  ldp   x21, x22, [x29, #-0x20]
-  ldp   x23, x24, [x29, #-0x30]
-  ldp   x25, x26, [x29, #-0x40]
-  ldr   x27,      [x29, #-0x50] // do not restore tls reg
-  mov   sp, x29
-  ldp   x29, x30, [sp], #16
+  ldp   x19, x20, [sp, #StubCalleeSaveAreaSize]
+  ldp   x21, x22, [sp, #StubCalleeSaveAreaSize+0x10]
+  ldp   x23, x24, [sp, #StubCalleeSaveAreaSize+0x20]
+  ldp   x25, x26, [sp, #StubCalleeSaveAreaSize+0x30]
+  ldr   x27,      [sp, #StubCalleeSaveAreaSize+0x40] // do not restore tls reg
+  ldp   x29, x30, [sp], #StubFrameContextSize
   ret
 
 .Lc2i_prepare_ectype\@:
@@ -277,6 +279,7 @@ engine_trampolines_dyn_end:
 
 .balign 16
 c2i_prepare_ectype:
+  // FIXME: floating point registers are volatile too!
   stp   x29, x30, [sp, #-16]!
   stp   x0, x1, [sp, #-16]!
   stp   x2, x3, [sp, #-16]!
@@ -288,7 +291,6 @@ c2i_prepare_ectype:
   bl    engine_fiber_data_init
 
   mov   ECTYPE_REG, x0
-  ldr   x9, [x29, #-0x60] // restore fuh
 
   ldr   x8, [sp], #16
   ldp   x6, x7, [sp], #16
@@ -379,9 +381,9 @@ perform_2i_call:
   str   x1, [x29, #-READER_SLOT_OFFSET]
 
 #ifndef NDEBUG
-  ldr   w1, [ECTRYPE_REG, #ECTYPE_FUNC_COUNTER_OFFSET]
+  ldr   w1, [ECTYPE_REG, #ECTYPE_FUNC_COUNTER_OFFSET]
   add   w1, w1, #1
-  str   w1, [ECTRYPE_REG, #ECTYPE_FUNC_COUNTER_OFFSET]
+  str   w1, [ECTYPE_REG, #ECTYPE_FUNC_COUNTER_OFFSET]
   ldr   x0, [x29, #-FUH_SLOT_OFFSET]
   mov   x1, ECTYPE_REG
   bl    engine_log_int_start
@@ -685,14 +687,15 @@ engine_handle_exception:
   // throw exception using CJNative runtime (as it usually done in AOT code)
 .Llast_interpreter_frame_unwinding:
 
-  // Restore C2I saved regs
-  ldp   x19, x20, [x29, #-0x10]
-  ldp   x21, x22, [x29, #-0x20]
-  ldp   x23, x24, [x29, #-0x30]
-  ldp   x25, x26, [x29, #-0x40]
-  ldr   x27,      [x29, #-0x50] // do not restore tls reg
   mov   sp, x29
-  ldp   x29, x30, [sp], #16
+
+  // Restore C2I saved regs
+  ldp   x19, x20, [sp, #StubCalleeSaveAreaSize]
+  ldp   x21, x22, [sp, #StubCalleeSaveAreaSize+0x10]
+  ldp   x23, x24, [sp, #StubCalleeSaveAreaSize+0x20]
+  ldp   x25, x26, [sp, #StubCalleeSaveAreaSize+0x30]
+  ldr   x27,      [sp, #StubCalleeSaveAreaSize+0x40] // do not restore tls reg
+  ldp   x29, x30, [sp], #StubFrameContextSize
 
   // Now stack has the following layout:
   //
