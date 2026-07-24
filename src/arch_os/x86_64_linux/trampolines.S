@@ -242,6 +242,7 @@ engine_trampolines_direct_start:
   repeat_trampoline_direct TRAMPOLINE_COUNT
 
 
+
 .balign 16
 engine_universal_dyn_call:
   mov   r10, [rdi] // get TypeInfo
