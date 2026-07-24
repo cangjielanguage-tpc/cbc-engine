@@ -381,9 +381,9 @@ perform_2i_call:
   str   x1, [x29, #-READER_SLOT_OFFSET]
 
 #ifndef NDEBUG
-  ldr   w1, [ECTRYPE_REG, #ECTYPE_FUNC_COUNTER_OFFSET]
+  ldr   w1, [ECTYPE_REG, #ECTYPE_FUNC_COUNTER_OFFSET]
   add   w1, w1, #1
-  str   w1, [ECTRYPE_REG, #ECTYPE_FUNC_COUNTER_OFFSET]
+  str   w1, [ECTYPE_REG, #ECTYPE_FUNC_COUNTER_OFFSET]
   ldr   x0, [x29, #-FUH_SLOT_OFFSET]
   mov   x1, ECTYPE_REG
   bl    engine_log_int_start
