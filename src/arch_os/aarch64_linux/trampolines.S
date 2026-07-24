@@ -233,9 +233,10 @@ engine_trampolines_dyn_end:
   stp   x19, x20, [sp, #-16]! // x29 - 0x10
   stp   x21, x22, [sp, #-16]! // x29 - 0x20
   stp   x23, x24, [sp, #-16]! // x29 - 0x30
-  stp   x27, x28, [sp, #-16]! // x29 - 0x40
+  stp   x25, x26, [sp, #-16]! // x29 - 0x40
+  stp   x27, x28, [sp, #-16]! // x29 - 0x50
 
-  str   x9, [sp, #-16]! // x29 - 0x50 : FunctionHandle that will help to scan saved regs
+  str   x9, [sp, #-16]! // x29 - 0x60 : FunctionHandle that will help to scan saved regs
 
   adrp  ECTYPE_REG, Page(engine_carrier_specific_offset)
   ldr   ECTYPE_REG, [ECTYPE_REG, PageOff(engine_carrier_specific_offset)]
@@ -260,10 +261,11 @@ engine_trampolines_dyn_end:
   ldr   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8)]
   ldr   d0, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET)]
 
-  ldp   x19, x20, [x29, #-16]
-  ldp   x21, x22, [x29, #-32]
-  ldp   x23, x24, [x29, #-48]
-  ldr   x27,      [x29, #-64] // do not restore tls reg
+  ldp   x19, x20, [x29, #-0x10]
+  ldp   x21, x22, [x29, #-0x20]
+  ldp   x23, x24, [x29, #-0x30]
+  ldp   x25, x26, [x29, #-0x40]
+  ldr   x27,      [x29, #-0x50] // do not restore tls reg
   mov   sp, x29
   ldp   x29, x30, [sp], #16
   ret
@@ -684,10 +686,11 @@ engine_handle_exception:
 .Llast_interpreter_frame_unwinding:
 
   // Restore C2I saved regs
-  ldp   x19, x20, [x29, #-16]
-  ldp   x21, x22, [x29, #-32]
-  ldp   x23, x24, [x29, #-48]
-  ldr   x27,      [x29, #-64] // do not restore tls reg
+  ldp   x19, x20, [x29, #-0x10]
+  ldp   x21, x22, [x29, #-0x20]
+  ldp   x23, x24, [x29, #-0x30]
+  ldp   x25, x26, [x29, #-0x40]
+  ldr   x27,      [x29, #-0x50] // do not restore tls reg
   mov   sp, x29
   ldp   x29, x30, [sp], #16
 
