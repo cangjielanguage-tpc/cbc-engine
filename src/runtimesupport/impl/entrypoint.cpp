@@ -224,11 +224,14 @@ static void FiberDestroy(DYN_CJThreadSpecificData* data)
     delete static_cast<Interpretation::Ectype*>(*data)->Checked();
 }
 
+static std::mutex mutex;
+
 static void IterateFramesWithState(
     DYN_CJThreadSpecificData threadSpecificData, void (*callback)(DYN_VisitingState, void*), void* ctx
 )
 {
     if (g_Initialized) {
+        std::lock_guard guard(mutex);
         GCSupport::IterateFramesWithState(threadSpecificData, callback, ctx);
     }
 }
@@ -265,6 +268,7 @@ static void VisitFrameRootsExpansion(
 static void VisitGlobalRoots(DYN_RootVisitor visitor)
 {
     if (g_Initialized) {
+        std::lock_guard guard(mutex);
         GCSupport::VisitGlobalRoots(visitor);
     }
 }
