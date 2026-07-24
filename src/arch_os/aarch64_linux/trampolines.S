@@ -240,8 +240,8 @@ engine_trampolines_dyn_end:
   stp   x25, x26, [sp, #StubCalleeSaveAreaSize+0x30]
   stp   x27, x28, [sp, #StubCalleeSaveAreaSize+0x40]
 
-  mov   x20, x12 // previous stack top
-  mov   x19, x9  // save fuh
+  mov   x27, x12 // previous stack top
+  mov   x26, x9  // save fuh
 
   adrp  ECTYPE_REG, Page(engine_carrier_specific_offset)
   ldr   ECTYPE_REG, [ECTYPE_REG, PageOff(engine_carrier_specific_offset)]
@@ -253,13 +253,12 @@ engine_trampolines_dyn_end:
 
   cbz   ECTYPE_REG, .Lc2i_prepare_ectype\@
 .Lc2i_args_preparation\@:
-  // TODO support correct sret handling
 
   c2i_emit_iregs_abi \ireg_count
   c2i_emit_fregs_abi \freg_count
 
-  str   x20, [ECTYPE_REG, #TAIL_REG_OFFS]
-  mov   x0, x19
+  str   x27, [ECTYPE_REG, #TAIL_REG_OFFS]
+  mov   x0, x26
   bl    perform_2i_call
 
   ldr   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8)]
