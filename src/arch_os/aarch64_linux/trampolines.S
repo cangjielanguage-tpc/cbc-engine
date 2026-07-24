@@ -260,12 +260,11 @@ engine_trampolines_dyn_end:
   ldr   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x8)]
   ldr   d0, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET)]
 
-  add   sp, sp, #16 // remove FunctionHandle
-  ldp   x27, x28, [sp], #16
-  ldp   x23, x24, [sp], #16
-  ldp   x21, x22, [sp], #16
-  ldp   x19, x20, [sp], #16
-
+  ldp   x19, x20, [x29, #-16]
+  ldp   x21, x22, [x29, #-32]
+  ldp   x23, x24, [x29, #-48]
+  ldr   x27,      [x29, #-64] // do not restore tls reg
+  mov   sp, x29
   ldp   x29, x30, [sp], #16
   ret
 
@@ -395,7 +394,7 @@ engine_i2_load_generic:
 
   // size param
   ldr   x3, [x0] // get header
-  ldr   x3, [x3, #TYPEINFO_INSTANCESIZE_OFFSET]
+  ldr   w3, [x3, #TYPEINFO_INSTANCESIZE_OFFSET]
   // perform generic read
   adrp  x4, Page(engine_read_generic)
   ldr   x4, [x4, PageOff(engine_read_generic)]
@@ -606,16 +605,18 @@ common_landing_pad:
 // Precondition: top frame is interpreter frame.
 .balign 16
 engine_handle_exception:
-  mov   x21, x0
+  mov   EXTRA_REG, x0
 
   ldr   x0, [x29, #-FUH_SLOT_OFFSET]
   sub   x1, x29, #READER_SLOT_OFFSET // reader
   bl    engine_get_exception_handler
 
+  mov   x12, EXTRA_REG // use x12 (volatile) as temporary exception holder
+
   cbz   w0, .Lunwind_top_frame
 
   // Handler is found, set exception object to ACC_REG and continue interpretation
-  str   x21, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + ECTYPE_IACC_NUM * ECTYPE_REG_SIZE)]
+  str   x12, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + ECTYPE_IACC_NUM * ECTYPE_REG_SIZE)]
   b     .Lrestart_interpretation
 
 .Lunwind_top_frame:
@@ -635,27 +636,26 @@ engine_handle_exception:
   mov   sp, x29
   ldp   x29, x30, [sp], #16
 
+  mov   x0, x12 // set exception pointer as argument for both execution paths
+
   // Check if next method is C2I adapter
-  adrp  x9, Page(engine_c2i_call_pc_start)
-  add   x9, x9, PageOff(engine_c2i_call_pc_start)
+  adr   x9, engine_c2i_call_pc_start
   cmp   x30, x9
-  b.lo  .Lhandle_next_dyn_func
-  adrp  x9, Page(engine_c2i_call_pc_end)
-  add   x9, x9, PageOff(engine_c2i_call_pc_end)
+  b.lo  engine_handle_exception
+  adr   x9, engine_c2i_call_pc_end
   cmp   x30, x9
-  b.hs  .Lhandle_next_dyn_func
+  b.hs  engine_handle_exception
 
   // Unwind next frame (C2I) and when there are no interpreter frames
   // throw exception using CJNative runtime (as it usually done in AOT code)
 .Llast_interpreter_frame_unwinding:
-  mov   x0, x21              // set exception pointer as argument
 
   // Restore C2I saved regs
-  add   sp, sp, #16          // skip saved fuh
-  ldp   x27, x28, [sp], #16
-  ldp   x23, x24, [sp], #16
-  ldp   x21, x22, [sp], #16
-  ldp   x19, x20, [sp], #16
+  ldp   x19, x20, [x29, #-16]
+  ldp   x21, x22, [x29, #-32]
+  ldp   x23, x24, [x29, #-48]
+  ldr   x27,      [x29, #-64] // do not restore tls reg
+  mov   sp, x29
   ldp   x29, x30, [sp], #16
 
   // Now stack has the following layout:
@@ -673,7 +673,3 @@ engine_handle_exception:
   ldr   x9, [x9, PageOff(engine_throw_out_of_interpreter)]
   br    x9
   brk   #0
-
-.Lhandle_next_dyn_func:
-  mov   x0, x21
-  b     engine_handle_exception

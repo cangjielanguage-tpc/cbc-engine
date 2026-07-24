@@ -617,17 +617,19 @@ common_landing_pad:
 // Precondition: top frame is interpreter frame.
 .align 16
 engine_handle_exception:
-  mov   r12, rdi
+  mov   EXTRA_REG, rdi
 
   mov   rdi, QWORD PTR [rbp - FUH_SLOT_OFFSET]
   lea   rsi, QWORD PTR [rbp - READER_SLOT_OFFSET] // reader
   call  engine_get_exception_handler
 
+  mov   r8, EXTRA_REG // use r8 (volatile) as temporary exception holder
+
   test  al, al
   jz   .Lunwind_top_frame
 
   // Handler is found, set exception object to ACC_REG and continue interpretation
-  mov   QWORD PTR [ECTYPE_REG + ECTYPE_IACC_OFFSET], r12
+  mov   QWORD PTR [ECTYPE_REG + ECTYPE_IACC_OFFSET], EXTRA_REG
   jmp   .Lrestart_interpretation
 
 .Lunwind_top_frame:
@@ -646,22 +648,21 @@ engine_handle_exception:
   // Clear top frame
   mov rsp, rbp
   pop rbp
-  pop rdi // ret addr
+  pop rsi // ret addr
+
+  mov   rdi, r8 // set exception pointer as argument for both execution paths
 
   // Check if next method is C2I adapter
   lea   rax, [rip + engine_c2i_call_pc_start]
-  cmp   rdi, rax
-  jb    .Lhandle_next_dyn_func
+  cmp   rsi, rax
+  jb    engine_handle_exception
   lea   rax, [rip + engine_c2i_call_pc_end]
-  cmp   rdi, rax
-  jae   .Lhandle_next_dyn_func
+  cmp   rsi, rax
+  jae   engine_handle_exception
 
   // Unwind C2I frame and when there are no interpreter frames
   // throw exception using CJNative runtime (as it usually done in AOT code)
 .Llast_interpreter_frame_unwinding:
-  mov   rdi, r12 // set exception pointer as argument
-
-  // TODO use macros here
   // Restore C2I saved regs
   pop   rbx // pop saved fuh
   pop   rbx
@@ -685,6 +686,4 @@ engine_handle_exception:
   jmp   [rip + engine_throw_out_of_interpreter]
   ud2
 
-.Lhandle_next_dyn_func:
-  mov   rdi, r12
-  jmp   engine_handle_exception
+
