@@ -280,6 +280,7 @@ engine_trampolines_dyn_end:
 
 .balign 16
 c2i_prepare_ectype:
+  // FIXME: floating point registers are volatile too!
   stp   x29, x30, [sp, #-16]!
   stp   x0, x1, [sp, #-16]!
   stp   x2, x3, [sp, #-16]!
@@ -291,7 +292,6 @@ c2i_prepare_ectype:
   bl    engine_fiber_data_init
 
   mov   ECTYPE_REG, x0
-  ldr   x9, [x29, #-0x60] // restore fuh
 
   ldr   x8, [sp], #16
   ldp   x6, x7, [sp], #16
