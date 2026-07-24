@@ -1008,6 +1008,9 @@ R_READ_STRUCT: {
     auto dst   = ectype->GetPrimitive(args.rr.x.IR()).u64;
     auto base  = ectype->GetReference(args.rr.y.IR());
     auto field = base.value + memspaceOffsetAcc;
+    if (args.ti.UInt() < 0xf0000000) {
+        FATAL("strange typeinfo %p", args.ti.Raw());
+    }
     RTSupport::Execution::ReadStructField(dst, base, field, args.ti, handle);
     NEXT;
 }
