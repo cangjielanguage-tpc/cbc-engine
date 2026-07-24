@@ -442,7 +442,9 @@ perform_2i_call:
 // +------------------------------------+
 // | EXTRA_REG                          |
 // +------------------------------------+>\
-// | Reader                             |  \
+// | CHECK_SUM                          |  |
+// +------------------------------------+> |
+// | Reader                             |  |
 // +------------------------------------+   -- LOCAL_SLOTS_OFFSET - EXTRA_SAVED_REG_OFFSET
 // | Alignment  (0 or 8)                |  /
 // +------------------------------------+>/
@@ -509,18 +511,24 @@ perform_2i_call:
   mov   rdi, rsp
   xor   ecx, ecx
 
-.Lloop:
+// FIXME: remove it
+// We are zeroing a whole frame to simplify gc handling,
+// but it should be handled by compiler properly.
+.Lframe_zero_loop:
   cmp   rdi, rsi
-  je    .Lloop_end
+  je    .Lframe_zero_loop_end
   mov   [rdi], rcx
   add   rdi, 8
-  jmp   .Lloop
-.Lloop_end:
+  jmp   .Lframe_zero_loop
+.Lframe_zero_loop_end:
 
-  mov   rsi, QWORD PTR [rax + EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
-  xor   rsi, rdx
-  xor   rsi, r8
+#ifndef NDEBUG
+  // calculate check sum and save it in the frame
+  mov   rsi, QWORD PTR [rax + EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET] // list of saved iregs
+  xor   rsi, rdx // address to the start of interpreter frame allocated data
+  xor   rsi, r8  // frame size
   mov   [rbp - CHECK_SUM_OFFSET], rsi
+#endif
 
   PUSH_REGS rcx, rdx, rax, rsi
 
@@ -560,10 +568,13 @@ perform_2i_call:
   mov   rsi, QWORD PTR [rax + EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
   xor   rsi, rdx
   xor   rsi, r8
+
+#ifndef NDEBUG
   cmp   rsi, [rbp - CHECK_SUM_OFFSET]
   je    .Lcheck_sum_ok
   ud2
 .Lcheck_sum_ok:
+#endif
 
   POP_REGS rcx, rdx, rax, rsi, rdi
 

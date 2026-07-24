@@ -485,6 +485,8 @@ perform_2i_call:
 // +------------------------------------+  | -- LOCAL_SLOTS_OFFSET
 // | EXTRA_REG                          |  |
 // +------------------------------------+  |
+// | CHECK_SUM                          |  |
+// +------------------------------------+  |
 // | Reader                             |  |
 // +------------------------------------+  |
 // | Alignment  (0 or 8)                |  /
@@ -497,6 +499,7 @@ perform_2i_call:
   // fp-0x10: Ectype
   // fp-0x18: Literals
   // fp-0x20: Extra saved reg
+  // fp-0x28: Check sum (needed for debugging) TODO: support it for aarch64
   sub   sp, sp, LOCAL_SLOTS_OFFSET
   stp   ECTYPE_REG, x0,           [x29, #-ECTYPE_REG_SAVED_SLOT_OFFSET]
   stp   EXTRA_REG,  LITERALS_REG, [x29, #-EXTRA_SAVED_REG_OFFSET]
@@ -530,11 +533,33 @@ perform_2i_call:
 #endif
   str   x1, [x29, #-READER_SLOT_OFFSET]
 
+#ifndef NDEBUG
+  ldr   w1, [ECTRYPE_REG, #ECTYPE_FUNC_COUNTER_OFFSET]
+  add   w1, w1, #1
+  str   w1, [ECTRYPE_REG, #ECTYPE_FUNC_COUNTER_OFFSET]
+  ldr   x0, [x29, #-FUH_SLOT_OFFSET]
+  mov   x1, ECTYPE_REG
+  bl    engine_log_int_start
+#endif
+
   mov   x1, sp // save current sp for registers saving to the bottom of frame
 
   // current sp is 16-byte.baligned
   ldr   w8, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   sub   sp, sp, x8
+
+  mov   x2, sp
+  mov   x3, x1
+
+// FIXME: remove it
+// We are zeroing a whole frame to simplify gc handling,
+// but it should be handled by compiler properly.
+.Lframe_zero_loop:
+  cmp   x2, x3
+  b.eq   .Lframe_zero_loop_end
+  str   xzr, [x2], #8
+  b     .Lframe_zero_loop
+.Lframe_zero_loop_end:
 
   PUSH_REGS x8, x1, x9, x2, x3
 
@@ -557,6 +582,12 @@ perform_2i_call:
   br    x9
 
 .Lend_interpretation:
+
+#ifndef NDEBUG
+  ldr   x0, [x29, #-FUH_SLOT_OFFSET]
+  mov   x1, ECTYPE_REG
+  bl    engine_log_int_end
+#endif
 
   ldr   x9, [x29, #-FUH_SLOT_OFFSET] // load Function Handle
   ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
