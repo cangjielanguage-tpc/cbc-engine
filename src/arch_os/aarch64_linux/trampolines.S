@@ -230,6 +230,7 @@ engine_trampolines_dyn_end:
 #define StubCalleeSaveAreaSize (8 * 4)
 
 .macro engine_c2i_call ireg_count freg_count
+  mov   x12, sp
   stp   x29, x30, [sp, #-StubFrameContextSize]!
   mov   x29, sp
 
@@ -239,7 +240,8 @@ engine_trampolines_dyn_end:
   stp   x25, x26, [sp, #StubCalleeSaveAreaSize+0x30]
   stp   x27, x28, [sp, #StubCalleeSaveAreaSize+0x40]
 
-  mov   x19, x9 // save fuh
+  mov   x20, x12 // previous stack top
+  mov   x19, x9  // save fuh
 
   adrp  ECTYPE_REG, Page(engine_carrier_specific_offset)
   ldr   ECTYPE_REG, [ECTYPE_REG, PageOff(engine_carrier_specific_offset)]
@@ -256,8 +258,7 @@ engine_trampolines_dyn_end:
   c2i_emit_iregs_abi \ireg_count
   c2i_emit_fregs_abi \freg_count
 
-  add   x1, x29, 0x10
-  str   x1, [ECTYPE_REG, #TAIL_REG_OFFS]
+  str   x20, [ECTYPE_REG, #TAIL_REG_OFFS]
   mov   x0, x19
   bl    perform_2i_call
 
