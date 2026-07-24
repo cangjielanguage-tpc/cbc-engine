@@ -43,6 +43,12 @@ static void InitializeClosure(Ectype* ectype, bool instantiatedSret)
     closure->instantiated = Adapters::GetDynCallTrampoline(1, instantiatedSret);
 }
 
+[[gnu::visibility("default"), gnu::used]]
+uint32_t readCtr;
+
+[[gnu::visibility("default"), gnu::used]]
+MStructFieldOp reads[64];
+
 extern "C" {
 
 /// The interpretation loop can be used in two scenarios:
@@ -1004,6 +1010,7 @@ OFFS_REG_IDX64: {
 }
 R_READ_STRUCT: {
     auto args = MStructFieldOp::Decode(reader);
+    reads[(readCtr++) & 63] = args;
     LOG_INSTR;
     auto dst   = ectype->GetPrimitive(args.rr.x.IR()).u64;
     auto base  = ectype->GetReference(args.rr.y.IR());
