@@ -260,19 +260,39 @@ engine_trampolines_dyn_sret_end:
 
 .balign 16
 c2i_prepare_ectype:
+  // param passing registers could store real parameters of called c2i method
+  mov   ECTYPE_REG, rax // temporarily store fuh on ECTYPE_REG
+  push  rbp
+  mov   rbp, rsp
   push_lst rdi, rsi, rdx, rcx, r8, r9
-  push  rdi // alignment
+
+  sub   rsp, 0x40
+  movsd qword PTR [rsp + 0x00], xmm0
+  movsd qword PTR [rsp + 0x08], xmm1
+  movsd qword PTR [rsp + 0x10], xmm2
+  movsd qword PTR [rsp + 0x18], xmm3
+  movsd qword PTR [rsp + 0x20], xmm4
+  movsd qword PTR [rsp + 0x28], xmm5
+  movsd qword PTR [rsp + 0x30], xmm6
+  movsd qword PTR [rsp + 0x38], xmm7
 
   mov   rdi, r12
   call  engine_fiber_data_init
+  xchg  ECTYPE_REG, rax
 
-  mov   ECTYPE_REG, rax
-  mov   rax, [rbp - 0x30] // restore fuh
+  movsd xmm0, qword PTR [rsp + 0x00]
+  movsd xmm1, qword PTR [rsp + 0x08]
+  movsd xmm2, qword PTR [rsp + 0x10]
+  movsd xmm3, qword PTR [rsp + 0x18]
+  movsd xmm4, qword PTR [rsp + 0x20]
+  movsd xmm5, qword PTR [rsp + 0x28]
+  movsd xmm6, qword PTR [rsp + 0x30]
+  movsd xmm7, qword PTR [rsp + 0x38]
+  add   rsp, 0x40
 
-  pop   rdi
   pop_lst r9, r8, rcx, rdx, rsi, rdi
+  pop   rbp
   ret
-
 
 
 .balign 16

@@ -279,20 +279,30 @@ engine_trampolines_dyn_end:
 
 .balign 16
 c2i_prepare_ectype:
-  // FIXME: floating point registers are volatile too!
+  // param passing registers could store real parameters of called c2i method
   stp   x29, x30, [sp, #-16]!
   stp   x0, x1, [sp, #-16]!
   stp   x2, x3, [sp, #-16]!
   stp   x4, x5, [sp, #-16]!
   stp   x6, x7, [sp, #-16]!
-  str   x8, [sp, #-16]!
+  str   x8,     [sp, #-16]!
+
+  stp   d0, d1, [sp, #-16]!
+  stp   d2, d3, [sp, #-16]!
+  stp   d4, d5, [sp, #-16]!
+  stp   d6, d7, [sp, #-16]!
 
   mov   x0, x21
   bl    engine_fiber_data_init
 
   mov   ECTYPE_REG, x0
 
-  ldr   x8, [sp], #16
+  ldp   d6, d7, [sp], #16
+  ldp   d4, d5, [sp], #16
+  ldp   d2, d3, [sp], #16
+  ldp   d0, d1, [sp], #16
+
+  ldr   x8,     [sp], #16
   ldp   x6, x7, [sp], #16
   ldp   x4, x5, [sp], #16
   ldp   x2, x3, [sp], #16
