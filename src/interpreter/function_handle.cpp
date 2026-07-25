@@ -1,4 +1,6 @@
+#include <atomic>
 #include <mutex>
+#include <new>
 #include <unordered_map>
 #include <variant>
 
@@ -77,22 +79,24 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
             .base     = FunctionHandle(RTSupport::Adapters::GenericI2CCallInstance()),
             .function = target,
         };
-        auto mem = new StaticFunctionHandle(fuh);
+        auto mem = new(std::nothrow) StaticFunctionHandle(fuh);
         if (mem == nullptr) {
             FATAL("out of memory");
         }
-        // FIXME: proper publication
+        // public content of `mem`.
+        std::atomic_thread_fence(std::memory_order_seq_cst);
         return mem;
     };
 
     auto newDynFuh = [&]() -> DynamicFunctionHandle* {
         auto i2Call = PrepareI2Call(session, methodDef);
         auto c2Call = PrepareC2Call(session, methodDef);
-        auto mem    = new DynamicFunctionHandle(i2Call, c2Call, methodDef);
+        auto mem    = new(std::nothrow) DynamicFunctionHandle(i2Call, c2Call, methodDef);
         if (mem == nullptr) {
             FATAL("out of memory");
         }
-        // FIXME: proper publication
+        // public content of `mem`.
+        std::atomic_thread_fence(std::memory_order_seq_cst);
         return mem;
     };
 
@@ -137,13 +141,13 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Session& session, DynamicFuncti
     auto& heap    = session.GetEngine().CodeHeap();
     auto bytecode = Cbc::Rewrite(session, fuh->methodDef, heap);
 
-    fuh->bytecode.store(new ExecBytecodeInfo(bytecode));
+    auto bc = new(std::nothrow) ExecBytecodeInfo(bytecode);
+    if (bc == nullptr) FATAL("Out of memory");
 
-    // Return via reload from `fuh->descriptor` to guarantee proper memory-model semantics:
-    // fields (and fields of fields) would be visible from other threads
-    // if the content of desc or desc itself would be published through "relaxed" (or race) stores
-    // (explicitly in the codebase, or implictly in ASM or interpreter).
-    return fuh->bytecode.load();
+    // ensure `bc` content writes completes before publication.
+    std::atomic_thread_fence(std::memory_order_seq_cst);
+    fuh->bytecode.store(bc, std::memory_order_relaxed);
+    return bc;
 }
 
 void* FunctionHandleManager::GetFunctionPtrForDirectCall(TaggedFunctionHandle fuh)
