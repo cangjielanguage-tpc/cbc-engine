@@ -19,7 +19,7 @@ template <typename T, uint32_t adjustment = 0> class OffsetPool {
         std::optional<Symlevel::RefId<T>> operator()()
         {
             if (cursor < op.size) {
-                return Symlevel::RefId<T>(region, cursor++);
+                return Symlevel::RefId<T>(region, adjustment + cursor++);
             } else {
                 return std::nullopt;
             }
