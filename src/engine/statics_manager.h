@@ -39,17 +39,15 @@ public:
         uintptr_t refs,
         uintptr_t primitives,
         uintptr_t records,
-        uint32_t* recordOffsets,
-        uint32_t* referenceOffsets,
+        std::unique_ptr<char[]> data,
+        std::unique_ptr<uint32_t[]> recordOffsets,
+        std::unique_ptr<uint32_t[]> referenceOffsets,
         uint32_t refCount,
         uint32_t refOffsetsCount
     );
 
-    // underlying vector CAN NOT be copied.
     StaticFieldsBundle(StaticFieldsBundle const& another) = delete;
     StaticFieldsBundle(StaticFieldsBundle&& another) = default;
-
-    ~StaticFieldsBundle();
 
     uintptr_t GetLocation(Session& session, TypeIdent typeIdent, FieldIdent fieldIdent);
 
@@ -59,8 +57,9 @@ private:
     uintptr_t refs;
     uintptr_t primitives;
     uintptr_t records;
-    uint32_t* recordOffsets;
-    uint32_t* referenceOffsets;
+    std::unique_ptr<char[]> data;
+    std::unique_ptr<uint32_t[]> recordOffsets;
+    std::unique_ptr<uint32_t[]> referenceOffsets;
     uint32_t refCount;
     uint32_t refOffsetsCount;
 };
