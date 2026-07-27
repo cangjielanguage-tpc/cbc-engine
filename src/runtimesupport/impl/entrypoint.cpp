@@ -61,7 +61,7 @@ static void ParseBridgeOptions(int size, const char** options)
         const char* option = options[i];
         if (option != nullptr && std::strcmp(option, APP_LIB_HANDLE_ARG) == 0) {
             if (i + 1 < size) {
-                g_appLibHandle = const_cast<char*>(options[i + 1]);
+                // g_appLibHandle = const_cast<char*>(options[i + 1]);
                 ++i;
             } else {
                 RTSupport::Log::rt.Log(Logging::Level::WARN, [](Stream::Output& out) {
@@ -364,12 +364,6 @@ CBC_EXPORT int interpreter_bridge_init(
 )
 {
     static_assert(std::is_same_v<decltype(&interpreter_bridge_init), INT_InitInterpreter>);
-
-    g_CJNativeInterfaceInstance = *rtInterf;
-
-    // Order matters
-    InitEnvOpts();
-    ParseBridgeOptions(size, options);
     if (rtInterf == nullptr || rtInterf->version != DYN_CJNATIVE_INTERFACE_VERSION) {
         RTSupport::Log::rt.Log(Logging::Level::ERROR, [rtInterf](Stream::Output& out) {
             out.PrintFmtLn(
@@ -380,6 +374,13 @@ CBC_EXPORT int interpreter_bridge_init(
         });
         return 1;
     }
+
+    g_CJNativeInterfaceInstance = *rtInterf;
+    g_appLibHandle              = rtInterf->appLibHandle;
+
+    // Order matters. Bridge options may override values supplied by the runtime interface.
+    InitEnvOpts();
+    ParseBridgeOptions(size, options);
 
     RTSupport::Log::rt.Log(Logging::Level::TRACE, [rtInterf](Stream::Output& out) {
         out.PrintFmtLn("interpreter_bridge_init started");
