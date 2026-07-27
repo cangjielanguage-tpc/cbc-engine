@@ -242,28 +242,7 @@ void VisitGlobalRoots(DYN_RootVisitor rootVisitor)
         VisitRoot(rootVisitor, &refLocation->reference);
     };
 
-    auto typedSlotsVisitor = [rootVisitor](uint8_t* base, const Engine::StaticTypedSlotInfo& info) {
-        auto typeInfoPtr = info.typeInfoPtr;
-
-        std::vector<uint32_t> offsets;
-        RTSupport::TypeInfo(typeInfoPtr).VisitReferenceOffsets([&offsets](uint32_t offset) {
-            offsets.push_back(offset);
-        });
-
-        for (auto& offsetInSlot : offsets) {
-            auto refLocation = reinterpret_cast<Placeholder>(base + info.offset + offsetInSlot);
-            RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) {
-                out.PrintFmtLn(
-                    "found reference in static typed slot with offset (slot_offset=%u, inner_offset=%u)",
-                    info.offset,
-                    offsetInSlot
-                );
-            });
-            VisitRoot(rootVisitor, refLocation);
-        }
-    };
-
-    sm.VisitRefLocations(untypedSlotsVisitor, typedSlotsVisitor);
+    sm.VisitRefLocations(untypedSlotsVisitor);
 
     RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Output& out) { out << "end visiting global roots" << endl; });
 }
