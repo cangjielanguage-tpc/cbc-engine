@@ -661,7 +661,9 @@ engine_i2_spawn:
   jmp  .Lrestart_interpretation
 
 // TREAT SYMBOLS ABOVE AS PART OF perform_2i_call
+#ifndef __APPLE__
 .size perform_2i_call, .-perform_2i_call
+#endif
 
 // fake execute closure function
 .balign 16
@@ -762,5 +764,4 @@ engine_handle_exception:
 
   jmp   [rip + engine_throw_out_of_interpreter]
   ud2
-
 
