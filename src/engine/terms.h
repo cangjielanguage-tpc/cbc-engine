@@ -164,7 +164,7 @@ struct Term {
     uint32_t Hash() const;
 
     std::string GetName(Session& session) const;
-    void GetName(Session& session, Stream::Output& stream, bool pure = false) const;
+    void GetName(Session& session, Stream::Output& stream, bool hasDebugPrefix = true) const;
 
     bool IsLocal() const;
     LocalTerm AsLocal();

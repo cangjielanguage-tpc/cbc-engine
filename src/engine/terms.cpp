@@ -271,9 +271,31 @@ std::string Term::GetName(Session& session) const
     return buf.ToString();
 }
 
-void Term::GetName(Session& session, Stream::Output& out, bool pure) const
+class TermPrinter : public Stream::ResolvingOutput {
+public:
+    TermPrinter(Session& session, Stream::Output& out, bool hasDebugPrefix)
+        : Stream::ResolvingOutput(session, out),
+          hasDebugPrefix(hasDebugPrefix)
+    {}
+
+    bool hasDebugPrefix;
+
+    TermPrinter& operator<<(Term term)
+    {
+        term.GetName(session, out, hasDebugPrefix);
+        return *this;
+    }
+
+    template <typename T> TermPrinter& operator<<(T val)
+    {
+        out << val;
+        return *this;
+    }
+};
+
+void Term::GetName(Session& session, Stream::Output& out, bool hasDebugPrefix) const
 {
-    Stream::ResolvingOutput stream(session, out);
+    TermPrinter stream(session, out, hasDebugPrefix);
     auto printSubTerms = [&](std::string_view prefix, std::string_view suffix, int len) {
         stream << prefix;
         auto separator = "";
@@ -286,18 +308,18 @@ void Term::GetName(Session& session, Stream::Output& out, bool pure) const
     using TK  = TermKind;
     auto kind = GetKind();
 
-    auto prefix = "";
-    // [](TK tk, bool pure) {
-    //     if (pure) return "";
-    //     switch (tk) {
-    //         case TermKind::TYPE: return "@";
-    //         case TermKind::AOT_TYPE: return "#";
-    //         case TermKind::UNION_ENUM: return "^";
-    //         case TermKind::OPTION: return "?";
-    //         case TermKind::PRIMITIVE_ENUM: return "&";
-    //         default: return "";
-    //     }
-    // }(kind, pure);
+    auto prefix = [](TK tk, bool hasDebugPrefix) {
+        if (!hasDebugPrefix)
+            return "";
+        switch (tk) {
+            case TermKind::TYPE:           return "@";
+            case TermKind::AOT_TYPE:       return "#";
+            case TermKind::UNION_ENUM:     return "^";
+            case TermKind::OPTION:         return "?";
+            case TermKind::PRIMITIVE_ENUM: return "~";
+            default:                       return "";
+        }
+    }(kind, hasDebugPrefix);
 
     switch (kind) {
         case TK::NIL:     stream << "Nil"; break;
