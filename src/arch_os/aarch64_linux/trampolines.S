@@ -389,6 +389,9 @@ perform_2i_call:
 
   mov   x1, sp // save current sp for registers saving to the bottom of frame
 
+  ldr   x9, [x29, #-FUH_SLOT_OFFSET] // load Function Handle
+  ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
+
   // current sp is 16-byte.baligned
   ldr   w8, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   sub   sp, sp, x8
