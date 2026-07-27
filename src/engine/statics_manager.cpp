@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <memory>
 
 static constexpr size_t RECORD_ALIGNMENT = sizeof(uintptr_t);
 
@@ -22,24 +23,21 @@ StaticFieldsBundle::StaticFieldsBundle(
     uintptr_t refs,
     uintptr_t primitives,
     uintptr_t records,
-    uint32_t* recordOffsets,
-    uint32_t* referenceOffsets,
+    std::unique_ptr<char[]> data,
+    std::unique_ptr<uint32_t[]> recordOffsets,
+    std::unique_ptr<uint32_t[]> referenceOffsets,
     uint32_t refCount,
     uint32_t refOffsetsCount
 )
     : refs(refs),
       primitives(primitives),
       records(records),
-      recordOffsets(recordOffsets),
-      referenceOffsets(referenceOffsets),
+      data(std::move(data)),
+      recordOffsets(std::move(recordOffsets)),
+      referenceOffsets(std::move(referenceOffsets)),
       refCount(refCount),
       refOffsetsCount(refOffsetsCount)
 {}
-
-StaticFieldsBundle::~StaticFieldsBundle()
-{
-    // FIXME: leaks on dlclose
-}
 
 SlotKind ComputeSlotKind(Session& session, FieldLayoutManager& flm, Symlevel::FieldDefinition& definition)
 {
@@ -161,16 +159,19 @@ StaticFieldsBundle StaticsManager::CreateBundle(Session& session, TypeIdent type
         }
     };
 
-    size_t totalSize     = primFieldsNum * 8 + refFieldsNum * 8 + recordsSize;
-    void* memory         = malloc(totalSize);
-    uint32_t* recOffsets = (uint32_t*)malloc(sizeof(uint32_t) * recordOffsets.size());
-    uint32_t* refOffsets = (uint32_t*)malloc(sizeof(uint32_t) * refOffsetInRecords.size());
-    if (!memory || !recOffsets || !refOffsets) {
+    size_t totalSize = primFieldsNum * 8 + refFieldsNum * 8 + recordsSize;
+
+    std::unique_ptr<char[]> memory = std::make_unique<char[]>(totalSize);
+    std::unique_ptr<uint32_t[]> recOffsets = std::make_unique<uint32_t[]>(recordOffsets.size());
+    std::unique_ptr<uint32_t[]> refOffsets = std::make_unique<uint32_t[]>(refOffsetInRecords.size());
+
+    if (!memory || !recOffsets || !refOffsets) { // TODO: use nothrow versions of make_unique
         FATAL("Out of memory (SFB)");
     }
-    memset(memory, 0, totalSize);
 
-    uintptr_t mem        = reinterpret_cast<uintptr_t>(memory);
+    memset(memory.get(), 0, totalSize);
+
+    uintptr_t mem        = reinterpret_cast<uintptr_t>(memory.get());
     uintptr_t primitives = mem;
     uintptr_t refs       = primitives + primFieldsNum * 8;
     uintptr_t records    = refs + refFieldsNum * 8;
@@ -191,7 +192,7 @@ StaticFieldsBundle StaticsManager::CreateBundle(Session& session, TypeIdent type
     });
 
     return StaticFieldsBundle(
-        refs, primitives, records, recOffsets, refOffsets, refFieldsNum, refOffsetInRecords.size()
+        refs, primitives, records, std::move(memory), std::move(recOffsets), std::move(refOffsets), refFieldsNum, refOffsetInRecords.size()
     );
 }
 
