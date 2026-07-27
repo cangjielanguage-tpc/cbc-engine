@@ -159,9 +159,10 @@ static void PerformPatching()
             // Get patched type info
             auto ti = g_CJNativeInterfaceInstance.typeInfo(patchClassName.c_str());
             if (ti == nullptr) {
-                RTSupport::Log::rt.Log(Logging::Level::ERROR, [&patchClassName](Stream::Output& out) {
+                RTSupport::Log::rt.Log(Logging::Level::WARN, [&patchClassName](Stream::Output& out) {
                     out << "patch type info not found: " << patchClassName << Stream::endl;
                 });
+                // It is OK since now cbc-compiler threats all packages with package init as PATCH
                 continue;
             }
 
