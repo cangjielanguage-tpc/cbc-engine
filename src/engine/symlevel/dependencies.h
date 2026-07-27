@@ -1,7 +1,7 @@
 #pragma once
 
+#include "utils/vector.h"
 #include <dlfcn.h>
-#include <vector>
 
 #include "io/file_id.h"
 #include "io/random_access_file.h"

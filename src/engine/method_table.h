@@ -6,8 +6,8 @@
 #include "engine/terms.h"
 #include "utils/iterators.h"
 #include "utils/logger.h"
+#include "utils/vector.h"
 #include <memory>
-#include <vector>
 
 namespace Engine {
 

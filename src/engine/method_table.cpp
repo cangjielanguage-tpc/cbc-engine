@@ -9,11 +9,11 @@
 #include "utils/iterators.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
+#include "utils/vector.h"
 #include <memory>
 #include <mutex>
 #include <optional>
 #include <unordered_map>
-#include <vector>
 
 namespace Engine {
 

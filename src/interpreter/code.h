@@ -1,10 +1,10 @@
 #ifndef INTERPRETER_CODE_H
 #define INTERPRETER_CODE_H
 
+#include "utils/vector.h"
 #include <cstddef>
 #include <cstdint>
 #include <utility>
-#include <vector>
 
 #include "asm_export.h"
 #include "cbc/offsets_index.h"

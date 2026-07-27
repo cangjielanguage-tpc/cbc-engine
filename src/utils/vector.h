@@ -1,10 +1,10 @@
 #pragma once
 
+#include "utils/vector.h"
 #include <assert.h> // assert
 #include <stddef.h> // size_t
 #include <stdlib.h> // malloc, realloc, free, abort
 #include <utility>
-#include <vector>
 
 namespace Utils {
 

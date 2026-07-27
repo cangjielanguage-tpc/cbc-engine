@@ -1,9 +1,9 @@
 #pragma once
 
+#include "utils/vector.h"
 #include <cstdint>
 #include <memory>
 #include <string_view>
-#include <vector>
 
 #include "cbc/emitter/segment.h"
 #include "cbc/emitter/symbols.h"

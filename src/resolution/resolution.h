@@ -11,10 +11,10 @@
 #include "utils/iterators.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
+#include "utils/vector.h"
 #include <cstdint>
 #include <optional>
 #include <string_view>
-#include <vector>
 
 /// This namespace provides resolution functionality, that accesses engine and symlevel.
 namespace Resolution {
