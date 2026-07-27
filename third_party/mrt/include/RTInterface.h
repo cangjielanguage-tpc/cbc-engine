@@ -112,7 +112,7 @@ struct INT_InterpreterInterface;
 struct DYN_CJNativeInterface;
 
 #define INT_INTERPRETER_INTERFACE_VERSION 2
-#define DYN_CJNATIVE_INTERFACE_VERSION 4
+#define DYN_CJNATIVE_INTERFACE_VERSION 5
 
 // region interpreter interface
 
@@ -658,7 +658,7 @@ typedef DYN_ObjRef (*DYN_AtomicSwapRef)(DYN_ObjRef ref, DYN_ObjRef obj, DYN_Fiel
 // - newRef - new reference
 // - obj - pointer to AtomicReference object
 // - field - pointer to field within AtomicReference object
-// return: true, if oldRef matches current field value, false otherwise
+// return: 1, if oldRef matches current field value, 0 otherwise
 typedef int (*DYN_AtomicCompareAndSwapRef)(DYN_ObjRef oldRef, DYN_ObjRef newRef, DYN_ObjRef obj, DYN_FieldRef field);
 
 // endregion CJNative interface
