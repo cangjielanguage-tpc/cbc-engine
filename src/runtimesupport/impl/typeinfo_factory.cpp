@@ -413,7 +413,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
     TypeInfoBuilder builder(currentTypeInfo, session, term);
     {
         Stream::StringBuffer stringBuffer;
-        Engine::Term(term).GetName(session, stringBuffer, true);
+        Engine::Term(term).GetName(session, stringBuffer, /* hasDebugPrefix = */ false);
 
         // Not guaranteed that name is constructed in the same way as CJNative does.
         // TODO: does it matter?

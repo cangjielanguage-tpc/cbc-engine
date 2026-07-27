@@ -28,7 +28,11 @@ template <typename T> ResolvingOutput& operator<<(ResolvingOutput& out, std::opt
     return out;
 }
 
-ResolvingOutput& ResolvingOutput::operator<<(Engine::Term term) { return *this << term.GetName(session); }
+ResolvingOutput& ResolvingOutput::operator<<(Engine::Term term)
+{
+    term.GetName(session, out);
+    return *this;
+}
 
 ResolvingOutput& ResolvingOutput::operator<<(Detailed<Engine::RefIdentifier<Engine::Term>> term)
 {
