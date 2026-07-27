@@ -1,5 +1,6 @@
 #pragma once
 
+#include "utils/vector.h"
 #include <string_view>
 #include <unordered_map>
 #include <vector>
@@ -21,7 +22,7 @@ public:
 
 private:
     std::unordered_map<std::string_view, size_t> map;
-    std::vector<String> strings;
+    Utils::Vector<String> strings;
 };
 
 }

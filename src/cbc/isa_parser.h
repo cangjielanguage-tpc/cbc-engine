@@ -145,14 +145,14 @@ protected:
     virtual void MemBodyIndex(MemSpace& ms, IReg reg, uint16_t elemType, bool checked) = 0;
     virtual void MemBodyConstIndex(MemSpace& ms, int64_t idx, uint16_t elemType)                 = 0;
 
-    virtual void MemTailLoad(MemSpace& ms, IReg dst, std::vector<uint16_t> refs) = 0;
-    virtual void MemTailStore(MemSpace& ms, IReg src, std::vector<uint16_t> refs) = 0;
+    virtual void MemTailLoad(MemSpace& ms, IReg dst, Utils::Vector<uint16_t> const& refs)                      = 0;
+    virtual void MemTailStore(MemSpace& ms, IReg src, Utils::Vector<uint16_t> const& refs)                     = 0;
     virtual void MemTailStoreImm(MemSpace& ms, uint64_t imm) = 0;
     virtual void MemTailCopyReg(MemSpace& ms, IReg dst, uint16_t recType) = 0;
-    virtual void MemTailCopyInterior(MemSpace& ms, IReg dst, std::vector<uint16_t> refs) = 0;
-    virtual void MemTailCopyInteriorArr(MemSpace& ms, IReg dst, IReg idx, std::vector<uint16_t> refs) = 0;
-    virtual void MemTailCopyStatic(MemSpace& ms, std::vector<uint16_t> refs) = 0;
-    virtual void MemTailCopyTyped(MemSpace& ms, uint16_t ts, std::vector<uint16_t> refs) = 0;
+    virtual void MemTailCopyInterior(MemSpace& ms, IReg dst, Utils::Vector<uint16_t> const& refs)              = 0;
+    virtual void MemTailCopyInteriorArr(MemSpace& ms, IReg dst, IReg idx, Utils::Vector<uint16_t> const& refs) = 0;
+    virtual void MemTailCopyStatic(MemSpace& ms, Utils::Vector<uint16_t> const& refs)                          = 0;
+    virtual void MemTailCopyTyped(MemSpace& ms, uint16_t ts, Utils::Vector<uint16_t> const& refs)              = 0;
     virtual void MemTailCopyHandle(MemSpace& ms, IReg base, IReg offset) = 0;
 
     virtual void MemBodyOffset(MemSpace& ms, IReg offset)                                        = 0;

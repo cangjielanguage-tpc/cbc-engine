@@ -22,7 +22,7 @@ public:
         int32_t aotDepsOffset
     );
 
-    explicit Dependencies(std::vector<std::string> cbcDeps, std::vector<LibHandle> handles);
+    explicit Dependencies(Utils::Vector<std::string>&& cbcDeps, Utils::Vector<LibHandle>&& handles);
     ~Dependencies();
 
     Dependencies(const Dependencies&) = delete;
@@ -34,11 +34,11 @@ public:
     AotCodeAddr FindTarget(std::string_view linkageName) const;
 
 private:
-    std::vector<std::string> cbcDeps;
-    std::vector<LibHandle> aotHandles;
+    Utils::Vector<std::string> cbcDeps;
+    Utils::Vector<LibHandle> aotHandles;
 
     static std::string convertToLibName(const std::string& name);
-    static std::vector<std::string> parse(IO::FileId fileId, IO::RandomAccessFile& file, uint32_t offset);
+    static Utils::Vector<std::string> parse(IO::FileId fileId, IO::RandomAccessFile& file, uint32_t offset);
 };
 
 } // namespace Symlevel

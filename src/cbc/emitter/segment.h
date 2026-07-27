@@ -1,8 +1,8 @@
 #ifndef CBC_EMITTER_SEGMENT_H
 #define CBC_EMITTER_SEGMENT_H
 
+#include "utils/vector.h"
 #include <cstdint>
-#include <vector>
 
 namespace Cbc {
 namespace Emitter {
@@ -51,10 +51,10 @@ public:
     SegmentSnapshot Snapshot() const;
     void Apply(SegmentSnapshot snapshot);
 
-    std::vector<uint8_t> Finish();
+    Utils::Vector<uint8_t> Finish();
 
 private:
-    std::vector<uint8_t> data;
+    Utils::Vector<uint8_t> data;
 };
 
 } // namespace Emitter

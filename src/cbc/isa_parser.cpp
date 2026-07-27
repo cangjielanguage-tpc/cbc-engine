@@ -6,6 +6,7 @@
 #include "isa_parser.h"
 #include "utils/assertion.h"
 #include "utils/math.h"
+#include "utils/vector.h"
 
 namespace Cbc {
 
@@ -856,7 +857,7 @@ struct IsaParserImpl {
     static bool MemTailLoad(IsaParser& parser, IsaParser::MemSpace& ms)
     {
         auto [reg, _size] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
-        std::vector<uint16_t> refs;
+        Utils::Vector<uint16_t> refs;
         uint8_t size = _size;
         for (int i = 0; i < size; i++) {
             refs.emplace_back(parser.reader.Read16());
@@ -868,7 +869,7 @@ struct IsaParserImpl {
     static bool MemTailStore(IsaParser& parser, IsaParser::MemSpace& ms)
     {
         auto [reg, _size] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
-        std::vector<uint16_t> refs;
+        Utils::Vector<uint16_t> refs;
         uint8_t size = _size;
         for (int i = 0; i < size; i++) {
             refs.emplace_back(parser.reader.Read16());
@@ -894,7 +895,7 @@ struct IsaParserImpl {
     static bool MemTailCopyInterior(IsaParser& parser, IsaParser::MemSpace& ms)
     {
         auto [reg, _size] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
-        std::vector<uint16_t> refs;
+        Utils::Vector<uint16_t> refs;
         uint8_t size = _size;
         for (int i = 0; i < size; i++) {
             refs.emplace_back(parser.reader.Read16());
@@ -906,7 +907,7 @@ struct IsaParserImpl {
     static bool MemTailCopyInteriorArr(IsaParser& parser, IsaParser::MemSpace& ms)
     {
         auto [reg, idx, _size, skip] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
-        std::vector<uint16_t> refs;
+        Utils::Vector<uint16_t> refs;
         uint8_t size = _size;
         for (int i = 0; i < size; i++) {
             refs.emplace_back(parser.reader.Read16());
@@ -917,7 +918,7 @@ struct IsaParserImpl {
 
     static bool MemTailCopyStatic(IsaParser& parser, IsaParser::MemSpace& ms)
     {
-        std::vector<uint16_t> refs;
+        Utils::Vector<uint16_t> refs;
         uint8_t size = parser.reader.Read8();
         for (int i = 0; i < size; i++) {
             refs.emplace_back(parser.reader.Read16());
@@ -928,7 +929,7 @@ struct IsaParserImpl {
 
     static bool MemTailCopyTyped(IsaParser& parser, IsaParser::MemSpace& ms)
     {
-        std::vector<uint16_t> refs;
+        Utils::Vector<uint16_t> refs;
         uint8_t size = parser.reader.Read8();
         uint16_t ts = parser.reader.Read16();
         for (int i = 0; i < size; i++) {

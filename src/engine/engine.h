@@ -8,6 +8,7 @@
 #include "symlevel/io/file_id.h"
 #include "symlevel/io/random_access_file.h"
 #include "utils/heap.h"
+#include "utils/vector.h"
 
 namespace Engine {
 
@@ -37,7 +38,7 @@ public:
     );
     std::optional<Identifier<TypeDefinition>> FindType(Session& session, std::string_view typeName);
 
-    std::vector<Symlevel::CbcFile> const& Files() const;
+    Utils::Vector<Symlevel::CbcFile> const& Files() const;
 
 private:
     Engine(std::unique_ptr<Impl>&& impl);

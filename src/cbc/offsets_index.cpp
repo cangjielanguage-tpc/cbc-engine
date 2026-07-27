@@ -25,7 +25,7 @@ InstructionOffsetsIndex InstructionOffsetsIndex::Create(
     cbcOffsets.reserve(labels.size());
     rtOffsets.reserve(labels.size());
 
-    std::vector<std::pair<Offset, Offset>> tmp;
+    Utils::Vector<std::pair<Offset, Offset>> tmp;
     tmp.reserve(labels.size());
 
     std::transform(labels.begin(), labels.end(), std::back_inserter(tmp), [&emitter](const auto& pair) {
@@ -50,8 +50,8 @@ InstructionOffsetsIndex InstructionOffsetsIndex::Create(
 
 std::optional<Offset> InstructionOffsetsIndex::FindMappedOffset(InstructionType type, Offset srcOffset) const
 {
-    const std::vector<Offset>& searchVec = type == CBC ? cbcOffsets : rtOffsets;
-    const std::vector<Offset>& resultVec = type == CBC ? rtOffsets : cbcOffsets;
+    const Utils::Vector<Offset>& searchVec = type == CBC ? cbcOffsets : rtOffsets;
+    const Utils::Vector<Offset>& resultVec = type == CBC ? rtOffsets : cbcOffsets;
 
     auto it = std::lower_bound(searchVec.begin(), searchVec.end(), srcOffset);
     if (it == searchVec.end() || *it != srcOffset) {
@@ -61,7 +61,7 @@ std::optional<Offset> InstructionOffsetsIndex::FindMappedOffset(InstructionType 
     return resultVec[std::distance(searchVec.begin(), it)];
 }
 
-bool InstructionOffsetsIndex::OffsetsAreInAscendingOrder(std::vector<Offset> offsets)
+bool InstructionOffsetsIndex::OffsetsAreInAscendingOrder(Utils::Vector<Offset> const& offsets)
 {
     return std::is_sorted(offsets.begin(), offsets.end());
 }

@@ -184,7 +184,7 @@ void VisitGCFrameRoots(
 
         ASSERTION(!RTSupport::MetaInfo::IsReferenceType(RTSupport::TypeInfo(typeInfoPtr)), "Expected record type");
 
-        std::vector<uint32_t> offsets;
+        Utils::Vector<uint32_t> offsets;
         RTSupport::TypeInfo(typeInfoPtr).VisitReferenceOffsets([&offsets](uint32_t offset) {
             offsets.push_back(offset);
         });

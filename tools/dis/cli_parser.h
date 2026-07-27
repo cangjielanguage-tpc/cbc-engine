@@ -8,12 +8,12 @@
 #include <vector>
 
 namespace Cli {
-using namespace std;
+using std::string_view;
 
 struct CliParser {
 public:
     class DisasmerBuilder {
-        vector<string_view> files;
+        Utils::Vector<string_view> files;
 
         Stream::Output& out;
 
@@ -40,7 +40,7 @@ public:
 private:
     OptionsMap opts;
 
-    vector<string_view> args;
+    Utils::Vector<string_view> args;
 
     bool isOption(string_view sv);
 

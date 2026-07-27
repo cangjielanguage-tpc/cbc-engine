@@ -42,13 +42,13 @@ struct Resource {
 struct PositionalInfo {
     uint32_t rewrittenPos;
     uint16_t regMask;
-    std::vector<uint32_t> untypedRefSlotsInfo;
-    std::vector<std::pair<Resource, Resource>> mutPairs;
+    Utils::Vector<uint32_t> untypedRefSlotsInfo;
+    Utils::Vector<std::pair<Resource, Resource>> mutPairs;
 };
 
 struct GcInfo {
-    std::vector<PositionalInfo> positionalInfo;
-    std::vector<std::pair<uint32_t, void*>> typedSlotsInfo;
+    Utils::Vector<PositionalInfo> positionalInfo;
+    Utils::Vector<std::pair<uint32_t, void*>> typedSlotsInfo;
 };
 
 // List of non-zero registers used for storing non-volatile regs.

@@ -13,7 +13,7 @@
 namespace Dis {
 //
 class Disasmer {
-    std::unique_ptr<Engine::Session> SessionFor(std::vector<std::string_view> views);
+    std::unique_ptr<Engine::Session> SessionFor(Utils::Vector<std::string_view> views);
 
     void Version(const Symlevel::VersionMetadata& md);
 
@@ -33,7 +33,7 @@ class Disasmer {
 
     Symlevel::CbcFile const* currentFile = nullptr;
     std::unique_ptr<Engine::Session> session;
-    std::vector<Symlevel::CbcFile> const& files;
+    Utils::Vector<Symlevel::CbcFile> const& files;
     Stream::Indented idio;
     Stream::ResolvingOutput io = Stream::ResolvingOutput(*session, idio);
 
@@ -49,7 +49,7 @@ public:
         }
     }
 
-    Disasmer(std::vector<std::string_view> views, Stream::Output& s, bool resolving)
+    Disasmer(Utils::Vector<std::string_view> views, Stream::Output& s, bool resolving)
         : session(SessionFor(views)),
           files(session->GetEngine().Files()),
           resolving(resolving),

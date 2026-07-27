@@ -22,8 +22,8 @@ struct RawExceptionTable {
 struct LivenessInfo {
     uint32_t cbcPos;
     uint16_t regMask;
-    std::vector<uint32_t> refSlotNums;
-    std::vector<std::pair<uint32_t, uint32_t>> mutPairs;
+    Utils::Vector<uint32_t> refSlotNums;
+    Utils::Vector<std::pair<uint32_t, uint32_t>> mutPairs;
 };
 
 struct RawLivenessInfo {
@@ -54,9 +54,9 @@ public:
 
     uint8_t UsedNonVolFRegMask() { return usedNonVolFRegMask; }
 
-    std::vector<ExceptionRegion> GetExceptionRegions(Engine::Session& session) const;
+    Utils::Vector<ExceptionRegion> GetExceptionRegions(Engine::Session& session) const;
 
-    std::vector<LivenessInfo> GetLivenessInfo(Engine::Session& session) const;
+    Utils::Vector<LivenessInfo> GetLivenessInfo(Engine::Session& session) const;
 
     void Print(Engine::Session& session, Stream::Output& out);
 

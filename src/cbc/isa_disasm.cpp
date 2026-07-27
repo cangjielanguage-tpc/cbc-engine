@@ -466,7 +466,7 @@ struct IsaDisasm : public IsaParser {
         stream << "mem.const.index" << " " << idx << ", " << refType << ", " << endl;
     }
 
-    void Refs(std::vector<uint16_t> refs)
+    void Refs(Utils::Vector<uint16_t> const& refs)
     {
         stream << "[ ";
         for (auto ref : refs) {
@@ -475,14 +475,14 @@ struct IsaDisasm : public IsaParser {
         stream << "]";
     }
 
-    void MemTailLoad(MemSpace& ms, IReg dst, std::vector<uint16_t> refs) override
+    void MemTailLoad(MemSpace& ms, IReg dst, Utils::Vector<uint16_t> const& refs) override
     {
         PrintMemPos();
         stream << "mem.load" << " " << dst.ToStr() << ", ";
         Refs(refs);
     }
 
-    void MemTailStore(MemSpace& ms, IReg src, std::vector<uint16_t> refs) override
+    void MemTailStore(MemSpace& ms, IReg src, Utils::Vector<uint16_t> const& refs) override
     {
         PrintMemPos();
         stream << "mem.store" << " " << src.ToStr() << ", ";
@@ -501,28 +501,28 @@ struct IsaDisasm : public IsaParser {
         stream << "mem.copy.reg" << " " << dst.ToStr() << ", " << recType;
     }
 
-    void MemTailCopyInterior(MemSpace& ms, IReg dst, std::vector<uint16_t> refs) override
+    void MemTailCopyInterior(MemSpace& ms, IReg dst, Utils::Vector<uint16_t> const& refs) override
     {
         PrintMemPos();
         stream << "mem.copy.interior" << " " << dst.ToStr() << ", ";
         Refs(refs);
     }
 
-    void MemTailCopyInteriorArr(MemSpace& ms, IReg dst, IReg idx, std::vector<uint16_t> refs) override
+    void MemTailCopyInteriorArr(MemSpace& ms, IReg dst, IReg idx, Utils::Vector<uint16_t> const& refs) override
     {
         PrintMemPos();
         stream << "mem.copy.interior.arr" << " " << dst.ToStr() << ", " << idx.ToStr() << ", ";
         Refs(refs);
     }
 
-    void MemTailCopyStatic(MemSpace& ms, std::vector<uint16_t> refs) override
+    void MemTailCopyStatic(MemSpace& ms, Utils::Vector<uint16_t> const& refs) override
     {
         PrintMemPos();
         stream << "mem.copy.static" << " ";
         Refs(refs);
     }
 
-    void MemTailCopyTyped(MemSpace& ms, uint16_t ts, std::vector<uint16_t> refs) override
+    void MemTailCopyTyped(MemSpace& ms, uint16_t ts, Utils::Vector<uint16_t> const& refs) override
     {
         PrintMemPos();
         stream << "mem.copy.typed" << " " << ts << ", ";

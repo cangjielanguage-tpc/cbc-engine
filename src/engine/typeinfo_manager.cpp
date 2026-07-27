@@ -96,7 +96,7 @@ struct BasicTypeInfoManager : public RTSupport::TypeInfoManager {
     }
 
 protected:
-    std::vector<std::pair<GlobalTerm, TypeInfo>> typesWithoutUUID;
+    Utils::Vector<std::pair<GlobalTerm, TypeInfo>> typesWithoutUUID;
     std::unordered_map<GlobalTerm, ResolutionState, TermHasher> storage;
     std::unordered_map<RTSupport::TypeInfoUUID, GlobalTerm> uuidMap;
 };

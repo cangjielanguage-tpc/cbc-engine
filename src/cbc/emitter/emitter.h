@@ -263,7 +263,7 @@ private:
     Symbols symbols;
     Segment segment;
 
-    std::vector<std::unique_ptr<Fixup>> fixups;
+    Utils::Vector<std::unique_ptr<Fixup>> fixups;
 };
 
 } // namespace Emitter

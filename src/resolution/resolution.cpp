@@ -370,7 +370,7 @@ struct ResolverProxy {
         auto paramLength = signature.GetLength() - 1;
         auto retTypeIdx  = paramLength;
 
-        std::vector<Type> params;
+        Utils::Vector<Type> params;
         params.reserve(paramLength);
         for (int i = 0; i < paramLength; i++) {
             params.push_back(Type(signature.Subterm(i), resolver));
@@ -653,7 +653,8 @@ std::optional<Type> Resolver::QueryFutureByFunctional(Index<Type> id)
     ASSERT(term.GetLength() > 0);
     auto retType = term.Subterm(term.GetLength() - 1);
 
-    std::vector<Term> subterms { retType };
+    Utils::Vector<Term> subterms;
+    subterms.push_back(retType);
     auto futureType = termManager.NewAotTerm(session, "std.core:Future", subterms, true);
     return Type(futureType, this);
 }

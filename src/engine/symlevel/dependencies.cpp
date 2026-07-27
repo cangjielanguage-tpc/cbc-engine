@@ -6,16 +6,16 @@
 
 namespace Symlevel {
 
-std::vector<std::string> Dependencies::parse(IO::FileId fileId, IO::RandomAccessFile& file, uint32_t offset)
+Utils::Vector<std::string> Dependencies::parse(IO::FileId fileId, IO::RandomAccessFile& file, uint32_t offset)
 {
     IO::StreamFileReader reader(file, offset);
 
     uint32_t size = reader.ReadULEB();
 
-    std::vector<char> buffer(size);
+    Utils::Vector<char> buffer(size);
     reader.Read(buffer.data(), size);
 
-    std::vector<std::string> results;
+    Utils::Vector<std::string> results;
 
     std::string_view sv(buffer.data(), size);
     char delim   = ':';
@@ -52,35 +52,35 @@ Dependencies Dependencies::Read(
     IO::FileId fileId, IO::RandomAccessFile& file, int32_t poolOffset, int32_t cbcDepsOffset, int32_t aotDepsOffset
 )
 {
-    std::vector<std::string> cbcDeps;
+    Utils::Vector<std::string> cbcDeps;
     if (cbcDepsOffset >= 0) {
         cbcDeps = parse(fileId, file, poolOffset + cbcDepsOffset);
     } else {
-        cbcDeps = std::vector<std::string>();
+        cbcDeps = Utils::Vector<std::string>();
     }
 
-    std::vector<LibHandle> handles;
+    Utils::Vector<LibHandle> handles;
     if (aotDepsOffset >= 0) {
         auto aotDeps = parse(fileId, file, poolOffset + aotDepsOffset);
-        handles      = std::vector<LibHandle>(aotDeps.size());
+        handles.reserve(aotDeps.size());
 
-        std::transform(aotDeps.begin(), aotDeps.end(), std::back_inserter(handles), [](std::string dep) {
+        for (auto& dep : aotDeps) {
             std::string libName = convertToLibName(dep);
             LibHandle handle    = dlopen(libName.c_str(), RTLD_LAZY);
             if (!handle) {
                 ASSERTION(false, dlerror());
             }
-            return handle;
-        });
+            handles.emplace_back(handle);
+        }
     } else {
-        handles = std::vector<LibHandle>();
+        handles = Utils::Vector<LibHandle>();
     }
 
     return Dependencies(std::move(cbcDeps), std::move(handles));
 }
 
-Dependencies::Dependencies(std::vector<std::string> cbcDeps, std::vector<LibHandle> handles)
-    : cbcDeps(cbcDeps),
+Dependencies::Dependencies(Utils::Vector<std::string>&& cbcDeps, Utils::Vector<LibHandle>&& handles)
+    : cbcDeps(std::move(cbcDeps)),
       aotHandles(std::move(handles))
 {}
 

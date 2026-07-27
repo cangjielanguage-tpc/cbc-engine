@@ -169,7 +169,7 @@ struct FLManager : public FieldLayoutManager {
         }
     }
 
-    void FillRefOffsets(Term term, std::vector<uint32_t>& offsets, uint32_t disp) override
+    void FillRefOffsets(Term term, Utils::Vector<uint32_t>& offsets, uint32_t disp) override
     {
         ASSERT(!term.IsGeneric());
         if (term.IsReference()) {
@@ -241,7 +241,7 @@ private:
         uint8_t alignment;
 
         void AddField(
-            std::vector<FieldLayout::Entry>& entries,
+            Utils::Vector<FieldLayout::Entry>& entries,
             Term type,
             std::optional<Identifier<Symlevel::FieldDefinition>> fdef
         )

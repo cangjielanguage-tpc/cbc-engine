@@ -14,7 +14,7 @@ using namespace Engine;
 using namespace Symlevel;
 using namespace Stream;
 
-std::unique_ptr<Session> Disasmer::SessionFor(std::vector<std::string_view> views)
+std::unique_ptr<Session> Disasmer::SessionFor(Utils::Vector<std::string_view> views)
 {
     auto loader = Loader();
     for (auto view : views) {

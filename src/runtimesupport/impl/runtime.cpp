@@ -312,7 +312,7 @@ TypeInfo Execution::LoadTypeInfo(Engine::GlobalTerm term, Interpretation::Ectype
     }
     Engine::Session session(Engine::GetEngineInstance());
     auto& tiManager = Engine::TypeInfoManager::Of(session);
-    std::vector<Engine::Term> terms;
+    Utils::Vector<Engine::Term> terms;
     for (int i = 0; i < length; i++) {
         auto ti = reinterpret_cast<DYN_TypeInfo*>(ectype->iregs[1 + i].primitive.u64);
         terms.push_back(tiManager.AcquireTerm(session, TypeInfo(ti)));

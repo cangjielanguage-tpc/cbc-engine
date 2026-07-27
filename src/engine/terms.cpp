@@ -493,7 +493,7 @@ static bool IsProperTypeReference(Symlevel::TypeDefinition& def, bool isReferenc
 }
 
 Term TermManager::NewAotTerm(
-    Session& session, std::string_view name, std::vector<Term> const& subterms, bool isReference
+    Session& session, std::string_view name, Utils::Vector<Term> const& subterms, bool isReference
 )
 {
     auto& heap     = session.Allocator();
@@ -543,7 +543,7 @@ static Term NewTermWithId(Session& session, TermId id, bool isReference, Term co
     return Term(LocalTerm(data));
 }
 
-Term TermManager::NewTermWithId(Session& session, TermId id, bool isReference, std::vector<Term> const& subterms)
+Term TermManager::NewTermWithId(Session& session, TermId id, bool isReference, Utils::Vector<Term> const& subterms)
 {
     return ::Engine::NewTermWithId(session, id, isReference, subterms.data(), subterms.size());
 }
@@ -968,7 +968,7 @@ Substitution::Substitution(Session& session) : session(session) {}
 
 ClassSubstitution::ClassSubstitution(Session& session, Term term) : ClassSubstitution(session, term.data->subterms, term.data->length) {}
 
-ClassSubstitution::ClassSubstitution(Session& session, std::vector<Term> const& terms)
+ClassSubstitution::ClassSubstitution(Session& session, Utils::Vector<Term> const& terms)
     : ClassSubstitution(session, terms.data(), terms.size())
 {}
 

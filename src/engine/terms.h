@@ -278,7 +278,7 @@ public:
 class ClassSubstitution : public Substitution {
 public:
     ClassSubstitution(Session& session, Term term);
-    ClassSubstitution(Session& session, std::vector<Term> const& terms);
+    ClassSubstitution(Session& session, Utils::Vector<Term> const& terms);
     ClassSubstitution(Session& session, Term const* terms, size_t size);
 
     Term SubstituteClassTv(uint8_t typeVar) override;
@@ -320,9 +320,9 @@ public:
     /// The function performs in-place modification of `Term` structure.
     GlobalTerm Globalize(Term& term);
 
-    Term NewTermWithId(Session& session, TermId id, bool isReference, std::vector<Term> const& subterms);
+    Term NewTermWithId(Session& session, TermId id, bool isReference, Utils::Vector<Term> const& subterms);
 
-    Term NewAotTerm(Session& session, std::string_view name, std::vector<Term> const& subterms, bool isReference);
+    Term NewAotTerm(Session& session, std::string_view name, Utils::Vector<Term> const& subterms, bool isReference);
 
     Utils::StringPool::String GetNameOfAotType(AotTermId type);
 

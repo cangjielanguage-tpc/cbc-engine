@@ -124,11 +124,11 @@ StaticFieldsBundle StaticsManager::CreateBundle(Session& session, TypeIdent type
     auto& tim    = TypeInfoManager::Of(session);
     auto typeDef = Symlevel::TypeDefinition::Resolve(session, typeIdent);
 
-    std::vector<uint32_t> refOffsetInRecords;
-    std::vector<uint32_t> recordOffsets;
+    Utils::Vector<uint32_t> refOffsetInRecords;
+    Utils::Vector<uint32_t> recordOffsets;
 
     uint32_t recordsSize = 0;
-    std::vector<StaticTypedSlotInfo> typedSlotsInfo;
+    Utils::Vector<StaticTypedSlotInfo> typedSlotsInfo;
 
     for (auto fieldId : typeDef.GetFields().Entries(session)) {
         auto field = Symlevel::Reader::Read(session, fieldId);

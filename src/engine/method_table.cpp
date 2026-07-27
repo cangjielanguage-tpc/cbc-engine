@@ -23,7 +23,7 @@ using namespace Symlevel;
 // ---- MethodTable ----
 
 MethodTable::MethodTable(
-    std::vector<Entry>&& allEntries, std::vector<SubTable>&& classTables, std::vector<SubTable>&& interfaceTables
+    Utils::Vector<Entry>&& allEntries, Utils::Vector<SubTable>&& classTables, Utils::Vector<SubTable>&& interfaceTables
 )
     : allEntries(std::move(allEntries)),
       classTables(std::move(classTables)),
@@ -104,7 +104,8 @@ std::optional<MethodTableEntry> MethodTable::Resolve(Session& session, MethodTab
     return std::nullopt;
 }
 
-void MethodTable::ResolveAll(Session& session, Reference const& reference, std::vector<MethodTableEntry>& buffer) const
+void MethodTable::ResolveAll(Session& session, Reference const& reference, Utils::Vector<MethodTableEntry>& buffer)
+    const
 {
     for (auto st : Classes()) {
         for (auto entry : st.Entries()) {
@@ -220,9 +221,9 @@ std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, Glob
         ASSERTION(interfTable->classTables.empty(), "interface tables should not have class table");
 
         auto oldEntryCount = newTable.EntryCount();
-        newTable.allEntries.insert(
-            newTable.allEntries.end(), interfTable->allEntries.begin(), interfTable->allEntries.end()
-        );
+        for (auto& e : interfTable->allEntries) {
+            newTable.allEntries.push_back(e);
+        }
 
         for (auto st : interfTable->interfaceTables) {
             newTable.interfaceTables.emplace_back(MethodTable::SubTable {
@@ -244,7 +245,7 @@ std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, Glob
     auto oldEntryCount = newTable.EntryCount();
     MethodSignatureSubstitution methodSigSub(session, type);
 
-    std::vector<MethodTableEntry> entryBuffer;
+    Utils::Vector<MethodTableEntry> entryBuffer;
     for (auto methodId : def.GetVirtualMethods().Values(session)) {
         auto newEntry = MethodTable::Entry {
             .method         = methodId,

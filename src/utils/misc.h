@@ -8,7 +8,7 @@
 namespace Std {
 namespace Vector {
 
-template <typename T> void Print(Stream::Output& out, const std::vector<T>& vec, const std::string& delim = ", ")
+template <typename T> void Print(Stream::Output& out, const Utils::Vector<T>& vec, const std::string& delim = ", ")
 {
     const std::string empty = "";
     const std::string* sep  = &empty;

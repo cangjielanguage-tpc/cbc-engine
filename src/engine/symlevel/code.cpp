@@ -59,10 +59,10 @@ Code Code::Parse(Engine::Session& session, IO::FileId fileId, Offset<Code> offse
     );
 }
 
-std::vector<ExceptionRegion> Code::GetExceptionRegions(Engine::Session& session) const
+Utils::Vector<ExceptionRegion> Code::GetExceptionRegions(Engine::Session& session) const
 {
     IO::StreamFileReader reader(*session.FileOf(rawExTable.fileId), rawExTable.start);
-    std::vector<ExceptionRegion> regions;
+    Utils::Vector<ExceptionRegion> regions;
     while (reader.Position() < rawExTable.end) {
         regions.emplace_back(ExceptionRegion {
             .start  = reader.ReadULEB(),
@@ -73,11 +73,11 @@ std::vector<ExceptionRegion> Code::GetExceptionRegions(Engine::Session& session)
     return regions;
 }
 
-std::vector<LivenessInfo> Code::GetLivenessInfo(Engine::Session& session) const
+Utils::Vector<LivenessInfo> Code::GetLivenessInfo(Engine::Session& session) const
 {
     IO::StreamFileReader reader(*session.FileOf(rawLivenessInfo.fileId), rawLivenessInfo.start);
 
-    std::vector<LivenessInfo> livenessInfo;
+    Utils::Vector<LivenessInfo> livenessInfo;
     while (reader.Position() < rawLivenessInfo.end) {
         LivenessInfo info = {
             .cbcPos  = reader.ReadULEB(),
@@ -85,7 +85,7 @@ std::vector<LivenessInfo> Code::GetLivenessInfo(Engine::Session& session) const
         };
 
         uint32_t slotsN = reader.ReadULEB();
-        std::vector<uint32_t> slots;
+        Utils::Vector<uint32_t> slots;
         slots.reserve(slotsN);
 
         for (uint32_t idx = 0; idx < slotsN; idx++) {
@@ -94,7 +94,7 @@ std::vector<LivenessInfo> Code::GetLivenessInfo(Engine::Session& session) const
         info.refSlotNums = std::move(slots);
 
         uint32_t pairsN = reader.ReadULEB();
-        std::vector<std::pair<uint32_t, uint32_t>> mutPairs;
+        Utils::Vector<std::pair<uint32_t, uint32_t>> mutPairs;
         mutPairs.reserve(pairsN);
 
         for (uint32_t idx = 0; idx < pairsN; idx++) {

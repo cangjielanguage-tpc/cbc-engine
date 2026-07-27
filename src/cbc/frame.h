@@ -12,7 +12,7 @@ static uint32_t STACK_SLOT_SIZE = 8;
 
 struct FrameLayout {
     std::unordered_map<uint32_t, uint32_t> typedOffset;
-    std::vector<std::pair<uint32_t, void*>> typedSlotsInfo;
+    Utils::Vector<std::pair<uint32_t, void*>> typedSlotsInfo;
     uint32_t untypedStackSize;
     uint32_t frameSize;
 };

@@ -95,7 +95,7 @@ void Segment::Apply(SegmentSnapshot snapshot)
     data.resize(snapshot.dataSize);
 }
 
-std::vector<uint8_t> Segment::Finish() { return std::exchange(this->data, {}); }
+Utils::Vector<uint8_t> Segment::Finish() { return std::exchange(this->data, {}); }
 
 Segment::View Segment::At(size_t pos) { return View(*this, pos); }
 

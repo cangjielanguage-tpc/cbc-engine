@@ -18,7 +18,7 @@ struct TypeInfoManager : public Engine::TypeInfoManager {
     virtual void RegisterPartial(Engine::GlobalTerm term, TypeInfo typeInfo) = 0;
 
 private:
-    std::vector<Fixup> fixups;
+    Utils::Vector<Fixup> fixups;
 };
 
 /// Performs creation of type info for the given instance of term.

@@ -27,7 +27,7 @@ public:
     };
 
     struct Content {
-        std::vector<Entry> fields;
+        Utils::Vector<Entry> fields;
         SizeDesc desc{};
     };
 
@@ -58,7 +58,7 @@ public:
     virtual uint8_t GetFlatAlignment(Term term) = 0;
 
     /// Fills out the `offsets` vector with all reference offsets of a value of type `Term`.
-    virtual void FillRefOffsets(Term term, std::vector<uint32_t>& offsets, uint32_t disp) = 0;
+    virtual void FillRefOffsets(Term term, Utils::Vector<uint32_t>& offsets, uint32_t disp) = 0;
 
     virtual ~FieldLayoutManager();
 };
