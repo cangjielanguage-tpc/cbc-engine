@@ -1086,6 +1086,12 @@ struct IsaRewriter : public IsaParser {
         }
         auto typeInfo = ti.value();
         auto offset   = frameLayout.typedOffset[dstTs];
+        {
+            Stream::StringBuffer buf;
+            Stream::ResolvingOutput a(session, buf);
+            a << "unbox. t" << dstTs << " " << *type << " (" << startPosition << ": " << Stream::Detailed(method) << ")";
+            emit.LogInstruction(buf.ToCString());
+        }
         emit.LoadFrame(Format::LoadAccessKind::LD_LEA, IReg::IR_ACC, offset);
         auto ms = emit.OpenMemSpace();
         ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());

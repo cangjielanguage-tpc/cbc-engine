@@ -63,7 +63,7 @@ union Operation {
     Operation() {}
 };
 
-static uint32_t counter;
+[[gnu::used]] uint32_t engine_counter;
 [[gnu::used]] Operation engine_ops[256];
 
 /// The interpretation loop can be used in two scenarios:
@@ -496,7 +496,7 @@ LABEL(READ_STRUCT_FIELD) {
     auto dst   = ectype->GetPrimitive(args.rr.x.IR()).u64;
     auto base  = ectype->GetReference(args.rr.y.IR());
     auto field = ectype->GetPrimitive(args.field.x.IR()).u64;
-    auto& op = engine_ops[(counter++) & 255];
+    auto& op = engine_ops[(engine_counter++) & 255];
     op.tag = 1;
     op.bcPos = pos;
     op.fmt.a = args;
@@ -1054,7 +1054,7 @@ LABEL(R_READ_STRUCT) {
     auto dst   = ectype->GetPrimitive(args.rr.x.IR()).u64;
     auto base  = ectype->GetReference(args.rr.y.IR());
     auto field = base.value + memspaceOffsetAcc;
-    auto& op = engine_ops[(counter++) & 255];
+    auto& op = engine_ops[(engine_counter++) & 255];
     op.tag = 0;
     op.bcPos = pos;
     op.fmt.b = args;
