@@ -165,9 +165,7 @@ public:
         }
         auto expected = ectype->GetReference(src1);
         auto desired  = ectype->GetReference(src2);
-        auto res      = RTSupport::Execution::AtomicCompareAndSwapRef(
-            expected, desired, objRef, objRef.value + field, std::memory_order_seq_cst, std::memory_order_seq_cst
-        );
+        auto res      = RTSupport::Execution::AtomicCompareAndSwapRef(expected, desired, objRef, objRef.value + field);
         ectype->Put(dst, Value::Primitive { .u64 = res });
     }
 
@@ -192,7 +190,7 @@ public:
         }
         auto srcRef = ectype->GetReference(src);
         auto prev =
-            RTSupport::Execution::AtomicSwapRef(srcRef, objRef, objRef.value + offset, std::memory_order_seq_cst);
+            RTSupport::Execution::AtomicSwapRef(srcRef, objRef, objRef.value + offset);
         ectype->Put(dst, Value::Reference { .value = prev.value });
     }
 
@@ -228,7 +226,7 @@ public:
         if (!NullCheck(objRef)) {
             return;
         }
-        auto res = RTSupport::Execution::AtomicReadRef(objRef, objRef.value + offset, std::memory_order_seq_cst);
+        auto res = RTSupport::Execution::AtomicReadRef(objRef, objRef.value + offset);
         ectype->Put(dst, Value::Reference { .value = res.value });
     }
 
@@ -263,7 +261,7 @@ public:
             return;
         }
         auto srcRef     = ectype->GetReference(src);
-        RTSupport::Execution::AtomicWriteRef(srcRef, objRef, objRef.value + offset, std::memory_order_seq_cst);
+        RTSupport::Execution::AtomicWriteRef(srcRef, objRef, objRef.value + offset);
     }
 
     inline bool LoadDerived(Format::LoadAccessKind ldk, Format::Reg dst, IReg base, IReg derived, uint64_t offset)

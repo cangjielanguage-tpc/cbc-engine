@@ -357,24 +357,24 @@ Reference Execution::GetAndClearPendingException()
     return Reference { .value = 0 };
 }
 
-Reference Execution::AtomicReadRef(Reference object, uintptr_t field, std::memory_order order)
+Reference Execution::AtomicReadRef(Reference object, uintptr_t field)
 {
     FATAL("Should not reach here");
     return Reference { .value = 0 };
 }
 
-void Execution::AtomicWriteRef(Reference ref, Reference obj, uintptr_t field, std::memory_order order)
+void Execution::AtomicWriteRef(Reference ref, Reference obj, uintptr_t field)
 {
     FATAL("Should not reach here");
 }
 
-Reference Execution::AtomicSwapRef(Reference ref, Reference obj, uintptr_t field, std::memory_order order)
+Reference Execution::AtomicSwapRef(Reference ref, Reference obj, uintptr_t field)
 {
     FATAL("Should not reach here");
     return Reference { .value = 0 };
 }
 
-bool Execution::AtomicCompareAndSwapRef(Reference oldRef, Reference newRef, Reference obj, uintptr_t field, std::memory_order succOrder, std::memory_order failOrder)
+bool Execution::AtomicCompareAndSwapRef(Reference oldRef, Reference newRef, Reference obj, uintptr_t field)
 {
     FATAL("Should not reach here");
 }

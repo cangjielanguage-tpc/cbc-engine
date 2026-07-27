@@ -9,7 +9,6 @@
 
 #include <stddef.h>
 #include <stdint.h>
-#include <atomic>
 
 #include "RuntimeTypes.h"
 
@@ -90,8 +89,6 @@ typedef struct INT_InterpretedFrameDesc {
     char* fileName;
     void (*freeResources)(char* methodName, char* className, char* fileName);
 } INT_InterpretedFrameDesc;
-
-typedef std::memory_order MEM_ORDER;
 
 // endregion Types
 
@@ -638,14 +635,14 @@ typedef void (*DYN_NativeLoggerFn)(int logLevel, char* tag, char* message);
 // - obj - pointer to AtomicReference object
 // - field - pointer to field within AtomicReference object
 // return: reference
-typedef DYN_ObjRef (*DYN_AtomicReadRef)(DYN_ObjRef obj, DYN_FieldRef field, MEM_ORDER order);
+typedef DYN_ObjRef (*DYN_AtomicReadRef)(DYN_ObjRef obj, DYN_FieldRef field);
 
 // Atomically writes the reference.
 // params:
 // - ref - new reference
 // - obj - pointer to AtomicReference object
 // - field - pointer to field within AtomicReference object
-typedef void (*DYN_AtomicWriteRef)(DYN_ObjRef ref, DYN_ObjRef obj, DYN_FieldRef field, MEM_ORDER order);
+typedef void (*DYN_AtomicWriteRef)(DYN_ObjRef ref, DYN_ObjRef obj, DYN_FieldRef field);
 
 // Atomically swaps the reference.
 // params:
@@ -653,7 +650,7 @@ typedef void (*DYN_AtomicWriteRef)(DYN_ObjRef ref, DYN_ObjRef obj, DYN_FieldRef 
 // - obj - pointer to AtomicReference object
 // - field - pointer to field within AtomicReference object
 // return: old reference
-typedef DYN_ObjRef (*DYN_AtomicSwapRef)(DYN_ObjRef ref, DYN_ObjRef obj, DYN_FieldRef field, MEM_ORDER order);
+typedef DYN_ObjRef (*DYN_AtomicSwapRef)(DYN_ObjRef ref, DYN_ObjRef obj, DYN_FieldRef field);
 
 // CAS.
 // params:
@@ -662,9 +659,7 @@ typedef DYN_ObjRef (*DYN_AtomicSwapRef)(DYN_ObjRef ref, DYN_ObjRef obj, DYN_Fiel
 // - obj - pointer to AtomicReference object
 // - field - pointer to field within AtomicReference object
 // return: true, if oldRef matches current field value, false otherwise
-// TODO should be bool or uint8_t?
-typedef bool (*DYN_AtomicCompareAndSwapRef)(
-    DYN_ObjRef oldRef, DYN_ObjRef newRef, DYN_ObjRef obj, DYN_FieldRef field, MEM_ORDER succOrder, MEM_ORDER failOrder);
+typedef int (*DYN_AtomicCompareAndSwapRef)(DYN_ObjRef oldRef, DYN_ObjRef newRef, DYN_ObjRef obj, DYN_FieldRef field);
 
 // endregion CJNative interface
 
