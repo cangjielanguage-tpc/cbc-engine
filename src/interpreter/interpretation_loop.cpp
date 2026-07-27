@@ -45,6 +45,27 @@ static void InitializeClosure(Ectype* ectype, bool instantiatedSret)
 
 extern "C" {
 
+union Operation {
+    struct {
+        uint32_t tag;
+        void* bcPos;
+        union {
+            StructFieldOp a;
+            MStructFieldOp b;
+        } fmt;
+        uint64_t dst;
+        uint64_t base;
+        uint64_t field;
+        TypeInfo typeInfo;
+    };
+    char buf[];
+
+    Operation() {}
+};
+
+static uint32_t counter;
+[[gnu::used]] Operation engine_ops[256];
+
 /// The interpretation loop can be used in two scenarios:
 /// - (Main scenario) As an interpreter for the real runtime.
 /// - As part of a unit test framework.
@@ -469,11 +490,20 @@ LABEL(NEWBOX2) {
     return { func, type.Raw() };
 }
 LABEL(READ_STRUCT_FIELD) {
+    auto pos = reader.Cursor();
     auto args = StructFieldOp::Decode(reader);
     LOG_INSTR;
     auto dst   = ectype->GetPrimitive(args.rr.x.IR()).u64;
     auto base  = ectype->GetReference(args.rr.y.IR());
     auto field = ectype->GetPrimitive(args.field.x.IR()).u64;
+    auto& op = engine_ops[(counter++) & 255];
+    op.tag = 1;
+    op.bcPos = pos;
+    op.fmt.a = args;
+    op.dst = dst;
+    op.base = base.value;
+    op.field = field;
+    op.typeInfo = args.ti;
     RTSupport::Execution::ReadStructField(dst, base, field, args.ti, handle);
     NEXT;
 }
@@ -1018,11 +1048,20 @@ LABEL(OFFS_REG_IDX64) {
     MEM_NEXT;
 }
 LABEL(R_READ_STRUCT) {
+    auto pos = reader.Cursor();
     auto args = MStructFieldOp::Decode(reader);
     LOG_INSTR;
     auto dst   = ectype->GetPrimitive(args.rr.x.IR()).u64;
     auto base  = ectype->GetReference(args.rr.y.IR());
     auto field = base.value + memspaceOffsetAcc;
+    auto& op = engine_ops[(counter++) & 255];
+    op.tag = 0;
+    op.bcPos = pos;
+    op.fmt.b = args;
+    op.dst = dst;
+    op.base = base.value;
+    op.field = field;
+    op.typeInfo = args.ti;
     RTSupport::Execution::ReadStructField(dst, base, field, args.ti, handle);
     NEXT;
 }
