@@ -41,13 +41,18 @@ set_target_properties(cbc_lib PROPERTIES
   POSITION_INDEPENDENT_CODE ON)
 
 target_compile_options(cbc_lib PRIVATE
-  -fno-plt
   -fno-omit-frame-pointer
   -fno-stack-protector
   -fno-exceptions
   -fno-asynchronous-unwind-tables
   -fno-unwind-tables
 )
+
+if(NOT APPLE)
+  target_compile_options(cbc_lib PRIVATE
+    -fno-plt
+  )
+endif()
 
 target_include_directories(cbc_lib PUBLIC "src")
 
