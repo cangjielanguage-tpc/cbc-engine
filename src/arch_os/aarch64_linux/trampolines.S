@@ -7,6 +7,8 @@
     #define engine_fiber_data_init _engine_fiber_data_init
     #define engine_get_exception_handler _engine_get_exception_handler
     #define engine_get_and_clear_pending_exception _engine_get_and_clear_pending_exception
+    #define engine_log_int_start _engine_log_int_start
+    #define engine_log_int_end _engine_log_int_end
     #define engine_c2i_call_pc_start _engine_c2i_call_pc_start
     #define engine_c2i_call_pc_end _engine_c2i_call_pc_end
     #define engine_trampolines_dyn_start _engine_trampolines_dyn_start
@@ -677,7 +679,9 @@ engine_i2_spawn:
   b     .Lrestart_interpretation
 
 // TREAT SYMBOLS ABOVE AS PART OF perform_2i_call
+#ifndef __APPLE__
 .size perform_2i_call, .-perform_2i_call
+#endif
 
 // fake execute closure function
 .balign 16
