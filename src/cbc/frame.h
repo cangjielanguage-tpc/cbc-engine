@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <unordered_map>
 #include <utility>
-#include <vector>
+#include "utils/vector.h"
 
 namespace Cbc {
 

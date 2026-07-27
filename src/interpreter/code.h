@@ -91,13 +91,13 @@ struct NonVolatileRegs {
 };
 
 struct ExecBytecodeInfo {
-    Code const code;
+    Code code;
     NonVolatileRegs savedIRegs;
     NonVolatileRegs savedFRegs;
-    uint32_t const frameSize;
-    uint16_t const untypedSlotCount;
-    GcInfo const gcInfo;
-    InstructionOffsetsIndex const offsetsIndex; // TODO: optimize RAM footprint
+    uint32_t frameSize;
+    uint16_t untypedSlotCount;
+    GcInfo gcInfo;
+    InstructionOffsetsIndex offsetsIndex; // TODO: optimize RAM footprint
 
     friend Stream::Output& operator<<(Stream::Output& out, const ExecBytecodeInfo& bc);
 };

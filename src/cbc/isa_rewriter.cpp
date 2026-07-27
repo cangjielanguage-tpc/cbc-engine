@@ -149,7 +149,7 @@ struct IsaRewriter : public IsaParser {
         Engine::Session& session,
         Engine::Identifier<Symlevel::MethodDefinition> method,
         MethodCode& code,
-        FrameLayout frameLayout,
+        FrameLayout& frameLayout,
         Emitter::Emitter& emit
     )
         : IsaParser(code),
@@ -170,7 +170,7 @@ struct IsaRewriter : public IsaParser {
     Resolver& resolver;
     MethodCode& code;
     Emitter::Emitter& emit;
-    FrameLayout frameLayout;
+    FrameLayout& frameLayout;
     size_t bytecodeSize;
     Stream::Output& errStream = Interpretation::Log::preparation.Stream(Logging::Level::ERROR);
 
