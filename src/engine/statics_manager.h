@@ -79,8 +79,7 @@ public:
     uintptr_t GetLocation(Session& session, TypeIdent typeIdent, FieldIdent fieldIdent);
 
     void VisitRefLocations(
-        std::function<void(RefLocation*)> untypedSlotsVisitor,
-        std::function<void(uint8_t* base, const StaticTypedSlotInfo&)> typedSlotsVisitor
+        std::function<void(RefLocation*)> untypedSlotsVisitor
     ) const;
 
 private:

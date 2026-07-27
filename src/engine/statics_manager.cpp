@@ -210,8 +210,7 @@ uintptr_t StaticsManager::GetLocation(Session& session, TypeIdent typeIdent, Fie
 }
 
 void StaticsManager::VisitRefLocations(
-    std::function<void(RefLocation*)> untypedSlotsVisitor,
-    std::function<void(uint8_t* base, const StaticTypedSlotInfo&)> typedSlotsVisitor
+    std::function<void(RefLocation*)> untypedSlotsVisitor
 ) const
 {
     std::lock_guard guard(lock);
