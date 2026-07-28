@@ -89,6 +89,13 @@ CbcTypeKind Resolver::GetKind(Type type)
         case TK::FUNCTIONAL:    return CbcTypeKind::REF;
         case TK::TUPLE:         return CbcTypeKind::REC;
         case TK::CANGJIE_ARRAY: return CbcTypeKind::REF;
+        case TK::PRIMITIVE_ENUM: {
+            auto id             = PrimitiveEnumId(term.GetId());
+            auto definition     = Symlevel::Reader::Read(session, id.GetIdentifier());
+            auto underlyingType = TermManager::Resolve(session, definition.GetEnumType());
+            ClassSubstitution substitution(session, term);
+            return GetKind(Wrap(substitution.Substitute(underlyingType)));
+        }
         case TK::LAST:          return CbcTypeKind::INVALID;
         case TK::AOT_TYPE:
         case TK::OPTION:
