@@ -64,31 +64,31 @@ CbcTypeKind Resolver::GetKind(Type type)
     using TK  = TermKind;
     auto term = type.term;
     switch (term.GetKind()) {
-        case TK::NIL:           return CbcTypeKind::INVALID;
-        case TK::VOID:          return CbcTypeKind::VOID;
-        case TK::UNIT:          return CbcTypeKind::REC;
-        case TK::NOTHING:       return CbcTypeKind::INVALID;
-        case TK::BOOLEAN:       return CbcTypeKind::BOOL;
-        case TK::I8:            return CbcTypeKind::I8;
-        case TK::U8:            return CbcTypeKind::U8;
-        case TK::I16:           return CbcTypeKind::I16;
-        case TK::U16:           return CbcTypeKind::U16;
-        case TK::I32:           return CbcTypeKind::I32;
-        case TK::U32:           return CbcTypeKind::U32;
-        case TK::UCHAR32:       return CbcTypeKind::U32;
-        case TK::I64:           return CbcTypeKind::I64;
-        case TK::U64:           return CbcTypeKind::U64;
-        case TK::IADDR:         return CbcTypeKind::I64;
-        case TK::UADDR:         return CbcTypeKind::U64;
-        case TK::BSTRING:       return CbcTypeKind::U64;
-        case TK::F16:           return CbcTypeKind::U16;
-        case TK::F32:           return CbcTypeKind::F32;
-        case TK::F64:           return CbcTypeKind::F64;
-        case TK::UNDEFINED:     return CbcTypeKind::INVALID;
-        case TK::C_POINTER:     return CbcTypeKind::U64;
-        case TK::FUNCTIONAL:    return CbcTypeKind::REF;
-        case TK::TUPLE:         return CbcTypeKind::REC;
-        case TK::CANGJIE_ARRAY: return CbcTypeKind::REF;
+        case TK::NIL:            return CbcTypeKind::INVALID;
+        case TK::VOID:           return CbcTypeKind::VOID;
+        case TK::UNIT:           return CbcTypeKind::REC;
+        case TK::NOTHING:        return CbcTypeKind::INVALID;
+        case TK::BOOLEAN:        return CbcTypeKind::BOOL;
+        case TK::I8:             return CbcTypeKind::I8;
+        case TK::U8:             return CbcTypeKind::U8;
+        case TK::I16:            return CbcTypeKind::I16;
+        case TK::U16:            return CbcTypeKind::U16;
+        case TK::I32:            return CbcTypeKind::I32;
+        case TK::U32:            return CbcTypeKind::U32;
+        case TK::UCHAR32:        return CbcTypeKind::U32;
+        case TK::I64:            return CbcTypeKind::I64;
+        case TK::U64:            return CbcTypeKind::U64;
+        case TK::IADDR:          return CbcTypeKind::I64;
+        case TK::UADDR:          return CbcTypeKind::U64;
+        case TK::BSTRING:        return CbcTypeKind::U64;
+        case TK::F16:            return CbcTypeKind::U16;
+        case TK::F32:            return CbcTypeKind::F32;
+        case TK::F64:            return CbcTypeKind::F64;
+        case TK::UNDEFINED:      return CbcTypeKind::INVALID;
+        case TK::C_POINTER:      return CbcTypeKind::U64;
+        case TK::FUNCTIONAL:     return CbcTypeKind::REF;
+        case TK::TUPLE:          return CbcTypeKind::REC;
+        case TK::CANGJIE_ARRAY:  return CbcTypeKind::REF;
         case TK::UNION_ENUM:     return CbcTypeKind::REC;
         case TK::PRIMITIVE_ENUM: {
             auto id             = PrimitiveEnumId(term.GetId());
@@ -97,10 +97,10 @@ CbcTypeKind Resolver::GetKind(Type type)
             ClassSubstitution substitution(session, term);
             return GetKind(Wrap(substitution.Substitute(underlyingType)));
         }
-        case TK::LAST:          return CbcTypeKind::INVALID;
+        case TK::LAST:           return CbcTypeKind::INVALID;
         case TK::AOT_TYPE:
         case TK::OPTION:
-        case TK::TYPE:          return term.IsReference() ? CbcTypeKind::REF : CbcTypeKind::REC;
+        case TK::TYPE:           return term.IsReference() ? CbcTypeKind::REF : CbcTypeKind::REC;
 
         default:
             if (term.IsReference()) {
