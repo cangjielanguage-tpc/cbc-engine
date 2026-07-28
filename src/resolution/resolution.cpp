@@ -89,6 +89,7 @@ CbcTypeKind Resolver::GetKind(Type type)
         case TK::FUNCTIONAL:    return CbcTypeKind::REF;
         case TK::TUPLE:         return CbcTypeKind::REC;
         case TK::CANGJIE_ARRAY: return CbcTypeKind::REF;
+        case TK::UNION_ENUM:     return CbcTypeKind::REC;
         case TK::PRIMITIVE_ENUM: {
             auto id             = PrimitiveEnumId(term.GetId());
             auto definition     = Symlevel::Reader::Read(session, id.GetIdentifier());
