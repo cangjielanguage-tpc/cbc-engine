@@ -5,14 +5,14 @@
     // On x64 receiver location does depend on sret,
     // because `sret` uses first register in calling convention
     #define HAS_SRET_SHIFT 1
-    #define SRET_IR 1
+    #define SRET_IR IR1
 
 #elif defined(__aarch64__) || defined(_M_ARM64)
 
     // On aarch64 receiver location does not depend on sret,
     // because sret has dedicated register IR9.
     #define HAS_SRET_SHIFT 0
-    #define SRET_IR 9
+    #define SRET_IR IR9
 
 #else
     #error "unsupported platform"

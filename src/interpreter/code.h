@@ -113,6 +113,7 @@ struct AbiInfo {
     uint8_t fregParamCount;
 
     bool isSRet;
+    bool hasTailReg;
 };
 
 struct ExecBytecodeInfo {
