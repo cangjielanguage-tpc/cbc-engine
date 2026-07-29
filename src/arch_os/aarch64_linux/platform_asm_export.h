@@ -22,6 +22,7 @@
 #define ECTYPE_REG x19
 #define LITERALS_REG x20
 #define IREG_ABI_AMOUNT 9
+#define IREG_PARAM_PASSING_AMOUNT 8
 #define FREG_ABI_AMOUNT 8
 
 #define EXTRA_REG x21

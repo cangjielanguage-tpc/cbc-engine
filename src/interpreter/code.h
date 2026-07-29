@@ -8,6 +8,8 @@
 
 #include "asm_export.h"
 #include "cbc/offsets_index.h"
+#include "engine/engine.h"
+#include "engine/terms.h"
 #include "literals.h"
 #include "utils/misc.h"
 #include "utils/ostream.h"
@@ -99,18 +101,43 @@ struct NonVolatileRegs {
     bool IsEmpty() { return value == 0; }
 };
 
+struct AbiInfo {
+    // Bitmap of all parameters (including sret) that could be adjusted by stack expansion
+    uint16_t adjustableParams;
+    // Bitmap of all parameters which are represented as (base, derived) pairs.
+    // N-th bit set => (base: N-th param, derived: N+1-th param)
+    uint16_t derivedPairs;
+
+    // Amount of parameters being passed by registers
+    uint8_t iregParamCount;
+    uint8_t fregParamCount;
+
+    bool isSRet;
+};
+
 struct ExecBytecodeInfo {
-    Code const code;
+    Code code;
     NonVolatileRegs savedIRegs;
     NonVolatileRegs savedFRegs;
-    uint32_t const frameSize;
-    uint16_t const untypedSlotCount;
-    GcInfo const gcInfo;
+    uint32_t frameSize;
+    uint16_t untypedSlotCount;
+    AbiInfo abiInfo;
+    GcInfo gcInfo;
     StackPtrsInfo stackPtrsInfo;
-    InstructionOffsetsIndex const offsetsIndex; // TODO: optimize RAM footprint
+    InstructionOffsetsIndex offsetsIndex; // TODO: optimize RAM footprint
 
     friend Stream::Output& operator<<(Stream::Output& out, const ExecBytecodeInfo& bc);
 };
+
+struct AbiInfoFlags {
+    bool isSRet;
+    bool isMut;
+    bool hasThisTypeInfo;
+    bool hasOuterTi;
+    int funcVars;
+};
+
+AbiInfo BuildAbiInfo(Engine::Session& session, Engine::Term signature, AbiInfoFlags flags);
 
 static_assert(
     offsetof(ExecBytecodeInfo, code) + offsetof(Code, bytecodeSize) == EXEC_BYTECODE_INFO_BYTECODE_SIZE_OFFSET

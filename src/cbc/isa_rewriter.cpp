@@ -1557,6 +1557,7 @@ static std::vector<Interpretation::StackPtrsPositionalInfo> CalculateStackPtrsPo
     std::vector<Interpretation::StackPtrsPositionalInfo> posInfo;
     posInfo.reserve(stackPtrsInfo.size());
 
+    // FIXME: the data must be stored in the format that is compact and fast to query.
     std::unordered_map<ssize_t, Symlevel::StackPtrsInfo const&> infos;
     for (const auto& info : stackPtrsInfo) {
         infos.insert({ info.cbcPos, info });
@@ -1574,12 +1575,13 @@ static std::vector<Interpretation::StackPtrsPositionalInfo> CalculateStackPtrsPo
         }
         auto& info = it->second;
 
-        posInfo.push_back({ .rewrittenPos = (uint32_t)rewrittenPos, .resources = {} });
+        Interpretation::StackPtrsPositionalInfo newInfo = { .rewrittenPos = (uint32_t)rewrittenPos, .resources = {} };
 
-        posInfo.back().resources.reserve(info.resources.size());
+        newInfo.resources.reserve(info.resources.size());
         for (const auto& res : info.resources) {
-            posInfo.back().resources.push_back(Interpretation::Resource { .idx = res });
+            newInfo.resources.push_back(Interpretation::Resource { .idx = res });
         }
+        posInfo.emplace_back(std::move(newInfo));
     }
 
     return posInfo;
@@ -1623,6 +1625,20 @@ Interpretation::ExecBytecodeInfo Rewrite(
         FATAL("Rewriter failed: cannot rewrite code.");
     }
 
+    auto def     = Symlevel::Reader::Read(session, method);
+    auto flags   = def.GetABIFlags();
+    auto abiInfo = Interpretation::BuildAbiInfo(
+        session,
+        Engine::TermManager::Resolve(session, def.Signature()),
+        {
+            .isSRet          = flags.Is(Symlevel::MethodRefFlag::SRET),
+            .isMut           = flags.Is(Symlevel::MethodRefFlag::MUT),
+            .hasThisTypeInfo = flags.Is(Symlevel::MethodRefFlag::HAS_THIS_TI),
+            .hasOuterTi      = flags.Is(Symlevel::MethodRefFlag::HAS_OUTER_TI),
+            .funcVars        = def->arity,
+        }
+    );
+
     auto rewrittenCode = emitter.Build(heap);
 
     return Interpretation::ExecBytecodeInfo {
@@ -1631,6 +1647,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
         .savedFRegs       = Interpretation::NonVolatileRegs(code.UsedNonVolFRegMask() << FReg::FIRST_NON_VOL),
         .frameSize        = frameLayout->frameSize,
         .untypedSlotCount = static_cast<uint16_t>(code.UntypedSlotCount()),
+        .abiInfo          = std::move(abiInfo),
         .gcInfo =
             Interpretation::GcInfo {
                 .positionalInfo = std::move(CalculatePositionalGCInfo(session, code, emitter, rewriter.statePoints)),
@@ -1638,9 +1655,8 @@ Interpretation::ExecBytecodeInfo Rewrite(
             },
         .stackPtrsInfo =
             Interpretation::StackPtrsInfo {
-                .positionalInfo =
-                    std::move(CalculateStackPtrsPositionalInfo(session, code, emitter, rewriter.statePoints)) },
-        .offsetsIndex = std::move(rewriter.BuildOffsetsIndex()),
+                .positionalInfo = CalculateStackPtrsPositionalInfo(session, code, emitter, rewriter.statePoints) },
+        .offsetsIndex = rewriter.BuildOffsetsIndex(),
     };
 }
 
