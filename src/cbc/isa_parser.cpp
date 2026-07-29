@@ -413,6 +413,20 @@ struct IsaParserImpl {
 
     static void GcPoint(IsaParser& parser) { parser.GcPoint(); }
 
+    static void LoadRawMemory(IsaParser& parser)
+    {
+        auto [dst, base, ldk, low4, hibits] =
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadSLEB().Get();
+        parser.LoadRawMemory(dst, base, MergeLowHi(low4, hibits), ldk);
+    }
+
+    static void StoreRawMemory(IsaParser& parser)
+    {
+        auto [src, base, stk, low4, hibits] =
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadSLEB().Get();
+        parser.StoreRawMemory(src, base, MergeLowHi(low4, hibits), stk);
+    }
+
     static void LoadStatic(IsaParser& parser)
     {
         auto [r, id] = ByteReaderM(parser.reader).ReadU4Skip4().ReadU16().Get();
@@ -449,12 +463,6 @@ struct IsaParserImpl {
         parser.PrepareRecord(id);
     }
 
-    static void ZeroRefs(IsaParser& parser)
-    {
-        auto [id] = ByteReaderM(parser.reader).ReadU16().Get();
-        parser.PrepareRecord(id);
-    }
-
     template <Width::Value width> static void Scc(IsaParser& parser)
     {
         auto [cc, dst, lhs, rhs] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
@@ -480,8 +488,29 @@ struct IsaParserImpl {
         parser.LoadTypeInfoObj(dst, obj);
     }
 
+    static void AssignGeneric(IsaParser& parser)
+    {
+        auto [dst, src, ti, _] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
+        parser.AssignGeneric(dst, src, ti);
+    }
+
+    static void InstanceOfGeneric(IsaParser& parser)
+    {
+        auto [dst, obj, ti, _] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
+        parser.InstanceOfGeneric(dst, obj, ti);
+    }
+
+    static void CallInterfGeneric(IsaParser& parser)
+    {
+        auto [argnum, methodId] = ByteReaderM(parser.reader).ReadU16().ReadU16().Get();
+        parser.CallInterfGeneric(argnum, methodId);
+    }
+
     static void RegSymGroup(IsaParser& parser)
     {
+        static constexpr bool GENERIC     = true;
+        static constexpr bool NOT_GENERIC = false;
+
         auto [opc_, dst, id]  = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
         class RegSymGroup opc = opc_;
         switch (opc) {
@@ -492,9 +521,10 @@ struct IsaParserImpl {
             case Cbc::RegSymGroup::CallInterf:      parser.CallInterf(dst, id); break;
             case Cbc::RegSymGroup::Spawn:           parser.Spawn(dst, id); break;
             case Cbc::RegSymGroup::SpawnFuture:     parser.SpawnFuture(dst, id); break;
-            case Cbc::RegSymGroup::CallClosure:     parser.CallClosure(dst, id); break;
+            case Cbc::RegSymGroup::CallClosure:     parser.CallClosure(dst, id, NOT_GENERIC); break;
             case Cbc::RegSymGroup::NewClosure:      parser.NewClosure(dst, id); break;
 
+            case Cbc::RegSymGroup::CallClosureGeneric:  parser.CallClosure(dst, id, GENERIC); break;
             case Cbc::RegSymGroup::LoadTypeInfoGeneric: parser.LoadTypeInfoGeneric(dst, id); break;
 
             default: {
@@ -669,6 +699,34 @@ struct IsaParserImpl {
     {
         auto [dst, ti, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
         parser.Offset(dst, ti, field, true);
+    }
+
+    static void TagGeneric(IsaParser& parser)
+    {
+        auto [dst, src, tiReg, _, typeId] =
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+        parser.TagGeneric(dst, src, tiReg, typeId);
+    }
+
+    static void PayloadGeneric(IsaParser& parser)
+    {
+        auto [dst, src, underlyingTiReg, optionTiReg, typeId] =
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+        parser.PayloadGeneric(dst, src, underlyingTiReg, optionTiReg, typeId);
+    }
+
+    static void NewNoneGeneric(IsaParser& parser)
+    {
+        auto [dst, underlyingTiReg, optionTiReg, _, typeId] =
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+        parser.NewNoneGeneric(dst, underlyingTiReg, optionTiReg, typeId);
+    }
+
+    static void NewSomeGeneric(IsaParser& parser)
+    {
+        auto [dst, src, underlyingTiReg, optionTiReg, typeId] =
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+        parser.NewSomeGeneric(dst, src, underlyingTiReg, optionTiReg, typeId);
     }
 
     static void MemHeadReg(IsaParser& parser)

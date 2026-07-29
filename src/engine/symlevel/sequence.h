@@ -12,12 +12,7 @@ namespace Symlevel {
 
 class Sequence {
 public:
-    struct Generator {
-        IO::StreamFileReader reader;
-        Sequence const& seq;
-
-        std::optional<uint32_t> operator()();
-    };
+    struct Generator;
 
     using Range = Iterators::SimpleRange<Generator>;
 
@@ -33,6 +28,13 @@ private:
     IO::FileId file;
     uint32_t startPos;
     uint32_t endPos;
+};
+
+struct Sequence::Generator {
+    IO::StreamFileReader reader;
+    Sequence seq;
+
+    std::optional<uint32_t> operator()();
 };
 
 template <typename T> class OffsetSequence {

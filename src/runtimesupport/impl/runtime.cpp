@@ -119,26 +119,26 @@ TypeInfo Execution::GetTypeInfo(Reference base)
 
 static char* GetDynCallTrampolinesStart() { return reinterpret_cast<char*>(&Asm::engine_trampolines_dyn_start); }
 
-static size_t GetDynCallTrampolinesLength()
+static char* GetDynCallTrampolinesEnd() { return reinterpret_cast<char*>(&Asm::engine_trampolines_dyn_sret_end); }
+
+static bool IsFunctionInRange(void* function, char* begin, char* end)
 {
-    auto begin = GetDynCallTrampolinesStart();
-    auto end   = reinterpret_cast<char*>(&Asm::engine_trampolines_dyn_end);
-    return end - begin;
+    auto address = reinterpret_cast<uintptr_t>(function);
+    return address >= reinterpret_cast<uintptr_t>(begin) && address < reinterpret_cast<uintptr_t>(end);
 }
 
 static bool IsDynCallTrampoline(void* function)
 {
-    auto trampolinesStart = reinterpret_cast<size_t>(GetDynCallTrampolinesStart());
-    auto funcPos          = reinterpret_cast<size_t>(function) - trampolinesStart;
-    return funcPos <= GetDynCallTrampolinesLength();
+    return IsFunctionInRange(function, GetDynCallTrampolinesStart(), GetDynCallTrampolinesEnd());
 }
 
 static size_t DynCallTrampolineIdx(void* trampoline)
 {
     ASSERT(IsDynCallTrampoline(trampoline));
-    auto trampolinesStart = reinterpret_cast<size_t>(GetDynCallTrampolinesStart());
-    auto funcIdx          = (reinterpret_cast<size_t>(trampoline) - trampolinesStart) / DYN_CALL_TRAMPOLINE_SIZE;
-    return funcIdx;
+
+    auto funcIdx = (reinterpret_cast<size_t>(trampoline) - reinterpret_cast<size_t>(GetDynCallTrampolinesStart())) /
+                   DYN_CALL_TRAMPOLINE_SIZE;
+    return funcIdx % TRAMPOLINE_COUNT;
 }
 
 static Interpretation::FunctionHandle* GetDynamicCall(void* fn, CbcTypeInfo* cti)
@@ -157,6 +157,22 @@ static Interpretation::Thunk GetDynCallThunk(void* fn, TypeInfo ti)
     return { Adapters::GenericI2CCallInstance(), fn };
 }
 
+Interpretation::Thunk Execution::GetClosureThunk(Reference base, bool isInstantiated)
+{
+    struct FullLayout {
+        DYN_TypeInfo* header;
+        void* genericFunc;
+        void* intantiatedFunc;
+    };
+
+    // Avoid cast of `base.value` to `FullLayout*` to avoid UB, which observed as:
+    // "compiler can speculatively read unexisting field".
+    auto offset           = isInstantiated ? offsetof(FullLayout, intantiatedFunc) : offsetof(FullLayout, genericFunc);
+    void* func            = *reinterpret_cast<void**>(base.value + offset);
+    DYN_TypeInfo** header = reinterpret_cast<DYN_TypeInfo**>(base.value);
+    return GetDynCallThunk(func, TypeInfo(*header));
+}
+
 Interpretation::Thunk Execution::GetVirtualThunk(Reference base, int extDefNum, int methodNum)
 {
     DYN_TypeInfo** header = reinterpret_cast<DYN_TypeInfo**>(base.value);
@@ -166,10 +182,16 @@ Interpretation::Thunk Execution::GetVirtualThunk(Reference base, int extDefNum, 
     return GetDynCallThunk(target, typeInfo);
 }
 
-Interpretation::Thunk Execution::GetInterfaceThunk(Reference base, TypeInfo interf, int methodNum)
+TypeInfo Execution::GetMethodOuterTi(TypeInfo where, TypeInfo interf, int methodNum)
 {
-    DYN_TypeInfo** header = reinterpret_cast<DYN_TypeInfo**>(base.value);
-    auto dynTypeInfo      = *header;
+    return TypeInfo(
+        g_CJNativeInterfaceInstance.getMethodOuterTI(UnpackTypeInfo(where), UnpackTypeInfo(interf), methodNum)
+    );
+}
+
+Interpretation::Thunk Execution::GetInterfaceThunk(TypeInfo where, TypeInfo interf, int methodNum)
+{
+    auto dynTypeInfo      = UnpackTypeInfo(where);
     DYN_FuncPtr* table    = g_CJNativeInterfaceInstance.getMTable(dynTypeInfo, UnpackTypeInfo(interf));
     auto target           = table[methodNum];
 
@@ -296,7 +318,7 @@ TypeInfo Execution::LoadTypeInfo(Engine::GlobalTerm term, Interpretation::Ectype
         terms.push_back(tiManager.AcquireTerm(session, TypeInfo(ti)));
     }
 
-    Engine::ArraySubstitution sub(session, terms);
+    Engine::ClassSubstitution sub(session, terms);
     auto type = sub.Substitute(term);
 
     // resolution error should be handled in rewriter.

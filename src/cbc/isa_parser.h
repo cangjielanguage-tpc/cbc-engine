@@ -53,11 +53,17 @@ protected:
 
     virtual void GcPoint() = 0;
 
+    virtual void LoadRawMemory(AnyReg dst, IReg base, int64_t offset, Format::LoadAccessKind ldk)   = 0;
+    virtual void StoreRawMemory(AnyReg src, IReg base, int64_t offset, Format::StoreAccessKind stk) = 0;
+
     virtual void LoadStackRec(IReg r, uint16_t ts)              = 0;
     virtual void LoadStatic(AnyReg r, uint16_t field)           = 0;
     virtual void StoreStatic(AnyReg r, uint16_t field)          = 0;
     virtual void LoadField(IReg rb, AnyReg rs, uint16_t field)  = 0;
     virtual void StoreField(IReg rb, AnyReg rd, uint16_t field) = 0;
+
+    virtual void AssignGeneric(IReg dst, IReg src, IReg ti) = 0;
+    virtual void InstanceOfGeneric(IReg dst, IReg obj, IReg ti) = 0;
 
     virtual void LoadTypeInfoGeneric(IReg dst, uint16_t typeId) = 0;
 
@@ -66,9 +72,10 @@ protected:
     virtual void CallDirect(IReg dst, uint16_t method)    = 0;
     virtual void CallVirtual(IReg dst, uint16_t method)   = 0;
     virtual void CallInterf(IReg dst, uint16_t method)    = 0;
+    virtual void CallInterfGeneric(uint16_t argnum, uint16_t method) = 0;
     virtual void Spawn(IReg closure, uint16_t type)       = 0;
     virtual void SpawnFuture(IReg future, uint16_t type)  = 0;
-    virtual void CallClosure(IReg dst, uint16_t type)     = 0;
+    virtual void CallClosure(IReg dst, uint16_t type, bool generic) = 0;
     virtual void NewClosure(IReg dst, uint16_t type)      = 0;
 
     virtual void Scc(Format::Width width, Format::CC cc, IReg d, AnyReg l, AnyReg r)      = 0;
@@ -81,8 +88,6 @@ protected:
     virtual void NullCheck(IReg reg)                 = 0;
     virtual void Catch(IReg reg)                     = 0;
     virtual void Throw(IReg reg)                     = 0;
-
-    virtual void ZeroRefs(uint16_t ts) = 0;
 
     virtual void InstanceOf(IReg dst, IReg obj, uint16_t type) = 0;
     virtual void LoadTypeInfoObj(IReg dst, IReg obj)           = 0;
@@ -111,6 +116,14 @@ protected:
     virtual void UnboxT(uint16_t dstTs, IReg src)           = 0;
 
     virtual void Offset(IReg dst, IReg ti, uint16_t field, bool accumulate) = 0;
+    virtual void TagGeneric(IReg dst, IReg src, IReg tiReg, uint16_t typeId) = 0;
+    virtual void PayloadGeneric(
+        IReg dst, IReg src, IReg underlyingTypeInfo, IReg optionTypeInfo, uint16_t optionTypeInfoId
+    )                                                                                                              = 0;
+    virtual void NewNoneGeneric(IReg dst, IReg underlyingTypeInfo, IReg optionTypeInfo, uint16_t optionTypeInfoId) = 0;
+    virtual void NewSomeGeneric(
+        IReg dst, IReg src, IReg underlyingTypeInfo, IReg optionTypeInfo, uint16_t optionTypeInfoId
+    ) = 0;
 
     class MemSpace {
     public:

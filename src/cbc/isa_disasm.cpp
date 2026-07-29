@@ -1,5 +1,6 @@
 #include "cbc/decoder.h"
 #include "cbc/isa.h"
+#include "engine/resolving_output.h"
 #include "engine/terms.h"
 #include "isa_parser.h"
 #include "resolution/resolution.h"
@@ -155,6 +156,18 @@ struct IsaDisasm : public IsaParser {
         stream << "ld.stack.rec" << " " << r.ToStr() << ", " << ts << endl;
     }
 
+    void LoadRawMemory(AnyReg dst, IReg base, int64_t offset, Format::LoadAccessKind ldk) override
+    {
+        stream << "ld.raw.mem." << ldk.ToStr() << " " << Fmt(dst, ldk.IsFloat()) << ", " << base.ToStr() << ", "
+               << offset << endl;
+    }
+
+    void StoreRawMemory(AnyReg src, IReg base, int64_t offset, Format::StoreAccessKind stk) override
+    {
+        stream << "st.raw.mem." << stk.ToStr() << " " << Fmt(src, stk.IsFloat()) << ", " << base.ToStr() << ", "
+               << offset << endl;
+    }
+
     void LoadStatic(AnyReg r, uint16_t field) override { stream << "ld.static" << " " << r << ", " << field << endl; }
 
     void StoreStatic(AnyReg r, uint16_t field) override { stream << "st.static" << " " << r << ", " << field << endl; }
@@ -185,6 +198,45 @@ struct IsaDisasm : public IsaParser {
         stream << name << " " << dst.ToStr() << ", " << ti.ToStr() << " " << field << endl;
     }
 
+    void TagGeneric(IReg dst, IReg src, IReg ti, uint16_t typeId) override
+    {
+        stream << "tag.g " << dst.ToStr() << ", " << src.ToStr() << ", " << ti.ToStr() << ", " << typeId << endl;
+    }
+
+    void PayloadGeneric(IReg dst, IReg src, IReg underlyingTypeInfo, IReg optionTypeInfo, uint16_t optionTypeInfoId)
+        override
+    {
+        stream << "payload.g " << dst.ToStr() << ", " << src.ToStr() << ", " << underlyingTypeInfo.ToStr();
+        stream << "< " << optionTypeInfo.ToStr() << ", " << optionTypeInfoId << endl;
+    }
+
+    void NewNoneGeneric(IReg dst, IReg underlyingTypeInfo, IReg optionTypeInfo, uint16_t optionTypeInfoId) override
+    {
+        stream << "new.none.g " << dst.ToStr() << ", " << underlyingTypeInfo.ToStr() << ", " << optionTypeInfo.ToStr()
+               << ", " << optionTypeInfoId << endl;
+    }
+
+    void NewSomeGeneric(IReg dst, IReg src, IReg underlyingTypeInfo, IReg optionTypeInfo, uint16_t optionTypeInfoId)
+        override
+    {
+        stream << "new.some.g " << dst.ToStr() << ", " << src.ToStr() << ", " << underlyingTypeInfo.ToStr();
+        stream << ", " << optionTypeInfo.ToStr() << ", " << optionTypeInfoId << endl;
+    }
+
+    void AssignGeneric(IReg dst, IReg src, IReg ti) override
+    {
+        stream << "assign.g" << dst.ToStr() << ", ";
+        stream << src.ToStr() << ", ";
+        stream << ti.ToStr() << endl;
+    }
+
+    void InstanceOfGeneric(IReg dst, IReg obj, IReg ti) override
+    {
+        stream << "iof.g" << dst.ToStr() << ", ";
+        stream << obj.ToStr() << ", ";
+        stream << ti.ToStr() << endl;
+    }
+
     void NewObj(IReg dst, uint16_t type) override { stream << "newobj" << " " << dst.ToStr() << ", " << type << endl; }
 
     void NewClosure(IReg dst, uint16_t type) override
@@ -207,6 +259,11 @@ struct IsaDisasm : public IsaParser {
         stream << "call.interf" << " " << dst.ToStr() << ", " << method << endl;
     }
 
+    void CallInterfGeneric(uint16_t argnum, uint16_t method) override
+    {
+        stream << "call.interf.g" << " " << argnum << ", " << method << endl;
+    }
+
     void Spawn(IReg closure, uint16_t type) override
     {
         stream << "spawn" << " " << closure.ToStr() << ", " << type << endl;
@@ -217,9 +274,10 @@ struct IsaDisasm : public IsaParser {
         stream << "spawn.future" << " " << future.ToStr() << ", " << type << endl;
     }
 
-    void CallClosure(IReg dst, uint16_t type) override
+    void CallClosure(IReg dst, uint16_t type, bool generic) override
     {
-        stream << "call.closure" << " " << dst.ToStr() << ", " << type << endl;
+        auto suffix = generic ? ".g " : " ";
+        stream << "call.closure" << suffix << dst.ToStr() << ", " << type << endl;
     }
 
     void Scc(Format::Width width, Format::CC cc, IReg d, AnyReg l, AnyReg r) override
@@ -248,8 +306,6 @@ struct IsaDisasm : public IsaParser {
     void Catch(IReg reg) override { stream << "catch" << " " << reg.ToStr() << endl; }
 
     void Throw(IReg reg) override { stream << "throw" << " " << reg.ToStr() << endl; }
-
-    void ZeroRefs(uint16_t ts) override { stream << "zerorefs" << " " << ts << endl; }
 
     void InstanceOf(IReg dst, IReg obj, uint16_t type) override
     {
@@ -554,6 +610,28 @@ struct IsaResolvingDisasm : IsaDisasm {
         stream << "call.virtual " << dst.ToStr() << ", " << method;
         stream << " (" << method->extDefNum << "," << method->methodNum << ")";
         stream << endl;
+    }
+
+    void NewObj(IReg dst, uint16_t type) override
+    {
+        auto t = resolver.Query(Index<Type>(type));
+        if (t) {
+            ResolvingOutput out(resolver.session, stream);
+            out << "newobj " << dst.ToStr() << ", " << t->term << Stream::endl;
+        } else {
+            IsaDisasm::NewObj(dst, type);
+        }
+    }
+
+    void NewClosure(IReg dst, uint16_t type) override
+    {
+        auto t = resolver.Query(Index<Type>(type));
+        if (t) {
+            ResolvingOutput out(resolver.session, stream);
+            out << "new.closure " << dst.ToStr() << ", " << t->term << Stream::endl;
+        } else {
+            IsaDisasm::NewObj(dst, type);
+        }
     }
 
     // TODO: implement rest.

@@ -30,6 +30,7 @@
     X(BCCL32L, B5xi12ri12, "bcc.32 $0cc $2ir $3I12L $1I12L")                                                           \
     X(BCCL64L, B5xi12ri12, "bcc.64 $0cc $2ir $3I12L $1I12L")                                                           \
     X(JMP32, B5i32, "jmp $0I32")                                                                                       \
+    X(BRANCH_IS_REF, B3xi12, "branch.is.ref $0ir $1I12")                                                               \
     X(BIN32, B3xrrr, "$0bin.32 $1ir $2ir $3ir")                                                                        \
     X(BIN64, B3xrrr, "$0bin.64 $1ir $2ir $3ir")                                                                        \
     X(BINI32I, B4xi12rr, "$0bin.32 $2ir $3ir $1I12")                                                                   \
@@ -41,8 +42,10 @@
     X(FUN32, B3xrrr, "$0fop.32 $1fr $3fr")                                                                             \
     X(FUN64, B3xrrr, "$0fop.64 $1fr $3fr")                                                                             \
     X(NEWOBJ, B9i64, "newobj IR1, $0U64")                                                                              \
+    X(NEWOBJ_G, B2rr, "newobj.g $0ir")                                                                                 \
     X(NEWARR, B9i64, "newarr IR1, IR2, $0U64")                                                                         \
     X(INITCLOSURE, B1, "init.closure")                                                                                 \
+    X(INITCLOSURE_SRET, B1, "init.closure.sret")                                                                       \
     X(SPAWN, B9i64, "spawn $0U64")                                                                                     \
     X(LOAD_OBJ, B4xi12rr, "ld.$0ldk $2ir [$3ir $1U12]")                                                                \
     X(STORE_OBJ, B4xi12rr, "st.$0stk $2ir [$3ir $1U12]")                                                               \
@@ -73,10 +76,14 @@
     X(SCCI64L, B4xi12rr, "scci.64 $0cc $2ir $3ir $1I12L")                                                              \
     X(TYPE_ARG, B4xi12rr, "type.arg $2ir $3ir $1I12")                                                                  \
     X(CONVERT, B3xxrr, "convert $0ct $1ct $2ir $3ir") /* FIXME: ir/fr */                                               \
+    X(CALL_CLOSURE, B1, "call.closure")                                                                                \
+    X(CALL_CLOSURE_SRET, B1, "call.closure.sret")                                                                      \
+    X(CALL_CLOSURE_GENERIC, B1, "call.closure.g")                                                                      \
     X(DIRECT_CALL_2I, B3xi12, "call.2i $1I12L")                                                                        \
     X(DIRECT_CALL_2C, B3xi12, "call.2c $1I12L")                                                                        \
     X(VIRTUAL_CALL, VirtualCall, "vcall $0U16 $1U16")                                                                  \
     X(INTERFACE_CALL, InterfaceCall, "icall $0U16 $1U64")                                                              \
+    X(INTERFACE_CALL_GENERIC, InterfaceCallGeneric, "icall.g.$2U8 $0U16 $1U16")                                        \
     X(MEMSPACE, B1, "memspace {")                                                                                      \
     X(GC_POINT, B1, "gcpoint")                                                                                         \
     X(BFXS, BFX, "bfxs $0ir $1ir $2U8 $3U8")                                                                           \
@@ -93,7 +100,10 @@
     X(READ_STRUCT_FIELD, StructFieldOp, "read.struct.field $0ir $1ir $2ir $4U64")                                      \
     X(WRITE_STRUCT_FIELD, StructFieldOp, "write.struct.field $0ir $1ir $2ir $4U64")                                    \
     X(THROW, B2xr, "throw $1ir")                                                                                       \
-    X(CATCH, B2xr, "catch $1ir")
+    X(CATCH, B2xr, "catch $1ir")                                                                                       \
+    X(LOG, B9i64, "log $0U64")                                                                                         \
+    X(ASSIGN_GENERIC, B3xrrr, "assign.g $1ir $2ir $3ir")                                                               \
+    X(IOF_GENERIC, B3xrrr, "iof.g $1ir $2ir $3ir")
 
 // X parameters: opcode, encoding format, string format, is tail
 #define CBC_RT_MEMOPCODES(X)                                                                                           \
@@ -116,6 +126,7 @@
     X(RLD_64, M2rr, "rld.64 $0ir $1ir }", true)                                                                        \
     X(RLD_S32TO64, M2rr, "rld.s32to64 $0ir $1ir }", true)                                                              \
     X(RLD_REF, M2rr, "rld.ref $0ir $1ir }", true)                                                                      \
+    X(RLD_LEA, M2rr, "rld.lea $0ir $1ir }", true)                                                                      \
     X(RST_8, M2rr, "rst.8 $0ir $1ir }", true)                                                                          \
     X(RST_16, M2rr, "rst.16 $0ir $1ir }", true)                                                                        \
     X(RST_32, M2rr, "rst.32 $0ir $1ir }", true)                                                                        \
@@ -143,6 +154,7 @@
     X(DLD_64, M3xrrr, "dld.64 $1ir $2ir $3ir }", true)                                                                 \
     X(DLD_S32TO64, M3xrrr, "dld.s32to64 $1ir $2ir $3ir }", true)                                                       \
     X(DLD_REF, M3xrrr, "dld.ref $1ir $2ir $3ir }", true)                                                               \
+    X(DLD_LEA, M3xrrr, "dld.lea $1ir $2ir $3ir }", true)                                                               \
     X(DLD_GENERIC, M3rrrr, "dld.g $0ir $1ir $2ir $3ir }", true)                                                        \
     X(DST_8, M3xrrr, "dst.8 $1ir $2ir $3ir }", true)                                                                   \
     X(DST_16, M3xrrr, "dst.16 $1ir $2ir $3ir }", true)                                                                 \
@@ -172,6 +184,7 @@
     X(SLD_64, M2rr, "sld.64 $0ir $1ir }", true)                                                                        \
     X(SLD_S32TO64, M2rr, "sld.s32to64 $0ir $1ir }", true)                                                              \
     X(SLD_REF, M2rr, "sld.ref $0ir $1ir }", true)                                                                      \
+    X(SLD_LEA, M2rr, "sld.lea $0ir $1ir }", true)                                                                      \
     X(SST_8, M2rr, "sst.8 $0ir $1ir }", true)                                                                          \
     X(SST_16, M2rr, "sst.16 $0ir $1ir }", true)                                                                        \
     X(SST_32, M2rr, "sst.32 $0ir $1ir }", true)                                                                        \
@@ -199,6 +212,7 @@
     X(FLD_64, M2rr, "fld.64 $0ir $1ir }", true)                                                                        \
     X(FLD_S32TO64, M2rr, "fld.s32to64 $0ir $1ir }", true)                                                              \
     X(FLD_REF, M2rr, "fld.ref $0ir $1ir }", true)                                                                      \
+    X(FLD_LEA, M2rr, "fld.lea $0ir $1ir }", true)                                                                      \
     X(FST_8, M2rr, "fst.8 $0ir $1ir }", true)                                                                          \
     X(FST_16, M2rr, "fst.16 $0ir $1ir }", true)                                                                        \
     X(FST_32, M2rr, "fst.32 $0ir $1ir }", true)                                                                        \
@@ -278,13 +292,13 @@ public:
 #undef DEFINE_OPCODE
 
     static constexpr auto RLD_START_OPCODE  = RLD_U8;
-    static constexpr auto RLD_END_OPCODE    = RLD_REF;
+    static constexpr auto RLD_END_OPCODE    = RLD_LEA;
     static constexpr auto DLD_START_OPCODE  = DLD_U8;
-    static constexpr auto DLD_END_OPCODE    = DLD_REF;
+    static constexpr auto DLD_END_OPCODE    = DLD_LEA;
     static constexpr auto SLD_START_OPCODE  = SLD_U8;
-    static constexpr auto SLD_END_OPCODE    = SLD_REF;
+    static constexpr auto SLD_END_OPCODE    = SLD_LEA;
     static constexpr auto FLD_START_OPCODE  = FLD_U8;
-    static constexpr auto FLD_END_OPCODE    = FLD_REF;
+    static constexpr auto FLD_END_OPCODE    = FLD_LEA;
     static constexpr auto RST_START_OPCODE  = RST_8;
     static constexpr auto RST_END_OPCODE    = RST_F64;
     static constexpr auto DST_START_OPCODE  = DST_8;
@@ -426,6 +440,8 @@ struct B3xxrr {
 };
 
 struct B3xi12 {
+    static constexpr int SIZE = 3;
+
     Opcode opc;
     Format::XImm12 xi12;
 
@@ -664,6 +680,22 @@ struct InterfaceCall {
         auto ti   = reader.Read64();
         auto sret = reader.Read8();
         return InterfaceCall { opc, vnum, ti, sret };
+    }
+};
+
+struct InterfaceCallGeneric {
+    Opcode opc;
+    uint16_t vnum;
+    uint16_t argn;
+    uint8_t sret; // TODO: add two instruction for sret/non-sret versions
+
+    static InterfaceCallGeneric Decode(Decoder::ByteReader& reader)
+    {
+        auto opc  = Opcode::Decode(reader);
+        auto vnum = reader.Read16();
+        auto argn = reader.Read16();
+        auto sret = reader.Read8();
+        return InterfaceCallGeneric { opc, vnum, argn, sret };
     }
 };
 

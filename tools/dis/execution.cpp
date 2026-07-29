@@ -7,6 +7,7 @@
 #include "interpreter/interpretation_loop.h"
 #include "runtimesupport/adapters.h"
 #include "runtimesupport/runtime.h"
+#include "runtimesupport/typeinfo_factory.h"
 #include "utils/assertion.h"
 
 static constexpr int HEAP_SIZE = 16384;
@@ -16,13 +17,13 @@ namespace RTSupport {
 using Reference = Interpretation::Value::Reference;
 
 std::optional<TypeInfo> CreateTypeInfo(
-    Engine::Session& session, Engine::TypeInfoManager& manager, Engine::GlobalTerm term
+    Engine::Session& session, TypeInfoManager& manager, Engine::GlobalTerm term
 )
 {
     FATAL("Should not be called");
 }
 
-Engine::GlobalTerm ReconstructTerm(Engine::Session& session, Engine::TypeInfoManager& manager, TypeInfo ti)
+Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& manager, TypeInfo ti)
 {
     FATAL("Should not be called");
 }
@@ -67,12 +68,22 @@ uint32_t Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool isRef) { FATAL
 
 TypeInfo Execution::GetTypeInfo(Reference base) { FATAL("Should not be called"); }
 
+Interpretation::Thunk Execution::GetClosureThunk(Reference base, bool isInstantiated)
+{
+    FATAL("Should not reach here.");
+}
+
 Interpretation::Thunk Execution::GetVirtualThunk(Reference base, int extDefNum, int methodNum)
 {
     FATAL("Should not reach here.");
 }
 
-Interpretation::Thunk Execution::GetInterfaceThunk(Reference base, TypeInfo ti, int methodNum)
+TypeInfo Execution::GetMethodOuterTi(TypeInfo where, TypeInfo interf, int methodNum)
+{
+    FATAL("Should not reach here.");
+}
+
+Interpretation::Thunk Execution::GetInterfaceThunk(TypeInfo where, TypeInfo ti, int methodNum)
 {
     FATAL("Should not reach here.");
 }
@@ -137,7 +148,7 @@ Reference Execution::GetAndClearPendingException()
 
 void* Adapters::GenericI2CCallInstance() { FATAL("Should not reach here"); }
 
-void* Adapters::GetDynCallTrampoline(int idx) { FATAL("Should not reach here"); }
+void* Adapters::GetDynCallTrampoline(int idx, bool sret) { FATAL("Should not reach here"); }
 
 void* Adapters::I2ICallInstance() { FATAL("Should not reach here"); }
 

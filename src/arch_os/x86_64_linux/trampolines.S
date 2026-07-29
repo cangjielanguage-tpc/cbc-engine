@@ -19,6 +19,8 @@ declare_hidden engine_c2i_call_pc_start
 declare_hidden engine_c2i_call_pc_end
 declare_hidden engine_trampolines_dyn_start
 declare_hidden engine_trampolines_dyn_end
+declare_hidden engine_trampolines_dyn_sret_start
+declare_hidden engine_trampolines_dyn_sret_end
 declare_hidden engine_trampolines_direct_start
 declare_hidden engine_all_regs_c2i_call
 declare_hidden engine_iregs_only_c2i_call
@@ -178,6 +180,15 @@ engine_universal_dyn_call:
 
 
 .balign 16
+engine_universal_dyn_sret_call:
+  mov   r10, [rsi] // get TypeInfo from SRET call receiver (2nd argument)
+  // TODO: consider tail array
+  mov   r10, [r10 + TYPEINFO_DATA_MT_OFFSET] // data mt array
+  mov   rax, [r10 + rax * 0x8] // put FuH on rax
+  jmp   [rax + FUNCTION_HANDLE_C2CALL_OFFSET]
+
+
+.balign 16
 engine_trampolines_dyn_start:
 .macro repeat_trampoline_dyn count
   .set i, 0
@@ -189,6 +200,17 @@ engine_trampolines_dyn_start:
 .endm
   repeat_trampoline_dyn TRAMPOLINE_COUNT
 engine_trampolines_dyn_end:
+engine_trampolines_dyn_sret_start: // should come right after engine_trampolines_dyn_end
+.macro repeat_trampoline_dyn_sret count
+  .set i, 0
+  .rept \count
+      mov.d32 eax, i
+      jmp.d32 engine_universal_dyn_sret_call
+      .set i, i + 1
+  .endr
+.endm
+  repeat_trampoline_dyn_sret TRAMPOLINE_COUNT
+engine_trampolines_dyn_sret_end:
 
 // expects: (TLS_REG: th, rax: fuh)
 // System-V abi, except r15 can be changed after context-switches
@@ -217,7 +239,8 @@ engine_trampolines_dyn_end:
   c2i_emit_iregs_abi \ireg_count
   c2i_emit_fregs_abi \freg_count
 
-
+  lea   rsi, [rbp + 0x10] // skip saved rbp and retaddr
+  mov   [ECTYPE_REG + TAIL_REG_OFFS], rsi // save stack parameters of caller as tail reg
   mov   rdi, rax
   call perform_2i_call
 
@@ -241,19 +264,39 @@ engine_trampolines_dyn_end:
 
 .balign 16
 c2i_prepare_ectype:
+  // param passing registers could store real parameters of called c2i method
+  mov   ECTYPE_REG, rax // temporarily store fuh on ECTYPE_REG
+  push  rbp
+  mov   rbp, rsp
   push_lst rdi, rsi, rdx, rcx, r8, r9
-  push  rdi // alignment
+
+  sub   rsp, 0x40
+  movsd qword PTR [rsp + 0x00], xmm0
+  movsd qword PTR [rsp + 0x08], xmm1
+  movsd qword PTR [rsp + 0x10], xmm2
+  movsd qword PTR [rsp + 0x18], xmm3
+  movsd qword PTR [rsp + 0x20], xmm4
+  movsd qword PTR [rsp + 0x28], xmm5
+  movsd qword PTR [rsp + 0x30], xmm6
+  movsd qword PTR [rsp + 0x38], xmm7
 
   mov   rdi, r12
   call  engine_fiber_data_init
+  xchg  ECTYPE_REG, rax
 
-  mov   ECTYPE_REG, rax
-  mov   rax, [rbp - 0x30] // restore fuh
+  movsd xmm0, qword PTR [rsp + 0x00]
+  movsd xmm1, qword PTR [rsp + 0x08]
+  movsd xmm2, qword PTR [rsp + 0x10]
+  movsd xmm3, qword PTR [rsp + 0x18]
+  movsd xmm4, qword PTR [rsp + 0x20]
+  movsd xmm5, qword PTR [rsp + 0x28]
+  movsd xmm6, qword PTR [rsp + 0x30]
+  movsd xmm7, qword PTR [rsp + 0x38]
+  add   rsp, 0x40
 
-  pop   rdi
   pop_lst r9, r8, rcx, rdx, rsi, rdi
+  pop   rbp
   ret
-
 
 
 .balign 16
@@ -275,12 +318,166 @@ engine_c2i_call_pc_end:
 
 .balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: fuh)
-// preserved: ECTYPE_REG, rbp
-// TLS_REG can be changed after context-switch
-engine_i2i_call:
-  // jumped from .Linterpreter_call without return address to return
-  call  perform_2i_call
-  jmp   .Lrestart_interpretation
+// preserved: TLS_REG, ECTYPE_REG, rbp
+perform_2i_call:
+// The final layout of the frame is following:
+// +------------------------------------+
+// | Return Address                     |
+// +------------------------------------+
+// | Saved Frame Pointer (Old FP)       |
+// +------------------------------------+ <-- FP
+// | FuH (rdi)                          |
+// +------------------------------------+
+// | ECTYPE_REG                         |
+// +------------------------------------+
+// | LITERALS_REG                       |
+// +------------------------------------+
+// | EXTRA_REG                          |
+// +------------------------------------+>\
+// | CHECK_SUM                          |  |
+// +------------------------------------+> |
+// | Reader                             |  |
+// +------------------------------------+   -- LOCAL_SLOTS_OFFSET - EXTRA_SAVED_REG_OFFSET
+// | Alignment  (0 or 8)                |  /
+// +------------------------------------+>/
+// | Dynamic Locals (locals_size)       |
+// +------------------------------------+ <-- SP
+  push  rbp
+  mov   rbp, rsp
+  push  rdi          // rbp - 0x8 : FunctionHandle for frame scanning
+  push  ECTYPE_REG   // rbp - 0x10
+  push  LITERALS_REG // rbp - 0x18
+  push  EXTRA_REG    // rbp - 0x20
+  push  rdi          // rbp - 0x28 : check sum
+
+  // reserve slots and align stack
+  sub   rsp, LOCAL_SLOTS_OFFSET - CHECK_SUM_OFFSET
+
+  // FIXME: perform stack check here!
+
+  // We need to support fibers with movable stacks,
+  // but to do it safely we need to adjust pointers to stack.
+  // It is impossible to do correctly in C/C++ frames.
+  // So, we will rely on "tail calls" from C++ interpreter loop
+  // to managed compiled code.
+  //
+  // The problem is that we can't rely on tail call optimization
+  // and can't force such behaviour reliably (early 2026).
+  // Instead, we will return Thunk { function, arg } from C++ code to decide
+  // how to continue execution further.
+  mov   rax, [rdi + FUNCTION_HANDLE_BYTECODE_OFFSET]
+  test  rax, rax
+  jnz   .Lhave_bytecode
+  // function handle is already on rdi
+  call  engine_prepare_bytecode
+.Lhave_bytecode:
+
+  mov   LITERALS_REG, [rax + EXEC_BYTECODE_INFO_LITERALS_OFFSET]
+  mov   rsi, [rax + EXEC_BYTECODE_INFO_BYTECODE_OFFSET]
+
+  // construct reader
+#ifndef NDEBUG
+  mov   r8, [rax + EXEC_BYTECODE_INFO_BYTECODE_SIZE_OFFSET]
+  add   r8, rsi
+  mov   [rbp - READER_SLOT_OFFSET + 0x10], r8 // end
+  mov   [rbp - READER_SLOT_OFFSET + 0x8], rsi // start
+#endif
+  mov   [rbp - READER_SLOT_OFFSET], rsi // cursor
+
+#ifndef NDEBUG
+  inc   dword ptr [ECTYPE_REG + ECTYPE_FUNC_COUNTER_OFFSET]
+  mov   rdi, [rbp - FUH_SLOT_OFFSET]
+  mov   rsi, ECTYPE_REG
+  call  engine_log_int_start
+#endif
+
+  mov   rdx, rsp // save current sp for registers saving to the bottom of frame
+
+  mov   rax, [rbp - FUH_SLOT_OFFSET] // load Function Handle
+  mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
+
+  // current rsp is 16-byte.baligned
+  mov   r8d, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
+  mov   rsi, rsp
+  sub   rsp, r8
+
+  mov   rdi, rsp
+  xor   ecx, ecx
+
+// FIXME: remove it
+// We are zeroing a whole frame to simplify gc handling,
+// but it should be handled by compiler properly.
+.Lframe_zero_loop:
+  cmp   rdi, rsi
+  je    .Lframe_zero_loop_end
+  mov   [rdi], rcx
+  add   rdi, 8
+  jmp   .Lframe_zero_loop
+.Lframe_zero_loop_end:
+
+#ifndef NDEBUG
+  // calculate check sum and save it in the frame
+  mov   rsi, QWORD PTR [rax + EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET] // list of saved iregs
+  xor   rsi, rdx // address to the start of interpreter frame allocated data
+  xor   rsi, r8  // frame size
+  mov   [rbp - CHECK_SUM_OFFSET], rsi
+#endif
+
+  PUSH_REGS rcx, rdx, rax, rsi
+
+.Lrestart_interpretation:
+  mov   rdi, ECTYPE_REG
+  mov   rsi, rsp
+  mov   rdx, TLS_REG
+  mov   rcx, LITERALS_REG
+  lea   r8, [rbp - READER_SLOT_OFFSET]
+
+  call  engine_interpretation_loop
+
+  // Thunk is return on rax: function, rdx: arg.
+  // If usual return is needed, interpretation_loop will return null.
+  test  rax, rax
+  jz    .Lend_interpretation
+
+  mov   rdi, rdx
+.Linterpreter_call:
+  jmp   rax
+
+.Lend_interpretation:
+
+#ifndef NDEBUG
+  mov   rdi, [rbp - FUH_SLOT_OFFSET]
+  mov   rsi, ECTYPE_REG
+  call  engine_log_int_end
+#endif
+
+  mov   rax, [rbp - FUH_SLOT_OFFSET]
+  mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
+
+  mov   edx, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
+  mov   r8d, edx
+  add   rdx, rsp // add frame size to locate saved registers
+
+  mov   rsi, QWORD PTR [rax + EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
+  xor   rsi, rdx
+  xor   rsi, r8
+
+#ifndef NDEBUG
+  cmp   rsi, [rbp - CHECK_SUM_OFFSET]
+  je    .Lcheck_sum_ok
+  ud2
+.Lcheck_sum_ok:
+#endif
+
+  POP_REGS rcx, rdx, rax, rsi, rdi
+
+  mov   EXTRA_REG, [rbp - EXTRA_SAVED_REG_OFFSET]
+  mov   LITERALS_REG, [rbp - LITERALS_REG_SAVED_SLOT_OFFSET]
+  mov   ECTYPE_REG, [rbp - ECTYPE_REG_SAVED_SLOT_OFFSET]
+
+  mov   rsp, rbp
+  pop   rbp
+  ret
 
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: target)
 // preserved: ECTYPE_REG, rbp
@@ -306,6 +503,17 @@ engine_i2i_call:
 engine_i2c_call:
   // jumped from .Linterpreter_call without return address to return
   i2c_call IREG_ABI_AMOUNT FREG_ABI_AMOUNT
+
+.balign 16
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: fuh)
+// preserved: ECTYPE_REG, rbp
+// TLS_REG can be changed after context-switch
+engine_i2i_call:
+  // stack parameters are starting right at the top of the interpreted frame
+  mov   [ECTYPE_REG + TAIL_REG_OFFS], rsp
+
+  call  perform_2i_call
+  jmp   .Lrestart_interpretation
 
 .macro restore_tls // spoils volatile registers!
   call  [rip + engine_tls_function]
@@ -404,136 +612,8 @@ engine_i2_spawn:
   call  [rip + engine_newthread_nret_function]
   jmp  .Lrestart_interpretation
 
-.balign 16
-// expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: fuh)
-// preserved: TLS_REG, ECTYPE_REG, rbp
-perform_2i_call:
-// The final layout of the frame is following:
-// +------------------------------------+
-// | Return Address                     |
-// +------------------------------------+
-// | Saved Frame Pointer (Old FP)       |
-// +------------------------------------+ <-- FP
-// | FuH (rdi)                          |
-// +------------------------------------+
-// | ECTYPE_REG                         |
-// +------------------------------------+
-// | LITERALS_REG                       |
-// +------------------------------------+
-// | EXTRA_REG                          |
-// +------------------------------------+>\
-// | Reader                             |  \
-// +------------------------------------+   -- LOCAL_SLOTS_OFFSET - EXTRA_SAVED_REG_OFFSET
-// | Alignment  (0 or 8)                |  /
-// +------------------------------------+>/
-// | Dynamic Locals (locals_size)       |
-// +------------------------------------+ <-- SP
-  push  rbp
-  mov   rbp, rsp
-  push  rdi // rbp - 0x8 : FunctionHandle for frame scanning
-  push  ECTYPE_REG // rbp - 0x10
-  push  LITERALS_REG // rbp - 0x18
-  push  EXTRA_REG // rbp - 0x20
-
-  // reserve slots and align stack
-  sub   rsp, LOCAL_SLOTS_OFFSET - EXTRA_SAVED_REG_OFFSET
-
-  // FIXME: perform stack check here!
-
-  // We need to support fibers with movable stacks,
-  // but to do it safely we need to adjust pointers to stack.
-  // It is impossible to do correctly in C/C++ frames.
-  // So, we will rely on "tail calls" from C++ interpreter loop
-  // to managed compiled code.
-  //
-  // The problem is that we can't rely on tail call optimization
-  // and can't force such behaviour reliably (early 2026).
-  // Instead, we will return Thunk { function, arg } from C++ code to decide
-  // how to continue execution further.
-  mov   rax, [rdi + FUNCTION_HANDLE_BYTECODE_OFFSET]
-  test  rax, rax
-  jnz   .Lhave_bytecode
-  // function handle is already on rdi
-  call  engine_prepare_bytecode
-.Lhave_bytecode:
-
-  mov   LITERALS_REG, [rax + EXEC_BYTECODE_INFO_LITERALS_OFFSET]
-  mov   rsi, [rax + EXEC_BYTECODE_INFO_BYTECODE_OFFSET]
-
-  // construct reader
-#ifndef NDEBUG
-  mov   r8, [rax + EXEC_BYTECODE_INFO_BYTECODE_SIZE_OFFSET]
-  add   r8, rsi
-  mov   [rbp - READER_SLOT_OFFSET + 0x10], r8 // end
-  mov   [rbp - READER_SLOT_OFFSET + 0x8], rsi // start
-#endif
-  mov   [rbp - READER_SLOT_OFFSET], rsi // cursor
-
-#ifndef NDEBUG
-  mov   rdi, [rbp - FUH_SLOT_OFFSET]
-  mov   rsi, ECTYPE_REG
-  call  engine_log_int_start
-#endif
-
-  mov   rdx, rsp // save current sp for registers saving to the bottom of frame
-
-  mov   rax, [rbp - FUH_SLOT_OFFSET] // load Function Handle
-  mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
-
-  // current rsp is 16-byte.baligned
-  mov   r8d, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
-  sub   rsp, r8
-
-.Lstack_check:
-  mov   r9, [TLS_REG + TLS_STACK_BORDER_OFFSET]
-  add   r9, ADDITIONAL_STACK_SPACE
-  cmp   rsp, r9
-  jbe   expand_stack_or_throw_soe
-.Lafter_stack_check:
-
-  PUSH_REGS rcx, rdx, rax, rsi
-
-.Lrestart_interpretation:
-  mov   rdi, ECTYPE_REG
-  mov   rsi, rsp
-  mov   rdx, TLS_REG
-  mov   rcx, LITERALS_REG
-  lea   r8, [rbp - READER_SLOT_OFFSET]
-
-  call  engine_interpretation_loop
-
-  // Thunk is return on rax: function, rdx: arg.
-  // If usual return is needed, interpretation_loop will return null.
-  test  rax, rax
-  jz    .Lend_interpretation
-
-  mov   rdi, rdx
-.Linterpreter_call:
-  jmp   rax
-
-.Lend_interpretation:
-
-#ifndef NDEBUG
-  mov   rdi, [rbp - FUH_SLOT_OFFSET]
-  mov   rsi, ECTYPE_REG
-  call  engine_log_int_end
-#endif
-
-  mov   rax, [rbp - FUH_SLOT_OFFSET]
-  mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
-
-  mov   edx, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
-  add   rdx, rsp // add frame size to locate saved registers
-
-  POP_REGS rcx, rdx, rax, rsi, rdi
-
-  mov   EXTRA_REG, [rbp - EXTRA_SAVED_REG_OFFSET]
-  mov   LITERALS_REG, [rbp - LITERALS_REG_SAVED_SLOT_OFFSET]
-  mov   ECTYPE_REG, [rbp - ECTYPE_REG_SAVED_SLOT_OFFSET]
-
-  mov   rsp, rbp
-  pop   rbp
-  ret
+// TREAT SYMBOLS ABOVE AS PART OF perform_2i_call
+.size perform_2i_call, .-perform_2i_call
 
 // fake execute closure function
 .balign 16
@@ -568,17 +648,19 @@ common_landing_pad:
 // Precondition: top frame is interpreter frame.
 .balign 16
 engine_handle_exception:
-  mov   r12, rdi
+  mov   EXTRA_REG, rdi
 
   mov   rdi, QWORD PTR [rbp - FUH_SLOT_OFFSET]
   lea   rsi, QWORD PTR [rbp - READER_SLOT_OFFSET] // reader
   call  engine_get_exception_handler
 
+  mov   r8, EXTRA_REG // use r8 (volatile) as temporary exception holder
+
   test  al, al
   jz   .Lunwind_top_frame
 
   // Handler is found, set exception object to ACC_REG and continue interpretation
-  mov   QWORD PTR [ECTYPE_REG + ECTYPE_IACC_OFFSET], r12
+  mov   QWORD PTR [ECTYPE_REG + ECTYPE_IACC_OFFSET], EXTRA_REG
   jmp   .Lrestart_interpretation
 
 .Lunwind_top_frame:
@@ -590,28 +672,28 @@ engine_handle_exception:
 
   POP_REGS rcx, rdx, rax, rsi, rdi
 
-  mov   LITERALS_REG, [rbp - 0x18]
-  mov   ECTYPE_REG, [rbp - 0x10]
+  mov   EXTRA_REG,    [rbp - EXTRA_SAVED_REG_OFFSET]
+  mov   LITERALS_REG, [rbp - LITERALS_REG_SAVED_SLOT_OFFSET]
+  mov   ECTYPE_REG,   [rbp - ECTYPE_REG_SAVED_SLOT_OFFSET]
 
   // Clear top frame
   mov rsp, rbp
   pop rbp
-  pop rdi // ret addr
+  pop rsi // ret addr
+
+  mov   rdi, r8 // set exception pointer as argument for both execution paths
 
   // Check if next method is C2I adapter
   lea   rax, [rip + engine_c2i_call_pc_start]
-  cmp   rdi, rax
-  jb    .Lhandle_next_dyn_func
+  cmp   rsi, rax
+  jb    engine_handle_exception
   lea   rax, [rip + engine_c2i_call_pc_end]
-  cmp   rdi, rax
-  jae   .Lhandle_next_dyn_func
+  cmp   rsi, rax
+  jae   engine_handle_exception
 
   // Unwind C2I frame and when there are no interpreter frames
   // throw exception using CJNative runtime (as it usually done in AOT code)
 .Llast_interpreter_frame_unwinding:
-  mov   rdi, r12 // set exception pointer as argument
-
-  // TODO use macros here
   // Restore C2I saved regs
   pop   rbx // pop saved fuh
   pop   rbx
@@ -681,4 +763,4 @@ engine_after_stack_grow:
   mov   rax, [rbp - FUH_SLOT_OFFSET]
   mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
 
-  jmp   .Lafter_stack_check
+  // FIXME: jmp   .Lafter_stack_check

@@ -24,6 +24,7 @@ void Encode(ByteBuffer& buf, RT::B3xri8 command);
 void Encode(ByteBuffer& buf, RT::B4xri16 command);
 void Encode(ByteBuffer& buf, RT::B3xrrr command);
 void Encode(ByteBuffer& buf, RT::B3xxrr command);
+void Encode(ByteBuffer& buf, RT::B3xi12 command);
 void Encode(ByteBuffer& buf, RT::B4xi12rr command);
 void Encode(ByteBuffer& buf, RT::BFX command);
 void Encode(ByteBuffer& buf, RT::IOF command);
@@ -34,6 +35,7 @@ void Encode(ByteBuffer& buf, RT::B6xri32 command);
 void Encode(ByteBuffer& buf, RT::B10xri64 command);
 void Encode(ByteBuffer& buf, RT::B9i64 command);
 void Encode(ByteBuffer& buf, RT::InterfaceCall command);
+void Encode(ByteBuffer& buf, RT::InterfaceCallGeneric command);
 void Encode(ByteBuffer& buf, RT::B13i64i32 command);
 void Encode(ByteBuffer& buf, RT::StructFieldOp command);
 

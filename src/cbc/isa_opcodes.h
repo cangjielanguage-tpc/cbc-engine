@@ -63,7 +63,7 @@
     X(NewArr, NewArr)                                                                                                  \
     X(GcPoint, GcPoint)                                                                                                \
     X(PrepareRecord, PrepareRecord)                                                                                    \
-    X(ZeroRefs, ZeroRefs)                                                                                              \
+    X(TodoDelete, PrepareRecord)                                                                                       \
     X(Scc32, Scc<Width::W32>)                                                                                          \
     X(Scc64, Scc<Width::W64>)                                                                                          \
     X(SccImm32, SccImm<Width::W32>)                                                                                    \
@@ -103,6 +103,15 @@
     X(UnboxRec, UnboxRec)                                                                                              \
     X(Offset, Offset)                                                                                                  \
     X(AddOffset, AddOffset)                                                                                            \
+    X(TagGeneric, TagGeneric)                                                                                          \
+    X(PayloadGeneric, PayloadGeneric)                                                                                  \
+    X(NewNoneGeneric, NewNoneGeneric)                                                                                  \
+    X(NewSomeGeneric, NewSomeGeneric)                                                                                  \
+    X(LoadRawMemory, LoadRawMemory)                                                                                    \
+    X(StoreRawMemory, StoreRawMemory)                                                                                  \
+    X(CallInterfGeneric, CallInterfGeneric)                                                                            \
+    X(AssignGeneric, AssignGeneric)                                                                                    \
+    X(InstanceOfGeneric, InstanceOfGeneric)                                                                            \
     X(_END, Unreachable)
 
 #define ISA_MEM_OPCODES(X)                                                                                             \
@@ -140,6 +149,7 @@
     X(SpawnFuture)                                                                                                     \
     X(CallClosure)                                                                                                     \
     X(NewClosure)                                                                                                      \
+    X(CallClosureGeneric)                                                                                              \
     X(_END)
 
 #define ISA_REG_GROUP_OPCODES(X)                                                                                       \

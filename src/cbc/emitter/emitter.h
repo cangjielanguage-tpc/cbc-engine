@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <string_view>
 #include <vector>
 
 #include "cbc/emitter/segment.h"
@@ -163,14 +164,16 @@ public:
     void FMovI64(FReg d, double imm);
     void MovRef(IReg d, IReg s);
 
+    void BranchIfRef(IReg typeInfo, Label label);
     void Bcc(CC cc, Width width, Reg l, Reg r, Label label);
     void BccImm(CC cc, Width width, IReg l, uint64_t r, Label label);
     void Nop();
     void Jmp(Label label);
 
-    void InitClosure();
+    void InitClosure(bool instantiatedSret);
     void Spawn(RTSupport::TypeInfo typeInfo);
 
+    void NewObjGenericOnAcc(IReg ti);
     void NewObj(RTSupport::TypeInfo typeInfo);
     void NewArr(RTSupport::TypeInfo typeInfo);
     void LoadObj(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset);
@@ -200,11 +203,15 @@ public:
 
     void GcPoint();
 
+    void CallClosure(bool sret);
+    void CallClosureGeneric();
+
     void DirectCall2i(Symbol fuh);
     void DirectCall2c(Symbol target);
 
     void VirtualCall(uint16_t vnum, uint16_t extDefNum, bool sret);
     void InterfaceCall(uint16_t methodNum, RTSupport::TypeInfo typeInfo, bool sret);
+    void InterfaceCallGeneric(uint16_t methodNum, uint16_t argnum, bool sret);
 
     void StringLit(Interpretation::StringStorage* literal, uint32_t frameOffs);
 
@@ -224,6 +231,12 @@ public:
 
     void Throw(IReg dst);
     void Catch(IReg dst);
+
+    void AssignGeneric(IReg dst, IReg src, IReg ti);
+    void InstanceOfGeneric(IReg dst, IReg obj, IReg ti);
+
+    void LogInstruction(std::string_view string);
+    void LogInstruction(char* string);
 
     MemSpace OpenMemSpace();
 

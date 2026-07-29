@@ -15,6 +15,7 @@
 #include "interpreter/loggers.h"
 #include "runtimesupport/adapters.h"
 #include "runtimesupport/runtime.h"
+#include "runtimesupport/typeinfo_factory.h"
 #include "utils/assertion.h"
 #include "utils/logger.h"
 
@@ -219,13 +220,13 @@ namespace RTSupport {
 using Reference = Interpretation::Value::Reference;
 
 std::optional<TypeInfo> CreateTypeInfo(
-    Engine::Session& session, Engine::TypeInfoManager& manager, Engine::GlobalTerm term
+    Engine::Session& session, TypeInfoManager& manager, Engine::GlobalTerm term
 )
 {
     return std::nullopt;
 }
 
-Engine::GlobalTerm ReconstructTerm(Engine::Session& session, Engine::TypeInfoManager& manager, TypeInfo ti)
+Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& manager, TypeInfo ti)
 {
     FATAL("Should not be called");
 }
@@ -289,12 +290,22 @@ TypeInfo Execution::GetTypeInfo(Reference base)
     return *header;
 }
 
+Interpretation::Thunk Execution::GetClosureThunk(Reference base, bool isInstantiated)
+{
+    FATAL("Should not reach here.");
+}
+
 Interpretation::Thunk Execution::GetVirtualThunk(Reference base, int extDefNum, int methodNum)
 {
     FATAL("Should not reach here. I2C virtual call");
 }
 
-Interpretation::Thunk Execution::GetInterfaceThunk(Reference base, TypeInfo ti, int methodNum)
+TypeInfo Execution::GetMethodOuterTi(TypeInfo where, TypeInfo interf, int methodNum)
+{
+    FATAL("Should not reach here. I2C interface call");
+}
+
+Interpretation::Thunk Execution::GetInterfaceThunk(TypeInfo where, TypeInfo ti, int methodNum)
 {
     FATAL("Should not reach here. I2C interface call");
 }
@@ -363,7 +374,7 @@ void* Adapters::I2ICallInstance() { return reinterpret_cast<void*>(&Interpretati
 
 static void C2ICall() { FATAL("Should not reach here. Mock c2i"); }
 
-void* Adapters::GetDynCallTrampoline(int idx) { FATAL("Should not reach here"); }
+void* Adapters::GetDynCallTrampoline(int idx, bool sret) { FATAL("Should not reach here"); }
 
 void* Adapters::GenericC2ICallInstance() { return reinterpret_cast<void*>(&C2ICall); }
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "utils/heap.h"
+#include <cstddef>
 #include <cstdint>
 
 namespace Engine {
@@ -28,10 +29,12 @@ private:
         // To ensure that `memory` field is properly aligned.
         union {
             Chunk* next;
-            char _pad[alignof(std::max_align_t)];
         };
 
-        char memory[];
+        union {
+            max_align_t _pad;
+            char memory[];
+        };
     };
 
     uintptr_t cursor;

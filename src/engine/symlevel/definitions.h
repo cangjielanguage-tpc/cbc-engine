@@ -9,9 +9,18 @@
 #include "offset.h"
 #include "string.h"
 #include "term.h"
+#include "utils/assertion.h"
 #include <cstdint>
 
 namespace Symlevel {
+
+enum class EnumKind : uint8_t {
+    NOT_ENUM,
+    UNION,
+    OPTION0, // enum { Some(T); None }
+    OPTION1, // enum { None; Some(T) }
+    PRIMITIVE,
+};
 
 class DefinitionsManager {
 public:
@@ -36,10 +45,12 @@ public:
         FieldIndex fields;
         OffsetSequence<MethodDefinition> virtualMethods;
         OffsetSequence<FieldDefinition> instanceFields;
-        Engine::RefIdentifier<Term> superType;
+        Engine::RefIdentifier<Term> superOrEnumType;
         TypeFlags flags;
         uint8_t arity;
+        EnumKind enumKind;
         RefSequence<Term> interfaces {};
+        RefSequence<Term> unionFields {};
     };
 
     static TypeDefinition Parse(Engine::Session& session, IO::FileId fileId, Offset<TypeDefinition> offset);
@@ -58,7 +69,20 @@ public:
 
     OffsetSequence<FieldDefinition> const GetInstanceFields() const { return content.instanceFields; }
 
-    Engine::RefIdentifier<Term> const GetSuperType() const { return content.superType; }
+    Engine::RefIdentifier<Term> const GetSuperType() const {
+        if (content.enumKind != EnumKind::NOT_ENUM) {
+            return Engine::RefIdentifier(RefId<Term>(0, 0), 0); // NIL TERM
+        }
+        return content.superOrEnumType;
+    }
+
+    Engine::RefIdentifier<Term> const GetEnumType() const
+    {
+        if (content.enumKind == EnumKind::NOT_ENUM) {
+            return Engine::RefIdentifier(RefId<Term>(0, 0), 0); // NIL TERM
+        }
+        return content.superOrEnumType;
+    }
 
     TypeFlags const GetFlags() const { return content.flags; }
 

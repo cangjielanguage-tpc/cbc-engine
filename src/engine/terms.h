@@ -44,44 +44,44 @@ struct TermData;
 
 enum class TermKind : uint8_t {
     // primitives start
-    NIL,
-    VOID,
-    UNIT,
-    NOTHING,
-    BOOLEAN,
-    I8,
-    U8,
-    I16,
-    U16,
-    I32,
-    U32,
-    UCHAR32,
-    I64,
-    U64,
-    IADDR,
-    UADDR,
-    BSTRING,
-    F16,
-    F32,
-    F64,
+    NIL,     // 0
+    VOID,    // 1
+    UNIT,    // 2
+    NOTHING, // 3
+    BOOLEAN, // 4
+    I8,      // 5
+    U8,      // 6
+    I16,     // 7
+    U16,     // 8
+    I32,     // 9
+    U32,     // 10
+    UCHAR32, // 11
+    I64,     // 12
+    U64,     // 13
+    IADDR,   // 14
+    UADDR,   // 15
+    BSTRING, // 16
+    F16,     // 17
+    F32,     // 18
+    F64,     // 19
     // primitives end
 
-    UNDEFINED, // resolution error
+    UNDEFINED, // 20 resolution error
 
-    // builtin types start
-    C_POINTER,
-    NULLABLE,
-    NON_NULLABLE,
-    CANGJIE_ARRAY,
-    FUNCTIONAL,
-    TUPLE,
-    BOX,
-    // builtin types end
-
-    TYPE,
-    AOT_TYPE,
-    CLASS_TYPE_VAR,
-    FUNC_TYPE_VAR,
+    C_POINTER,      // 21
+    NULLABLE,       // 22 TODO: delete
+    NON_NULLABLE,   // 23 TODO: delete
+    CANGJIE_ARRAY,  // 24 TODO: rename
+    FUNCTIONAL,     // 25
+    TUPLE,          // 26
+    BOX,            // 27
+    TYPE,           // 28
+    AOT_TYPE,       // 29
+    CLASS_TYPE_VAR, // 30
+    FUNC_TYPE_VAR,  // 31
+    OPTION,         // 32
+    UNION_ENUM,     // 33
+    PRIMITIVE_ENUM, // 34
     LAST
 };
 
@@ -116,11 +116,11 @@ protected:
     uint64_t info : INFO_PART_BIT_SIZE;
 };
 
-struct TagTermId : public TermId {
-    constexpr TagTermId(TermKind kind) : TermId(kind, 0) {}
-
-    explicit constexpr TagTermId(TermId ident) : TermId(ident) { ASSERT(info == 0); }
-};
+static constexpr int F_LOCAL        = 0x1;
+static constexpr int F_REFERENCE    = 0x2;
+static constexpr int F_AOT_PROMOTED = 0x4;
+static constexpr int F_GENERIC      = 0x8;
+static constexpr int F_FST          = 0x10;
 
 struct TermFlags {
     uint32_t isLocal : 1;
@@ -130,6 +130,7 @@ struct TermFlags {
     uint32_t isFixedSize : 1;
 
     TermFlags() = delete;
+    constexpr TermFlags(int flags);
 };
 
 struct Term {
@@ -163,7 +164,7 @@ struct Term {
     uint32_t Hash() const;
 
     std::string GetName(Session& session) const;
-    void GetName(Session& session, Stream::Output& stream) const;
+    void GetName(Session& session, Stream::Output& stream, bool hasDebugPrefix = true) const;
 
     bool IsLocal() const;
     LocalTerm AsLocal();
@@ -198,6 +199,12 @@ struct GlobalTerm : public Term {
 
     bool operator==(const GlobalTerm& another) const;
     bool operator!=(const GlobalTerm& another) const;
+};
+
+struct TagTermId : public TermId {
+    constexpr TagTermId(TermKind kind) : TermId(kind, 0) {}
+
+    explicit constexpr TagTermId(TermId ident) : TermId(ident) { ASSERT(info == 0); }
 };
 
 /// Term identifier that have `Identifer` as its part.
@@ -239,8 +246,14 @@ using AotTermId   = _NumberedTermId<uint32_t, TermKind::AOT_TYPE>;
 using TypeTermId  = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::TYPE>;
 using UndefTermId = _SpecializedTermId<RefIdentifier<Term>, TermKind::UNDEFINED>;
 
+using OptionId        = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::OPTION>;
+using UnionEnumId     = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::UNION_ENUM>;
+using PrimitiveEnumId = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::PRIMITIVE_ENUM>;
+
 using ClassTvTermId = _NumberedTermId<uint8_t, TermKind::CLASS_TYPE_VAR>;
 using FuncTvTermId  = _NumberedTermId<uint8_t, TermKind::FUNC_TYPE_VAR>;
+
+Identifier<Symlevel::TypeDefinition> ExtractTypeDefIdentifier(Term term);
 
 /// Routine that substitutes terms in places of type variables.
 /// To perform an substitution a mapping `TV -> Term` is required.
@@ -254,38 +267,41 @@ public:
 
     inline Term operator()(Term term) { return Substitute(term); }
 
-protected:
     virtual Term SubstituteClassTv(uint8_t typeVar) = 0;
     virtual Term SubstituteFuncTv(uint8_t typeVar)  = 0;
+
     Session& session;
+    int depth = 0;
 };
 
-/// Routine that substitutes class type variables with corresponding subterms of `term`.
+/// Routine that substitutes class type variables with corresponding subterms provided as array.
 /// Function type vars are mapped to themselves.
 class ClassSubstitution : public Substitution {
 public:
     ClassSubstitution(Session& session, Term term);
+    ClassSubstitution(Session& session, std::vector<Term> const& terms);
+    ClassSubstitution(Session& session, Term const* terms, size_t size);
 
-protected:
     Term SubstituteClassTv(uint8_t typeVar) override;
     Term SubstituteFuncTv(uint8_t typeVar) override;
 
 private:
-    Term term;
+    Term const* terms;
+    size_t size;
 };
 
-/// Routine that substitutes class type variables with corresponding subterms provided in vector.
-/// Function type vars are mapped to themselves.
-class ArraySubstitution : public Substitution {
+/// Routine that substitutes type variables in the
+/// TODO: handle function type vars
+class MethodSignatureSubstitution : public Substitution {
 public:
-    ArraySubstitution(Session& session, std::vector<Term> const& terms);
+    MethodSignatureSubstitution(Session& session, Term term);
+    MethodSignatureSubstitution(Session& session, Term const* terms, size_t size);
 
-protected:
     Term SubstituteClassTv(uint8_t typeVar) override;
     Term SubstituteFuncTv(uint8_t typeVar) override;
 
 private:
-    std::vector<Term> const& terms;
+    ClassSubstitution sub;
 };
 
 /// Term manager provides utilities for caching (and interning) of global terms,

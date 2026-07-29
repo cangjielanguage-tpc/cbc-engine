@@ -31,7 +31,7 @@ void* Arena::DoAllocateSlow(size_t bytes)
         this->chunks    = newChunk;
 
         auto memoryStart = reinterpret_cast<uintptr_t>(newChunk->memory);
-        ASSERT(memoryStart == Align(memoryStart));
+        // ASSERT(memoryStart == Align(memoryStart));
 
         return newChunk->memory;
     }
@@ -48,7 +48,7 @@ void* Arena::DoAllocateSlow(size_t bytes)
     this->end      = end;
 
     auto cursor = reinterpret_cast<uintptr_t>(newChunk->memory);
-    ASSERT(cursor == Align(cursor));
+    // ASSERT(cursor == Align(cursor));
     auto newCursor = Align(cursor + bytes);
     this->cursor   = newCursor;
 

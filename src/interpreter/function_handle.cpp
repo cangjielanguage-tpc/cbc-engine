@@ -1,4 +1,6 @@
+#include <atomic>
 #include <mutex>
+#include <new>
 #include <unordered_map>
 #include <variant>
 
@@ -45,14 +47,15 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
         return res->second;
     }
 
+    auto method = Symlevel::Reader::Read(session, methodDef);
+
     Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
         Stream::ResolvingOutput stream(session, out);
-        stream << "starting to build fuh for " << methodDef << Stream::endl;
+        stream << "starting to build fuh for " << methodDef << " (" << Stream::Detailed(method.TypeName()) << "."
+               << Stream::Detailed(method.Name()) << Stream::Detailed(method.Signature()) << ")" << Stream::endl;
     });
 
-    auto method = Symlevel::Reader::Read(session, methodDef);
-    auto flags  = method.GetFlags();
-
+    auto flags = method.GetFlags();
     ASSERTION(!flags.Is(MethodFlag::ABSTRACT), "Only methods that can be actually called can have FUH");
 
     auto newStaticFuh = [&]() -> StaticFunctionHandle* {
@@ -66,7 +69,8 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
             using namespace Stream;
             Stream::ResolvingOutput stream(session, out);
             stream << "failed to resolve aot method" << endl;
-            stream << "  name: " << Detailed(method.Name()) << Detailed(method.Signature()) << endl;
+            stream << "  name: " << Detailed(method.TypeName()) << "." << Detailed(method.Name())
+                   << Detailed(method.Signature()) << endl;
             stream << "  linkageName: " << linkageName << endl;
         });
 
@@ -75,22 +79,24 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
             .base     = FunctionHandle(RTSupport::Adapters::GenericI2CCallInstance()),
             .function = target,
         };
-        auto mem = new StaticFunctionHandle(fuh);
+        auto mem = new(std::nothrow) StaticFunctionHandle(fuh);
         if (mem == nullptr) {
             FATAL("out of memory");
         }
-        // FIXME: proper publication
+        // public content of `mem`.
+        std::atomic_thread_fence(std::memory_order_seq_cst);
         return mem;
     };
 
     auto newDynFuh = [&]() -> DynamicFunctionHandle* {
         auto i2Call = PrepareI2Call(session, methodDef);
         auto c2Call = PrepareC2Call(session, methodDef);
-        auto mem    = new DynamicFunctionHandle(i2Call, c2Call, methodDef);
+        auto mem    = new(std::nothrow) DynamicFunctionHandle(i2Call, c2Call, methodDef);
         if (mem == nullptr) {
             FATAL("out of memory");
         }
-        // FIXME: proper publication
+        // public content of `mem`.
+        std::atomic_thread_fence(std::memory_order_seq_cst);
         return mem;
     };
 
@@ -120,13 +126,14 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Session& session, DynamicFuncti
 
     auto& logger = Interpretation::Log::preparation;
 
-    logger.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
+    logger.Log(Logging::Level::INFO, [&](Stream::Output& out) {
         using namespace Stream;
         auto def = Reader::Read(session, fuh->methodDef);
         Stream::ResolvingOutput stream(session, out);
         stream << endl << fuh->methodDef << " started preparation of method " << endl;
         stream << "  fuh: " << fuh << endl;
-        stream << "  name: " << Detailed(def.Name()) << Detailed(def.Signature()) << endl;
+        stream << "  name: " << Detailed(def.TypeName()) << '.' << Detailed(def.Name()) << Detailed(def.Signature())
+               << endl;
     });
 
     Resolution::Resolver resolver(session, fuh->methodDef);
@@ -134,13 +141,13 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Session& session, DynamicFuncti
     auto& heap    = session.GetEngine().CodeHeap();
     auto bytecode = Cbc::Rewrite(session, fuh->methodDef, heap);
 
-    fuh->bytecode.store(new ExecBytecodeInfo(bytecode));
+    auto bc = new(std::nothrow) ExecBytecodeInfo(bytecode);
+    if (bc == nullptr) FATAL("Out of memory");
 
-    // Return via reload from `fuh->descriptor` to guarantee proper memory-model semantics:
-    // fields (and fields of fields) would be visible from other threads
-    // if the content of desc or desc itself would be published through "relaxed" (or race) stores
-    // (explicitly in the codebase, or implictly in ASM or interpreter).
-    return fuh->bytecode.load();
+    // ensure `bc` content writes completes before publication.
+    std::atomic_thread_fence(std::memory_order_seq_cst);
+    fuh->bytecode.store(bc, std::memory_order_relaxed);
+    return bc;
 }
 
 void* FunctionHandleManager::GetFunctionPtrForDirectCall(TaggedFunctionHandle fuh)

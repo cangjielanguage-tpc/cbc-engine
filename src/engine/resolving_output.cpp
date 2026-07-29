@@ -28,7 +28,11 @@ template <typename T> ResolvingOutput& operator<<(ResolvingOutput& out, std::opt
     return out;
 }
 
-ResolvingOutput& ResolvingOutput::operator<<(Engine::Term term) { return *this << term.GetName(session); }
+ResolvingOutput& ResolvingOutput::operator<<(Engine::Term term)
+{
+    term.GetName(session, out);
+    return *this;
+}
 
 ResolvingOutput& ResolvingOutput::operator<<(Detailed<Engine::RefIdentifier<Engine::Term>> term)
 {
@@ -93,8 +97,7 @@ ResolvingOutput& ResolvingOutput::operator<<(Full<Symlevel::MethodDefinition> fu
 ResolvingOutput& ResolvingOutput::operator<<(Symlevel::MethodDefinition const& md)
 {
     auto& out = *this;
-    auto name = Detailed(md.Name());
-    out << name << Detailed(md.Signature());
+    out << Detailed(md.TypeName()) << '.' << Detailed(md.Name()) << Detailed(md.Signature());
     return out;
 }
 
@@ -113,10 +116,14 @@ ResolvingOutput& ResolvingOutput::operator<<(NoResolve<Symlevel::TypeDefinition>
     Region("method name: " + std::to_string(td.GetName().GetOffset()), [&]() {
         out << "super: " << td.GetSuperType() << endl;
         Region("fields", [&]() {
-            td.GetFields().ForEach(session, [&](auto& def) { out << NoResolve(def.Identifier()) << endl; });
+            for (auto field : td.GetFields().Entries(session)) {
+                out << NoResolve(field) << endl;
+            }
         });
         Region("methods", [&]() {
-            td.GetMethods().ForEach(session, [&](auto& def) { out << NoResolve(def.GetIdentifier()); });
+            for (auto id : td.GetMethods().Entries(session)) {
+                out << NoResolve(id);
+            }
         });
         Region("virtual methods", [&]() {
             auto vms = td.GetVirtualMethods();
@@ -134,24 +141,32 @@ ResolvingOutput& ResolvingOutput::TypeDefinition(Symlevel::TypeDefinition const&
     Region(StringOf(td.GetName()), [&]() {
         out << "super: " << Detailed(td.GetSuperType()) << endl;
 
+        Region("interfaces", [&]() {
+            for (auto id : td.GetInterfaces().Values(session)) {
+                out << Detailed(id) << endl;
+            }
+        });
+
         Region("fields", [&]() {
-            td.GetFields().ForEach(session, [&](auto& def) { out << Detailed(def.Identifier()) << endl; });
+            for (auto field : td.GetFields().Entries(session)) {
+                out << Detailed(field) << endl;
+            }
         });
 
         Region("instance fields", [&]() {
-            for (auto def : td.GetInstanceFields().Values(session)) {
-                out << Detailed(def) << endl;
+            for (auto id : td.GetInstanceFields().Values(session)) {
+                out << Detailed(id) << endl;
             }
         });
 
         Region("methods", [&]() {
-            td.GetMethods().ForEach(session, [&](auto& def) {
+            for (auto id : td.GetMethods().Entries(session)) {
                 if (full) {
-                    out << Full(def.GetIdentifier());
+                    out << Full(id);
                 } else {
-                    out << Detailed(def.GetIdentifier());
+                    out << Detailed(id);
                 }
-            });
+            }
         });
 
         Region("virtual methods", [&]() {
@@ -184,8 +199,13 @@ ResolvingOutput& ResolvingOutput::operator<<(Engine::MethodTable const& mt)
 
     auto writeEntry = [&](Engine::MethodTableEntry& entry) {
         auto def = Symlevel::Reader::Read(session, entry.method);
+
+        Engine::MethodSignatureSubstitution sub(session, entry.genericContext);
+        auto signature = Engine::TermManager::Resolve(session, def.Signature());
+        signature = sub.Substitute(signature);
+
         out << "      " << entry.methodNum << ": ";
-        out << Detailed(def.Name()) << Detailed(def.Signature());
+        out << Detailed(def.Name()) << signature;
         out << ", from: " << entry.genericContext << endl;
     };
 
@@ -218,8 +238,12 @@ ResolvingOutput& ResolvingOutput::operator<<(Engine::FieldLayout const& layout)
     stream << "alignment: " << layout->desc.alignment << endl;
 
     for (auto& f : layout->fields) {
-        auto def = Symlevel::Reader::Read(session, f.definition);
-        stream << Detailed(def.GetName()) << ": " << f.fieldType << " - " << f.offset << endl;
+        if (f.definition) {
+            auto def = Symlevel::Reader::Read(session, *f.definition);
+            stream << Detailed(def.GetName()) << ": " << f.fieldType << " - " << f.offset << endl;
+        } else {
+            stream << "<unknown>" << ": " << f.fieldType << " - " << f.offset << endl;
+        }
     }
     out.SetIndent(out.GetIndent() - 2);
     return stream;

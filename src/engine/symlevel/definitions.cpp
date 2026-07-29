@@ -28,10 +28,10 @@ TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId
     auto parsedFlags = reader.ReadU16();
     auto superType   = Engine::RefIdentifier(RefId<Term>(regionId, reader.ReadULEB()), fileId);
 
-    auto methodIndex = MethodIndex::Read(reader, fileId);
+    auto methodIndex = MethodIndex(reader, fileId);
     auto dynMethods  = OffsetSequence<MethodDefinition>::Parse(reader, fileId);
 
-    auto fieldIndex     = FieldIndex::Read(reader, fileId);
+    auto fieldIndex     = FieldIndex(reader, fileId);
     auto instanceFields = OffsetSequence<FieldDefinition>::Parse(reader, fileId);
 
     auto test = [parsedFlags](uint32_t bits) { return (parsedFlags & bits) != 0; };
@@ -57,23 +57,34 @@ TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId
         flags = flags.Or(TypeFlag::AOT);
     if (test(0x100))
         flags = flags.Or(TypeFlag::PATCH);
+    if (test(0x200))
+        flags = flags.With(TypeKind::ENUM);
 
     TypeDefinition::Content def {
-        .identifier     = Engine::Identifier(offset, fileId),
-        .name           = name,
-        .methods        = std::move(methodIndex),
-        .fields         = std::move(fieldIndex),
-        .virtualMethods = dynMethods,
-        .instanceFields = instanceFields,
-        .superType      = superType,
-        .flags          = flags,
-        .arity          = 0,
+        .identifier      = Engine::Identifier(offset, fileId),
+        .name            = name,
+        .methods         = std::move(methodIndex),
+        .fields          = std::move(fieldIndex),
+        .virtualMethods  = dynMethods,
+        .instanceFields  = instanceFields,
+        .superOrEnumType = superType,
+        .flags           = flags,
+        .arity           = 0,
+        .enumKind        = EnumKind::NOT_ENUM,
     };
+
 
     for (auto tag = reader.ReadU8(); tag != 0; tag = reader.ReadU8()) {
         switch (tag) {
             case 0x1: def.interfaces = RefSequence<Term>::Parse(reader, fileId, regionId); break;
             case 0x5: def.arity = reader.ReadULEB(); break; // TODO: check range
+            case 0x6:
+                def.unionFields = RefSequence<Term>::Parse(reader, fileId, regionId);
+                def.enumKind = EnumKind::UNION;
+                break;
+            case 0x7: def.enumKind = EnumKind::OPTION0; break;
+            case 0x8: def.enumKind = EnumKind::OPTION1; break;
+            case 0x9: def.enumKind = EnumKind::PRIMITIVE; break;
             default:  FATAL("unexpected tag: %d", tag);
         }
     }

@@ -1,10 +1,13 @@
 #pragma once
 
 #include "engine/engine.h"
-#include <functional>
+#include "engine/identifiers.h"
+#include "engine/symlevel/offset.h"
+#include "engine/symlevel/reader.h"
+#include "utils/iterators.h"
+#include <cstdint>
 #include <optional>
 #include <string_view>
-#include <vector>
 
 namespace Symlevel {
 
@@ -21,45 +24,87 @@ struct MemberIndex {
     uint32_t bucketsStart;
     uint32_t bucketsSize;
 
+    struct Generator;
+
+    MemberIndex::Generator AllEntries(Engine::Session& session) const;
+    MemberIndex::Generator FindBucket(Engine::Session& session, std::string_view name) const;
     static MemberIndex Read(IO::FileId fileId, IO::StreamFileReader& reader);
 };
 
-template <typename Index> class MemberIndexBase {
+struct MemberIndex::Generator {
+    MemberIndex index;
+    IO::RandomAccessFile* raf;
+    uint32_t cursor;
+    uint32_t endIdx;
+
+    std::optional<uint32_t> operator()();
+};
+
+template <typename T> class MemberIndexBase {
 public:
     MemberIndex index;
 
-    static Index Read(IO::StreamFileReader& reader, IO::FileId fileId)
+    MemberIndexBase(IO::StreamFileReader& reader, IO::FileId fileId) : index(MemberIndex::Read(fileId, reader)) {}
+
+    struct FilteredGenerator {
+        MemberIndex::Generator gen;
+        std::string_view name;
+        Engine::Session* session;
+
+        std::optional<Engine::Identifier<T>> operator()()
+        {
+            for (auto res = gen(); res; res = gen()) {
+                auto offs = Offset<T>(*res);
+                auto name = Reader::ReadName(*session, gen.index.fileId, offs);
+                if (this->name.compare(name) == 0) {
+                    return Engine::Identifier<T>(offs, gen.index.fileId);
+                }
+            }
+            return std::nullopt;
+        }
+    };
+
+    struct Generator {
+        MemberIndex::Generator gen;
+
+        std::optional<Engine::Identifier<T>> operator()()
+        {
+            auto res = gen();
+            if (res) {
+                return Engine::Identifier<T>(Offset<T>(*res), gen.index.fileId);
+            }
+            return std::nullopt;
+        }
+    };
+
+    using FilteredRange = Iterators::SimpleRange<FilteredGenerator>;
+    using Range         = Iterators::SimpleRange<Generator>;
+
+    std::optional<Engine::Identifier<T>> Find(Engine::Session& session, std::string_view name) const
     {
-        return Index { MemberIndex::Read(fileId, reader) };
+        FilteredGenerator gen { .gen = index.FindBucket(session, name), .name = name, .session = &session };
+        return gen();
+    }
+
+    FilteredRange FindAll(Engine::Session& session, std::string_view name) const
+    {
+        FilteredGenerator gen { .gen = index.FindBucket(session, name), .name = name, .session = &session };
+        return Iterators::MakeRange(std::move(gen));
+    }
+
+    Range Entries(Engine::Session& sesion) const
+    {
+        Generator gen { index.AllEntries(sesion) };
+        return Iterators::MakeRange(std::move(gen));
     }
 };
 
-class TypeIndex : public MemberIndexBase<TypeIndex> {
+class TypeIndex : public MemberIndexBase<TypeDefinition> {
 public:
-    std::optional<Engine::Identifier<TypeDefinition>> FindType(
-        Engine::Session& session, std::string_view typeName
-    ) const;
-
-    void ForEach(Engine::Session& session, std::function<void(TypeDefinition&)> action) const;
+    TypeIndex(IO::StreamFileReader& reader, IO::FileId fileId) : MemberIndexBase(reader, fileId) {}
 };
 
-class FieldIndex : public MemberIndexBase<FieldIndex> {
-public:
-    std::optional<Engine::Identifier<FieldDefinition>> FindField(
-        Engine::Session& session, std::string_view fieldName
-    ) const;
-
-    void Find(Engine::Session& session, std::function<bool(FieldDefinition&)> action) const;
-    void ForEach(Engine::Session& session, std::function<void(FieldDefinition&)> action) const;
-};
-
-class MethodIndex : public MemberIndexBase<MethodIndex> {
-public:
-    std::vector<Engine::Identifier<MethodDefinition>> FindMethods(
-        Engine::Session& session, std::string_view methodName
-    ) const;
-
-    void ForEach(Engine::Session& session, std::function<void(MethodDefinition&)> action) const;
-};
+using FieldIndex  = MemberIndexBase<FieldDefinition>;
+using MethodIndex = MemberIndexBase<MethodDefinition>;
 
 } // namespace Symlevel

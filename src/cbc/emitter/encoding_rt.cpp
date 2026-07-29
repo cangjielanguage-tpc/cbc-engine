@@ -65,6 +65,12 @@ void Encode(ByteBuffer& buf, RT::B3xxrr command)
     Encode(buf, command.rr);
 }
 
+void Encode(ByteBuffer& buf, RT::B3xi12 command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.xi12);
+}
+
 void Encode(ByteBuffer& buf, RT::B4xi12rr command)
 {
     Encode(buf, command.opc);
@@ -215,6 +221,14 @@ void Encode(ByteBuffer& buf, RT::InterfaceCall command)
     Encode(buf, command.opc);
     buf.AddW16(command.vnum);
     buf.AddW64(command.ti);
+    buf.AddW8(command.sret);
+}
+
+void Encode(ByteBuffer& buf, RT::InterfaceCallGeneric command)
+{
+    Encode(buf, command.opc);
+    buf.AddW16(command.vnum);
+    buf.AddW16(command.argn);
     buf.AddW8(command.sret);
 }
 

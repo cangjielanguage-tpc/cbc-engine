@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <utility>
 
@@ -7,6 +8,7 @@
 #include "cbc/isa_rt.h"
 #include "emitter.h"
 #include "runtimesupport/runtime.h"
+#include "utils/assertion.h"
 #include "utils/heap.h"
 #include "utils/math.h"
 
@@ -138,6 +140,27 @@ public:
                         .imm32 = Imm32 { .imm = static_cast<uint32_t>(distance) } }
         );
     }
+};
+
+class BrIfRef : public Fixup {
+public:
+    BrIfRef(Symbol sym, IReg typeInfo) : Fixup(sym), typeInfo(typeInfo) {}
+
+    int32_t Size() const override { return RT::B3xi12::SIZE; }
+
+    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+        const override
+    {
+        int32_t distance = Distance(symbols, this->symbol);
+        ASSERTION(MathUtils::IsNBitsSigned(distance, 12), "has only short encoding");
+
+        Segment::View buf = segment.At(static_cast<size_t>(position));
+        RT::B3xi12 command { .opc = RT::Opcode::BRANCH_IS_REF, .xi12 = { .imm4 = { typeInfo }, .imm12 = distance } };
+        Encode(buf, command);
+    }
+
+private:
+    IReg typeInfo;
 };
 
 class BccFixup : public Fixup {
@@ -470,6 +493,8 @@ void Emitter::Bcc(CC cc, Width width, Reg l, Reg r, Label label)
     AddFixup(std::make_unique<BccFixup>(label, cc, width, l, r));
 }
 
+void Emitter::BranchIfRef(IReg typeInfo, Label label) { AddFixup(std::make_unique<BrIfRef>(label, typeInfo)); }
+
 void Emitter::BccImm(CC cc, Width width, IReg l, uint64_t r, Label label)
 {
     ASSERT(width == Width::W32 || width == Width::W64);
@@ -481,6 +506,8 @@ void Emitter::Nop() { Encode(segment, RT::B1 { RT::Opcode::NOP }); }
 void Emitter::Jmp(Label label) { AddFixup(std::make_unique<JmpFixup>(label)); }
 
 void Emitter::Ret() { Encode(segment, RT::B1 { RT::Opcode::RET }); }
+
+void Emitter::NewObjGenericOnAcc(IReg ti) { Encode(segment, RT::B2rr { .opc = RT::Opcode::NEWOBJ_G, .rr = { ti, ti } }); }
 
 void Emitter::NewObj(RTSupport::TypeInfo typeInfo)
 {
@@ -496,7 +523,11 @@ void Emitter::NewArr(RTSupport::TypeInfo typeInfo)
     );
 }
 
-void Emitter::InitClosure() { Encode(segment, RT::B1 { RT::Opcode::INITCLOSURE }); }
+void Emitter::InitClosure(bool instantiatedSret)
+{
+    auto opcode = instantiatedSret ? RT::Opcode::INITCLOSURE_SRET : RT::Opcode::INITCLOSURE;
+    Encode(segment, RT::B1 { opcode });
+}
 
 void Emitter::Spawn(RTSupport::TypeInfo typeInfo)
 {
@@ -786,6 +817,17 @@ void Emitter::GcPoint()
     );
 }
 
+void Emitter::CallClosure(bool sret)
+{
+    if (sret) {
+        segment.AddW8(RT::Opcode::CALL_CLOSURE_SRET);
+    } else {
+        segment.AddW8(RT::Opcode::CALL_CLOSURE);
+    }
+}
+
+void Emitter::CallClosureGeneric() { segment.AddW8(RT::Opcode::CALL_CLOSURE_GENERIC); }
+
 void Emitter::DirectCall2i(Symbol fuh)
 {
     segment.AddW8(RT::Opcode::DIRECT_CALL_2I);
@@ -826,6 +868,15 @@ void Emitter::InterfaceCall(uint16_t methodNum, RTSupport::TypeInfo typeInfo, bo
     );
 }
 
+void Emitter::InterfaceCallGeneric(uint16_t methodNum, uint16_t argnum, bool sret)
+{
+    Encode(
+        segment,
+        RT::InterfaceCallGeneric {
+            .opc = RT::Opcode::INTERFACE_CALL_GENERIC, .vnum = methodNum, .argn = argnum, .sret = sret }
+    );
+}
+
 void Emitter::StringLit(Interpretation::StringStorage* literal, uint32_t frameOffs)
 {
     Encode(
@@ -860,13 +911,13 @@ void Emitter::Catch(IReg reg) { Encode(segment, RT::B2xr { .opc = RT::Opcode::CA
 
 void Emitter::LoadGenericTypeInfo(uintptr_t termData)
 {
-    Encode(segment, RT::B9i64 { .opc = RT::Opcode::LOAD_GENERIC_TI, .imm64 = { termData } });
+    Encode(segment, RT::B9i64 { .opc = RT::Opcode::LOAD_GENERIC_TI, .imm64 = { .imm = termData } });
 }
 
 void Emitter::LoadTypeInfo(RTSupport::TypeInfo typeInfo)
 {
     auto d = reinterpret_cast<uintptr_t>(typeInfo.Raw());
-    Encode(segment, RT::B9i64 { .opc = RT::Opcode::LOAD_TI, .imm64 = { d } });
+    Encode(segment, RT::B9i64 { .opc = RT::Opcode::LOAD_TI, .imm64 = { .imm = d } });
 }
 
 void Emitter::NewBox(Interpretation::BuiltinType t)
@@ -876,7 +927,7 @@ void Emitter::NewBox(Interpretation::BuiltinType t)
 
 void Emitter::NewBox(RTSupport::TypeInfo typeInfo)
 {
-    Encode(segment, RT::B9i64 { .opc = RT::Opcode::NEWBOX2, .imm64 = { reinterpret_cast<uint64_t>(typeInfo.Raw()) } });
+    Encode(segment, RT::B9i64 { .opc = RT::Opcode::NEWBOX2, .imm64 = { .ptr = typeInfo.Raw() } });
 }
 
 void Emitter::Offset(IReg dst, int ordinal, IReg typeInfo)
@@ -900,6 +951,32 @@ void Emitter::WriteStructField(IReg src, IReg base, IReg field, RTSupport::TypeI
         .opc = RT::Opcode::WRITE_STRUCT_FIELD, .rr = { src, base }, .field = { field, field }, .ti = ti
     };
     Encode(segment, command);
+}
+
+void Emitter::AssignGeneric(IReg dst, IReg src, IReg ti)
+{
+    Encode(segment, RT::B3xrrr { .opc = RT::Opcode::ASSIGN_GENERIC, .xr = { 0, dst }, .rr = { src, ti } });
+}
+
+void Emitter::InstanceOfGeneric(IReg dst, IReg obj, IReg ti)
+{
+    Encode(segment, RT::B3xrrr { .opc = RT::Opcode::IOF_GENERIC, .xr = { 0, dst }, .rr = { obj, ti } });
+}
+
+void Emitter::LogInstruction(std::string_view string)
+{
+    auto data = (char*)malloc(string.size() + 1);
+    if (data == nullptr) {
+        FATAL("Out of memory");
+    }
+    data[string.size()] = 0;
+    memcpy(data, string.data(), string.size());
+    Encode(segment, RT::B9i64 { .opc = RT::Opcode::LOG, .imm64 = { .ptr = data } });
+}
+
+void Emitter::LogInstruction(char* string)
+{
+    Encode(segment, RT::B9i64 { .opc = RT::Opcode::LOG, .imm64 = { .ptr = string } });
 }
 
 } // namespace Emitter

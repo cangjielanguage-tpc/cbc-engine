@@ -173,9 +173,17 @@ public:
 #define IREG_ENUM(opc) opc,
 
     enum Value : uint8_t {
-        IREG_VALUES(IREG_ENUM) FIRST_NON_VOL = IR8
+        IREG_VALUES(IREG_ENUM)
+        // FIXME: This value is not first non-volatile register
+        //        and is only used to shift non-volatile register mask!
+        //        Rename it or fix mask-shifting logic in compiler.
+        FIRST_NON_VOL = IR8
     };
 
+    // Number of registers that compiler uses.
+    static constexpr int VIRT_COUNT = 14;
+
+    // Actual number of registers.
     static constexpr int COUNT = 15;
 
     static constexpr int COUNT_ISA_ONLY = 14;
@@ -613,7 +621,7 @@ public:
     X(LD_U8, 0b0000, "u8")                                                                                             \
     X(LD_U16, 0b0001, "u16")                                                                                           \
     X(LD_32, 0b0010, "32")                                                                                             \
-    X(LEA, 0b0011, "lea")                                                                                              \
+    X(LD_LEA, 0b0011, "lea")                                                                                           \
     X(LD_S8, 0b0100, "s8")                                                                                             \
     X(LD_S16, 0b0101, "s16")                                                                                           \
     X(LD_F32, 0b0110, "f32")                                                                                           \
@@ -812,10 +820,11 @@ struct Imm48 {
 
 /// 64 bit; immediate
 union Imm64 {
+    void* ptr;
     uint64_t imm;
     double dimm;
 
-    inline static Imm64 Decode(Decoder::ByteReader& reader) { return Imm64 { reader.Read64() }; }
+    inline static Imm64 Decode(Decoder::ByteReader& reader) { return Imm64 { .imm = reader.Read64() }; }
 };
 
 /// 16 bit; Imm4 and 12-bit immediate

@@ -299,11 +299,10 @@ public:
     std::string ToString() const;
 
 private:
+    static constexpr int FLAG_BITS = 32 - AccessKind::BIT_COUNT - TypeKind::BIT_COUNT;
     uint32_t accessRaw : AccessKind::BIT_COUNT;
     uint32_t kindRaw : TypeKind::BIT_COUNT;
-    uint32_t flagsRaw : 27;
-
-    static_assert(AccessKind::BIT_COUNT + TypeKind::BIT_COUNT + 27 == 32);
+    uint32_t flagsRaw : FLAG_BITS;
 };
 
 Stream::Output& operator<<(Stream::Output& stream, TypeFlags flags);

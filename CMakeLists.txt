@@ -13,7 +13,7 @@ execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink
 set(CMAKE_CXX_STANDARD 17)
 include(CTest)
 
-set(DEBUG_OPTIONS "-DCBC_ENGINE_IMMEDIATE_ASSERTION -DCBC_ENGINE_PRETTY_FUNC_NAME")
+set(DEBUG_OPTIONS "-DCBC_ENGINE_IMMEDIATE_ASSERTION -DCBC_ENGINE_PRETTY_FUNC_NAME -DINT_SYMS")
 
 set(CMAKE_CXX_FLAGS_DEBUG "-g -gz ${DEBUG_OPTIONS}")
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
@@ -72,6 +72,10 @@ if(NOT APPLE)
     "-Wl,-z,relro"
     "-Wl,-z,now"
   )
+endif()
+
+if(INT_SYMS)
+  target_compile_options(cbc_lib PRIVATE "-DINT_SYMS")
 endif()
 
 set_target_properties(cbcengine PROPERTIES POSITION_INDEPENDENT_CODE ON)

@@ -1,8 +1,11 @@
 #include "region_data.h"
 #include "engine/symlevel/term.h"
+#include "engine/terms.h"
 #include "io/stream_file_reader.h"
 
 namespace Symlevel {
+
+static_assert(RegionData::FIRST_NON_PRIMITIVE_TERM_ID == Engine::FIRST_NON_PRIMITIVE);
 
 RegionData RegionData::Read(IO::FileId fileId, IO::RandomAccessFile& file, uint32_t offset)
 {
@@ -22,7 +25,7 @@ RegionData RegionData::Read(IO::FileId fileId, IO::RandomAccessFile& file, uint3
 
     IO::OffsetPool<MethodReference> methods(methodIndexOffs, methodIndexSize);
     IO::OffsetPool<FieldReference> fields(fieldIndexOffs, fieldIndexSize);
-    IO::OffsetPool<Term> terms(termIndexOffs, termIndexSize);
+    IO::OffsetPool<Term, Engine::FIRST_NON_PRIMITIVE> terms(termIndexOffs, termIndexSize);
 
     return RegionData(fileId, methods, fields, terms);
 }
@@ -31,7 +34,7 @@ RegionData::RegionData(
     IO::FileId fileId,
     IO::OffsetPool<MethodReference> methods,
     IO::OffsetPool<FieldReference> fields,
-    IO::OffsetPool<Term> terms
+    IO::OffsetPool<Term, Engine::FIRST_NON_PRIMITIVE> terms
 )
     : fileId(fileId),
       methods(methods),
@@ -43,7 +46,7 @@ IO::OffsetPool<MethodReference> const& RegionData::MethodReferencesOffsets() con
 
 IO::OffsetPool<FieldReference> const& RegionData::FieldReferencesOffsets() const { return fields; }
 
-IO::OffsetPool<Term> const& RegionData::TermsOffsets() const { return terms; }
+IO::OffsetPool<Term, Term::FIRST_NON_PRIMITIVE> const& RegionData::TermsOffsets() const { return terms; }
 
 template <typename T> using OffsetId = Engine::Identifier<T>;
 
@@ -63,7 +66,7 @@ Offset<Term> RegionData::Query(Engine::Session& session, RefId<Term> index) cons
 {
     // FIXME: use region idx
     // adjust index by the number of primitive types.
-    return terms.QueryOffset(*session.FileOf(fileId), index.GetIndex() - Term::FIRST_NON_PRIMITIVE);
+    return terms.QueryOffset(*session.FileOf(fileId), index.GetIndex());
 }
 
 } // namespace Symlevel

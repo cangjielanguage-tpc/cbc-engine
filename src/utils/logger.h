@@ -2,6 +2,8 @@
 
 #include "utils/ostream.h"
 
+#include <cstdint>
+
 namespace Logging {
 
 /// Logging utilities.
@@ -11,7 +13,7 @@ namespace Logging {
 /// There are an number of different log levels, which determine whether the log would be printed or not.
 /// Loggers are represented as globals in corresponding modules.
 
-enum class Level : int {
+enum Level : int {
     NONE,
     FATAL,
     ERROR,
@@ -19,6 +21,8 @@ enum class Level : int {
     INFO,
     DEBUG,
     TRACE,
+    BLOCK,
+    COUNT
 };
 
 class Logger {
@@ -32,13 +36,15 @@ public:
 
     template <typename F> inline void Log(Level level, F const& logger)
     {
-        if (level <= this->level) {
-            logger(*output);
+        if (GetLogLevel() >= level) {
+            logger(*byLevel[(int)level]);
         }
     }
 
 private:
     Stream::Output* output;
+    Stream::Output* byLevel[(uint32_t)Level::COUNT];
+    Stream::Descripted descriptedByLevel[(uint32_t)Level::COUNT];
     Level level;
 };
 

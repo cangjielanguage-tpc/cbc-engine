@@ -10,16 +10,16 @@
 
 namespace IO {
 
-template <typename T> class OffsetPool {
+template <typename T, uint32_t adjustment = 0> class OffsetPool {
     struct OffsetGenerator {
-        OffsetPool<T> const& op;
+        OffsetPool<T, adjustment> const& op;
         uint32_t cursor;
         uint8_t region;
 
         std::optional<Symlevel::RefId<T>> operator()()
         {
             if (cursor < op.size) {
-                return Symlevel::RefId<T>(region, cursor++);
+                return Symlevel::RefId<T>(region, adjustment + cursor++);
             } else {
                 return std::nullopt;
             }
@@ -31,7 +31,7 @@ public:
 
     Symlevel::Offset<T> QueryOffset(RandomAccessFile& file, uint32_t index) const
     {
-        uint32_t idx = index;
+        uint32_t idx = index - adjustment;
         ASSERT(idx < size);
 
         uint32_t offs = offset + idx * sizeof(uint32_t);
