@@ -1,6 +1,7 @@
 #include "stack_expansion.h"
 #include "asm_export.h"
 #include "asm_trampolines.h"
+#include "cbc/isa.h"
 #include "cjnative.h"
 #include "engine/symlevel/definitions.h"
 #include "gc_support.h"
@@ -102,12 +103,12 @@ void VisitFrameRootsForStackPtrs(
             out.PrintFmtLn("derived pairs: %xu, ", abiInfo.derivedPairs);
         });
 
-        for (uint32_t i = 0; i < IREG_ABI_AMOUNT; i++) {
+        for (uint32_t i = 0; i < IReg::COUNT; i++) {
             if (abiInfo.adjustableParams & (1 << i)) {
                 VisitRoot(stackPtrVisitor, resLoc(i));
             }
         }
-        for (uint32_t i = 0; i < IREG_ABI_AMOUNT; i++) {
+        for (uint32_t i = 0; i < IReg::COUNT; i++) {
             if (abiInfo.derivedPairs & (1 << i)) {
                 auto basePh = resLoc(i);
                 auto derivedPh = resLoc(i + 1);

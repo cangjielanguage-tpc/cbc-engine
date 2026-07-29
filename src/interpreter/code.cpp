@@ -1,4 +1,5 @@
 #include "code.h"
+#include "interpreter/ectype.h"
 #include "platform_traits.h"
 #include <cstdint>
 
@@ -40,7 +41,7 @@ AbiInfo BuildAbiInfo(Engine::Session& session, Engine::Term signature, AbiInfoFl
         iargIdx++;
     } else if (!HAS_SRET_SHIFT && flags.isSRet) {
         // stack-return position on this platform is using special register.
-        adjustableParams |= (1 << SRET_IR);
+        adjustableParams |= (1 << IReg::SRET_IR);
     }
 
     if (flags.isMut) {
@@ -50,13 +51,16 @@ AbiInfo BuildAbiInfo(Engine::Session& session, Engine::Term signature, AbiInfoFl
 
     int termIdx = 0;
     int length  = signature.GetLength() - 1; // skip ret type term.
-    while (termIdx < length && iargIdx < IREG_PARAM_PASSING_AMOUNT) {
+    while (termIdx < length) {
         auto term    = signature.Subterm(termIdx);
         int isFloat  = term.IsFloat();
         int isRecord = term.IsRecord();
+        int isReg    = (iargIdx < IREG_PARAM_PASSING_AMOUNT);
 
-        adjustableParams |= (isRecord << iargIdx);
-        fargIdx          += isFloat; // can overflow FREG_ABI_AMOUNT
+        adjustableParams |= ((isReg && isRecord) << iargIdx);
+
+        // Counters could overflow param passing reg amount.
+        fargIdx          += isFloat;
         iargIdx          += !isFloat;
         termIdx++;
     }
@@ -64,6 +68,13 @@ AbiInfo BuildAbiInfo(Engine::Session& session, Engine::Term signature, AbiInfoFl
     iargIdx += flags.hasThisTypeInfo;
     iargIdx += flags.hasOuterTi;
     iargIdx += flags.funcVars;
+
+    bool hasTailReg = (iargIdx >= IREG_PARAM_PASSING_AMOUNT);
+
+    if (hasTailReg) {
+        // Tail register holds a pointer to position, where stack-passed parameters are located.
+        adjustableParams |= (1 << IReg::TAIL_REG);
+    }
 
     // Adjust number of ireg/freg params.
     if (iargIdx > IREG_PARAM_PASSING_AMOUNT) // do not account for special register for SRET (if it is exist)
@@ -77,6 +88,7 @@ AbiInfo BuildAbiInfo(Engine::Session& session, Engine::Term signature, AbiInfoFl
         .iregParamCount   = (uint8_t)iargIdx,
         .fregParamCount   = (uint8_t)fargIdx,
         .isSRet           = flags.isSRet,
+        .hasTailReg       = hasTailReg,
     };
 }
 
