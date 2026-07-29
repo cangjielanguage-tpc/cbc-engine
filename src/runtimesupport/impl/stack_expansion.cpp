@@ -7,6 +7,7 @@
 #include "interpreter/function_handle.h"
 #include "reg_table.h"
 #include "resolution/resolution.h"
+#include <cstdint>
 
 namespace StackExpansion {
 
@@ -91,57 +92,31 @@ void VisitFrameRootsForStackPtrs(
             regAddr += ECTYPE_REG_SIZE;
         }
 
-        Engine::Session session(Engine::GetEngineInstance());
-        auto methodDefIdent = fuh->methodDef;
-        auto methodDef      = Symlevel::MethodDefinition::Resolve(session, methodDefIdent);
-        if (!methodDef.MethodCode().has_value()) {
-            return;
-        }
+        auto abiInfo = bc->abiInfo;
+        auto resLoc = [slotsStartAddr, regTable](uint32_t idx) {
+            return GetResourceLocation(Resource { idx }, slotsStartAddr, regTable);
+        };
 
-        uint32_t argIdx = 1; // IR1
+        RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
+            out.PrintFmtLn("rec args: %xu, ", abiInfo.adjustableParams);
+            out.PrintFmtLn("derived pairs: %xu, ", abiInfo.derivedPairs);
+        });
 
-        if (methodDef.GetFlags().Is(Symlevel::MethodFlag::SRET)) {
-            RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
-                out.PrintFmtLn("found sret (argIdx=%u)", argIdx);
-            });
-
-            needSupportForFrameArgs(argIdx);
-            auto sretPh = GetResourceLocation(Resource { .idx = argIdx }, slotsStartAddr, regTable);
-            VisitRoot(stackPtrVisitor, sretPh);
-
-            argIdx++;
-        }
-
-        if (methodDef.GetFlags().Is(Symlevel::MethodFlag::MUT)) {
-            needSupportForFrameArgs(argIdx);
-            needSupportForFrameArgs(argIdx + 1);
-
-            auto derivedPh = GetResourceLocation(Resource { .idx = argIdx }, slotsStartAddr, regTable);
-            auto basePh    = GetResourceLocation(Resource { .idx = argIdx + 1 }, slotsStartAddr, regTable);
-            auto kind      = Execution::GetStructLocationKind(Value::Reference { .value = *basePh }, *derivedPh);
-
-            if (kind == LOCAL) {
-                RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
-                    out.PrintFmtLn("found derived ptr (argIdx=%u)", argIdx);
-                });
-                VisitMutPair(derivedPtrVisitor, basePh, derivedPh);
-
-                argIdx += 2; // also skip base ptr
+        for (uint32_t i = 0; i < IREG_ABI_AMOUNT; i++) {
+            if (abiInfo.adjustableParams & (1 << i)) {
+                VisitRoot(stackPtrVisitor, resLoc(i));
             }
         }
+        for (uint32_t i = 0; i < IREG_ABI_AMOUNT; i++) {
+            if (abiInfo.derivedPairs & (1 << i)) {
+                auto basePh = resLoc(i);
+                auto derivedPh = resLoc(i + 1);
+                auto kind = Execution::GetStructLocationKind(Value::Reference { .value = *basePh }, *derivedPh);
 
-        auto methodSig = Engine::TermManager::Resolve(session, methodDef.Signature());
-        for (int subtermIdx = 0; subtermIdx < methodSig.GetLength() - 1 /* without ret type term */; subtermIdx++) {
-            if (methodSig.Subterm(subtermIdx).IsRecord()) {
-                RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
-                    out.PrintFmtLn("found rec arg (argIdx=%u)", argIdx);
-                });
-
-                needSupportForFrameArgs(argIdx);
-                auto argPh = GetResourceLocation(Resource { .idx = argIdx }, slotsStartAddr, regTable);
-                VisitRoot(stackPtrVisitor, argPh);
+                if (kind == LOCAL) {
+                    VisitMutPair(derivedPtrVisitor, basePh, derivedPh);
+                }
             }
-            argIdx++;
         }
     } else {
         // One of the caller frames, use stack ptr maps provided by compiler.
