@@ -155,7 +155,7 @@ struct TypeInfoBuilder {
     uint32_t uuid       = 0;
     uint8_t align;
     int8_t typeArgsNum          = 0;
-    uint16_t validInheritNum    = 0;
+    uint16_t validInheritNum    = (1 << 15); // skip inner extensions by default
     uint32_t* fieldOffsets      = nullptr;
     DYN_FuncPtr typeTemplateOrFinalizer = nullptr;
     DYN_TypeInfo** typeArgs     = nullptr;
@@ -207,6 +207,14 @@ struct TypeInfoBuilder {
                 needFields     = true;
                 isAot          = true;
                 aotTypeDefName = "Tuple";
+                return;
+            case Engine::TermKind::C_POINTER:
+                type           = TYPE_KIND_CPOINTER;
+                needExtDefs    = false;
+                needFields     = false;
+                isAot          = true;
+                aotTypeDefName = "CPointer";
+                superType      = term.Subterm(0);
                 return;
             default: {
             }
@@ -676,6 +684,12 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             out.PrintFmt("gctib: %lx", builder.gctib.raw);
             out.NewLine();
         });
+    } else if (term.GetKind() == Engine::TermKind::C_POINTER) {
+        builder.fieldNum     = 0;
+        builder.fields       = nullptr;
+        builder.fieldOffsets = nullptr;
+        builder.align        = 8;
+        builder.instanceSize = 8;
     } else {
         builder.fieldNum     = 0;
         builder.fields       = nullptr;
@@ -917,6 +931,7 @@ std::optional<TypeInfo> CreateTypeInfo(Engine::Session& session, TypeInfoManager
             case Engine::TermKind::OPTION:
             case Engine::TermKind::TYPE:
             case Engine::TermKind::TUPLE:
+            case Engine::TermKind::C_POINTER:
             case Engine::TermKind::CANGJIE_ARRAY:  return CreateTypeInfoDyn(session, manager, term);
 
             case Engine::TermKind::AOT_TYPE:
