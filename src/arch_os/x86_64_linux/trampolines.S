@@ -391,22 +391,24 @@ perform_2i_call:
   call  engine_log_int_start
 #endif
 
-  mov   rdx, rsp // save current sp for registers saving to the bottom of frame
-
   mov   rax, [rbp - FUH_SLOT_OFFSET] // load Function Handle
   mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
 
-  // current rsp is 16-byte.baligned
+  // current rsp is 16-byte aligned
   mov   r8d, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
-  mov   rsi, rsp
   sub   rsp, r8
+  cmp   rsp, [TLS_REG + TLS_STACK_BORDER_OFFSET]
+  jbe   .Lstack_overflow
+.Lcontinue_after_stack_overflow:
 
-  mov   rdi, rsp
-  xor   ecx, ecx
+  lea   rdx, [rsp + r8] // used in PUSH_REGS
 
 // FIXME: remove it
 // We are zeroing a whole frame to simplify gc handling,
 // but it should be handled by compiler properly.
+  mov   rsi, rdx
+  mov   rdi, rsp
+  xor   ecx, ecx
 .Lframe_zero_loop:
   cmp   rdi, rsi
   je    .Lframe_zero_loop_end
@@ -478,6 +480,45 @@ perform_2i_call:
   mov   rsp, rbp
   pop   rbp
   ret
+
+.macro save_all_iregs scratch_reg
+  .set _offset, 0
+  .rept ECTYPE_IREGS_COUNT
+    mov    \scratch_reg, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + _offset]
+    mov    [rsp + _offset], \scratch_reg
+    .set   _offset, _offset + ECTYPE_REG_SIZE
+  .endr
+.endm
+
+.macro restore_all_iregs scratch_reg
+  .set _offset, 0
+  .rept ECTYPE_IREGS_COUNT
+    mov    \scratch_reg, [rsp + _offset]
+    mov    [ECTYPE_REG + ECTYPE_IREGS_OFFSET + _offset], \scratch_reg
+    .set   _offset, _offset + ECTYPE_REG_SIZE
+  .endr
+.endm
+
+.Lstack_overflow:
+  add   rsp, r8 // restore rsp
+  // rsp is 16-byte aligned now
+
+  sub   rsp, STACK_OVERFLOW_REGDUMP_SIZE
+
+  save_all_iregs rdi
+  push  r8  // save frame size
+  push  rax // save bytecode info
+
+  // pass "adjusted size" on rax
+  // TODO: investigate why it is needed
+  mov   rax, 0x20
+  call  [rip + engine_stack_grow_stub]
+engine_after_stack_grow:
+  pop   rax
+  pop   r8
+  restore_all_iregs rdi
+  sub   rsp, r8    // stack grow stub preserves all registers, so r8 will not be changed
+  jmp   .Lcontinue_after_stack_overflow
 
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: target)
 // preserved: ECTYPE_REG, rbp
@@ -720,47 +761,3 @@ engine_handle_exception:
 .Lhandle_next_dyn_func:
   mov   rdi, r12
   jmp   engine_handle_exception
-
-.macro save_all_iregs scratch_reg
-  .set _dump_size, ((ECTYPE_IREGS_COUNT * ECTYPE_REG_SIZE) + 15) & ~15
-  sub   rsp, _dump_size
-  .set _offset, 0
-  .rept ECTYPE_IREGS_COUNT
-    mov    \scratch_reg, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + _offset]
-    mov    [rsp + _offset], \scratch_reg
-    .set   _offset, _offset + ECTYPE_REG_SIZE
-  .endr
-.endm
-
-.macro restore_all_iregs scratch_reg
-  .set _dump_size, ((ECTYPE_IREGS_COUNT * ECTYPE_REG_SIZE) + 15) & ~15
-  .set _offset, 0
-  .rept ECTYPE_IREGS_COUNT
-    mov    \scratch_reg, [rsp + _offset]
-    mov    [ECTYPE_REG + ECTYPE_IREGS_OFFSET + _offset], \scratch_reg
-    .set   _offset, _offset + ECTYPE_REG_SIZE
-  .endr
-  add   rsp, _dump_size
-.endm
-
-// expects: (TLS_REG: valid TLS, rsp: top of stack (including the whole current frame), r8: frame size)
-// preserves: all registers
-// Expands stack and returns to perform 2i call or throws SOE if stack expansion is impossible
-.balign 16
-expand_stack_or_throw_soe:
-  add   rsp, r8    // rsp state on prologue
-  save_all_iregs rax
-
-  mov   rax, 0x20  // adjusted size (TODO: its meaning is not really known, need to investigate more)
-  call  [rip + engine_stack_grow_stub]
-engine_after_stack_grow:
-
-  restore_all_iregs rax
-  mov   rdx, rsp   // update rdx after stack movement
-  sub   rsp, r8    // stack grow stub preserves all registers, so r8 will not be changed
-
-  // restore spoiled rax value
-  mov   rax, [rbp - FUH_SLOT_OFFSET]
-  mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
-
-  // FIXME: jmp   .Lafter_stack_check
