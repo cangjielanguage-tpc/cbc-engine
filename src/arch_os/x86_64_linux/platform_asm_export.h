@@ -23,6 +23,7 @@
 
 #define LITERALS_REG r14
 #define IREG_ABI_AMOUNT 6
+#define IREG_PARAM_PASSING_AMOUNT 6
 #define FREG_ABI_AMOUNT 8
 
 #define EXTRA_REG r13
