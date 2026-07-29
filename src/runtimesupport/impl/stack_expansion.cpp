@@ -83,7 +83,7 @@ void VisitFrameRootsForStackPtrs(
             out.PrintFmtLn("found top frame (ip=%p, fp=%p)", frameDesc.ip, frameDesc.fp);
         });
 
-        auto dumpSize      = ((ECTYPE_IREGS_COUNT * ECTYPE_REG_SIZE) + 15) & ~15;
+        auto dumpSize      = STACK_OVERFLOW_REGDUMP_SIZE;
         auto dumpStartAddr = ((uint8_t*)frameDesc.fp) - (LOCAL_SLOTS_OFFSET + dumpSize);
 
         uint8_t* regAddr = dumpStartAddr;
