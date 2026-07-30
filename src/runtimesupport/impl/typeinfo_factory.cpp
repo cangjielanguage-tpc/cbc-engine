@@ -208,6 +208,13 @@ struct TypeInfoBuilder {
                 isAot          = true;
                 aotTypeDefName = "Tuple";
                 return;
+            case Engine::TermKind::VARRAY:
+                type           = TYPE_KIND_VARRAY;
+                needExtDefs    = false;
+                needFields     = false;
+                isAot          = true;
+                aotTypeDefName = "VArray";
+                return;
             default: {
             }
         }
