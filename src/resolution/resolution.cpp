@@ -619,22 +619,45 @@ std::optional<InstanceField> Resolver::QueryTupleElement(Type refType, uint32_t 
 {
     auto term = refType.term;
     ASSERT(term.GetKind() == TermKind::TUPLE);
-    auto optTypeInfo = refType.GetTypeInfo();
-    if (!optTypeInfo.has_value()) {
-        return std::nullopt;
+    switch (term.GetKind()) {
+        case TermKind::TUPLE: {
+            auto optTypeInfo = refType.GetTypeInfo();
+            if (!optTypeInfo.has_value()) {
+                return std::nullopt;
+            }
+            ASSERT(idx < term.GetLength());
+            auto typeInfo       = *optTypeInfo;
+            auto offset         = RTSupport::Execution::GetFieldOffset(typeInfo, idx, false);
+            auto fieldType      = Type(term.Subterm(idx), this);
+            InstanceField::Content field = {
+                .refType   = refType,
+                .name      = "",
+                .fieldType = fieldType,
+                .ordinal   = idx,
+                .offset    = offset,
+            };
+            return InstanceField { session.Allocator().New<InstanceField::Content>(field) };
+        }
+        case TermKind::VARRAY: {
+            auto optTypeInfo = refType.GetTypeInfo();
+            if (!optTypeInfo.has_value()) {
+                return std::nullopt;
+            }
+            VArrayTermId id = static_cast<VArrayTermId>(term.GetId());
+            ASSERT(idx < id.GetNum());
+            auto typeInfo       = *optTypeInfo;
+            auto offset         = RTSupport::Execution::GetFieldOffset(typeInfo, idx, false);
+            auto fieldType      = Type(term.Subterm(0), this);
+            InstanceField::Content field = {
+                .refType   = refType,
+                .name      = "",
+                .fieldType = fieldType,
+                .ordinal   = idx,
+                .offset    = offset,
+            };
+            return InstanceField { session.Allocator().New<InstanceField::Content>(field) };
+        }
     }
-    ASSERT(idx < term.GetLength());
-    auto typeInfo       = *optTypeInfo;
-    auto offset         = RTSupport::Execution::GetFieldOffset(typeInfo, idx, false);
-    auto fieldType      = Type(term.Subterm(idx), this);
-    InstanceField::Content field = {
-        .refType   = refType,
-        .name      = "",
-        .fieldType = fieldType,
-        .ordinal   = idx,
-        .offset    = offset,
-    };
-    return InstanceField { session.Allocator().New<InstanceField::Content>(field) };
 }
 
 std::optional<Type> Resolver::QueryFutureByFunctional(Index<Type> id)
