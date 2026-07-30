@@ -1196,9 +1196,26 @@ struct IsaRewriter : public IsaParser {
     void Box(AnyReg src, IReg dst, uint16_t type) override
     {
         if (type != Interpretation::BUILTIN_UNIT && type < Engine::Term::FIRST_NON_PRIMITIVE) {
-            auto tk       = Engine::TermKind(type);
-            auto term     = Engine::Term::Predefined(tk);
-            auto bt       = ToBuiltin(tk);
+            auto tk = Engine::TermKind(type);
+            if (tk == Engine::TermKind::BSTRING) {
+                // NEWBOX has only four bits for its builtin index and all values are occupied.
+                // Resolve the canonical CString TypeInfo and let NewBox emit NEWBOX2 instead.
+                auto typeInfo = resolver.Wrap(Engine::Term::Predefined(tk)).GetTypeInfo();
+                if (!typeInfo.has_value()) {
+                    Fail("failed to resolve BString TypeInfo");
+                    return;
+                }
+
+                emit.NewBox(typeInfo.value()); // Spoils IR_ACC
+                BindStatePoint();
+                emit.StoreObj(
+                    Format::StoreAccessKind::ST_64, src, IReg::IR_ACC, RTSupport::MetaInfo::ObjectHeaderSize()
+                );
+                AdjustReg(dst, IReg::IR_ACC);
+                return;
+            }
+
+            auto bt = ToBuiltin(tk);
             emit.NewBox(bt); // Spoils IR_ACC
             BindStatePoint();
             emit.StoreObj(Stk(bt), src, IReg::IR_ACC, RTSupport::MetaInfo::ObjectHeaderSize());
@@ -1257,9 +1274,13 @@ struct IsaRewriter : public IsaParser {
     void Unbox(AnyReg dst, IReg src, uint16_t type) override
     {
         if (type != Interpretation::BUILTIN_UNIT && type < Engine::Term::FIRST_NON_PRIMITIVE) {
-            auto tk       = Engine::TermKind(type);
-            auto term     = Engine::Term::Predefined(tk);
-            auto bt       = ToBuiltin(tk);
+            auto tk = Engine::TermKind(type);
+            if (tk == Engine::TermKind::BSTRING) {
+                emit.LoadObj(Format::LoadAccessKind::LD_64, dst, src, RTSupport::MetaInfo::ObjectHeaderSize());
+                return;
+            }
+
+            auto bt = ToBuiltin(tk);
             emit.LoadObj(Ldk(bt), dst, src, RTSupport::MetaInfo::ObjectHeaderSize());
         } else {
             auto t = resolver.Query(Index<Type>(type));
