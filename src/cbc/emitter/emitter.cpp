@@ -922,6 +922,7 @@ void Emitter::LoadTypeInfo(RTSupport::TypeInfo typeInfo)
 
 void Emitter::NewBox(Interpretation::BuiltinType t)
 {
+    static_assert(Interpretation::BUILTIN_COUNT <= 16, "NEWBOX has only four bits for its builtin type index");
     Encode(segment, RT::B2xr { .opc = RT::Opcode::NEWBOX, .xr = { .imm = t, .r = IReg::IRZ } });
 }
 
