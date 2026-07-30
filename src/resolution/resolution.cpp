@@ -88,6 +88,7 @@ CbcTypeKind Resolver::GetKind(Type type)
         case TK::C_POINTER:      return CbcTypeKind::U64;
         case TK::FUNCTIONAL:     return CbcTypeKind::REF;
         case TK::TUPLE:          return CbcTypeKind::REC;
+        case TK::VARRAY:         return CbcTypeKind::REC;
         case TK::CANGJIE_ARRAY:  return CbcTypeKind::REF;
         case TK::UNION_ENUM:     return CbcTypeKind::REC;
         case TK::PRIMITIVE_ENUM: {

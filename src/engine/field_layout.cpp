@@ -110,6 +110,7 @@ struct FLManager : public FieldLayoutManager {
             case TK::OPTION:     return GetCbcFlatSize(term);
 
             case TK::TUPLE:
+            case TK::VARRAY:
             case TK::AOT_TYPE: return GetAotFlatSize(term);
 
             case TK::FUNC_TYPE_VAR:
@@ -284,7 +285,7 @@ private:
         if (kind == TermKind::TYPE) {
             auto def = Symlevel::Reader::Read(session, ExtractTypeDefIdentifier(term));
             layout = BuildLayoutCbc(term, def);
-        } else if (kind == TermKind::TUPLE) {
+        } else if (kind == TermKind::TUPLE || kind == TermKind::VARRAY) {
             SizeAlignmentAccumulator acc { this, 0, 1 };
             FieldLayout::Content content;
             auto len = term.GetLength();
