@@ -729,7 +729,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
             auto tt = (TypeTemplate*)typeTemplate;
 
-            if (builder.type != TYPE_KIND_TUPLE) {
+            if (builder.type != TYPE_KIND_TUPLE && builder.type != TYPE_KIND_VARRAY) {
                 ASSERT(tt->typeArgNum == typeArgsNum);
                 ASSERT(tt->type == builder.type);
                 ASSERT(tt->fieldNum == builder.fieldNum);
