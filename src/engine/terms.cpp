@@ -858,8 +858,7 @@ struct TermResolver {
                 return ResolveEnumTerm(reader, name, arity, refId, tag);
             }
             case VARRAY: {
-                auto len   = reader.ReadULEB();
-                return NewTerm(reader, refId, TagTermId(TermKind::VARRAY), len, F_LOCAL);
+                return NewTerm(reader, refId, TagTermId(TermKind::VARRAY), 1, F_LOCAL);
             }
             default: {
                 FATAL("Not implemented for tag %d", tag);
