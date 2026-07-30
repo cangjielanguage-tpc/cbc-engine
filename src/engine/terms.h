@@ -244,10 +244,11 @@ template <typename Num, TermKind tk> struct _NumberedTermId : public TermId {
     Num GetNum() { return static_cast<Num>(this->info); }
 };
 
-using ArrayTermId = _SpecializedTermId<Identifier<Symlevel::String>, TermKind::CANGJIE_ARRAY>;
-using AotTermId   = _NumberedTermId<uint32_t, TermKind::AOT_TYPE>;
-using TypeTermId  = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::TYPE>;
-using UndefTermId = _SpecializedTermId<RefIdentifier<Term>, TermKind::UNDEFINED>;
+using ArrayTermId  = _SpecializedTermId<Identifier<Symlevel::String>, TermKind::CANGJIE_ARRAY>;
+using VArrayTermId = _NumberedTermId<uint32_t, TermKind::VARRAY>;
+using AotTermId    = _NumberedTermId<uint32_t, TermKind::AOT_TYPE>;
+using TypeTermId   = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::TYPE>;
+using UndefTermId  = _SpecializedTermId<RefIdentifier<Term>, TermKind::UNDEFINED>;
 
 using OptionId        = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::OPTION>;
 using UnionEnumId     = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::UNION_ENUM>;

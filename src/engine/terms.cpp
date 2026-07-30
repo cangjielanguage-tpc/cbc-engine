@@ -791,6 +791,20 @@ struct TermResolver {
         return Term(LocalTerm(data));
     }
 
+    Term ResolveVArrayType(IO::StreamFileReader& reader, int subtermsCount, uint64_t size, Symlevel::RefId<Term> refId)
+    {
+        auto data      = AllocateTerm(heap, subtermsCount);
+        bool isGeneric = false;
+        if (!ReadSubTerms(data, &isGeneric, subtermsCount, reader)) {
+            return NewUndefined(refId);
+        }
+        TermFlags flags   = F_LOCAL;
+        flags.isReference = F_LOCAL;
+        flags.isGeneric   = isGeneric;
+        data->InitAfterSubterms(VArrayTermId(size), subtermsCount, flags);
+        return Term(LocalTerm(data));
+    }
+
     Term NewTerm(IO::StreamFileReader& reader, Symlevel::RefId<Term> refId, TermId id, uint16_t length, TermFlags flags)
     {
         auto* data = AllocateTerm(heap, length);
@@ -890,7 +904,8 @@ struct TermResolver {
                 return ResolveEnumTerm(reader, name, arity, refId, tag);
             }
             case VARRAY: {
-                return NewTerm(reader, refId, TagTermId(TermKind::VARRAY), 2, F_LOCAL);
+                auto length = reader.ReadULEB();
+                return ResolveVArrayType(reader, 1, length, refId);
             }
             default: {
                 FATAL("Not implemented for tag %d", tag);
