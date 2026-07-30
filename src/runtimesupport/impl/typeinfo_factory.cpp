@@ -914,7 +914,8 @@ std::optional<TypeInfo> CreateTypeInfo(Engine::Session& session, TypeInfoManager
             case Engine::TermKind::OPTION:
             case Engine::TermKind::TYPE:
             case Engine::TermKind::TUPLE:
-            case Engine::TermKind::CANGJIE_ARRAY:  return CreateTypeInfoDyn(session, manager, term);
+            case Engine::TermKind::CANGJIE_ARRAY:
+            case Engine::TermKind::VARRAY:  return CreateTypeInfoDyn(session, manager, term);
 
             case Engine::TermKind::AOT_TYPE:
                 return QueryTypeInfoAOT(session, manager, GetAotTypeName(session, term), term);
@@ -1020,6 +1021,7 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& ma
             case TYPE_KIND_RAWARRAY: return g(TagTermId(TermKind::CANGJIE_ARRAY), true);
             case TYPE_KIND_CPOINTER: return g(TagTermId(TermKind::C_POINTER), true);
             case TYPE_KIND_TUPLE:    return g(TagTermId(TermKind::TUPLE), true);
+            case TYPE_KIND_VARRAY:   return g(TagTermId(TermKind::VARRAY), true);
 
             case TYPE_KIND_STRUCT:
             case TYPE_KIND_INTERFACE:

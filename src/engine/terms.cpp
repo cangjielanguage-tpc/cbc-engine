@@ -381,6 +381,11 @@ void Term::GetName(Session& session, Stream::Output& out, bool hasDebugPrefix) c
             break;
         }
 
+        case TK::VARRAY: {
+            stream << "VArray<" << Subterm(0) << ", $" << Subterm(1) << '>';
+            break;
+        }
+
         case TK::FUNCTIONAL: {
             printSubTerms("(", ") -> ", GetLength() - 1);
             stream << Subterm(GetLength() - 1);
@@ -885,7 +890,7 @@ struct TermResolver {
                 return ResolveEnumTerm(reader, name, arity, refId, tag);
             }
             case VARRAY: {
-                return NewTerm(reader, refId, TagTermId(TermKind::VARRAY), 1, F_LOCAL);
+                return NewTerm(reader, refId, TagTermId(TermKind::VARRAY), 2, F_LOCAL);
             }
             default: {
                 FATAL("Not implemented for tag %d", tag);
