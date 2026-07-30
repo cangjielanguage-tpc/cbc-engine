@@ -643,10 +643,12 @@ std::optional<InstanceField> Resolver::QueryTupleElement(Type refType, uint32_t 
                 return std::nullopt;
             }
             VArrayTermId id = static_cast<VArrayTermId>(term.GetId());
+            auto type = term.Subterm(0);
             ASSERT(idx < id.GetNum());
             auto typeInfo       = *optTypeInfo;
-            auto offset         = RTSupport::Execution::GetFieldOffset(typeInfo, idx, false);
             auto fieldType      = Type(term.Subterm(0), this);
+            // todo fix
+            std::optional<uint32_t> offset = fieldType.GetFlatSize().value() * idx;
             InstanceField::Content field = {
                 .refType   = refType,
                 .name      = "",
