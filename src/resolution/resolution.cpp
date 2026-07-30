@@ -632,7 +632,6 @@ std::optional<StaticField> Resolver::Query(Index<StaticField> id)
 std::optional<InstanceField> Resolver::QueryTupleElement(Type refType, uint32_t idx)
 {
     auto term = refType.term;
-    ASSERT(term.GetKind() == TermKind::TUPLE);
     switch (term.GetKind()) {
         case TermKind::TUPLE: {
             auto optTypeInfo = refType.GetTypeInfo();
