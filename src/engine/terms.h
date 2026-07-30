@@ -82,6 +82,7 @@ enum class TermKind : uint8_t {
     OPTION,         // 32
     UNION_ENUM,     // 33
     PRIMITIVE_ENUM, // 34
+    VARRAY,         // 35
     LAST
 };
 
