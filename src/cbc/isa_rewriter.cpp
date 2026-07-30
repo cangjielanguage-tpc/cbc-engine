@@ -118,6 +118,7 @@ STK Stk(Interpretation::BuiltinType bt)
         case Interpretation::BUILTIN_F32:     return STK::ST_F32;
         case Interpretation::BUILTIN_F64:     return STK::ST_F64;
         case Interpretation::BUILTIN_RUNE:    return STK::ST_32;
+        case Interpretation::BUILTIN_CSTRING: return STK::ST_64;
     }
 }
 
@@ -140,6 +141,7 @@ LDK Ldk(Interpretation::BuiltinType bt)
         case Interpretation::BUILTIN_F32:     return LDK::LD_F32;
         case Interpretation::BUILTIN_F64:     return LDK::LD_F64;
         case Interpretation::BUILTIN_RUNE:    return LDK::LD_32;
+        case Interpretation::BUILTIN_CSTRING: return LDK::LD_64;
     }
 }
 
@@ -1198,6 +1200,7 @@ struct IsaRewriter : public IsaParser {
             case Engine::TermKind::F32:     return BUILTIN_F32;
             case Engine::TermKind::F64:     return BUILTIN_F64;
             case Engine::TermKind::UCHAR32: return BUILTIN_RUNE;
+            case Engine::TermKind::BSTRING: return BUILTIN_CSTRING;
 
             default: Fail("unexpected builtin kind"); return Interpretation::BUILTIN_I64;
         }
@@ -1206,9 +1209,8 @@ struct IsaRewriter : public IsaParser {
     void Box(AnyReg src, IReg dst, uint32_t type) override
     {
         if (type != Interpretation::BUILTIN_UNIT && type < Engine::Term::FIRST_NON_PRIMITIVE) {
-            auto tk       = Engine::TermKind(type);
-            auto term     = Engine::Term::Predefined(tk);
-            auto bt       = ToBuiltin(tk);
+            auto tk = Engine::TermKind(type);
+            auto bt = ToBuiltin(tk);
             emit.NewBox(bt); // Spoils IR_ACC
             BindStatePoint();
             emit.StoreObj(Stk(bt), src, IReg::IR_ACC, RTSupport::MetaInfo::ObjectHeaderSize());
@@ -1267,9 +1269,8 @@ struct IsaRewriter : public IsaParser {
     void Unbox(AnyReg dst, IReg src, uint32_t type) override
     {
         if (type != Interpretation::BUILTIN_UNIT && type < Engine::Term::FIRST_NON_PRIMITIVE) {
-            auto tk       = Engine::TermKind(type);
-            auto term     = Engine::Term::Predefined(tk);
-            auto bt       = ToBuiltin(tk);
+            auto tk = Engine::TermKind(type);
+            auto bt = ToBuiltin(tk);
             emit.LoadObj(Ldk(bt), dst, src, RTSupport::MetaInfo::ObjectHeaderSize());
         } else {
             auto t = resolver.Query(Index<Type>(type));

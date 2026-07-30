@@ -940,6 +940,7 @@ std::optional<TypeInfo> CreateTypeInfo(Engine::Session& session, TypeInfoManager
             case Engine::TermKind::F32:     return builtinTypeInfos[BUILTIN_F32];
             case Engine::TermKind::F64:     return builtinTypeInfos[BUILTIN_F64];
             case Engine::TermKind::UCHAR32: return builtinTypeInfos[BUILTIN_RUNE];
+            case Engine::TermKind::BSTRING: return builtinTypeInfos[BUILTIN_CSTRING];
 
             default: {
                 FATAL("Not supported yet %d", termIdent.GetKind());
@@ -1063,6 +1064,7 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& ma
             case TYPE_KIND_FLOAT16:     return g(TermKind::F16);
             case TYPE_KIND_FLOAT32:     return g(TermKind::F32);
             case TYPE_KIND_FLOAT64:     return g(TermKind::F64);
+            case TYPE_KIND_CSTRING:     return g(TermKind::BSTRING);
 
             case TYPE_KIND_STRUCT:
             case TYPE_KIND_INTERFACE:
