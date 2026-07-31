@@ -333,13 +333,13 @@ perform_2i_call:
 // | LITERALS_REG                       |
 // +------------------------------------+
 // | EXTRA_REG                          |
+// +------------------------------------+
+// | CHECK_SUM                          |
 // +------------------------------------+>\
-// | CHECK_SUM                          |  |
-// +------------------------------------+> |
-// | Reader                             |  |
-// +------------------------------------+   -- LOCAL_SLOTS_OFFSET - EXTRA_SAVED_REG_OFFSET
+// | Reader                             |  \
+// +------------------------------------+  |-- LOCAL_SLOTS_OFFSET - CHECK_SUM_OFFSET
 // | Alignment  (0 or 8)                |  /
-// +------------------------------------+>/
+// +------------------------------------+>/ <- SP for stack overflow check
 // | Dynamic Locals (locals_size)       |
 // +------------------------------------+ <-- SP
   push  rbp
@@ -396,8 +396,10 @@ perform_2i_call:
 
   // current rsp is 16-byte aligned
   mov   r8d, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
+  mov   rcx, [TLS_REG + TLS_STACK_BORDER_OFFSET]
+  add   rcx, ADDITIONAL_STACK_SPACE
   sub   rsp, r8
-  cmp   rsp, [TLS_REG + TLS_STACK_BORDER_OFFSET]
+  cmp   rsp, rcx
   jbe   .Lstack_overflow
 .Lcontinue_after_stack_overflow:
 
@@ -416,14 +418,6 @@ perform_2i_call:
   add   rdi, 8
   jmp   .Lframe_zero_loop
 .Lframe_zero_loop_end:
-
-#ifndef NDEBUG
-  // calculate check sum and save it in the frame
-  mov   rsi, QWORD PTR [rax + EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET] // list of saved iregs
-  xor   rsi, rdx // address to the start of interpreter frame allocated data
-  xor   rsi, r8  // frame size
-  mov   [rbp - CHECK_SUM_OFFSET], rsi
-#endif
 
   PUSH_REGS rcx, rdx, rax, rsi
 
@@ -464,13 +458,6 @@ perform_2i_call:
   xor   rsi, rdx
   xor   rsi, r8
 
-#ifndef NDEBUG
-  cmp   rsi, [rbp - CHECK_SUM_OFFSET]
-  je    .Lcheck_sum_ok
-  ud2
-.Lcheck_sum_ok:
-#endif
-
   POP_REGS rcx, rdx, rax, rsi, rdi
 
   mov   EXTRA_REG, [rbp - EXTRA_SAVED_REG_OFFSET]
@@ -500,10 +487,8 @@ perform_2i_call:
 .endm
 
 .Lstack_overflow:
-  add   rsp, r8 // restore rsp
+  lea   rsp, [rsp + r8 - STACK_OVERFLOW_REGDUMP_SIZE]
   // rsp is 16-byte aligned now
-
-  sub   rsp, STACK_OVERFLOW_REGDUMP_SIZE
 
   save_all_iregs rdi
   push  r8  // save frame size

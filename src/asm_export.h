@@ -38,6 +38,11 @@
 
 #define TYPEINFO_DATA_MT_OFFSET 96
 
-#define ADDITIONAL_STACK_SPACE 8 * 1024
+// TODO: adjust values appropriately (it is best if the ADDITIONAL_STACK_SPACE is 0 for release mode)
+#ifndef NDEBUG
+    #define ADDITIONAL_STACK_SPACE (32 * 1024)
+#else
+    #define ADDITIONAL_STACK_SPACE (4 * 1024)
+#endif // NDEBUG
 
 #define STACK_OVERFLOW_REGDUMP_SIZE (((ECTYPE_IREGS_COUNT * ECTYPE_REG_SIZE) + 15) & ~15)
