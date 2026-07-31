@@ -105,7 +105,7 @@ struct AbiInfo {
     // Bitmap of all parameters (including sret) that could be adjusted by stack expansion
     uint16_t adjustableParams;
     // Bitmap of all parameters which are represented as (base, derived) pairs.
-    // N-th bit set => (base: N-th param, derived: N+1-th param)
+    // N-th bit set => (base: N+1-th param, derived: N-th param)
     uint16_t derivedPairs;
 
     // Amount of parameters being passed by registers
@@ -131,10 +131,11 @@ struct ExecBytecodeInfo {
 };
 
 struct AbiInfoFlags {
-    bool isSRet;
-    bool isMut;
-    bool hasThisTypeInfo;
-    bool hasOuterTi;
+    bool isSRet : 1;
+    bool isMut : 1;
+    bool hasThisTypeInfo : 1;
+    bool hasOuterTi : 1;
+    bool hasReceiver : 1;
     int funcVars;
 };
 
