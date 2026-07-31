@@ -12,7 +12,7 @@ struct ExceptionRegion {
     uint32_t target;
 };
 
-struct RawExceptionTable {
+struct RawData {
     IO::FileId fileId;
     uint32_t start;
     uint32_t end;
@@ -26,10 +26,9 @@ struct LivenessInfo {
     std::vector<std::pair<uint32_t, uint32_t>> mutPairs;
 };
 
-struct RawLivenessInfo {
-    IO::FileId fileId;
-    uint32_t start;
-    uint32_t end;
+struct StackPtrsInfo {
+    uint32_t cbcPos;
+    std::vector<uint32_t> resources;
 };
 
 class Code {
@@ -58,6 +57,8 @@ public:
 
     std::vector<LivenessInfo> GetLivenessInfo(Engine::Session& session) const;
 
+    std::vector<StackPtrsInfo> GetStackPtrsInfo(Engine::Session& session) const;
+
     void Print(Engine::Session& session, Stream::Output& out);
 
 private:
@@ -74,8 +75,9 @@ private:
         bool mayHaveNativeCalls,
         uint32_t codeSize,
         uint8_t* codePtr,
-        RawExceptionTable rawExTable,
-        RawLivenessInfo rawLivenessInfo
+        RawData rawExTable,
+        RawData rawLivenessInfo,
+        RawData rawStackPtrsInfo
     )
         : untypedSlotCount(untypedSlotCount),
           stackAllocSigsCount(stackAllocSigsCount),
@@ -88,7 +90,8 @@ private:
           codePtr(codePtr),
           codeSize(codeSize),
           rawExTable(rawExTable),
-          rawLivenessInfo(rawLivenessInfo)
+          rawLivenessInfo(rawLivenessInfo),
+          rawStackPtrsInfo(rawStackPtrsInfo)
     {}
 
     uint32_t untypedSlotCount    = 0;
@@ -106,9 +109,9 @@ private:
     uint32_t codeSize;
     uint8_t* codePtr;
 
-    RawExceptionTable rawExTable = { IO::FileId(0), 0, 0 };
-
-    RawLivenessInfo rawLivenessInfo = { IO::FileId(0), 0, 0 };
+    RawData rawExTable       = { IO::FileId(0), 0, 0 };
+    RawData rawLivenessInfo  = { IO::FileId(0), 0, 0 };
+    RawData rawStackPtrsInfo = { IO::FileId(0), 0, 0 };
 };
 
 } // namespace Symlevel
