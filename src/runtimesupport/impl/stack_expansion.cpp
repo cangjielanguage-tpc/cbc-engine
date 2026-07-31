@@ -8,6 +8,7 @@
 #include "interpreter/function_handle.h"
 #include "reg_table.h"
 #include "resolution/resolution.h"
+#include "utils/assertion.h"
 #include <cstdint>
 
 namespace StackExpansion {
@@ -87,10 +88,11 @@ void VisitFrameRootsForStackPtrs(
         auto dumpSize      = STACK_OVERFLOW_REGDUMP_SIZE;
         auto dumpStartAddr = ((uint8_t*)frameDesc.fp) - (LOCAL_SLOTS_OFFSET + dumpSize);
 
-        uint8_t* regAddr = dumpStartAddr;
+        uintptr_t* regs = (uintptr_t*)dumpStartAddr;
+        ASSERTION(regs[0] == 0, "must point to IRZ");
+
         for (int regIdx = 0; regIdx < IReg::COUNT; regIdx++) {
-            regTable->UpdateRegLocation(IReg::From(regIdx), reinterpret_cast<Placeholder>(regAddr));
-            regAddr += ECTYPE_REG_SIZE;
+            regTable->UpdateRegLocation(IReg::From(regIdx), &regs[regIdx]);
         }
 
         auto abiInfo = bc->abiInfo;
@@ -99,8 +101,8 @@ void VisitFrameRootsForStackPtrs(
         };
 
         RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
-            out.PrintFmtLn("rec args: %xu, ", abiInfo.adjustableParams);
-            out.PrintFmtLn("derived pairs: %xu, ", abiInfo.derivedPairs);
+            out.PrintFmtLn("rec args: %x, ", abiInfo.adjustableParams);
+            out.PrintFmtLn("derived pairs: %x, ", abiInfo.derivedPairs);
         });
 
         for (uint32_t i = 0; i < IReg::COUNT; i++) {
@@ -110,8 +112,8 @@ void VisitFrameRootsForStackPtrs(
         }
         for (uint32_t i = 0; i < IReg::COUNT; i++) {
             if (abiInfo.derivedPairs & (1 << i)) {
-                auto basePh = resLoc(i);
-                auto derivedPh = resLoc(i + 1);
+                auto basePh    = resLoc(i + 1);
+                auto derivedPh = resLoc(i);
                 auto kind = Execution::GetStructLocationKind(Value::Reference { .value = *basePh }, *derivedPh);
 
                 if (kind == LOCAL) {

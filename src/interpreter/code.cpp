@@ -1,6 +1,7 @@
 #include "code.h"
 #include "interpreter/ectype.h"
 #include "platform_traits.h"
+#include "utils/assertion.h"
 #include <cstdint>
 
 namespace Interpretation {
@@ -45,19 +46,26 @@ AbiInfo BuildAbiInfo(Engine::Session& session, Engine::Term signature, AbiInfoFl
     }
 
     if (flags.isMut) {
+        ASSERT(flags.hasReceiver);
+        // FIXME: do I need to mark `this` as adjustable?
         derivedPairs |= (1 << iargIdx);
         iargIdx      += 2; // also skip base ptr
+    } else if (flags.hasReceiver) {
+        adjustableParams |= (1 << iargIdx);
+        iargIdx++;
     }
+
+    ASSERT(iargIdx < IREG_PARAM_PASSING_AMOUNT);
 
     int termIdx = 0;
     int length  = signature.GetLength() - 1; // skip ret type term.
     while (termIdx < length) {
-        auto term    = signature.Subterm(termIdx);
-        int isFloat  = term.IsFloat();
-        int isRecord = term.IsRecord();
-        int isReg    = (iargIdx < IREG_PARAM_PASSING_AMOUNT);
+        auto term        = signature.Subterm(termIdx);
+        int isFloat      = term.IsFloat();
+        int isAdjustable = term.IsRecord() || term.IsReference(); // objects could be allocated on stack.
+        int isReg        = (iargIdx < IREG_PARAM_PASSING_AMOUNT);
 
-        adjustableParams |= ((isReg && isRecord) << iargIdx);
+        adjustableParams |= ((isReg && isAdjustable) << iargIdx);
 
         // Counters could overflow param passing reg amount.
         fargIdx          += isFloat;
@@ -69,7 +77,7 @@ AbiInfo BuildAbiInfo(Engine::Session& session, Engine::Term signature, AbiInfoFl
     iargIdx += flags.hasOuterTi;
     iargIdx += flags.funcVars;
 
-    bool hasTailReg = (iargIdx >= IREG_PARAM_PASSING_AMOUNT);
+    bool hasTailReg = (iargIdx > IREG_PARAM_PASSING_AMOUNT);
 
     if (hasTailReg) {
         // Tail register holds a pointer to position, where stack-passed parameters are located.

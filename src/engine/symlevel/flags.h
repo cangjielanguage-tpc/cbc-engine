@@ -41,6 +41,7 @@ namespace Symlevel {
     X(HAS_THIS_TI)                                                                                                     \
     X(HAS_OUTER_TI)                                                                                                    \
     X(MUT)                                                                                                             \
+    X(HAS_RECEIVER)                                                                                                    \
     X(HAS_FTVARS)                                                                                                      \
     X(AOT)
 

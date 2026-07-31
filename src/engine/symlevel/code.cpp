@@ -182,7 +182,7 @@ void Code::Print(Engine::Session& session, Stream::Output& out)
     for (const auto& spi : GetStackPtrsInfo(session)) {
         out4 << "cbcPos: " << spi.cbcPos << ", ";
         Std::Vector::Print(out4, spi.resources);
-        out << endl;
+        out4 << endl;
     }
     out2 << "}" << endl;
 

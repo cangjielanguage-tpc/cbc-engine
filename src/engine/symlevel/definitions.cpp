@@ -240,6 +240,9 @@ MethodRefFlags MethodDefinition::GetABIFlags() const
         flags = flags.Or(MethodRefFlag::MUT);
     if (content.arity > 0)
         flags = flags.Or(MethodRefFlag::HAS_FTVARS);
+    if (!defFlags.Is(MethodFlag::STATIC)) {
+        flags = flags.Or(MethodRefFlag::HAS_RECEIVER);
+    }
     return flags;
 }
 
