@@ -11,16 +11,16 @@ Stream::Output& operator<<(Stream::Output& out, const ExecBytecodeInfo& bc)
     out << "ExecBytecodeInfo {" << endl;
     out2 << "untypedSlotsCount: " << bc.untypedSlotCount << endl
          << "typedSlotsCount: " << bc.gcInfo.typedSlotsInfo.size() << endl
-         << "frameSize: " << bc.frameSize << endl
-         << "GCMap {" << endl;
+         << "frameSize: " << bc.frameSize << endl;
 
-    for (auto& entry : bc.gcInfo.positionalInfo) {
+    out2 << "GCMap {" << endl;
+    for (const auto& entry : bc.gcInfo.positionalInfo) {
         out4 << "rtPos: " << entry.rewrittenPos << ", regMask: " << entry.regMask << ", ";
         Std::Vector::Print(out4, entry.untypedRefSlotsInfo);
         out4 << endl;
     }
-
     out2 << "}" << endl;
+
     return out << "}" << endl;
 }
 

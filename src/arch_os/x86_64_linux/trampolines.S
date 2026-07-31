@@ -45,6 +45,8 @@ declare_hidden common_landing_pad
 declare_hidden engine_carrier_specific_offset
 declare_hidden engine_cjthread_specific_offset
 declare_hidden engine_i2_spawn
+declare_hidden engine_stack_grow_stub
+declare_hidden engine_after_stack_grow
 
 // --- SECTION BSS ---
 .section .bss
@@ -71,6 +73,8 @@ engine_read_generic:
 engine_carrier_specific_offset:
   .skip 8
 engine_cjthread_specific_offset:
+  .skip 8
+engine_stack_grow_stub:
   .skip 8
 
 // --- SECTION TEXT ---
@@ -396,6 +400,7 @@ perform_2i_call:
   mov   r8d, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   mov   rsi, rsp
   sub   rsp, r8
+
   mov   rdi, rsp
   xor   ecx, ecx
 
@@ -611,7 +616,7 @@ engine_i2_spawn:
 .size perform_2i_call, .-perform_2i_call
 
 // fake execute closure function
-.align 16
+.balign 16
 engine_fake_execute_closure:
   // (rdi: sret, rsi: ()T, rdx: TypeInfo[Future[T]]
   mov   rcx, [rsi + 0x10] // get $i (instantiated) version of closure function
@@ -621,6 +626,7 @@ engine_fake_execute_closure:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: exception type)
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
+.balign 16
 engine_throw_implicit_exception:
   // jumped from .Linterpreter_call without return address to return
   call  [rip + engine_implicit_exception_thrower]
@@ -630,6 +636,7 @@ engine_throw_implicit_exception:
 // When exception is thrown from CJNative code to interpreter, execution of
 // interpreter exception handling starts here
 // TODO obtain exception using PostThrowException from RT interface
+.balign 16
 common_landing_pad:
   call engine_get_and_clear_pending_exception
   mov rdi, rax
@@ -639,7 +646,7 @@ common_landing_pad:
 // Returns to interpretation loop with exception reference on ACC_REG
 // or throws exception reference using CJNative runtime interface if there is no any exception handler in consecutive interpreter frames.
 // Precondition: top frame is interpreter frame.
-.align 16
+.balign 16
 engine_handle_exception:
   mov   EXTRA_REG, rdi
 
@@ -710,4 +717,50 @@ engine_handle_exception:
   jmp   [rip + engine_throw_out_of_interpreter]
   ud2
 
+.Lhandle_next_dyn_func:
+  mov   rdi, r12
+  jmp   engine_handle_exception
 
+.macro save_all_iregs scratch_reg
+  .set _dump_size, ((ECTYPE_IREGS_COUNT * ECTYPE_REG_SIZE) + 15) & ~15
+  sub   rsp, _dump_size
+  .set _offset, 0
+  .rept ECTYPE_IREGS_COUNT
+    mov    \scratch_reg, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + _offset]
+    mov    [rsp + _offset], \scratch_reg
+    .set   _offset, _offset + ECTYPE_REG_SIZE
+  .endr
+.endm
+
+.macro restore_all_iregs scratch_reg
+  .set _dump_size, ((ECTYPE_IREGS_COUNT * ECTYPE_REG_SIZE) + 15) & ~15
+  .set _offset, 0
+  .rept ECTYPE_IREGS_COUNT
+    mov    \scratch_reg, [rsp + _offset]
+    mov    [ECTYPE_REG + ECTYPE_IREGS_OFFSET + _offset], \scratch_reg
+    .set   _offset, _offset + ECTYPE_REG_SIZE
+  .endr
+  add   rsp, _dump_size
+.endm
+
+// expects: (TLS_REG: valid TLS, rsp: top of stack (including the whole current frame), r8: frame size)
+// preserves: all registers
+// Expands stack and returns to perform 2i call or throws SOE if stack expansion is impossible
+.balign 16
+expand_stack_or_throw_soe:
+  add   rsp, r8    // rsp state on prologue
+  save_all_iregs rax
+
+  mov   rax, 0x20  // adjusted size (TODO: its meaning is not really known, need to investigate more)
+  call  [rip + engine_stack_grow_stub]
+engine_after_stack_grow:
+
+  restore_all_iregs rax
+  mov   rdx, rsp   // update rdx after stack movement
+  sub   rsp, r8    // stack grow stub preserves all registers, so r8 will not be changed
+
+  // restore spoiled rax value
+  mov   rax, [rbp - FUH_SLOT_OFFSET]
+  mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
+
+  // FIXME: jmp   .Lafter_stack_check
