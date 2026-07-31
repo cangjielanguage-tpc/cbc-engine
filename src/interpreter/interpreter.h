@@ -1,5 +1,7 @@
 #pragma once
 
+#include <atomic>
+
 #include "ectype.h"
 #include "frame.h"
 #include "literals.h"
@@ -126,6 +128,140 @@ public:
             MemoryLocation(obj.value, offset).StoreImm(stk, imm);
         }
         return true;
+    }
+
+    template <typename T, typename Op>
+    inline void AtomicFetch(IReg dst, IReg obj, IReg src, uint16_t field, Op op)
+    {
+        auto objRef = ectype->GetReference(obj);
+        if (!NullCheck(objRef)) {
+            return;
+        }
+        auto* atomicVal = reinterpret_cast<std::atomic<T>*>(objRef.value + field);
+        auto srcT       = static_cast<T>(ectype->GetPrimitive(src).u64);
+        auto prev       = op(atomicVal, srcT);
+        ectype->Put(dst, Value::Primitive { .u64 = prev });
+    }
+
+    template <typename T>
+    inline void CASPrim(IReg dst, IReg obj, IReg src1, IReg src2, uint16_t field)
+    {
+        auto objRef = ectype->GetReference(obj);
+        if (!NullCheck(objRef)) {
+            return;
+        }
+        auto* atomicVal = reinterpret_cast<std::atomic<T>*>(objRef.value + field);
+        auto expected   = static_cast<T>(ectype->GetPrimitive(src1).u64);
+        auto desired    = static_cast<T>(ectype->GetPrimitive(src2).u64);
+        auto res        = atomicVal->compare_exchange_strong(expected, desired, std::memory_order_seq_cst);
+        ectype->Put(dst, Value::Primitive { .u64 = res });
+    }
+
+    inline void CASRef(IReg dst, IReg obj, IReg src1, IReg src2, uint16_t field)
+    {
+        auto objRef = ectype->GetReference(obj);
+        if (!NullCheck(objRef)) {
+            return;
+        }
+        auto expected = ectype->GetReference(src1);
+        auto desired  = ectype->GetReference(src2);
+        auto res      = RTSupport::Execution::AtomicCompareAndSwapRef(expected, desired, objRef, objRef.value + field);
+        ectype->Put(dst, Value::Primitive { .u64 = res });
+    }
+
+    template <typename T>
+    inline void AtomicSwapPrim(IReg dst, IReg obj, IReg src, uint16_t offset)
+    {
+        auto objRef = ectype->GetReference(obj);
+        if (!NullCheck(objRef)) {
+            return;
+        }
+        auto* atomicVal = reinterpret_cast<std::atomic<T>*>(objRef.value + offset);
+        auto srcT       = static_cast<T>(ectype->GetPrimitive(src).u64);
+        auto prev       = atomicVal->exchange(srcT, std::memory_order_seq_cst);
+        ectype->Put(dst, Value::Primitive { .u64 = prev });
+    }
+
+    inline void AtomicSwapRef(IReg dst, IReg obj, IReg src, uint16_t offset)
+    {
+        auto objRef = ectype->GetReference(obj);
+        if (!NullCheck(objRef)) {
+            return;
+        }
+        auto srcRef = ectype->GetReference(src);
+        auto prev =
+            RTSupport::Execution::AtomicSwapRef(srcRef, objRef, objRef.value + offset);
+        ectype->Put(dst, Value::Reference { .value = prev.value });
+    }
+
+    inline void AtomicLoad(Format::LoadAccessKind ldk, IReg dst, IReg obj, uint16_t offset)
+    {
+        switch (ldk) {
+            case Cbc::Format::LoadAccessKind::LD_U8:
+            case Cbc::Format::LoadAccessKind::LD_S8:  AtomicLoadPrim<uint8_t>(dst, obj, offset); break;
+            case Cbc::Format::LoadAccessKind::LD_U16:
+            case Cbc::Format::LoadAccessKind::LD_S16: AtomicLoadPrim<uint16_t>(dst, obj, offset); break;
+            case Cbc::Format::LoadAccessKind::LD_32:  AtomicLoadPrim<uint32_t>(dst, obj, offset); break;
+            case Cbc::Format::LoadAccessKind::LD_64:  AtomicLoadPrim<uint64_t>(dst, obj, offset); break;
+            case Cbc::Format::LoadAccessKind::LD_REF: AtomicLoadRef(dst, obj, offset); break;
+            default: FATAL("Unexpected ldk");
+        }
+    }
+
+    template <typename T>
+    inline void AtomicLoadPrim(IReg dst, IReg obj, uint16_t offset)
+    {
+        auto objRef = ectype->GetReference(obj);
+        if (!NullCheck(objRef)) {
+            return;
+        }
+        auto* atomicVal = reinterpret_cast<std::atomic<T>*>(objRef.value + offset);
+        auto res        = atomicVal->load(std::memory_order_seq_cst);
+        ectype->Put(dst, Value::Primitive { .u64 = res });
+    }
+
+    inline void AtomicLoadRef(IReg dst, IReg obj, uint16_t offset)
+    {
+        auto objRef = ectype->GetReference(obj);
+        if (!NullCheck(objRef)) {
+            return;
+        }
+        auto res = RTSupport::Execution::AtomicReadRef(objRef, objRef.value + offset);
+        ectype->Put(dst, Value::Reference { .value = res.value });
+    }
+
+    inline void AtomicStore(Format::StoreAccessKind stk, IReg src, IReg obj, uint16_t offset)
+    {
+        switch (stk) {
+            case Cbc::Format::StoreAccessKind::ST_8:   AtomicStorePrim<uint8_t>(src, obj, offset); break;
+            case Cbc::Format::StoreAccessKind::ST_16:  AtomicStorePrim<uint16_t>(src, obj, offset); break;
+            case Cbc::Format::StoreAccessKind::ST_32:  AtomicStorePrim<uint32_t>(src, obj, offset); break;
+            case Cbc::Format::StoreAccessKind::ST_64:  AtomicStorePrim<uint64_t>(src, obj, offset); break;
+            case Cbc::Format::StoreAccessKind::ST_REF: AtomicStoreRef(src, obj, offset); break;
+            default: FATAL("Unexpected stk");
+        }
+    }
+
+    template <typename T>
+    inline void AtomicStorePrim(IReg src, IReg obj, uint16_t offset)
+    {
+        auto objRef = ectype->GetReference(obj);
+        if (!NullCheck(objRef)) {
+            return;
+        }
+        auto* atomicVal = reinterpret_cast<std::atomic<T>*>(objRef.value + offset);
+        auto srcT       = static_cast<T>(ectype->GetPrimitive(src).u64);
+        atomicVal->store(srcT, std::memory_order_seq_cst);
+    }
+
+    inline void AtomicStoreRef(IReg src, IReg obj, uint16_t offset)
+    {
+        auto objRef = ectype->GetReference(obj);
+        if (!NullCheck(objRef)) {
+            return;
+        }
+        auto srcRef     = ectype->GetReference(src);
+        RTSupport::Execution::AtomicWriteRef(srcRef, objRef, objRef.value + offset);
     }
 
     inline bool LoadDerived(Format::LoadAccessKind ldk, Format::Reg dst, IReg base, IReg derived, uint64_t offset)

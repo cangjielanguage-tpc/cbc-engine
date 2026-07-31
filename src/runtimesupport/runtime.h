@@ -5,9 +5,7 @@
 
 #include "engine/terms.h"
 #include "interpreter/ectype.h"
-#include "interpreter/implicit_exceptions.h"
 #include "interpreter/int_thunk.h"
-#include <cstdint>
 #include <functional>
 
 namespace RTSupport {
@@ -138,6 +136,11 @@ struct Execution {
 
     static Reference GetPendingException();
     static Reference GetAndClearPendingException();
+
+    static Reference AtomicReadRef(Reference object, uintptr_t field);
+    static void AtomicWriteRef(Reference ref, Reference obj, uintptr_t field);
+    static Reference AtomicSwapRef(Reference ref, Reference obj, uintptr_t field);
+    static bool AtomicCompareAndSwapRef(Reference oldRef, Reference newRef, Reference obj, uintptr_t field);
 };
 
 struct MetaInfo {

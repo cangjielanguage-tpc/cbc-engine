@@ -100,6 +100,12 @@ public:
 
     inline operator RegGroup() { return RegGroup::From(*this); }
 
+    inline operator Width()
+    {
+        ASSERT(MathUtils::IsNBits(value, 8));
+        return Width::From(*this);
+    }
+
 private:
     uint64_t value;
 };
@@ -727,6 +733,60 @@ struct IsaParserImpl {
         auto [dst, src, underlyingTiReg, optionTiReg, typeId] =
             ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
         parser.NewSomeGeneric(dst, src, underlyingTiReg, optionTiReg, typeId);
+    }
+
+    static void AtomicLoad(IsaParser& parser)
+    {
+        auto [dst, obj, fieldId] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.AtomicLoad(dst, obj, fieldId);
+    }
+
+    static void AtomicStore(IsaParser& parser)
+    {
+        auto [src, obj, fieldId] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.AtomicStore(src, obj, fieldId);
+    }
+
+    static void CAS(IsaParser& parser)
+    {
+        auto [dst, obj, src1, src2, fieldId] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+        parser.CAS(dst, obj, src1, src2, fieldId);
+    }
+
+    static void AtomicSwap(IsaParser& parser)
+    {
+        auto [dst, obj, src, _, fieldId] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+        parser.AtomicSwap(dst, obj, src, fieldId);
+    }
+
+    static void AtomicFetchAdd(IsaParser& parser)
+    {
+        auto [dst, obj, src, _, fieldId] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+        parser.AtomicFetchAdd(dst, obj, src, fieldId);
+    }
+
+    static void AtomicFetchSub(IsaParser& parser)
+    {
+        auto [dst, obj, src, _, fieldId] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+        parser.AtomicFetchSub(dst, obj, src, fieldId);
+    }
+
+    static void AtomicFetchAnd(IsaParser& parser)
+    {
+        auto [dst, obj, src, _, fieldId] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+        parser.AtomicFetchAnd(dst, obj, src, fieldId);
+    }
+
+    static void AtomicFetchOr(IsaParser& parser)
+    {
+        auto [dst, obj, src, _, fieldId] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+        parser.AtomicFetchOr(dst, obj, src, fieldId);
+    }
+
+    static void AtomicFetchXor(IsaParser& parser)
+    {
+        auto [dst, obj, src, _, fieldId] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+        parser.AtomicFetchXor(dst, obj, src, fieldId);
     }
 
     static void MemHeadReg(IsaParser& parser)

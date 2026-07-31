@@ -239,6 +239,14 @@ void Encode(ByteBuffer& buf, RT::B13i64i32 command)
     Encode(buf, command.imm32);
 }
 
+void Encode(ByteBuffer& buf, RT::AtomicOp command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.rr1);
+    Encode(buf, command.rr2);
+    buf.AddW16(command.offset);
+}
+
 void Encode(ByteBuffer& buf, RT::StructFieldOp command)
 {
     Encode(buf, command.opc);
