@@ -1232,10 +1232,11 @@ struct IsaRewriter : public IsaParser {
             BindStatePoint();
             auto ms = emit.OpenMemSpace();
             ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
-            if (type.GetKind() == CbcTypeKind::REF) {
-                ms.StoreObj(Format::StoreAccessKind::ST_REF, isrc, IReg::IR_ACC);
-            } else {
-                ms.WriteStructFieldObj(isrc, IReg::IR_ACC, typeInfo);
+            auto kind = type.GetKind();
+            switch (kind) {
+                case CbcTypeKind::REF: ms.StoreObj(Format::StoreAccessKind::ST_REF, isrc, IReg::IR_ACC); break;
+                case CbcTypeKind::REC: ms.WriteStructFieldObj(isrc, IReg::IR_ACC, typeInfo); break;
+                default:               ms.StoreObj(Stk(kind), src, IReg::IR_ACC); break;
             }
             AdjustReg(dst, IReg::IR_ACC);
         }
@@ -1277,19 +1278,25 @@ struct IsaRewriter : public IsaParser {
                 return;
             }
             auto type = t.value();
-            if (type.GetKind() == CbcTypeKind::REF) {
-                emit.LoadObj(Format::LoadAccessKind::LD_REF, dst, src, RTSupport::MetaInfo::ObjectHeaderSize());
-            } else {
-                auto ti = type.GetTypeInfo();
-                if (!ti.has_value()) {
-                    Fail();
-                    return;
+            auto kind = type.GetKind();
+            switch (kind) {
+                case CbcTypeKind::REF:
+                    emit.LoadObj(Format::LoadAccessKind::LD_REF, dst, src, RTSupport::MetaInfo::ObjectHeaderSize());
+                    break;
+                case CbcTypeKind::REC: {
+                    auto ti = type.GetTypeInfo();
+                    if (!ti.has_value()) {
+                        Fail();
+                        return;
+                    }
+                    auto typeInfo = ti.value();
+                    emit.LoadObj(
+                        Format::LoadAccessKind::LD_LEA, IReg::IR_ACC, src, RTSupport::MetaInfo::ObjectHeaderSize()
+                    );
+                    emit.ReadStructField(IReg::From(dst), src, IReg::IR_ACC, typeInfo);
+                    break;
                 }
-                auto typeInfo = ti.value();
-                emit.LoadObj(
-                    Format::LoadAccessKind::LD_LEA, IReg::IR_ACC, src, RTSupport::MetaInfo::ObjectHeaderSize()
-                );
-                emit.ReadStructField(IReg::From(dst), src, IReg::IR_ACC, typeInfo);
+                default: emit.LoadObj(Ldk(kind), dst, src, RTSupport::MetaInfo::ObjectHeaderSize()); break;
             }
         }
     }
