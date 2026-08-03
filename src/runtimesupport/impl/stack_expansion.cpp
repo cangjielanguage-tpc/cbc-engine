@@ -99,15 +99,22 @@ void VisitFrameRootsForStackPtrs(
 
         auto abiInfo = bc->abiInfo;
         RTSupport::Log::gc.Log(Logging::Level::WARN, [&](Stream::Output& out) {
-            out.PrintFmtLn("rec args: %x, %p", abiInfo.adjustableParams, fuh);
+            out.PrintFmtLn("rec args: %x, %p", abiInfo.stackPtrParams, fuh);
             out.PrintFmtLn("derived pairs: %x", abiInfo.derivedPairs);
         });
 
         for (uint32_t i = 0; i < IReg::COUNT; i++) {
-            if (abiInfo.adjustableParams & (1 << i)) {
+            if (abiInfo.stackPtrParams & (1 << i)) {
                 visitRoot(resLoc(i));
             }
         }
+
+        for (uint32_t i = 0; i < IReg::COUNT; i++) {
+            if (abiInfo.referenceParams & (1 << i)) {
+                // visitTraceAndFixRoot(resLoc(i)); // FIXME: add new parameter in the rt-interface visitor.
+            }
+        }
+
         for (uint32_t i = 0; i < IReg::COUNT; i++) {
             if (abiInfo.derivedPairs & (1 << i)) {
                 auto basePh    = resLoc(i + 1);

@@ -102,8 +102,10 @@ struct NonVolatileRegs {
 };
 
 struct AbiInfo {
-    // Bitmap of all parameters (including sret) that could be adjusted by stack expansion
-    uint16_t adjustableParams;
+    // Bitmap of all parameters (including sret) that point to stack.
+    uint16_t stackPtrParams;
+    // Bitmap of all reference parameters.
+    uint16_t referenceParams;
     // Bitmap of all parameters which are represented as (base, derived) pairs.
     // N-th bit set => (base: N+1-th param, derived: N-th param)
     uint16_t derivedPairs;
@@ -135,7 +137,8 @@ struct AbiInfoFlags {
     bool isMut : 1;
     bool hasThisTypeInfo : 1;
     bool hasOuterTi : 1;
-    bool hasReceiver : 1;
+    bool recordReceiver : 1;
+    bool referenceReceiver : 1;
     int funcVars;
 };
 

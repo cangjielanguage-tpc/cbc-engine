@@ -3,6 +3,16 @@
 
 namespace Symlevel {
 
+Stream::Output& operator<<(Stream::Output& stream, MethodRefFlags flags)
+{
+    for (MethodRefFlag flag : MethodRefFlag::values) {
+        if (flags.Is(flag)) {
+            stream << " " << flag;
+        }
+    }
+    return stream;
+}
+
 Stream::Output& operator<<(Stream::Output& stream, TypeFlags flags)
 {
     stream << flags.GetAccessKind() << " " << flags.GetTypeKind();
@@ -40,6 +50,8 @@ Stream::Output& operator<<(Stream::Output& stream, TypeFlag flag) { return strea
 
 Stream::Output& operator<<(Stream::Output& stream, MethodFlag flag) { return stream << flag.ToString(); }
 
+Stream::Output& operator<<(Stream::Output& stream, MethodRefFlag flag) { return stream << flag.ToString(); }
+
 template <typename T> static std::string Str(T const* t)
 {
     Stream::StringBuffer buf;
@@ -52,5 +64,7 @@ std::string TypeFlags::ToString() const { return Str(this); }
 std::string FieldFlags::ToString() const { return Str(this); }
 
 std::string MethodFlags::ToString() const { return Str(this); }
+
+std::string MethodRefFlags::ToString() const { return Str(this); }
 
 } // namespace Symlevel

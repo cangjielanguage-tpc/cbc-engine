@@ -65,7 +65,7 @@ void Disasmer::RData(RegionData const& rd, uint8_t regionNum)
             auto ref = MethodReference::Parse(*session, idx);
 
             io << refid.GetIndex() << " - " << Detailed(ref.refType) << "." << Detailed(ref.name)
-               << Detailed(ref.methodSig) << endl;
+               << Detailed(ref.methodSig) << ' ' << ref.flags << endl;
         }
     });
 

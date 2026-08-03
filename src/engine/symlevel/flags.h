@@ -34,14 +34,17 @@ namespace Symlevel {
     X(LIT_INIT)                                                                                                        \
     X(SRET)                                                                                                            \
     X(HAS_THIS_TI)                                                                                                     \
-    X(HAS_OUTER_TI)
+    X(HAS_OUTER_TI)                                                                                                    \
+    X(REC_RECEIVER)                                                                                                    \
+    X(REF_RECEIVER)
 
 #define METHOD_REF_FLAGS(X)                                                                                            \
     X(SRET)                                                                                                            \
     X(HAS_THIS_TI)                                                                                                     \
     X(HAS_OUTER_TI)                                                                                                    \
     X(MUT)                                                                                                             \
-    X(HAS_RECEIVER)                                                                                                    \
+    X(REC_RECEIVER)                                                                                                    \
+    X(REF_RECEIVER)                                                                                                    \
     X(HAS_FTVARS)                                                                                                      \
     X(AOT)
 
@@ -309,8 +312,10 @@ private:
 Stream::Output& operator<<(Stream::Output& stream, TypeFlags flags);
 Stream::Output& operator<<(Stream::Output& stream, MethodFlags flags);
 Stream::Output& operator<<(Stream::Output& stream, FieldFlags flags);
+Stream::Output& operator<<(Stream::Output& stream, MethodRefFlags flags);
 Stream::Output& operator<<(Stream::Output& stream, TypeFlag flag);
 Stream::Output& operator<<(Stream::Output& stream, MethodFlag flag);
 Stream::Output& operator<<(Stream::Output& stream, FieldFlag flag);
+Stream::Output& operator<<(Stream::Output& stream, MethodRefFlag flag);
 
 } // namespace Symlevel
