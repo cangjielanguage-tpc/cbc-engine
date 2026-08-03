@@ -1455,7 +1455,7 @@ struct IsaRewriter : public IsaParser {
         msr.lastFieldKind = field->fieldType.GetKind();
     }
 
-    void MemBodyIndex(MemSpace& ms, IReg reg, uint32_t typeId, bool checked) override
+    void MemBodyIndex(MemSpace& ms, IReg reg, uint32_t refType, bool checked) override
     {
         if (checked) {
             FATAL("Not implemented checked MemBodyIndex");
@@ -1463,40 +1463,47 @@ struct IsaRewriter : public IsaParser {
             return;
         }
 
-        auto t = resolver.Query(Index<Type>(typeId));
+        auto t = resolver.Query(Index<Type>(refType));
         if (!t.has_value()) {
             Fail();
             return;
         }
-        auto type = t.value();
-        if (!type.GetTypeInfo().has_value()) {
-            errStream << "Failed to get type info of " << type << Stream::endl;
+        auto arrayType = t.value();
+
+        auto e = resolver.QueryElement(t.value());
+        if (!e.has_value()) {
             Fail();
             return;
         }
 
-        ASSERT(type.GetKind() == CbcTypeKind::REC);
+        auto elemType = *e;
 
-        auto size = type.GetFlatSize();
+        if (!elemType.GetTypeInfo().has_value()) {
+            errStream << "Failed to get type info of " << elemType << Stream::endl;
+            Fail();
+            return;
+        }
+
+        auto size = elemType.GetFlatSize();
         if (!size.has_value()) {
             Fail();
             return;
         }
 
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
-        msr.emit.Offset(RTSupport::MetaInfo::ArrayBodyOffset());
-        msr.emit.OffsetRegIdx(reg, *size);
-        // switch (type.GetKind())
-        // {
-        // case CbcTypeKind::REC:
-        //     msr.emit.Offset(RTSupport::MetaInfo::ArrayBodyOffset());
-        //     msr.emit.OffsetRegIdx(reg, *size);
-        //     break;
+        // msr.emit.Offset(RTSupport::MetaInfo::ArrayBodyOffset());
+        // msr.emit.OffsetRegIdx(reg, *size);
+        switch (arrayType.term.GetKind())
+        {
+        case Engine::TermKind::CANGJIE_ARRAY:
+            msr.emit.Offset(RTSupport::MetaInfo::ArrayBodyOffset());
+            msr.emit.OffsetRegIdx(reg, *size);
+            break;
         
-        // default:
-        //     msr.emit.OffsetRegIdx(reg, *size);
-        //     break;
-        // }
+        default:
+            msr.emit.OffsetRegIdx(reg, *size);
+            break;
+        }
     }
 
     void MemTailLoad(MemSpace& ms, IReg dst, std::vector<uint32_t> refs) override

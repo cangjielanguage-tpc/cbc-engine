@@ -659,6 +659,29 @@ std::optional<InstanceField> Resolver::QueryTupleElement(Type refType, uint32_t 
             return InstanceField { session.Allocator().New<InstanceField::Content>(field) };
         }
     }
+    return std::nullopt;
+}
+
+std::optional<Type> Resolver::QueryElement(Type refType)
+{
+    auto term = refType.term;
+    switch (term.GetKind()) {
+        case TermKind::VARRAY: {
+            auto optTypeInfo = refType.GetTypeInfo();
+            if (!optTypeInfo.has_value()) {
+                return std::nullopt;
+            }
+            return Type(term.Subterm(0), this);
+        }
+        case TermKind::CANGJIE_ARRAY: {
+            auto optTypeInfo = refType.GetTypeInfo();
+            if (!optTypeInfo.has_value()) {
+                return std::nullopt;
+            }
+            return Type(term.Subterm(0), this);
+        }
+    }
+    return std::nullopt;
 }
 
 std::optional<Type> Resolver::QueryFutureByFunctional(Index<Type> id)
