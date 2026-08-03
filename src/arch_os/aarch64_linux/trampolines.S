@@ -38,8 +38,7 @@
     #define engine_handle_exception _engine_handle_exception
     #define common_landing_pad _common_landing_pad
     #define engine_stack_grow_stub _engine_stack_grow_stub
-    #define engine_ectype_saving_stub_pc_start _engine_ectype_saving_stub_pc_start
-    #define engine_ectype_saving_stub_pc_end _engine_ectype_saving_stub_pc_end
+    #define engine_after_stack_grow _engine_after_stack_grow
 #endif
 
 #ifdef __APPLE__
@@ -97,8 +96,7 @@ declare_hidden engine_implicit_exception_thrower
 declare_hidden engine_handle_exception
 declare_hidden common_landing_pad
 declare_hidden engine_stack_grow_stub
-declare_hidden engine_ectype_saving_stub_pc_start
-declare_hidden engine_ectype_saving_stub_pc_end
+declare_hidden engine_after_stack_grow
 
 // --- SECTION BSS ---
 #ifdef __APPLE__
@@ -416,6 +414,13 @@ perform_2i_call:
   ldr   w8, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   sub   sp, sp, x8
 
+.Lstack_check:
+  ldr   x10, [TLS_REG, #TLS_STACK_BORDER_OFFSET]
+  add   x10, x10, #ADDITIONAL_STACK_SPACE
+  cmp   sp, x10
+  b.ls  expand_stack_or_throw_soe
+.Lafter_stack_check:
+
   mov   x2, sp
   mov   x3, x1
 
@@ -428,13 +433,6 @@ perform_2i_call:
   str   xzr, [x2], #8
   b     .Lframe_zero_loop
 .Lframe_zero_loop_end:
-
-.Lstack_check:
-  ldr   x10, [TLS_REG, #TLS_STACK_BORDER_OFFSET]
-  add   x10, x10, #ADDITIONAL_STACK_SPACE
-  cmp   sp, x10
-  b.ls  expand_stack_or_throw_soe
-.Lafter_stack_check:
 
   PUSH_REGS x8, x1, x9, x2, x3
 
@@ -767,7 +765,6 @@ engine_handle_exception:
 // preserves: all registers
 // Expands stack and returns to perform 2i call or throws SOE if stack expansion is impossible
 .balign 16
-engine_ectype_saving_stub_pc_start:
 expand_stack_or_throw_soe:
   add   sp, sp, x8
   save_all_iregs x10
@@ -776,6 +773,7 @@ expand_stack_or_throw_soe:
   adrp  x10, Page(engine_stack_grow_stub)
   ldr   x10, [x10, PageOff(engine_stack_grow_stub)]
   blr   x10
+engine_after_stack_grow:
 
   restore_all_iregs x10
   mov   x1, sp
@@ -786,4 +784,3 @@ expand_stack_or_throw_soe:
   ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
 
   b     .Lafter_stack_check
-engine_ectype_saving_stub_pc_end:
