@@ -742,6 +742,3 @@ engine_handle_exception:
   jmp   [rip + engine_throw_out_of_interpreter]
   ud2
 
-.Lhandle_next_dyn_func:
-  mov   rdi, r12
-  jmp   engine_handle_exception
