@@ -400,7 +400,7 @@ struct IsaParserImpl {
 
     static void NewArr(IsaParser& parser)
     {
-        auto [dst, len, id] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        auto [dst, len, id] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadSLEB().Get();
         parser.NewArr(dst, len, id);
     }
 
@@ -484,7 +484,7 @@ struct IsaParserImpl {
 
     static void InstanceOf(IsaParser& parser)
     {
-        auto [dst, obj, id] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        auto [dst, obj, id] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadSLEB().Get();
         parser.InstanceOf(dst, obj, id);
     }
 
@@ -508,7 +508,7 @@ struct IsaParserImpl {
 
     static void CallInterfGeneric(IsaParser& parser)
     {
-        auto [argnum, methodId] = ByteReaderM(parser.reader).ReadU16().ReadU16().Get();
+        auto [argnum, methodId] = ByteReaderM(parser.reader).ReadU16().ReadSLEB().Get();
         parser.CallInterfGeneric(argnum, methodId);
     }
 
@@ -517,7 +517,7 @@ struct IsaParserImpl {
         static constexpr bool GENERIC     = true;
         static constexpr bool NOT_GENERIC = false;
 
-        auto [opc_, dst, id]  = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        auto [opc_, dst, id]  = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadSLEB().Get();
         class RegSymGroup opc = opc_;
         switch (opc) {
             case Cbc::RegSymGroup::LoadTypeInfoSig: parser.LoadTypeInfoSig(dst, id); break;
@@ -661,13 +661,13 @@ struct IsaParserImpl {
 
     static void BoxRec(IsaParser& parser)
     {
-        auto [src, dst, tk] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        auto [src, dst, tk] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadSLEB().Get();
         parser.Box(src, dst, tk);
     }
 
     static void UnboxRec(IsaParser& parser)
     {
-        auto [dst, src, tk] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        auto [dst, src, tk] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadSLEB().Get();
         parser.Unbox(dst, src, tk);
     }
 
@@ -697,41 +697,41 @@ struct IsaParserImpl {
 
     static void Offset(IsaParser& parser)
     {
-        auto [dst, ti, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        auto [dst, ti, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadSLEB().Get();
         parser.Offset(dst, ti, field, false);
     }
 
     static void AddOffset(IsaParser& parser)
     {
-        auto [dst, ti, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        auto [dst, ti, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadSLEB().Get();
         parser.Offset(dst, ti, field, true);
     }
 
     static void TagGeneric(IsaParser& parser)
     {
         auto [dst, src, tiReg, _, typeId] =
-            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadSLEB().Get();
         parser.TagGeneric(dst, src, tiReg, typeId);
     }
 
     static void PayloadGeneric(IsaParser& parser)
     {
         auto [dst, src, underlyingTiReg, optionTiReg, typeId] =
-            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadSLEB().Get();
         parser.PayloadGeneric(dst, src, underlyingTiReg, optionTiReg, typeId);
     }
 
     static void NewNoneGeneric(IsaParser& parser)
     {
         auto [dst, underlyingTiReg, optionTiReg, _, typeId] =
-            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadSLEB().Get();
         parser.NewNoneGeneric(dst, underlyingTiReg, optionTiReg, typeId);
     }
 
     static void NewSomeGeneric(IsaParser& parser)
     {
         auto [dst, src, underlyingTiReg, optionTiReg, typeId] =
-            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadSLEB().Get();
         parser.NewSomeGeneric(dst, src, underlyingTiReg, optionTiReg, typeId);
     }
 
