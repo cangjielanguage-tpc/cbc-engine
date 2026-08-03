@@ -1467,8 +1467,6 @@ struct IsaRewriter : public IsaParser {
             return;
         }
 
-        ASSERT(type.GetKind() == CbcTypeKind::REC);
-
         auto size = type.GetFlatSize();
         if (!size.has_value()) {
             Fail();
@@ -1476,8 +1474,17 @@ struct IsaRewriter : public IsaParser {
         }
 
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
-        msr.emit.Offset(RTSupport::MetaInfo::ArrayBodyOffset());
-        msr.emit.OffsetRegIdx(reg, *size);
+        switch (type.GetKind())
+        {
+        case CbcTypeKind::REC:
+            msr.emit.Offset(RTSupport::MetaInfo::ArrayBodyOffset());
+            msr.emit.OffsetRegIdx(reg, *size);
+            break;
+        
+        default:
+            msr.emit.OffsetRegIdx(reg, *size);
+            break;
+        }
     }
 
     void MemTailLoad(MemSpace& ms, IReg dst, std::vector<uint16_t> refs) override
