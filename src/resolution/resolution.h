@@ -200,6 +200,7 @@ struct Resolver {
     std::optional<Type> QueryFutureByFunctional(Index<Type> id);
 
     std::optional<InstanceField> QueryTupleElement(Type refType, uint32_t idx);
+    std::optional<Type> QueryElement(Type refType);
 
     std::string_view QueryString(uint32_t stringOffs);
 
