@@ -262,6 +262,31 @@ Reference Execution::GetAndClearPendingException()
 
 extern "C" Reference engine_get_and_clear_pending_exception() { return Execution::GetAndClearPendingException(); }
 
+Reference Execution::AtomicReadRef(Reference object, uintptr_t field)
+{
+    return Reference { .value = reinterpret_cast<uintptr_t>(
+        g_CJNativeInterfaceInstance.atomicReadRef(reinterpret_cast<DYN_ObjRef>(object.value), reinterpret_cast<DYN_FieldRef>(field))) };
+}
+
+void Execution::AtomicWriteRef(Reference ref, Reference obj, uintptr_t field)
+{
+    g_CJNativeInterfaceInstance.atomicWriteRef(reinterpret_cast<DYN_ObjRef>(ref.value), reinterpret_cast<DYN_ObjRef>(obj.value),
+        reinterpret_cast<DYN_FieldRef>(field));
+}
+
+Reference Execution::AtomicSwapRef(Reference ref, Reference obj, uintptr_t field)
+{
+    return Reference { .value = reinterpret_cast<uintptr_t>(
+        g_CJNativeInterfaceInstance.atomicSwapRef(reinterpret_cast<DYN_ObjRef>(ref.value), reinterpret_cast<DYN_ObjRef>(obj.value),
+            reinterpret_cast<DYN_FieldRef>(field))) };
+}
+
+bool Execution::AtomicCompareAndSwapRef(Reference oldRef, Reference newRef, Reference obj, uintptr_t field)
+{
+    return g_CJNativeInterfaceInstance.atomicCompareAndSwapRef(reinterpret_cast<DYN_ObjRef>(oldRef.value), reinterpret_cast<DYN_ObjRef>(newRef.value),
+        reinterpret_cast<DYN_ObjRef>(obj.value), reinterpret_cast<DYN_FieldRef>(field));
+}
+
 const char* MetaInfo::GetName(TypeInfo ti)
 {
     auto mrtti = UnpackTypeInfo(ti);

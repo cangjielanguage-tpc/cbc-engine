@@ -612,6 +612,217 @@ struct IsaRewriter : public IsaParser {
 
     void InstanceOfGeneric(IReg dst, IReg obj, IReg ti) override { emit.InstanceOfGeneric(dst, obj, ti); }
 
+    void AtomicLoad(IReg dst, IReg obj, uint16_t fieldId) override
+    {
+        auto f = resolver.Query(Index<InstanceField>(fieldId));
+        if (!f.has_value()) {
+            Fail();
+            return;
+        }
+        auto field = f.value();
+        if (!field->offset.has_value()) {
+            errStream << "Failed to get offset of field " << field << Stream::endl;
+            Fail();
+            return;
+        }
+        auto ldk = Ldk(field->fieldType.GetKind());
+        emit.AtomicLoad(dst, ldk, obj, field->offset.value());
+    }
+
+    void AtomicStore(IReg src, IReg obj, uint16_t fieldId) override
+    {
+        auto f = resolver.Query(Index<InstanceField>(fieldId));
+        if (!f.has_value()) {
+            Fail();
+            return;
+        }
+        auto field = f.value();
+        if (!field->offset.has_value()) {
+            errStream << "Failed to get offset of field " << field << Stream::endl;
+            Fail();
+            return;
+        }
+        auto stk = Stk(field->fieldType.GetKind());
+        emit.AtomicStore(src, stk, obj, field->offset.value());
+    }
+
+    void CAS(IReg dst, IReg obj, IReg src1, IReg src2, uint16_t fieldId) override
+    {
+        auto f = resolver.Query(Index<InstanceField>(fieldId));
+        if (!f.has_value()) {
+            Fail();
+            return;
+        }
+        auto field = f.value();
+        if (!field->offset.has_value()) {
+            errStream << "Failed to get offset of field " << field << Stream::endl;
+            Fail();
+            return;
+        }
+        auto stk = Stk(field->fieldType.GetKind());
+        RT::Opcode opc;
+        switch (stk) {
+            case Format::StoreAccessKind::ST_8:   opc = RT::Opcode::CAS_8; break;
+            case Format::StoreAccessKind::ST_16:  opc = RT::Opcode::CAS_16; break;
+            case Format::StoreAccessKind::ST_32:  opc = RT::Opcode::CAS_32; break;
+            case Format::StoreAccessKind::ST_64:  opc = RT::Opcode::CAS_64; break;
+            case Format::StoreAccessKind::ST_REF: opc = RT::Opcode::CAS_REF; break;
+            default: FATAL("unexpected kind %d", stk);
+        }
+        emit.CAS(opc, dst, obj, src1, src2, field->offset.value());
+    }
+
+    void AtomicSwap(IReg dst, IReg obj, IReg src, uint16_t fieldId) override
+    {
+        auto f = resolver.Query(Index<InstanceField>(fieldId));
+        if (!f.has_value()) {
+            Fail();
+            return;
+        }
+        auto field = f.value();
+        if (!field->offset.has_value()) {
+            errStream << "Failed to get offset of field " << field << Stream::endl;
+            Fail();
+            return;
+        }
+        auto stk = Stk(field->fieldType.GetKind());
+        RT::Opcode opc;
+        switch (stk) {
+            case Format::StoreAccessKind::ST_8:   opc = RT::Opcode::ATOMIC_SWAP_8; break;
+            case Format::StoreAccessKind::ST_16:  opc = RT::Opcode::ATOMIC_SWAP_16; break;
+            case Format::StoreAccessKind::ST_32:  opc = RT::Opcode::ATOMIC_SWAP_32; break;
+            case Format::StoreAccessKind::ST_64:  opc = RT::Opcode::ATOMIC_SWAP_64; break;
+            case Format::StoreAccessKind::ST_REF: opc = RT::Opcode::ATOMIC_SWAP_REF; break;
+            default: FATAL("unexpected kind %d", stk);
+        }
+        emit.AtomicOp(opc, dst, obj, src, field->offset.value());
+    }
+
+    void AtomicFetchAdd(IReg dst, IReg obj, IReg src, uint16_t fieldId) override
+    {
+        auto f = resolver.Query(Index<InstanceField>(fieldId));
+        if (!f.has_value()) {
+            Fail();
+            return;
+        }
+        auto field = f.value();
+        if (!field->offset.has_value()) {
+            errStream << "Failed to get offset of field " << field << Stream::endl;
+            Fail();
+            return;
+        }
+        auto stk = Stk(field->fieldType.GetKind());
+        RT::Opcode opc;
+        switch (stk) {
+            case Format::StoreAccessKind::ST_8:  opc = RT::Opcode::ATOMIC_FETCH_ADD_8; break;
+            case Format::StoreAccessKind::ST_16: opc = RT::Opcode::ATOMIC_FETCH_ADD_16; break;
+            case Format::StoreAccessKind::ST_32: opc = RT::Opcode::ATOMIC_FETCH_ADD_32; break;
+            case Format::StoreAccessKind::ST_64: opc = RT::Opcode::ATOMIC_FETCH_ADD_64; break;
+            default: FATAL("unexpected kind %d", stk);
+        }
+        emit.AtomicOp(opc, dst, obj, src, field->offset.value());
+    }
+
+    void AtomicFetchSub(IReg dst, IReg obj, IReg src, uint16_t fieldId) override
+    {
+        auto f = resolver.Query(Index<InstanceField>(fieldId));
+        if (!f.has_value()) {
+            Fail();
+            return;
+        }
+        auto field = f.value();
+        if (!field->offset.has_value()) {
+            errStream << "Failed to get offset of field " << field << Stream::endl;
+            Fail();
+            return;
+        }
+        auto stk = Stk(field->fieldType.GetKind());
+        RT::Opcode opc;
+        switch (stk) {
+            case Format::StoreAccessKind::ST_8:  opc = RT::Opcode::ATOMIC_FETCH_SUB_8; break;
+            case Format::StoreAccessKind::ST_16: opc = RT::Opcode::ATOMIC_FETCH_SUB_16; break;
+            case Format::StoreAccessKind::ST_32: opc = RT::Opcode::ATOMIC_FETCH_SUB_32; break;
+            case Format::StoreAccessKind::ST_64: opc = RT::Opcode::ATOMIC_FETCH_SUB_64; break;
+            default: FATAL("unexpected kind %d", stk);
+        }
+        emit.AtomicOp(opc, dst, obj, src, field->offset.value());
+    }
+
+    void AtomicFetchAnd(IReg dst, IReg obj, IReg src, uint16_t fieldId) override
+    {
+        auto f = resolver.Query(Index<InstanceField>(fieldId));
+        if (!f.has_value()) {
+            Fail();
+            return;
+        }
+        auto field = f.value();
+        if (!field->offset.has_value()) {
+            errStream << "Failed to get offset of field " << field << Stream::endl;
+            Fail();
+            return;
+        }
+        auto stk = Stk(field->fieldType.GetKind());
+        RT::Opcode opc;
+        switch (stk) {
+            case Format::StoreAccessKind::ST_8:  opc = RT::Opcode::ATOMIC_FETCH_AND_8; break;
+            case Format::StoreAccessKind::ST_16: opc = RT::Opcode::ATOMIC_FETCH_AND_16; break;
+            case Format::StoreAccessKind::ST_32: opc = RT::Opcode::ATOMIC_FETCH_AND_32; break;
+            case Format::StoreAccessKind::ST_64: opc = RT::Opcode::ATOMIC_FETCH_AND_64; break;
+            default: FATAL("unexpected kind %d", stk);
+        }
+        emit.AtomicOp(opc, dst, obj, src, field->offset.value());
+    }
+
+    void AtomicFetchOr(IReg dst, IReg obj, IReg src, uint16_t fieldId) override
+    {
+        auto f = resolver.Query(Index<InstanceField>(fieldId));
+        if (!f.has_value()) {
+            Fail();
+            return;
+        }
+        auto field = f.value();
+        if (!field->offset.has_value()) {
+            errStream << "Failed to get offset of field " << field << Stream::endl;
+            Fail();
+            return;
+        }
+        auto stk = Stk(field->fieldType.GetKind());
+        RT::Opcode opc;
+        switch (stk) {
+            case Format::StoreAccessKind::ST_8:  opc = RT::Opcode::ATOMIC_FETCH_OR_8; break;
+            case Format::StoreAccessKind::ST_16: opc = RT::Opcode::ATOMIC_FETCH_OR_16; break;
+            case Format::StoreAccessKind::ST_32: opc = RT::Opcode::ATOMIC_FETCH_OR_32; break;
+            case Format::StoreAccessKind::ST_64: opc = RT::Opcode::ATOMIC_FETCH_OR_64; break;
+            default: FATAL("unexpected kind %d", stk);
+        }
+        emit.AtomicOp(opc, dst, obj, src, field->offset.value());
+    }
+
+    void AtomicFetchXor(IReg dst, IReg obj, IReg src, uint16_t fieldId) override
+    {
+        auto f = resolver.Query(Index<InstanceField>(fieldId));
+        if (!f.has_value()) {
+            Fail();
+            return;
+        }
+        auto field = f.value();
+        if (!field->offset.has_value()) {
+            errStream << "Failed to get offset of field " << field << Stream::endl;
+            Fail();
+            return;
+        }
+        auto stk = Stk(field->fieldType.GetKind());
+        RT::Opcode opc;
+        switch (stk) {
+            case Format::StoreAccessKind::ST_8:  opc = RT::Opcode::ATOMIC_FETCH_XOR_8; break;
+            case Format::StoreAccessKind::ST_16: opc = RT::Opcode::ATOMIC_FETCH_XOR_16; break;
+            case Format::StoreAccessKind::ST_32: opc = RT::Opcode::ATOMIC_FETCH_XOR_32; break;
+            case Format::StoreAccessKind::ST_64: opc = RT::Opcode::ATOMIC_FETCH_XOR_64; break;
+            default: FATAL("unexpected kind %d", stk);
+        }
+        emit.AtomicOp(opc, dst, obj, src, field->offset.value());
+    }
+
     std::optional<Type> NewObject(IReg dst, uint16_t typeId, New kind)
     {
         auto t = resolver.Query(Index<Type>(typeId));
