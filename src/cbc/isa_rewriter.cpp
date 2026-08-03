@@ -1838,6 +1838,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
             .isMut           = flags.Is(Symlevel::MethodRefFlag::MUT),
             .hasThisTypeInfo = flags.Is(Symlevel::MethodRefFlag::HAS_THIS_TI),
             .hasOuterTi      = flags.Is(Symlevel::MethodRefFlag::HAS_OUTER_TI),
+            .hasReceiver     = flags.Is(Symlevel::MethodRefFlag::HAS_RECEIVER),
             .funcVars        = def->arity,
         }
     );

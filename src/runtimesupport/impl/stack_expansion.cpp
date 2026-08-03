@@ -2,12 +2,9 @@
 #include "asm_export.h"
 #include "asm_trampolines.h"
 #include "cbc/isa.h"
-#include "cjnative.h"
-#include "engine/symlevel/definitions.h"
 #include "gc_support.h"
 #include "interpreter/function_handle.h"
 #include "reg_table.h"
-#include "resolution/resolution.h"
 #include "utils/assertion.h"
 #include <cstdint>
 
@@ -51,8 +48,6 @@ static std::pair<const GCPositionalInfo*, const StackPtrsPositionalInfo*> FindPo
     return std::pair(gcPosInfo, stackPtrsPosInfo);
 }
 
-void needSupportForFrameArgs(uint32_t argIdx) { ASSERT(Resource { .idx = argIdx }.IsReg()); }
-
 // TODO: support for frame arguments
 void VisitFrameRootsForStackPtrs(
     DYN_VisitingState state,
@@ -74,8 +69,14 @@ void VisitFrameRootsForStackPtrs(
         );
     });
 
+    auto visitRoot = [&stackPtrVisitor](Placeholder ph) { VisitRoot(stackPtrVisitor, ph); };
+
+    auto resLoc = [slotsStartAddr, regTable](uint32_t idx) {
+        return GetResourceLocation(Resource { idx }, slotsStartAddr, regTable);
+    };
+
     // Frame pointer is also a pointer to stack, so it needs to be adjusted.
-    VisitRoot(stackPtrVisitor, (Placeholder)frameDesc.fp);
+    visitRoot((Placeholder)frameDesc.fp);
 
     if (IsTopInterpreterFrame(reinterpret_cast<uintptr_t>(frameDesc.ip))) {
         // Detected frame is in which prologue stack check happens.
@@ -90,24 +91,21 @@ void VisitFrameRootsForStackPtrs(
 
         uintptr_t* regs = (uintptr_t*)dumpStartAddr;
         ASSERTION(regs[0] == 0, "must point to IRZ");
+        ASSERT(regs[IReg::IR_ACC] == reinterpret_cast<uintptr_t>(regs));
 
         for (int regIdx = 0; regIdx < IReg::COUNT; regIdx++) {
             regTable->UpdateRegLocation(IReg::From(regIdx), &regs[regIdx]);
         }
 
         auto abiInfo = bc->abiInfo;
-        auto resLoc = [slotsStartAddr, regTable](uint32_t idx) {
-            return GetResourceLocation(Resource { idx }, slotsStartAddr, regTable);
-        };
-
-        RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
-            out.PrintFmtLn("rec args: %x, ", abiInfo.adjustableParams);
-            out.PrintFmtLn("derived pairs: %x, ", abiInfo.derivedPairs);
+        RTSupport::Log::gc.Log(Logging::Level::WARN, [&](Stream::Output& out) {
+            out.PrintFmtLn("rec args: %x, %p", abiInfo.adjustableParams, fuh);
+            out.PrintFmtLn("derived pairs: %x", abiInfo.derivedPairs);
         });
 
         for (uint32_t i = 0; i < IReg::COUNT; i++) {
             if (abiInfo.adjustableParams & (1 << i)) {
-                VisitRoot(stackPtrVisitor, resLoc(i));
+                visitRoot(resLoc(i));
             }
         }
         for (uint32_t i = 0; i < IReg::COUNT; i++) {
@@ -144,8 +142,7 @@ void VisitFrameRootsForStackPtrs(
 
         if (stackPtrsInfo != nullptr) {
             for (auto& resource : stackPtrsInfo->resources) {
-                auto placeholder = GetResourceLocation(resource, slotsStartAddr, regTable);
-                VisitRoot(stackPtrVisitor, placeholder);
+                visitRoot(GetResourceLocation(resource, slotsStartAddr, regTable));
             }
         }
 
