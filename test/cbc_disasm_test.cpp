@@ -52,6 +52,6 @@ static void CompareWith(std::string_view fileName, std::string const& expected)
 TEST_ASM(CbcDisasmTest, VirtCall)
 {
     std::string expected = "0: call.virtual IR1, @Foo.foo()Void (1,1)\n"
-                           "4: ret.64 IR1\n";
+                           "3: ret.64 IR1\n";
     CompareWith("cbc-virt-call.asm", expected);
 }
