@@ -1,5 +1,6 @@
 #include "disasmer.h"
 #include "engine/identifiers.h"
+#include "engine/resolving_output.h"
 #include "engine/symlevel/io/filesystem.h"
 #include "engine/symlevel/io/stream_file_reader.h"
 #include "engine/symlevel/reader.h"
@@ -60,10 +61,11 @@ void Disasmer::RData(RegionData const& rd, uint8_t regionNum)
     Region("methods: ", [&]() {
         auto mrefs = rd.MethodReferencesOffsets().RefIds(regionNum);
         for (auto refid : mrefs) {
-            auto methodIdx       = RefIdentifier(refid, currentFile->Id());
-            auto methodReference = MethodReference::Parse(*session, methodIdx);
+            auto idx = RefIdentifier(refid, currentFile->Id());
+            auto ref = MethodReference::Parse(*session, idx);
 
-            io << "method refid: " << refid.GetIndex() << ", method: " << Detailed(methodReference.name) << endl;
+            io << refid.GetIndex() << " - " << Detailed(ref.refType) << "." << Detailed(ref.name)
+               << Detailed(ref.methodSig) << endl;
         }
     });
 
@@ -74,17 +76,18 @@ void Disasmer::RData(RegionData const& rd, uint8_t regionNum)
             auto termIdx  = RefIdentifier(newrefid, currentFile->Id());
             auto term     = TermManager::Resolve(*session, termIdx);
 
-            io << "term refid: " << newrefid.GetIndex() << ", term: " << term << endl;
+            io << newrefid.GetIndex() << " - " << term << endl;
         }
     });
 
     Region("fields: ", [&]() {
         auto frefs = rd.FieldReferencesOffsets().RefIds(regionNum);
         for (auto refid : frefs) {
-            auto fieldIdx       = RefIdentifier(refid, currentFile->Id());
-            auto fieldReference = FieldReference::Parse(*session, fieldIdx);
+            auto idx = RefIdentifier(refid, currentFile->Id());
+            auto ref = FieldReference::Parse(*session, idx);
 
-            io << "field refid: " << refid.GetIndex() << ", field: " << Detailed(fieldReference.name) << endl;
+            io << refid.GetIndex() << " - " << Detailed(ref.refType) << "." << Detailed(ref.name) << " "
+               << Detailed(ref.fieldType) << endl;
         }
     });
 }
