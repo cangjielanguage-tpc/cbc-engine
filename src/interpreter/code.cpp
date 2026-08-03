@@ -30,28 +30,31 @@ Stream::Output& operator<<(Stream::Output& out, const ExecBytecodeInfo& bc)
 
 AbiInfo BuildAbiInfo(Engine::Session& session, Engine::Term signature, AbiInfoFlags flags)
 {
-    uint16_t derivedPairs     = 0;
-    uint16_t adjustableParams = 0;
+    uint16_t derivedPairs    = 0;
+    uint16_t stackPtrParams  = 0;
+    uint16_t referenceParams = 0;
 
     int fargIdx = 0; // FR0
     int iargIdx = 1; // IR1
 
     if (HAS_SRET_SHIFT && flags.isSRet) {
         // stack-return position on this platform is param passing register.
-        adjustableParams |= (1 << iargIdx);
+        stackPtrParams |= (1 << iargIdx);
         iargIdx++;
     } else if (!HAS_SRET_SHIFT && flags.isSRet) {
         // stack-return position on this platform is using special register.
-        adjustableParams |= (1 << IReg::SRET_IR);
+        stackPtrParams |= (1 << IReg::SRET_IR);
     }
 
     if (flags.isMut) {
-        ASSERT(flags.hasReceiver);
-        // FIXME: do I need to mark `this` as adjustable?
-        derivedPairs |= (1 << iargIdx);
-        iargIdx      += 2; // also skip base ptr
-    } else if (flags.hasReceiver) {
-        adjustableParams |= (1 << iargIdx);
+        derivedPairs    |= (1 << iargIdx); // this (derived)
+        referenceParams |= (2 << iargIdx); // base
+        iargIdx         += 2;              // also skip base ptr
+    } else if (flags.referenceReceiver) {
+        referenceParams |= (1 << iargIdx);
+        iargIdx++;
+    } else if (flags.recordReceiver) {
+        stackPtrParams |= (1 << iargIdx);
         iargIdx++;
     }
 
@@ -60,12 +63,14 @@ AbiInfo BuildAbiInfo(Engine::Session& session, Engine::Term signature, AbiInfoFl
     int termIdx = 0;
     int length  = signature.GetLength() - 1; // skip ret type term.
     while (termIdx < length) {
-        auto term        = signature.Subterm(termIdx);
-        int isFloat      = term.IsFloat();
-        int isAdjustable = term.IsRecord() || term.IsReference(); // objects could be allocated on stack.
-        int isReg        = (iargIdx < IREG_PARAM_PASSING_AMOUNT);
+        auto term    = signature.Subterm(termIdx);
+        int isFloat  = term.IsFloat();
+        int isRecord = term.IsRecord();
+        int isRef    = term.IsReference();
+        int isReg    = (iargIdx < IREG_PARAM_PASSING_AMOUNT);
 
-        adjustableParams |= ((isReg && isAdjustable) << iargIdx);
+        stackPtrParams  |= ((isReg && isRecord) << iargIdx);
+        referenceParams |= ((isReg && isRef) << iargIdx);
 
         // Counters could overflow param passing reg amount.
         fargIdx          += isFloat;
@@ -81,7 +86,7 @@ AbiInfo BuildAbiInfo(Engine::Session& session, Engine::Term signature, AbiInfoFl
 
     if (hasTailReg) {
         // Tail register holds a pointer to position, where stack-passed parameters are located.
-        adjustableParams |= (1 << IReg::TAIL_REG);
+        stackPtrParams |= (1 << IReg::TAIL_REG);
     }
 
     // Adjust number of ireg/freg params.
@@ -91,12 +96,13 @@ AbiInfo BuildAbiInfo(Engine::Session& session, Engine::Term signature, AbiInfoFl
         fargIdx = FREG_ABI_AMOUNT;
 
     return {
-        .adjustableParams = adjustableParams,
-        .derivedPairs     = derivedPairs,
-        .iregParamCount   = (uint8_t)iargIdx,
-        .fregParamCount   = (uint8_t)fargIdx,
-        .isSRet           = flags.isSRet,
-        .hasTailReg       = hasTailReg,
+        .stackPtrParams  = stackPtrParams,
+        .referenceParams = referenceParams,
+        .derivedPairs    = derivedPairs,
+        .iregParamCount  = (uint8_t)iargIdx,
+        .fregParamCount  = (uint8_t)fargIdx,
+        .isSRet          = flags.isSRet,
+        .hasTailReg      = hasTailReg,
     };
 }
 

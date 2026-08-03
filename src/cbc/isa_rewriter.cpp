@@ -1834,12 +1834,13 @@ Interpretation::ExecBytecodeInfo Rewrite(
         session,
         Engine::TermManager::Resolve(session, def.Signature()),
         {
-            .isSRet          = flags.Is(Symlevel::MethodRefFlag::SRET),
-            .isMut           = flags.Is(Symlevel::MethodRefFlag::MUT),
-            .hasThisTypeInfo = flags.Is(Symlevel::MethodRefFlag::HAS_THIS_TI),
-            .hasOuterTi      = flags.Is(Symlevel::MethodRefFlag::HAS_OUTER_TI),
-            .hasReceiver     = flags.Is(Symlevel::MethodRefFlag::HAS_RECEIVER),
-            .funcVars        = def->arity,
+            .isSRet            = flags.Is(Symlevel::MethodRefFlag::SRET),
+            .isMut             = flags.Is(Symlevel::MethodRefFlag::MUT),
+            .hasThisTypeInfo   = flags.Is(Symlevel::MethodRefFlag::HAS_THIS_TI),
+            .hasOuterTi        = flags.Is(Symlevel::MethodRefFlag::HAS_OUTER_TI),
+            .recordReceiver    = flags.Is(Symlevel::MethodRefFlag::REC_RECEIVER),
+            .referenceReceiver = flags.Is(Symlevel::MethodRefFlag::REF_RECEIVER),
+            .funcVars          = def->arity,
         }
     );
 
