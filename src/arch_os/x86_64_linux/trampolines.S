@@ -391,6 +391,7 @@ perform_2i_call:
   call  engine_log_int_start
 #endif
 
+.Lcontinue_after_stack_expand: // just repeat stack overflow check again after stack expansion
   mov   rax, [rbp - FUH_SLOT_OFFSET] // load Function Handle
   mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
 
@@ -401,7 +402,6 @@ perform_2i_call:
   sub   rsp, r8
   cmp   rsp, rcx
   jbe   .Lstack_overflow
-.Lcontinue_after_stack_overflow:
 
   lea   rdx, [rsp + r8] // used in PUSH_REGS
 
@@ -490,20 +490,19 @@ perform_2i_call:
   lea   rsp, [rsp + r8 - STACK_OVERFLOW_REGDUMP_SIZE]
   // rsp is 16-byte aligned now
 
+  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE * ECTYPE_IACC_NUM], rsp
+
   save_all_iregs rdi
-  push  r8  // save frame size
-  push  rax // save bytecode info
 
   // pass "adjusted size" on rax
   // TODO: investigate why it is needed
   mov   rax, 0x20
   call  [rip + engine_stack_grow_stub]
 engine_after_stack_grow:
-  pop   rax
-  pop   r8
   restore_all_iregs rdi
-  sub   rsp, r8    // stack grow stub preserves all registers, so r8 will not be changed
-  jmp   .Lcontinue_after_stack_overflow
+
+  add   rsp, STACK_OVERFLOW_REGDUMP_SIZE
+  jmp   .Lcontinue_after_stack_expand
 
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: target)
 // preserved: ECTYPE_REG, rbp
