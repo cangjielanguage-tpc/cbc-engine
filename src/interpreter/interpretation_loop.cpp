@@ -110,7 +110,13 @@ Interpretation::Thunk engine_interpretation_loop(
         return { RTSupport::Execution::ThrowImplicitException(), reinterpret_cast<void*>(type) };                      \
     } while (0)
 
-#ifdef INT_SYMS
+#if defined(INT_SYMS) && defined(__APPLE__)
+    #define LABEL(symbol_name)                                                                                         \
+    symbol_name:                                                                                                       \
+        __asm__ volatile(".globl _" #symbol_name "\n"                                                                  \
+                         "_" #symbol_name ":\n" ::                                                                     \
+                             :);
+#elif defined(INT_SYMS)
     #define LABEL(symbol_name)                                                                                         \
     symbol_name:                                                                                                       \
         __asm__ volatile(".globl " #symbol_name "\n"                                                                   \
