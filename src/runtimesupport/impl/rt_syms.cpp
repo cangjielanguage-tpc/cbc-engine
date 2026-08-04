@@ -117,15 +117,12 @@ void Initialize(DYN_CJNativeInterface* interf)
         return;
     }
 
-    const char* throwerName = "_CN32cangjie.runtime.cbcengine.helper22throwImplicitExceptionHl";
-    auto throwerSym         = helperHandleOpt.value().Sym(throwerName);
-    if (throwerSym == nullptr) {
-        Log::init.Stream(Logging::Level::ERROR) << "failed to find symbol " << throwerName << Stream::endl;
-        return;
-    }
+    g_helperLibHandle = std::move(*helperHandleOpt);
 
-    g_helperLibHandle                      = std::move(helperHandleOpt.value());
-    Asm::engine_implicit_exception_thrower = reinterpret_cast<void (*)(int)>(throwerSym);
+    const char* throwerName = "_CN32cangjie.runtime.cbcengine.helper22throwImplicitExceptionHl";
+
+    Asm::engine_implicit_exception_thrower = g_helperLibHandle.Func<void (*)(int)>(throwerName);
+    Asm::engine_spawn_future               = g_helperLibHandle.Sym("helper_spawn_future");
 }
 
 } // namespace RTSupport

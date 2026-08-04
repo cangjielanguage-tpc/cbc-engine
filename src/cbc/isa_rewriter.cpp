@@ -47,6 +47,7 @@ using STK = Format::StoreAccessKind;
 
 enum class New {
     Obj,
+    ObjPinned,
     Arr,
 };
 
@@ -837,10 +838,19 @@ struct IsaRewriter : public IsaParser {
             return std::nullopt;
         }
 
+        if (kind == New::Obj && t->term.GetKind() == Engine::TermKind::TYPE) {
+            auto identifier = Engine::ExtractTypeDefIdentifier(t->term);
+            auto def        = Symlevel::Reader::Read(session, identifier);
+            if (Symlevel::Reader::Read(session, def.GetName()).compare("std.core:Future") == 0) {
+                kind = New::ObjPinned;
+            }
+        }
+
         auto typeInfo = *ti;
         switch (kind) {
-            case New::Obj: emit.NewObj(typeInfo); break;
-            case New::Arr: emit.NewArr(typeInfo); break;
+            case New::Obj:       emit.NewObj(typeInfo, false); break;
+            case New::Arr:       emit.NewArr(typeInfo); break;
+            case New::ObjPinned: emit.NewObj(typeInfo, true); break;
         }
         BindStatePoint();
         AdjustReg(dst, IReg::IR1);
@@ -925,7 +935,7 @@ struct IsaRewriter : public IsaParser {
 
     void Spawn(IReg closure, uint16_t typeId) override
     {
-        AdjustReg(IReg::IR1, closure);
+        AdjustReg(IReg::IR_ACC, closure);
 
         auto t = resolver.QueryFutureByFunctional(Index<Type>(typeId));
         if (!t.has_value()) {
@@ -943,10 +953,10 @@ struct IsaRewriter : public IsaParser {
         BindStatePoint();
     }
 
-    void SpawnFuture(IReg future, uint16_t type) override
+    void SpawnFuture(IReg future, uint16_t typeId) override
     {
-        BindStatePoint();
-        FATAL("not implemented");
+        AdjustReg(IReg::IR_ACC, future);
+        emit.SpawnFuture();
     }
 
     void CallClosure(IReg dst, uint16_t typeId, bool generic) override
