@@ -603,11 +603,10 @@ void Emitter::NewObjGenericOnAcc(IReg ti)
     Encode(segment, RT::B2rr { .opc = RT::Opcode::NEWOBJ_ACC_G, .rr = { ti, ti } });
 }
 
-void Emitter::NewObj(RTSupport::TypeInfo typeInfo)
+void Emitter::NewObj(RTSupport::TypeInfo typeInfo, bool pinned)
 {
-    Encode(
-        segment, RT::B9i64 { .opc = RT::Opcode::NEWOBJ, .imm64 = { .imm = reinterpret_cast<uint64_t>(typeInfo.Raw()) } }
-    );
+    auto opcode = pinned ? RT::Opcode::NEWOBJ_PINNED : RT::Opcode::NEWOBJ;
+    Encode(segment, RT::B9i64 { .opc = opcode, .imm64 = { .imm = reinterpret_cast<uint64_t>(typeInfo.Raw()) } });
 }
 
 void Emitter::NewArr(RTSupport::TypeInfo typeInfo)
@@ -629,6 +628,8 @@ void Emitter::Spawn(RTSupport::TypeInfo typeInfo)
         segment, RT::B9i64 { .opc = RT::Opcode::SPAWN, .imm64 = { .imm = reinterpret_cast<uint64_t>(typeInfo.Raw()) } }
     );
 }
+
+void Emitter::SpawnFuture() { Encode(segment, RT::B1 { .opc = RT::Opcode::SPAWN_FUTURE }); }
 
 void Emitter::LoadStatic(LoadAccessKind ldk, Reg dst, Symbol offSym)
 {
