@@ -392,14 +392,15 @@ CBC_EXPORT int interpreter_bridge_init(
 
     interpInterf->landingPad = Asm::common_landing_pad;
 
-    Asm::engine_carrier_specific_offset  = g_CJNativeInterfaceInstance.carrierSpecificOffset;
-    Asm::engine_cjthread_specific_offset = g_CJNativeInterfaceInstance.cjThreadSpecificOffset;
+    Asm::engine_carrier_specific_offset   = g_CJNativeInterfaceInstance.carrierSpecificOffset;
+    Asm::engine_cjthread_specific_offset  = g_CJNativeInterfaceInstance.cjThreadSpecificOffset;
 
-    Asm::engine_tls_function             = g_CJNativeInterfaceInstance.getThreadLocalData;
-    Asm::engine_throw_out_of_interpreter = g_CJNativeInterfaceInstance.throwException;
-    Asm::engine_newobject_function       = g_CJNativeInterfaceInstance.objectAlloc;
-    Asm::engine_newarray_function        = g_CJNativeInterfaceInstance.arrayAlloc;
-    Asm::engine_stack_grow_stub          = g_CJNativeInterfaceInstance.stackGrowStub;
+    Asm::engine_tls_function              = g_CJNativeInterfaceInstance.getThreadLocalData;
+    Asm::engine_throw_out_of_interpreter  = g_CJNativeInterfaceInstance.throwException;
+    Asm::engine_newobject_function        = g_CJNativeInterfaceInstance.objectAlloc;
+    Asm::engine_newobject_pinned_function = g_CJNativeInterfaceInstance.newPinnedObject;
+    Asm::engine_newarray_function         = g_CJNativeInterfaceInstance.arrayAlloc;
+    Asm::engine_stack_grow_stub           = g_CJNativeInterfaceInstance.stackGrowStub;
     RTSupport::Initialize(&g_CJNativeInterfaceInstance);
 
     if (g_mainCbc.empty()) {

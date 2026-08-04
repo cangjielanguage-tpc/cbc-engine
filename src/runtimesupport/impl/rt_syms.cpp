@@ -72,6 +72,7 @@ void Initialize(DYN_CJNativeInterface* interf)
 
     g_helperLibHandle                      = std::move(helperHandleOpt);
     Asm::engine_implicit_exception_thrower = reinterpret_cast<void (*)(int)>(throwerSym);
+    Asm::engine_spawn_future               = g_helperLibHandle.SearchSym("helper_spawn_future");
 }
 
 } // namespace RTSupport
