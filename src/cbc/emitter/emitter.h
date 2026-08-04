@@ -172,9 +172,10 @@ public:
 
     void InitClosure(bool instantiatedSret);
     void Spawn(RTSupport::TypeInfo typeInfo);
+    void SpawnFuture();
 
     void NewObjGenericOnAcc(IReg ti);
-    void NewObj(RTSupport::TypeInfo typeInfo);
+    void NewObj(RTSupport::TypeInfo typeInfo, bool pinned);
     void NewArr(RTSupport::TypeInfo typeInfo);
     void LoadObj(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset);
     void StoreObj(StoreAccessKind stk, Reg src, IReg base, uint32_t offset);

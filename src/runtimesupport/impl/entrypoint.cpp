@@ -410,6 +410,7 @@ CBC_EXPORT int interpreter_bridge_init(
     Asm::engine_tls_function = g_CJNativeInterfaceInstance.getThreadLocalData;
     Asm::engine_throw_out_of_interpreter = g_CJNativeInterfaceInstance.throwException;
     Asm::engine_newobject_function = g_CJNativeInterfaceInstance.objectAlloc;
+    Asm::engine_newobject_pinned_function = g_CJNativeInterfaceInstance.newPinnedObject;
     Asm::engine_newarray_function = g_CJNativeInterfaceInstance.arrayAlloc;
     RTSupport::Initialize(&g_CJNativeInterfaceInstance);
 
