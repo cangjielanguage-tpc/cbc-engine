@@ -8,8 +8,8 @@
 namespace IO {
 
 struct FileId {
-    static constexpr auto BIT_SIZE = 28;
-    static constexpr auto MAX_ID   = (1 << 28) - 1;
+    static constexpr auto BIT_SIZE = 32;
+    static constexpr auto MAX_ID   = (1 << 30) - 1;
 
     uint32_t id;
 

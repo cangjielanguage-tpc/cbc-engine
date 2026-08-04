@@ -55,10 +55,9 @@ void Disasmer::Type(TypeDefinition& def)
 
 void Disasmer::RData(RegionData const& rd, uint8_t regionNum)
 {
-    io << "region " << regionNum << endl;
     auto& raf = *session->FileOf(currentFile->Id());
     Region("methods: ", [&]() {
-        auto mrefs = rd.MethodReferencesOffsets().RefIds(regionNum);
+        auto mrefs = rd.MethodReferencesOffsets().RefIds();
         for (auto refid : mrefs) {
             auto methodIdx       = RefIdentifier(refid, currentFile->Id());
             auto methodReference = MethodReference::Parse(*session, methodIdx);
@@ -68,9 +67,9 @@ void Disasmer::RData(RegionData const& rd, uint8_t regionNum)
     });
 
     Region("terms: ", [&]() {
-        auto terms = rd.TermsOffsets().RefIds(regionNum);
+        auto terms = rd.TermsOffsets().RefIds();
         for (auto refid : terms) {
-            auto newrefid = RefId<Term>(regionNum, refid.GetIndex());
+            auto newrefid = RefId<Term>(refid.GetIndex());
             auto termIdx  = RefIdentifier(newrefid, currentFile->Id());
             auto term     = TermManager::Resolve(*session, termIdx);
 
@@ -79,7 +78,7 @@ void Disasmer::RData(RegionData const& rd, uint8_t regionNum)
     });
 
     Region("fields: ", [&]() {
-        auto frefs = rd.FieldReferencesOffsets().RefIds(regionNum);
+        auto frefs = rd.FieldReferencesOffsets().RefIds();
         for (auto refid : frefs) {
             auto fieldIdx       = RefIdentifier(refid, currentFile->Id());
             auto fieldReference = FieldReference::Parse(*session, fieldIdx);

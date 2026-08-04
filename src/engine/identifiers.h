@@ -13,7 +13,7 @@ namespace Engine {
 
 template <typename T> struct Identifier {
     struct Packed {
-        uint64_t const unused : 8;
+        uint64_t const unused : 4;
         uint64_t const offs : Symlevel::Offset<T>::BIT_SIZE;
         uint64_t const fileId : IO::FileId::BIT_SIZE;
 
@@ -47,8 +47,7 @@ private:
 
 template <typename T> struct RefIdentifier {
     struct Packed {
-        uint64_t const region : 8;
-        uint64_t const id : IO::FileId::BIT_SIZE;
+        uint64_t const id : Symlevel::RefId<T>::BIT_SIZE;
         uint64_t const fileId : IO::FileId::BIT_SIZE;
 
         bool operator==(Packed const& another) const { return Bits::Raw64(*this) == Bits::Raw64(another); }
@@ -65,7 +64,7 @@ template <typename T> struct RefIdentifier {
     RefIdentifier(Symlevel::RefId<T> index, IO::FileId fileId) : index(index), fileId(fileId) {}
 
     RefIdentifier(Packed const& packed)
-        : RefIdentifier(Symlevel::RefId<T>(packed.region, packed.id), IO::FileId(packed.fileId))
+        : RefIdentifier(Symlevel::RefId<T>(packed.id), IO::FileId(packed.fileId))
     {}
 
     Symlevel::RefId<T> GetIndex() const { return index; }
@@ -74,7 +73,7 @@ template <typename T> struct RefIdentifier {
 
     bool operator==(const RefIdentifier& another) const { return Pack() == another.Pack(); }
 
-    inline Packed Pack() const { return { index.GetRegion(), index.GetIndex(), static_cast<uint32_t>(fileId) }; }
+    inline Packed Pack() const { return { index.GetIndex(), static_cast<uint32_t>(fileId) }; }
 
 private:
     Symlevel::RefId<T> index;

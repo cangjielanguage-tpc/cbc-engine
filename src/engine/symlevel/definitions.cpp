@@ -26,7 +26,7 @@ TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId
     auto name        = Engine::Identifier(Offset<String>(reader.ReadU32()), fileId);
     auto regionId    = reader.ReadU8();
     auto parsedFlags = reader.ReadU16();
-    auto superType   = Engine::RefIdentifier(RefId<Term>(regionId, reader.ReadULEB()), fileId);
+    auto superType   = Engine::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
 
     auto methodIndex = MethodIndex(reader, fileId);
     auto dynMethods  = OffsetSequence<MethodDefinition>::Parse(reader, fileId);
@@ -76,10 +76,10 @@ TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId
 
     for (auto tag = reader.ReadU8(); tag != 0; tag = reader.ReadU8()) {
         switch (tag) {
-            case 0x1: def.interfaces = RefSequence<Term>::Parse(reader, fileId, regionId); break;
+            case 0x1: def.interfaces = RefSequence<Term>::Parse(reader, fileId); break;
             case 0x5: def.arity = reader.ReadULEB(); break; // TODO: check range
             case 0x6:
-                def.unionFields = RefSequence<Term>::Parse(reader, fileId, regionId);
+                def.unionFields = RefSequence<Term>::Parse(reader, fileId);
                 def.enumKind = EnumKind::UNION;
                 break;
             case 0x7: def.enumKind = EnumKind::OPTION0; break;
@@ -117,7 +117,7 @@ FieldDefinition FieldDefinition::Parse(Engine::Session& session, IO::FileId file
     auto tag = reader.ReadU8();
     ASSERTION(tag == 0, "Const value is not supported yet");
 
-    auto fieldType = Engine::RefIdentifier(RefId<Term>(regionId, fieldTypeIdx), fileId);
+    auto fieldType = Engine::RefIdentifier(RefId<Term>(fieldTypeIdx), fileId);
 
     auto test = [parsedFlags](uint32_t bits) { return (parsedFlags & bits) != 0; };
 
@@ -169,7 +169,7 @@ MethodDefinition MethodDefinition::Parse(Engine::Session& session, IO::FileId fi
     auto nameOffset  = Offset<String>(reader.ReadU32());
     auto typeNameOffset = Offset<String>(reader.ReadU32());
     auto regionId    = reader.ReadU8();
-    auto signature   = Engine::RefIdentifier(RefId<Term>(regionId, reader.ReadULEB()), fileId);
+    auto signature   = Engine::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
     auto parsedFlags = reader.ReadU16();
 
     auto test = [parsedFlags](uint32_t bits) { return (parsedFlags & bits) == bits; };

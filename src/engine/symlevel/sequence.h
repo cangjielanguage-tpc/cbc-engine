@@ -77,24 +77,23 @@ private:
 
 template <typename T> class RefSequence {
 public:
-    RefSequence(Sequence seq, uint8_t region) : seq(seq), region(region) {}
-    RefSequence() : seq(Sequence::Empty()), region(0) {}
+    RefSequence(Sequence seq) : seq(seq) {}
+    RefSequence() : seq(Sequence::Empty()){}
 
-    static RefSequence Parse(IO::StreamFileReader& reader, IO::FileId id, uint8_t region)
+    static RefSequence Parse(IO::StreamFileReader& reader, IO::FileId id)
     {
-        return { Sequence::Parse(reader, id), region };
+        return { Sequence::Parse(reader, id) };
     }
 
     struct Generator {
         Sequence::Generator sgen;
-        uint8_t region;
 
         std::optional<Engine::RefIdentifier<T>> operator()()
         {
             auto _id = sgen();
             if (_id.has_value()) {
                 auto id = static_cast<uint32_t>(*_id);
-                return Engine::RefIdentifier(RefId<T>(region, id), sgen.seq.FileId());
+                return Engine::RefIdentifier(RefId<T>(id), sgen.seq.FileId());
             }
             return std::nullopt;
         }
@@ -105,14 +104,12 @@ public:
     Range Values(Engine::Session& session) const
     {
         return Iterators::MakeRange(Generator {
-            seq.Values(session),
-            region
+            seq.Values(session)
         });
     }
 
 private:
     Sequence seq;
-    uint8_t region;
 };
 
 } // namespace Symlevel
