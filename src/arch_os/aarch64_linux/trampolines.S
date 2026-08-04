@@ -767,6 +767,10 @@ engine_handle_exception:
 .balign 16
 expand_stack_or_throw_soe:
   add   sp, sp, x8
+
+  sub   x10, sp, #STACK_OVERFLOW_REGDUMP_SIZE
+  str   x10, [ECTYPE_REG, #ECTYPE_IACC_OFFSET]
+
   save_all_iregs x10
 
   mov   x9, #0x20 // adjusted size, kept in parity with x86_64
