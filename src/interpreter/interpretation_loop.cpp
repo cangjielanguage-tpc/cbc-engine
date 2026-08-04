@@ -536,6 +536,18 @@ LABEL(NEWOBJ) {
 
     return { func, type.Raw() };
 }
+LABEL(NEWOBJ_PINNED) {
+    auto args = B9i64::Decode(reader);
+    LOG_INSTR;
+    auto type = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
+
+    // Puts result to `IR1`.
+    auto func = Execution::AllocateObjectPinnedInstance();
+
+    reader0 = reader; // save current pc
+
+    return { func, type.Raw() };
+}
 LABEL(NEWBOX) {
     auto args = B2xr::Decode(reader);
     LOG_INSTR;
@@ -590,13 +602,22 @@ LABEL(INITCLOSURE_SRET) {
     InitializeClosure(ectype, true);
     NEXT;
 }
+LABEL(SPAWN_FUTURE) {
+    auto args = B1::Decode(reader);
+    LOG_INSTR;
+
+    auto func = RTSupport::Execution::SpawnFuture();
+
+    reader0 = reader; // save current pc
+
+    return { func, func };
+}
 LABEL(SPAWN) {
     auto args = B9i64::Decode(reader);
     LOG_INSTR;
     auto type = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
 
     // TODO: it seems that spawn could be called directly
-    // Puts result to `IR1`.
     auto func = RTSupport::Execution::Spawn();
 
     reader0 = reader; // save current pc

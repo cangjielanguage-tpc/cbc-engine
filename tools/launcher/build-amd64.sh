@@ -11,6 +11,13 @@ LAUNCHER_NAME=launcher
 
 clang -c -Os "${SCRIPT_DIR}/${LAUNCHER_NAME}.c" -fno-omit-frame-pointer -o "${BUILD_DIR}/${LAUNCHER_NAME}.o"
 
+# omit frame pointer to make stack unwinding work for following scenario:
+# interp (has fp) -> helper func (no fp) -> cangjie code (has fp)
+clang -c -Os "${SCRIPT_DIR}/cbcengine-helper.c" \
+  "-fomit-frame-pointer" \
+  -o "${BUILD_DIR}/helper.o"
+
+
 'clang' \
   '-o' "${BUILD_DIR}/${LAUNCHER_NAME}" \
   '-Wl,-z,noexecstack' \
@@ -35,4 +42,4 @@ cjc trampoline.cj --output-type=staticlib
 ar rcs libtrampoline.a trampoline.o
 
 cjc libtrampoline.a entry.cj --output-type=dylib
-cjc cbcengine-helper.cj --output-type=dylib -o libcbcengine-helper.so
+cjc "${BUILD_DIR}/helper.o" cbcengine-helper.cj --output-type=dylib -o libcbcengine-helper.so

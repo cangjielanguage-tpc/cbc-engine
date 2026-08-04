@@ -80,6 +80,9 @@ struct Execution {
     // dst = IR1
     static void* AllocateObjectInstance();
 
+    // dst = IR1
+    static void* AllocateObjectPinnedInstance();
+
     // dst = IR_ACC
     static void* AllocateObjectInstanceAcc();
 
@@ -97,6 +100,7 @@ struct Execution {
     static void* GcPointTrampoline();
 
     static void* Spawn();
+    static void* SpawnFuture();
 
     static bool IsPendingSafePoint();
 

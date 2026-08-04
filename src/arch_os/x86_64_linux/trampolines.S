@@ -70,6 +70,7 @@ declare_hidden engine_all_regs_c2i_call
 declare_hidden engine_iregs_only_c2i_call
 declare_hidden engine_i2i_call
 declare_hidden engine_i2c_call
+declare_hidden engine_i2_newobject_pinned
 declare_hidden engine_i2_newobject
 declare_hidden engine_i2_newobject_acc
 declare_hidden engine_i2_newarray
@@ -82,6 +83,7 @@ declare_hidden engine_throw_out_of_interpreter
 declare_hidden engine_throw_implicit_exception
 declare_hidden engine_implicit_exception_thrower
 declare_hidden engine_newobject_function
+declare_hidden engine_newobject_pinned_function
 declare_hidden engine_newarray_function
 declare_hidden engine_newthread_nret_function
 declare_hidden engine_handle_exception
@@ -91,6 +93,8 @@ declare_hidden engine_cjthread_specific_offset
 declare_hidden engine_i2_spawn
 declare_hidden engine_stack_grow_stub
 declare_hidden engine_after_stack_grow
+declare_hidden engine_spawn_future
+declare_hidden engine_i2_spawn_future
 
 // --- SECTION BSS ---
 #ifdef __APPLE__
@@ -123,6 +127,10 @@ engine_carrier_specific_offset:
 engine_cjthread_specific_offset:
   .skip 8
 engine_stack_grow_stub:
+  .skip 8
+engine_spawn_future:
+  .skip 8
+engine_newobject_pinned_function:
   .skip 8
 
 // --- SECTION TEXT ---
@@ -653,6 +661,18 @@ engine_i2_newobject:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
+engine_i2_newobject_pinned:
+  // jumped from .Linterpreter_call without return address to return
+  xor   esi, esi
+  call  [rip + engine_newobject_pinned_function]
+  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE], rax
+  restore_tls
+  jmp   .Lrestart_interpretation
+
+.balign 16
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
+// preserved: ECTYPE_REG, rbp
+// TLS_REG can be changed after context-switch
 engine_i2_newobject_acc:
   // jumped from .Linterpreter_call without return address to return
   call  [rip + engine_newobject_function]
@@ -683,11 +703,18 @@ engine_i2_gcpoint:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
 // preserved: ECTYPE_REG, rbp
 engine_i2_spawn:
-  mov   rsi, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE]
+  mov   rsi, [ECTYPE_REG + ECTYPE_IACC_OFFSET]
   mov   rcx, rdi
   lea   rdi, [rip + engine_fake_execute_closure]
   xor   edx, edx
   call  [rip + engine_newthread_nret_function]
+  jmp  .Lrestart_interpretation
+
+// expects: (ECTYPE_REG: ectype, TLS_REG: th)
+// preserved: ECTYPE_REG, rbp
+engine_i2_spawn_future:
+  mov   rdi, [ECTYPE_REG + ECTYPE_IACC_OFFSET]
+  call  [rip + engine_spawn_future]
   jmp  .Lrestart_interpretation
 
 // TREAT SYMBOLS ABOVE AS PART OF perform_2i_call
