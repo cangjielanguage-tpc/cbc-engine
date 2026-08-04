@@ -47,9 +47,8 @@ private:
 
 template <typename T> struct RefIdentifier {
     struct Packed {
-        uint64_t const unused : 12;
         uint64_t const region : 8;
-        uint64_t const id : 16;
+        uint64_t const id : IO::FileId::BIT_SIZE;
         uint64_t const fileId : IO::FileId::BIT_SIZE;
 
         bool operator==(Packed const& another) const { return Bits::Raw64(*this) == Bits::Raw64(another); }
@@ -75,7 +74,7 @@ template <typename T> struct RefIdentifier {
 
     bool operator==(const RefIdentifier& another) const { return Pack() == another.Pack(); }
 
-    inline Packed Pack() const { return { 0, index.GetRegion(), index.GetIndex(), static_cast<uint32_t>(fileId) }; }
+    inline Packed Pack() const { return { index.GetRegion(), index.GetIndex(), static_cast<uint32_t>(fileId) }; }
 
 private:
     Symlevel::RefId<T> index;

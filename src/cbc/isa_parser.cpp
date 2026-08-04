@@ -195,6 +195,13 @@ public:
         return ByteReaderM<Ts..., Value>(reader, std::move(new_data));
     }
 
+    auto ReadULEB() && -> decltype(auto)
+    {
+        auto val      = Value(reader.ReadULEB());
+        auto new_data = std::tuple_cat(data, std::make_tuple(val));
+        return ByteReaderM<Ts..., Value>(reader, std::move(new_data));
+    }
+
     auto Get() && -> decltype(auto) { return std::move(data); }
 };
 
@@ -400,7 +407,7 @@ struct IsaParserImpl {
 
     static void NewArr(IsaParser& parser)
     {
-        auto [dst, len, id] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadSLEB().Get();
+        auto [dst, len, id] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
         parser.NewArr(dst, len, id);
     }
 
@@ -435,7 +442,7 @@ struct IsaParserImpl {
 
     static void LoadStatic(IsaParser& parser)
     {
-        auto [r, id] = ByteReaderM(parser.reader).ReadU4Skip4().ReadU16().Get();
+        auto [r, id] = ByteReaderM(parser.reader).ReadU4Skip4().ReadULEB().Get();
         parser.LoadStatic(r, id);
     }
 
@@ -447,19 +454,19 @@ struct IsaParserImpl {
 
     static void StoreStatic(IsaParser& parser)
     {
-        auto [r, id] = ByteReaderM(parser.reader).ReadU4Skip4().ReadU16().Get();
+        auto [r, id] = ByteReaderM(parser.reader).ReadU4Skip4().ReadULEB().Get();
         parser.StoreStatic(r, id);
     }
 
     static void LoadField(IsaParser& parser)
     {
-        auto [rb, rd, id] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        auto [rb, rd, id] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
         parser.LoadField(rb, rd, id);
     }
 
     static void StoreField(IsaParser& parser)
     {
-        auto [rb, rs, id] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        auto [rb, rs, id] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
         parser.StoreField(rb, rs, id);
     }
 
@@ -484,7 +491,7 @@ struct IsaParserImpl {
 
     static void InstanceOf(IsaParser& parser)
     {
-        auto [dst, obj, id] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadSLEB().Get();
+        auto [dst, obj, id] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
         parser.InstanceOf(dst, obj, id);
     }
 
@@ -508,7 +515,7 @@ struct IsaParserImpl {
 
     static void CallInterfGeneric(IsaParser& parser)
     {
-        auto [argnum, methodId] = ByteReaderM(parser.reader).ReadU16().ReadSLEB().Get();
+        auto [argnum, methodId] = ByteReaderM(parser.reader).ReadU16().ReadULEB().Get();
         parser.CallInterfGeneric(argnum, methodId);
     }
 
@@ -517,7 +524,7 @@ struct IsaParserImpl {
         static constexpr bool GENERIC     = true;
         static constexpr bool NOT_GENERIC = false;
 
-        auto [opc_, dst, id]  = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadSLEB().Get();
+        auto [opc_, dst, id]  = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
         class RegSymGroup opc = opc_;
         switch (opc) {
             case Cbc::RegSymGroup::LoadTypeInfoSig: parser.LoadTypeInfoSig(dst, id); break;
@@ -625,19 +632,19 @@ struct IsaParserImpl {
 
     static void LoadTyped(IsaParser& parser)
     {
-        auto [dst, ts, field] = ByteReaderM(parser.reader).ReadU4Skip4().ReadU16().ReadU16().Get();
+        auto [dst, ts, field] = ByteReaderM(parser.reader).ReadU4Skip4().ReadU16().ReadULEB().Get();
         parser.LoadTyped(dst, ts, field);
     }
 
     static void StoreTyped(IsaParser& parser)
     {
-        auto [src, ts, field] = ByteReaderM(parser.reader).ReadU4Skip4().ReadU16().ReadU16().Get();
+        auto [src, ts, field] = ByteReaderM(parser.reader).ReadU4Skip4().ReadU16().ReadULEB().Get();
         parser.StoreTyped(src, ts, field);
     }
 
     static void StoreTypedImm(IsaParser& parser)
     {
-        auto [ts, field, imm] = ByteReaderM(parser.reader).ReadU16().ReadU16().ReadSLEB().Get();
+        auto [ts, field, imm] = ByteReaderM(parser.reader).ReadU16().ReadULEB().ReadSLEB().Get();
         parser.StoreTypedImm(imm, ts, field);
     }
 
@@ -655,19 +662,19 @@ struct IsaParserImpl {
 
     static void TypeArg(IsaParser& parser)
     {
-        auto [ti, dst, idx] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadSLEB().Get();
+        auto [ti, dst, idx] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
         parser.TypeArg(ti, idx, dst);
     }
 
     static void BoxRec(IsaParser& parser)
     {
-        auto [src, dst, tk] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadSLEB().Get();
+        auto [src, dst, tk] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
         parser.Box(src, dst, tk);
     }
 
     static void UnboxRec(IsaParser& parser)
     {
-        auto [dst, src, tk] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadSLEB().Get();
+        auto [dst, src, tk] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
         parser.Unbox(dst, src, tk);
     }
 
@@ -697,95 +704,95 @@ struct IsaParserImpl {
 
     static void Offset(IsaParser& parser)
     {
-        auto [dst, ti, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadSLEB().Get();
+        auto [dst, ti, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
         parser.Offset(dst, ti, field, false);
     }
 
     static void AddOffset(IsaParser& parser)
     {
-        auto [dst, ti, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadSLEB().Get();
+        auto [dst, ti, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
         parser.Offset(dst, ti, field, true);
     }
 
     static void TagGeneric(IsaParser& parser)
     {
         auto [dst, src, tiReg, _, typeId] =
-            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadSLEB().Get();
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadULEB().Get();
         parser.TagGeneric(dst, src, tiReg, typeId);
     }
 
     static void PayloadGeneric(IsaParser& parser)
     {
         auto [dst, src, underlyingTiReg, optionTiReg, typeId] =
-            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadSLEB().Get();
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadULEB().Get();
         parser.PayloadGeneric(dst, src, underlyingTiReg, optionTiReg, typeId);
     }
 
     static void NewNoneGeneric(IsaParser& parser)
     {
         auto [dst, underlyingTiReg, optionTiReg, _, typeId] =
-            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadSLEB().Get();
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadULEB().Get();
         parser.NewNoneGeneric(dst, underlyingTiReg, optionTiReg, typeId);
     }
 
     static void NewSomeGeneric(IsaParser& parser)
     {
         auto [dst, src, underlyingTiReg, optionTiReg, typeId] =
-            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadSLEB().Get();
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadULEB().Get();
         parser.NewSomeGeneric(dst, src, underlyingTiReg, optionTiReg, typeId);
     }
 
     static void AtomicLoad(IsaParser& parser)
     {
-        auto [dst, obj, fieldId] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        auto [dst, obj, fieldId] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
         parser.AtomicLoad(dst, obj, fieldId);
     }
 
     static void AtomicStore(IsaParser& parser)
     {
-        auto [src, obj, fieldId] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        auto [src, obj, fieldId] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
         parser.AtomicStore(src, obj, fieldId);
     }
 
     static void CAS(IsaParser& parser)
     {
-        auto [dst, obj, src1, src2, fieldId] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+        auto [dst, obj, src1, src2, fieldId] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadULEB().Get();
         parser.CAS(dst, obj, src1, src2, fieldId);
     }
 
     static void AtomicSwap(IsaParser& parser)
     {
-        auto [dst, obj, src, _, fieldId] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+        auto [dst, obj, src, _, fieldId] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadULEB().Get();
         parser.AtomicSwap(dst, obj, src, fieldId);
     }
 
     static void AtomicFetchAdd(IsaParser& parser)
     {
-        auto [dst, obj, src, _, fieldId] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+        auto [dst, obj, src, _, fieldId] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadULEB().Get();
         parser.AtomicFetchAdd(dst, obj, src, fieldId);
     }
 
     static void AtomicFetchSub(IsaParser& parser)
     {
-        auto [dst, obj, src, _, fieldId] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+        auto [dst, obj, src, _, fieldId] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadULEB().Get();
         parser.AtomicFetchSub(dst, obj, src, fieldId);
     }
 
     static void AtomicFetchAnd(IsaParser& parser)
     {
-        auto [dst, obj, src, _, fieldId] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+        auto [dst, obj, src, _, fieldId] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadULEB().Get();
         parser.AtomicFetchAnd(dst, obj, src, fieldId);
     }
 
     static void AtomicFetchOr(IsaParser& parser)
     {
-        auto [dst, obj, src, _, fieldId] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+        auto [dst, obj, src, _, fieldId] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadULEB().Get();
         parser.AtomicFetchOr(dst, obj, src, fieldId);
     }
 
     static void AtomicFetchXor(IsaParser& parser)
     {
-        auto [dst, obj, src, _, fieldId] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU16().Get();
+        auto [dst, obj, src, _, fieldId] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadULEB().Get();
         parser.AtomicFetchXor(dst, obj, src, fieldId);
     }
 
@@ -800,7 +807,7 @@ struct IsaParserImpl {
     static void MemHeadField(IsaParser& parser)
     {
         auto ms = parser.OpenMemSpace();
-        auto [base, skip, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        auto [base, skip, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
         parser.MemHeadField(*ms, base, field);
         ParseMemExpr(parser, *ms);
     }
@@ -808,7 +815,7 @@ struct IsaParserImpl {
     static void MemHeadStatic(IsaParser& parser)
     {
         auto ms = parser.OpenMemSpace();
-        auto [field] = ByteReaderM(parser.reader).ReadU16().Get();
+        auto [field] = ByteReaderM(parser.reader).ReadULEB().Get();
         parser.MemHeadStatic(*ms, field);
         ParseMemExpr(parser, *ms);
     }
@@ -831,21 +838,21 @@ struct IsaParserImpl {
 
     static bool MemBodyFieldGeneric(IsaParser& parser, IsaParser::MemSpace& ms)
     {
-        auto [f, ti] = ByteReaderM(parser.reader).ReadU16().ReadU4Skip4().Get();
+        auto [f, ti] = ByteReaderM(parser.reader).ReadULEB().ReadU4Skip4().Get();
         parser.MemBodyFieldGeneric(ms, f, ti);
         return false;
     }
 
     static bool MemBodyIndexGeneric(IsaParser& parser, IsaParser::MemSpace& ms)
     {
-        auto [elemType, reg, ti] = ByteReaderM(parser.reader).ReadU16().ReadU4().ReadU4().Get();
+        auto [elemType, reg, ti] = ByteReaderM(parser.reader).ReadULEB().ReadU4().ReadU4().Get();
         parser.MemBodyIndexGeneric(ms, reg, elemType, ti);
         return false;
     }
 
     static bool MemBodyConstIndexGeneric(IsaParser& parser, IsaParser::MemSpace& ms)
     {
-        auto [idx, elemType, ti] = ByteReaderM(parser.reader).ReadSLEB().ReadU16().ReadU4Skip4().Get();
+        auto [idx, elemType, ti] = ByteReaderM(parser.reader).ReadSLEB().ReadULEB().ReadU4Skip4().Get();
         parser.MemBodyConstIndexGeneric(ms, idx, elemType, ti);
         return false;
     }
@@ -859,42 +866,42 @@ struct IsaParserImpl {
 
     static bool MemBodyField1(IsaParser& parser, IsaParser::MemSpace& ms)
     {
-        auto [f1] = ByteReaderM(parser.reader).ReadU16().Get();
+        auto [f1] = ByteReaderM(parser.reader).ReadULEB().Get();
         parser.MemBodyField1(ms, f1);
         return false;
     }
 
     static bool MemBodyField2(IsaParser& parser, IsaParser::MemSpace& ms)
     {
-        auto [f1, f2] = ByteReaderM(parser.reader).ReadU16().ReadU16().Get();
+        auto [f1, f2] = ByteReaderM(parser.reader).ReadULEB().ReadULEB().Get();
         parser.MemBodyField2(ms, f1, f2);
         return false;
     }
 
     static bool MemBodyField3(IsaParser& parser, IsaParser::MemSpace& ms)
     {
-        auto [f1, f2, f3] = ByteReaderM(parser.reader).ReadU16().ReadU16().ReadU16().Get();
+        auto [f1, f2, f3] = ByteReaderM(parser.reader).ReadULEB().ReadULEB().ReadULEB().Get();
         parser.MemBodyField3(ms, f1, f2, f3);
         return false;
     }
 
     static bool MemBodyField4(IsaParser& parser, IsaParser::MemSpace& ms)
     {
-        auto [f1, f2, f3, f4] = ByteReaderM(parser.reader).ReadU16().ReadU16().ReadU16().ReadU16().Get();
+        auto [f1, f2, f3, f4] = ByteReaderM(parser.reader).ReadULEB().ReadULEB().ReadULEB().ReadULEB().Get();
         parser.MemBodyField4(ms, f1, f2, f3, f4);
         return false;
     }
 
     static bool MemBodyIndex(IsaParser& parser, IsaParser::MemSpace& ms)
     {
-        auto [reg, checked, elemType] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        auto [reg, checked, elemType] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
         parser.MemBodyIndex(ms, reg, elemType, checked);
         return false;
     }
 
     static bool MemBodyConstIndex(IsaParser& parser, IsaParser::MemSpace& ms)
     {
-        auto [idx, elemType] = ByteReaderM(parser.reader).ReadSLEB().ReadU16().Get();
+        auto [idx, elemType] = ByteReaderM(parser.reader).ReadSLEB().ReadULEB().Get();
         parser.MemBodyConstIndex(ms, idx, elemType);
         return false;
     }
@@ -916,10 +923,10 @@ struct IsaParserImpl {
     static bool MemTailLoad(IsaParser& parser, IsaParser::MemSpace& ms)
     {
         auto [reg, _size] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
-        std::vector<uint16_t> refs;
+        std::vector<uint32_t> refs;
         uint8_t size = _size;
         for (int i = 0; i < size; i++) {
-            refs.emplace_back(parser.reader.Read16());
+            refs.emplace_back(parser.reader.ReadULEB());
         }
         parser.MemTailLoad(ms, reg, refs);
         return true;
@@ -928,10 +935,10 @@ struct IsaParserImpl {
     static bool MemTailStore(IsaParser& parser, IsaParser::MemSpace& ms)
     {
         auto [reg, _size] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
-        std::vector<uint16_t> refs;
+        std::vector<uint32_t> refs;
         uint8_t size = _size;
         for (int i = 0; i < size; i++) {
-            refs.emplace_back(parser.reader.Read16());
+            refs.emplace_back(parser.reader.ReadULEB());
         }
         parser.MemTailStore(ms, reg, refs);
         return true;
@@ -946,7 +953,7 @@ struct IsaParserImpl {
 
     static bool MemTailCopyReg(IsaParser& parser, IsaParser::MemSpace& ms)
     {
-        auto [reg, skip, recType] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        auto [reg, skip, recType] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadSLEB().Get();
         parser.MemTailCopyReg(ms, reg, recType);
         return true;
     }
@@ -954,10 +961,10 @@ struct IsaParserImpl {
     static bool MemTailCopyInterior(IsaParser& parser, IsaParser::MemSpace& ms)
     {
         auto [reg, _size] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
-        std::vector<uint16_t> refs;
+        std::vector<uint32_t> refs;
         uint8_t size = _size;
         for (int i = 0; i < size; i++) {
-            refs.emplace_back(parser.reader.Read16());
+            refs.emplace_back(parser.reader.ReadULEB());
         }
         parser.MemTailCopyInterior(ms, reg, refs);
         return true;
@@ -966,10 +973,10 @@ struct IsaParserImpl {
     static bool MemTailCopyInteriorArr(IsaParser& parser, IsaParser::MemSpace& ms)
     {
         auto [reg, idx, _size, skip] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
-        std::vector<uint16_t> refs;
+        std::vector<uint32_t> refs;
         uint8_t size = _size;
         for (int i = 0; i < size; i++) {
-            refs.emplace_back(parser.reader.Read16());
+            refs.emplace_back(parser.reader.ReadULEB());
         }
         parser.MemTailCopyInteriorArr(ms, reg, idx, refs);
         return true;
@@ -977,10 +984,10 @@ struct IsaParserImpl {
 
     static bool MemTailCopyStatic(IsaParser& parser, IsaParser::MemSpace& ms)
     {
-        std::vector<uint16_t> refs;
+        std::vector<uint32_t> refs;
         uint8_t size = parser.reader.Read8();
         for (int i = 0; i < size; i++) {
-            refs.emplace_back(parser.reader.Read16());
+            refs.emplace_back(parser.reader.ReadULEB());
         }
         parser.MemTailCopyStatic(ms, refs);
         return true;
@@ -988,11 +995,11 @@ struct IsaParserImpl {
 
     static bool MemTailCopyTyped(IsaParser& parser, IsaParser::MemSpace& ms)
     {
-        std::vector<uint16_t> refs;
+        std::vector<uint32_t> refs;
         uint8_t size = parser.reader.Read8();
         uint16_t ts = parser.reader.Read16();
         for (int i = 0; i < size; i++) {
-            refs.emplace_back(parser.reader.Read16());
+            refs.emplace_back(parser.reader.ReadULEB());
         }
         parser.MemTailCopyTyped(ms, ts, refs);
         return true;

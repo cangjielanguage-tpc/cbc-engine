@@ -93,7 +93,7 @@ public:
         {
             auto _id = sgen();
             if (_id.has_value()) {
-                auto id = static_cast<uint16_t>(*_id);
+                auto id = static_cast<uint32_t>(*_id);
                 return Engine::RefIdentifier(RefId<T>(region, id), sgen.seq.FileId());
             }
             return std::nullopt;
