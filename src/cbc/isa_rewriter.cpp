@@ -1504,6 +1504,7 @@ struct IsaRewriter : public IsaParser {
             msr.emit.OffsetRegIdx(reg, *size);
             break;
         }
+        msr.lastFieldKind = elemType.GetKind();
     }
 
     void MemTailLoad(MemSpace& ms, IReg dst, std::vector<uint32_t> refs) override
