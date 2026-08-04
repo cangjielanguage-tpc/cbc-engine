@@ -322,6 +322,8 @@ void* Execution::AllocateObjectInstance() { return reinterpret_cast<void*>(&Inte
 
 void* Execution::AllocateObjectInstanceAcc() { return reinterpret_cast<void*>(&Interpretation::MockNewObj); }
 
+void* Execution::AllocateObjectPinnedInstance() { FATAL("Should not reach here"); }
+
 void* Execution::AllocateArrayInstance() { return reinterpret_cast<void*>(&Interpretation::MockNewObj); }
 
 void* Execution::HandleException()
@@ -343,6 +345,8 @@ void* Execution::LoadGeneric() { FATAL("Should not reach here"); }
 void* Execution::GcPoint() { FATAL("Should not reach here"); }
 
 void* Execution::Spawn() { FATAL("Should not reach here"); }
+
+void* Execution::SpawnFuture() { FATAL("Should not reach here"); }
 
 bool Execution::IsPendingSafePoint() { return false; }
 

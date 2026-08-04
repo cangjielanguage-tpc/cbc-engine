@@ -42,12 +42,14 @@
     X(FUN32, B3xrrr, "$0fop.32 $1fr $3fr")                                                                             \
     X(FUN64, B3xrrr, "$0fop.64 $1fr $3fr")                                                                             \
     X(NEWOBJ, B9i64, "newobj IR1, $0U64")                                                                              \
+    X(NEWOBJ_PINNED, B9i64, "newobj.pinned IR1, $0U64")                                                                \
     X(NEWOBJ_G, B2rr, "newobj.g $0ir")                                                                                 \
     X(NEWOBJ_ACC_G, B2rr, "newobj.acc.g $0ir")                                                                         \
     X(NEWARR, B9i64, "newarr IR1, IR2, $0U64")                                                                         \
     X(INITCLOSURE, B1, "init.closure")                                                                                 \
     X(INITCLOSURE_SRET, B1, "init.closure.sret")                                                                       \
     X(SPAWN, B9i64, "spawn $0U64")                                                                                     \
+    X(SPAWN_FUTURE, B1, "spawn.future")                                                                                \
     /* Integral Load/Store instructions start */                                                                       \
     X(LOAD_ADDR, B4xri16, "ld.addr.$0ldk $1ir $2U16")                                                                  \
     X(STORE_ADDR, B4xri16, "st.addr.$0ldk $1ir $2U16")                                                                 \
