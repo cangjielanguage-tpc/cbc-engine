@@ -38,10 +38,11 @@ static std::pair<const GCPositionalInfo*, const StackPtrsPositionalInfo*> FindPo
         }
     }
 
-    if (!gcPosInfo || !stackPtrsPosInfo) {
+    // Stack pointer maps are sparse: no entry means that the state point has no
+    // pointers into the stack. GC info, however, is required at every state point.
+    if (!gcPosInfo) {
         RTSupport::Log::gc.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
-            const char* prefix = !gcPosInfo ? "gc" : "stack ptrs";
-            out.PrintFmtLn("%s info not found (pos=%lu)", prefix, pos);
+            out.PrintFmtLn("gc info not found (pos=%lu)", pos);
         });
     }
 
