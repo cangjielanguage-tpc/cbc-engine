@@ -402,7 +402,12 @@ CBC_EXPORT int interpreter_bridge_init(
     Asm::engine_newobject_pinned_function = g_CJNativeInterfaceInstance.newPinnedObject;
     Asm::engine_newarray_function         = g_CJNativeInterfaceInstance.arrayAlloc;
     Asm::engine_stack_grow_stub           = g_CJNativeInterfaceInstance.stackGrowStub;
-    RTSupport::Initialize(&g_CJNativeInterfaceInstance);
+    if (!RTSupport::Initialize(&g_CJNativeInterfaceInstance)) {
+        RTSupport::Log::rt.Log(Logging::Level::ERROR, [](Stream::Output& out) {
+            out.PrintFmtLn("Failed to initialize CJNative runtime symbols");
+        });
+        return 1;
+    }
 
     if (g_mainCbc.empty()) {
         PerformPatching();
