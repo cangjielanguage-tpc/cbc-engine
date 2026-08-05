@@ -18,6 +18,22 @@ DYN_WriteGenericFieldFn WriteGeneric;
 // Prolongs lifetime of helper lib handle after finish of Initialize.
 Utils::SharedObject g_helperLibHandle;
 
+static void* LookupSymbol(void* handle, char const* handleName, char const* symbolName)
+{
+    dlerror();
+    auto* symbol = dlsym(handle, symbolName);
+    if (symbol == nullptr) {
+        auto* error  = dlerror();
+        auto& stream = Log::init.Stream(Logging::Level::ERROR);
+        stream << '{' << handleName << "} failed to find " << symbolName;
+        if (error != nullptr) {
+            stream << ": " << error;
+        }
+        stream << Stream::endl;
+    }
+    return symbol;
+}
+
 bool Initialize(DYN_CJNativeInterface* interf)
 {
     auto anySym = reinterpret_cast<void*>(interf->stackGrowStub);
@@ -44,24 +60,38 @@ bool Initialize(DYN_CJNativeInterface* interf)
         return false;
     }
 
-#if defined(__APPLE__)
-    std::string_view helperLibName = "@rpath/libcbcengine-helper.dylib";
+    const char* throwerName = "_CN32cangjie.runtime.cbcengine.helper22throwImplicitExceptionHl";
+    const char* futureExecuteName = "_CNat6FutureIG_E7executeHv";
+    const char* threadHandleSetterName  = "_CNat6Thread24setRuntimeCJThreadHandleHPu";
+
+#if defined(__APPLE__) && defined(STATIC_HELPER)
+    if (interf->appLibHandle == nullptr) {
+        Log::init.Stream(Logging::Level::ERROR)
+            << "STATIC_HELPER requires a non-null application library handle" << Stream::endl;
+        return false;
+    }
+
+    auto throwerSym = LookupSymbol(interf->appLibHandle, "application", throwerName);
+    auto futureExecuteSym = LookupSymbol(interf->appLibHandle, "application", futureExecuteName);
+    auto threadHandleSetterSym = LookupSymbol(interf->appLibHandle, "application", threadHandleSetterName);
 #else
+    #if defined(__APPLE__)
+    std::string_view helperLibName = "@rpath/libcbcengine-helper.dylib";
+    #else
     std::string_view helperLibName = "libcbcengine-helper.so";
-#endif
+    #endif
     auto helperHandleOpt = Utils::SharedObject::Open(helperLibName);
     if (!helperHandleOpt.IsOpened()) {
         Log::init.Stream(Logging::Level::ERROR) << "failed to open lib " << helperLibName << Stream::endl;
         return false;
     }
 
-    const char* throwerName = "_CN32cangjie.runtime.cbcengine.helper22throwImplicitExceptionHl";
-    const char* futureExecuteName = "_CNat6FutureIG_E7executeHv";
-    const char* threadHandleSetterName  = "_CNat6Thread24setRuntimeCJThreadHandleHPu";
-
     auto throwerSym = helperHandleOpt.SearchSym(throwerName);
     auto futureExecuteSym = helperHandleOpt.SearchSym(futureExecuteName);
     auto threadHandleSetterSym  = helperHandleOpt.SearchSym(threadHandleSetterName);
+
+    g_helperLibHandle = std::move(helperHandleOpt);
+#endif
 
     for (auto [name, symbol] : {
              std::pair { throwerName, throwerSym },
@@ -74,7 +104,6 @@ bool Initialize(DYN_CJNativeInterface* interf)
         }
     }
 
-    g_helperLibHandle = std::move(helperHandleOpt);
     Asm::engine_newthread_nret_function             = interf->newCJThreadNoReturn;
     Asm::engine_read_generic                         = interf->readGenericField;
     Asm::engine_implicit_exception_thrower           = reinterpret_cast<void (*)(int)>(throwerSym);
