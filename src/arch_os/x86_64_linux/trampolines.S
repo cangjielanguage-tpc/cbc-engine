@@ -679,11 +679,23 @@ engine_handle_exception:
   lea   rsi, QWORD PTR [rbp - READER_SLOT_OFFSET] // reader
   call  engine_get_exception_handler
 
-  mov   r8, EXTRA_REG // use r8 (volatile) as temporary exception holder
+  lea   rcx, [rip + .Lexception_handlers]
+  mov   eax, [rcx + 4 * rax] // offset would be zero extended
+  lea   rcx, [rcx + rax]
+  jmp   rcx
 
-  test  al, al
-  jz   .Lunwind_top_frame
+.Lexception_handlers:
+  .long .Lunwind_top_frame - .Lexception_handlers // EXC_HANDLER_NOT_FOUND
+  .long .Lcatch_exception  - .Lexception_handlers // EXC_HANDLER_FOUND
+  .long .Lhandle_soe       - .Lexception_handlers // EXC_SOE_THROWN
 
+.Lhandle_soe:
+  restore_all_iregs rdi
+
+  add   rsp, STACK_OVERFLOW_REGDUMP_SIZE
+  jmp   .Lhandle_c2i_or_rethrow
+
+.Lcatch_exception:
   // Handler is found, set exception object to ACC_REG and continue interpretation
   mov   QWORD PTR [ECTYPE_REG + ECTYPE_IACC_OFFSET], EXTRA_REG
   jmp   .Lrestart_interpretation
@@ -697,6 +709,9 @@ engine_handle_exception:
 
   POP_REGS rcx, rdx, rax, rsi, rdi
 
+.Lhandle_c2i_or_rethrow:
+  mov   rdi, EXTRA_REG // rdi := exception
+
   mov   EXTRA_REG,    [rbp - EXTRA_SAVED_REG_OFFSET]
   mov   LITERALS_REG, [rbp - LITERALS_REG_SAVED_SLOT_OFFSET]
   mov   ECTYPE_REG,   [rbp - ECTYPE_REG_SAVED_SLOT_OFFSET]
@@ -705,8 +720,6 @@ engine_handle_exception:
   mov rsp, rbp
   pop rbp
   pop rsi // ret addr
-
-  mov   rdi, r8 // set exception pointer as argument for both execution paths
 
   // Check if next method is C2I adapter
   lea   rax, [rip + engine_c2i_call_pc_start]
