@@ -1,11 +1,13 @@
 #include "utils/options.h"
 #include "engine/options.h"
+#include "utils/assertion.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
 
-#include <charconv>
+#include <cerrno>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <string_view>
 #include <vector>
 
@@ -57,10 +59,27 @@ bool SetIntValue(Options::Table const&, Options::Option const& option, std::stri
 {
     auto end = value.data() + value.size();
     int64_t res;
-    auto [ptr, ec]               = std::from_chars(value.data(), end, res);
-    *(int64_t*)(option.location) = res;
+    char str[32];
 
-    return ec == std::errc {} && ptr == end;
+    if (value.length() == 0 || value.length() >= sizeof(str)) {
+        return false;
+    }
+
+    ASSERT(value.length() < sizeof(str));
+    str[value.length()] = 0;
+    memcpy(str, value.data(), value.size());
+
+    char* endptr;
+    long long parsedVal = std::strtoll(str, &endptr, 10);
+
+    // out of range, invalid input, junk characters
+    if (errno == ERANGE || endptr == str || *endptr != 0) {
+        return false;
+    }
+
+    *(int64_t*)option.location = parsedVal;
+
+    return true;
 }
 
 bool SetStringValue(Options::Table const&, Options::Option const& option, std::string_view value)

@@ -4,7 +4,6 @@
 #include <cassert>
 #include <cmath>
 #include <cstdlib>
-#include <filesystem>
 #include <iostream>
 #include <string_view>
 #include <vector>
@@ -76,9 +75,6 @@ Dis::Disasmer CliParser::CreateDisasmer(Stream::Output& out)
         if (isOption(arg)) {
             ParseOption(arg, builder);
         } else {
-            filesystem::path p(arg);
-            assert(filesystem::exists(p));
-
             builder.AddFile(arg);
         }
     }

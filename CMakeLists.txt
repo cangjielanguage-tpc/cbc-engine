@@ -64,6 +64,7 @@ target_include_directories(cbcengine PUBLIC "third_party/mrt/include")
 target_include_directories(cbc_lib PRIVATE "${PLATFORM_DIR}")
 target_link_libraries(cbcengine PRIVATE
   cbc_lib
+  ${CMAKE_DL_LIBS}
 )
 
 if(NOT APPLE)

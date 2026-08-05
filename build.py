@@ -98,7 +98,7 @@ def prepare_cmake_options(args, project_dir):
     if args.target_os == "android":
         android_ndk_home = os.environ.get("ANDROID_NDK_HOME")
         if android_ndk_home is None:
-            fail(
+            return fail(
                 "ANDROID_NDK_HOME must be set for "
                 f"{target_name(args.target_os, args.target_arch)} builds"
             )
@@ -143,21 +143,22 @@ def prepare_cmake_options(args, project_dir):
     )
 
 
-def get_xcode_sdkroot(sdk):
+def get_xcode_sdkroot(sdk) -> str:
     try:
         sdkroot = subprocess.check_output(
             ["xcrun", "--sdk", sdk, "--show-sdk-path"],
             text=True,
         ).strip()
+
+        if not sdkroot:
+            fail(f"xcrun returned an empty SDK path for {sdk}")
+        return sdkroot
     except FileNotFoundError:
         fail("xcrun was not found. Install the Xcode command-line tools.")
     except subprocess.CalledProcessError as e:
         print(f"Error: xcrun failed with exit code {e.returncode}")
         sys.exit(e.returncode)
-
-    if not sdkroot:
-        fail(f"xcrun returned an empty SDK path for {sdk}")
-    return sdkroot
+    assert False, "unreachable"
 
 
 def build(args, project_dir, build_dir):
@@ -217,7 +218,7 @@ def build_helper_lib(args, project_dir, build_dir):
 
     cangjie_home = os.environ.get("CANGJIE_HOME")
     if cangjie_home is None:
-        fail("CANGJIE_HOME must be set for iOS helper library builds. Source <CANGJIE_SDK>/envsetup.sh first.")
+        return fail("CANGJIE_HOME must be set for iOS helper library builds. Source <CANGJIE_SDK>/envsetup.sh first.")
 
     cjc_path = Path(cangjie_home) / "bin/cjc"
     if not cjc_path.is_file():
