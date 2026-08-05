@@ -141,8 +141,9 @@ struct FLManager : public FieldLayoutManager {
             }
             case TermKind::OPTION:
             case TermKind::UNION_ENUM:
-            case TermKind::TYPE: {
-                auto ident     = ExtractTypeDefIdentifier(term);
+            case TermKind::TYPE:
+            case TermKind::VARRAY:
+            {
                 auto optlayout = GetLayout(term);
                 if (optlayout.has_value()) {
                     auto layout = *optlayout;
@@ -285,12 +286,23 @@ private:
         if (kind == TermKind::TYPE) {
             auto def = Symlevel::Reader::Read(session, ExtractTypeDefIdentifier(term));
             layout = BuildLayoutCbc(term, def);
-        } else if (kind == TermKind::TUPLE || kind == TermKind::VARRAY) {
+        } else if (kind == TermKind::TUPLE) {
             SizeAlignmentAccumulator acc { this, 0, 1 };
             FieldLayout::Content content;
             auto len = term.GetLength();
             for (int i = 0; i < len; i++) {
                 acc.AddField(content.fields, term.Subterm(i), std::nullopt);
+            }
+            content.desc.alignment = acc.alignment;
+            content.desc.size      = acc.size;
+            layout                 = std::move(content);
+        } else if (kind == TermKind::VARRAY) {
+            SizeAlignmentAccumulator acc { this, 0, 1 };
+            FieldLayout::Content content;
+            auto len = VArrayTermId(term).GetNum();
+            auto elemType = term.Subterm(0);
+            for (int i = 0; i < len; i++) {
+                acc.AddField(content.fields, elemType, std::nullopt);
             }
             content.desc.alignment = acc.alignment;
             content.desc.size      = acc.size;
