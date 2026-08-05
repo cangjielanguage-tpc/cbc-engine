@@ -33,6 +33,14 @@ python3 build.py build --target-os=ios-sim --target-arch=aarch64
 python3 build.py build --target-os=ios-sim --target-arch=x86_64
 ```
 
+By default, Apple builds load `libcbcengine-helper.dylib`. To resolve helper
+symbols from a static library linked into the application instead, add
+`--static-helper`:
+
+```bash
+python3 build.py build --target-os=ios-sim --target-arch=x86_64 --static-helper
+```
+
 To build the helper library:
 1. \[for iOS\] Install XCode.
 2. Setup the Cangjie SDK environment (`source <CANGJIE_SDK>/envsetup.sh`) and run:
@@ -44,7 +52,12 @@ python3 build.py build-helper-lib --target-os=ios-sim --target-arch=x86_64
 ```
 
 3) Library is located in `output/<target-os>_<target-arch>/libcbcengine.<so/dylib>`.
-Helper library is located in `output/<target-os>_<target-arch>/libcbcengine-helper.<so/dylib>`.
+Both helper variants are produced for iOS targets:
+
+- `output/<target-os>_<target-arch>/libcbcengine-helper.dylib`
+- `output/<target-os>_<target-arch>/libcbcengine-helper.a`
+
+Applications using a `cbcengine` built with `--static-helper` must link the matching static helper archive and expose its symbols through the application handle passed in `DYN_CJNativeInterface::appLibHandle`.
 
 ## How to run tests
 

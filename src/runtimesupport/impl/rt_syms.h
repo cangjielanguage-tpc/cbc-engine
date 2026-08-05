@@ -5,7 +5,7 @@
 
 namespace RTSupport {
 
-void Initialize(DYN_CJNativeInterface* interf);
+bool Initialize(DYN_CJNativeInterface* interf);
 
 extern DYN_WriteStructFieldFn WriteStructField;
 extern DYN_ReadStructFieldFn ReadStructField;
