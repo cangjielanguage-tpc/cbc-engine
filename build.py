@@ -38,6 +38,7 @@ IOS_HELPER_SDKS = {
     ("ios-sim", "aarch64"): "iphonesimulator",
     ("ios-sim", "x86_64"): "iphonesimulator",
 }
+HELPER_STATIC_LIB_NAME = "libcbcengine-helper.a"
 
 
 def run_command(command, cwd=None):
@@ -110,6 +111,7 @@ def prepare_cmake_options(args, project_dir):
     build_type     = f"-DCMAKE_BUILD_TYPE={args.build_type.capitalize()} "
     build_testing  = "ON" if args.run_tests else "OFF"
     build_int_syms = "ON" if args.enable_int_syms else "OFF"
+    build_static_helper = "ON" if args.enable_static_helper else "OFF"
 
     if args.target_os == "android":
         android_ndk_home = os.environ.get("ANDROID_NDK_HOME")
@@ -130,6 +132,7 @@ def prepare_cmake_options(args, project_dir):
             f"-DANDROID_PLATFORM={ANDROID_PLATFORM} "
             f"-DANDROID_ABI={ANDROID_ABI} "
             f"-DINT_SYMS={build_int_syms} "
+            f"-DSTATIC_HELPER={build_static_helper} "
         )
 
     elif args.target_os in ["ios", "ios-sim"]:
@@ -145,6 +148,7 @@ def prepare_cmake_options(args, project_dir):
             f"-DBUILD_TESTING={build_testing} "
             f"-DCMAKE_TOOLCHAIN_FILE={toolchain_path} "
             f"-DINT_SYMS={build_int_syms} "
+            f"-DSTATIC_HELPER={build_static_helper} "
         )
 
     toolchain_files_dir = f"{project_dir}/cmake/toolchains"
@@ -156,6 +160,7 @@ def prepare_cmake_options(args, project_dir):
         f"-DBUILD_TESTING={build_testing} "
         f"-DCMAKE_TOOLCHAIN_FILE={toolchain_path} "
         f"-DINT_SYMS={build_int_syms} "
+        f"-DSTATIC_HELPER={build_static_helper} "
     )
 
 
@@ -195,6 +200,9 @@ def build(args, project_dir, build_dir):
     validate_target(args.target_os, args.target_arch)
     host_os = detect_host_os()
     host_arch = detect_host_arch()
+
+    if args.enable_static_helper and args.target_os not in ["ios", "ios-sim"]:
+        fail("--static-helper is supported only for iOS device and simulator builds")
 
     if args.run_tests and is_cross_target(args.target_os, args.target_arch, host_os, host_arch):
         fail(
@@ -278,6 +286,20 @@ def build_helper_lib(args, project_dir, build_dir):
     run_command_args(link_command, cwd=build_dir, env=env)
     print(f"Output: {output_path}")
 
+    if args.target_os in ["ios", "ios-sim"]:
+        static_output_path = build_path / HELPER_STATIC_LIB_NAME
+        static_link_command = [
+            str(cjc_path),
+            "--target",
+            target,
+            str(helper_cj_source),
+            "--output-type=staticlib",
+            "-o",
+            str(static_output_path),
+        ]
+        run_command_args(static_link_command, cwd=build_dir, env=env)
+        print(f"Output: {static_output_path}")
+
 
 def main():
     host_os = detect_host_os()
@@ -316,6 +338,10 @@ def main():
                               dest="enable_int_syms",
                               action="store_true",
                               help="Enable interpreter labels symbols(slight performance penalty)")
+    build_parser.add_argument("--static-helper",
+                              dest="enable_static_helper",
+                              action="store_true",
+                              help="Resolve helper symbols from the statically linked Apple application")
 
     helper_parser = subparsers.add_parser("build-helper-lib", help="build libcbcengine-helper shared library")
     helper_parser.add_argument("--target-os",
