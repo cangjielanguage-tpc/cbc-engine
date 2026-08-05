@@ -71,6 +71,14 @@ target_link_libraries(cbcengine PRIVATE
   cbc_lib
 )
 
+option(STATIC_HELPER "Resolve cbcengine helper symbols from the application" OFF)
+if(STATIC_HELPER)
+  if(NOT APPLE)
+    message(FATAL_ERROR "STATIC_HELPER is supported only for Apple targets")
+  endif()
+  target_compile_definitions(cbcengine PRIVATE STATIC_HELPER)
+endif()
+
 if(NOT APPLE)
   target_link_options(cbcengine PRIVATE
     "-Wl,-z,noexecstack"
