@@ -226,29 +226,58 @@ def build_helper_lib(args, project_dir, build_dir):
     if not cjc_path.is_file():
         fail(f"Cangjie compiler does not exist: {cjc_path}")
 
-    helper_source = Path(project_dir) / "tools/launcher/cbcengine-helper.cj"
-    if not helper_source.is_file():
-        fail(f"Helper source does not exist: {helper_source}")
+    helper_sources_dir = Path(project_dir) / "tools/launcher"
+    helper_c_source = helper_sources_dir / "cbcengine-helper.c"
+    helper_cj_source = helper_sources_dir / "cbcengine-helper.cj"
+    for helper_source in (helper_c_source, helper_cj_source):
+        if not helper_source.is_file():
+            fail(f"Helper source does not exist: {helper_source}")
 
-    sdk, cjc_target = IOS_HELPER_TARGETS[helper_target]
+    sdk, target = IOS_HELPER_TARGETS[helper_target]
     sdkroot = get_xcode_sdkroot(sdk)
     build_path = Path(build_dir)
     build_path.mkdir(parents=True, exist_ok=True)
+    helper_object = build_path / "cbcengine-helper.o"
     output_path = build_path / HELPER_LIB_NAME
 
     print(f"--- Building {HELPER_LIB_NAME} for {target_name(args.target_os, args.target_arch)} ---")
     env = os.environ.copy()
     env["SDKROOT"] = sdkroot
-    command = [
+
+    compile_command = [
+        "xcrun",
+        "--sdk",
+        sdk,
+        "clang",
+        "-c",
+        str(helper_c_source),
+        "-target",
+        target,
+        "-isysroot",
+        sdkroot,
+        "-Os",
+        "-fPIC",
+        "-fomit-frame-pointer",
+        "-fno-stack-protector",
+        "-fno-exceptions",
+        "-fno-asynchronous-unwind-tables",
+        "-fno-unwind-tables",
+        "-o",
+        str(helper_object),
+    ]
+    run_command_args(compile_command, cwd=build_dir, env=env)
+
+    link_command = [
         str(cjc_path),
-        str(helper_source),
+        str(helper_object),
+        str(helper_cj_source),
         "--output-type=dylib",
         "--target",
-        cjc_target,
+        target,
         "-o",
         str(output_path),
     ]
-    run_command_args(command, cwd=build_dir, env=env)
+    run_command_args(link_command, cwd=build_dir, env=env)
     print(f"Output: {output_path}")
 
 
