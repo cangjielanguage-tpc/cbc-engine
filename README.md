@@ -33,9 +33,15 @@ python3 build.py build --target-os=ios-sim --target-arch=aarch64
 python3 build.py build --target-os=ios-sim --target-arch=x86_64
 ```
 
-To build the helper library:
-1. \[for iOS\] Install XCode.
-2. Setup the Cangjie SDK environment (`source <CANGJIE_SDK>/envsetup.sh`) and run:
+To build the helper library, set up the Cangjie SDK environment
+(`source <CANGJIE_SDK>/envsetup.sh`) and run the command for the target platform:
+
+```bash
+python3 build.py build-helper-lib --target-os=linux --target-arch=x86_64
+python3 build.py build-helper-lib --target-os=linux --target-arch=aarch64
+```
+
+iOS helper builds require macOS and the Xcode command-line tools:
 
 ```bash
 python3 build.py build-helper-lib --target-os=ios --target-arch=aarch64
@@ -43,7 +49,7 @@ python3 build.py build-helper-lib --target-os=ios-sim --target-arch=aarch64
 python3 build.py build-helper-lib --target-os=ios-sim --target-arch=x86_64
 ```
 
-3) Library is located in `output/<target-os>_<target-arch>/libcbcengine.<so/dylib>`.
+The engine library is located in `output/<target-os>_<target-arch>/libcbcengine.<so/dylib>`.
 Helper library is located in `output/<target-os>_<target-arch>/libcbcengine-helper.<so/dylib>`.
 
 ## How to run tests

@@ -207,7 +207,7 @@ public:
 
     void NewObjGeneric(IReg ti);
     void NewObjGenericOnAcc(IReg ti);
-    void NewObj(RTSupport::TypeInfo typeInfo, bool pinned);
+    void NewObj(RTSupport::TypeInfo typeInfo, bool pinned = false);
     void NewArr(RTSupport::TypeInfo typeInfo);
     void LoadObj(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset);
     void StoreObj(StoreAccessKind stk, Reg src, IReg base, uint32_t offset);

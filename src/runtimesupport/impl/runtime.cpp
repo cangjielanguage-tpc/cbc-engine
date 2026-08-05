@@ -20,6 +20,8 @@
 namespace RTSupport {
 using Reference = Interpretation::Value::Reference;
 
+static_assert(static_cast<int>(Interpretation::Type::SpawnException) == IMPLICIT_EXCEPTION_SPAWN);
+
 constexpr uint32_t REF_FIELD_SIZE = sizeof(void*);
 
 static bool IsInlineGCTib(DYN_GCTib tib) { return static_cast<bool>(tib.raw & GCTIB_SIGN_BIT); }

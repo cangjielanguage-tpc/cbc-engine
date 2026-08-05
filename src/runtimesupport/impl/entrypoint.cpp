@@ -332,7 +332,14 @@ CBC_EXPORT int interpreter_bridge_init(
     InitEnvOpts();
     Engine::g_table.ParseAndSet(size, options);
 
-    g_CJNativeInterfaceInstance            = *rtInterf;
+    if (!RTSupport::Initialize(rtInterf)) {
+        RTSupport::Log::rt.Log(Logging::Level::ERROR, [](Stream::Output& out) {
+            out << "failed to initialize runtime symbols" << Stream::endl;
+        });
+        return 1;
+    }
+    g_CJNativeInterfaceInstance = *rtInterf;
+
     interpInterf->version                  = INT_INTERPRETER_INTERFACE_VERSION;
     interpInterf->cjThreadSpecificDataSize = sizeof(Interpretation::Ectype);
     interpInterf->c2iStubStartAddr         = reinterpret_cast<uintptr_t>(&Asm::engine_c2i_call_pc_start);
@@ -361,7 +368,6 @@ CBC_EXPORT int interpreter_bridge_init(
     Asm::engine_newobject_pinned_function = g_CJNativeInterfaceInstance.newPinnedObject;
     Asm::engine_newarray_function         = g_CJNativeInterfaceInstance.arrayAlloc;
     Asm::engine_stack_grow_stub           = g_CJNativeInterfaceInstance.stackGrowStub;
-    RTSupport::Initialize(&g_CJNativeInterfaceInstance);
 
     if (g_mainCbc.empty()) {
         PerformPatching();

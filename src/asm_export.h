@@ -55,3 +55,6 @@
 #define EXC_HANDLER_NOT_FOUND 0
 #define EXC_HANDLER_FOUND 1
 #define EXC_SOE_THROWN 2
+
+// Must match Interpretation::Type and the Cangjie throwImplicitException dispatcher.
+#define IMPLICIT_EXCEPTION_SPAWN 3

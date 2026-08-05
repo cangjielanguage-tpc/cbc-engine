@@ -1027,8 +1027,8 @@ struct IsaRewriter : public IsaParser {
 
         if (kind == New::Obj && t->term.GetKind() == Engine::TermKind::TYPE) {
             auto identifier = Engine::ExtractTypeDefIdentifier(t->term);
-            auto def        = Symlevel::Reader::Read(session, identifier);
-            if (Symlevel::Reader::Read(session, def.GetName()).compare("std.core:Future") == 0) {
+            auto def        = Decode::Read(session, identifier);
+            if (Decode::Read(session, def.GetName()).compare("std.core:Future") == 0) {
                 kind = New::ObjPinned;
             }
         }
@@ -1140,10 +1140,11 @@ struct IsaRewriter : public IsaParser {
         BindStatePoint();
     }
 
-    void SpawnFuture(IReg future, uint16_t typeId) override
+    void SpawnFuture(IReg future, uint32_t /*typeId*/) override
     {
         AdjustReg(IReg::IR_ACC, future);
         emit.SpawnFuture();
+        BindStatePoint();
     }
 
     void CallClosure(IReg dst, uint32_t typeId, bool generic) override
