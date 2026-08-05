@@ -71,7 +71,23 @@ struct Handle {
 // Prolongs lifetime of helper lib handle after finish of Initialize.
 Handle g_helperLibHandle;
 
-void Initialize(DYN_CJNativeInterface* interf)
+static void* LookupSymbol(void* handle, char const* handleName, char const* symbolName)
+{
+    dlerror();
+    auto* symbol = dlsym(handle, symbolName);
+    if (symbol == nullptr) {
+        auto* error  = dlerror();
+        auto& stream = Log::init.Stream(Logging::Level::ERROR);
+        stream << '{' << handleName << "} failed to find " << symbolName;
+        if (error != nullptr) {
+            stream << ": " << error;
+        }
+        stream << Stream::endl;
+    }
+    return symbol;
+}
+
+bool Initialize(DYN_CJNativeInterface* interf)
 {
     auto anySym = reinterpret_cast<void*>(interf->stackGrowStub);
 
@@ -79,13 +95,12 @@ void Initialize(DYN_CJNativeInterface* interf)
     int code = dladdr(anySym, &info);
     if (code == 0) {
         Log::init.Stream(Logging::Level::ERROR) << "dladdr failed to find rt info" << Stream::endl;
-        return;
+        return false;
     }
-    void* base  = info.dli_fbase;
     auto handle = Handle::Open(info.dli_fname);
     if (!handle.has_value()) {
         Log::init.Stream(Logging::Level::ERROR) << "failed to open lib " << info.dli_fname << Stream::endl;
-        return;
+        return false;
     }
 
     // verify that we didn't opened new library (any other exported symbol can be used).
@@ -103,26 +118,45 @@ void Initialize(DYN_CJNativeInterface* interf)
         auto& stream = Log::init.Stream(Logging::Level::ERROR);
         stream << "incorrect stack grow stub address ";
         stream << interf->stackGrowStub << " " << stackGrowStub << Stream::endl;
-        return;
+        return false;
     }
 
-#if defined(__APPLE__)
-    const char* helperLibName = "@rpath/libcbcengine-helper.dylib";
+#if defined(__APPLE__) && defined(STATIC_HELPER)
+    if (interf->appLibHandle == nullptr) {
+        Log::init.Stream(Logging::Level::ERROR)
+            << "STATIC_HELPER requires a non-null application library handle" << Stream::endl;
+        return false;
+    }
+
+    auto* thrower = LookupSymbol(
+        interf->appLibHandle, "application", "_CN32cangjie.runtime.cbcengine.helper22throwImplicitExceptionHl"
+    );
+    auto* spawnFuture = LookupSymbol(interf->appLibHandle, "application", "helper_spawn_future");
 #else
+    #if defined(__APPLE__)
+    const char* helperLibName = "@rpath/libcbcengine-helper.dylib";
+    #else
     const char* helperLibName = "libcbcengine-helper.so";
-#endif
+    #endif
     auto helperHandleOpt      = Handle::Open(helperLibName);
     if (!helperHandleOpt.has_value()) {
         Log::init.Stream(Logging::Level::ERROR) << "failed to open lib " << helperLibName << Stream::endl;
-        return;
+        return false;
     }
 
     g_helperLibHandle = std::move(*helperHandleOpt);
 
-    const char* throwerName = "_CN32cangjie.runtime.cbcengine.helper22throwImplicitExceptionHl";
+    auto* thrower     = g_helperLibHandle.Sym("_CN32cangjie.runtime.cbcengine.helper22throwImplicitExceptionHl");
+    auto* spawnFuture = g_helperLibHandle.Sym("helper_spawn_future");
+#endif
 
-    Asm::engine_implicit_exception_thrower = g_helperLibHandle.Func<void (*)(int)>(throwerName);
-    Asm::engine_spawn_future               = g_helperLibHandle.Sym("helper_spawn_future");
+    if (thrower == nullptr || spawnFuture == nullptr) {
+        return false;
+    }
+
+    Asm::engine_implicit_exception_thrower = reinterpret_cast<void (*)(int)>(thrower);
+    Asm::engine_spawn_future               = spawnFuture;
+    return true;
 }
 
 } // namespace RTSupport
