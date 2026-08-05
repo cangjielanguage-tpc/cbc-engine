@@ -24,6 +24,10 @@
     #define engine_i2c_call _engine_i2c_call
     #define engine_i2_newobject _engine_i2_newobject
     #define engine_i2_newobject_acc _engine_i2_newobject_acc
+    #define engine_i2_newobject_pinned _engine_i2_newobject_pinned
+    #define engine_newobject_pinned_function _engine_newobject_pinned_function
+    #define engine_spawn_future _engine_spawn_future
+    #define engine_i2_spawn_future _engine_i2_spawn_future
     #define engine_i2_newarray _engine_i2_newarray
     #define engine_i2_load_generic _engine_i2_load_generic
     #define engine_i2_gcpoint _engine_i2_gcpoint
