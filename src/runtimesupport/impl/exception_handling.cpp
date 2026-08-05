@@ -25,6 +25,11 @@ uint8_t engine_get_exception_handler(Interpretation::DynamicFunctionHandle* hand
     ASSERT(bcStart <= reader.Cursor() && reader.Cursor() <= bcEnd);
 
     auto bcPos      = reader.Cursor() - bcStart;
+
+    if (bcPos == 0) {
+        return EXC_SOE_THROWN;
+    }
+
     auto exPos      = bcPos - 1;
     auto methodCode = Symlevel::Code::Resolve(session, methodDef.MethodCode().value());
     auto regions    = methodCode.GetExceptionRegions(session);
@@ -41,18 +46,18 @@ uint8_t engine_get_exception_handler(Interpretation::DynamicFunctionHandle* hand
     });
 
     if (it == regions.end()) {
-        return false; // no suitable handler found
+        return EXC_HANDLER_NOT_FOUND; // no suitable handler found
     }
 
     auto target = offsetsIndex.FindMappedOffset(Cbc::InstructionType::CBC, it->target);
     if (!target.has_value()) {
         FATAL("Couldn't translate exception region target offset to rt bytecode offset");
-        return false;
+        return EXC_HANDLER_NOT_FOUND;
     }
 
     auto delta = static_cast<int64_t>(target.value()) - static_cast<int64_t>(bcPos);
     reader.Advance(delta);
-    return true;
+    return EXC_HANDLER_FOUND;
 }
 
 void FrameInfoProvider(DYN_InstructionPointer ip, DYN_FramePointer fp, INT_InterpretedFrameInfo* info)
