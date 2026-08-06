@@ -777,7 +777,6 @@ struct TermResolver {
             return NewUndefined(refId);
         }
         TermFlags flags   = F_LOCAL;
-        flags.isReference = F_LOCAL;
         flags.isGeneric   = isGeneric;
         data->InitAfterSubterms(VArrayTermId(size), subtermsCount, flags);
         return Term(LocalTerm(data));
