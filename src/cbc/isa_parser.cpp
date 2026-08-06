@@ -574,7 +574,7 @@ struct IsaParserImpl {
 
     static void InitString(IsaParser& parser)
     {
-        auto [offset, ts] = ByteReaderM(parser.reader).ReadU32().ReadU16().Get();
+        auto [offset, ts] = ByteReaderM(parser.reader).ReadULEB().ReadU16().Get();
         parser.InitString(ts, offset);
     }
 
