@@ -9,7 +9,7 @@ namespace IO {
 
 struct FileId {
     static constexpr auto BIT_SIZE = 32;
-    static constexpr auto MAX_ID   = (1 << 30) - 1;
+    static constexpr auto MAX_ID   = UINT32_MAX;
 
     uint32_t id;
 
