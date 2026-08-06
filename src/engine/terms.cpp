@@ -501,8 +501,7 @@ static int OptionFlags(RefIdentifier<Term> underlyingRef, Session& session, Subs
     auto kind  = underlying.GetKind();
 
     // Option of nullable-option is not nullable-option.
-    bool canBeNullableOption = (kind == TermKind::TYPE || kind == TermKind::AOT_TYPE);
-    return canBeNullableOption && underlying.IsReference() ? F_REFERENCE : F_RECORD;
+    return kind != TermKind::OPTION && underlying.IsReference() ? F_REFERENCE : F_RECORD;
 }
 
 static bool IsProperTypeReference(Symlevel::TypeDefinition& def, bool isReference, int arity)
