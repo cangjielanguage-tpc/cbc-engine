@@ -110,8 +110,13 @@ struct FLManager : public FieldLayoutManager {
             case TK::OPTION:     return GetCbcFlatSize(term);
 
             case TK::TUPLE:
-            case TK::VARRAY:
             case TK::AOT_TYPE: return GetAotFlatSize(term);
+
+            case TK::VARRAY: {
+                auto elemType = term.Subterm(0);
+                auto size = VArrayTermId(term).GetNum();
+                return GetFlatSize(elemType).value_or(0) * size;
+            }
 
             case TK::FUNC_TYPE_VAR:
             case TK::CLASS_TYPE_VAR: return std::nullopt;
