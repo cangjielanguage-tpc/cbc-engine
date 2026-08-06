@@ -723,8 +723,7 @@ struct TermResolver {
             auto kind  = underlying.GetKind();
 
             // Option of nullable-option is not nullable-option.
-            bool canBeNullableOption = (kind == TermKind::TYPE || kind == TermKind::AOT_TYPE);
-            isReference = canBeNullableOption && underlying.IsReference();
+            isReference = kind != TermKind::OPTION && underlying.IsReference();
         }
         flags.isReference = isReference;
         flags.isGeneric   = isGeneric;
@@ -953,9 +952,9 @@ Term Substitution::Substitute(Term term)
             underlying = sub.Substitute(underlying);
             auto kind  = underlying.GetKind();
 
+            // FIXME: remove copy-paste
             // Option of nullable-option is not nullable-option.
-            bool canBeNullableOption = (kind == TermKind::TYPE || kind == TermKind::AOT_TYPE);
-            flags.isReference = canBeNullableOption && underlying.IsReference();
+            flags.isReference = kind != TermKind::OPTION && underlying.IsReference();
         }
         flags.isLocal   = true;
         flags.isGeneric = isGeneric;
