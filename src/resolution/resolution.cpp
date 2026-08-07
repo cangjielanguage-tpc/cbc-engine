@@ -674,8 +674,8 @@ struct ResolverProxy {
             return ResolveAotDirectCall(resolver, ref);
         }
 
-        auto termIdent = TypeTermId(ref.refType);
-        auto type      = Decode::Read(resolver, termIdent.GetIdentifier());
+        auto termIdent = ExtractTypeDefIdentifier(ref.refType);
+        auto type      = Decode::Read(resolver, termIdent);
 
         // FIXME: search in hierarchy
         auto method = [&]() -> std::optional<Identifier<Image::MethodDefinition>> {
