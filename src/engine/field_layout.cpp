@@ -191,7 +191,7 @@ struct FLManager : public FieldLayoutManager {
         if (alignment == 0) {
             return size;
         }
-        return (size.value() + alignment - 1) & ~(alignment - 1);
+        return MathUtils::AlignUp(size.value(), alignment);
     }
 
     void FillRefOffsets(Term term, std::vector<uint32_t>& offsets, uint32_t disp) override
@@ -321,7 +321,7 @@ private:
             layout                 = std::move(content);
         } else if (kind == TermKind::VARRAY) {
             FieldLayout::Content content;
-            content.desc.alignment = GetFlatAlignment(term);
+            content.desc.alignment = GetFlatAlignment(term.Subterm(0));
             content.desc.size      = GetFlatSize(term);
             layout                 = std::move(content);
         } else if (kind == TermKind::OPTION && !term.IsReference()) {
