@@ -419,7 +419,7 @@ const char* MetaInfo::GetName(TypeInfo ti) { return "<unknown>"; }
 
 uint32_t MetaInfo::GetTypeSize(TypeInfo ti) { return Interpretation::Extract(ti)->size; }
 
-uint8_t MetaInfo::GetAlign(TypeInfo ti) { return alignof(max_align_t); }
+uint8_t MetaInfo::GetAlign(TypeInfo ti) { return Interpretation::Extract(ti)->alignment; }
 
 bool MetaInfo::IsReferenceType(TypeInfo ti) { return false; }
 
@@ -431,6 +431,11 @@ TypeInfo Execution::TypeArg(TypeInfo ti, uint32_t idx) { return TypeInfo(nullptr
 
 using OffsetVisitor = std::function<void(uint32_t)>;
 
-void TypeInfo::VisitReferenceOffsets(OffsetVisitor const&) { FATAL("Should not reach here"); }
+void TypeInfo::VisitReferenceOffsets(OffsetVisitor const& visitor)
+{
+    for (auto offset : Interpretation::Extract(*this)->referenceOffsets) {
+        visitor(offset);
+    }
+}
 
 } // namespace RTSupport
