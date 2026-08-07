@@ -1,17 +1,64 @@
 #pragma once
 
-#include <functional>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <memory>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string>
 #include <string_view>
+#include <type_traits>
 
 namespace Stream {
 
 struct endl_t {};
 
 constexpr endl_t endl;
+
+// -------------------- Utilities for format printing --------------------
+
+template <typename Out> union FormatValue {
+    void const* ptr;
+    uint64_t raw;
+
+    template <typename T> FormatValue(T const& val)
+    {
+        if constexpr (sizeof(T) < sizeof(uint64_t) && std::is_trivially_copyable_v<T>) {
+            raw = 0;
+            std::memcpy(&raw, &val, sizeof(T));
+        } else {
+            ptr = &val;
+        }
+    }
+};
+
+template <typename Out> using FormatHandler = void (*)(FormatValue<Out>, Out&);
+
+template <typename Out, typename T> void FormatPrint(FormatValue<Out> d, Out& os)
+{
+    if constexpr (sizeof(T) < sizeof(uint64_t) && std::is_trivially_copyable_v<T>) {
+        alignas(alignof(T)) char buf[sizeof(T)];
+        memcpy(&buf, &d.raw, sizeof(T));
+        os << *reinterpret_cast<const T*>(buf);
+    } else {
+        os << *static_cast<T const*>(d.ptr);
+    }
+}
+
+template <typename Out>
+void DoPrintArray(
+    Out& out, std::string_view fmt, FormatValue<Out> const* args, FormatHandler<Out> const* handlers, int count
+);
+
+template <typename Out, typename... Args> inline void DoPrint(Out& out, std::string_view fmt, Args const&... args)
+{
+    FormatValue<Out> const values[]            = { args... };
+    static FormatHandler<Out> const handlers[] = { &FormatPrint<Out, Args>... };
+    DoPrintArray(out, fmt, values, handlers, sizeof...(Args));
+}
+
+// -------------------- Output Stream --------------------
 
 class Output {
 public:
@@ -29,37 +76,10 @@ public:
     virtual void NewLine();
     virtual void VPrintFmt(const char* fmt, va_list argp) = 0;
 
-    void DoPrint(std::string_view fmt)
-    {
-        size_t pos = fmt.find("\n");
-        if (pos == std::string_view::npos) {
-            *this << fmt;
-        } else {
-            *this << fmt.substr(0, pos);
-            NewLine();
-            DoPrint(fmt.substr(pos + 1));
-        }
-    }
-
-    template <typename Arg, typename... Args>
-    void DoPrint(std::string_view fmt, Arg const& arg, Args const&... args)
-    {
-        size_t pos = fmt.find("{}");
-        // If no more placeholders, print the rest of the string and stop
-        if (pos == std::string_view::npos) {
-            *this << fmt;
-            return;
-        }
-
-        DoPrint(fmt.substr(0, pos));
-        *this << arg;
-        DoPrint(fmt.substr(pos + 2), args...);
-    }
-
     template <typename... Args>
     void Print(std::string_view fmt, Args const&... args)
     {
-        DoPrint(fmt, args...);
+        ::Stream::DoPrint(*this, fmt, args...);
     }
 
     template <typename... Args> void PrintLn(std::string_view fmt, Args const&... args)

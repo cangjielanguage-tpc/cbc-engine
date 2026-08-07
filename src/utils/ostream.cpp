@@ -1,5 +1,6 @@
 #include "utils/ostream.h"
 
+#include "engine/resolving_output.h"
 #include "utils/assertion.h"
 #include <algorithm>
 #include <cstddef>
@@ -264,6 +265,67 @@ void Descripted::VPrintFmt(const char* fmt, va_list argp)
         newLine = false;
     }
     stream.VPrintFmt(fmt, argp);
+}
+
+template <typename Out> inline void DoPrint(Out& out, std::string_view string)
+{
+    while (true) {
+        size_t pos = string.find("\n");
+        if (pos == std::string_view::npos) {
+            out << string;
+            return;
+        } else {
+            out << string.substr(0, pos);
+            out.NewLine();
+            string = string.substr(pos + 1);
+        }
+    }
+}
+
+template <typename Out>
+static void DoPrintImpl(
+    Out& out, std::string_view fmt, FormatValue<Out> const* values, FormatHandler<Out> const* handlers, int count
+)
+{
+    int idx    = 0;
+    size_t pos = 0;
+    while (pos < fmt.size()) {
+        size_t next = fmt.find("{}", pos);
+        if (next == std::string_view::npos) {
+            DoPrint(out, fmt.substr(pos));
+            return;
+        }
+        DoPrint(out, fmt.substr(pos, next - pos));
+        if (idx < count) {
+            handlers[idx](values[idx], out);
+            idx++;
+        }
+        pos = next + 2;
+    }
+}
+
+template <>
+[[gnu::noinline]] void DoPrintArray<Output>(
+    Output& out,
+    std::string_view fmt,
+    FormatValue<Output> const* values,
+    FormatHandler<Output> const* handlers,
+    int count
+)
+{
+    DoPrintImpl(out, fmt, values, handlers, count);
+}
+
+template <>
+[[gnu::noinline]] void DoPrintArray<ResolvingOutput>(
+    ResolvingOutput& out,
+    std::string_view fmt,
+    FormatValue<ResolvingOutput> const* values,
+    FormatHandler<ResolvingOutput> const* handlers,
+    int count
+)
+{
+    DoPrintImpl(out, fmt, values, handlers, count);
 }
 
 }; // namespace Stream
