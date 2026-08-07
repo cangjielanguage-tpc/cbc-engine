@@ -7,6 +7,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <memory>
+#include <unordered_map>
+#include <unordered_set>
 #include <utility>
 
 #if defined(__APPLE__) && __has_include(<TargetConditionals.h>)
@@ -24,17 +26,30 @@ namespace Stream {
 
 namespace {
 
+using ThreadBuffers = std::unordered_map<const ThreadBufferedOutput*, StringBuffer>;
+
+ThreadBuffers& GetThreadBuffers()
+{
+    thread_local ThreadBuffers buffers;
+    return buffers;
+}
+
+StringBuffer& GetThreadBuffer(const ThreadBufferedOutput* output) { return GetThreadBuffers()[output]; }
+
+std::unordered_set<const Output*>& GetOpenLines()
+{
+    thread_local std::unordered_set<const Output*> openLines;
+    return openLines;
+}
+
+bool StartLine(const Output* output) { return GetOpenLines().insert(output).second; }
+
+void EndLine(const Output* output) { GetOpenLines().erase(output); }
+
 #if CBC_ENGINE_STREAM_IOS_OS_LOG
-class IOSPlatformLogOutput : public Output {
+class IOSPlatformLogOutput : public ThreadBufferedOutput {
 public:
-    IOSPlatformLogOutput() : Output(), buffer() {}
-
-    void Flush() const override;
-    void NewLine() override;
-    void VPrintFmt(const char* fmt, va_list argp) override;
-
-private:
-    mutable StringBuffer buffer; // mutable because Flush() is const
+    void EmitLine(const std::string& line) const override;
 };
 #endif
 
@@ -147,25 +162,27 @@ void FileOutput::Flush() const { fflush(dest); }
 
 void FileOutput::VPrintFmt(const char* fmt, va_list argp) { vfprintf(dest, fmt, argp); }
 
-#if CBC_ENGINE_STREAM_IOS_OS_LOG
-void IOSPlatformLogOutput::Flush() const
+void ThreadBufferedOutput::Flush() const
 {
+    auto& buffer = GetThreadBuffer(this);
     if (buffer.Size() == 0) {
         return;
     }
 
-    char* message = buffer.ToCString();
-    if (message != nullptr) {
-        os_log(OS_LOG_DEFAULT, "%{public}s", message);
-        free(message);
-    }
-
+    auto line = buffer.ToString();
     buffer.Clear();
+    EmitLine(line);
 }
 
-void IOSPlatformLogOutput::NewLine() { Flush(); }
+void ThreadBufferedOutput::NewLine() { Flush(); }
 
-void IOSPlatformLogOutput::VPrintFmt(const char* fmt, va_list argp) { buffer.VPrintFmt(fmt, argp); }
+void ThreadBufferedOutput::VPrintFmt(const char* fmt, va_list argp) { GetThreadBuffer(this).VPrintFmt(fmt, argp); }
+
+#if CBC_ENGINE_STREAM_IOS_OS_LOG
+void IOSPlatformLogOutput::EmitLine(const std::string& line) const
+{
+    os_log(OS_LOG_DEFAULT, "%{public}s", line.c_str());
+}
 #endif
 
 StringBuffer::StringBuffer() : data(nullptr), size(0), capacity(0) {}
@@ -223,12 +240,15 @@ char* StringBuffer::ToCString()
 
 // Decorators
 
-Indented::Indented(Output& astream, const unsigned int indentSize) : stream(astream), indentationSize(indentSize) {}
+Indented::Indented(Output& astream, const unsigned int indentSize) : stream(astream), indentationSize(indentSize)
+{
+    EndLine(this);
+}
 
 void Indented::NewLine()
 {
+    EndLine(this);
     stream.NewLine();
-    newLine = true;
 }
 
 void Indented::Flush() const { stream.Flush(); }
@@ -239,29 +259,29 @@ unsigned int Indented::GetIndent() const { return indentationSize; }
 
 void Indented::VPrintFmt(const char* fmt, va_list argp)
 {
-    if (newLine) {
+    if (StartLine(this)) {
         stream.PrintFmt("%*s", indentationSize, "");
-        newLine = false;
     }
     stream.VPrintFmt(fmt, argp);
 }
 
 Descripted::Descripted(Output& astream, std::string beforeDescription) : stream(astream), beforeDesc(beforeDescription)
-{}
+{
+    EndLine(this);
+}
 
 void Descripted::NewLine()
 {
+    EndLine(this);
     stream.NewLine();
-    newLine = true;
 }
 
 void Descripted::Flush() const { stream.Flush(); }
 
 void Descripted::VPrintFmt(const char* fmt, va_list argp)
 {
-    if (newLine) {
+    if (StartLine(this)) {
         stream.PrintFmt("%s", beforeDesc.c_str());
-        newLine = false;
     }
     stream.VPrintFmt(fmt, argp);
 }
