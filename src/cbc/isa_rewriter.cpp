@@ -1439,8 +1439,7 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
-        // FIXME: support const indicies for arrays
-        auto f = resolver.QueryTupleElement(t.value(), idx);
+        auto f = resolver.QueryIndexedElement(t.value(), idx);
         if (!f.has_value()) {
             Fail();
             return;
@@ -1475,7 +1474,6 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
-
         auto elemType = *e;
 
         if (!elemType.GetTypeInfo().has_value()) {
@@ -1484,26 +1482,22 @@ struct IsaRewriter : public IsaParser {
             return;
         }
 
-        auto size = elemType.GetFlatSize();
+        auto size = elemType.GetAlignedFlatSize();
         if (!size.has_value()) {
             Fail();
             return;
         }
 
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
-        // msr.emit.Offset(RTSupport::MetaInfo::ArrayBodyOffset());
-        // msr.emit.OffsetRegIdx(reg, *size);
         switch (arrayType.term.GetKind())
         {
         case Engine::TermKind::CANGJIE_ARRAY:
             msr.emit.Offset(RTSupport::MetaInfo::ArrayBodyOffset());
-            msr.emit.OffsetRegIdx(reg, *size);
             break;
-        
         default:
-            msr.emit.OffsetRegIdx(reg, *size);
             break;
         }
+        msr.emit.OffsetRegIdx(reg, *size);
         msr.lastFieldKind = elemType.GetKind();
     }
 
