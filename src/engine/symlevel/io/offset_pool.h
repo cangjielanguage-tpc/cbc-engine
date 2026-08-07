@@ -14,12 +14,11 @@ template <typename T, uint32_t adjustment = 0> class OffsetPool {
     struct OffsetGenerator {
         OffsetPool<T, adjustment> const& op;
         uint32_t cursor;
-        uint8_t region;
 
         std::optional<Symlevel::RefId<T>> operator()()
         {
             if (cursor < op.size) {
-                return Symlevel::RefId<T>(region, adjustment + cursor++);
+                return Symlevel::RefId<T>(adjustment + cursor++);
             } else {
                 return std::nullopt;
             }
@@ -38,13 +37,12 @@ public:
         return Symlevel::Offset<T>(IO::StreamFileReader(file, offs).ReadU32());
     }
 
-    Iterators::SimpleRange<OffsetGenerator> RefIds(uint8_t region) const
+    Iterators::SimpleRange<OffsetGenerator> RefIds() const
     {
         return Iterators::MakeRange(
             OffsetGenerator {
                 .op     = *this,
                 .cursor = 0,
-                .region = region,
             }
         );
     }

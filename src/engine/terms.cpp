@@ -346,9 +346,8 @@ void Term::GetName(Session& session, Stream::Output& out, bool hasDebugPrefix) c
         case TK::UNDEFINED: {
             auto undef  = UndefTermId(*this).GetIdentifier();
             auto file   = undef.GetFileId();
-            auto region = undef.GetIndex().GetRegion();
             auto index  = undef.GetIndex().GetIndex();
-            out.PrintFmt("$unresolved<%u,%u,%u>", file.id, region, index);
+            out.PrintFmt("$unresolved<%u,%u>", file.id, index);
             break;
         }
 
@@ -581,7 +580,6 @@ struct TermResolver {
     Session& session;
     Memory::Heap& heap;
     IO::FileId fileId;
-    uint8_t region;
     IO::RandomAccessFile& raf;
     Symlevel::CbcFile& file;
     TermManager& manager;
@@ -595,7 +593,7 @@ struct TermResolver {
 
         for (int i = 0; i < length; i++) {
             auto subtermIdx = reader.ReadULEB();
-            auto subterm    = Resolve(RefId<Term>(region, subtermIdx));
+            auto subterm    = Resolve(RefId<Term>(subtermIdx));
             if (subterm.GetKind() == TermKind::UNDEFINED) {
                 return false;
             }
@@ -842,7 +840,7 @@ struct TermResolver {
             }
             case FST: {
                 auto subtermIdx = reader.ReadULEB();
-                auto subterm    = Resolve(RefId<Term>(region, subtermIdx));
+                auto subterm    = Resolve(RefId<Term>(subtermIdx));
                 if (subterm.GetKind() == TermKind::UNDEFINED) {
                     return NewUndefined(refId);
                 }
@@ -880,7 +878,6 @@ Utils::StringPool::String TermManager::GetNameOfAotType(AotTermId type)
 Term TermManager::Resolve(Session& session, RefIdentifier<Term> ident)
 {
     auto index  = ident.GetIndex();
-    auto region = index.GetRegion();
     auto& raf   = session.FileOf(ident.GetFileId());
     auto& file  = session.CbcFileOf(ident.GetFileId());
 
@@ -891,7 +888,6 @@ Term TermManager::Resolve(Session& session, RefIdentifier<Term> ident)
         .session    = session,
         .heap       = session.Allocator(),
         .fileId     = ident.GetFileId(),
-        .region     = ident.GetIndex().GetRegion(),
         .raf        = *raf,
         .file       = file,
         .manager    = manager,
