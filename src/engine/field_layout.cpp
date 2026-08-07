@@ -114,8 +114,12 @@ struct FLManager : public FieldLayoutManager {
 
             case TK::VARRAY: {
                 auto elemType = term.Subterm(0);
-                auto size = VArrayTermId(term).GetNum();
-                return GetFlatSize(elemType).value_or(0) * size;
+                auto length   = VArrayTermId(term).GetNum();
+                auto elemSize = GetAlignedFlatSize(elemType);
+                if (!elemSize.has_value()) {
+                    return std::nullopt;
+                }
+                return elemSize.value() * length;
             }
 
             case TK::FUNC_TYPE_VAR:
@@ -174,6 +178,20 @@ struct FLManager : public FieldLayoutManager {
                 return MAX_ALIGN;
             }
         }
+    }
+
+    /// The aligned size of a field of given type.
+    std::optional<uint32_t> GetAlignedFlatSize(Term term)
+    {
+        auto size = GetFlatSize(term);
+        if (!size.has_value()) {
+            return std::nullopt;
+        }
+        auto alignment = GetFlatAlignment(term);
+        if (alignment == 0) {
+            return size;
+        }
+        return (size.value() + alignment - 1) & ~(alignment - 1);
     }
 
     void FillRefOffsets(Term term, std::vector<uint32_t>& offsets, uint32_t disp) override
@@ -302,15 +320,9 @@ private:
             content.desc.size      = acc.size;
             layout                 = std::move(content);
         } else if (kind == TermKind::VARRAY) {
-            SizeAlignmentAccumulator acc { this, 0, 1 };
             FieldLayout::Content content;
-            auto len = VArrayTermId(term).GetNum();
-            auto elemType = term.Subterm(0);
-            for (int i = 0; i < len; i++) {
-                acc.AddField(content.fields, elemType, std::nullopt);
-            }
-            content.desc.alignment = acc.alignment;
-            content.desc.size      = acc.size;
+            content.desc.alignment = GetFlatAlignment(term);
+            content.desc.size      = GetFlatSize(term);
             layout                 = std::move(content);
         } else if (kind == TermKind::OPTION && !term.IsReference()) {
             ClassSubstitution substitute(session, term);

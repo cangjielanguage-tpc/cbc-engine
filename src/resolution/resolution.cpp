@@ -57,6 +57,8 @@ std::optional<RTSupport::TypeInfo> Type::GetTypeInfo() const { return resolver->
 
 std::optional<uint32_t> Type::GetFlatSize() const { return resolver->GetFlatSize(*this); }
 
+std::optional<uint32_t> Type::GetAlignedFlatSize() const { return resolver->GetAlignedFlatSize(*this); }
+
 CbcTypeKind Type::GetKind() const { return resolver->GetKind(*this); }
 
 CbcTypeKind Resolver::GetKind(Type type)
@@ -112,6 +114,8 @@ CbcTypeKind Resolver::GetKind(Type type)
 }
 
 std::optional<uint32_t> Resolver::GetFlatSize(Type type) { return fieldManager->GetFlatSize(type.term); }
+
+std::optional<uint32_t> Resolver::GetAlignedFlatSize(Type type) { return fieldManager->GetAlignedFlatSize(type.term); }
 
 Resolver::Resolver(Session& session, Identifier<Symlevel::MethodDefinition> method)
     : session(session),
@@ -629,15 +633,15 @@ std::optional<StaticField> Resolver::Query(Index<StaticField> id)
     return std::nullopt;
 }
 
-std::optional<InstanceField> Resolver::QueryTupleElement(Type refType, uint32_t idx)
+std::optional<InstanceField> Resolver::QueryIndexedElement(Type refType, uint32_t idx)
 {
     auto term = refType.term;
+    auto optTypeInfo = refType.GetTypeInfo();
+    if (!optTypeInfo.has_value()) {
+        return std::nullopt;
+    }
     switch (term.GetKind()) {
         case TermKind::TUPLE: {
-            auto optTypeInfo = refType.GetTypeInfo();
-            if (!optTypeInfo.has_value()) {
-                return std::nullopt;
-            }
             ASSERT(idx < term.GetLength());
             auto typeInfo       = *optTypeInfo;
             auto offset         = RTSupport::Execution::GetFieldOffset(typeInfo, idx, false);
@@ -652,23 +656,23 @@ std::optional<InstanceField> Resolver::QueryTupleElement(Type refType, uint32_t 
             return InstanceField { session.Allocator().New<InstanceField::Content>(field) };
         }
         case TermKind::VARRAY: {
-            auto optTypeInfo = refType.GetTypeInfo();
-            if (!optTypeInfo.has_value()) {
+            VArrayTermId id = static_cast<VArrayTermId>(term.GetId());
+            ASSERT(idx < id.GetNum());
+            auto elemType = term.Subterm(0);
+            auto fieldType      = Type(elemType, this);
+            auto size = fieldType.GetAlignedFlatSize();
+            if (!size.has_value()) {
+                Interpretation::Log::preparation.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
+                    out << "Unknown size at index " << idx << " for type " << fieldType << Stream::endl;
+                });
                 return std::nullopt;
             }
-            VArrayTermId id = static_cast<VArrayTermId>(term.GetId());
-            auto type = term.Subterm(0);
-            ASSERT(idx < id.GetNum());
-            auto typeInfo       = *optTypeInfo;
-            auto fieldType      = Type(term.Subterm(0), this);
-            // todo fix
-            std::optional<uint32_t> offset = fieldType.GetFlatSize().value() * idx;
             InstanceField::Content field = {
                 .refType   = refType,
                 .name      = "",
                 .fieldType = fieldType,
                 .ordinal   = idx,
-                .offset    = offset,
+                .offset    = size.value() * idx,
             };
             return InstanceField { session.Allocator().New<InstanceField::Content>(field) };
         }
@@ -680,14 +684,8 @@ std::optional<Type> Resolver::QueryElement(Type refType)
 {
     auto term = refType.term;
     switch (term.GetKind()) {
+        case TermKind::CANGJIE_ARRAY: 
         case TermKind::VARRAY: {
-            auto optTypeInfo = refType.GetTypeInfo();
-            if (!optTypeInfo.has_value()) {
-                return std::nullopt;
-            }
-            return Type(term.Subterm(0), this);
-        }
-        case TermKind::CANGJIE_ARRAY: {
             auto optTypeInfo = refType.GetTypeInfo();
             if (!optTypeInfo.has_value()) {
                 return std::nullopt;

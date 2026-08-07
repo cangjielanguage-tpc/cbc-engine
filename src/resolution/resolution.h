@@ -52,6 +52,9 @@ public:
     /// The size of a field of given type.
     std::optional<uint32_t> GetFlatSize() const;
 
+    /// The aligned size of a field of given type.
+    std::optional<uint32_t> GetAlignedFlatSize() const;
+
     Type(Engine::Term term, Resolver& resolver) : term(term), resolver(&resolver) {}
 
     Type(Engine::Term term, Resolver* resolver) : term(term), resolver(resolver) {}
@@ -199,7 +202,7 @@ struct Resolver {
 
     std::optional<Type> QueryFutureByFunctional(Index<Type> id);
 
-    std::optional<InstanceField> QueryTupleElement(Type refType, uint32_t idx);
+    std::optional<InstanceField> QueryIndexedElement(Type refType, uint32_t idx);
     std::optional<Type> QueryElement(Type refType);
 
     std::string_view QueryString(uint32_t stringOffs);
@@ -208,6 +211,7 @@ struct Resolver {
     std::optional<RTSupport::TypeInfo> GetTypeInfo(Type type);
     CbcTypeKind GetKind(Type type);
     std::optional<uint32_t> GetFlatSize(Type type);
+    std::optional<uint32_t> GetAlignedFlatSize(Type type);
 
     template <typename T> using Cache = std::unordered_map<int, typename T::Content*>;
 

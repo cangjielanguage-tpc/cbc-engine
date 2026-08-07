@@ -373,7 +373,7 @@ void Term::GetName(Session& session, Stream::Output& out, bool hasDebugPrefix) c
         }
 
         case TK::VARRAY: {
-            stream << "VArray<" << Subterm(0) << ", $" << static_cast<VArrayTermId>(GetId()).GetNum() << '>';
+            stream << "VArray<" << Subterm(0) << "," << static_cast<VArrayTermId>(GetId()).GetNum() << '>';
             break;
         }
 

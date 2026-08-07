@@ -211,8 +211,10 @@ struct TypeInfoBuilder {
             case Engine::TermKind::VARRAY:
                 type           = TYPE_KIND_VARRAY;
                 needExtDefs    = false;
-                needFields     = false;
+                needFields     = true;
                 isAot          = true;
+                fieldNum       = static_cast<Engine::VArrayTermId>(term.GetId()).GetNum();
+                superType      = term.Subterm(0);
                 aotTypeDefName = "VArray";
                 return;
             default: {
@@ -976,6 +978,7 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& ma
     switch (typeInfo->type) {
         case TYPE_KIND_CPOINTER:
         case TYPE_KIND_RAWARRAY:
+        case TYPE_KIND_VARRAY:
             isGeneric              = true;
             shouldUseComponentType = true;
             break;
@@ -994,7 +997,6 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& ma
         case TYPE_KIND_GENERIC_TI:
         case TYPE_KIND_FOREIGN_PROXY:
         case TYPE_KIND_WEAKREF_CLASS:
-        case TYPE_KIND_VARRAY:
         case TYPE_KIND_ENUM:           FATAL("type kind %d not implemented yet", typeInfo->type);
     }
 
