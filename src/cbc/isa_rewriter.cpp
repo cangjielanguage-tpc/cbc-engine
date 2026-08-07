@@ -646,7 +646,7 @@ struct IsaRewriter : public IsaParser {
         emit.AtomicStore(src, stk, obj, field->offset.value());
     }
 
-    void CAS(IReg dst, IReg obj, IReg src1, IReg src2, uint16_t fieldId) override
+    void CAS(IReg dst, IReg obj, IReg expected, IReg newVal, uint16_t fieldId) override
     {
         auto f = resolver.Query(Index<InstanceField>(fieldId));
         if (!f.has_value()) {
@@ -669,7 +669,7 @@ struct IsaRewriter : public IsaParser {
             case Format::StoreAccessKind::ST_REF: opc = RT::Opcode::CAS_REF; break;
             default: FATAL("unexpected kind %d", stk);
         }
-        emit.CAS(opc, dst, obj, src1, src2, field->offset.value());
+        emit.CAS(opc, dst, obj, expected, newVal, field->offset.value());
     }
 
     void AtomicSwap(IReg dst, IReg obj, IReg src, uint16_t fieldId) override
@@ -1618,10 +1618,7 @@ struct IsaRewriter : public IsaParser {
         FATAL("MemTailCopyTyped");
     }
 
-    void MemTailCopyHandle(MemSpace& ms, IReg base, IReg offset) override
-    {
-        FATAL("MemTailCopyHandle");
-    }
+    void MemTailCopyHandle(MemSpace& ms, IReg base, IReg derived) override { FATAL("MemTailCopyHandle"); }
 
     void ParseOne() override
     {

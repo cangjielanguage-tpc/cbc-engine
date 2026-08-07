@@ -62,6 +62,12 @@ public:
         DoPrint(fmt, args...);
     }
 
+    template <typename... Args> void PrintLn(std::string_view fmt, Args const&... args)
+    {
+        Print(fmt, args...);
+        NewLine();
+    }
+
     void PrintFmt(const char* fmt, ...);
     void PrintFmtLn(const char* fmt, ...);
 

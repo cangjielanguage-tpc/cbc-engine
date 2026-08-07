@@ -128,7 +128,7 @@ protected:
     virtual void AtomicLoad(IReg dst, IReg obj, uint16_t fieldId) = 0;
     virtual void AtomicStore(IReg src, IReg obj, uint16_t fieldId) = 0;
 
-    virtual void CAS(IReg dst, IReg obj, IReg src1, IReg src2, uint16_t fieldId) = 0;
+    virtual void CAS(IReg dst, IReg obj, IReg expected, IReg newVal, uint16_t fieldId) = 0;
 
     virtual void AtomicSwap(IReg dst, IReg obj, IReg src, uint16_t fieldId) = 0;
 
@@ -166,7 +166,7 @@ protected:
     virtual void MemTailCopyInteriorArr(MemSpace& ms, IReg dst, IReg idx, std::vector<uint16_t> refs) = 0;
     virtual void MemTailCopyStatic(MemSpace& ms, std::vector<uint16_t> refs) = 0;
     virtual void MemTailCopyTyped(MemSpace& ms, uint16_t ts, std::vector<uint16_t> refs) = 0;
-    virtual void MemTailCopyHandle(MemSpace& ms, IReg base, IReg offset) = 0;
+    virtual void MemTailCopyHandle(MemSpace& ms, IReg base, IReg derived)                             = 0;
 
     virtual void MemBodyOffset(MemSpace& ms, IReg offset)                                        = 0;
     virtual void MemBodyConstIndexGeneric(MemSpace& ms, int64_t idx, uint16_t elemType, IReg ti) = 0;

@@ -6,6 +6,7 @@
 #include "cbc/decoder.h"
 #include "isa_opcodes.h"
 #include "utils/assertion.h"
+#include "utils/ostream.h"
 
 namespace Cbc {
 
@@ -881,6 +882,20 @@ struct RImm12 {
 
     inline static uint16_t Raw(RImm12 xi12) { return static_cast<uint16_t>(xi12.r | (xi12.imm12 << 4)); }
 };
+
+inline Stream::Output& operator<<(Stream::Output& stream, IReg ireg) { return stream << ireg.ToStr(); }
+
+inline Stream::Output& operator<<(Stream::Output& stream, FReg freg) { return stream << freg.ToStr(); }
+
+inline Stream::Output& operator<<(Stream::Output& stream, Width width) { return stream << width.CStr(); }
+
+inline Stream::Output& operator<<(Stream::Output& stream, Common op) { return stream << op.ToStr(); }
+
+inline Stream::Output& operator<<(Stream::Output& stream, FloatOperations op) { return stream << op.ToStr(); }
+
+inline Stream::Output& operator<<(Stream::Output& stream, LoadAccessKind ldk) { return stream << ldk.ToStr(); }
+
+inline Stream::Output& operator<<(Stream::Output& stream, StoreAccessKind stk) { return stream << stk.ToStr(); }
 
 } // namespace Format
 } // namespace Cbc

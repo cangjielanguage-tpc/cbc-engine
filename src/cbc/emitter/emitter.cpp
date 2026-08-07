@@ -993,14 +993,17 @@ void Emitter::AtomicStore(IReg dst, Format::StoreAccessKind stk, IReg obj, uint1
     });
 }
 
-void Emitter::CAS(RT::Opcode opc, IReg dst, IReg obj, IReg src1, IReg src2, uint16_t offset)
+void Emitter::CAS(RT::Opcode opc, IReg dst, IReg obj, IReg expected, IReg newVal, uint16_t offset)
 {
-    Encode(segment, RT::AtomicOp {
-        .opc = opc,
-        .rr1 = { dst, obj },
-        .rr2 = { src1, src2 },
-        .offset = offset,
-    });
+    Encode(
+        segment,
+        RT::AtomicOp {
+            .opc    = opc,
+            .rr1    = { dst, obj },
+            .rr2    = { expected, newVal },
+            .offset = offset,
+        }
+    );
 }
 
 void Emitter::AtomicOp(RT::Opcode opc, IReg dst, IReg obj, IReg src, uint16_t offset)
