@@ -70,7 +70,7 @@ struct IsaDisasm : public IsaParser {
 
     void Mov(Format::Width width, IReg d, IReg s) override
     {
-        stream << "mov." << Sz(width) << " " << d.ToStr() << ", " << s.ToStr() << endl;
+        stream.DoPrint("mov.{} {}, {}\n", Sz(width), d.ToStr(), s.ToStr());;
     }
 
     void FMov(Format::Width width, FReg d, FReg s) override

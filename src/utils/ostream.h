@@ -29,6 +29,39 @@ public:
     virtual void NewLine();
     virtual void VPrintFmt(const char* fmt, va_list argp) = 0;
 
+    void DoPrint(std::string_view fmt)
+    {
+        size_t pos = fmt.find("\n");
+        if (pos == std::string_view::npos) {
+            *this << fmt;
+        } else {
+            *this << fmt.substr(0, pos);
+            NewLine();
+            DoPrint(fmt.substr(pos + 1));
+        }
+    }
+
+    template <typename Arg, typename... Args>
+    void DoPrint(std::string_view fmt, Arg const& arg, Args const&... args)
+    {
+        size_t pos = fmt.find("{}");
+        // If no more placeholders, print the rest of the string and stop
+        if (pos == std::string_view::npos) {
+            *this << fmt;
+            return;
+        }
+
+        DoPrint(fmt.substr(0, pos));
+        *this << arg;
+        DoPrint(fmt.substr(pos + 2), args...);
+    }
+
+    template <typename... Args>
+    void Print(std::string_view fmt, Args const&... args)
+    {
+        DoPrint(fmt, args...);
+    }
+
     void PrintFmt(const char* fmt, ...);
     void PrintFmtLn(const char* fmt, ...);
 
