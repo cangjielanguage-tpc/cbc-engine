@@ -147,6 +147,20 @@ private:
     size_t capacity;
 };
 
+class ThreadBufferedOutput : public Output {
+public:
+    ThreadBufferedOutput()                                       = default;
+    ThreadBufferedOutput(const ThreadBufferedOutput&)            = delete;
+    ThreadBufferedOutput& operator=(const ThreadBufferedOutput&) = delete;
+
+    void Flush() const override;
+    void NewLine() override;
+    void VPrintFmt(const char* fmt, va_list argp) override;
+
+protected:
+    virtual void EmitLine(const std::string& line) const = 0;
+};
+
 class Indented : public Output {
 public:
     Indented(Output& astream, const unsigned int indentSize = 0);
@@ -160,7 +174,6 @@ public:
 private:
     Output& stream;
     unsigned int indentationSize;
-    bool newLine = true;
 };
 
 class Descripted : public Output {
@@ -174,7 +187,6 @@ public:
 private:
     Output& stream;
     std::string beforeDesc;
-    bool newLine = true;
 };
 
 class Hex {
