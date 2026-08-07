@@ -773,7 +773,7 @@ expand_stack_or_throw_soe:
 
   save_all_iregs x10
 
-  mov   x9, #0x20 // adjusted size, kept in parity with x86_64
+  mov   x9, #0x20 // adjusted size
   adrp  x10, Page(engine_stack_grow_stub)
   ldr   x10, [x10, PageOff(engine_stack_grow_stub)]
   blr   x10
@@ -783,7 +783,7 @@ engine_after_stack_grow:
   mov   x1, sp
   sub   sp, sp, x8
 
-  // Restore ExecBytecodeInfo overwritten by the stack-grow argument in x9.
+  // Restore ExecBytecodeInfo
   ldr   x9, [x29, #-FUH_SLOT_OFFSET]
   ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
 
