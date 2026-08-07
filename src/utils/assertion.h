@@ -24,10 +24,10 @@
     #define ASSERTION_IOS_OS_LOG 0
 #endif
 
-#define FATAL(...) ReportFailure(__FILE__, __LINE__, CBC_ENGINE_FUNC_NAME, __VA_ARGS__)
+#define FATAL(...) ReportFailure(__FILE__, __LINE__, __VA_ARGS__)
 
 [[noreturn]]
-void ReportFailure(const char* filename, int line, const char* func, const char* fmt, ...);
+void ReportFailure(const char* filename, int line, const char* fmt, ...);
 
 #ifdef NDEBUG
     #define ASSERT(cond)                                                                                               \
@@ -52,7 +52,7 @@ void ReportFailure(const char* filename, int line, const char* func, const char*
         do {                                                                                                           \
             if (cond) {                                                                                                \
             } else {                                                                                                   \
-                ReportFailure(__FILE__, __LINE__, CBC_ENGINE_FUNC_NAME, "%s", #cond);                                  \
+                ReportFailure(__FILE__, __LINE__, "%s", #cond);                                                        \
             }                                                                                                          \
         } while (false)
 
@@ -60,7 +60,7 @@ void ReportFailure(const char* filename, int line, const char* func, const char*
         do {                                                                                                           \
             if (cond) {                                                                                                \
             } else {                                                                                                   \
-                ReportFailure(__FILE__, __LINE__, CBC_ENGINE_FUNC_NAME, __VA_ARGS__);                                  \
+                ReportFailure(__FILE__, __LINE__, __VA_ARGS__);                                                        \
             }                                                                                                          \
         } while (false)
 
@@ -68,7 +68,7 @@ void ReportFailure(const char* filename, int line, const char* func, const char*
         ([&]() {                                                                                                       \
             auto _ptr = (expression);                                                                                  \
             if (!_ptr)                                                                                                 \
-                ReportFailure(__FILE__, __LINE__, CBC_ENGINE_FUNC_NAME, "Expected non-null pointer");                  \
+                ReportFailure(__FILE__, __LINE__, "Expected non-null pointer");                                        \
             return _ptr;                                                                                               \
         }())
 
