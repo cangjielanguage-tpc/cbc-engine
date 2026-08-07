@@ -511,9 +511,8 @@ struct ResolverProxy {
             return ResolveAotDirectCall(resolver, ref);
         }
 
-
-        auto termIdent = TypeTermId(ref.refType);
-        auto type      = Symlevel::TypeDefinition::Resolve(resolver.session, termIdent.GetIdentifier());
+        auto termIdent = ExtractTypeDefIdentifier(ref.refType);
+        auto type      = Symlevel::TypeDefinition::Resolve(resolver.session, termIdent);
 
         // FIXME: search in hierarchy
         auto method = [&]() -> std::optional<Identifier<Symlevel::MethodDefinition>> {
