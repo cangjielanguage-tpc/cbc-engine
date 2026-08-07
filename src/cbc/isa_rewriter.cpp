@@ -1646,6 +1646,8 @@ struct IsaRewriter : public IsaParser {
 
 static std::optional<FrameLayout> makeFrameLayout(Symlevel::Code code, Resolver& resolver)
 {
+    auto& log = Interpretation::Log::preparation;
+
     auto savedRegsCount = 0;
     for (uint8_t i = 0, savedRegs = code.UsedNonVolIRegMask(); i < (IReg::COUNT - IReg::FIRST_NON_VOL); i++) {
         if ((savedRegs & (1 << i)) != 0)
@@ -1665,30 +1667,22 @@ static std::optional<FrameLayout> makeFrameLayout(Symlevel::Code code, Resolver&
     for (uint32_t i = 0; i < code.StackAllocSigsCount(); i++) {
         auto typeOpt = resolver.Query(Index<Type>(code.StackAllocSigs()[i]));
         if (!typeOpt.has_value()) {
-            Interpretation::Log::preparation.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
-                out << "Failed to query type at stack-alloc index " << i << Stream::endl;
-            });
+            LOG_ERROR(log, "Failed to query type at stack-alloc index {}", i);
             return std::nullopt;
         }
         auto type = typeOpt.value();
         if (type.GetKind() != CbcTypeKind::REC) {
-            Interpretation::Log::preparation.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
-                out << "Unexpected kind " << (uint8_t) type.GetKind() << " at stack-alloc index " << i << " for type " << type << Stream::endl;
-            });
+            LOG_ERROR(log, "Unexpected kind {} at t{} for type {}", (uint8_t)type.GetKind(), i, type);
             return std::nullopt;
         }
         auto size = type.GetFlatSize();
         if (!size.has_value()) {
-            Interpretation::Log::preparation.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
-                out << "Unknown size at stack-alloc index " << i << " for type " << type << Stream::endl;
-            });
+            LOG_ERROR(log, "Unknown size at t{} for type {}", i, type);
             return std::nullopt;
         }
         auto typeInfo = type.GetTypeInfo();
         if (!typeInfo.has_value()) {
-            Interpretation::Log::preparation.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
-                out << "Failed to obtain type info at stack-alloc index " << i << " for type " << type << Stream::endl;
-            });
+            LOG_ERROR(log, "Failed to obtain type info at t{} for type {}", i, type);
             return std::nullopt;
         }
         auto typeInfoPtr = typeInfo->Raw();
@@ -1828,9 +1822,9 @@ Interpretation::ExecBytecodeInfo Rewrite(
     Interpretation::Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
         Descripted desc(out, Descriptor(session, method));
 
-        desc.PrintFmt("bytecode: %p %zu", res.code.bytecode, res.code.bytecodeSize);
+        desc.Print("bytecode: {} {}", Hex(res.code.bytecode), res.code.bytecodeSize);
         desc.NewLine();
-        desc.PrintFmt("literals: %p %zu", res.code.literals->_table, res.code.literals->_byteSize / 8);
+        desc.Print("literals: {} {}", Hex(res.code.literals->_table), res.code.literals->_byteSize / 8);
         desc.NewLine();
 
         desc << res;

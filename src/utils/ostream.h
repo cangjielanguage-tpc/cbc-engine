@@ -184,6 +184,19 @@ private:
     bool newLine = true;
 };
 
+class Hex {
+public:
+    Hex(void *ptr) : num(reinterpret_cast<uint64_t>(ptr)) {}
+    Hex(uint64_t num) : num(num) {}
+    Hex(uint32_t num) : num(num) {}
+    Hex(uint16_t num) : num(num) {}
+    Hex(uint8_t num) : num(num) {}
+
+    uint64_t num;
+};
+
+Stream::Output& operator<<(Stream::Output& stream, Hex num);
+
 extern FileOutput cout;
 extern Output& cerr;
 

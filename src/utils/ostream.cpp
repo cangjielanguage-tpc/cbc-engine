@@ -328,4 +328,10 @@ template <>
     DoPrintImpl(out, fmt, values, handlers, count);
 }
 
+Stream::Output& operator<<(Stream::Output& stream, Hex num)
+{
+    stream.PrintFmt("%llx", num.num);
+    return stream;
+}
+
 }; // namespace Stream
