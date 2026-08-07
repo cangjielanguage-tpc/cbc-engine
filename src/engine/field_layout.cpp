@@ -149,6 +149,7 @@ struct FLManager : public FieldLayoutManager {
                 }
                 return MAX_ALIGN;
             }
+            case TermKind::TUPLE:
             case TermKind::AOT_TYPE: {
                 auto ti = typeInfoManager.AcquireTypeInfo(session, term);
                 if (!ti.has_value()) {
@@ -156,10 +157,18 @@ struct FLManager : public FieldLayoutManager {
                 }
                 return RTSupport::MetaInfo::GetAlign(*ti);
             }
+            case TermKind::C_POINTER:
+            case TermKind::NULLABLE:
+            case TermKind::FUNCTIONAL:
+            case TermKind::NON_NULLABLE: return sizeof(void*);
 
             default: {
                 // for primitives types
                 // alignment is the same as the size.
+                ASSERTION(
+                    static_cast<uint16_t>(term.GetKind()) < FIRST_NON_PRIMITIVE,
+                    "only primitive term kinds are expected here"
+                );
                 auto size = GetFlatSize(term);
                 if (size.has_value()) {
                     return std::max(size.value(), 1u);
@@ -177,7 +186,8 @@ struct FLManager : public FieldLayoutManager {
             return;
         }
         switch (term.GetKind()) {
-            case TermKind::AOT_TYPE:     {
+            case TermKind::TUPLE:
+            case TermKind::AOT_TYPE: {
                 auto typeInfo = typeInfoManager.AcquireTypeInfo(session, term);
                 if (!typeInfo.has_value()) {
                     return;
@@ -185,6 +195,7 @@ struct FLManager : public FieldLayoutManager {
 
                 typeInfo->VisitReferenceOffsets([&offsets, disp](uint32_t offset) { offsets.push_back(offset + disp); }
                 );
+                return;
             }
 
             case TermKind::OPTION:
