@@ -118,7 +118,9 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Session& session, DynamicFuncti
 
     auto& logger = Interpretation::Log::preparation;
 
-    LOGS_INFO(logger, session, "started preparation of method (fuh={}) {}", Stream::Hex(fuh), Stream::Detailed(fuh->methodDef));
+    LOGS_INFO(
+        logger, session, "started preparation of method (fuh={}) {}", Stream::Hex(fuh), Stream::Detailed(fuh->methodDef)
+    );
 
     Resolution::Resolver resolver(session, fuh->methodDef);
 

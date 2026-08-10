@@ -311,9 +311,12 @@ CBC_EXPORT int interpreter_bridge_init(
 {
     static_assert(std::is_same_v<decltype(&interpreter_bridge_init), INT_InitInterpreter>);
     if (rtInterf == nullptr || rtInterf->version != DYN_CJNATIVE_INTERFACE_VERSION) {
-        LOG_ERROR(RTSupport::Log::rt, "Unexpected DYN_CJNativeInterface version: expected %d, actual %lld",
-                DYN_CJNATIVE_INTERFACE_VERSION,
-                rtInterf != nullptr ? rtInterf->version : -1);
+        LOG_ERROR(
+            RTSupport::Log::rt,
+            "Unexpected DYN_CJNativeInterface version: expected %d, actual %lld",
+            DYN_CJNATIVE_INTERFACE_VERSION,
+            rtInterf != nullptr ? rtInterf->version : -1
+        );
         return 1;
     }
 

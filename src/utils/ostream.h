@@ -76,8 +76,7 @@ public:
     virtual void NewLine();
     virtual void VPrintFmt(const char* fmt, va_list argp) = 0;
 
-    template <typename... Args>
-    void Print(std::string_view fmt, Args const&... args)
+    template <typename... Args> void Print(std::string_view fmt, Args const&... args)
     {
         ::Stream::DoPrint(*this, fmt, args...);
     }
@@ -186,10 +185,14 @@ private:
 
 class Hex {
 public:
-    Hex(void *ptr) : num(reinterpret_cast<uint64_t>(ptr)) {}
+    Hex(void* ptr) : num(reinterpret_cast<uint64_t>(ptr)) {}
+
     Hex(uint64_t num) : num(num) {}
+
     Hex(uint32_t num) : num(num) {}
+
     Hex(uint16_t num) : num(num) {}
+
     Hex(uint8_t num) : num(num) {}
 
     uint64_t num;
