@@ -46,6 +46,26 @@ public:
         return false;
     }
 
+    template <Width::Value width> inline bool Binary(Checked::Value arithOp, IReg d, IReg l, IReg r)
+    {
+        return Binary<width>(arithOp, d, l, ectype->GetPrimitive(r));
+    }
+
+    template <Width::Value width> inline bool BinaryImm(Checked::Value arithOp, IReg d, IReg l, uint64_t imm)
+    {
+        return Binary<width>(arithOp, d, l, Value::Primitive { .u64 = imm });
+    }
+
+    template <Width::Value width> inline bool Binary(Checked::Value arithOp, IReg d, IReg l, Value::Primitive val)
+    {
+        auto res = Arith<width>(arithOp, ectype->GetPrimitive(l), val);
+        if (res.successful) {
+            ectype->Put(d, res.result);
+            return true;
+        }
+        return false;
+    }
+
     template <Width::Value width> inline bool Binary(FloatOperations::Value fpOp, FReg d, FReg l, FReg r)
     {
         auto res = ArithFP<width>(fpOp, ectype->GetPrimitive(l), ectype->GetPrimitive(r));
@@ -265,8 +285,8 @@ public:
 
     inline bool LoadDerived(Format::LoadAccessKind ldk, Format::Reg dst, IReg base, IReg derived, uint64_t offset)
     {
-        auto obj = ectype->GetReference(base);
-        auto derivedAddr = ectype->GetPrimitive(derived).u64;
+        auto obj          = ectype->GetReference(base);
+        auto derivedAddr  = ectype->GetPrimitive(derived).u64;
         auto locationKind = RTSupport::Execution::GetStructLocationKind(obj, derivedAddr);
         switch (locationKind) {
             case RTSupport::LOCAL:  return LoadRec(ldk, dst, base, offset);
@@ -277,8 +297,8 @@ public:
 
     inline bool StoreDerived(Format::StoreAccessKind stk, Format::Reg src, IReg base, IReg derived, uint64_t offset)
     {
-        auto obj = ectype->GetReference(base);
-        auto derivedAddr = ectype->GetPrimitive(derived).u64;
+        auto obj          = ectype->GetReference(base);
+        auto derivedAddr  = ectype->GetPrimitive(derived).u64;
         auto locationKind = RTSupport::Execution::GetStructLocationKind(obj, derivedAddr);
         switch (locationKind) {
             case RTSupport::LOCAL:  return StoreRec(stk, src, IReg::IRZ, derivedAddr + offset);
@@ -289,8 +309,8 @@ public:
 
     inline bool StoreDerivedImm(Format::StoreAccessKind stk, IReg base, IReg derived, uint64_t offset, uint64_t imm)
     {
-        auto obj         = ectype->GetReference(base);
-        auto derivedAddr = ectype->GetPrimitive(derived).u64;
+        auto obj          = ectype->GetReference(base);
+        auto derivedAddr  = ectype->GetPrimitive(derived).u64;
         auto locationKind = RTSupport::Execution::GetStructLocationKind(obj, derivedAddr);
         switch (locationKind) {
             case RTSupport::LOCAL:  return StoreRecImm(stk, IReg::IRZ, derivedAddr + offset, imm);
@@ -647,7 +667,7 @@ public:
         auto val = ectype->GetPrimitive(src.IR());
 
         auto bits = size > 0 ? MathUtils::Bits(val.u64, offset, offset + size - 1) : 0;
-        auto res = sx ? MathUtils::SignExtend(bits, size) : bits;
+        auto res  = sx ? MathUtils::SignExtend(bits, size) : bits;
 
         ectype->Put(dst.IR(), Value::Primitive { .u64 = res });
         return true;

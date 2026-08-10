@@ -307,6 +307,16 @@ struct IsaRewriter : public IsaParser {
         emit.BinaryImm(op, width, d, l, value);
     }
 
+    void CBinary(Format::Checked op, Format::Width width, IReg d, IReg l, IReg r) override
+    {
+        emit.Binary(op, width, d, l, r);
+    }
+
+    void CBinaryImm(Format::Checked op, Format::Width width, IReg d, IReg l, uint64_t value) override
+    {
+        emit.BinaryImm(op, width, d, l, value);
+    }
+
     void FBinary(Format::FloatOperations op, Format::Width width, FReg d, FReg l, FReg r) override
     {
         emit.Binary(op, width, d, l, r);

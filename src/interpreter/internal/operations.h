@@ -11,11 +11,66 @@ namespace Interpretation {
 
 using namespace Cbc::Format;
 
+template <Width::Value width> struct WidthTraits;
+
+template <> struct WidthTraits<Width::W32> {
+    using utype = uint32_t;
+    using stype = int32_t;
+
+    static Value::Primitive make(utype value) { return Value::Primitive { .u32 = value }; }
+
+    static Value::Primitive make(stype value) { return Value::Primitive { .u32 = static_cast<utype>(value) }; }
+
+    static utype uget(Value::Primitive const& p) { return static_cast<utype>(p.u32); }
+
+    static stype sget(Value::Primitive const& p) { return static_cast<stype>(p.u32); }
+};
+
+template <> struct WidthTraits<Width::W64> {
+    using utype = uint64_t;
+    using stype = int64_t;
+
+    static Value::Primitive make(utype value) { return Value::Primitive { .u64 = value }; }
+
+    static Value::Primitive make(stype value) { return Value::Primitive { .u64 = static_cast<utype>(value) }; }
+
+    static utype uget(Value::Primitive const& p) { return static_cast<utype>(p.u64); }
+
+    static stype sget(Value::Primitive const& p) { return static_cast<stype>(p.u64); }
+};
+
+template <> struct WidthTraits<Width::W16> {
+    using utype = uint16_t;
+    using stype = int16_t;
+
+    static Value::Primitive make(utype value) { return Value::Primitive { .u32 = static_cast<uint32_t>(value) }; }
+
+    static Value::Primitive make(stype value) { return Value::Primitive { .u32 = static_cast<uint32_t>(value) }; }
+
+    static utype uget(Value::Primitive const& p) { return static_cast<utype>(p.u32); }
+
+    static stype sget(Value::Primitive const& p) { return static_cast<stype>(p.u32); }
+};
+
+template <> struct WidthTraits<Width::W8> {
+    using utype = uint8_t;
+    using stype = int8_t;
+
+    static Value::Primitive make(utype value) { return Value::Primitive { .u32 = static_cast<uint32_t>(value) }; }
+
+    static Value::Primitive make(stype value) { return Value::Primitive { .u32 = static_cast<uint32_t>(value) }; }
+
+    static utype uget(Value::Primitive const& p) { return static_cast<utype>(p.u32); }
+
+    static stype sget(Value::Primitive const& p) { return static_cast<stype>(p.u32); }
+};
+
 struct ArithmeticResult {
     Value::Primitive result;
     bool successful;
 };
 
+// TODO: Generalize it for all widths (like checked ops).
 template <Width::Value width>
 static inline ArithmeticResult Arith(Common::Value op, Value::Primitive l, Value::Primitive r);
 
@@ -132,6 +187,86 @@ template <> inline ArithmeticResult Arith<Width::W32>(Common::Value op, Value::P
 }
 
 template <Width::Value width>
+static inline ArithmeticResult Arith(Checked::Value op, Value::Primitive l, Value::Primitive r)
+{
+    using Traits = WidthTraits<width>;
+    using utype  = typename Traits::utype;
+    using stype  = typename Traits::stype;
+    using namespace Cbc::Format;
+    switch (op) {
+        case Checked::CADD: {
+            stype result;
+            bool overflow = __builtin_add_overflow(Traits::sget(l), Traits::sget(r), &result);
+            return { Traits::make(result), !overflow };
+        }
+        case Checked::CSUB: {
+            stype result;
+            bool overflow = __builtin_sub_overflow(Traits::sget(l), Traits::sget(r), &result);
+            return { Traits::make(result), !overflow };
+        }
+        case Checked::CMUL: {
+            stype result;
+            bool overflow = __builtin_mul_overflow(Traits::sget(l), Traits::sget(r), &result);
+            return { Traits::make(result), !overflow };
+        }
+        case Checked::CDIV: {
+            stype left  = Traits::sget(l);
+            stype right = Traits::sget(r);
+            if (right == 0) {
+                return { l, false };
+            }
+            if (left == std::numeric_limits<stype>::min() && right == -1) {
+                return { l, false };
+            }
+            return { Traits::make(static_cast<stype>(left / right)), true };
+        }
+        case Checked::CUADD: {
+            utype result;
+            bool overflow = __builtin_add_overflow(Traits::uget(l), Traits::uget(r), &result);
+            return { Traits::make(result), !overflow };
+        }
+        case Checked::CUSUB: {
+            utype result;
+            bool overflow = __builtin_sub_overflow(Traits::uget(l), Traits::uget(r), &result);
+            return { Traits::make(result), !overflow };
+        }
+        case Checked::CUMUL: {
+            utype result;
+            bool overflow = __builtin_mul_overflow(Traits::uget(l), Traits::uget(r), &result);
+            return { Traits::make(result), !overflow };
+        }
+        case Checked::CPOW: {
+            stype base     = Traits::sget(l);
+            utype exponent = Traits::uget(r);
+            if (exponent == 0) {
+                return { Traits::make(static_cast<stype>(1)), true };
+            }
+
+            stype result  = 1;
+            bool overflow = false;
+            while (exponent != 0) {
+                if (exponent & 1) {
+                    if (__builtin_mul_overflow(result, base, &result)) {
+                        overflow = true;
+                        break;
+                    }
+                }
+                exponent >>= 1;
+                if (exponent != 0) {
+                    if (__builtin_mul_overflow(base, base, &base)) {
+                        overflow = true;
+                        break;
+                    }
+                }
+            }
+            return { Traits::make(result), !overflow };
+        }
+        default: FATAL("Unexpected Checked op: %d", op);
+    }
+}
+
+// TODO: Generalize it for all widths (like checked ops).
+template <Width::Value width>
 static inline ArithmeticResult ArithFP(FloatOperations::Value op, Value::Primitive l, Value::Primitive r);
 
 template <>
@@ -162,6 +297,7 @@ inline ArithmeticResult ArithFP<Width::W32>(FloatOperations::Value op, Value::Pr
     }
 }
 
+// TODO: Generalize it for all widths (like checked ops).
 template <Width::Value width> static inline ArithmeticResult ArithFP(FloatOperations::Value op, Value::Primitive s);
 
 template <> inline ArithmeticResult ArithFP<Width::W64>(FloatOperations::Value op, Value::Primitive s)

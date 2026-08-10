@@ -33,6 +33,7 @@ public:
     using CC          = Format::CC;
     using Common      = Format::Common;
     using ConvertType = Format::ConvertType;
+    using Checked     = Format::Checked;
 
     using FloatOperations = Format::FloatOperations;
     using LoadAccessKind  = Format::LoadAccessKind;
@@ -138,6 +139,25 @@ public:
     void LslI(Width width, IReg d, IReg l, uint64_t imm);
     void LsrI(Width width, IReg d, IReg l, uint64_t imm);
     void AsrI(Width width, IReg d, IReg l, uint64_t imm);
+
+    void Binary(Checked op, Width width, IReg d, IReg l, IReg r);
+    void CAdd(Width width, IReg d, IReg l, IReg r);
+    void CSub(Width width, IReg d, IReg l, IReg r);
+    void CMul(Width width, IReg d, IReg l, IReg r);
+    void CDiv(Width width, IReg d, IReg l, IReg r);
+    void CUAdd(Width width, IReg d, IReg l, IReg r);
+    void CUSub(Width width, IReg d, IReg l, IReg r);
+    void CUMul(Width width, IReg d, IReg l, IReg r);
+    void CPow(Width width, IReg d, IReg l, IReg r);
+
+    void BinaryImm(Checked op, Width width, IReg d, IReg l, uint64_t imm);
+    void CAddI(Width width, IReg d, IReg l, uint64_t imm);
+    void CSubI(Width width, IReg d, IReg l, uint64_t imm);
+    void CMulI(Width width, IReg d, IReg l, uint64_t imm);
+    void CUAddI(Width width, IReg d, IReg l, uint64_t imm);
+    void CUSubI(Width width, IReg d, IReg l, uint64_t imm);
+    void CUMulI(Width width, IReg d, IReg l, uint64_t imm);
+    void CPowI(Width width, IReg d, IReg l, uint64_t imm);
 
     void Binary(FloatOperations op, Width width, FReg d, FReg l, FReg r);
     void Add(Width width, FReg d, FReg l, FReg r);

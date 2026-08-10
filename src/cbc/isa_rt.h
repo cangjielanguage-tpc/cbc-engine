@@ -135,7 +135,19 @@
     X(ATOMIC_SWAP_64, AtomicOp, "atomic.swap.64 $1ir [$2ir $3U12]")                                                    \
     X(ATOMIC_SWAP_REF, AtomicOp, "atomic.swap.ref $1ir [$2ir $3U12]")                                                  \
     X(ATOMIC_LOAD, B4xi12rr, "atomic.ld.$0ldk $2ir [$3ir $1U12]")                                                      \
-    X(ATOMIC_STORE, B4xi12rr, "atomic.st.$0stk $2ir [$3ir $1U12]")
+    X(ATOMIC_STORE, B4xi12rr, "atomic.st.$0stk $2ir [$3ir $1U12]")                                                     \
+    X(CBIN8, B3xrrr, "$0cbin.8 $1ir $2ir $3ir")                                                                        \
+    X(CBIN16, B3xrrr, "$0cbin.16 $1ir $2ir $3ir")                                                                      \
+    X(CBIN32, B3xrrr, "$0cbin.32 $1ir $2ir $3ir")                                                                      \
+    X(CBIN64, B3xrrr, "$0cbin.64 $1ir $2ir $3ir")                                                                      \
+    X(CBINI8I, B4xi12rr, "$0cbin.8 $2ir $3ir $1I12")                                                                   \
+    X(CBINI16I, B4xi12rr, "$0cbin.16 $2ir $3ir $1I12")                                                                 \
+    X(CBINI32I, B4xi12rr, "$0cbin.32 $2ir $3ir $1I12")                                                                 \
+    X(CBINI64I, B4xi12rr, "$0cbin.64 $2ir $3ir $1I12")                                                                 \
+    X(CBINI8W, BinaryChecked, "$0cbin.8 $2ir $3ir $1I64")                                                              \
+    X(CBINI16W, BinaryChecked, "$0cbin.16 $2ir $3ir $1I64")                                                            \
+    X(CBINI32W, BinaryChecked, "$0cbin.32 $2ir $3ir $1I64")                                                            \
+    X(CBINI64W, BinaryChecked, "$0cbin.64 $2ir $3ir $1I64")
 
 // X parameters: opcode, encoding format, string format, is tail
 #define CBC_RT_MEMOPCODES(X)                                                                                           \
@@ -512,6 +524,22 @@ struct B4xi12xr {
         auto xi12 = Format::XImm12::Decode(reader);
         auto xr   = Format::XR::Decode(reader);
         return B4xi12xr { opc, xi12, xr };
+    }
+};
+
+struct BinaryChecked {
+    Opcode opc;
+    Format::Checked op;
+    Format::RR rr;
+    Format::Imm64 imm;
+
+    static BinaryChecked Decode(Decoder::ByteReader& reader)
+    {
+        auto opc = Opcode::Decode(reader);
+        auto op  = Format::Imm8::Decode(reader).Checked();
+        auto rr  = Format::RR::Decode(reader);
+        auto imm = Format::Imm64::Decode(reader);
+        return BinaryChecked { opc, op, rr, imm };
     }
 };
 

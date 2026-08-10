@@ -26,21 +26,23 @@ public:
     void ParseAll();
 
 protected:
-    virtual void Bcc(Format::Width width, Format::CC cc, AnyReg l, AnyReg r, int64_t delta)        = 0;
-    virtual void BccImm(Format::Width width, Format::CC cc, IReg l, uint64_t imm, int64_t delta)   = 0;
-    virtual void Jump(int64_t delta)                                                               = 0;
-    virtual void Nop()                                                                             = 0;
-    virtual void Mov(Format::Width width, IReg d, IReg s)                                          = 0;
-    virtual void FMov(Format::Width width, FReg d, FReg s)                                         = 0;
-    virtual void FloatToInt(Format::Width width, IReg d, FReg s)                                   = 0;
-    virtual void IntToFloat(Format::Width width, FReg d, IReg s)                                   = 0;
-    virtual void MovRef(IReg d, IReg s)                                                            = 0;
-    virtual void MovImm(Format::Width width, IReg d, uint64_t value)                               = 0;
-    virtual void Binary(Format::Common op, Format::Width width, IReg d, IReg l, IReg r)            = 0;
-    virtual void BinaryImm(Format::Common op, Format::Width width, IReg d, IReg l, uint64_t value) = 0;
-    virtual void FMovImm(Format::Width width, FReg d, double value)                                = 0;
-    virtual void FBinary(Format::FloatOperations op, Format::Width width, FReg d, FReg l, FReg r)  = 0;
-    virtual void FUnary(Format::FloatOperations op, Format::Width width, FReg d, FReg s)           = 0;
+    virtual void Bcc(Format::Width width, Format::CC cc, AnyReg l, AnyReg r, int64_t delta)          = 0;
+    virtual void BccImm(Format::Width width, Format::CC cc, IReg l, uint64_t imm, int64_t delta)     = 0;
+    virtual void Jump(int64_t delta)                                                                 = 0;
+    virtual void Nop()                                                                               = 0;
+    virtual void Mov(Format::Width width, IReg d, IReg s)                                            = 0;
+    virtual void FMov(Format::Width width, FReg d, FReg s)                                           = 0;
+    virtual void FloatToInt(Format::Width width, IReg d, FReg s)                                     = 0;
+    virtual void IntToFloat(Format::Width width, FReg d, IReg s)                                     = 0;
+    virtual void MovRef(IReg d, IReg s)                                                              = 0;
+    virtual void MovImm(Format::Width width, IReg d, uint64_t value)                                 = 0;
+    virtual void Binary(Format::Common op, Format::Width width, IReg d, IReg l, IReg r)              = 0;
+    virtual void BinaryImm(Format::Common op, Format::Width width, IReg d, IReg l, uint64_t value)   = 0;
+    virtual void CBinary(Format::Checked op, Format::Width width, IReg d, IReg l, IReg r)            = 0;
+    virtual void CBinaryImm(Format::Checked op, Format::Width width, IReg d, IReg l, uint64_t value) = 0;
+    virtual void FMovImm(Format::Width width, FReg d, double value)                                  = 0;
+    virtual void FBinary(Format::FloatOperations op, Format::Width width, FReg d, FReg l, FReg r)    = 0;
+    virtual void FUnary(Format::FloatOperations op, Format::Width width, FReg d, FReg s)             = 0;
 
     virtual void Convert(Format::ConvertType toType, Format::ConvertType fromType, AnyReg to, AnyReg from) = 0;
 

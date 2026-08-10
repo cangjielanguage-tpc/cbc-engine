@@ -116,11 +116,19 @@
     X(AtomicStore, AtomicStore)                                                                                        \
     X(CAS, CAS)                                                                                                        \
     X(Swap, AtomicSwap)                                                                                                \
-    X(AtomicFetchAdd, AtomicFetchAdd)                                                                                    \
-    X(AtomicFetchSub, AtomicFetchSub)                                                                                    \
-    X(AtomicFetchAnd, AtomicFetchAnd)                                                                                    \
-    X(AtomicFetchOr, AtomicFetchOr)                                                                                      \
-    X(AtomicFetchXor, AtomicFetchXor)                                                                                            \
+    X(AtomicFetchAdd, AtomicFetchAdd)                                                                                  \
+    X(AtomicFetchSub, AtomicFetchSub)                                                                                  \
+    X(AtomicFetchAnd, AtomicFetchAnd)                                                                                  \
+    X(AtomicFetchOr, AtomicFetchOr)                                                                                    \
+    X(AtomicFetchXor, AtomicFetchXor)                                                                                  \
+    X(CBinary8, CBinaryGeneric<Width::W8>)                                                                             \
+    X(CBinary16, CBinaryGeneric<Width::W16>)                                                                           \
+    X(CBinary32, CBinaryGeneric<Width::W32>)                                                                           \
+    X(CBinary64, CBinaryGeneric<Width::W64>)                                                                           \
+    X(CBinaryImm8, CBinaryImm<Width::W8>)                                                                              \
+    X(CBinaryImm16, CBinaryImm<Width::W16>)                                                                            \
+    X(CBinaryImm32, CBinaryImm<Width::W32>)                                                                            \
+    X(CBinaryImm64, CBinaryImm<Width::W64>)                                                                            \
     X(_END, Unreachable)
 
 #define ISA_MEM_OPCODES(X)                                                                                             \
