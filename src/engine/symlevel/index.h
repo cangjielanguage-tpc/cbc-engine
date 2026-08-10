@@ -12,19 +12,16 @@ namespace Symlevel {
 /// could implicitly extend 16-bit indicies up to 24 bit.
 
 template <typename T> struct RefId {
-    static constexpr auto BIT_SIZE = 24;
+    static constexpr auto BIT_SIZE = 32;
 
-    constexpr RefId(uint8_t region, uint16_t index) : region(region), index(index) {}
-
-    uint8_t GetRegion() const { return region; }
+    constexpr RefId(uint32_t index) : index(index) {}
 
     uint32_t GetIndex() const { return index; }
 
-    bool operator==(const RefId& another) const { return region == another.region && index == another.index; }
+    bool operator==(const RefId& another) const { return index == another.index; }
 
 private:
-    uint8_t region;
-    uint16_t index;
+    uint32_t index;
 };
 
 } // namespace Symlevel

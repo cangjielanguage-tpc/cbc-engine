@@ -49,7 +49,7 @@ protected:
     virtual void BFX(IReg dst, IReg src, Format::Width resW, Format::Width argW, bool sx, uint8_t offset, uint8_t size) = 0;
 
     virtual void PrepareRecord(uint16_t ts)                = 0;
-    virtual void NewArr(IReg dst, IReg len, uint16_t type) = 0;
+    virtual void NewArr(IReg dst, IReg len, uint32_t type) = 0;
 
     virtual void GcPoint() = 0;
 
@@ -57,26 +57,26 @@ protected:
     virtual void StoreRawMemory(AnyReg src, IReg base, int64_t offset, Format::StoreAccessKind stk) = 0;
 
     virtual void LoadStackRec(IReg r, uint16_t ts)              = 0;
-    virtual void LoadStatic(AnyReg r, uint16_t field)           = 0;
-    virtual void StoreStatic(AnyReg r, uint16_t field)          = 0;
-    virtual void LoadField(IReg rb, AnyReg rs, uint16_t field)  = 0;
-    virtual void StoreField(IReg rb, AnyReg rd, uint16_t field) = 0;
+    virtual void LoadStatic(AnyReg r, uint32_t field)           = 0;
+    virtual void StoreStatic(AnyReg r, uint32_t field)          = 0;
+    virtual void LoadField(IReg rb, AnyReg rs, uint32_t field)  = 0;
+    virtual void StoreField(IReg rb, AnyReg rd, uint32_t field) = 0;
 
     virtual void AssignGeneric(IReg dst, IReg src, IReg ti) = 0;
     virtual void InstanceOfGeneric(IReg dst, IReg obj, IReg ti) = 0;
 
-    virtual void LoadTypeInfoGeneric(IReg dst, uint16_t typeId) = 0;
+    virtual void LoadTypeInfoGeneric(IReg dst, uint32_t typeId) = 0;
 
-    virtual void LoadTypeInfoSig(IReg dst, uint16_t type) = 0;
-    virtual void NewObj(IReg dst, uint16_t type)          = 0;
-    virtual void CallDirect(IReg dst, uint16_t method)    = 0;
-    virtual void CallVirtual(IReg dst, uint16_t method)   = 0;
-    virtual void CallInterf(IReg dst, uint16_t method)    = 0;
-    virtual void CallInterfGeneric(uint16_t argnum, uint16_t method) = 0;
-    virtual void Spawn(IReg closure, uint16_t type)       = 0;
-    virtual void SpawnFuture(IReg future, uint16_t type)  = 0;
-    virtual void CallClosure(IReg dst, uint16_t type, bool generic) = 0;
-    virtual void NewClosure(IReg dst, uint16_t type)      = 0;
+    virtual void LoadTypeInfoSig(IReg dst, uint32_t type)            = 0;
+    virtual void NewObj(IReg dst, uint32_t type)                     = 0;
+    virtual void CallDirect(IReg dst, uint32_t method)               = 0;
+    virtual void CallVirtual(IReg dst, uint32_t method)              = 0;
+    virtual void CallInterf(IReg dst, uint32_t method)               = 0;
+    virtual void CallInterfGeneric(uint16_t argnum, uint32_t method) = 0;
+    virtual void Spawn(IReg closure, uint32_t type)                  = 0;
+    virtual void SpawnFuture(IReg future, uint32_t type)             = 0;
+    virtual void CallClosure(IReg dst, uint32_t type, bool generic)  = 0;
+    virtual void NewClosure(IReg dst, uint32_t type)                 = 0;
 
     virtual void Scc(Format::Width width, Format::CC cc, IReg d, AnyReg l, AnyReg r)      = 0;
     virtual void SccImm(Format::Width width, Format::CC cc, IReg d, IReg l, uint64_t imm) = 0;
@@ -89,7 +89,7 @@ protected:
     virtual void Catch(IReg reg)                     = 0;
     virtual void Throw(IReg reg)                     = 0;
 
-    virtual void InstanceOf(IReg dst, IReg obj, uint16_t type) = 0;
+    virtual void InstanceOf(IReg dst, IReg obj, uint32_t type) = 0;
     virtual void LoadTypeInfoObj(IReg dst, IReg obj)           = 0;
     virtual void InitObj(uint16_t ts)                          = 0;
     virtual void InitString(uint16_t ts, uint32_t offset)      = 0;
@@ -109,34 +109,34 @@ protected:
     virtual void StoreArray(AnyReg src, Format::StoreAccessKind stk, IReg arr, IReg idx) = 0;
 
     virtual void TypeArg(IReg ti, int idx, IReg dst)      = 0;
-    virtual void Box(AnyReg src, IReg dst, uint16_t type) = 0;
+    virtual void Box(AnyReg src, IReg dst, uint32_t type) = 0;
     virtual void BoxT(uint16_t srcTs, IReg dst)           = 0;
 
-    virtual void Unbox(AnyReg dst, IReg src, uint16_t type) = 0;
+    virtual void Unbox(AnyReg dst, IReg src, uint32_t type) = 0;
     virtual void UnboxT(uint16_t dstTs, IReg src)           = 0;
 
-    virtual void Offset(IReg dst, IReg ti, uint16_t field, bool accumulate) = 0;
-    virtual void TagGeneric(IReg dst, IReg src, IReg tiReg, uint16_t typeId) = 0;
+    virtual void Offset(IReg dst, IReg ti, uint32_t field, bool accumulate)  = 0;
+    virtual void TagGeneric(IReg dst, IReg src, IReg tiReg, uint32_t typeId) = 0;
     virtual void PayloadGeneric(
-        IReg dst, IReg src, IReg underlyingTypeInfo, IReg optionTypeInfo, uint16_t optionTypeInfoId
+        IReg dst, IReg src, IReg underlyingTypeInfo, IReg optionTypeInfo, uint32_t optionTypeInfoId
     )                                                                                                              = 0;
-    virtual void NewNoneGeneric(IReg dst, IReg underlyingTypeInfo, IReg optionTypeInfo, uint16_t optionTypeInfoId) = 0;
+    virtual void NewNoneGeneric(IReg dst, IReg underlyingTypeInfo, IReg optionTypeInfo, uint32_t optionTypeInfoId) = 0;
     virtual void NewSomeGeneric(
-        IReg dst, IReg src, IReg underlyingTypeInfo, IReg optionTypeInfo, uint16_t optionTypeInfoId
+        IReg dst, IReg src, IReg underlyingTypeInfo, IReg optionTypeInfo, uint32_t optionTypeInfoId
     ) = 0;
 
-    virtual void AtomicLoad(IReg dst, IReg obj, uint16_t fieldId) = 0;
-    virtual void AtomicStore(IReg src, IReg obj, uint16_t fieldId) = 0;
+    virtual void AtomicLoad(IReg dst, IReg obj, uint32_t fieldId)  = 0;
+    virtual void AtomicStore(IReg src, IReg obj, uint32_t fieldId) = 0;
 
-    virtual void CAS(IReg dst, IReg obj, IReg expected, IReg newVal, uint16_t fieldId) = 0;
+    virtual void CAS(IReg dst, IReg obj, IReg expected, IReg newVal, uint32_t fieldId) = 0;
 
-    virtual void AtomicSwap(IReg dst, IReg obj, IReg src, uint16_t fieldId) = 0;
+    virtual void AtomicSwap(IReg dst, IReg obj, IReg src, uint32_t fieldId) = 0;
 
-    virtual void AtomicFetchAdd(IReg dst, IReg obj, IReg src, uint16_t fieldId) = 0;
-    virtual void AtomicFetchSub(IReg dst, IReg obj, IReg src, uint16_t fieldId) = 0;
-    virtual void AtomicFetchAnd(IReg dst, IReg obj, IReg src, uint16_t fieldId) = 0;
-    virtual void AtomicFetchOr(IReg dst, IReg obj, IReg src, uint16_t fieldId) = 0;
-    virtual void AtomicFetchXor(IReg dst, IReg obj, IReg src, uint16_t fieldId) = 0;
+    virtual void AtomicFetchAdd(IReg dst, IReg obj, IReg src, uint32_t fieldId) = 0;
+    virtual void AtomicFetchSub(IReg dst, IReg obj, IReg src, uint32_t fieldId) = 0;
+    virtual void AtomicFetchAnd(IReg dst, IReg obj, IReg src, uint32_t fieldId) = 0;
+    virtual void AtomicFetchOr(IReg dst, IReg obj, IReg src, uint32_t fieldId)  = 0;
+    virtual void AtomicFetchXor(IReg dst, IReg obj, IReg src, uint32_t fieldId) = 0;
 
     class MemSpace {
     public:
@@ -146,32 +146,32 @@ protected:
     virtual std::unique_ptr<MemSpace> OpenMemSpace() = 0;
 
     virtual void MemHeadReg(MemSpace& ms, IReg base, bool isRef) = 0;
-    virtual void MemHeadField(MemSpace& ms, IReg base, uint16_t field) = 0;
-    virtual void MemHeadStatic(MemSpace& ms, uint16_t field) = 0;
+    virtual void MemHeadField(MemSpace& ms, IReg base, uint32_t field) = 0;
+    virtual void MemHeadStatic(MemSpace& ms, uint32_t field)           = 0;
     virtual void MemHeadHandle(MemSpace& ms, IReg base, IReg derived) = 0;
     virtual void MemHeadTyped(MemSpace& ms, uint16_t ts) = 0;
 
-    virtual void MemBodyField1(MemSpace& ms, uint16_t f1) = 0;
-    virtual void MemBodyField2(MemSpace& ms, uint16_t f1, uint16_t f2) = 0;
-    virtual void MemBodyField3(MemSpace& ms, uint16_t f1, uint16_t f2, uint16_t f3) = 0;
-    virtual void MemBodyField4(MemSpace& ms, uint16_t f1, uint16_t f2, uint16_t f3, uint16_t f4) = 0;
-    virtual void MemBodyIndex(MemSpace& ms, IReg reg, uint16_t elemType, bool checked) = 0;
-    virtual void MemBodyConstIndex(MemSpace& ms, int64_t idx, uint16_t elemType)                 = 0;
+    virtual void MemBodyField1(MemSpace& ms, uint32_t f1)                                        = 0;
+    virtual void MemBodyField2(MemSpace& ms, uint32_t f1, uint32_t f2)                           = 0;
+    virtual void MemBodyField3(MemSpace& ms, uint32_t f1, uint32_t f2, uint32_t f3)              = 0;
+    virtual void MemBodyField4(MemSpace& ms, uint32_t f1, uint32_t f2, uint32_t f3, uint32_t f4) = 0;
+    virtual void MemBodyIndex(MemSpace& ms, IReg reg, uint32_t elemType, bool checked)           = 0;
+    virtual void MemBodyConstIndex(MemSpace& ms, int64_t idx, uint32_t elemType)                 = 0;
 
-    virtual void MemTailLoad(MemSpace& ms, IReg dst, std::vector<uint16_t> refs) = 0;
-    virtual void MemTailStore(MemSpace& ms, IReg src, std::vector<uint16_t> refs) = 0;
+    virtual void MemTailLoad(MemSpace& ms, IReg dst, std::vector<uint32_t> refs)                      = 0;
+    virtual void MemTailStore(MemSpace& ms, IReg src, std::vector<uint32_t> refs)                     = 0;
     virtual void MemTailStoreImm(MemSpace& ms, uint64_t imm) = 0;
-    virtual void MemTailCopyReg(MemSpace& ms, IReg dst, uint16_t recType) = 0;
-    virtual void MemTailCopyInterior(MemSpace& ms, IReg dst, std::vector<uint16_t> refs) = 0;
-    virtual void MemTailCopyInteriorArr(MemSpace& ms, IReg dst, IReg idx, std::vector<uint16_t> refs) = 0;
-    virtual void MemTailCopyStatic(MemSpace& ms, std::vector<uint16_t> refs) = 0;
-    virtual void MemTailCopyTyped(MemSpace& ms, uint16_t ts, std::vector<uint16_t> refs) = 0;
+    virtual void MemTailCopyReg(MemSpace& ms, IReg dst, uint32_t recType)                             = 0;
+    virtual void MemTailCopyInterior(MemSpace& ms, IReg dst, std::vector<uint32_t> refs)              = 0;
+    virtual void MemTailCopyInteriorArr(MemSpace& ms, IReg dst, IReg idx, std::vector<uint32_t> refs) = 0;
+    virtual void MemTailCopyStatic(MemSpace& ms, std::vector<uint32_t> refs)                          = 0;
+    virtual void MemTailCopyTyped(MemSpace& ms, uint32_t ts, std::vector<uint32_t> refs)              = 0;
     virtual void MemTailCopyHandle(MemSpace& ms, IReg base, IReg derived)                             = 0;
 
     virtual void MemBodyOffset(MemSpace& ms, IReg offset)                                        = 0;
-    virtual void MemBodyConstIndexGeneric(MemSpace& ms, int64_t idx, uint16_t elemType, IReg ti) = 0;
-    virtual void MemBodyIndexGeneric(MemSpace& ms, IReg reg, uint16_t elemType, IReg ti)         = 0;
-    virtual void MemBodyFieldGeneric(MemSpace& ms, uint16_t field, IReg ti)                      = 0;
+    virtual void MemBodyConstIndexGeneric(MemSpace& ms, int64_t idx, uint32_t elemType, IReg ti) = 0;
+    virtual void MemBodyIndexGeneric(MemSpace& ms, IReg reg, uint32_t elemType, IReg ti)         = 0;
+    virtual void MemBodyFieldGeneric(MemSpace& ms, uint32_t field, IReg ti)                      = 0;
     virtual void MemTailStoreGeneric(MemSpace& ms, IReg src, IReg ti)                            = 0;
     virtual void MemTailLoadGeneric(MemSpace& ms, IReg dst, IReg ti)                             = 0;
 

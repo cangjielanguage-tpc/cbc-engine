@@ -345,7 +345,7 @@ struct IsaRewriter : public IsaParser {
         emit.PrepareTyped(ti, tsi.first);
     }
 
-    void NewArr(IReg dst, IReg len, uint16_t typeId) override
+    void NewArr(IReg dst, IReg len, uint32_t typeId) override
     {
         AdjustReg(IReg::IR2, len);
         NewObject(dst, typeId, New::Arr);
@@ -372,7 +372,7 @@ struct IsaRewriter : public IsaParser {
         emit.StoreRec(stk, src, base, offset);
     }
 
-    void LoadStatic(AnyReg r, uint16_t fieldId) override
+    void LoadStatic(AnyReg r, uint32_t fieldId) override
     {
         auto f = resolver.Query(Index<StaticField>(fieldId));
         if (!f.has_value()) {
@@ -384,7 +384,7 @@ struct IsaRewriter : public IsaParser {
         emit.LoadStatic(Ldk(field->fieldType.GetKind()), r, symbol);
     }
 
-    void StoreStatic(AnyReg r, uint16_t fieldId) override
+    void StoreStatic(AnyReg r, uint32_t fieldId) override
     {
         auto f = resolver.Query(Index<StaticField>(fieldId));
         if (!f.has_value()) {
@@ -396,7 +396,7 @@ struct IsaRewriter : public IsaParser {
         emit.StoreStatic(Stk(field->fieldType.GetKind()), r, symbol);
     }
 
-    void LoadField(IReg rb, AnyReg rd, uint16_t fieldId) override
+    void LoadField(IReg rb, AnyReg rd, uint32_t fieldId) override
     {
         auto f = resolver.Query(Index<InstanceField>(fieldId));
         if (!f.has_value()) {
@@ -412,7 +412,7 @@ struct IsaRewriter : public IsaParser {
         }
     }
 
-    void StoreField(IReg rb, AnyReg rs, uint16_t fieldId) override
+    void StoreField(IReg rb, AnyReg rs, uint32_t fieldId) override
     {
         auto f = resolver.Query(Index<InstanceField>(fieldId));
         if (!f.has_value()) {
@@ -432,7 +432,7 @@ struct IsaRewriter : public IsaParser {
         }
     }
 
-    void LoadTypeInfoGeneric(IReg dst, uint16_t typeId) override
+    void LoadTypeInfoGeneric(IReg dst, uint32_t typeId) override
     {
         using namespace Engine;
         auto type = resolver.Query(Index<Type>(typeId));
@@ -445,7 +445,7 @@ struct IsaRewriter : public IsaParser {
         AdjustReg(dst, IReg::IR1);
     }
 
-    void LoadTypeInfoSig(IReg dst, uint16_t typeId) override
+    void LoadTypeInfoSig(IReg dst, uint32_t typeId) override
     {
         auto t = resolver.Query(Index<Type>(typeId));
         if (!t.has_value()) {
@@ -461,7 +461,7 @@ struct IsaRewriter : public IsaParser {
         emit.MovImm(Format::Width::W64, dst, ti->UInt());
     }
 
-    void Offset(IReg dst, IReg ti, uint16_t fieldId, bool accumulate) override
+    void Offset(IReg dst, IReg ti, uint32_t fieldId, bool accumulate) override
     {
         auto f = resolver.Query(Index<InstanceField>(fieldId));
         if (!f.has_value()) {
@@ -483,7 +483,7 @@ struct IsaRewriter : public IsaParser {
         }
     }
 
-    void TagGeneric(IReg dst, IReg src, IReg ti, uint16_t typeId) override
+    void TagGeneric(IReg dst, IReg src, IReg ti, uint32_t typeId) override
     {
         auto t = resolver.Query(Index<Type>(typeId));
         if (!t.has_value()) {
@@ -515,7 +515,7 @@ struct IsaRewriter : public IsaParser {
         emit.Bind(end);
     }
 
-    void PayloadGeneric(IReg dst, IReg src, IReg underlyingTypeInfo, IReg optionTypeInfo, uint16_t optionTypeInfoId)
+    void PayloadGeneric(IReg dst, IReg src, IReg underlyingTypeInfo, IReg optionTypeInfo, uint32_t optionTypeInfoId)
         override
     {
         auto t = resolver.Query(Index<Type>(optionTypeInfoId));
@@ -547,7 +547,7 @@ struct IsaRewriter : public IsaParser {
         emit.Bind(end);
     }
 
-    void NewNoneGeneric(IReg dst, IReg underlyingTypeInfo, IReg optionTypeInfo, uint16_t optionTypeInfoId) override
+    void NewNoneGeneric(IReg dst, IReg underlyingTypeInfo, IReg optionTypeInfo, uint32_t optionTypeInfoId) override
     {
         auto t = resolver.Query(Index<Type>(optionTypeInfoId));
         if (!t.has_value()) {
@@ -570,7 +570,7 @@ struct IsaRewriter : public IsaParser {
         emit.Mov(dst, IReg::IR_ACC);
     }
 
-    void NewSomeGeneric(IReg dst, IReg src, IReg underlyingTypeInfo, IReg optionTypeInfo, uint16_t optionTypeInfoId)
+    void NewSomeGeneric(IReg dst, IReg src, IReg underlyingTypeInfo, IReg optionTypeInfo, uint32_t optionTypeInfoId)
         override
     {
         auto t = resolver.Query(Index<Type>(optionTypeInfoId));
@@ -612,7 +612,7 @@ struct IsaRewriter : public IsaParser {
 
     void InstanceOfGeneric(IReg dst, IReg obj, IReg ti) override { emit.InstanceOfGeneric(dst, obj, ti); }
 
-    void AtomicLoad(IReg dst, IReg obj, uint16_t fieldId) override
+    void AtomicLoad(IReg dst, IReg obj, uint32_t fieldId) override
     {
         auto f = resolver.Query(Index<InstanceField>(fieldId));
         if (!f.has_value()) {
@@ -629,7 +629,7 @@ struct IsaRewriter : public IsaParser {
         emit.AtomicLoad(dst, ldk, obj, field->offset.value());
     }
 
-    void AtomicStore(IReg src, IReg obj, uint16_t fieldId) override
+    void AtomicStore(IReg src, IReg obj, uint32_t fieldId) override
     {
         auto f = resolver.Query(Index<InstanceField>(fieldId));
         if (!f.has_value()) {
@@ -646,7 +646,7 @@ struct IsaRewriter : public IsaParser {
         emit.AtomicStore(src, stk, obj, field->offset.value());
     }
 
-    void CAS(IReg dst, IReg obj, IReg expected, IReg newVal, uint16_t fieldId) override
+    void CAS(IReg dst, IReg obj, IReg expected, IReg newVal, uint32_t fieldId) override
     {
         auto f = resolver.Query(Index<InstanceField>(fieldId));
         if (!f.has_value()) {
@@ -672,7 +672,7 @@ struct IsaRewriter : public IsaParser {
         emit.CAS(opc, dst, obj, expected, newVal, field->offset.value());
     }
 
-    void AtomicSwap(IReg dst, IReg obj, IReg src, uint16_t fieldId) override
+    void AtomicSwap(IReg dst, IReg obj, IReg src, uint32_t fieldId) override
     {
         auto f = resolver.Query(Index<InstanceField>(fieldId));
         if (!f.has_value()) {
@@ -698,7 +698,7 @@ struct IsaRewriter : public IsaParser {
         emit.AtomicOp(opc, dst, obj, src, field->offset.value());
     }
 
-    void AtomicFetchAdd(IReg dst, IReg obj, IReg src, uint16_t fieldId) override
+    void AtomicFetchAdd(IReg dst, IReg obj, IReg src, uint32_t fieldId) override
     {
         auto f = resolver.Query(Index<InstanceField>(fieldId));
         if (!f.has_value()) {
@@ -723,7 +723,7 @@ struct IsaRewriter : public IsaParser {
         emit.AtomicOp(opc, dst, obj, src, field->offset.value());
     }
 
-    void AtomicFetchSub(IReg dst, IReg obj, IReg src, uint16_t fieldId) override
+    void AtomicFetchSub(IReg dst, IReg obj, IReg src, uint32_t fieldId) override
     {
         auto f = resolver.Query(Index<InstanceField>(fieldId));
         if (!f.has_value()) {
@@ -748,7 +748,7 @@ struct IsaRewriter : public IsaParser {
         emit.AtomicOp(opc, dst, obj, src, field->offset.value());
     }
 
-    void AtomicFetchAnd(IReg dst, IReg obj, IReg src, uint16_t fieldId) override
+    void AtomicFetchAnd(IReg dst, IReg obj, IReg src, uint32_t fieldId) override
     {
         auto f = resolver.Query(Index<InstanceField>(fieldId));
         if (!f.has_value()) {
@@ -773,7 +773,7 @@ struct IsaRewriter : public IsaParser {
         emit.AtomicOp(opc, dst, obj, src, field->offset.value());
     }
 
-    void AtomicFetchOr(IReg dst, IReg obj, IReg src, uint16_t fieldId) override
+    void AtomicFetchOr(IReg dst, IReg obj, IReg src, uint32_t fieldId) override
     {
         auto f = resolver.Query(Index<InstanceField>(fieldId));
         if (!f.has_value()) {
@@ -798,7 +798,7 @@ struct IsaRewriter : public IsaParser {
         emit.AtomicOp(opc, dst, obj, src, field->offset.value());
     }
 
-    void AtomicFetchXor(IReg dst, IReg obj, IReg src, uint16_t fieldId) override
+    void AtomicFetchXor(IReg dst, IReg obj, IReg src, uint32_t fieldId) override
     {
         auto f = resolver.Query(Index<InstanceField>(fieldId));
         if (!f.has_value()) {
@@ -823,7 +823,7 @@ struct IsaRewriter : public IsaParser {
         emit.AtomicOp(opc, dst, obj, src, field->offset.value());
     }
 
-    std::optional<Type> NewObject(IReg dst, uint16_t typeId, New kind)
+    std::optional<Type> NewObject(IReg dst, uint32_t typeId, New kind)
     {
         auto t = resolver.Query(Index<Type>(typeId));
         if (!t.has_value()) {
@@ -847,9 +847,9 @@ struct IsaRewriter : public IsaParser {
         return *t;
     }
 
-    void NewObj(IReg dst, uint16_t typeId) override { NewObject(dst, typeId, New::Obj); }
+    void NewObj(IReg dst, uint32_t typeId) override { NewObject(dst, typeId, New::Obj); }
 
-    void CallDirect(IReg dst, uint16_t methodId) override
+    void CallDirect(IReg dst, uint32_t methodId) override
     {
         auto m = resolver.Query(Index<DirectCall>(methodId));
         if (!m.has_value()) {
@@ -874,7 +874,7 @@ struct IsaRewriter : public IsaParser {
         EmitReturnedTo();
     }
 
-    void CallVirtual(IReg dst, uint16_t methodId) override
+    void CallVirtual(IReg dst, uint32_t methodId) override
     {
         auto m = resolver.Query(Index<VirtualCall>(methodId));
         if (!m.has_value()) {
@@ -889,7 +889,7 @@ struct IsaRewriter : public IsaParser {
         EmitReturnedTo();
     }
 
-    void CallInterf(IReg dst, uint16_t methodId) override
+    void CallInterf(IReg dst, uint32_t methodId) override
     {
         auto m = resolver.Query(Index<InterfaceCall>(methodId));
         if (!m.has_value()) {
@@ -909,7 +909,7 @@ struct IsaRewriter : public IsaParser {
         EmitReturnedTo();
     }
 
-    void CallInterfGeneric(uint16_t argnum, uint16_t methodId) override
+    void CallInterfGeneric(uint16_t argnum, uint32_t methodId) override
     {
         auto m = resolver.Query(Index<InterfaceCall>(methodId));
         if (!m.has_value()) {
@@ -923,7 +923,7 @@ struct IsaRewriter : public IsaParser {
         EmitReturnedTo();
     }
 
-    void Spawn(IReg closure, uint16_t typeId) override
+    void Spawn(IReg closure, uint32_t typeId) override
     {
         AdjustReg(IReg::IR1, closure);
 
@@ -943,13 +943,13 @@ struct IsaRewriter : public IsaParser {
         BindStatePoint();
     }
 
-    void SpawnFuture(IReg future, uint16_t type) override
+    void SpawnFuture(IReg future, uint32_t type) override
     {
         BindStatePoint();
         FATAL("not implemented");
     }
 
-    void CallClosure(IReg dst, uint16_t typeId, bool generic) override
+    void CallClosure(IReg dst, uint32_t typeId, bool generic) override
     {
         if (generic) {
             // Generic calls of closure are always considered as `sret`.
@@ -972,7 +972,7 @@ struct IsaRewriter : public IsaParser {
         BindStatePoint();
     }
 
-    void NewClosure(IReg dst, uint16_t typeId) override
+    void NewClosure(IReg dst, uint32_t typeId) override
     {
         auto type = NewObject(IReg::IR1, typeId, New::Obj); // has BindStatePoint call inside
         if (!type.has_value()) {
@@ -1038,7 +1038,7 @@ struct IsaRewriter : public IsaParser {
 
     void Throw(IReg reg) override { emit.Throw(reg); }
 
-    void InstanceOf(IReg dst, IReg obj, uint16_t typeId) override
+    void InstanceOf(IReg dst, IReg obj, uint32_t typeId) override
     {
         auto t = resolver.Query(Index<Type>(typeId));
         if (!t.has_value()) {
@@ -1193,7 +1193,7 @@ struct IsaRewriter : public IsaParser {
         }
     }
 
-    void Box(AnyReg src, IReg dst, uint16_t type) override
+    void Box(AnyReg src, IReg dst, uint32_t type) override
     {
         if (type != Interpretation::BUILTIN_UNIT && type < Engine::Term::FIRST_NON_PRIMITIVE) {
             auto tk       = Engine::TermKind(type);
@@ -1254,7 +1254,7 @@ struct IsaRewriter : public IsaParser {
         ms.WriteStructFieldObj(IReg::IR_ACC, dst, typeInfo);
     }
 
-    void Unbox(AnyReg dst, IReg src, uint16_t type) override
+    void Unbox(AnyReg dst, IReg src, uint32_t type) override
     {
         if (type != Interpretation::BUILTIN_UNIT && type < Engine::Term::FIRST_NON_PRIMITIVE) {
             auto tk       = Engine::TermKind(type);
@@ -1322,7 +1322,7 @@ struct IsaRewriter : public IsaParser {
         CbcTypeKind lastFieldKind;
     };
 
-    bool FieldOffset(MemSpaceRewriter& msr, uint16_t fieldId)
+    bool FieldOffset(MemSpaceRewriter& msr, uint32_t fieldId)
     {
         auto f = resolver.Query(Index<InstanceField>(fieldId));
         if (!f.has_value()) {
@@ -1354,7 +1354,7 @@ struct IsaRewriter : public IsaParser {
         msr.kind  = isRef ? HEAD_OBJ : HEAD_REC;
     }
 
-    void MemHeadField(MemSpace& ms, IReg base, uint16_t fieldId) override
+    void MemHeadField(MemSpace& ms, IReg base, uint32_t fieldId) override
     {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
         msr.base = base;
@@ -1362,7 +1362,7 @@ struct IsaRewriter : public IsaParser {
         msr.kind   = isRef ? HEAD_OBJ : HEAD_REC;
     }
 
-    void MemHeadStatic(MemSpace& ms, uint16_t fieldId) override
+    void MemHeadStatic(MemSpace& ms, uint32_t fieldId) override
     {
         auto f = resolver.Query(Index<StaticField>(fieldId));
         if (!f.has_value()) {
@@ -1392,20 +1392,20 @@ struct IsaRewriter : public IsaParser {
         msr.kind = HEAD_FRAME;
     }
 
-    void MemBodyField1(MemSpace& ms, uint16_t f1) override
+    void MemBodyField1(MemSpace& ms, uint32_t f1) override
     {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
         FieldOffset(msr, f1);
     }
 
-    void MemBodyField2(MemSpace& ms, uint16_t f1, uint16_t f2) override
+    void MemBodyField2(MemSpace& ms, uint32_t f1, uint32_t f2) override
     {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
         FieldOffset(msr, f1);
         FieldOffset(msr, f2);
     }
 
-    void MemBodyField3(MemSpace& ms, uint16_t f1, uint16_t f2, uint16_t f3) override
+    void MemBodyField3(MemSpace& ms, uint32_t f1, uint32_t f2, uint32_t f3) override
     {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
         FieldOffset(msr, f1);
@@ -1413,7 +1413,7 @@ struct IsaRewriter : public IsaParser {
         FieldOffset(msr, f3);
     }
 
-    void MemBodyField4(MemSpace& ms, uint16_t f1, uint16_t f2, uint16_t f3, uint16_t f4) override
+    void MemBodyField4(MemSpace& ms, uint32_t f1, uint32_t f2, uint32_t f3, uint32_t f4) override
     {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
         FieldOffset(msr, f1);
@@ -1422,7 +1422,7 @@ struct IsaRewriter : public IsaParser {
         FieldOffset(msr, f4);
     }
 
-    void MemBodyConstIndex(MemSpace& ms, int64_t idx, uint16_t refType) override
+    void MemBodyConstIndex(MemSpace& ms, int64_t idx, uint32_t refType) override
     {
         // FIXME: elem type is computable, remove `refType` from encoding.
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
@@ -1447,7 +1447,7 @@ struct IsaRewriter : public IsaParser {
         msr.lastFieldKind = field->fieldType.GetKind();
     }
 
-    void MemBodyIndex(MemSpace& ms, IReg reg, uint16_t typeId, bool checked) override
+    void MemBodyIndex(MemSpace& ms, IReg reg, uint32_t typeId, bool checked) override
     {
         if (checked) {
             FATAL("Not implemented checked MemBodyIndex");
@@ -1480,7 +1480,7 @@ struct IsaRewriter : public IsaParser {
         msr.emit.OffsetRegIdx(reg, *size);
     }
 
-    void MemTailLoad(MemSpace& ms, IReg dst, std::vector<uint16_t> refs) override
+    void MemTailLoad(MemSpace& ms, IReg dst, std::vector<uint32_t> refs) override
     {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
         for (auto r : refs) {
@@ -1500,7 +1500,7 @@ struct IsaRewriter : public IsaParser {
         }
     }
 
-    void MemTailStore(MemSpace& ms, IReg src, std::vector<uint16_t> refs) override
+    void MemTailStore(MemSpace& ms, IReg src, std::vector<uint32_t> refs) override
     {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
         for (auto r : refs) {
@@ -1543,14 +1543,14 @@ struct IsaRewriter : public IsaParser {
         msr.emit.OffsetReg(offset);
     }
 
-    void MemBodyConstIndexGeneric(MemSpace& ms, int64_t idx, uint16_t elemType, IReg ti) override
+    void MemBodyConstIndexGeneric(MemSpace& ms, int64_t idx, uint32_t elemType, IReg ti) override
     {
         FATAL("not implemented");
     }
 
-    void MemBodyIndexGeneric(MemSpace& ms, IReg reg, uint16_t elemType, IReg ti) override { FATAL("not implemented"); }
+    void MemBodyIndexGeneric(MemSpace& ms, IReg reg, uint32_t elemType, IReg ti) override { FATAL("not implemented"); }
 
-    void MemBodyFieldGeneric(MemSpace& ms, uint16_t fieldId, IReg ti) override
+    void MemBodyFieldGeneric(MemSpace& ms, uint32_t fieldId, IReg ti) override
     {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
         auto f    = resolver.Query(Index<InstanceField>(fieldId));
@@ -1593,30 +1593,21 @@ struct IsaRewriter : public IsaParser {
         BindStatePoint();
     }
 
-    void MemTailCopyReg(MemSpace& ms, IReg dst, uint16_t recType) override
-    {
-        FATAL("MemTailCopyReg");
-    }
+    void MemTailCopyReg(MemSpace& ms, IReg dst, uint32_t recType) override { FATAL("MemTailCopyReg"); }
 
-    void MemTailCopyInterior(MemSpace& ms, IReg dst, std::vector<uint16_t> refs) override
+    void MemTailCopyInterior(MemSpace& ms, IReg dst, std::vector<uint32_t> refs) override
     {
         FATAL("MemTailCopyInterior");
     }
 
-    void MemTailCopyInteriorArr(MemSpace& ms, IReg dst, IReg idx, std::vector<uint16_t> refs) override
+    void MemTailCopyInteriorArr(MemSpace& ms, IReg dst, IReg idx, std::vector<uint32_t> refs) override
     {
         FATAL("MemTailCopyInteriorArr");
     }
 
-    void MemTailCopyStatic(MemSpace& ms, std::vector<uint16_t> refs) override
-    {
-        FATAL("MemTailCopyStatic");
-    }
+    void MemTailCopyStatic(MemSpace& ms, std::vector<uint32_t> refs) override { FATAL("MemTailCopyStatic"); }
 
-    void MemTailCopyTyped(MemSpace& ms, uint16_t ts, std::vector<uint16_t> refs) override
-    {
-        FATAL("MemTailCopyTyped");
-    }
+    void MemTailCopyTyped(MemSpace& ms, uint32_t ts, std::vector<uint32_t> refs) override { FATAL("MemTailCopyTyped"); }
 
     void MemTailCopyHandle(MemSpace& ms, IReg base, IReg derived) override { FATAL("MemTailCopyHandle"); }
 

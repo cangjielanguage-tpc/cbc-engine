@@ -7,16 +7,14 @@
 
 namespace Symlevel {
 
-MethodReference ParseReference(
-    Engine::Session& session, IO::FileId fileId, Offset<MethodReference> offset, uint8_t region
-)
+MethodReference ParseReference(Engine::Session& session, IO::FileId fileId, Offset<MethodReference> offset)
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetMethodRefSectionOffs() + offset);
 
     auto nameOffset   = Engine::Identifier<String>(Offset<String>(reader.ReadU32()), fileId);
     auto parsedFlags  = reader.ReadU8();
-    auto refTypeIdx   = Engine::RefIdentifier(RefId<Term>(region, reader.ReadULEB()), fileId);
-    auto methodSigIdx = Engine::RefIdentifier(RefId<Term>(region, reader.ReadULEB()), fileId);
+    auto refTypeIdx   = Engine::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
+    auto methodSigIdx = Engine::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
 
     MethodRefFlags flags;
     if (parsedFlags & 0x1) flags = flags.Or(MethodRefFlag::SRET);
@@ -27,25 +25,23 @@ MethodReference ParseReference(
     if (parsedFlags & 0x10) flags = flags.Or(MethodRefFlag::HAS_FTVARS);
     if (parsedFlags & 0x20) flags = flags.Or(MethodRefFlag::AOT);
 
-    static constexpr auto NIL_ID = RefId<Term>(0, (uint16_t) Engine::TermKind::NIL);
+    static constexpr auto NIL_ID = RefId<Term>((uint16_t)Engine::TermKind::NIL);
 
     Engine::RefIdentifier<Term> tvars(NIL_ID, fileId);
     if (flags.Is(MethodRefFlag::HAS_FTVARS)) {
-        tvars = Engine::RefIdentifier(RefId<Term>(region, reader.ReadULEB()), fileId);
+        tvars = Engine::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
     }
 
     return { nameOffset, refTypeIdx, methodSigIdx, tvars, flags };
 }
 
-FieldReference ParseReference(
-    Engine::Session& session, IO::FileId fileId, Offset<FieldReference> offset, uint8_t region
-)
+FieldReference ParseReference(Engine::Session& session, IO::FileId fileId, Offset<FieldReference> offset)
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetFieldRefSectionOffs() + offset);
 
     auto nameOffset   = Engine::Identifier<String>(Offset<String>(reader.ReadU32()), fileId);
-    auto refTypeIdx   = Engine::RefIdentifier(RefId<Term>(region, reader.ReadULEB()), fileId);
-    auto fieldTypeIdx = Engine::RefIdentifier(RefId<Term>(region, reader.ReadULEB()), fileId);
+    auto refTypeIdx   = Engine::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
+    auto fieldTypeIdx = Engine::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
 
     auto isRecord = reader.ReadU8() != 0;
 
@@ -59,7 +55,7 @@ inline static Reference ParseReference(Engine::Session& session, Engine::RefIden
     auto& raf        = session.FileOf(identifier.GetFileId());
     auto& regionData = file.GetRegionData();
     auto offset      = regionData.Query(session, identifier.GetIndex());
-    return ParseReference(session, identifier.GetFileId(), offset, identifier.GetIndex().GetRegion());
+    return ParseReference(session, identifier.GetFileId(), offset);
 }
 
 MethodReference MethodReference::Parse(Engine::Session& session, Engine::RefIdentifier<MethodReference> identifier)

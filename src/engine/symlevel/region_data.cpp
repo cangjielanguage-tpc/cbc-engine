@@ -14,10 +14,10 @@ RegionData RegionData::Read(IO::FileId fileId, IO::RandomAccessFile& file, uint3
     uint16_t typeIdxSize = reader.ReadU16(); // TODO: remove
     uint32_t typeIdxOffs = reader.ReadU32(); // TODO: remove
 
-    uint16_t methodIndexSize = reader.ReadU16();
+    uint16_t methodIndexSize = reader.ReadULEB();
     uint32_t methodIndexOffs = reader.ReadU32();
 
-    uint16_t fieldIndexSize = reader.ReadU16();
+    uint16_t fieldIndexSize = reader.ReadULEB();
     uint32_t fieldIndexOffs = reader.ReadU32();
 
     uint32_t termIndexSize = reader.ReadULEB();

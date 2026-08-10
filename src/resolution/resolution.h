@@ -174,14 +174,14 @@ Stream::Output& operator<<(Stream::Output& stream, StaticField const& field);
 
 template <typename T> class Index {
 public:
-    explicit Index(uint16_t value) : value(value) {}
+    explicit Index(uint32_t value) : value(value) {}
 
     int GetValue() const { return value; }
 
     bool operator==(Index const& index) const { return value == index.value; }
 
 private:
-    uint16_t value;
+    uint32_t value;
 };
 
 /// Resolver of identifiers in the context of `method`.

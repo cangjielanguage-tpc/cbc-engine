@@ -71,7 +71,7 @@ public:
 
     template <typename T> ResolvingOutput& operator<<(Engine::RefIdentifier<T> id)
     {
-        Print("<{}, {}, {}>", id.GetFileId(), id.GetIndex().GetRegion(), id.GetIndex().GetRegion());
+        Print("<{}, {}>", id.GetFileId(), id.GetIndex().GetIndex());
         return *this;
     }
 
