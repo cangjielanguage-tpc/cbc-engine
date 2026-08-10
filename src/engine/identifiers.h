@@ -63,9 +63,7 @@ template <typename T> struct RefIdentifier {
 
     RefIdentifier(Symlevel::RefId<T> index, IO::FileId fileId) : index(index), fileId(fileId) {}
 
-    RefIdentifier(Packed const& packed)
-        : RefIdentifier(Symlevel::RefId<T>(packed.id), IO::FileId(packed.fileId))
-    {}
+    RefIdentifier(Packed const& packed) : RefIdentifier(Symlevel::RefId<T>(packed.id), IO::FileId(packed.fileId)) {}
 
     Symlevel::RefId<T> GetIndex() const { return index; }
 

@@ -1,17 +1,64 @@
 #pragma once
 
-#include <functional>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <memory>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string>
 #include <string_view>
+#include <type_traits>
 
 namespace Stream {
 
 struct endl_t {};
 
 constexpr endl_t endl;
+
+// -------------------- Utilities for format printing --------------------
+
+template <typename Out> union FormatValue {
+    void const* ptr;
+    uint64_t raw;
+
+    template <typename T> FormatValue(T const& val)
+    {
+        if constexpr (sizeof(T) < sizeof(uint64_t) && std::is_trivially_copyable_v<T>) {
+            raw = 0;
+            std::memcpy(&raw, &val, sizeof(T));
+        } else {
+            ptr = &val;
+        }
+    }
+};
+
+template <typename Out> using FormatHandler = void (*)(FormatValue<Out>, Out&);
+
+template <typename Out, typename T> void FormatPrint(FormatValue<Out> d, Out& os)
+{
+    if constexpr (sizeof(T) < sizeof(uint64_t) && std::is_trivially_copyable_v<T>) {
+        alignas(alignof(T)) char buf[sizeof(T)];
+        memcpy(&buf, &d.raw, sizeof(T));
+        os << *reinterpret_cast<const T*>(buf);
+    } else {
+        os << *static_cast<T const*>(d.ptr);
+    }
+}
+
+template <typename Out>
+void DoPrintArray(
+    Out& out, std::string_view fmt, FormatValue<Out> const* args, FormatHandler<Out> const* handlers, int count
+);
+
+template <typename Out, typename... Args> inline void DoPrint(Out& out, std::string_view fmt, Args const&... args)
+{
+    FormatValue<Out> const values[]            = { args... };
+    static FormatHandler<Out> const handlers[] = { &FormatPrint<Out, Args>... };
+    DoPrintArray(out, fmt, values, handlers, sizeof...(Args));
+}
+
+// -------------------- Output Stream --------------------
 
 class Output {
 public:
@@ -28,6 +75,17 @@ public:
     virtual void Flush() const;
     virtual void NewLine();
     virtual void VPrintFmt(const char* fmt, va_list argp) = 0;
+
+    template <typename... Args> void Print(std::string_view fmt, Args const&... args)
+    {
+        ::Stream::DoPrint(*this, fmt, args...);
+    }
+
+    template <typename... Args> void PrintLn(std::string_view fmt, Args const&... args)
+    {
+        Print(fmt, args...);
+        NewLine();
+    }
 
     void PrintFmt(const char* fmt, ...);
     void PrintFmtLn(const char* fmt, ...);
@@ -124,6 +182,23 @@ private:
     std::string beforeDesc;
     bool newLine = true;
 };
+
+class Hex {
+public:
+    Hex(void* ptr) : num(reinterpret_cast<uint64_t>(ptr)) {}
+
+    Hex(uint64_t num) : num(num) {}
+
+    Hex(uint32_t num) : num(num) {}
+
+    Hex(uint16_t num) : num(num) {}
+
+    Hex(uint8_t num) : num(num) {}
+
+    uint64_t num;
+};
+
+Stream::Output& operator<<(Stream::Output& stream, Hex num);
 
 extern FileOutput cout;
 extern Output& cerr;

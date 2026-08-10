@@ -234,7 +234,7 @@ public:
 
     void CAS(IReg dst, Width width, IReg obj, IReg src1, IReg src2, uint16_t offset);
     void CASRef(IReg dst, IReg obj, IReg src1, IReg src2, uint16_t offset);
-    void CAS(RT::Opcode opc, IReg dst, IReg obj, IReg src1, IReg src2, uint16_t offset);
+    void CAS(RT::Opcode opc, IReg dst, IReg obj, IReg expected, IReg newVal, uint16_t offset);
     void AtomicOp(RT::Opcode opc, IReg dst, IReg obj, IReg src, uint16_t offset);
 
     void Throw(IReg dst);

@@ -8,6 +8,7 @@
 #include "interpreter/function_handle.h"
 #include "runtimesupport/runtime.h"
 #include "utils/logger.h"
+#include "utils/ostream.h"
 #include "utils/rt_logger.h"
 
 #include <bitset>
@@ -20,17 +21,19 @@ using Placeholder = uintptr_t*;
 
 static void VisitRoot(DYN_RootVisitor rootVisitor, Placeholder ph)
 {
-    RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) {
-        out.PrintFmtLn("visiting %p, value=%p", ph, *ph);
-    });
+    LOG_TRACE(RTSupport::Log::gc, "visiting {}, value={}", Hex(ph), Hex(*ph));
     g_CJNativeInterfaceInstance.visitRootFromInterpreter(rootVisitor, ph);
 }
 
 static void VisitMutPair(DYN_DerivedPtrVisitor derivedPtrVisitor, Placeholder basePh, Placeholder derivedPh)
 {
-    RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) {
-        out.PrintFmtLn("visiting derived placeholder=%p, mut pair=(%p, %p)", derivedPh, *basePh, *derivedPh);
-    });
+    LOG_TRACE(
+        RTSupport::Log::gc,
+        "visiting derived placeholder={}, mut pair=({}, {})",
+        Hex(derivedPh),
+        Hex(*basePh),
+        Hex(*derivedPh)
+    );
     g_CJNativeInterfaceInstance.visitDerivedPtrFromInterpreter(derivedPtrVisitor, basePh, derivedPh);
 }
 
@@ -226,14 +229,12 @@ void VisitGCFrameRoots(
         regsLocationTable->UpdateRegLocations(savedRegsMap, reinterpret_cast<Placeholder>(calleeSavedRegsEnd));
     }
 
-    RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Output& out) {
-        out.PrintFmtLn("end visiting frame (fuh=%p)", fuh);
-    });
+    LOG_INFO(RTSupport::Log::gc, "end visiting frame (fuh={})", Hex(fuh));
 }
 
 void VisitGlobalRoots(DYN_RootVisitor rootVisitor)
 {
-    RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Output& out) { out << "start visiting global roots" << endl; });
+    LOG_INFO(RTSupport::Log::gc, "start visiting global roots");
 
     auto& engine = Engine::GetEngineInstance();
     auto& sm     = Engine::StaticsManager::Of(engine);
@@ -244,6 +245,6 @@ void VisitGlobalRoots(DYN_RootVisitor rootVisitor)
 
     sm.VisitRefLocations(untypedSlotsVisitor);
 
-    RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Output& out) { out << "end visiting global roots" << endl; });
+    LOG_INFO(RTSupport::Log::gc, "end visiting global roots");
 }
 } // namespace GCSupport

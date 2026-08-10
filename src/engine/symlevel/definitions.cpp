@@ -169,7 +169,7 @@ MethodDefinition MethodDefinition::Parse(Engine::Session& session, IO::FileId fi
     auto nameOffset  = Offset<String>(reader.ReadU32());
     auto typeNameOffset = Offset<String>(reader.ReadU32());
     auto regionId    = reader.ReadU8();
-    auto signature   = Engine::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
+    auto signature      = Engine::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
     auto parsedFlags = reader.ReadU16();
 
     auto test = [parsedFlags](uint32_t bits) { return (parsedFlags & bits) == bits; };

@@ -39,12 +39,10 @@ public:
 
     Iterators::SimpleRange<OffsetGenerator> RefIds() const
     {
-        return Iterators::MakeRange(
-            OffsetGenerator {
-                .op     = *this,
-                .cursor = 0,
-            }
-        );
+        return Iterators::MakeRange(OffsetGenerator {
+            .op     = *this,
+            .cursor = 0,
+        });
     }
 
 private:

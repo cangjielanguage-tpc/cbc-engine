@@ -5,9 +5,9 @@
 #include <stdlib.h>
 
 [[noreturn]]
-void ReportFailure(const char* filename, int line, const char* func, const char* fmt, ...)
+void ReportFailure(const char* filename, int line, const char* fmt, ...)
 {
-    fprintf(stderr, "%s:%d: assertion failed in %s: ", filename, line, func);
+    fprintf(stderr, "%s:%d: assertion failed: ", filename, line);
     va_list args;
     va_start(args, fmt);
 #if ASSERTION_IOS_OS_LOG

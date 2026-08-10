@@ -16,6 +16,7 @@
 #include "resolution/resolution.h"
 #include "runtimesupport/adapters.h"
 #include "utils/assertion.h"
+#include "utils/ostream.h"
 
 namespace Interpretation {
 
@@ -49,11 +50,7 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
 
     auto method = Symlevel::Reader::Read(session, methodDef);
 
-    Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
-        Stream::ResolvingOutput stream(session, out);
-        stream << "starting to build fuh for " << methodDef << " (" << Stream::Detailed(method.TypeName()) << "."
-               << Stream::Detailed(method.Name()) << Stream::Detailed(method.Signature()) << ")" << Stream::endl;
-    });
+    LOGS_INFO(Log::preparation, session, "started to build fuh for {}", method);
 
     auto flags = method.GetFlags();
     ASSERTION(!flags.Is(MethodFlag::ABSTRACT), "Only methods that can be actually called can have FUH");
@@ -63,16 +60,11 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
         auto linkageName = Symlevel::Reader::Read(session, method.LinkageName().value());
         auto target      = deps.FindTarget(linkageName);
 
-        Log::preparation.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
-            if (target != nullptr)
-                return;
-            using namespace Stream;
-            Stream::ResolvingOutput stream(session, out);
-            stream << "failed to resolve aot method" << endl;
-            stream << "  name: " << Detailed(method.TypeName()) << "." << Detailed(method.Name())
-                   << Detailed(method.Signature()) << endl;
-            stream << "  linkageName: " << linkageName << endl;
-        });
+        if (target == nullptr) {
+            LOGS_ERROR(
+                Log::preparation, session, "failed to resolve aot method {}\n  linkage name: {}", method, linkageName
+            );
+        }
 
         // TODO: put stub trampoline that throws exception
         StaticFunctionHandle fuh {
@@ -126,15 +118,9 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Session& session, DynamicFuncti
 
     auto& logger = Interpretation::Log::preparation;
 
-    logger.Log(Logging::Level::INFO, [&](Stream::Output& out) {
-        using namespace Stream;
-        auto def = Reader::Read(session, fuh->methodDef);
-        Stream::ResolvingOutput stream(session, out);
-        stream << endl << fuh->methodDef << " started preparation of method " << endl;
-        stream << "  fuh: " << fuh << endl;
-        stream << "  name: " << Detailed(def.TypeName()) << '.' << Detailed(def.Name()) << Detailed(def.Signature())
-               << endl;
-    });
+    LOGS_INFO(
+        logger, session, "started preparation of method (fuh={}) {}", Stream::Hex(fuh), Stream::Detailed(fuh->methodDef)
+    );
 
     Resolution::Resolver resolver(session, fuh->methodDef);
 

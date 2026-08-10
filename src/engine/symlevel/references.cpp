@@ -7,9 +7,7 @@
 
 namespace Symlevel {
 
-MethodReference ParseReference(
-    Engine::Session& session, IO::FileId fileId, Offset<MethodReference> offset
-)
+MethodReference ParseReference(Engine::Session& session, IO::FileId fileId, Offset<MethodReference> offset)
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetMethodRefSectionOffs() + offset);
 
@@ -27,7 +25,7 @@ MethodReference ParseReference(
     if (parsedFlags & 0x10) flags = flags.Or(MethodRefFlag::HAS_FTVARS);
     if (parsedFlags & 0x20) flags = flags.Or(MethodRefFlag::AOT);
 
-    static constexpr auto NIL_ID = RefId<Term>((uint16_t) Engine::TermKind::NIL);
+    static constexpr auto NIL_ID = RefId<Term>((uint16_t)Engine::TermKind::NIL);
 
     Engine::RefIdentifier<Term> tvars(NIL_ID, fileId);
     if (flags.Is(MethodRefFlag::HAS_FTVARS)) {
@@ -37,9 +35,7 @@ MethodReference ParseReference(
     return { nameOffset, refTypeIdx, methodSigIdx, tvars, flags };
 }
 
-FieldReference ParseReference(
-    Engine::Session& session, IO::FileId fileId, Offset<FieldReference> offset
-)
+FieldReference ParseReference(Engine::Session& session, IO::FileId fileId, Offset<FieldReference> offset)
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetFieldRefSectionOffs() + offset);
 

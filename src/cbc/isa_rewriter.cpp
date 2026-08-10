@@ -646,7 +646,7 @@ struct IsaRewriter : public IsaParser {
         emit.AtomicStore(src, stk, obj, field->offset.value());
     }
 
-    void CAS(IReg dst, IReg obj, IReg src1, IReg src2, uint32_t fieldId) override
+    void CAS(IReg dst, IReg obj, IReg expected, IReg newVal, uint32_t fieldId) override
     {
         auto f = resolver.Query(Index<InstanceField>(fieldId));
         if (!f.has_value()) {
@@ -669,7 +669,7 @@ struct IsaRewriter : public IsaParser {
             case Format::StoreAccessKind::ST_REF: opc = RT::Opcode::CAS_REF; break;
             default: FATAL("unexpected kind %d", stk);
         }
-        emit.CAS(opc, dst, obj, src1, src2, field->offset.value());
+        emit.CAS(opc, dst, obj, expected, newVal, field->offset.value());
     }
 
     void AtomicSwap(IReg dst, IReg obj, IReg src, uint32_t fieldId) override
@@ -1593,10 +1593,7 @@ struct IsaRewriter : public IsaParser {
         BindStatePoint();
     }
 
-    void MemTailCopyReg(MemSpace& ms, IReg dst, uint32_t recType) override
-    {
-        FATAL("MemTailCopyReg");
-    }
+    void MemTailCopyReg(MemSpace& ms, IReg dst, uint32_t recType) override { FATAL("MemTailCopyReg"); }
 
     void MemTailCopyInterior(MemSpace& ms, IReg dst, std::vector<uint32_t> refs) override
     {
@@ -1608,20 +1605,11 @@ struct IsaRewriter : public IsaParser {
         FATAL("MemTailCopyInteriorArr");
     }
 
-    void MemTailCopyStatic(MemSpace& ms, std::vector<uint32_t> refs) override
-    {
-        FATAL("MemTailCopyStatic");
-    }
+    void MemTailCopyStatic(MemSpace& ms, std::vector<uint32_t> refs) override { FATAL("MemTailCopyStatic"); }
 
-    void MemTailCopyTyped(MemSpace& ms, uint16_t ts, std::vector<uint32_t> refs) override
-    {
-        FATAL("MemTailCopyTyped");
-    }
+    void MemTailCopyTyped(MemSpace& ms, uint32_t ts, std::vector<uint32_t> refs) override { FATAL("MemTailCopyTyped"); }
 
-    void MemTailCopyHandle(MemSpace& ms, IReg base, IReg offset) override
-    {
-        FATAL("MemTailCopyHandle");
-    }
+    void MemTailCopyHandle(MemSpace& ms, IReg base, IReg derived) override { FATAL("MemTailCopyHandle"); }
 
     void ParseOne() override
     {
@@ -1649,6 +1637,8 @@ struct IsaRewriter : public IsaParser {
 
 static std::optional<FrameLayout> makeFrameLayout(Symlevel::Code code, Resolver& resolver)
 {
+    auto& log = Interpretation::Log::preparation;
+
     auto savedRegsCount = 0;
     for (uint8_t i = 0, savedRegs = code.UsedNonVolIRegMask(); i < (IReg::COUNT - IReg::FIRST_NON_VOL); i++) {
         if ((savedRegs & (1 << i)) != 0)
@@ -1668,30 +1658,22 @@ static std::optional<FrameLayout> makeFrameLayout(Symlevel::Code code, Resolver&
     for (uint32_t i = 0; i < code.StackAllocSigsCount(); i++) {
         auto typeOpt = resolver.Query(Index<Type>(code.StackAllocSigs()[i]));
         if (!typeOpt.has_value()) {
-            Interpretation::Log::preparation.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
-                out << "Failed to query type at stack-alloc index " << i << Stream::endl;
-            });
+            LOG_ERROR(log, "Failed to query type at stack-alloc index {}", i);
             return std::nullopt;
         }
         auto type = typeOpt.value();
         if (type.GetKind() != CbcTypeKind::REC) {
-            Interpretation::Log::preparation.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
-                out << "Unexpected kind " << (uint8_t) type.GetKind() << " at stack-alloc index " << i << " for type " << type << Stream::endl;
-            });
+            LOG_ERROR(log, "Unexpected kind {} at t{} for type {}", (uint8_t)type.GetKind(), i, type);
             return std::nullopt;
         }
         auto size = type.GetFlatSize();
         if (!size.has_value()) {
-            Interpretation::Log::preparation.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
-                out << "Unknown size at stack-alloc index " << i << " for type " << type << Stream::endl;
-            });
+            LOG_ERROR(log, "Unknown size at t{} for type {}", i, type);
             return std::nullopt;
         }
         auto typeInfo = type.GetTypeInfo();
         if (!typeInfo.has_value()) {
-            Interpretation::Log::preparation.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
-                out << "Failed to obtain type info at stack-alloc index " << i << " for type " << type << Stream::endl;
-            });
+            LOG_ERROR(log, "Failed to obtain type info at t{} for type {}", i, type);
             return std::nullopt;
         }
         auto typeInfoPtr = typeInfo->Raw();
@@ -1831,9 +1813,9 @@ Interpretation::ExecBytecodeInfo Rewrite(
     Interpretation::Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
         Descripted desc(out, Descriptor(session, method));
 
-        desc.PrintFmt("bytecode: %p %zu", res.code.bytecode, res.code.bytecodeSize);
+        desc.Print("bytecode: {} {}", Hex(res.code.bytecode), res.code.bytecodeSize);
         desc.NewLine();
-        desc.PrintFmt("literals: %p %zu", res.code.literals->_table, res.code.literals->_byteSize / 8);
+        desc.Print("literals: {} {}", Hex(res.code.literals->_table), res.code.literals->_byteSize / 8);
         desc.NewLine();
 
         desc << res;

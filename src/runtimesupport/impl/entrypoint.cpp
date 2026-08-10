@@ -13,6 +13,7 @@
 #include "cjnative.h"
 #include "engine/engine.h"
 #include "engine/options.h"
+#include "engine/resolving_output.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/symlevel/dependencies.h"
 #include "engine/symlevel/io/filesystem.h"
@@ -94,9 +95,7 @@ static void PerformPatching()
         return;
     }
 
-    RTSupport::Log::rt.Log(Logging::Level::INFO, [](Stream::Output& out) {
-        out << "start patching" << Stream::endl;
-    });
+    LOG_INFO(RTSupport::Log::rt, "start patching");
 
     auto& engine = Engine::GetEngineInstance();
 
@@ -116,9 +115,7 @@ static void PerformPatching()
             auto pkgName = Symlevel::Reader::Read(session, def.GetName());
             pkgName = pkgName.substr(3);
 
-            RTSupport::Log::rt.Log(Logging::Level::INFO, [&pkgName](Stream::Output& out) {
-                out << "patching package " << pkgName << Stream::endl;
-            });
+            LOG_INFO(RTSupport::Log::rt, "patching package {}", pkgName);
 
             auto patchPrefix = "$" + std::string(pkgName);
 
@@ -128,15 +125,11 @@ static void PerformPatching()
             // Get patched type info
             auto ti = g_CJNativeInterfaceInstance.typeInfo(patchClassName.c_str());
             if (ti == nullptr) {
-                RTSupport::Log::rt.Log(Logging::Level::ERROR, [&patchClassName](Stream::Output& out) {
-                    out << "patch type info not found: " << patchClassName << Stream::endl;
-                });
+                LOG_ERROR(RTSupport::Log::rt, "patch TI not found {}", patchClassName);
                 continue;
             }
 
-            RTSupport::Log::rt.Log(Logging::Level::INFO, [&patchClassName](Stream::Output& out) {
-                out << "patch type info found: " << patchClassName << Stream::endl;
-            });
+            LOG_INFO(RTSupport::Log::rt, "patching ti found {}", patchClassName);
 
             // Corresponding extension def (TODO: check it)
             auto edef = ti->vExtensionDataStart[1];
@@ -153,12 +146,7 @@ static void PerformPatching()
                 }
 
                 if (idx != -1) {
-
-                    RTSupport::Log::rt.Log(Logging::Level::INFO, [&idx, &session, &mdef](Stream::Output& out) {
-                        auto funcName = Symlevel::Reader::Read(session, mdef.Name());
-                        out << "patching funcTable[" << idx << "] with " << funcName << Stream::endl;
-                    });
-
+                    LOGS_INFO(RTSupport::Log::rt, session, "patching funcTable[{}] with {}", idx, mdef.Name());
                     auto fuh = fuhManager.AcquireTagged(session, mdef.GetIdentifier());
                     auto ptr = fuhManager.GetFunctionPtrForDirectCall(fuh);
 
@@ -170,15 +158,9 @@ static void PerformPatching()
             auto& deps = file.GetDependencies();
             auto flag = deps.FindTarget(patchFlagName);
             if (flag == nullptr) {
-                RTSupport::Log::rt.Log(Logging::Level::ERROR, [&patchFlagName](Stream::Output& out) {
-                    out << "patch flag field not found: " << patchFlagName << Stream::endl;
-                });
+                LOG_ERROR(RTSupport::Log::rt, "patching flag field not found {}", patchFlagName);
                 continue;
             }
-
-            RTSupport::Log::rt.Log(Logging::Level::INFO, [&patchFlagName](Stream::Output& out) {
-                out << "patch flag field found: " << patchFlagName << Stream::endl;
-            });
 
             *(bool*) flag = true;
         };
@@ -204,9 +186,7 @@ extern "C" Interpretation::Ectype* engine_fiber_data_init(DYN_CJThreadSpecificDa
 
     *data = ectype;
 
-    RTSupport::Log::rt.Log(Logging::Level::INFO, [&data](Stream::Output& out) {
-        out.PrintFmtLn("fiber init, fsd addr: %p, ectype addr: %p", data, *data);
-    });
+    LOG_INFO(RTSupport::Log::rt, "fiber init, fsd: {}, ectype: {}", Stream::Hex(data), Stream::Hex(ectype));
 
     return ectype;
 }
@@ -218,9 +198,7 @@ static void FiberDestroy(DYN_CJThreadSpecificData* data)
         return;
     }
 
-    RTSupport::Log::rt.Log(Logging::Level::INFO, [&data](Stream::Output& out) {
-        out.PrintFmtLn("fiber destroy, fsd addr: %p, ectype addr: %p", data, *data);
-    });
+    LOG_INFO(RTSupport::Log::rt, "fiber destroy, fsd: {}, ectype: {}", Stream::Hex(data), Stream::Hex(*data));
     delete static_cast<Interpretation::Ectype*>(*data)->Checked();
 }
 
@@ -333,13 +311,12 @@ CBC_EXPORT int interpreter_bridge_init(
 {
     static_assert(std::is_same_v<decltype(&interpreter_bridge_init), INT_InitInterpreter>);
     if (rtInterf == nullptr || rtInterf->version != DYN_CJNATIVE_INTERFACE_VERSION) {
-        RTSupport::Log::rt.Log(Logging::Level::ERROR, [rtInterf](Stream::Output& out) {
-            out.PrintFmtLn(
-                "Unexpected DYN_CJNativeInterface version: expected %d, actual %lld",
-                DYN_CJNATIVE_INTERFACE_VERSION,
-                static_cast<long long>(rtInterf != nullptr ? rtInterf->version : -1)
-            );
-        });
+        LOG_ERROR(
+            RTSupport::Log::rt,
+            "Unexpected DYN_CJNativeInterface version: expected %d, actual %lld",
+            DYN_CJNATIVE_INTERFACE_VERSION,
+            rtInterf != nullptr ? rtInterf->version : -1
+        );
         return 1;
     }
 

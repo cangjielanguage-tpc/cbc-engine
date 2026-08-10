@@ -53,387 +53,300 @@ struct IsaDisasm : public IsaParser {
 
     void Bcc(Format::Width width, Format::CC cc, AnyReg l, AnyReg r, int64_t delta) override
     {
-        stream << "bcc." << Sz(width) << " " << cc.ToStr() << ", ";
         auto fp = cc.IsFloatingPoint();
-        stream << Fmt(l, fp) << ", " << Fmt(r, fp) << ", " << delta << endl;
+        stream.PrintLn("bcc.{} {}, {}, {}, {}", width, cc, Fmt(l, fp), Fmt(r, fp), delta);
     }
 
     void BccImm(Format::Width width, Format::CC cc, IReg l, uint64_t imm, int64_t delta) override
     {
-        stream << "bcci." << Sz(width) << " " << cc.ToStr() << " ";
-        stream << IReg::From(l).ToStr() << ", " << imm << ", " << delta << endl;
+        stream.PrintLn("bcci.{} {}, {}, {}, {}", width, cc, l, imm, delta);
     }
 
-    void Nop() override { stream << "nop" << endl; }
+    void Nop() override { stream.PrintLn("nop"); }
 
-    void Jump(int64_t delta) override { stream << "jmp" << " " << delta << endl; }
+    void Jump(int64_t delta) override { stream.PrintLn("jmp {}", delta); }
 
-    void Mov(Format::Width width, IReg d, IReg s) override
-    {
-        stream << "mov." << Sz(width) << " " << d.ToStr() << ", " << s.ToStr() << endl;
-    }
+    void Mov(Format::Width width, IReg d, IReg s) override { stream.PrintLn("mov.{} {}, {}", width, d, s); }
 
-    void FMov(Format::Width width, FReg d, FReg s) override
-    {
-        stream << "fmov." << Sz(width) << " " << d.ToStr() << ", " << s.ToStr() << endl;
-    }
+    void FMov(Format::Width width, FReg d, FReg s) override { stream.PrintLn("fmov.{} {}, {}", width, d, s); }
 
-    void FloatToInt(Format::Width width, IReg d, FReg s) override
-    {
-        stream << "f2i." << Sz(width) << " " << d.ToStr() << ", " << s.ToStr() << endl;
-    }
+    void FloatToInt(Format::Width width, IReg d, FReg s) override { stream.PrintLn("f2i.{} {}, {}", width, d, s); }
 
-    void IntToFloat(Format::Width width, FReg d, IReg s) override
-    {
-        stream << "i2f." << Sz(width) << " " << d.ToStr() << ", " << s.ToStr() << endl;
-    }
+    void IntToFloat(Format::Width width, FReg d, IReg s) override { stream.PrintLn("i2f.{} {}, {}", width, d, s); }
 
-    void MovRef(IReg d, IReg s) override { stream << "mov.ref" << " " << d.ToStr() << ", " << s.ToStr() << endl; }
+    void MovRef(IReg d, IReg s) override { stream.PrintLn("mov.ref {}, {}", d, s); }
 
     void MovImm(Format::Width width, IReg d, uint64_t value) override
     {
-        stream << "mov." << Sz(width) << " " << d.ToStr() << ", " << value << endl;
+        stream.PrintLn("mov.{} {}, {}", width, d, value);
     }
 
     virtual void FMovImm(Format::Width width, FReg d, double value) override
     {
-        stream << "fmov." << Sz(width) << " " << d.ToStr() << ", " << value << endl;
+        stream.PrintLn("fmov.{} {}, {}", width, d, value);
     }
 
     void Binary(Format::Common op, Format::Width width, IReg d, IReg l, IReg r) override
     {
-        stream << op.ToStr() << Sz(width) << " " << d.ToStr() << ", ";
-        stream << l.ToStr() << ", " << r.ToStr() << endl;
+        stream.PrintLn("{}.{} {}, {}, {}", op, width, d, l, r);
     }
 
     void BinaryImm(Format::Common op, Format::Width width, IReg d, IReg l, uint64_t value) override
     {
-        stream << op.ToStr() << "i" << "." << Sz(width) << " " << d.ToStr();
-        stream << ", " << l.ToStr() << ", " << value << endl;
+        stream.PrintLn("{}i.{} {}, {}, {}", op, width, d, l, value);
     }
 
     void FBinary(Format::FloatOperations op, Format::Width width, FReg d, FReg l, FReg r) override
     {
-        stream << op.ToStr() << "." << Sz(width) << " ";
-        stream << d.ToStr() << ", " << l.ToStr() << ", " << r.ToStr() << endl;
+        stream.PrintLn("{}.{} {}, {}, {}", op, width, d, l, r);
     }
 
     void FUnary(Format::FloatOperations op, Format::Width width, FReg d, FReg s) override
     {
-        stream << op.ToStr() << "." << Sz(width) << " ";
-        stream << d.ToStr() << ", " << s.ToStr() << endl;
+        stream.PrintLn("{}.{} {}, {}", op, width, d, s);
     }
 
     void Convert(Format::ConvertType toType, Format::ConvertType fromType, AnyReg to, AnyReg from) override
     {
-        stream << "convert" << " " << toType.ToStr() << "_" << fromType.ToStr();
-        stream << ", " << to << ", " << from << endl;
+        stream.PrintLn(
+            "convert {}, {}, {}, {}",
+            toType.ToStr(),
+            fromType.ToStr(),
+            Fmt(to, toType.IsFloatingPoint()),
+            Fmt(from, fromType.IsFloatingPoint())
+        );
     }
 
-    void MovBasePtr(IReg dst, bool local) override
-    {
-        stream << "mov.base.ptr" << (local ? ".local" : ".global") << " " << dst.ToStr() << endl;
-    }
+    void MovBasePtr(IReg dst, bool local) override { stream.PrintLn("mov.base.{}", local ? ".local" : ".global", dst); }
 
     void BFX(IReg dst, IReg src, Format::Width resW, Format::Width argW, bool sx, uint8_t offset, uint8_t size) override
     {
-        stream << "bfx" << " " << dst.ToStr() << ", " << src.ToStr() << ", ";
-        stream << Sz(resW) << ", " << Sz(argW) << ", " << sx << ", ";
-        stream << offset << ", " << size << endl;
+        stream.PrintLn("bfx {}, {}, {}, {}, {}, {}, {}", dst, src, resW, argW, sx, offset, size);
     }
 
-    void PrepareRecord(uint16_t ts) override { stream << "prepare.record" << " " << ts << endl; }
+    void PrepareRecord(uint16_t ts) override { stream.PrintLn("prepare.record {}", ts); }
 
-    void NewArr(IReg dst, IReg len, uint32_t type) override
-    {
-        stream << "newarr" << " " << dst.ToStr() << ", " << len.ToStr() << ", " << type << endl;
-    }
+    void NewArr(IReg dst, IReg len, uint32_t type) override { stream.PrintLn("newarr {}, {}, {}", dst, len, type); }
 
-    void GcPoint() override { stream << "gcpoint" << endl; }
+    void GcPoint() override { stream.PrintLn("gcpoint"); }
 
-    void LoadStackRec(IReg r, uint16_t ts) override { stream << "ld.stack.rec" << " " << r << ", " << ts << endl; }
+    void LoadStackRec(IReg r, uint16_t ts) override { stream.PrintLn("ld.stack.rec {}, {}", r, ts); }
 
     void LoadRawMemory(AnyReg dst, IReg base, int64_t offset, Format::LoadAccessKind ldk) override
     {
-        stream << "ld.raw.mem." << ldk.ToStr() << " " << Fmt(dst, ldk.IsFloat()) << ", " << base.ToStr() << ", "
-               << offset << endl;
+        stream.PrintLn("ld.raw.mem.{} {}, [{} + {}]", ldk, Fmt(dst, ldk.IsFloat()), base, offset);
     }
 
     void StoreRawMemory(AnyReg src, IReg base, int64_t offset, Format::StoreAccessKind stk) override
     {
-        stream << "st.raw.mem." << stk.ToStr() << " " << Fmt(src, stk.IsFloat()) << ", " << base.ToStr() << ", "
-               << offset << endl;
+        stream.PrintLn("st.raw.mem.{} {}, [{} + {}]", stk, Fmt(src, stk.IsFloat()), base, offset);
     }
 
-    void LoadStatic(AnyReg r, uint32_t field) override { stream << "ld.static" << " " << r << ", " << field << endl; }
+    void LoadStatic(AnyReg r, uint32_t field) override { stream.PrintLn("ld.static R{} {}", r, field); }
 
-    void StoreStatic(AnyReg r, uint32_t field) override { stream << "st.static" << " " << r << ", " << field << endl; }
+    void StoreStatic(AnyReg r, uint32_t field) override { stream.PrintLn("st.static R{} {}", r, field); }
 
     void LoadField(IReg rb, AnyReg rs, uint32_t field) override
     {
-        stream << "ld.obj" << " " << rb.ToStr() << ", " << rs << ", " << field << endl;
+        stream.PrintLn("ld.field R{}, [{} @{}]", rs, rb, field);
     }
 
     void StoreField(IReg rb, AnyReg rd, uint32_t field) override
     {
-        stream << "st.obj" << " " << rb.ToStr() << ", " << rd << ", " << field << endl;
+        stream.PrintLn("lst.field R{}, [{} @{}]", rd, rb, field);
     }
 
-    void LoadTypeInfoGeneric(IReg dst, uint32_t typeId) override
-    {
-        stream << "load.typeinfo.generic" << " " << dst.ToStr() << ", " << typeId << endl;
-    }
+    void LoadTypeInfoGeneric(IReg dst, uint32_t typeId) override { stream.PrintLn("load.ti.g {}, @{}", dst, typeId); }
 
-    void LoadTypeInfoSig(IReg dst, uint32_t type) override
-    {
-        stream << "load.typeinfo.sig" << " " << dst.ToStr() << ", " << type << endl;
-    }
+    void LoadTypeInfoSig(IReg dst, uint32_t type) override { stream.PrintLn("load.ti {}, @{}", dst, type); }
 
     void Offset(IReg dst, IReg ti, uint32_t field, bool accumulate) override
     {
         auto name = accumulate ? "add.offs" : "offs";
-        stream << name << " " << dst.ToStr() << ", " << ti.ToStr() << " " << field << endl;
+        stream.PrintLn("{} {}, {}, @{}", name, dst, ti, field);
     }
 
     void TagGeneric(IReg dst, IReg src, IReg ti, uint32_t typeId) override
     {
-        stream << "tag.g " << dst.ToStr() << ", " << src.ToStr() << ", " << ti.ToStr() << ", " << typeId << endl;
+        stream.PrintLn("tag.g {}, {}, {}, @{}", dst, src, ti, typeId);
     }
 
     void PayloadGeneric(IReg dst, IReg src, IReg underlyingTypeInfo, IReg optionTypeInfo, uint32_t optionTypeInfoId)
         override
     {
-        stream << "payload.g " << dst.ToStr() << ", " << src.ToStr() << ", " << underlyingTypeInfo.ToStr();
-        stream << "< " << optionTypeInfo.ToStr() << ", " << optionTypeInfoId << endl;
+        stream.PrintLn("payload.g {}, {}, {}, {}, @{}", dst, src, underlyingTypeInfo, optionTypeInfo, optionTypeInfoId);
     }
 
     void NewNoneGeneric(IReg dst, IReg underlyingTypeInfo, IReg optionTypeInfo, uint32_t optionTypeInfoId) override
     {
-        stream << "new.none.g " << dst.ToStr() << ", " << underlyingTypeInfo.ToStr() << ", " << optionTypeInfo.ToStr()
-               << ", " << optionTypeInfoId << endl;
+        stream.PrintLn("new.nonge.g {}, {}, {}, @{}", dst, underlyingTypeInfo, optionTypeInfo, optionTypeInfoId);
     }
 
     void NewSomeGeneric(IReg dst, IReg src, IReg underlyingTypeInfo, IReg optionTypeInfo, uint32_t optionTypeInfoId)
         override
     {
-        stream << "new.some.g " << dst.ToStr() << ", " << src.ToStr() << ", " << underlyingTypeInfo.ToStr();
-        stream << ", " << optionTypeInfo.ToStr() << ", " << optionTypeInfoId << endl;
+        stream.PrintLn(
+            "new.some.g {}, {}, {}, {}, @{}", dst, src, underlyingTypeInfo, optionTypeInfo, optionTypeInfoId
+        );
     }
 
-    void AssignGeneric(IReg dst, IReg src, IReg ti) override
-    {
-        stream << "assign.g" << dst.ToStr() << ", ";
-        stream << src.ToStr() << ", ";
-        stream << ti.ToStr() << endl;
-    }
+    void AssignGeneric(IReg dst, IReg src, IReg ti) override { stream.PrintLn("assign.g {}, {}, {}", dst, src, ti); }
 
-    void InstanceOfGeneric(IReg dst, IReg obj, IReg ti) override
-    {
-        stream << "iof.g" << dst.ToStr() << ", ";
-        stream << obj.ToStr() << ", ";
-        stream << ti.ToStr() << endl;
-    }
+    void InstanceOfGeneric(IReg dst, IReg obj, IReg ti) override { stream.PrintLn("iof.g {}, {}, {}", dst, obj, ti); }
 
     void AtomicLoad(IReg dst, IReg obj, uint32_t fieldId) override
     {
-        stream << "atomic.load." << " " << dst.ToStr() << ", " << obj.ToStr() << ", "  << fieldId << endl;
+        stream.PrintLn("atomic.load {}, [{} @{}]", dst, obj, fieldId);
     }
 
     void AtomicStore(IReg src, IReg obj, uint32_t fieldId) override
     {
-        stream << "atomic.store" << " " << src.ToStr() << ", " << obj.ToStr() << ", "  << fieldId << endl;
+        stream.PrintLn("atomic.store {}, [{} @{}]", src, obj, fieldId);
     }
 
-    void CAS(IReg dst, IReg obj, IReg src1, IReg src2, uint32_t fieldId) override
+    void CAS(IReg dst, IReg obj, IReg expected, IReg newVal, uint32_t fieldId) override
     {
-        stream << "cas" << " " << dst.ToStr() << ", " << obj.ToStr() << ", " << src1.ToStr() << ", " << src2.ToStr() << ", " << fieldId << endl;
+        stream.PrintLn("atomic.cas {}, {}, {}, [{} @{}]", dst, expected, newVal, obj, fieldId);
     }
 
     void AtomicSwap(IReg dst, IReg obj, IReg src, uint32_t fieldId) override
     {
-        stream << "atomic.swap" << " " << dst.ToStr() << ", " << obj.ToStr() << ", " << src.ToStr() << ", " << fieldId << endl;
+        stream.PrintLn("atomic.swap {}, {}, [{} @{}]", dst, src, obj, fieldId);
     }
 
     void AtomicFetchAdd(IReg dst, IReg obj, IReg src, uint32_t fieldId) override
     {
-        stream << "atomic.fetch.add" << " " << dst.ToStr() << ", " << obj.ToStr() << ", " << src.ToStr() << ", " << fieldId << endl;
+        stream.PrintLn("atomic.fetch.add {}, {}, [{} @{}]", dst, src, obj, fieldId);
     }
 
     void AtomicFetchSub(IReg dst, IReg obj, IReg src, uint32_t fieldId) override
     {
-        stream << "atomic.fetch.sub" << " " << dst.ToStr() << ", " << obj.ToStr() << ", " << src.ToStr() << ", " << fieldId << endl;
+        stream.PrintLn("atomic.fetch.sub {}, {}, [{} @{}]", dst, src, obj, fieldId);
     }
 
     void AtomicFetchAnd(IReg dst, IReg obj, IReg src, uint32_t fieldId) override
     {
-        stream << "atomic.fetch.and" << " " << dst.ToStr() << ", " << obj.ToStr() << ", " << src.ToStr() << ", " << fieldId << endl;
+        stream.PrintLn("atomic.fetch.and {}, {}, [{} @{}]", dst, src, obj, fieldId);
     }
 
     void AtomicFetchOr(IReg dst, IReg obj, IReg src, uint32_t fieldId) override
     {
-        stream << "atomic.fetch.or" << " " << dst.ToStr() << ", " << obj.ToStr() << ", " << src.ToStr() << ", " << fieldId << endl;
+        stream.PrintLn("atomic.fetch.and {}, {}, [{} @{}]", dst, src, obj, fieldId);
     }
 
     void AtomicFetchXor(IReg dst, IReg obj, IReg src, uint32_t fieldId) override
     {
-        stream << "atomic.fetch.xor" << " " << dst.ToStr() << ", " << obj.ToStr() << ", " << src.ToStr() << ", " << fieldId << endl;
+        stream.PrintLn("atomic.fetch.xor {}, {}, [{} @{}]", dst, src, obj, fieldId);
     }
 
-    void NewObj(IReg dst, uint32_t type) override { stream << "newobj" << " " << dst.ToStr() << ", " << type << endl; }
+    void NewObj(IReg dst, uint32_t type) override { stream.PrintLn("newobj {}, @{}", dst, type); }
 
-    void NewClosure(IReg dst, uint32_t type) override
-    {
-        stream << "new.closure" << " " << dst.ToStr() << ", " << type << endl;
-    }
+    void NewClosure(IReg dst, uint32_t type) override { stream.PrintLn("new.closure {}, @{}", dst, type); }
 
-    void CallDirect(IReg dst, uint32_t method) override
-    {
-        stream << "call.direct" << " " << dst.ToStr() << ", " << method << endl;
-    }
+    void CallDirect(IReg dst, uint32_t method) override { stream.PrintLn("call.direct {}, @{}", dst, method); }
 
-    void CallVirtual(IReg dst, uint32_t method) override
-    {
-        stream << "call.virtual" << " " << dst.ToStr() << ", " << method << endl;
-    }
+    void CallVirtual(IReg dst, uint32_t method) override { stream.PrintLn("call.virtal {}, @{}", dst, method); }
 
-    void CallInterf(IReg dst, uint32_t method) override
-    {
-        stream << "call.interf" << " " << dst.ToStr() << ", " << method << endl;
-    }
+    void CallInterf(IReg dst, uint32_t method) override { stream.PrintLn("call.interf {}, @{}", dst, method); }
 
     void CallInterfGeneric(uint16_t argnum, uint32_t method) override
     {
-        stream << "call.interf.g" << " " << argnum << ", " << method << endl;
+        stream.PrintLn("call.interf.g {}, @{}", argnum, method);
     }
 
-    void Spawn(IReg closure, uint32_t type) override
-    {
-        stream << "spawn" << " " << closure.ToStr() << ", " << type << endl;
-    }
+    void Spawn(IReg closure, uint32_t type) override { stream.PrintLn("spawn {}, @{}", closure, type); }
 
-    void SpawnFuture(IReg future, uint32_t type) override
-    {
-        stream << "spawn.future" << " " << future.ToStr() << ", " << type << endl;
-    }
+    void SpawnFuture(IReg future, uint32_t type) override { stream.PrintLn("spawn.future {}, @{}", future, type); }
 
     void CallClosure(IReg dst, uint32_t type, bool generic) override
     {
-        auto suffix = generic ? ".g " : " ";
-        stream << "call.closure" << suffix << dst.ToStr() << ", " << type << endl;
+        auto suffix = generic ? ".g" : "";
+        stream.PrintLn("call.closure{} {}, @{}", suffix, dst, type);
     }
 
     void Scc(Format::Width width, Format::CC cc, IReg d, AnyReg l, AnyReg r) override
     {
-        stream << "scc." << Sz(width) << " " << cc.ToStr() << ", " << d.ToStr() << ", ";
         auto fp = cc.IsFloatingPoint();
-        stream << Fmt(l, fp) << ", " << Fmt(r, fp) << endl;
+        stream.PrintLn("scc.{} {}, {}, {}, {}, {}", width, cc, d, Fmt(l, fp), Fmt(r, fp));
     }
 
     void SccImm(Format::Width width, Format::CC cc, IReg d, IReg l, uint64_t imm) override
     {
-        stream << "scci." << Sz(width) << " " << cc.ToStr() << ", ";
-        stream << d.ToStr() << ", " << l.ToStr() << ", " << imm << endl;
+        stream.PrintLn("scci.{} {}, {}, {}, {}, {}", width, cc, d, l, imm);
     }
 
-    void Ret(Format::Width width, IReg src) override { stream << "ret." << Sz(width) << " " << src.ToStr() << endl; }
+    void Ret(Format::Width width, IReg src) override { stream.PrintLn("ret.{} {}", width, src); }
 
-    void FRet(Format::Width width, FReg src) override { stream << "fret." << Sz(width) << " " << src.ToStr() << endl; }
+    void FRet(Format::Width width, FReg src) override { stream.PrintLn("fret.{} {}", width, src); }
 
-    void RetRef(IReg src) override { stream << "ret.ref " << src.ToStr() << endl; }
+    void RetRef(IReg src) override { stream.PrintLn("ret.ref {}", src); }
 
-    void DivCheck(IReg reg) override { stream << "divcheck" << " " << reg.ToStr() << endl; }
+    void DivCheck(IReg reg) override { stream.PrintLn("divcheck {}", reg); }
 
-    void NullCheck(IReg reg) override { stream << "nullcheck" << " " << reg.ToStr() << endl; }
+    void NullCheck(IReg reg) override { stream.PrintLn("nullcheck {}", reg); }
 
-    void Catch(IReg reg) override { stream << "catch" << " " << reg.ToStr() << endl; }
+    void Catch(IReg reg) override { stream.PrintLn("catch {}", reg); }
 
-    void Throw(IReg reg) override { stream << "throw" << " " << reg.ToStr() << endl; }
+    void Throw(IReg reg) override { stream.PrintLn("throw {}", reg); }
 
-    void InstanceOf(IReg dst, IReg obj, uint32_t type) override
-    {
-        stream << "iof" << " " << dst.ToStr() << ", " << obj.ToStr() << ", " << type << endl;
-    }
+    void InstanceOf(IReg dst, IReg obj, uint32_t type) override { stream.PrintLn("iof {}, {}, {}", dst, obj, type); }
 
-    void LoadTypeInfoObj(IReg dst, IReg obj) override
-    {
-        stream << "load.typeinfo" << " " << dst.ToStr() << ", " << obj.ToStr() << endl;
-    }
+    void LoadTypeInfoObj(IReg dst, IReg obj) override { stream.PrintLn("load.ti.obj {}, {}", dst, obj); }
 
-    void InitObj(uint16_t ts) override { stream << "initobj" << " " << ts << endl; }
+    void InitObj(uint16_t ts) override { stream.PrintLn("initobj {}", ts); }
 
-    void InitString(uint16_t ts, uint32_t offset) override
-    {
-        stream << "initstr" << " " << ts << ", " << offset << endl;
-    }
+    void InitString(uint16_t ts, uint32_t offset) override { stream.PrintLn("initstr {}, #{}", ts, offset); }
 
-    void ArrayLength(IReg dst, IReg arr) override
-    {
-        stream << "arrlen" << " " << dst.ToStr() << ", " << arr.ToStr() << endl;
-    }
+    void ArrayLength(IReg dst, IReg arr) override { stream.PrintLn("arrlen {}, {}", dst, arr); }
 
-    void ArrayIndexCheck(IReg length, IReg index) override
-    {
-        stream << "aic" << " " << length.ToStr() << ", " << index.ToStr() << endl;
-    }
+    void ArrayIndexCheck(IReg length, IReg index) override { stream.PrintLn("aic {}, {}", length, index); }
 
     void LoadUntyped(AnyReg dst, Format::LoadAccessKind ldk, uint16_t us) override
     {
-        stream << "load.untyped." << ldk.ToStr() << " " << Fmt(dst, ldk.IsFloat()) << ", " << us << endl;
+        stream.PrintLn("ld.untyped.{} {}, [u{}]", ldk, Fmt(dst, ldk.IsFloat()), us);
     }
 
     void StoreUntyped(AnyReg src, Format::StoreAccessKind stk, uint16_t us) override
     {
-        stream << "store.untyped." << stk.ToStr() << " " << us << ", " << Fmt(src, stk.IsFloat()) << endl;
+        stream.PrintLn("st.untyped.{} {}, [u{}]", stk, Fmt(src, stk.IsFloat()), us);
     }
 
-    void StoreUntypedImm(uint64_t imm, uint16_t us) override
-    {
-        stream << "store.untyped.imm" << " " << us << ", " << imm << endl;
-    }
+    void StoreUntypedImm(uint64_t imm, uint16_t us) override { stream.PrintLn("st.untyped.imm {}, [u{}]", imm, us); }
 
     void LoadTyped(AnyReg dst, uint16_t ts, uint16_t fieldId) override
     {
-        stream << "load.typed" << " " << dst << ", " << ts << ", " << fieldId << endl;
+        stream.PrintLn("ld.typed R{}, [t{} @{}]", dst, ts, fieldId);
     }
 
     void StoreTyped(AnyReg src, uint16_t ts, uint16_t fieldId) override
     {
-        stream << "store.typed" << " " << ts << ", " << fieldId << ", " << src << endl;
+        stream.PrintLn("st.typed R{}, [t{} @{}]", src, ts, fieldId);
     }
 
     void StoreTypedImm(uint64_t imm, uint16_t ts, uint16_t fieldId) override
     {
-        stream << "store.typed.imm" << " " << ts << ", " << fieldId << ", " << imm << endl;
+        stream.PrintLn("st.typed.imm {}, [t{} @{}]", imm, ts, fieldId);
     }
 
     void LoadArray(AnyReg dst, Format::LoadAccessKind ldk, IReg arr, IReg idx) override
     {
-        stream << "ldarr." << ldk.ToStr() << " " << Fmt(dst, ldk.IsFloat()) << ", " << arr.ToStr() << ", " << idx.ToStr() << endl;
+        stream.PrintLn("ld.arr.{} {}, {}[{}]", ldk, Fmt(dst, ldk.IsFloat()), arr, idx);
     }
 
     void StoreArray(AnyReg src, Format::StoreAccessKind stk, IReg arr, IReg idx) override
     {
-        stream << "starr." << stk.ToStr() << " " << arr.ToStr() << ", " << idx.ToStr() << ", " << Fmt(src, stk.IsFloat()) << endl;
+        stream.PrintLn("st.arr.{} {}, {}[{}]", stk, Fmt(src, stk.IsFloat()), arr, idx);
     }
 
-    void TypeArg(IReg ti, int idx, IReg dst) override
-    {
-        stream << "type.arg " << ti.ToStr() << ", " << idx << ", " << dst.ToStr() << endl;
-    }
+    void TypeArg(IReg ti, int idx, IReg dst) override { stream.PrintLn("type.arg {}, {}[{}]", dst, ti, idx); }
 
-    void Box(AnyReg src, IReg dst, uint32_t tk) override
-    {
-        stream << "box." << (uint8_t)tk << " " << src << ", " << dst.ToStr() << endl; // TODO: prettify
-    }
+    void Box(AnyReg src, IReg dst, uint32_t tk) override { stream.PrintLn("box {}, R{}, @{}", dst, src, tk); }
 
-    void BoxT(uint16_t srcTs, IReg dst) override { stream << "box.t " << srcTs << ", " << dst.ToStr() << endl; }
+    void BoxT(uint16_t srcTs, IReg dst) override { stream.PrintLn("box {}, t{}", dst, srcTs); }
 
-    void Unbox(AnyReg dst, IReg src, uint32_t tk) override
-    {
-        stream << "unbox." << (uint8_t)tk << " " << dst << ", " << src.ToStr() << endl; // TODO: prettify
-    }
+    void Unbox(AnyReg dst, IReg src, uint32_t tk) override { stream.PrintLn("unbox R{}, {}, @{}", dst, tk); }
 
-    void UnboxT(uint16_t dstTs, IReg src) override { stream << "unbox.t " << dstTs << ", " << src.ToStr() << endl; }
+    void UnboxT(uint16_t dstTs, IReg src) override { stream.PrintLn("box t{}, {}", dstTs, src); }
 
     class PrintingMemSpace : public MemSpace {
     public:
@@ -449,63 +362,57 @@ struct IsaDisasm : public IsaParser {
 
     void MemHeadReg(MemSpace& ms, IReg base, bool isRef) override
     {
-        stream << "mem.reg" << (isRef ? ".ref" : ".rec") << " " << base.ToStr() << endl;
+        stream.PrintLn("ms.hd.{} {}", (isRef ? ".ref" : ".rec"), base);
     }
 
     void MemHeadField(MemSpace& ms, IReg base, uint32_t field) override
     {
-        stream << "mem.field" << " " << base.ToStr() << ", " << field << endl;
+        stream.PrintLn("ms.hd.field {}, @{}", base, field);
     }
 
-    void MemHeadStatic(MemSpace& ms, uint32_t field) override
-    {
-        stream << "mem.static" << " " << field << endl;
-    }
+    void MemHeadStatic(MemSpace& ms, uint32_t field) override { stream.PrintLn("ms.hd.field @{}", field); }
 
     void MemHeadHandle(MemSpace& ms, IReg base, IReg derived) override
     {
-        stream << "mem.handle" << " " << base.ToStr() << ", " << derived.ToStr() << endl;
+        stream.PrintLn("ms.hd.handle {}, {}", base, derived);
     }
 
-    void MemHeadTyped(MemSpace& ms, uint16_t ts) override
-    {
-        stream << "mem.typed" << " " << ts << endl;
-    }
+    void MemHeadTyped(MemSpace& ms, uint16_t ts) override { stream.PrintLn("ms.hd.typed t{}", ts); }
 
     void MemBodyField1(MemSpace& ms, uint32_t f1) override
     {
         PrintMemPos();
-        stream << "mem.field1" << " " << f1 << endl;
+        stream.PrintLn("field @{}", f1);
     }
 
     void MemBodyField2(MemSpace& ms, uint32_t f1, uint32_t f2) override
     {
         PrintMemPos();
-        stream << "mem.field2" << " " << f1 << " " << f2 << endl;
+        stream.PrintLn("field @{}, @{}", f1, f2);
     }
 
     void MemBodyField3(MemSpace& ms, uint32_t f1, uint32_t f2, uint32_t f3) override
     {
         PrintMemPos();
-        stream << "mem.field3" << " " << f1 << " " << f2 << " " << f3 << endl;
+        stream.PrintLn("field @{}, @{}, @{}", f1, f2, f3);
     }
 
     void MemBodyField4(MemSpace& ms, uint32_t f1, uint32_t f2, uint32_t f3, uint32_t f4) override
     {
         PrintMemPos();
-        stream << "mem.field4" << " " << f1 << " " << f2 << " " << f3 << " " << f4 << endl;
+        stream.PrintLn("field @{}, @{}, @{}, @{}", f1, f2, f3, f4);
     }
 
     void MemBodyIndex(MemSpace& ms, IReg reg, uint32_t elemType, bool checked) override
     {
         PrintMemPos();
-        stream << "mem.index" << " " << reg.ToStr() << ", " << elemType << ", " << checked << endl;
+        stream.PrintLn("index{} {}, @{}", checked ? ".checked" : "", reg, elemType);
     }
 
     void MemBodyConstIndex(MemSpace& ms, int64_t idx, uint32_t refType) override
     {
         PrintMemPos();
-        stream << "mem.const.index" << " " << idx << ", " << refType << ", " << endl;
+        stream.PrintLn("const.index {}, @{}", idx, refType);
     }
 
     void Refs(std::vector<uint32_t> refs)
@@ -514,109 +421,109 @@ struct IsaDisasm : public IsaParser {
         for (auto ref : refs) {
             stream << ref << " ";
         }
-        stream << "]";
+        stream << "]" << endl;
     }
 
     void MemTailLoad(MemSpace& ms, IReg dst, std::vector<uint32_t> refs) override
     {
         PrintMemPos();
-        stream << "mem.load" << " " << dst.ToStr() << ", ";
+        stream.Print("load {}", dst);
         Refs(refs);
     }
 
     void MemTailStore(MemSpace& ms, IReg src, std::vector<uint32_t> refs) override
     {
         PrintMemPos();
-        stream << "mem.store" << " " << src.ToStr() << ", ";
+        stream.Print("store {}", src);
         Refs(refs);
     }
 
     void MemTailStoreImm(MemSpace& ms, uint64_t imm) override
     {
         PrintMemPos();
-        stream << "mem.store.imm" << " " << imm;
+        stream.PrintLn("store.imm {}", imm);
     }
 
     void MemTailCopyReg(MemSpace& ms, IReg dst, uint32_t recType) override
     {
         PrintMemPos();
-        stream << "mem.copy.reg" << " " << dst.ToStr() << ", " << recType;
+        stream.PrintLn("copy.reg {}, @{}", dst, recType);
     }
 
     void MemTailCopyInterior(MemSpace& ms, IReg dst, std::vector<uint32_t> refs) override
     {
         PrintMemPos();
-        stream << "mem.copy.interior" << " " << dst.ToStr() << ", ";
+        stream.Print("copy.interior {}, ", dst);
         Refs(refs);
     }
 
     void MemTailCopyInteriorArr(MemSpace& ms, IReg dst, IReg idx, std::vector<uint32_t> refs) override
     {
         PrintMemPos();
-        stream << "mem.copy.interior.arr" << " " << dst.ToStr() << ", " << idx.ToStr() << ", ";
+        stream.Print("copy.interior.arr {}, ", dst, idx);
         Refs(refs);
     }
 
     void MemTailCopyStatic(MemSpace& ms, std::vector<uint32_t> refs) override
     {
         PrintMemPos();
-        stream << "mem.copy.static" << " ";
+        stream.Print("copy.static ");
         Refs(refs);
     }
 
-    void MemTailCopyTyped(MemSpace& ms, uint16_t ts, std::vector<uint32_t> refs) override
+    void MemTailCopyTyped(MemSpace& ms, uint32_t ts, std::vector<uint32_t> refs) override
     {
         PrintMemPos();
-        stream << "mem.copy.typed" << " " << ts << ", ";
+        stream.Print("copy.types t{}, ", ts);
         Refs(refs);
     }
 
     void MemBodyOffset(MemSpace& ms, IReg offset) override
     {
         PrintMemPos();
-        stream << "mem.body.offs" << " " << offset.ToStr() << endl;
+        stream.PrintLn("offset {}", offset);
     }
 
-    void MemTailCopyHandle(MemSpace& ms, IReg base, IReg offset) override
+    void MemTailCopyHandle(MemSpace& ms, IReg base, IReg derived) override
     {
         PrintMemPos();
-        stream << "mem.copy.handle" << " " << base.ToStr() << ", " << offset.ToStr();
+        stream.PrintLn("copy.handle {}, {}", base, derived);
     }
 
     void MemBodyConstIndexGeneric(MemSpace& ms, int64_t idx, uint32_t elemType, IReg ti) override
     {
         PrintMemPos();
-        stream << "mem.const.index.g" << " " << idx << ", " << elemType << ", " << endl;
+        stream.PrintLn("const.index.g {}, {}, @{}", idx, ti, elemType);
     }
 
     void MemBodyIndexGeneric(MemSpace& ms, IReg reg, uint32_t elemType, IReg ti) override
     {
         PrintMemPos();
-        stream << "mem.index.g" << " " << reg.ToStr() << ", " << elemType << ", " << ti.ToStr() << endl;
+        stream.PrintLn("index.g {}, {}, @{}", reg, ti, elemType);
     }
 
     void MemBodyFieldGeneric(MemSpace& ms, uint32_t field, IReg ti) override
     {
         PrintMemPos();
-        stream << "mem.field.g" << " " << field << " " << ti.ToStr() << endl;
+        stream.PrintLn("field.g {}, @{}", ti, field);
     }
 
     void MemTailStoreGeneric(MemSpace& ms, IReg src, IReg ti) override
     {
         PrintMemPos();
-        stream << "mem.store.g" << " " << src << " " << ti.ToStr();
+        stream.PrintLn("st.g {}, {}", src, ti);
     }
 
     void MemTailLoadGeneric(MemSpace& ms, IReg dst, IReg ti) override
     {
         PrintMemPos();
-        stream << "mem.load.g" << " " << dst << " " << ti.ToStr();
+        stream.PrintLn("ld.g {}, {}", dst, ti);
     }
 
     void PrintMemPos()
     {
         PrintPos();
-        stream << "  ";
+        stream.Print("  ");
     }
 
     void PrintPos()
@@ -649,17 +556,14 @@ struct IsaResolvingDisasm : IsaDisasm {
             return;
         }
         auto method = m.value();
-        stream << "call.virtual " << dst.ToStr() << ", " << method;
-        stream << " (" << method->extDefNum << "," << method->methodNum << ")";
-        stream << endl;
+        stream.PrintLn("call.virtual {}, {} ({}, {})", dst, method, method->extDefNum, method->methodNum);
     }
 
     void NewObj(IReg dst, uint32_t type) override
     {
         auto t = resolver.Query(Index<Type>(type));
         if (t) {
-            ResolvingOutput out(resolver.session, stream);
-            out << "newobj " << dst.ToStr() << ", " << t->term << Stream::endl;
+            stream.PrintLn("newobj {}, {}", dst, *t);
         } else {
             IsaDisasm::NewObj(dst, type);
         }
@@ -669,8 +573,7 @@ struct IsaResolvingDisasm : IsaDisasm {
     {
         auto t = resolver.Query(Index<Type>(type));
         if (t) {
-            ResolvingOutput out(resolver.session, stream);
-            out << "new.closure " << dst.ToStr() << ", " << t->term << Stream::endl;
+            stream.PrintLn("new.closure {}, {}", dst, *t);
         } else {
             IsaDisasm::NewObj(dst, type);
         }

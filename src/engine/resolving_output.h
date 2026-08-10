@@ -34,6 +34,19 @@ class ResolvingOutput {
 public:
     ResolvingOutput(Engine::Session& session, Stream::Output& out);
 
+    template <typename... Args> void Print(std::string_view fmt, Args const&... args)
+    {
+        ::Stream::DoPrint(*this, fmt, args...);
+    }
+
+    template <typename... Args> void PrintLn(std::string_view fmt, Args const&... args)
+    {
+        Print(fmt, args...);
+        NewLine();
+    }
+
+    void NewLine() { out.NewLine(); }
+
     ResolvingOutput& operator<<(Engine::Term term);
     ResolvingOutput& operator<<(Engine::GlobalTerm term);
     ResolvingOutput& operator<<(Engine::LocalTerm term);
@@ -52,13 +65,14 @@ public:
 
     template <typename T> ResolvingOutput& operator<<(Engine::Identifier<T> id)
     {
-        return *this << "(" << id.GetFileId() << "," << id.GetOffset() << ")";
+        Print("({}, {})", id.GetFileId(), id.GetOffset());
+        return *this;
     }
 
     template <typename T> ResolvingOutput& operator<<(Engine::RefIdentifier<T> id)
     {
-        return *this << "<" << id.GetFileId() << "," << id.GetIndex().GetIndex()
-                     << ">";
+        Print("<{}, {}>", id.GetFileId(), id.GetIndex().GetIndex());
+        return *this;
     }
 
     template <typename T> ResolvingOutput& operator<<(Detailed<Engine::Identifier<T>> id)

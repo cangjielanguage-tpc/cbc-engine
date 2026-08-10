@@ -78,12 +78,10 @@ private:
 template <typename T> class RefSequence {
 public:
     RefSequence(Sequence seq) : seq(seq) {}
-    RefSequence() : seq(Sequence::Empty()){}
 
-    static RefSequence Parse(IO::StreamFileReader& reader, IO::FileId id)
-    {
-        return { Sequence::Parse(reader, id) };
-    }
+    RefSequence() : seq(Sequence::Empty()) {}
+
+    static RefSequence Parse(IO::StreamFileReader& reader, IO::FileId id) { return { Sequence::Parse(reader, id) }; }
 
     struct Generator {
         Sequence::Generator sgen;
@@ -101,12 +99,7 @@ public:
 
     using Range = Iterators::SimpleRange<Generator>;
 
-    Range Values(Engine::Session& session) const
-    {
-        return Iterators::MakeRange(Generator {
-            seq.Values(session)
-        });
-    }
+    Range Values(Engine::Session& session) const { return Iterators::MakeRange(Generator { seq.Values(session) }); }
 
 private:
     Sequence seq;

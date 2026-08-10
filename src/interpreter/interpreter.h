@@ -143,29 +143,28 @@ public:
         ectype->Put(dst, Value::Primitive { .u64 = prev });
     }
 
-    template <typename T>
-    inline void CASPrim(IReg dst, IReg obj, IReg src1, IReg src2, uint16_t field)
+    template <typename T> inline void CASPrim(IReg dst, IReg obj, IReg rexpected, IReg rnew, uint16_t field)
     {
         auto objRef = ectype->GetReference(obj);
         if (!NullCheck(objRef)) {
             return;
         }
         auto* atomicVal = reinterpret_cast<std::atomic<T>*>(objRef.value + field);
-        auto expected   = static_cast<T>(ectype->GetPrimitive(src1).u64);
-        auto desired    = static_cast<T>(ectype->GetPrimitive(src2).u64);
-        auto res        = atomicVal->compare_exchange_strong(expected, desired, std::memory_order_seq_cst);
+        auto expected   = static_cast<T>(ectype->GetPrimitive(rexpected).u64);
+        auto newValue   = static_cast<T>(ectype->GetPrimitive(rnew).u64);
+        auto res        = atomicVal->compare_exchange_strong(expected, newValue, std::memory_order_seq_cst);
         ectype->Put(dst, Value::Primitive { .u64 = res });
     }
 
-    inline void CASRef(IReg dst, IReg obj, IReg src1, IReg src2, uint16_t field)
+    inline void CASRef(IReg dst, IReg obj, IReg rexpected, IReg rnew, uint16_t field)
     {
         auto objRef = ectype->GetReference(obj);
         if (!NullCheck(objRef)) {
             return;
         }
-        auto expected = ectype->GetReference(src1);
-        auto desired  = ectype->GetReference(src2);
-        auto res      = RTSupport::Execution::AtomicCompareAndSwapRef(expected, desired, objRef, objRef.value + field);
+        auto expected = ectype->GetReference(rexpected);
+        auto newValue = ectype->GetReference(rnew);
+        auto res      = RTSupport::Execution::AtomicCompareAndSwapRef(expected, newValue, objRef, objRef.value + field);
         ectype->Put(dst, Value::Primitive { .u64 = res });
     }
 
