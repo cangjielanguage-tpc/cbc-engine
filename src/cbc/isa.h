@@ -204,7 +204,7 @@ public:
         return "<invalid>";
     }
 
-    constexpr std::string_view ToStr() { return std::string_view(CStr()); }
+    constexpr std::string_view ToStr() const { return std::string_view(CStr()); }
 
     inline static IReg From(const uint32_t raw)
     {
@@ -264,7 +264,7 @@ public:
         return "<invalid>";
     }
 
-    constexpr std::string_view ToStr() { return std::string_view(CStr()); }
+    constexpr std::string_view ToStr() const { return std::string_view(CStr()); }
 
     inline static FReg From(const uint32_t raw)
     {
@@ -340,7 +340,7 @@ public:
         return Value(value);
     }
 
-    constexpr const char* CStr()
+    constexpr const char* CStr() const
     {
 #define CommonStr(opc, value, str)                                                                                     \
     case opc: return str;
@@ -351,7 +351,7 @@ public:
 #undef CommonStr
     }
 
-    constexpr std::string_view ToStr() { return std::string_view(CStr()); }
+    constexpr std::string_view ToStr() const { return std::string_view(CStr()); }
 
 private:
     Value _value;
@@ -508,7 +508,7 @@ public:
 
     constexpr bool IsBasic() { return (_value >> 2u) == 0; }
 
-    constexpr const char* CStr()
+    constexpr const char* CStr() const
     {
 #define FloatOperationsStr(opc, value, str)                                                                            \
     case opc: return str;
@@ -519,7 +519,7 @@ public:
 #undef FloatOperationsStr
     }
 
-    constexpr std::string_view ToStr() { return std::string_view(CStr()); }
+    constexpr std::string_view ToStr() const { return std::string_view(CStr()); }
 
 private:
     Value _value;
@@ -550,7 +550,7 @@ public:
         return Value(value);
     }
 
-    constexpr const char* CStr()
+    constexpr const char* CStr() const
     {
         switch (_value) {
             case W8:  return "W8";
@@ -658,7 +658,7 @@ public:
 
     constexpr bool IsFloat() const { return _value == ST_F32 || _value == ST_F64; }
 
-    constexpr const char* CStr()
+    constexpr const char* CStr() const
     {
 #define StoreAccessKindStr(opc, value, str)                                                                            \
     case opc: return str;
@@ -669,7 +669,7 @@ public:
 #undef StoreAccessKindStr
     }
 
-    constexpr std::string_view ToStr() { return std::string_view(CStr()); }
+    constexpr std::string_view ToStr() const { return std::string_view(CStr()); }
 
 private:
     Value _value;
@@ -715,7 +715,7 @@ public:
 
     constexpr bool IsFloat() const { return _value == LD_F32 || _value == LD_F64; }
 
-    constexpr const char* CStr()
+    constexpr const char* CStr() const
     {
 #define LoadAccessKindStr(opc, value, str)                                                                             \
     case opc: return str;
@@ -726,7 +726,7 @@ public:
 #undef LoadAccessKindStr
     }
 
-    constexpr std::string_view ToStr() { return std::string_view(CStr()); }
+    constexpr std::string_view ToStr() const { return std::string_view(CStr()); }
 
 private:
     Value _value;
@@ -946,19 +946,19 @@ struct RImm12 {
     inline static uint16_t Raw(RImm12 xi12) { return static_cast<uint16_t>(xi12.r | (xi12.imm12 << 4)); }
 };
 
-inline Stream::Output& operator<<(Stream::Output& stream, IReg ireg) { return stream << ireg.ToStr(); }
+inline Stream::Output& operator<<(Stream::Output& stream, IReg const ireg) { return stream << ireg.ToStr(); }
 
-inline Stream::Output& operator<<(Stream::Output& stream, FReg freg) { return stream << freg.ToStr(); }
+inline Stream::Output& operator<<(Stream::Output& stream, FReg const freg) { return stream << freg.ToStr(); }
 
-inline Stream::Output& operator<<(Stream::Output& stream, Width width) { return stream << width.CStr(); }
+inline Stream::Output& operator<<(Stream::Output& stream, Width const width) { return stream << width.CStr(); }
 
-inline Stream::Output& operator<<(Stream::Output& stream, Common op) { return stream << op.ToStr(); }
+inline Stream::Output& operator<<(Stream::Output& stream, Common const op) { return stream << op.ToStr(); }
 
-inline Stream::Output& operator<<(Stream::Output& stream, FloatOperations op) { return stream << op.ToStr(); }
+inline Stream::Output& operator<<(Stream::Output& stream, FloatOperations const op) { return stream << op.ToStr(); }
 
-inline Stream::Output& operator<<(Stream::Output& stream, LoadAccessKind ldk) { return stream << ldk.ToStr(); }
+inline Stream::Output& operator<<(Stream::Output& stream, LoadAccessKind const ldk) { return stream << ldk.ToStr(); }
 
-inline Stream::Output& operator<<(Stream::Output& stream, StoreAccessKind stk) { return stream << stk.ToStr(); }
+inline Stream::Output& operator<<(Stream::Output& stream, StoreAccessKind const stk) { return stream << stk.ToStr(); }
 
 } // namespace Format
 } // namespace Cbc
