@@ -54,7 +54,7 @@ void DoPrintArray(
 template <typename Out, typename... Args> inline void DoPrint(Out& out, std::string_view fmt, Args const&... args)
 {
     FormatValue<Out> const values[]            = { args... };
-    static FormatHandler<Out> const handlers[] = { &FormatPrint<Out, Args>... };
+    static FormatHandler<Out> const handlers[] = { &FormatPrint<Out, Args const>... };
     DoPrintArray(out, fmt, values, handlers, sizeof...(Args));
 }
 
