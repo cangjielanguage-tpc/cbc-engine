@@ -245,7 +245,7 @@ struct IsaDisasm : public IsaParser {
 
     void CallDirect(IReg dst, uint32_t method) override { stream.PrintLn("call.direct {}, @{}", dst, method); }
 
-    void CallVirtual(IReg dst, uint32_t method) override { stream.PrintLn("call.virtal {}, @{}", dst, method); }
+    void CallVirtual(IReg dst, uint32_t method) override { stream.PrintLn("call.virtual {}, @{}", dst, method); }
 
     void CallInterf(IReg dst, uint32_t method) override { stream.PrintLn("call.interf {}, @{}", dst, method); }
 
