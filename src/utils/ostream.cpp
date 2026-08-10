@@ -57,7 +57,7 @@ void Output::Flush() const {}
 
 void Output::NewLine()
 {
-    Print("\n");
+    *this << "\n";
     Flush();
 }
 
@@ -78,63 +78,179 @@ void Output::PrintFmtLn(const char* fmt, ...)
     NewLine(); // TODO print atomically with VPrintFmt
 }
 
-void Output::Print(const float v) { PrintFmt("%f", v); }
+Output& Output::operator<<(const float v)
+{
+    PrintFmt("%f", v);
+    return *this;
+}
 
-void Output::Print(const double v) { PrintFmt("%f", v); }
+Output& Output::operator<<(const double v)
+{
+    PrintFmt("%f", v);
+    return *this;
+}
 
-void Output::Print(const long double v) { PrintFmt("%Lf", v); }
+Output& Output::operator<<(const long double v)
+{
+    PrintFmt("%Lf", v);
+    return *this;
+}
 
-void Output::Print(const bool v) { PrintFmt("%s", v ? "true" : "false"); }
+Output& Output::operator<<(const bool v)
+{
+    PrintFmt("%s", v ? "true" : "false");
+    return *this;
+}
 
-void Output::Print(const signed char v) { PrintFmt("%d", v); }
+Output& Output::operator<<(const signed char v)
+{
+    PrintFmt("%d", v);
+    return *this;
+}
 
-void Output::Print(const unsigned char v) { PrintFmt("%u", v); }
+Output& Output::operator<<(const unsigned char v)
+{
+    PrintFmt("%u", v);
+    return *this;
+}
 
-void Output::Print(const short v) { PrintFmt("%d", v); }
+Output& Output::operator<<(const short v)
+{
+    PrintFmt("%d", v);
+    return *this;
+}
 
-void Output::Print(const unsigned short v) { PrintFmt("%u", v); }
+Output& Output::operator<<(const unsigned short v)
+{
+    PrintFmt("%u", v);
+    return *this;
+}
 
-void Output::Print(const int v) { PrintFmt("%d", v); }
+Output& Output::operator<<(const int v)
+{
+    PrintFmt("%d", v);
+    return *this;
+}
 
-void Output::Print(const unsigned int v) { PrintFmt("%u", v); }
+Output& Output::operator<<(const unsigned int v)
+{
+    PrintFmt("%u", v);
+    return *this;
+}
 
-void Output::Print(const long v) { PrintFmt("%ld", v); }
+Output& Output::operator<<(const long v)
+{
+    PrintFmt("%ld", v);
+    return *this;
+}
 
-void Output::Print(const unsigned long v) { PrintFmt("%ld", v); }
+Output& Output::operator<<(const unsigned long v)
+{
+    PrintFmt("%ld", v);
+    return *this;
+}
 
-void Output::Print(const long long v) { PrintFmt("%lld", v); }
+Output& Output::operator<<(const long long v)
+{
+    PrintFmt("%lld", v);
+    return *this;
+}
 
-void Output::Print(const unsigned long long v) { PrintFmt("%llu", v); }
+Output& Output::operator<<(const unsigned long long v)
+{
+    PrintFmt("%llu", v);
+    return *this;
+}
 
-void Output::Print(const char c) { PrintFmt("%c", c); }
+Output& Output::operator<<(const char c)
+{
+    PrintFmt("%c", c);
+    return *this;
+}
 
-void Output::Print(const char* cstr) { PrintFmt("%s", cstr); }
+Output& Output::operator<<(const char* cstr)
+{
+    PrintFmt("%s", cstr);
+    return *this;
+}
 
-void Output::Print(const std::string_view strv) { PrintFmt("%.*s", static_cast<int>(strv.length()), strv.data()); }
+Output& Output::operator<<(const std::string_view strv)
+{
+    PrintFmt("%.*s", static_cast<int>(strv.length()), strv.data());
+    return *this;
+}
 
-void Output::Print(const std::string str) { PrintFmt("%s", str.c_str()); }
+Output& Output::operator<<(const std::string str)
+{
+    PrintFmt("%s", str.c_str());
+    return *this;
+}
 
-void Output::Print(const signed char* p) { PrintFmt("%p", p); }
+Output& Output::operator<<(const signed char* p)
+{
+    PrintFmt("%p", p);
+    return *this;
+}
 
-void Output::Print(const unsigned char* p) { PrintFmt("%p", p); }
+Output& Output::operator<<(const unsigned char* p)
+{
+    PrintFmt("%p", p);
+    return *this;
+}
 
-void Output::Print(const short* p) { PrintFmt("%p", p); }
+Output& Output::operator<<(const short* p)
+{
+    PrintFmt("%p", p);
+    return *this;
+}
 
-void Output::Print(const unsigned short* p) { PrintFmt("%p", p); }
+Output& Output::operator<<(const unsigned short* p)
+{
+    PrintFmt("%p", p);
+    return *this;
+}
 
-void Output::Print(const int* p) { PrintFmt("%p", p); }
+Output& Output::operator<<(const int* p)
+{
+    PrintFmt("%p", p);
+    return *this;
+}
 
-void Output::Print(const unsigned int* p) { PrintFmt("%p", p); }
+Output& Output::operator<<(const unsigned int* p)
+{
+    PrintFmt("%p", p);
+    return *this;
+}
 
-void Output::Print(const long* p) { PrintFmt("%p", p); }
+Output& Output::operator<<(const long* p)
+{
+    PrintFmt("%p", p);
+    return *this;
+}
 
-void Output::Print(const unsigned long* p) { PrintFmt("%p", p); }
+Output& Output::operator<<(const unsigned long* p)
+{
+    PrintFmt("%p", p);
+    return *this;
+}
 
-void Output::Print(const long long* p) { PrintFmt("%p", p); }
+Output& Output::operator<<(const long long* p)
+{
+    PrintFmt("%p", p);
+    return *this;
+}
 
-void Output::Print(const unsigned long long* p) { PrintFmt("%p", p); }
+Output& Output::operator<<(const unsigned long long* p)
+{
+    PrintFmt("%p", p);
+    return *this;
+}
 
-void Output::Print(const void* p) { PrintFmt("%p", p); }
+Output& Output::operator<<(const void* p)
+{
+    PrintFmt("%p", p);
+    return *this;
+}
 
 Output& Output::operator<<(const endl_t&)
 {

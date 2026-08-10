@@ -66,12 +66,6 @@ public:
 
     Output& operator<<(const endl_t&);
 
-    template <typename T> Output& operator<<(const T v)
-    {
-        Print(v);
-        return *this;
-    }
-
     virtual void Flush() const;
     virtual void NewLine();
     virtual void VPrintFmt(const char* fmt, va_list argp) = 0;
@@ -90,39 +84,39 @@ public:
     void PrintFmt(const char* fmt, ...);
     void PrintFmtLn(const char* fmt, ...);
 
-    void Print(const float v);
-    void Print(const double v);
-    void Print(const long double v);
-    void Print(const bool v);
-    void Print(const signed char v);
-    void Print(const unsigned char v);
-    void Print(const short v);
-    void Print(const unsigned short v);
-    void Print(const int v);
-    void Print(const unsigned int v);
-    void Print(const long v);
-    void Print(const unsigned long v);
-    void Print(const long long v);
-    void Print(const unsigned long long v);
-    void Print(const char c);
-    void Print(const char* cstr);
-    void Print(const std::string_view strv);
-    void Print(const std::string str);
-    void Print(const signed char* p);
-    void Print(const unsigned char* p);
-    void Print(const short* p);
-    void Print(const unsigned short* p);
-    void Print(const int* p);
-    void Print(const unsigned int* p);
-    void Print(const long* p);
-    void Print(const unsigned long* p);
-    void Print(const long long* p);
-    void Print(const unsigned long long* p);
-    void Print(const void* p);
+    Output& operator<<(const float v);
+    Output& operator<<(const double v);
+    Output& operator<<(const long double v);
+    Output& operator<<(const bool v);
+    Output& operator<<(const signed char v);
+    Output& operator<<(const unsigned char v);
+    Output& operator<<(const short v);
+    Output& operator<<(const unsigned short v);
+    Output& operator<<(const int v);
+    Output& operator<<(const unsigned int v);
+    Output& operator<<(const long v);
+    Output& operator<<(const unsigned long v);
+    Output& operator<<(const long long v);
+    Output& operator<<(const unsigned long long v);
+    Output& operator<<(const char c);
+    Output& operator<<(const char* cstr);
+    Output& operator<<(const std::string_view strv);
+    Output& operator<<(const std::string str);
+    Output& operator<<(const signed char* p);
+    Output& operator<<(const unsigned char* p);
+    Output& operator<<(const short* p);
+    Output& operator<<(const unsigned short* p);
+    Output& operator<<(const int* p);
+    Output& operator<<(const unsigned int* p);
+    Output& operator<<(const long* p);
+    Output& operator<<(const unsigned long* p);
+    Output& operator<<(const long long* p);
+    Output& operator<<(const unsigned long long* p);
+    Output& operator<<(const void* p);
 
-    template <typename T1, typename T2> void Print(const std::pair<T1, T2> pair)
+    template <typename T1, typename T2> Output& operator<<(const std::pair<T1, T2> pair)
     {
-        *this << "(" << pair.first << ", " << pair.second << ")";
+        return *this << "(" << pair.first << ", " << pair.second << ")";
     }
 };
 
