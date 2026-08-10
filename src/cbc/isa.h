@@ -946,19 +946,33 @@ struct RImm12 {
     inline static uint16_t Raw(RImm12 xi12) { return static_cast<uint16_t>(xi12.r | (xi12.imm12 << 4)); }
 };
 
-inline Stream::Output& operator<<(Stream::Output& stream, IReg const ireg) { return stream << ireg.ToStr(); }
-
-inline Stream::Output& operator<<(Stream::Output& stream, FReg const freg) { return stream << freg.ToStr(); }
-
-inline Stream::Output& operator<<(Stream::Output& stream, Width const width) { return stream << width.CStr(); }
-
-inline Stream::Output& operator<<(Stream::Output& stream, Common const op) { return stream << op.ToStr(); }
-
-inline Stream::Output& operator<<(Stream::Output& stream, FloatOperations const op) { return stream << op.ToStr(); }
-
-inline Stream::Output& operator<<(Stream::Output& stream, LoadAccessKind const ldk) { return stream << ldk.ToStr(); }
-
-inline Stream::Output& operator<<(Stream::Output& stream, StoreAccessKind const stk) { return stream << stk.ToStr(); }
-
 } // namespace Format
 } // namespace Cbc
+
+namespace Stream {
+inline Stream::Output& operator<<(Stream::Output& stream, Cbc::IReg const ireg) { return stream << ireg.ToStr(); }
+
+inline Stream::Output& operator<<(Stream::Output& stream, Cbc::FReg const freg) { return stream << freg.ToStr(); }
+
+inline Stream::Output& operator<<(Stream::Output& stream, Cbc::Format::Width const width)
+{
+    return stream << width.CStr();
+}
+
+inline Stream::Output& operator<<(Stream::Output& stream, Cbc::Format::Common const op) { return stream << op.ToStr(); }
+
+inline Stream::Output& operator<<(Stream::Output& stream, Cbc::Format::FloatOperations const op)
+{
+    return stream << op.ToStr();
+}
+
+inline Stream::Output& operator<<(Stream::Output& stream, Cbc::Format::LoadAccessKind const ldk)
+{
+    return stream << ldk.ToStr();
+}
+
+inline Stream::Output& operator<<(Stream::Output& stream, Cbc::Format::StoreAccessKind const stk)
+{
+    return stream << stk.ToStr();
+}
+} // namespace Stream
