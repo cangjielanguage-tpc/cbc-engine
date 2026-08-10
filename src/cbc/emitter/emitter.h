@@ -234,7 +234,7 @@ public:
     void InterfaceCall(
         uint16_t methodNum, RTSupport::TypeInfo typeInfo, bool sret, Interpretation::CallAdapter adapter
     );
-    void InterfaceCallGeneric(uint16_t methodNum, uint16_t argnum, bool sret);
+    void InterfaceCallGeneric(uint16_t methodNum, uint16_t argnum, bool sret, Interpretation::CallAdapter adapter);
 
     void StringLit(Interpretation::StringStorage* literal, uint32_t frameOffs);
 

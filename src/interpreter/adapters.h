@@ -25,8 +25,8 @@ C2Call PrepareC2Call(Engine::Session& session, Engine::Identifier<Symlevel::Meth
 
 CallAdapter AdapterFor(Resolution::VirtualCall const& vc);
 
-void* AdapterOf(CallAdapter adapter);
-
 CallAdapter AdapterFor(Resolution::InterfaceCall const& vc);
+
+void* AdapterOf(CallAdapter adapter);
 
 } // namespace Interpretation

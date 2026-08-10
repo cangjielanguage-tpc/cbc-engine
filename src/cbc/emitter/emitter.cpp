@@ -927,10 +927,11 @@ void Emitter::VirtualCall(uint16_t vnum, uint16_t extDefNum, bool sret, Interpre
     Encode(
         segment,
         RT::VirtualCall {
-            .opc  = RT::Opcode::VIRTUAL_CALL,
-            .vnum = vnum,
-            .edef = extDefNum,
-            .sret = static_cast<uint8_t>(sret),
+            .opc         = RT::Opcode::VIRTUAL_CALL,
+            .vnum        = vnum,
+            .edef        = extDefNum,
+            .sret        = static_cast<uint8_t>(sret),
+            .callAdapter = static_cast<uint8_t>(adapter),
         }
     );
 }
@@ -942,15 +943,18 @@ void Emitter::InterfaceCall(
     Encode(
         segment,
         RT::InterfaceCall {
-            .opc  = RT::Opcode::INTERFACE_CALL,
-            .vnum = methodNum,
-            .ti   = reinterpret_cast<uint64_t>(typeInfo.Raw()),
-            .sret = static_cast<uint8_t>(sret),
+            .opc         = RT::Opcode::INTERFACE_CALL,
+            .vnum        = methodNum,
+            .ti          = reinterpret_cast<uint64_t>(typeInfo.Raw()),
+            .sret        = static_cast<uint8_t>(sret),
+            .callAdapter = static_cast<uint8_t>(adapter),
         }
     );
 }
 
-void Emitter::InterfaceCallGeneric(uint16_t methodNum, uint16_t argnum, bool sret)
+void Emitter::InterfaceCallGeneric(
+    uint16_t methodNum, uint16_t argnum, bool sret, Interpretation::CallAdapter callAdapter
+)
 {
     Encode(
         segment,

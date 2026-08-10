@@ -219,9 +219,7 @@ namespace RTSupport {
 
 using Reference = Interpretation::Value::Reference;
 
-std::optional<TypeInfo> CreateTypeInfo(
-    Engine::Session& session, TypeInfoManager& manager, Engine::GlobalTerm term
-)
+std::optional<TypeInfo> CreateTypeInfo(Engine::Session& session, TypeInfoManager& manager, Engine::GlobalTerm term)
 {
     return std::nullopt;
 }
@@ -295,7 +293,7 @@ Interpretation::Thunk Execution::GetClosureThunk(Reference base, bool isInstanti
     FATAL("Should not reach here.");
 }
 
-Interpretation::Thunk Execution::GetVirtualThunk(Reference base, int extDefNum, int methodNum)
+Interpretation::Thunk Execution::GetVirtualThunk(Reference base, int extDefNum, int methodNum, uint8_t callAdapter)
 {
     FATAL("Should not reach here. I2C virtual call");
 }
@@ -305,7 +303,7 @@ TypeInfo Execution::GetMethodOuterTi(TypeInfo where, TypeInfo interf, int method
     FATAL("Should not reach here. I2C interface call");
 }
 
-Interpretation::Thunk Execution::GetInterfaceThunk(TypeInfo where, TypeInfo ti, int methodNum)
+Interpretation::Thunk Execution::GetInterfaceThunk(TypeInfo where, TypeInfo ti, int methodNum, uint8_t callAdapter)
 {
     FATAL("Should not reach here. I2C interface call");
 }
@@ -374,10 +372,7 @@ Reference Execution::AtomicReadRef(Reference object, uintptr_t field)
     return Reference { .value = 0 };
 }
 
-void Execution::AtomicWriteRef(Reference ref, Reference obj, uintptr_t field)
-{
-    FATAL("Should not reach here");
-}
+void Execution::AtomicWriteRef(Reference ref, Reference obj, uintptr_t field) { FATAL("Should not reach here"); }
 
 Reference Execution::AtomicSwapRef(Reference ref, Reference obj, uintptr_t field)
 {
@@ -390,11 +385,11 @@ bool Execution::AtomicCompareAndSwapRef(Reference oldRef, Reference newRef, Refe
     FATAL("Should not reach here");
 }
 
-void* Adapters::GenericI2CCallInstance() { FATAL("Should not reach here. Mock i2c"); }
-
 void* Adapters::I2ICallInstance() { return reinterpret_cast<void*>(&Interpretation::InterpreterI2CallTest); }
 
 static void C2ICall() { FATAL("Should not reach here. Mock c2i"); }
+
+void* Adapters::GenericI2CCallInstance() { return reinterpret_cast<void*>(&C2ICall); }
 
 void* Adapters::GetDynCallTrampoline(int idx, bool sret) { FATAL("Should not reach here"); }
 

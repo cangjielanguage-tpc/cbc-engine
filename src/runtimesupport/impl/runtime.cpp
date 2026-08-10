@@ -6,6 +6,7 @@
 #include "engine/engine.h"
 #include "engine/terms.h"
 #include "engine/typeinfo_manager.h"
+#include "interpreter/adapters.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
 #include "interpreter/implicit_exceptions.h"
@@ -146,7 +147,7 @@ static Interpretation::FunctionHandle* GetDynamicCall(void* fn, CbcTypeInfo* cti
     return cti->dataMT[DynCallTrampolineIdx(fn)];
 }
 
-static Interpretation::Thunk GetDynCallThunk(void* fn, TypeInfo ti)
+static Interpretation::Thunk GetDynCallThunk(void* fn, TypeInfo ti, uint8_t adapter)
 {
     if (IsDynCallTrampoline(fn)) {
         // Fast path: it is trampoline, meaning i2i call. We just get fuh and run i2i call as usual.
@@ -154,7 +155,12 @@ static Interpretation::Thunk GetDynCallThunk(void* fn, TypeInfo ti)
         return { Adapters::I2ICallInstance(), reinterpret_cast<void*>(fuh) };
     }
 
-    return { Adapters::GenericI2CCallInstance(), fn };
+    return { Interpretation::AdapterOf(static_cast<Interpretation::CallAdapter>(adapter)), fn };
+}
+
+static Interpretation::Thunk GetDynCallThunk(void* fn, TypeInfo ti)
+{
+    return GetDynCallThunk(fn, ti, static_cast<size_t>(Interpretation::CallAdapter::I2C));
 }
 
 Interpretation::Thunk Execution::GetClosureThunk(Reference base, bool isInstantiated)
@@ -173,13 +179,13 @@ Interpretation::Thunk Execution::GetClosureThunk(Reference base, bool isInstanti
     return GetDynCallThunk(func, TypeInfo(*header));
 }
 
-Interpretation::Thunk Execution::GetVirtualThunk(Reference base, int extDefNum, int methodNum)
+Interpretation::Thunk Execution::GetVirtualThunk(Reference base, int extDefNum, int methodNum, uint8_t callAdapter)
 {
     DYN_TypeInfo** header = reinterpret_cast<DYN_TypeInfo**>(base.value);
     auto dynTypeInfo      = *header;
     auto target           = dynTypeInfo->vExtensionDataStart[extDefNum]->funcTable[methodNum];
     auto typeInfo         = TypeInfo(dynTypeInfo);
-    return GetDynCallThunk(target, typeInfo);
+    return GetDynCallThunk(target, typeInfo, callAdapter);
 }
 
 TypeInfo Execution::GetMethodOuterTi(TypeInfo where, TypeInfo interf, int methodNum)
@@ -189,14 +195,14 @@ TypeInfo Execution::GetMethodOuterTi(TypeInfo where, TypeInfo interf, int method
     );
 }
 
-Interpretation::Thunk Execution::GetInterfaceThunk(TypeInfo where, TypeInfo interf, int methodNum)
+Interpretation::Thunk Execution::GetInterfaceThunk(TypeInfo where, TypeInfo interf, int methodNum, uint8_t callAdapter)
 {
-    auto dynTypeInfo      = UnpackTypeInfo(where);
-    DYN_FuncPtr* table    = g_CJNativeInterfaceInstance.getMTable(dynTypeInfo, UnpackTypeInfo(interf));
-    auto target           = table[methodNum];
+    auto dynTypeInfo   = UnpackTypeInfo(where);
+    DYN_FuncPtr* table = g_CJNativeInterfaceInstance.getMTable(dynTypeInfo, UnpackTypeInfo(interf));
+    auto target        = table[methodNum];
 
     auto typeInfo = TypeInfo(dynTypeInfo);
-    return GetDynCallThunk(target, typeInfo);
+    return GetDynCallThunk(target, typeInfo, callAdapter);
 }
 
 uint32_t Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool adjustByHeader)
@@ -264,27 +270,37 @@ extern "C" Reference engine_get_and_clear_pending_exception() { return Execution
 
 Reference Execution::AtomicReadRef(Reference object, uintptr_t field)
 {
-    return Reference { .value = reinterpret_cast<uintptr_t>(
-        g_CJNativeInterfaceInstance.atomicReadRef(reinterpret_cast<DYN_ObjRef>(object.value), reinterpret_cast<DYN_FieldRef>(field))) };
+    return Reference { .value = reinterpret_cast<uintptr_t>(g_CJNativeInterfaceInstance.atomicReadRef(
+                           reinterpret_cast<DYN_ObjRef>(object.value), reinterpret_cast<DYN_FieldRef>(field)
+                       )) };
 }
 
 void Execution::AtomicWriteRef(Reference ref, Reference obj, uintptr_t field)
 {
-    g_CJNativeInterfaceInstance.atomicWriteRef(reinterpret_cast<DYN_ObjRef>(ref.value), reinterpret_cast<DYN_ObjRef>(obj.value),
-        reinterpret_cast<DYN_FieldRef>(field));
+    g_CJNativeInterfaceInstance.atomicWriteRef(
+        reinterpret_cast<DYN_ObjRef>(ref.value),
+        reinterpret_cast<DYN_ObjRef>(obj.value),
+        reinterpret_cast<DYN_FieldRef>(field)
+    );
 }
 
 Reference Execution::AtomicSwapRef(Reference ref, Reference obj, uintptr_t field)
 {
-    return Reference { .value = reinterpret_cast<uintptr_t>(
-        g_CJNativeInterfaceInstance.atomicSwapRef(reinterpret_cast<DYN_ObjRef>(ref.value), reinterpret_cast<DYN_ObjRef>(obj.value),
-            reinterpret_cast<DYN_FieldRef>(field))) };
+    return Reference { .value = reinterpret_cast<uintptr_t>(g_CJNativeInterfaceInstance.atomicSwapRef(
+                           reinterpret_cast<DYN_ObjRef>(ref.value),
+                           reinterpret_cast<DYN_ObjRef>(obj.value),
+                           reinterpret_cast<DYN_FieldRef>(field)
+                       )) };
 }
 
 bool Execution::AtomicCompareAndSwapRef(Reference oldRef, Reference newRef, Reference obj, uintptr_t field)
 {
-    return g_CJNativeInterfaceInstance.atomicCompareAndSwapRef(reinterpret_cast<DYN_ObjRef>(oldRef.value), reinterpret_cast<DYN_ObjRef>(newRef.value),
-        reinterpret_cast<DYN_ObjRef>(obj.value), reinterpret_cast<DYN_FieldRef>(field));
+    return g_CJNativeInterfaceInstance.atomicCompareAndSwapRef(
+        reinterpret_cast<DYN_ObjRef>(oldRef.value),
+        reinterpret_cast<DYN_ObjRef>(newRef.value),
+        reinterpret_cast<DYN_ObjRef>(obj.value),
+        reinterpret_cast<DYN_FieldRef>(field)
+    );
 }
 
 const char* MetaInfo::GetName(TypeInfo ti)

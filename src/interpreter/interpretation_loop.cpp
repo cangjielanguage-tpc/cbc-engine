@@ -1,5 +1,4 @@
 #include "interpretation_loop.h"
-#include <atomic>
 #include "cbc/formater_rt.h"
 #include "cbc/frame.h"
 #include "cbc/isa.h"
@@ -19,6 +18,7 @@
 #include "utils/logger.h"
 #include "utils/math.h"
 #include "utils/ostream.h"
+#include <atomic>
 
 #include <cmath>
 #include <cstdint>
@@ -851,6 +851,7 @@ LABEL(VIRTUAL_CALL) {
     LOG_INSTR;
     auto vnum      = args.vnum;
     auto extDefNum = args.edef;
+    auto callAdapter = args.callAdapter;
 
     auto receiver = IReg::IR1;
     if (HAS_SRET_SHIFT && args.sret) {
@@ -868,7 +869,7 @@ LABEL(VIRTUAL_CALL) {
 
     reader0 = reader; // save current pc
 
-    return Execution::GetVirtualThunk(reference, extDefNum, vnum);
+    return Execution::GetVirtualThunk(reference, extDefNum, vnum, callAdapter);
 }
 
 LABEL(INTERFACE_CALL) {
@@ -876,6 +877,7 @@ LABEL(INTERFACE_CALL) {
     LOG_INSTR;
     auto num       = args.vnum;
     auto interf    = TypeInfo(static_cast<uintptr_t>(args.ti));
+    auto callAdapter = args.callAdapter;
 
     auto receiver = IReg::IR1;
     if (HAS_SRET_SHIFT && args.sret) {
@@ -900,7 +902,7 @@ LABEL(INTERFACE_CALL) {
 
     reader0 = reader; // save current pc
 
-    return Execution::GetInterfaceThunk(typeInfo, interf, num);
+    return Execution::GetInterfaceThunk(typeInfo, interf, num, callAdapter);
 }
 LABEL(INTERFACE_CALL_GENERIC) {
     auto args = InterfaceCallGeneric::Decode(reader);
@@ -908,6 +910,7 @@ LABEL(INTERFACE_CALL_GENERIC) {
     auto num    = args.vnum;
     auto sret   = args.sret;
     auto interf = TypeInfo(ectype->GetPrimitive(IReg::IR_ACC).u64);
+    auto callAdapter = args.callAdapter;
 
     auto receiver = IReg::IR1;
     if (HAS_SRET_SHIFT && sret) {
@@ -944,7 +947,7 @@ LABEL(INTERFACE_CALL_GENERIC) {
 
     reader0 = reader; // save current pc
 
-    return Execution::GetInterfaceThunk(typeInfo, interf, num);
+    return Execution::GetInterfaceThunk(typeInfo, interf, num, callAdapter);
 }
 
 LABEL(ASSIGN_GENERIC) {

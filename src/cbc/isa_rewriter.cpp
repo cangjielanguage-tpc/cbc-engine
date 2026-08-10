@@ -893,9 +893,9 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
-        auto method = m.value();
-        EmitLogCall("call.virt", method);
+        auto method  = m.value();
         auto adapter = Interpretation::AdapterFor(method);
+        EmitLogCall("call.virt", method);
         emit.VirtualCall(method->methodNum, method->extDefNum, method->sret, adapter);
         BindStatePoint();
         AdjustReg(dst, IReg::IR1);
@@ -909,14 +909,14 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
-        auto method = m.value();
-        auto ti     = method->refType.GetTypeInfo();
+        auto method  = m.value();
+        auto adapter = Interpretation::AdapterFor(method);
+        auto ti      = method->refType.GetTypeInfo();
         if (!ti.has_value()) {
             Fail();
             return;
         }
         EmitLogCall("call.interf", method);
-        auto adapter = Interpretation::AdapterFor(method);
         emit.InterfaceCall(method->methodNum, *ti, method->sret, adapter);
         BindStatePoint();
         AdjustReg(dst, IReg::IR1);
@@ -930,9 +930,10 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
-        auto method = m.value();
+        auto method  = m.value();
+        auto adapter = Interpretation::AdapterFor(method);
         EmitLogCall("call.interf.g", method);
-        emit.InterfaceCallGeneric(method->methodNum, argnum, method->sret);
+        emit.InterfaceCallGeneric(method->methodNum, argnum, method->sret, adapter);
         BindStatePoint();
         EmitReturnedTo();
     }
