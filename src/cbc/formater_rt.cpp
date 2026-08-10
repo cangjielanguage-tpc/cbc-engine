@@ -32,6 +32,8 @@ struct Operand {
 
     Format::Common Bin() { return Format::Common::From(U8()); }
 
+    Format::Checked CBin() { return Format::Checked::From(U8()); }
+
     Format::FloatOperations Fop() { return Format::FloatOperations::From(U8()); }
 
     Format::CC CC() { return Format::CC::From(U8()); }
@@ -51,6 +53,8 @@ struct Operand {
     uint64_t U12() { return static_cast<uint64_t>(MathUtils::ZeroExtend(value, 12)); }
 
     int64_t I32() { return static_cast<int64_t>(MathUtils::SignExtend(value, 32)); }
+
+    int64_t I64() { return static_cast<int64_t>(MathUtils::SignExtend(value, 64)); }
 
     float F32()
     {
@@ -133,6 +137,8 @@ private:
 
     void Write(Format::Common v) { stream << v.ToStr(); }
 
+    void Write(Format::Checked v) { stream << v.ToStr(); }
+
     void Write(Format::FloatOperations v) { stream << v.ToStr(); }
 
     void Write(Format::ConvertType v) { stream << v.ToStr(); }
@@ -171,6 +177,8 @@ private:
             Write(operand.I4());
         } else if (type == "I32") {
             Write(operand.I32());
+        } else if (type == "I64") {
+            Write(operand.I64());
         } else if (type == "U8") {
             Write(static_cast<uint64_t>(operand.U8()));
         } else if (type == "U16") {
@@ -191,6 +199,8 @@ private:
             Write(operand.CC());
         } else if (type == "bin") {
             Write(operand.Bin());
+        } else if (type == "cbin") {
+            Write(operand.CBin());
         } else if (type == "fop") {
             Write(operand.Fop());
         } else if (type == "I12L") {
@@ -360,6 +370,13 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3xi12 arg
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B9i64 args)
 {
     Operand operands[] = { args.imm64.imm };
+    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    formatter.Format();
+}
+
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, BinaryChecked args)
+{
+    Operand operands[] = { Format::Imm8(args.op), args.imm.imm, args.rr.x, args.rr.y };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }

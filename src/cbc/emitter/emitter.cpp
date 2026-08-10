@@ -380,6 +380,95 @@ void Emitter::LsrI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common
 
 void Emitter::AsrI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common::ASR, width, d, l, imm); }
 
+void Emitter::Binary(Checked op, Width width, IReg d, IReg l, IReg r)
+{
+    auto opcode = [width]() {
+        switch (width) {
+            case Width::W8:  return RT::Opcode::CBIN8;
+            case Width::W16: return RT::Opcode::CBIN16;
+            case Width::W32: return RT::Opcode::CBIN32;
+            case Width::W64: return RT::Opcode::CBIN64;
+        }
+    }();
+
+    Encode(
+        segment,
+        RT::B3xrrr {
+            .opc = opcode,
+            .xr =
+                XR {
+                    .imm = Imm4(op),
+                    .r   = d,
+                },
+            .rr = { .x = l, .y = r },
+        }
+    );
+}
+
+void Emitter::CAdd(Width width, IReg d, IReg l, IReg r) { Binary(Checked::CADD, width, d, l, r); }
+
+void Emitter::CSub(Width width, IReg d, IReg l, IReg r) { Binary(Checked::CSUB, width, d, l, r); }
+
+void Emitter::CMul(Width width, IReg d, IReg l, IReg r) { Binary(Checked::CMUL, width, d, l, r); }
+
+void Emitter::CDiv(Width width, IReg d, IReg l, IReg r) { Binary(Checked::CDIV, width, d, l, r); }
+
+void Emitter::CUAdd(Width width, IReg d, IReg l, IReg r) { Binary(Checked::CUADD, width, d, l, r); }
+
+void Emitter::CUSub(Width width, IReg d, IReg l, IReg r) { Binary(Checked::CUSUB, width, d, l, r); }
+
+void Emitter::CUMul(Width width, IReg d, IReg l, IReg r) { Binary(Checked::CUMUL, width, d, l, r); }
+
+void Emitter::CPow(Width width, IReg d, IReg l, IReg r) { Binary(Checked::CPOW, width, d, l, r); }
+
+static RT::Opcode opcodes[][4] = {
+    //                Width::W8            Width::W16            Width::W32            Width::W64
+    /* short */ { RT::Opcode::CBINI8I, RT::Opcode::CBINI16I, RT::Opcode::CBINI32I, RT::Opcode::CBINI64I },
+    /* wide  */ { RT::Opcode::CBINI8W, RT::Opcode::CBINI16W, RT::Opcode::CBINI32W, RT::Opcode::CBINI64W }
+};
+
+void Emitter::BinaryImm(Checked op, Width width, IReg d, IReg l, uint64_t imm)
+{
+    bool isShort = MathUtils::IsNBitsSigned(imm, 12);
+    auto opcode  = opcodes[!isShort][width];
+
+    if (MathUtils::IsNBitsSigned(imm, 12)) {
+        uint16_t immediate = static_cast<uint16_t>(imm & 0xfff);
+        Encode(
+            segment,
+            RT::B4xi12rr {
+                .opc = opcode,
+                .xi12 =
+                    XImm12 {
+                        .imm4  = Imm4(op),
+                        .imm12 = Imm12(immediate),
+                    },
+                .rr = { .x = d, .y = l },
+            }
+        );
+
+    } else {
+        Encode(
+            segment,
+            RT::BinaryChecked { .opc = opcode, .op = op, .rr = { .x = d, .y = l }, .imm = Imm64 { .imm = imm } }
+        );
+    }
+}
+
+void Emitter::CAddI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Checked::CADD, width, d, l, imm); }
+
+void Emitter::CSubI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Checked::CSUB, width, d, l, imm); }
+
+void Emitter::CMulI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Checked::CMUL, width, d, l, imm); }
+
+void Emitter::CUAddI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Checked::CUADD, width, d, l, imm); }
+
+void Emitter::CUSubI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Checked::CUSUB, width, d, l, imm); }
+
+void Emitter::CUMulI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Checked::CUMUL, width, d, l, imm); }
+
+void Emitter::CPowI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Checked::CPOW, width, d, l, imm); }
+
 void Emitter::Binary(FloatOperations op, Width width, FReg d, FReg l, FReg r)
 {
     ASSERT(width == Width::W32 || width == Width::W64);

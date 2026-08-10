@@ -390,6 +390,90 @@ LABEL(BINI64L) {
     );
     NEXT_COND(successful);
 }
+LABEL(CBIN8) {
+    auto args = B3xrrr::Decode(reader);
+    LOG_INSTR;
+    bool successful =
+        interpreter.template Binary<Width::W8>(args.xr.imm.Checked(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
+    NEXT_OR_THROW(successful, Type::OverflowException);
+}
+LABEL(CBIN16) {
+    auto args = B3xrrr::Decode(reader);
+    LOG_INSTR;
+    bool successful =
+        interpreter.template Binary<Width::W16>(args.xr.imm.Checked(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
+    NEXT_OR_THROW(successful, Type::OverflowException);
+}
+LABEL(CBIN32) {
+    auto args = B3xrrr::Decode(reader);
+    LOG_INSTR;
+    bool successful =
+        interpreter.template Binary<Width::W32>(args.xr.imm.Checked(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
+    NEXT_OR_THROW(successful, Type::OverflowException);
+}
+LABEL(CBIN64) {
+    auto args = B3xrrr::Decode(reader);
+    LOG_INSTR;
+    bool successful =
+        interpreter.template Binary<Width::W64>(args.xr.imm.Checked(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
+    NEXT_OR_THROW(successful, Type::OverflowException);
+}
+LABEL(CBINI8I) {
+    auto args = B4xi12rr::Decode(reader);
+    LOG_INSTR;
+    bool successful = interpreter.template BinaryImm<Width::W8>(
+        args.xi12.imm4.Checked(), args.rr.x.IR(), args.rr.y.IR(), MathUtils::SignExtend(static_cast<uint64_t>(args.xi12.imm12), 12)
+    );
+    NEXT_OR_THROW(successful, Type::OverflowException);
+}
+LABEL(CBINI16I) {
+    auto args = B4xi12rr::Decode(reader);
+    LOG_INSTR;
+    bool successful = interpreter.template BinaryImm<Width::W16>(
+        args.xi12.imm4.Checked(), args.rr.x.IR(), args.rr.y.IR(), MathUtils::SignExtend(static_cast<uint64_t>(args.xi12.imm12), 12)
+    );
+    NEXT_OR_THROW(successful, Type::OverflowException);
+}
+LABEL(CBINI32I) {
+    auto args = B4xi12rr::Decode(reader);
+    LOG_INSTR;
+    bool successful = interpreter.template BinaryImm<Width::W32>(
+        args.xi12.imm4.Checked(), args.rr.x.IR(), args.rr.y.IR(), MathUtils::SignExtend(static_cast<uint64_t>(args.xi12.imm12), 12)
+    );
+    NEXT_OR_THROW(successful, Type::OverflowException);
+}
+LABEL(CBINI64I) {
+    auto args = B4xi12rr::Decode(reader);
+    LOG_INSTR;
+    bool successful = interpreter.template BinaryImm<Width::W64>(
+        args.xi12.imm4.Checked(), args.rr.x.IR(), args.rr.y.IR(), MathUtils::SignExtend(static_cast<uint64_t>(args.xi12.imm12), 12)
+    );
+    NEXT_OR_THROW(successful, Type::OverflowException);
+}
+LABEL(CBINI8W) {
+    auto args = BinaryChecked::Decode(reader);
+    LOG_INSTR;
+    bool successful = interpreter.template BinaryImm<Width::W8>(args.op, args.rr.x.IR(), args.rr.y.IR(), args.imm.imm);
+    NEXT_OR_THROW(successful, Type::OverflowException);
+}
+LABEL(CBINI16W) {
+    auto args = BinaryChecked::Decode(reader);
+    LOG_INSTR;
+    bool successful = interpreter.template BinaryImm<Width::W16>(args.op, args.rr.x.IR(), args.rr.y.IR(), args.imm.imm);
+    NEXT_OR_THROW(successful, Type::OverflowException);
+}
+LABEL(CBINI32W) {
+    auto args = BinaryChecked::Decode(reader);
+    LOG_INSTR;
+    bool successful = interpreter.template BinaryImm<Width::W32>(args.op, args.rr.x.IR(), args.rr.y.IR(), args.imm.imm);
+    NEXT_OR_THROW(successful, Type::OverflowException);
+}
+LABEL(CBINI64W) {
+    auto args = BinaryChecked::Decode(reader);
+    LOG_INSTR;
+    bool successful = interpreter.template BinaryImm<Width::W64>(args.op, args.rr.x.IR(), args.rr.y.IR(), args.imm.imm);
+    NEXT_OR_THROW(successful, Type::OverflowException);
+}
 LABEL(FBIN32) {
     auto args = B3xrrr::Decode(reader);
     LOG_INSTR;

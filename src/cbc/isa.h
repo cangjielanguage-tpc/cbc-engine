@@ -357,6 +357,59 @@ private:
     Value _value;
 };
 
+class Checked {
+public:
+#define CheckedValue(X)                                                                                                \
+    X(CADD, 0b0000, "cadd")                                                                                            \
+    X(CSUB, 0b0001, "csub")                                                                                            \
+    X(CMUL, 0b0010, "cmul")                                                                                            \
+    X(CDIV, 0b0011, "cdiv")                                                                                            \
+    X(CUADD, 0b0100, "cuadd")                                                                                          \
+    X(CUSUB, 0b0101, "cusub")                                                                                          \
+    X(CUMUL, 0b0110, "cumul")                                                                                          \
+    X(CPOW, 0b0111, "cpow")
+
+#define CheckedEnum(opc, value, str) opc = value,
+
+    enum Value : uint32_t {
+        CheckedValue(CheckedEnum) LAST = CPOW
+    };
+
+#undef CheckedEnum
+
+    static constexpr Value values[] = {
+        CADD, CSUB, CMUL, CDIV, CUADD, CUSUB, CUMUL, CPOW,
+    };
+
+    constexpr Checked(const Value raw) : _value(raw) {}
+
+    constexpr operator Value() const { return _value; }
+
+    constexpr static Checked From(uint8_t value)
+    {
+        ASSERT(value <= LAST);
+        return Value(value);
+    }
+
+    constexpr operator uint8_t() const { return static_cast<uint8_t>(_value); }
+
+    constexpr const char* CStr()
+    {
+#define CheckedStr(opc, value, str)                                                                                    \
+    case opc: return str;
+        switch (_value) {
+            CheckedValue(CheckedStr);
+        }
+        return "<invalid>";
+#undef CheckedStr
+    }
+
+    constexpr std::string_view ToStr() { return std::string_view(CStr()); }
+
+private:
+    Value _value;
+};
+
 class ConvertType {
 public:
 #define ConvertTypeValue(X)                                                                                            \
@@ -724,6 +777,8 @@ public:
 
     constexpr Imm4(Format::Common common) : Imm4(static_cast<uint8_t>(common)) {}
 
+    constexpr Imm4(Format::Checked checked) : Imm4(static_cast<uint8_t>(checked)) {}
+
     constexpr Imm4(Format::FloatOperations fpOps) : imm(static_cast<uint8_t>(fpOps)) {}
 
     inline operator uint8_t() const { return imm; }
@@ -731,6 +786,8 @@ public:
     inline Format::CC CC() const { return Format::CC::From(imm); }
 
     inline Format::Common Common() const { return Format::Common::From(imm); }
+
+    inline Format::Checked Checked() const { return Format::Checked::From(imm); }
 
     inline Format::ConvertType ConvertType() const { return Format::ConvertType::From(imm); }
 
@@ -747,6 +804,12 @@ private:
 /// 8 bit; immediate
 struct Imm8 {
     uint8_t imm;
+
+    constexpr inline Imm8(uint8_t _imm) : imm(_imm) {}
+
+    constexpr Imm8(Format::Checked checked) : Imm8(static_cast<uint8_t>(checked)) {}
+
+    inline Format::Checked Checked() const { return Format::Checked::From(imm); }
 
     inline static Imm8 Decode(Decoder::ByteReader& reader) { return Imm8 { reader.Read8() }; }
 

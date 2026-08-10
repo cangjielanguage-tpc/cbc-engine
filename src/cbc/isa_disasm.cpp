@@ -96,6 +96,18 @@ struct IsaDisasm : public IsaParser {
         stream.PrintLn("{}i.{} {}, {}, {}", op, width, d, l, value);
     }
 
+    void CBinary(Format::Checked op, Format::Width width, IReg d, IReg l, IReg r) override
+    {
+        stream << op.ToStr() << Sz(width) << " " << d.ToStr() << ", ";
+        stream << l.ToStr() << ", " << r.ToStr() << endl;
+    }
+
+    void CBinaryImm(Format::Checked op, Format::Width width, IReg d, IReg l, uint64_t value) override
+    {
+        stream << op.ToStr() << "i" << "." << Sz(width) << " " << d.ToStr();
+        stream << ", " << l.ToStr() << ", " << value << endl;
+    }
+
     void FBinary(Format::FloatOperations op, Format::Width width, FReg d, FReg l, FReg r) override
     {
         stream.PrintLn("{}.{} {}, {}, {}", op, width, d, l, r);
