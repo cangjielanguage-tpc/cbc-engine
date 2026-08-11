@@ -282,6 +282,7 @@ def build_helper_lib(args, project_dir, build_dir):
         "--output-type=dylib",
         "-o",
         str(output_path),
+        "-O2",
     ]
     run_command_args(link_command, cwd=build_dir, env=env)
     print(f"Output: {output_path}")
@@ -296,6 +297,7 @@ def build_helper_lib(args, project_dir, build_dir):
             "--output-type=staticlib",
             "-o",
             str(static_output_path),
+            "-O2",
         ]
         run_command_args(static_link_command, cwd=build_dir, env=env)
         print(f"Output: {static_output_path}")
