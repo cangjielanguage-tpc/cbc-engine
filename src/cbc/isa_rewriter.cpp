@@ -180,7 +180,7 @@ struct IsaRewriter : public IsaParser {
     // positions, where GC metadata is expected to be attached
     struct StatePoint {
         Emitter::Label label; // position in rewritten code
-        ssize_t originalPos; // position in original code
+        ssize_t originalPos;  // position in original code
     };
 
     std::vector<StatePoint> statePoints;
@@ -207,11 +207,12 @@ struct IsaRewriter : public IsaParser {
         }
     }
 
-    void BindStatePoint() {
+    void BindStatePoint()
+    {
         auto label = emit.NewLabel();
         emit.Bind(label);
         StatePoint point {
-            .label = label,
+            .label       = label,
             .originalPos = Pos(), // attached to the end of instruction
         };
         statePoints.push_back(point);
@@ -351,7 +352,7 @@ struct IsaRewriter : public IsaParser {
     void PrepareRecord(uint16_t ts) override
     {
         auto tsi = frameLayout.typedSlotsInfo[ts];
-        auto ti = RTSupport::TypeInfo(tsi.second);
+        auto ti  = RTSupport::TypeInfo(tsi.second);
         emit.PrepareTyped(ti, tsi.first);
     }
 
@@ -677,7 +678,7 @@ struct IsaRewriter : public IsaParser {
             case Format::StoreAccessKind::ST_32:  opc = RT::Opcode::CAS_32; break;
             case Format::StoreAccessKind::ST_64:  opc = RT::Opcode::CAS_64; break;
             case Format::StoreAccessKind::ST_REF: opc = RT::Opcode::CAS_REF; break;
-            default: FATAL("unexpected kind %d", stk);
+            default:                              FATAL("unexpected kind %d", stk);
         }
         emit.CAS(opc, dst, obj, expected, newVal, field->offset.value());
     }
@@ -703,7 +704,7 @@ struct IsaRewriter : public IsaParser {
             case Format::StoreAccessKind::ST_32:  opc = RT::Opcode::ATOMIC_SWAP_32; break;
             case Format::StoreAccessKind::ST_64:  opc = RT::Opcode::ATOMIC_SWAP_64; break;
             case Format::StoreAccessKind::ST_REF: opc = RT::Opcode::ATOMIC_SWAP_REF; break;
-            default: FATAL("unexpected kind %d", stk);
+            default:                              FATAL("unexpected kind %d", stk);
         }
         emit.AtomicOp(opc, dst, obj, src, field->offset.value());
     }
@@ -728,7 +729,7 @@ struct IsaRewriter : public IsaParser {
             case Format::StoreAccessKind::ST_16: opc = RT::Opcode::ATOMIC_FETCH_ADD_16; break;
             case Format::StoreAccessKind::ST_32: opc = RT::Opcode::ATOMIC_FETCH_ADD_32; break;
             case Format::StoreAccessKind::ST_64: opc = RT::Opcode::ATOMIC_FETCH_ADD_64; break;
-            default: FATAL("unexpected kind %d", stk);
+            default:                             FATAL("unexpected kind %d", stk);
         }
         emit.AtomicOp(opc, dst, obj, src, field->offset.value());
     }
@@ -753,7 +754,7 @@ struct IsaRewriter : public IsaParser {
             case Format::StoreAccessKind::ST_16: opc = RT::Opcode::ATOMIC_FETCH_SUB_16; break;
             case Format::StoreAccessKind::ST_32: opc = RT::Opcode::ATOMIC_FETCH_SUB_32; break;
             case Format::StoreAccessKind::ST_64: opc = RT::Opcode::ATOMIC_FETCH_SUB_64; break;
-            default: FATAL("unexpected kind %d", stk);
+            default:                             FATAL("unexpected kind %d", stk);
         }
         emit.AtomicOp(opc, dst, obj, src, field->offset.value());
     }
@@ -778,7 +779,7 @@ struct IsaRewriter : public IsaParser {
             case Format::StoreAccessKind::ST_16: opc = RT::Opcode::ATOMIC_FETCH_AND_16; break;
             case Format::StoreAccessKind::ST_32: opc = RT::Opcode::ATOMIC_FETCH_AND_32; break;
             case Format::StoreAccessKind::ST_64: opc = RT::Opcode::ATOMIC_FETCH_AND_64; break;
-            default: FATAL("unexpected kind %d", stk);
+            default:                             FATAL("unexpected kind %d", stk);
         }
         emit.AtomicOp(opc, dst, obj, src, field->offset.value());
     }
@@ -803,7 +804,7 @@ struct IsaRewriter : public IsaParser {
             case Format::StoreAccessKind::ST_16: opc = RT::Opcode::ATOMIC_FETCH_OR_16; break;
             case Format::StoreAccessKind::ST_32: opc = RT::Opcode::ATOMIC_FETCH_OR_32; break;
             case Format::StoreAccessKind::ST_64: opc = RT::Opcode::ATOMIC_FETCH_OR_64; break;
-            default: FATAL("unexpected kind %d", stk);
+            default:                             FATAL("unexpected kind %d", stk);
         }
         emit.AtomicOp(opc, dst, obj, src, field->offset.value());
     }
@@ -828,7 +829,7 @@ struct IsaRewriter : public IsaParser {
             case Format::StoreAccessKind::ST_16: opc = RT::Opcode::ATOMIC_FETCH_XOR_16; break;
             case Format::StoreAccessKind::ST_32: opc = RT::Opcode::ATOMIC_FETCH_XOR_32; break;
             case Format::StoreAccessKind::ST_64: opc = RT::Opcode::ATOMIC_FETCH_XOR_64; break;
-            default: FATAL("unexpected kind %d", stk);
+            default:                             FATAL("unexpected kind %d", stk);
         }
         emit.AtomicOp(opc, dst, obj, src, field->offset.value());
     }
@@ -1066,10 +1067,7 @@ struct IsaRewriter : public IsaParser {
         emit.InstanceOf(dst, obj, typeInfo);
     }
 
-    void LoadTypeInfoObj(IReg dst, IReg obj) override
-    {
-        emit.LoadObj(Format::LoadAccessKind::LD_64, dst, obj, 0);
-    }
+    void LoadTypeInfoObj(IReg dst, IReg obj) override { emit.LoadObj(Format::LoadAccessKind::LD_64, dst, obj, 0); }
 
     void InitObj(uint16_t ts) override { FATAL("not implemented"); }
 
@@ -1206,9 +1204,9 @@ struct IsaRewriter : public IsaParser {
     void Box(AnyReg src, IReg dst, uint32_t type) override
     {
         if (type != Interpretation::BUILTIN_UNIT && type < Engine::Term::FIRST_NON_PRIMITIVE) {
-            auto tk       = Engine::TermKind(type);
-            auto term     = Engine::Term::Predefined(tk);
-            auto bt       = ToBuiltin(tk);
+            auto tk   = Engine::TermKind(type);
+            auto term = Engine::Term::Predefined(tk);
+            auto bt   = ToBuiltin(tk);
             emit.NewBox(bt); // Spoils IR_ACC
             BindStatePoint();
             emit.StoreObj(Stk(bt), src, IReg::IR_ACC, RTSupport::MetaInfo::ObjectHeaderSize());
@@ -1267,9 +1265,9 @@ struct IsaRewriter : public IsaParser {
     void Unbox(AnyReg dst, IReg src, uint32_t type) override
     {
         if (type != Interpretation::BUILTIN_UNIT && type < Engine::Term::FIRST_NON_PRIMITIVE) {
-            auto tk       = Engine::TermKind(type);
-            auto term     = Engine::Term::Predefined(tk);
-            auto bt       = ToBuiltin(tk);
+            auto tk   = Engine::TermKind(type);
+            auto term = Engine::Term::Predefined(tk);
+            auto bt   = ToBuiltin(tk);
             emit.LoadObj(Ldk(bt), dst, src, RTSupport::MetaInfo::ObjectHeaderSize());
         } else {
             auto t = resolver.Query(Index<Type>(type));
@@ -1281,13 +1279,15 @@ struct IsaRewriter : public IsaParser {
             if (type.GetKind() == CbcTypeKind::REF) {
                 emit.LoadObj(Format::LoadAccessKind::LD_REF, dst, src, RTSupport::MetaInfo::ObjectHeaderSize());
             } else {
-                auto ti   = type.GetTypeInfo();
+                auto ti = type.GetTypeInfo();
                 if (!ti.has_value()) {
                     Fail();
                     return;
                 }
                 auto typeInfo = ti.value();
-                emit.LoadObj(Format::LoadAccessKind::LD_LEA, IReg::IR_ACC, src, RTSupport::MetaInfo::ObjectHeaderSize());
+                emit.LoadObj(
+                    Format::LoadAccessKind::LD_LEA, IReg::IR_ACC, src, RTSupport::MetaInfo::ObjectHeaderSize()
+                );
                 emit.ReadStructField(IReg::From(dst), src, IReg::IR_ACC, typeInfo);
             }
         }
@@ -1360,14 +1360,14 @@ struct IsaRewriter : public IsaParser {
     void MemHeadReg(MemSpace& ms, IReg base, bool isRef) override
     {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
-        msr.base = base;
+        msr.base  = base;
         msr.kind  = isRef ? HEAD_OBJ : HEAD_REC;
     }
 
     void MemHeadField(MemSpace& ms, IReg base, uint32_t fieldId) override
     {
-        auto& msr = static_cast<MemSpaceRewriter&>(ms);
-        msr.base = base;
+        auto& msr  = static_cast<MemSpaceRewriter&>(ms);
+        msr.base   = base;
         auto isRef = FieldOffset(msr, fieldId);
         msr.kind   = isRef ? HEAD_OBJ : HEAD_REC;
     }
@@ -1379,7 +1379,7 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
-        auto field  = f.value();
+        auto field = f.value();
 
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
         msr.emit.Offset(field->location);
@@ -1389,8 +1389,8 @@ struct IsaRewriter : public IsaParser {
 
     void MemHeadHandle(MemSpace& ms, IReg base, IReg derived) override
     {
-        auto& msr = static_cast<MemSpaceRewriter&>(ms);
-        msr.base = base;
+        auto& msr   = static_cast<MemSpaceRewriter&>(ms);
+        msr.base    = base;
         msr.derived = derived;
         msr.kind    = HEAD_DERIVED;
     }
@@ -1603,23 +1603,9 @@ struct IsaRewriter : public IsaParser {
         BindStatePoint();
     }
 
-    void MemTailCopyReg(MemSpace& ms, IReg dst, uint32_t recType) override { FATAL("MemTailCopyReg"); }
+    void MemTailCopyRegTo(MemSpace& ms, IReg dst, uint32_t recType) override { FATAL("MemTailCopyReg"); }
 
-    void MemTailCopyInterior(MemSpace& ms, IReg dst, std::vector<uint32_t> refs) override
-    {
-        FATAL("MemTailCopyInterior");
-    }
-
-    void MemTailCopyInteriorArr(MemSpace& ms, IReg dst, IReg idx, std::vector<uint32_t> refs) override
-    {
-        FATAL("MemTailCopyInteriorArr");
-    }
-
-    void MemTailCopyStatic(MemSpace& ms, std::vector<uint32_t> refs) override { FATAL("MemTailCopyStatic"); }
-
-    void MemTailCopyTyped(MemSpace& ms, uint32_t ts, std::vector<uint32_t> refs) override { FATAL("MemTailCopyTyped"); }
-
-    void MemTailCopyHandle(MemSpace& ms, IReg base, IReg derived) override { FATAL("MemTailCopyHandle"); }
+    void MemTailCopyRegFrom(MemSpace& ms, IReg dst, uint32_t recType) override { FATAL("MemTailCopyReg"); }
 
     void ParseOne() override
     {
@@ -1699,7 +1685,10 @@ static std::optional<FrameLayout> makeFrameLayout(Symlevel::Code code, Resolver&
 }
 
 static std::vector<Interpretation::PositionalInfo> CalculatePositionalGCInfo(
-    Engine::Session& session, const MethodCode& code, Emitter::Emitter const& emitter, std::vector<IsaRewriter::StatePoint> const& statePoints
+    Engine::Session& session,
+    const MethodCode& code,
+    Emitter::Emitter const& emitter,
+    std::vector<IsaRewriter::StatePoint> const& statePoints
 )
 {
     auto livenessInfo = code.GetLivenessInfo(session);
@@ -1710,13 +1699,13 @@ static std::vector<Interpretation::PositionalInfo> CalculatePositionalGCInfo(
     std::unordered_map<ssize_t, Symlevel::LivenessInfo const&> infos;
 
     for (const auto& info : livenessInfo) {
-        infos.insert({info.cbcPos, info});
+        infos.insert({ info.cbcPos, info });
     }
 
     for (auto& point : statePoints) {
-        auto originalPos = point.originalPos;
+        auto originalPos  = point.originalPos;
         auto rewrittenPos = emitter.LabelPosition(point.label);
-        auto it = infos.find(originalPos);
+        auto it           = infos.find(originalPos);
         if (it == infos.end()) {
             FATAL("Unknown position");
         } else if (rewrittenPos > UINT32_MAX) {

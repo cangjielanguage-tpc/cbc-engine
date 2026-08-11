@@ -252,7 +252,7 @@ struct IsaParserImpl {
         }
     }
 
-#define PARSE_ONE_MEM_CASES(opc, func)                                                                                     \
+#define PARSE_ONE_MEM_CASES(opc, func)                                                                                 \
     case MemOpcode::opc: end = func(parser, ms); break;
 
     static void ParseMemExpr(IsaParser& parser, IsaParser::MemSpace& ms)
@@ -264,7 +264,6 @@ struct IsaParserImpl {
                 ISA_MEM_OPCODES(PARSE_ONE_MEM_CASES)
             }
         }
-
     }
 
     static int64_t MergeLowHi(uint8_t low4, int64_t hi) { return static_cast<int64_t>((hi << 4) | low4); }
@@ -355,17 +354,16 @@ struct IsaParserImpl {
 
     static void BFX(IsaParser& parser)
     {
-        auto [dst, src, byte1, byte2 ] =
-            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU8().ReadU8().Get();
+        auto [dst, src, byte1, byte2] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU8().ReadU8().Get();
 
         uint8_t b1  = static_cast<uint8_t>(byte1);
         auto res64  = b1 & 0b10000000;
         auto arg64  = b1 & 0b01000000;
         auto offset = b1 & 0b00111111;
 
-        uint8_t b2  = static_cast<uint8_t>(byte2);
-        auto sx     = b2 & 0b10000000;
-        auto size   = b2 & 0b01111111;
+        uint8_t b2 = static_cast<uint8_t>(byte2);
+        auto sx    = b2 & 0b10000000;
+        auto size  = b2 & 0b01111111;
 
         parser.BFX(dst, src, width64Or32(res64), width64Or32(arg64), sx, offset, size);
     }
@@ -575,7 +573,7 @@ struct IsaParserImpl {
             case Cbc::RegGroup::Throw:     parser.Throw(reg); break;
             case Cbc::RegGroup::RetRef:    parser.RetRef(reg); break;
             case Cbc::RegGroup::NullCheck: parser.NullCheck(reg); break;
-            default:                      {
+            default:                       {
                 FATAL("Should not reach here");
             }
         }
@@ -820,7 +818,7 @@ struct IsaParserImpl {
 
     static void MemHeadReg(IsaParser& parser)
     {
-        auto ms = parser.OpenMemSpace();
+        auto ms            = parser.OpenMemSpace();
         auto [base, isRef] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
         parser.MemHeadReg(*ms, base, isRef);
         ParseMemExpr(parser, *ms);
@@ -828,7 +826,7 @@ struct IsaParserImpl {
 
     static void MemHeadField(IsaParser& parser)
     {
-        auto ms = parser.OpenMemSpace();
+        auto ms                  = parser.OpenMemSpace();
         auto [base, skip, field] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
         parser.MemHeadField(*ms, base, field);
         ParseMemExpr(parser, *ms);
@@ -836,7 +834,7 @@ struct IsaParserImpl {
 
     static void MemHeadStatic(IsaParser& parser)
     {
-        auto ms = parser.OpenMemSpace();
+        auto ms      = parser.OpenMemSpace();
         auto [field] = ByteReaderM(parser.reader).ReadULEB().Get();
         parser.MemHeadStatic(*ms, field);
         ParseMemExpr(parser, *ms);
@@ -844,7 +842,7 @@ struct IsaParserImpl {
 
     static void MemHeadHandle(IsaParser& parser)
     {
-        auto ms = parser.OpenMemSpace();
+        auto ms              = parser.OpenMemSpace();
         auto [base, derived] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
         parser.MemHeadHandle(*ms, base, derived);
         ParseMemExpr(parser, *ms);
@@ -852,7 +850,7 @@ struct IsaParserImpl {
 
     static void MemHeadTyped(IsaParser& parser)
     {
-        auto ms = parser.OpenMemSpace();
+        auto ms   = parser.OpenMemSpace();
         auto [ts] = ByteReaderM(parser.reader).ReadU16().Get();
         parser.MemHeadTyped(*ms, ts);
         ParseMemExpr(parser, *ms);
@@ -973,64 +971,17 @@ struct IsaParserImpl {
         return true;
     }
 
-    static bool MemTailCopyReg(IsaParser& parser, IsaParser::MemSpace& ms)
+    static bool MemTailCopyRegTo(IsaParser& parser, IsaParser::MemSpace& ms)
     {
         auto [reg, skip, recType] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadSLEB().Get();
-        parser.MemTailCopyReg(ms, reg, recType);
+        parser.MemTailCopyRegTo(ms, reg, recType);
         return true;
     }
 
-    static bool MemTailCopyInterior(IsaParser& parser, IsaParser::MemSpace& ms)
+    static bool MemTailCopyRegFrom(IsaParser& parser, IsaParser::MemSpace& ms)
     {
-        auto [reg, _size] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
-        std::vector<uint32_t> refs;
-        uint8_t size = _size;
-        for (int i = 0; i < size; i++) {
-            refs.emplace_back(parser.reader.ReadULEB());
-        }
-        parser.MemTailCopyInterior(ms, reg, refs);
-        return true;
-    }
-
-    static bool MemTailCopyInteriorArr(IsaParser& parser, IsaParser::MemSpace& ms)
-    {
-        auto [reg, idx, _size, skip] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
-        std::vector<uint32_t> refs;
-        uint8_t size = _size;
-        for (int i = 0; i < size; i++) {
-            refs.emplace_back(parser.reader.ReadULEB());
-        }
-        parser.MemTailCopyInteriorArr(ms, reg, idx, refs);
-        return true;
-    }
-
-    static bool MemTailCopyStatic(IsaParser& parser, IsaParser::MemSpace& ms)
-    {
-        std::vector<uint32_t> refs;
-        uint8_t size = parser.reader.Read8();
-        for (int i = 0; i < size; i++) {
-            refs.emplace_back(parser.reader.ReadULEB());
-        }
-        parser.MemTailCopyStatic(ms, refs);
-        return true;
-    }
-
-    static bool MemTailCopyTyped(IsaParser& parser, IsaParser::MemSpace& ms)
-    {
-        std::vector<uint32_t> refs;
-        uint8_t size = parser.reader.Read8();
-        uint16_t ts = parser.reader.Read16();
-        for (int i = 0; i < size; i++) {
-            refs.emplace_back(parser.reader.ReadULEB());
-        }
-        parser.MemTailCopyTyped(ms, ts, refs);
-        return true;
-    }
-
-    static bool MemTailCopyHandle(IsaParser& parser, IsaParser::MemSpace& ms)
-    {
-        auto [base, offs] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
-        parser.MemTailCopyHandle(ms, base, offs);
+        auto [reg, skip, recType] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadSLEB().Get();
+        parser.MemTailCopyRegFrom(ms, reg, recType);
         return true;
     }
 
