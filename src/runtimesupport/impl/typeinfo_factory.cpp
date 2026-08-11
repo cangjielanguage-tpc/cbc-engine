@@ -924,19 +924,6 @@ std::optional<TypeInfo> CreateTypeInfo(Engine::Session& session, TypeInfoManager
 
             case Engine::TermKind::FUNCTIONAL: return QueryFunctional(session, manager, term);
 
-            case Engine::TermKind::BSTRING: {
-                auto typeInfo = QueryTypeInfoAOTByName("CString");
-                if (!typeInfo.has_value()) {
-                    Log::typeinfo.Log(Logging::Level::ERROR, [&session](Stream::Output& out) {
-                        Stream::ResolvingOutput stream(session, out);
-                        stream
-                            << "failed to query runtime TypeInfo for BString: canonical CString TypeInfo was not found"
-                            << Stream::endl;
-                    });
-                }
-                return typeInfo;
-            }
-
             case Engine::TermKind::UNIT:    return builtinTypeInfos[BUILTIN_UNIT];
             case Engine::TermKind::BOOLEAN: return builtinTypeInfos[BUILTIN_BOOLEAN];
             case Engine::TermKind::U8:      return builtinTypeInfos[BUILTIN_U8];
@@ -953,6 +940,7 @@ std::optional<TypeInfo> CreateTypeInfo(Engine::Session& session, TypeInfoManager
             case Engine::TermKind::F32:     return builtinTypeInfos[BUILTIN_F32];
             case Engine::TermKind::F64:     return builtinTypeInfos[BUILTIN_F64];
             case Engine::TermKind::UCHAR32: return builtinTypeInfos[BUILTIN_RUNE];
+            case Engine::TermKind::BSTRING: return builtinTypeInfos[BUILTIN_CSTRING];
 
             default: {
                 FATAL("Not supported yet %d", termIdent.GetKind());

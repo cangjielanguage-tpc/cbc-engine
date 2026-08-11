@@ -28,9 +28,10 @@ enum BuiltinType : uint8_t {
     BUILTIN_F32,
     BUILTIN_F64,
     BUILTIN_RUNE,
+    BUILTIN_CSTRING,
 };
 
-static constexpr auto BUILTIN_COUNT = BUILTIN_RUNE + 1;
+static constexpr auto BUILTIN_COUNT = BUILTIN_CSTRING + 1;
 
 // Used by interpretation loop to access type infos of builtin types.
 // Initialized by engine before interpretation.
