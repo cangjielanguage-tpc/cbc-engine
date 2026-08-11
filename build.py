@@ -288,6 +288,7 @@ def build_helper_lib(args, project_dir, build_dir):
         target,
         "-o",
         str(dylib_output_path),
+        "-O2",
     ]
     run_command_args(link_command, cwd=build_dir, env=env)
 
@@ -299,6 +300,7 @@ def build_helper_lib(args, project_dir, build_dir):
         target,
         "-o",
         str(static_output_path),
+        "-O2",
     ]
     run_command_args(static_link_command, cwd=build_dir, env=env)
 
