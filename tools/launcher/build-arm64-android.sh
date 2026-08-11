@@ -25,21 +25,17 @@ function clang-android() {
   "$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang" $@
 }
 
-clang-android -c -Os "${SCRIPT_DIR}/${LAUNCHER_NAME}.c" -fno-omit-frame-pointer -o "${BUILD_DIR}/${LAUNCHER_NAME}.o"
-
 clang-android \
-  '-o' "${BUILD_DIR}/${LAUNCHER_NAME}" \
+  "${SCRIPT_DIR}/${LAUNCHER_NAME}.c" \
+  -Os \
   '-Wl,-z,noexecstack' \
   '-pie' \
   '-rdynamic' \
-  "-L$CANGJIE_HOME/lib/linux_android_aarch64_cjnative" \
+  -fno-omit-frame-pointer \
+  -o "${BUILD_DIR}/${LAUNCHER_NAME}" \
   "-L$CANGJIE_HOME/runtime/lib/linux_android_aarch64_cjnative" \
-  '-T' "$CANGJIE_HOME/lib/linux_android_aarch64_cjnative/cjld.lds" \
-  "${BUILD_DIR}/${LAUNCHER_NAME}.o" \
-  '-l:libcangjie-std-core.so' \
   '-l:libcangjie-runtime.so' \
-  '-lsecurec' '-ldl' '-lm' '-lc' \
-  '--rtlib=compiler-rt'
+  '-ldl' '-lc' \
 
 cp *.cj ${BUILD_DIR}
 
