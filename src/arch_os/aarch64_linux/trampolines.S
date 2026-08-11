@@ -408,18 +408,17 @@ perform_2i_call:
   ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
 #endif
 
+.Lcontinue_after_stack_expand:
   mov   x1, sp // save current sp for registers saving to the bottom of frame
 
   // current sp is 16-byte.baligned
   ldr   w8, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   sub   sp, sp, x8
 
-.Lstack_check:
   ldr   x10, [TLS_REG, #TLS_STACK_BORDER_OFFSET]
   add   x10, x10, #ADDITIONAL_STACK_SPACE
   cmp   sp, x10
-  b.ls  expand_stack_or_throw_soe
-.Lafter_stack_check:
+  b.ls  .Lstack_overflow
 
   mov   x2, sp
   mov   x3, x1
@@ -676,10 +675,24 @@ engine_handle_exception:
 
   mov   x12, EXTRA_REG // use x12 (volatile) as temporary exception holder
 
-  cbz   w0, .Lunwind_top_frame
+  adr   x1, .Lexception_handlers
+  ldr   w0, [x1, x0, lsl #2]
+  add   x1, x1, x0
+  br    x1
 
+.Lexception_handlers:
+  .long .Lunwind_top_frame - .Lexception_handlers // EXC_HANDLER_NOT_FOUND
+  .long .Lcatch_exception  - .Lexception_handlers // EXC_HANDLER_FOUND
+  .long .Lhandle_soe       - .Lexception_handlers // EXC_SOE_THROWN
+
+.Lhandle_soe:
+  restore_all_iregs x1
+  add   sp, sp, STACK_OVERFLOW_REGDUMP_SIZE
+  b     .Lhandle_c2i_or_rethrow
+
+.Lcatch_exception:
   // Handler is found, set exception object to ACC_REG and continue interpretation
-  str   x12, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + ECTYPE_IACC_NUM * ECTYPE_REG_SIZE)]
+  str   x12, [ECTYPE_REG, #ECTYPE_IACC_OFFSET]
   b     .Lrestart_interpretation
 
 .Lunwind_top_frame:
@@ -692,14 +705,15 @@ engine_handle_exception:
 
   POP_REGS x8, x1, x9, x2, x3, x4
 
+.Lhandle_c2i_or_rethrow:
+  mov   x0, x12 // x0 := exception
+
   ldr   ECTYPE_REG, [x29, #-ECTYPE_REG_SAVED_SLOT_OFFSET]
   ldp   EXTRA_REG, LITERALS_REG, [x29, #-EXTRA_SAVED_REG_OFFSET]
 
   // Clear top frame
   mov   sp, x29
   ldp   x29, x30, [sp], #16
-
-  mov   x0, x12 // set exception pointer as argument for both execution paths
 
   // Check if next method is C2I adapter
   adr   x9, engine_c2i_call_pc_start
@@ -740,8 +754,6 @@ engine_handle_exception:
   brk   #0
 
 .macro save_all_iregs scratch_reg
-  .set _dump_size, ((ECTYPE_IREGS_COUNT * ECTYPE_REG_SIZE) + 15) & ~15
-  sub   sp, sp, _dump_size
   .set _offset, 0
   .rept ECTYPE_IREGS_COUNT
     ldr   \scratch_reg, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + _offset)]
@@ -751,26 +763,23 @@ engine_handle_exception:
 .endm
 
 .macro restore_all_iregs scratch_reg
-  .set _dump_size, ((ECTYPE_IREGS_COUNT * ECTYPE_REG_SIZE) + 15) & ~15
   .set _offset, 0
   .rept ECTYPE_IREGS_COUNT
     ldr   \scratch_reg, [sp, #_offset]
     str   \scratch_reg, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + _offset)]
     .set _offset, _offset + ECTYPE_REG_SIZE
   .endr
-  add   sp, sp, _dump_size
 .endm
 
 // expects: (TLS_REG: valid TLS, sp: top of stack (including the whole current frame), x8: frame size)
 // preserves: all registers
 // Expands stack and returns to perform 2i call or throws SOE if stack expansion is impossible
 .balign 16
-expand_stack_or_throw_soe:
+.Lstack_overflow:
   add   sp, sp, x8
 
-  sub   x10, sp, #STACK_OVERFLOW_REGDUMP_SIZE
-  str   x10, [ECTYPE_REG, #ECTYPE_IACC_OFFSET]
-
+  sub   sp, sp, #STACK_OVERFLOW_REGDUMP_SIZE
+  str   sp, [ECTYPE_REG, #ECTYPE_IACC_OFFSET]
   save_all_iregs x10
 
   mov   x9, #0x20 // adjusted size
@@ -780,11 +789,10 @@ expand_stack_or_throw_soe:
 engine_after_stack_grow:
 
   restore_all_iregs x10
-  mov   x1, sp
-  sub   sp, sp, x8
+  add   sp, sp, #STACK_OVERFLOW_REGDUMP_SIZE
 
   // Restore ExecBytecodeInfo
   ldr   x9, [x29, #-FUH_SLOT_OFFSET]
   ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
 
-  b     .Lafter_stack_check
+  b     .Lcontinue_after_stack_expand
