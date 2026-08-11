@@ -973,14 +973,14 @@ struct IsaParserImpl {
 
     static bool MemTailCopyRegTo(IsaParser& parser, IsaParser::MemSpace& ms)
     {
-        auto [reg, skip, recType] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadSLEB().Get();
+        auto [reg, skip, recType] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
         parser.MemTailCopyRegTo(ms, reg, recType);
         return true;
     }
 
     static bool MemTailCopyRegFrom(IsaParser& parser, IsaParser::MemSpace& ms)
     {
-        auto [reg, skip, recType] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadSLEB().Get();
+        auto [reg, skip, recType] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
         parser.MemTailCopyRegFrom(ms, reg, recType);
         return true;
     }
