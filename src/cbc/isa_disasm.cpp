@@ -374,7 +374,7 @@ struct IsaDisasm : public IsaParser {
 
     void MemHeadReg(MemSpace& ms, IReg base, bool isRef) override
     {
-        stream.PrintLn("ms.hd.{} {}", (isRef ? ".ref" : ".rec"), base);
+        stream.PrintLn("ms.hd.{} {}", (isRef ? "ref" : "rec"), base);
     }
 
     void MemHeadField(MemSpace& ms, IReg base, uint32_t field) override
