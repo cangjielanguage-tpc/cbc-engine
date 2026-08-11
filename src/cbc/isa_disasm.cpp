@@ -468,6 +468,12 @@ struct IsaDisasm : public IsaParser {
         stream.PrintLn("copy.reg.from {}, @{}", dst, recType);
     }
 
+    void MemBodyOffset(MemSpace& ms, IReg offset) override
+    {
+        PrintMemPos();
+        stream.PrintLn("offset {}", offset);
+    }
+
     void MemBodyConstIndexGeneric(MemSpace& ms, int64_t idx, uint32_t elemType, IReg ti) override
     {
         PrintMemPos();
