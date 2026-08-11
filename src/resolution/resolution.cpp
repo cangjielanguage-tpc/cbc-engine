@@ -61,12 +61,16 @@ CbcTypeKind Type::GetKind() const { return resolver->GetKind(*this); }
 
 CbcTypeKind Resolver::GetKind(Type type)
 {
+    if (type.term.IsReference()) {
+        return CbcTypeKind::REF;
+    } else if (type.term.IsRecord()) {
+        return CbcTypeKind::REC;
+    }
     using TK  = TermKind;
     auto term = type.term;
     switch (term.GetKind()) {
         case TK::NIL:            return CbcTypeKind::INVALID;
         case TK::VOID:           return CbcTypeKind::VOID;
-        case TK::UNIT:           return CbcTypeKind::REC;
         case TK::NOTHING:        return CbcTypeKind::INVALID;
         case TK::BOOLEAN:        return CbcTypeKind::BOOL;
         case TK::I8:             return CbcTypeKind::I8;
@@ -86,10 +90,6 @@ CbcTypeKind Resolver::GetKind(Type type)
         case TK::F64:            return CbcTypeKind::F64;
         case TK::UNDEFINED:      return CbcTypeKind::INVALID;
         case TK::C_POINTER:      return CbcTypeKind::U64;
-        case TK::FUNCTIONAL:     return CbcTypeKind::REF;
-        case TK::TUPLE:          return CbcTypeKind::REC;
-        case TK::CANGJIE_ARRAY:  return CbcTypeKind::REF;
-        case TK::UNION_ENUM:     return CbcTypeKind::REC;
         case TK::PRIMITIVE_ENUM: {
             auto id             = PrimitiveEnumId(term.GetId());
             auto definition     = Symlevel::Reader::Read(session, id.GetIdentifier());
@@ -97,16 +97,9 @@ CbcTypeKind Resolver::GetKind(Type type)
             ClassSubstitution substitution(session, term);
             return GetKind(Wrap(substitution.Substitute(underlyingType)));
         }
-        case TK::LAST:           return CbcTypeKind::INVALID;
-        case TK::AOT_TYPE:
-        case TK::OPTION:
-        case TK::TYPE:           return term.IsReference() ? CbcTypeKind::REF : CbcTypeKind::REC;
+        case TK::LAST: return CbcTypeKind::INVALID;
 
-        default:
-            if (term.IsReference()) {
-                return CbcTypeKind::REF;
-            }
-            FATAL("Unexpected %d", term.GetKind());
+        default: FATAL("Unexpected %d", term.GetKind());
     }
 }
 
