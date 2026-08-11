@@ -6,6 +6,8 @@
 
 #include "resolution/resolution.h"
 #include "runtimesupport/adapters.h"
+#include "utils/logger.h"
+#include "utils/rt_logger.h"
 #include <cstdint>
 
 namespace Interpretation {
@@ -58,7 +60,12 @@ CallAdapter AdapterFor(Resolution::InterfaceCall const& ic)
     return CallAdapter::I2C;
 }
 
-void* AdapterOf(CallAdapter adapter) { return adapters[static_cast<size_t>(adapter)]; }
+void* AdapterOf(CallAdapter adapter)
+{
+    auto adapterCall = adapters[static_cast<size_t>(adapter)];
+    LOG_INFO(RTSupport::Log::rt, "Adapter of idx {} is {}", adapter, adapterCall);
+    return RTSupport::Adapters::GenericI2CCallInstance();
+}
 
 static C2Call ChooseC2Call(Engine::Term& sig)
 {

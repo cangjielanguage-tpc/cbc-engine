@@ -163,23 +163,28 @@ bool Execution::AtomicCompareAndSwapRef(Reference oldRef, Reference newRef, Refe
     FATAL("Should not reach here");
 }
 
-void* Adapters::GenericI2CCallInstance() { FATAL("Should not reach here"); }
+void CallingThisIsFatal() { FATAL("Should not be called"); }
+
+void* Adapters::GenericI2CCallInstance() { return reinterpret_cast<void*>(&CallingThisIsFatal); }
 
 void* Adapters::GetDynCallTrampoline(int idx, bool sret) { FATAL("Should not reach here"); }
 
-void* Adapters::I2ICallInstance() { FATAL("Should not reach here"); }
+void* Adapters::I2ICallInstance() { return reinterpret_cast<void*>(&CallingThisIsFatal); }
 
 static void C2ICall() { FATAL("Should not reach here"); }
 
-void* Adapters::GenericC2ICallInstance() { FATAL("Should not reach here"); }
+void* Adapters::GenericC2ICallInstance() { return reinterpret_cast<void*>(&CallingThisIsFatal); }
 
-void* Adapters::IregOnlyC2ICallInstance() { FATAL("Should not reach here."); }
+void* Adapters::IregOnlyC2ICallInstance() { return reinterpret_cast<void*>(&CallingThisIsFatal); }
 
 void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* fuh) { FATAL("Should not reach here."); }
 
 const char* MetaInfo::GetName(TypeInfo ti) { return nullptr; }
 
-void* Adapters::C2ICall(uint32_t intArgCount, uint32_t floatArgCount) { FATAL("should not reach here"); }
+void* Adapters::C2ICall(uint32_t intArgCount, uint32_t floatArgCount)
+{
+    return reinterpret_cast<void*>(&CallingThisIsFatal);
+}
 
 uint32_t MetaInfo::GetTypeSize(TypeInfo ti) { return 0; }
 
