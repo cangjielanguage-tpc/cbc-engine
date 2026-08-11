@@ -31,13 +31,17 @@ TEST(BStringTest, HasPointerLayoutButIsNotAGcReference)
     EXPECT_TRUE(referenceOffsets.empty());
 }
 
-TEST(BStringTest, TypeInfoBoxUsesWideEncoding)
+TEST(BStringTest, CStringBuiltinBoxUsesWideEncoding)
 {
     LimitedHeap<1024> heap;
     Cbc::Emitter::Emitter emitter;
-    auto rawTypeInfo = reinterpret_cast<void*>(uintptr_t { 0x12345678 });
+    auto rawTypeInfo      = reinterpret_cast<void*>(uintptr_t { 0x12345678 });
+    auto previousTypeInfo = Interpretation::builtinTypeInfos[Interpretation::BUILTIN_CSTRING];
+    Interpretation::builtinTypeInfos[Interpretation::BUILTIN_CSTRING] = RTSupport::TypeInfo(rawTypeInfo);
 
-    emitter.NewBox(RTSupport::TypeInfo(rawTypeInfo));
+    emitter.NewBox(Interpretation::BUILTIN_CSTRING);
+    Interpretation::builtinTypeInfos[Interpretation::BUILTIN_CSTRING] = previousTypeInfo;
+
     auto code = emitter.Build(heap);
 
     ASSERT_EQ(code.bytecodeSize, 9u);

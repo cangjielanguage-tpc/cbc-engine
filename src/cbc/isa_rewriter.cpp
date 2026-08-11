@@ -118,6 +118,7 @@ STK Stk(Interpretation::BuiltinType bt)
         case Interpretation::BUILTIN_F32:     return STK::ST_F32;
         case Interpretation::BUILTIN_F64:     return STK::ST_F64;
         case Interpretation::BUILTIN_RUNE:    return STK::ST_32;
+        case Interpretation::BUILTIN_CSTRING: return STK::ST_64;
     }
 }
 
@@ -140,6 +141,7 @@ LDK Ldk(Interpretation::BuiltinType bt)
         case Interpretation::BUILTIN_F32:     return LDK::LD_F32;
         case Interpretation::BUILTIN_F64:     return LDK::LD_F64;
         case Interpretation::BUILTIN_RUNE:    return LDK::LD_32;
+        case Interpretation::BUILTIN_CSTRING: return LDK::LD_64;
     }
 }
 
@@ -1198,6 +1200,7 @@ struct IsaRewriter : public IsaParser {
             case Engine::TermKind::F32:     return BUILTIN_F32;
             case Engine::TermKind::F64:     return BUILTIN_F64;
             case Engine::TermKind::UCHAR32: return BUILTIN_RUNE;
+            case Engine::TermKind::BSTRING: return BUILTIN_CSTRING;
 
             default: Fail("unexpected builtin kind"); return Interpretation::BUILTIN_I64;
         }
@@ -1207,24 +1210,6 @@ struct IsaRewriter : public IsaParser {
     {
         if (type != Interpretation::BUILTIN_UNIT && type < Engine::Term::FIRST_NON_PRIMITIVE) {
             auto tk = Engine::TermKind(type);
-            if (tk == Engine::TermKind::BSTRING) {
-                // NEWBOX has only four bits for its builtin index and all values are occupied.
-                // Resolve the canonical CString TypeInfo and let NewBox emit NEWBOX2 instead.
-                auto typeInfo = resolver.Wrap(Engine::Term::Predefined(tk)).GetTypeInfo();
-                if (!typeInfo.has_value()) {
-                    Fail("failed to resolve BString TypeInfo");
-                    return;
-                }
-
-                emit.NewBox(typeInfo.value()); // Spoils IR_ACC
-                BindStatePoint();
-                emit.StoreObj(
-                    Format::StoreAccessKind::ST_64, src, IReg::IR_ACC, RTSupport::MetaInfo::ObjectHeaderSize()
-                );
-                AdjustReg(dst, IReg::IR_ACC);
-                return;
-            }
-
             auto bt = ToBuiltin(tk);
             emit.NewBox(bt); // Spoils IR_ACC
             BindStatePoint();
@@ -1285,11 +1270,6 @@ struct IsaRewriter : public IsaParser {
     {
         if (type != Interpretation::BUILTIN_UNIT && type < Engine::Term::FIRST_NON_PRIMITIVE) {
             auto tk = Engine::TermKind(type);
-            if (tk == Engine::TermKind::BSTRING) {
-                emit.LoadObj(Format::LoadAccessKind::LD_64, dst, src, RTSupport::MetaInfo::ObjectHeaderSize());
-                return;
-            }
-
             auto bt = ToBuiltin(tk);
             emit.LoadObj(Ldk(bt), dst, src, RTSupport::MetaInfo::ObjectHeaderSize());
         } else {

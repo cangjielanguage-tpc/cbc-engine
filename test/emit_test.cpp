@@ -46,6 +46,20 @@ TEST(EmitTest, InitClosureVariants)
     EXPECT_EQ("0x000: init.closure\n0x001: init.closure.sret\n", stream.ToString());
 }
 
+TEST(EmitTest, LastFourBitBuiltinBoxUsesCompactEncoding)
+{
+    Emitter e;
+
+    e.NewBox(Interpretation::BUILTIN_RUNE);
+    auto code = e.Build(heap);
+
+    ASSERT_EQ(code.bytecodeSize, 2u);
+    Decoder::ByteReader reader(code.bytecode, code.bytecode, code.bytecode + code.bytecodeSize);
+    auto instruction = RT::B2xr::Decode(reader);
+    EXPECT_EQ(instruction.opc, RT::Opcode::NEWBOX);
+    EXPECT_EQ(instruction.xr.imm, Interpretation::BUILTIN_RUNE);
+}
+
 TEST(EmitTest, Simple_ArithB2rr)
 {
     Emitter e;
