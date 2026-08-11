@@ -63,7 +63,7 @@ CallAdapter AdapterFor(Resolution::InterfaceCall const& ic)
 void* AdapterOf(CallAdapter adapter)
 {
     auto adapterCall = adapters[static_cast<size_t>(adapter)];
-    LOG_INFO(RTSupport::Log::rt, "Adapter of idx {} is {}", adapter, adapterCall);
+    LOG_TRACE(RTSupport::Log::rt, "Adapter of idx {} is {}", static_cast<size_t>(adapter), adapterCall);
     return RTSupport::Adapters::GenericI2CCallInstance();
 }
 
