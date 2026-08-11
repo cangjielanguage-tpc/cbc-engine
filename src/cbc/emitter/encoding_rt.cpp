@@ -1,5 +1,6 @@
 #include "cbc/isa_rt.h"
 #include "segment.h"
+#include "utils/logger.h"
 #include "utils/reinterpretation.h"
 
 namespace Cbc {
@@ -196,6 +197,7 @@ void Encode(ByteBuffer& buf, RT::VirtualCall command)
     buf.AddW16(command.vnum);
     buf.AddW16(command.edef);
     buf.AddW8(command.sret);
+    Stream::cout << "encoding call adapter: " << command.callAdapter << Stream::endl;
     buf.AddW8(command.callAdapter);
 }
 

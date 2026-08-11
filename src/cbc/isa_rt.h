@@ -3,6 +3,8 @@
 #include "decoder.h"
 #include "isa.h"
 #include "runtimesupport/runtime.h"
+#include "utils/logger.h"
+#include "utils/ostream.h"
 #include <cstdint>
 
 // X parameters: opcode, encoding format, string format
@@ -622,7 +624,7 @@ struct B5xi12ri12 {
 };
 
 struct VirtualCall {
-    static constexpr int SIZE = 5;
+    static constexpr int SIZE = 6;
 
     Opcode opc;
     uint16_t vnum;
@@ -637,6 +639,7 @@ struct VirtualCall {
         auto edef        = reader.Read16();
         auto sret        = reader.Read8();
         auto callAdapter = reader.Read8();
+        Stream::cout << "decoding call adapter: " << callAdapter << Stream::endl;
         return VirtualCall { opc, vnum, edef, sret, callAdapter };
     }
 };
