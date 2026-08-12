@@ -32,9 +32,7 @@ void ReportFailure(const char* filename, int line, const char* fmt, ...)
 
     const char* message = messageBuffer != nullptr ? messageBuffer : "<failed to allocate assertion message>";
 
-    os_log_error(
-        OS_LOG_DEFAULT, "%{public}s:%d: assertion failed in %{public}s: %{public}s", filename, line, func, message
-    );
+    os_log_error(OS_LOG_DEFAULT, "%{public}s:%d: assertion failed: %{public}s", filename, line, message);
     free(messageBuffer);
 #endif
 
