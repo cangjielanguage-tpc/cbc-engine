@@ -5,11 +5,12 @@
 #include "engine/symlevel/code.h"
 #include "engine/symlevel/definitions.h"
 #include "engine/terms.h"
+#include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
 
 namespace EHSupport {
 
-uint8_t engine_get_exception_handler(Interpretation::DynamicFunctionHandle* handle, Decoder::ByteReader& reader)
+uint64_t engine_get_exception_handler(Interpretation::DynamicFunctionHandle* handle, Decoder::ByteReader& reader)
 {
     Engine::Session session(Engine::GetEngineInstance());
     auto bytecode     = handle->bytecode.load();
@@ -17,7 +18,7 @@ uint8_t engine_get_exception_handler(Interpretation::DynamicFunctionHandle* hand
 
     auto methodDef = Symlevel::MethodDefinition::Resolve(session, handle->methodDef);
     if (!methodDef.MethodCode().has_value()) {
-        return false;
+        return EXC_HANDLER_FOUND;
     }
 
     uint8_t* bcStart = bytecode->code.bytecode;
