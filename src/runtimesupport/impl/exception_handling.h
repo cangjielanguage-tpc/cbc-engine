@@ -7,7 +7,7 @@
 
 namespace EHSupport {
 
-extern "C" uint8_t engine_get_exception_handler(
+extern "C" uint64_t engine_get_exception_handler(
     Interpretation::DynamicFunctionHandle* handle, Decoder::ByteReader& reader
 );
 
