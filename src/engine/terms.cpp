@@ -98,13 +98,12 @@ constexpr TermFlags::TermFlags(int flags)
 
 TermFlags TermFlags::operator+=(TermFlags flags)
 {
-    TermFlags copy      = *this;
-    copy.isLocal       |= flags.isLocal;
-    copy.isReference   |= flags.isReference;
-    copy.isAotPromoted |= flags.isAotPromoted;
-    copy.isGeneric     |= flags.isGeneric;
-    copy.isFixedSize   |= flags.isFixedSize;
-    copy.isRecord      |= flags.isRecord;
+    isLocal       |= flags.isLocal;
+    isReference   |= flags.isReference;
+    isAotPromoted |= flags.isAotPromoted;
+    isGeneric     |= flags.isGeneric;
+    isFixedSize   |= flags.isFixedSize;
+    isRecord      |= flags.isRecord;
     return *this;
 }
 
