@@ -1,5 +1,4 @@
 #include "interpretation_loop.h"
-#include <atomic>
 #include "cbc/formater_rt.h"
 #include "cbc/frame.h"
 #include "cbc/isa.h"
@@ -19,6 +18,7 @@
 #include "utils/logger.h"
 #include "utils/math.h"
 #include "utils/ostream.h"
+#include <atomic>
 
 #include <cmath>
 #include <cstdint>
@@ -1524,6 +1524,103 @@ LABEL(GENERIC_FIELD) {
     FSTI(64, 32, M5i32)
     FSTI(64, 64, M9i64)
 #undef FSTI
+
+LABEL(REC_COPY_FROM_OBJ) {
+    auto args = MStructFieldOp::Decode(reader);
+    // Object from which we copy.
+    // Memspace offset is offset into it for the start of the record we copy.
+    auto from = ectype->GetReference(args.rr.x.IR());
+    // Reference to stack to which we will copy the record.
+    auto to = ectype->GetReference(args.rr.y.IR());
+    // Record type info.
+    auto ti = args.ti;
+    // Start of the record inside of the obj
+    auto recStart = from.value + memspaceOffsetAcc;
+
+    LOG_INSTR;
+
+    Execution::CopyRecordFromObj(from, recStart, to, ti);
+
+    NEXT;
+}
+
+LABEL(REC_COPY_FROM_REC) {
+    auto args = MStructFieldOp::Decode(reader);
+    auto from = ectype->GetReference(args.rr.x.IR());
+    auto to = ectype->GetReference(args.rr.y.IR());
+    auto ti = args.ti;
+
+    auto recStart = from.value + memspaceOffsetAcc;
+    LOG_INSTR;
+
+    Execution::CopyRecordFromRec(from, recStart, to, ti);
+
+    NEXT;
+}
+
+LABEL(REC_COPY_FROM_DERIVED) {
+    auto args = StructFieldOp::Decode(reader);
+    auto base = ectype->GetReference(args.rr.x.IR());
+    auto derived = ectype->GetReference(args.rr.y.IR());
+    auto to = ectype->GetReference(args.field.x.IR());
+    auto ti = args.ti;
+    LOG_INSTR;
+
+    // TODO: HZ?
+
+    NEXT;
+}
+
+LABEL(REC_COPY_FROM_FRAME) {
+    // TODO: idk
+    FATAL("idk");
+}
+
+LABEL(REC_COPY_TO_OBJ) {
+    auto args = MStructFieldOp::Decode(reader);
+    auto from = ectype->GetReference(args.rr.x.IR());
+    auto to = ectype->GetReference(args.rr.y.IR());
+    auto ti = args.ti;
+
+    auto recStart = from.value + memspaceOffsetAcc;
+    LOG_INSTR;
+
+    Execution::CopyRecordToObj(from, recStart, to, ti);
+
+    NEXT;
+}
+
+LABEL(REC_COPY_TO_REC) {
+    auto args = MStructFieldOp::Decode(reader);
+    auto from = ectype->GetReference(args.rr.x.IR());
+    auto to = ectype->GetReference(args.rr.y.IR());
+    auto ti = args.ti;
+
+    auto recStart = from.value + memspaceOffsetAcc;
+    LOG_INSTR;
+
+    Execution::CopyRecordToRec(from, recStart, to, ti);
+
+    NEXT;
+}
+
+LABEL(REC_COPY_TO_DERIVED) {
+    auto args = StructFieldOp::Decode(reader);
+    auto base = ectype->GetReference(args.rr.x.IR());
+    auto derived = ectype->GetReference(args.rr.y.IR());
+    auto from = ectype->GetReference(args.field.x.IR());
+    auto ti = args.ti;
+    LOG_INSTR;
+
+    // TODO: HZ?
+
+    NEXT;
+}
+
+LABEL(REC_COPY_TO_FRAME) {
+    // TODO: idk
+    FATAL("idk");
+}
 
 #undef MEM_NEXT
 #undef NEXT

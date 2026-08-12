@@ -88,6 +88,90 @@ void Execution::ReadStructField(uintptr_t dst, Reference base, uintptr_t field, 
     RTSupport::ReadStructField(dst, reinterpret_cast<DYN_ObjRef>(base.value), field, type->instanceSize, type->gctib);
 }
 
+void Execution::CopyRecordFromObj(Reference objBase, uintptr_t recordOffset, Reference dst, TypeInfo ti)
+{
+    auto type = UnpackTypeInfo(ti);
+    auto obj  = objBase.value;
+
+    auto fieldsAmount = type->fieldNum;
+
+    auto ptr = 0;
+
+    auto recordStart = obj + recordOffset;
+
+    for (size_t i = 0; i < fieldsAmount; i++) {
+        auto field     = type->fields[i];
+        auto fieldSize = field->instanceSize;
+        RTSupport::ReadStructField(
+            dst.value + ptr, reinterpret_cast<DYN_ObjRef>(obj), recordStart + ptr, type->instanceSize, type->gctib
+        );
+
+        ptr += fieldSize;
+    }
+}
+
+void Execution::CopyRecordFromRec(Reference recBase, uintptr_t recordOffset, Reference dst, TypeInfo ti)
+{
+    auto type = UnpackTypeInfo(ti);
+    auto rec  = recBase.value;
+
+    auto fieldsAmount = type->fieldNum;
+
+    auto ptr = 0;
+
+    auto recordStart = rec + recordOffset;
+
+    for (size_t i = 0; i < fieldsAmount; i++) {
+        auto field     = type->fields[i];
+        auto fieldSize = field->instanceSize;
+        RTSupport::ReadStructField(
+            dst.value + ptr, reinterpret_cast<DYN_ObjRef>(rec), recordStart + ptr, type->instanceSize, type->gctib
+        );
+
+        ptr += fieldSize;
+    }
+}
+
+void Execution::CopyRecordToObj(Reference objBase, uintptr_t recordOffset, Reference dst, TypeInfo ti)
+{
+    auto type = UnpackTypeInfo(ti);
+    auto obj  = objBase.value;
+
+    auto fieldsAmount = type->fieldNum;
+
+    auto ptr = 0;
+
+    auto recordStart = obj + recordOffset;
+
+    for (size_t i = 0; i < fieldsAmount; i++) {
+        auto field     = type->fields[i];
+        auto fieldSize = field->instanceSize;
+        RTSupport::WriteStructField(
+            reinterpret_cast<DYN_ObjRef>(obj), dst.value + ptr, recordStart + ptr, type->instanceSize, type->gctib
+        );
+    }
+}
+
+void Execution::CopyRecordToRec(Reference objBase, uintptr_t recordOffset, Reference dst, TypeInfo ti)
+{
+    auto type = UnpackTypeInfo(ti);
+    auto obj  = objBase.value;
+
+    auto fieldsAmount = type->fieldNum;
+
+    auto ptr = 0;
+
+    auto recordStart = obj + recordOffset;
+
+    for (size_t i = 0; i < fieldsAmount; i++) {
+        auto field     = type->fields[i];
+        auto fieldSize = field->instanceSize;
+        RTSupport::WriteStructField(
+            reinterpret_cast<DYN_ObjRef>(obj), dst.value + ptr, recordStart + ptr, type->instanceSize, type->gctib
+        );
+    }
+}
+
 void* Execution::AllocateObjectInstance() { return reinterpret_cast<void*>(&Asm::engine_i2_newobject); }
 
 void* Execution::AllocateObjectInstanceAcc() { return reinterpret_cast<void*>(&Asm::engine_i2_newobject_acc); }
@@ -191,9 +275,9 @@ TypeInfo Execution::GetMethodOuterTi(TypeInfo where, TypeInfo interf, int method
 
 Interpretation::Thunk Execution::GetInterfaceThunk(TypeInfo where, TypeInfo interf, int methodNum)
 {
-    auto dynTypeInfo      = UnpackTypeInfo(where);
-    DYN_FuncPtr* table    = g_CJNativeInterfaceInstance.getMTable(dynTypeInfo, UnpackTypeInfo(interf));
-    auto target           = table[methodNum];
+    auto dynTypeInfo   = UnpackTypeInfo(where);
+    DYN_FuncPtr* table = g_CJNativeInterfaceInstance.getMTable(dynTypeInfo, UnpackTypeInfo(interf));
+    auto target        = table[methodNum];
 
     auto typeInfo = TypeInfo(dynTypeInfo);
     return GetDynCallThunk(target, typeInfo);
@@ -264,27 +348,37 @@ extern "C" Reference engine_get_and_clear_pending_exception() { return Execution
 
 Reference Execution::AtomicReadRef(Reference object, uintptr_t field)
 {
-    return Reference { .value = reinterpret_cast<uintptr_t>(
-        g_CJNativeInterfaceInstance.atomicReadRef(reinterpret_cast<DYN_ObjRef>(object.value), reinterpret_cast<DYN_FieldRef>(field))) };
+    return Reference { .value = reinterpret_cast<uintptr_t>(g_CJNativeInterfaceInstance.atomicReadRef(
+                           reinterpret_cast<DYN_ObjRef>(object.value), reinterpret_cast<DYN_FieldRef>(field)
+                       )) };
 }
 
 void Execution::AtomicWriteRef(Reference ref, Reference obj, uintptr_t field)
 {
-    g_CJNativeInterfaceInstance.atomicWriteRef(reinterpret_cast<DYN_ObjRef>(ref.value), reinterpret_cast<DYN_ObjRef>(obj.value),
-        reinterpret_cast<DYN_FieldRef>(field));
+    g_CJNativeInterfaceInstance.atomicWriteRef(
+        reinterpret_cast<DYN_ObjRef>(ref.value),
+        reinterpret_cast<DYN_ObjRef>(obj.value),
+        reinterpret_cast<DYN_FieldRef>(field)
+    );
 }
 
 Reference Execution::AtomicSwapRef(Reference ref, Reference obj, uintptr_t field)
 {
-    return Reference { .value = reinterpret_cast<uintptr_t>(
-        g_CJNativeInterfaceInstance.atomicSwapRef(reinterpret_cast<DYN_ObjRef>(ref.value), reinterpret_cast<DYN_ObjRef>(obj.value),
-            reinterpret_cast<DYN_FieldRef>(field))) };
+    return Reference { .value = reinterpret_cast<uintptr_t>(g_CJNativeInterfaceInstance.atomicSwapRef(
+                           reinterpret_cast<DYN_ObjRef>(ref.value),
+                           reinterpret_cast<DYN_ObjRef>(obj.value),
+                           reinterpret_cast<DYN_FieldRef>(field)
+                       )) };
 }
 
 bool Execution::AtomicCompareAndSwapRef(Reference oldRef, Reference newRef, Reference obj, uintptr_t field)
 {
-    return g_CJNativeInterfaceInstance.atomicCompareAndSwapRef(reinterpret_cast<DYN_ObjRef>(oldRef.value), reinterpret_cast<DYN_ObjRef>(newRef.value),
-        reinterpret_cast<DYN_ObjRef>(obj.value), reinterpret_cast<DYN_FieldRef>(field));
+    return g_CJNativeInterfaceInstance.atomicCompareAndSwapRef(
+        reinterpret_cast<DYN_ObjRef>(oldRef.value),
+        reinterpret_cast<DYN_ObjRef>(newRef.value),
+        reinterpret_cast<DYN_ObjRef>(obj.value),
+        reinterpret_cast<DYN_FieldRef>(field)
+    );
 }
 
 const char* MetaInfo::GetName(TypeInfo ti)

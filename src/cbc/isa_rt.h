@@ -273,7 +273,15 @@
     X(FSTI_64_8, M2i8, "fsti.64.8 $0U8 }", true)                                                                       \
     X(FSTI_64_16, M3i16, "fsti.64.16 $0U16 }", true)                                                                   \
     X(FSTI_64_32, M5i32, "fsti.64.32 $0U32 }", true)                                                                   \
-    X(FSTI_64_64, M9i64, "fsti.64.64 $0U64 }", true)
+    X(FSTI_64_64, M9i64, "fsti.64.64 $0U64 }", true)                                                                   \
+    X(REC_COPY_FROM_OBJ, MStructFieldOp, "reg.copy.from.obj $0U64 }", true)                                            \
+    X(REC_COPY_FROM_REC, MStructFieldOp, "reg.copy.from.rec $0U64 }", true)                                            \
+    X(REC_COPY_FROM_DERIVED, MStructFieldOp, "reg.copy.from.derived $0U64 }", true)                                    \
+    X(REC_COPY_FROM_FRAME, MStructFieldOp, "reg.copy.from.frame $0U64 }", true)                                        \
+    X(REC_COPY_TO_OBJ, MStructFieldOp, "reg.copy.to.obj $0U64 }", true)                                                \
+    X(REC_COPY_TO_REC, MStructFieldOp, "reg.copy.to.rec $0U64 }", true)                                                \
+    X(REC_COPY_TO_DERIVED, MStructFieldOp, "reg.copy.to.derived $0U64 }", true)                                        \
+    X(REC_COPY_TO_FRAME, MStructFieldOp, "reg.copy.to.frame $0U64 }", true)
 
 namespace Cbc {
 namespace RT {
@@ -568,8 +576,8 @@ struct IOF {
 
     static IOF Decode(Decoder::ByteReader& reader)
     {
-        auto opc  = Opcode::Decode(reader);
-        auto rr   = Format::RR::Decode(reader);
+        auto opc   = Opcode::Decode(reader);
+        auto rr    = Format::RR::Decode(reader);
         auto imm64 = reader.Read64();
         return IOF { opc, rr, imm64 };
     }
@@ -881,7 +889,7 @@ struct M10xri64 {
     inline static M10xri64 Decode(Decoder::ByteReader& reader)
     {
         auto opc   = MemOpcode::Decode(reader);
-        auto xr  = Format::XR::Decode(reader);
+        auto xr    = Format::XR::Decode(reader);
         auto imm64 = Format::Imm64::Decode(reader);
         return M10xri64 { opc, xr, imm64 };
     }

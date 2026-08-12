@@ -16,9 +16,7 @@ namespace RTSupport {
 
 using Reference = Interpretation::Value::Reference;
 
-std::optional<TypeInfo> CreateTypeInfo(
-    Engine::Session& session, TypeInfoManager& manager, Engine::GlobalTerm term
-)
+std::optional<TypeInfo> CreateTypeInfo(Engine::Session& session, TypeInfoManager& manager, Engine::GlobalTerm term)
 {
     FATAL("Should not be called");
 }
@@ -152,10 +150,7 @@ Reference Execution::AtomicReadRef(Reference object, uintptr_t field)
     return Reference { .value = 0 };
 }
 
-void Execution::AtomicWriteRef(Reference ref, Reference obj, uintptr_t field)
-{
-    FATAL("Should not reach here");
-}
+void Execution::AtomicWriteRef(Reference ref, Reference obj, uintptr_t field) { FATAL("Should not reach here"); }
 
 Reference Execution::AtomicSwapRef(Reference ref, Reference obj, uintptr_t field)
 {
@@ -185,6 +180,26 @@ void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* f
 const char* MetaInfo::GetName(TypeInfo ti) { return nullptr; }
 
 void* Adapters::C2ICall(uint32_t intArgCount, uint32_t floatArgCount) { FATAL("should not reach here"); }
+
+void Execution::CopyRecordFromObj(Reference objBase, uintptr_t recordOffset, Reference dst, TypeInfo ti)
+{
+    FATAL("Should not reach here");
+}
+
+void Execution::CopyRecordFromRec(Reference objBase, uintptr_t recordOffset, Reference dst, TypeInfo ti)
+{
+    FATAL("Should not reach here");
+}
+
+void Execution::CopyRecordToObj(Reference objBase, uintptr_t recordOffset, Reference dst, TypeInfo ti)
+{
+    FATAL("Should not reach here");
+}
+
+void Execution::CopyRecordToRec(Reference objBase, uintptr_t recordOffset, Reference dst, TypeInfo ti)
+{
+    FATAL("Should not reach here");
+}
 
 uint32_t MetaInfo::GetTypeSize(TypeInfo ti) { return 0; }
 

@@ -6,6 +6,7 @@
 #include "engine/terms.h"
 #include "interpreter/ectype.h"
 #include "interpreter/int_thunk.h"
+#include <cstdint>
 #include <functional>
 
 namespace RTSupport {
@@ -131,6 +132,12 @@ struct Execution {
     static StructLocationKind GetStructLocationKind(Reference base, uintptr_t derived);
     static Reference GetGlobalBasePtr();
     static Reference GetLocalBasePtr();
+
+    static void CopyRecordFromObj(Reference objBase, uintptr_t recordOffset, Reference dst, TypeInfo ti);
+    static void CopyRecordFromRec(Reference objBase, uintptr_t recordOffset, Reference dst, TypeInfo ti);
+
+    static void CopyRecordToObj(Reference objBase, uintptr_t recordOffset, Reference dst, TypeInfo ti);
+    static void CopyRecordToRec(Reference objBase, uintptr_t recordOffset, Reference dst, TypeInfo ti);
 
     static TypeInfo TypeArg(TypeInfo ti, uint32_t idx);
 

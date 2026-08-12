@@ -219,9 +219,7 @@ namespace RTSupport {
 
 using Reference = Interpretation::Value::Reference;
 
-std::optional<TypeInfo> CreateTypeInfo(
-    Engine::Session& session, TypeInfoManager& manager, Engine::GlobalTerm term
-)
+std::optional<TypeInfo> CreateTypeInfo(Engine::Session& session, TypeInfoManager& manager, Engine::GlobalTerm term)
 {
     return std::nullopt;
 }
@@ -310,6 +308,26 @@ Interpretation::Thunk Execution::GetInterfaceThunk(TypeInfo where, TypeInfo ti, 
     FATAL("Should not reach here. I2C interface call");
 }
 
+void Execution::CopyRecordFromObj(Reference objBase, uintptr_t recordOffset, Reference dst, TypeInfo ti)
+{
+    FATAL("Should not reach here");
+}
+
+void Execution::CopyRecordFromRec(Reference objBase, uintptr_t recordOffset, Reference dst, TypeInfo ti)
+{
+    FATAL("Should not reach here");
+}
+
+void Execution::CopyRecordToObj(Reference objBase, uintptr_t recordOffset, Reference dst, TypeInfo ti)
+{
+    FATAL("Should not reach here");
+}
+
+void Execution::CopyRecordToRec(Reference objBase, uintptr_t recordOffset, Reference dst, TypeInfo ti)
+{
+    FATAL("Should not reach here");
+}
+
 void* Execution::AllocateObjectInstance() { return reinterpret_cast<void*>(&Interpretation::MockNewObj); }
 
 void* Execution::AllocateObjectInstanceAcc() { return reinterpret_cast<void*>(&Interpretation::MockNewObj); }
@@ -374,10 +392,7 @@ Reference Execution::AtomicReadRef(Reference object, uintptr_t field)
     return Reference { .value = 0 };
 }
 
-void Execution::AtomicWriteRef(Reference ref, Reference obj, uintptr_t field)
-{
-    FATAL("Should not reach here");
-}
+void Execution::AtomicWriteRef(Reference ref, Reference obj, uintptr_t field) { FATAL("Should not reach here"); }
 
 Reference Execution::AtomicSwapRef(Reference ref, Reference obj, uintptr_t field)
 {

@@ -1530,6 +1530,48 @@ struct IsaRewriter : public IsaParser {
         }
     }
 
+    void MemTailCopyRegTo(MemSpace& ms, IReg from, uint32_t recType) override
+    {
+        auto& msr    = static_cast<MemSpaceRewriter&>(ms);
+        auto optType = resolver.Query(Index<Type>(recType));
+
+        if (!optType.has_value()) {
+            FATAL("Failed during copying of record: unknown record type.");
+        }
+
+        auto ty = *optType;
+
+        switch (msr.kind) {
+            case HEAD_OBJ:     msr.emit.ToObjCopyRec(from, msr.base, *ty.GetTypeInfo()); break;
+            case HEAD_REC:     msr.emit.ToRecCopyRec(from, msr.base, *ty.GetTypeInfo()); break;
+            case HEAD_DERIVED: msr.emit.ToDerivedCopyRec(msr.base, msr.derived, from, *ty.GetTypeInfo()); break;
+            case HEAD_STATIC:  FATAL("didn't do statics yet");
+            case HEAD_FRAME:   msr.emit.ToFrameRec(from, msr.base, *ty.GetTypeInfo()); break;
+            case HEAD_NONE:    FATAL("unreachable");
+        }
+    }
+
+    void MemTailCopyRegFrom(MemSpace& ms, IReg to, uint32_t recType) override
+    {
+        auto& msr    = static_cast<MemSpaceRewriter&>(ms);
+        auto optType = resolver.Query(Index<Type>(recType));
+
+        if (!optType.has_value()) {
+            FATAL("Failed during copying of record: unknown record type.");
+        }
+
+        auto ty = *optType;
+
+        switch (msr.kind) {
+            case HEAD_OBJ:     msr.emit.FromObjCopyRec(msr.base, to, *ty.GetTypeInfo()); break;
+            case HEAD_REC:     msr.emit.FromRecCopyRec(msr.base, to, *ty.GetTypeInfo()); break;
+            case HEAD_DERIVED: msr.emit.FromDerivedCopyRec(msr.base, msr.derived, to, *ty.GetTypeInfo()); break;
+            case HEAD_STATIC:  FATAL("didn't do statics yet");
+            case HEAD_FRAME:   msr.emit.FromFrameRec(msr.base, to, *ty.GetTypeInfo()); break;
+            case HEAD_NONE:    FATAL("unreachable");
+        }
+    }
+
     void MemTailStoreImm(MemSpace& ms, uint64_t imm) override
     {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
@@ -1602,10 +1644,6 @@ struct IsaRewriter : public IsaParser {
         }
         BindStatePoint();
     }
-
-    void MemTailCopyRegTo(MemSpace& ms, IReg dst, uint32_t recType) override { FATAL("MemTailCopyReg"); }
-
-    void MemTailCopyRegFrom(MemSpace& ms, IReg dst, uint32_t recType) override { FATAL("MemTailCopyReg"); }
 
     void ParseOne() override
     {
