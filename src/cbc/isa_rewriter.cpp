@@ -965,7 +965,7 @@ struct IsaRewriter : public IsaParser {
         BindStatePoint();
     }
 
-    void SpawnFuture(IReg future, uint16_t typeId) override
+    void SpawnFuture(IReg future, uint32_t /*typeId*/) override
     {
         AdjustReg(IReg::IR_ACC, future);
         emit.SpawnFuture();
