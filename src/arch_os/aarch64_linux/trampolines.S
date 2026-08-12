@@ -477,6 +477,49 @@ perform_2i_call:
   ldp   x29, x30, [sp], #16
   ret
 
+.macro save_all_iregs scratch_reg
+  .set _offset, 0
+  .rept ECTYPE_IREGS_COUNT
+    ldr   \scratch_reg, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + _offset)]
+    str   \scratch_reg, [sp, #_offset]
+    .set _offset, _offset + ECTYPE_REG_SIZE
+  .endr
+.endm
+
+.macro restore_all_iregs scratch_reg
+  .set _offset, 0
+  .rept ECTYPE_IREGS_COUNT
+    ldr   \scratch_reg, [sp, #_offset]
+    str   \scratch_reg, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + _offset)]
+    .set _offset, _offset + ECTYPE_REG_SIZE
+  .endr
+.endm
+
+// Expands stack and returns to perform 2i call or throws SOE if stack expansion is impossible
+.balign 16
+.Lstack_overflow:
+  add   sp, sp, x8
+
+  sub   sp, sp, #STACK_OVERFLOW_REGDUMP_SIZE
+  mov   x10, sp
+  str   x10, [ECTYPE_REG, #ECTYPE_IACC_OFFSET]
+  save_all_iregs x10
+
+  mov   x9, #0x20 // adjusted size
+  adrp  x10, Page(engine_stack_grow_stub)
+  ldr   x10, [x10, PageOff(engine_stack_grow_stub)]
+  blr   x10
+engine_after_stack_grow:
+
+  restore_all_iregs x10
+  add   sp, sp, #STACK_OVERFLOW_REGDUMP_SIZE
+
+  // Restore ExecBytecodeInfo
+  ldr   x9, [x29, #-FUH_SLOT_OFFSET]
+  ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
+
+  b     .Lcontinue_after_stack_expand
+
 .balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: fuh)
 // preserved: ECTYPE_REG, x29
@@ -753,46 +796,3 @@ engine_handle_exception:
   br    x9
   brk   #0
 
-.macro save_all_iregs scratch_reg
-  .set _offset, 0
-  .rept ECTYPE_IREGS_COUNT
-    ldr   \scratch_reg, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + _offset)]
-    str   \scratch_reg, [sp, #_offset]
-    .set _offset, _offset + ECTYPE_REG_SIZE
-  .endr
-.endm
-
-.macro restore_all_iregs scratch_reg
-  .set _offset, 0
-  .rept ECTYPE_IREGS_COUNT
-    ldr   \scratch_reg, [sp, #_offset]
-    str   \scratch_reg, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + _offset)]
-    .set _offset, _offset + ECTYPE_REG_SIZE
-  .endr
-.endm
-
-// expects: (TLS_REG: valid TLS, sp: top of stack (including the whole current frame), x8: frame size)
-// preserves: all registers
-// Expands stack and returns to perform 2i call or throws SOE if stack expansion is impossible
-.balign 16
-.Lstack_overflow:
-  add   sp, sp, x8
-
-  sub   sp, sp, #STACK_OVERFLOW_REGDUMP_SIZE
-  str   sp, [ECTYPE_REG, #ECTYPE_IACC_OFFSET]
-  save_all_iregs x10
-
-  mov   x9, #0x20 // adjusted size
-  adrp  x10, Page(engine_stack_grow_stub)
-  ldr   x10, [x10, PageOff(engine_stack_grow_stub)]
-  blr   x10
-engine_after_stack_grow:
-
-  restore_all_iregs x10
-  add   sp, sp, #STACK_OVERFLOW_REGDUMP_SIZE
-
-  // Restore ExecBytecodeInfo
-  ldr   x9, [x29, #-FUH_SLOT_OFFSET]
-  ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
-
-  b     .Lcontinue_after_stack_expand
