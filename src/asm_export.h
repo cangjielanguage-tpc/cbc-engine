@@ -44,7 +44,7 @@
     #ifndef NDEBUG
         #define ADDITIONAL_STACK_SPACE (64 * 1024)
     #else
-        #define ADDITIONAL_STACK_SPACE (8 * 1024)
+        #define ADDITIONAL_STACK_SPACE (64 * 1024) // TODO: return to 8 Kb
     #endif // NDEBUG
 #endif     // ADDITIONAL_STACK_SPACE
 
