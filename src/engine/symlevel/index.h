@@ -4,24 +4,20 @@
 
 namespace Symlevel {
 
-/// References and terms in CBC are referenced by index, not offset.
-/// These indicies are usually encoded by 16 bit in bytecode,
-/// which is not enough for some cases.
-///
-/// To allow more references, CBC uses regions that
-/// could implicitly extend 16-bit indicies up to 24 bit.
-
+/// References and terms in CBC are referenced by index in the corresponding table.
 template <typename T> struct RefId {
     static constexpr auto BIT_SIZE = 32;
 
-    constexpr RefId(uint32_t index) : index(index) {}
+    constexpr explicit RefId(uint32_t index) : value(index) {}
 
-    uint32_t GetIndex() const { return index; }
+    operator uint32_t() const { return value; }
 
-    bool operator==(const RefId& another) const { return index == another.index; }
+    uint32_t GetValue() const { return value; }
+
+    bool operator==(const RefId& another) const { return value == another.value; }
 
 private:
-    uint32_t index;
+    uint32_t value;
 };
 
 } // namespace Symlevel

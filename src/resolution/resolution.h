@@ -4,6 +4,7 @@
 #include "engine/field_layout.h"
 #include "engine/identifiers.h"
 #include "engine/symlevel/definitions.h"
+#include "engine/symlevel/index.h"
 #include "engine/terms.h"
 #include "engine/typeinfo_manager.h"
 #include "interpreter/function_handle.h"
@@ -172,13 +173,37 @@ Stream::Output& operator<<(Stream::Output& stream, InterfaceCall const& call);
 Stream::Output& operator<<(Stream::Output& stream, InstanceField const& field);
 Stream::Output& operator<<(Stream::Output& stream, StaticField const& field);
 
+template <typename T> struct IndexTraits;
+
+struct FieldIndexTraits {
+    using ref = Symlevel::RefId<Symlevel::FieldReference>;
+};
+
+struct MethodIndexTraits {
+    using ref = Symlevel::RefId<Symlevel::MethodReference>;
+};
+
+template <> struct IndexTraits<Type> {
+    using ref = Symlevel::RefId<Engine::Term>;
+};
+
+template <> struct IndexTraits<DirectCall> : MethodIndexTraits {};
+
+template <> struct IndexTraits<VirtualCall> : MethodIndexTraits {};
+
+template <> struct IndexTraits<InterfaceCall> : MethodIndexTraits {};
+
+template <> struct IndexTraits<InstanceField> : FieldIndexTraits {};
+
+template <> struct IndexTraits<StaticField> : FieldIndexTraits {};
+
 template <typename T> class Index {
 public:
     explicit Index(uint32_t value) : value(value) {}
 
-    int GetValue() const { return value; }
+    operator typename IndexTraits<T>::ref() const { return typename IndexTraits<T>::ref(value); }
 
-    bool operator==(Index const& index) const { return value == index.value; }
+    int GetValue() const { return value; }
 
 private:
     uint32_t value;

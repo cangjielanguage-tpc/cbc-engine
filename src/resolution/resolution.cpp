@@ -212,8 +212,7 @@ struct ResolverProxy {
     {
         auto fileId = resolver.method.GetFileId();
 
-        auto refId = Symlevel::RefId<Symlevel::FieldReference>(id.GetValue());
-        auto ident = RefIdentifier<Symlevel::FieldReference>(refId, fileId);
+        auto ident = RefIdentifier<Symlevel::FieldReference>(id, fileId);
         auto ref   = ResolveReference(resolver.session, resolver.termManager, ident);
 
         if (ref.refType.GetKind() == TermKind::UNDEFINED || ref.fieldType.GetKind() == TermKind::UNDEFINED) {
@@ -340,8 +339,7 @@ struct ResolverProxy {
 
     template <typename Call> static ResolvedMethodReference ResolveReference(Resolver& resolver, Index<Call> index)
     {
-        auto refId = Symlevel::RefId<Symlevel::MethodReference>(index.GetValue());
-        auto ident = RefIdentifier<Symlevel::MethodReference>(refId, resolver.method.GetFileId());
+        auto ident = RefIdentifier<Symlevel::MethodReference>(index, resolver.method.GetFileId());
         auto ref   = ResolveReference(resolver.session, resolver.termManager, ident);
 
         log.Log(Logging::Level::INFO, [&](Stream::Output& stream) {
@@ -664,8 +662,7 @@ Type Resolver::Wrap(Term term) { return Type(term, this); }
 std::optional<Type> Resolver::Query(Index<Type> id)
 {
     // terms are being cached on different level
-    auto refId = Symlevel::RefId<Term>(id.GetValue());
-    auto ident = RefIdentifier<Term>(refId, method.GetFileId());
+    auto ident = RefIdentifier<Term>(id, method.GetFileId());
     auto term  = termManager.Resolve(session, ident);
     if (term.GetKind() == TermKind::UNDEFINED) {
         return std::nullopt;

@@ -63,19 +63,19 @@ void Disasmer::RData(RegionData const& rd, uint8_t regionNum)
             auto idx = RefIdentifier(refid, currentFile->Id());
             auto ref = MethodReference::Parse(*session, idx);
 
-            io << refid.GetIndex() << " - " << Detailed(ref.refType) << "." << Detailed(ref.name)
-               << Detailed(ref.methodSig) << ' ' << ref.flags << endl;
+            io << refid << " - " << Detailed(ref.refType) << "." << Detailed(ref.name) << Detailed(ref.methodSig) << ' '
+               << ref.flags << endl;
         }
     });
 
     Region("terms: ", [&]() {
         auto terms = rd.TermsOffsets().RefIds();
         for (auto refid : terms) {
-            auto newrefid = RefId<Term>(refid.GetIndex());
+            auto newrefid = RefId<Term>(refid);
             auto termIdx  = RefIdentifier(newrefid, currentFile->Id());
             auto term     = TermManager::Resolve(*session, termIdx);
 
-            io << newrefid.GetIndex() << " - " << term << endl;
+            io << newrefid << " - " << term << endl;
         }
     });
 
@@ -85,8 +85,8 @@ void Disasmer::RData(RegionData const& rd, uint8_t regionNum)
             auto idx = RefIdentifier(refid, currentFile->Id());
             auto ref = FieldReference::Parse(*session, idx);
 
-            io << refid.GetIndex() << " - " << Detailed(ref.refType) << "." << Detailed(ref.name) << " "
-               << Detailed(ref.fieldType) << endl;
+            io << refid << " - " << Detailed(ref.refType) << "." << Detailed(ref.name) << " " << Detailed(ref.fieldType)
+               << endl;
         }
     });
 }
