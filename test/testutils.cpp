@@ -1,7 +1,6 @@
 #include "testutils.h"
 #include "engine/symlevel/io/filesystem.h"
 #include "stdio.h"
-#include <filesystem>
 #include <gtest/gtest.h>
 #include <memory>
 #include <optional>
@@ -9,7 +8,7 @@
 bool CheckForAssembler()
 {
     auto jar_path = std::string(TEST_RESOURCE_DIR) + "/cbc-asm.jar";
-    return std::filesystem::exists(jar_path);
+    return IO::TryOpenFile(jar_path).has_value();
 }
 
 static bool ends_with(std::string_view str, std::string_view suffix)
@@ -30,5 +29,5 @@ std::unique_ptr<IO::RandomAccessFile> OpenAsm(std::string file_name)
     auto command = "java -jar " + jar_path + ' ' + asm_path;
     auto file    = popen(command.c_str(), "r");
     pclose(file);
-    return std::move(IO::OpenFile(std::filesystem::path(cbc_path)).value());
+    return std::move(IO::OpenFile(cbc_path).value());
 }
