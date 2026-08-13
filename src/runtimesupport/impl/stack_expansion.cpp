@@ -54,7 +54,8 @@ void VisitFrameRootsForStackPtrs(
     DYN_VisitingState state,
     INT_FrameDesc frameDesc,
     DYN_RootVisitor stackPtrVisitor,
-    DYN_DerivedPtrVisitor derivedPtrVisitor
+    DYN_DerivedPtrVisitor derivedPtrVisitor,
+    DYN_RootVisitor stackAllocVisitor
 )
 {
     using namespace RTSupport;
@@ -71,6 +72,7 @@ void VisitFrameRootsForStackPtrs(
     });
 
     auto visitRoot = [&stackPtrVisitor](Placeholder ph) { VisitRoot(stackPtrVisitor, ph); };
+    auto visitRef  = [&stackAllocVisitor](Placeholder ph) { VisitRoot(stackAllocVisitor, ph); };
 
     auto resLoc = [slotsStartAddr, regTable](uint32_t idx) {
         return GetResourceLocation(Resource { idx }, slotsStartAddr, regTable);
@@ -112,7 +114,7 @@ void VisitFrameRootsForStackPtrs(
 
         for (uint32_t i = 0; i < IReg::COUNT; i++) {
             if (abiInfo.referenceParams & (1 << i)) {
-                // visitTraceAndFixRoot(resLoc(i)); // FIXME: add new parameter in the rt-interface visitor.
+                visitRef(resLoc(i));
             }
         }
 
@@ -120,11 +122,7 @@ void VisitFrameRootsForStackPtrs(
             if (abiInfo.derivedPairs & (1 << i)) {
                 auto basePh    = resLoc(i + 1);
                 auto derivedPh = resLoc(i);
-                auto kind = Execution::GetStructLocationKind(Value::Reference { .value = *basePh }, *derivedPh);
-
-                if (kind == LOCAL) {
-                    VisitMutPair(derivedPtrVisitor, basePh, derivedPh);
-                }
+                VisitMutPair(derivedPtrVisitor, basePh, derivedPh);
             }
         }
     } else {
@@ -141,10 +139,8 @@ void VisitFrameRootsForStackPtrs(
                 auto basePh    = GetResourceLocation(pair.first, slotsStartAddr, regTable);
                 auto derivedPh = GetResourceLocation(pair.second, slotsStartAddr, regTable);
 
-                auto kind = Execution::GetStructLocationKind(Value::Reference { .value = *basePh }, *derivedPh);
-                if (kind == RTSupport::LOCAL) {
-                    VisitMutPair(derivedPtrVisitor, basePh, derivedPh);
-                }
+                VisitMutPair(derivedPtrVisitor, basePh, derivedPh);
+                visitRef(basePh);
             }
         }
 
@@ -154,8 +150,7 @@ void VisitFrameRootsForStackPtrs(
             }
         }
 
-        auto savedRegsMap = bc->savedIRegs;
-        regTable->UpdateRegLocations(savedRegsMap, reinterpret_cast<Placeholder>(calleeSavedRegsEnd));
+        GCSupport::VisitGCFrameRoots(state, frameDesc, stackAllocVisitor);
     }
 }
 
