@@ -1,4 +1,5 @@
 #include "resolution.h"
+#include "engine/decode/decoder.h"
 #include "engine/engine.h"
 #include "engine/field_layout.h"
 #include "engine/identifiers.h"
@@ -276,7 +277,7 @@ struct ResolverProxy {
                     auto typeDefIdent = TypeTermId(ref.refType).GetIdentifier();
                     auto typeDef      = Symlevel::Reader::Read(resolver.session, typeDefIdent);
 
-                    auto fieldDefIdentOpt = typeDef.GetFields().Find(resolver.session, ref.name);
+                    auto fieldDefIdentOpt = resolver.session.Decoder().Find(typeDef.GetFields(), ref.name);
                     if (!fieldDefIdentOpt.has_value()) {
                         log.Stream(Logging::Level::ERROR)
                             << "Field definition search failed " << id.GetValue() << Stream::endl;
@@ -508,7 +509,7 @@ struct ResolverProxy {
 
         // FIXME: search in hierarchy
         auto method = [&]() -> std::optional<Identifier<Symlevel::MethodDefinition>> {
-            for (auto m : type.GetMethods().FindAll(resolver.session, ref.name)) {
+            for (auto m : resolver.session.Decoder().FindBucket(type.GetMethods(), ref.name)) {
                 auto def = Symlevel::Reader::Read(resolver.session, m);
                 auto sig = TermManager::Resolve(resolver.session, def.Signature());
                 if (sig == ref.signature) {

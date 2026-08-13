@@ -2,6 +2,7 @@
 
 #include "aot_table.h"
 #include "dependencies.h"
+#include "engine/decode/decoder.h"
 #include "io/stream_file_reader.h"
 #include "member_index.h"
 #include "region_data.h"
@@ -85,7 +86,7 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
 
     CbcFile::Impl impl {
         .versionMetadata       = versionMetadata,
-        .typeIndex             = TypeIndex(typeIndexReader, fileId),
+        .typeIndex             = Decode::ReadIndex(typeIndexReader, fileId),
         .regionData            = RegionData::Read(fileId, file, regionOffset),
         .directCallAotTable    = DirectCallAotTable::Read(fileId, file, directCallAotTableOffset),
         .virtualCallAotTable   = VirtualCallAotTable::Read(fileId, file, virtualCallAotTableOffset),

@@ -108,6 +108,8 @@ private:
     template <typename T> void Region(T name, std::function<void()> f);
 
     ResolvingOutput& TypeDefinition(Symlevel::TypeDefinition const& td, bool full);
+
+    Decode::Decoder& Decoder() { return session.Decoder(); }
 };
 
 } // namespace Stream
