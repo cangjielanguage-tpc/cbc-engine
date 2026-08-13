@@ -1871,7 +1871,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
 )
 {
     using namespace Stream;
-    auto def = Symlevel::MethodDefinition::Resolve(session, method);
+    auto def = Symlevel::Reader::Read(session, method);
     ASSERTION(def.MethodCode().has_value(), "fuh preparation must be unreachable for methods without code");
 
     Resolver resolver(session, method);

@@ -82,6 +82,7 @@ private:
     TypeDefinition(Content&& content) : content(content) {}
 
     Content content;
+    friend class Decode::Decoder;
 };
 
 class FieldDefinition {
@@ -108,6 +109,7 @@ private:
     FieldDefinition(Content&& content) : content(content) {}
 
     Content content;
+    friend class Decode::Decoder;
 };
 
 class MethodDefinition {
@@ -160,6 +162,7 @@ private:
     MethodDefinition(Content&& content) : content(content) {}
 
     Content content;
+    friend class Decode::Decoder;
 };
 
 } // namespace Symlevel

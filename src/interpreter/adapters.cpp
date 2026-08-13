@@ -1,5 +1,6 @@
 #include "adapters.h"
 #include "engine/symlevel/definitions.h"
+#include "engine/symlevel/reader.h"
 #include "engine/symlevel/type_kind.h"
 #include "engine/terms.h"
 #include "function_handle.h"
@@ -35,7 +36,7 @@ I2Call PrepareI2Call(Engine::Session& session, Engine::Identifier<Symlevel::Meth
 
 C2Call PrepareC2Call(Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> methodDef)
 {
-    auto def       = Symlevel::MethodDefinition::Resolve(session, methodDef);
+    auto def       = Symlevel::Reader::Read(session, methodDef);
     auto signature = Engine::TermManager::Resolve(session, def.Signature());
     return reinterpret_cast<C2Call>(CountRegs(signature));
 }
