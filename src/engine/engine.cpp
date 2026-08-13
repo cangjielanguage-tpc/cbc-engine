@@ -154,7 +154,7 @@ std::optional<Identifier<MethodDefinition>> Engine::FindMethod(
     auto f        = file.value();
     auto declType = f->GetTypeIndex().Find(session, typeName);
     if (declType.has_value()) {
-        auto type               = Symlevel::TypeDefinition::Resolve(session, declType.value());
+        auto type               = Symlevel::Reader::Read(session, declType.value());
         const auto& methodIndex = type.GetMethods();
 
         std::optional<Identifier<MethodDefinition>> result = std::nullopt;

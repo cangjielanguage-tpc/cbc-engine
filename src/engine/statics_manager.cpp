@@ -56,7 +56,7 @@ SlotKind ComputeSlotKind(Session& session, FieldLayoutManager& flm, Symlevel::Fi
 
 uintptr_t StaticFieldsBundle::GetLocation(Session& session, TypeIdent typeIdent, FieldIdent fieldIdent)
 {
-    auto typeDef  = Symlevel::TypeDefinition::Resolve(session, typeIdent);
+    auto typeDef  = Symlevel::Reader::Read(session, typeIdent);
     auto fieldDef = Symlevel::FieldDefinition::Resolve(session, fieldIdent);
 
     auto flm                 = FieldLayoutManager::New(session);
@@ -122,7 +122,7 @@ StaticFieldsBundle StaticsManager::CreateBundle(Session& session, TypeIdent type
 
     auto flm     = FieldLayoutManager::New(session);
     auto& tim    = TypeInfoManager::Of(session);
-    auto typeDef = Symlevel::TypeDefinition::Resolve(session, typeIdent);
+    auto typeDef = Symlevel::Reader::Read(session, typeIdent);
 
     std::vector<uint32_t> refOffsetInRecords;
     std::vector<uint32_t> recordOffsets;
