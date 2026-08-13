@@ -38,7 +38,7 @@ static void CompareWith(std::string_view fileName, std::string const& expected)
     auto mainId = engine.FindMain(session, fileName);
     ASSERT_TRUE(mainId.has_value());
 
-    auto def  = Symlevel::MethodDefinition::Resolve(session, mainId.value());
+    auto def  = Symlevel::Reader::Read(session, mainId.value());
     auto code = Symlevel::Reader::Read(session, def.MethodCode().value());
 
     Resolution::Resolver resolver(session, mainId.value());
