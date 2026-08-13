@@ -83,7 +83,7 @@ public:
 
 private:
     mutable std::mutex lock;
-    std::unordered_map<TypeIdent::Packed, StaticFieldsBundle, TypeIdent::Hasher> bundles;
+    std::unordered_map<TypeIdent::Packed, StaticFieldsBundle> bundles;
 
     StaticFieldsBundle CreateBundle(Session& session, TypeIdent typeIdent);
 };
