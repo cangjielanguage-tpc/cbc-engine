@@ -399,7 +399,7 @@ void Term::GetName(Session& session, Stream::Output& out, bool hasDebugPrefix) c
         case TK::PRIMITIVE_ENUM:
         case TK::TYPE: {
             auto ident = ExtractTypeDefIdentifier(*this);
-            auto type  = Symlevel::TypeDefinition::Resolve(session, ident);
+            auto type  = Symlevel::Reader::Read(session, ident);
             stream << prefix << Symlevel::Reader::Read(session, type.GetName());
             if (int len = GetLength(); len > 0) {
                 printSubTerms("<", ">", len);
@@ -537,7 +537,7 @@ Term TermManager::NewAotTerm(
     auto type = session.GetEngine().FindType(session, name);
     if (type.has_value()) {
         ASSERT([&]() -> bool {
-            auto def = Symlevel::TypeDefinition::Resolve(session, type.value());
+            auto def = Symlevel::Reader::Read(session, type.value());
             return IsProperTypeReference(def, isReference, arity);
         }());
         id                  = TypeTermId(*type);
@@ -662,7 +662,7 @@ struct TermResolver {
         }
         auto identifier = type.value();
 
-        auto def       = Symlevel::TypeDefinition::Resolve(session, identifier);
+        auto def       = Symlevel::Reader::Read(session, identifier);
         bool undefined = !IsProperTypeReference(def, isReference, expectedLength);
 
         if (undefined && wasAot) {
@@ -700,7 +700,7 @@ struct TermResolver {
         }
         auto identifier = type.value();
 
-        auto def = Symlevel::TypeDefinition::Resolve(session, identifier);
+        auto def = Symlevel::Reader::Read(session, identifier);
 
         bool optionLikeEnum = false;
         switch (def->enumKind) {
