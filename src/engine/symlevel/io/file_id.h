@@ -8,12 +8,12 @@
 namespace IO {
 
 struct FileId {
-    static constexpr auto BIT_SIZE = 32;
-    static constexpr auto MAX_ID   = UINT32_MAX;
+    static constexpr auto BIT_SIZE = 24;
+    static constexpr auto MASK     = (1 << BIT_SIZE) - 1;
 
     uint32_t id;
 
-    FileId(uint32_t id) : id(id) { ASSERT(id <= MAX_ID); }
+    explicit FileId(uint32_t id) : id(id) { ASSERT((id & MASK) == id); }
 
     inline operator std::uint32_t() const { return id; }
 

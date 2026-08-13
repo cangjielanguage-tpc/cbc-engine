@@ -30,7 +30,7 @@ class FunctionHandleManager::Impl {
 public:
     using Ident = Identifier<MethodDefinition>;
     std::mutex lock;
-    std::unordered_map<Ident::Packed, TaggedFunctionHandle, Ident::Hasher> fuhMap;
+    std::unordered_map<Ident::Packed, TaggedFunctionHandle> fuhMap;
 };
 
 FunctionHandleManager::FunctionHandleManager() : impl(std::move(std::make_unique<FunctionHandleManager::Impl>())) {}

@@ -12,13 +12,7 @@ namespace Engine {
 /// An opaque handle to symlevel definitions.
 
 template <typename T> struct Identifier {
-    struct Packed {
-        uint64_t const unused : 4;
-        uint64_t const offs : Symlevel::Offset<T>::BIT_SIZE;
-        uint64_t const fileId : IO::FileId::BIT_SIZE;
-
-        inline bool operator==(const Packed& another) const { return Bits::Raw64(*this) == Bits::Raw64(another); }
-    };
+    using Packed = uint64_t;
 
     struct Hasher {
         inline size_t operator()(Packed const& packed) const
@@ -30,7 +24,12 @@ template <typename T> struct Identifier {
 
     Identifier(Symlevel::Offset<T> offs, IO::FileId fileId) : offs(offs), fileId(fileId) {}
 
-    Identifier(Packed const& packed) : Identifier(Symlevel::Offset<T>(packed.offs), IO::FileId(packed.fileId)) {}
+    Identifier(Packed packed)
+        : Identifier(
+              Symlevel::Offset<T>(packed & Symlevel::Offset<T>::MASK),
+              IO::FileId((packed >> Symlevel::Offset<T>::BIT_SIZE) & IO::FileId::MASK)
+          )
+    {}
 
     Symlevel::Offset<T> GetOffset() const { return offs; }
 
@@ -38,7 +37,12 @@ template <typename T> struct Identifier {
 
     bool operator==(const Identifier& another) const { return Pack() == another.Pack(); }
 
-    inline Packed Pack() const { return { 0, offs, static_cast<uint32_t>(fileId) }; }
+    inline Packed Pack() const
+    {
+        uint64_t low  = offs;
+        uint64_t high = fileId;
+        return low | (high << Symlevel::Offset<T>::BIT_SIZE);
+    }
 
 private:
     Symlevel::Offset<T> offs;
@@ -46,12 +50,7 @@ private:
 };
 
 template <typename T> struct RefIdentifier {
-    struct Packed {
-        uint64_t const id : Symlevel::RefId<T>::BIT_SIZE;
-        uint64_t const fileId : IO::FileId::BIT_SIZE;
-
-        bool operator==(Packed const& another) const { return Bits::Raw64(*this) == Bits::Raw64(another); }
-    };
+    using Packed = uint64_t;
 
     struct Hasher {
         inline size_t operator()(Packed const& packed) const
@@ -63,7 +62,12 @@ template <typename T> struct RefIdentifier {
 
     RefIdentifier(Symlevel::RefId<T> index, IO::FileId fileId) : index(index), fileId(fileId) {}
 
-    RefIdentifier(Packed const& packed) : RefIdentifier(Symlevel::RefId<T>(packed.id), IO::FileId(packed.fileId)) {}
+    RefIdentifier(Packed packed)
+        : RefIdentifier(
+              Symlevel::RefId<T>(packed & Symlevel::RefId<T>::MASK),
+              IO::FileId((packed >> Symlevel::RefId<T>::BIT_SIZE) & IO::FileId::MASK)
+          )
+    {}
 
     Symlevel::RefId<T> GetIndex() const { return index; }
 
@@ -71,7 +75,12 @@ template <typename T> struct RefIdentifier {
 
     bool operator==(const RefIdentifier& another) const { return Pack() == another.Pack(); }
 
-    inline Packed Pack() const { return { index.GetValue(), static_cast<uint32_t>(fileId) }; }
+    inline Packed Pack() const
+    {
+        uint64_t low  = index;
+        uint64_t high = fileId;
+        return low | (high << Symlevel::RefId<T>::BIT_SIZE);
+    }
 
 private:
     Symlevel::RefId<T> index;

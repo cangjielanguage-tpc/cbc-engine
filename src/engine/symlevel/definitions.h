@@ -71,7 +71,7 @@ public:
 
     Engine::RefIdentifier<Term> const GetSuperType() const {
         if (content.enumKind != EnumKind::NOT_ENUM) {
-            return Engine::RefIdentifier(RefId<Term>(0), 0); // NIL TERM
+            return Engine::RefIdentifier(RefId<Term>(0), IO::FileId(0)); // NIL TERM
         }
         return content.superOrEnumType;
     }
@@ -79,7 +79,7 @@ public:
     Engine::RefIdentifier<Term> const GetEnumType() const
     {
         if (content.enumKind == EnumKind::NOT_ENUM) {
-            return Engine::RefIdentifier(RefId<Term>(0), 0); // NIL TERM
+            return Engine::RefIdentifier(RefId<Term>(0), IO::FileId(0)); // NIL TERM
         }
         return content.superOrEnumType;
     }

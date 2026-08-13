@@ -1,16 +1,13 @@
 #include "sequence.h"
 #include "engine/engine.h"
+#include "engine/symlevel/io/file_id.h"
 #include "engine/symlevel/io/stream_file_reader.h"
 
 namespace Symlevel {
 
 Sequence::Sequence(IO::FileId file, uint32_t startPos, uint32_t endPos) : file(file), startPos(startPos), endPos(endPos) {}
 
-
-Sequence Sequence::Empty()
-{
-    return Sequence(0, 0, 0);
-}
+Sequence Sequence::Empty() { return Sequence(IO::FileId(0), 0, 0); }
 
 Sequence Sequence::Parse(IO::StreamFileReader& reader, IO::FileId id)
 {
