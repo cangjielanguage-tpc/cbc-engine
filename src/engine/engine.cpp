@@ -40,7 +40,6 @@ public:
     std::vector<std::unique_ptr<IO::RandomAccessFile>> rafs;
 
     Interpretation::FunctionHandleManager fuhManager;
-    DefinitionsManager defsManager;
     std::unique_ptr<MethodTableManager> mtManager;
     TermManager termManager;
     StaticsManager staticsManager;
@@ -207,8 +206,6 @@ FunctionHandleManager& FunctionHandleManager::Of(Engine::Session& session)
 namespace Symlevel {
 
 using EngineImpl = Engine::Engine::Impl;
-
-DefinitionsManager& DefinitionsManager::Of(Engine::Engine& engine) { return EngineImpl::Of(engine).defsManager; }
 
 } // namespace Symlevel
 
