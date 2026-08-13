@@ -71,7 +71,7 @@ template <typename T> struct RefIdentifier {
 
     bool operator==(const RefIdentifier& another) const { return Pack() == another.Pack(); }
 
-    inline Packed Pack() const { return { index.GetIndex(), static_cast<uint32_t>(fileId) }; }
+    inline Packed Pack() const { return { index.GetValue(), static_cast<uint32_t>(fileId) }; }
 
 private:
     Symlevel::RefId<T> index;

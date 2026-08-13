@@ -358,7 +358,7 @@ void Term::GetName(Session& session, Stream::Output& out, bool hasDebugPrefix) c
         case TK::UNDEFINED: {
             auto undef  = UndefTermId(*this).GetIdentifier();
             auto file   = undef.GetFileId();
-            auto index  = undef.GetIndex().GetIndex();
+            auto index  = undef.GetIndex();
             out.PrintFmt("$unresolved<%u,%u>", file.id, index);
             break;
         }
@@ -802,8 +802,8 @@ struct TermResolver {
     {
         using namespace Symlevel;
 
-        if (refId.GetIndex() < FIRST_NON_PRIMITIVE) {
-            return Term::Predefined(TermKind(refId.GetIndex()));
+        if (refId < FIRST_NON_PRIMITIVE) {
+            return Term::Predefined(TermKind(refId.GetValue()));
         }
         auto offset = regionData.Query(session, refId);
         IO::StreamFileReader reader(raf, file.GetTermSectionOffs() + offset);

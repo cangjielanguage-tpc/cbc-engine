@@ -53,20 +53,20 @@ template <typename T> using OffsetId = Engine::Identifier<T>;
 Offset<MethodReference> RegionData::Query(Engine::Session& session, RefId<MethodReference> index) const
 {
     // FIXME: use region idx
-    return methods.QueryOffset(*session.FileOf(fileId), index.GetIndex());
+    return methods.QueryOffset(*session.FileOf(fileId), index);
 }
 
 Offset<FieldReference> RegionData::Query(Engine::Session& session, RefId<FieldReference> index) const
 {
     // FIXME: use region idx
-    return fields.QueryOffset(*session.FileOf(fileId), index.GetIndex());
+    return fields.QueryOffset(*session.FileOf(fileId), index);
 }
 
 Offset<Term> RegionData::Query(Engine::Session& session, RefId<Term> index) const
 {
     // FIXME: use region idx
     // adjust index by the number of primitive types.
-    return terms.QueryOffset(*session.FileOf(fileId), index.GetIndex());
+    return terms.QueryOffset(*session.FileOf(fileId), index);
 }
 
 } // namespace Symlevel
