@@ -635,7 +635,7 @@ std::optional<StaticField> Resolver::Query(Index<StaticField> id)
 
 std::optional<InstanceField> Resolver::QueryIndexedElement(Type refType, uint32_t idx)
 {
-    auto term = refType.term;
+    auto term        = refType.term;
     auto optTypeInfo = refType.GetTypeInfo();
     if (!optTypeInfo.has_value()) {
         return std::nullopt;
@@ -643,9 +643,9 @@ std::optional<InstanceField> Resolver::QueryIndexedElement(Type refType, uint32_
     switch (term.GetKind()) {
         case TermKind::TUPLE: {
             ASSERT(idx < term.GetLength());
-            auto typeInfo       = *optTypeInfo;
-            auto offset         = RTSupport::Execution::GetFieldOffset(typeInfo, idx, false);
-            auto fieldType      = Type(term.Subterm(idx), this);
+            auto typeInfo                = *optTypeInfo;
+            auto offset                  = RTSupport::Execution::GetFieldOffset(typeInfo, idx, false);
+            auto fieldType               = Type(term.Subterm(idx), this);
             InstanceField::Content field = {
                 .refType   = refType,
                 .name      = "",
@@ -658,9 +658,9 @@ std::optional<InstanceField> Resolver::QueryIndexedElement(Type refType, uint32_
         case TermKind::VARRAY: {
             VArrayTermId id = static_cast<VArrayTermId>(term.GetId());
             ASSERT(idx < id.GetNum());
-            auto elemType = term.Subterm(0);
-            auto fieldType      = Type(elemType, this);
-            auto size = fieldType.GetAlignedFlatSize();
+            auto elemType  = term.Subterm(0);
+            auto fieldType = Type(elemType, this);
+            auto size      = fieldType.GetAlignedFlatSize();
             if (!size.has_value()) {
                 Interpretation::Log::preparation.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
                     out << "Unknown size at index " << idx << " for type " << fieldType << Stream::endl;
@@ -676,6 +676,7 @@ std::optional<InstanceField> Resolver::QueryIndexedElement(Type refType, uint32_
             };
             return InstanceField { session.Allocator().New<InstanceField::Content>(field) };
         }
+        default: FATAL("Unexpected kind %d", term.GetKind());
     }
     return std::nullopt;
 }
@@ -684,14 +685,15 @@ std::optional<Type> Resolver::QueryElement(Type refType)
 {
     auto term = refType.term;
     switch (term.GetKind()) {
-        case TermKind::CANGJIE_ARRAY: 
-        case TermKind::VARRAY: {
+        case TermKind::CANGJIE_ARRAY:
+        case TermKind::VARRAY:        {
             auto optTypeInfo = refType.GetTypeInfo();
             if (!optTypeInfo.has_value()) {
                 return std::nullopt;
             }
             return Type(term.Subterm(0), this);
         }
+        default: FATAL("Unexpected kind %d", term.GetKind());
     }
     return std::nullopt;
 }

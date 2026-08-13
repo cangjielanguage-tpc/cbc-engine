@@ -181,7 +181,7 @@ struct FLManager : public FieldLayoutManager {
     }
 
     /// The aligned size of a field of given type.
-    std::optional<uint32_t> GetAlignedFlatSize(Term term)
+    std::optional<uint32_t> GetAlignedFlatSize(Term term) override
     {
         auto size = GetFlatSize(term);
         if (!size.has_value()) {
