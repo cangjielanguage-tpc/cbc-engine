@@ -1489,13 +1489,8 @@ struct IsaRewriter : public IsaParser {
         }
 
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
-        switch (arrayType.term.GetKind())
-        {
-        case Engine::TermKind::CANGJIE_ARRAY:
+        if (arrayType.term.GetKind() == Engine::TermKind::CANGJIE_ARRAY) {
             msr.emit.Offset(RTSupport::MetaInfo::ArrayBodyOffset());
-            break;
-        default:
-            break;
         }
         msr.emit.OffsetRegIdx(reg, *size);
         msr.lastFieldKind = elemType.GetKind();
