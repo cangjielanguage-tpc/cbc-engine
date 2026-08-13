@@ -9,6 +9,10 @@
 #include "symlevel/io/random_access_file.h"
 #include "utils/heap.h"
 
+namespace Decode {
+struct Decoder;
+};
+
 namespace Engine {
 
 class Loader;
@@ -56,13 +60,17 @@ public:
     Symlevel::CbcFile& CbcFileOf(IO::FileId fileId) const;
     std::tuple<Symlevel::CbcFile&, IO::RandomAccessFile&> File(IO::FileId fileId) const;
 
-    Session(Engine& engine) : engine(engine), arena() {}
+    Session(Engine& engine);
+    ~Session();
 
     Engine& GetEngine() const { return engine; }
 
     Arena& Allocator();
 
+    Decode::Decoder& Decoder() const { return *decoder; }
+
 private:
+    Decode::Decoder* decoder;
     Arena arena;
     Engine& engine;
 };

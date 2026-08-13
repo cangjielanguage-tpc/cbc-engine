@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/identifiers.h"
+#include "engine/symlevel/member_index.h"
 #include "engine/symlevel/version_metadata.h"
 #include "io/file_id.h"
 #include "io/stream_file_reader.h"
@@ -22,7 +23,6 @@ class MethodReference;
 class FieldReference;
 
 // metadata
-class TypeIndex;
 class RegionData;
 class Dependencies;
 

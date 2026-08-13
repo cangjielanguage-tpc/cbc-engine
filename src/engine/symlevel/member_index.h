@@ -1,13 +1,7 @@
 #pragma once
 
-#include "engine/engine.h"
-#include "engine/identifiers.h"
-#include "engine/symlevel/offset.h"
-#include "engine/symlevel/reader.h"
-#include "utils/iterators.h"
+#include "engine/symlevel/io/file_id.h"
 #include <cstdint>
-#include <optional>
-#include <string_view>
 
 namespace Symlevel {
 
@@ -15,7 +9,59 @@ class TypeDefinition;
 class MethodDefinition;
 class FieldDefinition;
 
-struct MemberIndex {
+/**
+ * @brief Bucket-based hash table of file entities which can be accessed by enitity name.
+ *
+ * Let's say we have @c memberCount members in index which can be split to @c bucketCount buckets
+ * by some hash-function. We store @c bucketTable, each element of which is @c start index
+ * of corresponding bucket. The @c buckets themselves are ordered by indicies in the table
+ * and stored flat in a single array.
+ *
+ * Note that if @c bucketTable(i) is @c start index of bucket then @c bucketTable(i+1)
+ * is @c end index of the same bucket exclusively.
+ *
+ * For completness, we extend bucket table with additional element which holds @c buckets length.
+ *
+ * Examples:
+ * @code
+ * 1.
+ *      bucketTable: [0,  0,  1,  3,  4,  4,  6]
+ *      buckets:     [x0, x1, x2, x3, x4, x5]
+ *
+ *      bucket0 = ()
+ *      bucket1 = (x0)
+ *      bucket2 = (x1, x2)
+ *      bucket3 = (x3)
+ *      bucket4 = ()
+ *      bucket5 = (x4, x5)
+ *
+ * 2.
+ *      bucketTable: [0,  2,  2,  2,  3,  6,  6]
+ *      buckets:     [x0, x1, x2, x3, x4, x5]
+ *
+ *      bucket0 = (x0, x1)
+ *      bucket1 = ()
+ *      bucket2 = ()
+ *      bucket3 = (x2)
+ *      bucket4 = (x3, x4, x5)
+ *      bucket5 = ()
+ *
+ * 3.
+ *      bucketTable: [0,  1,  2,  3,  4,  5,  6]
+ *      buckets:     [x0, x1, x2, x3, x4, x5]
+ *
+ *      bucket0 = (x0)
+ *      bucket1 = (x1)
+ *      bucket2 = (x2)
+ *      bucket3 = (x3)
+ *      bucket4 = (x4)
+ *      bucket5 = (x5)
+ * @endcode
+ *
+ * Note that @c buckets length is @c memberCount
+ * Note that @c bucketTable length is @c bucketCount+1
+ */
+template <typename T> struct MemberIndex {
     IO::FileId fileId;
 
     uint32_t bucketTableStart;
@@ -24,87 +70,31 @@ struct MemberIndex {
     uint32_t bucketsStart;
     uint32_t bucketsSize;
 
-    struct Generator;
+    MemberIndex(
+        IO::FileId fileId,
+        uint32_t bucketTableStart,
+        uint32_t bucketTableSize,
+        uint32_t bucketsStart,
+        uint32_t bucketsSize
+    )
+        : fileId(fileId),
+          bucketTableStart(bucketTableStart),
+          bucketTableSize(bucketTableSize),
+          bucketsStart(bucketsStart),
+          bucketsSize(bucketsSize)
+    {}
 
-    MemberIndex::Generator AllEntries(Engine::Session& session) const;
-    MemberIndex::Generator FindBucket(Engine::Session& session, std::string_view name) const;
-    static MemberIndex Read(IO::FileId fileId, IO::StreamFileReader& reader);
+    MemberIndex(MemberIndex<void> const& index)
+        : fileId(index.fileId),
+          bucketTableStart(index.bucketTableStart),
+          bucketTableSize(index.bucketTableSize),
+          bucketsStart(index.bucketsStart),
+          bucketsSize(index.bucketsSize)
+    {}
 };
 
-struct MemberIndex::Generator {
-    MemberIndex index;
-    IO::RandomAccessFile* raf;
-    uint32_t cursor;
-    uint32_t endIdx;
-
-    std::optional<uint32_t> operator()();
-};
-
-template <typename T> class MemberIndexBase {
-public:
-    MemberIndex index;
-
-    MemberIndexBase(IO::StreamFileReader& reader, IO::FileId fileId) : index(MemberIndex::Read(fileId, reader)) {}
-
-    struct FilteredGenerator {
-        MemberIndex::Generator gen;
-        std::string_view name;
-        Engine::Session* session;
-
-        std::optional<Engine::Identifier<T>> operator()()
-        {
-            for (auto res = gen(); res; res = gen()) {
-                auto offs = Offset<T>(*res);
-                auto name = Reader::ReadName(*session, gen.index.fileId, offs);
-                if (this->name.compare(name) == 0) {
-                    return Engine::Identifier<T>(offs, gen.index.fileId);
-                }
-            }
-            return std::nullopt;
-        }
-    };
-
-    struct Generator {
-        MemberIndex::Generator gen;
-
-        std::optional<Engine::Identifier<T>> operator()()
-        {
-            auto res = gen();
-            if (res) {
-                return Engine::Identifier<T>(Offset<T>(*res), gen.index.fileId);
-            }
-            return std::nullopt;
-        }
-    };
-
-    using FilteredRange = Iterators::SimpleRange<FilteredGenerator>;
-    using Range         = Iterators::SimpleRange<Generator>;
-
-    std::optional<Engine::Identifier<T>> Find(Engine::Session& session, std::string_view name) const
-    {
-        FilteredGenerator gen { .gen = index.FindBucket(session, name), .name = name, .session = &session };
-        return gen();
-    }
-
-    FilteredRange FindAll(Engine::Session& session, std::string_view name) const
-    {
-        FilteredGenerator gen { .gen = index.FindBucket(session, name), .name = name, .session = &session };
-        return Iterators::MakeRange(std::move(gen));
-    }
-
-    Range Entries(Engine::Session& sesion) const
-    {
-        Generator gen { index.AllEntries(sesion) };
-        return Iterators::MakeRange(std::move(gen));
-    }
-};
-
-class TypeIndex : public MemberIndexBase<TypeDefinition> {
-public:
-    TypeIndex(IO::StreamFileReader& reader, IO::FileId fileId) : MemberIndexBase(reader, fileId) {}
-};
-
-using FieldIndex  = MemberIndexBase<FieldDefinition>;
-using MethodIndex = MemberIndexBase<MethodDefinition>;
+using TypeIndex   = MemberIndex<TypeDefinition>;
+using FieldIndex  = MemberIndex<FieldDefinition>;
+using MethodIndex = MemberIndex<MethodDefinition>;
 
 } // namespace Symlevel

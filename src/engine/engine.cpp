@@ -1,4 +1,5 @@
 #include "engine.h"
+#include "decode/decoder.h"
 #include "engine/method_table.h"
 #include "engine/statics_manager.h"
 #include "engine/terms.h"
@@ -57,6 +58,9 @@ public:
 
 /////////////////////////////////////////////////////////////////
 // Session implementation
+Session::Session(Engine& engine) : engine(engine), arena() { decoder = new Decode::Decoder(*this); }
+
+Session::~Session() { delete decoder; }
 
 std::unique_ptr<IO::RandomAccessFile>& Session::FileOf(IO::FileId fileId) const
 {
@@ -132,7 +136,7 @@ std::optional<CbcFile*> Engine::Impl::FindCbcFile(std::string_view filePath)
 std::optional<Identifier<Symlevel::TypeDefinition>> Engine::FindType(Session& session, std::string_view typeName)
 {
     for (auto& file : impl->files) {
-        auto res = file.GetTypeIndex().Find(session, typeName);
+        auto res = session.Decoder().Find(file.GetTypeIndex(), typeName);
         if (res.has_value()) {
             return res;
         }
@@ -152,14 +156,14 @@ std::optional<Identifier<MethodDefinition>> Engine::FindMethod(
         return std::nullopt;
     }
     auto f        = file.value();
-    auto declType = f->GetTypeIndex().Find(session, typeName);
+    auto declType = session.Decoder().Find(f->GetTypeIndex(), typeName);
     if (declType.has_value()) {
         auto type               = Symlevel::Reader::Read(session, declType.value());
         const auto& methodIndex = type.GetMethods();
 
         std::optional<Identifier<MethodDefinition>> result = std::nullopt;
         int mcount                                         = 0;
-        for (auto m : methodIndex.FindAll(session, methodName)) {
+        for (auto m : session.Decoder().FindBucket(methodIndex, methodName)) {
             mcount++;
             result = m;
         }

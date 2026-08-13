@@ -1,6 +1,8 @@
 #pragma once
 
-#include "engine/terms.h"
+namespace Engine {
+struct Term;
+}
 
 namespace Symlevel {
 using Term = Engine::Term;

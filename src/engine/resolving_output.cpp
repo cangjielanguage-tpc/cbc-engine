@@ -1,5 +1,6 @@
 #include "resolving_output.h"
 #include "cbc/isa_disasm.h"
+#include "engine/decode/decoder.h"
 #include "engine/engine.h"
 #include "engine/field_layout.h"
 #include "engine/identifiers.h"
@@ -116,12 +117,12 @@ ResolvingOutput& ResolvingOutput::operator<<(NoResolve<Symlevel::TypeDefinition>
     Region("method name: " + std::to_string(td.GetName().GetOffset()), [&]() {
         out << "super: " << td.GetSuperType() << endl;
         Region("fields", [&]() {
-            for (auto field : td.GetFields().Entries(session)) {
-                out << NoResolve(field) << endl;
+            for (auto id : Decoder().AllEntries(td.GetFields())) {
+                out << NoResolve(id) << endl;
             }
         });
         Region("methods", [&]() {
-            for (auto id : td.GetMethods().Entries(session)) {
+            for (auto id : Decoder().AllEntries(td.GetMethods())) {
                 out << NoResolve(id);
             }
         });
@@ -148,7 +149,7 @@ ResolvingOutput& ResolvingOutput::TypeDefinition(Symlevel::TypeDefinition const&
         });
 
         Region("fields", [&]() {
-            for (auto field : td.GetFields().Entries(session)) {
+            for (auto field : Decoder().AllEntries(td.GetFields())) {
                 out << Detailed(field) << endl;
             }
         });
@@ -160,7 +161,7 @@ ResolvingOutput& ResolvingOutput::TypeDefinition(Symlevel::TypeDefinition const&
         });
 
         Region("methods", [&]() {
-            for (auto id : td.GetMethods().Entries(session)) {
+            for (auto id : Decoder().AllEntries(td.GetMethods())) {
                 if (full) {
                     out << Full(id);
                 } else {
