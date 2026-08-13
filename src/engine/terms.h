@@ -107,7 +107,7 @@ public:
 protected:
     constexpr TermId(TermKind kind, uint64_t info) : kind(kind), info(info)
     {
-        ASSERT(info < (1lu << INFO_PART_BIT_SIZE));
+        ASSERT(info < (1llu << INFO_PART_BIT_SIZE));
     }
 
     uint64_t Raw() const { return Bits::Raw64(*this); }
