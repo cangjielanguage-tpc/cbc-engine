@@ -4,6 +4,7 @@
 
 #include "engine/symlevel/code.h"
 #include "engine/symlevel/definitions.h"
+#include "engine/symlevel/reader.h"
 #include "engine/terms.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
@@ -16,7 +17,7 @@ uint64_t engine_get_exception_handler(Interpretation::DynamicFunctionHandle* han
     auto bytecode     = handle->bytecode.load();
     auto offsetsIndex = bytecode->offsetsIndex;
 
-    auto methodDef = Symlevel::MethodDefinition::Resolve(session, handle->methodDef);
+    auto methodDef = Symlevel::Reader::Read(session, handle->methodDef);
     if (!methodDef.MethodCode().has_value()) {
         return EXC_HANDLER_FOUND;
     }
@@ -98,7 +99,7 @@ void FrameDescProvider(INT_FunctionHandle fuh, INT_BytecodePos pos, INT_Interpre
     Engine::Session session(Engine::GetEngineInstance());
     auto dynFuh = static_cast<const Interpretation::DynamicFunctionHandle*>(fuh);
 
-    auto methodDef = Symlevel::MethodDefinition::Resolve(session, dynFuh->methodDef);
+    auto methodDef = Symlevel::Reader::Read(session, dynFuh->methodDef);
     if (!methodDef.MethodCode().has_value()) {
         FATAL("Couldn't get method definition for stacktrace from FuH: %p", dynFuh);
         return;

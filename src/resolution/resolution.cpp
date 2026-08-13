@@ -284,7 +284,7 @@ struct ResolverProxy {
                         return std::nullopt;
                     }
 
-                    auto fieldDef = Symlevel::FieldDefinition::Resolve(resolver.session, fieldDefIdentOpt.value());
+                    auto fieldDef        = Symlevel::Reader::Read(resolver.session, fieldDefIdentOpt.value());
                     auto actualFieldType = TermManager::Resolve(resolver.session, fieldDef.FieldType());
                     if (ref.fieldType != actualFieldType) {
                         log.Stream(Logging::Level::ERROR)
