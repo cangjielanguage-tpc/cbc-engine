@@ -22,20 +22,6 @@ enum class EnumKind : uint8_t {
     PRIMITIVE,
 };
 
-class DefinitionsManager {
-public:
-    static DefinitionsManager& Of(Engine::Engine& engine);
-    DefinitionsManager();
-    DefinitionsManager(DefinitionsManager&& manager);
-    ~DefinitionsManager();
-
-private:
-    class Impl;
-    friend class Impl;
-
-    std::unique_ptr<Impl> impl;
-};
-
 class TypeDefinition {
 public:
     struct Content {

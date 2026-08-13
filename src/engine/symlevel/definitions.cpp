@@ -10,15 +10,6 @@
 
 namespace Symlevel {
 
-class DefinitionsManager::Impl {
-    // TODO: cache definitions
-};
-
-DefinitionsManager::DefinitionsManager() : impl(std::make_unique<DefinitionsManager::Impl>()) {}
-
-DefinitionsManager::DefinitionsManager(DefinitionsManager&& manager) = default;
-DefinitionsManager::~DefinitionsManager()                            = default;
-
 TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId, Offset<TypeDefinition> offset)
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetTypeDefSectionOffs() + offset);
