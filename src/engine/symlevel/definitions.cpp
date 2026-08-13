@@ -1,4 +1,5 @@
 #include "definitions.h"
+#include "engine/decode/decoder.h"
 #include "engine/identifiers.h"
 #include "engine/symlevel/access_kind.h"
 #include "engine/symlevel/flags.h"
@@ -19,10 +20,10 @@ TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId
     auto parsedFlags = reader.ReadU16();
     auto superType   = Engine::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
 
-    auto methodIndex = MethodIndex(reader, fileId);
+    auto methodIndex = Decode::ReadIndex(reader, fileId);
     auto dynMethods  = OffsetSequence<MethodDefinition>::Parse(reader, fileId);
 
-    auto fieldIndex     = FieldIndex(reader, fileId);
+    auto fieldIndex     = Decode::ReadIndex(reader, fileId);
     auto instanceFields = OffsetSequence<FieldDefinition>::Parse(reader, fileId);
 
     auto test = [parsedFlags](uint32_t bits) { return (parsedFlags & bits) != 0; };
