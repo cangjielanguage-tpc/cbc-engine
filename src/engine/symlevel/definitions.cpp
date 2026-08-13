@@ -209,6 +209,10 @@ MethodDefinition MethodDefinition::Parse(Engine::Session& session, IO::FileId fi
         flags = flags.Or(MethodFlag::HAS_THIS_TI);
     if (test(0x2000))
         flags = flags.Or(MethodFlag::HAS_OUTER_TI);
+    if (test(0x4000))
+        flags = flags.Or(MethodFlag::REC_RECEIVER);
+    if (test(0x8000))
+        flags = flags.Or(MethodFlag::REF_RECEIVER);
 
     MethodDefinition::Content def{ Engine::Identifier(offset, fileId), signature, typeNameOffset, nameOffset, flags};
 
@@ -240,6 +244,11 @@ MethodRefFlags MethodDefinition::GetABIFlags() const
         flags = flags.Or(MethodRefFlag::MUT);
     if (content.arity > 0)
         flags = flags.Or(MethodRefFlag::HAS_FTVARS);
+    if (defFlags.Is(MethodFlag::REC_RECEIVER))
+        flags = flags.Or(MethodRefFlag::REC_RECEIVER);
+    if (defFlags.Is(MethodFlag::REF_RECEIVER))
+        flags = flags.Or(MethodRefFlag::REF_RECEIVER);
+
     return flags;
 }
 

@@ -92,8 +92,20 @@ constexpr TermFlags::TermFlags(int flags)
       isReference((flags & F_REFERENCE) != 0),
       isAotPromoted((flags & F_AOT_PROMOTED) != 0),
       isGeneric((flags & F_GENERIC) != 0),
-      isFixedSize((flags & F_FST) != 0)
+      isFixedSize((flags & F_FST) != 0),
+      isRecord((flags & F_RECORD) != 0)
 {}
+
+TermFlags TermFlags::operator+=(TermFlags flags)
+{
+    isLocal       |= flags.isLocal;
+    isReference   |= flags.isReference;
+    isAotPromoted |= flags.isAotPromoted;
+    isGeneric     |= flags.isGeneric;
+    isFixedSize   |= flags.isFixedSize;
+    isRecord      |= flags.isRecord;
+    return *this;
+}
 
 struct BuiltinTerms {
     static constexpr size_t TV_COUNT   = 256;
@@ -140,7 +152,6 @@ struct BuiltinTerms {
             return seed                 = next;
         };
 
-        TermFlags primFlags = 0;
         TermFlags tvFlags   = F_REFERENCE | F_GENERIC;
 
         for (size_t i = 0; i < PRIM_COUNT; i++) {
@@ -149,7 +160,7 @@ struct BuiltinTerms {
             data->hash       = hash();
             data->length     = 0;
             data->identifier = TagTermId(kind);
-            data->flags      = primFlags;
+            data->flags      = kind == TermKind::UNIT ? F_RECORD : 0;
         }
 
         for (size_t i = 0; i < TV_COUNT; i++) {
@@ -195,6 +206,7 @@ Term Term::Definition(Session& session, Identifier<Symlevel::TypeDefinition> typ
     }
     TermFlags flags   = F_LOCAL;
     flags.isReference = !isRec;
+    flags.isRecord    = isRec;
     flags.isGeneric   = (arity > 0);
     data->InitAfterSubterms(TypeTermId(type), arity, flags);
     return LocalTerm(data);
@@ -481,6 +493,18 @@ GlobalTerm TermManager::Globalize(Term& term)
     return term.AsGlobal();
 }
 
+static int OptionFlags(RefIdentifier<Term> underlyingRef, Session& session, Substitution& sub)
+{
+    auto underlying = TermManager::Resolve(session, underlyingRef);
+
+    underlying = sub.Substitute(underlying);
+    auto kind  = underlying.GetKind();
+
+    // Option of nullable-option is not nullable-option.
+    bool canBeNullableOption = (kind == TermKind::TYPE || kind == TermKind::AOT_TYPE);
+    return canBeNullableOption && underlying.IsReference() ? F_REFERENCE : F_RECORD;
+}
+
 static bool IsProperTypeReference(Symlevel::TypeDefinition& def, bool isReference, int arity)
 {
     if ((def.GetFlags().Is(Symlevel::TypeKind::RECORD)) == isReference) {
@@ -507,6 +531,7 @@ Term TermManager::NewAotTerm(
     TermId id       = TagTermId(TermKind::NOTHING);
     TermFlags flags   = F_LOCAL;
     flags.isReference = isReference;
+    flags.isRecord    = !isReference;
     flags.isGeneric   = isGeneric;
 
     auto type = session.GetEngine().FindType(session, name);
@@ -537,6 +562,7 @@ static Term NewTermWithId(Session& session, TermId id, bool isReference, Term co
 
     TermFlags flags   = F_LOCAL;
     flags.isReference = isReference;
+    flags.isRecord    = !isReference;
     flags.isGeneric   = isGeneric;
     data->InitAfterSubterms(id, arity, flags);
     return Term(LocalTerm(data));
@@ -654,6 +680,7 @@ struct TermResolver {
 
         TermFlags flags     = F_LOCAL;
         flags.isReference   = isReference;
+        flags.isRecord      = !isReference;
         flags.isGeneric     = isGeneric;
         flags.isAotPromoted = wasAot;
 
@@ -683,8 +710,7 @@ struct TermResolver {
             default: {}
         }
 
-        bool undefined   = false;
-        bool isReference = false;
+        bool undefined = false;
         TermId id = TagTermId(TermKind::NIL);
         switch (tag) {
             case OPTION: {
@@ -713,19 +739,15 @@ struct TermResolver {
             return NewUndefined(refId);
         }
 
-        TermFlags flags   = F_LOCAL;
-        if (tag == OPTION) {
-            auto underlying = TermManager::Resolve(session, def.GetEnumType());
-            ClassSubstitution sub(session, data->subterms, expectedLength);
-            underlying = sub.Substitute(underlying);
-            auto kind  = underlying.GetKind();
-
-            // Option of nullable-option is not nullable-option.
-            bool canBeNullableOption = (kind == TermKind::TYPE || kind == TermKind::AOT_TYPE);
-            isReference = canBeNullableOption && underlying.IsReference();
+        TermFlags flags = F_LOCAL;
+        flags.isGeneric = isGeneric;
+        if (tag == UNION_ENUM) {
+            flags += F_RECORD;
         }
-        flags.isReference = isReference;
-        flags.isGeneric   = isGeneric;
+        if (tag == OPTION) {
+            ClassSubstitution sub(session, data->subterms, expectedLength);
+            flags += OptionFlags(def.GetEnumType(), session, sub);
+        }
 
         data->InitAfterSubterms(id, expectedLength, flags);
         return Term(LocalTerm(data));
@@ -755,6 +777,7 @@ struct TermResolver {
         }
         TermFlags flags   = F_LOCAL;
         flags.isReference = isReference;
+        flags.isRecord    = !flags.isReference;
         flags.isGeneric   = isGeneric;
         auto internedName = manager.InternString(name);
 
@@ -816,7 +839,7 @@ struct TermResolver {
             }
             case TUPLE: {
                 auto len   = reader.ReadULEB();
-                return NewTerm(reader, refId, TagTermId(TermKind::TUPLE), len, F_LOCAL);
+                return NewTerm(reader, refId, TagTermId(TermKind::TUPLE), len, F_LOCAL | F_RECORD);
             }
             case NULLABLE: {
                 return NewTerm(reader, refId, TagTermId(TermKind::NULLABLE), 1, F_LOCAL | F_REFERENCE);
@@ -899,6 +922,25 @@ Term TermManager::Resolve(Session& session, RefIdentifier<Term> ident)
 
 bool Term::IsReference() const { return data->flags.isReference; }
 
+static bool CheckIsRecord(TermKind kind, TermData* data)
+{
+    switch (kind) {
+        case TermKind::UNIT:
+        case TermKind::TUPLE:
+        case TermKind::UNION_ENUM: return true;
+        case TermKind::TYPE:
+        case TermKind::OPTION:
+        case TermKind::AOT_TYPE:   return !data->flags.isReference;
+        default:                   return false;
+    }
+}
+
+bool Term::IsRecord() const
+{
+    ASSERT(CheckIsRecord(GetKind(), data) == data->flags.isRecord);
+    return data->flags.isRecord;
+}
+
 bool Term::IsAotPromoted() const { return data->flags.isAotPromoted; }
 
 bool Term::IsGeneric() const { return data->flags.isGeneric; }
@@ -943,15 +985,8 @@ Term Substitution::Substitute(Term term)
         if (term.GetKind() == TermKind::OPTION) {
             auto id = ExtractTypeDefIdentifier(term);
             auto def = Symlevel::Reader::Read(session, id);
-            auto underlying = TermManager::Resolve(session, def.GetEnumType());
-
-            ClassSubstitution sub(session, newData->subterms, length);
-            underlying = sub.Substitute(underlying);
-            auto kind  = underlying.GetKind();
-
-            // Option of nullable-option is not nullable-option.
-            bool canBeNullableOption = (kind == TermKind::TYPE || kind == TermKind::AOT_TYPE);
-            flags.isReference = canBeNullableOption && underlying.IsReference();
+            ClassSubstitution sub(session, data->subterms, length);
+            flags += OptionFlags(def.GetEnumType(), session, sub);
         }
         flags.isLocal   = true;
         flags.isGeneric = isGeneric;

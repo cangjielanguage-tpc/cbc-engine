@@ -43,6 +43,10 @@ Code Code::Parse(Engine::Session& session, IO::FileId fileId, Offset<Code> offse
     uint32_t livenessInfoStart = reader.Position();
     reader.Advance(livenessInfoSize);
 
+    uint32_t stackPtrsInfoSize  = reader.ReadULEB();
+    uint32_t stackPtrsInfoStart = reader.Position();
+    reader.Advance(stackPtrsInfoSize);
+
     return Code(
         untypedSlotCount,
         stackAllocSigsCount,
@@ -55,7 +59,8 @@ Code Code::Parse(Engine::Session& session, IO::FileId fileId, Offset<Code> offse
         codeSize,
         codePtr,
         { fileId, exTableStart, exTableStart + exTableSize },
-        { fileId, livenessInfoStart, livenessInfoStart + livenessInfoSize }
+        { fileId, livenessInfoStart, livenessInfoStart + livenessInfoSize },
+        { fileId, stackPtrsInfoStart, stackPtrsInfoStart + stackPtrsInfoSize }
     );
 }
 
@@ -108,6 +113,31 @@ std::vector<LivenessInfo> Code::GetLivenessInfo(Engine::Session& session) const
     return livenessInfo;
 }
 
+std::vector<StackPtrsInfo> Code::GetStackPtrsInfo(Engine::Session& session) const
+{
+    IO::StreamFileReader reader(*session.FileOf(rawStackPtrsInfo.fileId), rawStackPtrsInfo.start);
+
+    std::vector<StackPtrsInfo> stackPtrsInfo;
+    while (reader.Position() < rawStackPtrsInfo.end) {
+        StackPtrsInfo info = {
+            .cbcPos = reader.ReadULEB(),
+        };
+
+        uint32_t resourcesN = reader.ReadULEB();
+        std::vector<uint32_t> resources;
+        resources.reserve(resourcesN);
+
+        for (uint32_t idx = 0; idx < resourcesN; idx++) {
+            resources.push_back(reader.ReadULEB());
+        }
+        info.resources = std::move(resources);
+
+        stackPtrsInfo.push_back(std::move(info));
+    }
+
+    return stackPtrsInfo;
+}
+
 void Code::Print(Engine::Session& session, Stream::Output& out)
 {
     using namespace Stream;
@@ -133,24 +163,29 @@ void Code::Print(Engine::Session& session, Stream::Output& out)
          << "maxCalleeStackArgsCount: " << maxCalleeStackArgsCount << endl;
 
     out2 << "ExceptionTable {" << endl;
-
-    for (auto& [start, end, target] : GetExceptionRegions(session)) {
+    for (const auto& [start, end, target] : GetExceptionRegions(session)) {
         out2 << "  [" << start << ", " << end << ") -> " << target << endl;
     }
-
     out2 << "}" << endl;
 
     out2 << "LivenessInfo {" << endl;
-
-    for (auto& li : GetLivenessInfo(session)) {
+    for (const auto& li : GetLivenessInfo(session)) {
         out4 << "cbcPos: " << li.cbcPos << ", regMask: " << li.regMask << ", ";
         Std::Vector::Print(out4, li.refSlotNums);
         out4 << ", ";
         Std::Vector::Print(out4, li.mutPairs);
         out4 << endl;
     }
-
     out2 << "}" << endl;
+
+    out2 << "StackPtrsInfo {" << endl;
+    for (const auto& spi : GetStackPtrsInfo(session)) {
+        out4 << "cbcPos: " << spi.cbcPos << ", ";
+        Std::Vector::Print(out4, spi.resources);
+        out4 << endl;
+    }
+    out2 << "}" << endl;
+
     out << "}" << endl;
 }
 

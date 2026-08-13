@@ -1698,17 +1698,19 @@ static std::optional<FrameLayout> makeFrameLayout(Symlevel::Code code, Resolver&
     return FrameLayout { std::move(typedOffset), std::move(typedSlotsInfo), untypedSlotsSize, frameSize };
 }
 
-static std::vector<Interpretation::PositionalInfo> CalculatePositionalGCInfo(
-    Engine::Session& session, const MethodCode& code, Emitter::Emitter const& emitter, std::vector<IsaRewriter::StatePoint> const& statePoints
+static std::vector<Interpretation::GCPositionalInfo> CalculatePositionalGCInfo(
+    Engine::Session& session,
+    const MethodCode& code,
+    Emitter::Emitter const& emitter,
+    std::vector<IsaRewriter::StatePoint> const& statePoints
 )
 {
     auto livenessInfo = code.GetLivenessInfo(session);
 
-    std::vector<Interpretation::PositionalInfo> posInfo;
+    std::vector<Interpretation::GCPositionalInfo> posInfo;
     posInfo.reserve(livenessInfo.size());
 
     std::unordered_map<ssize_t, Symlevel::LivenessInfo const&> infos;
-
     for (const auto& info : livenessInfo) {
         infos.insert({info.cbcPos, info});
     }
@@ -1741,6 +1743,48 @@ static std::vector<Interpretation::PositionalInfo> CalculatePositionalGCInfo(
             );
             posInfo.back().mutPairs.push_back(mutRes);
         }
+    }
+
+    return posInfo;
+}
+
+static std::vector<Interpretation::StackPtrsPositionalInfo> CalculateStackPtrsPositionalInfo(
+    Engine::Session& session,
+    const MethodCode& code,
+    Emitter::Emitter const& emitter,
+    std::vector<IsaRewriter::StatePoint> const& statePoints
+)
+{
+    auto stackPtrsInfo = code.GetStackPtrsInfo(session);
+
+    std::vector<Interpretation::StackPtrsPositionalInfo> posInfo;
+    posInfo.reserve(stackPtrsInfo.size());
+
+    // FIXME: the data must be stored in the format that is compact and fast to query.
+    std::unordered_map<ssize_t, Symlevel::StackPtrsInfo const&> infos;
+    for (const auto& info : stackPtrsInfo) {
+        infos.insert({ info.cbcPos, info });
+    }
+
+    for (auto& point : statePoints) {
+        auto originalPos  = point.originalPos;
+        auto rewrittenPos = emitter.LabelPosition(point.label);
+        auto it           = infos.find(originalPos);
+        if (it == infos.end()) {
+            // Stack ptrs info is collected for a subset of state points
+            continue;
+        } else if (rewrittenPos > UINT32_MAX) {
+            FATAL("Position too big");
+        }
+        auto& info = it->second;
+
+        Interpretation::StackPtrsPositionalInfo newInfo = { .rewrittenPos = (uint32_t)rewrittenPos, .resources = {} };
+
+        newInfo.resources.reserve(info.resources.size());
+        for (const auto& res : info.resources) {
+            newInfo.resources.push_back(Interpretation::Resource { .idx = res });
+        }
+        posInfo.emplace_back(std::move(newInfo));
     }
 
     return posInfo;
@@ -1784,6 +1828,22 @@ Interpretation::ExecBytecodeInfo Rewrite(
         FATAL("Rewriter failed: cannot rewrite code.");
     }
 
+    auto def     = Symlevel::Reader::Read(session, method);
+    auto flags   = def.GetABIFlags();
+    auto abiInfo = Interpretation::BuildAbiInfo(
+        session,
+        Engine::TermManager::Resolve(session, def.Signature()),
+        {
+            .isSRet            = flags.Is(Symlevel::MethodRefFlag::SRET),
+            .isMut             = flags.Is(Symlevel::MethodRefFlag::MUT),
+            .hasThisTypeInfo   = flags.Is(Symlevel::MethodRefFlag::HAS_THIS_TI),
+            .hasOuterTi        = flags.Is(Symlevel::MethodRefFlag::HAS_OUTER_TI),
+            .recordReceiver    = flags.Is(Symlevel::MethodRefFlag::REC_RECEIVER),
+            .referenceReceiver = flags.Is(Symlevel::MethodRefFlag::REF_RECEIVER),
+            .funcVars          = def->arity,
+        }
+    );
+
     auto rewrittenCode = emitter.Build(heap);
 
     return Interpretation::ExecBytecodeInfo {
@@ -1792,12 +1852,16 @@ Interpretation::ExecBytecodeInfo Rewrite(
         .savedFRegs       = Interpretation::NonVolatileRegs(code.UsedNonVolFRegMask() << FReg::FIRST_NON_VOL),
         .frameSize        = frameLayout->frameSize,
         .untypedSlotCount = static_cast<uint16_t>(code.UntypedSlotCount()),
+        .abiInfo          = std::move(abiInfo),
         .gcInfo =
             Interpretation::GcInfo {
                 .positionalInfo = std::move(CalculatePositionalGCInfo(session, code, emitter, rewriter.statePoints)),
                 .typedSlotsInfo = std::move((*frameLayout).typedSlotsInfo),
             },
-        .offsetsIndex = std::move(rewriter.BuildOffsetsIndex()),
+        .stackPtrsInfo =
+            Interpretation::StackPtrsInfo {
+                .positionalInfo = CalculateStackPtrsPositionalInfo(session, code, emitter, rewriter.statePoints) },
+        .offsetsIndex = rewriter.BuildOffsetsIndex(),
     };
 }
 

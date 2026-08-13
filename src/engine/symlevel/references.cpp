@@ -24,6 +24,10 @@ MethodReference ParseReference(Engine::Session& session, IO::FileId fileId, Offs
         flags = flags.Or(MethodRefFlag::MUT);
     if (parsedFlags & 0x10) flags = flags.Or(MethodRefFlag::HAS_FTVARS);
     if (parsedFlags & 0x20) flags = flags.Or(MethodRefFlag::AOT);
+    if (parsedFlags & 0x40)
+        flags = flags.Or(MethodRefFlag::REC_RECEIVER);
+    if (parsedFlags & 0x80)
+        flags = flags.Or(MethodRefFlag::REF_RECEIVER);
 
     static constexpr auto NIL_ID = RefId<Term>((uint16_t)Engine::TermKind::NIL);
 

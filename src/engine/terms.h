@@ -121,6 +121,7 @@ static constexpr int F_REFERENCE    = 0x2;
 static constexpr int F_AOT_PROMOTED = 0x4;
 static constexpr int F_GENERIC      = 0x8;
 static constexpr int F_FST          = 0x10;
+static constexpr int F_RECORD       = 0x20;
 
 struct TermFlags {
     uint32_t isLocal : 1;
@@ -128,9 +129,11 @@ struct TermFlags {
     uint32_t isAotPromoted : 1;
     uint32_t isGeneric : 1;
     uint32_t isFixedSize : 1;
+    uint32_t isRecord : 1;
 
     TermFlags() = delete;
     constexpr TermFlags(int flags);
+    TermFlags operator+=(TermFlags flags);
 };
 
 struct Term {
@@ -175,6 +178,7 @@ struct Term {
 
     Term Subterm(uint32_t i) const;
     bool IsReference() const;
+    bool IsRecord() const;
     bool IsAotPromoted() const;
     bool IsGeneric() const;
 
