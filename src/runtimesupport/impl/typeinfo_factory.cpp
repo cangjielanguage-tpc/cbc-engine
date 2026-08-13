@@ -250,7 +250,9 @@ struct TypeInfoBuilder {
                 isLambda    = true;
                 break;
             case Image::TypeKind::ENUM:
-                type        = TYPE_KIND_ENUM;
+                // Traceable enums are represented as references in CBC. The runtime uses TEMP_ENUM for this
+                // category: it preserves enum semantics while making TypeInfo::IsRef() return true.
+                type        = term.IsReference() ? TYPE_KIND_TEMP_ENUM : TYPE_KIND_ENUM;
                 needExtDefs = !isAot;
                 needFields  = true;
                 break;
@@ -742,7 +744,11 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
             if (builder.type != TYPE_KIND_TUPLE) {
                 ASSERT(tt->typeArgNum == typeArgsNum);
-                ASSERT(tt->type == builder.type);
+                // A generic enum template describes the declaration as ENUM, while a concrete
+                // reference-backed instantiation (for example Option<Class>) is represented as
+                // TEMP_ENUM. The remaining template metadata must still match exactly.
+                bool isSpecializedReferenceEnum = tt->type == TYPE_KIND_ENUM && builder.type == TYPE_KIND_TEMP_ENUM;
+                ASSERT(tt->type == builder.type || isSpecializedReferenceEnum);
                 ASSERT(tt->fieldNum == builder.fieldNum);
             }
 
