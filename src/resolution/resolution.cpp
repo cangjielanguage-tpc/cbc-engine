@@ -274,7 +274,7 @@ struct ResolverProxy {
                     static_assert(std::is_same_v<Field, StaticField>);
 
                     auto typeDefIdent = TypeTermId(ref.refType).GetIdentifier();
-                    auto typeDef      = Symlevel::TypeDefinition::Resolve(resolver.session, typeDefIdent);
+                    auto typeDef      = Symlevel::Reader::Read(resolver.session, typeDefIdent);
 
                     auto fieldDefIdentOpt = typeDef.GetFields().Find(resolver.session, ref.name);
                     if (!fieldDefIdentOpt.has_value()) {
@@ -504,7 +504,7 @@ struct ResolverProxy {
 
 
         auto termIdent = TypeTermId(ref.refType);
-        auto type      = Symlevel::TypeDefinition::Resolve(resolver.session, termIdent.GetIdentifier());
+        auto type      = Symlevel::Reader::Read(resolver.session, termIdent.GetIdentifier());
 
         // FIXME: search in hierarchy
         auto method = [&]() -> std::optional<Identifier<Symlevel::MethodDefinition>> {
