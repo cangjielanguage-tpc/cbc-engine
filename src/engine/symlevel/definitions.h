@@ -39,10 +39,6 @@ public:
         RefSequence<Term> unionFields {};
     };
 
-    static TypeDefinition Parse(Engine::Session& session, IO::FileId fileId, Offset<TypeDefinition> offset);
-    static TypeDefinition Resolve(Engine::Session& session, Engine::Identifier<TypeDefinition> identifier);
-    static String ParseName(Engine::Session& session, IO::FileId fileId, Offset<TypeDefinition> offset);
-
     Engine::Identifier<TypeDefinition> const GetIdentifier() { return content.identifier; }
 
     Engine::Identifier<String> const GetName() const { return content.name; }
@@ -78,11 +74,9 @@ public:
 
     Content const* operator*() const { return &content; }
 
-private:
     TypeDefinition(Content&& content) : content(content) {}
 
     Content content;
-    friend class Decode::Decoder;
 };
 
 class FieldDefinition {
@@ -93,9 +87,6 @@ public:
         Engine::RefIdentifier<Term> fieldType;
         FieldFlags flags;
     };
-    static FieldDefinition Parse(Engine::Session& session, IO::FileId fileId, Offset<FieldDefinition> offset);
-    static FieldDefinition Resolve(Engine::Session& session, Engine::Identifier<FieldDefinition> identifier);
-    static String ParseName(Engine::Session& session, IO::FileId fileId, Offset<FieldDefinition> offset);
 
     inline Engine::Identifier<String> GetName() const { return Engine::Identifier(content.nameOffset, content.identifier.GetFileId()); }
 
@@ -105,11 +96,9 @@ public:
 
     inline FieldFlags Flags() const { return content.flags; }
 
-private:
     FieldDefinition(Content&& content) : content(content) {}
 
     Content content;
-    friend class Decode::Decoder;
 };
 
 class MethodDefinition {
@@ -127,9 +116,6 @@ public:
         std::optional<Engine::Identifier<String>> sourceFullName = std::nullopt;
         std::optional<Engine::Identifier<String>> linkageName    = std::nullopt;
     };
-    static MethodDefinition Parse(Engine::Session& session, IO::FileId fileId, Offset<MethodDefinition> offset);
-    static MethodDefinition Resolve(Engine::Session& session, Engine::Identifier<MethodDefinition> identifier);
-    static String ParseName(Engine::Session& session, IO::FileId fileId, Offset<MethodDefinition> offset);
 
     inline Engine::Identifier<String> Name() const { return Engine::Identifier(content.nameOffset, content.identifier.GetFileId()); }
 
@@ -158,11 +144,9 @@ public:
 
     Content const* operator->() const { return &content; }
 
-private:
     MethodDefinition(Content&& content) : content(content) {}
 
     Content content;
-    friend class Decode::Decoder;
 };
 
 } // namespace Symlevel
