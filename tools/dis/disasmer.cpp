@@ -59,35 +59,28 @@ void Disasmer::RData(RegionData const& rd, uint8_t regionNum)
 {
     auto& raf = session.FileOf(currentFile->Id());
     Region("methods: ", [&]() {
-        auto mrefs = rd.MethodReferencesOffsets().RefIds();
-        for (auto refid : mrefs) {
-            auto idx = RefIdentifier(refid, currentFile->Id());
-            auto ref = MethodReference::Parse(session, idx);
+        for (auto refid : rd.methods) {
+            auto ref = Reader::Read(session, refid);
 
-            io << refid << " - " << Detailed(ref.refType) << "." << Detailed(ref.name) << Detailed(ref.methodSig) << ' '
-               << ref.flags << endl;
+            io << refid.GetIndex() << " - " << Detailed(ref.refType) << "." << Detailed(ref.name)
+               << Detailed(ref.methodSig) << ' ' << ref.flags << endl;
         }
     });
 
     Region("terms: ", [&]() {
-        auto terms = rd.TermsOffsets().RefIds();
-        for (auto refid : terms) {
-            auto newrefid = RefId<Term>(refid);
-            auto termIdx  = RefIdentifier(newrefid, currentFile->Id());
-            auto term     = TermManager::Resolve(session, termIdx);
+        for (auto refid : rd.terms) {
+            auto term = TermManager::Resolve(session, refid);
 
-            io << newrefid << " - " << term << endl;
+            io << refid.GetIndex() << " - " << term << endl;
         }
     });
 
     Region("fields: ", [&]() {
-        auto frefs = rd.FieldReferencesOffsets().RefIds();
-        for (auto refid : frefs) {
-            auto idx = RefIdentifier(refid, currentFile->Id());
-            auto ref = FieldReference::Parse(session, idx);
+        for (auto refid : rd.fields) {
+            auto ref = Reader::Read(session, refid);
 
-            io << refid << " - " << Detailed(ref.refType) << "." << Detailed(ref.name) << " " << Detailed(ref.fieldType)
-               << endl;
+            io << refid.GetIndex() << " - " << Detailed(ref.refType) << "." << Detailed(ref.name) << " "
+               << Detailed(ref.fieldType) << endl;
         }
     });
 }

@@ -15,6 +15,7 @@
 #include "utils/iterators.h"
 #include "utils/ostream.h"
 #include <alloca.h>
+#include <cassert>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -805,7 +806,12 @@ struct TermResolver {
         if (refId < FIRST_NON_PRIMITIVE) {
             return Term::Predefined(TermKind(refId.GetValue()));
         }
-        auto offset = regionData.Query(session, refId);
+
+        auto pool  = file.GetRegionData().template ErasedPool<Term>();
+        auto index = refId - pool.adjustment;
+        assert(index < pool.size);
+
+        auto offset = raf.ReadU32(pool.offset + index * sizeof(uint32_t));
         IO::StreamFileReader reader(raf, file.GetTermSectionOffs() + offset);
 
         auto tag = static_cast<Tag>(reader.ReadU8());

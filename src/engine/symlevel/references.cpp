@@ -1,5 +1,7 @@
 #include "references.h"
+#include "engine/identifiers.h"
 #include "engine/symlevel/flags.h"
+#include "engine/symlevel/reader.h"
 #include "engine/terms.h"
 #include "io/stream_file_reader.h"
 #include "region_data.h"
@@ -7,9 +9,12 @@
 
 namespace Symlevel {
 
-MethodReference ParseReference(Engine::Session& session, IO::FileId fileId, Offset<MethodReference> offset)
+template <> MethodReference Reader::Read(Engine::Session& session, Engine::Identifier<MethodReference> id)
 {
-    IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetMethodRefSectionOffs() + offset);
+    auto fileId = id.GetFileId();
+    IO::StreamFileReader reader(
+        *session.FileOf(fileId), session.CbcFileOf(fileId).GetMethodRefSectionOffs() + id.GetOffset()
+    );
 
     auto nameOffset   = Engine::Identifier<String>(Offset<String>(reader.ReadU32()), fileId);
     auto parsedFlags  = reader.ReadU8();
@@ -39,9 +44,12 @@ MethodReference ParseReference(Engine::Session& session, IO::FileId fileId, Offs
     return { nameOffset, refTypeIdx, methodSigIdx, tvars, flags };
 }
 
-FieldReference ParseReference(Engine::Session& session, IO::FileId fileId, Offset<FieldReference> offset)
+template <> FieldReference Reader::Read(Engine::Session& session, Engine::Identifier<FieldReference> id)
 {
-    IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetFieldRefSectionOffs() + offset);
+    auto fileId = id.GetFileId();
+    IO::StreamFileReader reader(
+        *session.FileOf(fileId), session.CbcFileOf(fileId).GetFieldRefSectionOffs() + id.GetOffset()
+    );
 
     auto nameOffset   = Engine::Identifier<String>(Offset<String>(reader.ReadU32()), fileId);
     auto refTypeIdx   = Engine::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
@@ -55,19 +63,15 @@ FieldReference ParseReference(Engine::Session& session, IO::FileId fileId, Offse
 template <typename Reference>
 inline static Reference ParseReference(Engine::Session& session, Engine::RefIdentifier<Reference> identifier)
 {
-    auto& file       = session.CbcFileOf(identifier.GetFileId());
-    auto& raf        = session.FileOf(identifier.GetFileId());
-    auto& regionData = file.GetRegionData();
-    auto offset      = regionData.Query(session, identifier.GetIndex());
-    return ParseReference(session, identifier.GetFileId(), offset);
+    return Reader::Read(session, session.Decoder().Resolve(identifier));
 }
 
-MethodReference MethodReference::Parse(Engine::Session& session, Engine::RefIdentifier<MethodReference> identifier)
+MethodReference Reader::Read(Engine::Session& session, Engine::RefIdentifier<MethodReference> identifier)
 {
     return ParseReference(session, identifier);
 }
 
-FieldReference FieldReference::Parse(Engine::Session& session, Engine::RefIdentifier<FieldReference> identifier)
+FieldReference Reader::Read(Engine::Session& session, Engine::RefIdentifier<FieldReference> identifier)
 {
     return ParseReference(session, identifier);
 }
