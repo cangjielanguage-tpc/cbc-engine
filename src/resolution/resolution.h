@@ -233,6 +233,8 @@ struct Resolver {
     CbcTypeKind GetKind(Type type);
     std::optional<uint32_t> GetFlatSize(Type type);
 
+    Decode::Decoder& Decoder() { return session.Decoder(); }
+
     template <typename T> using Cache = std::unordered_map<int, typename T::Content*>;
 
     Engine::Session& session;
