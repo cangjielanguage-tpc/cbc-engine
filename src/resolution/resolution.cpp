@@ -319,7 +319,7 @@ struct ResolverProxy {
         Session& session, TermManager& manager, RefIdentifier<Symlevel::MethodReference> identifier
     )
     {
-        auto parsedRef = Symlevel::MethodReference::Parse(session, identifier);
+        auto parsedRef = Symlevel::Reader::Read(session, identifier);
         auto refType   = manager.Resolve(session, parsedRef.refType);
         auto name      = Symlevel::Reader::Read(session, parsedRef.name);
         auto signature = manager.Resolve(session, parsedRef.methodSig);
@@ -355,7 +355,7 @@ struct ResolverProxy {
         Session& session, TermManager& manager, RefIdentifier<Symlevel::FieldReference> identifier
     )
     {
-        auto parsedRef = Symlevel::FieldReference::Parse(session, identifier);
+        auto parsedRef = Symlevel::Reader::Read(session, identifier);
         auto refType   = manager.Resolve(session, parsedRef.refType);
         auto name      = Symlevel::Reader::Read(session, parsedRef.name);
         auto fieldType = manager.Resolve(session, parsedRef.fieldType);

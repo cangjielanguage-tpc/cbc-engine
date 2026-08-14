@@ -3,6 +3,7 @@
 #include "engine/decode/decoder.h"
 #include "engine/engine.h"
 #include "engine/symlevel/code.h"
+#include "engine/symlevel/references.h"
 #include "engine/symlevel/sequence.h"
 #include "io/file_id.h"
 #include "offset.h"
@@ -35,6 +36,9 @@ public:
         reader.Advance(size);
         return OffsetSequence<T>(file, startPos, endPos);
     }
+
+    static MethodReference Read(Engine::Session& session, Engine::RefIdentifier<MethodReference> id);
+    static FieldReference Read(Engine::Session& session, Engine::RefIdentifier<FieldReference> id);
 };
 
 } // namespace Symlevel

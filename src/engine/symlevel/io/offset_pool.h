@@ -1,51 +1,50 @@
 #pragma once
 
+#include "engine/identifiers.h"
 #include "engine/symlevel/index.h"
-#include "engine/symlevel/io/random_access_file.h"
-#include "engine/symlevel/offset.h"
-#include "stream_file_reader.h"
-#include "utils/iterators.h"
+#include "engine/symlevel/io/file_id.h"
 #include <cstdint>
-#include <optional>
 
 namespace IO {
 
-template <typename T, uint32_t adjustment = 0> class OffsetPool {
-    struct OffsetGenerator {
-        OffsetPool<T, adjustment> const& op;
-        uint32_t cursor;
+struct ErasedOffsetPool {
+    IO::FileId file;
+    uint32_t offset;
+    uint32_t size;
+    uint32_t adjustment;
+};
 
-        std::optional<Symlevel::RefId<T>> operator()()
+template <typename T, uint32_t adjustment = 0> struct OffsetPool {
+    static constexpr uint32_t ADJUSTMENT = adjustment;
+
+    struct RefIdIterator {
+        IO::FileId file;
+        uint32_t id;
+
+        Engine::RefIdentifier<T> operator*() const
         {
-            if (cursor < op.size) {
-                return Symlevel::RefId<T>(adjustment + cursor++);
-            } else {
-                return std::nullopt;
-            }
+            return Engine::RefIdentifier<T>(Symlevel::RefId<T>(id + adjustment), file);
         }
+
+        RefIdIterator& operator++()
+        {
+            id++;
+            return *this;
+        }
+
+        bool operator!=(RefIdIterator const& another) const { return id != another.id; }
     };
 
-public:
-    OffsetPool(uint32_t offset, uint32_t size) : offset(offset), size(size) {}
+    OffsetPool(IO::FileId file, uint32_t offset, uint32_t size) : file(file), offset(offset), size(size) {}
 
-    Symlevel::Offset<T> QueryOffset(RandomAccessFile& file, uint32_t index) const
-    {
-        uint32_t idx = index - adjustment;
-        ASSERT(idx < size);
+    RefIdIterator begin() const { return RefIdIterator { file, 0 }; }
 
-        uint32_t offs = offset + idx * sizeof(uint32_t);
-        return Symlevel::Offset<T>(IO::StreamFileReader(file, offs).ReadU32());
-    }
+    RefIdIterator end() const { return RefIdIterator { file, size }; }
 
-    Iterators::SimpleRange<OffsetGenerator> RefIds() const
-    {
-        return Iterators::MakeRange(OffsetGenerator {
-            .op     = *this,
-            .cursor = 0,
-        });
-    }
+    ErasedOffsetPool Erased() const { return { file, offset, size, adjustment }; }
 
 private:
+    IO::FileId file;
     uint32_t offset;
     uint32_t size;
 };
