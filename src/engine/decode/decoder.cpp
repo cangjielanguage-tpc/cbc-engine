@@ -42,7 +42,7 @@ template <> struct Hash<uint32_t> {
     uint64_t operator()(uint32_t name) { return name; }
 };
 
-static uint32_t ReadAt(IO::RandomAccessFile* raf, uint32_t offs) { return IO::StreamFileReader(raf, offs).ReadU32(); }
+static uint32_t ReadAt(IO::RandomAccessFile* raf, uint32_t offs) { return raf->ReadU32(offs); }
 
 // ------------------ Decoder ------------------
 

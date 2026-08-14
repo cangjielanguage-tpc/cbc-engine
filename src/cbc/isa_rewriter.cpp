@@ -995,7 +995,7 @@ struct IsaRewriter : public IsaParser {
         auto typeDef   = Symlevel::Reader::Read(resolver.session, typeDefId);
 
         int idx = 0;
-        for (auto methodId : typeDef.GetVirtualMethods().Values(resolver.session)) {
+        for (auto methodId : resolver.Decoder().Resolve(typeDef.GetVirtualMethods())) {
             if (idx++ == 1) {
                 auto method = Symlevel::Reader::Read(resolver.session, methodId);
                 auto sret   = method.GetFlags().Is(Symlevel::MethodFlag::SRET);
