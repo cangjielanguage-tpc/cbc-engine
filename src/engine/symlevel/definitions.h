@@ -1,6 +1,5 @@
 #pragma once
 
-#include "engine/engine.h"
 #include "engine/identifiers.h"
 #include "engine/symlevel/flags.h"
 #include "engine/symlevel/sequence.h"
@@ -9,7 +8,6 @@
 #include "offset.h"
 #include "string.h"
 #include "term.h"
-#include "utils/assertion.h"
 #include <cstdint>
 
 namespace Symlevel {
