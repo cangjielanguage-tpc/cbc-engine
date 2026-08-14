@@ -1746,7 +1746,7 @@ static std::vector<Interpretation::GCPositionalInfo> CalculatePositionalGCInfo(
     std::vector<IsaRewriter::StatePoint> const& statePoints
 )
 {
-    auto livenessInfo = code.GetLivenessInfo(session);
+    auto livenessInfo = Symlevel::Reader::GetLivenessInfo(session, code);
 
     std::vector<Interpretation::GCPositionalInfo> posInfo;
     posInfo.reserve(livenessInfo.size());
@@ -1796,7 +1796,7 @@ static std::vector<Interpretation::StackPtrsPositionalInfo> CalculateStackPtrsPo
     std::vector<IsaRewriter::StatePoint> const& statePoints
 )
 {
-    auto stackPtrsInfo = code.GetStackPtrsInfo(session);
+    auto stackPtrsInfo = Symlevel::Reader::GetStackPtrsInfo(session, code);
 
     std::vector<Interpretation::StackPtrsPositionalInfo> posInfo;
     posInfo.reserve(stackPtrsInfo.size());
@@ -1919,7 +1919,8 @@ Interpretation::ExecBytecodeInfo Rewrite(
 
     Interpretation::Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
         Descripted desc(out, Descriptor(session, method));
-        code.Print(session, out);
+        ResolvingOutput resolving(session, desc);
+        resolving << code;
         Disasm(desc, code, &resolver);
     });
 

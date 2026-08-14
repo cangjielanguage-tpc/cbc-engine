@@ -65,6 +65,58 @@ ResolvingOutput& ResolvingOutput::operator<<(NoResolve<Symlevel::FieldDefinition
     return out;
 }
 
+ResolvingOutput& ResolvingOutput::operator<<(Symlevel::Code const& code)
+{
+    using namespace Stream;
+    Stream::Indented out2(out, 2);
+    Stream::Indented out4(out, 4);
+
+    out << "MethodCode {" << endl;
+    out2 << "untypedSlotCount: " << code.untypedSlotCount << endl
+         << "stackAllocSigsCount: " << code.stackAllocSigsCount << endl
+         << "stackAllocSigs: ";
+
+    for (size_t i = 0; i < code.stackAllocSigsCount; i++) {
+        out2 << code.stackAllocSigs[i];
+        if (i < (code.stackAllocSigsCount - 1)) {
+            out2 << ", ";
+        }
+    }
+    out2 << endl;
+
+    out2 << "ohmSlotCount: " << code.ohmSlotCount << endl
+         << "usedNonVolIRegMask: " << code.usedNonVolIRegMask << endl
+         << "usedNonVolFRegMask: " << code.usedNonVolFRegMask << endl
+         << "maxCalleeStackArgsCount: " << code.maxCalleeStackArgsCount << endl;
+
+    out2 << "ExceptionTable {" << endl;
+    for (const auto& [start, end, target] : Symlevel::Reader::GetExceptionRegions(session, code)) {
+        out2 << "  [" << start << ", " << end << ") -> " << target << endl;
+    }
+    out2 << "}" << endl;
+
+    out2 << "LivenessInfo {" << endl;
+    for (const auto& li : Symlevel::Reader::GetLivenessInfo(session, code)) {
+        out4 << "cbcPos: " << li.cbcPos << ", regMask: " << li.regMask << ", ";
+        Std::Vector::Print(out4, li.refSlotNums);
+        out4 << ", ";
+        Std::Vector::Print(out4, li.mutPairs);
+        out4 << endl;
+    }
+    out2 << "}" << endl;
+
+    out2 << "StackPtrsInfo {" << endl;
+    for (const auto& spi : Symlevel::Reader::GetStackPtrsInfo(session, code)) {
+        out4 << "cbcPos: " << spi.cbcPos << ", ";
+        Std::Vector::Print(out4, spi.resources);
+        out4 << endl;
+    }
+    out2 << "}" << endl;
+
+    out << "}" << endl;
+    return *this;
+}
+
 ResolvingOutput& ResolvingOutput::operator<<(Full<Symlevel::MethodDefinition> full)
 {
     auto& md      = full.value;
@@ -87,7 +139,7 @@ ResolvingOutput& ResolvingOutput::operator<<(Full<Symlevel::MethodDefinition> fu
         if (auto codeOpt = md.MethodCode()) {
             Region("code", [&]() {
                 auto code = Symlevel::Reader::Read(session, md.FileId(), codeOpt->GetOffset());
-                code.Print(session, out.out);
+                out << code;
                 Cbc::Disasm(ResolvingOutput::out, code, &resolver);
             });
         }

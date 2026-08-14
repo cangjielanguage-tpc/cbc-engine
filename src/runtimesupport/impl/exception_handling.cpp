@@ -34,7 +34,7 @@ uint64_t engine_get_exception_handler(Interpretation::DynamicFunctionHandle* han
 
     auto exPos      = bcPos - 1;
     auto methodCode = Symlevel::Reader::Read(session, methodDef.MethodCode().value());
-    auto regions    = methodCode.GetExceptionRegions(session);
+    auto regions    = Symlevel::Reader::GetExceptionRegions(session, methodCode);
     auto it         = std::find_if(regions.begin(), regions.end(), [&](const Symlevel::ExceptionRegion& region) {
         auto regStart = offsetsIndex.FindMappedOffset(Cbc::InstructionType::CBC, region.start);
         auto regEnd   = offsetsIndex.FindMappedOffset(Cbc::InstructionType::CBC, region.end);
