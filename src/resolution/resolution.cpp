@@ -517,7 +517,7 @@ struct ResolverProxy {
                 }
             }
 
-            for (auto m : type.GetVirtualMethods().Values(resolver.session)) {
+            for (auto m : resolver.Decoder().Resolve(type.GetVirtualMethods())) {
                 auto def = Symlevel::Reader::Read(resolver.session, m);
                 auto sig = TermManager::Resolve(resolver.session, def.Signature());
                 if (sig == ref.signature) {

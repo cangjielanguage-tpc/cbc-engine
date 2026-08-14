@@ -180,7 +180,7 @@ ResolvingOutput& ResolvingOutput::operator<<(NoResolve<Symlevel::TypeDefinition>
         });
         Region("virtual methods", [&]() {
             auto vms = td.GetVirtualMethods();
-            for (auto ident : vms.Values(session)) {
+            for (auto ident : Decoder().Resolve(vms)) {
                 out << NoResolve(ident);
             }
         });
@@ -195,7 +195,7 @@ ResolvingOutput& ResolvingOutput::TypeDefinition(Symlevel::TypeDefinition const&
         out << "super: " << Detailed(td.GetSuperType()) << endl;
 
         Region("interfaces", [&]() {
-            for (auto id : td.GetInterfaces().Values(session)) {
+            for (auto id : session.Decoder().Resolve(td.GetInterfaces())) {
                 out << Detailed(id) << endl;
             }
         });
@@ -207,7 +207,7 @@ ResolvingOutput& ResolvingOutput::TypeDefinition(Symlevel::TypeDefinition const&
         });
 
         Region("instance fields", [&]() {
-            for (auto id : td.GetInstanceFields().Values(session)) {
+            for (auto id : Decoder().Resolve(td.GetInstanceFields())) {
                 out << Detailed(id) << endl;
             }
         });
@@ -224,7 +224,7 @@ ResolvingOutput& ResolvingOutput::TypeDefinition(Symlevel::TypeDefinition const&
 
         Region("virtual methods", [&]() {
             auto vms = td.GetVirtualMethods();
-            for (auto ident : vms.Values(session)) {
+            for (auto ident : Decoder().Resolve(vms)) {
                 if (full) {
                     out << Full(ident);
                 } else {

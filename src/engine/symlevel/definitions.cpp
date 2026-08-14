@@ -21,10 +21,10 @@ template <> TypeDefinition Reader::Read(Engine::Session& session, IO::FileId fil
     auto superType   = Engine::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
 
     auto methodIndex = Decode::ReadIndex(reader, fileId);
-    auto dynMethods  = OffsetSequence<MethodDefinition>::Parse(reader, fileId);
+    auto dynMethods  = Reader::ReadOffsSeq<MethodDefinition>(reader, fileId);
 
     auto fieldIndex     = Decode::ReadIndex(reader, fileId);
-    auto instanceFields = OffsetSequence<FieldDefinition>::Parse(reader, fileId);
+    auto instanceFields = Reader::ReadOffsSeq<FieldDefinition>(reader, fileId);
 
     auto test = [parsedFlags](uint32_t bits) { return (parsedFlags & bits) != 0; };
 
@@ -68,10 +68,10 @@ template <> TypeDefinition Reader::Read(Engine::Session& session, IO::FileId fil
 
     for (auto tag = reader.ReadU8(); tag != 0; tag = reader.ReadU8()) {
         switch (tag) {
-            case 0x1: def.interfaces = RefSequence<Term>::Parse(reader, fileId); break;
+            case 0x1: def.interfaces = Reader::ReadRefSeq<Term>(reader, fileId); break;
             case 0x5: def.arity = reader.ReadULEB(); break; // TODO: check range
             case 0x6:
-                def.unionFields = RefSequence<Term>::Parse(reader, fileId);
+                def.unionFields = Reader::ReadRefSeq<Term>(reader, fileId);
                 def.enumKind = EnumKind::UNION;
                 break;
             case 0x7: def.enumKind = EnumKind::OPTION0; break;
@@ -203,7 +203,7 @@ template <> MethodDefinition Reader::Read(Engine::Session& session, IO::FileId f
         }
     }
 
-    return def;
+    return MethodDefinition(std::move(def));
 }
 
 MethodRefFlags MethodDefinition::GetABIFlags() const
