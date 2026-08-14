@@ -34,13 +34,13 @@ Decoder::Decoder(Engine::Session& session) : session(session) {}
 
 template <typename T> HashTableRange<T> Decoder::AllEntries(Symlevel::MemberIndex<T> const& index)
 {
-    return HashTableRange<T>(this, index.fileId, 0, index.bucketsSize);
+    return HashTableRange<T>(this, index.fileId, index.bucketsStart, index.bucketsStart + sizeof(uint32_t) * index.bucketsSize);
 }
 
 template <typename T> Bucket<T> Decoder::FindBucket(Symlevel::MemberIndex<T> const& index, std::string_view name)
 {
     if (index.bucketsSize == 0) {
-        return Bucket(HashTableRange<T>(this, index.fileId, 0, index.bucketsSize), name);
+        return Bucket(HashTableRange<T>(this, index.fileId, 0, 0), name);
     }
 
     auto [_, raf] = session.File(index.fileId);
@@ -53,8 +53,8 @@ template <typename T> Bucket<T> Decoder::FindBucket(Symlevel::MemberIndex<T> con
     auto bucketStartOffs = index.bucketTableStart + startIdx * step;
     auto bucketEndOffs   = index.bucketTableStart + (startIdx + 1) * step;
 
-    auto dataStartOffs = step * ReadAt(&raf, bucketStartOffs);
-    auto dataEndOffs   = step * ReadAt(&raf, bucketEndOffs);
+    auto dataStartOffs = index.bucketsStart + step * ReadAt(&raf, bucketStartOffs);
+    auto dataEndOffs   = index.bucketsStart + step * ReadAt(&raf, bucketEndOffs);
 
     ASSERT(dataStartOffs <= dataEndOffs);
     return Bucket(HashTableRange<T>(this, index.fileId, dataStartOffs, dataEndOffs), name);
