@@ -1,4 +1,4 @@
-#include "code.h"
+#include "interpreter/code.h"
 #include "interpreter/ectype.h"
 #include "platform_traits.h"
 #include "utils/assertion.h"

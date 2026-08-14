@@ -1,6 +1,4 @@
-#include "region_data.h"
 #include "engine/symlevel/io/file_id.h"
-#include "engine/symlevel/term.h"
 #include "engine/terms.h"
 #include "io/stream_file_reader.h"
 
@@ -24,17 +22,17 @@ RegionData RegionData::Read(IO::FileId fileId, IO::RandomAccessFile& file, uint3
     uint32_t termIndexSize = reader.ReadULEB();
     uint32_t termIndexOffs = reader.ReadU32();
 
-    IO::OffsetPool<MethodReference> methods(fileId, methodIndexOffs, methodIndexSize);
-    IO::OffsetPool<FieldReference> fields(fileId, fieldIndexOffs, fieldIndexSize);
-    IO::OffsetPool<Term, Engine::FIRST_NON_PRIMITIVE> terms(fileId, termIndexOffs, termIndexSize);
+    OffsetPool<MethodReference> methods(fileId, methodIndexOffs, methodIndexSize);
+    OffsetPool<FieldReference> fields(fileId, fieldIndexOffs, fieldIndexSize);
+    OffsetPool<Term, Engine::FIRST_NON_PRIMITIVE> terms(fileId, termIndexOffs, termIndexSize);
 
     return RegionData(methods, fields, terms);
 }
 
 RegionData::RegionData(
-    IO::OffsetPool<MethodReference> methods,
-    IO::OffsetPool<FieldReference> fields,
-    IO::OffsetPool<Term, Engine::FIRST_NON_PRIMITIVE> terms
+    OffsetPool<MethodReference> methods,
+    OffsetPool<FieldReference> fields,
+    OffsetPool<Term, Engine::FIRST_NON_PRIMITIVE> terms
 )
     : methods(methods),
       fields(fields),

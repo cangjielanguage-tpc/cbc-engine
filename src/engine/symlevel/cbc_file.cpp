@@ -1,11 +1,8 @@
 #include "cbc_file.h"
 
-#include "aot_table.h"
 #include "dependencies.h"
 #include "engine/decode/decoder.h"
 #include "io/stream_file_reader.h"
-#include "member_index.h"
-#include "region_data.h"
 #include "version_metadata.h"
 
 namespace Symlevel {
@@ -22,7 +19,7 @@ struct CbcFile::Impl {
     InstanceFieldAotTable instanceFieldAotTable;
 
     Dependencies dependencies;
-    std::optional<Engine::Identifier<String>> mainTypeName;
+    std::optional<Identifier<String>> mainTypeName;
 
     uint32_t poolOffset;
     IO::FileId id;
@@ -73,9 +70,9 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
     auto regionOffset = reader.ReadU32();
 
     auto mainType    = reader.ReadS32();
-    std::optional<Engine::Identifier<String>> mainTypeName = std::nullopt;
+    std::optional<Identifier<String>> mainTypeName = std::nullopt;
     if (mainType >= 0) {
-        mainTypeName = Engine::Identifier(Offset<String>(mainType), fileId);
+        mainTypeName = Identifier(Offset<String>(mainType), fileId);
     }
 
     auto cbcDeps     = reader.ReadS32();
@@ -141,7 +138,7 @@ const TypeIndex& CbcFile::GetTypeIndex() const { return impl->typeIndex; }
 
 const Dependencies& CbcFile::GetDependencies() const { return impl->dependencies; }
 
-const std::optional<Engine::Identifier<String>> CbcFile::GetMainTypeName() const { return impl->mainTypeName; }
+const std::optional<Identifier<String>> CbcFile::GetMainTypeName() const { return impl->mainTypeName; }
 
 const DirectCallAotTable& CbcFile::GetDirectCallAotTable() const { return impl->directCallAotTable; }
 

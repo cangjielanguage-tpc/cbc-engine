@@ -5,7 +5,6 @@
 
 #include "io/file_id.h"
 #include "io/random_access_file.h"
-#include "string.h"
 
 using LibHandle   = void*;
 using AotCodeAddr = void*;

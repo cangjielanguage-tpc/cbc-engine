@@ -50,7 +50,7 @@ struct FunctionHandle {
 
 /// Function handle of cbc-provided function.
 struct DynamicFunctionHandle {
-    DynamicFunctionHandle(I2Call i2Call, C2Call c2call, Engine::Identifier<Symlevel::MethodDefinition> methodDef)
+    DynamicFunctionHandle(I2Call i2Call, C2Call c2call, Symlevel::Identifier<Symlevel::MethodDefinition> methodDef)
         : base(i2Call),
           c2call(c2call),
           bytecode(nullptr),
@@ -68,7 +68,7 @@ struct DynamicFunctionHandle {
     std::atomic<ExecBytecodeInfo*> bytecode;
     std::mutex lock;
 
-    Engine::Identifier<Symlevel::MethodDefinition> const methodDef;
+    Symlevel::Identifier<Symlevel::MethodDefinition> const methodDef;
 };
 
 /// Represents AOT compiled function.
@@ -91,9 +91,9 @@ public:
     ~FunctionHandleManager();
 
     /// Acquires an FunctionHandle for given method definition.
-    FunctionHandle* Acquire(Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> methodDef);
+    FunctionHandle* Acquire(Engine::Session& session, Symlevel::Identifier<Symlevel::MethodDefinition> methodDef);
     TaggedFunctionHandle AcquireTagged(
-        Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> methodDef
+        Engine::Session& session, Symlevel::Identifier<Symlevel::MethodDefinition> methodDef
     );
 
     /// Performs lazy initialization of a DynamicFunctionHandle.

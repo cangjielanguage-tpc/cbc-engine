@@ -6,9 +6,7 @@
 #include "engine/typeinfo_manager.h"
 #include "interpreter/function_handle.h"
 #include "symlevel/cbc_file.h"
-#include "symlevel/definitions.h"
 #include "symlevel/io/stream_file_reader.h"
-#include "symlevel/member_index.h"
 #include "symlevel/reader.h"
 #include "utils/heap.h"
 #include <memory>

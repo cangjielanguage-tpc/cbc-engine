@@ -1,25 +1,23 @@
-#include "references.h"
 #include "engine/identifiers.h"
 #include "engine/symlevel/flags.h"
 #include "engine/symlevel/reader.h"
 #include "engine/terms.h"
 #include "io/stream_file_reader.h"
-#include "region_data.h"
 #include <cstdint>
 
 namespace Symlevel {
 
-template <> MethodReference Reader::Read(Engine::Session& session, Engine::Identifier<MethodReference> id)
+template <> MethodReference Reader::Read(Engine::Session& session, Identifier<MethodReference> id)
 {
     auto fileId = id.GetFileId();
     IO::StreamFileReader reader(
         *session.FileOf(fileId), session.CbcFileOf(fileId).GetMethodRefSectionOffs() + id.GetOffset()
     );
 
-    auto nameOffset   = Engine::Identifier<String>(Offset<String>(reader.ReadU32()), fileId);
+    auto nameOffset   = Identifier<String>(Offset<String>(reader.ReadU32()), fileId);
     auto parsedFlags  = reader.ReadU8();
-    auto refTypeIdx   = Engine::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
-    auto methodSigIdx = Engine::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
+    auto refTypeIdx   = RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
+    auto methodSigIdx = RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
 
     MethodRefFlags flags;
     if (parsedFlags & 0x1) flags = flags.Or(MethodRefFlag::SRET);
@@ -36,24 +34,24 @@ template <> MethodReference Reader::Read(Engine::Session& session, Engine::Ident
 
     static constexpr auto NIL_ID = RefId<Term>((uint16_t)Engine::TermKind::NIL);
 
-    Engine::RefIdentifier<Term> tvars(NIL_ID, fileId);
+    RefIdentifier<Term> tvars(NIL_ID, fileId);
     if (flags.Is(MethodRefFlag::HAS_FTVARS)) {
-        tvars = Engine::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
+        tvars = RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
     }
 
     return { nameOffset, refTypeIdx, methodSigIdx, tvars, flags };
 }
 
-template <> FieldReference Reader::Read(Engine::Session& session, Engine::Identifier<FieldReference> id)
+template <> FieldReference Reader::Read(Engine::Session& session, Identifier<FieldReference> id)
 {
     auto fileId = id.GetFileId();
     IO::StreamFileReader reader(
         *session.FileOf(fileId), session.CbcFileOf(fileId).GetFieldRefSectionOffs() + id.GetOffset()
     );
 
-    auto nameOffset   = Engine::Identifier<String>(Offset<String>(reader.ReadU32()), fileId);
-    auto refTypeIdx   = Engine::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
-    auto fieldTypeIdx = Engine::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
+    auto nameOffset   = Identifier<String>(Offset<String>(reader.ReadU32()), fileId);
+    auto refTypeIdx   = RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
+    auto fieldTypeIdx = RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
 
     auto isRecord = reader.ReadU8() != 0;
 
@@ -61,17 +59,17 @@ template <> FieldReference Reader::Read(Engine::Session& session, Engine::Identi
 }
 
 template <typename Reference>
-inline static Reference ParseReference(Engine::Session& session, Engine::RefIdentifier<Reference> identifier)
+inline static Reference ParseReference(Engine::Session& session, RefIdentifier<Reference> identifier)
 {
     return Reader::Read(session, session.Decoder().Resolve(identifier));
 }
 
-MethodReference Reader::Read(Engine::Session& session, Engine::RefIdentifier<MethodReference> identifier)
+MethodReference Reader::Read(Engine::Session& session, RefIdentifier<MethodReference> identifier)
 {
     return ParseReference(session, identifier);
 }
 
-FieldReference Reader::Read(Engine::Session& session, Engine::RefIdentifier<FieldReference> identifier)
+FieldReference Reader::Read(Engine::Session& session, RefIdentifier<FieldReference> identifier)
 {
     return ParseReference(session, identifier);
 }

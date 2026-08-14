@@ -2,18 +2,14 @@
 
 #include "engine/decode/decoder.h"
 #include "engine/engine.h"
-#include "engine/symlevel/code.h"
-#include "engine/symlevel/references.h"
-#include "engine/symlevel/sequence.h"
 #include "io/file_id.h"
-#include "offset.h"
 
 namespace Symlevel {
 
 class Reader {
 public:
     template <typename T> static T Read(Engine::Session& session, IO::FileId fileId, Offset<T> offset);
-    template <typename T> static T Read(Engine::Session& session, Engine::Identifier<T> id);
+    template <typename T> static T Read(Engine::Session& session, Symlevel::Identifier<T> id);
 
     static std::vector<ExceptionRegion> GetExceptionRegions(Engine::Session& session, Code const& code);
     static std::vector<LivenessInfo> GetLivenessInfo(Engine::Session& session, Code const& code);
@@ -37,8 +33,8 @@ public:
         return OffsetSequence<T>(file, startPos, endPos);
     }
 
-    static MethodReference Read(Engine::Session& session, Engine::RefIdentifier<MethodReference> id);
-    static FieldReference Read(Engine::Session& session, Engine::RefIdentifier<FieldReference> id);
+    static MethodReference Read(Engine::Session& session, Symlevel::RefIdentifier<MethodReference> id);
+    static FieldReference Read(Engine::Session& session, Symlevel::RefIdentifier<FieldReference> id);
 };
 
 } // namespace Symlevel
