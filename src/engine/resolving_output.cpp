@@ -86,7 +86,7 @@ ResolvingOutput& ResolvingOutput::operator<<(Full<Symlevel::MethodDefinition> fu
         }
         if (auto codeOpt = md.MethodCode()) {
             Region("code", [&]() {
-                auto code = Symlevel::Code::Parse(session, md.FileId(), codeOpt->GetOffset());
+                auto code = Symlevel::Reader::Read(session, md.FileId(), codeOpt->GetOffset());
                 code.Print(session, out.out);
                 Cbc::Disasm(ResolvingOutput::out, code, &resolver);
             });

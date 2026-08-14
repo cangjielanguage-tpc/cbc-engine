@@ -58,7 +58,7 @@ SlotKind ComputeSlotKind(Session& session, FieldLayoutManager& flm, Symlevel::Fi
 uintptr_t StaticFieldsBundle::GetLocation(Session& session, TypeIdent typeIdent, FieldIdent fieldIdent)
 {
     auto typeDef  = Symlevel::Reader::Read(session, typeIdent);
-    auto fieldDef = Symlevel::FieldDefinition::Resolve(session, fieldIdent);
+    auto fieldDef = Symlevel::Reader::Read(session, fieldIdent);
 
     auto flm                 = FieldLayoutManager::New(session);
     auto targetKind          = ComputeSlotKind(session, *flm, fieldDef);

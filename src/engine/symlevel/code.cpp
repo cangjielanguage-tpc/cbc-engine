@@ -1,14 +1,10 @@
 #include "code.h"
+#include "engine/symlevel/reader.h"
 #include "utils/misc.h"
 
 namespace Symlevel {
 
-Code Code::Resolve(Engine::Session& session, Engine::Identifier<Code> identifier)
-{
-    return Parse(session, identifier.GetFileId(), identifier.GetOffset());
-}
-
-Code Code::Parse(Engine::Session& session, IO::FileId fileId, Offset<Code> offset)
+template <> Code Reader::Read(Engine::Session& session, IO::FileId fileId, Offset<Code> offset)
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetCodeSectionOffs() + offset);
 
@@ -62,6 +58,11 @@ Code Code::Parse(Engine::Session& session, IO::FileId fileId, Offset<Code> offse
         { fileId, livenessInfoStart, livenessInfoStart + livenessInfoSize },
         { fileId, stackPtrsInfoStart, stackPtrsInfoStart + stackPtrsInfoSize }
     );
+}
+
+template <> Code Reader::Read(Engine::Session& session, Engine::Identifier<Code> identifier)
+{
+    return Reader::Read(session, identifier.GetFileId(), identifier.GetOffset());
 }
 
 std::vector<ExceptionRegion> Code::GetExceptionRegions(Engine::Session& session) const

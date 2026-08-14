@@ -2,6 +2,7 @@
 
 #include "cbc/isa.h"
 #include "engine/engine.h"
+#include "engine/symlevel/reader.h"
 #include "utils/ostream.h"
 
 namespace Symlevel {
@@ -33,10 +34,6 @@ struct StackPtrsInfo {
 
 class Code {
 public:
-    static Code Resolve(Engine::Session& session, Engine::Identifier<Code> identifier);
-
-    static Code Parse(Engine::Session& session, IO::FileId fileId, Offset<Code> offset);
-
     static Code Mock(uint8_t* codePtr, uint32_t codeSize) { return Code(codePtr, codeSize); }
 
     uint8_t* CodePtr() { return codePtr; }
@@ -61,7 +58,6 @@ public:
 
     void Print(Engine::Session& session, Stream::Output& out);
 
-private:
     Code(uint8_t* codePtr, uint32_t codeSize) : codePtr(codePtr), codeSize(codeSize) {}
 
     Code(
@@ -94,6 +90,7 @@ private:
           rawStackPtrsInfo(rawStackPtrsInfo)
     {}
 
+private:
     uint32_t untypedSlotCount    = 0;
     uint32_t stackAllocSigsCount = 0;
     uint32_t ohmSlotCount        = 0;
