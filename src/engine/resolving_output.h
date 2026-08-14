@@ -62,6 +62,7 @@ public:
     ResolvingOutput& operator<<(Symlevel::TypeDefinition const& md);
     ResolvingOutput& operator<<(Full<Symlevel::TypeDefinition> td);
     ResolvingOutput& operator<<(NoResolve<Symlevel::TypeDefinition> td);
+    ResolvingOutput& operator<<(Symlevel::Code const& code);
 
     template <typename T> ResolvingOutput& operator<<(Engine::Identifier<T> id)
     {
