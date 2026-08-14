@@ -437,7 +437,8 @@ private:
 
         SizeAlignmentAccumulator acc { this, layout.desc.size, layout.desc.alignment };
 
-        for (auto fieldId : session.Decoder().Resolve(def.GetInstanceFields())) {
+        auto seq = session.Decoder().Resolve(def.GetInstanceFields());
+        for (auto fieldId : seq) {
             auto def       = Symlevel::Reader::Read(session, fieldId);
             auto fieldType = TermManager::Resolve(session, def.FieldType());
             fieldType      = substitute(fieldType);

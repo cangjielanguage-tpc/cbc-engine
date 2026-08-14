@@ -90,7 +90,8 @@ template <typename T> Bucket<T> Decoder::FindBucket(Symlevel::MemberIndex<T> con
 template <typename T>
 std::optional<Engine::Identifier<T>> Decoder::Find(Symlevel::MemberIndex<T> const& index, std::string_view name)
 {
-    for (auto value : FindBucket(index, name)) {
+    auto bucket = FindBucket(index, name);
+    for (auto value : bucket) {
         return value;
     }
     return std::nullopt;
@@ -181,7 +182,7 @@ Symlevel::InstanceFieldAotData Decoder::GetAotData<Symlevel::InstanceFieldAotDat
 )
 {
     auto [cbc, raf] = session.File(index.GetFileId());
-    auto id         = FindAotData(&raf, index.GetIndex(), &cbc.GetStaticFieldAotTable());
+    auto id         = FindAotData(&raf, index.GetIndex(), &cbc.GetInstanceFieldAotTable());
 
     // skip index
     IO::StreamFileReader reader(raf, OFFSET_ADJUSTMENT + id.GetOffset() + 4);
@@ -266,48 +267,33 @@ template <typename T> static void skipUntilEqualKey(typename Bucket<T>::Iterator
     while (it.cursor < it.bucket->range.endOffs) {
         auto offs = ReadAt(it.file, it.cursor);
         if (CompareName<T>(file, Symlevel::Offset<T>(offs), it.bucket->key)) {
+            it.value = offs;
             return;
         }
         it.cursor += sizeof(uint32_t);
     }
+    it.value = -1;
 }
 
 template <typename T> Bucket<T>::Bucket(HashTableRange<T> range, std::string_view key) : range(range), key(key) {}
 
 template <typename T> typename Bucket<T>::Iterator Bucket<T>::begin() const
 {
-    Bucket<T>::Iterator iterator { this, range.raf, range.startOffs };
+    Bucket<T>::Iterator iterator { this, range.raf, range.startOffs, -1 };
     skipUntilEqualKey<T>(iterator);
     return iterator;
 }
 
-template <typename T> typename Bucket<T>::Iterator Bucket<T>::end() const
-{
-    return { nullptr, nullptr, range.endOffs };
-}
-
 template <typename T> Engine::Identifier<T> Bucket<T>::Iterator::operator*() const
 {
-    auto offs = ReadAt(file, cursor);
-    return Engine::Identifier<T>(Symlevel::Offset<T>(offs), bucket->range.file);
+    return Engine::Identifier<T>(Symlevel::Offset<T>(value), bucket->range.file);
 }
 
 template <typename T> typename Bucket<T>::Iterator& Bucket<T>::Iterator::operator++()
 {
     cursor += sizeof(uint32_t);
+    skipUntilEqualKey<T>(*this);
     return *this;
-}
-
-template <typename T> typename Bucket<T>::Iterator Bucket<T>::Iterator::operator++(int)
-{
-    auto res  = *this;
-    cursor   += sizeof(uint32_t);
-    return res;
-}
-
-template <typename T> bool Bucket<T>::Iterator::operator==(Bucket<T>::Iterator const& another) const
-{
-    return cursor == another.cursor;
 }
 
 // ------------------ Specializations ------------------

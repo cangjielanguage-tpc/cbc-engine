@@ -62,27 +62,23 @@ template <typename T> struct Bucket {
 
     Bucket(HashTableRange<T> range, std::string_view key);
 
+    struct Sentinel {};
+
     struct Iterator {
         Bucket const* bucket;
         IO::RandomAccessFile* file;
         uint32_t cursor;
+        long long value;
 
-        using iterator_category = std::input_iterator_tag;
-        using value_type        = Identifier<T>;
-        using difference_type   = std::ptrdiff_t;
-        using reference         = value_type;
-        using pointer           = void;
-
-        value_type operator*() const;
+        Identifier<T> operator*() const;
         Iterator& operator++();
-        Iterator operator++(int);
-        bool operator==(Iterator const&) const;
 
-        bool operator!=(Iterator const& another) const { return !(*this == another); }
+        bool operator!=(Sentinel) const { return value >= 0; }
     };
 
     Iterator begin() const;
-    Iterator end() const;
+
+    Sentinel end() const { return {}; }
 };
 
 template <typename T> struct RefSequence {
@@ -105,11 +101,15 @@ template <typename T> struct RefSequence {
 
         Iterator& operator++()
         {
-            value = reader.ReadULEB();
+            if (reader.Position() < endPos) {
+                value = reader.ReadULEB();
+            } else {
+                value = -1;
+            }
             return *this;
         }
 
-        bool operator!=(Sentinel) const { return reader.Position() != endPos; }
+        bool operator!=(Sentinel) const { return value >= 0; }
     };
 
     Iterator begin() const
@@ -145,11 +145,15 @@ template <typename T> struct OffsetSequence {
 
         Iterator& operator++()
         {
-            value = reader.ReadULEB();
+            if (reader.Position() < endPos) {
+                value = reader.ReadULEB();
+            } else {
+                value = -1;
+            }
             return *this;
         }
 
-        bool operator!=(Sentinel) const { return reader.Position() != endPos; }
+        bool operator!=(Sentinel) const { return value >= 0; }
     };
 
     Iterator begin() const
