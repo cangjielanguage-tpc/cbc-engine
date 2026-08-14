@@ -25,7 +25,7 @@ template <typename T> struct HashTableRange {
     uint32_t startOffs;
     uint32_t endOffs;
 
-    HashTableRange(IO::RandomAccessFile* decoder, IO::FileId file, uint32_t startOffs, uint32_t endOffs);
+    HashTableRange(IO::RandomAccessFile* raf, IO::FileId file, uint32_t startOffs, uint32_t endOffs);
 
     struct Iterator {
         IO::RandomAccessFile* file;

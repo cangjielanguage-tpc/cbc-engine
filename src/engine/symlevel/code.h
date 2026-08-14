@@ -1,9 +1,7 @@
 #pragma once
 
-#include "cbc/isa.h"
-#include "engine/engine.h"
-#include "engine/symlevel/reader.h"
-#include "utils/ostream.h"
+#include "engine/symlevel/io/file_id.h"
+#include <vector>
 
 namespace Symlevel {
 
@@ -50,14 +48,6 @@ public:
 
     uint8_t UsedNonVolFRegMask() { return usedNonVolFRegMask; }
 
-    std::vector<ExceptionRegion> GetExceptionRegions(Engine::Session& session) const;
-
-    std::vector<LivenessInfo> GetLivenessInfo(Engine::Session& session) const;
-
-    std::vector<StackPtrsInfo> GetStackPtrsInfo(Engine::Session& session) const;
-
-    void Print(Engine::Session& session, Stream::Output& out);
-
     Code(uint8_t* codePtr, uint32_t codeSize) : codePtr(codePtr), codeSize(codeSize) {}
 
     Code(
@@ -90,7 +80,6 @@ public:
           rawStackPtrsInfo(rawStackPtrsInfo)
     {}
 
-private:
     uint32_t untypedSlotCount    = 0;
     uint32_t stackAllocSigsCount = 0;
     uint32_t ohmSlotCount        = 0;
