@@ -261,12 +261,12 @@ template <typename T> void ResolvingOutput::Region(T name, std::function<void()>
 
 Symlevel::String ResolvingOutput::StringOf(Symlevel::Offset<Symlevel::String> str, IO::FileId fid)
 {
-    return Symlevel::String::Parse(session, fid, str);
+    return Symlevel::Reader::Read(session, fid, str);
 }
 
 Symlevel::String ResolvingOutput::StringOf(Engine::Identifier<Symlevel::String> str)
 {
-    return Symlevel::String::Parse(session, str);
+    return Symlevel::Reader::Read(session, str);
 }
 
 } // namespace Stream

@@ -25,4 +25,10 @@ public:
     }
 };
 
+template <> Symlevel::String Reader::Read<Symlevel::String>(Engine::Session& session, Engine::Identifier<String> id);
+template <>
+Symlevel::String Reader::Read<Symlevel::String>(
+    Engine::Session& session, IO::FileId fileId, Offset<Symlevel::String> offset
+);
+
 } // namespace Symlevel

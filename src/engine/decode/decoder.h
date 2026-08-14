@@ -3,29 +3,31 @@
 #include "engine/engine.h"
 #include "engine/identifiers.h"
 #include "engine/symlevel/io/file_id.h"
+#include "engine/symlevel/io/random_access_file.h"
 #include "engine/symlevel/member_index.h"
 #include "engine/symlevel/offset.h"
+#include "engine/symlevel/references.h"
 #include <cstdint>
 #include <string_view>
 
 namespace Decode {
 
 template <typename T> using Identifier = Engine::Identifier<T>;
+template <typename T> using RefIdentifier = Engine::RefIdentifier<T>;
 
 // MemberIndex and AotData table are encoded using same format.
 // This table consists of buckets, where each entry with the same hash
 // are stored in the same bucket.
 // So, any query must find a range, where it can traverse linearly further.
 template <typename T> struct HashTableRange {
-    struct Decoder* decoder;
+    IO::RandomAccessFile* raf;
     IO::FileId file;
     uint32_t startOffs;
     uint32_t endOffs;
 
-    HashTableRange(struct Decoder* decoder, IO::FileId file, uint32_t startOffs, uint32_t endOffs);
+    HashTableRange(IO::RandomAccessFile* decoder, IO::FileId file, uint32_t startOffs, uint32_t endOffs);
 
     struct Iterator {
-        struct Decoder* decoder;
         IO::RandomAccessFile* file;
         uint32_t cursor;
         IO::FileId fileId;
@@ -90,6 +92,9 @@ struct Decoder {
 
     template <typename T>
     std::optional<Identifier<T>> Find(Symlevel::MemberIndex<T> const& index, std::string_view name);
+
+    template <typename T> T GetAotData(RefIdentifier<Symlevel::MethodReference> index);
+    template <typename T> T GetAotData(RefIdentifier<Symlevel::FieldReference> index);
 };
 
 Symlevel::MemberIndex<void> ReadIndex(IO::StreamFileReader& reader, IO::FileId file);

@@ -1,8 +1,9 @@
 #include "string.h"
+#include "reader.h"
 
 namespace Symlevel {
 
-String String::Parse(Engine::Session& session, IO::FileId fileId, Offset<String> offset)
+template <> String Reader::Read(Engine::Session& session, IO::FileId fileId, Offset<String> offset)
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetStringSectionOffs() + offset);
 
@@ -12,9 +13,9 @@ String String::Parse(Engine::Session& session, IO::FileId fileId, Offset<String>
     return String(std::string_view(mem, size));
 }
 
-String String::Parse(Engine::Session& session, Engine::Identifier<String> ident)
+template <> String Reader::Read(Engine::Session& session, Engine::Identifier<String> ident)
 {
-    return Parse(session, ident.GetFileId(), ident.GetOffset());
+    return Reader::Read(session, ident.GetFileId(), ident.GetOffset());
 }
 
 } // namespace Symlevel
