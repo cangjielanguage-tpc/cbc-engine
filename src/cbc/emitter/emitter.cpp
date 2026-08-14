@@ -1011,6 +1011,11 @@ void Emitter::LoadTypeInfo(RTSupport::TypeInfo typeInfo)
 
 void Emitter::NewBox(Interpretation::BuiltinType t)
 {
+    if (t >= 16) {
+        NewBox(Interpretation::builtinTypeInfos[t]);
+        return;
+    }
+
     Encode(segment, RT::B2xr { .opc = RT::Opcode::NEWBOX, .xr = { .imm = t, .r = IReg::IRZ } });
 }
 
