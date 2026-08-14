@@ -4,7 +4,6 @@
 #include "cbc/isa_disasm.h"
 #include "cbc/isa_parser.h"
 #include "engine/engine.h"
-#include "engine/symlevel/definitions.h"
 #include "engine/symlevel/reader.h"
 #include "interpreter/function_handle.h"
 

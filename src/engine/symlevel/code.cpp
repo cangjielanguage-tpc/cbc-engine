@@ -1,4 +1,3 @@
-#include "code.h"
 #include "engine/symlevel/reader.h"
 #include "utils/misc.h"
 
@@ -60,7 +59,7 @@ template <> Code Reader::Read(Engine::Session& session, IO::FileId fileId, Offse
     );
 }
 
-template <> Code Reader::Read(Engine::Session& session, Engine::Identifier<Code> identifier)
+template <> Code Reader::Read(Engine::Session& session, Symlevel::Identifier<Code> identifier)
 {
     return Reader::Read(session, identifier.GetFileId(), identifier.GetOffset());
 }

@@ -8,8 +8,6 @@
 #include "cbc/isa_parser.h"
 #include "engine/engine.h"
 #include "engine/resolving_output.h"
-#include "engine/symlevel/code.h"
-#include "engine/symlevel/definitions.h"
 #include "engine/symlevel/flags.h"
 #include "engine/symlevel/io/file_id.h"
 #include "engine/symlevel/reader.h"
@@ -147,7 +145,7 @@ struct IsaRewriter : public IsaParser {
     IsaRewriter(
         Resolver& resolver,
         Engine::Session& session,
-        Engine::Identifier<Symlevel::MethodDefinition> method,
+        Symlevel::Identifier<Symlevel::MethodDefinition> method,
         MethodCode& code,
         FrameLayout frameLayout,
         Emitter::Emitter& emit
@@ -165,7 +163,7 @@ struct IsaRewriter : public IsaParser {
     {}
 
     Engine::Session& session;
-    Engine::Identifier<Symlevel::MethodDefinition> method;
+    Symlevel::Identifier<Symlevel::MethodDefinition> method;
     IO::FileId fileId;
     Resolver& resolver;
     MethodCode& code;
@@ -1790,7 +1788,7 @@ static std::vector<Interpretation::StackPtrsPositionalInfo> CalculateStackPtrsPo
     return posInfo;
 }
 
-static std::string Descriptor(Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> method)
+static std::string Descriptor(Engine::Session& session, Symlevel::Identifier<Symlevel::MethodDefinition> method)
 {
     Stream::StringBuffer buf;
     Stream::ResolvingOutput out(session, buf);
@@ -1803,7 +1801,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
     MethodCode& code,
     Resolver& resolver,
     Memory::Heap& heap,
-    Engine::Identifier<Symlevel::MethodDefinition> method
+    Symlevel::Identifier<Symlevel::MethodDefinition> method
 )
 {
     using namespace Stream;
@@ -1866,7 +1864,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
 }
 
 Interpretation::ExecBytecodeInfo Rewrite(
-    Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> method, Memory::Heap& heap
+    Engine::Session& session, Symlevel::Identifier<Symlevel::MethodDefinition> method, Memory::Heap& heap
 )
 {
     using namespace Stream;

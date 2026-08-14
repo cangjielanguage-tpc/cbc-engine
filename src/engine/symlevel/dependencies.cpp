@@ -1,4 +1,5 @@
 #include "dependencies.h"
+#include "cbc_file.h"
 #include "io/stream_file_reader.h"
 
 #include <algorithm>

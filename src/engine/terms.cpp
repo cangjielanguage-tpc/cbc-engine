@@ -3,11 +3,9 @@
 #include "engine/identifiers.h"
 #include "engine/resolving_output.h"
 #include "engine/symlevel/cbc_file.h"
-#include "engine/symlevel/definitions.h"
 #include "engine/symlevel/io/file_id.h"
 #include "engine/symlevel/io/stream_file_reader.h"
 #include "engine/symlevel/reader.h"
-#include "engine/symlevel/region_data.h"
 #include "engine/symlevel/type_kind.h"
 #include "string.h"
 #include "utils/assertion.h"
@@ -611,7 +609,10 @@ struct TermResolver {
     Symlevel::CbcFile& file;
     TermManager& manager;
 
-    Term NewUndefined(Symlevel::RefId<Term> refId) { return Undefined(session, RefIdentifier(refId, fileId)); }
+    Term NewUndefined(Symlevel::RefId<Term> refId)
+    {
+        return Undefined(session, Symlevel::RefIdentifier(refId, fileId));
+    }
 
     bool ReadSubTerms(TermData* data, bool* isGenericLoc, int length, IO::StreamFileReader& reader)
     {

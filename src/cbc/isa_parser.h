@@ -4,7 +4,6 @@
 
 #include "cbc/decoder.h"
 #include "cbc/isa.h"
-#include "engine/symlevel/code.h"
 #include "engine/terms.h"
 
 namespace Cbc {

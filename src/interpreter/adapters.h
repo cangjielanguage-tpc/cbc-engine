@@ -8,10 +8,10 @@ namespace Interpretation {
 void* GetDirectCallTrampoline(DynamicFunctionHandle* fuh);
 
 /// Returns appropriate I2Call adapter for given method.
-I2Call PrepareI2Call(Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> methodDef);
+I2Call PrepareI2Call(Engine::Session& session, Symlevel::Identifier<Symlevel::MethodDefinition> methodDef);
 
 /// Returns appropriate I2Call adapter for given method.
 /// Expects that method is dynamic (cbc).
-C2Call PrepareC2Call(Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> methodDef);
+C2Call PrepareC2Call(Engine::Session& session, Symlevel::Identifier<Symlevel::MethodDefinition> methodDef);
 
 } // namespace Interpretation

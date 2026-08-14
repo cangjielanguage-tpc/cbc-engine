@@ -5,8 +5,6 @@
 #include "engine/field_layout.h"
 #include "engine/identifiers.h"
 #include "engine/method_table.h"
-#include "engine/symlevel/code.h"
-#include "engine/symlevel/definitions.h"
 #include "engine/symlevel/io/file_id.h"
 #include "engine/symlevel/reader.h"
 #include "engine/terms.h"
@@ -35,7 +33,7 @@ ResolvingOutput& ResolvingOutput::operator<<(Engine::Term term)
     return *this;
 }
 
-ResolvingOutput& ResolvingOutput::operator<<(Detailed<Engine::RefIdentifier<Engine::Term>> term)
+ResolvingOutput& ResolvingOutput::operator<<(Detailed<Symlevel::RefIdentifier<Engine::Term>> term)
 {
     return *this << Engine::TermManager::Resolve(session, term.value);
 }
@@ -316,7 +314,7 @@ Symlevel::String ResolvingOutput::StringOf(Symlevel::Offset<Symlevel::String> st
     return Symlevel::Reader::Read(session, fid, str);
 }
 
-Symlevel::String ResolvingOutput::StringOf(Engine::Identifier<Symlevel::String> str)
+Symlevel::String ResolvingOutput::StringOf(Symlevel::Identifier<Symlevel::String> str)
 {
     return Symlevel::Reader::Read(session, str);
 }

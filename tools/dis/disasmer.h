@@ -2,8 +2,6 @@
 #include "engine/engine.h"
 #include "engine/resolving_output.h"
 #include "engine/symlevel/cbc_file.h"
-#include "engine/symlevel/definitions.h"
-#include "engine/symlevel/string.h"
 #include "engine/symlevel/version_metadata.h"
 #include "utils/ostream.h"
 #include <cstdint>
