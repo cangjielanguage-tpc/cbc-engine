@@ -2,13 +2,16 @@
 
 #include "engine/engine.h"
 #include "engine/identifiers.h"
+#include "engine/symlevel/cbc_file.h"
 #include "engine/symlevel/io/file_id.h"
+#include "engine/symlevel/io/offset_pool.h"
 #include "engine/symlevel/io/random_access_file.h"
 #include "engine/symlevel/io/stream_file_reader.h"
 #include "engine/symlevel/member_index.h"
 #include "engine/symlevel/offset.h"
 #include "engine/symlevel/references.h"
 #include "engine/symlevel/sequence.h"
+#include <cassert>
 #include <cstdint>
 #include <string_view>
 
@@ -186,6 +189,16 @@ struct Decoder {
     template <typename T> OffsetSequence<T> Resolve(Symlevel::OffsetSequence<T> seq)
     {
         return OffsetSequence<T>(seq, session.FileOf(seq.file).get());
+    }
+
+    template <typename T> Identifier<T> Resolve(RefIdentifier<T> id)
+    {
+        auto [file, raf] = session.File(id.GetFileId());
+        auto pool        = file.GetRegionData().template ErasedPool<T>();
+        auto index       = id.GetIndex() - pool.adjustment;
+        assert(index < pool.size);
+        uint32_t offset = raf.ReadU32(pool.offset + index * sizeof(uint32_t));
+        return Identifier<T>(Symlevel::Offset<T>(offset), id.GetFileId());
     }
 };
 
