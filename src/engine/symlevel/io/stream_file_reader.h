@@ -15,9 +15,9 @@ namespace IO {
  */
 class StreamFileReader {
 public:
-    StreamFileReader(RandomAccessFile& file, uint32_t position) : file(file), position(position) {}
+    StreamFileReader(RandomAccessFile& file, uint32_t position) : file(&file), position(position) {}
 
-    StreamFileReader(RandomAccessFile* file, uint32_t position) : file(*file), position(position) {}
+    StreamFileReader(RandomAccessFile* file, uint32_t position) : file(file), position(position) {}
 
     /**
      * @brief Returns current stream position.
@@ -33,11 +33,9 @@ public:
 
     void Read(char* array, uint32_t length)
     {
-        file.Read(array, position, length);
+        file->Read(array, position, length);
         position += length;
     }
-
-    size_t ReadPtr() { return ReadValue<size_t>(); }
 
     uint8_t ReadU8() { return ReadValue<uint8_t>(); }
 
@@ -56,7 +54,7 @@ public:
     int64_t ReadLongSLEB();
 
 private:
-    RandomAccessFile& file;
+    RandomAccessFile* file;
     uint32_t position;
 
     template <typename T> T ReadValue()

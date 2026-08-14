@@ -4,9 +4,11 @@
 #include "engine/identifiers.h"
 #include "engine/symlevel/io/file_id.h"
 #include "engine/symlevel/io/random_access_file.h"
+#include "engine/symlevel/io/stream_file_reader.h"
 #include "engine/symlevel/member_index.h"
 #include "engine/symlevel/offset.h"
 #include "engine/symlevel/references.h"
+#include "engine/symlevel/sequence.h"
 #include <cstdint>
 #include <string_view>
 
@@ -80,6 +82,86 @@ template <typename T> struct Bucket {
     Iterator end() const;
 };
 
+template <typename T> struct RefSequence {
+    Symlevel::RefSequence<T> seq;
+    IO::RandomAccessFile* file;
+
+    RefSequence(Symlevel::RefSequence<T> seq, IO::RandomAccessFile* file) : seq(seq), file(file) {}
+
+    RefSequence() : seq() {}
+
+    struct Sentinel {};
+
+    struct Iterator {
+        IO::StreamFileReader reader;
+        IO::FileId fileId;
+        uint32_t endPos;
+        long long value = -1;
+
+        RefIdentifier<T> operator*() const { return RefIdentifier<T>(Symlevel::RefId<T>(value), fileId); }
+
+        Iterator& operator++()
+        {
+            value = reader.ReadULEB();
+            return *this;
+        }
+
+        bool operator!=(Sentinel) const { return reader.Position() != endPos; }
+    };
+
+    Iterator begin() const
+    {
+        IO::StreamFileReader reader(file, seq.startPos);
+        long long value = -1;
+        if (seq.startPos != seq.endPos) {
+            value = reader.ReadULEB();
+        }
+        return Iterator { reader, seq.file, seq.endPos, value };
+    }
+
+    Sentinel end() const { return {}; }
+};
+
+template <typename T> struct OffsetSequence {
+    Symlevel::OffsetSequence<T> seq;
+    IO::RandomAccessFile* file;
+
+    OffsetSequence(Symlevel::OffsetSequence<T> seq, IO::RandomAccessFile* file) : seq(seq), file(file) {}
+
+    OffsetSequence() : seq() {}
+
+    struct Sentinel {};
+
+    struct Iterator {
+        IO::StreamFileReader reader;
+        IO::FileId fileId;
+        uint32_t endPos;
+        long long value = -1;
+
+        Identifier<T> operator*() const { return Identifier<T>(Symlevel::Offset<T>(value), fileId); }
+
+        Iterator& operator++()
+        {
+            value = reader.ReadULEB();
+            return *this;
+        }
+
+        bool operator!=(Sentinel) const { return reader.Position() != endPos; }
+    };
+
+    Iterator begin() const
+    {
+        IO::StreamFileReader reader(file, seq.startPos);
+        long long value = -1;
+        if (seq.startPos != seq.endPos) {
+            value = reader.ReadULEB();
+        }
+        return Iterator { reader, seq.file, seq.endPos, value };
+    }
+
+    Sentinel end() const { return {}; }
+};
+
 struct Decoder {
     Engine::Session& session;
 
@@ -95,6 +177,16 @@ struct Decoder {
 
     template <typename T> T GetAotData(RefIdentifier<Symlevel::MethodReference> index);
     template <typename T> T GetAotData(RefIdentifier<Symlevel::FieldReference> index);
+
+    template <typename T> RefSequence<T> Resolve(Symlevel::RefSequence<T> seq)
+    {
+        return RefSequence<T>(seq, session.FileOf(seq.file).get());
+    }
+
+    template <typename T> OffsetSequence<T> Resolve(Symlevel::OffsetSequence<T> seq)
+    {
+        return OffsetSequence<T>(seq, session.FileOf(seq.file).get());
+    }
 };
 
 Symlevel::MemberIndex<void> ReadIndex(IO::StreamFileReader& reader, IO::FileId file);
