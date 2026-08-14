@@ -168,7 +168,7 @@ struct ResolverProxy {
         auto refType     = resolver.Wrap(ref.refType);
         auto fieldType   = resolver.Wrap(ref.fieldType);
         auto [file, raf] = resolver.session.File(resolver.method.GetFileId());
-        auto data        = file.GetInstanceFieldAotTable().GetData(resolver.session, ref.identifier.GetIndex());
+        auto data        = resolver.Decoder().GetAotData<Symlevel::InstanceFieldAotData>(ref.identifier);
 
         auto refTypeFlags                     = refType.term.Flags();
         std::optional<uint32_t> offset        = std::nullopt;
@@ -196,8 +196,8 @@ struct ResolverProxy {
         auto refType     = resolver.Wrap(ref.refType);
         auto fieldType   = resolver.Wrap(ref.fieldType);
         auto [file, raf] = resolver.session.File(resolver.method.GetFileId());
-        auto data        = file.GetStaticFieldAotTable().GetData(resolver.session, ref.identifier.GetIndex());
-        auto linkageName = Symlevel::String::Parse(resolver.session, data.linkangeName);
+        auto data        = resolver.Decoder().GetAotData<Symlevel::StaticFieldAotData>(ref.identifier);
+        auto linkageName = Symlevel::Reader::Read(resolver.session, data.linkangeName);
         auto location    = file.GetDependencies().FindTarget(linkageName);
         if (!location) {
             log.Log(Logging::Level::FATAL, [linkageName](Stream::Output& stream) {
@@ -321,7 +321,7 @@ struct ResolverProxy {
     {
         auto parsedRef = Symlevel::MethodReference::Parse(session, identifier);
         auto refType   = manager.Resolve(session, parsedRef.refType);
-        auto name      = Symlevel::String::Parse(session, parsedRef.name);
+        auto name      = Symlevel::Reader::Read(session, parsedRef.name);
         auto signature = manager.Resolve(session, parsedRef.methodSig);
         auto flags     = parsedRef.flags;
 
@@ -357,7 +357,7 @@ struct ResolverProxy {
     {
         auto parsedRef = Symlevel::FieldReference::Parse(session, identifier);
         auto refType   = manager.Resolve(session, parsedRef.refType);
-        auto name      = Symlevel::String::Parse(session, parsedRef.name);
+        auto name      = Symlevel::Reader::Read(session, parsedRef.name);
         auto fieldType = manager.Resolve(session, parsedRef.fieldType);
         return { refType, name, fieldType, identifier, parsedRef.isRecord };
     }
@@ -431,9 +431,9 @@ struct ResolverProxy {
         auto sret    = ref.flags.Is(Symlevel::MethodRefFlag::SRET);
 
         if (ref.flags.Is(Symlevel::MethodRefFlag::AOT)) {
-                auto data = file.GetInterfaceCallAotTable().GetData(resolver.session, ref.identifier.GetIndex());
-                auto sig  = ConstructSignature(resolver, ref);
-                return InterfaceCall::Content { refType, ref.name, std::move(sig), data.inum, sret };
+            auto data = resolver.Decoder().GetAotData<Symlevel::InterfaceCallAotData>(ref.identifier);
+            auto sig  = ConstructSignature(resolver, ref);
+            return InterfaceCall::Content { refType, ref.name, std::move(sig), data.inum, sret };
         } else {
             auto call = ResolveCbcCall(resolver, ref);
             if (call.has_value()) {
@@ -456,7 +456,7 @@ struct ResolverProxy {
         auto sret    = ref.flags.Is(Symlevel::MethodRefFlag::SRET);
 
         if (ref.flags.Is(Symlevel::MethodRefFlag::AOT)) {
-            auto data = file.GetVirtualCallAotTable().GetData(resolver.session, ref.identifier.GetIndex());
+            auto data = resolver.Decoder().GetAotData<Symlevel::VirtualCallAotData>(ref.identifier);
             auto sig  = ConstructSignature(resolver, ref);
             return VirtualCall::Content { refType, ref.name, std::move(sig), data.methodNum, data.extDefNum, sret };
         } else {
@@ -467,9 +467,9 @@ struct ResolverProxy {
     static std::optional<DirectCall::Content> ResolveAotDirectCall(Resolver& resolver, ResolvedMethodReference& ref)
     {
         auto [file, raf] = resolver.session.File(resolver.method.GetFileId());
-        auto data        = file.GetDirectCallAotTable().GetData(resolver.session, ref.identifier.GetIndex());
+        auto data        = resolver.Decoder().GetAotData<Symlevel::DirectCallAotData>(ref.identifier);
 
-        auto linkageName = Symlevel::String::Parse(resolver.session, data.linkangeName);
+        auto linkageName = Symlevel::Reader::Read(resolver.session, data.linkangeName);
         auto funcPtr     = file.GetDependencies().FindTarget(linkageName);
 
         if (!funcPtr) {

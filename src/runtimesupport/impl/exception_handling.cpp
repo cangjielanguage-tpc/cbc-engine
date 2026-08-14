@@ -113,7 +113,7 @@ void FrameDescProvider(INT_FunctionHandle fuh, INT_BytecodePos pos, INT_Interpre
     // Method name
     {
         std::string methodNameWithArgs;
-        auto methodName = Symlevel::String::Parse(session, methodDef.Name());
+        auto methodName = Symlevel::Reader::Read(session, methodDef.Name());
         methodNameWithArgs.append(methodName).append("(");
 
         auto sig      = Engine::TermManager::Resolve(session, methodDef.Signature());
@@ -132,7 +132,7 @@ void FrameDescProvider(INT_FunctionHandle fuh, INT_BytecodePos pos, INT_Interpre
 
     // Type name
     {
-        auto typeNameView = Symlevel::String::Parse(session, methodDef.TypeName());
+        auto typeNameView = Symlevel::Reader::Read(session, methodDef.TypeName());
         size_t size       = typeNameView.size();
 
         size_t delimPos = typeNameView.find(':');
@@ -154,7 +154,7 @@ void FrameDescProvider(INT_FunctionHandle fuh, INT_BytecodePos pos, INT_Interpre
 
     // File name
     if (methodDef.SourceFile().has_value()) {
-        auto fileName       = Symlevel::String::Parse(session, methodDef.SourceFullName().value());
+        auto fileName       = Symlevel::Reader::Read(session, methodDef.SourceFullName().value());
         frameDesc->fileName = AllocateString(fileName);
     } else {
         frameDesc->fileName = AllocateString("unknown"); // should it be possible?

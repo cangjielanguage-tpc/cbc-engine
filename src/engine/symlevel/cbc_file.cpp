@@ -58,7 +58,6 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
 
     auto typeIndexOffset = reader.ReadU32();
     auto poolOffset      = reader.ReadU32();
-    IO::StreamFileReader typeIndexReader(file, typeIndexOffset);
 
     auto directCallAotTableOffset    = reader.ReadU32();
     auto virtualCallAotTableOffset   = reader.ReadU32();
@@ -84,15 +83,21 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
     auto foreignLibs = reader.ReadS32();
     auto coverageId  = reader.ReadULEB();
 
+    IO::StreamFileReader typeIndexReader(file, typeIndexOffset);
+    IO::StreamFileReader directCallTableReader(file, directCallAotTableOffset);
+    IO::StreamFileReader virtualCallTableReader(file, virtualCallAotTableOffset);
+    IO::StreamFileReader interfaceCallTableReader(file, interfaceCallAotTableOffset);
+    IO::StreamFileReader instanceFieldTableReader(file, instanceFieldAotTableOffset);
+    IO::StreamFileReader staticFieldTableReader(file, staticFieldAotTableOffset);
     CbcFile::Impl impl {
         .versionMetadata       = versionMetadata,
         .typeIndex             = Decode::ReadIndex(typeIndexReader, fileId),
         .regionData            = RegionData::Read(fileId, file, regionOffset),
-        .directCallAotTable    = DirectCallAotTable::Read(fileId, file, directCallAotTableOffset),
-        .virtualCallAotTable   = VirtualCallAotTable::Read(fileId, file, virtualCallAotTableOffset),
-        .interfaceCallAotTable = InterfaceCallAotTable::Read(fileId, file, interfaceCallAotTableOffset),
-        .staticFieldAotTable   = StaticFieldAotTable::Read(fileId, file, staticFieldAotTableOffset),
-        .instanceFieldAotTable = InstanceFieldAotTable::Read(fileId, file, instanceFieldAotTableOffset),
+        .directCallAotTable    = Decode::ReadIndex(directCallTableReader, fileId),
+        .virtualCallAotTable   = Decode::ReadIndex(virtualCallTableReader, fileId),
+        .interfaceCallAotTable = Decode::ReadIndex(interfaceCallTableReader, fileId),
+        .staticFieldAotTable   = Decode::ReadIndex(staticFieldTableReader, fileId),
+        .instanceFieldAotTable = Decode::ReadIndex(instanceFieldTableReader, fileId),
         .dependencies          = Dependencies::Read(fileId, file, poolOffset, cbcDeps, aotDeps),
         .mainTypeName          = mainTypeName,
         .poolOffset            = poolOffset,
