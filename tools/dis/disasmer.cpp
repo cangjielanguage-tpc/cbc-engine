@@ -5,8 +5,6 @@
 #include "engine/symlevel/io/filesystem.h"
 #include "engine/symlevel/io/stream_file_reader.h"
 #include "engine/symlevel/reader.h"
-#include "engine/symlevel/references.h"
-#include "engine/symlevel/region_data.h"
 #include <cstdint>
 #include <memory>
 

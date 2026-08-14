@@ -2,8 +2,6 @@
 
 #include <algorithm>
 
-#include "engine/symlevel/code.h"
-#include "engine/symlevel/definitions.h"
 #include "engine/symlevel/reader.h"
 #include "engine/terms.h"
 #include "interpreter/ectype.h"

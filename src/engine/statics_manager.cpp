@@ -3,7 +3,6 @@
 #include "engine/resolving_output.h"
 #include "engine/symlevel/reader.h"
 #include "field_layout.h"
-#include "symlevel/definitions.h"
 #include "symlevel/flags.h"
 #include "terms.h"
 #include "typeinfo_manager.h"

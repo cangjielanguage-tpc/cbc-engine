@@ -7,7 +7,6 @@
 #include "engine/method_table.h"
 #include "engine/options.h"
 #include "engine/resolving_output.h"
-#include "engine/symlevel/definitions.h"
 #include "engine/symlevel/dependencies.h"
 #include "engine/symlevel/flags.h"
 #include "engine/symlevel/reader.h"
@@ -314,7 +313,7 @@ struct MethodTableMember {
 
 /// Returns pair of (handle, function) that describes member in method table.
 static MethodTableMember GetTableMember(
-    Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> methodId, int entryIdx
+    Engine::Session& session, Symlevel::Identifier<Symlevel::MethodDefinition> methodId, int entryIdx
 )
 {
     auto method = Symlevel::Reader::Read(session, methodId);

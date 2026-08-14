@@ -3,16 +3,10 @@
 #include "engine/decode/decoder.h"
 #include "engine/engine.h"
 #include "engine/identifiers.h"
-#include "engine/symlevel/aot_table.h"
-#include "engine/symlevel/definitions.h"
 #include "engine/symlevel/io/file_id.h"
 #include "engine/symlevel/io/random_access_file.h"
 #include "engine/symlevel/io/stream_file_reader.h"
-#include "engine/symlevel/member_index.h"
-#include "engine/symlevel/offset.h"
 #include "engine/symlevel/reader.h"
-#include "engine/symlevel/references.h"
-#include "engine/symlevel/string.h"
 #include "utils/assertion.h"
 #include <cstdint>
 #include <optional>
@@ -88,7 +82,7 @@ template <typename T> Bucket<T> Decoder::FindBucket(Symlevel::MemberIndex<T> con
 }
 
 template <typename T>
-std::optional<Engine::Identifier<T>> Decoder::Find(Symlevel::MemberIndex<T> const& index, std::string_view name)
+std::optional<Symlevel::Identifier<T>> Decoder::Find(Symlevel::MemberIndex<T> const& index, std::string_view name)
 {
     auto bucket = FindBucket(index, name);
     for (auto value : bucket) {
@@ -133,7 +127,7 @@ Symlevel::DirectCallAotData Decoder::GetAotData<Symlevel::DirectCallAotData>(
     // skip index
     IO::StreamFileReader reader(raf, OFFSET_ADJUSTMENT + id.GetOffset() + 4);
     auto name = Symlevel::Offset<Symlevel::String>(reader.ReadU32());
-    return { Engine::Identifier(name, index.GetFileId()) };
+    return { Symlevel::Identifier(name, index.GetFileId()) };
 }
 
 template <>
@@ -173,7 +167,7 @@ Symlevel::StaticFieldAotData Decoder::GetAotData<Symlevel::StaticFieldAotData>(
     // skip index
     IO::StreamFileReader reader(raf, OFFSET_ADJUSTMENT + id.GetOffset() + 4);
     auto name = Symlevel::Offset<Symlevel::String>(reader.ReadU32());
-    return { Engine::Identifier(name, index.GetFileId()) };
+    return { Symlevel::Identifier(name, index.GetFileId()) };
 }
 
 template <>
@@ -209,10 +203,10 @@ template <typename T> typename HashTableRange<T>::Iterator HashTableRange<T>::en
     return { nullptr, endOffs, file };
 }
 
-template <typename T> Engine::Identifier<T> HashTableRange<T>::Iterator::operator*() const
+template <typename T> Symlevel::Identifier<T> HashTableRange<T>::Iterator::operator*() const
 {
     auto offs = ReadAt(file, cursor);
-    return Engine::Identifier<T>(Symlevel::Offset<T>(offs), fileId);
+    return Symlevel::Identifier<T>(Symlevel::Offset<T>(offs), fileId);
 }
 
 template <typename T> typename HashTableRange<T>::Iterator& HashTableRange<T>::Iterator::operator++()
@@ -284,9 +278,9 @@ template <typename T> typename Bucket<T>::Iterator Bucket<T>::begin() const
     return iterator;
 }
 
-template <typename T> Engine::Identifier<T> Bucket<T>::Iterator::operator*() const
+template <typename T> Symlevel::Identifier<T> Bucket<T>::Iterator::operator*() const
 {
-    return Engine::Identifier<T>(Symlevel::Offset<T>(value), bucket->range.file);
+    return Symlevel::Identifier<T>(Symlevel::Offset<T>(value), bucket->range.file);
 }
 
 template <typename T> typename Bucket<T>::Iterator& Bucket<T>::Iterator::operator++()
@@ -309,13 +303,13 @@ template Bucket<TD> Decoder::FindBucket(Symlevel::MemberIndex<TD> const& index, 
 template Bucket<MD> Decoder::FindBucket(Symlevel::MemberIndex<MD> const& index, std::string_view name);
 template Bucket<FD> Decoder::FindBucket(Symlevel::MemberIndex<FD> const& index, std::string_view name);
 
-template std::optional<Engine::Identifier<TD>> Decoder::Find(
+template std::optional<Symlevel::Identifier<TD>> Decoder::Find(
     Symlevel::MemberIndex<TD> const& index, std::string_view name
 );
-template std::optional<Engine::Identifier<MD>> Decoder::Find(
+template std::optional<Symlevel::Identifier<MD>> Decoder::Find(
     Symlevel::MemberIndex<MD> const& index, std::string_view name
 );
-template std::optional<Engine::Identifier<FD>> Decoder::Find(
+template std::optional<Symlevel::Identifier<FD>> Decoder::Find(
     Symlevel::MemberIndex<FD> const& index, std::string_view name
 );
 

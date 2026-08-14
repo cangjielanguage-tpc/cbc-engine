@@ -2,7 +2,6 @@
 #include "engine/engine.h"
 #include "engine/identifiers.h"
 #include "engine/resolving_output.h"
-#include "engine/symlevel/definitions.h"
 #include "engine/symlevel/flags.h"
 #include "engine/symlevel/reader.h"
 #include "engine/symlevel/type_kind.h"

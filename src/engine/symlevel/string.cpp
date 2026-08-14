@@ -13,7 +13,7 @@ template <> String Reader::Read(Engine::Session& session, IO::FileId fileId, Off
     return String(std::string_view(mem, size));
 }
 
-template <> String Reader::Read(Engine::Session& session, Engine::Identifier<String> ident)
+template <> String Reader::Read(Engine::Session& session, Symlevel::Identifier<String> ident)
 {
     return Reader::Read(session, ident.GetFileId(), ident.GetOffset());
 }

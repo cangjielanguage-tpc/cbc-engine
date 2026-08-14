@@ -6,14 +6,10 @@
 #include "engine/method_table.h"
 #include "engine/resolving_output.h"
 #include "engine/statics_manager.h"
-#include "engine/symlevel/aot_table.h"
-#include "engine/symlevel/definitions.h"
 #include "engine/symlevel/dependencies.h"
 #include "engine/symlevel/flags.h"
 #include "engine/symlevel/io/file_id.h"
 #include "engine/symlevel/reader.h"
-#include "engine/symlevel/references.h"
-#include "engine/symlevel/string.h"
 #include "engine/terms.h"
 #include "engine/typeinfo_manager.h"
 #include "interpreter/function_handle.h"
@@ -674,7 +670,7 @@ std::optional<Type> Resolver::Query(Index<Type> id)
 std::string_view Resolver::QueryString(uint32_t stringOffs)
 {
     using namespace Symlevel;
-    return Reader::Read(session, Identifier(Offset<String>(stringOffs), method.GetFileId()));
+    return Reader::Read(session, Symlevel::Identifier(Offset<String>(stringOffs), method.GetFileId()));
 }
 
 void Resolver::GetFullName(Type type, Stream::Output& stream) { type.term.GetName(session, stream); }

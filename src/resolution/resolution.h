@@ -3,8 +3,6 @@
 #include "engine/engine.h"
 #include "engine/field_layout.h"
 #include "engine/identifiers.h"
-#include "engine/symlevel/definitions.h"
-#include "engine/symlevel/index.h"
 #include "engine/terms.h"
 #include "engine/typeinfo_manager.h"
 #include "interpreter/function_handle.h"
@@ -211,7 +209,7 @@ private:
 
 /// Resolver of identifiers in the context of `method`.
 struct Resolver {
-    Resolver(Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> method);
+    Resolver(Engine::Session& session, Symlevel::Identifier<Symlevel::MethodDefinition> method);
 
     Type Wrap(Engine::Term term);
 
@@ -245,7 +243,7 @@ struct Resolver {
 
 private:
     friend class ResolverProxy;
-    Engine::Identifier<Symlevel::MethodDefinition> method;
+    Symlevel::Identifier<Symlevel::MethodDefinition> method;
     uint8_t regionId { 0 };
 
     Cache<VirtualCall> dynamicCalls;

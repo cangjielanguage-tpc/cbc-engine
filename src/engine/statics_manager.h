@@ -3,7 +3,6 @@
 #include "arena.h"
 #include "engine.h"
 #include "identifiers.h"
-#include "symlevel/definitions.h"
 
 #include <cstdint>
 #include <functional>
@@ -31,8 +30,8 @@ struct StaticTypedSlotInfo {
 };
 
 class StaticFieldsBundle {
-    using TypeIdent  = struct Identifier<Symlevel::TypeDefinition>;
-    using FieldIdent = struct Identifier<Symlevel::FieldDefinition>;
+    using TypeIdent  = Identifier<Symlevel::TypeDefinition>;
+    using FieldIdent = Identifier<Symlevel::FieldDefinition>;
 
 public:
     StaticFieldsBundle(

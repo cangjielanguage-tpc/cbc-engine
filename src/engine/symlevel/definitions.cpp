@@ -1,11 +1,7 @@
-#include "definitions.h"
 #include "engine/decode/decoder.h"
-#include "engine/identifiers.h"
 #include "engine/symlevel/access_kind.h"
 #include "engine/symlevel/flags.h"
-#include "engine/symlevel/sequence.h"
-#include "engine/symlevel/type_kind.h"
-#include "reader.h"
+#include "engine/symlevel/reader.h"
 #include <cstdint>
 #include <optional>
 
@@ -15,10 +11,10 @@ template <> TypeDefinition Reader::Read(Engine::Session& session, IO::FileId fil
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetTypeDefSectionOffs() + offset);
 
-    auto name        = Engine::Identifier(Offset<String>(reader.ReadU32()), fileId);
+    auto name        = Symlevel::Identifier(Offset<String>(reader.ReadU32()), fileId);
     auto regionId    = reader.ReadU8();
     auto parsedFlags = reader.ReadU16();
-    auto superType   = Engine::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
+    auto superType   = Symlevel::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
 
     auto methodIndex = Decode::ReadIndex(reader, fileId);
     auto dynMethods  = Reader::ReadOffsSeq<MethodDefinition>(reader, fileId);
@@ -53,7 +49,7 @@ template <> TypeDefinition Reader::Read(Engine::Session& session, IO::FileId fil
         flags = flags.With(TypeKind::ENUM);
 
     TypeDefinition::Content def {
-        .identifier      = Engine::Identifier(offset, fileId),
+        .identifier      = Symlevel::Identifier(offset, fileId),
         .name            = name,
         .methods         = std::move(methodIndex),
         .fields          = std::move(fieldIndex),
@@ -64,7 +60,6 @@ template <> TypeDefinition Reader::Read(Engine::Session& session, IO::FileId fil
         .arity           = 0,
         .enumKind        = EnumKind::NOT_ENUM,
     };
-
 
     for (auto tag = reader.ReadU8(); tag != 0; tag = reader.ReadU8()) {
         switch (tag) {
@@ -83,7 +78,7 @@ template <> TypeDefinition Reader::Read(Engine::Session& session, IO::FileId fil
     return TypeDefinition(std::move(def));
 }
 
-template <> TypeDefinition Reader::Read(Engine::Session& session, Engine::Identifier<TypeDefinition> identifier)
+template <> TypeDefinition Reader::Read(Engine::Session& session, Symlevel::Identifier<TypeDefinition> identifier)
 {
     return Reader::Read(session, identifier.GetFileId(), identifier.GetOffset());
 }
@@ -101,7 +96,7 @@ template <> FieldDefinition Reader::Read(Engine::Session& session, IO::FileId fi
     auto tag = reader.ReadU8();
     ASSERTION(tag == 0, "Const value is not supported yet");
 
-    auto fieldType = Engine::RefIdentifier(RefId<Term>(fieldTypeIdx), fileId);
+    auto fieldType = Symlevel::RefIdentifier(RefId<Term>(fieldTypeIdx), fileId);
 
     auto test = [parsedFlags](uint32_t bits) { return (parsedFlags & bits) != 0; };
 
@@ -124,16 +119,16 @@ template <> FieldDefinition Reader::Read(Engine::Session& session, IO::FileId fi
         flags = flags.Or(FieldFlag::AOT);
 
     FieldDefinition::Content content {
-        .identifier = Engine::Identifier(offset, fileId),
+        .identifier = Symlevel::Identifier(offset, fileId),
         .nameOffset = nameOffset,
-        .fieldType = fieldType,
-        .flags = flags,
+        .fieldType  = fieldType,
+        .flags      = flags,
     };
 
     return FieldDefinition(std::move(content));
 }
 
-template <> FieldDefinition Reader::Read(Engine::Session& session, Engine::Identifier<FieldDefinition> identifier)
+template <> FieldDefinition Reader::Read(Engine::Session& session, Symlevel::Identifier<FieldDefinition> identifier)
 {
     return Reader::Read(session, identifier.GetFileId(), identifier.GetOffset());
 }
@@ -145,7 +140,7 @@ template <> MethodDefinition Reader::Read(Engine::Session& session, IO::FileId f
     auto nameOffset  = Offset<String>(reader.ReadU32());
     auto typeNameOffset = Offset<String>(reader.ReadU32());
     auto regionId    = reader.ReadU8();
-    auto signature      = Engine::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
+    auto signature      = Symlevel::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
     auto parsedFlags = reader.ReadU16();
 
     auto test = [parsedFlags](uint32_t bits) { return (parsedFlags & bits) == bits; };
@@ -190,14 +185,16 @@ template <> MethodDefinition Reader::Read(Engine::Session& session, IO::FileId f
     if (test(0x8000))
         flags = flags.Or(MethodFlag::REF_RECEIVER);
 
-    MethodDefinition::Content def{ Engine::Identifier(offset, fileId), signature, typeNameOffset, nameOffset, flags};
+    MethodDefinition::Content def {
+        Symlevel::Identifier(offset, fileId), signature, typeNameOffset, nameOffset, flags
+    };
 
     for (auto tag = reader.ReadU8(); tag != 0; tag = reader.ReadU8()) {
         switch (tag) {
-            case 0x1: def.code = Engine::Identifier(Offset<Code>(reader.ReadULEB()), fileId); break;
-            case 0x2: def.sourceFullName = Engine::Identifier(Offset<String>(reader.ReadULEB()), fileId); break;
-            case 0x3: def.sourceFile = Engine::Identifier(Offset<String>(reader.ReadULEB()), fileId); break;
-            case 0x4: def.linkageName = Engine::Identifier(Offset<String>(reader.ReadULEB()), fileId); break;
+            case 0x1: def.code = Symlevel::Identifier(Offset<Code>(reader.ReadULEB()), fileId); break;
+            case 0x2: def.sourceFullName = Symlevel::Identifier(Offset<String>(reader.ReadULEB()), fileId); break;
+            case 0x3: def.sourceFile = Symlevel::Identifier(Offset<String>(reader.ReadULEB()), fileId); break;
+            case 0x4: def.linkageName = Symlevel::Identifier(Offset<String>(reader.ReadULEB()), fileId); break;
             case 0x5: def.arity = reader.ReadULEB(); break; // TODO: check range
             default:  FATAL("unexpected tag: %d", tag);
         }
@@ -228,7 +225,7 @@ MethodRefFlags MethodDefinition::GetABIFlags() const
     return flags;
 }
 
-template <> MethodDefinition Reader::Read(Engine::Session& session, Engine::Identifier<MethodDefinition> identifier)
+template <> MethodDefinition Reader::Read(Engine::Session& session, Symlevel::Identifier<MethodDefinition> identifier)
 {
     return Reader::Read(session, identifier.GetFileId(), identifier.GetOffset());
 }

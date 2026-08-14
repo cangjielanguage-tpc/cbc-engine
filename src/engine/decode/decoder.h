@@ -7,18 +7,12 @@
 #include "engine/symlevel/io/offset_pool.h"
 #include "engine/symlevel/io/random_access_file.h"
 #include "engine/symlevel/io/stream_file_reader.h"
-#include "engine/symlevel/member_index.h"
-#include "engine/symlevel/offset.h"
-#include "engine/symlevel/references.h"
-#include "engine/symlevel/sequence.h"
-#include <cassert>
-#include <cstdint>
 #include <string_view>
 
 namespace Decode {
 
-template <typename T> using Identifier = Engine::Identifier<T>;
-template <typename T> using RefIdentifier = Engine::RefIdentifier<T>;
+template <typename T> using Identifier    = Symlevel::Identifier<T>;
+template <typename T> using RefIdentifier = Symlevel::RefIdentifier<T>;
 
 // MemberIndex and AotData table are encoded using same format.
 // This table consists of buckets, where each entry with the same hash

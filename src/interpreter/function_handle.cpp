@@ -7,7 +7,6 @@
 #include "adapters.h"
 #include "cbc/isa_rewriter.h"
 #include "engine/resolving_output.h"
-#include "engine/symlevel/definitions.h"
 #include "engine/symlevel/dependencies.h"
 #include "engine/symlevel/flags.h"
 #include "engine/symlevel/reader.h"
@@ -28,7 +27,7 @@ using namespace Symlevel;
 
 class FunctionHandleManager::Impl {
 public:
-    using Ident = Identifier<MethodDefinition>;
+    using Ident = Symlevel::Identifier<MethodDefinition>;
     std::mutex lock;
     std::unordered_map<Ident::Packed, TaggedFunctionHandle> fuhMap;
 };
@@ -39,7 +38,7 @@ FunctionHandleManager::~FunctionHandleManager()                               = 
 FunctionHandleManager::FunctionHandleManager(FunctionHandleManager&& manager) = default;
 
 TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
-    Session& session, Identifier<Symlevel::MethodDefinition> methodDef
+    Session& session, Symlevel::Identifier<Symlevel::MethodDefinition> methodDef
 )
 {
     std::lock_guard guard(impl->lock);
@@ -98,7 +97,9 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
     return fuh;
 }
 
-FunctionHandle* FunctionHandleManager::Acquire(Session& session, Identifier<Symlevel::MethodDefinition> methodDef)
+FunctionHandle* FunctionHandleManager::Acquire(
+    Session& session, Symlevel::Identifier<Symlevel::MethodDefinition> methodDef
+)
 {
     auto fuh = AcquireTagged(session, methodDef);
     if (std::holds_alternative<DynamicFunctionHandle*>(fuh)) {

@@ -8,7 +8,6 @@
 #include "engine/engine.h"
 #include "engine/symlevel/io/byte_array_random_access_file.h"
 #include "engine/symlevel/reader.h"
-#include "engine/symlevel/string.h"
 #include "interpreter/code.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"

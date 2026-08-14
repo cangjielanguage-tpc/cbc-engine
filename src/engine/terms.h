@@ -2,7 +2,6 @@
 
 #include "engine/engine.h"
 #include "engine/identifiers.h"
-#include "symlevel/string.h"
 #include "utils/assertion.h"
 #include "utils/iterators.h"
 #include "utils/ostream.h"

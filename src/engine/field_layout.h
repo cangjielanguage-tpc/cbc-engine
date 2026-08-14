@@ -2,7 +2,6 @@
 
 #include "engine/engine.h"
 #include "engine/identifiers.h"
-#include "engine/symlevel/definitions.h"
 #include "engine/terms.h"
 #include "engine/typeinfo_manager.h"
 #include "utils/logger.h"
