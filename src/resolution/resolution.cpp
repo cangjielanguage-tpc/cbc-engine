@@ -130,12 +130,11 @@ struct ResolvedMethodReference {
     }
 };
 
-struct ResolvedFieldReference {
+struct ResolvedSingleFieldRef {
     Term refType;
     std::string_view name;
     Term fieldType;
-    RefIdentifier<Symlevel::FieldReference> identifier;
-    bool isRecord;
+    RefIdentifier<Symlevel::FieldReference> ident;
 
     std::string GetFullName(Session& session)
     {
@@ -143,6 +142,8 @@ struct ResolvedFieldReference {
         buf << refType.GetName(session) << '.' << name << fieldType.GetName(session);
         return buf.ToString();
     }
+
+    uint32_t GetRawIndex() { return ident.GetIndex().GetIndex(); }
 };
 
 struct ResolverProxy {
@@ -161,13 +162,13 @@ struct ResolverProxy {
     };
 
     static std::optional<InstanceField::Content> ResolveAotInstanceField(
-        Resolver& resolver, ResolvedFieldReference& ref
+        Resolver& resolver, ResolvedSingleFieldRef& ref
     )
     {
         auto refType     = resolver.Wrap(ref.refType);
         auto fieldType   = resolver.Wrap(ref.fieldType);
         auto [file, raf] = resolver.session.File(resolver.method.GetFileId());
-        auto data        = file.GetInstanceFieldAotTable().GetData(resolver.session, ref.identifier.GetIndex());
+        auto data        = file.GetInstanceFieldAotTable().GetData(resolver.session, ref.ident.GetIndex());
 
         auto refTypeFlags                     = refType.term.Flags();
         std::optional<uint32_t> offset        = std::nullopt;
@@ -187,15 +188,15 @@ struct ResolverProxy {
         if (ti) { // for generic instance fields
             offset = RTSupport::Execution::GetFieldOffset(*ti, data.ordinal, ref.refType.IsReference());
         }
-        return InstanceField::Content { refType, ref.name, fieldType, data.ordinal, offset };
+        return InstanceField::Content { refType, fieldType, data.ordinal, offset, ref.name };
     }
 
-    static std::optional<StaticField::Content> ResolveAotStaticField(Resolver& resolver, ResolvedFieldReference& ref)
+    static std::optional<StaticField::Content> ResolveAotStaticField(Resolver& resolver, ResolvedSingleFieldRef& ref)
     {
         auto refType     = resolver.Wrap(ref.refType);
         auto fieldType   = resolver.Wrap(ref.fieldType);
         auto [file, raf] = resolver.session.File(resolver.method.GetFileId());
-        auto data        = file.GetStaticFieldAotTable().GetData(resolver.session, ref.identifier.GetIndex());
+        auto data        = file.GetStaticFieldAotTable().GetData(resolver.session, ref.ident.GetIndex());
         auto linkageName = Symlevel::String::Parse(resolver.session, data.linkangeName);
         auto location    = file.GetDependencies().FindTarget(linkageName);
         if (!location) {
@@ -204,21 +205,18 @@ struct ResolverProxy {
             });
             return std::nullopt;
         }
-        return StaticField::Content { refType, ref.name, fieldType, reinterpret_cast<uintptr_t>(location) };
+        return StaticField::Content { refType, fieldType, reinterpret_cast<uintptr_t>(location), ref.name };
     }
 
     template <typename Field>
-    static std::optional<typename Field::Content> ResolveField(Resolver& resolver, Index<Field> id)
+    static std::optional<typename Field::Content> ResolveSingleFieldRef(Resolver& resolver, ResolvedSingleFieldRef ref)
     {
         auto fileId = resolver.method.GetFileId();
 
-        auto refId = Symlevel::RefId<Symlevel::FieldReference>(id.GetValue());
-        auto ident = RefIdentifier<Symlevel::FieldReference>(refId, fileId);
-        auto ref   = ResolveReference(resolver.session, resolver.termManager, ident);
-
         if (ref.refType.GetKind() == TermKind::UNDEFINED || ref.fieldType.GetKind() == TermKind::UNDEFINED) {
             // undef terms would be reported separately
-            log.Stream(Logging::Level::ERROR) << "Failed to parse field reference " << id.GetValue() << Stream::endl;
+            log.Stream(Logging::Level::ERROR)
+                << "Failed to parse field reference " << ref.GetRawIndex() << Stream::endl;
             return std::nullopt;
         }
 
@@ -267,7 +265,7 @@ struct ResolverProxy {
                         offset      += (ref.refType.IsReference() ? RTSupport::MetaInfo::ObjectHeaderSize() : 0);
                         optoffset    = offset;
                     }
-                    return InstanceField::Content { refType, ref.name, fieldType, ordinal, optoffset };
+                    return InstanceField::Content { refType, fieldType, ordinal, optoffset, ref.name };
                 } else {
                     if (ref.refType.IsAotPromoted()) {
                         return ResolveAotStaticField(resolver, ref);
@@ -280,7 +278,7 @@ struct ResolverProxy {
                     auto fieldDefIdentOpt = typeDef.GetFields().Find(resolver.session, ref.name);
                     if (!fieldDefIdentOpt.has_value()) {
                         log.Stream(Logging::Level::ERROR)
-                            << "Field definition search failed " << id.GetValue() << Stream::endl;
+                            << "Field definition search failed " << ref.GetRawIndex() << Stream::endl;
                         return std::nullopt;
                     }
 
@@ -296,12 +294,125 @@ struct ResolverProxy {
                     uintptr_t location = StaticsManager::Of(resolver.session)
                                              .GetLocation(resolver.session, typeDefIdent, fieldDefIdentOpt.value());
 
-                    return StaticField::Content { refType, ref.name, fieldType, location };
+                    return StaticField::Content { refType, fieldType, location, ref.name };
                 }
             }
             default: {
                 FATAL("Not supported yet %d", ref.refType.GetKind());
                 return std::nullopt;
+            }
+        }
+    }
+
+    template <typename Field>
+    static std::optional<typename Field::Content> ResolveMultiFieldRef(
+        Resolver& resolver, Symlevel::FieldReference ref
+    );
+
+    template <>
+    std::optional<StaticField::Content> ResolveMultiFieldRef<StaticField>(
+        Resolver& resolver, Symlevel::FieldReference ref
+    )
+    {
+        ASSERT(ref.multi.length >= 1);
+
+        std::vector<std::variant<StaticField::Content, InstanceField::Content>> fields;
+        fields.reserve(ref.multi.length);
+
+        for (uint32_t i = 0; i < ref.multi.length; i++) {
+            if (i == 0) {
+                auto id    = Index<StaticField>(ref.multi.indices[i].GetIndex());
+                auto field = ResolveField<StaticField>(resolver, id).value();
+                fields.push_back(field);
+            } else {
+                auto id    = Index<InstanceField>(ref.multi.indices[i].GetIndex());
+                auto field = ResolveField<InstanceField>(resolver, id).value();
+                fields.push_back(field);
+            }
+        }
+
+        auto staticField = std::get<StaticField::Content>(fields.front());
+
+        auto refType = staticField.refType;
+        auto fieldType =
+            fields.size() > 1 ? std::get<InstanceField::Content>(fields.back()).fieldType : staticField.fieldType;
+
+        std::optional<uintptr_t> location = staticField.location;
+
+        decltype(fields) instanceFields(fields.begin() + 1, fields.end());
+        for (const auto& f : fields) {
+            auto field = std::get<InstanceField::Content>(f);
+            if (!field.offset.has_value()) {
+                location = std::nullopt;
+            }
+            location = location.value() + field.offset.value();
+        }
+
+        return StaticField::Content { refType, fieldType, location, "<multi>" };
+    }
+
+    template <>
+    std::optional<InstanceField::Content> ResolveMultiFieldRef<InstanceField>(
+        Resolver& resolver, Symlevel::FieldReference ref
+    )
+    {
+        ASSERT(ref.multi.length >= 1);
+
+        std::vector<InstanceField::Content> fields;
+        fields.reserve(ref.multi.length);
+
+        for (uint32_t i = 0; i < ref.multi.length; i++) {
+            auto id    = Index<InstanceField>(ref.multi.indices[i].GetIndex());
+            auto field = ResolveField<InstanceField>(resolver, id);
+            fields.push_back(field.value());
+        }
+
+        auto refType   = fields.front().refType;
+        auto fieldType = fields.back().fieldType;
+
+        std::optional<uint32_t> optOffset = 0;
+        for (const auto& f : fields) {
+            if (!f.offset.has_value()) {
+                optOffset = std::nullopt;
+            }
+            optOffset = optOffset.value() + f.offset.value();
+        }
+
+        return InstanceField::Content { refType, fieldType, std::nullopt, optOffset, "<multi>" };
+    }
+
+    template <typename Field>
+    static std::optional<typename Field::Content> ResolveNoneFieldRef(Resolver& resolver, Symlevel::FieldReference ref)
+    {
+        auto resolvedSig = resolver.termManager.Resolve(resolver.session, ref.none.sig);
+        auto sig         = resolver.Wrap(resolvedSig);
+        if constexpr (std::is_same_v<Field, InstanceField>) {
+            return InstanceField::Content { sig, sig, std::nullopt, std::nullopt, "<none>" };
+        } else {
+            return StaticField::Content { sig, sig, std::nullopt, "<none>" };
+        }
+    }
+
+    template <typename Field>
+    static std::optional<typename Field::Content> ResolveField(Resolver& resolver, Index<Field> id)
+    {
+        auto refId = Symlevel::RefId<Symlevel::FieldReference>(id.GetValue());
+        auto ident = RefIdentifier<Symlevel::FieldReference>(refId, resolver.method.GetFileId());
+
+        Symlevel::FieldReference parsedRef = Symlevel::FieldReference::Parse(resolver.session, ident);
+        switch (parsedRef.tag) {
+            case Symlevel::SINGLE: {
+                auto ref = SingleReference(resolver.session, resolver.termManager, parsedRef, ident);
+                return ResolveSingleFieldRef<Field>(resolver, ref);
+            }
+            case Symlevel::CONST_INDEX: {
+                FATAL("TODO");
+            }
+            case Symlevel::MULTI: { // TODO move to separate function
+                return ResolveMultiFieldRef<Field>(resolver, parsedRef);
+            }
+            case Symlevel::NONE: {
+                return ResolveNoneFieldRef<Field>(resolver, parsedRef);
             }
         }
     }
@@ -352,15 +463,17 @@ struct ResolverProxy {
         return ref;
     }
 
-    static ResolvedFieldReference ResolveReference(
-        Session& session, TermManager& manager, RefIdentifier<Symlevel::FieldReference> identifier
+    static ResolvedSingleFieldRef SingleReference(
+        Session& session,
+        TermManager& manager,
+        Symlevel::FieldReference fr,
+        RefIdentifier<Symlevel::FieldReference> ident
     )
     {
-        auto parsedRef = Symlevel::FieldReference::Parse(session, identifier);
-        auto refType   = manager.Resolve(session, parsedRef.refType);
-        auto name      = Symlevel::String::Parse(session, parsedRef.name);
-        auto fieldType = manager.Resolve(session, parsedRef.fieldType);
-        return { refType, name, fieldType, identifier, parsedRef.isRecord };
+        auto refType   = manager.Resolve(session, fr.single.refType);
+        auto name      = Symlevel::String::Parse(session, fr.single.name);
+        auto fieldType = manager.Resolve(session, fr.single.fieldType);
+        return { refType, name, fieldType, ident };
     }
 
     static MethodSignature ConstructSignature(Resolver& resolver, ResolvedMethodReference& ref)
@@ -635,10 +748,10 @@ std::optional<InstanceField> Resolver::QueryTupleElement(Type refType, uint32_t 
     auto fieldType      = Type(term.Subterm(idx), this);
     InstanceField::Content field = {
         .refType   = refType,
-        .name      = "",
         .fieldType = fieldType,
         .ordinal   = idx,
         .offset    = offset,
+        .name      = "",
     };
     return InstanceField { session.Allocator().New<InstanceField::Content>(field) };
 }

@@ -39,17 +39,58 @@ MethodReference ParseReference(Engine::Session& session, IO::FileId fileId, Offs
     return { nameOffset, refTypeIdx, methodSigIdx, tvars, flags };
 }
 
+template <typename Reference>
+inline static Reference ParseReference(Engine::Session& session, Engine::RefIdentifier<Reference> identifier);
+
 FieldReference ParseReference(Engine::Session& session, IO::FileId fileId, Offset<FieldReference> offset)
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetFieldRefSectionOffs() + offset);
 
-    auto nameOffset   = Engine::Identifier<String>(Offset<String>(reader.ReadU32()), fileId);
-    auto refTypeIdx   = Engine::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
-    auto fieldTypeIdx = Engine::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
+    uint8_t tag = reader.ReadU8();
+    switch (tag) {
+        case SINGLE: {
+            auto nameOffset   = Engine::Identifier<String>(Offset<String>(reader.ReadU32()), fileId);
+            auto refTypeIdx   = Engine::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
+            auto fieldTypeIdx = Engine::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
+            return FieldReference(nameOffset, refTypeIdx, fieldTypeIdx);
+        }
+        case CONST_INDEX: {
+            auto idx          = reader.ReadU32();
+            auto refTypeIdx   = Engine::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
+            auto fieldTypeIdx = Engine::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
+            return FieldReference(idx, refTypeIdx, fieldTypeIdx);
+        }
+        case MULTI: {
+            uint32_t length = reader.ReadULEB();
+            std::vector<FieldReference> fieldRefs;
+            std::vector<RefId<FieldReference>> indices;
+            fieldRefs.reserve(length);
+            indices.reserve(length);
 
-    auto isRecord = reader.ReadU8() != 0;
+            for (uint32_t i = 0; i < length; i++) {
+                auto id    = RefId<FieldReference>(reader.ReadULEB());
+                auto ident = Engine::RefIdentifier(id, fileId);
+                auto ref   = ParseReference(session, ident);
+                fieldRefs.push_back(ref);
+                indices.push_back(id);
+            }
 
-    return { nameOffset, refTypeIdx, fieldTypeIdx, isRecord };
+            void* subRefsPtr  = session.Allocator().Allocate(length * sizeof(FieldReference), alignof(FieldReference));
+            auto subRefsStart = reinterpret_cast<FieldReference*>(subRefsPtr);
+            memcpy(subRefsStart, fieldRefs.data(), length);
+
+            void* indicesPtr  = session.Allocator().Allocate(length * sizeof(RefId<FieldReference>), alignof(uint32_t));
+            auto indicesStart = reinterpret_cast<RefId<FieldReference>*>(indicesPtr);
+            memcpy(indicesStart, indices.data(), length);
+
+            return FieldReference(length, subRefsStart);
+        }
+        case NONE: {
+            auto sig = Engine::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
+            return FieldReference(sig);
+        }
+        default: FATAL("Unknown field reference tag: %d", tag);
+    }
 }
 
 template <typename Reference>
