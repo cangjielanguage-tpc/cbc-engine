@@ -169,17 +169,17 @@ void MemSpaceEmitter::CopyRec(Reg from, Reg to, RTSupport::TypeInfo ti, RT::MemO
     );
 }
 
-void MemSpaceEmitter::FromObjCopyRec(Reg from, Reg to, RTSupport::TypeInfo ti)
+void MemSpaceEmitter::CopyRecFromObj(Reg from, Reg to, RTSupport::TypeInfo ti)
 {
     CopyRec(from, to, ti, RT::MemOpcode::REC_COPY_FROM_OBJ);
 }
 
-void MemSpaceEmitter::FromRecCopyRec(Reg from, Reg to, RTSupport::TypeInfo ti)
+void MemSpaceEmitter::CopyRecFromRec(Reg from, Reg to, RTSupport::TypeInfo ti)
 {
     CopyRec(from, to, ti, RT::MemOpcode::REC_COPY_FROM_REC);
 }
 
-void MemSpaceEmitter::FromDerivedCopyRec(Reg base, Reg derived, Reg to, RTSupport::TypeInfo ti)
+void MemSpaceEmitter::CopyDerivedFromRec(Reg base, Reg derived, Reg to, RTSupport::TypeInfo ti)
 {
     Encode(
         segment,
@@ -191,22 +191,22 @@ void MemSpaceEmitter::FromDerivedCopyRec(Reg base, Reg derived, Reg to, RTSuppor
     );
 }
 
-void MemSpaceEmitter::FromFrameRec(Reg from, Reg to, RTSupport::TypeInfo ti)
+void MemSpaceEmitter::CopyFrameFromRec(Reg from, Reg to, RTSupport::TypeInfo ti)
 {
     CopyRec(from, to, ti, RT::MemOpcode::REC_COPY_FROM_FRAME);
 }
 
-void MemSpaceEmitter::ToObjCopyRec(Reg from, Reg to, RTSupport::TypeInfo ti)
+void MemSpaceEmitter::CopyObjToRec(Reg from, Reg to, RTSupport::TypeInfo ti)
 {
     CopyRec(from, to, ti, RT::MemOpcode::REC_COPY_TO_OBJ);
 }
 
-void MemSpaceEmitter::ToRecCopyRec(Reg from, Reg to, RTSupport::TypeInfo ti)
+void MemSpaceEmitter::CopyRecToRec(Reg from, Reg to, RTSupport::TypeInfo ti)
 {
     CopyRec(from, to, ti, RT::MemOpcode::REC_COPY_TO_REC);
 }
 
-void MemSpaceEmitter::ToDerivedCopyRec(Reg base, Reg derived, Reg from, RTSupport::TypeInfo ti)
+void MemSpaceEmitter::CopyDerivedToRec(Reg base, Reg derived, Reg from, RTSupport::TypeInfo ti)
 {
     Encode(
         segment,
@@ -218,7 +218,7 @@ void MemSpaceEmitter::ToDerivedCopyRec(Reg base, Reg derived, Reg from, RTSuppor
     );
 }
 
-void MemSpaceEmitter::ToFrameRec(Reg from, Reg to, RTSupport::TypeInfo ti)
+void MemSpaceEmitter::CopyFrameToRec(Reg from, Reg to, RTSupport::TypeInfo ti)
 {
     CopyRec(from, to, ti, RT::MemOpcode::REC_COPY_TO_FRAME);
 }

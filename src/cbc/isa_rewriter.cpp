@@ -1542,11 +1542,11 @@ struct IsaRewriter : public IsaParser {
         auto ty = *optType;
 
         switch (msr.kind) {
-            case HEAD_OBJ:     msr.emit.ToObjCopyRec(from, msr.base, *ty.GetTypeInfo()); break;
-            case HEAD_REC:     msr.emit.ToRecCopyRec(from, msr.base, *ty.GetTypeInfo()); break;
-            case HEAD_DERIVED: msr.emit.ToDerivedCopyRec(msr.base, msr.derived, from, *ty.GetTypeInfo()); break;
+            case HEAD_OBJ:     msr.emit.CopyObjToRec(from, msr.base, *ty.GetTypeInfo()); break;
+            case HEAD_REC:     msr.emit.CopyRecToRec(from, msr.base, *ty.GetTypeInfo()); break;
+            case HEAD_DERIVED: msr.emit.CopyDerivedToRec(msr.base, msr.derived, from, *ty.GetTypeInfo()); break;
             case HEAD_STATIC:  FATAL("didn't do statics yet");
-            case HEAD_FRAME:   msr.emit.ToFrameRec(from, msr.base, *ty.GetTypeInfo()); break;
+            case HEAD_FRAME:   msr.emit.CopyFrameToRec(from, msr.base, *ty.GetTypeInfo()); break;
             case HEAD_NONE:    FATAL("unreachable");
         }
     }
@@ -1563,11 +1563,11 @@ struct IsaRewriter : public IsaParser {
         auto ty = *optType;
 
         switch (msr.kind) {
-            case HEAD_OBJ:     msr.emit.FromObjCopyRec(msr.base, to, *ty.GetTypeInfo()); break;
-            case HEAD_REC:     msr.emit.FromRecCopyRec(msr.base, to, *ty.GetTypeInfo()); break;
-            case HEAD_DERIVED: msr.emit.FromDerivedCopyRec(msr.base, msr.derived, to, *ty.GetTypeInfo()); break;
+            case HEAD_OBJ:     msr.emit.CopyRecFromObj(msr.base, to, *ty.GetTypeInfo()); break;
+            case HEAD_REC:     msr.emit.CopyRecFromRec(msr.base, to, *ty.GetTypeInfo()); break;
+            case HEAD_DERIVED: msr.emit.CopyDerivedFromRec(msr.base, msr.derived, to, *ty.GetTypeInfo()); break;
             case HEAD_STATIC:  FATAL("didn't do statics yet");
-            case HEAD_FRAME:   msr.emit.FromFrameRec(msr.base, to, *ty.GetTypeInfo()); break;
+            case HEAD_FRAME:   msr.emit.CopyFrameFromRec(msr.base, to, *ty.GetTypeInfo()); break;
             case HEAD_NONE:    FATAL("unreachable");
         }
     }
