@@ -183,17 +183,12 @@ void MemSpaceEmitter::CopyDerivedFromRec(Reg base, Reg derived, Reg to, RTSuppor
 {
     Encode(
         segment,
-        RT::StructFieldOp {
+        RT::CopyDerived {
             .opc   = RT::MemOpcode::COPY_REC_FROM_DERIVED,
             .rr    = RR { .x = base, .y = derived },
             .field = RR { .x = to, .y = 0 },
         }
     );
-}
-
-void MemSpaceEmitter::CopyFrameFromRec(Reg from, Reg to, RTSupport::TypeInfo ti)
-{
-    CopyRec(from, to, ti, RT::MemOpcode::COPY_REC_FROM_FRAME);
 }
 
 void MemSpaceEmitter::CopyObjToRec(Reg from, Reg to, RTSupport::TypeInfo ti)
@@ -210,17 +205,12 @@ void MemSpaceEmitter::CopyDerivedToRec(Reg base, Reg derived, Reg from, RTSuppor
 {
     Encode(
         segment,
-        RT::StructFieldOp {
+        RT::CopyDerived {
             .opc   = RT::MemOpcode::COPY_REC_TO_DERIVED,
             .rr    = RR { .x = base, .y = derived },
             .field = RR { .x = from, .y = 0 },
         }
     );
-}
-
-void MemSpaceEmitter::CopyFrameToRec(Reg from, Reg to, RTSupport::TypeInfo ti)
-{
-    CopyRec(from, to, ti, RT::MemOpcode::COPY_REC_TO_FRAME);
 }
 
 void MemSpaceEmitter::StoreDerived(StoreAccessKind stk, Reg src, IReg base, IReg derived)

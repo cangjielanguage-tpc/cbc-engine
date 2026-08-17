@@ -277,11 +277,9 @@
     X(COPY_REC_FROM_OBJ, MStructFieldOp, "reg.copy.from.obj $0U64 }", true)                                            \
     X(COPY_REC_FROM_REC, MStructFieldOp, "reg.copy.from.rec $0U64 }", true)                                            \
     X(COPY_REC_FROM_DERIVED, MStructFieldOp, "reg.copy.from.derived $0U64 }", true)                                    \
-    X(COPY_REC_FROM_FRAME, MStructFieldOp, "reg.copy.from.frame $0U64 }", true)                                        \
     X(COPY_REC_TO_OBJ, MStructFieldOp, "reg.copy.to.obj $0U64 }", true)                                                \
     X(COPY_REC_TO_REC, MStructFieldOp, "reg.copy.to.rec $0U64 }", true)                                                \
-    X(COPY_REC_TO_DERIVED, MStructFieldOp, "reg.copy.to.derived $0U64 }", true)                                        \
-    X(COPY_REC_TO_FRAME, MStructFieldOp, "reg.copy.to.frame $0U64 }", true)
+    X(COPY_REC_TO_DERIVED, MStructFieldOp, "reg.copy.to.derived $0U64 }", true)
 
 namespace Cbc {
 namespace RT {
@@ -596,6 +594,22 @@ struct StructFieldOp {
         auto field = Format::RR::Decode(reader);
         auto ti    = reader.Read<RTSupport::TypeInfo>();
         return StructFieldOp { opc, rr, field, ti };
+    }
+};
+
+struct CopyDerived {
+    MemOpcode opc;
+    Format::RR rr;
+    Format::RR field;
+    RTSupport::TypeInfo ti;
+
+    static CopyDerived Decode(Decoder::ByteReader& reader)
+    {
+        auto opc   = MemOpcode::Decode(reader);
+        auto rr    = Format::RR::Decode(reader);
+        auto field = Format::RR::Decode(reader);
+        auto ti    = reader.Read<RTSupport::TypeInfo>();
+        return CopyDerived { opc, rr, field, ti };
     }
 };
 

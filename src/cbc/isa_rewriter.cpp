@@ -1546,7 +1546,10 @@ struct IsaRewriter : public IsaParser {
             case HEAD_REC:     msr.emit.CopyRecToRec(from, msr.base, *ty.GetTypeInfo()); break;
             case HEAD_DERIVED: msr.emit.CopyDerivedToRec(msr.base, msr.derived, from, *ty.GetTypeInfo()); break;
             case HEAD_STATIC:  FATAL("didn't do statics yet");
-            case HEAD_FRAME:   msr.emit.CopyFrameToRec(from, msr.base, *ty.GetTypeInfo()); break;
+            case HEAD_FRAME:
+                ASSERTION(RTSupport::Execution::GetLocalBasePtr().value == 0, "assumes local base is zero");
+                msr.emit.CopyRecToRec(from, IReg::IRZ, *ty.GetTypeInfo());
+                break;
             case HEAD_NONE:    FATAL("unreachable");
         }
     }
@@ -1567,7 +1570,10 @@ struct IsaRewriter : public IsaParser {
             case HEAD_REC:     msr.emit.CopyRecFromRec(msr.base, to, *ty.GetTypeInfo()); break;
             case HEAD_DERIVED: msr.emit.CopyDerivedFromRec(msr.base, msr.derived, to, *ty.GetTypeInfo()); break;
             case HEAD_STATIC:  FATAL("didn't do statics yet");
-            case HEAD_FRAME:   msr.emit.CopyFrameFromRec(msr.base, to, *ty.GetTypeInfo()); break;
+            case HEAD_FRAME:
+                ASSERTION(RTSupport::Execution::GetLocalBasePtr().value == 0, "assumes local base is zero");
+                msr.emit.CopyRecFromRec(IReg::IRZ, to, *ty.GetTypeInfo());
+                break;
             case HEAD_NONE:    FATAL("unreachable");
         }
     }

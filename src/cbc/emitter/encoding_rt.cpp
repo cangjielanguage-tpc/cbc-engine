@@ -298,5 +298,13 @@ void Encode(ByteBuffer& buf, RT::M10rri64 command)
     Encode(buf, command.imm64);
 }
 
+void Encode(ByteBuffer& buf, RT::CopyDerived command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.rr);
+    Encode(buf, command.field);
+    buf.AddW64(Bits::Raw64(command.ti));
+}
+
 } // namespace Emitter
 } // namespace Cbc
