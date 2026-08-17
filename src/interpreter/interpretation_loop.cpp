@@ -1525,7 +1525,7 @@ LABEL(GENERIC_FIELD) {
     FSTI(64, 64, M9i64)
 #undef FSTI
 
-LABEL(REC_COPY_FROM_OBJ) {
+LABEL(COPY_REC_FROM_OBJ) {
     auto args = MStructFieldOp::Decode(reader);
     // Object from which we copy.
     // Memspace offset is offset into it for the start of the record we copy.
@@ -1544,7 +1544,7 @@ LABEL(REC_COPY_FROM_OBJ) {
     NEXT;
 }
 
-LABEL(REC_COPY_FROM_REC) {
+LABEL(COPY_REC_FROM_REC) {
     auto args = MStructFieldOp::Decode(reader);
     auto from = ectype->GetReference(args.rr.x.IR());
     auto to = ectype->GetReference(args.rr.y.IR());
@@ -1558,7 +1558,7 @@ LABEL(REC_COPY_FROM_REC) {
     NEXT;
 }
 
-LABEL(REC_COPY_FROM_DERIVED) {
+LABEL(COPY_REC_FROM_DERIVED) {
     auto args = StructFieldOp::Decode(reader);
     auto base = ectype->GetReference(args.rr.x.IR());
     auto derived = ectype->GetReference(args.rr.y.IR());
@@ -1571,12 +1571,12 @@ LABEL(REC_COPY_FROM_DERIVED) {
     NEXT;
 }
 
-LABEL(REC_COPY_FROM_FRAME) {
+LABEL(COPY_REC_FROM_FRAME) {
     // TODO: idk
     FATAL("idk");
 }
 
-LABEL(REC_COPY_TO_OBJ) {
+LABEL(COPY_REC_TO_OBJ) {
     auto args = MStructFieldOp::Decode(reader);
     auto from = ectype->GetReference(args.rr.x.IR());
     auto to = ectype->GetReference(args.rr.y.IR());
@@ -1590,7 +1590,7 @@ LABEL(REC_COPY_TO_OBJ) {
     NEXT;
 }
 
-LABEL(REC_COPY_TO_REC) {
+LABEL(COPY_REC_TO_REC) {
     auto args = MStructFieldOp::Decode(reader);
     auto from = ectype->GetReference(args.rr.x.IR());
     auto to = ectype->GetReference(args.rr.y.IR());
@@ -1604,7 +1604,7 @@ LABEL(REC_COPY_TO_REC) {
     NEXT;
 }
 
-LABEL(REC_COPY_TO_DERIVED) {
+LABEL(COPY_REC_TO_DERIVED) {
     auto args = StructFieldOp::Decode(reader);
     auto base = ectype->GetReference(args.rr.x.IR());
     auto derived = ectype->GetReference(args.rr.y.IR());
@@ -1617,7 +1617,7 @@ LABEL(REC_COPY_TO_DERIVED) {
     NEXT;
 }
 
-LABEL(REC_COPY_TO_FRAME) {
+LABEL(COPY_REC_TO_FRAME) {
     // TODO: idk
     FATAL("idk");
 }

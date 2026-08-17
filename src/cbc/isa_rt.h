@@ -274,14 +274,14 @@
     X(FSTI_64_16, M3i16, "fsti.64.16 $0U16 }", true)                                                                   \
     X(FSTI_64_32, M5i32, "fsti.64.32 $0U32 }", true)                                                                   \
     X(FSTI_64_64, M9i64, "fsti.64.64 $0U64 }", true)                                                                   \
-    X(REC_COPY_FROM_OBJ, MStructFieldOp, "reg.copy.from.obj $0U64 }", true)                                            \
-    X(REC_COPY_FROM_REC, MStructFieldOp, "reg.copy.from.rec $0U64 }", true)                                            \
-    X(REC_COPY_FROM_DERIVED, MStructFieldOp, "reg.copy.from.derived $0U64 }", true)                                    \
-    X(REC_COPY_FROM_FRAME, MStructFieldOp, "reg.copy.from.frame $0U64 }", true)                                        \
-    X(REC_COPY_TO_OBJ, MStructFieldOp, "reg.copy.to.obj $0U64 }", true)                                                \
-    X(REC_COPY_TO_REC, MStructFieldOp, "reg.copy.to.rec $0U64 }", true)                                                \
-    X(REC_COPY_TO_DERIVED, MStructFieldOp, "reg.copy.to.derived $0U64 }", true)                                        \
-    X(REC_COPY_TO_FRAME, MStructFieldOp, "reg.copy.to.frame $0U64 }", true)
+    X(COPY_REC_FROM_OBJ, MStructFieldOp, "reg.copy.from.obj $0U64 }", true)                                            \
+    X(COPY_REC_FROM_REC, MStructFieldOp, "reg.copy.from.rec $0U64 }", true)                                            \
+    X(COPY_REC_FROM_DERIVED, MStructFieldOp, "reg.copy.from.derived $0U64 }", true)                                    \
+    X(COPY_REC_FROM_FRAME, MStructFieldOp, "reg.copy.from.frame $0U64 }", true)                                        \
+    X(COPY_REC_TO_OBJ, MStructFieldOp, "reg.copy.to.obj $0U64 }", true)                                                \
+    X(COPY_REC_TO_REC, MStructFieldOp, "reg.copy.to.rec $0U64 }", true)                                                \
+    X(COPY_REC_TO_DERIVED, MStructFieldOp, "reg.copy.to.derived $0U64 }", true)                                        \
+    X(COPY_REC_TO_FRAME, MStructFieldOp, "reg.copy.to.frame $0U64 }", true)
 
 namespace Cbc {
 namespace RT {
