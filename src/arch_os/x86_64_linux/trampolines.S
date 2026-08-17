@@ -45,6 +45,8 @@ declare_hidden common_landing_pad
 declare_hidden engine_carrier_specific_offset
 declare_hidden engine_cjthread_specific_offset
 declare_hidden engine_i2_spawn
+declare_hidden engine_stack_grow_stub
+declare_hidden engine_after_stack_grow
 
 // --- SECTION BSS ---
 .section .bss
@@ -71,6 +73,8 @@ engine_read_generic:
 engine_carrier_specific_offset:
   .skip 8
 engine_cjthread_specific_offset:
+  .skip 8
+engine_stack_grow_stub:
   .skip 8
 
 // --- SECTION TEXT ---
@@ -329,13 +333,13 @@ perform_2i_call:
 // | LITERALS_REG                       |
 // +------------------------------------+
 // | EXTRA_REG                          |
+// +------------------------------------+
+// | CHECK_SUM                          |
 // +------------------------------------+>\
-// | CHECK_SUM                          |  |
-// +------------------------------------+> |
-// | Reader                             |  |
-// +------------------------------------+   -- LOCAL_SLOTS_OFFSET - EXTRA_SAVED_REG_OFFSET
+// | Reader                             |  \
+// +------------------------------------+  |-- LOCAL_SLOTS_OFFSET - CHECK_SUM_OFFSET
 // | Alignment  (0 or 8)                |  /
-// +------------------------------------+>/
+// +------------------------------------+>/ <- SP for stack overflow check
 // | Dynamic Locals (locals_size)       |
 // +------------------------------------+ <-- SP
   push  rbp
@@ -387,21 +391,26 @@ perform_2i_call:
   call  engine_log_int_start
 #endif
 
-  mov   rdx, rsp // save current sp for registers saving to the bottom of frame
-
+.Lcontinue_after_stack_expand: // just repeat stack overflow check again after stack expansion
   mov   rax, [rbp - FUH_SLOT_OFFSET] // load Function Handle
   mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
 
-  // current rsp is 16-byte.baligned
+  // current rsp is 16-byte aligned
   mov   r8d, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
-  mov   rsi, rsp
+  mov   rcx, [TLS_REG + TLS_STACK_BORDER_OFFSET]
+  add   rcx, ADDITIONAL_STACK_SPACE
   sub   rsp, r8
-  mov   rdi, rsp
-  xor   ecx, ecx
+  cmp   rsp, rcx
+  jbe   .Lstack_overflow
+
+  lea   rdx, [rsp + r8] // used in PUSH_REGS
 
 // FIXME: remove it
 // We are zeroing a whole frame to simplify gc handling,
 // but it should be handled by compiler properly.
+  mov   rsi, rdx
+  mov   rdi, rsp
+  xor   ecx, ecx
 .Lframe_zero_loop:
   cmp   rdi, rsi
   je    .Lframe_zero_loop_end
@@ -409,14 +418,6 @@ perform_2i_call:
   add   rdi, 8
   jmp   .Lframe_zero_loop
 .Lframe_zero_loop_end:
-
-#ifndef NDEBUG
-  // calculate check sum and save it in the frame
-  mov   rsi, QWORD PTR [rax + EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET] // list of saved iregs
-  xor   rsi, rdx // address to the start of interpreter frame allocated data
-  xor   rsi, r8  // frame size
-  mov   [rbp - CHECK_SUM_OFFSET], rsi
-#endif
 
   PUSH_REGS rcx, rdx, rax, rsi
 
@@ -457,13 +458,6 @@ perform_2i_call:
   xor   rsi, rdx
   xor   rsi, r8
 
-#ifndef NDEBUG
-  cmp   rsi, [rbp - CHECK_SUM_OFFSET]
-  je    .Lcheck_sum_ok
-  ud2
-.Lcheck_sum_ok:
-#endif
-
   POP_REGS rcx, rdx, rax, rsi, rdi
 
   mov   EXTRA_REG, [rbp - EXTRA_SAVED_REG_OFFSET]
@@ -473,6 +467,42 @@ perform_2i_call:
   mov   rsp, rbp
   pop   rbp
   ret
+
+.macro save_all_iregs scratch_reg
+  .set _offset, 0
+  .rept ECTYPE_IREGS_COUNT
+    mov    \scratch_reg, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + _offset]
+    mov    [rsp + _offset], \scratch_reg
+    .set   _offset, _offset + ECTYPE_REG_SIZE
+  .endr
+.endm
+
+.macro restore_all_iregs scratch_reg
+  .set _offset, 0
+  .rept ECTYPE_IREGS_COUNT
+    mov    \scratch_reg, [rsp + _offset]
+    mov    [ECTYPE_REG + ECTYPE_IREGS_OFFSET + _offset], \scratch_reg
+    .set   _offset, _offset + ECTYPE_REG_SIZE
+  .endr
+.endm
+
+.Lstack_overflow:
+  lea   rsp, [rsp + r8 - STACK_OVERFLOW_REGDUMP_SIZE]
+  // rsp is 16-byte aligned now
+
+  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE * ECTYPE_IACC_NUM], rsp
+
+  save_all_iregs rdi
+
+  // pass "adjusted size" on rax
+  // TODO: investigate why it is needed
+  mov   rax, 0x20
+  call  [rip + engine_stack_grow_stub]
+engine_after_stack_grow:
+  restore_all_iregs rdi
+
+  add   rsp, STACK_OVERFLOW_REGDUMP_SIZE
+  jmp   .Lcontinue_after_stack_expand
 
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: target)
 // preserved: ECTYPE_REG, rbp
@@ -611,7 +641,7 @@ engine_i2_spawn:
 .size perform_2i_call, .-perform_2i_call
 
 // fake execute closure function
-.align 16
+.balign 16
 engine_fake_execute_closure:
   // (rdi: sret, rsi: ()T, rdx: TypeInfo[Future[T]]
   mov   rcx, [rsi + 0x10] // get $i (instantiated) version of closure function
@@ -621,6 +651,7 @@ engine_fake_execute_closure:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: exception type)
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
+.balign 16
 engine_throw_implicit_exception:
   // jumped from .Linterpreter_call without return address to return
   call  [rip + engine_implicit_exception_thrower]
@@ -630,6 +661,7 @@ engine_throw_implicit_exception:
 // When exception is thrown from CJNative code to interpreter, execution of
 // interpreter exception handling starts here
 // TODO obtain exception using PostThrowException from RT interface
+.balign 16
 common_landing_pad:
   call engine_get_and_clear_pending_exception
   mov rdi, rax
@@ -639,7 +671,7 @@ common_landing_pad:
 // Returns to interpretation loop with exception reference on ACC_REG
 // or throws exception reference using CJNative runtime interface if there is no any exception handler in consecutive interpreter frames.
 // Precondition: top frame is interpreter frame.
-.align 16
+.balign 16
 engine_handle_exception:
   mov   EXTRA_REG, rdi
 
@@ -647,11 +679,23 @@ engine_handle_exception:
   lea   rsi, QWORD PTR [rbp - READER_SLOT_OFFSET] // reader
   call  engine_get_exception_handler
 
-  mov   r8, EXTRA_REG // use r8 (volatile) as temporary exception holder
+  lea   rcx, [rip + .Lexception_handlers]
+  mov   eax, [rcx + 4 * rax] // offset would be zero extended
+  lea   rcx, [rcx + rax]
+  jmp   rcx
 
-  test  al, al
-  jz   .Lunwind_top_frame
+.Lexception_handlers:
+  .long .Lunwind_top_frame - .Lexception_handlers // EXC_HANDLER_NOT_FOUND
+  .long .Lcatch_exception  - .Lexception_handlers // EXC_HANDLER_FOUND
+  .long .Lhandle_soe       - .Lexception_handlers // EXC_SOE_THROWN
 
+.Lhandle_soe:
+  restore_all_iregs rdi
+
+  add   rsp, STACK_OVERFLOW_REGDUMP_SIZE
+  jmp   .Lhandle_c2i_or_rethrow
+
+.Lcatch_exception:
   // Handler is found, set exception object to ACC_REG and continue interpretation
   mov   QWORD PTR [ECTYPE_REG + ECTYPE_IACC_OFFSET], EXTRA_REG
   jmp   .Lrestart_interpretation
@@ -665,6 +709,9 @@ engine_handle_exception:
 
   POP_REGS rcx, rdx, rax, rsi, rdi
 
+.Lhandle_c2i_or_rethrow:
+  mov   rdi, EXTRA_REG // rdi := exception
+
   mov   EXTRA_REG,    [rbp - EXTRA_SAVED_REG_OFFSET]
   mov   LITERALS_REG, [rbp - LITERALS_REG_SAVED_SLOT_OFFSET]
   mov   ECTYPE_REG,   [rbp - ECTYPE_REG_SAVED_SLOT_OFFSET]
@@ -673,8 +720,6 @@ engine_handle_exception:
   mov rsp, rbp
   pop rbp
   pop rsi // ret addr
-
-  mov   rdi, r8 // set exception pointer as argument for both execution paths
 
   // Check if next method is C2I adapter
   lea   rax, [rip + engine_c2i_call_pc_start]
@@ -709,5 +754,4 @@ engine_handle_exception:
 
   jmp   [rip + engine_throw_out_of_interpreter]
   ud2
-
 

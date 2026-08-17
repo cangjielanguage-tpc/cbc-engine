@@ -32,6 +32,8 @@ extern void engine_all_regs_c2i_call();
 extern void engine_i2i_call();
 extern void engine_i2c_call();
 extern void common_landing_pad();
+extern void engine_after_stack_grow();
+extern void (*engine_stack_grow_stub)();
 extern void* (*engine_tls_function)();
 extern void (*engine_implicit_exception_thrower)(int kind);
 extern void (*engine_throw_out_of_interpreter)(DYN_ObjRef exception);

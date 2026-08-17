@@ -37,6 +37,8 @@
     #define engine_implicit_exception_thrower _engine_implicit_exception_thrower
     #define engine_handle_exception _engine_handle_exception
     #define common_landing_pad _common_landing_pad
+    #define engine_stack_grow_stub _engine_stack_grow_stub
+    #define engine_after_stack_grow _engine_after_stack_grow
 #endif
 
 #ifdef __APPLE__
@@ -93,6 +95,8 @@ declare_hidden engine_throw_implicit_exception
 declare_hidden engine_implicit_exception_thrower
 declare_hidden engine_handle_exception
 declare_hidden common_landing_pad
+declare_hidden engine_stack_grow_stub
+declare_hidden engine_after_stack_grow
 
 // --- SECTION BSS ---
 #ifdef __APPLE__
@@ -124,6 +128,8 @@ engine_read_generic:
 engine_carrier_specific_offset:
   .skip 8
 engine_cjthread_specific_offset:
+  .skip 8
+engine_stack_grow_stub:
   .skip 8
 
 // --- SECTION TEXT ---
@@ -402,11 +408,17 @@ perform_2i_call:
   ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
 #endif
 
+.Lcontinue_after_stack_expand:
   mov   x1, sp // save current sp for registers saving to the bottom of frame
 
   // current sp is 16-byte.baligned
   ldr   w8, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   sub   sp, sp, x8
+
+  ldr   x10, [TLS_REG, #TLS_STACK_BORDER_OFFSET]
+  add   x10, x10, #ADDITIONAL_STACK_SPACE
+  cmp   sp, x10
+  b.ls  .Lstack_overflow
 
   mov   x2, sp
   mov   x3, x1
@@ -464,6 +476,49 @@ perform_2i_call:
   mov   sp, x29
   ldp   x29, x30, [sp], #16
   ret
+
+.macro save_all_iregs scratch_reg
+  .set _offset, 0
+  .rept ECTYPE_IREGS_COUNT
+    ldr   \scratch_reg, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + _offset)]
+    str   \scratch_reg, [sp, #_offset]
+    .set _offset, _offset + ECTYPE_REG_SIZE
+  .endr
+.endm
+
+.macro restore_all_iregs scratch_reg
+  .set _offset, 0
+  .rept ECTYPE_IREGS_COUNT
+    ldr   \scratch_reg, [sp, #_offset]
+    str   \scratch_reg, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + _offset)]
+    .set _offset, _offset + ECTYPE_REG_SIZE
+  .endr
+.endm
+
+// Expands stack and returns to perform 2i call or throws SOE if stack expansion is impossible
+.balign 16
+.Lstack_overflow:
+  add   sp, sp, x8
+
+  sub   sp, sp, #STACK_OVERFLOW_REGDUMP_SIZE
+  mov   x10, sp
+  str   x10, [ECTYPE_REG, #ECTYPE_IACC_OFFSET]
+  save_all_iregs x10
+
+  mov   x9, #0x20 // adjusted size
+  adrp  x10, Page(engine_stack_grow_stub)
+  ldr   x10, [x10, PageOff(engine_stack_grow_stub)]
+  blr   x10
+engine_after_stack_grow:
+
+  restore_all_iregs x10
+  add   sp, sp, #STACK_OVERFLOW_REGDUMP_SIZE
+
+  // Restore ExecBytecodeInfo
+  ldr   x9, [x29, #-FUH_SLOT_OFFSET]
+  ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
+
+  b     .Lcontinue_after_stack_expand
 
 .balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: fuh)
@@ -663,10 +718,24 @@ engine_handle_exception:
 
   mov   x12, EXTRA_REG // use x12 (volatile) as temporary exception holder
 
-  cbz   w0, .Lunwind_top_frame
+  adr   x1, .Lexception_handlers
+  ldr   w0, [x1, x0, lsl #2]
+  add   x1, x1, x0
+  br    x1
 
+.Lexception_handlers:
+  .long .Lunwind_top_frame - .Lexception_handlers // EXC_HANDLER_NOT_FOUND
+  .long .Lcatch_exception  - .Lexception_handlers // EXC_HANDLER_FOUND
+  .long .Lhandle_soe       - .Lexception_handlers // EXC_SOE_THROWN
+
+.Lhandle_soe:
+  restore_all_iregs x1
+  add   sp, sp, STACK_OVERFLOW_REGDUMP_SIZE
+  b     .Lhandle_c2i_or_rethrow
+
+.Lcatch_exception:
   // Handler is found, set exception object to ACC_REG and continue interpretation
-  str   x12, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + ECTYPE_IACC_NUM * ECTYPE_REG_SIZE)]
+  str   x12, [ECTYPE_REG, #ECTYPE_IACC_OFFSET]
   b     .Lrestart_interpretation
 
 .Lunwind_top_frame:
@@ -679,14 +748,15 @@ engine_handle_exception:
 
   POP_REGS x8, x1, x9, x2, x3, x4
 
+.Lhandle_c2i_or_rethrow:
+  mov   x0, x12 // x0 := exception
+
   ldr   ECTYPE_REG, [x29, #-ECTYPE_REG_SAVED_SLOT_OFFSET]
   ldp   EXTRA_REG, LITERALS_REG, [x29, #-EXTRA_SAVED_REG_OFFSET]
 
   // Clear top frame
   mov   sp, x29
   ldp   x29, x30, [sp], #16
-
-  mov   x0, x12 // set exception pointer as argument for both execution paths
 
   // Check if next method is C2I adapter
   adr   x9, engine_c2i_call_pc_start
@@ -725,3 +795,4 @@ engine_handle_exception:
   ldr   x9, [x9, PageOff(engine_throw_out_of_interpreter)]
   br    x9
   brk   #0
+

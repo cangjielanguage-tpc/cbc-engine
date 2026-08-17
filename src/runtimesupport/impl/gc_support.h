@@ -1,9 +1,14 @@
 #pragma once
 
 #include "RTInterface.h"
+#include "reg_table.h"
 #include <optional>
 
 namespace GCSupport {
+
+void VisitRoot(DYN_RootVisitor rootVisitor, Placeholder ph);
+
+void VisitMutPair(DYN_DerivedPtrVisitor derivedPtrVisitor, Placeholder basePh, Placeholder derivedPh);
 
 void IterateFramesWithState(
     DYN_CJThreadSpecificData threadSpecificData, void (*callback)(DYN_VisitingState, void*), void* ctx

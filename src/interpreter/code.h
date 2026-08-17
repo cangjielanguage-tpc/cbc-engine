@@ -8,6 +8,8 @@
 
 #include "asm_export.h"
 #include "cbc/offsets_index.h"
+#include "engine/engine.h"
+#include "engine/terms.h"
 #include "literals.h"
 #include "utils/misc.h"
 #include "utils/ostream.h"
@@ -24,7 +26,7 @@ struct Code {
 struct Resource {
     uint32_t idx;
 
-    bool IsReg() { return idx < Cbc::IReg::COUNT; }
+    bool IsReg() { return idx < Cbc::IReg::COUNT_ISA_ONLY; }
 
     IReg AsReg()
     {
@@ -35,20 +37,29 @@ struct Resource {
     uint32_t AsSlotNum()
     {
         ASSERT(!IsReg());
-        return idx;
+        return idx - Cbc::IReg::COUNT_ISA_ONLY;
     }
 };
 
-struct PositionalInfo {
+struct GCPositionalInfo {
     uint32_t rewrittenPos;
     uint16_t regMask;
     std::vector<uint32_t> untypedRefSlotsInfo;
     std::vector<std::pair<Resource, Resource>> mutPairs;
 };
 
+struct StackPtrsPositionalInfo {
+    uint32_t rewrittenPos;
+    std::vector<Resource> resources;
+};
+
 struct GcInfo {
-    std::vector<PositionalInfo> positionalInfo;
+    std::vector<GCPositionalInfo> positionalInfo;
     std::vector<std::pair<uint32_t, void*>> typedSlotsInfo;
+};
+
+struct StackPtrsInfo {
+    std::vector<StackPtrsPositionalInfo> positionalInfo;
 };
 
 // List of non-zero registers used for storing non-volatile regs.
@@ -90,17 +101,48 @@ struct NonVolatileRegs {
     bool IsEmpty() { return value == 0; }
 };
 
+struct AbiInfo {
+    // Bitmap of all parameters (including sret) that point to stack.
+    uint16_t stackPtrParams;
+    // Bitmap of all reference parameters.
+    uint16_t referenceParams;
+    // Bitmap of all parameters which are represented as (base, derived) pairs.
+    // N-th bit set => (base: N+1-th param, derived: N-th param)
+    uint16_t derivedPairs;
+
+    // Amount of parameters being passed by registers
+    uint8_t iregParamCount;
+    uint8_t fregParamCount;
+
+    bool isSRet;
+    bool hasTailReg;
+};
+
 struct ExecBytecodeInfo {
-    Code const code;
+    Code code;
     NonVolatileRegs savedIRegs;
     NonVolatileRegs savedFRegs;
-    uint32_t const frameSize;
-    uint16_t const untypedSlotCount;
-    GcInfo const gcInfo;
-    InstructionOffsetsIndex const offsetsIndex; // TODO: optimize RAM footprint
+    uint32_t frameSize;
+    uint16_t untypedSlotCount;
+    AbiInfo abiInfo;
+    GcInfo gcInfo;
+    StackPtrsInfo stackPtrsInfo;
+    InstructionOffsetsIndex offsetsIndex; // TODO: optimize RAM footprint
 
     friend Stream::Output& operator<<(Stream::Output& out, const ExecBytecodeInfo& bc);
 };
+
+struct AbiInfoFlags {
+    bool isSRet : 1;
+    bool isMut : 1;
+    bool hasThisTypeInfo : 1;
+    bool hasOuterTi : 1;
+    bool recordReceiver : 1;
+    bool referenceReceiver : 1;
+    int funcVars;
+};
+
+AbiInfo BuildAbiInfo(Engine::Session& session, Engine::Term signature, AbiInfoFlags flags);
 
 static_assert(
     offsetof(ExecBytecodeInfo, code) + offsetof(Code, bytecodeSize) == EXEC_BYTECODE_INFO_BYTECODE_SIZE_OFFSET

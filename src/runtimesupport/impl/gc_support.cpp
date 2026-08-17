@@ -3,7 +3,6 @@
 #include "asm_export.h"
 #include "cjnative.h"
 #include "engine/statics_manager.h"
-#include "interpreter/code.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
 #include "runtimesupport/runtime.h"
@@ -11,21 +10,17 @@
 #include "utils/ostream.h"
 #include "utils/rt_logger.h"
 
-#include <bitset>
-#include <cstdint>
-
 namespace GCSupport {
 
 using namespace Stream;
-using Placeholder = uintptr_t*;
 
-static void VisitRoot(DYN_RootVisitor rootVisitor, Placeholder ph)
+void VisitRoot(DYN_RootVisitor rootVisitor, Placeholder ph)
 {
     LOG_TRACE(RTSupport::Log::gc, "visiting {}, value={}", Hex(ph), Hex(*ph));
     g_CJNativeInterfaceInstance.visitRootFromInterpreter(rootVisitor, ph);
 }
 
-static void VisitMutPair(DYN_DerivedPtrVisitor derivedPtrVisitor, Placeholder basePh, Placeholder derivedPh)
+void VisitMutPair(DYN_DerivedPtrVisitor derivedPtrVisitor, Placeholder basePh, Placeholder derivedPh)
 {
     LOG_TRACE(
         RTSupport::Log::gc,
@@ -36,46 +31,6 @@ static void VisitMutPair(DYN_DerivedPtrVisitor derivedPtrVisitor, Placeholder ba
     );
     g_CJNativeInterfaceInstance.visitDerivedPtrFromInterpreter(derivedPtrVisitor, basePh, derivedPh);
 }
-
-class RegistersTable {
-    using IReg = Cbc::IReg;
-
-public:
-    RegistersTable(Interpretation::Ectype* ectype)
-    {
-        uintptr_t ectypeAddr = reinterpret_cast<uintptr_t>(ectype);
-        for (uint32_t regN = 0; regN < IReg::COUNT; regN++) {
-            IReg reg             = IReg::From(regN);
-            regLocationMap[regN] = reinterpret_cast<Placeholder>(ectype->GetIRegLocation(reg));
-        }
-    }
-
-    void VisitAliveRegs(std::bitset<ECTYPE_IREGS_COUNT> aliveRegsMap, DYN_RootVisitor rootVisitor)
-    {
-        for (uint32_t regN = 0; regN < IReg::COUNT; regN++) {
-            if (aliveRegsMap.test(regN)) {
-                RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) {
-                    out << IReg::From(regN).CStr() << ": ";
-                });
-                VisitRoot(rootVisitor, regLocationMap[regN]);
-            }
-        }
-    }
-
-    void UpdateRegLocations(Interpretation::NonVolatileRegs savedRegs, Placeholder calleeSavedRegsEnd)
-    {
-        Placeholder addr = calleeSavedRegsEnd;
-        while (!savedRegs.IsEmpty()) {
-            uint32_t regN        = savedRegs.ExtractReg();
-            regLocationMap[regN] = --addr;
-        }
-    }
-
-    Placeholder GetRegLocation(IReg reg) { return regLocationMap[reg.Raw()]; }
-
-private:
-    Placeholder regLocationMap[IReg::COUNT];
-};
 
 void IterateFramesWithState(
     DYN_CJThreadSpecificData threadSpecificData, void (*callback)(DYN_VisitingState, void*), void* ctx
@@ -102,15 +57,6 @@ void IterateFramesWithState(
     });
 }
 
-Placeholder GetResourceLocation(Interpretation::Resource resource, uint8_t* slotsStartAddr, RegistersTable* regTable)
-{
-    if (resource.IsReg()) {
-        return regTable->GetRegLocation(resource.AsReg());
-    } else {
-        return reinterpret_cast<Placeholder>(slotsStartAddr + (resource.AsSlotNum() * 8)); // TODO named constant
-    }
-}
-
 void VisitGCFrameRoots(
     DYN_VisitingState state,
     INT_FrameDesc frame_desc,
@@ -129,7 +75,7 @@ void VisitGCFrameRoots(
 
     uint32_t curPos = reinterpret_cast<uintptr_t>(reader->Cursor()) - reinterpret_cast<uintptr_t>(bc->code.bytecode);
 
-    const PositionalInfo* positionalInfo = nullptr;
+    const GCPositionalInfo* positionalInfo = nullptr;
     for (auto& info : bc->gcInfo.positionalInfo) {
         if (info.rewrittenPos == curPos) {
             positionalInfo = &info;
@@ -140,7 +86,11 @@ void VisitGCFrameRoots(
     if (!positionalInfo) {
         RTSupport::Log::gc.Log(Logging::Level::ERROR, [&](Output& out) {
             out.PrintFmtLn(
-                "cannot translate position (fuh=%p, ip=%p, fp=%p, pos=%p)", fuh, frame_desc.ip, frame_desc.fp, curPos
+                "cannot find info for position (fuh=%p, ip=%p, fp=%p, pos=%p)",
+                fuh,
+                frame_desc.ip,
+                frame_desc.fp,
+                curPos
             );
         });
         return;
@@ -211,7 +161,7 @@ void VisitGCFrameRoots(
             out << "visit alive regs, alive regs: " << aliveRegsMap.to_string().c_str() << endl;
         });
 
-        regsLocationTable->VisitAliveRegs(aliveRegsMap, rootVisitor);
+        regsLocationTable->VisitAliveRegs(aliveRegsMap, [&](Placeholder ph) { VisitRoot(rootVisitor, ph); });
     }
 
     auto savedRegsMap = bc->savedIRegs;

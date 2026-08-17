@@ -62,16 +62,15 @@ static void init_cangjie_runtime() {
         },
         .coParam = {
             .thStackSize = 2 * 1024,
-            .coStackSize = 2 * 1024,
+            .coStackSize = 64,
             .processorNum = (uint32_t) ncpu,
         },
     };
 
     struct InterpreterParam interpParams = {
-        .interpreterLibName = interpreter_lib,
-	.interpreterArgsCount = 0,
+        .interpreterLibName   = interpreter_lib,
+        .interpreterArgsCount = 0,
     };
-
 
     int rtInitCode = InitCJRuntime(&rtParams);
     if (rtInitCode != 0) {

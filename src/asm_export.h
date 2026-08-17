@@ -12,6 +12,7 @@
 
 #define TRAMPOLINE_COUNT 1024
 
+#define TLS_STACK_BORDER_OFFSET 40
 #define TLS_FIBER_DATA_OFFSET 16
 #define FIBER_DATA_ECTYPE_OFFSET 16
 
@@ -36,3 +37,19 @@
 #define TYPEINFO_INSTANCESIZE_OFFSET 12
 
 #define TYPEINFO_DATA_MT_OFFSET 96
+
+#ifndef ADDITIONAL_STACK_SPACE // can be set externally
+    // TODO: adjust values appropriately (it is best if the ADDITIONAL_STACK_SPACE is 0 for release mode)
+    // FIXME: usage of libc stdio for logging require more than 20K of stack
+    #ifndef NDEBUG
+        #define ADDITIONAL_STACK_SPACE (64 * 1024)
+    #else
+        #define ADDITIONAL_STACK_SPACE (64 * 1024) // TODO: return to 8 Kb
+    #endif // NDEBUG
+#endif     // ADDITIONAL_STACK_SPACE
+
+#define STACK_OVERFLOW_REGDUMP_SIZE (((ECTYPE_IREGS_COUNT * ECTYPE_REG_SIZE) + 15) & ~15)
+
+#define EXC_HANDLER_NOT_FOUND 0
+#define EXC_HANDLER_FOUND 1
+#define EXC_SOE_THROWN 2

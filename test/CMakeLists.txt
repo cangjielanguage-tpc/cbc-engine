@@ -21,7 +21,7 @@ set(TEST_RESOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/resources")
 
 add_executable(cbc_test "${TEST_SOURCES}")
 
-target_link_libraries(cbc_test PRIVATE cbc_lib GTest::gtest_main)
+target_link_libraries(cbc_test PRIVATE cbc_lib GTest::gtest_main ${CMAKE_DL_LIBS})
 target_compile_definitions(cbc_test PRIVATE TEST_RESOURCE_DIR="${TEST_RESOURCE_DIR}")
 
 gtest_discover_tests(cbc_test)

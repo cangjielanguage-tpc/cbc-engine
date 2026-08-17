@@ -27,6 +27,7 @@
 #include "interpreter/interpretation_loop.h"
 #include "interpreter/loggers.h"
 #include "runtimesupport/impl/rt_syms.h"
+#include "stack_expansion.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
 #include "utils/rt_logger.h"
@@ -237,7 +238,9 @@ static void VisitFrameRootsExpansion(
     DYN_DerivedPtrVisitor derivedPtrVisitor
 )
 {
-    /* no-op */
+    if (g_Initialized) {
+        StackExpansion::VisitFrameRootsForStackPtrs(state, frameDesc, stackPtrVisitor, derivedPtrVisitor);
+    }
 }
 
 static void VisitGlobalRoots(DYN_RootVisitor visitor)
@@ -245,6 +248,12 @@ static void VisitGlobalRoots(DYN_RootVisitor visitor)
     if (g_Initialized) {
         GCSupport::VisitGlobalRoots(visitor);
     }
+}
+
+static uint32_t GetFrameSize(DYN_FramePointer fp)
+{
+    ASSERTION(g_Initialized, "GetFrameSize cannot be called if there are no interpreter frames");
+    return StackExpansion::GetFrameSize(fp);
 }
 
 static void FrameInfoProvider(DYN_InstructionPointer ip, DYN_FramePointer fp, INT_InterpretedFrameInfo* info)
@@ -338,6 +347,7 @@ CBC_EXPORT int interpreter_bridge_init(
     interpInterf->visitFrameRootsAdjusting = &VisitFrameRootsAdjusting;
     interpInterf->visitGlobalRoots         = &VisitGlobalRoots;
 
+    interpInterf->getFrameSize      = &GetFrameSize;
     interpInterf->frameInfoProvider = &FrameInfoProvider;
     interpInterf->frameDescProvider = &FrameDescProvider;
 
@@ -346,10 +356,11 @@ CBC_EXPORT int interpreter_bridge_init(
     Asm::engine_carrier_specific_offset  = g_CJNativeInterfaceInstance.carrierSpecificOffset;
     Asm::engine_cjthread_specific_offset = g_CJNativeInterfaceInstance.cjThreadSpecificOffset;
 
-    Asm::engine_tls_function = g_CJNativeInterfaceInstance.getThreadLocalData;
+    Asm::engine_tls_function             = g_CJNativeInterfaceInstance.getThreadLocalData;
     Asm::engine_throw_out_of_interpreter = g_CJNativeInterfaceInstance.throwException;
-    Asm::engine_newobject_function = g_CJNativeInterfaceInstance.objectAlloc;
-    Asm::engine_newarray_function = g_CJNativeInterfaceInstance.arrayAlloc;
+    Asm::engine_newobject_function       = g_CJNativeInterfaceInstance.objectAlloc;
+    Asm::engine_newarray_function        = g_CJNativeInterfaceInstance.arrayAlloc;
+    Asm::engine_stack_grow_stub          = g_CJNativeInterfaceInstance.stackGrowStub;
     RTSupport::Initialize(&g_CJNativeInterfaceInstance);
 
     if (g_mainCbc.empty()) {
@@ -379,6 +390,7 @@ CBC_EXPORT int interpreter_bridge_init(
         builtinTypeInfos[BUILTIN_F32]     = RTSupport::TypeInfo(getTypeInfo("Float32"));
         builtinTypeInfos[BUILTIN_F64]     = RTSupport::TypeInfo(getTypeInfo("Float64"));
         builtinTypeInfos[BUILTIN_RUNE]    = RTSupport::TypeInfo(getTypeInfo("Rune"));
+        builtinTypeInfos[BUILTIN_CSTRING] = RTSupport::TypeInfo(getTypeInfo("CString"));
     }
 
     return 0;

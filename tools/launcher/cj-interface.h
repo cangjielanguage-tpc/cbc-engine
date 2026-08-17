@@ -1,6 +1,7 @@
 #ifndef CJ_INTERFACE_H
 #define CJ_INTERFACE_H
 
+#include <stddef.h>
 #include <stdint.h>
 
 enum RTLogLevel {
