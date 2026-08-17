@@ -61,8 +61,7 @@ void VisitGCFrameRoots(
     DYN_VisitingState state,
     INT_FrameDesc frame_desc,
     DYN_RootVisitor rootVisitor,
-    std::optional<DYN_DerivedPtrVisitor> derivedPtrVisitorOpt,
-    bool skipPrologue
+    std::optional<DYN_DerivedPtrVisitor> derivedPtrVisitorOpt
 )
 {
     using namespace Interpretation;
@@ -75,10 +74,6 @@ void VisitGCFrameRoots(
     auto bc     = NOTNULL(fuh->bytecode.load());
 
     uint32_t curPos = reinterpret_cast<uintptr_t>(reader->Cursor()) - reinterpret_cast<uintptr_t>(bc->code.bytecode);
-
-    if (curPos == 0 && skipPrologue) {
-        return;
-    }
 
     const GCPositionalInfo* positionalInfo = nullptr;
     for (auto& info : bc->gcInfo.positionalInfo) {

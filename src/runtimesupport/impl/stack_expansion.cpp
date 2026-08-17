@@ -122,15 +122,13 @@ void VisitFrameRootsForStackPtrs(
             if (abiInfo.derivedPairs & (1 << i)) {
                 auto basePh    = resLoc(i + 1);
                 auto derivedPh = resLoc(i);
-                auto kind = Execution::GetStructLocationKind(Value::Reference { .value = *basePh }, *derivedPh);
-
-                if (kind == LOCAL) {
-                    VisitMutPair(derivedPtrVisitor, basePh, derivedPh);
-                }
+                VisitMutPair(derivedPtrVisitor, basePh, derivedPh);
             }
         }
     } else {
         // One of the caller frames, use stack ptr maps provided by compiler.
+
+        GCSupport::VisitGCFrameRoots(state, frameDesc, stackAllocVisitor);
 
         auto reader = reinterpret_cast<Decoder::ByteReader*>((uint8_t*)frameDesc.fp - READER_SLOT_OFFSET);
         auto curPos = reinterpret_cast<uintptr_t>(reader->Cursor()) - reinterpret_cast<uintptr_t>(bc->code.bytecode);
@@ -143,12 +141,8 @@ void VisitFrameRootsForStackPtrs(
                 auto basePh    = GetResourceLocation(pair.first, slotsStartAddr, regTable);
                 auto derivedPh = GetResourceLocation(pair.second, slotsStartAddr, regTable);
 
-                auto kind = Execution::GetStructLocationKind(Value::Reference { .value = *basePh }, *derivedPh);
-                switch (kind) {
-                    case StructLocationKind::LOCAL: VisitMutPair(derivedPtrVisitor, basePh, derivedPh); break;
-                    case StructLocationKind::HEAP:  visitRef(basePh); break;
-                    default:                        break;
-                }
+                VisitMutPair(derivedPtrVisitor, basePh, derivedPh);
+                visitRef(basePh);
             }
         }
 

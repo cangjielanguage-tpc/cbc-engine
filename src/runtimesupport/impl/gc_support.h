@@ -18,8 +18,7 @@ void VisitGCFrameRoots(
     DYN_VisitingState state,
     INT_FrameDesc frame_desc,
     DYN_RootVisitor rootVisitor,
-    std::optional<DYN_DerivedPtrVisitor> derivedPtrVisitor = std::nullopt,
-    bool skipPrologue                                      = false
+    std::optional<DYN_DerivedPtrVisitor> derivedPtrVisitor = std::nullopt
 );
 
 void VisitGlobalRoots(DYN_RootVisitor visitor);

@@ -243,7 +243,6 @@ static void VisitFrameRootsExpansion(
         StackExpansion::VisitFrameRootsForStackPtrs(
             state, frameDesc, stackPtrVisitor, derivedPtrVisitor, stackAllocVisitor
         );
-        GCSupport::VisitGCFrameRoots(state, frameDesc, stackAllocVisitor, std::nullopt, true);
     }
 }
 
