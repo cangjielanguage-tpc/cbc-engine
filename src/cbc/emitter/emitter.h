@@ -74,11 +74,11 @@ public:
 
         void CopyRecFromObj(Reg from, Reg to, RTSupport::TypeInfo);
         void CopyRecFromRec(Reg from, Reg to, RTSupport::TypeInfo);
-        void CopyDerivedFromRec(Reg base, Reg derived, Reg to, RTSupport::TypeInfo);
+        void CopyRecFromDerived(Reg base, Reg derived, Reg to, RTSupport::TypeInfo);
 
-        void CopyObjToRec(Reg from, Reg to, RTSupport::TypeInfo);
+        void CopyRecToObj(Reg from, Reg to, RTSupport::TypeInfo);
         void CopyRecToRec(Reg from, Reg to, RTSupport::TypeInfo);
-        void CopyDerivedToRec(Reg base, Reg derived, Reg from, RTSupport::TypeInfo);
+        void CopyRecToDerived(Reg base, Reg derived, Reg from, RTSupport::TypeInfo);
 
         void GenericField(int ordinal, IReg typeInfo);
 
@@ -94,7 +94,8 @@ public:
             );
         }
 
-        void CopyRec(Reg from, Reg to, RTSupport::TypeInfo ti, RT::MemOpcode opc);
+        void CopyFrom(Reg from, Reg to, RTSupport::TypeInfo ti, RT::MemOpcode opc);
+        void CopyTo(Reg from, Reg to, RTSupport::TypeInfo ti, RT::MemOpcode opc);
 
         Segment& segment;
         Symbols& symbols;

@@ -157,7 +157,19 @@ void MemSpaceEmitter::LoadDerived(LoadAccessKind ldk, Reg dst, IReg base, IReg d
     );
 }
 
-void MemSpaceEmitter::CopyRec(Reg from, Reg to, RTSupport::TypeInfo ti, RT::MemOpcode opc)
+void MemSpaceEmitter::CopyTo(Reg from, Reg to, RTSupport::TypeInfo ti, RT::MemOpcode opc)
+{
+    Encode(
+        segment,
+        RT::MStructFieldOp {
+            .opc = opc,
+            .rr  = RR { .x = from, .y = to },
+            .ti  = ti,
+        }
+    );
+}
+
+void MemSpaceEmitter::CopyFrom(Reg from, Reg to, RTSupport::TypeInfo ti, RT::MemOpcode opc)
 {
     Encode(
         segment,
@@ -171,15 +183,15 @@ void MemSpaceEmitter::CopyRec(Reg from, Reg to, RTSupport::TypeInfo ti, RT::MemO
 
 void MemSpaceEmitter::CopyRecFromObj(Reg from, Reg to, RTSupport::TypeInfo ti)
 {
-    CopyRec(from, to, ti, RT::MemOpcode::COPY_REC_FROM_OBJ);
+    CopyFrom(from, to, ti, RT::MemOpcode::COPY_REC_FROM_OBJ);
 }
 
 void MemSpaceEmitter::CopyRecFromRec(Reg from, Reg to, RTSupport::TypeInfo ti)
 {
-    CopyRec(from, to, ti, RT::MemOpcode::COPY_REC_FROM_REC);
+    CopyFrom(from, to, ti, RT::MemOpcode::COPY_REC_FROM_REC);
 }
 
-void MemSpaceEmitter::CopyDerivedFromRec(Reg base, Reg derived, Reg to, RTSupport::TypeInfo ti)
+void MemSpaceEmitter::CopyRecFromDerived(Reg base, Reg derived, Reg to, RTSupport::TypeInfo ti)
 {
     Encode(
         segment,
@@ -191,17 +203,17 @@ void MemSpaceEmitter::CopyDerivedFromRec(Reg base, Reg derived, Reg to, RTSuppor
     );
 }
 
-void MemSpaceEmitter::CopyObjToRec(Reg from, Reg to, RTSupport::TypeInfo ti)
+void MemSpaceEmitter::CopyRecToObj(Reg from, Reg to, RTSupport::TypeInfo ti)
 {
-    CopyRec(from, to, ti, RT::MemOpcode::COPY_REC_TO_OBJ);
+    CopyTo(from, to, ti, RT::MemOpcode::COPY_REC_TO_OBJ);
 }
 
 void MemSpaceEmitter::CopyRecToRec(Reg from, Reg to, RTSupport::TypeInfo ti)
 {
-    CopyRec(from, to, ti, RT::MemOpcode::COPY_REC_TO_REC);
+    CopyTo(from, to, ti, RT::MemOpcode::COPY_REC_TO_REC);
 }
 
-void MemSpaceEmitter::CopyDerivedToRec(Reg base, Reg derived, Reg from, RTSupport::TypeInfo ti)
+void MemSpaceEmitter::CopyRecToDerived(Reg base, Reg derived, Reg from, RTSupport::TypeInfo ti)
 {
     Encode(
         segment,

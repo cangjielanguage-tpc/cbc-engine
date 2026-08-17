@@ -308,26 +308,6 @@ Interpretation::Thunk Execution::GetInterfaceThunk(TypeInfo where, TypeInfo ti, 
     FATAL("Should not reach here. I2C interface call");
 }
 
-void Execution::CopyRecordFromObj(Reference objBase, uintptr_t recordOffset, Reference dst, TypeInfo ti)
-{
-    FATAL("Should not reach here");
-}
-
-void Execution::CopyRecordFromRec(Reference objBase, uintptr_t recordOffset, Reference dst, TypeInfo ti)
-{
-    FATAL("Should not reach here");
-}
-
-void Execution::CopyRecordToObj(Reference objBase, uintptr_t recordOffset, Reference dst, TypeInfo ti)
-{
-    FATAL("Should not reach here");
-}
-
-void Execution::CopyRecordToRec(Reference objBase, uintptr_t recordOffset, Reference dst, TypeInfo ti)
-{
-    FATAL("Should not reach here");
-}
-
 void* Execution::AllocateObjectInstance() { return reinterpret_cast<void*>(&Interpretation::MockNewObj); }
 
 void* Execution::AllocateObjectInstanceAcc() { return reinterpret_cast<void*>(&Interpretation::MockNewObj); }

@@ -181,26 +181,6 @@ const char* MetaInfo::GetName(TypeInfo ti) { return nullptr; }
 
 void* Adapters::C2ICall(uint32_t intArgCount, uint32_t floatArgCount) { FATAL("should not reach here"); }
 
-void Execution::CopyRecordFromObj(Reference objBase, uintptr_t recordOffset, Reference dst, TypeInfo ti)
-{
-    FATAL("Should not reach here");
-}
-
-void Execution::CopyRecordFromRec(Reference objBase, uintptr_t recordOffset, Reference dst, TypeInfo ti)
-{
-    FATAL("Should not reach here");
-}
-
-void Execution::CopyRecordToObj(Reference objBase, uintptr_t recordOffset, Reference dst, TypeInfo ti)
-{
-    FATAL("Should not reach here");
-}
-
-void Execution::CopyRecordToRec(Reference objBase, uintptr_t recordOffset, Reference dst, TypeInfo ti)
-{
-    FATAL("Should not reach here");
-}
-
 uint32_t MetaInfo::GetTypeSize(TypeInfo ti) { return 0; }
 
 uint8_t MetaInfo::GetAlign(TypeInfo ti) { return alignof(max_align_t); }

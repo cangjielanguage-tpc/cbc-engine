@@ -1529,12 +1529,20 @@ LABEL(GENERIC_FIELD) {
 LABEL(COPY_REC_FROM_OBJ) {
     auto args = MStructFieldOp::Decode(reader);
     LOG_INSTR;
-    auto from = ectype->GetReference(args.rr.x.IR()); // base
+    Value::Reference from; // base
+    uintptr_t derived;     // interior record
+    auto fromReg = args.rr.x.IR();
+    if (fromReg == IReg::IRZ) {
+        from = RTSupport::Execution::GetGlobalBasePtr();
+        derived = memspaceOffsetAcc;
+    } else {
+        from = ectype->GetReference(fromReg);
+        derived = from.value + memspaceOffsetAcc;
+    }
     auto to = ectype->GetReference(args.rr.y.IR());   // pointer to local record
     auto ti = args.ti;                                // typeinfo
-    auto recStart = from.value + memspaceOffsetAcc;   // interior record
     // heap -> local (gc barrier required)
-    RTSupport::Execution::ReadStructField(to.value, from, recStart, args.ti, handle);
+    RTSupport::Execution::ReadStructField(to.value, from, derived, args.ti, handle);
     NEXT;
 }
 
@@ -1571,12 +1579,20 @@ LABEL(COPY_REC_FROM_DERIVED) {
 LABEL(COPY_REC_TO_OBJ) {
     auto args = MStructFieldOp::Decode(reader);
     LOG_INSTR;
+    Value::Reference to; // base
+    uintptr_t derived;   // interior record
+    auto toReg = args.rr.x.IR();
+    if (toReg == IReg::IRZ) {
+        to = RTSupport::Execution::GetGlobalBasePtr();
+        derived = memspaceOffsetAcc;
+    } else {
+        to = ectype->GetReference(toReg);
+        derived = to.value + memspaceOffsetAcc;
+    }
     auto from = ectype->GetReference(args.rr.x.IR()); // pointer to local record
-    auto to = ectype->GetReference(args.rr.y.IR());   // base
     auto ti = args.ti;                                // typeinfo
-    auto recStart = to.value + memspaceOffsetAcc;     // interior record
     // local -> heap (gc barrier required)
-    RTSupport::Execution::WriteStructField(from.value, to, recStart, ti, handle);
+    RTSupport::Execution::WriteStructField(from.value, to, derived, ti, handle);
     NEXT;
 }
 

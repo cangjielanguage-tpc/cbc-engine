@@ -133,12 +133,6 @@ struct Execution {
     static Reference GetGlobalBasePtr();
     static Reference GetLocalBasePtr();
 
-    static void CopyRecordFromObj(Reference objBase, uintptr_t recordOffset, Reference dst, TypeInfo ti);
-    static void CopyRecordFromRec(Reference objBase, uintptr_t recordOffset, Reference dst, TypeInfo ti);
-
-    static void CopyRecordToObj(Reference objBase, uintptr_t recordOffset, Reference dst, TypeInfo ti);
-    static void CopyRecordToRec(Reference objBase, uintptr_t recordOffset, Reference dst, TypeInfo ti);
-
     static TypeInfo TypeArg(TypeInfo ti, uint32_t idx);
 
     static Reference GetPendingException();
