@@ -1581,6 +1581,7 @@ LABEL(COPY_REC_TO_OBJ) {
     LOG_INSTR;
     Value::Reference to; // base
     uintptr_t derived;   // interior record
+    auto fromReg = args.rr.x.IR();
     auto toReg = args.rr.x.IR();
     if (toReg == IReg::IRZ) {
         to = RTSupport::Execution::GetGlobalBasePtr();
@@ -1589,8 +1590,8 @@ LABEL(COPY_REC_TO_OBJ) {
         to = ectype->GetReference(toReg);
         derived = to.value + memspaceOffsetAcc;
     }
-    auto from = ectype->GetReference(args.rr.x.IR()); // pointer to local record
-    auto ti = args.ti;                                // typeinfo
+    auto from = ectype->GetReference(fromReg); // pointer to local record
+    auto ti = args.ti;                         // typeinfo
     // local -> heap (gc barrier required)
     RTSupport::Execution::WriteStructField(from.value, to, derived, ti, handle);
     NEXT;
