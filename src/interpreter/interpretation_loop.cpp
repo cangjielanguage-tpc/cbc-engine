@@ -1542,7 +1542,7 @@ LABEL(COPY_REC_FROM_OBJ) {
     auto to = ectype->GetReference(args.rr.y.IR());   // pointer to local record
     auto ti = args.ti;                                // typeinfo
     // heap -> local (gc barrier required)
-    RTSupport::Execution::ReadStructField(to.value, from, derived, args.ti, handle);
+    RTSupport::Execution::ReadStructField(to.value, from, derived, ti, handle);
     NEXT;
 }
 

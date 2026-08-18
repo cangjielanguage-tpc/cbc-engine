@@ -1549,7 +1549,7 @@ struct IsaRewriter : public IsaParser {
             case HEAD_STATIC:
                 // IRZ means static record field, so whole position is encoded in accumulated offset
                 // FIXME: encode as separate operation
-                msr.emit.CopyRecFromObj(IReg::IRZ, msr.base, *ty.GetTypeInfo());
+                msr.emit.CopyRecFromObj(IReg::IRZ, to, *ty.GetTypeInfo());
                 break;
                 break;
             case HEAD_FRAME:
