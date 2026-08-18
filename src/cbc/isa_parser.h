@@ -165,8 +165,8 @@ protected:
     virtual void MemTailLoad(MemSpace& ms, IReg dst, std::vector<uint32_t> refs)  = 0;
     virtual void MemTailStore(MemSpace& ms, IReg src, std::vector<uint32_t> refs) = 0;
     virtual void MemTailStoreImm(MemSpace& ms, uint64_t imm)                      = 0;
-    virtual void MemTailCopyRegTo(MemSpace& ms, IReg dst, uint32_t recType)       = 0;
-    virtual void MemTailCopyRegFrom(MemSpace& ms, IReg dst, uint32_t recType)     = 0;
+    virtual void MemTailCopyRegTo(MemSpace& ms, IReg to, uint32_t recType)        = 0;
+    virtual void MemTailCopyRegFrom(MemSpace& ms, IReg from, uint32_t recType)    = 0;
 
     virtual void MemBodyOffset(MemSpace& ms, IReg offset)                                        = 0;
     virtual void MemBodyConstIndexGeneric(MemSpace& ms, int64_t idx, uint32_t elemType, IReg ti) = 0;
