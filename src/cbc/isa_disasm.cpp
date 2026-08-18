@@ -456,16 +456,16 @@ struct IsaDisasm : public IsaParser {
         stream.PrintLn("store.imm {}", imm);
     }
 
-    void MemTailCopyRegTo(MemSpace& ms, IReg dst, uint32_t recType) override
+    void MemTailCopyRegTo(MemSpace& ms, IReg to, uint32_t recType) override
     {
         PrintMemPos();
-        stream.PrintLn("copy.reg.to {}, @{}", dst, recType);
+        stream.PrintLn("copy.reg.to {}, @{}", to, recType);
     }
 
-    void MemTailCopyRegFrom(MemSpace& ms, IReg dst, uint32_t recType) override
+    void MemTailCopyRegFrom(MemSpace& ms, IReg from, uint32_t recType) override
     {
         PrintMemPos();
-        stream.PrintLn("copy.reg.from {}, @{}", dst, recType);
+        stream.PrintLn("copy.reg.from {}, @{}", from, recType);
     }
 
     void MemBodyOffset(MemSpace& ms, IReg offset) override
