@@ -1582,7 +1582,7 @@ LABEL(COPY_REC_TO_OBJ) {
     Value::Reference to; // base
     uintptr_t derived;   // interior record
     auto fromReg = args.rr.x.IR();
-    auto toReg = args.rr.x.IR();
+    auto toReg = args.rr.y.IR();
     if (toReg == IReg::IRZ) {
         to = RTSupport::Execution::GetGlobalBasePtr();
         derived = memspaceOffsetAcc;
