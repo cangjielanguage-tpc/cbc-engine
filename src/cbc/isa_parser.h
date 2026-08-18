@@ -48,7 +48,9 @@ protected:
 
     virtual void MovBasePtr(IReg dst, bool local) = 0;
 
-    virtual void BFX(IReg dst, IReg src, Format::Width resW, Format::Width argW, bool sx, uint8_t offset, uint8_t size) = 0;
+    virtual void BFX(
+        IReg dst, IReg src, Format::Width resW, Format::Width argW, bool sx, uint8_t offset, uint8_t size
+    ) = 0;
 
     virtual void PrepareRecord(uint16_t ts)                = 0;
     virtual void NewArr(IReg dst, IReg len, uint32_t type) = 0;
@@ -64,7 +66,7 @@ protected:
     virtual void LoadField(IReg rb, AnyReg rs, uint32_t field)  = 0;
     virtual void StoreField(IReg rb, AnyReg rd, uint32_t field) = 0;
 
-    virtual void AssignGeneric(IReg dst, IReg src, IReg ti) = 0;
+    virtual void AssignGeneric(IReg dst, IReg src, IReg ti)     = 0;
     virtual void InstanceOfGeneric(IReg dst, IReg obj, IReg ti) = 0;
 
     virtual void LoadTypeInfoGeneric(IReg dst, uint32_t typeId) = 0;
@@ -147,11 +149,11 @@ protected:
 
     virtual std::unique_ptr<MemSpace> OpenMemSpace() = 0;
 
-    virtual void MemHeadReg(MemSpace& ms, IReg base, bool isRef) = 0;
+    virtual void MemHeadReg(MemSpace& ms, IReg base, bool isRef)       = 0;
     virtual void MemHeadField(MemSpace& ms, IReg base, uint32_t field) = 0;
     virtual void MemHeadStatic(MemSpace& ms, uint32_t field)           = 0;
-    virtual void MemHeadHandle(MemSpace& ms, IReg base, IReg derived) = 0;
-    virtual void MemHeadTyped(MemSpace& ms, uint16_t ts) = 0;
+    virtual void MemHeadHandle(MemSpace& ms, IReg base, IReg derived)  = 0;
+    virtual void MemHeadTyped(MemSpace& ms, uint16_t ts)               = 0;
 
     virtual void MemBodyField1(MemSpace& ms, uint32_t f1)                                        = 0;
     virtual void MemBodyField2(MemSpace& ms, uint32_t f1, uint32_t f2)                           = 0;
@@ -160,15 +162,11 @@ protected:
     virtual void MemBodyIndex(MemSpace& ms, IReg reg, uint32_t elemType, bool checked)           = 0;
     virtual void MemBodyConstIndex(MemSpace& ms, int64_t idx, uint32_t elemType)                 = 0;
 
-    virtual void MemTailLoad(MemSpace& ms, IReg dst, std::vector<uint32_t> refs)                      = 0;
-    virtual void MemTailStore(MemSpace& ms, IReg src, std::vector<uint32_t> refs)                     = 0;
-    virtual void MemTailStoreImm(MemSpace& ms, uint64_t imm) = 0;
-    virtual void MemTailCopyReg(MemSpace& ms, IReg dst, uint32_t recType)                             = 0;
-    virtual void MemTailCopyInterior(MemSpace& ms, IReg dst, std::vector<uint32_t> refs)              = 0;
-    virtual void MemTailCopyInteriorArr(MemSpace& ms, IReg dst, IReg idx, std::vector<uint32_t> refs) = 0;
-    virtual void MemTailCopyStatic(MemSpace& ms, std::vector<uint32_t> refs)                          = 0;
-    virtual void MemTailCopyTyped(MemSpace& ms, uint32_t ts, std::vector<uint32_t> refs)              = 0;
-    virtual void MemTailCopyHandle(MemSpace& ms, IReg base, IReg derived)                             = 0;
+    virtual void MemTailLoad(MemSpace& ms, IReg dst, std::vector<uint32_t> refs)  = 0;
+    virtual void MemTailStore(MemSpace& ms, IReg src, std::vector<uint32_t> refs) = 0;
+    virtual void MemTailStoreImm(MemSpace& ms, uint64_t imm)                      = 0;
+    virtual void MemTailCopyRegTo(MemSpace& ms, IReg to, uint32_t recType)        = 0;
+    virtual void MemTailCopyRegFrom(MemSpace& ms, IReg from, uint32_t recType)    = 0;
 
     virtual void MemBodyOffset(MemSpace& ms, IReg offset)                                        = 0;
     virtual void MemBodyConstIndexGeneric(MemSpace& ms, int64_t idx, uint32_t elemType, IReg ti) = 0;
