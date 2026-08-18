@@ -182,7 +182,7 @@ struct IsaRewriter : public IsaParser {
     // positions, where GC metadata is expected to be attached
     struct StatePoint {
         Emitter::Label label; // position in rewritten code
-        ssize_t originalPos; // position in original code
+        ssize_t originalPos;  // position in original code
     };
 
     std::vector<StatePoint> statePoints;
@@ -209,11 +209,12 @@ struct IsaRewriter : public IsaParser {
         }
     }
 
-    void BindStatePoint() {
+    void BindStatePoint()
+    {
         auto label = emit.NewLabel();
         emit.Bind(label);
         StatePoint point {
-            .label = label,
+            .label       = label,
             .originalPos = Pos(), // attached to the end of instruction
         };
         statePoints.push_back(point);
@@ -353,7 +354,7 @@ struct IsaRewriter : public IsaParser {
     void PrepareRecord(uint16_t ts) override
     {
         auto tsi = frameLayout.typedSlotsInfo[ts];
-        auto ti = RTSupport::TypeInfo(tsi.second);
+        auto ti  = RTSupport::TypeInfo(tsi.second);
         emit.PrepareTyped(ti, tsi.first);
     }
 
@@ -679,7 +680,7 @@ struct IsaRewriter : public IsaParser {
             case Format::StoreAccessKind::ST_32:  opc = RT::Opcode::CAS_32; break;
             case Format::StoreAccessKind::ST_64:  opc = RT::Opcode::CAS_64; break;
             case Format::StoreAccessKind::ST_REF: opc = RT::Opcode::CAS_REF; break;
-            default: FATAL("unexpected kind %d", stk);
+            default:                              FATAL("unexpected kind %d", stk);
         }
         emit.CAS(opc, dst, obj, expected, newVal, field->offset.value());
     }
@@ -705,7 +706,7 @@ struct IsaRewriter : public IsaParser {
             case Format::StoreAccessKind::ST_32:  opc = RT::Opcode::ATOMIC_SWAP_32; break;
             case Format::StoreAccessKind::ST_64:  opc = RT::Opcode::ATOMIC_SWAP_64; break;
             case Format::StoreAccessKind::ST_REF: opc = RT::Opcode::ATOMIC_SWAP_REF; break;
-            default: FATAL("unexpected kind %d", stk);
+            default:                              FATAL("unexpected kind %d", stk);
         }
         emit.AtomicOp(opc, dst, obj, src, field->offset.value());
     }
@@ -730,7 +731,7 @@ struct IsaRewriter : public IsaParser {
             case Format::StoreAccessKind::ST_16: opc = RT::Opcode::ATOMIC_FETCH_ADD_16; break;
             case Format::StoreAccessKind::ST_32: opc = RT::Opcode::ATOMIC_FETCH_ADD_32; break;
             case Format::StoreAccessKind::ST_64: opc = RT::Opcode::ATOMIC_FETCH_ADD_64; break;
-            default: FATAL("unexpected kind %d", stk);
+            default:                             FATAL("unexpected kind %d", stk);
         }
         emit.AtomicOp(opc, dst, obj, src, field->offset.value());
     }
@@ -755,7 +756,7 @@ struct IsaRewriter : public IsaParser {
             case Format::StoreAccessKind::ST_16: opc = RT::Opcode::ATOMIC_FETCH_SUB_16; break;
             case Format::StoreAccessKind::ST_32: opc = RT::Opcode::ATOMIC_FETCH_SUB_32; break;
             case Format::StoreAccessKind::ST_64: opc = RT::Opcode::ATOMIC_FETCH_SUB_64; break;
-            default: FATAL("unexpected kind %d", stk);
+            default:                             FATAL("unexpected kind %d", stk);
         }
         emit.AtomicOp(opc, dst, obj, src, field->offset.value());
     }
@@ -780,7 +781,7 @@ struct IsaRewriter : public IsaParser {
             case Format::StoreAccessKind::ST_16: opc = RT::Opcode::ATOMIC_FETCH_AND_16; break;
             case Format::StoreAccessKind::ST_32: opc = RT::Opcode::ATOMIC_FETCH_AND_32; break;
             case Format::StoreAccessKind::ST_64: opc = RT::Opcode::ATOMIC_FETCH_AND_64; break;
-            default: FATAL("unexpected kind %d", stk);
+            default:                             FATAL("unexpected kind %d", stk);
         }
         emit.AtomicOp(opc, dst, obj, src, field->offset.value());
     }
@@ -805,7 +806,7 @@ struct IsaRewriter : public IsaParser {
             case Format::StoreAccessKind::ST_16: opc = RT::Opcode::ATOMIC_FETCH_OR_16; break;
             case Format::StoreAccessKind::ST_32: opc = RT::Opcode::ATOMIC_FETCH_OR_32; break;
             case Format::StoreAccessKind::ST_64: opc = RT::Opcode::ATOMIC_FETCH_OR_64; break;
-            default: FATAL("unexpected kind %d", stk);
+            default:                             FATAL("unexpected kind %d", stk);
         }
         emit.AtomicOp(opc, dst, obj, src, field->offset.value());
     }
@@ -830,7 +831,7 @@ struct IsaRewriter : public IsaParser {
             case Format::StoreAccessKind::ST_16: opc = RT::Opcode::ATOMIC_FETCH_XOR_16; break;
             case Format::StoreAccessKind::ST_32: opc = RT::Opcode::ATOMIC_FETCH_XOR_32; break;
             case Format::StoreAccessKind::ST_64: opc = RT::Opcode::ATOMIC_FETCH_XOR_64; break;
-            default: FATAL("unexpected kind %d", stk);
+            default:                             FATAL("unexpected kind %d", stk);
         }
         emit.AtomicOp(opc, dst, obj, src, field->offset.value());
     }
@@ -1068,10 +1069,7 @@ struct IsaRewriter : public IsaParser {
         emit.InstanceOf(dst, obj, typeInfo);
     }
 
-    void LoadTypeInfoObj(IReg dst, IReg obj) override
-    {
-        emit.LoadObj(Format::LoadAccessKind::LD_64, dst, obj, 0);
-    }
+    void LoadTypeInfoObj(IReg dst, IReg obj) override { emit.LoadObj(Format::LoadAccessKind::LD_64, dst, obj, 0); }
 
     void InitObj(uint16_t ts) override { FATAL("not implemented"); }
 
@@ -1282,13 +1280,15 @@ struct IsaRewriter : public IsaParser {
             if (type.GetKind() == CbcTypeKind::REF) {
                 emit.LoadObj(Format::LoadAccessKind::LD_REF, dst, src, RTSupport::MetaInfo::ObjectHeaderSize());
             } else {
-                auto ti   = type.GetTypeInfo();
+                auto ti = type.GetTypeInfo();
                 if (!ti.has_value()) {
                     Fail();
                     return;
                 }
                 auto typeInfo = ti.value();
-                emit.LoadObj(Format::LoadAccessKind::LD_LEA, IReg::IR_ACC, src, RTSupport::MetaInfo::ObjectHeaderSize());
+                emit.LoadObj(
+                    Format::LoadAccessKind::LD_LEA, IReg::IR_ACC, src, RTSupport::MetaInfo::ObjectHeaderSize()
+                );
                 emit.ReadStructField(IReg::From(dst), src, IReg::IR_ACC, typeInfo);
             }
         }
@@ -1361,14 +1361,14 @@ struct IsaRewriter : public IsaParser {
     void MemHeadReg(MemSpace& ms, IReg base, bool isRef) override
     {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
-        msr.base = base;
+        msr.base  = base;
         msr.kind  = isRef ? HEAD_OBJ : HEAD_REC;
     }
 
     void MemHeadField(MemSpace& ms, IReg base, uint32_t fieldId) override
     {
-        auto& msr = static_cast<MemSpaceRewriter&>(ms);
-        msr.base = base;
+        auto& msr  = static_cast<MemSpaceRewriter&>(ms);
+        msr.base   = base;
         auto isRef = FieldOffset(msr, fieldId);
         msr.kind   = isRef ? HEAD_OBJ : HEAD_REC;
     }
@@ -1380,7 +1380,7 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
-        auto field  = f.value();
+        auto field = f.value();
 
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
         msr.emit.Offset(field->location);
@@ -1390,8 +1390,8 @@ struct IsaRewriter : public IsaParser {
 
     void MemHeadHandle(MemSpace& ms, IReg base, IReg derived) override
     {
-        auto& msr = static_cast<MemSpaceRewriter&>(ms);
-        msr.base = base;
+        auto& msr   = static_cast<MemSpaceRewriter&>(ms);
+        msr.base    = base;
         msr.derived = derived;
         msr.kind    = HEAD_DERIVED;
     }
@@ -1531,6 +1531,64 @@ struct IsaRewriter : public IsaParser {
         }
     }
 
+    void MemTailCopyRegTo(MemSpace& ms, IReg from, uint32_t recType) override
+    {
+        auto& msr    = static_cast<MemSpaceRewriter&>(ms);
+        auto optType = resolver.Query(Index<Type>(recType));
+
+        if (!optType.has_value()) {
+            FATAL("Failed during copying of record: unknown record type.");
+        }
+
+        auto ty = *optType;
+
+        switch (msr.kind) {
+            case HEAD_OBJ:     msr.emit.CopyRecToObj(from, msr.base, *ty.GetTypeInfo()); break;
+            case HEAD_REC:     msr.emit.CopyRecToRec(from, msr.base, *ty.GetTypeInfo()); break;
+            case HEAD_DERIVED: msr.emit.CopyRecToDerived(msr.base, msr.derived, from, *ty.GetTypeInfo()); break;
+            case HEAD_STATIC:
+                // IRZ means static record field, so whole position is encoded in accumulated offset
+                // FIXME: encode as separate operation
+                msr.emit.CopyRecToObj(from, msr.base, *ty.GetTypeInfo());
+                break;
+                break;
+            case HEAD_FRAME:
+                ASSERTION(RTSupport::Execution::GetLocalBasePtr().value == 0, "assumes local base is zero");
+                msr.emit.CopyRecToRec(from, IReg::IRZ, *ty.GetTypeInfo());
+                break;
+            case HEAD_NONE: FATAL("unreachable");
+        }
+    }
+
+    void MemTailCopyRegFrom(MemSpace& ms, IReg to, uint32_t recType) override
+    {
+        auto& msr    = static_cast<MemSpaceRewriter&>(ms);
+        auto optType = resolver.Query(Index<Type>(recType));
+
+        if (!optType.has_value()) {
+            FATAL("Failed during copying of record: unknown record type.");
+        }
+
+        auto ty = *optType;
+
+        switch (msr.kind) {
+            case HEAD_OBJ:     msr.emit.CopyRecFromObj(msr.base, to, *ty.GetTypeInfo()); break;
+            case HEAD_REC:     msr.emit.CopyRecFromRec(msr.base, to, *ty.GetTypeInfo()); break;
+            case HEAD_DERIVED: msr.emit.CopyRecFromDerived(msr.base, msr.derived, to, *ty.GetTypeInfo()); break;
+            case HEAD_STATIC:
+                // IRZ means static record field, so whole position is encoded in accumulated offset
+                // FIXME: encode as separate operation
+                msr.emit.CopyRecFromObj(IReg::IRZ, msr.base, *ty.GetTypeInfo());
+                break;
+                break;
+            case HEAD_FRAME:
+                ASSERTION(RTSupport::Execution::GetLocalBasePtr().value == 0, "assumes local base is zero");
+                msr.emit.CopyRecFromRec(IReg::IRZ, to, *ty.GetTypeInfo());
+                break;
+            case HEAD_NONE: FATAL("unreachable");
+        }
+    }
+
     void MemTailStoreImm(MemSpace& ms, uint64_t imm) override
     {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
@@ -1603,24 +1661,6 @@ struct IsaRewriter : public IsaParser {
         }
         BindStatePoint();
     }
-
-    void MemTailCopyReg(MemSpace& ms, IReg dst, uint32_t recType) override { FATAL("MemTailCopyReg"); }
-
-    void MemTailCopyInterior(MemSpace& ms, IReg dst, std::vector<uint32_t> refs) override
-    {
-        FATAL("MemTailCopyInterior");
-    }
-
-    void MemTailCopyInteriorArr(MemSpace& ms, IReg dst, IReg idx, std::vector<uint32_t> refs) override
-    {
-        FATAL("MemTailCopyInteriorArr");
-    }
-
-    void MemTailCopyStatic(MemSpace& ms, std::vector<uint32_t> refs) override { FATAL("MemTailCopyStatic"); }
-
-    void MemTailCopyTyped(MemSpace& ms, uint32_t ts, std::vector<uint32_t> refs) override { FATAL("MemTailCopyTyped"); }
-
-    void MemTailCopyHandle(MemSpace& ms, IReg base, IReg derived) override { FATAL("MemTailCopyHandle"); }
 
     void ParseOne() override
     {
@@ -1713,13 +1753,13 @@ static std::vector<Interpretation::GCPositionalInfo> CalculatePositionalGCInfo(
 
     std::unordered_map<ssize_t, Symlevel::LivenessInfo const&> infos;
     for (const auto& info : livenessInfo) {
-        infos.insert({info.cbcPos, info});
+        infos.insert({ info.cbcPos, info });
     }
 
     for (auto& point : statePoints) {
-        auto originalPos = point.originalPos;
+        auto originalPos  = point.originalPos;
         auto rewrittenPos = emitter.LabelPosition(point.label);
-        auto it = infos.find(originalPos);
+        auto it           = infos.find(originalPos);
         if (it == infos.end()) {
             FATAL("Unknown position");
         } else if (rewrittenPos > UINT32_MAX) {

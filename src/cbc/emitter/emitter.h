@@ -72,6 +72,14 @@ public:
         void LoadDerivedGeneric(IReg dst, IReg base, IReg derived, IReg typeInfo);
         void StoreDerivedGeneric(IReg src, IReg base, IReg derived, IReg typeInfo);
 
+        void CopyRecFromObj(Reg from, Reg to, RTSupport::TypeInfo);
+        void CopyRecFromRec(Reg from, Reg to, RTSupport::TypeInfo);
+        void CopyRecFromDerived(Reg base, Reg derived, Reg to, RTSupport::TypeInfo);
+
+        void CopyRecToObj(Reg from, Reg to, RTSupport::TypeInfo);
+        void CopyRecToRec(Reg from, Reg to, RTSupport::TypeInfo);
+        void CopyRecToDerived(Reg base, Reg derived, Reg from, RTSupport::TypeInfo);
+
         void GenericField(int ordinal, IReg typeInfo);
 
     private:
@@ -85,6 +93,9 @@ public:
                 }
             );
         }
+
+        void CopyFrom(Reg from, Reg to, RTSupport::TypeInfo ti, RT::MemOpcode opc);
+        void CopyTo(Reg from, Reg to, RTSupport::TypeInfo ti, RT::MemOpcode opc);
 
         Segment& segment;
         Symbols& symbols;

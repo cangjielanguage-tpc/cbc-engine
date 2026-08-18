@@ -6,6 +6,7 @@
 #include "engine/terms.h"
 #include "interpreter/ectype.h"
 #include "interpreter/int_thunk.h"
+#include <cstdint>
 #include <functional>
 
 namespace RTSupport {

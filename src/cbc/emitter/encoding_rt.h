@@ -59,6 +59,7 @@ void Encode(ByteBuffer& buf, RT::M4rri16 command);
 void Encode(ByteBuffer& buf, RT::M6rri32 command);
 void Encode(ByteBuffer& buf, RT::M10rri64 command);
 void Encode(ByteBuffer& buf, RT::MStructFieldOp command);
+void Encode(ByteBuffer& buf, RT::CopyDerived command);
 
 } // namespace Emitter
 } // namespace Cbc

@@ -5,6 +5,7 @@
 #include "cbc/isa_rt.h"
 #include "emitter.h"
 #include "encoding_rt.h"
+#include "runtimesupport/runtime.h"
 #include "utils/math.h"
 
 namespace Cbc {
@@ -81,16 +82,16 @@ static RT::MemOpcode ComputeLoadAccessKind(LoadAccessKind ldk, RT::MemOpcode sta
     // in the same order as in the switch here.
     uint8_t delta = 0;
     switch (ldk) {
-        case LoadAccessKind::LD_U8:      delta = 0;  break;
-        case LoadAccessKind::LD_U16:     delta = 1;  break;
-        case LoadAccessKind::LD_32:      delta = 2;  break;
-        case LoadAccessKind::LD_S8:      delta = 3;  break;
-        case LoadAccessKind::LD_S16:     delta = 4;  break;
-        case LoadAccessKind::LD_F32:     delta = 5;  break;
-        case LoadAccessKind::LD_F64:     delta = 6;  break;
-        case LoadAccessKind::LD_64:      delta = 7;  break;
-        case LoadAccessKind::LD_S32TO64: delta = 8;  break;
-        case LoadAccessKind::LD_REF:     delta = 9;  break;
+        case LoadAccessKind::LD_U8:      delta = 0; break;
+        case LoadAccessKind::LD_U16:     delta = 1; break;
+        case LoadAccessKind::LD_32:      delta = 2; break;
+        case LoadAccessKind::LD_S8:      delta = 3; break;
+        case LoadAccessKind::LD_S16:     delta = 4; break;
+        case LoadAccessKind::LD_F32:     delta = 5; break;
+        case LoadAccessKind::LD_F64:     delta = 6; break;
+        case LoadAccessKind::LD_64:      delta = 7; break;
+        case LoadAccessKind::LD_S32TO64: delta = 8; break;
+        case LoadAccessKind::LD_REF:     delta = 9; break;
         case LoadAccessKind::LD_LEA:     delta = 10; break;
         default:                         FATAL("unexpected ldk: %d", ldk);
     }
@@ -152,6 +153,74 @@ void MemSpaceEmitter::LoadDerived(LoadAccessKind ldk, Reg dst, IReg base, IReg d
             .opc = opc,
             .xr  = Format::XR { .imm = 0, .r = dst },
             .rr  = Format::RR { .x = base, .y = derived },
+        }
+    );
+}
+
+void MemSpaceEmitter::CopyTo(Reg from, Reg to, RTSupport::TypeInfo ti, RT::MemOpcode opc)
+{
+    Encode(
+        segment,
+        RT::MStructFieldOp {
+            .opc = opc,
+            .rr  = RR { .x = from, .y = to },
+            .ti  = ti,
+        }
+    );
+}
+
+void MemSpaceEmitter::CopyFrom(Reg from, Reg to, RTSupport::TypeInfo ti, RT::MemOpcode opc)
+{
+    Encode(
+        segment,
+        RT::MStructFieldOp {
+            .opc = opc,
+            .rr  = RR { .x = from, .y = to },
+            .ti  = ti,
+        }
+    );
+}
+
+void MemSpaceEmitter::CopyRecFromObj(Reg from, Reg to, RTSupport::TypeInfo ti)
+{
+    CopyFrom(from, to, ti, RT::MemOpcode::COPY_REC_FROM_OBJ);
+}
+
+void MemSpaceEmitter::CopyRecFromRec(Reg from, Reg to, RTSupport::TypeInfo ti)
+{
+    CopyFrom(from, to, ti, RT::MemOpcode::COPY_REC_FROM_REC);
+}
+
+void MemSpaceEmitter::CopyRecFromDerived(Reg base, Reg derived, Reg to, RTSupport::TypeInfo ti)
+{
+    Encode(
+        segment,
+        RT::CopyDerived {
+            .opc   = RT::MemOpcode::COPY_REC_FROM_DERIVED,
+            .rr    = RR { .x = base, .y = derived },
+            .field = RR { .x = to, .y = 0 },
+        }
+    );
+}
+
+void MemSpaceEmitter::CopyRecToObj(Reg from, Reg to, RTSupport::TypeInfo ti)
+{
+    CopyTo(from, to, ti, RT::MemOpcode::COPY_REC_TO_OBJ);
+}
+
+void MemSpaceEmitter::CopyRecToRec(Reg from, Reg to, RTSupport::TypeInfo ti)
+{
+    CopyTo(from, to, ti, RT::MemOpcode::COPY_REC_TO_REC);
+}
+
+void MemSpaceEmitter::CopyRecToDerived(Reg base, Reg derived, Reg from, RTSupport::TypeInfo ti)
+{
+    Encode(
+        segment,
+        RT::CopyDerived {
+            .opc   = RT::MemOpcode::COPY_REC_TO_DERIVED,
+            .rr    = RR { .x = base, .y = derived },
+            .field = RR { .x = from, .y = 0 },
         }
     );
 }

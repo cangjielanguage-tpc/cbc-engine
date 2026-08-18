@@ -16,9 +16,7 @@ namespace RTSupport {
 
 using Reference = Interpretation::Value::Reference;
 
-std::optional<TypeInfo> CreateTypeInfo(
-    Engine::Session& session, TypeInfoManager& manager, Engine::GlobalTerm term
-)
+std::optional<TypeInfo> CreateTypeInfo(Engine::Session& session, TypeInfoManager& manager, Engine::GlobalTerm term)
 {
     FATAL("Should not be called");
 }
@@ -152,10 +150,7 @@ Reference Execution::AtomicReadRef(Reference object, uintptr_t field)
     return Reference { .value = 0 };
 }
 
-void Execution::AtomicWriteRef(Reference ref, Reference obj, uintptr_t field)
-{
-    FATAL("Should not reach here");
-}
+void Execution::AtomicWriteRef(Reference ref, Reference obj, uintptr_t field) { FATAL("Should not reach here"); }
 
 Reference Execution::AtomicSwapRef(Reference ref, Reference obj, uintptr_t field)
 {

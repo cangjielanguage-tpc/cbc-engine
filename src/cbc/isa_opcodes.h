@@ -140,12 +140,8 @@
     X(Load, MemTailLoad)                                                                                               \
     X(Store, MemTailStore)                                                                                             \
     X(StoreImm, MemTailStoreImm)                                                                                       \
-    X(CopyReg, MemTailCopyReg)                                                                                         \
-    X(CopyInterior, MemTailCopyInterior)                                                                               \
-    X(CopyInteriorArr, MemTailCopyInteriorArr)                                                                         \
-    X(CopyStatic, MemTailCopyStatic)                                                                                   \
-    X(CopyTyped, MemTailCopyTyped)                                                                                     \
-    X(CopyHandle, MemTailCopyHandle)                                                                                   \
+    X(CopyRegTo, MemTailCopyRegTo)                                                                                     \
+    X(CopyRegFrom, MemTailCopyRegFrom)                                                                                 \
     X(ConstIndex, MemBodyConstIndex)                                                                                   \
     X(FieldGeneric, MemBodyFieldGeneric)                                                                               \
     X(ConstIndexGeneric, MemBodyConstIndexGeneric)                                                                     \
