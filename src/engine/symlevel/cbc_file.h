@@ -764,9 +764,7 @@ struct RegionData {
 /// version metadata parsed from a binary file.
 ///
 /// TODO: Cleanup & Refactoring Tasks:
-/// - AOT Table Ownership: Move AOT tables (`DirectCallAotTable`,
-///   `VirtualCallAotTable`, etc.) into `RegionData` so that all indexed tables
-///   belong to their corresponding regions consistently.
+/// - Get rid of region data.
 /// - Section Headers: use one, shared offset which is constant (or adjust raf by this offset).
 /// - Get rid of PImpl.
 class CbcFile {
@@ -813,6 +811,9 @@ private:
     std::unique_ptr<Impl> impl;
 };
 
+// FIXME:
+//   - use this constant instead of cbcfile.Get*SectionOffs;
+//   - remove garbage from cbc file format and make this constant stable between versions.
 static constexpr size_t POOL_OFFSET_ADJUSTMENT = 57;
 
 } // namespace Symlevel
