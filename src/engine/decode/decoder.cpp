@@ -3,6 +3,7 @@
 #include "engine/decode/decoder.h"
 #include "engine/engine.h"
 #include "engine/identifiers.h"
+#include "engine/symlevel/cbc_file.h"
 #include "engine/symlevel/io/file_id.h"
 #include "engine/symlevel/io/random_access_file.h"
 #include "engine/symlevel/io/stream_file_reader.h"
@@ -14,7 +15,7 @@
 
 namespace Decode {
 
-static constexpr size_t OFFSET_ADJUSTMENT = 57;
+static constexpr size_t OFFSET_ADJUSTMENT = Symlevel::POOL_OFFSET_ADJUSTMENT;
 
 // ------------------ Utilities ------------------
 

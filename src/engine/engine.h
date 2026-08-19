@@ -8,12 +8,29 @@
 #include "symlevel/io/file_id.h"
 #include "symlevel/io/random_access_file.h"
 #include "utils/heap.h"
+#include "utils/sharedobj.h"
 
 namespace Decode {
 struct Decoder;
 };
 
 namespace Engine {
+/// List of dependencies that engine is using.
+class Dependencies {
+    using SharedObject = Utils::SharedObject;
+
+public:
+    Dependencies(std::vector<std::shared_ptr<SharedObject>>&& objects) : objects(std::move(objects)) {}
+
+    Dependencies() = default;
+
+    /// Return symbol's pointer or null on error.
+    void* FindSymbol(std::string_view linkageName) const;
+    void* FindSymbol(char const* linkageName) const;
+
+private:
+    std::vector<std::shared_ptr<SharedObject>> objects;
+};
 
 class Loader;
 class Session;
@@ -42,6 +59,7 @@ public:
     std::optional<Identifier<TypeDefinition>> FindType(Session& session, std::string_view typeName);
 
     std::vector<Symlevel::CbcFile> const& Files() const;
+    std::vector<Dependencies> const& Dependencies() const;
 
 private:
     Engine(std::unique_ptr<Impl>&& impl);
@@ -85,9 +103,9 @@ public:
     bool Load(std::unique_ptr<IO::RandomAccessFile> file, std::string_view fileName);
     Engine& Build();
 
-private:
     class Impl;
 
+private:
     std::unique_ptr<Impl> loader;
 };
 

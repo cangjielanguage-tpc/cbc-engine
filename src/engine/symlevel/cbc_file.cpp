@@ -1,9 +1,9 @@
 #include "cbc_file.h"
 
-#include "dependencies.h"
 #include "engine/decode/decoder.h"
 #include "io/stream_file_reader.h"
 #include "version_metadata.h"
+#include <optional>
 
 namespace Symlevel {
 
@@ -18,7 +18,8 @@ struct CbcFile::Impl {
     StaticFieldAotTable staticFieldAotTable;
     InstanceFieldAotTable instanceFieldAotTable;
 
-    Dependencies dependencies;
+    int aotDeps;
+    int cbcDeps;
     std::optional<Identifier<String>> mainTypeName;
 
     uint32_t poolOffset;
@@ -95,7 +96,8 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
         .interfaceCallAotTable = Decode::ReadIndex(interfaceCallTableReader, fileId),
         .staticFieldAotTable   = Decode::ReadIndex(staticFieldTableReader, fileId),
         .instanceFieldAotTable = Decode::ReadIndex(instanceFieldTableReader, fileId),
-        .dependencies          = Dependencies::Read(fileId, file, poolOffset, cbcDeps, aotDeps),
+        .aotDeps               = aotDeps,
+        .cbcDeps               = cbcDeps,
         .mainTypeName          = mainTypeName,
         .poolOffset            = poolOffset,
         .id                    = fileId,
@@ -136,7 +138,21 @@ const RegionData& CbcFile::GetRegionData() const { return impl->regionData; }
 
 const TypeIndex& CbcFile::GetTypeIndex() const { return impl->typeIndex; }
 
-const Dependencies& CbcFile::GetDependencies() const { return impl->dependencies; }
+std::optional<Offset<String>> CbcFile::AotDependencies() const
+{
+    if (impl->aotDeps < 0) {
+        return std::nullopt;
+    }
+    return Offset<String>(impl->aotDeps);
+}
+
+std::optional<Offset<String>> CbcFile::CbcDependencies() const
+{
+    if (impl->cbcDeps < 0) {
+        return std::nullopt;
+    }
+    return Offset<String>(impl->cbcDeps);
+}
 
 const std::optional<Identifier<String>> CbcFile::GetMainTypeName() const { return impl->mainTypeName; }
 

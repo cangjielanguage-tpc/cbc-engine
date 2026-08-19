@@ -737,9 +737,6 @@ struct RegionData {
     template <> ErasedOffsetPool ErasedPool<FieldReference>() const { return fields.Erased(); }
 };
 
-// metadata
-class Dependencies;
-
 /// Top-level handle and container representing a single loaded `.cbc` binary module.
 ///
 /// Encapsulates all section offsets, index tables, dependency descriptors, and
@@ -774,9 +771,10 @@ public:
 
     const VersionMetadata& GetVersionMetadata() const;
 
+    std::optional<Offset<String>> CbcDependencies() const;
+    std::optional<Offset<String>> AotDependencies() const;
     const RegionData& GetRegionData() const;
     const TypeIndex& GetTypeIndex() const;
-    const Dependencies& GetDependencies() const;
     const std::optional<Identifier<String>> GetMainTypeName() const;
 
     /// FIXME: tables should be assigned to corresponding regions.
@@ -793,5 +791,7 @@ private:
     CbcFile(std::unique_ptr<Impl> impl);
     std::unique_ptr<Impl> impl;
 };
+
+static constexpr size_t POOL_OFFSET_ADJUSTMENT = 57;
 
 } // namespace Symlevel

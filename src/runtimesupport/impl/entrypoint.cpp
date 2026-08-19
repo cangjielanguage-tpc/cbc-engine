@@ -15,7 +15,6 @@
 #include "engine/engine.h"
 #include "engine/options.h"
 #include "engine/resolving_output.h"
-#include "engine/symlevel/dependencies.h"
 #include "engine/symlevel/io/filesystem.h"
 #include "engine/symlevel/reader.h"
 #include "exception_handling.h"
@@ -153,8 +152,8 @@ static void PerformPatching()
             };
 
             // Set patched flag
-            auto& deps = file.GetDependencies();
-            auto flag = deps.FindTarget(patchFlagName);
+            auto& deps = engine.Dependencies().at(file.Id());
+            auto flag  = deps.FindSymbol(patchFlagName);
             if (flag == nullptr) {
                 LOG_ERROR(RTSupport::Log::rt, "patching flag field not found {}", patchFlagName);
                 continue;

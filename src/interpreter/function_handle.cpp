@@ -7,7 +7,6 @@
 #include "adapters.h"
 #include "cbc/isa_rewriter.h"
 #include "engine/resolving_output.h"
-#include "engine/symlevel/dependencies.h"
 #include "engine/symlevel/flags.h"
 #include "engine/symlevel/reader.h"
 #include "function_handle.h"
@@ -55,9 +54,9 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
     ASSERTION(!flags.Is(MethodFlag::ABSTRACT), "Only methods that can be actually called can have FUH");
 
     auto newStaticFuh = [&]() -> StaticFunctionHandle* {
-        auto& deps       = session.CbcFileOf(methodDef.GetFileId()).GetDependencies();
+        auto& deps       = session.GetEngine().Dependencies().at(methodDef.GetFileId());
         auto linkageName = Symlevel::Reader::Read(session, method.LinkageName().value());
-        auto target      = deps.FindTarget(linkageName);
+        auto target      = deps.FindSymbol(linkageName);
 
         if (target == nullptr) {
             LOGS_ERROR(

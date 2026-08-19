@@ -6,7 +6,6 @@
 #include "engine/method_table.h"
 #include "engine/resolving_output.h"
 #include "engine/statics_manager.h"
-#include "engine/symlevel/dependencies.h"
 #include "engine/symlevel/flags.h"
 #include "engine/symlevel/io/file_id.h"
 #include "engine/symlevel/reader.h"
@@ -189,12 +188,13 @@ struct ResolverProxy {
 
     static std::optional<StaticField::Content> ResolveAotStaticField(Resolver& resolver, ResolvedFieldReference& ref)
     {
+        auto fileId      = resolver.method.GetFileId();
         auto refType     = resolver.Wrap(ref.refType);
         auto fieldType   = resolver.Wrap(ref.fieldType);
-        auto [file, raf] = resolver.session.File(resolver.method.GetFileId());
+        auto [file, raf] = resolver.session.File(fileId);
         auto data        = resolver.Decoder().GetAotData<Symlevel::StaticFieldAotData>(ref.identifier);
         auto linkageName = Symlevel::Reader::Read(resolver.session, data.linkangeName);
-        auto location    = file.GetDependencies().FindTarget(linkageName);
+        auto location    = resolver.session.GetEngine().Dependencies().at(fileId).FindSymbol(linkageName);
         if (!location) {
             log.Log(Logging::Level::FATAL, [linkageName](Stream::Output& stream) {
                 stream << "not found location of static field: " << linkageName << Stream::endl;
@@ -462,11 +462,12 @@ struct ResolverProxy {
 
     static std::optional<DirectCall::Content> ResolveAotDirectCall(Resolver& resolver, ResolvedMethodReference& ref)
     {
+        auto fileId      = resolver.method.GetFileId();
         auto [file, raf] = resolver.session.File(resolver.method.GetFileId());
         auto data        = resolver.Decoder().GetAotData<Symlevel::DirectCallAotData>(ref.identifier);
 
         auto linkageName = Symlevel::Reader::Read(resolver.session, data.linkangeName);
-        auto funcPtr     = file.GetDependencies().FindTarget(linkageName);
+        auto funcPtr     = resolver.session.GetEngine().Dependencies().at(fileId).FindSymbol(linkageName);
 
         if (!funcPtr) {
             log.Log(Logging::Level::FATAL, [linkageName](Stream::Output& stream) {
