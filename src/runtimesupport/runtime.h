@@ -110,6 +110,9 @@ struct Execution {
     static Reference ReadObjectStatic(void* location, ThreadHandle th);
     static void WriteObjectStatic(void* location, Reference object, ThreadHandle th);
 
+    static void ReadStaticStruct(uintptr_t dst, uintptr_t src, TypeInfo ti, ThreadHandle th);
+    static void WriteStaticStruct(uintptr_t dst, uintptr_t src, TypeInfo ti, ThreadHandle th);
+
     static void WriteStructField(uintptr_t src, Reference base, uintptr_t field, TypeInfo ti, ThreadHandle th);
     static void ReadStructField(uintptr_t dst, Reference base, uintptr_t field, TypeInfo ti, ThreadHandle th);
 
