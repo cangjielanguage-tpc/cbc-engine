@@ -14,22 +14,22 @@ public:
     static std::vector<Image::LivenessInfo> GetLivenessInfo(Engine::Session& session, Image::Code const& code);
     static std::vector<Image::StackPtrsInfo> GetStackPtrsInfo(Engine::Session& session, Image::Code const& code);
 
-    template <typename T> static RefSequence<T> ReadRefSeq(IO::StreamFileReader& reader, Image::FileId file)
+    template <typename T> static Image::RefSequence<T> ReadRefSeq(IO::StreamFileReader& reader, Image::FileId file)
     {
         auto size     = reader.ReadULEB();
         auto startPos = reader.Position();
         auto endPos   = startPos + size;
         reader.Advance(size);
-        return RefSequence<T>(file, startPos, endPos);
+        return Image::RefSequence<T>(file, startPos, endPos);
     }
 
-    template <typename T> static OffsetSequence<T> ReadOffsSeq(IO::StreamFileReader& reader, Image::FileId file)
+    template <typename T> static Image::OffsetSequence<T> ReadOffsSeq(IO::StreamFileReader& reader, Image::FileId file)
     {
         auto size     = reader.ReadULEB();
         auto startPos = reader.Position();
         auto endPos   = startPos + size;
         reader.Advance(size);
-        return OffsetSequence<T>(file, startPos, endPos);
+        return Image::OffsetSequence<T>(file, startPos, endPos);
     }
 
     static Image::MethodReference Read(Engine::Session& session, Image::RefIdentifier<Image::MethodReference> id);
