@@ -4,7 +4,6 @@
 #include "engine/identifiers.h"
 #include "engine/symlevel/cbc_file.h"
 #include "engine/symlevel/io/file_id.h"
-#include "engine/symlevel/io/offset_pool.h"
 #include "engine/symlevel/io/random_access_file.h"
 #include "engine/symlevel/io/stream_file_reader.h"
 #include <string_view>
