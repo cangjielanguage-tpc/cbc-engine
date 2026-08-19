@@ -92,9 +92,7 @@ public:
 
     /// Acquires an FunctionHandle for given method definition.
     FunctionHandle* Acquire(Engine::Session& session, Image::Identifier<Image::MethodDefinition> methodDef);
-    TaggedFunctionHandle AcquireTagged(
-        Engine::Session& session, Image::Identifier<Image::MethodDefinition> methodDef
-    );
+    TaggedFunctionHandle AcquireTagged(Engine::Session& session, Image::Identifier<Image::MethodDefinition> methodDef);
 
     /// Performs lazy initialization of a DynamicFunctionHandle.
     ExecBytecodeInfo* Prepare(Engine::Session& session, DynamicFunctionHandle* fuh);

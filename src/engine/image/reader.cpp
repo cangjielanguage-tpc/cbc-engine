@@ -7,11 +7,13 @@ std::vector<ExceptionRegion> Reader::GetExceptionRegions(Engine::Session& sessio
     IO::StreamFileReader reader(*session.FileOf(code.rawExTable.fileId), code.rawExTable.start);
     std::vector<ExceptionRegion> regions;
     while (reader.Position() < code.rawExTable.end) {
-        regions.emplace_back(ExceptionRegion {
-            .start  = reader.ReadULEB(),
-            .end    = reader.ReadULEB(),
-            .target = reader.ReadULEB(),
-        });
+        regions.emplace_back(
+            ExceptionRegion {
+                .start  = reader.ReadULEB(),
+                .end    = reader.ReadULEB(),
+                .target = reader.ReadULEB(),
+            }
+        );
     }
     return regions;
 }

@@ -70,7 +70,7 @@ CbcFile CbcFile::Create(Image::FileId fileId, IO::RandomAccessFile& file, std::s
     }
     auto regionOffset = reader.ReadU32();
 
-    auto mainType    = reader.ReadS32();
+    auto mainType                                  = reader.ReadS32();
     std::optional<Identifier<String>> mainTypeName = std::nullopt;
     if (mainType >= 0) {
         mainTypeName = Identifier(Offset<String>(mainType), fileId);

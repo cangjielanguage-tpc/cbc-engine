@@ -7,8 +7,7 @@
 
 namespace Image {
 
-template <>
-TypeDefinition Reader::Read(Engine::Session& session, Image::FileId fileId, Offset<TypeDefinition> offset)
+template <> TypeDefinition Reader::Read(Engine::Session& session, Image::FileId fileId, Offset<TypeDefinition> offset)
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetTypeDefSectionOffs() + offset);
 
@@ -68,7 +67,7 @@ TypeDefinition Reader::Read(Engine::Session& session, Image::FileId fileId, Offs
             case 0x5: def.arity = reader.ReadULEB(); break; // TODO: check range
             case 0x6:
                 def.unionFields = Reader::ReadRefSeq<Term>(reader, fileId);
-                def.enumKind = EnumKind::UNION;
+                def.enumKind    = EnumKind::UNION;
                 break;
             case 0x7: def.enumKind = EnumKind::OPTION0; break;
             case 0x8: def.enumKind = EnumKind::OPTION1; break;
@@ -84,8 +83,7 @@ template <> TypeDefinition Reader::Read(Engine::Session& session, Image::Identif
     return Reader::Read(session, identifier.GetFileId(), identifier.GetOffset());
 }
 
-template <>
-FieldDefinition Reader::Read(Engine::Session& session, Image::FileId fileId, Offset<FieldDefinition> offset)
+template <> FieldDefinition Reader::Read(Engine::Session& session, Image::FileId fileId, Offset<FieldDefinition> offset)
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetFieldDefSectionOffs() + offset);
 
@@ -140,11 +138,11 @@ MethodDefinition Reader::Read(Engine::Session& session, Image::FileId fileId, Of
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetMethodDefSectionOffs() + offset);
 
-    auto nameOffset  = Offset<String>(reader.ReadU32());
+    auto nameOffset     = Offset<String>(reader.ReadU32());
     auto typeNameOffset = Offset<String>(reader.ReadU32());
-    auto regionId    = reader.ReadU8();
+    auto regionId       = reader.ReadU8();
     auto signature      = Image::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
-    auto parsedFlags = reader.ReadU16();
+    auto parsedFlags    = reader.ReadU16();
 
     auto test = [parsedFlags](uint32_t bits) { return (parsedFlags & bits) == bits; };
 
@@ -188,9 +186,7 @@ MethodDefinition Reader::Read(Engine::Session& session, Image::FileId fileId, Of
     if (test(0x8000))
         flags = flags.Or(MethodFlag::REF_RECEIVER);
 
-    MethodDefinition::Content def {
-        Image::Identifier(offset, fileId), signature, typeNameOffset, nameOffset, flags
-    };
+    MethodDefinition::Content def { Image::Identifier(offset, fileId), signature, typeNameOffset, nameOffset, flags };
 
     for (auto tag = reader.ReadU8(); tag != 0; tag = reader.ReadU8()) {
         switch (tag) {

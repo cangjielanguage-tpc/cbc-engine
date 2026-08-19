@@ -1,11 +1,11 @@
 #include "engine/terms.h"
 #include "engine/engine.h"
 #include "engine/identifiers.h"
-#include "engine/resolving_output.h"
 #include "engine/image/cbc_file.h"
 #include "engine/image/io/stream_file_reader.h"
 #include "engine/image/reader.h"
 #include "engine/image/type_kind.h"
+#include "engine/resolving_output.h"
 #include "string.h"
 #include "utils/assertion.h"
 #include "utils/heap.h"
@@ -608,10 +608,7 @@ struct TermResolver {
     Image::CbcFile& file;
     TermManager& manager;
 
-    Term NewUndefined(Image::RefId<Term> refId)
-    {
-        return Undefined(session, Image::RefIdentifier(refId, fileId));
-    }
+    Term NewUndefined(Image::RefId<Term> refId) { return Undefined(session, Image::RefIdentifier(refId, fileId)); }
 
     bool ReadSubTerms(TermData* data, bool* isGenericLoc, int length, IO::StreamFileReader& reader)
     {
@@ -706,8 +703,7 @@ struct TermResolver {
         bool optionLikeEnum = false;
         switch (def->enumKind) {
             case Image::EnumKind::OPTION0:
-            case Image::EnumKind::OPTION1:
-                optionLikeEnum = true;
+            case Image::EnumKind::OPTION1: optionLikeEnum = true;
             default: {}
         }
 

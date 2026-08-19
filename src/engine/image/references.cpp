@@ -20,13 +20,18 @@ template <> MethodReference Reader::Read(Engine::Session& session, Identifier<Me
     auto methodSigIdx = RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
 
     MethodRefFlags flags;
-    if (parsedFlags & 0x1) flags = flags.Or(MethodRefFlag::SRET);
-    if (parsedFlags & 0x2) flags = flags.Or(MethodRefFlag::HAS_THIS_TI);
-    if (parsedFlags & 0x4) flags = flags.Or(MethodRefFlag::HAS_OUTER_TI);
+    if (parsedFlags & 0x1)
+        flags = flags.Or(MethodRefFlag::SRET);
+    if (parsedFlags & 0x2)
+        flags = flags.Or(MethodRefFlag::HAS_THIS_TI);
+    if (parsedFlags & 0x4)
+        flags = flags.Or(MethodRefFlag::HAS_OUTER_TI);
     if (parsedFlags & 0x8)
         flags = flags.Or(MethodRefFlag::MUT);
-    if (parsedFlags & 0x10) flags = flags.Or(MethodRefFlag::HAS_FTVARS);
-    if (parsedFlags & 0x20) flags = flags.Or(MethodRefFlag::AOT);
+    if (parsedFlags & 0x10)
+        flags = flags.Or(MethodRefFlag::HAS_FTVARS);
+    if (parsedFlags & 0x20)
+        flags = flags.Or(MethodRefFlag::AOT);
     if (parsedFlags & 0x40)
         flags = flags.Or(MethodRefFlag::REC_RECEIVER);
     if (parsedFlags & 0x80)

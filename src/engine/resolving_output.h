@@ -3,9 +3,9 @@
 #include "engine/engine.h"
 #include "engine/field_layout.h"
 #include "engine/identifiers.h"
-#include "engine/method_table.h"
 #include "engine/image/cbc_file.h"
 #include "engine/image/reader.h"
+#include "engine/method_table.h"
 #include "engine/terms.h"
 #include "utils/ostream.h"
 #include <functional>

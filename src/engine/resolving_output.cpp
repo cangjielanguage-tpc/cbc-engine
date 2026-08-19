@@ -4,8 +4,8 @@
 #include "engine/engine.h"
 #include "engine/field_layout.h"
 #include "engine/identifiers.h"
-#include "engine/method_table.h"
 #include "engine/image/reader.h"
+#include "engine/method_table.h"
 #include "engine/terms.h"
 #include "resolution/resolution.h"
 

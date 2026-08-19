@@ -3,11 +3,11 @@
 #include "engine/engine.h"
 #include "engine/field_layout.h"
 #include "engine/identifiers.h"
+#include "engine/image/flags.h"
+#include "engine/image/reader.h"
 #include "engine/method_table.h"
 #include "engine/resolving_output.h"
 #include "engine/statics_manager.h"
-#include "engine/image/flags.h"
-#include "engine/image/reader.h"
 #include "engine/terms.h"
 #include "engine/typeinfo_manager.h"
 #include "interpreter/function_handle.h"
@@ -498,7 +498,6 @@ struct ResolverProxy {
         if (ref.flags.Is(Image::MethodRefFlag::AOT)) {
             return ResolveAotDirectCall(resolver, ref);
         }
-
 
         auto termIdent = TypeTermId(ref.refType);
         auto type      = Image::Reader::Read(resolver, termIdent.GetIdentifier());
