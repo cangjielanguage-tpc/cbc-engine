@@ -147,6 +147,10 @@ static std::vector<Dependencies> ReadDependencies(Loader::Impl const* loader)
         return ptr;
     };
 
+    // FIXME: Do not inject `executable` as dependency unconditionally.
+    //        Use special name for such dependencies as `aot deps` field in cbc file.
+    auto executable = std::make_shared<Utils::SharedObject>(Utils::SharedObject::OpenCurrentExecutable());
+
     std::vector<char> nameBuffer;
 
     ASSERT(loader->files.size() == loader->rafs.size());
@@ -160,8 +164,11 @@ static std::vector<Dependencies> ReadDependencies(Loader::Impl const* loader)
 
         auto deps     = file.AotDependencies();
         auto fileDeps = &allDeps[i];
+
+        std::vector<std::shared_ptr<Utils::SharedObject>> ptrs;
+        ptrs.emplace_back(executable);
         if (!deps) {
-            allDeps.emplace_back();
+            allDeps.emplace_back(std::move(ptrs));
             continue;
         }
 
@@ -171,8 +178,6 @@ static std::vector<Dependencies> ReadDependencies(Loader::Impl const* loader)
         nameBuffer.clear();
         nameBuffer.resize(size);
         reader.Read(nameBuffer.data(), size);
-
-        std::vector<std::shared_ptr<Utils::SharedObject>> ptrs;
 
         std::string_view depsStr(nameBuffer.data(), size);
         while (!depsStr.empty()) {

@@ -19,6 +19,8 @@ public:
     static SharedObject Open(std::string_view str);
     static SharedObject Open(std::string&& str);
 
+    static SharedObject OpenCurrentExecutable();
+
     // Searches for the symbol named `str` in given shared object.
     // Returns null on error.
     void* SearchSym(char const* str) const;

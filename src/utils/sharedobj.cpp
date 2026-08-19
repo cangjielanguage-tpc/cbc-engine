@@ -20,6 +20,12 @@ SharedObject::~SharedObject()
     }
 }
 
+SharedObject SharedObject::OpenCurrentExecutable()
+{
+    void* handle = dlopen(nullptr, RTLD_LAZY);
+    return SharedObject(handle, "/proc/self/exe"); // not exactly "universal" name, but it's ok
+}
+
 SharedObject SharedObject::Open(std::string&& str)
 {
     void* handle = dlopen(str.c_str(), RTLD_LAZY);
