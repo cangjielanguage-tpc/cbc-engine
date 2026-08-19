@@ -8,6 +8,8 @@ class SharedObject {
 public:
     SharedObject(SharedObject const&) = delete;
     SharedObject(SharedObject&& another);
+    SharedObject();
+
     ~SharedObject();
 
     SharedObject& operator=(SharedObject&& other);

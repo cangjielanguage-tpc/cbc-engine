@@ -9,6 +9,8 @@ SharedObject::SharedObject(SharedObject&& other) : handle(other.handle), name(st
     other.handle = nullptr;
 }
 
+SharedObject::SharedObject() : handle(nullptr), name() {}
+
 SharedObject::SharedObject(void* handle, std::string&& name) : handle(handle), name(std::move(name)) {}
 
 SharedObject::~SharedObject()
@@ -49,8 +51,10 @@ SharedObject& SharedObject::operator=(SharedObject&& other)
 
 void* SharedObject::SearchSym(char const* str) const
 {
-    ASSERT(handle != nullptr);
-    return dlsym(handle, str);
+    if (handle) {
+        return dlsym(handle, str);
+    }
+    return nullptr;
 }
 
 std::string const& SharedObject::Name() const { return name; }
