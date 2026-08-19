@@ -1,6 +1,7 @@
 #include "cbc_file.h"
 
 #include "engine/decode/decoder.h"
+#include "engine/decode/reader.h"
 #include "io/stream_file_reader.h"
 #include "version_metadata.h"
 #include <optional>
@@ -90,7 +91,7 @@ CbcFile CbcFile::Create(Image::FileId fileId, IO::RandomAccessFile& file, std::s
     CbcFile::Impl impl {
         .versionMetadata       = versionMetadata,
         .typeIndex             = Decode::ReadIndex(typeIndexReader, fileId),
-        .regionData            = RegionData::Read(fileId, file, regionOffset),
+        .regionData            = Decode::Reader::ReadRegion(fileId, file, regionOffset),
         .directCallAotTable    = Decode::ReadIndex(directCallTableReader, fileId),
         .virtualCallAotTable   = Decode::ReadIndex(virtualCallTableReader, fileId),
         .interfaceCallAotTable = Decode::ReadIndex(interfaceCallTableReader, fileId),

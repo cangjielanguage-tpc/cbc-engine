@@ -2,6 +2,7 @@
 
 #include "engine/decode/decoder.h"
 #include "engine/engine.h"
+#include "engine/image/cbc_file.h"
 
 namespace Decode {
 
@@ -74,6 +75,8 @@ public:
     {
         return s.Decoder().Resolve(seq);
     }
+
+    static Image::RegionData ReadRegion(Image::FileId fileId, IO::RandomAccessFile& file, uint32_t offset);
 };
 
 } // namespace Decode

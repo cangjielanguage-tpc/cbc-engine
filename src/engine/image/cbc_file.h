@@ -734,13 +734,15 @@ private:
 struct RegionData {
     static constexpr uint32_t FIRST_NON_PRIMITIVE_TERM_ID = 20;
 
-    static RegionData Read(Image::FileId fileId, IO::RandomAccessFile& file, uint32_t offset);
-
     RegionData(
         OffsetPool<MethodReference> methods,
         OffsetPool<FieldReference> fields,
         OffsetPool<Term, FIRST_NON_PRIMITIVE_TERM_ID> terms
-    );
+    )
+        : methods(methods),
+          fields(fields),
+          terms(terms)
+    {}
 
     OffsetPool<MethodReference> methods;
     OffsetPool<FieldReference> fields;
