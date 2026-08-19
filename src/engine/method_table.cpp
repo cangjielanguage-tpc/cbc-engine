@@ -202,7 +202,7 @@ std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, Glob
     }
 
     // 2. Copy all entries and sub tables of interfaces, adjusting their views
-    for (auto interf : session.Decoder().Resolve(def.GetInterfaces())) {
+    for (auto interf : Reader::Resolve(session, def.GetInterfaces())) {
         auto interface = TermManager::Resolve(session, interf);
         interface      = substitute(interface);
 
@@ -243,7 +243,7 @@ std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, Glob
     MethodSignatureSubstitution methodSigSub(session, type);
 
     std::vector<MethodTableEntry> entryBuffer;
-    for (auto methodId : session.Decoder().Resolve(def.GetVirtualMethods())) {
+    for (auto methodId : Reader::Resolve(session, def.GetVirtualMethods())) {
         auto newEntry = MethodTable::Entry {
             .method         = methodId,
             .genericContext = thisType,

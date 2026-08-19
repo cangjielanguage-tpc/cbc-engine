@@ -18,6 +18,7 @@
 #include <optional>
 
 static constexpr auto MAX_ALIGN = alignof(max_align_t);
+using Reader                    = Symlevel::Reader;
 
 namespace Engine {
 
@@ -342,7 +343,7 @@ private:
             bool failed   = false;
             uint32_t size = 0;
             auto def      = Symlevel::Reader::Read(session, ExtractTypeDefIdentifier(term));
-            for (auto fieldTypeId : session.Decoder().Resolve(def->unionFields)) {
+            for (auto fieldTypeId : Reader::Resolve(session, def->unionFields)) {
                 auto fieldType = TermManager::Resolve(session, fieldTypeId);
                 fieldType = substitute.Substitute(fieldType);
                 auto fieldSize = GetFlatSize(fieldType);
@@ -387,7 +388,7 @@ private:
             layout.desc.alignment = MAX_ALIGN;
 
             size_t ordinal = layout.fields.size();
-            for (auto fieldId : session.Decoder().Resolve(def.GetInstanceFields())) {
+            for (auto fieldId : Reader::Resolve(session, def.GetInstanceFields())) {
                 auto def       = Symlevel::Reader::Read(session, fieldId);
                 auto fieldType = TermManager::Resolve(session, def.FieldType());
                 fieldType      = substitute(fieldType);
@@ -407,7 +408,7 @@ private:
         }
 
         size_t ordinal = layout.fields.size();
-        for (auto fieldId : session.Decoder().Resolve(def.GetInstanceFields())) {
+        for (auto fieldId : Reader::Resolve(session, def.GetInstanceFields())) {
             auto def = Symlevel::Reader::Read(session, fieldId);
             // FIXME: substitution
             auto fieldType = TermManager::Resolve(session, def.FieldType());
@@ -436,7 +437,7 @@ private:
 
         SizeAlignmentAccumulator acc { this, layout.desc.size, layout.desc.alignment };
 
-        auto seq = session.Decoder().Resolve(def.GetInstanceFields());
+        auto seq = Reader::Resolve(session, def.GetInstanceFields());
         for (auto fieldId : seq) {
             auto def       = Symlevel::Reader::Read(session, fieldId);
             auto fieldType = TermManager::Resolve(session, def.FieldType());

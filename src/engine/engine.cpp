@@ -231,7 +231,7 @@ std::optional<CbcFile*> Engine::Impl::FindCbcFile(std::string_view filePath)
 std::optional<Identifier<Symlevel::TypeDefinition>> Engine::FindType(Session& session, std::string_view typeName)
 {
     for (auto& file : impl->files) {
-        auto res = session.Decoder().Find(file.GetTypeIndex(), typeName);
+        auto res = Reader::Find(session, file.GetTypeIndex(), typeName);
         if (res.has_value()) {
             return res;
         }
@@ -253,14 +253,14 @@ std::optional<Identifier<MethodDefinition>> Engine::FindMethod(
         return std::nullopt;
     }
     auto f        = file.value();
-    auto declType = session.Decoder().Find(f->GetTypeIndex(), typeName);
+    auto declType = Reader::Find(session, f->GetTypeIndex(), typeName);
     if (declType.has_value()) {
         auto type               = Symlevel::Reader::Read(session, declType.value());
         const auto& methodIndex = type.GetMethods();
 
         std::optional<Identifier<MethodDefinition>> result = std::nullopt;
         int mcount                                         = 0;
-        for (auto m : session.Decoder().FindBucket(methodIndex, methodName)) {
+        for (auto m : Reader::FindBucket(session, methodIndex, methodName)) {
             mcount++;
             result = m;
         }

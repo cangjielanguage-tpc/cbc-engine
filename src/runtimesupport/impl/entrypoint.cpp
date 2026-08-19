@@ -103,7 +103,7 @@ static void PerformPatching()
 
     for (auto& file : engine.Files()) {
         // TODO: list patches in CBC file header
-        for (auto type : session.Decoder().AllEntries(file.GetTypeIndex())) {
+        for (auto type : Symlevel::Reader::AllEntries(session, file.GetTypeIndex())) {
             auto def = Symlevel::Reader::Read(session, type);
             if (!def.GetFlags().Is(Symlevel::TypeFlag::PATCH)) {
                 continue;
@@ -131,7 +131,7 @@ static void PerformPatching()
             // Corresponding extension def (TODO: check it)
             auto edef = ti->vExtensionDataStart[1];
 
-            for (auto mdefId : session.Decoder().AllEntries(def.GetMethods())) {
+            for (auto mdefId : Symlevel::Reader::AllEntries(session, def.GetMethods())) {
                 auto mdef = Symlevel::Reader::Read(session, mdefId);
 
                 auto idx = -1;

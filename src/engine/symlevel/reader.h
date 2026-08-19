@@ -67,12 +67,12 @@ public:
         return s.Decoder().GetAotData<T>(index);
     }
 
-    template <typename T> static RefSequence<T> Resolve(Engine::Session& s, Symlevel::RefSequence<T> seq)
+    template <typename T> static Decode::RefSequence<T> Resolve(Engine::Session& s, Symlevel::RefSequence<T> seq)
     {
         return s.Decoder().Resolve(seq);
     }
 
-    template <typename T> static OffsetSequence<T> Resolve(Engine::Session& s, Symlevel::OffsetSequence<T> seq)
+    template <typename T> static Decode::OffsetSequence<T> Resolve(Engine::Session& s, Symlevel::OffsetSequence<T> seq)
     {
         return s.Decoder().Resolve(seq);
     }

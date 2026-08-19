@@ -233,6 +233,8 @@ struct Resolver {
 
     Decode::Decoder& Decoder() { return session.Decoder(); }
 
+    operator Engine::Session&() { return session; }
+
     template <typename T> using Cache = std::unordered_map<int, typename T::Content*>;
 
     Engine::Session& session;

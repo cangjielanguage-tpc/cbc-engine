@@ -166,18 +166,18 @@ ResolvingOutput& ResolvingOutput::operator<<(NoResolve<Symlevel::TypeDefinition>
     Region("method name: " + std::to_string(td.GetName().GetOffset()), [&]() {
         out << "super: " << td.GetSuperType() << endl;
         Region("fields", [&]() {
-            for (auto id : Decoder().AllEntries(td.GetFields())) {
+            for (auto id : Symlevel::Reader::AllEntries(session, td.GetFields())) {
                 out << NoResolve(id) << endl;
             }
         });
         Region("methods", [&]() {
-            for (auto id : Decoder().AllEntries(td.GetMethods())) {
+            for (auto id : Symlevel::Reader::AllEntries(session, td.GetMethods())) {
                 out << NoResolve(id);
             }
         });
         Region("virtual methods", [&]() {
             auto vms = td.GetVirtualMethods();
-            for (auto ident : Decoder().Resolve(vms)) {
+            for (auto ident : Symlevel::Reader::Resolve(session, vms)) {
                 out << NoResolve(ident);
             }
         });
@@ -192,25 +192,25 @@ ResolvingOutput& ResolvingOutput::TypeDefinition(Symlevel::TypeDefinition const&
         out << "super: " << Detailed(td.GetSuperType()) << endl;
 
         Region("interfaces", [&]() {
-            for (auto id : session.Decoder().Resolve(td.GetInterfaces())) {
+            for (auto id : Symlevel::Reader::Resolve(session, td.GetInterfaces())) {
                 out << Detailed(id) << endl;
             }
         });
 
         Region("fields", [&]() {
-            for (auto field : Decoder().AllEntries(td.GetFields())) {
+            for (auto field : Symlevel::Reader::AllEntries(session, td.GetFields())) {
                 out << Detailed(field) << endl;
             }
         });
 
         Region("instance fields", [&]() {
-            for (auto id : Decoder().Resolve(td.GetInstanceFields())) {
+            for (auto id : Symlevel::Reader::Resolve(session, td.GetInstanceFields())) {
                 out << Detailed(id) << endl;
             }
         });
 
         Region("methods", [&]() {
-            for (auto id : Decoder().AllEntries(td.GetMethods())) {
+            for (auto id : Symlevel::Reader::AllEntries(session, td.GetMethods())) {
                 if (full) {
                     out << Full(id);
                 } else {
@@ -221,7 +221,7 @@ ResolvingOutput& ResolvingOutput::TypeDefinition(Symlevel::TypeDefinition const&
 
         Region("virtual methods", [&]() {
             auto vms = td.GetVirtualMethods();
-            for (auto ident : Decoder().Resolve(vms)) {
+            for (auto ident : Symlevel::Reader::Resolve(session, vms)) {
                 if (full) {
                     out << Full(ident);
                 } else {

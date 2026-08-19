@@ -89,7 +89,7 @@ void Disasmer::DisasmOf(CbcFile const& file)
     Version(file.GetVersionMetadata());
 
     Region("types", [&]() {
-        for (auto type : session.Decoder().AllEntries(file.GetTypeIndex())) {
+        for (auto type : Symlevel::Reader::AllEntries(session, file.GetTypeIndex())) {
             auto def = Symlevel::Reader::Read(session, type);
             Type(def);
         }

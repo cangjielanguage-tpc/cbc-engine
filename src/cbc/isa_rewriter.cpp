@@ -990,12 +990,12 @@ struct IsaRewriter : public IsaParser {
         }
 
         auto typeDefId = Engine::TypeTermId(type->term).GetIdentifier();
-        auto typeDef   = Symlevel::Reader::Read(resolver.session, typeDefId);
+        auto typeDef   = Symlevel::Reader::Read(resolver, typeDefId);
 
         int idx = 0;
-        for (auto methodId : resolver.Decoder().Resolve(typeDef.GetVirtualMethods())) {
+        for (auto methodId : Symlevel::Reader::Resolve(resolver, typeDef.GetVirtualMethods())) {
             if (idx++ == 1) {
-                auto method = Symlevel::Reader::Read(resolver.session, methodId);
+                auto method = Symlevel::Reader::Read(resolver, methodId);
                 auto sret   = method.GetFlags().Is(Symlevel::MethodFlag::SRET);
 
                 emit.InitClosure(sret);

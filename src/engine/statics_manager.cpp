@@ -1,5 +1,4 @@
 #include "statics_manager.h"
-#include "decode/decoder.h"
 #include "engine/resolving_output.h"
 #include "engine/symlevel/reader.h"
 #include "field_layout.h"
@@ -63,9 +62,7 @@ uintptr_t StaticFieldsBundle::GetLocation(Session& session, TypeIdent typeIdent,
     auto targetKind          = ComputeSlotKind(session, *flm, fieldDef);
 
     uint32_t fieldIdx = 0;
-    auto& decoder     = session.Decoder();
-
-    for (auto fieldId : decoder.AllEntries(typeDef.GetFields())) {
+    for (auto fieldId : Symlevel::Reader::AllEntries(session, typeDef.GetFields())) {
         auto field = Symlevel::Reader::Read(session, fieldId);
         if (field.Flags().IsNot(Symlevel::FieldFlag::STATIC)) {
             continue;
@@ -131,7 +128,7 @@ StaticFieldsBundle StaticsManager::CreateBundle(Session& session, TypeIdent type
     uint32_t recordsSize = 0;
     std::vector<StaticTypedSlotInfo> typedSlotsInfo;
 
-    for (auto fieldId : session.Decoder().AllEntries(typeDef.GetFields())) {
+    for (auto fieldId : Symlevel::Reader::AllEntries(session, typeDef.GetFields())) {
         auto field = Symlevel::Reader::Read(session, fieldId);
 
         if (field.Flags().IsNot(Symlevel::FieldFlag::STATIC)) {
