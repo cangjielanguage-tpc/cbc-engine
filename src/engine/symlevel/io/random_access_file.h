@@ -32,6 +32,12 @@ public:
      * @throws runtime exception if end of stream is reached.
      */
     void Read(char* array, size_t position, size_t length) const;
+
+    uint8_t ReadU8(size_t position);
+    uint16_t ReadU16(size_t position);
+    uint32_t ReadU32(size_t position);
+    int32_t ReadS32(size_t position);
+    uint64_t ReadU64(size_t position);
 };
 
 } // namespace IO

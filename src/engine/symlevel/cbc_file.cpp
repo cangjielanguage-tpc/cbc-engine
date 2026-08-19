@@ -1,11 +1,9 @@
 #include "cbc_file.h"
 
-#include "aot_table.h"
-#include "dependencies.h"
+#include "engine/decode/decoder.h"
 #include "io/stream_file_reader.h"
-#include "member_index.h"
-#include "region_data.h"
 #include "version_metadata.h"
+#include <optional>
 
 namespace Symlevel {
 
@@ -20,11 +18,12 @@ struct CbcFile::Impl {
     StaticFieldAotTable staticFieldAotTable;
     InstanceFieldAotTable instanceFieldAotTable;
 
-    Dependencies dependencies;
-    std::optional<Engine::Identifier<String>> mainTypeName;
+    int aotDeps;
+    int cbcDeps;
+    std::optional<Identifier<String>> mainTypeName;
 
     uint32_t poolOffset;
-    IO::FileId id;
+    Symlevel::FileId id;
     std::string name;
 };
 
@@ -33,7 +32,7 @@ CbcFile::CbcFile(std::unique_ptr<CbcFile::Impl> impl) : impl(std::move(impl)) {}
 CbcFile::CbcFile(CbcFile&& other) = default;
 CbcFile::~CbcFile()               = default;
 
-CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::string_view name)
+CbcFile CbcFile::Create(Symlevel::FileId fileId, IO::RandomAccessFile& file, std::string_view name)
 {
     IO::StreamFileReader reader(file, 0);
 
@@ -57,7 +56,6 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
 
     auto typeIndexOffset = reader.ReadU32();
     auto poolOffset      = reader.ReadU32();
-    IO::StreamFileReader typeIndexReader(file, typeIndexOffset);
 
     auto directCallAotTableOffset    = reader.ReadU32();
     auto virtualCallAotTableOffset   = reader.ReadU32();
@@ -73,9 +71,9 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
     auto regionOffset = reader.ReadU32();
 
     auto mainType    = reader.ReadS32();
-    std::optional<Engine::Identifier<String>> mainTypeName = std::nullopt;
+    std::optional<Identifier<String>> mainTypeName = std::nullopt;
     if (mainType >= 0) {
-        mainTypeName = Engine::Identifier(Offset<String>(mainType), fileId);
+        mainTypeName = Identifier(Offset<String>(mainType), fileId);
     }
 
     auto cbcDeps     = reader.ReadS32();
@@ -83,16 +81,23 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
     auto foreignLibs = reader.ReadS32();
     auto coverageId  = reader.ReadULEB();
 
+    IO::StreamFileReader typeIndexReader(file, typeIndexOffset);
+    IO::StreamFileReader directCallTableReader(file, directCallAotTableOffset);
+    IO::StreamFileReader virtualCallTableReader(file, virtualCallAotTableOffset);
+    IO::StreamFileReader interfaceCallTableReader(file, interfaceCallAotTableOffset);
+    IO::StreamFileReader instanceFieldTableReader(file, instanceFieldAotTableOffset);
+    IO::StreamFileReader staticFieldTableReader(file, staticFieldAotTableOffset);
     CbcFile::Impl impl {
         .versionMetadata       = versionMetadata,
-        .typeIndex             = TypeIndex(typeIndexReader, fileId),
+        .typeIndex             = Decode::ReadIndex(typeIndexReader, fileId),
         .regionData            = RegionData::Read(fileId, file, regionOffset),
-        .directCallAotTable    = DirectCallAotTable::Read(fileId, file, directCallAotTableOffset),
-        .virtualCallAotTable   = VirtualCallAotTable::Read(fileId, file, virtualCallAotTableOffset),
-        .interfaceCallAotTable = InterfaceCallAotTable::Read(fileId, file, interfaceCallAotTableOffset),
-        .staticFieldAotTable   = StaticFieldAotTable::Read(fileId, file, staticFieldAotTableOffset),
-        .instanceFieldAotTable = InstanceFieldAotTable::Read(fileId, file, instanceFieldAotTableOffset),
-        .dependencies          = Dependencies::Read(fileId, file, poolOffset, cbcDeps, aotDeps),
+        .directCallAotTable    = Decode::ReadIndex(directCallTableReader, fileId),
+        .virtualCallAotTable   = Decode::ReadIndex(virtualCallTableReader, fileId),
+        .interfaceCallAotTable = Decode::ReadIndex(interfaceCallTableReader, fileId),
+        .staticFieldAotTable   = Decode::ReadIndex(staticFieldTableReader, fileId),
+        .instanceFieldAotTable = Decode::ReadIndex(instanceFieldTableReader, fileId),
+        .aotDeps               = aotDeps,
+        .cbcDeps               = cbcDeps,
         .mainTypeName          = mainTypeName,
         .poolOffset            = poolOffset,
         .id                    = fileId,
@@ -102,7 +107,7 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
     return CbcFile(std::make_unique<CbcFile::Impl>(std::move(impl)));
 }
 
-IO::FileId CbcFile::Id() const { return impl->id; }
+Symlevel::FileId CbcFile::Id() const { return impl->id; }
 
 uint32_t CbcFile::GetCodeSectionOffs() const { return impl->poolOffset; }
 
@@ -133,9 +138,23 @@ const RegionData& CbcFile::GetRegionData() const { return impl->regionData; }
 
 const TypeIndex& CbcFile::GetTypeIndex() const { return impl->typeIndex; }
 
-const Dependencies& CbcFile::GetDependencies() const { return impl->dependencies; }
+std::optional<Offset<String>> CbcFile::AotDependencies() const
+{
+    if (impl->aotDeps < 0) {
+        return std::nullopt;
+    }
+    return Offset<String>(impl->aotDeps);
+}
 
-const std::optional<Engine::Identifier<String>> CbcFile::GetMainTypeName() const { return impl->mainTypeName; }
+std::optional<Offset<String>> CbcFile::CbcDependencies() const
+{
+    if (impl->cbcDeps < 0) {
+        return std::nullopt;
+    }
+    return Offset<String>(impl->cbcDeps);
+}
+
+const std::optional<Identifier<String>> CbcFile::GetMainTypeName() const { return impl->mainTypeName; }
 
 const DirectCallAotTable& CbcFile::GetDirectCallAotTable() const { return impl->directCallAotTable; }
 

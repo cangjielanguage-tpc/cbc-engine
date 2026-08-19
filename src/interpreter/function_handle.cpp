@@ -7,8 +7,6 @@
 #include "adapters.h"
 #include "cbc/isa_rewriter.h"
 #include "engine/resolving_output.h"
-#include "engine/symlevel/definitions.h"
-#include "engine/symlevel/dependencies.h"
 #include "engine/symlevel/flags.h"
 #include "engine/symlevel/reader.h"
 #include "function_handle.h"
@@ -28,9 +26,9 @@ using namespace Symlevel;
 
 class FunctionHandleManager::Impl {
 public:
-    using Ident = Identifier<MethodDefinition>;
+    using Ident = Symlevel::Identifier<MethodDefinition>;
     std::mutex lock;
-    std::unordered_map<Ident::Packed, TaggedFunctionHandle, Ident::Hasher> fuhMap;
+    std::unordered_map<Ident::Packed, TaggedFunctionHandle> fuhMap;
 };
 
 FunctionHandleManager::FunctionHandleManager() : impl(std::move(std::make_unique<FunctionHandleManager::Impl>())) {}
@@ -39,7 +37,7 @@ FunctionHandleManager::~FunctionHandleManager()                               = 
 FunctionHandleManager::FunctionHandleManager(FunctionHandleManager&& manager) = default;
 
 TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
-    Session& session, Identifier<Symlevel::MethodDefinition> methodDef
+    Session& session, Symlevel::Identifier<Symlevel::MethodDefinition> methodDef
 )
 {
     std::lock_guard guard(impl->lock);
@@ -56,9 +54,9 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
     ASSERTION(!flags.Is(MethodFlag::ABSTRACT), "Only methods that can be actually called can have FUH");
 
     auto newStaticFuh = [&]() -> StaticFunctionHandle* {
-        auto& deps       = session.CbcFileOf(methodDef.GetFileId()).GetDependencies();
+        auto& deps       = session.GetEngine().Dependencies().at(methodDef.GetFileId());
         auto linkageName = Symlevel::Reader::Read(session, method.LinkageName().value());
-        auto target      = deps.FindTarget(linkageName);
+        auto target      = deps.FindSymbol(linkageName);
 
         if (target == nullptr) {
             LOGS_ERROR(
@@ -98,7 +96,9 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
     return fuh;
 }
 
-FunctionHandle* FunctionHandleManager::Acquire(Session& session, Identifier<Symlevel::MethodDefinition> methodDef)
+FunctionHandle* FunctionHandleManager::Acquire(
+    Session& session, Symlevel::Identifier<Symlevel::MethodDefinition> methodDef
+)
 {
     auto fuh = AcquireTagged(session, methodDef);
     if (std::holds_alternative<DynamicFunctionHandle*>(fuh)) {

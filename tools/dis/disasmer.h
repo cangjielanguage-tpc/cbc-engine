@@ -2,8 +2,6 @@
 #include "engine/engine.h"
 #include "engine/resolving_output.h"
 #include "engine/symlevel/cbc_file.h"
-#include "engine/symlevel/definitions.h"
-#include "engine/symlevel/string.h"
 #include "engine/symlevel/version_metadata.h"
 #include "utils/ostream.h"
 #include <cstdint>
@@ -13,7 +11,7 @@
 namespace Dis {
 //
 class Disasmer {
-    std::unique_ptr<Engine::Session> SessionFor(std::vector<std::string_view> views);
+    Engine::Session SessionFor(std::vector<std::string_view> views);
 
     void Version(const Symlevel::VersionMetadata& md);
 
@@ -32,10 +30,10 @@ class Disasmer {
     }
 
     Symlevel::CbcFile const* currentFile = nullptr;
-    std::unique_ptr<Engine::Session> session;
+    Engine::Session session;
     std::vector<Symlevel::CbcFile> const& files;
     Stream::Indented idio;
-    Stream::ResolvingOutput io = Stream::ResolvingOutput(*session, idio);
+    Stream::ResolvingOutput io = Stream::ResolvingOutput(session, idio);
 
     bool resolving;
 
@@ -51,7 +49,7 @@ public:
 
     Disasmer(std::vector<std::string_view> views, Stream::Output& s, bool resolving)
         : session(SessionFor(views)),
-          files(session->GetEngine().Files()),
+          files(session.GetEngine().Files()),
           resolving(resolving),
           idio(s, 0)
     {}

@@ -3,11 +3,8 @@
 #include "engine/identifiers.h"
 #include "engine/resolving_output.h"
 #include "engine/symlevel/cbc_file.h"
-#include "engine/symlevel/definitions.h"
-#include "engine/symlevel/io/file_id.h"
 #include "engine/symlevel/io/stream_file_reader.h"
 #include "engine/symlevel/reader.h"
-#include "engine/symlevel/region_data.h"
 #include "engine/symlevel/type_kind.h"
 #include "string.h"
 #include "utils/assertion.h"
@@ -15,6 +12,7 @@
 #include "utils/iterators.h"
 #include "utils/ostream.h"
 #include <alloca.h>
+#include <cassert>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -358,7 +356,7 @@ void Term::GetName(Session& session, Stream::Output& out, bool hasDebugPrefix) c
         case TK::UNDEFINED: {
             auto undef  = UndefTermId(*this).GetIdentifier();
             auto file   = undef.GetFileId();
-            auto index  = undef.GetIndex().GetIndex();
+            auto index  = undef.GetIndex();
             out.PrintFmt("$unresolved<%u,%u>", file.id, index);
             break;
         }
@@ -399,7 +397,7 @@ void Term::GetName(Session& session, Stream::Output& out, bool hasDebugPrefix) c
         case TK::PRIMITIVE_ENUM:
         case TK::TYPE: {
             auto ident = ExtractTypeDefIdentifier(*this);
-            auto type  = Symlevel::TypeDefinition::Resolve(session, ident);
+            auto type  = Symlevel::Reader::Read(session, ident);
             stream << prefix << Symlevel::Reader::Read(session, type.GetName());
             if (int len = GetLength(); len > 0) {
                 printSubTerms("<", ">", len);
@@ -537,7 +535,7 @@ Term TermManager::NewAotTerm(
     auto type = session.GetEngine().FindType(session, name);
     if (type.has_value()) {
         ASSERT([&]() -> bool {
-            auto def = Symlevel::TypeDefinition::Resolve(session, type.value());
+            auto def = Symlevel::Reader::Read(session, type.value());
             return IsProperTypeReference(def, isReference, arity);
         }());
         id                  = TypeTermId(*type);
@@ -605,12 +603,15 @@ struct TermResolver {
     Symlevel::RegionData const& regionData;
     Session& session;
     Memory::Heap& heap;
-    IO::FileId fileId;
+    FileId fileId;
     IO::RandomAccessFile& raf;
     Symlevel::CbcFile& file;
     TermManager& manager;
 
-    Term NewUndefined(Symlevel::RefId<Term> refId) { return Undefined(session, RefIdentifier(refId, fileId)); }
+    Term NewUndefined(Symlevel::RefId<Term> refId)
+    {
+        return Undefined(session, Symlevel::RefIdentifier(refId, fileId));
+    }
 
     bool ReadSubTerms(TermData* data, bool* isGenericLoc, int length, IO::StreamFileReader& reader)
     {
@@ -662,7 +663,7 @@ struct TermResolver {
         }
         auto identifier = type.value();
 
-        auto def       = Symlevel::TypeDefinition::Resolve(session, identifier);
+        auto def       = Symlevel::Reader::Read(session, identifier);
         bool undefined = !IsProperTypeReference(def, isReference, expectedLength);
 
         if (undefined && wasAot) {
@@ -700,7 +701,7 @@ struct TermResolver {
         }
         auto identifier = type.value();
 
-        auto def = Symlevel::TypeDefinition::Resolve(session, identifier);
+        auto def = Symlevel::Reader::Read(session, identifier);
 
         bool optionLikeEnum = false;
         switch (def->enumKind) {
@@ -802,10 +803,15 @@ struct TermResolver {
     {
         using namespace Symlevel;
 
-        if (refId.GetIndex() < FIRST_NON_PRIMITIVE) {
-            return Term::Predefined(TermKind(refId.GetIndex()));
+        if (refId < FIRST_NON_PRIMITIVE) {
+            return Term::Predefined(TermKind(refId.GetValue()));
         }
-        auto offset = regionData.Query(session, refId);
+
+        auto pool  = file.GetRegionData().template ErasedPool<Term>();
+        auto index = refId - pool.adjustment;
+        assert(index < pool.size);
+
+        auto offset = raf.ReadU32(pool.offset + index * sizeof(uint32_t));
         IO::StreamFileReader reader(raf, file.GetTermSectionOffs() + offset);
 
         auto tag = static_cast<Tag>(reader.ReadU8());

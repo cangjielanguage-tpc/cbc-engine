@@ -3,8 +3,6 @@
 #include "cbc/frame.h"
 #include "cbc/isa.h"
 #include "cbc/isa_rt.h"
-#include "engine/symlevel/code.h"
-#include "engine/symlevel/definitions.h"
 #include "engine/terms.h"
 #include "interpreter.h"
 #include "interpreter/code.h"

@@ -1,38 +1,27 @@
-#include "definitions.h"
-#include "engine/identifiers.h"
+#include "engine/decode/decoder.h"
 #include "engine/symlevel/access_kind.h"
 #include "engine/symlevel/flags.h"
-#include "engine/symlevel/sequence.h"
-#include "engine/symlevel/type_kind.h"
-#include "reader.h"
+#include "engine/symlevel/reader.h"
 #include <cstdint>
 #include <optional>
 
 namespace Symlevel {
 
-class DefinitionsManager::Impl {
-    // TODO: cache definitions
-};
-
-DefinitionsManager::DefinitionsManager() : impl(std::make_unique<DefinitionsManager::Impl>()) {}
-
-DefinitionsManager::DefinitionsManager(DefinitionsManager&& manager) = default;
-DefinitionsManager::~DefinitionsManager()                            = default;
-
-TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId, Offset<TypeDefinition> offset)
+template <>
+TypeDefinition Reader::Read(Engine::Session& session, Symlevel::FileId fileId, Offset<TypeDefinition> offset)
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetTypeDefSectionOffs() + offset);
 
-    auto name        = Engine::Identifier(Offset<String>(reader.ReadU32()), fileId);
+    auto name        = Symlevel::Identifier(Offset<String>(reader.ReadU32()), fileId);
     auto regionId    = reader.ReadU8();
     auto parsedFlags = reader.ReadU16();
-    auto superType   = Engine::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
+    auto superType   = Symlevel::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
 
-    auto methodIndex = MethodIndex(reader, fileId);
-    auto dynMethods  = OffsetSequence<MethodDefinition>::Parse(reader, fileId);
+    auto methodIndex = Decode::ReadIndex(reader, fileId);
+    auto dynMethods  = Reader::ReadOffsSeq<MethodDefinition>(reader, fileId);
 
-    auto fieldIndex     = FieldIndex(reader, fileId);
-    auto instanceFields = OffsetSequence<FieldDefinition>::Parse(reader, fileId);
+    auto fieldIndex     = Decode::ReadIndex(reader, fileId);
+    auto instanceFields = Reader::ReadOffsSeq<FieldDefinition>(reader, fileId);
 
     auto test = [parsedFlags](uint32_t bits) { return (parsedFlags & bits) != 0; };
 
@@ -61,7 +50,7 @@ TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId
         flags = flags.With(TypeKind::ENUM);
 
     TypeDefinition::Content def {
-        .identifier      = Engine::Identifier(offset, fileId),
+        .identifier      = Symlevel::Identifier(offset, fileId),
         .name            = name,
         .methods         = std::move(methodIndex),
         .fields          = std::move(fieldIndex),
@@ -73,13 +62,12 @@ TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId
         .enumKind        = EnumKind::NOT_ENUM,
     };
 
-
     for (auto tag = reader.ReadU8(); tag != 0; tag = reader.ReadU8()) {
         switch (tag) {
-            case 0x1: def.interfaces = RefSequence<Term>::Parse(reader, fileId); break;
+            case 0x1: def.interfaces = Reader::ReadRefSeq<Term>(reader, fileId); break;
             case 0x5: def.arity = reader.ReadULEB(); break; // TODO: check range
             case 0x6:
-                def.unionFields = RefSequence<Term>::Parse(reader, fileId);
+                def.unionFields = Reader::ReadRefSeq<Term>(reader, fileId);
                 def.enumKind = EnumKind::UNION;
                 break;
             case 0x7: def.enumKind = EnumKind::OPTION0; break;
@@ -91,20 +79,13 @@ TypeDefinition TypeDefinition::Parse(Engine::Session& session, IO::FileId fileId
     return TypeDefinition(std::move(def));
 }
 
-TypeDefinition TypeDefinition::Resolve(Engine::Session& session, Engine::Identifier<TypeDefinition> identifier)
+template <> TypeDefinition Reader::Read(Engine::Session& session, Symlevel::Identifier<TypeDefinition> identifier)
 {
-    return Parse(session, identifier.GetFileId(), identifier.GetOffset());
+    return Reader::Read(session, identifier.GetFileId(), identifier.GetOffset());
 }
 
-String TypeDefinition::ParseName(Engine::Session& session, IO::FileId fileId, Offset<TypeDefinition> offset)
-{
-    IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetTypeDefSectionOffs() + offset);
-
-    auto nameOffset = Offset<String>(reader.ReadU32());
-    return Reader::Read(session, fileId, nameOffset);
-}
-
-FieldDefinition FieldDefinition::Parse(Engine::Session& session, IO::FileId fileId, Offset<FieldDefinition> offset)
+template <>
+FieldDefinition Reader::Read(Engine::Session& session, Symlevel::FileId fileId, Offset<FieldDefinition> offset)
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetFieldDefSectionOffs() + offset);
 
@@ -117,7 +98,7 @@ FieldDefinition FieldDefinition::Parse(Engine::Session& session, IO::FileId file
     auto tag = reader.ReadU8();
     ASSERTION(tag == 0, "Const value is not supported yet");
 
-    auto fieldType = Engine::RefIdentifier(RefId<Term>(fieldTypeIdx), fileId);
+    auto fieldType = Symlevel::RefIdentifier(RefId<Term>(fieldTypeIdx), fileId);
 
     auto test = [parsedFlags](uint32_t bits) { return (parsedFlags & bits) != 0; };
 
@@ -140,36 +121,29 @@ FieldDefinition FieldDefinition::Parse(Engine::Session& session, IO::FileId file
         flags = flags.Or(FieldFlag::AOT);
 
     FieldDefinition::Content content {
-        .identifier = Engine::Identifier(offset, fileId),
+        .identifier = Symlevel::Identifier(offset, fileId),
         .nameOffset = nameOffset,
-        .fieldType = fieldType,
-        .flags = flags,
+        .fieldType  = fieldType,
+        .flags      = flags,
     };
 
     return FieldDefinition(std::move(content));
 }
 
-FieldDefinition FieldDefinition::Resolve(Engine::Session& session, Engine::Identifier<FieldDefinition> identifier)
+template <> FieldDefinition Reader::Read(Engine::Session& session, Symlevel::Identifier<FieldDefinition> identifier)
 {
-    return Parse(session, identifier.GetFileId(), identifier.GetOffset());
+    return Reader::Read(session, identifier.GetFileId(), identifier.GetOffset());
 }
 
-String FieldDefinition::ParseName(Engine::Session& session, IO::FileId fileId, Offset<FieldDefinition> offset)
-{
-    IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetFieldDefSectionOffs() + offset);
-
-    auto nameOffset = Offset<String>(reader.ReadU32());
-    return Reader::Read(session, fileId, Offset<String>(nameOffset));
-}
-
-MethodDefinition MethodDefinition::Parse(Engine::Session& session, IO::FileId fileId, Offset<MethodDefinition> offset)
+template <>
+MethodDefinition Reader::Read(Engine::Session& session, Symlevel::FileId fileId, Offset<MethodDefinition> offset)
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetMethodDefSectionOffs() + offset);
 
     auto nameOffset  = Offset<String>(reader.ReadU32());
     auto typeNameOffset = Offset<String>(reader.ReadU32());
     auto regionId    = reader.ReadU8();
-    auto signature      = Engine::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
+    auto signature      = Symlevel::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
     auto parsedFlags = reader.ReadU16();
 
     auto test = [parsedFlags](uint32_t bits) { return (parsedFlags & bits) == bits; };
@@ -214,20 +188,22 @@ MethodDefinition MethodDefinition::Parse(Engine::Session& session, IO::FileId fi
     if (test(0x8000))
         flags = flags.Or(MethodFlag::REF_RECEIVER);
 
-    MethodDefinition::Content def{ Engine::Identifier(offset, fileId), signature, typeNameOffset, nameOffset, flags};
+    MethodDefinition::Content def {
+        Symlevel::Identifier(offset, fileId), signature, typeNameOffset, nameOffset, flags
+    };
 
     for (auto tag = reader.ReadU8(); tag != 0; tag = reader.ReadU8()) {
         switch (tag) {
-            case 0x1: def.code = Engine::Identifier(Offset<Code>(reader.ReadULEB()), fileId); break;
-            case 0x2: def.sourceFullName = Engine::Identifier(Offset<String>(reader.ReadULEB()), fileId); break;
-            case 0x3: def.sourceFile = Engine::Identifier(Offset<String>(reader.ReadULEB()), fileId); break;
-            case 0x4: def.linkageName = Engine::Identifier(Offset<String>(reader.ReadULEB()), fileId); break;
+            case 0x1: def.code = Symlevel::Identifier(Offset<Code>(reader.ReadULEB()), fileId); break;
+            case 0x2: def.sourceFullName = Symlevel::Identifier(Offset<String>(reader.ReadULEB()), fileId); break;
+            case 0x3: def.sourceFile = Symlevel::Identifier(Offset<String>(reader.ReadULEB()), fileId); break;
+            case 0x4: def.linkageName = Symlevel::Identifier(Offset<String>(reader.ReadULEB()), fileId); break;
             case 0x5: def.arity = reader.ReadULEB(); break; // TODO: check range
             default:  FATAL("unexpected tag: %d", tag);
         }
     }
 
-    return def;
+    return MethodDefinition(std::move(def));
 }
 
 MethodRefFlags MethodDefinition::GetABIFlags() const
@@ -252,17 +228,9 @@ MethodRefFlags MethodDefinition::GetABIFlags() const
     return flags;
 }
 
-MethodDefinition MethodDefinition::Resolve(Engine::Session& session, Engine::Identifier<MethodDefinition> identifier)
+template <> MethodDefinition Reader::Read(Engine::Session& session, Symlevel::Identifier<MethodDefinition> identifier)
 {
-    return Parse(session, identifier.GetFileId(), identifier.GetOffset());
-}
-
-String MethodDefinition::ParseName(Engine::Session& session, IO::FileId fileId, Offset<MethodDefinition> offset)
-{
-    IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetMethodDefSectionOffs() + offset);
-
-    auto nameOffset = Offset<String>(reader.ReadU32());
-    return Reader::Read(session, fileId, Offset<String>(nameOffset));
+    return Reader::Read(session, identifier.GetFileId(), identifier.GetOffset());
 }
 
 } // namespace Symlevel

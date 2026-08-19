@@ -11,19 +11,16 @@
 #include "cbc_engine.h"
 #include "cbc_loader.h"
 #include "cjnative.h"
+#include "engine/decode/decoder.h"
 #include "engine/engine.h"
 #include "engine/options.h"
 #include "engine/resolving_output.h"
-#include "engine/symlevel/definitions.h"
-#include "engine/symlevel/dependencies.h"
 #include "engine/symlevel/io/filesystem.h"
-#include "engine/symlevel/member_index.h"
 #include "engine/symlevel/reader.h"
 #include "exception_handling.h"
 #include "gc_support.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
-#include "interpreter/implicit_exceptions.h"
 #include "interpreter/interpretation_loop.h"
 #include "interpreter/loggers.h"
 #include "runtimesupport/impl/rt_syms.h"
@@ -106,8 +103,7 @@ static void PerformPatching()
 
     for (auto& file : engine.Files()) {
         // TODO: list patches in CBC file header
-        auto ti = file.GetTypeIndex();
-        for (auto type : ti.Entries(session)) {
+        for (auto type : Symlevel::Reader::AllEntries(session, file.GetTypeIndex())) {
             auto def = Symlevel::Reader::Read(session, type);
             if (!def.GetFlags().Is(Symlevel::TypeFlag::PATCH)) {
                 continue;
@@ -135,7 +131,7 @@ static void PerformPatching()
             // Corresponding extension def (TODO: check it)
             auto edef = ti->vExtensionDataStart[1];
 
-            for (auto mdefId : def.GetMethods().Entries(session)) {
+            for (auto mdefId : Symlevel::Reader::AllEntries(session, def.GetMethods())) {
                 auto mdef = Symlevel::Reader::Read(session, mdefId);
 
                 auto idx = -1;
@@ -156,8 +152,8 @@ static void PerformPatching()
             };
 
             // Set patched flag
-            auto& deps = file.GetDependencies();
-            auto flag = deps.FindTarget(patchFlagName);
+            auto& deps = engine.Dependencies().at(file.Id());
+            auto flag  = deps.FindSymbol(patchFlagName);
             if (flag == nullptr) {
                 LOG_ERROR(RTSupport::Log::rt, "patching flag field not found {}", patchFlagName);
                 continue;

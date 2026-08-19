@@ -7,8 +7,6 @@
 #include "engine/method_table.h"
 #include "engine/options.h"
 #include "engine/resolving_output.h"
-#include "engine/symlevel/definitions.h"
-#include "engine/symlevel/dependencies.h"
 #include "engine/symlevel/flags.h"
 #include "engine/symlevel/reader.h"
 #include "engine/symlevel/type_kind.h"
@@ -314,7 +312,7 @@ struct MethodTableMember {
 
 /// Returns pair of (handle, function) that describes member in method table.
 static MethodTableMember GetTableMember(
-    Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> methodId, int entryIdx
+    Engine::Session& session, Symlevel::Identifier<Symlevel::MethodDefinition> methodId, int entryIdx
 )
 {
     auto method = Symlevel::Reader::Read(session, methodId);
@@ -757,9 +755,8 @@ char const* GetAotTypeName(Engine::Session& session, Engine::Term term)
 static void* FindTypeSymbol(Engine::Session& session, char const* typeName, char const* suffix)
 {
     auto typeInfoName = std::string(typeName) + std::string(suffix);
-    for (auto& file : session.GetEngine().Files()) {
-        auto& deps = file.GetDependencies();
-        auto sym = deps.FindTarget(typeInfoName.c_str());
+    for (auto& fileDeps : session.GetEngine().Dependencies()) {
+        auto sym = fileDeps.FindSymbol(typeInfoName.c_str());
         if (sym != nullptr) {
             return sym;
         }

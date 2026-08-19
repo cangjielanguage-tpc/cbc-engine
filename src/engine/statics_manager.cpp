@@ -2,7 +2,6 @@
 #include "engine/resolving_output.h"
 #include "engine/symlevel/reader.h"
 #include "field_layout.h"
-#include "symlevel/definitions.h"
 #include "symlevel/flags.h"
 #include "terms.h"
 #include "typeinfo_manager.h"
@@ -56,15 +55,14 @@ SlotKind ComputeSlotKind(Session& session, FieldLayoutManager& flm, Symlevel::Fi
 
 uintptr_t StaticFieldsBundle::GetLocation(Session& session, TypeIdent typeIdent, FieldIdent fieldIdent)
 {
-    auto typeDef  = Symlevel::TypeDefinition::Resolve(session, typeIdent);
-    auto fieldDef = Symlevel::FieldDefinition::Resolve(session, fieldIdent);
+    auto typeDef  = Symlevel::Reader::Read(session, typeIdent);
+    auto fieldDef = Symlevel::Reader::Read(session, fieldIdent);
 
     auto flm                 = FieldLayoutManager::New(session);
     auto targetKind          = ComputeSlotKind(session, *flm, fieldDef);
 
     uint32_t fieldIdx = 0;
-
-    for (auto fieldId : typeDef.GetFields().Entries(session)) {
+    for (auto fieldId : Symlevel::Reader::AllEntries(session, typeDef.GetFields())) {
         auto field = Symlevel::Reader::Read(session, fieldId);
         if (field.Flags().IsNot(Symlevel::FieldFlag::STATIC)) {
             continue;
@@ -122,7 +120,7 @@ StaticFieldsBundle StaticsManager::CreateBundle(Session& session, TypeIdent type
 
     auto flm     = FieldLayoutManager::New(session);
     auto& tim    = TypeInfoManager::Of(session);
-    auto typeDef = Symlevel::TypeDefinition::Resolve(session, typeIdent);
+    auto typeDef = Symlevel::Reader::Read(session, typeIdent);
 
     std::vector<uint32_t> refOffsetInRecords;
     std::vector<uint32_t> recordOffsets;
@@ -130,7 +128,7 @@ StaticFieldsBundle StaticsManager::CreateBundle(Session& session, TypeIdent type
     uint32_t recordsSize = 0;
     std::vector<StaticTypedSlotInfo> typedSlotsInfo;
 
-    for (auto fieldId : typeDef.GetFields().Entries(session)) {
+    for (auto fieldId : Symlevel::Reader::AllEntries(session, typeDef.GetFields())) {
         auto field = Symlevel::Reader::Read(session, fieldId);
 
         if (field.Flags().IsNot(Symlevel::FieldFlag::STATIC)) {

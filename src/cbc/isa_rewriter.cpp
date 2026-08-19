@@ -8,10 +8,7 @@
 #include "cbc/isa_parser.h"
 #include "engine/engine.h"
 #include "engine/resolving_output.h"
-#include "engine/symlevel/code.h"
-#include "engine/symlevel/definitions.h"
 #include "engine/symlevel/flags.h"
-#include "engine/symlevel/io/file_id.h"
 #include "engine/symlevel/reader.h"
 #include "engine/terms.h"
 #include "interpreter/code.h"
@@ -149,7 +146,7 @@ struct IsaRewriter : public IsaParser {
     IsaRewriter(
         Resolver& resolver,
         Engine::Session& session,
-        Engine::Identifier<Symlevel::MethodDefinition> method,
+        Symlevel::Identifier<Symlevel::MethodDefinition> method,
         MethodCode& code,
         FrameLayout frameLayout,
         Emitter::Emitter& emit
@@ -167,8 +164,8 @@ struct IsaRewriter : public IsaParser {
     {}
 
     Engine::Session& session;
-    Engine::Identifier<Symlevel::MethodDefinition> method;
-    IO::FileId fileId;
+    Symlevel::Identifier<Symlevel::MethodDefinition> method;
+    Symlevel::FileId fileId;
     Resolver& resolver;
     MethodCode& code;
     Emitter::Emitter& emit;
@@ -993,12 +990,12 @@ struct IsaRewriter : public IsaParser {
         }
 
         auto typeDefId = Engine::TypeTermId(type->term).GetIdentifier();
-        auto typeDef   = Symlevel::Reader::Read(resolver.session, typeDefId);
+        auto typeDef   = Symlevel::Reader::Read(resolver, typeDefId);
 
         int idx = 0;
-        for (auto methodId : typeDef.GetVirtualMethods().Values(resolver.session)) {
+        for (auto methodId : Symlevel::Reader::Resolve(resolver, typeDef.GetVirtualMethods())) {
             if (idx++ == 1) {
-                auto method = Symlevel::Reader::Read(resolver.session, methodId);
+                auto method = Symlevel::Reader::Read(resolver, methodId);
                 auto sret   = method.GetFlags().Is(Symlevel::MethodFlag::SRET);
 
                 emit.InitClosure(sret);
@@ -1746,7 +1743,7 @@ static std::vector<Interpretation::GCPositionalInfo> CalculatePositionalGCInfo(
     std::vector<IsaRewriter::StatePoint> const& statePoints
 )
 {
-    auto livenessInfo = code.GetLivenessInfo(session);
+    auto livenessInfo = Symlevel::Reader::GetLivenessInfo(session, code);
 
     std::vector<Interpretation::GCPositionalInfo> posInfo;
     posInfo.reserve(livenessInfo.size());
@@ -1796,7 +1793,7 @@ static std::vector<Interpretation::StackPtrsPositionalInfo> CalculateStackPtrsPo
     std::vector<IsaRewriter::StatePoint> const& statePoints
 )
 {
-    auto stackPtrsInfo = code.GetStackPtrsInfo(session);
+    auto stackPtrsInfo = Symlevel::Reader::GetStackPtrsInfo(session, code);
 
     std::vector<Interpretation::StackPtrsPositionalInfo> posInfo;
     posInfo.reserve(stackPtrsInfo.size());
@@ -1831,7 +1828,7 @@ static std::vector<Interpretation::StackPtrsPositionalInfo> CalculateStackPtrsPo
     return posInfo;
 }
 
-static std::string Descriptor(Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> method)
+static std::string Descriptor(Engine::Session& session, Symlevel::Identifier<Symlevel::MethodDefinition> method)
 {
     Stream::StringBuffer buf;
     Stream::ResolvingOutput out(session, buf);
@@ -1844,7 +1841,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
     MethodCode& code,
     Resolver& resolver,
     Memory::Heap& heap,
-    Engine::Identifier<Symlevel::MethodDefinition> method
+    Symlevel::Identifier<Symlevel::MethodDefinition> method
 )
 {
     using namespace Stream;
@@ -1907,11 +1904,11 @@ Interpretation::ExecBytecodeInfo Rewrite(
 }
 
 Interpretation::ExecBytecodeInfo Rewrite(
-    Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> method, Memory::Heap& heap
+    Engine::Session& session, Symlevel::Identifier<Symlevel::MethodDefinition> method, Memory::Heap& heap
 )
 {
     using namespace Stream;
-    auto def = Symlevel::MethodDefinition::Resolve(session, method);
+    auto def = Symlevel::Reader::Read(session, method);
     ASSERTION(def.MethodCode().has_value(), "fuh preparation must be unreachable for methods without code");
 
     Resolver resolver(session, method);
@@ -1919,7 +1916,8 @@ Interpretation::ExecBytecodeInfo Rewrite(
 
     Interpretation::Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
         Descripted desc(out, Descriptor(session, method));
-        code.Print(session, out);
+        ResolvingOutput resolving(session, desc);
+        resolving << code;
         Disasm(desc, code, &resolver);
     });
 

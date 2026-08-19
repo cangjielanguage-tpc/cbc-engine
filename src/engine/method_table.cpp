@@ -2,9 +2,7 @@
 #include "engine/engine.h"
 #include "engine/identifiers.h"
 #include "engine/resolving_output.h"
-#include "engine/symlevel/definitions.h"
 #include "engine/symlevel/reader.h"
-#include "engine/symlevel/term.h"
 #include "engine/terms.h"
 #include "utils/iterators.h"
 #include "utils/logger.h"
@@ -204,7 +202,7 @@ std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, Glob
     }
 
     // 2. Copy all entries and sub tables of interfaces, adjusting their views
-    for (auto interf : def.GetInterfaces().Values(session)) {
+    for (auto interf : Reader::Resolve(session, def.GetInterfaces())) {
         auto interface = TermManager::Resolve(session, interf);
         interface      = substitute(interface);
 
@@ -245,7 +243,7 @@ std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, Glob
     MethodSignatureSubstitution methodSigSub(session, type);
 
     std::vector<MethodTableEntry> entryBuffer;
-    for (auto methodId : def.GetVirtualMethods().Values(session)) {
+    for (auto methodId : Reader::Resolve(session, def.GetVirtualMethods())) {
         auto newEntry = MethodTable::Entry {
             .method         = methodId,
             .genericContext = thisType,
