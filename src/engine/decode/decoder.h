@@ -172,8 +172,7 @@ struct Decoder {
 
     template <typename T> Bucket<T> FindBucket(Image::MemberIndex<T> const& index, std::string_view name);
 
-    template <typename T>
-    std::optional<Identifier<T>> Find(Image::MemberIndex<T> const& index, std::string_view name);
+    template <typename T> std::optional<Identifier<T>> Find(Image::MemberIndex<T> const& index, std::string_view name);
 
     template <typename T> T GetAotData(RefIdentifier<Image::MethodReference> index);
     template <typename T> T GetAotData(RefIdentifier<Image::FieldReference> index);

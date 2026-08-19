@@ -50,7 +50,7 @@ namespace Engine {
 /// Such entities are part of execution engine, but could be referenced as part of model,
 /// e.g. using RefIdentifier.
 struct Term;
-}
+} // namespace Engine
 
 namespace Image {
 
@@ -239,10 +239,7 @@ template <typename T> struct OffsetSequence {
 /// Sequential decoding of the byte slice yields 0-based symbol/table indices (`RefId<T>`),
 /// which can be looked up in the corresponding target symbol table (e.g., the `Term` table or `Interfaces` list).
 template <typename T> struct RefSequence {
-    RefSequence(Image::FileId file, uint32_t startPos, uint32_t endPos)
-        : file(file),
-          startPos(startPos),
-          endPos(endPos)
+    RefSequence(Image::FileId file, uint32_t startPos, uint32_t endPos) : file(file), startPos(startPos), endPos(endPos)
     {}
 
     RefSequence() : file(0), startPos(0), endPos(0) {}

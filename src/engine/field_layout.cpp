@@ -1,10 +1,10 @@
 #include "field_layout.h"
 #include "engine/engine.h"
 #include "engine/identifiers.h"
-#include "engine/resolving_output.h"
 #include "engine/image/flags.h"
 #include "engine/image/reader.h"
 #include "engine/image/type_kind.h"
+#include "engine/resolving_output.h"
 #include "engine/terms.h"
 #include "engine/typeinfo_manager.h"
 #include "runtimesupport/runtime.h"
@@ -241,9 +241,7 @@ private:
         uint8_t alignment;
 
         void AddField(
-            std::vector<FieldLayout::Entry>& entries,
-            Term type,
-            std::optional<Identifier<Image::FieldDefinition>> fdef
+            std::vector<FieldLayout::Entry>& entries, Term type, std::optional<Identifier<Image::FieldDefinition>> fdef
         )
         {
             auto offset = AddField(manager->GetFlatSize(type), manager->GetFlatAlignment(type));

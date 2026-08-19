@@ -115,9 +115,7 @@ static Identifier<T> FindAotData(IO::RandomAccessFile* file, uint32_t id, Image:
 }
 
 template <>
-Image::DirectCallAotData Decoder::GetAotData<Image::DirectCallAotData>(
-    RefIdentifier<Image::MethodReference> index
-)
+Image::DirectCallAotData Decoder::GetAotData<Image::DirectCallAotData>(RefIdentifier<Image::MethodReference> index)
 {
     auto [cbc, raf] = session.File(index.GetFileId());
     auto id         = FindAotData(&raf, index.GetIndex(), &cbc.GetDirectCallAotTable());
@@ -129,9 +127,7 @@ Image::DirectCallAotData Decoder::GetAotData<Image::DirectCallAotData>(
 }
 
 template <>
-Image::VirtualCallAotData Decoder::GetAotData<Image::VirtualCallAotData>(
-    RefIdentifier<Image::MethodReference> index
-)
+Image::VirtualCallAotData Decoder::GetAotData<Image::VirtualCallAotData>(RefIdentifier<Image::MethodReference> index)
 {
     auto [cbc, raf] = session.File(index.GetFileId());
     auto id         = FindAotData(&raf, index.GetIndex(), &cbc.GetVirtualCallAotTable());
@@ -155,9 +151,7 @@ Image::InterfaceCallAotData Decoder::GetAotData<Image::InterfaceCallAotData>(
 }
 
 template <>
-Image::StaticFieldAotData Decoder::GetAotData<Image::StaticFieldAotData>(
-    RefIdentifier<Image::FieldReference> index
-)
+Image::StaticFieldAotData Decoder::GetAotData<Image::StaticFieldAotData>(RefIdentifier<Image::FieldReference> index)
 {
     auto [cbc, raf] = session.File(index.GetFileId());
     auto id         = FindAotData(&raf, index.GetIndex(), &cbc.GetStaticFieldAotTable());
@@ -169,9 +163,7 @@ Image::StaticFieldAotData Decoder::GetAotData<Image::StaticFieldAotData>(
 }
 
 template <>
-Image::InstanceFieldAotData Decoder::GetAotData<Image::InstanceFieldAotData>(
-    RefIdentifier<Image::FieldReference> index
-)
+Image::InstanceFieldAotData Decoder::GetAotData<Image::InstanceFieldAotData>(RefIdentifier<Image::FieldReference> index)
 {
     auto [cbc, raf] = session.File(index.GetFileId());
     auto id         = FindAotData(&raf, index.GetIndex(), &cbc.GetInstanceFieldAotTable());
@@ -227,8 +219,7 @@ template <typename T> bool HashTableRange<T>::Iterator::operator==(HashTableRang
 
 // ------------------ Bucket ------------------
 
-template <typename T>
-static bool CompareName(IO::RandomAccessFile* file, Image::Offset<T> offs, std::string_view str)
+template <typename T> static bool CompareName(IO::RandomAccessFile* file, Image::Offset<T> offs, std::string_view str)
 {
     IO::StreamFileReader reader(file, OFFSET_ADJUSTMENT + offs);
     auto strOffs = Image::Offset<Image::String>(reader.ReadU32());
@@ -301,15 +292,9 @@ template Bucket<TD> Decoder::FindBucket(Image::MemberIndex<TD> const& index, std
 template Bucket<MD> Decoder::FindBucket(Image::MemberIndex<MD> const& index, std::string_view name);
 template Bucket<FD> Decoder::FindBucket(Image::MemberIndex<FD> const& index, std::string_view name);
 
-template std::optional<Image::Identifier<TD>> Decoder::Find(
-    Image::MemberIndex<TD> const& index, std::string_view name
-);
-template std::optional<Image::Identifier<MD>> Decoder::Find(
-    Image::MemberIndex<MD> const& index, std::string_view name
-);
-template std::optional<Image::Identifier<FD>> Decoder::Find(
-    Image::MemberIndex<FD> const& index, std::string_view name
-);
+template std::optional<Image::Identifier<TD>> Decoder::Find(Image::MemberIndex<TD> const& index, std::string_view name);
+template std::optional<Image::Identifier<MD>> Decoder::Find(Image::MemberIndex<MD> const& index, std::string_view name);
+template std::optional<Image::Identifier<FD>> Decoder::Find(Image::MemberIndex<FD> const& index, std::string_view name);
 
 template struct HashTableRange<TD>;
 template struct HashTableRange<MD>;

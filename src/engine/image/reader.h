@@ -42,9 +42,7 @@ public:
     }
 
     template <typename T>
-    static Decode::Bucket<T> FindBucket(
-        Engine::Session& s, Image::MemberIndex<T> const& index, std::string_view name
-    )
+    static Decode::Bucket<T> FindBucket(Engine::Session& s, Image::MemberIndex<T> const& index, std::string_view name)
     {
         return s.Decoder().FindBucket(index, name);
     }

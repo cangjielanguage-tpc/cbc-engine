@@ -1,6 +1,6 @@
 #include "statics_manager.h"
-#include "engine/resolving_output.h"
 #include "engine/image/reader.h"
+#include "engine/resolving_output.h"
 #include "field_layout.h"
 #include "image/flags.h"
 #include "terms.h"

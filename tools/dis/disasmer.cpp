@@ -1,10 +1,10 @@
 #include "disasmer.h"
 #include "engine/decode/decoder.h"
 #include "engine/identifiers.h"
-#include "engine/resolving_output.h"
 #include "engine/image/io/filesystem.h"
 #include "engine/image/io/stream_file_reader.h"
 #include "engine/image/reader.h"
+#include "engine/resolving_output.h"
 #include <cstdint>
 #include <memory>
 

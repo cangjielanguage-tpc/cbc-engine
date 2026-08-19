@@ -1,8 +1,8 @@
 #pragma once
 #include "engine/engine.h"
-#include "engine/resolving_output.h"
 #include "engine/image/cbc_file.h"
 #include "engine/image/version_metadata.h"
+#include "engine/resolving_output.h"
 #include "utils/ostream.h"
 #include <cstdint>
 #include <functional>

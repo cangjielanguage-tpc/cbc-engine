@@ -6,9 +6,9 @@
 
 #include "adapters.h"
 #include "cbc/isa_rewriter.h"
-#include "engine/resolving_output.h"
 #include "engine/image/flags.h"
 #include "engine/image/reader.h"
+#include "engine/resolving_output.h"
 #include "function_handle.h"
 #include "interpreter/loggers.h"
 #include "resolution/resolution.h"
@@ -96,9 +96,7 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
     return fuh;
 }
 
-FunctionHandle* FunctionHandleManager::Acquire(
-    Session& session, Image::Identifier<Image::MethodDefinition> methodDef
-)
+FunctionHandle* FunctionHandleManager::Acquire(Session& session, Image::Identifier<Image::MethodDefinition> methodDef)
 {
     auto fuh = AcquireTagged(session, methodDef);
     if (std::holds_alternative<DynamicFunctionHandle*>(fuh)) {
