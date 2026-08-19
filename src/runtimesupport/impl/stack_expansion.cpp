@@ -128,8 +128,6 @@ void VisitFrameRootsForStackPtrs(
     } else {
         // One of the caller frames, use stack ptr maps provided by compiler.
 
-        GCSupport::VisitGCFrameRoots(state, frameDesc, stackAllocVisitor);
-
         auto reader = reinterpret_cast<Decoder::ByteReader*>((uint8_t*)frameDesc.fp - READER_SLOT_OFFSET);
         auto curPos = reinterpret_cast<uintptr_t>(reader->Cursor()) - reinterpret_cast<uintptr_t>(bc->code.bytecode);
         auto calleeSavedRegsEnd = ((uint8_t*)frameDesc.fp) - LOCAL_SLOTS_OFFSET;
@@ -152,8 +150,7 @@ void VisitFrameRootsForStackPtrs(
             }
         }
 
-        auto savedRegsMap = bc->savedIRegs;
-        regTable->UpdateRegLocations(savedRegsMap, reinterpret_cast<Placeholder>(calleeSavedRegsEnd));
+        GCSupport::VisitGCFrameRoots(state, frameDesc, stackAllocVisitor);
     }
 }
 
