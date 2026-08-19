@@ -3,7 +3,6 @@
 #include "engine/identifiers.h"
 #include "engine/resolving_output.h"
 #include "engine/symlevel/cbc_file.h"
-#include "engine/symlevel/io/file_id.h"
 #include "engine/symlevel/io/stream_file_reader.h"
 #include "engine/symlevel/reader.h"
 #include "engine/symlevel/type_kind.h"
@@ -604,7 +603,7 @@ struct TermResolver {
     Symlevel::RegionData const& regionData;
     Session& session;
     Memory::Heap& heap;
-    IO::FileId fileId;
+    FileId fileId;
     IO::RandomAccessFile& raf;
     Symlevel::CbcFile& file;
     TermManager& manager;

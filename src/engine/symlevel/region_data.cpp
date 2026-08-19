@@ -1,4 +1,3 @@
-#include "engine/symlevel/io/file_id.h"
 #include "engine/terms.h"
 #include "io/stream_file_reader.h"
 
@@ -6,7 +5,7 @@ namespace Symlevel {
 
 static_assert(RegionData::FIRST_NON_PRIMITIVE_TERM_ID == Engine::FIRST_NON_PRIMITIVE);
 
-RegionData RegionData::Read(IO::FileId fileId, IO::RandomAccessFile& file, uint32_t offset)
+RegionData RegionData::Read(Symlevel::FileId fileId, IO::RandomAccessFile& file, uint32_t offset)
 {
     IO::StreamFileReader reader(file, offset);
 

@@ -7,7 +7,8 @@
 
 namespace Symlevel {
 
-template <> TypeDefinition Reader::Read(Engine::Session& session, IO::FileId fileId, Offset<TypeDefinition> offset)
+template <>
+TypeDefinition Reader::Read(Engine::Session& session, Symlevel::FileId fileId, Offset<TypeDefinition> offset)
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetTypeDefSectionOffs() + offset);
 
@@ -83,7 +84,8 @@ template <> TypeDefinition Reader::Read(Engine::Session& session, Symlevel::Iden
     return Reader::Read(session, identifier.GetFileId(), identifier.GetOffset());
 }
 
-template <> FieldDefinition Reader::Read(Engine::Session& session, IO::FileId fileId, Offset<FieldDefinition> offset)
+template <>
+FieldDefinition Reader::Read(Engine::Session& session, Symlevel::FileId fileId, Offset<FieldDefinition> offset)
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetFieldDefSectionOffs() + offset);
 
@@ -133,7 +135,8 @@ template <> FieldDefinition Reader::Read(Engine::Session& session, Symlevel::Ide
     return Reader::Read(session, identifier.GetFileId(), identifier.GetOffset());
 }
 
-template <> MethodDefinition Reader::Read(Engine::Session& session, IO::FileId fileId, Offset<MethodDefinition> offset)
+template <>
+MethodDefinition Reader::Read(Engine::Session& session, Symlevel::FileId fileId, Offset<MethodDefinition> offset)
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetMethodDefSectionOffs() + offset);
 

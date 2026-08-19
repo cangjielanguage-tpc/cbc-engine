@@ -5,7 +5,6 @@
 #include "engine/identifiers.h"
 #include "engine/method_table.h"
 #include "engine/symlevel/cbc_file.h"
-#include "engine/symlevel/io/file_id.h"
 #include "engine/symlevel/reader.h"
 #include "engine/terms.h"
 #include "utils/ostream.h"
@@ -47,7 +46,7 @@ public:
     ResolvingOutput& operator<<(Engine::Term term);
     ResolvingOutput& operator<<(Engine::GlobalTerm term);
     ResolvingOutput& operator<<(Engine::LocalTerm term);
-    ResolvingOutput& operator<<(IO::FileId fileId);
+    ResolvingOutput& operator<<(Symlevel::FileId fileId);
     ResolvingOutput& operator<<(Detailed<Symlevel::RefIdentifier<Engine::Term>> id);
     ResolvingOutput& operator<<(Engine::MethodTable const& mt);
     ResolvingOutput& operator<<(Engine::FieldLayout const& mt);
@@ -101,7 +100,7 @@ public:
 
 private:
     Stream::Indented holder;
-    Symlevel::String StringOf(Symlevel::Offset<Symlevel::String>, IO::FileId fid);
+    Symlevel::String StringOf(Symlevel::Offset<Symlevel::String>, Symlevel::FileId fid);
     Symlevel::String StringOf(Symlevel::Identifier<Symlevel::String>);
     template <typename T> void Region(T name, std::function<void()> f);
 

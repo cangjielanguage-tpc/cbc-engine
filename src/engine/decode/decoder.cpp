@@ -2,12 +2,9 @@
 
 #include "engine/decode/decoder.h"
 #include "engine/engine.h"
-#include "engine/identifiers.h"
 #include "engine/symlevel/cbc_file.h"
-#include "engine/symlevel/io/file_id.h"
 #include "engine/symlevel/io/random_access_file.h"
 #include "engine/symlevel/io/stream_file_reader.h"
-#include "engine/symlevel/reader.h"
 #include "utils/assertion.h"
 #include <cstdint>
 #include <optional>
@@ -92,7 +89,7 @@ std::optional<Symlevel::Identifier<T>> Decoder::Find(Symlevel::MemberIndex<T> co
     return std::nullopt;
 }
 
-Symlevel::MemberIndex<void> ReadIndex(IO::StreamFileReader& reader, IO::FileId file)
+Symlevel::MemberIndex<void> ReadIndex(IO::StreamFileReader& reader, FileId file)
 {
     auto bucketTableSize = reader.ReadU32();
     auto bucketsSize     = reader.ReadU32();
@@ -187,7 +184,7 @@ Symlevel::InstanceFieldAotData Decoder::GetAotData<Symlevel::InstanceFieldAotDat
 // ------------------ Hash table range ------------------
 
 template <typename T>
-HashTableRange<T>::HashTableRange(IO::RandomAccessFile* raf, IO::FileId file, uint32_t startOffs, uint32_t endOffs)
+HashTableRange<T>::HashTableRange(IO::RandomAccessFile* raf, FileId file, uint32_t startOffs, uint32_t endOffs)
     : raf(raf),
       file(file),
       startOffs(startOffs),

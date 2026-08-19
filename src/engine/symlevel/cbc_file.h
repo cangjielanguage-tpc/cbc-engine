@@ -3,7 +3,6 @@
 #include "engine/symlevel/flags.h"
 #include "engine/symlevel/io/random_access_file.h"
 #include "engine/symlevel/version_metadata.h"
-#include "io/file_id.h"
 #include "string.h"
 #include "utils/reinterpretation.h"
 #include <cstdint>
@@ -25,7 +24,7 @@
 /// - **Immutability:** Entities in this file are strictly read-only and reflect on-disk state.
 /// - **Symbol & Reference Resolution:** Entities store indices (`RefId<T>`) or byte offsets
 ///   (`Offset<T>`). Cross-file references are globally packed into 64-bit integer handles
-///   (`Identifier<T>`, `RefIdentifier<T>`) combining a 32-bit `IO::FileId` with an offset/index.
+///   (`Identifier<T>`, `RefIdentifier<T>`) combining a 24-bit `Symlevel::FileId` with an offset/index.
 /// - **Zero-Allocation Data Mapping:** Types like `MemberIndex<T>` represent static, bucket-based
 ///   hash tables stored directly flat inside the source file, avoiding dynamic runtime allocations.
 /// - **Deferred Decoding:** Complex payloads (e.g., bytecode arrays, GC liveness vectors, stack
@@ -57,6 +56,21 @@ namespace Symlevel {
 
 // Alias for convinience, since term references are used in model quite often.
 using Term = Engine::Term;
+
+struct FileId {
+    static constexpr auto BIT_SIZE = 24;
+    static constexpr auto MASK     = (1 << BIT_SIZE) - 1;
+
+    uint32_t id;
+
+    explicit FileId(uint32_t id) : id(id) { ASSERT((id & MASK) == id); }
+
+    inline operator std::uint32_t() const { return id; }
+
+    inline operator std::size_t() const { return id; }
+
+    inline bool operator==(const FileId& another) const { return id == another.id; }
+};
 
 template <typename T> struct Offset {
     static constexpr uint64_t BIT_SIZE = 32;
@@ -92,14 +106,14 @@ private:
 ///
 /// `T` The type of entity being addressed (e.g., `TypeDefinition`, `String`, `Code`).
 ///
-/// `Identifier` combines a 32-bit file byte offset (`Offset<T>`) and a 24-bit file identifier (`IO::FileId`)
+/// `Identifier` combines a 32-bit file byte offset (`Offset<T>`) and a 24-bit file identifier (`Symlevel::FileId`)
 /// into a single 64-bit scalar (`Packed`). This allows cross-file binary offset references to be passed
 /// by value, bitwise-compared, or used as hash keys (`Hasher`) without dynamic allocation or heap overhead.
 ///
 /// Bit Layout (64-bit uint64_t):
 /// +----------------------------------+----------------------------------+
 /// | 57..64   | 32..56: File ID       |   0..31: Byte Offset             |
-/// | Reserved | (IO::FileId)          |   (Symlevel::Offset<T>)          |
+/// | Reserved | (Symlevel::FileId)          |   (Symlevel::Offset<T>)          |
 /// +----------------------------------+----------------------------------+
 template <typename T> struct Identifier {
     using Packed = uint64_t;
@@ -112,18 +126,18 @@ template <typename T> struct Identifier {
         }
     };
 
-    Identifier(Symlevel::Offset<T> offs, IO::FileId fileId) : offs(offs), fileId(fileId) {}
+    Identifier(Symlevel::Offset<T> offs, Symlevel::FileId fileId) : offs(offs), fileId(fileId) {}
 
     Identifier(Packed packed)
         : Identifier(
               Symlevel::Offset<T>(packed & Symlevel::Offset<T>::MASK),
-              IO::FileId((packed >> Symlevel::Offset<T>::BIT_SIZE) & IO::FileId::MASK)
+              Symlevel::FileId((packed >> Symlevel::Offset<T>::BIT_SIZE) & Symlevel::FileId::MASK)
           )
     {}
 
     Symlevel::Offset<T> GetOffset() const { return offs; }
 
-    IO::FileId GetFileId() const { return fileId; }
+    Symlevel::FileId GetFileId() const { return fileId; }
 
     bool operator==(const Identifier& another) const { return Pack() == another.Pack(); }
 
@@ -136,7 +150,7 @@ template <typename T> struct Identifier {
 
 private:
     Symlevel::Offset<T> offs;
-    IO::FileId fileId;
+    Symlevel::FileId fileId;
 };
 
 /// A globally unique, bit-packed 56-bit handle referencing an entity by **table/array index** within a file.
@@ -144,13 +158,13 @@ private:
 /// `T` The type of referenced symbol or entry (e.g., `Term`, `MethodReference`).
 ///
 /// `RefIdentifier` combines a 32-bit 0-based index (`RefId<T>`) pointing into a symbol table or array,
-/// with a 24-bit file identifier (`IO::FileId`). Like `Identifier`, it packs into a single 64-bit
+/// with a 24-bit file identifier (`Symlevel::FileId`). Like `Identifier`, it packs into a single 64-bit
 /// integer (`Packed`) for zero-cost copies, fast comparison, and direct use in hash maps via `Hasher`.
 ///
 /// Bit Layout (64-bit uint64_t):
 /// +----------------------------------+----------------------------------+
 /// | 57..64   | 32..56: File ID       |   Bits 0..31: Table Index        |
-/// | Reserved | (IO::FileId)          |   (Symlevel::RefId<T>)           |
+/// | Reserved | (Symlevel::FileId)          |   (Symlevel::RefId<T>)           |
 /// +----------------------------------+----------------------------------+
 template <typename T> struct RefIdentifier {
     using Packed = uint64_t;
@@ -163,18 +177,18 @@ template <typename T> struct RefIdentifier {
         }
     };
 
-    RefIdentifier(Symlevel::RefId<T> index, IO::FileId fileId) : index(index), fileId(fileId) {}
+    RefIdentifier(Symlevel::RefId<T> index, Symlevel::FileId fileId) : index(index), fileId(fileId) {}
 
     RefIdentifier(Packed packed)
         : RefIdentifier(
               Symlevel::RefId<T>(packed & Symlevel::RefId<T>::MASK),
-              IO::FileId((packed >> Symlevel::RefId<T>::BIT_SIZE) & IO::FileId::MASK)
+              Symlevel::FileId((packed >> Symlevel::RefId<T>::BIT_SIZE) & Symlevel::FileId::MASK)
           )
     {}
 
     Symlevel::RefId<T> GetIndex() const { return index; }
 
-    IO::FileId GetFileId() const { return fileId; }
+    Symlevel::FileId GetFileId() const { return fileId; }
 
     bool operator==(const RefIdentifier& another) const { return Pack() == another.Pack(); }
 
@@ -187,7 +201,7 @@ template <typename T> struct RefIdentifier {
 
 private:
     Symlevel::RefId<T> index;
-    IO::FileId fileId;
+    Symlevel::FileId fileId;
 };
 
 // A lightweight descriptor representing a sequence of variable-length byte offsets stored in a file range.
@@ -201,12 +215,15 @@ private:
 // Downstream readers stream through this byte range, decoding each ULEB128 integer
 // to recover individual binary offsets (`Offset<T>`).
 template <typename T> struct OffsetSequence {
-    OffsetSequence(IO::FileId file, uint32_t startPos, uint32_t endPos) : file(file), startPos(startPos), endPos(endPos)
+    OffsetSequence(Symlevel::FileId file, uint32_t startPos, uint32_t endPos)
+        : file(file),
+          startPos(startPos),
+          endPos(endPos)
     {}
 
     OffsetSequence() : file(0), startPos(0), endPos(0) {}
 
-    IO::FileId file;
+    Symlevel::FileId file;
     uint32_t startPos;
     uint32_t endPos;
 };
@@ -222,11 +239,15 @@ template <typename T> struct OffsetSequence {
 /// Sequential decoding of the byte slice yields 0-based symbol/table indices (`RefId<T>`),
 /// which can be looked up in the corresponding target symbol table (e.g., the `Term` table or `Interfaces` list).
 template <typename T> struct RefSequence {
-    RefSequence(IO::FileId file, uint32_t startPos, uint32_t endPos) : file(file), startPos(startPos), endPos(endPos) {}
+    RefSequence(Symlevel::FileId file, uint32_t startPos, uint32_t endPos)
+        : file(file),
+          startPos(startPos),
+          endPos(endPos)
+    {}
 
     RefSequence() : file(0), startPos(0), endPos(0) {}
 
-    IO::FileId file;
+    Symlevel::FileId file;
     uint32_t startPos;
     uint32_t endPos;
 };
@@ -296,7 +317,7 @@ class FieldDefinition;
 /// Note that @c buckets length is @c memberCount
 /// Note that @c bucketTable length is @c bucketCount+1
 template <typename T> struct MemberIndex {
-    IO::FileId fileId;
+    Symlevel::FileId fileId;
 
     uint32_t bucketTableStart;
     uint32_t bucketTableSize;
@@ -305,7 +326,7 @@ template <typename T> struct MemberIndex {
     uint32_t bucketsSize;
 
     MemberIndex(
-        IO::FileId fileId,
+        Symlevel::FileId fileId,
         uint32_t bucketTableStart,
         uint32_t bucketTableSize,
         uint32_t bucketsStart,
@@ -391,7 +412,7 @@ struct ExceptionRegion {
 };
 
 struct RawData {
-    IO::FileId fileId;
+    Symlevel::FileId fileId;
     uint32_t start;
     uint32_t end;
 };
@@ -474,9 +495,9 @@ public:
     uint32_t codeSize;
     uint8_t* codePtr;
 
-    RawData rawExTable       = { IO::FileId(0), 0, 0 };
-    RawData rawLivenessInfo  = { IO::FileId(0), 0, 0 };
-    RawData rawStackPtrsInfo = { IO::FileId(0), 0, 0 };
+    RawData rawExTable       = { Symlevel::FileId(0), 0, 0 };
+    RawData rawLivenessInfo  = { Symlevel::FileId(0), 0, 0 };
+    RawData rawStackPtrsInfo = { Symlevel::FileId(0), 0, 0 };
 };
 
 enum class EnumKind : uint8_t {
@@ -528,7 +549,7 @@ public:
     RefIdentifier<Term> const GetSuperType() const
     {
         if (content.enumKind != EnumKind::NOT_ENUM) {
-            return RefIdentifier(RefId<Term>(0), IO::FileId(0)); // NIL TERM
+            return RefIdentifier(RefId<Term>(0), Symlevel::FileId(0)); // NIL TERM
         }
         return content.superOrEnumType;
     }
@@ -536,7 +557,7 @@ public:
     RefIdentifier<Term> const GetEnumType() const
     {
         if (content.enumKind == EnumKind::NOT_ENUM) {
-            return RefIdentifier(RefId<Term>(0), IO::FileId(0)); // NIL TERM
+            return RefIdentifier(RefId<Term>(0), Symlevel::FileId(0)); // NIL TERM
         }
         return content.superOrEnumType;
     }
@@ -624,7 +645,7 @@ public:
 
     std::optional<Identifier<String>> LinkageName() const { return content.linkageName; }
 
-    inline IO::FileId FileId() const { return content.identifier.GetFileId(); }
+    inline Symlevel::FileId FileId() const { return content.identifier.GetFileId(); }
 
     Identifier<MethodDefinition> GetIdentifier() const { return content.identifier; }
 
@@ -675,7 +696,7 @@ struct FieldReference {
 };
 
 struct ErasedOffsetPool {
-    IO::FileId file;
+    Symlevel::FileId file;
     uint32_t offset;
     uint32_t size;
     uint32_t adjustment;
@@ -685,7 +706,7 @@ template <typename T, uint32_t adjustment = 0> struct OffsetPool {
     static constexpr uint32_t ADJUSTMENT = adjustment;
 
     struct RefIdIterator {
-        IO::FileId file;
+        Symlevel::FileId file;
         uint32_t id;
 
         RefIdentifier<T> operator*() const { return RefIdentifier<T>(Symlevel::RefId<T>(id + adjustment), file); }
@@ -699,7 +720,7 @@ template <typename T, uint32_t adjustment = 0> struct OffsetPool {
         bool operator!=(RefIdIterator const& another) const { return id != another.id; }
     };
 
-    OffsetPool(IO::FileId file, uint32_t offset, uint32_t size) : file(file), offset(offset), size(size) {}
+    OffsetPool(Symlevel::FileId file, uint32_t offset, uint32_t size) : file(file), offset(offset), size(size) {}
 
     RefIdIterator begin() const { return RefIdIterator { file, 0 }; }
 
@@ -708,7 +729,7 @@ template <typename T, uint32_t adjustment = 0> struct OffsetPool {
     ErasedOffsetPool Erased() const { return { file, offset, size, adjustment }; }
 
 private:
-    IO::FileId file;
+    Symlevel::FileId file;
     uint32_t offset;
     uint32_t size;
 };
@@ -716,7 +737,7 @@ private:
 struct RegionData {
     static constexpr uint32_t FIRST_NON_PRIMITIVE_TERM_ID = 20;
 
-    static RegionData Read(IO::FileId fileId, IO::RandomAccessFile& file, uint32_t offset);
+    static RegionData Read(Symlevel::FileId fileId, IO::RandomAccessFile& file, uint32_t offset);
 
     RegionData(
         OffsetPool<MethodReference> methods,
@@ -750,12 +771,12 @@ struct RegionData {
 /// - Get rid of PImpl.
 class CbcFile {
 public:
-    static CbcFile Create(IO::FileId fileId, IO::RandomAccessFile& file, std::string_view name);
+    static CbcFile Create(Symlevel::FileId fileId, IO::RandomAccessFile& file, std::string_view name);
 
     CbcFile(CbcFile&& other);
     ~CbcFile();
 
-    IO::FileId Id() const;
+    Symlevel::FileId Id() const;
     uint32_t GetCodeSectionOffs() const;
     uint32_t GetStringSectionOffs() const;
     uint32_t GetTypeDefSectionOffs() const;

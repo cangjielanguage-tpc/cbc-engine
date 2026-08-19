@@ -23,7 +23,7 @@ struct CbcFile::Impl {
     std::optional<Identifier<String>> mainTypeName;
 
     uint32_t poolOffset;
-    IO::FileId id;
+    Symlevel::FileId id;
     std::string name;
 };
 
@@ -32,7 +32,7 @@ CbcFile::CbcFile(std::unique_ptr<CbcFile::Impl> impl) : impl(std::move(impl)) {}
 CbcFile::CbcFile(CbcFile&& other) = default;
 CbcFile::~CbcFile()               = default;
 
-CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::string_view name)
+CbcFile CbcFile::Create(Symlevel::FileId fileId, IO::RandomAccessFile& file, std::string_view name)
 {
     IO::StreamFileReader reader(file, 0);
 
@@ -107,7 +107,7 @@ CbcFile CbcFile::Create(IO::FileId fileId, IO::RandomAccessFile& file, std::stri
     return CbcFile(std::make_unique<CbcFile::Impl>(std::move(impl)));
 }
 
-IO::FileId CbcFile::Id() const { return impl->id; }
+Symlevel::FileId CbcFile::Id() const { return impl->id; }
 
 uint32_t CbcFile::GetCodeSectionOffs() const { return impl->poolOffset; }
 

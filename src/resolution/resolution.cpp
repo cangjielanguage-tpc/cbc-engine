@@ -7,7 +7,6 @@
 #include "engine/resolving_output.h"
 #include "engine/statics_manager.h"
 #include "engine/symlevel/flags.h"
-#include "engine/symlevel/io/file_id.h"
 #include "engine/symlevel/reader.h"
 #include "engine/terms.h"
 #include "engine/typeinfo_manager.h"

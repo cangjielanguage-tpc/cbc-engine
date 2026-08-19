@@ -3,7 +3,7 @@
 
 namespace Symlevel {
 
-template <> String Reader::Read(Engine::Session& session, IO::FileId fileId, Offset<String> offset)
+template <> String Reader::Read(Engine::Session& session, Symlevel::FileId fileId, Offset<String> offset)
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetStringSectionOffs() + offset);
 

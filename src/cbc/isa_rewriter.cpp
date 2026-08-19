@@ -9,7 +9,6 @@
 #include "engine/engine.h"
 #include "engine/resolving_output.h"
 #include "engine/symlevel/flags.h"
-#include "engine/symlevel/io/file_id.h"
 #include "engine/symlevel/reader.h"
 #include "engine/terms.h"
 #include "interpreter/code.h"
@@ -166,7 +165,7 @@ struct IsaRewriter : public IsaParser {
 
     Engine::Session& session;
     Symlevel::Identifier<Symlevel::MethodDefinition> method;
-    IO::FileId fileId;
+    Symlevel::FileId fileId;
     Resolver& resolver;
     MethodCode& code;
     Emitter::Emitter& emit;

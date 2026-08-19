@@ -3,7 +3,7 @@
 
 namespace Symlevel {
 
-template <> Code Reader::Read(Engine::Session& session, IO::FileId fileId, Offset<Code> offset)
+template <> Code Reader::Read(Engine::Session& session, Symlevel::FileId fileId, Offset<Code> offset)
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetCodeSectionOffs() + offset);
 

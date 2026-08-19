@@ -68,7 +68,7 @@ TEST_F(CbcTest, Empty)
     auto& engine = loader.Build();
     Engine::Session session(engine);
     auto strOffs = Symlevel::Offset<Symlevel::String>(offs);
-    auto str     = Symlevel::Reader::Read(session, IO::FileId(0), strOffs);
+    auto str     = Symlevel::Reader::Read(session, Symlevel::FileId(0), strOffs);
 
     ASSERT_EQ(str, "abc");
 }

@@ -5,7 +5,6 @@
 #include "engine/field_layout.h"
 #include "engine/identifiers.h"
 #include "engine/method_table.h"
-#include "engine/symlevel/io/file_id.h"
 #include "engine/symlevel/reader.h"
 #include "engine/terms.h"
 #include "resolution/resolution.h"
@@ -42,7 +41,7 @@ ResolvingOutput& ResolvingOutput::operator<<(Engine::GlobalTerm term) { return *
 
 ResolvingOutput& ResolvingOutput::operator<<(Engine::LocalTerm term) { return *this << Engine::Term(term); }
 
-ResolvingOutput& ResolvingOutput::operator<<(IO::FileId fileId) { return *this << fileId.id; }
+ResolvingOutput& ResolvingOutput::operator<<(Symlevel::FileId fileId) { return *this << fileId.id; }
 
 ResolvingOutput& ResolvingOutput::operator<<(Symlevel::FieldDefinition const& fd)
 {
@@ -309,7 +308,7 @@ template <typename T> void ResolvingOutput::Region(T name, std::function<void()>
     *this << "}" << endl;
 }
 
-Symlevel::String ResolvingOutput::StringOf(Symlevel::Offset<Symlevel::String> str, IO::FileId fid)
+Symlevel::String ResolvingOutput::StringOf(Symlevel::Offset<Symlevel::String> str, Symlevel::FileId fid)
 {
     return Symlevel::Reader::Read(session, fid, str);
 }

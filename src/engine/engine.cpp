@@ -70,19 +70,19 @@ Session::Session(Engine& engine) : engine(engine), arena() { decoder = new Decod
 
 Session::~Session() { delete decoder; }
 
-std::unique_ptr<IO::RandomAccessFile>& Session::FileOf(IO::FileId fileId) const
+std::unique_ptr<IO::RandomAccessFile>& Session::FileOf(FileId fileId) const
 {
     // TODO: add session-scoped buffered rafs.
     return engine.impl->rafs.at(fileId);
 }
 
-CbcFile& Session::CbcFileOf(IO::FileId fileId) const
+CbcFile& Session::CbcFileOf(FileId fileId) const
 {
     // TODO: add session-scoped buffered rafs.
     return engine.impl->files.at(fileId);
 }
 
-std::tuple<Symlevel::CbcFile&, IO::RandomAccessFile&> Session::File(IO::FileId fileId) const
+std::tuple<Symlevel::CbcFile&, IO::RandomAccessFile&> Session::File(FileId fileId) const
 {
     return { engine.impl->files.at(fileId), *engine.impl->rafs.at(fileId) };
 }
@@ -103,7 +103,7 @@ bool Loader::Load(std::unique_ptr<IO::RandomAccessFile> file, std::string_view f
 {
     IO::StreamFileReader reader(*file, 0);
     auto id = loader->fileCounter++;
-    loader->files.emplace_back(std::move(CbcFile::Create(IO::FileId(id), *file, fileName)));
+    loader->files.emplace_back(std::move(CbcFile::Create(FileId(id), *file, fileName)));
     loader->rafs.emplace_back(std::move(file));
     return true;
 }

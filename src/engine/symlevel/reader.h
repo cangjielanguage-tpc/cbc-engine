@@ -2,20 +2,19 @@
 
 #include "engine/decode/decoder.h"
 #include "engine/engine.h"
-#include "io/file_id.h"
 
 namespace Symlevel {
 
 class Reader {
 public:
-    template <typename T> static T Read(Engine::Session& session, IO::FileId fileId, Offset<T> offset);
+    template <typename T> static T Read(Engine::Session& session, Symlevel::FileId fileId, Offset<T> offset);
     template <typename T> static T Read(Engine::Session& session, Symlevel::Identifier<T> id);
 
     static std::vector<ExceptionRegion> GetExceptionRegions(Engine::Session& session, Code const& code);
     static std::vector<LivenessInfo> GetLivenessInfo(Engine::Session& session, Code const& code);
     static std::vector<StackPtrsInfo> GetStackPtrsInfo(Engine::Session& session, Code const& code);
 
-    template <typename T> static RefSequence<T> ReadRefSeq(IO::StreamFileReader& reader, IO::FileId file)
+    template <typename T> static RefSequence<T> ReadRefSeq(IO::StreamFileReader& reader, Symlevel::FileId file)
     {
         auto size     = reader.ReadULEB();
         auto startPos = reader.Position();
@@ -24,7 +23,7 @@ public:
         return RefSequence<T>(file, startPos, endPos);
     }
 
-    template <typename T> static OffsetSequence<T> ReadOffsSeq(IO::StreamFileReader& reader, IO::FileId file)
+    template <typename T> static OffsetSequence<T> ReadOffsSeq(IO::StreamFileReader& reader, Symlevel::FileId file)
     {
         auto size     = reader.ReadULEB();
         auto startPos = reader.Position();

@@ -55,8 +55,9 @@ TEST(BStringTest, UsesScalarIntegerRegisterClass)
 {
     Engine::Loader loader;
     Engine::Session session(loader.Build());
-    auto method =
-        Engine::Identifier<Symlevel::MethodDefinition>(Symlevel::Offset<Symlevel::MethodDefinition>(0), IO::FileId(0));
+    auto method = Engine::Identifier<Symlevel::MethodDefinition>(
+        Symlevel::Offset<Symlevel::MethodDefinition>(0), Symlevel::FileId(0)
+    );
     Resolution::Resolver resolver(session, method);
     auto bstring = Engine::Term::Predefined(Engine::TermKind::BSTRING);
 

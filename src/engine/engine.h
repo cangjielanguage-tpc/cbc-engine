@@ -5,7 +5,6 @@
 #include "arena.h"
 #include "identifiers.h"
 #include "symlevel/cbc_file.h"
-#include "symlevel/io/file_id.h"
 #include "symlevel/io/random_access_file.h"
 #include "utils/heap.h"
 #include "utils/sharedobj.h"
@@ -15,6 +14,9 @@ struct Decoder;
 };
 
 namespace Engine {
+
+using FileId = Symlevel::FileId;
+
 /// List of dependencies that engine is using.
 class Dependencies {
     using SharedObject = Utils::SharedObject;
@@ -74,9 +76,9 @@ Engine& GetEngineInstance();
 /// Almost all accesses to the engine is performed in the presence of `Session`.
 class Session {
 public:
-    std::unique_ptr<IO::RandomAccessFile>& FileOf(IO::FileId fileId) const;
-    Symlevel::CbcFile& CbcFileOf(IO::FileId fileId) const;
-    std::tuple<Symlevel::CbcFile&, IO::RandomAccessFile&> File(IO::FileId fileId) const;
+    std::unique_ptr<IO::RandomAccessFile>& FileOf(FileId fileId) const;
+    Symlevel::CbcFile& CbcFileOf(FileId fileId) const;
+    std::tuple<Symlevel::CbcFile&, IO::RandomAccessFile&> File(FileId fileId) const;
 
     Session(Engine& engine);
     ~Session();
