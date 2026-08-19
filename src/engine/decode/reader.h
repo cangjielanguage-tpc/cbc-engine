@@ -3,16 +3,16 @@
 #include "engine/decode/decoder.h"
 #include "engine/engine.h"
 
-namespace Image {
+namespace Decode {
 
 class Reader {
 public:
-    template <typename T> static T Read(Engine::Session& session, Image::FileId fileId, Offset<T> offset);
+    template <typename T> static T Read(Engine::Session& session, Image::FileId fileId, Image::Offset<T> offset);
     template <typename T> static T Read(Engine::Session& session, Image::Identifier<T> id);
 
-    static std::vector<ExceptionRegion> GetExceptionRegions(Engine::Session& session, Code const& code);
-    static std::vector<LivenessInfo> GetLivenessInfo(Engine::Session& session, Code const& code);
-    static std::vector<StackPtrsInfo> GetStackPtrsInfo(Engine::Session& session, Code const& code);
+    static std::vector<Image::ExceptionRegion> GetExceptionRegions(Engine::Session& session, Image::Code const& code);
+    static std::vector<Image::LivenessInfo> GetLivenessInfo(Engine::Session& session, Image::Code const& code);
+    static std::vector<Image::StackPtrsInfo> GetStackPtrsInfo(Engine::Session& session, Image::Code const& code);
 
     template <typename T> static RefSequence<T> ReadRefSeq(IO::StreamFileReader& reader, Image::FileId file)
     {
@@ -32,8 +32,8 @@ public:
         return OffsetSequence<T>(file, startPos, endPos);
     }
 
-    static MethodReference Read(Engine::Session& session, Image::RefIdentifier<MethodReference> id);
-    static FieldReference Read(Engine::Session& session, Image::RefIdentifier<FieldReference> id);
+    static Image::MethodReference Read(Engine::Session& session, Image::RefIdentifier<Image::MethodReference> id);
+    static Image::FieldReference Read(Engine::Session& session, Image::RefIdentifier<Image::FieldReference> id);
 
     template <typename T>
     static Decode::HashTableRange<T> AllEntries(Engine::Session& s, Image::MemberIndex<T> const& index)
@@ -76,4 +76,4 @@ public:
     }
 };
 
-} // namespace Image
+} // namespace Decode
