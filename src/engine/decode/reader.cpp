@@ -434,4 +434,27 @@ template <> MethodDefinition Reader::Read(Engine::Session& session, Image::Ident
     return Reader::Read(session, identifier.GetFileId(), identifier.GetOffset());
 }
 
+Image::RegionData Reader::ReadRegion(Image::FileId fileId, IO::RandomAccessFile& file, uint32_t offset)
+{
+    IO::StreamFileReader reader(file, offset);
+
+    uint16_t typeIdxSize = reader.ReadU16(); // TODO: remove
+    uint32_t typeIdxOffs = reader.ReadU32(); // TODO: remove
+
+    uint16_t methodIndexSize = reader.ReadULEB();
+    uint32_t methodIndexOffs = reader.ReadU32();
+
+    uint16_t fieldIndexSize = reader.ReadULEB();
+    uint32_t fieldIndexOffs = reader.ReadU32();
+
+    uint32_t termIndexSize = reader.ReadULEB();
+    uint32_t termIndexOffs = reader.ReadU32();
+
+    OffsetPool<MethodReference> methods(fileId, methodIndexOffs, methodIndexSize);
+    OffsetPool<FieldReference> fields(fileId, fieldIndexOffs, fieldIndexSize);
+    OffsetPool<Term, Engine::FIRST_NON_PRIMITIVE> terms(fileId, termIndexOffs, termIndexSize);
+
+    return RegionData(methods, fields, terms);
+}
+
 } // namespace Decode
