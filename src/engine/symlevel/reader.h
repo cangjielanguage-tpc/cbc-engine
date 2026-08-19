@@ -34,6 +34,48 @@ public:
 
     static MethodReference Read(Engine::Session& session, Symlevel::RefIdentifier<MethodReference> id);
     static FieldReference Read(Engine::Session& session, Symlevel::RefIdentifier<FieldReference> id);
+
+    template <typename T>
+    static Decode::HashTableRange<T> AllEntries(Engine::Session& s, Symlevel::MemberIndex<T> const& index)
+    {
+        return s.Decoder().AllEntries(index);
+    }
+
+    template <typename T>
+    static Decode::Bucket<T> FindBucket(
+        Engine::Session& s, Symlevel::MemberIndex<T> const& index, std::string_view name
+    )
+    {
+        return s.Decoder().FindBucket(index, name);
+    }
+
+    template <typename T>
+    static std::optional<Identifier<T>> Find(
+        Engine::Session& s, Symlevel::MemberIndex<T> const& index, std::string_view name
+    )
+    {
+        return s.Decoder().Find(index, name);
+    }
+
+    template <typename T> static T GetAotData(Engine::Session& s, RefIdentifier<Symlevel::MethodReference> index)
+    {
+        return s.Decoder().GetAotData<T>(index);
+    }
+
+    template <typename T> static T GetAotData(Engine::Session& s, RefIdentifier<Symlevel::FieldReference> index)
+    {
+        return s.Decoder().GetAotData<T>(index);
+    }
+
+    template <typename T> static RefSequence<T> Resolve(Engine::Session& s, Symlevel::RefSequence<T> seq)
+    {
+        return s.Decoder().Resolve(seq);
+    }
+
+    template <typename T> static OffsetSequence<T> Resolve(Engine::Session& s, Symlevel::OffsetSequence<T> seq)
+    {
+        return s.Decoder().Resolve(seq);
+    }
 };
 
 } // namespace Symlevel
