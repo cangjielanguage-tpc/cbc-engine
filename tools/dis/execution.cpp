@@ -57,6 +57,16 @@ void Execution::WriteStructField(uintptr_t src, Reference base, uintptr_t field,
     FATAL("Should not be called");
 }
 
+void Execution::ReadStaticStruct(uintptr_t dst, uintptr_t src, TypeInfo ti, ThreadHandle th)
+{
+    FATAL("Should not be called");
+}
+
+void Execution::WriteStaticStruct(uintptr_t dst, uintptr_t src, TypeInfo ti, ThreadHandle th)
+{
+    FATAL("Should not be called");
+}
+
 void Execution::ReadStructField(uintptr_t dst, Reference base, uintptr_t field, TypeInfo ti, ThreadHandle th)
 {
     FATAL("Should not be called");

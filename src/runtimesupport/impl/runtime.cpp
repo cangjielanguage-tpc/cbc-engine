@@ -75,6 +75,20 @@ void Execution::WriteObjectStatic(void* location, Reference object, ThreadHandle
     );
 }
 
+void Execution::ReadStaticStruct(uintptr_t dst, uintptr_t src, TypeInfo ti, ThreadHandle th)
+{
+    auto gctib = UnpackTypeInfo(ti)->gctib;
+    auto size  = UnpackTypeInfo(ti)->instanceSize;
+    return g_CJNativeInterfaceInstance.readStaticStructField(dst, size, src, size, gctib);
+}
+
+void Execution::WriteStaticStruct(uintptr_t dst, uintptr_t src, TypeInfo ti, ThreadHandle th)
+{
+    auto gctib = UnpackTypeInfo(ti)->gctib;
+    auto size  = UnpackTypeInfo(ti)->instanceSize;
+    return g_CJNativeInterfaceInstance.writeStaticStructField(dst, size, src, size, gctib);
+}
+
 void Execution::WriteStructField(uintptr_t src, Reference base, uintptr_t field, TypeInfo ti, ThreadHandle th)
 {
     auto type = UnpackTypeInfo(ti);

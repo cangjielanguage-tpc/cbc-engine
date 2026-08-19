@@ -234,6 +234,16 @@ void Execution::WriteGeneric(Reference base, uintptr_t field, Reference object, 
     FATAL("Should not be called");
 }
 
+void Execution::ReadStaticStruct(uintptr_t dst, uintptr_t src, TypeInfo ti, ThreadHandle th)
+{
+    FATAL("Should not be called");
+}
+
+void Execution::WriteStaticStruct(uintptr_t dst, uintptr_t src, TypeInfo ti, ThreadHandle th)
+{
+    FATAL("Should not be called");
+}
+
 Reference Execution::ReadObjectInstance(Reference base, uintptr_t field, ThreadHandle th)
 {
     return Reference { .value = *reinterpret_cast<uintptr_t*>(field) };
