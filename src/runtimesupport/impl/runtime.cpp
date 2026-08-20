@@ -12,6 +12,7 @@
 #include "interpreter/interpretation_loop.h"
 #include "runtimesupport/adapters.h"
 #include "runtimesupport/impl/rt_syms.h"
+#include "runtimesupport/impl/rt_typekinds.h"
 #include "runtimesupport/impl/typeinfo_ext.h"
 #include "utils/assertion.h"
 #include <cstddef>
@@ -354,20 +355,22 @@ TypeInfoUUID MetaInfo::GetUUID(TypeInfo ti) { return g_CJNativeInterfaceInstance
 
 TypeInfo Execution::LoadTypeInfo(Engine::GlobalTerm term, Interpretation::Ectype* ectype, void* stackSlots)
 {
+    static constexpr size_t termLimit = IREG_ABI_AMOUNT;
     // FIXME: optimize!
     auto length = term.GetLength();
-    if (length > 6) {
+    if (length > termLimit) {
         FATAL("not supported yet");
     }
     Engine::Session session(Engine::GetEngineInstance());
     auto& tiManager = Engine::TypeInfoManager::Of(session);
-    std::vector<Engine::Term> terms;
+
+    Engine::Term terms[termLimit];
     for (int i = 0; i < length; i++) {
         auto ti = reinterpret_cast<DYN_TypeInfo*>(ectype->iregs[1 + i].primitive.u64);
-        terms.push_back(tiManager.AcquireTerm(session, TypeInfo(ti)));
+        terms[i] = tiManager.AcquireTerm(session, TypeInfo(ti));
     }
 
-    Engine::ClassSubstitution sub(session, terms);
+    Engine::ClassSubstitution sub(session, terms, length);
     auto type = sub.Substitute(term);
 
     // resolution error should be handled in rewriter.
