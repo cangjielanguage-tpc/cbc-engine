@@ -236,7 +236,6 @@ static std::vector<Dependencies> ReadDependencies(Loader::Impl const* loader)
         auto& file = loader->files[i];
 
         auto deps     = file.AotDependencies();
-        auto fileDeps = &allDeps[i];
 
         std::vector<std::shared_ptr<Utils::SharedObject>> ptrs;
         ptrs.emplace_back(executable);
