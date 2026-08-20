@@ -955,7 +955,8 @@ static bool CheckIsRecord(TermKind kind, TermData* data)
     switch (kind) {
         case TermKind::UNIT:
         case TermKind::TUPLE:
-        case TermKind::UNION_ENUM: return true;
+        case TermKind::UNION_ENUM:
+        case TermKind::VARRAY:     return true;
         case TermKind::TYPE:
         case TermKind::OPTION:
         case TermKind::AOT_TYPE:   return !data->flags.isReference;
