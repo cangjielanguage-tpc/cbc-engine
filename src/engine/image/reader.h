@@ -3,5 +3,5 @@
 
 namespace Image {
 // Image reader is decoder.
-using Reader = Decode::Reader;
+namespace Reader = Decode::Reader;
 } // namespace Image

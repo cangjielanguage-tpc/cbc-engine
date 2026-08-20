@@ -18,7 +18,8 @@
 #include <optional>
 
 static constexpr auto MAX_ALIGN = alignof(max_align_t);
-using Reader                    = Image::Reader;
+
+namespace Reader = Image::Reader;
 
 namespace Engine {
 

@@ -198,6 +198,4 @@ struct Decoder {
     }
 };
 
-Image::MemberIndex<void> ReadIndex(IO::StreamFileReader& reader, FileId file);
-
 } // namespace Decode

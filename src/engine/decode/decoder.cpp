@@ -5,6 +5,7 @@
 #include "engine/image/cbc_file.h"
 #include "engine/image/io/random_access_file.h"
 #include "engine/image/io/stream_file_reader.h"
+#include "reader.h"
 #include "utils/assertion.h"
 #include <cstdint>
 #include <optional>
@@ -89,7 +90,7 @@ std::optional<Image::Identifier<T>> Decoder::Find(Image::MemberIndex<T> const& i
     return std::nullopt;
 }
 
-Image::MemberIndex<void> ReadIndex(IO::StreamFileReader& reader, FileId file)
+Image::MemberIndex<void> Reader::ReadIndex(IO::StreamFileReader& reader, FileId file)
 {
     auto bucketTableSize = reader.ReadU32();
     auto bucketsSize     = reader.ReadU32();
