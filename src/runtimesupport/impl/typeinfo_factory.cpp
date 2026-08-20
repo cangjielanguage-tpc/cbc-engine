@@ -17,6 +17,7 @@
 #include "runtimesupport/impl/cjnative.h"
 #include "runtimesupport/impl/typeinfo_ext.h"
 #include "runtimesupport/runtime.h"
+#include "rt_typekinds.h"
 #include "utils/assertion.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
@@ -39,47 +40,6 @@ static constexpr uint8_t MONITOR_CLASS    = 0b00010000;
 static constexpr uint8_t WAIT_QUEUE_CLASS = 0b00100000;
 static constexpr uint8_t HAS_REFLECTION   = 0b01000000;
 static constexpr uint8_t HAS_EXT_PART     = 0b10000000;
-
-enum TypeKind : int8_t {
-    // reference type
-    TYPE_KIND_CLASS          = -128,
-    TYPE_KIND_INTERFACE      = -127,
-    TYPE_KIND_RAWARRAY       = -126,
-    TYPE_KIND_FUNC           = -125,
-    TYPE_KIND_TEMP_ENUM      = -124,
-    TYPE_KIND_WEAKREF_CLASS  = -123,
-    TYPE_KIND_FOREIGN_PROXY  = -122,
-    TYPE_KIND_EXPORTED_REF   = -121,
-    TYPE_KIND_GENERIC_TI     = -1,
-    TYPE_KIND_GENERIC_CUSTOM = -2,
-
-    // value type
-    TYPE_KIND_NOTHING = 0,
-    TYPE_KIND_UNIT,
-    TYPE_KIND_BOOL,
-    TYPE_KIND_RUNE,
-    TYPE_KIND_UINT8,
-    TYPE_KIND_UINT16 = 5,
-    TYPE_KIND_UINT32,
-    TYPE_KIND_UINT64,
-    TYPE_KIND_UINT_NATIVE,
-    TYPE_KIND_INT8,
-    TYPE_KIND_INT16 = 10,
-    TYPE_KIND_INT32,
-    TYPE_KIND_INT64,
-    TYPE_KIND_INT_NATIVE,
-    TYPE_KIND_FLOAT16,
-    TYPE_KIND_FLOAT32 = 15,
-    TYPE_KIND_FLOAT64,
-    TYPE_KIND_CSTRING,
-    TYPE_KIND_CPOINTER,
-    TYPE_KIND_CFUNC,
-    TYPE_KIND_VARRAY = 20,
-    TYPE_KIND_TUPLE,
-    TYPE_KIND_STRUCT,
-    TYPE_KIND_ENUM,
-    TYPE_KIND_MAX,
-};
 
 template <typename T> static T* Alloc(size_t cnt = 1) { return reinterpret_cast<T*>(std::malloc(sizeof(T) * cnt)); }
 
