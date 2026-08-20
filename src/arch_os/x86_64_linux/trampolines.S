@@ -45,6 +45,8 @@
     #define engine_implicit_exception_thrower _engine_implicit_exception_thrower
     #define engine_handle_exception _engine_handle_exception
     #define common_landing_pad _common_landing_pad
+    #define engine_stack_grow_stub _engine_stack_grow_stub
+    #define engine_after_stack_grow _engine_after_stack_grow
 #endif
 
 .macro declare_hidden sym
