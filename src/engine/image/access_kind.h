@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <string_view>
 
-namespace Symlevel {
+namespace Image {
 
 struct AccessKind {
 public:
@@ -35,4 +35,4 @@ private:
     Value value;
 };
 
-} // namespace Symlevel
+} // namespace Image

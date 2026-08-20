@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-#include "engine/symlevel/reader.h"
+#include "engine/image/reader.h"
 #include "engine/terms.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
@@ -15,7 +15,7 @@ uint64_t engine_get_exception_handler(Interpretation::DynamicFunctionHandle* han
     auto bytecode     = handle->bytecode.load();
     auto offsetsIndex = bytecode->offsetsIndex;
 
-    auto methodDef = Symlevel::Reader::Read(session, handle->methodDef);
+    auto methodDef = Image::Reader::Read(session, handle->methodDef);
     if (!methodDef.MethodCode().has_value()) {
         return EXC_HANDLER_FOUND;
     }
@@ -31,9 +31,9 @@ uint64_t engine_get_exception_handler(Interpretation::DynamicFunctionHandle* han
     }
 
     auto exPos      = bcPos - 1;
-    auto methodCode = Symlevel::Reader::Read(session, methodDef.MethodCode().value());
-    auto regions    = Symlevel::Reader::GetExceptionRegions(session, methodCode);
-    auto it         = std::find_if(regions.begin(), regions.end(), [&](const Symlevel::ExceptionRegion& region) {
+    auto methodCode = Image::Reader::Read(session, methodDef.MethodCode().value());
+    auto regions    = Image::Reader::GetExceptionRegions(session, methodCode);
+    auto it         = std::find_if(regions.begin(), regions.end(), [&](const Image::ExceptionRegion& region) {
         auto regStart = offsetsIndex.FindMappedOffset(Cbc::InstructionType::CBC, region.start);
         auto regEnd   = offsetsIndex.FindMappedOffset(Cbc::InstructionType::CBC, region.end);
 
@@ -97,7 +97,7 @@ void FrameDescProvider(INT_FunctionHandle fuh, INT_BytecodePos pos, INT_Interpre
     Engine::Session session(Engine::GetEngineInstance());
     auto dynFuh = static_cast<const Interpretation::DynamicFunctionHandle*>(fuh);
 
-    auto methodDef = Symlevel::Reader::Read(session, dynFuh->methodDef);
+    auto methodDef = Image::Reader::Read(session, dynFuh->methodDef);
     if (!methodDef.MethodCode().has_value()) {
         FATAL("Couldn't get method definition for stacktrace from FuH: %p", dynFuh);
         return;
@@ -111,7 +111,7 @@ void FrameDescProvider(INT_FunctionHandle fuh, INT_BytecodePos pos, INT_Interpre
     // Method name
     {
         std::string methodNameWithArgs;
-        auto methodName = Symlevel::Reader::Read(session, methodDef.Name());
+        auto methodName = Image::Reader::Read(session, methodDef.Name());
         methodNameWithArgs.append(methodName).append("(");
 
         auto sig      = Engine::TermManager::Resolve(session, methodDef.Signature());
@@ -130,7 +130,7 @@ void FrameDescProvider(INT_FunctionHandle fuh, INT_BytecodePos pos, INT_Interpre
 
     // Type name
     {
-        auto typeNameView = Symlevel::Reader::Read(session, methodDef.TypeName());
+        auto typeNameView = Image::Reader::Read(session, methodDef.TypeName());
         size_t size       = typeNameView.size();
 
         size_t delimPos = typeNameView.find(':');
@@ -152,7 +152,7 @@ void FrameDescProvider(INT_FunctionHandle fuh, INT_BytecodePos pos, INT_Interpre
 
     // File name
     if (methodDef.SourceFile().has_value()) {
-        auto fileName       = Symlevel::Reader::Read(session, methodDef.SourceFullName().value());
+        auto fileName       = Image::Reader::Read(session, methodDef.SourceFullName().value());
         frameDesc->fileName = AllocateString(fileName);
     } else {
         frameDesc->fileName = AllocateString("unknown"); // should it be possible?

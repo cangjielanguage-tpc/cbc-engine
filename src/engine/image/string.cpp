@@ -1,9 +1,9 @@
 #include "string.h"
 #include "reader.h"
 
-namespace Symlevel {
+namespace Image {
 
-template <> String Reader::Read(Engine::Session& session, Symlevel::FileId fileId, Offset<String> offset)
+template <> String Reader::Read(Engine::Session& session, Image::FileId fileId, Offset<String> offset)
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetStringSectionOffs() + offset);
 
@@ -13,9 +13,9 @@ template <> String Reader::Read(Engine::Session& session, Symlevel::FileId fileI
     return String(std::string_view(mem, size));
 }
 
-template <> String Reader::Read(Engine::Session& session, Symlevel::Identifier<String> ident)
+template <> String Reader::Read(Engine::Session& session, Image::Identifier<String> ident)
 {
     return Reader::Read(session, ident.GetFileId(), ident.GetOffset());
 }
 
-} // namespace Symlevel
+} // namespace Image

@@ -2,13 +2,13 @@
 #include "decode/decoder.h"
 #include "engine/method_table.h"
 #include "engine/statics_manager.h"
-#include "engine/symlevel/io/random_access_file.h"
+#include "engine/image/io/random_access_file.h"
 #include "engine/terms.h"
 #include "engine/typeinfo_manager.h"
 #include "interpreter/function_handle.h"
-#include "symlevel/cbc_file.h"
-#include "symlevel/io/stream_file_reader.h"
-#include "symlevel/reader.h"
+#include "image/cbc_file.h"
+#include "image/io/stream_file_reader.h"
+#include "image/reader.h"
 #include "utils/assertion.h"
 #include "utils/heap.h"
 #include <cstdint>
@@ -18,7 +18,7 @@
 
 namespace Engine {
 
-using namespace Symlevel;
+using namespace Image;
 
 static Engine* g_engineInstance;
 
@@ -82,7 +82,7 @@ CbcFile& Session::CbcFileOf(FileId fileId) const
     return engine.impl->files.at(fileId);
 }
 
-std::tuple<Symlevel::CbcFile&, IO::RandomAccessFile&> Session::File(FileId fileId) const
+std::tuple<Image::CbcFile&, IO::RandomAccessFile&> Session::File(FileId fileId) const
 {
     return { engine.impl->files.at(fileId), *engine.impl->rafs.at(fileId) };
 }
@@ -233,7 +233,7 @@ std::optional<CbcFile*> Engine::Impl::FindCbcFile(std::string_view filePath)
     return std::nullopt;
 }
 
-std::optional<Identifier<Symlevel::TypeDefinition>> Engine::FindType(Session& session, std::string_view typeName)
+std::optional<Identifier<Image::TypeDefinition>> Engine::FindType(Session& session, std::string_view typeName)
 {
     for (auto& file : impl->files) {
         auto res = Reader::Find(session, file.GetTypeIndex(), typeName);
@@ -245,7 +245,7 @@ std::optional<Identifier<Symlevel::TypeDefinition>> Engine::FindType(Session& se
     return std::nullopt;
 }
 
-std::vector<Symlevel::CbcFile> const& Engine::Files() const { return impl->files; }
+std::vector<Image::CbcFile> const& Engine::Files() const { return impl->files; }
 
 std::vector<Dependencies> const& Engine::Dependencies() const { return impl->dependencies; }
 
@@ -260,7 +260,7 @@ std::optional<Identifier<MethodDefinition>> Engine::FindMethod(
     auto f        = file.value();
     auto declType = Reader::Find(session, f->GetTypeIndex(), typeName);
     if (declType.has_value()) {
-        auto type               = Symlevel::Reader::Read(session, declType.value());
+        auto type               = Image::Reader::Read(session, declType.value());
         const auto& methodIndex = type.GetMethods();
 
         std::optional<Identifier<MethodDefinition>> result = std::nullopt;
@@ -286,7 +286,7 @@ std::optional<Identifier<MethodDefinition>> Engine::FindMain(Session& session, s
     if (!mainTypeName.has_value()) {
         return std::nullopt;
     }
-    auto type = Symlevel::Reader::Read(session, *mainTypeName);
+    auto type = Image::Reader::Read(session, *mainTypeName);
     return FindMethod(session, filePath, type, "main");
 }
 
@@ -309,11 +309,11 @@ FunctionHandleManager& FunctionHandleManager::Of(Engine::Session& session)
 
 } // namespace Interpretation
 
-namespace Symlevel {
+namespace Image {
 
 using EngineImpl = Engine::Engine::Impl;
 
-} // namespace Symlevel
+} // namespace Image
 
 namespace Engine {
 

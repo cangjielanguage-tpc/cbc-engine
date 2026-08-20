@@ -8,7 +8,7 @@
 #include <string>
 #include <string_view>
 
-namespace Symlevel {
+namespace Image {
 
 #define TYPE_FLAGS(X)                                                                                                  \
     X(FINAL)                                                                                                           \
@@ -318,4 +318,4 @@ Stream::Output& operator<<(Stream::Output& stream, MethodFlag flag);
 Stream::Output& operator<<(Stream::Output& stream, FieldFlag flag);
 Stream::Output& operator<<(Stream::Output& stream, MethodRefFlag flag);
 
-} // namespace Symlevel
+} // namespace Image

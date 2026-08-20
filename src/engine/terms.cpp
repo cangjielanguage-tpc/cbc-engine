@@ -2,10 +2,10 @@
 #include "engine/engine.h"
 #include "engine/identifiers.h"
 #include "engine/resolving_output.h"
-#include "engine/symlevel/cbc_file.h"
-#include "engine/symlevel/io/stream_file_reader.h"
-#include "engine/symlevel/reader.h"
-#include "engine/symlevel/type_kind.h"
+#include "engine/image/cbc_file.h"
+#include "engine/image/io/stream_file_reader.h"
+#include "engine/image/reader.h"
+#include "engine/image/type_kind.h"
 #include "string.h"
 #include "utils/assertion.h"
 #include "utils/heap.h"
@@ -191,11 +191,11 @@ Term Term::ClassTypeVariable(uint8_t tv) { return GlobalTerm(g_Builtins.ClassTv(
 
 Term Term::FuncTypeVariable(uint8_t tv) { return GlobalTerm(g_Builtins.FuncTv(tv)); }
 
-Term Term::Definition(Session& session, Identifier<Symlevel::TypeDefinition> type)
+Term Term::Definition(Session& session, Identifier<Image::TypeDefinition> type)
 {
     // TODO: handle arity and generic type vars
-    auto def   = Symlevel::Reader::Read(session, type);
-    bool isRec = def.GetFlags().Is(Symlevel::TypeKind::RECORD);
+    auto def   = Image::Reader::Read(session, type);
+    bool isRec = def.GetFlags().Is(Image::TypeKind::RECORD);
     auto arity = def->arity;
 
     auto* data = AllocateTerm(session.Allocator(), arity);
@@ -397,8 +397,8 @@ void Term::GetName(Session& session, Stream::Output& out, bool hasDebugPrefix) c
         case TK::PRIMITIVE_ENUM:
         case TK::TYPE: {
             auto ident = ExtractTypeDefIdentifier(*this);
-            auto type  = Symlevel::Reader::Read(session, ident);
-            stream << prefix << Symlevel::Reader::Read(session, type.GetName());
+            auto type  = Image::Reader::Read(session, ident);
+            stream << prefix << Image::Reader::Read(session, type.GetName());
             if (int len = GetLength(); len > 0) {
                 printSubTerms("<", ">", len);
             }
@@ -503,9 +503,9 @@ static int OptionFlags(RefIdentifier<Term> underlyingRef, Session& session, Subs
     return canBeNullableOption && underlying.IsReference() ? F_REFERENCE : F_RECORD;
 }
 
-static bool IsProperTypeReference(Symlevel::TypeDefinition& def, bool isReference, int arity)
+static bool IsProperTypeReference(Image::TypeDefinition& def, bool isReference, int arity)
 {
-    if ((def.GetFlags().Is(Symlevel::TypeKind::RECORD)) == isReference) {
+    if ((def.GetFlags().Is(Image::TypeKind::RECORD)) == isReference) {
         return false;
     } else if (def->arity != arity) {
         return false;
@@ -535,7 +535,7 @@ Term TermManager::NewAotTerm(
     auto type = session.GetEngine().FindType(session, name);
     if (type.has_value()) {
         ASSERT([&]() -> bool {
-            auto def = Symlevel::Reader::Read(session, type.value());
+            auto def = Image::Reader::Read(session, type.value());
             return IsProperTypeReference(def, isReference, arity);
         }());
         id                  = TypeTermId(*type);
@@ -600,22 +600,22 @@ bool TermManager::Comparator::operator()(TermData* const& left, TermData* const&
 }
 
 struct TermResolver {
-    Symlevel::RegionData const& regionData;
+    Image::RegionData const& regionData;
     Session& session;
     Memory::Heap& heap;
     FileId fileId;
     IO::RandomAccessFile& raf;
-    Symlevel::CbcFile& file;
+    Image::CbcFile& file;
     TermManager& manager;
 
-    Term NewUndefined(Symlevel::RefId<Term> refId)
+    Term NewUndefined(Image::RefId<Term> refId)
     {
-        return Undefined(session, Symlevel::RefIdentifier(refId, fileId));
+        return Undefined(session, Image::RefIdentifier(refId, fileId));
     }
 
     bool ReadSubTerms(TermData* data, bool* isGenericLoc, int length, IO::StreamFileReader& reader)
     {
-        using namespace Symlevel;
+        using namespace Image;
         bool isGeneric = false;
 
         for (int i = 0; i < length; i++) {
@@ -633,14 +633,14 @@ struct TermResolver {
 
     Term ResolveTypeDefTerm(
         IO::StreamFileReader& reader,
-        Symlevel::Offset<Symlevel::String> nameOffs,
+        Image::Offset<Image::String> nameOffs,
         int expectedLength,
         bool isReference,
-        Symlevel::RefId<Term> refId,
+        Image::RefId<Term> refId,
         bool wasAot
     )
     {
-        using namespace Symlevel;
+        using namespace Image;
 
         auto name = Reader::Read(session, fileId, nameOffs);
         return ResolveTypeDefTerm(reader, name, expectedLength, isReference, refId, wasAot);
@@ -648,14 +648,14 @@ struct TermResolver {
 
     Term ResolveTypeDefTerm(
         IO::StreamFileReader& reader,
-        Symlevel::String name,
+        Image::String name,
         int expectedLength,
         bool isReference,
-        Symlevel::RefId<Term> refId,
+        Image::RefId<Term> refId,
         bool wasAot
     )
     {
-        using namespace Symlevel;
+        using namespace Image;
 
         auto type = session.GetEngine().FindType(session, name);
         if (!type.has_value()) {
@@ -663,7 +663,7 @@ struct TermResolver {
         }
         auto identifier = type.value();
 
-        auto def       = Symlevel::Reader::Read(session, identifier);
+        auto def       = Image::Reader::Read(session, identifier);
         bool undefined = !IsProperTypeReference(def, isReference, expectedLength);
 
         if (undefined && wasAot) {
@@ -690,10 +690,10 @@ struct TermResolver {
     }
 
     Term ResolveEnumTerm(
-        IO::StreamFileReader& reader, Symlevel::String name, int expectedLength, Symlevel::RefId<Term> refId, Tag tag
+        IO::StreamFileReader& reader, Image::String name, int expectedLength, Image::RefId<Term> refId, Tag tag
     )
     {
-        using namespace Symlevel;
+        using namespace Image;
 
         auto type = session.GetEngine().FindType(session, name);
         if (!type.has_value()) {
@@ -701,12 +701,12 @@ struct TermResolver {
         }
         auto identifier = type.value();
 
-        auto def = Symlevel::Reader::Read(session, identifier);
+        auto def = Image::Reader::Read(session, identifier);
 
         bool optionLikeEnum = false;
         switch (def->enumKind) {
-            case Symlevel::EnumKind::OPTION0:
-            case Symlevel::EnumKind::OPTION1:
+            case Image::EnumKind::OPTION0:
+            case Image::EnumKind::OPTION1:
                 optionLikeEnum = true;
             default: {}
         }
@@ -720,11 +720,11 @@ struct TermResolver {
                 break;
             }
             case UNION_ENUM:
-                undefined = def->enumKind != Symlevel::EnumKind::UNION;
+                undefined = def->enumKind != Image::EnumKind::UNION;
                 id = UnionEnumId(identifier);
                 break;
             case PRIMITIVE_ENUM:
-                undefined = def->enumKind != Symlevel::EnumKind::PRIMITIVE;
+                undefined = def->enumKind != Image::EnumKind::PRIMITIVE;
                 id = PrimitiveEnumId(identifier);
                 break;
             default: {}
@@ -756,13 +756,13 @@ struct TermResolver {
 
     Term ResolveAotType(
         IO::StreamFileReader& reader,
-        Symlevel::Offset<Symlevel::String> nameOffs,
+        Image::Offset<Image::String> nameOffs,
         int length,
         bool isReference,
-        Symlevel::RefId<Term> refId
+        Image::RefId<Term> refId
     )
     {
-        auto name = Symlevel::Reader::Read(session, fileId, nameOffs);
+        auto name = Image::Reader::Read(session, fileId, nameOffs);
         // Attempt to find type definition, even if the type is tagged as aot.
         // Because the type could present in `TypeDefinition` super closure
         // or be present as "patch".
@@ -786,7 +786,7 @@ struct TermResolver {
         return Term(LocalTerm(data));
     }
 
-    Term NewTerm(IO::StreamFileReader& reader, Symlevel::RefId<Term> refId, TermId id, uint16_t length, TermFlags flags)
+    Term NewTerm(IO::StreamFileReader& reader, Image::RefId<Term> refId, TermId id, uint16_t length, TermFlags flags)
     {
         auto* data = AllocateTerm(heap, length);
 
@@ -799,9 +799,9 @@ struct TermResolver {
         return Term(LocalTerm(data));
     }
 
-    Term Resolve(Symlevel::RefId<Term> refId)
+    Term Resolve(Image::RefId<Term> refId)
     {
-        using namespace Symlevel;
+        using namespace Image;
 
         if (refId < FIRST_NON_PRIMITIVE) {
             return Term::Predefined(TermKind(refId.GetValue()));
@@ -990,7 +990,7 @@ Term Substitution::Substitute(Term term)
 
         if (term.GetKind() == TermKind::OPTION) {
             auto id = ExtractTypeDefIdentifier(term);
-            auto def = Symlevel::Reader::Read(session, id);
+            auto def = Image::Reader::Read(session, id);
             ClassSubstitution sub(session, data->subterms, length);
             flags += OptionFlags(def.GetEnumType(), session, sub);
         }
@@ -1048,7 +1048,7 @@ Term MethodSignatureSubstitution::SubstituteClassTv(uint8_t typeVar)
     return substituted;
 }
 
-Identifier<Symlevel::TypeDefinition> ExtractTypeDefIdentifier(Term term)
+Identifier<Image::TypeDefinition> ExtractTypeDefIdentifier(Term term)
 {
     switch (term.GetKind()) {
         case TermKind::UNION_ENUM:      return UnionEnumId(term).GetIdentifier();

@@ -1,21 +1,21 @@
 #include "engine/decode/decoder.h"
-#include "engine/symlevel/access_kind.h"
-#include "engine/symlevel/flags.h"
-#include "engine/symlevel/reader.h"
+#include "engine/image/access_kind.h"
+#include "engine/image/flags.h"
+#include "engine/image/reader.h"
 #include <cstdint>
 #include <optional>
 
-namespace Symlevel {
+namespace Image {
 
 template <>
-TypeDefinition Reader::Read(Engine::Session& session, Symlevel::FileId fileId, Offset<TypeDefinition> offset)
+TypeDefinition Reader::Read(Engine::Session& session, Image::FileId fileId, Offset<TypeDefinition> offset)
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetTypeDefSectionOffs() + offset);
 
-    auto name        = Symlevel::Identifier(Offset<String>(reader.ReadU32()), fileId);
+    auto name        = Image::Identifier(Offset<String>(reader.ReadU32()), fileId);
     auto regionId    = reader.ReadU8();
     auto parsedFlags = reader.ReadU16();
-    auto superType   = Symlevel::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
+    auto superType   = Image::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
 
     auto methodIndex = Decode::ReadIndex(reader, fileId);
     auto dynMethods  = Reader::ReadOffsSeq<MethodDefinition>(reader, fileId);
@@ -50,7 +50,7 @@ TypeDefinition Reader::Read(Engine::Session& session, Symlevel::FileId fileId, O
         flags = flags.With(TypeKind::ENUM);
 
     TypeDefinition::Content def {
-        .identifier      = Symlevel::Identifier(offset, fileId),
+        .identifier      = Image::Identifier(offset, fileId),
         .name            = name,
         .methods         = std::move(methodIndex),
         .fields          = std::move(fieldIndex),
@@ -79,13 +79,13 @@ TypeDefinition Reader::Read(Engine::Session& session, Symlevel::FileId fileId, O
     return TypeDefinition(std::move(def));
 }
 
-template <> TypeDefinition Reader::Read(Engine::Session& session, Symlevel::Identifier<TypeDefinition> identifier)
+template <> TypeDefinition Reader::Read(Engine::Session& session, Image::Identifier<TypeDefinition> identifier)
 {
     return Reader::Read(session, identifier.GetFileId(), identifier.GetOffset());
 }
 
 template <>
-FieldDefinition Reader::Read(Engine::Session& session, Symlevel::FileId fileId, Offset<FieldDefinition> offset)
+FieldDefinition Reader::Read(Engine::Session& session, Image::FileId fileId, Offset<FieldDefinition> offset)
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetFieldDefSectionOffs() + offset);
 
@@ -98,7 +98,7 @@ FieldDefinition Reader::Read(Engine::Session& session, Symlevel::FileId fileId, 
     auto tag = reader.ReadU8();
     ASSERTION(tag == 0, "Const value is not supported yet");
 
-    auto fieldType = Symlevel::RefIdentifier(RefId<Term>(fieldTypeIdx), fileId);
+    auto fieldType = Image::RefIdentifier(RefId<Term>(fieldTypeIdx), fileId);
 
     auto test = [parsedFlags](uint32_t bits) { return (parsedFlags & bits) != 0; };
 
@@ -121,7 +121,7 @@ FieldDefinition Reader::Read(Engine::Session& session, Symlevel::FileId fileId, 
         flags = flags.Or(FieldFlag::AOT);
 
     FieldDefinition::Content content {
-        .identifier = Symlevel::Identifier(offset, fileId),
+        .identifier = Image::Identifier(offset, fileId),
         .nameOffset = nameOffset,
         .fieldType  = fieldType,
         .flags      = flags,
@@ -130,20 +130,20 @@ FieldDefinition Reader::Read(Engine::Session& session, Symlevel::FileId fileId, 
     return FieldDefinition(std::move(content));
 }
 
-template <> FieldDefinition Reader::Read(Engine::Session& session, Symlevel::Identifier<FieldDefinition> identifier)
+template <> FieldDefinition Reader::Read(Engine::Session& session, Image::Identifier<FieldDefinition> identifier)
 {
     return Reader::Read(session, identifier.GetFileId(), identifier.GetOffset());
 }
 
 template <>
-MethodDefinition Reader::Read(Engine::Session& session, Symlevel::FileId fileId, Offset<MethodDefinition> offset)
+MethodDefinition Reader::Read(Engine::Session& session, Image::FileId fileId, Offset<MethodDefinition> offset)
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetMethodDefSectionOffs() + offset);
 
     auto nameOffset  = Offset<String>(reader.ReadU32());
     auto typeNameOffset = Offset<String>(reader.ReadU32());
     auto regionId    = reader.ReadU8();
-    auto signature      = Symlevel::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
+    auto signature      = Image::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
     auto parsedFlags = reader.ReadU16();
 
     auto test = [parsedFlags](uint32_t bits) { return (parsedFlags & bits) == bits; };
@@ -189,15 +189,15 @@ MethodDefinition Reader::Read(Engine::Session& session, Symlevel::FileId fileId,
         flags = flags.Or(MethodFlag::REF_RECEIVER);
 
     MethodDefinition::Content def {
-        Symlevel::Identifier(offset, fileId), signature, typeNameOffset, nameOffset, flags
+        Image::Identifier(offset, fileId), signature, typeNameOffset, nameOffset, flags
     };
 
     for (auto tag = reader.ReadU8(); tag != 0; tag = reader.ReadU8()) {
         switch (tag) {
-            case 0x1: def.code = Symlevel::Identifier(Offset<Code>(reader.ReadULEB()), fileId); break;
-            case 0x2: def.sourceFullName = Symlevel::Identifier(Offset<String>(reader.ReadULEB()), fileId); break;
-            case 0x3: def.sourceFile = Symlevel::Identifier(Offset<String>(reader.ReadULEB()), fileId); break;
-            case 0x4: def.linkageName = Symlevel::Identifier(Offset<String>(reader.ReadULEB()), fileId); break;
+            case 0x1: def.code = Image::Identifier(Offset<Code>(reader.ReadULEB()), fileId); break;
+            case 0x2: def.sourceFullName = Image::Identifier(Offset<String>(reader.ReadULEB()), fileId); break;
+            case 0x3: def.sourceFile = Image::Identifier(Offset<String>(reader.ReadULEB()), fileId); break;
+            case 0x4: def.linkageName = Image::Identifier(Offset<String>(reader.ReadULEB()), fileId); break;
             case 0x5: def.arity = reader.ReadULEB(); break; // TODO: check range
             default:  FATAL("unexpected tag: %d", tag);
         }
@@ -228,9 +228,9 @@ MethodRefFlags MethodDefinition::GetABIFlags() const
     return flags;
 }
 
-template <> MethodDefinition Reader::Read(Engine::Session& session, Symlevel::Identifier<MethodDefinition> identifier)
+template <> MethodDefinition Reader::Read(Engine::Session& session, Image::Identifier<MethodDefinition> identifier)
 {
     return Reader::Read(session, identifier.GetFileId(), identifier.GetOffset());
 }
 
-} // namespace Symlevel
+} // namespace Image

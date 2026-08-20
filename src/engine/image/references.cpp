@@ -1,11 +1,11 @@
 #include "engine/identifiers.h"
-#include "engine/symlevel/flags.h"
-#include "engine/symlevel/reader.h"
+#include "engine/image/flags.h"
+#include "engine/image/reader.h"
 #include "engine/terms.h"
 #include "io/stream_file_reader.h"
 #include <cstdint>
 
-namespace Symlevel {
+namespace Image {
 
 template <> MethodReference Reader::Read(Engine::Session& session, Identifier<MethodReference> id)
 {
@@ -74,4 +74,4 @@ FieldReference Reader::Read(Engine::Session& session, RefIdentifier<FieldReferen
     return ParseReference(session, identifier);
 }
 
-} // namespace Symlevel
+} // namespace Image

@@ -1,8 +1,8 @@
 #include "statics_manager.h"
 #include "engine/resolving_output.h"
-#include "engine/symlevel/reader.h"
+#include "engine/image/reader.h"
 #include "field_layout.h"
-#include "symlevel/flags.h"
+#include "image/flags.h"
 #include "terms.h"
 #include "typeinfo_manager.h"
 #include "utils/assertion.h"
@@ -38,7 +38,7 @@ StaticFieldsBundle::StaticFieldsBundle(
       refOffsetsCount(refOffsetsCount)
 {}
 
-SlotKind ComputeSlotKind(Session& session, FieldLayoutManager& flm, Symlevel::FieldDefinition& definition)
+SlotKind ComputeSlotKind(Session& session, FieldLayoutManager& flm, Image::FieldDefinition& definition)
 {
     auto fieldType = TermManager::Resolve(session, definition.FieldType());
     if (fieldType.IsReference()) {
@@ -55,16 +55,16 @@ SlotKind ComputeSlotKind(Session& session, FieldLayoutManager& flm, Symlevel::Fi
 
 uintptr_t StaticFieldsBundle::GetLocation(Session& session, TypeIdent typeIdent, FieldIdent fieldIdent)
 {
-    auto typeDef  = Symlevel::Reader::Read(session, typeIdent);
-    auto fieldDef = Symlevel::Reader::Read(session, fieldIdent);
+    auto typeDef  = Image::Reader::Read(session, typeIdent);
+    auto fieldDef = Image::Reader::Read(session, fieldIdent);
 
     auto flm                 = FieldLayoutManager::New(session);
     auto targetKind          = ComputeSlotKind(session, *flm, fieldDef);
 
     uint32_t fieldIdx = 0;
-    for (auto fieldId : Symlevel::Reader::AllEntries(session, typeDef.GetFields())) {
-        auto field = Symlevel::Reader::Read(session, fieldId);
-        if (field.Flags().IsNot(Symlevel::FieldFlag::STATIC)) {
+    for (auto fieldId : Image::Reader::AllEntries(session, typeDef.GetFields())) {
+        auto field = Image::Reader::Read(session, fieldId);
+        if (field.Flags().IsNot(Image::FieldFlag::STATIC)) {
             continue;
         }
 
@@ -120,7 +120,7 @@ StaticFieldsBundle StaticsManager::CreateBundle(Session& session, TypeIdent type
 
     auto flm     = FieldLayoutManager::New(session);
     auto& tim    = TypeInfoManager::Of(session);
-    auto typeDef = Symlevel::Reader::Read(session, typeIdent);
+    auto typeDef = Image::Reader::Read(session, typeIdent);
 
     std::vector<uint32_t> refOffsetInRecords;
     std::vector<uint32_t> recordOffsets;
@@ -128,10 +128,10 @@ StaticFieldsBundle StaticsManager::CreateBundle(Session& session, TypeIdent type
     uint32_t recordsSize = 0;
     std::vector<StaticTypedSlotInfo> typedSlotsInfo;
 
-    for (auto fieldId : Symlevel::Reader::AllEntries(session, typeDef.GetFields())) {
-        auto field = Symlevel::Reader::Read(session, fieldId);
+    for (auto fieldId : Image::Reader::AllEntries(session, typeDef.GetFields())) {
+        auto field = Image::Reader::Read(session, fieldId);
 
-        if (field.Flags().IsNot(Symlevel::FieldFlag::STATIC)) {
+        if (field.Flags().IsNot(Image::FieldFlag::STATIC)) {
             continue;
         }
 

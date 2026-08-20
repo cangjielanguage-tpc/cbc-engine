@@ -11,7 +11,7 @@ extern Logging::Logger log;
 
 Interpretation::ExecBytecodeInfo Rewrite(MethodCode code, Resolution::Resolver& resolver, Memory::Heap& heap);
 Interpretation::ExecBytecodeInfo Rewrite(
-    Engine::Session& session, Symlevel::Identifier<Symlevel::MethodDefinition> method, Memory::Heap& heap
+    Engine::Session& session, Image::Identifier<Image::MethodDefinition> method, Memory::Heap& heap
 );
 
 } // namespace Cbc

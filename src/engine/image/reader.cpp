@@ -1,6 +1,6 @@
 #include "reader.h"
 
-namespace Symlevel {
+namespace Image {
 
 std::vector<ExceptionRegion> Reader::GetExceptionRegions(Engine::Session& session, Code const& code)
 {
@@ -77,4 +77,4 @@ std::vector<StackPtrsInfo> Reader::GetStackPtrsInfo(Engine::Session& session, Co
 
     return stackPtrsInfo;
 }
-} // namespace Symlevel
+} // namespace Image

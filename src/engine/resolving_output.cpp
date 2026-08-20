@@ -5,7 +5,7 @@
 #include "engine/field_layout.h"
 #include "engine/identifiers.h"
 #include "engine/method_table.h"
-#include "engine/symlevel/reader.h"
+#include "engine/image/reader.h"
 #include "engine/terms.h"
 #include "resolution/resolution.h"
 
@@ -32,7 +32,7 @@ ResolvingOutput& ResolvingOutput::operator<<(Engine::Term term)
     return *this;
 }
 
-ResolvingOutput& ResolvingOutput::operator<<(Detailed<Symlevel::RefIdentifier<Engine::Term>> term)
+ResolvingOutput& ResolvingOutput::operator<<(Detailed<Image::RefIdentifier<Engine::Term>> term)
 {
     return *this << Engine::TermManager::Resolve(session, term.value);
 }
@@ -41,9 +41,9 @@ ResolvingOutput& ResolvingOutput::operator<<(Engine::GlobalTerm term) { return *
 
 ResolvingOutput& ResolvingOutput::operator<<(Engine::LocalTerm term) { return *this << Engine::Term(term); }
 
-ResolvingOutput& ResolvingOutput::operator<<(Symlevel::FileId fileId) { return *this << fileId.id; }
+ResolvingOutput& ResolvingOutput::operator<<(Image::FileId fileId) { return *this << fileId.id; }
 
-ResolvingOutput& ResolvingOutput::operator<<(Symlevel::FieldDefinition const& fd)
+ResolvingOutput& ResolvingOutput::operator<<(Image::FieldDefinition const& fd)
 {
     auto& out  = *this;
     auto ftype = Detailed(fd.FieldType());
@@ -52,7 +52,7 @@ ResolvingOutput& ResolvingOutput::operator<<(Symlevel::FieldDefinition const& fd
     return out;
 }
 
-ResolvingOutput& ResolvingOutput::operator<<(NoResolve<Symlevel::FieldDefinition> nr)
+ResolvingOutput& ResolvingOutput::operator<<(NoResolve<Image::FieldDefinition> nr)
 {
     auto& out  = *this;
     auto& fd   = nr.value;
@@ -62,7 +62,7 @@ ResolvingOutput& ResolvingOutput::operator<<(NoResolve<Symlevel::FieldDefinition
     return out;
 }
 
-ResolvingOutput& ResolvingOutput::operator<<(Symlevel::Code const& code)
+ResolvingOutput& ResolvingOutput::operator<<(Image::Code const& code)
 {
     using namespace Stream;
     Stream::Indented out2(out, 2);
@@ -87,13 +87,13 @@ ResolvingOutput& ResolvingOutput::operator<<(Symlevel::Code const& code)
          << "maxCalleeStackArgsCount: " << code.maxCalleeStackArgsCount << endl;
 
     out2 << "ExceptionTable {" << endl;
-    for (const auto& [start, end, target] : Symlevel::Reader::GetExceptionRegions(session, code)) {
+    for (const auto& [start, end, target] : Image::Reader::GetExceptionRegions(session, code)) {
         out2 << "  [" << start << ", " << end << ") -> " << target << endl;
     }
     out2 << "}" << endl;
 
     out2 << "LivenessInfo {" << endl;
-    for (const auto& li : Symlevel::Reader::GetLivenessInfo(session, code)) {
+    for (const auto& li : Image::Reader::GetLivenessInfo(session, code)) {
         out4 << "cbcPos: " << li.cbcPos << ", regMask: " << li.regMask << ", ";
         Std::Vector::Print(out4, li.refSlotNums);
         out4 << ", ";
@@ -103,7 +103,7 @@ ResolvingOutput& ResolvingOutput::operator<<(Symlevel::Code const& code)
     out2 << "}" << endl;
 
     out2 << "StackPtrsInfo {" << endl;
-    for (const auto& spi : Symlevel::Reader::GetStackPtrsInfo(session, code)) {
+    for (const auto& spi : Image::Reader::GetStackPtrsInfo(session, code)) {
         out4 << "cbcPos: " << spi.cbcPos << ", ";
         Std::Vector::Print(out4, spi.resources);
         out4 << endl;
@@ -114,7 +114,7 @@ ResolvingOutput& ResolvingOutput::operator<<(Symlevel::Code const& code)
     return *this;
 }
 
-ResolvingOutput& ResolvingOutput::operator<<(Full<Symlevel::MethodDefinition> full)
+ResolvingOutput& ResolvingOutput::operator<<(Full<Image::MethodDefinition> full)
 {
     auto& md      = full.value;
     auto& out     = *this;
@@ -135,7 +135,7 @@ ResolvingOutput& ResolvingOutput::operator<<(Full<Symlevel::MethodDefinition> fu
         }
         if (auto codeOpt = md.MethodCode()) {
             Region("code", [&]() {
-                auto code = Symlevel::Reader::Read(session, md.FileId(), codeOpt->GetOffset());
+                auto code = Image::Reader::Read(session, md.FileId(), codeOpt->GetOffset());
                 out << code;
                 Cbc::Disasm(ResolvingOutput::out, code, &resolver);
             });
@@ -145,13 +145,13 @@ ResolvingOutput& ResolvingOutput::operator<<(Full<Symlevel::MethodDefinition> fu
     return out;
 }
 
-ResolvingOutput& ResolvingOutput::operator<<(Symlevel::MethodDefinition const& md)
+ResolvingOutput& ResolvingOutput::operator<<(Image::MethodDefinition const& md)
 {
     Print("{}.{}{}", Detailed(md.TypeName()), Detailed(md.Name()), Detailed(md.Signature()));
     return *this;
 }
 
-ResolvingOutput& ResolvingOutput::operator<<(NoResolve<Symlevel::MethodDefinition> nr)
+ResolvingOutput& ResolvingOutput::operator<<(NoResolve<Image::MethodDefinition> nr)
 {
     auto& out = *this;
     auto& md  = nr.value;
@@ -159,25 +159,25 @@ ResolvingOutput& ResolvingOutput::operator<<(NoResolve<Symlevel::MethodDefinitio
     return out;
 }
 
-ResolvingOutput& ResolvingOutput::operator<<(NoResolve<Symlevel::TypeDefinition> nr)
+ResolvingOutput& ResolvingOutput::operator<<(NoResolve<Image::TypeDefinition> nr)
 {
     auto& out = *this;
     auto& td  = nr.value;
     Region("method name: " + std::to_string(td.GetName().GetOffset()), [&]() {
         out << "super: " << td.GetSuperType() << endl;
         Region("fields", [&]() {
-            for (auto id : Symlevel::Reader::AllEntries(session, td.GetFields())) {
+            for (auto id : Image::Reader::AllEntries(session, td.GetFields())) {
                 out << NoResolve(id) << endl;
             }
         });
         Region("methods", [&]() {
-            for (auto id : Symlevel::Reader::AllEntries(session, td.GetMethods())) {
+            for (auto id : Image::Reader::AllEntries(session, td.GetMethods())) {
                 out << NoResolve(id);
             }
         });
         Region("virtual methods", [&]() {
             auto vms = td.GetVirtualMethods();
-            for (auto ident : Symlevel::Reader::Resolve(session, vms)) {
+            for (auto ident : Image::Reader::Resolve(session, vms)) {
                 out << NoResolve(ident);
             }
         });
@@ -185,32 +185,32 @@ ResolvingOutput& ResolvingOutput::operator<<(NoResolve<Symlevel::TypeDefinition>
     return out;
 }
 
-ResolvingOutput& ResolvingOutput::TypeDefinition(Symlevel::TypeDefinition const& td, bool full)
+ResolvingOutput& ResolvingOutput::TypeDefinition(Image::TypeDefinition const& td, bool full)
 {
     auto& out = *this;
     Region(StringOf(td.GetName()), [&]() {
         out << "super: " << Detailed(td.GetSuperType()) << endl;
 
         Region("interfaces", [&]() {
-            for (auto id : Symlevel::Reader::Resolve(session, td.GetInterfaces())) {
+            for (auto id : Image::Reader::Resolve(session, td.GetInterfaces())) {
                 out << Detailed(id) << endl;
             }
         });
 
         Region("fields", [&]() {
-            for (auto field : Symlevel::Reader::AllEntries(session, td.GetFields())) {
+            for (auto field : Image::Reader::AllEntries(session, td.GetFields())) {
                 out << Detailed(field) << endl;
             }
         });
 
         Region("instance fields", [&]() {
-            for (auto id : Symlevel::Reader::Resolve(session, td.GetInstanceFields())) {
+            for (auto id : Image::Reader::Resolve(session, td.GetInstanceFields())) {
                 out << Detailed(id) << endl;
             }
         });
 
         Region("methods", [&]() {
-            for (auto id : Symlevel::Reader::AllEntries(session, td.GetMethods())) {
+            for (auto id : Image::Reader::AllEntries(session, td.GetMethods())) {
                 if (full) {
                     out << Full(id);
                 } else {
@@ -221,7 +221,7 @@ ResolvingOutput& ResolvingOutput::TypeDefinition(Symlevel::TypeDefinition const&
 
         Region("virtual methods", [&]() {
             auto vms = td.GetVirtualMethods();
-            for (auto ident : Symlevel::Reader::Resolve(session, vms)) {
+            for (auto ident : Image::Reader::Resolve(session, vms)) {
                 if (full) {
                     out << Full(ident);
                 } else {
@@ -234,12 +234,12 @@ ResolvingOutput& ResolvingOutput::TypeDefinition(Symlevel::TypeDefinition const&
     return out;
 }
 
-ResolvingOutput& ResolvingOutput::operator<<(Full<Symlevel::TypeDefinition> full)
+ResolvingOutput& ResolvingOutput::operator<<(Full<Image::TypeDefinition> full)
 {
     return TypeDefinition(full.value, true);
 }
 
-ResolvingOutput& ResolvingOutput::operator<<(Symlevel::TypeDefinition const& td) { return TypeDefinition(td, false); }
+ResolvingOutput& ResolvingOutput::operator<<(Image::TypeDefinition const& td) { return TypeDefinition(td, false); }
 
 ResolvingOutput& ResolvingOutput::operator<<(Engine::MethodTable const& mt)
 {
@@ -248,7 +248,7 @@ ResolvingOutput& ResolvingOutput::operator<<(Engine::MethodTable const& mt)
     out << "  classes:" << endl;
 
     auto writeEntry = [&](Engine::MethodTableEntry& entry) {
-        auto def = Symlevel::Reader::Read(session, entry.method);
+        auto def = Image::Reader::Read(session, entry.method);
 
         Engine::MethodSignatureSubstitution sub(session, entry.genericContext);
         auto signature = Engine::TermManager::Resolve(session, def.Signature());
@@ -289,7 +289,7 @@ ResolvingOutput& ResolvingOutput::operator<<(Engine::FieldLayout const& layout)
 
     for (auto& f : layout->fields) {
         if (f.definition) {
-            auto def = Symlevel::Reader::Read(session, *f.definition);
+            auto def = Image::Reader::Read(session, *f.definition);
             stream << Detailed(def.GetName()) << ": " << f.fieldType << " - " << f.offset << endl;
         } else {
             stream << "<unknown>" << ": " << f.fieldType << " - " << f.offset << endl;
@@ -308,14 +308,14 @@ template <typename T> void ResolvingOutput::Region(T name, std::function<void()>
     *this << "}" << endl;
 }
 
-Symlevel::String ResolvingOutput::StringOf(Symlevel::Offset<Symlevel::String> str, Symlevel::FileId fid)
+Image::String ResolvingOutput::StringOf(Image::Offset<Image::String> str, Image::FileId fid)
 {
-    return Symlevel::Reader::Read(session, fid, str);
+    return Image::Reader::Read(session, fid, str);
 }
 
-Symlevel::String ResolvingOutput::StringOf(Symlevel::Identifier<Symlevel::String> str)
+Image::String ResolvingOutput::StringOf(Image::Identifier<Image::String> str)
 {
-    return Symlevel::Reader::Read(session, str);
+    return Image::Reader::Read(session, str);
 }
 
 } // namespace Stream

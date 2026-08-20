@@ -174,15 +174,15 @@ Stream::Output& operator<<(Stream::Output& stream, StaticField const& field);
 template <typename T> struct IndexTraits;
 
 struct FieldIndexTraits {
-    using ref = Symlevel::RefId<Symlevel::FieldReference>;
+    using ref = Image::RefId<Image::FieldReference>;
 };
 
 struct MethodIndexTraits {
-    using ref = Symlevel::RefId<Symlevel::MethodReference>;
+    using ref = Image::RefId<Image::MethodReference>;
 };
 
 template <> struct IndexTraits<Type> {
-    using ref = Symlevel::RefId<Engine::Term>;
+    using ref = Image::RefId<Engine::Term>;
 };
 
 template <> struct IndexTraits<DirectCall> : MethodIndexTraits {};
@@ -209,7 +209,7 @@ private:
 
 /// Resolver of identifiers in the context of `method`.
 struct Resolver {
-    Resolver(Engine::Session& session, Symlevel::Identifier<Symlevel::MethodDefinition> method);
+    Resolver(Engine::Session& session, Image::Identifier<Image::MethodDefinition> method);
 
     Type Wrap(Engine::Term term);
 
@@ -245,7 +245,7 @@ struct Resolver {
 
 private:
     friend class ResolverProxy;
-    Symlevel::Identifier<Symlevel::MethodDefinition> method;
+    Image::Identifier<Image::MethodDefinition> method;
     uint8_t regionId { 0 };
 
     Cache<VirtualCall> dynamicCalls;
