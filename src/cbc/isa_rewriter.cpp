@@ -573,7 +573,7 @@ struct IsaRewriter : public IsaParser {
         emit.NewObjGenericOnAcc(optionTypeInfo);
         BindStatePoint();
         emit.BranchIfRef(underlyingTypeInfo, end);
-        if (typeDef->enumKind == Symlevel::EnumKind::OPTION1) {
+        if (typeDef->enumKind == Symlevel::EnumKind::OPTION0) {
             auto ms = emit.OpenMemSpace();
             ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
             ms.StoreObjImm(STK::ST_8, IReg::IR_ACC, 1);
@@ -604,7 +604,7 @@ struct IsaRewriter : public IsaParser {
             ms.GenericField(1, optionTypeInfo);
             ms.StoreGeneric(src, IReg::IR_ACC, underlyingTypeInfo);
         }
-        if (typeDef->enumKind == Symlevel::EnumKind::OPTION0) {
+        if (typeDef->enumKind == Symlevel::EnumKind::OPTION1) {
             auto ms = emit.OpenMemSpace();
             ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
             ms.StoreObjImm(STK::ST_8, IReg::IR_ACC, 1);
