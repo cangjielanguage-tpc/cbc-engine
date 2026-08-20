@@ -798,7 +798,7 @@ struct TermResolver {
         if (!ReadSubTerms(data, &isGeneric, subtermsCount, reader)) {
             return NewUndefined(refId);
         }
-        TermFlags flags   = F_LOCAL;
+        TermFlags flags   = F_LOCAL | F_RECORD;
         flags.isGeneric   = isGeneric;
         data->InitAfterSubterms(VArrayTermId(size), subtermsCount, flags);
         return Term(LocalTerm(data));
