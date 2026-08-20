@@ -765,14 +765,8 @@ struct RegionData {
 /// TODO: Cleanup & Refactoring Tasks:
 /// - Get rid of region data.
 /// - Section Headers: use one, shared offset which is constant (or adjust raf by this offset).
-/// - Get rid of PImpl.
 class CbcFile {
 public:
-    static CbcFile Create(Image::FileId fileId, IO::RandomAccessFile& file, std::string_view name);
-
-    CbcFile(CbcFile&& other);
-    ~CbcFile();
-
     Image::FileId Id() const;
     uint32_t GetCodeSectionOffs() const;
     uint32_t GetStringSectionOffs() const;
@@ -784,10 +778,7 @@ public:
     uint32_t GetFieldRefSectionOffs() const;
     uint32_t GetAotDataSectionOffs() const;
 
-    String GetName() const;
     String GetPath() const;
-
-    const VersionMetadata& GetVersionMetadata() const;
 
     std::optional<Offset<String>> CbcDependencies() const;
     std::optional<Offset<String>> AotDependencies() const;
@@ -802,12 +793,23 @@ public:
     const StaticFieldAotTable& GetStaticFieldAotTable() const;
     const InstanceFieldAotTable& GetInstanceFieldAotTable() const;
 
-private:
-    struct Impl;
-    friend struct Impl;
+    TypeIndex typeIndex;
+    RegionData regionData;
 
-    CbcFile(std::unique_ptr<Impl> impl);
-    std::unique_ptr<Impl> impl;
+    DirectCallAotTable directCallAotTable;
+    VirtualCallAotTable virtualCallAotTable;
+    InterfaceCallAotTable interfaceCallAotTable;
+    StaticFieldAotTable staticFieldAotTable;
+    InstanceFieldAotTable instanceFieldAotTable;
+
+    int aotDeps;
+    int cbcDeps;
+    std::optional<Identifier<String>> mainTypeName;
+
+    uint32_t poolOffset;
+    Image::FileId id;
+    std::string name; // TODO: remove `name` and `GetPath`, use `isMain` flag or somehow mark in Engine which file
+                      // contains main.
 };
 
 // FIXME:

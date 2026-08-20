@@ -26,15 +26,6 @@ Session Disasmer::SessionFor(std::vector<std::string_view> views)
     return Session(loader.Build());
 }
 
-void Disasmer::Version(const VersionMetadata& md)
-{
-    io << "File version: ";
-    io << (unsigned int)md.fileVersion;
-    io << ". Bytecode version: ";
-    io << (unsigned int)md.bytecodeVersion << ".";
-    io << endl;
-}
-
 void Disasmer::Region(String name, std::function<void()> fn)
 {
     io << name << " {" << endl;
@@ -86,7 +77,6 @@ void Disasmer::RData(RegionData const& rd, uint8_t regionNum)
 void Disasmer::DisasmOf(CbcFile const& file)
 {
     SetFile(file);
-    Version(file.GetVersionMetadata());
 
     Region("types", [&]() {
         for (auto type : Decode::AllEntries(session, file.GetTypeIndex())) {
