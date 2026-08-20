@@ -1100,26 +1100,7 @@ struct IsaRewriter : public IsaParser {
 
         emit.NewObjGeneric(ti);
         BindStatePoint();
-
-        auto typeDefId = Engine::TypeTermId(type->term).GetIdentifier();
-        auto typeDef   = Decode::Read(resolver, typeDefId);
-
-        // - Get 1th methodId out of iterator.
-        // - Emit `InitClosure` with flags of 1th method.
-        // - Ensure that there are only two methods in the closure type.
-        int idx = 0;
-        for (auto methodId : Decode::Resolve(resolver, typeDef.GetVirtualMethods())) {
-            if (idx == 1) {
-                auto method = Decode::Read(resolver, methodId);
-                auto sret   = method.GetFlags().Is(Image::MethodFlag::SRET);
-
-                emit.InitClosure(sret);
-            }
-            idx++;
-        }
-        if (idx != 2) {
-            Fail("failed to find instantiated version of method in closure");
-        }
+        emit.InitClosure(true); // generic closures are always SRET
     }
 
     void Scc(Format::Width width, Format::CC cc, IReg d, AnyReg l, AnyReg r) override
