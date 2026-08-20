@@ -214,7 +214,6 @@ struct TypeInfoBuilder {
                 fieldNum       = static_cast<Engine::VArrayTermId>(term.GetId()).GetNum();
                 superType      = term.Subterm(0);
                 aotTypeDefName = "VArray";
-                validInheritNum = 0x8000;
                 return;
             default: {
             }
@@ -302,9 +301,10 @@ struct TypeInfoBuilder {
                    << "\t flag: " << result->flag << "\n"
                    << "\t fieldNum: " << result->fieldNum << "\n"
                    << "\t instance(component)Size: "
-                   << ((result->instanceSize != -1) ? result->instanceSize : result->componentSize) << "\n"
-                   << "\t gctib: " << result->gctib.raw << "\n"
-                   << "\t uuid: " << result->uuid << "\n"
+                   << ((result->instanceSize != -1) ? result->instanceSize : result->componentSize) << "\n";
+            out.PrintFmt("gctib: %lx", result->gctib.raw);
+            out.NewLine();
+            stream << "\t uuid: " << result->uuid << "\n"
                    << "\t align: " << result->align << "\n"
                    << "\t typeArgsNum: " << result->typeArgsNum << "\n"
                    << "\t validInheritNum: " << result->validInheritNum << "\n"
@@ -785,7 +785,11 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             }
 
             builder.typeTemplateOrFinalizer = typeTemplate;
-            builder.validInheritNum = tt->validInheritNum;
+            if (builder.type == TYPE_KIND_VARRAY) {
+                builder.validInheritNum = 0x8000;
+            } else {
+                builder.validInheritNum = tt->validInheritNum;
+            }
             builder.extDefs = (DYN_ExtensionData**)tt->extensionDatas;
         }
     }
