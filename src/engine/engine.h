@@ -4,8 +4,8 @@
 
 #include "arena.h"
 #include "identifiers.h"
-#include "symlevel/cbc_file.h"
-#include "symlevel/io/random_access_file.h"
+#include "image/cbc_file.h"
+#include "image/io/random_access_file.h"
 #include "utils/heap.h"
 #include "utils/sharedobj.h"
 
@@ -15,7 +15,7 @@ struct Decoder;
 
 namespace Engine {
 
-using FileId = Symlevel::FileId;
+using FileId = Image::FileId;
 
 /// List of dependencies that engine is using.
 class Dependencies {
@@ -43,8 +43,8 @@ class Session;
 /// - (TODO) locating the resources, and providing access to cbc-defined types;
 class Engine {
 public:
-    using MethodDefinition = Symlevel::MethodDefinition;
-    using TypeDefinition   = Symlevel::TypeDefinition;
+    using MethodDefinition = Image::MethodDefinition;
+    using TypeDefinition   = Image::TypeDefinition;
 
     class Impl;
     friend class Loader;
@@ -60,7 +60,7 @@ public:
     );
     std::optional<Identifier<TypeDefinition>> FindType(Session& session, std::string_view typeName);
 
-    std::vector<Symlevel::CbcFile> const& Files() const;
+    std::vector<Image::CbcFile> const& Files() const;
     std::vector<Dependencies> const& Dependencies() const;
 
 private:
@@ -77,8 +77,8 @@ Engine& GetEngineInstance();
 class Session {
 public:
     std::unique_ptr<IO::RandomAccessFile>& FileOf(FileId fileId) const;
-    Symlevel::CbcFile& CbcFileOf(FileId fileId) const;
-    std::tuple<Symlevel::CbcFile&, IO::RandomAccessFile&> File(FileId fileId) const;
+    Image::CbcFile& CbcFileOf(FileId fileId) const;
+    std::tuple<Image::CbcFile&, IO::RandomAccessFile&> File(FileId fileId) const;
 
     Session(Engine& engine);
     ~Session();

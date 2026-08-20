@@ -7,9 +7,9 @@
 #include "engine/method_table.h"
 #include "engine/options.h"
 #include "engine/resolving_output.h"
-#include "engine/symlevel/flags.h"
-#include "engine/symlevel/reader.h"
-#include "engine/symlevel/type_kind.h"
+#include "engine/image/flags.h"
+#include "engine/image/reader.h"
+#include "engine/image/type_kind.h"
 #include "engine/terms.h"
 #include "interpreter/function_handle.h"
 #include "interpreter/interpretation_loop.h"
@@ -211,35 +211,35 @@ struct TypeInfoBuilder {
         }
         Engine::ClassSubstitution sub(session, term);
         auto ident     = Engine::ExtractTypeDefIdentifier(term);
-        auto def       = Symlevel::Reader::Read(session, ident);
-        aotTypeDefName = Symlevel::Reader::Read(session, def.GetName());
+        auto def       = Image::Reader::Read(session, ident);
+        aotTypeDefName = Image::Reader::Read(session, def.GetName());
 
         superType = sub.Substitute(Engine::TermManager::Resolve(session, def.GetSuperType()));
 
-        isAot = def.GetFlags().Is(Symlevel::TypeFlag::AOT);
+        isAot = def.GetFlags().Is(Image::TypeFlag::AOT);
         switch (def.GetFlags().GetTypeKind()) {
-            case Symlevel::TypeKind::INTERFACE:
+            case Image::TypeKind::INTERFACE:
                 type        = TYPE_KIND_INTERFACE;
                 needExtDefs = !isAot;
                 needFields  = false;
                 break;
-            case Symlevel::TypeKind::RECORD:
+            case Image::TypeKind::RECORD:
                 type        = TYPE_KIND_STRUCT;
                 needExtDefs = true;
                 needFields  = true;
                 break;
-            case Symlevel::TypeKind::CLASS:
+            case Image::TypeKind::CLASS:
                 type        = TYPE_KIND_CLASS;
                 needExtDefs = !isAot;
                 needFields  = true;
                 break;
-            case Symlevel::TypeKind::LAMBDA:
+            case Image::TypeKind::LAMBDA:
                 type        = TYPE_KIND_CLASS;
                 needExtDefs = false;
                 needFields  = true;
                 isLambda    = true;
                 break;
-            case Symlevel::TypeKind::ENUM:
+            case Image::TypeKind::ENUM:
                 type        = TYPE_KIND_ENUM;
                 needExtDefs = !isAot;
                 needFields  = true;
@@ -312,19 +312,19 @@ struct MethodTableMember {
 
 /// Returns pair of (handle, function) that describes member in method table.
 static MethodTableMember GetTableMember(
-    Engine::Session& session, Symlevel::Identifier<Symlevel::MethodDefinition> methodId, int entryIdx
+    Engine::Session& session, Image::Identifier<Image::MethodDefinition> methodId, int entryIdx
 )
 {
-    auto method = Symlevel::Reader::Read(session, methodId);
+    auto method = Image::Reader::Read(session, methodId);
     auto flags  = method.GetFlags();
 
-    ASSERTION(flags.Is(Symlevel::MethodFlag::VIRTUAL), "Only virtual methods are expected");
+    ASSERTION(flags.Is(Image::MethodFlag::VIRTUAL), "Only virtual methods are expected");
 
-    if (flags.Is(Symlevel::MethodFlag::ABSTRACT)) {
+    if (flags.Is(Image::MethodFlag::ABSTRACT)) {
         // can not be called
         // TODO: put stub method that throws
         return { nullptr, nullptr };
-    } else if (flags.Is(Symlevel::MethodFlag::AOT)) {
+    } else if (flags.Is(Image::MethodFlag::AOT)) {
         // target must be present with aot flag
         auto& manager  = Interpretation::FunctionHandleManager::Of(session);
         auto fuh       = manager.AcquireTagged(session, methodId);
@@ -333,7 +333,7 @@ static MethodTableMember GetTableMember(
     } else {
         auto& manager = Interpretation::FunctionHandleManager::Of(session);
         return { manager.Acquire(session, methodId),
-                 Adapters::GetDynCallTrampoline(entryIdx, flags.Is(Symlevel::MethodFlag::SRET)) };
+                 Adapters::GetDynCallTrampoline(entryIdx, flags.Is(Image::MethodFlag::SRET)) };
     }
 }
 

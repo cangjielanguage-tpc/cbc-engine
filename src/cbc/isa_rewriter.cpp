@@ -9,8 +9,8 @@
 #include "engine/decode/decoder.h"
 #include "engine/engine.h"
 #include "engine/resolving_output.h"
-#include "engine/symlevel/flags.h"
-#include "engine/symlevel/reader.h"
+#include "engine/image/flags.h"
+#include "engine/image/reader.h"
 #include "engine/terms.h"
 #include "interpreter/code.h"
 #include "interpreter/function_handle.h"
@@ -148,7 +148,7 @@ struct IsaRewriter : public IsaParser {
     IsaRewriter(
         Resolver& resolver,
         Engine::Session& session,
-        Symlevel::Identifier<Symlevel::MethodDefinition> method,
+        Image::Identifier<Image::MethodDefinition> method,
         MethodCode& code,
         FrameLayout frameLayout,
         Emitter::Emitter& emit
@@ -166,8 +166,8 @@ struct IsaRewriter : public IsaParser {
     {}
 
     Engine::Session& session;
-    Symlevel::Identifier<Symlevel::MethodDefinition> method;
-    Symlevel::FileId fileId;
+    Image::Identifier<Image::MethodDefinition> method;
+    Image::FileId fileId;
     Resolver& resolver;
     MethodCode& code;
     Emitter::Emitter& emit;
@@ -504,7 +504,7 @@ struct IsaRewriter : public IsaParser {
 
         auto type      = *t;
         auto typeDefId = Engine::ExtractTypeDefIdentifier(type.term);
-        auto typeDef   = Symlevel::Reader::Read(session, typeDefId);
+        auto typeDef   = Image::Reader::Read(session, typeDefId);
 
         auto refPath = emit.NewLabel();
         auto end     = emit.NewLabel();
@@ -515,10 +515,10 @@ struct IsaRewriter : public IsaParser {
 
         emit.LoadObj(LDK::LD_REF, dst, src, RTSupport::MetaInfo::ObjectHeaderSize());
         switch (typeDef->enumKind) {
-            case Symlevel::EnumKind::OPTION0: // enum { Some(T), None }
+            case Image::EnumKind::OPTION0: // enum { Some(T), None }
                 emit.SCC(Format::CC::REQ, Format::Width::W64, dst, dst, IReg::IRZ);
                 break;
-            case Symlevel::EnumKind::OPTION1: // enum { None, Some(T) }
+            case Image::EnumKind::OPTION1: // enum { None, Some(T) }
                 emit.SCC(Format::CC::RNE, Format::Width::W64, dst, dst, IReg::IRZ);
                 break;
             default: return Fail("unexpected enum kind");
@@ -537,7 +537,7 @@ struct IsaRewriter : public IsaParser {
 
         auto type      = *t;
         auto typeDefId = Engine::ExtractTypeDefIdentifier(type.term);
-        auto typeDef   = Symlevel::Reader::Read(session, typeDefId);
+        auto typeDef   = Image::Reader::Read(session, typeDefId);
         auto refPath   = emit.NewLabel();
         auto end       = emit.NewLabel();
         emit.BranchIfRef(underlyingTypeInfo, refPath);
@@ -567,13 +567,13 @@ struct IsaRewriter : public IsaParser {
         }
         auto type      = *t;
         auto typeDefId = Engine::ExtractTypeDefIdentifier(type.term);
-        auto typeDef   = Symlevel::Reader::Read(session, typeDefId);
+        auto typeDef   = Image::Reader::Read(session, typeDefId);
 
         auto end = emit.NewLabel();
         emit.NewObjGenericOnAcc(optionTypeInfo);
         BindStatePoint();
         emit.BranchIfRef(underlyingTypeInfo, end);
-        if (typeDef->enumKind == Symlevel::EnumKind::OPTION1) {
+        if (typeDef->enumKind == Image::EnumKind::OPTION1) {
             auto ms = emit.OpenMemSpace();
             ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
             ms.StoreObjImm(STK::ST_8, IReg::IR_ACC, 1);
@@ -592,7 +592,7 @@ struct IsaRewriter : public IsaParser {
 
         auto type      = *t;
         auto typeDefId = Engine::ExtractTypeDefIdentifier(type.term);
-        auto typeDef   = Symlevel::Reader::Read(session, typeDefId);
+        auto typeDef   = Image::Reader::Read(session, typeDefId);
         auto refPath   = emit.NewLabel();
         auto end       = emit.NewLabel();
         emit.NewObjGenericOnAcc(optionTypeInfo);
@@ -604,7 +604,7 @@ struct IsaRewriter : public IsaParser {
             ms.GenericField(1, optionTypeInfo);
             ms.StoreGeneric(src, IReg::IR_ACC, underlyingTypeInfo);
         }
-        if (typeDef->enumKind == Symlevel::EnumKind::OPTION0) {
+        if (typeDef->enumKind == Image::EnumKind::OPTION0) {
             auto ms = emit.OpenMemSpace();
             ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
             ms.StoreObjImm(STK::ST_8, IReg::IR_ACC, 1);
@@ -992,16 +992,16 @@ struct IsaRewriter : public IsaParser {
         }
 
         auto typeDefId = Engine::TypeTermId(type->term).GetIdentifier();
-        auto typeDef   = Symlevel::Reader::Read(resolver, typeDefId);
+        auto typeDef   = Image::Reader::Read(resolver, typeDefId);
 
         // - Get 1th methodId out of iterator.
         // - Emit `InitClosure` with flags of 1th method.
         // - Ensure that there are only two methods in the closure type.
         int idx = 0;
-        for (auto methodId : Symlevel::Reader::Resolve(resolver, typeDef.GetVirtualMethods())) {
+        for (auto methodId : Image::Reader::Resolve(resolver, typeDef.GetVirtualMethods())) {
             if (idx == 1) {
-                auto method = Symlevel::Reader::Read(resolver, methodId);
-                auto sret   = method.GetFlags().Is(Symlevel::MethodFlag::SRET);
+                auto method = Image::Reader::Read(resolver, methodId);
+                auto sret   = method.GetFlags().Is(Image::MethodFlag::SRET);
 
                 emit.InitClosure(sret);
                 AdjustReg(dst, IReg::IR1);
@@ -1030,16 +1030,16 @@ struct IsaRewriter : public IsaParser {
         BindStatePoint();
 
         auto typeDefId = Engine::TypeTermId(type->term).GetIdentifier();
-        auto typeDef   = Symlevel::Reader::Read(resolver, typeDefId);
+        auto typeDef   = Image::Reader::Read(resolver, typeDefId);
 
         // - Get 1th methodId out of iterator.
         // - Emit `InitClosure` with flags of 1th method.
         // - Ensure that there are only two methods in the closure type.
         int idx = 0;
-        for (auto methodId : Symlevel::Reader::Resolve(resolver, typeDef.GetVirtualMethods())) {
+        for (auto methodId : Image::Reader::Resolve(resolver, typeDef.GetVirtualMethods())) {
             if (idx == 1) {
-                auto method = Symlevel::Reader::Read(resolver, methodId);
-                auto sret   = method.GetFlags().Is(Symlevel::MethodFlag::SRET);
+                auto method = Image::Reader::Read(resolver, methodId);
+                auto sret   = method.GetFlags().Is(Image::MethodFlag::SRET);
 
                 emit.InitClosure(sret);
             }
@@ -1727,7 +1727,7 @@ struct IsaRewriter : public IsaParser {
     }
 };
 
-static std::optional<FrameLayout> makeFrameLayout(Symlevel::Code code, Resolver& resolver)
+static std::optional<FrameLayout> makeFrameLayout(Image::Code code, Resolver& resolver)
 {
     auto& log = Interpretation::Log::preparation;
 
@@ -1787,12 +1787,12 @@ static std::vector<Interpretation::GCPositionalInfo> CalculatePositionalGCInfo(
     std::vector<IsaRewriter::StatePoint> const& statePoints
 )
 {
-    auto livenessInfo = Symlevel::Reader::GetLivenessInfo(session, code);
+    auto livenessInfo = Image::Reader::GetLivenessInfo(session, code);
 
     std::vector<Interpretation::GCPositionalInfo> posInfo;
     posInfo.reserve(livenessInfo.size());
 
-    std::unordered_map<ssize_t, Symlevel::LivenessInfo const&> infos;
+    std::unordered_map<ssize_t, Image::LivenessInfo const&> infos;
     for (const auto& info : livenessInfo) {
         infos.insert({ info.cbcPos, info });
     }
@@ -1837,13 +1837,13 @@ static std::vector<Interpretation::StackPtrsPositionalInfo> CalculateStackPtrsPo
     std::vector<IsaRewriter::StatePoint> const& statePoints
 )
 {
-    auto stackPtrsInfo = Symlevel::Reader::GetStackPtrsInfo(session, code);
+    auto stackPtrsInfo = Image::Reader::GetStackPtrsInfo(session, code);
 
     std::vector<Interpretation::StackPtrsPositionalInfo> posInfo;
     posInfo.reserve(stackPtrsInfo.size());
 
     // FIXME: the data must be stored in the format that is compact and fast to query.
-    std::unordered_map<ssize_t, Symlevel::StackPtrsInfo const&> infos;
+    std::unordered_map<ssize_t, Image::StackPtrsInfo const&> infos;
     for (const auto& info : stackPtrsInfo) {
         infos.insert({ info.cbcPos, info });
     }
@@ -1872,7 +1872,7 @@ static std::vector<Interpretation::StackPtrsPositionalInfo> CalculateStackPtrsPo
     return posInfo;
 }
 
-static std::string Descriptor(Engine::Session& session, Symlevel::Identifier<Symlevel::MethodDefinition> method)
+static std::string Descriptor(Engine::Session& session, Image::Identifier<Image::MethodDefinition> method)
 {
     Stream::StringBuffer buf;
     Stream::ResolvingOutput out(session, buf);
@@ -1885,7 +1885,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
     MethodCode& code,
     Resolver& resolver,
     Memory::Heap& heap,
-    Symlevel::Identifier<Symlevel::MethodDefinition> method
+    Image::Identifier<Image::MethodDefinition> method
 )
 {
     using namespace Stream;
@@ -1910,18 +1910,18 @@ Interpretation::ExecBytecodeInfo Rewrite(
         FATAL("Rewriter failed: cannot rewrite code.");
     }
 
-    auto def     = Symlevel::Reader::Read(session, method);
+    auto def     = Image::Reader::Read(session, method);
     auto flags   = def.GetABIFlags();
     auto abiInfo = Interpretation::BuildAbiInfo(
         session,
         Engine::TermManager::Resolve(session, def.Signature()),
         {
-            .isSRet            = flags.Is(Symlevel::MethodRefFlag::SRET),
-            .isMut             = flags.Is(Symlevel::MethodRefFlag::MUT),
-            .hasThisTypeInfo   = flags.Is(Symlevel::MethodRefFlag::HAS_THIS_TI),
-            .hasOuterTi        = flags.Is(Symlevel::MethodRefFlag::HAS_OUTER_TI),
-            .recordReceiver    = flags.Is(Symlevel::MethodRefFlag::REC_RECEIVER),
-            .referenceReceiver = flags.Is(Symlevel::MethodRefFlag::REF_RECEIVER),
+            .isSRet            = flags.Is(Image::MethodRefFlag::SRET),
+            .isMut             = flags.Is(Image::MethodRefFlag::MUT),
+            .hasThisTypeInfo   = flags.Is(Image::MethodRefFlag::HAS_THIS_TI),
+            .hasOuterTi        = flags.Is(Image::MethodRefFlag::HAS_OUTER_TI),
+            .recordReceiver    = flags.Is(Image::MethodRefFlag::REC_RECEIVER),
+            .referenceReceiver = flags.Is(Image::MethodRefFlag::REF_RECEIVER),
             .funcVars          = def->arity,
         }
     );
@@ -1948,15 +1948,15 @@ Interpretation::ExecBytecodeInfo Rewrite(
 }
 
 Interpretation::ExecBytecodeInfo Rewrite(
-    Engine::Session& session, Symlevel::Identifier<Symlevel::MethodDefinition> method, Memory::Heap& heap
+    Engine::Session& session, Image::Identifier<Image::MethodDefinition> method, Memory::Heap& heap
 )
 {
     using namespace Stream;
-    auto def = Symlevel::Reader::Read(session, method);
+    auto def = Image::Reader::Read(session, method);
     ASSERTION(def.MethodCode().has_value(), "fuh preparation must be unreachable for methods without code");
 
     Resolver resolver(session, method);
-    auto code = Symlevel::Reader::Read(session, def.MethodCode().value());
+    auto code = Image::Reader::Read(session, def.MethodCode().value());
 
     Interpretation::Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
         Descripted desc(out, Descriptor(session, method));

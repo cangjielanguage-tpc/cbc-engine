@@ -1,6 +1,6 @@
 #include "adapters.h"
-#include "engine/symlevel/reader.h"
-#include "engine/symlevel/type_kind.h"
+#include "engine/image/reader.h"
+#include "engine/image/type_kind.h"
 #include "engine/terms.h"
 #include "function_handle.h"
 
@@ -28,14 +28,14 @@ void* CountRegs(Engine::Term& signature)
     return RTSupport::Adapters::C2ICall(integers, floats);
 }
 
-I2Call PrepareI2Call(Engine::Session& session, Symlevel::Identifier<Symlevel::MethodDefinition> methodDef)
+I2Call PrepareI2Call(Engine::Session& session, Image::Identifier<Image::MethodDefinition> methodDef)
 {
     return reinterpret_cast<I2Call>(RTSupport::Adapters::I2ICallInstance());
 }
 
-C2Call PrepareC2Call(Engine::Session& session, Symlevel::Identifier<Symlevel::MethodDefinition> methodDef)
+C2Call PrepareC2Call(Engine::Session& session, Image::Identifier<Image::MethodDefinition> methodDef)
 {
-    auto def       = Symlevel::Reader::Read(session, methodDef);
+    auto def       = Image::Reader::Read(session, methodDef);
     auto signature = Engine::TermManager::Resolve(session, def.Signature());
     return reinterpret_cast<C2Call>(CountRegs(signature));
 }

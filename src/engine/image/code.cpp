@@ -1,9 +1,9 @@
-#include "engine/symlevel/reader.h"
+#include "engine/image/reader.h"
 #include "utils/misc.h"
 
-namespace Symlevel {
+namespace Image {
 
-template <> Code Reader::Read(Engine::Session& session, Symlevel::FileId fileId, Offset<Code> offset)
+template <> Code Reader::Read(Engine::Session& session, Image::FileId fileId, Offset<Code> offset)
 {
     IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetCodeSectionOffs() + offset);
 
@@ -59,9 +59,9 @@ template <> Code Reader::Read(Engine::Session& session, Symlevel::FileId fileId,
     );
 }
 
-template <> Code Reader::Read(Engine::Session& session, Symlevel::Identifier<Code> identifier)
+template <> Code Reader::Read(Engine::Session& session, Image::Identifier<Code> identifier)
 {
     return Reader::Read(session, identifier.GetFileId(), identifier.GetOffset());
 }
 
-} // namespace Symlevel
+} // namespace Image

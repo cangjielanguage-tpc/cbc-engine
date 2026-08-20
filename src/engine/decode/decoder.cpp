@@ -2,9 +2,9 @@
 
 #include "engine/decode/decoder.h"
 #include "engine/engine.h"
-#include "engine/symlevel/cbc_file.h"
-#include "engine/symlevel/io/random_access_file.h"
-#include "engine/symlevel/io/stream_file_reader.h"
+#include "engine/image/cbc_file.h"
+#include "engine/image/io/random_access_file.h"
+#include "engine/image/io/stream_file_reader.h"
 #include "utils/assertion.h"
 #include <cstdint>
 #include <optional>
@@ -12,7 +12,7 @@
 
 namespace Decode {
 
-static constexpr size_t OFFSET_ADJUSTMENT = Symlevel::POOL_OFFSET_ADJUSTMENT;
+static constexpr size_t OFFSET_ADJUSTMENT = Image::POOL_OFFSET_ADJUSTMENT;
 
 // ------------------ Utilities ------------------
 
@@ -40,7 +40,7 @@ static uint32_t ReadAt(IO::RandomAccessFile* raf, uint32_t offs) { return raf->R
 
 Decoder::Decoder(Engine::Session& session) : session(session) {}
 
-template <typename T> HashTableRange<T> Decoder::AllEntries(Symlevel::MemberIndex<T> const& index)
+template <typename T> HashTableRange<T> Decoder::AllEntries(Image::MemberIndex<T> const& index)
 {
     return HashTableRange<T>(
         session.FileOf(index.fileId).get(),
@@ -51,7 +51,7 @@ template <typename T> HashTableRange<T> Decoder::AllEntries(Symlevel::MemberInde
 }
 
 template <typename T, typename Key>
-static HashTableRange<T> FindBucketRange(IO::RandomAccessFile* file, Symlevel::MemberIndex<T> const& index, Key key)
+static HashTableRange<T> FindBucketRange(IO::RandomAccessFile* file, Image::MemberIndex<T> const& index, Key key)
 {
     if (index.bucketsSize == 0) {
         return HashTableRange<T>(file, index.fileId, 0, 0);
@@ -73,14 +73,14 @@ static HashTableRange<T> FindBucketRange(IO::RandomAccessFile* file, Symlevel::M
     return HashTableRange<T>(file, index.fileId, dataStartOffs, dataEndOffs);
 }
 
-template <typename T> Bucket<T> Decoder::FindBucket(Symlevel::MemberIndex<T> const& index, std::string_view name)
+template <typename T> Bucket<T> Decoder::FindBucket(Image::MemberIndex<T> const& index, std::string_view name)
 {
     auto file = this->session.FileOf(index.fileId).get();
     return Bucket(FindBucketRange(file, index, name), name);
 }
 
 template <typename T>
-std::optional<Symlevel::Identifier<T>> Decoder::Find(Symlevel::MemberIndex<T> const& index, std::string_view name)
+std::optional<Image::Identifier<T>> Decoder::Find(Image::MemberIndex<T> const& index, std::string_view name)
 {
     auto bucket = FindBucket(index, name);
     for (auto value : bucket) {
@@ -89,20 +89,20 @@ std::optional<Symlevel::Identifier<T>> Decoder::Find(Symlevel::MemberIndex<T> co
     return std::nullopt;
 }
 
-Symlevel::MemberIndex<void> ReadIndex(IO::StreamFileReader& reader, FileId file)
+Image::MemberIndex<void> ReadIndex(IO::StreamFileReader& reader, FileId file)
 {
     auto bucketTableSize = reader.ReadU32();
     auto bucketsSize     = reader.ReadU32();
     auto bucketTableOffs = reader.Position();
     uint32_t bucketsOffs = bucketTableOffs + bucketTableSize * sizeof(uint32_t);
     reader.Advance(bucketTableSize * sizeof(uint32_t) + bucketsSize * sizeof(uint32_t));
-    return Symlevel::MemberIndex<void>(file, bucketTableOffs, bucketTableSize, bucketsOffs, bucketsSize);
+    return Image::MemberIndex<void>(file, bucketTableOffs, bucketTableSize, bucketsOffs, bucketsSize);
 }
 
 // ------------------ AOT data decoding ------------------
 
 template <typename T>
-static Identifier<T> FindAotData(IO::RandomAccessFile* file, uint32_t id, Symlevel::MemberIndex<T> const* index)
+static Identifier<T> FindAotData(IO::RandomAccessFile* file, uint32_t id, Image::MemberIndex<T> const* index)
 {
     for (auto v : FindBucketRange<T>(file, *index, id)) {
         auto offset  = v.GetOffset();
@@ -115,8 +115,8 @@ static Identifier<T> FindAotData(IO::RandomAccessFile* file, uint32_t id, Symlev
 }
 
 template <>
-Symlevel::DirectCallAotData Decoder::GetAotData<Symlevel::DirectCallAotData>(
-    RefIdentifier<Symlevel::MethodReference> index
+Image::DirectCallAotData Decoder::GetAotData<Image::DirectCallAotData>(
+    RefIdentifier<Image::MethodReference> index
 )
 {
     auto [cbc, raf] = session.File(index.GetFileId());
@@ -124,13 +124,13 @@ Symlevel::DirectCallAotData Decoder::GetAotData<Symlevel::DirectCallAotData>(
 
     // skip index
     IO::StreamFileReader reader(raf, OFFSET_ADJUSTMENT + id.GetOffset() + 4);
-    auto name = Symlevel::Offset<Symlevel::String>(reader.ReadU32());
-    return { Symlevel::Identifier(name, index.GetFileId()) };
+    auto name = Image::Offset<Image::String>(reader.ReadU32());
+    return { Image::Identifier(name, index.GetFileId()) };
 }
 
 template <>
-Symlevel::VirtualCallAotData Decoder::GetAotData<Symlevel::VirtualCallAotData>(
-    RefIdentifier<Symlevel::MethodReference> index
+Image::VirtualCallAotData Decoder::GetAotData<Image::VirtualCallAotData>(
+    RefIdentifier<Image::MethodReference> index
 )
 {
     auto [cbc, raf] = session.File(index.GetFileId());
@@ -142,8 +142,8 @@ Symlevel::VirtualCallAotData Decoder::GetAotData<Symlevel::VirtualCallAotData>(
 }
 
 template <>
-Symlevel::InterfaceCallAotData Decoder::GetAotData<Symlevel::InterfaceCallAotData>(
-    RefIdentifier<Symlevel::MethodReference> index
+Image::InterfaceCallAotData Decoder::GetAotData<Image::InterfaceCallAotData>(
+    RefIdentifier<Image::MethodReference> index
 )
 {
     auto [cbc, raf] = session.File(index.GetFileId());
@@ -155,8 +155,8 @@ Symlevel::InterfaceCallAotData Decoder::GetAotData<Symlevel::InterfaceCallAotDat
 }
 
 template <>
-Symlevel::StaticFieldAotData Decoder::GetAotData<Symlevel::StaticFieldAotData>(
-    RefIdentifier<Symlevel::FieldReference> index
+Image::StaticFieldAotData Decoder::GetAotData<Image::StaticFieldAotData>(
+    RefIdentifier<Image::FieldReference> index
 )
 {
     auto [cbc, raf] = session.File(index.GetFileId());
@@ -164,13 +164,13 @@ Symlevel::StaticFieldAotData Decoder::GetAotData<Symlevel::StaticFieldAotData>(
 
     // skip index
     IO::StreamFileReader reader(raf, OFFSET_ADJUSTMENT + id.GetOffset() + 4);
-    auto name = Symlevel::Offset<Symlevel::String>(reader.ReadU32());
-    return { Symlevel::Identifier(name, index.GetFileId()) };
+    auto name = Image::Offset<Image::String>(reader.ReadU32());
+    return { Image::Identifier(name, index.GetFileId()) };
 }
 
 template <>
-Symlevel::InstanceFieldAotData Decoder::GetAotData<Symlevel::InstanceFieldAotData>(
-    RefIdentifier<Symlevel::FieldReference> index
+Image::InstanceFieldAotData Decoder::GetAotData<Image::InstanceFieldAotData>(
+    RefIdentifier<Image::FieldReference> index
 )
 {
     auto [cbc, raf] = session.File(index.GetFileId());
@@ -201,10 +201,10 @@ template <typename T> typename HashTableRange<T>::Iterator HashTableRange<T>::en
     return { nullptr, endOffs, file };
 }
 
-template <typename T> Symlevel::Identifier<T> HashTableRange<T>::Iterator::operator*() const
+template <typename T> Image::Identifier<T> HashTableRange<T>::Iterator::operator*() const
 {
     auto offs = ReadAt(file, cursor);
-    return Symlevel::Identifier<T>(Symlevel::Offset<T>(offs), fileId);
+    return Image::Identifier<T>(Image::Offset<T>(offs), fileId);
 }
 
 template <typename T> typename HashTableRange<T>::Iterator& HashTableRange<T>::Iterator::operator++()
@@ -228,10 +228,10 @@ template <typename T> bool HashTableRange<T>::Iterator::operator==(HashTableRang
 // ------------------ Bucket ------------------
 
 template <typename T>
-static bool CompareName(IO::RandomAccessFile* file, Symlevel::Offset<T> offs, std::string_view str)
+static bool CompareName(IO::RandomAccessFile* file, Image::Offset<T> offs, std::string_view str)
 {
     IO::StreamFileReader reader(file, OFFSET_ADJUSTMENT + offs);
-    auto strOffs = Symlevel::Offset<Symlevel::String>(reader.ReadU32());
+    auto strOffs = Image::Offset<Image::String>(reader.ReadU32());
     IO::StreamFileReader stringReader(file, OFFSET_ADJUSTMENT + strOffs);
     uint32_t size = stringReader.ReadULEB();
     if (str.size() != size) {
@@ -258,7 +258,7 @@ template <typename T> static void skipUntilEqualKey(typename Bucket<T>::Iterator
     auto file = it.bucket->range.raf;
     while (it.cursor < it.bucket->range.endOffs) {
         auto offs = ReadAt(it.file, it.cursor);
-        if (CompareName<T>(file, Symlevel::Offset<T>(offs), it.bucket->key)) {
+        if (CompareName<T>(file, Image::Offset<T>(offs), it.bucket->key)) {
             it.value = offs;
             return;
         }
@@ -276,9 +276,9 @@ template <typename T> typename Bucket<T>::Iterator Bucket<T>::begin() const
     return iterator;
 }
 
-template <typename T> Symlevel::Identifier<T> Bucket<T>::Iterator::operator*() const
+template <typename T> Image::Identifier<T> Bucket<T>::Iterator::operator*() const
 {
-    return Symlevel::Identifier<T>(Symlevel::Offset<T>(value), bucket->range.file);
+    return Image::Identifier<T>(Image::Offset<T>(value), bucket->range.file);
 }
 
 template <typename T> typename Bucket<T>::Iterator& Bucket<T>::Iterator::operator++()
@@ -290,25 +290,25 @@ template <typename T> typename Bucket<T>::Iterator& Bucket<T>::Iterator::operato
 
 // ------------------ Specializations ------------------
 
-using TD = Symlevel::TypeDefinition;
-using MD = Symlevel::MethodDefinition;
-using FD = Symlevel::FieldDefinition;
+using TD = Image::TypeDefinition;
+using MD = Image::MethodDefinition;
+using FD = Image::FieldDefinition;
 
-template HashTableRange<TD> Decoder::AllEntries(Symlevel::MemberIndex<TD> const& index);
-template HashTableRange<MD> Decoder::AllEntries(Symlevel::MemberIndex<MD> const& index);
-template HashTableRange<FD> Decoder::AllEntries(Symlevel::MemberIndex<FD> const& index);
-template Bucket<TD> Decoder::FindBucket(Symlevel::MemberIndex<TD> const& index, std::string_view name);
-template Bucket<MD> Decoder::FindBucket(Symlevel::MemberIndex<MD> const& index, std::string_view name);
-template Bucket<FD> Decoder::FindBucket(Symlevel::MemberIndex<FD> const& index, std::string_view name);
+template HashTableRange<TD> Decoder::AllEntries(Image::MemberIndex<TD> const& index);
+template HashTableRange<MD> Decoder::AllEntries(Image::MemberIndex<MD> const& index);
+template HashTableRange<FD> Decoder::AllEntries(Image::MemberIndex<FD> const& index);
+template Bucket<TD> Decoder::FindBucket(Image::MemberIndex<TD> const& index, std::string_view name);
+template Bucket<MD> Decoder::FindBucket(Image::MemberIndex<MD> const& index, std::string_view name);
+template Bucket<FD> Decoder::FindBucket(Image::MemberIndex<FD> const& index, std::string_view name);
 
-template std::optional<Symlevel::Identifier<TD>> Decoder::Find(
-    Symlevel::MemberIndex<TD> const& index, std::string_view name
+template std::optional<Image::Identifier<TD>> Decoder::Find(
+    Image::MemberIndex<TD> const& index, std::string_view name
 );
-template std::optional<Symlevel::Identifier<MD>> Decoder::Find(
-    Symlevel::MemberIndex<MD> const& index, std::string_view name
+template std::optional<Image::Identifier<MD>> Decoder::Find(
+    Image::MemberIndex<MD> const& index, std::string_view name
 );
-template std::optional<Symlevel::Identifier<FD>> Decoder::Find(
-    Symlevel::MemberIndex<FD> const& index, std::string_view name
+template std::optional<Image::Identifier<FD>> Decoder::Find(
+    Image::MemberIndex<FD> const& index, std::string_view name
 );
 
 template struct HashTableRange<TD>;

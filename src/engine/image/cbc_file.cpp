@@ -5,7 +5,7 @@
 #include "version_metadata.h"
 #include <optional>
 
-namespace Symlevel {
+namespace Image {
 
 struct CbcFile::Impl {
     VersionMetadata versionMetadata;
@@ -23,7 +23,7 @@ struct CbcFile::Impl {
     std::optional<Identifier<String>> mainTypeName;
 
     uint32_t poolOffset;
-    Symlevel::FileId id;
+    Image::FileId id;
     std::string name;
 };
 
@@ -32,7 +32,7 @@ CbcFile::CbcFile(std::unique_ptr<CbcFile::Impl> impl) : impl(std::move(impl)) {}
 CbcFile::CbcFile(CbcFile&& other) = default;
 CbcFile::~CbcFile()               = default;
 
-CbcFile CbcFile::Create(Symlevel::FileId fileId, IO::RandomAccessFile& file, std::string_view name)
+CbcFile CbcFile::Create(Image::FileId fileId, IO::RandomAccessFile& file, std::string_view name)
 {
     IO::StreamFileReader reader(file, 0);
 
@@ -107,7 +107,7 @@ CbcFile CbcFile::Create(Symlevel::FileId fileId, IO::RandomAccessFile& file, std
     return CbcFile(std::make_unique<CbcFile::Impl>(std::move(impl)));
 }
 
-Symlevel::FileId CbcFile::Id() const { return impl->id; }
+Image::FileId CbcFile::Id() const { return impl->id; }
 
 uint32_t CbcFile::GetCodeSectionOffs() const { return impl->poolOffset; }
 
@@ -166,4 +166,4 @@ const StaticFieldAotTable& CbcFile::GetStaticFieldAotTable() const { return impl
 
 const InstanceFieldAotTable& CbcFile::GetInstanceFieldAotTable() const { return impl->instanceFieldAotTable; }
 
-} // namespace Symlevel
+} // namespace Image

@@ -4,7 +4,7 @@
 #include "cbc/isa_disasm.h"
 #include "cbc/isa_parser.h"
 #include "engine/engine.h"
-#include "engine/symlevel/reader.h"
+#include "engine/image/reader.h"
 #include "interpreter/function_handle.h"
 
 #include "testutils.h"
@@ -37,8 +37,8 @@ static void CompareWith(std::string_view fileName, std::string const& expected)
     auto mainId = engine.FindMain(session, fileName);
     ASSERT_TRUE(mainId.has_value());
 
-    auto def  = Symlevel::Reader::Read(session, mainId.value());
-    auto code = Symlevel::Reader::Read(session, def.MethodCode().value());
+    auto def  = Image::Reader::Read(session, mainId.value());
+    auto code = Image::Reader::Read(session, def.MethodCode().value());
 
     Resolution::Resolver resolver(session, mainId.value());
 

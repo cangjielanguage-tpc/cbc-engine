@@ -2,16 +2,16 @@
 #include "engine/decode/decoder.h"
 #include "engine/identifiers.h"
 #include "engine/resolving_output.h"
-#include "engine/symlevel/io/filesystem.h"
-#include "engine/symlevel/io/stream_file_reader.h"
-#include "engine/symlevel/reader.h"
+#include "engine/image/io/filesystem.h"
+#include "engine/image/io/stream_file_reader.h"
+#include "engine/image/reader.h"
 #include <cstdint>
 #include <memory>
 
 namespace Dis {
 
 using namespace Engine;
-using namespace Symlevel;
+using namespace Image;
 using namespace Stream;
 
 Session Disasmer::SessionFor(std::vector<std::string_view> views)
@@ -89,8 +89,8 @@ void Disasmer::DisasmOf(CbcFile const& file)
     Version(file.GetVersionMetadata());
 
     Region("types", [&]() {
-        for (auto type : Symlevel::Reader::AllEntries(session, file.GetTypeIndex())) {
-            auto def = Symlevel::Reader::Read(session, type);
+        for (auto type : Image::Reader::AllEntries(session, file.GetTypeIndex())) {
+            auto def = Image::Reader::Read(session, type);
             Type(def);
         }
     });

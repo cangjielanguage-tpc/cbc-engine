@@ -8,7 +8,7 @@
 #include <utility>
 
 #include "engine/engine.h"
-#include "engine/symlevel/io/filesystem.h"
+#include "engine/image/io/filesystem.h"
 #include "utils/rt_logger.h"
 
 namespace RTSupport {

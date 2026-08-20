@@ -1,7 +1,7 @@
 #include "flags.h"
 #include "utils/ostream.h"
 
-namespace Symlevel {
+namespace Image {
 
 Stream::Output& operator<<(Stream::Output& stream, MethodRefFlags flags)
 {
@@ -67,4 +67,4 @@ std::string MethodFlags::ToString() const { return Str(this); }
 
 std::string MethodRefFlags::ToString() const { return Str(this); }
 
-} // namespace Symlevel
+} // namespace Image

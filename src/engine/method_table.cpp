@@ -2,7 +2,7 @@
 #include "engine/engine.h"
 #include "engine/identifiers.h"
 #include "engine/resolving_output.h"
-#include "engine/symlevel/reader.h"
+#include "engine/image/reader.h"
 #include "engine/terms.h"
 #include "utils/iterators.h"
 #include "utils/logger.h"
@@ -16,7 +16,7 @@
 namespace Engine {
 
 using namespace Stream;
-using namespace Symlevel;
+using namespace Image;
 
 // ---- MethodTable ----
 
@@ -70,8 +70,8 @@ void MethodTable::Globalize(Session& session)
 
 static bool Compare(Session& session, MethodTable::Reference const& reference, MethodTableEntry const& entry)
 {
-    auto method = Symlevel::Reader::Read(session, entry.method);
-    auto name   = Symlevel::Reader::Read(session, method.Name());
+    auto method = Image::Reader::Read(session, entry.method);
+    auto name   = Image::Reader::Read(session, method.Name());
 
     if (name.compare(reference.name) != 0) {
         return false;

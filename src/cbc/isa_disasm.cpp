@@ -530,7 +530,7 @@ struct IsaDisasm : public IsaParser {
 struct IsaResolvingDisasm : IsaDisasm {
     Resolution::Resolver& resolver;
 
-    using MethodIndex = Symlevel::RefId<Symlevel::MethodReference>;
+    using MethodIndex = Image::RefId<Image::MethodReference>;
 
     IsaResolvingDisasm(Stream::Output& stream, Decoder::FatByteReader reader, Resolution::Resolver& resolver)
         : IsaDisasm(stream, reader),

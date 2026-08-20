@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <string_view>
 
-namespace Symlevel {
+namespace Image {
 
 struct TypeKind {
 public:
@@ -37,4 +37,4 @@ private:
     const Value value;
 };
 
-} // namespace Symlevel
+} // namespace Image
