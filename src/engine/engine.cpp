@@ -134,8 +134,10 @@ std::optional<CbcFile> TryReadCbcFile(Image::FileId fileId, IO::RandomAccessFile
     reader.Advance(2); // skip region number
     auto regionOffset = reader.ReadU32();
 
-    auto mainType                                  = reader.ReadS32();
     std::optional<Identifier<String>> mainTypeName = std::nullopt;
+    if (auto mainType = reader.ReadS32(); mainType >= 0) {
+        mainTypeName = Image::Identifier(Offset<String>(mainType), fileId);
+    }
 
     auto cbcDeps     = reader.ReadS32();
     auto aotDeps     = reader.ReadS32();
