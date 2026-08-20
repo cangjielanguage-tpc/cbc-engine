@@ -44,6 +44,7 @@
     X(NEWOBJ, B9i64, "newobj IR1, $0U64")                                                                              \
     X(NEWOBJ_PINNED, B9i64, "newobj.pinned IR1, $0U64")                                                                \
     X(NEWOBJ_G, B2rr, "newobj.g $0ir")                                                                                 \
+    X(NEWOBJ_ACC_G, B2rr, "newobj.acc.g $0ir")                                                                         \
     X(NEWARR, B9i64, "newarr IR1, IR2, $0U64")                                                                         \
     X(INITCLOSURE, B1, "init.closure")                                                                                 \
     X(INITCLOSURE_SRET, B1, "init.closure.sret")                                                                       \

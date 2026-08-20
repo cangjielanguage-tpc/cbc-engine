@@ -34,6 +34,7 @@
 #include <string_view>
 #include <sys/types.h>
 #include <variant>
+#include <vector>
 
 namespace Cbc {
 
@@ -1029,6 +1030,9 @@ struct IsaRewriter : public IsaParser {
         auto typeDefId = Engine::TypeTermId(type->term).GetIdentifier();
         auto typeDef   = Decode::Read(resolver, typeDefId);
 
+        // - Get 1th methodId out of iterator.
+        // - Emit `InitClosure` with flags of 1th method.
+        // - Ensure that there are only two methods in the closure type.
         int idx = 0;
         for (auto methodId : Decode::Resolve(resolver, typeDef.GetVirtualMethods())) {
             if (idx++ == 1) {
@@ -1037,10 +1041,23 @@ struct IsaRewriter : public IsaParser {
 
                 emit.InitClosure(sret);
                 AdjustReg(dst, IReg::IR1);
-                return;
             }
+            idx++;
         }
-        Fail("failed to find instantiated version of method in closure");
+        if (idx != 2) {
+            Fail("failed to find instantiated version of method in closure");
+        }
+    }
+
+    void NewObjGeneric(IReg ti, uint32_t typeId) override
+    {
+        emit.NewObjGeneric(ti);
+        BindStatePoint();
+    }
+
+    void NewClosureGeneric(IReg ti, uint32_t typeId) override
+    {
+        Fail("failed NewClosureGeneric");
     }
 
     void Scc(Format::Width width, Format::CC cc, IReg d, AnyReg l, AnyReg r) override
