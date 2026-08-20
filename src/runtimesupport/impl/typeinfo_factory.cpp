@@ -301,10 +301,9 @@ struct TypeInfoBuilder {
                    << "\t flag: " << result->flag << "\n"
                    << "\t fieldNum: " << result->fieldNum << "\n"
                    << "\t instance(component)Size: "
-                   << ((result->instanceSize != -1) ? result->instanceSize : result->componentSize) << "\n";
-            out.PrintFmt("gctib: %lx", result->gctib.raw);
-            out.NewLine();
-            stream << "\t uuid: " << result->uuid << "\n"
+                   << ((result->instanceSize != -1) ? result->instanceSize : result->componentSize) << "\n"
+                   << "\t gctib: " << result->gctib.raw << "\n"
+                   << "\t uuid: " << result->uuid << "\n"
                    << "\t align: " << result->align << "\n"
                    << "\t typeArgsNum: " << result->typeArgsNum << "\n"
                    << "\t validInheritNum: " << result->validInheritNum << "\n"
