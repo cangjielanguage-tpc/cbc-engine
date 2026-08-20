@@ -216,6 +216,7 @@ struct TypeInfoBuilder {
                 fieldNum       = static_cast<Engine::VArrayTermId>(term.GetId()).GetNum();
                 superType      = term.Subterm(0);
                 aotTypeDefName = "VArray";
+                validInheritNum = 0x8000;
                 return;
             default: {
             }
@@ -705,6 +706,28 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             out.PrintFmt("gctib: %lx", builder.gctib.raw);
             out.NewLine();
         });
+    } else if (builder.type == TYPE_KIND_VARRAY) {
+        auto fieldManager = Engine::FieldLayoutManager::New(session, manager);
+        auto optlayout    = fieldManager->GetLayout(term);
+
+        bool hasProperLayout = optlayout.has_value();
+        if (hasProperLayout) {
+            auto layout = *optlayout;
+            if (!layout->desc.size.has_value()) {
+                hasProperLayout = false;
+            }
+        }
+
+        if (!hasProperLayout) {
+            Log::typeinfo.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
+                Stream::ResolvingOutput stream(session, out);
+                stream << "Failed to build field layout for " << term << Stream::endl;
+            });
+            return std::nullopt;
+        }
+        auto layout          = *optlayout;
+        builder.align        = layout->desc.alignment;
+        builder.instanceSize = layout->desc.size.value();
     } else {
         builder.fieldNum     = 0;
         builder.fields       = nullptr;
@@ -716,20 +739,26 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
     int typeArgsNum     = term.GetLength();
     builder.typeArgsNum = 0; // set type arg num to zero (so cjnative runtime won't query type templates)
     if (typeArgsNum > 0) {
-        builder.typeArgs = Alloc<DYN_TypeInfo*>(typeArgsNum);
-        if (builder.typeArgs == nullptr) {
-            return std::nullopt;
-        }
-        std::vector<DYN_TypeInfo*> typeInfos;
-        auto resolved = QuerySubterms(typeInfos, session, manager, term);
-        if (!resolved) {
-            return std::nullopt;
-        }
-        for (int i = 0; i < typeArgsNum; i++) {
-            builder.typeArgs[i] = typeInfos[i];
+        if (builder.type != TYPE_KIND_VARRAY) {
+            builder.typeArgs = Alloc<DYN_TypeInfo*>(typeArgsNum);
+            if (builder.typeArgs == nullptr) {
+                return std::nullopt;
+            }
+            std::vector<DYN_TypeInfo*> typeInfos;
+            auto resolved = QuerySubterms(typeInfos, session, manager, term);
+            if (!resolved) {
+                return std::nullopt;
+            }
+            for (int i = 0; i < typeArgsNum; i++) {
+                builder.typeArgs[i] = typeInfos[i];
+            }
         }
         if (builder.isAot) {
-            builder.typeArgsNum = typeArgsNum;
+            if (builder.type == TYPE_KIND_VARRAY) {
+                builder.typeArgsNum = 0;
+            } else {
+                builder.typeArgsNum = typeArgsNum;
+            }
             std::string name(builder.aotTypeDefName);
             auto typeTemplate = QueryTypeTemplate(session, name.c_str());
 
