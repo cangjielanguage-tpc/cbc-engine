@@ -12,6 +12,7 @@
 #include "utils/assertion.h"
 #include "utils/heap.h"
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <optional>
 #include <string_view>
@@ -99,13 +100,84 @@ Memory::Heap& Engine::CodeHeap() const { return Memory::Heap::SharedHeap(); }
 /////////////////////////////////////////////////////////////////
 // Loader implementation
 
+std::optional<CbcFile> TryRead(Image::FileId fileId, IO::RandomAccessFile* file, std::string_view name)
+{
+    // TODO: file verification is required.
+    IO::StreamFileReader reader(file, 0);
+    static const uint32_t FILE_VERSION_SHIFT = 24;
+    static constexpr auto MAGIC              = "cbc"
+                                               "\x01";
+
+    char magic[4];
+    auto fileLength = file->FileLength();
+    if (fileLength < sizeof(magic)) {
+        return std::nullopt;
+    }
+    reader.Read(magic, sizeof(magic));
+
+    if (memcmp(magic, MAGIC, sizeof(magic)) != 0)
+        return std::nullopt;
+    // TODO: file version checks
+
+    // Do not bother with verification further.
+
+    reader.Advance(2); // skip bytecode version and file props (TODO: change file format)
+
+    auto typeIndexOffset = reader.ReadU32();
+    auto poolOffset      = reader.ReadU32();
+
+    auto directCallAotTableOffset    = reader.ReadU32();
+    auto virtualCallAotTableOffset   = reader.ReadU32();
+    auto interfaceCallAotTableOffset = reader.ReadU32();
+    auto staticFieldAotTableOffset   = reader.ReadU32();
+    auto instanceFieldAotTableOffset = reader.ReadU32();
+
+    reader.Advance(2); // skip region number
+    auto regionOffset = reader.ReadU32();
+
+    auto mainType                                  = reader.ReadS32();
+    std::optional<Identifier<String>> mainTypeName = std::nullopt;
+
+    auto cbcDeps     = reader.ReadS32();
+    auto aotDeps     = reader.ReadS32();
+    auto foreignLibs = reader.ReadS32();
+    auto coverageId  = reader.ReadULEB();
+
+    IO::StreamFileReader typeIndexReader(file, typeIndexOffset);
+    IO::StreamFileReader directCallTableReader(file, directCallAotTableOffset);
+    IO::StreamFileReader virtualCallTableReader(file, virtualCallAotTableOffset);
+    IO::StreamFileReader interfaceCallTableReader(file, interfaceCallAotTableOffset);
+    IO::StreamFileReader instanceFieldTableReader(file, instanceFieldAotTableOffset);
+    IO::StreamFileReader staticFieldTableReader(file, staticFieldAotTableOffset);
+
+    return Image::CbcFile {
+        .typeIndex             = Decode::ReadIndex(typeIndexReader, fileId),
+        .regionData            = Decode::ReadRegion(fileId, *file, regionOffset),
+        .directCallAotTable    = Decode::ReadIndex(directCallTableReader, fileId),
+        .virtualCallAotTable   = Decode::ReadIndex(virtualCallTableReader, fileId),
+        .interfaceCallAotTable = Decode::ReadIndex(interfaceCallTableReader, fileId),
+        .staticFieldAotTable   = Decode::ReadIndex(staticFieldTableReader, fileId),
+        .instanceFieldAotTable = Decode::ReadIndex(instanceFieldTableReader, fileId),
+        .aotDeps               = aotDeps,
+        .cbcDeps               = cbcDeps,
+        .mainTypeName          = mainTypeName,
+        .poolOffset            = poolOffset,
+        .id                    = fileId,
+        .name                  = std::string(name),
+    };
+}
+
 bool Loader::Load(std::unique_ptr<IO::RandomAccessFile> file, std::string_view fileName)
 {
     IO::StreamFileReader reader(*file, 0);
-    auto id = loader->fileCounter++;
-    loader->files.emplace_back(std::move(CbcFile::Create(FileId(id), *file, fileName)));
-    loader->rafs.emplace_back(std::move(file));
-    return true;
+    auto id = loader->fileCounter;
+    auto f  = TryRead(FileId(id), file.get(), fileName);
+    if (f) {
+        loader->files.emplace_back(std::move(*f));
+        loader->rafs.emplace_back(std::move(file));
+        return true;
+    }
+    return false;
 }
 
 static std::string UpdateSharedObjName(std::string_view name)

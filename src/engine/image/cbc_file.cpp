@@ -8,163 +8,59 @@
 
 namespace Image {
 
-struct CbcFile::Impl {
-    VersionMetadata versionMetadata;
-    TypeIndex typeIndex;
-    RegionData regionData;
+Image::FileId CbcFile::Id() const { return this->id; }
 
-    DirectCallAotTable directCallAotTable;
-    VirtualCallAotTable virtualCallAotTable;
-    InterfaceCallAotTable interfaceCallAotTable;
-    StaticFieldAotTable staticFieldAotTable;
-    InstanceFieldAotTable instanceFieldAotTable;
+uint32_t CbcFile::GetCodeSectionOffs() const { return this->poolOffset; }
 
-    int aotDeps;
-    int cbcDeps;
-    std::optional<Identifier<String>> mainTypeName;
+uint32_t CbcFile::GetStringSectionOffs() const { return this->poolOffset; }
 
-    uint32_t poolOffset;
-    Image::FileId id;
-    std::string name;
-};
+uint32_t CbcFile::GetTypeDefSectionOffs() const { return this->poolOffset; }
 
-CbcFile::CbcFile(std::unique_ptr<CbcFile::Impl> impl) : impl(std::move(impl)) {}
+uint32_t CbcFile::GetMethodDefSectionOffs() const { return this->poolOffset; }
 
-CbcFile::CbcFile(CbcFile&& other) = default;
-CbcFile::~CbcFile()               = default;
+uint32_t CbcFile::GetFieldDefSectionOffs() const { return this->poolOffset; }
 
-CbcFile CbcFile::Create(Image::FileId fileId, IO::RandomAccessFile& file, std::string_view name)
-{
-    IO::StreamFileReader reader(file, 0);
+uint32_t CbcFile::GetTermSectionOffs() const { return this->poolOffset; }
 
-    static const uint32_t MAGIC              = 0x00434243; // 'C', 'B', 'C' \0
-    static const uint32_t MAGIC_MASK         = 0x00FFFFFF;
-    static const uint32_t FILE_VERSION_SHIFT = 24;
+uint32_t CbcFile::GetMethodRefSectionOffs() const { return this->poolOffset; }
 
-    auto magicAndVersion = reader.ReadU32();
+uint32_t CbcFile::GetFieldRefSectionOffs() const { return this->poolOffset; }
 
-    auto magic = magicAndVersion & MAGIC_MASK;
-    if (magic != MAGIC) {
-        // TODO: throw proper exception
-        FATAL("invalid magic: %d", magic);
-    }
-
-    auto fileVersion     = static_cast<uint8_t>(magicAndVersion >> FILE_VERSION_SHIFT);
-    auto bytecodeVersion = reader.ReadU8();
-    VersionMetadata versionMetadata(fileVersion, bytecodeVersion);
-
-    auto fileProperties = reader.ReadU8();
-
-    auto typeIndexOffset = reader.ReadU32();
-    auto poolOffset      = reader.ReadU32();
-
-    auto directCallAotTableOffset    = reader.ReadU32();
-    auto virtualCallAotTableOffset   = reader.ReadU32();
-    auto interfaceCallAotTableOffset = reader.ReadU32();
-    auto staticFieldAotTableOffset   = reader.ReadU32();
-    auto instanceFieldAotTableOffset = reader.ReadU32();
-
-    auto regionNum = reader.ReadU16();
-    if (regionNum != 1) {
-        // TODO: throw proper exception
-        FATAL("unsupported region num: %d", regionNum);
-    }
-    auto regionOffset = reader.ReadU32();
-
-    auto mainType                                  = reader.ReadS32();
-    std::optional<Identifier<String>> mainTypeName = std::nullopt;
-    if (mainType >= 0) {
-        mainTypeName = Identifier(Offset<String>(mainType), fileId);
-    }
-
-    auto cbcDeps     = reader.ReadS32();
-    auto aotDeps     = reader.ReadS32();
-    auto foreignLibs = reader.ReadS32();
-    auto coverageId  = reader.ReadULEB();
-
-    IO::StreamFileReader typeIndexReader(file, typeIndexOffset);
-    IO::StreamFileReader directCallTableReader(file, directCallAotTableOffset);
-    IO::StreamFileReader virtualCallTableReader(file, virtualCallAotTableOffset);
-    IO::StreamFileReader interfaceCallTableReader(file, interfaceCallAotTableOffset);
-    IO::StreamFileReader instanceFieldTableReader(file, instanceFieldAotTableOffset);
-    IO::StreamFileReader staticFieldTableReader(file, staticFieldAotTableOffset);
-    CbcFile::Impl impl {
-        .versionMetadata       = versionMetadata,
-        .typeIndex             = Decode::ReadIndex(typeIndexReader, fileId),
-        .regionData            = Decode::ReadRegion(fileId, file, regionOffset),
-        .directCallAotTable    = Decode::ReadIndex(directCallTableReader, fileId),
-        .virtualCallAotTable   = Decode::ReadIndex(virtualCallTableReader, fileId),
-        .interfaceCallAotTable = Decode::ReadIndex(interfaceCallTableReader, fileId),
-        .staticFieldAotTable   = Decode::ReadIndex(staticFieldTableReader, fileId),
-        .instanceFieldAotTable = Decode::ReadIndex(instanceFieldTableReader, fileId),
-        .aotDeps               = aotDeps,
-        .cbcDeps               = cbcDeps,
-        .mainTypeName          = mainTypeName,
-        .poolOffset            = poolOffset,
-        .id                    = fileId,
-        .name                  = std::string(name),
-    };
-
-    return CbcFile(std::make_unique<CbcFile::Impl>(std::move(impl)));
-}
-
-Image::FileId CbcFile::Id() const { return impl->id; }
-
-uint32_t CbcFile::GetCodeSectionOffs() const { return impl->poolOffset; }
-
-uint32_t CbcFile::GetStringSectionOffs() const { return impl->poolOffset; }
-
-uint32_t CbcFile::GetTypeDefSectionOffs() const { return impl->poolOffset; }
-
-uint32_t CbcFile::GetMethodDefSectionOffs() const { return impl->poolOffset; }
-
-uint32_t CbcFile::GetFieldDefSectionOffs() const { return impl->poolOffset; }
-
-uint32_t CbcFile::GetTermSectionOffs() const { return impl->poolOffset; }
-
-uint32_t CbcFile::GetMethodRefSectionOffs() const { return impl->poolOffset; }
-
-uint32_t CbcFile::GetFieldRefSectionOffs() const { return impl->poolOffset; }
-
-uint32_t CbcFile::GetAotDataSectionOffs() const { return impl->poolOffset; }
-
-const VersionMetadata& CbcFile::GetVersionMetadata() const { return impl->versionMetadata; }
-
-String CbcFile::GetName() const { return String(impl->name); }
+uint32_t CbcFile::GetAotDataSectionOffs() const { return this->poolOffset; }
 
 // FIXME:store path and name of cbc file.
-String CbcFile::GetPath() const { return String(impl->name); }
+String CbcFile::GetPath() const { return String(this->name); }
 
-const RegionData& CbcFile::GetRegionData() const { return impl->regionData; }
+const RegionData& CbcFile::GetRegionData() const { return this->regionData; }
 
-const TypeIndex& CbcFile::GetTypeIndex() const { return impl->typeIndex; }
+const TypeIndex& CbcFile::GetTypeIndex() const { return this->typeIndex; }
 
 std::optional<Offset<String>> CbcFile::AotDependencies() const
 {
-    if (impl->aotDeps < 0) {
+    if (this->aotDeps < 0) {
         return std::nullopt;
     }
-    return Offset<String>(impl->aotDeps);
+    return Offset<String>(this->aotDeps);
 }
 
 std::optional<Offset<String>> CbcFile::CbcDependencies() const
 {
-    if (impl->cbcDeps < 0) {
+    if (this->cbcDeps < 0) {
         return std::nullopt;
     }
-    return Offset<String>(impl->cbcDeps);
+    return Offset<String>(this->cbcDeps);
 }
 
-const std::optional<Identifier<String>> CbcFile::GetMainTypeName() const { return impl->mainTypeName; }
+const std::optional<Identifier<String>> CbcFile::GetMainTypeName() const { return this->mainTypeName; }
 
-const DirectCallAotTable& CbcFile::GetDirectCallAotTable() const { return impl->directCallAotTable; }
+const DirectCallAotTable& CbcFile::GetDirectCallAotTable() const { return this->directCallAotTable; }
 
-const VirtualCallAotTable& CbcFile::GetVirtualCallAotTable() const { return impl->virtualCallAotTable; }
+const VirtualCallAotTable& CbcFile::GetVirtualCallAotTable() const { return this->virtualCallAotTable; }
 
-const InterfaceCallAotTable& CbcFile::GetInterfaceCallAotTable() const { return impl->interfaceCallAotTable; }
+const InterfaceCallAotTable& CbcFile::GetInterfaceCallAotTable() const { return this->interfaceCallAotTable; }
 
-const StaticFieldAotTable& CbcFile::GetStaticFieldAotTable() const { return impl->staticFieldAotTable; }
+const StaticFieldAotTable& CbcFile::GetStaticFieldAotTable() const { return this->staticFieldAotTable; }
 
-const InstanceFieldAotTable& CbcFile::GetInstanceFieldAotTable() const { return impl->instanceFieldAotTable; }
+const InstanceFieldAotTable& CbcFile::GetInstanceFieldAotTable() const { return this->instanceFieldAotTable; }
 
 } // namespace Image

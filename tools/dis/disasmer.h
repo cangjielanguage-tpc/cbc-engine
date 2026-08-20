@@ -23,11 +23,7 @@ class Disasmer {
 
     void RData(Image::RegionData const& rd, uint8_t regionNum);
 
-    void SetFile(Image::CbcFile const& file)
-    {
-        io << "Disassembly of " << file.GetName() << Stream::endl;
-        currentFile = &file;
-    }
+    void SetFile(Image::CbcFile const& file) { currentFile = &file; }
 
     Image::CbcFile const* currentFile = nullptr;
     Engine::Session session;
