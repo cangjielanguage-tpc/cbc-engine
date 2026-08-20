@@ -4,6 +4,19 @@
 #include "engine/engine.h"
 #include "engine/image/cbc_file.h"
 
+/// Binary Decoding & Reading Interface (`Decode::Reader`)
+///
+/// Provides the core reading and decoding routines for `.cbc` image data.
+///
+/// Functions in this module consist of two categories:
+/// 1. Direct Parsing Implementations: Reads ULEB-encoded sequences, raw byte
+///    regions, and un-hydrated indices directly from input file streams.
+/// 2. Decoder Forwarders: Delegates high-level symbol lookups, table queries,
+///    AOT metadata extraction, and sequence resolution to the session context.
+///
+/// Performance Note:
+/// To accelerate repeated reading operations, underlying reading implementations
+/// may utilize internal caches for resolved entries and sequence mappings.
 namespace Decode {
 
 inline namespace Reader {

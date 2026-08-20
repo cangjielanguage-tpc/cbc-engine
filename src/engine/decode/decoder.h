@@ -1,12 +1,28 @@
 #pragma once
 
 #include "engine/engine.h"
-#include "engine/identifiers.h"
 #include "engine/image/cbc_file.h"
 #include "engine/image/io/random_access_file.h"
 #include "engine/image/io/stream_file_reader.h"
 #include <string_view>
 
+/// Decoding Engine & Lazy Iteration Views (`Decode::Decoder`)
+///
+/// Defines lazy evaluation wrappers (`HashTableRange`, `Bucket`, `RefSequence`,
+/// `OffsetSequence`) and the `Decoder` handle bound to an `Engine::Session`.
+///
+/// Core Responsibilities:
+/// - Resolves index handles (`RefIdentifier<T>`) into byte positions (`Identifier<T>`)
+///   via file offset pools.
+/// - Binds file handles to sequence descriptors to allow lazy, on-the-fly ULEB
+///   decoding during iteration.
+/// - Executes bucket-based hash table lookups for member indices and AOT data.
+///
+/// TODO:
+/// Logic and API boundaries intersect significantly between `decoder.h` and `reader.h`
+/// (e.g., both expose sequence resolution and index querying methods). The `Decode`
+/// namespace should be refactored to clearly separate (or merge it) raw parsing primitives from
+/// high-level decoding workflows.
 namespace Decode {
 
 template <typename T> using Identifier    = Image::Identifier<T>;
