@@ -209,7 +209,7 @@ struct TypeInfoBuilder {
             case Engine::TermKind::VARRAY:
                 type           = TYPE_KIND_VARRAY;
                 needExtDefs    = false;
-                needFields     = true;
+                needFields     = false;
                 isAot          = true;
                 fieldNum       = static_cast<Engine::VArrayTermId>(term.GetId()).GetNum();
                 superType      = term.Subterm(0);
