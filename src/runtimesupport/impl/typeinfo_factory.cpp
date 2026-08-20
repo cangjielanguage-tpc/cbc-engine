@@ -586,6 +586,9 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         if (!builder.dataMT) {
             return std::nullopt;
         }
+        for (int i = 0; i < entryCount; i++) {
+            builder.dataMT[i] = (Interpretation::FunctionHandle*) 0x1234567890abcdef;
+        }
 
         // It is assumed that closures in CBC have only CBC methods (not aot compiled),
         // so we will place a function handle in data mt, which would be referenced
