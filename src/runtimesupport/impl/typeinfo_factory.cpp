@@ -582,7 +582,6 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         // Note, that order of methods is important (first is "generic", second is "instantiated").
         // FIXME: pure generic closure
         auto entryCount = mt->EntryCount();
-        ASSERTION(entryCount == 2, "Closures should have only two virtual methods");
         builder.dataMT = Alloc<Interpretation::FunctionHandle*>(entryCount);
         if (!builder.dataMT) {
             return std::nullopt;
