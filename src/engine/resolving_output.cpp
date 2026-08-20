@@ -87,13 +87,13 @@ ResolvingOutput& ResolvingOutput::operator<<(Image::Code const& code)
          << "maxCalleeStackArgsCount: " << code.maxCalleeStackArgsCount << endl;
 
     out2 << "ExceptionTable {" << endl;
-    for (const auto& [start, end, target] : Image::Reader::GetExceptionRegions(session, code)) {
+    for (const auto& [start, end, target] : Decode::GetExceptionRegions(session, code)) {
         out2 << "  [" << start << ", " << end << ") -> " << target << endl;
     }
     out2 << "}" << endl;
 
     out2 << "LivenessInfo {" << endl;
-    for (const auto& li : Image::Reader::GetLivenessInfo(session, code)) {
+    for (const auto& li : Decode::GetLivenessInfo(session, code)) {
         out4 << "cbcPos: " << li.cbcPos << ", regMask: " << li.regMask << ", ";
         Std::Vector::Print(out4, li.refSlotNums);
         out4 << ", ";
@@ -103,7 +103,7 @@ ResolvingOutput& ResolvingOutput::operator<<(Image::Code const& code)
     out2 << "}" << endl;
 
     out2 << "StackPtrsInfo {" << endl;
-    for (const auto& spi : Image::Reader::GetStackPtrsInfo(session, code)) {
+    for (const auto& spi : Decode::GetStackPtrsInfo(session, code)) {
         out4 << "cbcPos: " << spi.cbcPos << ", ";
         Std::Vector::Print(out4, spi.resources);
         out4 << endl;
@@ -135,7 +135,7 @@ ResolvingOutput& ResolvingOutput::operator<<(Full<Image::MethodDefinition> full)
         }
         if (auto codeOpt = md.MethodCode()) {
             Region("code", [&]() {
-                auto code = Image::Reader::Read(session, md.FileId(), codeOpt->GetOffset());
+                auto code = Decode::Read(session, md.FileId(), codeOpt->GetOffset());
                 out << code;
                 Cbc::Disasm(ResolvingOutput::out, code, &resolver);
             });
@@ -166,18 +166,18 @@ ResolvingOutput& ResolvingOutput::operator<<(NoResolve<Image::TypeDefinition> nr
     Region("method name: " + std::to_string(td.GetName().GetOffset()), [&]() {
         out << "super: " << td.GetSuperType() << endl;
         Region("fields", [&]() {
-            for (auto id : Image::Reader::AllEntries(session, td.GetFields())) {
+            for (auto id : Decode::AllEntries(session, td.GetFields())) {
                 out << NoResolve(id) << endl;
             }
         });
         Region("methods", [&]() {
-            for (auto id : Image::Reader::AllEntries(session, td.GetMethods())) {
+            for (auto id : Decode::AllEntries(session, td.GetMethods())) {
                 out << NoResolve(id);
             }
         });
         Region("virtual methods", [&]() {
             auto vms = td.GetVirtualMethods();
-            for (auto ident : Image::Reader::Resolve(session, vms)) {
+            for (auto ident : Decode::Resolve(session, vms)) {
                 out << NoResolve(ident);
             }
         });
@@ -192,25 +192,25 @@ ResolvingOutput& ResolvingOutput::TypeDefinition(Image::TypeDefinition const& td
         out << "super: " << Detailed(td.GetSuperType()) << endl;
 
         Region("interfaces", [&]() {
-            for (auto id : Image::Reader::Resolve(session, td.GetInterfaces())) {
+            for (auto id : Decode::Resolve(session, td.GetInterfaces())) {
                 out << Detailed(id) << endl;
             }
         });
 
         Region("fields", [&]() {
-            for (auto field : Image::Reader::AllEntries(session, td.GetFields())) {
+            for (auto field : Decode::AllEntries(session, td.GetFields())) {
                 out << Detailed(field) << endl;
             }
         });
 
         Region("instance fields", [&]() {
-            for (auto id : Image::Reader::Resolve(session, td.GetInstanceFields())) {
+            for (auto id : Decode::Resolve(session, td.GetInstanceFields())) {
                 out << Detailed(id) << endl;
             }
         });
 
         Region("methods", [&]() {
-            for (auto id : Image::Reader::AllEntries(session, td.GetMethods())) {
+            for (auto id : Decode::AllEntries(session, td.GetMethods())) {
                 if (full) {
                     out << Full(id);
                 } else {
@@ -221,7 +221,7 @@ ResolvingOutput& ResolvingOutput::TypeDefinition(Image::TypeDefinition const& td
 
         Region("virtual methods", [&]() {
             auto vms = td.GetVirtualMethods();
-            for (auto ident : Image::Reader::Resolve(session, vms)) {
+            for (auto ident : Decode::Resolve(session, vms)) {
                 if (full) {
                     out << Full(ident);
                 } else {
@@ -248,7 +248,7 @@ ResolvingOutput& ResolvingOutput::operator<<(Engine::MethodTable const& mt)
     out << "  classes:" << endl;
 
     auto writeEntry = [&](Engine::MethodTableEntry& entry) {
-        auto def = Image::Reader::Read(session, entry.method);
+        auto def = Decode::Read(session, entry.method);
 
         Engine::MethodSignatureSubstitution sub(session, entry.genericContext);
         auto signature = Engine::TermManager::Resolve(session, def.Signature());
@@ -289,7 +289,7 @@ ResolvingOutput& ResolvingOutput::operator<<(Engine::FieldLayout const& layout)
 
     for (auto& f : layout->fields) {
         if (f.definition) {
-            auto def = Image::Reader::Read(session, *f.definition);
+            auto def = Decode::Read(session, *f.definition);
             stream << Detailed(def.GetName()) << ": " << f.fieldType << " - " << f.offset << endl;
         } else {
             stream << "<unknown>" << ": " << f.fieldType << " - " << f.offset << endl;
@@ -310,12 +310,9 @@ template <typename T> void ResolvingOutput::Region(T name, std::function<void()>
 
 Image::String ResolvingOutput::StringOf(Image::Offset<Image::String> str, Image::FileId fid)
 {
-    return Image::Reader::Read(session, fid, str);
+    return Decode::Read(session, fid, str);
 }
 
-Image::String ResolvingOutput::StringOf(Image::Identifier<Image::String> str)
-{
-    return Image::Reader::Read(session, str);
-}
+Image::String ResolvingOutput::StringOf(Image::Identifier<Image::String> str) { return Decode::Read(session, str); }
 
 } // namespace Stream

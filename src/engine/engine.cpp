@@ -260,7 +260,7 @@ std::optional<Identifier<MethodDefinition>> Engine::FindMethod(
     auto f        = file.value();
     auto declType = Reader::Find(session, f->GetTypeIndex(), typeName);
     if (declType.has_value()) {
-        auto type               = Image::Reader::Read(session, declType.value());
+        auto type               = Decode::Read(session, declType.value());
         const auto& methodIndex = type.GetMethods();
 
         std::optional<Identifier<MethodDefinition>> result = std::nullopt;
@@ -286,7 +286,7 @@ std::optional<Identifier<MethodDefinition>> Engine::FindMain(Session& session, s
     if (!mainTypeName.has_value()) {
         return std::nullopt;
     }
-    auto type = Image::Reader::Read(session, *mainTypeName);
+    auto type = Decode::Read(session, *mainTypeName);
     return FindMethod(session, filePath, type, "main");
 }
 

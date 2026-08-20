@@ -55,15 +55,15 @@ SlotKind ComputeSlotKind(Session& session, FieldLayoutManager& flm, Image::Field
 
 uintptr_t StaticFieldsBundle::GetLocation(Session& session, TypeIdent typeIdent, FieldIdent fieldIdent)
 {
-    auto typeDef  = Image::Reader::Read(session, typeIdent);
-    auto fieldDef = Image::Reader::Read(session, fieldIdent);
+    auto typeDef  = Decode::Read(session, typeIdent);
+    auto fieldDef = Decode::Read(session, fieldIdent);
 
     auto flm                 = FieldLayoutManager::New(session);
     auto targetKind          = ComputeSlotKind(session, *flm, fieldDef);
 
     uint32_t fieldIdx = 0;
-    for (auto fieldId : Image::Reader::AllEntries(session, typeDef.GetFields())) {
-        auto field = Image::Reader::Read(session, fieldId);
+    for (auto fieldId : Decode::AllEntries(session, typeDef.GetFields())) {
+        auto field = Decode::Read(session, fieldId);
         if (field.Flags().IsNot(Image::FieldFlag::STATIC)) {
             continue;
         }
@@ -120,7 +120,7 @@ StaticFieldsBundle StaticsManager::CreateBundle(Session& session, TypeIdent type
 
     auto flm     = FieldLayoutManager::New(session);
     auto& tim    = TypeInfoManager::Of(session);
-    auto typeDef = Image::Reader::Read(session, typeIdent);
+    auto typeDef = Decode::Read(session, typeIdent);
 
     std::vector<uint32_t> refOffsetInRecords;
     std::vector<uint32_t> recordOffsets;
@@ -128,8 +128,8 @@ StaticFieldsBundle StaticsManager::CreateBundle(Session& session, TypeIdent type
     uint32_t recordsSize = 0;
     std::vector<StaticTypedSlotInfo> typedSlotsInfo;
 
-    for (auto fieldId : Image::Reader::AllEntries(session, typeDef.GetFields())) {
-        auto field = Image::Reader::Read(session, fieldId);
+    for (auto fieldId : Decode::AllEntries(session, typeDef.GetFields())) {
+        auto field = Decode::Read(session, fieldId);
 
         if (field.Flags().IsNot(Image::FieldFlag::STATIC)) {
             continue;

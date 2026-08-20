@@ -70,8 +70,8 @@ void MethodTable::Globalize(Session& session)
 
 static bool Compare(Session& session, MethodTable::Reference const& reference, MethodTableEntry const& entry)
 {
-    auto method = Image::Reader::Read(session, entry.method);
-    auto name   = Image::Reader::Read(session, method.Name());
+    auto method = Decode::Read(session, entry.method);
+    auto name   = Decode::Read(session, method.Name());
 
     if (name.compare(reference.name) != 0) {
         return false;

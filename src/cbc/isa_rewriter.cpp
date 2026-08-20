@@ -504,7 +504,7 @@ struct IsaRewriter : public IsaParser {
 
         auto type      = *t;
         auto typeDefId = Engine::ExtractTypeDefIdentifier(type.term);
-        auto typeDef   = Image::Reader::Read(session, typeDefId);
+        auto typeDef   = Decode::Read(session, typeDefId);
 
         auto refPath = emit.NewLabel();
         auto end     = emit.NewLabel();
@@ -537,7 +537,7 @@ struct IsaRewriter : public IsaParser {
 
         auto type      = *t;
         auto typeDefId = Engine::ExtractTypeDefIdentifier(type.term);
-        auto typeDef   = Image::Reader::Read(session, typeDefId);
+        auto typeDef   = Decode::Read(session, typeDefId);
         auto refPath   = emit.NewLabel();
         auto end       = emit.NewLabel();
         emit.BranchIfRef(underlyingTypeInfo, refPath);
@@ -567,7 +567,7 @@ struct IsaRewriter : public IsaParser {
         }
         auto type      = *t;
         auto typeDefId = Engine::ExtractTypeDefIdentifier(type.term);
-        auto typeDef   = Image::Reader::Read(session, typeDefId);
+        auto typeDef   = Decode::Read(session, typeDefId);
 
         auto end = emit.NewLabel();
         emit.NewObjGenericOnAcc(optionTypeInfo);
@@ -592,7 +592,7 @@ struct IsaRewriter : public IsaParser {
 
         auto type      = *t;
         auto typeDefId = Engine::ExtractTypeDefIdentifier(type.term);
-        auto typeDef   = Image::Reader::Read(session, typeDefId);
+        auto typeDef   = Decode::Read(session, typeDefId);
         auto refPath   = emit.NewLabel();
         auto end       = emit.NewLabel();
         emit.NewObjGenericOnAcc(optionTypeInfo);
@@ -992,15 +992,15 @@ struct IsaRewriter : public IsaParser {
         }
 
         auto typeDefId = Engine::TypeTermId(type->term).GetIdentifier();
-        auto typeDef   = Image::Reader::Read(resolver, typeDefId);
+        auto typeDef   = Decode::Read(resolver, typeDefId);
 
         // - Get 1th methodId out of iterator.
         // - Emit `InitClosure` with flags of 1th method.
         // - Ensure that there are only two methods in the closure type.
         int idx = 0;
-        for (auto methodId : Image::Reader::Resolve(resolver, typeDef.GetVirtualMethods())) {
+        for (auto methodId : Decode::Resolve(resolver, typeDef.GetVirtualMethods())) {
             if (idx == 1) {
-                auto method = Image::Reader::Read(resolver, methodId);
+                auto method = Decode::Read(resolver, methodId);
                 auto sret   = method.GetFlags().Is(Image::MethodFlag::SRET);
 
                 emit.InitClosure(sret);
@@ -1030,15 +1030,15 @@ struct IsaRewriter : public IsaParser {
         BindStatePoint();
 
         auto typeDefId = Engine::TypeTermId(type->term).GetIdentifier();
-        auto typeDef   = Image::Reader::Read(resolver, typeDefId);
+        auto typeDef   = Decode::Read(resolver, typeDefId);
 
         // - Get 1th methodId out of iterator.
         // - Emit `InitClosure` with flags of 1th method.
         // - Ensure that there are only two methods in the closure type.
         int idx = 0;
-        for (auto methodId : Image::Reader::Resolve(resolver, typeDef.GetVirtualMethods())) {
+        for (auto methodId : Decode::Resolve(resolver, typeDef.GetVirtualMethods())) {
             if (idx == 1) {
-                auto method = Image::Reader::Read(resolver, methodId);
+                auto method = Decode::Read(resolver, methodId);
                 auto sret   = method.GetFlags().Is(Image::MethodFlag::SRET);
 
                 emit.InitClosure(sret);
@@ -1787,7 +1787,7 @@ static std::vector<Interpretation::GCPositionalInfo> CalculatePositionalGCInfo(
     std::vector<IsaRewriter::StatePoint> const& statePoints
 )
 {
-    auto livenessInfo = Image::Reader::GetLivenessInfo(session, code);
+    auto livenessInfo = Decode::GetLivenessInfo(session, code);
 
     std::vector<Interpretation::GCPositionalInfo> posInfo;
     posInfo.reserve(livenessInfo.size());
@@ -1837,7 +1837,7 @@ static std::vector<Interpretation::StackPtrsPositionalInfo> CalculateStackPtrsPo
     std::vector<IsaRewriter::StatePoint> const& statePoints
 )
 {
-    auto stackPtrsInfo = Image::Reader::GetStackPtrsInfo(session, code);
+    auto stackPtrsInfo = Decode::GetStackPtrsInfo(session, code);
 
     std::vector<Interpretation::StackPtrsPositionalInfo> posInfo;
     posInfo.reserve(stackPtrsInfo.size());
@@ -1910,7 +1910,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
         FATAL("Rewriter failed: cannot rewrite code.");
     }
 
-    auto def     = Image::Reader::Read(session, method);
+    auto def     = Decode::Read(session, method);
     auto flags   = def.GetABIFlags();
     auto abiInfo = Interpretation::BuildAbiInfo(
         session,
@@ -1952,11 +1952,11 @@ Interpretation::ExecBytecodeInfo Rewrite(
 )
 {
     using namespace Stream;
-    auto def = Image::Reader::Read(session, method);
+    auto def = Decode::Read(session, method);
     ASSERTION(def.MethodCode().has_value(), "fuh preparation must be unreachable for methods without code");
 
     Resolver resolver(session, method);
-    auto code = Image::Reader::Read(session, def.MethodCode().value());
+    auto code = Decode::Read(session, def.MethodCode().value());
 
     Interpretation::Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
         Descripted desc(out, Descriptor(session, method));

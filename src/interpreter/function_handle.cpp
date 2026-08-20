@@ -46,7 +46,7 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
         return res->second;
     }
 
-    auto method = Image::Reader::Read(session, methodDef);
+    auto method = Decode::Read(session, methodDef);
 
     LOGS_INFO(Log::preparation, session, "started to build fuh for {}", method);
 
@@ -55,7 +55,7 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
 
     auto newStaticFuh = [&]() -> StaticFunctionHandle* {
         auto& deps       = session.GetEngine().Dependencies().at(methodDef.GetFileId());
-        auto linkageName = Image::Reader::Read(session, method.LinkageName().value());
+        auto linkageName = Decode::Read(session, method.LinkageName().value());
         auto target      = deps.FindSymbol(linkageName);
 
         if (target == nullptr) {

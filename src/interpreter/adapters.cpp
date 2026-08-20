@@ -35,7 +35,7 @@ I2Call PrepareI2Call(Engine::Session& session, Image::Identifier<Image::MethodDe
 
 C2Call PrepareC2Call(Engine::Session& session, Image::Identifier<Image::MethodDefinition> methodDef)
 {
-    auto def       = Image::Reader::Read(session, methodDef);
+    auto def       = Decode::Read(session, methodDef);
     auto signature = Engine::TermManager::Resolve(session, def.Signature());
     return reinterpret_cast<C2Call>(CountRegs(signature));
 }
