@@ -80,6 +80,8 @@ protected:
     virtual void SpawnFuture(IReg future, uint32_t type)             = 0;
     virtual void CallClosure(IReg dst, uint32_t type, bool generic)  = 0;
     virtual void NewClosure(IReg dst, uint32_t type)                 = 0;
+    virtual void NewClosureGeneric(IReg ti, uint32_t typeId)         = 0;
+    virtual void NewObjGeneric(IReg ti, uint32_t typeId)             = 0;
 
     virtual void Scc(Format::Width width, Format::CC cc, IReg d, AnyReg l, AnyReg r)      = 0;
     virtual void SccImm(Format::Width width, Format::CC cc, IReg d, IReg l, uint64_t imm) = 0;

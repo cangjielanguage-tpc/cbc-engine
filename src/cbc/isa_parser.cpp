@@ -537,21 +537,24 @@ struct IsaParserImpl {
         static constexpr bool GENERIC     = true;
         static constexpr bool NOT_GENERIC = false;
 
-        auto [opc_, dst, id]  = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
+        auto [opc_, reg, id]  = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
         class RegSymGroup opc = opc_;
         switch (opc) {
-            case Cbc::RegSymGroup::LoadTypeInfoSig: parser.LoadTypeInfoSig(dst, id); break;
-            case Cbc::RegSymGroup::NewObj:          parser.NewObj(dst, id); break;
-            case Cbc::RegSymGroup::CallDirect:      parser.CallDirect(dst, id); break;
-            case Cbc::RegSymGroup::CallVirt:        parser.CallVirtual(dst, id); break;
-            case Cbc::RegSymGroup::CallInterf:      parser.CallInterf(dst, id); break;
-            case Cbc::RegSymGroup::Spawn:           parser.Spawn(dst, id); break;
-            case Cbc::RegSymGroup::SpawnFuture:     parser.SpawnFuture(dst, id); break;
-            case Cbc::RegSymGroup::CallClosure:     parser.CallClosure(dst, id, NOT_GENERIC); break;
-            case Cbc::RegSymGroup::NewClosure:      parser.NewClosure(dst, id); break;
+            case Cbc::RegSymGroup::LoadTypeInfoSig: parser.LoadTypeInfoSig(reg, id); break;
+            case Cbc::RegSymGroup::NewObj:          parser.NewObj(reg, id); break;
+            case Cbc::RegSymGroup::CallDirect:      parser.CallDirect(reg, id); break;
+            case Cbc::RegSymGroup::CallVirt:        parser.CallVirtual(reg, id); break;
+            case Cbc::RegSymGroup::CallInterf:      parser.CallInterf(reg, id); break;
+            case Cbc::RegSymGroup::Spawn:           parser.Spawn(reg, id); break;
+            case Cbc::RegSymGroup::SpawnFuture:     parser.SpawnFuture(reg, id); break;
+            case Cbc::RegSymGroup::CallClosure:     parser.CallClosure(reg, id, NOT_GENERIC); break;
+            case Cbc::RegSymGroup::NewClosure:      parser.NewClosure(reg, id); break;
 
-            case Cbc::RegSymGroup::CallClosureGeneric:  parser.CallClosure(dst, id, GENERIC); break;
-            case Cbc::RegSymGroup::LoadTypeInfoGeneric: parser.LoadTypeInfoGeneric(dst, id); break;
+            case Cbc::RegSymGroup::NewClosureGeneric: parser.NewClosureGeneric(reg, id); break;
+            case Cbc::RegSymGroup::NewObjGeneric:     parser.NewObjGeneric(reg, id); break;
+
+            case Cbc::RegSymGroup::CallClosureGeneric:  parser.CallClosure(reg, id, GENERIC); break;
+            case Cbc::RegSymGroup::LoadTypeInfoGeneric: parser.LoadTypeInfoGeneric(reg, id); break;
 
             default: {
                 FATAL("Should not reach here");

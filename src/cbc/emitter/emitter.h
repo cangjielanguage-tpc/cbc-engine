@@ -204,6 +204,7 @@ public:
     void InitClosure(bool instantiatedSret);
     void Spawn(RTSupport::TypeInfo typeInfo);
 
+    void NewObjGeneric(IReg ti);
     void NewObjGenericOnAcc(IReg ti);
     void NewObj(RTSupport::TypeInfo typeInfo);
     void NewArr(RTSupport::TypeInfo typeInfo);
