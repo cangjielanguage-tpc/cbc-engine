@@ -100,13 +100,12 @@ Memory::Heap& Engine::CodeHeap() const { return Memory::Heap::SharedHeap(); }
 /////////////////////////////////////////////////////////////////
 // Loader implementation
 
-std::optional<CbcFile> TryRead(Image::FileId fileId, IO::RandomAccessFile* file, std::string_view name)
+std::optional<CbcFile> TryReadCbcFile(Image::FileId fileId, IO::RandomAccessFile* file, std::string_view name)
 {
     // TODO: file verification is required.
     IO::StreamFileReader reader(file, 0);
     static const uint32_t FILE_VERSION_SHIFT = 24;
-    static constexpr auto MAGIC              = "cbc"
-                                               "\x01";
+    static constexpr auto MAGIC              = "CBC\x01";
 
     char magic[4];
     auto fileLength = file->FileLength();
@@ -171,7 +170,7 @@ bool Loader::Load(std::unique_ptr<IO::RandomAccessFile> file, std::string_view f
 {
     IO::StreamFileReader reader(*file, 0);
     auto id = loader->fileCounter;
-    auto f  = TryRead(FileId(id), file.get(), fileName);
+    auto f  = TryReadCbcFile(FileId(id), file.get(), fileName);
     if (f) {
         loader->files.emplace_back(std::move(*f));
         loader->rafs.emplace_back(std::move(file));
