@@ -194,7 +194,7 @@ Term Term::FuncTypeVariable(uint8_t tv) { return GlobalTerm(g_Builtins.FuncTv(tv
 Term Term::Definition(Session& session, Identifier<Image::TypeDefinition> type)
 {
     // TODO: handle arity and generic type vars
-    auto def   = Image::Reader::Read(session, type);
+    auto def   = Decode::Read(session, type);
     bool isRec = def.GetFlags().Is(Image::TypeKind::RECORD);
     auto arity = def->arity;
 
@@ -397,8 +397,8 @@ void Term::GetName(Session& session, Stream::Output& out, bool hasDebugPrefix) c
         case TK::PRIMITIVE_ENUM:
         case TK::TYPE: {
             auto ident = ExtractTypeDefIdentifier(*this);
-            auto type  = Image::Reader::Read(session, ident);
-            stream << prefix << Image::Reader::Read(session, type.GetName());
+            auto type  = Decode::Read(session, ident);
+            stream << prefix << Decode::Read(session, type.GetName());
             if (int len = GetLength(); len > 0) {
                 printSubTerms("<", ">", len);
             }
@@ -535,7 +535,7 @@ Term TermManager::NewAotTerm(
     auto type = session.GetEngine().FindType(session, name);
     if (type.has_value()) {
         ASSERT([&]() -> bool {
-            auto def = Image::Reader::Read(session, type.value());
+            auto def = Decode::Read(session, type.value());
             return IsProperTypeReference(def, isReference, arity);
         }());
         id                  = TypeTermId(*type);
@@ -660,7 +660,7 @@ struct TermResolver {
         }
         auto identifier = type.value();
 
-        auto def       = Image::Reader::Read(session, identifier);
+        auto def       = Decode::Read(session, identifier);
         bool undefined = !IsProperTypeReference(def, isReference, expectedLength);
 
         if (undefined && wasAot) {
@@ -698,7 +698,7 @@ struct TermResolver {
         }
         auto identifier = type.value();
 
-        auto def = Image::Reader::Read(session, identifier);
+        auto def = Decode::Read(session, identifier);
 
         bool optionLikeEnum = false;
         switch (def->enumKind) {
@@ -758,7 +758,7 @@ struct TermResolver {
         Image::RefId<Term> refId
     )
     {
-        auto name = Image::Reader::Read(session, fileId, nameOffs);
+        auto name = Decode::Read(session, fileId, nameOffs);
         // Attempt to find type definition, even if the type is tagged as aot.
         // Because the type could present in `TypeDefinition` super closure
         // or be present as "patch".
@@ -986,7 +986,7 @@ Term Substitution::Substitute(Term term)
 
         if (term.GetKind() == TermKind::OPTION) {
             auto id = ExtractTypeDefIdentifier(term);
-            auto def = Image::Reader::Read(session, id);
+            auto def = Decode::Read(session, id);
             ClassSubstitution sub(session, data->subterms, length);
             flags += OptionFlags(def.GetEnumType(), session, sub);
         }

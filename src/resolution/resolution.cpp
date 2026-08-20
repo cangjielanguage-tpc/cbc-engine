@@ -87,7 +87,7 @@ CbcTypeKind Resolver::GetKind(Type type)
         case TK::C_POINTER:      return CbcTypeKind::U64;
         case TK::PRIMITIVE_ENUM: {
             auto id             = PrimitiveEnumId(term.GetId());
-            auto definition     = Image::Reader::Read(session, id.GetIdentifier());
+            auto definition     = Decode::Read(session, id.GetIdentifier());
             auto underlyingType = TermManager::Resolve(session, definition.GetEnumType());
             ClassSubstitution substitution(session, term);
             return GetKind(Wrap(substitution.Substitute(underlyingType)));
@@ -162,7 +162,7 @@ struct ResolverProxy {
         auto refType     = resolver.Wrap(ref.refType);
         auto fieldType   = resolver.Wrap(ref.fieldType);
         auto [file, raf] = resolver.session.File(resolver.method.GetFileId());
-        auto data        = Image::Reader::GetAotData<Image::InstanceFieldAotData>(resolver, ref.identifier);
+        auto data        = Decode::GetAotData<Image::InstanceFieldAotData>(resolver, ref.identifier);
 
         auto refTypeFlags                     = refType.term.Flags();
         std::optional<uint32_t> offset        = std::nullopt;
@@ -191,8 +191,8 @@ struct ResolverProxy {
         auto refType     = resolver.Wrap(ref.refType);
         auto fieldType   = resolver.Wrap(ref.fieldType);
         auto [file, raf] = resolver.session.File(fileId);
-        auto data        = Image::Reader::GetAotData<Image::StaticFieldAotData>(resolver, ref.identifier);
-        auto linkageName = Image::Reader::Read(resolver, data.linkangeName);
+        auto data        = Decode::GetAotData<Image::StaticFieldAotData>(resolver, ref.identifier);
+        auto linkageName = Decode::Read(resolver, data.linkangeName);
         auto location    = resolver.session.GetEngine().Dependencies().at(fileId).FindSymbol(linkageName);
         if (!location) {
             log.Log(Logging::Level::FATAL, [linkageName](Stream::Output& stream) {
@@ -247,8 +247,8 @@ struct ResolverProxy {
                         for (auto& field : layout->fields) {
                             if (!field.definition)
                                 continue;
-                            auto def  = Image::Reader::Read(resolver, *field.definition);
-                            auto name = Image::Reader::Read(resolver, def.GetName());
+                            auto def  = Decode::Read(resolver, *field.definition);
+                            auto name = Decode::Read(resolver, def.GetName());
                             if (field.fieldType == ref.fieldType && name.compare(ref.name) == 0) {
                                 offset = field.offset;
                                 break;
@@ -270,16 +270,16 @@ struct ResolverProxy {
                     static_assert(std::is_same_v<Field, StaticField>);
 
                     auto typeDefIdent = TypeTermId(ref.refType).GetIdentifier();
-                    auto typeDef      = Image::Reader::Read(resolver, typeDefIdent);
+                    auto typeDef      = Decode::Read(resolver, typeDefIdent);
 
-                    auto fieldDefIdentOpt = Image::Reader::Find(resolver, typeDef.GetFields(), ref.name);
+                    auto fieldDefIdentOpt = Decode::Find(resolver, typeDef.GetFields(), ref.name);
                     if (!fieldDefIdentOpt.has_value()) {
                         log.Stream(Logging::Level::ERROR)
                             << "Field definition search failed " << id.GetValue() << Stream::endl;
                         return std::nullopt;
                     }
 
-                    auto fieldDef        = Image::Reader::Read(resolver, fieldDefIdentOpt.value());
+                    auto fieldDef        = Decode::Read(resolver, fieldDefIdentOpt.value());
                     auto actualFieldType = TermManager::Resolve(resolver, fieldDef.FieldType());
                     if (ref.fieldType != actualFieldType) {
                         log.Stream(Logging::Level::ERROR)
@@ -314,9 +314,9 @@ struct ResolverProxy {
         Session& session, TermManager& manager, RefIdentifier<Image::MethodReference> identifier
     )
     {
-        auto parsedRef = Image::Reader::Read(session, identifier);
+        auto parsedRef = Decode::Read(session, identifier);
         auto refType   = manager.Resolve(session, parsedRef.refType);
-        auto name      = Image::Reader::Read(session, parsedRef.name);
+        auto name      = Decode::Read(session, parsedRef.name);
         auto signature = manager.Resolve(session, parsedRef.methodSig);
         auto flags     = parsedRef.flags;
 
@@ -350,9 +350,9 @@ struct ResolverProxy {
         Session& session, TermManager& manager, RefIdentifier<Image::FieldReference> identifier
     )
     {
-        auto parsedRef = Image::Reader::Read(session, identifier);
+        auto parsedRef = Decode::Read(session, identifier);
         auto refType   = manager.Resolve(session, parsedRef.refType);
-        auto name      = Image::Reader::Read(session, parsedRef.name);
+        auto name      = Decode::Read(session, parsedRef.name);
         auto fieldType = manager.Resolve(session, parsedRef.fieldType);
         return { refType, name, fieldType, identifier, parsedRef.isRecord };
     }
@@ -401,7 +401,7 @@ struct ResolverProxy {
             return std::nullopt;
         }
 
-        auto method      = Image::Reader::Read(resolver, resolved->method);
+        auto method      = Decode::Read(resolver, resolved->method);
         auto actualFlags = method.GetABIFlags();
         if (actualFlags != ref.flags) {
             log.Log(Logging::Level::ERROR, [&](Stream::Output& stream) {
@@ -426,7 +426,7 @@ struct ResolverProxy {
         auto sret    = ref.flags.Is(Image::MethodRefFlag::SRET);
 
         if (ref.flags.Is(Image::MethodRefFlag::AOT)) {
-            auto data = Image::Reader::GetAotData<Image::InterfaceCallAotData>(resolver, ref.identifier);
+            auto data = Decode::GetAotData<Image::InterfaceCallAotData>(resolver, ref.identifier);
             auto sig  = ConstructSignature(resolver, ref);
             return InterfaceCall::Content { refType, ref.name, std::move(sig), data.inum, sret };
         } else {
@@ -451,7 +451,7 @@ struct ResolverProxy {
         auto sret    = ref.flags.Is(Image::MethodRefFlag::SRET);
 
         if (ref.flags.Is(Image::MethodRefFlag::AOT)) {
-            auto data = Image::Reader::GetAotData<Image::VirtualCallAotData>(resolver, ref.identifier);
+            auto data = Decode::GetAotData<Image::VirtualCallAotData>(resolver, ref.identifier);
             auto sig  = ConstructSignature(resolver, ref);
             return VirtualCall::Content { refType, ref.name, std::move(sig), data.methodNum, data.extDefNum, sret };
         } else {
@@ -463,9 +463,9 @@ struct ResolverProxy {
     {
         auto fileId      = resolver.method.GetFileId();
         auto [file, raf] = resolver.session.File(resolver.method.GetFileId());
-        auto data        = Image::Reader::GetAotData<Image::DirectCallAotData>(resolver, ref.identifier);
+        auto data        = Decode::GetAotData<Image::DirectCallAotData>(resolver, ref.identifier);
 
-        auto linkageName = Image::Reader::Read(resolver, data.linkangeName);
+        auto linkageName = Decode::Read(resolver, data.linkangeName);
         auto funcPtr     = resolver.session.GetEngine().Dependencies().at(fileId).FindSymbol(linkageName);
 
         if (!funcPtr) {
@@ -500,20 +500,20 @@ struct ResolverProxy {
         }
 
         auto termIdent = TypeTermId(ref.refType);
-        auto type      = Image::Reader::Read(resolver, termIdent.GetIdentifier());
+        auto type      = Decode::Read(resolver, termIdent.GetIdentifier());
 
         // FIXME: search in hierarchy
         auto method = [&]() -> std::optional<Identifier<Image::MethodDefinition>> {
-            for (auto m : Image::Reader::FindBucket(resolver, type.GetMethods(), ref.name)) {
-                auto def = Image::Reader::Read(resolver, m);
+            for (auto m : Decode::FindBucket(resolver, type.GetMethods(), ref.name)) {
+                auto def = Decode::Read(resolver, m);
                 auto sig = TermManager::Resolve(resolver, def.Signature());
                 if (sig == ref.signature) {
                     return m;
                 }
             }
 
-            for (auto m : Image::Reader::Resolve(resolver, type.GetVirtualMethods())) {
-                auto def = Image::Reader::Read(resolver, m);
+            for (auto m : Decode::Resolve(resolver, type.GetVirtualMethods())) {
+                auto def = Decode::Read(resolver, m);
                 auto sig = TermManager::Resolve(resolver, def.Signature());
                 if (sig == ref.signature) {
                     return m;

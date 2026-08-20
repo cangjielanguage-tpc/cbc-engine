@@ -89,8 +89,8 @@ void Disasmer::DisasmOf(CbcFile const& file)
     Version(file.GetVersionMetadata());
 
     Region("types", [&]() {
-        for (auto type : Image::Reader::AllEntries(session, file.GetTypeIndex())) {
-            auto def = Image::Reader::Read(session, type);
+        for (auto type : Decode::AllEntries(session, file.GetTypeIndex())) {
+            auto def = Decode::Read(session, type);
             Type(def);
         }
     });

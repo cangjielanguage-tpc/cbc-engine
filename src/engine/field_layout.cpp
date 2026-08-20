@@ -101,7 +101,7 @@ struct FLManager : public FieldLayoutManager {
 
             case TK::PRIMITIVE_ENUM: {
                 auto id   = PrimitiveEnumId(term.GetId());
-                auto def  = Image::Reader::Read(session, id.GetIdentifier());
+                auto def  = Decode::Read(session, id.GetIdentifier());
                 auto term = TermManager::Resolve(session, def.GetEnumType());
                 return GetFlatSize(term);
             }
@@ -135,7 +135,7 @@ struct FLManager : public FieldLayoutManager {
         switch (term.GetKind()) {
             case TermKind::PRIMITIVE_ENUM: {
                 auto id   = PrimitiveEnumId(term.GetId());
-                auto def  = Image::Reader::Read(session, id.GetIdentifier());
+                auto def  = Decode::Read(session, id.GetIdentifier());
                 auto term = TermManager::Resolve(session, def.GetEnumType());
                 return GetFlatAlignment(term);
             }
@@ -281,7 +281,7 @@ private:
         std::optional<FieldLayout> layout {};
 
         if (kind == TermKind::TYPE) {
-            auto def = Image::Reader::Read(session, ExtractTypeDefIdentifier(term));
+            auto def = Decode::Read(session, ExtractTypeDefIdentifier(term));
             layout = BuildLayoutCbc(term, def);
         } else if (kind == TermKind::TUPLE) {
             SizeAlignmentAccumulator acc { this, 0, 1 };
@@ -299,7 +299,7 @@ private:
             FieldLayout::Content content;
             acc.AddField(content.fields, Term::Predefined(TermKind::BOOLEAN), std::nullopt);
 
-            auto def      = Image::Reader::Read(session, ExtractTypeDefIdentifier(term));
+            auto def      = Decode::Read(session, ExtractTypeDefIdentifier(term));
             auto someType = TermManager::Resolve(session, def.GetEnumType());
             someType = substitute.Substitute(someType);
             acc.AddField(content.fields, someType, std::nullopt);
@@ -313,7 +313,7 @@ private:
             FieldLayout::Content content;
             acc.AddField(content.fields, Term::Predefined(TermKind::UNIT), std::nullopt);
 
-            auto def      = Image::Reader::Read(session, ExtractTypeDefIdentifier(term));
+            auto def      = Decode::Read(session, ExtractTypeDefIdentifier(term));
             auto someType = TermManager::Resolve(session, def.GetEnumType());
             someType      = substitute.Substitute(someType);
             acc.AddField(content.fields, someType, std::nullopt);
@@ -326,7 +326,7 @@ private:
             SizeAlignmentAccumulator acc { this, 0, 1 };
             FieldLayout::Content content;
 
-            auto def      = Image::Reader::Read(session, ExtractTypeDefIdentifier(term));
+            auto def      = Decode::Read(session, ExtractTypeDefIdentifier(term));
             auto someType = TermManager::Resolve(session, def.GetEnumType());
             someType      = substitute.Substitute(someType);
             acc.AddField(content.fields, someType, std::nullopt);
@@ -341,7 +341,7 @@ private:
 
             bool failed   = false;
             uint32_t size = 0;
-            auto def      = Image::Reader::Read(session, ExtractTypeDefIdentifier(term));
+            auto def      = Decode::Read(session, ExtractTypeDefIdentifier(term));
             for (auto fieldTypeId : Reader::Resolve(session, def->unionFields)) {
                 auto fieldType = TermManager::Resolve(session, fieldTypeId);
                 fieldType = substitute.Substitute(fieldType);
@@ -388,7 +388,7 @@ private:
 
             size_t ordinal = layout.fields.size();
             for (auto fieldId : Reader::Resolve(session, def.GetInstanceFields())) {
-                auto def       = Image::Reader::Read(session, fieldId);
+                auto def       = Decode::Read(session, fieldId);
                 auto fieldType = TermManager::Resolve(session, def.FieldType());
                 fieldType      = substitute(fieldType);
 
@@ -408,7 +408,7 @@ private:
 
         size_t ordinal = layout.fields.size();
         for (auto fieldId : Reader::Resolve(session, def.GetInstanceFields())) {
-            auto def = Image::Reader::Read(session, fieldId);
+            auto def = Decode::Read(session, fieldId);
             // FIXME: substitution
             auto fieldType = TermManager::Resolve(session, def.FieldType());
             fieldType      = substitute(fieldType);
@@ -438,7 +438,7 @@ private:
 
         auto seq = Reader::Resolve(session, def.GetInstanceFields());
         for (auto fieldId : seq) {
-            auto def       = Image::Reader::Read(session, fieldId);
+            auto def       = Decode::Read(session, fieldId);
             auto fieldType = TermManager::Resolve(session, def.FieldType());
             fieldType      = substitute(fieldType);
             acc.AddField(layout.fields, fieldType, fieldId);

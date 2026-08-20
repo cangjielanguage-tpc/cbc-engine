@@ -91,7 +91,7 @@ CbcFile CbcFile::Create(Image::FileId fileId, IO::RandomAccessFile& file, std::s
     CbcFile::Impl impl {
         .versionMetadata       = versionMetadata,
         .typeIndex             = Decode::ReadIndex(typeIndexReader, fileId),
-        .regionData            = Decode::Reader::ReadRegion(fileId, file, regionOffset),
+        .regionData            = Decode::ReadRegion(fileId, file, regionOffset),
         .directCallAotTable    = Decode::ReadIndex(directCallTableReader, fileId),
         .virtualCallAotTable   = Decode::ReadIndex(virtualCallTableReader, fileId),
         .interfaceCallAotTable = Decode::ReadIndex(interfaceCallTableReader, fileId),

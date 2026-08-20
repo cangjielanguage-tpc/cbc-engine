@@ -37,8 +37,8 @@ static void CompareWith(std::string_view fileName, std::string const& expected)
     auto mainId = engine.FindMain(session, fileName);
     ASSERT_TRUE(mainId.has_value());
 
-    auto def  = Image::Reader::Read(session, mainId.value());
-    auto code = Image::Reader::Read(session, def.MethodCode().value());
+    auto def  = Decode::Read(session, mainId.value());
+    auto code = Decode::Read(session, def.MethodCode().value());
 
     Resolution::Resolver resolver(session, mainId.value());
 

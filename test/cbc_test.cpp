@@ -68,7 +68,7 @@ TEST_F(CbcTest, Empty)
     auto& engine = loader.Build();
     Engine::Session session(engine);
     auto strOffs = Image::Offset<Image::String>(offs);
-    auto str     = Image::Reader::Read(session, Image::FileId(0), strOffs);
+    auto str     = Decode::Read(session, Image::FileId(0), strOffs);
 
     ASSERT_EQ(str, "abc");
 }

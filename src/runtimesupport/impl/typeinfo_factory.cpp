@@ -211,8 +211,8 @@ struct TypeInfoBuilder {
         }
         Engine::ClassSubstitution sub(session, term);
         auto ident     = Engine::ExtractTypeDefIdentifier(term);
-        auto def       = Image::Reader::Read(session, ident);
-        aotTypeDefName = Image::Reader::Read(session, def.GetName());
+        auto def       = Decode::Read(session, ident);
+        aotTypeDefName = Decode::Read(session, def.GetName());
 
         superType = sub.Substitute(Engine::TermManager::Resolve(session, def.GetSuperType()));
 
@@ -315,7 +315,7 @@ static MethodTableMember GetTableMember(
     Engine::Session& session, Image::Identifier<Image::MethodDefinition> methodId, int entryIdx
 )
 {
-    auto method = Image::Reader::Read(session, methodId);
+    auto method = Decode::Read(session, methodId);
     auto flags  = method.GetFlags();
 
     ASSERTION(flags.Is(Image::MethodFlag::VIRTUAL), "Only virtual methods are expected");

@@ -74,17 +74,17 @@ public:
 
     template <typename T> ResolvingOutput& operator<<(Detailed<Image::Identifier<T>> id)
     {
-        return *this << Image::Reader::Read(session, id.value);
+        return *this << Decode::Read(session, id.value);
     }
 
     template <typename T> ResolvingOutput& operator<<(Full<Image::Identifier<T>> id)
     {
-        return *this << Full(Image::Reader::Read(session, id.value));
+        return *this << Full(Decode::Read(session, id.value));
     }
 
     template <typename T> ResolvingOutput& operator<<(NoResolve<Image::Identifier<T>> id)
     {
-        return *this << NoResolve(Image::Reader::Read(session, id.value));
+        return *this << NoResolve(Decode::Read(session, id.value));
     }
 
     template <typename T> ResolvingOutput& operator<<(const T v)
