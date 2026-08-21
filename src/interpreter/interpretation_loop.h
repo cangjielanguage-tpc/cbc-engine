@@ -31,6 +31,11 @@ enum BuiltinType : uint8_t {
     BUILTIN_CSTRING,
 };
 
+struct InstMsg {
+    int rewrittenPos;
+    char msg[];
+};
+
 static constexpr auto BUILTIN_COUNT = BUILTIN_CSTRING + 1;
 
 // Used by interpretation loop to access type infos of builtin types.
