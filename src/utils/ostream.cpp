@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <memory>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -343,6 +344,8 @@ void StringBuffer::VPrintFmt(const char* fmt, va_list argp)
 }
 
 std::string StringBuffer::ToString() { return std::string(data.get(), size); }
+
+std::string_view StringBuffer::View() const { return std::string_view(data.get(), size); }
 
 char* StringBuffer::ToCString()
 {

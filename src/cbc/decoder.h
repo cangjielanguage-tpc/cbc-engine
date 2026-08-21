@@ -26,6 +26,12 @@ public:
         BoundCheck(cursor);
     }
 
+    void Set(uint8_t* cursor)
+    {
+        this->cursor = cursor;
+        BoundCheck(cursor);
+    }
+
     template <typename T> inline void ReadTo(T* target)
     {
         BoundCheck(cursor + sizeof(T));
