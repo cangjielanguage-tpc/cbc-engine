@@ -174,7 +174,7 @@ bool Loader::Load(std::unique_ptr<IO::RandomAccessFile> file, std::string_view f
     auto id = loader->fileCounter;
     auto f  = TryReadCbcFile(FileId(id), file.get(), fileName);
     if (f) {
-        id++;
+        loader->fileCounter++;
         loader->files.emplace_back(std::move(*f));
         loader->rafs.emplace_back(std::move(file));
         return true;
