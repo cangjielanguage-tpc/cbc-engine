@@ -10,6 +10,8 @@ namespace Cbc {
 
 extern Logging::Logger log;
 
+extern bool emitLogInstructions;
+
 Interpretation::ExecBytecodeInfo Rewrite(MethodCode code, Resolution::Resolver& resolver, Memory::Heap& heap);
 Interpretation::ExecBytecodeInfo Rewrite(
     Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> method, Memory::Heap& heap

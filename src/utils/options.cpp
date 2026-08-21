@@ -1,4 +1,5 @@
 #include "utils/options.h"
+#include "cbc/isa_rewriter.h"
 #include "engine/options.h"
 #include "utils/assertion.h"
 #include "utils/logger.h"
@@ -100,6 +101,9 @@ bool SetAllLogLevels(Table const& t, Option const&, std::string_view value)
                 return false;
             }
         }
+    }
+    if (value.compare("trace") == 0) {
+        Cbc::emitLogInstructions = true;
     }
     return true;
 }

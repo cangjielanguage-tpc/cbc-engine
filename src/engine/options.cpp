@@ -1,6 +1,7 @@
 #include "engine/options.h"
 
 #include "cbc/isa_disasm.h"
+#include "cbc/isa_rewriter.h"
 #include "engine/field_layout.h"
 #include "engine/method_table.h"
 #include "interpreter/loggers.h"
@@ -23,6 +24,7 @@ bool Engine::useShortGCTib = true;
 constexpr Option globalOptionsArray[] = {
     { "cbc.use.short.gctib", &Engine::useShortGCTib, &SetBoolValue },
     { "cbc.log.resolution", &Resolution::log, &SetLogLevelValue },
+    { "cbc.log.rewriter.int", &Cbc::emitLogInstructions, &SetBoolValue },
     { "cbc.log.int", &Interpretation::Log::interpretation, &SetLogLevelValue },
     { "cbc.log.preparation", &Interpretation::Log::preparation, &SetLogLevelValue },
     { "cbc.log.method.table", &Engine::Log::mt, &SetLogLevelValue },
