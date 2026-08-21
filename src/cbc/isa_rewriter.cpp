@@ -31,8 +31,11 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <optional>
+#include <string>
+#include <string_view>
 #include <sys/types.h>
 #include <tuple>
 #include <variant>
@@ -268,6 +271,13 @@ struct IsaRewriter : public IsaParser {
 
     Utils::Vector<StatePoint> statePoints;
 
+    struct Message {
+        Emitter::Label label;
+        Interpretation::InstMsg* msg;
+    };
+
+    Utils::Vector<Message> messages;
+
     struct FailureMessage {
         size_t position;
         std::string message;
@@ -307,30 +317,51 @@ struct IsaRewriter : public IsaParser {
         statePoints.PushBack(point);
     }
 
-    template <typename Method> void EmitLogCall(std::string_view prefix, Method m)
+    // used as field to reduce allocations
+    Stream::StringBuffer logStream;
+
+    void LogInstruction()
     {
-        if (Interpretation::Log::interpretation.GetLogLevel() < Logging::Level::TRACE) {
+        if (emitLogInstructions) {
             return;
         }
-        Stream::StringBuffer stream;
-        stream << startPosition << ": " << prefix << ' ' << m;
-        emit.LogInstruction(stream.ToCString());
+        auto reader = this->reader;
+        logStream.Clear();
+        DisasmOnce(logStream, reader, &resolver);
+        emit.LogInstruction(NewMsg(startPosition, logStream.View()));
     }
 
-    char* returnedToMsg = nullptr;
+    Interpretation::InstMsg* NewMsg(int startPos, std::string_view view)
+    {
+        auto size = view.size();
+        auto imsg = (Interpretation::InstMsg*)std::malloc(sizeof(Interpretation::InstMsg) + size);
+        std::memcpy(imsg->msg, view.data(), size);
+        imsg->rewrittenPos = -1;
+
+        auto label = emit.NewLabel();
+        emit.Bind(label);
+        Message message {
+            .label = label,
+            .msg   = imsg,
+        };
+        messages.PushBack(message);
+        return imsg;
+    }
+
+    std::string returnedToMsg;
 
     void EmitReturnedTo()
     {
         if (Interpretation::Log::interpretation.GetLogLevel() < Logging::Level::TRACE) {
             return;
         }
-        if (!returnedToMsg) {
+        if (returnedToMsg.empty()) {
             Stream::StringBuffer buf;
             Stream::ResolvingOutput out(session, buf);
             out << "Returned to: " << method << ' ' << Stream::Detailed(method);
-            returnedToMsg = buf.ToCString();
+            returnedToMsg = buf.ToString();
         }
-        emit.LogInstruction(returnedToMsg);
+        emit.LogInstruction(NewMsg(startPosition, returnedToMsg));
     }
 
     void EmitFillSRetAreaByRegs(std::optional<CAbiStructPlan> retPlan)
@@ -1692,7 +1723,6 @@ struct IsaRewriter : public IsaParser {
                 return;
             }
             auto [stackSlotsCount, fregsCount] = StageForeignCallArgs(args, callFlags, method->signature, retPlan);
-            EmitLogCall("call.2n", method);
             ASSERTION(stackSlotsCount * STACK_SLOT_SIZE <= UINT8_MAX, "too many stack arguments in foreign call");
             emit.DirectCall2n(sym, stackSlotsCount * STACK_SLOT_SIZE, fregsCount);
             BindStatePoint();
@@ -1701,13 +1731,11 @@ struct IsaRewriter : public IsaParser {
             // AOT managed call
             auto sym = emit.NewAddressSym(compiled->funcPtr);
             StageManagedCallArgs(args, callFlags, method->signature);
-            EmitLogCall("call.2c", method);
             emit.DirectCall2c(sym);
             BindStatePoint();
         } else {
             // CBC managed call
             StageManagedCallArgs(args, callFlags, method->signature);
-            EmitLogCall("call.2i", method);
             auto fuh = std::get<Interpretation::DynamicFunctionHandle*>(method->data);
             auto sym = emit.NewAddressSym(reinterpret_cast<uintptr_t>(fuh));
             emit.DirectCall2i(sym);
@@ -1729,7 +1757,6 @@ struct IsaRewriter : public IsaParser {
             Image::RefIdentifier<Image::MethodReference>(Image::RefId<Image::MethodReference>(methodId), fileId)
         );
         StageManagedCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature);
-        EmitLogCall("call.virt", method);
         emit.VirtualCall(method->methodNum, method->extDefNum, method->sret);
         BindStatePoint();
         EmitReturnedTo();
@@ -1772,7 +1799,6 @@ struct IsaRewriter : public IsaParser {
         auto flags         = MakeCallAbiFlags(ref.flags, ref.abiKind);
         Location thisTiLoc = Location::Nil();
         StageManagedCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature, nullptr, &thisTiLoc);
-        EmitLogCall("call.interf", method);
 
         uint16_t thisTiLocArgNum = ArgNumber(thisTiLoc);
 
@@ -1802,7 +1828,6 @@ struct IsaRewriter : public IsaParser {
         Location outerTiLoc = Location::Nil();
         Location thisTiLoc  = Location::Nil();
         StageManagedCallArgs(args, flags, method->signature, &outerTiLoc, &thisTiLoc);
-        EmitLogCall("call.interf.g", method);
 
         uint16_t outerTiLocArgNum = ArgNumber(outerTiLoc);
         uint16_t thisTiLocArgNum  = ArgNumber(thisTiLoc);
@@ -1812,7 +1837,6 @@ struct IsaRewriter : public IsaParser {
             .thisTi  = thisTiLocArgNum,
         };
 
-        EmitLogCall("call.interf.g", method);
         emit.InterfaceCallGeneric(method->methodNum, flags.isSRet, tiArgs);
         BindStatePoint();
         EmitReturnedTo();
@@ -2265,6 +2289,7 @@ struct IsaRewriter : public IsaParser {
         auto position = Pos();
         startPosition = position;
         emit.Bind(InstructionLabel(position));
+        LogInstruction();
         IsaParser::ParseOne();
     }
 
@@ -2515,6 +2540,11 @@ std::optional<Interpretation::ExecBytecodeInfo> Rewrite(
 
     auto rewrittenCode = emitter.Build(heap);
 
+    for (auto msg : rewriter.messages) {
+        auto rewrittenPos     = emitter.LabelPosition(msg.label);
+        msg.msg->rewrittenPos = rewrittenPos;
+    }
+
     return Interpretation::ExecBytecodeInfo {
         .code             = rewrittenCode,
         .savedIRegs       = Interpretation::NonVolatileRegs(code.UsedNonVolIRegMask() << IReg::FIRST_NON_VOL),
@@ -2575,5 +2605,7 @@ std::optional<Interpretation::ExecBytecodeInfo> Rewrite(
 
     return res;
 }
+
+bool emitLogInstructions = false;
 
 } // namespace Cbc

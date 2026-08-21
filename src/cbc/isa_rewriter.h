@@ -10,6 +10,8 @@ namespace Cbc {
 
 extern Logging::Logger log;
 
+extern bool emitLogInstructions;
+
 std::optional<Interpretation::ExecBytecodeInfo> Rewrite(
     MethodCode code, Resolution::Resolver& resolver, Memory::Heap& heap
 );
