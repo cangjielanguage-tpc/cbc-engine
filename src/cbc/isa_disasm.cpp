@@ -550,14 +550,61 @@ struct IsaResolvingDisasm : IsaDisasm {
           resolver(resolver)
     {}
 
+    template <typename Method> void LogCall(std::string_view prefix, Method m)
+    {
+        if (Interpretation::Log::interpretation.GetLogLevel() < Logging::Level::TRACE) {
+            return;
+        }
+        stream.Print("{} {}", prefix, m);
+    }
+
+    void CallDirect(uint32_t methodId, Utils::Span<const Location> args) override
+    {
+        auto m = resolver.Query(Index<DirectCall>(methodId));
+        if (!m.has_value()) {
+            IsaDisasm::CallDirect(methodId, args);
+            return;
+        }
+        auto method = m.value();
+
+        if (auto data = std::get_if<DirectCall::Compiled>(&method->data)) {
+            LogCall("call.2c", method);
+        } else {
+            LogCall("call.2i", method);
+        }
+    }
+
+    void CallInterf(uint32_t methodId, Utils::Span<const Location> args) override
+    {
+        auto m = resolver.Query(Index<InterfaceCall>(methodId));
+        if (!m.has_value()) {
+            IsaDisasm::CallInterf(methodId, args);
+            return;
+        }
+        auto method = m.value();
+        LogCall("call.interf", method);
+    }
+
     void CallVirtual(uint32_t methodId, Utils::Span<const Location> args) override
     {
         auto m = resolver.Query(Index<VirtualCall>(methodId));
         if (!m.has_value()) {
+            IsaDisasm::CallVirtual(methodId, args);
             return;
         }
         auto method = m.value();
-        stream.PrintLn("call.virtual {} ({}, {}){}", method, method->extDefNum, method->methodNum, ArgsStr(args));
+        LogCall("call.virtual", method);
+    }
+
+    void CallInterfGeneric(uint32_t methodId, Utils::Span<const Location> args) override
+    {
+        auto m = resolver.Query(Index<InterfaceCall>(methodId));
+        if (!m.has_value()) {
+            IsaDisasm::CallInterfGeneric(methodId, args);
+            return;
+        }
+        auto method = m.value();
+        LogCall("call.interf.g", method);
     }
 
     void NewObj(IReg dst, uint32_t type) override
@@ -622,6 +669,15 @@ void Disasm(Stream::Output& stream, Cbc::MethodCode code, Resolution::Resolver* 
 void Disasm(Stream::Output& stream, uint8_t* start, uint8_t* end, Resolution::Resolver* resolver)
 {
     Disasm(stream, Decoder::FatByteReader(start, start, end), resolver);
+}
+
+void DisasmOnce(Stream::Output& stream, Decoder::FatByteReader reader, Resolution::Resolver* resolver)
+{
+    if (!g_IsRawDisasmEnabled && resolver != nullptr) {
+        IsaResolvingDisasm(stream, reader, *resolver).ParseOne();
+    } else {
+        IsaDisasm(stream, reader).ParseOne();
+    }
 }
 
 } // namespace Cbc
