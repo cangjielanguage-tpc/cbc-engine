@@ -17,4 +17,6 @@ void Disasm(Stream::Output& stream, Cbc::MethodCode code, Resolution::Resolver* 
 void Disasm(Stream::Output& stream, Decoder::FatByteReader reader, Resolution::Resolver* resolver);
 void Disasm(Stream::Output& stream, uint8_t* start, uint8_t* end, Resolution::Resolver* resolver);
 
+void DisasmOnce(Stream::Output& stream, Decoder::FatByteReader reader, Resolution::Resolver* resolver);
+
 } // namespace Cbc
