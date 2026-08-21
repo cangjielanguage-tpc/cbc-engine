@@ -310,8 +310,7 @@ public:
     void AssignGeneric(IReg dst, IReg src, IReg ti);
     void InstanceOfGeneric(IReg dst, IReg obj, IReg ti);
 
-    void LogInstruction(std::string_view string);
-    void LogInstruction(char* string);
+    void LogInstruction(Interpretation::InstMsg* msg);
 
     void StackParam(IReg src, uint16_t offset);
     void StackParamF(FReg src, uint16_t dst);

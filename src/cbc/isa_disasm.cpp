@@ -553,10 +553,43 @@ struct IsaResolvingDisasm : IsaDisasm {
           resolver(resolver)
     {}
 
+    void CallDirect(uint32_t methodId, Utils::Span<const Location> args) override
+    {
+        auto m = resolver.Query(Index<DirectCall>(methodId));
+        if (!m.has_value()) {
+            IsaDisasm::CallDirect(methodId, args);
+            return;
+        }
+        auto method = m.value();
+        auto prefix = std::holds_alternative<DirectCall::Compiled>(method->data) ? "call.2c" : "call.2i";
+        stream.PrintLn("{} {}{}", prefix, method, ArgsStr(args));
+    }
+
+    void CallInterf(uint32_t methodId, Utils::Span<const Location> args) override
+    {
+        auto m = resolver.Query(Index<InterfaceCall>(methodId));
+        if (!m.has_value()) {
+            IsaDisasm::CallInterf(methodId, args);
+            return;
+        }
+        stream.PrintLn("call.interf {}{}", m.value(), ArgsStr(args));
+    }
+
+    void CallInterfGeneric(uint16_t argnum, uint32_t methodId, Utils::Span<const Location> args) override
+    {
+        auto m = resolver.Query(Index<InterfaceCall>(methodId));
+        if (!m.has_value()) {
+            IsaDisasm::CallInterfGeneric(argnum, methodId, args);
+            return;
+        }
+        stream.PrintLn("call.interf.g {}, {}{}", argnum, m.value(), ArgsStr(args));
+    }
+
     void CallVirtual(uint32_t methodId, Utils::Span<const Location> args) override
     {
         auto m = resolver.Query(Index<VirtualCall>(methodId));
         if (!m.has_value()) {
+            IsaDisasm::CallVirtual(methodId, args);
             return;
         }
         auto method = m.value();
@@ -625,6 +658,15 @@ void Disasm(Stream::Output& stream, Cbc::MethodCode code, Resolution::Resolver* 
 void Disasm(Stream::Output& stream, uint8_t* start, uint8_t* end, Resolution::Resolver* resolver)
 {
     Disasm(stream, Decoder::FatByteReader(start, start, end), resolver);
+}
+
+void DisasmOnce(Stream::Output& stream, Decoder::FatByteReader reader, Resolution::Resolver* resolver)
+{
+    if (!g_IsRawDisasmEnabled && resolver != nullptr) {
+        IsaResolvingDisasm(stream, reader, *resolver).ParseOne();
+    } else {
+        IsaDisasm(stream, reader).ParseOne();
+    }
 }
 
 } // namespace Cbc
