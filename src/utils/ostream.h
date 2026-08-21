@@ -141,6 +141,8 @@ public:
     char* ToCString();
     void Clear();
 
+    std::string_view View() const;
+
 private:
     std::unique_ptr<char[]> data;
     size_t size;

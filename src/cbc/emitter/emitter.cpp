@@ -1116,20 +1116,9 @@ void Emitter::AtomicOp(RT::Opcode opc, IReg dst, IReg obj, IReg src, uint16_t of
     });
 }
 
-void Emitter::LogInstruction(std::string_view string)
+void Emitter::LogInstruction(Interpretation::InstMsg* msg)
 {
-    auto data = (char*)malloc(string.size() + 1);
-    if (data == nullptr) {
-        FATAL("Out of memory");
-    }
-    data[string.size()] = 0;
-    memcpy(data, string.data(), string.size());
-    Encode(segment, RT::B9i64 { .opc = RT::Opcode::LOG, .imm64 = { .ptr = data } });
-}
-
-void Emitter::LogInstruction(char* string)
-{
-    Encode(segment, RT::B9i64 { .opc = RT::Opcode::LOG, .imm64 = { .ptr = string } });
+    Encode(segment, RT::B9i64 { .opc = RT::Opcode::LOG, .imm64 = { .ptr = msg } });
 }
 
 } // namespace Emitter

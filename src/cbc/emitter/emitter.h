@@ -276,8 +276,7 @@ public:
     void AssignGeneric(IReg dst, IReg src, IReg ti);
     void InstanceOfGeneric(IReg dst, IReg obj, IReg ti);
 
-    void LogInstruction(std::string_view string);
-    void LogInstruction(char* string);
+    void LogInstruction(Interpretation::InstMsg* msg);
 
     MemSpace OpenMemSpace();
 

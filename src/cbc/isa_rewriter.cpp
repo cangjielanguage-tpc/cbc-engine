@@ -28,8 +28,11 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <optional>
+#include <string>
+#include <string_view>
 #include <sys/types.h>
 #include <variant>
 #include <vector>
@@ -187,6 +190,13 @@ struct IsaRewriter : public IsaParser {
 
     std::vector<StatePoint> statePoints;
 
+    struct Message {
+        Emitter::Label label;
+        Interpretation::InstMsg* msg;
+    };
+
+    std::vector<Message> messages;
+
     struct FailureMessage {
         size_t position;
         std::string message;
@@ -220,30 +230,51 @@ struct IsaRewriter : public IsaParser {
         statePoints.push_back(point);
     }
 
-    template <typename Method> void EmitLogCall(std::string_view prefix, Method m)
+    // used as field to reduce allocations
+    Stream::StringBuffer logStream;
+
+    void LogInstruction()
     {
-        if (Interpretation::Log::interpretation.GetLogLevel() < Logging::Level::TRACE) {
+        if (emitLogInstructions) {
             return;
         }
-        Stream::StringBuffer stream;
-        stream << startPosition << ": " << prefix << ' ' << m;
-        emit.LogInstruction(stream.ToCString());
+        auto reader = this->reader;
+        logStream.Clear();
+        DisasmOnce(logStream, reader, &resolver);
+        emit.LogInstruction(NewMsg(startPosition, logStream.View()));
     }
 
-    char* returnedToMsg = nullptr;
+    Interpretation::InstMsg* NewMsg(int startPos, std::string_view view)
+    {
+        auto size = view.size();
+        auto imsg = (Interpretation::InstMsg*)std::malloc(sizeof(Interpretation::InstMsg) + size);
+        std::memcpy(imsg->msg, view.data(), size);
+        imsg->rewrittenPos = -1;
+
+        auto label = emit.NewLabel();
+        emit.Bind(label);
+        Message message {
+            .label = label,
+            .msg   = imsg,
+        };
+        messages.push_back(message);
+        return imsg;
+    }
+
+    std::string returnedToMsg;
 
     void EmitReturnedTo()
     {
         if (Interpretation::Log::interpretation.GetLogLevel() < Logging::Level::TRACE) {
             return;
         }
-        if (!returnedToMsg) {
+        if (returnedToMsg.empty()) {
             Stream::StringBuffer buf;
             Stream::ResolvingOutput out(session, buf);
             out << "Returned to: " << method << ' ' << Stream::Detailed(method);
-            returnedToMsg = buf.ToCString();
+            returnedToMsg = buf.ToString();
         }
-        emit.LogInstruction(returnedToMsg);
+        emit.LogInstruction(NewMsg(startPosition, returnedToMsg));
     }
 
     ssize_t Pos()
@@ -881,12 +912,10 @@ struct IsaRewriter : public IsaParser {
         auto method = m.value();
 
         if (auto data = std::get_if<DirectCall::Compiled>(&method->data)) {
-            EmitLogCall("call.2c", method);
             auto sym = emit.NewAddressSym(data->funcPtr);
             emit.DirectCall2c(sym);
             BindStatePoint();
         } else {
-            EmitLogCall("call.2i", method);
             auto fuh = std::get<Interpretation::DynamicFunctionHandle*>(method->data);
             auto sym = emit.NewAddressSym(reinterpret_cast<uintptr_t>(fuh));
             emit.DirectCall2i(sym);
@@ -904,7 +933,6 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto method = m.value();
-        EmitLogCall("call.virt", method);
         emit.VirtualCall(method->methodNum, method->extDefNum, method->sret);
         BindStatePoint();
         AdjustReg(dst, IReg::IR1);
@@ -924,7 +952,6 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
-        EmitLogCall("call.interf", method);
         emit.InterfaceCall(method->methodNum, *ti, method->sret);
         BindStatePoint();
         AdjustReg(dst, IReg::IR1);
@@ -939,7 +966,6 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto method = m.value();
-        EmitLogCall("call.interf.g", method);
         emit.InterfaceCallGeneric(method->methodNum, argnum, method->sret);
         BindStatePoint();
         EmitReturnedTo();
@@ -1725,6 +1751,7 @@ struct IsaRewriter : public IsaParser {
         auto position = reader.Cursor() - reader.Start();
         startPosition = position;
         emit.Bind(InstructionLabel(position));
+        LogInstruction();
         IsaParser::ParseOne();
     }
 
@@ -1945,6 +1972,11 @@ Interpretation::ExecBytecodeInfo Rewrite(
 
     auto rewrittenCode = emitter.Build(heap);
 
+    for (auto msg : rewriter.messages) {
+        auto rewrittenPos     = emitter.LabelPosition(msg.label);
+        msg.msg->rewrittenPos = rewrittenPos;
+    }
+
     return Interpretation::ExecBytecodeInfo {
         .code             = rewrittenCode,
         .savedIRegs       = Interpretation::NonVolatileRegs(code.UsedNonVolIRegMask() << IReg::FIRST_NON_VOL),
@@ -1998,5 +2030,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
 
     return res;
 }
+
+bool emitLogInstructions = false;
 
 } // namespace Cbc
