@@ -441,6 +441,36 @@ struct IsaParserImpl {
 
     static void GcPoint(IsaParser& parser) { parser.GcPoint(); }
 
+    static void Ld(IsaParser& parser)
+    {
+        auto [dst, base, fr] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.Ld(dst, base, fr);
+    }
+
+    static void LdStatic(IsaParser& parser)
+    {
+        auto [dst, skip, fr] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.LdStatic(dst, fr);
+    }
+
+    static void Lea(IsaParser& parser)
+    {
+        auto [dst, base, fr] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.Lea(dst, base, fr);
+    }
+
+    static void St(IsaParser& parser)
+    {
+        auto [src, base, fr] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.St(src, base, fr);
+    }
+
+    static void StStatic(IsaParser& parser)
+    {
+        auto [src, skip, fr] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.StStatic(src, fr);
+    }
+
     static void LoadRawMemory(IsaParser& parser)
     {
         auto [dst, base, ldk, low4, hibits] =

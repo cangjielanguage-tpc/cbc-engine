@@ -129,6 +129,11 @@
     X(CBinaryImm16, CBinaryImm<Width::W16>)                                                                            \
     X(CBinaryImm32, CBinaryImm<Width::W32>)                                                                            \
     X(CBinaryImm64, CBinaryImm<Width::W64>)                                                                            \
+    X(Ld, Ld)                                                                                                          \
+    X(LdStatic, LdStatic)                                                                                              \
+    X(Lea, Lea)                                                                                                        \
+    X(St, St)                                                                                                          \
+    X(StStatic, StStatic)                                                                                              \
     X(_END, Unreachable)
 
 #define ISA_MEM_OPCODES(X)                                                                                             \

@@ -369,6 +369,16 @@ struct IsaRewriter : public IsaParser {
         BindStatePoint();
     }
 
+    void Ld(AnyReg dst, IReg base, uint32_t field) override { FATAL("TODO implement"); }
+
+    void LdStatic(AnyReg dst, uint32_t field) override { FATAL("TODO implement"); }
+
+    void Lea(IReg dst, IReg base, uint32_t field) override { FATAL("TODO implement"); }
+
+    void St(AnyReg src, IReg base, uint32_t field) override { FATAL("TODO implement"); }
+
+    void StStatic(AnyReg src, uint32_t field) override { FATAL("TODO implement"); }
+
     void LoadStackRec(IReg r, uint16_t ts) override
     {
         emit.LoadFrame(Format::LoadAccessKind::LD_LEA, r, frameLayout.typedOffset.at(ts));
