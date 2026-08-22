@@ -168,7 +168,7 @@ LABEL(HALT) {
 LABEL(LOG) {
     auto args   = B9i64::Decode(reader);
     auto imsg = (InstMsg*)args.imm64.ptr;
-    Log::stream.PrintLn("{}: {}", Stream::Hex(imsg->rewrittenPos), imsg->msg);
+    Log::stream.PrintLn("{}: {}", Stream::Hex(imsg->rewrittenPos), (char*) imsg->msg);
     NEXT;
 }
 LABEL(RET) {
