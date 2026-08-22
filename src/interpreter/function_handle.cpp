@@ -36,6 +36,10 @@ FunctionHandleManager::FunctionHandleManager() : impl(std::move(std::make_unique
 FunctionHandleManager::~FunctionHandleManager()                               = default;
 FunctionHandleManager::FunctionHandleManager(FunctionHandleManager&& manager) = default;
 
+static void Error() {
+    FATAL("Called not resolved aot function");
+}
+
 TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
     Session& session, Image::Identifier<Image::MethodDefinition> methodDef
 )
@@ -62,6 +66,7 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
             LOGS_ERROR(
                 Log::preparation, session, "failed to resolve aot method {}\n  linkage name: {}", method, linkageName
             );
+            target = (void*) &Error;
         }
 
         // TODO: put stub trampoline that throws exception

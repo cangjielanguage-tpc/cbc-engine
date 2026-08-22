@@ -322,6 +322,10 @@ struct MethodTableMember {
     DYN_FuncPtr function;
 };
 
+static void AbstractMethodCalled() {
+    FATAL("Call of abstract method (or method resolution error)");
+}
+
 /// Returns pair of (handle, function) that describes member in method table.
 static MethodTableMember GetTableMember(
     Engine::Session& session, Image::Identifier<Image::MethodDefinition> methodId, int entryIdx
@@ -335,7 +339,7 @@ static MethodTableMember GetTableMember(
     if (flags.Is(Image::MethodFlag::ABSTRACT)) {
         // can not be called
         // TODO: put stub method that throws
-        return { nullptr, nullptr };
+        return { nullptr, (void*) &AbstractMethodCalled };
     } else if (flags.Is(Image::MethodFlag::AOT)) {
         // target must be present with aot flag
         auto& manager  = Interpretation::FunctionHandleManager::Of(session);

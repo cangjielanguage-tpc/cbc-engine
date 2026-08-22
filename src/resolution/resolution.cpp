@@ -182,6 +182,9 @@ struct ResolverProxy {
         if (ti) { // for generic instance fields
             offset = RTSupport::Execution::GetFieldOffset(*ti, data.ordinal, ref.refType.IsReference());
         }
+        int offs = -1;
+        if (offset) offs = *offset;
+        LOGS_DEBUG(log, resolver.session, "Resolved aot field offset {}: {}::{} {}", ref.identifier.GetIndex().GetIndex(), ref.refType, ref.name, ref.fieldType, offs);
         return InstanceField::Content { refType, ref.name, fieldType, data.ordinal, offset };
     }
 
