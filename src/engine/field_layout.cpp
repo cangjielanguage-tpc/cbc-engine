@@ -141,10 +141,10 @@ struct FLManager : public FieldLayoutManager {
                 auto term = TermManager::Resolve(session, def.GetEnumType());
                 return GetFlatAlignment(term);
             }
+            case TermKind::TUPLE:
             case TermKind::OPTION:
             case TermKind::UNION_ENUM:
             case TermKind::TYPE: {
-                auto ident     = ExtractTypeDefIdentifier(term);
                 auto optlayout = GetLayout(term);
                 if (optlayout.has_value()) {
                     auto layout = *optlayout;
@@ -152,7 +152,6 @@ struct FLManager : public FieldLayoutManager {
                 }
                 return MAX_ALIGN;
             }
-            case TermKind::TUPLE:
             case TermKind::AOT_TYPE: {
                 auto ti = typeInfoManager.AcquireTypeInfo(session, term);
                 if (!ti.has_value()) {
@@ -189,7 +188,6 @@ struct FLManager : public FieldLayoutManager {
             return;
         }
         switch (term.GetKind()) {
-            case TermKind::TUPLE:
             case TermKind::AOT_TYPE: {
                 auto typeInfo = typeInfoManager.AcquireTypeInfo(session, term);
                 if (!typeInfo.has_value()) {
@@ -201,6 +199,7 @@ struct FLManager : public FieldLayoutManager {
                 return;
             }
 
+            case TermKind::TUPLE:
             case TermKind::OPTION:
             case TermKind::UNION_ENUM:
             case TermKind::TYPE: {
