@@ -322,7 +322,7 @@ struct IsaRewriter : public IsaParser {
 
     void LogInstruction()
     {
-        if (emitLogInstructions) {
+        if (!emitLogInstructions) {
             return;
         }
         auto reader = this->reader;
