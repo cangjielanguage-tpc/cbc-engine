@@ -247,8 +247,9 @@ struct IsaRewriter : public IsaParser {
     Interpretation::InstMsg* NewMsg(int startPos, std::string_view view)
     {
         auto size = view.size();
-        auto imsg = (Interpretation::InstMsg*)std::malloc(sizeof(Interpretation::InstMsg) + size);
+        auto imsg = (Interpretation::InstMsg*)std::malloc(sizeof(Interpretation::InstMsg) + size + 1);
         std::memcpy(imsg->msg, view.data(), size);
+        imsg->msg[size] = 0;
         imsg->rewrittenPos = -1;
 
         auto label = emit.NewLabel();
