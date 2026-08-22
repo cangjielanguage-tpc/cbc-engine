@@ -511,7 +511,7 @@ LABEL(FUN64) {
         interpreter.template Unary<Width::W64>(args.xr.imm.FloatOperations(), args.xr.r.FR(), args.rr.y.FR());
     NEXT_COND(successful);
 }
-LABEL(NEWOBJ_ACC_G) {
+LABEL(NEWOBJ_G) {
     auto args = B2rr::Decode(reader);
     LOG_INSTR;
     auto tiReg = args.rr.x;
@@ -519,19 +519,6 @@ LABEL(NEWOBJ_ACC_G) {
 
     // Puts result to `IR_ACC`.
     auto func = Execution::AllocateObjectInstanceAcc();
-
-    reader0 = reader; // save current pc
-
-    return { func, type.Raw() };
-}
-LABEL(NEWOBJ_G) {
-    auto args = B2rr::Decode(reader);
-    LOG_INSTR;
-    auto tiReg = args.rr.x;
-    auto type  = TypeInfo(ectype->GetPrimitive(tiReg.IR()).u64);
-
-    // Puts result to `IR1`.
-    auto func = Execution::AllocateObjectInstance();
 
     reader0 = reader; // save current pc
 

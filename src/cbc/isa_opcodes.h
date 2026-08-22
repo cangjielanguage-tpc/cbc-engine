@@ -163,8 +163,6 @@
     X(CallClosure)                                                                                                     \
     X(NewClosure)                                                                                                      \
     X(CallClosureGeneric)                                                                                              \
-    X(NewObjGeneric)                                                                                                   \
-    X(NewClosureGeneric)                                                                                               \
     X(_END)
 
 #define ISA_REG_GROUP_OPCODES(X)                                                                                       \
