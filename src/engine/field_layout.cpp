@@ -138,10 +138,10 @@ struct FLManager : public FieldLayoutManager {
                 auto term = TermManager::Resolve(session, def.GetEnumType());
                 return GetFlatAlignment(term);
             }
+            case TermKind::TUPLE:
             case TermKind::OPTION:
             case TermKind::UNION_ENUM:
             case TermKind::TYPE: {
-                auto ident     = ExtractTypeDefIdentifier(term);
                 auto optlayout = GetLayout(term);
                 if (optlayout.has_value()) {
                     auto layout = *optlayout;
@@ -177,7 +177,7 @@ struct FLManager : public FieldLayoutManager {
             return;
         }
         switch (term.GetKind()) {
-            case TermKind::AOT_TYPE:     {
+            case TermKind::AOT_TYPE: {
                 auto typeInfo = typeInfoManager.AcquireTypeInfo(session, term);
                 if (!typeInfo.has_value()) {
                     return;
@@ -187,6 +187,7 @@ struct FLManager : public FieldLayoutManager {
                 );
             }
 
+            case TermKind::TUPLE:
             case TermKind::OPTION:
             case TermKind::TYPE: {
                 ASSERT(!term.IsReference());

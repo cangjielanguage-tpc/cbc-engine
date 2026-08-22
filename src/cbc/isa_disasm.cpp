@@ -362,7 +362,7 @@ struct IsaDisasm : public IsaParser {
 
     void Unbox(AnyReg dst, IReg src, uint32_t tk) override { stream.PrintLn("unbox R{}, {}, @{}", dst, tk); }
 
-    void UnboxT(uint16_t dstTs, IReg src) override { stream.PrintLn("box t{}, {}", dstTs, src); }
+    void UnboxT(uint16_t dstTs, IReg src) override { stream.PrintLn("unbox t{}, {}", dstTs, src); }
 
     class PrintingMemSpace : public MemSpace {
     public:
