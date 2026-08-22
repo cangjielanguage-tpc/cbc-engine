@@ -1038,18 +1038,18 @@ struct IsaRewriter : public IsaParser {
         // - Ensure that there are only two methods in the closure type.
         int idx = 0;
         for (auto methodId : typeDef.GetVirtualMethods().Values(resolver.session)) {
-            if (idx++ == 1) {
+            if (idx == 1) {
                 auto method = Symlevel::Reader::Read(resolver.session, methodId);
                 auto sret   = method.GetFlags().Is(Symlevel::MethodFlag::SRET);
 
                 emit.InitClosure(sret);
                 AdjustReg(dst, IReg::IR1);
+                return;
             }
             idx++;
         }
-        if (idx != 2) {
-            Fail("failed to find instantiated version of method in closure");
-        }
+        Fail("failed to find instantiated version of method in closure");
+        
     }
 
     void NewObjGeneric(IReg ti, uint32_t typeId) override
