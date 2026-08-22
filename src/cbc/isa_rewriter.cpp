@@ -1295,12 +1295,11 @@ struct IsaRewriter : public IsaParser {
 
                 emit.InitClosure(sret);
                 AdjustReg(dst, IReg::IR1);
+                return;
             }
             idx++;
         }
-        if (idx != 2) {
-            Fail("failed to find instantiated version of method in closure");
-        }
+        Fail("failed to find instantiated version of method in closure");
     }
 
     void NewObjGeneric(IReg ti, uint32_t typeId) override
