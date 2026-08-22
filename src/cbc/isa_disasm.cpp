@@ -255,10 +255,6 @@ struct IsaDisasm : public IsaParser {
 
     void NewClosure(IReg dst, uint32_t type) override { stream.PrintLn("new.closure {}, @{}", dst, type); }
 
-    void NewClosureGeneric(IReg ti, uint32_t typeId) override { stream.PrintLn("new.closure.g {}, @{}", ti, typeId); }
-
-    void NewObjGeneric(IReg ti, uint32_t typeId) override { stream.PrintLn("newobj.g {}, @{}", ti, typeId); }
-
     void CallDirect(IReg dst, uint32_t method) override { stream.PrintLn("call.direct {}, @{}", dst, method); }
 
     void CallVirtual(IReg dst, uint32_t method) override { stream.PrintLn("call.virtual {}, @{}", dst, method); }

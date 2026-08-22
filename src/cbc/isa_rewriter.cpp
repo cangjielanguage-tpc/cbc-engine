@@ -6,7 +6,6 @@
 #include "cbc/isa.h"
 #include "cbc/isa_disasm.h"
 #include "cbc/isa_parser.h"
-#include "engine/decode/decoder.h"
 #include "engine/engine.h"
 #include "engine/image/flags.h"
 #include "engine/image/reader.h"
@@ -35,7 +34,6 @@
 #include <string_view>
 #include <sys/types.h>
 #include <variant>
-#include <vector>
 
 namespace Cbc {
 
@@ -1031,60 +1029,18 @@ struct IsaRewriter : public IsaParser {
         auto typeDefId = Engine::TypeTermId(type->term).GetIdentifier();
         auto typeDef   = Decode::Read(resolver, typeDefId);
 
-        // - Get 1th methodId out of iterator.
-        // - Emit `InitClosure` with flags of 1th method.
-        // - Ensure that there are only two methods in the closure type.
         int idx = 0;
         for (auto methodId : Decode::Resolve(resolver, typeDef.GetVirtualMethods())) {
-            if (idx == 1) {
+            if (idx++ == 1) {
                 auto method = Decode::Read(resolver, methodId);
                 auto sret   = method.GetFlags().Is(Image::MethodFlag::SRET);
 
                 emit.InitClosure(sret);
                 AdjustReg(dst, IReg::IR1);
+                return;
             }
-            idx++;
         }
-        if (idx != 2) {
-            Fail("failed to find instantiated version of method in closure");
-        }
-    }
-
-    void NewObjGeneric(IReg ti, uint32_t typeId) override
-    {
-        emit.NewObjGeneric(ti);
-        BindStatePoint();
-    }
-
-    void NewClosureGeneric(IReg ti, uint32_t typeId) override
-    {
-        auto type = resolver.Query(Index<Type>(typeId));
-        if (!type.has_value()) {
-            return;
-        }
-
-        emit.NewObjGeneric(ti);
-        BindStatePoint();
-
-        auto typeDefId = Engine::TypeTermId(type->term).GetIdentifier();
-        auto typeDef   = Decode::Read(resolver, typeDefId);
-
-        // - Get 1th methodId out of iterator.
-        // - Emit `InitClosure` with flags of 1th method.
-        // - Ensure that there are only two methods in the closure type.
-        int idx = 0;
-        for (auto methodId : Decode::Resolve(resolver, typeDef.GetVirtualMethods())) {
-            if (idx == 1) {
-                auto method = Decode::Read(resolver, methodId);
-                auto sret   = method.GetFlags().Is(Image::MethodFlag::SRET);
-
-                emit.InitClosure(sret);
-            }
-            idx++;
-        }
-        if (idx != 2) {
-            Fail("failed to find instantiated version of method in closure");
-        }
+        Fail("failed to find instantiated version of method in closure");
     }
 
     void Scc(Format::Width width, Format::CC cc, IReg d, AnyReg l, AnyReg r) override
