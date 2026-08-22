@@ -56,7 +56,8 @@ public:
     {
 #ifndef NDEBUG
         Log::interpretation.Log(LogLevel(), [&](Stream::Output& out) {
-            out << reg.ToStr() << " <- " << primitive.u64 << Stream::endl;
+            out.PrintFmt("#0x%lx %s <- %lld", this, reg.ToStr().data(), primitive.u64);
+            out.NewLine();
         });
 #endif
         ASSERT(reg != IReg::IRZ);
@@ -67,7 +68,7 @@ public:
     {
 #ifndef NDEBUG
         Log::interpretation.Log(LogLevel(), [&](Stream::Output& out) {
-            out.PrintFmt("%s <- %p", reg.ToStr().data(), reference.value);
+            out.PrintFmt("#0x%lx %s <- %p", this, reg.ToStr().data(), reference.value);
             out.NewLine();
         });
 #endif
@@ -79,7 +80,8 @@ public:
     {
 #ifndef NDEBUG
         Log::interpretation.Log(LogLevel(), [&](Stream::Output& out) {
-            out << reg.ToStr() << " <- " << primitive.f64 << Stream::endl;
+            out.PrintFmt("#0x%lx %s <- %llf", this, reg.ToStr().data(), primitive.f64);
+            out.NewLine();
         });
 #endif
         fregs[reg].primitive = primitive;

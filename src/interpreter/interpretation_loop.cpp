@@ -144,7 +144,7 @@ Interpretation::Thunk engine_interpretation_loop(
     #define LOG_INSTR                                                                                                  \
         if (ectype->funcCtr > Log::skipThreshold) {                                                                    \
             Log::interpretation.Log(Logging::TRACE, [&](Stream::Output& logger) {                                      \
-                logger.PrintFmt("#0x%lx < 0x%03lx: ", frame.start, pos - start);                                       \
+                logger.PrintFmt("#0x%lx < 0x%03lx: ", ectype, pos - start);                                       \
                 pos = reader.Cursor();                                                                                 \
                 Cbc::RT::Log(literals, logger, args);                                                                  \
             });                                                                                                        \
@@ -170,7 +170,8 @@ LABEL(HALT) {
 LABEL(LOG) {
     auto args   = B9i64::Decode(reader);
     auto string = (char*)args.imm64.ptr;
-    Log::stream << string << Stream::endl;
+    Log::stream.PrintFmt("#0x%lx: %s ", ectype, string);
+    Log::stream.NewLine();
     NEXT;
 }
 LABEL(RET) {
