@@ -443,31 +443,31 @@ struct IsaParserImpl {
 
     static void Ld(IsaParser& parser)
     {
-        auto [dst, base, fr] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        auto [dst, base, fr] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
         parser.Ld(dst, base, fr);
     }
 
     static void LdStatic(IsaParser& parser)
     {
-        auto [dst, skip, fr] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        auto [dst, skip, fr] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
         parser.LdStatic(dst, fr);
     }
 
     static void Lea(IsaParser& parser)
     {
-        auto [dst, base, fr] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        auto [dst, base, fr] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
         parser.Lea(dst, base, fr);
     }
 
     static void St(IsaParser& parser)
     {
-        auto [src, base, fr] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        auto [src, base, fr] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
         parser.St(src, base, fr);
     }
 
     static void StStatic(IsaParser& parser)
     {
-        auto [src, skip, fr] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        auto [src, skip, fr] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
         parser.StStatic(src, fr);
     }
 
