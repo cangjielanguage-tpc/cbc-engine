@@ -340,10 +340,11 @@ struct ResolverProxy {
         std::optional<uintptr_t> location = staticField.location;
 
         decltype(fields) instanceFields(fields.begin() + 1, fields.end());
-        for (const auto& f : fields) {
+        for (const auto& f : instanceFields) {
             auto field = std::get<InstanceField::Content>(f);
             if (!field.offset.has_value()) {
                 location = std::nullopt;
+                break;
             }
             location = location.value() + field.offset.value();
         }
@@ -374,6 +375,7 @@ struct ResolverProxy {
         for (const auto& f : fields) {
             if (!f.offset.has_value()) {
                 optOffset = std::nullopt;
+                break;
             }
             optOffset = optOffset.value() + f.offset.value();
         }
