@@ -66,7 +66,10 @@ struct FieldReference {
           constIndex({ idx, refType, fieldType })
     {}
 
-    FieldReference(uint32_t length, FieldReference* subRefs) : tag(MULTI), multi({ length, subRefs }) {}
+    FieldReference(uint32_t length, FieldReference* subRefs, RefId<FieldReference>* indices)
+        : tag(MULTI),
+          multi({ length, subRefs, indices })
+    {}
 
     FieldReference(Engine::RefIdentifier<Term> sig) : tag(NONE), none({ sig }) {}
 

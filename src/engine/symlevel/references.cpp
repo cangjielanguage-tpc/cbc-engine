@@ -83,7 +83,7 @@ FieldReference ParseReference(Engine::Session& session, IO::FileId fileId, Offse
             auto indicesStart = reinterpret_cast<RefId<FieldReference>*>(indicesPtr);
             memcpy(indicesStart, indices.data(), length);
 
-            return FieldReference(length, subRefsStart);
+            return FieldReference(length, subRefsStart, indicesStart);
         }
         case NONE: {
             auto sig = Engine::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
