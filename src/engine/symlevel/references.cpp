@@ -77,11 +77,11 @@ FieldReference ParseReference(Engine::Session& session, IO::FileId fileId, Offse
 
             void* subRefsPtr  = session.Allocator().Allocate(length * sizeof(FieldReference), alignof(FieldReference));
             auto subRefsStart = reinterpret_cast<FieldReference*>(subRefsPtr);
-            memcpy(subRefsStart, fieldRefs.data(), length);
+            std::memcpy(subRefsStart, fieldRefs.data(), length * sizeof(FieldReference));
 
             void* indicesPtr  = session.Allocator().Allocate(length * sizeof(RefId<FieldReference>), alignof(uint32_t));
             auto indicesStart = reinterpret_cast<RefId<FieldReference>*>(indicesPtr);
-            memcpy(indicesStart, indices.data(), length);
+            std::memcpy(indicesStart, indices.data(), length * sizeof(RefId<FieldReference>));
 
             return FieldReference(length, subRefsStart, indicesStart);
         }
