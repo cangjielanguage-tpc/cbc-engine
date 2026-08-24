@@ -369,15 +369,65 @@ struct IsaRewriter : public IsaParser {
         BindStatePoint();
     }
 
-    void Ld(AnyReg dst, IReg base, uint32_t field) override { FATAL("TODO implement"); }
+    void Ld(AnyReg dst, IReg base, uint32_t fieldId) override
+    {
+        UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
+        UNWRAP_OPT(offset, field->offset, [&]() {
+            errStream << "Failed to get offset of field " << field << Stream::endl;
+            Fail();
+        });
+        auto kind = Ldk(field->fieldType.GetKind());
+        if (field->refType.term.IsRecord()) {
+            emit.LoadRec(kind, dst, base, offset);
+        } else {
+            emit.LoadObj(kind, dst, base, offset);
+        }
+    }
 
-    void LdStatic(AnyReg dst, uint32_t field) override { FATAL("TODO implement"); }
+    void LdStatic(AnyReg dst, uint32_t fieldId) override
+    {
+        UNWRAP_OPT(field, resolver.Query(Index<StaticField>(fieldId)), Fail);
+        UNWRAP_OPT(location, field->location, Fail);
+        auto symbol = emit.NewAddressSym(location);
+        emit.LoadStatic(Ldk(field->fieldType.GetKind()), dst, symbol);
+    }
 
-    void Lea(IReg dst, IReg base, uint32_t field) override { FATAL("TODO implement"); }
+    void Lea(IReg dst, IReg base, uint32_t fieldId) override
+    {
+        UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
+        UNWRAP_OPT(offset, field->offset, [&]() {
+            errStream << "Failed to get offset of field " << field << Stream::endl;
+            Fail();
+        });
+        if (field->refType.term.IsRecord()) {
+            emit.LoadRec(LDK::LD_LEA, dst, base, offset);
+        } else {
+            emit.LoadObj(LDK::LD_LEA, dst, base, offset);
+        }
+    }
 
-    void St(AnyReg src, IReg base, uint32_t field) override { FATAL("TODO implement"); }
+    void St(AnyReg src, IReg base, uint32_t fieldId) override
+    {
+        UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
+        UNWRAP_OPT(offset, field->offset, [&]() {
+            errStream << "Failed to get offset of field " << field << Stream::endl;
+            Fail();
+        });
+        auto kind = Stk(field->fieldType.GetKind());
+        if (field->refType.term.IsRecord()) {
+            emit.StoreRec(kind, src, base, offset);
+        } else {
+            emit.StoreObj(kind, src, base, offset);
+        }
+    }
 
-    void StStatic(AnyReg src, uint32_t field) override { FATAL("TODO implement"); }
+    void StStatic(AnyReg src, uint32_t fieldId) override
+    {
+        UNWRAP_OPT(field, resolver.Query(Index<StaticField>(fieldId)), Fail);
+        UNWRAP_OPT(location, field->location, Fail);
+        auto symbol = emit.NewAddressSym(location);
+        emit.StoreStatic(Stk(field->fieldType.GetKind()), src, symbol);
+    }
 
     void LoadStackRec(IReg r, uint16_t ts) override
     {
