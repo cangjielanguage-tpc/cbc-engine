@@ -139,8 +139,7 @@ Image::VirtualCallAotData Decoder::GetAotData<Image::VirtualCallAotData>(RefIden
 }
 
 template <>
-Image::InterfaceCallAotData Decoder::GetAotData<Image::InterfaceCallAotData>(
-    RefIdentifier<Image::MethodReference> index
+Image::InterfaceCallAotData Decoder::GetAotData<Image::InterfaceCallAotData>(RefIdentifier<Image::MethodReference> index
 )
 {
     auto [cbc, raf] = session.File(index.GetFileId());
