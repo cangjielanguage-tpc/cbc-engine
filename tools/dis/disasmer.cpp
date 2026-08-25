@@ -81,7 +81,7 @@ void Disasmer::RData(RegionData const& rd, uint8_t regionNum)
                 case MULTI:
                     io << "[";
                     for (uint32_t i = 0; i < ref.multi.length; i++) {
-                        io << ref.multi.indices[i].GetIndex();
+                        io << ref.multi.indices[i].GetValue();
                         if (i != ref.multi.length - 1) {
                             io << ", ";
                         }

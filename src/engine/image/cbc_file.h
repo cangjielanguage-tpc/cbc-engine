@@ -685,11 +685,68 @@ struct MethodReference {
     MethodRefFlags flags;
 };
 
+enum FieldRefTag {
+    SINGLE,
+    CONST_INDEX,
+    MULTI,
+    NONE
+};
+
 struct FieldReference {
-    Identifier<String> name;
-    RefIdentifier<Term> refType;
-    RefIdentifier<Term> fieldType;
-    bool isRecord;
+    FieldRefTag tag;
+
+    union {
+        struct {
+            Image::Identifier<String> name;
+            Image::RefIdentifier<Term> refType;
+            Image::RefIdentifier<Term> fieldType;
+        } single;
+
+        struct {
+            uint32_t idx;
+            Image::RefIdentifier<Term> refType;
+            Image::RefIdentifier<Term> fieldType;
+        } constIndex;
+
+        struct {
+            uint32_t length;
+            FieldReference* subRefs;
+            RefId<FieldReference>* indices;
+        } multi;
+
+        struct {
+            Image::RefIdentifier<Term> sig;
+        } none;
+    };
+
+    FieldReference(
+        Image::Identifier<String> name, Image::RefIdentifier<Term> refType, Image::RefIdentifier<Term> fieldType
+    )
+        : tag(SINGLE),
+          single({ name, refType, fieldType })
+    {}
+
+    FieldReference(uint32_t idx, Image::RefIdentifier<Term> refType, Image::RefIdentifier<Term> fieldType)
+        : tag(CONST_INDEX),
+          constIndex({ idx, refType, fieldType })
+    {}
+
+    FieldReference(uint32_t length, FieldReference* subRefs, RefId<FieldReference>* indices)
+        : tag(MULTI),
+          multi({ length, subRefs, indices })
+    {}
+
+    FieldReference(Image::RefIdentifier<Term> sig) : tag(NONE), none({ sig }) {}
+
+    const char* KindAsString()
+    {
+        switch (tag) {
+            case SINGLE:      return "Single";
+            case CONST_INDEX: return "ConstIndex";
+            case MULTI:       return "Multi";
+            case NONE:        return "NONE";
+        }
+    }
 };
 
 struct ErasedOffsetPool {

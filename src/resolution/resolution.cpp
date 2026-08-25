@@ -130,7 +130,7 @@ struct ResolvedSimpleFieldRef {
     Term refType;
     std::variant<std::string_view, uint32_t> nameOrIdx;
     Term fieldType;
-    RefIdentifier<Image::FieldReference> identifier;
+    RefIdentifier<Image::FieldReference> ident;
     bool isRecord;
 
     std::string GetFullName(Session& session)
@@ -146,7 +146,7 @@ struct ResolvedSimpleFieldRef {
         return buf.ToString();
     }
 
-    uint32_t GetRawIndex() { return ident.GetIndex().GetIndex(); }
+    uint32_t GetRawIndex() { return ident.GetIndex().GetValue(); }
 };
 
 struct ResolverProxy {
@@ -353,14 +353,10 @@ struct ResolverProxy {
     }
 
     template <typename Field>
-    static std::optional<typename Field::Content> ResolveMultiFieldRef(
-        Resolver& resolver, Symlevel::FieldReference ref
-    );
+    static std::optional<typename Field::Content> ResolveMultiFieldRef(Resolver& resolver, Image::FieldReference ref);
 
     template <>
-    std::optional<StaticField::Content> ResolveMultiFieldRef<StaticField>(
-        Resolver& resolver, Symlevel::FieldReference ref
-    )
+    std::optional<StaticField::Content> ResolveMultiFieldRef<StaticField>(Resolver& resolver, Image::FieldReference ref)
     {
         ASSERT(ref.multi.length >= 1);
 
@@ -369,11 +365,11 @@ struct ResolverProxy {
 
         for (uint32_t i = 0; i < ref.multi.length; i++) {
             if (i == 0) {
-                auto id    = Index<StaticField>(ref.multi.indices[i].GetIndex());
+                auto id    = Index<StaticField>(ref.multi.indices[i].GetValue());
                 auto field = ResolveField<StaticField>(resolver, id).value();
                 fields.push_back(field);
             } else {
-                auto id    = Index<InstanceField>(ref.multi.indices[i].GetIndex());
+                auto id    = Index<InstanceField>(ref.multi.indices[i].GetValue());
                 auto field = ResolveField<InstanceField>(resolver, id).value();
                 fields.push_back(field);
             }
@@ -402,7 +398,7 @@ struct ResolverProxy {
 
     template <>
     std::optional<InstanceField::Content> ResolveMultiFieldRef<InstanceField>(
-        Resolver& resolver, Symlevel::FieldReference ref
+        Resolver& resolver, Image::FieldReference ref
     )
     {
         ASSERT(ref.multi.length >= 1);
@@ -411,7 +407,7 @@ struct ResolverProxy {
         fields.reserve(ref.multi.length);
 
         for (uint32_t i = 0; i < ref.multi.length; i++) {
-            auto id    = Index<InstanceField>(ref.multi.indices[i].GetIndex());
+            auto id    = Index<InstanceField>(ref.multi.indices[i].GetValue());
             auto field = ResolveField<InstanceField>(resolver, id);
             fields.push_back(field.value());
         }
@@ -432,7 +428,7 @@ struct ResolverProxy {
     }
 
     template <typename Field>
-    static std::optional<typename Field::Content> ResolveNoneFieldRef(Resolver& resolver, Symlevel::FieldReference ref)
+    static std::optional<typename Field::Content> ResolveNoneFieldRef(Resolver& resolver, Image::FieldReference ref)
     {
         auto resolvedSig = resolver.termManager.Resolve(resolver.session, ref.none.sig);
         auto sig         = resolver.Wrap(resolvedSig);
@@ -446,23 +442,23 @@ struct ResolverProxy {
     template <typename Field>
     static std::optional<typename Field::Content> ResolveField(Resolver& resolver, Index<Field> id)
     {
-        auto refId = Symlevel::RefId<Symlevel::FieldReference>(id.GetValue());
-        auto ident = RefIdentifier<Symlevel::FieldReference>(refId, resolver.method.GetFileId());
+        auto refId = Image::RefId<Image::FieldReference>(id.GetValue());
+        auto ident = RefIdentifier<Image::FieldReference>(refId, resolver.method.GetFileId());
 
-        Symlevel::FieldReference parsedRef = Symlevel::FieldReference::Parse(resolver.session, ident);
+        Image::FieldReference parsedRef = Image::Reader::Read(resolver.session, ident);
         switch (parsedRef.tag) {
-            case Symlevel::SINGLE: {
+            case Image::SINGLE: {
                 auto ref = SingleReference(resolver, parsedRef, ident);
                 return ResolveSingleFieldRef<Field>(resolver, ref);
             }
-            case Symlevel::CONST_INDEX: {
+            case Image::CONST_INDEX: {
                 auto ref = ConstIndexReference(resolver, parsedRef, ident);
                 return ResolveConstIndexFieldRef<Field>(resolver, ref);
             }
-            case Symlevel::MULTI: {
+            case Image::MULTI: {
                 return ResolveMultiFieldRef<Field>(resolver, parsedRef);
             }
-            case Symlevel::NONE: {
+            case Image::NONE: {
                 return ResolveNoneFieldRef<Field>(resolver, parsedRef);
             }
         }
@@ -514,17 +510,17 @@ struct ResolverProxy {
     }
 
     static ResolvedSimpleFieldRef SingleReference(
-        Resolver& resolver, Symlevel::FieldReference fr, RefIdentifier<Symlevel::FieldReference> ident
+        Resolver& resolver, Image::FieldReference fr, RefIdentifier<Image::FieldReference> ident
     )
     {
         auto refType   = resolver.termManager.Resolve(resolver.session, fr.single.refType);
-        auto name      = Symlevel::String::Parse(resolver.session, fr.single.name);
+        auto name      = Image::Reader::Read(resolver.session, fr.single.name);
         auto fieldType = resolver.termManager.Resolve(resolver.session, fr.single.fieldType);
         return { refType, name, fieldType, ident };
     }
 
     static ResolvedSimpleFieldRef ConstIndexReference(
-        Resolver& resolver, Symlevel::FieldReference fr, RefIdentifier<Symlevel::FieldReference> ident
+        Resolver& resolver, Image::FieldReference fr, RefIdentifier<Image::FieldReference> ident
     )
     {
         auto refType   = resolver.termManager.Resolve(resolver.session, fr.constIndex.refType);
