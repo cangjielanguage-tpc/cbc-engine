@@ -6,9 +6,9 @@
 
 #include "adapters.h"
 #include "cbc/isa_rewriter.h"
+#include "engine/image/flags.h"
+#include "engine/image/reader.h"
 #include "engine/resolving_output.h"
-#include "engine/symlevel/flags.h"
-#include "engine/symlevel/reader.h"
 #include "function_handle.h"
 #include "interpreter/loggers.h"
 #include "resolution/resolution.h"
@@ -22,11 +22,11 @@ static_assert(offsetof(DynamicFunctionHandle, c2call) == FUNCTION_HANDLE_C2CALL_
 static_assert(offsetof(DynamicFunctionHandle, bytecode) == FUNCTION_HANDLE_BYTECODE_OFFSET);
 
 using namespace Engine;
-using namespace Symlevel;
+using namespace Image;
 
 class FunctionHandleManager::Impl {
 public:
-    using Ident = Symlevel::Identifier<MethodDefinition>;
+    using Ident = Image::Identifier<MethodDefinition>;
     std::mutex lock;
     std::unordered_map<Ident::Packed, TaggedFunctionHandle> fuhMap;
 };
@@ -37,7 +37,7 @@ FunctionHandleManager::~FunctionHandleManager()                               = 
 FunctionHandleManager::FunctionHandleManager(FunctionHandleManager&& manager) = default;
 
 TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
-    Session& session, Symlevel::Identifier<Symlevel::MethodDefinition> methodDef
+    Session& session, Image::Identifier<Image::MethodDefinition> methodDef
 )
 {
     std::lock_guard guard(impl->lock);
@@ -46,7 +46,7 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
         return res->second;
     }
 
-    auto method = Symlevel::Reader::Read(session, methodDef);
+    auto method = Decode::Read(session, methodDef);
 
     LOGS_INFO(Log::preparation, session, "started to build fuh for {}", method);
 
@@ -55,7 +55,7 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
 
     auto newStaticFuh = [&]() -> StaticFunctionHandle* {
         auto& deps       = session.GetEngine().Dependencies().at(methodDef.GetFileId());
-        auto linkageName = Symlevel::Reader::Read(session, method.LinkageName().value());
+        auto linkageName = Decode::Read(session, method.LinkageName().value());
         auto target      = deps.FindSymbol(linkageName);
 
         if (target == nullptr) {
@@ -96,9 +96,7 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
     return fuh;
 }
 
-FunctionHandle* FunctionHandleManager::Acquire(
-    Session& session, Symlevel::Identifier<Symlevel::MethodDefinition> methodDef
-)
+FunctionHandle* FunctionHandleManager::Acquire(Session& session, Image::Identifier<Image::MethodDefinition> methodDef)
 {
     auto fuh = AcquireTagged(session, methodDef);
     if (std::holds_alternative<DynamicFunctionHandle*>(fuh)) {

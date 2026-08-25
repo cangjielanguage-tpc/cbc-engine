@@ -30,8 +30,8 @@ struct StaticTypedSlotInfo {
 };
 
 class StaticFieldsBundle {
-    using TypeIdent  = Identifier<Symlevel::TypeDefinition>;
-    using FieldIdent = Identifier<Symlevel::FieldDefinition>;
+    using TypeIdent  = Identifier<Image::TypeDefinition>;
+    using FieldIdent = Identifier<Image::FieldDefinition>;
 
 public:
     StaticFieldsBundle(
@@ -64,8 +64,8 @@ private:
 };
 
 class StaticsManager {
-    using TypeIdent  = Identifier<Symlevel::TypeDefinition>;
-    using FieldIdent = Identifier<Symlevel::FieldDefinition>;
+    using TypeIdent  = Identifier<Image::TypeDefinition>;
+    using FieldIdent = Identifier<Image::FieldDefinition>;
 
 public:
     static StaticsManager& Of(Engine& engine);

@@ -1,17 +1,33 @@
 #pragma once
 
 #include "engine/engine.h"
-#include "engine/identifiers.h"
-#include "engine/symlevel/cbc_file.h"
-#include "engine/symlevel/io/random_access_file.h"
-#include "engine/symlevel/io/stream_file_reader.h"
+#include "engine/image/cbc_file.h"
+#include "engine/image/io/random_access_file.h"
+#include "engine/image/io/stream_file_reader.h"
 #include <string_view>
 
+/// Decoding Engine & Lazy Iteration Views (`Decode::Decoder`)
+///
+/// Defines lazy evaluation wrappers (`HashTableRange`, `Bucket`, `RefSequence`,
+/// `OffsetSequence`) and the `Decoder` handle bound to an `Engine::Session`.
+///
+/// Core Responsibilities:
+/// - Resolves index handles (`RefIdentifier<T>`) into byte positions (`Identifier<T>`)
+///   via file offset pools.
+/// - Binds file handles to sequence descriptors to allow lazy, on-the-fly ULEB
+///   decoding during iteration.
+/// - Executes bucket-based hash table lookups for member indices and AOT data.
+///
+/// TODO:
+/// Logic and API boundaries intersect significantly between `decoder.h` and `reader.h`
+/// (e.g., both expose sequence resolution and index querying methods). The `Decode`
+/// namespace should be refactored to clearly separate (or merge it) raw parsing primitives from
+/// high-level decoding workflows.
 namespace Decode {
 
-template <typename T> using Identifier    = Symlevel::Identifier<T>;
-template <typename T> using RefIdentifier = Symlevel::RefIdentifier<T>;
-using FileId                              = Symlevel::FileId;
+template <typename T> using Identifier    = Image::Identifier<T>;
+template <typename T> using RefIdentifier = Image::RefIdentifier<T>;
+using FileId                              = Image::FileId;
 
 // MemberIndex and AotData table are encoded using same format.
 // This table consists of buckets, where each entry with the same hash
@@ -75,10 +91,10 @@ template <typename T> struct Bucket {
 };
 
 template <typename T> struct RefSequence {
-    Symlevel::RefSequence<T> seq;
+    Image::RefSequence<T> seq;
     IO::RandomAccessFile* file;
 
-    RefSequence(Symlevel::RefSequence<T> seq, IO::RandomAccessFile* file) : seq(seq), file(file) {}
+    RefSequence(Image::RefSequence<T> seq, IO::RandomAccessFile* file) : seq(seq), file(file) {}
 
     RefSequence() : seq() {}
 
@@ -90,7 +106,7 @@ template <typename T> struct RefSequence {
         uint32_t endPos;
         long long value = -1;
 
-        RefIdentifier<T> operator*() const { return RefIdentifier<T>(Symlevel::RefId<T>(value), fileId); }
+        RefIdentifier<T> operator*() const { return RefIdentifier<T>(Image::RefId<T>(value), fileId); }
 
         Iterator& operator++()
         {
@@ -119,10 +135,10 @@ template <typename T> struct RefSequence {
 };
 
 template <typename T> struct OffsetSequence {
-    Symlevel::OffsetSequence<T> seq;
+    Image::OffsetSequence<T> seq;
     IO::RandomAccessFile* file;
 
-    OffsetSequence(Symlevel::OffsetSequence<T> seq, IO::RandomAccessFile* file) : seq(seq), file(file) {}
+    OffsetSequence(Image::OffsetSequence<T> seq, IO::RandomAccessFile* file) : seq(seq), file(file) {}
 
     OffsetSequence() : seq() {}
 
@@ -134,7 +150,7 @@ template <typename T> struct OffsetSequence {
         uint32_t endPos;
         long long value = -1;
 
-        Identifier<T> operator*() const { return Identifier<T>(Symlevel::Offset<T>(value), fileId); }
+        Identifier<T> operator*() const { return Identifier<T>(Image::Offset<T>(value), fileId); }
 
         Iterator& operator++()
         {
@@ -168,22 +184,21 @@ struct Decoder {
     Decoder(Engine::Session& session);
     Decoder(Decoder const& another) = delete;
 
-    template <typename T> HashTableRange<T> AllEntries(Symlevel::MemberIndex<T> const& index);
+    template <typename T> HashTableRange<T> AllEntries(Image::MemberIndex<T> const& index);
 
-    template <typename T> Bucket<T> FindBucket(Symlevel::MemberIndex<T> const& index, std::string_view name);
+    template <typename T> Bucket<T> FindBucket(Image::MemberIndex<T> const& index, std::string_view name);
 
-    template <typename T>
-    std::optional<Identifier<T>> Find(Symlevel::MemberIndex<T> const& index, std::string_view name);
+    template <typename T> std::optional<Identifier<T>> Find(Image::MemberIndex<T> const& index, std::string_view name);
 
-    template <typename T> T GetAotData(RefIdentifier<Symlevel::MethodReference> index);
-    template <typename T> T GetAotData(RefIdentifier<Symlevel::FieldReference> index);
+    template <typename T> T GetAotData(RefIdentifier<Image::MethodReference> index);
+    template <typename T> T GetAotData(RefIdentifier<Image::FieldReference> index);
 
-    template <typename T> RefSequence<T> Resolve(Symlevel::RefSequence<T> seq)
+    template <typename T> RefSequence<T> Resolve(Image::RefSequence<T> seq)
     {
         return RefSequence<T>(seq, session.FileOf(seq.file).get());
     }
 
-    template <typename T> OffsetSequence<T> Resolve(Symlevel::OffsetSequence<T> seq)
+    template <typename T> OffsetSequence<T> Resolve(Image::OffsetSequence<T> seq)
     {
         return OffsetSequence<T>(seq, session.FileOf(seq.file).get());
     }
@@ -195,10 +210,8 @@ struct Decoder {
         auto index       = id.GetIndex() - pool.adjustment;
         assert(index < pool.size);
         uint32_t offset = raf.ReadU32(pool.offset + index * sizeof(uint32_t));
-        return Identifier<T>(Symlevel::Offset<T>(offset), id.GetFileId());
+        return Identifier<T>(Image::Offset<T>(offset), id.GetFileId());
     }
 };
-
-Symlevel::MemberIndex<void> ReadIndex(IO::StreamFileReader& reader, FileId file);
 
 } // namespace Decode

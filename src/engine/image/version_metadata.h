@@ -2,7 +2,7 @@
 
 #include "utils/inclusive_range.h"
 
-namespace Symlevel {
+namespace Image {
 
 struct VersionMetadata {
     static constexpr InclusiveRange SUPPORTED_FILE_VESRION { 1, 1 };
@@ -21,4 +21,4 @@ struct VersionMetadata {
     }
 };
 
-} // namespace Symlevel
+} // namespace Image

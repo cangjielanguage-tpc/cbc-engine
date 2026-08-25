@@ -165,7 +165,7 @@ struct IsaDisasm : public IsaParser {
 
     void StoreField(IReg rb, AnyReg rd, uint32_t field) override
     {
-        stream.PrintLn("lst.field R{}, [{} @{}]", rd, rb, field);
+        stream.PrintLn("st.field R{}, [{} @{}]", rd, rb, field);
     }
 
     void LoadTypeInfoGeneric(IReg dst, uint32_t typeId) override { stream.PrintLn("load.ti.g {}, @{}", dst, typeId); }
@@ -530,7 +530,7 @@ struct IsaDisasm : public IsaParser {
 struct IsaResolvingDisasm : IsaDisasm {
     Resolution::Resolver& resolver;
 
-    using MethodIndex = Symlevel::RefId<Symlevel::MethodReference>;
+    using MethodIndex = Image::RefId<Image::MethodReference>;
 
     IsaResolvingDisasm(Stream::Output& stream, Decoder::FatByteReader reader, Resolution::Resolver& resolver)
         : IsaDisasm(stream, reader),

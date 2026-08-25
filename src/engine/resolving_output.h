@@ -3,9 +3,9 @@
 #include "engine/engine.h"
 #include "engine/field_layout.h"
 #include "engine/identifiers.h"
+#include "engine/image/cbc_file.h"
+#include "engine/image/reader.h"
 #include "engine/method_table.h"
-#include "engine/symlevel/cbc_file.h"
-#include "engine/symlevel/reader.h"
 #include "engine/terms.h"
 #include "utils/ostream.h"
 #include <functional>
@@ -46,45 +46,45 @@ public:
     ResolvingOutput& operator<<(Engine::Term term);
     ResolvingOutput& operator<<(Engine::GlobalTerm term);
     ResolvingOutput& operator<<(Engine::LocalTerm term);
-    ResolvingOutput& operator<<(Symlevel::FileId fileId);
-    ResolvingOutput& operator<<(Detailed<Symlevel::RefIdentifier<Engine::Term>> id);
+    ResolvingOutput& operator<<(Image::FileId fileId);
+    ResolvingOutput& operator<<(Detailed<Image::RefIdentifier<Engine::Term>> id);
     ResolvingOutput& operator<<(Engine::MethodTable const& mt);
     ResolvingOutput& operator<<(Engine::FieldLayout const& mt);
-    ResolvingOutput& operator<<(Symlevel::FieldDefinition const& fd);
-    ResolvingOutput& operator<<(NoResolve<Symlevel::FieldDefinition> fd);
-    ResolvingOutput& operator<<(Symlevel::MethodDefinition const& md);
-    ResolvingOutput& operator<<(Full<Symlevel::MethodDefinition> md);
-    ResolvingOutput& operator<<(NoResolve<Symlevel::MethodDefinition> md);
-    ResolvingOutput& operator<<(Symlevel::TypeDefinition const& md);
-    ResolvingOutput& operator<<(Full<Symlevel::TypeDefinition> td);
-    ResolvingOutput& operator<<(NoResolve<Symlevel::TypeDefinition> td);
-    ResolvingOutput& operator<<(Symlevel::Code const& code);
+    ResolvingOutput& operator<<(Image::FieldDefinition const& fd);
+    ResolvingOutput& operator<<(NoResolve<Image::FieldDefinition> fd);
+    ResolvingOutput& operator<<(Image::MethodDefinition const& md);
+    ResolvingOutput& operator<<(Full<Image::MethodDefinition> md);
+    ResolvingOutput& operator<<(NoResolve<Image::MethodDefinition> md);
+    ResolvingOutput& operator<<(Image::TypeDefinition const& md);
+    ResolvingOutput& operator<<(Full<Image::TypeDefinition> td);
+    ResolvingOutput& operator<<(NoResolve<Image::TypeDefinition> td);
+    ResolvingOutput& operator<<(Image::Code const& code);
 
-    template <typename T> ResolvingOutput& operator<<(Symlevel::Identifier<T> id)
+    template <typename T> ResolvingOutput& operator<<(Image::Identifier<T> id)
     {
         Print("({}, {})", id.GetFileId(), id.GetOffset());
         return *this;
     }
 
-    template <typename T> ResolvingOutput& operator<<(Symlevel::RefIdentifier<T> id)
+    template <typename T> ResolvingOutput& operator<<(Image::RefIdentifier<T> id)
     {
         Print("<{}, {}>", id.GetFileId(), id.GetIndex());
         return *this;
     }
 
-    template <typename T> ResolvingOutput& operator<<(Detailed<Symlevel::Identifier<T>> id)
+    template <typename T> ResolvingOutput& operator<<(Detailed<Image::Identifier<T>> id)
     {
-        return *this << Symlevel::Reader::Read(session, id.value);
+        return *this << Decode::Read(session, id.value);
     }
 
-    template <typename T> ResolvingOutput& operator<<(Full<Symlevel::Identifier<T>> id)
+    template <typename T> ResolvingOutput& operator<<(Full<Image::Identifier<T>> id)
     {
-        return *this << Full(Symlevel::Reader::Read(session, id.value));
+        return *this << Full(Decode::Read(session, id.value));
     }
 
-    template <typename T> ResolvingOutput& operator<<(NoResolve<Symlevel::Identifier<T>> id)
+    template <typename T> ResolvingOutput& operator<<(NoResolve<Image::Identifier<T>> id)
     {
-        return *this << NoResolve(Symlevel::Reader::Read(session, id.value));
+        return *this << NoResolve(Decode::Read(session, id.value));
     }
 
     template <typename T> ResolvingOutput& operator<<(const T v)
@@ -100,11 +100,11 @@ public:
 
 private:
     Stream::Indented holder;
-    Symlevel::String StringOf(Symlevel::Offset<Symlevel::String>, Symlevel::FileId fid);
-    Symlevel::String StringOf(Symlevel::Identifier<Symlevel::String>);
+    Image::String StringOf(Image::Offset<Image::String>, Image::FileId fid);
+    Image::String StringOf(Image::Identifier<Image::String>);
     template <typename T> void Region(T name, std::function<void()> f);
 
-    ResolvingOutput& TypeDefinition(Symlevel::TypeDefinition const& td, bool full);
+    ResolvingOutput& TypeDefinition(Image::TypeDefinition const& td, bool full);
 };
 
 } // namespace Stream

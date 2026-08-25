@@ -8,7 +8,7 @@
 
 namespace Cbc {
 
-using MethodCode = Symlevel::Code;
+using MethodCode = Image::Code;
 
 class IsaParser {
 public:

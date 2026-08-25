@@ -1,17 +1,17 @@
 #include "disasmer.h"
 #include "engine/decode/decoder.h"
 #include "engine/identifiers.h"
+#include "engine/image/io/filesystem.h"
+#include "engine/image/io/stream_file_reader.h"
+#include "engine/image/reader.h"
 #include "engine/resolving_output.h"
-#include "engine/symlevel/io/filesystem.h"
-#include "engine/symlevel/io/stream_file_reader.h"
-#include "engine/symlevel/reader.h"
 #include <cstdint>
 #include <memory>
 
 namespace Dis {
 
 using namespace Engine;
-using namespace Symlevel;
+using namespace Image;
 using namespace Stream;
 
 Session Disasmer::SessionFor(std::vector<std::string_view> views)
@@ -24,15 +24,6 @@ Session Disasmer::SessionFor(std::vector<std::string_view> views)
         }
     }
     return Session(loader.Build());
-}
-
-void Disasmer::Version(const VersionMetadata& md)
-{
-    io << "File version: ";
-    io << (unsigned int)md.fileVersion;
-    io << ". Bytecode version: ";
-    io << (unsigned int)md.bytecodeVersion << ".";
-    io << endl;
 }
 
 void Disasmer::Region(String name, std::function<void()> fn)
@@ -86,11 +77,10 @@ void Disasmer::RData(RegionData const& rd, uint8_t regionNum)
 void Disasmer::DisasmOf(CbcFile const& file)
 {
     SetFile(file);
-    Version(file.GetVersionMetadata());
 
     Region("types", [&]() {
-        for (auto type : Symlevel::Reader::AllEntries(session, file.GetTypeIndex())) {
-            auto def = Symlevel::Reader::Read(session, type);
+        for (auto type : Decode::AllEntries(session, file.GetTypeIndex())) {
+            auto def = Decode::Read(session, type);
             Type(def);
         }
     });

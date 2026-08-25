@@ -56,10 +56,7 @@ static std::optional<std::unique_ptr<RandomAccessFile>> OpenFileImpl(std::string
     return std::make_unique<ByteArrayRandomAccessFile>(data, fileLength);
 };
 
-std::optional<std::unique_ptr<RandomAccessFile>> OpenFile(std::string const& path)
-{
-    return OpenFileImpl(path, true);
-}
+std::optional<std::unique_ptr<RandomAccessFile>> OpenFile(std::string const& path) { return OpenFileImpl(path, true); }
 
 std::optional<std::unique_ptr<RandomAccessFile>> TryOpenFile(std::string const& path)
 {

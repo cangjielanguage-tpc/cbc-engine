@@ -1,24 +1,25 @@
 #include "engine.h"
 #include "decode/decoder.h"
+#include "engine/image/io/random_access_file.h"
 #include "engine/method_table.h"
 #include "engine/statics_manager.h"
-#include "engine/symlevel/io/random_access_file.h"
 #include "engine/terms.h"
 #include "engine/typeinfo_manager.h"
+#include "image/cbc_file.h"
+#include "image/io/stream_file_reader.h"
+#include "image/reader.h"
 #include "interpreter/function_handle.h"
-#include "symlevel/cbc_file.h"
-#include "symlevel/io/stream_file_reader.h"
-#include "symlevel/reader.h"
 #include "utils/assertion.h"
 #include "utils/heap.h"
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <optional>
 #include <string_view>
 
 namespace Engine {
 
-using namespace Symlevel;
+using namespace Image;
 
 static Engine* g_engineInstance;
 
@@ -82,7 +83,7 @@ CbcFile& Session::CbcFileOf(FileId fileId) const
     return engine.impl->files.at(fileId);
 }
 
-std::tuple<Symlevel::CbcFile&, IO::RandomAccessFile&> Session::File(FileId fileId) const
+std::tuple<Image::CbcFile&, IO::RandomAccessFile&> Session::File(FileId fileId) const
 {
     return { engine.impl->files.at(fileId), *engine.impl->rafs.at(fileId) };
 }
@@ -99,13 +100,86 @@ Memory::Heap& Engine::CodeHeap() const { return Memory::Heap::SharedHeap(); }
 /////////////////////////////////////////////////////////////////
 // Loader implementation
 
+std::optional<CbcFile> TryReadCbcFile(Image::FileId fileId, IO::RandomAccessFile* file, std::string_view name)
+{
+    // TODO: file verification is required.
+    IO::StreamFileReader reader(file, 0);
+    static const uint32_t FILE_VERSION_SHIFT = 24;
+    static constexpr auto MAGIC              = "CBC\x01";
+
+    char magic[4];
+    auto fileLength = file->FileLength();
+    if (fileLength < sizeof(magic)) {
+        return std::nullopt;
+    }
+    reader.Read(magic, sizeof(magic));
+
+    if (memcmp(magic, MAGIC, sizeof(magic)) != 0)
+        return std::nullopt;
+    // TODO: file version checks
+
+    // Do not bother with verification further.
+
+    reader.Advance(2); // skip bytecode version and file props (TODO: change file format)
+
+    auto typeIndexOffset = reader.ReadU32();
+    auto poolOffset      = reader.ReadU32();
+
+    auto directCallAotTableOffset    = reader.ReadU32();
+    auto virtualCallAotTableOffset   = reader.ReadU32();
+    auto interfaceCallAotTableOffset = reader.ReadU32();
+    auto staticFieldAotTableOffset   = reader.ReadU32();
+    auto instanceFieldAotTableOffset = reader.ReadU32();
+
+    reader.Advance(2); // skip region number
+    auto regionOffset = reader.ReadU32();
+
+    std::optional<Identifier<String>> mainTypeName = std::nullopt;
+    if (auto mainType = reader.ReadS32(); mainType >= 0) {
+        mainTypeName = Image::Identifier(Offset<String>(mainType), fileId);
+    }
+
+    auto cbcDeps     = reader.ReadS32();
+    auto aotDeps     = reader.ReadS32();
+    auto foreignLibs = reader.ReadS32();
+    auto coverageId  = reader.ReadULEB();
+
+    IO::StreamFileReader typeIndexReader(file, typeIndexOffset);
+    IO::StreamFileReader directCallTableReader(file, directCallAotTableOffset);
+    IO::StreamFileReader virtualCallTableReader(file, virtualCallAotTableOffset);
+    IO::StreamFileReader interfaceCallTableReader(file, interfaceCallAotTableOffset);
+    IO::StreamFileReader instanceFieldTableReader(file, instanceFieldAotTableOffset);
+    IO::StreamFileReader staticFieldTableReader(file, staticFieldAotTableOffset);
+
+    return Image::CbcFile {
+        .typeIndex             = Decode::ReadIndex(typeIndexReader, fileId),
+        .regionData            = Decode::ReadRegion(fileId, *file, regionOffset),
+        .directCallAotTable    = Decode::ReadIndex(directCallTableReader, fileId),
+        .virtualCallAotTable   = Decode::ReadIndex(virtualCallTableReader, fileId),
+        .interfaceCallAotTable = Decode::ReadIndex(interfaceCallTableReader, fileId),
+        .staticFieldAotTable   = Decode::ReadIndex(staticFieldTableReader, fileId),
+        .instanceFieldAotTable = Decode::ReadIndex(instanceFieldTableReader, fileId),
+        .aotDeps               = aotDeps,
+        .cbcDeps               = cbcDeps,
+        .mainTypeName          = mainTypeName,
+        .poolOffset            = poolOffset,
+        .id                    = fileId,
+        .name                  = std::string(name),
+    };
+}
+
 bool Loader::Load(std::unique_ptr<IO::RandomAccessFile> file, std::string_view fileName)
 {
     IO::StreamFileReader reader(*file, 0);
-    auto id = loader->fileCounter++;
-    loader->files.emplace_back(std::move(CbcFile::Create(FileId(id), *file, fileName)));
-    loader->rafs.emplace_back(std::move(file));
-    return true;
+    auto id = loader->fileCounter;
+    auto f  = TryReadCbcFile(FileId(id), file.get(), fileName);
+    if (f) {
+        loader->fileCounter++;
+        loader->files.emplace_back(std::move(*f));
+        loader->rafs.emplace_back(std::move(file));
+        return true;
+    }
+    return false;
 }
 
 static std::string UpdateSharedObjName(std::string_view name)
@@ -233,7 +307,7 @@ std::optional<CbcFile*> Engine::Impl::FindCbcFile(std::string_view filePath)
     return std::nullopt;
 }
 
-std::optional<Identifier<Symlevel::TypeDefinition>> Engine::FindType(Session& session, std::string_view typeName)
+std::optional<Identifier<Image::TypeDefinition>> Engine::FindType(Session& session, std::string_view typeName)
 {
     for (auto& file : impl->files) {
         auto res = Reader::Find(session, file.GetTypeIndex(), typeName);
@@ -245,7 +319,7 @@ std::optional<Identifier<Symlevel::TypeDefinition>> Engine::FindType(Session& se
     return std::nullopt;
 }
 
-std::vector<Symlevel::CbcFile> const& Engine::Files() const { return impl->files; }
+std::vector<Image::CbcFile> const& Engine::Files() const { return impl->files; }
 
 std::vector<Dependencies> const& Engine::Dependencies() const { return impl->dependencies; }
 
@@ -260,7 +334,7 @@ std::optional<Identifier<MethodDefinition>> Engine::FindMethod(
     auto f        = file.value();
     auto declType = Reader::Find(session, f->GetTypeIndex(), typeName);
     if (declType.has_value()) {
-        auto type               = Symlevel::Reader::Read(session, declType.value());
+        auto type               = Decode::Read(session, declType.value());
         const auto& methodIndex = type.GetMethods();
 
         std::optional<Identifier<MethodDefinition>> result = std::nullopt;
@@ -286,7 +360,7 @@ std::optional<Identifier<MethodDefinition>> Engine::FindMain(Session& session, s
     if (!mainTypeName.has_value()) {
         return std::nullopt;
     }
-    auto type = Symlevel::Reader::Read(session, *mainTypeName);
+    auto type = Decode::Read(session, *mainTypeName);
     return FindMethod(session, filePath, type, "main");
 }
 
@@ -309,11 +383,11 @@ FunctionHandleManager& FunctionHandleManager::Of(Engine::Session& session)
 
 } // namespace Interpretation
 
-namespace Symlevel {
+namespace Image {
 
 using EngineImpl = Engine::Engine::Impl;
 
-} // namespace Symlevel
+} // namespace Image
 
 namespace Engine {
 
