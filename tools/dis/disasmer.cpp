@@ -85,7 +85,7 @@ void Disasmer::RData(RegionData const& rd, uint8_t regionNum)
             auto idx = RefIdentifier(refid, currentFile->Id());
             auto ref = FieldReference::Parse(*session, idx);
 
-            io << refid.GetIndex() << " - " << ref.KindAsString() << Detailed(": ");
+            io << refid.GetIndex() << " - " << Detailed(ref.KindAsString()) << Detailed(": ");
             switch (ref.tag) {
                 case SINGLE:
                     io << Detailed(ref.single.refType) << "." << Detailed(ref.single.name) << " "
