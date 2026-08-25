@@ -1,10 +1,8 @@
 #pragma once
 #include "engine/engine.h"
+#include "engine/image/cbc_file.h"
+#include "engine/image/version_metadata.h"
 #include "engine/resolving_output.h"
-#include "engine/symlevel/cbc_file.h"
-#include "engine/symlevel/definitions.h"
-#include "engine/symlevel/string.h"
-#include "engine/symlevel/version_metadata.h"
 #include "utils/ostream.h"
 #include <cstdint>
 #include <functional>
@@ -13,33 +11,29 @@
 namespace Dis {
 //
 class Disasmer {
-    std::unique_ptr<Engine::Session> SessionFor(std::vector<std::string_view> views);
+    Engine::Session SessionFor(std::vector<std::string_view> views);
 
-    void Version(const Symlevel::VersionMetadata& md);
+    void Version(const Image::VersionMetadata& md);
 
-    void Region(std::string name, std::function<void()> fn) { Region(Symlevel::String(name), fn); }
+    void Region(std::string name, std::function<void()> fn) { Region(Image::String(name), fn); }
 
-    void Region(Symlevel::String name, std::function<void()> fn);
+    void Region(Image::String name, std::function<void()> fn);
 
-    void Type(Symlevel::TypeDefinition& def);
+    void Type(Image::TypeDefinition& def);
 
-    void RData(Symlevel::RegionData const& rd, uint8_t regionNum);
+    void RData(Image::RegionData const& rd, uint8_t regionNum);
 
-    void SetFile(Symlevel::CbcFile const& file)
-    {
-        io << "Disassembly of " << file.GetName() << Stream::endl;
-        currentFile = &file;
-    }
+    void SetFile(Image::CbcFile const& file) { currentFile = &file; }
 
-    Symlevel::CbcFile const* currentFile = nullptr;
-    std::unique_ptr<Engine::Session> session;
-    std::vector<Symlevel::CbcFile> const& files;
+    Image::CbcFile const* currentFile = nullptr;
+    Engine::Session session;
+    std::vector<Image::CbcFile> const& files;
     Stream::Indented idio;
-    Stream::ResolvingOutput io = Stream::ResolvingOutput(*session, idio);
+    Stream::ResolvingOutput io = Stream::ResolvingOutput(session, idio);
 
     bool resolving;
 
-    void DisasmOf(Symlevel::CbcFile const& file);
+    void DisasmOf(Image::CbcFile const& file);
 
 public:
     void Disasm()
@@ -51,7 +45,7 @@ public:
 
     Disasmer(std::vector<std::string_view> views, Stream::Output& s, bool resolving)
         : session(SessionFor(views)),
-          files(session->GetEngine().Files()),
+          files(session.GetEngine().Files()),
           resolving(resolving),
           idio(s, 0)
     {}

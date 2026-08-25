@@ -52,6 +52,7 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M4rri16 ar
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M6rri32 args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M10rri64 args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, MStructFieldOp args);
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyDerived args);
 
 } // namespace RT
 } // namespace Cbc

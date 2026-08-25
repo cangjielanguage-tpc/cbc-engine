@@ -2,7 +2,6 @@
 
 #include "engine/engine.h"
 #include "engine/identifiers.h"
-#include "engine/symlevel/definitions.h"
 #include "engine/terms.h"
 #include "utils/iterators.h"
 #include "utils/logger.h"
@@ -34,7 +33,7 @@ namespace Engine {
 /// The value of that describe an entry in method table.
 struct MethodTableEntry {
     /// The method which is being referenced.
-    Identifier<Symlevel::MethodDefinition> method;
+    Identifier<Image::MethodDefinition> method;
 
     /// Declaring type, where method is actually declared. Additionally to type definition,
     /// stores an generic variable parameterization.
@@ -65,7 +64,7 @@ public:
 
     struct Entry {
         /// The method which is being referenced.
-        Identifier<Symlevel::MethodDefinition> method;
+        Identifier<Image::MethodDefinition> method;
 
         /// Declaring type, where method is actually declared. Additionally to type definition,
         /// stores an generic variable parameterization.

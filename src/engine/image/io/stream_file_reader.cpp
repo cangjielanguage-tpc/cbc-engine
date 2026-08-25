@@ -24,7 +24,7 @@ uint64_t StreamFileReader::ReadLongULEB()
     char buffer[LEB::MAX_SIZE];
     char* p = buffer;
 
-    size_t peekLength = file.Peek(buffer, position, sizeof(buffer));
+    size_t peekLength = file->Peek(buffer, position, sizeof(buffer));
 
     auto result  = LEB::DecodeULEB(&p, p + peekLength);
     position    += p - buffer;
@@ -37,7 +37,7 @@ int64_t StreamFileReader::ReadLongSLEB()
     char buffer[LEB::MAX_SIZE];
     char* p = buffer;
 
-    size_t peekLength = file.Peek(buffer, position, sizeof(buffer));
+    size_t peekLength = file->Peek(buffer, position, sizeof(buffer));
 
     auto result  = LEB::DecodeSLEB(&p, p + peekLength);
     position    += p - buffer;

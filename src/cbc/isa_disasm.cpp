@@ -165,7 +165,7 @@ struct IsaDisasm : public IsaParser {
 
     void StoreField(IReg rb, AnyReg rd, uint32_t field) override
     {
-        stream.PrintLn("lst.field R{}, [{} @{}]", rd, rb, field);
+        stream.PrintLn("st.field R{}, [{} @{}]", rd, rb, field);
     }
 
     void LoadTypeInfoGeneric(IReg dst, uint32_t typeId) override { stream.PrintLn("load.ti.g {}, @{}", dst, typeId); }
@@ -254,6 +254,10 @@ struct IsaDisasm : public IsaParser {
     void NewObj(IReg dst, uint32_t type) override { stream.PrintLn("newobj {}, @{}", dst, type); }
 
     void NewClosure(IReg dst, uint32_t type) override { stream.PrintLn("new.closure {}, @{}", dst, type); }
+
+    void NewClosureGeneric(IReg ti, uint32_t typeId) override { stream.PrintLn("new.closure.g {}, @{}", ti, typeId); }
+
+    void NewObjGeneric(IReg ti, uint32_t typeId) override { stream.PrintLn("newobj.g {}, @{}", ti, typeId); }
 
     void CallDirect(IReg dst, uint32_t method) override { stream.PrintLn("call.direct {}, @{}", dst, method); }
 
@@ -466,50 +470,22 @@ struct IsaDisasm : public IsaParser {
         stream.PrintLn("store.imm {}", imm);
     }
 
-    void MemTailCopyReg(MemSpace& ms, IReg dst, uint32_t recType) override
+    void MemTailCopyRegTo(MemSpace& ms, IReg to, uint32_t recType) override
     {
         PrintMemPos();
-        stream.PrintLn("copy.reg {}, @{}", dst, recType);
+        stream.PrintLn("copy.reg.to {}, @{}", to, recType);
     }
 
-    void MemTailCopyInterior(MemSpace& ms, IReg dst, std::vector<uint32_t> refs) override
+    void MemTailCopyRegFrom(MemSpace& ms, IReg from, uint32_t recType) override
     {
         PrintMemPos();
-        stream.Print("copy.interior {}, ", dst);
-        Refs(refs);
-    }
-
-    void MemTailCopyInteriorArr(MemSpace& ms, IReg dst, IReg idx, std::vector<uint32_t> refs) override
-    {
-        PrintMemPos();
-        stream.Print("copy.interior.arr {}, ", dst, idx);
-        Refs(refs);
-    }
-
-    void MemTailCopyStatic(MemSpace& ms, std::vector<uint32_t> refs) override
-    {
-        PrintMemPos();
-        stream.Print("copy.static ");
-        Refs(refs);
-    }
-
-    void MemTailCopyTyped(MemSpace& ms, uint32_t ts, std::vector<uint32_t> refs) override
-    {
-        PrintMemPos();
-        stream.Print("copy.types t{}, ", ts);
-        Refs(refs);
+        stream.PrintLn("copy.reg.from {}, @{}", from, recType);
     }
 
     void MemBodyOffset(MemSpace& ms, IReg offset) override
     {
         PrintMemPos();
         stream.PrintLn("offset {}", offset);
-    }
-
-    void MemTailCopyHandle(MemSpace& ms, IReg base, IReg derived) override
-    {
-        PrintMemPos();
-        stream.PrintLn("copy.handle {}, {}", base, derived);
     }
 
     void MemBodyConstIndexGeneric(MemSpace& ms, int64_t idx, uint32_t elemType, IReg ti) override
@@ -564,7 +540,7 @@ struct IsaDisasm : public IsaParser {
 struct IsaResolvingDisasm : IsaDisasm {
     Resolution::Resolver& resolver;
 
-    using MethodIndex = Symlevel::RefId<Symlevel::MethodReference>;
+    using MethodIndex = Image::RefId<Image::MethodReference>;
 
     IsaResolvingDisasm(Stream::Output& stream, Decoder::FatByteReader reader, Resolution::Resolver& resolver)
         : IsaDisasm(stream, reader),

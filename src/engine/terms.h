@@ -2,7 +2,6 @@
 
 #include "engine/engine.h"
 #include "engine/identifiers.h"
-#include "symlevel/string.h"
 #include "utils/assertion.h"
 #include "utils/iterators.h"
 #include "utils/ostream.h"
@@ -107,7 +106,7 @@ public:
 protected:
     constexpr TermId(TermKind kind, uint64_t info) : kind(kind), info(info)
     {
-        ASSERT(info < (1lu << INFO_PART_BIT_SIZE));
+        ASSERT(info < (1llu << INFO_PART_BIT_SIZE));
     }
 
     uint64_t Raw() const { return Bits::Raw64(*this); }
@@ -152,7 +151,7 @@ struct Term {
     using Range                                   = Iterators::SimpleRange<SubTermGenerator>;
     static constexpr uint16_t FIRST_NON_PRIMITIVE = static_cast<uint16_t>(TermKind::UNDEFINED);
 
-    static Term Definition(Session& session, Identifier<Symlevel::TypeDefinition> type);
+    static Term Definition(Session& session, Identifier<Image::TypeDefinition> type);
     static GlobalTerm Predefined(TermKind tk);
 
     static Term ClassTypeVariable(uint8_t tv);
@@ -244,19 +243,19 @@ template <typename Num, TermKind tk> struct _NumberedTermId : public TermId {
     Num GetNum() { return static_cast<Num>(this->info); }
 };
 
-using ArrayTermId = _SpecializedTermId<Identifier<Symlevel::String>, TermKind::CANGJIE_ARRAY>;
+using ArrayTermId = _SpecializedTermId<Identifier<Image::String>, TermKind::CANGJIE_ARRAY>;
 using AotTermId   = _NumberedTermId<uint32_t, TermKind::AOT_TYPE>;
-using TypeTermId  = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::TYPE>;
+using TypeTermId  = _SpecializedTermId<Identifier<Image::TypeDefinition>, TermKind::TYPE>;
 using UndefTermId = _SpecializedTermId<RefIdentifier<Term>, TermKind::UNDEFINED>;
 
-using OptionId        = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::OPTION>;
-using UnionEnumId     = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::UNION_ENUM>;
-using PrimitiveEnumId = _SpecializedTermId<Identifier<Symlevel::TypeDefinition>, TermKind::PRIMITIVE_ENUM>;
+using OptionId        = _SpecializedTermId<Identifier<Image::TypeDefinition>, TermKind::OPTION>;
+using UnionEnumId     = _SpecializedTermId<Identifier<Image::TypeDefinition>, TermKind::UNION_ENUM>;
+using PrimitiveEnumId = _SpecializedTermId<Identifier<Image::TypeDefinition>, TermKind::PRIMITIVE_ENUM>;
 
 using ClassTvTermId = _NumberedTermId<uint8_t, TermKind::CLASS_TYPE_VAR>;
 using FuncTvTermId  = _NumberedTermId<uint8_t, TermKind::FUNC_TYPE_VAR>;
 
-Identifier<Symlevel::TypeDefinition> ExtractTypeDefIdentifier(Term term);
+Identifier<Image::TypeDefinition> ExtractTypeDefIdentifier(Term term);
 
 /// Routine that substitutes terms in places of type variables.
 /// To perform an substitution a mapping `TV -> Term` is required.

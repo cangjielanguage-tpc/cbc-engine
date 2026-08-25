@@ -1,8 +1,7 @@
 #pragma once
 
+#include "cbc/isa_parser.h"
 #include "engine/engine.h"
-#include "engine/symlevel/definitions.h"
-#include "isa_parser.h"
 #include "resolution/resolution.h"
 #include "utils/logger.h"
 
@@ -12,7 +11,7 @@ extern Logging::Logger log;
 
 Interpretation::ExecBytecodeInfo Rewrite(MethodCode code, Resolution::Resolver& resolver, Memory::Heap& heap);
 Interpretation::ExecBytecodeInfo Rewrite(
-    Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> method, Memory::Heap& heap
+    Engine::Session& session, Image::Identifier<Image::MethodDefinition> method, Memory::Heap& heap
 );
 
 } // namespace Cbc

@@ -1,18 +1,13 @@
 #include "resolution.h"
+#include "engine/decode/decoder.h"
 #include "engine/engine.h"
 #include "engine/field_layout.h"
 #include "engine/identifiers.h"
+#include "engine/image/flags.h"
+#include "engine/image/reader.h"
 #include "engine/method_table.h"
 #include "engine/resolving_output.h"
 #include "engine/statics_manager.h"
-#include "engine/symlevel/aot_table.h"
-#include "engine/symlevel/definitions.h"
-#include "engine/symlevel/dependencies.h"
-#include "engine/symlevel/flags.h"
-#include "engine/symlevel/io/file_id.h"
-#include "engine/symlevel/reader.h"
-#include "engine/symlevel/references.h"
-#include "engine/symlevel/string.h"
 #include "engine/terms.h"
 #include "engine/typeinfo_manager.h"
 #include "interpreter/function_handle.h"
@@ -92,7 +87,7 @@ CbcTypeKind Resolver::GetKind(Type type)
         case TK::C_POINTER:      return CbcTypeKind::U64;
         case TK::PRIMITIVE_ENUM: {
             auto id             = PrimitiveEnumId(term.GetId());
-            auto definition     = Symlevel::Reader::Read(session, id.GetIdentifier());
+            auto definition     = Decode::Read(session, id.GetIdentifier());
             auto underlyingType = TermManager::Resolve(session, definition.GetEnumType());
             ClassSubstitution substitution(session, term);
             return GetKind(Wrap(substitution.Substitute(underlyingType)));
@@ -105,7 +100,7 @@ CbcTypeKind Resolver::GetKind(Type type)
 
 std::optional<uint32_t> Resolver::GetFlatSize(Type type) { return fieldManager->GetFlatSize(type.term); }
 
-Resolver::Resolver(Session& session, Identifier<Symlevel::MethodDefinition> method)
+Resolver::Resolver(Session& session, Identifier<Image::MethodDefinition> method)
     : session(session),
       method(method),
       regionId(0),
@@ -118,8 +113,8 @@ struct ResolvedMethodReference {
     Term refType;
     std::string_view name;
     Term signature;
-    RefIdentifier<Symlevel::MethodReference> identifier;
-    Symlevel::MethodRefFlags flags;
+    RefIdentifier<Image::MethodReference> identifier;
+    Image::MethodRefFlags flags;
     bool isResolved;
 
     std::string GetFullName(Session& session)
@@ -135,7 +130,8 @@ struct ResolvedSimpleFieldRef {
     Term refType;
     std::variant<std::string_view, uint32_t> nameOrIdx;
     Term fieldType;
-    RefIdentifier<Symlevel::FieldReference> ident;
+    RefIdentifier<Image::FieldReference> identifier;
+    bool isRecord;
 
     std::string GetFullName(Session& session)
     {
@@ -175,7 +171,7 @@ struct ResolverProxy {
         auto refType     = resolver.Wrap(ref.refType);
         auto fieldType   = resolver.Wrap(ref.fieldType);
         auto [file, raf] = resolver.session.File(resolver.method.GetFileId());
-        auto data        = file.GetInstanceFieldAotTable().GetData(resolver.session, ref.ident.GetIndex());
+        auto data        = Decode::GetAotData<Image::InstanceFieldAotData>(resolver, ref.ident);
 
         auto refTypeFlags                     = refType.term.Flags();
         std::optional<uint32_t> offset        = std::nullopt;
@@ -185,9 +181,9 @@ struct ResolverProxy {
             // We can not query TypeInfo for generic type to access its field.
             // Since refType is fixed size type, we can query TI of any instantiation
             // of given type which will have the exact same field layout generic one.
-            StubSubstitution sub(resolver.session, Term::Predefined(TermKind::I64));
+            StubSubstitution sub(resolver, Term::Predefined(TermKind::I64));
             auto concrete = sub.Substitute(refType.term);
-            ti            = resolver.tiManager.AcquireTypeInfo(resolver.session, concrete);
+            ti            = resolver.tiManager.AcquireTypeInfo(resolver, concrete);
         } else if (!refTypeFlags.isGeneric) {
             ti = refType.GetTypeInfo();
         }
@@ -201,12 +197,13 @@ struct ResolverProxy {
 
     static std::optional<StaticField::Content> ResolveAotStaticField(Resolver& resolver, ResolvedSimpleFieldRef& ref)
     {
+        auto fileId      = resolver.method.GetFileId();
         auto refType     = resolver.Wrap(ref.refType);
         auto fieldType   = resolver.Wrap(ref.fieldType);
-        auto [file, raf] = resolver.session.File(resolver.method.GetFileId());
-        auto data        = file.GetStaticFieldAotTable().GetData(resolver.session, ref.ident.GetIndex());
-        auto linkageName = Symlevel::String::Parse(resolver.session, data.linkangeName);
-        auto location    = file.GetDependencies().FindTarget(linkageName);
+        auto [file, raf] = resolver.session.File(fileId);
+        auto data        = Decode::GetAotData<Image::StaticFieldAotData>(resolver, ref.ident);
+        auto linkageName = Decode::Read(resolver, data.linkangeName);
+        auto location    = resolver.session.GetEngine().Dependencies().at(fileId).FindSymbol(linkageName);
         if (!location) {
             log.Log(Logging::Level::FATAL, [linkageName](Stream::Output& stream) {
                 stream << "not found location of static field: " << linkageName << Stream::endl;
@@ -260,8 +257,8 @@ struct ResolverProxy {
                         for (auto& field : layout->fields) {
                             if (!field.definition)
                                 continue;
-                            auto def  = Symlevel::Reader::Read(resolver.session, *field.definition);
-                            auto name = Symlevel::Reader::Read(resolver.session, def.GetName());
+                            auto def  = Decode::Read(resolver, *field.definition);
+                            auto name = Decode::Read(resolver, def.GetName());
                             if (field.fieldType == ref.fieldType && name.compare(name) == 0) {
                                 offset = field.offset;
                                 break;
@@ -283,17 +280,17 @@ struct ResolverProxy {
                     static_assert(std::is_same_v<Field, StaticField>);
 
                     auto typeDefIdent = TypeTermId(ref.refType).GetIdentifier();
-                    auto typeDef      = Symlevel::TypeDefinition::Resolve(resolver.session, typeDefIdent);
+                    auto typeDef      = Decode::Read(resolver, typeDefIdent);
 
-                    auto fieldDefIdentOpt = typeDef.GetFields().Find(resolver.session, name);
+                    auto fieldDefIdentOpt = Decode::Find(resolver, typeDef.GetFields(), name);
                     if (!fieldDefIdentOpt.has_value()) {
                         log.Stream(Logging::Level::ERROR)
                             << "Field definition search failed " << ref.GetRawIndex() << Stream::endl;
                         return std::nullopt;
                     }
 
-                    auto fieldDef = Symlevel::FieldDefinition::Resolve(resolver.session, fieldDefIdentOpt.value());
-                    auto actualFieldType = TermManager::Resolve(resolver.session, fieldDef.FieldType());
+                    auto fieldDef        = Decode::Read(resolver, fieldDefIdentOpt.value());
+                    auto actualFieldType = TermManager::Resolve(resolver, fieldDef.FieldType());
                     if (ref.fieldType != actualFieldType) {
                         log.Stream(Logging::Level::ERROR)
                             << "Field type mismatch expected:  " << ref.fieldType.GetName(resolver.session)
@@ -302,7 +299,7 @@ struct ResolverProxy {
                     }
 
                     uintptr_t location = StaticsManager::Of(resolver.session)
-                                             .GetLocation(resolver.session, typeDefIdent, fieldDefIdentOpt.value());
+                                             .GetLocation(resolver, typeDefIdent, fieldDefIdentOpt.value());
 
                     return StaticField::Content { refType, fieldType, location, name };
                 }
@@ -481,12 +478,12 @@ struct ResolverProxy {
     }
 
     static ResolvedMethodReference ResolveReference(
-        Session& session, TermManager& manager, RefIdentifier<Symlevel::MethodReference> identifier
+        Session& session, TermManager& manager, RefIdentifier<Image::MethodReference> identifier
     )
     {
-        auto parsedRef = Symlevel::MethodReference::Parse(session, identifier);
+        auto parsedRef = Decode::Read(session, identifier);
         auto refType   = manager.Resolve(session, parsedRef.refType);
-        auto name      = Symlevel::String::Parse(session, parsedRef.name);
+        auto name      = Decode::Read(session, parsedRef.name);
         auto signature = manager.Resolve(session, parsedRef.methodSig);
         auto flags     = parsedRef.flags;
 
@@ -505,12 +502,11 @@ struct ResolverProxy {
 
     template <typename Call> static ResolvedMethodReference ResolveReference(Resolver& resolver, Index<Call> index)
     {
-        auto refId = Symlevel::RefId<Symlevel::MethodReference>(index.GetValue());
-        auto ident = RefIdentifier<Symlevel::MethodReference>(refId, resolver.method.GetFileId());
-        auto ref   = ResolveReference(resolver.session, resolver.termManager, ident);
+        auto ident = RefIdentifier<Image::MethodReference>(index, resolver.method.GetFileId());
+        auto ref   = ResolveReference(resolver, resolver.termManager, ident);
 
         log.Log(Logging::Level::INFO, [&](Stream::Output& stream) {
-            Stream::ResolvingOutput out(resolver.session, stream);
+            Stream::ResolvingOutput out(resolver, stream);
             out << "Resolving method: " << ref.refType << "." << ref.name << ref.signature << Stream::endl;
         });
 
@@ -559,9 +555,9 @@ struct ResolverProxy {
     static std::optional<VirtualCall::Content> ResolveCbcCall(Resolver& resolver, ResolvedMethodReference& ref)
     {
         auto& manager = MethodTableManager::Of(resolver.session);
-        auto optMT    = manager.GetMethodTable(resolver.session, ref.refType);
+        auto optMT    = manager.GetMethodTable(resolver, ref.refType);
         auto refType  = Type(ref.refType, resolver);
-        auto sret     = ref.flags.Is(Symlevel::MethodRefFlag::SRET);
+        auto sret     = ref.flags.Is(Image::MethodRefFlag::SRET);
 
         if (!optMT.has_value()) {
             return std::nullopt;
@@ -572,7 +568,7 @@ struct ResolverProxy {
             .name      = ref.name,
             .signature = ref.signature,
         };
-        auto resolved = mt->Resolve(resolver.session, mtRef);
+        auto resolved = mt->Resolve(resolver, mtRef);
 
         if (!resolved.has_value()) {
             log.Log(Logging::Level::ERROR, [&](Stream::Output& stream) {
@@ -581,7 +577,7 @@ struct ResolverProxy {
             return std::nullopt;
         }
 
-        auto method = Symlevel::Reader::Read(resolver.session, resolved->method);
+        auto method      = Decode::Read(resolver, resolved->method);
         auto actualFlags = method.GetABIFlags();
         if (actualFlags != ref.flags) {
             log.Log(Logging::Level::ERROR, [&](Stream::Output& stream) {
@@ -603,12 +599,12 @@ struct ResolverProxy {
             return std::nullopt;
         }
         auto refType = resolver.Wrap(ref.refType);
-        auto sret    = ref.flags.Is(Symlevel::MethodRefFlag::SRET);
+        auto sret    = ref.flags.Is(Image::MethodRefFlag::SRET);
 
-        if (ref.flags.Is(Symlevel::MethodRefFlag::AOT)) {
-                auto data = file.GetInterfaceCallAotTable().GetData(resolver.session, ref.identifier.GetIndex());
-                auto sig  = ConstructSignature(resolver, ref);
-                return InterfaceCall::Content { refType, ref.name, std::move(sig), data.inum, sret };
+        if (ref.flags.Is(Image::MethodRefFlag::AOT)) {
+            auto data = Decode::GetAotData<Image::InterfaceCallAotData>(resolver, ref.identifier);
+            auto sig  = ConstructSignature(resolver, ref);
+            return InterfaceCall::Content { refType, ref.name, std::move(sig), data.inum, sret };
         } else {
             auto call = ResolveCbcCall(resolver, ref);
             if (call.has_value()) {
@@ -628,10 +624,10 @@ struct ResolverProxy {
             return std::nullopt;
         }
         auto refType = resolver.Wrap(ref.refType);
-        auto sret    = ref.flags.Is(Symlevel::MethodRefFlag::SRET);
+        auto sret    = ref.flags.Is(Image::MethodRefFlag::SRET);
 
-        if (ref.flags.Is(Symlevel::MethodRefFlag::AOT)) {
-            auto data = file.GetVirtualCallAotTable().GetData(resolver.session, ref.identifier.GetIndex());
+        if (ref.flags.Is(Image::MethodRefFlag::AOT)) {
+            auto data = Decode::GetAotData<Image::VirtualCallAotData>(resolver, ref.identifier);
             auto sig  = ConstructSignature(resolver, ref);
             return VirtualCall::Content { refType, ref.name, std::move(sig), data.methodNum, data.extDefNum, sret };
         } else {
@@ -641,11 +637,12 @@ struct ResolverProxy {
 
     static std::optional<DirectCall::Content> ResolveAotDirectCall(Resolver& resolver, ResolvedMethodReference& ref)
     {
+        auto fileId      = resolver.method.GetFileId();
         auto [file, raf] = resolver.session.File(resolver.method.GetFileId());
-        auto data        = file.GetDirectCallAotTable().GetData(resolver.session, ref.identifier.GetIndex());
+        auto data        = Decode::GetAotData<Image::DirectCallAotData>(resolver, ref.identifier);
 
-        auto linkageName = Symlevel::String::Parse(resolver.session, data.linkangeName);
-        auto funcPtr     = file.GetDependencies().FindTarget(linkageName);
+        auto linkageName = Decode::Read(resolver, data.linkangeName);
+        auto funcPtr     = resolver.session.GetEngine().Dependencies().at(fileId).FindSymbol(linkageName);
 
         if (!funcPtr) {
             log.Log(Logging::Level::FATAL, [linkageName](Stream::Output& stream) {
@@ -674,27 +671,26 @@ struct ResolverProxy {
             return std::nullopt;
         }
 
-        if (ref.flags.Is(Symlevel::MethodRefFlag::AOT)) {
+        if (ref.flags.Is(Image::MethodRefFlag::AOT)) {
             return ResolveAotDirectCall(resolver, ref);
         }
 
-
         auto termIdent = TypeTermId(ref.refType);
-        auto type      = Symlevel::TypeDefinition::Resolve(resolver.session, termIdent.GetIdentifier());
+        auto type      = Decode::Read(resolver, termIdent.GetIdentifier());
 
         // FIXME: search in hierarchy
-        auto method = [&]() -> std::optional<Identifier<Symlevel::MethodDefinition>> {
-            for (auto m : type.GetMethods().FindAll(resolver.session, ref.name)) {
-                auto def = Symlevel::Reader::Read(resolver.session, m);
-                auto sig = TermManager::Resolve(resolver.session, def.Signature());
+        auto method = [&]() -> std::optional<Identifier<Image::MethodDefinition>> {
+            for (auto m : Decode::FindBucket(resolver, type.GetMethods(), ref.name)) {
+                auto def = Decode::Read(resolver, m);
+                auto sig = TermManager::Resolve(resolver, def.Signature());
                 if (sig == ref.signature) {
                     return m;
                 }
             }
 
-            for (auto m : type.GetVirtualMethods().Values(resolver.session)) {
-                auto def = Symlevel::Reader::Read(resolver.session, m);
-                auto sig = TermManager::Resolve(resolver.session, def.Signature());
+            for (auto m : Decode::Resolve(resolver, type.GetVirtualMethods())) {
+                auto def = Decode::Read(resolver, m);
+                auto sig = TermManager::Resolve(resolver, def.Signature());
                 if (sig == ref.signature) {
                     return m;
                 }
@@ -710,8 +706,7 @@ struct ResolverProxy {
             return std::nullopt;
         }
 
-        auto fuh = Interpretation::FunctionHandleManager::Of(resolver.session)
-                       .AcquireTagged(resolver.session, method.value());
+        auto fuh = Interpretation::FunctionHandleManager::Of(resolver.session).AcquireTagged(resolver, method.value());
         auto sig     = ConstructSignature(resolver, ref);
         auto refType = resolver.Wrap(ref.refType);
         // TODO: simplify
@@ -846,8 +841,7 @@ Type Resolver::Wrap(Term term) { return Type(term, this); }
 std::optional<Type> Resolver::Query(Index<Type> id)
 {
     // terms are being cached on different level
-    auto refId = Symlevel::RefId<Term>(id.GetValue());
-    auto ident = RefIdentifier<Term>(refId, method.GetFileId());
+    auto ident = RefIdentifier<Term>(id, method.GetFileId());
     auto term  = termManager.Resolve(session, ident);
     if (term.GetKind() == TermKind::UNDEFINED) {
         return std::nullopt;
@@ -857,8 +851,8 @@ std::optional<Type> Resolver::Query(Index<Type> id)
 
 std::string_view Resolver::QueryString(uint32_t stringOffs)
 {
-    using namespace Symlevel;
-    return Reader::Read(session, Identifier(Offset<String>(stringOffs), method.GetFileId()));
+    using namespace Image;
+    return Reader::Read(session, Image::Identifier(Offset<String>(stringOffs), method.GetFileId()));
 }
 
 void Resolver::GetFullName(Type type, Stream::Output& stream) { type.term.GetName(session, stream); }

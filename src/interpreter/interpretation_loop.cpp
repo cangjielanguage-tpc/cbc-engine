@@ -1,11 +1,8 @@
 #include "interpretation_loop.h"
-#include <atomic>
 #include "cbc/formater_rt.h"
 #include "cbc/frame.h"
 #include "cbc/isa.h"
 #include "cbc/isa_rt.h"
-#include "engine/symlevel/code.h"
-#include "engine/symlevel/definitions.h"
 #include "engine/terms.h"
 #include "interpreter.h"
 #include "interpreter/code.h"
@@ -19,9 +16,11 @@
 #include "utils/logger.h"
 #include "utils/math.h"
 #include "utils/ostream.h"
+#include <atomic>
 
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 
 using namespace Interpretation;
 using namespace Cbc::RT;
@@ -504,7 +503,7 @@ LABEL(FUN64) {
         interpreter.template Unary<Width::W64>(args.xr.imm.FloatOperations(), args.xr.r.FR(), args.rr.y.FR());
     NEXT_COND(successful);
 }
-LABEL(NEWOBJ_G) {
+LABEL(NEWOBJ_ACC_G) {
     auto args = B2rr::Decode(reader);
     LOG_INSTR;
     auto tiReg = args.rr.x;
@@ -512,6 +511,19 @@ LABEL(NEWOBJ_G) {
 
     // Puts result to `IR_ACC`.
     auto func = Execution::AllocateObjectInstanceAcc();
+
+    reader0 = reader; // save current pc
+
+    return { func, type.Raw() };
+}
+LABEL(NEWOBJ_G) {
+    auto args = B2rr::Decode(reader);
+    LOG_INSTR;
+    auto tiReg = args.rr.x;
+    auto type  = TypeInfo(ectype->GetPrimitive(tiReg.IR()).u64);
+
+    // Puts result to `IR1`.
+    auto func = Execution::AllocateObjectInstance();
 
     reader0 = reader; // save current pc
 
@@ -1524,6 +1536,101 @@ LABEL(GENERIC_FIELD) {
     FSTI(64, 32, M5i32)
     FSTI(64, 64, M9i64)
 #undef FSTI
+
+LABEL(COPY_REC_FROM_OBJ) {
+    auto args = MStructFieldOp::Decode(reader);
+    LOG_INSTR;
+    auto to = ectype->GetReference(args.rr.y.IR());   // pointer to local record
+    auto ti = args.ti;                                // typeinfo
+    auto fromReg = args.rr.x.IR();
+    if (fromReg == IReg::IRZ) {
+        RTSupport::Execution::ReadStaticStruct(to.value, memspaceOffsetAcc, ti, handle);
+        NEXT;
+    } else {
+        auto from = ectype->GetReference(fromReg);
+        auto derived = from.value + memspaceOffsetAcc;
+        // heap -> local (gc barrier required)
+        RTSupport::Execution::ReadStructField(to.value, from, derived, ti, handle);
+        NEXT;
+    }
+}
+
+LABEL(COPY_REC_FROM_REC) {
+    auto args = MStructFieldOp::Decode(reader);
+    LOG_INSTR;
+    auto from = ectype->GetReference(args.rr.x.IR()); // pointer to local record (src)
+    auto to = ectype->GetReference(args.rr.y.IR());   // pointer to local record (dst)
+    auto ti = TypeInfo(args.ti);                      // typeinfo
+    auto recStart = from.value + memspaceOffsetAcc;   // interior record
+
+    // local -> local (gc barrier isn't required)
+    uint32_t size = MetaInfo::GetTypeSize(ti); // FIXME: encode size
+    memcpy((void*) to.value, (void*) recStart, size);
+
+    NEXT;
+}
+
+LABEL(COPY_REC_FROM_DERIVED) {
+    auto args = CopyDerived::Decode(reader);
+    LOG_INSTR;
+
+    auto from = ectype->GetReference(args.rr.x.IR());    // derived base
+    auto derived = ectype->GetReference(args.rr.y.IR()); // derived (interior record)
+    auto to = ectype->GetReference(args.field.x.IR());   // pointer to local record
+    auto ti = args.ti;                                   // typeinfo
+
+    auto recStart = derived.value + memspaceOffsetAcc;   // interior record
+    // any -> local (generic gc barrier required)
+    RTSupport::Execution::ReadStructField(to.value, from, recStart, args.ti, handle);
+    NEXT;
+}
+
+LABEL(COPY_REC_TO_OBJ) {
+    auto args = MStructFieldOp::Decode(reader);
+    LOG_INSTR;
+    auto fromReg = args.rr.x.IR();
+    auto from = ectype->GetReference(fromReg); // pointer to local record
+    auto ti = args.ti;                         // typeinfo
+    auto toReg = args.rr.y.IR();
+    if (toReg == IReg::IRZ) {
+        RTSupport::Execution::WriteStaticStruct(memspaceOffsetAcc, from.value, ti, handle);
+        NEXT;
+    } else {
+        auto to = ectype->GetReference(toReg);       // derived base
+        auto derived = to.value + memspaceOffsetAcc; // derived (interior record)
+        // local -> heap (gc barrier required)
+        RTSupport::Execution::WriteStructField(from.value, to, derived, ti, handle);
+        NEXT;
+    }
+}
+
+LABEL(COPY_REC_TO_REC) {
+    auto args = MStructFieldOp::Decode(reader);
+    LOG_INSTR;
+    auto from = ectype->GetReference(args.rr.x.IR()); // pointer to local record
+    auto to = ectype->GetReference(args.rr.y.IR());   // base
+    auto ti = args.ti;                                // typeinfo
+    auto recStart = to.value + memspaceOffsetAcc;     // interior record
+    // local -> local (gc barrier isn't required)
+    uint32_t size = MetaInfo::GetTypeSize(ti); // FIXME: encode size
+    memcpy((void*) recStart, (void*) from.value, size);
+    NEXT;
+}
+
+LABEL(COPY_REC_TO_DERIVED) {
+    auto args = CopyDerived::Decode(reader);
+    LOG_INSTR;
+
+    auto base = ectype->GetReference(args.rr.x.IR());    // derived base
+    auto derived = ectype->GetReference(args.rr.y.IR()); // derived (interior record)
+    auto from = ectype->GetReference(args.field.x.IR()); // pointer to local record
+    auto ti = args.ti;                                   // typeinfo
+
+    auto recStart = derived.value + memspaceOffsetAcc;   // interior record
+    // local -> any (generic gc barrier required)
+    RTSupport::Execution::WriteStructField(from.value, base, recStart, ti, handle);
+    NEXT;
+}
 
 #undef MEM_NEXT
 #undef NEXT

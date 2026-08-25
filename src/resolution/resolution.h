@@ -3,7 +3,6 @@
 #include "engine/engine.h"
 #include "engine/field_layout.h"
 #include "engine/identifiers.h"
-#include "engine/symlevel/definitions.h"
 #include "engine/terms.h"
 #include "engine/typeinfo_manager.h"
 #include "interpreter/function_handle.h"
@@ -176,13 +175,37 @@ Stream::Output& operator<<(Stream::Output& stream, InterfaceCall const& call);
 Stream::Output& operator<<(Stream::Output& stream, InstanceField const& field);
 Stream::Output& operator<<(Stream::Output& stream, StaticField const& field);
 
+template <typename T> struct IndexTraits;
+
+struct FieldIndexTraits {
+    using ref = Image::RefId<Image::FieldReference>;
+};
+
+struct MethodIndexTraits {
+    using ref = Image::RefId<Image::MethodReference>;
+};
+
+template <> struct IndexTraits<Type> {
+    using ref = Image::RefId<Engine::Term>;
+};
+
+template <> struct IndexTraits<DirectCall> : MethodIndexTraits {};
+
+template <> struct IndexTraits<VirtualCall> : MethodIndexTraits {};
+
+template <> struct IndexTraits<InterfaceCall> : MethodIndexTraits {};
+
+template <> struct IndexTraits<InstanceField> : FieldIndexTraits {};
+
+template <> struct IndexTraits<StaticField> : FieldIndexTraits {};
+
 template <typename T> class Index {
 public:
     explicit Index(uint32_t value) : value(value) {}
 
-    int GetValue() const { return value; }
+    operator typename IndexTraits<T>::ref() const { return typename IndexTraits<T>::ref(value); }
 
-    bool operator==(Index const& index) const { return value == index.value; }
+    int GetValue() const { return value; }
 
 private:
     uint32_t value;
@@ -190,7 +213,7 @@ private:
 
 /// Resolver of identifiers in the context of `method`.
 struct Resolver {
-    Resolver(Engine::Session& session, Engine::Identifier<Symlevel::MethodDefinition> method);
+    Resolver(Engine::Session& session, Image::Identifier<Image::MethodDefinition> method);
 
     Type Wrap(Engine::Term term);
 
@@ -212,6 +235,10 @@ struct Resolver {
     CbcTypeKind GetKind(Type type);
     std::optional<uint32_t> GetFlatSize(Type type);
 
+    Decode::Decoder& Decoder() { return session.Decoder(); }
+
+    operator Engine::Session&() { return session; }
+
     template <typename T> using Cache = std::unordered_map<int, typename T::Content*>;
 
     Engine::Session& session;
@@ -222,7 +249,7 @@ struct Resolver {
 
 private:
     friend class ResolverProxy;
-    Engine::Identifier<Symlevel::MethodDefinition> method;
+    Image::Identifier<Image::MethodDefinition> method;
     uint8_t regionId { 0 };
 
     Cache<VirtualCall> dynamicCalls;

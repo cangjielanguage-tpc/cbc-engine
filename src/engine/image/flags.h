@@ -8,7 +8,7 @@
 #include <string>
 #include <string_view>
 
-namespace Symlevel {
+namespace Image {
 
 #define TYPE_FLAGS(X)                                                                                                  \
     X(FINAL)                                                                                                           \
@@ -178,7 +178,7 @@ public:
     constexpr FieldFlags With(AccessKind accessKind) const
     {
         FieldFlags copy = *this;
-        copy.accessRaw   = accessRaw;
+        copy.accessRaw  = accessRaw;
         return copy;
     }
 
@@ -244,24 +244,19 @@ public:
     constexpr MethodRefFlags Or(MethodRefFlag flag) const
     {
         MethodRefFlags copy  = *this;
-        copy.flagsRaw   |= 1 << flag;
+        copy.flagsRaw       |= 1 << flag;
         return copy;
     }
 
     std::string ToString() const;
 
-    bool operator==(MethodRefFlags const& another) const {
-        return flagsRaw == another.flagsRaw;
-    }
+    bool operator==(MethodRefFlags const& another) const { return flagsRaw == another.flagsRaw; }
 
-    bool operator!=(MethodRefFlags const& another) const {
-        return flagsRaw != another.flagsRaw;
-    }
+    bool operator!=(MethodRefFlags const& another) const { return flagsRaw != another.flagsRaw; }
 
 private:
     uint8_t flagsRaw;
 };
-
 
 struct TypeFlags {
 public:
@@ -318,4 +313,4 @@ Stream::Output& operator<<(Stream::Output& stream, MethodFlag flag);
 Stream::Output& operator<<(Stream::Output& stream, FieldFlag flag);
 Stream::Output& operator<<(Stream::Output& stream, MethodRefFlag flag);
 
-} // namespace Symlevel
+} // namespace Image

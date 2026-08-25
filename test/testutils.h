@@ -1,7 +1,7 @@
 #ifndef TESTUTILS_H
 #define TESTUTILS_H
 
-#include "engine/symlevel/io/random_access_file.h"
+#include "engine/image/io/random_access_file.h"
 #include "utils/assertion.h"
 #include "utils/heap.h"
 #include <memory>

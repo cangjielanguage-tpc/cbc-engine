@@ -1,13 +1,11 @@
 #include "resolving_output.h"
 #include "cbc/isa_disasm.h"
+#include "engine/decode/decoder.h"
 #include "engine/engine.h"
 #include "engine/field_layout.h"
 #include "engine/identifiers.h"
+#include "engine/image/reader.h"
 #include "engine/method_table.h"
-#include "engine/symlevel/code.h"
-#include "engine/symlevel/definitions.h"
-#include "engine/symlevel/io/file_id.h"
-#include "engine/symlevel/reader.h"
 #include "engine/terms.h"
 #include "resolution/resolution.h"
 
@@ -34,7 +32,7 @@ ResolvingOutput& ResolvingOutput::operator<<(Engine::Term term)
     return *this;
 }
 
-ResolvingOutput& ResolvingOutput::operator<<(Detailed<Engine::RefIdentifier<Engine::Term>> term)
+ResolvingOutput& ResolvingOutput::operator<<(Detailed<Image::RefIdentifier<Engine::Term>> term)
 {
     return *this << Engine::TermManager::Resolve(session, term.value);
 }
@@ -43,9 +41,9 @@ ResolvingOutput& ResolvingOutput::operator<<(Engine::GlobalTerm term) { return *
 
 ResolvingOutput& ResolvingOutput::operator<<(Engine::LocalTerm term) { return *this << Engine::Term(term); }
 
-ResolvingOutput& ResolvingOutput::operator<<(IO::FileId fileId) { return *this << fileId.id; }
+ResolvingOutput& ResolvingOutput::operator<<(Image::FileId fileId) { return *this << fileId.id; }
 
-ResolvingOutput& ResolvingOutput::operator<<(Symlevel::FieldDefinition const& fd)
+ResolvingOutput& ResolvingOutput::operator<<(Image::FieldDefinition const& fd)
 {
     auto& out  = *this;
     auto ftype = Detailed(fd.FieldType());
@@ -54,7 +52,7 @@ ResolvingOutput& ResolvingOutput::operator<<(Symlevel::FieldDefinition const& fd
     return out;
 }
 
-ResolvingOutput& ResolvingOutput::operator<<(NoResolve<Symlevel::FieldDefinition> nr)
+ResolvingOutput& ResolvingOutput::operator<<(NoResolve<Image::FieldDefinition> nr)
 {
     auto& out  = *this;
     auto& fd   = nr.value;
@@ -64,7 +62,59 @@ ResolvingOutput& ResolvingOutput::operator<<(NoResolve<Symlevel::FieldDefinition
     return out;
 }
 
-ResolvingOutput& ResolvingOutput::operator<<(Full<Symlevel::MethodDefinition> full)
+ResolvingOutput& ResolvingOutput::operator<<(Image::Code const& code)
+{
+    using namespace Stream;
+    Stream::Indented out2(out, 2);
+    Stream::Indented out4(out, 4);
+
+    out << "MethodCode {" << endl;
+    out2 << "untypedSlotCount: " << code.untypedSlotCount << endl
+         << "stackAllocSigsCount: " << code.stackAllocSigsCount << endl
+         << "stackAllocSigs: ";
+
+    for (size_t i = 0; i < code.stackAllocSigsCount; i++) {
+        out2 << code.stackAllocSigs[i];
+        if (i < (code.stackAllocSigsCount - 1)) {
+            out2 << ", ";
+        }
+    }
+    out2 << endl;
+
+    out2 << "ohmSlotCount: " << code.ohmSlotCount << endl
+         << "usedNonVolIRegMask: " << code.usedNonVolIRegMask << endl
+         << "usedNonVolFRegMask: " << code.usedNonVolFRegMask << endl
+         << "maxCalleeStackArgsCount: " << code.maxCalleeStackArgsCount << endl;
+
+    out2 << "ExceptionTable {" << endl;
+    for (const auto& [start, end, target] : Decode::GetExceptionRegions(session, code)) {
+        out2 << "  [" << start << ", " << end << ") -> " << target << endl;
+    }
+    out2 << "}" << endl;
+
+    out2 << "LivenessInfo {" << endl;
+    for (const auto& li : Decode::GetLivenessInfo(session, code)) {
+        out4 << "cbcPos: " << li.cbcPos << ", regMask: " << li.regMask << ", ";
+        Std::Vector::Print(out4, li.refSlotNums);
+        out4 << ", ";
+        Std::Vector::Print(out4, li.mutPairs);
+        out4 << endl;
+    }
+    out2 << "}" << endl;
+
+    out2 << "StackPtrsInfo {" << endl;
+    for (const auto& spi : Decode::GetStackPtrsInfo(session, code)) {
+        out4 << "cbcPos: " << spi.cbcPos << ", ";
+        Std::Vector::Print(out4, spi.resources);
+        out4 << endl;
+    }
+    out2 << "}" << endl;
+
+    out << "}" << endl;
+    return *this;
+}
+
+ResolvingOutput& ResolvingOutput::operator<<(Full<Image::MethodDefinition> full)
 {
     auto& md      = full.value;
     auto& out     = *this;
@@ -85,8 +135,8 @@ ResolvingOutput& ResolvingOutput::operator<<(Full<Symlevel::MethodDefinition> fu
         }
         if (auto codeOpt = md.MethodCode()) {
             Region("code", [&]() {
-                auto code = Symlevel::Code::Parse(session, md.FileId(), codeOpt->GetOffset());
-                code.Print(session, out.out);
+                auto code = Decode::Read(session, md.FileId(), codeOpt->GetOffset());
+                out << code;
                 Cbc::Disasm(ResolvingOutput::out, code, &resolver);
             });
         }
@@ -95,13 +145,13 @@ ResolvingOutput& ResolvingOutput::operator<<(Full<Symlevel::MethodDefinition> fu
     return out;
 }
 
-ResolvingOutput& ResolvingOutput::operator<<(Symlevel::MethodDefinition const& md)
+ResolvingOutput& ResolvingOutput::operator<<(Image::MethodDefinition const& md)
 {
     Print("{}.{}{}", Detailed(md.TypeName()), Detailed(md.Name()), Detailed(md.Signature()));
     return *this;
 }
 
-ResolvingOutput& ResolvingOutput::operator<<(NoResolve<Symlevel::MethodDefinition> nr)
+ResolvingOutput& ResolvingOutput::operator<<(NoResolve<Image::MethodDefinition> nr)
 {
     auto& out = *this;
     auto& md  = nr.value;
@@ -109,25 +159,25 @@ ResolvingOutput& ResolvingOutput::operator<<(NoResolve<Symlevel::MethodDefinitio
     return out;
 }
 
-ResolvingOutput& ResolvingOutput::operator<<(NoResolve<Symlevel::TypeDefinition> nr)
+ResolvingOutput& ResolvingOutput::operator<<(NoResolve<Image::TypeDefinition> nr)
 {
     auto& out = *this;
     auto& td  = nr.value;
     Region("method name: " + std::to_string(td.GetName().GetOffset()), [&]() {
         out << "super: " << td.GetSuperType() << endl;
         Region("fields", [&]() {
-            for (auto field : td.GetFields().Entries(session)) {
-                out << NoResolve(field) << endl;
+            for (auto id : Decode::AllEntries(session, td.GetFields())) {
+                out << NoResolve(id) << endl;
             }
         });
         Region("methods", [&]() {
-            for (auto id : td.GetMethods().Entries(session)) {
+            for (auto id : Decode::AllEntries(session, td.GetMethods())) {
                 out << NoResolve(id);
             }
         });
         Region("virtual methods", [&]() {
             auto vms = td.GetVirtualMethods();
-            for (auto ident : vms.Values(session)) {
+            for (auto ident : Decode::Resolve(session, vms)) {
                 out << NoResolve(ident);
             }
         });
@@ -135,32 +185,32 @@ ResolvingOutput& ResolvingOutput::operator<<(NoResolve<Symlevel::TypeDefinition>
     return out;
 }
 
-ResolvingOutput& ResolvingOutput::TypeDefinition(Symlevel::TypeDefinition const& td, bool full)
+ResolvingOutput& ResolvingOutput::TypeDefinition(Image::TypeDefinition const& td, bool full)
 {
     auto& out = *this;
     Region(StringOf(td.GetName()), [&]() {
         out << "super: " << Detailed(td.GetSuperType()) << endl;
 
         Region("interfaces", [&]() {
-            for (auto id : td.GetInterfaces().Values(session)) {
+            for (auto id : Decode::Resolve(session, td.GetInterfaces())) {
                 out << Detailed(id) << endl;
             }
         });
 
         Region("fields", [&]() {
-            for (auto field : td.GetFields().Entries(session)) {
+            for (auto field : Decode::AllEntries(session, td.GetFields())) {
                 out << Detailed(field) << endl;
             }
         });
 
         Region("instance fields", [&]() {
-            for (auto id : td.GetInstanceFields().Values(session)) {
+            for (auto id : Decode::Resolve(session, td.GetInstanceFields())) {
                 out << Detailed(id) << endl;
             }
         });
 
         Region("methods", [&]() {
-            for (auto id : td.GetMethods().Entries(session)) {
+            for (auto id : Decode::AllEntries(session, td.GetMethods())) {
                 if (full) {
                     out << Full(id);
                 } else {
@@ -171,7 +221,7 @@ ResolvingOutput& ResolvingOutput::TypeDefinition(Symlevel::TypeDefinition const&
 
         Region("virtual methods", [&]() {
             auto vms = td.GetVirtualMethods();
-            for (auto ident : vms.Values(session)) {
+            for (auto ident : Decode::Resolve(session, vms)) {
                 if (full) {
                     out << Full(ident);
                 } else {
@@ -184,12 +234,12 @@ ResolvingOutput& ResolvingOutput::TypeDefinition(Symlevel::TypeDefinition const&
     return out;
 }
 
-ResolvingOutput& ResolvingOutput::operator<<(Full<Symlevel::TypeDefinition> full)
+ResolvingOutput& ResolvingOutput::operator<<(Full<Image::TypeDefinition> full)
 {
     return TypeDefinition(full.value, true);
 }
 
-ResolvingOutput& ResolvingOutput::operator<<(Symlevel::TypeDefinition const& td) { return TypeDefinition(td, false); }
+ResolvingOutput& ResolvingOutput::operator<<(Image::TypeDefinition const& td) { return TypeDefinition(td, false); }
 
 ResolvingOutput& ResolvingOutput::operator<<(Engine::MethodTable const& mt)
 {
@@ -198,7 +248,7 @@ ResolvingOutput& ResolvingOutput::operator<<(Engine::MethodTable const& mt)
     out << "  classes:" << endl;
 
     auto writeEntry = [&](Engine::MethodTableEntry& entry) {
-        auto def = Symlevel::Reader::Read(session, entry.method);
+        auto def = Decode::Read(session, entry.method);
 
         Engine::MethodSignatureSubstitution sub(session, entry.genericContext);
         auto signature = Engine::TermManager::Resolve(session, def.Signature());
@@ -239,7 +289,7 @@ ResolvingOutput& ResolvingOutput::operator<<(Engine::FieldLayout const& layout)
 
     for (auto& f : layout->fields) {
         if (f.definition) {
-            auto def = Symlevel::Reader::Read(session, *f.definition);
+            auto def = Decode::Read(session, *f.definition);
             stream << Detailed(def.GetName()) << ": " << f.fieldType << " - " << f.offset << endl;
         } else {
             stream << "<unknown>" << ": " << f.fieldType << " - " << f.offset << endl;
@@ -258,14 +308,11 @@ template <typename T> void ResolvingOutput::Region(T name, std::function<void()>
     *this << "}" << endl;
 }
 
-Symlevel::String ResolvingOutput::StringOf(Symlevel::Offset<Symlevel::String> str, IO::FileId fid)
+Image::String ResolvingOutput::StringOf(Image::Offset<Image::String> str, Image::FileId fid)
 {
-    return Symlevel::String::Parse(session, fid, str);
+    return Decode::Read(session, fid, str);
 }
 
-Symlevel::String ResolvingOutput::StringOf(Engine::Identifier<Symlevel::String> str)
-{
-    return Symlevel::String::Parse(session, str);
-}
+Image::String ResolvingOutput::StringOf(Image::Identifier<Image::String> str) { return Decode::Read(session, str); }
 
 } // namespace Stream

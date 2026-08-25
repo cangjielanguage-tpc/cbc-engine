@@ -596,7 +596,12 @@ void Emitter::Jmp(Label label) { AddFixup(std::make_unique<JmpFixup>(label)); }
 
 void Emitter::Ret() { Encode(segment, RT::B1 { RT::Opcode::RET }); }
 
-void Emitter::NewObjGenericOnAcc(IReg ti) { Encode(segment, RT::B2rr { .opc = RT::Opcode::NEWOBJ_G, .rr = { ti, ti } }); }
+void Emitter::NewObjGeneric(IReg ti) { Encode(segment, RT::B2rr { .opc = RT::Opcode::NEWOBJ_G, .rr = { ti, ti } }); }
+
+void Emitter::NewObjGenericOnAcc(IReg ti)
+{
+    Encode(segment, RT::B2rr { .opc = RT::Opcode::NEWOBJ_ACC_G, .rr = { ti, ti } });
+}
 
 void Emitter::NewObj(RTSupport::TypeInfo typeInfo)
 {

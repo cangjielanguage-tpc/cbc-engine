@@ -1,21 +1,20 @@
 #include "disasmer.h"
+#include "engine/decode/decoder.h"
 #include "engine/identifiers.h"
+#include "engine/image/io/filesystem.h"
+#include "engine/image/io/stream_file_reader.h"
+#include "engine/image/reader.h"
 #include "engine/resolving_output.h"
-#include "engine/symlevel/io/filesystem.h"
-#include "engine/symlevel/io/stream_file_reader.h"
-#include "engine/symlevel/reader.h"
-#include "engine/symlevel/references.h"
-#include "engine/symlevel/region_data.h"
 #include <cstdint>
 #include <memory>
 
 namespace Dis {
 
 using namespace Engine;
-using namespace Symlevel;
+using namespace Image;
 using namespace Stream;
 
-std::unique_ptr<Session> Disasmer::SessionFor(std::vector<std::string_view> views)
+Session Disasmer::SessionFor(std::vector<std::string_view> views)
 {
     auto loader = Loader();
     for (auto view : views) {
@@ -24,16 +23,7 @@ std::unique_ptr<Session> Disasmer::SessionFor(std::vector<std::string_view> view
             loader.Load(std::move(raf.value()), view);
         }
     }
-    return std::make_unique<Session>(loader.Build());
-}
-
-void Disasmer::Version(const VersionMetadata& md)
-{
-    io << "File version: ";
-    io << (unsigned int)md.fileVersion;
-    io << ". Bytecode version: ";
-    io << (unsigned int)md.bytecodeVersion << ".";
-    io << endl;
+    return Session(loader.Build());
 }
 
 void Disasmer::Region(String name, std::function<void()> fn)
@@ -56,12 +46,10 @@ void Disasmer::Type(TypeDefinition& def)
 
 void Disasmer::RData(RegionData const& rd, uint8_t regionNum)
 {
-    auto& raf = *session->FileOf(currentFile->Id());
+    auto& raf = session.FileOf(currentFile->Id());
     Region("methods: ", [&]() {
-        auto mrefs = rd.MethodReferencesOffsets().RefIds();
-        for (auto refid : mrefs) {
-            auto idx = RefIdentifier(refid, currentFile->Id());
-            auto ref = MethodReference::Parse(*session, idx);
+        for (auto refid : rd.methods) {
+            auto ref = Reader::Read(session, refid);
 
             io << refid.GetIndex() << " - " << Detailed(ref.refType) << "." << Detailed(ref.name)
                << Detailed(ref.methodSig) << ' ' << ref.flags << endl;
@@ -69,21 +57,16 @@ void Disasmer::RData(RegionData const& rd, uint8_t regionNum)
     });
 
     Region("terms: ", [&]() {
-        auto terms = rd.TermsOffsets().RefIds();
-        for (auto refid : terms) {
-            auto newrefid = RefId<Term>(refid.GetIndex());
-            auto termIdx  = RefIdentifier(newrefid, currentFile->Id());
-            auto term     = TermManager::Resolve(*session, termIdx);
+        for (auto refid : rd.terms) {
+            auto term = TermManager::Resolve(session, refid);
 
-            io << newrefid.GetIndex() << " - " << term << endl;
+            io << refid.GetIndex() << " - " << term << endl;
         }
     });
 
     Region("fields: ", [&]() {
-        auto frefs = rd.FieldReferencesOffsets().RefIds();
-        for (auto refid : frefs) {
-            auto idx = RefIdentifier(refid, currentFile->Id());
-            auto ref = FieldReference::Parse(*session, idx);
+        for (auto refid : rd.fields) {
+            auto ref = Reader::Read(session, refid);
 
             io << refid.GetIndex() << " - " << Detailed(ref.KindAsString()) << Detailed(": ");
             switch (ref.tag) {
@@ -114,12 +97,10 @@ void Disasmer::RData(RegionData const& rd, uint8_t regionNum)
 void Disasmer::DisasmOf(CbcFile const& file)
 {
     SetFile(file);
-    Version(file.GetVersionMetadata());
 
-    auto ti = file.GetTypeIndex();
     Region("types", [&]() {
-        for (auto type : ti.Entries(*session)) {
-            auto def = Symlevel::Reader::Read(*session, type);
+        for (auto type : Decode::AllEntries(session, file.GetTypeIndex())) {
+            auto def = Decode::Read(session, type);
             Type(def);
         }
     });

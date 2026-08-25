@@ -11,19 +11,16 @@
 #include "cbc_engine.h"
 #include "cbc_loader.h"
 #include "cjnative.h"
+#include "engine/decode/decoder.h"
 #include "engine/engine.h"
+#include "engine/image/io/filesystem.h"
+#include "engine/image/reader.h"
 #include "engine/options.h"
 #include "engine/resolving_output.h"
-#include "engine/symlevel/definitions.h"
-#include "engine/symlevel/dependencies.h"
-#include "engine/symlevel/io/filesystem.h"
-#include "engine/symlevel/member_index.h"
-#include "engine/symlevel/reader.h"
 #include "exception_handling.h"
 #include "gc_support.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
-#include "interpreter/implicit_exceptions.h"
 #include "interpreter/interpretation_loop.h"
 #include "interpreter/loggers.h"
 #include "runtimesupport/impl/rt_syms.h"
@@ -106,14 +103,13 @@ static void PerformPatching()
 
     for (auto& file : engine.Files()) {
         // TODO: list patches in CBC file header
-        auto ti = file.GetTypeIndex();
-        for (auto type : ti.Entries(session)) {
-            auto def = Symlevel::Reader::Read(session, type);
-            if (!def.GetFlags().Is(Symlevel::TypeFlag::PATCH)) {
+        for (auto type : Decode::AllEntries(session, file.GetTypeIndex())) {
+            auto def = Decode::Read(session, type);
+            if (!def.GetFlags().Is(Image::TypeFlag::PATCH)) {
                 continue;
             }
 
-            auto pkgName = Symlevel::Reader::Read(session, def.GetName());
+            auto pkgName = Decode::Read(session, def.GetName());
             pkgName = pkgName.substr(3);
 
             LOG_INFO(RTSupport::Log::rt, "patching package {}", pkgName);
@@ -135,14 +131,14 @@ static void PerformPatching()
             // Corresponding extension def (TODO: check it)
             auto edef = ti->vExtensionDataStart[1];
 
-            for (auto mdefId : def.GetMethods().Entries(session)) {
-                auto mdef = Symlevel::Reader::Read(session, mdefId);
+            for (auto mdefId : Decode::AllEntries(session, def.GetMethods())) {
+                auto mdef = Decode::Read(session, mdefId);
 
                 auto idx = -1;
-                if (mdef.GetFlags().Is(Symlevel::MethodFlag::PKG_INIT)) {
+                if (mdef.GetFlags().Is(Image::MethodFlag::PKG_INIT)) {
                     idx = 0;
                 }
-                if (mdef.GetFlags().Is(Symlevel::MethodFlag::LIT_INIT)) {
+                if (mdef.GetFlags().Is(Image::MethodFlag::LIT_INIT)) {
                     idx = 1;
                 }
 
@@ -156,8 +152,8 @@ static void PerformPatching()
             };
 
             // Set patched flag
-            auto& deps = file.GetDependencies();
-            auto flag = deps.FindTarget(patchFlagName);
+            auto& deps = engine.Dependencies().at(file.Id());
+            auto flag  = deps.FindSymbol(patchFlagName);
             if (flag == nullptr) {
                 LOG_ERROR(RTSupport::Log::rt, "patching flag field not found {}", patchFlagName);
                 continue;
@@ -235,11 +231,14 @@ static void VisitFrameRootsExpansion(
     DYN_VisitingState state,
     INT_FrameDesc frameDesc,
     DYN_RootVisitor stackPtrVisitor,
-    DYN_DerivedPtrVisitor derivedPtrVisitor
+    DYN_DerivedPtrVisitor derivedPtrVisitor,
+    DYN_RootVisitor stackAllocVisitor
 )
 {
     if (g_Initialized) {
-        StackExpansion::VisitFrameRootsForStackPtrs(state, frameDesc, stackPtrVisitor, derivedPtrVisitor);
+        StackExpansion::VisitFrameRootsForStackPtrs(
+            state, frameDesc, stackPtrVisitor, derivedPtrVisitor, stackAllocVisitor
+        );
     }
 }
 

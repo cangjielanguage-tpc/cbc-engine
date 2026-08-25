@@ -43,6 +43,7 @@
     X(FUN64, B3xrrr, "$0fop.64 $1fr $3fr")                                                                             \
     X(NEWOBJ, B9i64, "newobj IR1, $0U64")                                                                              \
     X(NEWOBJ_G, B2rr, "newobj.g $0ir")                                                                                 \
+    X(NEWOBJ_ACC_G, B2rr, "newobj.acc.g $0ir")                                                                         \
     X(NEWARR, B9i64, "newarr IR1, IR2, $0U64")                                                                         \
     X(INITCLOSURE, B1, "init.closure")                                                                                 \
     X(INITCLOSURE_SRET, B1, "init.closure.sret")                                                                       \
@@ -273,7 +274,13 @@
     X(FSTI_64_8, M2i8, "fsti.64.8 $0U8 }", true)                                                                       \
     X(FSTI_64_16, M3i16, "fsti.64.16 $0U16 }", true)                                                                   \
     X(FSTI_64_32, M5i32, "fsti.64.32 $0U32 }", true)                                                                   \
-    X(FSTI_64_64, M9i64, "fsti.64.64 $0U64 }", true)
+    X(FSTI_64_64, M9i64, "fsti.64.64 $0U64 }", true)                                                                   \
+    X(COPY_REC_FROM_OBJ, MStructFieldOp, "reg.copy.from.obj $0ir $1ir $2U64 }", true)                                  \
+    X(COPY_REC_FROM_REC, MStructFieldOp, "reg.copy.from.rec $0ir $1ir $2U64 }", true)                                  \
+    X(COPY_REC_FROM_DERIVED, CopyDerived, "reg.copy.from.derived $0ir $1ir $2ir $4U64 }", true)                        \
+    X(COPY_REC_TO_OBJ, MStructFieldOp, "reg.copy.to.obj $0ir $1ir $2U64 }", true)                                      \
+    X(COPY_REC_TO_REC, MStructFieldOp, "reg.copy.to.rec $0ir $1ir $2U64 }", true)                                      \
+    X(COPY_REC_TO_DERIVED, CopyDerived, "reg.copy.to.derived $0ir $1ir $2ir $4U64 }", true)
 
 namespace Cbc {
 namespace RT {
@@ -568,8 +575,8 @@ struct IOF {
 
     static IOF Decode(Decoder::ByteReader& reader)
     {
-        auto opc  = Opcode::Decode(reader);
-        auto rr   = Format::RR::Decode(reader);
+        auto opc   = Opcode::Decode(reader);
+        auto rr    = Format::RR::Decode(reader);
         auto imm64 = reader.Read64();
         return IOF { opc, rr, imm64 };
     }
@@ -588,6 +595,22 @@ struct StructFieldOp {
         auto field = Format::RR::Decode(reader);
         auto ti    = reader.Read<RTSupport::TypeInfo>();
         return StructFieldOp { opc, rr, field, ti };
+    }
+};
+
+struct CopyDerived {
+    MemOpcode opc;
+    Format::RR rr;
+    Format::RR field;
+    RTSupport::TypeInfo ti;
+
+    static CopyDerived Decode(Decoder::ByteReader& reader)
+    {
+        auto opc   = MemOpcode::Decode(reader);
+        auto rr    = Format::RR::Decode(reader);
+        auto field = Format::RR::Decode(reader);
+        auto ti    = reader.Read<RTSupport::TypeInfo>();
+        return CopyDerived { opc, rr, field, ti };
     }
 };
 
@@ -881,7 +904,7 @@ struct M10xri64 {
     inline static M10xri64 Decode(Decoder::ByteReader& reader)
     {
         auto opc   = MemOpcode::Decode(reader);
-        auto xr  = Format::XR::Decode(reader);
+        auto xr    = Format::XR::Decode(reader);
         auto imm64 = Format::Imm64::Decode(reader);
         return M10xri64 { opc, xr, imm64 };
     }

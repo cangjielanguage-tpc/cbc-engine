@@ -1,12 +1,11 @@
 #include "rt_syms.h"
+#include "engine/engine.h"
 #include "runtimesupport/impl/asm_trampolines.h"
-#include "utils/assertion.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
 #include "utils/rt_logger.h"
-#include <cstdint>
 #include <dlfcn.h>
-#include <optional>
+#include <string_view>
 
 namespace RTSupport {
 
@@ -15,61 +14,8 @@ DYN_ReadStructFieldFn ReadStructField;
 
 DYN_WriteGenericFieldFn WriteGeneric;
 
-// merge with LibHandle
-struct Handle {
-    void* handle;
-    std::string name;
-
-    Handle() : handle(nullptr) {}
-
-    Handle(void* handle, std::string&& name) : handle(handle), name(std::move(name)) {}
-
-    Handle(Handle const& handle) = delete;
-
-    Handle(Handle&& handle) : handle(handle.handle) { handle.handle = nullptr; }
-
-    Handle& operator=(Handle&& other)
-    {
-        if (handle != nullptr) {
-            FATAL("Trying to rewrite existing handle");
-        }
-        name         = std::move(other.name);
-        handle       = other.handle;
-        other.handle = nullptr;
-        return *this;
-    }
-
-    static std::optional<Handle> Open(std::string&& str)
-    {
-        void* handle = dlopen(str.c_str(), RTLD_LAZY);
-        if (handle) {
-            return Handle(handle, std::move(str));
-        } else {
-            return std::nullopt;
-        }
-    }
-
-    void* Sym(char const* str)
-    {
-        auto res = dlsym(handle, str);
-        if (!res) {
-            Log::init.Stream(Logging::Level::ERROR) << '{' << name << "} failed to find " << str << Stream::endl;
-        }
-        return res;
-    }
-
-    template <typename T> T Func(char const* str) { return reinterpret_cast<T>(Sym(str)); }
-
-    ~Handle()
-    {
-        if (handle) {
-            dlclose(handle);
-        }
-    }
-};
-
 // Prolongs lifetime of helper lib handle after finish of Initialize.
-Handle g_helperLibHandle;
+Utils::SharedObject g_helperLibHandle;
 
 void Initialize(DYN_CJNativeInterface* interf)
 {
@@ -82,16 +28,16 @@ void Initialize(DYN_CJNativeInterface* interf)
         return;
     }
     void* base  = info.dli_fbase;
-    auto handle = Handle::Open(info.dli_fname);
-    if (!handle.has_value()) {
+    auto handle = Utils::SharedObject::Open(std::string_view(info.dli_fname));
+    if (!handle.IsOpened()) {
         Log::init.Stream(Logging::Level::ERROR) << "failed to open lib " << info.dli_fname << Stream::endl;
         return;
     }
 
     // verify that we didn't opened new library (any other exported symbol can be used).
-    auto stackGrowStub = handle->Sym("CJ_MCC_StackGrowStub");
+    auto stackGrowStub = handle.SearchSym("CJ_MCC_StackGrowStub");
     Asm::engine_newthread_nret_function =
-        handle->Func<decltype(Asm::engine_newthread_nret_function)>("CJ_MCC_NewCJThreadNoReturn");
+        (decltype(Asm::engine_newthread_nret_function))handle.SearchSym("CJ_MCC_NewCJThreadNoReturn");
 
     Asm::engine_read_generic = interf->readGenericField;
     WriteGeneric             = interf->writeGenericField;
@@ -107,24 +53,24 @@ void Initialize(DYN_CJNativeInterface* interf)
     }
 
 #if defined(__APPLE__)
-    const char* helperLibName = "libcbcengine-helper.dylib";
+    std::string_view helperLibName = "libcbcengine-helper.dylib";
 #else
-    const char* helperLibName = "libcbcengine-helper.so";
+    std::string_view helperLibName = "libcbcengine-helper.so";
 #endif
-    auto helperHandleOpt      = Handle::Open(helperLibName);
-    if (!helperHandleOpt.has_value()) {
+    auto helperHandleOpt = Utils::SharedObject::Open(helperLibName);
+    if (!helperHandleOpt.IsOpened()) {
         Log::init.Stream(Logging::Level::ERROR) << "failed to open lib " << helperLibName << Stream::endl;
         return;
     }
 
     const char* throwerName = "_CN32cangjie.runtime.cbcengine.helper22throwImplicitExceptionHl";
-    auto throwerSym         = helperHandleOpt.value().Sym(throwerName);
+    auto throwerSym         = helperHandleOpt.SearchSym(throwerName);
     if (throwerSym == nullptr) {
         Log::init.Stream(Logging::Level::ERROR) << "failed to find symbol " << throwerName << Stream::endl;
         return;
     }
 
-    g_helperLibHandle                      = std::move(helperHandleOpt.value());
+    g_helperLibHandle                      = std::move(helperHandleOpt);
     Asm::engine_implicit_exception_thrower = reinterpret_cast<void (*)(int)>(throwerSym);
 }
 

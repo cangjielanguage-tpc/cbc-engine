@@ -145,12 +145,8 @@
     X(Load, MemTailLoad)                                                                                               \
     X(Store, MemTailStore)                                                                                             \
     X(StoreImm, MemTailStoreImm)                                                                                       \
-    X(CopyReg, MemTailCopyReg)                                                                                         \
-    X(CopyInterior, MemTailCopyInterior)                                                                               \
-    X(CopyInteriorArr, MemTailCopyInteriorArr)                                                                         \
-    X(CopyStatic, MemTailCopyStatic)                                                                                   \
-    X(CopyTyped, MemTailCopyTyped)                                                                                     \
-    X(CopyHandle, MemTailCopyHandle)                                                                                   \
+    X(CopyRegTo, MemTailCopyRegTo)                                                                                     \
+    X(CopyRegFrom, MemTailCopyRegFrom)                                                                                 \
     X(ConstIndex, MemBodyConstIndex)                                                                                   \
     X(FieldGeneric, MemBodyFieldGeneric)                                                                               \
     X(ConstIndexGeneric, MemBodyConstIndexGeneric)                                                                     \
@@ -172,6 +168,8 @@
     X(CallClosure)                                                                                                     \
     X(NewClosure)                                                                                                      \
     X(CallClosureGeneric)                                                                                              \
+    X(NewObjGeneric)                                                                                                   \
+    X(NewClosureGeneric)                                                                                               \
     X(_END)
 
 #define ISA_REG_GROUP_OPCODES(X)                                                                                       \

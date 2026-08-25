@@ -1,11 +1,10 @@
 #include "field_layout.h"
 #include "engine/engine.h"
 #include "engine/identifiers.h"
+#include "engine/image/flags.h"
+#include "engine/image/reader.h"
+#include "engine/image/type_kind.h"
 #include "engine/resolving_output.h"
-#include "engine/symlevel/definitions.h"
-#include "engine/symlevel/flags.h"
-#include "engine/symlevel/reader.h"
-#include "engine/symlevel/type_kind.h"
 #include "engine/terms.h"
 #include "engine/typeinfo_manager.h"
 #include "runtimesupport/runtime.h"
@@ -19,6 +18,8 @@
 #include <optional>
 
 static constexpr auto MAX_ALIGN = alignof(max_align_t);
+
+namespace Reader = Image::Reader;
 
 namespace Engine {
 
@@ -100,7 +101,7 @@ struct FLManager : public FieldLayoutManager {
 
             case TK::PRIMITIVE_ENUM: {
                 auto id   = PrimitiveEnumId(term.GetId());
-                auto def  = Symlevel::Reader::Read(session, id.GetIdentifier());
+                auto def  = Decode::Read(session, id.GetIdentifier());
                 auto term = TermManager::Resolve(session, def.GetEnumType());
                 return GetFlatSize(term);
             }
@@ -134,7 +135,7 @@ struct FLManager : public FieldLayoutManager {
         switch (term.GetKind()) {
             case TermKind::PRIMITIVE_ENUM: {
                 auto id   = PrimitiveEnumId(term.GetId());
-                auto def  = Symlevel::Reader::Read(session, id.GetIdentifier());
+                auto def  = Decode::Read(session, id.GetIdentifier());
                 auto term = TermManager::Resolve(session, def.GetEnumType());
                 return GetFlatAlignment(term);
             }
@@ -241,9 +242,7 @@ private:
         uint8_t alignment;
 
         void AddField(
-            std::vector<FieldLayout::Entry>& entries,
-            Term type,
-            std::optional<Identifier<Symlevel::FieldDefinition>> fdef
+            std::vector<FieldLayout::Entry>& entries, Term type, std::optional<Identifier<Image::FieldDefinition>> fdef
         )
         {
             auto offset = AddField(manager->GetFlatSize(type), manager->GetFlatAlignment(type));
@@ -282,7 +281,7 @@ private:
         std::optional<FieldLayout> layout {};
 
         if (kind == TermKind::TYPE) {
-            auto def = Symlevel::Reader::Read(session, ExtractTypeDefIdentifier(term));
+            auto def = Decode::Read(session, ExtractTypeDefIdentifier(term));
             layout = BuildLayoutCbc(term, def);
         } else if (kind == TermKind::TUPLE) {
             SizeAlignmentAccumulator acc { this, 0, 1 };
@@ -300,7 +299,7 @@ private:
             FieldLayout::Content content;
             acc.AddField(content.fields, Term::Predefined(TermKind::BOOLEAN), std::nullopt);
 
-            auto def      = Symlevel::Reader::Read(session, ExtractTypeDefIdentifier(term));
+            auto def      = Decode::Read(session, ExtractTypeDefIdentifier(term));
             auto someType = TermManager::Resolve(session, def.GetEnumType());
             someType = substitute.Substitute(someType);
             acc.AddField(content.fields, someType, std::nullopt);
@@ -314,7 +313,7 @@ private:
             FieldLayout::Content content;
             acc.AddField(content.fields, Term::Predefined(TermKind::UNIT), std::nullopt);
 
-            auto def      = Symlevel::Reader::Read(session, ExtractTypeDefIdentifier(term));
+            auto def      = Decode::Read(session, ExtractTypeDefIdentifier(term));
             auto someType = TermManager::Resolve(session, def.GetEnumType());
             someType      = substitute.Substitute(someType);
             acc.AddField(content.fields, someType, std::nullopt);
@@ -327,7 +326,7 @@ private:
             SizeAlignmentAccumulator acc { this, 0, 1 };
             FieldLayout::Content content;
 
-            auto def      = Symlevel::Reader::Read(session, ExtractTypeDefIdentifier(term));
+            auto def      = Decode::Read(session, ExtractTypeDefIdentifier(term));
             auto someType = TermManager::Resolve(session, def.GetEnumType());
             someType      = substitute.Substitute(someType);
             acc.AddField(content.fields, someType, std::nullopt);
@@ -342,8 +341,8 @@ private:
 
             bool failed   = false;
             uint32_t size = 0;
-            auto def      = Symlevel::Reader::Read(session, ExtractTypeDefIdentifier(term));
-            for (auto fieldTypeId : def->unionFields.Values(session)) {
+            auto def      = Decode::Read(session, ExtractTypeDefIdentifier(term));
+            for (auto fieldTypeId : Reader::Resolve(session, def->unionFields)) {
                 auto fieldType = TermManager::Resolve(session, fieldTypeId);
                 fieldType = substitute.Substitute(fieldType);
                 auto fieldSize = GetFlatSize(fieldType);
@@ -373,7 +372,7 @@ private:
         return layout;
     }
 
-    std::optional<FieldLayout> BuildLayoutAot(Term term, Symlevel::TypeDefinition& def)
+    std::optional<FieldLayout> BuildLayoutAot(Term term, Image::TypeDefinition& def)
     {
         ClassSubstitution substitute(session, term);
         auto optlayout = GetTypeBaseLayout(substitute, def);
@@ -388,8 +387,8 @@ private:
             layout.desc.alignment = MAX_ALIGN;
 
             size_t ordinal = layout.fields.size();
-            for (auto fieldId : def.GetInstanceFields().Values(session)) {
-                auto def       = Symlevel::Reader::Read(session, fieldId);
+            for (auto fieldId : Reader::Resolve(session, def.GetInstanceFields())) {
+                auto def       = Decode::Read(session, fieldId);
                 auto fieldType = TermManager::Resolve(session, def.FieldType());
                 fieldType      = substitute(fieldType);
 
@@ -408,8 +407,8 @@ private:
         }
 
         size_t ordinal = layout.fields.size();
-        for (auto fieldId : def.GetInstanceFields().Values(session)) {
-            auto def = Symlevel::Reader::Read(session, fieldId);
+        for (auto fieldId : Reader::Resolve(session, def.GetInstanceFields())) {
+            auto def = Decode::Read(session, fieldId);
             // FIXME: substitution
             auto fieldType = TermManager::Resolve(session, def.FieldType());
             fieldType      = substitute(fieldType);
@@ -426,7 +425,7 @@ private:
         return layout;
     }
 
-    std::optional<FieldLayout> BuildLayoutCbc(Term term, Symlevel::TypeDefinition& def)
+    std::optional<FieldLayout> BuildLayoutCbc(Term term, Image::TypeDefinition& def)
     {
         ClassSubstitution substitute(session, term);
         auto optlayout = GetTypeBaseLayout(substitute, def);
@@ -437,8 +436,9 @@ private:
 
         SizeAlignmentAccumulator acc { this, layout.desc.size, layout.desc.alignment };
 
-        for (auto fieldId : def.GetInstanceFields().Values(session)) {
-            auto def       = Symlevel::Reader::Read(session, fieldId);
+        auto seq = Reader::Resolve(session, def.GetInstanceFields());
+        for (auto fieldId : seq) {
+            auto def       = Decode::Read(session, fieldId);
             auto fieldType = TermManager::Resolve(session, def.FieldType());
             fieldType      = substitute(fieldType);
             acc.AddField(layout.fields, fieldType, fieldId);
@@ -451,14 +451,14 @@ private:
     }
 
     /// Layout of the super type for classes or empty layout for records.
-    std::optional<FieldLayout::Content> GetTypeBaseLayout(ClassSubstitution& substitute, Symlevel::TypeDefinition& def)
+    std::optional<FieldLayout::Content> GetTypeBaseLayout(ClassSubstitution& substitute, Image::TypeDefinition& def)
     {
         auto super = TermManager::Resolve(session, def.GetSuperType());
         if (super.GetKind() == TermKind::UNDEFINED) {
             return std::nullopt;
-        } else if (def.GetFlags().Is(Symlevel::TypeKind::RECORD)) {
+        } else if (def.GetFlags().Is(Image::TypeKind::RECORD)) {
             return FieldLayout::Content();
-        } else if (def.GetFlags().Is(Symlevel::TypeKind::RECORD)) {
+        } else if (def.GetFlags().Is(Image::TypeKind::RECORD)) {
             return FieldLayout::Content();
         } else if (super.GetKind() == TermKind::TYPE) {
             auto opt = GetLayout(substitute(super));
