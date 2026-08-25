@@ -531,9 +531,9 @@ struct ResolverProxy {
         Resolver& resolver, Symlevel::FieldReference fr, RefIdentifier<Symlevel::FieldReference> ident
     )
     {
-        auto refType   = resolver.termManager.Resolve(resolver.session, fr.single.refType);
+        auto refType   = resolver.termManager.Resolve(resolver.session, fr.constIndex.refType);
         auto idx       = fr.constIndex.idx;
-        auto fieldType = resolver.termManager.Resolve(resolver.session, fr.single.fieldType);
+        auto fieldType = resolver.termManager.Resolve(resolver.session, fr.constIndex.fieldType);
         return { refType, idx, fieldType, ident };
     }
 
