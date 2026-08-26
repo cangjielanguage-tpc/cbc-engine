@@ -258,8 +258,8 @@ struct ResolverProxy {
                             if (!field.definition)
                                 continue;
                             auto def  = Decode::Read(resolver, *field.definition);
-                            auto name = Decode::Read(resolver, def.GetName());
-                            if (field.fieldType == ref.fieldType && name.compare(name) == 0) {
+                            auto nameInDef = Decode::Read(resolver, def.GetName());
+                            if (field.fieldType == ref.fieldType && nameInDef.compare(name) == 0) {
                                 offset = field.offset;
                                 break;
                             }
@@ -328,15 +328,18 @@ struct ResolverProxy {
             return std::nullopt;
         }
 
+        auto idx     = std::get<uint32_t>(ref.nameOrIdx);
         auto refType = resolver.Wrap(ref.refType);
 
-        switch (ref.refType.GetKind()) {
+        TermKind kind = ref.refType.GetKind();
+        switch (kind) {
             case TermKind::TUPLE: {
-                auto idx = std::get<uint32_t>(ref.nameOrIdx);
                 return ResolveTupleElement(resolver, refType, idx);
             }
             default: {
-                FATAL("Not supported yet");
+                // TODO: support for arrays
+                log.Stream(Logging::Level::ERROR)
+                    << "Invalid kind in const index reference: " << static_cast<uint8_t>(kind) << Stream::endl;
                 return std::nullopt;
             }
         }
@@ -737,7 +740,7 @@ struct ResolverProxy {
             .fieldType = fieldType,
             .ordinal   = idx,
             .offset    = offset,
-            .name      = "",
+            .name      = "<tuple>",
         };
     }
 };
