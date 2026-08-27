@@ -198,8 +198,8 @@ static std::string UpdateSharedObjName(std::string_view name)
     res += "lib";
     res += name;
     res += ".so";
-    return res;
 #endif
+    return res;
 }
 
 static std::vector<Dependencies> ReadDependencies(Loader::Impl const* loader)
