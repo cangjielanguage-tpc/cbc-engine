@@ -30,6 +30,7 @@ For iOS device and simulator builds, run the build directly on macOS with Xcode 
 ```bash
 python3 build.py build --target-os=ios --target-arch=aarch64
 python3 build.py build --target-os=ios-sim --target-arch=aarch64
+python3 build.py build --target-os=ios-sim --target-arch=x86_64
 ```
 
 To build the helper library:
@@ -39,10 +40,11 @@ To build the helper library:
 ```bash
 python3 build.py build-helper-lib --target-os=ios --target-arch=aarch64
 python3 build.py build-helper-lib --target-os=ios-sim --target-arch=aarch64
+python3 build.py build-helper-lib --target-os=ios-sim --target-arch=x86_64
 ```
 
 3) Library is located in `output/<target-os>_<target-arch>/libcbcengine.<so/dylib>`.
-Helper library is located in `output/<target-os>_aarch64/libcbcengine-helper.<so/dylib>`.
+Helper library is located in `output/<target-os>_<target-arch>/libcbcengine-helper.<so/dylib>`.
 
 ## How to run tests
 
