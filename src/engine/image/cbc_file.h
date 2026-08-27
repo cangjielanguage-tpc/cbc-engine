@@ -144,7 +144,7 @@ template <typename T> struct Identifier {
     inline Packed Pack() const
     {
         uint64_t low  = offs;
-        uint64_t high = fileId;
+        uint64_t high = static_cast<std::uint32_t>(fileId);
         return low | (high << Image::Offset<T>::BIT_SIZE);
     }
 
@@ -195,7 +195,7 @@ template <typename T> struct RefIdentifier {
     inline Packed Pack() const
     {
         uint64_t low  = index;
-        uint64_t high = fileId;
+        uint64_t high = static_cast<std::uint32_t>(fileId);
         return low | (high << Image::RefId<T>::BIT_SIZE);
     }
 
