@@ -369,6 +369,66 @@ struct IsaRewriter : public IsaParser {
         BindStatePoint();
     }
 
+    void Ld(AnyReg dst, IReg base, uint32_t fieldId) override
+    {
+        UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
+        UNWRAP_OPT(offset, field->offset, [&]() {
+            errStream << "Failed to get offset of field " << field << Stream::endl;
+            Fail();
+        });
+        auto kind = Ldk(field->fieldType.GetKind());
+        if (field->refType.term.IsRecord()) {
+            emit.LoadRec(kind, dst, base, offset);
+        } else {
+            emit.LoadObj(kind, dst, base, offset);
+        }
+    }
+
+    void LdStatic(AnyReg dst, uint32_t fieldId) override
+    {
+        UNWRAP_OPT(field, resolver.Query(Index<StaticField>(fieldId)), Fail);
+        UNWRAP_OPT(location, field->location, Fail);
+        auto symbol = emit.NewAddressSym(location);
+        emit.LoadStatic(Ldk(field->fieldType.GetKind()), dst, symbol);
+    }
+
+    void Lea(IReg dst, IReg base, uint32_t fieldId) override
+    {
+        UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
+        UNWRAP_OPT(offset, field->offset, [&]() {
+            errStream << "Failed to get offset of field " << field << Stream::endl;
+            Fail();
+        });
+        if (field->refType.term.IsRecord()) {
+            emit.LoadRec(LDK::LD_LEA, dst, base, offset);
+        } else {
+            emit.LoadObj(LDK::LD_LEA, dst, base, offset);
+        }
+    }
+
+    void St(AnyReg src, IReg base, uint32_t fieldId) override
+    {
+        UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
+        UNWRAP_OPT(offset, field->offset, [&]() {
+            errStream << "Failed to get offset of field " << field << Stream::endl;
+            Fail();
+        });
+        auto kind = Stk(field->fieldType.GetKind());
+        if (field->refType.term.IsRecord()) {
+            emit.StoreRec(kind, src, base, offset);
+        } else {
+            emit.StoreObj(kind, src, base, offset);
+        }
+    }
+
+    void StStatic(AnyReg src, uint32_t fieldId) override
+    {
+        UNWRAP_OPT(field, resolver.Query(Index<StaticField>(fieldId)), Fail);
+        UNWRAP_OPT(location, field->location, Fail);
+        auto symbol = emit.NewAddressSym(location);
+        emit.StoreStatic(Stk(field->fieldType.GetKind()), src, symbol);
+    }
+
     void LoadStackRec(IReg r, uint16_t ts) override
     {
         emit.LoadFrame(Format::LoadAccessKind::LD_LEA, r, frameLayout.typedOffset.at(ts));
@@ -392,7 +452,11 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto field  = f.value();
-        auto symbol = emit.NewAddressSym(field->location);
+        if (!field->location.has_value()) {
+            Fail();
+            return;
+        }
+        auto symbol = emit.NewAddressSym(field->location.value());
         emit.LoadStatic(Ldk(field->fieldType.GetKind()), r, symbol);
     }
 
@@ -404,7 +468,11 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto field  = f.value();
-        auto symbol = emit.NewAddressSym(field->location);
+        if (!field->location.has_value()) {
+            Fail();
+            return;
+        }
+        auto symbol = emit.NewAddressSym(field->location.value());
         emit.StoreStatic(Stk(field->fieldType.GetKind()), r, symbol);
     }
 
@@ -481,13 +549,17 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto field = f.value();
+        if (!field->ordinal.has_value()) {
+            Fail();
+            return;
+        }
 
         // TODO: one instruction
         if (accumulate) {
-            emit.Offset(IReg::IR_ACC, field->ordinal, ti);
+            emit.Offset(IReg::IR_ACC, field->ordinal.value(), ti);
             emit.Add(Format::Width::W64, dst, dst, IReg::IR_ACC);
         } else {
-            emit.Offset(dst, field->ordinal, ti);
+            emit.Offset(dst, field->ordinal.value(), ti);
         }
 
         if (field->refType.GetKind() == Resolution::CbcTypeKind::REF) {
@@ -1424,7 +1496,12 @@ struct IsaRewriter : public IsaParser {
         auto field = f.value();
 
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
-        msr.emit.Offset(field->location);
+        auto loc  = field->location;
+        if (!loc.has_value()) {
+            Fail();
+            return;
+        }
+        msr.emit.Offset(loc.value());
         msr.lastFieldKind = field->fieldType.GetKind();
         msr.kind          = HEAD_STATIC;
     }
@@ -1668,12 +1745,18 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
+
         auto field = f.value();
+        if (!field->ordinal.has_value()) {
+            Fail();
+            return;
+        }
+
         if (field->refType.GetKind() == Resolution::CbcTypeKind::REF) {
             msr.emit.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
         }
         msr.lastFieldKind = field->fieldType.GetKind();
-        msr.emit.GenericField(field->ordinal, ti);
+        msr.emit.GenericField(field->ordinal.value(), ti);
     }
 
     void MemTailStoreGeneric(MemSpace& ms, IReg src, IReg ti) override

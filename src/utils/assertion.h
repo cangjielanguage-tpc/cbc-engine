@@ -71,5 +71,12 @@ void ReportFailure(const char* filename, int line, const char* fmt, ...);
                 ReportFailure(__FILE__, __LINE__, "Expected non-null pointer");                                        \
             return _ptr;                                                                                               \
         }())
+    #define UNWRAP_OPT(name, expression, handler)                                                                      \
+        auto __##name = (expression);                                                                                  \
+        if (!__##name.has_value()) {                                                                                   \
+            handler();                                                                                                 \
+            return;                                                                                                    \
+        }                                                                                                              \
+        auto name = __##name.value();
 
 #endif // ifdef NDEBUG

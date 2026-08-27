@@ -143,6 +143,12 @@ protected:
     virtual void AtomicFetchOr(IReg dst, IReg obj, IReg src, uint32_t fieldId)  = 0;
     virtual void AtomicFetchXor(IReg dst, IReg obj, IReg src, uint32_t fieldId) = 0;
 
+    virtual void Ld(AnyReg dst, IReg base, uint32_t field) = 0;
+    virtual void LdStatic(AnyReg dst, uint32_t field)      = 0;
+    virtual void Lea(IReg dst, IReg base, uint32_t field)  = 0;
+    virtual void St(AnyReg src, IReg base, uint32_t field) = 0;
+    virtual void StStatic(AnyReg src, uint32_t field)      = 0;
+
     class MemSpace {
     public:
         virtual ~MemSpace() = default;

@@ -131,10 +131,12 @@ private:
 struct InstanceField {
     struct Content {
         Type refType;
-        std::string_view name;
         Type fieldType;
-        uint32_t ordinal;
+        std::optional<uint32_t> ordinal; // TODO delete?
         std::optional<uint32_t> offset;
+
+        // used only for logging
+        std::string_view name;
     };
 
     Content* operator->() const { return content; };
@@ -149,9 +151,11 @@ private:
 struct StaticField {
     struct Content {
         Type refType;
-        std::string_view name;
         Type fieldType;
-        uintptr_t location;
+        std::optional<uintptr_t> location;
+
+        // used only for logging
+        std::string_view name;
     };
 
     Content* operator->() const { return content; };

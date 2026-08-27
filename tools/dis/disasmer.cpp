@@ -68,8 +68,28 @@ void Disasmer::RData(RegionData const& rd, uint8_t regionNum)
         for (auto refid : rd.fields) {
             auto ref = Reader::Read(session, refid);
 
-            io << refid.GetIndex() << " - " << Detailed(ref.refType) << "." << Detailed(ref.name) << " "
-               << Detailed(ref.fieldType) << endl;
+            io << refid.GetIndex() << " - " << Detailed(ref.KindAsString()) << Detailed(": ");
+            switch (ref.tag) {
+                case SINGLE:
+                    io << Detailed(ref.single.refType) << "." << Detailed(ref.single.name) << " "
+                       << Detailed(ref.single.fieldType) << endl;
+                    break;
+                case CONST_INDEX:
+                    io << Detailed(ref.constIndex.refType) << "." << Detailed(ref.constIndex.idx) << " "
+                       << Detailed(ref.constIndex.fieldType) << endl;
+                    break;
+                case MULTI:
+                    io << "[";
+                    for (uint32_t i = 0; i < ref.multi.length; i++) {
+                        io << ref.multi.indices[i].GetValue();
+                        if (i != ref.multi.length - 1) {
+                            io << ", ";
+                        }
+                    }
+                    io << "]" << endl;
+                    break;
+                case NONE: io << Detailed(ref.none.sig) << endl; break;
+            }
         }
     });
 }

@@ -131,13 +131,45 @@ template <> FieldReference Reader::Read(Engine::Session& session, Identifier<Fie
         *session.FileOf(fileId), session.CbcFileOf(fileId).GetFieldRefSectionOffs() + id.GetOffset()
     );
 
-    auto nameOffset   = Identifier<String>(Offset<String>(reader.ReadU32()), fileId);
-    auto refTypeIdx   = Image::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
-    auto fieldTypeIdx = Image::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
+    uint8_t tag = reader.ReadU8();
+    switch (tag) {
+        case SINGLE: {
+            auto nameOffset   = Image::Identifier<String>(Offset<String>(reader.ReadU32()), fileId);
+            auto refTypeIdx   = Image::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
+            auto fieldTypeIdx = Image::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
+            return FieldReference(nameOffset, refTypeIdx, fieldTypeIdx);
+        }
+        case CONST_INDEX: {
+            auto idx          = reader.ReadU32();
+            auto refTypeIdx   = Image::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
+            auto fieldTypeIdx = Image::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
+            return FieldReference(idx, refTypeIdx, fieldTypeIdx);
+        }
+        case MULTI: {
+            uint32_t length = reader.ReadULEB();
 
-    auto isRecord = reader.ReadU8() != 0;
+            void* subRefsPtr = session.Allocator().Allocate(length * sizeof(FieldReference), alignof(FieldReference));
+            auto subRefs     = reinterpret_cast<FieldReference*>(subRefsPtr);
 
-    return { nameOffset, refTypeIdx, fieldTypeIdx, isRecord };
+            void* indicesPtr = session.Allocator().Allocate(length * sizeof(RefId<FieldReference>), alignof(uint32_t));
+            auto indices     = reinterpret_cast<RefId<FieldReference>*>(indicesPtr);
+
+            for (uint32_t i = 0; i < length; i++) {
+                auto id    = RefId<FieldReference>(reader.ReadULEB());
+                auto ident = Image::RefIdentifier(id, fileId);
+                auto ref   = Reader::Read(session, ident);
+                subRefs[i] = ref;
+                indices[i] = id;
+            }
+
+            return FieldReference(length, subRefs, indices);
+        }
+        case NONE: {
+            auto sig = Image::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
+            return FieldReference(sig);
+        }
+        default: FATAL("Unknown field reference tag: %d", tag);
+    }
 }
 
 template <typename Reference>

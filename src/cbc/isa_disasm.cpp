@@ -354,6 +354,16 @@ struct IsaDisasm : public IsaParser {
         stream.PrintLn("st.arr.{} {}, {}[{}]", stk, Fmt(src, stk.IsFloat()), arr, idx);
     }
 
+    void Ld(AnyReg dst, IReg base, uint32_t field) override { stream.PrintLn("ld R{}, [{} @{}]", dst, base, field); }
+
+    void LdStatic(AnyReg dst, uint32_t field) override { stream.PrintLn("ld R{}, [@{}]", dst, field); }
+
+    void Lea(IReg dst, IReg base, uint32_t field) override { stream.PrintLn("lea R{}, [{} @{}]", dst, base, field); }
+
+    void St(AnyReg src, IReg base, uint32_t field) override { stream.PrintLn("st R{}, [{} @{}]", src, base, field); }
+
+    void StStatic(AnyReg src, uint32_t field) override { stream.PrintLn("st R{}, [@{}]", src, field); }
+
     void TypeArg(IReg ti, int idx, IReg dst) override { stream.PrintLn("type.arg {}, {}[{}]", dst, ti, idx); }
 
     void Box(AnyReg src, IReg dst, uint32_t tk) override { stream.PrintLn("box {}, R{}, @{}", dst, src, tk); }
