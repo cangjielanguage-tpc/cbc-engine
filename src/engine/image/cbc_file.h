@@ -657,6 +657,40 @@ public:
     Content content;
 };
 
+/// Represents the extension of type with superinterfaces and member index parsed from .cbc.
+///
+/// It wraps an underlying `Content` struct containing lookup table for methods (`MethodIndex`),
+/// offset sequences for virtual entries, and type references for superinterfaces.
+class Extension {
+public:
+    struct Content {
+        Identifier<Extension> identifier;
+        OffsetSequence<MethodDefinition> virtualMethods;
+        RefIdentifier<Term> extendedType;
+        uint8_t arity;
+        RefSequence<Term> interfaces {};
+    };
+
+    Identifier<Extension> const GetIdentifier() { return content.identifier; }
+
+    OffsetSequence<MethodDefinition> const GetVirtualMethods() const { return content.virtualMethods; }
+
+    RefIdentifier<Term> const GetExtendedType() const
+    {
+        return content.extendedType;
+    }
+
+    RefSequence<Term> GetInterfaces() const { return content.interfaces; }
+
+    Content const* operator->() const { return &content; }
+
+    Content const* operator*() const { return &content; }
+
+    Extension(Content&& content) : content(content) {}
+
+    Content content;
+};
+
 /// Symbolic References, Offset Pools, and Region Data.
 ///
 /// Symbolic references (`MethodReference`, `FieldReference`) and terms are indexed
