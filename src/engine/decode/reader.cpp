@@ -464,6 +464,36 @@ template <> MethodDefinition Reader::Read(Engine::Session& session, Image::Ident
     return Reader::Read(session, identifier.GetFileId(), identifier.GetOffset());
 }
 
+template <> Extension Reader::Read(Engine::Session& session, Image::FileId fileId, Offset<Extension> offset)
+{
+    IO::StreamFileReader reader(*session.FileOf(fileId), session.CbcFileOf(fileId).GetTypeDefSectionOffs() + offset);
+
+    auto extendedType = Image::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
+
+    auto dynMethods  = Reader::ReadOffsSeq<MethodDefinition>(reader, fileId);
+
+    Extension::Content def {
+        .identifier      = Image::Identifier(offset, fileId),
+        .virtualMethods  = dynMethods,
+        .extendedType    = extendedType,
+        .arity           = 0,
+    };
+
+    for (auto tag = reader.ReadU8(); tag != 0; tag = reader.ReadU8()) {
+        switch (tag) {
+            case 0x1: def.interfaces = Reader::ReadRefSeq<Term>(reader, fileId); break;
+            case 0x5: def.arity = reader.ReadULEB(); break; // TODO: check range
+            default:  FATAL("unexpected tag: %d", tag);
+        }
+    }
+    return Extension(std::move(def));
+}
+
+template <> Extension Reader::Read(Engine::Session& session, Image::Identifier<Extension> identifier)
+{
+    return Reader::Read(session, identifier.GetFileId(), identifier.GetOffset());
+}
+
 Image::RegionData Reader::ReadRegion(Image::FileId fileId, IO::RandomAccessFile& file, uint32_t offset)
 {
     IO::StreamFileReader reader(file, offset);

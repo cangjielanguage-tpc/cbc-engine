@@ -120,8 +120,6 @@ std::optional<CbcFile> TryReadCbcFile(Image::FileId fileId, IO::RandomAccessFile
 
     // Do not bother with verification further.
 
-    reader.Advance(2); // skip bytecode version and file props (TODO: change file format)
-
     auto typeIndexOffset = reader.ReadU32();
     auto poolOffset      = reader.ReadU32();
 
@@ -131,7 +129,8 @@ std::optional<CbcFile> TryReadCbcFile(Image::FileId fileId, IO::RandomAccessFile
     auto staticFieldAotTableOffset   = reader.ReadU32();
     auto instanceFieldAotTableOffset = reader.ReadU32();
 
-    reader.Advance(2); // skip region number
+    auto extensionOffset = reader.ReadU32();
+
     auto regionOffset = reader.ReadU32();
 
     std::optional<Identifier<String>> mainTypeName = std::nullopt;
