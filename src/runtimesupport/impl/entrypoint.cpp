@@ -40,8 +40,6 @@ static bool g_Initialized;
 static bool g_OptionsInitialized;
 static bool g_Patched;
 
-static constexpr const char* APP_LIB_HANDLE_ARG = "app.lib.handle";
-
 static void InitEnvOpts()
 {
     std::lock_guard guard(g_InitializationGuard);
@@ -49,31 +47,6 @@ static void InitEnvOpts()
         Engine::InitEnvOptions();
         g_OptionsInitialized = true;
     }
-}
-
-static void ParseBridgeOptions(int size, const char** options)
-{
-    std::vector<const char*> engineOptions;
-    engineOptions.reserve(size > 0 ? static_cast<size_t>(size) : 0);
-
-    for (int i = 0; i < size && options != nullptr; ++i) {
-        const char* option = options[i];
-        if (option != nullptr && std::strcmp(option, APP_LIB_HANDLE_ARG) == 0) {
-            if (i + 1 < size) {
-                // g_appLibHandle = const_cast<char*>(options[i + 1]);
-                ++i;
-            } else {
-                RTSupport::Log::rt.Log(Logging::Level::WARN, [](Stream::Output& out) {
-                    out << "app library handle argument is missing value" << Stream::endl;
-                });
-            }
-            continue;
-        }
-
-        engineOptions.push_back(option);
-    }
-
-    Engine::g_table.ParseAndSet(static_cast<int>(engineOptions.size()), engineOptions.data());
 }
 
 /// Initialize engine from launcher.
@@ -367,7 +340,7 @@ CBC_EXPORT int interpreter_bridge_init(
 
     // Order matters. Bridge options may override values supplied by the runtime interface.
     InitEnvOpts();
-    ParseBridgeOptions(size, options);
+    Engine::g_table.ParseAndSet(size, options);
 
     RTSupport::Log::rt.Log(Logging::Level::TRACE, [rtInterf](Stream::Output& out) {
         out.PrintFmtLn("interpreter_bridge_init started");
