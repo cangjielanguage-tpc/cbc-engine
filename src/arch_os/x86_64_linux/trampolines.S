@@ -692,7 +692,8 @@ engine_i2_spawn:
   jmp  .Lrestart_interpretation
 
 // TREAT SYMBOLS ABOVE AS PART OF perform_2i_call
-#ifndef __APPLE__
+// Mach-O symbols do not carry size metadata, so there is no Apple equivalent.
+#ifdef __ELF__
 .size perform_2i_call, .-perform_2i_call
 #endif
 
