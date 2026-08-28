@@ -469,6 +469,12 @@ struct IsaParserImpl {
         parser.StStatic(src, fr);
     }
 
+    static void LeaBox(IsaParser& parser)
+    {
+        auto [dst, base] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
+        parser.LeaBox(dst, base);
+    }
+
     static void LoadRawMemory(IsaParser& parser)
     {
         auto [dst, base, ldk, low4, hibits] =

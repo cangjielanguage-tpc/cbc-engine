@@ -429,6 +429,11 @@ struct IsaRewriter : public IsaParser {
         emit.StoreStatic(Stk(field->fieldType.GetKind()), src, symbol);
     }
 
+    void LeaBox(IReg dst, IReg base) override
+    {
+        emit.LoadObj(LDK::LD_LEA, dst, base, RTSupport::MetaInfo::ObjectHeaderSize());
+    }
+
     void LoadStackRec(IReg r, uint16_t ts) override
     {
         emit.LoadFrame(Format::LoadAccessKind::LD_LEA, r, frameLayout.typedOffset.at(ts));
