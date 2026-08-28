@@ -181,13 +181,8 @@ class Hex {
 public:
     Hex(void* ptr) : num(reinterpret_cast<uint64_t>(ptr)) {}
 
-    Hex(uint64_t num) : num(num) {}
-
-    Hex(uint32_t num) : num(num) {}
-
-    Hex(uint16_t num) : num(num) {}
-
-    Hex(uint8_t num) : num(num) {}
+    template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0> Hex(T num) : num(static_cast<uint64_t>(num))
+    {}
 
     uint64_t num;
 };
