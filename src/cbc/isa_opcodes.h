@@ -134,6 +134,7 @@
     X(Lea, Lea)                                                                                                        \
     X(St, St)                                                                                                          \
     X(StStatic, StStatic)                                                                                              \
+    X(LeaBox, LeaBox)                                                                                                  \
     X(_END, Unreachable)
 
 #define ISA_MEM_OPCODES(X)                                                                                             \

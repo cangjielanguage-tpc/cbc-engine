@@ -148,6 +148,7 @@ protected:
     virtual void Lea(IReg dst, IReg base, uint32_t field)  = 0;
     virtual void St(AnyReg src, IReg base, uint32_t field) = 0;
     virtual void StStatic(AnyReg src, uint32_t field)      = 0;
+    virtual void LeaBox(IReg dst, IReg base)               = 0;
 
     class MemSpace {
     public:
