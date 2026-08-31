@@ -1193,7 +1193,9 @@ struct IsaRewriter : public IsaParser {
         emit.StringLit(storage, frameLayout.typedOffset.at(ts));
     }
 
-    void ArrayLength(IReg dst, IReg arr) override { FATAL("not implemented"); }
+    void ArrayLength(IReg dst, IReg arr) override {
+        emit.LoadObj(Format::LoadAccessKind::LD_64, dst, arr, RTSupport::MetaInfo::ObjectHeaderSize());
+    }
 
     void ArrayIndexCheck(IReg length, IReg index) override { FATAL("not implemented"); }
 
