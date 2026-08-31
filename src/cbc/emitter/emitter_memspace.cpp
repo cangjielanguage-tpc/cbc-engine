@@ -221,6 +221,7 @@ void MemSpaceEmitter::CopyRecToDerived(Reg base, Reg derived, Reg from, RTSuppor
             .opc   = RT::MemOpcode::COPY_REC_TO_DERIVED,
             .rr    = RR { .x = base, .y = derived },
             .field = RR { .x = from, .y = 0 },
+            .ti    = ti,
         }
     );
 }
