@@ -650,7 +650,7 @@ struct IsaRewriter : public IsaParser {
         emit.NewObjGenericOnAcc(optionTypeInfo);
         BindStatePoint();
         emit.BranchIfRef(underlyingTypeInfo, end);
-        if (typeDef->enumKind == Image::EnumKind::OPTION1) {
+        if (typeDef->enumKind == Image::EnumKind::OPTION0) {
             auto ms = emit.OpenMemSpace();
             ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
             ms.StoreObjImm(STK::ST_8, IReg::IR_ACC, 1);
@@ -1193,7 +1193,9 @@ struct IsaRewriter : public IsaParser {
         emit.StringLit(storage, frameLayout.typedOffset.at(ts));
     }
 
-    void ArrayLength(IReg dst, IReg arr) override { FATAL("not implemented"); }
+    void ArrayLength(IReg dst, IReg arr) override {
+        emit.LoadObj(Format::LoadAccessKind::LD_64, dst, arr, RTSupport::MetaInfo::ObjectHeaderSize());
+    }
 
     void ArrayIndexCheck(IReg length, IReg index) override { FATAL("not implemented"); }
 

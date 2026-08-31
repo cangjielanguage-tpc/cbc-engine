@@ -1587,7 +1587,7 @@ LABEL(COPY_REC_FROM_DERIVED) {
 
     auto recStart = derived.value + memspaceOffsetAcc;   // interior record
     // any -> local (generic gc barrier required)
-    RTSupport::Execution::ReadStructField(to.value, from, recStart, args.ti, handle);
+    RTSupport::Execution::ReadStructField(to.value, from, recStart, ti, handle);
     NEXT;
 }
 

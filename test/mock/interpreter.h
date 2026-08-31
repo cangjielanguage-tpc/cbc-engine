@@ -1,13 +1,26 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <utility>
+#include <vector>
+
 #include "interpreter/code.h"
 #include "interpreter/ectype.h"
 #include "interpreter/interpreter.h"
 
 struct TestTypeInfo {
     size_t size;
+    uint8_t alignment;
+    std::vector<uint32_t> referenceOffsets;
 
-    TestTypeInfo(size_t size) : size(size) {}
+    TestTypeInfo(
+        size_t size, uint8_t alignment = alignof(std::max_align_t), std::vector<uint32_t> referenceOffsets = {}
+    )
+        : size(size),
+          alignment(alignment),
+          referenceOffsets(std::move(referenceOffsets))
+    {}
 };
 
 static Interpretation::Value::Primitive U32(uint32_t v) { return Interpretation::Value::Primitive { .u32 = v }; }
