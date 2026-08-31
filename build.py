@@ -22,12 +22,18 @@ SUPPORTED_TARGETS = {
 
 ANDROID_PLATFORM = "android-26"
 ANDROID_ABI = "arm64-v8a"
-IOS_HELPER_TARGETS = {
-    ("ios", "aarch64"): ("iphoneos", "aarch64-apple-ios"),
-    ("ios-sim", "aarch64"): ("iphonesimulator", "aarch64-apple-ios-simulator"),
-    ("ios-sim", "x86_64"): ("iphonesimulator", "x86_64-apple-ios-simulator"),
+HELPER_TARGETS = {
+    ("linux", "x86_64"): ("x86_64-linux-gnu", "libcbcengine-helper.so"),
+    ("linux", "aarch64"): ("aarch64-linux-gnu", "libcbcengine-helper.so"),
+    ("ios", "aarch64"): ("aarch64-apple-ios", "libcbcengine-helper.dylib"),
+    ("ios-sim", "aarch64"): ("aarch64-apple-ios-simulator", "libcbcengine-helper.dylib"),
+    ("ios-sim", "x86_64"): ("x86_64-apple-ios-simulator", "libcbcengine-helper.dylib"),
 }
-HELPER_LIB_NAME = "libcbcengine-helper.dylib"
+IOS_HELPER_SDKS = {
+    ("ios", "aarch64"): "iphoneos",
+    ("ios-sim", "aarch64"): "iphonesimulator",
+    ("ios-sim", "x86_64"): "iphonesimulator",
+}
 
 
 def run_command(command, cwd=None):
@@ -163,6 +169,42 @@ def get_xcode_sdkroot(sdk) -> str:
     assert False, "unreachable"
 
 
+def find_executable(name):
+    path = shutil.which(name)
+    if path is None:
+        fail(f"Required executable was not found in PATH: {name}")
+    return path
+
+
+def prepare_helper_toolchain(target_os, target_arch, target):
+    env = os.environ.copy()
+
+    if target_os in ["ios", "ios-sim"]:
+        if detect_host_os() != "macos":
+            fail(f"{target_os} helper library builds require macOS and the Xcode command-line tools")
+
+        sdk = IOS_HELPER_SDKS[(target_os, target_arch)]
+        sdkroot = get_xcode_sdkroot(sdk)
+        env["SDKROOT"] = sdkroot
+        compile_prefix = [
+            "xcrun",
+            "--sdk",
+            sdk,
+            "clang",
+            "-target",
+            target,
+            "-isysroot",
+            sdkroot,
+        ]
+        cjc_options = ["--target", target]
+        return compile_prefix, cjc_options, env
+
+    compiler = find_executable("clang")
+    compile_prefix = [compiler, f"--target={target}"]
+    cjc_options = ["--target", target]
+    return compile_prefix, cjc_options, env
+
+
 def build(args, project_dir, build_dir):
     validate_target(args.target_os, args.target_arch)
     host_os = detect_host_os()
@@ -209,11 +251,9 @@ def build(args, project_dir, build_dir):
 
 
 def build_helper_lib(args, project_dir, build_dir):
-    if detect_host_os() != "macos":
-        fail("iOS helper library builds require macOS and the Xcode command-line tools")
-
+    validate_target(args.target_os, args.target_arch)
     helper_target = (args.target_os, args.target_arch)
-    if helper_target not in IOS_HELPER_TARGETS:
+    if helper_target not in HELPER_TARGETS:
         fail(
             "Unsupported helper target combination: "
             f"--target-os={args.target_os}, --target-arch={args.target_arch}"
@@ -221,7 +261,7 @@ def build_helper_lib(args, project_dir, build_dir):
 
     cangjie_home = os.environ.get("CANGJIE_HOME")
     if cangjie_home is None:
-        return fail("CANGJIE_HOME must be set for iOS helper library builds. Source <CANGJIE_SDK>/envsetup.sh first.")
+        return fail("CANGJIE_HOME must be set for helper library builds. Source <CANGJIE_SDK>/envsetup.sh first.")
 
     cjc_path = Path(cangjie_home) / "bin/cjc"
     if not cjc_path.is_file():
@@ -234,28 +274,18 @@ def build_helper_lib(args, project_dir, build_dir):
         if not helper_source.is_file():
             fail(f"Helper source does not exist: {helper_source}")
 
-    sdk, target = IOS_HELPER_TARGETS[helper_target]
-    sdkroot = get_xcode_sdkroot(sdk)
+    target, helper_lib_name = HELPER_TARGETS[helper_target]
+    compile_prefix, cjc_options, env = prepare_helper_toolchain(args.target_os, args.target_arch, target)
     build_path = Path(build_dir)
     build_path.mkdir(parents=True, exist_ok=True)
     helper_object = build_path / "cbcengine-helper.o"
-    output_path = build_path / HELPER_LIB_NAME
+    output_path = build_path / helper_lib_name
 
-    print(f"--- Building {HELPER_LIB_NAME} for {target_name(args.target_os, args.target_arch)} ---")
-    env = os.environ.copy()
-    env["SDKROOT"] = sdkroot
+    print(f"--- Building {helper_lib_name} for {target_name(args.target_os, args.target_arch)} ---")
 
-    compile_command = [
-        "xcrun",
-        "--sdk",
-        sdk,
-        "clang",
+    compile_command = compile_prefix + [
         "-c",
         str(helper_c_source),
-        "-target",
-        target,
-        "-isysroot",
-        sdkroot,
         "-Os",
         "-fPIC",
         "-fomit-frame-pointer",
@@ -270,11 +300,10 @@ def build_helper_lib(args, project_dir, build_dir):
 
     link_command = [
         str(cjc_path),
+        *cjc_options,
         str(helper_object),
         str(helper_cj_source),
         "--output-type=dylib",
-        "--target",
-        target,
         "-o",
         str(output_path),
     ]
@@ -319,15 +348,15 @@ def main():
                               action="store_true",
                               help="Enable interpreter labels symbols(slight performance penalty)")
 
-    helper_parser = subparsers.add_parser("build-helper-lib", help="build libcbcengine-helper.dylib")
+    helper_parser = subparsers.add_parser("build-helper-lib", help="build libcbcengine-helper shared library")
     helper_parser.add_argument("--target-os",
-                               choices=sorted({target_os for target_os, _ in IOS_HELPER_TARGETS}),
+                               choices=sorted({target_os for target_os, _ in HELPER_TARGETS}),
                                required=True,
                                help="Target operating system")
     helper_parser.add_argument("--target-arch",
                                choices=TARGET_ARCHES,
-                               default="aarch64",
-                               help="Target architecture (default: aarch64)")
+                               default=host_arch,
+                               help=f"Target architecture (default: {host_arch})")
 
     subparsers.add_parser("clean", help="clean build artifacts")
 
