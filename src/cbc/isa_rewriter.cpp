@@ -650,7 +650,7 @@ struct IsaRewriter : public IsaParser {
         emit.NewObjGenericOnAcc(optionTypeInfo);
         BindStatePoint();
         emit.BranchIfRef(underlyingTypeInfo, end);
-        if (typeDef->enumKind == Image::EnumKind::OPTION1) {
+        if (typeDef->enumKind == Image::EnumKind::OPTION0) {
             auto ms = emit.OpenMemSpace();
             ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
             ms.StoreObjImm(STK::ST_8, IReg::IR_ACC, 1);
