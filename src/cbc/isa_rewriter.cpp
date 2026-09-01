@@ -527,6 +527,11 @@ struct IsaRewriter : public IsaParser {
         emit.LoadObj(LDK::LD_LEA, dst, base, RTSupport::MetaInfo::ObjectHeaderSize());
     }
 
+    void Copy(IReg dst, IReg src, uint32_t field) override
+    {
+
+    }
+
     void LoadStackRec(IReg r, uint16_t ts) override
     {
         emit.LoadFrame(Format::LoadAccessKind::LD_LEA, r, frameLayout.typedOffset.at(ts));

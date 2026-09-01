@@ -144,6 +144,7 @@
     X(StDerived, StDerived)                                                                                            \
     X(StGeneric, StGeneric)                                                                                            \
     X(LoadTailParam, LoadTailParam)                                                                                    \
+    X(Copy, Copy)                                                                                                  \
     X(_END, Unreachable)
 
 #define ISA_MEM_OPCODES(X)                                                                                             \
