@@ -353,6 +353,25 @@ struct IsaDisasm : public IsaParser {
     {
         stream.PrintLn("st.arr.{} {}, {}[{}]", stk, Fmt(src, stk.IsFloat()), arr, idx);
     }
+    void Copy(IReg dstBase, IReg dst, IReg srcBase, IReg src, uint32_t typeId) override
+    {
+        stream.PrintLn("copy.derived {}, {}, {}, {} [@{}]", dstBase, dst, srcBase, src, typeId);
+    }
+
+    void CopyGeneric(IReg dstBase, IReg dst, IReg srcBase, IReg src, IReg ti) override
+    {
+        stream.PrintLn("copy.derived.g {}, {}, {}, {} {}", dstBase, dst, srcBase, src, ti);
+    }
+
+    void LeaIndex(IReg dst, IReg src, IReg idx, uint32_t typeId) override
+    {
+        stream.PrintLn("index {}, [{} @{}], [@{}]", dst, src, idx, typeId);
+    }
+
+    void LeaIndexGeneric(IReg dst, IReg src, IReg idx, IReg ti) override
+    {
+        stream.PrintLn("index.g {}, [{} @{}], {}", dst, src, idx, ti);
+    }
 
     void TypeArg(IReg ti, int idx, IReg dst) override { stream.PrintLn("type.arg {}, {}[{}]", dst, ti, idx); }
 

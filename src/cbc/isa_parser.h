@@ -143,6 +143,11 @@ protected:
     virtual void AtomicFetchOr(IReg dst, IReg obj, IReg src, uint32_t fieldId)  = 0;
     virtual void AtomicFetchXor(IReg dst, IReg obj, IReg src, uint32_t fieldId) = 0;
 
+    virtual void Copy(IReg dstBase, IReg dst, IReg dstSrc, IReg src, uint32_t typeId)       = 0;
+    virtual void CopyGeneric(IReg dstBase, IReg dst, IReg dstSrc, IReg src, IReg ti)        = 0;
+    virtual void LeaIndex(IReg dst, IReg src, IReg idx, uint32_t typeId)                    = 0;
+    virtual void LeaIndexGeneric(IReg dst, IReg src, IReg idx, IReg ti)   
+
     class MemSpace {
     public:
         virtual ~MemSpace() = default;

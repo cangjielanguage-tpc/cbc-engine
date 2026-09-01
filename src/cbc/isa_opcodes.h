@@ -30,9 +30,6 @@
     X(FMov64i, FMovImm<Width::W64>)                                                                                    \
     X(MovBP, MovBasePtr)                                                                                               \
     X(BFX, BFX)                                                                                                        \
-    X(LoadTyped, LoadTyped)                                                                                            \
-    X(StoreTyped, StoreTyped)                                                                                          \
-    X(StoreTypedImm, StoreTypedImm)                                                                                    \
     X(Add32, (BinarySpecialized<Common::ADD, Width::W32>))                                                             \
     X(Sub32, (BinarySpecialized<Common::SUB, Width::W32>))                                                             \
     X(Mul32, (BinarySpecialized<Common::MUL, Width::W32>))                                                             \
@@ -78,17 +75,8 @@
     X(ArrayIndexCheck, ArrayIndexCheck)                                                                                \
     X(Float32, FloatOp<Width::W32>)                                                                                    \
     X(Float64, FloatOp<Width::W64>)                                                                                    \
-    X(LoadStatic, LoadStatic)                                                                                          \
-    X(StoreStatic, StoreStatic)                                                                                        \
-    X(LoadField, LoadField)                                                                                            \
-    X(StoreField, StoreField)                                                                                          \
     X(LoadStackRec, LoadStackRec)                                                                                      \
     X(Nop, Nop)                                                                                                        \
-    X(MemHeadReg, MemHeadReg)                                                                                          \
-    X(MemHeadField, MemHeadField)                                                                                      \
-    X(MemHeadStatic, MemHeadStatic)                                                                                    \
-    X(MemHeadHandle, MemHeadHandle)                                                                                    \
-    X(MemHeadTyped, MemHeadTyped)                                                                                      \
     X(LoadUntyped, LoadUntyped)                                                                                        \
     X(StoreUntyped, StoreUntyped)                                                                                      \
     X(StoreUntypedImm, StoreUntypedImm)                                                                                \
@@ -129,6 +117,10 @@
     X(CBinaryImm16, CBinaryImm<Width::W16>)                                                                            \
     X(CBinaryImm32, CBinaryImm<Width::W32>)                                                                            \
     X(CBinaryImm64, CBinaryImm<Width::W64>)                                                                            \
+    X(Copy, Copy)                                                                                                      \
+    X(CopyGeneric, CopyGeneric)                                                                                        \
+    X(Index, LeaIndex)                                                                                                 \
+    X(IndexGeneric, LeaIndexGeneric)                                                                                   \
     X(_END, Unreachable)
 
 #define ISA_MEM_OPCODES(X)                                                                                             \

@@ -368,6 +368,38 @@ struct IsaRewriter : public IsaParser {
         emit.GcPoint();
         BindStatePoint();
     }
+    void Copy(IReg dstBase, IReg dst, IReg srcBase, IReg src, uint32_t typeId) override
+    {
+        UNWRAP_OPT(type, resolver.Query(Index<Type>(typeId)), Fail);
+        UNWRAP_OPT(typeInfo, type.GetTypeInfo(), [&]() {
+            errStream << "Failed to get typeinfo for type " << typeId << Stream::endl;
+            Fail();
+        });
+        emit.CopyDerived(dstBase, dst, srcBase, src, typeInfo);
+    }
+
+    void CopyGeneric(IReg dstBase, IReg dst, IReg srcBase, IReg src, IReg ti) override
+    {
+        emit.CopyDerivedGeneric(dstBase, dst, srcBase, src, ti);
+    }
+
+    void LeaIndex(IReg dst, IReg src, IReg idx, uint32_t typeId) override
+    {
+        UNWRAP_OPT(type, resolver.Query(Index<Type>(typeId)), Fail);
+        auto kind = type.term.GetKind();
+        UNWRAP_OPT(elemType, resolver.QueryElement(type), [&]() {
+            errStream << "Failed to get kind for type " << typeId << Stream::endl;
+            Fail();
+        });
+        UNWRAP_OPT(typeInfo, elemType.GetTypeInfo(), [&]() {
+            errStream << "Failed to get typeinfo for type " << typeId << Stream::endl;
+            Fail();
+        });
+        emit.LeaIndex(dst, src, idx, typeInfo, kind == Engine::TermKind::CANGJIE_ARRAY);
+    }
+
+    void LeaIndexGeneric(IReg dst, IReg src, IReg idx, IReg ti) override { emit.LeaIndexGeneric(dst, src, idx, ti); }
+
 
     void LoadStackRec(IReg r, uint16_t ts) override
     {
@@ -1574,60 +1606,12 @@ struct IsaRewriter : public IsaParser {
 
     void MemTailCopyRegTo(MemSpace& ms, IReg to, uint32_t recType) override
     {
-        auto& msr    = static_cast<MemSpaceRewriter&>(ms);
-        auto optType = resolver.Query(Index<Type>(recType));
-
-        if (!optType.has_value()) {
-            FATAL("Failed during copying of record: unknown record type.");
-        }
-
-        auto ty = *optType;
-
-        switch (msr.kind) {
-            case HEAD_OBJ:     msr.emit.CopyRecFromObj(msr.base, to, *ty.GetTypeInfo()); break;
-            case HEAD_REC:     msr.emit.CopyRecFromRec(msr.base, to, *ty.GetTypeInfo()); break;
-            case HEAD_DERIVED: msr.emit.CopyRecFromDerived(msr.base, msr.derived, to, *ty.GetTypeInfo()); break;
-            case HEAD_STATIC:
-                // IRZ means static record field, so whole position is encoded in accumulated offset
-                // FIXME: encode as separate operation
-                msr.emit.CopyRecFromObj(IReg::IRZ, to, *ty.GetTypeInfo());
-                break;
-                break;
-            case HEAD_FRAME:
-                ASSERTION(RTSupport::Execution::GetLocalBasePtr().value == 0, "assumes local base is zero");
-                msr.emit.CopyRecFromRec(IReg::IRZ, to, *ty.GetTypeInfo());
-                break;
-            case HEAD_NONE: FATAL("unreachable");
-        }
+        FATAL("unreachable");
     }
 
     void MemTailCopyRegFrom(MemSpace& ms, IReg from, uint32_t recType) override
     {
-        auto& msr    = static_cast<MemSpaceRewriter&>(ms);
-        auto optType = resolver.Query(Index<Type>(recType));
-
-        if (!optType.has_value()) {
-            FATAL("Failed during copying of record: unknown record type.");
-        }
-
-        auto ty = *optType;
-
-        switch (msr.kind) {
-            case HEAD_OBJ:     msr.emit.CopyRecToObj(from, msr.base, *ty.GetTypeInfo()); break;
-            case HEAD_REC:     msr.emit.CopyRecToRec(from, msr.base, *ty.GetTypeInfo()); break;
-            case HEAD_DERIVED: msr.emit.CopyRecToDerived(msr.base, msr.derived, from, *ty.GetTypeInfo()); break;
-            case HEAD_STATIC:
-                // IRZ means static record field, so whole position is encoded in accumulated offset
-                // FIXME: encode as separate operation
-                msr.emit.CopyRecToObj(from, IReg::IRZ, *ty.GetTypeInfo());
-                break;
-                break;
-            case HEAD_FRAME:
-                ASSERTION(RTSupport::Execution::GetLocalBasePtr().value == 0, "assumes local base is zero");
-                msr.emit.CopyRecToRec(from, IReg::IRZ, *ty.GetTypeInfo());
-                break;
-            case HEAD_NONE:    FATAL("unreachable");
-        }
+        FATAL("unreachable");
     }
 
     void MemTailStoreImm(MemSpace& ms, uint64_t imm) override

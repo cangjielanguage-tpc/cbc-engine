@@ -673,6 +673,97 @@ public:
         return true;
     }
 
+    struct DerivedPointer {
+        Value::Reference base;
+        uintptr_t derivedAddr;
+        RTSupport::StructLocationKind kind;
+    };
+
+    DerivedPointer GetDerivedPointer(IReg baseReg, IReg derivedReg)
+    {
+        auto base        = ectype->GetReference(baseReg);
+        auto derivedAddr = ectype->GetPrimitive(derivedReg).u64;
+        return DerivedPointer {
+            .base        = base,
+            .derivedAddr = derivedAddr,
+            .kind        = RTSupport::Execution::GetStructLocationKind(base, derivedAddr),
+        };
+    }
+
+    template <typename BytesFunction, typename RefFunction>
+    void CopyDerivedByRanges(RTSupport::TypeInfo ti, BytesFunction bytesFunction, RefFunction refFunction)
+    {
+        const auto size  = RTSupport::MetaInfo::GetTypeSize(ti);
+        uintptr_t offset = 0;
+        ti.VisitReferenceOffsets([&](uintptr_t refOffset) {
+            ASSERTION(
+                refOffset >= offset && refOffset <= size && size - refOffset >= sizeof(uintptr_t),
+                "invalid reference offset"
+            );
+            if (refOffset > offset) {
+                bytesFunction(offset, refOffset - offset);
+            }
+            refFunction(refOffset);
+            offset = refOffset + sizeof(uintptr_t);
+        });
+
+        if (offset < size) {
+            bytesFunction(offset, size - offset);
+        }
+    }
+
+    Value::Reference ReadReference(DerivedPointer const& src, uintptr_t offset)
+    {
+        uintptr_t srcDerivedAddr = src.derivedAddr + offset;
+        switch (src.kind) {
+            case RTSupport::LOCAL:  return Value::Reference { .value = *(uintptr_t*)srcDerivedAddr };
+            case RTSupport::GLOBAL: return RTSupport::Execution::ReadObjectStatic((void*)srcDerivedAddr, handle);
+            case RTSupport::HEAP:   return RTSupport::Execution::ReadObjectInstance(src.base, srcDerivedAddr, handle);
+        }
+    }
+
+    void WriteReference(DerivedPointer const& dst, uintptr_t offset, Value::Reference ref)
+    {
+        uintptr_t dstDerivedAddr = dst.derivedAddr + offset;
+        switch (dst.kind) {
+            case RTSupport::LOCAL:  *(uintptr_t*)dstDerivedAddr = ref.value; break;
+            case RTSupport::GLOBAL: RTSupport::Execution::WriteObjectStatic((void*)dstDerivedAddr, ref, handle); break;
+            case RTSupport::HEAP:
+                RTSupport::Execution::WriteObjectInstance(dst.base, dstDerivedAddr, ref, handle);
+                break;
+        }
+    }
+
+    inline void CopyDerived(IReg dstBase, IReg dstReg, IReg srcBase, IReg srcReg, RTSupport::TypeInfo ti)
+    {
+        auto dst = GetDerivedPointer(dstBase, dstReg);
+        auto src = GetDerivedPointer(srcBase, srcReg);
+        if (dst.derivedAddr == src.derivedAddr) {
+            return;
+        }
+
+        CopyDerivedByRanges(
+            ti,
+            [&](uintptr_t offset, uintptr_t size) {
+                memcpy((void*)(dst.derivedAddr + offset), (void*)(src.derivedAddr + offset), size);
+            },
+            [&](uintptr_t offset) {
+                using Reference = Interpretation::Value::Reference;
+                Reference ref   = ReadReference(src, offset);
+                WriteReference(dst, offset, ref);
+            }
+        );
+    }
+
+    inline void LeaIndex(IReg dst, IReg arr, IReg idx, RTSupport::TypeInfo ti, bool isCangjieArray = true)
+    {
+        auto obj        = ectype->GetReference(arr);
+        auto size       = RTSupport::MetaInfo::GetTypeSize(ti);
+        auto headOffset = isCangjieArray ? RTSupport::MetaInfo::ArrayBodyOffset() : 0;
+        auto offset     = headOffset + MemOffsetReg(idx) * size;
+        MemoryLocation(obj.value, offset).Lea(dst, ectype);
+    }
+
 private:
     inline bool NullCheck(Value::Reference obj) { return true; }
 

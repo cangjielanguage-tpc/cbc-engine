@@ -636,6 +636,25 @@ std::optional<InstanceField> Resolver::QueryTupleElement(Type refType, uint32_t 
     return InstanceField { session.Allocator().New<InstanceField::Content>(field) };
 }
 
+std::optional<Type> Resolver::QueryElement(Type refType)
+{
+    auto term = refType.term;
+    switch (term.GetKind())
+    {
+    case TermKind::CANGJIE_ARRAY: {
+    //case TermKind::VARRAY:
+        auto optTypeInfo = refType.GetTypeInfo();
+        if (!optTypeInfo.has_value()) {
+            return std::nullopt;
+        }
+        return Type(term.Subterm(0), this);
+    }
+    default:
+        FATAL("Unexpected kind %d", term.GetKind());
+    }
+    return std::nullopt;
+}
+
 std::optional<Type> Resolver::QueryFutureByFunctional(Index<Type> id)
 {
     auto optFunctional = Query(id);

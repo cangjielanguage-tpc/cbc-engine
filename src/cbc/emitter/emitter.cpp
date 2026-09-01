@@ -666,6 +666,57 @@ void Emitter::LoadObj(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset)
     }
 }
 
+void Emitter::CopyDerived(IReg dstBase, IReg dst, IReg srcBase, IReg src, RTSupport::TypeInfo ti)
+{
+    Encode(
+        segment,
+        RT::CopyDerived {
+            .opc   = RT::Opcode::COPY_DERIVED,
+            .rr    = RR { .x = dstBase, .y = dst },
+            .field = RR { .x = srcBase, .y = src },
+            .ti    = ti,
+        }
+    );
+}
+
+void Emitter::CopyDerivedGeneric(IReg dstBase, IReg dst, IReg srcBase, IReg src, IReg ti)
+{
+    Encode(
+        segment,
+        RT::CopyDerivedGeneric {
+            .opc   = RT::Opcode::COPY_DERIVED_GENERIC,
+            .rr    = RR { .x = dstBase, .y = dst },
+            .field = RR { .x = srcBase, .y = src },
+            .ti    = RR { .x = ti, .y = 0 },
+        }
+    );
+}
+
+void Emitter::LeaIndex(IReg dst, IReg src, IReg idx, RTSupport::TypeInfo ti, bool isCangjieArray)
+{
+    Encode(
+        segment,
+        RT::Index {
+            .opc = RT::Opcode::INDEX,
+            .rr  = RR { .x = dst, .y = src },
+            .idx = XR { .imm = isCangjieArray, .r = idx },
+            .ti  = ti,
+        }
+    );
+}
+
+void Emitter::LeaIndexGeneric(IReg dst, IReg src, IReg idx, IReg ti)
+{
+    Encode(
+        segment,
+        RT::IndexGeneric {
+            .opc = RT::Opcode::INDEX_GENERIC,
+            .rr  = RR { .x = dst, .y = src },
+            .idx = RR { .x = idx, .y = ti },
+        }
+    );
+}
+
 void Emitter::StoreObj(StoreAccessKind stk, Reg src, IReg base, uint32_t offset)
 {
     if (MathUtils::IsNBits(offset, 12)) {
