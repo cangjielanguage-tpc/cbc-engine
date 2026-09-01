@@ -716,6 +716,18 @@ LABEL(STORE_REC) {
     bool successful = interpreter.StoreRec(args.xi12.imm4.STK(), args.rr.x, args.rr.y.IR(), args.xi12.imm12);
     NEXT_COND(successful);
 }
+
+LABEL(COPY_TO_REC) {
+    auto args = CopyFieldOp::Decode(reader);
+    auto src = ectype->GetReference(args.rr.y.IR()); // pointer to local record
+    auto dst = ectype->GetReference(args.rr.x.IR());   // dst
+    auto offset = args.offset.imm;
+    auto size = args.size.imm;
+    auto recStart = src.value + offset;     // interior record
+    // local -> local (gc barrier isn't required)
+    memcpy((void*) dst.value, (void*) recStart, size);
+    NEXT;
+}
 LABEL(LOAD_FRAME_F)
 LABEL(LOAD_FRAME) {
     auto args = B4xi12rr::Decode(reader);

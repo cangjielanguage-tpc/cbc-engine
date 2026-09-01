@@ -170,7 +170,8 @@
     X(CBINI8W, BinaryChecked, "$0cbin.8 $2ir $3ir $1I64")                                                              \
     X(CBINI16W, BinaryChecked, "$0cbin.16 $2ir $3ir $1I64")                                                            \
     X(CBINI32W, BinaryChecked, "$0cbin.32 $2ir $3ir $1I64")                                                            \
-    X(CBINI64W, BinaryChecked, "$0cbin.64 $2ir $3ir $1I64")
+    X(CBINI64W, BinaryChecked, "$0cbin.64 $2ir $3ir $1I64")                                                            \
+    X(COPY_TO_REC, CopyFieldOp, "copy.rec $1ir [$2ir $3U32]")
 
 // X parameters: opcode, encoding format, string format, is tail
 #define CBC_RT_MEMOPCODES(X)                                                                                           \
@@ -631,6 +632,22 @@ struct StructFieldOp {
         auto field = Format::RR::Decode(reader);
         auto ti    = reader.Read<RTSupport::TypeInfo>();
         return StructFieldOp { opc, rr, field, ti };
+    }
+};
+
+struct CopyFieldOp {
+    Opcode opc;
+    Format::RR rr;
+    Format::Imm32 offset;
+    Format::Imm32 size;
+
+    static CopyFieldOp Decode(Decoder::ByteReader& reader)
+    {
+        auto opc    = Opcode::Decode(reader);
+        auto rr     = Format::RR::Decode(reader);
+        auto offset = Format::Imm32::Decode(reader);
+        auto size   = Format::Imm32::Decode(reader);
+        return CopyFieldOp { opc, rr, offset, size };
     }
 };
 

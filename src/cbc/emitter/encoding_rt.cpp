@@ -321,5 +321,13 @@ void Encode(ByteBuffer& buf, RT::CopyDerived command)
     buf.AddW64(Bits::Raw64(command.ti));
 }
 
+void Encode(ByteBuffer& buf, RT::CopyFieldOp command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.rr);
+    Encode(buf, command.offset);
+    Encode(buf, command.size);
+}
+
 } // namespace Emitter
 } // namespace Cbc

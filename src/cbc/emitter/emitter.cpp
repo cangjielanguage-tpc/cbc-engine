@@ -712,6 +712,32 @@ void Emitter::LoadObj(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset)
     }
 }
 
+void Emitter::CopyObj(Reg dst, IReg src, uint32_t offset, uint32_t size)
+{
+    Encode(segment, RT::CopyFieldOp {
+        .opc = CopyKind::COPY_TO_OBJ,
+        .rr = {
+            .x = dst,
+            .y = src,
+        },
+        .offset = { .imm = offset },
+        .size = { .imm = size }
+    });
+}
+
+void Emitter::CopyRec(Reg dst, IReg src, uint32_t offset, uint32_t size)
+{
+    Encode(segment, RT::CopyFieldOp {
+        .opc = CopyKind::COPY_TO_REC,
+        .rr = {
+            .x = dst,
+            .y = src,
+        },
+        .offset = { .imm = offset },
+        .size = { .imm = size }
+    });
+}
+
 void Emitter::StoreObj(StoreAccessKind stk, Reg src, IReg base, uint32_t offset)
 {
     if (MathUtils::IsNBits(offset, 12)) {

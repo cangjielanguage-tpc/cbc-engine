@@ -39,6 +39,8 @@ public:
     using LoadAccessKind  = Format::LoadAccessKind;
     using StoreAccessKind = Format::StoreAccessKind;
 
+    using CopyKind = Format::CopyKind;
+
     class MemSpace {
     public:
         MemSpace(Emitter& _emitter) : segment(_emitter.segment), symbols(_emitter.symbols), emitter(_emitter) {}
@@ -223,6 +225,8 @@ public:
     void StoreGeneric(Reg src, IReg baseRef, IReg base, IReg ti);
     void LeaGeneric(Reg dst, IReg base, IReg ti, uint32_t offset);
     void TypeArg(IReg dst, IReg typeInfo, int idx);
+    void CopyRec(Reg dst, IReg src, uint32_t offset, uint32_t size);
+    void CopyObj(Reg dst, IReg src, uint32_t offset, uint32_t size);
 
     void LoadFrame(LoadAccessKind ldk, Reg dst, uint32_t offset);
     void StoreFrame(StoreAccessKind stk, Reg src, uint32_t offset);
