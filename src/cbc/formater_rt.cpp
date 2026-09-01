@@ -571,8 +571,8 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyDerive
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyFieldOp args)
 {
-    Operand operands[] = { args.rr.x, args.rr.y, args.offset.imm, args.size.imm };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
+    Operand operands[] = { args.rr.x, args.rr.y, args.offset.imm };
+    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 
