@@ -530,10 +530,11 @@ struct IsaRewriter : public IsaParser {
     void Copy(IReg dst, IReg src, uint32_t fieldId) override
     {
         UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
-        UNWRAP_OPT(offset, field->offset, [&]() {
-            errStream << "Failed to get offset of field " << field << Stream::endl;
-            Fail();
-        });
+        auto offset = field->offset.value_or(0);
+        // UNWRAP_OPT(offset, field->offset, [&]() {
+        //     errStream << "Failed to get offset of field " << field << Stream::endl;
+        //     Fail();
+        // });
         auto kind = Ldk(field->fieldType.GetKind());
         UNWRAP_OPT(size, field->fieldType.GetFlatSize(), [&]() {
             errStream << "Failed to get size of field " << field << Stream::endl;
