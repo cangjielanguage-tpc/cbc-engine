@@ -451,10 +451,48 @@ struct IsaParserImpl {
         parser.LdStatic(dst, fr);
     }
 
+    static void LdTyped(IsaParser& parser)
+    {
+        auto [dst, _, slot, fr] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().ReadULEB().Get();
+        parser.LdTyped(dst, slot, fr);
+    }
+
+    static void LdDerived(IsaParser& parser)
+    {
+        auto [dst, _, baseRef, derived, fr] =
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadULEB().Get();
+        parser.LdDerived(dst, baseRef, derived, fr);
+    }
+
+    static void LdGeneric(IsaParser& parser)
+    {
+        auto [dst, baseRef, derived, ti, fr] =
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadULEB().Get();
+        parser.LdGeneric(dst, baseRef, derived, ti, fr);
+    }
+
     static void Lea(IsaParser& parser)
     {
         auto [dst, base, fr] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
         parser.Lea(dst, base, fr);
+    }
+
+    static void LeaStatic(IsaParser& parser)
+    {
+        auto [dst, dstRefBase, fr] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
+        parser.LeaStatic(dst, dstRefBase, fr);
+    }
+
+    static void LeaGeneric(IsaParser& parser)
+    {
+        auto [dst, _, base, ti, fr] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadULEB().Get();
+        parser.LeaGeneric(dst, base, ti, fr);
+    }
+
+    static void LeaBox(IsaParser& parser)
+    {
+        auto [dst, base] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
+        parser.LeaBox(dst, base);
     }
 
     static void St(IsaParser& parser)
@@ -469,10 +507,24 @@ struct IsaParserImpl {
         parser.StStatic(src, fr);
     }
 
-    static void LeaBox(IsaParser& parser)
+    static void StTyped(IsaParser& parser)
     {
-        auto [dst, base] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
-        parser.LeaBox(dst, base);
+        auto [src, _, slot, fr] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().ReadULEB().Get();
+        parser.StTyped(src, slot, fr);
+    }
+
+    static void StDerived(IsaParser& parser)
+    {
+        auto [src, _, baseRef, derived, fr] =
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadULEB().Get();
+        parser.StDerived(src, baseRef, derived, fr);
+    }
+
+    static void StGeneric(IsaParser& parser)
+    {
+        auto [src, baseRef, derived, ti, fr] =
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadULEB().Get();
+        parser.StGeneric(src, baseRef, derived, ti, fr);
     }
 
     static void LoadRawMemory(IsaParser& parser)

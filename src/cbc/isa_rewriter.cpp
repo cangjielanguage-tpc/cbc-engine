@@ -401,6 +401,12 @@ struct IsaRewriter : public IsaParser {
         emit.LoadStatic(Ldk(field->fieldType.GetKind()), dst, symbol);
     }
 
+    void LdTyped(AnyReg dst, uint16_t slot, uint32_t field) override { FATAL("TODO: support"); }
+
+    void LdDerived(AnyReg dst, IReg baseRef, IReg derived, uint32_t field) override { FATAL("TODO: support"); }
+
+    void LdGeneric(AnyReg dst, IReg baseRef, IReg derived, IReg ti, uint32_t field) override { FATAL("TODO: support"); }
+
     void Lea(IReg dst, IReg base, uint32_t fieldId) override
     {
         UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
@@ -414,6 +420,10 @@ struct IsaRewriter : public IsaParser {
             emit.LoadObj(LDK::LD_LEA, dst, base, offset);
         }
     }
+
+    void LeaStatic(IReg dst, IReg dstBaseRef, uint32_t field) override { FATAL("TODO: support"); }
+
+    void LeaGeneric(IReg dst, IReg base, IReg ti, uint32_t field) override { FATAL("TODO: support"); }
 
     void St(AnyReg src, IReg base, uint32_t fieldId) override
     {
@@ -437,6 +447,12 @@ struct IsaRewriter : public IsaParser {
         auto symbol = emit.NewAddressSym(location);
         emit.StoreStatic(Stk(field->fieldType.GetKind()), src, symbol);
     }
+
+    void StTyped(AnyReg src, uint16_t slot, uint32_t field) override { FATAL("TODO: support"); }
+
+    void StDerived(AnyReg src, IReg baseRef, IReg derived, uint32_t field) override { FATAL("TODO: support"); }
+
+    void StGeneric(AnyReg src, IReg baseRef, IReg derived, IReg ti, uint32_t field) override { FATAL("TODO: support"); }
 
     void LeaBox(IReg dst, IReg base) override
     {
