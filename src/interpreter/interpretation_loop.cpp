@@ -730,6 +730,20 @@ LABEL(COPY_TO_REC) {
     NEXT;
 }
 
+LABEL(COPY_TO_OBJ) {
+    auto args = CopyFieldOp::Decode(reader);
+    LOG_INSTR;
+    // auto src = ectype->GetReference(args.rr.y.IR()); // pointer to local record
+    // auto dst = ectype->GetReference(args.rr.x.IR());   // dst
+    // auto offset = args.offset.imm;
+    // auto size = args.size.imm;
+    // auto recStart = src.value + offset;     // interior record
+    // local -> local (gc barrier isn't required)
+    //memcpy((void*) dst.value, (void*) recStart, size);
+    NEXT;
+}
+
+
 LABEL(LOAD_FRAME_F)
 LABEL(LOAD_FRAME) {
     auto args = B4xi12rr::Decode(reader);
