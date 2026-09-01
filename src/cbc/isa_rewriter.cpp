@@ -1144,6 +1144,7 @@ struct IsaRewriter : public IsaParser {
     {
         AdjustReg(IReg::IR_ACC, future);
         emit.SpawnFuture();
+        BindStatePoint();
     }
 
     void CallClosure(IReg dst, uint32_t typeId, bool generic) override
