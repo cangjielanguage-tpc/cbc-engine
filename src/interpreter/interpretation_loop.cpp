@@ -726,7 +726,7 @@ LABEL(COPY_TO_REC) {
     auto size = args.size.imm;
     auto recStart = src.value + offset;     // interior record
     // local -> local (gc barrier isn't required)
-    //memcpy((void*) dst.value, (void*) recStart, size);
+    memcpy((void*) dst.value, (void*) recStart, size);
     NEXT;
 }
 
