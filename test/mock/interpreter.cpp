@@ -360,6 +360,8 @@ StructLocationKind Execution::GetStructLocationKind(Reference base, uintptr_t de
     FATAL("Should not reach here");
 }
 
+uint64_t Execution::GetStructLocationFlag(StructLocationKind kind) { FATAL("Should not reach here"); }
+
 Reference Execution::GetGlobalBasePtr() { FATAL("Should not reach here"); }
 
 Reference Execution::GetLocalBasePtr() { FATAL("Should not reach here"); }

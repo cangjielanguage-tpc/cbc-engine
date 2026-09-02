@@ -408,11 +408,21 @@ struct IsaRewriter : public IsaParser {
             Fail();
         });
 
+        ASSERT(field->refType.term.IsRecord());
         auto offset = frameLayout.typedOffset.at(slot) + fieldOffset;
         emit.LoadFrame(Ldk(field->fieldType.GetKind()), dst, offset);
     }
 
-    void LdDerived(AnyReg dst, IReg baseRef, IReg derived, uint32_t field) override { FATAL("TODO: support"); }
+    void LdDerived(AnyReg dst, IReg baseRef, IReg derived, uint32_t fieldId) override
+    {
+        UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
+        UNWRAP_OPT(fieldOffset, field->offset, [&]() {
+            errStream << "Failed to get offset of field " << field << Stream::endl;
+            Fail();
+        });
+
+        emit.LoadDerived(Ldk(field->fieldType.GetKind()), dst, baseRef, derived, fieldOffset);
+    }
 
     void LdGeneric(AnyReg dst, IReg baseRef, IReg derived, IReg ti, uint32_t field) override { FATAL("TODO: support"); }
 
@@ -430,7 +440,14 @@ struct IsaRewriter : public IsaParser {
         }
     }
 
-    void LeaStatic(IReg dst, IReg dstBaseRef, uint32_t field) override { FATAL("TODO: support"); }
+    void LeaStatic(IReg dst, IReg dstBaseRef, uint32_t fieldId) override
+    {
+        UNWRAP_OPT(field, resolver.Query(Index<StaticField>(fieldId)), Fail);
+        UNWRAP_OPT(location, field->location, Fail);
+        auto symbol = emit.NewAddressSym(location);
+        emit.LoadStatic(LDK::LD_LEA, dst, symbol);
+        emit.MovImm(Format::Width::W64, dstBaseRef, RTSupport::Execution::GetStructLocationFlag(RTSupport::GLOBAL));
+    }
 
     void LeaGeneric(IReg dst, IReg base, IReg ti, uint32_t field) override { FATAL("TODO: support"); }
 
@@ -469,9 +486,15 @@ struct IsaRewriter : public IsaParser {
         emit.StoreFrame(Stk(field->fieldType.GetKind()), src, offset);
     }
 
-    void StDerived(AnyReg src, IReg baseRef, IReg derived, uint32_t field) override
+    void StDerived(AnyReg src, IReg baseRef, IReg derived, uint32_t fieldId) override
     {
-        FATAL("TODO: support");
+        UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
+        UNWRAP_OPT(fieldOffset, field->offset, [&]() {
+            errStream << "Failed to get offset of field " << field << Stream::endl;
+            Fail();
+        });
+
+        emit.StoreDerived(Stk(field->fieldType.GetKind()), src, baseRef, derived, fieldOffset);
     }
 
     void StGeneric(AnyReg src, IReg baseRef, IReg derived, IReg ti, uint32_t field) override { FATAL("TODO: support"); }

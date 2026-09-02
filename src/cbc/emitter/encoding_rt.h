@@ -35,6 +35,7 @@ void Encode(ByteBuffer& buf, RT::B5i32 command);
 void Encode(ByteBuffer& buf, RT::B6xri32 command);
 void Encode(ByteBuffer& buf, RT::B10xri64 command);
 void Encode(ByteBuffer& buf, RT::B9i64 command);
+void Encode(ByteBuffer& buf, RT::B9xrrri32 command);
 void Encode(ByteBuffer& buf, RT::InterfaceCall command);
 void Encode(ByteBuffer& buf, RT::InterfaceCallGeneric command);
 void Encode(ByteBuffer& buf, RT::B13i64i32 command);

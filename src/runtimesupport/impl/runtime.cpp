@@ -252,6 +252,15 @@ StructLocationKind Execution::GetStructLocationKind(Reference base, uintptr_t de
     return HEAP;
 }
 
+uint64_t Execution::GetStructLocationFlag(StructLocationKind kind)
+{
+    switch (kind) {
+        case LOCAL:  return 0;
+        case GLOBAL: return StructLocationKind::GLOBAL;
+        default:     FATAL("Incorrect kind"); return 0;
+    }
+}
+
 Reference Execution::GetGlobalBasePtr()
 {
 #if defined(__x86_64__) || defined(_M_X64)

@@ -133,6 +133,7 @@ struct Execution {
 
     static bool IsReference(TypeInfo ti);
     static StructLocationKind GetStructLocationKind(Reference base, uintptr_t derived);
+    static uint64_t GetStructLocationFlag(StructLocationKind kind);
     static Reference GetGlobalBasePtr();
     static Reference GetLocalBasePtr();
 

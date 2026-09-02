@@ -696,6 +696,50 @@ LABEL(STORE_FRAME) {
     bool successful = interpreter.StoreFrame(args.xi12.imm4.STK(), args.rr.x, args.xi12.imm12);
     NEXT_COND(successful);
 }
+LABEL(LOAD_LONG_FRAME_F)
+LABEL(LOAD_LONG_FRAME) {
+    auto args = B9xrrri32::Decode(reader);
+    LOG_INSTR;
+    bool successful = interpreter.LoadFrame(args.xr.imm.LDK(), args.xr.r, args.imm32.imm);
+    NEXT_COND(successful);
+}
+LABEL(STORE_LONG_FRAME_F)
+LABEL(STORE_LONG_FRAME) {
+    auto args = B9xrrri32::Decode(reader);
+    LOG_INSTR;
+    bool successful = interpreter.StoreFrame(args.xr.imm.STK(), args.xr.r, args.imm32.imm);
+    NEXT_COND(successful);
+}
+LABEL(LOAD_LONG_REC_F)
+LABEL(LOAD_LONG_REC) {
+    auto args = B9xrrri32::Decode(reader);
+    LOG_INSTR;
+    bool successful = interpreter.LoadRec(args.xr.imm.LDK(), args.xr.r, args.rr.y.IR(), args.imm32.imm);
+    NEXT_COND(successful);
+}
+LABEL(STORE_LONG_REC_F)
+LABEL(STORE_LONG_REC) {
+    auto args = B9xrrri32::Decode(reader);
+    LOG_INSTR;
+    bool successful = interpreter.StoreRec(args.xr.imm.STK(), args.xr.r, args.rr.y.IR(), args.imm32.imm);
+    NEXT_COND(successful);
+}
+LABEL(LOAD_LONG_DERIVED_F)
+LABEL(LOAD_LONG_DERIVED) {
+    auto args = B9xrrri32::Decode(reader);
+    LOG_INSTR;
+    bool successful = interpreter.LoadDerived(
+        args.xr.imm.LDK(), args.xr.r, args.rr.x.IR(), args.rr.y.IR(), args.imm32.imm);
+    NEXT_COND(successful);
+}
+LABEL(STORE_LONG_DERIVED_F)
+LABEL(STORE_LONG_DERIVED) {
+    auto args = B9xrrri32::Decode(reader);
+    LOG_INSTR;
+    bool successful = interpreter.StoreDerived(
+        args.xr.imm.STK(), args.xr.r, args.rr.x.IR(), args.rr.y.IR(), args.imm32.imm);
+    NEXT_COND(successful);
+}
 LABEL(PREP_TYPED) {
     auto args = B13i64i32::Decode(reader);
     LOG_INSTR;
