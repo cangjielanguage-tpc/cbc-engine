@@ -46,6 +46,31 @@ TEST(EmitTest, InitClosureVariants)
     EXPECT_EQ("0x000: init.closure\n0x001: init.closure.sret\n", stream.ToString());
 }
 
+TEST(EmitTest, NewObjGenericVariants)
+{
+    Emitter e;
+    e.NewObjGeneric(IReg::IR2);
+    e.NewObjGeneric(IReg::IR3, true);
+
+    auto code = e.Build(heap);
+    ASSERT_EQ(4, code.bytecodeSize);
+
+    Decoder::ByteReader reader(code.bytecode, code.bytecode, code.bytecode + code.bytecodeSize);
+    auto ordinary = RT::B2rr::Decode(reader);
+    EXPECT_EQ(RT::Opcode::NEWOBJ_G, ordinary.opc);
+    EXPECT_EQ(IReg::IR2, ordinary.rr.x.IR());
+    EXPECT_EQ(IReg::IR2, ordinary.rr.y.IR());
+
+    auto pinned = RT::B2rr::Decode(reader);
+    EXPECT_EQ(RT::Opcode::NEWOBJ_PINNED_G, pinned.opc);
+    EXPECT_EQ(IReg::IR3, pinned.rr.x.IR());
+    EXPECT_EQ(IReg::IR3, pinned.rr.y.IR());
+
+    Stream::StringBuffer stream;
+    RT::Log(code, stream);
+    EXPECT_EQ("0x000: newobj.g IR2\n0x002: newobj.pinned.g IR3\n", stream.ToString());
+}
+
 TEST(EmitTest, LastFourBitBuiltinBoxUsesCompactEncoding)
 {
     Emitter e;

@@ -535,6 +535,19 @@ LABEL(NEWOBJ_G) {
 
     return { func, type.Raw() };
 }
+LABEL(NEWOBJ_PINNED_G) {
+    auto args = B2rr::Decode(reader);
+    LOG_INSTR;
+    auto tiReg = args.rr.x;
+    auto type  = TypeInfo(ectype->GetPrimitive(tiReg.IR()).u64);
+
+    // Puts result to `IR1`.
+    auto func = Execution::AllocateObjectPinnedInstance();
+
+    reader0 = reader; // save current pc
+
+    return { func, type.Raw() };
+}
 LABEL(NEWOBJ) {
     auto args = B9i64::Decode(reader);
     LOG_INSTR;

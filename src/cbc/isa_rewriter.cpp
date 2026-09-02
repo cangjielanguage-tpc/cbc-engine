@@ -913,6 +913,17 @@ struct IsaRewriter : public IsaParser {
         emit.AtomicOp(opc, dst, obj, src, field->offset.value());
     }
 
+    bool IsFuture(const Type& type)
+    {
+        if (type.term.GetKind() != Engine::TermKind::TYPE) {
+            return false;
+        }
+
+        auto identifier = Engine::ExtractTypeDefIdentifier(type.term);
+        auto def        = Decode::Read(session, identifier);
+        return Decode::Read(session, def.GetName()).compare("std.core:Future") == 0;
+    }
+
     std::optional<Type> NewObject(IReg dst, uint32_t typeId, New kind)
     {
         auto t = resolver.Query(Index<Type>(typeId));
@@ -927,12 +938,8 @@ struct IsaRewriter : public IsaParser {
             return std::nullopt;
         }
 
-        if (kind == New::Obj && t->term.GetKind() == Engine::TermKind::TYPE) {
-            auto identifier = Engine::ExtractTypeDefIdentifier(t->term);
-            auto def        = Decode::Read(session, identifier);
-            if (Decode::Read(session, def.GetName()).compare("std.core:Future") == 0) {
-                kind = New::ObjPinned;
-            }
+        if (kind == New::Obj && IsFuture(*t)) {
+            kind = New::ObjPinned;
         }
 
         auto typeInfo = *ti;
@@ -1103,7 +1110,13 @@ struct IsaRewriter : public IsaParser {
 
     void NewObjGeneric(IReg ti, uint32_t typeId) override
     {
-        emit.NewObjGeneric(ti);
+        auto type = resolver.Query(Index<Type>(typeId));
+        if (!type.has_value()) {
+            Fail("failed to resolve generic object type");
+            return;
+        }
+
+        emit.NewObjGeneric(ti, IsFuture(*type));
         BindStatePoint();
     }
 
