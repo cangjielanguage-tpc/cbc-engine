@@ -23,6 +23,7 @@
 #include "utils/assertion.h"
 #include "utils/logger.h"
 #include "utils/math.h"
+#include "utils/misc.h"
 #include "utils/ostream.h"
 #include "utils/reinterpretation.h"
 
