@@ -48,24 +48,40 @@
     X(INITCLOSURE, B1, "init.closure")                                                                                 \
     X(INITCLOSURE_SRET, B1, "init.closure.sret")                                                                       \
     X(SPAWN, B9i64, "spawn $0U64")                                                                                     \
-    X(LOAD_OBJ, B4xi12rr, "ld.$0ldk $2ir [$3ir $1U12]")                                                                \
-    X(STORE_OBJ, B4xi12rr, "st.$0stk $2ir [$3ir $1U12]")                                                               \
-    X(LOAD_OBJ_F, B4xi12rr, "ld.$0ldk $2fr [$3ir $1U12]")                                                              \
-    X(STORE_OBJ_F, B4xi12rr, "st.$0stk $2fr [$3ir $1U12]")                                                             \
-    X(LOAD_ARR, B3xrrr, "ld.arr.$0ldk $1ir $2ir $3ir")                                                                 \
-    X(STORE_ARR, B3xrrr, "st.arr.$0stk $1ir $2ir $3ir]")                                                               \
-    X(LOAD_ARR_F, B3xrrr, "ld.arr.$0ldk $1fr $2ir $3ir]")                                                              \
-    X(STORE_ARR_F, B3xrrr, "st.arr.$0stk $1fr $2ir $3ir]")                                                             \
+    /* Integral Load/Store instructions start */                                                                       \
     X(LOAD_ADDR, B4xri16, "ld.addr.$0ldk $1ir $2U16")                                                                  \
     X(STORE_ADDR, B4xri16, "st.addr.$0ldk $1ir $2U16")                                                                 \
+    X(LOAD_OBJ, B4xi12rr, "ld.$0ldk $2ir [$3ir $1U12]")                                                                \
+    X(STORE_OBJ, B4xi12rr, "st.$0stk $2ir [$3ir $1U12]")                                                               \
+    X(LOAD_ARR, B3xrrr, "ld.arr.$0ldk $1ir $2ir $3ir")                                                                 \
+    X(STORE_ARR, B3xrrr, "st.arr.$0stk $1ir $2ir $3ir]")                                                               \
     X(LOAD_REC, B4xi12rr, "ld.rec.$0ldk $2ir [$3ir $1U12]")                                                            \
     X(STORE_REC, B4xi12rr, "st.rec.$0stk $2ir [$3ir $1U12]")                                                           \
     X(LOAD_FRAME, B4xi12rr, "ld.frame.$0ldk $2ir [$3ir $1U12]")                                                        \
     X(STORE_FRAME, B4xi12rr, "st.frame.$0stk $2ir [$3ir $1U12]")                                                       \
+    X(LOAD_LONG_DERIVED, B9xrrri32, "ld.derived.$0ldk $1ir [($2ir $3ir) $4U32l]")                                      \
+    X(STORE_LONG_DERIVED, B9xrrri32, "st.derived.$0stk $1ir [($2ir $3ir) $4U32l]")                                     \
+    X(LOAD_LONG_REC, B9xrrri32, "ld.rec.$0ldk $1ir [$3ir $4U32l]")                                                     \
+    X(STORE_LONG_REC, B9xrrri32, "st.rec.$0stk $1ir [$3ir $4U32l]")                                                    \
+    X(LOAD_LONG_FRAME, B9xrrri32, "ld.frame.$0ldk $1ir [$4U32l]")                                                      \
+    X(STORE_LONG_FRAME, B9xrrri32, "st.frame.$0stk $1ir [$4U32l]")                                                     \
+    /* Integral Load/Store instructions end*/                                                                          \
+    /* Float Load/Store instructions end*/                                                                             \
+    X(LOAD_OBJ_F, B4xi12rr, "ld.$0ldk $2fr [$3ir $1U12]")                                                              \
+    X(STORE_OBJ_F, B4xi12rr, "st.$0stk $2fr [$3ir $1U12]")                                                             \
+    X(LOAD_ARR_F, B3xrrr, "ld.arr.$0ldk $1fr $2ir $3ir]")                                                              \
+    X(STORE_ARR_F, B3xrrr, "st.arr.$0stk $1fr $2ir $3ir]")                                                             \
     X(LOAD_REC_F, B4xi12rr, "ld.rec.$0ldk $2fr [$3ir $1U12]")                                                          \
     X(STORE_REC_F, B4xi12rr, "st.rec.$0stk $2fr [$3ir $1U12]")                                                         \
     X(LOAD_FRAME_F, B4xi12rr, "ld.frame.$0ldk $2fr [$3ir $1U12]")                                                      \
     X(STORE_FRAME_F, B4xi12rr, "st.frame.$0stk $2fr [$3ir $1U12]")                                                     \
+    X(LOAD_LONG_DERIVED_F, B9xrrri32, "ld.derived.$0ldk $1ir [($2ir $3ir) $4U32l]")                                    \
+    X(STORE_LONG_DERIVED_F, B9xrrri32, "st.derived.$0stk $1fr [($2ir $3ir) $4U32l]")                                   \
+    X(LOAD_LONG_REC_F, B9xrrri32, "ld.rec.$0ldk $1fr [$3ir $4U32l]")                                                   \
+    X(STORE_LONG_REC_F, B9xrrri32, "st.rec.$0stk $1fr [$3ir $4U32l]")                                                  \
+    X(LOAD_LONG_FRAME_F, B9xrrri32, "ld.frame.$0ldk $1fr [$4U32l]")                                                    \
+    X(STORE_LONG_FRAME_F, B9xrrri32, "st.frame.$0stk $1fr [$4U32l]")                                                   \
+    /* Float Load/Store instructions end*/                                                                             \
     X(PREP_TYPED, B13i64i32, "prep.typed $0U64 $1U32")                                                                 \
     X(SCC32, B3xrrr, "scc.32 $0cc $1ir $2ir $3ir")                                                                     \
     X(SCC64, B3xrrr, "scc.64 $0cc $1ir $2ir $3ir")                                                                     \
@@ -735,6 +751,22 @@ struct B9i64 {
         auto opc   = Opcode::Decode(reader);
         auto imm64 = Format::Imm64::Decode(reader);
         return B9i64 { opc, imm64 };
+    }
+};
+
+struct B9xrrri32 {
+    Opcode opc;
+    Format::XR xr;
+    Format::RR rr;
+    Format::Imm32 imm32;
+
+    static B9xrrri32 Decode(Decoder::ByteReader& reader)
+    {
+        auto opc   = Opcode::Decode(reader);
+        auto xr    = Format::XR::Decode(reader);
+        auto rr    = Format::RR::Decode(reader);
+        auto imm32 = Format::Imm32::Decode(reader);
+        return B9xrrri32 { opc, xr, rr, imm32 };
     }
 };
 

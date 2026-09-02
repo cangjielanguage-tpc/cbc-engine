@@ -218,6 +218,14 @@ void Encode(ByteBuffer& buf, RT::B10xri64 command)
     Encode(buf, command.imm64);
 }
 
+void Encode(ByteBuffer& buf, RT::B9xrrri32 command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.xr);
+    Encode(buf, command.rr);
+    Encode(buf, command.imm32);
+}
+
 void Encode(ByteBuffer& buf, RT::B9i64 command)
 {
     Encode(buf, command.opc);

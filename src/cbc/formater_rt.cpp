@@ -374,6 +374,13 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B9i64 args
     formatter.Format();
 }
 
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B9xrrri32 args)
+{
+    Operand operands[] = { args.xr.imm, args.xr.r, args.rr.x, args.rr.y, args.imm32.imm };
+    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    formatter.Format();
+}
+
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, BinaryChecked args)
 {
     Operand operands[] = { Format::Imm8(args.op), args.imm.imm, args.rr.x, args.rr.y };
