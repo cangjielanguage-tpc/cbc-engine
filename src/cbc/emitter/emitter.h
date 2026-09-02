@@ -205,7 +205,7 @@ public:
     void Spawn(RTSupport::TypeInfo typeInfo);
     void SpawnFuture();
 
-    void NewObjGeneric(IReg ti);
+    void NewObjGeneric(IReg ti, bool pinned = false);
     void NewObjGenericOnAcc(IReg ti);
     void NewObj(RTSupport::TypeInfo typeInfo, bool pinned = false);
     void NewArr(RTSupport::TypeInfo typeInfo);
