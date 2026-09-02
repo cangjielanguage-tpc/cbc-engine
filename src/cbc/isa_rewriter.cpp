@@ -23,7 +23,6 @@
 #include "utils/assertion.h"
 #include "utils/logger.h"
 #include "utils/math.h"
-#include "utils/misc.h"
 #include "utils/ostream.h"
 #include "utils/reinterpretation.h"
 
@@ -34,6 +33,14 @@
 #include <sys/types.h>
 #include <variant>
 #include <vector>
+
+#define UNWRAP_OPT(name, expression, handler)                                                                          \
+    auto __##name = (expression);                                                                                      \
+    if (!__##name.has_value()) {                                                                                       \
+        handler();                                                                                                     \
+        return;                                                                                                        \
+    }                                                                                                                  \
+    auto name = __##name.value();
 
 namespace Cbc {
 
