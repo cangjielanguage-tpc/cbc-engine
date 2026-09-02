@@ -5,6 +5,14 @@
 #include <string>
 #include <vector>
 
+#define UNWRAP_OPT(name, expression, handler)                                                                          \
+    auto __##name = (expression);                                                                                      \
+    if (!__##name.has_value()) {                                                                                       \
+        handler();                                                                                                     \
+        return;                                                                                                        \
+    }                                                                                                                  \
+    auto name = __##name.value();
+
 namespace Std {
 namespace Vector {
 
