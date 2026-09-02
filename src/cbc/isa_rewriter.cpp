@@ -393,7 +393,16 @@ struct IsaRewriter : public IsaParser {
         emit.LoadStatic(Ldk(field->fieldType.GetKind()), dst, symbol);
     }
 
-    void LdTyped(AnyReg dst, uint16_t slot, uint32_t field) override { FATAL("TODO: support"); }
+    void LdTyped(AnyReg dst, uint16_t slot, uint32_t fieldId) override {
+        UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
+        UNWRAP_OPT(fieldOffset, field->offset, [&]() {
+            errStream << "Failed to get offset of field " << field << Stream::endl;
+            Fail();
+        });
+
+        auto offset = frameLayout.typedOffset.at(slot) + fieldOffset;
+        emit.LoadFrame(Ldk(field->fieldType.GetKind()), dst, offset);
+    }
 
     void LdDerived(AnyReg dst, IReg baseRef, IReg derived, uint32_t field) override { FATAL("TODO: support"); }
 
@@ -440,9 +449,22 @@ struct IsaRewriter : public IsaParser {
         emit.StoreStatic(Stk(field->fieldType.GetKind()), src, symbol);
     }
 
-    void StTyped(AnyReg src, uint16_t slot, uint32_t field) override { FATAL("TODO: support"); }
+    void StTyped(AnyReg src, uint16_t slot, uint32_t fieldId) override
+    {
+        UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
+        UNWRAP_OPT(fieldOffset, field->offset, [&]() {
+            errStream << "Failed to get offset of field " << field << Stream::endl;
+            Fail();
+        });
 
-    void StDerived(AnyReg src, IReg baseRef, IReg derived, uint32_t field) override { FATAL("TODO: support"); }
+        auto offset = frameLayout.typedOffset.at(slot) + fieldOffset;
+        emit.StoreFrame(Stk(field->fieldType.GetKind()), src, offset);
+    }
+
+    void StDerived(AnyReg src, IReg baseRef, IReg derived, uint32_t field) override
+    {
+        FATAL("TODO: support");
+    }
 
     void StGeneric(AnyReg src, IReg baseRef, IReg derived, IReg ti, uint32_t field) override { FATAL("TODO: support"); }
 
