@@ -501,14 +501,9 @@ struct IsaRewriter : public IsaParser {
         emit.LoadFrame(Format::LoadAccessKind::LD_LEA, r, frameLayout.typedOffset.at(ts));
     }
 
-    void LoadRawMemory(AnyReg dst, IReg base, int64_t offset, Format::LoadAccessKind ldk) override
+    void LoadTailParam(AnyReg dst, IReg base, int64_t offset, Format::LoadAccessKind ldk) override
     {
         emit.LoadRec(ldk, dst, base, offset);
-    }
-
-    void StoreRawMemory(AnyReg src, IReg base, int64_t offset, Format::StoreAccessKind stk) override
-    {
-        emit.StoreRec(stk, src, base, offset);
     }
 
     void LoadStatic(AnyReg r, uint32_t fieldId) override

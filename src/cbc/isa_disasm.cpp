@@ -144,14 +144,9 @@ struct IsaDisasm : public IsaParser {
 
     void LoadStackRec(IReg r, uint16_t ts) override { stream.PrintLn("ld.stack.rec {}, {}", r, ts); }
 
-    void LoadRawMemory(AnyReg dst, IReg base, int64_t offset, Format::LoadAccessKind ldk) override
+    void LoadTailParam(AnyReg dst, IReg base, int64_t offset, Format::LoadAccessKind ldk) override
     {
         stream.PrintLn("ld.raw.mem.{} {}, [{} + {}]", ldk, Fmt(dst, ldk.IsFloat()), base, offset);
-    }
-
-    void StoreRawMemory(AnyReg src, IReg base, int64_t offset, Format::StoreAccessKind stk) override
-    {
-        stream.PrintLn("st.raw.mem.{} {}, [{} + {}]", stk, Fmt(src, stk.IsFloat()), base, offset);
     }
 
     void LoadStatic(AnyReg r, uint32_t field) override { stream.PrintLn("ld.static R{} {}", r, field); }

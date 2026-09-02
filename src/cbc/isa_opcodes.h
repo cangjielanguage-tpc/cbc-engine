@@ -107,8 +107,7 @@
     X(PayloadGeneric, PayloadGeneric)                                                                                  \
     X(NewNoneGeneric, NewNoneGeneric)                                                                                  \
     X(NewSomeGeneric, NewSomeGeneric)                                                                                  \
-    X(LoadRawMemory, LoadRawMemory)                                                                                    \
-    X(StoreRawMemory, StoreRawMemory)                                                                                  \
+    X(LoadTailParam, LoadTailParam)                                                                                    \
     X(CallInterfGeneric, CallInterfGeneric)                                                                            \
     X(AssignGeneric, AssignGeneric)                                                                                    \
     X(InstanceOfGeneric, InstanceOfGeneric)                                                                            \
