@@ -673,7 +673,7 @@ void Emitter::StoreGeneric(Reg src, IReg baseRef, IReg base, IReg ti)
     );
 }
 
-void Emitter::LeaGeneric(Reg dst, IReg base, IReg ti, uint32_t offset)
+void Emitter::LeaGeneric(Reg dst, IReg base, IReg ti, uint32_t ordinal)
 {
     Encode(
         segment,
@@ -681,7 +681,7 @@ void Emitter::LeaGeneric(Reg dst, IReg base, IReg ti, uint32_t offset)
                         .xr    = { .imm = 0, // not used
                                    .r   = dst },
                         .rr    = { .x = base, .y = ti },
-                        .imm32 = { .imm = offset } }
+                        .imm32 = { .imm = ordinal } }
     );
 }
 

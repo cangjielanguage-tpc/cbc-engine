@@ -461,6 +461,9 @@ struct IsaRewriter : public IsaParser {
         UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
         UNWRAP_OPT(ordinal, field->ordinal, Fail);
         emit.LeaGeneric(dst, base, ti, ordinal);
+        if (field->refType.GetKind() == Resolution::CbcTypeKind::REF) {
+            emit.AddI(Format::Width::W64, dst, dst, RTSupport::MetaInfo::ObjectHeaderSize());
+        }
     }
 
     void St(AnyReg src, IReg base, uint32_t fieldId) override
@@ -515,7 +518,7 @@ struct IsaRewriter : public IsaParser {
         UNWRAP_OPT(offset, field->offset, Fail);
         ASSERT(field->fieldType.GetKind() == CbcTypeKind::VOID);
         ASSERT(offset == 0);
-        emit.LoadGeneric(src, baseRef, derived, ti);
+        emit.StoreGeneric(src, baseRef, derived, ti);
     }
 
     void LeaBox(IReg dst, IReg base) override

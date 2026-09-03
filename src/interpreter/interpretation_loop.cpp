@@ -771,10 +771,10 @@ LABEL(LOAD_GENERIC) {
 LABEL(STORE_GENERIC) {
     auto args = B3rrrr::Decode(reader);
     LOG_INSTR;
-    auto derivedReg = args.rr1.x.IR();
-    auto tiReg      = args.rr1.y.IR();
-    auto srcReg     = args.rr2.x.IR();
-    auto baseReg    = args.rr2.y.IR();
+    auto srcReg     = args.rr1.x.IR();
+    auto baseReg    = args.rr1.y.IR();
+    auto derivedReg = args.rr2.x.IR();
+    auto tiReg      = args.rr2.y.IR();
 
     auto base    = ectype->GetReference(baseReg);
     auto derived = ectype->GetReference(derivedReg);
@@ -782,11 +782,11 @@ LABEL(STORE_GENERIC) {
 
     auto typeInfo = TypeInfo(ectype->GetPrimitive(tiReg).u64);
     if (RTSupport::Execution::IsReference(typeInfo)) {
-        RTSupport::Execution::WriteObjectInstance(base, derived.value + memspaceOffsetAcc, obj, handle);
+        RTSupport::Execution::WriteObjectInstance(base, derived.value, obj, handle);
         NEXT;
     } else {
         uint32_t size = RTSupport::MetaInfo::GetTypeSize(typeInfo);
-        RTSupport::Execution::WriteGeneric(base, derived.value + memspaceOffsetAcc, obj, size, handle);
+        RTSupport::Execution::WriteGeneric(base, derived.value, obj, size, handle);
         NEXT;
     }
 }
