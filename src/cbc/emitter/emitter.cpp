@@ -712,40 +712,27 @@ void Emitter::LoadObj(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset)
     }
 }
 
-void Emitter::CopyObj(Reg dst, IReg src, uint32_t offset, uint32_t size)
-{
-    Encode(segment, RT::CopyFieldOp {
-        .opc = RT::Opcode::COPY_TO_OBJ,
-        .rr = {
-            .x = dst,
-            .y = src,
-        },
-        .offset = { .imm = offset },
-        .size = { .imm = size }
-    });
-}
-
-void Emitter::CopyRec(Reg dst, IReg src, uint32_t offset, uint32_t size)
-{
-    Encode(segment, RT::CopyFieldOp {
-        .opc = RT::Opcode::COPY_TO_REC,
-        .rr = {
-            .x = dst,
-            .y = src,
-        },
-        .offset = { .imm = offset },
-        .size = { .imm = size }
-    });
-}
-
 void Emitter::CopyDerived(IReg dstBase, IReg dst, IReg srcBase, IReg src, RTSupport::TypeInfo ti)
 {
     Encode(
         segment,
-        RT::CopyDerived2 {
+        RT::CopyDerived {
             .opc   = RT::Opcode::COPY_DERIVED,
             .rr    = RR { .x = dstBase, .y = dst },
             .field = RR { .x = srcBase, .y = src },
+            .ti    = ti,
+        }
+    );
+}
+
+void Emitter::LoadIndex(IReg dst, IReg src, IReg idx, RTSupport::TypeInfo ti)
+{
+    Encode(
+        segment,
+        RT::Index {
+            .opc   = RT::Opcode::INDEX,
+            .rr    = RR { .x = dst, .y = src },
+            .idx = RR { .x = idx, .y = 0 },
             .ti    = ti,
         }
     );

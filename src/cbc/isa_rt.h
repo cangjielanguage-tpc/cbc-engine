@@ -171,9 +171,8 @@
     X(CBINI16W, BinaryChecked, "$0cbin.16 $2ir $3ir $1I64")                                                            \
     X(CBINI32W, BinaryChecked, "$0cbin.32 $2ir $3ir $1I64")                                                            \
     X(CBINI64W, BinaryChecked, "$0cbin.64 $2ir $3ir $1I64")                                                            \
-    X(COPY_TO_REC, CopyFieldOp, "copy.rec $0ir [$1ir $2U32]")                                                          \
-    X(COPY_TO_OBJ, CopyFieldOp, "copy.obj $0ir [$1ir $2U32]")                                                          \
-    X(COPY_DERIVED, CopyDerived2, "copy.derived $0ir $1ir $2ir $3ir $4U32")
+    X(COPY_DERIVED, CopyDerived, "copy.derived $0ir $1ir $2ir $3ir $4U64")                                             \
+    X(INDEX, Index, "index $0ir [$1ir $2U32] $3U64")
 
 // X parameters: opcode, encoding format, string format, is tail
 #define CBC_RT_MEMOPCODES(X)                                                                                           \
@@ -302,10 +301,8 @@
     X(FSTI_64_64, M9i64, "fsti.64.64 $0U64 }", true)                                                                   \
     X(COPY_REC_FROM_OBJ, MStructFieldOp, "reg.copy.from.obj $0ir $1ir $2U64 }", true)                                  \
     X(COPY_REC_FROM_REC, MStructFieldOp, "reg.copy.from.rec $0ir $1ir $2U64 }", true)                                  \
-    X(COPY_REC_FROM_DERIVED, CopyDerived, "reg.copy.from.derived $0ir $1ir $2ir $4U64 }", true)                        \
     X(COPY_REC_TO_OBJ, MStructFieldOp, "reg.copy.to.obj $0ir $1ir $2U64 }", true)                                      \
-    X(COPY_REC_TO_REC, MStructFieldOp, "reg.copy.to.rec $0ir $1ir $2U64 }", true)                                      \
-    X(COPY_REC_TO_DERIVED, CopyDerived, "reg.copy.to.derived $0ir $1ir $2ir $4U64 }", true)
+    X(COPY_REC_TO_REC, MStructFieldOp, "reg.copy.to.rec $0ir $1ir $2U64 }", true)
 
 namespace Cbc {
 namespace RT {
@@ -654,14 +651,14 @@ struct CopyFieldOp {
 };
 
 struct CopyDerived {
-    MemOpcode opc;
+    Opcode opc;
     Format::RR rr;
     Format::RR field;
     RTSupport::TypeInfo ti;
 
     static CopyDerived Decode(Decoder::ByteReader& reader)
     {
-        auto opc   = MemOpcode::Decode(reader);
+        auto opc   = Opcode::Decode(reader);
         auto rr    = Format::RR::Decode(reader);
         auto field = Format::RR::Decode(reader);
         auto ti    = reader.Read<RTSupport::TypeInfo>();
@@ -669,19 +666,19 @@ struct CopyDerived {
     }
 };
 
-struct CopyDerived2 {
+struct Index {
     Opcode opc;
     Format::RR rr;
-    Format::RR field;
+    Format::RR idx;
     RTSupport::TypeInfo ti;
 
-    static CopyDerived2 Decode(Decoder::ByteReader& reader)
+    static Index Decode(Decoder::ByteReader& reader)
     {
         auto opc   = Opcode::Decode(reader);
         auto rr    = Format::RR::Decode(reader);
-        auto field = Format::RR::Decode(reader);
+        auto idx = Format::RR::Decode(reader);
         auto ti    = reader.Read<RTSupport::TypeInfo>();
-        return CopyDerived2 { opc, rr, field, ti };
+        return Index { opc, rr, idx, ti };
     }
 };
 

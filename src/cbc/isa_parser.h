@@ -159,6 +159,7 @@ protected:
     virtual void StDerived(AnyReg src, IReg baseRef, IReg derived, uint32_t field)          = 0;
     virtual void StGeneric(AnyReg src, IReg baseRef, IReg derived, IReg ti, uint32_t field) = 0;
     virtual void Copy(IReg dstBase, IReg dst, IReg dstSrc, IReg src, uint32_t typeId)  = 0;
+    virtual void LoadIndex(IReg dst, IReg src, IReg idx, uint32_t typeId)  = 0;
  
     class MemSpace {
     public:

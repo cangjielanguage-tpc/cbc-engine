@@ -734,48 +734,6 @@ private:
     Value _value;
 };
 
-class CopyKind {
-public:
-#define CopyKindValue(X)                                                                                               \
-    X(COPY_TO_OBJ, 0b0000, "copy.obj")                                                                             \
-    X(COPY_TO_REC, 0b0001, "copy.rec")                                                                             \
-    X(COPY_TO_DERIVED, 0b0010, "copy.derived")
-
-#define CopyKindEnum(opc, value, str) opc = value,
-
-    enum Value : uint8_t {
-        CopyKindValue(CopyKindEnum) LAST = COPY_TO_DERIVED
-    };
-
-#undef CopyKindEnum
-
-    constexpr CopyKind(const Value raw) : _value(raw) {}
-
-    constexpr static CopyKind From(uint8_t value)
-    {
-        ASSERT(value <= LAST);
-        return Value(value);
-    }
-
-    constexpr operator Value() const { return _value; }
-
-    constexpr const char* CStr() const
-    {
-#define CopyKindStr(opc, value, str)                                                                                   \
-    case opc: return str;
-        switch (_value) {
-            CopyKindValue(CopyKindStr);
-        }
-        return "<invalid>";
-#undef CopyKindStr
-    }
-
-    constexpr std::string_view ToStr() const { return std::string_view(CStr()); }
-
-private:
-    Value _value;
-};
-
 /// 4 bit; register
 class Reg {
 public:

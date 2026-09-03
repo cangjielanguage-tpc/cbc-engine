@@ -562,13 +562,6 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, MStructFie
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyDerived args)
-{
-    Operand operands[] = { args.rr.x, args.rr.y, args.field.x, args.field.y, args.ti.UInt() };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
-    formatter.Format();
-}
-
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyFieldOp args)
 {
     Operand operands[] = { args.rr.x, args.rr.y, args.offset.imm };
@@ -576,9 +569,16 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyFieldO
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyDerived2 args)
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyDerived args)
 {
     Operand operands[] = { args.rr.x, args.rr.y, args.field.x, args.field.y, args.ti.UInt() };
+    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    formatter.Format();
+}
+
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, Index args)
+{
+    Operand operands[] = { args.rr.x, args.rr.y, args.idx.x, args.ti.UInt() };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
