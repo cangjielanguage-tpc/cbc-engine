@@ -291,7 +291,7 @@ public:
         switch (locationKind) {
             case RTSupport::LOCAL:  return LoadRec(ldk, dst, base, offset);
             case RTSupport::GLOBAL: return LoadRec(ldk, dst, IReg::IRZ, derivedAddr + offset);
-            case RTSupport::HEAP:   return LoadObj(ldk, dst, base, derived + offset);
+            case RTSupport::HEAP:   return LoadObj(ldk, dst, base, (derivedAddr - obj.value) + offset);
         }
     }
 
