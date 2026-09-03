@@ -132,7 +132,7 @@ struct InstanceField {
     struct Content {
         Type refType;
         Type fieldType;
-        std::optional<uint32_t> ordinal; // TODO delete?
+        std::optional<uint32_t> ordinal;
         std::optional<uint32_t> offset;
 
         // used only for logging
