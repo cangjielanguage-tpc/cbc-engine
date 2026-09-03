@@ -154,12 +154,12 @@ struct TypeInfoBuilder {
     StdGCTib* longgctib = nullptr;
     uint32_t uuid       = 0;
     uint8_t align;
-    int8_t typeArgsNum          = 0;
-    uint16_t validInheritNum    = (1 << 15); // high bit means method table is not initialized
-    uint32_t* fieldOffsets      = nullptr;
+    int8_t typeArgsNum                  = 0;
+    uint16_t validInheritNum            = (1 << 15); // high bit means method table is not initialized
+    uint32_t* fieldOffsets              = nullptr;
     DYN_FuncPtr typeTemplateOrFinalizer = nullptr;
-    DYN_TypeInfo** typeArgs     = nullptr;
-    DYN_TypeInfo** fields       = nullptr;
+    DYN_TypeInfo** typeArgs             = nullptr;
+    DYN_TypeInfo** fields               = nullptr;
 
     DYN_TypeInfo* superTypeInfo = nullptr;
 
@@ -523,7 +523,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         builder.extDefs[extDefCount] = nullptr;
 
         bool resolutionFailed = false;
-        auto prepareExtDef = [&](DYN_ExtensionData& extDef, Engine::MethodSubTable const& smt) {
+        auto prepareExtDef    = [&](DYN_ExtensionData& extDef, Engine::MethodSubTable const& smt) {
             // We are maintaining disjoint sub method table ranges!
             auto start      = smt.StartPos();
             auto end        = smt.EndPos();
@@ -596,12 +596,12 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         // Note, that order of methods is important (first is "generic", second is "instantiated").
         // FIXME: pure generic closure
         auto entryCount = mt->EntryCount();
-        builder.dataMT = Alloc<Interpretation::FunctionHandle*>(entryCount);
+        builder.dataMT  = Alloc<Interpretation::FunctionHandle*>(entryCount);
         if (!builder.dataMT) {
             return std::nullopt;
         }
         for (int i = 0; i < entryCount; i++) {
-            builder.dataMT[i] = (Interpretation::FunctionHandle*) 0x1234567890abcdef;
+            builder.dataMT[i] = (Interpretation::FunctionHandle*)0x1234567890abcdef;
         }
 
         // It is assumed that closures in CBC have only CBC methods (not aot compiled),
@@ -652,7 +652,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         size_t idx = 0;
         for (auto& field : layout->fields) {
             auto fieldType = field.fieldType;
-            auto optOffs = field.offset;
+            auto optOffs   = field.offset;
             if (!optOffs.has_value()) {
                 return std::nullopt;
             }
@@ -749,8 +749,8 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             }
 
             builder.typeTemplateOrFinalizer = typeTemplate;
-            builder.validInheritNum = tt->validInheritNum;
-            builder.extDefs = (DYN_ExtensionData**)tt->extensionDatas;
+            builder.validInheritNum         = tt->validInheritNum;
+            builder.extDefs                 = (DYN_ExtensionData**)tt->extensionDatas;
         }
     }
 
@@ -823,7 +823,7 @@ static void* QueryTypeTemplate(Engine::Session& session, char const* typeName)
         // CJNative runtime can't find typeInfo with multiple ':' in it.
         // So we need to try to find it with just dlsym.
 
-        typeTemplate = (DYN_TypeInfo*) FindTypeSymbol(session, typeName, ".tt");
+        typeTemplate = (DYN_TypeInfo*)FindTypeSymbol(session, typeName, ".tt");
         if (typeTemplate == nullptr) {
             Log::typeinfo.Log(Logging::Level::ERROR, [&session, &typeName](Stream::Output& out) {
                 Stream::ResolvingOutput stream(session, out);
@@ -869,7 +869,7 @@ static std::optional<TypeInfo> QueryTypeInfoAOT(
             // CJNative runtime can't find typeInfo with multiple ':' in it.
             // So we need to try to find it with just dlsym.
 
-            typeInfo = (DYN_TypeInfo*) FindTypeSymbol(session, typeName, ".ti");
+            typeInfo = (DYN_TypeInfo*)FindTypeSymbol(session, typeName, ".ti");
             if (typeInfo == nullptr) {
                 Log::typeinfo.Log(Logging::Level::ERROR, [&session, &term](Stream::Output& out) {
                     Stream::ResolvingOutput stream(session, out);
@@ -1007,8 +1007,7 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& ma
         case TYPE_KIND_GENERIC_TI:
         case TYPE_KIND_FOREIGN_PROXY:
         case TYPE_KIND_WEAKREF_CLASS:
-        case TYPE_KIND_VARRAY:
-        case TYPE_KIND_ENUM:           FATAL("type kind %d not implemented yet", typeInfo->type);
+        case TYPE_KIND_VARRAY:         FATAL("type kind %d not implemented yet", typeInfo->type);
     }
 
     if (isGeneric) {
@@ -1039,6 +1038,8 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& ma
             return termManager.Globalize(term);
         };
 
+        bool isEnum = false;
+
         switch (typeInfo->type) {
             case TYPE_KIND_RAWARRAY: return g(TagTermId(TermKind::CANGJIE_ARRAY), true);
             case TYPE_KIND_CPOINTER: return g(TagTermId(TermKind::C_POINTER), true);
@@ -1047,6 +1048,7 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& ma
             case TYPE_KIND_STRUCT:
             case TYPE_KIND_INTERFACE:
             case TYPE_KIND_CLASS:     break;
+            case TYPE_KIND_ENUM:      isEnum = true; break;
 
             default: FATAL("Unexpected type kind %d", typeInfo->type);
         }
@@ -1062,10 +1064,11 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& ma
         auto typeTemplate = reinterpret_cast<TypeTemplate*>(typeInfo->finalizerMethod);
         auto name         = typeTemplate->name;
 
-        Term term = termManager.NewAotTerm(session, name, subTerms, isRef);
+        Term term = termManager.NewAotTerm(session, name, subTerms, isRef, isEnum);
         return termManager.Globalize(term);
     } else {
-        auto g = Term::Predefined;
+        auto g      = Term::Predefined;
+        bool isEnum = false;
         switch (typeInfo->type) {
             case TYPE_KIND_NOTHING:     return g(TermKind::NOTHING);
             case TYPE_KIND_UNIT:        return g(TermKind::UNIT);
@@ -1089,6 +1092,7 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& ma
             case TYPE_KIND_STRUCT:
             case TYPE_KIND_INTERFACE:
             case TYPE_KIND_CLASS:     break;
+            case TYPE_KIND_ENUM:      isEnum = true; break;
 
             default: FATAL("Unexpected type kind %d", typeInfo->type);
         }
@@ -1099,7 +1103,7 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& ma
         auto& termManager = TermManager::Of(session);
         auto name         = typeInfo->typeInfoName;
 
-        Term term = termManager.NewAotTerm(session, name, noSubTerms, isRef);
+        Term term = termManager.NewAotTerm(session, name, noSubTerms, isRef, isEnum);
         return termManager.Globalize(term);
     }
 }
