@@ -673,13 +673,89 @@ public:
         return true;
     }
 
-private:
-    inline bool NullCheck(Value::Reference obj) { return true; }
+    struct DerivedPointer {
+        Value::Reference base;
+        uintptr_t derivedAddr;
+        RTSupport::StructLocationKind kind;
+    };
 
-    Ectype* ectype;
-    Frame frame;
-    RTSupport::ThreadHandle handle;
-    LiteralTable* literals;
-};
+    DerivedPointer GetDerivedPointer(IReg baseReg, IReg derivedReg)
+    {
+        auto base        = ectype->GetReference(baseReg);
+        auto derivedAddr = ectype->GetPrimitive(derivedReg).u64;
+        return DerivedPointer {
+            .base        = base,
+            .derivedAddr = derivedAddr,
+            .kind        = RTSupport::Execution::GetStructLocationKind(base, derivedAddr),
+        };
+    }
+
+    template<typename WordFunction, typename RefFunction>
+    void CopyDerivedByWords(uintptr_t from, RTSupport::TypeInfo ti, WordFunction wordFunction, RefFunction refFunction)
+    {
+        std::vector<uintptr_t> refOffsets;
+        ti.VisitReferenceOffsets([&](uintptr_t offset) {
+            refOffsets.push_back(offset);
+        });
+        auto refOffset = refOffsets.begin();
+        auto size = RTSupport::MetaInfo::GetTypeSize(ti);
+        for(uintptr_t offset = 0; offset < size; offset += sizeof(uintptr_t)) {
+            if (refOffset != refOffsets.end() && *refOffset == offset) {
+                refFunction(from + offset, offset);
+                refOffset++;
+            } else {
+                wordFunction(from + offset, offset);
+            }
+        }
+    }
+
+    Value::Reference ReadReference(DerivedPointer const& src, uintptr_t derivedAddr)
+    {
+        switch (src.kind) {
+            case RTSupport::LOCAL:  return Value::Reference { .value = *(uintptr_t*)derivedAddr };
+            case RTSupport::GLOBAL: return RTSupport::Execution::ReadObjectStatic((void*)derivedAddr, handle);
+            case RTSupport::HEAP:   return RTSupport::Execution::ReadObjectInstance(src.base, derivedAddr, handle);
+        }
+    }
+
+    void WriteReference(DerivedPointer const& dst, uintptr_t derivedAddr, Value::Reference ref)
+    {
+        switch (dst.kind) {
+            case RTSupport::LOCAL:  *(uintptr_t*)derivedAddr = ref.value; break;
+            case RTSupport::GLOBAL: RTSupport::Execution::WriteObjectStatic((void*)derivedAddr, ref, handle); break;
+            case RTSupport::HEAP:   RTSupport::Execution::WriteObjectInstance(dst.base, derivedAddr, ref, handle); break;
+        }
+    }
+
+    inline void CopyDerived(IReg dstBase, IReg dstReg, IReg srcBase, IReg srcReg, RTSupport::TypeInfo ti)
+    {
+        auto dst  = GetDerivedPointer(dstBase, dstReg);
+        auto src  = GetDerivedPointer(srcBase, srcReg);
+        auto size = RTSupport::MetaInfo::GetTypeSize(ti);
+
+        if (dst.kind == RTSupport::LOCAL && src.kind == RTSupport::LOCAL) {
+            memcpy((void*) dst.derivedAddr, (void*) src.derivedAddr, size);
+            return;
+        }
+        CopyDerivedByWords(src.derivedAddr, ti,
+            [&](uintptr_t addr, uint32_t offset) {
+                *((uintptr_t*)dst.derivedAddr + offset) = *((uintptr_t*)addr);
+            },
+            [&](uintptr_t addr, uint32_t offset) {
+                using Reference = Interpretation::Value::Reference;
+                Reference ref = ReadReference(src, addr);
+                WriteReference(dst, dst.derivedAddr + offset, ref);
+            }
+        );
+    }
+
+    private:
+        inline bool NullCheck(Value::Reference obj) { return true; }
+
+        Ectype* ectype;
+        Frame frame;
+        RTSupport::ThreadHandle handle;
+        LiteralTable* literals;
+    };
 
 } // namespace Interpretation

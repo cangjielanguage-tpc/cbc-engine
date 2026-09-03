@@ -738,6 +738,19 @@ void Emitter::CopyRec(Reg dst, IReg src, uint32_t offset, uint32_t size)
     });
 }
 
+void Emitter::CopyDerived(IReg dstBase, IReg dst, IReg srcBase, IReg src, RTSupport::TypeInfo ti)
+{
+    Encode(
+        segment,
+        RT::CopyDerived2 {
+            .opc   = RT::Opcode::COPY_DERIVED,
+            .rr    = RR { .x = dstBase, .y = dst },
+            .field = RR { .x = srcBase, .y = src },
+            .ti    = ti,
+        }
+    );
+}
+
 void Emitter::StoreObj(StoreAccessKind stk, Reg src, IReg base, uint32_t offset)
 {
     if (MathUtils::IsNBits(offset, 12)) {

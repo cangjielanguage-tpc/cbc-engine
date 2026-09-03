@@ -158,8 +158,8 @@ protected:
     virtual void StTyped(AnyReg src, uint16_t slot, uint32_t field)                         = 0;
     virtual void StDerived(AnyReg src, IReg baseRef, IReg derived, uint32_t field)          = 0;
     virtual void StGeneric(AnyReg src, IReg baseRef, IReg derived, IReg ti, uint32_t field) = 0;
-    virtual void Copy(IReg dst, IReg src, uint32_t field)  = 0;
-
+    virtual void Copy(IReg dstBase, IReg dst, IReg dstSrc, IReg src, uint32_t typeId)  = 0;
+ 
     class MemSpace {
     public:
         virtual ~MemSpace() = default;

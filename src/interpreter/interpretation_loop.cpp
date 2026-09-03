@@ -743,6 +743,12 @@ LABEL(COPY_TO_OBJ) {
     NEXT;
 }
 
+LABEL(COPY_DERIVED) {
+    auto args = CopyDerived2::Decode(reader);
+    LOG_INSTR;
+    interpreter.CopyDerived(args.rr.x.IR(), args.rr.y.IR(), args.field.x.IR(), args.field.y.IR(), args.ti);
+    NEXT;
+}
 
 LABEL(LOAD_FRAME_F)
 LABEL(LOAD_FRAME) {

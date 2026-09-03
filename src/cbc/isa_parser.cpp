@@ -536,8 +536,8 @@ struct IsaParserImpl {
 
     static void Copy(IsaParser& parser)
     {
-        auto [dst, src, fr] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
-        parser.Copy(dst, src, fr);
+        auto [dstBase, dst, srcBase, src, typeId] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadULEB().Get();
+        parser.Copy(dstBase, dst, srcBase, src, typeId);
     }
 
     static void LoadRawMemory(IsaParser& parser)

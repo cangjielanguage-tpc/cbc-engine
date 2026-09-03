@@ -527,24 +527,19 @@ struct IsaRewriter : public IsaParser {
         emit.LoadObj(LDK::LD_LEA, dst, base, RTSupport::MetaInfo::ObjectHeaderSize());
     }
 
-    void Copy(IReg dst, IReg src, uint32_t fieldId) override
+    void Copy(IReg dstBase, IReg dst, IReg srcBase, IReg src, uint32_t typeId) override
     {
-        UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
-        auto offset = field->offset.value_or(0);
-        // UNWRAP_OPT(offset, field->offset, [&]() {
-        //     errStream << "Failed to get offset of field " << field << Stream::endl;
-        //     Fail();
-        // });
-        auto kind = Ldk(field->fieldType.GetKind());
-        UNWRAP_OPT(size, field->fieldType.GetFlatSize(), [&]() {
-            errStream << "Failed to get size of field " << field << Stream::endl;
+        UNWRAP_OPT(type, resolver.Query(Index<Type>(typeId)), Fail);
+        UNWRAP_OPT(typeInfo, type.GetTypeInfo(), [&]() {
+            errStream << "Failed to get typeinfo for type " << typeId << Stream::endl;
             Fail();
         });
-        if (field->refType.term.IsRecord()) {
-            emit.CopyRec(dst, src, offset, size);
-        } else {
-            emit.CopyObj(dst, src, offset, size);
-        }
+        emit.CopyDerived(dstBase, dst, srcBase, src, typeInfo);
+        // if (field->refType.term.IsRecord()) {
+        //     emit.CopyRec(dst, src, offset, size);
+        // } else {
+        //     emit.CopyObj(dst, src, offset, size);
+        // }
     }
 
     void LoadStackRec(IReg r, uint16_t ts) override

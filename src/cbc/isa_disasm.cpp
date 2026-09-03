@@ -411,9 +411,9 @@ struct IsaDisasm : public IsaParser {
         stream.PrintLn("st.g R{}, {}, [({}, {}) @{}]", src, ti, baseRef, derived, field);
     }
 
-    void Copy(IReg dst, IReg src, uint32_t field) override
+    void Copy(IReg dstBase, IReg dst, IReg srcBase, IReg src, uint32_t typeId) override
     {
-        stream.PrintLn("copy.rec {}, [{} @{}]", dst, src, field);
+        stream.PrintLn("copy.rec {}, {}, {}, {} [@{}]", dstBase, dst, srcBase, src, typeId);
     }
 
     void TypeArg(IReg ti, int idx, IReg dst) override { stream.PrintLn("type.arg {}, {}[{}]", dst, ti, idx); }
