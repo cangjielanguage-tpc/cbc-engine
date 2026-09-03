@@ -11,6 +11,10 @@ import sys
 
 TARGET_OSES = ["linux", "android", "ios", "ios-sim"]
 TARGET_ARCHES = ["x86_64", "aarch64"]
+TARGET_ARCH_ALIASES = {
+    "amd64": "x86_64",
+    "arm64": "aarch64",
+}
 SUPPORTED_TARGETS = {
     ("linux", "x86_64"),
     ("linux", "aarch64"),
@@ -66,6 +70,10 @@ def clean(build_dir):
 
 def target_name(target_os, target_arch):
     return f"{target_os}_{target_arch}"
+
+
+def normalize_target_arch(target_arch):
+    return TARGET_ARCH_ALIASES.get(target_arch, target_arch)
 
 
 def validate_target(target_os, target_arch):
@@ -289,6 +297,7 @@ def main():
                               required=default_target_os is None,
                               help=target_os_help)
     build_parser.add_argument("--target-arch",
+                              type=normalize_target_arch,
                               choices=TARGET_ARCHES,
                               default=host_arch,
                               help=f"Target architecture (default: {host_arch})")
@@ -314,6 +323,7 @@ def main():
                                required=True,
                                help="Target operating system")
     helper_parser.add_argument("--target-arch",
+                               type=normalize_target_arch,
                                choices=TARGET_ARCHES,
                                default=host_arch,
                                help=f"Target architecture (default: {host_arch})")
