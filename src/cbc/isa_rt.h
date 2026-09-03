@@ -59,15 +59,15 @@
     X(STORE_REC, B4xi12rr, "st.rec.$0stk $2ir [$3ir $1U12]")                                                           \
     X(LOAD_FRAME, B4xi12rr, "ld.frame.$0ldk $2ir [$3ir $1U12]")                                                        \
     X(STORE_FRAME, B4xi12rr, "st.frame.$0stk $2ir [$3ir $1U12]")                                                       \
-    X(LOAD_LONG_DERIVED, B7xrrri32, "ld.derived.$0ldk $1ir [($2ir $3ir) $4U32l]")                                      \
-    X(STORE_LONG_DERIVED, B7xrrri32, "st.derived.$0stk $1ir [($2ir $3ir) $4U32l]")                                     \
-    X(LOAD_LONG_REC, B7xrrri32, "ld.rec.$0ldk $1ir [$3ir $4U32l]")                                                     \
-    X(STORE_LONG_REC, B7xrrri32, "st.rec.$0stk $1ir [$3ir $4U32l]")                                                    \
-    X(LOAD_LONG_FRAME, B7xrrri32, "ld.frame.$0ldk $1ir [$4U32l]")                                                      \
-    X(STORE_LONG_FRAME, B7xrrri32, "st.frame.$0stk $1ir [$4U32l]")                                                     \
+    X(LOAD_LONG_DERIVED, B7xrrri32, "ld.derived.$0ldk $1ir [($2ir $3ir) $4U32]")                                       \
+    X(STORE_LONG_DERIVED, B7xrrri32, "st.derived.$0stk $1ir [($2ir $3ir) $4U32]")                                      \
+    X(LOAD_LONG_REC, B7xrrri32, "ld.rec.$0ldk $1ir [$3ir $4U32]")                                                      \
+    X(STORE_LONG_REC, B7xrrri32, "st.rec.$0stk $1ir [$3ir $4U32]")                                                     \
+    X(LOAD_LONG_FRAME, B7xrrri32, "ld.frame.$0ldk $1ir [$4U32]")                                                       \
+    X(STORE_LONG_FRAME, B7xrrri32, "st.frame.$0stk $1ir [$4U32]")                                                      \
     X(LOAD_GENERIC, B3rrrr, "ld.g $0ir $3ir [($1ir $2ir)]")                                                            \
     X(STORE_GENERIC, B3rrrr, "st.g $0ir $3ir [($1ir $2ir)]")                                                           \
-    X(LEA_GENERIC, B7xrrri32, "lea.g $0ir $3ir [($1ir $2ir) ord=$4U32l]")                                              \
+    X(LEA_GENERIC, B7xrrri32, "lea.g $1ir $3ir [$2ir ord=$4U32]")                                                      \
     /* Integral Load/Store instructions end*/                                                                          \
     /* Float Load/Store instructions end*/                                                                             \
     X(LOAD_OBJ_F, B4xi12rr, "ld.$0ldk $2fr [$3ir $1U12]")                                                              \
@@ -78,12 +78,12 @@
     X(STORE_REC_F, B4xi12rr, "st.rec.$0stk $2fr [$3ir $1U12]")                                                         \
     X(LOAD_FRAME_F, B4xi12rr, "ld.frame.$0ldk $2fr [$3ir $1U12]")                                                      \
     X(STORE_FRAME_F, B4xi12rr, "st.frame.$0stk $2fr [$3ir $1U12]")                                                     \
-    X(LOAD_LONG_DERIVED_F, B7xrrri32, "ld.derived.$0ldk $1ir [($2ir $3ir) $4U32l]")                                    \
-    X(STORE_LONG_DERIVED_F, B7xrrri32, "st.derived.$0stk $1fr [($2ir $3ir) $4U32l]")                                   \
-    X(LOAD_LONG_REC_F, B7xrrri32, "ld.rec.$0ldk $1fr [$3ir $4U32l]")                                                   \
-    X(STORE_LONG_REC_F, B7xrrri32, "st.rec.$0stk $1fr [$3ir $4U32l]")                                                  \
-    X(LOAD_LONG_FRAME_F, B7xrrri32, "ld.frame.$0ldk $1fr [$4U32l]")                                                    \
-    X(STORE_LONG_FRAME_F, B7xrrri32, "st.frame.$0stk $1fr [$4U32l]")                                                   \
+    X(LOAD_LONG_DERIVED_F, B7xrrri32, "ld.derived.$0ldk $1ir [($2ir $3ir) $4U32]")                                     \
+    X(STORE_LONG_DERIVED_F, B7xrrri32, "st.derived.$0stk $1fr [($2ir $3ir) $4U32]")                                    \
+    X(LOAD_LONG_REC_F, B7xrrri32, "ld.rec.$0ldk $1fr [$3ir $4U32]")                                                    \
+    X(STORE_LONG_REC_F, B7xrrri32, "st.rec.$0stk $1fr [$3ir $4U32]")                                                   \
+    X(LOAD_LONG_FRAME_F, B7xrrri32, "ld.frame.$0ldk $1fr [$4U32]")                                                     \
+    X(STORE_LONG_FRAME_F, B7xrrri32, "st.frame.$0stk $1fr [$4U32]")                                                    \
     /* Float Load/Store instructions end*/                                                                             \
     X(PREP_TYPED, B13i64i32, "prep.typed $0U64 $1U32")                                                                 \
     X(SCC32, B3xrrr, "scc.32 $0cc $1ir $2ir $3ir")                                                                     \

@@ -13,7 +13,7 @@ constexpr static char const* instruction_format_strings[] = {
 };
 
 // Characters that could end an argument format descriptor.
-constexpr static std::string_view delimiters(" .]");
+constexpr static std::string_view delimiters(" .])");
 
 struct Operand {
     uint64_t const value;
