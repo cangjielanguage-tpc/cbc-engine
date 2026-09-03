@@ -325,7 +325,9 @@ public:
 
     Term NewTermWithId(Session& session, TermId id, bool isReference, std::vector<Term> const& subterms);
 
-    Term NewAotTerm(Session& session, std::string_view name, std::vector<Term> const& subterms, bool isReference);
+    Term NewAotTerm(
+        Session& session, std::string_view name, std::vector<Term> const& subterms, bool isReference, bool isEnum
+    );
 
     Utils::StringPool::String GetNameOfAotType(AotTermId type);
 

@@ -257,7 +257,7 @@ struct ResolverProxy {
                         for (auto& field : layout->fields) {
                             if (!field.definition)
                                 continue;
-                            auto def  = Decode::Read(resolver, *field.definition);
+                            auto def       = Decode::Read(resolver, *field.definition);
                             auto nameInDef = Decode::Read(resolver, def.GetName());
                             if (field.fieldType == ref.fieldType && nameInDef.compare(name) == 0) {
                                 offset = field.offset;
@@ -706,7 +706,7 @@ struct ResolverProxy {
         }
 
         auto fuh = Interpretation::FunctionHandleManager::Of(resolver.session).AcquireTagged(resolver, method.value());
-        auto sig     = ConstructSignature(resolver, ref);
+        auto sig = ConstructSignature(resolver, ref);
         auto refType = resolver.Wrap(ref.refType);
         // TODO: simplify
         if (auto* staticFuh = std::get_if<Interpretation::StaticFunctionHandle*>(&fuh)) {
@@ -831,7 +831,7 @@ std::optional<Type> Resolver::QueryFutureByFunctional(Index<Type> id)
     auto retType = term.Subterm(term.GetLength() - 1);
 
     std::vector<Term> subterms { retType };
-    auto futureType = termManager.NewAotTerm(session, "std.core:Future", subterms, true);
+    auto futureType = termManager.NewAotTerm(session, "std.core:Future", subterms, true, false);
     return Type(futureType, this);
 }
 
