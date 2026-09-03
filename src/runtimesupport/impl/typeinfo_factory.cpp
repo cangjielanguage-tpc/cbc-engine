@@ -433,7 +433,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
     // Generic AOT type infos are normally built by CBC to avoid recursive runtime initialization of type arguments
     // (for example, class Foo extends I<Foo>). Future<T> is an exception: the runtime owns its hidden synchronization
     // layout and must construct its type info to set the Future flag and the extended instance size.
-    bool requiresRuntimeTypeInfo = term.GetLength() == 0 || builder.aotTypeDefName == CORE_FUTURE_TYPE_NAME;
+    bool requiresRuntimeTypeInfo = term.GetLength() == 0 || CORE_FUTURE_TYPE_NAME.compare(builder.aotTypeDefName) == 0;
     if (builder.isAot && requiresRuntimeTypeInfo) {
         std::string typeName(builder.aotTypeDefName);
         return QueryTypeInfoAOT(session, manager, typeName.c_str(), term);
