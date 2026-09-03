@@ -698,35 +698,35 @@ LABEL(STORE_FRAME) {
 }
 LABEL(LOAD_LONG_FRAME_F)
 LABEL(LOAD_LONG_FRAME) {
-    auto args = B9xrrri32::Decode(reader);
+    auto args = B7xrrri32::Decode(reader);
     LOG_INSTR;
     bool successful = interpreter.LoadFrame(args.xr.imm.LDK(), args.xr.r, args.imm32.imm);
     NEXT_COND(successful);
 }
 LABEL(STORE_LONG_FRAME_F)
 LABEL(STORE_LONG_FRAME) {
-    auto args = B9xrrri32::Decode(reader);
+    auto args = B7xrrri32::Decode(reader);
     LOG_INSTR;
     bool successful = interpreter.StoreFrame(args.xr.imm.STK(), args.xr.r, args.imm32.imm);
     NEXT_COND(successful);
 }
 LABEL(LOAD_LONG_REC_F)
 LABEL(LOAD_LONG_REC) {
-    auto args = B9xrrri32::Decode(reader);
+    auto args = B7xrrri32::Decode(reader);
     LOG_INSTR;
     bool successful = interpreter.LoadRec(args.xr.imm.LDK(), args.xr.r, args.rr.y.IR(), args.imm32.imm);
     NEXT_COND(successful);
 }
 LABEL(STORE_LONG_REC_F)
 LABEL(STORE_LONG_REC) {
-    auto args = B9xrrri32::Decode(reader);
+    auto args = B7xrrri32::Decode(reader);
     LOG_INSTR;
     bool successful = interpreter.StoreRec(args.xr.imm.STK(), args.xr.r, args.rr.y.IR(), args.imm32.imm);
     NEXT_COND(successful);
 }
 LABEL(LOAD_LONG_DERIVED_F)
 LABEL(LOAD_LONG_DERIVED) {
-    auto args = B9xrrri32::Decode(reader);
+    auto args = B7xrrri32::Decode(reader);
     LOG_INSTR;
     bool successful = interpreter.LoadDerived(
         args.xr.imm.LDK(), args.xr.r, args.rr.x.IR(), args.rr.y.IR(), args.imm32.imm);
@@ -734,11 +734,71 @@ LABEL(LOAD_LONG_DERIVED) {
 }
 LABEL(STORE_LONG_DERIVED_F)
 LABEL(STORE_LONG_DERIVED) {
-    auto args = B9xrrri32::Decode(reader);
+    auto args = B7xrrri32::Decode(reader);
     LOG_INSTR;
     bool successful = interpreter.StoreDerived(
         args.xr.imm.STK(), args.xr.r, args.rr.x.IR(), args.rr.y.IR(), args.imm32.imm);
     NEXT_COND(successful);
+}
+LABEL(LOAD_GENERIC) {
+    auto args = B3rrrr::Decode(reader);
+    LOG_INSTR;
+    // TODO: reorder args, so it would require less bit-shifting
+    auto dstReg     = args.rr1.x.IR();
+    auto baseReg    = args.rr1.y.IR();
+    auto derivedReg = args.rr2.x.IR();
+    auto tiReg      = args.rr2.y.IR();
+
+    auto derived  = ectype->GetReference(derivedReg);
+    auto typeInfo = TypeInfo(ectype->GetPrimitive(tiReg).u64);
+    if (RTSupport::Execution::IsReference(typeInfo)) {
+        auto base = ectype->GetReference(baseReg);
+        auto obj  = RTSupport::Execution::ReadObjectInstance(base, derived.value, handle);
+        ectype->Put(dstReg, obj);
+        NEXT;
+    } else {
+        // The operation require two steps: box allocation and ReadGeneric invocation.
+        // Because box allocation can provoke GC or throw, we should not perform it with C++ frame on the stack.
+        ectype->Put(IReg::IR_ACC, Value::Reference { derived.value });
+
+        // on x64 and aarch64 pointers are 48-bit values
+        uint64_t rawTi  = typeInfo.UInt();
+        uint64_t packed = 0ULL | dstReg | (baseReg << 4) | (IReg::IR_ACC << 8) | rawTi << 12;
+        reader0         = reader;
+        return { .function = RTSupport::Execution::LoadGeneric(), .argUInt = packed };
+    }
+}
+LABEL(STORE_GENERIC) {
+    auto args = B3rrrr::Decode(reader);
+    LOG_INSTR;
+    auto derivedReg = args.rr1.x.IR();
+    auto tiReg      = args.rr1.y.IR();
+    auto srcReg     = args.rr2.x.IR();
+    auto baseReg    = args.rr2.y.IR();
+
+    auto base    = ectype->GetReference(baseReg);
+    auto derived = ectype->GetReference(derivedReg);
+    auto obj     = ectype->GetReference(srcReg);
+
+    auto typeInfo = TypeInfo(ectype->GetPrimitive(tiReg).u64);
+    if (RTSupport::Execution::IsReference(typeInfo)) {
+        RTSupport::Execution::WriteObjectInstance(base, derived.value + memspaceOffsetAcc, obj, handle);
+        NEXT;
+    } else {
+        uint32_t size = RTSupport::MetaInfo::GetTypeSize(typeInfo);
+        RTSupport::Execution::WriteGeneric(base, derived.value + memspaceOffsetAcc, obj, size, handle);
+        NEXT;
+    }
+}
+LABEL(LEA_GENERIC) {
+    auto args = B7xrrri32::Decode(reader);
+    LOG_INSTR;
+    auto dst           = args.xr.r.IR();
+    auto base          = ectype->GetReference(args.rr.x.IR()).value;
+    auto ti            = TypeInfo(ectype->GetPrimitive(args.rr.y.IR()).u64);
+    auto offs          = RTSupport::Execution::GetFieldOffset(ti, args.imm32.imm, false);
+    ectype->Put(dst, Value::Reference { .value = base + offs });
+    NEXT;
 }
 LABEL(PREP_TYPED) {
     auto args = B13i64i32::Decode(reader);

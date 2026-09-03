@@ -424,7 +424,14 @@ struct IsaRewriter : public IsaParser {
         emit.LoadDerived(Ldk(field->fieldType.GetKind()), dst, baseRef, derived, fieldOffset);
     }
 
-    void LdGeneric(AnyReg dst, IReg baseRef, IReg derived, IReg ti, uint32_t field) override { FATAL("TODO: support"); }
+    void LdGeneric(AnyReg dst, IReg baseRef, IReg derived, IReg ti, uint32_t fieldId) override
+    {
+        UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
+        UNWRAP_OPT(offset, field->offset, Fail);
+        ASSERT(field->fieldType.GetKind() == CbcTypeKind::VOID);
+        ASSERT(offset == 0);
+        emit.LoadGeneric(dst, baseRef, derived, ti);
+    }
 
     void Lea(IReg dst, IReg base, uint32_t fieldId) override
     {
@@ -449,7 +456,12 @@ struct IsaRewriter : public IsaParser {
         emit.MovImm(Format::Width::W64, dstBaseRef, RTSupport::Execution::GetStructLocationFlag(RTSupport::GLOBAL));
     }
 
-    void LeaGeneric(IReg dst, IReg base, IReg ti, uint32_t field) override { FATAL("TODO: support"); }
+    void LeaGeneric(IReg dst, IReg base, IReg ti, uint32_t fieldId) override
+    {
+        UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
+        UNWRAP_OPT(ordinal, field->ordinal, Fail);
+        emit.LeaGeneric(dst, base, ti, ordinal);
+    }
 
     void St(AnyReg src, IReg base, uint32_t fieldId) override
     {
@@ -497,7 +509,14 @@ struct IsaRewriter : public IsaParser {
         emit.StoreDerived(Stk(field->fieldType.GetKind()), src, baseRef, derived, fieldOffset);
     }
 
-    void StGeneric(AnyReg src, IReg baseRef, IReg derived, IReg ti, uint32_t field) override { FATAL("TODO: support"); }
+    void StGeneric(AnyReg src, IReg baseRef, IReg derived, IReg ti, uint32_t fieldId) override
+    {
+        UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
+        UNWRAP_OPT(offset, field->offset, Fail);
+        ASSERT(field->fieldType.GetKind() == CbcTypeKind::VOID);
+        ASSERT(offset == 0);
+        emit.LoadGeneric(src, baseRef, derived, ti);
+    }
 
     void LeaBox(IReg dst, IReg base) override
     {
