@@ -656,6 +656,35 @@ void Emitter::StoreDerived(StoreAccessKind stk, Reg src, IReg baseRef, IReg base
     LoadStoreLong(stk, src, baseRef, base, offset, opc);
 }
 
+void Emitter::LoadGeneric(Reg dst, IReg baseRef, IReg base, IReg ti)
+{
+    Encode(
+        segment,
+        RT::B3rrrr { .opc = RT::Opcode::LOAD_GENERIC, .rr1 = { .x = dst, .y = baseRef }, .rr2 = { .x = base, .y = ti } }
+    );
+}
+
+void Emitter::StoreGeneric(Reg src, IReg baseRef, IReg base, IReg ti)
+{
+    Encode(
+        segment,
+        RT::B3rrrr {
+            .opc = RT::Opcode::STORE_GENERIC, .rr1 = { .x = src, .y = baseRef }, .rr2 = { .x = base, .y = ti } }
+    );
+}
+
+void Emitter::LeaGeneric(Reg dst, IReg base, IReg ti, uint32_t offset)
+{
+    Encode(
+        segment,
+        RT::B7xrrri32 { .opc   = RT::Opcode::LEA_GENERIC,
+                        .xr    = { .imm = 0, // not used
+                                   .r   = dst },
+                        .rr    = { .x = base, .y = ti },
+                        .imm32 = { .imm = offset } }
+    );
+}
+
 void Emitter::LoadObj(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset)
 {
     if (MathUtils::IsNBits(offset, 12)) {

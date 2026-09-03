@@ -218,6 +218,9 @@ public:
     void StoreRec(StoreAccessKind stk, Reg src, IReg base, uint32_t offset);
     void LoadDerived(LoadAccessKind ldk, Reg dst, IReg baseRef, IReg base, uint32_t offset);
     void StoreDerived(StoreAccessKind stk, Reg src, IReg baseRef, IReg base, uint32_t offset);
+    void LoadGeneric(Reg dst, IReg baseRef, IReg base, IReg ti);
+    void StoreGeneric(Reg src, IReg baseRef, IReg base, IReg ti);
+    void LeaGeneric(Reg dst, IReg base, IReg ti, uint32_t offset);
     void TypeArg(IReg dst, IReg typeInfo, int idx);
 
     void LoadFrame(LoadAccessKind ldk, Reg dst, uint32_t offset);
@@ -307,7 +310,7 @@ private:
     {
         Encode(
             segment,
-            RT::B9xrrri32 { .opc   = opc,
+            RT::B7xrrri32 { .opc   = opc,
                             .xr    = { .imm = Format::Imm4(akind), .r = v },
                             .rr    = { .x = baseRef, .y = base },
                             .imm32 = { .imm = offset } }
