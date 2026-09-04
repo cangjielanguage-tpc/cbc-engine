@@ -734,16 +734,16 @@ public:
         auto size = RTSupport::MetaInfo::GetTypeSize(ti);
 
         if (dst.kind == RTSupport::LOCAL && src.kind == RTSupport::LOCAL) {
-            memcpy((void*) dst.derivedAddr, (void*) src.derivedAddr, size);
+            memcpy((void*)dst.derivedAddr, (void*)src.derivedAddr, size);
             return;
         }
-        CopyDerivedByWords(src.derivedAddr, ti,
-            [&](uintptr_t addr, uint32_t offset) {
-                *((uintptr_t*)dst.derivedAddr + offset) = *((uintptr_t*)addr);
-            },
+        CopyDerivedByWords(
+            src.derivedAddr,
+            ti,
+            [&](uintptr_t addr, uint32_t offset) { *((uintptr_t*)dst.derivedAddr + offset) = *((uintptr_t*)addr); },
             [&](uintptr_t addr, uint32_t offset) {
                 using Reference = Interpretation::Value::Reference;
-                Reference ref = ReadReference(src, addr);
+                Reference ref   = ReadReference(src, addr);
                 WriteReference(dst, dst.derivedAddr + offset, ref);
             }
         );

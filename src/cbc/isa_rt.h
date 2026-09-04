@@ -172,7 +172,7 @@
     X(CBINI32W, BinaryChecked, "$0cbin.32 $2ir $3ir $1I64")                                                            \
     X(CBINI64W, BinaryChecked, "$0cbin.64 $2ir $3ir $1I64")                                                            \
     X(COPY_DERIVED, CopyDerived, "copy.derived $0ir $1ir $2ir $3ir $4U64")                                             \
-    X(INDEX, Index, "index $0ir [$1ir $2U32] $3U64")
+    X(INDEX, Index, "index $0ir [$1ir $2ir] $3U64")
 
 // X parameters: opcode, encoding format, string format, is tail
 #define CBC_RT_MEMOPCODES(X)                                                                                           \
