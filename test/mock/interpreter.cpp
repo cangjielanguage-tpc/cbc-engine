@@ -357,7 +357,10 @@ bool Execution::IsReference(TypeInfo ti) { return true; }
 
 StructLocationKind Execution::GetStructLocationKind(Reference base, uintptr_t derived)
 {
-    FATAL("Should not reach here");
+    if (base.value == 0) {
+        return LOCAL;
+    }
+    return HEAP;
 }
 
 Reference Execution::GetGlobalBasePtr() { FATAL("Should not reach here"); }
