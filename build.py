@@ -177,14 +177,7 @@ def get_xcode_sdkroot(sdk) -> str:
     assert False, "unreachable"
 
 
-def find_executable(name):
-    path = shutil.which(name)
-    if path is None:
-        fail(f"Required executable was not found in PATH: {name}")
-    return path
-
-
-def prepare_helper_toolchain(target_os, target_arch, target):
+def prepare_helper_environment(target_os, target_arch):
     env = os.environ.copy()
 
     if target_os in ["ios", "ios-sim"]:
@@ -194,23 +187,8 @@ def prepare_helper_toolchain(target_os, target_arch, target):
         sdk = IOS_HELPER_SDKS[(target_os, target_arch)]
         sdkroot = get_xcode_sdkroot(sdk)
         env["SDKROOT"] = sdkroot
-        compile_prefix = [
-            "xcrun",
-            "--sdk",
-            sdk,
-            "clang",
-            "-target",
-            target,
-            "-isysroot",
-            sdkroot,
-        ]
-        cjc_options = ["--target", target]
-        return compile_prefix, cjc_options, env
 
-    compiler = find_executable("clang")
-    compile_prefix = [compiler, f"--target={target}"]
-    cjc_options = ["--target", target]
-    return compile_prefix, cjc_options, env
+    return env
 
 
 def build(args, project_dir, build_dir):
@@ -276,40 +254,22 @@ def build_helper_lib(args, project_dir, build_dir):
         fail(f"Cangjie compiler does not exist: {cjc_path}")
 
     helper_sources_dir = Path(project_dir) / "tools/launcher"
-    helper_c_source = helper_sources_dir / "cbcengine-helper.c"
     helper_cj_source = helper_sources_dir / "cbcengine-helper.cj"
-    for helper_source in (helper_c_source, helper_cj_source):
-        if not helper_source.is_file():
-            fail(f"Helper source does not exist: {helper_source}")
+    if not helper_cj_source.is_file():
+        fail(f"Helper source does not exist: {helper_cj_source}")
 
     target, helper_lib_name = HELPER_TARGETS[helper_target]
-    compile_prefix, cjc_options, env = prepare_helper_toolchain(args.target_os, args.target_arch, target)
+    env = prepare_helper_environment(args.target_os, args.target_arch)
     build_path = Path(build_dir)
     build_path.mkdir(parents=True, exist_ok=True)
-    helper_object = build_path / "cbcengine-helper.o"
     output_path = build_path / helper_lib_name
 
     print(f"--- Building {helper_lib_name} for {target_name(args.target_os, args.target_arch)} ---")
 
-    compile_command = compile_prefix + [
-        "-c",
-        str(helper_c_source),
-        "-Os",
-        "-fPIC",
-        "-fomit-frame-pointer",
-        "-fno-stack-protector",
-        "-fno-exceptions",
-        "-fno-asynchronous-unwind-tables",
-        "-fno-unwind-tables",
-        "-o",
-        str(helper_object),
-    ]
-    run_command_args(compile_command, cwd=build_dir, env=env)
-
     link_command = [
         str(cjc_path),
-        *cjc_options,
-        str(helper_object),
+        "--target",
+        target,
         str(helper_cj_source),
         "--output-type=dylib",
         "-o",
