@@ -107,7 +107,8 @@
     X(PayloadGeneric, PayloadGeneric)                                                                                  \
     X(NewNoneGeneric, NewNoneGeneric)                                                                                  \
     X(NewSomeGeneric, NewSomeGeneric)                                                                                  \
-    X(LoadTailParam, LoadTailParam)                                                                                    \
+    X(LoadRawMemory, LoadRawMemory)                                                                                    \
+    X(StoreRawMemory, StoreRawMemory)                                                                                  \
     X(CallInterfGeneric, CallInterfGeneric)                                                                            \
     X(AssignGeneric, AssignGeneric)                                                                                    \
     X(InstanceOfGeneric, InstanceOfGeneric)                                                                            \
@@ -142,6 +143,7 @@
     X(StTyped, StTyped)                                                                                                \
     X(StDerived, StDerived)                                                                                            \
     X(StGeneric, StGeneric)                                                                                            \
+    X(LoadTailParam, LoadTailParam)                                                                                    \
     X(_END, Unreachable)
 
 #define ISA_MEM_OPCODES(X)                                                                                             \
