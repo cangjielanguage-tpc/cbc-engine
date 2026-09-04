@@ -453,7 +453,7 @@ struct IsaRewriter : public IsaParser {
         UNWRAP_OPT(location, field->location, Fail);
         auto symbol = emit.NewAddressSym(location);
         emit.LoadStatic(LDK::LD_LEA, dst, symbol);
-        emit.MovImm(Format::Width::W64, dstBaseRef, RTSupport::Execution::GetStructLocationFlag(RTSupport::GLOBAL));
+        emit.MovImm(Format::Width::W64, dstBaseRef, RTSupport::Execution::GetGlobalBasePtr().value);
     }
 
     void LeaGeneric(IReg dst, IReg base, IReg ti, uint32_t fieldId) override
@@ -531,9 +531,20 @@ struct IsaRewriter : public IsaParser {
         emit.LoadFrame(Format::LoadAccessKind::LD_LEA, r, frameLayout.typedOffset.at(ts));
     }
 
-    void LoadTailParam(AnyReg dst, IReg base, int64_t offset, Format::LoadAccessKind ldk) override
+    void LoadTailParam(AnyReg dst, IReg tailReg, int64_t number, Format::LoadAccessKind ldk) override
+    {
+        auto offset = number * Cbc::STACK_SLOT_SIZE; // TODO: support different stack param layouts (e.g. iOS)
+        LoadRawMemory(dst, tailReg, offset, ldk);
+    }
+
+    void LoadRawMemory(AnyReg dst, IReg base, int64_t offset, Format::LoadAccessKind ldk) override
     {
         emit.LoadRec(ldk, dst, base, offset);
+    }
+
+    void StoreRawMemory(AnyReg src, IReg base, int64_t offset, Format::StoreAccessKind stk) override
+    {
+        emit.StoreRec(stk, src, base, offset);
     }
 
     void LoadStatic(AnyReg r, uint32_t fieldId) override

@@ -529,9 +529,23 @@ struct IsaParserImpl {
 
     static void LoadTailParam(IsaParser& parser)
     {
+        auto [dst, tailReg, ldk, _, num] =
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadULEB().Get();
+        parser.LoadTailParam(dst, tailReg, num, ldk);
+    }
+
+    static void LoadRawMemory(IsaParser& parser)
+    {
         auto [dst, base, ldk, low4, hibits] =
             ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadSLEB().Get();
-        parser.LoadTailParam(dst, base, MergeLowHi(low4, hibits), ldk);
+        parser.LoadRawMemory(dst, base, MergeLowHi(low4, hibits), ldk);
+    }
+
+    static void StoreRawMemory(IsaParser& parser)
+    {
+        auto [src, base, stk, low4, hibits] =
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadSLEB().Get();
+        parser.StoreRawMemory(src, base, MergeLowHi(low4, hibits), stk);
     }
 
     static void LoadStatic(IsaParser& parser)

@@ -17,6 +17,8 @@ namespace Emitter {
 
 using namespace Format;
 
+constexpr IReg UNUSED_REG = IReg::IRZ;
+
 Symbol Emitter::NewAddressSym(uintptr_t ptr) { return symbols.Address(ptr); }
 
 Label Emitter::NewLabel() { return symbols.NewLabel(); }
@@ -1054,7 +1056,7 @@ void Emitter::NewBox(Interpretation::BuiltinType t)
         return;
     }
 
-    Encode(segment, RT::B2xr { .opc = RT::Opcode::NEWBOX, .xr = { .imm = t, .r = IReg::IRZ } });
+    Encode(segment, RT::B2xr { .opc = RT::Opcode::NEWBOX, .xr = { .imm = t, .r = UNUSED_REG } });
 }
 
 void Emitter::NewBox(RTSupport::TypeInfo typeInfo)

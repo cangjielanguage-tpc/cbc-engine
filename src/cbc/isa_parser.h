@@ -56,7 +56,9 @@ protected:
 
     virtual void GcPoint() = 0;
 
-    virtual void LoadTailParam(AnyReg dst, IReg base, int64_t offset, Format::LoadAccessKind ldk) = 0;
+    virtual void LoadTailParam(AnyReg dst, IReg tailReg, int64_t number, Format::LoadAccessKind ldk) = 0;
+    virtual void LoadRawMemory(AnyReg dst, IReg base, int64_t offset, Format::LoadAccessKind ldk)    = 0;
+    virtual void StoreRawMemory(AnyReg src, IReg base, int64_t offset, Format::StoreAccessKind stk)  = 0;
 
     virtual void LoadStackRec(IReg r, uint16_t ts)              = 0;
     virtual void LoadStatic(AnyReg r, uint32_t field)           = 0;
