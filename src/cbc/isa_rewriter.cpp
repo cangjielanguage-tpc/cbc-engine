@@ -545,11 +545,16 @@ struct IsaRewriter : public IsaParser {
     void LoadIndex(IReg dst, IReg src, IReg idx, uint32_t typeId) override
     {
         UNWRAP_OPT(type, resolver.Query(Index<Type>(typeId)), Fail);
-        UNWRAP_OPT(typeInfo, type.GetTypeInfo(), [&]() {
+        auto kind = type.term.GetKind();
+        UNWRAP_OPT(elemType, resolver.QueryElement(type), [&]() {
+            errStream << "Failed to get kind for type " << typeId << Stream::endl;
+            Fail();
+        });
+        UNWRAP_OPT(typeInfo, elemType.GetTypeInfo(), [&]() {
             errStream << "Failed to get typeinfo for type " << typeId << Stream::endl;
             Fail();
         });
-        emit.LoadIndex(dst, src, idx, typeInfo);
+        emit.LoadIndex(dst, src, idx, typeInfo, kind == Engine::TermKind::CANGJIE_ARRAY);
     }
 
     void LoadIndexGeneric(IReg dst, IReg src, IReg idx, IReg ti) override { emit.LoadIndexGeneric(dst, src, idx, ti); }

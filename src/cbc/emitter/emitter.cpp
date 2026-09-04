@@ -738,14 +738,14 @@ void Emitter::CopyDerivedGeneric(IReg dstBase, IReg dst, IReg srcBase, IReg src,
     );
 }
 
-void Emitter::LoadIndex(IReg dst, IReg src, IReg idx, RTSupport::TypeInfo ti)
+void Emitter::LoadIndex(IReg dst, IReg src, IReg idx, RTSupport::TypeInfo ti, bool isCangjieArray)
 {
     Encode(
         segment,
         RT::Index {
             .opc = RT::Opcode::INDEX,
             .rr  = RR { .x = dst, .y = src },
-            .idx = RR { .x = idx, .y = 0 },
+            .idx = XR { .imm = isCangjieArray, .r = idx },
             .ti  = ti,
         }
     );

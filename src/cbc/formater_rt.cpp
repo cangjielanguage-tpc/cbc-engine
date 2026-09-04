@@ -585,7 +585,7 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyDerive
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, Index args)
 {
-    Operand operands[] = { args.rr.x, args.rr.y, args.idx.x, args.ti.UInt() };
+    Operand operands[] = { args.rr.x, args.rr.y, args.idx.r, args.ti.UInt() };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }

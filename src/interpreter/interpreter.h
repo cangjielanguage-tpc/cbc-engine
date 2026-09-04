@@ -749,11 +749,12 @@ public:
         );
     }
 
-    inline void LoadIndex(IReg dst, IReg arr, IReg idx, RTSupport::TypeInfo ti)
+    inline void LoadIndex(IReg dst, IReg arr, IReg idx, RTSupport::TypeInfo ti, bool isCangjieArray=true)
     {
         auto obj    = ectype->GetReference(arr);
         auto size   = RTSupport::MetaInfo::GetTypeSize(ti);
-        auto offset = RTSupport::MetaInfo::ArrayBodyOffset() + MemOffsetReg(idx) * size;
+        auto headOffset = isCangjieArray ? RTSupport::MetaInfo::ArrayBodyOffset() : 0;
+        auto offset = headOffset + MemOffsetReg(idx) * size;
         Log::interpretation.Stream(Logging::Level::INFO)
             .PrintFmt("dst = %p, arr = %p, offset = %ld\n", ectype->GetReference(dst).value, obj.value, offset);
         MemoryLocation(obj.value, offset).Lea(dst, ectype);

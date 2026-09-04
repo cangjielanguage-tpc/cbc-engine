@@ -687,14 +687,14 @@ struct CopyDerivedGeneric {
 struct Index {
     Opcode opc;
     Format::RR rr;
-    Format::RR idx;
+    Format::XR idx;
     RTSupport::TypeInfo ti;
 
     static Index Decode(Decoder::ByteReader& reader)
     {
         auto opc   = Opcode::Decode(reader);
         auto rr    = Format::RR::Decode(reader);
-        auto idx = Format::RR::Decode(reader);
+        auto idx = Format::XR::Decode(reader);
         auto ti    = reader.Read<RTSupport::TypeInfo>();
         return Index { opc, rr, idx, ti };
     }

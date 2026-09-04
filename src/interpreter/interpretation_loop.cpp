@@ -749,7 +749,7 @@ LABEL(COPY_DERIVED_GENERIC) {
 LABEL(INDEX) {
     auto args = Index::Decode(reader);
     LOG_INSTR;
-    interpreter.LoadIndex(args.rr.x.IR(), args.rr.y.IR(), args.idx.x.IR(), args.ti);
+    interpreter.LoadIndex(args.rr.x.IR(), args.rr.y.IR(), args.idx.r.IR(), args.ti, args.idx.imm);
     NEXT;
 }
 
