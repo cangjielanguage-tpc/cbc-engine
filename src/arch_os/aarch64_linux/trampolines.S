@@ -715,6 +715,10 @@ engine_i2_spawn:
 engine_i2_spawn_future:
   ldr   x0, [ECTYPE_REG, #ECTYPE_IACC_OFFSET]
   bl    engine_spawn_future
+  cbnz  x1, .Lspawn_future_success
+  mov   x0, IMPLICIT_EXCEPTION_SPAWN
+  b     engine_throw_implicit_exception
+.Lspawn_future_success:
   // Thread.setRuntimeCJThreadHandle arguments:
   // x8: sret pointer for Unit; no return storage is needed.
   // x0: this (Thread object already returned by engine_spawn_future in x0).
