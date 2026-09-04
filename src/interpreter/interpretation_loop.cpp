@@ -747,7 +747,7 @@ LABEL(INDEX) {
     auto size = MetaInfo::GetTypeSize(args.ti);
     auto offset = RTSupport::MetaInfo::ArrayBodyOffset() + interpreter.MemOffsetReg(idx.IR()) * size;
     Log::interpretation.Stream(Logging::Level::INFO).PrintFmt("dst = %p, arr = %p, offset = %ld\n", ectype->GetReference(dst.IR()).value, obj.value, offset);
-    MemoryLocation(obj.value, offset).LoadRef(dst, ectype);
+    MemoryLocation(obj.value, offset).Lea(dst, ectype);
     NEXT;
 }
 
