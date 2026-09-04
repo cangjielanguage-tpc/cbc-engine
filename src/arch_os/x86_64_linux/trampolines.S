@@ -726,6 +726,11 @@ engine_i2_spawn:
 engine_i2_spawn_future:
   mov   rdi, [ECTYPE_REG + ECTYPE_IACC_OFFSET]
   call  engine_spawn_future
+  test  rdx, rdx
+  jnz   .Lspawn_future_success
+  mov   edi, IMPLICIT_EXCEPTION_SPAWN
+  jmp   engine_throw_implicit_exception
+.Lspawn_future_success:
   // Thread.setRuntimeCJThreadHandle arguments:
   // rdi: sret pointer for Unit; no return storage is needed.
   // rsi: this (Thread object returned by engine_spawn_future in rax).
