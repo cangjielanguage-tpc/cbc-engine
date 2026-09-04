@@ -105,7 +105,9 @@ struct LockedTypeInfoManager : public TypeInfoManager {
     std::optional<RTSupport::TypeInfo> AcquireTypeInfo(Session& session, GlobalTerm term) override
     {
         std::lock_guard guard(lock);
-        return unsafe.AcquireTypeInfo(session, term);
+        auto ti = unsafe.AcquireTypeInfo(session, term);
+        unsafe.HandleUUIDs();
+        return ti;
     }
 
     GlobalTerm AcquireTerm(Session& session, RTSupport::TypeInfo ti) override
