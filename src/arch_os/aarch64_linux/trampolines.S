@@ -23,6 +23,8 @@
     #define engine_i2_newobject_pinned _engine_i2_newobject_pinned
     #define engine_newobject_pinned_function _engine_newobject_pinned_function
     #define engine_spawn_future _engine_spawn_future
+    #define engine_future_execute_function _engine_future_execute_function
+    #define engine_set_runtime_cjthread_handle_function _engine_set_runtime_cjthread_handle_function
     #define engine_i2_spawn_future _engine_i2_spawn_future
     #define engine_i2_newarray _engine_i2_newarray
     #define engine_i2_load_generic _engine_i2_load_generic
@@ -67,6 +69,7 @@
 .extern engine_fiber_data_init
 .extern engine_get_exception_handler
 .extern engine_get_and_clear_pending_exception
+.extern engine_spawn_future
 
 // exported
 declare_hidden engine_c2i_call_pc_start
@@ -96,7 +99,8 @@ declare_hidden engine_newthread_nret_function
 declare_hidden engine_carrier_specific_offset
 declare_hidden engine_cjthread_specific_offset
 declare_hidden engine_i2_spawn
-declare_hidden engine_spawn_future
+declare_hidden engine_future_execute_function
+declare_hidden engine_set_runtime_cjthread_handle_function
 declare_hidden engine_i2_spawn_future
 declare_hidden engine_throw_out_of_interpreter
 declare_hidden engine_throw_implicit_exception
@@ -139,7 +143,9 @@ engine_cjthread_specific_offset:
   .skip 8
 engine_stack_grow_stub:
   .skip 8
-engine_spawn_future:
+engine_future_execute_function:
+  .skip 8
+engine_set_runtime_cjthread_handle_function:
   .skip 8
 engine_newobject_pinned_function:
   .skip 8
@@ -708,13 +714,23 @@ engine_i2_spawn:
 // preserved: ECTYPE_REG, x29
 engine_i2_spawn_future:
   ldr   x0, [ECTYPE_REG, #ECTYPE_IACC_OFFSET]
-  adrp  x1, Page(engine_spawn_future)
-  ldr   x1, [x1, PageOff(engine_spawn_future)]
-  blr   x1
+  bl    engine_spawn_future
+  // Thread.setRuntimeCJThreadHandle arguments:
+  // x8: sret pointer for Unit; no return storage is needed.
+  // x0: this (Thread object already returned by engine_spawn_future in x0).
+  // x1: handle (CJThreadHandle already returned by engine_spawn_future in x1).
+  // x2: outerTI (unused by this method, so pass null).
+  mov   x8, sp
+  mov   x2, xzr
+  adrp  x9, Page(engine_set_runtime_cjthread_handle_function)
+  ldr   x9, [x9, PageOff(engine_set_runtime_cjthread_handle_function)]
+  blr   x9
   b     .Lrestart_interpretation
 
 // TREAT SYMBOLS ABOVE AS PART OF perform_2i_call
+#ifdef __ELF__
 .size perform_2i_call, .-perform_2i_call
+#endif
 
 // fake execute closure function
 .balign 16
@@ -832,4 +848,3 @@ engine_handle_exception:
   ldr   x9, [x9, PageOff(engine_throw_out_of_interpreter)]
   br    x9
   brk   #0
-
