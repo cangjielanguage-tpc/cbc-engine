@@ -56,6 +56,8 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M10rri64 a
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, MStructFieldOp args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyFieldOp args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyDerived args);
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyDerivedGeneric args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, Index args);
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, IndexGeneric args);
 } // namespace RT
 } // namespace Cbc

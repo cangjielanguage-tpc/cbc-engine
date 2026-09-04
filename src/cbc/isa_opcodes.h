@@ -145,7 +145,9 @@
     X(StGeneric, StGeneric)                                                                                            \
     X(LoadTailParam, LoadTailParam)                                                                                    \
     X(Copy, Copy)                                                                                                      \
+    X(CopyGeneric, CopyGeneric)                                                                                        \
     X(Index, LoadIndex)                                                                                                \
+    X(IndexGeneric, LoadIndexGeneric)                                                                                  \
     X(_END, Unreachable)
 
 #define ISA_MEM_OPCODES(X)                                                                                             \

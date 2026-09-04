@@ -329,12 +329,27 @@ void Encode(ByteBuffer& buf, RT::CopyDerived command)
     buf.AddW64(Bits::Raw64(command.ti));
 }
 
+void Encode(ByteBuffer& buf, RT::CopyDerivedGeneric command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.rr);
+    Encode(buf, command.field);
+    Encode(buf, command.ti);
+}
+
 void Encode(ByteBuffer& buf, RT::Index command)
 {
     Encode(buf, command.opc);
     Encode(buf, command.rr);
     Encode(buf, command.idx);
     buf.AddW64(Bits::Raw64(command.ti));
+}
+
+void Encode(ByteBuffer& buf, RT::IndexGeneric command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.rr);
+    Encode(buf, command.idx);
 }
 
 } // namespace Emitter

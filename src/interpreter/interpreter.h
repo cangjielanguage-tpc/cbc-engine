@@ -749,6 +749,16 @@ public:
         );
     }
 
+    inline void LoadIndex(IReg dst, IReg arr, IReg idx, RTSupport::TypeInfo ti)
+    {
+        auto obj    = ectype->GetReference(arr);
+        auto size   = RTSupport::MetaInfo::GetTypeSize(ti);
+        auto offset = RTSupport::MetaInfo::ArrayBodyOffset() + MemOffsetReg(idx) * size;
+        Log::interpretation.Stream(Logging::Level::INFO)
+            .PrintFmt("dst = %p, arr = %p, offset = %ld\n", ectype->GetReference(dst).value, obj.value, offset);
+        MemoryLocation(obj.value, offset).Lea(dst, ectype);
+    }
+
     private:
         inline bool NullCheck(Value::Reference obj) { return true; }
 

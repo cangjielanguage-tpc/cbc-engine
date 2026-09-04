@@ -576,9 +576,23 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyDerive
     formatter.Format();
 }
 
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyDerivedGeneric args)
+{
+    Operand operands[] = { args.rr.x, args.rr.y, args.field.x, args.field.y, args.ti.x };
+    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    formatter.Format();
+}
+
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, Index args)
 {
     Operand operands[] = { args.rr.x, args.rr.y, args.idx.x, args.ti.UInt() };
+    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    formatter.Format();
+}
+
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, IndexGeneric args)
+{
+    Operand operands[] = { args.rr.x, args.rr.y, args.idx.x, args.idx.y };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }

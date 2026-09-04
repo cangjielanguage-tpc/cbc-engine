@@ -725,15 +725,40 @@ void Emitter::CopyDerived(IReg dstBase, IReg dst, IReg srcBase, IReg src, RTSupp
     );
 }
 
+void Emitter::CopyDerivedGeneric(IReg dstBase, IReg dst, IReg srcBase, IReg src, IReg ti)
+{
+    Encode(
+        segment,
+        RT::CopyDerivedGeneric {
+            .opc   = RT::Opcode::COPY_DERIVED_GENERIC,
+            .rr    = RR { .x = dstBase, .y = dst },
+            .field = RR { .x = srcBase, .y = src },
+            .ti    = RR { .x = ti, .y = 0 },
+        }
+    );
+}
+
 void Emitter::LoadIndex(IReg dst, IReg src, IReg idx, RTSupport::TypeInfo ti)
 {
     Encode(
         segment,
         RT::Index {
-            .opc   = RT::Opcode::INDEX,
-            .rr    = RR { .x = dst, .y = src },
+            .opc = RT::Opcode::INDEX,
+            .rr  = RR { .x = dst, .y = src },
             .idx = RR { .x = idx, .y = 0 },
-            .ti    = ti,
+            .ti  = ti,
+        }
+    );
+}
+
+void Emitter::LoadIndexGeneric(IReg dst, IReg src, IReg idx, IReg ti)
+{
+    Encode(
+        segment,
+        RT::IndexGeneric {
+            .opc = RT::Opcode::INDEX_GENERIC,
+            .rr  = RR { .x = dst, .y = src },
+            .idx = RR { .x = idx, .y = ti },
         }
     );
 }

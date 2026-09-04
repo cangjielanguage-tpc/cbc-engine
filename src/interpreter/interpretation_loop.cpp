@@ -737,17 +737,28 @@ LABEL(COPY_DERIVED) {
     NEXT;
 }
 
+LABEL(COPY_DERIVED_GENERIC) {
+    auto args = CopyDerivedGeneric::Decode(reader);
+    LOG_INSTR;
+    auto tiReg = args.ti.x;
+    auto ti = TypeInfo(ectype->GetPrimitive(tiReg.IR()).u64);
+    interpreter.CopyDerived(args.rr.x.IR(), args.rr.y.IR(), args.field.x.IR(), args.field.y.IR(), ti);
+    NEXT;
+}
+
 LABEL(INDEX) {
     auto args = Index::Decode(reader);
     LOG_INSTR;
-    auto dst = args.rr.x;
-    auto arr = args.rr.y;
-    auto idx = args.idx.x;
-    auto obj = ectype->GetReference(arr.IR());
-    auto size = MetaInfo::GetTypeSize(args.ti);
-    auto offset = RTSupport::MetaInfo::ArrayBodyOffset() + interpreter.MemOffsetReg(idx.IR()) * size;
-    Log::interpretation.Stream(Logging::Level::INFO).PrintFmt("dst = %p, arr = %p, offset = %ld\n", ectype->GetReference(dst.IR()).value, obj.value, offset);
-    MemoryLocation(obj.value, offset).Lea(dst, ectype);
+    interpreter.LoadIndex(args.rr.x.IR(), args.rr.y.IR(), args.idx.x.IR(), args.ti);
+    NEXT;
+}
+
+LABEL(INDEX_GENERIC) {
+    auto args = IndexGeneric::Decode(reader);
+    LOG_INSTR;
+    auto tiReg = args.idx.y;
+    auto ti = TypeInfo(ectype->GetPrimitive(tiReg.IR()).u64);
+    interpreter.LoadIndex(args.rr.x.IR(), args.rr.y.IR(), args.idx.x.IR(), ti);
     NEXT;
 }
 

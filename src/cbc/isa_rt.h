@@ -172,7 +172,9 @@
     X(CBINI32W, BinaryChecked, "$0cbin.32 $2ir $3ir $1I64")                                                            \
     X(CBINI64W, BinaryChecked, "$0cbin.64 $2ir $3ir $1I64")                                                            \
     X(COPY_DERIVED, CopyDerived, "copy.derived $0ir $1ir $2ir $3ir $4U64")                                             \
-    X(INDEX, Index, "index $0ir [$1ir $2ir] $3U64")
+    X(COPY_DERIVED_GENERIC, CopyDerivedGeneric, "copy.derived.g $0ir $1ir $2ir $3ir $4ir")                             \
+    X(INDEX, Index, "index $0ir [$1ir $2ir] $3U64")                                                                    \
+    X(INDEX_GENERIC, IndexGeneric, "index.g $0ir [$1ir $2ir] $3ir")
 
 // X parameters: opcode, encoding format, string format, is tail
 #define CBC_RT_MEMOPCODES(X)                                                                                           \
@@ -666,6 +668,22 @@ struct CopyDerived {
     }
 };
 
+struct CopyDerivedGeneric {
+    Opcode opc;
+    Format::RR rr;
+    Format::RR field;
+    Format::RR ti;
+
+    static CopyDerivedGeneric Decode(Decoder::ByteReader& reader)
+    {
+        auto opc   = Opcode::Decode(reader);
+        auto rr    = Format::RR::Decode(reader);
+        auto field = Format::RR::Decode(reader);
+        auto ti    = Format::RR::Decode(reader);
+        return CopyDerivedGeneric { opc, rr, field, ti };
+    }
+};
+
 struct Index {
     Opcode opc;
     Format::RR rr;
@@ -679,6 +697,20 @@ struct Index {
         auto idx = Format::RR::Decode(reader);
         auto ti    = reader.Read<RTSupport::TypeInfo>();
         return Index { opc, rr, idx, ti };
+    }
+};
+
+struct IndexGeneric {
+    Opcode opc;
+    Format::RR rr;
+    Format::RR idx;
+
+    static IndexGeneric Decode(Decoder::ByteReader& reader)
+    {
+        auto opc   = Opcode::Decode(reader);
+        auto rr    = Format::RR::Decode(reader);
+        auto idx = Format::RR::Decode(reader);
+        return IndexGeneric { opc, rr, idx };
     }
 };
 

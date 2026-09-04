@@ -226,7 +226,9 @@ public:
     void CopyRec(Reg dst, IReg src, uint32_t offset, uint32_t size);
     void CopyObj(Reg dst, IReg src, uint32_t offset, uint32_t size);
     void CopyDerived(IReg dstBase, IReg dst, IReg srcBase, IReg src, RTSupport::TypeInfo ti);
+    void CopyDerivedGeneric(IReg dstBase, IReg dst, IReg srcBase, IReg src, IReg ti);
     void LoadIndex(IReg dst, IReg src, IReg idx, RTSupport::TypeInfo ti);
+    void LoadIndexGeneric(IReg dst, IReg src, IReg idx, IReg ti);
 
     void LoadFrame(LoadAccessKind ldk, Reg dst, uint32_t offset);
     void StoreFrame(StoreAccessKind stk, Reg src, uint32_t offset);

@@ -537,6 +537,11 @@ struct IsaRewriter : public IsaParser {
         emit.CopyDerived(dstBase, dst, srcBase, src, typeInfo);
     }
 
+    void CopyGeneric(IReg dstBase, IReg dst, IReg srcBase, IReg src, IReg ti) override
+    {
+        emit.CopyDerivedGeneric(dstBase, dst, srcBase, src, ti);
+    }
+
     void LoadIndex(IReg dst, IReg src, IReg idx, uint32_t typeId) override
     {
         UNWRAP_OPT(type, resolver.Query(Index<Type>(typeId)), Fail);
@@ -546,6 +551,8 @@ struct IsaRewriter : public IsaParser {
         });
         emit.LoadIndex(dst, src, idx, typeInfo);
     }
+
+    void LoadIndexGeneric(IReg dst, IReg src, IReg idx, IReg ti) override { emit.LoadIndexGeneric(dst, src, idx, ti); }
 
     void LoadStackRec(IReg r, uint16_t ts) override
     {

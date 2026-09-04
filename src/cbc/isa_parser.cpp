@@ -536,14 +536,29 @@ struct IsaParserImpl {
 
     static void Copy(IsaParser& parser)
     {
-        auto [dstBase, dst, srcBase, src, typeId] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadULEB().Get();
+        auto [dstBase, dst, srcBase, src, typeId] =
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadULEB().Get();
         parser.Copy(dstBase, dst, srcBase, src, typeId);
+    }
+
+    static void CopyGeneric(IsaParser& parser)
+    {
+        auto [dstBase, dst, srcBase, src, ti, _] =
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadU4().ReadU4().Get();
+        parser.CopyGeneric(dstBase, dst, srcBase, src, ti);
     }
 
     static void LoadIndex(IsaParser& parser)
     {
-        auto [dst, src, idx, _, typeId] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadULEB().Get();
+        auto [dst, src, idx, _, typeId] =
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadULEB().Get();
         parser.LoadIndex(dst, src, idx, typeId);
+    }
+
+    static void LoadIndexGeneric(IsaParser& parser)
+    {
+        auto [dst, src, idx, ti] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
+        parser.LoadIndexGeneric(dst, src, idx, ti);
     }
 
     static void LoadRawMemory(IsaParser& parser)
