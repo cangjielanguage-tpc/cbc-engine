@@ -498,8 +498,9 @@ static int OptionFlags(RefIdentifier<Term> underlyingRef, Session& session, Subs
     underlying = sub.Substitute(underlying);
     auto kind  = underlying.GetKind();
 
-    // Option of nullable-option is not nullable-option.
-    return kind != TermKind::OPTION && underlying.IsReference() ? F_REFERENCE : F_RECORD;
+    // Nested options and ABI-only boxes must keep their non-reference representation.
+    bool canBeNullableOption = kind == TermKind::TYPE || kind == TermKind::AOT_TYPE || kind == TermKind::FUNCTIONAL;
+    return canBeNullableOption && underlying.IsReference() ? F_REFERENCE : F_RECORD;
 }
 
 static bool IsProperTypeReference(Image::TypeDefinition& def, bool isReference, int arity)
