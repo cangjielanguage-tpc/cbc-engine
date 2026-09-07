@@ -20,6 +20,8 @@
 namespace RTSupport {
 using Reference = Interpretation::Value::Reference;
 
+static_assert(static_cast<int>(Interpretation::Type::SpawnException) == IMPLICIT_EXCEPTION_SPAWN);
+
 constexpr uint32_t REF_FIELD_SIZE = sizeof(void*);
 
 static bool IsInlineGCTib(DYN_GCTib tib) { return static_cast<bool>(tib.raw & GCTIB_SIGN_BIT); }
@@ -104,6 +106,8 @@ void Execution::ReadStructField(uintptr_t dst, Reference base, uintptr_t field, 
 
 void* Execution::AllocateObjectInstance() { return reinterpret_cast<void*>(&Asm::engine_i2_newobject); }
 
+void* Execution::AllocateObjectPinnedInstance() { return reinterpret_cast<void*>(&Asm::engine_i2_newobject_pinned); }
+
 void* Execution::AllocateObjectInstanceAcc() { return reinterpret_cast<void*>(&Asm::engine_i2_newobject_acc); }
 
 void* Execution::AllocateArrayInstance() { return reinterpret_cast<void*>(&Asm::engine_i2_newarray); }
@@ -119,6 +123,8 @@ void* Execution::GcPointTrampoline() { return reinterpret_cast<void*>(&Asm::engi
 void* Execution::LoadGeneric() { return reinterpret_cast<void*>(&Asm::engine_i2_load_generic); }
 
 void* Execution::Spawn() { return reinterpret_cast<void*>(&Asm::engine_i2_spawn); }
+
+void* Execution::SpawnFuture() { return reinterpret_cast<void*>(&Asm::engine_i2_spawn_future); }
 
 bool Execution::IsPendingSafePoint()
 {

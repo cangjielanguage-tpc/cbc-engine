@@ -40,6 +40,8 @@ static constexpr uint8_t WAIT_QUEUE_CLASS = 0b00100000;
 static constexpr uint8_t HAS_REFLECTION   = 0b01000000;
 static constexpr uint8_t HAS_EXT_PART     = 0b10000000;
 
+static constexpr std::string_view CORE_FUTURE_TYPE_NAME = "std.core:Future";
+
 enum TypeKind : int8_t {
     // reference type
     TYPE_KIND_CLASS          = -128,
@@ -436,7 +438,11 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
     builder.Identify();
 
-    if (builder.isAot && term.GetLength() == 0) {
+    // Generic AOT type infos are normally built by CBC to avoid recursive runtime initialization of type arguments
+    // (for example, class Foo extends I<Foo>). Future<T> is an exception: the runtime owns its hidden synchronization
+    // layout and must construct its type info to set the Future flag and the extended instance size.
+    bool requiresRuntimeTypeInfo = term.GetLength() == 0 || CORE_FUTURE_TYPE_NAME.compare(builder.aotTypeDefName) == 0;
+    if (builder.isAot && requiresRuntimeTypeInfo) {
         std::string typeName(builder.aotTypeDefName);
         return QueryTypeInfoAOT(session, manager, typeName.c_str(), term);
     }

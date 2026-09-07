@@ -55,6 +55,7 @@ using STK = Format::StoreAccessKind;
 
 enum class New {
     Obj,
+    ObjPinned,
     Arr,
 };
 
@@ -1010,6 +1011,17 @@ struct IsaRewriter : public IsaParser {
         emit.AtomicOp(opc, dst, obj, src, field->offset.value());
     }
 
+    bool IsFuture(const Type& type)
+    {
+        if (type.term.GetKind() != Engine::TermKind::TYPE) {
+            return false;
+        }
+
+        auto identifier = Engine::ExtractTypeDefIdentifier(type.term);
+        auto def        = Decode::Read(session, identifier);
+        return Decode::Read(session, def.GetName()).compare("std.core:Future") == 0;
+    }
+
     std::optional<Type> NewObject(IReg dst, uint32_t typeId, New kind)
     {
         auto t = resolver.Query(Index<Type>(typeId));
@@ -1024,10 +1036,15 @@ struct IsaRewriter : public IsaParser {
             return std::nullopt;
         }
 
+        if (kind == New::Obj && IsFuture(*t)) {
+            kind = New::ObjPinned;
+        }
+
         auto typeInfo = *ti;
         switch (kind) {
-            case New::Obj: emit.NewObj(typeInfo); break;
-            case New::Arr: emit.NewArr(typeInfo); break;
+            case New::Obj:       emit.NewObj(typeInfo, false); break;
+            case New::Arr:       emit.NewArr(typeInfo); break;
+            case New::ObjPinned: emit.NewObj(typeInfo, true); break;
         }
         BindStatePoint();
         AdjustReg(dst, IReg::IR1);
@@ -1112,7 +1129,7 @@ struct IsaRewriter : public IsaParser {
 
     void Spawn(IReg closure, uint32_t typeId) override
     {
-        AdjustReg(IReg::IR1, closure);
+        AdjustReg(IReg::IR_ACC, closure);
 
         auto t = resolver.QueryFutureByFunctional(Index<Type>(typeId));
         if (!t.has_value()) {
@@ -1130,10 +1147,11 @@ struct IsaRewriter : public IsaParser {
         BindStatePoint();
     }
 
-    void SpawnFuture(IReg future, uint32_t type) override
+    void SpawnFuture(IReg future, uint32_t /*typeId*/) override
     {
+        AdjustReg(IReg::IR_ACC, future);
+        emit.SpawnFuture();
         BindStatePoint();
-        FATAL("not implemented");
     }
 
     void CallClosure(IReg dst, uint32_t typeId, bool generic) override
@@ -1190,7 +1208,13 @@ struct IsaRewriter : public IsaParser {
 
     void NewObjGeneric(IReg ti, uint32_t typeId) override
     {
-        emit.NewObjGeneric(ti);
+        auto type = resolver.Query(Index<Type>(typeId));
+        if (!type.has_value()) {
+            Fail("failed to resolve generic object type");
+            return;
+        }
+
+        emit.NewObjGeneric(ti, IsFuture(*type));
         BindStatePoint();
     }
 

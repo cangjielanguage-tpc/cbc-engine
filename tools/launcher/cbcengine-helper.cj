@@ -5,6 +5,7 @@ public func throwImplicitException(tpe: Int64): Int64 {
         case 0 => throw NoneValueException()
         case 1 => throw ArithmeticException()
         case 2 => throw OverflowException()
+        case 3 => throw SpawnException()
         case _ => throw Exception("Unknown implicit exception type")
     }
     return tpe

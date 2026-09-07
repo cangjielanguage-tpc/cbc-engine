@@ -7,6 +7,8 @@
     #define engine_fiber_data_init _engine_fiber_data_init
     #define engine_get_exception_handler _engine_get_exception_handler
     #define engine_get_and_clear_pending_exception _engine_get_and_clear_pending_exception
+    #define engine_log_int_start _engine_log_int_start
+    #define engine_log_int_end _engine_log_int_end
     #define engine_c2i_call_pc_start _engine_c2i_call_pc_start
     #define engine_c2i_call_pc_end _engine_c2i_call_pc_end
     #define engine_trampolines_dyn_start _engine_trampolines_dyn_start
@@ -20,6 +22,12 @@
     #define engine_i2c_call _engine_i2c_call
     #define engine_i2_newobject _engine_i2_newobject
     #define engine_i2_newobject_acc _engine_i2_newobject_acc
+    #define engine_i2_newobject_pinned _engine_i2_newobject_pinned
+    #define engine_newobject_pinned_function _engine_newobject_pinned_function
+    #define engine_spawn_future _engine_spawn_future
+    #define engine_future_execute_function _engine_future_execute_function
+    #define engine_set_runtime_cjthread_handle_function _engine_set_runtime_cjthread_handle_function
+    #define engine_i2_spawn_future _engine_i2_spawn_future
     #define engine_i2_newarray _engine_i2_newarray
     #define engine_i2_load_generic _engine_i2_load_generic
     #define engine_i2_gcpoint _engine_i2_gcpoint
@@ -63,6 +71,7 @@
 .extern engine_fiber_data_init
 .extern engine_get_exception_handler
 .extern engine_get_and_clear_pending_exception
+.extern engine_spawn_future
 
 // exported
 declare_hidden engine_c2i_call_pc_start
@@ -76,6 +85,7 @@ declare_hidden engine_all_regs_c2i_call
 declare_hidden engine_iregs_only_c2i_call
 declare_hidden engine_i2i_call
 declare_hidden engine_i2c_call
+declare_hidden engine_i2_newobject_pinned
 declare_hidden engine_i2_newobject
 declare_hidden engine_i2_newobject_acc
 declare_hidden engine_i2_newarray
@@ -85,11 +95,15 @@ declare_hidden engine_tls_function
 declare_hidden engine_read_generic
 declare_hidden engine_i2_load_generic
 declare_hidden engine_newobject_function
+declare_hidden engine_newobject_pinned_function
 declare_hidden engine_newarray_function
 declare_hidden engine_newthread_nret_function
 declare_hidden engine_carrier_specific_offset
 declare_hidden engine_cjthread_specific_offset
 declare_hidden engine_i2_spawn
+declare_hidden engine_future_execute_function
+declare_hidden engine_set_runtime_cjthread_handle_function
+declare_hidden engine_i2_spawn_future
 declare_hidden engine_throw_out_of_interpreter
 declare_hidden engine_throw_implicit_exception
 declare_hidden engine_implicit_exception_thrower
@@ -130,6 +144,12 @@ engine_carrier_specific_offset:
 engine_cjthread_specific_offset:
   .skip 8
 engine_stack_grow_stub:
+  .skip 8
+engine_future_execute_function:
+  .skip 8
+engine_set_runtime_cjthread_handle_function:
+  .skip 8
+engine_newobject_pinned_function:
   .skip 8
 
 // --- SECTION TEXT ---
@@ -629,6 +649,22 @@ engine_i2_newobject:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
+engine_i2_newobject_pinned:
+  // jumped from .Linterpreter_call without return address to return
+  mov   x1, 0
+  adrp  x10, Page(engine_newobject_pinned_function)
+  ldr   x10, [x10, PageOff(engine_newobject_pinned_function)]
+  blr   x10
+
+  str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE)]
+  restore_tls
+
+  b     .Lrestart_interpretation
+
+.balign 16
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo)
+// preserved: ECTYPE_REG, x29
+// TLS_REG can be changed after context-switch
 engine_i2_newobject_acc:
   // jumped from .Linterpreter_call without return address to return
   adrp  x10, Page(engine_newobject_function)
@@ -666,7 +702,7 @@ engine_i2_gcpoint:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo)
 // preserved: ECTYPE_REG, x29
 engine_i2_spawn:
-  ldr   x1, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE)]
+  ldr   x1, [ECTYPE_REG, #ECTYPE_IACC_OFFSET]
   mov   x3, x0
   adr   x0, engine_fake_execute_closure
   mov   x2, 0
@@ -676,8 +712,31 @@ engine_i2_spawn:
   blr   x4
   b     .Lrestart_interpretation
 
+// expects: (ECTYPE_REG: ectype, TLS_REG: th)
+// preserved: ECTYPE_REG, x29
+engine_i2_spawn_future:
+  ldr   x0, [ECTYPE_REG, #ECTYPE_IACC_OFFSET]
+  bl    engine_spawn_future
+  cbnz  x1, .Lspawn_future_success
+  mov   x0, IMPLICIT_EXCEPTION_SPAWN
+  b     engine_throw_implicit_exception
+.Lspawn_future_success:
+  // Thread.setRuntimeCJThreadHandle arguments:
+  // x8: sret pointer for Unit; no return storage is needed.
+  // x0: this (Thread object already returned by engine_spawn_future in x0).
+  // x1: handle (CJThreadHandle already returned by engine_spawn_future in x1).
+  // x2: outerTI (unused by this method, so pass null).
+  mov   x8, sp
+  mov   x2, xzr
+  adrp  x9, Page(engine_set_runtime_cjthread_handle_function)
+  ldr   x9, [x9, PageOff(engine_set_runtime_cjthread_handle_function)]
+  blr   x9
+  b     .Lrestart_interpretation
+
 // TREAT SYMBOLS ABOVE AS PART OF perform_2i_call
+#ifdef __ELF__
 .size perform_2i_call, .-perform_2i_call
+#endif
 
 // fake execute closure function
 .balign 16
@@ -795,4 +854,3 @@ engine_handle_exception:
   ldr   x9, [x9, PageOff(engine_throw_out_of_interpreter)]
   br    x9
   brk   #0
-

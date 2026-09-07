@@ -24,6 +24,12 @@
     #define engine_i2c_call _engine_i2c_call
     #define engine_i2_newobject _engine_i2_newobject
     #define engine_i2_newobject_acc _engine_i2_newobject_acc
+    #define engine_i2_newobject_pinned _engine_i2_newobject_pinned
+    #define engine_newobject_pinned_function _engine_newobject_pinned_function
+    #define engine_spawn_future _engine_spawn_future
+    #define engine_future_execute_function _engine_future_execute_function
+    #define engine_set_runtime_cjthread_handle_function _engine_set_runtime_cjthread_handle_function
+    #define engine_i2_spawn_future _engine_i2_spawn_future
     #define engine_i2_newarray _engine_i2_newarray
     #define engine_i2_load_generic _engine_i2_load_generic
     #define engine_i2_gcpoint _engine_i2_gcpoint
@@ -59,6 +65,7 @@
 .extern engine_fiber_data_init
 .extern engine_get_exception_handler
 .extern engine_get_and_clear_pending_exception
+.extern engine_spawn_future
 
 // exported
 declare_hidden engine_c2i_call_pc_start
@@ -72,6 +79,7 @@ declare_hidden engine_all_regs_c2i_call
 declare_hidden engine_iregs_only_c2i_call
 declare_hidden engine_i2i_call
 declare_hidden engine_i2c_call
+declare_hidden engine_i2_newobject_pinned
 declare_hidden engine_i2_newobject
 declare_hidden engine_i2_newobject_acc
 declare_hidden engine_i2_newarray
@@ -84,6 +92,7 @@ declare_hidden engine_throw_out_of_interpreter
 declare_hidden engine_throw_implicit_exception
 declare_hidden engine_implicit_exception_thrower
 declare_hidden engine_newobject_function
+declare_hidden engine_newobject_pinned_function
 declare_hidden engine_newarray_function
 declare_hidden engine_newthread_nret_function
 declare_hidden engine_handle_exception
@@ -93,6 +102,9 @@ declare_hidden engine_cjthread_specific_offset
 declare_hidden engine_i2_spawn
 declare_hidden engine_stack_grow_stub
 declare_hidden engine_after_stack_grow
+declare_hidden engine_future_execute_function
+declare_hidden engine_set_runtime_cjthread_handle_function
+declare_hidden engine_i2_spawn_future
 
 // --- SECTION BSS ---
 #ifdef __APPLE__
@@ -125,6 +137,12 @@ engine_carrier_specific_offset:
 engine_cjthread_specific_offset:
   .skip 8
 engine_stack_grow_stub:
+  .skip 8
+engine_future_execute_function:
+  .skip 8
+engine_set_runtime_cjthread_handle_function:
+  .skip 8
+engine_newobject_pinned_function:
   .skip 8
 
 // --- SECTION TEXT ---
@@ -654,6 +672,18 @@ engine_i2_newobject:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
+engine_i2_newobject_pinned:
+  // jumped from .Linterpreter_call without return address to return
+  xor   esi, esi
+  call  [rip + engine_newobject_pinned_function]
+  mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE], rax
+  restore_tls
+  jmp   .Lrestart_interpretation
+
+.balign 16
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
+// preserved: ECTYPE_REG, rbp
+// TLS_REG can be changed after context-switch
 engine_i2_newobject_acc:
   // jumped from .Linterpreter_call without return address to return
   call  [rip + engine_newobject_function]
@@ -684,11 +714,32 @@ engine_i2_gcpoint:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
 // preserved: ECTYPE_REG, rbp
 engine_i2_spawn:
-  mov   rsi, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE]
+  mov   rsi, [ECTYPE_REG + ECTYPE_IACC_OFFSET]
   mov   rcx, rdi
   lea   rdi, [rip + engine_fake_execute_closure]
   xor   edx, edx
   call  [rip + engine_newthread_nret_function]
+  jmp  .Lrestart_interpretation
+
+// expects: (ECTYPE_REG: ectype, TLS_REG: th)
+// preserved: ECTYPE_REG, rbp
+engine_i2_spawn_future:
+  mov   rdi, [ECTYPE_REG + ECTYPE_IACC_OFFSET]
+  call  engine_spawn_future
+  test  rdx, rdx
+  jnz   .Lspawn_future_success
+  mov   edi, IMPLICIT_EXCEPTION_SPAWN
+  jmp   engine_throw_implicit_exception
+.Lspawn_future_success:
+  // Thread.setRuntimeCJThreadHandle arguments:
+  // rdi: sret pointer for Unit; no return storage is needed.
+  // rsi: this (Thread object returned by engine_spawn_future in rax).
+  // rdx: handle (CJThreadHandle already returned by engine_spawn_future in rdx).
+  // rcx: outerTI (unused by this method, so pass null).
+  mov   rsi, rax
+  mov   rdi, rsp
+  xor   ecx, ecx
+  call  [rip + engine_set_runtime_cjthread_handle_function]
   jmp  .Lrestart_interpretation
 
 // TREAT SYMBOLS ABOVE AS PART OF perform_2i_call

@@ -332,7 +332,14 @@ CBC_EXPORT int interpreter_bridge_init(
     InitEnvOpts();
     Engine::g_table.ParseAndSet(size, options);
 
-    g_CJNativeInterfaceInstance            = *rtInterf;
+    if (!RTSupport::Initialize(rtInterf)) {
+        RTSupport::Log::rt.Log(Logging::Level::ERROR, [](Stream::Output& out) {
+            out << "failed to initialize runtime symbols" << Stream::endl;
+        });
+        return 1;
+    }
+    g_CJNativeInterfaceInstance = *rtInterf;
+
     interpInterf->version                  = INT_INTERPRETER_INTERFACE_VERSION;
     interpInterf->cjThreadSpecificDataSize = sizeof(Interpretation::Ectype);
     interpInterf->c2iStubStartAddr         = reinterpret_cast<uintptr_t>(&Asm::engine_c2i_call_pc_start);
@@ -352,15 +359,15 @@ CBC_EXPORT int interpreter_bridge_init(
 
     interpInterf->landingPad = Asm::common_landing_pad;
 
-    Asm::engine_carrier_specific_offset  = g_CJNativeInterfaceInstance.carrierSpecificOffset;
-    Asm::engine_cjthread_specific_offset = g_CJNativeInterfaceInstance.cjThreadSpecificOffset;
+    Asm::engine_carrier_specific_offset   = g_CJNativeInterfaceInstance.carrierSpecificOffset;
+    Asm::engine_cjthread_specific_offset  = g_CJNativeInterfaceInstance.cjThreadSpecificOffset;
 
-    Asm::engine_tls_function             = g_CJNativeInterfaceInstance.getThreadLocalData;
-    Asm::engine_throw_out_of_interpreter = g_CJNativeInterfaceInstance.throwException;
-    Asm::engine_newobject_function       = g_CJNativeInterfaceInstance.objectAlloc;
-    Asm::engine_newarray_function        = g_CJNativeInterfaceInstance.arrayAlloc;
-    Asm::engine_stack_grow_stub          = g_CJNativeInterfaceInstance.stackGrowStub;
-    RTSupport::Initialize(&g_CJNativeInterfaceInstance);
+    Asm::engine_tls_function              = g_CJNativeInterfaceInstance.getThreadLocalData;
+    Asm::engine_throw_out_of_interpreter  = g_CJNativeInterfaceInstance.throwException;
+    Asm::engine_newobject_function        = g_CJNativeInterfaceInstance.objectAlloc;
+    Asm::engine_newobject_pinned_function = g_CJNativeInterfaceInstance.newPinnedObject;
+    Asm::engine_newarray_function         = g_CJNativeInterfaceInstance.arrayAlloc;
+    Asm::engine_stack_grow_stub           = g_CJNativeInterfaceInstance.stackGrowStub;
 
     if (g_mainCbc.empty()) {
         PerformPatching();
