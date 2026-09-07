@@ -535,8 +535,6 @@ Term TermManager::NewTerm(
     TermFlags flags = F_LOCAL;
     flags.isGeneric = isGeneric;
 
-    auto type = session.GetEngine().FindType(session, name);
-
     refineTerm(id, flags, *data);
 
     data->InitAfterSubterms(id, arity, flags);
