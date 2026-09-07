@@ -324,7 +324,7 @@ public:
     /// The function performs in-place modification of `Term` structure.
     GlobalTerm Globalize(Term& term);
 
-    Term NewTermWithId(Session& session, TermId id, bool isReference, std::vector<Term> const& subterms);
+    static Term NewTermWithId(Session& session, TermId id, bool isReference, std::vector<Term> const& subterms);
 
     Term NewAotTerm(Session& session, std::string_view name, std::vector<Term> const& subterms, bool isReference);
 

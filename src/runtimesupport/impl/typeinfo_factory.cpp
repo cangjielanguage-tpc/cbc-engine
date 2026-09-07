@@ -1034,7 +1034,7 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& ma
         }
 
         auto g = [&subTerms, &session, &termManager](TermId tk, bool isRef) {
-            auto term = termManager.NewTermWithId(session, tk, isRef, subTerms);
+            auto term = TermManager::NewTermWithId(session, tk, isRef, subTerms);
             return termManager.Globalize(term);
         };
 

@@ -516,10 +516,7 @@ static bool IsProperTypeReference(Image::TypeDefinition& def, bool isReference, 
 }
 
 static Term NewTerm(
-    Session& session,
-    std::string_view name,
-    std::vector<Term> subterms,
-    std::function<void(TermId&, TermFlags&, TermData&)> refineTerm
+    Session& session, std::vector<Term> const& subterms, std::function<Term(TermId, TermFlags, TermData*)> refineTerm
 )
 {
     auto& heap     = session.Allocator();
@@ -535,15 +532,12 @@ static Term NewTerm(
     TermFlags flags = F_LOCAL;
     flags.isGeneric = isGeneric;
 
-    refineTerm(id, flags, *data);
-
-    data->InitAfterSubterms(id, arity, flags);
-    return Term(LocalTerm(data));
+    return refineTerm(id, flags, data);
 }
 
 Term TermManager::NewEnumTerm(Session& session, std::string_view name, std::vector<Term> const& subterms)
 {
-    return NewTerm(session, name, subterms, [&](TermId& id, TermFlags& flags, TermData& data) {
+    return NewTerm(session, subterms, [&](TermId id, TermFlags flags, TermData* data) {
         auto type = session.GetEngine().FindType(session, name);
         ASSERTION(type.has_value(), "AOT enum terms are not supported yet");
         auto type_id = type.value();
@@ -553,7 +547,7 @@ Term TermManager::NewEnumTerm(Session& session, std::string_view name, std::vect
             case Image::EnumKind::OPTION0:
             case Image::EnumKind::OPTION1: {
                 id = OptionId(type_id);
-                ClassSubstitution sub(session, data.subterms, def->arity);
+                ClassSubstitution sub(session, data->subterms, def->arity);
                 flags += OptionFlags(def.GetEnumType(), session, sub);
                 break;
             }
@@ -570,6 +564,8 @@ Term TermManager::NewEnumTerm(Session& session, std::string_view name, std::vect
                 FATAL("Expected enum, got NOT_ENUM EnumKind");
             }
         }
+        data->InitAfterSubterms(id, subterms.size(), flags);
+        return Term(LocalTerm(data));
     });
 }
 
@@ -577,7 +573,7 @@ Term TermManager::NewAotTerm(
     Session& session, std::string_view name, std::vector<Term> const& subterms, bool isReference
 )
 {
-    return NewTerm(session, name, subterms, [&](TermId& id, TermFlags& flags, TermData& data) {
+    return NewTerm(session, subterms, [&](TermId id, TermFlags flags, TermData* data) {
         flags.isReference = isReference;
         flags.isRecord    = !isReference;
 
@@ -595,31 +591,19 @@ Term TermManager::NewAotTerm(
         } else {
             id = AotTermId(InternString(name));
         }
+        data->InitAfterSubterms(id, arity, flags);
+        return Term(LocalTerm(data));
     });
-}
-
-static Term NewTermWithId(Session& session, TermId id, bool isReference, Term const* subterms, size_t termCount)
-{
-    auto& heap     = session.Allocator();
-    auto data      = AllocateTerm(heap, termCount);
-    bool isGeneric = false;
-    auto arity     = termCount;
-    for (int i = 0; i < arity; i++) {
-        data->subterms[i] = subterms[i];
-        isGeneric         = isGeneric || subterms[i].IsGeneric();
-    }
-
-    TermFlags flags   = F_LOCAL;
-    flags.isReference = isReference;
-    flags.isRecord    = !isReference;
-    flags.isGeneric   = isGeneric;
-    data->InitAfterSubterms(id, arity, flags);
-    return Term(LocalTerm(data));
 }
 
 Term TermManager::NewTermWithId(Session& session, TermId id, bool isReference, std::vector<Term> const& subterms)
 {
-    return ::Engine::NewTermWithId(session, id, isReference, subterms.data(), subterms.size());
+    return NewTerm(session, subterms, [&](TermId, TermFlags flags, TermData* data) {
+        flags.isReference = isReference;
+        flags.isRecord    = !isReference;
+        data->InitAfterSubterms(id, subterms.size(), flags);
+        return Term(LocalTerm(data));
+    });
 }
 
 uint64_t TermManager::Hasher::operator()(TermData* const& data) const { return data->hash; }
@@ -1093,8 +1077,8 @@ Term MethodSignatureSubstitution::SubstituteClassTv(uint8_t typeVar)
         // are substituted as records/primitives must be wrapped as boxes.
         // depth == 0 -> method signature itself
         // depth == 1 -> method signature arguments
-        Term subterms[] = { substituted };
-        substituted     = NewTermWithId(session, TagTermId(TermKind::BOX), true, subterms, 1);
+        std::vector<Term> subterms = { substituted };
+        substituted                = TermManager::NewTermWithId(session, TagTermId(TermKind::BOX), true, subterms);
     }
     return substituted;
 }
