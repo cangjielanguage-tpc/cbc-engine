@@ -142,7 +142,7 @@ struct FLManager : public FieldLayoutManager {
             case TermKind::TUPLE:
             case TermKind::OPTION:
             case TermKind::UNION_ENUM:
-            case TermKind::TYPE: {
+            case TermKind::TYPE:       {
                 auto optlayout = GetLayout(term);
                 if (optlayout.has_value()) {
                     auto layout = *optlayout;
@@ -180,7 +180,9 @@ struct FLManager : public FieldLayoutManager {
 
     void FillRefOffsets(Term term, std::vector<uint32_t>& offsets, uint32_t disp) override
     {
-        ASSERT(!term.IsGeneric());
+        if (term.IsGeneric()) {
+            ASSERT(term.Flags().isFixedSize);
+        }
         if (term.IsReference()) {
             offsets.push_back(disp);
             return;
@@ -199,7 +201,7 @@ struct FLManager : public FieldLayoutManager {
             }
 
             case TermKind::OPTION:
-            case TermKind::TYPE: {
+            case TermKind::TYPE:   {
                 ASSERT(!term.IsReference());
                 // Absent offsets must be handled separately.
                 // Here we will just ignore possible errors.
@@ -292,7 +294,7 @@ private:
 
         if (kind == TermKind::TYPE) {
             auto def = Decode::Read(session, ExtractTypeDefIdentifier(term));
-            layout = BuildLayoutCbc(term, def);
+            layout   = BuildLayoutCbc(term, def);
         } else if (kind == TermKind::TUPLE) {
             SizeAlignmentAccumulator acc { this, 0, 1 };
             FieldLayout::Content content;
@@ -311,12 +313,12 @@ private:
 
             auto def      = Decode::Read(session, ExtractTypeDefIdentifier(term));
             auto someType = TermManager::Resolve(session, def.GetEnumType());
-            someType = substitute.Substitute(someType);
+            someType      = substitute.Substitute(someType);
             acc.AddField(content.fields, someType, std::nullopt);
 
             content.desc.alignment = acc.alignment;
             content.desc.size      = acc.size;
-            layout = std::move(content);
+            layout                 = std::move(content);
         } else if (kind == TermKind::OPTION && term.IsReference()) {
             ClassSubstitution substitute(session, term);
             SizeAlignmentAccumulator acc { this, 0, 1 };
@@ -343,7 +345,7 @@ private:
 
             content.desc.alignment = acc.alignment;
             content.desc.size      = acc.size;
-            layout = std::move(content);
+            layout                 = std::move(content);
         } else if (kind == TermKind::UNION_ENUM) {
             ClassSubstitution substitute(session, term);
             // for some reason CJNative packs their enums tightly
@@ -354,7 +356,7 @@ private:
             auto def      = Decode::Read(session, ExtractTypeDefIdentifier(term));
             for (auto fieldTypeId : Reader::Resolve(session, def->unionFields)) {
                 auto fieldType = TermManager::Resolve(session, fieldTypeId);
-                fieldType = substitute.Substitute(fieldType);
+                fieldType      = substitute.Substitute(fieldType);
                 auto fieldSize = GetFlatSize(fieldType);
                 if (!fieldSize) {
                     failed = true;

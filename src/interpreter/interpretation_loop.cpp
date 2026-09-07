@@ -700,10 +700,8 @@ LABEL(PREP_TYPED) {
     auto args = B13i64i32::Decode(reader);
     LOG_INSTR;
     auto typedOffset = args.imm32.imm;
-    auto typeInfo    = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
-    typeInfo.VisitReferenceOffsets([&](uint32_t offset) {
-        interpreter.StoreFrameImm(StoreAccessKind::ST_64, 0, typedOffset + offset);
-    });
+    auto size = args.imm64.imm;
+    memset(reinterpret_cast<void*>(frame.start + typedOffset), 0, size);
     NEXT;
 }
 LABEL(SCC32) {

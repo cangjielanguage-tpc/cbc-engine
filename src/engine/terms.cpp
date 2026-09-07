@@ -150,7 +150,7 @@ struct BuiltinTerms {
             return seed                 = next;
         };
 
-        TermFlags tvFlags   = F_REFERENCE | F_GENERIC;
+        TermFlags tvFlags = F_REFERENCE | F_GENERIC;
 
         for (size_t i = 0; i < PRIM_COUNT; i++) {
             auto kind        = TermKind(i);
@@ -354,9 +354,9 @@ void Term::GetName(Session& session, Stream::Output& out, bool hasDebugPrefix) c
         case TK::F64:     stream << "Float64"; break;
 
         case TK::UNDEFINED: {
-            auto undef  = UndefTermId(*this).GetIdentifier();
-            auto file   = undef.GetFileId();
-            auto index  = undef.GetIndex();
+            auto undef = UndefTermId(*this).GetIdentifier();
+            auto file  = undef.GetFileId();
+            auto index = undef.GetIndex();
             out.PrintFmt("$unresolved<%u,%u>", file.id, index);
             break;
         }
@@ -395,7 +395,7 @@ void Term::GetName(Session& session, Stream::Output& out, bool hasDebugPrefix) c
         case TK::UNION_ENUM:
         case TK::OPTION:
         case TK::PRIMITIVE_ENUM:
-        case TK::TYPE: {
+        case TK::TYPE:           {
             auto ident = ExtractTypeDefIdentifier(*this);
             auto type  = Decode::Read(session, ident);
             stream << prefix << Decode::Read(session, type.GetName());
@@ -406,7 +406,7 @@ void Term::GetName(Session& session, Stream::Output& out, bool hasDebugPrefix) c
         }
 
         case TK::AOT_TYPE: {
-            auto& manager = TermManager::Of(session);
+            auto& manager         = TermManager::Of(session);
             std::string_view name = manager.GetNameOfAotType(AotTermId(*this));
             stream << prefix << name;
             if (int len = GetLength(); len > 0) {
@@ -526,7 +526,7 @@ Term TermManager::NewAotTerm(
         isGeneric         = isGeneric || subterms[i].IsGeneric();
     }
 
-    TermId id       = TagTermId(TermKind::NOTHING);
+    TermId id         = TagTermId(TermKind::NOTHING);
     TermFlags flags   = F_LOCAL;
     flags.isReference = isReference;
     flags.isRecord    = !isReference;
@@ -704,26 +704,28 @@ struct TermResolver {
         switch (def->enumKind) {
             case Image::EnumKind::OPTION0:
             case Image::EnumKind::OPTION1: optionLikeEnum = true;
-            default: {}
+            default:                       {
+            }
         }
 
         bool undefined = false;
-        TermId id = TagTermId(TermKind::NIL);
+        TermId id      = TagTermId(TermKind::NIL);
         switch (tag) {
             case OPTION: {
                 undefined = !optionLikeEnum;
-                id          = OptionId(identifier);
+                id        = OptionId(identifier);
                 break;
             }
             case UNION_ENUM:
                 undefined = def->enumKind != Image::EnumKind::UNION;
-                id = UnionEnumId(identifier);
+                id        = UnionEnumId(identifier);
                 break;
             case PRIMITIVE_ENUM:
                 undefined = def->enumKind != Image::EnumKind::PRIMITIVE;
-                id = PrimitiveEnumId(identifier);
+                id        = PrimitiveEnumId(identifier);
                 break;
-            default: {}
+            default: {
+            }
         }
 
         if (undefined || def->arity != expectedLength) {
@@ -836,11 +838,11 @@ struct TermResolver {
                 return ResolveAotType(reader, nameOffs, length, isRef, refId);
             }
             case FUNCTIONAL: {
-                auto len   = reader.ReadU8() + 1; // +1 for ret type
+                auto len = reader.ReadU8() + 1; // +1 for ret type
                 return NewTerm(reader, refId, TagTermId(TermKind::FUNCTIONAL), len, F_LOCAL | F_REFERENCE);
             }
             case TUPLE: {
-                auto len   = reader.ReadULEB();
+                auto len = reader.ReadULEB();
                 return NewTerm(reader, refId, TagTermId(TermKind::TUPLE), len, F_LOCAL | F_RECORD);
             }
             case NULLABLE: {
@@ -874,10 +876,10 @@ struct TermResolver {
             }
             case UNION_ENUM:
             case PRIMITIVE_ENUM:
-            case OPTION: {
+            case OPTION:         {
                 auto nameOffs = Offset<String>(reader.ReadULEB());
-                auto name = Reader::Read(session, fileId, nameOffs);
-                auto arity = reader.ReadU8();
+                auto name     = Reader::Read(session, fileId, nameOffs);
+                auto arity    = reader.ReadU8();
                 return ResolveEnumTerm(reader, name, arity, refId, tag);
             }
             default: {
@@ -902,9 +904,9 @@ Utils::StringPool::String TermManager::GetNameOfAotType(AotTermId type)
 
 Term TermManager::Resolve(Session& session, RefIdentifier<Term> ident)
 {
-    auto index  = ident.GetIndex();
-    auto& raf   = session.FileOf(ident.GetFileId());
-    auto& file  = session.CbcFileOf(ident.GetFileId());
+    auto index = ident.GetIndex();
+    auto& raf  = session.FileOf(ident.GetFileId());
+    auto& file = session.CbcFileOf(ident.GetFileId());
 
     auto& manager = TermManager::Of(session);
 
@@ -985,7 +987,7 @@ Term Substitution::Substitute(Term term)
         depth--;
 
         if (term.GetKind() == TermKind::OPTION) {
-            auto id = ExtractTypeDefIdentifier(term);
+            auto id  = ExtractTypeDefIdentifier(term);
             auto def = Decode::Read(session, id);
             ClassSubstitution sub(session, data->subterms, length);
             flags += OptionFlags(def.GetEnumType(), session, sub);
@@ -999,7 +1001,9 @@ Term Substitution::Substitute(Term term)
 
 Substitution::Substitution(Session& session) : session(session) {}
 
-ClassSubstitution::ClassSubstitution(Session& session, Term term) : ClassSubstitution(session, term.data->subterms, term.data->length) {}
+ClassSubstitution::ClassSubstitution(Session& session, Term term)
+    : ClassSubstitution(session, term.data->subterms, term.data->length)
+{}
 
 ClassSubstitution::ClassSubstitution(Session& session, std::vector<Term> const& terms)
     : ClassSubstitution(session, terms.data(), terms.size())
@@ -1047,11 +1051,11 @@ Term MethodSignatureSubstitution::SubstituteClassTv(uint8_t typeVar)
 Identifier<Image::TypeDefinition> ExtractTypeDefIdentifier(Term term)
 {
     switch (term.GetKind()) {
-        case TermKind::UNION_ENUM:      return UnionEnumId(term).GetIdentifier();
-        case TermKind::OPTION:          return OptionId(term).GetIdentifier();
-        case TermKind::PRIMITIVE_ENUM:  return PrimitiveEnumId(term).GetIdentifier();
-        case TermKind::TYPE:            return TypeTermId(term).GetIdentifier();
-        default:                        FATAL("unexpected kind %d", term.GetKind());
+        case TermKind::UNION_ENUM:     return UnionEnumId(term).GetIdentifier();
+        case TermKind::OPTION:         return OptionId(term).GetIdentifier();
+        case TermKind::PRIMITIVE_ENUM: return PrimitiveEnumId(term).GetIdentifier();
+        case TermKind::TYPE:           return TypeTermId(term).GetIdentifier();
+        default:                       FATAL("unexpected kind %d", term.GetKind());
     }
 }
 

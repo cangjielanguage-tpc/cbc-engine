@@ -222,7 +222,7 @@ public:
     void StoreFrame(StoreAccessKind stk, Reg src, uint32_t offset);
     void StoreFrameImm(StoreAccessKind stk, uint64_t imm, uint32_t offset);
 
-    void PrepareTyped(RTSupport::TypeInfo typeInfo, uint32_t offset);
+    void PrepareTyped(uint64_t size, uint32_t offset);
 
     void SCC(CC cc, Width width, IReg d, IReg l, IReg r);
     void SCC(CC cc, Width width, IReg d, FReg l, FReg r);
