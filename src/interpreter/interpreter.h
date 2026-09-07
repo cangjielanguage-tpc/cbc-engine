@@ -740,7 +740,7 @@ public:
         CopyDerivedByWords(
             src.derivedAddr,
             ti,
-            [&](uintptr_t addr, uint32_t offset) { *((uintptr_t*)dst.derivedAddr + offset) = *((uintptr_t*)addr); },
+            [&](uintptr_t addr, uint32_t offset) { *(uintptr_t*)(dst.derivedAddr + offset) = *((uintptr_t*)addr); },
             [&](uintptr_t addr, uint32_t offset) {
                 using Reference = Interpretation::Value::Reference;
                 Reference ref   = ReadReference(src, addr);
