@@ -697,6 +697,7 @@ public:
         ti.VisitReferenceOffsets([&](uintptr_t offset) {
             refOffsets.push_back(offset);
         });
+        std::sort(refOffsets.begin(), refOffsets.end());
         auto refOffset = refOffsets.begin();
         auto size = RTSupport::MetaInfo::GetTypeSize(ti);
         for(uintptr_t offset = 0; offset < size; offset += sizeof(uintptr_t)) {
@@ -733,15 +734,15 @@ public:
         auto src  = GetDerivedPointer(srcBase, srcReg);
         auto size = RTSupport::MetaInfo::GetTypeSize(ti);
 
-        if (dst.kind == RTSupport::LOCAL && src.kind == RTSupport::LOCAL) {
-            memcpy((void*)dst.derivedAddr, (void*)src.derivedAddr, size);
-            return;
-        }
+        // if (dst.kind == RTSupport::LOCAL && src.kind == RTSupport::LOCAL) {
+        //     memcpy((void*)dst.derivedAddr, (void*)src.derivedAddr, size);
+        //     return;
+        // }
         CopyDerivedByWords(
             src.derivedAddr,
             ti,
-            [&](uintptr_t addr, uint32_t offset) { *(uintptr_t*)(dst.derivedAddr + offset) = *((uintptr_t*)addr); },
-            [&](uintptr_t addr, uint32_t offset) {
+            [&](uintptr_t addr, uintptr_t offset) { *(uintptr_t*)(dst.derivedAddr + offset) = *((uintptr_t*)addr); },
+            [&](uintptr_t addr, uintptr_t offset) {
                 using Reference = Interpretation::Value::Reference;
                 Reference ref   = ReadReference(src, addr);
                 WriteReference(dst, dst.derivedAddr + offset, ref);
