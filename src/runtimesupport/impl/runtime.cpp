@@ -411,7 +411,7 @@ static void VisitBitmap(uint8_t bitmap, OffsetVisitor const& visitor, size_t off
 static void VisitHeapedGCTib(StdGCTib const& gctib, OffsetVisitor const& visitor)
 {
     auto offset = 0;
-    for (uint32_t i; i < gctib.nBitmapWords; i++) {
+    for (uint32_t i = 0; i < gctib.nBitmapWords; i++) {
         auto bitmap = gctib.bitmapWords[i];
         VisitBitmap(bitmap, visitor, offset);
         offset += REF_FIELD_SIZE * 8;
