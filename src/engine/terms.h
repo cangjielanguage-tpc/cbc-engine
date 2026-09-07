@@ -335,13 +335,6 @@ public:
 private:
     size_t InternString(std::string_view str);
 
-    Term NewTerm(
-        Session& session,
-        std::string_view name,
-        std::vector<Term> subterms,
-        std::function<void(TermId&, TermFlags&, TermData&)> refineTerm
-    );
-
     struct Hasher {
         uint64_t operator()(TermData* const& data) const;
     };

@@ -515,7 +515,7 @@ static bool IsProperTypeReference(Image::TypeDefinition& def, bool isReference, 
     return true;
 }
 
-Term TermManager::NewTerm(
+static Term NewTerm(
     Session& session,
     std::string_view name,
     std::vector<Term> subterms,
