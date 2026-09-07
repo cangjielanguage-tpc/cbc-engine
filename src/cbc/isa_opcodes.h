@@ -131,10 +131,19 @@
     X(CBinaryImm64, CBinaryImm<Width::W64>)                                                                            \
     X(Ld, Ld)                                                                                                          \
     X(LdStatic, LdStatic)                                                                                              \
+    X(LdTyped, LdTyped)                                                                                                \
+    X(LdDerived, LdDerived)                                                                                            \
+    X(LdGeneric, LdGeneric)                                                                                            \
     X(Lea, Lea)                                                                                                        \
+    X(LeaStatic, LeaStatic)                                                                                            \
+    X(LeaGeneric, LeaGeneric)                                                                                          \
+    X(LeaBox, LeaBox)                                                                                                  \
     X(St, St)                                                                                                          \
     X(StStatic, StStatic)                                                                                              \
-    X(LeaBox, LeaBox)                                                                                                  \
+    X(StTyped, StTyped)                                                                                                \
+    X(StDerived, StDerived)                                                                                            \
+    X(StGeneric, StGeneric)                                                                                            \
+    X(LoadTailParam, LoadTailParam)                                                                                    \
     X(_END, Unreachable)
 
 #define ISA_MEM_OPCODES(X)                                                                                             \

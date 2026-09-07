@@ -23,6 +23,7 @@
 #include "utils/assertion.h"
 #include "utils/logger.h"
 #include "utils/math.h"
+#include "utils/misc.h"
 #include "utils/ostream.h"
 #include "utils/reinterpretation.h"
 
@@ -400,6 +401,38 @@ struct IsaRewriter : public IsaParser {
         emit.LoadStatic(Ldk(field->fieldType.GetKind()), dst, symbol);
     }
 
+    void LdTyped(AnyReg dst, uint16_t slot, uint32_t fieldId) override {
+        UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
+        UNWRAP_OPT(fieldOffset, field->offset, [&]() {
+            errStream << "Failed to get offset of field " << field << Stream::endl;
+            Fail();
+        });
+
+        ASSERT(field->refType.term.IsRecord());
+        auto offset = frameLayout.typedOffset.at(slot) + fieldOffset;
+        emit.LoadFrame(Ldk(field->fieldType.GetKind()), dst, offset);
+    }
+
+    void LdDerived(AnyReg dst, IReg baseRef, IReg derived, uint32_t fieldId) override
+    {
+        UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
+        UNWRAP_OPT(fieldOffset, field->offset, [&]() {
+            errStream << "Failed to get offset of field " << field << Stream::endl;
+            Fail();
+        });
+
+        emit.LoadDerived(Ldk(field->fieldType.GetKind()), dst, baseRef, derived, fieldOffset);
+    }
+
+    void LdGeneric(AnyReg dst, IReg baseRef, IReg derived, IReg ti, uint32_t fieldId) override
+    {
+        UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
+        UNWRAP_OPT(offset, field->offset, Fail);
+        ASSERT(field->fieldType.GetKind() == CbcTypeKind::VOID);
+        ASSERT(offset == 0);
+        emit.LoadGeneric(dst, baseRef, derived, ti);
+    }
+
     void Lea(IReg dst, IReg base, uint32_t fieldId) override
     {
         UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
@@ -411,6 +444,25 @@ struct IsaRewriter : public IsaParser {
             emit.LoadRec(LDK::LD_LEA, dst, base, offset);
         } else {
             emit.LoadObj(LDK::LD_LEA, dst, base, offset);
+        }
+    }
+
+    void LeaStatic(IReg dst, IReg dstBaseRef, uint32_t fieldId) override
+    {
+        UNWRAP_OPT(field, resolver.Query(Index<StaticField>(fieldId)), Fail);
+        UNWRAP_OPT(location, field->location, Fail);
+        auto symbol = emit.NewAddressSym(location);
+        emit.LoadStatic(LDK::LD_LEA, dst, symbol);
+        emit.MovImm(Format::Width::W64, dstBaseRef, RTSupport::Execution::GetGlobalBasePtr().value);
+    }
+
+    void LeaGeneric(IReg dst, IReg base, IReg ti, uint32_t fieldId) override
+    {
+        UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
+        UNWRAP_OPT(ordinal, field->ordinal, Fail);
+        emit.LeaGeneric(dst, base, ti, ordinal);
+        if (field->refType.GetKind() == Resolution::CbcTypeKind::REF) {
+            emit.AddI(Format::Width::W64, dst, dst, RTSupport::MetaInfo::ObjectHeaderSize());
         }
     }
 
@@ -437,6 +489,38 @@ struct IsaRewriter : public IsaParser {
         emit.StoreStatic(Stk(field->fieldType.GetKind()), src, symbol);
     }
 
+    void StTyped(AnyReg src, uint16_t slot, uint32_t fieldId) override
+    {
+        UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
+        UNWRAP_OPT(fieldOffset, field->offset, [&]() {
+            errStream << "Failed to get offset of field " << field << Stream::endl;
+            Fail();
+        });
+
+        auto offset = frameLayout.typedOffset.at(slot) + fieldOffset;
+        emit.StoreFrame(Stk(field->fieldType.GetKind()), src, offset);
+    }
+
+    void StDerived(AnyReg src, IReg baseRef, IReg derived, uint32_t fieldId) override
+    {
+        UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
+        UNWRAP_OPT(fieldOffset, field->offset, [&]() {
+            errStream << "Failed to get offset of field " << field << Stream::endl;
+            Fail();
+        });
+
+        emit.StoreDerived(Stk(field->fieldType.GetKind()), src, baseRef, derived, fieldOffset);
+    }
+
+    void StGeneric(AnyReg src, IReg baseRef, IReg derived, IReg ti, uint32_t fieldId) override
+    {
+        UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
+        UNWRAP_OPT(offset, field->offset, Fail);
+        ASSERT(field->fieldType.GetKind() == CbcTypeKind::VOID);
+        ASSERT(offset == 0);
+        emit.StoreGeneric(src, baseRef, derived, ti);
+    }
+
     void LeaBox(IReg dst, IReg base) override
     {
         emit.LoadObj(LDK::LD_LEA, dst, base, RTSupport::MetaInfo::ObjectHeaderSize());
@@ -445,6 +529,12 @@ struct IsaRewriter : public IsaParser {
     void LoadStackRec(IReg r, uint16_t ts) override
     {
         emit.LoadFrame(Format::LoadAccessKind::LD_LEA, r, frameLayout.typedOffset.at(ts));
+    }
+
+    void LoadTailParam(AnyReg dst, IReg tailReg, int64_t number, Format::LoadAccessKind ldk) override
+    {
+        auto offset = number * Cbc::STACK_SLOT_SIZE; // TODO: support different stack param layouts (e.g. iOS)
+        LoadRawMemory(dst, tailReg, offset, ldk);
     }
 
     void LoadRawMemory(AnyReg dst, IReg base, int64_t offset, Format::LoadAccessKind ldk) override

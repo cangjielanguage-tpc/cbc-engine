@@ -71,6 +71,13 @@ void Encode(ByteBuffer& buf, RT::B3xi12 command)
     Encode(buf, command.xi12);
 }
 
+void Encode(ByteBuffer& buf, RT::B3rrrr command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.rr1);
+    Encode(buf, command.rr2);
+}
+
 void Encode(ByteBuffer& buf, RT::B4xi12rr command)
 {
     Encode(buf, command.opc);
@@ -216,6 +223,14 @@ void Encode(ByteBuffer& buf, RT::B10xri64 command)
     Encode(buf, command.opc);
     Encode(buf, command.xr);
     Encode(buf, command.imm64);
+}
+
+void Encode(ByteBuffer& buf, RT::B7xrrri32 command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.xr);
+    Encode(buf, command.rr);
+    Encode(buf, command.imm32);
 }
 
 void Encode(ByteBuffer& buf, RT::B9i64 command)

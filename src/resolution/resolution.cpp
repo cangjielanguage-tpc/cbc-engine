@@ -436,7 +436,7 @@ struct ResolverProxy {
         auto resolvedSig = resolver.termManager.Resolve(resolver.session, ref.none.sig);
         auto sig         = resolver.Wrap(resolvedSig);
         if constexpr (std::is_same_v<Field, InstanceField>) {
-            return InstanceField::Content { sig, sig, std::nullopt, std::nullopt, "<none>" };
+            return InstanceField::Content { sig, sig, std::nullopt, 0, "<none>" };
         } else {
             return StaticField::Content { sig, sig, std::nullopt, "<none>" };
         }

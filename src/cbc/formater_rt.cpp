@@ -13,7 +13,7 @@ constexpr static char const* instruction_format_strings[] = {
 };
 
 // Characters that could end an argument format descriptor.
-constexpr static std::string_view delimiters(" .]");
+constexpr static std::string_view delimiters(" .])");
 
 struct Operand {
     uint64_t const value;
@@ -367,9 +367,23 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3xi12 arg
     formatter.Format();
 }
 
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3rrrr args)
+{
+    Operand operands[] = { args.rr1.x, args.rr1.y, args.rr2.x, args.rr2.y };
+    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    formatter.Format();
+}
+
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B9i64 args)
 {
     Operand operands[] = { args.imm64.imm };
+    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    formatter.Format();
+}
+
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B7xrrri32 args)
+{
+    Operand operands[] = { args.xr.imm, args.xr.r, args.rr.x, args.rr.y, args.imm32.imm };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }

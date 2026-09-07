@@ -17,6 +17,8 @@ namespace Emitter {
 
 using namespace Format;
 
+constexpr IReg UNUSED_REG = IReg::IRZ;
+
 Symbol Emitter::NewAddressSym(uintptr_t ptr) { return symbols.Address(ptr); }
 
 Label Emitter::NewLabel() { return symbols.NewLabel(); }
@@ -644,6 +646,47 @@ void Emitter::StoreStatic(StoreAccessKind sdk, Reg src, Symbol offSym)
     AddFixup(std::make_unique<LiteralFixup>(offSym));
 }
 
+void Emitter::LoadDerived(LoadAccessKind ldk, Reg dst, IReg baseRef, IReg base, uint32_t offset)
+{
+    auto opc = !ldk.IsFloat() ? RT::Opcode::LOAD_LONG_DERIVED : RT::Opcode::LOAD_LONG_DERIVED_F;
+    LoadStoreLong(ldk, dst, baseRef, base, offset, opc);
+}
+
+void Emitter::StoreDerived(StoreAccessKind stk, Reg src, IReg baseRef, IReg base, uint32_t offset)
+{
+    auto opc = !stk.IsFloat() ? RT::Opcode::STORE_LONG_DERIVED : RT::Opcode::STORE_LONG_DERIVED_F;
+    LoadStoreLong(stk, src, baseRef, base, offset, opc);
+}
+
+void Emitter::LoadGeneric(Reg dst, IReg baseRef, IReg base, IReg ti)
+{
+    Encode(
+        segment,
+        RT::B3rrrr { .opc = RT::Opcode::LOAD_GENERIC, .rr1 = { .x = dst, .y = baseRef }, .rr2 = { .x = base, .y = ti } }
+    );
+}
+
+void Emitter::StoreGeneric(Reg src, IReg baseRef, IReg base, IReg ti)
+{
+    Encode(
+        segment,
+        RT::B3rrrr {
+            .opc = RT::Opcode::STORE_GENERIC, .rr1 = { .x = src, .y = baseRef }, .rr2 = { .x = base, .y = ti } }
+    );
+}
+
+void Emitter::LeaGeneric(Reg dst, IReg base, IReg ti, uint32_t ordinal)
+{
+    Encode(
+        segment,
+        RT::B7xrrri32 { .opc   = RT::Opcode::LEA_GENERIC,
+                        .xr    = { .imm = 0, // not used
+                                   .r   = dst },
+                        .rr    = { .x = base, .y = ti },
+                        .imm32 = { .imm = ordinal } }
+    );
+}
+
 void Emitter::LoadObj(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset)
 {
     if (MathUtils::IsNBits(offset, 12)) {
@@ -660,9 +703,7 @@ void Emitter::LoadObj(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset)
             }
         });
     } else {
-        auto ms = OpenMemSpace();
-        ms.Offset(offset);
-        ms.LoadObj(ldk, dst, base);
+        LoadDerived(ldk, dst, base, base, offset);
     }
 }
 
@@ -682,9 +723,7 @@ void Emitter::StoreObj(StoreAccessKind stk, Reg src, IReg base, uint32_t offset)
             }
         });
     } else {
-        auto ms = OpenMemSpace();
-        ms.Offset(offset);
-        ms.StoreObj(stk, src, base);
+        StoreDerived(stk, src, base, base, offset);
     }
 }
 
@@ -737,9 +776,8 @@ void Emitter::LoadRec(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset)
         auto opc = !ldk.IsFloat() ? RT::Opcode::LOAD_REC : RT::Opcode::LOAD_REC_F;
         LoadStore(ldk, dst, base, offset, opc);
     } else {
-        auto ms = OpenMemSpace();
-        ms.Offset(offset);
-        ms.LoadRec(ldk, dst, base);
+        auto opc = !ldk.IsFloat() ? RT::Opcode::LOAD_LONG_REC : RT::Opcode::LOAD_LONG_REC_F;
+        LoadStoreLong(ldk, dst, IReg::IRZ, base, offset, opc);
     }
 }
 
@@ -749,9 +787,8 @@ void Emitter::StoreRec(StoreAccessKind stk, Reg src, IReg base, uint32_t offset)
         auto opc = !stk.IsFloat() ? RT::Opcode::STORE_REC : RT::Opcode::STORE_REC_F;
         LoadStore(stk, src, base, offset, opc);
     } else {
-        auto ms = OpenMemSpace();
-        ms.Offset(offset);
-        ms.StoreRec(stk, src, base);
+        auto opc = !stk.IsFloat() ? RT::Opcode::STORE_LONG_REC : RT::Opcode::STORE_LONG_REC_F;
+        LoadStoreLong(stk, src, IReg::IRZ, base, offset, opc);
     }
 }
 
@@ -761,9 +798,8 @@ void Emitter::LoadFrame(LoadAccessKind ldk, Reg dst, uint32_t offset)
         auto opc = !ldk.IsFloat() ? RT::Opcode::LOAD_FRAME : RT::Opcode::LOAD_FRAME_F;
         LoadStore(ldk, dst, IReg::IRZ, offset, RT::Opcode::LOAD_FRAME);
     } else {
-        auto ms = OpenMemSpace();
-        ms.Offset(offset);
-        ms.LoadFrame(ldk, dst);
+        auto opc = !ldk.IsFloat() ? RT::Opcode::LOAD_LONG_FRAME : RT::Opcode::LOAD_LONG_FRAME_F;
+        LoadStoreLong(ldk, dst, IReg::IRZ, IReg::IRZ, offset, opc);
     }
 }
 
@@ -773,9 +809,8 @@ void Emitter::StoreFrame(StoreAccessKind stk, Reg src, uint32_t offset)
         auto opc = !stk.IsFloat() ? RT::Opcode::STORE_FRAME : RT::Opcode::STORE_FRAME_F;
         LoadStore(stk, src, IReg::IRZ, offset, opc);
     } else {
-        auto ms = OpenMemSpace();
-        ms.Offset(offset);
-        ms.StoreFrame(stk, src);
+        auto opc = !stk.IsFloat() ? RT::Opcode::STORE_LONG_REC : RT::Opcode::STORE_LONG_REC_F;
+        LoadStoreLong(stk, src, IReg::IRZ, IReg::IRZ, offset, opc);
     }
 }
 
@@ -1021,7 +1056,7 @@ void Emitter::NewBox(Interpretation::BuiltinType t)
         return;
     }
 
-    Encode(segment, RT::B2xr { .opc = RT::Opcode::NEWBOX, .xr = { .imm = t, .r = IReg::IRZ } });
+    Encode(segment, RT::B2xr { .opc = RT::Opcode::NEWBOX, .xr = { .imm = t, .r = UNUSED_REG } });
 }
 
 void Emitter::NewBox(RTSupport::TypeInfo typeInfo)

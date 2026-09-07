@@ -144,6 +144,11 @@ struct IsaDisasm : public IsaParser {
 
     void LoadStackRec(IReg r, uint16_t ts) override { stream.PrintLn("ld.stack.rec {}, {}", r, ts); }
 
+    void LoadTailParam(AnyReg dst, IReg base, int64_t number, Format::LoadAccessKind ldk) override
+    {
+        stream.PrintLn("ld.tail.{} {}, [{} {}]", ldk, Fmt(dst, ldk.IsFloat()), base, number);
+    }
+
     void LoadRawMemory(AnyReg dst, IReg base, int64_t offset, Format::LoadAccessKind ldk) override
     {
         stream.PrintLn("ld.raw.mem.{} {}, [{} + {}]", ldk, Fmt(dst, ldk.IsFloat()), base, offset);
@@ -356,15 +361,55 @@ struct IsaDisasm : public IsaParser {
 
     void Ld(AnyReg dst, IReg base, uint32_t field) override { stream.PrintLn("ld R{}, [{} @{}]", dst, base, field); }
 
-    void LdStatic(AnyReg dst, uint32_t field) override { stream.PrintLn("ld R{}, [@{}]", dst, field); }
+    void LdStatic(AnyReg dst, uint32_t field) override { stream.PrintLn("ld.s R{}, [@{}]", dst, field); }
+
+    void LdTyped(AnyReg dst, uint16_t slot, uint32_t field) override
+    {
+        stream.PrintLn("ld.t R{}, [{} @{}]", dst, slot, field);
+    }
+
+    void LdDerived(AnyReg dst, IReg baseRef, IReg derived, uint32_t field) override
+    {
+        stream.PrintLn("ld.d R{}, [({}, {}) @{}]", dst, baseRef, derived, field);
+    }
+
+    void LdGeneric(AnyReg dst, IReg baseRef, IReg derived, IReg ti, uint32_t field) override
+    {
+        stream.PrintLn("ld.g R{}, {}, [({}, {}) @{}]", dst, ti, baseRef, derived, field);
+    }
 
     void Lea(IReg dst, IReg base, uint32_t field) override { stream.PrintLn("lea R{}, [{} @{}]", dst, base, field); }
 
-    void St(AnyReg src, IReg base, uint32_t field) override { stream.PrintLn("st R{}, [{} @{}]", src, base, field); }
+    void LeaStatic(IReg dst, IReg dstBaseRef, uint32_t field) override
+    {
+        stream.PrintLn("lea.s R{}, {}, [@{}]", dst, dstBaseRef, field);
+    }
 
-    void StStatic(AnyReg src, uint32_t field) override { stream.PrintLn("st R{}, [@{}]", src, field); }
+    void LeaGeneric(IReg dst, IReg base, IReg ti, uint32_t field) override
+    {
+        stream.PrintLn("lea.g R{}, {}, [{} @{}]", dst, ti, base, field);
+    }
 
     void LeaBox(IReg dst, IReg base) override { stream.PrintLn("lea.box R{}, [{}]", dst, base); }
+
+    void St(AnyReg src, IReg base, uint32_t field) override { stream.PrintLn("st R{}, [{} @{}]", src, base, field); }
+
+    void StStatic(AnyReg src, uint32_t field) override { stream.PrintLn("st.s R{}, [@{}]", src, field); }
+
+    void StTyped(AnyReg src, uint16_t slot, uint32_t field) override
+    {
+        stream.PrintLn("st.t R{}, [{} @{}]", src, slot, field);
+    }
+
+    void StDerived(AnyReg src, IReg baseRef, IReg derived, uint32_t field) override
+    {
+        stream.PrintLn("st.d R{}, [({}, {}) @{}]", src, baseRef, derived, field);
+    }
+
+    void StGeneric(AnyReg src, IReg baseRef, IReg derived, IReg ti, uint32_t field) override
+    {
+        stream.PrintLn("st.g R{}, {}, [({}, {}) @{}]", src, ti, baseRef, derived, field);
+    }
 
     void TypeArg(IReg ti, int idx, IReg dst) override { stream.PrintLn("type.arg {}, {}[{}]", dst, ti, idx); }
 
@@ -374,7 +419,7 @@ struct IsaDisasm : public IsaParser {
 
     void Unbox(AnyReg dst, IReg src, uint32_t tk) override { stream.PrintLn("unbox R{}, {}, @{}", dst, tk); }
 
-    void UnboxT(uint16_t dstTs, IReg src) override { stream.PrintLn("box t{}, {}", dstTs, src); }
+    void UnboxT(uint16_t dstTs, IReg src) override { stream.PrintLn("unbox t{}, {}", dstTs, src); }
 
     class PrintingMemSpace : public MemSpace {
     public:
