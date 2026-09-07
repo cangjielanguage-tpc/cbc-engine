@@ -372,9 +372,9 @@ struct IsaRewriter : public IsaParser {
 
     void PrepareRecord(uint16_t ts) override
     {
-        auto tsi = frameLayout.typedSlotsInfo[ts];
-        auto ti  = RTSupport::TypeInfo(tsi.second);
-        emit.PrepareTyped(ti, tsi.first);
+        auto size = frameLayout.typedOffset[ts + 1] - frameLayout.typedOffset[ts];
+        auto tsi  = frameLayout.typedSlotsInfo[ts];
+        emit.PrepareTyped(size, tsi.first);
     }
 
     void NewArr(IReg dst, IReg len, uint32_t typeId) override
@@ -438,7 +438,8 @@ struct IsaRewriter : public IsaParser {
         emit.LoadStatic(Ldk(field->fieldType.GetKind()), dst, symbol);
     }
 
-    void LdTyped(AnyReg dst, uint16_t slot, uint32_t fieldId) override {
+    void LdTyped(AnyReg dst, uint16_t slot, uint32_t fieldId) override
+    {
         UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
         UNWRAP_OPT(fieldOffset, field->offset, [&]() {
             errStream << "Failed to get offset of field " << field << Stream::endl;
@@ -624,7 +625,7 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
-        auto field  = f.value();
+        auto field = f.value();
         if (!field->location.has_value()) {
             Fail();
             return;
@@ -640,7 +641,7 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
-        auto field  = f.value();
+        auto field = f.value();
         if (!field->location.has_value()) {
             Fail();
             return;
@@ -1384,7 +1385,8 @@ struct IsaRewriter : public IsaParser {
         emit.StringLit(storage, frameLayout.typedOffset.at(ts));
     }
 
-    void ArrayLength(IReg dst, IReg arr) override {
+    void ArrayLength(IReg dst, IReg arr) override
+    {
         emit.LoadObj(Format::LoadAccessKind::LD_64, dst, arr, RTSupport::MetaInfo::ObjectHeaderSize());
     }
 
@@ -1835,15 +1837,9 @@ struct IsaRewriter : public IsaParser {
         }
     }
 
-    void MemTailCopyRegTo(MemSpace& ms, IReg to, uint32_t recType) override
-    {
-        FATAL("unreachable");
-    }
+    void MemTailCopyRegTo(MemSpace& ms, IReg to, uint32_t recType) override { FATAL("unreachable"); }
 
-    void MemTailCopyRegFrom(MemSpace& ms, IReg from, uint32_t recType) override
-    {
-        FATAL("unreachable");
-    }
+    void MemTailCopyRegFrom(MemSpace& ms, IReg from, uint32_t recType) override { FATAL("unreachable"); }
 
     void MemTailStoreImm(MemSpace& ms, uint64_t imm) override
     {
@@ -1966,9 +1962,10 @@ static std::optional<FrameLayout> makeFrameLayout(Image::Code code, Resolver& re
     auto untypedSlotsSize = Cbc::STACK_SLOT_SIZE * code.UntypedSlotCount();
 
     std::unordered_map<uint32_t, uint32_t> typedOffset;
-    std::vector<std::pair<uint32_t, void*>> typedSlotsInfo;
+    std::vector<std::pair<uint32_t, std::vector<uint32_t>>> typedSlotsInfo;
     auto stackAllocSize = untypedSlotsSize;
-    for (uint32_t i = 0; i < code.StackAllocSigsCount(); i++) {
+    uint32_t i;
+    for (i = 0; i < code.StackAllocSigsCount(); i++) {
         auto typeOpt = resolver.Query(Index<Type>(code.StackAllocSigs()[i]));
         if (!typeOpt.has_value()) {
             LOG_ERROR(log, "Failed to query type at stack-alloc index {}", i);
@@ -1984,17 +1981,23 @@ static std::optional<FrameLayout> makeFrameLayout(Image::Code code, Resolver& re
             LOG_ERROR(log, "Unknown size at t{} for type {}", i, type);
             return std::nullopt;
         }
-        auto typeInfo = type.GetTypeInfo();
-        if (!typeInfo.has_value()) {
-            LOG_ERROR(log, "Failed to obtain type info at t{} for type {}", i, type);
-            return std::nullopt;
-        }
-        auto typeInfoPtr = typeInfo->Raw();
+
+        std::vector<uint32_t> offsets;
+        type.resolver->fieldManager->FillRefOffsets(type.term, offsets, 0);
+
+        // auto typeInfo = type.GetTypeInfo();
+        // if (!typeInfo.has_value()) {
+        //     LOG_ERROR(log, "Failed to obtain type info at t{} for type {}", i, type);
+        //     return std::nullopt;
+        // }
+        // auto typeInfoPtr = typeInfo->Raw();
 
         typedOffset.insert({ i, stackAllocSize });
-        typedSlotsInfo.push_back({ stackAllocSize, typeInfoPtr });
+        typedSlotsInfo.push_back({ stackAllocSize, offsets });
         stackAllocSize += MathUtils::AlignUp(size.value(), Cbc::STACK_SLOT_SIZE);
     }
+
+    typedOffset.insert({ i, stackAllocSize });
 
     auto frameSize = MathUtils::AlignUp(savedRegsSpace + stackAllocSize, Cbc::FRAME_ALIGNMENT);
 

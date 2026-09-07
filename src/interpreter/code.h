@@ -55,7 +55,7 @@ struct StackPtrsPositionalInfo {
 
 struct GcInfo {
     std::vector<GCPositionalInfo> positionalInfo;
-    std::vector<std::pair<uint32_t, void*>> typedSlotsInfo;
+    std::vector<std::pair<uint32_t, std::vector<uint32_t>>> typedSlotsInfo;
 };
 
 struct StackPtrsInfo {

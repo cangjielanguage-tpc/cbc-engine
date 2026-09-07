@@ -133,14 +133,15 @@ void VisitGCFrameRoots(
 
     for (auto& typedSlotInfo : bc->gcInfo.typedSlotsInfo) {
         auto typedSlotOffset = typedSlotInfo.first;
-        auto typeInfoPtr     = typedSlotInfo.second;
-
-        ASSERTION(!RTSupport::MetaInfo::IsReferenceType(RTSupport::TypeInfo(typeInfoPtr)), "Expected record type");
-
-        std::vector<uint32_t> offsets;
-        RTSupport::TypeInfo(typeInfoPtr).VisitReferenceOffsets([&offsets](uint32_t offset) {
-            offsets.push_back(offset);
-        });
+        auto offsets         = typedSlotInfo.second;
+        // auto typeInfoPtr     = typedSlotInfo.second;
+        //
+        // ASSERTION(!RTSupport::MetaInfo::IsReferenceType(RTSupport::TypeInfo(typeInfoPtr)), "Expected record type");
+        //
+        // std::vector<uint32_t> offsets;
+        // RTSupport::TypeInfo(typeInfoPtr).VisitReferenceOffsets([&offsets](uint32_t offset) {
+        //     offsets.push_back(offset);
+        // });
 
         for (auto& offsetInSlot : offsets) {
             auto refLocation = reinterpret_cast<Placeholder>(slotsStartAddr + typedSlotOffset + offsetInSlot);
