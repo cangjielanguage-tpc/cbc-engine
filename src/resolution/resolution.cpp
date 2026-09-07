@@ -831,7 +831,7 @@ std::optional<Type> Resolver::QueryFutureByFunctional(Index<Type> id)
     auto retType = term.Subterm(term.GetLength() - 1);
 
     std::vector<Term> subterms { retType };
-    auto futureType = termManager.NewAotTerm(session, "std.core:Future", subterms, true, false);
+    auto futureType = termManager.NewAotTerm(session, "std.core:Future", subterms, true);
     return Type(futureType, this);
 }
 

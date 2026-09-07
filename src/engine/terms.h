@@ -8,6 +8,7 @@
 #include "utils/reinterpretation.h"
 #include "utils/string_pool.h"
 #include <cstdint>
+#include <functional>
 #include <mutex>
 #include <string_view>
 #include <unordered_set>
@@ -325,14 +326,21 @@ public:
 
     Term NewTermWithId(Session& session, TermId id, bool isReference, std::vector<Term> const& subterms);
 
-    Term NewAotTerm(
-        Session& session, std::string_view name, std::vector<Term> const& subterms, bool isReference, bool isEnum
-    );
+    Term NewAotTerm(Session& session, std::string_view name, std::vector<Term> const& subterms, bool isReference);
+
+    Term NewEnumTerm(Session& session, std::string_view name, std::vector<Term> const& subterms);
 
     Utils::StringPool::String GetNameOfAotType(AotTermId type);
 
 private:
     size_t InternString(std::string_view str);
+
+    Term NewTerm(
+        Session& session,
+        std::string_view name,
+        std::vector<Term> subterms,
+        std::function<void(TermId&, TermFlags&, TermData&)> refineTerm
+    );
 
     struct Hasher {
         uint64_t operator()(TermData* const& data) const;

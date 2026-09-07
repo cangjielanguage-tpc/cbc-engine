@@ -1064,7 +1064,12 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& ma
         auto typeTemplate = reinterpret_cast<TypeTemplate*>(typeInfo->finalizerMethod);
         auto name         = typeTemplate->name;
 
-        Term term = termManager.NewAotTerm(session, name, subTerms, isRef, isEnum);
+        Term term;
+        if (isEnum) {
+            term = termManager.NewEnumTerm(session, name, subTerms);
+        } else {
+            term = termManager.NewAotTerm(session, name, subTerms, isRef);
+        }
         return termManager.Globalize(term);
     } else {
         auto g      = Term::Predefined;
@@ -1102,8 +1107,13 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& ma
 
         auto& termManager = TermManager::Of(session);
         auto name         = typeInfo->typeInfoName;
+        Term term;
 
-        Term term = termManager.NewAotTerm(session, name, noSubTerms, isRef, isEnum);
+        if (isEnum) {
+            term = termManager.NewEnumTerm(session, name, noSubTerms);
+        } else {
+            term = termManager.NewAotTerm(session, name, noSubTerms, isRef);
+        }
         return termManager.Globalize(term);
     }
 }

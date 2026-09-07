@@ -36,7 +36,7 @@ private:
 Engine::Term MakeTuple(Engine::Session& session)
 {
     auto& terms    = Engine::TermManager::Of(session);
-    auto reference = terms.NewAotTerm(session, "test.Reference", {}, true, false);
+    auto reference = terms.NewAotTerm(session, "test.Reference", {}, true);
     return terms.NewTermWithId(
         session,
         Engine::TagTermId(Engine::TermKind::TUPLE),

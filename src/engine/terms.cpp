@@ -20,6 +20,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <string_view>
 #include <unordered_set>
 
 namespace Engine {
@@ -514,37 +515,11 @@ static bool IsProperTypeReference(Image::TypeDefinition& def, bool isReference, 
     return true;
 }
 
-static void NewAotEnumTerm(
-    Session& session, TermId& id, TermFlags& flags, TermData* data, Identifier<Image::TypeDefinition> type_id
-)
-{
-    auto def = Decode::Read(session, type_id);
-
-    switch (def->enumKind) {
-        case Image::EnumKind::OPTION0:
-        case Image::EnumKind::OPTION1: {
-            id = OptionId(type_id);
-            ClassSubstitution sub(session, data->subterms, def->arity);
-            flags += OptionFlags(def.GetEnumType(), session, sub);
-            break;
-        }
-        case Image::EnumKind::UNION: {
-            id     = UnionEnumId(type_id);
-            flags += F_RECORD;
-            break;
-        }
-        case Image::EnumKind::PRIMITIVE: {
-            id = PrimitiveEnumId(type_id);
-            break;
-        }
-        case Image::EnumKind::NOT_ENUM: {
-            FATAL("Expected enum, got NOT_ENUM EnumKind");
-        }
-    }
-}
-
-Term TermManager::NewAotTerm(
-    Session& session, std::string_view name, std::vector<Term> const& subterms, bool isReference, bool isEnum
+Term TermManager::NewTerm(
+    Session& session,
+    std::string_view name,
+    std::vector<Term> subterms,
+    std::function<void(TermId&, TermFlags&, TermData&)> refineTerm
 )
 {
     auto& heap     = session.Allocator();
@@ -556,29 +531,73 @@ Term TermManager::NewAotTerm(
         isGeneric         = isGeneric || subterms[i].IsGeneric();
     }
 
-    TermId id         = TagTermId(TermKind::NOTHING);
-    TermFlags flags   = F_LOCAL;
-    flags.isReference = isReference;
-    flags.isRecord    = !isReference;
-    flags.isGeneric   = isGeneric;
+    TermId id       = TagTermId(TermKind::NOTHING);
+    TermFlags flags = F_LOCAL;
+    flags.isGeneric = isGeneric;
 
     auto type = session.GetEngine().FindType(session, name);
-    if (type.has_value()) {
-        if (isEnum) {
-            NewAotEnumTerm(session, id, flags, data, type.value());
-        } else {
+
+    refineTerm(id, flags, *data);
+
+    data->InitAfterSubterms(id, arity, flags);
+    return Term(LocalTerm(data));
+}
+
+Term TermManager::NewEnumTerm(Session& session, std::string_view name, std::vector<Term> const& subterms)
+{
+    return NewTerm(session, name, subterms, [&](TermId& id, TermFlags& flags, TermData& data) {
+        auto type = session.GetEngine().FindType(session, name);
+        ASSERTION(type.has_value(), "AOT enum terms are not supported yet");
+        auto type_id = type.value();
+        auto def     = Decode::Read(session, type_id);
+
+        switch (def->enumKind) {
+            case Image::EnumKind::OPTION0:
+            case Image::EnumKind::OPTION1: {
+                id = OptionId(type_id);
+                ClassSubstitution sub(session, data.subterms, def->arity);
+                flags += OptionFlags(def.GetEnumType(), session, sub);
+                break;
+            }
+            case Image::EnumKind::UNION: {
+                id     = UnionEnumId(type_id);
+                flags += F_RECORD;
+                break;
+            }
+            case Image::EnumKind::PRIMITIVE: {
+                id = PrimitiveEnumId(type_id);
+                break;
+            }
+            case Image::EnumKind::NOT_ENUM: {
+                FATAL("Expected enum, got NOT_ENUM EnumKind");
+            }
+        }
+    });
+}
+
+Term TermManager::NewAotTerm(
+    Session& session, std::string_view name, std::vector<Term> const& subterms, bool isReference
+)
+{
+    return NewTerm(session, name, subterms, [&](TermId& id, TermFlags& flags, TermData& data) {
+        flags.isReference = isReference;
+        flags.isRecord    = !isReference;
+
+        auto type = session.GetEngine().FindType(session, name);
+
+        auto arity = subterms.size();
+
+        if (type.has_value()) {
             ASSERT([&]() -> bool {
                 auto def = Decode::Read(session, type.value());
                 return IsProperTypeReference(def, isReference, arity);
             }());
             id                  = TypeTermId(*type);
             flags.isAotPromoted = true;
+        } else {
+            id = AotTermId(InternString(name));
         }
-    } else {
-        id = AotTermId(InternString(name));
-    }
-    data->InitAfterSubterms(id, arity, flags);
-    return Term(LocalTerm(data));
+    });
 }
 
 static Term NewTermWithId(Session& session, TermId id, bool isReference, Term const* subterms, size_t termCount)
