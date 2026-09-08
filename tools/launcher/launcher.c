@@ -104,7 +104,7 @@ static int run_interpreter_in_managed_ctx() {
         exit(-1);
     }
 
-    long res;
+    long res = 0; // default initialization for Unit-alike futures that do not set err-code explicitly
     int runCode = GetTaskRet(fiberHandle, (void**) &(res));
     if (runCode != 0) {
         fprintf(stderr, "Managed execution failed with code: %d\n", runCode);
