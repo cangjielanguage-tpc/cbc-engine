@@ -755,6 +755,9 @@ public:
                 WriteReference(dst, dst.derivedAddr + offset, ref);
             }
         );
+        Log::interpretation.Stream(Logging::Level::INFO)
+            .PrintFmt("dst = %p, value = %ld, src = %p, value = %ld\n", dst.derivedAddr, *(uintptr_t*)dst.derivedAddr, src.derivedAddr, *(uintptr_t*)src.derivedAddr);
+
     }
 
     inline void LoadIndex(IReg dst, IReg arr, IReg idx, RTSupport::TypeInfo ti, bool isCangjieArray=true)
