@@ -724,8 +724,7 @@ public:
             }
             case RTSupport::GLOBAL: return RTSupport::Execution::ReadObjectStatic((void*)derivedAddr, handle);
             case RTSupport::HEAP: {
-                uintptr_t offsetFromBase = derivedAddr - src.base.value;
-                return RTSupport::Execution::ReadObjectInstance(src.base, offsetFromBase, handle);
+                return RTSupport::Execution::ReadObjectInstance(src.base, derivedAddr, handle);
             }
         }
     }
@@ -736,8 +735,7 @@ public:
             case RTSupport::LOCAL:  memcpy((void*)derivedAddr, &ref.value, sizeof(ref.value)); break;
             case RTSupport::GLOBAL: RTSupport::Execution::WriteObjectStatic((void*)derivedAddr, ref, handle); break;
             case RTSupport::HEAP: {
-                uintptr_t offsetFromBase = derivedAddr - dst.base.value;
-                RTSupport::Execution::WriteObjectInstance(dst.base, offsetFromBase, ref, handle);
+                RTSupport::Execution::WriteObjectInstance(dst.base, derivedAddr, ref, handle);
                 break;
             }
         }
