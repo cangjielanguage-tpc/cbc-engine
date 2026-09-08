@@ -723,7 +723,10 @@ public:
                 return ref;
             }
             case RTSupport::GLOBAL: return RTSupport::Execution::ReadObjectStatic((void*)derivedAddr, handle);
-            case RTSupport::HEAP:   return RTSupport::Execution::ReadObjectInstance(src.base, derivedAddr, handle);
+            case RTSupport::HEAP: {
+                uintptr_t offsetFromBase = derivedAddr - src.base.value;
+                return RTSupport::Execution::ReadObjectInstance(src.base, offsetFromBase, handle);
+            }
         }
     }
 
@@ -732,7 +735,11 @@ public:
         switch (dst.kind) {
             case RTSupport::LOCAL:  memcpy((void*)derivedAddr, &ref.value, sizeof(ref.value)); break;
             case RTSupport::GLOBAL: RTSupport::Execution::WriteObjectStatic((void*)derivedAddr, ref, handle); break;
-            case RTSupport::HEAP:   RTSupport::Execution::WriteObjectInstance(dst.base, derivedAddr, ref, handle); break;
+            case RTSupport::HEAP: {
+                uintptr_t offsetFromBase = derivedAddr - dst.base.value;
+                RTSupport::Execution::WriteObjectInstance(dst.base, offsetFromBase, ref, handle);
+                break;
+            }
         }
     }
 
@@ -757,7 +764,6 @@ public:
         );
         Log::interpretation.Stream(Logging::Level::INFO)
             .PrintFmt("dst = %p, value = %ld, src = %p, value = %ld\n", dst.derivedAddr, *(uintptr_t*)dst.derivedAddr, src.derivedAddr, *(uintptr_t*)src.derivedAddr);
-
     }
 
     inline void LoadIndex(IReg dst, IReg arr, IReg idx, RTSupport::TypeInfo ti, bool isCangjieArray=true)
