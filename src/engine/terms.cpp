@@ -1,4 +1,5 @@
 #include "engine/terms.h"
+#include "engine/decode/reader.h"
 #include "engine/engine.h"
 #include "engine/identifiers.h"
 #include "engine/image/cbc_file.h"
@@ -19,6 +20,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <string_view>
 #include <unordered_set>
 
 namespace Engine {
@@ -150,7 +152,7 @@ struct BuiltinTerms {
             return seed                 = next;
         };
 
-        TermFlags tvFlags   = F_REFERENCE | F_GENERIC;
+        TermFlags tvFlags = F_REFERENCE | F_GENERIC;
 
         for (size_t i = 0; i < PRIM_COUNT; i++) {
             auto kind        = TermKind(i);
@@ -354,9 +356,9 @@ void Term::GetName(Session& session, Stream::Output& out, bool hasDebugPrefix) c
         case TK::F64:     stream << "Float64"; break;
 
         case TK::UNDEFINED: {
-            auto undef  = UndefTermId(*this).GetIdentifier();
-            auto file   = undef.GetFileId();
-            auto index  = undef.GetIndex();
+            auto undef = UndefTermId(*this).GetIdentifier();
+            auto file  = undef.GetFileId();
+            auto index = undef.GetIndex();
             out.PrintFmt("$unresolved<%u,%u>", file.id, index);
             break;
         }
@@ -395,7 +397,7 @@ void Term::GetName(Session& session, Stream::Output& out, bool hasDebugPrefix) c
         case TK::UNION_ENUM:
         case TK::OPTION:
         case TK::PRIMITIVE_ENUM:
-        case TK::TYPE: {
+        case TK::TYPE:           {
             auto ident = ExtractTypeDefIdentifier(*this);
             auto type  = Decode::Read(session, ident);
             stream << prefix << Decode::Read(session, type.GetName());
@@ -406,7 +408,7 @@ void Term::GetName(Session& session, Stream::Output& out, bool hasDebugPrefix) c
         }
 
         case TK::AOT_TYPE: {
-            auto& manager = TermManager::Of(session);
+            auto& manager         = TermManager::Of(session);
             std::string_view name = manager.GetNameOfAotType(AotTermId(*this));
             stream << prefix << name;
             if (int len = GetLength(); len > 0) {
@@ -513,57 +515,97 @@ static bool IsProperTypeReference(Image::TypeDefinition& def, bool isReference, 
     return true;
 }
 
-Term TermManager::NewAotTerm(
-    Session& session, std::string_view name, std::vector<Term> const& subterms, bool isReference
+static Term NewTerm(
+    Session& session,
+    Term const* subterms,
+    size_t containerSize,
+    std::function<Term(TermId, TermFlags, TermData*)> refineTerm
 )
 {
     auto& heap     = session.Allocator();
-    auto data      = AllocateTerm(heap, subterms.size());
+    auto data      = AllocateTerm(heap, containerSize);
     bool isGeneric = false;
-    auto arity     = subterms.size();
-    for (int i = 0; i < arity; i++) {
+    for (int i = 0; i < containerSize; i++) {
         data->subterms[i] = subterms[i];
         isGeneric         = isGeneric || subterms[i].IsGeneric();
     }
 
     TermId id       = TagTermId(TermKind::NOTHING);
-    TermFlags flags   = F_LOCAL;
-    flags.isReference = isReference;
-    flags.isRecord    = !isReference;
-    flags.isGeneric   = isGeneric;
+    TermFlags flags = F_LOCAL;
+    flags.isGeneric = isGeneric;
 
-    auto type = session.GetEngine().FindType(session, name);
-    if (type.has_value()) {
-        ASSERT([&]() -> bool {
-            auto def = Decode::Read(session, type.value());
-            return IsProperTypeReference(def, isReference, arity);
-        }());
-        id                  = TypeTermId(*type);
-        flags.isAotPromoted = true;
-    } else {
-        id = AotTermId(InternString(name));
-    }
-    data->InitAfterSubterms(id, arity, flags);
-    return Term(LocalTerm(data));
+    return refineTerm(id, flags, data);
+}
+
+Term TermManager::NewEnumTerm(Session& session, std::string_view name, std::vector<Term> const& subterms)
+{
+    return NewTerm(session, subterms.data(), subterms.size(), [&](TermId id, TermFlags flags, TermData* data) {
+        auto type = session.GetEngine().FindType(session, name);
+        ASSERTION(type.has_value(), "AOT enum terms are not supported yet");
+        auto type_id = type.value();
+        auto def     = Decode::Read(session, type_id);
+
+        switch (def->enumKind) {
+            case Image::EnumKind::OPTION0:
+            case Image::EnumKind::OPTION1: {
+                id = OptionId(type_id);
+                ClassSubstitution sub(session, data->subterms, def->arity);
+                flags += OptionFlags(def.GetEnumType(), session, sub);
+                break;
+            }
+            case Image::EnumKind::UNION: {
+                id     = UnionEnumId(type_id);
+                flags += F_RECORD;
+                break;
+            }
+            case Image::EnumKind::PRIMITIVE: {
+                id = PrimitiveEnumId(type_id);
+                break;
+            }
+            case Image::EnumKind::NOT_ENUM: {
+                FATAL("Expected enum, got NOT_ENUM EnumKind");
+            }
+        }
+        data->InitAfterSubterms(id, subterms.size(), flags);
+        return Term(LocalTerm(data));
+    });
+}
+
+Term TermManager::NewAotTerm(
+    Session& session, std::string_view name, std::vector<Term> const& subterms, bool isReference
+)
+{
+    return NewTerm(session, subterms.data(), subterms.size(), [&](TermId id, TermFlags flags, TermData* data) {
+        flags.isReference = isReference;
+        flags.isRecord    = !isReference;
+
+        auto type = session.GetEngine().FindType(session, name);
+
+        auto arity = subterms.size();
+
+        if (type.has_value()) {
+            ASSERT([&]() -> bool {
+                auto def = Decode::Read(session, type.value());
+                return IsProperTypeReference(def, isReference, arity);
+            }());
+            id                  = TypeTermId(*type);
+            flags.isAotPromoted = true;
+        } else {
+            id = AotTermId(InternString(name));
+        }
+        data->InitAfterSubterms(id, arity, flags);
+        return Term(LocalTerm(data));
+    });
 }
 
 static Term NewTermWithId(Session& session, TermId id, bool isReference, Term const* subterms, size_t termCount)
 {
-    auto& heap     = session.Allocator();
-    auto data      = AllocateTerm(heap, termCount);
-    bool isGeneric = false;
-    auto arity     = termCount;
-    for (int i = 0; i < arity; i++) {
-        data->subterms[i] = subterms[i];
-        isGeneric         = isGeneric || subterms[i].IsGeneric();
-    }
-
-    TermFlags flags   = F_LOCAL;
-    flags.isReference = isReference;
-    flags.isRecord    = !isReference;
-    flags.isGeneric   = isGeneric;
-    data->InitAfterSubterms(id, arity, flags);
-    return Term(LocalTerm(data));
+    return NewTerm(session, subterms, termCount, [&](TermId, TermFlags flags, TermData* data) {
+        flags.isReference = isReference;
+        flags.isRecord    = !isReference;
+        data->InitAfterSubterms(id, termCount, flags);
+        return Term(LocalTerm(data));
+    });
 }
 
 Term TermManager::NewTermWithId(Session& session, TermId id, bool isReference, std::vector<Term> const& subterms)
@@ -704,26 +746,28 @@ struct TermResolver {
         switch (def->enumKind) {
             case Image::EnumKind::OPTION0:
             case Image::EnumKind::OPTION1: optionLikeEnum = true;
-            default: {}
+            default:                       {
+            }
         }
 
         bool undefined = false;
-        TermId id = TagTermId(TermKind::NIL);
+        TermId id      = TagTermId(TermKind::NIL);
         switch (tag) {
             case OPTION: {
                 undefined = !optionLikeEnum;
-                id          = OptionId(identifier);
+                id        = OptionId(identifier);
                 break;
             }
             case UNION_ENUM:
                 undefined = def->enumKind != Image::EnumKind::UNION;
-                id = UnionEnumId(identifier);
+                id        = UnionEnumId(identifier);
                 break;
             case PRIMITIVE_ENUM:
                 undefined = def->enumKind != Image::EnumKind::PRIMITIVE;
-                id = PrimitiveEnumId(identifier);
+                id        = PrimitiveEnumId(identifier);
                 break;
-            default: {}
+            default: {
+            }
         }
 
         if (undefined || def->arity != expectedLength) {
@@ -836,11 +880,11 @@ struct TermResolver {
                 return ResolveAotType(reader, nameOffs, length, isRef, refId);
             }
             case FUNCTIONAL: {
-                auto len   = reader.ReadU8() + 1; // +1 for ret type
+                auto len = reader.ReadU8() + 1; // +1 for ret type
                 return NewTerm(reader, refId, TagTermId(TermKind::FUNCTIONAL), len, F_LOCAL | F_REFERENCE);
             }
             case TUPLE: {
-                auto len   = reader.ReadULEB();
+                auto len = reader.ReadULEB();
                 return NewTerm(reader, refId, TagTermId(TermKind::TUPLE), len, F_LOCAL | F_RECORD);
             }
             case NULLABLE: {
@@ -874,10 +918,10 @@ struct TermResolver {
             }
             case UNION_ENUM:
             case PRIMITIVE_ENUM:
-            case OPTION: {
+            case OPTION:         {
                 auto nameOffs = Offset<String>(reader.ReadULEB());
-                auto name = Reader::Read(session, fileId, nameOffs);
-                auto arity = reader.ReadU8();
+                auto name     = Reader::Read(session, fileId, nameOffs);
+                auto arity    = reader.ReadU8();
                 return ResolveEnumTerm(reader, name, arity, refId, tag);
             }
             default: {
@@ -886,7 +930,7 @@ struct TermResolver {
             }
         }
     }
-};
+}; // namespace Engine
 
 size_t TermManager::InternString(std::string_view str)
 {
@@ -902,9 +946,9 @@ Utils::StringPool::String TermManager::GetNameOfAotType(AotTermId type)
 
 Term TermManager::Resolve(Session& session, RefIdentifier<Term> ident)
 {
-    auto index  = ident.GetIndex();
-    auto& raf   = session.FileOf(ident.GetFileId());
-    auto& file  = session.CbcFileOf(ident.GetFileId());
+    auto index = ident.GetIndex();
+    auto& raf  = session.FileOf(ident.GetFileId());
+    auto& file = session.CbcFileOf(ident.GetFileId());
 
     auto& manager = TermManager::Of(session);
 
@@ -985,7 +1029,7 @@ Term Substitution::Substitute(Term term)
         depth--;
 
         if (term.GetKind() == TermKind::OPTION) {
-            auto id = ExtractTypeDefIdentifier(term);
+            auto id  = ExtractTypeDefIdentifier(term);
             auto def = Decode::Read(session, id);
             ClassSubstitution sub(session, data->subterms, length);
             flags += OptionFlags(def.GetEnumType(), session, sub);
@@ -999,7 +1043,9 @@ Term Substitution::Substitute(Term term)
 
 Substitution::Substitution(Session& session) : session(session) {}
 
-ClassSubstitution::ClassSubstitution(Session& session, Term term) : ClassSubstitution(session, term.data->subterms, term.data->length) {}
+ClassSubstitution::ClassSubstitution(Session& session, Term term)
+    : ClassSubstitution(session, term.data->subterms, term.data->length)
+{}
 
 ClassSubstitution::ClassSubstitution(Session& session, std::vector<Term> const& terms)
     : ClassSubstitution(session, terms.data(), terms.size())
@@ -1047,11 +1093,11 @@ Term MethodSignatureSubstitution::SubstituteClassTv(uint8_t typeVar)
 Identifier<Image::TypeDefinition> ExtractTypeDefIdentifier(Term term)
 {
     switch (term.GetKind()) {
-        case TermKind::UNION_ENUM:      return UnionEnumId(term).GetIdentifier();
-        case TermKind::OPTION:          return OptionId(term).GetIdentifier();
-        case TermKind::PRIMITIVE_ENUM:  return PrimitiveEnumId(term).GetIdentifier();
-        case TermKind::TYPE:            return TypeTermId(term).GetIdentifier();
-        default:                        FATAL("unexpected kind %d", term.GetKind());
+        case TermKind::UNION_ENUM:     return UnionEnumId(term).GetIdentifier();
+        case TermKind::OPTION:         return OptionId(term).GetIdentifier();
+        case TermKind::PRIMITIVE_ENUM: return PrimitiveEnumId(term).GetIdentifier();
+        case TermKind::TYPE:           return TypeTermId(term).GetIdentifier();
+        default:                       FATAL("unexpected kind %d", term.GetKind());
     }
 }
 

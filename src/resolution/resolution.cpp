@@ -257,7 +257,7 @@ struct ResolverProxy {
                         for (auto& field : layout->fields) {
                             if (!field.definition)
                                 continue;
-                            auto def  = Decode::Read(resolver, *field.definition);
+                            auto def       = Decode::Read(resolver, *field.definition);
                             auto nameInDef = Decode::Read(resolver, def.GetName());
                             if (field.fieldType == ref.fieldType && nameInDef.compare(name) == 0) {
                                 offset = field.offset;
@@ -706,7 +706,7 @@ struct ResolverProxy {
         }
 
         auto fuh = Interpretation::FunctionHandleManager::Of(resolver.session).AcquireTagged(resolver, method.value());
-        auto sig     = ConstructSignature(resolver, ref);
+        auto sig = ConstructSignature(resolver, ref);
         auto refType = resolver.Wrap(ref.refType);
         // TODO: simplify
         if (auto* staticFuh = std::get_if<Interpretation::StaticFunctionHandle*>(&fuh)) {

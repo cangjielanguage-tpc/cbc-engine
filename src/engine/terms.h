@@ -8,6 +8,7 @@
 #include "utils/reinterpretation.h"
 #include "utils/string_pool.h"
 #include <cstdint>
+#include <functional>
 #include <mutex>
 #include <string_view>
 #include <unordered_set>
@@ -323,9 +324,11 @@ public:
     /// The function performs in-place modification of `Term` structure.
     GlobalTerm Globalize(Term& term);
 
-    Term NewTermWithId(Session& session, TermId id, bool isReference, std::vector<Term> const& subterms);
+    static Term NewTermWithId(Session& session, TermId id, bool isReference, std::vector<Term> const& subterms);
 
     Term NewAotTerm(Session& session, std::string_view name, std::vector<Term> const& subterms, bool isReference);
+
+    Term NewEnumTerm(Session& session, std::string_view name, std::vector<Term> const& subterms);
 
     Utils::StringPool::String GetNameOfAotType(AotTermId type);
 
