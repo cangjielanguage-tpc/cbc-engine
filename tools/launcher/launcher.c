@@ -13,7 +13,6 @@
 char *g_arg_buffer[MAX_ARGS]; // global args buffer
 
 char const *interpreter_lib = "libcbcengine.so";
-char const *managed_entry_lib = "libentry.so";
 
 extern int   InitCJRuntime(struct RuntimeParam *param);
 extern enum RTErrorCode InitCJInterpreter(struct InterpreterParam* param);
@@ -83,22 +82,16 @@ static void init_cangjie_runtime() {
         fprintf(stderr, "Interpreter initialization failed with code: %d\n", interpInitCode);
         exit(-1);
     }
-
-    int libLoadCode = LoadCJLibraryWithInit(managed_entry_lib);
-    if (libLoadCode != 0) {
-        fprintf(stderr, "Library initialization failed with code: %d\n", libLoadCode);
-        exit(-1);
-    }
 }
 
 static int run_interpreter_in_managed_ctx() {
-    void *managedEntryAddr = FindCJSymbol(managed_entry_lib, "_CN7default8cj_entryHv");
-    if (managedEntryAddr == NULL) {
-        fprintf(stderr, "Symbol search failed\n");
+    void* entryPoint = g_engine.get_trampoline();
+    if (entryPoint == NULL) {
+        fprintf(stderr, "Trampoline search failed\n");
         exit(-1);
     }
 
-    void* fiberHandle = RunCJTask((void *(*)(void *)) managedEntryAddr, NULL);
+    void* fiberHandle = RunCJTask(entryPoint, NULL);
     if (fiberHandle == NULL) {
         fprintf(stderr, "Cangjie task creation failed\n");
         exit(-1);
