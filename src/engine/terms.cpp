@@ -515,10 +515,9 @@ static bool IsProperTypeReference(Image::TypeDefinition& def, bool isReference, 
     return true;
 }
 
-template <typename Container>
 static Term NewTerm(
     Session& session,
-    Container const& subterms,
+    Term const* subterms,
     size_t containerSize,
     std::function<Term(TermId, TermFlags, TermData*)> refineTerm
 )
@@ -540,7 +539,7 @@ static Term NewTerm(
 
 Term TermManager::NewEnumTerm(Session& session, std::string_view name, std::vector<Term> const& subterms)
 {
-    return NewTerm(session, subterms, subterms.size(), [&](TermId id, TermFlags flags, TermData* data) {
+    return NewTerm(session, subterms.data(), subterms.size(), [&](TermId id, TermFlags flags, TermData* data) {
         auto type = session.GetEngine().FindType(session, name);
         ASSERTION(type.has_value(), "AOT enum terms are not supported yet");
         auto type_id = type.value();
@@ -576,7 +575,7 @@ Term TermManager::NewAotTerm(
     Session& session, std::string_view name, std::vector<Term> const& subterms, bool isReference
 )
 {
-    return NewTerm(session, subterms, subterms.size(), [&](TermId id, TermFlags flags, TermData* data) {
+    return NewTerm(session, subterms.data(), subterms.size(), [&](TermId id, TermFlags flags, TermData* data) {
         flags.isReference = isReference;
         flags.isRecord    = !isReference;
 
