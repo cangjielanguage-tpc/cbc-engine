@@ -278,6 +278,7 @@ inline ArithmeticResult ArithFP<Width::W64>(FloatOperations::Value op, Value::Pr
         case FloatOperations::FSUB: return { Value::Primitive { .f64 = l.f64 - r.f64 }, true };
         case FloatOperations::FMUL: return { Value::Primitive { .f64 = l.f64 * r.f64 }, true };
         case FloatOperations::FDIV: return { Value::Primitive { .f64 = l.f64 / r.f64 }, true };
+        case FloatOperations::FPOW: return { Value::Primitive { .f64 = std::pow(l.f64, r.f64) }, true };
 
         default: FATAL("Unexpected FP op: %d", op);
     }
@@ -292,6 +293,7 @@ inline ArithmeticResult ArithFP<Width::W32>(FloatOperations::Value op, Value::Pr
         case FloatOperations::FSUB: return { Value::Primitive { .f32 = l.f32 - r.f32 }, true };
         case FloatOperations::FMUL: return { Value::Primitive { .f32 = l.f32 * r.f32 }, true };
         case FloatOperations::FDIV: return { Value::Primitive { .f32 = l.f32 / r.f32 }, true };
+        case FloatOperations::FPOW: return { Value::Primitive { .f32 = std::pow(l.f32, r.f32) }, true };
 
         default: FATAL("Unexpected FP op: %d", op);
     }
