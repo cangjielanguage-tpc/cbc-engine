@@ -710,6 +710,7 @@ struct IsaParserImpl {
             case Format::FloatOperations::FADD: // fallthrough
             case Format::FloatOperations::FSUB: // fallthrough
             case Format::FloatOperations::FMUL: // fallthrough
+            case Format::FloatOperations::FPOW: // fallthrough
             case Format::FloatOperations::FDIV: parser.FBinary(fop, width, dst, lhs, rhs); break;
 
             case Format::FloatOperations::FMOV: parser.FMov(width, dst, rhs); break;

@@ -487,17 +487,18 @@ public:
     X(FABS, 0b0110, "fabs")                                                                                            \
     X(FSQRT, 0b0111, "fsqrt")                                                                                          \
     X(I2F, 0b1000, "i2f")                                                                                              \
-    X(F2I, 0b1001, "f2i")
+    X(F2I, 0b1001, "f2i")                                                                                              \
+    X(FPOW, 0b1010, "fpow")
 
 #define FloatOperationsEnum(opc, value, str) opc = value,
 
     enum Value : uint8_t {
-        FloatOperationsValue(FloatOperationsEnum) LAST = F2I
+        FloatOperationsValue(FloatOperationsEnum) LAST = FPOW
     };
 
 #undef FloatOperationsEnum
 
-    static constexpr Value values[] = { FADD, FSUB, FMUL, FDIV, FMOV, FNEG, FABS, FSQRT };
+    static constexpr Value values[] = { FADD, FSUB, FMUL, FDIV, FMOV, FNEG, FABS, FSQRT, I2F, F2I, FPOW };
 
     constexpr FloatOperations(const Value raw) : _value(raw) {}
 
@@ -508,8 +509,6 @@ public:
         ASSERT(value <= LAST);
         return Value(value);
     }
-
-    constexpr bool IsBasic() { return (_value >> 2u) == 0; }
 
     constexpr const char* CStr() const
     {

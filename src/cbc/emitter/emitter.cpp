@@ -474,7 +474,6 @@ void Emitter::CPowI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Check
 void Emitter::Binary(FloatOperations op, Width width, FReg d, FReg l, FReg r)
 {
     ASSERT(width == Width::W32 || width == Width::W64);
-    ASSERT(op.IsBasic());
 
     auto opcode = width == Width::W32 ? RT::Opcode::FBIN32 : RT::Opcode::FBIN64;
 
