@@ -223,8 +223,6 @@ public:
     void StoreGeneric(Reg src, IReg baseRef, IReg base, IReg ti);
     void LeaGeneric(Reg dst, IReg base, IReg ti, uint32_t offset);
     void TypeArg(IReg dst, IReg typeInfo, int idx);
-    void CopyRec(Reg dst, IReg src, uint32_t offset, uint32_t size);
-    void CopyObj(Reg dst, IReg src, uint32_t offset, uint32_t size);
     void CopyDerived(IReg dstBase, IReg dst, IReg srcBase, IReg src, RTSupport::TypeInfo ti);
     void CopyDerivedGeneric(IReg dstBase, IReg dst, IReg srcBase, IReg src, IReg ti);
     void LeaIndex(IReg dst, IReg src, IReg idx, RTSupport::TypeInfo ti, bool isCangjeiArray);
