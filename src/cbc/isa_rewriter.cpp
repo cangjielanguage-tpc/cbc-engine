@@ -542,7 +542,7 @@ struct IsaRewriter : public IsaParser {
         emit.CopyDerivedGeneric(dstBase, dst, srcBase, src, ti);
     }
 
-    void LoadIndex(IReg dst, IReg src, IReg idx, uint32_t typeId) override
+    void LeaIndex(IReg dst, IReg src, IReg idx, uint32_t typeId) override
     {
         UNWRAP_OPT(type, resolver.Query(Index<Type>(typeId)), Fail);
         auto kind = type.term.GetKind();
@@ -554,10 +554,10 @@ struct IsaRewriter : public IsaParser {
             errStream << "Failed to get typeinfo for type " << typeId << Stream::endl;
             Fail();
         });
-        emit.LoadIndex(dst, src, idx, typeInfo, kind == Engine::TermKind::CANGJIE_ARRAY);
+        emit.LeaIndex(dst, src, idx, typeInfo, kind == Engine::TermKind::CANGJIE_ARRAY);
     }
 
-    void LoadIndexGeneric(IReg dst, IReg src, IReg idx, IReg ti) override { emit.LoadIndexGeneric(dst, src, idx, ti); }
+    void LeaIndexGeneric(IReg dst, IReg src, IReg idx, IReg ti) override { emit.LeaIndexGeneric(dst, src, idx, ti); }
 
     void LoadStackRec(IReg r, uint16_t ts) override
     {

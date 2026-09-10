@@ -548,17 +548,17 @@ struct IsaParserImpl {
         parser.CopyGeneric(dstBase, dst, srcBase, src, ti);
     }
 
-    static void LoadIndex(IsaParser& parser)
+    static void LeaIndex(IsaParser& parser)
     {
         auto [dst, src, idx, _, typeId] =
             ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadULEB().Get();
-        parser.LoadIndex(dst, src, idx, typeId);
+        parser.LeaIndex(dst, src, idx, typeId);
     }
 
-    static void LoadIndexGeneric(IsaParser& parser)
+    static void LeaIndexGeneric(IsaParser& parser)
     {
         auto [dst, src, idx, ti] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
-        parser.LoadIndexGeneric(dst, src, idx, ti);
+        parser.LeaIndexGeneric(dst, src, idx, ti);
     }
 
     static void LoadRawMemory(IsaParser& parser)

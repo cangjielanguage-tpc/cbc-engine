@@ -738,7 +738,7 @@ void Emitter::CopyDerivedGeneric(IReg dstBase, IReg dst, IReg srcBase, IReg src,
     );
 }
 
-void Emitter::LoadIndex(IReg dst, IReg src, IReg idx, RTSupport::TypeInfo ti, bool isCangjieArray)
+void Emitter::LeaIndex(IReg dst, IReg src, IReg idx, RTSupport::TypeInfo ti, bool isCangjieArray)
 {
     Encode(
         segment,
@@ -751,7 +751,7 @@ void Emitter::LoadIndex(IReg dst, IReg src, IReg idx, RTSupport::TypeInfo ti, bo
     );
 }
 
-void Emitter::LoadIndexGeneric(IReg dst, IReg src, IReg idx, IReg ti)
+void Emitter::LeaIndexGeneric(IReg dst, IReg src, IReg idx, IReg ti)
 {
     Encode(
         segment,

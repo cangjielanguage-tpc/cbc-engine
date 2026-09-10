@@ -749,7 +749,7 @@ LABEL(COPY_DERIVED_GENERIC) {
 LABEL(INDEX) {
     auto args = Index::Decode(reader);
     LOG_INSTR;
-    interpreter.LoadIndex(args.rr.x.IR(), args.rr.y.IR(), args.idx.r.IR(), args.ti, args.idx.imm);
+    interpreter.LeaIndex(args.rr.x.IR(), args.rr.y.IR(), args.idx.r.IR(), args.ti, args.idx.imm);
     NEXT;
 }
 
@@ -758,7 +758,7 @@ LABEL(INDEX_GENERIC) {
     LOG_INSTR;
     auto tiReg = args.idx.y;
     auto ti = TypeInfo(ectype->GetPrimitive(tiReg.IR()).u64);
-    interpreter.LoadIndex(args.rr.x.IR(), args.rr.y.IR(), args.idx.x.IR(), ti);
+    interpreter.LeaIndex(args.rr.x.IR(), args.rr.y.IR(), args.idx.x.IR(), ti);
     NEXT;
 }
 
