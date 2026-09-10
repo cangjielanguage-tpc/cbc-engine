@@ -313,12 +313,13 @@ public:
     X(UREM, 0b1001, "urem")                                                                                            \
     X(LSR, 0b1010, "lsr")                                                                                              \
     X(ASR, 0b1011, "asr")                                                                                              \
-    X(LSL, 0b1100, "lsl")
+    X(LSL, 0b1100, "lsl")                                                                                              \
+    X(POW, 0b1101, "pow")
 
 #define CommonEnum(opc, value, str) opc = value,
 
     enum Value : uint32_t {
-        CommonValue(CommonEnum) LAST = LSL
+        CommonValue(CommonEnum) LAST = POW
     };
 
 #undef CommonEnum
@@ -329,7 +330,7 @@ public:
     static constexpr auto MREF = MVST;
 
     static constexpr Value values[] = {
-        ADD, SUB, MUL, AND, OR, XOR, SDIV, SREM, UDIV, UREM, LSR, ASR, LSL,
+        ADD, SUB, MUL, AND, OR, XOR, SDIV, SREM, UDIV, UREM, LSR, ASR, LSL, POW,
     };
 
     constexpr Common(const Value raw) : _value(raw) {}

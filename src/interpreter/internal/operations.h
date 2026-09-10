@@ -86,6 +86,7 @@ template <> inline ArithmeticResult Arith<Width::W64>(Common::Value op, Value::P
         case Common::XOR: return { Value::Primitive { .u64 = l.u64 ^ r.u64 }, true };
         case Common::LSR: return { Value::Primitive { .u64 = l.u64 >> (r.u64 & 0x3F) }, true };
         case Common::LSL: return { Value::Primitive { .u64 = l.u64 << (r.u64 & 0x3F) }, true };
+        case Common::POW: FATAL("Not implemented yet POWI 64");
 
         case Common::ASR: {
             int64_t left = static_cast<int64_t>(l.u64);
@@ -142,6 +143,7 @@ template <> inline ArithmeticResult Arith<Width::W32>(Common::Value op, Value::P
         case Common::XOR: return { Value::Primitive { .u32 = l.u32 ^ r.u32 }, true };
         case Common::LSR: return { Value::Primitive { .u32 = l.u32 >> (r.u32 & 0x1F) }, true };
         case Common::LSL: return { Value::Primitive { .u32 = l.u32 << (r.u32 & 0x1F) }, true };
+        case Common::POW: FATAL("Not implemented yet POWI 32");
 
         case Common::ASR: {
             int32_t left = static_cast<int32_t>(l.u32);
