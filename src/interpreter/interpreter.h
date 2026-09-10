@@ -749,23 +749,6 @@ public:
             return;
         }
 
-        const auto size = RTSupport::MetaInfo::GetTypeSize(ti);
-
-        Log::stream.PrintFmt("[CopyDerived START] Size: %lu bytes\n", size);
-        Log::stream.PrintFmt(
-            "  SRC: kind=%d, base=%p, addr=%p | Data: ", (int)src.kind, (void*)src.base.value, (void*)src.derivedAddr
-        );
-        for (uintptr_t i = 0; i < size; i += sizeof(uintptr_t)) {
-            uintptr_t word = 0;
-            if (src.kind == RTSupport::LOCAL) {
-                memcpy(&word, (void*)(src.derivedAddr + i), std::min(sizeof(uintptr_t), size - i));
-            } else if (src.kind == RTSupport::HEAP) {
-                word = ReadReference(src, src.derivedAddr + i).value;
-            }
-            Log::stream.PrintFmt("[%lu]=0x%lx ", i, word);
-        }
-        Log::stream.PrintFmt("\n");
-
         CopyDerivedByRanges(
             src.derivedAddr,
             ti,
@@ -778,23 +761,6 @@ public:
                 WriteReference(dst, dst.derivedAddr + offset, ref);
             }
         );
-
-        Log::stream.PrintFmt(
-            "  DST (After): kind=%d, base=%p, addr=%p | Data: ",
-            (int)dst.kind,
-            (void*)dst.base.value,
-            (void*)dst.derivedAddr
-        );
-        for (uintptr_t i = 0; i < size; i += sizeof(uintptr_t)) {
-            uintptr_t word = 0;
-            if (dst.kind == RTSupport::LOCAL) {
-                memcpy(&word, (void*)(dst.derivedAddr + i), std::min(sizeof(uintptr_t), size - i));
-            } else if (dst.kind == RTSupport::HEAP) {
-                word = ReadReference(dst, dst.derivedAddr + i).value;
-            }
-            Log::stream.PrintFmt("[%lu]=0x%lx ", i, word);
-        }
-        Log::stream.PrintFmt("\n[CopyDerived END]\n");
     }
 
     inline void LoadIndex(IReg dst, IReg arr, IReg idx, RTSupport::TypeInfo ti, bool isCangjieArray=true)
