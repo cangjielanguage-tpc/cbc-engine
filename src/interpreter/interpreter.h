@@ -764,13 +764,13 @@ public:
         MemoryLocation(obj.value, offset).Lea(dst, ectype);
     }
 
-    private:
-        inline bool NullCheck(Value::Reference obj) { return true; }
+private:
+    inline bool NullCheck(Value::Reference obj) { return true; }
 
-        Ectype* ectype;
-        Frame frame;
-        RTSupport::ThreadHandle handle;
-        LiteralTable* literals;
-    };
+    Ectype* ectype;
+    Frame frame;
+    RTSupport::ThreadHandle handle;
+    LiteralTable* literals;
+};
 
 } // namespace Interpretation
