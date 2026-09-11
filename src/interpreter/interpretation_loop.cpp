@@ -1737,6 +1737,12 @@ LABEL(COPY_REC_TO_OBJ) {
     auto ti = args.ti;                         // typeinfo
     auto toReg = args.rr.y.IR();
     if (toReg == IReg::IRZ) {
+
+        Log::interpretation.Log(Logging::TRACE, [&](Stream::Output& logger) {
+            logger.PrintFmtLn("   memspaceOffsetAcc = %zu", memspaceOffsetAcc);
+            logger.PrintFmtLn("   from.value = %p", from.value);
+        });
+
         RTSupport::Execution::WriteStaticStruct(memspaceOffsetAcc, from.value, ti, handle);
         NEXT;
     } else {
