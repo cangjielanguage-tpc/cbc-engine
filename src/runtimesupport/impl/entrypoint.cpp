@@ -324,6 +324,9 @@ CBC_EXPORT int interpreter_bridge_init(
     const char** options
 )
 {
+    RTSupport::Log::rt.Log(Logging::Level::TRACE, [rtInterf](Stream::Output& out) {
+        out.PrintFmtLn("interpreter_bridge_init started");
+    });
     static_assert(std::is_same_v<decltype(&interpreter_bridge_init), INT_InitInterpreter>);
     if (rtInterf == nullptr || rtInterf->version != DYN_CJNATIVE_INTERFACE_VERSION) {
         LOG_ERROR(
@@ -342,9 +345,6 @@ CBC_EXPORT int interpreter_bridge_init(
     InitEnvOpts();
     Engine::g_table.ParseAndSet(size, options);
 
-    RTSupport::Log::rt.Log(Logging::Level::TRACE, [rtInterf](Stream::Output& out) {
-        out.PrintFmtLn("interpreter_bridge_init started");
-    });
 
     interpInterf->version                  = INT_INTERPRETER_INTERFACE_VERSION;
     interpInterf->cjThreadSpecificDataSize = sizeof(Interpretation::Ectype);
