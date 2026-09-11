@@ -35,7 +35,7 @@
 
 @type default
 
-  @method main()I64
+  @method cj_entry()I64
     @code
       call.virt IR1, #Foo.foo
       @live.prim IR1
