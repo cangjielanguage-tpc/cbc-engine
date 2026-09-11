@@ -1800,60 +1800,12 @@ struct IsaRewriter : public IsaParser {
 
     void MemTailCopyRegTo(MemSpace& ms, IReg to, uint32_t recType) override
     {
-        auto& msr    = static_cast<MemSpaceRewriter&>(ms);
-        auto optType = resolver.Query(Index<Type>(recType));
-
-        if (!optType.has_value()) {
-            FATAL("Failed during copying of record: unknown record type.");
-        }
-
-        auto ty = *optType;
-
-        switch (msr.kind) {
-            case HEAD_OBJ:     msr.emit.CopyRecFromObj(msr.base, to, *ty.GetTypeInfo()); break;
-            case HEAD_REC:     msr.emit.CopyRecFromRec(msr.base, to, *ty.GetTypeInfo()); break;
-            case HEAD_DERIVED: msr.emit.CopyRecFromDerived(msr.base, msr.derived, to, *ty.GetTypeInfo()); break;
-            case HEAD_STATIC:
-                // IRZ means static record field, so whole position is encoded in accumulated offset
-                // FIXME: encode as separate operation
-                msr.emit.CopyRecFromObj(IReg::IRZ, to, *ty.GetTypeInfo());
-                break;
-                break;
-            case HEAD_FRAME:
-                ASSERTION(RTSupport::Execution::GetLocalBasePtr().value == 0, "assumes local base is zero");
-                msr.emit.CopyRecFromRec(IReg::IRZ, to, *ty.GetTypeInfo());
-                break;
-            case HEAD_NONE: FATAL("unreachable");
-        }
+        FATAL("unreachable");
     }
 
     void MemTailCopyRegFrom(MemSpace& ms, IReg from, uint32_t recType) override
     {
-        auto& msr    = static_cast<MemSpaceRewriter&>(ms);
-        auto optType = resolver.Query(Index<Type>(recType));
-
-        if (!optType.has_value()) {
-            FATAL("Failed during copying of record: unknown record type.");
-        }
-
-        auto ty = *optType;
-
-        switch (msr.kind) {
-            case HEAD_OBJ:     msr.emit.CopyRecToObj(from, msr.base, *ty.GetTypeInfo()); break;
-            case HEAD_REC:     msr.emit.CopyRecToRec(from, msr.base, *ty.GetTypeInfo()); break;
-            case HEAD_DERIVED: msr.emit.CopyRecToDerived(msr.base, msr.derived, from, *ty.GetTypeInfo()); break;
-            case HEAD_STATIC:
-                // IRZ means static record field, so whole position is encoded in accumulated offset
-                // FIXME: encode as separate operation
-                msr.emit.CopyRecToObj(from, IReg::IRZ, *ty.GetTypeInfo());
-                break;
-                break;
-            case HEAD_FRAME:
-                ASSERTION(RTSupport::Execution::GetLocalBasePtr().value == 0, "assumes local base is zero");
-                msr.emit.CopyRecToRec(from, IReg::IRZ, *ty.GetTypeInfo());
-                break;
-            case HEAD_NONE:    FATAL("unreachable");
-        }
+        FATAL("unreachable");
     }
 
     void MemTailStoreImm(MemSpace& ms, uint64_t imm) override
