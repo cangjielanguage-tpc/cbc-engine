@@ -370,12 +370,12 @@ struct IsaRewriter : public IsaParser {
     }
     void Copy(IReg dstBase, IReg dst, IReg srcBase, IReg src, uint32_t typeId) override
     {
-        UNWRAP_OPT(type, resolver.Query(Index<Type>(typeId)), Fail);
-        UNWRAP_OPT(typeInfo, type.GetTypeInfo(), [&]() {
-            errStream << "Failed to get typeinfo for type " << typeId << Stream::endl;
-            Fail();
-        });
-        emit.CopyDerived(dstBase, dst, srcBase, src, typeInfo);
+        // auto type, resolver.Query(Index<Type>(typeId)), Fail);
+        // UNWRAP_OPT(typeInfo, type.GetTypeInfo(), [&]() {
+        //     errStream << "Failed to get typeinfo for type " << typeId << Stream::endl;
+        //     Fail();
+        // });
+        // emit.CopyDerived(dstBase, dst, srcBase, src, typeInfo);
     }
 
     void CopyGeneric(IReg dstBase, IReg dst, IReg srcBase, IReg src, IReg ti) override
@@ -385,17 +385,17 @@ struct IsaRewriter : public IsaParser {
 
     void LeaIndex(IReg dst, IReg src, IReg idx, uint32_t typeId) override
     {
-        UNWRAP_OPT(type, resolver.Query(Index<Type>(typeId)), Fail);
-        auto kind = type.term.GetKind();
-        UNWRAP_OPT(elemType, resolver.QueryElement(type), [&]() {
-            errStream << "Failed to get kind for type " << typeId << Stream::endl;
-            Fail();
-        });
-        UNWRAP_OPT(typeInfo, elemType.GetTypeInfo(), [&]() {
-            errStream << "Failed to get typeinfo for type " << typeId << Stream::endl;
-            Fail();
-        });
-        emit.LeaIndex(dst, src, idx, typeInfo, kind == Engine::TermKind::CANGJIE_ARRAY);
+        // UNWRAP_OPT(type, resolver.Query(Index<Type>(typeId)), Fail);
+        // auto kind = type.term.GetKind();
+        // UNWRAP_OPT(elemType, resolver.QueryElement(type), [&]() {
+        //     errStream << "Failed to get kind for type " << typeId << Stream::endl;
+        //     Fail();
+        // });
+        // UNWRAP_OPT(typeInfo, elemType.GetTypeInfo(), [&]() {
+        //     errStream << "Failed to get typeinfo for type " << typeId << Stream::endl;
+        //     Fail();
+        // });
+        // emit.LeaIndex(dst, src, idx, typeInfo, kind == Engine::TermKind::CANGJIE_ARRAY);
     }
 
     void LeaIndexGeneric(IReg dst, IReg src, IReg idx, IReg ti) override { emit.LeaIndexGeneric(dst, src, idx, ti); }
