@@ -195,11 +195,10 @@ void MemSpaceEmitter::CopyRecFromDerived(Reg base, Reg derived, Reg to, RTSuppor
 {
     Encode(
         segment,
-        RT::CopyDerived {
-            .opc   = RT::MemOpcode::COPY_REC_FROM_DERIVED,
-            .rr    = RR { .x = base, .y = derived },
-            .field = RR { .x = to, .y = 0 },
-        }
+        RT::CopyDerived { .opc   = RT::MemOpcode::COPY_REC_FROM_DERIVED,
+                          .rr    = RR { .x = base, .y = derived },
+                          .field = RR { .x = to, .y = 0 },
+                          .ti    = ti }
     );
 }
 
