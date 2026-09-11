@@ -81,6 +81,9 @@ void Execution::ReadStaticStruct(uintptr_t dst, uintptr_t src, TypeInfo ti, Thre
 {
     auto gctib = UnpackTypeInfo(ti)->gctib;
     auto size  = UnpackTypeInfo(ti)->instanceSize;
+    if (size == 0) {
+        return; // nothing to do
+    }
     return g_CJNativeInterfaceInstance.readStaticStructField(dst, size, src, size, gctib);
 }
 
@@ -88,6 +91,9 @@ void Execution::WriteStaticStruct(uintptr_t dst, uintptr_t src, TypeInfo ti, Thr
 {
     auto gctib = UnpackTypeInfo(ti)->gctib;
     auto size  = UnpackTypeInfo(ti)->instanceSize;
+    if (size == 0) {
+        return; // nothing to do
+    }
     return g_CJNativeInterfaceInstance.writeStaticStructField(dst, size, src, size, gctib);
 }
 
@@ -95,13 +101,20 @@ void Execution::WriteStructField(uintptr_t src, Reference base, uintptr_t field,
 {
     auto type = UnpackTypeInfo(ti);
     auto size = type->instanceSize;
+    if (size == 0) {
+        return; // nothing to do
+    }
     RTSupport::WriteStructField(reinterpret_cast<DYN_ObjRef>(base.value), field, src, size, type->gctib);
 }
 
 void Execution::ReadStructField(uintptr_t dst, Reference base, uintptr_t field, TypeInfo ti, ThreadHandle th)
 {
     auto type = UnpackTypeInfo(ti);
-    RTSupport::ReadStructField(dst, reinterpret_cast<DYN_ObjRef>(base.value), field, type->instanceSize, type->gctib);
+    auto size = type->instanceSize;
+    if (size == 0) {
+        return; // nothing to do
+    }
+    RTSupport::ReadStructField(dst, reinterpret_cast<DYN_ObjRef>(base.value), field, size, type->gctib);
 }
 
 void* Execution::AllocateObjectInstance() { return reinterpret_cast<void*>(&Asm::engine_i2_newobject); }
