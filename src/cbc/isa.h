@@ -370,19 +370,21 @@ public:
     X(CUADD, 0b0100, "cuadd")                                                                                          \
     X(CUSUB, 0b0101, "cusub")                                                                                          \
     X(CUMUL, 0b0110, "cumul")                                                                                          \
-    X(CPOW, 0b0111, "cpow")
+    X(CPOW, 0b0111, "cpow")                                                                                            \
+    X(CLSH, 0b1000, "clsh")                                                                                            \
+    X(CRSH, 0b1001, "crsh")                                                                                            \
+    X(CASH, 0b1010, "cash")                                                                                            \
+    X(CNEG, 0b1011, "cneg")
 
 #define CheckedEnum(opc, value, str) opc = value,
 
     enum Value : uint32_t {
-        CheckedValue(CheckedEnum) LAST = CPOW
+        CheckedValue(CheckedEnum) LAST = CNEG
     };
 
 #undef CheckedEnum
 
-    static constexpr Value values[] = {
-        CADD, CSUB, CMUL, CDIV, CUADD, CUSUB, CUMUL, CPOW,
-    };
+    static constexpr Value values[] = { CADD, CSUB, CMUL, CDIV, CUADD, CUSUB, CUMUL, CPOW, CLSH, CRSH, CASH, CNEG };
 
     constexpr Checked(const Value raw) : _value(raw) {}
 

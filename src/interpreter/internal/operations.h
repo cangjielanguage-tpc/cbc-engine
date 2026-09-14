@@ -195,6 +195,9 @@ static inline ArithmeticResult Arith(Checked::Value op, Value::Primitive l, Valu
     using utype  = typename Traits::utype;
     using stype  = typename Traits::stype;
     using namespace Cbc::Format;
+
+    auto checkShift = [&](int64_t shift) { return 0 <= shift && shift < 64; };
+
     switch (op) {
         case Checked::CADD: {
             stype result;
@@ -262,6 +265,24 @@ static inline ArithmeticResult Arith(Checked::Value op, Value::Primitive l, Valu
                 }
             }
             return { Traits::make(result), !overflow };
+        }
+        case Checked::CLSH: {
+            stype base     = Traits::uget(l);
+            utype shift    = Traits::sget(r);
+            bool succesful = checkShift(shift);
+            return { Traits::make(static_cast<utype>(base << shift)), succesful };
+        }
+        case Checked::CRSH: {
+            stype base     = Traits::uget(l); // forces >> to be logical shift
+            utype shift    = Traits::sget(r);
+            bool succesful = checkShift(shift);
+            return { Traits::make(static_cast<utype>(base >> shift)), succesful };
+        }
+        case Checked::CASH: {
+            stype base     = Traits::sget(l); // forces >> to be arith shift
+            utype shift    = Traits::sget(r);
+            bool succesful = checkShift(shift);
+            return { Traits::make(static_cast<stype>(base >> shift)), succesful };
         }
         default: FATAL("Unexpected Checked op: %d", op);
     }
