@@ -413,12 +413,12 @@ struct IsaDisasm : public IsaParser {
 
     void Copy(IReg dstBase, IReg dst, IReg srcBase, IReg src, uint32_t typeId) override
     {
-        stream.PrintLn("copy.derived {}, {}, {}, {} [@{}]", dstBase, dst, srcBase, src, typeId);
+        stream.PrintLn("copy.d {}, {}, {}, {} [@{}]", dstBase, dst, srcBase, src, typeId);
     }
 
     void CopyGeneric(IReg dstBase, IReg dst, IReg srcBase, IReg src, IReg ti) override
     {
-        stream.PrintLn("copy.derived.g {}, {}, {}, {} {}", dstBase, dst, srcBase, src, ti);
+        stream.PrintLn("copy.g {}, {}, {}, {} {}", dstBase, dst, srcBase, src, ti);
     }
 
     void LeaIndex(IReg dst, IReg src, IReg idx, uint32_t typeId) override

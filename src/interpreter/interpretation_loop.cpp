@@ -724,6 +724,7 @@ LABEL(COPY_DERIVED) {
     NEXT;
 }
 
+// Unused. TODO: support copying in generic context
 LABEL(COPY_DERIVED_GENERIC) {
     auto args = CopyDerivedGeneric::Decode(reader);
     LOG_INSTR;
@@ -740,6 +741,7 @@ LABEL(INDEX) {
     NEXT;
 }
 
+// Unused. TODO: support element access for generic arrays
 LABEL(INDEX_GENERIC) {
     auto args = IndexGeneric::Decode(reader);
     LOG_INSTR;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <functional>
 
 #include "ectype.h"
 #include "frame.h"
@@ -677,6 +678,26 @@ public:
         Value::Reference base;
         uintptr_t derivedAddr;
         RTSupport::StructLocationKind kind;
+
+        Value::Reference ReadReference(uintptr_t offset, RTSupport::ThreadHandle handle) const
+        {
+            uintptr_t addr = derivedAddr + offset;
+            switch (kind) {
+                case RTSupport::LOCAL:  return Value::Reference { .value = *(uintptr_t*)addr };
+                case RTSupport::GLOBAL: return RTSupport::Execution::ReadObjectStatic((void*)addr, handle);
+                case RTSupport::HEAP:   return RTSupport::Execution::ReadObjectInstance(base, addr, handle);
+            }
+        }
+
+        void WriteReference(uintptr_t offset, Value::Reference ref, RTSupport::ThreadHandle handle) const
+        {
+            uintptr_t addr = derivedAddr + offset;
+            switch (kind) {
+                case RTSupport::LOCAL:  *(uintptr_t*)addr = ref.value; break;
+                case RTSupport::GLOBAL: RTSupport::Execution::WriteObjectStatic((void*)addr, ref, handle); break;
+                case RTSupport::HEAP:   RTSupport::Execution::WriteObjectInstance(base, addr, ref, handle); break;
+            }
+        }
     };
 
     DerivedPointer GetDerivedPointer(IReg baseReg, IReg derivedReg)
@@ -690,47 +711,29 @@ public:
         };
     }
 
-    template <typename BytesFunction, typename RefFunction>
-    void CopyDerivedByRanges(RTSupport::TypeInfo ti, BytesFunction bytesFunction, RefFunction refFunction)
+    void CopyDerivedByRanges(
+        RTSupport::TypeInfo ti,
+        const std::function<void(uintptr_t, uintptr_t)>& copyPrims,
+        const std::function<void(uintptr_t)>& copyRefs
+    )
     {
         const auto size  = RTSupport::MetaInfo::GetTypeSize(ti);
         uintptr_t offset = 0;
+        // TODO: optimize generated pattern
         ti.VisitReferenceOffsets([&](uintptr_t refOffset) {
             ASSERTION(
                 refOffset >= offset && refOffset <= size && size - refOffset >= sizeof(uintptr_t),
                 "invalid reference offset"
             );
             if (refOffset > offset) {
-                bytesFunction(offset, refOffset - offset);
+                copyPrims(offset, refOffset - offset);
             }
-            refFunction(refOffset);
+            copyRefs(refOffset);
             offset = refOffset + sizeof(uintptr_t);
         });
 
         if (offset < size) {
-            bytesFunction(offset, size - offset);
-        }
-    }
-
-    Value::Reference ReadReference(DerivedPointer const& src, uintptr_t offset)
-    {
-        uintptr_t srcDerivedAddr = src.derivedAddr + offset;
-        switch (src.kind) {
-            case RTSupport::LOCAL:  return Value::Reference { .value = *(uintptr_t*)srcDerivedAddr };
-            case RTSupport::GLOBAL: return RTSupport::Execution::ReadObjectStatic((void*)srcDerivedAddr, handle);
-            case RTSupport::HEAP:   return RTSupport::Execution::ReadObjectInstance(src.base, srcDerivedAddr, handle);
-        }
-    }
-
-    void WriteReference(DerivedPointer const& dst, uintptr_t offset, Value::Reference ref)
-    {
-        uintptr_t dstDerivedAddr = dst.derivedAddr + offset;
-        switch (dst.kind) {
-            case RTSupport::LOCAL:  *(uintptr_t*)dstDerivedAddr = ref.value; break;
-            case RTSupport::GLOBAL: RTSupport::Execution::WriteObjectStatic((void*)dstDerivedAddr, ref, handle); break;
-            case RTSupport::HEAP:
-                RTSupport::Execution::WriteObjectInstance(dst.base, dstDerivedAddr, ref, handle);
-                break;
+            copyPrims(offset, size - offset);
         }
     }
 
@@ -749,8 +752,8 @@ public:
             },
             [&](uintptr_t offset) {
                 using Reference = Interpretation::Value::Reference;
-                Reference ref   = ReadReference(src, offset);
-                WriteReference(dst, offset, ref);
+                Reference ref   = src.ReadReference(offset, handle);
+                dst.WriteReference(offset, ref, handle);
             }
         );
     }
