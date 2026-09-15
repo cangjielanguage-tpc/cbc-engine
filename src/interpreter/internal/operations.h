@@ -196,7 +196,8 @@ static inline ArithmeticResult Arith(Checked::Value op, Value::Primitive l, Valu
     using stype  = typename Traits::stype;
     using namespace Cbc::Format;
 
-    auto checkShift = [&](int64_t shift) { return 0 <= shift && shift < 64; };
+    constexpr int64_t bitWidth = std::numeric_limits<utype>::digits;
+    auto checkShift            = [&](int64_t shift) { return 0 <= shift && shift < bitWidth; };
 
     switch (op) {
         case Checked::CADD: {
@@ -267,22 +268,28 @@ static inline ArithmeticResult Arith(Checked::Value op, Value::Primitive l, Valu
             return { Traits::make(result), !overflow };
         }
         case Checked::CLSH: {
-            stype base     = Traits::uget(l);
-            utype shift    = Traits::sget(r);
-            bool succesful = checkShift(shift);
-            return { Traits::make(static_cast<utype>(base << shift)), succesful };
+            utype base  = Traits::uget(l);
+            stype shift = Traits::sget(r);
+            if (!checkShift(shift)) {
+                return { l, false };
+            }
+            return { Traits::make(static_cast<utype>(base << shift)), true };
         }
         case Checked::CRSH: {
-            stype base     = Traits::uget(l); // forces >> to be logical shift
-            utype shift    = Traits::sget(r);
-            bool succesful = checkShift(shift);
-            return { Traits::make(static_cast<utype>(base >> shift)), succesful };
+            utype base  = Traits::uget(l); // forces >> to be logical shift
+            stype shift = Traits::sget(r);
+            if (!checkShift(shift)) {
+                return { l, false };
+            }
+            return { Traits::make(static_cast<utype>(base >> shift)), true };
         }
         case Checked::CASH: {
-            stype base     = Traits::sget(l); // forces >> to be arith shift
-            utype shift    = Traits::sget(r);
-            bool succesful = checkShift(shift);
-            return { Traits::make(static_cast<stype>(base >> shift)), succesful };
+            stype base  = Traits::sget(l); // forces >> to be arith shift
+            stype shift = Traits::sget(r);
+            if (!checkShift(shift)) {
+                return { l, false };
+            }
+            return { Traits::make(static_cast<stype>(base >> shift)), true };
         }
         default: FATAL("Unexpected Checked op: %d", op);
     }
