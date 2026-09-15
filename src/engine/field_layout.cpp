@@ -186,7 +186,6 @@ struct FLManager : public FieldLayoutManager {
             return;
         }
         switch (term.GetKind()) {
-            case TermKind::TUPLE:
             case TermKind::AOT_TYPE: {
                 auto typeInfo = typeInfoManager.AcquireTypeInfo(session, term);
                 if (!typeInfo.has_value()) {
@@ -198,6 +197,7 @@ struct FLManager : public FieldLayoutManager {
                 return;
             }
 
+            case TermKind::TUPLE:
             case TermKind::OPTION:
             case TermKind::TYPE: {
                 ASSERT(!term.IsReference());
