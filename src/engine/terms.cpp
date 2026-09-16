@@ -220,23 +220,27 @@ static Term Undefined(Session& session, RefIdentifier<Term> termId)
 }
 
 template <auto PreCheck, typename... Args>
-static bool CompareTermData(TermData* origin, TermData* another, Args&&... args)
+static bool CompareTermData(TermData* left, TermData* right, Args&&... args)
 {
-    if (PreCheck(origin, another, std::forward<Args>(args)...)) {
+    if (right == left) {
         return true;
-    } else if (another == origin) {
+    }
+
+    int res = PreCheck(left, right, std::forward<Args>(args)...);
+
+    if (res < 0) {
+        return false;
+    } else if (res > 0) {
         return true;
-    } else if (another->hash != origin->hash) {
+    } else if (right->identifier != left->identifier) {
         return false;
-    } else if (another->identifier != origin->identifier) {
-        return false;
-    } else if (another->length != origin->length) {
+    } else if (right->length != left->length) {
         return false;
     } else {
-        auto length = origin->length;
+        auto length = left->length;
         for (auto i = 0; i < length; i++) {
             if (!CompareTermData<PreCheck, Args...>(
-                    another->subterms[i].data, origin->subterms[i].data, std::forward<Args>(args)...
+                    left->subterms[i].data, right->subterms[i].data, std::forward<Args>(args)...
                 )) {
                 return false;
             }
@@ -439,11 +443,17 @@ void Term::GetName(Session& session, Stream::Output& out, bool hasDebugPrefix) c
     }
 }
 
-static bool AlwaysFalse(TermData* stub1, TermData* stub2) { return false; }
+static int CmpHashes(TermData* left, TermData* right)
+{
+    if (left->hash == right->hash) {
+        return 0; // compare continues
+    }
+    return -1; // compare return false
+}
 
 bool Term::operator!=(const Term& another) const { return !(*this == another); }
 
-bool Term::operator==(const Term& another) const { return CompareTermData<AlwaysFalse>(this->data, another.data); }
+bool Term::operator==(const Term& another) const { return CompareTermData<CmpHashes>(this->data, another.data); }
 
 bool Term::IsLocal() const { return data->flags.isLocal; }
 
@@ -1123,17 +1133,17 @@ void TermMatcher::_PutVariable(int varId, Term t)
     return;
 }
 
-static bool IsPrefixPreCheck(TermData* prefix, TermData* t, TermMatcher* matcher)
+static int CheckForTypeVar(TermData* prefix, TermData* t, TermMatcher* matcher)
 {
     if (prefix->identifier.GetKind() == TermKind::CLASS_TYPE_VAR) {
         auto id = ClassTvTermId(prefix->identifier).GetNum();
         matcher->_PutVariable(id, t);
-        return true;
+        return 1; // compare returns true
     }
-    return false;
+    return 0; // compare continues
 }
 
-bool TermMatcher::IsPrefix(Term prefix, Term t) { return CompareTermData<IsPrefixPreCheck>(prefix.data, t.data, this); }
+bool TermMatcher::IsPrefix(Term prefix, Term t) { return CompareTermData<CheckForTypeVar>(prefix.data, t.data, this); }
 
 void TermMatcher::Clear()
 {

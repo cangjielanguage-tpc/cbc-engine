@@ -227,8 +227,12 @@ struct MethodTableBuilder {
             for (auto extId : Image::Reader::Resolve(session, file.extensions)) {
                 auto ext    = Image::Reader::Read(session, extId);
                 auto prefix = TermManager::Resolve(session, ext.GetExtendedType());
+                bool isPrefix = matcher.IsPrefix(prefix, tableOwner);
+                bool completeMatch = isPrefix && !matcher.HasErrors();
 
-                if (matcher.IsPrefix(prefix, tableOwner) && !matcher.HasErrors()) {
+                LOGS_DEBUG(Log::mt, session, "Matching {} against {} (prefix={}, complete={})", prefix, tableOwner, isPrefix, completeMatch);
+
+                if (completeMatch) {
                     ASSERTION(
                         matcher.vars.size() == ext->arity,
                         "Language constraint: all variables in `extend` should be used in the extended type"
@@ -326,7 +330,7 @@ std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, Glob
         return std::nullopt;
     }
 
-    LOGS_DEBUG(Log::mt, session, "Intermediate table for {} {}", def.GetName(), builder.table);
+    LOGS_DEBUG(Log::mt, session, "Intermediate table for {} {}", Detailed(def.GetName()), builder.table);
 
     // 3. Patch all overriden methods and add newly declared methods
     // to the subtable of current type.
