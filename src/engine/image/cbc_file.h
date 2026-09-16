@@ -893,6 +893,8 @@ public:
     StaticFieldAotTable staticFieldAotTable;
     InstanceFieldAotTable instanceFieldAotTable;
 
+    OffsetSequence<Extension> extensions;
+
     int aotDeps;
     int cbcDeps;
     std::optional<Identifier<String>> mainTypeName;

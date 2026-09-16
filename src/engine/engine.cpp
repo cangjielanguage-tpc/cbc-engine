@@ -129,7 +129,10 @@ std::optional<CbcFile> TryReadCbcFile(Image::FileId fileId, IO::RandomAccessFile
     auto staticFieldAotTableOffset   = reader.ReadU32();
     auto instanceFieldAotTableOffset = reader.ReadU32();
 
-    auto extensionOffset = reader.ReadU32();
+    auto extSeqStartOffset = reader.ReadU32();
+    IO::StreamFileReader extSeqReader(file, extSeqStartOffset);
+    auto extSeqSize  = extSeqReader.ReadULEB();
+    auto extSeqStart = extSeqReader.Position();
 
     auto regionOffset = reader.ReadU32();
 
@@ -158,6 +161,7 @@ std::optional<CbcFile> TryReadCbcFile(Image::FileId fileId, IO::RandomAccessFile
         .interfaceCallAotTable = Decode::ReadIndex(interfaceCallTableReader, fileId),
         .staticFieldAotTable   = Decode::ReadIndex(staticFieldTableReader, fileId),
         .instanceFieldAotTable = Decode::ReadIndex(instanceFieldTableReader, fileId),
+        .extensions            = OffsetSequence<Extension>(fileId, extSeqStart, extSeqStart + extSeqSize),
         .aotDeps               = aotDeps,
         .cbcDeps               = cbcDeps,
         .mainTypeName          = mainTypeName,
