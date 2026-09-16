@@ -13,7 +13,6 @@
 char *g_arg_buffer[MAX_ARGS]; // global args buffer
 
 char const *interpreter_lib = "libcbcengine.so";
-char const *managed_entry_lib = "libentry.so";
 
 extern int   InitCJRuntime(struct RuntimeParam *param);
 extern enum RTErrorCode InitCJInterpreter(struct InterpreterParam* param);
@@ -21,6 +20,7 @@ extern int   LoadCJLibraryWithInit(const char *libName);
 extern void *FindCJSymbol(const char *libName, const char *symbolName);
 extern void *RunCJTask(const void *func, void *args);
 extern int   GetTaskRet(const void *handle, void** ret);
+extern enum RTErrorCode SetCJCommandLineArgs(int argc, char* argv[]);
 
 Engine g_engine;
 
@@ -38,7 +38,7 @@ struct Parser {
 };
 
 
-static void init_cangjie_runtime() {
+static void init_cangjie_runtime(int arg_count) {
     long int ncpu = sysconf(_SC_NPROCESSORS_ONLN);
     struct RuntimeParam rtParams = {
         .heapParam = {
@@ -84,21 +84,17 @@ static void init_cangjie_runtime() {
         exit(-1);
     }
 
-    int libLoadCode = LoadCJLibraryWithInit(managed_entry_lib);
-    if (libLoadCode != 0) {
-        fprintf(stderr, "Library initialization failed with code: %d\n", libLoadCode);
-        exit(-1);
-    }
+    SetCJCommandLineArgs(arg_count, g_arg_buffer);
 }
 
 static int run_interpreter_in_managed_ctx() {
-    void *managedEntryAddr = FindCJSymbol(managed_entry_lib, "_CN7default8cj_entryHv");
-    if (managedEntryAddr == NULL) {
-        fprintf(stderr, "Symbol search failed\n");
+    void* entryPoint = g_engine.get_trampoline();
+    if (entryPoint == NULL) {
+        fprintf(stderr, "Trampoline search failed\n");
         exit(-1);
     }
 
-    void* fiberHandle = RunCJTask((void *(*)(void *)) managedEntryAddr, NULL);
+    void* fiberHandle = RunCJTask(entryPoint, NULL);
     if (fiberHandle == NULL) {
         fprintf(stderr, "Cangjie task creation failed\n");
         exit(-1);
@@ -232,7 +228,7 @@ dispatch:
                 cursor++;
             }
 
-            init_cangjie_runtime();
+            init_cangjie_runtime(arg_count);
             g_engine.initialize();
 
             return run_interpreter_in_managed_ctx();

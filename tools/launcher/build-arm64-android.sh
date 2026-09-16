@@ -39,12 +39,6 @@ clang-android \
 
 cp *.cj ${BUILD_DIR}
 
-clang-android -D_GNU_SOURCE -c trampoline.c -o ${BUILD_DIR}/trampoline.o
-
 cd ${BUILD_DIR}
 
-cjc-android trampoline.cj --output-type=staticlib
-ar rcs libtrampoline.a trampoline.o
-
-cjc-android libtrampoline.a entry.cj --output-type=dylib
 cjc-android cbcengine-helper.cj --output-type=dylib -o libcbcengine-helper.so

@@ -27,12 +27,6 @@ clang -c -Os "${SCRIPT_DIR}/${LAUNCHER_NAME}.c" -fno-omit-frame-pointer -o "${BU
 
 cp *.cj ${BUILD_DIR}
 
-clang -D_GNU_SOURCE -c trampoline.c -o ${BUILD_DIR}/trampoline.o
-
 cd ${BUILD_DIR}
 
-cjc trampoline.cj --output-type=staticlib
-ar rcs libtrampoline.a trampoline.o
-
-cjc libtrampoline.a entry.cj --output-type=dylib
 cjc cbcengine-helper.cj --output-type=dylib -o libcbcengine-helper.so
