@@ -12,6 +12,7 @@
 #include <mutex>
 #include <string_view>
 #include <unordered_set>
+#include <vector>
 
 /// `Term` is an symbolic representation of any type that is supported in CBC.
 /// It can represent primitives (e.g. I32), builtins (e.g. ARRAY) or user-defined types (e.g. TYPE).
@@ -346,6 +347,21 @@ private:
     std::mutex lock;
     std::unordered_set<TermData*, Hasher, Comparator> cache;
     Utils::StringPool internTable;
+};
+
+/// Stateful prefix matcher for terms.
+/// Used to check whether type `Foo<Bar<Baz>, Qux>` can be represented as `Foo<Bar<T>, K>`.
+class TermMatcher {
+public:
+    TermMatcher() = default;
+
+    void Clear();
+    bool IsPrefix(Term prefix, Term t);
+    bool HasErrors();
+    void _PutVariable(int varId, Term t);
+
+    std::vector<Term> vars;
+    bool hasErrors = false;
 };
 
 } // namespace Engine
