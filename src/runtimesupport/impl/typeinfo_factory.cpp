@@ -336,6 +336,7 @@ static MethodTableMember GetTableMember(
     ASSERTION(flags.Is(Image::MethodFlag::VIRTUAL), "Only virtual methods are expected");
 
     if (flags.Is(Image::MethodFlag::ABSTRACT)) {
+        // TODO: put stub method that throws
         return { nullptr, reinterpret_cast<DYN_FuncPtr>(&AbstractMethodCalled) };
     } else if (flags.Is(Image::MethodFlag::AOT)) {
         // target must be present with aot flag

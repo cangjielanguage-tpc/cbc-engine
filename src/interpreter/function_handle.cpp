@@ -67,6 +67,7 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
             LOGS_ERROR(
                 Log::preparation, session, "failed to resolve aot method {}\n  linkage name: {}", method, linkageName
             );
+            // TODO: put stub trampoline that throws exception
             target = reinterpret_cast<void*>(&UnresolvedAotMethodCalled);
         }
 
