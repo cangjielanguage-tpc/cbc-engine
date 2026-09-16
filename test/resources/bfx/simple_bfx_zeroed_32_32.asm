@@ -2,7 +2,7 @@
 @main_type "default"
 
 @type default
-  @method cj_entry()I64
+  @method main()I64
     @code
       @live.prim IR1
       bfxz.32.32 IR1, IR1, 0, 32
