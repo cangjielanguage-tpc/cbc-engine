@@ -359,7 +359,7 @@ std::optional<Identifier<MethodDefinition>> Engine::FindMain(Session& session, s
         return std::nullopt;
     }
     auto type = Decode::Read(session, *mainTypeName);
-    return FindMethod(session, filePath, type, "cj_entry");
+    return FindMethod(session, filePath, type, "main");
 }
 
 } // namespace Engine
