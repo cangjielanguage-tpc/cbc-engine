@@ -36,6 +36,11 @@ FunctionHandleManager::FunctionHandleManager() : impl(std::move(std::make_unique
 FunctionHandleManager::~FunctionHandleManager()                               = default;
 FunctionHandleManager::FunctionHandleManager(FunctionHandleManager&& manager) = default;
 
+[[noreturn]] static void UnresolvedAotMethodCalled()
+{
+    FATAL("Called unresolved AOT method");
+}
+
 TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
     Session& session, Image::Identifier<Image::MethodDefinition> methodDef
 )
@@ -62,9 +67,10 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
             LOGS_ERROR(
                 Log::preparation, session, "failed to resolve aot method {}\n  linkage name: {}", method, linkageName
             );
+            // TODO: put stub trampoline that throws exception
+            target = reinterpret_cast<void*>(&UnresolvedAotMethodCalled);
         }
 
-        // TODO: put stub trampoline that throws exception
         StaticFunctionHandle fuh {
             .base     = FunctionHandle(RTSupport::Adapters::GenericI2CCallInstance()),
             .function = target,
