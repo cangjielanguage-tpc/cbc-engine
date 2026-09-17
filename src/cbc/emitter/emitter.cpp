@@ -423,6 +423,47 @@ void Emitter::CUMul(Width width, IReg d, IReg l, IReg r) { Binary(Checked::CUMUL
 
 void Emitter::CPow(Width width, IReg d, IReg l, IReg r) { Binary(Checked::CPOW, width, d, l, r); }
 
+void Emitter::SatBinary(Format::Saturating op, Width width, IReg d, IReg l, IReg r)
+{
+    auto opcode = [width]() {
+        switch (width) {
+            case Width::W8:  return RT::Opcode::SBIN8;
+            case Width::W16: return RT::Opcode::SBIN16;
+            case Width::W32: return RT::Opcode::SBIN32;
+            case Width::W64: return RT::Opcode::SBIN64;
+        }
+    }();
+
+    Encode(
+        segment,
+        RT::B3xrrr {
+            .opc = opcode,
+            .xr =
+                XR {
+                    .imm = Imm4(op),
+                    .r   = d,
+                },
+            .rr = { .x = l, .y = r },
+        }
+    );
+}
+
+void Emitter::SatAdd(Width width, IReg d, IReg l, IReg r) { SatBinary(Saturating::SADD, width, d, l, r); }
+
+void Emitter::SatSub(Width width, IReg d, IReg l, IReg r) { SatBinary(Saturating::SSUB, width, d, l, r); }
+
+void Emitter::SatMul(Width width, IReg d, IReg l, IReg r) { SatBinary(Saturating::SMUL, width, d, l, r); }
+
+void Emitter::SatDiv(Width width, IReg d, IReg l, IReg r) { SatBinary(Saturating::SDIV, width, d, l, r); }
+
+void Emitter::SatMod(Width width, IReg d, IReg l, IReg r) { SatBinary(Saturating::SMOD, width, d, l, r); }
+
+void Emitter::SatPow(Width width, IReg d, IReg l, IReg r) { SatBinary(Saturating::SPOW, width, d, l, r); }
+
+void Emitter::SatShl(Width width, IReg d, IReg l, IReg r) { SatBinary(Saturating::SSHL, width, d, l, r); }
+
+void Emitter::SatShr(Width width, IReg d, IReg l, IReg r) { SatBinary(Saturating::SSHR, width, d, l, r); }
+
 static RT::Opcode opcodes[][4] = {
     //                Width::W8            Width::W16            Width::W32            Width::W64
     /* short */ { RT::Opcode::CBINI8I, RT::Opcode::CBINI16I, RT::Opcode::CBINI32I, RT::Opcode::CBINI64I },

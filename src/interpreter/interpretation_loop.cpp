@@ -423,6 +423,30 @@ LABEL(CBIN64) {
         interpreter.template Binary<Width::W64>(args.xr.imm.Checked(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
     NEXT_OR_THROW(successful, Type::OverflowException);
 }
+LABEL(SBIN8) {
+    auto args = B3xrrr::Decode(reader);
+    LOG_INSTR;
+    interpreter.template Binary<Width::W8>(args.xr.imm.Saturating(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
+    NEXT_COND(true);
+}
+LABEL(SBIN16) {
+    auto args = B3xrrr::Decode(reader);
+    LOG_INSTR;
+    interpreter.template Binary<Width::W16>(args.xr.imm.Saturating(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
+    NEXT_COND(true);
+}
+LABEL(SBIN32) {
+    auto args = B3xrrr::Decode(reader);
+    LOG_INSTR;
+    interpreter.template Binary<Width::W32>(args.xr.imm.Saturating(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
+    NEXT_COND(true);
+}
+LABEL(SBIN64) {
+    auto args = B3xrrr::Decode(reader);
+    LOG_INSTR;
+    interpreter.template Binary<Width::W64>(args.xr.imm.Saturating(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
+    NEXT_COND(true);
+}
 LABEL(CBINI8I) {
     auto args = B4xi12rr::Decode(reader);
     LOG_INSTR;

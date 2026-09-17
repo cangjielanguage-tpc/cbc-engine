@@ -415,6 +415,63 @@ private:
     Value _value;
 };
 
+class Saturating {
+public:
+#define SaturatingValue(X)                                                                                             \
+    X(SADD, 0b0000, "sadd")                                                                                            \
+    X(SSUB, 0b0001, "ssub")                                                                                            \
+    X(SMUL, 0b0010, "smul")                                                                                            \
+    X(SDIV, 0b0011, "sdiv")                                                                                            \
+    X(SMOD, 0b0100, "smod")                                                                                            \
+    X(SPOW, 0b0101, "spow")                                                                                            \
+    X(SSHL, 0b0110, "sshl")                                                                                            \
+    X(SSHR, 0b0111, "sshr")                                                                                            \
+    X(SUADD, 0b1000, "suadd")                                                                                          \
+    X(SUSUB, 0b1001, "susub")                                                                                          \
+    X(SUMUL, 0b1010, "sumul")                                                                                          \
+    X(SUDIV, 0b1011, "sudiv")                                                                                          \
+    X(SUMOD, 0b1100, "sumod")
+
+#define SaturatingEnum(opc, value, str) opc = value,
+
+    enum Value : uint32_t {
+        SaturatingValue(SaturatingEnum) LAST = SUMOD
+    };
+
+#undef SaturatingEnum
+
+    static constexpr Value values[] = { SADD,  SSUB,  SMUL, SDIV, SMOD, SPOW, SSHL, SSHR,
+                                        SUADD, SUSUB, SUMUL, SUDIV, SUMOD };
+
+    constexpr Saturating(const Value raw) : _value(raw) {}
+
+    constexpr operator Value() const { return _value; }
+
+    constexpr static Saturating From(uint8_t value)
+    {
+        ASSERT(value <= LAST);
+        return Value(value);
+    }
+
+    constexpr operator uint8_t() const { return static_cast<uint8_t>(_value); }
+
+    constexpr const char* CStr() const
+    {
+#define SaturatingStr(opc, value, str)                                                                                 \
+    case opc: return str;
+        switch (_value) {
+            SaturatingValue(SaturatingStr);
+        }
+        return "<invalid>";
+#undef SaturatingStr
+    }
+
+    constexpr std::string_view ToStr() const { return std::string_view(CStr()); }
+
+private:
+    Value _value;
+};
+
 class ConvertType {
 public:
 #define ConvertTypeValue(X)                                                                                            \
@@ -783,6 +840,8 @@ public:
 
     constexpr Imm4(Format::Checked checked) : Imm4(static_cast<uint8_t>(checked)) {}
 
+    constexpr Imm4(Format::Saturating saturating) : Imm4(static_cast<uint8_t>(saturating)) {}
+
     constexpr Imm4(Format::FloatOperations fpOps) : imm(static_cast<uint8_t>(fpOps)) {}
 
     inline operator uint8_t() const { return imm; }
@@ -792,6 +851,8 @@ public:
     inline Format::Common Common() const { return Format::Common::From(imm); }
 
     inline Format::Checked Checked() const { return Format::Checked::From(imm); }
+
+    inline Format::Saturating Saturating() const { return Format::Saturating::From(imm); }
 
     inline Format::ConvertType ConvertType() const { return Format::ConvertType::From(imm); }
 

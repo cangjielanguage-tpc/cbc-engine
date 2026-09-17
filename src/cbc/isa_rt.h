@@ -170,7 +170,11 @@
     X(CBINI8W, BinaryChecked, "$0cbin.8 $2ir $3ir $1I64")                                                              \
     X(CBINI16W, BinaryChecked, "$0cbin.16 $2ir $3ir $1I64")                                                            \
     X(CBINI32W, BinaryChecked, "$0cbin.32 $2ir $3ir $1I64")                                                            \
-    X(CBINI64W, BinaryChecked, "$0cbin.64 $2ir $3ir $1I64")
+    X(CBINI64W, BinaryChecked, "$0cbin.64 $2ir $3ir $1I64")                                                            \
+    X(SBIN8, B3xrrr, "$0sbin.8 $1ir $2ir $3ir")                                                                        \
+    X(SBIN16, B3xrrr, "$0sbin.16 $1ir $2ir $3ir")                                                                      \
+    X(SBIN32, B3xrrr, "$0sbin.32 $1ir $2ir $3ir")                                                                      \
+    X(SBIN64, B3xrrr, "$0sbin.64 $1ir $2ir $3ir")
 
 // X parameters: opcode, encoding format, string format, is tail
 #define CBC_RT_MEMOPCODES(X)                                                                                           \
