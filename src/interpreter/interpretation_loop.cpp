@@ -447,6 +447,38 @@ LABEL(SBIN64) {
     interpreter.template Binary<Width::W64>(args.xr.imm.Saturating(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
     NEXT_COND(true);
 }
+LABEL(SBINIMM8) {
+    auto args = B4xi12rr::Decode(reader);
+    LOG_INSTR;
+    interpreter.template BinaryImm<Width::W8>(
+        args.xi12.imm4.Saturating(), args.rr.x.IR(), args.rr.y.IR(), MathUtils::SignExtend(static_cast<uint64_t>(args.xi12.imm12), 12)
+    );
+    NEXT_COND(true);
+}
+LABEL(SBINIMM16) {
+    auto args = B4xi12rr::Decode(reader);
+    LOG_INSTR;
+    interpreter.template BinaryImm<Width::W16>(
+        args.xi12.imm4.Saturating(), args.rr.x.IR(), args.rr.y.IR(), MathUtils::SignExtend(static_cast<uint64_t>(args.xi12.imm12), 12)
+    );
+    NEXT_COND(true);
+}
+LABEL(SBINIMM32) {
+    auto args = B4xi12rr::Decode(reader);
+    LOG_INSTR;
+    interpreter.template BinaryImm<Width::W32>(
+        args.xi12.imm4.Saturating(), args.rr.x.IR(), args.rr.y.IR(), MathUtils::SignExtend(static_cast<uint64_t>(args.xi12.imm12), 12)
+    );
+    NEXT_COND(true);
+}
+LABEL(SBINIMM64) {
+    auto args = B4xi12rr::Decode(reader);
+    LOG_INSTR;
+    interpreter.template BinaryImm<Width::W64>(
+        args.xi12.imm4.Saturating(), args.rr.x.IR(), args.rr.y.IR(), MathUtils::SignExtend(static_cast<uint64_t>(args.xi12.imm12), 12)
+    );
+    NEXT_COND(true);
+}
 LABEL(CBINI8I) {
     auto args = B4xi12rr::Decode(reader);
     LOG_INSTR;

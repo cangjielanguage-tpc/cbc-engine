@@ -71,6 +71,11 @@ public:
         return Binary<width>(arithOp, d, l, ectype->GetPrimitive(r));
     }
 
+    template <Width::Value width> inline bool BinaryImm(Saturating::Value arithOp, IReg d, IReg l, uint64_t imm)
+    {
+        return Binary<width>(arithOp, d, l, Value::Primitive { .u64 = imm });
+    }
+
     template <Width::Value width> inline bool Binary(Saturating::Value arithOp, IReg d, IReg l, Value::Primitive val)
     {
         auto res = arithOp >= Saturating::SUADD ? SatArithU<width>(arithOp, ectype->GetPrimitive(l), val)
