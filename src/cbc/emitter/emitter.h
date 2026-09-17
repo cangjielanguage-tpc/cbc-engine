@@ -172,6 +172,7 @@ public:
     void CPowI(Width width, IReg d, IReg l, uint64_t imm);
 
     void SatBinary(Format::Saturating op, Width width, IReg d, IReg l, IReg r);
+    void SatBinaryImm(Format::Saturating op, Width width, IReg d, IReg l, uint64_t imm);
     void SatAdd(Width width, IReg d, IReg l, IReg r);
     void SatSub(Width width, IReg d, IReg l, IReg r);
     void SatMul(Width width, IReg d, IReg l, IReg r);

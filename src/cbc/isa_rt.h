@@ -180,7 +180,11 @@
     X(SBIN8, B3xrrr, "$0sbin.8 $1ir $2ir $3ir")                                                                        \
     X(SBIN16, B3xrrr, "$0sbin.16 $1ir $2ir $3ir")                                                                      \
     X(SBIN32, B3xrrr, "$0sbin.32 $1ir $2ir $3ir")                                                                      \
-    X(SBIN64, B3xrrr, "$0sbin.64 $1ir $2ir $3ir")
+    X(SBIN64, B3xrrr, "$0sbin.64 $1ir $2ir $3ir")                                                                      \
+    X(SBINIMM8, B4xi12rr, "$0sbin.8 $2ir $3ir $1I12")                                                                  \
+    X(SBINIMM16, B4xi12rr, "$0sbin.16 $2ir $3ir $1I12")                                                                \
+    X(SBINIMM32, B4xi12rr, "$0sbin.32 $2ir $3ir $1I12")                                                                \
+    X(SBINIMM64, B4xi12rr, "$0sbin.64 $2ir $3ir $1I12")
 
 // X parameters: opcode, encoding format, string format, is tail
 #define CBC_RT_MEMOPCODES(X)                                                                                           \

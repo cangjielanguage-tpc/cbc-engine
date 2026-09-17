@@ -430,18 +430,20 @@ public:
     X(SUSUB, 0b1001, "susub")                                                                                          \
     X(SUMUL, 0b1010, "sumul")                                                                                          \
     X(SUDIV, 0b1011, "sudiv")                                                                                          \
-    X(SUMOD, 0b1100, "sumod")
+    X(SUMOD, 0b1100, "sumod")                                                                                          \
+    X(SUSHL, 0b1101, "sushl")                                                                                          \
+    X(SUSHR, 0b1110, "sushr")
 
 #define SaturatingEnum(opc, value, str) opc = value,
 
     enum Value : uint32_t {
-        SaturatingValue(SaturatingEnum) LAST = SUMOD
+        SaturatingValue(SaturatingEnum) LAST = SUSHR
     };
 
 #undef SaturatingEnum
 
     static constexpr Value values[] = { SADD,  SSUB,  SMUL, SDIV, SMOD, SPOW, SSHL, SSHR,
-                                        SUADD, SUSUB, SUMUL, SUDIV, SUMOD };
+                                        SUADD, SUSUB, SUMUL, SUDIV, SUMOD, SUSHL, SUSHR };
 
     constexpr Saturating(const Value raw) : _value(raw) {}
 
@@ -921,7 +923,11 @@ struct Imm8 {
 
     constexpr Imm8(Format::Checked checked) : Imm8(static_cast<uint8_t>(checked)) {}
 
+    constexpr Imm8(Format::Saturating saturating) : Imm8(static_cast<uint8_t>(saturating)) {}
+
     inline Format::Checked Checked() const { return Format::Checked::From(imm); }
+
+    inline Format::Saturating Saturating() const { return Format::Saturating::From(imm); }
 
     inline static Imm8 Decode(Decoder::ByteReader& reader) { return Imm8 { reader.Read8() }; }
 
