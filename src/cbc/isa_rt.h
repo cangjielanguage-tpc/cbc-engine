@@ -176,7 +176,11 @@
     X(COPY_DERIVED, CopyDerived, "copy.derived $0ir $1ir $2ir $3ir $4U64")                                             \
     X(COPY_DERIVED_GENERIC, CopyDerivedGeneric, "copy.derived.g $0ir $1ir $2ir $3ir $4ir")                             \
     X(INDEX, Index, "index $0ir [$1ir $2ir] $3U64")                                                                    \
-    X(INDEX_GENERIC, IndexGeneric, "index.g $0ir [$1ir $2ir] $3ir")
+    X(INDEX_GENERIC, IndexGeneric, "index.g $0ir [$1ir $2ir] $3ir")                                                    \
+    X(SBIN8, B3xrrr, "$0sbin.8 $1ir $2ir $3ir")                                                                        \
+    X(SBIN16, B3xrrr, "$0sbin.16 $1ir $2ir $3ir")                                                                      \
+    X(SBIN32, B3xrrr, "$0sbin.32 $1ir $2ir $3ir")                                                                      \
+    X(SBIN64, B3xrrr, "$0sbin.64 $1ir $2ir $3ir")
 
 // X parameters: opcode, encoding format, string format, is tail
 #define CBC_RT_MEMOPCODES(X)                                                                                           \

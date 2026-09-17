@@ -139,6 +139,10 @@
     X(ZeroValGeneric, ZeroValGeneric)                                                                                  \
     X(FMathUnary32, FMathUnary32)                                                                                      \
     X(FMathUnary64, FMathUnary64)                                                                                      \
+    X(SBin8, SBinGeneric<Width::W8>)                                                                                   \
+    X(SBin16, SBinGeneric<Width::W16>)                                                                                 \
+    X(SBin32, SBinGeneric<Width::W32>)                                                                                 \
+    X(SBin64, SBinGeneric<Width::W64>)                                                                                 \
     X(_END, Unreachable)
 
 #define ISA_MEM_OPCODES(X)                                                                                             \

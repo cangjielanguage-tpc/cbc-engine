@@ -70,6 +70,179 @@ struct ArithmeticResult {
     bool successful;
 };
 
+// Saturating arithmetic. Unlike the checked ops, saturating ops always produce
+// a value (they clamp instead of raising an overflow exception), so the
+// `successful` flag of the result is always true.
+// A zero divisor is expected to be ruled out by the compiler (`divcheck`
+// before `sdiv`/`smod`), so reaching it here is a compiler bug.
+template <Width::Value width>
+static inline ArithmeticResult SatArith(Saturating::Value op, Value::Primitive l, Value::Primitive r)
+{
+    using Traits = WidthTraits<width>;
+    using utype  = typename Traits::utype;
+    using stype  = typename Traits::stype;
+
+    // Wide enough for any width × width product or sum without overflow.
+    using swide = __int128;
+    using uwide = unsigned __int128;
+
+    constexpr stype smax = std::numeric_limits<stype>::max();
+    constexpr stype smin = std::numeric_limits<stype>::min();
+    constexpr utype umax = std::numeric_limits<utype>::max();
+
+    auto makeS = [&](swide v) {
+        return Traits::make(static_cast<stype>(v < smin ? smin : (v > smax ? smax : v)));
+    };
+
+    switch (op) {
+        case Saturating::SADD: {
+            return { makeS(static_cast<swide>(Traits::sget(l)) + static_cast<swide>(Traits::sget(r))), true };
+        }
+        case Saturating::SSUB: {
+            return { makeS(static_cast<swide>(Traits::sget(l)) - static_cast<swide>(Traits::sget(r))), true };
+        }
+        case Saturating::SMUL: {
+            return { makeS(static_cast<swide>(Traits::sget(l)) * static_cast<swide>(Traits::sget(r))), true };
+        }
+        case Saturating::SDIV: {
+            stype left  = Traits::sget(l);
+            stype right = Traits::sget(r);
+            ASSERT(right != 0);
+            if (right == -1 && left == smin) {
+                return { Traits::make(smax), true };
+            }
+            return { Traits::make(static_cast<stype>(left / right)), true };
+        }
+        case Saturating::SMOD: {
+            stype left  = Traits::sget(l);
+            stype right = Traits::sget(r);
+            ASSERT(right != 0);
+            if (right == -1 && left == smin) {
+                return { Traits::make(static_cast<stype>(0)), true };
+            }
+            return { Traits::make(static_cast<stype>(left % right)), true };
+        }
+        case Saturating::SPOW: {
+            // Only signed base (Int64 ** UInt64) exists in Cangjie today.
+            swide base = static_cast<swide>(Traits::sget(l));
+            utype exp  = Traits::uget(r);
+            swide acc  = 1;
+            while (exp != 0) {
+                if ((exp & 1) != 0) {
+                    acc *= base;
+                    if (acc > smax) {
+                        return { Traits::make(smax), true };
+                    }
+                    if (acc < smin) {
+                        return { Traits::make(smin), true };
+                    }
+                }
+                exp >>= 1;
+                if (exp != 0) {
+                    // |base| <= 2^63 so base * base always fits into __int128
+                    base *= base;
+                }
+            }
+            return { makeS(acc), true };
+        }
+        case Saturating::SSHL: {
+            // Provisional semantics until cjc defines saturating shifts:
+            // out-of-range shift amounts are clamped to the bit width - 1.
+            constexpr int64_t bitWidth = std::numeric_limits<utype>::digits;
+            int64_t shift              = static_cast<int64_t>(Traits::sget(r));
+            if (shift < 0) {
+                shift = 0;
+            }
+            if (shift > bitWidth - 1) {
+                shift = bitWidth - 1;
+            }
+            stype base = Traits::sget(l);
+            swide res  = static_cast<swide>(base) << shift;
+            return { makeS(res), true };
+        }
+        case Saturating::SSHR: {
+            // Provisional semantics until cjc defines saturating shifts:
+            // out-of-range shift amounts are clamped to the bit width - 1.
+            constexpr int64_t bitWidth = std::numeric_limits<utype>::digits;
+            int64_t shift              = static_cast<int64_t>(Traits::sget(r));
+            if (shift < 0) {
+                shift = 0;
+            }
+            if (shift > bitWidth - 1) {
+                shift = bitWidth - 1;
+            }
+            return { Traits::make(static_cast<stype>(Traits::sget(l) >> shift)), true };
+        }
+        default:
+            FATAL("Unexpected Saturating op: %d", static_cast<int>(op));
+    }
+}
+
+// Unsigned saturating arithmetic.
+template <Width::Value width>
+static inline ArithmeticResult SatArithU(Saturating::Value op, Value::Primitive l, Value::Primitive r)
+{
+    using Traits = WidthTraits<width>;
+    using utype  = typename Traits::utype;
+
+    using uwide = unsigned __int128;
+
+    constexpr utype umax = std::numeric_limits<utype>::max();
+
+    switch (op) {
+        case Saturating::SUADD: {
+            uwide res = static_cast<uwide>(Traits::uget(l)) + static_cast<uwide>(Traits::uget(r));
+            return { Traits::make(static_cast<utype>(res > umax ? umax : res)), true };
+        }
+        case Saturating::SUSUB: {
+            uwide left  = Traits::uget(l);
+            uwide right = Traits::uget(r);
+            return { Traits::make(static_cast<utype>(left >= right ? left - right : 0)), true };
+        }
+        case Saturating::SUMUL: {
+            uwide res = static_cast<uwide>(Traits::uget(l)) * static_cast<uwide>(Traits::uget(r));
+            return { Traits::make(static_cast<utype>(res > umax ? umax : res)), true };
+        }
+        case Saturating::SUDIV: {
+            utype left  = Traits::uget(l);
+            utype right = Traits::uget(r);
+            ASSERT(right != 0);
+            return { Traits::make(static_cast<utype>(left / right)), true };
+        }
+        case Saturating::SUMOD: {
+            utype left  = Traits::uget(l);
+            utype right = Traits::uget(r);
+            ASSERT(right != 0);
+            return { Traits::make(static_cast<utype>(left % right)), true };
+        }
+        case Saturating::SSHL: {
+            constexpr int64_t bitWidth = std::numeric_limits<utype>::digits;
+            int64_t shift              = static_cast<int64_t>(Traits::uget(r));
+            if (shift < 0) {
+                shift = 0;
+            }
+            if (shift > bitWidth - 1) {
+                shift = bitWidth - 1;
+            }
+            uwide res = static_cast<uwide>(Traits::uget(l)) << shift;
+            return { Traits::make(static_cast<utype>(res > umax ? umax : res)), true };
+        }
+        case Saturating::SSHR: {
+            constexpr int64_t bitWidth = std::numeric_limits<utype>::digits;
+            int64_t shift              = static_cast<int64_t>(Traits::uget(r));
+            if (shift < 0) {
+                shift = 0;
+            }
+            if (shift > bitWidth - 1) {
+                shift = bitWidth - 1;
+            }
+            return { Traits::make(static_cast<utype>(Traits::uget(l) >> shift)), true };
+        }
+        default:
+            FATAL("Unexpected unsigned Saturating op: %d", static_cast<int>(op));
+    }
+}
+
 // TODO: Generalize it for all widths (like checked ops).
 template <Width::Value width>
 static inline ArithmeticResult Arith(Common::Value op, Value::Primitive l, Value::Primitive r);
