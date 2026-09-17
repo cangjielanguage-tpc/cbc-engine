@@ -717,10 +717,10 @@ void Emitter::CopyDerived(IReg dstBase, IReg dst, IReg srcBase, IReg src, RTSupp
     Encode(
         segment,
         RT::CopyDerived {
-            .opc   = RT::Opcode::COPY_DERIVED,
-            .dst    = RR { .x = dstBase, .y = dst },
+            .opc = RT::Opcode::COPY_DERIVED,
+            .dst = RR { .x = dstBase, .y = dst },
             .src = RR { .x = srcBase, .y = src },
-            .ti    = ti,
+            .ti  = ti,
         }
     );
 }
@@ -730,10 +730,10 @@ void Emitter::CopyDerivedGeneric(IReg dstBase, IReg dst, IReg srcBase, IReg src,
     Encode(
         segment,
         RT::CopyDerivedGeneric {
-            .opc   = RT::Opcode::COPY_DERIVED_GENERIC,
-            .dst    = RR { .x = dstBase, .y = dst },
+            .opc = RT::Opcode::COPY_DERIVED_GENERIC,
+            .dst = RR { .x = dstBase, .y = dst },
             .src = RR { .x = srcBase, .y = src },
-            .ti    = RR { .x = ti, .y = 0 },
+            .ti  = RR { .x = ti, .y = 0 },
         }
     );
 }

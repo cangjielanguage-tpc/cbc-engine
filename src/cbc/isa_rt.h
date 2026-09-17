@@ -660,10 +660,10 @@ struct CopyDerived {
 
     static CopyDerived Decode(Decoder::ByteReader& reader)
     {
-        auto opc   = Opcode::Decode(reader);
-        auto dst    = Format::RR::Decode(reader);
+        auto opc = Opcode::Decode(reader);
+        auto dst = Format::RR::Decode(reader);
         auto src = Format::RR::Decode(reader);
-        auto ti    = reader.Read<RTSupport::TypeInfo>();
+        auto ti  = reader.Read<RTSupport::TypeInfo>();
         return CopyDerived { opc, dst, src, ti };
     }
 };
@@ -676,10 +676,10 @@ struct CopyDerivedGeneric {
 
     static CopyDerivedGeneric Decode(Decoder::ByteReader& reader)
     {
-        auto opc   = Opcode::Decode(reader);
-        auto dst    = Format::RR::Decode(reader);
+        auto opc = Opcode::Decode(reader);
+        auto dst = Format::RR::Decode(reader);
         auto src = Format::RR::Decode(reader);
-        auto ti    = Format::RR::Decode(reader);
+        auto ti  = Format::RR::Decode(reader);
         return CopyDerivedGeneric { opc, dst, src, ti };
     }
 };
@@ -692,10 +692,10 @@ struct Index {
 
     static Index Decode(Decoder::ByteReader& reader)
     {
-        auto opc   = Opcode::Decode(reader);
-        auto rr    = Format::RR::Decode(reader);
+        auto opc = Opcode::Decode(reader);
+        auto rr  = Format::RR::Decode(reader);
         auto idx = Format::XR::Decode(reader);
-        auto ti    = reader.Read<RTSupport::TypeInfo>();
+        auto ti  = reader.Read<RTSupport::TypeInfo>();
         return Index { opc, rr, idx, ti };
     }
 };
@@ -707,8 +707,8 @@ struct IndexGeneric {
 
     static IndexGeneric Decode(Decoder::ByteReader& reader)
     {
-        auto opc   = Opcode::Decode(reader);
-        auto rr    = Format::RR::Decode(reader);
+        auto opc = Opcode::Decode(reader);
+        auto rr  = Format::RR::Decode(reader);
         auto idx = Format::RR::Decode(reader);
         return IndexGeneric { opc, rr, idx };
     }
