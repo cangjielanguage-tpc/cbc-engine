@@ -529,6 +529,24 @@ void Emitter::Unary(FloatOperations op, Width width, FReg d, FReg s)
 
 void Emitter::Sqrt(Width width, FReg d, FReg s) { Unary(FloatOperations::FSQRT, width, d, s); }
 
+void Emitter::FMathUnary(FloatMathOp op, Width width, FReg d, FReg s)
+{
+    ASSERT(width == Width::W32 || width == Width::W64);
+    auto opcode = width == Width::W32 ? RT::Opcode::FMATHUN32 : RT::Opcode::FMATHUN64;
+    Encode(
+        segment,
+        RT::B3xrrr {
+            .opc = opcode,
+            .xr =
+                XR {
+                    .imm = Imm4(op),
+                    .r   = d,
+                },
+            .rr = { .x = d, .y = s },
+        }
+    );
+}
+
 void Emitter::Abs(Width width, FReg d, FReg s) { Unary(FloatOperations::FABS, width, d, s); }
 
 void Emitter::Neg(Width width, FReg d, FReg s) { Unary(FloatOperations::FNEG, width, d, s); }

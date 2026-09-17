@@ -86,6 +86,16 @@ public:
         return false;
     }
 
+    template <Width::Value width> inline bool FMathUnary(FloatMathOp::Value fpOp, FReg d, FReg s)
+    {
+        auto res = ArithFPMath<width>(fpOp, ectype->GetPrimitive(s));
+        if (res.successful) {
+            ectype->Put(d, res.result);
+            return true;
+        }
+        return false;
+    }
+
     inline bool LoadAddr(Format::LoadAccessKind ldk, Format::Reg dst, uint64_t location)
     {
         if (ldk == LoadAccessKind::LD_REF) {

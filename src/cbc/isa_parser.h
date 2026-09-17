@@ -159,6 +159,11 @@ protected:
     virtual void StDerived(AnyReg src, IReg baseRef, IReg derived, uint32_t field)          = 0;
     virtual void StGeneric(AnyReg src, IReg baseRef, IReg derived, IReg ti, uint32_t field) = 0;
 
+    virtual void ZeroVal(AnyReg dst, IReg ti) = 0;
+
+    virtual void FMathUnary32(Format::FloatMathOp op, FReg dst, FReg src) = 0;
+    virtual void FMathUnary64(Format::FloatMathOp op, FReg dst, FReg src) = 0;
+
     class MemSpace {
     public:
         virtual ~MemSpace() = default;

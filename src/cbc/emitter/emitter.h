@@ -36,6 +36,7 @@ public:
     using Checked     = Format::Checked;
 
     using FloatOperations = Format::FloatOperations;
+    using FloatMathOp     = Format::FloatMathOp;
     using LoadAccessKind  = Format::LoadAccessKind;
     using StoreAccessKind = Format::StoreAccessKind;
 
@@ -181,6 +182,7 @@ public:
     void Sqrt(Width width, FReg d, FReg l, FReg r);
 
     void Unary(FloatOperations op, Width Width, FReg d, FReg s);
+    void FMathUnary(FloatMathOp op, Width width, FReg d, FReg s);
     void Sqrt(Width width, FReg d, FReg s);
     void Abs(Width width, FReg d, FReg s);
     void Neg(Width width, FReg d, FReg s);

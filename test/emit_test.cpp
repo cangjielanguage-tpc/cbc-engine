@@ -414,6 +414,38 @@ TEST(EmitTest, Simple_FAbs)
     EXPECT_EQ(res2.f64, +0.0);
 }
 
+TEST(EmitTest, Simple_FMathUnarySin)
+{
+    Emitter e;
+    e.FMathUnary(FloatMathOp::SIN, Width::W64, FReg::FR0, FReg::FR1);
+    e.Ret();
+
+    auto code = e.Build(heap);
+    Cbc::RT::Log(code, Stream::Disasm::rt);
+
+    Stream::StringBuffer stream;
+    RT::Log(code, stream);
+    EXPECT_EQ("0x000: sin.64 FR0 FR1\n0x003: ret\n", stream.ToString());
+
+    double arg = 0.5;
+    auto res   = InterpretFPRes(code, F64(0), F64(arg));
+    EXPECT_EQ(res.f64, std::sin(arg));
+}
+
+TEST(EmitTest, Simple_FMathUnaryCos32)
+{
+    Emitter e;
+    e.FMathUnary(FloatMathOp::COS, Width::W32, FReg::FR0, FReg::FR1);
+    e.Ret();
+
+    auto code = e.Build(heap);
+    Cbc::RT::Log(code, Stream::Disasm::rt);
+
+    float arg = 0.25;
+    auto res  = InterpretFPRes(code, F32(0), F32(arg));
+    EXPECT_EQ(res.f32, std::cos(arg));
+}
+
 TEST(EmitTest, SSC)
 {
     struct {

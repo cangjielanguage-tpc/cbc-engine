@@ -36,6 +36,8 @@ struct Operand {
 
     Format::FloatOperations Fop() { return Format::FloatOperations::From(U8()); }
 
+    Format::FloatMathOp Fmatop() { return Format::FloatMathOp::From(U8()); }
+
     Format::CC CC() { return Format::CC::From(U8()); }
 
     Format::ConvertType Ct() { return Format::ConvertType::From(U8()); }
@@ -141,6 +143,8 @@ private:
 
     void Write(Format::FloatOperations v) { stream << v.ToStr(); }
 
+    void Write(Format::FloatMathOp v) { stream << v.ToStr(); }
+
     void Write(Format::ConvertType v) { stream << v.ToStr(); }
 
     void FormatArg(size_t& cursor, size_t fmtSize)
@@ -203,6 +207,8 @@ private:
             Write(operand.CBin());
         } else if (type == "fop") {
             Write(operand.Fop());
+        } else if (type == "fmatop") {
+            Write(operand.Fmatop());
         } else if (type == "I12L") {
             Write(table->at(operand.U12()).i64);
         } else if (type == "I12L") {

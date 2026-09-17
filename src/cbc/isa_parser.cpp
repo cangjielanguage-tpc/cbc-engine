@@ -527,6 +527,24 @@ struct IsaParserImpl {
         parser.StGeneric(src, baseRef, derived, ti, fr);
     }
 
+    static void ZeroValGeneric(IsaParser& parser)
+    {
+        auto [dst, ti] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
+        parser.ZeroVal(dst, ti);
+    }
+
+    static void FMathUnary32(IsaParser& parser)
+    {
+        auto [op, _, dst, src] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
+        parser.FMathUnary32(Format::FloatMathOp::From(op), dst, src);
+    }
+
+    static void FMathUnary64(IsaParser& parser)
+    {
+        auto [op, _, dst, src] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
+        parser.FMathUnary64(Format::FloatMathOp::From(op), dst, src);
+    }
+
     static void LoadTailParam(IsaParser& parser)
     {
         auto [dst, tailReg, ldk, _, num] =

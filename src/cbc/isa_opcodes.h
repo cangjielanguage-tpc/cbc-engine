@@ -144,6 +144,9 @@
     X(StDerived, StDerived)                                                                                            \
     X(StGeneric, StGeneric)                                                                                            \
     X(LoadTailParam, LoadTailParam)                                                                                    \
+    X(ZeroValGeneric, ZeroValGeneric)                                                                                  \
+    X(FMathUnary32, FMathUnary32)                                                                                      \
+    X(FMathUnary64, FMathUnary64)                                                                                      \
     X(_END, Unreachable)
 
 #define ISA_MEM_OPCODES(X)                                                                                             \
