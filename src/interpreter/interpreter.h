@@ -288,6 +288,7 @@ public:
         auto obj          = ectype->GetReference(base);
         auto derivedAddr  = ectype->GetPrimitive(derived).u64;
         auto locationKind = RTSupport::Execution::GetStructLocationKind(obj, derivedAddr);
+
         switch (locationKind) {
             case RTSupport::LOCAL:  return LoadRec(ldk, dst, base, offset);
             case RTSupport::GLOBAL: return LoadRec(ldk, dst, IReg::IRZ, derivedAddr + offset);
@@ -357,6 +358,7 @@ public:
         // IRZ means static record field, so whole position is encoded in accumulated offset
         // FIXME: encode as separate operation
         if (base != IReg::IRZ && ptr == 0) {
+            FATAL("LoadRec: base = %p, ptr = %p", base, ptr);
             return false;
         }
         if (ldk == LoadAccessKind::LD_REF) {
@@ -378,6 +380,7 @@ public:
         // IRZ means static record field, so whole position is encoded in accumulated offset
         // FIXME: encode as separate operation
         if (base != IReg::IRZ && ptr == 0) {
+            FATAL("StoreRec: base = %p, ptr = %p", base, ptr);
             return false;
         }
         if (stk == StoreAccessKind::ST_REF) {
@@ -398,7 +401,9 @@ public:
     {
         auto ptr = static_cast<uintptr_t>(ectype->GetPrimitive(base).u64);
         // IRZ means static record field, so whole position is encoded in accumulated offset
+        // FIXME: encode as separate operation
         if (base != IReg::IRZ && ptr == 0) {
+            FATAL("StoreRecImm: base = %p, ptr = %p", base, ptr);
             return false;
         }
         ASSERTION(stk <= Format::StoreAccessKind::ST_64, "Unexpected store access kind");
