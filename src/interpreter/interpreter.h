@@ -288,7 +288,6 @@ public:
         auto obj          = ectype->GetReference(base);
         auto derivedAddr  = ectype->GetPrimitive(derived).u64;
         auto locationKind = RTSupport::Execution::GetStructLocationKind(obj, derivedAddr);
-
         switch (locationKind) {
             case RTSupport::LOCAL:  return LoadRec(ldk, dst, base, offset);
             case RTSupport::GLOBAL: return LoadRec(ldk, dst, IReg::IRZ, derivedAddr + offset);
