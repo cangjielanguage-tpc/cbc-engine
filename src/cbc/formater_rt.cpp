@@ -571,14 +571,14 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyFieldO
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyDerived args)
 {
-    Operand operands[] = { args.rr.x, args.rr.y, args.field.x, args.field.y, args.ti.UInt() };
+    Operand operands[] = { args.dst.x, args.dst.y, args.src.x, args.src.y, args.ti.UInt() };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyDerivedGeneric args)
 {
-    Operand operands[] = { args.rr.x, args.rr.y, args.field.x, args.field.y, args.ti.x };
+    Operand operands[] = { args.dst.x, args.dst.y, args.src.x, args.src.y, args.ti.x };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }

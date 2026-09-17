@@ -546,6 +546,7 @@ struct IsaRewriter : public IsaParser {
     {
         UNWRAP_OPT(type, resolver.Query(Index<Type>(typeId)), Fail);
         auto kind = type.term.GetKind();
+        assert(kind == Engine::TermKind::CANGJIE_ARRAY || kind == Engine::TermKind::VARRAY);
         UNWRAP_OPT(elemType, resolver.QueryElement(type), [&]() {
             errStream << "Failed to get kind for type " << typeId << Stream::endl;
             Fail();

@@ -654,33 +654,33 @@ struct CopyFieldOp {
 
 struct CopyDerived {
     Opcode opc;
-    Format::RR rr;
-    Format::RR field;
+    Format::RR dst;
+    Format::RR src;
     RTSupport::TypeInfo ti;
 
     static CopyDerived Decode(Decoder::ByteReader& reader)
     {
         auto opc   = Opcode::Decode(reader);
-        auto rr    = Format::RR::Decode(reader);
-        auto field = Format::RR::Decode(reader);
+        auto dst    = Format::RR::Decode(reader);
+        auto src = Format::RR::Decode(reader);
         auto ti    = reader.Read<RTSupport::TypeInfo>();
-        return CopyDerived { opc, rr, field, ti };
+        return CopyDerived { opc, dst, src, ti };
     }
 };
 
 struct CopyDerivedGeneric {
     Opcode opc;
-    Format::RR rr;
-    Format::RR field;
+    Format::RR dst;
+    Format::RR src;
     Format::RR ti;
 
     static CopyDerivedGeneric Decode(Decoder::ByteReader& reader)
     {
         auto opc   = Opcode::Decode(reader);
-        auto rr    = Format::RR::Decode(reader);
-        auto field = Format::RR::Decode(reader);
+        auto dst    = Format::RR::Decode(reader);
+        auto src = Format::RR::Decode(reader);
         auto ti    = Format::RR::Decode(reader);
-        return CopyDerivedGeneric { opc, rr, field, ti };
+        return CopyDerivedGeneric { opc, dst, src, ti };
     }
 };
 

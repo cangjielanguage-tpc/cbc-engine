@@ -720,7 +720,7 @@ LABEL(STORE_REC) {
 LABEL(COPY_DERIVED) {
     auto args = CopyDerived::Decode(reader);
     LOG_INSTR;
-    interpreter.CopyDerived(args.rr.x.IR(), args.rr.y.IR(), args.field.x.IR(), args.field.y.IR(), args.ti);
+    interpreter.CopyDerived(args.dst.x.IR(), args.dst.y.IR(), args.src.x.IR(), args.src.y.IR(), args.ti);
     NEXT;
 }
 
@@ -730,7 +730,7 @@ LABEL(COPY_DERIVED_GENERIC) {
     LOG_INSTR;
     auto tiReg = args.ti.x;
     auto ti = TypeInfo(ectype->GetPrimitive(tiReg.IR()).u64);
-    interpreter.CopyDerived(args.rr.x.IR(), args.rr.y.IR(), args.field.x.IR(), args.field.y.IR(), ti);
+    interpreter.CopyDerived(args.dst.x.IR(), args.dst.y.IR(), args.src.x.IR(), args.src.y.IR(), ti);
     NEXT;
 }
 

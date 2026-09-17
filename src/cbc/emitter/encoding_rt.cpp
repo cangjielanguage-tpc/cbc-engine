@@ -324,16 +324,16 @@ void Encode(ByteBuffer& buf, RT::CopyFieldOp command)
 void Encode(ByteBuffer& buf, RT::CopyDerived command)
 {
     Encode(buf, command.opc);
-    Encode(buf, command.rr);
-    Encode(buf, command.field);
+    Encode(buf, command.dst);
+    Encode(buf, command.src);
     buf.AddW64(Bits::Raw64(command.ti));
 }
 
 void Encode(ByteBuffer& buf, RT::CopyDerivedGeneric command)
 {
     Encode(buf, command.opc);
-    Encode(buf, command.rr);
-    Encode(buf, command.field);
+    Encode(buf, command.dst);
+    Encode(buf, command.src);
     Encode(buf, command.ti);
 }
 

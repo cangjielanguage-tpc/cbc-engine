@@ -1,7 +1,6 @@
 #pragma once
 
 #include <atomic>
-#include <functional>
 
 #include "ectype.h"
 #include "frame.h"
@@ -679,6 +678,13 @@ public:
         uintptr_t derivedAddr;
         RTSupport::StructLocationKind kind;
 
+        DerivedPointer(IReg baseReg, IReg derivedReg, Ectype* ectype)
+        {
+            base        = ectype->GetReference(baseReg);
+            derivedAddr = ectype->GetPrimitive(derivedReg).u64;
+            kind        = RTSupport::Execution::GetStructLocationKind(base, derivedAddr);
+        }
+
         Value::Reference ReadReference(uintptr_t offset, RTSupport::ThreadHandle handle) const
         {
             uintptr_t addr = derivedAddr + offset;
@@ -700,22 +706,8 @@ public:
         }
     };
 
-    DerivedPointer GetDerivedPointer(IReg baseReg, IReg derivedReg)
-    {
-        auto base        = ectype->GetReference(baseReg);
-        auto derivedAddr = ectype->GetPrimitive(derivedReg).u64;
-        return DerivedPointer {
-            .base        = base,
-            .derivedAddr = derivedAddr,
-            .kind        = RTSupport::Execution::GetStructLocationKind(base, derivedAddr),
-        };
-    }
-
-    void CopyDerivedByRanges(
-        RTSupport::TypeInfo ti,
-        const std::function<void(uintptr_t, uintptr_t)>& copyPrims,
-        const std::function<void(uintptr_t)>& copyRefs
-    )
+    template <typename CopyPrimsFunction, typename CopyRefsFunction>
+    void CopyDerivedByRanges(RTSupport::TypeInfo ti, CopyPrimsFunction copyPrims, CopyRefsFunction copyRefs)
     {
         const auto size  = RTSupport::MetaInfo::GetTypeSize(ti);
         uintptr_t offset = 0;
@@ -739,8 +731,8 @@ public:
 
     inline void CopyDerived(IReg dstBase, IReg dstReg, IReg srcBase, IReg srcReg, RTSupport::TypeInfo ti)
     {
-        auto dst = GetDerivedPointer(dstBase, dstReg);
-        auto src = GetDerivedPointer(srcBase, srcReg);
+        auto dst = DerivedPointer(dstBase, dstReg, ectype);
+        auto src = DerivedPointer(srcBase, srcReg, ectype);
         if (dst.derivedAddr == src.derivedAddr) {
             return;
         }
