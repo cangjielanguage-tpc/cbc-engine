@@ -357,6 +357,7 @@ public:
         // IRZ means static record field, so whole position is encoded in accumulated offset
         // FIXME: encode as separate operation
         if (base != IReg::IRZ && ptr == 0) {
+            FATAL("LoadRec: base = %p, ptr = %p", base, ptr);
             return false;
         }
         if (ldk == LoadAccessKind::LD_REF) {
@@ -378,6 +379,7 @@ public:
         // IRZ means static record field, so whole position is encoded in accumulated offset
         // FIXME: encode as separate operation
         if (base != IReg::IRZ && ptr == 0) {
+            FATAL("StoreRec: base = %p, ptr = %p", base, ptr);
             return false;
         }
         if (stk == StoreAccessKind::ST_REF) {
@@ -398,7 +400,9 @@ public:
     {
         auto ptr = static_cast<uintptr_t>(ectype->GetPrimitive(base).u64);
         // IRZ means static record field, so whole position is encoded in accumulated offset
+        // FIXME: encode as separate operation
         if (base != IReg::IRZ && ptr == 0) {
+            FATAL("StoreRecImm: base = %p, ptr = %p", base, ptr);
             return false;
         }
         ASSERTION(stk <= Format::StoreAccessKind::ST_64, "Unexpected store access kind");
