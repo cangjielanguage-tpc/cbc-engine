@@ -415,6 +415,49 @@ private:
     Value _value;
 };
 
+class FloatMathOp {
+public:
+#define FloatMathOpValue(X)                                                                                            \
+    X(SIN, 0b00, "sin")                                                                                                \
+    X(COS, 0b01, "cos")
+
+#define FloatMathOpEnum(opc, value, str) opc = value,
+
+    enum Value : uint8_t {
+        FloatMathOpValue(FloatMathOpEnum) LAST = COS
+    };
+
+#undef FloatMathOpEnum
+
+    static constexpr Value values[] = { SIN, COS };
+
+    constexpr FloatMathOp(const Value raw) : _value(raw) {}
+
+    constexpr operator Value() const { return _value; }
+
+    constexpr static FloatMathOp From(uint8_t value)
+    {
+        ASSERT(value <= LAST);
+        return Value(value);
+    }
+
+    constexpr const char* CStr() const
+    {
+#define FloatMathOpStr(opc, value, str)                                                                                \
+    case opc: return str;
+        switch (_value) {
+            FloatMathOpValue(FloatMathOpStr);
+        }
+        return "<invalid>";
+#undef FloatMathOpStr
+    }
+
+    constexpr std::string_view ToStr() const { return std::string_view(CStr()); }
+
+private:
+    Value _value;
+};
+
 class ConvertType {
 public:
 #define ConvertTypeValue(X)                                                                                            \
@@ -785,6 +828,8 @@ public:
 
     constexpr Imm4(Format::FloatOperations fpOps) : imm(static_cast<uint8_t>(fpOps)) {}
 
+    constexpr Imm4(Format::FloatMathOp fpMathOp) : imm(static_cast<uint8_t>(fpMathOp)) {}
+
     inline operator uint8_t() const { return imm; }
 
     inline Format::CC CC() const { return Format::CC::From(imm); }
@@ -796,6 +841,8 @@ public:
     inline Format::ConvertType ConvertType() const { return Format::ConvertType::From(imm); }
 
     inline Format::FloatOperations FloatOperations() const { return Format::FloatOperations::From(imm); }
+
+    inline Format::FloatMathOp FloatMathOp() const { return Format::FloatMathOp::From(imm); }
 
     inline Format::StoreAccessKind STK() const { return Format::StoreAccessKind::From(imm); }
 
@@ -966,6 +1013,11 @@ inline Stream::Output& operator<<(Stream::Output& stream, Cbc::Format::Width con
 inline Stream::Output& operator<<(Stream::Output& stream, Cbc::Format::Common const op) { return stream << op.ToStr(); }
 
 inline Stream::Output& operator<<(Stream::Output& stream, Cbc::Format::FloatOperations const op)
+{
+    return stream << op.ToStr();
+}
+
+inline Stream::Output& operator<<(Stream::Output& stream, Cbc::Format::FloatMathOp const op)
 {
     return stream << op.ToStr();
 }

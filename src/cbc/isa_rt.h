@@ -41,6 +41,8 @@
     X(FBIN64, B3xrrr, "$0fop.64 $1fr $2fr $3fr")                                                                       \
     X(FUN32, B3xrrr, "$0fop.32 $1fr $3fr")                                                                             \
     X(FUN64, B3xrrr, "$0fop.64 $1fr $3fr")                                                                             \
+    X(FMATHUN32, B3xrrr, "$0fmatop.32 $1fr $3fr")                                                                      \
+    X(FMATHUN64, B3xrrr, "$0fmatop.64 $1fr $3fr")                                                                      \
     X(NEWOBJ, B9i64, "newobj IR1, $0U64")                                                                              \
     X(NEWOBJ_PINNED, B9i64, "newobj.pinned IR1, $0U64")                                                                \
     X(NEWOBJ_G, B2rr, "newobj.g $0ir")                                                                                 \

@@ -356,6 +356,30 @@ template <> inline ArithmeticResult ArithFP<Width::W32>(FloatOperations::Value o
     }
 }
 
+template <Width::Value width> static inline ArithmeticResult ArithFPMath(FloatMathOp::Value op, Value::Primitive s);
+
+template <> inline ArithmeticResult ArithFPMath<Width::W64>(FloatMathOp::Value op, Value::Primitive s)
+{
+    using namespace Cbc::Format;
+    switch (op) {
+        case FloatMathOp::SIN: return { Value::Primitive { .f64 = std::sin(s.f64) }, true };
+        case FloatMathOp::COS: return { Value::Primitive { .f64 = std::cos(s.f64) }, true };
+
+        default: FATAL("Unexpected FP math op: %d", op);
+    }
+}
+
+template <> inline ArithmeticResult ArithFPMath<Width::W32>(FloatMathOp::Value op, Value::Primitive s)
+{
+    using namespace Cbc::Format;
+    switch (op) {
+        case FloatMathOp::SIN: return { Value::Primitive { .f32 = std::sin(s.f32) }, true };
+        case FloatMathOp::COS: return { Value::Primitive { .f32 = std::cos(s.f32) }, true };
+
+        default: FATAL("Unexpected FP math op: %d", op);
+    }
+}
+
 template <CC::Value cc, Width::Value width> inline static bool Compare(Value::Primitive l, Value::Primitive r);
 
 template <> inline bool Compare<CC::EQ, Width::W32>(Value::Primitive l, Value::Primitive r) { return l.u32 == r.u32; }
