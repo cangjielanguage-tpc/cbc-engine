@@ -124,26 +124,44 @@ static inline ArithmeticResult SatArith(Saturating::Value op, Value::Primitive l
         }
         case Saturating::SPOW: {
             // Only signed base (Int64 ** UInt64) exists in Cangjie today.
-            swide base = static_cast<swide>(Traits::sget(l));
-            utype exp  = Traits::uget(r);
-            swide acc  = 1;
+            // Track the true result sign and saturate as soon as the exact
+            // value no longer fits into the target type. Note that the base
+            // is repeatedly squared, so it must be checked for overflow as
+            // well (e.g. 2 ** 512 squares the base up to 2 ** 256).
+            using swidex = __int128;
+            swidex acc     = 1;
+            swidex base    = static_cast<swidex>(Traits::sget(l));
+            utype  exp     = Traits::uget(r);
+            bool   overflow = false;
+            int    sign    = 1; // sign of the true accumulated product
             while (exp != 0) {
                 if ((exp & 1) != 0) {
-                    acc *= base;
-                    if (acc > smax) {
-                        return { Traits::make(smax), true };
+                    if ((base < 0) != (acc < 0)) {
+                        sign = -sign;
                     }
-                    if (acc < smin) {
-                        return { Traits::make(smin), true };
+                    if (overflow || __builtin_mul_overflow(acc, base, &acc)) {
+                        overflow = true;
+                        break;
+                    }
+                    if (acc > smax || acc < smin) {
+                        overflow = true;
+                        break;
                     }
                 }
                 exp >>= 1;
                 if (exp != 0) {
-                    // |base| <= 2^63 so base * base always fits into __int128
-                    base *= base;
+                    if (__builtin_mul_overflow(base, base, &base)) {
+                        overflow = true;
+                        break;
+                    }
                 }
             }
-            return { makeS(acc), true };
+            if (overflow) {
+                // Once the exact value is out of range it can only grow,
+                // so saturate in the direction of the true result sign.
+                return { Traits::make(sign > 0 ? smax : smin), true };
+            }
+            return { Traits::make(static_cast<stype>(acc)), true };
         }
         case Saturating::SSHL: {
             // Provisional semantics until cjc defines saturating shifts:
