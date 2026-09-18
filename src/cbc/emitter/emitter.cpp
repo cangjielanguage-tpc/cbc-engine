@@ -450,11 +450,13 @@ void Emitter::SatBinary(Format::Saturating op, Width width, IReg d, IReg l, IReg
 
 void Emitter::SatAdd(Width width, IReg d, IReg l, IReg r) { SatBinary(Saturating::SADD, width, d, l, r); }
 
-static RT::Opcode satImmOpcodes[][4] = {
+// clang-format off
+static constexpr RT::Opcode satImmOpcodes[][4] = {
     //                       Width::W8                Width::W16                Width::W32                Width::W64
-    /* short */ { RT::Opcode::SBINIMM8, RT::Opcode::SBINIMM16, RT::Opcode::SBINIMM32, RT::Opcode::SBINIMM64 },
+    /* short */ { RT::Opcode::SBINIMM8,  RT::Opcode::SBINIMM16,  RT::Opcode::SBINIMM32,  RT::Opcode::SBINIMM64  },
     /* wide  */ { RT::Opcode::SBINIMM8W, RT::Opcode::SBINIMM16W, RT::Opcode::SBINIMM32W, RT::Opcode::SBINIMM64W },
 };
+// clang-format on
 
 void Emitter::SatBinaryImm(Format::Saturating op, Width width, IReg d, IReg l, uint64_t imm)
 {
@@ -497,11 +499,13 @@ void Emitter::SatShl(Width width, IReg d, IReg l, IReg r) { SatBinary(Saturating
 
 void Emitter::SatShr(Width width, IReg d, IReg l, IReg r) { SatBinary(Saturating::SSHR, width, d, l, r); }
 
-static RT::Opcode opcodes[][4] = {
+// clang-format off
+static constexpr RT::Opcode opcodes[][4] = {
     //                Width::W8            Width::W16            Width::W32            Width::W64
     /* short */ { RT::Opcode::CBINI8I, RT::Opcode::CBINI16I, RT::Opcode::CBINI32I, RT::Opcode::CBINI64I },
     /* wide  */ { RT::Opcode::CBINI8W, RT::Opcode::CBINI16W, RT::Opcode::CBINI32W, RT::Opcode::CBINI64W }
 };
+// clang-format on
 
 void Emitter::BinaryImm(Checked op, Width width, IReg d, IReg l, uint64_t imm)
 {
