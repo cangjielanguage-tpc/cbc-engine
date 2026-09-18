@@ -399,6 +399,13 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, BinaryChec
     formatter.Format();
 }
 
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, BinarySaturating args)
+{
+    Operand operands[] = { Format::Imm8(args.op), args.imm.imm, args.rr.x, args.rr.y };
+    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    formatter.Format();
+}
+
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, InterfaceCall args)
 {
     Operand operands[] = { args.vnum, args.ti, args.sret };
