@@ -1037,6 +1037,11 @@ inline Stream::Output& operator<<(Stream::Output& stream, Cbc::Format::FloatOper
     return stream << op.ToStr();
 }
 
+inline Stream::Output& operator<<(Stream::Output& stream, Cbc::Format::Saturating const op)
+{
+    return stream << op.ToStr();
+}
+
 inline Stream::Output& operator<<(Stream::Output& stream, Cbc::Format::LoadAccessKind const ldk)
 {
     return stream << ldk.ToStr();

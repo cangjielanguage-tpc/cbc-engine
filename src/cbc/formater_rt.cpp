@@ -34,6 +34,8 @@ struct Operand {
 
     Format::Checked CBin() { return Format::Checked::From(U8()); }
 
+    Format::Saturating SBin() { return Format::Saturating::From(U8()); }
+
     Format::FloatOperations Fop() { return Format::FloatOperations::From(U8()); }
 
     Format::CC CC() { return Format::CC::From(U8()); }
@@ -201,6 +203,8 @@ private:
             Write(operand.Bin());
         } else if (type == "cbin") {
             Write(operand.CBin());
+        } else if (type == "sbin") {
+            Write(operand.SBin());
         } else if (type == "fop") {
             Write(operand.Fop());
         } else if (type == "I12L") {
