@@ -229,6 +229,13 @@ ResolvingOutput& ResolvingOutput::TypeDefinition(Image::TypeDefinition const& td
                 }
             }
         });
+
+        Region("union enum fields", [&]() {
+            auto def = td;
+            for (auto id : Decode::Reader::Resolve(session, def->unionFields)) {
+                out << Detailed(id) << endl;
+            }
+        });
     });
 
     return out;
