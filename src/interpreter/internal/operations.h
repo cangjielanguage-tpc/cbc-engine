@@ -70,6 +70,30 @@ struct ArithmeticResult {
     bool successful;
 };
 
+// 128-bit integers. The saturating (and checked) arithmetic below relies on
+// `__int128`/`unsigned __int128` and on `__builtin_*_overflow` builtins for
+// wide-accumulate-and-clamp computations.
+//
+// Portability notes:
+// - Architectures: 128-bit integer types are a compiler extension, not ISO
+//   C++, but every 64-bit target this engine supports - x86_64, aarch64 and
+//   riscv64 - provides them. On all three, 128-bit arithmetic is implemented
+//   natively (two-register pairs), which is far cheaper than emulating wide
+//   accumulate via 64-bit overflow flags.
+// - Compilers: `__int128` and the `__builtin_{add,sub,mul}_overflow` family
+//   are supported by GCC, Clang and ICC on 64-bit targets. MSVC is the notable
+//   exception - it has neither `__int128` nor the overflow builtins; should
+//   MSVC support ever be needed, the usages below would have to be guarded
+//   (e.g. via `_mul128`/`_umul128` intrinsics and manual flag handling).
+// - Alignment: `__int128` is 16-byte aligned on x86_64 and riscv64 but only
+//   8-byte aligned on aarch64 (AAPCS64); only stack/local usage appears here,
+//   so the difference is harmless.
+// - Note that `__builtin_*_overflow` itself is not tied to 128-bit types: it
+//   works for any integer width and is also used below with 64-bit operands
+//   (e.g. CPOW), so a hypothetical port without `__int128` could still reuse
+//   the 64-bit code paths but would need manual carry handling for the wide
+//   saturating accumulators.
+
 // Saturating arithmetic. Unlike the checked ops, saturating ops always produce
 // a value (they clamp instead of raising an overflow exception), so the
 // `successful` flag of the result is always true.
