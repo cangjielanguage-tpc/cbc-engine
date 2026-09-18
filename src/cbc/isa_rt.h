@@ -184,7 +184,11 @@
     X(SBINIMM8, B4xi12rr, "$0sbin.8 $2ir $3ir $1I12")                                                                  \
     X(SBINIMM16, B4xi12rr, "$0sbin.16 $2ir $3ir $1I12")                                                                \
     X(SBINIMM32, B4xi12rr, "$0sbin.32 $2ir $3ir $1I12")                                                                \
-    X(SBINIMM64, B4xi12rr, "$0sbin.64 $2ir $3ir $1I12")
+    X(SBINIMM64, B4xi12rr, "$0sbin.64 $2ir $3ir $1I12")                                                                \
+    X(SBINIMM8W, BinarySaturating, "$0sbin.8 $2ir $3ir $1I64")                                                         \
+    X(SBINIMM16W, BinarySaturating, "$0sbin.16 $2ir $3ir $1I64")                                                       \
+    X(SBINIMM32W, BinarySaturating, "$0sbin.32 $2ir $3ir $1I64")                                                       \
+    X(SBINIMM64W, BinarySaturating, "$0sbin.64 $2ir $3ir $1I64")
 
 // X parameters: opcode, encoding format, string format, is tail
 #define CBC_RT_MEMOPCODES(X)                                                                                           \
@@ -595,6 +599,22 @@ struct BinaryChecked {
         auto rr  = Format::RR::Decode(reader);
         auto imm = Format::Imm64::Decode(reader);
         return BinaryChecked { opc, op, rr, imm };
+    }
+};
+
+struct BinarySaturating {
+    Opcode opc;
+    Format::Saturating op;
+    Format::RR rr;
+    Format::Imm64 imm;
+
+    static BinarySaturating Decode(Decoder::ByteReader& reader)
+    {
+        auto opc = Opcode::Decode(reader);
+        auto op  = Format::Imm8::Decode(reader).Saturating();
+        auto rr  = Format::RR::Decode(reader);
+        auto imm = Format::Imm64::Decode(reader);
+        return BinarySaturating { opc, op, rr, imm };
     }
 };
 

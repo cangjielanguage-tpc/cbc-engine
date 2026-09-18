@@ -451,26 +451,36 @@ void Emitter::SatBinary(Format::Saturating op, Width width, IReg d, IReg l, IReg
 void Emitter::SatAdd(Width width, IReg d, IReg l, IReg r) { SatBinary(Saturating::SADD, width, d, l, r); }
 
 static RT::Opcode satImmOpcodes[][4] = {
-    //                      Width::W8              Width::W16              Width::W32              Width::W64
+    //                       Width::W8                Width::W16                Width::W32                Width::W64
     /* short */ { RT::Opcode::SBINIMM8, RT::Opcode::SBINIMM16, RT::Opcode::SBINIMM32, RT::Opcode::SBINIMM64 },
+    /* wide  */ { RT::Opcode::SBINIMM8W, RT::Opcode::SBINIMM16W, RT::Opcode::SBINIMM32W, RT::Opcode::SBINIMM64W },
 };
 
 void Emitter::SatBinaryImm(Format::Saturating op, Width width, IReg d, IReg l, uint64_t imm)
 {
-    auto opcode = satImmOpcodes[0][width];
-    uint16_t immediate = static_cast<uint16_t>(imm & 0xfff);
-    Encode(
-        segment,
-        RT::B4xi12rr {
-            .opc = opcode,
-            .xi12 =
-                XImm12 {
-                    .imm4  = Imm4(op),
-                    .imm12 = Imm12(immediate),
-                },
-            .rr = { .x = d, .y = l },
-        }
-    );
+    bool isShort = MathUtils::IsNBitsSigned(imm, 12);
+    auto opcode  = satImmOpcodes[!isShort][width];
+
+    if (isShort) {
+        uint16_t immediate = static_cast<uint16_t>(imm & 0xfff);
+        Encode(
+            segment,
+            RT::B4xi12rr {
+                .opc = opcode,
+                .xi12 =
+                    XImm12 {
+                        .imm4  = Imm4(op),
+                        .imm12 = Imm12(immediate),
+                    },
+                .rr = { .x = d, .y = l },
+            }
+        );
+    } else {
+        Encode(
+            segment,
+            RT::BinarySaturating { .opc = opcode, .op = op, .rr = { .x = d, .y = l }, .imm = Imm64 { .imm = imm } }
+        );
+    }
 }
 
 void Emitter::SatSub(Width width, IReg d, IReg l, IReg r) { SatBinary(Saturating::SSUB, width, d, l, r); }

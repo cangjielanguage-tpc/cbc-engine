@@ -93,6 +93,14 @@ void Encode(ByteBuffer& buf, RT::BinaryChecked command)
     Encode(buf, command.imm);
 }
 
+void Encode(ByteBuffer& buf, RT::BinarySaturating command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, Format::Imm8(command.op));
+    Encode(buf, command.rr);
+    Encode(buf, command.imm);
+}
+
 void Encode(ByteBuffer& buf, RT::BFX command)
 {
     Encode(buf, command.opc);

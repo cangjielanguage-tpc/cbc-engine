@@ -479,6 +479,30 @@ LABEL(SBINIMM64) {
     );
     NEXT_COND(true);
 }
+LABEL(SBINIMM8W) {
+    auto args = BinarySaturating::Decode(reader);
+    LOG_INSTR;
+    interpreter.template BinaryImm<Width::W8>(args.op, args.rr.x.IR(), args.rr.y.IR(), args.imm.imm);
+    NEXT_COND(true);
+}
+LABEL(SBINIMM16W) {
+    auto args = BinarySaturating::Decode(reader);
+    LOG_INSTR;
+    interpreter.template BinaryImm<Width::W16>(args.op, args.rr.x.IR(), args.rr.y.IR(), args.imm.imm);
+    NEXT_COND(true);
+}
+LABEL(SBINIMM32W) {
+    auto args = BinarySaturating::Decode(reader);
+    LOG_INSTR;
+    interpreter.template BinaryImm<Width::W32>(args.op, args.rr.x.IR(), args.rr.y.IR(), args.imm.imm);
+    NEXT_COND(true);
+}
+LABEL(SBINIMM64W) {
+    auto args = BinarySaturating::Decode(reader);
+    LOG_INSTR;
+    interpreter.template BinaryImm<Width::W64>(args.op, args.rr.x.IR(), args.rr.y.IR(), args.imm.imm);
+    NEXT_COND(true);
+}
 LABEL(CBINI8I) {
     auto args = B4xi12rr::Decode(reader);
     LOG_INSTR;
