@@ -136,7 +136,10 @@ static inline ArithmeticResult SatArith(Saturating::Value op, Value::Primitive l
             int    sign    = 1; // sign of the true accumulated product
             while (exp != 0) {
                 if ((exp & 1) != 0) {
-                    if ((base < 0) != (acc < 0)) {
+                    // Multiplying by a negative base flips the product sign.
+                    // (Comparing against acc's current sign would double-count
+                    // flips already accumulated in `sign`.)
+                    if (base < 0) {
                         sign = -sign;
                     }
                     if (overflow || __builtin_mul_overflow(acc, base, &acc)) {
@@ -233,7 +236,7 @@ static inline ArithmeticResult SatArithU(Saturating::Value op, Value::Primitive 
             ASSERT(right != 0);
             return { Traits::make(static_cast<utype>(left % right)), true };
         }
-        case Saturating::SSHL: {
+        case Saturating::SUSHL: {
             constexpr int64_t bitWidth = std::numeric_limits<utype>::digits;
             int64_t shift              = static_cast<int64_t>(Traits::uget(r));
             if (shift < 0) {
@@ -245,7 +248,7 @@ static inline ArithmeticResult SatArithU(Saturating::Value op, Value::Primitive 
             uwide res = static_cast<uwide>(Traits::uget(l)) << shift;
             return { Traits::make(static_cast<utype>(res > umax ? umax : res)), true };
         }
-        case Saturating::SSHR: {
+        case Saturating::SUSHR: {
             constexpr int64_t bitWidth = std::numeric_limits<utype>::digits;
             int64_t shift              = static_cast<int64_t>(Traits::uget(r));
             if (shift < 0) {
