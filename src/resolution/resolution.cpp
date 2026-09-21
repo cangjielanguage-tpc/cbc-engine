@@ -727,13 +727,13 @@ struct ResolverProxy {
     {
         auto term = refType.term;
         ASSERT(term.GetKind() == TermKind::TUPLE);
-        auto optTypeInfo = refType.GetTypeInfo();
-        if (!optTypeInfo.has_value()) {
+        ASSERT(idx < term.GetLength());
+        auto optLayout = resolver.fieldManager->GetLayout(term);
+        if (!optLayout) {
             return std::nullopt;
         }
-        ASSERT(idx < term.GetLength());
-        auto typeInfo  = *optTypeInfo;
-        auto offset    = RTSupport::Execution::GetFieldOffset(typeInfo, idx, false);
+        auto layout    = *optLayout;
+        auto offset    = layout->fields[idx].offset;
         auto fieldType = Type(term.Subterm(idx), resolver);
         return InstanceField::Content {
             .refType   = refType,
