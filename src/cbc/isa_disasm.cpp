@@ -415,12 +415,12 @@ struct IsaDisasm : public IsaParser {
 
     virtual void FMathUnary32(Format::FloatMathOp op, FReg dst, FReg src) override
     {
-        stream.PrintLn("{} {}, {}", op, dst, src);
+        stream.PrintLn("{}.32 {}, {}", op, dst, src);
     }
 
     virtual void FMathUnary64(Format::FloatMathOp op, FReg dst, FReg src) override
     {
-        stream.PrintLn("{} {}, {}", op, dst, src);
+        stream.PrintLn("{}.64 {}, {}", op, dst, src);
     }
 
     void TypeArg(IReg ti, int idx, IReg dst) override { stream.PrintLn("type.arg {}, {}[{}]", dst, ti, idx); }
