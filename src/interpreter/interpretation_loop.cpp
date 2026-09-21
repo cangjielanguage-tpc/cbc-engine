@@ -426,82 +426,94 @@ LABEL(CBIN64) {
 LABEL(SBIN8) {
     auto args = B3xrrr::Decode(reader);
     LOG_INSTR;
-    interpreter.template Binary<Width::W8>(args.xr.imm.Saturating(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
-    NEXT_COND(true);
+    bool successful =
+        interpreter.template Binary<Width::W8>(args.xr.imm.Saturating(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
+    NEXT_COND(successful);
 }
 LABEL(SBIN16) {
     auto args = B3xrrr::Decode(reader);
     LOG_INSTR;
-    interpreter.template Binary<Width::W16>(args.xr.imm.Saturating(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
-    NEXT_COND(true);
+    bool successful =
+        interpreter.template Binary<Width::W16>(args.xr.imm.Saturating(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
+    NEXT_COND(successful);
 }
 LABEL(SBIN32) {
     auto args = B3xrrr::Decode(reader);
     LOG_INSTR;
-    interpreter.template Binary<Width::W32>(args.xr.imm.Saturating(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
-    NEXT_COND(true);
+    bool successful =
+        interpreter.template Binary<Width::W32>(args.xr.imm.Saturating(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
+    NEXT_COND(successful);
 }
 LABEL(SBIN64) {
     auto args = B3xrrr::Decode(reader);
     LOG_INSTR;
-    interpreter.template Binary<Width::W64>(args.xr.imm.Saturating(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
-    NEXT_COND(true);
+    bool successful =
+        interpreter.template Binary<Width::W64>(args.xr.imm.Saturating(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
+    NEXT_COND(successful);
 }
 LABEL(SBINIMM8) {
     auto args = B4xi12rr::Decode(reader);
     LOG_INSTR;
-    interpreter.template BinaryImm<Width::W8>(
+    bool successful =
+        interpreter.template BinaryImm<Width::W8>(
         args.xi12.imm4.Saturating(), args.rr.x.IR(), args.rr.y.IR(), MathUtils::SignExtend(static_cast<uint64_t>(args.xi12.imm12), 12)
     );
-    NEXT_COND(true);
+    NEXT_COND(successful);
 }
 LABEL(SBINIMM16) {
     auto args = B4xi12rr::Decode(reader);
     LOG_INSTR;
-    interpreter.template BinaryImm<Width::W16>(
+    bool successful =
+        interpreter.template BinaryImm<Width::W16>(
         args.xi12.imm4.Saturating(), args.rr.x.IR(), args.rr.y.IR(), MathUtils::SignExtend(static_cast<uint64_t>(args.xi12.imm12), 12)
     );
-    NEXT_COND(true);
+    NEXT_COND(successful);
 }
 LABEL(SBINIMM32) {
     auto args = B4xi12rr::Decode(reader);
     LOG_INSTR;
-    interpreter.template BinaryImm<Width::W32>(
+    bool successful =
+        interpreter.template BinaryImm<Width::W32>(
         args.xi12.imm4.Saturating(), args.rr.x.IR(), args.rr.y.IR(), MathUtils::SignExtend(static_cast<uint64_t>(args.xi12.imm12), 12)
     );
-    NEXT_COND(true);
+    NEXT_COND(successful);
 }
 LABEL(SBINIMM64) {
     auto args = B4xi12rr::Decode(reader);
     LOG_INSTR;
-    interpreter.template BinaryImm<Width::W64>(
+    bool successful =
+        interpreter.template BinaryImm<Width::W64>(
         args.xi12.imm4.Saturating(), args.rr.x.IR(), args.rr.y.IR(), MathUtils::SignExtend(static_cast<uint64_t>(args.xi12.imm12), 12)
     );
-    NEXT_COND(true);
+    NEXT_COND(successful);
 }
 LABEL(SBINIMM8W) {
     auto args = BinarySaturating::Decode(reader);
     LOG_INSTR;
-    interpreter.template BinaryImm<Width::W8>(args.op, args.rr.x.IR(), args.rr.y.IR(), args.imm.imm);
-    NEXT_COND(true);
+    bool successful =
+        interpreter.template BinaryImm<Width::W8>(args.op, args.rr.x.IR(), args.rr.y.IR(), args.imm.imm);
+    NEXT_COND(successful);
 }
 LABEL(SBINIMM16W) {
     auto args = BinarySaturating::Decode(reader);
     LOG_INSTR;
-    interpreter.template BinaryImm<Width::W16>(args.op, args.rr.x.IR(), args.rr.y.IR(), args.imm.imm);
-    NEXT_COND(true);
+    bool successful =
+        interpreter.template BinaryImm<Width::W16>(args.op, args.rr.x.IR(), args.rr.y.IR(), args.imm.imm);
+    NEXT_COND(successful);
 }
 LABEL(SBINIMM32W) {
     auto args = BinarySaturating::Decode(reader);
     LOG_INSTR;
-    interpreter.template BinaryImm<Width::W32>(args.op, args.rr.x.IR(), args.rr.y.IR(), args.imm.imm);
-    NEXT_COND(true);
+    bool successful =
+        interpreter.template BinaryImm<Width::W32>(args.op, args.rr.x.IR(), args.rr.y.IR(), args.imm.imm);
+    NEXT_COND(successful);
 }
 LABEL(SBINIMM64W) {
     auto args = BinarySaturating::Decode(reader);
     LOG_INSTR;
-    interpreter.template BinaryImm<Width::W64>(args.op, args.rr.x.IR(), args.rr.y.IR(), args.imm.imm);
-    NEXT_COND(true);
+    bool successful =
+        interpreter.template BinaryImm<Width::W64>(args.op, args.rr.x.IR(), args.rr.y.IR(), args.imm.imm);
+    NEXT_COND(successful);
 }
 LABEL(CBINI8I) {
     auto args = B4xi12rr::Decode(reader);
