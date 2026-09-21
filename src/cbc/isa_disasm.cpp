@@ -411,6 +411,18 @@ struct IsaDisasm : public IsaParser {
         stream.PrintLn("st.g R{}, {}, [({}, {}) @{}]", src, ti, baseRef, derived, field);
     }
 
+    virtual void ZeroVal(AnyReg dst, IReg ti) override { stream.PrintLn("zeroval R{}, {}", dst, ti); }
+
+    virtual void FMathUnary32(Format::FloatMathOp op, FReg dst, FReg src) override
+    {
+        stream.PrintLn("{}.32 {}, {}", op, dst, src);
+    }
+
+    virtual void FMathUnary64(Format::FloatMathOp op, FReg dst, FReg src) override
+    {
+        stream.PrintLn("{}.64 {}, {}", op, dst, src);
+    }
+
     void TypeArg(IReg ti, int idx, IReg dst) override { stream.PrintLn("type.arg {}, {}[{}]", dst, ti, idx); }
 
     void Box(AnyReg src, IReg dst, uint32_t tk) override { stream.PrintLn("box {}, R{}, @{}", dst, src, tk); }

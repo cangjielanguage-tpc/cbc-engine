@@ -379,6 +379,32 @@ struct IsaRewriter : public IsaParser {
         BindStatePoint();
     }
 
+    void ZeroVal(AnyReg dst, IReg ti) override
+    {
+        auto refPath = emit.NewLabel();
+        auto end     = emit.NewLabel();
+        emit.BranchIfRef(ti, refPath);
+        {
+            emit.NewObjGenericOnAcc(ti);
+            BindStatePoint();
+            AdjustReg(IReg::From(dst), IReg::IR_ACC);
+        }
+        emit.Jmp(end);
+        emit.Bind(refPath);
+        emit.MovImm(Format::Width::W64, IReg::From(dst), 0);
+        emit.Bind(end);
+    }
+
+    virtual void FMathUnary32(Format::FloatMathOp op, FReg dst, FReg src) override
+    {
+        emit.FMathUnary(op, Format::Width::W32, dst, src);
+    }
+
+    virtual void FMathUnary64(Format::FloatMathOp op, FReg dst, FReg src) override
+    {
+        emit.FMathUnary(op, Format::Width::W64, dst, src);
+    }
+
     void Ld(AnyReg dst, IReg base, uint32_t fieldId) override
     {
         UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
