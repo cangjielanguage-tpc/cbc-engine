@@ -180,12 +180,12 @@ struct FLManager : public FieldLayoutManager {
 
     void FillRefOffsets(Term term, std::vector<uint32_t>& offsets, uint32_t disp) override
     {
-        if (term.IsGeneric()) {
-            ASSERT(term.Flags().isFixedSize);
-        }
         if (term.IsReference()) {
             offsets.push_back(disp);
             return;
+        }
+        if (term.IsGeneric()) {
+            ASSERT(term.Flags().isFixedSize);
         }
         switch (term.GetKind()) {
             case TermKind::AOT_TYPE: {
