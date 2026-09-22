@@ -98,6 +98,8 @@ public:
 
     inline operator Checked() { return Checked::From(*this); }
 
+    inline operator Saturating() { return Saturating::From(*this); }
+
     inline operator RegSymGroup() { return RegSymGroup::From(*this); }
 
     inline operator RegGroup() { return RegGroup::From(*this); }
@@ -403,6 +405,19 @@ struct IsaParserImpl {
     {
         auto [op, dst, lhs, rhs] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
         parser.CBinary(op, width, dst, lhs, rhs);
+    }
+
+    template <Width::Value width> static void SBinGeneric(IsaParser& parser)
+    {
+        auto [op, dst, lhs, rhs] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
+        parser.SBinary(op, width, dst, lhs, rhs);
+    }
+
+    template <Width::Value width> static void SBinImmGeneric(IsaParser& parser)
+    {
+        auto [op, dst, lhs, low4, hibits] =
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadSLEB().Get();
+        parser.SBinaryImm(op, width, dst, lhs, static_cast<uint64_t>(MergeLowHi(low4, hibits)));
     }
 
     template <Width::Value width> static void CBinaryImm(IsaParser& parser)

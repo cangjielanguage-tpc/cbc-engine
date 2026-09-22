@@ -39,6 +39,8 @@ protected:
     virtual void BinaryImm(Format::Common op, Format::Width width, IReg d, IReg l, uint64_t value)   = 0;
     virtual void CBinary(Format::Checked op, Format::Width width, IReg d, IReg l, IReg r)            = 0;
     virtual void CBinaryImm(Format::Checked op, Format::Width width, IReg d, IReg l, uint64_t value) = 0;
+    virtual void SBinary(Format::Saturating op, Format::Width width, IReg d, IReg l, IReg r)         = 0;
+    virtual void SBinaryImm(Format::Saturating op, Format::Width width, IReg d, IReg l, uint64_t value) = 0;
     virtual void FMovImm(Format::Width width, FReg d, double value)                                  = 0;
     virtual void FBinary(Format::FloatOperations op, Format::Width width, FReg d, FReg l, FReg r)    = 0;
     virtual void FUnary(Format::FloatOperations op, Format::Width width, FReg d, FReg s)             = 0;

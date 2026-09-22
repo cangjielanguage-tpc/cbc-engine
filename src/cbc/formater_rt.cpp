@@ -34,6 +34,8 @@ struct Operand {
 
     Format::Checked CBin() { return Format::Checked::From(U8()); }
 
+    Format::Saturating SBin() { return Format::Saturating::From(U8()); }
+
     Format::FloatOperations Fop() { return Format::FloatOperations::From(U8()); }
 
     Format::FloatMathOp Fmatop() { return Format::FloatMathOp::From(U8()); }
@@ -205,6 +207,8 @@ private:
             Write(operand.Bin());
         } else if (type == "cbin") {
             Write(operand.CBin());
+        } else if (type == "sbin") {
+            Write(operand.SBin());
         } else if (type == "fop") {
             Write(operand.Fop());
         } else if (type == "fmatop") {
@@ -395,6 +399,13 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B7xrrri32 
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, BinaryChecked args)
+{
+    Operand operands[] = { Format::Imm8(args.op), args.imm.imm, args.rr.x, args.rr.y };
+    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    formatter.Format();
+}
+
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, BinarySaturating args)
 {
     Operand operands[] = { Format::Imm8(args.op), args.imm.imm, args.rr.x, args.rr.y };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));

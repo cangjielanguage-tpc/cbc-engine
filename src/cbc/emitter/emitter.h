@@ -171,6 +171,17 @@ public:
     void CUMulI(Width width, IReg d, IReg l, uint64_t imm);
     void CPowI(Width width, IReg d, IReg l, uint64_t imm);
 
+    void SatBinary(Format::Saturating op, Width width, IReg d, IReg l, IReg r);
+    void SatBinaryImm(Format::Saturating op, Width width, IReg d, IReg l, uint64_t imm);
+    void SatAdd(Width width, IReg d, IReg l, IReg r);
+    void SatSub(Width width, IReg d, IReg l, IReg r);
+    void SatMul(Width width, IReg d, IReg l, IReg r);
+    void SatDiv(Width width, IReg d, IReg l, IReg r);
+    void SatMod(Width width, IReg d, IReg l, IReg r);
+    void SatPow(Width width, IReg d, IReg l, IReg r);
+    void SatShl(Width width, IReg d, IReg l, IReg r);
+    void SatShr(Width width, IReg d, IReg l, IReg r);
+
     void Binary(FloatOperations op, Width width, FReg d, FReg l, FReg r);
     void Add(Width width, FReg d, FReg l, FReg r);
     void Sub(Width width, FReg d, FReg l, FReg r);

@@ -30,6 +30,7 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3rrrr arg
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B9i64 args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B7xrrri32 args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, BinaryChecked args);
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, BinarySaturating args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, InterfaceCall args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, InterfaceCallGeneric args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B13i64i32 args);
