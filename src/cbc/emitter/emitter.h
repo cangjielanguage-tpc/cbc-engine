@@ -225,6 +225,10 @@ public:
     void StoreGeneric(Reg src, IReg baseRef, IReg base, IReg ti);
     void LeaGeneric(Reg dst, IReg base, IReg ti, uint32_t offset);
     void TypeArg(IReg dst, IReg typeInfo, int idx);
+    void CopyDerived(IReg dstBase, IReg dst, IReg srcBase, IReg src, RTSupport::TypeInfo ti);
+    void CopyDerivedGeneric(IReg dstBase, IReg dst, IReg srcBase, IReg src, IReg ti);
+    void LeaIndex(IReg dst, IReg src, IReg idx, RTSupport::TypeInfo ti, bool isCangjeiArray);
+    void LeaIndexGeneric(IReg dst, IReg src, IReg idx, IReg ti);
 
     void LoadFrame(LoadAccessKind ldk, Reg dst, uint32_t offset);
     void StoreFrame(StoreAccessKind stk, Reg src, uint32_t offset);
