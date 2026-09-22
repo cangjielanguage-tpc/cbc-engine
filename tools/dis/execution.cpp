@@ -76,6 +76,8 @@ uint32_t Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool isRef) { FATAL
 
 TypeInfo Execution::GetTypeInfo(Reference base) { FATAL("Should not be called"); }
 
+void Execution::InitializeClosure(Reference closure, bool instantiatedSret) { FATAL("Should not reach here."); }
+
 Interpretation::Thunk Execution::GetClosureThunk(Reference base, bool isInstantiated)
 {
     FATAL("Should not reach here.");
