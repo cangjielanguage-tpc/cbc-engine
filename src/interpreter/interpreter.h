@@ -687,6 +687,92 @@ public:
         return true;
     }
 
+    struct DerivedPointer {
+        Value::Reference base;
+        uintptr_t derivedAddr;
+        RTSupport::StructLocationKind kind;
+
+        DerivedPointer(IReg baseReg, IReg derivedReg, Ectype* ectype)
+        {
+            base        = ectype->GetReference(baseReg);
+            derivedAddr = ectype->GetPrimitive(derivedReg).u64;
+            kind        = RTSupport::Execution::GetStructLocationKind(base, derivedAddr);
+        }
+
+        Value::Reference ReadReference(uintptr_t offset, RTSupport::ThreadHandle handle) const
+        {
+            uintptr_t addr = derivedAddr + offset;
+            switch (kind) {
+                case RTSupport::LOCAL:  return Value::Reference { .value = *(uintptr_t*)addr };
+                case RTSupport::GLOBAL: return RTSupport::Execution::ReadObjectStatic((void*)addr, handle);
+                case RTSupport::HEAP:   return RTSupport::Execution::ReadObjectInstance(base, addr, handle);
+            }
+        }
+
+        void WriteReference(uintptr_t offset, Value::Reference ref, RTSupport::ThreadHandle handle) const
+        {
+            uintptr_t addr = derivedAddr + offset;
+            switch (kind) {
+                case RTSupport::LOCAL:  *(uintptr_t*)addr = ref.value; break;
+                case RTSupport::GLOBAL: RTSupport::Execution::WriteObjectStatic((void*)addr, ref, handle); break;
+                case RTSupport::HEAP:   RTSupport::Execution::WriteObjectInstance(base, addr, ref, handle); break;
+            }
+        }
+    };
+
+    template <typename CopyPrimsFunction, typename CopyRefsFunction>
+    void CopyDerivedByRanges(RTSupport::TypeInfo ti, CopyPrimsFunction copyPrims, CopyRefsFunction copyRefs)
+    {
+        const auto size  = RTSupport::MetaInfo::GetTypeSize(ti);
+        uintptr_t offset = 0;
+        // TODO: optimize generated pattern
+        ti.VisitReferenceOffsets([&](uintptr_t refOffset) {
+            ASSERTION(
+                refOffset >= offset && refOffset <= size && size - refOffset >= sizeof(uintptr_t),
+                "invalid reference offset"
+            );
+            if (refOffset > offset) {
+                copyPrims(offset, refOffset - offset);
+            }
+            copyRefs(refOffset);
+            offset = refOffset + sizeof(uintptr_t);
+        });
+
+        if (offset < size) {
+            copyPrims(offset, size - offset);
+        }
+    }
+
+    inline void CopyDerived(IReg dstBase, IReg dstReg, IReg srcBase, IReg srcReg, RTSupport::TypeInfo ti)
+    {
+        auto dst = DerivedPointer(dstBase, dstReg, ectype);
+        auto src = DerivedPointer(srcBase, srcReg, ectype);
+        if (dst.derivedAddr == src.derivedAddr) {
+            return;
+        }
+
+        CopyDerivedByRanges(
+            ti,
+            [&](uintptr_t offset, uintptr_t size) {
+                memcpy((void*)(dst.derivedAddr + offset), (void*)(src.derivedAddr + offset), size);
+            },
+            [&](uintptr_t offset) {
+                using Reference = Interpretation::Value::Reference;
+                Reference ref   = src.ReadReference(offset, handle);
+                dst.WriteReference(offset, ref, handle);
+            }
+        );
+    }
+
+    inline void LeaIndex(IReg dst, IReg arr, IReg idx, RTSupport::TypeInfo ti, bool isCangjieArray = true)
+    {
+        auto obj        = ectype->GetReference(arr);
+        auto size       = RTSupport::MetaInfo::GetTypeSize(ti);
+        auto headOffset = isCangjieArray ? RTSupport::MetaInfo::ArrayBodyOffset() : 0;
+        auto offset     = headOffset + MemOffsetReg(idx) * size;
+        MemoryLocation(obj.value, offset).Lea(dst, ectype);
+    }
+
 private:
     inline bool NullCheck(Value::Reference obj) { return true; }
 

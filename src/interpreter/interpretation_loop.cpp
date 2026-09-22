@@ -730,6 +730,41 @@ LABEL(STORE_REC) {
     bool successful = interpreter.StoreRec(args.xi12.imm4.STK(), args.rr.x, args.rr.y.IR(), args.xi12.imm12);
     NEXT_COND(successful);
 }
+
+LABEL(COPY_DERIVED) {
+    auto args = CopyDerived::Decode(reader);
+    LOG_INSTR;
+    interpreter.CopyDerived(args.dst.x.IR(), args.dst.y.IR(), args.src.x.IR(), args.src.y.IR(), args.ti);
+    NEXT;
+}
+
+// Unused. TODO: support copying in generic context
+LABEL(COPY_DERIVED_GENERIC) {
+    auto args = CopyDerivedGeneric::Decode(reader);
+    LOG_INSTR;
+    auto tiReg = args.ti.x;
+    auto ti = TypeInfo(ectype->GetPrimitive(tiReg.IR()).u64);
+    interpreter.CopyDerived(args.dst.x.IR(), args.dst.y.IR(), args.src.x.IR(), args.src.y.IR(), ti);
+    NEXT;
+}
+
+LABEL(INDEX) {
+    auto args = Index::Decode(reader);
+    LOG_INSTR;
+    interpreter.LeaIndex(args.rr.x.IR(), args.rr.y.IR(), args.idx.r.IR(), args.ti, args.idx.imm);
+    NEXT;
+}
+
+// Unused. TODO: support element access for generic arrays
+LABEL(INDEX_GENERIC) {
+    auto args = IndexGeneric::Decode(reader);
+    LOG_INSTR;
+    auto tiReg = args.idx.y;
+    auto ti = TypeInfo(ectype->GetPrimitive(tiReg.IR()).u64);
+    interpreter.LeaIndex(args.rr.x.IR(), args.rr.y.IR(), args.idx.x.IR(), ti);
+    NEXT;
+}
+
 LABEL(LOAD_FRAME_F)
 LABEL(LOAD_FRAME) {
     auto args = B4xi12rr::Decode(reader);
@@ -1728,21 +1763,6 @@ LABEL(COPY_REC_FROM_REC) {
     NEXT;
 }
 
-LABEL(COPY_REC_FROM_DERIVED) {
-    auto args = CopyDerived::Decode(reader);
-    LOG_INSTR;
-
-    auto from = ectype->GetReference(args.rr.x.IR());    // derived base
-    auto derived = ectype->GetReference(args.rr.y.IR()); // derived (interior record)
-    auto to = ectype->GetReference(args.field.x.IR());   // pointer to local record
-    auto ti = args.ti;                                   // typeinfo
-
-    auto recStart = derived.value + memspaceOffsetAcc;   // interior record
-    // any -> local (generic gc barrier required)
-    RTSupport::Execution::ReadStructField(to.value, from, recStart, ti, handle);
-    NEXT;
-}
-
 LABEL(COPY_REC_TO_OBJ) {
     auto args = MStructFieldOp::Decode(reader);
     LOG_INSTR;
@@ -1772,21 +1792,6 @@ LABEL(COPY_REC_TO_REC) {
     // local -> local (gc barrier isn't required)
     uint32_t size = MetaInfo::GetTypeSize(ti); // FIXME: encode size
     memcpy((void*) recStart, (void*) from.value, size);
-    NEXT;
-}
-
-LABEL(COPY_REC_TO_DERIVED) {
-    auto args = CopyDerived::Decode(reader);
-    LOG_INSTR;
-
-    auto base = ectype->GetReference(args.rr.x.IR());    // derived base
-    auto derived = ectype->GetReference(args.rr.y.IR()); // derived (interior record)
-    auto from = ectype->GetReference(args.field.x.IR()); // pointer to local record
-    auto ti = args.ti;                                   // typeinfo
-
-    auto recStart = derived.value + memspaceOffsetAcc;   // interior record
-    // local -> any (generic gc barrier required)
-    RTSupport::Execution::WriteStructField(from.value, base, recStart, ti, handle);
     NEXT;
 }
 
