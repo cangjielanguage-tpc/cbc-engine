@@ -122,6 +122,8 @@ struct Execution {
 
     static TypeInfo GetTypeInfo(Reference base);
 
+    static void InitializeClosure(Reference closure, bool instantiatedSret);
+
     static Interpretation::Thunk GetClosureThunk(Reference base, bool isInstantiated);
 
     static Interpretation::Thunk GetVirtualThunk(Reference base, int extDefNum, int methodNum);

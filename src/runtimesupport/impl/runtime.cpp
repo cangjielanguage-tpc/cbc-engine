@@ -24,6 +24,15 @@ static_assert(static_cast<int>(Interpretation::Type::SpawnException) == IMPLICIT
 
 constexpr uint32_t REF_FIELD_SIZE = sizeof(void*);
 
+/// CBC-provided closures always have two fields reserved for function pointers to
+/// generic and instantiated versions of the function. The generic version uses SRET
+/// because type-variable results are returned indirectly.
+struct CJClosureLayout {
+    DYN_TypeInfo* header;
+    void* genericFunc;
+    void* instantiatedFunc;
+};
+
 static bool IsInlineGCTib(DYN_GCTib tib) { return static_cast<bool>(tib.raw & GCTIB_SIGN_BIT); }
 
 void Execution::WriteGeneric(Reference base, uintptr_t field, Reference object, size_t size, ThreadHandle th)
@@ -190,17 +199,19 @@ static Interpretation::Thunk GetDynCallThunk(void* fn, TypeInfo ti)
     return { Adapters::GenericI2CCallInstance(), fn };
 }
 
+void Execution::InitializeClosure(Reference closure, bool instantiatedSret)
+{
+    auto closureLayout = reinterpret_cast<CJClosureLayout*>(closure.value);
+
+    closureLayout->genericFunc      = Adapters::GetDynCallTrampoline(0, true);
+    closureLayout->instantiatedFunc = Adapters::GetDynCallTrampoline(1, instantiatedSret);
+}
+
 Interpretation::Thunk Execution::GetClosureThunk(Reference base, bool isInstantiated)
 {
-    struct FullLayout {
-        DYN_TypeInfo* header;
-        void* genericFunc;
-        void* intantiatedFunc;
-    };
-
     // Avoid cast of `base.value` to `FullLayout*` to avoid UB, which observed as:
     // "compiler can speculatively read unexisting field".
-    auto offset           = isInstantiated ? offsetof(FullLayout, intantiatedFunc) : offsetof(FullLayout, genericFunc);
+    auto offset = isInstantiated ? offsetof(CJClosureLayout, instantiatedFunc) : offsetof(CJClosureLayout, genericFunc);
     void* func            = *reinterpret_cast<void**>(base.value + offset);
     DYN_TypeInfo** header = reinterpret_cast<DYN_TypeInfo**>(base.value);
     return GetDynCallThunk(func, TypeInfo(*header));

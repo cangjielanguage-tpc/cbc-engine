@@ -298,6 +298,8 @@ TypeInfo Execution::GetTypeInfo(Reference base)
     return *header;
 }
 
+void Execution::InitializeClosure(Reference closure, bool instantiatedSret) { FATAL("Should not reach here."); }
+
 Interpretation::Thunk Execution::GetClosureThunk(Reference base, bool isInstantiated)
 {
     FATAL("Should not reach here.");

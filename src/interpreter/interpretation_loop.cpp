@@ -26,23 +26,6 @@ using namespace Interpretation;
 using namespace Cbc::RT;
 using namespace RTSupport;
 
-static void InitializeClosure(Ectype* ectype, bool instantiatedSret)
-{
-    struct ClosureObj {
-        void* header;
-        void* generic;
-        void* instantiated;
-    };
-
-    /// CBC-provided closures always have two fields reserved for function pointers to
-    /// generic and instantiated versions of the function. The generic version uses SRET
-    /// because type-variable results are returned indirectly.
-    auto closure = reinterpret_cast<ClosureObj*>(ectype->GetReference(IReg::IR1).value);
-
-    closure->generic      = Adapters::GetDynCallTrampoline(0, true);
-    closure->instantiated = Adapters::GetDynCallTrampoline(1, instantiatedSret);
-}
-
 extern "C" {
 
 /// The interpretation loop can be used in two scenarios:
@@ -631,13 +614,13 @@ LABEL(WRITE_STRUCT_FIELD) {
 LABEL(INITCLOSURE) {
     auto args = B1::Decode(reader);
     LOG_INSTR;
-    InitializeClosure(ectype, false);
+    Execution::InitializeClosure(ectype->GetReference(IReg::IR1), false);
     NEXT;
 }
 LABEL(INITCLOSURE_SRET) {
     auto args = B1::Decode(reader);
     LOG_INSTR;
-    InitializeClosure(ectype, true);
+    Execution::InitializeClosure(ectype->GetReference(IReg::IR1), true);
     NEXT;
 }
 LABEL(SPAWN_FUTURE) {
