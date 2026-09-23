@@ -124,6 +124,7 @@ public:
     void ResolveAll(Session& session, Reference const& reference, std::vector<MethodTableEntry>& buffer) const;
 
 private:
+    friend class MethodTableBuilder;
     friend class MethodSubTable;
     friend class MethodTableManager;
 

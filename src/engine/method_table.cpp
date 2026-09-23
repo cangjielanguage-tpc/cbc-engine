@@ -1,9 +1,11 @@
 #include "method_table.h"
+#include "engine/decode/reader.h"
 #include "engine/engine.h"
 #include "engine/identifiers.h"
-#include "engine/image/reader.h"
+#include "engine/image/cbc_file.h"
 #include "engine/resolving_output.h"
 #include "engine/terms.h"
+#include "utils/assertion.h"
 #include "utils/iterators.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
@@ -178,13 +180,126 @@ std::optional<MethodTableEntry> MethodSubTable::EntryGenerator::operator()()
 
 // ---- MethodTable building ----
 
+struct MethodTableBuilder {
+    MethodTableManager& manager;
+    GlobalTerm tableOwner;
+    MethodTable table {};
+
+    std::vector<MethodTableEntry> entryBuffer;
+    std::unordered_set<Term, Term::Hasher> interfaces;
+
+    bool AddInterface(Session& session, Term interface)
+    {
+        if (interfaces.find(interface) != interfaces.end()) {
+            // In case if interfaces were mentioned for second time in extension
+            return true;
+        }
+        auto optInterfTable = manager.GetMethodTable(session, interface);
+        if (!optInterfTable.has_value()) {
+            LOGS_ERROR(Log::mt, session, "Interface {} not found", interface);
+            return false;
+        }
+
+        auto interfTable = *optInterfTable;
+
+        ASSERTION(interfTable->classTables.empty(), "interface tables should not have class table");
+
+        auto oldEntryCount = table.EntryCount();
+        table.allEntries.insert(table.allEntries.end(), interfTable->allEntries.begin(), interfTable->allEntries.end());
+
+        for (auto st : interfTable->interfaceTables) {
+            table.interfaceTables.emplace_back(MethodTable::SubTable {
+                .genericContext = st.genericContext,
+                .start          = st.start + oldEntryCount,
+                .end            = st.end + oldEntryCount,
+            });
+        }
+        interfaces.insert(interface);
+        return true;
+    }
+
+    bool AddExtensions(Session& session)
+    {
+        std::vector<Term> storage;
+        TermMatcher matcher;
+
+        for (auto file : session.GetEngine().Files()) {
+            for (auto extId : Image::Reader::Resolve(session, file.extensions)) {
+                auto ext    = Image::Reader::Read(session, extId);
+                auto prefix = TermManager::Resolve(session, ext.GetExtendedType());
+                bool isPrefix = matcher.IsPrefix(prefix, tableOwner);
+                bool completeMatch = isPrefix && !matcher.HasErrors();
+
+                LOGS_DEBUG(Log::mt, session, "Matching {} against {} (prefix={}, complete={})", prefix, tableOwner, isPrefix, completeMatch);
+
+                if (completeMatch) {
+                    ASSERTION(
+                        matcher.vars.size() == ext->arity,
+                        "Language constraint: all variables in `extend` should be used in the extended type"
+                    );
+
+                    ClassSubstitution sub(session, matcher.vars);
+                    for (auto interf : Reader::Resolve(session, ext.GetInterfaces())) {
+                        auto interface = TermManager::Resolve(session, interf);
+                        interface      = sub(interface);
+
+                        if (!AddInterface(session, interface)) {
+                            return false;
+                        }
+                    }
+
+                    auto genericContext =
+                        tableOwner; // the code is referencing type variables using type-arg tree of extended type.
+                    MethodSignatureSubstitution msub(session, matcher.vars.data(), matcher.vars.size());
+                    for (auto methodId : Reader::Resolve(session, ext.GetVirtualMethods())) {
+                        AddMethod(session, methodId, msub, genericContext);
+                    }
+                }
+                matcher.Clear();
+            }
+        }
+        return true;
+    }
+
+    void AddMethod(
+        Session& session, Identifier<MethodDefinition> methodId, MethodSignatureSubstitution& sub, Term genericContext
+    )
+    {
+        auto newEntry = MethodTable::Entry {
+            .method         = methodId,
+            .genericContext = genericContext,
+        };
+
+        auto method = Reader::Read(session, methodId);
+        auto methodSig = TermManager::Resolve(session, method.Signature());
+        methodSig      = sub.Substitute(methodSig);
+
+        MethodTable::Reference ref { .name      = Reader::Read(session, method.Name()),
+                                     .signature = methodSig };
+
+        // TODO: Do not override protected methods that are not visible from the current type.
+        table.ResolveAll(session, ref, entryBuffer);
+
+        if (entryBuffer.empty()) {
+            // 3.2 add newly declared methods
+            table.allEntries.emplace_back(newEntry);
+        } else {
+            // 3.1 patch overriden methods
+            for (auto& entry : entryBuffer) {
+                table.allEntries[entry.flatMethodNum] = newEntry;
+            }
+            entryBuffer.clear();
+        }
+    }
+};
+
 std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, GlobalTerm type)
 {
     auto def   = Reader::Read(session, ExtractTypeDefIdentifier(type));
     auto flags = def.GetFlags();
 
     // 1. Get table of super type for claseses or empty table for other types
-    MethodTable newTable {};
+    MethodTableBuilder builder { *this, type };
 
     ClassSubstitution substitute(session, type);
 
@@ -198,7 +313,7 @@ std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, Glob
             out << "Super " << def.GetSuperType() << " of type " << Detailed(def.GetName()) << " not found." << endl;
             return std::nullopt;
         }
-        newTable = **superMT;
+        builder.table = **superMT;
     }
 
     // 2. Copy all entries and sub tables of interfaces, adjusting their views
@@ -206,81 +321,38 @@ std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, Glob
         auto interface = TermManager::Resolve(session, interf);
         interface      = substitute(interface);
 
-        auto optInterfTable = GetMethodTable(session, interface);
-        if (!optInterfTable.has_value()) {
-            ResolvingOutput out(session, Log::mt.Stream(Logging::Level::ERROR));
-            out << "Interface " << interf << " of type " << Detailed(def.GetName()) << " not found." << endl;
+        if (!builder.AddInterface(session, interface)) {
             return std::nullopt;
-        }
-
-        auto interfTable = *optInterfTable;
-
-        ASSERTION(interfTable->classTables.empty(), "interface tables should not have class table");
-
-        auto oldEntryCount = newTable.EntryCount();
-        newTable.allEntries.insert(
-            newTable.allEntries.end(), interfTable->allEntries.begin(), interfTable->allEntries.end()
-        );
-
-        for (auto st : interfTable->interfaceTables) {
-            newTable.interfaceTables.emplace_back(MethodTable::SubTable {
-                .genericContext = st.genericContext,
-                .start          = st.start + oldEntryCount,
-                .end            = st.end + oldEntryCount,
-            });
         }
     }
 
-    Log::mt.Log(Logging::Level::DEBUG, [&session, &newTable, &def](Output& stream) {
-        ResolvingOutput out(session, stream);
-        out << "Intermediate table for " << Detailed(def.GetName()) << " " << newTable << endl;
-    });
+    if (!builder.AddExtensions(session)) {
+        return std::nullopt;
+    }
+
+    LOGS_DEBUG(Log::mt, session, "Intermediate table for {} {}", Detailed(def.GetName()), builder.table);
 
     // 3. Patch all overriden methods and add newly declared methods
     // to the subtable of current type.
     auto thisType      = type;
-    auto oldEntryCount = newTable.EntryCount();
+    auto oldEntryCount = builder.table.EntryCount();
     MethodSignatureSubstitution methodSigSub(session, type);
 
     std::vector<MethodTableEntry> entryBuffer;
     for (auto methodId : Reader::Resolve(session, def.GetVirtualMethods())) {
-        auto newEntry = MethodTable::Entry {
-            .method         = methodId,
-            .genericContext = thisType,
-        };
-
-        auto method = Reader::Read(session, methodId);
-        auto methodSig = TermManager::Resolve(session, method.Signature());
-        methodSig = methodSigSub.Substitute(methodSig);
-
-        MethodTable::Reference ref { .name      = Reader::Read(session, method.Name()),
-                                     .signature = methodSig };
-
-        // TODO: Do not override protected methods that are not visible from the current type.
-        newTable.ResolveAll(session, ref, entryBuffer);
-
-        if (entryBuffer.empty()) {
-            // 3.2 add newly declared methods
-            newTable.allEntries.emplace_back(newEntry);
-        } else {
-            // 3.1 patch overriden methods
-            for (auto& entry : entryBuffer) {
-                newTable.allEntries[entry.flatMethodNum] = newEntry;
-            }
-            entryBuffer.clear();
-        }
+        builder.AddMethod(session, methodId, methodSigSub, thisType);
     }
 
     // 3.3 add new subtable for current type (even if new methods were not added)
-    auto tables = flags.Is(TypeKind::INTERFACE) ? &newTable.interfaceTables : &newTable.classTables;
+    auto tables = flags.Is(TypeKind::INTERFACE) ? &builder.table.interfaceTables : &builder.table.classTables;
 
     tables->emplace_back(MethodTable::SubTable {
         .genericContext = thisType,
         .start          = oldEntryCount,
-        .end            = newTable.EntryCount(),
+        .end            = builder.table.EntryCount(),
     });
 
-    return newTable;
+    return builder.table;
 }
 
 std::optional<std::shared_ptr<MethodTable>> MethodTableManager::GetMethodTable(Session& session, Term term)
