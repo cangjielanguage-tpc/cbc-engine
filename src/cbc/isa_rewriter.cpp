@@ -373,8 +373,9 @@ struct IsaRewriter : public IsaParser {
     void PrepareRecord(uint16_t ts) override
     {
         auto size = frameLayout.typedOffset[ts + 1] - frameLayout.typedOffset[ts];
-        auto tsi  = frameLayout.typedSlotsInfo[ts];
-        emit.PrepareTyped(size, tsi.first);
+        auto tsi  = frameLayout.stackAllocSize[ts];
+        // auto tsi  = frameLayout.typedSlotsInfo[ts];
+        emit.PrepareTyped(size, tsi);
     }
 
     void NewArr(IReg dst, IReg len, uint32_t typeId) override
@@ -1962,7 +1963,13 @@ static std::optional<FrameLayout> makeFrameLayout(Image::Code code, Resolver& re
     auto untypedSlotsSize = Cbc::STACK_SLOT_SIZE * code.UntypedSlotCount();
 
     std::unordered_map<uint32_t, uint32_t> typedOffset;
-    std::vector<std::pair<uint32_t, std::vector<uint32_t>>> typedSlotsInfo;
+    typedOffset.reserve(code.StackAllocSigsCount() + 1);
+
+    std::vector<uint32_t> refOffsets;
+
+    std::vector<uint32_t> stackAllocSizes;
+    stackAllocSizes.reserve(code.StackAllocSigsCount());
+
     auto stackAllocSize = untypedSlotsSize;
     uint32_t i;
     for (i = 0; i < code.StackAllocSigsCount(); i++) {
@@ -1982,18 +1989,10 @@ static std::optional<FrameLayout> makeFrameLayout(Image::Code code, Resolver& re
             return std::nullopt;
         }
 
-        std::vector<uint32_t> offsets;
-        type.resolver->fieldManager->FillRefOffsets(type.term, offsets, 0);
-
-        // auto typeInfo = type.GetTypeInfo();
-        // if (!typeInfo.has_value()) {
-        //     LOG_ERROR(log, "Failed to obtain type info at t{} for type {}", i, type);
-        //     return std::nullopt;
-        // }
-        // auto typeInfoPtr = typeInfo->Raw();
+        type.FillReferenceOffsets(refOffsets);
 
         typedOffset.insert({ i, stackAllocSize });
-        typedSlotsInfo.push_back({ stackAllocSize, offsets });
+        stackAllocSizes.push_back(stackAllocSize);
         stackAllocSize += MathUtils::AlignUp(size.value(), Cbc::STACK_SLOT_SIZE);
     }
 
@@ -2001,7 +2000,9 @@ static std::optional<FrameLayout> makeFrameLayout(Image::Code code, Resolver& re
 
     auto frameSize = MathUtils::AlignUp(savedRegsSpace + stackAllocSize, Cbc::FRAME_ALIGNMENT);
 
-    return FrameLayout { std::move(typedOffset), std::move(typedSlotsInfo), untypedSlotsSize, frameSize };
+    return FrameLayout {
+        std::move(typedOffset), std::move(stackAllocSizes), std::move(refOffsets), untypedSlotsSize, frameSize
+    };
 }
 
 static std::vector<Interpretation::GCPositionalInfo> CalculatePositionalGCInfo(
@@ -2162,7 +2163,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
         .gcInfo =
             Interpretation::GcInfo {
                 .positionalInfo = std::move(CalculatePositionalGCInfo(session, code, emitter, rewriter.statePoints)),
-                .typedSlotsInfo = std::move((*frameLayout).typedSlotsInfo),
+                .refOffsets     = std::move((*frameLayout).refOffsets),
             },
         .stackPtrsInfo =
             Interpretation::StackPtrsInfo {

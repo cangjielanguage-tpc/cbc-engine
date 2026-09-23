@@ -14,7 +14,7 @@ Stream::Output& operator<<(Stream::Output& out, const ExecBytecodeInfo& bc)
 
     out << "ExecBytecodeInfo {" << endl;
     out2 << "untypedSlotsCount: " << bc.untypedSlotCount << endl
-         << "typedSlotsCount: " << bc.gcInfo.typedSlotsInfo.size() << endl
+         << "typedSlotsCount: " << bc.gcInfo.refOffsets.size() << endl
          << "frameSize: " << bc.frameSize << endl;
 
     out2 << "GCMap {" << endl;
@@ -73,8 +73,8 @@ AbiInfo BuildAbiInfo(Engine::Session& session, Engine::Term signature, AbiInfoFl
         referenceParams |= ((isReg && isRef) << iargIdx);
 
         // Counters could overflow param passing reg amount.
-        fargIdx          += isFloat;
-        iargIdx          += !isFloat;
+        fargIdx += isFloat;
+        iargIdx += !isFloat;
         termIdx++;
     }
 
