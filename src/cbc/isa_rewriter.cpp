@@ -374,7 +374,6 @@ struct IsaRewriter : public IsaParser {
     {
         auto size = frameLayout.typedOffset[ts + 1] - frameLayout.typedOffset[ts];
         auto tsi  = frameLayout.stackAllocSize[ts];
-        // auto tsi  = frameLayout.typedSlotsInfo[ts];
         emit.PrepareTyped(size, tsi);
     }
 
