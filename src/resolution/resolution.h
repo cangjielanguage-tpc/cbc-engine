@@ -51,7 +51,7 @@ public:
     /// The size of a field of given type.
     std::optional<uint32_t> GetFlatSize() const;
 
-    void FillReferenceOffsets(std::vector<uint32_t>& refOffsets) const;
+    void FillReferenceOffsets(std::vector<uint32_t>& refOffsets, uint32_t disp) const;
 
     Type(Engine::Term term, Resolver& resolver) : term(term), resolver(&resolver) {}
 

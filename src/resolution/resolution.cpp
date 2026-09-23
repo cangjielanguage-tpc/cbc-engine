@@ -50,9 +50,9 @@ static std::string_view CopyToArena(Session& session, std::string const& str)
 
 std::optional<RTSupport::TypeInfo> Type::GetTypeInfo() const { return resolver->GetTypeInfo(*this); }
 
-void Type::FillReferenceOffsets(std::vector<uint32_t>& refOffsets) const
+void Type::FillReferenceOffsets(std::vector<uint32_t>& refOffsets, uint32_t disp) const
 {
-    this->resolver->fieldManager->FillRefOffsets(this->term, refOffsets, 0);
+    this->resolver->fieldManager->FillRefOffsets(this->term, refOffsets, disp);
 }
 
 std::optional<uint32_t> Type::GetFlatSize() const { return resolver->GetFlatSize(*this); }

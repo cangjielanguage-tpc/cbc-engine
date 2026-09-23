@@ -1989,7 +1989,7 @@ static std::optional<FrameLayout> makeFrameLayout(Image::Code code, Resolver& re
             return std::nullopt;
         }
 
-        type.FillReferenceOffsets(refOffsets);
+        type.FillReferenceOffsets(refOffsets, stackAllocSize);
 
         typedOffset.insert({ i, stackAllocSize });
         stackAllocSizes.push_back(stackAllocSize);
