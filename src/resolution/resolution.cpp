@@ -4,7 +4,6 @@
 #include "engine/field_layout.h"
 #include "engine/identifiers.h"
 #include "engine/image/flags.h"
-#include "engine/image/reader.h"
 #include "engine/method_table.h"
 #include "engine/resolving_output.h"
 #include "engine/statics_manager.h"
@@ -323,26 +322,37 @@ struct ResolverProxy {
     {
         if (ref.refType.GetKind() == TermKind::UNDEFINED || ref.fieldType.GetKind() == TermKind::UNDEFINED) {
             // undef terms would be reported separately
-            log.Stream(Logging::Level::ERROR)
-                << "Failed to parse field reference " << ref.GetRawIndex() << Stream::endl;
+            LOG_ERROR(log, "Failed to parse field reference {}", ref.GetRawIndex());
             return std::nullopt;
         }
 
-        auto idx     = std::get<uint32_t>(ref.nameOrIdx);
-        auto refType = resolver.Wrap(ref.refType);
+        auto fieldIdx    = std::get<uint32_t>(ref.nameOrIdx);
+        auto refTypeTerm = ref.refType;
+        auto offsAddend  = 0;
 
-        TermKind kind = ref.refType.GetKind();
-        switch (kind) {
-            case TermKind::TUPLE: {
-                return ResolveTupleElement(resolver, refType, idx);
-            }
-            default: {
-                // TODO: support for arrays
-                log.Stream(Logging::Level::ERROR)
-                    << "Invalid kind in const index reference: " << static_cast<uint8_t>(kind) << Stream::endl;
-                return std::nullopt;
-            }
+        if (refTypeTerm.GetKind() == TermKind::BOX) {
+            offsAddend = RTSupport::MetaInfo::ObjectHeaderSize();
+            refTypeTerm = refTypeTerm.Subterm(0); // get underlying type of box.
         }
+
+        auto result = [&]() -> std::optional<InstanceField::Content> {
+            TermKind kind = refTypeTerm.GetKind();
+            switch (kind) {
+                case TermKind::TUPLE: {
+                    return ResolveTupleElement(resolver, resolver.Wrap(refTypeTerm), fieldIdx);
+                }
+                default: {
+                    LOG_ERROR(log, "Invalid kind in const index reference: {}", (uint8_t) kind);
+                    return std::nullopt;
+                }
+            }
+        }();
+
+        if (result && result->offset) {
+            result->offset = *result->offset + offsAddend;
+        }
+
+        return result;
     }
 
     template <>
