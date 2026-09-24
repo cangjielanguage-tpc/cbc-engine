@@ -6,6 +6,33 @@
 
 namespace Interpretation {
 
+StaticCallTypeInfoArgs LocateStaticCallTypeInfoArgs(Engine::Term signature, bool sret, bool hasOuterTi)
+{
+    unsigned iarg = 1 + (HAS_SRET_SHIFT && sret);
+    unsigned farg = 0;
+    unsigned slot = 0;
+
+    auto next = [&](bool isFloat) -> uint16_t {
+        if (isFloat && farg < FREG_ABI_AMOUNT) {
+            ++farg;
+            return StaticCallTypeInfoArgs::NONE; // Only integer locations are needed below.
+        }
+        if (!isFloat && iarg <= IREG_PARAM_PASSING_AMOUNT) {
+            return iarg++;
+        }
+        auto location = Cbc::IReg::VIRT_COUNT + slot++;
+        ASSERT(location <= UINT16_MAX);
+        return static_cast<uint16_t>(location);
+    };
+
+    // The signature excludes hidden parameters and ends with the return type.
+    for (unsigned i = 0; i < signature.GetLength() - 1; ++i) {
+        next(signature.Subterm(i).IsFloat());
+    }
+    auto outerTi = hasOuterTi ? next(false) : StaticCallTypeInfoArgs::NONE;
+    return { outerTi, next(false) };
+}
+
 Stream::Output& operator<<(Stream::Output& out, const ExecBytecodeInfo& bc)
 {
     using namespace Stream;

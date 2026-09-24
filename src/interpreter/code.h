@@ -144,6 +144,17 @@ struct AbiInfoFlags {
 
 AbiInfo BuildAbiInfo(Engine::Session& session, Engine::Term signature, AbiInfoFlags flags);
 
+// Call arguments use register indices, or IReg::VIRT_COUNT + outgoing stack-slot index.
+// Outgoing arguments occupy the first untyped slots of the caller's frame.
+struct StaticCallTypeInfoArgs {
+    static constexpr uint16_t NONE = 0; // IRZ is never an argument location.
+
+    uint16_t outerTi = NONE;
+    uint16_t thisTi  = NONE;
+};
+
+StaticCallTypeInfoArgs LocateStaticCallTypeInfoArgs(Engine::Term signature, bool sret, bool hasOuterTi);
+
 static_assert(
     offsetof(ExecBytecodeInfo, code) + offsetof(Code, bytecodeSize) == EXEC_BYTECODE_INFO_BYTECODE_SIZE_OFFSET
 );

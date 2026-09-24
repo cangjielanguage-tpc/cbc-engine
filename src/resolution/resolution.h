@@ -111,12 +111,20 @@ private:
 };
 
 struct InterfaceCall {
+    static bool IsStaticVirtual(Image::MethodRefFlags flags)
+    {
+        return flags.Is(Image::MethodRefFlag::HAS_THIS_TI) && !flags.Is(Image::MethodRefFlag::REF_RECEIVER) &&
+               !flags.Is(Image::MethodRefFlag::REC_RECEIVER) && !flags.Is(Image::MethodRefFlag::MUT);
+    }
+
     struct Content {
         Type refType;
         std::string_view name;
         MethodSignature signature;
         int methodNum;
-        bool sret;
+        Image::MethodRefFlags flags;
+
+        bool IsStaticVirtual() const { return InterfaceCall::IsStaticVirtual(flags); }
     };
 
     Content* operator->() const { return content; };

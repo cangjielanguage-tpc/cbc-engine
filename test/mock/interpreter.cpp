@@ -208,10 +208,17 @@ Interpretation::Value::Primitive InterpretFPRes(
     return Interpretation::Interpret<Cbc::FReg>(code, frame, U32(0), U32(0), fr0, fr1, Cbc::FReg::FR0);
 }
 
+MockInterfaceDispatch& InterfaceDispatchMock()
+{
+    static MockInterfaceDispatch mock;
+    return mock;
+}
+
 void InitializeMockInterpreter()
 {
     using namespace Interpretation;
     Engine::InitEnvOptions();
+    InterfaceDispatchMock() = {};
     auto i2call = reinterpret_cast<Interpretation::I2Call>(&Interpretation::InterpreterI2CallTest);
 }
 
@@ -312,12 +319,18 @@ Interpretation::Thunk Execution::GetVirtualThunk(Reference base, int extDefNum, 
 
 TypeInfo Execution::GetMethodOuterTi(TypeInfo where, TypeInfo interf, int methodNum)
 {
-    FATAL("Should not reach here. I2C interface call");
+    auto& mock = InterfaceDispatchMock();
+    ASSERT(mock.enabled);
+    mock.outerTiCalls.push_back({ where, interf, methodNum });
+    return mock.outerTi;
 }
 
 Interpretation::Thunk Execution::GetInterfaceThunk(TypeInfo where, TypeInfo ti, int methodNum)
 {
-    FATAL("Should not reach here. I2C interface call");
+    auto& mock = InterfaceDispatchMock();
+    ASSERT(mock.enabled);
+    mock.dispatchCalls.push_back({ where, ti, methodNum });
+    return mock.thunk;
 }
 
 void* Execution::AllocateObjectInstance() { return reinterpret_cast<void*>(&Interpretation::MockNewObj); }

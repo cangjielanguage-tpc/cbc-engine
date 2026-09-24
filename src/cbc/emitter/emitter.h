@@ -265,8 +265,13 @@ public:
     void DirectCall2c(Symbol target);
 
     void VirtualCall(uint16_t vnum, uint16_t extDefNum, bool sret);
-    void InterfaceCall(uint16_t methodNum, RTSupport::TypeInfo typeInfo, bool sret);
-    void InterfaceCallGeneric(uint16_t methodNum, uint16_t argnum, bool sret);
+    void InterfaceCall(
+        uint16_t methodNum,
+        RTSupport::TypeInfo typeInfo,
+        bool sret,
+        Interpretation::StaticCallTypeInfoArgs typeInfoArgs = {}
+    );
+    void InterfaceCallGeneric(uint16_t methodNum, uint16_t argnum, bool sret, uint16_t thisTiArg = 0);
 
     void StringLit(Interpretation::StringStorage* literal, uint32_t frameOffs);
 
