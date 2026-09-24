@@ -357,7 +357,8 @@ struct IsaRewriter : public IsaParser {
         Utils::Span<const Location> args,
         CallAbiFlags flags,
         Resolution::MethodSignature& sig,
-        Location* outerTiLoc = nullptr
+        Location* outerTiLoc = nullptr,
+        Location* thisTiLoc = nullptr
     )
     {
         int funcVarsCount = sig.tvars.GetLength();
@@ -431,7 +432,10 @@ struct IsaRewriter : public IsaParser {
                 *outerTiLoc = loc;
         }
         if (flags.abiKind == Image::MethodAbiKind::HAS_THIS_TI) {
-            moves.AddMove(args[idx++], abi.Consume(ArgKind::INT));
+            Location loc = abi.Consume(ArgKind::INT);
+            moves.AddMove(args[idx++], loc);
+            if (thisTiLoc)
+                *thisTiLoc = loc;
         }
 
         RewriterMoveEmitter emitter(frameLayout, emit);
@@ -1367,6 +1371,22 @@ struct IsaRewriter : public IsaParser {
         EmitReturnedTo();
     }
 
+    static uint16_t ArgNumber(Location loc)
+    {
+        uint16_t argnum = 0;
+        if (loc.Kind() == Location::NIL) {
+            argnum = Interpretation::StaticCallTypeInfoArgs::NONE;
+        } else if (loc.Kind() == Location::IREG) {
+            argnum = loc.IRegIdx();
+            ASSERT(argnum < IReg::VIRT_COUNT);
+        } else if (loc.Kind() == Location::SLOT) {
+            argnum = loc.SlotIdx() + IReg::VIRT_COUNT;
+        } else {
+            ASSERTION(false, "outerti loc can not be freg");
+        }
+        return argnum;
+    }
+
     void CallInterf(uint32_t methodId, Utils::Span<const Location> args) override
     {
         auto m = resolver.Query(Index<InterfaceCall>(methodId));
@@ -1384,9 +1404,22 @@ struct IsaRewriter : public IsaParser {
             session,
             Image::RefIdentifier<Image::MethodReference>(Image::RefId<Image::MethodReference>(methodId), fileId)
         );
-        StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature);
+
+        auto flags = MakeCallAbiFlags(ref.flags, ref.abiKind);
+        Location thisTiLoc = Location::Nil();
+        StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature, nullptr, &thisTiLoc);
         EmitLogCall("call.interf", method);
-        emit.InterfaceCall(method->methodNum, *ti, method->sret);
+
+        uint16_t thisTiLocArgNum = ArgNumber(thisTiLoc);
+
+        Interpretation::StaticCallTypeInfoArgs tiArgs = {
+            .outerTi = Interpretation::StaticCallTypeInfoArgs::NONE,
+            .thisTi = thisTiLocArgNum,
+        };
+
+        emit.InterfaceCall(
+            method->methodNum, *ti, flags.isSRet, tiArgs
+        );
         BindStatePoint();
         EmitReturnedTo();
     }
@@ -1403,21 +1436,24 @@ struct IsaRewriter : public IsaParser {
             session,
             Image::RefIdentifier<Image::MethodReference>(Image::RefId<Image::MethodReference>(methodId), fileId)
         );
-        Location outerTiLoc;
-        StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature, &outerTiLoc);
+        auto flags  = MakeCallAbiFlags(ref.flags, ref.abiKind);
+        Location outerTiLoc = Location::Nil();
+        Location thisTiLoc = Location::Nil();
+        StageCallArgs(args, flags, method->signature, &outerTiLoc, &thisTiLoc);
         EmitLogCall("call.interf.g", method);
 
-        uint16_t argnum;
-        if (outerTiLoc.Kind() == Location::IREG) {
-            argnum = outerTiLoc.IRegIdx();
-            ASSERT(argnum < IReg::VIRT_COUNT);
-        } else if (outerTiLoc.Kind() == Location::SLOT) {
-            argnum = outerTiLoc.SlotIdx() + IReg::VIRT_COUNT;
-        } else {
-            ASSERTION(false, "outerti loc can not be freg");
-        }
+        uint16_t outerTiLocArgNum = ArgNumber(outerTiLoc);
+        uint16_t thisTiLocArgNum = ArgNumber(thisTiLoc);
 
-        emit.InterfaceCallGeneric(method->methodNum, argnum, method->sret);
+        Interpretation::StaticCallTypeInfoArgs tiArgs = {
+            .outerTi = outerTiLocArgNum,
+            .thisTi = thisTiLocArgNum,
+        };
+
+        EmitLogCall("call.interf.g", method);
+        emit.InterfaceCallGeneric(
+            method->methodNum, flags.isSRet, tiArgs
+        );
         BindStatePoint();
         EmitReturnedTo();
     }
