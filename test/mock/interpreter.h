@@ -3,11 +3,30 @@
 #include <cstddef>
 #include <cstdint>
 #include <utility>
+#include <vector>
 
 #include "interpreter/code.h"
 #include "interpreter/ectype.h"
+#include "interpreter/int_thunk.h"
 #include "interpreter/interpreter.h"
+#include "runtimesupport/runtime.h"
 #include "utils/vector.h"
+
+struct MockInterfaceCall {
+    RTSupport::TypeInfo receiver;
+    RTSupport::TypeInfo reference;
+    int methodNum;
+};
+
+struct MockInterfaceDispatch {
+    bool enabled = false;
+    RTSupport::TypeInfo outerTi;
+    Interpretation::Thunk thunk {};
+    std::vector<MockInterfaceCall> outerTiCalls;
+    std::vector<MockInterfaceCall> dispatchCalls;
+};
+
+MockInterfaceDispatch& InterfaceDispatchMock();
 
 struct TestTypeInfo {
     size_t size;

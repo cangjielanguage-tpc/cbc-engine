@@ -1357,7 +1357,19 @@ struct IsaRewriter : public IsaParser {
         EmitReturnedTo();
     }
 
-    void CallInterf(uint32_t methodId, Utils::Span<const Location> args) override
+    static Interpretation::StaticCallTypeInfoArgs InterfaceTypeInfoArgs(InterfaceCall method)
+    {
+        if (!method->IsStaticVirtual()) {
+            return {};
+        }
+        return Interpretation::LocateStaticCallTypeInfoArgs(
+            method->signature.term,
+            method->flags.Is(Image::MethodRefFlag::SRET),
+            method->flags.Is(Image::MethodRefFlag::HAS_OUTER_TI)
+        );
+    }
+
+    void CallInterf(IReg dst, uint32_t methodId) override
     {
         auto m = resolver.Query(Index<InterfaceCall>(methodId));
         if (!m.has_value()) {
@@ -1376,7 +1388,9 @@ struct IsaRewriter : public IsaParser {
         );
         StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature);
         EmitLogCall("call.interf", method);
-        emit.InterfaceCall(method->methodNum, *ti, method->sret);
+        emit.InterfaceCall(
+            method->methodNum, *ti, method->flags.Is(Image::MethodRefFlag::SRET), InterfaceTypeInfoArgs(method)
+        );
         BindStatePoint();
         EmitReturnedTo();
     }
@@ -1389,25 +1403,14 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto method = m.value();
-        auto ref    = Decode::Read(
-            session,
-            Image::RefIdentifier<Image::MethodReference>(Image::RefId<Image::MethodReference>(methodId), fileId)
-        );
-        Location outerTiLoc;
-        StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature, &outerTiLoc);
-        EmitLogCall("call.interf.g", method);
-
-        uint16_t argnum;
-        if (outerTiLoc.Kind() == Location::IREG) {
-            argnum = outerTiLoc.IRegIdx();
-            ASSERT(argnum < IReg::VIRT_COUNT);
-        } else if (outerTiLoc.Kind() == Location::SLOT) {
-            argnum = outerTiLoc.SlotIdx() + IReg::VIRT_COUNT;
-        } else {
-            ASSERTION(false, "outerti loc can not be freg");
+        auto typeInfoArgs = InterfaceTypeInfoArgs(method);
+        if (method->IsStaticVirtual() && argnum != typeInfoArgs.outerTi) {
+            return Fail("static interface call has an incorrect outer-TI argument location");
         }
-
-        emit.InterfaceCallGeneric(method->methodNum, argnum, method->sret);
+        EmitLogCall("call.interf.g", method);
+        emit.InterfaceCallGeneric(
+            method->methodNum, argnum, method->flags.Is(Image::MethodRefFlag::SRET), typeInfoArgs.thisTi
+        );
         BindStatePoint();
         EmitReturnedTo();
     }
