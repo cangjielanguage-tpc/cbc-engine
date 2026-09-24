@@ -1191,6 +1191,18 @@ struct IsaRewriter : public IsaParser {
         EmitReturnedTo();
     }
 
+    static Interpretation::StaticCallTypeInfoArgs InterfaceTypeInfoArgs(InterfaceCall method)
+    {
+        if (!method->IsStaticVirtual()) {
+            return {};
+        }
+        return Interpretation::LocateStaticCallTypeInfoArgs(
+            method->signature.term,
+            method->flags.Is(Image::MethodRefFlag::SRET),
+            method->flags.Is(Image::MethodRefFlag::HAS_OUTER_TI)
+        );
+    }
+
     void CallInterf(IReg dst, uint32_t methodId) override
     {
         auto m = resolver.Query(Index<InterfaceCall>(methodId));
@@ -1204,7 +1216,10 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
-        emit.InterfaceCall(method->methodNum, *ti, method->sret);
+        EmitLogCall("call.interf", method);
+        emit.InterfaceCall(
+            method->methodNum, *ti, method->flags.Is(Image::MethodRefFlag::SRET), InterfaceTypeInfoArgs(method)
+        );
         BindStatePoint();
         AdjustReg(dst, IReg::IR1);
         EmitReturnedTo();
@@ -1218,7 +1233,14 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto method = m.value();
-        emit.InterfaceCallGeneric(method->methodNum, argnum, method->sret);
+        auto typeInfoArgs = InterfaceTypeInfoArgs(method);
+        if (method->IsStaticVirtual() && argnum != typeInfoArgs.outerTi) {
+            return Fail("static interface call has an incorrect outer-TI argument location");
+        }
+        EmitLogCall("call.interf.g", method);
+        emit.InterfaceCallGeneric(
+            method->methodNum, argnum, method->flags.Is(Image::MethodRefFlag::SRET), typeInfoArgs.thisTi
+        );
         BindStatePoint();
         EmitReturnedTo();
     }

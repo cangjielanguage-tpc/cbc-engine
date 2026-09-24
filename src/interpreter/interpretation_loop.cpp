@@ -26,6 +26,35 @@ using namespace Interpretation;
 using namespace Cbc::RT;
 using namespace RTSupport;
 
+static inline TypeInfo ReadCallTypeInfo(Ectype* ectype, Frame frame, uint16_t arg)
+{
+    ASSERT(arg != StaticCallTypeInfoArgs::NONE);
+    if (arg < IReg::VIRT_COUNT) {
+        return TypeInfo(ectype->GetPrimitive(IReg::From(arg)).u64);
+    }
+    auto offset = (arg - IReg::VIRT_COUNT) * Cbc::STACK_SLOT_SIZE;
+    return *reinterpret_cast<TypeInfo*>(frame.start + offset);
+}
+
+static inline void WriteCallTypeInfo(Ectype* ectype, Frame frame, uint16_t arg, TypeInfo ti)
+{
+    ASSERT(arg != StaticCallTypeInfoArgs::NONE);
+    if (arg < IReg::VIRT_COUNT) {
+        ectype->Put(IReg::From(arg), Value::Primitive { ti.UInt() });
+    } else {
+        auto offset                                        = (arg - IReg::VIRT_COUNT) * Cbc::STACK_SLOT_SIZE;
+        *reinterpret_cast<TypeInfo*>(frame.start + offset) = ti;
+    }
+}
+
+static inline TypeInfo InterfaceReceiverTypeInfo(Ectype* ectype, Frame frame, bool sret, uint16_t thisTiArg)
+{
+    if (thisTiArg != StaticCallTypeInfoArgs::NONE) {
+        return ReadCallTypeInfo(ectype, frame, thisTiArg);
+    }
+    auto receiver = HAS_SRET_SHIFT && sret ? IReg::IR2 : IReg::IR1;
+    return Execution::GetTypeInfo(ectype->GetReference(receiver));
+}
 extern "C" {
 
 /// The interpretation loop can be used in two scenarios:
@@ -1157,18 +1186,10 @@ LABEL(INTERFACE_CALL) {
     auto num       = args.vnum;
     auto interf    = TypeInfo(static_cast<uintptr_t>(args.ti));
 
-    auto receiver = IReg::IR1;
-    if (HAS_SRET_SHIFT && args.sret) {
-        receiver = Cbc::IReg::IR2;
+    auto typeInfo = InterfaceReceiverTypeInfo(ectype, frame, args.sret, args.thisTiArg);
+    if (args.outerTiArg != StaticCallTypeInfoArgs::NONE) {
+        WriteCallTypeInfo(ectype, frame, args.outerTiArg, Execution::GetMethodOuterTi(typeInfo, interf, num));
     }
-    auto reference = ectype->GetReference(receiver);
-
-    struct Object {
-        TypeInfo header;
-    };
-
-    Object* object = reinterpret_cast<Object*>(reference.value);
-    auto typeInfo  = object->header;
 
     // For proper support of fibers, the following call MUST drop the current frame.
     // This can not be guaranteed by C++ compiler consistently, because TCO
@@ -1189,30 +1210,11 @@ LABEL(INTERFACE_CALL_GENERIC) {
     auto sret   = args.sret;
     auto interf = TypeInfo(ectype->GetPrimitive(IReg::IR_ACC).u64);
 
-    auto receiver = IReg::IR1;
-    if (HAS_SRET_SHIFT && sret) {
-        receiver = Cbc::IReg::IR2;
-    }
-    auto reference = ectype->GetReference(receiver);
-
-    struct Object {
-        TypeInfo header;
-    };
-
-    Object* object = reinterpret_cast<Object*>(reference.value);
-    auto typeInfo  = object->header;
+    auto typeInfo = InterfaceReceiverTypeInfo(ectype, frame, sret, args.thisTiArg);
 
     auto outerTI = Execution::GetMethodOuterTi(typeInfo, interf, num);
 
-    if (args.argn < IReg::VIRT_COUNT) {
-        ectype->Put(IReg::From(args.argn), Value::Primitive { outerTI.UInt() });
-    } else {
-        // FIXME: share the same offset calculation logic as in rewriter.
-        auto untypedSlot = args.argn - IReg::VIRT_COUNT;
-        auto slotOffset  = untypedSlot * STACK_SLOT_SIZE;
-        auto location    = reinterpret_cast<TypeInfo*>(frame.start + slotOffset);
-        *location        = outerTI;
-    }
+    WriteCallTypeInfo(ectype, frame, args.argn, outerTI);
 
     // For proper support of fibers, the following call MUST drop the current frame.
     // This can not be guaranteed by C++ compiler consistently, because TCO
