@@ -590,9 +590,16 @@ struct ResolverProxy {
         }
         auto mt = *optMT;
 
+        auto lookupSignature = ref.signature;
+        if (InterfaceCall::IsStaticVirtual(ref.flags)) {
+            // `ref.signature` uses the declaration's class type variables.
+            // For example, Operation[%1].calculate(%0) must be looked up as calculate(%1).
+            MethodSignatureSubstitution sub(resolver, ref.refType);
+            lookupSignature = sub.Substitute(lookupSignature);
+        }
         MethodTable::Reference mtRef = {
             .name      = ref.name,
-            .signature = ref.signature,
+            .signature = lookupSignature,
         };
         auto resolved = mt->Resolve(resolver, mtRef);
 
@@ -625,17 +632,16 @@ struct ResolverProxy {
             return std::nullopt;
         }
         auto refType = resolver.Wrap(ref.refType);
-        auto sret    = ref.flags.Is(Image::MethodRefFlag::SRET);
 
         if (ref.flags.Is(Image::MethodRefFlag::AOT)) {
             auto data = Decode::GetAotData<Image::InterfaceCallAotData>(resolver, ref.identifier);
             auto sig  = ConstructSignature(resolver, ref);
-            return InterfaceCall::Content { refType, ref.name, std::move(sig), data.inum, sret };
+            return InterfaceCall::Content { refType, ref.name, std::move(sig), data.inum, ref.flags };
         } else {
             auto call = ResolveCbcCall(resolver, ref);
             if (call.has_value()) {
                 return InterfaceCall::Content {
-                    call->refType, call->name, std::move(call->signature), call->methodNum, sret
+                    call->refType, call->name, std::move(call->signature), call->methodNum, ref.flags
                 };
             }
             return std::nullopt;

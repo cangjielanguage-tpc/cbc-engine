@@ -1135,25 +1135,32 @@ void Emitter::VirtualCall(uint16_t vnum, uint16_t extDefNum, bool sret)
     );
 }
 
-void Emitter::InterfaceCall(uint16_t methodNum, RTSupport::TypeInfo typeInfo, bool sret)
+void Emitter::InterfaceCall(
+    uint16_t methodNum, RTSupport::TypeInfo typeInfo, bool sret, Interpretation::StaticCallTypeInfoArgs typeInfoArgs
+)
 {
     Encode(
         segment,
         RT::InterfaceCall {
-            .opc  = RT::Opcode::INTERFACE_CALL,
-            .vnum = methodNum,
-            .ti   = reinterpret_cast<uint64_t>(typeInfo.Raw()),
-            .sret = static_cast<uint8_t>(sret),
+            .opc        = RT::Opcode::INTERFACE_CALL,
+            .vnum       = methodNum,
+            .ti         = reinterpret_cast<uint64_t>(typeInfo.Raw()),
+            .sret       = static_cast<uint8_t>(sret),
+            .outerTiArg = typeInfoArgs.outerTi,
+            .thisTiArg  = typeInfoArgs.thisTi,
         }
     );
 }
 
-void Emitter::InterfaceCallGeneric(uint16_t methodNum, uint16_t argnum, bool sret)
+void Emitter::InterfaceCallGeneric(uint16_t methodNum, uint16_t argnum, bool sret, uint16_t thisTiArg)
 {
     Encode(
         segment,
-        RT::InterfaceCallGeneric {
-            .opc = RT::Opcode::INTERFACE_CALL_GENERIC, .vnum = methodNum, .argn = argnum, .sret = sret }
+        RT::InterfaceCallGeneric { .opc       = RT::Opcode::INTERFACE_CALL_GENERIC,
+                                   .vnum      = methodNum,
+                                   .argn      = argnum,
+                                   .sret      = sret,
+                                   .thisTiArg = thisTiArg }
     );
 }
 
