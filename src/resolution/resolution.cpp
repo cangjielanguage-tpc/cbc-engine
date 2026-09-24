@@ -4,7 +4,6 @@
 #include "engine/field_layout.h"
 #include "engine/identifiers.h"
 #include "engine/image/flags.h"
-#include "engine/image/reader.h"
 #include "engine/method_table.h"
 #include "engine/resolving_output.h"
 #include "engine/statics_manager.h"
@@ -18,6 +17,7 @@
 #include "utils/logger.h"
 #include "utils/ostream.h"
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string_view>
@@ -215,100 +215,132 @@ struct ResolverProxy {
     }
 
     template <typename Field>
-    static std::optional<typename Field::Content> ResolveSingleFieldRef(Resolver& resolver, ResolvedSimpleFieldRef ref)
-    {
-        auto fileId = resolver.method.GetFileId();
+    using UnpackFunction = std::function<
+        std::optional<typename Field::Content>(Term refTypeTerm, ResolvedSimpleFieldRef ref, Resolver& resolver)>;
 
+    template <typename Field>
+    static std::optional<typename Field::Content> UnpackFieldReference(
+        Resolver& resolver, ResolvedSimpleFieldRef ref, UnpackFunction<Field>&& onUnpack
+    )
+    {
         if (ref.refType.GetKind() == TermKind::UNDEFINED || ref.fieldType.GetKind() == TermKind::UNDEFINED) {
             // undef terms would be reported separately
-            log.Stream(Logging::Level::ERROR)
-                << "Failed to parse field reference " << ref.GetRawIndex() << Stream::endl;
+            LOG_ERROR(log, "Failed to parse field reference {}", ref.GetRawIndex());
             return std::nullopt;
         }
 
-        auto [file, raf] = resolver.session.File(fileId);
-        auto refType     = resolver.Wrap(ref.refType);
-        auto fieldType   = resolver.Wrap(ref.fieldType);
-        auto name        = std::get<std::string_view>(ref.nameOrIdx);
+        auto refTypeTerm = ref.refType;
+        int offsAddend   = 0;
 
-        switch (ref.refType.GetKind()) {
-            case TermKind::AOT_TYPE: {
-                if constexpr (std::is_same_v<Field, InstanceField>) {
-                    return ResolveAotInstanceField(resolver, ref);
-                } else {
-                    static_assert(std::is_same_v<Field, StaticField>);
-                    return ResolveAotStaticField(resolver, ref);
-                }
-            }
-            case TermKind::TYPE: {
-                if constexpr (std::is_same_v<Field, InstanceField>) {
-                    if (ref.refType.IsAotPromoted()) {
-                        return ResolveAotInstanceField(resolver, ref);
-                    }
-                    auto optlayout = resolver.fieldManager->GetLayout(ref.refType);
-                    if (!optlayout.has_value()) {
-                        return std::nullopt;
-                    }
-                    auto layout = *optlayout;
-
-                    uint32_t ordinal = 0;
-                    auto optoffset   = [&]() {
-                        std::optional<uint32_t> offset {};
-                        for (auto& field : layout->fields) {
-                            if (!field.definition)
-                                continue;
-                            auto def       = Decode::Read(resolver, *field.definition);
-                            auto nameInDef = Decode::Read(resolver, def.GetName());
-                            if (field.fieldType == ref.fieldType && nameInDef.compare(name) == 0) {
-                                offset = field.offset;
-                                break;
-                            }
-                            ordinal++;
-                        }
-                        return offset;
-                    }();
-                    if (optoffset.has_value()) {
-                        auto offset  = *optoffset;
-                        offset      += (ref.refType.IsReference() ? RTSupport::MetaInfo::ObjectHeaderSize() : 0);
-                        optoffset    = offset;
-                    }
-                    return InstanceField::Content { refType, fieldType, ordinal, optoffset, name };
-                } else {
-                    if (ref.refType.IsAotPromoted()) {
-                        return ResolveAotStaticField(resolver, ref);
-                    }
-                    static_assert(std::is_same_v<Field, StaticField>);
-
-                    auto typeDefIdent = TypeTermId(ref.refType).GetIdentifier();
-                    auto typeDef      = Decode::Read(resolver, typeDefIdent);
-
-                    auto fieldDefIdentOpt = Decode::Find(resolver, typeDef.GetFields(), name);
-                    if (!fieldDefIdentOpt.has_value()) {
-                        log.Stream(Logging::Level::ERROR)
-                            << "Field definition search failed " << ref.GetRawIndex() << Stream::endl;
-                        return std::nullopt;
-                    }
-
-                    auto fieldDef        = Decode::Read(resolver, fieldDefIdentOpt.value());
-                    auto actualFieldType = TermManager::Resolve(resolver, fieldDef.FieldType());
-                    if (ref.fieldType != actualFieldType) {
-                        log.Stream(Logging::Level::ERROR)
-                            << "Field type mismatch expected:  " << ref.fieldType.GetName(resolver.session)
-                            << ", actual: " << actualFieldType.GetName(resolver.session) << Stream::endl;
-                        return std::nullopt;
-                    }
-
-                    uintptr_t location = StaticsManager::Of(resolver.session)
-                                             .GetLocation(resolver, typeDefIdent, fieldDefIdentOpt.value());
-
-                    return StaticField::Content { refType, fieldType, location, name };
-                }
-            }
-            default: {
-                FATAL("Not supported yet %d", ref.refType.GetKind());
-                return std::nullopt;
+        // static fields can not be started from "box", so handle only instance fields here and below.
+        if constexpr (std::is_same_v<Field, InstanceField>) {
+            if (refTypeTerm.GetKind() == TermKind::BOX) {
+                offsAddend  = RTSupport::MetaInfo::ObjectHeaderSize();
+                refTypeTerm = refTypeTerm.Subterm(0); // get underlying type of box.
             }
         }
+
+        auto result = onUnpack(refTypeTerm, ref, resolver);
+
+        if constexpr (std::is_same_v<Field, InstanceField>) {
+            if (result && result->offset) {
+                result->offset = *result->offset + offsAddend;
+            }
+        }
+        return result;
+    }
+
+    template <typename Field>
+    static std::optional<typename Field::Content> ResolveSingleFieldRef(Resolver& resolver, ResolvedSimpleFieldRef ref)
+    {
+        return UnpackFieldReference<Field>(
+            resolver,
+            ref,
+            [](Term refTypeTerm, ResolvedSimpleFieldRef ref, Resolver& resolver
+            ) -> std::optional<typename Field::Content> {
+                auto refType   = resolver.Wrap(refTypeTerm);
+                auto fieldType = resolver.Wrap(ref.fieldType);
+                auto name      = std::get<std::string_view>(ref.nameOrIdx);
+                switch (refTypeTerm.GetKind()) {
+                    case TermKind::AOT_TYPE: {
+                        if constexpr (std::is_same_v<Field, InstanceField>) {
+                            return ResolveAotInstanceField(resolver, ref);
+                        } else {
+                            static_assert(std::is_same_v<Field, StaticField>);
+                            return ResolveAotStaticField(resolver, ref);
+                        }
+                    }
+                    case TermKind::TYPE: {
+                        if constexpr (std::is_same_v<Field, InstanceField>) {
+                            if (ref.refType.IsAotPromoted()) {
+                                return ResolveAotInstanceField(resolver, ref);
+                            }
+                            auto optlayout = resolver.fieldManager->GetLayout(ref.refType);
+                            if (!optlayout.has_value()) {
+                                return std::nullopt;
+                            }
+                            auto layout = *optlayout;
+
+                            uint32_t ordinal = 0;
+                            auto optoffset   = [&]() {
+                                std::optional<uint32_t> offset {};
+                                for (auto& field : layout->fields) {
+                                    if (!field.definition)
+                                        continue;
+                                    auto def       = Decode::Read(resolver, *field.definition);
+                                    auto nameInDef = Decode::Read(resolver, def.GetName());
+                                    if (field.fieldType == ref.fieldType && nameInDef.compare(name) == 0) {
+                                        offset = field.offset;
+                                        break;
+                                    }
+                                    ordinal++;
+                                }
+                                return offset;
+                            }();
+                            if (optoffset.has_value()) {
+                                auto offset = *optoffset;
+                                offset    += (ref.refType.IsReference() ? RTSupport::MetaInfo::ObjectHeaderSize() : 0);
+                                optoffset  = offset;
+                            }
+                            return InstanceField::Content { refType, fieldType, ordinal, optoffset, name };
+                        } else {
+                            if (ref.refType.IsAotPromoted()) {
+                                return ResolveAotStaticField(resolver, ref);
+                            }
+                            static_assert(std::is_same_v<Field, StaticField>);
+
+                            auto typeDefIdent = TypeTermId(ref.refType).GetIdentifier();
+                            auto typeDef      = Decode::Read(resolver, typeDefIdent);
+
+                            auto fieldDefIdentOpt = Decode::Find(resolver, typeDef.GetFields(), name);
+                            if (!fieldDefIdentOpt.has_value()) {
+                                log.Stream(Logging::Level::ERROR)
+                                    << "Field definition search failed " << ref.GetRawIndex() << Stream::endl;
+                                return std::nullopt;
+                            }
+
+                            auto fieldDef        = Decode::Read(resolver, fieldDefIdentOpt.value());
+                            auto actualFieldType = TermManager::Resolve(resolver, fieldDef.FieldType());
+                            if (ref.fieldType != actualFieldType) {
+                                log.Stream(Logging::Level::ERROR)
+                                    << "Field type mismatch expected:  " << ref.fieldType.GetName(resolver.session)
+                                    << ", actual: " << actualFieldType.GetName(resolver.session) << Stream::endl;
+                                return std::nullopt;
+                            }
+
+                            uintptr_t location = StaticsManager::Of(resolver.session)
+                                                     .GetLocation(resolver, typeDefIdent, fieldDefIdentOpt.value());
+
+                            return StaticField::Content { refType, fieldType, location, name };
+                        }
+                    }
+                    default: {
+                        FATAL("Not supported yet %d", ref.refType.GetKind());
+                        return std::nullopt;
+                    }
+                }
+            }
+        );
     }
 
     template <typename Field>
@@ -321,28 +353,24 @@ struct ResolverProxy {
         Resolver& resolver, ResolvedSimpleFieldRef ref
     )
     {
-        if (ref.refType.GetKind() == TermKind::UNDEFINED || ref.fieldType.GetKind() == TermKind::UNDEFINED) {
-            // undef terms would be reported separately
-            log.Stream(Logging::Level::ERROR)
-                << "Failed to parse field reference " << ref.GetRawIndex() << Stream::endl;
-            return std::nullopt;
-        }
-
-        auto idx     = std::get<uint32_t>(ref.nameOrIdx);
-        auto refType = resolver.Wrap(ref.refType);
-
-        TermKind kind = ref.refType.GetKind();
-        switch (kind) {
-            case TermKind::TUPLE: {
-                return ResolveTupleElement(resolver, refType, idx);
+        return UnpackFieldReference<InstanceField>(
+            resolver,
+            ref,
+            [](Term refTypeTerm, ResolvedSimpleFieldRef ref, Resolver& resolver
+            ) -> std::optional<InstanceField::Content> {
+                auto fieldIdx = std::get<uint32_t>(ref.nameOrIdx);
+                TermKind kind = refTypeTerm.GetKind();
+                switch (kind) {
+                    case TermKind::TUPLE: {
+                        return ResolveTupleElement(resolver, resolver.Wrap(refTypeTerm), fieldIdx);
+                    }
+                    default: {
+                        LOG_ERROR(log, "Invalid kind in const index reference: {}", (uint8_t)kind);
+                        return std::nullopt;
+                    }
+                }
             }
-            default: {
-                // TODO: support for arrays
-                log.Stream(Logging::Level::ERROR)
-                    << "Invalid kind in const index reference: " << static_cast<uint8_t>(kind) << Stream::endl;
-                return std::nullopt;
-            }
-        }
+        );
     }
 
     template <>
@@ -350,8 +378,7 @@ struct ResolverProxy {
         Resolver& resolver, ResolvedSimpleFieldRef ref
     )
     {
-        log.Stream(Logging::Level::ERROR)
-            << "ConstIndex reference cannot be resolved as static " << ref.GetRawIndex() << Stream::endl;
+        LOG_ERROR(log, "ConstIndex reference cannot be resolved as static {}", ref.GetRawIndex());
         return std::nullopt;
     }
 
