@@ -104,6 +104,15 @@ struct NonVolatileRegs {
     bool IsEmpty() { return value == 0; }
 };
 
+// Call arguments use register indices, or IReg::VIRT_COUNT + outgoing stack-slot index.
+// Outgoing arguments occupy the first untyped slots of the caller's frame.
+struct StaticCallTypeInfoArgs {
+    static constexpr uint16_t NONE = UINT16_MAX;
+
+    uint16_t outerTi = NONE;
+    uint16_t thisTi  = NONE;
+};
+
 struct AbiInfo {
     // Bitmap of all parameters (including sret) that point to stack.
     uint16_t stackPtrParams;
@@ -112,6 +121,8 @@ struct AbiInfo {
     // Bitmap of all parameters which are represented as (base, derived) pairs.
     // N-th bit set => (base: N+1-th param, derived: N-th param)
     uint16_t derivedPairs;
+
+    StaticCallTypeInfoArgs staticCallTypeInfoArgs;
 
     // Amount of parameters being passed by registers
     uint8_t iregParamCount;
