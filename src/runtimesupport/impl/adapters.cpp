@@ -27,11 +27,15 @@ void* Adapters::C2ICall(uint32_t intArgCount, uint32_t floatArgCount)
 std::mutex g_directCallFuhsMutex;
 static size_t directCallFuhsCount;
 
-extern "C" Interpretation::ExecBytecodeInfo* engine_prepare_bytecode(Interpretation::DynamicFunctionHandle* fuh)
+extern "C" bool engine_prepare_bytecode(
+    Interpretation::DynamicFunctionHandle* fuh, Interpretation::ExecBytecodeInfo** bytecodeInfo
+)
 {
     Engine::Session session(Engine::GetEngineInstance());
-    auto& manager = Interpretation::FunctionHandleManager::Of(session);
-    return manager.Prepare(session, fuh);
+    auto& manager       = Interpretation::FunctionHandleManager::Of(session);
+    auto preparedBcInfo = manager.Prepare(session, fuh);
+    *bytecodeInfo       = preparedBcInfo.info;
+    return false;
 }
 
 static void* GetAddressOfDirectCallTrampoline(int i)

@@ -93,7 +93,7 @@ static Interpretation::ExecBytecodeInfo* Rewrite(
     auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
 
     auto fuh = std::get<Interpretation::DynamicFunctionHandle*>(fuhManager.AcquireTagged(session, methodId.value()));
-    return fuhManager.Prepare(session, fuh);
+    return fuhManager.Prepare(session, fuh).info;
 }
 
 static Interpretation::ExecBytecodeInfo* OpenAndRewrite(std::string name, std::string_view fileName)
@@ -110,7 +110,7 @@ static Interpretation::ExecBytecodeInfo* OpenAndRewrite(std::string name, std::s
     auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
 
     auto fuh = std::get<Interpretation::DynamicFunctionHandle*>(fuhManager.AcquireTagged(session, methodId.value()));
-    return fuhManager.Prepare(session, fuh);
+    return fuhManager.Prepare(session, fuh).info;
 }
 
 static Interpretation::Value::Primitive Test(std::string name, std::string fileName)
@@ -563,8 +563,9 @@ INSTANTIATE_TEST_SUITE_P(
                             &convertToInteger },
         ConvertTestParams {
             "to_float", static_cast<int>(std::size(convertToFloat32Cases)), convertToFloat32Cases, &convertToFloat32 }
-        //ConvertTestParams {
-        //    "to_float", static_cast<int>(std::size(convertToFloat64Cases)), convertToFloat64Cases, &convertToFloat64 }
+        // ConvertTestParams {
+        //     "to_float", static_cast<int>(std::size(convertToFloat64Cases)), convertToFloat64Cases, &convertToFloat64
+        //     }
     )
 );
 
@@ -658,14 +659,12 @@ template <typename T> struct FPOpsTestParams {
     std::pair<T, T>* values;
 };
 
-template <typename T>
-std::ostream& operator<<(std::ostream& os, const FPOpsTestParams<T>& params)
+template <typename T> std::ostream& operator<<(std::ostream& os, const FPOpsTestParams<T>& params)
 {
     return os << params.name;
 }
 
-template <typename T>
-static std::string FPOpsTestParamsName(const ::testing::TestParamInfo<FPOpsTestParams<T>>& info)
+template <typename T> static std::string FPOpsTestParamsName(const ::testing::TestParamInfo<FPOpsTestParams<T>>& info)
 {
     return info.param.name;
 }
@@ -740,17 +739,9 @@ TEST_P(CbcSpecializedDoubleOps, test)
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    CbcTest, CbcSpecializedFloatOps, ::testing::Values(FPOpsTestParams<float> { "32", floatValuesCount, floatValues }),
-    FPOpsTestParamsName<float>
-);
+INSTANTIATE_TEST_SUITE_P(CbcTest, CbcSpecializedFloatOps, ::testing::Values(FPOpsTestParams<float> { "32", floatValuesCount, floatValues }), FPOpsTestParamsName<float>);
 
-INSTANTIATE_TEST_SUITE_P(
-    CbcTest,
-    CbcSpecializedDoubleOps,
-    ::testing::Values(FPOpsTestParams<double> { "64", doubleValuesCount, doubleValues }),
-    FPOpsTestParamsName<double>
-);
+INSTANTIATE_TEST_SUITE_P(CbcTest, CbcSpecializedDoubleOps, ::testing::Values(FPOpsTestParams<double> { "64", doubleValuesCount, doubleValues }), FPOpsTestParamsName<double>);
 
 TEST_ASM(CbcTest, SimpleArithFloatMov32)
 {
@@ -835,15 +826,16 @@ TEST_P(BFX, test)
     BFXTestParams params = GetParam();
 
     for (int n { 0 }; n < params.casesCount; ++n) {
-        BFXCase bfxCase = params.bfxCases[n];
+        BFXCase bfxCase  = params.bfxCases[n];
         std::string sign = (bfxCase.signExtend ? "signed" : "zeroed");
-        auto path = "./bfx/simple_bfx_" + sign +
-            "_" + std::to_string(bfxCase.dstBits) +
-            "_" + std::to_string(bfxCase.srcBits) + ".asm";
+        auto path        = "./bfx/simple_bfx_" + sign + "_" + std::to_string(bfxCase.dstBits) + "_" +
+                    std::to_string(bfxCase.srcBits) + ".asm";
         auto code = OpenAndRewrite("bfx", path)->code;
         auto res  = Interpret(code, bfxCase.val, U64(0), F64(0), F64(0));
-        if (bfxCase.dstBits == 32) EXPECT_EQ(res.u32, bfxCase.expected.u32);
-        if (bfxCase.dstBits == 64) EXPECT_EQ(res.u64, bfxCase.expected.u64);
+        if (bfxCase.dstBits == 32)
+            EXPECT_EQ(res.u32, bfxCase.expected.u32);
+        if (bfxCase.dstBits == 64)
+            EXPECT_EQ(res.u64, bfxCase.expected.u64);
     }
 }
 
@@ -851,9 +843,7 @@ INSTANTIATE_TEST_SUITE_P(
     CbcTest,
     BFX,
     testing::Values(
-        BFXTestParams {
-            "signed", sizeof(bfxSignedCases) / sizeof(BFXCase), bfxSignedCases },
-        BFXTestParams {
-            "zeroed", sizeof(bfxZeroedCases) / sizeof(BFXCase), bfxZeroedCases }
+        BFXTestParams { "signed", sizeof(bfxSignedCases) / sizeof(BFXCase), bfxSignedCases },
+        BFXTestParams { "zeroed", sizeof(bfxZeroedCases) / sizeof(BFXCase), bfxZeroedCases }
     )
 );

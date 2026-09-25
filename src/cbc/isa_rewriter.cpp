@@ -2170,7 +2170,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
     };
 }
 
-Interpretation::ExecBytecodeInfo Rewrite(
+std::optional<Interpretation::ExecBytecodeInfo> Rewrite(
     Engine::Session& session, Image::Identifier<Image::MethodDefinition> method, Memory::Heap& heap
 )
 {
