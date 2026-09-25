@@ -152,7 +152,7 @@ void FrameDescProvider(INT_FunctionHandle fuh, INT_BytecodePos pos, INT_Interpre
 
     // File name
     if (methodDef.SourceFile().has_value()) {
-        auto fileName       = Decode::Read(session, methodDef.SourceFullName().value());
+        auto fileName       = Decode::Read(session, methodDef.SourceFile().value());
         frameDesc->fileName = AllocateString(fileName);
     } else {
         frameDesc->fileName = AllocateString("unknown"); // should it be possible?
