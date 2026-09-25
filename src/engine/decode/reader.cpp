@@ -8,6 +8,30 @@ namespace Decode {
 
 using namespace Image;
 
+SourceCodeInfo Reader::GetSourceCodeInfo(Engine::Session& session, Code const& code)
+{
+    IO::StreamFileReader reader(*session.FileOf(code.sourceCodeInfo.fileId), code.sourceCodeInfo.start);
+
+    std::vector<uint32_t> cbcBcPositions;
+    std::vector<uint32_t> sourceLineNumbers;
+
+    bool cbcPos = true;
+    while (reader.Position() < code.sourceCodeInfo.end) {
+        if (cbcPos) {
+            cbcBcPositions.emplace_back(reader.ReadULEB());
+        } else {
+            sourceLineNumbers.emplace_back(reader.ReadULEB());
+        }
+        cbcPos = !cbcPos;
+    }
+    ASSERTION(cbcPos, "pairs (bcPos, sourceLineNumber) are expected");
+
+    return SourceCodeInfo {
+        .cbcBcPositions = cbcBcPositions,
+        .sourceLineNumbers = sourceLineNumbers
+    };
+}
+
 std::vector<ExceptionRegion> Reader::GetExceptionRegions(Engine::Session& session, Code const& code)
 {
     IO::StreamFileReader reader(*session.FileOf(code.rawExTable.fileId), code.rawExTable.start);
@@ -230,6 +254,10 @@ template <> Code Reader::Read(Engine::Session& session, Image::FileId fileId, Of
     auto codePtr = static_cast<uint8_t*>(session.Allocator().Allocate(codeSize, alignof(uint8_t)));
     reader.Read(codePtr, codeSize);
 
+    uint32_t sourceCodeInfoSize  = reader.ReadULEB();
+    uint32_t sourceCodeInfoStart = reader.Position();
+    reader.Advance(sourceCodeInfoSize);
+
     uint32_t exTableSize  = reader.ReadULEB();
     uint32_t exTableStart = reader.Position();
     reader.Advance(exTableSize);
@@ -253,6 +281,7 @@ template <> Code Reader::Read(Engine::Session& session, Image::FileId fileId, Of
         mayHaveNativeCalls,
         codeSize,
         codePtr,
+        { fileId, sourceCodeInfoStart, sourceCodeInfoStart + sourceCodeInfoSize },
         { fileId, exTableStart, exTableStart + exTableSize },
         { fileId, livenessInfoStart, livenessInfoStart + livenessInfoSize },
         { fileId, stackPtrsInfoStart, stackPtrsInfoStart + stackPtrsInfoSize }

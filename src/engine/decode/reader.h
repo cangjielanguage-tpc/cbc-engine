@@ -23,6 +23,7 @@ inline namespace Reader {
 template <typename T> T Read(Engine::Session& session, Image::FileId fileId, Image::Offset<T> offset);
 template <typename T> T Read(Engine::Session& session, Image::Identifier<T> id);
 
+Image::SourceCodeInfo GetSourceCodeInfo(Engine::Session& session, Image::Code const& code);
 std::vector<Image::ExceptionRegion> GetExceptionRegions(Engine::Session& session, Image::Code const& code);
 std::vector<Image::LivenessInfo> GetLivenessInfo(Engine::Session& session, Image::Code const& code);
 std::vector<Image::StackPtrsInfo> GetStackPtrsInfo(Engine::Session& session, Image::Code const& code);

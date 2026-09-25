@@ -402,6 +402,11 @@ using StaticFieldAotTable   = MemberIndex<StaticFieldAotData>;
 ///   pointers, and object mutation pairs for exact garbage collection.
 ///
 /// TODO: get rid of vectors
+struct SourceCodeInfo {
+    std::vector<uint32_t> cbcBcPositions;
+    std::vector<uint32_t> sourceLineNumbers;
+};
+
 struct ExceptionRegion {
     uint32_t start;
     uint32_t end;
@@ -458,6 +463,7 @@ public:
         bool mayHaveNativeCalls,
         uint32_t codeSize,
         uint8_t* codePtr,
+        RawData sourceCodeInfo,
         RawData rawExTable,
         RawData rawLivenessInfo,
         RawData rawStackPtrsInfo
@@ -472,6 +478,7 @@ public:
           mayHaveNativeCalls(mayHaveNativeCalls),
           codePtr(codePtr),
           codeSize(codeSize),
+          sourceCodeInfo(sourceCodeInfo),
           rawExTable(rawExTable),
           rawLivenessInfo(rawLivenessInfo),
           rawStackPtrsInfo(rawStackPtrsInfo)
@@ -492,6 +499,7 @@ public:
     uint32_t codeSize;
     uint8_t* codePtr;
 
+    RawData sourceCodeInfo   = { Image::FileId(0), 0, 0 };
     RawData rawExTable       = { Image::FileId(0), 0, 0 };
     RawData rawLivenessInfo  = { Image::FileId(0), 0, 0 };
     RawData rawStackPtrsInfo = { Image::FileId(0), 0, 0 };

@@ -127,7 +127,8 @@ struct ExecBytecodeInfo {
     AbiInfo abiInfo;
     GcInfo gcInfo;
     StackPtrsInfo stackPtrsInfo;
-    InstructionOffsetsIndex offsetsIndex; // TODO: optimize RAM footprint
+    InstructionOffsetsIndex offsetsIndex; // TODO: remove, use bcPositionsForExceptions
+    std::vector<std::pair<uint32_t, uint32_t>> bcPositionsForExceptions;
 
     friend Stream::Output& operator<<(Stream::Output& out, const ExecBytecodeInfo& bc);
 };
