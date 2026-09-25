@@ -10,10 +10,12 @@
 #include "engine/image/reader.h"
 #include "engine/resolving_output.h"
 #include "function_handle.h"
+#include "interpreter/code.h"
 #include "interpreter/loggers.h"
 #include "resolution/resolution.h"
 #include "runtimesupport/adapters.h"
 #include "utils/assertion.h"
+#include "utils/misc.h"
 #include "utils/ostream.h"
 
 namespace Interpretation {
@@ -36,10 +38,7 @@ FunctionHandleManager::FunctionHandleManager() : impl(std::move(std::make_unique
 FunctionHandleManager::~FunctionHandleManager()                               = default;
 FunctionHandleManager::FunctionHandleManager(FunctionHandleManager&& manager) = default;
 
-[[noreturn]] static void UnresolvedAotMethodCalled()
-{
-    FATAL("Called unresolved AOT method");
-}
+[[noreturn]] static void UnresolvedAotMethodCalled() { FATAL("Called unresolved AOT method"); }
 
 TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
     Session& session, Image::Identifier<Image::MethodDefinition> methodDef
@@ -75,7 +74,7 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
             .base     = FunctionHandle(RTSupport::Adapters::GenericI2CCallInstance()),
             .function = target,
         };
-        auto mem = new(std::nothrow) StaticFunctionHandle(fuh);
+        auto mem = new (std::nothrow) StaticFunctionHandle(fuh);
         if (mem == nullptr) {
             FATAL("out of memory");
         }
@@ -87,7 +86,7 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
     auto newDynFuh = [&]() -> DynamicFunctionHandle* {
         auto i2Call = PrepareI2Call(session, methodDef);
         auto c2Call = PrepareC2Call(session, methodDef);
-        auto mem    = new(std::nothrow) DynamicFunctionHandle(i2Call, c2Call, methodDef);
+        auto mem    = new (std::nothrow) DynamicFunctionHandle(i2Call, c2Call, methodDef);
         if (mem == nullptr) {
             FATAL("out of memory");
         }
@@ -112,12 +111,12 @@ FunctionHandle* FunctionHandleManager::Acquire(Session& session, Image::Identifi
     }
 }
 
-ExecBytecodeInfo* FunctionHandleManager::Prepare(Session& session, DynamicFunctionHandle* fuh)
+PreparationResult FunctionHandleManager::Prepare(Session& session, DynamicFunctionHandle* fuh)
 {
     std::lock_guard guard(fuh->lock);
 
     if (auto bytecode = fuh->bytecode.load(); bytecode != nullptr) {
-        return bytecode;
+        return PreparationResult::Success(bytecode, fuh);
     }
 
     auto& logger = Interpretation::Log::preparation;
@@ -131,13 +130,19 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Session& session, DynamicFuncti
     auto& heap    = session.GetEngine().CodeHeap();
     auto bytecode = Cbc::Rewrite(session, fuh->methodDef, heap);
 
-    auto bc = new(std::nothrow) ExecBytecodeInfo(bytecode);
-    if (bc == nullptr) FATAL("Out of memory");
+    if (!bytecode.has_value()) {
+        // Insert throw intrinsic here.
+        FATAL("Ho-ho hee-hee");
+    }
+
+    auto bc = new (std::nothrow) ExecBytecodeInfo(bytecode.value());
+    if (bc == nullptr)
+        FATAL("Out of memory");
 
     // ensure `bc` content writes completes before publication.
     std::atomic_thread_fence(std::memory_order_seq_cst);
     fuh->bytecode.store(bc, std::memory_order_relaxed);
-    return bc;
+    return PreparationResult::Success(bc, fuh);
 }
 
 void* FunctionHandleManager::GetFunctionPtrForDirectCall(TaggedFunctionHandle fuh)

@@ -82,6 +82,22 @@ struct StaticFunctionHandle {
     void* const function;
 };
 
+struct PreparationResult {
+    ExecBytecodeInfo* info;
+    DynamicFunctionHandle* fuh;
+    bool success;
+
+    static PreparationResult Success(ExecBytecodeInfo* info, DynamicFunctionHandle* fuh)
+    {
+        return PreparationResult { info, fuh, true };
+    }
+
+    static PreparationResult Fail(ExecBytecodeInfo* info, DynamicFunctionHandle* fuh)
+    {
+        return PreparationResult { info, fuh, false };
+    }
+};
+
 class FunctionHandleManager {
 public:
     static FunctionHandleManager& Of(Engine::Engine& engine);
@@ -95,7 +111,7 @@ public:
     TaggedFunctionHandle AcquireTagged(Engine::Session& session, Image::Identifier<Image::MethodDefinition> methodDef);
 
     /// Performs lazy initialization of a DynamicFunctionHandle.
-    ExecBytecodeInfo* Prepare(Engine::Session& session, DynamicFunctionHandle* fuh);
+    PreparationResult Prepare(Engine::Session& session, DynamicFunctionHandle* fuh);
 
     // Acquires a function pointer that could be invoked from compiled code
     // to invoke the method referenced by `fuh`.

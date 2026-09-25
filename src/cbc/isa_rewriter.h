@@ -4,13 +4,14 @@
 #include "engine/engine.h"
 #include "resolution/resolution.h"
 #include "utils/logger.h"
+#include <optional>
 
 namespace Cbc {
 
 extern Logging::Logger log;
 
 Interpretation::ExecBytecodeInfo Rewrite(MethodCode code, Resolution::Resolver& resolver, Memory::Heap& heap);
-Interpretation::ExecBytecodeInfo Rewrite(
+std::optional<Interpretation::ExecBytecodeInfo> Rewrite(
     Engine::Session& session, Image::Identifier<Image::MethodDefinition> method, Memory::Heap& heap
 );
 

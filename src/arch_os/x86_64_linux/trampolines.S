@@ -440,8 +440,22 @@ perform_2i_call:
   mov   rax, [rdi + FUNCTION_HANDLE_BYTECODE_OFFSET]
   test  rax, rax
   jnz   .Lhave_bytecode
+
+  add rsp, -16
+  mov rsi, rsp
+
   // function handle is already on rdi
   call  engine_prepare_bytecode
+
+  test rax, rax
+  jz .Lafter_patch
+
+  // Patching of FuH will be here
+
+.Lafter_patch:
+  mov rax, [rsp]
+  add rsp, 16
+
 .Lhave_bytecode:
 
   mov   LITERALS_REG, [rax + EXEC_BYTECODE_INFO_LITERALS_OFFSET]
