@@ -134,7 +134,7 @@ void VisitGCFrameRoots(
     for (auto refOffset : bc->gcInfo.refOffsets) {
         auto refLocation = reinterpret_cast<Placeholder>(slotsStartAddr + refOffset);
         RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) {
-            out.PrintFmtLn("found reference in typed slot with offset %u", refOffset);
+            out.PrintFmtLn("found reference at %p", slotsStartAddr + refOffset);
         });
         VisitRoot(rootVisitor, refLocation);
     }
