@@ -50,6 +50,11 @@ static std::string_view CopyToArena(Session& session, std::string const& str)
 
 std::optional<RTSupport::TypeInfo> Type::GetTypeInfo() const { return resolver->GetTypeInfo(*this); }
 
+void Type::FillReferenceOffsets(std::vector<uint32_t>& refOffsets, uint32_t disp) const
+{
+    this->resolver->fieldManager->FillRefOffsets(this->term, refOffsets, disp);
+}
+
 std::optional<uint32_t> Type::GetFlatSize() const { return resolver->GetFlatSize(*this); }
 
 CbcTypeKind Type::GetKind() const { return resolver->GetKind(*this); }
@@ -849,18 +854,16 @@ std::optional<InstanceField> Resolver::QueryTupleElement(Type refType, uint32_t 
 std::optional<Type> Resolver::QueryElement(Type refType)
 {
     auto term = refType.term;
-    switch (term.GetKind())
-    {
-    case TermKind::CANGJIE_ARRAY: {
-    //case TermKind::VARRAY:
-        auto optTypeInfo = refType.GetTypeInfo();
-        if (!optTypeInfo.has_value()) {
-            return std::nullopt;
+    switch (term.GetKind()) {
+        case TermKind::CANGJIE_ARRAY: {
+            // case TermKind::VARRAY:
+            auto optTypeInfo = refType.GetTypeInfo();
+            if (!optTypeInfo.has_value()) {
+                return std::nullopt;
+            }
+            return Type(term.Subterm(0), this);
         }
-        return Type(term.Subterm(0), this);
-    }
-    default:
-        FATAL("Unexpected kind %d", term.GetKind());
+        default: FATAL("Unexpected kind %d", term.GetKind());
     }
     return std::nullopt;
 }

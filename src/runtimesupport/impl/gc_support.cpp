@@ -131,28 +131,12 @@ void VisitGCFrameRoots(
         VisitRoot(rootVisitor, refLocation);
     }
 
-    for (auto& typedSlotInfo : bc->gcInfo.typedSlotsInfo) {
-        auto typedSlotOffset = typedSlotInfo.first;
-        auto typeInfoPtr     = typedSlotInfo.second;
-
-        ASSERTION(!RTSupport::MetaInfo::IsReferenceType(RTSupport::TypeInfo(typeInfoPtr)), "Expected record type");
-
-        std::vector<uint32_t> offsets;
-        RTSupport::TypeInfo(typeInfoPtr).VisitReferenceOffsets([&offsets](uint32_t offset) {
-            offsets.push_back(offset);
+    for (auto refOffset : bc->gcInfo.refOffsets) {
+        auto refLocation = reinterpret_cast<Placeholder>(slotsStartAddr + refOffset);
+        RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) {
+            out.PrintFmtLn("found reference at %p", slotsStartAddr + refOffset);
         });
-
-        for (auto& offsetInSlot : offsets) {
-            auto refLocation = reinterpret_cast<Placeholder>(slotsStartAddr + typedSlotOffset + offsetInSlot);
-            RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) {
-                out.PrintFmtLn(
-                    "found reference in typed slot with offset (slot_offset=%u, inner_offset=%u)",
-                    typedSlotOffset,
-                    offsetInSlot
-                );
-            });
-            VisitRoot(rootVisitor, refLocation);
-        }
+        VisitRoot(rootVisitor, refLocation);
     }
 
     auto aliveRegsMap = std::bitset<ECTYPE_IREGS_COUNT>(NOTNULL(positionalInfo)->regMask);
