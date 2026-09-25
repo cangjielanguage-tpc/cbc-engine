@@ -711,10 +711,11 @@ struct ResolverProxy {
 
         // FIXME: search in hierarchy
         auto method = [&]() -> std::optional<Identifier<Image::MethodDefinition>> {
+            MethodSignatureSubstitution sub(resolver.session, ref.refType);
             for (auto m : Decode::FindBucket(resolver, type.GetMethods(), ref.name)) {
                 auto def = Decode::Read(resolver, m);
                 auto sig = TermManager::Resolve(resolver, def.Signature());
-                if (sig == ref.signature) {
+                if (sub(sig) == ref.signature) {
                     return m;
                 }
             }
@@ -722,7 +723,7 @@ struct ResolverProxy {
             for (auto m : Decode::Resolve(resolver, type.GetVirtualMethods())) {
                 auto def = Decode::Read(resolver, m);
                 auto sig = TermManager::Resolve(resolver, def.Signature());
-                if (sig == ref.signature) {
+                if (sub(sig) == ref.signature) {
                     return m;
                 }
             }
