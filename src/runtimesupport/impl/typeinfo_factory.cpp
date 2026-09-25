@@ -300,6 +300,27 @@ struct TypeInfoBuilder {
         typeInfo->dataMT            = dataMT;
 
         built = true;
+
+        Log::typeinfo.Log(Logging::Level::INFO, [&](Stream::Output& out) {
+            Stream::ResolvingOutput stream(session, out);
+            stream << "TypeInfo for " << term << ":\n"
+                   << "\t typeInfoName: " << result->typeInfoName << "\n"
+                   << "\t type: " << result->type << "\n"
+                   << "\t flag: " << result->flag << "\n"
+                   << "\t fieldNum: " << result->fieldNum << "\n"
+                   << "\t instance(component)Size: "
+                   << ((result->instanceSize != -1) ? result->instanceSize : result->componentSize) << "\n"
+                   << "\t gctib: " << result->gctib.raw << "\n"
+                   << "\t uuid: " << result->uuid << "\n"
+                   << "\t align: " << result->align << "\n"
+                   << "\t typeArgsNum: " << result->typeArgsNum << "\n"
+                   << "\t validInheritNum: " << result->validInheritNum << "\n"
+                   << "\t fieldOffsets: " << result->fieldOffsets << "\n"
+                   << "\t finalizerMethod: " << result->finalizerMethod << "\n"
+                   << "\t typeArgs: " << result->typeArgs << "\n"
+                   << "\t fields: " << result->fields;
+            out.NewLine();
+        });
         return result;
     }
 
