@@ -246,6 +246,7 @@ template <typename Num, TermKind tk> struct _NumberedTermId : public TermId {
 };
 
 using ArrayTermId = _SpecializedTermId<Identifier<Image::String>, TermKind::CANGJIE_ARRAY>;
+using VArrayTermId = _NumberedTermId<uint32_t, TermKind::VARRAY>;
 using AotTermId   = _NumberedTermId<uint32_t, TermKind::AOT_TYPE>;
 using TypeTermId  = _SpecializedTermId<Identifier<Image::TypeDefinition>, TermKind::TYPE>;
 using UndefTermId = _SpecializedTermId<RefIdentifier<Term>, TermKind::UNDEFINED>;

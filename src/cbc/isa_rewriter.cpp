@@ -1729,27 +1729,7 @@ struct IsaRewriter : public IsaParser {
 
     void MemBodyConstIndex(MemSpace& ms, int64_t idx, uint32_t refType) override
     {
-        // FIXME: elem type is computable, remove `refType` from encoding.
-        auto& msr = static_cast<MemSpaceRewriter&>(ms);
-        auto t    = resolver.Query(Index<Type>(refType));
-        if (!t.has_value()) {
-            Fail();
-            return;
-        }
-        // FIXME: support const indicies for arrays
-        auto f = resolver.QueryTupleElement(t.value(), idx);
-        if (!f.has_value()) {
-            Fail();
-            return;
-        }
-        auto field = *f;
-        if (!field->offset.has_value()) {
-            Fail();
-            return;
-        }
-        auto offset = *field->offset;
-        msr.emit.Offset(offset);
-        msr.lastFieldKind = field->fieldType.GetKind();
+        Fail();
     }
 
     void MemBodyIndex(MemSpace& ms, IReg reg, uint32_t typeId, bool checked) override

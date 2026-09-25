@@ -48,6 +48,7 @@ SlotKind ComputeSlotKind(Session& session, FieldLayoutManager& flm, Image::Field
         case TermKind::OPTION:
         case TermKind::UNION_ENUM:
         case TermKind::AOT_TYPE:
+        case TermKind::VARRAY:
         case TermKind::TYPE:     return RECORD;
         default:                 return PRIMITIVE;
     }

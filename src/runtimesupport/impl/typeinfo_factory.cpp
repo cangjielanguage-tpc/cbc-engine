@@ -201,6 +201,12 @@ struct TypeInfoBuilder {
                 superType      = term.Subterm(0);
                 flag           = HAS_REF_FIELD;
                 return;
+            case Engine::TermKind::VARRAY:
+                type           = TYPE_KIND_VARRAY;
+                isAot          = true;
+                aotTypeDefName = "VArray";
+                superType      = term.Subterm(0);
+                return;
             case Engine::TermKind::TUPLE:
                 type           = TYPE_KIND_TUPLE;
                 needExtDefs    = false;
@@ -694,6 +700,29 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             out.PrintFmt("gctib: %lx", builder.gctib.raw);
             out.NewLine();
         });
+    } else if (term.GetKind() == Engine::TermKind::VARRAY) {
+        auto length = Engine::VArrayTermId(term).GetNum();
+        if (length > UINT16_MAX) {
+            return std::nullopt;
+        }
+        builder.fieldNum = static_cast<uint16_t>(length);
+        auto fields      = Engine::FieldLayoutManager::New(session, manager);
+        auto size        = fields->GetFlatSize(term);
+        if (!size) {
+            return std::nullopt;
+        }
+        builder.align        = fields->GetFlatAlignment(term);
+        builder.instanceSize = *size;
+        std::vector<uint32_t> offsets;
+        fields->FillRefOffsets(term, offsets, 0);
+        if (!offsets.empty()) {
+            builder.flag |= HAS_REF_FIELD;
+            auto gctib    = ConstructGCTib(builder, offsets);
+            if (!gctib) {
+                return std::nullopt;
+            }
+            builder.gctib = *gctib;
+        }
     } else if (term.GetKind() == Engine::TermKind::C_POINTER) {
         builder.fieldNum     = 0;
         builder.fields       = nullptr;
@@ -711,20 +740,22 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
     int typeArgsNum     = term.GetLength();
     builder.typeArgsNum = 0; // set type arg num to zero (so cjnative runtime won't query type templates)
     if (typeArgsNum > 0) {
-        builder.typeArgs = Alloc<DYN_TypeInfo*>(typeArgsNum);
-        if (builder.typeArgs == nullptr) {
-            return std::nullopt;
-        }
-        std::vector<DYN_TypeInfo*> typeInfos;
-        auto resolved = QuerySubterms(typeInfos, session, manager, term);
-        if (!resolved) {
-            return std::nullopt;
-        }
-        for (int i = 0; i < typeArgsNum; i++) {
-            builder.typeArgs[i] = typeInfos[i];
+        if (builder.type != TYPE_KIND_VARRAY) {
+            builder.typeArgs = Alloc<DYN_TypeInfo*>(typeArgsNum);
+            if (builder.typeArgs == nullptr) {
+                return std::nullopt;
+            }
+            std::vector<DYN_TypeInfo*> typeInfos;
+            auto resolved = QuerySubterms(typeInfos, session, manager, term);
+            if (!resolved) {
+                return std::nullopt;
+            }
+            for (int i = 0; i < typeArgsNum; i++) {
+                builder.typeArgs[i] = typeInfos[i];
+            }
         }
         if (builder.isAot) {
-            builder.typeArgsNum = typeArgsNum;
+            builder.typeArgsNum = builder.type == TYPE_KIND_VARRAY ? 0 : typeArgsNum;
             std::string name(builder.aotTypeDefName);
             auto typeTemplate = QueryTypeTemplate(session, name.c_str());
 
@@ -746,14 +777,14 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
             auto tt = (TypeTemplate*)typeTemplate;
 
-            if (builder.type != TYPE_KIND_TUPLE) {
+            if (builder.type != TYPE_KIND_TUPLE && builder.type != TYPE_KIND_VARRAY) {
                 ASSERT(tt->typeArgNum == typeArgsNum);
                 ASSERT(tt->type == builder.type);
                 ASSERT(tt->fieldNum == builder.fieldNum);
             }
 
             builder.typeTemplateOrFinalizer = typeTemplate;
-            builder.validInheritNum         = tt->validInheritNum;
+            builder.validInheritNum         = builder.type == TYPE_KIND_VARRAY ? (1 << 15) : tt->validInheritNum;
             builder.extDefs                 = (DYN_ExtensionData**)tt->extensionDatas;
         }
     }
@@ -941,6 +972,7 @@ std::optional<TypeInfo> CreateTypeInfo(Engine::Session& session, TypeInfoManager
             case Engine::TermKind::TYPE:
             case Engine::TermKind::TUPLE:
             case Engine::TermKind::C_POINTER:
+            case Engine::TermKind::VARRAY:
             case Engine::TermKind::CANGJIE_ARRAY:  return CreateTypeInfoDyn(session, manager, term);
 
             case Engine::TermKind::AOT_TYPE:
@@ -993,6 +1025,7 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& ma
     switch (typeInfo->type) {
         case TYPE_KIND_CPOINTER:
         case TYPE_KIND_RAWARRAY:
+        case TYPE_KIND_VARRAY:
             isGeneric              = true;
             shouldUseComponentType = true;
             break;
@@ -1010,8 +1043,7 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& ma
         case TYPE_KIND_GENERIC_CUSTOM:
         case TYPE_KIND_GENERIC_TI:
         case TYPE_KIND_FOREIGN_PROXY:
-        case TYPE_KIND_WEAKREF_CLASS:
-        case TYPE_KIND_VARRAY:         FATAL("type kind %d not implemented yet", typeInfo->type);
+        case TYPE_KIND_WEAKREF_CLASS:  FATAL("type kind %d not implemented yet", typeInfo->type);
     }
 
     if (isGeneric) {
@@ -1045,6 +1077,7 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& ma
         bool isEnum = false;
 
         switch (typeInfo->type) {
+            case TYPE_KIND_VARRAY:   return g(VArrayTermId(typeInfo->fieldNum), false);
             case TYPE_KIND_RAWARRAY: return g(TagTermId(TermKind::CANGJIE_ARRAY), true);
             case TYPE_KIND_CPOINTER: return g(TagTermId(TermKind::C_POINTER), true);
             case TYPE_KIND_TUPLE:    return g(TagTermId(TermKind::TUPLE), true);

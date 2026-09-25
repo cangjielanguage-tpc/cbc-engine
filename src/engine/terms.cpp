@@ -383,6 +383,11 @@ void Term::GetName(Session& session, Stream::Output& out, bool hasDebugPrefix) c
             break;
         }
 
+        case TK::VARRAY: {
+            stream << "VArray<" << Subterm(0) << "," << VArrayTermId(*this).GetNum() << '>';
+            break;
+        }
+
         case TK::FUNCTIONAL: {
             printSubTerms("(", ") -> ", GetLength() - 1);
             stream << Subterm(GetLength() - 1);
@@ -883,6 +888,10 @@ struct TermResolver {
                 auto len = reader.ReadU8() + 1; // +1 for ret type
                 return NewTerm(reader, refId, TagTermId(TermKind::FUNCTIONAL), len, F_LOCAL | F_REFERENCE);
             }
+            case VARRAY: {
+                auto length = reader.ReadULEB();
+                return NewTerm(reader, refId, VArrayTermId(length), 1, F_LOCAL | F_RECORD);
+            }
             case TUPLE: {
                 auto len = reader.ReadULEB();
                 return NewTerm(reader, refId, TagTermId(TermKind::TUPLE), len, F_LOCAL | F_RECORD);
@@ -973,7 +982,8 @@ static bool CheckIsRecord(TermKind kind, TermData* data)
     switch (kind) {
         case TermKind::UNIT:
         case TermKind::TUPLE:
-        case TermKind::UNION_ENUM: return true;
+        case TermKind::UNION_ENUM:
+        case TermKind::VARRAY:     return true;
         case TermKind::TYPE:
         case TermKind::OPTION:
         case TermKind::AOT_TYPE:   return !data->flags.isReference;
