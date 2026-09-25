@@ -403,6 +403,12 @@ using StaticFieldAotTable   = MemberIndex<StaticFieldAotData>;
 /// - LivenessInfo & StackPtrsInfo: GC root-tracing metadata mapped to specific bytecode
 ///   offsets (cbcPos). Tracks active register masks, reference slot locations, stack
 ///   pointers, and object mutation pairs for exact garbage collection.
+///
+struct SourceCodeInfo {
+    Utils::Vector<uint32_t> cbcBcPositions;
+    Utils::Vector<uint32_t> sourceLineNumbers;
+};
+
 struct ExceptionRegion {
     uint32_t start;
     uint32_t end;
@@ -459,6 +465,7 @@ public:
         bool mayHaveNativeCalls,
         uint32_t codeSize,
         uint8_t* codePtr,
+        RawData sourceCodeInfo,
         RawData rawExTable,
         RawData rawLivenessInfo,
         RawData rawStackPtrsInfo
@@ -473,6 +480,7 @@ public:
           mayHaveNativeCalls(mayHaveNativeCalls),
           codePtr(codePtr),
           codeSize(codeSize),
+          sourceCodeInfo(sourceCodeInfo),
           rawExTable(rawExTable),
           rawLivenessInfo(rawLivenessInfo),
           rawStackPtrsInfo(rawStackPtrsInfo)
@@ -493,6 +501,7 @@ public:
     uint32_t codeSize;
     uint8_t* codePtr;
 
+    RawData sourceCodeInfo   = { Image::FileId(0), 0, 0 };
     RawData rawExTable       = { Image::FileId(0), 0, 0 };
     RawData rawLivenessInfo  = { Image::FileId(0), 0, 0 };
     RawData rawStackPtrsInfo = { Image::FileId(0), 0, 0 };

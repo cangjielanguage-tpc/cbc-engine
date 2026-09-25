@@ -105,7 +105,25 @@ void FrameDescProvider(INT_FunctionHandle fuh, INT_BytecodePos pos, INT_Interpre
 
     // Line number
     {
-        frameDesc->lineNumber = 0; // TODO: implement
+        auto code = Decode::Read(session, methodDef.MethodCode().value());
+        auto sourceCodeInfo = Decode::GetSourceCodeInfo(session, code);
+        auto& cbcBcPositions = sourceCodeInfo.cbcBcPositions;
+        auto& cbcSourceLineNumbers = sourceCodeInfo.sourceLineNumbers;
+        auto& bcPositionsForExceptions = dynFuh->bytecode.load()->bcPositionsForExceptions;
+
+        frameDesc->lineNumber = 0;
+
+        for (auto& [rewritten, original] : bcPositionsForExceptions) {
+            if (rewritten == static_cast<uint32_t>(reinterpret_cast<uintptr_t>(pos))) {
+                for (size_t i = 0; i < cbcBcPositions.size(); ++i) {
+                    if (cbcBcPositions[i] == original) {
+                        frameDesc->lineNumber = cbcSourceLineNumbers[i];
+                        break;
+                    }
+                }
+                break;
+            }
+        }
     }
 
     // Method name
@@ -152,7 +170,7 @@ void FrameDescProvider(INT_FunctionHandle fuh, INT_BytecodePos pos, INT_Interpre
 
     // File name
     if (methodDef.SourceFile().has_value()) {
-        auto fileName       = Decode::Read(session, methodDef.SourceFullName().value());
+        auto fileName       = Decode::Read(session, methodDef.SourceFile().value());
         frameDesc->fileName = AllocateString(fileName);
     } else {
         frameDesc->fileName = AllocateString("unknown"); // should it be possible?
