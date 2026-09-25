@@ -51,6 +51,8 @@ public:
     /// The size of a field of given type.
     std::optional<uint32_t> GetFlatSize() const;
 
+    void FillReferenceOffsets(std::vector<uint32_t>& refOffsets, uint32_t disp) const;
+
     Type(Engine::Term term, Resolver& resolver) : term(term), resolver(&resolver) {}
 
     Type(Engine::Term term, Resolver* resolver) : term(term), resolver(resolver) {}
@@ -73,6 +75,7 @@ struct DirectCall {
         uintptr_t funcPtr;
         Interpretation::I2Call i2cAdapter;
     };
+
     using CallData = std::variant<Compiled, Interpretation::DynamicFunctionHandle*>;
 
     struct Content {
@@ -83,6 +86,7 @@ struct DirectCall {
     };
 
     Content* operator->() const { return content; };
+
     Content* Get() const { return content; };
 
     DirectCall(Content* content) : content(content) {}
@@ -102,6 +106,7 @@ struct VirtualCall {
     };
 
     Content* operator->() const { return content; };
+
     Content* Get() const { return content; };
 
     VirtualCall(Content* content) : content(content) {}
@@ -120,6 +125,7 @@ struct InterfaceCall {
     };
 
     Content* operator->() const { return content; };
+
     Content* Get() const { return content; };
 
     InterfaceCall(Content* content) : content(content) {}
@@ -140,6 +146,7 @@ struct InstanceField {
     };
 
     Content* operator->() const { return content; };
+
     Content* Get() const { return content; };
 
     InstanceField(Content* content) : content(content) {}
@@ -159,6 +166,7 @@ struct StaticField {
     };
 
     Content* operator->() const { return content; };
+
     Content* Get() const { return content; };
 
     StaticField(Content* content) : content(content) {}

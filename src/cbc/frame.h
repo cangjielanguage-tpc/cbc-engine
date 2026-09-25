@@ -1,8 +1,8 @@
 #pragma once
 
+#include <cstdint>
 #include <stdint.h>
 #include <unordered_map>
-#include <utility>
 #include <vector>
 
 namespace Cbc {
@@ -12,7 +12,8 @@ static uint32_t STACK_SLOT_SIZE = 8;
 
 struct FrameLayout {
     std::unordered_map<uint32_t, uint32_t> typedOffset;
-    std::vector<std::pair<uint32_t, void*>> typedSlotsInfo;
+    std::vector<uint32_t> stackAllocSize;
+    std::vector<uint32_t> refOffsets;
     uint32_t untypedStackSize;
     uint32_t frameSize;
 };
