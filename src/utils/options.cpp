@@ -3,6 +3,7 @@
 #include "utils/assertion.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
+#include "utils/span.h"
 
 #include <cerrno>
 #include <cstdint>
@@ -137,7 +138,7 @@ void ParseKeyVal(std::vector<KeyVal>& parsedOpts, std::string_view kv)
     }
 };
 
-void SetOptions(const std::vector<KeyVal>& parsedOpts, const Table& opts)
+void SetOptions(Utils::Span<KeyVal const> parsedOpts, const Table& opts)
 {
     for (auto& parsedOpt : parsedOpts) {
         switch (opts.Set(parsedOpt.key, parsedOpt.val)) {
