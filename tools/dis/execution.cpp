@@ -1,6 +1,6 @@
 #include <cstdint>
 #include <cstring>
-#include <functional>
+#include "utils/function.h"
 
 #include "engine/typeinfo_manager.h"
 #include "interpreter/function_handle.h"
@@ -211,7 +211,7 @@ TypeInfoUUID MetaInfo::GetUUID(TypeInfo ti) { return 0; }
 
 TypeInfo Execution::TypeArg(TypeInfo ti, uint32_t idx) { return TypeInfo(nullptr); }
 
-using OffsetVisitor = std::function<void(uint32_t)>;
+using OffsetVisitor = Utils::Function<void(uint32_t)>;
 
 void TypeInfo::VisitReferenceOffsets(OffsetVisitor const&) { FATAL("Should not reach here"); }
 

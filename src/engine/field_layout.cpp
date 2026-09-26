@@ -232,8 +232,8 @@ struct FLManager : public FieldLayoutManager {
                     return;
                 }
 
-                typeInfo->VisitReferenceOffsets([&offsets, disp](uint32_t offset) { offsets.push_back(offset + disp); }
-                );
+                auto visitOffset = [&offsets, disp](uint32_t offset) { offsets.push_back(offset + disp); };
+                typeInfo->VisitReferenceOffsets(visitOffset);
                 return;
             }
 

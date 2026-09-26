@@ -7,8 +7,8 @@
 #include "engine/image/reader.h"
 #include "engine/method_table.h"
 #include "engine/terms.h"
+#include "utils/function.h"
 #include "utils/ostream.h"
-#include <functional>
 
 namespace Stream {
 
@@ -102,7 +102,7 @@ private:
     Stream::Indented holder;
     Image::String StringOf(Image::Offset<Image::String>, Image::FileId fid);
     Image::String StringOf(Image::Identifier<Image::String>);
-    template <typename T> void Region(T name, std::function<void()> f);
+    template <typename T> void Region(T name, Utils::Function<void()> f);
 
     ResolvingOutput& TypeDefinition(Image::TypeDefinition const& td, bool full);
 };

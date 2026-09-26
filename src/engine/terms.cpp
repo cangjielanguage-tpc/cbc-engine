@@ -540,7 +540,7 @@ static Term NewTerm(
     Session& session,
     Term const* subterms,
     size_t containerSize,
-    std::function<Term(TermId, TermFlags, TermData*)> refineTerm
+    Utils::Function<Term(TermId, TermFlags, TermData*)> refineTerm
 )
 {
     auto& heap     = session.Allocator();
@@ -560,7 +560,7 @@ static Term NewTerm(
 
 Term TermManager::NewEnumTerm(Session& session, std::string_view name, std::vector<Term> const& subterms)
 {
-    return NewTerm(session, subterms.data(), subterms.size(), [&](TermId id, TermFlags flags, TermData* data) {
+    auto refineTerm = [&](TermId id, TermFlags flags, TermData* data) {
         auto type = session.GetEngine().FindType(session, name);
         ASSERTION(type.has_value(), "AOT enum terms are not supported yet");
         auto type_id = type.value();
@@ -589,14 +589,15 @@ Term TermManager::NewEnumTerm(Session& session, std::string_view name, std::vect
         }
         data->InitAfterSubterms(id, subterms.size(), flags);
         return Term(LocalTerm(data));
-    });
+    };
+    return NewTerm(session, subterms.data(), subterms.size(), refineTerm);
 }
 
 Term TermManager::NewAotTerm(
     Session& session, std::string_view name, std::vector<Term> const& subterms, bool isReference
 )
 {
-    return NewTerm(session, subterms.data(), subterms.size(), [&](TermId id, TermFlags flags, TermData* data) {
+    auto refineTerm = [&](TermId id, TermFlags flags, TermData* data) {
         flags.isReference = isReference;
         flags.isRecord    = !isReference;
 
@@ -616,17 +617,19 @@ Term TermManager::NewAotTerm(
         }
         data->InitAfterSubterms(id, arity, flags);
         return Term(LocalTerm(data));
-    });
+    };
+    return NewTerm(session, subterms.data(), subterms.size(), refineTerm);
 }
 
 static Term NewTermWithId(Session& session, TermId id, bool isReference, Term const* subterms, size_t termCount)
 {
-    return NewTerm(session, subterms, termCount, [&](TermId, TermFlags flags, TermData* data) {
+    auto refineTerm = [&](TermId, TermFlags flags, TermData* data) {
         flags.isReference = isReference;
         flags.isRecord    = !isReference;
         data->InitAfterSubterms(id, termCount, flags);
         return Term(LocalTerm(data));
-    });
+    };
+    return NewTerm(session, subterms, termCount, refineTerm);
 }
 
 Term TermManager::NewTermWithId(Session& session, TermId id, bool isReference, std::vector<Term> const& subterms)
