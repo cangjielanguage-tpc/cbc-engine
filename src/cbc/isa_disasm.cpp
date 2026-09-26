@@ -5,6 +5,7 @@
 #include "isa_parser.h"
 #include "resolution/resolution.h"
 #include "utils/ostream.h"
+#include "utils/vector.h"
 #include <cmath>
 #include <cstdint>
 
@@ -477,7 +478,7 @@ struct IsaDisasm : public IsaParser {
 
     std::unique_ptr<MemSpace> OpenMemSpace() override { return std::make_unique<PrintingMemSpace>(stream); }
 
-    void Refs(std::vector<uint32_t> refs)
+    void Refs(Utils::Vector<uint32_t> const& refs)
     {
         stream << "[ ";
         for (auto ref : refs) {

@@ -9,11 +9,11 @@
 #include "utils/iterators.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
+#include "utils/vector.h"
 #include <memory>
 #include <mutex>
 #include <optional>
 #include <unordered_map>
-#include <vector>
 
 namespace Engine {
 
@@ -23,7 +23,7 @@ using namespace Image;
 // ---- MethodTable ----
 
 MethodTable::MethodTable(
-    std::vector<Entry>&& allEntries, std::vector<SubTable>&& classTables, std::vector<SubTable>&& interfaceTables
+    Utils::Vector<Entry>&& allEntries, Utils::Vector<SubTable>&& classTables, Utils::Vector<SubTable>&& interfaceTables
 )
     : allEntries(std::move(allEntries)),
       classTables(std::move(classTables)),
@@ -104,7 +104,8 @@ std::optional<MethodTableEntry> MethodTable::Resolve(Session& session, MethodTab
     return std::nullopt;
 }
 
-void MethodTable::ResolveAll(Session& session, Reference const& reference, std::vector<MethodTableEntry>& buffer) const
+void MethodTable::ResolveAll(Session& session, Reference const& reference, Utils::Vector<MethodTableEntry>& buffer)
+    const
 {
     for (auto st : Classes()) {
         for (auto entry : st.Entries()) {
@@ -185,7 +186,7 @@ struct MethodTableBuilder {
     GlobalTerm tableOwner;
     MethodTable table {};
 
-    std::vector<MethodTableEntry> entryBuffer;
+    Utils::Vector<MethodTableEntry> entryBuffer;
     std::unordered_set<Term, Term::Hasher> interfaces;
 
     bool AddInterface(Session& session, Term interface)
@@ -205,7 +206,9 @@ struct MethodTableBuilder {
         ASSERTION(interfTable->classTables.empty(), "interface tables should not have class table");
 
         auto oldEntryCount = table.EntryCount();
-        table.allEntries.insert(table.allEntries.end(), interfTable->allEntries.begin(), interfTable->allEntries.end());
+        for (auto& e : interfTable->allEntries) {
+            table.allEntries.push_back(e);
+        }
 
         for (auto st : interfTable->interfaceTables) {
             table.interfaceTables.emplace_back(MethodTable::SubTable {
@@ -220,7 +223,7 @@ struct MethodTableBuilder {
 
     bool AddExtensions(Session& session)
     {
-        std::vector<Term> storage;
+        Utils::Vector<Term> storage;
         TermMatcher matcher;
 
         for (auto file : session.GetEngine().Files()) {
@@ -250,7 +253,7 @@ struct MethodTableBuilder {
 
                     auto genericContext =
                         tableOwner; // the code is referencing type variables using type-arg tree of extended type.
-                    MethodSignatureSubstitution msub(session, matcher.vars.data(), matcher.vars.size());
+                    MethodSignatureSubstitution msub(session, matcher.vars);
                     for (auto methodId : Reader::Resolve(session, ext.GetVirtualMethods())) {
                         AddMethod(session, methodId, msub, genericContext);
                     }
@@ -338,7 +341,7 @@ std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, Glob
     auto oldEntryCount = builder.table.EntryCount();
     MethodSignatureSubstitution methodSigSub(session, type);
 
-    std::vector<MethodTableEntry> entryBuffer;
+    Utils::Vector<MethodTableEntry> entryBuffer;
     for (auto methodId : Reader::Resolve(session, def.GetVirtualMethods())) {
         builder.AddMethod(session, methodId, methodSigSub, thisType);
     }

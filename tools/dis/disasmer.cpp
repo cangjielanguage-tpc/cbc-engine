@@ -14,7 +14,7 @@ using namespace Engine;
 using namespace Image;
 using namespace Stream;
 
-Session Disasmer::SessionFor(std::vector<std::string_view> views)
+Session Disasmer::SessionFor(Utils::Vector<std::string_view> views)
 {
     auto loader = Loader();
     for (auto view : views) {

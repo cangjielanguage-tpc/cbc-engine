@@ -29,8 +29,8 @@ static Engine* g_engineInstance;
 class Engine::Impl {
 public:
     Impl(
-        std::vector<CbcFile>&& files,
-        std::vector<std::unique_ptr<IO::RandomAccessFile>>&& rafs,
+        Utils::Vector<CbcFile>&& files,
+        Utils::Vector<std::unique_ptr<IO::RandomAccessFile>>&& rafs,
         std::vector<class Dependencies>&& deps
     )
         : files(std::move(files)),
@@ -45,8 +45,8 @@ public:
     std::optional<CbcFile*> FindCbcFile(std::string_view filePath);
 
     friend class Session;
-    std::vector<CbcFile> files;
-    std::vector<std::unique_ptr<IO::RandomAccessFile>> rafs;
+    Utils::Vector<CbcFile> files;
+    Utils::Vector<std::unique_ptr<IO::RandomAccessFile>> rafs;
 
     Interpretation::FunctionHandleManager fuhManager;
     std::unique_ptr<MethodTableManager> mtManager;
@@ -61,8 +61,8 @@ public:
     Impl() : fileCounter(0) {}
 
     uint32_t fileCounter;
-    std::vector<CbcFile> files;
-    std::vector<std::unique_ptr<IO::RandomAccessFile>> rafs;
+    Utils::Vector<CbcFile> files;
+    Utils::Vector<std::unique_ptr<IO::RandomAccessFile>> rafs;
 };
 
 /////////////////////////////////////////////////////////////////
@@ -321,7 +321,7 @@ std::optional<Identifier<Image::TypeDefinition>> Engine::FindType(Session& sessi
     return std::nullopt;
 }
 
-std::vector<Image::CbcFile> const& Engine::Files() const { return impl->files; }
+Utils::Vector<Image::CbcFile> const& Engine::Files() const { return impl->files; }
 
 std::vector<Dependencies> const& Engine::Dependencies() const { return impl->dependencies; }
 

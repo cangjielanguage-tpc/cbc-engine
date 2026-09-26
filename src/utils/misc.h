@@ -35,5 +35,10 @@ template <typename T> void Print(Stream::Output& out, const std::vector<T>& vec,
     Print(out, Utils::Span<T const>(vec), delim);
 }
 
+template <typename T> void Print(Stream::Output& out, const Utils::Vector<T>& vec, const std::string& delim = ", ")
+{
+    Print(out, Utils::Span<T const>(vec), delim);
+}
+
 } // namespace Vector
 } // namespace Std

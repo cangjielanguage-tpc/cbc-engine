@@ -1,13 +1,13 @@
 #pragma once
 
 #include "utils/assertion.h"
+#include "utils/vector.h"
 
 #include <optional>
 #include <stdint.h>
 #include <unistd.h>
 #include <unordered_map>
 #include <variant>
-#include <vector>
 
 namespace Cbc {
 
@@ -36,10 +36,10 @@ public:
     std::optional<Offset> FindMappedOffset(InstructionType type, Offset srcOffset) const;
 
 private:
-    std::vector<Offset> cbcOffsets = {};
-    std::vector<Offset> rtOffsets  = {};
+    Utils::Vector<Offset> cbcOffsets = {};
+    Utils::Vector<Offset> rtOffsets  = {};
 
-    bool OffsetsAreInAscendingOrder(std::vector<Offset> offsets);
+    bool OffsetsAreInAscendingOrder(Utils::Vector<Offset> const& offsets);
 };
 
 }; // namespace Cbc

@@ -126,7 +126,7 @@ struct KeyVal {
     std::string_view whole;
 };
 
-void ParseKeyVal(std::vector<KeyVal>& parsedOpts, std::string_view kv)
+void ParseKeyVal(Utils::Vector<KeyVal>& parsedOpts, std::string_view kv)
 {
     size_t eqPos = kv.find('=');
     if (eqPos != std::string::npos && eqPos + 1 < kv.size()) {
@@ -157,7 +157,7 @@ void Table::ParseAndSet(int size, const char* const* optStr) const
         return;
     }
 
-    std::vector<KeyVal> parsedOpts;
+    Utils::Vector<KeyVal> parsedOpts;
     for (size_t i = 0; i < size; ++i) {
         ParseKeyVal(parsedOpts, optStr[i]);
     }
@@ -167,7 +167,7 @@ void Table::ParseAndSet(int size, const char* const* optStr) const
 
 void InitFromString(std::string_view optStr, const Table& opts)
 {
-    std::vector<KeyVal> parsedOpts;
+    Utils::Vector<KeyVal> parsedOpts;
 
     size_t start = 0;
     size_t end   = 0;
