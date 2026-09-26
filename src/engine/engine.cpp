@@ -31,7 +31,7 @@ public:
     Impl(
         Utils::Vector<CbcFile>&& files,
         Utils::Vector<std::unique_ptr<IO::RandomAccessFile>>&& rafs,
-        std::vector<class Dependencies>&& deps
+        Utils::Vector<class Dependencies>&& deps
     )
         : files(std::move(files)),
           rafs(std::move(rafs)),
@@ -53,7 +53,7 @@ public:
     TermManager termManager;
     StaticsManager staticsManager;
     std::unique_ptr<TypeInfoManager> typeInfoManager;
-    std::vector<class Dependencies> dependencies;
+    Utils::Vector<class Dependencies> dependencies;
 };
 
 class Loader::Impl {
@@ -206,11 +206,11 @@ static std::string UpdateSharedObjName(std::string_view name)
     return res;
 }
 
-static std::vector<Dependencies> ReadDependencies(Loader::Impl const* loader)
+static Utils::Vector<Dependencies> ReadDependencies(Loader::Impl const* loader)
 {
     static constexpr char delim = ':';
 
-    std::vector<std::shared_ptr<Utils::SharedObject>> objects;
+    Utils::Vector<std::shared_ptr<Utils::SharedObject>> objects;
     auto addObject = [&objects](std::string_view name) {
         auto soName = UpdateSharedObjName(name);
         // Avoid duplicate dlopen calls
@@ -228,11 +228,11 @@ static std::vector<Dependencies> ReadDependencies(Loader::Impl const* loader)
     //        Use special name for such dependencies as `aot deps` field in cbc file.
     auto executable = std::make_shared<Utils::SharedObject>(Utils::SharedObject::OpenCurrentExecutable());
 
-    std::vector<char> nameBuffer;
+    Utils::Vector<char> nameBuffer;
 
     ASSERT(loader->files.size() == loader->rafs.size());
     auto sz = loader->files.size();
-    std::vector<Dependencies> allDeps;
+    Utils::Vector<Dependencies> allDeps;
     allDeps.reserve(sz);
 
     for (size_t i = 0; i < sz; i++) {
@@ -241,7 +241,7 @@ static std::vector<Dependencies> ReadDependencies(Loader::Impl const* loader)
 
         auto deps     = file.AotDependencies();
 
-        std::vector<std::shared_ptr<Utils::SharedObject>> ptrs;
+        Utils::Vector<std::shared_ptr<Utils::SharedObject>> ptrs;
         ptrs.emplace_back(executable);
         if (!deps) {
             allDeps.emplace_back(std::move(ptrs));
@@ -323,7 +323,7 @@ std::optional<Identifier<Image::TypeDefinition>> Engine::FindType(Session& sessi
 
 Utils::Vector<Image::CbcFile> const& Engine::Files() const { return impl->files; }
 
-std::vector<Dependencies> const& Engine::Dependencies() const { return impl->dependencies; }
+Utils::Vector<Dependencies> const& Engine::Dependencies() const { return impl->dependencies; }
 
 std::optional<Identifier<MethodDefinition>> Engine::FindMethod(
     Session& session, std::string_view filePath, std::string_view typeName, std::string_view methodName
