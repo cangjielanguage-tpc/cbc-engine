@@ -6,8 +6,8 @@
 #include "engine/terms.h"
 #include "interpreter/ectype.h"
 #include "interpreter/int_thunk.h"
+#include "utils/function.h"
 #include <cstdint>
-#include <functional>
 
 namespace RTSupport {
 
@@ -22,7 +22,7 @@ static constexpr uintptr_t DERIVED_PTR_GLOBAL_FLAG = 1ULL << 63;
 
 using TypeInfoUUID = uint32_t;
 
-using OffsetVisitor = std::function<void(uint32_t)>;
+using OffsetVisitor = Utils::Function<void(uint32_t)>;
 
 enum StructLocationKind {
     LOCAL,

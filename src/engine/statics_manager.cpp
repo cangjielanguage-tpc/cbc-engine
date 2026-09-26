@@ -93,7 +93,7 @@ uintptr_t StaticFieldsBundle::GetLocation(Session& session, TypeIdent typeIdent,
     }
 }
 
-void StaticFieldsBundle::VisitRefLocations(std::function<void(RefLocation*)> action) const
+void StaticFieldsBundle::VisitRefLocations(Utils::Function<void(RefLocation*)> action) const
 {
     RefLocation* location = reinterpret_cast<RefLocation*>(refs);
     auto refCount         = this->refCount;
@@ -209,7 +209,7 @@ uintptr_t StaticsManager::GetLocation(Session& session, TypeIdent typeIdent, Fie
 }
 
 void StaticsManager::VisitRefLocations(
-    std::function<void(RefLocation*)> untypedSlotsVisitor
+    Utils::Function<void(RefLocation*)> untypedSlotsVisitor
 ) const
 {
     std::lock_guard guard(lock);

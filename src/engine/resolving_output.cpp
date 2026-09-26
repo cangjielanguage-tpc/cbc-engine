@@ -122,7 +122,7 @@ ResolvingOutput& ResolvingOutput::operator<<(Full<Image::MethodDefinition> full)
     auto name     = Detailed(md.Name());
     out << name << Detailed(md.Signature()) << " ";
 
-    Region("", [&] {
+    auto print = [&] {
         out << "flags: " << Detailed(md.GetFlags()) << endl;
         if (auto sourceFileOpt = md.SourceFile()) {
             out << "source file: " << StringOf(*sourceFileOpt) << endl;
@@ -134,13 +134,15 @@ ResolvingOutput& ResolvingOutput::operator<<(Full<Image::MethodDefinition> full)
             out << "linkage name: " << StringOf(*linkageOpt) << endl;
         }
         if (auto codeOpt = md.MethodCode()) {
-            Region("code", [&]() {
+            auto printCode = [&]() {
                 auto code = Decode::Read(session, md.FileId(), codeOpt->GetOffset());
                 out << code;
                 Cbc::Disasm(ResolvingOutput::out, code, &resolver);
-            });
+            };
+            Region("code", printCode);
         }
-    });
+    };
+    Region("", print);
 
     return out;
 }
@@ -163,73 +165,78 @@ ResolvingOutput& ResolvingOutput::operator<<(NoResolve<Image::TypeDefinition> nr
 {
     auto& out = *this;
     auto& td  = nr.value;
-    Region("method name: " + std::to_string(td.GetName().GetOffset()), [&]() {
+    auto printFields = [&]() {
+        for (auto id : Decode::AllEntries(session, td.GetFields())) {
+            out << NoResolve(id) << endl;
+        }
+    };
+    auto printMethods = [&]() {
+        for (auto id : Decode::AllEntries(session, td.GetMethods())) {
+            out << NoResolve(id);
+        }
+    };
+    auto printVms = [&]() {
+        auto vms = td.GetVirtualMethods();
+        for (auto ident : Decode::Resolve(session, vms)) {
+            out << NoResolve(ident);
+        }
+    };
+    auto print = [&]() {
         out << "super: " << td.GetSuperType() << endl;
-        Region("fields", [&]() {
-            for (auto id : Decode::AllEntries(session, td.GetFields())) {
-                out << NoResolve(id) << endl;
-            }
-        });
-        Region("methods", [&]() {
-            for (auto id : Decode::AllEntries(session, td.GetMethods())) {
-                out << NoResolve(id);
-            }
-        });
-        Region("virtual methods", [&]() {
-            auto vms = td.GetVirtualMethods();
-            for (auto ident : Decode::Resolve(session, vms)) {
-                out << NoResolve(ident);
-            }
-        });
-    });
+        Region("fields", printFields);
+        Region("methods", printMethods);
+        Region("virtual methods", printVms);
+    };
+    Region("method name: " + std::to_string(td.GetName().GetOffset()), print);
     return out;
 }
 
 ResolvingOutput& ResolvingOutput::TypeDefinition(Image::TypeDefinition const& td, bool full)
 {
     auto& out = *this;
-    Region(StringOf(td.GetName()), [&]() {
+    auto printInterfaces = [&]() {
+        for (auto id : Decode::Resolve(session, td.GetInterfaces())) {
+            out << Detailed(id) << endl;
+        }
+    };
+    auto printFields = [&]() {
+        for (auto field : Decode::AllEntries(session, td.GetFields())) {
+            out << Detailed(field) << endl;
+        }
+    };
+    auto printInstanceFields = [&]() {
+        for (auto id : Decode::Resolve(session, td.GetInstanceFields())) {
+            out << Detailed(id) << endl;
+        }
+    };
+    auto printMethods = [&]() {
+        for (auto id : Decode::AllEntries(session, td.GetMethods())) {
+            if (full) {
+                out << Full(id);
+            } else {
+                out << Detailed(id);
+            }
+        }
+    };
+    auto printVms = [&]() {
+        auto vms = td.GetVirtualMethods();
+        for (auto ident : Decode::Resolve(session, vms)) {
+            if (full) {
+                out << Full(ident);
+            } else {
+                out << Detailed(ident);
+            }
+        }
+    };
+    auto print = [&]() {
         out << "super: " << Detailed(td.GetSuperType()) << endl;
-
-        Region("interfaces", [&]() {
-            for (auto id : Decode::Resolve(session, td.GetInterfaces())) {
-                out << Detailed(id) << endl;
-            }
-        });
-
-        Region("fields", [&]() {
-            for (auto field : Decode::AllEntries(session, td.GetFields())) {
-                out << Detailed(field) << endl;
-            }
-        });
-
-        Region("instance fields", [&]() {
-            for (auto id : Decode::Resolve(session, td.GetInstanceFields())) {
-                out << Detailed(id) << endl;
-            }
-        });
-
-        Region("methods", [&]() {
-            for (auto id : Decode::AllEntries(session, td.GetMethods())) {
-                if (full) {
-                    out << Full(id);
-                } else {
-                    out << Detailed(id);
-                }
-            }
-        });
-
-        Region("virtual methods", [&]() {
-            auto vms = td.GetVirtualMethods();
-            for (auto ident : Decode::Resolve(session, vms)) {
-                if (full) {
-                    out << Full(ident);
-                } else {
-                    out << Detailed(ident);
-                }
-            }
-        });
-    });
+        Region("interfaces", printInterfaces);
+        Region("fields", printFields);
+        Region("instance fields", printInstanceFields);
+        Region("methods", printMethods);
+        Region("virtual methods", printVms);
+    };
+    Region(StringOf(td.GetName()), print);
 
     return out;
 }
@@ -299,7 +306,7 @@ ResolvingOutput& ResolvingOutput::operator<<(Engine::FieldLayout const& layout)
     return stream;
 }
 
-template <typename T> void ResolvingOutput::Region(T name, std::function<void()> f)
+template <typename T> void ResolvingOutput::Region(T name, Utils::Function<void()> f)
 {
     *this << name << " {" << endl;
     out.SetIndent(out.GetIndent() + 2);

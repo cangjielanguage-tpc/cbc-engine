@@ -3,9 +3,9 @@
 #include "engine/image/cbc_file.h"
 #include "engine/image/version_metadata.h"
 #include "engine/resolving_output.h"
+#include "utils/function.h"
 #include "utils/ostream.h"
 #include <cstdint>
-#include <functional>
 #include <memory>
 
 namespace Dis {
@@ -15,9 +15,9 @@ class Disasmer {
 
     void Version(const Image::VersionMetadata& md);
 
-    void Region(std::string name, std::function<void()> fn) { Region(Image::String(name), fn); }
+    void Region(std::string name, Utils::Function<void()> fn) { Region(Image::String(name), fn); }
 
-    void Region(Image::String name, std::function<void()> fn);
+    void Region(Image::String name, Utils::Function<void()> fn);
 
     void Type(Image::TypeDefinition& def);
 

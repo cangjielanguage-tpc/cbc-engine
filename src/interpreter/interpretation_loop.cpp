@@ -839,9 +839,10 @@ LABEL(PREP_TYPED) {
     LOG_INSTR;
     auto typedOffset = args.imm32.imm;
     auto typeInfo    = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
-    typeInfo.VisitReferenceOffsets([&](uint32_t offset) {
+    auto visitOffset = [&](uint32_t offset) {
         interpreter.StoreFrameImm(StoreAccessKind::ST_64, 0, typedOffset + offset);
-    });
+    };
+    typeInfo.VisitReferenceOffsets(visitOffset);
     NEXT;
 }
 LABEL(SCC32) {

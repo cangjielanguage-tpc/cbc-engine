@@ -138,9 +138,8 @@ void VisitGCFrameRoots(
         ASSERTION(!RTSupport::MetaInfo::IsReferenceType(RTSupport::TypeInfo(typeInfoPtr)), "Expected record type");
 
         std::vector<uint32_t> offsets;
-        RTSupport::TypeInfo(typeInfoPtr).VisitReferenceOffsets([&offsets](uint32_t offset) {
-            offsets.push_back(offset);
-        });
+        auto visitOffset = [&offsets](uint32_t offset) { offsets.push_back(offset); };
+        RTSupport::TypeInfo(typeInfoPtr).VisitReferenceOffsets(visitOffset);
 
         for (auto& offsetInSlot : offsets) {
             auto refLocation = reinterpret_cast<Placeholder>(slotsStartAddr + typedSlotOffset + offsetInSlot);
@@ -161,7 +160,8 @@ void VisitGCFrameRoots(
             out << "visit alive regs, alive regs: " << aliveRegsMap.to_string().c_str() << endl;
         });
 
-        regsLocationTable->VisitAliveRegs(aliveRegsMap, [&](Placeholder ph) { VisitRoot(rootVisitor, ph); });
+        auto visitReg = [&](Placeholder ph) { VisitRoot(rootVisitor, ph); };
+        regsLocationTable->VisitAliveRegs(aliveRegsMap, visitReg);
     }
 
     auto savedRegsMap = bc->savedIRegs;
