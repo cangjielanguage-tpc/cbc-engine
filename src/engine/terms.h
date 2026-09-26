@@ -6,6 +6,7 @@
 #include "utils/iterators.h"
 #include "utils/ostream.h"
 #include "utils/reinterpretation.h"
+#include "utils/span.h"
 #include "utils/string_pool.h"
 #include <cstdint>
 #include <functional>
@@ -282,8 +283,7 @@ public:
 class ClassSubstitution : public Substitution {
 public:
     ClassSubstitution(Session& session, Term term);
-    ClassSubstitution(Session& session, std::vector<Term> const& terms);
-    ClassSubstitution(Session& session, Term const* terms, size_t size);
+    ClassSubstitution(Session& session, Utils::Span<Term const> terms);
 
     Term SubstituteClassTv(uint8_t typeVar) override;
     Term SubstituteFuncTv(uint8_t typeVar) override;
@@ -298,7 +298,7 @@ private:
 class MethodSignatureSubstitution : public Substitution {
 public:
     MethodSignatureSubstitution(Session& session, Term term);
-    MethodSignatureSubstitution(Session& session, Term const* terms, size_t size);
+    MethodSignatureSubstitution(Session& session, Utils::Span<Term const> terms);
 
     Term SubstituteClassTv(uint8_t typeVar) override;
     Term SubstituteFuncTv(uint8_t typeVar) override;
@@ -324,11 +324,11 @@ public:
     /// The function performs in-place modification of `Term` structure.
     GlobalTerm Globalize(Term& term);
 
-    static Term NewTermWithId(Session& session, TermId id, bool isReference, std::vector<Term> const& subterms);
+    static Term NewTermWithId(Session& session, TermId id, bool isReference, Utils::Span<Term const> subterms);
 
-    Term NewAotTerm(Session& session, std::string_view name, std::vector<Term> const& subterms, bool isReference);
+    Term NewAotTerm(Session& session, std::string_view name, Utils::Span<Term const> subterms, bool isReference);
 
-    Term NewEnumTerm(Session& session, std::string_view name, std::vector<Term> const& subterms);
+    Term NewEnumTerm(Session& session, std::string_view name, Utils::Span<Term const> subterms);
 
     Utils::StringPool::String GetNameOfAotType(AotTermId type);
 

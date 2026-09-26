@@ -26,6 +26,7 @@
 #include "utils/misc.h"
 #include "utils/ostream.h"
 #include "utils/reinterpretation.h"
+#include "utils/span.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -1984,7 +1985,7 @@ static std::vector<Interpretation::GCPositionalInfo> CalculatePositionalGCInfo(
     Engine::Session& session,
     const MethodCode& code,
     Emitter::Emitter const& emitter,
-    std::vector<IsaRewriter::StatePoint> const& statePoints
+    Utils::Span<IsaRewriter::StatePoint const> statePoints
 )
 {
     auto livenessInfo = Decode::GetLivenessInfo(session, code);
@@ -2034,7 +2035,7 @@ static std::vector<Interpretation::StackPtrsPositionalInfo> CalculateStackPtrsPo
     Engine::Session& session,
     const MethodCode& code,
     Emitter::Emitter const& emitter,
-    std::vector<IsaRewriter::StatePoint> const& statePoints
+    Utils::Span<IsaRewriter::StatePoint const> statePoints
 )
 {
     auto stackPtrsInfo = Decode::GetStackPtrsInfo(session, code);

@@ -5,6 +5,7 @@
 #include "engine/terms.h"
 #include "utils/iterators.h"
 #include "utils/logger.h"
+#include "utils/span.h"
 #include <memory>
 #include <vector>
 
@@ -73,7 +74,7 @@ public:
 
     struct SubTableGenerator {
         MethodTable const& table;
-        std::vector<SubTable> const& subtables;
+        Utils::Span<SubTable const> subtables;
         int const disp;
         int cursor;
 
