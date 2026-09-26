@@ -3,12 +3,12 @@
 #include "interpreter/code.h"
 #include "interpreter/ectype.h"
 #include "runtimesupport/runtime.h"
+#include "utils/function.h"
 #include "utils/logger.h"
 #include "utils/rt_logger.h"
 
 #include <bitset>
 #include <cstdint>
-#include <functional>
 
 namespace GCSupport {
 
@@ -20,7 +20,7 @@ class RegistersTable {
 public:
     RegistersTable(Interpretation::Ectype* ectype);
 
-    void VisitAliveRegs(std::bitset<ECTYPE_IREGS_COUNT> aliveRegsMap, std::function<void(Placeholder)> visitor);
+    void VisitAliveRegs(std::bitset<ECTYPE_IREGS_COUNT> aliveRegsMap, Utils::Function<void(Placeholder)> visitor);
 
     void UpdateRegLocations(Interpretation::NonVolatileRegs savedRegs, Placeholder calleeSavedRegsEnd);
 

@@ -89,7 +89,7 @@ public:
 
     int32_t Size() const override { return 2; }
 
-    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+    void Resolve(Segment& segment, Symbols& symbols, Utils::Function<uint16_t(Symbol)> const& relocationConverter)
         const override
     {
         ASSERT(position >= 0);
@@ -106,7 +106,7 @@ public:
 
     int32_t Size() const override { return 2; }
 
-    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+    void Resolve(Segment& segment, Symbols& symbols, Utils::Function<uint16_t(Symbol)> const& relocationConverter)
         const override
     {
         ASSERT(position >= 0);
@@ -130,7 +130,7 @@ public:
 
     int32_t Size() const override { return RT::B5i32::SIZE; }
 
-    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+    void Resolve(Segment& segment, Symbols& symbols, Utils::Function<uint16_t(Symbol)> const& relocationConverter)
         const override
     {
         int32_t distance = Distance(symbols, this->symbol);
@@ -150,7 +150,7 @@ public:
 
     int32_t Size() const override { return RT::B3xi12::SIZE; }
 
-    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+    void Resolve(Segment& segment, Symbols& symbols, Utils::Function<uint16_t(Symbol)> const& relocationConverter)
         const override
     {
         int32_t distance = Distance(symbols, this->symbol);
@@ -186,7 +186,7 @@ public:
         }
     }
 
-    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+    void Resolve(Segment& segment, Symbols& symbols, Utils::Function<uint16_t(Symbol)> const& relocationConverter)
         const override
     {
         int32_t distance = Distance(symbols, this->symbol);
@@ -240,7 +240,7 @@ public:
         }
     }
 
-    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+    void Resolve(Segment& segment, Symbols& symbols, Utils::Function<uint16_t(Symbol)> const& relocationConverter)
         const override
     {
         int32_t distance = Distance(symbols, this->symbol);

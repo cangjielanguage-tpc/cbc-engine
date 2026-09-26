@@ -4,9 +4,11 @@
 #include "engine.h"
 #include "identifiers.h"
 
+#include "utils/function.h"
+
 #include <cstdint>
-#include <functional>
 #include <mutex>
+#include <unordered_map>
 
 namespace Engine {
 
@@ -50,7 +52,7 @@ public:
 
     uintptr_t GetLocation(Session& session, TypeIdent typeIdent, FieldIdent fieldIdent);
 
-    void VisitRefLocations(std::function<void(RefLocation*)> action) const;
+    void VisitRefLocations(Utils::Function<void(RefLocation*)> action) const;
 
 private:
     uintptr_t refs;
@@ -77,7 +79,7 @@ public:
     uintptr_t GetLocation(Session& session, TypeIdent typeIdent, FieldIdent fieldIdent);
 
     void VisitRefLocations(
-        std::function<void(RefLocation*)> untypedSlotsVisitor
+        Utils::Function<void(RefLocation*)> untypedSlotsVisitor
     ) const;
 
 private:

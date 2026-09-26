@@ -12,7 +12,7 @@ RegistersTable::RegistersTable(Interpretation::Ectype* ectype)
 }
 
 void RegistersTable::VisitAliveRegs(
-    std::bitset<ECTYPE_IREGS_COUNT> aliveRegsMap, std::function<void(Placeholder)> visitor
+    std::bitset<ECTYPE_IREGS_COUNT> aliveRegsMap, Utils::Function<void(Placeholder)> visitor
 )
 {
     for (uint32_t regN = 0; regN < IReg::COUNT; regN++) {

@@ -2,7 +2,7 @@
 #define CBC_EMITTER_SYMBOLS_H
 
 #include <cstdint>
-#include <functional>
+#include "utils/function.h"
 
 #include "cbc/emitter/segment.h"
 #include "cbc/isa_rt.h"
@@ -101,7 +101,7 @@ public:
     int32_t Distance(Symbols const& symbols, Label label) const;
 
     virtual int32_t Size() const = 0;
-    virtual void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+    virtual void Resolve(Segment& segment, Symbols& symbols, Utils::Function<uint16_t(Symbol)> const& relocationConverter)
         const = 0;
 
 protected:

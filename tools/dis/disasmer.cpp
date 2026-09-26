@@ -26,7 +26,7 @@ Session Disasmer::SessionFor(std::vector<std::string_view> views)
     return Session(loader.Build());
 }
 
-void Disasmer::Region(String name, std::function<void()> fn)
+void Disasmer::Region(String name, Utils::Function<void()> fn)
 {
     io << name << " {" << endl;
     idio.SetIndent(idio.GetIndent() + 2);
@@ -47,24 +47,22 @@ void Disasmer::Type(TypeDefinition& def)
 void Disasmer::RData(RegionData const& rd, uint8_t regionNum)
 {
     auto& raf = session.FileOf(currentFile->Id());
-    Region("methods: ", [&]() {
+    auto printMethods = [&]() {
         for (auto refid : rd.methods) {
             auto ref = Reader::Read(session, refid);
 
             io << refid.GetIndex() << " - " << Detailed(ref.refType) << "." << Detailed(ref.name)
                << Detailed(ref.methodSig) << ' ' << ref.flags << endl;
         }
-    });
-
-    Region("terms: ", [&]() {
+    };
+    auto printTerms = [&]() {
         for (auto refid : rd.terms) {
             auto term = TermManager::Resolve(session, refid);
 
             io << refid.GetIndex() << " - " << term << endl;
         }
-    });
-
-    Region("fields: ", [&]() {
+    };
+    auto printFields = [&]() {
         for (auto refid : rd.fields) {
             auto ref = Reader::Read(session, refid);
 
@@ -91,20 +89,25 @@ void Disasmer::RData(RegionData const& rd, uint8_t regionNum)
                 case NONE: io << Detailed(ref.none.sig) << endl; break;
             }
         }
-    });
+    };
+    Region("methods: ", printMethods);
+    Region("terms: ", printTerms);
+    Region("fields: ", printFields);
 }
 
 void Disasmer::DisasmOf(CbcFile const& file)
 {
     SetFile(file);
 
-    Region("types", [&]() {
+    auto printTypes = [&]() {
         for (auto type : Decode::AllEntries(session, file.GetTypeIndex())) {
             auto def = Decode::Read(session, type);
             Type(def);
         }
-    });
-    Region("region data", [&]() { RData(file.GetRegionData(), 0); });
+    };
+    auto printRegionData = [&]() { RData(file.GetRegionData(), 0); };
+    Region("types", printTypes);
+    Region("region data", printRegionData);
 }
 
 } // namespace Dis

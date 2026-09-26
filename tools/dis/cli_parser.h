@@ -1,8 +1,8 @@
 #pragma once
 
 #include "disasmer.h"
+#include "utils/function.h"
 #include "utils/ostream.h"
-#include <functional>
 #include <string_view>
 #include <unordered_map>
 #include <vector>
@@ -29,7 +29,7 @@ public:
         Dis::Disasmer Build() { return Dis::Disasmer(files, out, resolving); }
     };
 
-    using OptionsMap = std::unordered_map<string_view, std::function<void(CliParser&, DisasmerBuilder&)>>;
+    using OptionsMap = std::unordered_map<string_view, Utils::Function<void(CliParser&, DisasmerBuilder&)>>;
 
     CliParser(int argc, char* argv[], OptionsMap options);
 
