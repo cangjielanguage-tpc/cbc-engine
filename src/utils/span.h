@@ -2,7 +2,9 @@
 
 #include "utils/vector.h"
 
+#include <assert.h>
 #include <cstddef>
+#include <stdlib.h>
 #include <type_traits>
 
 namespace Utils {
@@ -42,6 +44,16 @@ public:
     constexpr T& operator[](size_t index) const { return ptr[index]; }
     constexpr T& front() const { return ptr[0]; }
     constexpr T& back() const { return ptr[count - 1]; }
+
+    // No-exception bounds-checked access
+    T& at(size_t index) const
+    {
+        if (index >= count) {
+            assert(false && "Span::at index out of bounds");
+            ::abort(); // Immediate termination instead of std::out_of_range exception
+        }
+        return ptr[index];
+    }
 
     constexpr T* begin() const { return ptr; }
     constexpr T* end() const { return ptr + count; }

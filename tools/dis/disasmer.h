@@ -5,7 +5,7 @@
 #include "engine/resolving_output.h"
 #include "utils/function.h"
 #include "utils/ostream.h"
-#include "utils/vector.h"
+#include "utils/span.h"
 #include <cstdint>
 #include <memory>
 
@@ -28,7 +28,7 @@ class Disasmer {
 
     Image::CbcFile const* currentFile = nullptr;
     Engine::Session session;
-    Utils::Vector<Image::CbcFile> const& files;
+    Utils::Span<Image::CbcFile const> files;
     Stream::Indented idio;
     Stream::ResolvingOutput io = Stream::ResolvingOutput(session, idio);
 

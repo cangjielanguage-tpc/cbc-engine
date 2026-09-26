@@ -317,9 +317,9 @@ std::optional<Identifier<Image::TypeDefinition>> Engine::FindType(Session& sessi
     return std::nullopt;
 }
 
-Utils::Vector<Image::CbcFile> const& Engine::Files() const { return impl->files; }
+Utils::Span<Image::CbcFile const> Engine::Files() const { return impl->files; }
 
-Utils::Vector<Dependencies> const& Engine::Dependencies() const { return impl->dependencies; }
+Utils::Span<Dependencies const> Engine::Dependencies() const { return impl->dependencies; }
 
 std::optional<Identifier<MethodDefinition>> Engine::FindMethod(
     Session& session, std::string_view filePath, std::string_view typeName, std::string_view methodName
