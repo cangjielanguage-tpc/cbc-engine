@@ -4,6 +4,7 @@
 #include <assert.h> // assert
 #include <stddef.h> // size_t
 #include <stdlib.h> // malloc, realloc, free, abort
+#include <initializer_list>
 #include <utility>
 
 namespace Utils {
@@ -34,6 +35,14 @@ public:
     }
 
     explicit Vector(size_t size) : Vector() { reserve(size); }
+
+    Vector(std::initializer_list<T> list) : Vector()
+    {
+        reserve(list.size());
+        for (auto const& v : list) {
+            push_back(v);
+        }
+    }
 
     Vector(Vector const& other) : Vector(other.size())
     {

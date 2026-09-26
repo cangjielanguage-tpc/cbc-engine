@@ -16,6 +16,7 @@
 #include "utils/iterators.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
+#include "utils/vector.h"
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -396,7 +397,7 @@ struct ResolverProxy {
     {
         ASSERT(ref.multi.length >= 1);
 
-        std::vector<std::variant<StaticField::Content, InstanceField::Content>> fields;
+        Utils::Vector<std::variant<StaticField::Content, InstanceField::Content>> fields;
         fields.reserve(ref.multi.length);
 
         for (uint32_t i = 0; i < ref.multi.length; i++) {
@@ -419,9 +420,8 @@ struct ResolverProxy {
 
         std::optional<uintptr_t> location = staticField.location;
 
-        decltype(fields) instanceFields(fields.begin() + 1, fields.end());
-        for (const auto& f : instanceFields) {
-            auto field = std::get<InstanceField::Content>(f);
+        for (size_t i = 1; i < fields.size(); i++) {
+            auto field = std::get<InstanceField::Content>(fields[i]);
             if (!field.offset.has_value()) {
                 location = std::nullopt;
                 break;
@@ -439,7 +439,7 @@ struct ResolverProxy {
     {
         ASSERT(ref.multi.length >= 1);
 
-        std::vector<InstanceField::Content> fields;
+        Utils::Vector<InstanceField::Content> fields;
         fields.reserve(ref.multi.length);
 
         for (uint32_t i = 0; i < ref.multi.length; i++) {

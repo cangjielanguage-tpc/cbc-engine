@@ -3,19 +3,19 @@
 #include <cstddef>
 #include <cstdint>
 #include <utility>
-#include <vector>
 
 #include "interpreter/code.h"
 #include "interpreter/ectype.h"
 #include "interpreter/interpreter.h"
+#include "utils/vector.h"
 
 struct TestTypeInfo {
     size_t size;
     uint8_t alignment;
-    std::vector<uint32_t> referenceOffsets;
+    Utils::Vector<uint32_t> referenceOffsets;
 
     TestTypeInfo(
-        size_t size, uint8_t alignment = alignof(std::max_align_t), std::vector<uint32_t> referenceOffsets = {}
+        size_t size, uint8_t alignment = alignof(std::max_align_t), Utils::Vector<uint32_t> referenceOffsets = {}
     )
         : size(size),
           alignment(alignment),

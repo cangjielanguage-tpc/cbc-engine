@@ -35,7 +35,6 @@
 #include <optional>
 #include <sys/types.h>
 #include <variant>
-#include <vector>
 
 #define UNWRAP_OPT(name, expression, handler)                                                                          \
     auto __##name = (expression);                                                                                      \
