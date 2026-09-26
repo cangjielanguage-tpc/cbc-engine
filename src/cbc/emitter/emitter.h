@@ -1,9 +1,9 @@
 #pragma once
 
+#include "utils/vector.h"
 #include <cstdint>
 #include <memory>
 #include <string_view>
-#include <vector>
 
 #include "cbc/emitter/segment.h"
 #include "cbc/emitter/symbols.h"
@@ -321,7 +321,7 @@ private:
     Symbols symbols;
     Segment segment;
 
-    std::vector<std::unique_ptr<Fixup>> fixups;
+    Utils::Vector<std::unique_ptr<Fixup>> fixups;
 };
 
 } // namespace Emitter

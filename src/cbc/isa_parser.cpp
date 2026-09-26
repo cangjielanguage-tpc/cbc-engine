@@ -6,6 +6,7 @@
 #include "isa_parser.h"
 #include "utils/assertion.h"
 #include "utils/math.h"
+#include "utils/vector.h"
 
 namespace Cbc {
 
@@ -1042,7 +1043,7 @@ struct IsaParserImpl {
     static bool MemTailLoad(IsaParser& parser, IsaParser::MemSpace& ms)
     {
         auto [reg, _size] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
-        std::vector<uint32_t> refs;
+        Utils::Vector<uint32_t> refs;
         uint8_t size = _size;
         for (int i = 0; i < size; i++) {
             refs.emplace_back(parser.reader.ReadULEB());
@@ -1054,7 +1055,7 @@ struct IsaParserImpl {
     static bool MemTailStore(IsaParser& parser, IsaParser::MemSpace& ms)
     {
         auto [reg, _size] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
-        std::vector<uint32_t> refs;
+        Utils::Vector<uint32_t> refs;
         uint8_t size = _size;
         for (int i = 0; i < size; i++) {
             refs.emplace_back(parser.reader.ReadULEB());

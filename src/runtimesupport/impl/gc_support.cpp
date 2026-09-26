@@ -9,6 +9,7 @@
 #include "utils/logger.h"
 #include "utils/ostream.h"
 #include "utils/rt_logger.h"
+#include "utils/vector.h"
 
 namespace GCSupport {
 
@@ -137,7 +138,7 @@ void VisitGCFrameRoots(
 
         ASSERTION(!RTSupport::MetaInfo::IsReferenceType(RTSupport::TypeInfo(typeInfoPtr)), "Expected record type");
 
-        std::vector<uint32_t> offsets;
+        Utils::Vector<uint32_t> offsets;
         auto visitOffset = [&offsets](uint32_t offset) { offsets.push_back(offset); };
         RTSupport::TypeInfo(typeInfoPtr).VisitReferenceOffsets(visitOffset);
 

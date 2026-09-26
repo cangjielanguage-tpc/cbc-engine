@@ -1,5 +1,7 @@
 #pragma once
 
+#include "utils/vector.h"
+
 #include <cstddef>
 #include <type_traits>
 #include <vector>
@@ -21,6 +23,13 @@ public:
     /// Wraps a const vector. Only valid for `Span<const T>`.
     template <typename U>
     Span(const std::vector<U>& vec) : ptr(vec.data()), count(vec.size())
+    {
+        static_assert(std::is_const_v<T>, "Span<const T> required to wrap a vector");
+    }
+
+    /// Wraps a const Utils::Vector. Only valid for `Span<const T>`.
+    template <typename U>
+    Span(const Vector<U>& vec) : ptr(vec.data()), count(vec.size())
     {
         static_assert(std::is_const_v<T>, "Span<const T> required to wrap a vector");
     }
@@ -47,5 +56,6 @@ public:
 };
 
 template <typename T> Span(const std::vector<T>&) -> Span<const T>;
+template <typename T> Span(const Vector<T>&) -> Span<const T>;
 
 } // namespace Utils

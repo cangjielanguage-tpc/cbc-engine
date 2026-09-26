@@ -1,10 +1,10 @@
 #ifndef INTERPRETER_CODE_H
 #define INTERPRETER_CODE_H
 
+#include "utils/vector.h"
 #include <cstddef>
 #include <cstdint>
 #include <utility>
-#include <vector>
 
 #include "asm_export.h"
 #include "cbc/offsets_index.h"
@@ -44,22 +44,22 @@ struct Resource {
 struct GCPositionalInfo {
     uint32_t rewrittenPos;
     uint16_t regMask;
-    std::vector<uint32_t> untypedRefSlotsInfo;
-    std::vector<std::pair<Resource, Resource>> mutPairs;
+    Utils::Vector<uint32_t> untypedRefSlotsInfo;
+    Utils::Vector<std::pair<Resource, Resource>> mutPairs;
 };
 
 struct StackPtrsPositionalInfo {
     uint32_t rewrittenPos;
-    std::vector<Resource> resources;
+    Utils::Vector<Resource> resources;
 };
 
 struct GcInfo {
-    std::vector<GCPositionalInfo> positionalInfo;
-    std::vector<std::pair<uint32_t, void*>> typedSlotsInfo;
+    Utils::Vector<GCPositionalInfo> positionalInfo;
+    Utils::Vector<std::pair<uint32_t, void*>> typedSlotsInfo;
 };
 
 struct StackPtrsInfo {
-    std::vector<StackPtrsPositionalInfo> positionalInfo;
+    Utils::Vector<StackPtrsPositionalInfo> positionalInfo;
 };
 
 // List of non-zero registers used for storing non-volatile regs.

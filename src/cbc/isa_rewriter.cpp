@@ -27,6 +27,7 @@
 #include "utils/ostream.h"
 #include "utils/reinterpretation.h"
 #include "utils/span.h"
+#include "utils/vector.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -182,7 +183,7 @@ struct IsaRewriter : public IsaParser {
     Resolver& resolver;
     MethodCode& code;
     Emitter::Emitter& emit;
-    FrameLayout frameLayout;
+    FrameLayout& frameLayout;
     size_t bytecodeSize;
     Stream::Output& errStream = Interpretation::Log::preparation.Stream(Logging::Level::ERROR);
 
@@ -195,14 +196,14 @@ struct IsaRewriter : public IsaParser {
         ssize_t originalPos;  // position in original code
     };
 
-    std::vector<StatePoint> statePoints;
+    Utils::Vector<StatePoint> statePoints;
 
     struct FailureMessage {
         size_t position;
         std::string message;
     };
 
-    std::vector<FailureMessage> failureMessages;
+    Utils::Vector<FailureMessage> failureMessages;
 
     InstructionOffsetsIndex BuildOffsetsIndex() { return InstructionOffsetsIndex::Create(emit, instructionLabel); }
 
@@ -1727,7 +1728,7 @@ struct IsaRewriter : public IsaParser {
         msr.emit.OffsetRegIdx(reg, *size);
     }
 
-    void MemTailLoad(MemSpace& ms, IReg dst, std::vector<uint32_t> refs) override
+    void MemTailLoad(MemSpace& ms, IReg dst, Utils::Vector<uint32_t> const& refs) override
     {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
         for (auto r : refs) {
@@ -1747,7 +1748,7 @@ struct IsaRewriter : public IsaParser {
         }
     }
 
-    void MemTailStore(MemSpace& ms, IReg src, std::vector<uint32_t> refs) override
+    void MemTailStore(MemSpace& ms, IReg src, Utils::Vector<uint32_t> const& refs) override
     {
         auto& msr = static_cast<MemSpaceRewriter&>(ms);
         for (auto r : refs) {
@@ -1946,7 +1947,7 @@ static std::optional<FrameLayout> makeFrameLayout(Image::Code code, Resolver& re
     auto untypedSlotsSize = Cbc::STACK_SLOT_SIZE * code.UntypedSlotCount();
 
     std::unordered_map<uint32_t, uint32_t> typedOffset;
-    std::vector<std::pair<uint32_t, void*>> typedSlotsInfo;
+    Utils::Vector<std::pair<uint32_t, void*>> typedSlotsInfo;
     auto stackAllocSize = untypedSlotsSize;
     for (uint32_t i = 0; i < code.StackAllocSigsCount(); i++) {
         auto typeOpt = resolver.Query(Index<Type>(code.StackAllocSigs()[i]));
@@ -1981,7 +1982,7 @@ static std::optional<FrameLayout> makeFrameLayout(Image::Code code, Resolver& re
     return FrameLayout { std::move(typedOffset), std::move(typedSlotsInfo), untypedSlotsSize, frameSize };
 }
 
-static std::vector<Interpretation::GCPositionalInfo> CalculatePositionalGCInfo(
+static Utils::Vector<Interpretation::GCPositionalInfo> CalculatePositionalGCInfo(
     Engine::Session& session,
     const MethodCode& code,
     Emitter::Emitter const& emitter,
@@ -1990,7 +1991,7 @@ static std::vector<Interpretation::GCPositionalInfo> CalculatePositionalGCInfo(
 {
     auto livenessInfo = Decode::GetLivenessInfo(session, code);
 
-    std::vector<Interpretation::GCPositionalInfo> posInfo;
+    Utils::Vector<Interpretation::GCPositionalInfo> posInfo;
     posInfo.reserve(livenessInfo.size());
 
     std::unordered_map<ssize_t, Image::LivenessInfo const&> infos;
@@ -2031,7 +2032,7 @@ static std::vector<Interpretation::GCPositionalInfo> CalculatePositionalGCInfo(
     return posInfo;
 }
 
-static std::vector<Interpretation::StackPtrsPositionalInfo> CalculateStackPtrsPositionalInfo(
+static Utils::Vector<Interpretation::StackPtrsPositionalInfo> CalculateStackPtrsPositionalInfo(
     Engine::Session& session,
     const MethodCode& code,
     Emitter::Emitter const& emitter,
@@ -2040,7 +2041,7 @@ static std::vector<Interpretation::StackPtrsPositionalInfo> CalculateStackPtrsPo
 {
     auto stackPtrsInfo = Decode::GetStackPtrsInfo(session, code);
 
-    std::vector<Interpretation::StackPtrsPositionalInfo> posInfo;
+    Utils::Vector<Interpretation::StackPtrsPositionalInfo> posInfo;
     posInfo.reserve(stackPtrsInfo.size());
 
     // FIXME: the data must be stored in the format that is compact and fast to query.

@@ -66,7 +66,9 @@ uint16_t LiteralTableBuilder::UseSymbol(Symbol symbol)
                 .u64 = symbols.plainValues.at(symbol.id),
             };
 
-            table.insert(table.end(), &lit.raw[0], &lit.raw[sizeof(lit)]);
+            for (int i = 0; i < sizeof(lit); i++) {
+                table.push_back(lit.raw[i]);
+            }
             return static_cast<uint16_t>(size / step);
         }
         default: FATAL("unexpected SymbolKind"); return MAX_SIZE;

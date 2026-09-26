@@ -5,6 +5,7 @@
 #include "cbc/decoder.h"
 #include "cbc/isa.h"
 #include "engine/terms.h"
+#include "utils/vector.h"
 
 namespace Cbc {
 
@@ -179,8 +180,8 @@ protected:
     virtual void MemBodyIndex(MemSpace& ms, IReg reg, uint32_t elemType, bool checked)           = 0;
     virtual void MemBodyConstIndex(MemSpace& ms, int64_t idx, uint32_t elemType)                 = 0;
 
-    virtual void MemTailLoad(MemSpace& ms, IReg dst, std::vector<uint32_t> refs)  = 0;
-    virtual void MemTailStore(MemSpace& ms, IReg src, std::vector<uint32_t> refs) = 0;
+    virtual void MemTailLoad(MemSpace& ms, IReg dst, Utils::Vector<uint32_t> const& refs)  = 0;
+    virtual void MemTailStore(MemSpace& ms, IReg src, Utils::Vector<uint32_t> const& refs) = 0;
     virtual void MemTailStoreImm(MemSpace& ms, uint64_t imm)                      = 0;
     virtual void MemTailCopyRegTo(MemSpace& ms, IReg to, uint32_t recType)        = 0;
     virtual void MemTailCopyRegFrom(MemSpace& ms, IReg from, uint32_t recType)    = 0;

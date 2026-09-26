@@ -488,7 +488,7 @@ struct IsaDisasm : public IsaParser {
         stream.PrintLn("const.index {}, @{}", idx, refType);
     }
 
-    void Refs(std::vector<uint32_t> refs)
+    void Refs(Utils::Vector<uint32_t> const& refs)
     {
         stream << "[ ";
         for (auto ref : refs) {
@@ -497,14 +497,14 @@ struct IsaDisasm : public IsaParser {
         stream << "]" << endl;
     }
 
-    void MemTailLoad(MemSpace& ms, IReg dst, std::vector<uint32_t> refs) override
+    void MemTailLoad(MemSpace& ms, IReg dst, Utils::Vector<uint32_t> const& refs) override
     {
         PrintMemPos();
         stream.Print("load {}", dst);
         Refs(refs);
     }
 
-    void MemTailStore(MemSpace& ms, IReg src, std::vector<uint32_t> refs) override
+    void MemTailStore(MemSpace& ms, IReg src, Utils::Vector<uint32_t> const& refs) override
     {
         PrintMemPos();
         stream.Print("store {}", src);
