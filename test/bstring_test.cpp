@@ -1,7 +1,6 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
-#include <vector>
 
 #include "cbc/emitter/emitter.h"
 #include "cbc/isa_rt.h"

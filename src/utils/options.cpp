@@ -10,7 +10,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <string_view>
-#include <vector>
 
 namespace Options {
 

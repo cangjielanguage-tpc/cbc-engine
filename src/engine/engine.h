@@ -23,7 +23,7 @@ class Dependencies {
     using SharedObject = Utils::SharedObject;
 
 public:
-    Dependencies(std::vector<std::shared_ptr<SharedObject>>&& objects) : objects(std::move(objects)) {}
+    Dependencies(Utils::Vector<std::shared_ptr<SharedObject>>&& objects) : objects(std::move(objects)) {}
 
     Dependencies() = default;
 
@@ -32,7 +32,7 @@ public:
     void* FindSymbol(char const* linkageName) const;
 
 private:
-    std::vector<std::shared_ptr<SharedObject>> objects;
+    Utils::Vector<std::shared_ptr<SharedObject>> objects;
 };
 
 class Loader;
@@ -62,7 +62,7 @@ public:
     std::optional<Identifier<TypeDefinition>> FindType(Session& session, std::string_view typeName);
 
     Utils::Vector<Image::CbcFile> const& Files() const;
-    std::vector<Dependencies> const& Dependencies() const;
+    Utils::Vector<Dependencies> const& Dependencies() const;
 
 private:
     Engine(std::unique_ptr<Impl>&& impl);

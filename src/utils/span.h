@@ -4,7 +4,6 @@
 
 #include <cstddef>
 #include <type_traits>
-#include <vector>
 
 namespace Utils {
 
@@ -19,13 +18,6 @@ class Span {
 public:
     constexpr Span() = default;
     constexpr Span(T* data, size_t size) : ptr(data), count(size) {}
-
-    /// Wraps a const vector. Only valid for `Span<const T>`.
-    template <typename U>
-    Span(const std::vector<U>& vec) : ptr(vec.data()), count(vec.size())
-    {
-        static_assert(std::is_const_v<T>, "Span<const T> required to wrap a vector");
-    }
 
     /// Wraps a const Utils::Vector. Only valid for `Span<const T>`.
     template <typename U>
@@ -55,7 +47,6 @@ public:
     constexpr T* end() const { return ptr + count; }
 };
 
-template <typename T> Span(const std::vector<T>&) -> Span<const T>;
 template <typename T> Span(const Vector<T>&) -> Span<const T>;
 
 } // namespace Utils

@@ -2,7 +2,6 @@
 
 #include <cstdint>
 #include <optional>
-#include <vector>
 
 #include "engine/engine.h"
 #include "engine/field_layout.h"

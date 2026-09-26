@@ -8,10 +8,10 @@ namespace Decode {
 
 using namespace Image;
 
-std::vector<ExceptionRegion> Reader::GetExceptionRegions(Engine::Session& session, Code const& code)
+Utils::Vector<ExceptionRegion> Reader::GetExceptionRegions(Engine::Session& session, Code const& code)
 {
     IO::StreamFileReader reader(*session.FileOf(code.rawExTable.fileId), code.rawExTable.start);
-    std::vector<ExceptionRegion> regions;
+    Utils::Vector<ExceptionRegion> regions;
     while (reader.Position() < code.rawExTable.end) {
         regions.emplace_back(ExceptionRegion {
             .start  = reader.ReadULEB(),
@@ -22,12 +22,12 @@ std::vector<ExceptionRegion> Reader::GetExceptionRegions(Engine::Session& sessio
     return regions;
 }
 
-std::vector<LivenessInfo> Reader::GetLivenessInfo(Engine::Session& session, Code const& code)
+Utils::Vector<LivenessInfo> Reader::GetLivenessInfo(Engine::Session& session, Code const& code)
 {
     auto& rawLivenessInfo = code.rawLivenessInfo;
     IO::StreamFileReader reader(*session.FileOf(rawLivenessInfo.fileId), rawLivenessInfo.start);
 
-    std::vector<LivenessInfo> livenessInfo;
+    Utils::Vector<LivenessInfo> livenessInfo;
     while (reader.Position() < rawLivenessInfo.end) {
         LivenessInfo info = {
             .cbcPos  = reader.ReadULEB(),
@@ -35,7 +35,7 @@ std::vector<LivenessInfo> Reader::GetLivenessInfo(Engine::Session& session, Code
         };
 
         uint32_t slotsN = reader.ReadULEB();
-        std::vector<uint32_t> slots;
+        Utils::Vector<uint32_t> slots;
         slots.reserve(slotsN);
 
         for (uint32_t idx = 0; idx < slotsN; idx++) {
@@ -44,7 +44,7 @@ std::vector<LivenessInfo> Reader::GetLivenessInfo(Engine::Session& session, Code
         info.refSlotNums = std::move(slots);
 
         uint32_t pairsN = reader.ReadULEB();
-        std::vector<std::pair<uint32_t, uint32_t>> mutPairs;
+        Utils::Vector<std::pair<uint32_t, uint32_t>> mutPairs;
         mutPairs.reserve(pairsN);
 
         for (uint32_t idx = 0; idx < pairsN; idx++) {
@@ -58,19 +58,19 @@ std::vector<LivenessInfo> Reader::GetLivenessInfo(Engine::Session& session, Code
     return livenessInfo;
 }
 
-std::vector<StackPtrsInfo> Reader::GetStackPtrsInfo(Engine::Session& session, Code const& code)
+Utils::Vector<StackPtrsInfo> Reader::GetStackPtrsInfo(Engine::Session& session, Code const& code)
 {
     auto& rawStackPtrsInfo = code.rawStackPtrsInfo;
     IO::StreamFileReader reader(*session.FileOf(rawStackPtrsInfo.fileId), rawStackPtrsInfo.start);
 
-    std::vector<StackPtrsInfo> stackPtrsInfo;
+    Utils::Vector<StackPtrsInfo> stackPtrsInfo;
     while (reader.Position() < rawStackPtrsInfo.end) {
         StackPtrsInfo info = {
             .cbcPos = reader.ReadULEB(),
         };
 
         uint32_t resourcesN = reader.ReadULEB();
-        std::vector<uint32_t> resources;
+        Utils::Vector<uint32_t> resources;
         resources.reserve(resourcesN);
 
         for (uint32_t idx = 0; idx < resourcesN; idx++) {
