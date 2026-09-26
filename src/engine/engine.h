@@ -8,6 +8,7 @@
 #include "image/io/random_access_file.h"
 #include "utils/heap.h"
 #include "utils/sharedobj.h"
+#include "utils/vector.h"
 
 namespace Decode {
 struct Decoder;
@@ -60,7 +61,7 @@ public:
     );
     std::optional<Identifier<TypeDefinition>> FindType(Session& session, std::string_view typeName);
 
-    std::vector<Image::CbcFile> const& Files() const;
+    Utils::Vector<Image::CbcFile> const& Files() const;
     std::vector<Dependencies> const& Dependencies() const;
 
 private:

@@ -9,6 +9,7 @@
 #include "utils/logger.h"
 #include "utils/ostream.h"
 #include "utils/rt_logger.h"
+#include "utils/vector.h"
 
 namespace GCSupport {
 

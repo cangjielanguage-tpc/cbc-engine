@@ -385,7 +385,10 @@ static MethodTableMember GetTableMember(
 }
 
 static bool QuerySubterms(
-    std::vector<DYN_TypeInfo*>& typeInfos, Engine::Session& session, Engine::TypeInfoManager& manager, Engine::Term term
+    Utils::Vector<DYN_TypeInfo*>& typeInfos,
+    Engine::Session& session,
+    Engine::TypeInfoManager& manager,
+    Engine::Term term
 );
 
 static std::optional<TypeInfo> QueryTypeInfoAOT(
@@ -394,7 +397,7 @@ static std::optional<TypeInfo> QueryTypeInfoAOT(
 
 static constexpr uint32_t GCTIB_MAX_SHORT_OFFSET = sizeof(uintptr_t) * 62;
 
-static std::optional<DYN_GCTib> ConstructGCTib(TypeInfoBuilder& builder, std::vector<uint32_t>& refFieldOffs)
+static std::optional<DYN_GCTib> ConstructGCTib(TypeInfoBuilder& builder, Utils::Vector<uint32_t>& refFieldOffs)
 {
     if (refFieldOffs.empty()) {
         return std::make_optional<DYN_GCTib>(DYN_GCTib { .raw = 1ul << 63 });
@@ -531,7 +534,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             Engine::Term declaredType;
         };
 
-        std::vector<FuncDesc> funcDescs;
+        Utils::Vector<FuncDesc> funcDescs;
         funcDescs.resize(entryCount);
 
         builder.dataMT      = Alloc<Interpretation::FunctionHandle*>(entryCount);
@@ -684,7 +687,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             return std::nullopt;
         }
 
-        std::vector<uint32_t> refFieldOffs;
+        Utils::Vector<uint32_t> refFieldOffs;
 
         size_t idx = 0;
         for (auto& field : layout->fields) {
@@ -740,7 +743,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         }
         builder.align        = fields->GetFlatAlignment(term);
         builder.instanceSize = *size;
-        std::vector<uint32_t> offsets;
+        Utils::Vector<uint32_t> offsets;
         fields->FillRefOffsets(term, offsets, 0);
         if (!offsets.empty()) {
             builder.flag |= HAS_REF_FIELD;
@@ -772,7 +775,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             if (builder.typeArgs == nullptr) {
                 return std::nullopt;
             }
-            std::vector<DYN_TypeInfo*> typeInfos;
+            Utils::Vector<DYN_TypeInfo*> typeInfos;
             auto resolved = QuerySubterms(typeInfos, session, manager, term);
             if (!resolved) {
                 return std::nullopt;
@@ -852,7 +855,10 @@ static void* FindTypeSymbol(Engine::Session& session, char const* typeName, char
 /// Find typeinfos of subterms with `nulls` on place of subterms that are not found.
 /// Returns `true` if all typeinfos of subterms are found.
 static bool QuerySubterms(
-    std::vector<DYN_TypeInfo*>& typeInfos, Engine::Session& session, Engine::TypeInfoManager& manager, Engine::Term term
+    Utils::Vector<DYN_TypeInfo*>& typeInfos,
+    Engine::Session& session,
+    Engine::TypeInfoManager& manager,
+    Engine::Term term
 )
 {
     bool allResolved = true;
@@ -902,7 +908,7 @@ static std::optional<TypeInfo> QueryTypeInfoAOT(
 {
     ASSERT(!term.IsGeneric());
     if (term.GetLength() > 0) {
-        std::vector<DYN_TypeInfo*> infos;
+        Utils::Vector<DYN_TypeInfo*> infos;
 
         Log::typeinfo.Log(Logging::Level::TRACE, [&session, &term](Stream::Output& out) {
             Stream::ResolvingOutput stream(session, out);
@@ -949,7 +955,7 @@ static std::optional<TypeInfo> QueryFunctional(
 )
 {
     ASSERT(term.GetKind() == Engine::TermKind::FUNCTIONAL);
-    std::vector<DYN_TypeInfo*> infos;
+    Utils::Vector<DYN_TypeInfo*> infos;
 
     bool allResolved = QuerySubterms(infos, session, manager, term);
     if (!allResolved) {
@@ -1090,7 +1096,7 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& ma
         }
 
         // TODO: do not use vectors!
-        std::vector<Term> subTerms;
+        Utils::Vector<Term> subTerms;
         subTerms.resize(argNum);
         for (int i = 0; i < argNum; i++) {
             subTerms[i] = manager.AcquireTerm(session, TypeInfo(subTypes[i]));
@@ -1167,7 +1173,7 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& ma
         }
 
         // treats the rest as Aot type
-        std::vector<Term> noSubTerms;
+        Utils::Vector<Term> noSubTerms;
 
         auto& termManager = TermManager::Of(session);
         auto name         = typeInfo->typeInfoName;

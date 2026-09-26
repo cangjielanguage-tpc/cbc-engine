@@ -9,6 +9,7 @@
 #include "engine/terms.h"
 #include "engine/typeinfo_manager.h"
 #include "mock/interpreter.h"
+#include "utils/vector.h"
 
 namespace {
 
@@ -37,11 +38,14 @@ Engine::Term MakeTuple(Engine::Session& session)
 {
     auto& terms    = Engine::TermManager::Of(session);
     auto reference = terms.NewAotTerm(session, "test.Reference", {}, true);
+    Utils::Vector<Engine::Term> subterms;
+    subterms.push_back(Engine::Term::Predefined(Engine::TermKind::I32));
+    subterms.push_back(reference);
     return terms.NewTermWithId(
         session,
         Engine::TagTermId(Engine::TermKind::TUPLE),
         false,
-        { Engine::Term::Predefined(Engine::TermKind::I32), reference }
+        subterms
     );
 }
 
@@ -77,10 +81,11 @@ TEST(FieldLayoutTest, TupleReferenceOffsetsIncludeContainingDisplacement)
     auto layouts = Engine::FieldLayoutManager::New(session, typeInfoManager);
     auto tuple   = MakeTuple(session);
 
-    std::vector<uint32_t> referenceOffsets;
+    Utils::Vector<uint32_t> referenceOffsets;
     layouts->FillRefOffsets(tuple, referenceOffsets, 8);
 
-    EXPECT_EQ(referenceOffsets, std::vector<uint32_t> { 16 });
+    ASSERT_EQ(referenceOffsets.size(), 1u);
+    EXPECT_EQ(referenceOffsets[0], 16u);
 }
 
 } // namespace

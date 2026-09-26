@@ -67,8 +67,8 @@ private:
     // Symbols (and their storage) are separated by kinds.
     // Big value symbols are stored separately from plain values,
     // to reduce memory overhead (since they are not that frequent).
-    std::vector<int32_t> labelPositions;
-    std::vector<uint64_t> plainValues;
+    Utils::Vector<int32_t> labelPositions;
+    Utils::Vector<uint64_t> plainValues;
 
     // TODO: remove constraint
     static_assert(sizeof(uintptr_t) == sizeof(int64_t));
@@ -87,7 +87,7 @@ public:
 
     Interpretation::LiteralTable* BuildTable(Memory::Heap& heap);
 
-    std::vector<uint8_t> table;
+    Utils::Vector<uint8_t> table;
     Symbols& symbols;
 };
 

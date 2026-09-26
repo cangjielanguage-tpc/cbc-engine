@@ -9,6 +9,7 @@
 #include "utils/math.h"
 #include "utils/ostream.h"
 #include "utils/rt_logger.h"
+#include "utils/vector.h"
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -123,11 +124,11 @@ StaticFieldsBundle StaticsManager::CreateBundle(Session& session, TypeIdent type
     auto& tim    = TypeInfoManager::Of(session);
     auto typeDef = Decode::Read(session, typeIdent);
 
-    std::vector<uint32_t> refOffsetInRecords;
-    std::vector<uint32_t> recordOffsets;
+    Utils::Vector<uint32_t> refOffsetInRecords;
+    Utils::Vector<uint32_t> recordOffsets;
 
     uint32_t recordsSize = 0;
-    std::vector<StaticTypedSlotInfo> typedSlotsInfo;
+    Utils::Vector<StaticTypedSlotInfo> typedSlotsInfo;
 
     for (auto fieldId : Decode::AllEntries(session, typeDef.GetFields())) {
         auto field = Decode::Read(session, fieldId);

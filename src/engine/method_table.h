@@ -7,7 +7,6 @@
 #include "utils/logger.h"
 #include "utils/span.h"
 #include <memory>
-#include <vector>
 
 namespace Engine {
 
@@ -122,7 +121,7 @@ public:
     /// - J.qwe will be resolved up to (J, 0)
     std::optional<MethodTableEntry> Resolve(Session& session, Reference const& reference) const;
 
-    void ResolveAll(Session& session, Reference const& reference, std::vector<MethodTableEntry>& buffer) const;
+    void ResolveAll(Session& session, Reference const& reference, Utils::Vector<MethodTableEntry>& buffer) const;
 
 private:
     friend class MethodTableBuilder;
@@ -130,12 +129,14 @@ private:
     friend class MethodTableManager;
 
     MethodTable(
-        std::vector<Entry>&& allEntries, std::vector<SubTable>&& classTables, std::vector<SubTable>&& interfaceTables
+        Utils::Vector<Entry>&& allEntries,
+        Utils::Vector<SubTable>&& classTables,
+        Utils::Vector<SubTable>&& interfaceTables
     );
 
-    std::vector<Entry> allEntries;
-    std::vector<SubTable> classTables;
-    std::vector<SubTable> interfaceTables;
+    Utils::Vector<Entry> allEntries;
+    Utils::Vector<SubTable> classTables;
+    Utils::Vector<SubTable> interfaceTables;
 };
 
 /// Second layer of the table. Can query entries in this sub table and type that corresponds to
