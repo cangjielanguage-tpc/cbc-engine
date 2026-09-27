@@ -154,6 +154,7 @@ struct Execution {
 struct MetaInfo {
     static const char* GetName(TypeInfo ti);
     static uint32_t GetTypeSize(TypeInfo ti);
+    static uint32_t GetAlignedSize(TypeInfo ti);
     static uint8_t GetAlign(TypeInfo ti);
 
     static bool IsReferenceType(TypeInfo ti);
