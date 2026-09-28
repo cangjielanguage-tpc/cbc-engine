@@ -808,11 +808,19 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
             if (builder.type != TYPE_KIND_TUPLE && builder.type != TYPE_KIND_VARRAY) {
                 ASSERT(tt->typeArgNum == typeArgsNum);
-                // A generic enum template describes the declaration as ENUM, while a concrete
-                // reference-backed instantiation (for example Option<Class>) is represented as
-                // TEMP_ENUM. The remaining template metadata must still match exactly.
-                bool isSpecializedReferenceEnum = tt->type == TYPE_KIND_ENUM && builder.type == TYPE_KIND_TEMP_ENUM;
-                ASSERT(tt->type == builder.type || isSpecializedReferenceEnum);
+                // A reference generic enum template can be represented as CLASS while its
+                // dynamic specialization is TEMP_ENUM. Preserve the template's runtime
+                // representation for this format.
+                bool isCbcCompilerReferenceEnumTemplate =
+                    tt->type == TYPE_KIND_CLASS && builder.type == TYPE_KIND_TEMP_ENUM;
+                if (isCbcCompilerReferenceEnumTemplate) {
+                    builder.type = tt->type;
+                } else {
+                    // Generic enum templates are ENUM; reference specializations are TEMP_ENUM.
+                    bool isSpecializedReferenceEnum =
+                        tt->type == TYPE_KIND_ENUM && builder.type == TYPE_KIND_TEMP_ENUM;
+                    ASSERT(tt->type == builder.type || isSpecializedReferenceEnum);
+                }
                 ASSERT(tt->fieldNum == builder.fieldNum);
             }
 
