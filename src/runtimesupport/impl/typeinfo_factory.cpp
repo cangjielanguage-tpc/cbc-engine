@@ -318,7 +318,13 @@ struct TypeInfoBuilder {
                    << "\t fieldOffsets: " << result->fieldOffsets << "\n"
                    << "\t finalizerMethod: " << result->finalizerMethod << "\n"
                    << "\t typeArgs: " << result->typeArgs << "\n"
-                   << "\t fields: " << result->fields;
+                   << "\t fields: " << result->fields << "\n"
+                   << "\t super/componentTypeInfo: " << result->superTypeInfo << "\n"
+                   << "\t super/componentTypeName: "
+                   << (result->superTypeInfo ? result->superTypeInfo->typeInfoName : "<none>") << "\n"
+                   << "\t vExtensionDataStart: " << result->vExtensionDataStart << "\n"
+                   << "\t mTableDesc: " << result->mTableDesc << "\n"
+                   << "\t reflectOrDebugInfo: " << result->reflectOrDebugInfo;
             out.NewLine();
         });
         return result;
@@ -806,7 +812,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
             builder.typeTemplateOrFinalizer = typeTemplate;
             builder.validInheritNum         = builder.type == TYPE_KIND_VARRAY ? (1 << 15) : tt->validInheritNum;
-            builder.extDefs                 = (DYN_ExtensionData**)tt->extensionDatas;
+            builder.extDefs = builder.type == TYPE_KIND_VARRAY ? nullptr : (DYN_ExtensionData**)tt->extensionDatas;
         }
     }
 
