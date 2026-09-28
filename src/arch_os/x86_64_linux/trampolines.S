@@ -450,7 +450,8 @@ perform_2i_call:
   test rax, rax
   jz .Lafter_patch
 
-  // Patching of FuH will be here
+  // FUH patching:
+  mov [rbp - FUH_SLOT_OFFSET], rax
 
 .Lafter_patch:
   mov rax, [rsp]

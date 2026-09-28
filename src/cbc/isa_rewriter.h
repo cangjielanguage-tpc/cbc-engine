@@ -10,7 +10,9 @@ namespace Cbc {
 
 extern Logging::Logger log;
 
-Interpretation::ExecBytecodeInfo Rewrite(MethodCode code, Resolution::Resolver& resolver, Memory::Heap& heap);
+std::optional<Interpretation::ExecBytecodeInfo> Rewrite(
+    MethodCode code, Resolution::Resolver& resolver, Memory::Heap& heap
+);
 std::optional<Interpretation::ExecBytecodeInfo> Rewrite(
     Engine::Session& session, Image::Identifier<Image::MethodDefinition> method, Memory::Heap& heap
 );

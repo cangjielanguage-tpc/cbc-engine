@@ -35,14 +35,6 @@
 #include <variant>
 #include <vector>
 
-#define UNWRAP_OPT(name, expression, handler)                                                                          \
-    auto __##name = (expression);                                                                                      \
-    if (!__##name.has_value()) {                                                                                       \
-        handler();                                                                                                     \
-        return;                                                                                                        \
-    }                                                                                                                  \
-    auto name = __##name.value();
-
 namespace Cbc {
 
 using namespace Resolution;
@@ -2104,7 +2096,7 @@ static std::string Descriptor(Engine::Session& session, Image::Identifier<Image:
     return buf.ToString();
 }
 
-Interpretation::ExecBytecodeInfo Rewrite(
+std::optional<Interpretation::ExecBytecodeInfo> Rewrite(
     Engine::Session& session,
     MethodCode& code,
     Resolver& resolver,
@@ -2130,8 +2122,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
                 out << failure.position << ": " << failure.message << endl;
             }
         });
-        // FIXME: use stub that throws
-        FATAL("Rewriter failed: cannot rewrite code.");
+        return std::nullopt;
     }
 
     auto def     = Decode::Read(session, method);
@@ -2189,7 +2180,11 @@ std::optional<Interpretation::ExecBytecodeInfo> Rewrite(
         Disasm(desc, code, &resolver);
     });
 
-    auto res = Rewrite(session, code, resolver, heap, method);
+    auto resOpt = Rewrite(session, code, resolver, heap, method);
+    if (!resOpt.has_value()) {
+        return std::nullopt;
+    }
+    auto res = *resOpt;
 
     Interpretation::Log::preparation.Log(Logging::Level::TRACE, [&](Stream::Output& out) {
         Descripted desc(out, Descriptor(session, method));

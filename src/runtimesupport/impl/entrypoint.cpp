@@ -77,9 +77,7 @@ static void EnsureEngineInitialized()
     }
     loader.Build();
 
-    RTSupport::Log::rt.Log(Logging::Level::INFO, [](Stream::Output& out) {
-        out << "end engine init" << Stream::endl;
-    });
+    RTSupport::Log::rt.Log(Logging::Level::INFO, [](Stream::Output& out) { out << "end engine init" << Stream::endl; });
 
     g_Initialized = true;
 }
@@ -110,13 +108,13 @@ static void PerformPatching()
             }
 
             auto pkgName = Decode::Read(session, def.GetName());
-            pkgName = pkgName.substr(3);
+            pkgName      = pkgName.substr(3);
 
             LOG_INFO(RTSupport::Log::rt, "patching package {}", pkgName);
 
             auto patchPrefix = "$" + std::string(pkgName);
 
-            auto patchFlagName = patchPrefix + "$packageInit$GVF";
+            auto patchFlagName  = patchPrefix + "$packageInit$GVF";
             auto patchClassName = std::string(pkgName) + ":" + patchPrefix + "$PackageInitPatch$GC";
 
             // Get patched type info
@@ -159,13 +157,11 @@ static void PerformPatching()
                 continue;
             }
 
-            *(bool*) flag = true;
+            *(bool*)flag = true;
         };
     }
 
-    RTSupport::Log::rt.Log(Logging::Level::INFO, [](Stream::Output& out) {
-        out << "end patching" << Stream::endl;
-    });
+    RTSupport::Log::rt.Log(Logging::Level::INFO, [](Stream::Output& out) { out << "end patching" << Stream::endl; });
 
     g_Patched = true;
 }
@@ -306,6 +302,8 @@ CBC_EXPORT void* engine_get_entrypoint_trampoline(void)
     }
     auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
 
+    fuhManager.FindAndPrepareHelpers(session);
+
     auto fuh = fuhManager.AcquireTagged(session, main.value());
     return fuhManager.GetFunctionPtrForDirectCall(fuh);
 }
@@ -359,8 +357,8 @@ CBC_EXPORT int interpreter_bridge_init(
 
     interpInterf->landingPad = Asm::common_landing_pad;
 
-    Asm::engine_carrier_specific_offset   = g_CJNativeInterfaceInstance.carrierSpecificOffset;
-    Asm::engine_cjthread_specific_offset  = g_CJNativeInterfaceInstance.cjThreadSpecificOffset;
+    Asm::engine_carrier_specific_offset  = g_CJNativeInterfaceInstance.carrierSpecificOffset;
+    Asm::engine_cjthread_specific_offset = g_CJNativeInterfaceInstance.cjThreadSpecificOffset;
 
     Asm::engine_tls_function              = g_CJNativeInterfaceInstance.getThreadLocalData;
     Asm::engine_throw_out_of_interpreter  = g_CJNativeInterfaceInstance.throwException;
