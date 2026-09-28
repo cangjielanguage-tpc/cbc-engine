@@ -177,12 +177,17 @@ struct ResolverProxy {
         auto fieldType   = resolver.Wrap(ref.fieldType);
         auto [file, raf] = resolver.session.File(resolver.method.GetFileId());
         auto data        = Decode::GetAotData<Image::InstanceFieldAotData>(resolver, ref.ident);
+        auto name        = std::get<std::string_view>(ref.nameOrIdx);
 
         auto refTypeFlags                     = refType.term.Flags();
         std::optional<uint32_t> offset        = std::nullopt;
         std::optional<RTSupport::TypeInfo> ti = std::nullopt;
 
-        if (refTypeFlags.isGeneric && refTypeFlags.isFixedSize) {
+        // `tag` is the first field of a generic union and precedes its payload,
+        // so its offset is independent of the type argument. Resolve it through
+        // a representative specialization, as for fixed-size generic types.
+        bool isGenericUnionDiscriminant = refTypeFlags.isGeneric && name == "tag" && data.ordinal == 0;
+        if (refTypeFlags.isGeneric && (refTypeFlags.isFixedSize || isGenericUnionDiscriminant)) {
             // We can not query TypeInfo for generic type to access its field.
             // Since refType is fixed size type, we can query TI of any instantiation
             // of given type which will have the exact same field layout generic one.
@@ -196,7 +201,6 @@ struct ResolverProxy {
         if (ti) { // for generic instance fields
             offset = RTSupport::Execution::GetFieldOffset(*ti, data.ordinal, ref.refType.IsReference());
         }
-        auto name = std::get<std::string_view>(ref.nameOrIdx);
         return InstanceField::Content { refType, fieldType, data.ordinal, offset, name };
     }
 

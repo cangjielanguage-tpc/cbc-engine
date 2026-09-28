@@ -808,12 +808,11 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
             if (builder.type != TYPE_KIND_TUPLE && builder.type != TYPE_KIND_VARRAY) {
                 ASSERT(tt->typeArgNum == typeArgsNum);
-                // A reference generic enum template can be represented as CLASS while its
-                // dynamic specialization is TEMP_ENUM. Preserve the template's runtime
-                // representation for this format.
-                bool isCbcCompilerReferenceEnumTemplate =
-                    tt->type == TYPE_KIND_CLASS && builder.type == TYPE_KIND_TEMP_ENUM;
-                if (isCbcCompilerReferenceEnumTemplate) {
+                // CBC represents this AOT generic enum definition as CLASS, while the
+                // runtime template uses TEMP_ENUM.
+                bool isClassBackedGenericEnum =
+                    tt->type == TYPE_KIND_TEMP_ENUM && builder.type == TYPE_KIND_CLASS;
+                if (isClassBackedGenericEnum) {
                     builder.type = tt->type;
                 } else {
                     // Generic enum templates are ENUM; reference specializations are TEMP_ENUM.
@@ -1079,7 +1078,6 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& ma
     bool isRef = typeInfo->type < 0;
 
     switch (typeInfo->type) {
-        case TYPE_KIND_TEMP_ENUM:
         case TYPE_KIND_FUNC:
         case TYPE_KIND_GENERIC_CUSTOM:
         case TYPE_KIND_GENERIC_TI:
@@ -1126,6 +1124,7 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& ma
             case TYPE_KIND_STRUCT:
             case TYPE_KIND_INTERFACE:
             case TYPE_KIND_CLASS:     break;
+            case TYPE_KIND_TEMP_ENUM:
             case TYPE_KIND_ENUM:      isEnum = true; break;
 
             default: FATAL("Unexpected type kind %d", typeInfo->type);
@@ -1175,6 +1174,7 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& ma
             case TYPE_KIND_STRUCT:
             case TYPE_KIND_INTERFACE:
             case TYPE_KIND_CLASS:     break;
+            case TYPE_KIND_TEMP_ENUM:
             case TYPE_KIND_ENUM:      isEnum = true; break;
 
             default: FATAL("Unexpected type kind %d", typeInfo->type);
