@@ -4,6 +4,7 @@
 #include "interpreter/function_handle.h"
 #include "runtimesupport/impl/typeinfo_ext.h"
 #include "utils/assertion.h"
+#include "utils/ostream.h"
 
 namespace RTSupport {
 
@@ -27,15 +28,22 @@ void* Adapters::C2ICall(uint32_t intArgCount, uint32_t floatArgCount)
 std::mutex g_directCallFuhsMutex;
 static size_t directCallFuhsCount;
 
-extern "C" bool engine_prepare_bytecode(
+extern "C" Interpretation::DynamicFunctionHandle* engine_prepare_bytecode(
     Interpretation::DynamicFunctionHandle* fuh, Interpretation::ExecBytecodeInfo** bytecodeInfo
 )
 {
     Engine::Session session(Engine::GetEngineInstance());
     auto& manager       = Interpretation::FunctionHandleManager::Of(session);
     auto preparedBcInfo = manager.Prepare(session, fuh);
-    *bytecodeInfo       = preparedBcInfo.info;
-    return false;
+    Stream::cout << "prep res: " << preparedBcInfo.success << Stream::endl;
+    *bytecodeInfo = preparedBcInfo.info;
+    if (preparedBcInfo.success) {
+        // Usual path: rewriting went well and there is no need for patching or anything
+        return nullptr;
+    } else {
+        return preparedBcInfo.fuh;
+    }
+    return nullptr;
 }
 
 static void* GetAddressOfDirectCallTrampoline(int i)

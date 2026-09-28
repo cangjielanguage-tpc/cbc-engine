@@ -1,11 +1,14 @@
 #include <atomic>
 #include <mutex>
 #include <new>
+#include <string>
+#include <string_view>
 #include <unordered_map>
 #include <variant>
 
 #include "adapters.h"
 #include "cbc/isa_rewriter.h"
+#include "engine/engine.h"
 #include "engine/image/flags.h"
 #include "engine/image/reader.h"
 #include "engine/resolving_output.h"
@@ -31,6 +34,7 @@ public:
     using Ident = Image::Identifier<MethodDefinition>;
     std::mutex lock;
     std::unordered_map<Ident::Packed, TaggedFunctionHandle> fuhMap;
+    std::unordered_map<std::string, DynamicFunctionHandle*> helpers;
 };
 
 FunctionHandleManager::FunctionHandleManager() : impl(std::make_unique<FunctionHandleManager::Impl>()) {}
@@ -39,6 +43,45 @@ FunctionHandleManager::~FunctionHandleManager()                               = 
 FunctionHandleManager::FunctionHandleManager(FunctionHandleManager&& manager) = default;
 
 [[noreturn]] static void UnresolvedAotMethodCalled() { FATAL("Called unresolved AOT method"); }
+
+[[noreturn]] static void HelperWasNotFound(std::string_view methodName)
+{
+    FATAL("Helper method %s was not found", methodName);
+}
+
+static DynamicFunctionHandle* FindAndPrepareHelper(
+    Session& session, FunctionHandleManager& fhm, std::string_view methodName
+)
+{
+    // FIXME: change this to intrinsics.cbc in future iterations
+    auto fileName = "default.cbc";
+    // FIXME: change name of type
+    //
+    auto typeName  = "$P$VERY_COOL_PACKAGE";
+    auto methodOpt = session.GetEngine().FindMethod(session, fileName, typeName, methodName);
+    UNWRAP_OPT_NORETURN(method, session.GetEngine().FindMethod(session, fileName, typeName, methodName), [&]() {
+        HelperWasNotFound(methodName);
+    });
+
+    auto taggedHandle = fhm.AcquireTagged(session, method);
+    if (auto* dynFuh = std::get_if<DynamicFunctionHandle*>(&taggedHandle)) {
+        auto fuh = *dynFuh;
+        auto res = fhm.Prepare(session, fuh);
+        if (!res.success) {
+            FATAL("Failure during preparation of helper method %s", methodName);
+        }
+        return fuh;
+    } else {
+        FATAL("Helper method %s was found in AOT code instead of cbc", methodName);
+    }
+}
+
+void FunctionHandleManager::FindAndPrepareHelpers(Session& session)
+{
+    auto helperName = "foo_helper";
+    auto fuh        = FindAndPrepareHelper(session, *this, helperName);
+    this->impl->helpers.insert({ helperName, fuh });
+}
 
 TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
     Session& session, Image::Identifier<Image::MethodDefinition> methodDef
@@ -131,8 +174,9 @@ PreparationResult FunctionHandleManager::Prepare(Session& session, DynamicFuncti
     auto bytecode = Cbc::Rewrite(session, fuh->methodDef, heap);
 
     if (!bytecode.has_value()) {
-        // Insert throw intrinsic here.
-        FATAL("Ho-ho hee-hee");
+        auto dynFuh   = impl->helpers["foo_helper"];
+        auto byteCode = dynFuh->bytecode.load();
+        return PreparationResult::Fail(byteCode, dynFuh);
     }
 
     auto bc = new (std::nothrow) ExecBytecodeInfo(bytecode.value());

@@ -122,6 +122,8 @@ public:
     // This function returns trampoline that is needed for direct call, usually for main method.
     void* GetFunctionPtrForDirectCall(TaggedFunctionHandle fuh);
 
+    void FindAndPrepareHelpers(Engine::Session& session);
+
 private:
     class Impl;
     friend class Impl;

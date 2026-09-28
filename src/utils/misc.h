@@ -14,6 +14,13 @@
     }                                                                                                                  \
     auto name = __##name.value();
 
+#define UNWRAP_OPT_NORETURN(name, expression, handler)                                                                 \
+    auto __##name = (expression);                                                                                      \
+    if (!__##name.has_value()) {                                                                                       \
+        handler();                                                                                                     \
+    }                                                                                                                  \
+    auto name = __##name.value();
+
 namespace Std {
 namespace Vector {
 
