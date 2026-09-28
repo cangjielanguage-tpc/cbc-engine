@@ -197,6 +197,8 @@ void* Adapters::C2ICall(uint32_t intArgCount, uint32_t floatArgCount) { FATAL("s
 
 uint32_t MetaInfo::GetTypeSize(TypeInfo ti) { return 0; }
 
+uint32_t MetaInfo::GetAlignedSize(TypeInfo ti) { FATAL("Should not reach here"); }
+
 uint8_t MetaInfo::GetAlign(TypeInfo ti) { return alignof(max_align_t); }
 
 bool MetaInfo::IsReferenceType(TypeInfo ti) { return false; }

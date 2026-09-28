@@ -195,10 +195,7 @@ struct FLManager : public FieldLayoutManager {
             return std::nullopt;
         }
         auto alignment = GetFlatAlignment(term);
-        if (alignment == 0) {
-            return size;
-        }
-        return MathUtils::AlignUp(size.value(), alignment);
+        return alignment != 0 ? MathUtils::AlignUp(size.value(), alignment) : size.value();
     }
 
     void FillRefOffsets(Term term, std::vector<uint32_t>& offsets, uint32_t disp) override
