@@ -1216,7 +1216,6 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
-        EmitLogCall("call.interf", method);
         emit.InterfaceCall(
             method->methodNum, *ti, method->flags.Is(Image::MethodRefFlag::SRET), InterfaceTypeInfoArgs(method)
         );
@@ -1237,7 +1236,6 @@ struct IsaRewriter : public IsaParser {
         if (method->IsStaticVirtual() && argnum != typeInfoArgs.outerTi) {
             return Fail("static interface call has an incorrect outer-TI argument location");
         }
-        EmitLogCall("call.interf.g", method);
         emit.InterfaceCallGeneric(
             method->methodNum, argnum, method->flags.Is(Image::MethodRefFlag::SRET), typeInfoArgs.thisTi
         );
