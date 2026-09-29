@@ -31,11 +31,13 @@ public:
     Impl(
         std::vector<CbcFile>&& files,
         std::vector<std::unique_ptr<IO::RandomAccessFile>>&& rafs,
-        std::vector<class Dependencies>&& deps
+        std::vector<class Dependencies>&& deps,
+        std::vector<class Dependencies>&& foreignLibs
     )
         : files(std::move(files)),
           rafs(std::move(rafs)),
           dependencies(std::move(deps)),
+          foreignLibs(std::move(foreignLibs)),
           typeInfoManager(TypeInfoManager::NewInstance()),
           mtManager(MethodTableManager::NewInstance())
     {}
@@ -54,6 +56,7 @@ public:
     StaticsManager staticsManager;
     std::unique_ptr<TypeInfoManager> typeInfoManager;
     std::vector<class Dependencies> dependencies;
+    std::vector<class Dependencies> foreignLibs;
 };
 
 class Loader::Impl {
@@ -164,6 +167,7 @@ std::optional<CbcFile> TryReadCbcFile(Image::FileId fileId, IO::RandomAccessFile
         .extensions            = OffsetSequence<Extension>(fileId, extSeqStart, extSeqStart + extSeqSize),
         .aotDeps               = aotDeps,
         .cbcDeps               = cbcDeps,
+        .foreignLibs           = foreignLibs,
         .mainTypeName          = mainTypeName,
         .poolOffset            = poolOffset,
         .id                    = fileId,
@@ -206,11 +210,15 @@ static std::string UpdateSharedObjName(std::string_view name)
     return res;
 }
 
-static std::vector<Dependencies> ReadDependencies(Loader::Impl const* loader)
+static std::vector<Dependencies> ReadDependencies(
+    Loader::Impl const* loader,
+    std::optional<Offset<String>> (CbcFile::*offsetOf)() const,
+    std::vector<std::shared_ptr<Utils::SharedObject>> const& base
+)
 {
     static constexpr char delim = ':';
-
     std::vector<std::shared_ptr<Utils::SharedObject>> objects;
+
     auto addObject = [&objects](std::string_view name) {
         auto soName = UpdateSharedObjName(name);
         // Avoid duplicate dlopen calls
@@ -224,10 +232,6 @@ static std::vector<Dependencies> ReadDependencies(Loader::Impl const* loader)
         return ptr;
     };
 
-    // FIXME: Do not inject `executable` as dependency unconditionally.
-    //        Use special name for such dependencies as `aot deps` field in cbc file.
-    auto executable = std::make_shared<Utils::SharedObject>(Utils::SharedObject::OpenCurrentExecutable());
-
     std::vector<char> nameBuffer;
 
     ASSERT(loader->files.size() == loader->rafs.size());
@@ -239,10 +243,10 @@ static std::vector<Dependencies> ReadDependencies(Loader::Impl const* loader)
         auto raf   = loader->rafs[i].get();
         auto& file = loader->files[i];
 
-        auto deps     = file.AotDependencies();
+        auto deps = (file.*offsetOf)();
 
         std::vector<std::shared_ptr<Utils::SharedObject>> ptrs;
-        ptrs.emplace_back(executable);
+        ptrs = base;
         if (!deps) {
             allDeps.emplace_back(std::move(ptrs));
             continue;
@@ -275,11 +279,19 @@ static std::vector<Dependencies> ReadDependencies(Loader::Impl const* loader)
 
 Engine& Loader::Build()
 {
-    auto deps = ReadDependencies(loader.get());
+    // FIXME: Do not inject `executable` as dependency unconditionally.
+    //        Use special name for such dependencies as `aot deps` field in cbc file.
+    auto executable = std::make_shared<Utils::SharedObject>(Utils::SharedObject::OpenCurrentExecutable());
+    std::vector<std::shared_ptr<Utils::SharedObject>> aotBase;
+    std::vector<std::shared_ptr<Utils::SharedObject>> foreignBase;
+    aotBase.emplace_back(executable);
 
-    auto engineInstance = new Engine(
-        std::move(std::make_unique<Engine::Impl>(std::move(loader->files), std::move(loader->rafs), std::move(deps)))
-    );
+    auto deps        = ReadDependencies(loader.get(), &CbcFile::AotDependencies, aotBase);
+    auto foreignLibs = ReadDependencies(loader.get(), &CbcFile::ForeignLibs, foreignBase);
+
+    auto engineInstance = new Engine(std::move(std::make_unique<Engine::Impl>(
+        std::move(loader->files), std::move(loader->rafs), std::move(deps), std::move(foreignLibs)
+    )));
     g_engineInstance = engineInstance;
     return *engineInstance;
 }
@@ -324,6 +336,8 @@ std::optional<Identifier<Image::TypeDefinition>> Engine::FindType(Session& sessi
 std::vector<Image::CbcFile> const& Engine::Files() const { return impl->files; }
 
 std::vector<Dependencies> const& Engine::Dependencies() const { return impl->dependencies; }
+
+std::vector<class Dependencies> const& Engine::ForeignLibs() const { return impl->foreignLibs; }
 
 std::optional<Identifier<MethodDefinition>> Engine::FindMethod(
     Session& session, std::string_view filePath, std::string_view typeName, std::string_view methodName
