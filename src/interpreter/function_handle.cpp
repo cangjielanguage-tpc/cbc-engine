@@ -1,3 +1,4 @@
+#include <array>
 #include <atomic>
 #include <mutex>
 #include <new>
@@ -34,7 +35,7 @@ public:
     using Ident = Image::Identifier<MethodDefinition>;
     std::mutex lock;
     std::unordered_map<Ident::Packed, TaggedFunctionHandle> fuhMap;
-    std::unordered_map<std::string, DynamicFunctionHandle*> helpers;
+    std::array<DynamicFunctionHandle*, static_cast<size_t>(Helper::Count)> helpers;
 };
 
 FunctionHandleManager::FunctionHandleManager() : impl(std::make_unique<FunctionHandleManager::Impl>()) {}
@@ -49,16 +50,30 @@ FunctionHandleManager::FunctionHandleManager(FunctionHandleManager&& manager) = 
     FATAL("Helper method %s was not found", methodName);
 }
 
+std::unordered_map<Helper, std::string> helperNames = {
+    { Helper::ThrowAbstractMethodCallError, "throwAbstractMethodCallError" },
+    { Helper::ThrowSymbolResolutionError, "throwSymbolResolutionError" },
+};
+
+void FunctionHandleManager::SetHelper(Helper helper, DynamicFunctionHandle* handle)
+{
+    impl->helpers[static_cast<size_t>(helper)] = handle;
+}
+
+DynamicFunctionHandle* FunctionHandleManager::GetHelper(Helper helper)
+{
+    auto handle = impl->helpers[static_cast<size_t>(helper)];
+    ASSERT(handle != nullptr);
+    return handle;
+}
+
 static DynamicFunctionHandle* FindAndPrepareHelper(
     Session& session, FunctionHandleManager& fhm, std::string_view methodName
 )
 {
     // FIXME: change this to intrinsics.cbc in future iterations
     auto fileName = "default.cbc";
-    // FIXME: change name of type
-    //
-    auto typeName  = "$P$VERY_COOL_PACKAGE";
-    auto methodOpt = session.GetEngine().FindMethod(session, fileName, typeName, methodName);
+    auto typeName = "$P$cbc_intrinsics";
     UNWRAP_OPT_NORETURN(method, session.GetEngine().FindMethod(session, fileName, typeName, methodName), [&]() {
         HelperWasNotFound(methodName);
     });
@@ -78,9 +93,10 @@ static DynamicFunctionHandle* FindAndPrepareHelper(
 
 void FunctionHandleManager::FindAndPrepareHelpers(Session& session)
 {
-    auto helperName = "foo_helper";
-    auto fuh        = FindAndPrepareHelper(session, *this, helperName);
-    this->impl->helpers.insert({ helperName, fuh });
+    for (const auto& [helper, methodName] : helperNames) {
+        auto fuh = FindAndPrepareHelper(session, *this, methodName);
+        SetHelper(helper, fuh);
+    }
 }
 
 TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
@@ -174,7 +190,7 @@ PreparationResult FunctionHandleManager::Prepare(Session& session, DynamicFuncti
     auto bytecode = Cbc::Rewrite(session, fuh->methodDef, heap);
 
     if (!bytecode.has_value()) {
-        auto dynFuh   = impl->helpers["foo_helper"];
+        auto dynFuh   = GetHelper(Helper::ThrowSymbolResolutionError);
         auto byteCode = dynFuh->bytecode.load();
         return PreparationResult::Fail(byteCode, dynFuh);
     }
