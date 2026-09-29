@@ -288,6 +288,18 @@ static inline ArithmeticResult SatArithU(Saturating::Value op, Value::Primitive 
     }
 }
 
+static inline uint64_t PowWrapping(uint64_t base, uint64_t exp)
+{
+    uint64_t result = 1;
+    while (exp > 0) {
+        if (exp & 1)
+            result *= base;
+        base  *= base;
+        exp  >>= 1;
+    }
+    return result;
+}
+
 // TODO: Generalize it for all widths (like checked ops).
 template <Width::Value width>
 static inline ArithmeticResult Arith(Common::Value op, Value::Primitive l, Value::Primitive r);
@@ -304,7 +316,7 @@ template <> inline ArithmeticResult Arith<Width::W64>(Common::Value op, Value::P
         case Common::XOR: return { Value::Primitive { .u64 = l.u64 ^ r.u64 }, true };
         case Common::LSR: return { Value::Primitive { .u64 = l.u64 >> (r.u64 & 0x3F) }, true };
         case Common::LSL: return { Value::Primitive { .u64 = l.u64 << (r.u64 & 0x3F) }, true };
-        case Common::POW: FATAL("Not implemented yet POWI 64");
+        case Common::POW: return { Value::Primitive { .u64 = PowWrapping(l.u64, r.u64) }, true };
 
         case Common::ASR: {
             int64_t left = static_cast<int64_t>(l.u64);
@@ -361,7 +373,7 @@ template <> inline ArithmeticResult Arith<Width::W32>(Common::Value op, Value::P
         case Common::XOR: return { Value::Primitive { .u32 = l.u32 ^ r.u32 }, true };
         case Common::LSR: return { Value::Primitive { .u32 = l.u32 >> (r.u32 & 0x1F) }, true };
         case Common::LSL: return { Value::Primitive { .u32 = l.u32 << (r.u32 & 0x1F) }, true };
-        case Common::POW: FATAL("Not implemented yet POWI 32");
+        case Common::POW: return { Value::Primitive { .u32 = static_cast<uint32_t>(PowWrapping(l.u32, r.u32)) }, true };
 
         case Common::ASR: {
             int32_t left = static_cast<int32_t>(l.u32);
