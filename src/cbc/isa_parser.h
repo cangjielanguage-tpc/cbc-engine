@@ -175,32 +175,6 @@ protected:
 
     virtual std::unique_ptr<MemSpace> OpenMemSpace() = 0;
 
-    virtual void MemHeadReg(MemSpace& ms, IReg base, bool isRef)       = 0;
-    virtual void MemHeadField(MemSpace& ms, IReg base, uint32_t field) = 0;
-    virtual void MemHeadStatic(MemSpace& ms, uint32_t field)           = 0;
-    virtual void MemHeadHandle(MemSpace& ms, IReg base, IReg derived)  = 0;
-    virtual void MemHeadTyped(MemSpace& ms, uint16_t ts)               = 0;
-
-    virtual void MemBodyField1(MemSpace& ms, uint32_t f1)                                        = 0;
-    virtual void MemBodyField2(MemSpace& ms, uint32_t f1, uint32_t f2)                           = 0;
-    virtual void MemBodyField3(MemSpace& ms, uint32_t f1, uint32_t f2, uint32_t f3)              = 0;
-    virtual void MemBodyField4(MemSpace& ms, uint32_t f1, uint32_t f2, uint32_t f3, uint32_t f4) = 0;
-    virtual void MemBodyIndex(MemSpace& ms, IReg reg, uint32_t elemType, bool checked)           = 0;
-    virtual void MemBodyConstIndex(MemSpace& ms, int64_t idx, uint32_t elemType)                 = 0;
-
-    virtual void MemTailLoad(MemSpace& ms, IReg dst, std::vector<uint32_t> refs)  = 0;
-    virtual void MemTailStore(MemSpace& ms, IReg src, std::vector<uint32_t> refs) = 0;
-    virtual void MemTailStoreImm(MemSpace& ms, uint64_t imm)                      = 0;
-    virtual void MemTailCopyRegTo(MemSpace& ms, IReg to, uint32_t recType)        = 0;
-    virtual void MemTailCopyRegFrom(MemSpace& ms, IReg from, uint32_t recType)    = 0;
-
-    virtual void MemBodyOffset(MemSpace& ms, IReg offset)                                        = 0;
-    virtual void MemBodyConstIndexGeneric(MemSpace& ms, int64_t idx, uint32_t elemType, IReg ti) = 0;
-    virtual void MemBodyIndexGeneric(MemSpace& ms, IReg reg, uint32_t elemType, IReg ti)         = 0;
-    virtual void MemBodyFieldGeneric(MemSpace& ms, uint32_t field, IReg ti)                      = 0;
-    virtual void MemTailStoreGeneric(MemSpace& ms, IReg src, IReg ti)                            = 0;
-    virtual void MemTailLoadGeneric(MemSpace& ms, IReg dst, IReg ti)                             = 0;
-
     friend class IsaParserImpl;
     Decoder::FatByteReader reader;
 };
