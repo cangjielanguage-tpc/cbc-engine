@@ -885,6 +885,7 @@ public:
 
     std::optional<Offset<String>> CbcDependencies() const;
     std::optional<Offset<String>> AotDependencies() const;
+    std::optional<Offset<String>> ForeignLibs() const;
     const RegionData& GetRegionData() const;
     const TypeIndex& GetTypeIndex() const;
     const std::optional<Identifier<String>> GetMainTypeName() const;
@@ -909,6 +910,7 @@ public:
 
     int aotDeps;
     int cbcDeps;
+    int foreignLibs;
     std::optional<Identifier<String>> mainTypeName;
 
     uint32_t poolOffset;

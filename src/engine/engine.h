@@ -63,6 +63,7 @@ public:
     std::optional<Identifier<TypeDefinition>> FindType(Session& session, std::string_view typeName);
 
     Utils::Span<Image::CbcFile const> Files() const;
+    Utils::Span<Dependencies const> ForeignLibs() const;
     Utils::Span<Dependencies const> Dependencies() const;
 
 private:

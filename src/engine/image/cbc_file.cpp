@@ -43,6 +43,14 @@ std::optional<Offset<String>> CbcFile::AotDependencies() const
     return Offset<String>(this->aotDeps);
 }
 
+std::optional<Offset<String>> CbcFile::ForeignLibs() const
+{
+    if (this->foreignLibs < 0) {
+        return std::nullopt;
+    }
+    return Offset<String>(this->foreignLibs);
+}
+
 std::optional<Offset<String>> CbcFile::CbcDependencies() const
 {
     if (this->cbcDeps < 0) {
