@@ -31,21 +31,21 @@ EmitterSnapshot Emitter::Snapshot()
 {
     return EmitterSnapshot {
         .segmentSnapshot = segment.Snapshot(),
-        .fixupCount      = fixups.size(),
+        .fixupCount      = fixups.Size(),
     };
 }
 
 void Emitter::Apply(EmitterSnapshot snapshot)
 {
     segment.Apply(snapshot.segmentSnapshot);
-    fixups.resize(snapshot.fixupCount);
+    fixups.Resize(snapshot.fixupCount);
 }
 
 void Emitter::AddFixup(std::unique_ptr<Fixup> fixup)
 {
     auto size       = fixup->Size();
     fixup->position = segment.Pos();
-    fixups.push_back(std::move(fixup));
+    fixups.PushBack(std::move(fixup));
     // Fill the fixup position with zeroes.
     for (size_t i = 0; i < size; i++) {
         segment.AddW8(0);
@@ -70,8 +70,8 @@ Interpretation::Code Emitter::Build(Memory::Heap& heap)
 
     auto segmentCode = segment.Finish();
 
-    auto bytecode     = (uint8_t*)heap.Allocate(segmentCode.size());
-    auto bytecodeSize = segmentCode.size();
+    auto bytecode     = (uint8_t*)heap.Allocate(segmentCode.Size());
+    auto bytecodeSize = segmentCode.Size();
     std::copy(segmentCode.begin(), segmentCode.end(), bytecode);
 
     return Interpretation::Code {

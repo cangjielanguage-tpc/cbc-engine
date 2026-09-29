@@ -399,7 +399,7 @@ static constexpr uint32_t GCTIB_MAX_SHORT_OFFSET = sizeof(uintptr_t) * 62;
 
 static std::optional<DYN_GCTib> ConstructGCTib(TypeInfoBuilder& builder, Utils::Vector<uint32_t>& refFieldOffs)
 {
-    if (refFieldOffs.empty()) {
+    if (refFieldOffs.Empty()) {
         return std::make_optional<DYN_GCTib>(DYN_GCTib { .raw = 1ul << 63 });
     }
 
@@ -535,7 +535,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         };
 
         Utils::Vector<FuncDesc> funcDescs;
-        funcDescs.resize(entryCount);
+        funcDescs.Resize(entryCount);
 
         builder.dataMT      = Alloc<Interpretation::FunctionHandle*>(entryCount);
         builder.flatMethods = Alloc<OuterTIFuncUnion>(2 * entryCount);
@@ -678,7 +678,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         auto layout          = *optlayout;
         builder.align        = layout->desc.alignment;
         builder.instanceSize = layout->desc.size.value();
-        builder.fieldNum     = layout->fields.size();
+        builder.fieldNum     = layout->fields.Size();
 
         builder.fields       = Alloc<DYN_TypeInfo*>(builder.fieldNum);
         builder.fieldOffsets = Alloc<uint32_t>(builder.fieldNum);
@@ -711,7 +711,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         if (term.GetKind() == Engine::TermKind::OPTION && term.IsReference()) {
             builder.flag  |= HAS_REF_FIELD;
             builder.gctib  = { .raw = (1ull << 63) | 1 };
-        } else if (!refFieldOffs.empty()) {
+        } else if (!refFieldOffs.Empty()) {
             builder.flag |= HAS_REF_FIELD;
 
             auto gctib = ConstructGCTib(builder, refFieldOffs);
@@ -745,7 +745,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         builder.instanceSize = *size;
         Utils::Vector<uint32_t> offsets;
         fields->FillRefOffsets(term, offsets, 0);
-        if (!offsets.empty()) {
+        if (!offsets.Empty()) {
             builder.flag |= HAS_REF_FIELD;
             auto gctib    = ConstructGCTib(builder, offsets);
             if (!gctib) {
@@ -878,7 +878,7 @@ static bool QuerySubterms(
         } else {
             allResolved = false;
         }
-        typeInfos.emplace_back((DYN_TypeInfo*)info.Raw());
+        typeInfos.EmplaceBack((DYN_TypeInfo*)info.Raw());
     }
     return allResolved;
 }
@@ -924,7 +924,7 @@ static std::optional<TypeInfo> QueryTypeInfoAOT(
         if (!typeTemplate) {
             return std::nullopt;
         }
-        auto typeInfoG = g_CJNativeInterfaceInstance.getOrCreateTypeInfo(typeTemplate, infos.size(), infos.data());
+        auto typeInfoG = g_CJNativeInterfaceInstance.getOrCreateTypeInfo(typeTemplate, infos.Size(), infos.Data());
         return TypeInfo(typeInfoG);
     } else {
         Log::typeinfo.Log(Logging::Level::TRACE, [&session, &term](Stream::Output& out) {
@@ -964,8 +964,8 @@ static std::optional<TypeInfo> QueryFunctional(
 
     // CBC encodes return type as last parameter, but CJNative expects it as the first.
     // TODO: maybe we should change encoding?
-    auto retType = infos.back();
-    auto size    = infos.size();
+    auto retType = infos.Back();
+    auto size    = infos.Size();
     for (size_t i = size - 1; i > 0; i--) {
         infos[i] = infos[i - 1];
     }
@@ -979,7 +979,7 @@ static std::optional<TypeInfo> QueryFunctional(
     static auto templates =
         Templates { .cfunc = QueryTypeTemplate(session, "CFunc"), .closure = QueryTypeTemplate(session, "Closure") };
 
-    auto cfuncTypeInfo = g_CJNativeInterfaceInstance.getOrCreateTypeInfo(templates.cfunc, infos.size(), infos.data());
+    auto cfuncTypeInfo = g_CJNativeInterfaceInstance.getOrCreateTypeInfo(templates.cfunc, infos.Size(), infos.Data());
     DYN_TypeInfo* cfuncTIBox[1] = { cfuncTypeInfo };
 
     auto closureTypeInfo = g_CJNativeInterfaceInstance.getOrCreateTypeInfo(templates.closure, 1, cfuncTIBox);
@@ -1097,7 +1097,7 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& ma
 
         // TODO: do not use vectors!
         Utils::Vector<Term> subTerms;
-        subTerms.resize(argNum);
+        subTerms.Resize(argNum);
         for (int i = 0; i < argNum; i++) {
             subTerms[i] = manager.AcquireTerm(session, TypeInfo(subTypes[i]));
         }

@@ -10,8 +10,8 @@ using Offset = uint32_t;
 
 int InstructionOffsetsIndex::Length()
 {
-    ASSERTION(cbcOffsets.size() == rtOffsets.size(), "vectors length invariant violation");
-    return cbcOffsets.size();
+    ASSERTION(cbcOffsets.Size() == rtOffsets.Size(), "vectors length invariant violation");
+    return cbcOffsets.Size();
 }
 
 InstructionOffsetsIndex InstructionOffsetsIndex::Create(
@@ -22,26 +22,26 @@ InstructionOffsetsIndex InstructionOffsetsIndex::Create(
     auto& cbcOffsets = index.cbcOffsets;
     auto& rtOffsets  = index.rtOffsets;
 
-    cbcOffsets.reserve(labels.size());
-    rtOffsets.reserve(labels.size());
+    cbcOffsets.Reserve(labels.size());
+    rtOffsets.Reserve(labels.size());
 
     Utils::Vector<std::pair<Offset, Offset>> tmp;
-    tmp.reserve(labels.size());
+    tmp.Reserve(labels.size());
 
-    std::transform(labels.begin(), labels.end(), std::back_inserter(tmp), [&emitter](const auto& pair) {
-        return std::make_pair(static_cast<Offset>(pair.first), emitter.LabelPosition(pair.second));
-    });
+    for (const auto& pair : labels) {
+        tmp.EmplaceBack(static_cast<Offset>(pair.first), emitter.LabelPosition(pair.second));
+    }
 
     std::sort(tmp.begin(), tmp.end(), [](const auto& a, const auto& b) {
         return a.first < b.first; // sort by cbc offsets
     });
 
     for (const auto& [cbcOffset, rtOffset] : tmp) {
-        cbcOffsets.push_back(cbcOffset);
-        rtOffsets.push_back(rtOffset);
+        cbcOffsets.PushBack(cbcOffset);
+        rtOffsets.PushBack(rtOffset);
     }
 
-    ASSERTION(cbcOffsets.size() == rtOffsets.size(), "Wrong number of elements");
+    ASSERTION(cbcOffsets.Size() == rtOffsets.Size(), "Wrong number of elements");
     ASSERTION(index.OffsetsAreInAscendingOrder(cbcOffsets), "CBC instruction offsets invariant violation");
     ASSERTION(index.OffsetsAreInAscendingOrder(rtOffsets), "REWRITTEN instruction offsets invariant violation");
 

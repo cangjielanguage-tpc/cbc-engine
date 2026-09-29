@@ -227,7 +227,7 @@ struct IsaRewriter : public IsaParser {
             .label       = label,
             .originalPos = Pos(), // attached to the end of instruction
         };
-        statePoints.push_back(point);
+        statePoints.PushBack(point);
     }
 
     template <typename Method> void EmitLogCall(std::string_view prefix, Method m)
@@ -1674,7 +1674,7 @@ struct IsaRewriter : public IsaParser {
         IsaParser::End();
     }
 
-    void Fail(std::string&& msg = "") { failureMessages.push_back({ startPosition, std::move(msg) }); }
+    void Fail(std::string&& msg = "") { failureMessages.PushBack({ startPosition, std::move(msg) }); }
 
     void StopRewrite()
     {
@@ -1707,7 +1707,7 @@ static std::optional<FrameLayout> makeFrameLayout(Image::Code code, Resolver& re
     Utils::Vector<uint32_t> refOffsets;
 
     Utils::Vector<uint32_t> stackAllocSizes;
-    stackAllocSizes.reserve(code.StackAllocSigsCount());
+    stackAllocSizes.Reserve(code.StackAllocSigsCount());
 
     auto stackAllocSize = untypedSlotsSize;
     uint32_t i;
@@ -1731,7 +1731,7 @@ static std::optional<FrameLayout> makeFrameLayout(Image::Code code, Resolver& re
         type.FillReferenceOffsets(refOffsets, stackAllocSize);
 
         typedOffset.insert({ i, stackAllocSize });
-        stackAllocSizes.push_back(stackAllocSize);
+        stackAllocSizes.PushBack(stackAllocSize);
         stackAllocSize += MathUtils::AlignUp(size.value(), Cbc::STACK_SLOT_SIZE);
     }
 
@@ -1754,7 +1754,7 @@ static Utils::Vector<Interpretation::GCPositionalInfo> CalculatePositionalGCInfo
     auto livenessInfo = Decode::GetLivenessInfo(session, code);
 
     Utils::Vector<Interpretation::GCPositionalInfo> posInfo;
-    posInfo.reserve(livenessInfo.size());
+    posInfo.Reserve(livenessInfo.Size());
 
     std::unordered_map<ssize_t, Image::LivenessInfo const&> infos;
     for (const auto& info : livenessInfo) {
@@ -1772,22 +1772,22 @@ static Utils::Vector<Interpretation::GCPositionalInfo> CalculatePositionalGCInfo
         }
         auto& info = it->second;
 
-        posInfo.push_back({ .rewrittenPos        = (uint32_t)rewrittenPos,
+        posInfo.PushBack({ .rewrittenPos        = (uint32_t)rewrittenPos,
                             .regMask             = info.regMask,
                             .untypedRefSlotsInfo = {},
                             .mutPairs            = {} });
 
-        posInfo.back().untypedRefSlotsInfo.reserve(info.refSlotNums.size());
+        posInfo.Back().untypedRefSlotsInfo.Reserve(info.refSlotNums.Size());
         for (const auto& slotN : info.refSlotNums) {
-            posInfo.back().untypedRefSlotsInfo.push_back(slotN * STACK_SLOT_SIZE);
+            posInfo.Back().untypedRefSlotsInfo.PushBack(slotN * STACK_SLOT_SIZE);
         }
 
-        posInfo.back().mutPairs.reserve(info.mutPairs.size());
+        posInfo.Back().mutPairs.Reserve(info.mutPairs.Size());
         for (const auto& pair : info.mutPairs) {
             auto mutRes = std::pair(
                 Interpretation::Resource { .idx = pair.first }, Interpretation::Resource { .idx = pair.second }
             );
-            posInfo.back().mutPairs.push_back(mutRes);
+            posInfo.Back().mutPairs.PushBack(mutRes);
         }
     }
 
@@ -1804,7 +1804,7 @@ static Utils::Vector<Interpretation::StackPtrsPositionalInfo> CalculateStackPtrs
     auto stackPtrsInfo = Decode::GetStackPtrsInfo(session, code);
 
     Utils::Vector<Interpretation::StackPtrsPositionalInfo> posInfo;
-    posInfo.reserve(stackPtrsInfo.size());
+    posInfo.Reserve(stackPtrsInfo.Size());
 
     // FIXME: the data must be stored in the format that is compact and fast to query.
     std::unordered_map<ssize_t, Image::StackPtrsInfo const&> infos;
@@ -1826,11 +1826,11 @@ static Utils::Vector<Interpretation::StackPtrsPositionalInfo> CalculateStackPtrs
 
         Interpretation::StackPtrsPositionalInfo newInfo = { .rewrittenPos = (uint32_t)rewrittenPos, .resources = {} };
 
-        newInfo.resources.reserve(info.resources.size());
+        newInfo.resources.Reserve(info.resources.Size());
         for (const auto& res : info.resources) {
-            newInfo.resources.push_back(Interpretation::Resource { .idx = res });
+            newInfo.resources.PushBack(Interpretation::Resource { .idx = res });
         }
-        posInfo.emplace_back(std::move(newInfo));
+        posInfo.EmplaceBack(std::move(newInfo));
     }
 
     return posInfo;
@@ -1863,7 +1863,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
     auto rewriter = IsaRewriter(resolver, session, method, code, *frameLayout, emitter);
     rewriter.ParseAll();
 
-    if (!rewriter.failureMessages.empty()) {
+    if (!rewriter.failureMessages.Empty()) {
         Interpretation::Log::preparation.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
             out << "Failed to rewrite method at positions: ";
             for (auto failure : rewriter.failureMessages) {

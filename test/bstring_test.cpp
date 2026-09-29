@@ -28,7 +28,7 @@ TEST(BStringTest, HasPointerLayoutButIsNotAGcReference)
 
     Utils::Vector<uint32_t> referenceOffsets;
     layouts->FillRefOffsets(bstring, referenceOffsets, 32);
-    EXPECT_TRUE(referenceOffsets.empty());
+    EXPECT_TRUE(referenceOffsets.Empty());
 }
 
 TEST(BStringTest, CStringBuiltinBoxUsesWideEncoding)

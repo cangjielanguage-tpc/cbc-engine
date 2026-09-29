@@ -209,7 +209,7 @@ struct ResolverProxy {
         auto [file, raf] = resolver.session.File(fileId);
         auto data        = Decode::GetAotData<Image::StaticFieldAotData>(resolver, ref.ident);
         auto linkageName = Decode::Read(resolver, data.linkangeName);
-        auto location    = resolver.session.GetEngine().Dependencies().at(fileId).FindSymbol(linkageName);
+        auto location    = resolver.session.GetEngine().Dependencies().At(fileId).FindSymbol(linkageName);
         if (!location) {
             log.Log(Logging::Level::FATAL, [linkageName](Stream::Output& stream) {
                 stream << "not found location of static field: " << linkageName << Stream::endl;
@@ -398,29 +398,29 @@ struct ResolverProxy {
         ASSERT(ref.multi.length >= 1);
 
         Utils::Vector<std::variant<StaticField::Content, InstanceField::Content>> fields;
-        fields.reserve(ref.multi.length);
+        fields.Reserve(ref.multi.length);
 
         for (uint32_t i = 0; i < ref.multi.length; i++) {
             if (i == 0) {
                 auto id    = Index<StaticField>(ref.multi.indices[i].GetValue());
                 auto field = ResolveField<StaticField>(resolver, id).value();
-                fields.push_back(field);
+                fields.PushBack(field);
             } else {
                 auto id    = Index<InstanceField>(ref.multi.indices[i].GetValue());
                 auto field = ResolveField<InstanceField>(resolver, id).value();
-                fields.push_back(field);
+                fields.PushBack(field);
             }
         }
 
-        auto staticField = std::get<StaticField::Content>(fields.front());
+        auto staticField = std::get<StaticField::Content>(fields.Front());
 
         auto refType = staticField.refType;
         auto fieldType =
-            fields.size() > 1 ? std::get<InstanceField::Content>(fields.back()).fieldType : staticField.fieldType;
+            fields.Size() > 1 ? std::get<InstanceField::Content>(fields.Back()).fieldType : staticField.fieldType;
 
         std::optional<uintptr_t> location = staticField.location;
 
-        for (size_t i = 1; i < fields.size(); i++) {
+        for (size_t i = 1; i < fields.Size(); i++) {
             auto field = std::get<InstanceField::Content>(fields[i]);
             if (!field.offset.has_value()) {
                 location = std::nullopt;
@@ -440,16 +440,16 @@ struct ResolverProxy {
         ASSERT(ref.multi.length >= 1);
 
         Utils::Vector<InstanceField::Content> fields;
-        fields.reserve(ref.multi.length);
+        fields.Reserve(ref.multi.length);
 
         for (uint32_t i = 0; i < ref.multi.length; i++) {
             auto id    = Index<InstanceField>(ref.multi.indices[i].GetValue());
             auto field = ResolveField<InstanceField>(resolver, id);
-            fields.push_back(field.value());
+            fields.PushBack(field.value());
         }
 
-        auto refType   = fields.front().refType;
-        auto fieldType = fields.back().fieldType;
+        auto refType   = fields.Front().refType;
+        auto fieldType = fields.Back().fieldType;
 
         std::optional<uint32_t> optOffset = 0;
         for (const auto& f : fields) {
@@ -574,9 +574,9 @@ struct ResolverProxy {
         auto retTypeIdx  = paramLength;
 
         Utils::Vector<Type> params;
-        params.reserve(paramLength);
+        params.Reserve(paramLength);
         for (int i = 0; i < paramLength; i++) {
-            params.push_back(Type(signature.Subterm(i), resolver));
+            params.PushBack(Type(signature.Subterm(i), resolver));
         }
         return {
             .resolver = &resolver,
@@ -674,7 +674,7 @@ struct ResolverProxy {
         auto data        = Decode::GetAotData<Image::DirectCallAotData>(resolver, ref.identifier);
 
         auto linkageName = Decode::Read(resolver, data.linkangeName);
-        auto funcPtr     = resolver.session.GetEngine().Dependencies().at(fileId).FindSymbol(linkageName);
+        auto funcPtr     = resolver.session.GetEngine().Dependencies().At(fileId).FindSymbol(linkageName);
 
         if (!funcPtr) {
             log.Log(Logging::Level::FATAL, [linkageName](Stream::Output& stream) {
@@ -896,7 +896,7 @@ std::optional<Type> Resolver::QueryFutureByFunctional(Index<Type> id)
     auto retType = term.Subterm(term.GetLength() - 1);
 
     Utils::Vector<Term> subterms;
-    subterms.push_back(retType);
+    subterms.PushBack(retType);
     auto futureType = termManager.NewAotTerm(session, "std.core:Future", subterms, true);
     return Type(futureType, this);
 }

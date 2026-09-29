@@ -74,18 +74,18 @@ Session::~Session() { delete decoder; }
 std::unique_ptr<IO::RandomAccessFile>& Session::FileOf(FileId fileId) const
 {
     // TODO: add session-scoped buffered rafs.
-    return engine.impl->rafs.at(fileId);
+    return engine.impl->rafs.At(fileId);
 }
 
 CbcFile& Session::CbcFileOf(FileId fileId) const
 {
     // TODO: add session-scoped buffered rafs.
-    return engine.impl->files.at(fileId);
+    return engine.impl->files.At(fileId);
 }
 
 std::tuple<Image::CbcFile&, IO::RandomAccessFile&> Session::File(FileId fileId) const
 {
-    return { engine.impl->files.at(fileId), *engine.impl->rafs.at(fileId) };
+    return { engine.impl->files.At(fileId), *engine.impl->rafs.At(fileId) };
 }
 
 Arena& Session::Allocator() { return arena; }
@@ -178,8 +178,8 @@ bool Loader::Load(std::unique_ptr<IO::RandomAccessFile> file, std::string_view f
     auto f  = TryReadCbcFile(FileId(id), file.get(), fileName);
     if (f) {
         loader->fileCounter++;
-        loader->files.emplace_back(std::move(*f));
-        loader->rafs.emplace_back(std::move(file));
+        loader->files.EmplaceBack(std::move(*f));
+        loader->rafs.EmplaceBack(std::move(file));
         return true;
     }
     return false;
@@ -220,7 +220,7 @@ static Utils::Vector<Dependencies> ReadDependencies(Loader::Impl const* loader)
             }
         }
         auto ptr = std::make_shared<Utils::SharedObject>(Utils::SharedObject::Open(std::move(soName)));
-        objects.emplace_back(ptr);
+        objects.EmplaceBack(ptr);
         return ptr;
     };
 
@@ -230,10 +230,10 @@ static Utils::Vector<Dependencies> ReadDependencies(Loader::Impl const* loader)
 
     Utils::Vector<char> nameBuffer;
 
-    ASSERT(loader->files.size() == loader->rafs.size());
-    auto sz = loader->files.size();
+    ASSERT(loader->files.Size() == loader->rafs.Size());
+    auto sz = loader->files.Size();
     Utils::Vector<Dependencies> allDeps;
-    allDeps.reserve(sz);
+    allDeps.Reserve(sz);
 
     for (size_t i = 0; i < sz; i++) {
         auto raf   = loader->rafs[i].get();
@@ -242,32 +242,32 @@ static Utils::Vector<Dependencies> ReadDependencies(Loader::Impl const* loader)
         auto deps     = file.AotDependencies();
 
         Utils::Vector<std::shared_ptr<Utils::SharedObject>> ptrs;
-        ptrs.emplace_back(executable);
+        ptrs.EmplaceBack(executable);
         if (!deps) {
-            allDeps.emplace_back(std::move(ptrs));
+            allDeps.EmplaceBack(std::move(ptrs));
             continue;
         }
 
         IO::StreamFileReader reader(raf, *deps + POOL_OFFSET_ADJUSTMENT);
 
         uint32_t size = reader.ReadULEB();
-        nameBuffer.clear();
-        nameBuffer.resize(size);
-        reader.Read(nameBuffer.data(), size);
+        nameBuffer.Clear();
+        nameBuffer.Resize(size);
+        reader.Read(nameBuffer.Data(), size);
 
-        std::string_view depsStr(nameBuffer.data(), size);
+        std::string_view depsStr(nameBuffer.Data(), size);
         while (!depsStr.empty()) {
             auto pos = depsStr.find(delim);
             if (pos == std::string_view::npos) {
-                ptrs.emplace_back(addObject(depsStr));
+                ptrs.EmplaceBack(addObject(depsStr));
                 break;
             } else {
                 auto token = depsStr.substr(0, pos);
-                ptrs.emplace_back(addObject(token));
+                ptrs.EmplaceBack(addObject(token));
                 depsStr = depsStr.substr(pos + 1);
             }
         }
-        allDeps.emplace_back(std::move(ptrs));
+        allDeps.EmplaceBack(std::move(ptrs));
     }
 
     return allDeps;

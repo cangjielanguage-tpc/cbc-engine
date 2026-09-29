@@ -546,9 +546,9 @@ static Term NewTerm(
 )
 {
     auto& heap     = session.Allocator();
-    auto data      = AllocateTerm(heap, subterms.size());
+    auto data      = AllocateTerm(heap, subterms.Size());
     bool isGeneric = false;
-    for (size_t i = 0; i < subterms.size(); i++) {
+    for (size_t i = 0; i < subterms.Size(); i++) {
         data->subterms[i] = subterms[i];
         isGeneric         = isGeneric || subterms[i].IsGeneric();
     }
@@ -589,7 +589,7 @@ Term TermManager::NewEnumTerm(Session& session, std::string_view name, Utils::Sp
                 FATAL("Expected enum, got NOT_ENUM EnumKind");
             }
         }
-        data->InitAfterSubterms(id, subterms.size(), flags);
+        data->InitAfterSubterms(id, subterms.Size(), flags);
         return Term(LocalTerm(data));
     };
     return NewTerm(session, subterms, refineTerm);
@@ -605,7 +605,7 @@ Term TermManager::NewAotTerm(
 
         auto type = session.GetEngine().FindType(session, name);
 
-        auto arity = subterms.size();
+        auto arity = subterms.Size();
 
         if (type.has_value()) {
             ASSERT([&]() -> bool {
@@ -628,7 +628,7 @@ static Term NewTermWithId(Session& session, TermId id, bool isReference, Utils::
     auto refineTerm = [&](TermId, TermFlags flags, TermData* data) {
         flags.isReference = isReference;
         flags.isRecord    = !isReference;
-        data->InitAfterSubterms(id, subterms.size(), flags);
+        data->InitAfterSubterms(id, subterms.Size(), flags);
         return Term(LocalTerm(data));
     };
     return NewTerm(session, subterms, refineTerm);
@@ -1080,8 +1080,8 @@ ClassSubstitution::ClassSubstitution(Session& session, Term term)
 
 ClassSubstitution::ClassSubstitution(Session& session, Utils::Span<Term const> terms)
     : Substitution(session),
-      terms(terms.data()),
-      size(terms.size())
+      terms(terms.Data()),
+      size(terms.Size())
 {}
 
 Term ClassSubstitution::SubstituteFuncTv(uint8_t typeVar) { return Term::FuncTypeVariable(typeVar); }
@@ -1130,8 +1130,8 @@ Identifier<Image::TypeDefinition> ExtractTypeDefIdentifier(Term term)
 
 void TermMatcher::_PutVariable(int varId, Term t)
 {
-    if (varId >= vars.size()) {
-        vars.resize(varId + 1, Term::Predefined(TermKind::NIL));
+    if (varId >= vars.Size()) {
+        vars.Resize(varId + 1, Term::Predefined(TermKind::NIL));
     }
     if (vars[varId] == t) {
         return;
@@ -1158,7 +1158,7 @@ bool TermMatcher::IsPrefix(Term prefix, Term t) { return CompareTermData<CheckFo
 
 void TermMatcher::Clear()
 {
-    vars.clear();
+    vars.Clear();
     hasErrors = false;
 }
 

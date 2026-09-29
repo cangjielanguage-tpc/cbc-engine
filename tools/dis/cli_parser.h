@@ -21,9 +21,9 @@ public:
     public:
         void SetResolving(bool resolving) { this->resolving = resolving; }
 
-        void AddFile(string_view file) { files.push_back(file); }
+        void AddFile(string_view file) { files.PushBack(file); }
 
-        DisasmerBuilder(Stream::Output& out, size_t expectedSize) : out(out) { files.reserve(expectedSize); }
+        DisasmerBuilder(Stream::Output& out, size_t expectedSize) : out(out) { files.Reserve(expectedSize); }
 
         Dis::Disasmer Build() { return Dis::Disasmer(files, out, resolving); }
     };
