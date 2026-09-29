@@ -257,7 +257,8 @@ struct MethodTableBuilder {
                     }
 
                     for (auto methodId : Reader::Resolve(session, ext.GetVirtualMethods())) {
-                        AddMethod(session, methodId, arena.Copy(Utils::Span<Term>(matcher.vars)));
+                        auto terms = Utils::Span<Term>(matcher.vars.Data(), matcher.vars.Size());
+                        AddMethod(session, methodId, arena.Copy(terms));
                     }
                 }
                 matcher.Clear();

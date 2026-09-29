@@ -10,6 +10,7 @@
 #include "utils/iterators.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
+#include "utils/span.h"
 #include "utils/vector.h"
 #include <cstdint>
 #include <optional>
@@ -66,7 +67,7 @@ struct MethodSignature {
     Engine::Term term;
 
     Type ResType() const;
-    Engine::Term::Range Params() const;
+    Utils::Span<Engine::Term> Params() const;
     uint32_t ParamCount() const;
 };
 

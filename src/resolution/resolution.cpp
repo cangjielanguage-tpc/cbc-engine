@@ -16,6 +16,7 @@
 #include "utils/iterators.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
+#include "utils/span.h"
 #include "utils/vector.h"
 #include <cstdint>
 #include <functional>
@@ -979,9 +980,10 @@ Stream::Output& operator<<(Stream::Output& stream, StaticField const& field)
 
 Type MethodSignature::ResType() const { return Type(term.Subterm(term.GetLength() - 1), resolver); }
 
-Term::Range MethodSignature::Params() const
+Utils::Span<Term> MethodSignature::Params() const
 {
-    return Iterators::MakeRange(Term::SubTermGenerator { term.data, 0, term.GetLength() - 1 });
+    auto subterms = term.SubTerms();
+    return Utils::Span(subterms.Data(), subterms.Size() - 1);
 }
 
 uint32_t MethodSignature::ParamCount() const { return term.GetLength() - 1; }

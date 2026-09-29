@@ -8,6 +8,7 @@
 #include "engine/method_table.h"
 #include "engine/terms.h"
 #include "resolution/resolution.h"
+#include "utils/misc.h"
 
 namespace Stream {
 
@@ -270,7 +271,15 @@ ResolvingOutput& ResolvingOutput::operator<<(Engine::MethodTable const& mt)
 
         out << "      " << entry.methodNum << ": ";
         out << Detailed(def.Name()) << signature;
-        out << ", from: " << entry.genericContext << endl;
+        out << ", from: ";
+
+        const char* sep  = "";
+        out << "[";
+        for (const auto& elem : entry.genericContext) {
+            out << sep << elem;
+            sep = ", ";
+        }
+        out << "]" << endl;
     };
 
     auto writeTable = [&](Engine::MethodSubTable& st) {
