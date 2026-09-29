@@ -3,6 +3,7 @@
 #include "engine/engine.h"
 #include "engine/identifiers.h"
 #include "engine/image/cbc_file.h"
+#include "engine/image/flags.h"
 #include "engine/resolving_output.h"
 #include "engine/terms.h"
 #include "utils/assertion.h"
@@ -11,6 +12,7 @@
 #include "utils/ostream.h"
 #include "utils/span.h"
 #include "utils/vector.h"
+#include <cstdio>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -192,6 +194,29 @@ struct MethodTableBuilder {
     Utils::Vector<MethodTableEntry> entryBuffer;
     std::unordered_set<Term, Term::Hasher> interfaces;
 
+    using MethodReference = MethodTable::Reference;
+
+    struct MRefTraits {
+        size_t operator()(MethodReference const& ref) const
+        {
+            std::hash<std::string_view> hstr;
+            return hstr(ref.name) + ref.signature.Hash();
+        }
+
+        bool operator()(MethodReference const& a, MethodReference const& b) const
+        {
+            return a.name == b.name && a.signature == b.signature;
+        }
+    };
+
+    struct MethodSymbol {
+        MethodReference ref;
+        MethodTable::Entry* mtEntry;
+        bool isOverride;
+        bool isAbstract;
+        bool isNewEntry;
+    };
+
     bool AddInterface(Session& session, Term interface)
     {
         if (interfaces.find(interface) != interfaces.end()) {
@@ -298,6 +323,102 @@ struct MethodTableBuilder {
             entryBuffer.Clear();
         }
     }
+
+    bool VerifyAndResolveConflicts(Session& session, size_t newEntriesStartIdx, size_t currentClassEntriesStartIdx)
+    {
+        Utils::Vector<MethodSymbol> symbols;
+        symbols.Reserve(table.allEntries.Size());
+
+        auto* newEntriesStart = &table.allEntries[newEntriesStartIdx];
+        auto* currentClassEntriesStart = &table.allEntries[currentClassEntriesStartIdx];
+
+        for (auto& entry : table.allEntries) {
+            auto method = Reader::Read(session, entry.method);
+            auto methodSig = TermManager::Resolve(session, method.Signature());
+            MethodSignatureSubstitution sub(session, entry.genericContext);
+            methodSig      = sub(methodSig);
+            MethodReference ref { .name      = Reader::Read(session, method.Name()),
+                                  .signature = methodSig };
+
+            bool isOverride = &entry >= currentClassEntriesStart;
+            bool isNewEntry = &entry >= newEntriesStart;
+            bool isAbstract = method.GetFlags().Is(MethodFlag::ABSTRACT);
+
+            MethodSymbol desc {
+                .ref = ref,
+                .mtEntry = &entry,
+                .isOverride = isOverride,
+                .isAbstract = isAbstract,
+                .isNewEntry = isNewEntry,
+            };
+
+            symbols.PushBack(desc);
+        }
+
+        std::unordered_map<MethodReference, std::vector<MethodSymbol*>, MRefTraits, MRefTraits> refUses;
+        for (auto& sym : symbols) {
+            refUses[sym.ref].push_back(&sym);
+        }
+
+        bool conflictFound = false;
+
+        for (auto& [ref, syms] : refUses) {
+            if (syms.size() <= 1) {
+                // safe usage
+                continue;
+            }
+            // possible conflict
+            auto refName = ref.name;
+            auto refSig = ref.signature;
+
+            MethodSymbol* override = nullptr;
+            MethodSymbol* oldNonAbstract = nullptr;
+            MethodSymbol* nonAbstract = nullptr;
+            int nonAbstractCount = 0;
+            for (auto& sym : syms) {
+                if (sym->isOverride) {
+                    override = sym;
+                }
+                if (!sym->isAbstract) {
+                    nonAbstract = sym;
+                    nonAbstractCount++;
+                }
+                if (!sym->isAbstract && !sym->isNewEntry) {
+                    oldNonAbstract = sym;
+                }
+            }
+
+            // if there is override or old non-abstract symbol, conflict is not possible
+            if (override || oldNonAbstract || (nonAbstractCount == 1)) {
+                MethodSymbol *choice = override;
+                choice = choice ? choice : oldNonAbstract;
+                choice = choice ? choice : nonAbstract;
+
+                // no conflicts
+                for (auto& sym : syms) {
+                    *sym->mtEntry = *choice->mtEntry;
+                }
+                break;
+            }
+            // no override, no old non-abstract symbols
+            // if two non-abstract sybols found => conflict found
+            if (nonAbstractCount <= 1) {
+                break;
+            }
+            // conflict is possibly present, final corner case:
+            // "the same method could present in different entries method"
+            auto refMethod = nonAbstract->mtEntry->method;
+
+            for (auto& sym : syms) {
+                if (!sym->isAbstract && nonAbstract != sym && nonAbstract->mtEntry->method != sym->mtEntry->method) {
+                    LOGS_ERROR(Log::mt, session, "Conflict found for reference {}{} in {} with {}",
+                            refName, refSig, Detailed(refMethod), Detailed(sym->mtEntry->method));
+                    conflictFound = true;
+                }
+            }
+        }
+        return conflictFound;
+    }
 };
 
 std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, GlobalTerm type)
@@ -323,6 +444,8 @@ std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, Glob
         builder.table = **superMT;
     }
 
+    int oldEntryCount = builder.table.EntryCount();
+
     // 2. Copy all entries and sub tables of interfaces, adjusting their views
     for (auto interf : Reader::Resolve(session, def.GetInterfaces())) {
         auto interface = TermManager::Resolve(session, interf);
@@ -342,7 +465,7 @@ std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, Glob
     // 3. Patch all overriden methods and add newly declared methods
     // to the subtable of current type.
     auto thisType      = type;
-    auto oldEntryCount = builder.table.EntryCount();
+    auto entryCountWithInterfaces = builder.table.EntryCount();
     MethodSignatureSubstitution methodSigSub(session, type);
 
     Utils::Vector<MethodTableEntry> entryBuffer;
@@ -353,12 +476,18 @@ std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, Glob
     // 3.3 add new subtable for current type (even if new methods were not added)
     auto tables = flags.Is(TypeKind::INTERFACE) ? &builder.table.interfaceTables : &builder.table.classTables;
 
+    auto entryCountWithoutCurrentClass = builder.table.EntryCount();
+
     tables->EmplaceBack(MethodTable::SubTable {
         .declaringType = thisType,
-        .start          = oldEntryCount,
+        .start          = entryCountWithInterfaces,
         .end            = builder.table.EntryCount(),
     });
 
+    bool conflictFound = builder.VerifyAndResolveConflicts(session, oldEntryCount, entryCountWithoutCurrentClass);
+    if (conflictFound) {
+        return std::nullopt;
+    }
     return builder.table;
 }
 

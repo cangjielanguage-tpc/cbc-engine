@@ -142,6 +142,8 @@ template <typename T> struct Identifier {
 
     bool operator==(const Identifier& another) const { return Pack() == another.Pack(); }
 
+    bool operator!=(const Identifier& another) const { return !(*this == another); }
+
     inline Packed Pack() const
     {
         uint64_t low  = offs;

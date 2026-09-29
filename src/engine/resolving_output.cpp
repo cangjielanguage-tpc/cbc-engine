@@ -1,10 +1,8 @@
 #include "resolving_output.h"
 #include "cbc/isa_disasm.h"
-#include "engine/decode/decoder.h"
 #include "engine/engine.h"
 #include "engine/field_layout.h"
 #include "engine/identifiers.h"
-#include "engine/image/reader.h"
 #include "engine/method_table.h"
 #include "engine/terms.h"
 #include "resolution/resolution.h"
@@ -258,9 +256,8 @@ ResolvingOutput& ResolvingOutput::operator<<(Image::TypeDefinition const& td) { 
 
 ResolvingOutput& ResolvingOutput::operator<<(Engine::MethodTable const& mt)
 {
-    auto& out = *this;
-    out << "method table:" << endl;
-    out << "  classes:" << endl;
+    PrintLn("method table:");
+    PrintLn("  classes:");
 
     auto writeEntry = [&](Engine::MethodTableEntry& entry) {
         auto def = Decode::Read(session, entry.method);
@@ -269,22 +266,17 @@ ResolvingOutput& ResolvingOutput::operator<<(Engine::MethodTable const& mt)
         auto signature = Engine::TermManager::Resolve(session, def.Signature());
         signature = sub.Substitute(signature);
 
-        out << "      " << entry.methodNum << ": ";
-        out << Detailed(def.Name()) << signature;
-        out << ", from: ";
-
+        Print("      {}: {} {} from: {}<", entry.methodNum, Detailed(def.Name()), signature, Detailed(def.TypeName()));
         const char* sep  = "";
-        out << "[";
         for (const auto& elem : entry.genericContext) {
-            out << sep << elem;
+            Print("{}{}", sep, elem);
             sep = ", ";
         }
-        out << "]" << endl;
+        PrintLn(">");
     };
 
     auto writeTable = [&](Engine::MethodSubTable& st) {
-        out << "    " << st.DeclaringType();
-        out << " [" << st.StartPos() << ", " << st.EndPos() << "]:" << endl;
+        PrintLn("    {} [{}, {}]:", st.DeclaringType(), st.StartPos(), st.EndPos());
         for (auto entry : st.Entries()) {
             writeEntry(entry);
         }
@@ -293,11 +285,11 @@ ResolvingOutput& ResolvingOutput::operator<<(Engine::MethodTable const& mt)
     for (auto st : mt.Classes()) {
         writeTable(st);
     }
-    out << "  interfaces:" << endl;
+    PrintLn("  interfaces:");
     for (auto st : mt.Interfaces()) {
         writeTable(st);
     }
-    return out;
+    return *this;
 }
 
 ResolvingOutput& ResolvingOutput::operator<<(Engine::FieldLayout const& layout)

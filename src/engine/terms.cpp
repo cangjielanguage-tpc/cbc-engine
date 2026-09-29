@@ -446,6 +446,12 @@ void Term::GetName(Session& session, Stream::Output& out, bool hasDebugPrefix) c
             break;
         }
 
+        case TK::GENERIC_CONTEXT: {
+            stream << prefix << "GenericContext";
+            printSubTerms("<", ">", GetLength());
+            break;
+        }
+
         default: {
             FATAL("Unexpected case %d", GetKind());
         }
