@@ -9,6 +9,7 @@
 #include "utils/iterators.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
+#include "utils/span.h"
 #include "utils/vector.h"
 #include <memory>
 #include <mutex>
@@ -60,13 +61,15 @@ void MethodTable::Globalize(Session& session)
 {
     auto& termManager = TermManager::Of(session);
     for (auto& entry : allEntries) {
-        entry.genericContext = termManager.Globalize(entry.genericContext);
+        for (auto& t : entry.genericContext) {
+            t = termManager.Globalize(t);
+        }
     }
     for (auto& st : classTables) {
-        st.genericContext = termManager.Globalize(st.genericContext);
+        st.declaringType = termManager.Globalize(st.declaringType);
     }
     for (auto& st : interfaceTables) {
-        st.genericContext = termManager.Globalize(st.genericContext);
+        st.declaringType = termManager.Globalize(st.declaringType);
     }
 }
 
@@ -130,7 +133,7 @@ std::optional<MethodSubTable> MethodTable::SubTableGenerator::operator()()
     if (cursor < subtables.Size()) {
         auto cursor = this->cursor++;
         auto& st    = subtables[cursor];
-        return MethodSubTable(table, st.genericContext, st.start, st.end, cursor + disp);
+        return MethodSubTable(table, st.declaringType, st.start, st.end, cursor + disp);
     } else {
         return std::nullopt;
     }
@@ -212,7 +215,7 @@ struct MethodTableBuilder {
 
         for (auto st : interfTable->interfaceTables) {
             table.interfaceTables.EmplaceBack(MethodTable::SubTable {
-                .genericContext = st.genericContext,
+                .declaringType = st.declaringType,
                 .start          = st.start + oldEntryCount,
                 .end            = st.end + oldEntryCount,
             });
@@ -225,6 +228,8 @@ struct MethodTableBuilder {
     {
         Utils::Vector<Term> storage;
         TermMatcher matcher;
+
+        auto& arena = session.Allocator();
 
         for (auto file : session.GetEngine().Files()) {
             for (auto extId : Image::Reader::Resolve(session, file.extensions)) {
@@ -251,11 +256,8 @@ struct MethodTableBuilder {
                         }
                     }
 
-                    auto genericContext =
-                        tableOwner; // the code is referencing type variables using type-arg tree of extended type.
-                    MethodSignatureSubstitution msub(session, matcher.vars);
                     for (auto methodId : Reader::Resolve(session, ext.GetVirtualMethods())) {
-                        AddMethod(session, methodId, msub, genericContext);
+                        AddMethod(session, methodId, arena.Copy(Utils::Span<Term>(matcher.vars)));
                     }
                 }
                 matcher.Clear();
@@ -265,7 +267,7 @@ struct MethodTableBuilder {
     }
 
     void AddMethod(
-        Session& session, Identifier<MethodDefinition> methodId, MethodSignatureSubstitution& sub, Term genericContext
+        Session& session, Identifier<MethodDefinition> methodId, Utils::Span<Term> genericContext
     )
     {
         auto newEntry = MethodTable::Entry {
@@ -275,7 +277,8 @@ struct MethodTableBuilder {
 
         auto method = Reader::Read(session, methodId);
         auto methodSig = TermManager::Resolve(session, method.Signature());
-        methodSig      = sub.Substitute(methodSig);
+        MethodSignatureSubstitution sub(session, genericContext);
+        methodSig      = sub(methodSig);
 
         MethodTable::Reference ref { .name      = Reader::Read(session, method.Name()),
                                      .signature = methodSig };
@@ -343,14 +346,14 @@ std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, Glob
 
     Utils::Vector<MethodTableEntry> entryBuffer;
     for (auto methodId : Reader::Resolve(session, def.GetVirtualMethods())) {
-        builder.AddMethod(session, methodId, methodSigSub, thisType);
+        builder.AddMethod(session, methodId, type.SubTerms());
     }
 
     // 3.3 add new subtable for current type (even if new methods were not added)
     auto tables = flags.Is(TypeKind::INTERFACE) ? &builder.table.interfaceTables : &builder.table.classTables;
 
     tables->EmplaceBack(MethodTable::SubTable {
-        .genericContext = thisType,
+        .declaringType = thisType,
         .start          = oldEntryCount,
         .end            = builder.table.EntryCount(),
     });

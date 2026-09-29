@@ -1,6 +1,7 @@
 #pragma once
 
 #include "utils/heap.h"
+#include "utils/span.h"
 #include <cstddef>
 #include <cstdint>
 
@@ -19,6 +20,8 @@ public:
 
     void* Allocate(size_t bytes, size_t alignment) override;
     void Free(void* memory, size_t bytes, size_t alignment) override;
+
+    template <typename T> Utils::Span<T> Copy(Utils::Span<T> span);
 
 private:
     void* DoAllocateSlow(size_t bytes);

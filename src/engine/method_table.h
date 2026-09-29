@@ -35,9 +35,9 @@ struct MethodTableEntry {
     /// The method which is being referenced.
     Identifier<Image::MethodDefinition> method;
 
-    /// Declaring type, where method is actually declared. Additionally to type definition,
-    /// stores an generic variable parameterization.
-    Term genericContext;
+    /// The generic context of method. This context is used to access class type variables, referenced in the method.
+    /// Most of the time, the context is the same as subterms of declaring type (with corresponding parameterization).
+    Utils::Span<Term> genericContext;
 
     /// Method number in sub table.
     int methodNum;
@@ -54,7 +54,7 @@ class MethodSubTable;
 /// @see description on top of current header.
 class MethodTable {
     struct SubTable {
-        Term genericContext;
+        Term declaringType;
         int start;
         int end;
     };
@@ -68,7 +68,7 @@ public:
 
         /// Declaring type, where method is actually declared. Additionally to type definition,
         /// stores an generic variable parameterization.
-        Term genericContext;
+        Utils::Span<Term> genericContext;
     };
 
     struct SubTableGenerator {

@@ -11,6 +11,7 @@
 #include "utils/heap.h"
 #include "utils/iterators.h"
 #include "utils/ostream.h"
+#include "utils/span.h"
 #include <alloca.h>
 #include <cassert>
 #include <cstdint>
@@ -1024,15 +1025,7 @@ bool Term::IsGeneric() const { return data->flags.isGeneric; }
 
 TermFlags Term::Flags() const { return data->flags; }
 
-Term::Range Term::SubTerms() const { return Iterators::MakeRange(Term::SubTermGenerator { data, 0, GetLength() }); }
-
-std::optional<Term> Term::SubTermGenerator::operator()()
-{
-    if (cursor < end) {
-        return term->subterms[cursor++];
-    }
-    return std::nullopt;
-}
+Utils::Span<Term> Term::SubTerms() const { return data->Subterms(); }
 
 Term Substitution::Substitute(Term term)
 {

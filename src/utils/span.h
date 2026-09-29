@@ -57,6 +57,8 @@ public:
 
     constexpr T* begin() const { return ptr; }
     constexpr T* end() const { return ptr + count; }
+
+    constexpr operator Span<T const>() const { return Span(ptr, count); }
 };
 
 template <typename T> Span(const Vector<T>&) -> Span<const T>;

@@ -84,6 +84,8 @@ enum class TermKind : uint8_t {
     UNION_ENUM,     // 33
     PRIMITIVE_ENUM, // 34
     VARRAY,         // 35
+
+    GENERIC_CONTEXT, // 36 -- non-existing type for CJNative outer ti emulation.
     LAST
 };
 
@@ -139,19 +141,10 @@ struct TermFlags {
 };
 
 struct Term {
-    struct SubTermGenerator {
-        TermData* term;
-        uint32_t cursor;
-        uint32_t end;
-
-        std::optional<Term> operator()();
-    };
-
     struct Hasher {
         uint64_t operator()(Term const& term) const { return term.Hash(); }
     };
 
-    using Range                                   = Iterators::SimpleRange<SubTermGenerator>;
     static constexpr uint16_t FIRST_NON_PRIMITIVE = static_cast<uint16_t>(TermKind::UNDEFINED);
 
     static Term Definition(Session& session, Identifier<Image::TypeDefinition> type);
@@ -185,7 +178,7 @@ struct Term {
     bool IsGeneric() const;
 
     TermFlags Flags() const;
-    Range SubTerms() const;
+    Utils::Span<Term> SubTerms() const;
 
     bool IsFloat() const;
 

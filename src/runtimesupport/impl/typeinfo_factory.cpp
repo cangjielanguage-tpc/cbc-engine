@@ -3,9 +3,7 @@
 #include "RuntimeTypes.h"
 #include "engine/engine.h"
 #include "engine/field_layout.h"
-#include "engine/identifiers.h"
 #include "engine/image/flags.h"
-#include "engine/image/reader.h"
 #include "engine/image/type_kind.h"
 #include "engine/method_table.h"
 #include "engine/options.h"
@@ -21,6 +19,7 @@
 #include "utils/logger.h"
 #include "utils/ostream.h"
 #include "utils/rt_logger.h"
+#include "utils/span.h"
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -221,6 +220,13 @@ struct TypeInfoBuilder {
                 isAot          = true;
                 aotTypeDefName = "CPointer";
                 superType      = term.Subterm(0);
+                return;
+            case Engine::TermKind::GENERIC_CONTEXT:
+                type           = TYPE_KIND_STRUCT;
+                needExtDefs    = false;
+                needFields     = false;
+                isAot          = false;
+                aotTypeDefName = "GenericContext";
                 return;
             default: {
             }
@@ -440,6 +446,14 @@ static std::optional<DYN_GCTib> ConstructGCTib(TypeInfoBuilder& builder, Utils::
 
 static int64_t FakeWhereCond() { return -1; }
 
+static Engine::Term AcquireGenericContext(
+    Engine::Session& session, TypeInfoManager& manager, Utils::Span<Engine::Term> genericContext
+)
+{
+    Engine::TagTermId termId(Engine::TermKind::GENERIC_CONTEXT);
+    return Engine::TermManager::NewTermWithId(session, termId, true, genericContext);
+}
+
 // TODO: factory class, so it can hold state of other managers without recreating them.
 // TODO: split function to smaller ones.
 static std::optional<TypeInfo> CreateTypeInfoDyn(
@@ -551,7 +565,8 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         for (auto entry : mt->Entries()) {
             auto tm                  = GetTableMember(session, entry.method, entryIdx);
             builder.dataMT[entryIdx] = tm.handle;
-            funcDescs[entryIdx]      = FuncDesc { tm.function, entry.genericContext };
+            auto termOfOuterTI       = AcquireGenericContext(session, manager, entry.genericContext);
+            funcDescs[entryIdx]      = FuncDesc { tm.function, termOfOuterTI };
             entryIdx++;
         }
 
@@ -861,6 +876,7 @@ static bool QuerySubterms(
     Engine::Term term
 )
 {
+    typeInfos.Reserve(term.GetLength());
     bool allResolved = true;
     for (auto i = 0; i < term.GetLength(); i++) {
         auto subterm = term.Subterm(i);
@@ -1006,7 +1022,8 @@ std::optional<TypeInfo> CreateTypeInfo(Engine::Session& session, TypeInfoManager
             case Engine::TermKind::TUPLE:
             case Engine::TermKind::C_POINTER:
             case Engine::TermKind::VARRAY:
-            case Engine::TermKind::CANGJIE_ARRAY:  return CreateTypeInfoDyn(session, manager, term);
+            case Engine::TermKind::CANGJIE_ARRAY:
+            case Engine::TermKind::GENERIC_CONTEXT: return CreateTypeInfoDyn(session, manager, term);
 
             case Engine::TermKind::AOT_TYPE:
                 return QueryTypeInfoAOT(session, manager, GetAotTypeName(session, term), term);

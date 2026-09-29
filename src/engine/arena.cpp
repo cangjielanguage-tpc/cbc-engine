@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <cstdlib>
 #include <new>
+#include <type_traits>
 
 #include "arena.h"
 
@@ -70,6 +71,18 @@ void* Arena::Allocate(size_t bytes, size_t alignment)
 }
 
 void Arena::Free(void* memory, size_t bytes, size_t alignment) {}
+
+template <typename T> Utils::Span<T> Arena::Copy(Utils::Span<T> span)
+{
+    static_assert(std::is_trivially_destructible_v<T>, "T must not have a destructor (or it must be empty)");
+
+    auto size = span.Size();
+    T* memory = reinterpret_cast<T>(Allocate(sizeof(T), alignof(T)));
+    for (size_t i = 0; i < size; i++) {
+        new (memory + i) T(span[i]);
+    }
+    return Utils::Span<T>(memory, size);
+}
 
 Arena::~Arena()
 {
