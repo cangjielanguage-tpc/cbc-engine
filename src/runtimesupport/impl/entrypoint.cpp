@@ -152,7 +152,7 @@ static void PerformPatching()
             };
 
             // Set patched flag
-            auto& deps = engine.Dependencies().at(file.Id());
+            auto& deps = engine.Dependencies().At(file.Id());
             auto flag  = deps.FindSymbol(patchFlagName);
             if (flag == nullptr) {
                 LOG_ERROR(RTSupport::Log::rt, "patching flag field not found {}", patchFlagName);

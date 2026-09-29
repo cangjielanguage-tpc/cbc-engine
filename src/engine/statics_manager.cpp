@@ -146,7 +146,7 @@ StaticFieldsBundle StaticsManager::CreateBundle(Session& session, TypeIdent type
                 auto size     = flm->GetFlatSize(fterm);
                 auto alignedSize = MathUtils::AlignUp(size.value(), RECORD_ALIGNMENT); // FIXME: size can be absent
                 auto offset      = recordsSize;
-                recordOffsets.push_back(offset);
+                recordOffsets.PushBack(offset);
                 flm->FillRefOffsets(fterm, refOffsetInRecords, offset);
                 recordsSize += alignedSize;
 
@@ -162,8 +162,8 @@ StaticFieldsBundle StaticsManager::CreateBundle(Session& session, TypeIdent type
     size_t totalSize = primFieldsNum * 8 + refFieldsNum * 8 + recordsSize;
 
     std::unique_ptr<char[]> memory = std::make_unique<char[]>(totalSize);
-    std::unique_ptr<uint32_t[]> recOffsets = std::make_unique<uint32_t[]>(recordOffsets.size());
-    std::unique_ptr<uint32_t[]> refOffsets = std::make_unique<uint32_t[]>(refOffsetInRecords.size());
+    std::unique_ptr<uint32_t[]> recOffsets = std::make_unique<uint32_t[]>(recordOffsets.Size());
+    std::unique_ptr<uint32_t[]> refOffsets = std::make_unique<uint32_t[]>(refOffsetInRecords.Size());
 
     if (!memory || !recOffsets || !refOffsets) { // TODO: use nothrow versions of make_unique
         FATAL("Out of memory (SFB)");
@@ -176,10 +176,10 @@ StaticFieldsBundle StaticsManager::CreateBundle(Session& session, TypeIdent type
     uintptr_t refs       = primitives + primFieldsNum * 8;
     uintptr_t records    = refs + refFieldsNum * 8;
 
-    for (int i = 0; i < recordOffsets.size(); i++) {
+    for (int i = 0; i < recordOffsets.Size(); i++) {
         recOffsets[i] = recordOffsets[i];
     }
-    for (int i = 0; i < refOffsetInRecords.size(); i++) {
+    for (int i = 0; i < refOffsetInRecords.Size(); i++) {
         refOffsets[i] = refOffsetInRecords[i];
     }
 
@@ -192,7 +192,7 @@ StaticFieldsBundle StaticsManager::CreateBundle(Session& session, TypeIdent type
     });
 
     return StaticFieldsBundle(
-        refs, primitives, records, std::move(memory), std::move(recOffsets), std::move(refOffsets), refFieldsNum, refOffsetInRecords.size()
+        refs, primitives, records, std::move(memory), std::move(recOffsets), std::move(refOffsets), refFieldsNum, refOffsetInRecords.Size()
     );
 }
 

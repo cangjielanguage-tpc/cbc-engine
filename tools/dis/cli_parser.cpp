@@ -14,9 +14,9 @@ using namespace std;
 CliParser::CliParser(int argc, char* argv[], OptionsMap options) : opts(options)
 {
     assert(argc > 0);
-    args.reserve(argc);
+    args.Reserve(argc);
     for (size_t i = 1; i < argc; i++) {
-        args.push_back(argv[i]);
+        args.PushBack(argv[i]);
     }
 }
 
@@ -64,12 +64,12 @@ void CliParser::ParseOption(string_view sv, DisasmerBuilder& builder)
 Dis::Disasmer CliParser::CreateDisasmer(Stream::Output& out)
 
 {
-    if (args.empty()) {
+    if (args.Empty()) {
         Help();
         exit(0);
     }
 
-    auto builder = DisasmerBuilder(out, args.size());
+    auto builder = DisasmerBuilder(out, args.Size());
     for (auto arg : args) {
         if (isOption(arg)) {
             ParseOption(arg, builder);

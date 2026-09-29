@@ -201,7 +201,7 @@ struct FLManager : public FieldLayoutManager {
     void FillRefOffsets(Term term, Utils::Vector<uint32_t>& offsets, uint32_t disp) override
     {
         if (term.IsReference()) {
-            offsets.push_back(disp);
+            offsets.PushBack(disp);
             return;
         }
         if (term.IsGeneric()) {
@@ -216,12 +216,12 @@ struct FLManager : public FieldLayoutManager {
                 }
                 Utils::Vector<uint32_t> elementOffsets;
                 FillRefOffsets(elem, elementOffsets, 0);
-                if (elementOffsets.empty()) {
+                if (elementOffsets.Empty()) {
                     return;
                 }
                 for (uint32_t i = 0; i < VArrayTermId(term).GetNum(); ++i) {
                     for (auto offset : elementOffsets) {
-                        offsets.push_back(disp + i * *elemSize + offset);
+                        offsets.PushBack(disp + i * *elemSize + offset);
                     }
                 }
                 return;
@@ -232,7 +232,7 @@ struct FLManager : public FieldLayoutManager {
                     return;
                 }
 
-                auto visitOffset = [&offsets, disp](uint32_t offset) { offsets.push_back(offset + disp); };
+                auto visitOffset = [&offsets, disp](uint32_t offset) { offsets.PushBack(offset + disp); };
                 typeInfo->VisitReferenceOffsets(visitOffset);
                 return;
             }
@@ -296,7 +296,7 @@ private:
         )
         {
             auto offset = AddField(manager->GetFlatSize(type), manager->GetFlatAlignment(type));
-            entries.emplace_back(FieldLayout::Entry { .definition = fdef, .fieldType = type, .offset = offset });
+            entries.EmplaceBack(FieldLayout::Entry { .definition = fdef, .fieldType = type, .offset = offset });
         }
 
         std::optional<uint32_t> AddField(std::optional<uint32_t> fieldSize, uint8_t fieldAlignment)
@@ -441,13 +441,13 @@ private:
             layout.desc.size      = std::nullopt;
             layout.desc.alignment = MAX_ALIGN;
 
-            size_t ordinal = layout.fields.size();
+            size_t ordinal = layout.fields.Size();
             for (auto fieldId : Reader::Resolve(session, def.GetInstanceFields())) {
                 auto def       = Decode::Read(session, fieldId);
                 auto fieldType = TermManager::Resolve(session, def.FieldType());
                 fieldType      = substitute(fieldType);
 
-                layout.fields.emplace_back(FieldLayout::Entry {
+                layout.fields.EmplaceBack(FieldLayout::Entry {
                     .definition = fieldId, .fieldType = fieldType, .offset = std::nullopt });
                 ordinal++;
             }
@@ -461,7 +461,7 @@ private:
             return std::nullopt;
         }
 
-        size_t ordinal = layout.fields.size();
+        size_t ordinal = layout.fields.Size();
         for (auto fieldId : Reader::Resolve(session, def.GetInstanceFields())) {
             auto def = Decode::Read(session, fieldId);
             // FIXME: substitution
@@ -469,7 +469,7 @@ private:
             fieldType      = substitute(fieldType);
 
             auto offset = RTSupport::Execution::GetFieldOffset(*typeInfo, ordinal, false);
-            layout.fields.emplace_back(FieldLayout::Entry {
+            layout.fields.EmplaceBack(FieldLayout::Entry {
                 .definition = fieldId, .fieldType = fieldType, .offset = offset });
             ordinal++;
         }

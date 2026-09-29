@@ -30,24 +30,24 @@ public:
 
     ~Vector()
     {
-        clear();
+        Clear();
         ::free(data_);
     }
 
-    explicit Vector(size_t size) : Vector() { reserve(size); }
+    explicit Vector(size_t size) : Vector() { Reserve(size); }
 
     Vector(std::initializer_list<T> list) : Vector()
     {
-        reserve(list.size());
+        Reserve(list.size());
         for (auto const& v : list) {
-            push_back(v);
+            PushBack(v);
         }
     }
 
-    Vector(Vector const& other) : Vector(other.size())
+    Vector(Vector const& other) : Vector(other.Size())
     {
         for (auto const& v : other) {
-            push_back(v);
+            PushBack(v);
         }
     }
 
@@ -63,7 +63,7 @@ public:
     Vector& operator=(Vector&& other) noexcept
     {
         if (this != &other) {
-            clear();
+            Clear();
             ::free(data_);
             data_           = other.data_;
             size_           = other.size_;
@@ -77,10 +77,10 @@ public:
 
     Vector& operator=(Vector const& other)
     {
-        clear();
-        reserve(other.size());
+        Clear();
+        Reserve(other.Size());
         for (auto const& v : other) {
-            push_back(v);
+            PushBack(v);
         }
         return *this;
     }
@@ -104,36 +104,36 @@ public:
     const T& operator[](size_t index) const noexcept { return data_[index]; }
 
     // No-exception bounds-checked access
-    T& at(size_t index)
+    T& At(size_t index)
     {
         if (index >= size_) {
-            assert(false && "Vector::at index out of bounds");
+            assert(false && "Vector::At index out of bounds");
             ::abort(); // Immediate termination instead of std::out_of_range exception
         }
         return data_[index];
     }
 
-    const T& at(size_t index) const
+    const T& At(size_t index) const
     {
         if (index >= size_) {
-            assert(false && "Vector::at index out of bounds");
+            assert(false && "Vector::At index out of bounds");
             ::abort();
         }
         return data_[index];
     }
 
-    T* data() noexcept { return data_; }
+    T* Data() noexcept { return data_; }
 
-    const T* data() const noexcept { return data_; }
+    const T* Data() const noexcept { return data_; }
 
     // --- Capacity ---
-    size_t size() const noexcept { return size_; }
+    size_t Size() const noexcept { return size_; }
 
-    size_t capacity() const noexcept { return capacity_; }
+    size_t Capacity() const noexcept { return capacity_; }
 
-    bool empty() const noexcept { return size_ == 0; }
+    bool Empty() const noexcept { return size_ == 0; }
 
-    void resize(size_t count)
+    void Resize(size_t count)
     {
         if (count < size_) {
             // Shrinking: Destroy excess elements
@@ -146,7 +146,7 @@ public:
         } else if (count > size_) {
             // Growing: Ensure capacity and value-initialize new elements
             if (count > capacity_) {
-                reserve(count);
+                Reserve(count);
             }
             for (size_t i = size_; i < count; ++i) {
                 new (data_ + i) T(); // Placement new default constructor
@@ -155,7 +155,7 @@ public:
         }
     }
 
-    void resize(size_t count, const T& value)
+    void Resize(size_t count, const T& value)
     {
         if (count < size_) {
             if constexpr (!__is_trivially_destructible(T)) {
@@ -166,7 +166,7 @@ public:
             size_ = count;
         } else if (count > size_) {
             if (count > capacity_) {
-                reserve(count);
+                Reserve(count);
             }
             for (size_t i = size_; i < count; ++i) {
                 new (data_ + i) T(value); // Placement new copy constructor
@@ -175,7 +175,7 @@ public:
         }
     }
 
-    void reserve(size_t new_cap)
+    void Reserve(size_t new_cap)
     {
         if (new_cap <= capacity_)
             return;
@@ -202,32 +202,32 @@ public:
     }
 
     // --- Modifiers ---
-    void push_back(const T& val)
+    void PushBack(const T& val)
     {
         if (size_ == capacity_)
-            reserve(capacity_ == 0 ? 4 : capacity_ * 2);
+            Reserve(capacity_ == 0 ? 4 : capacity_ * 2);
         new (data_ + size_) T(val);
         ++size_;
     }
 
-    void push_back(T&& val)
+    void PushBack(T&& val)
     {
         if (size_ == capacity_)
-            reserve(capacity_ == 0 ? 4 : capacity_ * 2);
+            Reserve(capacity_ == 0 ? 4 : capacity_ * 2);
         new (data_ + size_) T(std::move(val));
         ++size_;
     }
 
-    template <typename... Args> T& emplace_back(Args&&... args)
+    template <typename... Args> T& EmplaceBack(Args&&... args)
     {
         if (size_ == capacity_)
-            reserve(capacity_ == 0 ? 4 : capacity_ * 2);
+            Reserve(capacity_ == 0 ? 4 : capacity_ * 2);
         T* ptr = new (data_ + size_) T(std::forward<Args>(args)...);
         ++size_;
         return *ptr;
     }
 
-    void pop_back()
+    void PopBack()
     {
         if (size_ > 0) {
             --size_;
@@ -237,7 +237,7 @@ public:
         }
     }
 
-    void clear() noexcept
+    void Clear() noexcept
     {
         if constexpr (!__is_trivially_destructible(T)) {
             for (size_t i = 0; i < size_; ++i) {
@@ -247,27 +247,27 @@ public:
         size_ = 0;
     }
 
-    T& back() noexcept
+    T& Back() noexcept
     {
-        assert(size_ > 0 && "Utils::Vector::back called on empty vector");
+        assert(size_ > 0 && "Utils::Vector::Back called on empty vector");
         return data_[size_ - 1];
     }
 
-    const T& back() const noexcept
+    const T& Back() const noexcept
     {
-        assert(size_ > 0 && "Utils::Vector::back called on empty vector");
+        assert(size_ > 0 && "Utils::Vector::Back called on empty vector");
         return data_[size_ - 1];
     }
 
-    T& front() noexcept
+    T& Front() noexcept
     {
-        assert(size_ > 0 && "Utils::Vector::front called on empty vector");
+        assert(size_ > 0 && "Utils::Vector::Front called on empty vector");
         return data_[0];
     }
 
-    const T& front() const noexcept
+    const T& Front() const noexcept
     {
-        assert(size_ > 0 && "Utils::Vector::front called on empty vector");
+        assert(size_ > 0 && "Utils::Vector::Front called on empty vector");
         return data_[0];
     }
 };

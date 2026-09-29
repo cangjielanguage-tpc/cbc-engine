@@ -131,7 +131,7 @@ void ParseKeyVal(Utils::Vector<KeyVal>& parsedOpts, std::string_view kv)
     if (eqPos != std::string::npos && eqPos + 1 < kv.size()) {
         auto key = kv.substr(0, eqPos);
         auto val = kv.substr(eqPos + 1);
-        parsedOpts.emplace_back(KeyVal { key, val, kv });
+        parsedOpts.EmplaceBack(KeyVal { key, val, kv });
     } else {
         PrintError("invalid option format", kv);
     }

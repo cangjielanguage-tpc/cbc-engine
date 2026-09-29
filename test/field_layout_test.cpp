@@ -38,8 +38,8 @@ Engine::Term MakeTuple(Engine::Session& session)
     auto& terms    = Engine::TermManager::Of(session);
     auto reference = terms.NewAotTerm(session, "test.Reference", {}, true);
     Utils::Vector<Engine::Term> subterms;
-    subterms.push_back(Engine::Term::Predefined(Engine::TermKind::I32));
-    subterms.push_back(reference);
+    subterms.PushBack(Engine::Term::Predefined(Engine::TermKind::I32));
+    subterms.PushBack(reference);
     return terms.NewTermWithId(
         session,
         Engine::TagTermId(Engine::TermKind::TUPLE),
@@ -66,7 +66,7 @@ TEST(FieldLayoutTest, TupleUsesTypeInfoAlignment)
     ASSERT_TRUE(content->desc.size.has_value());
     EXPECT_EQ(content->desc.size.value(), 16u);
     EXPECT_EQ(content->desc.alignment, 8u);
-    ASSERT_EQ(content->fields.size(), 2u);
+    ASSERT_EQ(content->fields.Size(), 2u);
     EXPECT_EQ(content->fields[0].offset, 0u);
     EXPECT_EQ(content->fields[1].offset, 8u);
 }
@@ -83,7 +83,7 @@ TEST(FieldLayoutTest, TupleReferenceOffsetsIncludeContainingDisplacement)
     Utils::Vector<uint32_t> referenceOffsets;
     layouts->FillRefOffsets(tuple, referenceOffsets, 8);
 
-    ASSERT_EQ(referenceOffsets.size(), 1u);
+    ASSERT_EQ(referenceOffsets.Size(), 1u);
     EXPECT_EQ(referenceOffsets[0], 16u);
 }
 

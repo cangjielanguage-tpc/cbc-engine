@@ -45,16 +45,16 @@ MethodTable::Range MethodTable::Interfaces() const
     return Iterators::MakeRange(MethodTable::SubTableGenerator {
         .table     = *this,
         .subtables = interfaceTables,
-        .disp      = static_cast<int>(classTables.size()),
+        .disp      = static_cast<int>(classTables.Size()),
         .cursor    = 0,
     });
 }
 
-int MethodTable::ClassCount() const { return classTables.size(); }
+int MethodTable::ClassCount() const { return classTables.Size(); }
 
-int MethodTable::InterfaceCount() const { return interfaceTables.size(); }
+int MethodTable::InterfaceCount() const { return interfaceTables.Size(); }
 
-int MethodTable::EntryCount() const { return allEntries.size(); }
+int MethodTable::EntryCount() const { return allEntries.Size(); }
 
 void MethodTable::Globalize(Session& session)
 {
@@ -110,14 +110,14 @@ void MethodTable::ResolveAll(Session& session, Reference const& reference, Utils
     for (auto st : Classes()) {
         for (auto entry : st.Entries()) {
             if (Compare(session, reference, entry)) {
-                buffer.push_back(entry);
+                buffer.PushBack(entry);
             }
         }
     }
     for (auto st : Interfaces()) {
         for (auto entry : st.Entries()) {
             if (Compare(session, reference, entry)) {
-                buffer.push_back(entry);
+                buffer.PushBack(entry);
             }
         }
     }
@@ -127,7 +127,7 @@ void MethodTable::ResolveAll(Session& session, Reference const& reference, Utils
 
 std::optional<MethodSubTable> MethodTable::SubTableGenerator::operator()()
 {
-    if (cursor < subtables.size()) {
+    if (cursor < subtables.Size()) {
         auto cursor = this->cursor++;
         auto& st    = subtables[cursor];
         return MethodSubTable(table, st.genericContext, st.start, st.end, cursor + disp);
@@ -203,15 +203,15 @@ struct MethodTableBuilder {
 
         auto interfTable = *optInterfTable;
 
-        ASSERTION(interfTable->classTables.empty(), "interface tables should not have class table");
+        ASSERTION(interfTable->classTables.Empty(), "interface tables should not have class table");
 
         auto oldEntryCount = table.EntryCount();
         for (auto& e : interfTable->allEntries) {
-            table.allEntries.push_back(e);
+            table.allEntries.PushBack(e);
         }
 
         for (auto st : interfTable->interfaceTables) {
-            table.interfaceTables.emplace_back(MethodTable::SubTable {
+            table.interfaceTables.EmplaceBack(MethodTable::SubTable {
                 .genericContext = st.genericContext,
                 .start          = st.start + oldEntryCount,
                 .end            = st.end + oldEntryCount,
@@ -237,7 +237,7 @@ struct MethodTableBuilder {
 
                 if (completeMatch) {
                     ASSERTION(
-                        matcher.vars.size() == ext->arity,
+                        matcher.vars.Size() == ext->arity,
                         "Language constraint: all variables in `extend` should be used in the extended type"
                     );
 
@@ -283,15 +283,15 @@ struct MethodTableBuilder {
         // TODO: Do not override protected methods that are not visible from the current type.
         table.ResolveAll(session, ref, entryBuffer);
 
-        if (entryBuffer.empty()) {
+        if (entryBuffer.Empty()) {
             // 3.2 add newly declared methods
-            table.allEntries.emplace_back(newEntry);
+            table.allEntries.EmplaceBack(newEntry);
         } else {
             // 3.1 patch overriden methods
             for (auto& entry : entryBuffer) {
                 table.allEntries[entry.flatMethodNum] = newEntry;
             }
-            entryBuffer.clear();
+            entryBuffer.Clear();
         }
     }
 };
@@ -349,7 +349,7 @@ std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, Glob
     // 3.3 add new subtable for current type (even if new methods were not added)
     auto tables = flags.Is(TypeKind::INTERFACE) ? &builder.table.interfaceTables : &builder.table.classTables;
 
-    tables->emplace_back(MethodTable::SubTable {
+    tables->EmplaceBack(MethodTable::SubTable {
         .genericContext = thisType,
         .start          = oldEntryCount,
         .end            = builder.table.EntryCount(),
