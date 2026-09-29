@@ -64,7 +64,7 @@
     X(Scc32, Scc<Width::W32>)                                                                                          \
     X(Scc64, Scc<Width::W64>)                                                                                          \
     X(SccImm32, SccImm<Width::W32>)                                                                                    \
-    X(SccImm64, SccImm<Width::W32>)                                                                                    \
+    X(SccImm64, SccImm<Width::W64>)                                                                                    \
     X(InstanceOf, InstanceOf)                                                                                          \
     X(LoadTypeInfoObj, LoadTypeInfoObj)                                                                                \
     X(RegSymGroup, RegSymGroup)                                                                                        \
