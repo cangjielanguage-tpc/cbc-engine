@@ -98,6 +98,12 @@ struct PreparationResult {
     }
 };
 
+enum class Helper {
+    ThrowAbstractMethodCallError,
+    ThrowSymbolResolutionError,
+    Count,
+};
+
 class FunctionHandleManager {
 public:
     static FunctionHandleManager& Of(Engine::Engine& engine);
@@ -113,6 +119,10 @@ public:
     /// Performs lazy initialization of a DynamicFunctionHandle.
     PreparationResult Prepare(Engine::Session& session, DynamicFunctionHandle* fuh);
 
+    DynamicFunctionHandle* GetHelper(Helper helper);
+
+    void FindAndPrepareHelpers(Engine::Session& session);
+
     // Acquires a function pointer that could be invoked from compiled code
     // to invoke the method referenced by `fuh`.
     //
@@ -122,11 +132,11 @@ public:
     // This function returns trampoline that is needed for direct call, usually for main method.
     void* GetFunctionPtrForDirectCall(TaggedFunctionHandle fuh);
 
-    void FindAndPrepareHelpers(Engine::Session& session);
-
 private:
     class Impl;
     friend class Impl;
+
+    void SetHelper(Helper helper, DynamicFunctionHandle* handle);
 
     std::unique_ptr<Impl> impl;
 };
