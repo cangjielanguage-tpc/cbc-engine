@@ -149,26 +149,6 @@
     X(SBinImm64, SBinImmGeneric<Width::W64>)                                                                           \
     X(_END, Unreachable)
 
-#define ISA_MEM_OPCODES(X)                                                                                             \
-    X(Field1, MemBodyField1)                                                                                           \
-    X(Field2, MemBodyField2)                                                                                           \
-    X(Field3, MemBodyField3)                                                                                           \
-    X(Field4, MemBodyField4)                                                                                           \
-    X(Index, MemBodyIndex)                                                                                             \
-    X(Load, MemTailLoad)                                                                                               \
-    X(Store, MemTailStore)                                                                                             \
-    X(StoreImm, MemTailStoreImm)                                                                                       \
-    X(CopyRegTo, MemTailCopyRegTo)                                                                                     \
-    X(CopyRegFrom, MemTailCopyRegFrom)                                                                                 \
-    X(ConstIndex, MemBodyConstIndex)                                                                                   \
-    X(FieldGeneric, MemBodyFieldGeneric)                                                                               \
-    X(ConstIndexGeneric, MemBodyConstIndexGeneric)                                                                     \
-    X(IndexGeneric, MemBodyIndexGeneric)                                                                               \
-    X(LoadGeneric, MemTailLoadGeneric)                                                                                 \
-    X(StoreGeneric, MemTailStoreGeneric)                                                                               \
-    X(Offset, MemBodyOffset)                                                                                           \
-    X(_END, UnreachableMem)
-
 #define ISA_REG_SYM_GROUP_OPCODES(X)                                                                                   \
     X(LoadTypeInfoSig)                                                                                                 \
     X(LoadTypeInfoGeneric)                                                                                             \

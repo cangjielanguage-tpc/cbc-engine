@@ -18,6 +18,7 @@
 #include "runtimesupport/typeinfo_factory.h"
 #include "utils/assertion.h"
 #include "utils/logger.h"
+#include "utils/math.h"
 
 static constexpr int HEAP_SIZE = 16384;
 static LimitedHeap<HEAP_SIZE> heap;
@@ -423,6 +424,16 @@ void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* f
 const char* MetaInfo::GetName(TypeInfo ti) { return "<unknown>"; }
 
 uint32_t MetaInfo::GetTypeSize(TypeInfo ti) { return Interpretation::Extract(ti)->size; }
+
+uint32_t MetaInfo::GetAlignedSize(TypeInfo ti)
+{
+    if (IsReferenceType(ti)) {
+        return sizeof(void*);
+    }
+    auto size      = GetTypeSize(ti);
+    auto alignment = GetAlign(ti);
+    return alignment != 0 ? MathUtils::AlignUp(size, alignment) : size;
+}
 
 uint8_t MetaInfo::GetAlign(TypeInfo ti) { return Interpretation::Extract(ti)->alignment; }
 
