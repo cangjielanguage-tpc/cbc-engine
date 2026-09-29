@@ -141,7 +141,10 @@ struct IsaDisasm : public IsaParser {
         );
     }
 
-    void MovBasePtr(IReg dst, bool local) override { stream.PrintLn("mov.base.{}", local ? ".local" : ".global", dst); }
+    void MovBasePtr(IReg dst, bool local) override
+    {
+        stream.PrintLn("mov.base{} {}", local ? ".local" : ".global", dst);
+    }
 
     void BFX(IReg dst, IReg src, Format::Width resW, Format::Width argW, bool sx, uint8_t offset, uint8_t size) override
     {
@@ -260,7 +263,7 @@ struct IsaDisasm : public IsaParser {
 
     void AtomicFetchOr(IReg dst, IReg obj, IReg src, uint32_t fieldId) override
     {
-        stream.PrintLn("atomic.fetch.and {}, {}, [{} @{}]", dst, src, obj, fieldId);
+        stream.PrintLn("atomic.fetch.or {}, {}, [{} @{}]", dst, src, obj, fieldId);
     }
 
     void AtomicFetchXor(IReg dst, IReg obj, IReg src, uint32_t fieldId) override
@@ -300,12 +303,12 @@ struct IsaDisasm : public IsaParser {
     void Scc(Format::Width width, Format::CC cc, IReg d, AnyReg l, AnyReg r) override
     {
         auto fp = cc.IsFloatingPoint();
-        stream.PrintLn("scc.{} {}, {}, {}, {}, {}", width, cc, d, Fmt(l, fp), Fmt(r, fp));
+        stream.PrintLn("scc.{} {}, {}, {}, {}", width, cc, d, Fmt(l, fp), Fmt(r, fp));
     }
 
     void SccImm(Format::Width width, Format::CC cc, IReg d, IReg l, uint64_t imm) override
     {
-        stream.PrintLn("scci.{} {}, {}, {}, {}, {}", width, cc, d, l, imm);
+        stream.PrintLn("scci.{} {}, {}, {}, {}", width, cc, d, l, imm);
     }
 
     void Ret(Format::Width width, IReg src) override { stream.PrintLn("ret.{} {}", width, src); }
