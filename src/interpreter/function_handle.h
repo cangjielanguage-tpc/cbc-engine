@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <memory>
 #include <mutex>
+#include <string_view>
 #include <variant>
 
 #include "code.h"
@@ -121,7 +122,7 @@ public:
 
     DynamicFunctionHandle* GetHelper(Helper helper);
 
-    void FindAndPrepareHelpers(Engine::Session& session);
+    void FindAndPrepareHelpers(Engine::Session& session, std::string_view mainCbc);
 
     // Acquires a function pointer that could be invoked from compiled code
     // to invoke the method referenced by `fuh`.

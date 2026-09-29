@@ -68,11 +68,10 @@ DynamicFunctionHandle* FunctionHandleManager::GetHelper(Helper helper)
 }
 
 static DynamicFunctionHandle* FindAndPrepareHelper(
-    Session& session, FunctionHandleManager& fhm, std::string_view methodName
+    Session& session, FunctionHandleManager& fhm, std::string_view methodName, std::string_view fileName
 )
 {
     // FIXME: change this to intrinsics.cbc in future iterations
-    auto fileName = "default.cbc";
     auto typeName = "$P$cbc_intrinsics";
     UNWRAP_OPT_NORETURN(method, session.GetEngine().FindMethod(session, fileName, typeName, methodName), [&]() {
         HelperWasNotFound(methodName);
@@ -91,10 +90,10 @@ static DynamicFunctionHandle* FindAndPrepareHelper(
     }
 }
 
-void FunctionHandleManager::FindAndPrepareHelpers(Session& session)
+void FunctionHandleManager::FindAndPrepareHelpers(Session& session, std::string_view mainCbc)
 {
     for (const auto& [helper, methodName] : helperNames) {
-        auto fuh = FindAndPrepareHelper(session, *this, methodName);
+        auto fuh = FindAndPrepareHelper(session, *this, methodName, mainCbc);
         SetHelper(helper, fuh);
     }
 }

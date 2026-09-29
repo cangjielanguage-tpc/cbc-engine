@@ -302,7 +302,7 @@ CBC_EXPORT void* engine_get_entrypoint_trampoline(void)
     }
     auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
 
-    fuhManager.FindAndPrepareHelpers(session);
+    fuhManager.FindAndPrepareHelpers(session, g_mainCbc);
 
     auto fuh = fuhManager.AcquireTagged(session, main.value());
     return fuhManager.GetFunctionPtrForDirectCall(fuh);
