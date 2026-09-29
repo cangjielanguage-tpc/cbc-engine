@@ -62,6 +62,7 @@ public:
 
     std::vector<Image::CbcFile> const& Files() const;
     std::vector<Dependencies> const& Dependencies() const;
+    std::vector<class Dependencies> const& ForeignLibs() const;
 
 private:
     Engine(std::unique_ptr<Impl>&& impl);
