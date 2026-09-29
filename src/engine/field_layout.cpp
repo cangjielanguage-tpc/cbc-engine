@@ -113,6 +113,15 @@ struct FLManager : public FieldLayoutManager {
 
             case TK::AOT_TYPE: return GetAotFlatSize(term);
 
+            case TK::VARRAY: {
+                auto elemSize = GetAlignedFlatSize(term.Subterm(0));
+                if (!elemSize.has_value()) {
+                    return std::nullopt;
+                }
+                auto length = VArrayTermId(term).GetNum();
+                return elemSize.value() * length;
+            }
+
             case TK::FUNC_TYPE_VAR:
             case TK::CLASS_TYPE_VAR: return std::nullopt;
 
@@ -150,6 +159,7 @@ struct FLManager : public FieldLayoutManager {
                 }
                 return MAX_ALIGN;
             }
+            case TermKind::VARRAY:   return GetFlatAlignment(term.Subterm(0));
             case TermKind::AOT_TYPE: {
                 auto ti = typeInfoManager.AcquireTypeInfo(session, term);
                 if (!ti.has_value()) {
@@ -178,6 +188,16 @@ struct FLManager : public FieldLayoutManager {
         }
     }
 
+    std::optional<uint32_t> GetAlignedFlatSize(Term term) override
+    {
+        auto size = GetFlatSize(term);
+        if (!size.has_value()) {
+            return std::nullopt;
+        }
+        auto alignment = GetFlatAlignment(term);
+        return alignment != 0 ? MathUtils::AlignUp(size.value(), alignment) : size.value();
+    }
+
     void FillRefOffsets(Term term, std::vector<uint32_t>& offsets, uint32_t disp) override
     {
         if (term.IsReference()) {
@@ -188,6 +208,24 @@ struct FLManager : public FieldLayoutManager {
             ASSERT(term.Flags().isFixedSize);
         }
         switch (term.GetKind()) {
+            case TermKind::VARRAY: {
+                auto elem     = term.Subterm(0);
+                auto elemSize = GetAlignedFlatSize(elem);
+                if (!elemSize.has_value()) {
+                    return;
+                }
+                std::vector<uint32_t> elementOffsets;
+                FillRefOffsets(elem, elementOffsets, 0);
+                if (elementOffsets.empty()) {
+                    return;
+                }
+                for (uint32_t i = 0; i < VArrayTermId(term).GetNum(); ++i) {
+                    for (auto offset : elementOffsets) {
+                        offsets.push_back(disp + i * *elemSize + offset);
+                    }
+                }
+                return;
+            }
             case TermKind::AOT_TYPE: {
                 auto typeInfo = typeInfoManager.AcquireTypeInfo(session, term);
                 if (!typeInfo.has_value()) {
@@ -295,6 +333,11 @@ private:
         if (kind == TermKind::TYPE) {
             auto def = Decode::Read(session, ExtractTypeDefIdentifier(term));
             layout   = BuildLayoutCbc(term, def);
+        } else if (kind == TermKind::VARRAY) {
+            FieldLayout::Content content;
+            content.desc.alignment = GetFlatAlignment(term.Subterm(0));
+            content.desc.size      = GetFlatSize(term);
+            layout                 = std::move(content);
         } else if (kind == TermKind::TUPLE) {
             SizeAlignmentAccumulator acc { this, 0, 1 };
             FieldLayout::Content content;

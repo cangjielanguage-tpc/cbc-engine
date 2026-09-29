@@ -14,6 +14,7 @@
 #include "runtimesupport/impl/rt_syms.h"
 #include "runtimesupport/impl/typeinfo_ext.h"
 #include "utils/assertion.h"
+#include "utils/math.h"
 #include <cstddef>
 #include <cstdint>
 
@@ -351,6 +352,16 @@ uint32_t MetaInfo::GetTypeSize(TypeInfo ti)
 {
     auto mrtti = UnpackTypeInfo(ti);
     return mrtti->instanceSize;
+}
+
+uint32_t MetaInfo::GetAlignedSize(TypeInfo ti)
+{
+    if (IsReferenceType(ti)) {
+        return sizeof(void*);
+    }
+    auto size      = GetTypeSize(ti);
+    auto alignment = GetAlign(ti);
+    return alignment != 0 ? MathUtils::AlignUp(size, alignment) : size;
 }
 
 uint8_t MetaInfo::GetAlign(TypeInfo ti)

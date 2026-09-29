@@ -366,8 +366,9 @@ struct ResolverProxy {
                 auto fieldIdx = std::get<uint32_t>(ref.nameOrIdx);
                 TermKind kind = refTypeTerm.GetKind();
                 switch (kind) {
+                    case TermKind::VARRAY:
                     case TermKind::TUPLE: {
-                        return ResolveTupleElement(resolver, resolver.Wrap(refTypeTerm), fieldIdx);
+                        return ResolveIndexedElement(resolver, resolver.Wrap(refTypeTerm), fieldIdx);
                     }
                     default: {
                         LOG_ERROR(log, "Invalid kind in const index reference: {}", (uint8_t)kind);
@@ -756,25 +757,46 @@ struct ResolverProxy {
         }
     }
 
-    static std::optional<InstanceField::Content> ResolveTupleElement(Resolver& resolver, Type refType, uint32_t idx)
+    static std::optional<InstanceField::Content> ResolveIndexedElement(Resolver& resolver, Type refType, uint32_t idx)
     {
         auto term = refType.term;
-        ASSERT(term.GetKind() == TermKind::TUPLE);
-        ASSERT(idx < term.GetLength());
-        auto optLayout = resolver.fieldManager->GetLayout(term);
-        if (!optLayout) {
-            return std::nullopt;
+        switch (term.GetKind()) {
+            case TermKind::TUPLE: {
+                ASSERT(idx < term.GetLength());
+                auto optLayout = resolver.fieldManager->GetLayout(term);
+                if (!optLayout) {
+                    return std::nullopt;
+                }
+                auto layout    = *optLayout;
+                auto offset    = layout->fields[idx].offset;
+                auto fieldType = Type(term.Subterm(idx), resolver);
+                return InstanceField::Content {
+                    .refType   = refType,
+                    .fieldType = fieldType,
+                    .ordinal   = idx,
+                    .offset    = offset,
+                    .name      = "<tuple>",
+                };
+            }
+            case TermKind::VARRAY: {
+                if (idx >= VArrayTermId(term).GetNum())
+                    return std::nullopt;
+                auto elemSize = resolver.fieldManager->GetAlignedFlatSize(term.Subterm(0));
+                if (!elemSize.has_value()) {
+                    return std::nullopt;
+                }
+                auto offset    = idx * elemSize.value();
+                auto fieldType = Type(term.Subterm(0), resolver);
+                return InstanceField::Content {
+                    .refType   = refType,
+                    .fieldType = fieldType,
+                    .ordinal   = idx,
+                    .offset    = offset,
+                    .name      = "<varray>",
+                };
+            }
+            default: FATAL("Unexpected kind %d", term.GetKind());
         }
-        auto layout    = *optLayout;
-        auto offset    = layout->fields[idx].offset;
-        auto fieldType = Type(term.Subterm(idx), resolver);
-        return InstanceField::Content {
-            .refType   = refType,
-            .fieldType = fieldType,
-            .ordinal   = idx,
-            .offset    = offset,
-            .name      = "<tuple>",
-        };
     }
 };
 
@@ -843,28 +865,21 @@ std::optional<StaticField> Resolver::Query(Index<StaticField> id)
     return std::nullopt;
 }
 
-std::optional<InstanceField> Resolver::QueryTupleElement(Type refType, uint32_t idx)
-{
-    if (auto opt = ResolverProxy::ResolveTupleElement(*this, refType, idx); opt.has_value()) {
-        auto res = session.Allocator().New<InstanceField::Content>(opt.value());
-        return InstanceField { res };
-    }
-    return std::nullopt;
-}
-
 std::optional<Type> Resolver::QueryElement(Type refType)
 {
     auto term = refType.term;
-    switch (term.GetKind()) {
-        case TermKind::CANGJIE_ARRAY: {
-            // case TermKind::VARRAY:
-            auto optTypeInfo = refType.GetTypeInfo();
-            if (!optTypeInfo.has_value()) {
-                return std::nullopt;
-            }
-            return Type(term.Subterm(0), this);
+    switch (term.GetKind())
+    {
+    case TermKind::VARRAY:
+    case TermKind::CANGJIE_ARRAY: {
+        auto optTypeInfo = refType.GetTypeInfo();
+        if (!optTypeInfo.has_value()) {
+            return std::nullopt;
         }
-        default: FATAL("Unexpected kind %d", term.GetKind());
+        return Type(term.Subterm(0), this);
+    }
+    default:
+        FATAL("Unexpected kind %d", term.GetKind());
     }
     return std::nullopt;
 }
