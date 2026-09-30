@@ -112,7 +112,7 @@ struct INT_InterpreterInterface;
 struct DYN_CJNativeInterface;
 
 #define INT_INTERPRETER_INTERFACE_VERSION 2
-#define DYN_CJNATIVE_INTERFACE_VERSION 5
+#define DYN_CJNATIVE_INTERFACE_VERSION 4
 
 // region interpreter interface
 
@@ -149,9 +149,8 @@ typedef void (*INT_IterateFramesWithStateFn)(
 // Provided visitors cannot be called directly by interpreter. Interpreter should pass visitor to the callbacks defined
 // in `DYN_CJNativeInterface` to process slots.
 typedef void (*INT_VisitFrameRootsExpansionFn)(DYN_VisitingState state, INT_FrameDesc frameDesc,
-    DYN_RootVisitor stackPtrVisitor, 
-    DYN_DerivedPtrVisitor derivedPtrVisitor,
-    DYN_RootVisitor refVisitor);
+    DYN_RootVisitor stackPtrVisitor,
+    DYN_DerivedPtrVisitor derivedPtrVisitor);
 
 // Visit frame roots (local variables) of interpreted code with marking visitor.
 // params:

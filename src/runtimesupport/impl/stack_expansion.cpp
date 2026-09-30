@@ -54,8 +54,7 @@ void VisitFrameRootsForStackPtrs(
     DYN_VisitingState state,
     INT_FrameDesc frameDesc,
     DYN_RootVisitor stackPtrVisitor,
-    DYN_DerivedPtrVisitor derivedPtrVisitor,
-    DYN_RootVisitor stackAllocVisitor
+    DYN_DerivedPtrVisitor derivedPtrVisitor
 )
 {
     using namespace RTSupport;
@@ -72,7 +71,6 @@ void VisitFrameRootsForStackPtrs(
     });
 
     auto visitRoot = [&stackPtrVisitor](Placeholder ph) { VisitRoot(stackPtrVisitor, ph); };
-    auto visitRef  = [&stackAllocVisitor](Placeholder ph) { VisitRoot(stackAllocVisitor, ph); };
 
     auto resLoc = [slotsStartAddr, regTable](uint32_t idx) {
         return GetResourceLocation(Resource { idx }, slotsStartAddr, regTable);
@@ -113,12 +111,6 @@ void VisitFrameRootsForStackPtrs(
         }
 
         for (uint32_t i = 0; i < IReg::COUNT; i++) {
-            if (abiInfo.referenceParams & (1 << i)) {
-                visitRef(resLoc(i));
-            }
-        }
-
-        for (uint32_t i = 0; i < IReg::COUNT; i++) {
             if (abiInfo.derivedPairs & (1 << i)) {
                 auto basePh    = resLoc(i + 1);
                 auto derivedPh = resLoc(i);
@@ -140,7 +132,6 @@ void VisitFrameRootsForStackPtrs(
                 auto derivedPh = GetResourceLocation(pair.second, slotsStartAddr, regTable);
 
                 VisitMutPair(derivedPtrVisitor, basePh, derivedPh);
-                visitRef(basePh);
             }
         }
 
@@ -149,8 +140,6 @@ void VisitFrameRootsForStackPtrs(
                 visitRoot(GetResourceLocation(resource, slotsStartAddr, regTable));
             }
         }
-
-        GCSupport::VisitGCFrameRoots(state, frameDesc, stackAllocVisitor);
     }
 }
 

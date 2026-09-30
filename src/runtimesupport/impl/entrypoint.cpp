@@ -231,13 +231,12 @@ static void VisitFrameRootsExpansion(
     DYN_VisitingState state,
     INT_FrameDesc frameDesc,
     DYN_RootVisitor stackPtrVisitor,
-    DYN_DerivedPtrVisitor derivedPtrVisitor,
-    DYN_RootVisitor stackAllocVisitor
+    DYN_DerivedPtrVisitor derivedPtrVisitor
 )
 {
     if (g_Initialized) {
         StackExpansion::VisitFrameRootsForStackPtrs(
-            state, frameDesc, stackPtrVisitor, derivedPtrVisitor, stackAllocVisitor
+            state, frameDesc, stackPtrVisitor, derivedPtrVisitor
         );
     }
 }
