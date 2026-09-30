@@ -276,25 +276,60 @@ struct IsaDisasm : public IsaParser {
 
     void NewObjGeneric(IReg ti, uint32_t typeId) override { stream.PrintLn("newobj.g {}, @{}", ti, typeId); }
 
-    void CallDirect(IReg dst, uint32_t method) override { stream.PrintLn("call.direct {}, @{}", dst, method); }
-
-    void CallVirtual(IReg dst, uint32_t method) override { stream.PrintLn("call.virtual {}, @{}", dst, method); }
-
-    void CallInterf(IReg dst, uint32_t method) override { stream.PrintLn("call.interf {}, @{}", dst, method); }
-
-    void CallInterfGeneric(uint16_t argnum, uint32_t method) override
+    static void PrintCallArgs(Stream::Output& stream, const std::vector<uint32_t>& args)
     {
-        stream.PrintLn("call.interf.g {}, @{}", argnum, method);
+        for (size_t i = 0; i < args.size(); i++) {
+            if (i > 0)
+                stream.Print(", ");
+            uint32_t v = args[i];
+            if (v <= 14) {
+                stream << IReg(IReg::Value(v - 1));
+            } else if (v <= 30) {
+                stream << FReg(FReg::Value(v - 15));
+            } else {
+                stream.Print("${}", v - 31);
+            }
+        }
+    }
+
+    void CallDirect(uint32_t method, std::vector<uint32_t> args) override
+    {
+        stream.PrintLn("call.direct @{}", method);
+        PrintCallArgs(stream, args);
+        stream.PrintLn("");
+    }
+
+    void CallVirtual(uint32_t method, std::vector<uint32_t> args) override
+    {
+        stream.PrintLn("call.virtual @{}", method);
+        PrintCallArgs(stream, args);
+        stream.PrintLn("");
+    }
+
+    void CallInterf(uint32_t method, std::vector<uint32_t> args) override
+    {
+        stream.PrintLn("call.interf @{}", method);
+        PrintCallArgs(stream, args);
+        stream.PrintLn("");
+    }
+
+    void CallInterfGeneric(uint16_t outerTi, uint32_t method, std::vector<uint32_t> args) override
+    {
+        stream.PrintLn("call.interf.g {}, @{}", outerTi, method);
+        PrintCallArgs(stream, args);
+        stream.PrintLn("");
     }
 
     void Spawn(IReg closure, uint32_t type) override { stream.PrintLn("spawn {}, @{}", closure, type); }
 
     void SpawnFuture(IReg future, uint32_t type) override { stream.PrintLn("spawn.future {}, @{}", future, type); }
 
-    void CallClosure(IReg dst, uint32_t type, bool generic) override
+    void CallClosure(uint32_t type, std::vector<uint32_t> args, bool generic) override
     {
         auto suffix = generic ? ".g" : "";
-        stream.PrintLn("call.closure{} {}, @{}", suffix, dst, type);
+        stream.PrintLn("call.closure{} @{}", suffix, type);
+        PrintCallArgs(stream, args);
+        stream.PrintLn("");
     }
 
     void Scc(Format::Width width, Format::CC cc, IReg d, AnyReg l, AnyReg r) override
@@ -638,14 +673,16 @@ struct IsaResolvingDisasm : IsaDisasm {
           resolver(resolver)
     {}
 
-    void CallVirtual(IReg dst, uint32_t methodId) override
+    void CallVirtual(uint32_t methodId, std::vector<uint32_t> args) override
     {
         auto m = resolver.Query(Index<VirtualCall>(methodId));
         if (!m.has_value()) {
             return;
         }
         auto method = m.value();
-        stream.PrintLn("call.virtual {}, {} ({}, {})", dst, method, method->extDefNum, method->methodNum);
+        stream.PrintLn("call.virtual {} ({}, {})", method, method->extDefNum, method->methodNum);
+        PrintCallArgs(stream, args);
+        stream.PrintLn("");
     }
 
     void NewObj(IReg dst, uint32_t type) override

@@ -1,4 +1,5 @@
 #include "isa_rewriter.h"
+#include "cbc/move_resolver.h"
 #include "cbc/emitter/emitter.h"
 #include "cbc/emitter/symbols.h"
 #include "cbc/formater_rt.h"
@@ -6,10 +7,8 @@
 #include "cbc/isa.h"
 #include "cbc/isa_disasm.h"
 #include "cbc/isa_parser.h"
-#include "engine/decode/decoder.h"
 #include "engine/engine.h"
 #include "engine/image/flags.h"
-#include "engine/image/reader.h"
 #include "engine/resolving_output.h"
 #include "engine/terms.h"
 #include "interpreter/code.h"
@@ -17,20 +16,19 @@
 #include "interpreter/interpretation_loop.h"
 #include "interpreter/literals.h"
 #include "interpreter/loggers.h"
+#include "interpreter/platform_traits.h"
 #include "offsets_index.h"
 #include "resolution/resolution.h"
 #include "runtimesupport/runtime.h"
 #include "utils/assertion.h"
 #include "utils/logger.h"
 #include "utils/math.h"
-#include "utils/misc.h"
 #include "utils/ostream.h"
 #include "utils/reinterpretation.h"
 
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <optional>
 #include <sys/types.h>
 #include <variant>
 #include <vector>
@@ -182,6 +180,7 @@ struct IsaRewriter : public IsaParser {
     MethodCode& code;
     Emitter::Emitter& emit;
     FrameLayout frameLayout;
+    MoveResolver moveResolver;
     size_t bytecodeSize;
     Stream::Output& errStream = Interpretation::Log::preparation.Stream(Logging::Level::ERROR);
 
@@ -1122,7 +1121,132 @@ struct IsaRewriter : public IsaParser {
 
     void NewObj(IReg dst, uint32_t typeId) override { NewObject(dst, typeId, New::Obj); }
 
-    void CallDirect(IReg dst, uint32_t methodId) override
+    // Decode an encoded call arg value into a Location.
+    // Encoded values: 1..14 → IReg, 15..30 → FReg, 31+ → untyped slot
+    static Location DecodeCallSource(uint32_t encoded)
+    {
+        return { (int) encoded - 1 };
+    }
+
+    void EmitAssignment(const Location& dst, const Location& src)
+    {
+        switch (dst.Kind()) {
+            case Location::IREG: {
+                auto reg = IReg(IReg::Value(dst.IRegIdx()));
+                switch (src.Kind()) {
+                    case Location::IREG: emit.Mov(reg, IReg(IReg::Value(src.IRegIdx()))); break;
+                    case Location::FREG: emit.Mov(reg, FReg(FReg::Value(src.FRegIdx()))); break;
+                    case Location::SLOT: emit.LoadFrame(Format::LoadAccessKind::LD_64, reg, src.SlotIdx() * 8); break;
+                    case Location::NIL: FATAL("Should not reach here");
+                }
+                break;
+            }
+            case Location::FREG: {
+                auto reg = FReg(FReg::Value(dst.FRegIdx()));
+                switch (src.Kind()) {
+                    case Location::IREG: emit.Mov(reg, IReg(IReg::Value(src.IRegIdx()))); break;
+                    case Location::FREG: emit.Mov(reg, FReg(FReg::Value(src.FRegIdx()))); break;
+                    case Location::SLOT: emit.LoadFrame(Format::LoadAccessKind::LD_F64, reg, src.SlotIdx() * 8); break;
+                    case Location::NIL: FATAL("Should not reach here");
+                }
+                break;
+            }
+            case Location::SLOT: {
+                uint32_t offset = frameLayout.frameSize - 8 * (dst.SlotIdx() + 1);
+                switch (src.Kind()) {
+                    case Location::IREG: emit.StoreFrame(Format::StoreAccessKind::ST_64, IReg(IReg::Value(src.IRegIdx())), offset); break;
+                    case Location::FREG: emit.StoreFrame(Format::StoreAccessKind::ST_F64, FReg(FReg::Value(src.FRegIdx())), offset); break;
+                    case Location::SLOT:
+                        emit.LoadFrame(Format::LoadAccessKind::LD_64, IReg::IR_ACC, src.SlotIdx() * 8);
+                        emit.StoreFrame(Format::StoreAccessKind::ST_64, IReg::IR_ACC, offset);
+                        break;
+                    case Location::NIL: FATAL("Should not reach here");
+                }
+                break;
+            }
+            case Location::NIL: FATAL("Should not reach here");
+        }
+    }
+
+    Image::MethodRefFlags GetMethodFlags(uint32_t methodId)
+    {
+        auto refId = Image::RefIdentifier<Image::MethodReference>(
+            Image::RefId<Image::MethodReference>(methodId), fileId
+        );
+        return Decode::Read(session, refId).flags;
+    }
+
+    // Walk through call args, collect (source, destination) pairs,
+    // resolve parallel move ordering, then emit in resolved order.
+    void EmitCallArgs(
+        const std::vector<uint32_t>& args,
+        const Engine::Term& sig,
+        bool sret, bool mut, bool refRecv, bool recRecv,
+        int hasThisTi, int hasOuterTi, int funcVars
+    )
+    {
+        moveResolver.Clear();
+        int iargIdx = 1;
+        int fargIdx = 0;
+        int argIdx = 0;
+
+        if (sret && argIdx < (int)args.size()) {
+            if (HAS_SRET_SHIFT) {
+                moveResolver.AddMove(DecodeCallSource(args[argIdx]), { IReg::IR1 });
+                iargIdx++;
+            } else {
+                moveResolver.AddMove(DecodeCallSource(args[argIdx]), { IReg::SRET_IR });
+            }
+            argIdx++;
+        }
+
+        if (mut && argIdx + 1 < (int)args.size()) {
+            moveResolver.AddMove(DecodeCallSource(args[argIdx]),     { iargIdx });
+            moveResolver.AddMove(DecodeCallSource(args[argIdx + 1]), { iargIdx + 1 });
+            argIdx += 2;
+            iargIdx += 2;
+        } else if ((refRecv || recRecv) && argIdx < (int)args.size()) {
+            moveResolver.AddMove(DecodeCallSource(args[argIdx]), { iargIdx });
+            argIdx++;
+            iargIdx++;
+        }
+
+        int paramCount = sig.GetLength() - 1;
+        for (int i = 0; i < paramCount && argIdx < (int)args.size(); i++) {
+            auto term = sig.Subterm(i);
+            auto src = DecodeCallSource(args[argIdx]);
+            if (term.IsFloat()) {
+                if (fargIdx < FREG_ABI_AMOUNT)
+                    moveResolver.AddMove(src, { IReg::VIRT_COUNT + fargIdx });
+                else
+                    moveResolver.AddMove(src, { IReg::VIRT_COUNT + FReg::COUNT + (fargIdx - FREG_ABI_AMOUNT) });
+                fargIdx++;
+            } else {
+                if (iargIdx < IREG_PARAM_PASSING_AMOUNT)
+                    moveResolver.AddMove(src, { (int)iargIdx });
+                else
+                    moveResolver.AddMove(src, { IReg::VIRT_COUNT + FReg::COUNT + (iargIdx - IREG_PARAM_PASSING_AMOUNT) });
+                iargIdx++;
+            }
+            argIdx++;
+        }
+
+        for (int i = 0; i < hasThisTi + hasOuterTi + funcVars && argIdx < (int)args.size(); i++) {
+            auto src = DecodeCallSource(args[argIdx]);
+            if (iargIdx < IREG_PARAM_PASSING_AMOUNT)
+                moveResolver.AddMove(src, { (int)iargIdx });
+            else
+                moveResolver.AddMove(src, { IReg::VIRT_COUNT + FReg::COUNT + (int)(iargIdx - IREG_PARAM_PASSING_AMOUNT) });
+            argIdx++;
+            iargIdx++;
+        }
+
+        moveResolver.Resolve([this](const Location& dst, const Location& src) {
+            EmitAssignment(dst, src);
+        });
+    }
+
+    void CallDirect(uint32_t methodId, std::vector<uint32_t> args) override
     {
         auto m = resolver.Query(Index<DirectCall>(methodId));
         if (!m.has_value()) {
@@ -1130,6 +1254,19 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto method = m.value();
+
+        auto flags = GetMethodFlags(methodId);
+        auto sig   = method->signature.term;
+        EmitCallArgs(
+            args, sig,
+            flags.Is(Image::MethodRefFlag::SRET),
+            flags.Is(Image::MethodRefFlag::MUT),
+            flags.Is(Image::MethodRefFlag::REF_RECEIVER),
+            flags.Is(Image::MethodRefFlag::REC_RECEIVER),
+            flags.Is(Image::MethodRefFlag::HAS_THIS_TI),
+            flags.Is(Image::MethodRefFlag::HAS_OUTER_TI),
+            flags.Is(Image::MethodRefFlag::HAS_FTVARS) ? 1 : 0
+        );
 
         if (auto data = std::get_if<DirectCall::Compiled>(&method->data)) {
             EmitLogCall("call.2c", method);
@@ -1143,11 +1280,10 @@ struct IsaRewriter : public IsaParser {
             emit.DirectCall2i(sym);
             BindStatePoint();
         }
-        AdjustReg(dst, IReg::IR1);
         EmitReturnedTo();
     }
 
-    void CallVirtual(IReg dst, uint32_t methodId) override
+    void CallVirtual(uint32_t methodId, std::vector<uint32_t> args) override
     {
         auto m = resolver.Query(Index<VirtualCall>(methodId));
         if (!m.has_value()) {
@@ -1155,14 +1291,27 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto method = m.value();
+
+        auto flags = GetMethodFlags(methodId);
+        auto sig   = method->signature.term;
+        EmitCallArgs(
+            args, sig,
+            flags.Is(Image::MethodRefFlag::SRET),
+            flags.Is(Image::MethodRefFlag::MUT),
+            flags.Is(Image::MethodRefFlag::REF_RECEIVER),
+            flags.Is(Image::MethodRefFlag::REC_RECEIVER),
+            flags.Is(Image::MethodRefFlag::HAS_THIS_TI),
+            flags.Is(Image::MethodRefFlag::HAS_OUTER_TI),
+            flags.Is(Image::MethodRefFlag::HAS_FTVARS) ? 1 : 0
+        );
+
         EmitLogCall("call.virt", method);
         emit.VirtualCall(method->methodNum, method->extDefNum, method->sret);
         BindStatePoint();
-        AdjustReg(dst, IReg::IR1);
         EmitReturnedTo();
     }
 
-    void CallInterf(IReg dst, uint32_t methodId) override
+    void CallInterf(uint32_t methodId, std::vector<uint32_t> args) override
     {
         auto m = resolver.Query(Index<InterfaceCall>(methodId));
         if (!m.has_value()) {
@@ -1175,14 +1324,27 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
+
+        auto flags = GetMethodFlags(methodId);
+        auto sig   = method->signature.term;
+        EmitCallArgs(
+            args, sig,
+            flags.Is(Image::MethodRefFlag::SRET),
+            flags.Is(Image::MethodRefFlag::MUT),
+            flags.Is(Image::MethodRefFlag::REF_RECEIVER),
+            flags.Is(Image::MethodRefFlag::REC_RECEIVER),
+            flags.Is(Image::MethodRefFlag::HAS_THIS_TI),
+            flags.Is(Image::MethodRefFlag::HAS_OUTER_TI),
+            flags.Is(Image::MethodRefFlag::HAS_FTVARS) ? 1 : 0
+        );
+
         EmitLogCall("call.interf", method);
         emit.InterfaceCall(method->methodNum, *ti, method->sret);
         BindStatePoint();
-        AdjustReg(dst, IReg::IR1);
         EmitReturnedTo();
     }
 
-    void CallInterfGeneric(uint16_t argnum, uint32_t methodId) override
+    void CallInterfGeneric(uint16_t outerTi, uint32_t methodId, std::vector<uint32_t> args) override
     {
         auto m = resolver.Query(Index<InterfaceCall>(methodId));
         if (!m.has_value()) {
@@ -1190,8 +1352,26 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto method = m.value();
+
+        auto flags = GetMethodFlags(methodId);
+        auto sig   = method->signature.term;
+        EmitCallArgs(
+            args, sig,
+            flags.Is(Image::MethodRefFlag::SRET),
+            flags.Is(Image::MethodRefFlag::MUT),
+            flags.Is(Image::MethodRefFlag::REF_RECEIVER),
+            flags.Is(Image::MethodRefFlag::REC_RECEIVER),
+            flags.Is(Image::MethodRefFlag::HAS_THIS_TI),
+            1, // hasOuterTi is always true for generic calls
+            flags.Is(Image::MethodRefFlag::HAS_FTVARS) ? 1 : 0
+        );
+
+        // outerTi is in the instruction encoding space:
+        // 0..13 = IReg, 14+slot = untyped slot
+        // The interpreter expects: reg < 14, slot = idx - 14
+        uint16_t argn = outerTi;
         EmitLogCall("call.interf.g", method);
-        emit.InterfaceCallGeneric(method->methodNum, argnum, method->sret);
+        emit.InterfaceCallGeneric(method->methodNum, argn, method->sret);
         BindStatePoint();
         EmitReturnedTo();
     }
@@ -1223,10 +1403,9 @@ struct IsaRewriter : public IsaParser {
         BindStatePoint();
     }
 
-    void CallClosure(IReg dst, uint32_t typeId, bool generic) override
+    void CallClosure(uint32_t typeId, std::vector<uint32_t> args, bool generic) override
     {
         if (generic) {
-            // Generic calls of closure are always considered as `sret`.
             emit.CallClosureGeneric();
             BindStatePoint();
             return;
@@ -1239,8 +1418,6 @@ struct IsaRewriter : public IsaParser {
         auto term    = t->term;
         auto retType = term.Subterm(term.GetLength() - 1);
 
-        // For instantiated version of closure `sret` can be computed
-        // by retType kind.
         bool sret = (resolver.Wrap(retType).GetKind() == TK::REC);
         emit.CallClosure(sret);
         BindStatePoint();
@@ -1996,7 +2173,10 @@ static std::optional<FrameLayout> makeFrameLayout(Image::Code code, Resolver& re
         stackAllocSize += MathUtils::AlignUp(size.value(), Cbc::STACK_SLOT_SIZE);
     }
 
-    auto frameSize = MathUtils::AlignUp(savedRegsSpace + stackAllocSize, Cbc::FRAME_ALIGNMENT);
+    auto frameSize = MathUtils::AlignUp(
+        savedRegsSpace + stackAllocSize + Cbc::STACK_SLOT_SIZE * code.maxCalleeStackArgsCount,
+        Cbc::FRAME_ALIGNMENT
+    );
 
     return FrameLayout { std::move(typedOffset), std::move(typedSlotsInfo), untypedSlotsSize, frameSize };
 }

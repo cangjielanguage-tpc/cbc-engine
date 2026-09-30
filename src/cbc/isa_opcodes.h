@@ -147,6 +147,11 @@
     X(SBinImm16, SBinImmGeneric<Width::W16>)                                                                           \
     X(SBinImm32, SBinImmGeneric<Width::W32>)                                                                           \
     X(SBinImm64, SBinImmGeneric<Width::W64>)                                                                           \
+    X(CallDirect, CallDirect)                                                                                          \
+    X(CallVirt, CallVirt)                                                                                              \
+    X(CallInterf, CallInterf)                                                                                          \
+    X(CallClosure, CallClosure)                                                                                        \
+    X(CallClosureGeneric, CallClosureGeneric)                                                                           \
     X(_END, Unreachable)
 
 #define ISA_MEM_OPCODES(X)                                                                                             \
@@ -173,14 +178,14 @@
     X(LoadTypeInfoSig)                                                                                                 \
     X(LoadTypeInfoGeneric)                                                                                             \
     X(NewObj)                                                                                                          \
-    X(CallDirect)                                                                                                      \
-    X(CallVirt)                                                                                                        \
-    X(CallInterf)                                                                                                      \
+    X(Unused0)                                                                                                           \
+    X(Unused1)                                                                                                           \
+    X(Unused2)                                                                                                           \
     X(Spawn)                                                                                                           \
     X(SpawnFuture)                                                                                                     \
-    X(CallClosure)                                                                                                     \
+    X(Unused3)                                                                                                           \
     X(NewClosure)                                                                                                      \
-    X(CallClosureGeneric)                                                                                              \
+    X(Unused4)                                                                                                           \
     X(NewObjGeneric)                                                                                                   \
     X(NewClosureGeneric)                                                                                               \
     X(_END)

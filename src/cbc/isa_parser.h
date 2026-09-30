@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
 
 #include "cbc/decoder.h"
 #include "cbc/isa.h"
@@ -75,13 +76,13 @@ protected:
 
     virtual void LoadTypeInfoSig(IReg dst, uint32_t type)            = 0;
     virtual void NewObj(IReg dst, uint32_t type)                     = 0;
-    virtual void CallDirect(IReg dst, uint32_t method)               = 0;
-    virtual void CallVirtual(IReg dst, uint32_t method)              = 0;
-    virtual void CallInterf(IReg dst, uint32_t method)               = 0;
-    virtual void CallInterfGeneric(uint16_t argnum, uint32_t method) = 0;
+    virtual void CallDirect(uint32_t method, std::vector<uint32_t> args)                       = 0;
+    virtual void CallVirtual(uint32_t method, std::vector<uint32_t> args)                     = 0;
+    virtual void CallInterf(uint32_t method, std::vector<uint32_t> args)                      = 0;
+    virtual void CallInterfGeneric(uint16_t outerTi, uint32_t method, std::vector<uint32_t> args) = 0;
     virtual void Spawn(IReg closure, uint32_t type)                  = 0;
     virtual void SpawnFuture(IReg future, uint32_t type)             = 0;
-    virtual void CallClosure(IReg dst, uint32_t type, bool generic)  = 0;
+    virtual void CallClosure(uint32_t type, std::vector<uint32_t> args, bool generic)          = 0;
     virtual void NewClosure(IReg dst, uint32_t type)                 = 0;
     virtual void NewClosureGeneric(IReg ti, uint32_t typeId)         = 0;
     virtual void NewObjGeneric(IReg ti, uint32_t typeId)             = 0;

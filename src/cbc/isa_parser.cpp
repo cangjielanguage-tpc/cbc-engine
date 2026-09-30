@@ -684,7 +684,43 @@ struct IsaParserImpl {
     static void CallInterfGeneric(IsaParser& parser)
     {
         auto [argnum, methodId] = ByteReaderM(parser.reader).ReadU16().ReadULEB().Get();
-        parser.CallInterfGeneric(argnum, methodId);
+        auto args               = DecodeCallArgs(parser.reader);
+        parser.CallInterfGeneric(argnum, methodId, std::move(args));
+    }
+
+    static void CallDirect(IsaParser& parser)
+    {
+        auto methodId = parser.reader.ReadULEB();
+        auto args     = DecodeCallArgs(parser.reader);
+        parser.CallDirect(methodId, std::move(args));
+    }
+
+    static void CallVirt(IsaParser& parser)
+    {
+        auto methodId = parser.reader.ReadULEB();
+        auto args     = DecodeCallArgs(parser.reader);
+        parser.CallVirtual(methodId, std::move(args));
+    }
+
+    static void CallInterf(IsaParser& parser)
+    {
+        auto methodId = parser.reader.ReadULEB();
+        auto args     = DecodeCallArgs(parser.reader);
+        parser.CallInterf(methodId, std::move(args));
+    }
+
+    static void CallClosure(IsaParser& parser)
+    {
+        auto typeId = parser.reader.ReadULEB();
+        auto args   = DecodeCallArgs(parser.reader);
+        parser.CallClosure(typeId, std::move(args), false);
+    }
+
+    static void CallClosureGeneric(IsaParser& parser)
+    {
+        auto typeId = parser.reader.ReadULEB();
+        auto args   = DecodeCallArgs(parser.reader);
+        parser.CallClosure(typeId, std::move(args), true);
     }
 
     static void RegSymGroup(IsaParser& parser)
@@ -697,19 +733,21 @@ struct IsaParserImpl {
         switch (opc) {
             case Cbc::RegSymGroup::LoadTypeInfoSig: parser.LoadTypeInfoSig(reg, id); break;
             case Cbc::RegSymGroup::NewObj:          parser.NewObj(reg, id); break;
-            case Cbc::RegSymGroup::CallDirect:      parser.CallDirect(reg, id); break;
-            case Cbc::RegSymGroup::CallVirt:        parser.CallVirtual(reg, id); break;
-            case Cbc::RegSymGroup::CallInterf:      parser.CallInterf(reg, id); break;
             case Cbc::RegSymGroup::Spawn:           parser.Spawn(reg, id); break;
             case Cbc::RegSymGroup::SpawnFuture:     parser.SpawnFuture(reg, id); break;
-            case Cbc::RegSymGroup::CallClosure:     parser.CallClosure(reg, id, NOT_GENERIC); break;
             case Cbc::RegSymGroup::NewClosure:      parser.NewClosure(reg, id); break;
 
             case Cbc::RegSymGroup::NewClosureGeneric: parser.NewClosureGeneric(reg, id); break;
             case Cbc::RegSymGroup::NewObjGeneric:     parser.NewObjGeneric(reg, id); break;
 
-            case Cbc::RegSymGroup::CallClosureGeneric:  parser.CallClosure(reg, id, GENERIC); break;
             case Cbc::RegSymGroup::LoadTypeInfoGeneric: parser.LoadTypeInfoGeneric(reg, id); break;
+
+            case Cbc::RegSymGroup::Unused0:
+            case Cbc::RegSymGroup::Unused1:
+            case Cbc::RegSymGroup::Unused2:
+            case Cbc::RegSymGroup::Unused3:
+            case Cbc::RegSymGroup::Unused4:
+                FATAL("Call instruction moved to top-level opcode");
 
             default: {
                 FATAL("Should not reach here");

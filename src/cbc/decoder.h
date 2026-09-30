@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstring>
 #include <tuple>
+#include <vector>
 
 namespace Decoder {
 
@@ -91,6 +92,74 @@ private:
     uint8_t* start;
     uint8_t* end;
 };
+
+/// Bit-granular cursor over a byte-aligned buffer. Reads bits MSB-first.
+/// Used for decoding tiered varint argument lists in call instructions.
+class BitCursor {
+public:
+    explicit BitCursor(uint8_t* start) : start(start), p(start), bit(0) {}
+
+    uint8_t r1()
+    {
+        uint8_t val = (*p >> (7 - bit)) & 1;
+        bit++;
+        if (bit == 8) {
+            p++;
+            bit = 0;
+        }
+        return val;
+    }
+
+    uint64_t read(int n)
+    {
+        uint64_t val = 0;
+        for (int i = 0; i < n; i++) {
+            val = (val << 1) | r1();
+        }
+        return val;
+    }
+
+    size_t BytesConsumed() const { return p - start; }
+
+private:
+    uint8_t* start;
+    uint8_t* p;
+    int bit;
+};
+
+/// Decode a tiered (bit-oriented) unsigned varint from a BitCursor.
+/// Tier payload bits: {3, 3, 7, 15, 36}; every tier except the last is
+/// preceded by a continuation bit. Returns the decoded value.
+inline uint64_t ReadTieredVarInt(BitCursor& bc)
+{
+    static constexpr int payloadBits[5] = {3, 3, 7, 15, 36};
+    uint64_t value = 0;
+    for (int tier = 0;; ++tier) {
+        bool last = (tier == 4) || bc.r1() == 0;
+        value     = (value << payloadBits[tier]) | bc.read(payloadBits[tier]);
+        if (last)
+            return value;
+    }
+}
+
+/// Decode the argument list from a FatByteReader. Reads tiered varints
+/// (each with a +1 shift from the encoder) until a 0 value terminates the
+/// list. Advances the reader past the zero-padded bit stream.
+/// Returns the raw encoded values (1..14 = IReg, 15..30 = FReg, 31+ = slot).
+inline std::vector<uint32_t> DecodeCallArgs(FatByteReader& reader)
+{
+    auto start = reader.Cursor();
+    BitCursor bc(start);
+    std::vector<uint32_t> args;
+    for (;;) {
+        uint64_t v = ReadTieredVarInt(bc);
+        if (v == 0)
+            break;
+        args.push_back(static_cast<uint32_t>(v));
+    }
+    reader.Advance(static_cast<int64_t>(bc.BytesConsumed()));
+    return args;
+}
 
 class UncheckedByteReader {
 public:
