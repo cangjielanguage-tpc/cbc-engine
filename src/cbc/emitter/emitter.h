@@ -271,7 +271,12 @@ public:
         bool sret,
         Interpretation::StaticCallTypeInfoArgs typeInfoArgs = {}
     );
-    void InterfaceCallGeneric(uint16_t methodNum, uint16_t argnum, bool sret, uint16_t thisTiArg = 0);
+    void InterfaceCallGeneric(
+        uint16_t methodNum,
+        uint16_t argnum,
+        bool sret,
+        uint16_t thisTiArg = Interpretation::StaticCallTypeInfoArgs::NONE
+    );
 
     void StringLit(Interpretation::StringStorage* literal, uint32_t frameOffs);
 
