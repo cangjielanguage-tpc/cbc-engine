@@ -920,7 +920,7 @@ struct InterfaceCall {
     uint64_t ti;
     uint8_t sret;
     uint16_t outerTiArg;
-    uint16_t thisTiArg; // Zero means instance dispatch; otherwise a register or outgoing stack slot.
+    uint16_t thisTiArg; // -1 means instance dispatch; otherwise a register or outgoing stack slot.
 
     static InterfaceCall Decode(Decoder::ByteReader& reader)
     {
@@ -939,7 +939,7 @@ struct InterfaceCallGeneric {
     uint16_t vnum;
     uint16_t argn;
     uint8_t sret; // TODO: add two instruction for sret/non-sret versions
-    uint16_t thisTiArg; // Zero means instance dispatch.
+    uint16_t thisTiArg; // -1 means instance dispatch.
 
     static InterfaceCallGeneric Decode(Decoder::ByteReader& reader)
     {

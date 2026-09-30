@@ -1162,16 +1162,25 @@ struct IsaRewriter : public IsaParser {
         EmitReturnedTo();
     }
 
-    static Interpretation::StaticCallTypeInfoArgs InterfaceTypeInfoArgs(InterfaceCall method)
+    Interpretation::StaticCallTypeInfoArgs InterfaceTypeInfoArgs(InterfaceCall method)
     {
         if (!method->IsStaticVirtual()) {
             return {};
         }
-        return Interpretation::LocateStaticCallTypeInfoArgs(
+        auto abiInfo = Interpretation::BuildAbiInfo(
+            session,
             method->signature.term,
-            method->flags.Is(Image::MethodRefFlag::SRET),
-            method->flags.Is(Image::MethodRefFlag::HAS_OUTER_TI)
+            {
+                .isSRet            = method->flags.Is(Image::MethodRefFlag::SRET),
+                .isMut             = method->flags.Is(Image::MethodRefFlag::MUT),
+                .hasThisTypeInfo   = method->flags.Is(Image::MethodRefFlag::HAS_THIS_TI),
+                .hasOuterTi        = method->flags.Is(Image::MethodRefFlag::HAS_OUTER_TI),
+                .recordReceiver    = method->flags.Is(Image::MethodRefFlag::REC_RECEIVER),
+                .referenceReceiver = method->flags.Is(Image::MethodRefFlag::REF_RECEIVER),
+                .funcVars          = 0,
+            }
         );
+        return abiInfo.staticCallTypeInfoArgs;
     }
 
     void CallInterf(IReg dst, uint32_t methodId) override
