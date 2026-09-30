@@ -10,33 +10,6 @@
 
 namespace Interpretation {
 
-StaticCallTypeInfoArgs LocateStaticCallTypeInfoArgs(Engine::Term signature, bool sret, bool hasOuterTi)
-{
-    unsigned iarg = 1 + (HAS_SRET_SHIFT && sret);
-    unsigned farg = 0;
-    unsigned slot = 0;
-
-    auto next = [&](bool isFloat) -> uint16_t {
-        if (isFloat && farg < FREG_ABI_AMOUNT) {
-            ++farg;
-            return StaticCallTypeInfoArgs::NONE; // Only integer locations are needed below.
-        }
-        if (!isFloat && iarg <= IREG_PARAM_PASSING_AMOUNT) {
-            return iarg++;
-        }
-        auto location = Cbc::IReg::VIRT_COUNT + slot++;
-        ASSERT(location <= UINT16_MAX);
-        return static_cast<uint16_t>(location);
-    };
-
-    // The signature excludes hidden parameters and ends with the return type.
-    for (unsigned i = 0; i < signature.GetLength() - 1; ++i) {
-        next(signature.Subterm(i).IsFloat());
-    }
-    auto outerTi = hasOuterTi ? next(false) : StaticCallTypeInfoArgs::NONE;
-    return { outerTi, next(false) };
-}
-
 Stream::Output& operator<<(Stream::Output& out, const ExecBytecodeInfo& bc)
 {
     using namespace Stream;
@@ -72,50 +45,65 @@ AbiInfo BuildAbiInfo(Engine::Session& session, Engine::Term signature, AbiInfoFl
     int totalIntArgs         = 0;
     int totalFloatArgs       = 0;
 
-    Cbc::TrackedAbiAssigner abi([&](Cbc::Location target, Cbc::ArgKind kind) {
-        if (kind == Cbc::ArgKind::FLOAT) {
-            totalFloatArgs++;
-            return;
-        }
-        totalIntArgs++;
-        if (target.Kind() == Cbc::Location::IREG) {
-            int idx = target.IRegIdx();
-            if (kind == Cbc::ArgKind::REC)
-                stackPtrParams |= (1u << idx);
-            if (kind == Cbc::ArgKind::REF)
-                referenceParams |= (1u << idx);
-        }
-    });
+    int fargIdx      = 0; // FR0
+    int iargIdx      = 1; // IR1
+    unsigned slotIdx = 0;
 
-    if (flags.isSRet) {
-        abi.ConsumeSret();
+    auto nextArg = [&](bool isFloat) -> uint16_t {
+        if (isFloat && fargIdx < FREG_ABI_AMOUNT) {
+            ++fargIdx;
+            return StaticCallTypeInfoArgs::NONE;
+        }
+        if (!isFloat && iargIdx <= IREG_PARAM_PASSING_AMOUNT) {
+            return iargIdx++;
+        }
+        auto location = Cbc::IReg::VIRT_COUNT + slotIdx++;
+        ASSERT(location <= UINT16_MAX);
+        return static_cast<uint16_t>(location);
+    };
+
+    if (HAS_SRET_SHIFT && flags.isSRet) {
+        // stack-return position on this platform is param passing register.
+        stackPtrParams |= (1 << nextArg(false));
+    } else if (!HAS_SRET_SHIFT && flags.isSRet) {
+        // stack-return position on this platform is using special register.
+        stackPtrParams |= (1 << IReg::SRET_IR);
     }
 
-    switch (flags.abiKind) {
-        case Image::MethodAbiKind::MUT: {
-            auto derived = abi.Consume(Cbc::ArgKind::INT);
-            abi.Consume(Cbc::ArgKind::REF);
-            derivedPairs |= (1u << derived.IRegIdx());
-            break;
-        }
-        case Image::MethodAbiKind::REF_RECEIVER:   abi.Consume(Cbc::ArgKind::REF); break;
-        case Image::MethodAbiKind::REC_RECEIVER:   abi.Consume(Cbc::ArgKind::REC); break;
-        case Image::MethodAbiKind::PRIM_RECEIVER:  abi.Consume(Cbc::ArgKind::INT); break;
-        case Image::MethodAbiKind::FPRIM_RECEIVER: abi.Consume(Cbc::ArgKind::FLOAT); break;
-        case Image::MethodAbiKind::STATIC:
-        case Image::MethodAbiKind::HAS_THIS_TI:    ;
+    if (flags.isMut) {
+        auto derived     = nextArg(false);
+        auto base        = nextArg(false);
+        derivedPairs    |= (1 << derived);
+        referenceParams |= (1 << base);
+    } else if (flags.referenceReceiver) {
+        referenceParams |= (1 << nextArg(false));
+    } else if (flags.recordReceiver) {
+        stackPtrParams |= (1 << nextArg(false));
     }
 
     int termIdx = 0;
     int length  = signature.GetLength() - 1; // skip ret type term.
     while (termIdx < length) {
-        abi.Consume(signature.Subterm(termIdx++));
+        auto term     = signature.Subterm(termIdx);
+        int isRecord  = term.IsRecord();
+        int isRef     = term.IsReference();
+        auto location = nextArg(term.IsFloat());
+        int isReg     = location < Cbc::IReg::VIRT_COUNT;
+
+        if (isReg) {
+            stackPtrParams  |= (isRecord << location);
+            referenceParams |= (isRef << location);
+        }
+        termIdx++;
     }
 
-    bool hasThisTi = (flags.abiKind == Image::MethodAbiKind::HAS_THIS_TI);
-    for (int i = 0; i < hasThisTi + flags.hasOuterTi + flags.funcVars; i++) {
-        abi.Consume(Cbc::ArgKind::INT);
+    for (int i = 0; i < flags.funcVars; ++i) {
+        nextArg(false);
     }
+    auto outerTi = flags.hasOuterTi ? nextArg(false) : StaticCallTypeInfoArgs::NONE;
+    auto thisTi  = flags.hasThisTypeInfo ? nextArg(false) : StaticCallTypeInfoArgs::NONE;
+
+    bool hasTailReg = slotIdx > 0;
 
     bool hasTailReg = (totalIntArgs > IREG_PARAM_PASSING_AMOUNT);
     if (hasTailReg) {
@@ -130,13 +118,14 @@ AbiInfo BuildAbiInfo(Engine::Session& session, Engine::Term signature, AbiInfoFl
         fregParamCount = FREG_ABI_AMOUNT;
 
     return {
-        .stackPtrParams  = stackPtrParams,
-        .referenceParams = referenceParams,
-        .derivedPairs    = derivedPairs,
-        .iregParamCount  = (uint8_t)iregParamCount,
-        .fregParamCount  = (uint8_t)fregParamCount,
-        .isSRet          = flags.isSRet,
-        .hasTailReg      = hasTailReg,
+        .stackPtrParams         = stackPtrParams,
+        .referenceParams        = referenceParams,
+        .derivedPairs           = derivedPairs,
+        .staticCallTypeInfoArgs = { outerTi, thisTi },
+        .iregParamCount         = (uint8_t)iargIdx,
+        .fregParamCount         = (uint8_t)fargIdx,
+        .isSRet                 = flags.isSRet,
+        .hasTailReg             = hasTailReg,
     };
 }
 
