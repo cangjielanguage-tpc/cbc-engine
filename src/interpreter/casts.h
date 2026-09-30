@@ -11,13 +11,13 @@ namespace Interpretation {
 
 using ConvertType = Cbc::Format::ConvertType;
 
-Value::Primitive UnsupportedCastFrom(ConvertType ct)
+inline Value::Primitive UnsupportedCastFrom(ConvertType ct)
 {
     ASSERTION(false, "unsupported cast: from %s)", ct.ToStr());
     return Value::Primitive { .u64 = 0 };
 }
 
-Value::Primitive UnsupportedCastTo(ConvertType ct)
+inline Value::Primitive UnsupportedCastTo(ConvertType ct)
 {
     ASSERTION(false, "unsupported cast: to %s)", ct.ToStr());
     return Value::Primitive { .u64 = 0 };
@@ -77,7 +77,7 @@ template <typename From> Value::Primitive CastFrom32(ConvertType toType, From va
     }
 }
 
-Value::Primitive CastFromI64(ConvertType toType, int64_t value)
+inline Value::Primitive CastFromI64(ConvertType toType, int64_t value)
 {
     switch (toType) {
         case ConvertType::I32: return CastInt<int32_t>(value);
@@ -87,7 +87,7 @@ Value::Primitive CastFromI64(ConvertType toType, int64_t value)
     }
 }
 
-Value::Primitive CastFromU64(ConvertType toType, uint64_t value)
+inline Value::Primitive CastFromU64(ConvertType toType, uint64_t value)
 {
     switch (toType) {
         case ConvertType::I32: return CastInt<int32_t>(value);
@@ -98,7 +98,7 @@ Value::Primitive CastFromU64(ConvertType toType, uint64_t value)
     }
 }
 
-Value::Primitive CastFromF32(ConvertType toType, float value)
+inline Value::Primitive CastFromF32(ConvertType toType, float value)
 {
     switch (toType) {
         case ConvertType::I32: return CastFpToInt<int32_t>(value);
@@ -110,7 +110,7 @@ Value::Primitive CastFromF32(ConvertType toType, float value)
     }
 }
 
-Value::Primitive CastFromF64(ConvertType toType, double value)
+inline Value::Primitive CastFromF64(ConvertType toType, double value)
 {
     switch (toType) {
         case ConvertType::I32: return CastFpToInt<int32_t>(value);
@@ -122,7 +122,7 @@ Value::Primitive CastFromF64(ConvertType toType, double value)
     }
 }
 
-Value::Primitive CastPrim(ConvertType toType, ConvertType fromType, Value::Primitive val)
+inline Value::Primitive CastPrim(ConvertType toType, ConvertType fromType, Value::Primitive val)
 {
     switch (fromType) {
         case ConvertType::I32: return CastFrom32(toType, static_cast<int32_t>(val.u32));
