@@ -241,9 +241,9 @@ public:
     void LeaIndex(IReg dst, IReg src, IReg idx, RTSupport::TypeInfo ti, bool isCangjeiArray);
     void LeaIndexGeneric(IReg dst, IReg src, IReg idx, IReg ti);
 
-    void LoadFrame(LoadAccessKind ldk, Reg dst, uint32_t offset);
-    void StoreFrame(StoreAccessKind stk, Reg src, uint32_t offset);
-    void StoreFrameImm(StoreAccessKind stk, uint64_t imm, uint32_t offset);
+    void LoadFrame(LoadAccessKind ldk, Reg dst, int32_t offset);
+    void StoreFrame(StoreAccessKind stk, Reg src, int32_t offset);
+    void StoreFrameImm(StoreAccessKind stk, uint64_t imm, int32_t offset);
 
     void PrepareTyped(RTSupport::TypeInfo typeInfo, uint32_t offset);
 

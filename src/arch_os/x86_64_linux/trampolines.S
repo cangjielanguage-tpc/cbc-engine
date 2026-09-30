@@ -468,14 +468,14 @@ perform_2i_call:
   mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
 
   // current rsp is 16-byte aligned
-  mov   r8d, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
+  mov   r8d, [rax + EXEC_BYTECODE_INFO_FULL_FRAME_SIZE_OFFSET]
   mov   rcx, [TLS_REG + TLS_STACK_BORDER_OFFSET]
   add   rcx, ADDITIONAL_STACK_SPACE
   sub   rsp, r8
   cmp   rsp, rcx
   jbe   .Lstack_overflow
 
-  lea   rdx, [rsp + r8] // used in PUSH_REGS
+  lea   rdx, [rsp + r8] // top of full frame, used in PUSH_REGS
 
 // FIXME: remove it
 // We are zeroing a whole frame to simplify gc handling,
@@ -495,7 +495,9 @@ perform_2i_call:
 
 .Lrestart_interpretation:
   mov   rdi, ECTYPE_REG
-  mov   rsi, rsp
+  mov   r9d, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
+  sub   r8, r9
+  lea   rsi, [rsp + r8]
   mov   rdx, TLS_REG
   mov   rcx, LITERALS_REG
   lea   r8, [rbp - READER_SLOT_OFFSET]
@@ -522,7 +524,7 @@ perform_2i_call:
   mov   rax, [rbp - FUH_SLOT_OFFSET]
   mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
 
-  mov   edx, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
+  mov   edx, [rax + EXEC_BYTECODE_INFO_FULL_FRAME_SIZE_OFFSET]
   mov   r8d, edx
   add   rdx, rsp // add frame size to locate saved registers
 
@@ -811,7 +813,7 @@ engine_handle_exception:
   // Restore spilled non-volatile regs before clearing the frame
   mov   rax, QWORD PTR [rbp - FUH_SLOT_OFFSET]
   mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
-  mov   edx, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
+  mov   edx, [rax + EXEC_BYTECODE_INFO_FULL_FRAME_SIZE_OFFSET]
   add   rdx, rsp // start of saved regs area
 
   POP_REGS rcx, rdx, rax, rsi, rdi

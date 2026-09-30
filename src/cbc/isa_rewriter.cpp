@@ -194,6 +194,8 @@ struct IsaRewriter : public IsaParser {
     };
 
     std::vector<StatePoint> statePoints;
+    std::vector<std::vector<int32_t>> paramRefSlots;
+    std::vector<int32_t> pendingParamRefSlots;
 
     struct FailureMessage {
         size_t position;
@@ -226,6 +228,8 @@ struct IsaRewriter : public IsaParser {
             .originalPos = Pos(), // attached to the end of instruction
         };
         statePoints.push_back(point);
+        paramRefSlots.push_back(std::move(pendingParamRefSlots));
+        pendingParamRefSlots.clear();
     }
 
     template <typename Method> void EmitLogCall(std::string_view prefix, Method m)
@@ -1152,7 +1156,7 @@ struct IsaRewriter : public IsaParser {
                 break;
             }
             case Location::SLOT: {
-                uint32_t offset = frameLayout.frameSize - 8 * (dst.SlotIdx() + 1);
+                int32_t offset = -8 * (dst.SlotIdx() + 1);
                 switch (src.Kind()) {
                     case Location::IREG: emit.StoreFrame(Format::StoreAccessKind::ST_64, IReg(IReg::Value(src.IRegIdx())), offset); break;
                     case Location::FREG: emit.StoreFrame(Format::StoreAccessKind::ST_F64, FReg(FReg::Value(src.FRegIdx())), offset); break;
@@ -1224,8 +1228,11 @@ struct IsaRewriter : public IsaParser {
             } else {
                 if (iargIdx < IREG_PARAM_PASSING_AMOUNT)
                     moveResolver.AddMove(src, { (int)iargIdx });
-                else
+                else {
                     moveResolver.AddMove(src, { IReg::VIRT_COUNT + FReg::COUNT + (iargIdx - IREG_PARAM_PASSING_AMOUNT) });
+                    if (term.IsReference())
+                        pendingParamRefSlots.push_back(-8 * (iargIdx - IREG_PARAM_PASSING_AMOUNT + 1));
+                }
                 iargIdx++;
             }
             argIdx++;
@@ -2174,18 +2181,24 @@ static std::optional<FrameLayout> makeFrameLayout(Image::Code code, Resolver& re
     }
 
     auto frameSize = MathUtils::AlignUp(
-        savedRegsSpace + stackAllocSize + Cbc::STACK_SLOT_SIZE * code.maxCalleeStackArgsCount,
+        savedRegsSpace + stackAllocSize,
         Cbc::FRAME_ALIGNMENT
     );
+    auto maxParamPassingSize = MathUtils::AlignUp(
+        Cbc::STACK_SLOT_SIZE * code.maxCalleeStackArgsCount,
+        Cbc::FRAME_ALIGNMENT
+    );
+    auto fullFrameSize = frameSize + maxParamPassingSize;
 
-    return FrameLayout { std::move(typedOffset), std::move(typedSlotsInfo), untypedSlotsSize, frameSize };
+    return FrameLayout { std::move(typedOffset), std::move(typedSlotsInfo), untypedSlotsSize, frameSize, fullFrameSize };
 }
 
 static std::vector<Interpretation::GCPositionalInfo> CalculatePositionalGCInfo(
     Engine::Session& session,
     const MethodCode& code,
     Emitter::Emitter const& emitter,
-    std::vector<IsaRewriter::StatePoint> const& statePoints
+    std::vector<IsaRewriter::StatePoint> const& statePoints,
+    std::vector<std::vector<int32_t>> const& paramRefSlots
 )
 {
     auto livenessInfo = Decode::GetLivenessInfo(session, code);
@@ -2198,7 +2211,8 @@ static std::vector<Interpretation::GCPositionalInfo> CalculatePositionalGCInfo(
         infos.insert({ info.cbcPos, info });
     }
 
-    for (auto& point : statePoints) {
+    for (size_t i = 0; i < statePoints.size(); i++) {
+        auto& point = statePoints[i];
         auto originalPos  = point.originalPos;
         auto rewrittenPos = emitter.LabelPosition(point.label);
         auto it           = infos.find(originalPos);
@@ -2214,9 +2228,12 @@ static std::vector<Interpretation::GCPositionalInfo> CalculatePositionalGCInfo(
                             .untypedRefSlotsInfo = {},
                             .mutPairs            = {} });
 
-        posInfo.back().untypedRefSlotsInfo.reserve(info.refSlotNums.size());
+        posInfo.back().untypedRefSlotsInfo.reserve(info.refSlotNums.size() + paramRefSlots[i].size());
         for (const auto& slotN : info.refSlotNums) {
-            posInfo.back().untypedRefSlotsInfo.push_back(slotN * STACK_SLOT_SIZE);
+            posInfo.back().untypedRefSlotsInfo.push_back(static_cast<int32_t>(slotN) * STACK_SLOT_SIZE);
+        }
+        for (const auto& offset : paramRefSlots[i]) {
+            posInfo.back().untypedRefSlotsInfo.push_back(offset);
         }
 
         posInfo.back().mutPairs.reserve(info.mutPairs.size());
@@ -2334,11 +2351,12 @@ Interpretation::ExecBytecodeInfo Rewrite(
         .savedIRegs       = Interpretation::NonVolatileRegs(code.UsedNonVolIRegMask() << IReg::FIRST_NON_VOL),
         .savedFRegs       = Interpretation::NonVolatileRegs(code.UsedNonVolFRegMask() << FReg::FIRST_NON_VOL),
         .frameSize        = frameLayout->frameSize,
+        .fullFrameSize    = frameLayout->fullFrameSize,
         .untypedSlotCount = static_cast<uint16_t>(code.UntypedSlotCount()),
         .abiInfo          = std::move(abiInfo),
         .gcInfo =
             Interpretation::GcInfo {
-                .positionalInfo = std::move(CalculatePositionalGCInfo(session, code, emitter, rewriter.statePoints)),
+                .positionalInfo = std::move(CalculatePositionalGCInfo(session, code, emitter, rewriter.statePoints, rewriter.paramRefSlots)),
                 .typedSlotsInfo = std::move((*frameLayout).typedSlotsInfo),
             },
         .stackPtrsInfo =

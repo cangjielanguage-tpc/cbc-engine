@@ -439,7 +439,7 @@ public:
         return true;
     }
 
-    inline bool LoadFrame(Format::LoadAccessKind ldk, Format::Reg dst, size_t offset)
+    inline bool LoadFrame(Format::LoadAccessKind ldk, Format::Reg dst, intptr_t offset)
     {
         auto ptr = frame.start;
         if (ldk == LoadAccessKind::LD_REF) {
@@ -450,7 +450,7 @@ public:
         return true;
     }
 
-    inline bool StoreFrame(Format::StoreAccessKind stk, Format::Reg src, uint64_t offset)
+    inline bool StoreFrame(Format::StoreAccessKind stk, Format::Reg src, intptr_t offset)
     {
         auto ptr = frame.start;
         if (stk == StoreAccessKind::ST_REF) {
@@ -461,7 +461,7 @@ public:
         return true;
     }
 
-    inline bool StoreFrameImm(Format::StoreAccessKind stk, uint64_t imm, uint64_t offset)
+    inline bool StoreFrameImm(Format::StoreAccessKind stk, uint64_t imm, intptr_t offset)
     {
         auto ptr = frame.start;
         ASSERTION(stk <= Format::StoreAccessKind::ST_64, "Unexpected store access kind");

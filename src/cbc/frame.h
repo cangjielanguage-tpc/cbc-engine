@@ -15,6 +15,7 @@ struct FrameLayout {
     std::vector<std::pair<uint32_t, void*>> typedSlotsInfo;
     uint32_t untypedStackSize;
     uint32_t frameSize;
+    uint32_t fullFrameSize;
 };
 
 } // namespace Cbc

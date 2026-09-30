@@ -44,7 +44,7 @@ struct Resource {
 struct GCPositionalInfo {
     uint32_t rewrittenPos;
     uint16_t regMask;
-    std::vector<uint32_t> untypedRefSlotsInfo;
+    std::vector<int32_t> untypedRefSlotsInfo;
     std::vector<std::pair<Resource, Resource>> mutPairs;
 };
 
@@ -123,6 +123,7 @@ struct ExecBytecodeInfo {
     NonVolatileRegs savedIRegs;
     NonVolatileRegs savedFRegs;
     uint32_t frameSize;
+    uint32_t fullFrameSize;
     uint16_t untypedSlotCount;
     AbiInfo abiInfo;
     GcInfo gcInfo;
@@ -152,6 +153,7 @@ static_assert(offsetof(ExecBytecodeInfo, code) + offsetof(Code, literals) == EXE
 static_assert(offsetof(ExecBytecodeInfo, savedIRegs) == EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET);
 static_assert(offsetof(ExecBytecodeInfo, savedFRegs) == EXEC_BYTECODE_INFO_SAVED_FREGS_OFFSET);
 static_assert(offsetof(ExecBytecodeInfo, frameSize) == EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET);
+static_assert(offsetof(ExecBytecodeInfo, fullFrameSize) == EXEC_BYTECODE_INFO_FULL_FRAME_SIZE_OFFSET);
 
 } // namespace Interpretation
 

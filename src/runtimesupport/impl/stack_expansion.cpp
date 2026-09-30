@@ -63,7 +63,7 @@ void VisitFrameRootsForStackPtrs(
     auto regTable = reinterpret_cast<GCSupport::RegistersTable*>(state);
     auto fuh      = *reinterpret_cast<DynamicFunctionHandle**>((uint8_t*)frameDesc.fp - FUH_SLOT_OFFSET);
     auto bc       = NOTNULL(fuh->bytecode.load());
-    auto slotsStartAddr = ((uint8_t*)frameDesc.fp) - (LOCAL_SLOTS_OFFSET + bc->frameSize);
+    auto slotsStartAddr = ((uint8_t*)frameDesc.fp) - LOCAL_SLOTS_OFFSET;
 
     RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Stream::Output& out) {
         out.PrintFmtLn(
@@ -157,7 +157,7 @@ void VisitFrameRootsForStackPtrs(
 uint32_t GetFrameSize(DYN_FramePointer fp)
 {
     auto fuh = *reinterpret_cast<DynamicFunctionHandle**>((uint8_t*)fp - FUH_SLOT_OFFSET);
-    return fuh->bytecode.load()->frameSize + ADDITIONAL_STACK_SPACE;
+    return fuh->bytecode.load()->fullFrameSize + ADDITIONAL_STACK_SPACE;
 }
 
 } // namespace StackExpansion

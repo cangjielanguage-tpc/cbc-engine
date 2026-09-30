@@ -432,7 +432,7 @@ perform_2i_call:
   mov   x1, sp // save current sp for registers saving to the bottom of frame
 
   // current sp is 16-byte.baligned
-  ldr   w8, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
+  ldr   w8, [x9, #EXEC_BYTECODE_INFO_FULL_FRAME_SIZE_OFFSET]
   sub   sp, sp, x8
 
   ldr   x10, [TLS_REG, #TLS_STACK_BORDER_OFFSET]
@@ -448,7 +448,7 @@ perform_2i_call:
 // but it should be handled by compiler properly.
 .Lframe_zero_loop:
   cmp   x2, x3
-  b.eq   .Lframe_zero_loop_end
+  b.eq  .Lframe_zero_loop_end
   str   xzr, [x2], #8
   b     .Lframe_zero_loop
 .Lframe_zero_loop_end:
@@ -457,7 +457,9 @@ perform_2i_call:
 
 .Lrestart_interpretation:
   mov   x0, ECTYPE_REG
-  mov   x1, sp
+  ldr   w11, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
+  sub   w8, w8, w11
+  add   x1, sp, x8
   mov   x2, TLS_REG
   mov   x3, LITERALS_REG
   sub   x4, x29, #READER_SLOT_OFFSET
@@ -484,7 +486,7 @@ perform_2i_call:
   ldr   x9, [x29, #-FUH_SLOT_OFFSET] // load Function Handle
   ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
 
-  ldr   w1, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
+  ldr   w1, [x9, #EXEC_BYTECODE_INFO_FULL_FRAME_SIZE_OFFSET]
   mov   x2, sp
   add   x1, x1, x2 // add frame size to locate saved registers
 
@@ -801,7 +803,7 @@ engine_handle_exception:
   // Restore spilled non-volatile regs before clearing the frame
   ldr   x9, [x29, #-FUH_SLOT_OFFSET]
   ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
-  ldr   w1, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
+  ldr   w1, [x9, #EXEC_BYTECODE_INFO_FULL_FRAME_SIZE_OFFSET]
   mov   x2, sp
   add   x1, x1, x2            // start of saved regs area
 

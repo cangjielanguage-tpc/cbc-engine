@@ -844,28 +844,28 @@ LABEL(LOAD_FRAME_F)
 LABEL(LOAD_FRAME) {
     auto args = B4xi12rr::Decode(reader);
     LOG_INSTR;
-    bool successful = interpreter.LoadFrame(args.xi12.imm4.LDK(), args.rr.x, args.xi12.imm12);
+    bool successful = interpreter.LoadFrame(args.xi12.imm4.LDK(), args.rr.x, static_cast<intptr_t>(args.xi12.imm12));
     NEXT_COND(successful);
 }
 LABEL(STORE_FRAME_F)
 LABEL(STORE_FRAME) {
     auto args = B4xi12rr::Decode(reader);
     LOG_INSTR;
-    bool successful = interpreter.StoreFrame(args.xi12.imm4.STK(), args.rr.x, args.xi12.imm12);
+    bool successful = interpreter.StoreFrame(args.xi12.imm4.STK(), args.rr.x, static_cast<intptr_t>(args.xi12.imm12));
     NEXT_COND(successful);
 }
 LABEL(LOAD_LONG_FRAME_F)
 LABEL(LOAD_LONG_FRAME) {
     auto args = B7xrrri32::Decode(reader);
     LOG_INSTR;
-    bool successful = interpreter.LoadFrame(args.xr.imm.LDK(), args.xr.r, args.imm32.imm);
+    bool successful = interpreter.LoadFrame(args.xr.imm.LDK(), args.xr.r, static_cast<intptr_t>(args.imm32.imm));
     NEXT_COND(successful);
 }
 LABEL(STORE_LONG_FRAME_F)
 LABEL(STORE_LONG_FRAME) {
     auto args = B7xrrri32::Decode(reader);
     LOG_INSTR;
-    bool successful = interpreter.StoreFrame(args.xr.imm.STK(), args.xr.r, args.imm32.imm);
+    bool successful = interpreter.StoreFrame(args.xr.imm.STK(), args.xr.r, static_cast<intptr_t>(args.imm32.imm));
     NEXT_COND(successful);
 }
 LABEL(LOAD_LONG_REC_F)

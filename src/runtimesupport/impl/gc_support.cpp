@@ -97,7 +97,7 @@ void VisitGCFrameRoots(
     }
 
     auto calleeSavedRegsEnd = ((uint8_t*)frame_desc.fp) - localsOffset;
-    auto slotsStartAddr     = ((uint8_t*)frame_desc.fp) - (localsOffset + bc->frameSize);
+    auto slotsStartAddr     = ((uint8_t*)frame_desc.fp) - localsOffset;
 
     RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Output& out) {
         out.PrintFmtLn(
