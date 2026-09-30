@@ -18,10 +18,9 @@ void MoveResolver::Clear()
 
 void MoveResolver::AddMove(Location src, Location dst)
 {
-    if (src.idx >= assignments.size()) {
-        assignments.resize(src.idx + 1, NIL);
-    }
-    assignments[src.idx] = dst;
+    ASSERT(src.Kind() != Location::NIL);
+    ASSERT(dst.Kind() != Location::NIL);
+    assignments.push_back(Assignment {dst, src});
 }
 
 void MoveResolver::Resolve(const std::function<void(Location dst, Location src)>& emit)
@@ -61,7 +60,7 @@ void MoveResolver::Resolve(const std::function<void(Location dst, Location src)>
     // - Each `dst` can be target of not more than one assignment.
 
     struct Walker {
-        std::vector<Location> const& assignments;
+        std::vector<Assignment> const& assignments;
         const std::function<void(Location dst, Location src)>& emit;
 
         Location temp = NIL;
@@ -99,24 +98,29 @@ void MoveResolver::Resolve(const std::function<void(Location dst, Location src)>
             ASSERT(!IsVisited(src));
             Mark(src);
 
-            Location dst = src.idx < assignments.size() ? assignments[src.idx] : NIL;
+            for (auto& assignment : assignments) {
+                if (assignment.src.idx != src.idx) {
+                    continue;
+                }
+                Location dst = assignment.dst;
 
-            if (dst.Kind() == Location::NIL) {
-                // no assignments
-            } else if (IsVisited(dst)) {
-                // cycle detected.
-                ASSERT(!cycleDetected);
-                ASSERT(temp.Kind() != Location::NIL);
-                emit(temp, src);
-                cycleDetected = true;
-            } else {
-                Walk(dst);
-                emit(dst, src);
+                if (dst.Kind() == Location::NIL) {
+                    // no assignments
+                } else if (dst.Kind() == Location::SLOT) {
+                    emit(dst, src);
+                } else if (IsVisited(dst)) {
+                    // cycle detected.
+                    ASSERT(!cycleDetected);
+                    ASSERT(temp.Kind() != Location::NIL);
+                    emit(temp, src);
+                    cycleDetected = true;
+                } else {
+                    Walk(dst);
+                    emit(dst, src);
+                }
             }
         };
     };
-
-    printf("Assignments size: %zu\n", assignments.size());
 
     Walker walker {assignments, emit};
     walker.DoWalk(TEMP_IR);
@@ -134,11 +138,11 @@ void MoveResolver::Resolve(const std::function<void(Location dst, Location src)>
         walker.DoWalk(Location {idx});
     }
 
-    for (int idx = IReg::VIRT_COUNT + FReg::COUNT; idx < assignments.size(); idx++) {
-        auto dst = assignments[idx];
-        if (dst.Kind() != Location::NIL) {
-            emit(dst, Location{idx});
+    for (auto& assignment : assignments) {
+        if (assignment.dst.Kind() != Location::SLOT) {
+            continue;
         }
+        emit(assignment.dst, assignment.src);
     }
 }
 

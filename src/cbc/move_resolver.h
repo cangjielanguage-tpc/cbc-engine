@@ -45,7 +45,11 @@ public:
     MoveResolver();
 
 private:
-    std::vector<Location> assignments;
+    struct Assignment {
+        Location dst;
+        Location src;
+    };
+    std::vector<Assignment> assignments;
 };
 
 } // namespace Cbc
