@@ -1937,7 +1937,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
         .stackPtrsInfo =
             Interpretation::StackPtrsInfo {
                 .positionalInfo = CalculateStackPtrsPositionalInfo(session, code, emitter, rewriter.statePoints) },
-        .offsetsIndex = rewriter.BuildOffsetsIndex(), // TODO remove, reuse ExceptionInfo
+        .offsetsIndex = rewriter.BuildOffsetsIndex(), // TODO remove, reuse bcPositionsForExceptions
         .bcPositionsForExceptions = CalculateBcPositionsForExceptions(session, code, emitter, rewriter.statePoints),
     };
 }
