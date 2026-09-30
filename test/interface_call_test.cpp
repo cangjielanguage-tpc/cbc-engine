@@ -40,6 +40,26 @@ Engine::Term Signature(Engine::Session& session, std::vector<Engine::TermKind> p
     return Engine::TermManager::NewTermWithId(session, Engine::TagTermId(Engine::TermKind::FUNCTIONAL), false, terms);
 }
 
+StaticCallTypeInfoArgs TypeInfoArgs(
+    Engine::Session& session, Engine::Term signature, bool sret, bool hasOuterTi, int funcVars = 0
+)
+{
+    auto abiInfo = Interpretation::BuildAbiInfo(
+        session,
+        signature,
+        {
+            .isSRet            = sret,
+            .isMut             = false,
+            .hasThisTypeInfo   = true,
+            .hasOuterTi        = hasOuterTi,
+            .recordReceiver    = false,
+            .referenceReceiver = false,
+            .funcVars          = funcVars,
+        }
+    );
+    return abiInfo.staticCallTypeInfoArgs;
+}
+
 TEST_F(InterfaceCallTest, HiddenArgumentLocations)
 {
     using K = Engine::TermKind;
@@ -48,30 +68,35 @@ TEST_F(InterfaceCallTest, HiddenArgumentLocations)
 
     for (bool sret : { false, true }) {
         unsigned shift = HAS_SRET_SHIFT && sret;
-        auto args      = Interpretation::LocateStaticCallTypeInfoArgs(Signature(session, {}), sret, true);
+        auto args      = TypeInfoArgs(session, Signature(session, {}), sret, true);
         EXPECT_EQ(args.outerTi, 1 + shift);
         EXPECT_EQ(args.thisTi, 2 + shift);
 
         // Independent FP registers do not move the hidden integer parameters.
-        args = Interpretation::LocateStaticCallTypeInfoArgs(Signature(session, { K::F64, K::I64, K::F32 }), sret, true);
+        args = TypeInfoArgs(session, Signature(session, { K::F64, K::I64, K::F32 }), sret, true);
         EXPECT_EQ(args.outerTi, 2 + shift);
         EXPECT_EQ(args.thisTi, 3 + shift);
 
+        // Function type variables precede the trailing type-info arguments.
+        args = TypeInfoArgs(session, Signature(session, {}), sret, true, 2);
+        EXPECT_EQ(args.outerTi, 3 + shift);
+        EXPECT_EQ(args.thisTi, 4 + shift);
+
         // Outer TI is in the last integer register and this TI is the first stack argument.
         std::vector<K> params(IREG_PARAM_PASSING_AMOUNT - 1 - shift, K::I64);
-        args = Interpretation::LocateStaticCallTypeInfoArgs(Signature(session, params), sret, true);
+        args = TypeInfoArgs(session, Signature(session, params), sret, true);
         EXPECT_EQ(args.outerTi, IREG_PARAM_PASSING_AMOUNT);
         EXPECT_EQ(args.thisTi, IReg::VIRT_COUNT);
 
         // Both TIs spill, after integer and floating-point overflow arguments.
         params.assign(IREG_PARAM_PASSING_AMOUNT + 2 - shift, K::I64);
         params.insert(params.end(), FREG_ABI_AMOUNT + 1, K::F64);
-        args = Interpretation::LocateStaticCallTypeInfoArgs(Signature(session, params), sret, true);
+        args = TypeInfoArgs(session, Signature(session, params), sret, true);
         EXPECT_EQ(args.outerTi, IReg::VIRT_COUNT + 3);
         EXPECT_EQ(args.thisTi, IReg::VIRT_COUNT + 4);
     }
 
-    auto args = Interpretation::LocateStaticCallTypeInfoArgs(Signature(session, {}), false, false);
+    auto args = TypeInfoArgs(session, Signature(session, {}), false, false);
     EXPECT_EQ(args.outerTi, StaticCallTypeInfoArgs::NONE);
     EXPECT_EQ(args.thisTi, IReg::IR1);
 }
@@ -111,7 +136,7 @@ TEST_F(InterfaceCallTest, ResolvesDeclaredSignatureInReferenceContext)
         auto method = *call;
         EXPECT_TRUE(method->IsStaticVirtual());
         EXPECT_EQ(method->methodNum, 0);
-        auto args = Interpretation::LocateStaticCallTypeInfoArgs(method->signature.term, true, true);
+        auto args = TypeInfoArgs(session, method->signature.term, true, true);
         // Even Operation<Float64>.calculate takes the erased generic argument in an IReg.
         EXPECT_EQ(args.outerTi, 2 + HAS_SRET_SHIFT);
         EXPECT_EQ(args.thisTi, 3 + HAS_SRET_SHIFT);

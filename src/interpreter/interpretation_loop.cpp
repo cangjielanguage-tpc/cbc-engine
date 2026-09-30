@@ -26,14 +26,19 @@ using namespace Interpretation;
 using namespace Cbc::RT;
 using namespace RTSupport;
 
+static inline uintptr_t UntypedSlotPosition(Frame frame, uint16_t arg)
+{
+    ASSERT(arg >= IReg::VIRT_COUNT);
+    return frame.start + (arg - IReg::VIRT_COUNT) * Cbc::STACK_SLOT_SIZE;
+}
+
 static inline TypeInfo ReadCallTypeInfo(Ectype* ectype, Frame frame, uint16_t arg)
 {
     ASSERT(arg != StaticCallTypeInfoArgs::NONE);
     if (arg < IReg::VIRT_COUNT) {
         return TypeInfo(ectype->GetPrimitive(IReg::From(arg)).u64);
     }
-    auto offset = (arg - IReg::VIRT_COUNT) * Cbc::STACK_SLOT_SIZE;
-    return *reinterpret_cast<TypeInfo*>(frame.start + offset);
+    return *reinterpret_cast<TypeInfo*>(UntypedSlotPosition(frame, arg));
 }
 
 static inline void WriteCallTypeInfo(Ectype* ectype, Frame frame, uint16_t arg, TypeInfo ti)
@@ -42,8 +47,7 @@ static inline void WriteCallTypeInfo(Ectype* ectype, Frame frame, uint16_t arg, 
     if (arg < IReg::VIRT_COUNT) {
         ectype->Put(IReg::From(arg), Value::Primitive { ti.UInt() });
     } else {
-        auto offset                                        = (arg - IReg::VIRT_COUNT) * Cbc::STACK_SLOT_SIZE;
-        *reinterpret_cast<TypeInfo*>(frame.start + offset) = ti;
+        *reinterpret_cast<TypeInfo*>(UntypedSlotPosition(frame, arg)) = ti;
     }
 }
 
@@ -55,6 +59,7 @@ static inline TypeInfo InterfaceReceiverTypeInfo(Ectype* ectype, Frame frame, bo
     auto receiver = HAS_SRET_SHIFT && sret ? IReg::IR2 : IReg::IR1;
     return Execution::GetTypeInfo(ectype->GetReference(receiver));
 }
+
 extern "C" {
 
 /// The interpretation loop can be used in two scenarios:

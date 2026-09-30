@@ -6,33 +6,6 @@
 
 namespace Interpretation {
 
-StaticCallTypeInfoArgs LocateStaticCallTypeInfoArgs(Engine::Term signature, bool sret, bool hasOuterTi)
-{
-    unsigned iarg = 1 + (HAS_SRET_SHIFT && sret);
-    unsigned farg = 0;
-    unsigned slot = 0;
-
-    auto next = [&](bool isFloat) -> uint16_t {
-        if (isFloat && farg < FREG_ABI_AMOUNT) {
-            ++farg;
-            return StaticCallTypeInfoArgs::NONE; // Only integer locations are needed below.
-        }
-        if (!isFloat && iarg <= IREG_PARAM_PASSING_AMOUNT) {
-            return iarg++;
-        }
-        auto location = Cbc::IReg::VIRT_COUNT + slot++;
-        ASSERT(location <= UINT16_MAX);
-        return static_cast<uint16_t>(location);
-    };
-
-    // The signature excludes hidden parameters and ends with the return type.
-    for (unsigned i = 0; i < signature.GetLength() - 1; ++i) {
-        next(signature.Subterm(i).IsFloat());
-    }
-    auto outerTi = hasOuterTi ? next(false) : StaticCallTypeInfoArgs::NONE;
-    return { outerTi, next(false) };
-}
-
 Stream::Output& operator<<(Stream::Output& out, const ExecBytecodeInfo& bc)
 {
     using namespace Stream;
@@ -61,28 +34,40 @@ AbiInfo BuildAbiInfo(Engine::Session& session, Engine::Term signature, AbiInfoFl
     uint16_t stackPtrParams  = 0;
     uint16_t referenceParams = 0;
 
-    int fargIdx = 0; // FR0
-    int iargIdx = 1; // IR1
+    int fargIdx      = 0; // FR0
+    int iargIdx      = 1; // IR1
+    unsigned slotIdx = 0;
+
+    auto nextArg = [&](bool isFloat) -> uint16_t {
+        if (isFloat && fargIdx < FREG_ABI_AMOUNT) {
+            ++fargIdx;
+            return StaticCallTypeInfoArgs::NONE;
+        }
+        if (!isFloat && iargIdx <= IREG_PARAM_PASSING_AMOUNT) {
+            return iargIdx++;
+        }
+        auto location = Cbc::IReg::VIRT_COUNT + slotIdx++;
+        ASSERT(location <= UINT16_MAX);
+        return static_cast<uint16_t>(location);
+    };
 
     if (HAS_SRET_SHIFT && flags.isSRet) {
         // stack-return position on this platform is param passing register.
-        stackPtrParams |= (1 << iargIdx);
-        iargIdx++;
+        stackPtrParams |= (1 << nextArg(false));
     } else if (!HAS_SRET_SHIFT && flags.isSRet) {
         // stack-return position on this platform is using special register.
         stackPtrParams |= (1 << IReg::SRET_IR);
     }
 
     if (flags.isMut) {
-        derivedPairs    |= (1 << iargIdx); // this (derived)
-        referenceParams |= (2 << iargIdx); // base
-        iargIdx         += 2;              // also skip base ptr
+        auto derived     = nextArg(false);
+        auto base        = nextArg(false);
+        derivedPairs    |= (1 << derived);
+        referenceParams |= (1 << base);
     } else if (flags.referenceReceiver) {
-        referenceParams |= (1 << iargIdx);
-        iargIdx++;
+        referenceParams |= (1 << nextArg(false));
     } else if (flags.recordReceiver) {
-        stackPtrParams |= (1 << iargIdx);
-        iargIdx++;
+        stackPtrParams |= (1 << nextArg(false));
     }
 
     ASSERT(iargIdx < IREG_PARAM_PASSING_AMOUNT);
@@ -90,26 +75,26 @@ AbiInfo BuildAbiInfo(Engine::Session& session, Engine::Term signature, AbiInfoFl
     int termIdx = 0;
     int length  = signature.GetLength() - 1; // skip ret type term.
     while (termIdx < length) {
-        auto term    = signature.Subterm(termIdx);
-        int isFloat  = term.IsFloat();
-        int isRecord = term.IsRecord();
-        int isRef    = term.IsReference();
-        int isReg    = (iargIdx < IREG_PARAM_PASSING_AMOUNT);
+        auto term     = signature.Subterm(termIdx);
+        int isRecord  = term.IsRecord();
+        int isRef     = term.IsReference();
+        auto location = nextArg(term.IsFloat());
+        int isReg     = location < Cbc::IReg::VIRT_COUNT;
 
-        stackPtrParams  |= ((isReg && isRecord) << iargIdx);
-        referenceParams |= ((isReg && isRef) << iargIdx);
-
-        // Counters could overflow param passing reg amount.
-        fargIdx          += isFloat;
-        iargIdx          += !isFloat;
+        if (isReg) {
+            stackPtrParams  |= (isRecord << location);
+            referenceParams |= (isRef << location);
+        }
         termIdx++;
     }
 
-    iargIdx += flags.hasThisTypeInfo;
-    iargIdx += flags.hasOuterTi;
-    iargIdx += flags.funcVars;
+    for (int i = 0; i < flags.funcVars; ++i) {
+        nextArg(false);
+    }
+    auto outerTi = flags.hasOuterTi ? nextArg(false) : StaticCallTypeInfoArgs::NONE;
+    auto thisTi  = flags.hasThisTypeInfo ? nextArg(false) : StaticCallTypeInfoArgs::NONE;
 
-    bool hasTailReg = (iargIdx > IREG_PARAM_PASSING_AMOUNT);
+    bool hasTailReg = slotIdx > 0;
 
     if (hasTailReg) {
         // Tail register holds a pointer to position, where stack-passed parameters are located.
@@ -123,13 +108,14 @@ AbiInfo BuildAbiInfo(Engine::Session& session, Engine::Term signature, AbiInfoFl
         fargIdx = FREG_ABI_AMOUNT;
 
     return {
-        .stackPtrParams  = stackPtrParams,
-        .referenceParams = referenceParams,
-        .derivedPairs    = derivedPairs,
-        .iregParamCount  = (uint8_t)iargIdx,
-        .fregParamCount  = (uint8_t)fargIdx,
-        .isSRet          = flags.isSRet,
-        .hasTailReg      = hasTailReg,
+        .stackPtrParams         = stackPtrParams,
+        .referenceParams        = referenceParams,
+        .derivedPairs           = derivedPairs,
+        .staticCallTypeInfoArgs = { outerTi, thisTi },
+        .iregParamCount         = (uint8_t)iargIdx,
+        .fregParamCount         = (uint8_t)fargIdx,
+        .isSRet                 = flags.isSRet,
+        .hasTailReg             = hasTailReg,
     };
 }
 
