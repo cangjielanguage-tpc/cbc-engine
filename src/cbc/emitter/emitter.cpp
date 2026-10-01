@@ -31,21 +31,21 @@ EmitterSnapshot Emitter::Snapshot()
 {
     return EmitterSnapshot {
         .segmentSnapshot = segment.Snapshot(),
-        .fixupCount      = fixups.size(),
+        .fixupCount      = fixups.Size(),
     };
 }
 
 void Emitter::Apply(EmitterSnapshot snapshot)
 {
     segment.Apply(snapshot.segmentSnapshot);
-    fixups.resize(snapshot.fixupCount);
+    fixups.Resize(snapshot.fixupCount);
 }
 
 void Emitter::AddFixup(std::unique_ptr<Fixup> fixup)
 {
     auto size       = fixup->Size();
     fixup->position = segment.Pos();
-    fixups.push_back(std::move(fixup));
+    fixups.PushBack(std::move(fixup));
     // Fill the fixup position with zeroes.
     for (size_t i = 0; i < size; i++) {
         segment.AddW8(0);
@@ -70,8 +70,8 @@ Interpretation::Code Emitter::Build(Memory::Heap& heap)
 
     auto segmentCode = segment.Finish();
 
-    auto bytecode     = (uint8_t*)heap.Allocate(segmentCode.size());
-    auto bytecodeSize = segmentCode.size();
+    auto bytecode     = (uint8_t*)heap.Allocate(segmentCode.Size());
+    auto bytecodeSize = segmentCode.Size();
     std::copy(segmentCode.begin(), segmentCode.end(), bytecode);
 
     return Interpretation::Code {
@@ -89,7 +89,7 @@ public:
 
     int32_t Size() const override { return 2; }
 
-    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+    void Resolve(Segment& segment, Symbols& symbols, Utils::Function<uint16_t(Symbol)> const& relocationConverter)
         const override
     {
         ASSERT(position >= 0);
@@ -106,7 +106,7 @@ public:
 
     int32_t Size() const override { return 2; }
 
-    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+    void Resolve(Segment& segment, Symbols& symbols, Utils::Function<uint16_t(Symbol)> const& relocationConverter)
         const override
     {
         ASSERT(position >= 0);
@@ -130,7 +130,7 @@ public:
 
     int32_t Size() const override { return RT::B5i32::SIZE; }
 
-    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+    void Resolve(Segment& segment, Symbols& symbols, Utils::Function<uint16_t(Symbol)> const& relocationConverter)
         const override
     {
         int32_t distance = Distance(symbols, this->symbol);
@@ -150,7 +150,7 @@ public:
 
     int32_t Size() const override { return RT::B3xi12::SIZE; }
 
-    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+    void Resolve(Segment& segment, Symbols& symbols, Utils::Function<uint16_t(Symbol)> const& relocationConverter)
         const override
     {
         int32_t distance = Distance(symbols, this->symbol);
@@ -186,7 +186,7 @@ public:
         }
     }
 
-    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+    void Resolve(Segment& segment, Symbols& symbols, Utils::Function<uint16_t(Symbol)> const& relocationConverter)
         const override
     {
         int32_t distance = Distance(symbols, this->symbol);
@@ -240,7 +240,7 @@ public:
         }
     }
 
-    void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+    void Resolve(Segment& segment, Symbols& symbols, Utils::Function<uint16_t(Symbol)> const& relocationConverter)
         const override
     {
         int32_t distance = Distance(symbols, this->symbol);

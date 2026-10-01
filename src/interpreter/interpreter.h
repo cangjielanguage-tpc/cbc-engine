@@ -641,7 +641,7 @@ public:
         const auto size  = RTSupport::MetaInfo::GetTypeSize(ti);
         uintptr_t offset = 0;
         // TODO: optimize generated pattern
-        ti.VisitReferenceOffsets([&](uintptr_t refOffset) {
+        auto visitRefOffset = [&](uint32_t refOffset) {
             ASSERTION(
                 refOffset >= offset && refOffset <= size && size - refOffset >= sizeof(uintptr_t),
                 "invalid reference offset"
@@ -651,7 +651,8 @@ public:
             }
             copyRefs(refOffset);
             offset = refOffset + sizeof(uintptr_t);
-        });
+        };
+        ti.VisitReferenceOffsets(visitRefOffset);
 
         if (offset < size) {
             copyPrims(offset, size - offset);

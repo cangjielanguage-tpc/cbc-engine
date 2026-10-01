@@ -3,17 +3,20 @@
 #include "engine/engine.h"
 #include "engine/identifiers.h"
 #include "engine/image/cbc_file.h"
+#include "engine/image/flags.h"
 #include "engine/resolving_output.h"
 #include "engine/terms.h"
 #include "utils/assertion.h"
 #include "utils/iterators.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
+#include "utils/span.h"
+#include "utils/vector.h"
+#include <cstdio>
 #include <memory>
 #include <mutex>
 #include <optional>
 #include <unordered_map>
-#include <vector>
 
 namespace Engine {
 
@@ -23,7 +26,7 @@ using namespace Image;
 // ---- MethodTable ----
 
 MethodTable::MethodTable(
-    std::vector<Entry>&& allEntries, std::vector<SubTable>&& classTables, std::vector<SubTable>&& interfaceTables
+    Utils::Vector<Entry>&& allEntries, Utils::Vector<SubTable>&& classTables, Utils::Vector<SubTable>&& interfaceTables
 )
     : allEntries(std::move(allEntries)),
       classTables(std::move(classTables)),
@@ -45,28 +48,30 @@ MethodTable::Range MethodTable::Interfaces() const
     return Iterators::MakeRange(MethodTable::SubTableGenerator {
         .table     = *this,
         .subtables = interfaceTables,
-        .disp      = static_cast<int>(classTables.size()),
+        .disp      = static_cast<int>(classTables.Size()),
         .cursor    = 0,
     });
 }
 
-int MethodTable::ClassCount() const { return classTables.size(); }
+int MethodTable::ClassCount() const { return classTables.Size(); }
 
-int MethodTable::InterfaceCount() const { return interfaceTables.size(); }
+int MethodTable::InterfaceCount() const { return interfaceTables.Size(); }
 
-int MethodTable::EntryCount() const { return allEntries.size(); }
+int MethodTable::EntryCount() const { return allEntries.Size(); }
 
 void MethodTable::Globalize(Session& session)
 {
     auto& termManager = TermManager::Of(session);
     for (auto& entry : allEntries) {
-        entry.genericContext = termManager.Globalize(entry.genericContext);
+        for (auto& t : entry.genericContext) {
+            t = termManager.Globalize(t);
+        }
     }
     for (auto& st : classTables) {
-        st.genericContext = termManager.Globalize(st.genericContext);
+        st.declaringType = termManager.Globalize(st.declaringType);
     }
     for (auto& st : interfaceTables) {
-        st.genericContext = termManager.Globalize(st.genericContext);
+        st.declaringType = termManager.Globalize(st.declaringType);
     }
 }
 
@@ -104,19 +109,20 @@ std::optional<MethodTableEntry> MethodTable::Resolve(Session& session, MethodTab
     return std::nullopt;
 }
 
-void MethodTable::ResolveAll(Session& session, Reference const& reference, std::vector<MethodTableEntry>& buffer) const
+void MethodTable::ResolveAll(Session& session, Reference const& reference, Utils::Vector<MethodTableEntry>& buffer)
+    const
 {
     for (auto st : Classes()) {
         for (auto entry : st.Entries()) {
             if (Compare(session, reference, entry)) {
-                buffer.push_back(entry);
+                buffer.PushBack(entry);
             }
         }
     }
     for (auto st : Interfaces()) {
         for (auto entry : st.Entries()) {
             if (Compare(session, reference, entry)) {
-                buffer.push_back(entry);
+                buffer.PushBack(entry);
             }
         }
     }
@@ -126,10 +132,10 @@ void MethodTable::ResolveAll(Session& session, Reference const& reference, std::
 
 std::optional<MethodSubTable> MethodTable::SubTableGenerator::operator()()
 {
-    if (cursor < subtables.size()) {
+    if (cursor < subtables.Size()) {
         auto cursor = this->cursor++;
         auto& st    = subtables[cursor];
-        return MethodSubTable(table, st.genericContext, st.start, st.end, cursor + disp);
+        return MethodSubTable(table, st.declaringType, st.start, st.end, cursor + disp);
     } else {
         return std::nullopt;
     }
@@ -185,8 +191,31 @@ struct MethodTableBuilder {
     GlobalTerm tableOwner;
     MethodTable table {};
 
-    std::vector<MethodTableEntry> entryBuffer;
+    Utils::Vector<MethodTableEntry> entryBuffer;
     std::unordered_set<Term, Term::Hasher> interfaces;
+
+    using MethodReference = MethodTable::Reference;
+
+    struct MRefTraits {
+        size_t operator()(MethodReference const& ref) const
+        {
+            std::hash<std::string_view> hstr;
+            return hstr(ref.name) + ref.signature.Hash();
+        }
+
+        bool operator()(MethodReference const& a, MethodReference const& b) const
+        {
+            return a.name == b.name && a.signature == b.signature;
+        }
+    };
+
+    struct MethodSymbol {
+        MethodReference ref;
+        MethodTable::Entry* mtEntry;
+        bool isOverride;
+        bool isAbstract;
+        bool isNewEntry;
+    };
 
     bool AddInterface(Session& session, Term interface)
     {
@@ -202,14 +231,16 @@ struct MethodTableBuilder {
 
         auto interfTable = *optInterfTable;
 
-        ASSERTION(interfTable->classTables.empty(), "interface tables should not have class table");
+        ASSERTION(interfTable->classTables.Empty(), "interface tables should not have class table");
 
         auto oldEntryCount = table.EntryCount();
-        table.allEntries.insert(table.allEntries.end(), interfTable->allEntries.begin(), interfTable->allEntries.end());
+        for (auto& e : interfTable->allEntries) {
+            table.allEntries.PushBack(e);
+        }
 
         for (auto st : interfTable->interfaceTables) {
-            table.interfaceTables.emplace_back(MethodTable::SubTable {
-                .genericContext = st.genericContext,
+            table.interfaceTables.EmplaceBack(MethodTable::SubTable {
+                .declaringType = st.declaringType,
                 .start          = st.start + oldEntryCount,
                 .end            = st.end + oldEntryCount,
             });
@@ -220,8 +251,10 @@ struct MethodTableBuilder {
 
     bool AddExtensions(Session& session)
     {
-        std::vector<Term> storage;
+        Utils::Vector<Term> storage;
         TermMatcher matcher;
+
+        auto& arena = session.Allocator();
 
         for (auto file : session.GetEngine().Files()) {
             for (auto extId : Image::Reader::Resolve(session, file.extensions)) {
@@ -234,7 +267,7 @@ struct MethodTableBuilder {
 
                 if (completeMatch) {
                     ASSERTION(
-                        matcher.vars.size() == ext->arity,
+                        matcher.vars.Size() == ext->arity,
                         "Language constraint: all variables in `extend` should be used in the extended type"
                     );
 
@@ -248,11 +281,9 @@ struct MethodTableBuilder {
                         }
                     }
 
-                    auto genericContext =
-                        tableOwner; // the code is referencing type variables using type-arg tree of extended type.
-                    MethodSignatureSubstitution msub(session, matcher.vars.data(), matcher.vars.size());
                     for (auto methodId : Reader::Resolve(session, ext.GetVirtualMethods())) {
-                        AddMethod(session, methodId, msub, genericContext);
+                        auto terms = Utils::Span<Term>(matcher.vars.Data(), matcher.vars.Size());
+                        AddMethod(session, methodId, arena.Copy(terms));
                     }
                 }
                 matcher.Clear();
@@ -262,7 +293,7 @@ struct MethodTableBuilder {
     }
 
     void AddMethod(
-        Session& session, Identifier<MethodDefinition> methodId, MethodSignatureSubstitution& sub, Term genericContext
+        Session& session, Identifier<MethodDefinition> methodId, Utils::Span<Term> genericContext
     )
     {
         auto newEntry = MethodTable::Entry {
@@ -272,7 +303,8 @@ struct MethodTableBuilder {
 
         auto method = Reader::Read(session, methodId);
         auto methodSig = TermManager::Resolve(session, method.Signature());
-        methodSig      = sub.Substitute(methodSig);
+        MethodSignatureSubstitution sub(session, genericContext);
+        methodSig      = sub(methodSig);
 
         MethodTable::Reference ref { .name      = Reader::Read(session, method.Name()),
                                      .signature = methodSig };
@@ -280,16 +312,112 @@ struct MethodTableBuilder {
         // TODO: Do not override protected methods that are not visible from the current type.
         table.ResolveAll(session, ref, entryBuffer);
 
-        if (entryBuffer.empty()) {
+        if (entryBuffer.Empty()) {
             // 3.2 add newly declared methods
-            table.allEntries.emplace_back(newEntry);
+            table.allEntries.EmplaceBack(newEntry);
         } else {
             // 3.1 patch overriden methods
             for (auto& entry : entryBuffer) {
                 table.allEntries[entry.flatMethodNum] = newEntry;
             }
-            entryBuffer.clear();
+            entryBuffer.Clear();
         }
+    }
+
+    bool VerifyAndResolveConflicts(Session& session, size_t newEntriesStartIdx, size_t currentClassEntriesStartIdx)
+    {
+        Utils::Vector<MethodSymbol> symbols;
+        symbols.Reserve(table.allEntries.Size());
+
+        auto* newEntriesStart = &table.allEntries[newEntriesStartIdx];
+        auto* currentClassEntriesStart = &table.allEntries[currentClassEntriesStartIdx];
+
+        for (auto& entry : table.allEntries) {
+            auto method = Reader::Read(session, entry.method);
+            auto methodSig = TermManager::Resolve(session, method.Signature());
+            MethodSignatureSubstitution sub(session, entry.genericContext);
+            methodSig      = sub(methodSig);
+            MethodReference ref { .name      = Reader::Read(session, method.Name()),
+                                  .signature = methodSig };
+
+            bool isOverride = &entry >= currentClassEntriesStart;
+            bool isNewEntry = &entry >= newEntriesStart;
+            bool isAbstract = method.GetFlags().Is(MethodFlag::ABSTRACT);
+
+            MethodSymbol desc {
+                .ref = ref,
+                .mtEntry = &entry,
+                .isOverride = isOverride,
+                .isAbstract = isAbstract,
+                .isNewEntry = isNewEntry,
+            };
+
+            symbols.PushBack(desc);
+        }
+
+        std::unordered_map<MethodReference, std::vector<MethodSymbol*>, MRefTraits, MRefTraits> refUses;
+        for (auto& sym : symbols) {
+            refUses[sym.ref].push_back(&sym);
+        }
+
+        bool conflictFound = false;
+
+        for (auto& [ref, syms] : refUses) {
+            if (syms.size() <= 1) {
+                // safe usage
+                continue;
+            }
+            // possible conflict
+            auto refName = ref.name;
+            auto refSig = ref.signature;
+
+            MethodSymbol* override = nullptr;
+            MethodSymbol* oldNonAbstract = nullptr;
+            MethodSymbol* nonAbstract = nullptr;
+            int nonAbstractCount = 0;
+            for (auto& sym : syms) {
+                if (sym->isOverride) {
+                    override = sym;
+                }
+                if (!sym->isAbstract) {
+                    nonAbstract = sym;
+                    nonAbstractCount++;
+                }
+                if (!sym->isAbstract && !sym->isNewEntry) {
+                    oldNonAbstract = sym;
+                }
+            }
+
+            // if there is override or old non-abstract symbol, conflict is not possible
+            if (override || oldNonAbstract || (nonAbstractCount == 1)) {
+                MethodSymbol *choice = override;
+                choice = choice ? choice : oldNonAbstract;
+                choice = choice ? choice : nonAbstract;
+
+                // no conflicts
+                for (auto& sym : syms) {
+                    *sym->mtEntry = *choice->mtEntry;
+                }
+                continue;
+            }
+            // no override, no old non-abstract symbols
+            // if two non-abstract sybols found => conflict found
+            if (nonAbstractCount <= 1) {
+                continue;
+            }
+            // conflict is possibly present, final corner case:
+            // "the same method could present in different entries method"
+            auto refMethod = nonAbstract->mtEntry->method;
+
+            for (auto& sym : syms) {
+                if (!sym->isAbstract && nonAbstract != sym && nonAbstract->mtEntry->method != sym->mtEntry->method) {
+                    LOGS_ERROR(Log::mt, session, "Conflict found for reference {}{} in {} with {}",
+                            refName, refSig, Detailed(refMethod), Detailed(sym->mtEntry->method));
+                    conflictFound = true;
+                }
+            }
+        }
+        return conflictFound;
     }
 };
 
@@ -316,6 +444,8 @@ std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, Glob
         builder.table = **superMT;
     }
 
+    int oldEntryCount = builder.table.EntryCount();
+
     // 2. Copy all entries and sub tables of interfaces, adjusting their views
     for (auto interf : Reader::Resolve(session, def.GetInterfaces())) {
         auto interface = TermManager::Resolve(session, interf);
@@ -335,23 +465,29 @@ std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, Glob
     // 3. Patch all overriden methods and add newly declared methods
     // to the subtable of current type.
     auto thisType      = type;
-    auto oldEntryCount = builder.table.EntryCount();
+    auto entryCountWithInterfaces = builder.table.EntryCount();
     MethodSignatureSubstitution methodSigSub(session, type);
 
-    std::vector<MethodTableEntry> entryBuffer;
+    Utils::Vector<MethodTableEntry> entryBuffer;
     for (auto methodId : Reader::Resolve(session, def.GetVirtualMethods())) {
-        builder.AddMethod(session, methodId, methodSigSub, thisType);
+        builder.AddMethod(session, methodId, type.SubTerms());
     }
 
     // 3.3 add new subtable for current type (even if new methods were not added)
     auto tables = flags.Is(TypeKind::INTERFACE) ? &builder.table.interfaceTables : &builder.table.classTables;
 
-    tables->emplace_back(MethodTable::SubTable {
-        .genericContext = thisType,
-        .start          = oldEntryCount,
+    auto entryCountWithoutCurrentClass = builder.table.EntryCount();
+
+    tables->EmplaceBack(MethodTable::SubTable {
+        .declaringType = thisType,
+        .start          = entryCountWithInterfaces,
         .end            = builder.table.EntryCount(),
     });
 
+    bool conflictFound = builder.VerifyAndResolveConflicts(session, oldEntryCount, entryCountWithoutCurrentClass);
+    if (conflictFound) {
+        return std::nullopt;
+    }
     return builder.table;
 }
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "utils/heap.h"
+#include "utils/span.h"
 #include <cstddef>
 #include <cstdint>
 
@@ -19,6 +20,18 @@ public:
 
     void* Allocate(size_t bytes, size_t alignment) override;
     void Free(void* memory, size_t bytes, size_t alignment) override;
+
+    template <typename T> Utils::Span<T> Copy(Utils::Span<T> span)
+    {
+        static_assert(std::is_trivially_destructible_v<T>, "T must not have a destructor (or it must be empty)");
+
+        auto size = span.Size();
+        T* memory = reinterpret_cast<T*>(Allocate(sizeof(T) * size, alignof(T)));
+        for (size_t i = 0; i < size; i++) {
+            new (memory + i) T(span[i]);
+        }
+        return Utils::Span<T>(memory, size);
+    }
 
 private:
     void* DoAllocateSlow(size_t bytes);

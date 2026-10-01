@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <cstdlib>
 #include <new>
+#include <type_traits>
 
 #include "arena.h"
 

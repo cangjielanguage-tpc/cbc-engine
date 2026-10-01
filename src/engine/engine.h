@@ -8,6 +8,8 @@
 #include "image/io/random_access_file.h"
 #include "utils/heap.h"
 #include "utils/sharedobj.h"
+#include "utils/span.h"
+#include "utils/vector.h"
 
 namespace Decode {
 struct Decoder;
@@ -22,7 +24,7 @@ class Dependencies {
     using SharedObject = Utils::SharedObject;
 
 public:
-    Dependencies(std::vector<std::shared_ptr<SharedObject>>&& objects) : objects(std::move(objects)) {}
+    Dependencies(Utils::Vector<std::shared_ptr<SharedObject>>&& objects) : objects(std::move(objects)) {}
 
     Dependencies() = default;
 
@@ -31,7 +33,7 @@ public:
     void* FindSymbol(char const* linkageName) const;
 
 private:
-    std::vector<std::shared_ptr<SharedObject>> objects;
+    Utils::Vector<std::shared_ptr<SharedObject>> objects;
 };
 
 class Loader;
@@ -60,8 +62,8 @@ public:
     );
     std::optional<Identifier<TypeDefinition>> FindType(Session& session, std::string_view typeName);
 
-    std::vector<Image::CbcFile> const& Files() const;
-    std::vector<Dependencies> const& Dependencies() const;
+    Utils::Span<Image::CbcFile const> Files() const;
+    Utils::Span<Dependencies const> Dependencies() const;
 
 private:
     Engine(std::unique_ptr<Impl>&& impl);

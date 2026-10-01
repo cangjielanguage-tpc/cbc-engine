@@ -5,6 +5,7 @@
 #include "engine/image/version_metadata.h"
 #include "string.h"
 #include "utils/reinterpretation.h"
+#include "utils/vector.h"
 #include <cstdint>
 #include <optional>
 
@@ -140,6 +141,8 @@ template <typename T> struct Identifier {
     Image::FileId GetFileId() const { return fileId; }
 
     bool operator==(const Identifier& another) const { return Pack() == another.Pack(); }
+
+    bool operator!=(const Identifier& another) const { return !(*this == another); }
 
     inline Packed Pack() const
     {
@@ -400,8 +403,6 @@ using StaticFieldAotTable   = MemberIndex<StaticFieldAotData>;
 /// - LivenessInfo & StackPtrsInfo: GC root-tracing metadata mapped to specific bytecode
 ///   offsets (cbcPos). Tracks active register masks, reference slot locations, stack
 ///   pointers, and object mutation pairs for exact garbage collection.
-///
-/// TODO: get rid of vectors
 struct ExceptionRegion {
     uint32_t start;
     uint32_t end;
@@ -418,13 +419,13 @@ struct RawData {
 struct LivenessInfo {
     uint32_t cbcPos;
     uint16_t regMask;
-    std::vector<uint32_t> refSlotNums;                   // FIXME: light-weight handle
-    std::vector<std::pair<uint32_t, uint32_t>> mutPairs; // FIXME: light-weight handle
+    Utils::Vector<uint32_t> refSlotNums; // FIXME: light-weight handle
+    Utils::Vector<std::pair<uint32_t, uint32_t>> mutPairs; // FIXME: light-weight handle
 };
 
 struct StackPtrsInfo {
     uint32_t cbcPos;
-    std::vector<uint32_t> resources; // FIXME: light-weight handle
+    Utils::Vector<uint32_t> resources; // FIXME: light-weight handle
 };
 
 class Code {

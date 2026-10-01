@@ -5,64 +5,64 @@
 namespace Cbc {
 namespace Emitter {
 
-int32_t Segment::Pos() const { return (int32_t)data.size(); }
+int32_t Segment::Pos() const { return (int32_t)data.Size(); }
 
 void Segment::AddW8(uint32_t value)
 {
     ASSERT((value & 0xff) == value);
-    data.push_back((uint8_t)((value >> 0) & 0xff));
-    ASSERT(data.size() < INT32_MAX);
+    data.PushBack((uint8_t)((value >> 0) & 0xff));
+    ASSERT(data.Size() < INT32_MAX);
 }
 
 void Segment::AddW16(uint32_t value)
 {
     ASSERT((value & 0xffff) == value);
-    data.push_back((uint8_t)((value >> 0) & 0xff));
-    data.push_back((uint8_t)((value >> 8) & 0xff));
-    ASSERT(data.size() < INT32_MAX);
+    data.PushBack((uint8_t)((value >> 0) & 0xff));
+    data.PushBack((uint8_t)((value >> 8) & 0xff));
+    ASSERT(data.Size() < INT32_MAX);
 }
 
 void Segment::AddW32(uint32_t value)
 {
-    data.push_back((uint8_t)((value >> 0) & 0xff));
-    data.push_back((uint8_t)((value >> 8) & 0xff));
-    data.push_back((uint8_t)((value >> 16) & 0xff));
-    data.push_back((uint8_t)((value >> 24) & 0xff));
-    ASSERT(data.size() < INT32_MAX);
+    data.PushBack((uint8_t)((value >> 0) & 0xff));
+    data.PushBack((uint8_t)((value >> 8) & 0xff));
+    data.PushBack((uint8_t)((value >> 16) & 0xff));
+    data.PushBack((uint8_t)((value >> 24) & 0xff));
+    ASSERT(data.Size() < INT32_MAX);
 }
 
 void Segment::AddW64(uint64_t value)
 {
-    data.push_back((uint8_t)((value >> 0) & 0xff));
-    data.push_back((uint8_t)((value >> 8) & 0xff));
-    data.push_back((uint8_t)((value >> 16) & 0xff));
-    data.push_back((uint8_t)((value >> 24) & 0xff));
-    data.push_back((uint8_t)((value >> 32) & 0xff));
-    data.push_back((uint8_t)((value >> 40) & 0xff));
-    data.push_back((uint8_t)((value >> 48) & 0xff));
-    data.push_back((uint8_t)((value >> 56) & 0xff));
-    ASSERT(data.size() < INT32_MAX);
+    data.PushBack((uint8_t)((value >> 0) & 0xff));
+    data.PushBack((uint8_t)((value >> 8) & 0xff));
+    data.PushBack((uint8_t)((value >> 16) & 0xff));
+    data.PushBack((uint8_t)((value >> 24) & 0xff));
+    data.PushBack((uint8_t)((value >> 32) & 0xff));
+    data.PushBack((uint8_t)((value >> 40) & 0xff));
+    data.PushBack((uint8_t)((value >> 48) & 0xff));
+    data.PushBack((uint8_t)((value >> 56) & 0xff));
+    ASSERT(data.Size() < INT32_MAX);
 }
 
 void Segment::SetW8(size_t pos, uint32_t value)
 {
     ASSERTION((value & 0xff) == value, "Out of bounds");
-    ASSERTION(pos < data.size(), "Out of bounds");
+    ASSERTION(pos < data.Size(), "Out of bounds");
     data[pos + 0] = ((uint8_t)((value >> 0) & 0xff));
 }
 
 void Segment::SetW16(size_t pos, uint32_t value)
 {
     ASSERTION((value & 0xffff) == value, "Out of bounds");
-    ASSERTION(pos + 1 < data.size(), "Out of bounds");
+    ASSERTION(pos + 1 < data.Size(), "Out of bounds");
     data[pos + 0] = ((uint8_t)((value >> 0) & 0xff));
     data[pos + 1] = ((uint8_t)((value >> 8) & 0xff));
-    ASSERT(data.size() < INT32_MAX);
+    ASSERT(data.Size() < INT32_MAX);
 }
 
 void Segment::SetW32(size_t pos, uint32_t value)
 {
-    ASSERTION(pos + 3 < data.size(), "Out of bounds");
+    ASSERTION(pos + 3 < data.Size(), "Out of bounds");
     data[pos + 0] = ((uint8_t)((value >> 0) & 0xff));
     data[pos + 1] = ((uint8_t)((value >> 8) & 0xff));
     data[pos + 2] = ((uint8_t)((value >> 16) & 0xff));
@@ -71,7 +71,7 @@ void Segment::SetW32(size_t pos, uint32_t value)
 
 void Segment::SetW64(size_t pos, uint64_t value)
 {
-    ASSERTION(pos + 7 < data.size(), "Out of bounds");
+    ASSERTION(pos + 7 < data.Size(), "Out of bounds");
     data[pos + 0] = ((uint8_t)((value >> 0) & 0xff));
     data[pos + 1] = ((uint8_t)((value >> 8) & 0xff));
     data[pos + 2] = ((uint8_t)((value >> 16) & 0xff));
@@ -85,17 +85,17 @@ void Segment::SetW64(size_t pos, uint64_t value)
 SegmentSnapshot Segment::Snapshot() const
 {
     return SegmentSnapshot {
-        .dataSize = data.size(),
+        .dataSize = data.Size(),
     };
 }
 
 void Segment::Apply(SegmentSnapshot snapshot)
 {
-    ASSERTION(snapshot.dataSize <= data.size(), "Inconsistent snapshot");
-    data.resize(snapshot.dataSize);
+    ASSERTION(snapshot.dataSize <= data.Size(), "Inconsistent snapshot");
+    data.Resize(snapshot.dataSize);
 }
 
-std::vector<uint8_t> Segment::Finish() { return std::exchange(this->data, {}); }
+Utils::Vector<uint8_t> Segment::Finish() { return std::exchange(this->data, {}); }
 
 Segment::View Segment::At(size_t pos) { return View(*this, pos); }
 

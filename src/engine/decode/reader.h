@@ -3,6 +3,7 @@
 #include "engine/decode/decoder.h"
 #include "engine/engine.h"
 #include "engine/image/cbc_file.h"
+#include "utils/vector.h"
 
 /// Binary Decoding & Reading Interface (`Decode::Reader`)
 ///
@@ -23,9 +24,9 @@ inline namespace Reader {
 template <typename T> T Read(Engine::Session& session, Image::FileId fileId, Image::Offset<T> offset);
 template <typename T> T Read(Engine::Session& session, Image::Identifier<T> id);
 
-std::vector<Image::ExceptionRegion> GetExceptionRegions(Engine::Session& session, Image::Code const& code);
-std::vector<Image::LivenessInfo> GetLivenessInfo(Engine::Session& session, Image::Code const& code);
-std::vector<Image::StackPtrsInfo> GetStackPtrsInfo(Engine::Session& session, Image::Code const& code);
+Utils::Vector<Image::ExceptionRegion> GetExceptionRegions(Engine::Session& session, Image::Code const& code);
+Utils::Vector<Image::LivenessInfo> GetLivenessInfo(Engine::Session& session, Image::Code const& code);
+Utils::Vector<Image::StackPtrsInfo> GetStackPtrsInfo(Engine::Session& session, Image::Code const& code);
 
 template <typename T> Image::RefSequence<T> ReadRefSeq(IO::StreamFileReader& reader, Image::FileId file)
 {

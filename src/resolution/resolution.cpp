@@ -16,6 +16,8 @@
 #include "utils/iterators.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
+#include "utils/span.h"
+#include "utils/vector.h"
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -50,7 +52,7 @@ static std::string_view CopyToArena(Session& session, std::string const& str)
 
 std::optional<RTSupport::TypeInfo> Type::GetTypeInfo() const { return resolver->GetTypeInfo(*this); }
 
-void Type::FillReferenceOffsets(std::vector<uint32_t>& refOffsets, uint32_t disp) const
+void Type::FillReferenceOffsets(Utils::Vector<uint32_t>& refOffsets, uint32_t disp) const
 {
     this->resolver->fieldManager->FillRefOffsets(this->term, refOffsets, disp);
 }
@@ -208,7 +210,7 @@ struct ResolverProxy {
         auto [file, raf] = resolver.session.File(fileId);
         auto data        = Decode::GetAotData<Image::StaticFieldAotData>(resolver, ref.ident);
         auto linkageName = Decode::Read(resolver, data.linkangeName);
-        auto location    = resolver.session.GetEngine().Dependencies().at(fileId).FindSymbol(linkageName);
+        auto location    = resolver.session.GetEngine().Dependencies().At(fileId).FindSymbol(linkageName);
         if (!location) {
             log.Log(Logging::Level::FATAL, [linkageName](Stream::Output& stream) {
                 stream << "not found location of static field: " << linkageName << Stream::endl;
@@ -396,32 +398,31 @@ struct ResolverProxy {
     {
         ASSERT(ref.multi.length >= 1);
 
-        std::vector<std::variant<StaticField::Content, InstanceField::Content>> fields;
-        fields.reserve(ref.multi.length);
+        Utils::Vector<std::variant<StaticField::Content, InstanceField::Content>> fields;
+        fields.Reserve(ref.multi.length);
 
         for (uint32_t i = 0; i < ref.multi.length; i++) {
             if (i == 0) {
                 auto id    = Index<StaticField>(ref.multi.indices[i].GetValue());
                 auto field = ResolveField<StaticField>(resolver, id).value();
-                fields.push_back(field);
+                fields.PushBack(field);
             } else {
                 auto id    = Index<InstanceField>(ref.multi.indices[i].GetValue());
                 auto field = ResolveField<InstanceField>(resolver, id).value();
-                fields.push_back(field);
+                fields.PushBack(field);
             }
         }
 
-        auto staticField = std::get<StaticField::Content>(fields.front());
+        auto staticField = std::get<StaticField::Content>(fields.Front());
 
         auto refType = staticField.refType;
         auto fieldType =
-            fields.size() > 1 ? std::get<InstanceField::Content>(fields.back()).fieldType : staticField.fieldType;
+            fields.Size() > 1 ? std::get<InstanceField::Content>(fields.Back()).fieldType : staticField.fieldType;
 
         std::optional<uintptr_t> location = staticField.location;
 
-        decltype(fields) instanceFields(fields.begin() + 1, fields.end());
-        for (const auto& f : instanceFields) {
-            auto field = std::get<InstanceField::Content>(f);
+        for (size_t i = 1; i < fields.Size(); i++) {
+            auto field = std::get<InstanceField::Content>(fields[i]);
             if (!field.offset.has_value()) {
                 location = std::nullopt;
                 break;
@@ -439,17 +440,17 @@ struct ResolverProxy {
     {
         ASSERT(ref.multi.length >= 1);
 
-        std::vector<InstanceField::Content> fields;
-        fields.reserve(ref.multi.length);
+        Utils::Vector<InstanceField::Content> fields;
+        fields.Reserve(ref.multi.length);
 
         for (uint32_t i = 0; i < ref.multi.length; i++) {
             auto id    = Index<InstanceField>(ref.multi.indices[i].GetValue());
             auto field = ResolveField<InstanceField>(resolver, id);
-            fields.push_back(field.value());
+            fields.PushBack(field.value());
         }
 
-        auto refType   = fields.front().refType;
-        auto fieldType = fields.back().fieldType;
+        auto refType   = fields.Front().refType;
+        auto fieldType = fields.Back().fieldType;
 
         std::optional<uint32_t> optOffset = 0;
         for (const auto& f : fields) {
@@ -573,10 +574,10 @@ struct ResolverProxy {
         auto paramLength = signature.GetLength() - 1;
         auto retTypeIdx  = paramLength;
 
-        std::vector<Type> params;
-        params.reserve(paramLength);
+        Utils::Vector<Type> params;
+        params.Reserve(paramLength);
         for (int i = 0; i < paramLength; i++) {
-            params.push_back(Type(signature.Subterm(i), resolver));
+            params.PushBack(Type(signature.Subterm(i), resolver));
         }
         return {
             .resolver = &resolver,
@@ -674,7 +675,7 @@ struct ResolverProxy {
         auto data        = Decode::GetAotData<Image::DirectCallAotData>(resolver, ref.identifier);
 
         auto linkageName = Decode::Read(resolver, data.linkangeName);
-        auto funcPtr     = resolver.session.GetEngine().Dependencies().at(fileId).FindSymbol(linkageName);
+        auto funcPtr     = resolver.session.GetEngine().Dependencies().At(fileId).FindSymbol(linkageName);
 
         if (!funcPtr) {
             log.Log(Logging::Level::FATAL, [linkageName](Stream::Output& stream) {
@@ -895,7 +896,8 @@ std::optional<Type> Resolver::QueryFutureByFunctional(Index<Type> id)
     ASSERT(term.GetLength() > 0);
     auto retType = term.Subterm(term.GetLength() - 1);
 
-    std::vector<Term> subterms { retType };
+    Utils::Vector<Term> subterms;
+    subterms.PushBack(retType);
     auto futureType = termManager.NewAotTerm(session, "std.core:Future", subterms, true);
     return Type(futureType, this);
 }
@@ -978,9 +980,10 @@ Stream::Output& operator<<(Stream::Output& stream, StaticField const& field)
 
 Type MethodSignature::ResType() const { return Type(term.Subterm(term.GetLength() - 1), resolver); }
 
-Term::Range MethodSignature::Params() const
+Utils::Span<Term> MethodSignature::Params() const
 {
-    return Iterators::MakeRange(Term::SubTermGenerator { term.data, 0, term.GetLength() - 1 });
+    auto subterms = term.SubTerms();
+    return Utils::Span(subterms.Data(), subterms.Size() - 1);
 }
 
 uint32_t MethodSignature::ParamCount() const { return term.GetLength() - 1; }

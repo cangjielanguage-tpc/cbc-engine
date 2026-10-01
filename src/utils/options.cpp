@@ -3,13 +3,13 @@
 #include "utils/assertion.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
+#include "utils/span.h"
 
 #include <cerrno>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <string_view>
-#include <vector>
 
 namespace Options {
 
@@ -125,19 +125,19 @@ struct KeyVal {
     std::string_view whole;
 };
 
-void ParseKeyVal(std::vector<KeyVal>& parsedOpts, std::string_view kv)
+void ParseKeyVal(Utils::Vector<KeyVal>& parsedOpts, std::string_view kv)
 {
     size_t eqPos = kv.find('=');
     if (eqPos != std::string::npos && eqPos + 1 < kv.size()) {
         auto key = kv.substr(0, eqPos);
         auto val = kv.substr(eqPos + 1);
-        parsedOpts.emplace_back(KeyVal { key, val, kv });
+        parsedOpts.EmplaceBack(KeyVal { key, val, kv });
     } else {
         PrintError("invalid option format", kv);
     }
 };
 
-void SetOptions(const std::vector<KeyVal>& parsedOpts, const Table& opts)
+void SetOptions(Utils::Span<KeyVal const> parsedOpts, const Table& opts)
 {
     for (auto& parsedOpt : parsedOpts) {
         switch (opts.Set(parsedOpt.key, parsedOpt.val)) {
@@ -156,7 +156,7 @@ void Table::ParseAndSet(int size, const char* const* optStr) const
         return;
     }
 
-    std::vector<KeyVal> parsedOpts;
+    Utils::Vector<KeyVal> parsedOpts;
     for (size_t i = 0; i < size; ++i) {
         ParseKeyVal(parsedOpts, optStr[i]);
     }
@@ -166,7 +166,7 @@ void Table::ParseAndSet(int size, const char* const* optStr) const
 
 void InitFromString(std::string_view optStr, const Table& opts)
 {
-    std::vector<KeyVal> parsedOpts;
+    Utils::Vector<KeyVal> parsedOpts;
 
     size_t start = 0;
     size_t end   = 0;

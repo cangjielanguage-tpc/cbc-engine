@@ -1,19 +1,18 @@
 #pragma once
 
 #include "disasmer.h"
+#include "utils/function.h"
 #include "utils/ostream.h"
-#include <functional>
 #include <string_view>
 #include <unordered_map>
-#include <vector>
 
 namespace Cli {
-using namespace std;
+using std::string_view;
 
 struct CliParser {
 public:
     class DisasmerBuilder {
-        vector<string_view> files;
+        Utils::Vector<string_view> files;
 
         Stream::Output& out;
 
@@ -22,14 +21,14 @@ public:
     public:
         void SetResolving(bool resolving) { this->resolving = resolving; }
 
-        void AddFile(string_view file) { files.push_back(file); }
+        void AddFile(string_view file) { files.PushBack(file); }
 
-        DisasmerBuilder(Stream::Output& out, size_t expectedSize) : out(out) { files.reserve(expectedSize); }
+        DisasmerBuilder(Stream::Output& out, size_t expectedSize) : out(out) { files.Reserve(expectedSize); }
 
         Dis::Disasmer Build() { return Dis::Disasmer(files, out, resolving); }
     };
 
-    using OptionsMap = std::unordered_map<string_view, std::function<void(CliParser&, DisasmerBuilder&)>>;
+    using OptionsMap = std::unordered_map<string_view, Utils::Function<void(CliParser&, DisasmerBuilder&)>>;
 
     CliParser(int argc, char* argv[], OptionsMap options);
 
@@ -40,7 +39,7 @@ public:
 private:
     OptionsMap opts;
 
-    vector<string_view> args;
+    Utils::Vector<string_view> args;
 
     bool isOption(string_view sv);
 

@@ -29,9 +29,9 @@ static Engine* g_engineInstance;
 class Engine::Impl {
 public:
     Impl(
-        std::vector<CbcFile>&& files,
-        std::vector<std::unique_ptr<IO::RandomAccessFile>>&& rafs,
-        std::vector<class Dependencies>&& deps
+        Utils::Vector<CbcFile>&& files,
+        Utils::Vector<std::unique_ptr<IO::RandomAccessFile>>&& rafs,
+        Utils::Vector<class Dependencies>&& deps
     )
         : files(std::move(files)),
           rafs(std::move(rafs)),
@@ -45,15 +45,15 @@ public:
     std::optional<CbcFile*> FindCbcFile(std::string_view filePath);
 
     friend class Session;
-    std::vector<CbcFile> files;
-    std::vector<std::unique_ptr<IO::RandomAccessFile>> rafs;
+    Utils::Vector<CbcFile> files;
+    Utils::Vector<std::unique_ptr<IO::RandomAccessFile>> rafs;
 
     Interpretation::FunctionHandleManager fuhManager;
     std::unique_ptr<MethodTableManager> mtManager;
     TermManager termManager;
     StaticsManager staticsManager;
     std::unique_ptr<TypeInfoManager> typeInfoManager;
-    std::vector<class Dependencies> dependencies;
+    Utils::Vector<class Dependencies> dependencies;
 };
 
 class Loader::Impl {
@@ -61,8 +61,8 @@ public:
     Impl() : fileCounter(0) {}
 
     uint32_t fileCounter;
-    std::vector<CbcFile> files;
-    std::vector<std::unique_ptr<IO::RandomAccessFile>> rafs;
+    Utils::Vector<CbcFile> files;
+    Utils::Vector<std::unique_ptr<IO::RandomAccessFile>> rafs;
 };
 
 /////////////////////////////////////////////////////////////////
@@ -74,18 +74,18 @@ Session::~Session() { delete decoder; }
 std::unique_ptr<IO::RandomAccessFile>& Session::FileOf(FileId fileId) const
 {
     // TODO: add session-scoped buffered rafs.
-    return engine.impl->rafs.at(fileId);
+    return engine.impl->rafs.At(fileId);
 }
 
 CbcFile& Session::CbcFileOf(FileId fileId) const
 {
     // TODO: add session-scoped buffered rafs.
-    return engine.impl->files.at(fileId);
+    return engine.impl->files.At(fileId);
 }
 
 std::tuple<Image::CbcFile&, IO::RandomAccessFile&> Session::File(FileId fileId) const
 {
-    return { engine.impl->files.at(fileId), *engine.impl->rafs.at(fileId) };
+    return { engine.impl->files.At(fileId), *engine.impl->rafs.At(fileId) };
 }
 
 Arena& Session::Allocator() { return arena; }
@@ -178,8 +178,8 @@ bool Loader::Load(std::unique_ptr<IO::RandomAccessFile> file, std::string_view f
     auto f  = TryReadCbcFile(FileId(id), file.get(), fileName);
     if (f) {
         loader->fileCounter++;
-        loader->files.emplace_back(std::move(*f));
-        loader->rafs.emplace_back(std::move(file));
+        loader->files.EmplaceBack(std::move(*f));
+        loader->rafs.EmplaceBack(std::move(file));
         return true;
     }
     return false;
@@ -206,11 +206,11 @@ static std::string UpdateSharedObjName(std::string_view name)
     return res;
 }
 
-static std::vector<Dependencies> ReadDependencies(Loader::Impl const* loader)
+static Utils::Vector<Dependencies> ReadDependencies(Loader::Impl const* loader)
 {
     static constexpr char delim = ':';
 
-    std::vector<std::shared_ptr<Utils::SharedObject>> objects;
+    Utils::Vector<std::shared_ptr<Utils::SharedObject>> objects;
     auto addObject = [&objects](std::string_view name) {
         auto soName = UpdateSharedObjName(name);
         // Avoid duplicate dlopen calls
@@ -220,7 +220,7 @@ static std::vector<Dependencies> ReadDependencies(Loader::Impl const* loader)
             }
         }
         auto ptr = std::make_shared<Utils::SharedObject>(Utils::SharedObject::Open(std::move(soName)));
-        objects.emplace_back(ptr);
+        objects.EmplaceBack(ptr);
         return ptr;
     };
 
@@ -228,12 +228,12 @@ static std::vector<Dependencies> ReadDependencies(Loader::Impl const* loader)
     //        Use special name for such dependencies as `aot deps` field in cbc file.
     auto executable = std::make_shared<Utils::SharedObject>(Utils::SharedObject::OpenCurrentExecutable());
 
-    std::vector<char> nameBuffer;
+    Utils::Vector<char> nameBuffer;
 
-    ASSERT(loader->files.size() == loader->rafs.size());
-    auto sz = loader->files.size();
-    std::vector<Dependencies> allDeps;
-    allDeps.reserve(sz);
+    ASSERT(loader->files.Size() == loader->rafs.Size());
+    auto sz = loader->files.Size();
+    Utils::Vector<Dependencies> allDeps;
+    allDeps.Reserve(sz);
 
     for (size_t i = 0; i < sz; i++) {
         auto raf   = loader->rafs[i].get();
@@ -241,33 +241,33 @@ static std::vector<Dependencies> ReadDependencies(Loader::Impl const* loader)
 
         auto deps     = file.AotDependencies();
 
-        std::vector<std::shared_ptr<Utils::SharedObject>> ptrs;
-        ptrs.emplace_back(executable);
+        Utils::Vector<std::shared_ptr<Utils::SharedObject>> ptrs;
+        ptrs.EmplaceBack(executable);
         if (!deps) {
-            allDeps.emplace_back(std::move(ptrs));
+            allDeps.EmplaceBack(std::move(ptrs));
             continue;
         }
 
         IO::StreamFileReader reader(raf, *deps + POOL_OFFSET_ADJUSTMENT);
 
         uint32_t size = reader.ReadULEB();
-        nameBuffer.clear();
-        nameBuffer.resize(size);
-        reader.Read(nameBuffer.data(), size);
+        nameBuffer.Clear();
+        nameBuffer.Resize(size);
+        reader.Read(nameBuffer.Data(), size);
 
-        std::string_view depsStr(nameBuffer.data(), size);
+        std::string_view depsStr(nameBuffer.Data(), size);
         while (!depsStr.empty()) {
             auto pos = depsStr.find(delim);
             if (pos == std::string_view::npos) {
-                ptrs.emplace_back(addObject(depsStr));
+                ptrs.EmplaceBack(addObject(depsStr));
                 break;
             } else {
                 auto token = depsStr.substr(0, pos);
-                ptrs.emplace_back(addObject(token));
+                ptrs.EmplaceBack(addObject(token));
                 depsStr = depsStr.substr(pos + 1);
             }
         }
-        allDeps.emplace_back(std::move(ptrs));
+        allDeps.EmplaceBack(std::move(ptrs));
     }
 
     return allDeps;
@@ -321,9 +321,9 @@ std::optional<Identifier<Image::TypeDefinition>> Engine::FindType(Session& sessi
     return std::nullopt;
 }
 
-std::vector<Image::CbcFile> const& Engine::Files() const { return impl->files; }
+Utils::Span<Image::CbcFile const> Engine::Files() const { return impl->files; }
 
-std::vector<Dependencies> const& Engine::Dependencies() const { return impl->dependencies; }
+Utils::Span<Dependencies const> Engine::Dependencies() const { return impl->dependencies; }
 
 std::optional<Identifier<MethodDefinition>> Engine::FindMethod(
     Session& session, std::string_view filePath, std::string_view typeName, std::string_view methodName

@@ -52,7 +52,7 @@ struct BasicTypeInfoManager : public RTSupport::TypeInfoManager {
 
         auto result = RTSupport::CreateTypeInfo(session, *this, term);
         if (result.has_value()) {
-            typesWithoutUUID.push_back(std::make_pair(term, *result));
+            typesWithoutUUID.PushBack(std::make_pair(term, *result));
             storage.insert_or_assign(term, result.value());
         } else {
             storage.insert_or_assign(term, failed);
@@ -92,11 +92,11 @@ struct BasicTypeInfoManager : public RTSupport::TypeInfoManager {
             }
             uuidMap.insert_or_assign(uuid, t);
         }
-        typesWithoutUUID.clear();
+        typesWithoutUUID.Clear();
     }
 
 protected:
-    std::vector<std::pair<GlobalTerm, TypeInfo>> typesWithoutUUID;
+    Utils::Vector<std::pair<GlobalTerm, TypeInfo>> typesWithoutUUID;
     std::unordered_map<GlobalTerm, ResolutionState, TermHasher> storage;
     std::unordered_map<RTSupport::TypeInfoUUID, GlobalTerm> uuidMap;
 };

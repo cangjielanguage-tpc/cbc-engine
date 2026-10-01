@@ -6,13 +6,13 @@
 #include "utils/iterators.h"
 #include "utils/ostream.h"
 #include "utils/reinterpretation.h"
+#include "utils/span.h"
 #include "utils/string_pool.h"
 #include <cstdint>
 #include <functional>
 #include <mutex>
 #include <string_view>
 #include <unordered_set>
-#include <vector>
 
 /// `Term` is an symbolic representation of any type that is supported in CBC.
 /// It can represent primitives (e.g. I32), builtins (e.g. ARRAY) or user-defined types (e.g. TYPE).
@@ -84,6 +84,8 @@ enum class TermKind : uint8_t {
     UNION_ENUM,     // 33
     PRIMITIVE_ENUM, // 34
     VARRAY,         // 35
+
+    GENERIC_CONTEXT, // 36 -- non-existing type for CJNative outer ti emulation.
     LAST
 };
 
@@ -139,19 +141,10 @@ struct TermFlags {
 };
 
 struct Term {
-    struct SubTermGenerator {
-        TermData* term;
-        uint32_t cursor;
-        uint32_t end;
-
-        std::optional<Term> operator()();
-    };
-
     struct Hasher {
         uint64_t operator()(Term const& term) const { return term.Hash(); }
     };
 
-    using Range                                   = Iterators::SimpleRange<SubTermGenerator>;
     static constexpr uint16_t FIRST_NON_PRIMITIVE = static_cast<uint16_t>(TermKind::UNDEFINED);
 
     static Term Definition(Session& session, Identifier<Image::TypeDefinition> type);
@@ -185,7 +178,7 @@ struct Term {
     bool IsGeneric() const;
 
     TermFlags Flags() const;
-    Range SubTerms() const;
+    Utils::Span<Term> SubTerms() const;
 
     bool IsFloat() const;
 
@@ -285,8 +278,7 @@ public:
 class ClassSubstitution : public Substitution {
 public:
     ClassSubstitution(Session& session, Term term);
-    ClassSubstitution(Session& session, std::vector<Term> const& terms);
-    ClassSubstitution(Session& session, Term const* terms, size_t size);
+    ClassSubstitution(Session& session, Utils::Span<Term const> terms);
 
     Term SubstituteClassTv(uint8_t typeVar) override;
     Term SubstituteFuncTv(uint8_t typeVar) override;
@@ -301,7 +293,7 @@ private:
 class MethodSignatureSubstitution : public Substitution {
 public:
     MethodSignatureSubstitution(Session& session, Term term);
-    MethodSignatureSubstitution(Session& session, Term const* terms, size_t size);
+    MethodSignatureSubstitution(Session& session, Utils::Span<Term const> terms);
 
     Term SubstituteClassTv(uint8_t typeVar) override;
     Term SubstituteFuncTv(uint8_t typeVar) override;
@@ -327,11 +319,11 @@ public:
     /// The function performs in-place modification of `Term` structure.
     GlobalTerm Globalize(Term& term);
 
-    static Term NewTermWithId(Session& session, TermId id, bool isReference, std::vector<Term> const& subterms);
+    static Term NewTermWithId(Session& session, TermId id, bool isReference, Utils::Span<Term const> subterms);
 
-    Term NewAotTerm(Session& session, std::string_view name, std::vector<Term> const& subterms, bool isReference);
+    Term NewAotTerm(Session& session, std::string_view name, Utils::Span<Term const> subterms, bool isReference);
 
-    Term NewEnumTerm(Session& session, std::string_view name, std::vector<Term> const& subterms);
+    Term NewEnumTerm(Session& session, std::string_view name, Utils::Span<Term const> subterms);
 
     Utils::StringPool::String GetNameOfAotType(AotTermId type);
 
@@ -362,7 +354,7 @@ public:
     bool HasErrors();
     void _PutVariable(int varId, Term t);
 
-    std::vector<Term> vars;
+    Utils::Vector<Term> vars;
     bool hasErrors = false;
 };
 

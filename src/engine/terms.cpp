@@ -11,6 +11,7 @@
 #include "utils/heap.h"
 #include "utils/iterators.h"
 #include "utils/ostream.h"
+#include "utils/span.h"
 #include <alloca.h>
 #include <cassert>
 #include <cstdint>
@@ -51,6 +52,9 @@ struct TermData {
         this->hash       = hash;
         this->flags      = flags;
     }
+
+    Utils::Span<Term> Subterms() { return Utils::Span<Term>(subterms, length); }
+    Utils::Span<Term const> Subterms() const { return Utils::Span<Term const>(subterms, length); }
 };
 
 enum Tag : uint8_t {
@@ -442,6 +446,12 @@ void Term::GetName(Session& session, Stream::Output& out, bool hasDebugPrefix) c
             break;
         }
 
+        case TK::GENERIC_CONTEXT: {
+            stream << prefix << "GenericContext";
+            printSubTerms("<", ">", GetLength());
+            break;
+        }
+
         default: {
             FATAL("Unexpected case %d", GetKind());
         }
@@ -538,15 +548,14 @@ static bool IsProperTypeReference(Image::TypeDefinition& def, bool isReference, 
 
 static Term NewTerm(
     Session& session,
-    Term const* subterms,
-    size_t containerSize,
-    std::function<Term(TermId, TermFlags, TermData*)> refineTerm
+    Utils::Span<Term const> subterms,
+    Utils::Function<Term(TermId, TermFlags, TermData*)> refineTerm
 )
 {
     auto& heap     = session.Allocator();
-    auto data      = AllocateTerm(heap, containerSize);
+    auto data      = AllocateTerm(heap, subterms.Size());
     bool isGeneric = false;
-    for (int i = 0; i < containerSize; i++) {
+    for (size_t i = 0; i < subterms.Size(); i++) {
         data->subterms[i] = subterms[i];
         isGeneric         = isGeneric || subterms[i].IsGeneric();
     }
@@ -558,9 +567,9 @@ static Term NewTerm(
     return refineTerm(id, flags, data);
 }
 
-Term TermManager::NewEnumTerm(Session& session, std::string_view name, std::vector<Term> const& subterms)
+Term TermManager::NewEnumTerm(Session& session, std::string_view name, Utils::Span<Term const> subterms)
 {
-    return NewTerm(session, subterms.data(), subterms.size(), [&](TermId id, TermFlags flags, TermData* data) {
+    auto refineTerm = [&](TermId id, TermFlags flags, TermData* data) {
         auto type = session.GetEngine().FindType(session, name);
         ASSERTION(type.has_value(), "AOT enum terms are not supported yet");
         auto type_id = type.value();
@@ -570,7 +579,7 @@ Term TermManager::NewEnumTerm(Session& session, std::string_view name, std::vect
             case Image::EnumKind::OPTION0:
             case Image::EnumKind::OPTION1: {
                 id = OptionId(type_id);
-                ClassSubstitution sub(session, data->subterms, def->arity);
+                ClassSubstitution sub(session, Utils::Span<Term const> { data->subterms, def->arity });
                 flags += OptionFlags(def.GetEnumType(), session, sub);
                 break;
             }
@@ -587,22 +596,23 @@ Term TermManager::NewEnumTerm(Session& session, std::string_view name, std::vect
                 FATAL("Expected enum, got NOT_ENUM EnumKind");
             }
         }
-        data->InitAfterSubterms(id, subterms.size(), flags);
+        data->InitAfterSubterms(id, subterms.Size(), flags);
         return Term(LocalTerm(data));
-    });
+    };
+    return NewTerm(session, subterms, refineTerm);
 }
 
 Term TermManager::NewAotTerm(
-    Session& session, std::string_view name, std::vector<Term> const& subterms, bool isReference
+    Session& session, std::string_view name, Utils::Span<Term const> subterms, bool isReference
 )
 {
-    return NewTerm(session, subterms.data(), subterms.size(), [&](TermId id, TermFlags flags, TermData* data) {
+    auto refineTerm = [&](TermId id, TermFlags flags, TermData* data) {
         flags.isReference = isReference;
         flags.isRecord    = !isReference;
 
         auto type = session.GetEngine().FindType(session, name);
 
-        auto arity = subterms.size();
+        auto arity = subterms.Size();
 
         if (type.has_value()) {
             ASSERT([&]() -> bool {
@@ -616,22 +626,24 @@ Term TermManager::NewAotTerm(
         }
         data->InitAfterSubterms(id, arity, flags);
         return Term(LocalTerm(data));
-    });
+    };
+    return NewTerm(session, subterms, refineTerm);
 }
 
-static Term NewTermWithId(Session& session, TermId id, bool isReference, Term const* subterms, size_t termCount)
+static Term NewTermWithId(Session& session, TermId id, bool isReference, Utils::Span<Term const> subterms)
 {
-    return NewTerm(session, subterms, termCount, [&](TermId, TermFlags flags, TermData* data) {
+    auto refineTerm = [&](TermId, TermFlags flags, TermData* data) {
         flags.isReference = isReference;
         flags.isRecord    = !isReference;
-        data->InitAfterSubterms(id, termCount, flags);
+        data->InitAfterSubterms(id, subterms.Size(), flags);
         return Term(LocalTerm(data));
-    });
+    };
+    return NewTerm(session, subterms, refineTerm);
 }
 
-Term TermManager::NewTermWithId(Session& session, TermId id, bool isReference, std::vector<Term> const& subterms)
+Term TermManager::NewTermWithId(Session& session, TermId id, bool isReference, Utils::Span<Term const> subterms)
 {
-    return ::Engine::NewTermWithId(session, id, isReference, subterms.data(), subterms.size());
+    return ::Engine::NewTermWithId(session, id, isReference, subterms);
 }
 
 uint64_t TermManager::Hasher::operator()(TermData* const& data) const { return data->hash; }
@@ -807,7 +819,7 @@ struct TermResolver {
             flags += F_RECORD;
         }
         if (tag == OPTION) {
-            ClassSubstitution sub(session, data->subterms, expectedLength);
+            ClassSubstitution sub(session, Utils::Span<Term const>(data->subterms, expectedLength));
             flags += OptionFlags(def.GetEnumType(), session, sub);
         }
 
@@ -1019,15 +1031,7 @@ bool Term::IsGeneric() const { return data->flags.isGeneric; }
 
 TermFlags Term::Flags() const { return data->flags; }
 
-Term::Range Term::SubTerms() const { return Iterators::MakeRange(Term::SubTermGenerator { data, 0, GetLength() }); }
-
-std::optional<Term> Term::SubTermGenerator::operator()()
-{
-    if (cursor < end) {
-        return term->subterms[cursor++];
-    }
-    return std::nullopt;
-}
+Utils::Span<Term> Term::SubTerms() const { return data->Subterms(); }
 
 Term Substitution::Substitute(Term term)
 {
@@ -1057,7 +1061,7 @@ Term Substitution::Substitute(Term term)
         if (term.GetKind() == TermKind::OPTION) {
             auto id  = ExtractTypeDefIdentifier(term);
             auto def = Decode::Read(session, id);
-            ClassSubstitution sub(session, data->subterms, length);
+            ClassSubstitution sub(session, data->Subterms());
             flags += OptionFlags(def.GetEnumType(), session, sub);
         }
         flags.isLocal   = true;
@@ -1070,17 +1074,13 @@ Term Substitution::Substitute(Term term)
 Substitution::Substitution(Session& session) : session(session) {}
 
 ClassSubstitution::ClassSubstitution(Session& session, Term term)
-    : ClassSubstitution(session, term.data->subterms, term.data->length)
+    : ClassSubstitution(session, term.data->Subterms())
 {}
 
-ClassSubstitution::ClassSubstitution(Session& session, std::vector<Term> const& terms)
-    : ClassSubstitution(session, terms.data(), terms.size())
-{}
-
-ClassSubstitution::ClassSubstitution(Session& session, Term const* terms, size_t size)
+ClassSubstitution::ClassSubstitution(Session& session, Utils::Span<Term const> terms)
     : Substitution(session),
-      terms(terms),
-      size(size)
+      terms(terms.Data()),
+      size(terms.Size())
 {}
 
 Term ClassSubstitution::SubstituteFuncTv(uint8_t typeVar) { return Term::FuncTypeVariable(typeVar); }
@@ -1092,12 +1092,12 @@ Term ClassSubstitution::SubstituteClassTv(uint8_t typeVar)
 }
 
 MethodSignatureSubstitution::MethodSignatureSubstitution(Session& session, Term term)
-    : MethodSignatureSubstitution(session, term.data->subterms, term.data->length)
+    : MethodSignatureSubstitution(session, term.data->Subterms())
 {}
 
-MethodSignatureSubstitution::MethodSignatureSubstitution(Session& session, Term const* terms, size_t size)
+MethodSignatureSubstitution::MethodSignatureSubstitution(Session& session, Utils::Span<Term const> terms)
     : Substitution(session),
-      sub(session, terms, size)
+      sub(session, terms)
 {}
 
 Term MethodSignatureSubstitution::SubstituteFuncTv(uint8_t typeVar) { return Term::FuncTypeVariable(typeVar); }
@@ -1111,7 +1111,7 @@ Term MethodSignatureSubstitution::SubstituteClassTv(uint8_t typeVar)
         // depth == 0 -> method signature itself
         // depth == 1 -> method signature arguments
         Term subterms[] = { substituted };
-        substituted     = NewTermWithId(session, TagTermId(TermKind::BOX), true, subterms, 1);
+        substituted     = NewTermWithId(session, TagTermId(TermKind::BOX), true, Utils::Span<Term const> { subterms, 1 });
     }
     return substituted;
 }
@@ -1129,8 +1129,8 @@ Identifier<Image::TypeDefinition> ExtractTypeDefIdentifier(Term term)
 
 void TermMatcher::_PutVariable(int varId, Term t)
 {
-    if (varId >= vars.size()) {
-        vars.resize(varId + 1, Term::Predefined(TermKind::NIL));
+    if (varId >= vars.Size()) {
+        vars.Resize(varId + 1, Term::Predefined(TermKind::NIL));
     }
     if (vars[varId] == t) {
         return;
@@ -1157,7 +1157,7 @@ bool TermMatcher::IsPrefix(Term prefix, Term t) { return CompareTermData<CheckFo
 
 void TermMatcher::Clear()
 {
-    vars.clear();
+    vars.Clear();
     hasErrors = false;
 }
 

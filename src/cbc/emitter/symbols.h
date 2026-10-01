@@ -2,7 +2,7 @@
 #define CBC_EMITTER_SYMBOLS_H
 
 #include <cstdint>
-#include <functional>
+#include "utils/function.h"
 
 #include "cbc/emitter/segment.h"
 #include "cbc/isa_rt.h"
@@ -67,8 +67,8 @@ private:
     // Symbols (and their storage) are separated by kinds.
     // Big value symbols are stored separately from plain values,
     // to reduce memory overhead (since they are not that frequent).
-    std::vector<int32_t> labelPositions;
-    std::vector<uint64_t> plainValues;
+    Utils::Vector<int32_t> labelPositions;
+    Utils::Vector<uint64_t> plainValues;
 
     // TODO: remove constraint
     static_assert(sizeof(uintptr_t) == sizeof(int64_t));
@@ -87,7 +87,7 @@ public:
 
     Interpretation::LiteralTable* BuildTable(Memory::Heap& heap);
 
-    std::vector<uint8_t> table;
+    Utils::Vector<uint8_t> table;
     Symbols& symbols;
 };
 
@@ -101,7 +101,7 @@ public:
     int32_t Distance(Symbols const& symbols, Label label) const;
 
     virtual int32_t Size() const = 0;
-    virtual void Resolve(Segment& segment, Symbols& symbols, std::function<uint16_t(Symbol)> const& relocationConverter)
+    virtual void Resolve(Segment& segment, Symbols& symbols, Utils::Function<uint16_t(Symbol)> const& relocationConverter)
         const = 0;
 
 protected:

@@ -59,7 +59,7 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
     ASSERTION(!flags.Is(MethodFlag::ABSTRACT), "Only methods that can be actually called can have FUH");
 
     auto newStaticFuh = [&]() -> StaticFunctionHandle* {
-        auto& deps       = session.GetEngine().Dependencies().at(methodDef.GetFileId());
+        auto& deps       = session.GetEngine().Dependencies().At(methodDef.GetFileId());
         auto linkageName = Decode::Read(session, method.LinkageName().value());
         auto target      = deps.FindSymbol(linkageName);
 

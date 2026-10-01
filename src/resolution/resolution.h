@@ -10,10 +10,11 @@
 #include "utils/iterators.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
+#include "utils/span.h"
+#include "utils/vector.h"
 #include <cstdint>
 #include <optional>
 #include <string_view>
-#include <vector>
 
 /// This namespace provides resolution functionality, that accesses engine and symlevel.
 namespace Resolution {
@@ -51,7 +52,7 @@ public:
     /// The size of a field of given type.
     std::optional<uint32_t> GetFlatSize() const;
 
-    void FillReferenceOffsets(std::vector<uint32_t>& refOffsets, uint32_t disp) const;
+    void FillReferenceOffsets(Utils::Vector<uint32_t>& refOffsets, uint32_t disp) const;
 
     Type(Engine::Term term, Resolver& resolver) : term(term), resolver(&resolver) {}
 
@@ -66,7 +67,7 @@ struct MethodSignature {
     Engine::Term term;
 
     Type ResType() const;
-    Engine::Term::Range Params() const;
+    Utils::Span<Engine::Term> Params() const;
     uint32_t ParamCount() const;
 };
 

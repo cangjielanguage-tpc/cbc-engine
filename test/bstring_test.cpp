@@ -1,7 +1,6 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
-#include <vector>
 
 #include "cbc/emitter/emitter.h"
 #include "cbc/isa_rt.h"
@@ -10,6 +9,7 @@
 #include "engine/terms.h"
 #include "resolution/resolution.h"
 #include "testutils.h"
+#include "utils/vector.h"
 
 namespace {
 
@@ -26,9 +26,9 @@ TEST(BStringTest, HasPointerLayoutButIsNotAGcReference)
     EXPECT_EQ(layouts->GetFlatAlignment(bstring), alignof(void*));
     EXPECT_FALSE(bstring.IsReference());
 
-    std::vector<uint32_t> referenceOffsets;
+    Utils::Vector<uint32_t> referenceOffsets;
     layouts->FillRefOffsets(bstring, referenceOffsets, 32);
-    EXPECT_TRUE(referenceOffsets.empty());
+    EXPECT_TRUE(referenceOffsets.Empty());
 }
 
 TEST(BStringTest, CStringBuiltinBoxUsesWideEncoding)

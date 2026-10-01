@@ -9,6 +9,7 @@
 #include "utils/logger.h"
 #include "utils/ostream.h"
 #include "utils/rt_logger.h"
+#include "utils/vector.h"
 
 namespace GCSupport {
 
@@ -145,7 +146,8 @@ void VisitGCFrameRoots(
             out << "visit alive regs, alive regs: " << aliveRegsMap.to_string().c_str() << endl;
         });
 
-        regsLocationTable->VisitAliveRegs(aliveRegsMap, [&](Placeholder ph) { VisitRoot(rootVisitor, ph); });
+        auto visitReg = [&](Placeholder ph) { VisitRoot(rootVisitor, ph); };
+        regsLocationTable->VisitAliveRegs(aliveRegsMap, visitReg);
     }
 
     auto savedRegsMap = bc->savedIRegs;

@@ -5,8 +5,8 @@
 #include "engine/terms.h"
 #include "utils/iterators.h"
 #include "utils/logger.h"
+#include "utils/span.h"
 #include <memory>
-#include <vector>
 
 namespace Engine {
 
@@ -35,9 +35,9 @@ struct MethodTableEntry {
     /// The method which is being referenced.
     Identifier<Image::MethodDefinition> method;
 
-    /// Declaring type, where method is actually declared. Additionally to type definition,
-    /// stores an generic variable parameterization.
-    Term genericContext;
+    /// The generic context of method. This context is used to access class type variables, referenced in the method.
+    /// Most of the time, the context is the same as subterms of declaring type (with corresponding parameterization).
+    Utils::Span<Term> genericContext;
 
     /// Method number in sub table.
     int methodNum;
@@ -54,7 +54,7 @@ class MethodSubTable;
 /// @see description on top of current header.
 class MethodTable {
     struct SubTable {
-        Term genericContext;
+        Term declaringType;
         int start;
         int end;
     };
@@ -68,12 +68,12 @@ public:
 
         /// Declaring type, where method is actually declared. Additionally to type definition,
         /// stores an generic variable parameterization.
-        Term genericContext;
+        Utils::Span<Term> genericContext;
     };
 
     struct SubTableGenerator {
         MethodTable const& table;
-        std::vector<SubTable> const& subtables;
+        Utils::Span<SubTable const> subtables;
         int const disp;
         int cursor;
 
@@ -121,7 +121,7 @@ public:
     /// - J.qwe will be resolved up to (J, 0)
     std::optional<MethodTableEntry> Resolve(Session& session, Reference const& reference) const;
 
-    void ResolveAll(Session& session, Reference const& reference, std::vector<MethodTableEntry>& buffer) const;
+    void ResolveAll(Session& session, Reference const& reference, Utils::Vector<MethodTableEntry>& buffer) const;
 
 private:
     friend class MethodTableBuilder;
@@ -129,12 +129,14 @@ private:
     friend class MethodTableManager;
 
     MethodTable(
-        std::vector<Entry>&& allEntries, std::vector<SubTable>&& classTables, std::vector<SubTable>&& interfaceTables
+        Utils::Vector<Entry>&& allEntries,
+        Utils::Vector<SubTable>&& classTables,
+        Utils::Vector<SubTable>&& interfaceTables
     );
 
-    std::vector<Entry> allEntries;
-    std::vector<SubTable> classTables;
-    std::vector<SubTable> interfaceTables;
+    Utils::Vector<Entry> allEntries;
+    Utils::Vector<SubTable> classTables;
+    Utils::Vector<SubTable> interfaceTables;
 };
 
 /// Second layer of the table. Can query entries in this sub table and type that corresponds to

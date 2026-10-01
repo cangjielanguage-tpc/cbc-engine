@@ -3,9 +3,7 @@
 #include "RuntimeTypes.h"
 #include "engine/engine.h"
 #include "engine/field_layout.h"
-#include "engine/identifiers.h"
 #include "engine/image/flags.h"
-#include "engine/image/reader.h"
 #include "engine/image/type_kind.h"
 #include "engine/method_table.h"
 #include "engine/options.h"
@@ -21,6 +19,7 @@
 #include "utils/logger.h"
 #include "utils/ostream.h"
 #include "utils/rt_logger.h"
+#include "utils/span.h"
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -222,6 +221,13 @@ struct TypeInfoBuilder {
                 aotTypeDefName = "CPointer";
                 superType      = term.Subterm(0);
                 return;
+            case Engine::TermKind::GENERIC_CONTEXT:
+                type           = TYPE_KIND_STRUCT;
+                needExtDefs    = false;
+                needFields     = false;
+                isAot          = false;
+                aotTypeDefName = "GenericContext";
+                return;
             default: {
             }
         }
@@ -385,7 +391,10 @@ static MethodTableMember GetTableMember(
 }
 
 static bool QuerySubterms(
-    std::vector<DYN_TypeInfo*>& typeInfos, Engine::Session& session, Engine::TypeInfoManager& manager, Engine::Term term
+    Utils::Vector<DYN_TypeInfo*>& typeInfos,
+    Engine::Session& session,
+    Engine::TypeInfoManager& manager,
+    Engine::Term term
 );
 
 static std::optional<TypeInfo> QueryTypeInfoAOT(
@@ -394,9 +403,9 @@ static std::optional<TypeInfo> QueryTypeInfoAOT(
 
 static constexpr uint32_t GCTIB_MAX_SHORT_OFFSET = sizeof(uintptr_t) * 62;
 
-static std::optional<DYN_GCTib> ConstructGCTib(TypeInfoBuilder& builder, std::vector<uint32_t>& refFieldOffs)
+static std::optional<DYN_GCTib> ConstructGCTib(TypeInfoBuilder& builder, Utils::Vector<uint32_t>& refFieldOffs)
 {
-    if (refFieldOffs.empty()) {
+    if (refFieldOffs.Empty()) {
         return std::make_optional<DYN_GCTib>(DYN_GCTib { .raw = 1ul << 63 });
     }
 
@@ -436,6 +445,14 @@ static std::optional<DYN_GCTib> ConstructGCTib(TypeInfoBuilder& builder, std::ve
 }
 
 static int64_t FakeWhereCond() { return -1; }
+
+static Engine::Term AcquireGenericContext(
+    Engine::Session& session, TypeInfoManager& manager, Utils::Span<Engine::Term> genericContext
+)
+{
+    Engine::TagTermId termId(Engine::TermKind::GENERIC_CONTEXT);
+    return Engine::TermManager::NewTermWithId(session, termId, true, genericContext);
+}
 
 // TODO: factory class, so it can hold state of other managers without recreating them.
 // TODO: split function to smaller ones.
@@ -531,8 +548,8 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             Engine::Term declaredType;
         };
 
-        std::vector<FuncDesc> funcDescs;
-        funcDescs.resize(entryCount);
+        Utils::Vector<FuncDesc> funcDescs;
+        funcDescs.Resize(entryCount);
 
         builder.dataMT      = Alloc<Interpretation::FunctionHandle*>(entryCount);
         builder.flatMethods = Alloc<OuterTIFuncUnion>(2 * entryCount);
@@ -548,7 +565,8 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         for (auto entry : mt->Entries()) {
             auto tm                  = GetTableMember(session, entry.method, entryIdx);
             builder.dataMT[entryIdx] = tm.handle;
-            funcDescs[entryIdx]      = FuncDesc { tm.function, entry.genericContext };
+            auto termOfOuterTI       = AcquireGenericContext(session, manager, entry.genericContext);
+            funcDescs[entryIdx]      = FuncDesc { tm.function, termOfOuterTI };
             entryIdx++;
         }
 
@@ -675,7 +693,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         auto layout          = *optlayout;
         builder.align        = layout->desc.alignment;
         builder.instanceSize = layout->desc.size.value();
-        builder.fieldNum     = layout->fields.size();
+        builder.fieldNum     = layout->fields.Size();
 
         builder.fields       = Alloc<DYN_TypeInfo*>(builder.fieldNum);
         builder.fieldOffsets = Alloc<uint32_t>(builder.fieldNum);
@@ -684,7 +702,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             return std::nullopt;
         }
 
-        std::vector<uint32_t> refFieldOffs;
+        Utils::Vector<uint32_t> refFieldOffs;
 
         size_t idx = 0;
         for (auto& field : layout->fields) {
@@ -708,7 +726,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         if (term.GetKind() == Engine::TermKind::OPTION && term.IsReference()) {
             builder.flag  |= HAS_REF_FIELD;
             builder.gctib  = { .raw = (1ull << 63) | 1 };
-        } else if (!refFieldOffs.empty()) {
+        } else if (!refFieldOffs.Empty()) {
             builder.flag |= HAS_REF_FIELD;
 
             auto gctib = ConstructGCTib(builder, refFieldOffs);
@@ -740,9 +758,9 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         }
         builder.align        = fields->GetFlatAlignment(term);
         builder.instanceSize = *size;
-        std::vector<uint32_t> offsets;
+        Utils::Vector<uint32_t> offsets;
         fields->FillRefOffsets(term, offsets, 0);
-        if (!offsets.empty()) {
+        if (!offsets.Empty()) {
             builder.flag |= HAS_REF_FIELD;
             auto gctib    = ConstructGCTib(builder, offsets);
             if (!gctib) {
@@ -772,7 +790,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
             if (builder.typeArgs == nullptr) {
                 return std::nullopt;
             }
-            std::vector<DYN_TypeInfo*> typeInfos;
+            Utils::Vector<DYN_TypeInfo*> typeInfos;
             auto resolved = QuerySubterms(typeInfos, session, manager, term);
             if (!resolved) {
                 return std::nullopt;
@@ -852,9 +870,13 @@ static void* FindTypeSymbol(Engine::Session& session, char const* typeName, char
 /// Find typeinfos of subterms with `nulls` on place of subterms that are not found.
 /// Returns `true` if all typeinfos of subterms are found.
 static bool QuerySubterms(
-    std::vector<DYN_TypeInfo*>& typeInfos, Engine::Session& session, Engine::TypeInfoManager& manager, Engine::Term term
+    Utils::Vector<DYN_TypeInfo*>& typeInfos,
+    Engine::Session& session,
+    Engine::TypeInfoManager& manager,
+    Engine::Term term
 )
 {
+    typeInfos.Reserve(term.GetLength());
     bool allResolved = true;
     for (auto i = 0; i < term.GetLength(); i++) {
         auto subterm = term.Subterm(i);
@@ -872,7 +894,7 @@ static bool QuerySubterms(
         } else {
             allResolved = false;
         }
-        typeInfos.emplace_back((DYN_TypeInfo*)info.Raw());
+        typeInfos.EmplaceBack((DYN_TypeInfo*)info.Raw());
     }
     return allResolved;
 }
@@ -902,7 +924,7 @@ static std::optional<TypeInfo> QueryTypeInfoAOT(
 {
     ASSERT(!term.IsGeneric());
     if (term.GetLength() > 0) {
-        std::vector<DYN_TypeInfo*> infos;
+        Utils::Vector<DYN_TypeInfo*> infos;
 
         Log::typeinfo.Log(Logging::Level::TRACE, [&session, &term](Stream::Output& out) {
             Stream::ResolvingOutput stream(session, out);
@@ -918,7 +940,7 @@ static std::optional<TypeInfo> QueryTypeInfoAOT(
         if (!typeTemplate) {
             return std::nullopt;
         }
-        auto typeInfoG = g_CJNativeInterfaceInstance.getOrCreateTypeInfo(typeTemplate, infos.size(), infos.data());
+        auto typeInfoG = g_CJNativeInterfaceInstance.getOrCreateTypeInfo(typeTemplate, infos.Size(), infos.Data());
         return TypeInfo(typeInfoG);
     } else {
         Log::typeinfo.Log(Logging::Level::TRACE, [&session, &term](Stream::Output& out) {
@@ -949,7 +971,7 @@ static std::optional<TypeInfo> QueryFunctional(
 )
 {
     ASSERT(term.GetKind() == Engine::TermKind::FUNCTIONAL);
-    std::vector<DYN_TypeInfo*> infos;
+    Utils::Vector<DYN_TypeInfo*> infos;
 
     bool allResolved = QuerySubterms(infos, session, manager, term);
     if (!allResolved) {
@@ -958,8 +980,8 @@ static std::optional<TypeInfo> QueryFunctional(
 
     // CBC encodes return type as last parameter, but CJNative expects it as the first.
     // TODO: maybe we should change encoding?
-    auto retType = infos.back();
-    auto size    = infos.size();
+    auto retType = infos.Back();
+    auto size    = infos.Size();
     for (size_t i = size - 1; i > 0; i--) {
         infos[i] = infos[i - 1];
     }
@@ -973,7 +995,7 @@ static std::optional<TypeInfo> QueryFunctional(
     static auto templates =
         Templates { .cfunc = QueryTypeTemplate(session, "CFunc"), .closure = QueryTypeTemplate(session, "Closure") };
 
-    auto cfuncTypeInfo = g_CJNativeInterfaceInstance.getOrCreateTypeInfo(templates.cfunc, infos.size(), infos.data());
+    auto cfuncTypeInfo = g_CJNativeInterfaceInstance.getOrCreateTypeInfo(templates.cfunc, infos.Size(), infos.Data());
     DYN_TypeInfo* cfuncTIBox[1] = { cfuncTypeInfo };
 
     auto closureTypeInfo = g_CJNativeInterfaceInstance.getOrCreateTypeInfo(templates.closure, 1, cfuncTIBox);
@@ -1000,7 +1022,8 @@ std::optional<TypeInfo> CreateTypeInfo(Engine::Session& session, TypeInfoManager
             case Engine::TermKind::TUPLE:
             case Engine::TermKind::C_POINTER:
             case Engine::TermKind::VARRAY:
-            case Engine::TermKind::CANGJIE_ARRAY:  return CreateTypeInfoDyn(session, manager, term);
+            case Engine::TermKind::CANGJIE_ARRAY:
+            case Engine::TermKind::GENERIC_CONTEXT: return CreateTypeInfoDyn(session, manager, term);
 
             case Engine::TermKind::AOT_TYPE:
                 return QueryTypeInfoAOT(session, manager, GetAotTypeName(session, term), term);
@@ -1090,8 +1113,8 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& ma
         }
 
         // TODO: do not use vectors!
-        std::vector<Term> subTerms;
-        subTerms.resize(argNum);
+        Utils::Vector<Term> subTerms;
+        subTerms.Resize(argNum);
         for (int i = 0; i < argNum; i++) {
             subTerms[i] = manager.AcquireTerm(session, TypeInfo(subTypes[i]));
         }
@@ -1167,7 +1190,7 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& ma
         }
 
         // treats the rest as Aot type
-        std::vector<Term> noSubTerms;
+        Utils::Vector<Term> noSubTerms;
 
         auto& termManager = TermManager::Of(session);
         auto name         = typeInfo->typeInfoName;

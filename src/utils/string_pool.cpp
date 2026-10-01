@@ -15,7 +15,7 @@ size_t StringPool::InternAndGetId(std::string_view str)
         auto id = it->second;
         return id;
     }
-    auto id = strings.size();
+    auto id = strings.Size();
 
     char* mem = (char*)malloc(str.size() + 1);
     if (mem == nullptr) {
@@ -25,12 +25,12 @@ size_t StringPool::InternAndGetId(std::string_view str)
     mem[str.size()] = 0;
 
     String s { mem, str.size() };
-    strings.push_back(s);
+    strings.PushBack(s);
     map.insert_or_assign(s, id);
     return id;
 }
 
-StringPool::String StringPool::GetStringById(size_t id) { return strings.at(id); }
+StringPool::String StringPool::GetStringById(size_t id) { return strings.At(id); }
 
 StringPool::String::operator std::string_view() { return std::string_view(str, size); }
 

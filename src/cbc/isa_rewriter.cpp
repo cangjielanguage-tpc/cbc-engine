@@ -26,6 +26,8 @@
 #include "utils/misc.h"
 #include "utils/ostream.h"
 #include "utils/reinterpretation.h"
+#include "utils/span.h"
+#include "utils/vector.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -33,7 +35,6 @@
 #include <optional>
 #include <sys/types.h>
 #include <variant>
-#include <vector>
 
 #define UNWRAP_OPT(name, expression, handler)                                                                          \
     auto __##name = (expression);                                                                                      \
@@ -160,7 +161,7 @@ struct IsaRewriter : public IsaParser {
         Engine::Session& session,
         Image::Identifier<Image::MethodDefinition> method,
         MethodCode& code,
-        FrameLayout frameLayout,
+        FrameLayout& frameLayout,
         Emitter::Emitter& emit
     )
         : IsaParser(code),
@@ -181,7 +182,7 @@ struct IsaRewriter : public IsaParser {
     Resolver& resolver;
     MethodCode& code;
     Emitter::Emitter& emit;
-    FrameLayout frameLayout;
+    FrameLayout& frameLayout;
     size_t bytecodeSize;
     Stream::Output& errStream = Interpretation::Log::preparation.Stream(Logging::Level::ERROR);
 
@@ -194,14 +195,14 @@ struct IsaRewriter : public IsaParser {
         ssize_t originalPos;  // position in original code
     };
 
-    std::vector<StatePoint> statePoints;
+    Utils::Vector<StatePoint> statePoints;
 
     struct FailureMessage {
         size_t position;
         std::string message;
     };
 
-    std::vector<FailureMessage> failureMessages;
+    Utils::Vector<FailureMessage> failureMessages;
 
     InstructionOffsetsIndex BuildOffsetsIndex() { return InstructionOffsetsIndex::Create(emit, instructionLabel); }
 
@@ -226,7 +227,7 @@ struct IsaRewriter : public IsaParser {
             .label       = label,
             .originalPos = Pos(), // attached to the end of instruction
         };
-        statePoints.push_back(point);
+        statePoints.PushBack(point);
     }
 
     template <typename Method> void EmitLogCall(std::string_view prefix, Method m)
@@ -1673,7 +1674,7 @@ struct IsaRewriter : public IsaParser {
         IsaParser::End();
     }
 
-    void Fail(std::string&& msg = "") { failureMessages.push_back({ startPosition, std::move(msg) }); }
+    void Fail(std::string&& msg = "") { failureMessages.PushBack({ startPosition, std::move(msg) }); }
 
     void StopRewrite()
     {
@@ -1703,10 +1704,10 @@ static std::optional<FrameLayout> makeFrameLayout(Image::Code code, Resolver& re
     std::unordered_map<uint32_t, uint32_t> typedOffset;
     typedOffset.reserve(code.StackAllocSigsCount() + 1);
 
-    std::vector<uint32_t> refOffsets;
+    Utils::Vector<uint32_t> refOffsets;
 
-    std::vector<uint32_t> stackAllocSizes;
-    stackAllocSizes.reserve(code.StackAllocSigsCount());
+    Utils::Vector<uint32_t> stackAllocSizes;
+    stackAllocSizes.Reserve(code.StackAllocSigsCount());
 
     auto stackAllocSize = untypedSlotsSize;
     uint32_t i;
@@ -1730,7 +1731,7 @@ static std::optional<FrameLayout> makeFrameLayout(Image::Code code, Resolver& re
         type.FillReferenceOffsets(refOffsets, stackAllocSize);
 
         typedOffset.insert({ i, stackAllocSize });
-        stackAllocSizes.push_back(stackAllocSize);
+        stackAllocSizes.PushBack(stackAllocSize);
         stackAllocSize += MathUtils::AlignUp(size.value(), Cbc::STACK_SLOT_SIZE);
     }
 
@@ -1743,17 +1744,17 @@ static std::optional<FrameLayout> makeFrameLayout(Image::Code code, Resolver& re
     };
 }
 
-static std::vector<Interpretation::GCPositionalInfo> CalculatePositionalGCInfo(
+static Utils::Vector<Interpretation::GCPositionalInfo> CalculatePositionalGCInfo(
     Engine::Session& session,
     const MethodCode& code,
     Emitter::Emitter const& emitter,
-    std::vector<IsaRewriter::StatePoint> const& statePoints
+    Utils::Span<IsaRewriter::StatePoint const> statePoints
 )
 {
     auto livenessInfo = Decode::GetLivenessInfo(session, code);
 
-    std::vector<Interpretation::GCPositionalInfo> posInfo;
-    posInfo.reserve(livenessInfo.size());
+    Utils::Vector<Interpretation::GCPositionalInfo> posInfo;
+    posInfo.Reserve(livenessInfo.Size());
 
     std::unordered_map<ssize_t, Image::LivenessInfo const&> infos;
     for (const auto& info : livenessInfo) {
@@ -1771,39 +1772,39 @@ static std::vector<Interpretation::GCPositionalInfo> CalculatePositionalGCInfo(
         }
         auto& info = it->second;
 
-        posInfo.push_back({ .rewrittenPos        = (uint32_t)rewrittenPos,
+        posInfo.PushBack({ .rewrittenPos        = (uint32_t)rewrittenPos,
                             .regMask             = info.regMask,
                             .untypedRefSlotsInfo = {},
                             .mutPairs            = {} });
 
-        posInfo.back().untypedRefSlotsInfo.reserve(info.refSlotNums.size());
+        posInfo.Back().untypedRefSlotsInfo.Reserve(info.refSlotNums.Size());
         for (const auto& slotN : info.refSlotNums) {
-            posInfo.back().untypedRefSlotsInfo.push_back(slotN * STACK_SLOT_SIZE);
+            posInfo.Back().untypedRefSlotsInfo.PushBack(slotN * STACK_SLOT_SIZE);
         }
 
-        posInfo.back().mutPairs.reserve(info.mutPairs.size());
+        posInfo.Back().mutPairs.Reserve(info.mutPairs.Size());
         for (const auto& pair : info.mutPairs) {
             auto mutRes = std::pair(
                 Interpretation::Resource { .idx = pair.first }, Interpretation::Resource { .idx = pair.second }
             );
-            posInfo.back().mutPairs.push_back(mutRes);
+            posInfo.Back().mutPairs.PushBack(mutRes);
         }
     }
 
     return posInfo;
 }
 
-static std::vector<Interpretation::StackPtrsPositionalInfo> CalculateStackPtrsPositionalInfo(
+static Utils::Vector<Interpretation::StackPtrsPositionalInfo> CalculateStackPtrsPositionalInfo(
     Engine::Session& session,
     const MethodCode& code,
     Emitter::Emitter const& emitter,
-    std::vector<IsaRewriter::StatePoint> const& statePoints
+    Utils::Span<IsaRewriter::StatePoint const> statePoints
 )
 {
     auto stackPtrsInfo = Decode::GetStackPtrsInfo(session, code);
 
-    std::vector<Interpretation::StackPtrsPositionalInfo> posInfo;
-    posInfo.reserve(stackPtrsInfo.size());
+    Utils::Vector<Interpretation::StackPtrsPositionalInfo> posInfo;
+    posInfo.Reserve(stackPtrsInfo.Size());
 
     // FIXME: the data must be stored in the format that is compact and fast to query.
     std::unordered_map<ssize_t, Image::StackPtrsInfo const&> infos;
@@ -1825,11 +1826,11 @@ static std::vector<Interpretation::StackPtrsPositionalInfo> CalculateStackPtrsPo
 
         Interpretation::StackPtrsPositionalInfo newInfo = { .rewrittenPos = (uint32_t)rewrittenPos, .resources = {} };
 
-        newInfo.resources.reserve(info.resources.size());
+        newInfo.resources.Reserve(info.resources.Size());
         for (const auto& res : info.resources) {
-            newInfo.resources.push_back(Interpretation::Resource { .idx = res });
+            newInfo.resources.PushBack(Interpretation::Resource { .idx = res });
         }
-        posInfo.emplace_back(std::move(newInfo));
+        posInfo.EmplaceBack(std::move(newInfo));
     }
 
     return posInfo;
@@ -1862,7 +1863,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
     auto rewriter = IsaRewriter(resolver, session, method, code, *frameLayout, emitter);
     rewriter.ParseAll();
 
-    if (!rewriter.failureMessages.empty()) {
+    if (!rewriter.failureMessages.Empty()) {
         Interpretation::Log::preparation.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
             out << "Failed to rewrite method at positions: ";
             for (auto failure : rewriter.failureMessages) {

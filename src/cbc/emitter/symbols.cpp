@@ -20,27 +20,27 @@ Symbol Symbols::Value(int64_t val) { return Value(static_cast<uint64_t>(val)); }
 
 Symbol Symbols::Value(uint64_t val)
 {
-    auto id = static_cast<uint32_t>(plainValues.size());
-    plainValues.push_back(val);
+    auto id = static_cast<uint32_t>(plainValues.Size());
+    plainValues.PushBack(val);
     return Symbol(SymbolKind::PLAIN_VALUE, id);
 }
 
 Label Symbols::NewLabel()
 {
-    auto id = (uint32_t)labelPositions.size();
-    labelPositions.push_back(INVALID_POSITION);
+    auto id = (uint32_t)labelPositions.Size();
+    labelPositions.PushBack(INVALID_POSITION);
     return Label(id);
 }
 
 void Symbols::Bind(Label label, int32_t position)
 {
-    ASSERTION(labelPositions.at(label.id) == INVALID_POSITION, "Already initialized");
-    labelPositions.at(label.id) = position;
+    ASSERTION(labelPositions.At(label.id) == INVALID_POSITION, "Already initialized");
+    labelPositions.At(label.id) = position;
 }
 
 int32_t Symbols::LabelPosition(Label label) const
 {
-    auto position = labelPositions.at(label.id);
+    auto position = labelPositions.At(label.id);
     ASSERTION(position != INVALID_POSITION, "Label is not bound");
     return position;
 }
@@ -57,16 +57,18 @@ uint16_t LiteralTableBuilder::UseSymbol(Symbol symbol)
     //       - Add SymbolKind for literals with size > sizeof(uintptr_t)
     switch (symbol.kind) {
         case SymbolKind::PLAIN_VALUE: {
-            auto size = table.size();
+            auto size = table.Size();
             auto step = Interpretation::LITERAL_SIZE;
             ASSERT(size % step == 0);
             ASSERT(size < MAX_SIZE * step);
 
             auto lit = Interpretation::Literal {
-                .u64 = symbols.plainValues.at(symbol.id),
+                .u64 = symbols.plainValues.At(symbol.id),
             };
 
-            table.insert(table.end(), &lit.raw[0], &lit.raw[sizeof(lit)]);
+            for (int i = 0; i < sizeof(lit); i++) {
+                table.PushBack(lit.raw[i]);
+            }
             return static_cast<uint16_t>(size / step);
         }
         default: FATAL("unexpected SymbolKind"); return MAX_SIZE;
@@ -75,7 +77,7 @@ uint16_t LiteralTableBuilder::UseSymbol(Symbol symbol)
 
 Interpretation::LiteralTable* LiteralTableBuilder::BuildTable(Memory::Heap& heap)
 {
-    auto size = table.size();
+    auto size = table.Size();
     auto step = Interpretation::LITERAL_SIZE;
     ASSERT(size % step == 0);
     ASSERT(size < MAX_SIZE * step);

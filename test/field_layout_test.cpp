@@ -2,13 +2,13 @@
 
 #include <cstdint>
 #include <optional>
-#include <vector>
 
 #include "engine/engine.h"
 #include "engine/field_layout.h"
 #include "engine/terms.h"
 #include "engine/typeinfo_manager.h"
 #include "mock/interpreter.h"
+#include "utils/vector.h"
 
 namespace {
 
@@ -37,11 +37,14 @@ Engine::Term MakeTuple(Engine::Session& session)
 {
     auto& terms    = Engine::TermManager::Of(session);
     auto reference = terms.NewAotTerm(session, "test.Reference", {}, true);
+    Utils::Vector<Engine::Term> subterms;
+    subterms.PushBack(Engine::Term::Predefined(Engine::TermKind::I32));
+    subterms.PushBack(reference);
     return terms.NewTermWithId(
         session,
         Engine::TagTermId(Engine::TermKind::TUPLE),
         false,
-        { Engine::Term::Predefined(Engine::TermKind::I32), reference }
+        subterms
     );
 }
 
@@ -63,7 +66,7 @@ TEST(FieldLayoutTest, TupleUsesTypeInfoAlignment)
     ASSERT_TRUE(content->desc.size.has_value());
     EXPECT_EQ(content->desc.size.value(), 16u);
     EXPECT_EQ(content->desc.alignment, 8u);
-    ASSERT_EQ(content->fields.size(), 2u);
+    ASSERT_EQ(content->fields.Size(), 2u);
     EXPECT_EQ(content->fields[0].offset, 0u);
     EXPECT_EQ(content->fields[1].offset, 8u);
 }
@@ -77,10 +80,11 @@ TEST(FieldLayoutTest, TupleReferenceOffsetsIncludeContainingDisplacement)
     auto layouts = Engine::FieldLayoutManager::New(session, typeInfoManager);
     auto tuple   = MakeTuple(session);
 
-    std::vector<uint32_t> referenceOffsets;
+    Utils::Vector<uint32_t> referenceOffsets;
     layouts->FillRefOffsets(tuple, referenceOffsets, 8);
 
-    EXPECT_EQ(referenceOffsets, std::vector<uint32_t> { 16 });
+    ASSERT_EQ(referenceOffsets.Size(), 1u);
+    EXPECT_EQ(referenceOffsets[0], 16u);
 }
 
 } // namespace
