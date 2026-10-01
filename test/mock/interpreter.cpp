@@ -443,6 +443,8 @@ TypeInfo MetaInfo::ByteArrayTypeInfo() { return TypeInfo(nullptr); }
 
 TypeInfoUUID MetaInfo::GetUUID(TypeInfo ti) { return 0; }
 
+TypeInfo MetaInfo::GetElementTypeInfo(TypeInfo ti) { return TypeInfo(nullptr); }
+
 TypeInfo Execution::TypeArg(TypeInfo ti, uint32_t idx) { return TypeInfo(nullptr); }
 
 using OffsetVisitor = std::function<void(uint32_t)>;

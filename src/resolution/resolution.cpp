@@ -366,6 +366,7 @@ struct ResolverProxy {
                 auto fieldIdx = std::get<uint32_t>(ref.nameOrIdx);
                 TermKind kind = refTypeTerm.GetKind();
                 switch (kind) {
+                    case TermKind::CANGJIE_ARRAY:
                     case TermKind::VARRAY:
                     case TermKind::TUPLE: {
                         return ResolveIndexedElement(resolver, resolver.Wrap(refTypeTerm), fieldIdx);
@@ -761,6 +762,22 @@ struct ResolverProxy {
     {
         auto term = refType.term;
         switch (term.GetKind()) {
+            case TermKind::CANGJIE_ARRAY: {
+                auto elemTerm = term.Subterm(0);
+                auto elemSize = resolver.fieldManager->GetAlignedFlatSize(elemTerm);
+                if (!elemSize.has_value()) {
+                    return std::nullopt;
+                }
+                auto offset = RTSupport::MetaInfo::ArrayBodyOffset() + (idx) * elemSize.value();
+                auto fieldType = Type(elemTerm, resolver);
+                return InstanceField::Content {
+                    .refType   = refType,
+                    .fieldType = fieldType,
+                    .ordinal   = idx,
+                    .offset    = offset,
+                    .name      = "<array>",
+                };
+            }
             case TermKind::TUPLE: {
                 ASSERT(idx < term.GetLength());
                 auto optLayout = resolver.fieldManager->GetLayout(term);

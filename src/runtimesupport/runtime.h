@@ -168,6 +168,8 @@ struct MetaInfo {
     static TypeInfo ByteArrayTypeInfo();
 
     static TypeInfoUUID GetUUID(TypeInfo ti);
+
+    static TypeInfo GetElementTypeInfo(TypeInfo ti);
 };
 
 } // namespace RTSupport

@@ -830,12 +830,12 @@ LABEL(INDEX) {
     NEXT;
 }
 
-// Unused. TODO: support element access for generic arrays
 LABEL(INDEX_GENERIC) {
     auto args = IndexGeneric::Decode(reader);
     LOG_INSTR;
     auto tiReg = args.idx.y;
-    auto ti = TypeInfo(ectype->GetPrimitive(tiReg.IR()).u64);
+    auto arrayTI = TypeInfo(ectype->GetPrimitive(tiReg.IR()).u64);
+    auto ti = RTSupport::MetaInfo::GetElementTypeInfo(arrayTI);
     interpreter.LeaIndex(args.rr.x.IR(), args.rr.y.IR(), args.idx.x.IR(), ti);
     NEXT;
 }

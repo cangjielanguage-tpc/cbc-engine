@@ -393,6 +393,11 @@ TypeInfo Execution::TypeArg(TypeInfo ti, uint32_t idx)
 
 TypeInfoUUID MetaInfo::GetUUID(TypeInfo ti) { return g_CJNativeInterfaceInstance.getTypeInfoUUID(UnpackTypeInfo(ti)); }
 
+TypeInfo MetaInfo::GetElementTypeInfo(TypeInfo ti) {
+    auto typeInfo = UnpackTypeInfo(ti);
+    return TypeInfo(typeInfo->componentTypeInfo);
+}
+
 TypeInfo Execution::LoadTypeInfo(Engine::GlobalTerm term, Interpretation::Ectype* ectype, void* stackSlots)
 {
     // FIXME: optimize!
