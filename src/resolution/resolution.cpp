@@ -932,6 +932,31 @@ std::optional<RTSupport::TypeInfo> Resolver::GetTypeInfo(Type type)
     return tiManager.AcquireTypeInfo(session, type.term);
 }
 
+std::optional<RTSupport::TypeInfo> Resolver::GetLayoutTypeInfo(Type type)
+{
+    if (!type.term.IsGeneric()) {
+        return GetTypeInfo(type);
+    }
+
+    // Legacy CBC emits COPY rather than COPYG for some generic records.  A
+    // representative specialization is safe only when the field-layout
+    // manager can determine the complete size without concrete type
+    // arguments; that also guarantees the record's reference offsets do not
+    // depend on those arguments (for example, Array<T> and RoArray<T>).
+    if (!fieldManager->GetFlatSize(type.term).has_value()) {
+        return std::nullopt;
+    }
+
+    // A fixed-size generic record (including Array<T>'s container) has a
+    // layout and reference offsets independent of its type arguments. Legacy
+    // CBC COPY encodes only the container type, so use a representative
+    // specialization without erasing other generic TypeInfo requests that
+    // require their actual type arguments.
+    ResolverProxy::StubSubstitution sub(session, Term::Predefined(TermKind::I64));
+    auto concrete = sub.Substitute(type.term);
+    return tiManager.AcquireTypeInfo(session, concrete);
+}
+
 Stream::Output& operator<<(Stream::Output& stream, Type const& type)
 {
     type.resolver->GetFullName(type, stream);

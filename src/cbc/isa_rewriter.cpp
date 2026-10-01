@@ -599,11 +599,14 @@ struct IsaRewriter : public IsaParser {
     void Copy(IReg dstBase, IReg dst, IReg srcBase, IReg src, uint32_t typeId) override
     {
         UNWRAP_OPT(type, resolver.Query(Index<Type>(typeId)), Fail);
-        UNWRAP_OPT(typeInfo, type.GetTypeInfo(), [&]() {
-            errStream << "Failed to get typeinfo for type " << typeId << Stream::endl;
-            Fail();
-        });
-        emit.CopyDerived(dstBase, dst, srcBase, src, typeInfo);
+        auto typeInfo = resolver.GetLayoutTypeInfo(type);
+        if (!typeInfo.has_value()) {
+            Stream::StringBuffer typeName;
+            resolver.GetFullName(type, typeName);
+            Fail("Failed to get layout TypeInfo for " + typeName.ToString());
+            return;
+        }
+        emit.CopyDerived(dstBase, dst, srcBase, src, *typeInfo);
     }
 
     void CopyGeneric(IReg dstBase, IReg dst, IReg srcBase, IReg src, IReg ti) override

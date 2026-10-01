@@ -248,6 +248,7 @@ struct Resolver {
 
     void GetFullName(Type type, Stream::Output& stream);
     std::optional<RTSupport::TypeInfo> GetTypeInfo(Type type);
+    std::optional<RTSupport::TypeInfo> GetLayoutTypeInfo(Type type);
     CbcTypeKind GetKind(Type type);
     std::optional<uint32_t> GetFlatSize(Type type);
 
