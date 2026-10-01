@@ -716,14 +716,21 @@ struct ResolverProxy {
         // FIXME: search in hierarchy
         auto method = [&]() -> std::optional<Identifier<Image::MethodDefinition>> {
             MethodSignatureSubstitution sub(resolver.session, ref.refType);
+            // Method references use the receiver declaration's class type
+            // variables.  Normalize both sides in the concrete receiver
+            // context before comparing them.  Otherwise a direct call such as
+            // RepeatedField<MessageUnknownField>.getRawData() keeps `%0` in
+            // the reference while the candidate signature has already been
+            // specialized to MessageUnknownField.
+            auto lookupSignature = sub.Substitute(ref.signature);
             for (auto m : Decode::FindBucket(resolver, type.GetMethods(), ref.name)) {
                 auto def = Decode::Read(resolver, m);
                 auto sig = sub(TermManager::Resolve(resolver, def.Signature()));
 
-                if (sig == ref.signature) {
+                if (sig == lookupSignature) {
                     return m;
                 }
-                if (methodSig.isVarArg && IsVarArgSigCompatible(sig, ref.signature)) {
+                if (methodSig.isVarArg && IsVarArgSigCompatible(sig, lookupSignature)) {
                     return m;
                 }
             }
@@ -732,7 +739,7 @@ struct ResolverProxy {
                 auto def  = Decode::Read(resolver, m);
                 auto name = Decode::Read(resolver, def.Name());
                 auto sig  = sub(TermManager::Resolve(resolver, def.Signature()));
-                if (name == ref.name && sig == ref.signature) {
+                if (name == ref.name && sig == lookupSignature) {
                     return m;
                 }
             }
