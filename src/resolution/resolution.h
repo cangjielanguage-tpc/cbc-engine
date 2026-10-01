@@ -240,6 +240,7 @@ struct Resolver {
     std::string_view QueryString(uint32_t stringOffs);
 
     std::optional<RTSupport::TypeInfo> GetTypeInfo(Type type);
+    std::optional<RTSupport::TypeInfo> GetLayoutTypeInfo(Type type);
     CbcTypeKind GetKind(Type type);
     std::optional<uint32_t> GetFlatSize(Type type);
 
