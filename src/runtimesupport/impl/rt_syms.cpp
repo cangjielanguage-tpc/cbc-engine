@@ -44,6 +44,12 @@ bool Initialize(DYN_CJNativeInterface* interf)
         return false;
     }
 
+    Asm::engine_c2n_stub = reinterpret_cast<void (*)()>(handle.SearchSym("CJ_MCC_C2NStub"));
+    if (Asm::engine_c2n_stub == nullptr) {
+        Log::init.Stream(Logging::Level::ERROR) << "failed to find CJ_MCC_C2NStub" << Stream::endl;
+        return false;
+    }
+
 #if defined(__APPLE__)
     std::string_view helperLibName = "libcbcengine-helper.dylib";
 #else
