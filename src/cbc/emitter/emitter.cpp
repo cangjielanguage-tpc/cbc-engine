@@ -1113,6 +1113,11 @@ void Emitter::DirectCall2n(Symbol target)
     AddFixup(std::make_unique<Literal12Fixup>(i4, target));
 }
 
+void Emitter::CallCFunc(IReg src)
+{
+    Encode(segment, RT::B2rr { .opc = RT::Opcode::CALL_CFUNC, .rr = { .x = src, .y = IReg::IRZ } });
+}
+
 void Emitter::VirtualCall(uint16_t vnum, uint16_t extDefNum, bool sret)
 {
     Encode(

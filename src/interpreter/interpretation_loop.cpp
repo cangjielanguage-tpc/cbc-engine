@@ -1112,6 +1112,15 @@ LABEL(DIRECT_CALL_2N) {
 
     return { Adapters::GenericI2NCallInstance(), reinterpret_cast<void*>(target) };
 }
+LABEL(CALL_CFUNC) {
+    auto args = B2rr::Decode(reader);
+    LOG_INSTR;
+    auto target = ectype->GetPrimitive(IReg::From(args.rr.x)).u64;
+
+    reader0 = reader; // save current pc
+
+    return { Adapters::GenericI2NCallInstance(), reinterpret_cast<void*>(target) };
+}
 LABEL(CALL_CLOSURE_SRET) {
     if constexpr (HAS_SRET_SHIFT) {
         auto args = B1::Decode(reader);

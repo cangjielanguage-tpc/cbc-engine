@@ -676,6 +676,18 @@ struct IsaParserImpl {
         parser.CallInterfGeneric(argnum, methodId);
     }
 
+    static void LeaCForeign(IsaParser& parser)
+    {
+        auto [dst, skip, id] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
+        parser.LeaCForeign(dst, id);
+    }
+
+    static void CallCFunc(IsaParser& parser)
+    {
+        auto [dst, src] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
+        parser.CallCFunc(dst, src);
+    }
+
     static void RegSymGroup(IsaParser& parser)
     {
         static constexpr bool GENERIC     = true;
