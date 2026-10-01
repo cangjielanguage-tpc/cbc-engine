@@ -1162,7 +1162,7 @@ struct IsaRewriter : public IsaParser {
     {
         auto m = resolver.Query(Index<DirectCall>(methodId));
         if (!m.has_value()) {
-            Fail();
+            Fail("Failed to resolve direct call @" + std::to_string(methodId));
             return;
         }
         auto method = m.value();
