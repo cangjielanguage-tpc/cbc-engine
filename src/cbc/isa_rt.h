@@ -108,6 +108,7 @@
     X(DIRECT_CALL_2I, B3xi12, "call.2i $1I12L")                                                                        \
     X(DIRECT_CALL_2C, B3xi12, "call.2c $1I12L")                                                                        \
     X(DIRECT_CALL_2N, B3xi12, "call.2n $1I12L")                                                                        \
+    X(CALL_CFUNC, B2rr, "call.cfunc $0ir")                                                                             \
     X(VIRTUAL_CALL, VirtualCall, "vcall $0U16 $1U16")                                                                  \
     X(INTERFACE_CALL, InterfaceCall, "icall.$2U8 $0U16 $1U64 outer=$3U16 this=$4U16")                                  \
     X(INTERFACE_CALL_GENERIC, InterfaceCallGeneric, "icall.g.$1U8 $0U16 outer=$2U16 this=$3U16")                       \
