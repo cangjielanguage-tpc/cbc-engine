@@ -206,8 +206,11 @@ struct FLManager : public FieldLayoutManager {
             offsets.push_back(disp);
             return;
         }
-        if (term.IsGeneric()) {
-            ASSERT(term.Flags().isFixedSize);
+        // A generic record can be scanned without concrete type arguments
+        // whenever its layout is known.  Generic Array<T> is such a record,
+        // although it is not marked isFixedSize by the compiler metadata.
+        if (term.IsGeneric() && !GetFlatSize(term).has_value()) {
+            return;
         }
         switch (term.GetKind()) {
             case TermKind::VARRAY: {

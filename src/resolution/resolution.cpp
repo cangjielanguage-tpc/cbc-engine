@@ -882,10 +882,6 @@ std::optional<Type> Resolver::QueryElement(Type refType)
     {
     case TermKind::VARRAY:
     case TermKind::CANGJIE_ARRAY: {
-        auto optTypeInfo = refType.GetTypeInfo();
-        if (!optTypeInfo.has_value()) {
-            return std::nullopt;
-        }
         return Type(term.Subterm(0), this);
     }
     default:
