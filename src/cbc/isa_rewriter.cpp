@@ -1123,6 +1123,24 @@ struct IsaRewriter : public IsaParser {
 
     void NewObj(IReg dst, uint32_t typeId) override { NewObject(dst, typeId, New::Obj); }
 
+    void LeaCForeign(IReg dst, uint32_t methodId) override
+    {
+        UNWRAP_OPT(method, resolver.Query(Index<DirectCall>(methodId)), Fail);
+        if (auto data = std::get_if<DirectCall::Compiled>(&method->data)) {
+            emit.MovImm(Format::Width::W64, dst, data->funcPtr);
+        } else {
+            Fail();
+        }
+    }
+
+    void CallCFunc(IReg dst, IReg src) override
+    {
+        emit.CallCFunc(src);
+        BindStatePoint();
+        AdjustReg(dst, IReg::IR1);
+        EmitReturnedTo();
+    }
+
     void CallDirect(IReg dst, uint32_t methodId) override
     {
         auto m = resolver.Query(Index<DirectCall>(methodId));

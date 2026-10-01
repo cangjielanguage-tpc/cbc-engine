@@ -147,6 +147,8 @@
     X(SBinImm16, SBinImmGeneric<Width::W16>)                                                                           \
     X(SBinImm32, SBinImmGeneric<Width::W32>)                                                                           \
     X(SBinImm64, SBinImmGeneric<Width::W64>)                                                                           \
+    X(LeaCForeign, LeaCForeign)                                                                                        \
+    X(CallCFunc, CallCFunc)                                                                                            \
     X(_END, Unreachable)
 
 #define ISA_REG_SYM_GROUP_OPCODES(X)                                                                                   \
