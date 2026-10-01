@@ -1096,6 +1096,22 @@ LABEL(DIRECT_CALL_2C) {
 
     return { Adapters::GenericI2CCallInstance(), reinterpret_cast<void*>(target) };
 }
+LABEL(DIRECT_CALL_2N) {
+    auto args = B3xi12::Decode(reader);
+    LOG_INSTR;
+    auto target  = literals->at(args.xi12.imm12).uintptr;
+    // For proper support of fibers, the following call MUST drop the current frame.
+    // This can not be guaranteed by C++ compiler consistently, because TCO
+    // is not guaranteed and `mustcall` attribute is not supported
+    // fully by gcc/clang compilers.
+    //
+    // Instead, the following call will drop the current frame manually
+    // (outside of unit-test framework).
+
+    reader0 = reader; // save current pc
+
+    return { Adapters::GenericI2NCallInstance(), reinterpret_cast<void*>(target) };
+}
 LABEL(CALL_CLOSURE_SRET) {
     if constexpr (HAS_SRET_SHIFT) {
         auto args = B1::Decode(reader);

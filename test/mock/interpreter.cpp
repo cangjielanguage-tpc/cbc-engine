@@ -407,6 +407,8 @@ bool Execution::AtomicCompareAndSwapRef(Reference oldRef, Reference newRef, Refe
 
 void* Adapters::GenericI2CCallInstance() { FATAL("Should not reach here. Mock i2c"); }
 
+void* Adapters::GenericI2NCallInstance() { FATAL("Should not reach here. Mock i2n"); }
+
 void* Adapters::I2ICallInstance() { return reinterpret_cast<void*>(&Interpretation::InterpreterI2CallTest); }
 
 static void C2ICall() { FATAL("Should not reach here. Mock c2i"); }
