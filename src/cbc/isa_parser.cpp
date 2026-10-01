@@ -583,6 +583,12 @@ struct IsaParserImpl {
         parser.LeaIndexGeneric(dst, src, idx, ti);
     }
 
+    static void LeaConstIndexGeneric(IsaParser& parser)
+    {
+        auto [dst, src, ti, _, idx] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadSLEB().Get();
+        parser.LeaConstIndexGeneric(dst, src, idx, ti);
+    }
+
     static void LoadRawMemory(IsaParser& parser)
     {
         auto [dst, base, ldk, low4, hibits] =

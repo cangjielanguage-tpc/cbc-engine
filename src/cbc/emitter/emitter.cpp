@@ -858,6 +858,19 @@ void Emitter::LeaIndexGeneric(IReg dst, IReg src, IReg idx, IReg ti)
     );
 }
 
+void Emitter::LeaConstIndexGeneric(IReg dst, IReg src, int64_t idx, IReg ti)
+{
+    Encode(
+        segment,
+        RT::ConstIndexGeneric {
+            .opc = RT::Opcode::CONST_INDEX_GENERIC,
+            .rr  = RR { .x = dst, .y = src },
+            .idx = Imm64 { .imm = static_cast<uint64_t>(idx) },
+            .ti = RR { .x = ti, .y = 0 },
+        }
+    );
+}
+
 void Emitter::StoreObj(StoreAccessKind stk, Reg src, IReg base, uint32_t offset)
 {
     if (MathUtils::IsNBits(offset, 12)) {

@@ -136,6 +136,7 @@
     X(CopyGeneric, CopyGeneric)                                                                                        \
     X(Index, LeaIndex)                                                                                                 \
     X(IndexGeneric, LeaIndexGeneric)                                                                                   \
+    X(ConstIndexGeneric, LeaConstIndexGeneric)                                                                         \
     X(ZeroValGeneric, ZeroValGeneric)                                                                                  \
     X(FMathUnary32, FMathUnary32)                                                                                      \
     X(FMathUnary64, FMathUnary64)                                                                                      \

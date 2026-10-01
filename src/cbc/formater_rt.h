@@ -60,5 +60,6 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyDerive
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyDerivedGeneric args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, Index args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, IndexGeneric args);
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, ConstIndexGeneric args);
 } // namespace RT
 } // namespace Cbc

@@ -443,6 +443,11 @@ struct IsaDisasm : public IsaParser {
         stream.PrintLn("index.g {}, [{} @{}], {}", dst, src, idx, ti);
     }
 
+    void LeaConstIndexGeneric(IReg dst, IReg src, int64_t idx, IReg ti) override
+    {
+        stream.PrintLn("index.g {}, [{} {}], {}", dst, src, idx, ti);
+    }
+
     virtual void ZeroVal(AnyReg dst, IReg ti) override { stream.PrintLn("zeroval R{}, {}", dst, ti); }
 
     virtual void FMathUnary32(Format::FloatMathOp op, FReg dst, FReg src) override

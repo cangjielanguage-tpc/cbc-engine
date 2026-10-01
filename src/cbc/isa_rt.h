@@ -177,6 +177,7 @@
     X(COPY_DERIVED_GENERIC, CopyDerivedGeneric, "copy.derived.g $0ir $1ir $2ir $3ir $4ir")                             \
     X(INDEX, Index, "index $0ir [$1ir $2ir] $3U64")                                                                    \
     X(INDEX_GENERIC, IndexGeneric, "index.g $0ir [$1ir $2ir] $3ir")                                                    \
+    X(CONST_INDEX_GENERIC, ConstIndexGeneric, "index.g $0ir [$1ir $2] $3ir")                                           \
     X(SBIN8, B3xrrr, "$0sbin.8 $1ir $2ir $3ir")                                                                        \
     X(SBIN16, B3xrrr, "$0sbin.16 $1ir $2ir $3ir")                                                                      \
     X(SBIN32, B3xrrr, "$0sbin.32 $1ir $2ir $3ir")                                                                      \
@@ -741,6 +742,22 @@ struct IndexGeneric {
         auto rr  = Format::RR::Decode(reader);
         auto idx = Format::RR::Decode(reader);
         return IndexGeneric { opc, rr, idx };
+    }
+};
+
+struct ConstIndexGeneric {
+    Opcode opc;
+    Format::RR rr;
+    Format::Imm64 idx;
+    RTSupport::TypeInfo ti;
+
+    static ConstIndexGeneric Decode(Decoder::ByteReader& reader)
+    {
+        auto opc = Opcode::Decode(reader);
+        auto rr  = Format::RR::Decode(reader);
+        auto idx = Format::Imm64::Decode(reader);
+        auto ti  = reader.Read<RTSupport::TypeInfo>();
+        return ConstIndexGeneric { opc, rr, idx, ti };
     }
 };
 

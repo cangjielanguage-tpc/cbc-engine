@@ -164,6 +164,7 @@ protected:
     virtual void CopyGeneric(IReg dstBase, IReg dst, IReg dstSrc, IReg src, IReg ti)        = 0;
     virtual void LeaIndex(IReg dst, IReg src, IReg idx, uint32_t typeId)                    = 0;
     virtual void LeaIndexGeneric(IReg dst, IReg src, IReg idx, IReg ti)                     = 0;
+    virtual void LeaConstIndexGeneric(IReg dst, IReg src, int64_t idx, IReg ti)                 = 0;
 
     virtual void ZeroVal(AnyReg dst, IReg ti) = 0;
 

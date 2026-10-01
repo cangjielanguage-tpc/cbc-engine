@@ -597,6 +597,8 @@ struct IsaRewriter : public IsaParser {
 
     void LeaIndexGeneric(IReg dst, IReg src, IReg idx, IReg ti) override { emit.LeaIndexGeneric(dst, src, idx, ti); }
 
+    void LeaConstIndexGeneric(IReg dst, IReg src, int64_t idx, IReg ti) override { emit.LeaConstIndexGeneric(dst, src, idx, ti); }
+
     void LoadStackRec(IReg r, uint16_t ts) override
     {
         emit.LoadFrame(Format::LoadAccessKind::LD_LEA, r, frameLayout.typedOffset.at(ts));
