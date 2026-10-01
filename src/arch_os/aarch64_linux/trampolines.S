@@ -110,6 +110,8 @@ declare_hidden engine_implicit_exception_thrower
 declare_hidden engine_handle_exception
 declare_hidden common_landing_pad
 declare_hidden engine_stack_grow_stub
+declare_hidden engine_c2n_stub
+declare_hidden engine_i2n_call
 declare_hidden engine_after_stack_grow
 
 // --- SECTION BSS ---
@@ -144,6 +146,8 @@ engine_carrier_specific_offset:
 engine_cjthread_specific_offset:
   .skip 8
 engine_stack_grow_stub:
+  .skip 8
+engine_c2n_stub:
   .skip 8
 engine_future_execute_function:
   .skip 8
@@ -576,6 +580,33 @@ engine_i2i_call:
 // TLS_REG can be changed after context-switch
 engine_i2c_call:
   engine_i2c IREG_ABI_AMOUNT, FREG_ABI_AMOUNT
+
+.balign 16
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: target)
+// preserved: ECTYPE_REG, x29
+// TLS_REG can be changed after context-switch
+// Calls the runtime C2N stub which wraps the native call into a GC-safe region.
+// Supports at most 6 integer and 8 FP register arguments (checked in the rewriter).
+engine_i2n_call:
+  // jumped from .Linterpreter_call without return address to return
+  mov   x9, x0                         // native function address
+
+  i2c_emit_iregs_abi 6
+  i2c_emit_fregs_abi FREG_ABI_AMOUNT
+
+  sub   sp, sp, #16
+  str   x9, [sp]                       // funcAddr
+  str   xzr, [sp, #8]                  // cpStackSize (no stack arguments)
+
+  adrp  x10, Page(engine_c2n_stub)
+  ldr   x10, [x10, PageOff(engine_c2n_stub)]
+  blr   x10
+  // the C2N stub consumes the funcAddr/cpStackSize slots and restores sp
+
+  str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE)]
+  str   d0, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET)]
+
+  b     .Lrestart_interpretation
 
 
 .balign 16

@@ -60,8 +60,9 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
 
     auto newStaticFuh = [&]() -> StaticFunctionHandle* {
         auto& deps       = session.GetEngine().Dependencies().at(methodDef.GetFileId());
+        auto& fLibs      = session.GetEngine().ForeignLibs().at(methodDef.GetFileId());
         auto linkageName = Decode::Read(session, method.LinkageName().value());
-        auto target      = deps.FindSymbol(linkageName);
+        auto target      = flags.Is(MethodFlag::FOREIGN) ? fLibs.FindSymbol(linkageName) : deps.FindSymbol(linkageName);
 
         if (target == nullptr) {
             LOGS_ERROR(
