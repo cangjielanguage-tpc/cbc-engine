@@ -5,6 +5,7 @@
 #include <stddef.h> // size_t
 #include <stdlib.h> // malloc, realloc, free, abort
 #include <initializer_list>
+#include <type_traits>
 #include <utility>
 
 namespace Utils {
@@ -34,7 +35,18 @@ public:
         ::free(data_);
     }
 
-    explicit Vector(size_t size) : Vector() { Reserve(size); }
+    explicit Vector(size_t size) : Vector()
+    {
+        if (size > 0) {
+            Reserve(size);
+            if constexpr (std::is_default_constructible_v<T>) {
+                for (size_t i = 0; i < size; ++i) {
+                    new (data_ + i) T();
+                }
+                size_ = size;
+            }
+        }
+    }
 
     Vector(std::initializer_list<T> list) : Vector()
     {
@@ -44,10 +56,13 @@ public:
         }
     }
 
-    Vector(Vector const& other) : Vector(other.Size())
+    Vector(Vector const& other) : Vector()
     {
-        for (auto const& v : other) {
-            PushBack(v);
+        if (other.Size() > 0) {
+            Reserve(other.Size());
+            for (auto const& v : other) {
+                PushBack(v);
+            }
         }
     }
 
@@ -139,7 +154,7 @@ public:
     {
         if (count < size_) {
             // Shrinking: Destroy excess elements
-            if constexpr (!__is_trivially_destructible(T)) {
+            if constexpr (!std::is_trivially_destructible_v<T>) {
                 for (size_t i = count; i < size_; ++i) {
                     data_[i].~T();
                 }
@@ -160,7 +175,7 @@ public:
     void Resize(size_t count, const T& value)
     {
         if (count < size_) {
-            if constexpr (!__is_trivially_destructible(T)) {
+            if constexpr (!std::is_trivially_destructible_v<T>) {
                 for (size_t i = count; i < size_; ++i) {
                     data_[i].~T();
                 }
@@ -183,7 +198,7 @@ public:
             return;
 
         // Use realloc for POD/trivially copyable types (No loops generated)
-        if constexpr (__is_trivially_copyable(T)) {
+        if constexpr (std::is_trivially_copyable_v<T>) {
             T* new_data = static_cast<T*>(::realloc(data_, new_cap * sizeof(T)));
             if (!new_data)
                 ::abort();
@@ -233,7 +248,7 @@ public:
     {
         if (size_ > 0) {
             --size_;
-            if constexpr (!__is_trivially_destructible(T)) {
+            if constexpr (!std::is_trivially_destructible_v<T>) {
                 data_[size_].~T();
             }
         }
@@ -241,7 +256,7 @@ public:
 
     void Clear() noexcept
     {
-        if constexpr (!__is_trivially_destructible(T)) {
+        if constexpr (!std::is_trivially_destructible_v<T>) {
             for (size_t i = 0; i < size_; ++i) {
                 data_[i].~T();
             }
