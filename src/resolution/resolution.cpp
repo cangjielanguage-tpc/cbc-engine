@@ -655,6 +655,7 @@ struct ResolverProxy {
         DirectCall::CallData callData = DirectCall::Compiled {
             .funcPtr    = reinterpret_cast<uintptr_t>(funcPtr),
             .i2cAdapter = RTSupport::Adapters::GenericI2CCallInstance(),
+            .isForeign  = false,
         };
 
         auto refType = resolver.Wrap(ref.refType);
@@ -704,6 +705,7 @@ struct ResolverProxy {
             return std::nullopt;
         }
 
+        auto defFlags = Decode::Read(resolver, method.value()).GetFlags();
         auto fuh = Interpretation::FunctionHandleManager::Of(resolver.session).AcquireTagged(resolver, method.value());
         auto sig = ConstructSignature(resolver, ref);
         auto refType = resolver.Wrap(ref.refType);
@@ -713,6 +715,7 @@ struct ResolverProxy {
             DirectCall::CallData data = DirectCall::Compiled {
                 .funcPtr    = reinterpret_cast<uintptr_t>(fuh->function),
                 .i2cAdapter = fuh->base.i2call,
+                .isForeign  = defFlags.Is(Image::MethodFlag::FOREIGN),
             };
             return DirectCall::Content { refType, ref.name, std::move(sig), data };
         } else {
