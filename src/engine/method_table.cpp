@@ -398,12 +398,12 @@ struct MethodTableBuilder {
                 for (auto& sym : syms) {
                     *sym->mtEntry = *choice->mtEntry;
                 }
-                break;
+                continue;
             }
             // no override, no old non-abstract symbols
             // if two non-abstract sybols found => conflict found
             if (nonAbstractCount <= 1) {
-                break;
+                continue;
             }
             // conflict is possibly present, final corner case:
             // "the same method could present in different entries method"
