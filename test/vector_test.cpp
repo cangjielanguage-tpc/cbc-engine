@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include "engine/arena.h"
 #include "utils/vector.h"
 #include <numeric>
 #include <string>
@@ -186,4 +187,40 @@ TEST(Vector, ReserveLargeCapacityDoesNotWrapAllocationSize)
 {
     Utils::Vector<int> v;
     ASSERT_DEATH(v.Reserve(SIZE_MAX), ".*");
+}
+
+TEST(Arena, CopySpanOfElements)
+{
+    Engine::Arena arena;
+    int values[] = {1, 2, 3, 4, 5, 6, 7, 8};
+    auto span    = arena.Copy(Utils::Span<int>(values, 8));
+    ASSERT_EQ(span.Size(), 8u);
+    for (int i = 0; i < 8; i++) {
+        ASSERT_EQ(span[i], i + 1);
+    }
+
+    // Data must be arena-owned: mutating the source leaves the copy intact.
+    values[0] = 100;
+    ASSERT_EQ(span[0], 1);
+
+    // The copy must not overlap subsequent allocations.
+    auto* canary = static_cast<int*>(arena.Allocate(sizeof(int) * 8, alignof(int)));
+    for (int i = 0; i < 8; i++) {
+        canary[i] = -1;
+    }
+    for (int i = 0; i < 8; i++) {
+        ASSERT_EQ(span[i], i + 1);
+    }
+}
+
+TEST(Arena, CopyEmptyAndSingleElement)
+{
+    Engine::Arena arena;
+    int value = 42;
+    auto one  = arena.Copy(Utils::Span<int>(&value, 1));
+    ASSERT_EQ(one.Size(), 1u);
+    ASSERT_EQ(one[0], 42);
+
+    auto none = arena.Copy(Utils::Span<int>(&value, 0));
+    ASSERT_EQ(none.Size(), 0u);
 }
