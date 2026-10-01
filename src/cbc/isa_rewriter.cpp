@@ -323,11 +323,13 @@ struct IsaRewriter : public IsaParser {
     void CBinary(Format::Checked op, Format::Width width, IReg d, IReg l, IReg r) override
     {
         emit.Binary(op, width, d, l, r);
+        BindStatePoint();
     }
 
     void CBinaryImm(Format::Checked op, Format::Width width, IReg d, IReg l, uint64_t value) override
     {
         emit.BinaryImm(op, width, d, l, value);
+        BindStatePoint();
     }
 
     void SBinary(Format::Saturating op, Format::Width width, IReg d, IReg l, IReg r) override
@@ -1335,9 +1337,17 @@ struct IsaRewriter : public IsaParser {
         emit.Ret();
     }
 
-    void DivCheck(IReg reg) override { emit.DivCheck(reg); }
+    void DivCheck(IReg reg) override
+    {
+        emit.DivCheck(reg);
+        BindStatePoint();
+    }
 
-    void NullCheck(IReg reg) override { emit.NullCheck(reg); }
+    void NullCheck(IReg reg) override
+    {
+        emit.NullCheck(reg);
+        BindStatePoint();
+    }
 
     void Catch(IReg reg) override { emit.Catch(reg); }
 
@@ -1766,7 +1776,7 @@ static Utils::Vector<Interpretation::GCPositionalInfo> CalculatePositionalGCInfo
         auto rewrittenPos = emitter.LabelPosition(point.label);
         auto it           = infos.find(originalPos);
         if (it == infos.end()) {
-            FATAL("Unknown position");
+            continue;
         } else if (rewrittenPos > UINT32_MAX) {
             FATAL("Position too big");
         }
