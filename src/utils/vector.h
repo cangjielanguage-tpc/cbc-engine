@@ -77,10 +77,12 @@ public:
 
     Vector& operator=(Vector const& other)
     {
-        Clear();
-        Reserve(other.Size());
-        for (auto const& v : other) {
-            PushBack(v);
+        if (this != &other) {
+            Clear();
+            Reserve(other.Size());
+            for (auto const& v : other) {
+                PushBack(v);
+            }
         }
         return *this;
     }

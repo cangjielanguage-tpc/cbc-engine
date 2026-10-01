@@ -26,7 +26,7 @@ public:
         static_assert(std::is_trivially_destructible_v<T>, "T must not have a destructor (or it must be empty)");
 
         auto size = span.Size();
-        T* memory = reinterpret_cast<T*>(Allocate(sizeof(T), alignof(T)));
+        T* memory = reinterpret_cast<T*>(Allocate(sizeof(T) * size, alignof(T)));
         for (size_t i = 0; i < size; i++) {
             new (memory + i) T(span[i]);
         }
