@@ -905,7 +905,7 @@ struct Imm8 {
 /// 12 bit; immediate or literal
 class Imm12 {
 public:
-    inline Imm12(uint16_t _imm) : imm(_imm) { ASSERT((_imm & 0xfff) == _imm); }
+    inline Imm12(uint16_t _imm) : imm(_imm) { ASSERT((_imm & 0xF000) == 0 || (_imm & 0xF000) == 0xF000); }
 
     inline Imm12() : imm(0) {}
 

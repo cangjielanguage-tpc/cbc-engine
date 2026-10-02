@@ -22,11 +22,11 @@ MemSpaceEmitter Emitter::OpenMemSpace()
     return MemSpaceEmitter(*this);
 }
 
-void MemSpaceEmitter::Offset(uint64_t offset)
+void MemSpaceEmitter::Offset(int32_t offset)
 {
     if (offset == 0)
         return;
-    if (MathUtils::IsNBits(offset, 16)) {
+    if (MathUtils::IsNBitsSigned(offset, 16)) {
         Encode(
             segment,
             RT::M3i16 {
@@ -34,7 +34,7 @@ void MemSpaceEmitter::Offset(uint64_t offset)
                 .imm16 = static_cast<uint16_t>(offset),
             }
         );
-    } else if (MathUtils::IsNBits(offset, 32)) {
+    } else if (MathUtils::IsNBitsSigned(offset, 32)) {
         Encode(
             segment,
             RT::M5i32 {

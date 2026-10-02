@@ -44,7 +44,7 @@ struct Resource {
 struct GCPositionalInfo {
     uint32_t rewrittenPos;
     uint16_t regMask;
-    Utils::Vector<uint32_t> untypedRefSlotsInfo;
+    Utils::Vector<int32_t> untypedRefSlotsInfo;
     Utils::Vector<std::pair<Resource, Resource>> mutPairs;
 };
 
@@ -55,7 +55,7 @@ struct StackPtrsPositionalInfo {
 
 struct GcInfo {
     Utils::Vector<GCPositionalInfo> positionalInfo;
-    Utils::Vector<uint32_t> refOffsets;
+    Utils::Vector<int32_t> refOffsets;
 };
 
 struct StackPtrsInfo {

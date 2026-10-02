@@ -63,7 +63,7 @@ void VisitFrameRootsForStackPtrs(
     auto regTable = reinterpret_cast<GCSupport::RegistersTable*>(state);
     auto fuh      = *reinterpret_cast<DynamicFunctionHandle**>((uint8_t*)frameDesc.fp - FUH_SLOT_OFFSET);
     auto bc       = NOTNULL(fuh->bytecode.load());
-    auto slotsStartAddr = ((uint8_t*)frameDesc.fp) - (LOCAL_SLOTS_OFFSET + bc->frameSize);
+    auto slotsStartAddr = ((uint8_t*)frameDesc.fp) - LOCAL_SLOTS_OFFSET;
 
     RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Stream::Output& out) {
         out.PrintFmtLn(
@@ -74,8 +74,8 @@ void VisitFrameRootsForStackPtrs(
     auto visitRoot = [&stackPtrVisitor](Placeholder ph) { VisitRoot(stackPtrVisitor, ph); };
     auto visitRef  = [&stackAllocVisitor](Placeholder ph) { VisitRoot(stackAllocVisitor, ph); };
 
-    auto resLoc = [slotsStartAddr, regTable](uint32_t idx) {
-        return GetResourceLocation(Resource { idx }, slotsStartAddr, regTable);
+    auto resLoc = [slotsStartAddr, regTable, bc](uint32_t idx) {
+        return GetResourceLocation(Resource { idx }, slotsStartAddr, regTable, bc->frameSize);
     };
 
     // Frame pointer is also a pointer to stack, so it needs to be adjusted.
@@ -136,8 +136,8 @@ void VisitFrameRootsForStackPtrs(
 
         if (gcPosInfo != nullptr) {
             for (auto& pair : gcPosInfo->mutPairs) {
-                auto basePh    = GetResourceLocation(pair.first, slotsStartAddr, regTable);
-                auto derivedPh = GetResourceLocation(pair.second, slotsStartAddr, regTable);
+                auto basePh    = GetResourceLocation(pair.first, slotsStartAddr, regTable, bc->frameSize);
+                auto derivedPh = GetResourceLocation(pair.second, slotsStartAddr, regTable, bc->frameSize);
 
                 VisitMutPair(derivedPtrVisitor, basePh, derivedPh);
                 visitRef(basePh);
@@ -146,7 +146,7 @@ void VisitFrameRootsForStackPtrs(
 
         if (stackPtrsInfo != nullptr) {
             for (auto& resource : stackPtrsInfo->resources) {
-                visitRoot(GetResourceLocation(resource, slotsStartAddr, regTable));
+                visitRoot(GetResourceLocation(resource, slotsStartAddr, regTable, bc->frameSize));
             }
         }
 

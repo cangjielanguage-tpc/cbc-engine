@@ -495,10 +495,11 @@ perform_2i_call:
 
 .Lrestart_interpretation:
   mov   rdi, ECTYPE_REG
-  mov   rsi, rsp
+  lea   rsi, [rbp - LOCAL_SLOTS_OFFSET]
   mov   rdx, TLS_REG
   mov   rcx, LITERALS_REG
   lea   r8, [rbp - READER_SLOT_OFFSET]
+  mov   r9, rsp
 
   call  engine_interpretation_loop
 
