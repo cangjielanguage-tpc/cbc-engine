@@ -98,7 +98,7 @@ void VisitGCFrameRoots(
     }
 
     auto calleeSavedRegsEnd = ((uint8_t*)frame_desc.fp) - localsOffset;
-    auto slotsStartAddr     = ((uint8_t*)frame_desc.fp) - (localsOffset + bc->frameSize);
+    auto slotsStartAddr     = ((uint8_t*)frame_desc.fp) - localsOffset;
 
     RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Output& out) {
         out.PrintFmtLn(
@@ -115,8 +115,8 @@ void VisitGCFrameRoots(
         // Heap adjusting is in process
         auto derivedPtrVisitor = *derivedPtrVisitorOpt;
         for (auto& pair : positionalInfo->mutPairs) {
-            auto basePh    = GetResourceLocation(pair.first, slotsStartAddr, regsLocationTable);
-            auto derivedPh = GetResourceLocation(pair.second, slotsStartAddr, regsLocationTable);
+            auto basePh    = GetResourceLocation(pair.first, slotsStartAddr, regsLocationTable, bc->frameSize);
+            auto derivedPh = GetResourceLocation(pair.second, slotsStartAddr, regsLocationTable, bc->frameSize);
 
             auto baseRef = Value::Reference { .value = *basePh };
             auto locKind = RTSupport::Execution::GetStructLocationKind(baseRef, *derivedPh);

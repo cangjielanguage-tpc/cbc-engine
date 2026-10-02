@@ -34,12 +34,16 @@ void RegistersTable::UpdateRegLocations(Interpretation::NonVolatileRegs savedReg
     }
 }
 
-Placeholder GetResourceLocation(Interpretation::Resource resource, uint8_t* slotsStartAddr, RegistersTable* regTable)
+Placeholder GetResourceLocation(
+    Interpretation::Resource resource, uint8_t* slotsStartAddr, RegistersTable* regTable, uint32_t frameSize
+)
 {
     if (resource.IsReg()) {
         return regTable->GetRegLocation(resource.AsReg());
     } else {
-        return reinterpret_cast<Placeholder>(slotsStartAddr + (resource.AsSlotNum() * 8)); // TODO named constant
+        return reinterpret_cast<Placeholder>(
+            slotsStartAddr + (static_cast<int32_t>(resource.AsSlotNum()) * 8 - static_cast<int32_t>(frameSize))
+        );
     }
 }
 

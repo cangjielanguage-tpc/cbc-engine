@@ -373,12 +373,7 @@ struct IsaRewriter : public IsaParser {
         }
     }
 
-    void PrepareRecord(uint16_t ts) override
-    {
-        auto size = frameLayout.typedOffset[ts + 1] - frameLayout.typedOffset[ts];
-        auto tsi  = frameLayout.stackAllocSize[ts];
-        emit.PrepareTyped(size, tsi);
-    }
+    void PrepareRecord(uint16_t ts) override {}
 
     void NewArr(IReg dst, IReg len, uint32_t typeId) override
     {
@@ -1403,7 +1398,7 @@ struct IsaRewriter : public IsaParser {
 
     void ArrayIndexCheck(IReg length, IReg index) override { FATAL("not implemented"); }
 
-    static uint32_t UntypedSlotOffset(uint16_t us) { return us * STACK_SLOT_SIZE; }
+    int32_t UntypedSlotOffset(uint16_t us) { return us * STACK_SLOT_SIZE - frameLayout.frameSize; }
 
     void LoadUntyped(AnyReg dst, Format::LoadAccessKind ldk, uint16_t us) override
     {
@@ -1749,8 +1744,27 @@ static std::optional<FrameLayout> makeFrameLayout(Image::Code code, Resolver& re
 
     auto frameSize = MathUtils::AlignUp(savedRegsSpace + stackAllocSize, Cbc::FRAME_ALIGNMENT);
 
+    // Transform all offsets from bottom-relative to end-of-essentials-relative (negative).
+    std::unordered_map<uint32_t, int32_t> typedOffsetNeg;
+    typedOffsetNeg.reserve(typedOffset.size());
+    for (auto& [idx, off] : typedOffset) {
+        typedOffsetNeg[idx] = static_cast<int32_t>(off) - static_cast<int32_t>(frameSize);
+    }
+
+    Utils::Vector<int32_t> stackAllocSizesNeg;
+    stackAllocSizesNeg.Reserve(stackAllocSizes.Size());
+    for (auto off : stackAllocSizes) {
+        stackAllocSizesNeg.PushBack(static_cast<int32_t>(off) - static_cast<int32_t>(frameSize));
+    }
+
+    Utils::Vector<int32_t> refOffsetsNeg;
+    refOffsetsNeg.Reserve(refOffsets.Size());
+    for (auto off : refOffsets) {
+        refOffsetsNeg.PushBack(static_cast<int32_t>(off) - static_cast<int32_t>(frameSize));
+    }
+
     return FrameLayout {
-        std::move(typedOffset), std::move(stackAllocSizes), std::move(refOffsets), untypedSlotsSize, frameSize
+        std::move(typedOffsetNeg), std::move(stackAllocSizesNeg), std::move(refOffsetsNeg), frameSize
     };
 }
 
@@ -1758,7 +1772,8 @@ static Utils::Vector<Interpretation::GCPositionalInfo> CalculatePositionalGCInfo
     Engine::Session& session,
     const MethodCode& code,
     Emitter::Emitter const& emitter,
-    Utils::Span<IsaRewriter::StatePoint const> statePoints
+    Utils::Span<IsaRewriter::StatePoint const> statePoints,
+    int32_t frameSize
 )
 {
     auto livenessInfo = Decode::GetLivenessInfo(session, code);
@@ -1789,7 +1804,7 @@ static Utils::Vector<Interpretation::GCPositionalInfo> CalculatePositionalGCInfo
 
         posInfo.Back().untypedRefSlotsInfo.Reserve(info.refSlotNums.Size());
         for (const auto& slotN : info.refSlotNums) {
-            posInfo.Back().untypedRefSlotsInfo.PushBack(slotN * STACK_SLOT_SIZE);
+            posInfo.Back().untypedRefSlotsInfo.PushBack(static_cast<int32_t>(slotN * STACK_SLOT_SIZE) - frameSize);
         }
 
         posInfo.Back().mutPairs.Reserve(info.mutPairs.Size());
@@ -1942,8 +1957,10 @@ Interpretation::ExecBytecodeInfo Rewrite(
         .abiInfo          = std::move(abiInfo),
         .gcInfo =
             Interpretation::GcInfo {
-                .positionalInfo = std::move(CalculatePositionalGCInfo(session, code, emitter, rewriter.statePoints)),
-                .refOffsets     = std::move((*frameLayout).refOffsets),
+                .positionalInfo = std::move(
+                    CalculatePositionalGCInfo(session, code, emitter, rewriter.statePoints, frameLayout->frameSize)
+                ),
+                .refOffsets = std::move((*frameLayout).refOffsets),
             },
         .stackPtrsInfo =
             Interpretation::StackPtrsInfo {
