@@ -338,3 +338,240 @@ TEST(AbiBuilder, TemplateAdapter)
     EXPECT_EQ(r.iregs[2], IrValue(8));
     EXPECT_EQ(r.fregs[0], FrValue(3));
 }
+
+// --- Tracking tests ---
+
+TEST(AbiBuilder, IregStackPtrMask)
+{
+    MoveResolver mr;
+    AbiBuilder builder {mr, X64Desc};
+
+    builder.Consume(Ir(7), { .isFloat = false, .isRecord = true, .isReference = false });
+    builder.Consume(Ir(8), { .isFloat = false, .isRecord = false, .isReference = false });
+    builder.Consume(Ir(9), { .isFloat = false, .isRecord = true, .isReference = false });
+
+    EXPECT_EQ(builder.IregStackPtrMask(), 0x05); // bits 0 and 2
+    EXPECT_EQ(builder.IregRefMask(), 0x00);
+    EXPECT_EQ(builder.FregMask(), 0x00);
+}
+
+TEST(AbiBuilder, IregRefMask)
+{
+    MoveResolver mr;
+    AbiBuilder builder {mr, X64Desc};
+
+    builder.Consume(Ir(7), { .isFloat = false, .isRecord = false, .isReference = true });
+    builder.Consume(Ir(8), { .isFloat = false, .isRecord = false, .isReference = false });
+    builder.Consume(Ir(9), { .isFloat = false, .isRecord = false, .isReference = true });
+
+    EXPECT_EQ(builder.IregRefMask(), 0x05); // bits 0 and 2
+    EXPECT_EQ(builder.IregStackPtrMask(), 0x00);
+}
+
+TEST(AbiBuilder, FregMask)
+{
+    MoveResolver mr;
+    AbiBuilder builder {mr, X64Desc};
+
+    builder.Consume(Fr(3), { .isFloat = true, .isRecord = false, .isReference = false });
+    builder.Consume(Fr(4), { .isFloat = true, .isRecord = false, .isReference = false });
+    builder.Consume(Ir(7), { .isFloat = false, .isRecord = false, .isReference = false });
+
+    EXPECT_EQ(builder.FregMask(), 0x03); // bits 0 and 1
+    EXPECT_EQ(builder.IregRefMask(), 0x00);
+}
+
+TEST(AbiBuilder, RefStackSlotsOverflow)
+{
+    MoveResolver mr;
+    AbiBuilder builder {mr, X64Desc};
+
+    // Fill all 6 ireg slots with non-ref params
+    for (int i = 7; i <= 12; i++) {
+        builder.Consume(Ir(i), { .isFloat = false, .isRecord = false, .isReference = false });
+    }
+    // Next two are refs → overflow to slots
+    builder.Consume(Ir(13), { .isFloat = false, .isRecord = false, .isReference = true });
+    builder.Consume(Ir(14), { .isFloat = false, .isRecord = false, .isReference = true });
+
+    auto slots = builder.RefStackSlots();
+    ASSERT_EQ(slots.Size(), 2);
+    EXPECT_EQ(slots[0], 0);
+    EXPECT_EQ(slots[1], 1);
+    EXPECT_EQ(builder.MaxStackSlot(), 2);
+    EXPECT_EQ(builder.RecStackSlots().Size(), 0);
+}
+
+TEST(AbiBuilder, RecStackSlotsOverflow)
+{
+    MoveResolver mr;
+    AbiBuilder builder {mr, X64Desc};
+
+    // Fill all 6 ireg slots with non-rec params
+    for (int i = 7; i <= 12; i++) {
+        builder.Consume(Ir(i), { .isFloat = false, .isRecord = false, .isReference = false });
+    }
+    // Next two are records → overflow to slots
+    builder.Consume(Ir(13), { .isFloat = false, .isRecord = true, .isReference = false });
+    builder.Consume(Ir(14), { .isFloat = false, .isRecord = true, .isReference = false });
+
+    auto slots = builder.RecStackSlots();
+    ASSERT_EQ(slots.Size(), 2);
+    EXPECT_EQ(slots[0], 0);
+    EXPECT_EQ(slots[1], 1);
+    EXPECT_EQ(builder.MaxStackSlot(), 2);
+    EXPECT_EQ(builder.RefStackSlots().Size(), 0);
+}
+
+TEST(AbiBuilder, SretSetsStackPtrMask)
+{
+    MoveResolver mr;
+    AbiBuilder builder {mr, X64Desc};
+
+    builder.ConsumeSret(Ir(7));
+    builder.Consume(Ir(8), { .isFloat = false, .isRecord = false, .isReference = false });
+
+    EXPECT_EQ(builder.IregStackPtrMask(), 0x01); // bit 0 (sret took first ireg slot)
+    EXPECT_EQ(builder.IregRefMask(), 0x00);
+}
+
+TEST(AbiBuilder, MutSetsRefMask)
+{
+    MoveResolver mr;
+    AbiBuilder builder {mr, X64Desc};
+
+    builder.ConsumeReceiverMut(Ir(7), Ir(8));
+    builder.Consume(Ir(9), { .isFloat = false, .isRecord = false, .isReference = false });
+
+    EXPECT_EQ(builder.IregRefMask(), 0x03); // bits 0 and 1
+    EXPECT_EQ(builder.IregStackPtrMask(), 0x00);
+}
+
+TEST(AbiBuilder, ReceiverSetsRefMask)
+{
+    MoveResolver mr;
+    AbiBuilder builder {mr, X64Desc};
+
+    builder.ConsumeReceiver(Ir(7));
+    builder.Consume(Ir(8), { .isFloat = false, .isRecord = false, .isReference = false });
+
+    EXPECT_EQ(builder.IregRefMask(), 0x01); // bit 0
+    EXPECT_EQ(builder.IregStackPtrMask(), 0x00);
+}
+
+TEST(AbiBuilder, FtvarsSetsRefMask)
+{
+    MoveResolver mr;
+    AbiBuilder builder {mr, X64Desc};
+
+    builder.ConsumeFtvars(Ir(7));
+    builder.Consume(Ir(8), { .isFloat = false, .isRecord = false, .isReference = false });
+
+    EXPECT_EQ(builder.IregRefMask(), 0x01); // bit 0
+    EXPECT_EQ(builder.IregStackPtrMask(), 0x00);
+}
+
+TEST(AbiBuilder, CombinedSretMutOverflow)
+{
+    MoveResolver mr;
+    AbiBuilder builder {mr, X64Desc};
+
+    // SRET → ireg slot 0, stackPtrMask bit 0
+    builder.ConsumeSret(Ir(7));
+    // MUT → ireg slots 1, 2, refMask bits 1, 2
+    builder.ConsumeReceiverMut(Ir(8), Ir(9));
+    // 3 int params → ireg slots 3, 4, 5 (no flags)
+    builder.Consume(Ir(10), { .isFloat = false, .isRecord = false, .isReference = false });
+    builder.Consume(Ir(11), { .isFloat = false, .isRecord = false, .isReference = false });
+    builder.Consume(Ir(12), { .isFloat = false, .isRecord = false, .isReference = false });
+    // 1 ref overflow → slot 0
+    builder.Consume(Ir(13), { .isFloat = false, .isRecord = false, .isReference = true });
+    // 1 rec overflow → slot 1
+    builder.Consume(Ir(14), { .isFloat = false, .isRecord = true, .isReference = false });
+
+    EXPECT_EQ(builder.IregStackPtrMask(), 0x01); // bit 0 (sret)
+    EXPECT_EQ(builder.IregRefMask(), 0x06);     // bits 1, 2 (mut)
+    EXPECT_EQ(builder.FregMask(), 0x00);
+
+    auto refSlots = builder.RefStackSlots();
+    ASSERT_EQ(refSlots.Size(), 1);
+    EXPECT_EQ(refSlots[0], 0);
+
+    auto recSlots = builder.RecStackSlots();
+    ASSERT_EQ(recSlots.Size(), 1);
+    EXPECT_EQ(recSlots[0], 1);
+
+    EXPECT_EQ(builder.MaxStackSlot(), 2);
+}
+
+TEST(AbiBuilder, FloatOverflowToStackNoTracking)
+{
+    MoveResolver mr;
+    AbiBuilder builder {mr, X64Desc};
+
+    // Fill all 8 freg slots
+    for (int i = 0; i < 8; i++) {
+        builder.Consume(Fr(i), { .isFloat = true, .isRecord = false, .isReference = false });
+    }
+    // 9th float overflows to stack
+    builder.Consume(Fr(8), { .isFloat = true, .isRecord = false, .isReference = false });
+
+    EXPECT_EQ(builder.FregMask(), 0xFF); // bits 0-7
+    EXPECT_EQ(builder.MaxStackSlot(), 1);
+    EXPECT_EQ(builder.RefStackSlots().Size(), 0);
+    EXPECT_EQ(builder.RecStackSlots().Size(), 0);
+}
+
+TEST(AbiBuilder, ClearResetsState)
+{
+    MoveResolver mr;
+    AbiBuilder builder {mr, X64Desc};
+
+    // Populate state
+    builder.ConsumeSret(Ir(7));
+    builder.ConsumeReceiverMut(Ir(8), Ir(9));
+    builder.Consume(Ir(10), { .isFloat = false, .isRecord = true, .isReference = false });
+    builder.Consume(Ir(11), { .isFloat = false, .isRecord = false, .isReference = true });
+    builder.Consume(Fr(3), { .isFloat = true, .isRecord = false, .isReference = false });
+    // Overflow a ref to stack
+    for (int i = 12; i <= 13; i++) {
+        builder.Consume(Ir(i), { .isFloat = false, .isRecord = false, .isReference = false });
+    }
+    builder.Consume(Ir(14), { .isFloat = false, .isRecord = false, .isReference = true });
+
+    // Verify state is populated
+    EXPECT_NE(builder.IregStackPtrMask(), 0);
+    EXPECT_NE(builder.IregRefMask(), 0);
+    EXPECT_NE(builder.FregMask(), 0);
+    EXPECT_GT(builder.MaxStackSlot(), 0);
+    EXPECT_GT(builder.RefStackSlots().Size(), 0);
+
+    // Clear
+    builder.Clear();
+
+    // Verify all state is reset
+    EXPECT_EQ(builder.IregStackPtrMask(), 0);
+    EXPECT_EQ(builder.IregRefMask(), 0);
+    EXPECT_EQ(builder.FregMask(), 0);
+    EXPECT_EQ(builder.MaxStackSlot(), 0);
+    EXPECT_EQ(builder.RefStackSlots().Size(), 0);
+    EXPECT_EQ(builder.RecStackSlots().Size(), 0);
+}
+
+TEST(AbiBuilder, ClearAllowsReuse)
+{
+    MoveResolver mr;
+    AbiBuilder builder {mr, X64Desc};
+
+    // First use
+    builder.Consume(Ir(7), { .isFloat = false, .isRecord = true, .isReference = false });
+    EXPECT_EQ(builder.IregStackPtrMask(), 0x01);
+
+    // Clear and reuse
+    builder.Clear();
+    builder.Consume(Fr(3), { .isFloat = true, .isRecord = false, .isReference = false });
+
+    EXPECT_EQ(builder.IregStackPtrMask(), 0);
+    EXPECT_EQ(builder.FregMask(), 0x01);
+    EXPECT_EQ(builder.MaxStackSlot(), 0);
+}

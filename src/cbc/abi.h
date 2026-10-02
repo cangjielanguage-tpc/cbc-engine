@@ -3,6 +3,7 @@
 #include "platforms.h"
 #include "move_resolver.h"
 #include "utils/span.h"
+#include "utils/vector.h"
 
 namespace Cbc {
 
@@ -41,10 +42,11 @@ public:
 
     AbiBuilder(MoveResolver& moves, const PlatformDescription& desc);
 
-    template <Platform p>
+    template <Platform p = HOST_PLATFORM>
     AbiBuilder(MoveResolver& moves)
         : AbiBuilder(moves, PlatformDescription::FromTraits<p>()) {}
 
+    void Clear();
     void Consume(Location loc, Flags flags);
     void ConsumeSret(Location loc);
     void ConsumeReceiverMut(Location loc0, Location loc1);
@@ -60,12 +62,24 @@ public:
         });
     }
 
+    uint16_t IregStackPtrMask() const { return iregStackPtrMask; }
+    uint16_t IregRefMask() const { return iregRefMask; }
+    uint16_t FregMask() const { return fregMask; }
+    Utils::Span<const int> RefStackSlots() const { return {refStackSlots.Data(), refStackSlots.Size()}; }
+    Utils::Span<const int> RecStackSlots() const { return {recStackSlots.Data(), recStackSlots.Size()}; }
+    int MaxStackSlot() const { return slotIdx; }
+
 private:
     MoveResolver& moves;
     PlatformDescription desc;
     int iargIdx;
     int fargIdx;
     int slotIdx;
+    uint16_t iregStackPtrMask;
+    uint16_t iregRefMask;
+    uint16_t fregMask;
+    Utils::Vector<int> refStackSlots;
+    Utils::Vector<int> recStackSlots;
 };
 
 } // namespace Cbc
