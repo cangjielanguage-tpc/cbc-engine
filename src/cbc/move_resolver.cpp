@@ -6,24 +6,26 @@
 
 namespace Cbc {
 
-MoveResolver::MoveResolver()
+MoveResolver::MoveResolver(IReg tempIr) : tempIr(tempIr)
 {
-    assignments.reserve(16);
 }
 
 void MoveResolver::Clear()
 {
-    assignments.clear();
+    assignments.Clear();
 }
 
 void MoveResolver::AddMove(Location src, Location dst)
 {
     ASSERT(src.Kind() != Location::NIL);
     ASSERT(dst.Kind() != Location::NIL);
-    assignments.push_back(Assignment {dst, src});
+    if (src.idx == dst.idx) {
+        return;
+    }
+    assignments.PushBack(Assignment {dst, src});
 }
 
-void MoveResolver::Resolve(const std::function<void(Location dst, Location src)>& emit)
+void MoveResolver::Resolve(const Utils::Function<void(Location dst, Location src)>& emit)
 {
     // # Register resolution:
     //   x64 volatile regs IRs          - IR1-IR7
@@ -60,13 +62,14 @@ void MoveResolver::Resolve(const std::function<void(Location dst, Location src)>
     // - Each `dst` can be target of not more than one assignment.
 
     struct Walker {
-        std::vector<Assignment> const& assignments;
-        const std::function<void(Location dst, Location src)>& emit;
+        Utils::Vector<Assignment> const& assignments;
+        const Utils::Function<void(Location dst, Location src)>& emit;
 
         Location temp = NIL;
         bool cycleDetected = false;
 
         uint64_t visited = 0;
+        uint64_t inChain = 0;
         static_assert(IReg::VIRT_COUNT + FReg::COUNT <= 64);
 
         bool IsVisited(Location loc) {
@@ -74,9 +77,24 @@ void MoveResolver::Resolve(const std::function<void(Location dst, Location src)>
             return (bit & visited);
         }
 
+        bool InChain(Location loc) {
+            auto bit = 1ULL << loc.idx;
+            return (bit & inChain);
+        }
+
         void Mark(Location loc) {
             auto bit = 1ULL << loc.idx;
             visited |= bit;
+        }
+
+        void ChainMark(Location loc) {
+            auto bit = 1ULL << loc.idx;
+            inChain |= bit;
+        }
+
+        void ChainUnmark(Location loc) {
+            auto bit = 1ULL << loc.idx;
+            inChain &= ~bit;
         }
 
         void DoWalk(Location loc) {
@@ -97,6 +115,7 @@ void MoveResolver::Resolve(const std::function<void(Location dst, Location src)>
             ASSERT(src.Kind() == Location::FREG || src.Kind() == Location::IREG);
             ASSERT(!IsVisited(src));
             Mark(src);
+            ChainMark(src);
 
             for (auto& assignment : assignments) {
                 if (assignment.src.idx != src.idx) {
@@ -108,23 +127,30 @@ void MoveResolver::Resolve(const std::function<void(Location dst, Location src)>
                     // no assignments
                 } else if (dst.Kind() == Location::SLOT) {
                     emit(dst, src);
-                } else if (IsVisited(dst)) {
-                    // cycle detected.
+                } else if (InChain(dst)) {
+                    // real cycle: dst is in the current chain
                     ASSERT(!cycleDetected);
                     ASSERT(temp.Kind() != Location::NIL);
                     emit(temp, src);
                     cycleDetected = true;
+                } else if (IsVisited(dst)) {
+                    // already processed, not a cycle
+                    emit(dst, src);
                 } else {
                     Walk(dst);
                     emit(dst, src);
                 }
             }
+
+            ChainUnmark(src);
         };
     };
 
+    auto tempIr = Location {this->tempIr};
+
     Walker walker {assignments, emit};
-    walker.DoWalk(TEMP_IR);
-    walker.temp = TEMP_IR;
+    walker.DoWalk(tempIr);
+    walker.temp = tempIr;
 
     for (int idx = IReg::IR1; idx < IReg::VIRT_COUNT; idx++) {
         walker.DoWalk(Location {idx});
@@ -140,6 +166,9 @@ void MoveResolver::Resolve(const std::function<void(Location dst, Location src)>
 
     for (auto& assignment : assignments) {
         if (assignment.dst.Kind() != Location::SLOT) {
+            continue;
+        }
+        if (assignment.src.Kind() != Location::SLOT) {
             continue;
         }
         emit(assignment.dst, assignment.src);

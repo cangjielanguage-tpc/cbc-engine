@@ -1,8 +1,8 @@
 #include <cstring>
 #include <gtest/gtest.h>
 
-#include "cbc/isa.h"
 #include "cbc/move_resolver.h"
+#include "regs_and_slots.h"
 
 using namespace Cbc;
 
@@ -10,71 +10,13 @@ namespace {
 
 using Emit = std::pair<Location, Location>;
 
-static constexpr int addend = 128;
-
-static int irValue(int ireg) { return ireg; }
-
-static int frValue(int freg) { return freg + addend; }
-
-static int stValue(int slot) { return slot + 2 * addend; }
-
-struct RegsAndSlots {
-    static constexpr int stackSlotCount = addend;
-
-    int iregs[IReg::VIRT_COUNT];
-    int fregs[FReg::COUNT];
-    int untyped[stackSlotCount];
-    int paramPassingStackSlots[stackSlotCount];
-
-    int movCount = 0;
-    bool log;
-
-    RegsAndSlots(bool log = false) : log(log) {
-        for (int i = 0; i < IReg::VIRT_COUNT; i++) iregs[i] = irValue(i);
-        for (int i = 0; i < FReg::COUNT; i++) fregs[i] = frValue(i);
-        for (int i = 0; i < stackSlotCount; i++) untyped[i] = stValue(i);
-        for (int i = 0; i < stackSlotCount; i++) paramPassingStackSlots[i] = -1;
-    }
-
-    void Mov(Location dst, Location src) {
-        int value;
-
-        int sidx;
-        int didx;
-
-        switch (src.Kind()) {
-            case Cbc::Location::IREG: sidx = src.IRegIdx(); value = iregs[sidx]; break;
-            case Cbc::Location::FREG: sidx = src.FRegIdx(); value = fregs[sidx]; break;
-            case Cbc::Location::SLOT: sidx = src.SlotIdx(); value = untyped[sidx]; break;
-            case Cbc::Location::NIL: FATAL("illegal src nil");
-        }
-
-        switch (dst.Kind()) {
-            case Cbc::Location::IREG: didx = dst.IRegIdx(); iregs[didx] = value; break;
-            case Cbc::Location::FREG: didx = dst.FRegIdx(); fregs[didx] = value; break;
-            case Cbc::Location::SLOT: didx = dst.SlotIdx(); paramPassingStackSlots[didx] = value; break;
-            case Cbc::Location::NIL: FATAL("illegal src nil");
-        }
-        movCount++;
-        if (log) {
-            printf("%d(%d:%c) := %d(%d:%c)\n", dst.idx, didx, dst.Kind(), src.idx, sidx, src.Kind());
-        }
-    }
-
-    void Resolve(MoveResolver& mr)
-    {
-        mr.Resolve([this](Location dst, Location src) {
-            this->Mov(dst, src);
-        });
-    }
-};
-
 std::vector<Emit> Resolve(MoveResolver& mr)
 {
     std::vector<Emit> emits;
-    mr.Resolve([&](Location dst, Location src) {
+    auto emit = [&](Location dst, Location src) {
         emits.emplace_back(dst, src);
-    });
+    };
+    mr.Resolve(emit);
     return emits;
 }
 
@@ -90,8 +32,8 @@ TEST(MoveResolver, NoConflict)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 2);
-    EXPECT_EQ(r.iregs[2], irValue(1));
-    EXPECT_EQ(r.iregs[4], irValue(3));
+    EXPECT_EQ(r.iregs[2], IrValue(1));
+    EXPECT_EQ(r.iregs[4], IrValue(3));
 }
 
 TEST(MoveResolver, TwoCycleSwap)
@@ -104,8 +46,8 @@ TEST(MoveResolver, TwoCycleSwap)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 3);
-    EXPECT_EQ(r.iregs[2], irValue(1));
-    EXPECT_EQ(r.iregs[1], irValue(2));
+    EXPECT_EQ(r.iregs[2], IrValue(1));
+    EXPECT_EQ(r.iregs[1], IrValue(2));
 }
 
 TEST(MoveResolver, ThreeCycle)
@@ -119,9 +61,9 @@ TEST(MoveResolver, ThreeCycle)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 4);
-    EXPECT_EQ(r.iregs[2], irValue(1));
-    EXPECT_EQ(r.iregs[3], irValue(2));
-    EXPECT_EQ(r.iregs[1], irValue(3));
+    EXPECT_EQ(r.iregs[2], IrValue(1));
+    EXPECT_EQ(r.iregs[3], IrValue(2));
+    EXPECT_EQ(r.iregs[1], IrValue(3));
 }
 
 TEST(MoveResolver, FRegCycle)
@@ -134,8 +76,8 @@ TEST(MoveResolver, FRegCycle)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 3);
-    EXPECT_EQ(r.fregs[1], frValue(0));
-    EXPECT_EQ(r.fregs[0], frValue(1));
+    EXPECT_EQ(r.fregs[1], FrValue(0));
+    EXPECT_EQ(r.fregs[0], FrValue(1));
 }
 
 TEST(MoveResolver, SlotCycle)
@@ -148,8 +90,8 @@ TEST(MoveResolver, SlotCycle)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 2);
-    EXPECT_EQ(r.paramPassingStackSlots[1], stValue(0));
-    EXPECT_EQ(r.paramPassingStackSlots[0], stValue(1));
+    EXPECT_EQ(r.paramPassingStackSlots[1], StValue(0));
+    EXPECT_EQ(r.paramPassingStackSlots[0], StValue(1));
 }
 
 TEST(MoveResolver, SingleMove)
@@ -161,7 +103,7 @@ TEST(MoveResolver, SingleMove)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 1);
-    EXPECT_EQ(r.iregs[2], irValue(1));
+    EXPECT_EQ(r.iregs[2], IrValue(1));
 }
 
 TEST(MoveResolver, Empty)
@@ -183,7 +125,7 @@ TEST(MoveResolver, ClearAllowsReuse)
     mr.AddMove(Location{1}, Location{2});
     r1.Resolve(mr);
     ASSERT_EQ(r1.movCount, 1);
-    EXPECT_EQ(r1.iregs[2], irValue(1));
+    EXPECT_EQ(r1.iregs[2], IrValue(1));
 
     // Clear and reuse
     mr.Clear();
@@ -192,8 +134,8 @@ TEST(MoveResolver, ClearAllowsReuse)
     mr.AddMove(Location{6}, Location{5});
     r2.Resolve(mr);
     ASSERT_EQ(r2.movCount, 3); // 2 moves + 1 cycle break
-    EXPECT_EQ(r2.iregs[5], irValue(6));
-    EXPECT_EQ(r2.iregs[6], irValue(5));
+    EXPECT_EQ(r2.iregs[5], IrValue(6));
+    EXPECT_EQ(r2.iregs[6], IrValue(5));
 }
 
 TEST(MoveResolver, LocationKind)
@@ -225,9 +167,9 @@ TEST(MoveResolver, SimilarIRegNoCycle)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 3);
-    EXPECT_EQ(r.iregs[2], irValue(1));
-    EXPECT_EQ(r.iregs[4], irValue(3));
-    EXPECT_EQ(r.iregs[6], irValue(5));
+    EXPECT_EQ(r.iregs[2], IrValue(1));
+    EXPECT_EQ(r.iregs[4], IrValue(3));
+    EXPECT_EQ(r.iregs[6], IrValue(5));
 }
 
 TEST(MoveResolver, SimilarIRegCycle)
@@ -243,10 +185,10 @@ TEST(MoveResolver, SimilarIRegCycle)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 5); // 4 moves + 1 temp break
-    EXPECT_EQ(r.iregs[2], irValue(1));
-    EXPECT_EQ(r.iregs[3], irValue(2));
-    EXPECT_EQ(r.iregs[4], irValue(3));
-    EXPECT_EQ(r.iregs[1], irValue(4));
+    EXPECT_EQ(r.iregs[2], IrValue(1));
+    EXPECT_EQ(r.iregs[3], IrValue(2));
+    EXPECT_EQ(r.iregs[4], IrValue(3));
+    EXPECT_EQ(r.iregs[1], IrValue(4));
 }
 
 TEST(MoveResolver, SimilarFRegNoCycle)
@@ -261,9 +203,9 @@ TEST(MoveResolver, SimilarFRegNoCycle)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 3);
-    EXPECT_EQ(r.fregs[1], frValue(0));
-    EXPECT_EQ(r.fregs[3], frValue(2));
-    EXPECT_EQ(r.fregs[5], frValue(4));
+    EXPECT_EQ(r.fregs[1], FrValue(0));
+    EXPECT_EQ(r.fregs[3], FrValue(2));
+    EXPECT_EQ(r.fregs[5], FrValue(4));
 }
 
 TEST(MoveResolver, SimilarFRegCycle)
@@ -278,9 +220,9 @@ TEST(MoveResolver, SimilarFRegCycle)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 4); // 3 moves + 1 temp break
-    EXPECT_EQ(r.fregs[1], frValue(0));
-    EXPECT_EQ(r.fregs[2], frValue(1));
-    EXPECT_EQ(r.fregs[0], frValue(2));
+    EXPECT_EQ(r.fregs[1], FrValue(0));
+    EXPECT_EQ(r.fregs[2], FrValue(1));
+    EXPECT_EQ(r.fregs[0], FrValue(2));
 }
 
 TEST(MoveResolver, SimilarSlotNoCycle)
@@ -295,9 +237,9 @@ TEST(MoveResolver, SimilarSlotNoCycle)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 3);
-    EXPECT_EQ(r.paramPassingStackSlots[1], stValue(0));
-    EXPECT_EQ(r.paramPassingStackSlots[3], stValue(2));
-    EXPECT_EQ(r.paramPassingStackSlots[5], stValue(4));
+    EXPECT_EQ(r.paramPassingStackSlots[1], StValue(0));
+    EXPECT_EQ(r.paramPassingStackSlots[3], StValue(2));
+    EXPECT_EQ(r.paramPassingStackSlots[5], StValue(4));
 }
 
 // --- Doc invariant: volatile src -> param-passing dst (no cycle) ---
@@ -313,7 +255,7 @@ TEST(MoveResolver, VolatileSrcToParamDst)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 1);
-    EXPECT_EQ(r.iregs[1], irValue(7));
+    EXPECT_EQ(r.iregs[1], IrValue(7));
 }
 
 TEST(MoveResolver, VolatileSrcChainToParamDst)
@@ -328,8 +270,8 @@ TEST(MoveResolver, VolatileSrcChainToParamDst)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 2);
-    EXPECT_EQ(r.iregs[1], irValue(7));
-    EXPECT_EQ(r.iregs[2], irValue(1));
+    EXPECT_EQ(r.iregs[1], IrValue(7));
+    EXPECT_EQ(r.iregs[2], IrValue(1));
 }
 
 // --- Full param-passing cycle (stress) ---
@@ -349,12 +291,12 @@ TEST(MoveResolver, FullIRegParamCycle)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 7); // 6 moves + 1 temp break
-    EXPECT_EQ(r.iregs[2], irValue(1));
-    EXPECT_EQ(r.iregs[3], irValue(2));
-    EXPECT_EQ(r.iregs[4], irValue(3));
-    EXPECT_EQ(r.iregs[5], irValue(4));
-    EXPECT_EQ(r.iregs[6], irValue(5));
-    EXPECT_EQ(r.iregs[1], irValue(6));
+    EXPECT_EQ(r.iregs[2], IrValue(1));
+    EXPECT_EQ(r.iregs[3], IrValue(2));
+    EXPECT_EQ(r.iregs[4], IrValue(3));
+    EXPECT_EQ(r.iregs[5], IrValue(4));
+    EXPECT_EQ(r.iregs[6], IrValue(5));
+    EXPECT_EQ(r.iregs[1], IrValue(6));
 }
 
 TEST(MoveResolver, FullFRegParamCycle)
@@ -371,9 +313,9 @@ TEST(MoveResolver, FullFRegParamCycle)
 
     ASSERT_EQ(r.movCount, 9); // 8 moves + 1 temp break
     for (int i = 0; i < 7; i++) {
-        EXPECT_EQ(r.fregs[i + 1], frValue(i));
+        EXPECT_EQ(r.fregs[i + 1], FrValue(i));
     }
-    EXPECT_EQ(r.fregs[0], frValue(7));
+    EXPECT_EQ(r.fregs[0], FrValue(7));
 }
 
 // --- Multiple independent cycles ---
@@ -391,10 +333,10 @@ TEST(MoveResolver, MultipleIndependentCycles)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 6); // 2 cycles x (2 moves + 1 temp break)
-    EXPECT_EQ(r.iregs[2], irValue(1));
-    EXPECT_EQ(r.iregs[1], irValue(2));
-    EXPECT_EQ(r.iregs[4], irValue(3));
-    EXPECT_EQ(r.iregs[3], irValue(4));
+    EXPECT_EQ(r.iregs[2], IrValue(1));
+    EXPECT_EQ(r.iregs[1], IrValue(2));
+    EXPECT_EQ(r.iregs[4], IrValue(3));
+    EXPECT_EQ(r.iregs[3], IrValue(4));
 }
 
 TEST(MoveResolver, ThreeIndependentCyclesMixed)
@@ -413,12 +355,12 @@ TEST(MoveResolver, ThreeIndependentCyclesMixed)
 
     // IR cycle: 3, FR cycle: 3, Slots: 2
     ASSERT_EQ(r.movCount, 8);
-    EXPECT_EQ(r.iregs[2], irValue(1));
-    EXPECT_EQ(r.iregs[1], irValue(2));
-    EXPECT_EQ(r.fregs[1], frValue(0));
-    EXPECT_EQ(r.fregs[0], frValue(1));
-    EXPECT_EQ(r.paramPassingStackSlots[1], stValue(0));
-    EXPECT_EQ(r.paramPassingStackSlots[3], stValue(2));
+    EXPECT_EQ(r.iregs[2], IrValue(1));
+    EXPECT_EQ(r.iregs[1], IrValue(2));
+    EXPECT_EQ(r.fregs[1], FrValue(0));
+    EXPECT_EQ(r.fregs[0], FrValue(1));
+    EXPECT_EQ(r.paramPassingStackSlots[1], StValue(0));
+    EXPECT_EQ(r.paramPassingStackSlots[3], StValue(2));
 }
 
 TEST(MoveResolver, IndependentCyclesWithSlotMoves)
@@ -439,14 +381,14 @@ TEST(MoveResolver, IndependentCyclesWithSlotMoves)
 
     // IR 3-cycle: 4, FR 2-cycle: 3, Slots: 3
     ASSERT_EQ(r.movCount, 10);
-    EXPECT_EQ(r.iregs[2], irValue(1));
-    EXPECT_EQ(r.iregs[3], irValue(2));
-    EXPECT_EQ(r.iregs[1], irValue(3));
-    EXPECT_EQ(r.fregs[1], frValue(0));
-    EXPECT_EQ(r.fregs[0], frValue(1));
-    EXPECT_EQ(r.paramPassingStackSlots[1], stValue(0));
-    EXPECT_EQ(r.paramPassingStackSlots[3], stValue(2));
-    EXPECT_EQ(r.paramPassingStackSlots[5], stValue(4));
+    EXPECT_EQ(r.iregs[2], IrValue(1));
+    EXPECT_EQ(r.iregs[3], IrValue(2));
+    EXPECT_EQ(r.iregs[1], IrValue(3));
+    EXPECT_EQ(r.fregs[1], FrValue(0));
+    EXPECT_EQ(r.fregs[0], FrValue(1));
+    EXPECT_EQ(r.paramPassingStackSlots[1], StValue(0));
+    EXPECT_EQ(r.paramPassingStackSlots[3], StValue(2));
+    EXPECT_EQ(r.paramPassingStackSlots[5], StValue(4));
 }
 
 TEST(MoveResolver, ManySlotMovesNoCycle)
@@ -464,12 +406,12 @@ TEST(MoveResolver, ManySlotMovesNoCycle)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 6);
-    EXPECT_EQ(r.paramPassingStackSlots[1], stValue(0));
-    EXPECT_EQ(r.paramPassingStackSlots[3], stValue(2));
-    EXPECT_EQ(r.paramPassingStackSlots[5], stValue(4));
-    EXPECT_EQ(r.paramPassingStackSlots[7], stValue(6));
-    EXPECT_EQ(r.paramPassingStackSlots[9], stValue(8));
-    EXPECT_EQ(r.paramPassingStackSlots[11], stValue(10));
+    EXPECT_EQ(r.paramPassingStackSlots[1], StValue(0));
+    EXPECT_EQ(r.paramPassingStackSlots[3], StValue(2));
+    EXPECT_EQ(r.paramPassingStackSlots[5], StValue(4));
+    EXPECT_EQ(r.paramPassingStackSlots[7], StValue(6));
+    EXPECT_EQ(r.paramPassingStackSlots[9], StValue(8));
+    EXPECT_EQ(r.paramPassingStackSlots[11], StValue(10));
 }
 
 TEST(MoveResolver, SlotMovesWithSingleRegCycle)
@@ -488,12 +430,12 @@ TEST(MoveResolver, SlotMovesWithSingleRegCycle)
 
     // IR cycle: 3, Slots: 4
     ASSERT_EQ(r.movCount, 7);
-    EXPECT_EQ(r.iregs[6], irValue(5));
-    EXPECT_EQ(r.iregs[5], irValue(6));
-    EXPECT_EQ(r.paramPassingStackSlots[1], stValue(0));
-    EXPECT_EQ(r.paramPassingStackSlots[3], stValue(2));
-    EXPECT_EQ(r.paramPassingStackSlots[5], stValue(4));
-    EXPECT_EQ(r.paramPassingStackSlots[7], stValue(6));
+    EXPECT_EQ(r.iregs[6], IrValue(5));
+    EXPECT_EQ(r.iregs[5], IrValue(6));
+    EXPECT_EQ(r.paramPassingStackSlots[1], StValue(0));
+    EXPECT_EQ(r.paramPassingStackSlots[3], StValue(2));
+    EXPECT_EQ(r.paramPassingStackSlots[5], StValue(4));
+    EXPECT_EQ(r.paramPassingStackSlots[7], StValue(6));
 }
 
 TEST(MoveResolver, ThreeIndependentIRCycles)
@@ -512,12 +454,12 @@ TEST(MoveResolver, ThreeIndependentIRCycles)
 
     // 3 cycles x (2 + 1 temp) = 9
     ASSERT_EQ(r.movCount, 9);
-    EXPECT_EQ(r.iregs[2], irValue(1));
-    EXPECT_EQ(r.iregs[1], irValue(2));
-    EXPECT_EQ(r.iregs[4], irValue(3));
-    EXPECT_EQ(r.iregs[3], irValue(4));
-    EXPECT_EQ(r.iregs[6], irValue(5));
-    EXPECT_EQ(r.iregs[5], irValue(6));
+    EXPECT_EQ(r.iregs[2], IrValue(1));
+    EXPECT_EQ(r.iregs[1], IrValue(2));
+    EXPECT_EQ(r.iregs[4], IrValue(3));
+    EXPECT_EQ(r.iregs[3], IrValue(4));
+    EXPECT_EQ(r.iregs[6], IrValue(5));
+    EXPECT_EQ(r.iregs[5], IrValue(6));
 }
 
 TEST(MoveResolver, MixedCycleSizesWithSlots)
@@ -539,15 +481,15 @@ TEST(MoveResolver, MixedCycleSizesWithSlots)
 
     // IR 2-cycle: 3, IR 3-cycle: 4, FR 2-cycle: 3, Slots: 2
     ASSERT_EQ(r.movCount, 12);
-    EXPECT_EQ(r.iregs[2], irValue(1));
-    EXPECT_EQ(r.iregs[1], irValue(2));
-    EXPECT_EQ(r.iregs[4], irValue(3));
-    EXPECT_EQ(r.iregs[5], irValue(4));
-    EXPECT_EQ(r.iregs[3], irValue(5));
-    EXPECT_EQ(r.fregs[1], frValue(0));
-    EXPECT_EQ(r.fregs[0], frValue(1));
-    EXPECT_EQ(r.paramPassingStackSlots[1], stValue(0));
-    EXPECT_EQ(r.paramPassingStackSlots[3], stValue(2));
+    EXPECT_EQ(r.iregs[2], IrValue(1));
+    EXPECT_EQ(r.iregs[1], IrValue(2));
+    EXPECT_EQ(r.iregs[4], IrValue(3));
+    EXPECT_EQ(r.iregs[5], IrValue(4));
+    EXPECT_EQ(r.iregs[3], IrValue(5));
+    EXPECT_EQ(r.fregs[1], FrValue(0));
+    EXPECT_EQ(r.fregs[0], FrValue(1));
+    EXPECT_EQ(r.paramPassingStackSlots[1], StValue(0));
+    EXPECT_EQ(r.paramPassingStackSlots[3], StValue(2));
 }
 
 // --- Fan-out: one src used by multiple dsts ---
@@ -563,8 +505,8 @@ TEST(MoveResolver, FanOutNoCycle)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 2);
-    EXPECT_EQ(r.iregs[2], irValue(1));
-    EXPECT_EQ(r.iregs[3], irValue(1));
+    EXPECT_EQ(r.iregs[2], IrValue(1));
+    EXPECT_EQ(r.iregs[3], IrValue(1));
 }
 
 TEST(MoveResolver, FanOutWithCycle)
@@ -582,9 +524,9 @@ TEST(MoveResolver, FanOutWithCycle)
 
     // Cycle break (1 temp) + 3 assignments = 4
     ASSERT_EQ(r.movCount, 4);
-    EXPECT_EQ(r.iregs[1], irValue(3));
-    EXPECT_EQ(r.iregs[2], irValue(3));
-    EXPECT_EQ(r.iregs[3], irValue(1));
+    EXPECT_EQ(r.iregs[1], IrValue(3));
+    EXPECT_EQ(r.iregs[2], IrValue(3));
+    EXPECT_EQ(r.iregs[3], IrValue(1));
 }
 
 TEST(MoveResolver, FanOutTriple)
@@ -599,15 +541,14 @@ TEST(MoveResolver, FanOutTriple)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 3);
-    EXPECT_EQ(r.iregs[2], irValue(1));
-    EXPECT_EQ(r.iregs[3], irValue(1));
-    EXPECT_EQ(r.iregs[4], irValue(1));
+    EXPECT_EQ(r.iregs[2], IrValue(1));
+    EXPECT_EQ(r.iregs[3], IrValue(1));
+    EXPECT_EQ(r.iregs[4], IrValue(1));
 }
 
 TEST(MoveResolver, FanOutToSlots)
 {
     // IR1 -> Slot0, IR1 -> Slot1 (register broadcast to two slots)
-    // NOTE: slot dsts are emitted in both Walk and the final loop (double-emit).
     MoveResolver mr;
     mr.AddMove(Location{1}, Location{30}); // IR1 -> Slot0
     mr.AddMove(Location{1}, Location{31}); // IR1 -> Slot1
@@ -615,9 +556,9 @@ TEST(MoveResolver, FanOutToSlots)
     RegsAndSlots r;
     r.Resolve(mr);
 
-    ASSERT_EQ(r.movCount, 4); // 2 slot moves x 2 (double-emit)
-    EXPECT_EQ(r.paramPassingStackSlots[0], irValue(1));
-    EXPECT_EQ(r.paramPassingStackSlots[1], irValue(1));
+    ASSERT_EQ(r.movCount, 2);
+    EXPECT_EQ(r.paramPassingStackSlots[0], IrValue(1));
+    EXPECT_EQ(r.paramPassingStackSlots[1], IrValue(1));
 }
 
 TEST(MoveResolver, FanOutMultipleSrcs)
@@ -634,10 +575,10 @@ TEST(MoveResolver, FanOutMultipleSrcs)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 4);
-    EXPECT_EQ(r.iregs[2], irValue(1));
-    EXPECT_EQ(r.iregs[3], irValue(1));
-    EXPECT_EQ(r.iregs[5], irValue(4));
-    EXPECT_EQ(r.iregs[6], irValue(4));
+    EXPECT_EQ(r.iregs[2], IrValue(1));
+    EXPECT_EQ(r.iregs[3], IrValue(1));
+    EXPECT_EQ(r.iregs[5], IrValue(4));
+    EXPECT_EQ(r.iregs[6], IrValue(4));
 }
 
 TEST(MoveResolver, FanOutWithIndependentCycle)
@@ -654,10 +595,10 @@ TEST(MoveResolver, FanOutWithIndependentCycle)
 
     // Fan-out: 2, Cycle: 3 = 5
     ASSERT_EQ(r.movCount, 5);
-    EXPECT_EQ(r.iregs[2], irValue(1));
-    EXPECT_EQ(r.iregs[3], irValue(1));
-    EXPECT_EQ(r.iregs[5], irValue(4));
-    EXPECT_EQ(r.iregs[4], irValue(5));
+    EXPECT_EQ(r.iregs[2], IrValue(1));
+    EXPECT_EQ(r.iregs[3], IrValue(1));
+    EXPECT_EQ(r.iregs[5], IrValue(4));
+    EXPECT_EQ(r.iregs[4], IrValue(5));
 }
 
 TEST(MoveResolver, FanOutFRegWithCycle)
@@ -674,9 +615,9 @@ TEST(MoveResolver, FanOutFRegWithCycle)
 
     // Cycle break (1 temp) + 3 assignments = 4
     ASSERT_EQ(r.movCount, 4);
-    EXPECT_EQ(r.fregs[1], frValue(0));
-    EXPECT_EQ(r.fregs[2], frValue(0));
-    EXPECT_EQ(r.fregs[0], frValue(1));
+    EXPECT_EQ(r.fregs[1], FrValue(0));
+    EXPECT_EQ(r.fregs[2], FrValue(0));
+    EXPECT_EQ(r.fregs[0], FrValue(1));
 }
 
 TEST(MoveResolver, FanOutChain)
@@ -693,18 +634,15 @@ TEST(MoveResolver, FanOutChain)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 3);
-    EXPECT_EQ(r.iregs[2], irValue(1));
-    EXPECT_EQ(r.iregs[3], irValue(1));
-    EXPECT_EQ(r.iregs[4], irValue(2)); // IR2's original value
+    EXPECT_EQ(r.iregs[2], IrValue(1));
+    EXPECT_EQ(r.iregs[3], IrValue(1));
+    EXPECT_EQ(r.iregs[4], IrValue(2)); // IR2's original value
 }
 
 TEST(MoveResolver, FanOutWithSlotAndCycle)
 {
     // IR1 -> IR2, IR1 -> Slot0, IR2 -> IR1
     // IR1 broadcasts to IR2 and Slot0; IR2 feeds back to IR1.
-    // BUG: slot dst emitted in both Walk and final loop. The final loop emit
-    // happens after IR1 is overwritten by the cycle, so Slot0 gets IR1's
-    // final value (irValue(2)) instead of its original (irValue(1)).
     MoveResolver mr;
     mr.AddMove(Location{1}, Location{2});  // IR1 -> IR2
     mr.AddMove(Location{1}, Location{30}); // IR1 -> Slot0
@@ -713,10 +651,9 @@ TEST(MoveResolver, FanOutWithSlotAndCycle)
     RegsAndSlots r;
     r.Resolve(mr);
 
-    // Cycle break (1 temp) + IR2:=IR1 + Slot0:=IR1 x2 (double-emit) = 5
-    ASSERT_EQ(r.movCount, 5);
-    EXPECT_EQ(r.iregs[2], irValue(1));
-    EXPECT_EQ(r.iregs[1], irValue(2));
-    // Final loop overwrites Slot0 with IR1's post-cycle value:
-    EXPECT_EQ(r.paramPassingStackSlots[0], irValue(2));
+    // Cycle break (1 temp) + IR2:=IR1 + Slot0:=IR1 + IR1:=temp = 4
+    ASSERT_EQ(r.movCount, 4);
+    EXPECT_EQ(r.iregs[2], IrValue(1));
+    EXPECT_EQ(r.iregs[1], IrValue(2));
+    EXPECT_EQ(r.paramPassingStackSlots[0], IrValue(1));
 }
