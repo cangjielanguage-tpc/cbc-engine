@@ -673,7 +673,8 @@ struct IsaParserImpl {
     static void CallInterfGeneric(IsaParser& parser)
     {
         auto [argnum, methodId] = ByteReaderM(parser.reader).ReadU16().ReadULEB().Get();
-        parser.CallInterfGeneric(argnum, methodId);
+        parser.ReadCallArgs();
+        parser.CallInterfGeneric(argnum, methodId, {parser.callArgs.Data(), parser.callArgs.Size()});
     }
 
     static void RegSymGroup(IsaParser& parser)
@@ -686,18 +687,33 @@ struct IsaParserImpl {
         switch (opc) {
             case Cbc::RegSymGroup::LoadTypeInfoSig: parser.LoadTypeInfoSig(reg, id); break;
             case Cbc::RegSymGroup::NewObj:          parser.NewObj(reg, id); break;
-            case Cbc::RegSymGroup::CallDirect:      parser.CallDirect(reg, id); break;
-            case Cbc::RegSymGroup::CallVirt:        parser.CallVirtual(reg, id); break;
-            case Cbc::RegSymGroup::CallInterf:      parser.CallInterf(reg, id); break;
+            case Cbc::RegSymGroup::CallDirect:
+                parser.ReadCallArgs();
+                parser.CallDirect(id, {parser.callArgs.Data(), parser.callArgs.Size()});
+                break;
+            case Cbc::RegSymGroup::CallVirt:
+                parser.ReadCallArgs();
+                parser.CallVirtual(id, {parser.callArgs.Data(), parser.callArgs.Size()});
+                break;
+            case Cbc::RegSymGroup::CallInterf:
+                parser.ReadCallArgs();
+                parser.CallInterf(id, {parser.callArgs.Data(), parser.callArgs.Size()});
+                break;
             case Cbc::RegSymGroup::Spawn:           parser.Spawn(reg, id); break;
             case Cbc::RegSymGroup::SpawnFuture:     parser.SpawnFuture(reg, id); break;
-            case Cbc::RegSymGroup::CallClosure:     parser.CallClosure(reg, id, NOT_GENERIC); break;
+            case Cbc::RegSymGroup::CallClosure:
+                parser.ReadCallArgs();
+                parser.CallClosure(id, NOT_GENERIC, {parser.callArgs.Data(), parser.callArgs.Size()});
+                break;
             case Cbc::RegSymGroup::NewClosure:      parser.NewClosure(reg, id); break;
 
             case Cbc::RegSymGroup::NewClosureGeneric: parser.NewClosureGeneric(reg, id); break;
             case Cbc::RegSymGroup::NewObjGeneric:     parser.NewObjGeneric(reg, id); break;
 
-            case Cbc::RegSymGroup::CallClosureGeneric:  parser.CallClosure(reg, id, GENERIC); break;
+            case Cbc::RegSymGroup::CallClosureGeneric:
+                parser.ReadCallArgs();
+                parser.CallClosure(id, GENERIC, {parser.callArgs.Data(), parser.callArgs.Size()});
+                break;
             case Cbc::RegSymGroup::LoadTypeInfoGeneric: parser.LoadTypeInfoGeneric(reg, id); break;
 
             default: {

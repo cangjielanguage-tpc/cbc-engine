@@ -21,6 +21,8 @@ Stream::Output& operator<<(Stream::Output& out, const ExecBytecodeInfo& bc)
     for (const auto& entry : bc.gcInfo.positionalInfo) {
         out4 << "rtPos: " << entry.rewrittenPos << ", regMask: " << entry.regMask << ", ";
         Std::Vector::Print(out4, entry.untypedRefSlotsInfo);
+        Std::Vector::Print(out4, entry.paramRefSlots);
+        Std::Vector::Print(out4, entry.paramRecSlots);
         out4 << endl;
     }
     out2 << "}" << endl;

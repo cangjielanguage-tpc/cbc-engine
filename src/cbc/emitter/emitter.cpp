@@ -1307,5 +1307,10 @@ void Emitter::LogInstruction(char* string)
     Encode(segment, RT::B9i64 { .opc = RT::Opcode::LOG, .imm64 = { .ptr = string } });
 }
 
+void Emitter::StackParam(IReg src, uint64_t offset)
+{
+    Encode(segment, RT::StackParam { .opc = RT::Opcode::STK_PARAM, .src = src, .offset = offset });
+}
+
 } // namespace Emitter
 } // namespace Cbc
