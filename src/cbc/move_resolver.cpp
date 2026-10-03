@@ -1,8 +1,9 @@
 #include "move_resolver.h"
 #include "cbc/isa.h"
 #include "utils/assertion.h"
+#include "utils/function.h"
+#include "utils/span.h"
 #include <cstdint>
-#include <cstdio>
 
 namespace Cbc {
 
@@ -19,7 +20,7 @@ void MoveResolver::AddMove(Location src, Location dst)
 {
     ASSERT(src.Kind() != Location::NIL);
     ASSERT(dst.Kind() != Location::NIL);
-    if (src.idx == dst.idx) {
+    if (dst.Kind() != Location::SLOT && src.idx == dst.idx) {
         return;
     }
     assignments.PushBack(Assignment {dst, src});
@@ -61,117 +62,123 @@ void MoveResolver::Resolve(const Utils::Function<void(Location dst, Location src
     // - There is no (FP, IR) or (IR, FP) assignments.
     // - Each `dst` can be target of not more than one assignment.
 
-    struct Walker {
-        Utils::Vector<Assignment> const& assignments;
-        const Utils::Function<void(Location dst, Location src)>& emit;
+    static constexpr int BUFFER_SIZE = IReg::VIRT_COUNT < FReg::COUNT ? FReg::COUNT : IReg::VIRT_COUNT;
+    using RegNum = uint8_t;
+    RegNum iregs[IReg::VIRT_COUNT];
+    RegNum fregs[FReg::COUNT];
 
-        Location temp = NIL;
-        bool cycleDetected = false;
-
-        uint64_t visited = 0;
-        uint64_t inChain = 0;
-        static_assert(IReg::VIRT_COUNT + FReg::COUNT <= 64);
-
-        bool IsVisited(Location loc) {
-            auto bit = 1ULL << loc.idx;
-            return (bit & visited);
-        }
-
-        bool InChain(Location loc) {
-            auto bit = 1ULL << loc.idx;
-            return (bit & inChain);
-        }
-
-        void Mark(Location loc) {
-            auto bit = 1ULL << loc.idx;
-            visited |= bit;
-        }
-
-        void ChainMark(Location loc) {
-            auto bit = 1ULL << loc.idx;
-            inChain |= bit;
-        }
-
-        void ChainUnmark(Location loc) {
-            auto bit = 1ULL << loc.idx;
-            inChain &= ~bit;
-        }
-
-        void DoWalk(Location loc) {
-            if (IsVisited(loc)) {
-                return;
-            }
-
-            cycleDetected = false;
-            Walk(loc);
-            if (cycleDetected) {
-                ASSERT(temp.Kind() != Location::NIL);
-                emit(loc, temp);
-                cycleDetected = false;
-            }
-        }
-
-        void Walk(Location src) {
-            ASSERT(src.Kind() == Location::FREG || src.Kind() == Location::IREG);
-            ASSERT(!IsVisited(src));
-            Mark(src);
-            ChainMark(src);
-
-            for (auto& assignment : assignments) {
-                if (assignment.src.idx != src.idx) {
-                    continue;
-                }
-                Location dst = assignment.dst;
-
-                if (dst.Kind() == Location::NIL) {
-                    // no assignments
-                } else if (dst.Kind() == Location::SLOT) {
-                    emit(dst, src);
-                } else if (InChain(dst)) {
-                    // real cycle: dst is in the current chain
-                    ASSERT(!cycleDetected);
-                    ASSERT(temp.Kind() != Location::NIL);
-                    emit(temp, src);
-                    cycleDetected = true;
-                } else if (IsVisited(dst)) {
-                    // already processed, not a cycle
-                    emit(dst, src);
-                } else {
-                    Walk(dst);
-                    emit(dst, src);
-                }
-            }
-
-            ChainUnmark(src);
-        };
-    };
-
-    auto tempIr = Location {this->tempIr};
-
-    Walker walker {assignments, emit};
-    walker.DoWalk(tempIr);
-    walker.temp = tempIr;
-
-    for (int idx = IReg::IR1; idx < IReg::VIRT_COUNT; idx++) {
-        walker.DoWalk(Location {idx});
-    }
-
-    walker.temp = NIL;
-    walker.DoWalk(TEMP_FR);
-    walker.temp = TEMP_FR;
-
-    for (int idx = IReg::VIRT_COUNT + FReg::FR0; idx < IReg::VIRT_COUNT + FReg::COUNT; idx++) {
-        walker.DoWalk(Location {idx});
-    }
+    for (int i = 0; i < IReg::VIRT_COUNT; i++) iregs[i] = i;
+    for (int i = 0; i < FReg::COUNT; i++) fregs[i] = i;
 
     for (auto& assignment : assignments) {
-        if (assignment.dst.Kind() != Location::SLOT) {
-            continue;
+        auto dst = assignment.dst;
+        auto src = assignment.src;
+        auto dkind = dst.Kind();
+        auto skind = src.Kind();
+
+        if (dkind == skind && dkind == Location::IREG) {
+            iregs[dst.IRegIdx()] = src.IRegIdx();
+        } else if (dkind == skind && dkind == Location::FREG) {
+            fregs[dst.FRegIdx()] = src.FRegIdx();
+        } else if (dkind == Location::SLOT) {
+            emit(dst, src);
+        } else {
+            if (dkind == Location::IREG && skind == Location::FREG) {
+                ASSERTION(false, "mixed register kind are not allowed");
+            }
+            if (dkind == Location::FREG && skind == Location::IREG) {
+                ASSERTION(false, "mixed register kind are not allowed");
+            }
+            ASSERT(skind == Location::SLOT);
+            // skind == slot will be processed after cycle resolution.
         }
-        if (assignment.src.Kind() != Location::SLOT) {
-            continue;
+    }
+
+    auto cycleResolver = [](Utils::Span<RegNum> sources, RegNum temp, Utils::Function<void(RegNum, RegNum)> const& assign) {
+        uint8_t sourceCount = sources.Size();
+        ASSERT(sourceCount <= BUFFER_SIZE);
+        // sources is a graph: "sources[dst] = src" or edge = (sources[dst] -> dst)
+
+        constexpr char NOT_VISITED = 0;
+        constexpr char DONE        = 1;
+        char state[BUFFER_SIZE]    = {NOT_VISITED};
+
+        for (RegNum dst = 0; dst < sourceCount; dst++) {
+            if (dst == sources[dst]) state[dst] = DONE;
         }
-        emit(assignment.dst, assignment.src);
+
+        bool changed = true; // fixed-point iteration
+        while (changed) {
+            changed = false;
+            // Find and resolve chains.
+            for (RegNum dst = 0; dst < sourceCount; dst++) {
+                if (state[dst] == DONE) {
+                    continue;
+                }
+                auto src = sources[dst];
+                ASSERT(src != dst);
+
+                // check if someone need a value of `dst`.
+                bool needed = false;
+                for (RegNum dstdst = 0; dstdst < sourceCount; dstdst++) {
+                    if (state[dstdst] == DONE || dstdst == dst) continue;
+                    if (sources[dstdst] == dst) {
+                        needed = true;
+                        break;
+                    }
+                }
+                if (needed) continue;
+                // safe to assign src to dst
+                assign(dst, src);
+                changed = true;
+                state[dst] = DONE;
+            }
+            if (changed) continue;
+
+            ASSERT(state[temp] == DONE);
+
+            // Invariant: any in-progress assignment can not have a `temp` register.
+            // 1. A `temp` register can not be part of cycle (due abi).
+            // 2. The loop above should process all chains.
+            for (RegNum dst = 0; dst < sourceCount; dst++) {
+                if (state[dst] == DONE) continue;
+                ASSERT(sources[dst] != temp || dst == temp);
+            }
+
+            // Cycle present and there is no chains left.
+            // So, any non-done `dst` is part of cycle
+            for (RegNum dst = 0; dst < sourceCount; dst++) {
+                if (state[dst] == DONE) continue;
+                auto src = sources[dst];
+                assign(temp, src);
+                sources[dst] = temp;
+                changed = true;
+                break;
+            }
+        }
+
+        for (RegNum dst = 0; dst < sourceCount; dst++) {
+            ASSERT(state[dst] == DONE);
+        }
+    };
+
+    auto assignIr = [emit](RegNum dst, RegNum src) {
+        emit(Location::IReg(IReg::Value(dst)), Location::IReg(IReg::Value(src)));
+    };
+    auto assignFr = [emit](RegNum dst, RegNum src) {
+        emit(Location::FReg(FReg::Value(dst)), Location::FReg(FReg::Value(src)));
+    };
+    cycleResolver(Utils::Span<RegNum>(iregs, IReg::VIRT_COUNT), tempIr, assignIr);
+    cycleResolver(Utils::Span<RegNum>(fregs, FReg::COUNT), TEMP_FR, assignFr);
+
+    for (auto& assignment : assignments) {
+        auto dst = assignment.dst;
+        auto src = assignment.src;
+        auto dkind = dst.Kind();
+
+        if (src.Kind() == Location::SLOT && (dkind == Location::IREG || dkind == Location::FREG)) {
+            emit(dst, src);
+        }
     }
 }
 

@@ -960,7 +960,7 @@ void Emitter::StoreFrame(StoreAccessKind stk, Reg src, int32_t offset)
         auto opc = !stk.IsFloat() ? RT::Opcode::STORE_FRAME : RT::Opcode::STORE_FRAME_F;
         LoadStore(stk, src, IReg::IRZ, offset, opc);
     } else {
-        auto opc = !stk.IsFloat() ? RT::Opcode::STORE_LONG_REC : RT::Opcode::STORE_LONG_REC_F;
+        auto opc = !stk.IsFloat() ? RT::Opcode::STORE_LONG_FRAME : RT::Opcode::STORE_LONG_FRAME_F;
         LoadStoreLong(stk, src, IReg::IRZ, IReg::IRZ, offset, opc);
     }
 }
@@ -1305,6 +1305,26 @@ void Emitter::LogInstruction(std::string_view string)
 void Emitter::LogInstruction(char* string)
 {
     Encode(segment, RT::B9i64 { .opc = RT::Opcode::LOG, .imm64 = { .ptr = string } });
+}
+
+void Emitter::StackParam(IReg src, uint16_t offset)
+{
+    Encode(segment, RT::StackParam { .opc = RT::Opcode::STK_PARAM, .src = src, .offset = offset });
+}
+
+void Emitter::StackParamF(FReg src, uint16_t dst)
+{
+    Encode(segment, RT::StackParamF { .opc = RT::Opcode::STK_PARAM_F, .src = src, .dst = dst });
+}
+
+void Emitter::StackParamS16(int16_t src, uint16_t dst)
+{
+    Encode(segment, RT::StackParamS16 { .opc = RT::Opcode::STK_PARAM_S16, .src = src, .dst = dst });
+}
+
+void Emitter::StackParamS32(int32_t src, uint16_t dst)
+{
+    Encode(segment, RT::StackParamS32 { .opc = RT::Opcode::STK_PARAM_S32, .src = src, .dst = dst });
 }
 
 } // namespace Emitter

@@ -1,4 +1,5 @@
 #include "isa_rewriter.h"
+#include "cbc/abi.h"
 #include "cbc/emitter/emitter.h"
 #include "cbc/emitter/symbols.h"
 #include "cbc/formater_rt.h"
@@ -6,10 +7,9 @@
 #include "cbc/isa.h"
 #include "cbc/isa_disasm.h"
 #include "cbc/isa_parser.h"
-#include "engine/decode/decoder.h"
+#include "cbc/move_resolver.h"
 #include "engine/engine.h"
 #include "engine/image/flags.h"
-#include "engine/image/reader.h"
 #include "engine/resolving_output.h"
 #include "engine/terms.h"
 #include "interpreter/code.h"
@@ -23,7 +23,6 @@
 #include "utils/assertion.h"
 #include "utils/logger.h"
 #include "utils/math.h"
-#include "utils/misc.h"
 #include "utils/ostream.h"
 #include "utils/reinterpretation.h"
 #include "utils/span.h"
@@ -184,6 +183,10 @@ struct IsaRewriter : public IsaParser {
     Emitter::Emitter& emit;
     FrameLayout& frameLayout;
     size_t bytecodeSize;
+    uint32_t maxParamPassingSize = 0;
+    Utils::Vector<uint32_t> pendingParamRefSlots;
+    Utils::Vector<uint32_t> pendingParamRecSlots;
+    std::optional<int> pendingDerived;
     Stream::Output& errStream = Interpretation::Log::preparation.Stream(Logging::Level::ERROR);
 
     size_t startPosition;
@@ -193,6 +196,9 @@ struct IsaRewriter : public IsaParser {
     struct StatePoint {
         Emitter::Label label; // position in rewritten code
         ssize_t originalPos;  // position in original code
+        Utils::Vector<uint32_t> paramRefSlots;
+        Utils::Vector<uint32_t> paramRecSlots;
+        std::optional<int> derivedLoc;
     };
 
     Utils::Vector<StatePoint> statePoints;
@@ -227,6 +233,12 @@ struct IsaRewriter : public IsaParser {
             .label       = label,
             .originalPos = Pos(), // attached to the end of instruction
         };
+        point.paramRefSlots = std::move(pendingParamRefSlots);
+        point.paramRecSlots = std::move(pendingParamRecSlots);
+        point.derivedLoc = std::move(pendingDerived);
+        pendingDerived = std::nullopt;
+        pendingParamRefSlots.Clear();
+        pendingParamRecSlots.Clear();
         statePoints.PushBack(point);
     }
 
@@ -268,6 +280,145 @@ struct IsaRewriter : public IsaParser {
         if (expected != actual) {
             emit.Mov(expected, actual);
         }
+    }
+
+    struct CallAbiFlags {
+        bool isSRet;
+        bool hasOuterTi;
+        Image::MethodAbiKind abiKind;
+    };
+
+    bool CheckArgCount(size_t argCount, CallAbiFlags flags, size_t funcVarCount, size_t sigParamCount)
+    {
+        size_t expected = 0;
+        expected += flags.isSRet;
+        switch (flags.abiKind) {
+            case Image::MethodAbiKind::STATIC: expected += 0; break;
+            case Image::MethodAbiKind::HAS_THIS_TI:
+            case Image::MethodAbiKind::REF_RECEIVER:
+            case Image::MethodAbiKind::REC_RECEIVER:
+            case Image::MethodAbiKind::PRIM_RECEIVER:
+            case Image::MethodAbiKind::FPRIM_RECEIVER: expected += 1; break;
+            case Image::MethodAbiKind::MUT: expected += 2; break;
+        }
+        expected += sigParamCount;
+        expected += funcVarCount;
+        expected += flags.hasOuterTi;
+
+        if (expected != argCount) {
+            Stream::StringBuffer buf;
+            buf.PrintLn("Expected = {}. Actual = {}. ps = {}, ftvs = {}, sret = {}, outerti = {}, abi_kind = {}",
+                    expected, argCount, sigParamCount, funcVarCount, flags.isSRet, flags.hasOuterTi, flags.abiKind);
+            Fail(buf.ToString());
+            return false;
+        }
+        return true;
+    }
+
+    void StageCallArgs(Utils::Span<const Location> args, CallAbiFlags flags, Resolution::MethodSignature& sig, Location* outerTiLoc = nullptr)
+    {
+        int funcVarsCount = sig.tvars.GetLength();
+        if (!CheckArgCount(args.Size(), flags, funcVarsCount, sig.ParamCount())) {
+            return;
+        }
+        MoveResolver moves;
+        AbiBuilder abi(moves);
+
+        int idx = 0;
+        if (flags.isSRet)
+            abi.ConsumeSret(args[idx++]);
+        switch (flags.abiKind) {
+            case Image::MethodAbiKind::MUT: {
+                auto derived = args[idx++];
+                auto base    = args[idx++];
+                auto derivedLoc = abi.ConsumeReceiverMut(derived, base);
+                ASSERT(derivedLoc.Kind() == Location::IREG);
+                pendingDerived = derivedLoc.IRegIdx();
+                break;
+            }
+            case Image::MethodAbiKind::REF_RECEIVER:
+                abi.ConsumeReceiver(args[idx++], true);
+                break;
+            case Image::MethodAbiKind::PRIM_RECEIVER:
+                abi.Consume(args[idx++], {});
+                break;
+            case Image::MethodAbiKind::FPRIM_RECEIVER:
+                abi.Consume(args[idx++], { .isFloat = true });
+                break;
+            case Image::MethodAbiKind::REC_RECEIVER:
+                abi.Consume(args[idx++], { .isRecord = true });
+                break;
+            case Image::MethodAbiKind::STATIC:
+            case Image::MethodAbiKind::HAS_THIS_TI: {}
+        }
+
+        auto params = sig.Params();
+        int paramOffset = idx;
+        ASSERT(args.Size() >= params.Size() + idx);
+        for (int j = 0; j < params.Size(); ++idx, ++j) {
+            auto term = params[j];
+            abi.Consume(args[idx], {
+                .isFloat = term.IsFloat(),
+                .isRecord = term.IsRecord(),
+                .isReference = term.IsReference(),
+            });
+        }
+
+        ASSERT(funcVarsCount <= args.Size());
+        for (int j = 0; j < funcVarsCount; idx++, j++) {
+            abi.ConsumeFuncVar(args[idx]);
+        }
+
+        if (flags.hasOuterTi) {
+            Location loc = abi.ConsumeOuterTi(args[idx++]);
+            if (outerTiLoc) *outerTiLoc = loc;
+        }
+        if (flags.abiKind == Image::MethodAbiKind::HAS_THIS_TI) {
+            abi.ConsumeThisTypeTi(args[idx++]);
+        }
+
+        auto emitMov = [&](Location dst, Location src) {
+            auto dkind = dst.Kind();
+            auto skind = src.Kind();
+            auto dstParamOffset = [dst] () { return static_cast<uint16_t>(dst.SlotIdx()) * 8; };
+            if (skind == Location::IREG && dkind == Location::IREG) {
+                emit.Mov(IReg::From(dst.IRegIdx()), IReg::From(src.IRegIdx()));
+            } else if (skind == Location::FREG && dkind == Location::FREG) {
+                emit.Mov(FReg::From(dst.FRegIdx()), FReg::From(src.FRegIdx()));
+            } else if (skind == Location::SLOT && dkind == Location::SLOT) {
+                auto srcOffset = UntypedSlotOffset(src.SlotIdx());
+                if (MathUtils::IsNBitsSigned(srcOffset, 16)) {
+                    emit.StackParamS16(srcOffset, dstParamOffset());
+                } else {
+                    emit.StackParamS32(srcOffset, dstParamOffset());
+                }
+            } else if (skind == Location::FREG && dkind == Location::SLOT) {
+                emit.StackParamF(FReg::From(src.FRegIdx()), dstParamOffset());
+                return;
+            } else if (skind == Location::IREG && dkind == Location::SLOT) {
+                emit.StackParam(IReg::From(src.IRegIdx()), dstParamOffset());
+                return;
+            } else if (skind == Location::SLOT && dkind == Location::IREG) {
+                // FIXME: load/stores must be typed
+                emit.LoadFrame(LDK::LD_64, dst.IRegIdx(), UntypedSlotOffset(src.SlotIdx()));
+                return;
+            } else if (skind == Location::SLOT && dkind == Location::FREG) {
+                // FIXME: load/stores must be typed
+                emit.LoadFrame(LDK::LD_F64, dst.FRegIdx(), UntypedSlotOffset(src.SlotIdx()));
+                return;
+            } else {
+                return Fail("Register kind mismatch");
+            }
+        };
+        moves.Resolve(emitMov);
+        maxParamPassingSize = std::max(maxParamPassingSize, static_cast<uint32_t>(abi.MaxStackSlot() * 8));
+
+        pendingParamRefSlots.Clear();
+        for (auto slot : abi.RefStackSlots())
+            pendingParamRefSlots.PushBack(slot);
+        pendingParamRecSlots.Clear();
+        for (auto slot : abi.RecStackSlots())
+            pendingParamRecSlots.PushBack(slot);
     }
 
     void Bcc(Format::Width width, Format::CC cc, AnyReg l, AnyReg r, int64_t delta) override
@@ -436,6 +587,11 @@ struct IsaRewriter : public IsaParser {
         emit.LoadStatic(Ldk(field->fieldType.GetKind()), dst, symbol);
     }
 
+    int32_t TypedSlotOffset(uint32_t typedSlot)
+    {
+        return (int32_t) frameLayout.typedOffset[typedSlot] - frameLayout.frameSize;
+    }
+
     void LdTyped(AnyReg dst, uint16_t slot, uint32_t fieldId) override
     {
         UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
@@ -445,7 +601,7 @@ struct IsaRewriter : public IsaParser {
         });
 
         ASSERT(field->refType.term.IsRecord());
-        auto offset = frameLayout.typedOffset.at(slot) + fieldOffset;
+        auto offset = TypedSlotOffset(slot) + fieldOffset;
         emit.LoadFrame(Ldk(field->fieldType.GetKind()), dst, offset);
     }
 
@@ -533,7 +689,7 @@ struct IsaRewriter : public IsaParser {
             Fail();
         });
 
-        auto offset = frameLayout.typedOffset.at(slot) + fieldOffset;
+        auto offset = TypedSlotOffset(slot) + fieldOffset;
         emit.StoreFrame(Stk(field->fieldType.GetKind()), src, offset);
     }
 
@@ -597,7 +753,7 @@ struct IsaRewriter : public IsaParser {
 
     void LoadStackRec(IReg r, uint16_t ts) override
     {
-        emit.LoadFrame(Format::LoadAccessKind::LD_LEA, r, frameLayout.typedOffset.at(ts));
+        emit.LoadFrame(Format::LoadAccessKind::LD_LEA, r, TypedSlotOffset(ts));
     }
 
     void LoadTailParam(AnyReg dst, IReg tailReg, int64_t number, Format::LoadAccessKind ldk) override
@@ -1121,7 +1277,16 @@ struct IsaRewriter : public IsaParser {
 
     void NewObj(IReg dst, uint32_t typeId) override { NewObject(dst, typeId, New::Obj); }
 
-    void CallDirect(IReg dst, uint32_t methodId) override
+    CallAbiFlags MakeCallAbiFlags(Image::MethodRefFlags flags, Image::MethodAbiKind abiKind) const
+    {
+        return {
+            .isSRet = flags.Is(Image::MethodRefFlag::SRET),
+            .hasOuterTi = flags.Is(Image::MethodRefFlag::HAS_OUTER_TI),
+            .abiKind = abiKind
+        };
+    }
+
+    void CallDirect(uint32_t methodId, Utils::Span<const Location> args) override
     {
         auto m = resolver.Query(Index<DirectCall>(methodId));
         if (!m.has_value()) {
@@ -1129,6 +1294,8 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto method = m.value();
+        auto ref = Decode::Read(session, Image::RefIdentifier<Image::MethodReference>(Image::RefId<Image::MethodReference>(methodId), fileId));
+        StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature);
 
         if (auto data = std::get_if<DirectCall::Compiled>(&method->data)) {
             EmitLogCall("call.2c", method);
@@ -1142,11 +1309,10 @@ struct IsaRewriter : public IsaParser {
             emit.DirectCall2i(sym);
             BindStatePoint();
         }
-        AdjustReg(dst, IReg::IR1);
         EmitReturnedTo();
     }
 
-    void CallVirtual(IReg dst, uint32_t methodId) override
+    void CallVirtual(uint32_t methodId, Utils::Span<const Location> args) override
     {
         auto m = resolver.Query(Index<VirtualCall>(methodId));
         if (!m.has_value()) {
@@ -1154,14 +1320,15 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto method = m.value();
+        auto ref = Decode::Read(session, Image::RefIdentifier<Image::MethodReference>(Image::RefId<Image::MethodReference>(methodId), fileId));
+        StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature);
         EmitLogCall("call.virt", method);
         emit.VirtualCall(method->methodNum, method->extDefNum, method->sret);
         BindStatePoint();
-        AdjustReg(dst, IReg::IR1);
         EmitReturnedTo();
     }
 
-    void CallInterf(IReg dst, uint32_t methodId) override
+    void CallInterf(uint32_t methodId, Utils::Span<const Location> args) override
     {
         auto m = resolver.Query(Index<InterfaceCall>(methodId));
         if (!m.has_value()) {
@@ -1174,14 +1341,15 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
+        auto ref = Decode::Read(session, Image::RefIdentifier<Image::MethodReference>(Image::RefId<Image::MethodReference>(methodId), fileId));
+        StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature);
         EmitLogCall("call.interf", method);
         emit.InterfaceCall(method->methodNum, *ti, method->sret);
         BindStatePoint();
-        AdjustReg(dst, IReg::IR1);
         EmitReturnedTo();
     }
 
-    void CallInterfGeneric(uint16_t argnum, uint32_t methodId) override
+    void CallInterfGeneric(uint16_t _, uint32_t methodId, Utils::Span<const Location> args) override
     {
         auto m = resolver.Query(Index<InterfaceCall>(methodId));
         if (!m.has_value()) {
@@ -1189,7 +1357,21 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto method = m.value();
+        auto ref = Decode::Read(session, Image::RefIdentifier<Image::MethodReference>(Image::RefId<Image::MethodReference>(methodId), fileId));
+        Location outerTiLoc;
+        StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature, &outerTiLoc);
         EmitLogCall("call.interf.g", method);
+
+        uint16_t argnum;
+        if (outerTiLoc.Kind() == Location::IREG) {
+            argnum = outerTiLoc.IRegIdx();
+            ASSERT(argnum < IReg::VIRT_COUNT);
+        } else if (outerTiLoc.Kind() == Location::SLOT) {
+            argnum = outerTiLoc.SlotIdx() + IReg::VIRT_COUNT;
+        } else {
+            ASSERTION(false, "outerti loc can not be freg");
+        }
+
         emit.InterfaceCallGeneric(method->methodNum, argnum, method->sret);
         BindStatePoint();
         EmitReturnedTo();
@@ -1222,15 +1404,8 @@ struct IsaRewriter : public IsaParser {
         BindStatePoint();
     }
 
-    void CallClosure(IReg dst, uint32_t typeId, bool generic) override
+    void CallClosure(uint32_t typeId, bool generic, Utils::Span<const Location> args) override
     {
-        if (generic) {
-            // Generic calls of closure are always considered as `sret`.
-            emit.CallClosureGeneric();
-            BindStatePoint();
-            return;
-        }
-
         auto t = resolver.Query(Index<Type>(typeId));
         if (!t.has_value() || t->term.GetKind() != Engine::TermKind::FUNCTIONAL) {
             return Fail("failed to resolve type");
@@ -1240,7 +1415,18 @@ struct IsaRewriter : public IsaParser {
 
         // For instantiated version of closure `sret` can be computed
         // by retType kind.
-        bool sret = (resolver.Wrap(retType).GetKind() == TK::REC);
+        bool sret = (resolver.Wrap(retType).GetKind() == TK::REC) || generic;
+
+        Resolution::MethodSignature sig{&resolver, term, Engine::Term::Predefined(Engine::TermKind::NIL)};
+        StageCallArgs(args, { .isSRet = sret, .hasOuterTi = true, .abiKind = Image::MethodAbiKind::REF_RECEIVER }, sig);
+
+        if (generic) {
+            // Generic calls of closure are always considered as `sret`.
+            emit.CallClosureGeneric();
+            BindStatePoint();
+            return;
+        }
+
         emit.CallClosure(sret);
         BindStatePoint();
     }
@@ -1388,7 +1574,7 @@ struct IsaRewriter : public IsaParser {
         auto storage = new (mem) Interpretation::StringStorage { RTSupport::MetaInfo::ByteArrayTypeInfo(), size };
         std::memcpy(storage->string, str.data(), size);
         storage->string[size] = 0;
-        emit.StringLit(storage, frameLayout.typedOffset.at(ts));
+        emit.StringLit(storage, TypedSlotOffset(ts));
     }
 
     void ArrayLength(IReg dst, IReg arr) override
@@ -1424,7 +1610,7 @@ struct IsaRewriter : public IsaParser {
         }
         auto field = f.value();
         if (field->offset.has_value()) {
-            auto offset = frameLayout.typedOffset.at(ts) + field->offset.value();
+            auto offset = TypedSlotOffset(ts) + field->offset.value();
             emit.LoadFrame(Ldk(field->fieldType.GetKind()), dst, offset);
         } else {
             errStream << "Failed to get offset of field " << field << Stream::endl;
@@ -1441,7 +1627,7 @@ struct IsaRewriter : public IsaParser {
         }
         auto field = f.value();
         if (field->offset.has_value()) {
-            auto offset = frameLayout.typedOffset.at(ts) + field->offset.value();
+            auto offset = TypedSlotOffset(ts) + field->offset.value();
             emit.StoreFrame(Stk(field->fieldType.GetKind()), src, offset);
         } else {
             errStream << "Failed to get offset of field " << field << Stream::endl;
@@ -1458,7 +1644,7 @@ struct IsaRewriter : public IsaParser {
         }
         auto field = f.value();
         if (field->offset.has_value()) {
-            auto offset = frameLayout.typedOffset.at(ts) + field->offset.value();
+            auto offset = TypedSlotOffset(ts) + field->offset.value();
             emit.StoreFrameImm(Stk(field->fieldType.GetKind()), imm, offset);
         } else {
             errStream << "Failed to get offset of field " << field << Stream::endl;
@@ -1555,7 +1741,7 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto typeInfo = ti.value();
-        auto offset   = frameLayout.typedOffset[srcTs];
+        auto offset   = TypedSlotOffset(srcTs);
         emit.NewBox(typeInfo);
         BindStatePoint();
         AdjustReg(dst, IReg::IR_ACC);
@@ -1614,7 +1800,7 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto typeInfo = ti.value();
-        auto offset   = frameLayout.typedOffset[dstTs];
+        auto offset   = TypedSlotOffset(dstTs);
         emit.LoadFrame(Format::LoadAccessKind::LD_LEA, IReg::IR_ACC, offset);
         auto ms = emit.OpenMemSpace();
         ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
@@ -1689,7 +1875,7 @@ struct IsaRewriter : public IsaParser {
     }
 };
 
-static std::optional<FrameLayout> makeFrameLayout(Image::Code code, Resolver& resolver)
+static std::optional<FrameLayout> MakeFrameLayout(Image::Code code, Resolver& resolver)
 {
     auto& log = Interpretation::Log::preparation;
 
@@ -1706,13 +1892,10 @@ static std::optional<FrameLayout> makeFrameLayout(Image::Code code, Resolver& re
 
     auto untypedSlotsSize = Cbc::STACK_SLOT_SIZE * code.UntypedSlotCount();
 
-    std::unordered_map<uint32_t, uint32_t> typedOffset;
-    typedOffset.reserve(code.StackAllocSigsCount() + 1);
+    Utils::Vector<uint32_t> typedOffset;
+    typedOffset.Resize(code.StackAllocSigsCount() + 1);
 
     Utils::Vector<uint32_t> refOffsets;
-
-    Utils::Vector<uint32_t> stackAllocSizes;
-    stackAllocSizes.Reserve(code.StackAllocSigsCount());
 
     auto stackAllocSize = untypedSlotsSize;
     uint32_t i;
@@ -1734,37 +1917,16 @@ static std::optional<FrameLayout> makeFrameLayout(Image::Code code, Resolver& re
         }
 
         type.FillReferenceOffsets(refOffsets, stackAllocSize);
-
-        typedOffset.insert({ i, stackAllocSize });
-        stackAllocSizes.PushBack(stackAllocSize);
+        typedOffset[i] = stackAllocSize;
         stackAllocSize += MathUtils::AlignUp(size.value(), Cbc::STACK_SLOT_SIZE);
     }
 
-    typedOffset.insert({ i, stackAllocSize });
-
-    auto frameSize = MathUtils::AlignUp(savedRegsSpace + stackAllocSize, Cbc::FRAME_ALIGNMENT);
-
+    typedOffset[code.StackAllocSigsCount()] = stackAllocSize;
+    auto frameSize = savedRegsSpace + stackAllocSize;
     // Transform all offsets from bottom-relative to end-of-essentials-relative (negative).
-    std::unordered_map<uint32_t, int32_t> typedOffsetNeg;
-    typedOffsetNeg.reserve(typedOffset.size());
-    for (auto& [idx, off] : typedOffset) {
-        typedOffsetNeg[idx] = static_cast<int32_t>(off) - static_cast<int32_t>(frameSize);
-    }
-
-    Utils::Vector<int32_t> stackAllocSizesNeg;
-    stackAllocSizesNeg.Reserve(stackAllocSizes.Size());
-    for (auto off : stackAllocSizes) {
-        stackAllocSizesNeg.PushBack(static_cast<int32_t>(off) - static_cast<int32_t>(frameSize));
-    }
-
-    Utils::Vector<int32_t> refOffsetsNeg;
-    refOffsetsNeg.Reserve(refOffsets.Size());
-    for (auto off : refOffsets) {
-        refOffsetsNeg.PushBack(static_cast<int32_t>(off) - static_cast<int32_t>(frameSize));
-    }
 
     return FrameLayout {
-        std::move(typedOffsetNeg), std::move(stackAllocSizesNeg), std::move(refOffsetsNeg), frameSize
+        std::move(typedOffset), std::move(refOffsets), frameSize
     };
 }
 
@@ -1797,15 +1959,12 @@ static Utils::Vector<Interpretation::GCPositionalInfo> CalculatePositionalGCInfo
         }
         auto& info = it->second;
 
-        posInfo.PushBack({ .rewrittenPos        = (uint32_t)rewrittenPos,
+        posInfo.PushBack({ .rewrittenPos         = (uint32_t)rewrittenPos,
                             .regMask             = info.regMask,
-                            .untypedRefSlotsInfo = {},
+                            .untypedRefSlots     = info.refSlotNums,
+                            .paramRefSlots       = point.paramRefSlots,
+                            .paramRecSlots       = point.paramRecSlots,
                             .mutPairs            = {} });
-
-        posInfo.Back().untypedRefSlotsInfo.Reserve(info.refSlotNums.Size());
-        for (const auto& slotN : info.refSlotNums) {
-            posInfo.Back().untypedRefSlotsInfo.PushBack(static_cast<int32_t>(slotN * STACK_SLOT_SIZE) - frameSize);
-        }
 
         posInfo.Back().mutPairs.Reserve(info.mutPairs.Size());
         for (const auto& pair : info.mutPairs) {
@@ -1910,7 +2069,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
 {
     using namespace Stream;
     Emitter::Emitter emitter;
-    auto frameLayout = makeFrameLayout(code, resolver);
+    auto frameLayout = MakeFrameLayout(code, resolver);
 
     if (!frameLayout.has_value()) {
         FATAL("Rewriter failed: cannot make frame layout.");
@@ -1918,6 +2077,8 @@ Interpretation::ExecBytecodeInfo Rewrite(
 
     auto rewriter = IsaRewriter(resolver, session, method, code, *frameLayout, emitter);
     rewriter.ParseAll();
+
+    auto fullFrameSize = MathUtils::AlignUp(frameLayout->frameSize + rewriter.maxParamPassingSize, Cbc::FRAME_ALIGNMENT);
 
     if (!rewriter.failureMessages.Empty()) {
         Interpretation::Log::preparation.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
@@ -1937,12 +2098,12 @@ Interpretation::ExecBytecodeInfo Rewrite(
         Engine::TermManager::Resolve(session, def.Signature()),
         {
             .isSRet            = flags.Is(Image::MethodRefFlag::SRET),
-            .isMut             = flags.Is(Image::MethodRefFlag::MUT),
-            .hasThisTypeInfo   = flags.Is(Image::MethodRefFlag::HAS_THIS_TI),
+            .isMut             = def->abiKind == Image::MethodAbiKind::MUT,
+            .hasThisTypeInfo   = def->abiKind == Image::MethodAbiKind::HAS_THIS_TI,
             .hasOuterTi        = flags.Is(Image::MethodRefFlag::HAS_OUTER_TI),
-            .recordReceiver    = flags.Is(Image::MethodRefFlag::REC_RECEIVER),
-            .referenceReceiver = flags.Is(Image::MethodRefFlag::REF_RECEIVER),
-            .funcVars          = def->arity,
+            .recordReceiver    = def->abiKind == Image::MethodAbiKind::REC_RECEIVER,
+            .referenceReceiver = def->abiKind == Image::MethodAbiKind::REF_RECEIVER,
+            .funcVars          = def->arity, // FIXME: get from func ref
         }
     );
 
@@ -1952,7 +2113,8 @@ Interpretation::ExecBytecodeInfo Rewrite(
         .code             = rewrittenCode,
         .savedIRegs       = Interpretation::NonVolatileRegs(code.UsedNonVolIRegMask() << IReg::FIRST_NON_VOL),
         .savedFRegs       = Interpretation::NonVolatileRegs(code.UsedNonVolFRegMask() << FReg::FIRST_NON_VOL),
-        .frameSize        = frameLayout->frameSize,
+        .frameSize        = fullFrameSize,
+        .staticFrameSize  = frameLayout->frameSize,
         .untypedSlotCount = static_cast<uint16_t>(code.UntypedSlotCount()),
         .abiInfo          = std::move(abiInfo),
         .gcInfo =
@@ -1960,7 +2122,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
                 .positionalInfo = std::move(
                     CalculatePositionalGCInfo(session, code, emitter, rewriter.statePoints, frameLayout->frameSize)
                 ),
-                .refOffsets = std::move((*frameLayout).refOffsets),
+                .refOffsets = std::move(frameLayout->refOffsets),
             },
         .stackPtrsInfo =
             Interpretation::StackPtrsInfo {

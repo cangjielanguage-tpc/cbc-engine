@@ -169,6 +169,36 @@ LABEL(NOP) {
     LOG_INSTR;
     NEXT;
 }
+LABEL(STK_PARAM) {
+    auto args = RT::StackParam::Decode(reader);
+    LOG_INSTR;
+    auto stk = Cbc::Format::StoreAccessKind::ST_64; // FIXME: encode for darwin_aarch64
+    MemoryLocation(frameBot, args.offset).StorePrim(stk, args.src, ectype);
+    NEXT;
+}
+LABEL(STK_PARAM_F) {
+    auto args = RT::StackParamF::Decode(reader);
+    LOG_INSTR;
+    auto stk = Cbc::Format::StoreAccessKind::ST_F64;
+    MemoryLocation(frameBot, args.dst).StorePrim(stk, args.src, ectype);
+    NEXT;
+}
+LABEL(STK_PARAM_S16) {
+    auto args = RT::StackParamS16::Decode(reader);
+    LOG_INSTR;
+    auto srcLoc = frame.start + args.src;
+    auto dstLoc = frameBot + args.dst;
+    memcpy(reinterpret_cast<uint64_t*>(dstLoc), reinterpret_cast<uint64_t*>(srcLoc), 8);
+    NEXT;
+}
+LABEL(STK_PARAM_S32) {
+    auto args = RT::StackParamS32::Decode(reader);
+    LOG_INSTR;
+    auto srcLoc = frame.start + args.src;
+    auto dstLoc = frameBot + args.dst;
+    memcpy(reinterpret_cast<uint64_t*>(dstLoc), reinterpret_cast<uint64_t*>(srcLoc), 8);
+    NEXT;
+}
 LABEL(MOV) {
     auto args = B2rr::Decode(reader);
     LOG_INSTR;

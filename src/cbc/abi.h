@@ -47,11 +47,13 @@ public:
         : AbiBuilder(moves, PlatformDescription::FromTraits<p>()) {}
 
     void Clear();
-    void Consume(Location loc, Flags flags);
+    Location Consume(Location loc, Flags flags);
     void ConsumeSret(Location loc);
-    void ConsumeReceiverMut(Location loc0, Location loc1);
-    void ConsumeReceiver(Location loc);
-    void ConsumeFtvars(Location loc);
+    Location ConsumeReceiverMut(Location loc0, Location loc1);
+    void ConsumeReceiver(Location loc, bool isReference);
+    void ConsumeFuncVar(Location loc);
+    Location ConsumeOuterTi(Location loc);
+    Location ConsumeThisTypeTi(Location loc);
 
     template <typename ArgType, typename ArgTypeTraits>
     void Consume(ArgType arg, Location loc) {
@@ -65,8 +67,8 @@ public:
     uint16_t IregStackPtrMask() const { return iregStackPtrMask; }
     uint16_t IregRefMask() const { return iregRefMask; }
     uint16_t FregMask() const { return fregMask; }
-    Utils::Span<const int> RefStackSlots() const { return {refStackSlots.Data(), refStackSlots.Size()}; }
-    Utils::Span<const int> RecStackSlots() const { return {recStackSlots.Data(), recStackSlots.Size()}; }
+    Utils::Span<uint32_t const> RefStackSlots() const { return {refStackSlots.Data(), refStackSlots.Size()}; }
+    Utils::Span<uint32_t const> RecStackSlots() const { return {recStackSlots.Data(), recStackSlots.Size()}; }
     int MaxStackSlot() const { return slotIdx; }
 
 private:
@@ -78,8 +80,8 @@ private:
     uint16_t iregStackPtrMask;
     uint16_t iregRefMask;
     uint16_t fregMask;
-    Utils::Vector<int> refStackSlots;
-    Utils::Vector<int> recStackSlots;
+    Utils::Vector<uint32_t> refStackSlots;
+    Utils::Vector<uint32_t> recStackSlots;
 };
 
 } // namespace Cbc

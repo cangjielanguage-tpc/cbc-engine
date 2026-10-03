@@ -1,6 +1,7 @@
 #include "gc_support.h"
 
 #include "asm_export.h"
+#include "cbc/frame.h"
 #include "cjnative.h"
 #include "engine/statics_manager.h"
 #include "interpreter/ectype.h"
@@ -9,7 +10,6 @@
 #include "utils/logger.h"
 #include "utils/ostream.h"
 #include "utils/rt_logger.h"
-#include "utils/vector.h"
 
 namespace GCSupport {
 
@@ -68,8 +68,6 @@ void VisitGCFrameRoots(
     using namespace Interpretation;
     auto regsLocationTable = reinterpret_cast<RegistersTable*>(state);
 
-    const auto localsOffset = LOCAL_SLOTS_OFFSET;
-
     auto fuh    = *reinterpret_cast<DynamicFunctionHandle**>((uint8_t*)frame_desc.fp - FUH_SLOT_OFFSET);
     auto reader = reinterpret_cast<Decoder::ByteReader*>((uint8_t*)frame_desc.fp - READER_SLOT_OFFSET);
     auto bc     = NOTNULL(fuh->bytecode.load());
@@ -97,8 +95,11 @@ void VisitGCFrameRoots(
         return;
     }
 
-    auto calleeSavedRegsEnd = ((uint8_t*)frame_desc.fp) - localsOffset;
-    auto slotsStartAddr     = ((uint8_t*)frame_desc.fp) - localsOffset;
+    auto calleeSavedRegsEnd = ((uint8_t*)frame_desc.fp) - LOCAL_SLOTS_OFFSET;
+    auto slotsStartAddr     = ((uint8_t*)frame_desc.fp) - LOCAL_SLOTS_OFFSET;
+
+    auto stackBottomWithoutParams = slotsStartAddr - bc->staticFrameSize;
+    auto stackBottom              = slotsStartAddr - bc->frameSize;
 
     RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Output& out) {
         out.PrintFmtLn(
@@ -115,8 +116,8 @@ void VisitGCFrameRoots(
         // Heap adjusting is in process
         auto derivedPtrVisitor = *derivedPtrVisitorOpt;
         for (auto& pair : positionalInfo->mutPairs) {
-            auto basePh    = GetResourceLocation(pair.first, slotsStartAddr, regsLocationTable, bc->frameSize);
-            auto derivedPh = GetResourceLocation(pair.second, slotsStartAddr, regsLocationTable, bc->frameSize);
+            auto basePh    = GetResourceLocation(pair.first, stackBottomWithoutParams, regsLocationTable);
+            auto derivedPh = GetResourceLocation(pair.second, stackBottomWithoutParams, regsLocationTable);
 
             auto baseRef = Value::Reference { .value = *basePh };
             auto locKind = RTSupport::Execution::GetStructLocationKind(baseRef, *derivedPh);
@@ -126,17 +127,21 @@ void VisitGCFrameRoots(
         }
     }
 
-    for (auto& refSlotOffset : NOTNULL(positionalInfo)->untypedRefSlotsInfo) {
-        auto refLocation = reinterpret_cast<Placeholder>(slotsStartAddr + refSlotOffset);
-        RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) { out << refSlotOffset << ": "; });
+    for (auto& refSlotNum : NOTNULL(positionalInfo)->untypedRefSlots) {
+        auto refLocation = reinterpret_cast<Placeholder>(stackBottomWithoutParams + refSlotNum * STACK_SLOT_SIZE);
+        RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) { out << refSlotNum << ": "; });
+        VisitRoot(rootVisitor, refLocation);
+    }
+
+    for (auto& paramSlot : NOTNULL(positionalInfo)->paramRefSlots) {
+        auto refLocation = reinterpret_cast<Placeholder>(stackBottom + STACK_SLOT_SIZE * paramSlot);
+        RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) { out << paramSlot << " (param ref): "; });
         VisitRoot(rootVisitor, refLocation);
     }
 
     for (auto refOffset : bc->gcInfo.refOffsets) {
-        auto refLocation = reinterpret_cast<Placeholder>(slotsStartAddr + refOffset);
-        RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) {
-            out.PrintFmtLn("found reference at %p", slotsStartAddr + refOffset);
-        });
+        auto refLocation = reinterpret_cast<Placeholder>(stackBottomWithoutParams + refOffset);
+        LOG_TRACE(RTSupport::Log::gc, "found reference at {}", Hex(refLocation));
         VisitRoot(rootVisitor, refLocation);
     }
 

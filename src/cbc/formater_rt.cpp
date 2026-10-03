@@ -614,6 +614,34 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, IndexGener
     formatter.Format();
 }
 
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, StackParam args)
+{
+    Operand operands[] = { args.src, args.offset };
+    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    formatter.Format();
+}
+
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, StackParamF args)
+{
+    Operand operands[] = { args.src, args.dst };
+    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    formatter.Format();
+}
+
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, StackParamS16 args)
+{
+    Operand operands[] = { static_cast<uint64_t>(args.src), args.dst };
+    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    formatter.Format();
+}
+
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, StackParamS32 args)
+{
+    Operand operands[] = { static_cast<uint64_t>(args.src), args.dst };
+    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    formatter.Format();
+}
+
 void LogBaseSpaceInstruction(
     uint32_t opc, Interpretation::LiteralTable* table, Stream::Output& stream, Decoder::ByteReader& reader
 )

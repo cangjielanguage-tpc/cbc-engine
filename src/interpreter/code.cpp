@@ -2,7 +2,9 @@
 #include "interpreter/ectype.h"
 #include "platform_traits.h"
 #include "utils/assertion.h"
+#include "utils/ostream.h"
 #include <cstdint>
+#include <string_view>
 
 namespace Interpretation {
 
@@ -20,7 +22,12 @@ Stream::Output& operator<<(Stream::Output& out, const ExecBytecodeInfo& bc)
     out2 << "GCMap {" << endl;
     for (const auto& entry : bc.gcInfo.positionalInfo) {
         out4 << "rtPos: " << entry.rewrittenPos << ", regMask: " << entry.regMask << ", ";
-        Std::Vector::Print(out4, entry.untypedRefSlotsInfo);
+        Std::Vector::Print(out4, entry.untypedRefSlots);
+        Std::Vector::Print(out4, entry.paramRefSlots);
+        Std::Vector::Print(out4, entry.paramRecSlots);
+        Std::Vector::Print0(out4, entry.mutPairs, [](Stream::Output& out, std::pair<Resource, Resource> p) {
+            out.Print("({}, {})", p.first.idx, p.second.idx);
+        });
         out4 << endl;
     }
     out2 << "}" << endl;

@@ -9,7 +9,7 @@
   @flags PUBLIC AOT
 @end
 
-@type Foo
+@type default:Foo
   @flags PUBLIC
 
   @super std.core:Object@aref
@@ -23,7 +23,7 @@
   @end
 
   @method foo()Void
-    @flags VIRTUAL
+    @flags VIRTUAL REF_RECEIVER
     @code
       movi.64 IR1, 0x123
       ret.64 IR1
@@ -31,13 +31,15 @@
   @end
 @end
 
-@method_ref Foo.foo = Foo@ref foo()Void
+@method_ref foo = default:Foo@ref foo()Void [REF_RECEIVER]
 
 @type default
 
   @method main()I64
     @code
-      call.virt IR1, #Foo.foo
+      newobj default:Foo@ref
+      call.virt #foo, IR1
+      @dead IR1
       @live.prim IR1
       ret.64 IR1
     @end
