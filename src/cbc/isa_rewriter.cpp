@@ -1,4 +1,5 @@
 #include "isa_rewriter.h"
+#include "cbc/abi.h"
 #include "cbc/emitter/emitter.h"
 #include "cbc/emitter/symbols.h"
 #include "cbc/formater_rt.h"
@@ -184,6 +185,9 @@ struct IsaRewriter : public IsaParser {
     Emitter::Emitter& emit;
     FrameLayout& frameLayout;
     size_t bytecodeSize;
+    uint32_t maxParamPassingSize = 0;
+    Utils::Vector<int32_t> pendingParamRefSlots;
+    Utils::Vector<int32_t> pendingParamRecSlots;
     Stream::Output& errStream = Interpretation::Log::preparation.Stream(Logging::Level::ERROR);
 
     size_t startPosition;
@@ -193,6 +197,8 @@ struct IsaRewriter : public IsaParser {
     struct StatePoint {
         Emitter::Label label; // position in rewritten code
         ssize_t originalPos;  // position in original code
+        Utils::Vector<int32_t> paramRefSlots;
+        Utils::Vector<int32_t> paramRecSlots;
     };
 
     Utils::Vector<StatePoint> statePoints;
@@ -227,6 +233,10 @@ struct IsaRewriter : public IsaParser {
             .label       = label,
             .originalPos = Pos(), // attached to the end of instruction
         };
+        point.paramRefSlots = std::move(pendingParamRefSlots);
+        point.paramRecSlots = std::move(pendingParamRecSlots);
+        pendingParamRefSlots.Clear();
+        pendingParamRecSlots.Clear();
         statePoints.PushBack(point);
     }
 
@@ -268,6 +278,71 @@ struct IsaRewriter : public IsaParser {
         if (expected != actual) {
             emit.Mov(expected, actual);
         }
+    }
+
+    struct CallAbiFlags {
+        bool isSRet;
+        bool isMut;
+        bool isRecordReceiver;
+        bool isRefReceiver;
+        int ftvarCount;
+    };
+
+    void StageCallArgs(Utils::Span<const Location> args, CallAbiFlags flags, Resolution::MethodSignature& sig)
+    {
+        MoveResolver moves;
+        AbiBuilder abi(moves);
+
+        int idx = 0;
+        if (flags.isSRet)
+            abi.ConsumeSret(args[idx++]);
+        if (flags.isMut)
+            abi.ConsumeReceiverMut(args[idx++], args[idx++]);
+        else if (flags.isRecordReceiver || flags.isRefReceiver)
+            abi.ConsumeReceiver(args[idx++]);
+        if (flags.ftvarCount > 0)
+            abi.ConsumeFtvars(args[idx++]);
+
+        auto params = sig.Params();
+        int paramOffset = idx;
+        for (; idx < args.Size(); ++idx) {
+            auto term = params[idx - paramOffset];
+            abi.Consume(args[idx], {
+                .isFloat = term.IsFloat(),
+                .isRecord = term.IsRecord(),
+                .isReference = term.IsReference(),
+            });
+        }
+
+        auto emitMov = [&](Location dst, Location src) {
+            auto kind = dst.Kind();
+            if (kind == Location::SLOT) {
+                emit.StackParam(IReg::From(src.IRegIdx()), static_cast<uint64_t>(dst.SlotIdx()) * 8);
+                return;
+            }
+
+            if (kind != src.Kind()) {
+                Fail("Register kind mismatch");
+            }
+
+            if (kind == Location::IREG) {
+                emit.Mov(IReg::From(dst.IRegIdx()), IReg::From(src.IRegIdx()));
+            } else if (dst.Kind() == Location::FREG) {
+                emit.Mov(FReg::From(dst.FRegIdx()), FReg::From(src.FRegIdx()));
+            }
+        };
+        moves.Resolve(emitMov);
+
+        auto maxSlot = abi.MaxStackSlot();
+        if (maxSlot > 0)
+            maxParamPassingSize = std::max(maxParamPassingSize, static_cast<uint32_t>(maxSlot * 8));
+
+        pendingParamRefSlots.Clear();
+        for (auto slot : abi.RefStackSlots())
+            pendingParamRefSlots.PushBack(static_cast<int32_t>(slot));
+        pendingParamRecSlots.Clear();
+        for (auto slot : abi.RecStackSlots())
+            pendingParamRecSlots.PushBack(static_cast<int32_t>(slot));
     }
 
     void Bcc(Format::Width width, Format::CC cc, AnyReg l, AnyReg r, int64_t delta) override
@@ -1121,7 +1196,18 @@ struct IsaRewriter : public IsaParser {
 
     void NewObj(IReg dst, uint32_t typeId) override { NewObject(dst, typeId, New::Obj); }
 
-    void CallDirect(IReg dst, uint32_t methodId) override
+    CallAbiFlags MakeCallAbiFlags(Image::MethodRefFlags flags) const
+    {
+        return {
+            .isSRet = flags.Is(Image::MethodRefFlag::SRET),
+            .isMut = flags.Is(Image::MethodRefFlag::MUT),
+            .isRecordReceiver = flags.Is(Image::MethodRefFlag::REC_RECEIVER),
+            .isRefReceiver = flags.Is(Image::MethodRefFlag::REF_RECEIVER),
+            .ftvarCount = flags.Is(Image::MethodRefFlag::HAS_FTVARS) ? 1 : 0,
+        };
+    }
+
+    void CallDirect(uint32_t methodId, Utils::Span<const Location> args) override
     {
         auto m = resolver.Query(Index<DirectCall>(methodId));
         if (!m.has_value()) {
@@ -1129,6 +1215,8 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto method = m.value();
+        auto ref = Decode::Read(session, Image::RefIdentifier<Image::MethodReference>(Image::RefId<Image::MethodReference>(methodId), fileId));
+        StageCallArgs(args, MakeCallAbiFlags(ref.flags), method->signature);
 
         if (auto data = std::get_if<DirectCall::Compiled>(&method->data)) {
             EmitLogCall("call.2c", method);
@@ -1142,11 +1230,10 @@ struct IsaRewriter : public IsaParser {
             emit.DirectCall2i(sym);
             BindStatePoint();
         }
-        AdjustReg(dst, IReg::IR1);
         EmitReturnedTo();
     }
 
-    void CallVirtual(IReg dst, uint32_t methodId) override
+    void CallVirtual(uint32_t methodId, Utils::Span<const Location> args) override
     {
         auto m = resolver.Query(Index<VirtualCall>(methodId));
         if (!m.has_value()) {
@@ -1154,14 +1241,15 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto method = m.value();
+        auto ref = Decode::Read(session, Image::RefIdentifier<Image::MethodReference>(Image::RefId<Image::MethodReference>(methodId), fileId));
+        StageCallArgs(args, MakeCallAbiFlags(ref.flags), method->signature);
         EmitLogCall("call.virt", method);
         emit.VirtualCall(method->methodNum, method->extDefNum, method->sret);
         BindStatePoint();
-        AdjustReg(dst, IReg::IR1);
         EmitReturnedTo();
     }
 
-    void CallInterf(IReg dst, uint32_t methodId) override
+    void CallInterf(uint32_t methodId, Utils::Span<const Location> args) override
     {
         auto m = resolver.Query(Index<InterfaceCall>(methodId));
         if (!m.has_value()) {
@@ -1174,14 +1262,15 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
+        auto ref = Decode::Read(session, Image::RefIdentifier<Image::MethodReference>(Image::RefId<Image::MethodReference>(methodId), fileId));
+        StageCallArgs(args, MakeCallAbiFlags(ref.flags), method->signature);
         EmitLogCall("call.interf", method);
         emit.InterfaceCall(method->methodNum, *ti, method->sret);
         BindStatePoint();
-        AdjustReg(dst, IReg::IR1);
         EmitReturnedTo();
     }
 
-    void CallInterfGeneric(uint16_t argnum, uint32_t methodId) override
+    void CallInterfGeneric(uint16_t argnum, uint32_t methodId, Utils::Span<const Location> args) override
     {
         auto m = resolver.Query(Index<InterfaceCall>(methodId));
         if (!m.has_value()) {
@@ -1189,6 +1278,8 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto method = m.value();
+        auto ref = Decode::Read(session, Image::RefIdentifier<Image::MethodReference>(Image::RefId<Image::MethodReference>(methodId), fileId));
+        StageCallArgs(args, MakeCallAbiFlags(ref.flags), method->signature);
         EmitLogCall("call.interf.g", method);
         emit.InterfaceCallGeneric(method->methodNum, argnum, method->sret);
         BindStatePoint();
@@ -1222,15 +1313,8 @@ struct IsaRewriter : public IsaParser {
         BindStatePoint();
     }
 
-    void CallClosure(IReg dst, uint32_t typeId, bool generic) override
+    void CallClosure(uint32_t typeId, bool generic, Utils::Span<const Location> args) override
     {
-        if (generic) {
-            // Generic calls of closure are always considered as `sret`.
-            emit.CallClosureGeneric();
-            BindStatePoint();
-            return;
-        }
-
         auto t = resolver.Query(Index<Type>(typeId));
         if (!t.has_value() || t->term.GetKind() != Engine::TermKind::FUNCTIONAL) {
             return Fail("failed to resolve type");
@@ -1241,6 +1325,17 @@ struct IsaRewriter : public IsaParser {
         // For instantiated version of closure `sret` can be computed
         // by retType kind.
         bool sret = (resolver.Wrap(retType).GetKind() == TK::REC);
+
+        Resolution::MethodSignature sig{&resolver, term};
+        StageCallArgs(args, { .isSRet = sret, .isMut = false, .isRecordReceiver = false, .isRefReceiver = false, .ftvarCount = 0 }, sig);
+
+        if (generic) {
+            // Generic calls of closure are always considered as `sret`.
+            emit.CallClosureGeneric();
+            BindStatePoint();
+            return;
+        }
+
         emit.CallClosure(sret);
         BindStatePoint();
     }
@@ -1800,6 +1895,8 @@ static Utils::Vector<Interpretation::GCPositionalInfo> CalculatePositionalGCInfo
         posInfo.PushBack({ .rewrittenPos        = (uint32_t)rewrittenPos,
                             .regMask             = info.regMask,
                             .untypedRefSlotsInfo = {},
+                            .paramRefSlots       = point.paramRefSlots,
+                            .paramRecSlots       = point.paramRecSlots,
                             .mutPairs            = {} });
 
         posInfo.Back().untypedRefSlotsInfo.Reserve(info.refSlotNums.Size());
@@ -1919,6 +2016,8 @@ Interpretation::ExecBytecodeInfo Rewrite(
     auto rewriter = IsaRewriter(resolver, session, method, code, *frameLayout, emitter);
     rewriter.ParseAll();
 
+    auto fullFrameSize = MathUtils::AlignUp(frameLayout->frameSize + rewriter.maxParamPassingSize, Cbc::FRAME_ALIGNMENT);
+
     if (!rewriter.failureMessages.Empty()) {
         Interpretation::Log::preparation.Log(Logging::Level::ERROR, [&](Stream::Output& out) {
             out << "Failed to rewrite method at positions: ";
@@ -1952,13 +2051,13 @@ Interpretation::ExecBytecodeInfo Rewrite(
         .code             = rewrittenCode,
         .savedIRegs       = Interpretation::NonVolatileRegs(code.UsedNonVolIRegMask() << IReg::FIRST_NON_VOL),
         .savedFRegs       = Interpretation::NonVolatileRegs(code.UsedNonVolFRegMask() << FReg::FIRST_NON_VOL),
-        .frameSize        = frameLayout->frameSize,
+        .frameSize        = fullFrameSize,
         .untypedSlotCount = static_cast<uint16_t>(code.UntypedSlotCount()),
         .abiInfo          = std::move(abiInfo),
         .gcInfo =
             Interpretation::GcInfo {
                 .positionalInfo = std::move(
-                    CalculatePositionalGCInfo(session, code, emitter, rewriter.statePoints, frameLayout->frameSize)
+                    CalculatePositionalGCInfo(session, code, emitter, rewriter.statePoints, fullFrameSize)
                 ),
                 .refOffsets = std::move((*frameLayout).refOffsets),
             },

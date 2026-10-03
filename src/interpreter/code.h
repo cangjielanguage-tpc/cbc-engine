@@ -45,6 +45,8 @@ struct GCPositionalInfo {
     uint32_t rewrittenPos;
     uint16_t regMask;
     Utils::Vector<int32_t> untypedRefSlotsInfo;
+    Utils::Vector<int32_t> paramRefSlots;
+    Utils::Vector<int32_t> paramRecSlots;
     Utils::Vector<std::pair<Resource, Resource>> mutPairs;
 };
 

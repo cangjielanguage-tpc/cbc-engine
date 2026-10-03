@@ -1,5 +1,6 @@
 #include "cbc/isa_rt.h"
 #include "segment.h"
+#include "utils/lebencodings.h"
 #include "utils/reinterpretation.h"
 
 namespace Cbc {
@@ -358,6 +359,17 @@ void Encode(ByteBuffer& buf, RT::IndexGeneric command)
     Encode(buf, command.opc);
     Encode(buf, command.rr);
     Encode(buf, command.idx);
+}
+
+void Encode(ByteBuffer& buf, RT::StackParam command)
+{
+    buf.AddW8((static_cast<uint8_t>(command.opc) << 4) | static_cast<uint8_t>(command.src));
+    char bytes[10];
+    char* ptr = bytes;
+    char* end = bytes + 10;
+    LEB::EncodeULEB(command.offset, &ptr, end);
+    for (char* p = bytes; p < ptr; ++p)
+        buf.AddW8(static_cast<uint8_t>(*p));
 }
 
 } // namespace Emitter

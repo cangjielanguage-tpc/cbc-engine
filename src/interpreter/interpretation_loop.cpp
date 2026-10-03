@@ -169,6 +169,12 @@ LABEL(NOP) {
     LOG_INSTR;
     NEXT;
 }
+LABEL(STK_PARAM) {
+    auto args = RT::StackParam::Decode(reader);
+    LOG_INSTR;
+    interpreter.StoreFrame(Format::StoreAccessKind::ST_64, args.src, static_cast<intptr_t>(args.offset));
+    NEXT;
+}
 LABEL(MOV) {
     auto args = B2rr::Decode(reader);
     LOG_INSTR;

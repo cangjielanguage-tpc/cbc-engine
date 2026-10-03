@@ -132,6 +132,18 @@ void VisitGCFrameRoots(
         VisitRoot(rootVisitor, refLocation);
     }
 
+    for (auto& paramRefOffset : NOTNULL(positionalInfo)->paramRefSlots) {
+        auto refLocation = reinterpret_cast<Placeholder>(slotsStartAddr + paramRefOffset);
+        RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) { out << paramRefOffset << " (param ref): "; });
+        VisitRoot(rootVisitor, refLocation);
+    }
+
+    for (auto& paramRecOffset : NOTNULL(positionalInfo)->paramRecSlots) {
+        auto recLocation = reinterpret_cast<Placeholder>(slotsStartAddr + paramRecOffset);
+        RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) { out << paramRecOffset << " (param rec): "; });
+        VisitRoot(rootVisitor, recLocation);
+    }
+
     for (auto refOffset : bc->gcInfo.refOffsets) {
         auto refLocation = reinterpret_cast<Placeholder>(slotsStartAddr + refOffset);
         RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) {
