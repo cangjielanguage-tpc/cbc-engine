@@ -1,4 +1,5 @@
 #include "abi.h"
+#include "utils/assertion.h"
 
 namespace Cbc {
 
@@ -29,29 +30,20 @@ void AbiBuilder::Clear()
 void AbiBuilder::Consume(Location loc, Flags flags)
 {
     Location target;
-    if (flags.isFloat) {
-        if (fargIdx < desc.fregParamCount) {
-            target = Location::FReg(desc.fregHeadArea[fargIdx]);
-            fregMask |= (1u << fargIdx);
-            fargIdx++;
-        } else {
-            target = Location::Slot(slotIdx);
-            if (flags.isReference) refStackSlots.PushBack(slotIdx);
-            if (flags.isRecord) recStackSlots.PushBack(slotIdx);
-            slotIdx++;
-        }
+    if (flags.isFloat && fargIdx < desc.fregParamCount) {
+        target = Location::FReg(desc.fregHeadArea[fargIdx]);
+        fregMask |= (1u << fargIdx);
+        fargIdx++;
+    } else if (!flags.isFloat && iargIdx < desc.iregParamCount) {
+        target = Location::IReg(desc.iregHeadArea[iargIdx]);
+        if (flags.isRecord) iregStackPtrMask |= (1u << iargIdx);
+        if (flags.isReference) iregRefMask |= (1u << iargIdx);
+        iargIdx++;
     } else {
-        if (iargIdx < desc.iregParamCount) {
-            target = Location::IReg(desc.iregHeadArea[iargIdx]);
-            if (flags.isRecord) iregStackPtrMask |= (1u << iargIdx);
-            if (flags.isReference) iregRefMask |= (1u << iargIdx);
-            iargIdx++;
-        } else {
-            target = Location::Slot(slotIdx);
-            if (flags.isReference) refStackSlots.PushBack(slotIdx);
-            if (flags.isRecord) recStackSlots.PushBack(slotIdx);
-            slotIdx++;
-        }
+        target = Location::Slot(slotIdx);
+        if (flags.isReference) refStackSlots.PushBack(slotIdx);
+        if (flags.isRecord) recStackSlots.PushBack(slotIdx);
+        slotIdx++;
     }
     moves.AddMove(loc, target);
 }
@@ -60,61 +52,28 @@ void AbiBuilder::ConsumeSret(Location loc)
 {
     Location target;
     if (desc.sretShifts) {
-        target = Location::IReg(desc.iregHeadArea[iargIdx]);
-        iregStackPtrMask |= (1u << iargIdx);
-        iargIdx++;
+        Consume(loc, { .isRecord = true });
     } else {
         target = Location::IReg(static_cast<IReg::Value>(desc.sretIrIdx));
+        iregStackPtrMask |= (1u << desc.sretIrIdx);
+        moves.AddMove(loc, target);
     }
-    moves.AddMove(loc, target);
 }
 
 void AbiBuilder::ConsumeReceiverMut(Location loc0, Location loc1)
 {
-    if (iargIdx < desc.iregParamCount) {
-        moves.AddMove(loc0, Location::IReg(desc.iregHeadArea[iargIdx]));
-        iregRefMask |= (1u << iargIdx);
-        iargIdx++;
-    } else {
-        moves.AddMove(loc0, Location::Slot(slotIdx));
-        refStackSlots.PushBack(slotIdx);
-        slotIdx++;
-    }
-    if (iargIdx < desc.iregParamCount) {
-        moves.AddMove(loc1, Location::IReg(desc.iregHeadArea[iargIdx]));
-        iregRefMask |= (1u << iargIdx);
-        iargIdx++;
-    } else {
-        moves.AddMove(loc1, Location::Slot(slotIdx));
-        refStackSlots.PushBack(slotIdx);
-        slotIdx++;
-    }
+    Consume(loc0, {});
+    Consume(loc1, { .isReference = true });
 }
 
 void AbiBuilder::ConsumeReceiver(Location loc)
 {
-    if (iargIdx < desc.iregParamCount) {
-        moves.AddMove(loc, Location::IReg(desc.iregHeadArea[iargIdx]));
-        iregRefMask |= (1u << iargIdx);
-        iargIdx++;
-    } else {
-        moves.AddMove(loc, Location::Slot(slotIdx));
-        refStackSlots.PushBack(slotIdx);
-        slotIdx++;
-    }
+    Consume(loc, { .isReference = true });
 }
 
 void AbiBuilder::ConsumeFtvars(Location loc)
 {
-    if (iargIdx < desc.iregParamCount) {
-        moves.AddMove(loc, Location::IReg(desc.iregHeadArea[iargIdx]));
-        iregRefMask |= (1u << iargIdx);
-        iargIdx++;
-    } else {
-        moves.AddMove(loc, Location::Slot(slotIdx));
-        refStackSlots.PushBack(slotIdx);
-        slotIdx++;
-    }
+    Consume(loc, {});
 }
 
 } // namespace Cbc

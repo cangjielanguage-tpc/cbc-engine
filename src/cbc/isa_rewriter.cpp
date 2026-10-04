@@ -7,6 +7,7 @@
 #include "cbc/isa.h"
 #include "cbc/isa_disasm.h"
 #include "cbc/isa_parser.h"
+#include "cbc/move_resolver.h"
 #include "engine/decode/decoder.h"
 #include "engine/engine.h"
 #include "engine/image/flags.h"
@@ -296,46 +297,64 @@ struct IsaRewriter : public IsaParser {
         int idx = 0;
         if (flags.isSRet)
             abi.ConsumeSret(args[idx++]);
-        if (flags.isMut)
-            abi.ConsumeReceiverMut(args[idx++], args[idx++]);
-        else if (flags.isRecordReceiver || flags.isRefReceiver)
+        if (flags.isMut) {
+            auto derived = args[idx++];
+            auto base    = args[idx++];
+            abi.ConsumeReceiverMut(derived, base);
+        } else if (flags.isRecordReceiver || flags.isRefReceiver)
             abi.ConsumeReceiver(args[idx++]);
-        if (flags.ftvarCount > 0)
-            abi.ConsumeFtvars(args[idx++]);
 
         auto params = sig.Params();
         int paramOffset = idx;
-        for (; idx < args.Size(); ++idx) {
-            auto term = params[idx - paramOffset];
+        ASSERT(args.Size() >= params.Size() + idx);
+        for (int j = 0; j < params.Size(); ++idx, ++j) {
+            auto term = params[j];
             abi.Consume(args[idx], {
                 .isFloat = term.IsFloat(),
                 .isRecord = term.IsRecord(),
                 .isReference = term.IsReference(),
             });
         }
+        // FIXME: account func type vars
+        for (; idx < args.Size(); idx++) {
+            abi.Consume(args[idx], {});
+        }
 
         auto emitMov = [&](Location dst, Location src) {
-            auto kind = dst.Kind();
-            if (kind == Location::SLOT) {
-                emit.StackParam(IReg::From(src.IRegIdx()), static_cast<uint64_t>(dst.SlotIdx()) * 8);
-                return;
-            }
-
-            if (kind != src.Kind()) {
-                Fail("Register kind mismatch");
-            }
-
-            if (kind == Location::IREG) {
+            auto dkind = dst.Kind();
+            auto skind = src.Kind();
+            auto dstParamOffset = [dst] () { return static_cast<uint16_t>(dst.SlotIdx()) * 8; };
+            if (skind == Location::IREG && dkind == Location::IREG) {
                 emit.Mov(IReg::From(dst.IRegIdx()), IReg::From(src.IRegIdx()));
-            } else if (dst.Kind() == Location::FREG) {
+            } else if (skind == Location::FREG && dkind == Location::FREG) {
                 emit.Mov(FReg::From(dst.FRegIdx()), FReg::From(src.FRegIdx()));
+            } else if (skind == Location::SLOT && dkind == Location::SLOT) {
+                auto srcOffset = static_cast<int32_t>(src.SlotIdx()) * 8;
+                if (MathUtils::IsNBitsSigned(srcOffset, 16)) {
+                    emit.StackParamS16(srcOffset, dstParamOffset());
+                } else {
+                    emit.StackParamS32(srcOffset, dstParamOffset());
+                }
+            } else if (skind == Location::FREG && dkind == Location::SLOT) {
+                emit.StackParamF(FReg::From(src.FRegIdx()), dstParamOffset());
+                return;
+            } else if (skind == Location::IREG && dkind == Location::SLOT) {
+                emit.StackParam(IReg::From(src.IRegIdx()), dstParamOffset());
+                return;
+            } else if (skind == Location::SLOT && dkind == Location::IREG) {
+                // FIXME: load/stores must be typed
+                emit.LoadFrame(LDK::LD_64, dst.IRegIdx(), UntypedSlotOffset(src.SlotIdx()));
+                return;
+            } else if (skind == Location::SLOT && dkind == Location::FREG) {
+                // FIXME: load/stores must be typed
+                emit.LoadFrame(LDK::LD_F64, dst.FRegIdx(), UntypedSlotOffset(src.SlotIdx()));
+                return;
+            } else {
+                return Fail("Register kind mismatch");
             }
         };
         moves.Resolve(emitMov);
-
-        auto maxSlot = abi.MaxStackSlot();
-        if (maxSlot > 0)
-            maxParamPassingSize = std::max(maxParamPassingSize, static_cast<uint32_t>(maxSlot * 8));
+        maxParamPassingSize = std::max(maxParamPassingSize, static_cast<uint32_t>(abi.MaxStackSlot() * 8));
 
         pendingParamRefSlots.Clear();
         for (auto slot : abi.RefStackSlots())

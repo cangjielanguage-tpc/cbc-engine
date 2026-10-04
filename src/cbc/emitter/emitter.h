@@ -302,6 +302,9 @@ public:
     void LogInstruction(char* string);
 
     void StackParam(IReg src, uint16_t offset);
+    void StackParamF(FReg src, uint16_t dst);
+    void StackParamS16(int16_t src, uint16_t dst);
+    void StackParamS32(int32_t src, uint16_t dst);
 
     MemSpace OpenMemSpace();
 

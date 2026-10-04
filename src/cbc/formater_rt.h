@@ -61,5 +61,8 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyDerive
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, Index args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, IndexGeneric args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, StackParam args);
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, StackParamF args);
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, StackParamS16 args);
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, StackParamS32 args);
 } // namespace RT
 } // namespace Cbc
