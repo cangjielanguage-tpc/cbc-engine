@@ -165,12 +165,7 @@ void MoveResolver::Resolve(const Utils::Function<void(Location dst, Location src
     }
 
     for (auto& assignment : assignments) {
-        if (assignment.dst.Kind() != Location::SLOT) {
-            continue;
-        }
-        if (assignment.src.Kind() != Location::SLOT) {
-            continue;
-        }
+        if (assignment.src.Kind() != Location::SLOT) continue;
         emit(assignment.dst, assignment.src);
     }
 }

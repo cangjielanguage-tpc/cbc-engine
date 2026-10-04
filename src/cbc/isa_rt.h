@@ -189,7 +189,10 @@
     X(SBINIMM16W, BinarySaturating, "$0sbin.16 $2ir $3ir $1I64")                                                       \
     X(SBINIMM32W, BinarySaturating, "$0sbin.32 $2ir $3ir $1I64")                                                       \
     X(SBINIMM64W, BinarySaturating, "$0sbin.64 $2ir $3ir $1I64")                                                       \
-    X(STK_PARAM, StackParam, "st.stack.param $1ir $0U16")
+    X(STK_PARAM, StackParam, "st.stack.param $1ir $0U16") \
+    X(STK_PARAM_F, StackParamF, "st.stack.param.f $1fr $0U16") \
+    X(STK_PARAM_S16, StackParamS16, "st.stack.param.s.16 $0S16 $1U16") \
+    X(STK_PARAM_S32, StackParamS32, "st.stack.param.s.32 $0S32 $1U16")
 
 // X parameters: opcode, encoding format, string format, is tail
 #define CBC_RT_MEMOPCODES(X)                                                                                           \
@@ -1177,6 +1180,49 @@ struct StackParam {
         auto src    = IReg::From(b >> 4);
         auto offset = reader.Read16();
         return StackParam { opc, src, offset };
+    }
+};
+
+struct StackParamF {
+    Opcode opc;
+    FReg src;
+    uint16_t dst;
+
+    inline static StackParamF Decode(Decoder::ByteReader& reader)
+    {
+        auto opc  = Opcode(reader.Read8());
+        auto b    = reader.Read8();
+        auto src  = FReg::From(b >> 4);
+        auto dst  = reader.Read16();
+        return StackParamF { opc, src, dst };
+    }
+};
+
+struct StackParamS16 {
+    Opcode opc;
+    int16_t src;
+    uint16_t dst;
+
+    inline static StackParamS16 Decode(Decoder::ByteReader& reader)
+    {
+        auto opc  = Opcode(reader.Read8());
+        auto src  = static_cast<int16_t>(reader.Read16());
+        auto dst  = reader.Read16();
+        return StackParamS16 { opc, src, dst };
+    }
+};
+
+struct StackParamS32 {
+    Opcode opc;
+    int32_t src;
+    uint16_t dst;
+
+    inline static StackParamS32 Decode(Decoder::ByteReader& reader)
+    {
+        auto opc  = Opcode(reader.Read8());
+        auto src  = static_cast<int32_t>(reader.Read32());
+        auto dst  = reader.Read16();
+        return StackParamS32 { opc, src, dst };
     }
 };
 

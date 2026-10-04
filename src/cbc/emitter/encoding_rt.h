@@ -44,6 +44,9 @@ void Encode(ByteBuffer& buf, RT::B13i64i32 command);
 void Encode(ByteBuffer& buf, RT::StructFieldOp command);
 void Encode(ByteBuffer& buf, RT::AtomicOp command);
 void Encode(ByteBuffer& buf, RT::StackParam command);
+void Encode(ByteBuffer& buf, RT::StackParamF command);
+void Encode(ByteBuffer& buf, RT::StackParamS16 command);
+void Encode(ByteBuffer& buf, RT::StackParamS32 command);
 
 void Encode(ByteBuffer& buf, RT::MemOpcode opc);
 void Encode(ByteBuffer& buf, RT::M2i8 command);
