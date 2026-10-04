@@ -363,13 +363,9 @@ void Encode(ByteBuffer& buf, RT::IndexGeneric command)
 
 void Encode(ByteBuffer& buf, RT::StackParam command)
 {
-    buf.AddW8((static_cast<uint8_t>(command.opc) << 4) | static_cast<uint8_t>(command.src));
-    char bytes[10];
-    char* ptr = bytes;
-    char* end = bytes + 10;
-    LEB::EncodeULEB(command.offset, &ptr, end);
-    for (char* p = bytes; p < ptr; ++p)
-        buf.AddW8(static_cast<uint8_t>(*p));
+    buf.AddW8(static_cast<uint8_t>(command.opc));
+    buf.AddW8(static_cast<uint8_t>(command.src) << 4);
+    buf.AddW16(command.offset);
 }
 
 } // namespace Emitter

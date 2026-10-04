@@ -301,7 +301,7 @@ public:
     void LogInstruction(std::string_view string);
     void LogInstruction(char* string);
 
-    void StackParam(IReg src, uint64_t offset);
+    void StackParam(IReg src, uint16_t offset);
 
     MemSpace OpenMemSpace();
 

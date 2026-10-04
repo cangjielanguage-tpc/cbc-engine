@@ -189,7 +189,7 @@
     X(SBINIMM16W, BinarySaturating, "$0sbin.16 $2ir $3ir $1I64")                                                       \
     X(SBINIMM32W, BinarySaturating, "$0sbin.32 $2ir $3ir $1I64")                                                       \
     X(SBINIMM64W, BinarySaturating, "$0sbin.64 $2ir $3ir $1I64")                                                       \
-    X(STK_PARAM, StackParam, "st.stack.param $1ir $0U64")
+    X(STK_PARAM, StackParam, "st.stack.param $1ir $0U16")
 
 // X parameters: opcode, encoding format, string format, is tail
 #define CBC_RT_MEMOPCODES(X)                                                                                           \
@@ -1168,14 +1168,14 @@ struct M10rri64 {
 struct StackParam {
     Opcode opc;
     IReg src;
-    uint64_t offset;
+    uint16_t offset;
 
     inline static StackParam Decode(Decoder::ByteReader& reader)
     {
+        auto opc    = Opcode(reader.Read8());
         auto b      = reader.Read8();
-        auto opc    = Opcode(b >> 4);
-        auto src    = IReg::From(b & 0xF);
-        auto offset = reader.ReadULEB();
+        auto src    = IReg::From(b >> 4);
+        auto offset = reader.Read16();
         return StackParam { opc, src, offset };
     }
 };
