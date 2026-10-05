@@ -323,11 +323,13 @@ struct IsaRewriter : public IsaParser {
     void CBinary(Format::Checked op, Format::Width width, IReg d, IReg l, IReg r) override
     {
         emit.Binary(op, width, d, l, r);
+        BindStatePoint();
     }
 
     void CBinaryImm(Format::Checked op, Format::Width width, IReg d, IReg l, uint64_t value) override
     {
         emit.BinaryImm(op, width, d, l, value);
+        BindStatePoint();
     }
 
     void SBinary(Format::Saturating op, Format::Width width, IReg d, IReg l, IReg r) override
@@ -1335,9 +1337,17 @@ struct IsaRewriter : public IsaParser {
         emit.Ret();
     }
 
-    void DivCheck(IReg reg) override { emit.DivCheck(reg); }
+    void DivCheck(IReg reg) override
+    {
+        emit.DivCheck(reg);
+        BindStatePoint();
+    }
 
-    void NullCheck(IReg reg) override { emit.NullCheck(reg); }
+    void NullCheck(IReg reg) override
+    {
+        emit.NullCheck(reg);
+        BindStatePoint();
+    }
 
     void Catch(IReg reg) override { emit.Catch(reg); }
 
@@ -1662,7 +1672,7 @@ struct IsaRewriter : public IsaParser {
 
     void ParseOne() override
     {
-        auto position = reader.Cursor() - reader.Start();
+        auto position = Pos();
         startPosition = position;
         emit.Bind(InstructionLabel(position));
         IsaParser::ParseOne();
@@ -1766,7 +1776,7 @@ static Utils::Vector<Interpretation::GCPositionalInfo> CalculatePositionalGCInfo
         auto rewrittenPos = emitter.LabelPosition(point.label);
         auto it           = infos.find(originalPos);
         if (it == infos.end()) {
-            FATAL("Unknown position");
+            continue;
         } else if (rewrittenPos > UINT32_MAX) {
             FATAL("Position too big");
         }
@@ -1834,6 +1844,37 @@ static Utils::Vector<Interpretation::StackPtrsPositionalInfo> CalculateStackPtrs
     }
 
     return posInfo;
+}
+
+static std::vector<std::pair<uint32_t, uint32_t>> CalculateBcPositionsForExceptions(
+    Engine::Session& session,
+    const MethodCode& code,
+    Emitter::Emitter const& emitter,
+    Utils::Vector<IsaRewriter::StatePoint> const& statePoints)
+{
+    auto sourceCodeInfo = Decode::GetSourceCodeInfo(session, code);
+
+    std::unordered_set<ssize_t> infos;
+    for (const auto& bcPos : sourceCodeInfo.cbcBcPositions) {
+        infos.insert(bcPos);
+    }
+
+    std::vector<std::pair<uint32_t, uint32_t>> bcPositions;
+    for (auto& point : statePoints) {
+        auto originalPos  = point.originalPos;
+        auto rewrittenPos = emitter.LabelPosition(point.label);
+        auto it                 = infos.find(originalPos);
+        if (it == infos.end()) {
+            continue;
+        }
+        if (rewrittenPos > UINT32_MAX) {
+            FATAL("Position too big");
+        } else {
+            bcPositions.emplace_back(std::pair {rewrittenPos, originalPos});
+        }
+    }
+
+    return bcPositions;
 }
 
 static std::string Descriptor(Engine::Session& session, Image::Identifier<Image::MethodDefinition> method)
@@ -1907,7 +1948,8 @@ Interpretation::ExecBytecodeInfo Rewrite(
         .stackPtrsInfo =
             Interpretation::StackPtrsInfo {
                 .positionalInfo = CalculateStackPtrsPositionalInfo(session, code, emitter, rewriter.statePoints) },
-        .offsetsIndex = rewriter.BuildOffsetsIndex(),
+        .offsetsIndex = rewriter.BuildOffsetsIndex(), // TODO remove, reuse bcPositionsForExceptions
+        .bcPositionsForExceptions = CalculateBcPositionsForExceptions(session, code, emitter, rewriter.statePoints),
     };
 }
 
