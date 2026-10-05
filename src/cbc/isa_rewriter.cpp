@@ -319,7 +319,7 @@ struct IsaRewriter : public IsaParser {
 
         int funcVarsCount = sig.tvars.GetLength();
         ASSERT(funcVarsCount <= args.Size());
-        for (; idx < funcVarsCount; idx++) {
+        for (int j = 0; j < funcVarsCount; idx++, j++) {
             abi.ConsumeFuncVar(args[idx]);
         }
 
