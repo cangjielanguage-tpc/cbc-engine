@@ -212,7 +212,7 @@ TEST(AbiBuilder, InterfaceCallGeneric)
     AbiBuilder builder {mr, X64Desc};
 
     builder.Consume(Ir(7), { .isFloat = false, .isRecord = false, .isReference = false });
-    builder.ConsumeFtvars(Ir(8));
+    builder.ConsumeFuncVar(Ir(8));
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -464,7 +464,7 @@ TEST(AbiBuilder, FtvarsSetsRefMask)
     MoveResolver mr;
     AbiBuilder builder {mr, X64Desc};
 
-    builder.ConsumeFtvars(Ir(7));
+    builder.ConsumeFuncVar(Ir(7));
     builder.Consume(Ir(8), { .isFloat = false, .isRecord = false, .isReference = false });
 
     EXPECT_EQ(builder.IregRefMask(), 0x01); // bit 0

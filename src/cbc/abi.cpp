@@ -1,5 +1,5 @@
 #include "abi.h"
-#include "utils/assertion.h"
+#include "cbc/move_resolver.h"
 
 namespace Cbc {
 
@@ -27,7 +27,7 @@ void AbiBuilder::Clear()
     recStackSlots.Clear();
 }
 
-void AbiBuilder::Consume(Location loc, Flags flags)
+Location AbiBuilder::Consume(Location loc, Flags flags)
 {
     Location target;
     if (flags.isFloat && fargIdx < desc.fregParamCount) {
@@ -46,6 +46,7 @@ void AbiBuilder::Consume(Location loc, Flags flags)
         slotIdx++;
     }
     moves.AddMove(loc, target);
+    return target;
 }
 
 void AbiBuilder::ConsumeSret(Location loc)
@@ -71,9 +72,19 @@ void AbiBuilder::ConsumeReceiver(Location loc)
     Consume(loc, { .isReference = true });
 }
 
-void AbiBuilder::ConsumeFtvars(Location loc)
+void AbiBuilder::ConsumeFuncVar(Location loc)
 {
     Consume(loc, {});
+}
+
+Location AbiBuilder::ConsumeOuterTi(Location loc)
+{
+    return Consume(loc, {});
+}
+
+Location AbiBuilder::ConsumeThisTypeTi(Location loc)
+{
+    return Consume(loc, {});
 }
 
 } // namespace Cbc

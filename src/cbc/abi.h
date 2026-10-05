@@ -47,11 +47,13 @@ public:
         : AbiBuilder(moves, PlatformDescription::FromTraits<p>()) {}
 
     void Clear();
-    void Consume(Location loc, Flags flags);
+    Location Consume(Location loc, Flags flags);
     void ConsumeSret(Location loc);
     void ConsumeReceiverMut(Location loc0, Location loc1);
     void ConsumeReceiver(Location loc);
-    void ConsumeFtvars(Location loc);
+    void ConsumeFuncVar(Location loc);
+    Location ConsumeOuterTi(Location loc);
+    Location ConsumeThisTypeTi(Location loc);
 
     template <typename ArgType, typename ArgTypeTraits>
     void Consume(ArgType arg, Location loc) {
