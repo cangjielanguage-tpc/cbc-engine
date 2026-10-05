@@ -115,7 +115,7 @@ void FrameDescProvider(INT_FunctionHandle fuh, INT_BytecodePos pos, INT_Interpre
 
         for (auto& [rewritten, original] : bcPositionsForExceptions) {
             if (rewritten == static_cast<uint32_t>(reinterpret_cast<uintptr_t>(pos))) {
-                for (size_t i = 0; i < cbcBcPositions.size(); ++i) {
+                for (size_t i = 0; i < cbcBcPositions.Size(); ++i) {
                     if (cbcBcPositions[i] == original) {
                         frameDesc->lineNumber = cbcSourceLineNumbers[i];
                         break;

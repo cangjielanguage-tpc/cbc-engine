@@ -1850,7 +1850,7 @@ static std::vector<std::pair<uint32_t, uint32_t>> CalculateBcPositionsForExcepti
     Engine::Session& session,
     const MethodCode& code,
     Emitter::Emitter const& emitter,
-    std::vector<IsaRewriter::StatePoint> const& statePoints)
+    Utils::Vector<IsaRewriter::StatePoint> const& statePoints)
 {
     auto sourceCodeInfo = Decode::GetSourceCodeInfo(session, code);
 
