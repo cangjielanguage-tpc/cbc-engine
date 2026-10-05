@@ -62,14 +62,14 @@
     X(STORE_ARR, B3xrrr, "st.arr.$0stk $1ir $2ir $3ir]")                                                               \
     X(LOAD_REC, B4xi12rr, "ld.rec.$0ldk $2ir [$3ir $1U12]")                                                            \
     X(STORE_REC, B4xi12rr, "st.rec.$0stk $2ir [$3ir $1U12]")                                                           \
-    X(LOAD_FRAME, B4xi12rr, "ld.frame.$0ldk $2ir [$3ir $1U12]")                                                        \
-    X(STORE_FRAME, B4xi12rr, "st.frame.$0stk $2ir [$3ir $1U12]")                                                       \
+    X(LOAD_FRAME, B4xi12rr, "ld.frame.$0ldk $2ir [$3ir $1I12]")                                                        \
+    X(STORE_FRAME, B4xi12rr, "st.frame.$0stk $2ir [$3ir $1I12]")                                                       \
     X(LOAD_LONG_DERIVED, B7xrrri32, "ld.derived.$0ldk $1ir [($2ir $3ir) $4U32]")                                       \
     X(STORE_LONG_DERIVED, B7xrrri32, "st.derived.$0stk $1ir [($2ir $3ir) $4U32]")                                      \
     X(LOAD_LONG_REC, B7xrrri32, "ld.rec.$0ldk $1ir [$3ir $4U32]")                                                      \
     X(STORE_LONG_REC, B7xrrri32, "st.rec.$0stk $1ir [$3ir $4U32]")                                                     \
-    X(LOAD_LONG_FRAME, B7xrrri32, "ld.frame.$0ldk $1ir [$4U32]")                                                       \
-    X(STORE_LONG_FRAME, B7xrrri32, "st.frame.$0stk $1ir [$4U32]")                                                      \
+    X(LOAD_LONG_FRAME, B7xrrri32, "ld.frame.$0ldk $1ir [$4I32]")                                                       \
+    X(STORE_LONG_FRAME, B7xrrri32, "st.frame.$0stk $1ir [$4I32]")                                                      \
     X(LOAD_GENERIC, B3rrrr, "ld.g $0ir $3ir [($1ir $2ir)]")                                                            \
     X(STORE_GENERIC, B3rrrr, "st.g $0ir $3ir [($1ir $2ir)]")                                                           \
     X(LEA_GENERIC, B7xrrri32, "lea.g $1ir $3ir [$2ir ord=$4U32]")                                                      \

@@ -33,7 +33,7 @@ private:
 };
 
 Placeholder GetResourceLocation(
-    Interpretation::Resource resource, uint8_t* slotsStartAddr, RegistersTable* regTable, uint32_t frameSize
+    Interpretation::Resource resource, uint8_t* slotsStartAddr, RegistersTable* regTable
 );
 
 } // namespace GCSupport

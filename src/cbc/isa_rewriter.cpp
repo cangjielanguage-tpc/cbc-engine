@@ -8,10 +8,8 @@
 #include "cbc/isa_disasm.h"
 #include "cbc/isa_parser.h"
 #include "cbc/move_resolver.h"
-#include "engine/decode/decoder.h"
 #include "engine/engine.h"
 #include "engine/image/flags.h"
-#include "engine/image/reader.h"
 #include "engine/resolving_output.h"
 #include "engine/terms.h"
 #include "interpreter/code.h"
@@ -25,7 +23,6 @@
 #include "utils/assertion.h"
 #include "utils/logger.h"
 #include "utils/math.h"
-#include "utils/misc.h"
 #include "utils/ostream.h"
 #include "utils/reinterpretation.h"
 #include "utils/span.h"
@@ -187,8 +184,8 @@ struct IsaRewriter : public IsaParser {
     FrameLayout& frameLayout;
     size_t bytecodeSize;
     uint32_t maxParamPassingSize = 0;
-    Utils::Vector<int32_t> pendingParamRefSlots;
-    Utils::Vector<int32_t> pendingParamRecSlots;
+    Utils::Vector<uint32_t> pendingParamRefSlots;
+    Utils::Vector<uint32_t> pendingParamRecSlots;
     std::optional<int> pendingDerived;
     Stream::Output& errStream = Interpretation::Log::preparation.Stream(Logging::Level::ERROR);
 
@@ -199,8 +196,8 @@ struct IsaRewriter : public IsaParser {
     struct StatePoint {
         Emitter::Label label; // position in rewritten code
         ssize_t originalPos;  // position in original code
-        Utils::Vector<int32_t> paramRefSlots;
-        Utils::Vector<int32_t> paramRecSlots;
+        Utils::Vector<uint32_t> paramRefSlots;
+        Utils::Vector<uint32_t> paramRecSlots;
         std::optional<int> derivedLoc;
     };
 
@@ -412,10 +409,10 @@ struct IsaRewriter : public IsaParser {
 
         pendingParamRefSlots.Clear();
         for (auto slot : abi.RefStackSlots())
-            pendingParamRefSlots.PushBack(static_cast<int32_t>(slot));
+            pendingParamRefSlots.PushBack(slot);
         pendingParamRecSlots.Clear();
         for (auto slot : abi.RecStackSlots())
-            pendingParamRecSlots.PushBack(static_cast<int32_t>(slot));
+            pendingParamRecSlots.PushBack(slot);
     }
 
     void Bcc(Format::Width width, Format::CC cc, AnyReg l, AnyReg r, int64_t delta) override
@@ -584,6 +581,11 @@ struct IsaRewriter : public IsaParser {
         emit.LoadStatic(Ldk(field->fieldType.GetKind()), dst, symbol);
     }
 
+    int32_t TypedSlotOffset(uint32_t typedSlot)
+    {
+        return (int32_t) frameLayout.typedOffset[typedSlot] - frameLayout.frameSize;
+    }
+
     void LdTyped(AnyReg dst, uint16_t slot, uint32_t fieldId) override
     {
         UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
@@ -593,7 +595,7 @@ struct IsaRewriter : public IsaParser {
         });
 
         ASSERT(field->refType.term.IsRecord());
-        auto offset = frameLayout.typedOffset.at(slot) + fieldOffset;
+        auto offset = TypedSlotOffset(slot) + fieldOffset;
         emit.LoadFrame(Ldk(field->fieldType.GetKind()), dst, offset);
     }
 
@@ -681,7 +683,7 @@ struct IsaRewriter : public IsaParser {
             Fail();
         });
 
-        auto offset = frameLayout.typedOffset.at(slot) + fieldOffset;
+        auto offset = TypedSlotOffset(slot) + fieldOffset;
         emit.StoreFrame(Stk(field->fieldType.GetKind()), src, offset);
     }
 
@@ -745,7 +747,7 @@ struct IsaRewriter : public IsaParser {
 
     void LoadStackRec(IReg r, uint16_t ts) override
     {
-        emit.LoadFrame(Format::LoadAccessKind::LD_LEA, r, frameLayout.typedOffset.at(ts));
+        emit.LoadFrame(Format::LoadAccessKind::LD_LEA, r, TypedSlotOffset(ts));
     }
 
     void LoadTailParam(AnyReg dst, IReg tailReg, int64_t number, Format::LoadAccessKind ldk) override
@@ -1566,7 +1568,7 @@ struct IsaRewriter : public IsaParser {
         auto storage = new (mem) Interpretation::StringStorage { RTSupport::MetaInfo::ByteArrayTypeInfo(), size };
         std::memcpy(storage->string, str.data(), size);
         storage->string[size] = 0;
-        emit.StringLit(storage, frameLayout.typedOffset.at(ts));
+        emit.StringLit(storage, TypedSlotOffset(ts));
     }
 
     void ArrayLength(IReg dst, IReg arr) override
@@ -1602,7 +1604,7 @@ struct IsaRewriter : public IsaParser {
         }
         auto field = f.value();
         if (field->offset.has_value()) {
-            auto offset = frameLayout.typedOffset.at(ts) + field->offset.value();
+            auto offset = TypedSlotOffset(ts) + field->offset.value();
             emit.LoadFrame(Ldk(field->fieldType.GetKind()), dst, offset);
         } else {
             errStream << "Failed to get offset of field " << field << Stream::endl;
@@ -1619,7 +1621,7 @@ struct IsaRewriter : public IsaParser {
         }
         auto field = f.value();
         if (field->offset.has_value()) {
-            auto offset = frameLayout.typedOffset.at(ts) + field->offset.value();
+            auto offset = TypedSlotOffset(ts) + field->offset.value();
             emit.StoreFrame(Stk(field->fieldType.GetKind()), src, offset);
         } else {
             errStream << "Failed to get offset of field " << field << Stream::endl;
@@ -1636,7 +1638,7 @@ struct IsaRewriter : public IsaParser {
         }
         auto field = f.value();
         if (field->offset.has_value()) {
-            auto offset = frameLayout.typedOffset.at(ts) + field->offset.value();
+            auto offset = TypedSlotOffset(ts) + field->offset.value();
             emit.StoreFrameImm(Stk(field->fieldType.GetKind()), imm, offset);
         } else {
             errStream << "Failed to get offset of field " << field << Stream::endl;
@@ -1733,7 +1735,7 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto typeInfo = ti.value();
-        auto offset   = frameLayout.typedOffset[srcTs];
+        auto offset   = TypedSlotOffset(srcTs);
         emit.NewBox(typeInfo);
         BindStatePoint();
         AdjustReg(dst, IReg::IR_ACC);
@@ -1792,7 +1794,7 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto typeInfo = ti.value();
-        auto offset   = frameLayout.typedOffset[dstTs];
+        auto offset   = TypedSlotOffset(dstTs);
         emit.LoadFrame(Format::LoadAccessKind::LD_LEA, IReg::IR_ACC, offset);
         auto ms = emit.OpenMemSpace();
         ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
@@ -1867,7 +1869,7 @@ struct IsaRewriter : public IsaParser {
     }
 };
 
-static std::optional<FrameLayout> makeFrameLayout(Image::Code code, Resolver& resolver)
+static std::optional<FrameLayout> MakeFrameLayout(Image::Code code, Resolver& resolver)
 {
     auto& log = Interpretation::Log::preparation;
 
@@ -1884,13 +1886,10 @@ static std::optional<FrameLayout> makeFrameLayout(Image::Code code, Resolver& re
 
     auto untypedSlotsSize = Cbc::STACK_SLOT_SIZE * code.UntypedSlotCount();
 
-    std::unordered_map<uint32_t, uint32_t> typedOffset;
-    typedOffset.reserve(code.StackAllocSigsCount() + 1);
+    Utils::Vector<uint32_t> typedOffset;
+    typedOffset.Resize(code.StackAllocSigsCount() + 1);
 
     Utils::Vector<uint32_t> refOffsets;
-
-    Utils::Vector<uint32_t> stackAllocSizes;
-    stackAllocSizes.Reserve(code.StackAllocSigsCount());
 
     auto stackAllocSize = untypedSlotsSize;
     uint32_t i;
@@ -1912,37 +1911,16 @@ static std::optional<FrameLayout> makeFrameLayout(Image::Code code, Resolver& re
         }
 
         type.FillReferenceOffsets(refOffsets, stackAllocSize);
-
-        typedOffset.insert({ i, stackAllocSize });
-        stackAllocSizes.PushBack(stackAllocSize);
+        typedOffset[i] = stackAllocSize;
         stackAllocSize += MathUtils::AlignUp(size.value(), Cbc::STACK_SLOT_SIZE);
     }
 
-    typedOffset.insert({ i, stackAllocSize });
-
-    auto frameSize = MathUtils::AlignUp(savedRegsSpace + stackAllocSize, Cbc::FRAME_ALIGNMENT);
-
+    typedOffset[code.StackAllocSigsCount()] = stackAllocSize;
+    auto frameSize = savedRegsSpace + stackAllocSize;
     // Transform all offsets from bottom-relative to end-of-essentials-relative (negative).
-    std::unordered_map<uint32_t, int32_t> typedOffsetNeg;
-    typedOffsetNeg.reserve(typedOffset.size());
-    for (auto& [idx, off] : typedOffset) {
-        typedOffsetNeg[idx] = static_cast<int32_t>(off) - static_cast<int32_t>(frameSize);
-    }
-
-    Utils::Vector<int32_t> stackAllocSizesNeg;
-    stackAllocSizesNeg.Reserve(stackAllocSizes.Size());
-    for (auto off : stackAllocSizes) {
-        stackAllocSizesNeg.PushBack(static_cast<int32_t>(off) - static_cast<int32_t>(frameSize));
-    }
-
-    Utils::Vector<int32_t> refOffsetsNeg;
-    refOffsetsNeg.Reserve(refOffsets.Size());
-    for (auto off : refOffsets) {
-        refOffsetsNeg.PushBack(static_cast<int32_t>(off) - static_cast<int32_t>(frameSize));
-    }
 
     return FrameLayout {
-        std::move(typedOffsetNeg), std::move(stackAllocSizesNeg), std::move(refOffsetsNeg), frameSize
+        std::move(typedOffset), std::move(refOffsets), frameSize
     };
 }
 
@@ -1975,26 +1953,14 @@ static Utils::Vector<Interpretation::GCPositionalInfo> CalculatePositionalGCInfo
         }
         auto& info = it->second;
 
-        posInfo.PushBack({ .rewrittenPos        = (uint32_t)rewrittenPos,
+        posInfo.PushBack({ .rewrittenPos         = (uint32_t)rewrittenPos,
                             .regMask             = info.regMask,
-                            .untypedRefSlotsInfo = {},
+                            .untypedRefSlots     = info.refSlotNums,
                             .paramRefSlots       = point.paramRefSlots,
                             .paramRecSlots       = point.paramRecSlots,
                             .mutPairs            = {} });
 
-        posInfo.Back().untypedRefSlotsInfo.Reserve(info.refSlotNums.Size());
-        for (const auto& slotN : info.refSlotNums) {
-            posInfo.Back().untypedRefSlotsInfo.PushBack(static_cast<int32_t>(slotN * STACK_SLOT_SIZE) - frameSize);
-        }
-
-        posInfo.Back().mutPairs.Reserve(info.mutPairs.Size() + 1);
-        if (point.derivedLoc) {
-            uint32_t idx = *point.derivedLoc;
-            auto mutRes = std::pair(
-                Interpretation::Resource { .idx = idx }, Interpretation::Resource { .idx = idx + 1 }
-            );
-            posInfo.Back().mutPairs.PushBack(mutRes);
-        }
+        posInfo.Back().mutPairs.Reserve(info.mutPairs.Size());
         for (const auto& pair : info.mutPairs) {
             auto mutRes = std::pair(
                 Interpretation::Resource { .idx = pair.first }, Interpretation::Resource { .idx = pair.second }
@@ -2097,7 +2063,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
 {
     using namespace Stream;
     Emitter::Emitter emitter;
-    auto frameLayout = makeFrameLayout(code, resolver);
+    auto frameLayout = MakeFrameLayout(code, resolver);
 
     if (!frameLayout.has_value()) {
         FATAL("Rewriter failed: cannot make frame layout.");
@@ -2142,14 +2108,15 @@ Interpretation::ExecBytecodeInfo Rewrite(
         .savedIRegs       = Interpretation::NonVolatileRegs(code.UsedNonVolIRegMask() << IReg::FIRST_NON_VOL),
         .savedFRegs       = Interpretation::NonVolatileRegs(code.UsedNonVolFRegMask() << FReg::FIRST_NON_VOL),
         .frameSize        = fullFrameSize,
+        .staticFrameSize  = frameLayout->frameSize,
         .untypedSlotCount = static_cast<uint16_t>(code.UntypedSlotCount()),
         .abiInfo          = std::move(abiInfo),
         .gcInfo =
             Interpretation::GcInfo {
                 .positionalInfo = std::move(
-                    CalculatePositionalGCInfo(session, code, emitter, rewriter.statePoints, fullFrameSize)
+                    CalculatePositionalGCInfo(session, code, emitter, rewriter.statePoints, frameLayout->frameSize)
                 ),
-                .refOffsets = std::move((*frameLayout).refOffsets),
+                .refOffsets = std::move(frameLayout->refOffsets),
             },
         .stackPtrsInfo =
             Interpretation::StackPtrsInfo {

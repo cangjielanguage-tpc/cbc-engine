@@ -67,8 +67,8 @@ public:
     uint16_t IregStackPtrMask() const { return iregStackPtrMask; }
     uint16_t IregRefMask() const { return iregRefMask; }
     uint16_t FregMask() const { return fregMask; }
-    Utils::Span<const int> RefStackSlots() const { return {refStackSlots.Data(), refStackSlots.Size()}; }
-    Utils::Span<const int> RecStackSlots() const { return {recStackSlots.Data(), recStackSlots.Size()}; }
+    Utils::Span<uint32_t const> RefStackSlots() const { return {refStackSlots.Data(), refStackSlots.Size()}; }
+    Utils::Span<uint32_t const> RecStackSlots() const { return {recStackSlots.Data(), recStackSlots.Size()}; }
     int MaxStackSlot() const { return slotIdx; }
 
 private:
@@ -80,8 +80,8 @@ private:
     uint16_t iregStackPtrMask;
     uint16_t iregRefMask;
     uint16_t fregMask;
-    Utils::Vector<int> refStackSlots;
-    Utils::Vector<int> recStackSlots;
+    Utils::Vector<uint32_t> refStackSlots;
+    Utils::Vector<uint32_t> recStackSlots;
 };
 
 } // namespace Cbc

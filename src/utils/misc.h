@@ -4,6 +4,7 @@
 #include "span.h"
 
 #include <string>
+#include <string_view>
 
 #define UNWRAP_OPT(name, expression, handler)                                                                          \
     auto __##name = (expression);                                                                                      \
@@ -16,22 +17,35 @@
 namespace Std {
 namespace Vector {
 
-template <typename T> void Print(Stream::Output& out, Utils::Span<T const> vec, const std::string& delim = ", ")
+template <typename T, typename Printer> void Print0(Stream::Output& out, Utils::Span<T const> vec, Printer&& printElem, std::string_view delim = ", ")
 {
-    const std::string empty = "";
-    const std::string* sep  = &empty;
+    std::string_view sep = "";
+    Printer print = printElem;
 
     out << "[";
     for (const auto& elem : vec) {
-        out << *sep << elem;
-        sep = &delim;
+        printElem(out, elem);
+        out << sep;
+        sep = delim;
     }
     out << "]";
 }
 
-template <typename T> void Print(Stream::Output& out, const Utils::Vector<T>& vec, const std::string& delim = ", ")
+template <typename T> void Print(Stream::Output& out, Utils::Span<T const> vec, std::string_view delim = ", ")
 {
-    Print(out, Utils::Span<T const>(vec), delim);
+    Print0(out, vec, [](Stream::Output& out, T const& elem) {
+        out << elem;
+    }, delim);
+}
+
+template <typename T, typename Printer> void Print0(Stream::Output& out, const Utils::Vector<T>& vec, Printer&& printElem, std::string_view delim = ", ")
+{
+    Print0(out, Utils::Span<T const>(vec), std::move(printElem), delim);
+}
+
+template <typename T> void Print(Stream::Output& out, const Utils::Vector<T>& vec, std::string_view delim = ", ")
+{
+    Print(out, Utils::Span(vec), delim);
 }
 
 } // namespace Vector
