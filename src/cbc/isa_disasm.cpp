@@ -1,7 +1,5 @@
 #include "cbc/decoder.h"
 #include "cbc/isa.h"
-#include "engine/resolving_output.h"
-#include "engine/terms.h"
 #include "isa_parser.h"
 #include "resolution/resolution.h"
 #include "utils/ostream.h"
@@ -142,7 +140,7 @@ struct IsaDisasm : public IsaParser {
         );
     }
 
-    void MovBasePtr(IReg dst, bool local) override { stream.PrintLn("mov.base.{}", local ? ".local" : ".global", dst); }
+    void MovBasePtr(IReg dst, bool local) override { stream.PrintLn("mov.base.{} {}", local ? "local" : "global", dst); }
 
     void BFX(IReg dst, IReg src, Format::Width resW, Format::Width argW, bool sx, uint8_t offset, uint8_t size) override
     {

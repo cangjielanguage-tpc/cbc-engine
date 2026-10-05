@@ -297,7 +297,8 @@ struct IsaRewriter : public IsaParser {
             case Image::MethodAbiKind::HAS_THIS_TI:
             case Image::MethodAbiKind::REF_RECEIVER:
             case Image::MethodAbiKind::REC_RECEIVER:
-            case Image::MethodAbiKind::PRIM_RECEIVER: expected += 1; break;
+            case Image::MethodAbiKind::PRIM_RECEIVER:
+            case Image::MethodAbiKind::FPRIM_RECEIVER: expected += 1; break;
             case Image::MethodAbiKind::MUT: expected += 2; break;
         }
         expected += sigParamCount;
@@ -307,7 +308,7 @@ struct IsaRewriter : public IsaParser {
         if (expected != argCount) {
             Stream::StringBuffer buf;
             buf.PrintLn("Expected = {}. Actual = {}. ps = {}, ftvs = {}, sret = {}, outerti = {}, abi_kind = {}",
-                    expected, argCount, sigParamCount, funcVarCount, flags.isSRet, flags.hasOuterTi, Image::MethodAbiKindName(flags.abiKind));
+                    expected, argCount, sigParamCount, funcVarCount, flags.isSRet, flags.hasOuterTi, flags.abiKind);
             Fail(buf.ToString());
             return false;
         }
@@ -339,8 +340,13 @@ struct IsaRewriter : public IsaParser {
                 abi.ConsumeReceiver(args[idx++], true);
                 break;
             case Image::MethodAbiKind::PRIM_RECEIVER:
+                abi.Consume(args[idx++], {});
+                break;
+            case Image::MethodAbiKind::FPRIM_RECEIVER:
+                abi.Consume(args[idx++], { .isFloat = true });
+                break;
             case Image::MethodAbiKind::REC_RECEIVER:
-                abi.ConsumeReceiver(args[idx++], false);
+                abi.Consume(args[idx++], { .isRecord = true });
                 break;
             case Image::MethodAbiKind::STATIC:
             case Image::MethodAbiKind::HAS_THIS_TI: {}

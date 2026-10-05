@@ -141,6 +141,7 @@ template <> MethodReference Reader::Read(Engine::Session& session, Identifier<Me
             case 0x8 * 3: return MethodAbiKind::REC_RECEIVER;
             case 0x8 * 4: return MethodAbiKind::REF_RECEIVER;
             case 0x8 * 5: return MethodAbiKind::PRIM_RECEIVER;
+            case 0x8 * 6: return MethodAbiKind::FPRIM_RECEIVER;
             default: return Image::MethodAbiKind::STATIC; // FIXME: verify
         }
     }();
@@ -468,6 +469,7 @@ MethodDefinition Reader::Read(Engine::Session& session, Image::FileId fileId, Of
             case 0x1000 * 3: return MethodAbiKind::REC_RECEIVER;
             case 0x1000 * 4: return MethodAbiKind::REF_RECEIVER;
             case 0x1000 * 5: return MethodAbiKind::PRIM_RECEIVER;
+            case 0x1000 * 6: return MethodAbiKind::FPRIM_RECEIVER;
             default: return Image::MethodAbiKind::STATIC; // FIXME: verify
         }
     }();

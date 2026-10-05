@@ -78,19 +78,8 @@ enum class MethodAbiKind : uint8_t {
     REC_RECEIVER,
     REF_RECEIVER,
     PRIM_RECEIVER,
+    FPRIM_RECEIVER,
 };
-
-inline constexpr char const* MethodAbiKindName(MethodAbiKind abiKind) {
-    switch (abiKind) {
-        case MethodAbiKind::STATIC: return "static";
-        case MethodAbiKind::HAS_THIS_TI: return "this ti";
-        case MethodAbiKind::MUT: return "mut";
-        case MethodAbiKind::REF_RECEIVER: return "ref receiver";
-        case MethodAbiKind::REC_RECEIVER: return "rec receiver";
-        case MethodAbiKind::PRIM_RECEIVER: return "prim receiver";
-        default: ASSERT(false); return "<invalid>";
-    }
-}
 
 struct MethodFlag {
 public:
@@ -326,5 +315,6 @@ Stream::Output& operator<<(Stream::Output& stream, TypeFlag flag);
 Stream::Output& operator<<(Stream::Output& stream, MethodFlag flag);
 Stream::Output& operator<<(Stream::Output& stream, FieldFlag flag);
 Stream::Output& operator<<(Stream::Output& stream, MethodRefFlag flag);
+Stream::Output& operator<<(Stream::Output& stream, MethodAbiKind kind);
 
 } // namespace Image
