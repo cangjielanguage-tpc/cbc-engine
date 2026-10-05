@@ -139,7 +139,7 @@ TEST(AbiBuilder, RefReceiver)
     MoveResolver mr;
     AbiBuilder builder {mr, X64Desc};
 
-    builder.ConsumeReceiver(Ir(7));
+    builder.ConsumeReceiver(Ir(7), true);
     builder.Consume(Ir(8), { .isFloat = false, .isRecord = false, .isReference = false });
 
     RegsAndSlots r;
@@ -155,7 +155,7 @@ TEST(AbiBuilder, RecReceiver)
     MoveResolver mr;
     AbiBuilder builder {mr, X64Desc};
 
-    builder.ConsumeReceiver(Ir(7));
+    builder.ConsumeReceiver(Ir(7), true);
     builder.Consume(Ir(8), { .isFloat = false, .isRecord = false, .isReference = false });
 
     RegsAndSlots r;
@@ -452,7 +452,7 @@ TEST(AbiBuilder, ReceiverSetsRefMask)
     MoveResolver mr;
     AbiBuilder builder {mr, X64Desc};
 
-    builder.ConsumeReceiver(Ir(7));
+    builder.ConsumeReceiver(Ir(7), true);
     builder.Consume(Ir(8), { .isFloat = false, .isRecord = false, .isReference = false });
 
     EXPECT_EQ(builder.IregRefMask(), 0x01); // bit 0

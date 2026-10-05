@@ -1,6 +1,7 @@
 #include "gc_support.h"
 
 #include "asm_export.h"
+#include "cbc/frame.h"
 #include "cjnative.h"
 #include "engine/statics_manager.h"
 #include "interpreter/ectype.h"
@@ -99,6 +100,7 @@ void VisitGCFrameRoots(
 
     auto calleeSavedRegsEnd = ((uint8_t*)frame_desc.fp) - localsOffset;
     auto slotsStartAddr     = ((uint8_t*)frame_desc.fp) - localsOffset;
+    auto stackBottom        = slotsStartAddr - bc->frameSize;
 
     RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Output& out) {
         out.PrintFmtLn(
@@ -132,16 +134,10 @@ void VisitGCFrameRoots(
         VisitRoot(rootVisitor, refLocation);
     }
 
-    for (auto& paramRefOffset : NOTNULL(positionalInfo)->paramRefSlots) {
-        auto refLocation = reinterpret_cast<Placeholder>(slotsStartAddr + paramRefOffset);
-        RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) { out << paramRefOffset << " (param ref): "; });
+    for (auto& paramSlot : NOTNULL(positionalInfo)->paramRefSlots) {
+        auto refLocation = reinterpret_cast<Placeholder>(stackBottom + STACK_SLOT_SIZE * paramSlot);
+        RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) { out << paramSlot << " (param ref): "; });
         VisitRoot(rootVisitor, refLocation);
-    }
-
-    for (auto& paramRecOffset : NOTNULL(positionalInfo)->paramRecSlots) {
-        auto recLocation = reinterpret_cast<Placeholder>(slotsStartAddr + paramRecOffset);
-        RTSupport::Log::gc.Log(Logging::Level::TRACE, [&](Output& out) { out << paramRecOffset << " (param rec): "; });
-        VisitRoot(rootVisitor, recLocation);
     }
 
     for (auto refOffset : bc->gcInfo.refOffsets) {

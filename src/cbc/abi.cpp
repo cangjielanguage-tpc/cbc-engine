@@ -61,15 +61,16 @@ void AbiBuilder::ConsumeSret(Location loc)
     }
 }
 
-void AbiBuilder::ConsumeReceiverMut(Location loc0, Location loc1)
+Location AbiBuilder::ConsumeReceiverMut(Location loc0, Location loc1)
 {
     Consume(loc0, {});
     Consume(loc1, { .isReference = true });
+    return loc0;
 }
 
-void AbiBuilder::ConsumeReceiver(Location loc)
+void AbiBuilder::ConsumeReceiver(Location loc, bool isReference)
 {
-    Consume(loc, { .isReference = true });
+    Consume(loc, { .isReference = isReference });
 }
 
 void AbiBuilder::ConsumeFuncVar(Location loc)
