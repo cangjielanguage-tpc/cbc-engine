@@ -123,6 +123,7 @@ struct ResolvedMethodReference {
     RefIdentifier<Image::MethodReference> identifier;
     Term tvars;
     Image::MethodRefFlags flags;
+    Image::MethodAbiKind abiKind;
     bool isResolved;
 
     std::string GetFullName(Session& session)
@@ -536,6 +537,7 @@ struct ResolverProxy {
             .identifier = identifier,
             .tvars = tvars,
             .flags = flags,
+            .abiKind = parsedRef.abiKind,
             .isResolved = isResolved
         };
     }

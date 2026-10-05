@@ -189,6 +189,7 @@ struct IsaRewriter : public IsaParser {
     uint32_t maxParamPassingSize = 0;
     Utils::Vector<int32_t> pendingParamRefSlots;
     Utils::Vector<int32_t> pendingParamRecSlots;
+    std::optional<int> pendingDerived;
     Stream::Output& errStream = Interpretation::Log::preparation.Stream(Logging::Level::ERROR);
 
     size_t startPosition;
@@ -200,6 +201,7 @@ struct IsaRewriter : public IsaParser {
         ssize_t originalPos;  // position in original code
         Utils::Vector<int32_t> paramRefSlots;
         Utils::Vector<int32_t> paramRecSlots;
+        std::optional<int> derivedLoc;
     };
 
     Utils::Vector<StatePoint> statePoints;
@@ -236,6 +238,8 @@ struct IsaRewriter : public IsaParser {
         };
         point.paramRefSlots = std::move(pendingParamRefSlots);
         point.paramRecSlots = std::move(pendingParamRecSlots);
+        point.derivedLoc = std::move(pendingDerived);
+        pendingDerived = std::nullopt;
         pendingParamRefSlots.Clear();
         pendingParamRecSlots.Clear();
         statePoints.PushBack(point);
@@ -283,27 +287,67 @@ struct IsaRewriter : public IsaParser {
 
     struct CallAbiFlags {
         bool isSRet;
-        bool isMut;
-        bool isRecordReceiver;
-        bool isRefReceiver;
-        bool hasThisTi;
         bool hasOuterTi;
+        Image::MethodAbiKind abiKind;
     };
+
+    bool CheckArgCount(size_t argCount, CallAbiFlags flags, size_t funcVarCount, size_t sigParamCount)
+    {
+        size_t expected = 0;
+        expected += flags.isSRet;
+        switch (flags.abiKind) {
+            case Image::MethodAbiKind::STATIC: expected += 0; break;
+            case Image::MethodAbiKind::HAS_THIS_TI:
+            case Image::MethodAbiKind::REF_RECEIVER:
+            case Image::MethodAbiKind::REC_RECEIVER:
+            case Image::MethodAbiKind::PRIM_RECEIVER: expected += 1; break;
+            case Image::MethodAbiKind::MUT: expected += 2; break;
+        }
+        expected += sigParamCount;
+        expected += funcVarCount;
+        expected += flags.hasOuterTi;
+
+        if (expected != argCount) {
+            Stream::StringBuffer buf;
+            buf.PrintLn("Expected = {}. Actual = {}. ps = {}, ftvs = {}, sret = {}, outerti = {}, abi_kind = {}",
+                    expected, argCount, sigParamCount, funcVarCount, flags.isSRet, flags.hasOuterTi, Image::MethodAbiKindName(flags.abiKind));
+            Fail(buf.ToString());
+            return false;
+        }
+        return true;
+    }
 
     void StageCallArgs(Utils::Span<const Location> args, CallAbiFlags flags, Resolution::MethodSignature& sig, Location* outerTiLoc = nullptr)
     {
+        int funcVarsCount = sig.tvars.GetLength();
+        if (!CheckArgCount(args.Size(), flags, funcVarsCount, sig.ParamCount())) {
+            return;
+        }
         MoveResolver moves;
         AbiBuilder abi(moves);
 
         int idx = 0;
         if (flags.isSRet)
             abi.ConsumeSret(args[idx++]);
-        if (flags.isMut) {
-            auto derived = args[idx++];
-            auto base    = args[idx++];
-            abi.ConsumeReceiverMut(derived, base);
-        } else if (flags.isRecordReceiver || flags.isRefReceiver)
-            abi.ConsumeReceiver(args[idx++]);
+        switch (flags.abiKind) {
+            case Image::MethodAbiKind::MUT: {
+                auto derived = args[idx++];
+                auto base    = args[idx++];
+                auto derivedLoc = abi.ConsumeReceiverMut(derived, base);
+                ASSERT(derivedLoc.Kind() == Location::IREG);
+                pendingDerived = derivedLoc.IRegIdx();
+                break;
+            }
+            case Image::MethodAbiKind::REF_RECEIVER:
+                abi.ConsumeReceiver(args[idx++], true);
+                break;
+            case Image::MethodAbiKind::PRIM_RECEIVER:
+            case Image::MethodAbiKind::REC_RECEIVER:
+                abi.ConsumeReceiver(args[idx++], false);
+                break;
+            case Image::MethodAbiKind::STATIC:
+            case Image::MethodAbiKind::HAS_THIS_TI: {}
+        }
 
         auto params = sig.Params();
         int paramOffset = idx;
@@ -317,7 +361,6 @@ struct IsaRewriter : public IsaParser {
             });
         }
 
-        int funcVarsCount = sig.tvars.GetLength();
         ASSERT(funcVarsCount <= args.Size());
         for (int j = 0; j < funcVarsCount; idx++, j++) {
             abi.ConsumeFuncVar(args[idx]);
@@ -327,7 +370,7 @@ struct IsaRewriter : public IsaParser {
             Location loc = abi.ConsumeOuterTi(args[idx++]);
             if (outerTiLoc) *outerTiLoc = loc;
         }
-        if (flags.hasThisTi) {
+        if (flags.abiKind == Image::MethodAbiKind::HAS_THIS_TI) {
             abi.ConsumeThisTypeTi(args[idx++]);
         }
 
@@ -1224,15 +1267,12 @@ struct IsaRewriter : public IsaParser {
 
     void NewObj(IReg dst, uint32_t typeId) override { NewObject(dst, typeId, New::Obj); }
 
-    CallAbiFlags MakeCallAbiFlags(Image::MethodRefFlags flags) const
+    CallAbiFlags MakeCallAbiFlags(Image::MethodRefFlags flags, Image::MethodAbiKind abiKind) const
     {
         return {
             .isSRet = flags.Is(Image::MethodRefFlag::SRET),
-            .isMut = flags.Is(Image::MethodRefFlag::MUT),
-            .isRecordReceiver = flags.Is(Image::MethodRefFlag::REC_RECEIVER),
-            .isRefReceiver = flags.Is(Image::MethodRefFlag::REF_RECEIVER),
-            .hasThisTi = flags.Is(Image::MethodRefFlag::HAS_THIS_TI),
             .hasOuterTi = flags.Is(Image::MethodRefFlag::HAS_OUTER_TI),
+            .abiKind = abiKind
         };
     }
 
@@ -1245,7 +1285,7 @@ struct IsaRewriter : public IsaParser {
         }
         auto method = m.value();
         auto ref = Decode::Read(session, Image::RefIdentifier<Image::MethodReference>(Image::RefId<Image::MethodReference>(methodId), fileId));
-        StageCallArgs(args, MakeCallAbiFlags(ref.flags), method->signature);
+        StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature);
 
         if (auto data = std::get_if<DirectCall::Compiled>(&method->data)) {
             EmitLogCall("call.2c", method);
@@ -1271,7 +1311,7 @@ struct IsaRewriter : public IsaParser {
         }
         auto method = m.value();
         auto ref = Decode::Read(session, Image::RefIdentifier<Image::MethodReference>(Image::RefId<Image::MethodReference>(methodId), fileId));
-        StageCallArgs(args, MakeCallAbiFlags(ref.flags), method->signature);
+        StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature);
         EmitLogCall("call.virt", method);
         emit.VirtualCall(method->methodNum, method->extDefNum, method->sret);
         BindStatePoint();
@@ -1292,7 +1332,7 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         auto ref = Decode::Read(session, Image::RefIdentifier<Image::MethodReference>(Image::RefId<Image::MethodReference>(methodId), fileId));
-        StageCallArgs(args, MakeCallAbiFlags(ref.flags), method->signature);
+        StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature);
         EmitLogCall("call.interf", method);
         emit.InterfaceCall(method->methodNum, *ti, method->sret);
         BindStatePoint();
@@ -1309,7 +1349,7 @@ struct IsaRewriter : public IsaParser {
         auto method = m.value();
         auto ref = Decode::Read(session, Image::RefIdentifier<Image::MethodReference>(Image::RefId<Image::MethodReference>(methodId), fileId));
         Location outerTiLoc;
-        StageCallArgs(args, MakeCallAbiFlags(ref.flags), method->signature, &outerTiLoc);
+        StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature, &outerTiLoc);
         EmitLogCall("call.interf.g", method);
 
         uint16_t argnum;
@@ -1365,10 +1405,10 @@ struct IsaRewriter : public IsaParser {
 
         // For instantiated version of closure `sret` can be computed
         // by retType kind.
-        bool sret = (resolver.Wrap(retType).GetKind() == TK::REC);
+        bool sret = (resolver.Wrap(retType).GetKind() == TK::REC) || generic;
 
-        Resolution::MethodSignature sig{&resolver, term};
-        StageCallArgs(args, { .isSRet = sret, .isMut = false, .isRecordReceiver = false, .isRefReceiver = false }, sig);
+        Resolution::MethodSignature sig{&resolver, term, Engine::Term::Predefined(Engine::TermKind::NIL)};
+        StageCallArgs(args, { .isSRet = sret, .hasOuterTi = true, .abiKind = Image::MethodAbiKind::REF_RECEIVER }, sig);
 
         if (generic) {
             // Generic calls of closure are always considered as `sret`.
@@ -1937,7 +1977,14 @@ static Utils::Vector<Interpretation::GCPositionalInfo> CalculatePositionalGCInfo
             posInfo.Back().untypedRefSlotsInfo.PushBack(static_cast<int32_t>(slotN * STACK_SLOT_SIZE) - frameSize);
         }
 
-        posInfo.Back().mutPairs.Reserve(info.mutPairs.Size());
+        posInfo.Back().mutPairs.Reserve(info.mutPairs.Size() + 1);
+        if (point.derivedLoc) {
+            uint32_t idx = *point.derivedLoc;
+            auto mutRes = std::pair(
+                Interpretation::Resource { .idx = idx }, Interpretation::Resource { .idx = idx + 1 }
+            );
+            posInfo.Back().mutPairs.PushBack(mutRes);
+        }
         for (const auto& pair : info.mutPairs) {
             auto mutRes = std::pair(
                 Interpretation::Resource { .idx = pair.first }, Interpretation::Resource { .idx = pair.second }
@@ -2038,11 +2085,11 @@ Interpretation::ExecBytecodeInfo Rewrite(
         Engine::TermManager::Resolve(session, def.Signature()),
         {
             .isSRet            = flags.Is(Image::MethodRefFlag::SRET),
-            .isMut             = flags.Is(Image::MethodRefFlag::MUT),
-            .hasThisTypeInfo   = flags.Is(Image::MethodRefFlag::HAS_THIS_TI),
+            .isMut             = def->abiKind == Image::MethodAbiKind::MUT,
+            .hasThisTypeInfo   = def->abiKind == Image::MethodAbiKind::HAS_THIS_TI,
             .hasOuterTi        = flags.Is(Image::MethodRefFlag::HAS_OUTER_TI),
-            .recordReceiver    = flags.Is(Image::MethodRefFlag::REC_RECEIVER),
-            .referenceReceiver = flags.Is(Image::MethodRefFlag::REF_RECEIVER),
+            .recordReceiver    = def->abiKind == Image::MethodAbiKind::REC_RECEIVER,
+            .referenceReceiver = def->abiKind == Image::MethodAbiKind::REF_RECEIVER,
             .funcVars          = def->arity, // FIXME: get from func ref
         }
     );

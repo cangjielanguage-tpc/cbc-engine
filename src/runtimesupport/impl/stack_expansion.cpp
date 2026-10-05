@@ -1,11 +1,13 @@
 #include "stack_expansion.h"
 #include "asm_export.h"
 #include "asm_trampolines.h"
+#include "cbc/frame.h"
 #include "cbc/isa.h"
 #include "gc_support.h"
 #include "interpreter/function_handle.h"
 #include "reg_table.h"
 #include "utils/assertion.h"
+#include "utils/ostream.h"
 #include <cstdint>
 
 namespace StackExpansion {
@@ -64,6 +66,7 @@ void VisitFrameRootsForStackPtrs(
     auto fuh      = *reinterpret_cast<DynamicFunctionHandle**>((uint8_t*)frameDesc.fp - FUH_SLOT_OFFSET);
     auto bc       = NOTNULL(fuh->bytecode.load());
     auto slotsStartAddr = ((uint8_t*)frameDesc.fp) - LOCAL_SLOTS_OFFSET;
+    auto stackBottom    = slotsStartAddr - bc->frameSize;
 
     RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Stream::Output& out) {
         out.PrintFmtLn(
@@ -141,6 +144,13 @@ void VisitFrameRootsForStackPtrs(
 
                 VisitMutPair(derivedPtrVisitor, basePh, derivedPh);
                 visitRef(basePh);
+            }
+
+            for (auto& paramSlot : gcPosInfo->paramRecSlots) {
+                auto loc = stackBottom + STACK_SLOT_SIZE * paramSlot;
+                LOG_TRACE(RTSupport::Log::gc, "paramslot {}, loc={}", Stream::Hex(paramSlot), Stream::Hex(loc));
+                auto refLocation = reinterpret_cast<Placeholder>(loc);
+                visitRef(refLocation);
             }
         }
 

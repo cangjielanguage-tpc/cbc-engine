@@ -49,8 +49,8 @@ public:
     void Clear();
     Location Consume(Location loc, Flags flags);
     void ConsumeSret(Location loc);
-    void ConsumeReceiverMut(Location loc0, Location loc1);
-    void ConsumeReceiver(Location loc);
+    Location ConsumeReceiverMut(Location loc0, Location loc1);
+    void ConsumeReceiver(Location loc, bool isReference);
     void ConsumeFuncVar(Location loc);
     Location ConsumeOuterTi(Location loc);
     Location ConsumeThisTypeTi(Location loc);

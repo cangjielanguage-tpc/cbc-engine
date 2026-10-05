@@ -1,6 +1,7 @@
 #include "move_resolver.h"
 #include "cbc/isa.h"
 #include "utils/assertion.h"
+#include "utils/span.h"
 #include <cstdint>
 #include <cstdio>
 
@@ -60,6 +61,33 @@ void MoveResolver::Resolve(const Utils::Function<void(Location dst, Location src
     // # Additional assumptions:
     // - There is no (FP, IR) or (IR, FP) assignments.
     // - Each `dst` can be target of not more than one assignment.
+
+    int iregs[IReg::VIRT_COUNT];
+    int fregs[FReg::COUNT];
+
+    for (int i = 0; i < IReg::VIRT_COUNT; i++) iregs[i] = -1;
+    for (int i = 0; i < FReg::COUNT; i++) fregs[i] = -1;
+
+    for (auto& assignment : assignments) {
+        auto dst = assignment.dst;
+        auto src = assignment.src;
+        if (dst.Kind() != src.Kind()) continue;
+        switch (dst.Kind()) {
+            case Location::IREG:
+                iregs[dst.IRegIdx()] = src.IRegIdx();
+                break;
+            case Location::FREG:
+                fregs[dst.FRegIdx()] = src.FRegIdx();
+                break;
+            case Location::NIL:
+            case Location::SLOT: {}
+        }
+    }
+
+    auto cycleResolver = [](Utils::Span<int> regs, int temp) {
+        ASSERT(temp < regs.Size());
+
+    };
 
     struct Walker {
         Utils::Vector<Assignment> const& assignments;

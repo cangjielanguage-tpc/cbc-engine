@@ -100,19 +100,24 @@ template <> MethodReference Reader::Read(Engine::Session& session, Identifier<Me
     if (parsedFlags & 0x1)
         flags = flags.Or(MethodRefFlag::SRET);
     if (parsedFlags & 0x2)
-        flags = flags.Or(MethodRefFlag::HAS_THIS_TI);
-    if (parsedFlags & 0x4)
         flags = flags.Or(MethodRefFlag::HAS_OUTER_TI);
-    if (parsedFlags & 0x8)
-        flags = flags.Or(MethodRefFlag::MUT);
-    if (parsedFlags & 0x10)
+    if (parsedFlags & 0x4)
         flags = flags.Or(MethodRefFlag::HAS_FTVARS);
-    if (parsedFlags & 0x20)
-        flags = flags.Or(MethodRefFlag::AOT);
     if (parsedFlags & 0x40)
-        flags = flags.Or(MethodRefFlag::REC_RECEIVER);
-    if (parsedFlags & 0x80)
-        flags = flags.Or(MethodRefFlag::REF_RECEIVER);
+        flags = flags.Or(MethodRefFlag::AOT);
+
+    auto abiKindMask = parsedFlags & 0x38;
+    MethodAbiKind abiKind = [abiKindMask]() {
+        switch (abiKindMask) {
+            case 0x8 * 0: return MethodAbiKind::STATIC;
+            case 0x8 * 1: return MethodAbiKind::HAS_THIS_TI;
+            case 0x8 * 2: return MethodAbiKind::MUT;
+            case 0x8 * 3: return MethodAbiKind::REC_RECEIVER;
+            case 0x8 * 4: return MethodAbiKind::REF_RECEIVER;
+            case 0x8 * 5: return MethodAbiKind::PRIM_RECEIVER;
+            default: return Image::MethodAbiKind::STATIC; // FIXME: verify
+        }
+    }();
 
     static constexpr auto NIL_ID = RefId<Term>((uint16_t)Engine::TermKind::NIL);
 
@@ -121,7 +126,7 @@ template <> MethodReference Reader::Read(Engine::Session& session, Identifier<Me
         tvars = Image::RefIdentifier(RefId<Term>(reader.ReadULEB()), fileId);
     }
 
-    return { nameOffset, refTypeIdx, methodSigIdx, tvars, flags };
+    return MethodReference { nameOffset, refTypeIdx, methodSigIdx, tvars, flags, abiKind };
 }
 
 template <> FieldReference Reader::Read(Engine::Session& session, Identifier<FieldReference> id)
@@ -404,8 +409,6 @@ MethodDefinition Reader::Read(Engine::Session& session, Image::FileId fileId, Of
     if (testMask(0b11, 0b11))
         flags = flags.With(AccessKind::PROTECTED);
 
-    if (test(0x0004))
-        flags = flags.Or(MethodFlag::STATIC);
     if (test(0x0008))
         flags = flags.Or(MethodFlag::FINAL);
     if (test(0x0010))
@@ -413,7 +416,7 @@ MethodDefinition Reader::Read(Engine::Session& session, Image::FileId fileId, Of
     if (test(0x0020))
         flags = flags.Or(MethodFlag::ABSTRACT);
     if (test(0x0040))
-        flags = flags.Or(MethodFlag::MUT);
+        flags = flags.Or(MethodFlag::SRET);
     if (test(0x0080))
         flags = flags.Or(MethodFlag::VIRTUAL);
     if (test(0x0100))
@@ -423,17 +426,22 @@ MethodDefinition Reader::Read(Engine::Session& session, Image::FileId fileId, Of
     if (test(0x0400))
         flags = flags.Or(MethodFlag::LIT_INIT);
     if (test(0x0800))
-        flags = flags.Or(MethodFlag::SRET);
-    if (test(0x1000))
-        flags = flags.Or(MethodFlag::HAS_THIS_TI);
-    if (test(0x2000))
         flags = flags.Or(MethodFlag::HAS_OUTER_TI);
-    if (test(0x4000))
-        flags = flags.Or(MethodFlag::REC_RECEIVER);
-    if (test(0x8000))
-        flags = flags.Or(MethodFlag::REF_RECEIVER);
 
-    MethodDefinition::Content def { Image::Identifier(offset, fileId), signature, typeNameOffset, nameOffset, flags };
+    auto abiKindMask = parsedFlags & 0x7000;
+    MethodAbiKind abiKind = [abiKindMask]() {
+        switch (abiKindMask) {
+            case 0x1000 * 0: return MethodAbiKind::STATIC;
+            case 0x1000 * 1: return MethodAbiKind::HAS_THIS_TI;
+            case 0x1000 * 2: return MethodAbiKind::MUT;
+            case 0x1000 * 3: return MethodAbiKind::REC_RECEIVER;
+            case 0x1000 * 4: return MethodAbiKind::REF_RECEIVER;
+            case 0x1000 * 5: return MethodAbiKind::PRIM_RECEIVER;
+            default: return Image::MethodAbiKind::STATIC; // FIXME: verify
+        }
+    }();
+
+    MethodDefinition::Content def { Image::Identifier(offset, fileId), signature, typeNameOffset, nameOffset, flags, 0, abiKind };
 
     for (auto tag = reader.ReadU8(); tag != 0; tag = reader.ReadU8()) {
         switch (tag) {

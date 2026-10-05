@@ -2,8 +2,10 @@
 
 #include "access_kind.h"
 #include "type_kind.h"
+#include "utils/assertion.h"
 #include "utils/ostream.h"
 
+#include <cstdint>
 #include <stdint.h>
 #include <string>
 #include <string_view>
@@ -23,28 +25,19 @@ namespace Image {
     X(FINAL)
 
 #define METHOD_FLAGS(X)                                                                                                \
-    X(STATIC)                                                                                                          \
     X(FINAL)                                                                                                           \
     X(FOREIGN)                                                                                                         \
     X(ABSTRACT)                                                                                                        \
-    X(MUT)                                                                                                             \
     X(VIRTUAL)                                                                                                         \
     X(AOT)                                                                                                             \
     X(PKG_INIT)                                                                                                        \
     X(LIT_INIT)                                                                                                        \
     X(SRET)                                                                                                            \
-    X(HAS_THIS_TI)                                                                                                     \
-    X(HAS_OUTER_TI)                                                                                                    \
-    X(REC_RECEIVER)                                                                                                    \
-    X(REF_RECEIVER)
+    X(HAS_OUTER_TI)
 
 #define METHOD_REF_FLAGS(X)                                                                                            \
     X(SRET)                                                                                                            \
-    X(HAS_THIS_TI)                                                                                                     \
     X(HAS_OUTER_TI)                                                                                                    \
-    X(MUT)                                                                                                             \
-    X(REC_RECEIVER)                                                                                                    \
-    X(REF_RECEIVER)                                                                                                    \
     X(HAS_FTVARS)                                                                                                      \
     X(AOT)
 
@@ -77,6 +70,27 @@ public:
 private:
     Value value;
 };
+
+enum class MethodAbiKind : uint8_t {
+    STATIC,
+    HAS_THIS_TI,
+    MUT,
+    REC_RECEIVER,
+    REF_RECEIVER,
+    PRIM_RECEIVER,
+};
+
+inline constexpr char const* MethodAbiKindName(MethodAbiKind abiKind) {
+    switch (abiKind) {
+        case MethodAbiKind::STATIC: return "static";
+        case MethodAbiKind::HAS_THIS_TI: return "this ti";
+        case MethodAbiKind::MUT: return "mut";
+        case MethodAbiKind::REF_RECEIVER: return "ref receiver";
+        case MethodAbiKind::REC_RECEIVER: return "rec receiver";
+        case MethodAbiKind::PRIM_RECEIVER: return "prim receiver";
+        default: ASSERT(false); return "<invalid>";
+    }
+}
 
 struct MethodFlag {
 public:

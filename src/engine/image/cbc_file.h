@@ -619,6 +619,7 @@ public:
         Offset<String> nameOffset;
         MethodFlags flags;
         uint8_t arity;
+        MethodAbiKind abiKind;
 
         std::optional<Identifier<Code>> code             = std::nullopt;
         std::optional<Identifier<String>> sourceFile     = std::nullopt;
@@ -718,6 +719,7 @@ struct MethodReference {
     RefIdentifier<Term> methodSig;
     RefIdentifier<Term> tvars;
     MethodRefFlags flags;
+    MethodAbiKind abiKind;
 };
 
 enum FieldRefTag {
