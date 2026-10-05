@@ -286,6 +286,8 @@ struct IsaRewriter : public IsaParser {
         bool isMut;
         bool isRecordReceiver;
         bool isRefReceiver;
+        bool hasThisTi;
+        bool hasOuterTi;
         int ftvarCount;
     };
 
@@ -315,9 +317,17 @@ struct IsaRewriter : public IsaParser {
                 .isReference = term.IsReference(),
             });
         }
-        // FIXME: account func type vars
-        for (; idx < args.Size(); idx++) {
-            abi.Consume(args[idx], {});
+
+        ASSERT(flags.ftvarCount <= args.Size());
+        for (; idx < flags.ftvarCount; idx++) {
+            abi.ConsumeFuncVar(args[idx]);
+        }
+
+        if (flags.hasOuterTi) {
+            Location outerTiLoc = abi.ConsumeOuterTi(args[idx++]);
+        }
+        if (flags.hasThisTi) {
+            abi.ConsumeThisTypeTi(args[idx++]);
         }
 
         auto emitMov = [&](Location dst, Location src) {
@@ -1220,6 +1230,8 @@ struct IsaRewriter : public IsaParser {
             .isMut = flags.Is(Image::MethodRefFlag::MUT),
             .isRecordReceiver = flags.Is(Image::MethodRefFlag::REC_RECEIVER),
             .isRefReceiver = flags.Is(Image::MethodRefFlag::REF_RECEIVER),
+            .hasThisTi = flags.Is(Image::MethodRefFlag::HAS_THIS_TI),
+            .hasOuterTi = flags.Is(Image::MethodRefFlag::HAS_OUTER_TI),
             .ftvarCount = flags.Is(Image::MethodRefFlag::HAS_FTVARS) ? 1 : 0,
         };
     }
@@ -2019,7 +2031,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
             .hasOuterTi        = flags.Is(Image::MethodRefFlag::HAS_OUTER_TI),
             .recordReceiver    = flags.Is(Image::MethodRefFlag::REC_RECEIVER),
             .referenceReceiver = flags.Is(Image::MethodRefFlag::REF_RECEIVER),
-            .funcVars          = def->arity,
+            .funcVars          = def->arity, // FIXME: get from func ref
         }
     );
 
