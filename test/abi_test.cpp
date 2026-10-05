@@ -443,7 +443,7 @@ TEST(AbiBuilder, MutSetsRefMask)
     builder.ConsumeReceiverMut(Ir(7), Ir(8));
     builder.Consume(Ir(9), { .isFloat = false, .isRecord = false, .isReference = false });
 
-    EXPECT_EQ(builder.IregRefMask(), 0x03); // bits 0 and 1
+    EXPECT_EQ(builder.IregRefMask(), 0x2); // bits 1
     EXPECT_EQ(builder.IregStackPtrMask(), 0x00);
 }
 
@@ -467,7 +467,7 @@ TEST(AbiBuilder, FtvarsSetsRefMask)
     builder.ConsumeFuncVar(Ir(7));
     builder.Consume(Ir(8), { .isFloat = false, .isRecord = false, .isReference = false });
 
-    EXPECT_EQ(builder.IregRefMask(), 0x01); // bit 0
+    EXPECT_EQ(builder.IregRefMask(), 0x00);
     EXPECT_EQ(builder.IregStackPtrMask(), 0x00);
 }
 
@@ -490,7 +490,7 @@ TEST(AbiBuilder, CombinedSretMutOverflow)
     builder.Consume(Ir(14), { .isFloat = false, .isRecord = true, .isReference = false });
 
     EXPECT_EQ(builder.IregStackPtrMask(), 0x01); // bit 0 (sret)
-    EXPECT_EQ(builder.IregRefMask(), 0x06);     // bits 1, 2 (mut)
+    EXPECT_EQ(builder.IregRefMask(), 0x04);     // bits 2
     EXPECT_EQ(builder.FregMask(), 0x00);
 
     auto refSlots = builder.RefStackSlots();

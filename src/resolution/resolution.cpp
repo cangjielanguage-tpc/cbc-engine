@@ -121,6 +121,7 @@ struct ResolvedMethodReference {
     std::string_view name;
     Term signature;
     RefIdentifier<Image::MethodReference> identifier;
+    Term tvars;
     Image::MethodRefFlags flags;
     bool isResolved;
 
@@ -516,21 +517,27 @@ struct ResolverProxy {
     {
         auto parsedRef = Decode::Read(session, identifier);
         auto refType   = manager.Resolve(session, parsedRef.refType);
+        auto tvars     = manager.Resolve(session, parsedRef.tvars);
         auto name      = Decode::Read(session, parsedRef.name);
         auto signature = manager.Resolve(session, parsedRef.methodSig);
         auto flags     = parsedRef.flags;
 
         bool isResolved = true;
-        if (refType.GetKind() == TermKind::UNDEFINED || signature.GetKind() == TermKind::UNDEFINED) {
+        if (refType.GetKind() == TermKind::UNDEFINED || signature.GetKind() == TermKind::UNDEFINED || tvars.GetKind() == TermKind::UNDEFINED) {
             // undef terms would be reported separately
-            log.Log(Logging::Level::ERROR, [&](Stream::Output& stream) {
-                Stream::ResolvingOutput out(session, stream);
-                out << "Failed to parse method reference " << identifier << Stream::endl;
-            });
+            LOGS_ERROR(log, session, "Failed to parse method reference {}", identifier);
             isResolved = false;
         }
 
-        return { refType, name, signature, identifier, flags, isResolved };
+        return ResolvedMethodReference {
+            .refType = refType,
+            .name = name,
+            .signature = signature,
+            .identifier = identifier,
+            .tvars = tvars,
+            .flags = flags,
+            .isResolved = isResolved
+        };
     }
 
     template <typename Call> static ResolvedMethodReference ResolveReference(Resolver& resolver, Index<Call> index)
@@ -582,6 +589,7 @@ struct ResolverProxy {
         return {
             .resolver = &resolver,
             .term     = signature,
+            .tvars    = ref.tvars,
         };
     }
 

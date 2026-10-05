@@ -288,10 +288,9 @@ struct IsaRewriter : public IsaParser {
         bool isRefReceiver;
         bool hasThisTi;
         bool hasOuterTi;
-        int ftvarCount;
     };
 
-    void StageCallArgs(Utils::Span<const Location> args, CallAbiFlags flags, Resolution::MethodSignature& sig)
+    void StageCallArgs(Utils::Span<const Location> args, CallAbiFlags flags, Resolution::MethodSignature& sig, Location* outerTiLoc = nullptr)
     {
         MoveResolver moves;
         AbiBuilder abi(moves);
@@ -318,13 +317,15 @@ struct IsaRewriter : public IsaParser {
             });
         }
 
-        ASSERT(flags.ftvarCount <= args.Size());
-        for (; idx < flags.ftvarCount; idx++) {
+        int funcVarsCount = sig.tvars.GetLength();
+        ASSERT(funcVarsCount <= args.Size());
+        for (; idx < funcVarsCount; idx++) {
             abi.ConsumeFuncVar(args[idx]);
         }
 
         if (flags.hasOuterTi) {
-            Location outerTiLoc = abi.ConsumeOuterTi(args[idx++]);
+            Location loc = abi.ConsumeOuterTi(args[idx++]);
+            if (outerTiLoc) *outerTiLoc = loc;
         }
         if (flags.hasThisTi) {
             abi.ConsumeThisTypeTi(args[idx++]);
@@ -1234,7 +1235,6 @@ struct IsaRewriter : public IsaParser {
             .isRefReceiver = flags.Is(Image::MethodRefFlag::REF_RECEIVER),
             .hasThisTi = flags.Is(Image::MethodRefFlag::HAS_THIS_TI),
             .hasOuterTi = flags.Is(Image::MethodRefFlag::HAS_OUTER_TI),
-            .ftvarCount = flags.Is(Image::MethodRefFlag::HAS_FTVARS) ? 1 : 0,
         };
     }
 
@@ -1301,7 +1301,7 @@ struct IsaRewriter : public IsaParser {
         EmitReturnedTo();
     }
 
-    void CallInterfGeneric(uint16_t argnum, uint32_t methodId, Utils::Span<const Location> args) override
+    void CallInterfGeneric(uint16_t _, uint32_t methodId, Utils::Span<const Location> args) override
     {
         auto m = resolver.Query(Index<InterfaceCall>(methodId));
         if (!m.has_value()) {
@@ -1310,8 +1310,20 @@ struct IsaRewriter : public IsaParser {
         }
         auto method = m.value();
         auto ref = Decode::Read(session, Image::RefIdentifier<Image::MethodReference>(Image::RefId<Image::MethodReference>(methodId), fileId));
-        StageCallArgs(args, MakeCallAbiFlags(ref.flags), method->signature);
+        Location outerTiLoc;
+        StageCallArgs(args, MakeCallAbiFlags(ref.flags), method->signature, &outerTiLoc);
         EmitLogCall("call.interf.g", method);
+
+        uint16_t argnum;
+        if (outerTiLoc.Kind() == Location::IREG) {
+            argnum = outerTiLoc.IRegIdx();
+            ASSERT(argnum < IReg::VIRT_COUNT);
+        } else if (outerTiLoc.Kind() == Location::SLOT) {
+            argnum = outerTiLoc.SlotIdx() + IReg::VIRT_COUNT;
+        } else {
+            ASSERTION(false, "outerti loc can not be freg");
+        }
+
         emit.InterfaceCallGeneric(method->methodNum, argnum, method->sret);
         BindStatePoint();
         EmitReturnedTo();
@@ -1358,7 +1370,7 @@ struct IsaRewriter : public IsaParser {
         bool sret = (resolver.Wrap(retType).GetKind() == TK::REC);
 
         Resolution::MethodSignature sig{&resolver, term};
-        StageCallArgs(args, { .isSRet = sret, .isMut = false, .isRecordReceiver = false, .isRefReceiver = false, .ftvarCount = 0 }, sig);
+        StageCallArgs(args, { .isSRet = sret, .isMut = false, .isRecordReceiver = false, .isRefReceiver = false }, sig);
 
         if (generic) {
             // Generic calls of closure are always considered as `sret`.
