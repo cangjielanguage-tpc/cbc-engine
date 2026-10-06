@@ -37,30 +37,47 @@ void MoveResolver::Resolve(const Utils::Function<void(Location dst, Location src
     //   param-passing regs FRs - FR0-FR7
     //   volatile regs FRs      - FR0-FR15 // FIXME: compiler
     //
-    // Choose only these ones as temp register!
+    // Choose only these as temp registers!
     // Note that:
     // - all of them can be used as `src`
     // - only param-passing ones can be used as `dst`
     // This implies that:
     // 1. a cycle that uses all volatile registers is impossible
-    // 2. it is possible to resolve register cycles in order, where `tmp` register always can be assigned out of volatile registers.
+    // 2. it is possible to resolve register cycles in order, where `tmp` register can always be assigned out of volatile registers.
     // 3. any graph walk that starts from volatile non-param passing register would not hit a cycle!
     //
-    // TODO: the algorithm for cycle breaking must:
-    // - using (3) we can start graph-walking in order, where we can quickly make a register "free" - it would be possible to use it as `tmp`.
-    // - the actual graph-walking must emit assignments as soon as walk stops.
-    //
     // # Stack slot resolution:
-    // - The `untyped slot` resource is a part of a frame that can not be used for parameter-passing.
+    // - The `untyped slot` resource is a part of a frame that cannot be used for parameter-passing.
     // - The slots that are used for param-passing are constructed dynamically by expanding frame in-place.
     //
     // Implications:
-    // - the index of `dst` is pointing to the "param-passing" slot, when `src` is pointing to untyped slot.
-    // - it is impossible to have a cycle that have stack slot.
+    // - the index of `dst` points to the "param-passing" slot, when `src` points to an untyped slot.
+    // - it is impossible to have a cycle that has a stack slot.
     //
     // # Additional assumptions:
     // - There is no (FP, IR) or (IR, FP) assignments.
     // - Each `dst` can be target of not more than one assignment.
+    //
+    // # Algorithm:
+    // Build a mapping `regs[dst] = src` for each register kind (IR, FR).
+    // Then run a fixed-point iteration over the mapping:
+    //
+    // 1. Mark nodes where `src == dst` as DONE (no-op).
+    // 2. Repeat until no changes:
+    //    a. For each non-DONE `dst`, check if any other non-DONE node
+    //       references `dst` as its source. If yes, `dst` is part of a
+    //       cycle or a chain that depends on it — skip.
+    //    b. If no one references `dst`, it is safe to emit `dst = src`
+    //       and mark it DONE.
+    //    c. If no progress was made, the remaining non-DONE nodes form
+    //       a cycle. Break it by emitting `temp = src` for one node and
+    //       rewriting its source to `temp`. The `temp` register is
+    //       guaranteed not to be in the cycle (by ABI constraints).
+    // 3. When all nodes are DONE, the mapping is fully resolved.
+    //
+    // Complexity: O(n^2)
+    // O(n) iterations in the worst case (one node resolved per iteration for a single cycle).
+    // No heap allocations — only stack-allocated arrays.
 
     static constexpr int BUFFER_SIZE = IReg::VIRT_COUNT < FReg::COUNT ? FReg::COUNT : IReg::VIRT_COUNT;
     using RegNum = uint8_t;
@@ -81,6 +98,8 @@ void MoveResolver::Resolve(const Utils::Function<void(Location dst, Location src
         } else if (dkind == skind && dkind == Location::FREG) {
             fregs[dst.FRegIdx()] = src.FRegIdx();
         } else if (dkind == Location::SLOT) {
+            // Param slots cannot form any chains,
+            // to handle them emit all needed stores immediately before registers shuffle.
             emit(dst, src);
         } else {
             if (dkind == Location::IREG && skind == Location::FREG) {
@@ -90,20 +109,20 @@ void MoveResolver::Resolve(const Utils::Function<void(Location dst, Location src
                 ASSERTION(false, "mixed register kind are not allowed");
             }
             ASSERT(skind == Location::SLOT);
-            // skind == slot will be processed after cycle resolution.
+            // This case will be processed after registers shuffle.
         }
     }
 
     auto cycleResolver = [](Utils::Span<RegNum> sources, RegNum temp, Utils::Function<void(RegNum, RegNum)> const& assign) {
-        uint8_t sourceCount = sources.Size();
-        ASSERT(sourceCount <= BUFFER_SIZE);
+        uint8_t regCount = sources.Size();
+        ASSERT(regCount <= BUFFER_SIZE);
         // sources is a graph: "sources[dst] = src" or edge = (sources[dst] -> dst)
 
         constexpr char NOT_VISITED = 0;
         constexpr char DONE        = 1;
         char state[BUFFER_SIZE]    = {NOT_VISITED};
 
-        for (RegNum dst = 0; dst < sourceCount; dst++) {
+        for (RegNum dst = 0; dst < regCount; dst++) {
             if (dst == sources[dst]) state[dst] = DONE;
         }
 
@@ -111,16 +130,16 @@ void MoveResolver::Resolve(const Utils::Function<void(Location dst, Location src
         while (changed) {
             changed = false;
             // Find and resolve chains.
-            for (RegNum dst = 0; dst < sourceCount; dst++) {
+            for (RegNum dst = 0; dst < regCount; dst++) {
                 if (state[dst] == DONE) {
                     continue;
                 }
                 auto src = sources[dst];
                 ASSERT(src != dst);
 
-                // check if someone need a value of `dst`.
+                // check if someone needs a value of `dst`.
                 bool needed = false;
-                for (RegNum dstdst = 0; dstdst < sourceCount; dstdst++) {
+                for (RegNum dstdst = 0; dstdst < regCount; dstdst++) {
                     if (state[dstdst] == DONE || dstdst == dst) continue;
                     if (sources[dstdst] == dst) {
                         needed = true;
@@ -137,17 +156,18 @@ void MoveResolver::Resolve(const Utils::Function<void(Location dst, Location src
 
             ASSERT(state[temp] == DONE);
 
-            // Invariant: any in-progress assignment can not have a `temp` register.
-            // 1. A `temp` register can not be part of cycle (due abi).
+            // Invariant: any in-progress assignment cannot have a `temp` register.
+            // 1. A `temp` register cannot be part of a cycle (due to the ABI).
             // 2. The loop above should process all chains.
-            for (RegNum dst = 0; dst < sourceCount; dst++) {
+            for (RegNum dst = 0; dst < regCount; dst++) {
                 if (state[dst] == DONE) continue;
                 ASSERT(sources[dst] != temp || dst == temp);
+                // The loop will be optimized out.
             }
 
-            // Cycle present and there is no chains left.
-            // So, any non-done `dst` is part of cycle
-            for (RegNum dst = 0; dst < sourceCount; dst++) {
+            // A cycle is present and there are no chains left.
+            // So, any non-done `dst` is part of a cycle.
+            for (RegNum dst = 0; dst < regCount; dst++) {
                 if (state[dst] == DONE) continue;
                 auto src = sources[dst];
                 assign(temp, src);
@@ -157,8 +177,9 @@ void MoveResolver::Resolve(const Utils::Function<void(Location dst, Location src
             }
         }
 
-        for (RegNum dst = 0; dst < sourceCount; dst++) {
+        for (RegNum dst = 0; dst < regCount; dst++) {
             ASSERT(state[dst] == DONE);
+            // The loop will be optimized out.
         }
     };
 
