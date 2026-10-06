@@ -461,6 +461,7 @@ perform_2i_call:
   mov   x2, TLS_REG
   mov   x3, LITERALS_REG
   sub   x4, x29, #READER_SLOT_OFFSET
+  ldr   x5, [x29, #-FUH_SLOT_OFFSET]
 
   bl    engine_interpretation_loop
 

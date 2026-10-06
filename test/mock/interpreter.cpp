@@ -50,13 +50,18 @@ static void MockNewObj(Ectype* ectype, ThreadHandle th, TypeInfo type)
 }
 
 static void DoInterpretationLoop(
-    Ectype* ectype, Frame frame, ThreadHandle th, LiteralTable* literals, Decoder::ByteReader& reader
+    Ectype* ectype,
+    Frame frame,
+    ThreadHandle th,
+    LiteralTable* literals,
+    Decoder::ByteReader& reader,
+    FunctionHandle* fuh = nullptr
 )
 {
     Log::interpretation.Stream(Logging::Level::DEBUG).PrintFmt("Started interpration of mock method");
     Log::interpretation.Stream(Logging::Level::DEBUG).NewLine();
     while (true) {
-        auto thunk = InterpretationLoop(ectype, frame, th, literals, reader);
+        auto thunk = InterpretationLoop(ectype, frame, th, literals, reader, fuh);
         if (!thunk.function) {
             break;
         }
@@ -136,7 +141,7 @@ static void InterpreterI2CallTest(Ectype* ectype, ThreadHandle handle, DynamicFu
 
     Decoder::ByteReader s(code.bytecode, code.bytecode, code.bytecode + code.bytecodeSize);
     InterpretationStart(fuh, ectype);
-    DoInterpretationLoop(ectype, frame, handle, code.literals, s);
+    DoInterpretationLoop(ectype, frame, handle, code.literals, s, &fuh->base);
     InterpretationEnd(fuh, ectype);
 
     for (auto i = 8; i != IReg::COUNT; i++) {

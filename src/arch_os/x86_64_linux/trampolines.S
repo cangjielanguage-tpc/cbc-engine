@@ -499,6 +499,7 @@ perform_2i_call:
   mov   rdx, TLS_REG
   mov   rcx, LITERALS_REG
   lea   r8, [rbp - READER_SLOT_OFFSET]
+  mov   r9, [rbp - FUH_SLOT_OFFSET]
 
   call  engine_interpretation_loop
 

@@ -10,6 +10,7 @@
 #include "interpreter/implicit_exceptions.h"
 #include "interpreter/loggers.h"
 #include "interpreter/platform_traits.h"
+#include "profiler/profiler.h"
 #include "runtimesupport/adapters.h"
 #include "runtimesupport/runtime.h"
 #include "utils/assertion.h"
@@ -50,9 +51,17 @@ extern "C" {
 /// Note that the actual calling convention of `thunk.function`
 /// differs from the ASM in the unit test framework.
 Interpretation::Thunk engine_interpretation_loop(
-    Ectype* ectype, Frame frame, RTSupport::ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
+    Ectype* ectype,
+    Frame frame,
+    RTSupport::ThreadHandle handle,
+    LiteralTable* literals,
+    Decoder::ByteReader& reader0,
+    FunctionHandle* fun
 )
 {
+    if (Profiler::enabled) {
+        Profiler::RegisterCurrentThread();
+    }
 #define NEXT goto* MAIN_TABLE[reader.PeekOpcode()]
 #define NEXT_COND(successful) goto* MAIN_TABLE[(successful) ? reader.PeekOpcode() : 0]
 #define MEM_NEXT goto* MEMSPACE_TABLE[reader.PeekOpcode()]
@@ -1066,7 +1075,7 @@ LABEL(DIRECT_CALL_2I) {
     auto args = B3xi12::Decode(reader);
     LOG_INSTR;
     uint16_t imm = args.xi12.imm12;
-    auto fuh     = reinterpret_cast<FunctionHandle*>(literals->at(imm).uintptr);
+    auto newFuh = reinterpret_cast<FunctionHandle*>(literals->at(imm).uintptr);
     // For proper support of fibers, the following call MUST drop the current frame.
     // This can not be guaranteed by C++ compiler consistently, because TCO
     // is not guaranteed and `mustcall` attribute is not supported
@@ -1075,9 +1084,13 @@ LABEL(DIRECT_CALL_2I) {
     // Instead, the following call will drop the current frame manually
     // (outside of unit-test framework).
 
+    if (Profiler::enabled) {
+        Profiler::RecordCall(reinterpret_cast<uintptr_t>(fun), reinterpret_cast<uintptr_t>(newFuh));
+    }
+
     reader0 = reader; // save current pc
 
-    return { fuh->i2call, reinterpret_cast<void*>(fuh) };
+    return { newFuh->i2call, reinterpret_cast<void*>(newFuh) };
 }
 LABEL(DIRECT_CALL_2C) {
     auto args = B3xi12::Decode(reader);
@@ -1896,10 +1909,15 @@ void engine_log_int_end(DynamicFunctionHandle* handle, Ectype* ectype)
 }
 
 Thunk Interpretation::InterpretationLoop(
-    Ectype* ectype, Frame frame, RTSupport::ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
+    Ectype* ectype,
+    Frame frame,
+    RTSupport::ThreadHandle handle,
+    LiteralTable* literals,
+    Decoder::ByteReader& reader0,
+    FunctionHandle* function
 )
 {
-    return engine_interpretation_loop(ectype, frame, handle, literals, reader0);
+    return engine_interpretation_loop(ectype, frame, handle, literals, reader0, function);
 }
 
 void Interpretation::InterpretationStart(DynamicFunctionHandle* handle, Ectype* ectype)

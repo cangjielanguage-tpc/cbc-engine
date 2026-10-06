@@ -41,7 +41,12 @@ void InterpretationStart(DynamicFunctionHandle* handle, Ectype* ectype);
 void InterpretationEnd(DynamicFunctionHandle* handle, Ectype* ectype);
 
 Thunk InterpretationLoop(
-    Ectype* ectype, Frame frame, RTSupport::ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
+    Ectype* ectype,
+    Frame frame,
+    RTSupport::ThreadHandle handle,
+    LiteralTable* literals,
+    Decoder::ByteReader& reader0,
+    FunctionHandle* function = nullptr
 );
 
 } // namespace Interpretation

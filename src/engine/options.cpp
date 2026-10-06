@@ -4,6 +4,7 @@
 #include "engine/field_layout.h"
 #include "engine/method_table.h"
 #include "interpreter/loggers.h"
+#include "profiler/profiler.h"
 #include "resolution/resolution.h"
 #include "runtimesupport/impl/entrypoint.h"
 
@@ -22,9 +23,11 @@ bool Engine::useShortGCTib = true;
 
 constexpr Option globalOptionsArray[] = {
     { "cbc.use.short.gctib", &Engine::useShortGCTib, &SetBoolValue },
+    { "cbc.profiler", &Cbc::Profiler::enabled, &SetBoolValue },
     { "cbc.log.resolution", &Resolution::log, &SetLogLevelValue },
     { "cbc.log.int", &Interpretation::Log::interpretation, &SetLogLevelValue },
     { "cbc.log.preparation", &Interpretation::Log::preparation, &SetLogLevelValue },
+    { "cbc.log.profiler", &Cbc::Profiler::Log::profiler, &SetLogLevelValue },
     { "cbc.log.method.table", &Engine::Log::mt, &SetLogLevelValue },
     { "cbc.log.field.layout", &Engine::Log::fields, &SetLogLevelValue },
     { "cbc.log.root.scan", &RTSupport::Log::gc, &SetLogLevelValue },
