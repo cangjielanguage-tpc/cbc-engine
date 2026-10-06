@@ -29,4 +29,5 @@ cp *.cj ${BUILD_DIR}
 
 cd ${BUILD_DIR}
 
-cjc cbcengine-helper.cj --output-type=dylib -o libcbcengine-helper.so
+cjc --fobf-layout --fno-obf-export-symbols --fobf-source-path --obf-sym-output-mapping libcbcengine-helper.obf.map \
+cbcengine-helper.cj --output-type=dylib -o libcbcengine-helper.so

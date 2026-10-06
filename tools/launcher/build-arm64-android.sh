@@ -15,7 +15,8 @@ LAUNCHER_NAME=launcher
 source $CANGJIE_HOME/envsetup.sh
 
 function cjc-android() {
-  cjc --target aarch64-linux-android26 \
+  cjc --fobf-layout --fno-obf-export-symbols --fobf-source-path --obf-sym-output-mapping libcbcengine-helper.obf.map \
+    --target aarch64-linux-android26 \
     --sysroot "$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/" \
     -L "$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/17/lib/linux" \
     $@
