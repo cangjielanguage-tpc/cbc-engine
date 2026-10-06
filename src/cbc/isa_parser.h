@@ -177,7 +177,7 @@ protected:
 
     virtual std::unique_ptr<MemSpace> OpenMemSpace() = 0;
 
-    friend class IsaParserImpl;
+    friend struct IsaParserImpl;
     Decoder::FatByteReader reader;
 };
 

@@ -165,15 +165,15 @@ struct IsaRewriter : public IsaParser {
         Emitter::Emitter& emit
     )
         : IsaParser(code),
-          resolver(resolver),
           session(session),
           method(method),
           fileId(method.GetFileId()),
+          resolver(resolver),
           code(code),
           emit(emit),
           frameLayout(frameLayout),
-          startPosition(0),
-          bytecodeSize(reader.End() - reader.Start())
+          bytecodeSize(reader.End() - reader.Start()),
+          startPosition(0)
     {}
 
     Engine::Session& session;
@@ -1942,7 +1942,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
         .abiInfo          = std::move(abiInfo),
         .gcInfo =
             Interpretation::GcInfo {
-                .positionalInfo = std::move(CalculatePositionalGCInfo(session, code, emitter, rewriter.statePoints)),
+                .positionalInfo = CalculatePositionalGCInfo(session, code, emitter, rewriter.statePoints),
                 .refOffsets     = std::move((*frameLayout).refOffsets),
             },
         .stackPtrsInfo =

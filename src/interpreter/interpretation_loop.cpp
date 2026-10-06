@@ -116,7 +116,8 @@ Interpretation::Thunk engine_interpretation_loop(
     static void* MEMSPACE_TABLE[] = { CBC_RT_MEMOPCODES(CBC_RT_MEM_LABEL) };
 
 #ifdef NDEBUG
-    #define LOG_INSTR
+    // Fake use keeps decode-only locals (e.g. `args`) from tripping -Wunused-variable.
+    #define LOG_INSTR (void)args;
     #define SET_LABEL(instr_name) (void)(instr_name)
     #define DEBUG_INFO(instr_name) LABEL_SYMBOL(instr_name)
 #else

@@ -47,8 +47,8 @@ public:
     Disasmer(Utils::Vector<std::string_view> views, Stream::Output& s, bool resolving)
         : session(SessionFor(views)),
           files(session.GetEngine().Files()),
-          resolving(resolving),
-          idio(s, 0)
+          idio(s, 0),
+          resolving(resolving)
     {}
 };
 } // namespace Dis

@@ -31,7 +31,7 @@ public:
     std::unordered_map<Ident::Packed, TaggedFunctionHandle> fuhMap;
 };
 
-FunctionHandleManager::FunctionHandleManager() : impl(std::move(std::make_unique<FunctionHandleManager::Impl>())) {}
+FunctionHandleManager::FunctionHandleManager() : impl(std::make_unique<FunctionHandleManager::Impl>()) {}
 
 FunctionHandleManager::~FunctionHandleManager()                               = default;
 FunctionHandleManager::FunctionHandleManager(FunctionHandleManager&& manager) = default;
