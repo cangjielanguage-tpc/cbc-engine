@@ -337,16 +337,16 @@ struct IsaRewriter : public IsaParser {
                 break;
             }
             case Image::MethodAbiKind::REF_RECEIVER:
-                abi.ConsumeReceiver(args[idx++], true);
+                abi.Consume(args[idx++], ArgKind::REF);
                 break;
             case Image::MethodAbiKind::PRIM_RECEIVER:
-                abi.Consume(args[idx++], {});
+                abi.Consume(args[idx++], ArgKind::INT);
                 break;
             case Image::MethodAbiKind::FPRIM_RECEIVER:
-                abi.Consume(args[idx++], { .isFloat = true });
+                abi.Consume(args[idx++], ArgKind::FLOAT);
                 break;
             case Image::MethodAbiKind::REC_RECEIVER:
-                abi.Consume(args[idx++], { .isRecord = true });
+                abi.Consume(args[idx++], ArgKind::REC);
                 break;
             case Image::MethodAbiKind::STATIC:
             case Image::MethodAbiKind::HAS_THIS_TI: {}
@@ -357,24 +357,25 @@ struct IsaRewriter : public IsaParser {
         ASSERT(args.Size() >= params.Size() + idx);
         for (int j = 0; j < params.Size(); ++idx, ++j) {
             auto term = params[j];
-            abi.Consume(args[idx], {
-                .isFloat = term.IsFloat(),
-                .isRecord = term.IsRecord(),
-                .isReference = term.IsReference(),
-            });
+            ArgKind kind;
+            if (term.IsFloat()) kind = ArgKind::FLOAT;
+            else if (term.IsRecord()) kind = ArgKind::REC;
+            else if (term.IsReference()) kind = ArgKind::REF;
+            else kind = ArgKind::INT;
+            abi.Consume(args[idx], kind);
         }
 
         ASSERT(funcVarsCount <= args.Size());
         for (int j = 0; j < funcVarsCount; idx++, j++) {
-            abi.ConsumeFuncVar(args[idx]);
+            abi.Consume(args[idx], ArgKind::INT);
         }
 
         if (flags.hasOuterTi) {
-            Location loc = abi.ConsumeOuterTi(args[idx++]);
+            Location loc = abi.Consume(args[idx++], ArgKind::INT);
             if (outerTiLoc) *outerTiLoc = loc;
         }
         if (flags.abiKind == Image::MethodAbiKind::HAS_THIS_TI) {
-            abi.ConsumeThisTypeTi(args[idx++]);
+            abi.Consume(args[idx++], ArgKind::INT);
         }
 
         auto emitMov = [&](Location dst, Location src) {

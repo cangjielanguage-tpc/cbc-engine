@@ -7,6 +7,24 @@
 
 namespace Cbc {
 
+// The kind of a call argument, per platform ABI. Determines which
+// register/slot area it occupies and whether the GC must visit it.
+enum class ArgKind {
+    INT,
+    FLOAT,
+    REC,
+    REF,
+};
+
+// Derives ArgKind from a type's float/record/reference traits.
+template <typename ArgType, typename ArgTypeTraits>
+ArgKind ArgKindOf(const ArgType& arg) {
+    if (ArgTypeTraits::IsFloat(arg)) return ArgKind::FLOAT;
+    if (ArgTypeTraits::IsRecord(arg)) return ArgKind::REC;
+    if (ArgTypeTraits::IsReference(arg)) return ArgKind::REF;
+    return ArgKind::INT;
+}
+
 // Assigns call arguments to registers or stack slots per platform ABI.
 // Integer args fill the platform's integer-register head area in order;
 // overflow goes to stack slots. Same for float args. Stack slots that
@@ -14,17 +32,9 @@ namespace Cbc {
 // state points. Frame size is derived from the highest allocated slot.
 class AbiBuilder {
 public:
-    struct Flags {
-        bool isFloat;
-        bool isRecord;
-        bool isReference;
-    };
-
     struct PlatformDescription {
         Utils::Span<const IReg> iregHeadArea;
-        int iregParamCount;
         Utils::Span<const FReg> fregHeadArea;
-        int fregParamCount;
         bool sretShifts;
         int sretIrIdx;
 
@@ -32,9 +42,7 @@ public:
         static PlatformDescription FromTraits() {
             PlatformDescription desc {
                 {PlatformTraits<p>::IR_HEAD_AREA, PlatformTraits<p>::IR_PARAM_COUNT},
-                PlatformTraits<p>::IR_PARAM_COUNT,
                 {PlatformTraits<p>::FR_HEAD_AREA, PlatformTraits<p>::FR_PARAM_COUNT},
-                PlatformTraits<p>::FR_PARAM_COUNT,
                 PlatformTraits<p>::SRET_SHIFTS,
                 0,
             };
@@ -52,21 +60,13 @@ public:
         : AbiBuilder(moves, PlatformDescription::FromTraits<p>()) {}
 
     void Clear();
-    Location Consume(Location loc, Flags flags);
+    Location Consume(Location loc, ArgKind kind);
     void ConsumeSret(Location loc);
     Location ConsumeReceiverMut(Location loc0, Location loc1);
-    void ConsumeReceiver(Location loc, bool isReference);
-    void ConsumeFuncVar(Location loc);
-    Location ConsumeOuterTi(Location loc);
-    Location ConsumeThisTypeTi(Location loc);
 
     template <typename ArgType, typename ArgTypeTraits>
     void Consume(ArgType arg, Location loc) {
-        Consume(loc, {
-            .isFloat = ArgTypeTraits::IsFloat(arg),
-            .isRecord = ArgTypeTraits::IsRecord(arg),
-            .isReference = ArgTypeTraits::IsReference(arg),
-        });
+        Consume(loc, ArgKindOf<ArgType, ArgTypeTraits>(arg));
     }
 
     uint16_t IregStackPtrMask() const { return iregStackPtrMask; }
