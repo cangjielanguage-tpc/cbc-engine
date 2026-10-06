@@ -35,9 +35,9 @@ public:
     )
         : files(std::move(files)),
           rafs(std::move(rafs)),
-          dependencies(std::move(deps)),
+          mtManager(MethodTableManager::NewInstance()),
           typeInfoManager(TypeInfoManager::NewInstance()),
-          mtManager(MethodTableManager::NewInstance())
+          dependencies(std::move(deps))
     {}
 
     static Engine::Impl& Of(Engine& engine) { return *engine.impl; }
@@ -67,7 +67,7 @@ public:
 
 /////////////////////////////////////////////////////////////////
 // Session implementation
-Session::Session(Engine& engine) : engine(engine), arena() { decoder = new Decode::Decoder(*this); }
+Session::Session(Engine& engine) : arena(), engine(engine) { decoder = new Decode::Decoder(*this); }
 
 Session::~Session() { delete decoder; }
 

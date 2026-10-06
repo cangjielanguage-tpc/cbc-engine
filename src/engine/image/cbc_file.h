@@ -452,7 +452,7 @@ public:
 
     uint8_t UsedNonVolFRegMask() { return usedNonVolFRegMask; }
 
-    Code(uint8_t* codePtr, uint32_t codeSize) : codePtr(codePtr), codeSize(codeSize) {}
+    Code(uint8_t* codePtr, uint32_t codeSize) : codeSize(codeSize), codePtr(codePtr) {}
 
     Code(
         uint32_t untypedSlotCount,
@@ -472,14 +472,14 @@ public:
     )
         : untypedSlotCount(untypedSlotCount),
           stackAllocSigsCount(stackAllocSigsCount),
-          stackAllocSigs(stackAllocSigs),
           ohmSlotCount(ohmSlotCount),
+          stackAllocSigs(stackAllocSigs),
           usedNonVolIRegMask(usedNonVolIRegMask),
           usedNonVolFRegMask(usedNonVolFRegMask),
           maxCalleeStackArgsCount(maxCalleeStackArgsCount),
           mayHaveNativeCalls(mayHaveNativeCalls),
-          codePtr(codePtr),
           codeSize(codeSize),
+          codePtr(codePtr),
           sourceCodeInfo(sourceCodeInfo),
           rawExTable(rawExTable),
           rawLivenessInfo(rawLivenessInfo),
