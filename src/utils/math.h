@@ -6,11 +6,11 @@
 #include <cstdint>
 
 namespace MathUtils {
-static uint32_t AlignDown(uint32_t value, uint32_t alignment) { return (value / alignment) * alignment; }
+static inline uint32_t AlignDown(uint32_t value, uint32_t alignment) { return (value / alignment) * alignment; }
 
-static uint32_t AlignUp(uint32_t value, uint32_t alignment) { return AlignDown(value + alignment - 1, alignment); }
+static inline uint32_t AlignUp(uint32_t value, uint32_t alignment) { return AlignDown(value + alignment - 1, alignment); }
 
-static bool IsNBits(uint64_t value, uint32_t bits)
+static inline bool IsNBits(uint64_t value, uint32_t bits)
 {
     if (bits == 64) {
         return true;
@@ -19,9 +19,7 @@ static bool IsNBits(uint64_t value, uint32_t bits)
     }
 }
 
-static bool IsNBitsSigned(uint32_t value, uint32_t bits) { return IsNBitsSigned(static_cast<int32_t>(value), bits); }
-
-template <typename T> static bool IsNBitsSigned(T value, uint32_t bits)
+template <typename T> static inline bool IsNBitsSigned(T value, uint32_t bits)
 {
     if (bits == sizeof(T) * CHAR_BIT) {
         return true;
@@ -34,7 +32,9 @@ template <typename T> static bool IsNBitsSigned(T value, uint32_t bits)
     }
 }
 
-static bool IsNBitsSigned(uint64_t value, uint32_t bits) { return IsNBitsSigned(static_cast<int64_t>(value), bits); }
+static inline bool IsNBitsSigned(uint32_t value, uint32_t bits) { return IsNBitsSigned(static_cast<int32_t>(value), bits); }
+
+static inline bool IsNBitsSigned(uint64_t value, uint32_t bits) { return IsNBitsSigned(static_cast<int64_t>(value), bits); }
 
 template <typename T> static inline T SignExtend(T value, uint32_t bits)
 {

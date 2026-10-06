@@ -94,6 +94,35 @@ TEST(MathUtils, IsNBitsSigned64)
     ASSERT_TRUE(MathUtils::IsNBitsSigned<int64_t>(0xFFFFFFFFFFFFFF37L, 9));
 }
 
+TEST(MathUtils, IsNBitsSignedU32Overload)
+{
+    // unsigned overloads reinterpret the value as signed of the same width
+    ASSERT_TRUE(MathUtils::IsNBitsSigned(uint32_t(0xF), 5));
+    ASSERT_TRUE(!MathUtils::IsNBitsSigned(uint32_t(0xF), 4));
+
+    ASSERT_TRUE(MathUtils::IsNBitsSigned(uint32_t(0xFFFFFF37), 9));
+    ASSERT_TRUE(!MathUtils::IsNBitsSigned(uint32_t(0xFFFFFF37), 8));
+
+    ASSERT_TRUE(MathUtils::IsNBitsSigned(uint32_t(0xFFFFFFFF), 2));
+    ASSERT_TRUE(MathUtils::IsNBitsSigned(uint32_t(0xFFFFFFFF), 32));
+
+    ASSERT_TRUE(MathUtils::IsNBitsSigned(uint32_t(0x7FFFFFFF), 32));
+    ASSERT_TRUE(!MathUtils::IsNBitsSigned(uint32_t(0x80000000), 31));
+
+    ASSERT_TRUE(MathUtils::IsNBitsSigned(uint64_t(0xFFFFFFFFFFFFFF37L), 9));
+    ASSERT_TRUE(!MathUtils::IsNBitsSigned(uint64_t(0xFFFFFFFFFFFFFF37L), 8));
+    ASSERT_TRUE(MathUtils::IsNBitsSigned(uint64_t(0xFFFFFFFFFFFFFFFFL), 64));
+}
+
+TEST(MathUtils, AlignUp)
+{
+    ASSERT_EQ(0x0, MathUtils::AlignUp(0x0, 4));
+    ASSERT_EQ(0x4, MathUtils::AlignUp(0x1, 4));
+    ASSERT_EQ(0x4, MathUtils::AlignUp(0x4, 4));
+    ASSERT_EQ(0x8, MathUtils::AlignUp(0x5, 4));
+    ASSERT_EQ(0x10, MathUtils::AlignUp(0xF, 16));
+}
+
 TEST(MathUtils, RightNBits32)
 {
     ASSERT_EQ(0x0, MathUtils::RightNBits32(0));
