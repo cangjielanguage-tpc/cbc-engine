@@ -4,6 +4,7 @@
 #include <optional>
 #include <string>
 
+#include "cbc/isa_rewriter.h"
 #include "utils/logger.h"
 #include "utils/options.h"
 
@@ -145,6 +146,25 @@ TEST(OptionsSetters, SetLogLevelValue_Invalid)
     EXPECT_EQ(opts.Set("test.log", "TRACE"), Status::INVALID_OPTION);
     EXPECT_EQ(opts.Set("test.log", "debug "), Status::INVALID_OPTION);
     EXPECT_EQ(opts.Set("test.log", ""), Status::INVALID_OPTION);
+}
+
+TEST(OptionsSetters, SetAllLogLevelsDisablesRewriterLogging)
+{
+    Logging::Logger logger;
+    Opt optsArray[] = {
+        { "test.log", &logger, &Options::SetLogLevelValue },
+        { "test.log.all", nullptr, &Options::SetAllLogLevels },
+    };
+    Opts opts(optsArray);
+    bool previous = Cbc::emitLogInstructions;
+
+    EXPECT_EQ(opts.Set("test.log.all", "trace"), Status::OK);
+    EXPECT_TRUE(Cbc::emitLogInstructions);
+    EXPECT_EQ(opts.Set("test.log.all", "none"), Status::OK);
+    EXPECT_EQ(logger.GetLogLevel(), Logging::Level::NONE);
+    EXPECT_FALSE(Cbc::emitLogInstructions);
+
+    Cbc::emitLogInstructions = previous;
 }
 
 TEST(OptionsTable, UnknownOption)

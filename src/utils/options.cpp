@@ -101,9 +101,7 @@ bool SetAllLogLevels(Table const& t, Option const&, std::string_view value)
             }
         }
     }
-    if (value.compare("trace") == 0) {
-        Cbc::emitLogInstructions = true;
-    }
+    Cbc::emitLogInstructions = value == "trace";
     return true;
 }
 
