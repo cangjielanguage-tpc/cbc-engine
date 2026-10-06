@@ -71,8 +71,11 @@ struct ArithmeticResult {
 };
 
 // 128-bit integers. The saturating (and checked) arithmetic below relies on
-// `__int128`/`unsigned __int128` and on `__builtin_*_overflow` builtins for
-// wide-accumulate-and-clamp computations.
+// `__int128`/`unsigned __int128` for wide intermediates. The
+// `__builtin_{add,sub,mul}_overflow` family is used only with operands no
+// wider than 64 bits: every supported compiler expands those inline, while
+// on `__int128` operands clang may instead emit a call into compiler-rt
+// (see `SatArith`'s `SPOW` case for details).
 //
 // Portability notes:
 // - Architectures: 128-bit integer types are a compiler extension, not ISO
@@ -149,38 +152,64 @@ static inline ArithmeticResult SatArith(Saturating::Value op, Value::Primitive l
         case Saturating::SPOW: {
             // Only signed base (Int64 ** UInt64) exists in Cangjie today.
             // Track the true result sign and saturate as soon as the exact
-            // value no longer fits into the target type. Note that the base
-            // is repeatedly squared, so it must be checked for overflow as
-            // well (e.g. 2 ** 512 squares the base up to 2 ** 256).
-            using swidex = __int128;
-            swidex acc     = 1;
-            swidex base    = static_cast<swidex>(Traits::sget(l));
-            utype  exp     = Traits::uget(r);
-            bool   overflow = false;
-            int    sign    = 1; // sign of the true accumulated product
+            // value no longer fits into the target type.
+            //
+            // The accumulator is range-checked after every multiply, and the
+            // running base magnitude is deliberately kept below 2^64: once
+            // it reaches 2^64 the exact result provably cannot fit into the
+            // target type, because the base is only squared while exponent
+            // bits remain and is therefore guaranteed to be multiplied in
+            // later (e.g. 2 ** 512 squares the base up to 2 ** 256).
+            // Squaring never changes the sign, so saturating at that point
+            // still uses the sign of the product accumulated so far.
+            //
+            // Both operands therefore stay below 2^64, so every product is
+            // exact in 128 bits and only 64x64 -> 128 multiplies are
+            // needed. That matters because `__builtin_mul_overflow` on
+            // `__int128` operands is not portable: clang expands it into a
+            // call to the compiler-rt helper `__muloti4`, which libgcc (the
+            // default runtime of GNU cross toolchains) does not provide,
+            // which broke the aarch64-linux link.
+            swide acc     = 1;
+            stype base    = Traits::sget(l);
+            bool baseNeg  = base < 0;
+            uwide magBase = baseNeg ? static_cast<uwide>(-static_cast<swide>(base)) : static_cast<uwide>(base);
+            utype exp     = Traits::uget(r);
+            bool overflow = false;
+            // Sign of the true accumulated product. Only the very first
+            // multiplication can use the original (possibly negative) base:
+            // an odd exponent always consumes its lowest bit first, and every
+            // later multiplication uses a squared, hence non-negative, base.
+            // (This matches the sign of base ** exp for negative bases.)
+            int sign = (baseNeg && (exp & 1) != 0) ? -1 : 1;
+
+            // Largest magnitude the target type can hold. For two's
+            // complement the negative range is one wider than the positive
+            // one: results with a positive sign must satisfy mag <= smax,
+            // negative ones mag <= |smin|.
+            constexpr uwide posMax = static_cast<uwide>(smax);
+            constexpr uwide negMax = static_cast<uwide>(-static_cast<swide>(smin));
+
             while (exp != 0) {
                 if ((exp & 1) != 0) {
-                    // Multiplying by a negative base flips the product sign.
-                    // (Comparing against acc's current sign would double-count
-                    // flips already accumulated in `sign`.)
-                    if (base < 0) {
-                        sign = -sign;
-                    }
-                    if (overflow || __builtin_mul_overflow(acc, base, &acc)) {
+                    uwide magAcc = acc < 0 ? static_cast<uwide>(-acc) : static_cast<uwide>(acc);
+                    uwide mag    = magAcc * magBase;
+                    if (mag > (sign > 0 ? posMax : negMax)) {
                         overflow = true;
                         break;
                     }
-                    if (acc > smax || acc < smin) {
-                        overflow = true;
-                        break;
-                    }
+                    acc = sign > 0 ? static_cast<swide>(mag) : -static_cast<swide>(mag);
                 }
                 exp >>= 1;
                 if (exp != 0) {
-                    if (__builtin_mul_overflow(base, base, &base)) {
+                    uwide squared = magBase * magBase;
+                    if ((squared >> 64) != 0) {
+                        // Magnitude no longer fits into 64 bits, so neither
+                        // can the exact result.
                         overflow = true;
                         break;
                     }
+                    magBase = squared;
                 }
             }
             if (overflow) {
