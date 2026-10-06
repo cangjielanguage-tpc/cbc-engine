@@ -156,8 +156,8 @@ private:
 
                 CallEdge edge { caller, callee };
                 auto& count = counters[edge];
-                ++count;
-                ++collected;
+                count++;
+                collected++;
                 if (count == HOT_CALL_COUNT) {
                     Log::profiler.Log(Logging::Level::DEBUG, [&](Stream::Output& out) {
                         out.PrintLn(

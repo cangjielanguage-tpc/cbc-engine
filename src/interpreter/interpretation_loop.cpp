@@ -1801,10 +1801,10 @@ Thunk Interpretation::InterpretationLoop(
     RTSupport::ThreadHandle handle,
     LiteralTable* literals,
     Decoder::ByteReader& reader0,
-    FunctionHandle* function
+    FunctionHandle* fuh
 )
 {
-    return engine_interpretation_loop(ectype, frame, handle, literals, reader0, 0, function);
+    return engine_interpretation_loop(ectype, frame, handle, literals, reader0, 0, fuh);
 }
 
 void Interpretation::InterpretationStart(DynamicFunctionHandle* handle, Ectype* ectype)
