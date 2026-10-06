@@ -1942,7 +1942,7 @@ Interpretation::ExecBytecodeInfo Rewrite(
         .abiInfo          = std::move(abiInfo),
         .gcInfo =
             Interpretation::GcInfo {
-                .positionalInfo = std::move(CalculatePositionalGCInfo(session, code, emitter, rewriter.statePoints)),
+                .positionalInfo = CalculatePositionalGCInfo(session, code, emitter, rewriter.statePoints),
                 .refOffsets     = std::move((*frameLayout).refOffsets),
             },
         .stackPtrsInfo =

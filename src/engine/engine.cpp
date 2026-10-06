@@ -90,7 +90,7 @@ std::tuple<Image::CbcFile&, IO::RandomAccessFile&> Session::File(FileId fileId) 
 
 Arena& Session::Allocator() { return arena; }
 
-Loader::Loader() : loader(std::move(std::make_unique<Loader::Impl>())) {}
+Loader::Loader() : loader(std::make_unique<Loader::Impl>()) {}
 
 Loader::Loader(Loader&& other) = default;
 Loader::~Loader()              = default;
@@ -278,7 +278,7 @@ Engine& Loader::Build()
     auto deps = ReadDependencies(loader.get());
 
     auto engineInstance = new Engine(
-        std::move(std::make_unique<Engine::Impl>(std::move(loader->files), std::move(loader->rafs), std::move(deps)))
+        std::make_unique<Engine::Impl>(std::move(loader->files), std::move(loader->rafs), std::move(deps))
     );
     g_engineInstance = engineInstance;
     return *engineInstance;
