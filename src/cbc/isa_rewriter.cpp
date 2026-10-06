@@ -383,6 +383,14 @@ struct IsaRewriter : public IsaParser {
         NewObject(dst, typeId, New::Arr);
     }
 
+    void NewArrGeneric(IReg dst, IReg len, IReg ti) override
+    {
+        AdjustReg(IReg::IR2, len);
+        emit.NewArrGeneric(ti);
+        BindStatePoint();
+        AdjustReg(dst, IReg::IR1);
+    }
+
     void GcPoint() override
     {
         emit.GcPoint();
@@ -1559,6 +1567,14 @@ struct IsaRewriter : public IsaParser {
         auto ms = emit.OpenMemSpace();
         ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
         ms.WriteStructFieldObj(IReg::IR_ACC, dst, typeInfo);
+    }
+
+    void BoxTGeneric(uint16_t srcTs, IReg dst, IReg ti) override
+    {
+        const auto offset = frameLayout.typedOffset.at(srcTs);
+        emit.LoadFrame(Format::LoadAccessKind::LD_LEA, IReg::IR_ACC, offset);
+        emit.LoadGeneric(dst, IReg::IRZ, IReg::IR_ACC, ti);
+        BindStatePoint();
     }
 
     void Unbox(AnyReg dst, IReg src, uint32_t type) override

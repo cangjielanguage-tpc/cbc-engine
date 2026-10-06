@@ -364,8 +364,8 @@ void Encode(ByteBuffer& buf, RT::ConstIndexGeneric command)
 {
     Encode(buf, command.opc);
     Encode(buf, command.rr);
+    Encode(buf, command.ti);
     Encode(buf, command.idx);
-    buf.AddW64(Bits::Raw64(command.ti));
 }
 
 } // namespace Emitter

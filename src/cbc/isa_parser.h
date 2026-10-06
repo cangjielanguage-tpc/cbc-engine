@@ -55,6 +55,7 @@ protected:
 
     virtual void PrepareRecord(uint16_t ts)                = 0;
     virtual void NewArr(IReg dst, IReg len, uint32_t type) = 0;
+    virtual void NewArrGeneric(IReg dst, IReg len, IReg ti) = 0;
 
     virtual void GcPoint() = 0;
 
@@ -116,9 +117,10 @@ protected:
     virtual void LoadArray(AnyReg dst, Format::LoadAccessKind ldk, IReg arr, IReg idx)   = 0;
     virtual void StoreArray(AnyReg src, Format::StoreAccessKind stk, IReg arr, IReg idx) = 0;
 
-    virtual void TypeArg(IReg ti, int idx, IReg dst)      = 0;
-    virtual void Box(AnyReg src, IReg dst, uint32_t type) = 0;
-    virtual void BoxT(uint16_t srcTs, IReg dst)           = 0;
+    virtual void TypeArg(IReg ti, int idx, IReg dst)            = 0;
+    virtual void Box(AnyReg src, IReg dst, uint32_t type)       = 0;
+    virtual void BoxT(uint16_t srcTs, IReg dst)                 = 0;
+    virtual void BoxTGeneric(uint16_t srcTs, IReg dst, IReg ti) = 0;
 
     virtual void Unbox(AnyReg dst, IReg src, uint32_t type) = 0;
     virtual void UnboxT(uint16_t dstTs, IReg src)           = 0;

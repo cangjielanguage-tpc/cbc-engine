@@ -681,10 +681,15 @@ public:
 
     inline void LeaIndex(IReg dst, IReg arr, IReg idx, RTSupport::TypeInfo ti, bool isCangjieArray = true)
     {
+        LeaIndex(dst, arr, MemOffsetReg(idx), ti, isCangjieArray);
+    }
+
+    inline void LeaIndex(IReg dst, IReg arr, uint64_t idx, RTSupport::TypeInfo ti, bool isCangjieArray = true)
+    {
         auto obj        = ectype->GetReference(arr);
         auto size       = RTSupport::MetaInfo::GetAlignedSize(ti);
         auto headOffset = isCangjieArray ? RTSupport::MetaInfo::ArrayBodyOffset() : 0;
-        auto offset     = headOffset + MemOffsetReg(idx) * size;
+        auto offset     = headOffset + idx * size;
         MemoryLocation(obj.value, offset).Lea(dst, ectype);
     }
 

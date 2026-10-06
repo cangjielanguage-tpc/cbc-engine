@@ -49,6 +49,7 @@
     X(NEWOBJ_PINNED_G, B2rr, "newobj.pinned.g $0ir")                                                                   \
     X(NEWOBJ_ACC_G, B2rr, "newobj.acc.g $0ir")                                                                         \
     X(NEWARR, B9i64, "newarr IR1, IR2, $0U64")                                                                         \
+    X(NEWARR_G, B2rr, "newarr.g IR1, IR2, $0ir")                                                                       \
     X(INITCLOSURE, B1, "init.closure")                                                                                 \
     X(INITCLOSURE_SRET, B1, "init.closure.sret")                                                                       \
     X(SPAWN, B9i64, "spawn $0U64")                                                                                     \
@@ -177,7 +178,7 @@
     X(COPY_DERIVED_GENERIC, CopyDerivedGeneric, "copy.derived.g $0ir $1ir $2ir $3ir $4ir")                             \
     X(INDEX, Index, "index $0ir [$1ir $2ir] $3U64")                                                                    \
     X(INDEX_GENERIC, IndexGeneric, "index.g $0ir [$1ir $2ir] $3ir")                                                    \
-    X(CONST_INDEX_GENERIC, ConstIndexGeneric, "index.g $0ir [$1ir $2] $3ir")                                           \
+    X(CONST_INDEX_GENERIC, ConstIndexGeneric, "index.g $0ir [$1ir $2I64] $3ir")                                        \
     X(SBIN8, B3xrrr, "$0sbin.8 $1ir $2ir $3ir")                                                                        \
     X(SBIN16, B3xrrr, "$0sbin.16 $1ir $2ir $3ir")                                                                      \
     X(SBIN32, B3xrrr, "$0sbin.32 $1ir $2ir $3ir")                                                                      \
@@ -748,16 +749,16 @@ struct IndexGeneric {
 struct ConstIndexGeneric {
     Opcode opc;
     Format::RR rr;
+    Format::RR ti;
     Format::Imm64 idx;
-    RTSupport::TypeInfo ti;
 
     static ConstIndexGeneric Decode(Decoder::ByteReader& reader)
     {
         auto opc = Opcode::Decode(reader);
         auto rr  = Format::RR::Decode(reader);
+        auto ti  = Format::RR::Decode(reader);
         auto idx = Format::Imm64::Decode(reader);
-        auto ti  = reader.Read<RTSupport::TypeInfo>();
-        return ConstIndexGeneric { opc, rr, idx, ti };
+        return ConstIndexGeneric { opc, rr, ti, idx };
     }
 };
 

@@ -616,7 +616,7 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, IndexGener
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, ConstIndexGeneric args)
 {
-    Operand operands[] = { args.rr.x, args.rr.y, args.idx.imm, args.ti.UInt() };
+    Operand operands[] = { args.rr.x, args.rr.y, args.idx.imm, args.ti.x };
     Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
     formatter.Format();
 }

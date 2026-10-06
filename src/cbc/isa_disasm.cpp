@@ -152,6 +152,8 @@ struct IsaDisasm : public IsaParser {
 
     void NewArr(IReg dst, IReg len, uint32_t type) override { stream.PrintLn("newarr {}, {}, {}", dst, len, type); }
 
+    void NewArrGeneric(IReg dst, IReg len, IReg ti) override { stream.PrintLn("newarr.g {}, {}, {}", dst, len, ti); }
+
     void GcPoint() override { stream.PrintLn("gcpoint"); }
 
     void LoadStackRec(IReg r, uint16_t ts) override { stream.PrintLn("ld.stack.rec {}, {}", r, ts); }
@@ -465,6 +467,8 @@ struct IsaDisasm : public IsaParser {
     void Box(AnyReg src, IReg dst, uint32_t tk) override { stream.PrintLn("box {}, R{}, @{}", dst, src, tk); }
 
     void BoxT(uint16_t srcTs, IReg dst) override { stream.PrintLn("box {}, t{}", dst, srcTs); }
+
+    void BoxTGeneric(uint16_t srcTs, IReg dst, IReg ti) override { stream.PrintLn("box.g {}, t{}, {}", dst, srcTs, ti); }
 
     void Unbox(AnyReg dst, IReg src, uint32_t tk) override { stream.PrintLn("unbox R{}, {}, @{}", dst, tk); }
 
