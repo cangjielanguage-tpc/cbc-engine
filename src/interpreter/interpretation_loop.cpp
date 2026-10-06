@@ -116,7 +116,8 @@ Interpretation::Thunk engine_interpretation_loop(
     static void* MEMSPACE_TABLE[] = { CBC_RT_MEMOPCODES(CBC_RT_MEM_LABEL) };
 
 #ifdef NDEBUG
-    #define LOG_INSTR
+    // Fake use keeps decode-only locals (e.g. `args`) from tripping -Wunused-variable.
+    #define LOG_INSTR (void)args;
     #define SET_LABEL(instr_name) (void)(instr_name)
     #define DEBUG_INFO(instr_name) LABEL_SYMBOL(instr_name)
 #else
@@ -155,12 +156,12 @@ LABEL(LOG) {
     NEXT;
 }
 LABEL(RET) {
-    [[maybe_unused]] auto args = B1::Decode(reader);
+    auto args = B1::Decode(reader);
     LOG_INSTR;
     return {};
 }
 LABEL(NOP) {
-    [[maybe_unused]] auto args = B1::Decode(reader);
+    auto args = B1::Decode(reader);
     LOG_INSTR;
     NEXT;
 }
@@ -195,7 +196,7 @@ LABEL(MOVF2I) {
     NEXT;
 }
 LABEL(GC_POINT) {
-    [[maybe_unused]] auto args = B1::Decode(reader);
+    auto args = B1::Decode(reader);
     LOG_INSTR;
     bool is_sp = RTSupport::Execution::IsPendingSafePoint();
     if (!is_sp) {
@@ -704,19 +705,19 @@ LABEL(WRITE_STRUCT_FIELD) {
     NEXT;
 }
 LABEL(INITCLOSURE) {
-    [[maybe_unused]] auto args = B1::Decode(reader);
+    auto args = B1::Decode(reader);
     LOG_INSTR;
     Execution::InitializeClosure(ectype->GetReference(IReg::IR1), false);
     NEXT;
 }
 LABEL(INITCLOSURE_SRET) {
-    [[maybe_unused]] auto args = B1::Decode(reader);
+    auto args = B1::Decode(reader);
     LOG_INSTR;
     Execution::InitializeClosure(ectype->GetReference(IReg::IR1), true);
     NEXT;
 }
 LABEL(SPAWN_FUTURE) {
-    [[maybe_unused]] auto args = B1::Decode(reader);
+    auto args = B1::Decode(reader);
     LOG_INSTR;
 
     auto func = RTSupport::Execution::SpawnFuture();
@@ -1098,7 +1099,7 @@ LABEL(DIRECT_CALL_2C) {
 }
 LABEL(CALL_CLOSURE_SRET) {
     if constexpr (HAS_SRET_SHIFT) {
-        [[maybe_unused]] auto args = B1::Decode(reader);
+        auto args = B1::Decode(reader);
         LOG_INSTR;
         auto reference = ectype->GetReference(IReg::IR2);
         reader0        = reader;
@@ -1107,14 +1108,14 @@ LABEL(CALL_CLOSURE_SRET) {
     // fallthrough
 }
 LABEL(CALL_CLOSURE) {
-    [[maybe_unused]] auto args = B1::Decode(reader);
+    auto args = B1::Decode(reader);
     LOG_INSTR;
     auto reference = ectype->GetReference(IReg::IR1);
     reader0        = reader;
     return Execution::GetClosureThunk(reference, true);
 }
 LABEL(CALL_CLOSURE_GENERIC) {
-    [[maybe_unused]] auto args = B1::Decode(reader);
+    auto args = B1::Decode(reader);
     LOG_INSTR;
     auto receiver = IReg::IR1;
     if (HAS_SRET_SHIFT) { // generic closure calls are always considered as `sret`
@@ -1430,7 +1431,7 @@ ATOMIC_STORE: {
 }
 
 LABEL(MEMSPACE) {
-    [[maybe_unused]] auto args = B1::Decode(reader);
+    auto args = B1::Decode(reader);
     LOG_INSTR;
     memspaceOffsetAcc = 0;
     MEM_NEXT;
