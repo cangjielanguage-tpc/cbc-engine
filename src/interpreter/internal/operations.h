@@ -151,71 +151,46 @@ static inline ArithmeticResult SatArith(Saturating::Value op, Value::Primitive l
         }
         case Saturating::SPOW: {
             // Only signed base (Int64 ** UInt64) exists in Cangjie today.
-            // Track the true result sign and saturate as soon as the exact
-            // value no longer fits into the target type.
+            // Naive repeated multiplication in `swide`: the loop condition
+            // keeps `acc` within [smin, smax] before every multiply, so each
+            // product `acc * base` (both factors at most 2^63 in magnitude)
+            // is exact in 128 bits and cannot overflow. For |base| >= 2 the
+            // accumulator grows at least geometrically, so the loop either
+            // exhausts the exponent or leaves the range within at most ~64
+            // iterations. Plain multiplication is used instead of
+            // `__builtin_mul_overflow` on `__int128` operands, which is not
+            // portable: clang expands it into a call to the compiler-rt
+            // helper `__muloti4`, which libgcc (the default runtime of GNU
+            // cross toolchains) does not provide, which broke the
+            // aarch64-linux link.
             //
-            // The accumulator is range-checked after every multiply, and the
-            // running base magnitude is deliberately kept below 2^64: once
-            // it reaches 2^64 the exact result provably cannot fit into the
-            // target type, because the base is only squared while exponent
-            // bits remain and is therefore guaranteed to be multiplied in
-            // later (e.g. 2 ** 512 squares the base up to 2 ** 256).
-            // Squaring never changes the sign, so saturating at that point
-            // still uses the sign of the product accumulated so far.
-            //
-            // Both operands therefore stay below 2^64, so every product is
-            // exact in 128 bits and only 64x64 -> 128 multiplies are
-            // needed. That matters because `__builtin_mul_overflow` on
-            // `__int128` operands is not portable: clang expands it into a
-            // call to the compiler-rt helper `__muloti4`, which libgcc (the
-            // default runtime of GNU cross toolchains) does not provide,
-            // which broke the aarch64-linux link.
-            swide acc     = 1;
-            stype base    = Traits::sget(l);
-            bool baseNeg  = base < 0;
-            uwide magBase = baseNeg ? static_cast<uwide>(-static_cast<swide>(base)) : static_cast<uwide>(base);
-            utype exp     = Traits::uget(r);
-            bool overflow = false;
-            // Sign of the true accumulated product. Only the very first
-            // multiplication can use the original (possibly negative) base:
-            // an odd exponent always consumes its lowest bit first, and every
-            // later multiplication uses a squared, hence non-negative, base.
-            // (This matches the sign of base ** exp for negative bases.)
-            int sign = (baseNeg && (exp & 1) != 0) ? -1 : 1;
-
-            // Largest magnitude the target type can hold. For two's
-            // complement the negative range is one wider than the positive
-            // one: results with a positive sign must satisfy mag <= smax,
-            // negative ones mag <= |smin|.
-            constexpr uwide posMax = static_cast<uwide>(smax);
-            constexpr uwide negMax = static_cast<uwide>(-static_cast<swide>(smin));
-
-            while (exp != 0) {
-                if ((exp & 1) != 0) {
-                    uwide magAcc = acc < 0 ? static_cast<uwide>(-acc) : static_cast<uwide>(acc);
-                    uwide mag    = magAcc * magBase;
-                    if (mag > (sign > 0 ? posMax : negMax)) {
-                        overflow = true;
-                        break;
-                    }
-                    acc = sign > 0 ? static_cast<swide>(mag) : -static_cast<swide>(mag);
-                }
-                exp >>= 1;
-                if (exp != 0) {
-                    uwide squared = magBase * magBase;
-                    if ((squared >> 64) != 0) {
-                        // Magnitude no longer fits into 64 bits, so neither
-                        // can the exact result.
-                        overflow = true;
-                        break;
-                    }
-                    magBase = squared;
-                }
+            // Bases with |base| <= 1 are handled separately: the loop below
+            // would never leave the range for them and could iterate up to
+            // 2^64 times.
+            stype base = Traits::sget(l);
+            utype exp  = Traits::uget(r);
+            if (base == 0) {
+                return { Traits::make(exp == 0 ? static_cast<stype>(1) : static_cast<stype>(0)), true };
             }
-            if (overflow) {
-                // Once the exact value is out of range it can only grow,
-                // so saturate in the direction of the true result sign.
-                return { Traits::make(sign > 0 ? smax : smin), true };
+            if (base == 1) {
+                return { Traits::make(static_cast<stype>(1)), true };
+            }
+            if (base == -1) {
+                return { Traits::make((exp & 1) != 0 ? static_cast<stype>(-1) : static_cast<stype>(1)), true };
+            }
+
+            swide acc = 1;
+            while (exp != 0 && smin <= acc && acc <= smax) {
+                acc *= base;
+                exp--;
+            }
+            if (acc < smin || acc > smax) {
+                // The exact value has left the target range and its magnitude
+                // only grows from here (|base| >= 2). Its sign is the sign of
+                // `acc`, possibly flipped by the remaining multiplications
+                // with a negative base, so saturate accordingly.
+                bool negative = (acc < 0) != (base < 0 && (exp & 1) != 0);
+                return { Traits::make(negative ? smin : smax), true };
             }
             return { Traits::make(static_cast<stype>(acc)), true };
         }
