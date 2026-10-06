@@ -52,23 +52,24 @@ Location AbiBuilder::Consume(Location loc, ArgKind kind)
     return target;
 }
 
-void AbiBuilder::ConsumeSret(Location loc)
+Location AbiBuilder::ConsumeSret(Location loc)
 {
     Location target;
     if (desc.sretShifts) {
-        Consume(loc, ArgKind::REC);
+        target = Consume(loc, ArgKind::REC);
     } else {
         target = Location::IReg(static_cast<IReg::Value>(desc.sretIrIdx));
         iregStackPtrMask |= (1u << desc.sretIrIdx);
         moves.AddMove(loc, target);
     }
+    return target;
 }
 
 Location AbiBuilder::ConsumeReceiverMut(Location loc0, Location loc1)
 {
-    Consume(loc0, ArgKind::INT);
+    Location target = Consume(loc0, ArgKind::INT);
     Consume(loc1, ArgKind::REF);
-    return loc0;
+    return target;
 }
 
 } // namespace Cbc

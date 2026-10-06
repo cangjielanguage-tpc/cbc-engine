@@ -61,12 +61,15 @@ public:
 
     void Clear();
     Location Consume(Location loc, ArgKind kind);
-    void ConsumeSret(Location loc);
+    // Consumes the struct-return (sret) argument: the hidden pointer to the
+    // return struct. On shift platforms it takes the first int-register slot
+    // as a record; on fixed-register platforms a dedicated slot.
+    Location ConsumeSret(Location loc);
     Location ConsumeReceiverMut(Location loc0, Location loc1);
 
     template <typename ArgType, typename ArgTypeTraits>
-    void Consume(ArgType arg, Location loc) {
-        Consume(loc, ArgKindOf<ArgType, ArgTypeTraits>(arg));
+    Location Consume(ArgType arg, Location loc) {
+        return Consume(loc, ArgKindOf<ArgType, ArgTypeTraits>(arg));
     }
 
     uint16_t IregStackPtrMask() const { return iregStackPtrMask; }
