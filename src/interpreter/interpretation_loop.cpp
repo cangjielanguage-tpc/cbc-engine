@@ -2,6 +2,7 @@
 #include "cbc/formater_rt.h"
 #include "cbc/frame.h"
 #include "cbc/isa.h"
+#include "cbc/isa_rewriter.h"
 #include "cbc/isa_rt.h"
 #include "engine/terms.h"
 #include "interpreter.h"
@@ -180,7 +181,9 @@ LABEL(HALT) {
 LABEL(LOG) {
     auto args   = B9i64::Decode(reader);
     auto imsg = (InstMsg*)args.imm64.ptr;
-    Log::stream.PrintLn("{}: {}", Stream::Hex(imsg->rewrittenPos), (char*) imsg->msg);
+    if (Cbc::emitLogInstructions) {
+        Log::stream.PrintLn("{}: {}", Stream::Hex(imsg->rewrittenPos), (char*)imsg->msg);
+    }
     NEXT;
 }
 LABEL(RET) {
