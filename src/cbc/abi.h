@@ -7,6 +7,11 @@
 
 namespace Cbc {
 
+// Assigns call arguments to registers or stack slots per platform ABI.
+// Integer args fill the platform's integer-register head area in order;
+// overflow goes to stack slots. Same for float args. Stack slots that
+// hold references or records are recorded so the GC can visit them at
+// state points. Frame size is derived from the highest allocated slot.
 class AbiBuilder {
 public:
     struct Flags {

@@ -36,6 +36,10 @@ struct Location {
     static Location Slot(int slot) { return Location {IReg::VIRT_COUNT + FReg::COUNT + slot}; }
 };
 
+// Collects src→dst register/slot moves and resolves them into a
+// conflict-free instruction sequence. When multiple moves share a
+// register, a temp register is used to stage values so no source is
+// clobbered before it is read.
 class MoveResolver {
 public:
     void Clear();
