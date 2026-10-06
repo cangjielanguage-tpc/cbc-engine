@@ -540,7 +540,9 @@ public:
         if (cc.IsFloatingPoint()) {
             return Cmp<width>(cc, l.FR(), r.FR()) ? DecodeImmediate<immKind>(literals, offsetValue) : 0;
         } else {
-            return Cmp<width>(cc, l.IR(), r.IR()) ? DecodeImmediate<immKind>(literals, offsetValue) : 0;
+            return Cmp<width>(cc, l.IR(), r.IR())
+                       ? static_cast<int64_t>(DecodeImmediate<immKind>(literals, offsetValue))
+                       : 0;
         }
     }
 
@@ -549,7 +551,7 @@ public:
     {
         uint64_t rValue = DecodeImmediate<immValueKind>(literals, r);
         return CmpPrim<width>(cc, l, Value::Primitive { .u64 = rValue })
-                   ? DecodeImmediate<immOffsetKind>(literals, offsetValue)
+                   ? static_cast<int64_t>(DecodeImmediate<immOffsetKind>(literals, offsetValue))
                    : 0;
     }
 
