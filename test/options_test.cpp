@@ -40,65 +40,10 @@ struct EnvGuard {
 
 namespace {
 
-TEST(OptionsSetters, SetBoolValue_True)
-{
-    bool var = false;
-    Opt opt = { "test.flag", &var, &Options::SetBoolValue };
-    Opt optsArray[] = { opt };
-    Opts opts(optsArray);
-
-    EXPECT_EQ(opts.Set("test.flag", "true"), Status::OK);
-    EXPECT_TRUE(var);
-}
-
-TEST(OptionsSetters, SetBoolValue_False)
-{
-    bool var = true;
-    Opt opt = { "test.flag", &var, &Options::SetBoolValue };
-    Opt optsArray[] = { opt };
-    Opts opts(optsArray);
-
-    EXPECT_EQ(opts.Set("test.flag", "false"), Status::OK);
-    EXPECT_FALSE(var);
-}
-
-TEST(OptionsSetters, SetBoolValue_One)
-{
-    bool var = false;
-    Opt opt = { "test.flag", &var, &Options::SetBoolValue };
-    Opt optsArray[] = { opt };
-    Opts opts(optsArray);
-
-    EXPECT_EQ(opts.Set("test.flag", "1"), Status::OK);
-    EXPECT_TRUE(var);
-}
-
-TEST(OptionsSetters, SetBoolValue_Zero)
-{
-    bool var = true;
-    Opt opt = { "test.flag", &var, &Options::SetBoolValue };
-    Opt optsArray[] = { opt };
-    Opts opts(optsArray);
-
-    EXPECT_EQ(opts.Set("test.flag", "0"), Status::OK);
-    EXPECT_FALSE(var);
-}
-
-TEST(OptionsSetters, SetBoolValue_Invalid)
-{
-    bool var = false;
-    Opt opt = { "test.flag", &var, &Options::SetBoolValue };
-    Opt optsArray[] = { opt };
-    Opts opts(optsArray);
-
-    EXPECT_EQ(opts.Set("test.flag", "yes"), Status::INVALID_OPTION);
-    EXPECT_FALSE(var);
-}
-
 TEST(OptionsSetters, SetStringValue)
 {
     std::string var = "old";
-    Opt opt = { "test.path", &var, &Options::SetStringValue };
+    Opt opt         = { "test.path", &var, &Options::SetStringValue };
     Opt optsArray[] = { opt };
     Opts opts(optsArray);
 
@@ -106,34 +51,88 @@ TEST(OptionsSetters, SetStringValue)
     EXPECT_EQ(var, "/new/path");
 }
 
-TEST(OptionsSetters, SetLogLevelValue)
+struct BoolSetterCase {
+    const char* input;
+    bool initialValue;
+    bool expectedValue;
+    Status expectedStatus;
+};
+
+std::string BoolSetterCaseName(const testing::TestParamInfo<BoolSetterCase>& info)
 {
+    std::string name;
+    for (char ch : std::string(info.param.input)) {
+        name += std::isalnum(static_cast<unsigned char>(ch)) != 0 ? ch : '_';
+    }
+    return name + "_" + (info.param.expectedValue ? "true" : "false");
+}
+
+class OptionsSettersBool : public testing::TestWithParam<BoolSetterCase> {};
+
+TEST_P(OptionsSettersBool, SetBoolValue)
+{
+    auto const& c   = GetParam();
+    bool var        = c.initialValue;
+    Opt opt = { "test.flag", &var, &Options::SetBoolValue };
+    Opt optsArray[] = { opt };
+    Opts opts(optsArray);
+
+    EXPECT_EQ(opts.Set("test.flag", c.input), c.expectedStatus);
+    EXPECT_EQ(var, c.expectedValue);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Values,
+    OptionsSettersBool,
+    testing::Values(
+        BoolSetterCase { "true", false, true, Status::OK },
+        BoolSetterCase { "false", true, false, Status::OK },
+        BoolSetterCase { "1", false, true, Status::OK },
+        BoolSetterCase { "0", true, false, Status::OK },
+        BoolSetterCase { "yes", false, false, Status::INVALID_OPTION },
+        BoolSetterCase { "TRUE", false, false, Status::INVALID_OPTION },
+        BoolSetterCase { "01", false, false, Status::INVALID_OPTION },
+        BoolSetterCase { "", false, false, Status::INVALID_OPTION },
+        BoolSetterCase { " true", false, false, Status::INVALID_OPTION }
+    ),
+    BoolSetterCaseName
+);
+
+struct LogLevelCase {
+    const char* input;
+    Logging::Level expected;
+};
+
+std::string LogLevelCaseName(const testing::TestParamInfo<LogLevelCase>& info) { return info.param.input; }
+
+class OptionsSettersLogLevel : public testing::TestWithParam<LogLevelCase> {};
+
+TEST_P(OptionsSettersLogLevel, SetLogLevelValue)
+{
+    auto c = GetParam();
     Logging::Logger logger;
     Opt opt = { "test.log", &logger, &Options::SetLogLevelValue };
     Opt optsArray[] = { opt };
     Opts opts(optsArray);
 
-    EXPECT_EQ(opts.Set("test.log", "trace"), Status::OK);
-    EXPECT_EQ(logger.GetLogLevel(), Logging::Level::TRACE);
-
-    EXPECT_EQ(opts.Set("test.log", "debug"), Status::OK);
-    EXPECT_EQ(logger.GetLogLevel(), Logging::Level::DEBUG);
-
-    EXPECT_EQ(opts.Set("test.log", "info"), Status::OK);
-    EXPECT_EQ(logger.GetLogLevel(), Logging::Level::INFO);
-
-    EXPECT_EQ(opts.Set("test.log", "warn"), Status::OK);
-    EXPECT_EQ(logger.GetLogLevel(), Logging::Level::WARN);
-
-    EXPECT_EQ(opts.Set("test.log", "error"), Status::OK);
-    EXPECT_EQ(logger.GetLogLevel(), Logging::Level::ERROR);
-
-    EXPECT_EQ(opts.Set("test.log", "fatal"), Status::OK);
-    EXPECT_EQ(logger.GetLogLevel(), Logging::Level::FATAL);
-
-    EXPECT_EQ(opts.Set("test.log", "none"), Status::OK);
-    EXPECT_EQ(logger.GetLogLevel(), Logging::Level::NONE);
+    EXPECT_EQ(opts.Set("test.log", c.input), Status::OK);
+    EXPECT_EQ(logger.GetLogLevel(), c.expected);
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    Values,
+    OptionsSettersLogLevel,
+    testing::Values(
+        LogLevelCase { "none", Logging::Level::NONE },
+        LogLevelCase { "fatal", Logging::Level::FATAL },
+        LogLevelCase { "error", Logging::Level::ERROR },
+        LogLevelCase { "warn", Logging::Level::WARN },
+        LogLevelCase { "info", Logging::Level::INFO },
+        LogLevelCase { "debug", Logging::Level::DEBUG },
+        LogLevelCase { "trace", Logging::Level::TRACE }
+    ),
+    LogLevelCaseName
+);
 
 TEST(OptionsSetters, SetLogLevelValue_Invalid)
 {
@@ -143,6 +142,9 @@ TEST(OptionsSetters, SetLogLevelValue_Invalid)
     Opts opts(optsArray);
 
     EXPECT_EQ(opts.Set("test.log", "invalid"), Status::INVALID_OPTION);
+    EXPECT_EQ(opts.Set("test.log", "TRACE"), Status::INVALID_OPTION);
+    EXPECT_EQ(opts.Set("test.log", "debug "), Status::INVALID_OPTION);
+    EXPECT_EQ(opts.Set("test.log", ""), Status::INVALID_OPTION);
 }
 
 TEST(OptionsTable, UnknownOption)
