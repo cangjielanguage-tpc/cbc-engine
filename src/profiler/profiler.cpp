@@ -16,7 +16,7 @@
 
 namespace Cbc::Profiler {
 
-bool enabled = false;
+bool enabled = true;
 
 Stream::Descripted Log::stream(Stream::cerr, "[profiler] ");
 Logging::Logger Log::profiler(&Log::stream);
