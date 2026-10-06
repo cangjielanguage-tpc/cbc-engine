@@ -71,8 +71,11 @@ struct ArithmeticResult {
 };
 
 // 128-bit integers. The saturating (and checked) arithmetic below relies on
-// `__int128`/`unsigned __int128` and on `__builtin_*_overflow` builtins for
-// wide-accumulate-and-clamp computations.
+// `__int128`/`unsigned __int128` for wide intermediates. The
+// `__builtin_{add,sub,mul}_overflow` family is used only with operands no
+// wider than 64 bits: every supported compiler expands those inline, while
+// on `__int128` operands clang may instead emit a call into compiler-rt
+// (see `SatArith`'s `SPOW` case for details).
 //
 // Portability notes:
 // - Architectures: 128-bit integer types are a compiler extension, not ISO
@@ -148,45 +151,46 @@ static inline ArithmeticResult SatArith(Saturating::Value op, Value::Primitive l
         }
         case Saturating::SPOW: {
             // Only signed base (Int64 ** UInt64) exists in Cangjie today.
-            // Track the true result sign and saturate as soon as the exact
-            // value no longer fits into the target type. Note that the base
-            // is repeatedly squared, so it must be checked for overflow as
-            // well (e.g. 2 ** 512 squares the base up to 2 ** 256).
-            using swidex = __int128;
-            swidex acc     = 1;
-            swidex base    = static_cast<swidex>(Traits::sget(l));
-            utype  exp     = Traits::uget(r);
-            bool   overflow = false;
-            int    sign    = 1; // sign of the true accumulated product
-            while (exp != 0) {
-                if ((exp & 1) != 0) {
-                    // Multiplying by a negative base flips the product sign.
-                    // (Comparing against acc's current sign would double-count
-                    // flips already accumulated in `sign`.)
-                    if (base < 0) {
-                        sign = -sign;
-                    }
-                    if (overflow || __builtin_mul_overflow(acc, base, &acc)) {
-                        overflow = true;
-                        break;
-                    }
-                    if (acc > smax || acc < smin) {
-                        overflow = true;
-                        break;
-                    }
-                }
-                exp >>= 1;
-                if (exp != 0) {
-                    if (__builtin_mul_overflow(base, base, &base)) {
-                        overflow = true;
-                        break;
-                    }
-                }
+            // Naive repeated multiplication in `swide`: the loop condition
+            // keeps `acc` within [smin, smax] before every multiply, so each
+            // product `acc * base` (both factors at most 2^63 in magnitude)
+            // is exact in 128 bits and cannot overflow. For |base| >= 2 the
+            // accumulator grows at least geometrically, so the loop either
+            // exhausts the exponent or leaves the range within at most ~64
+            // iterations. Plain multiplication is used instead of
+            // `__builtin_mul_overflow` on `__int128` operands, which is not
+            // portable: clang expands it into a call to the compiler-rt
+            // helper `__muloti4`, which libgcc (the default runtime of GNU
+            // cross toolchains) does not provide, which broke the
+            // aarch64-linux link.
+            //
+            // Bases with |base| <= 1 are handled separately: the loop below
+            // would never leave the range for them and could iterate up to
+            // 2^64 times.
+            stype base = Traits::sget(l);
+            utype exp  = Traits::uget(r);
+            if (base == 0) {
+                return { Traits::make(exp == 0 ? static_cast<stype>(1) : static_cast<stype>(0)), true };
             }
-            if (overflow) {
-                // Once the exact value is out of range it can only grow,
-                // so saturate in the direction of the true result sign.
-                return { Traits::make(sign > 0 ? smax : smin), true };
+            if (base == 1) {
+                return { Traits::make(static_cast<stype>(1)), true };
+            }
+            if (base == -1) {
+                return { Traits::make((exp & 1) != 0 ? static_cast<stype>(-1) : static_cast<stype>(1)), true };
+            }
+
+            swide acc = 1;
+            while (exp != 0 && smin <= acc && acc <= smax) {
+                acc *= base;
+                exp--;
+            }
+            if (acc < smin || acc > smax) {
+                // The exact value has left the target range and its magnitude
+                // only grows from here (|base| >= 2). Its sign is the sign of
+                // `acc`, possibly flipped by the remaining multiplications
+                // with a negative base, so saturate accordingly.
+                bool negative = (acc < 0) != (base < 0 && (exp & 1) != 0);
+                return { Traits::make(negative ? smin : smax), true };
             }
             return { Traits::make(static_cast<stype>(acc)), true };
         }
