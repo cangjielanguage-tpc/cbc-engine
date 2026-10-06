@@ -46,7 +46,7 @@ Thunk InterpretationLoop(
     RTSupport::ThreadHandle handle,
     LiteralTable* literals,
     Decoder::ByteReader& reader0,
-    FunctionHandle* function = nullptr
+    FunctionHandle* fuh = nullptr
 );
 
 } // namespace Interpretation
