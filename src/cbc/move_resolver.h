@@ -43,7 +43,7 @@ public:
     void Resolve(const Utils::Function<void(Location dst, Location src)>& emit);
 
     static constexpr auto NIL     = Location { -1 };
-    static constexpr auto TEMP_FR = Location {IReg::VIRT_COUNT + FReg::FR15};
+    static constexpr auto TEMP_FR = FReg::FR15;
 
     MoveResolver(IReg tempIr = PlatformTraits<HOST_PLATFORM>::TR);
 
