@@ -15,6 +15,12 @@ public:
         operator std::string_view();
     };
 
+    StringPool() = default;
+    ~StringPool();
+    // map keys are string_views into owned memory, copying would lead to double free
+    StringPool(const StringPool&)            = delete;
+    StringPool& operator=(const StringPool&) = delete;
+
     String Intern(std::string_view str);
     size_t InternAndGetId(std::string_view str);
     String GetStringById(size_t id);
@@ -24,4 +30,4 @@ private:
     Utils::Vector<String> strings;
 };
 
-}
+} // namespace Utils
