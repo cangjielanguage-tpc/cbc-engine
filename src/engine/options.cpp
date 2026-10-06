@@ -23,7 +23,7 @@ bool Engine::useShortGCTib = true;
 
 constexpr Option globalOptionsArray[] = {
     { "cbc.use.short.gctib", &Engine::useShortGCTib, &SetBoolValue },
-    { "cbc.profiler", &Cbc::Profiler::enabled, &SetBoolValue },
+    //{ "cbc.profiler", &Cbc::Profiler::enabled, &SetBoolValue },
     { "cbc.log.resolution", &Resolution::log, &SetLogLevelValue },
     { "cbc.log.int", &Interpretation::Log::interpretation, &SetLogLevelValue },
     { "cbc.log.preparation", &Interpretation::Log::preparation, &SetLogLevelValue },
