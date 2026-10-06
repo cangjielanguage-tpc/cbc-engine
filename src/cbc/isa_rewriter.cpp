@@ -386,7 +386,7 @@ struct IsaRewriter : public IsaParser {
             } else if (skind == Location::FREG && dkind == Location::FREG) {
                 emit.Mov(FReg::From(dst.FRegIdx()), FReg::From(src.FRegIdx()));
             } else if (skind == Location::SLOT && dkind == Location::SLOT) {
-                auto srcOffset = static_cast<int32_t>(src.SlotIdx()) * 8;
+                auto srcOffset = UntypedSlotOffset(src.SlotIdx());
                 if (MathUtils::IsNBitsSigned(srcOffset, 16)) {
                     emit.StackParamS16(srcOffset, dstParamOffset());
                 } else {

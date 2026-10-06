@@ -20,7 +20,7 @@ void MoveResolver::AddMove(Location src, Location dst)
 {
     ASSERT(src.Kind() != Location::NIL);
     ASSERT(dst.Kind() != Location::NIL);
-    if (src.idx == dst.idx) {
+    if (dst.Kind() != Location::SLOT && src.idx == dst.idx) {
         return;
     }
     assignments.PushBack(Assignment {dst, src});

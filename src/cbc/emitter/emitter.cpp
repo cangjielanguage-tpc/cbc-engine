@@ -960,7 +960,7 @@ void Emitter::StoreFrame(StoreAccessKind stk, Reg src, int32_t offset)
         auto opc = !stk.IsFloat() ? RT::Opcode::STORE_FRAME : RT::Opcode::STORE_FRAME_F;
         LoadStore(stk, src, IReg::IRZ, offset, opc);
     } else {
-        auto opc = !stk.IsFloat() ? RT::Opcode::STORE_LONG_REC : RT::Opcode::STORE_LONG_REC_F;
+        auto opc = !stk.IsFloat() ? RT::Opcode::STORE_LONG_FRAME : RT::Opcode::STORE_LONG_FRAME_F;
         LoadStoreLong(stk, src, IReg::IRZ, IReg::IRZ, offset, opc);
     }
 }

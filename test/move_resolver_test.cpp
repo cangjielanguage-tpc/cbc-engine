@@ -1,6 +1,7 @@
 #include <cstring>
 #include <gtest/gtest.h>
 
+#include "cbc/isa.h"
 #include "cbc/move_resolver.h"
 #include "regs_and_slots.h"
 
@@ -656,4 +657,36 @@ TEST(MoveResolver, FanOutWithSlotAndCycle)
     EXPECT_EQ(r.iregs[2], IrValue(1));
     EXPECT_EQ(r.iregs[1], IrValue(2));
     EXPECT_EQ(r.paramPassingStackSlots[0], IrValue(1));
+}
+
+TEST(MoveResolver, RegressionMatrixMultiply_parallel_bench)
+{
+    MoveResolver mr;
+    using namespace Cbc;
+
+    // clang-format off
+    mr.AddMove(Location::IReg(IReg::IR1),  Location::IReg(IReg::IR1));
+    mr.AddMove(Location::IReg(IReg::IR2),  Location::IReg(IReg::IR2));
+    mr.AddMove(Location::IReg(IReg::IR9),  Location::IReg(IReg::IR3));
+    mr.AddMove(Location::IReg(IReg::IR10), Location::IReg(IReg::IR4));
+    mr.AddMove(Location::IReg(IReg::IR11), Location::IReg(IReg::IR5));
+    mr.AddMove(Location::IReg(IReg::IR13), Location::IReg(IReg::IR6));
+    mr.AddMove(Location::Slot(0),          Location::Slot(0));
+    mr.AddMove(Location::IReg(IReg::IR12), Location::Slot(1));
+    mr.AddMove(Location::IReg(IReg::IR8),  Location::Slot(2));
+    // clang-format on
+
+    RegsAndSlots r;
+    r.Resolve(mr);
+
+    ASSERT_EQ(r.movCount, 7);
+    EXPECT_EQ(r.iregs[1], IrValue(1));
+    EXPECT_EQ(r.iregs[2], IrValue(2));
+    EXPECT_EQ(r.iregs[3], IrValue(9));
+    EXPECT_EQ(r.iregs[4], IrValue(10));
+    EXPECT_EQ(r.iregs[5], IrValue(11));
+    EXPECT_EQ(r.iregs[6], IrValue(13));
+    EXPECT_EQ(r.paramPassingStackSlots[0], StValue(0));
+    EXPECT_EQ(r.paramPassingStackSlots[1], IrValue(12));
+    EXPECT_EQ(r.paramPassingStackSlots[2], IrValue(8));
 }
