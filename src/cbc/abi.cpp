@@ -10,13 +10,6 @@ AbiAssigner::AbiAssigner(const PlatformDescription& desc)
 {
 }
 
-void AbiAssigner::Clear()
-{
-    iargIdx = 0;
-    fargIdx = 0;
-    slotIdx = 0;
-}
-
 Location AbiAssigner::Consume(ArgKind kind)
 {
     const bool isFloat = kind == ArgKind::FLOAT;

@@ -40,8 +40,10 @@ struct TestAbiBuilder {
     Utils::Vector<uint32_t> refStackSlots;
     Utils::Vector<uint32_t> recStackSlots;
 
+    AbiAssigner::PlatformDescription desc;
+
     TestAbiBuilder(const AbiAssigner::PlatformDescription& desc)
-        : assigner(desc) {}
+        : assigner(desc), desc(desc) {}
 
     void track(Location target, ArgKind kind) {
         if (target.Kind() == Location::IREG) {
@@ -87,7 +89,7 @@ struct TestAbiBuilder {
     }
 
     void Clear() {
-        assigner.Clear();
+        assigner = AbiAssigner(desc);
         moves.Clear();
         iregStackPtrMask = 0;
         iregRefMask = 0;

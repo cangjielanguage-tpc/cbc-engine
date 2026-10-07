@@ -77,16 +77,34 @@ private:
 };
 
 template <typename F>
-class TrackedAbiAssigner {
+class TrackedAbiAssigner : public AbiAssigner {
 public:
-    TrackedAbiAssigner(const AbiAssigner::PlatformDescription& desc, F&& track) : assigner(desc) {}
+    TrackedAbiAssigner(const AbiAssigner::PlatformDescription& desc, F&& track) : AbiAssigner(desc), track(std::move(track)) {}
 
     template <Platform p = HOST_PLATFORM>
     TrackedAbiAssigner(F&& track)
-        : assigner(AbiAssigner::PlatformDescription::FromTraits<p>()) {}
+        : AbiAssigner(AbiAssigner::PlatformDescription::FromTraits<p>()), track(std::move(track)) {}
+
+    Location Consume(ArgKind kind)
+    {
+        auto target = AbiAssigner::Consume(kind);
+        track(target, kind);
+        return target;
+    }
+
+    Location ConsumeSret()
+    {
+        auto target = AbiAssigner::ConsumeSret();
+        track(target, ArgKind::REC);
+        return target;
+    }
+
+    template <typename ArgType, typename ArgTypeTraits>
+    Location Consume(ArgType arg) {
+        return Consume(ArgKindOf<ArgType, ArgTypeTraits>(arg));
+    }
 
 private:
-    AbiAssigner assigner;
     F track;
 };
 
