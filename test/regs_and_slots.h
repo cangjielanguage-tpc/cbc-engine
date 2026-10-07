@@ -14,7 +14,7 @@ static inline int FrValue(int freg) { return freg + kAddend; }
 
 static inline int StValue(int slot) { return slot + 2 * kAddend; }
 
-struct RegsAndSlots {
+struct RegsAndSlots : public MoveEmitter {
     static constexpr int stackSlotCount = kAddend;
 
     int iregs[IReg::VIRT_COUNT];
@@ -75,11 +75,24 @@ struct RegsAndSlots {
         movCount++;
     }
 
-    void Resolve(MoveResolver& mr)
+    void AssignIReg(IReg dst, IReg src) override { Mov(Location::IReg(dst), Location::IReg(src)); }
+
+    void AssignFReg(FReg dst, FReg src) override { Mov(Location::FReg(dst), Location::FReg(src)); }
+
+    void AssignParamSlot(int paramSlot, int stackSlot) override
     {
-        auto emit = [this](Location dst, Location src) { this->Mov(dst, src); };
-        mr.Resolve(emit);
+        Mov(Location::Slot(paramSlot), Location::Slot(stackSlot));
     }
+
+    void AssignFRegFromSlot(FReg dst, int slot) override { Mov(Location::FReg(dst), Location::Slot(slot)); }
+
+    void AssignIRegFromSlot(IReg dst, int slot) override { Mov(Location::IReg(dst), Location::Slot(slot)); }
+
+    void AssignSlotFromIReg(int slot, IReg src) override { Mov(Location::Slot(slot), Location::IReg(src)); }
+
+    void AssignSlotFromFReg(int slot, FReg src) override { Mov(Location::Slot(slot), Location::FReg(src)); }
+
+    void Resolve(MoveResolver& mr) { mr.Resolve(*this); }
 };
 
 } // namespace Cbc

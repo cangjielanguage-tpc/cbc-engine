@@ -11,12 +11,44 @@ namespace {
 
 using Emit = std::pair<Location, Location>;
 
+struct RecordingEmitter : public MoveEmitter {
+    std::vector<Emit> emits;
+
+    void AssignIReg(IReg dst, IReg src) override { emits.emplace_back(Location::IReg(dst), Location::IReg(src)); }
+
+    void AssignFReg(FReg dst, FReg src) override { emits.emplace_back(Location::FReg(dst), Location::FReg(src)); }
+
+    void AssignParamSlot(int paramSlot, int stackSlot) override
+    {
+        emits.emplace_back(Location::Slot(paramSlot), Location::Slot(stackSlot));
+    }
+
+    void AssignFRegFromSlot(FReg dst, int slot) override
+    {
+        emits.emplace_back(Location::FReg(dst), Location::Slot(slot));
+    }
+
+    void AssignIRegFromSlot(IReg dst, int slot) override
+    {
+        emits.emplace_back(Location::IReg(dst), Location::Slot(slot));
+    }
+
+    void AssignSlotFromIReg(int slot, IReg src) override
+    {
+        emits.emplace_back(Location::Slot(slot), Location::IReg(src));
+    }
+
+    void AssignSlotFromFReg(int slot, FReg src) override
+    {
+        emits.emplace_back(Location::Slot(slot), Location::FReg(src));
+    }
+};
+
 std::vector<Emit> Resolve(MoveResolver& mr)
 {
-    std::vector<Emit> emits;
-    auto emit = [&](Location dst, Location src) { emits.emplace_back(dst, src); };
-    mr.Resolve(emit);
-    return emits;
+    RecordingEmitter emitter;
+    mr.Resolve(emitter);
+    return emitter.emits;
 }
 
 } // namespace

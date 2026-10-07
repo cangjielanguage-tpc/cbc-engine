@@ -4,7 +4,6 @@
 
 #include "isa.h"
 #include "platforms.h"
-#include "utils/function.h"
 #include "utils/vector.h"
 
 namespace Cbc {
@@ -43,6 +42,21 @@ struct Location {
     static Location Slot(int slot) { return Location { IReg::VIRT_COUNT + FReg::COUNT + slot }; }
 };
 
+// Abstract sink for resolved moves. Implementations emit the actual
+// instructions for each assignment kind. Slot indices are plain ints
+// (untyped stack slot for src, param-passing slot for dst).
+class MoveEmitter {
+public:
+    virtual ~MoveEmitter()                                     = default;
+    virtual void AssignIReg(IReg dst, IReg src)                = 0;
+    virtual void AssignFReg(FReg dst, FReg src)                = 0;
+    virtual void AssignParamSlot(int paramSlot, int stackSlot) = 0;
+    virtual void AssignFRegFromSlot(FReg dst, int slot)        = 0;
+    virtual void AssignIRegFromSlot(IReg dst, int slot)        = 0;
+    virtual void AssignSlotFromIReg(int slot, IReg src)        = 0;
+    virtual void AssignSlotFromFReg(int slot, FReg src)        = 0;
+};
+
 // Collects src→dst register/slot moves and resolves them into a
 // conflict-free instruction sequence. When multiple moves share a
 // register, a temp register is used to stage values so no source is
@@ -51,7 +65,10 @@ class MoveResolver {
 public:
     void Clear();
     void AddMove(Location src, Location dst);
-    void Resolve(const Utils::Function<void(Location dst, Location src)>& emit);
+    // Resolves the collected moves by emitting them through `emitter`.
+    // Returns false when a move mixes register kinds (ireg<->freg),
+    // which is unsupported.
+    bool Resolve(MoveEmitter& emitter);
 
     static constexpr auto NIL     = Location { -1 };
     static constexpr auto TEMP_FR = FReg::FR15;

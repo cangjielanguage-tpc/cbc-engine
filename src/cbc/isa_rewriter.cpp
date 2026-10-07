@@ -154,6 +154,44 @@ LDK Ldk(Interpretation::BuiltinType bt)
     }
 }
 
+struct RewriterMoveEmitter : public MoveEmitter {
+    FrameLayout& frameLayout;
+    Emitter::Emitter& emit;
+
+    RewriterMoveEmitter(FrameLayout& frameLayout, Emitter::Emitter& emit) : frameLayout(frameLayout), emit(emit) {}
+
+    void AssignIReg(IReg dst, IReg src) override { emit.Mov(dst, src); }
+
+    void AssignFReg(FReg dst, FReg src) override { emit.Mov(dst, src); }
+
+    void AssignParamSlot(int paramSlot, int stackSlot) override
+    {
+        auto srcOffset = frameLayout.UntypedSlotOffset(stackSlot);
+        auto dstOffset = static_cast<uint16_t>(paramSlot) * 8;
+        if (MathUtils::IsNBitsSigned(srcOffset, 16)) {
+            emit.StackParamS16(srcOffset, dstOffset);
+        } else {
+            emit.StackParamS32(srcOffset, dstOffset);
+        }
+    }
+
+    void AssignFRegFromSlot(FReg dst, int slot) override
+    {
+        // FIXME: load/stores must be typed
+        emit.LoadFrame(LDK::LD_F64, dst, frameLayout.UntypedSlotOffset(slot));
+    }
+
+    void AssignIRegFromSlot(IReg dst, int slot) override
+    {
+        // FIXME: load/stores must be typed
+        emit.LoadFrame(LDK::LD_64, dst, frameLayout.UntypedSlotOffset(slot));
+    }
+
+    void AssignSlotFromIReg(int slot, IReg src) override { emit.StackParam(src, static_cast<uint16_t>(slot) * 8); }
+
+    void AssignSlotFromFReg(int slot, FReg src) override { emit.StackParamF(src, static_cast<uint16_t>(slot) * 8); }
+};
+
 struct IsaRewriter : public IsaParser {
     IsaRewriter(
         Resolver& resolver,
@@ -416,40 +454,11 @@ struct IsaRewriter : public IsaParser {
             moves.AddMove(args[idx++], abi.Consume(ArgKind::INT));
         }
 
-        auto emitMov = [&](Location dst, Location src) {
-            auto dkind          = dst.Kind();
-            auto skind          = src.Kind();
-            auto dstParamOffset = [dst]() { return static_cast<uint16_t>(dst.SlotIdx()) * 8; };
-            if (skind == Location::IREG && dkind == Location::IREG) {
-                emit.Mov(IReg::From(dst.IRegIdx()), IReg::From(src.IRegIdx()));
-            } else if (skind == Location::FREG && dkind == Location::FREG) {
-                emit.Mov(FReg::From(dst.FRegIdx()), FReg::From(src.FRegIdx()));
-            } else if (skind == Location::SLOT && dkind == Location::SLOT) {
-                auto srcOffset = UntypedSlotOffset(src.SlotIdx());
-                if (MathUtils::IsNBitsSigned(srcOffset, 16)) {
-                    emit.StackParamS16(srcOffset, dstParamOffset());
-                } else {
-                    emit.StackParamS32(srcOffset, dstParamOffset());
-                }
-            } else if (skind == Location::FREG && dkind == Location::SLOT) {
-                emit.StackParamF(FReg::From(src.FRegIdx()), dstParamOffset());
-                return;
-            } else if (skind == Location::IREG && dkind == Location::SLOT) {
-                emit.StackParam(IReg::From(src.IRegIdx()), dstParamOffset());
-                return;
-            } else if (skind == Location::SLOT && dkind == Location::IREG) {
-                // FIXME: load/stores must be typed
-                emit.LoadFrame(LDK::LD_64, dst.IRegIdx(), UntypedSlotOffset(src.SlotIdx()));
-                return;
-            } else if (skind == Location::SLOT && dkind == Location::FREG) {
-                // FIXME: load/stores must be typed
-                emit.LoadFrame(LDK::LD_F64, dst.FRegIdx(), UntypedSlotOffset(src.SlotIdx()));
-                return;
-            } else {
-                return Fail("Register kind mismatch");
-            }
-        };
-        moves.Resolve(emitMov);
+        RewriterMoveEmitter emitter(frameLayout, emit);
+        if (!moves.Resolve(emitter)) {
+            Fail("Register kind mismatch");
+            return;
+        }
         maxParamPassingSize = std::max(maxParamPassingSize, static_cast<uint32_t>(abi.MaxStackSlot() * 8));
 
         pendingParamRefSlots.Clear();
@@ -1633,7 +1642,7 @@ struct IsaRewriter : public IsaParser {
 
     void ArrayIndexCheck(IReg length, IReg index) override { FATAL("not implemented"); }
 
-    int32_t UntypedSlotOffset(uint16_t us) { return us * STACK_SLOT_SIZE - frameLayout.frameSize; }
+    int32_t UntypedSlotOffset(uint16_t us) { return frameLayout.UntypedSlotOffset(us); }
 
     void LoadUntyped(AnyReg dst, Format::LoadAccessKind ldk, uint16_t us) override
     {

@@ -21,7 +21,31 @@ void MoveResolver::AddMove(Location src, Location dst)
     assignments.PushBack(Assignment { dst, src });
 }
 
-void MoveResolver::Resolve(const Utils::Function<void(Location dst, Location src)>& emit)
+// Dispatches a single (dst, src) move to the matching MoveEmitter method.
+static void EmitMove(MoveEmitter& emitter, Location dst, Location src)
+{
+    auto dkind = dst.Kind();
+    auto skind = src.Kind();
+    if (skind == Location::IREG && dkind == Location::IREG) {
+        emitter.AssignIReg(IReg::From(dst.IRegIdx()), IReg::From(src.IRegIdx()));
+    } else if (skind == Location::FREG && dkind == Location::FREG) {
+        emitter.AssignFReg(FReg::From(dst.FRegIdx()), FReg::From(src.FRegIdx()));
+    } else if (skind == Location::SLOT && dkind == Location::SLOT) {
+        emitter.AssignParamSlot(dst.SlotIdx(), src.SlotIdx());
+    } else if (skind == Location::FREG && dkind == Location::SLOT) {
+        emitter.AssignSlotFromFReg(dst.SlotIdx(), FReg::From(src.FRegIdx()));
+    } else if (skind == Location::IREG && dkind == Location::SLOT) {
+        emitter.AssignSlotFromIReg(dst.SlotIdx(), IReg::From(src.IRegIdx()));
+    } else if (skind == Location::SLOT && dkind == Location::IREG) {
+        emitter.AssignIRegFromSlot(IReg::From(dst.IRegIdx()), src.SlotIdx());
+    } else if (skind == Location::SLOT && dkind == Location::FREG) {
+        emitter.AssignFRegFromSlot(FReg::From(dst.FRegIdx()), src.SlotIdx());
+    } else {
+        ASSERT(false);
+    }
+}
+
+bool MoveResolver::Resolve(MoveEmitter& emitter)
 {
     // # Register resolution:
     //   x64 volatile regs IRs          - IR1-IR7
@@ -98,13 +122,13 @@ void MoveResolver::Resolve(const Utils::Function<void(Location dst, Location src
         } else if (dkind == Location::SLOT) {
             // Param slots cannot form any chains,
             // to handle them emit all needed stores immediately before registers shuffle.
-            emit(dst, src);
+            EmitMove(emitter, dst, src);
         } else {
             if (dkind == Location::IREG && skind == Location::FREG) {
-                ASSERTION(false, "mixed register kind are not allowed");
+                return false;
             }
             if (dkind == Location::FREG && skind == Location::IREG) {
-                ASSERTION(false, "mixed register kind are not allowed");
+                return false;
             }
             ASSERT(skind == Location::SLOT);
             // This case will be processed after registers shuffle.
@@ -188,12 +212,8 @@ void MoveResolver::Resolve(const Utils::Function<void(Location dst, Location src
             }
         };
 
-    auto assignIr = [emit](RegNum dst, RegNum src) {
-        emit(Location::IReg(IReg::Value(dst)), Location::IReg(IReg::Value(src)));
-    };
-    auto assignFr = [emit](RegNum dst, RegNum src) {
-        emit(Location::FReg(FReg::Value(dst)), Location::FReg(FReg::Value(src)));
-    };
+    auto assignIr = [&emitter](RegNum dst, RegNum src) { emitter.AssignIReg(IReg::From(dst), IReg::From(src)); };
+    auto assignFr = [&emitter](RegNum dst, RegNum src) { emitter.AssignFReg(FReg::From(dst), FReg::From(src)); };
     cycleResolver(Utils::Span<RegNum>(iregs, IReg::VIRT_COUNT), tempIr, assignIr);
     cycleResolver(Utils::Span<RegNum>(fregs, FReg::COUNT), TEMP_FR, assignFr);
 
@@ -202,10 +222,13 @@ void MoveResolver::Resolve(const Utils::Function<void(Location dst, Location src
         auto src   = assignment.src;
         auto dkind = dst.Kind();
 
-        if (src.Kind() == Location::SLOT && (dkind == Location::IREG || dkind == Location::FREG)) {
-            emit(dst, src);
+        if (src.Kind() == Location::SLOT && dkind == Location::IREG) {
+            emitter.AssignIRegFromSlot(IReg::From(dst.IRegIdx()), src.SlotIdx());
+        } else if (src.Kind() == Location::SLOT && dkind == Location::FREG) {
+            emitter.AssignFRegFromSlot(FReg::From(dst.FRegIdx()), src.SlotIdx());
         }
     }
+    return true;
 }
 
 } // namespace Cbc
