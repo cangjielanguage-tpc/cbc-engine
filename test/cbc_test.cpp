@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <iterator>
 #include <sstream>
@@ -11,6 +12,7 @@
 #include "interpreter/code.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
+#include "utils/vector.h"
 
 #include "interpreter/loggers.h"
 #include "mock/interpreter.h"
@@ -39,11 +41,10 @@ class CbcTest : public testing::Test {
 
 static std::unique_ptr<IO::ByteArrayRandomAccessFile> FromString(std::string_view view)
 {
-    char* data        = new char[view.size() + 1];
-    data[view.size()] = 0;
-    view.copy(data, view.size());
+    Utils::Vector<char> data(view.size());
+    std::copy(view.begin(), view.end(), data.Data());
 
-    return std::make_unique<IO::ByteArrayRandomAccessFile>(data, view.size());
+    return std::make_unique<IO::ByteArrayRandomAccessFile>(std::move(data));
 }
 
 TEST_F(CbcTest, Empty)

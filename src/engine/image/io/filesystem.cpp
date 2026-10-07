@@ -1,6 +1,7 @@
 #include "filesystem.h"
 #include "byte_array_random_access_file.h"
 #include "utils/rt_logger.h"
+#include "utils/vector.h"
 
 #include <fcntl.h>
 #include <optional>
@@ -38,13 +39,12 @@ static std::optional<std::unique_ptr<RandomAccessFile>> OpenFileImpl(std::string
 
     size_t fileLength = static_cast<size_t>(rawLength);
 
-    char* data = new char[fileLength];
-    ssize_t n  = read(fd, data, fileLength);
+    Utils::Vector<char> data(fileLength);
+    ssize_t n = read(fd, data.Data(), fileLength);
 
     close(fd);
 
-    if (n != fileLength) {
-        delete[] data;
+    if (n != static_cast<ssize_t>(fileLength)) {
         if (log_failure) {
             RTSupport::Log::gc.Log(Logging::Level::ERROR, [&path](Stream::Output& out) {
                 out.PrintFmtLn("read error %s", path.c_str());
@@ -53,7 +53,7 @@ static std::optional<std::unique_ptr<RandomAccessFile>> OpenFileImpl(std::string
         return std::nullopt;
     }
 
-    return std::make_unique<ByteArrayRandomAccessFile>(data, fileLength);
+    return std::make_unique<ByteArrayRandomAccessFile>(std::move(data));
 };
 
 std::optional<std::unique_ptr<RandomAccessFile>> OpenFile(std::string const& path) { return OpenFileImpl(path, true); }

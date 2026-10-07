@@ -1,6 +1,9 @@
 #pragma once
 
 #include "random_access_file.h"
+#include "utils/vector.h"
+
+#include <utility>
 
 namespace IO {
 
@@ -10,21 +13,19 @@ namespace IO {
  */
 class ByteArrayRandomAccessFile : public RandomAccessFile {
 public:
-    ByteArrayRandomAccessFile(const char* data, size_t fileLength) : data(data), fileLength(fileLength) {}
+    explicit ByteArrayRandomAccessFile(Utils::Vector<char> data) : data(std::move(data)) {}
 
-    virtual ~ByteArrayRandomAccessFile()
-    {
-        RandomAccessFile::~RandomAccessFile();
-        delete data;
-    }
+    ByteArrayRandomAccessFile(ByteArrayRandomAccessFile const&) = delete;
+    ByteArrayRandomAccessFile& operator=(ByteArrayRandomAccessFile const&) = delete;
 
-    virtual size_t FileLength() const override { return fileLength; }
+    virtual ~ByteArrayRandomAccessFile() = default;
+
+    virtual size_t FileLength() const override { return data.Size(); }
 
     virtual size_t Peek(char* array, size_t position, size_t length) const override;
 
 private:
-    const char* data;
-    const size_t fileLength;
+    Utils::Vector<char> data;
 };
 
 } // namespace IO
