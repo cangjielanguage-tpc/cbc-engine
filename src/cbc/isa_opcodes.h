@@ -151,21 +151,21 @@
     X(CallVirt, CallVirt)                                                                                              \
     X(CallInterf, CallInterf)                                                                                          \
     X(CallClosure, CallClosure)                                                                                        \
-    X(CallClosureGeneric, CallClosureGeneric)                                                                           \
+    X(CallClosureGeneric, CallClosureGeneric)                                                                          \
     X(_END, Unreachable)
 
 #define ISA_REG_SYM_GROUP_OPCODES(X)                                                                                   \
     X(LoadTypeInfoSig)                                                                                                 \
     X(LoadTypeInfoGeneric)                                                                                             \
     X(NewObj)                                                                                                          \
-    X(Unused0)                                                                                                           \
-    X(Unused1)                                                                                                           \
-    X(Unused2)                                                                                                           \
+    X(Unused0)                                                                                                         \
+    X(Unused1)                                                                                                         \
+    X(Unused2)                                                                                                         \
     X(Spawn)                                                                                                           \
     X(SpawnFuture)                                                                                                     \
-    X(Unused3)                                                                                                           \
+    X(Unused3)                                                                                                         \
     X(NewClosure)                                                                                                      \
-    X(Unused4)                                                                                                           \
+    X(Unused4)                                                                                                         \
     X(NewObjGeneric)                                                                                                   \
     X(NewClosureGeneric)                                                                                               \
     X(_END)

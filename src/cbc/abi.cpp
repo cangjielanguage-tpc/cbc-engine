@@ -2,13 +2,7 @@
 
 namespace Cbc {
 
-AbiAssigner::AbiAssigner(const PlatformDescription& desc)
-    : desc(desc)
-    , iargIdx(0)
-    , fargIdx(0)
-    , slotIdx(0)
-{
-}
+AbiAssigner::AbiAssigner(const PlatformDescription& desc) : desc(desc), iargIdx(0), fargIdx(0), slotIdx(0) {}
 
 Location AbiAssigner::Consume(ArgKind kind)
 {

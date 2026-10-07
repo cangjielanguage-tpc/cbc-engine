@@ -1,8 +1,8 @@
 #pragma once
 
+#include "utils/vector.h"
 #include <cstdint>
 #include <stdint.h>
-#include "utils/vector.h"
 
 namespace Cbc {
 

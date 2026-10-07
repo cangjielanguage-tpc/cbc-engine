@@ -524,22 +524,21 @@ struct ResolverProxy {
         auto flags     = parsedRef.flags;
 
         bool isResolved = true;
-        if (refType.GetKind() == TermKind::UNDEFINED || signature.GetKind() == TermKind::UNDEFINED || tvars.GetKind() == TermKind::UNDEFINED) {
+        if (refType.GetKind() == TermKind::UNDEFINED || signature.GetKind() == TermKind::UNDEFINED ||
+            tvars.GetKind() == TermKind::UNDEFINED) {
             // undef terms would be reported separately
             LOGS_ERROR(log, session, "Failed to parse method reference {}", identifier);
             isResolved = false;
         }
 
-        return ResolvedMethodReference {
-            .refType = refType,
-            .name = name,
-            .signature = signature,
-            .identifier = identifier,
-            .tvars = tvars,
-            .flags = flags,
-            .abiKind = parsedRef.abiKind,
-            .isResolved = isResolved
-        };
+        return ResolvedMethodReference { .refType    = refType,
+                                         .name       = name,
+                                         .signature  = signature,
+                                         .identifier = identifier,
+                                         .tvars      = tvars,
+                                         .flags      = flags,
+                                         .abiKind    = parsedRef.abiKind,
+                                         .isResolved = isResolved };
     }
 
     template <typename Call> static ResolvedMethodReference ResolveReference(Resolver& resolver, Index<Call> index)

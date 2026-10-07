@@ -140,7 +140,10 @@ struct IsaDisasm : public IsaParser {
         );
     }
 
-    void MovBasePtr(IReg dst, bool local) override { stream.PrintLn("mov.base.{} {}", local ? "local" : "global", dst); }
+    void MovBasePtr(IReg dst, bool local) override
+    {
+        stream.PrintLn("mov.base.{} {}", local ? "local" : "global", dst);
+    }
 
     void BFX(IReg dst, IReg src, Format::Width resW, Format::Width argW, bool sx, uint8_t offset, uint8_t size) override
     {
@@ -278,17 +281,21 @@ struct IsaDisasm : public IsaParser {
     static std::string LocStr(Location loc)
     {
         auto kind = loc.Kind();
-        if (kind == Location::IREG) return "IR" + std::to_string(loc.IRegIdx());
-        if (kind == Location::FREG) return "FR" + std::to_string(loc.FRegIdx());
+        if (kind == Location::IREG)
+            return "IR" + std::to_string(loc.IRegIdx());
+        if (kind == Location::FREG)
+            return "FR" + std::to_string(loc.FRegIdx());
         return "S" + std::to_string(loc.SlotIdx());
     }
 
     static std::string ArgsStr(Utils::Span<const Location> args)
     {
-        if (args.Size() == 0) return "";
+        if (args.Size() == 0)
+            return "";
         std::string s = " [";
         for (int i = 0; i < args.Size(); i++) {
-            if (i > 0) s += ", ";
+            if (i > 0)
+                s += ", ";
             s += LocStr(args[i]);
         }
         s += "]";

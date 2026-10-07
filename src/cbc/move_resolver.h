@@ -2,10 +2,10 @@
 
 #include <cstdint>
 
-#include "platforms.h"
 #include "isa.h"
-#include "utils/vector.h"
+#include "platforms.h"
 #include "utils/function.h"
+#include "utils/vector.h"
 
 namespace Cbc {
 
@@ -13,7 +13,7 @@ struct Location {
     int idx;
 
     enum Kind : char {
-        NIL = 'n',
+        NIL  = 'n',
         IREG = 'i',
         FREG = 'f',
         SLOT = 's',
@@ -21,19 +21,26 @@ struct Location {
 
     Kind Kind() const
     {
-        if (idx < 0) return NIL;
-        if (idx < IReg::VIRT_COUNT) return IREG;
-        if (idx < IReg::VIRT_COUNT + FReg::COUNT) return FREG;
+        if (idx < 0)
+            return NIL;
+        if (idx < IReg::VIRT_COUNT)
+            return IREG;
+        if (idx < IReg::VIRT_COUNT + FReg::COUNT)
+            return FREG;
         return SLOT;
     }
 
     uint32_t IRegIdx() const { return idx; }
+
     uint32_t FRegIdx() const { return idx - IReg::VIRT_COUNT; }
+
     uint32_t SlotIdx() const { return idx - (IReg::VIRT_COUNT + FReg::COUNT); }
 
-    static Location IReg(IReg::Value reg) { return Location {static_cast<int>(reg)}; }
-    static Location FReg(FReg::Value reg) { return Location {IReg::VIRT_COUNT + static_cast<int>(reg)}; }
-    static Location Slot(int slot) { return Location {IReg::VIRT_COUNT + FReg::COUNT + slot}; }
+    static Location IReg(IReg::Value reg) { return Location { static_cast<int>(reg) }; }
+
+    static Location FReg(FReg::Value reg) { return Location { IReg::VIRT_COUNT + static_cast<int>(reg) }; }
+
+    static Location Slot(int slot) { return Location { IReg::VIRT_COUNT + FReg::COUNT + slot }; }
 };
 
 // Collects src→dst register/slot moves and resolves them into a
@@ -58,6 +65,7 @@ private:
         Location dst;
         Location src;
     };
+
     Utils::Vector<Assignment> assignments;
 };
 

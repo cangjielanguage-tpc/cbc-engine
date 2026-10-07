@@ -7,14 +7,9 @@
 
 namespace Cbc {
 
-MoveResolver::MoveResolver(IReg tempIr) : tempIr(tempIr)
-{
-}
+MoveResolver::MoveResolver(IReg tempIr) : tempIr(tempIr) {}
 
-void MoveResolver::Clear()
-{
-    assignments.Clear();
-}
+void MoveResolver::Clear() { assignments.Clear(); }
 
 void MoveResolver::AddMove(Location src, Location dst)
 {
@@ -23,7 +18,7 @@ void MoveResolver::AddMove(Location src, Location dst)
     if (dst.Kind() != Location::SLOT && src.idx == dst.idx) {
         return;
     }
-    assignments.PushBack(Assignment {dst, src});
+    assignments.PushBack(Assignment { dst, src });
 }
 
 void MoveResolver::Resolve(const Utils::Function<void(Location dst, Location src)>& emit)
@@ -43,7 +38,8 @@ void MoveResolver::Resolve(const Utils::Function<void(Location dst, Location src
     // - only param-passing ones can be used as `dst`
     // This implies that:
     // 1. a cycle that uses all volatile registers is impossible
-    // 2. it is possible to resolve register cycles in order, where `tmp` register can always be assigned out of volatile registers.
+    // 2. it is possible to resolve register cycles in order, where `tmp` register can always be assigned out of
+    // volatile registers.
     // 3. any graph walk that starts from volatile non-param passing register would not hit a cycle!
     //
     // # Stack slot resolution:
@@ -80,16 +76,18 @@ void MoveResolver::Resolve(const Utils::Function<void(Location dst, Location src
     // No heap allocations — only stack-allocated arrays.
 
     static constexpr int BUFFER_SIZE = IReg::VIRT_COUNT < FReg::COUNT ? FReg::COUNT : IReg::VIRT_COUNT;
-    using RegNum = uint8_t;
+    using RegNum                     = uint8_t;
     RegNum iregs[IReg::VIRT_COUNT];
     RegNum fregs[FReg::COUNT];
 
-    for (int i = 0; i < IReg::VIRT_COUNT; i++) iregs[i] = i;
-    for (int i = 0; i < FReg::COUNT; i++) fregs[i] = i;
+    for (int i = 0; i < IReg::VIRT_COUNT; i++)
+        iregs[i] = i;
+    for (int i = 0; i < FReg::COUNT; i++)
+        fregs[i] = i;
 
     for (auto& assignment : assignments) {
-        auto dst = assignment.dst;
-        auto src = assignment.src;
+        auto dst   = assignment.dst;
+        auto src   = assignment.src;
         auto dkind = dst.Kind();
         auto skind = src.Kind();
 
@@ -113,75 +111,82 @@ void MoveResolver::Resolve(const Utils::Function<void(Location dst, Location src
         }
     }
 
-    auto cycleResolver = [](Utils::Span<RegNum> sources, RegNum temp, Utils::Function<void(RegNum, RegNum)> const& assign) {
-        uint8_t regCount = sources.Size();
-        ASSERT(regCount <= BUFFER_SIZE);
-        // sources is a graph: "sources[dst] = src" or edge = (sources[dst] -> dst)
+    auto cycleResolver =
+        [](Utils::Span<RegNum> sources, RegNum temp, Utils::Function<void(RegNum, RegNum)> const& assign) {
+            uint8_t regCount = sources.Size();
+            ASSERT(regCount <= BUFFER_SIZE);
+            // sources is a graph: "sources[dst] = src" or edge = (sources[dst] -> dst)
 
-        constexpr char NOT_VISITED = 0;
-        constexpr char DONE        = 1;
-        char state[BUFFER_SIZE]    = {NOT_VISITED};
+            constexpr char NOT_VISITED = 0;
+            constexpr char DONE        = 1;
+            char state[BUFFER_SIZE]    = { NOT_VISITED };
 
-        for (RegNum dst = 0; dst < regCount; dst++) {
-            if (dst == sources[dst]) state[dst] = DONE;
-        }
-
-        bool changed = true; // fixed-point iteration
-        while (changed) {
-            changed = false;
-            // Find and resolve chains.
             for (RegNum dst = 0; dst < regCount; dst++) {
-                if (state[dst] == DONE) {
-                    continue;
-                }
-                auto src = sources[dst];
-                ASSERT(src != dst);
-
-                // check if someone needs a value of `dst`.
-                bool needed = false;
-                for (RegNum dstdst = 0; dstdst < regCount; dstdst++) {
-                    if (state[dstdst] == DONE || dstdst == dst) continue;
-                    if (sources[dstdst] == dst) {
-                        needed = true;
-                        break;
-                    }
-                }
-                if (needed) continue;
-                // safe to assign src to dst
-                assign(dst, src);
-                changed = true;
-                state[dst] = DONE;
+                if (dst == sources[dst])
+                    state[dst] = DONE;
             }
-            if (changed) continue;
 
-            ASSERT(state[temp] == DONE);
+            bool changed = true; // fixed-point iteration
+            while (changed) {
+                changed = false;
+                // Find and resolve chains.
+                for (RegNum dst = 0; dst < regCount; dst++) {
+                    if (state[dst] == DONE) {
+                        continue;
+                    }
+                    auto src = sources[dst];
+                    ASSERT(src != dst);
 
-            // Invariant: any in-progress assignment cannot have a `temp` register.
-            // 1. A `temp` register cannot be part of a cycle (due to the ABI).
-            // 2. The loop above should process all chains.
+                    // check if someone needs a value of `dst`.
+                    bool needed = false;
+                    for (RegNum dstdst = 0; dstdst < regCount; dstdst++) {
+                        if (state[dstdst] == DONE || dstdst == dst)
+                            continue;
+                        if (sources[dstdst] == dst) {
+                            needed = true;
+                            break;
+                        }
+                    }
+                    if (needed)
+                        continue;
+                    // safe to assign src to dst
+                    assign(dst, src);
+                    changed    = true;
+                    state[dst] = DONE;
+                }
+                if (changed)
+                    continue;
+
+                ASSERT(state[temp] == DONE);
+
+                // Invariant: any in-progress assignment cannot have a `temp` register.
+                // 1. A `temp` register cannot be part of a cycle (due to the ABI).
+                // 2. The loop above should process all chains.
+                for (RegNum dst = 0; dst < regCount; dst++) {
+                    if (state[dst] == DONE)
+                        continue;
+                    ASSERT(sources[dst] != temp || dst == temp);
+                    // The loop will be optimized out.
+                }
+
+                // A cycle is present and there are no chains left.
+                // So, any non-done `dst` is part of a cycle.
+                for (RegNum dst = 0; dst < regCount; dst++) {
+                    if (state[dst] == DONE)
+                        continue;
+                    auto src = sources[dst];
+                    assign(temp, src);
+                    sources[dst] = temp;
+                    changed      = true;
+                    break;
+                }
+            }
+
             for (RegNum dst = 0; dst < regCount; dst++) {
-                if (state[dst] == DONE) continue;
-                ASSERT(sources[dst] != temp || dst == temp);
+                ASSERT(state[dst] == DONE);
                 // The loop will be optimized out.
             }
-
-            // A cycle is present and there are no chains left.
-            // So, any non-done `dst` is part of a cycle.
-            for (RegNum dst = 0; dst < regCount; dst++) {
-                if (state[dst] == DONE) continue;
-                auto src = sources[dst];
-                assign(temp, src);
-                sources[dst] = temp;
-                changed = true;
-                break;
-            }
-        }
-
-        for (RegNum dst = 0; dst < regCount; dst++) {
-            ASSERT(state[dst] == DONE);
-            // The loop will be optimized out.
-        }
-    };
+        };
 
     auto assignIr = [emit](RegNum dst, RegNum src) {
         emit(Location::IReg(IReg::Value(dst)), Location::IReg(IReg::Value(src)));
@@ -193,8 +198,8 @@ void MoveResolver::Resolve(const Utils::Function<void(Location dst, Location src
     cycleResolver(Utils::Span<RegNum>(fregs, FReg::COUNT), TEMP_FR, assignFr);
 
     for (auto& assignment : assignments) {
-        auto dst = assignment.dst;
-        auto src = assignment.src;
+        auto dst   = assignment.dst;
+        auto src   = assignment.src;
         auto dkind = dst.Kind();
 
         if (src.Kind() == Location::SLOT && (dkind == Location::IREG || dkind == Location::FREG)) {

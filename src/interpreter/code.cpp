@@ -1,7 +1,7 @@
 #include "interpreter/code.h"
+#include "cbc/abi.h"
 #include "interpreter/ectype.h"
 #include "platform_traits.h"
-#include "cbc/abi.h"
 #include "utils/assertion.h"
 #include "utils/ostream.h"
 #include <cstdint>
@@ -41,8 +41,8 @@ AbiInfo BuildAbiInfo(Engine::Session& session, Engine::Term signature, AbiInfoFl
     uint16_t derivedPairs    = 0;
     uint16_t stackPtrParams  = 0;
     uint16_t referenceParams = 0;
-    int totalIntArgs  = 0;
-    int totalFloatArgs = 0;
+    int totalIntArgs         = 0;
+    int totalFloatArgs       = 0;
 
     Cbc::TrackedAbiAssigner abi([&](Cbc::Location target, Cbc::ArgKind kind) {
         if (kind == Cbc::ArgKind::FLOAT) {
@@ -52,8 +52,10 @@ AbiInfo BuildAbiInfo(Engine::Session& session, Engine::Term signature, AbiInfoFl
         totalIntArgs++;
         if (target.Kind() == Cbc::Location::IREG) {
             int idx = target.IRegIdx();
-            if (kind == Cbc::ArgKind::REC) stackPtrParams |= (1u << idx);
-            if (kind == Cbc::ArgKind::REF) referenceParams |= (1u << idx);
+            if (kind == Cbc::ArgKind::REC)
+                stackPtrParams |= (1u << idx);
+            if (kind == Cbc::ArgKind::REF)
+                referenceParams |= (1u << idx);
         }
     });
 

@@ -674,42 +674,42 @@ struct IsaParserImpl {
     {
         auto [argnum, methodId] = ByteReaderM(parser.reader).ReadU16().ReadULEB().Get();
         parser.ReadCallArgs();
-        parser.CallInterfGeneric(argnum, methodId, {parser.callArgs.Data(), parser.callArgs.Size()});
+        parser.CallInterfGeneric(argnum, methodId, { parser.callArgs.Data(), parser.callArgs.Size() });
     }
 
     static void CallDirect(IsaParser& parser)
     {
         auto methodId = parser.reader.ReadULEB();
         parser.ReadCallArgs();
-        parser.CallDirect(methodId, {parser.callArgs.Data(), parser.callArgs.Size()});
+        parser.CallDirect(methodId, { parser.callArgs.Data(), parser.callArgs.Size() });
     }
 
     static void CallVirt(IsaParser& parser)
     {
         auto methodId = parser.reader.ReadULEB();
         parser.ReadCallArgs();
-        parser.CallVirtual(methodId, {parser.callArgs.Data(), parser.callArgs.Size()});
+        parser.CallVirtual(methodId, { parser.callArgs.Data(), parser.callArgs.Size() });
     }
 
     static void CallInterf(IsaParser& parser)
     {
         auto methodId = parser.reader.ReadULEB();
         parser.ReadCallArgs();
-        parser.CallInterf(methodId, {parser.callArgs.Data(), parser.callArgs.Size()});
+        parser.CallInterf(methodId, { parser.callArgs.Data(), parser.callArgs.Size() });
     }
 
     static void CallClosure(IsaParser& parser)
     {
         auto typeId = parser.reader.ReadULEB();
         parser.ReadCallArgs();
-        parser.CallClosure(typeId, false, {parser.callArgs.Data(), parser.callArgs.Size()});
+        parser.CallClosure(typeId, false, { parser.callArgs.Data(), parser.callArgs.Size() });
     }
 
     static void CallClosureGeneric(IsaParser& parser)
     {
         auto typeId = parser.reader.ReadULEB();
         parser.ReadCallArgs();
-        parser.CallClosure(typeId, true, {parser.callArgs.Data(), parser.callArgs.Size()});
+        parser.CallClosure(typeId, true, { parser.callArgs.Data(), parser.callArgs.Size() });
     }
 
     static void RegSymGroup(IsaParser& parser)
@@ -727,7 +727,7 @@ struct IsaParserImpl {
             case Cbc::RegSymGroup::NewClosure:      parser.NewClosure(reg, id); break;
 
             case Cbc::RegSymGroup::NewClosureGeneric: parser.NewClosureGeneric(reg, id); break;
-            case Cbc::RegSymGroup::NewObjGeneric:     parser.NewObjGeneric(reg, id); break;
+            case Cbc::RegSymGroup::NewObjGeneric:       parser.NewObjGeneric(reg, id); break;
             case Cbc::RegSymGroup::LoadTypeInfoGeneric: parser.LoadTypeInfoGeneric(reg, id); break;
 
             default: {

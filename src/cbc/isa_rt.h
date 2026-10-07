@@ -189,9 +189,9 @@
     X(SBINIMM16W, BinarySaturating, "$0sbin.16 $2ir $3ir $1I64")                                                       \
     X(SBINIMM32W, BinarySaturating, "$0sbin.32 $2ir $3ir $1I64")                                                       \
     X(SBINIMM64W, BinarySaturating, "$0sbin.64 $2ir $3ir $1I64")                                                       \
-    X(STK_PARAM, StackParam, "st.stack.param $0ir $1U16") \
-    X(STK_PARAM_F, StackParamF, "st.stack.param.f $0fr $1U16") \
-    X(STK_PARAM_S16, StackParamS16, "st.stack.param.s.16 $0I64 $1U16") \
+    X(STK_PARAM, StackParam, "st.stack.param $0ir $1U16")                                                              \
+    X(STK_PARAM_F, StackParamF, "st.stack.param.f $0fr $1U16")                                                         \
+    X(STK_PARAM_S16, StackParamS16, "st.stack.param.s.16 $0I64 $1U16")                                                 \
     X(STK_PARAM_S32, StackParamS32, "st.stack.param.s.32 $0I64 $1U16")
 
 // X parameters: opcode, encoding format, string format, is tail
@@ -1190,10 +1190,10 @@ struct StackParamF {
 
     inline static StackParamF Decode(Decoder::ByteReader& reader)
     {
-        auto opc  = Opcode(reader.Read8());
-        auto b    = reader.Read8();
-        auto src  = FReg::From(b >> 4);
-        auto dst  = reader.Read16();
+        auto opc = Opcode(reader.Read8());
+        auto b   = reader.Read8();
+        auto src = FReg::From(b >> 4);
+        auto dst = reader.Read16();
         return StackParamF { opc, src, dst };
     }
 };
@@ -1205,9 +1205,9 @@ struct StackParamS16 {
 
     inline static StackParamS16 Decode(Decoder::ByteReader& reader)
     {
-        auto opc  = Opcode(reader.Read8());
-        auto src  = static_cast<int16_t>(reader.Read16());
-        auto dst  = reader.Read16();
+        auto opc = Opcode(reader.Read8());
+        auto src = static_cast<int16_t>(reader.Read16());
+        auto dst = reader.Read16();
         return StackParamS16 { opc, src, dst };
     }
 };
@@ -1219,9 +1219,9 @@ struct StackParamS32 {
 
     inline static StackParamS32 Decode(Decoder::ByteReader& reader)
     {
-        auto opc  = Opcode(reader.Read8());
-        auto src  = static_cast<int32_t>(reader.Read32());
-        auto dst  = reader.Read16();
+        auto opc = Opcode(reader.Read8());
+        auto src = static_cast<int32_t>(reader.Read32());
+        auto dst = reader.Read16();
         return StackParamS32 { opc, src, dst };
     }
 };

@@ -16,15 +16,19 @@ struct TestArg {
 
 struct TestArgTraits {
     static bool IsFloat(const TestArg& a) { return a.isFloat; }
+
     static bool IsRecord(const TestArg& a) { return a.isRecord; }
+
     static bool IsReference(const TestArg& a) { return a.isReference; }
 };
 
 Location Ir(int idx) { return Location::IReg(static_cast<IReg::Value>(idx)); }
+
 Location Fr(int idx) { return Location::FReg(static_cast<FReg::Value>(idx)); }
 
-TestArg IntArg() { return {false, false, false}; }
-TestArg FloatArg() { return {true, false, false}; }
+TestArg IntArg() { return { false, false, false }; }
+
+TestArg FloatArg() { return { true, false, false }; }
 
 // Test-specific wrapper combining AbiAssigner + MoveResolver.
 // Exposes the old AbiBuilder interface (Consume takes a source Location).
@@ -33,47 +37,54 @@ struct TestAbiBuilder {
     AbiAssigner assigner;
     MoveResolver moves;
     uint16_t iregStackPtrMask = 0;
-    uint16_t iregRefMask = 0;
-    uint16_t fregMask = 0;
-    int iargPos = 0;
-    int fargPos = 0;
+    uint16_t iregRefMask      = 0;
+    uint16_t fregMask         = 0;
+    int iargPos               = 0;
+    int fargPos               = 0;
     Utils::Vector<uint32_t> refStackSlots;
     Utils::Vector<uint32_t> recStackSlots;
 
     AbiAssigner::PlatformDescription desc;
 
-    TestAbiBuilder(const AbiAssigner::PlatformDescription& desc)
-        : assigner(desc), desc(desc) {}
+    TestAbiBuilder(const AbiAssigner::PlatformDescription& desc) : assigner(desc), desc(desc) {}
 
-    void track(Location target, ArgKind kind) {
+    void track(Location target, ArgKind kind)
+    {
         if (target.Kind() == Location::IREG) {
-            if (kind == ArgKind::REC) iregStackPtrMask |= (1u << iargPos);
-            if (kind == ArgKind::REF) iregRefMask |= (1u << iargPos);
+            if (kind == ArgKind::REC)
+                iregStackPtrMask |= (1u << iargPos);
+            if (kind == ArgKind::REF)
+                iregRefMask |= (1u << iargPos);
             iargPos++;
         } else if (target.Kind() == Location::FREG) {
             fregMask |= (1u << fargPos);
             fargPos++;
         } else {
-            if (kind == ArgKind::REF) refStackSlots.PushBack(target.SlotIdx());
-            if (kind == ArgKind::REC) recStackSlots.PushBack(target.SlotIdx());
+            if (kind == ArgKind::REF)
+                refStackSlots.PushBack(target.SlotIdx());
+            if (kind == ArgKind::REC)
+                recStackSlots.PushBack(target.SlotIdx());
         }
     }
 
-    Location Consume(Location loc, ArgKind kind) {
+    Location Consume(Location loc, ArgKind kind)
+    {
         auto target = assigner.Consume(kind);
         moves.AddMove(loc, target);
         track(target, kind);
         return target;
     }
 
-    Location ConsumeSret(Location loc) {
+    Location ConsumeSret(Location loc)
+    {
         auto target = assigner.ConsumeSret();
         moves.AddMove(loc, target);
         track(target, ArgKind::REC);
         return target;
     }
 
-    Location ConsumeReceiverMut(Location loc0, Location loc1) {
+    Location ConsumeReceiverMut(Location loc0, Location loc1)
+    {
         auto t0 = assigner.Consume(ArgKind::INT);
         auto t1 = assigner.Consume(ArgKind::REF);
         moves.AddMove(loc0, t0);
@@ -83,28 +94,34 @@ struct TestAbiBuilder {
         return t0;
     }
 
-    template <typename ArgType, typename ArgTypeTraits>
-    Location Consume(ArgType arg, Location loc) {
+    template <typename ArgType, typename ArgTypeTraits> Location Consume(ArgType arg, Location loc)
+    {
         return Consume(loc, ArgKindOf<ArgType, ArgTypeTraits>(arg));
     }
 
-    void Clear() {
+    void Clear()
+    {
         assigner = AbiAssigner(desc);
         moves.Clear();
         iregStackPtrMask = 0;
-        iregRefMask = 0;
-        fregMask = 0;
-        iargPos = 0;
-        fargPos = 0;
+        iregRefMask      = 0;
+        fregMask         = 0;
+        iargPos          = 0;
+        fargPos          = 0;
         refStackSlots.Clear();
         recStackSlots.Clear();
     }
 
     uint16_t IregStackPtrMask() const { return iregStackPtrMask; }
+
     uint16_t IregRefMask() const { return iregRefMask; }
+
     uint16_t FregMask() const { return fregMask; }
-    Utils::Span<uint32_t const> RefStackSlots() const { return {refStackSlots.Data(), refStackSlots.Size()}; }
-    Utils::Span<uint32_t const> RecStackSlots() const { return {recStackSlots.Data(), recStackSlots.Size()}; }
+
+    Utils::Span<uint32_t const> RefStackSlots() const { return { refStackSlots.Data(), refStackSlots.Size() }; }
+
+    Utils::Span<uint32_t const> RecStackSlots() const { return { recStackSlots.Data(), recStackSlots.Size() }; }
+
     int MaxStackSlot() const { return assigner.MaxStackSlot(); }
 };
 
@@ -115,7 +132,7 @@ static auto A64Desc = AbiAssigner::PlatformDescription::FromTraits<Platform::LIN
 
 TEST(AbiBuilder, NoFlagsIntParams)
 {
-    TestAbiBuilder builder {X64Desc};
+    TestAbiBuilder builder { X64Desc };
 
     builder.Consume(Ir(3), ArgKind::INT);
     builder.Consume(Ir(4), ArgKind::INT);
@@ -132,7 +149,7 @@ TEST(AbiBuilder, NoFlagsIntParams)
 
 TEST(AbiBuilder, NoFlagsFloatParams)
 {
-    TestAbiBuilder builder {X64Desc};
+    TestAbiBuilder builder { X64Desc };
 
     builder.Consume(Fr(3), ArgKind::FLOAT);
     builder.Consume(Fr(4), ArgKind::FLOAT);
@@ -147,7 +164,7 @@ TEST(AbiBuilder, NoFlagsFloatParams)
 
 TEST(AbiBuilder, MixedIntFloatParams)
 {
-    TestAbiBuilder builder {X64Desc};
+    TestAbiBuilder builder { X64Desc };
 
     builder.Consume(Ir(7), ArgKind::INT);
     builder.Consume(Fr(2), ArgKind::FLOAT);
@@ -166,7 +183,7 @@ TEST(AbiBuilder, MixedIntFloatParams)
 
 TEST(AbiBuilder, SRetX86Shifts)
 {
-    TestAbiBuilder builder {X64Desc};
+    TestAbiBuilder builder { X64Desc };
 
     builder.ConsumeSret(Ir(7));
     builder.Consume(Ir(8), ArgKind::INT);
@@ -181,7 +198,7 @@ TEST(AbiBuilder, SRetX86Shifts)
 
 TEST(AbiBuilder, SRetAarch64Shifts)
 {
-    TestAbiBuilder builder {A64Desc};
+    TestAbiBuilder builder { A64Desc };
 
     builder.ConsumeSret(Ir(7));
     builder.Consume(Ir(8), ArgKind::INT);
@@ -196,7 +213,7 @@ TEST(AbiBuilder, SRetAarch64Shifts)
 
 TEST(AbiBuilder, MutReceiver)
 {
-    TestAbiBuilder builder {X64Desc};
+    TestAbiBuilder builder { X64Desc };
 
     builder.ConsumeReceiverMut(Ir(7), Ir(8));
     builder.Consume(Ir(9), ArgKind::INT);
@@ -212,7 +229,7 @@ TEST(AbiBuilder, MutReceiver)
 
 TEST(AbiBuilder, RefReceiver)
 {
-    TestAbiBuilder builder {X64Desc};
+    TestAbiBuilder builder { X64Desc };
 
     builder.Consume(Ir(7), ArgKind::REF);
     builder.Consume(Ir(8), ArgKind::INT);
@@ -227,7 +244,7 @@ TEST(AbiBuilder, RefReceiver)
 
 TEST(AbiBuilder, RecReceiver)
 {
-    TestAbiBuilder builder {X64Desc};
+    TestAbiBuilder builder { X64Desc };
 
     builder.Consume(Ir(7), ArgKind::REF);
     builder.Consume(Ir(8), ArgKind::INT);
@@ -242,7 +259,7 @@ TEST(AbiBuilder, RecReceiver)
 
 TEST(AbiBuilder, IntOverflowToStack)
 {
-    TestAbiBuilder builder {X64Desc};
+    TestAbiBuilder builder { X64Desc };
 
     for (int i = 7; i <= 13; i++) {
         builder.Consume(Ir(i), ArgKind::INT);
@@ -263,7 +280,7 @@ TEST(AbiBuilder, IntOverflowToStack)
 
 TEST(AbiBuilder, FloatParamsNoOverflow)
 {
-    TestAbiBuilder builder {X64Desc};
+    TestAbiBuilder builder { X64Desc };
 
     for (int i = 8; i < 16; i++) {
         builder.Consume(Fr(i), ArgKind::FLOAT);
@@ -280,7 +297,7 @@ TEST(AbiBuilder, FloatParamsNoOverflow)
 
 TEST(AbiBuilder, InterfaceCallGeneric)
 {
-    TestAbiBuilder builder {X64Desc};
+    TestAbiBuilder builder { X64Desc };
 
     builder.Consume(Ir(7), ArgKind::INT);
     builder.Consume(Ir(8), ArgKind::INT);
@@ -295,7 +312,7 @@ TEST(AbiBuilder, InterfaceCallGeneric)
 
 TEST(AbiBuilder, SRetPlusMutPlusParams)
 {
-    TestAbiBuilder builder {X64Desc};
+    TestAbiBuilder builder { X64Desc };
 
     builder.ConsumeSret(Ir(7));
     builder.ConsumeReceiverMut(Ir(8), Ir(9));
@@ -315,7 +332,7 @@ TEST(AbiBuilder, SRetPlusMutPlusParams)
 
 TEST(AbiBuilder, Aarch64MoreIntRegs)
 {
-    TestAbiBuilder builder {A64Desc};
+    TestAbiBuilder builder { A64Desc };
 
     for (int i = 6; i <= 13; i++) {
         builder.Consume(Ir(i), ArgKind::INT);
@@ -332,7 +349,7 @@ TEST(AbiBuilder, Aarch64MoreIntRegs)
 
 TEST(AbiBuilder, SelfMoveProducesNoEmit)
 {
-    TestAbiBuilder builder {X64Desc};
+    TestAbiBuilder builder { X64Desc };
 
     builder.Consume(Ir(1), ArgKind::INT);
 
@@ -344,7 +361,7 @@ TEST(AbiBuilder, SelfMoveProducesNoEmit)
 
 TEST(AbiBuilder, CycleInArgs)
 {
-    TestAbiBuilder builder {X64Desc};
+    TestAbiBuilder builder { X64Desc };
 
     builder.Consume(Ir(2), ArgKind::INT);
     builder.Consume(Ir(1), ArgKind::INT);
@@ -361,7 +378,7 @@ TEST(AbiBuilder, PlatformParameterized)
 {
     // x86_64: 6 int regs, 2 overflow to stack
     {
-        TestAbiBuilder builder {X64Desc};
+        TestAbiBuilder builder { X64Desc };
         for (int i = 6; i <= 13; i++) {
             builder.Consume(Ir(i), ArgKind::INT);
         }
@@ -375,7 +392,7 @@ TEST(AbiBuilder, PlatformParameterized)
 
     // aarch64: 8 int regs, no overflow
     {
-        TestAbiBuilder builder {A64Desc};
+        TestAbiBuilder builder { A64Desc };
         for (int i = 6; i <= 13; i++) {
             builder.Consume(Ir(i), ArgKind::INT);
         }
@@ -388,7 +405,7 @@ TEST(AbiBuilder, PlatformParameterized)
 
 TEST(AbiBuilder, TemplateAdapter)
 {
-    TestAbiBuilder builder {X64Desc};
+    TestAbiBuilder builder { X64Desc };
 
     builder.Consume<TestArg, TestArgTraits>(IntArg(), Ir(7));
     builder.Consume<TestArg, TestArgTraits>(FloatArg(), Fr(3));
@@ -407,7 +424,7 @@ TEST(AbiBuilder, TemplateAdapter)
 
 TEST(AbiBuilder, IregStackPtrMask)
 {
-    TestAbiBuilder builder {X64Desc};
+    TestAbiBuilder builder { X64Desc };
 
     builder.Consume(Ir(7), ArgKind::REC);
     builder.Consume(Ir(8), ArgKind::INT);
@@ -420,7 +437,7 @@ TEST(AbiBuilder, IregStackPtrMask)
 
 TEST(AbiBuilder, IregRefMask)
 {
-    TestAbiBuilder builder {X64Desc};
+    TestAbiBuilder builder { X64Desc };
 
     builder.Consume(Ir(7), ArgKind::REF);
     builder.Consume(Ir(8), ArgKind::INT);
@@ -432,7 +449,7 @@ TEST(AbiBuilder, IregRefMask)
 
 TEST(AbiBuilder, FregMask)
 {
-    TestAbiBuilder builder {X64Desc};
+    TestAbiBuilder builder { X64Desc };
 
     builder.Consume(Fr(3), ArgKind::FLOAT);
     builder.Consume(Fr(4), ArgKind::FLOAT);
@@ -444,7 +461,7 @@ TEST(AbiBuilder, FregMask)
 
 TEST(AbiBuilder, RefStackSlotsOverflow)
 {
-    TestAbiBuilder builder {X64Desc};
+    TestAbiBuilder builder { X64Desc };
 
     // Fill all 6 ireg slots with non-ref params
     for (int i = 7; i <= 12; i++) {
@@ -464,7 +481,7 @@ TEST(AbiBuilder, RefStackSlotsOverflow)
 
 TEST(AbiBuilder, RecStackSlotsOverflow)
 {
-    TestAbiBuilder builder {X64Desc};
+    TestAbiBuilder builder { X64Desc };
 
     // Fill all 6 ireg slots with non-rec params
     for (int i = 7; i <= 12; i++) {
@@ -484,7 +501,7 @@ TEST(AbiBuilder, RecStackSlotsOverflow)
 
 TEST(AbiBuilder, SretSetsStackPtrMask)
 {
-    TestAbiBuilder builder {X64Desc};
+    TestAbiBuilder builder { X64Desc };
 
     builder.ConsumeSret(Ir(7));
     builder.Consume(Ir(8), ArgKind::INT);
@@ -495,7 +512,7 @@ TEST(AbiBuilder, SretSetsStackPtrMask)
 
 TEST(AbiBuilder, MutSetsRefMask)
 {
-    TestAbiBuilder builder {X64Desc};
+    TestAbiBuilder builder { X64Desc };
 
     builder.ConsumeReceiverMut(Ir(7), Ir(8));
     builder.Consume(Ir(9), ArgKind::INT);
@@ -506,7 +523,7 @@ TEST(AbiBuilder, MutSetsRefMask)
 
 TEST(AbiBuilder, ReceiverSetsRefMask)
 {
-    TestAbiBuilder builder {X64Desc};
+    TestAbiBuilder builder { X64Desc };
 
     builder.Consume(Ir(7), ArgKind::REF);
     builder.Consume(Ir(8), ArgKind::INT);
@@ -517,7 +534,7 @@ TEST(AbiBuilder, ReceiverSetsRefMask)
 
 TEST(AbiBuilder, FtvarsSetsRefMask)
 {
-    TestAbiBuilder builder {X64Desc};
+    TestAbiBuilder builder { X64Desc };
 
     builder.Consume(Ir(7), ArgKind::INT);
     builder.Consume(Ir(8), ArgKind::INT);
@@ -528,7 +545,7 @@ TEST(AbiBuilder, FtvarsSetsRefMask)
 
 TEST(AbiBuilder, CombinedSretMutOverflow)
 {
-    TestAbiBuilder builder {X64Desc};
+    TestAbiBuilder builder { X64Desc };
 
     // SRET → ireg slot 0, stackPtrMask bit 0
     builder.ConsumeSret(Ir(7));
@@ -544,7 +561,7 @@ TEST(AbiBuilder, CombinedSretMutOverflow)
     builder.Consume(Ir(14), ArgKind::REC);
 
     EXPECT_EQ(builder.IregStackPtrMask(), 0x01); // bit 0 (sret)
-    EXPECT_EQ(builder.IregRefMask(), 0x04);     // bits 2
+    EXPECT_EQ(builder.IregRefMask(), 0x04);      // bits 2
     EXPECT_EQ(builder.FregMask(), 0x00);
 
     auto refSlots = builder.RefStackSlots();
@@ -560,7 +577,7 @@ TEST(AbiBuilder, CombinedSretMutOverflow)
 
 TEST(AbiBuilder, FloatOverflowToStackNoTracking)
 {
-    TestAbiBuilder builder {X64Desc};
+    TestAbiBuilder builder { X64Desc };
 
     // Fill all 8 freg slots
     for (int i = 0; i < 8; i++) {
@@ -577,7 +594,7 @@ TEST(AbiBuilder, FloatOverflowToStackNoTracking)
 
 TEST(AbiBuilder, ClearResetsState)
 {
-    TestAbiBuilder builder {X64Desc};
+    TestAbiBuilder builder { X64Desc };
 
     // Populate state
     builder.ConsumeSret(Ir(7));
@@ -612,7 +629,7 @@ TEST(AbiBuilder, ClearResetsState)
 
 TEST(AbiBuilder, ClearAllowsReuse)
 {
-    TestAbiBuilder builder {X64Desc};
+    TestAbiBuilder builder { X64Desc };
 
     // First use
     builder.Consume(Ir(7), ArgKind::REC);

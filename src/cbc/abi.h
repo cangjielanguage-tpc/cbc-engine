@@ -1,7 +1,7 @@
 #pragma once
 
-#include "platforms.h"
 #include "move_resolver.h"
+#include "platforms.h"
 #include "utils/span.h"
 
 namespace Cbc {
@@ -16,11 +16,14 @@ enum class ArgKind {
 };
 
 // Derives ArgKind from a type's float/record/reference traits.
-template <typename ArgType, typename ArgTypeTraits>
-ArgKind ArgKindOf(const ArgType& arg) {
-    if (ArgTypeTraits::IsFloat(arg)) return ArgKind::FLOAT;
-    if (ArgTypeTraits::IsRecord(arg)) return ArgKind::REC;
-    if (ArgTypeTraits::IsReference(arg)) return ArgKind::REF;
+template <typename ArgType, typename ArgTypeTraits> ArgKind ArgKindOf(const ArgType& arg)
+{
+    if (ArgTypeTraits::IsFloat(arg))
+        return ArgKind::FLOAT;
+    if (ArgTypeTraits::IsRecord(arg))
+        return ArgKind::REC;
+    if (ArgTypeTraits::IsReference(arg))
+        return ArgKind::REF;
     return ArgKind::INT;
 }
 
@@ -35,11 +38,11 @@ public:
         bool sretShifts;
         int sretIrIdx;
 
-        template <Platform p>
-        static PlatformDescription FromTraits() {
+        template <Platform p> static PlatformDescription FromTraits()
+        {
             PlatformDescription desc {
-                {PlatformTraits<p>::IR_HEAD_AREA, PlatformTraits<p>::IR_PARAM_COUNT},
-                {PlatformTraits<p>::FR_HEAD_AREA, PlatformTraits<p>::FR_PARAM_COUNT},
+                { PlatformTraits<p>::IR_HEAD_AREA, PlatformTraits<p>::IR_PARAM_COUNT },
+                { PlatformTraits<p>::FR_HEAD_AREA, PlatformTraits<p>::FR_PARAM_COUNT },
                 PlatformTraits<p>::SRET_SHIFTS,
                 0,
             };
@@ -52,9 +55,7 @@ public:
 
     AbiAssigner(const PlatformDescription& desc);
 
-    template <Platform p = HOST_PLATFORM>
-    AbiAssigner()
-        : AbiAssigner(PlatformDescription::FromTraits<p>()) {}
+    template <Platform p = HOST_PLATFORM> AbiAssigner() : AbiAssigner(PlatformDescription::FromTraits<p>()) {}
 
     Location Consume(ArgKind kind);
     // Consumes the struct-return (sret) argument: the hidden pointer to the
@@ -62,8 +63,8 @@ public:
     // as a record; on fixed-register platforms a dedicated slot.
     Location ConsumeSret();
 
-    template <typename ArgType, typename ArgTypeTraits>
-    Location Consume(ArgType arg) {
+    template <typename ArgType, typename ArgTypeTraits> Location Consume(ArgType arg)
+    {
         return Consume(ArgKindOf<ArgType, ArgTypeTraits>(arg));
     }
 
@@ -76,14 +77,18 @@ private:
     int slotIdx;
 };
 
-template <typename F>
-class TrackedAbiAssigner : public AbiAssigner {
+template <typename F> class TrackedAbiAssigner : public AbiAssigner {
 public:
-    TrackedAbiAssigner(const AbiAssigner::PlatformDescription& desc, F&& track) : AbiAssigner(desc), track(std::move(track)) {}
+    TrackedAbiAssigner(const AbiAssigner::PlatformDescription& desc, F&& track)
+        : AbiAssigner(desc),
+          track(std::move(track))
+    {}
 
     template <Platform p = HOST_PLATFORM>
     TrackedAbiAssigner(F&& track)
-        : AbiAssigner(AbiAssigner::PlatformDescription::FromTraits<p>()), track(std::move(track)) {}
+        : AbiAssigner(AbiAssigner::PlatformDescription::FromTraits<p>()),
+          track(std::move(track))
+    {}
 
     Location Consume(ArgKind kind)
     {
@@ -99,8 +104,8 @@ public:
         return target;
     }
 
-    template <typename ArgType, typename ArgTypeTraits>
-    Location Consume(ArgType arg) {
+    template <typename ArgType, typename ArgTypeTraits> Location Consume(ArgType arg)
+    {
         return Consume(ArgKindOf<ArgType, ArgTypeTraits>(arg));
     }
 

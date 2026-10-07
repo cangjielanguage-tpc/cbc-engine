@@ -132,7 +132,7 @@ template <> MethodReference Reader::Read(Engine::Session& session, Identifier<Me
     if (parsedFlags & 0x40)
         flags = flags.Or(MethodRefFlag::AOT);
 
-    auto abiKindMask = parsedFlags & 0x38;
+    auto abiKindMask      = parsedFlags & 0x38;
     MethodAbiKind abiKind = [abiKindMask]() {
         switch (abiKindMask) {
             case 0x8 * 0: return MethodAbiKind::STATIC;
@@ -142,7 +142,7 @@ template <> MethodReference Reader::Read(Engine::Session& session, Identifier<Me
             case 0x8 * 4: return MethodAbiKind::REF_RECEIVER;
             case 0x8 * 5: return MethodAbiKind::PRIM_RECEIVER;
             case 0x8 * 6: return MethodAbiKind::FPRIM_RECEIVER;
-            default: return Image::MethodAbiKind::STATIC; // FIXME: verify
+            default:      return Image::MethodAbiKind::STATIC; // FIXME: verify
         }
     }();
 
@@ -460,7 +460,7 @@ MethodDefinition Reader::Read(Engine::Session& session, Image::FileId fileId, Of
     if (test(0x0800))
         flags = flags.Or(MethodFlag::HAS_OUTER_TI);
 
-    auto abiKindMask = parsedFlags & 0x7000;
+    auto abiKindMask      = parsedFlags & 0x7000;
     MethodAbiKind abiKind = [abiKindMask]() {
         switch (abiKindMask) {
             case 0x1000 * 0: return MethodAbiKind::STATIC;
@@ -470,11 +470,13 @@ MethodDefinition Reader::Read(Engine::Session& session, Image::FileId fileId, Of
             case 0x1000 * 4: return MethodAbiKind::REF_RECEIVER;
             case 0x1000 * 5: return MethodAbiKind::PRIM_RECEIVER;
             case 0x1000 * 6: return MethodAbiKind::FPRIM_RECEIVER;
-            default: return Image::MethodAbiKind::STATIC; // FIXME: verify
+            default:         return Image::MethodAbiKind::STATIC; // FIXME: verify
         }
     }();
 
-    MethodDefinition::Content def { Image::Identifier(offset, fileId), signature, typeNameOffset, nameOffset, flags, 0, abiKind };
+    MethodDefinition::Content def {
+        Image::Identifier(offset, fileId), signature, typeNameOffset, nameOffset, flags, 0, abiKind
+    };
 
     for (auto tag = reader.ReadU8(); tag != 0; tag = reader.ReadU8()) {
         switch (tag) {
