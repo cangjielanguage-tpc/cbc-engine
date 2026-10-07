@@ -207,8 +207,8 @@ TEST(AbiBuilder, SRetAarch64Shifts)
     r.Resolve(builder.moves);
 
     ASSERT_EQ(r.movCount, 2);
-    EXPECT_EQ(r.iregs[1], IrValue(7));
-    EXPECT_EQ(r.iregs[2], IrValue(8));
+    EXPECT_EQ(r.iregs[1], IrValue(8));
+    EXPECT_EQ(r.iregs[9], IrValue(7));
 }
 
 TEST(AbiBuilder, MutReceiver)

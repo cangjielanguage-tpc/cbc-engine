@@ -55,7 +55,7 @@ template <> struct PlatformTraits<Platform::LINUX_AARCH64> {
     static constexpr int IR_PARAM_COUNT = sizeof(IR_HEAD_AREA) / sizeof(IR_HEAD_AREA[0]);
     static constexpr int FR_PARAM_COUNT = sizeof(FR_HEAD_AREA) / sizeof(FR_HEAD_AREA[0]);
 
-    static constexpr bool SRET_SHIFTS = true;
+    static constexpr bool SRET_SHIFTS = false;
     static constexpr IReg SRET_REG    = IReg::IR9;
 };
 
