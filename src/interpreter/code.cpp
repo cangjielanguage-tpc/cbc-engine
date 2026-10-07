@@ -1,6 +1,7 @@
 #include "interpreter/code.h"
 #include "interpreter/ectype.h"
 #include "platform_traits.h"
+#include "cbc/abi.h"
 #include "utils/assertion.h"
 #include "utils/ostream.h"
 #include <cstdint>
@@ -40,74 +41,85 @@ AbiInfo BuildAbiInfo(Engine::Session& session, Engine::Term signature, AbiInfoFl
     uint16_t derivedPairs    = 0;
     uint16_t stackPtrParams  = 0;
     uint16_t referenceParams = 0;
+    int totalIntArgs  = 0;
+    int totalFloatArgs = 0;
 
-    int fargIdx = 0; // FR0
-    int iargIdx = 1; // IR1
+    Cbc::AbiAssigner abi;
 
-    if (HAS_SRET_SHIFT && flags.isSRet) {
-        // stack-return position on this platform is param passing register.
-        stackPtrParams |= (1 << iargIdx);
-        iargIdx++;
-    } else if (!HAS_SRET_SHIFT && flags.isSRet) {
-        // stack-return position on this platform is using special register.
-        stackPtrParams |= (1 << IReg::SRET_IR);
+    auto track = [&](Cbc::Location target, Cbc::ArgKind kind) {
+        if (kind == Cbc::ArgKind::FLOAT) {
+            totalFloatArgs++;
+            return;
+        }
+        totalIntArgs++;
+        if (target.Kind() == Cbc::Location::IREG) {
+            int idx = target.IRegIdx();
+            if (kind == Cbc::ArgKind::REC) stackPtrParams |= (1u << idx);
+            if (kind == Cbc::ArgKind::REF) referenceParams |= (1u << idx);
+        }
+    };
+
+    if (flags.isSRet) {
+        auto target = abi.ConsumeSret();
+        track(target, Cbc::ArgKind::REC);
     }
 
     if (flags.isMut) {
-        derivedPairs    |= (1 << iargIdx); // this (derived)
-        referenceParams |= (2 << iargIdx); // base
-        iargIdx         += 2;              // also skip base ptr
+        auto derived = abi.Consume(Cbc::ArgKind::INT);
+        auto base    = abi.Consume(Cbc::ArgKind::REF);
+        derivedPairs |= (1u << derived.IRegIdx());
+        track(derived, Cbc::ArgKind::INT);
+        track(base, Cbc::ArgKind::REF);
     } else if (flags.referenceReceiver) {
-        referenceParams |= (1 << iargIdx);
-        iargIdx++;
+        auto target = abi.Consume(Cbc::ArgKind::REF);
+        track(target, Cbc::ArgKind::REF);
     } else if (flags.recordReceiver) {
-        stackPtrParams |= (1 << iargIdx);
-        iargIdx++;
+        auto target = abi.Consume(Cbc::ArgKind::REC);
+        track(target, Cbc::ArgKind::REC);
     }
-
-    ASSERT(iargIdx < IREG_PARAM_PASSING_AMOUNT);
 
     int termIdx = 0;
     int length  = signature.GetLength() - 1; // skip ret type term.
     while (termIdx < length) {
-        auto term    = signature.Subterm(termIdx);
-        int isFloat  = term.IsFloat();
-        int isRecord = term.IsRecord();
-        int isRef    = term.IsReference();
-        int isReg    = (iargIdx < IREG_PARAM_PASSING_AMOUNT);
-
-        stackPtrParams  |= ((isReg && isRecord) << iargIdx);
-        referenceParams |= ((isReg && isRef) << iargIdx);
-
-        // Counters could overflow param passing reg amount.
-        fargIdx += isFloat;
-        iargIdx += !isFloat;
+        auto term = signature.Subterm(termIdx);
+        Cbc::ArgKind kind;
+        if (term.IsFloat()) {
+            kind = Cbc::ArgKind::FLOAT;
+        } else if (term.IsRecord()) {
+            kind = Cbc::ArgKind::REC;
+        } else if (term.IsReference()) {
+            kind = Cbc::ArgKind::REF;
+        } else {
+            kind = Cbc::ArgKind::INT;
+        }
+        auto target = abi.Consume(kind);
+        track(target, kind);
         termIdx++;
     }
 
-    iargIdx += flags.hasThisTypeInfo;
-    iargIdx += flags.hasOuterTi;
-    iargIdx += flags.funcVars;
-
-    bool hasTailReg = (iargIdx > IREG_PARAM_PASSING_AMOUNT);
-
-    if (hasTailReg) {
-        // Tail register holds a pointer to position, where stack-passed parameters are located.
-        stackPtrParams |= (1 << IReg::TAIL_REG);
+    for (int i = 0; i < flags.hasThisTypeInfo + flags.hasOuterTi + flags.funcVars; i++) {
+        auto target = abi.Consume(Cbc::ArgKind::INT);
+        track(target, Cbc::ArgKind::INT);
     }
 
-    // Adjust number of ireg/freg params.
-    if (iargIdx > IREG_PARAM_PASSING_AMOUNT) // do not account for special register for SRET (if it is exist)
-        iargIdx = IREG_PARAM_PASSING_AMOUNT;
-    if (fargIdx > FREG_ABI_AMOUNT)
-        fargIdx = FREG_ABI_AMOUNT;
+    bool hasTailReg = (totalIntArgs > IREG_PARAM_PASSING_AMOUNT);
+    if (hasTailReg) {
+        stackPtrParams |= (1u << IReg::TAIL_REG);
+    }
+
+    int iregParamCount = totalIntArgs;
+    if (iregParamCount > IREG_PARAM_PASSING_AMOUNT)
+        iregParamCount = IREG_PARAM_PASSING_AMOUNT;
+    int fregParamCount = totalFloatArgs;
+    if (fregParamCount > FREG_ABI_AMOUNT)
+        fregParamCount = FREG_ABI_AMOUNT;
 
     return {
         .stackPtrParams  = stackPtrParams,
         .referenceParams = referenceParams,
         .derivedPairs    = derivedPairs,
-        .iregParamCount  = (uint8_t)iargIdx,
-        .fregParamCount  = (uint8_t)fargIdx,
+        .iregParamCount  = (uint8_t)iregParamCount,
+        .fregParamCount  = (uint8_t)fregParamCount,
         .isSRet          = flags.isSRet,
         .hasTailReg      = hasTailReg,
     };

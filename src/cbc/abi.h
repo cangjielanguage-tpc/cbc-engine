@@ -56,7 +56,6 @@ public:
     AbiAssigner()
         : AbiAssigner(PlatformDescription::FromTraits<p>()) {}
 
-    void Clear();
     Location Consume(ArgKind kind);
     // Consumes the struct-return (sret) argument: the hidden pointer to the
     // return struct. On shift platforms it takes the first int-register slot
@@ -75,6 +74,20 @@ private:
     int iargIdx;
     int fargIdx;
     int slotIdx;
+};
+
+template <typename F>
+class TrackedAbiAssigner {
+public:
+    TrackedAbiAssigner(const AbiAssigner::PlatformDescription& desc, F&& track) : assigner(desc) {}
+
+    template <Platform p = HOST_PLATFORM>
+    TrackedAbiAssigner(F&& track)
+        : assigner(AbiAssigner::PlatformDescription::FromTraits<p>()) {}
+
+private:
+    AbiAssigner assigner;
+    F track;
 };
 
 } // namespace Cbc
