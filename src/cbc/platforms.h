@@ -22,9 +22,20 @@ struct PlatformTraits<Platform::LINUX_X64> {
         IReg::IR5, IReg::IR6,
     };
 
+    static constexpr IReg IR_VOLATILES[] = {
+        IReg::IR1, IReg::IR2, IReg::IR3, IReg::IR4,
+        IReg::IR5, IReg::IR6, IReg::IR7,
+    };
+
     static constexpr FReg FR_HEAD_AREA[] = {
         FReg::FR0, FReg::FR1, FReg::FR2, FReg::FR3,
         FReg::FR4, FReg::FR5, FReg::FR6, FReg::FR7
+    };
+
+    static constexpr FReg FR_VOLATILES[] = {
+        FReg::FR0, FReg::FR1, FReg::FR2, FReg::FR3,
+        FReg::FR4, FReg::FR5, FReg::FR6, FReg::FR7,
+        FReg::FR15
     };
 
     static constexpr int IR_PARAM_COUNT = sizeof(IR_HEAD_AREA) / sizeof(IR_HEAD_AREA[0]);
@@ -42,9 +53,21 @@ struct PlatformTraits<Platform::LINUX_AARCH64> {
         IReg::IR5, IReg::IR6, IReg::IR7, IReg::IR8,
     };
 
+    static constexpr IReg IR_VOLATILES[] = {
+        IReg::IR1, IReg::IR2, IReg::IR3, IReg::IR4,
+        IReg::IR5, IReg::IR6, IReg::IR7, IReg::IR8,
+        IReg::IR9, IReg::IR10,
+    };
+
     static constexpr FReg FR_HEAD_AREA[] = {
         FReg::FR0, FReg::FR1, FReg::FR2, FReg::FR3,
         FReg::FR4, FReg::FR5, FReg::FR6, FReg::FR7
+    };
+
+    static constexpr FReg FR_VOLATILES[] = {
+        FReg::FR0, FReg::FR1, FReg::FR2, FReg::FR3,
+        FReg::FR4, FReg::FR5, FReg::FR6, FReg::FR7,
+        FReg::FR15
     };
 
     static constexpr int IR_PARAM_COUNT = sizeof(IR_HEAD_AREA) / sizeof(IR_HEAD_AREA[0]);
