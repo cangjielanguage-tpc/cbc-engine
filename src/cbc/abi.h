@@ -3,7 +3,6 @@
 #include "platforms.h"
 #include "move_resolver.h"
 #include "utils/span.h"
-#include "utils/vector.h"
 
 namespace Cbc {
 
@@ -25,12 +24,10 @@ ArgKind ArgKindOf(const ArgType& arg) {
     return ArgKind::INT;
 }
 
-// Assigns call arguments to registers or stack slots per platform ABI.
-// Integer args fill the platform's integer-register head area in order;
-// overflow goes to stack slots. Same for float args. Stack slots that
-// hold references or records are recorded so the GC can visit them at
-// state points. Frame size is derived from the highest allocated slot.
-class AbiBuilder {
+// Pure target allocator: hands out the next register or stack slot in
+// ABI order for each argument kind. Does not track metadata (masks,
+// slot lists) — the consumer derives that from (Location, ArgKind).
+class AbiAssigner {
 public:
     struct PlatformDescription {
         Utils::Span<const IReg> iregHeadArea;
@@ -53,43 +50,31 @@ public:
         }
     };
 
-    AbiBuilder(MoveResolver& moves, const PlatformDescription& desc);
+    AbiAssigner(const PlatformDescription& desc);
 
     template <Platform p = HOST_PLATFORM>
-    AbiBuilder(MoveResolver& moves)
-        : AbiBuilder(moves, PlatformDescription::FromTraits<p>()) {}
+    AbiAssigner()
+        : AbiAssigner(PlatformDescription::FromTraits<p>()) {}
 
     void Clear();
-    Location Consume(Location loc, ArgKind kind);
+    Location Consume(ArgKind kind);
     // Consumes the struct-return (sret) argument: the hidden pointer to the
     // return struct. On shift platforms it takes the first int-register slot
     // as a record; on fixed-register platforms a dedicated slot.
-    Location ConsumeSret(Location loc);
-    Location ConsumeReceiverMut(Location loc0, Location loc1);
+    Location ConsumeSret();
 
     template <typename ArgType, typename ArgTypeTraits>
-    Location Consume(ArgType arg, Location loc) {
-        return Consume(loc, ArgKindOf<ArgType, ArgTypeTraits>(arg));
+    Location Consume(ArgType arg) {
+        return Consume(ArgKindOf<ArgType, ArgTypeTraits>(arg));
     }
 
-    uint16_t IregStackPtrMask() const { return iregStackPtrMask; }
-    uint16_t IregRefMask() const { return iregRefMask; }
-    uint16_t FregMask() const { return fregMask; }
-    Utils::Span<uint32_t const> RefStackSlots() const { return {refStackSlots.Data(), refStackSlots.Size()}; }
-    Utils::Span<uint32_t const> RecStackSlots() const { return {recStackSlots.Data(), recStackSlots.Size()}; }
     int MaxStackSlot() const { return slotIdx; }
 
 private:
-    MoveResolver& moves;
     PlatformDescription desc;
     int iargIdx;
     int fargIdx;
     int slotIdx;
-    uint16_t iregStackPtrMask;
-    uint16_t iregRefMask;
-    uint16_t fregMask;
-    Utils::Vector<uint32_t> refStackSlots;
-    Utils::Vector<uint32_t> recStackSlots;
 };
 
 } // namespace Cbc

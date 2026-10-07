@@ -322,32 +322,55 @@ struct IsaRewriter : public IsaParser {
             return;
         }
         MoveResolver moves;
-        AbiBuilder abi(moves);
+        AbiAssigner abi;
+        Utils::Vector<uint32_t> refStackSlots;
+        Utils::Vector<uint32_t> recStackSlots;
+        auto track = [&](Location target, ArgKind kind) {
+            if (target.Kind() == Location::SLOT) {
+                if (kind == ArgKind::REF) refStackSlots.PushBack(target.SlotIdx());
+                if (kind == ArgKind::REC) recStackSlots.PushBack(target.SlotIdx());
+            }
+        };
 
         int idx = 0;
-        if (flags.isSRet)
-            abi.ConsumeSret(args[idx++]);
+        if (flags.isSRet) {
+            auto target = abi.ConsumeSret();
+            moves.AddMove(args[idx++], target);
+            track(target, ArgKind::REC);
+        }
         switch (flags.abiKind) {
             case Image::MethodAbiKind::MUT: {
                 auto derived = args[idx++];
                 auto base    = args[idx++];
-                auto derivedLoc = abi.ConsumeReceiverMut(derived, base);
+                auto derivedLoc = abi.Consume(ArgKind::REC);
+                auto baseLoc    = abi.Consume(ArgKind::REF);
+                moves.AddMove(derived, derivedLoc);
+                moves.AddMove(base, baseLoc);
+                track(baseLoc, ArgKind::REF);
                 ASSERT(derivedLoc.Kind() == Location::IREG);
                 pendingDerived = derivedLoc.IRegIdx();
                 break;
             }
-            case Image::MethodAbiKind::REF_RECEIVER:
-                abi.Consume(args[idx++], ArgKind::REF);
+            case Image::MethodAbiKind::REF_RECEIVER: {
+                auto target = abi.Consume(ArgKind::REF);
+                moves.AddMove(args[idx++], target);
+                track(target, ArgKind::REF);
                 break;
-            case Image::MethodAbiKind::PRIM_RECEIVER:
-                abi.Consume(args[idx++], ArgKind::INT);
+            }
+            case Image::MethodAbiKind::PRIM_RECEIVER: {
+                moves.AddMove(args[idx++], abi.Consume(ArgKind::INT));
                 break;
-            case Image::MethodAbiKind::FPRIM_RECEIVER:
-                abi.Consume(args[idx++], ArgKind::FLOAT);
+            }
+            case Image::MethodAbiKind::FPRIM_RECEIVER: {
+                moves.AddMove(args[idx++], abi.Consume(ArgKind::FLOAT));
                 break;
-            case Image::MethodAbiKind::REC_RECEIVER:
-                abi.Consume(args[idx++], ArgKind::REC);
+            }
+            case Image::MethodAbiKind::REC_RECEIVER: {
+                auto target = abi.Consume(ArgKind::REC);
+                moves.AddMove(args[idx++], target);
+                track(target, ArgKind::REC);
                 break;
+            }
             case Image::MethodAbiKind::STATIC:
             case Image::MethodAbiKind::HAS_THIS_TI: {}
         }
@@ -358,24 +381,32 @@ struct IsaRewriter : public IsaParser {
         for (int j = 0; j < params.Size(); ++idx, ++j) {
             auto term = params[j];
             ArgKind kind;
-            if (term.IsFloat()) kind = ArgKind::FLOAT;
-            else if (term.IsRecord()) kind = ArgKind::REC;
-            else if (term.IsReference()) kind = ArgKind::REF;
-            else kind = ArgKind::INT;
-            abi.Consume(args[idx], kind);
+            if (term.IsFloat()) {
+                kind = ArgKind::FLOAT;
+            } else if (term.IsRecord()) {
+                kind = ArgKind::REC;
+            } else if (term.IsReference()) {
+                kind = ArgKind::REF;
+            } else {
+                kind = ArgKind::INT;
+            }
+            auto target = abi.Consume(kind);
+            moves.AddMove(args[idx], target);
+            track(target, kind);
         }
 
         ASSERT(funcVarsCount <= args.Size());
         for (int j = 0; j < funcVarsCount; idx++, j++) {
-            abi.Consume(args[idx], ArgKind::INT);
+            moves.AddMove(args[idx], abi.Consume(ArgKind::INT));
         }
 
         if (flags.hasOuterTi) {
-            Location loc = abi.Consume(args[idx++], ArgKind::INT);
+            Location loc = abi.Consume(ArgKind::INT);
+            moves.AddMove(args[idx++], loc);
             if (outerTiLoc) *outerTiLoc = loc;
         }
         if (flags.abiKind == Image::MethodAbiKind::HAS_THIS_TI) {
-            abi.Consume(args[idx++], ArgKind::INT);
+            moves.AddMove(args[idx++], abi.Consume(ArgKind::INT));
         }
 
         auto emitMov = [&](Location dst, Location src) {
@@ -415,10 +446,10 @@ struct IsaRewriter : public IsaParser {
         maxParamPassingSize = std::max(maxParamPassingSize, static_cast<uint32_t>(abi.MaxStackSlot() * 8));
 
         pendingParamRefSlots.Clear();
-        for (auto slot : abi.RefStackSlots())
+        for (auto slot : refStackSlots)
             pendingParamRefSlots.PushBack(slot);
         pendingParamRecSlots.Clear();
-        for (auto slot : abi.RecStackSlots())
+        for (auto slot : recStackSlots)
             pendingParamRecSlots.PushBack(slot);
     }
 
