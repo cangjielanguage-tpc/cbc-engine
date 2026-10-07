@@ -44,9 +44,7 @@ AbiInfo BuildAbiInfo(Engine::Session& session, Engine::Term signature, AbiInfoFl
     int totalIntArgs  = 0;
     int totalFloatArgs = 0;
 
-    Cbc::AbiAssigner abi;
-
-    auto track = [&](Cbc::Location target, Cbc::ArgKind kind) {
+    Cbc::TrackedAbiAssigner abi([&](Cbc::Location target, Cbc::ArgKind kind) {
         if (kind == Cbc::ArgKind::FLOAT) {
             totalFloatArgs++;
             return;
@@ -57,25 +55,20 @@ AbiInfo BuildAbiInfo(Engine::Session& session, Engine::Term signature, AbiInfoFl
             if (kind == Cbc::ArgKind::REC) stackPtrParams |= (1u << idx);
             if (kind == Cbc::ArgKind::REF) referenceParams |= (1u << idx);
         }
-    };
+    });
 
     if (flags.isSRet) {
-        auto target = abi.ConsumeSret();
-        track(target, Cbc::ArgKind::REC);
+        abi.ConsumeSret();
     }
 
     if (flags.isMut) {
         auto derived = abi.Consume(Cbc::ArgKind::INT);
-        auto base    = abi.Consume(Cbc::ArgKind::REF);
+        abi.Consume(Cbc::ArgKind::REF);
         derivedPairs |= (1u << derived.IRegIdx());
-        track(derived, Cbc::ArgKind::INT);
-        track(base, Cbc::ArgKind::REF);
     } else if (flags.referenceReceiver) {
-        auto target = abi.Consume(Cbc::ArgKind::REF);
-        track(target, Cbc::ArgKind::REF);
+        abi.Consume(Cbc::ArgKind::REF);
     } else if (flags.recordReceiver) {
-        auto target = abi.Consume(Cbc::ArgKind::REC);
-        track(target, Cbc::ArgKind::REC);
+        abi.Consume(Cbc::ArgKind::REC);
     }
 
     int termIdx = 0;
@@ -92,14 +85,12 @@ AbiInfo BuildAbiInfo(Engine::Session& session, Engine::Term signature, AbiInfoFl
         } else {
             kind = Cbc::ArgKind::INT;
         }
-        auto target = abi.Consume(kind);
-        track(target, kind);
+        abi.Consume(kind);
         termIdx++;
     }
 
     for (int i = 0; i < flags.hasThisTypeInfo + flags.hasOuterTi + flags.funcVars; i++) {
-        auto target = abi.Consume(Cbc::ArgKind::INT);
-        track(target, Cbc::ArgKind::INT);
+        abi.Consume(Cbc::ArgKind::INT);
     }
 
     bool hasTailReg = (totalIntArgs > IREG_PARAM_PASSING_AMOUNT);
