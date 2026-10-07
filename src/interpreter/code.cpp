@@ -26,7 +26,7 @@ Stream::Output& operator<<(Stream::Output& out, const ExecBytecodeInfo& bc)
         Std::Vector::Print(out4, entry.untypedRefSlots);
         Std::Vector::Print(out4, entry.paramRefSlots);
         Std::Vector::Print(out4, entry.paramRecSlots);
-        Std::Vector::Print0(out4, entry.mutPairs, [](Stream::Output& out, std::pair<Resource, Resource> p) {
+        Std::Vector::Print(out4, entry.mutPairs, [](Stream::Output& out, std::pair<Resource, Resource> p) {
             out.Print("({}, {})", p.first.idx, p.second.idx);
         });
         out4 << endl;

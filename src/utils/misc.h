@@ -18,7 +18,7 @@ namespace Std {
 namespace Vector {
 
 template <typename T, typename Printer>
-void Print0(Stream::Output& out, Utils::Span<T const> vec, Printer&& printElem, std::string_view delim = ", ")
+void Print(Stream::Output& out, Utils::Span<T const> vec, Printer&& printElem, std::string_view delim = ", ")
 {
     std::string_view sep = "";
     Printer print        = printElem;
@@ -34,13 +34,13 @@ void Print0(Stream::Output& out, Utils::Span<T const> vec, Printer&& printElem, 
 
 template <typename T> void Print(Stream::Output& out, Utils::Span<T const> vec, std::string_view delim = ", ")
 {
-    Print0(out, vec, [](Stream::Output& out, T const& elem) { out << elem; }, delim);
+    Print(out, vec, [](Stream::Output& out, T const& elem) { out << elem; }, delim);
 }
 
 template <typename T, typename Printer>
-void Print0(Stream::Output& out, const Utils::Vector<T>& vec, Printer&& printElem, std::string_view delim = ", ")
+void Print(Stream::Output& out, const Utils::Vector<T>& vec, Printer&& printElem, std::string_view delim = ", ")
 {
-    Print0(out, Utils::Span<T const>(vec), std::move(printElem), delim);
+    Print(out, Utils::Span(vec), std::move(printElem), delim);
 }
 
 template <typename T> void Print(Stream::Output& out, const Utils::Vector<T>& vec, std::string_view delim = ", ")
