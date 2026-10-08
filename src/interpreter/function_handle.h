@@ -17,9 +17,9 @@ class Resolver;
 
 namespace Interpretation {
 
-class FunctionHandle;
-class DynamicFunctionHandle;
-class StaticFunctionHandle;
+struct FunctionHandle;
+struct DynamicFunctionHandle;
+struct StaticFunctionHandle;
 
 using TaggedFunctionHandle = std::variant<DynamicFunctionHandle*, StaticFunctionHandle*>;
 

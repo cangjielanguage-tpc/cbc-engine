@@ -184,8 +184,8 @@ struct TypeInfoBuilder {
 
     TypeInfoBuilder(CbcTypeInfo* typeInfo, Engine::Session& session, Engine::GlobalTerm term)
         : typeInfo(typeInfo),
-          session(session),
-          term(term)
+          term(term),
+          session(session)
     {}
 
     void Identify()

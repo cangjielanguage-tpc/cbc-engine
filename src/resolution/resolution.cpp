@@ -109,11 +109,11 @@ std::optional<uint32_t> Resolver::GetFlatSize(Type type) { return fieldManager->
 
 Resolver::Resolver(Session& session, Identifier<Image::MethodDefinition> method)
     : session(session),
-      method(method),
-      regionId(0),
       tiManager(TypeInfoManager::Of(session)),
       fieldManager(FieldLayoutManager::New(session, tiManager)),
-      termManager(TermManager::Of(session))
+      termManager(TermManager::Of(session)),
+      method(method),
+      regionId(0)
 {}
 
 struct ResolvedMethodReference {

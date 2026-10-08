@@ -203,7 +203,7 @@ uintptr_t StaticsManager::GetLocation(Session& session, TypeIdent typeIdent, Fie
     auto it = bundles.find(typeIdent.Pack());
     if (it == bundles.end()) {
         // move bundle, so the underlying vector won't be copied.
-        bundles.try_emplace(typeIdent.Pack(), std::move(CreateBundle(session, typeIdent)));
+        bundles.try_emplace(typeIdent.Pack(), CreateBundle(session, typeIdent));
         it = bundles.find(typeIdent.Pack());
     }
 

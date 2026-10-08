@@ -124,7 +124,7 @@ public:
     void ResolveAll(Session& session, Reference const& reference, Utils::Vector<MethodTableEntry>& buffer) const;
 
 private:
-    friend class MethodTableBuilder;
+    friend struct MethodTableBuilder;
     friend class MethodSubTable;
     friend class MethodTableManager;
 
@@ -160,7 +160,7 @@ public:
     Range Entries() const;
 
 private:
-    friend class MethodTable::SubTableGenerator;
+    friend struct MethodTable::SubTableGenerator;
     friend class MethodTableManager;
 
     MethodSubTable(MethodTable const& table, Term declaringType, int start, int end, int num);

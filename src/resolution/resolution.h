@@ -21,7 +21,7 @@ namespace Resolution {
 
 extern Logging::Logger log;
 
-class Resolver;
+struct Resolver;
 
 enum class CbcTypeKind {
     INVALID,
@@ -258,7 +258,7 @@ struct Resolver {
     Engine::TermManager& termManager;
 
 private:
-    friend class ResolverProxy;
+    friend struct ResolverProxy;
     Image::Identifier<Image::MethodDefinition> method;
     uint8_t regionId { 0 };
 

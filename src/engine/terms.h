@@ -39,9 +39,9 @@
 /// `num` stores information that identifies the type being referefenced.
 namespace Engine {
 
-class Term;
-class LocalTerm;
-class GlobalTerm;
+struct Term;
+struct LocalTerm;
+struct GlobalTerm;
 struct TermData;
 
 enum class TermKind : uint8_t {
@@ -307,7 +307,7 @@ private:
 /// and responsible for resolution of term identifiers.
 class TermManager {
 public:
-    friend class TermResolver;
+    friend struct TermResolver;
     static TermManager& Of(Engine& engine);
     static TermManager& Of(Session& session);
 
