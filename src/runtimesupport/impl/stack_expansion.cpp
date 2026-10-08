@@ -1,11 +1,13 @@
 #include "stack_expansion.h"
 #include "asm_export.h"
 #include "asm_trampolines.h"
+#include "cbc/frame.h"
 #include "cbc/isa.h"
 #include "gc_support.h"
 #include "interpreter/function_handle.h"
 #include "reg_table.h"
 #include "utils/assertion.h"
+#include "utils/ostream.h"
 #include <cstdint>
 
 namespace StackExpansion {
@@ -63,7 +65,10 @@ void VisitFrameRootsForStackPtrs(
     auto regTable = reinterpret_cast<GCSupport::RegistersTable*>(state);
     auto fuh      = *reinterpret_cast<DynamicFunctionHandle**>((uint8_t*)frameDesc.fp - FUH_SLOT_OFFSET);
     auto bc       = NOTNULL(fuh->bytecode.load());
-    auto slotsStartAddr = ((uint8_t*)frameDesc.fp) - (LOCAL_SLOTS_OFFSET + bc->frameSize);
+    auto slotsStartAddr = ((uint8_t*)frameDesc.fp) - LOCAL_SLOTS_OFFSET;
+
+    auto stackBottom              = slotsStartAddr - bc->frameSize;
+    auto stackBottomWithoutParams = slotsStartAddr - bc->staticFrameSize;
 
     RTSupport::Log::gc.Log(Logging::Level::INFO, [&](Stream::Output& out) {
         out.PrintFmtLn(
@@ -74,8 +79,8 @@ void VisitFrameRootsForStackPtrs(
     auto visitRoot = [&stackPtrVisitor](Placeholder ph) { VisitRoot(stackPtrVisitor, ph); };
     auto visitRef  = [&stackAllocVisitor](Placeholder ph) { VisitRoot(stackAllocVisitor, ph); };
 
-    auto resLoc = [slotsStartAddr, regTable](uint32_t idx) {
-        return GetResourceLocation(Resource { idx }, slotsStartAddr, regTable);
+    auto resLoc = [stackBottomWithoutParams, regTable, bc](uint32_t idx) {
+        return GetResourceLocation(Resource { idx }, stackBottomWithoutParams, regTable);
     };
 
     // Frame pointer is also a pointer to stack, so it needs to be adjusted.
@@ -136,17 +141,23 @@ void VisitFrameRootsForStackPtrs(
 
         if (gcPosInfo != nullptr) {
             for (auto& pair : gcPosInfo->mutPairs) {
-                auto basePh    = GetResourceLocation(pair.first, slotsStartAddr, regTable);
-                auto derivedPh = GetResourceLocation(pair.second, slotsStartAddr, regTable);
+                auto basePh    = GetResourceLocation(pair.first, stackBottomWithoutParams, regTable);
+                auto derivedPh = GetResourceLocation(pair.second, stackBottomWithoutParams, regTable);
 
                 VisitMutPair(derivedPtrVisitor, basePh, derivedPh);
-                visitRef(basePh);
+            }
+
+            for (auto& paramSlot : gcPosInfo->paramRecSlots) {
+                auto loc = stackBottom + STACK_SLOT_SIZE * paramSlot;
+                LOG_TRACE(RTSupport::Log::gc, "paramslot {}, loc={}", Stream::Hex(paramSlot), Stream::Hex(loc));
+                auto refLocation = reinterpret_cast<Placeholder>(loc);
+                visitRef(refLocation);
             }
         }
 
         if (stackPtrsInfo != nullptr) {
             for (auto& resource : stackPtrsInfo->resources) {
-                visitRoot(GetResourceLocation(resource, slotsStartAddr, regTable));
+                visitRoot(GetResourceLocation(resource, stackBottomWithoutParams, regTable));
             }
         }
 

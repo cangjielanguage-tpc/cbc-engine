@@ -1,7 +1,5 @@
 #include "cbc/decoder.h"
 #include "cbc/isa.h"
-#include "engine/resolving_output.h"
-#include "engine/terms.h"
 #include "isa_parser.h"
 #include "resolution/resolution.h"
 #include "utils/ostream.h"
@@ -142,7 +140,10 @@ struct IsaDisasm : public IsaParser {
         );
     }
 
-    void MovBasePtr(IReg dst, bool local) override { stream.PrintLn("mov.base.{}", local ? ".local" : ".global", dst); }
+    void MovBasePtr(IReg dst, bool local) override
+    {
+        stream.PrintLn("mov.base.{} {}", local ? "local" : "global", dst);
+    }
 
     void BFX(IReg dst, IReg src, Format::Width resW, Format::Width argW, bool sx, uint8_t offset, uint8_t size) override
     {
@@ -277,25 +278,58 @@ struct IsaDisasm : public IsaParser {
 
     void NewObjGeneric(IReg ti, uint32_t typeId) override { stream.PrintLn("newobj.g {}, @{}", ti, typeId); }
 
-    void CallDirect(IReg dst, uint32_t method) override { stream.PrintLn("call.direct {}, @{}", dst, method); }
-
-    void CallVirtual(IReg dst, uint32_t method) override { stream.PrintLn("call.virtual {}, @{}", dst, method); }
-
-    void CallInterf(IReg dst, uint32_t method) override { stream.PrintLn("call.interf {}, @{}", dst, method); }
-
-    void CallInterfGeneric(uint16_t argnum, uint32_t method) override
+    static std::string LocStr(Location loc)
     {
-        stream.PrintLn("call.interf.g {}, @{}", argnum, method);
+        auto kind = loc.Kind();
+        if (kind == Location::IREG)
+            return "IR" + std::to_string(loc.IRegIdx());
+        if (kind == Location::FREG)
+            return "FR" + std::to_string(loc.FRegIdx());
+        return "S" + std::to_string(loc.SlotIdx());
+    }
+
+    static std::string ArgsStr(Utils::Span<const Location> args)
+    {
+        if (args.Size() == 0)
+            return "";
+        std::string s = " [";
+        for (int i = 0; i < args.Size(); i++) {
+            if (i > 0)
+                s += ", ";
+            s += LocStr(args[i]);
+        }
+        s += "]";
+        return s;
+    }
+
+    void CallDirect(uint32_t method, Utils::Span<const Location> args) override
+    {
+        stream.PrintLn("call.direct @{}{}", method, ArgsStr(args));
+    }
+
+    void CallVirtual(uint32_t method, Utils::Span<const Location> args) override
+    {
+        stream.PrintLn("call.virtual @{}{}", method, ArgsStr(args));
+    }
+
+    void CallInterf(uint32_t method, Utils::Span<const Location> args) override
+    {
+        stream.PrintLn("call.interf @{}{}", method, ArgsStr(args));
+    }
+
+    void CallInterfGeneric(uint16_t argnum, uint32_t method, Utils::Span<const Location> args) override
+    {
+        stream.PrintLn("call.interf.g {}, @{}{}", argnum, method, ArgsStr(args));
     }
 
     void Spawn(IReg closure, uint32_t type) override { stream.PrintLn("spawn {}, @{}", closure, type); }
 
     void SpawnFuture(IReg future, uint32_t type) override { stream.PrintLn("spawn.future {}, @{}", future, type); }
 
-    void CallClosure(IReg dst, uint32_t type, bool generic) override
+    void CallClosure(uint32_t type, bool generic, Utils::Span<const Location> args) override
     {
         auto suffix = generic ? ".g" : "";
-        stream.PrintLn("call.closure{} {}, @{}", suffix, dst, type);
+        stream.PrintLn("call.closure{} @{}{}", suffix, type, ArgsStr(args));
     }
 
     void Scc(Format::Width width, Format::CC cc, IReg d, AnyReg l, AnyReg r) override
@@ -510,14 +544,14 @@ struct IsaResolvingDisasm : IsaDisasm {
           resolver(resolver)
     {}
 
-    void CallVirtual(IReg dst, uint32_t methodId) override
+    void CallVirtual(uint32_t methodId, Utils::Span<const Location> args) override
     {
         auto m = resolver.Query(Index<VirtualCall>(methodId));
         if (!m.has_value()) {
             return;
         }
         auto method = m.value();
-        stream.PrintLn("call.virtual {}, {} ({}, {})", dst, method, method->extDefNum, method->methodNum);
+        stream.PrintLn("call.virtual {} ({}, {}){}", method, method->extDefNum, method->methodNum, ArgsStr(args));
     }
 
     void NewObj(IReg dst, uint32_t type) override

@@ -9,7 +9,7 @@
     @code
       movi.64 IR1, 0x7
       movi.64 IR2, 0x0
-      call.direct IR1, #default.foo
+      call.direct #default.foo, IR1, IR2
       ret.64 IR1
     @end
   @end
@@ -22,7 +22,7 @@
       movi.64 IR3, 0x1
       sub.64 IR1, IR1, IR3
       @dead IR3
-      call.direct IR1, #default.foo
+      call.direct #default.foo, IR1, IR2
 r:
       @dead IR1
       mov.64 IR1, IR2

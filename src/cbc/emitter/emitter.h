@@ -44,7 +44,7 @@ public:
     public:
         MemSpace(Emitter& _emitter) : segment(_emitter.segment), symbols(_emitter.symbols), emitter(_emitter) {}
 
-        void Offset(uint64_t offset);
+        void Offset(int32_t offset);
         void OffsetReg(IReg reg);
         void OffsetRegIdx(IReg reg, uint64_t size);
 
@@ -241,11 +241,11 @@ public:
     void LeaIndex(IReg dst, IReg src, IReg idx, RTSupport::TypeInfo ti, bool isCangjeiArray);
     void LeaIndexGeneric(IReg dst, IReg src, IReg idx, IReg ti);
 
-    void LoadFrame(LoadAccessKind ldk, Reg dst, uint32_t offset);
-    void StoreFrame(StoreAccessKind stk, Reg src, uint32_t offset);
-    void StoreFrameImm(StoreAccessKind stk, uint64_t imm, uint32_t offset);
+    void LoadFrame(LoadAccessKind ldk, Reg dst, int32_t offset);
+    void StoreFrame(StoreAccessKind stk, Reg src, int32_t offset);
+    void StoreFrameImm(StoreAccessKind stk, uint64_t imm, int32_t offset);
 
-    void PrepareTyped(uint64_t size, uint32_t offset);
+    void PrepareTyped(uint64_t size, int32_t offset);
 
     void SCC(CC cc, Width width, IReg d, IReg l, IReg r);
     void SCC(CC cc, Width width, IReg d, FReg l, FReg r);
@@ -268,7 +268,7 @@ public:
     void InterfaceCall(uint16_t methodNum, RTSupport::TypeInfo typeInfo, bool sret);
     void InterfaceCallGeneric(uint16_t methodNum, uint16_t argnum, bool sret);
 
-    void StringLit(Interpretation::StringStorage* literal, uint32_t frameOffs);
+    void StringLit(Interpretation::StringStorage* literal, int32_t frameOffs);
 
     void DivCheck(IReg r);
     void NullCheck(IReg r);
@@ -301,6 +301,11 @@ public:
     void LogInstruction(std::string_view string);
     void LogInstruction(char* string);
 
+    void StackParam(IReg src, uint16_t offset);
+    void StackParamF(FReg src, uint16_t dst);
+    void StackParamS16(int16_t src, uint16_t dst);
+    void StackParamS32(int32_t src, uint16_t dst);
+
     MemSpace OpenMemSpace();
 
 private:
@@ -308,7 +313,7 @@ private:
     void Mov(RT::Opcode opcode, Reg d, Reg s);
     void BFX(RT::Opcode opcode, IReg dst, IReg src, uint8_t offset, uint8_t size);
 
-    template <typename AccessKind> void LoadStore(AccessKind akind, Reg v, IReg base, uint32_t offset, RT::Opcode opc)
+    template <typename AccessKind> void LoadStore(AccessKind akind, Reg v, IReg base, int32_t offset, RT::Opcode opc)
     {
         Encode(segment, RT::B4xi12rr {
             .opc = opc,
@@ -324,14 +329,14 @@ private:
     }
 
     template <typename AccessKind>
-    void LoadStoreLong(AccessKind akind, Reg v, IReg baseRef, IReg base, uint32_t offset, RT::Opcode opc)
+    void LoadStoreLong(AccessKind akind, Reg v, IReg baseRef, IReg base, int32_t offset, RT::Opcode opc)
     {
         Encode(
             segment,
             RT::B7xrrri32 { .opc   = opc,
                             .xr    = { .imm = Format::Imm4(akind), .r = v },
                             .rr    = { .x = baseRef, .y = base },
-                            .imm32 = { .imm = offset } }
+                            .imm32 = { .imm = static_cast<uint32_t>(offset) } }
         );
     }
 

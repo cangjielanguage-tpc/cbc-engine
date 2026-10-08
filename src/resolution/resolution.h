@@ -65,6 +65,7 @@ public:
 struct MethodSignature {
     Resolver* resolver;
     Engine::Term term;
+    Engine::Term tvars;
 
     Type ResType() const;
     Utils::Span<Engine::Term> Params() const;

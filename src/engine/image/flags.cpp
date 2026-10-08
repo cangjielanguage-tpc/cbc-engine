@@ -52,6 +52,22 @@ Stream::Output& operator<<(Stream::Output& stream, MethodFlag flag) { return str
 
 Stream::Output& operator<<(Stream::Output& stream, MethodRefFlag flag) { return stream << flag.ToString(); }
 
+Stream::Output& operator<<(Stream::Output& stream, MethodAbiKind kind)
+{
+    return stream << [kind]() {
+        switch (kind) {
+            case MethodAbiKind::STATIC:         return "STATIC";
+            case MethodAbiKind::HAS_THIS_TI:    return "THIS_TI";
+            case MethodAbiKind::MUT:            return "MUT";
+            case MethodAbiKind::REF_RECEIVER:   return "REF_RECEIVER";
+            case MethodAbiKind::REC_RECEIVER:   return "REC_RECEIVER";
+            case MethodAbiKind::PRIM_RECEIVER:  return "PRIM_RECEIVER";
+            case MethodAbiKind::FPRIM_RECEIVER: return "FPRIM_RECEIVER";
+            default:                            ASSERT(false); return "<invalid>";
+        }
+    }();
+}
+
 template <typename T> static std::string Str(T const* t)
 {
     Stream::StringBuffer buf;

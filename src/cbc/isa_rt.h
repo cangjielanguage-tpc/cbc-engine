@@ -62,14 +62,14 @@
     X(STORE_ARR, B3xrrr, "st.arr.$0stk $1ir $2ir $3ir]")                                                               \
     X(LOAD_REC, B4xi12rr, "ld.rec.$0ldk $2ir [$3ir $1U12]")                                                            \
     X(STORE_REC, B4xi12rr, "st.rec.$0stk $2ir [$3ir $1U12]")                                                           \
-    X(LOAD_FRAME, B4xi12rr, "ld.frame.$0ldk $2ir [$3ir $1U12]")                                                        \
-    X(STORE_FRAME, B4xi12rr, "st.frame.$0stk $2ir [$3ir $1U12]")                                                       \
+    X(LOAD_FRAME, B4xi12rr, "ld.frame.$0ldk $2ir [$3ir $1I12]")                                                        \
+    X(STORE_FRAME, B4xi12rr, "st.frame.$0stk $2ir [$3ir $1I12]")                                                       \
     X(LOAD_LONG_DERIVED, B7xrrri32, "ld.derived.$0ldk $1ir [($2ir $3ir) $4U32]")                                       \
     X(STORE_LONG_DERIVED, B7xrrri32, "st.derived.$0stk $1ir [($2ir $3ir) $4U32]")                                      \
     X(LOAD_LONG_REC, B7xrrri32, "ld.rec.$0ldk $1ir [$3ir $4U32]")                                                      \
     X(STORE_LONG_REC, B7xrrri32, "st.rec.$0stk $1ir [$3ir $4U32]")                                                     \
-    X(LOAD_LONG_FRAME, B7xrrri32, "ld.frame.$0ldk $1ir [$4U32]")                                                       \
-    X(STORE_LONG_FRAME, B7xrrri32, "st.frame.$0stk $1ir [$4U32]")                                                      \
+    X(LOAD_LONG_FRAME, B7xrrri32, "ld.frame.$0ldk $1ir [$4I32]")                                                       \
+    X(STORE_LONG_FRAME, B7xrrri32, "st.frame.$0stk $1ir [$4I32]")                                                      \
     X(LOAD_GENERIC, B3rrrr, "ld.g $0ir $3ir [($1ir $2ir)]")                                                            \
     X(STORE_GENERIC, B3rrrr, "st.g $0ir $3ir [($1ir $2ir)]")                                                           \
     X(LEA_GENERIC, B7xrrri32, "lea.g $1ir $3ir [$2ir ord=$4U32]")                                                      \
@@ -188,7 +188,11 @@
     X(SBINIMM8W, BinarySaturating, "$0sbin.8 $2ir $3ir $1I64")                                                         \
     X(SBINIMM16W, BinarySaturating, "$0sbin.16 $2ir $3ir $1I64")                                                       \
     X(SBINIMM32W, BinarySaturating, "$0sbin.32 $2ir $3ir $1I64")                                                       \
-    X(SBINIMM64W, BinarySaturating, "$0sbin.64 $2ir $3ir $1I64")
+    X(SBINIMM64W, BinarySaturating, "$0sbin.64 $2ir $3ir $1I64")                                                       \
+    X(STK_PARAM, StackParam, "st.stack.param $0ir $1U16")                                                              \
+    X(STK_PARAM_F, StackParamF, "st.stack.param.f $0fr $1U16")                                                         \
+    X(STK_PARAM_S16, StackParamS16, "st.stack.param.s.16 $0I64 $1U16")                                                 \
+    X(STK_PARAM_S32, StackParamS32, "st.stack.param.s.32 $0I64 $1U16")
 
 // X parameters: opcode, encoding format, string format, is tail
 #define CBC_RT_MEMOPCODES(X)                                                                                           \
@@ -1161,6 +1165,64 @@ struct M10rri64 {
         auto rr    = Format::RR::Decode(reader);
         auto imm64 = Format::Imm64::Decode(reader);
         return M10rri64 { opc, rr, imm64 };
+    }
+};
+
+struct StackParam {
+    Opcode opc;
+    IReg src;
+    uint16_t dst;
+
+    inline static StackParam Decode(Decoder::ByteReader& reader)
+    {
+        auto opc    = Opcode(reader.Read8());
+        auto b      = reader.Read8();
+        auto src    = IReg::From(b >> 4);
+        auto offset = reader.Read16();
+        return StackParam { opc, src, offset };
+    }
+};
+
+struct StackParamF {
+    Opcode opc;
+    FReg src;
+    uint16_t dst;
+
+    inline static StackParamF Decode(Decoder::ByteReader& reader)
+    {
+        auto opc = Opcode(reader.Read8());
+        auto b   = reader.Read8();
+        auto src = FReg::From(b >> 4);
+        auto dst = reader.Read16();
+        return StackParamF { opc, src, dst };
+    }
+};
+
+struct StackParamS16 {
+    Opcode opc;
+    int16_t src;
+    uint16_t dst;
+
+    inline static StackParamS16 Decode(Decoder::ByteReader& reader)
+    {
+        auto opc = Opcode(reader.Read8());
+        auto src = static_cast<int16_t>(reader.Read16());
+        auto dst = reader.Read16();
+        return StackParamS16 { opc, src, dst };
+    }
+};
+
+struct StackParamS32 {
+    Opcode opc;
+    int32_t src;
+    uint16_t dst;
+
+    inline static StackParamS32 Decode(Decoder::ByteReader& reader)
+    {
+        auto opc = Opcode(reader.Read8());
+        auto src = static_cast<int32_t>(reader.Read32());
+        auto dst = reader.Read16();
+        return StackParamS32 { opc, src, dst };
     }
 };
 

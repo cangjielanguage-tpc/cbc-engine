@@ -943,9 +943,9 @@ void Emitter::StoreRec(StoreAccessKind stk, Reg src, IReg base, uint32_t offset)
     }
 }
 
-void Emitter::LoadFrame(LoadAccessKind ldk, Reg dst, uint32_t offset)
+void Emitter::LoadFrame(LoadAccessKind ldk, Reg dst, int32_t offset)
 {
-    if (MathUtils::IsNBits(offset, 12)) {
+    if (MathUtils::IsNBitsSigned(offset, 12)) {
         auto opc = !ldk.IsFloat() ? RT::Opcode::LOAD_FRAME : RT::Opcode::LOAD_FRAME_F;
         LoadStore(ldk, dst, IReg::IRZ, offset, RT::Opcode::LOAD_FRAME);
     } else {
@@ -954,28 +954,30 @@ void Emitter::LoadFrame(LoadAccessKind ldk, Reg dst, uint32_t offset)
     }
 }
 
-void Emitter::StoreFrame(StoreAccessKind stk, Reg src, uint32_t offset)
+void Emitter::StoreFrame(StoreAccessKind stk, Reg src, int32_t offset)
 {
-    if (MathUtils::IsNBits(offset, 12)) {
+    if (MathUtils::IsNBitsSigned(offset, 12)) {
         auto opc = !stk.IsFloat() ? RT::Opcode::STORE_FRAME : RT::Opcode::STORE_FRAME_F;
         LoadStore(stk, src, IReg::IRZ, offset, opc);
     } else {
-        auto opc = !stk.IsFloat() ? RT::Opcode::STORE_LONG_REC : RT::Opcode::STORE_LONG_REC_F;
+        auto opc = !stk.IsFloat() ? RT::Opcode::STORE_LONG_FRAME : RT::Opcode::STORE_LONG_FRAME_F;
         LoadStoreLong(stk, src, IReg::IRZ, IReg::IRZ, offset, opc);
     }
 }
 
-void Emitter::StoreFrameImm(StoreAccessKind stk, uint64_t imm, uint32_t offset)
+void Emitter::StoreFrameImm(StoreAccessKind stk, uint64_t imm, int32_t offset)
 {
     auto ms = OpenMemSpace();
     ms.Offset(offset);
     ms.StoreFrameImm(stk, imm);
 }
 
-void Emitter::PrepareTyped(uint64_t size, uint32_t offset)
+void Emitter::PrepareTyped(uint64_t size, int32_t offset)
 {
     Encode(
-        segment, RT::B13i64i32 { .opc = RT::Opcode::PREP_TYPED, .imm64 = { .imm = size }, .imm32 = { .imm = offset } }
+        segment,
+        RT::B13i64i32 {
+            .opc = RT::Opcode::PREP_TYPED, .imm64 = { .imm = size }, .imm32 = { .imm = static_cast<uint32_t>(offset) } }
     );
 }
 
@@ -1141,13 +1143,13 @@ void Emitter::InterfaceCallGeneric(uint16_t methodNum, uint16_t argnum, bool sre
     );
 }
 
-void Emitter::StringLit(Interpretation::StringStorage* literal, uint32_t frameOffs)
+void Emitter::StringLit(Interpretation::StringStorage* literal, int32_t frameOffs)
 {
     Encode(
         segment,
         RT::B13i64i32 { .opc   = RT::Opcode::STRING_INIT,
                         .imm64 = { .imm = reinterpret_cast<uint64_t>(literal) },
-                        .imm32 = { .imm = frameOffs } }
+                        .imm32 = { .imm = static_cast<uint32_t>(frameOffs) } }
     );
 }
 
@@ -1303,6 +1305,26 @@ void Emitter::LogInstruction(std::string_view string)
 void Emitter::LogInstruction(char* string)
 {
     Encode(segment, RT::B9i64 { .opc = RT::Opcode::LOG, .imm64 = { .ptr = string } });
+}
+
+void Emitter::StackParam(IReg src, uint16_t offset)
+{
+    Encode(segment, RT::StackParam { .opc = RT::Opcode::STK_PARAM, .src = src, .dst = offset });
+}
+
+void Emitter::StackParamF(FReg src, uint16_t dst)
+{
+    Encode(segment, RT::StackParamF { .opc = RT::Opcode::STK_PARAM_F, .src = src, .dst = dst });
+}
+
+void Emitter::StackParamS16(int16_t src, uint16_t dst)
+{
+    Encode(segment, RT::StackParamS16 { .opc = RT::Opcode::STK_PARAM_S16, .src = src, .dst = dst });
+}
+
+void Emitter::StackParamS32(int32_t src, uint16_t dst)
+{
+    Encode(segment, RT::StackParamS32 { .opc = RT::Opcode::STK_PARAM_S32, .src = src, .dst = dst });
 }
 
 } // namespace Emitter

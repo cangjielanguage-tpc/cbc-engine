@@ -457,10 +457,11 @@ perform_2i_call:
 
 .Lrestart_interpretation:
   mov   x0, ECTYPE_REG
-  mov   x1, sp
+  sub   x1, x29, #LOCAL_SLOTS_OFFSET
   mov   x2, TLS_REG
   mov   x3, LITERALS_REG
   sub   x4, x29, #READER_SLOT_OFFSET
+  mov   x5, sp
 
   bl    engine_interpretation_loop
 

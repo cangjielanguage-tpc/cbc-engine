@@ -1,6 +1,7 @@
 #ifndef INTERPRETER_CODE_H
 #define INTERPRETER_CODE_H
 
+#include "engine/image/flags.h"
 #include "utils/vector.h"
 #include <cstddef>
 #include <cstdint>
@@ -44,7 +45,9 @@ struct Resource {
 struct GCPositionalInfo {
     uint32_t rewrittenPos;
     uint16_t regMask;
-    Utils::Vector<uint32_t> untypedRefSlotsInfo;
+    Utils::Vector<uint32_t> untypedRefSlots;
+    Utils::Vector<uint32_t> paramRefSlots;
+    Utils::Vector<uint32_t> paramRecSlots;
     Utils::Vector<std::pair<Resource, Resource>> mutPairs;
 };
 
@@ -123,6 +126,7 @@ struct ExecBytecodeInfo {
     NonVolatileRegs savedIRegs;
     NonVolatileRegs savedFRegs;
     uint32_t frameSize;
+    uint32_t staticFrameSize;
     uint16_t untypedSlotCount;
     AbiInfo abiInfo;
     GcInfo gcInfo;
@@ -136,10 +140,8 @@ struct ExecBytecodeInfo {
 struct AbiInfoFlags {
     bool isSRet : 1;
     bool isMut : 1;
-    bool hasThisTypeInfo : 1;
     bool hasOuterTi : 1;
-    bool recordReceiver : 1;
-    bool referenceReceiver : 1;
+    Image::MethodAbiKind abiKind;
     int funcVars;
 };
 

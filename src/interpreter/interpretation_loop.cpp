@@ -5,7 +5,6 @@
 #include "cbc/isa_rt.h"
 #include "engine/terms.h"
 #include "interpreter.h"
-#include "interpreter/code.h"
 #include "interpreter/ectype.h"
 #include "interpreter/implicit_exceptions.h"
 #include "interpreter/loggers.h"
@@ -50,7 +49,12 @@ extern "C" {
 /// Note that the actual calling convention of `thunk.function`
 /// differs from the ASM in the unit test framework.
 Interpretation::Thunk engine_interpretation_loop(
-    Ectype* ectype, Frame frame, RTSupport::ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
+    Ectype* ectype,
+    Frame frame,
+    RTSupport::ThreadHandle handle,
+    LiteralTable* literals,
+    Decoder::ByteReader& reader0,
+    uintptr_t frameBot
 )
 {
 #define NEXT goto* MAIN_TABLE[reader.PeekOpcode()]
@@ -138,7 +142,7 @@ Interpretation::Thunk engine_interpretation_loop(
     __attribute__((used)) static volatile const char* label;
 #endif
 
-    uint64_t memspaceOffsetAcc = 0;
+    int64_t memspaceOffsetAcc = 0;
 
     // jump to the instruction handler.
     NEXT;
@@ -163,6 +167,36 @@ LABEL(RET) {
 LABEL(NOP) {
     auto args = B1::Decode(reader);
     LOG_INSTR;
+    NEXT;
+}
+LABEL(STK_PARAM) {
+    auto args = RT::StackParam::Decode(reader);
+    LOG_INSTR;
+    auto stk = Cbc::Format::StoreAccessKind::ST_64; // FIXME: encode for darwin_aarch64
+    MemoryLocation(frameBot, args.dst).StorePrim(stk, args.src, ectype);
+    NEXT;
+}
+LABEL(STK_PARAM_F) {
+    auto args = RT::StackParamF::Decode(reader);
+    LOG_INSTR;
+    auto stk = Cbc::Format::StoreAccessKind::ST_F64;
+    MemoryLocation(frameBot, args.dst).StorePrim(stk, args.src, ectype);
+    NEXT;
+}
+LABEL(STK_PARAM_S16) {
+    auto args = RT::StackParamS16::Decode(reader);
+    LOG_INSTR;
+    auto srcLoc = frame.start + args.src;
+    auto dstLoc = frameBot + args.dst;
+    *reinterpret_cast<uint64_t*>(dstLoc) = *reinterpret_cast<uint64_t*>(srcLoc);
+    NEXT;
+}
+LABEL(STK_PARAM_S32) {
+    auto args = RT::StackParamS32::Decode(reader);
+    LOG_INSTR;
+    auto srcLoc = frame.start + args.src;
+    auto dstLoc = frameBot + args.dst;
+    *reinterpret_cast<uint64_t*>(dstLoc) = *reinterpret_cast<uint64_t*>(srcLoc);
     NEXT;
 }
 LABEL(MOV) {
@@ -845,28 +879,32 @@ LABEL(LOAD_FRAME_F)
 LABEL(LOAD_FRAME) {
     auto args = B4xi12rr::Decode(reader);
     LOG_INSTR;
-    bool successful = interpreter.LoadFrame(args.xi12.imm4.LDK(), args.rr.x, args.xi12.imm12);
+    auto offset = MathUtils::SignExtend(static_cast<int32_t>(args.xi12.imm12), 12);
+    bool successful = interpreter.LoadFrame(args.xi12.imm4.LDK(), args.rr.x, offset);
     NEXT_COND(successful);
 }
 LABEL(STORE_FRAME_F)
 LABEL(STORE_FRAME) {
     auto args = B4xi12rr::Decode(reader);
     LOG_INSTR;
-    bool successful = interpreter.StoreFrame(args.xi12.imm4.STK(), args.rr.x, args.xi12.imm12);
+    auto offset = MathUtils::SignExtend(static_cast<int32_t>(args.xi12.imm12), 12);
+    bool successful = interpreter.StoreFrame(args.xi12.imm4.STK(), args.rr.x, offset);
     NEXT_COND(successful);
 }
 LABEL(LOAD_LONG_FRAME_F)
 LABEL(LOAD_LONG_FRAME) {
     auto args = B7xrrri32::Decode(reader);
     LOG_INSTR;
-    bool successful = interpreter.LoadFrame(args.xr.imm.LDK(), args.xr.r, args.imm32.imm);
+    auto offset = static_cast<int32_t>(args.imm32.imm);
+    bool successful = interpreter.LoadFrame(args.xr.imm.LDK(), args.xr.r, offset);
     NEXT_COND(successful);
 }
 LABEL(STORE_LONG_FRAME_F)
 LABEL(STORE_LONG_FRAME) {
     auto args = B7xrrri32::Decode(reader);
     LOG_INSTR;
-    bool successful = interpreter.StoreFrame(args.xr.imm.STK(), args.xr.r, args.imm32.imm);
+    auto offset = static_cast<int32_t>(args.imm32.imm);
+    bool successful = interpreter.StoreFrame(args.xr.imm.STK(), args.xr.r, offset);
     NEXT_COND(successful);
 }
 LABEL(LOAD_LONG_REC_F)
@@ -962,9 +1000,9 @@ LABEL(LEA_GENERIC) {
 LABEL(PREP_TYPED) {
     auto args = B13i64i32::Decode(reader);
     LOG_INSTR;
-    auto typedOffset = args.imm32.imm;
+    auto typedOffset = static_cast<int32_t>(args.imm32.imm);
     auto size        = args.imm64.imm;
-    memset(reinterpret_cast<void*>(frame.start + typedOffset), 0, size);
+    memset(reinterpret_cast<uint8_t*>(frame.start) + typedOffset, 0, size);
     NEXT;
 }
 LABEL(SCC32) {
@@ -1208,8 +1246,8 @@ LABEL(INTERFACE_CALL_GENERIC) {
     } else {
         // FIXME: share the same offset calculation logic as in rewriter.
         auto untypedSlot = args.argn - IReg::VIRT_COUNT;
-        auto slotOffset  = untypedSlot * STACK_SLOT_SIZE;
-        auto location    = reinterpret_cast<TypeInfo*>(frame.start + slotOffset);
+        auto slotOffset  = (int32_t)(untypedSlot * STACK_SLOT_SIZE);
+        auto location    = reinterpret_cast<TypeInfo*>(frameBot + slotOffset);
         *location        = outerTI;
     }
 
@@ -1256,7 +1294,7 @@ LABEL(STRING_INIT) {
     auto args = B13i64i32::Decode(reader);
     LOG_INSTR;
     auto ref  = reinterpret_cast<StringStorage*>(args.imm64.imm);
-    auto offs = args.imm32.imm;
+    auto offs = (int32_t)args.imm32.imm;
 
     struct CJString {
         StringStorage* str;
@@ -1447,19 +1485,19 @@ LABEL(MEM_HALT) {
 LABEL(OFFS16) {
     auto args = M3i16::Decode(reader);
     LOG_INSTR;
-    memspaceOffsetAcc += interpreter.MemOffset(args.imm16);
+    memspaceOffsetAcc += (int16_t) args.imm16;
     MEM_NEXT;
 }
 LABEL(OFFS32) {
     auto args = M5i32::Decode(reader);
     LOG_INSTR;
-    memspaceOffsetAcc += interpreter.MemOffset(args.imm32);
+    memspaceOffsetAcc += (int32_t) args.imm32;
     MEM_NEXT;
 }
 LABEL(OFFS64) {
     auto args = M9i64::Decode(reader);
     LOG_INSTR;
-    memspaceOffsetAcc += interpreter.MemOffset(args.imm64);
+    memspaceOffsetAcc += (int64_t) args.imm64;
     MEM_NEXT;
 }
 LABEL(OFFS_REG) {
@@ -1471,7 +1509,7 @@ LABEL(OFFS_REG) {
 LABEL(OFFS_REG_IDX64) {
     auto args = M10xri64::Decode(reader);
     LOG_INSTR;
-    memspaceOffsetAcc += interpreter.MemOffsetReg(args.xr.r.IR()) * interpreter.MemOffset(args.imm64.imm);
+    memspaceOffsetAcc += interpreter.MemOffsetReg(args.xr.r.IR()) * (int64_t) args.imm64.imm;
     MEM_NEXT;
 }
 LABEL(R_READ_STRUCT) {
@@ -1900,7 +1938,8 @@ Thunk Interpretation::InterpretationLoop(
     Ectype* ectype, Frame frame, RTSupport::ThreadHandle handle, LiteralTable* literals, Decoder::ByteReader& reader0
 )
 {
-    return engine_interpretation_loop(ectype, frame, handle, literals, reader0);
+    // FIXME: frame bot in unit tests?
+    return engine_interpretation_loop(ectype, frame, handle, literals, reader0, 0);
 }
 
 void Interpretation::InterpretationStart(DynamicFunctionHandle* handle, Ectype* ectype)

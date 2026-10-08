@@ -3,6 +3,7 @@
 #include "engine/engine.h"
 #include "engine/field_layout.h"
 #include "engine/identifiers.h"
+#include "engine/image/flags.h"
 #include "engine/method_table.h"
 #include "engine/terms.h"
 #include "resolution/resolution.h"
@@ -122,7 +123,7 @@ ResolvingOutput& ResolvingOutput::operator<<(Full<Image::MethodDefinition> full)
     out << name << Detailed(md.Signature()) << " ";
 
     auto print = [&] {
-        out << "flags: " << Detailed(md.GetFlags()) << endl;
+        out.PrintLn("flags: {}, {}", md->abiKind, md.GetFlags());
         if (auto sourceFileOpt = md.SourceFile()) {
             out << "source file: " << StringOf(*sourceFileOpt) << endl;
         }

@@ -6,6 +6,7 @@
 #include "interpreter/literals.h"
 #include "runtimesupport/runtime.h"
 #include "utils/math.h"
+#include <cstdint>
 
 namespace Interpretation {
 
@@ -740,9 +741,10 @@ class MemoryLocation {
 public:
     inline MemoryLocation(uint64_t location) : base(reinterpret_cast<uint8_t*>(location)), offset(0) {}
 
-    inline MemoryLocation(uint8_t* _base, size_t _offset) : base(_base), offset(_offset) {}
+    inline MemoryLocation(uint8_t* _base, intptr_t _offset) : base(_base), offset(_offset) {}
 
-    inline MemoryLocation(uintptr_t _base, size_t _offset) : base(reinterpret_cast<uint8_t*>(_base)), offset(_offset) {}
+    inline MemoryLocation(uintptr_t _base, intptr_t _offset) : base(reinterpret_cast<uint8_t*>(_base)), offset(_offset)
+    {}
 
     inline void StorePrim(StoreAccessKind::Value stk, Format::Reg src, Ectype* ectype);
     inline void StoreImm(StoreAccessKind::Value stk, uint64_t imm);
@@ -758,7 +760,7 @@ private:
     template <typename P> inline void Load(Format::Reg dst, Ectype* ectype);
 
     uint8_t* base;
-    size_t offset;
+    intptr_t offset;
 };
 
 template <> inline void MemoryLocation::Store<float>(Format::Reg src, Ectype* ectype)

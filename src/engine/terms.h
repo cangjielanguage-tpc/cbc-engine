@@ -1,5 +1,6 @@
 #pragma once
 
+#include "cbc/abi.h"
 #include "engine/engine.h"
 #include "engine/identifiers.h"
 #include "utils/assertion.h"
@@ -359,3 +360,7 @@ public:
 };
 
 } // namespace Engine
+
+template <> struct Cbc::ArgTypeTraits<Engine::Term> {
+    ArgKind Kind(Engine::Term const& arg);
+};
