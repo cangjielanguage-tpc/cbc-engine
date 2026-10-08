@@ -843,6 +843,7 @@ LABEL(INDEX) {
 }
 
 LABEL(INDEX_GENERIC) {
+    // This instruction is used only for CangjieArray and can't be used for VArray and Tuple.
     auto args = IndexGeneric::Decode(reader);
     LOG_INSTR;
     auto tiReg = args.idx.y;
@@ -853,6 +854,7 @@ LABEL(INDEX_GENERIC) {
 }
 
 LABEL(CONST_INDEX_GENERIC) {
+    // This instruction is used only for CangjieArray and can't be used for VArray and Tuple.
     auto args = ConstIndexGeneric::Decode(reader);
     LOG_INSTR;
     auto tiReg = args.ti.x;
