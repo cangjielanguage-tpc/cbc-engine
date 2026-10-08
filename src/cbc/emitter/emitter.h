@@ -264,7 +264,7 @@ public:
     void DirectCall2i(Symbol fuh);
     void DirectCall2c(Symbol target);
     void DirectCall2n(Symbol target, uint8_t stackSlots);
-    void CallCFunc(IReg src);
+    void CallCFunc(IReg src, uint8_t stackSlots);
 
     void VirtualCall(uint16_t vnum, uint16_t extDefNum, bool sret);
     void InterfaceCall(uint16_t methodNum, RTSupport::TypeInfo typeInfo, bool sret);

@@ -684,8 +684,8 @@ struct IsaParserImpl {
 
     static void CallCFunc(IsaParser& parser)
     {
-        auto [dst, src] = ByteReaderM(parser.reader).ReadU4().ReadU4().Get();
-        parser.CallCFunc(dst, src);
+        auto [dst, src, sig] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
+        parser.CallCFunc(dst, src, sig);
     }
 
     static void RegSymGroup(IsaParser& parser)

@@ -1133,9 +1133,29 @@ struct IsaRewriter : public IsaParser {
         }
     }
 
-    void CallCFunc(IReg dst, IReg src) override
+    std::optional<uint8_t> countStackSlots(Engine::Term methodType)
     {
-        emit.CallCFunc(src);
+        uint32_t iregs      = 0;
+        uint32_t fregs      = 0;
+        uint32_t stackSlots = 0;
+        for (uint32_t i = 0; i < methodType.GetLength() - 1; i++) {
+            if (methodType.Subterm(i).IsFloat()) {
+                fregs < FREG_ABI_AMOUNT ? fregs++ : stackSlots++;
+            } else {
+                iregs < IREG_PARAM_PASSING_AMOUNT ? iregs++ : stackSlots++;
+            }
+        }
+        if (stackSlots > UINT8_MAX) {
+            return std::nullopt;
+        }
+        return static_cast<uint8_t>(stackSlots);
+    }
+
+    void CallCFunc(IReg dst, IReg src, uint32_t _methodSig) override
+    {
+        UNWRAP_OPT(methodSig, resolver.Query(Index<Type>(_methodSig)), Fail);
+        UNWRAP_OPT(stackSlots, countStackSlots(methodSig.term), Fail);
+        emit.CallCFunc(src, stackSlots);
         BindStatePoint();
         AdjustReg(dst, IReg::IR1);
         EmitReturnedTo();
@@ -1143,32 +1163,14 @@ struct IsaRewriter : public IsaParser {
 
     void CallDirect(IReg dst, uint32_t methodId) override
     {
-        auto m = resolver.Query(Index<DirectCall>(methodId));
-        if (!m.has_value()) {
-            Fail();
-            return;
-        }
-        auto method = m.value();
+        UNWRAP_OPT(method, resolver.Query(Index<DirectCall>(methodId)), Fail);
 
         if (auto data = std::get_if<DirectCall::Compiled>(&method->data)) {
             auto sym = emit.NewAddressSym(data->funcPtr);
             if (data->isForeign) {
-                uint32_t iregs      = 0;
-                uint32_t fregs      = 0;
-                uint32_t stackSlots = 0;
-                for (uint32_t i = 0; i < method->signature.ParamCount(); i++) {
-                    if (method->signature.term.Subterm(i).IsFloat()) {
-                        fregs < FREG_ABI_AMOUNT ? fregs++ : stackSlots++;
-                    } else {
-                        iregs < IREG_PARAM_PASSING_AMOUNT ? iregs++ : stackSlots++;
-                    }
-                }
-                if (stackSlots > UINT8_MAX) {
-                    Fail("too many stack arguments for foreign call");
-                    return;
-                }
+                UNWRAP_OPT(stackSlots, countStackSlots(method->signature.term), Fail);
                 EmitLogCall("call.2n", method);
-                emit.DirectCall2n(sym, static_cast<uint8_t>(stackSlots));
+                emit.DirectCall2n(sym, stackSlots);
             } else {
                 EmitLogCall("call.2c", method);
                 emit.DirectCall2c(sym);

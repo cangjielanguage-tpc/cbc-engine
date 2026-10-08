@@ -157,7 +157,7 @@ protected:
     virtual void LeaBox(IReg dst, IReg base)                                                = 0;
 
     virtual void LeaCForeign(IReg dst, uint32_t methodId)                                   = 0;
-    virtual void CallCFunc(IReg dst, IReg src)                                              = 0;
+    virtual void CallCFunc(IReg dst, IReg src, uint32_t methodSig)                          = 0;
     virtual void St(AnyReg src, IReg base, uint32_t field)                                  = 0;
     virtual void StStatic(AnyReg src, uint32_t field)                                       = 0;
     virtual void StTyped(AnyReg src, uint16_t slot, uint32_t field)                         = 0;

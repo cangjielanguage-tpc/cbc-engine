@@ -1114,9 +1114,16 @@ void Emitter::DirectCall2n(Symbol target, uint8_t stackSlots)
     segment.AddW8(stackSlots);
 }
 
-void Emitter::CallCFunc(IReg src)
+void Emitter::CallCFunc(IReg src, uint8_t stackSlots)
 {
-    Encode(segment, RT::B2rr { .opc = RT::Opcode::CALL_CFUNC, .rr = { .x = src, .y = IReg::IRZ } });
+    Encode(
+        segment,
+        RT::B3xri8 {
+            .opc  = RT::Opcode::CALL_CFUNC,
+            .xr   = { .imm = Format::Imm4(0), .r = src }, // TODO: set vector regs count
+            .imm8 = Format::Imm8(stackSlots),
+        }
+    );
 }
 
 void Emitter::VirtualCall(uint16_t vnum, uint16_t extDefNum, bool sret)
