@@ -53,8 +53,8 @@ protected:
         IReg dst, IReg src, Format::Width resW, Format::Width argW, bool sx, uint8_t offset, uint8_t size
     ) = 0;
 
-    virtual void PrepareRecord(uint16_t ts)                = 0;
-    virtual void NewArr(IReg dst, IReg len, uint32_t type) = 0;
+    virtual void PrepareRecord(uint16_t ts)                 = 0;
+    virtual void NewArr(IReg dst, IReg len, uint32_t type)  = 0;
     virtual void NewArrGeneric(IReg dst, IReg len, IReg ti) = 0;
 
     virtual void GcPoint() = 0;
