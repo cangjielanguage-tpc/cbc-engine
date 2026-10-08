@@ -10,6 +10,8 @@ void VisitRoot(DYN_RootVisitor rootVisitor, Placeholder ph);
 
 void VisitMutPair(DYN_DerivedPtrVisitor derivedPtrVisitor, Placeholder basePh, Placeholder derivedPh);
 
+bool IsCABiAdapterFrame(uintptr_t ip);
+
 void IterateFramesWithState(
     DYN_CJThreadSpecificData threadSpecificData, void (*callback)(DYN_VisitingState, void*), void* ctx
 );
