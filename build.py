@@ -7,6 +7,7 @@ import subprocess
 import multiprocessing
 import platform
 import sys
+import time
 
 
 TARGET_OSES = ["linux", "android", "ios", "ios-sim"]
@@ -279,6 +280,28 @@ def build_helper_lib(args, project_dir, build_dir):
     print(f"Output: {output_path}")
 
 
+def precommit(args, project_dir, build_root_dir):
+    for build_type in ["release", "debug"]:
+        print(f"  Build {build_type} and run tests")
+        start_time = time.monotonic()
+        build_dir = build_root_dir + f"/{target_name(args.target_os, args.target_arch)}"
+
+        build_args = argparse.Namespace(**vars(args),
+                                        build_type=build_type,
+                                        run_tests=True,
+                                        enable_int_syms=False)
+
+        try:
+            clean(build_dir)
+            build(build_args, project_dir, build_dir)
+        except (SystemExit, RuntimeError):
+            elapsed = time.monotonic() - start_time
+            print(f"  {build_type} build and test failed after {elapsed:.0f} seconds")
+            raise
+
+        elapsed = time.monotonic() - start_time
+        print(f"  {build_type} build and test took {elapsed:.0f} seconds")
+
 def main():
     host_os = detect_host_os()
     host_arch = detect_host_arch()
@@ -287,20 +310,26 @@ def main():
     parser = argparse.ArgumentParser(description="build / clean")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    build_parser = subparsers.add_parser("build", help="build the project")
+    common_parser = argparse.ArgumentParser(add_help=False)
     target_os_help = "Target operating system"
     if default_target_os is not None:
         target_os_help += f" (default: {default_target_os})"
-    build_parser.add_argument("--target-os",
-                              choices=TARGET_OSES,
-                              default=default_target_os,
-                              required=default_target_os is None,
-                              help=target_os_help)
-    build_parser.add_argument("--target-arch",
-                              type=normalize_target_arch,
-                              choices=TARGET_ARCHES,
-                              default=host_arch,
-                              help=f"Target architecture (default: {host_arch})")
+    common_parser.add_argument("--target-os",
+                               choices=TARGET_OSES,
+                               default=default_target_os,
+                               required=default_target_os is None,
+                               help=target_os_help)
+    common_parser.add_argument("--target-arch",
+                               type=normalize_target_arch,
+                               choices=TARGET_ARCHES,
+                               default=host_arch,
+                               help=f"Target architecture (default: {host_arch})")
+    common_parser.add_argument("-j", "--jobs",
+                               type=int,
+                               default=multiprocessing.cpu_count(),
+                               help=f"Number of parallel jobs (default: {multiprocessing.cpu_count()})")
+
+    build_parser = subparsers.add_parser("build", parents=[common_parser], help="build the project")
     build_parser.add_argument("-t", "--build-type",
                               choices=["debug", "release"],
                               default="debug",
@@ -308,10 +337,6 @@ def main():
     build_parser.add_argument("--run-tests",
                               action="store_true",
                               help="Run CTest after successful build")
-    build_parser.add_argument("-j", "--jobs",
-                              type=int,
-                              default=multiprocessing.cpu_count(),
-                              help=f"Number of parallel jobs (default: {multiprocessing.cpu_count()})")
     build_parser.add_argument("--int-syms",
                               dest="enable_int_syms",
                               action="store_true",
@@ -330,6 +355,10 @@ def main():
 
     subparsers.add_parser("clean", help="clean build artifacts")
 
+    subparsers.add_parser("precommit",
+                          parents=[common_parser],
+                          help="clean + build & test (release, then debug)")
+
     args = parser.parse_args()
 
     project_dir = str(Path(__file__).parent.resolve())
@@ -337,6 +366,14 @@ def main():
 
     if args.command == "clean":
         clean(build_root_dir)
+    elif args.command == "precommit":
+        build_dir = build_root_dir + f"/{target_name(args.target_os, args.target_arch)}"
+        print(f"Project directory: {project_dir}")
+        print(f"Build directory:   {build_dir}")
+        print(f"Target OS:         {args.target_os}")
+        print(f"Target arch:       {args.target_arch}")
+
+        precommit(args, project_dir, build_root_dir)
     elif args.command == "build":
         build_dir = build_root_dir + f"/{target_name(args.target_os, args.target_arch)}"
         print(f"Project directory: {project_dir}")
