@@ -1151,41 +1151,35 @@ struct IsaRewriter : public IsaParser {
         auto method = m.value();
 
         if (auto data = std::get_if<DirectCall::Compiled>(&method->data)) {
+            auto sym = emit.NewAddressSym(data->funcPtr);
             if (data->isForeign) {
-                uint32_t ints   = 0;
-                uint32_t floats = 0;
+                uint32_t iregs      = 0;
+                uint32_t fregs      = 0;
+                uint32_t stackSlots = 0;
                 for (uint32_t i = 0; i < method->signature.ParamCount(); i++) {
                     if (method->signature.term.Subterm(i).IsFloat()) {
-                        floats++;
+                        fregs < FREG_ABI_AMOUNT ? fregs++ : stackSlots++;
                     } else {
-                        ints++;
+                        iregs < IREG_PARAM_PASSING_AMOUNT ? iregs++ : stackSlots++;
                     }
                 }
-                if (ints > 6 || floats > 8) {
-                    FATAL(
-                        "unsupported foreign call signature (c2n supports at most 6 integer and 8 FP register "
-                        "arguments; stack arguments are unsupported): %.*s",
-                        static_cast<int>(method->name.size()),
-                        method->name.data()
-                    );
+                if (stackSlots > UINT8_MAX) {
+                    Fail("too many stack arguments for foreign call");
+                    return;
                 }
                 EmitLogCall("call.2n", method);
-                auto sym = emit.NewAddressSym(data->funcPtr);
-                emit.DirectCall2n(sym);
-                BindStatePoint();
+                emit.DirectCall2n(sym, static_cast<uint8_t>(stackSlots));
             } else {
                 EmitLogCall("call.2c", method);
-                auto sym = emit.NewAddressSym(data->funcPtr);
                 emit.DirectCall2c(sym);
-                BindStatePoint();
             }
         } else {
             EmitLogCall("call.2i", method);
             auto fuh = std::get<Interpretation::DynamicFunctionHandle*>(method->data);
             auto sym = emit.NewAddressSym(reinterpret_cast<uintptr_t>(fuh));
             emit.DirectCall2i(sym);
-            BindStatePoint();
         }
+        BindStatePoint();
         AdjustReg(dst, IReg::IR1);
         EmitReturnedTo();
     }

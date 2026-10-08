@@ -1106,11 +1106,12 @@ void Emitter::DirectCall2c(Symbol target)
     AddFixup(std::make_unique<Literal12Fixup>(i4, target));
 }
 
-void Emitter::DirectCall2n(Symbol target)
+void Emitter::DirectCall2n(Symbol target, uint8_t stackSlots)
 {
     segment.AddW8(RT::Opcode::DIRECT_CALL_2N);
-    Imm4 i4(0);
+    Imm4 i4(0); // TODO: set vector regs count
     AddFixup(std::make_unique<Literal12Fixup>(i4, target));
+    segment.AddW8(stackSlots);
 }
 
 void Emitter::CallCFunc(IReg src)

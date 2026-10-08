@@ -23,6 +23,9 @@
     #define engine_i2i_call _engine_i2i_call
     #define engine_i2c_call _engine_i2c_call
     #define engine_i2n_call _engine_i2n_call
+    #define engine_c_abi_adapter _engine_c_abi_adapter
+    #define engine_c_abi_adapter_start _engine_c_abi_adapter_start
+    #define engine_c_abi_adapter_end _engine_c_abi_adapter_end
     #define engine_i2_newobject _engine_i2_newobject
     #define engine_i2_newobject_acc _engine_i2_newobject_acc
     #define engine_i2_newobject_pinned _engine_i2_newobject_pinned
@@ -49,7 +52,7 @@
     #define engine_handle_exception _engine_handle_exception
     #define common_landing_pad _common_landing_pad
     #define engine_stack_grow_stub _engine_stack_grow_stub
-    #define engine_c2n_stub _engine_c2n_stub
+    #define engine_i2n_stub _engine_i2n_stub
     #define engine_after_stack_grow _engine_after_stack_grow
 #endif
 
@@ -82,6 +85,9 @@ declare_hidden engine_iregs_only_c2i_call
 declare_hidden engine_i2i_call
 declare_hidden engine_i2c_call
 declare_hidden engine_i2n_call
+declare_hidden engine_c_abi_adapter
+declare_hidden engine_c_abi_adapter_start
+declare_hidden engine_c_abi_adapter_end
 declare_hidden engine_i2_newobject_pinned
 declare_hidden engine_i2_newobject
 declare_hidden engine_i2_newobject_acc
@@ -104,7 +110,7 @@ declare_hidden engine_carrier_specific_offset
 declare_hidden engine_cjthread_specific_offset
 declare_hidden engine_i2_spawn
 declare_hidden engine_stack_grow_stub
-declare_hidden engine_c2n_stub
+declare_hidden engine_i2n_stub
 declare_hidden engine_after_stack_grow
 declare_hidden engine_future_execute_function
 declare_hidden engine_set_runtime_cjthread_handle_function
@@ -142,7 +148,7 @@ engine_cjthread_specific_offset:
   .skip 8
 engine_stack_grow_stub:
   .skip 8
-engine_c2n_stub:
+engine_i2n_stub:
   .skip 8
 engine_future_execute_function:
   .skip 8
@@ -611,26 +617,68 @@ engine_i2c_call:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: target)
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
-// Calls the runtime C2N stub which wraps the native call into a GC-safe region.
+// Calls the runtime I2N stub which wraps the native call into a GC-safe region.
 // TODO: support arbitrary number of arguments
 // TODO: support varargs
 // TODO: support structs pass-by-value
 engine_i2n_call:
   // jumped from .Linterpreter_call without return address to return
-  mov   r10, rdi                       // native function address
+  mov   rdx, rdi
+  shr   rdx, I2N_STACK_SLOTS_SHIFT     // stack arguments count
+  mov   rcx, rdi
+  shl   rcx, 64 - I2N_VEC_COUNT_SHIFT
+  shr   rcx, 64 - I2N_VEC_COUNT_SHIFT  // target C function
+  mov   rdi, ECTYPE_REG                // ectype
+  mov   rsi, rsp                       // stack arguments pointer
+  lea   r8, [rip + engine_c_abi_adapter]
+  mov   r9, TLS_REG
   xor   eax, eax                       // varargs vector register count
-  i2c_emit_iregs_abi 6
-  i2c_emit_fregs_abi FREG_ABI_AMOUNT
-
-  push  r10                            // callee addr
-  push  0                              // cpStackSize (no stack arguments)
-  call  [rip + engine_c2n_stub]
-  // the C2N stub consumes the callee/cpStackSize slots and restores rsp
+  call  [rip + engine_i2n_stub] // the I2N stub calls engine_c_abi_adapter
 
   mov  [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE], rax
   movq [ECTYPE_REG + ECTYPE_FREGS_OFFSET], xmm0
 
   jmp .Lrestart_interpretation
+
+.balign 16
+// Called by the I2N stub with helper data in argument registers:
+// (rdi: ectype, rsi: stack arguments pointer, rdx: stack arguments count, rcx: target).
+// Fills C argument registers from ectype, pushes stack arguments and calls the target.
+// Preserved: callee-saved registers (ECTYPE_REG among them).
+engine_c_abi_adapter_start:
+engine_c_abi_adapter:
+  // TODO: fix I2NStub in runtime and do not construct frame here
+  push  rbp
+  mov   rbp, rsp
+
+  push  ECTYPE_REG
+  mov   ECTYPE_REG, rdi
+  mov   r10, rcx        // target C function
+  mov   r11, rsi        // stack arguments pointer
+
+  test  dl, 1
+  jnz   .Lcheck_if_there_are_stackargs
+  push  rax // align stack
+.Lcheck_if_there_are_stackargs:
+  test  rdx, rdx
+  jz    .Lprepare_regs
+.Lprepare_stackargs:
+  push  QWORD PTR [r11 + rdx*8 - 8]
+  dec   rdx
+  jnz   .Lprepare_stackargs
+.Lprepare_regs:
+  i2c_emit_iregs_abi IREG_PARAM_PASSING_AMOUNT
+  i2c_emit_fregs_abi FREG_ABI_AMOUNT
+
+  call  r10            // call target
+
+  lea   rsp, [rbp - 8] // clear stack args
+  pop   ECTYPE_REG
+
+  pop   rbp
+  ret
+
+engine_c_abi_adapter_end:
 
 .balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: fuh)

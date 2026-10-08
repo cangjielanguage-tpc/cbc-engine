@@ -368,6 +368,7 @@ CBC_EXPORT int interpreter_bridge_init(
     Asm::engine_newobject_pinned_function = g_CJNativeInterfaceInstance.newPinnedObject;
     Asm::engine_newarray_function         = g_CJNativeInterfaceInstance.arrayAlloc;
     Asm::engine_stack_grow_stub           = g_CJNativeInterfaceInstance.stackGrowStub;
+    Asm::engine_i2n_stub                  = g_CJNativeInterfaceInstance.i2nStub;
 
     if (g_mainCbc.empty()) {
         PerformPatching();

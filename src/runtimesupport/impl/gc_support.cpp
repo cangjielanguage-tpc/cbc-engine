@@ -1,6 +1,7 @@
 #include "gc_support.h"
 
 #include "asm_export.h"
+#include "asm_trampolines.h"
 #include "cjnative.h"
 #include "engine/statics_manager.h"
 #include "interpreter/ectype.h"
@@ -30,6 +31,12 @@ void VisitMutPair(DYN_DerivedPtrVisitor derivedPtrVisitor, Placeholder basePh, P
         Hex(*derivedPh)
     );
     g_CJNativeInterfaceInstance.visitDerivedPtrFromInterpreter(derivedPtrVisitor, basePh, derivedPh);
+}
+
+bool IsCABiAdapterFrame(uintptr_t ip)
+{
+    return ip >= reinterpret_cast<uintptr_t>(&Asm::engine_c_abi_adapter_start) &&
+           ip < reinterpret_cast<uintptr_t>(&Asm::engine_c_abi_adapter_end);
 }
 
 void IterateFramesWithState(
@@ -64,6 +71,9 @@ void VisitGCFrameRoots(
     std::optional<DYN_DerivedPtrVisitor> derivedPtrVisitorOpt
 )
 {
+    if (IsCABiAdapterFrame(reinterpret_cast<uintptr_t>(frame_desc.ip))) {
+        return;
+    }
     using namespace Interpretation;
     auto regsLocationTable = reinterpret_cast<RegistersTable*>(state);
 

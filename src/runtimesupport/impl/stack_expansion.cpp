@@ -60,6 +60,10 @@ void VisitFrameRootsForStackPtrs(
 {
     using namespace RTSupport;
 
+    if (IsCABiAdapterFrame(reinterpret_cast<uintptr_t>(frameDesc.ip))) {
+        return;
+    }
+
     auto regTable = reinterpret_cast<GCSupport::RegistersTable*>(state);
     auto fuh      = *reinterpret_cast<DynamicFunctionHandle**>((uint8_t*)frameDesc.fp - FUH_SLOT_OFFSET);
     auto bc       = NOTNULL(fuh->bytecode.load());

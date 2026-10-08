@@ -263,7 +263,7 @@ public:
 
     void DirectCall2i(Symbol fuh);
     void DirectCall2c(Symbol target);
-    void DirectCall2n(Symbol target);
+    void DirectCall2n(Symbol target, uint8_t stackSlots);
     void CallCFunc(IReg src);
 
     void VirtualCall(uint16_t vnum, uint16_t extDefNum, bool sret);

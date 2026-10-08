@@ -1097,9 +1097,12 @@ LABEL(DIRECT_CALL_2C) {
     return { Adapters::GenericI2CCallInstance(), reinterpret_cast<void*>(target) };
 }
 LABEL(DIRECT_CALL_2N) {
-    auto args = B3xi12::Decode(reader);
+    auto args = B4xi12i8::Decode(reader);
     LOG_INSTR;
     auto target  = literals->at(args.xi12.imm12).uintptr;
+    auto packed = target 
+        | (static_cast<uint64_t>(args.xi12.imm4) << I2N_VEC_COUNT_SHIFT)
+        | (static_cast<uint64_t>(args.imm8.imm) << I2N_STACK_SLOTS_SHIFT);
     // For proper support of fibers, the following call MUST drop the current frame.
     // This can not be guaranteed by C++ compiler consistently, because TCO
     // is not guaranteed and `mustcall` attribute is not supported
@@ -1110,7 +1113,7 @@ LABEL(DIRECT_CALL_2N) {
 
     reader0 = reader; // save current pc
 
-    return { Adapters::GenericI2NCallInstance(), reinterpret_cast<void*>(target) };
+    return { Adapters::GenericI2NCallInstance(), reinterpret_cast<void*>(packed) };
 }
 LABEL(CALL_CFUNC) {
     auto args = B2rr::Decode(reader);
