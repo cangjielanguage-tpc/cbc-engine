@@ -5,7 +5,6 @@
 #include "cbc/isa_rt.h"
 #include "engine/terms.h"
 #include "interpreter.h"
-#include "interpreter/code.h"
 #include "interpreter/ectype.h"
 #include "interpreter/implicit_exceptions.h"
 #include "interpreter/loggers.h"
@@ -173,7 +172,7 @@ LABEL(STK_PARAM) {
     auto args = RT::StackParam::Decode(reader);
     LOG_INSTR;
     auto stk = Cbc::Format::StoreAccessKind::ST_64; // FIXME: encode for darwin_aarch64
-    MemoryLocation(frameBot, args.offset).StorePrim(stk, args.src, ectype);
+    MemoryLocation(frameBot, args.dst).StorePrim(stk, args.src, ectype);
     NEXT;
 }
 LABEL(STK_PARAM_F) {
@@ -188,7 +187,7 @@ LABEL(STK_PARAM_S16) {
     LOG_INSTR;
     auto srcLoc = frame.start + args.src;
     auto dstLoc = frameBot + args.dst;
-    memcpy(reinterpret_cast<uint64_t*>(dstLoc), reinterpret_cast<uint64_t*>(srcLoc), 8);
+    *reinterpret_cast<uint64_t*>(dstLoc) = *reinterpret_cast<uint64_t*>(srcLoc);
     NEXT;
 }
 LABEL(STK_PARAM_S32) {
@@ -196,7 +195,7 @@ LABEL(STK_PARAM_S32) {
     LOG_INSTR;
     auto srcLoc = frame.start + args.src;
     auto dstLoc = frameBot + args.dst;
-    memcpy(reinterpret_cast<uint64_t*>(dstLoc), reinterpret_cast<uint64_t*>(srcLoc), 8);
+    *reinterpret_cast<uint64_t*>(dstLoc) = *reinterpret_cast<uint64_t*>(srcLoc);
     NEXT;
 }
 LABEL(MOV) {

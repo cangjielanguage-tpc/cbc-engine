@@ -1,6 +1,7 @@
 #ifndef INTERPRETER_CODE_H
 #define INTERPRETER_CODE_H
 
+#include "engine/image/flags.h"
 #include "utils/vector.h"
 #include <cstddef>
 #include <cstdint>
@@ -139,10 +140,8 @@ struct ExecBytecodeInfo {
 struct AbiInfoFlags {
     bool isSRet : 1;
     bool isMut : 1;
-    bool hasThisTypeInfo : 1;
     bool hasOuterTi : 1;
-    bool recordReceiver : 1;
-    bool referenceReceiver : 1;
+    Image::MethodAbiKind abiKind;
     int funcVars;
 };
 

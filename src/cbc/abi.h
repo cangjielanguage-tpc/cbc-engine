@@ -15,17 +15,9 @@ enum class ArgKind {
     REF,
 };
 
-// Derives ArgKind from a type's float/record/reference traits.
-template <typename ArgType, typename ArgTypeTraits> ArgKind ArgKindOf(const ArgType& arg)
-{
-    if (ArgTypeTraits::IsFloat(arg))
-        return ArgKind::FLOAT;
-    if (ArgTypeTraits::IsRecord(arg))
-        return ArgKind::REC;
-    if (ArgTypeTraits::IsReference(arg))
-        return ArgKind::REF;
-    return ArgKind::INT;
-}
+template <typename ArgType> struct ArgTypeTraits {
+    ArgKind Kind(const ArgType& t);
+};
 
 // Pure target allocator: hands out the next register or stack slot in
 // ABI order for each argument kind. Does not track metadata (masks,
@@ -63,11 +55,6 @@ public:
     // as a record; on fixed-register platforms a dedicated slot.
     Location ConsumeSret();
 
-    template <typename ArgType, typename ArgTypeTraits> Location Consume(ArgType arg)
-    {
-        return Consume(ArgKindOf<ArgType, ArgTypeTraits>(arg));
-    }
-
     int MaxStackSlot() const { return slotIdx; }
 
 private:
@@ -104,9 +91,10 @@ public:
         return target;
     }
 
-    template <typename ArgType, typename ArgTypeTraits> Location Consume(ArgType arg)
+    template <typename ArgType> Location Consume(ArgType arg)
     {
-        return Consume(ArgKindOf<ArgType, ArgTypeTraits>(arg));
+        ArgTypeTraits<ArgType> traits;
+        return Consume(traits.Kind(arg));
     }
 
 private:

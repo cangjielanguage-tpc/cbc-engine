@@ -9,7 +9,6 @@
 #include "string.h"
 #include "utils/assertion.h"
 #include "utils/heap.h"
-#include "utils/iterators.h"
 #include "utils/ostream.h"
 #include "utils/span.h"
 #include <alloca.h>
@@ -1164,3 +1163,16 @@ void TermMatcher::Clear()
 bool TermMatcher::HasErrors() { return hasErrors; }
 
 } // namespace Engine
+
+Cbc::ArgKind Cbc::ArgTypeTraits<Engine::Term>::Kind(Engine::Term const& term)
+{
+    if (term.IsFloat()) {
+        return ArgKind::FLOAT;
+    } else if (term.IsRecord()) {
+        return ArgKind::REC;
+    } else if (term.IsReference()) {
+        return ArgKind::REF;
+    } else {
+        return ArgKind::INT;
+    }
+}

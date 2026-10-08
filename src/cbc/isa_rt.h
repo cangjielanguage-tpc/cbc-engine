@@ -1171,7 +1171,7 @@ struct M10rri64 {
 struct StackParam {
     Opcode opc;
     IReg src;
-    uint16_t offset;
+    uint16_t dst;
 
     inline static StackParam Decode(Decoder::ByteReader& reader)
     {

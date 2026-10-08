@@ -417,26 +417,14 @@ struct IsaRewriter : public IsaParser {
                 break;
             }
             case Image::MethodAbiKind::STATIC:
-            case Image::MethodAbiKind::HAS_THIS_TI: {
-            }
+            case Image::MethodAbiKind::HAS_THIS_TI:;
         }
 
         auto params     = sig.Params();
         int paramOffset = idx;
         ASSERT(args.Size() >= params.Size() + idx);
         for (int j = 0; j < params.Size(); ++idx, ++j) {
-            auto term = params[j];
-            ArgKind kind;
-            if (term.IsFloat()) {
-                kind = ArgKind::FLOAT;
-            } else if (term.IsRecord()) {
-                kind = ArgKind::REC;
-            } else if (term.IsReference()) {
-                kind = ArgKind::REF;
-            } else {
-                kind = ArgKind::INT;
-            }
-            moves.AddMove(args[idx], abi.Consume(kind));
+            moves.AddMove(args[idx], abi.Consume(params[j]));
         }
 
         ASSERT(funcVarsCount <= args.Size());
@@ -2154,13 +2142,11 @@ Interpretation::ExecBytecodeInfo Rewrite(
         session,
         Engine::TermManager::Resolve(session, def.Signature()),
         {
-            .isSRet            = flags.Is(Image::MethodRefFlag::SRET),
-            .isMut             = def->abiKind == Image::MethodAbiKind::MUT,
-            .hasThisTypeInfo   = def->abiKind == Image::MethodAbiKind::HAS_THIS_TI,
-            .hasOuterTi        = flags.Is(Image::MethodRefFlag::HAS_OUTER_TI),
-            .recordReceiver    = def->abiKind == Image::MethodAbiKind::REC_RECEIVER,
-            .referenceReceiver = def->abiKind == Image::MethodAbiKind::REF_RECEIVER,
-            .funcVars          = def->arity, // FIXME: get from func ref
+            .isSRet     = flags.Is(Image::MethodRefFlag::SRET),
+            .isMut      = def->abiKind == Image::MethodAbiKind::MUT,
+            .hasOuterTi = flags.Is(Image::MethodRefFlag::HAS_OUTER_TI),
+            .abiKind    = def->abiKind,
+            .funcVars   = def->arity,
         }
     );
 

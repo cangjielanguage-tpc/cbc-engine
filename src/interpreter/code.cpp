@@ -1,5 +1,6 @@
 #include "interpreter/code.h"
 #include "cbc/abi.h"
+#include "engine/image/flags.h"
 #include "interpreter/ectype.h"
 #include "platform_traits.h"
 #include "utils/assertion.h"
@@ -63,35 +64,29 @@ AbiInfo BuildAbiInfo(Engine::Session& session, Engine::Term signature, AbiInfoFl
         abi.ConsumeSret();
     }
 
-    if (flags.isMut) {
-        auto derived = abi.Consume(Cbc::ArgKind::INT);
-        abi.Consume(Cbc::ArgKind::REF);
-        derivedPairs |= (1u << derived.IRegIdx());
-    } else if (flags.referenceReceiver) {
-        abi.Consume(Cbc::ArgKind::REF);
-    } else if (flags.recordReceiver) {
-        abi.Consume(Cbc::ArgKind::REC);
+    switch (flags.abiKind) {
+        case Image::MethodAbiKind::MUT: {
+            auto derived = abi.Consume(Cbc::ArgKind::INT);
+            abi.Consume(Cbc::ArgKind::REF);
+            derivedPairs |= (1u << derived.IRegIdx());
+            break;
+        }
+        case Image::MethodAbiKind::REF_RECEIVER:   abi.Consume(Cbc::ArgKind::REF); break;
+        case Image::MethodAbiKind::REC_RECEIVER:   abi.Consume(Cbc::ArgKind::REC); break;
+        case Image::MethodAbiKind::PRIM_RECEIVER:  abi.Consume(Cbc::ArgKind::INT); break;
+        case Image::MethodAbiKind::FPRIM_RECEIVER: abi.Consume(Cbc::ArgKind::FLOAT); break;
+        case Image::MethodAbiKind::STATIC:
+        case Image::MethodAbiKind::HAS_THIS_TI:    ;
     }
 
     int termIdx = 0;
     int length  = signature.GetLength() - 1; // skip ret type term.
     while (termIdx < length) {
-        auto term = signature.Subterm(termIdx);
-        Cbc::ArgKind kind;
-        if (term.IsFloat()) {
-            kind = Cbc::ArgKind::FLOAT;
-        } else if (term.IsRecord()) {
-            kind = Cbc::ArgKind::REC;
-        } else if (term.IsReference()) {
-            kind = Cbc::ArgKind::REF;
-        } else {
-            kind = Cbc::ArgKind::INT;
-        }
-        abi.Consume(kind);
-        termIdx++;
+        abi.Consume(signature.Subterm(termIdx++));
     }
 
-    for (int i = 0; i < flags.hasThisTypeInfo + flags.hasOuterTi + flags.funcVars; i++) {
+    bool hasThisTi = (flags.abiKind == Image::MethodAbiKind::HAS_THIS_TI);
+    for (int i = 0; i < hasThisTi + flags.hasOuterTi + flags.funcVars; i++) {
         abi.Consume(Cbc::ArgKind::INT);
     }
 

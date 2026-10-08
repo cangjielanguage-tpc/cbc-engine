@@ -1309,7 +1309,7 @@ void Emitter::LogInstruction(char* string)
 
 void Emitter::StackParam(IReg src, uint16_t offset)
 {
-    Encode(segment, RT::StackParam { .opc = RT::Opcode::STK_PARAM, .src = src, .offset = offset });
+    Encode(segment, RT::StackParam { .opc = RT::Opcode::STK_PARAM, .src = src, .dst = offset });
 }
 
 void Emitter::StackParamF(FReg src, uint16_t dst)

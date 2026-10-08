@@ -6,21 +6,28 @@
 
 using namespace Cbc;
 
-namespace {
-
 struct TestArg {
     bool isFloat;
     bool isRecord;
     bool isReference;
 };
 
-struct TestArgTraits {
-    static bool IsFloat(const TestArg& a) { return a.isFloat; }
-
-    static bool IsRecord(const TestArg& a) { return a.isRecord; }
-
-    static bool IsReference(const TestArg& a) { return a.isReference; }
+template <> struct Cbc::ArgTypeTraits<TestArg> {
+    ArgKind Kind(TestArg const& arg)
+    {
+        if (arg.isFloat) {
+            return ArgKind::FLOAT;
+        } else if (arg.isRecord) {
+            return ArgKind::REC;
+        } else if (arg.isReference) {
+            return ArgKind::REF;
+        } else {
+            return ArgKind::INT;
+        }
+    }
 };
+
+namespace {
 
 Location Ir(int idx) { return Location::IReg(static_cast<IReg::Value>(idx)); }
 
@@ -94,9 +101,10 @@ struct TestAbiBuilder {
         return t0;
     }
 
-    template <typename ArgType, typename ArgTypeTraits> Location Consume(ArgType arg, Location loc)
+    template <typename ArgType> Location Consume(ArgType arg, Location loc)
     {
-        return Consume(loc, ArgKindOf<ArgType, ArgTypeTraits>(arg));
+        ArgTypeTraits<ArgType> traits;
+        return Consume(loc, traits.Kind(arg));
     }
 
     void Clear()
@@ -407,9 +415,9 @@ TEST(AbiBuilder, TemplateAdapter)
 {
     TestAbiBuilder builder { X64Desc };
 
-    builder.Consume<TestArg, TestArgTraits>(IntArg(), Ir(7));
-    builder.Consume<TestArg, TestArgTraits>(FloatArg(), Fr(3));
-    builder.Consume<TestArg, TestArgTraits>(IntArg(), Ir(8));
+    builder.Consume(IntArg(), Ir(7));
+    builder.Consume(FloatArg(), Fr(3));
+    builder.Consume(IntArg(), Ir(8));
 
     RegsAndSlots r;
     r.Resolve(builder.moves);
