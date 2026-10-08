@@ -2,6 +2,62 @@
 @main_type "default"
 
 @type default
+  @method test_U8_F32()I64
+    @code
+      f2i F32, U8, FR0, IR1
+      ret.64 IR1
+    @end
+  @end
+
+  @method test_U8_F64()I64
+    @code
+      f2i F64, U8, FR0, IR1
+      ret.64 IR1
+    @end
+  @end
+
+  @method test_U16_F32()I64
+    @code
+      f2i F32, U16, FR0, IR1
+      ret.64 IR1
+    @end
+  @end
+
+  @method test_U16_F64()I64
+    @code
+      f2i F64, U16, FR0, IR1
+      ret.64 IR1
+    @end
+  @end
+
+  @method test_I8_F32()I64
+    @code
+      f2i F32, I8, FR0, IR1
+      ret.64 IR1
+    @end
+  @end
+
+  @method test_I8_F64()I64
+    @code
+      f2i F64, I8, FR0, IR1
+      ret.64 IR1
+    @end
+  @end
+
+  @method test_I16_F32()I64
+    @code
+      f2i F32, I16, FR0, IR1
+      ret.64 IR1
+    @end
+  @end
+
+  @method test_I16_F64()I64
+    @code
+      f2i F64, I16, FR0, IR1
+      ret.64 IR1
+    @end
+  @end
+
   @method test_I16_I32()I64
     @code
       @live.prim IR1

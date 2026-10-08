@@ -55,10 +55,8 @@ template <typename To, typename From> inline Value::Primitive CastFpToInt(From v
     if (value >= static_cast<From>(std::numeric_limits<To>::max())) {
         return MakeIntPrim(std::numeric_limits<To>::max());
     }
-    if constexpr (std::is_signed_v<To>) {
-        if (value <= static_cast<From>(std::numeric_limits<To>::min())) {
-            return MakeIntPrim(std::numeric_limits<To>::min());
-        }
+    if (value <= static_cast<From>(std::numeric_limits<To>::min())) {
+        return MakeIntPrim(std::numeric_limits<To>::min());
     }
     return MakeIntPrim(static_cast<To>(value));
 }
@@ -101,6 +99,10 @@ inline Value::Primitive CastFromU64(ConvertType toType, uint64_t value)
 inline Value::Primitive CastFromF32(ConvertType toType, float value)
 {
     switch (toType) {
+        case ConvertType::I8:  return CastFpToInt<int8_t>(value);
+        case ConvertType::U8:  return CastFpToInt<uint8_t>(value);
+        case ConvertType::I16: return CastFpToInt<int16_t>(value);
+        case ConvertType::U16: return CastFpToInt<uint16_t>(value);
         case ConvertType::I32: return CastFpToInt<int32_t>(value);
         case ConvertType::U32: return CastFpToInt<uint32_t>(value);
         case ConvertType::I64: return CastFpToInt<int64_t>(value);
@@ -113,6 +115,10 @@ inline Value::Primitive CastFromF32(ConvertType toType, float value)
 inline Value::Primitive CastFromF64(ConvertType toType, double value)
 {
     switch (toType) {
+        case ConvertType::I8:  return CastFpToInt<int8_t>(value);
+        case ConvertType::U8:  return CastFpToInt<uint8_t>(value);
+        case ConvertType::I16: return CastFpToInt<int16_t>(value);
+        case ConvertType::U16: return CastFpToInt<uint16_t>(value);
         case ConvertType::I32: return CastFpToInt<int32_t>(value);
         case ConvertType::U32: return CastFpToInt<uint32_t>(value);
         case ConvertType::I64: return CastFpToInt<int64_t>(value);
