@@ -57,8 +57,6 @@ bool SetBoolValue(Options::Table const&, Options::Option const& option, std::str
 
 bool SetIntValue(Options::Table const&, Options::Option const& option, std::string_view value)
 {
-    auto end = value.data() + value.size();
-    int64_t res;
     char str[32];
 
     if (value.length() == 0 || value.length() >= sizeof(str)) {

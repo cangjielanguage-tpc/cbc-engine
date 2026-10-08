@@ -6,12 +6,6 @@
 namespace Cbc {
 namespace RT {
 
-constexpr static char const* instruction_format_strings[] = {
-#define GET_FORMAT(opc, dfmt, sfmt) sfmt,
-    CBC_RT_OPCODES(GET_FORMAT)
-#undef GET_FORMAT
-};
-
 // Characters that could end an argument format descriptor.
 constexpr static std::string_view delimiters(" .])");
 
@@ -81,14 +75,12 @@ public:
         Interpretation::LiteralTable* table,
         Stream::Output& stream,
         std::string_view formatString,
-        Operand* operands,
-        size_t operandCount
+        Operand* operands
     )
         : table(table),
           stream(stream),
           formatString(formatString),
-          operands(operands),
-          operandCount(operandCount)
+          operands(operands)
     {}
 
     void Format()
@@ -244,7 +236,6 @@ private:
     Stream::Output& stream;
     std::string_view formatString;
     Operand* operands;
-    size_t operandCount;
 };
 
 static constexpr std::string_view format_strings[] = {
@@ -257,360 +248,358 @@ static constexpr std::string_view memspace_format_strings[] = {
     CBC_RT_MEMOPCODES(CBC_RT_MEMOPCODE_FMT_STR)
 };
 
-template <size_t N> static size_t Length(Operand (&)[N]) { return N; }
-
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B1 args)
 {
-    Formatter formatter(table, stream, format_strings[args.opc], nullptr, 0);
+    Formatter formatter(table, stream, format_strings[args.opc], nullptr);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B2rr args)
 {
     Operand operands[] = { args.rr.x, args.rr.y };
-    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B2xr args)
 {
     Operand operands[] = { args.xr.imm, args.xr.r };
-    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3xri8 args)
 {
     Operand operands[] = { args.xr.imm, args.xr.r, args.imm8.imm };
-    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B4xri16 args)
 {
     Operand operands[] = { args.xr.imm, args.xr.r, args.imm };
-    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B6xri32 args)
 {
     Operand operands[] = { args.xr.imm, args.xr.r, args.imm32.imm };
-    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B10xri64 args)
 {
     Operand operands[] = { args.xr.imm, args.xr.r, args.imm64.imm };
-    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B4xi12rr args)
 {
     Operand operands[] = { args.xi12.imm4, args.xi12.imm12, args.rr.x, args.rr.y };
-    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, BFX args)
 {
     Operand operands[] = { args.rr.x, args.rr.y, args.offs, args.size };
-    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, IOF args)
 {
     Operand operands[] = { args.rr.x, args.rr.y, args.imm64 };
-    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B5xi12ri12 args)
 {
     Operand operands[] = { args.xi12.imm4, args.xi12.imm12, args.ri12.r, args.ri12.imm12 };
-    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, VirtualCall args)
 {
     Operand operands[] = { args.vnum, args.edef, args.sret };
-    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B5i32 args)
 {
     Operand operands[] = { args.imm32.imm };
-    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3xrrr args)
 {
     Operand operands[] = { args.xr.imm, args.xr.r, args.rr.x, args.rr.y };
-    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3xxrr args)
 {
     Operand operands[] = { args.xx.imm1, args.xx.imm2, args.rr.x, args.rr.y };
-    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B4xi12xr args)
 {
     Operand operands[] = { args.xi12.imm4, args.xi12.imm12, args.xr.imm, args.xr.r };
-    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3xi12 args)
 {
     Operand operands[] = { args.xi12.imm4, args.xi12.imm12 };
-    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3rrrr args)
 {
     Operand operands[] = { args.rr1.x, args.rr1.y, args.rr2.x, args.rr2.y };
-    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B9i64 args)
 {
     Operand operands[] = { args.imm64.imm };
-    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B7xrrri32 args)
 {
     Operand operands[] = { args.xr.imm, args.xr.r, args.rr.x, args.rr.y, args.imm32.imm };
-    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, BinaryChecked args)
 {
     Operand operands[] = { Format::Imm8(args.op), args.imm.imm, args.rr.x, args.rr.y };
-    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, BinarySaturating args)
 {
     Operand operands[] = { Format::Imm8(args.op), args.imm.imm, args.rr.x, args.rr.y };
-    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, InterfaceCall args)
 {
     Operand operands[] = { args.vnum, args.ti, args.sret };
-    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, InterfaceCallGeneric args)
 {
     Operand operands[] = { args.vnum, args.argn, args.sret };
-    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B13i64i32 args)
 {
     Operand operands[] = { args.imm64.imm, args.imm32.imm };
-    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, StructFieldOp args)
 {
     Operand operands[] = { args.rr.x, args.rr.y, args.field.x, args.field.y, args.ti.UInt() };
-    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, AtomicOp args)
 {
     Operand operands[] = { args.rr1.x, args.rr1.y, args.rr2.x, args.rr2.y, args.offset };
-    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, Offset args)
 {
     Operand operands[] = { args.rr.x, args.rr.y, args.idx };
-    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M1 args)
 {
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], nullptr, 0);
+    Formatter formatter(table, stream, memspace_format_strings[args.opc], nullptr);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M2rr args)
 {
     Operand operands[] = { args.rr.x, args.rr.y };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M2xr args)
 {
     Operand operands[] = { args.xr.imm, args.xr.r };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M2i8 args)
 {
     Operand operands[] = { args.imm8 };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M3xrrr args)
 {
     Operand operands[] = { args.xr.imm, args.xr.r, args.rr.x, args.rr.y };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M3rrrr args)
 {
     Operand operands[] = { args.rr1.x, args.rr1.y, args.rr2.x, args.rr2.y };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M3i16 args)
 {
     Operand operands[] = { args.imm16 };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M5i32 args)
 {
     Operand operands[] = { args.imm32 };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M9i64 args)
 {
     Operand operands[] = { args.imm64 };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M3xri8 args)
 {
     Operand operands[] = { args.xr.imm, args.xr.r, args.imm8.imm };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M4xri16 args)
 {
     Operand operands[] = { args.xr.imm, args.xr.r, args.imm16.imm };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M6xri32 args)
 {
     Operand operands[] = { args.xr.imm, args.xr.r, args.imm32.imm };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M10xri64 args)
 {
     Operand operands[] = { args.xr.imm, args.xr.r, args.imm64.imm };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M3rri8 args)
 {
     Operand operands[] = { args.rr.x, args.rr.y, args.imm8.imm };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M4rri16 args)
 {
     Operand operands[] = { args.rr.x, args.rr.y, args.imm16.imm };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M6rri32 args)
 {
     Operand operands[] = { args.rr.x, args.rr.y, args.imm32.imm };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M10rri64 args)
 {
     Operand operands[] = { args.rr.x, args.rr.y, args.imm64.imm };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, MStructFieldOp args)
 {
     Operand operands[] = { args.rr.x, args.rr.y, args.ti.UInt() };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyFieldOp args)
 {
     Operand operands[] = { args.rr.x, args.rr.y, args.offset.imm };
-    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyDerived args)
 {
     Operand operands[] = { args.dst.x, args.dst.y, args.src.x, args.src.y, args.ti.UInt() };
-    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyDerivedGeneric args)
 {
     Operand operands[] = { args.dst.x, args.dst.y, args.src.x, args.src.y, args.ti.x };
-    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, Index args)
 {
     Operand operands[] = { args.rr.x, args.rr.y, args.idx.r, args.ti.UInt() };
-    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, IndexGeneric args)
 {
     Operand operands[] = { args.rr.x, args.rr.y, args.idx.x, args.idx.y };
-    Formatter formatter(table, stream, format_strings[args.opc], operands, Length(operands));
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 

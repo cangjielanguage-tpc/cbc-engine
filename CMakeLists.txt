@@ -41,6 +41,51 @@ set_target_properties(cbc_lib PROPERTIES
   POSITION_INDEPENDENT_CODE ON)
 
 target_compile_options(cbc_lib PRIVATE
+  -Warray-parameter
+  -Wbool-operation
+  -Wchar-subscripts
+  -Wcomment
+  -Wdelete-non-virtual-dtor
+  -Wfor-loop-analysis
+  -Wformat
+  -Wframe-address
+  -Wimplicit
+  -Winfinite-recursion
+  -Wint-in-bool-context
+  -Wmisleading-indentation
+  -Wmismatched-tags
+  -Wmove
+  -Wmultichar
+  -Woverloaded-virtual
+  -Wpacked-non-pod
+  -Wparentheses
+  -Wperf-constraint-implies-noexcept
+  -Wrange-loop-construct
+  -Wreorder
+  -Wreturn-type
+  -Wself-assign
+  -Wself-move
+  -Wsizeof-array-argument
+  -Wsizeof-array-decay
+  -Wstring-plus-int
+  -Wswitch
+  -Wswitch-bool
+  -Wtautological-compare
+  -Wtrigraphs
+  -Wuninitialized
+  -Wunknown-pragmas
+  -Wunneeded-internal-declaration
+  -Wunused-argument
+  -Wunused-but-set-variable
+  -Wunused-const-variable
+  -Wunused-function
+  -Wunused-label
+  -Wunused-lambda-capture
+  -Wunused-private-field
+  -Wunused-value
+  -Wuser-defined-warnings
+  -Wvla-cxx-extension
+  -Wvolatile-register-var
   -fno-omit-frame-pointer
   -fno-stack-protector
   -fno-exceptions

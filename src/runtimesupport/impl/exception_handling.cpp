@@ -149,7 +149,6 @@ void FrameDescProvider(INT_FunctionHandle fuh, INT_BytecodePos pos, INT_Interpre
     // Type name
     {
         auto typeNameView = Decode::Read(session, methodDef.TypeName());
-        size_t size       = typeNameView.size();
 
         size_t delimPos = typeNameView.find(':');
         if (delimPos == std::string_view::npos) {

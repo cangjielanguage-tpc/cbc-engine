@@ -121,7 +121,6 @@ StaticFieldsBundle StaticsManager::CreateBundle(Session& session, TypeIdent type
     });
 
     auto flm     = FieldLayoutManager::New(session);
-    auto& tim    = TypeInfoManager::Of(session);
     auto typeDef = Decode::Read(session, typeIdent);
 
     Utils::Vector<uint32_t> refOffsetInRecords;

@@ -441,15 +441,14 @@ private:
             layout.desc.size      = std::nullopt;
             layout.desc.alignment = MAX_ALIGN;
 
-            size_t ordinal = layout.fields.Size();
             for (auto fieldId : Reader::Resolve(session, def.GetInstanceFields())) {
                 auto def       = Decode::Read(session, fieldId);
                 auto fieldType = TermManager::Resolve(session, def.FieldType());
                 fieldType      = substitute(fieldType);
 
-                layout.fields.EmplaceBack(FieldLayout::Entry {
-                    .definition = fieldId, .fieldType = fieldType, .offset = std::nullopt });
-                ordinal++;
+                layout.fields.EmplaceBack(
+                    FieldLayout::Entry { .definition = fieldId, .fieldType = fieldType, .offset = std::nullopt }
+                );
             }
             return layout;
         }

@@ -130,7 +130,6 @@ void VisitFrameRootsForStackPtrs(
 
         auto reader = reinterpret_cast<Decoder::ByteReader*>((uint8_t*)frameDesc.fp - READER_SLOT_OFFSET);
         auto curPos = reinterpret_cast<uintptr_t>(reader->Cursor()) - reinterpret_cast<uintptr_t>(bc->code.bytecode);
-        auto calleeSavedRegsEnd = ((uint8_t*)frameDesc.fp) - LOCAL_SLOTS_OFFSET;
 
         auto [gcPosInfo, stackPtrsInfo] = FindPositionalInfo(bc, curPos);
 

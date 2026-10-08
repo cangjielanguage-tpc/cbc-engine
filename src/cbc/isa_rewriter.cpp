@@ -784,11 +784,8 @@ struct IsaRewriter : public IsaParser {
             return Fail("resolution failure");
         }
 
-        auto type      = *t;
-        auto typeDefId = Engine::ExtractTypeDefIdentifier(type.term);
-        auto typeDef   = Decode::Read(session, typeDefId);
-        auto refPath   = emit.NewLabel();
-        auto end       = emit.NewLabel();
+        auto refPath = emit.NewLabel();
+        auto end     = emit.NewLabel();
         emit.BranchIfRef(underlyingTypeInfo, refPath);
         {
             auto ms = emit.OpenMemSpace();
