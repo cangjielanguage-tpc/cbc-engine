@@ -66,3 +66,10 @@ Precommit testing (debug + release modes):
 ```
 python3 build.py precommit
 ```
+
+Note: precommit testing may use clang-specific warning checks. To reproduce "as in CI" :
+```
+(export image="s3.excelsior.internal:5000/cangjie-builder:v2.9-ccache" && \
+ podman pull "$image" && \
+ podman run -it --rm -v "$(pwd):/workspace" -w /workspace --entrypoint python3 "${image}"  build.py precommit)
+```

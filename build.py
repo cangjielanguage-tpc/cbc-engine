@@ -111,6 +111,9 @@ def prepare_cmake_options(args, project_dir):
     build_type     = f"-DCMAKE_BUILD_TYPE={args.build_type.capitalize()} "
     build_testing  = "ON" if args.run_tests else "OFF"
     build_int_syms = "ON" if args.enable_int_syms else "OFF"
+    build_compiler_warnings = "ON" if args.compiler_warning else "OFF"
+
+    compiler_warnings_option = f"-DCOMPILER_WARNINGS={build_compiler_warnings} "
 
     if args.target_os == "android":
         android_ndk_home = os.environ.get("ANDROID_NDK_HOME")
@@ -126,6 +129,7 @@ def prepare_cmake_options(args, project_dir):
 
         return (
             f"{build_type}"
+            f"{compiler_warnings_option}"
             f"-DBUILD_TESTING={build_testing} "
             f"-DCMAKE_TOOLCHAIN_FILE={toolchain_path} "
             f"-DANDROID_PLATFORM={ANDROID_PLATFORM} "
@@ -143,6 +147,7 @@ def prepare_cmake_options(args, project_dir):
 
         return (
             f"{build_type}"
+            f"{compiler_warnings_option}"
             f"-DBUILD_TESTING={build_testing} "
             f"-DCMAKE_TOOLCHAIN_FILE={toolchain_path} "
             f"-DINT_SYMS={build_int_syms} "
@@ -154,6 +159,7 @@ def prepare_cmake_options(args, project_dir):
         fail(f"Toolchain file does not exist: {toolchain_path}")
     return (
         f"{build_type}"
+        f"{compiler_warnings_option}"
         f"-DBUILD_TESTING={build_testing} "
         f"-DCMAKE_TOOLCHAIN_FILE={toolchain_path} "
         f"-DINT_SYMS={build_int_syms} "
@@ -289,7 +295,8 @@ def precommit(args, project_dir, build_root_dir):
         build_args = argparse.Namespace(**vars(args),
                                         build_type=build_type,
                                         run_tests=True,
-                                        enable_int_syms=False)
+                                        enable_int_syms=False,
+                                        compiler_warning=True)
 
         try:
             clean(build_dir)
@@ -337,6 +344,9 @@ def main():
     build_parser.add_argument("--run-tests",
                               action="store_true",
                               help="Run CTest after successful build")
+    build_parser.add_argument("--compiler-warning",
+                              action="store_true",
+                              help="Enable additional compiler warnings")
     build_parser.add_argument("--int-syms",
                               dest="enable_int_syms",
                               action="store_true",
