@@ -1405,7 +1405,7 @@ struct IsaRewriter : public IsaParser {
         StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature, &outerTiLoc);
         EmitLogCall("call.interf.g", method);
 
-        uint16_t argnum;
+        uint16_t argnum = 0;
         if (outerTiLoc.Kind() == Location::IREG) {
             argnum = outerTiLoc.IRegIdx();
             ASSERT(argnum < IReg::VIRT_COUNT);
