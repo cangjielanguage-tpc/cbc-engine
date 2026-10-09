@@ -234,9 +234,9 @@ struct IsaRewriter : public IsaParser {
     struct StatePoint {
         Emitter::Label label; // position in rewritten code
         ssize_t originalPos;  // position in original code
-        Utils::Vector<uint32_t> paramRefSlots;
-        Utils::Vector<uint32_t> paramRecSlots;
-        std::optional<int> derivedLoc;
+        Utils::Vector<uint32_t> paramRefSlots = {};
+        Utils::Vector<uint32_t> paramRecSlots = {};
+        std::optional<int> derivedLoc = std::nullopt;
     };
 
     Utils::Vector<StatePoint> statePoints;
