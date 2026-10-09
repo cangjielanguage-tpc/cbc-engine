@@ -257,7 +257,10 @@ struct IsaParserImpl {
 #define PARSE_ONE_MEM_CASES(opc, func)                                                                                 \
     case MemOpcode::opc: end = func(parser, ms); break;
 
-    static int64_t MergeLowHi(uint8_t low4, int64_t hi) { return static_cast<int64_t>((hi << 4) | low4); }
+    static int64_t MergeLowHi(uint8_t low4, int64_t hi)
+    {
+        return static_cast<int64_t>(static_cast<uint64_t>(hi) << 4) | low4;
+    }
 
     static Width width64Or32(bool w64) { return w64 ? Width::W64 : Width::W32; }
 
