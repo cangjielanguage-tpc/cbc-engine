@@ -181,7 +181,7 @@ public:
     constexpr FieldFlags With(AccessKind accessKind) const
     {
         FieldFlags copy = *this;
-        copy.accessRaw  = accessRaw;
+        copy.accessRaw  = accessKind;
         return copy;
     }
 

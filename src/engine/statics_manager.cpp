@@ -99,12 +99,12 @@ void StaticFieldsBundle::VisitRefLocations(Utils::Function<void(RefLocation*)> a
 {
     RefLocation* location = reinterpret_cast<RefLocation*>(refs);
     auto refCount         = this->refCount;
-    for (auto i = 0; i < refCount; i++) {
+    for (uint32_t i = 0; i < refCount; i++) {
         action(location);
         location++;
     }
 
-    for (auto i = 0; i < refOffsetsCount; i++) {
+    for (uint32_t i = 0; i < refOffsetsCount; i++) {
         auto loc = records + referenceOffsets[i];
         action(reinterpret_cast<RefLocation*>(loc));
     }
@@ -176,10 +176,10 @@ StaticFieldsBundle StaticsManager::CreateBundle(Session& session, TypeIdent type
     uintptr_t refs       = primitives + primFieldsNum * 8;
     uintptr_t records    = refs + refFieldsNum * 8;
 
-    for (int i = 0; i < recordOffsets.Size(); i++) {
+    for (uint32_t i = 0; i < recordOffsets.Size(); i++) {
         recOffsets[i] = recordOffsets[i];
     }
-    for (int i = 0; i < refOffsetInRecords.Size(); i++) {
+    for (uint32_t i = 0; i < refOffsetInRecords.Size(); i++) {
         refOffsets[i] = refOffsetInRecords[i];
     }
 

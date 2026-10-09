@@ -493,7 +493,7 @@ GlobalTerm TermManager::Globalize(Term& term)
 
     // globalize terms in-place
     auto termData = term.data;
-    for (int i = 0; i < term.GetLength(); i++) {
+    for (uint32_t i = 0; i < term.GetLength(); i++) {
         termData->subterms[i] = Globalize(termData->subterms[i]);
     }
 
@@ -511,7 +511,7 @@ GlobalTerm TermManager::Globalize(Term& term)
         FATAL("Out of memory");
     }
 
-    for (int i = 0; i < term.GetLength(); i++) {
+    for (uint32_t i = 0; i < term.GetLength(); i++) {
         data->subterms[i] = termData->subterms[i];
     }
     auto flags    = termData->flags;
