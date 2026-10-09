@@ -67,7 +67,6 @@
 .endm
 
 .macro FUNC_START sym
-  .cfi_startproc
 #ifdef __APPLE__
   .type \sym, $FUNCTION
 #else
@@ -76,7 +75,6 @@
 .endm
 
 .macro FUNC_END sym
-  .cfi_endproc
 #ifdef __ELF__
   .size \sym, .-\sym
 #endif
@@ -401,9 +399,6 @@ FUNC_START perform_2i_call
 // +------------------------------------+ <-- SP
   stp   x29, x30, [sp, #-16]!
   mov   x29, sp
-  .cfi_def_cfa x29, 16
-  .cfi_offset 29, -16
-  .cfi_offset 30, -8
   // fp-0x8: FunctionHandle for frame scanning,
   // fp-0x10: Ectype
   // fp-0x18: Literals
