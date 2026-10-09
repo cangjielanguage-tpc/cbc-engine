@@ -191,8 +191,8 @@ struct MethodTableBuilder {
     GlobalTerm tableOwner;
     MethodTable table {};
 
-    Utils::Vector<MethodTableEntry> entryBuffer;
-    std::unordered_set<Term, Term::Hasher> interfaces;
+    Utils::Vector<MethodTableEntry> entryBuffer {};
+    std::unordered_set<Term, Term::Hasher> interfaces {};
 
     using MethodReference = MethodTable::Reference;
 
@@ -431,7 +431,7 @@ std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, Glob
     auto flags = def.GetFlags();
 
     // 1. Get table of super type for claseses or empty table for other types
-    MethodTableBuilder builder { *this, type };
+    MethodTableBuilder builder { .manager = *this, .tableOwner = type };
 
     ClassSubstitution substitute(session, type);
 
