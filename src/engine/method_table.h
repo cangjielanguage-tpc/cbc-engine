@@ -37,7 +37,7 @@ struct MethodTableEntry {
 
     /// The generic context of method. This context is used to access class type variables, referenced in the method.
     /// Most of the time, the context is the same as subterms of declaring type (with corresponding parameterization).
-    Utils::Span<Term> genericContext;
+    Term genericContext;
 
     /// Method number in sub table.
     int methodNum;
@@ -68,7 +68,7 @@ public:
 
         /// Declaring type, where method is actually declared. Additionally to type definition,
         /// stores an generic variable parameterization.
-        Utils::Span<Term> genericContext;
+        Term genericContext;
     };
 
     struct SubTableGenerator {

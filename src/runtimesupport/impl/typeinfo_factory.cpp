@@ -446,14 +446,6 @@ static std::optional<DYN_GCTib> ConstructGCTib(TypeInfoBuilder& builder, Utils::
 
 static int64_t FakeWhereCond() { return -1; }
 
-static Engine::Term AcquireGenericContext(
-    Engine::Session& session, TypeInfoManager& manager, Utils::Span<Engine::Term> genericContext
-)
-{
-    Engine::TagTermId termId(Engine::TermKind::GENERIC_CONTEXT);
-    return Engine::TermManager::NewTermWithId(session, termId, true, genericContext);
-}
-
 // TODO: factory class, so it can hold state of other managers without recreating them.
 // TODO: split function to smaller ones.
 static std::optional<TypeInfo> CreateTypeInfoDyn(
@@ -565,8 +557,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
         for (auto entry : mt->Entries()) {
             auto tm                  = GetTableMember(session, entry.method, entryIdx);
             builder.dataMT[entryIdx] = tm.handle;
-            auto termOfOuterTI       = AcquireGenericContext(session, manager, entry.genericContext);
-            funcDescs[entryIdx]      = FuncDesc { tm.function, termOfOuterTI };
+            funcDescs[entryIdx]      = FuncDesc { tm.function, entry.genericContext };
             entryIdx++;
         }
 

@@ -63,9 +63,7 @@ void MethodTable::Globalize(Session& session)
 {
     auto& termManager = TermManager::Of(session);
     for (auto& entry : allEntries) {
-        for (auto& t : entry.genericContext) {
-            t = termManager.Globalize(t);
-        }
+        entry.genericContext = termManager.Globalize(entry.genericContext);
     }
     for (auto& st : classTables) {
         st.declaringType = termManager.Globalize(st.declaringType);
@@ -186,6 +184,12 @@ std::optional<MethodTableEntry> MethodSubTable::EntryGenerator::operator()()
 
 // ---- MethodTable building ----
 
+static Term AcquireGenericContext(Session& session, Utils::Span<Term const> genericContext)
+{
+    TagTermId termId(TermKind::GENERIC_CONTEXT);
+    return TermManager::NewTermWithId(session, termId, true, genericContext);
+}
+
 struct MethodTableBuilder {
     MethodTableManager& manager;
     GlobalTerm tableOwner;
@@ -281,9 +285,9 @@ struct MethodTableBuilder {
                         }
                     }
 
+                    auto gctx = AcquireGenericContext(session, matcher.vars);
                     for (auto methodId : Reader::Resolve(session, ext.GetVirtualMethods())) {
-                        auto terms = Utils::Span<Term>(matcher.vars.Data(), matcher.vars.Size());
-                        AddMethod(session, methodId, arena.Copy(terms));
+                        AddMethod(session, methodId, gctx);
                     }
                 }
                 matcher.Clear();
@@ -292,9 +296,7 @@ struct MethodTableBuilder {
         return true;
     }
 
-    void AddMethod(
-        Session& session, Identifier<MethodDefinition> methodId, Utils::Span<Term> genericContext
-    )
+    void AddMethod(Session& session, Identifier<MethodDefinition> methodId, Term genericContext)
     {
         auto newEntry = MethodTable::Entry {
             .method         = methodId,
@@ -474,7 +476,7 @@ std::optional<MethodTable> MethodTableManager::BuildTable(Session& session, Glob
 
     Utils::Vector<MethodTableEntry> entryBuffer;
     for (auto methodId : Reader::Resolve(session, def.GetVirtualMethods())) {
-        builder.AddMethod(session, methodId, type.SubTerms());
+        builder.AddMethod(session, methodId, thisType);
     }
 
     // 3.3 add new subtable for current type (even if new methods were not added)
