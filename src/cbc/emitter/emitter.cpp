@@ -47,7 +47,7 @@ void Emitter::AddFixup(std::unique_ptr<Fixup> fixup)
     fixup->position = segment.Pos();
     fixups.PushBack(std::move(fixup));
     // Fill the fixup position with zeroes.
-    for (size_t i = 0; i < size; i++) {
+    for (int32_t i = 0; i < size; i++) {
         segment.AddW8(0);
     }
 }
