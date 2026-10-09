@@ -584,7 +584,7 @@ struct ResolverProxy {
 
         Utils::Vector<Type> params;
         params.Reserve(paramLength);
-        for (int i = 0; i < paramLength; i++) {
+        for (uint32_t i = 0; i < paramLength; i++) {
             params.PushBack(Type(signature.Subterm(i), resolver));
         }
         return {

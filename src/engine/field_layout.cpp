@@ -342,7 +342,7 @@ private:
             SizeAlignmentAccumulator acc { this, 0, 1 };
             FieldLayout::Content content;
             auto len = term.GetLength();
-            for (int i = 0; i < len; i++) {
+            for (uint32_t i = 0; i < len; i++) {
                 acc.AddField(content.fields, term.Subterm(i), std::nullopt);
             }
             content.desc.alignment = acc.alignment;
