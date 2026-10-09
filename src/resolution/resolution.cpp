@@ -126,7 +126,6 @@ struct ResolvedSimpleFieldRef {
     std::variant<std::string_view, uint32_t> nameOrIdx;
     Term fieldType;
     RefIdentifier<Image::FieldReference> ident;
-    bool isRecord;
 
     std::string GetFullName(Session& session)
     {
