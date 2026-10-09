@@ -293,7 +293,7 @@ struct IsaDisasm : public IsaParser {
         if (args.Size() == 0)
             return "";
         std::string s = " [";
-        for (int i = 0; i < args.Size(); i++) {
+        for (size_t i = 0; i < args.Size(); i++) {
             if (i > 0)
                 s += ", ";
             s += LocStr(args[i]);
