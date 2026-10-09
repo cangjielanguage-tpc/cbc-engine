@@ -155,7 +155,7 @@ void Table::ParseAndSet(int size, const char* const* optStr) const
     }
 
     Utils::Vector<KeyVal> parsedOpts;
-    for (size_t i = 0; i < size; ++i) {
+    for (int i = 0; i < size; ++i) {
         ParseKeyVal(parsedOpts, optStr[i]);
     }
 
