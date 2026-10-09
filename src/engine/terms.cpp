@@ -982,7 +982,6 @@ Utils::StringPool::String TermManager::GetNameOfAotType(AotTermId type)
 
 Term TermManager::Resolve(Session& session, RefIdentifier<Term> ident)
 {
-    auto index = ident.GetIndex();
     auto& raf  = session.FileOf(ident.GetFileId());
     auto& file = session.CbcFileOf(ident.GetFileId());
 

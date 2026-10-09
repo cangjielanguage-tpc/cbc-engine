@@ -36,20 +36,6 @@ Logging::Logger log(&logStream, Logging::Level::ERROR);
 
 using namespace Engine;
 
-static std::string_view CopyToArena(Session& session, std::string const& str)
-{
-    auto& allocator = session.Allocator();
-    auto size       = str.size();
-
-    if (size > 0) {
-        char* data = (char*)allocator.Allocate(size + 1, 1);
-        data[size] = 0;
-        std::copy(str.begin(), str.end(), data);
-        return std::string_view(data, size);
-    }
-    return std::string_view();
-}
-
 std::optional<RTSupport::TypeInfo> Type::GetTypeInfo() const { return resolver->GetTypeInfo(*this); }
 
 void Type::FillReferenceOffsets(Utils::Vector<uint32_t>& refOffsets, uint32_t disp) const
@@ -209,7 +195,6 @@ struct ResolverProxy {
         auto fileId      = resolver.method.GetFileId();
         auto refType     = resolver.Wrap(ref.refType);
         auto fieldType   = resolver.Wrap(ref.fieldType);
-        auto [file, raf] = resolver.session.File(fileId);
         auto data        = Decode::GetAotData<Image::StaticFieldAotData>(resolver, ref.ident);
         auto linkageName = Decode::Read(resolver, data.linkangeName);
         auto location    = resolver.session.GetEngine().Dependencies().At(fileId).FindSymbol(linkageName);
@@ -580,7 +565,6 @@ struct ResolverProxy {
         ASSERTION(signature.GetLength() > 0, "method signature encoding was incorrect");
 
         auto paramLength = signature.GetLength() - 1;
-        auto retTypeIdx  = paramLength;
 
         Utils::Vector<Type> params;
         params.Reserve(paramLength);
@@ -635,8 +619,7 @@ struct ResolverProxy {
 
     static std::optional<InterfaceCall::Content> ResolveCall(Resolver& resolver, Index<InterfaceCall> id)
     {
-        auto [file, raf] = resolver.session.File(resolver.method.GetFileId());
-        auto ref         = ResolveReference(resolver, id);
+        auto ref = ResolveReference(resolver, id);
         if (!ref.isResolved) {
             return std::nullopt;
         }
@@ -660,8 +643,7 @@ struct ResolverProxy {
 
     static std::optional<VirtualCall::Content> ResolveCall(Resolver& resolver, Index<VirtualCall> id)
     {
-        auto [file, raf] = resolver.session.File(resolver.method.GetFileId());
-        auto ref         = ResolveReference(resolver, id);
+        auto ref = ResolveReference(resolver, id);
         if (!ref.isResolved) {
             return std::nullopt;
         }
@@ -679,9 +661,8 @@ struct ResolverProxy {
 
     static std::optional<DirectCall::Content> ResolveAotDirectCall(Resolver& resolver, ResolvedMethodReference& ref)
     {
-        auto fileId      = resolver.method.GetFileId();
-        auto [file, raf] = resolver.session.File(resolver.method.GetFileId());
-        auto data        = Decode::GetAotData<Image::DirectCallAotData>(resolver, ref.identifier);
+        auto fileId = resolver.method.GetFileId();
+        auto data   = Decode::GetAotData<Image::DirectCallAotData>(resolver, ref.identifier);
 
         auto linkageName = Decode::Read(resolver, data.linkangeName);
         auto funcPtr     = resolver.session.GetEngine().Dependencies().At(fileId).FindSymbol(linkageName);
@@ -707,8 +688,7 @@ struct ResolverProxy {
 
     static std::optional<DirectCall::Content> ResolveCall(Resolver& resolver, Index<DirectCall> id)
     {
-        auto [file, raf] = resolver.session.File(resolver.method.GetFileId());
-        auto ref         = ResolveReference(resolver, id);
+        auto ref = ResolveReference(resolver, id);
         if (!ref.isResolved) {
             return std::nullopt;
         }

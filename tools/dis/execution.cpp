@@ -1,6 +1,6 @@
+#include "utils/function.h"
 #include <cstdint>
 #include <cstring>
-#include "utils/function.h"
 
 #include "engine/typeinfo_manager.h"
 #include "interpreter/function_handle.h"
@@ -9,8 +9,6 @@
 #include "runtimesupport/runtime.h"
 #include "runtimesupport/typeinfo_factory.h"
 #include "utils/assertion.h"
-
-static constexpr int HEAP_SIZE = 16384;
 
 namespace RTSupport {
 
