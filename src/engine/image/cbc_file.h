@@ -425,13 +425,13 @@ struct RawData {
 struct LivenessInfo {
     uint32_t cbcPos;
     uint16_t regMask;
-    Utils::Vector<uint32_t> refSlotNums; // FIXME: light-weight handle
-    Utils::Vector<std::pair<uint32_t, uint32_t>> mutPairs; // FIXME: light-weight handle
+    Utils::Vector<uint32_t> refSlotNums = {}; // FIXME: light-weight handle
+    Utils::Vector<std::pair<uint32_t, uint32_t>> mutPairs = {}; // FIXME: light-weight handle
 };
 
 struct StackPtrsInfo {
     uint32_t cbcPos;
-    Utils::Vector<uint32_t> resources; // FIXME: light-weight handle
+    Utils::Vector<uint32_t> resources = {}; // FIXME: light-weight handle
 };
 
 class Code {
