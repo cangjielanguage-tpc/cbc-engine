@@ -26,7 +26,7 @@ public:
     };
 
     struct Content {
-        Utils::Vector<Entry> fields;
+        Utils::Vector<Entry> fields = {};
         SizeDesc desc{};
     };
 
