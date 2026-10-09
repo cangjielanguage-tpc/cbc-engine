@@ -46,7 +46,6 @@ void Disasmer::Type(TypeDefinition& def)
 
 void Disasmer::RData(RegionData const& rd, uint8_t regionNum)
 {
-    auto& raf = session.FileOf(currentFile->Id());
     auto printMethods = [&]() {
         for (auto refid : rd.methods) {
             auto ref = Reader::Read(session, refid);

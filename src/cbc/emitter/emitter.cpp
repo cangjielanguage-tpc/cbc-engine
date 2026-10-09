@@ -59,7 +59,7 @@ Interpretation::Code Emitter::Build(Memory::Heap& heap)
 
     LiteralTableBuilder litBuilder(this->symbols);
 
-    auto relocationConverter = [&litBuilder, &segment](Symbol sym) {
+    auto relocationConverter = [&litBuilder](Symbol sym) {
         ASSERTION(sym.kind != SymbolKind::LABEL, "Labels should be processed as part of fixup resolution");
         return litBuilder.UseSymbol(sym);
     };
@@ -946,7 +946,6 @@ void Emitter::StoreRec(StoreAccessKind stk, Reg src, IReg base, uint32_t offset)
 void Emitter::LoadFrame(LoadAccessKind ldk, Reg dst, int32_t offset)
 {
     if (MathUtils::IsNBitsSigned(offset, 12)) {
-        auto opc = !ldk.IsFloat() ? RT::Opcode::LOAD_FRAME : RT::Opcode::LOAD_FRAME_F;
         LoadStore(ldk, dst, IReg::IRZ, offset, RT::Opcode::LOAD_FRAME);
     } else {
         auto opc = !ldk.IsFloat() ? RT::Opcode::LOAD_LONG_FRAME : RT::Opcode::LOAD_LONG_FRAME_F;

@@ -31,9 +31,6 @@ void* Arena::DoAllocateSlow(size_t bytes)
         newChunk->next  = chunks;
         this->chunks    = newChunk;
 
-        auto memoryStart = reinterpret_cast<uintptr_t>(newChunk->memory);
-        // ASSERT(memoryStart == Align(memoryStart));
-
         return newChunk->memory;
     }
 

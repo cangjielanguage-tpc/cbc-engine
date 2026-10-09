@@ -4,7 +4,6 @@ namespace GCSupport {
 
 RegistersTable::RegistersTable(Interpretation::Ectype* ectype)
 {
-    uintptr_t ectypeAddr = reinterpret_cast<uintptr_t>(ectype);
     for (uint32_t regN = 0; regN < IReg::COUNT; regN++) {
         IReg reg             = IReg::From(regN);
         regLocationMap[regN] = reinterpret_cast<Placeholder>(ectype->GetIRegLocation(reg));
