@@ -60,6 +60,22 @@
 #endif
 .endm
 
+.macro FUNC_START sym
+  .cfi_startproc
+#ifdef __APPLE__
+  .type \sym, $FUNCTION
+#else
+  .type \sym, @function
+#endif
+.endm
+
+.macro FUNC_END sym
+  .cfi_endproc
+#ifdef __ELF__
+  .size \sym, .-\sym
+#endif
+.endm
+
 .extern engine_prepare_bytecode
 .extern engine_interpretation_loop
 .extern engine_fiber_data_init
@@ -224,13 +240,16 @@ engine_newobject_pinned_function:
 
 .balign 16
 engine_universal_direct_call:
+FUNC_START engine_universal_direct_call
   lea   r10, [rip + engine_universal_direct_function_handles]
   mov   rax, [r10 + rax * 8] // put FuH on rax
   jmp   [rax + FUNCTION_HANDLE_C2CALL_OFFSET]
+FUNC_END engine_universal_direct_call
 
 
 .balign 16
 engine_trampolines_direct_start:
+FUNC_START engine_trampolines_direct_start
 .macro repeat_trampoline_direct count
   .set i, 0
   .rept \count
@@ -240,28 +259,34 @@ engine_trampolines_direct_start:
   .endr
 .endm
   repeat_trampoline_direct TRAMPOLINE_COUNT
+FUNC_END engine_trampolines_direct_start
 
 
 .balign 16
 engine_universal_dyn_call:
+FUNC_START engine_universal_dyn_call
   mov   r10, [rdi] // get TypeInfo
   // TODO: consider tail array
   mov   r10, [r10 + TYPEINFO_DATA_MT_OFFSET] // data mt array
   mov   rax, [r10 + rax * 0x8] // put FuH on rax
   jmp   [rax + FUNCTION_HANDLE_C2CALL_OFFSET]
+FUNC_END engine_universal_dyn_call
 
 
 .balign 16
 engine_universal_dyn_sret_call:
+FUNC_START engine_universal_dyn_sret_call
   mov   r10, [rsi] // get TypeInfo from SRET call receiver (2nd argument)
   // TODO: consider tail array
   mov   r10, [r10 + TYPEINFO_DATA_MT_OFFSET] // data mt array
   mov   rax, [r10 + rax * 0x8] // put FuH on rax
   jmp   [rax + FUNCTION_HANDLE_C2CALL_OFFSET]
+FUNC_END engine_universal_dyn_sret_call
 
 
 .balign 16
 engine_trampolines_dyn_start:
+FUNC_START engine_trampolines_dyn_start
 .macro repeat_trampoline_dyn count
   .set i, 0
   .rept \count
@@ -283,6 +308,7 @@ engine_trampolines_dyn_sret_start: // should come right after engine_trampolines
 .endm
   repeat_trampoline_dyn_sret TRAMPOLINE_COUNT
 engine_trampolines_dyn_sret_end:
+FUNC_END engine_trampolines_dyn_start
 
 // expects: (TLS_REG: th, rax: fuh)
 // System-V abi, except r15 can be changed after context-switches
@@ -336,6 +362,7 @@ engine_trampolines_dyn_sret_end:
 
 .balign 16
 c2i_prepare_ectype:
+FUNC_START c2i_prepare_ectype
   // param passing registers could store real parameters of called c2i method
   mov   ECTYPE_REG, rax // temporarily store fuh on ECTYPE_REG
   push  rbp
@@ -369,6 +396,7 @@ c2i_prepare_ectype:
   pop_lst r9, r8, rcx, rdx, rsi, rdi
   pop   rbp
   ret
+FUNC_END c2i_prepare_ectype
 
 
 .balign 16
@@ -377,12 +405,16 @@ c2i_prepare_ectype:
 // label that is used to range-check all c2i call variations
 engine_c2i_call_pc_start:
 engine_all_regs_c2i_call:
+FUNC_START engine_all_regs_c2i_call
   engine_c2i_call IREG_ABI_AMOUNT, FREG_ABI_AMOUNT
+FUNC_END engine_all_regs_c2i_call
 
 .balign 16
 // variation of c2i call that only passes iregs
 engine_iregs_only_c2i_call:
+FUNC_START engine_iregs_only_c2i_call
   engine_c2i_call IREG_ABI_AMOUNT, 0
+FUNC_END engine_iregs_only_c2i_call
 
 // label that is used to range-check all c2i call variations
 engine_c2i_call_pc_end:
@@ -392,6 +424,7 @@ engine_c2i_call_pc_end:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: fuh)
 // preserved: TLS_REG, ECTYPE_REG, rbp
 perform_2i_call:
+FUNC_START perform_2i_call
 // The final layout of the frame is following:
 // +------------------------------------+
 // | Return Address                     |
@@ -540,6 +573,7 @@ perform_2i_call:
   mov   rsp, rbp
   pop   rbp
   ret
+FUNC_END perform_2i_call
 
 .macro save_all_iregs scratch_reg
   .set _offset, 0
@@ -599,19 +633,23 @@ engine_after_stack_grow:
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
 engine_i2c_call:
+FUNC_START engine_i2c_call
   // jumped from .Linterpreter_call without return address to return
   i2c_call IREG_ABI_AMOUNT, FREG_ABI_AMOUNT
+FUNC_END engine_i2c_call
 
 .balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: fuh)
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
 engine_i2i_call:
+FUNC_START engine_i2i_call
   // stack parameters are starting right at the top of the interpreted frame
   mov   [ECTYPE_REG + TAIL_REG_OFFS], rsp
 
   call  perform_2i_call
   jmp   .Lrestart_interpretation
+FUNC_END engine_i2i_call
 
 .macro restore_tls // spoils volatile registers!
   call  [rip + engine_tls_function]
@@ -622,6 +660,7 @@ engine_i2i_call:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: mask)
 // preserved: ECTYPE_REG, rbp
 engine_i2_load_generic:
+FUNC_START engine_i2_load_generic
   // mask is expected in form of:
   // [0..4) - dst reg
   // [4..8) - base reg
@@ -657,74 +696,88 @@ engine_i2_load_generic:
   // perform generic read
   call  [rip + engine_read_generic]
   jmp   .Lrestart_interpretation
+FUNC_END engine_i2_load_generic
 
 .balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
 engine_i2_newobject:
+FUNC_START engine_i2_newobject
   // jumped from .Linterpreter_call without return address to return
   call  [rip + engine_newobject_function]
   mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE], rax
   restore_tls
   jmp   .Lrestart_interpretation
+FUNC_END engine_i2_newobject
 
 .balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
 engine_i2_newobject_pinned:
+FUNC_START engine_i2_newobject_pinned
   // jumped from .Linterpreter_call without return address to return
   xor   esi, esi
   call  [rip + engine_newobject_pinned_function]
   mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE], rax
   restore_tls
   jmp   .Lrestart_interpretation
+FUNC_END engine_i2_newobject_pinned
 
 .balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
 engine_i2_newobject_acc:
+FUNC_START engine_i2_newobject_acc
   // jumped from .Linterpreter_call without return address to return
   call  [rip + engine_newobject_function]
   mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE * ECTYPE_IACC_NUM], rax // move to acc register
   restore_tls
   jmp   .Lrestart_interpretation
+FUNC_END engine_i2_newobject_acc
 
 .balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
 engine_i2_newarray:
+FUNC_START engine_i2_newarray
   // jumped from .Linterpreter_call without return address to return
   mov   rsi, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x10]
   call  [rip + engine_newarray_function]
   mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE], rax
   restore_tls
   jmp   .Lrestart_interpretation
+FUNC_END engine_i2_newarray
 
 .balign 16
 // expects: (ECTYPE_REG: ectype, rdi: safe_point_f)
 engine_i2_gcpoint:
+FUNC_START engine_i2_gcpoint
   call rdi
   restore_tls
   jmp  .Lrestart_interpretation
+FUNC_END engine_i2_gcpoint
 
 .balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
 // preserved: ECTYPE_REG, rbp
 engine_i2_spawn:
+FUNC_START engine_i2_spawn
   mov   rsi, [ECTYPE_REG + ECTYPE_IACC_OFFSET]
   mov   rcx, rdi
   lea   rdi, [rip + engine_fake_execute_closure]
   xor   edx, edx
   call  [rip + engine_newthread_nret_function]
   jmp  .Lrestart_interpretation
+FUNC_END engine_i2_spawn
 
 // expects: (ECTYPE_REG: ectype, TLS_REG: th)
 // preserved: ECTYPE_REG, rbp
 engine_i2_spawn_future:
+FUNC_START engine_i2_spawn_future
   mov   rdi, [ECTYPE_REG + ECTYPE_IACC_OFFSET]
   call  engine_spawn_future
   test  rdx, rdx
@@ -742,28 +795,30 @@ engine_i2_spawn_future:
   xor   ecx, ecx
   call  [rip + engine_set_runtime_cjthread_handle_function]
   jmp  .Lrestart_interpretation
+FUNC_END engine_i2_spawn_future
 
 // TREAT SYMBOLS ABOVE AS PART OF perform_2i_call
-#ifdef __ELF__
-.size perform_2i_call, .-perform_2i_call
-#endif
 
 // fake execute closure function
 .balign 16
 engine_fake_execute_closure:
+FUNC_START engine_fake_execute_closure
   // (rdi: sret, rsi: ()T, rdx: TypeInfo[Future[T]]
   mov   rcx, [rsi + 0x10] // get $i (instantiated) version of closure function
   mov   rdi, rsi
   jmp   rcx
+FUNC_END engine_fake_execute_closure
 
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: exception type)
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
 .balign 16
 engine_throw_implicit_exception:
+FUNC_START engine_throw_implicit_exception
   // jumped from .Linterpreter_call without return address to return
   call  [rip + engine_implicit_exception_thrower]
   ud2 // should not return, as exception is thrown inside call
+FUNC_END engine_throw_implicit_exception
 
 // expects: (ECTYPE_REG: ectype)
 // When exception is thrown from CJNative code to interpreter, execution of
@@ -771,9 +826,11 @@ engine_throw_implicit_exception:
 // TODO obtain exception using PostThrowException from RT interface
 .balign 16
 common_landing_pad:
+FUNC_START common_landing_pad
   call engine_get_and_clear_pending_exception
   mov rdi, rax
   jmp engine_handle_exception
+FUNC_END common_landing_pad
 
 // expects: (ECTYPE_REG: ectype, rdi: exception reference)
 // Returns to interpretation loop with exception reference on ACC_REG
@@ -781,6 +838,7 @@ common_landing_pad:
 // Precondition: top frame is interpreter frame.
 .balign 16
 engine_handle_exception:
+FUNC_START engine_handle_exception
   mov   EXTRA_REG, rdi
 
   mov   rdi, QWORD PTR [rbp - FUH_SLOT_OFFSET]
@@ -862,3 +920,4 @@ engine_handle_exception:
 
   jmp   [rip + engine_throw_out_of_interpreter]
   ud2
+FUNC_END engine_handle_exception
