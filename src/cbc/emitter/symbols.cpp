@@ -66,7 +66,7 @@ uint16_t LiteralTableBuilder::UseSymbol(Symbol symbol)
                 .u64 = symbols.plainValues.At(symbol.id),
             };
 
-            for (int i = 0; i < sizeof(lit); i++) {
+            for (size_t i = 0; i < sizeof(lit); i++) {
                 table.PushBack(lit.raw[i]);
             }
             return static_cast<uint16_t>(size / step);
