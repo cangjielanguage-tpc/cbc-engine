@@ -14,6 +14,7 @@
 using Options::Option;
 using Options::SetAllLogLevels;
 using Options::SetBoolValue;
+using Options::SetBoolValueTrue;
 using Options::SetIntValue;
 using Options::SetLogLevelValue;
 using Options::SetStringValue;
@@ -23,7 +24,7 @@ bool Engine::useShortGCTib = true;
 
 constexpr Option globalOptionsArray[] = {
     { "cbc.use.short.gctib", &Engine::useShortGCTib, &SetBoolValue },
-    //{ "cbc.profiler", &Cbc::Profiler::enabled, &SetBoolValue },
+    { "cbc.profiler", &Cbc::Profiler::enabled, &SetBoolValueTrue },
     { "cbc.log.resolution", &Resolution::log, &SetLogLevelValue },
     { "cbc.log.int", &Interpretation::Log::interpretation, &SetLogLevelValue },
     { "cbc.log.preparation", &Interpretation::Log::preparation, &SetLogLevelValue },

@@ -55,6 +55,20 @@ bool SetBoolValue(Options::Table const&, Options::Option const& option, std::str
     }
 }
 
+// TODO: remove after tests
+bool SetBoolValueTrue(Options::Table const&, Options::Option const& option, std::string_view value)
+{
+    if (value == "true" || value == "1") {
+        *(bool*)option.location = true;
+        return true;
+    } else if (value == "false" || value == "0") {
+        *(bool*)option.location = false;
+        return true;
+    } else {
+        return true;
+    }
+}
+
 bool SetIntValue(Options::Table const&, Options::Option const& option, std::string_view value)
 {
     auto end = value.data() + value.size();
