@@ -252,7 +252,7 @@ struct ResolverProxy {
             ref,
             [](Term refTypeTerm, ResolvedSimpleFieldRef ref, Resolver& resolver
             ) -> std::optional<typename Field::Content> {
-                auto refType   = resolver.Wrap(refTypeTerm);
+                auto refType   = resolver.Wrap(ref.refType);
                 auto fieldType = resolver.Wrap(ref.fieldType);
                 auto name      = std::get<std::string_view>(ref.nameOrIdx);
                 switch (refTypeTerm.GetKind()) {
@@ -357,7 +357,7 @@ struct ResolverProxy {
                 switch (kind) {
                     case TermKind::VARRAY:
                     case TermKind::TUPLE: {
-                        return ResolveIndexedElement(resolver, resolver.Wrap(refTypeTerm), fieldIdx);
+                        return ResolveIndexedElement(resolver, resolver.Wrap(refTypeTerm), resolver.Wrap(ref.refType), fieldIdx);
                     }
                     default: {
                         LOG_ERROR(log, "Invalid kind in const index reference: {}", (uint8_t)kind);
@@ -747,7 +747,7 @@ struct ResolverProxy {
         }
     }
 
-    static std::optional<InstanceField::Content> ResolveIndexedElement(Resolver& resolver, Type refType, uint32_t idx)
+    static std::optional<InstanceField::Content> ResolveIndexedElement(Resolver& resolver, Type refType, Type origRefType, uint32_t idx)
     {
         auto term = refType.term;
         switch (term.GetKind()) {
@@ -761,7 +761,7 @@ struct ResolverProxy {
                 auto offset    = layout->fields[idx].offset;
                 auto fieldType = Type(term.Subterm(idx), resolver);
                 return InstanceField::Content {
-                    .refType   = refType,
+                    .refType   = origRefType,
                     .fieldType = fieldType,
                     .ordinal   = idx,
                     .offset    = offset,
@@ -778,7 +778,7 @@ struct ResolverProxy {
                 auto offset    = idx * elemSize.value();
                 auto fieldType = Type(term.Subterm(0), resolver);
                 return InstanceField::Content {
-                    .refType   = refType,
+                    .refType   = origRefType,
                     .fieldType = fieldType,
                     .ordinal   = idx,
                     .offset    = offset,
