@@ -147,11 +147,11 @@ struct BuiltinTerms {
     {
         size_t seed = 0xf123123a;
 
-        auto hash = [&seed]() {
+        auto hash = [&seed]() -> uint32_t {
             constexpr size_t multiplier = 3202034522624059733L;
             constexpr size_t addend     = 0x421L;
-            auto next                   = (multiplier * seed + addend);
-            return seed                 = next;
+            seed                        = multiplier * seed + addend;
+            return static_cast<uint32_t>(seed);
         };
 
         TermFlags tvFlags = F_REFERENCE | F_GENERIC;

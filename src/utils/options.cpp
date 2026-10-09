@@ -33,7 +33,7 @@ bool SetLogLevelValue(Options::Table const&, Options::Option const& option, std:
     };
 
     for (auto& m : matchers) {
-        if (value.compare(m.str) == 0) {
+        if (value == m.str) {
             loc->SetLogLevel(m.level);
             return true;
         }

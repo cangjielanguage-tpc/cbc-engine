@@ -6,6 +6,13 @@
 
 namespace Utils {
 
+StringPool::~StringPool()
+{
+    for (const auto& s : strings) {
+        free(s.str);
+    }
+}
+
 StringPool::String StringPool::Intern(std::string_view str) { return strings[InternAndGetId(str)]; }
 
 size_t StringPool::InternAndGetId(std::string_view str)

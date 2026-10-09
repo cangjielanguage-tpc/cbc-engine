@@ -326,6 +326,10 @@ struct MethodTableBuilder {
 
     bool VerifyAndResolveConflicts(Session& session, size_t newEntriesStartIdx, size_t currentClassEntriesStartIdx)
     {
+        if (table.allEntries.Empty()) {
+            return false;
+        }
+
         Utils::Vector<MethodSymbol> symbols;
         symbols.Reserve(table.allEntries.Size());
 

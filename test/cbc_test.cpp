@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <iterator>
 #include <sstream>
@@ -11,6 +12,7 @@
 #include "interpreter/code.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
+#include "utils/vector.h"
 
 #include "interpreter/loggers.h"
 #include "mock/interpreter.h"
@@ -39,11 +41,10 @@ class CbcTest : public testing::Test {
 
 static std::unique_ptr<IO::ByteArrayRandomAccessFile> FromString(std::string_view view)
 {
-    char* data        = new char[view.size() + 1];
-    data[view.size()] = 0;
-    view.copy(data, view.size());
+    Utils::Vector<char> data(view.size());
+    std::copy(view.begin(), view.end(), data.Data());
 
-    return std::make_unique<IO::ByteArrayRandomAccessFile>(data, view.size());
+    return std::make_unique<IO::ByteArrayRandomAccessFile>(std::move(data));
 }
 
 TEST_F(CbcTest, Empty)
@@ -298,19 +299,27 @@ struct ConvertCase {
     Interpretation::Value::Primitive val;
 };
 
-ConvertCase convertToIntegerCases[] = {
-    { "I8_I32", false, U64(-128), U64(32896) },    { "I8_U32", false, U64(-128), U64(32896) },
-    { "I16_I32", false, U64(-32640), U64(32896) }, { "I16_U32", false, U64(-32640), U64(32896) },
-    { "I32_F32", true, U64(1), F32(1.0f) },        { "I32_F64", true, U64(1), F64(1.0) },
-    { "I32_I64", false, U64(1), U64(1) },          { "I32_U64", false, U64(1), U64(1) },
-    { "I64_F32", true, U64(1), F32(1.0f) },        { "I64_F64", true, U64(1), F64(1.0) },
-    { "I64_I32", false, U64(1), U32(1) },          { "I64_U32", false, U64(1), U32(1) },
-    { "U8_I32", false, U64(128), U32(32896) },     { "U8_U32", false, U64(128), U32(32896) },
-    { "U16_I32", false, U64(32896), U32(32896) },  { "U16_U32", false, U64(32896), U32(32896) },
-    { "U32_F32", true, U64(1), F32(1.0f) },        { "U32_F64", true, U64(1), F64(1.0) },
-    { "U32_U64", false, U64(1), U32(1) },          { "U64_F32", true, U64(1), F32(1.0f) },
-    { "U64_F64", true, U64(1), F64(1.0) }
-};
+ConvertCase convertToIntegerCases[] = { { "I8_I32", false, U64(static_cast<uint64_t>(-128)), U64(32896) },
+                                        { "I8_U32", false, U64(static_cast<uint64_t>(-128)), U64(32896) },
+                                        { "I16_I32", false, U64(static_cast<uint64_t>(-32640)), U64(32896) },
+                                        { "I16_U32", false, U64(static_cast<uint64_t>(-32640)), U64(32896) },
+                                        { "I32_F32", true, U64(1), F32(1.0f) },
+                                        { "I32_F64", true, U64(1), F64(1.0) },
+                                        { "I32_I64", false, U64(1), U64(1) },
+                                        { "I32_U64", false, U64(1), U64(1) },
+                                        { "I64_F32", true, U64(1), F32(1.0f) },
+                                        { "I64_F64", true, U64(1), F64(1.0) },
+                                        { "I64_I32", false, U64(1), U32(1) },
+                                        { "I64_U32", false, U64(1), U32(1) },
+                                        { "U8_I32", false, U64(128), U32(32896) },
+                                        { "U8_U32", false, U64(128), U32(32896) },
+                                        { "U16_I32", false, U64(32896), U32(32896) },
+                                        { "U16_U32", false, U64(32896), U32(32896) },
+                                        { "U32_F32", true, U64(1), F32(1.0f) },
+                                        { "U32_F64", true, U64(1), F64(1.0) },
+                                        { "U32_U64", false, U64(1), U32(1) },
+                                        { "U64_F32", true, U64(1), F32(1.0f) },
+                                        { "U64_F64", true, U64(1), F64(1.0) } };
 
 ConvertCase convertToFloat32Cases[] = { { "F32_F64", true, F32(1.0f), F64(1.0) },
                                         { "F32_I32", false, F32(1.0f), U64(1) },

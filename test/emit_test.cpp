@@ -336,10 +336,10 @@ TEST(EmitTest, Simple_BccImm)
         e.Ret();
     }
     e.Bind(fwd);
-    e.BccImm(CC::LT, Width::W32, IReg::IR1, 100, loop);    // lit neg offset
-    e.BccImm(CC::LT, Width::W32, IReg::IR1, -0xffff, end); // lit neg value, false res
+    e.BccImm(CC::LT, Width::W32, IReg::IR1, 100, loop);                           // lit neg offset
+    e.BccImm(CC::LT, Width::W32, IReg::IR1, static_cast<uint64_t>(-0xffff), end); // lit neg value, false res
     e.AddI(Width::W32, IReg::IR1, IReg::IR1, 1);
-    e.BccImm(CC::GE, Width::W32, IReg::IR1, -5, end); // neg value
+    e.BccImm(CC::GE, Width::W32, IReg::IR1, static_cast<uint64_t>(-5), end); // neg value
     e.Ret();
     e.AddI(Width::W32, IReg::IR1, IReg::IR1, 2);
     e.Bind(end);

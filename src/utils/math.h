@@ -46,9 +46,12 @@ template <typename T> inline T SignExtend(T value, uint32_t bits)
     return (value ^ m) - m;
 }
 
-inline uint32_t RightNBits32(uint32_t n) { return static_cast<uint32_t>(n == 32 ? -1 : ((1L << n) - 1)); }
+inline uint32_t RightNBits32(uint32_t n)
+{
+    return static_cast<uint32_t>(n == 32 ? UINT64_MAX : ((1ULL << n) - 1));
+}
 
-inline uint64_t RightNBits64(uint32_t n) { return static_cast<uint64_t>(n == 64 ? -1L : ((1L << n) - 1)); }
+inline uint64_t RightNBits64(uint32_t n) { return n == 64 ? UINT64_MAX : ((1ULL << n) - 1); }
 
 inline uint32_t ZeroExtend(uint32_t value, uint32_t bits) { return value & RightNBits32(bits); }
 
