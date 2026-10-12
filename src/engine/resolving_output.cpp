@@ -267,13 +267,7 @@ ResolvingOutput& ResolvingOutput::operator<<(Engine::MethodTable const& mt)
         auto signature = Engine::TermManager::Resolve(session, def.Signature());
         signature = sub.Substitute(signature);
 
-        Print("      {}: {} {} from: {}<", entry.methodNum, Detailed(def.Name()), signature, Detailed(def.TypeName()));
-        const char* sep  = "";
-        for (const auto& elem : entry.genericContext) {
-            Print("{}{}", sep, elem);
-            sep = ", ";
-        }
-        PrintLn(">");
+        PrintLn("      {}: {} {} from: {}", entry.methodNum, Detailed(def.Name()), signature, entry.genericContext);
     };
 
     auto writeTable = [&](Engine::MethodSubTable& st) {
