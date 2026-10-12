@@ -2,7 +2,6 @@
 
 #include <array>
 #include <fstream>
-#include <vector>
 
 #include "cbc/emitter/emitter.h"
 #include "cbc/formater_rt.h"
@@ -14,6 +13,7 @@
 #include "mock/interpreter.h"
 #include "resolution/resolution.h"
 #include "testutils.h"
+#include "utils/vector.h"
 
 namespace {
 
@@ -30,16 +30,14 @@ protected:
     void TearDown() override { InterfaceDispatchMock() = {}; }
 };
 
-Engine::Term Signature(Engine::Session& session, std::vector<Engine::TermKind> params)
+Engine::Term Signature(Engine::Session& session, const Utils::Vector<Engine::TermKind>& params)
 {
-    std::vector<Engine::Term> terms;
+    Utils::Vector<Engine::Term> terms;
     for (auto kind : params) {
-        terms.push_back(Engine::Term::Predefined(kind));
+        terms.PushBack(Engine::Term::Predefined(kind));
     }
-    terms.push_back(Engine::Term::Predefined(Engine::TermKind::I64));
-    return Engine::TermManager::NewTermWithId(
-        session, Engine::TagTermId(Engine::TermKind::FUNCTIONAL), false, { terms.data(), terms.size() }
-    );
+    terms.PushBack(Engine::Term::Predefined(Engine::TermKind::I64));
+    return Engine::TermManager::NewTermWithId(session, Engine::TagTermId(Engine::TermKind::FUNCTIONAL), false, terms);
 }
 
 StaticCallTypeInfoArgs TypeInfoArgs(
@@ -85,14 +83,16 @@ TEST_F(InterfaceCallTest, HiddenArgumentLocations)
         EXPECT_EQ(args.thisTi, 4 + shift);
 
         // Outer TI is in the last integer register and this TI is the first stack argument.
-        std::vector<K> params(IREG_PARAM_PASSING_AMOUNT - 1 - shift, K::I64);
+        Utils::Vector<K> params;
+        params.Resize(IREG_PARAM_PASSING_AMOUNT - 1 - shift, K::I64);
         args = TypeInfoArgs(session, Signature(session, params), sret, true);
         EXPECT_EQ(args.outerTi, IREG_PARAM_PASSING_AMOUNT);
         EXPECT_EQ(args.thisTi, IReg::VIRT_COUNT);
 
         // Both TIs spill, after integer and floating-point overflow arguments.
-        params.assign(IREG_PARAM_PASSING_AMOUNT + 2 - shift, K::I64);
-        params.insert(params.end(), FREG_ABI_AMOUNT + 1, K::F64);
+        params.Clear();
+        params.Resize(IREG_PARAM_PASSING_AMOUNT + 2 - shift, K::I64);
+        params.Resize(params.Size() + FREG_ABI_AMOUNT + 1, K::F64);
         args = TypeInfoArgs(session, Signature(session, params), sret, true);
         EXPECT_EQ(args.outerTi, IReg::VIRT_COUNT + 3);
         EXPECT_EQ(args.thisTi, IReg::VIRT_COUNT + 4);
@@ -239,8 +239,8 @@ TEST_F(InterfaceCallTest, StaticDispatchPreservesArguments)
                 EXPECT_EQ(thunk.function, mock.thunk.function);
                 EXPECT_EQ(thunk.arg, mock.thunk.arg);
                 EXPECT_EQ(reader.Cursor(), code.bytecode + code.bytecodeSize);
-                ASSERT_EQ(mock.outerTiCalls.size(), 1u);
-                ASSERT_EQ(mock.dispatchCalls.size(), 1u);
+                ASSERT_EQ(mock.outerTiCalls.Size(), 1u);
+                ASSERT_EQ(mock.dispatchCalls.Size(), 1u);
                 for (auto call : { mock.outerTiCalls[0], mock.dispatchCalls[0] }) {
                     EXPECT_EQ(call.receiver.UInt(), receiver.UInt());
                     EXPECT_EQ(call.reference.UInt(), reference.UInt());
@@ -285,11 +285,11 @@ TEST_F(InterfaceCallTest, InstanceDispatchStillReadsObjectHeader)
             mock.enabled = true;
             mock.outerTi = outer;
             Interpretation::InterpretationLoop(&ectype, { 0 }, RTSupport::ThreadHandle(nullptr), code.literals, reader);
-            ASSERT_EQ(mock.dispatchCalls.size(), 1u);
+            ASSERT_EQ(mock.dispatchCalls.Size(), 1u);
             EXPECT_EQ(mock.dispatchCalls[0].receiver.UInt(), objectHeader.UInt());
             EXPECT_EQ(mock.dispatchCalls[0].reference.UInt(), reference.UInt());
             EXPECT_EQ(mock.dispatchCalls[0].methodNum, 4);
-            EXPECT_EQ(mock.outerTiCalls.size(), generic ? 1u : 0u);
+            EXPECT_EQ(mock.outerTiCalls.Size(), generic ? 1u : 0u);
             if (generic) {
                 EXPECT_EQ(ectype.GetPrimitive(IReg::IR4).u64, outer.UInt());
             }

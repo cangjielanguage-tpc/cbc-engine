@@ -322,7 +322,7 @@ TypeInfo Execution::GetMethodOuterTi(TypeInfo where, TypeInfo interf, int method
 {
     auto& mock = InterfaceDispatchMock();
     ASSERT(mock.enabled);
-    mock.outerTiCalls.push_back({ where, interf, methodNum });
+    mock.outerTiCalls.PushBack({ where, interf, methodNum });
     return mock.outerTi;
 }
 
@@ -330,7 +330,7 @@ Interpretation::Thunk Execution::GetInterfaceThunk(TypeInfo where, TypeInfo ti, 
 {
     auto& mock = InterfaceDispatchMock();
     ASSERT(mock.enabled);
-    mock.dispatchCalls.push_back({ where, ti, methodNum });
+    mock.dispatchCalls.PushBack({ where, ti, methodNum });
     return mock.thunk;
 }
 
