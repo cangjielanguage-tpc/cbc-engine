@@ -374,6 +374,10 @@ Reference Execution::GetGlobalBasePtr() { FATAL("Should not reach here"); }
 
 Reference Execution::GetLocalBasePtr() { FATAL("Should not reach here"); }
 
+uintptr_t Execution::DerivedPtrOfGlobal(uintptr_t derived) { FATAL("Should not reach here"); }
+
+uintptr_t Execution::UnwrapDerivedPtr(uint64_t derived, bool checked) { FATAL("Should not reach here"); }
+
 Reference Execution::GetPendingException()
 {
     FATAL("Should not reach here");

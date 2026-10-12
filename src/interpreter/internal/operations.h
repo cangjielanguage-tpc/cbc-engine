@@ -739,11 +739,14 @@ template <> inline uint64_t DecodeImmediate<RT::ImmKind::LITERAL>(LiteralTable* 
 
 class MemoryLocation {
 public:
-    inline MemoryLocation(uint64_t location) : base(reinterpret_cast<uint8_t*>(location)), offset(0) {}
+    inline MemoryLocation(uint64_t location) : base(reinterpret_cast<uint8_t*>(location)), offset(0), isGlobal(true) {}
 
-    inline MemoryLocation(uint8_t* _base, intptr_t _offset) : base(_base), offset(_offset) {}
+    inline MemoryLocation(uint8_t* _base, intptr_t _offset) : base(_base), offset(_offset), isGlobal(false) {}
 
-    inline MemoryLocation(uintptr_t _base, intptr_t _offset) : base(reinterpret_cast<uint8_t*>(_base)), offset(_offset)
+    inline MemoryLocation(uintptr_t _base, intptr_t _offset)
+        : base(reinterpret_cast<uint8_t*>(_base)),
+          offset(_offset),
+          isGlobal(false)
     {}
 
     inline void StorePrim(StoreAccessKind::Value stk, Format::Reg src, Ectype* ectype);
@@ -761,6 +764,7 @@ private:
 
     uint8_t* base;
     intptr_t offset;
+    bool isGlobal;
 };
 
 template <> inline void MemoryLocation::Store<float>(Format::Reg src, Ectype* ectype)
@@ -799,7 +803,8 @@ template <> inline void MemoryLocation::Load<Value::Reference>(Format::Reg dst, 
 inline void MemoryLocation::Lea(Format::Reg dst, Ectype* ectype)
 {
     auto value = reinterpret_cast<uintptr_t>(base + offset);
-    ectype->Put(dst.IR(), Value::Reference { .value = value });
+    auto enrichedValue = isGlobal ? RTSupport::Execution::DerivedPtrOfGlobal(value) : value;
+    ectype->Put(dst.IR(), Value::Reference { .value = enrichedValue });
 }
 
 template <typename P> inline void MemoryLocation::Store(Format::Reg src, Ectype* ectype)

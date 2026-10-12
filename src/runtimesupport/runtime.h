@@ -141,6 +141,8 @@ struct Execution {
     static StructLocationKind GetStructLocationKind(Reference base, uintptr_t derived);
     static Reference GetGlobalBasePtr();
     static Reference GetLocalBasePtr();
+    static uintptr_t DerivedPtrOfGlobal(uintptr_t derived);
+    static uintptr_t UnwrapDerivedPtr(uint64_t derived, bool checked = true);
 
     static TypeInfo TypeArg(TypeInfo ti, uint32_t idx);
 

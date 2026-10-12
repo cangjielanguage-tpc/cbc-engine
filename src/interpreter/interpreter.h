@@ -313,39 +313,45 @@ public:
         RTSupport::Execution::AtomicWriteRef(srcRef, objRef, objRef.value + offset);
     }
 
-    inline bool LoadDerived(Format::LoadAccessKind ldk, Format::Reg dst, IReg base, IReg derived, uint64_t offset)
+    inline bool LoadDerived(Format::LoadAccessKind ldk, Format::Reg dst, IReg base, IReg derivedReg, uint64_t offset)
     {
         auto obj          = ectype->GetReference(base);
-        auto derivedAddr  = ectype->GetPrimitive(derived).u64;
-        auto locationKind = RTSupport::Execution::GetStructLocationKind(obj, derivedAddr);
+        auto derived      = ectype->GetPrimitive(derivedReg).u64;
+        auto locationKind = RTSupport::Execution::GetStructLocationKind(obj, derived);
         switch (locationKind) {
             case RTSupport::LOCAL:  return LoadRec(ldk, dst, base, offset);
-            case RTSupport::GLOBAL: return LoadRec(ldk, dst, IReg::IRZ, derivedAddr + offset);
-            case RTSupport::HEAP:   return LoadObj(ldk, dst, base, (derivedAddr - obj.value) + offset);
+            case RTSupport::HEAP:   return LoadObj(ldk, dst, base, (derived - obj.value) + offset);
+            case RTSupport::GLOBAL:
+                auto derivedAddr = RTSupport::Execution::UnwrapDerivedPtr(derived) + offset;
+                return LoadRecStatic(ldk, dst, derivedAddr);
         }
     }
 
-    inline bool StoreDerived(Format::StoreAccessKind stk, Format::Reg src, IReg base, IReg derived, uint64_t offset)
+    inline bool StoreDerived(Format::StoreAccessKind stk, Format::Reg src, IReg base, IReg derivedReg, uint64_t offset)
     {
         auto obj          = ectype->GetReference(base);
-        auto derivedAddr  = ectype->GetPrimitive(derived).u64;
-        auto locationKind = RTSupport::Execution::GetStructLocationKind(obj, derivedAddr);
+        auto derived      = ectype->GetPrimitive(derivedReg).u64;
+        auto locationKind = RTSupport::Execution::GetStructLocationKind(obj, derived);
         switch (locationKind) {
-            case RTSupport::LOCAL:  return StoreRec(stk, src, IReg::IRZ, derivedAddr + offset);
-            case RTSupport::GLOBAL: return StoreRec(stk, src, derived, offset);
-            case RTSupport::HEAP:   return StoreObj(stk, src, base, (derivedAddr - obj.value) + offset);
+            case RTSupport::LOCAL: return StoreRec(stk, src, base, derived + offset);
+            case RTSupport::HEAP:  return StoreObj(stk, src, base, (derived - obj.value) + offset);
+            case RTSupport::GLOBAL:
+                auto derivedAddr = RTSupport::Execution::UnwrapDerivedPtr(derived) + offset;
+                return StoreRecStatic(stk, src, derivedAddr);
         }
     }
 
-    inline bool StoreDerivedImm(Format::StoreAccessKind stk, IReg base, IReg derived, uint64_t offset, uint64_t imm)
+    inline bool StoreDerivedImm(Format::StoreAccessKind stk, IReg base, IReg derivedReg, uint64_t offset, uint64_t imm)
     {
         auto obj          = ectype->GetReference(base);
-        auto derivedAddr  = ectype->GetPrimitive(derived).u64;
-        auto locationKind = RTSupport::Execution::GetStructLocationKind(obj, derivedAddr);
+        auto derived      = ectype->GetPrimitive(derivedReg).u64;
+        auto locationKind = RTSupport::Execution::GetStructLocationKind(obj, derived);
         switch (locationKind) {
-            case RTSupport::LOCAL:  return StoreRecImm(stk, IReg::IRZ, derivedAddr + offset, imm);
-            case RTSupport::GLOBAL: return StoreRecImm(stk, derived, offset, imm);
-            case RTSupport::HEAP:   return StoreObjImm(stk, base, (derivedAddr - obj.value) + offset, imm);
+            case RTSupport::LOCAL: return StoreRecImm(stk, base, derived + offset, imm);
+            case RTSupport::HEAP:  return StoreObjImm(stk, base, (derived - obj.value) + offset, imm);
+            case RTSupport::GLOBAL:
+                uintptr_t derivedAddr = RTSupport::Execution::UnwrapDerivedPtr(derived) + offset;
+                return StoreRecStaticImm(stk, derivedAddr, imm);
         }
     }
 
@@ -384,21 +390,21 @@ public:
     inline bool LoadRec(Format::LoadAccessKind ldk, Format::Reg dst, IReg base, size_t offset)
     {
         auto ptr = static_cast<uintptr_t>(ectype->GetPrimitive(base).u64);
-        // IRZ means static record field, so whole position is encoded in accumulated offset
-        // FIXME: encode as separate operation
-        if (base != IReg::IRZ && ptr == 0) {
-            FATAL("LoadRec: base = %p, ptr = %p", base, ptr);
-            return false;
-        }
+        ASSERT(base != IReg::IRZ && ptr != 0);
         if (ldk == LoadAccessKind::LD_REF) {
-            if (base == IReg::IRZ) {
-                // Static record field requires barrier
-                ectype->Put(dst.IR(), RTSupport::Execution::ReadObjectStatic(reinterpret_cast<void*>(offset), handle));
-            } else {
-                MemoryLocation(ptr, offset).LoadRef(dst, ectype);
-            }
+            MemoryLocation(ptr, offset).LoadRef(dst, ectype);
         } else {
             MemoryLocation(ptr, offset).LoadPrim(ldk, dst, ectype);
+        }
+        return true;
+    }
+
+    inline bool LoadRecStatic(Format::LoadAccessKind ldk, Format::Reg dst, uintptr_t addr)
+    {
+        if (ldk == LoadAccessKind::LD_REF) {
+            ectype->Put(dst.IR(), RTSupport::Execution::ReadObjectStatic(reinterpret_cast<void*>(addr), handle));
+        } else {
+            MemoryLocation(addr).LoadPrim(ldk, dst, ectype);
         }
         return true;
     }
@@ -406,22 +412,22 @@ public:
     inline bool StoreRec(Format::StoreAccessKind stk, Format::Reg src, IReg base, uint64_t offset)
     {
         auto ptr = static_cast<uintptr_t>(ectype->GetPrimitive(base).u64);
-        // IRZ means static record field, so whole position is encoded in accumulated offset
-        // FIXME: encode as separate operation
-        if (base != IReg::IRZ && ptr == 0) {
-            FATAL("StoreRec: base = %p, ptr = %p", base, ptr);
-            return false;
-        }
+        ASSERT(base != IReg::IRZ && ptr != 0);
         if (stk == StoreAccessKind::ST_REF) {
-            auto ref = ectype->GetReference(src.IR());
-            if (base == IReg::IRZ) {
-                // Static record field requires barrier
-                RTSupport::Execution::WriteObjectStatic(reinterpret_cast<void*>(offset), ref, handle);
-            } else {
-                MemoryLocation(ptr, offset).StoreRef(src, ectype);
-            }
+            MemoryLocation(ptr, offset).StoreRef(src, ectype);
         } else {
             MemoryLocation(ptr, offset).StorePrim(stk, src, ectype);
+        }
+        return true;
+    }
+
+    inline bool StoreRecStatic(Format::StoreAccessKind stk, Format::Reg src, uintptr_t addr)
+    {
+        if (stk == StoreAccessKind::ST_REF) {
+            auto ref = ectype->GetReference(src.IR());
+            RTSupport::Execution::WriteObjectStatic(reinterpret_cast<void*>(addr), ref, handle);
+        } else {
+            MemoryLocation(addr).StorePrim(stk, src, ectype);
         }
         return true;
     }
@@ -429,14 +435,16 @@ public:
     inline bool StoreRecImm(Format::StoreAccessKind stk, IReg base, uint64_t offset, uint64_t imm)
     {
         auto ptr = static_cast<uintptr_t>(ectype->GetPrimitive(base).u64);
-        // IRZ means static record field, so whole position is encoded in accumulated offset
-        // FIXME: encode as separate operation
-        if (base != IReg::IRZ && ptr == 0) {
-            FATAL("StoreRecImm: base = %p, ptr = %p", base, ptr);
-            return false;
-        }
+        ASSERT(base != IReg::IRZ && ptr != 0);
         ASSERTION(stk <= Format::StoreAccessKind::ST_64, "Unexpected store access kind");
         MemoryLocation(ptr, offset).StoreImm(stk, imm);
+        return true;
+    }
+
+    inline bool StoreRecStaticImm(Format::StoreAccessKind stk, uintptr_t addr, uint64_t imm)
+    {
+        ASSERTION(stk <= Format::StoreAccessKind::ST_64, "Unexpected store access kind");
+        MemoryLocation(addr).StoreImm(stk, imm);
         return true;
     }
 
@@ -612,9 +620,10 @@ public:
 
         DerivedPointer(IReg baseReg, IReg derivedReg, Ectype* ectype)
         {
+            uintptr_t derived = ectype->GetPrimitive(derivedReg).u64;
             base        = ectype->GetReference(baseReg);
-            derivedAddr = ectype->GetPrimitive(derivedReg).u64;
-            kind        = RTSupport::Execution::GetStructLocationKind(base, derivedAddr);
+            derivedAddr       = RTSupport::Execution::UnwrapDerivedPtr(derived, false);
+            kind              = RTSupport::Execution::GetStructLocationKind(base, derived);
         }
 
         Value::Reference ReadReference(uintptr_t offset, RTSupport::ThreadHandle handle) const
