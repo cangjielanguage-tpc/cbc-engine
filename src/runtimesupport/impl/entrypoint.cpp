@@ -23,6 +23,7 @@
 #include "interpreter/function_handle.h"
 #include "interpreter/interpretation_loop.h"
 #include "interpreter/loggers.h"
+#include "profiler/profiler.h"
 #include "runtimesupport/impl/rt_syms.h"
 #include "stack_expansion.h"
 #include "utils/logger.h"
@@ -181,6 +182,10 @@ extern "C" Interpretation::Ectype* engine_fiber_data_init(DYN_CJThreadSpecificDa
         FATAL("Ectype allocation error");
     }
 
+    if (Cbc::Profiler::enabled) {
+        ectype->profile = Cbc::Profiler::CreateFiberProfile();
+    }
+
     *data = ectype;
 
     LOG_INFO(RTSupport::Log::rt, "fiber init, fsd: {}, ectype: {}", Stream::Hex(data), Stream::Hex(ectype));
@@ -196,7 +201,9 @@ static void FiberDestroy(DYN_CJThreadSpecificData* data)
     }
 
     LOG_INFO(RTSupport::Log::rt, "fiber destroy, fsd: {}, ectype: {}", Stream::Hex(data), Stream::Hex(*data));
-    delete static_cast<Interpretation::Ectype*>(*data)->Checked();
+    auto ectype = static_cast<Interpretation::Ectype*>(*data)->Checked();
+    Cbc::Profiler::DestroyFiberProfile(ectype->profile);
+    delete ectype;
 }
 
 static void IterateFramesWithState(

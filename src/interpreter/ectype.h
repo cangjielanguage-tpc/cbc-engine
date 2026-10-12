@@ -7,6 +7,11 @@
 #include "utils/logger.h"
 #include <cstddef>
 #include <cstdint>
+#include <memory>
+
+namespace Cbc::Profiler {
+struct FiberProfile;
+}
 
 #define MAGIC_WORD 0xCBC0C0DE
 
@@ -105,6 +110,7 @@ public:
 
     int64_t funcCtr { 0 };
     uint32_t magic = MAGIC_WORD;
+    std::shared_ptr<Cbc::Profiler::FiberProfile> profile;
 
 private:
     Logging::Level LogLevel() { return funcCtr > Log::skipThreshold ? Logging::Level::TRACE : Logging::Level::BLOCK; }

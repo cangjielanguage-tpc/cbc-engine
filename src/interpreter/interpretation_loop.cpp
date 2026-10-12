@@ -59,9 +59,6 @@ Interpretation::Thunk engine_interpretation_loop(
     FunctionHandle* fun
 )
 {
-    if (Profiler::enabled) {
-        Profiler::RegisterCurrentThread();
-    }
 #define NEXT goto* MAIN_TABLE[reader.PeekOpcode()]
 #define NEXT_COND(successful) goto* MAIN_TABLE[(successful) ? reader.PeekOpcode() : 0]
 #define MEM_NEXT goto* MEMSPACE_TABLE[reader.PeekOpcode()]
@@ -1084,8 +1081,10 @@ LABEL(DIRECT_CALL_2I) {
     // Instead, the following call will drop the current frame manually
     // (outside of unit-test framework).
 
-    if (Profiler::enabled) {
-        Profiler::RecordCall(reinterpret_cast<uintptr_t>(fun), reinterpret_cast<uintptr_t>(newFuh));
+    if (ectype->profile) {
+        ectype->profile->RecordCall(
+            reinterpret_cast<uintptr_t>(fun), reinterpret_cast<uintptr_t>(newFuh)
+        );
     }
 
     reader0 = reader; // save current pc
