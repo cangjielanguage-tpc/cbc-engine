@@ -9,14 +9,14 @@ Consumer -- отдельный поток-коллектор.
 ```
 class FiberProfile {
 public:
-    void RecordCall(FunctionId caller, FunctionId callee);
+    void RecordCall(FunctionId caller, CallSiteId callSite);
 
 private:
     static constexpr uint32_t CALL_BUFFER_SIZE = 4096;
 
     struct CallRecord {
         FunctionId caller;
-        FunctionId callee;
+        CallSiteId callSite;
     };
 
     struct CallBuffer {
@@ -37,8 +37,8 @@ private:
 ```
 
 - CALL_BUFFER_SIZE — количество записей в одном буфере.
-- CallRecord — одна пара вызова (caller, callee).
-- records — массив пар вызовов функций.
+- CallRecord — один вызов с функцией caller и адресом инструкции вызова в её байткоде.
+- records — массив записей о вызовах функций.
 - ready — атомарный флаг, показывающий, передан ли буфер Consumer.
 - buffers — два буфера для сбора событий одного файбера.
 - writerIndex — индекс буфера, в который Producer записывает события. Принимает значения 0 или 1.
@@ -59,10 +59,10 @@ private:
 ## Алгоритм записи
 
 ```
-void RecordCall(FunctionId caller, FunctionId callee)
+void RecordCall(FunctionId caller, CallSiteId callSite)
     {
         auto& current = buffers[writerIndex];
-        current.records[cursor] = CallRecord { caller, callee };
+        current.records[cursor] = CallRecord { caller, callSite };
 
         cursor = (cursor + 1) & (CALL_BUFFER_SIZE - 1);
         if (count < CALL_BUFFER_SIZE) {
@@ -75,7 +75,7 @@ void RecordCall(FunctionId caller, FunctionId callee)
     }
 ```
 1. Получаем текущий буфер для записи.
-2. Записываем пару вызовов в текущую ячейку.
+2. Записываем caller и адрес инструкции вызова в текущую ячейку.
 3. Вычисляем индекс следующей ячейки.
 4. Обновляем количество действительных записей
 5. Проверяем, можно ли отдавать буфер Comsumer`у
@@ -164,7 +164,7 @@ void ProcessBuffer(
 
 void ProcessRecord(const FiberProfile::CallRecord& record)
 {
-    CallEdge edge { record.caller, record.callee };
+    CallEdge edge { record.caller, record.callSite };
 
     const auto count = ++counters[edge];
 
@@ -177,6 +177,11 @@ void ProcessRecord(const FiberProfile::CallRecord& record)
 1. Последовательно перебираем действительные записи.
 2. Вычисляем физический индекс записи.
 3. Обновляем статистику счетчиков.
+
+Producer сохраняет абсолютный адрес инструкции вызова, Для прямого вызова `callee` однозначно определяется
+инструкцией. Когда счётчик достигает `HOT_CALL_COUNT`, Consumer получает байткод из
+`DynamicFunctionHandle`, вычисляет относительное смещение, декодирует `B3xi12` и извлекает `callee`
+из таблицы literals.
 
 
 ## Алгоритм завершения файбера
