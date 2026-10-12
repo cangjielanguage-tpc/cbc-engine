@@ -142,7 +142,11 @@ class Frame:
 
     @property
     def older(self) -> Optional["Frame"]:
-        return map_opt(self.gdb_frame.older(), lambda x: Frame(x, self.dbg))
+        try:
+            f = self.gdb_frame.older()
+        except:
+            return None
+        return map_opt(f, lambda x: Frame(x, self.dbg))
 
     @property
     def sal(self) -> Optional[Sal]:
