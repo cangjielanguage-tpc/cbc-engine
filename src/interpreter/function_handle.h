@@ -55,8 +55,8 @@ struct DynamicFunctionHandle {
         : base(i2Call),
           c2call(c2call),
           bytecode(nullptr),
-          lock(),
-          methodDef(methodDef)
+          methodDef(methodDef),
+          lock()
     {}
 
     // Can not use inheritance because of standard layout rules.
@@ -67,9 +67,10 @@ struct DynamicFunctionHandle {
     /// Lazily initialized.
     /// Holds the information about a frame of interpreted method and bytecode itself.
     std::atomic<ExecBytecodeInfo*> bytecode;
-    std::mutex lock;
 
     Image::Identifier<Image::MethodDefinition> const methodDef;
+
+    std::mutex lock;
 };
 
 /// Represents AOT compiled function.

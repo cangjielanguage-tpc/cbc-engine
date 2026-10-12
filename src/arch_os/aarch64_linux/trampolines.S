@@ -66,6 +66,38 @@
 #endif
 .endm
 
+.macro FUNC_START sym
+  .cfi_startproc
+#ifdef __APPLE__
+  .type \sym, $FUNCTION
+#else
+  .type \sym, @function
+#endif
+.endm
+
+.macro UNWIND_HINT_PROLOGUE_OFFS offs
+  .cfi_def_cfa_offset \offs
+  .cfi_offset 29, -\offs
+  .cfi_offset 30, -\offs + 8
+.endm
+
+.macro UNWIND_HINT_EPILOGUE
+  .cfi_restore 30
+  .cfi_restore 29
+  .cfi_def_cfa_offset 0
+.endm
+
+.macro UNWIND_HINT_PROLOGUE
+UNWIND_HINT_PROLOGUE_OFFS 16
+.endm
+
+.macro FUNC_END sym
+  .cfi_endproc
+#ifdef __ELF__
+  .size \sym, .-\sym
+#endif
+.endm
+
 .extern engine_prepare_bytecode
 .extern engine_interpretation_loop
 .extern engine_fiber_data_init
@@ -258,6 +290,7 @@ engine_trampolines_dyn_end:
 .macro engine_c2i_call ireg_count freg_count
   mov   x12, sp
   stp   x29, x30, [sp, #-StubFrameContextSize]!
+  UNWIND_HINT_PROLOGUE_OFFS StubFrameContextSize
   mov   x29, sp
 
   stp   x19, x20, [sp, #StubCalleeSaveAreaSize]
@@ -296,6 +329,7 @@ engine_trampolines_dyn_end:
   ldp   x25, x26, [sp, #StubCalleeSaveAreaSize+0x30]
   ldr   x27,      [sp, #StubCalleeSaveAreaSize+0x40] // do not restore tls reg
   ldp   x29, x30, [sp], #StubFrameContextSize
+  UNWIND_HINT_EPILOGUE
   ret
 
 .Lc2i_prepare_ectype\@:
@@ -305,8 +339,11 @@ engine_trampolines_dyn_end:
 
 .balign 16
 c2i_prepare_ectype:
+FUNC_START c2i_prepare_ectype
   // param passing registers could store real parameters of called c2i method
   stp   x29, x30, [sp, #-16]!
+  UNWIND_HINT_PROLOGUE
+  mov   x29, sp
   stp   x0, x1, [sp, #-16]!
   stp   x2, x3, [sp, #-16]!
   stp   x4, x5, [sp, #-16]!
@@ -334,18 +371,24 @@ c2i_prepare_ectype:
   ldp   x2, x3, [sp], #16
   ldp   x0, x1, [sp], #16
   ldp   x29, x30, [sp], #16
+  UNWIND_HINT_EPILOGUE
   ret
+FUNC_END c2i_prepare_ectype
 
 
 .balign 16
 // label that has to cover all c2i calls to range-check them
 engine_c2i_call_pc_start:
 engine_iregs_only_c2i_call:
+FUNC_START engine_iregs_only_c2i_call
   engine_c2i_call IREG_ABI_AMOUNT, 0
+FUNC_END engine_iregs_only_c2i_call
 
 .balign 16
 engine_all_regs_c2i_call:
+FUNC_START engine_all_regs_c2i_call
   engine_c2i_call IREG_ABI_AMOUNT, FREG_ABI_AMOUNT
+FUNC_END engine_all_regs_c2i_call
 
 engine_c2i_call_pc_end:
   brk   #0
@@ -354,6 +397,7 @@ engine_c2i_call_pc_end:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: fuh)
 // preserved: TLS_REG, ECTYPE_REG, x29
 perform_2i_call:
+FUNC_START perform_2i_call
 // The final layout of the frame is following:
 // +------------------------------------+
 // | Return Address                     |
@@ -377,7 +421,9 @@ perform_2i_call:
 // | Dynamic Locals (locals_size)       |
 // +------------------------------------+ <-- SP
   stp   x29, x30, [sp, #-16]!
+  UNWIND_HINT_PROLOGUE
   mov   x29, sp
+  .cfi_def_cfa_register 29
   // fp-0x8: FunctionHandle for frame scanning,
   // fp-0x10: Ectype
   // fp-0x18: Literals
@@ -509,6 +555,7 @@ perform_2i_call:
 
   mov   sp, x29
   ldp   x29, x30, [sp], #16
+  UNWIND_HINT_EPILOGUE
   ret
 
 .macro save_all_iregs scratch_reg
@@ -748,9 +795,7 @@ engine_i2_spawn_future:
   b     .Lrestart_interpretation
 
 // TREAT SYMBOLS ABOVE AS PART OF perform_2i_call
-#ifdef __ELF__
-.size perform_2i_call, .-perform_2i_call
-#endif
+FUNC_END perform_2i_call
 
 // fake execute closure function
 .balign 16

@@ -60,6 +60,20 @@
 #endif
 .endm
 
+.macro FUNC_START sym
+#ifdef __APPLE__
+  .type \sym, $FUNCTION
+#else
+  .type \sym, @function
+#endif
+.endm
+
+.macro FUNC_END sym
+#ifdef __ELF__
+  .size \sym, .-\sym
+#endif
+.endm
+
 .extern engine_prepare_bytecode
 .extern engine_interpretation_loop
 .extern engine_fiber_data_init
@@ -336,6 +350,7 @@ engine_trampolines_dyn_sret_end:
 
 .balign 16
 c2i_prepare_ectype:
+FUNC_START c2i_prepare_ectype
   // param passing registers could store real parameters of called c2i method
   mov   ECTYPE_REG, rax // temporarily store fuh on ECTYPE_REG
   push  rbp
@@ -369,6 +384,7 @@ c2i_prepare_ectype:
   pop_lst r9, r8, rcx, rdx, rsi, rdi
   pop   rbp
   ret
+FUNC_END c2i_prepare_ectype
 
 
 .balign 16
@@ -377,12 +393,16 @@ c2i_prepare_ectype:
 // label that is used to range-check all c2i call variations
 engine_c2i_call_pc_start:
 engine_all_regs_c2i_call:
+FUNC_START engine_all_regs_c2i_call
   engine_c2i_call IREG_ABI_AMOUNT, FREG_ABI_AMOUNT
+FUNC_END engine_all_regs_c2i_call
 
 .balign 16
 // variation of c2i call that only passes iregs
 engine_iregs_only_c2i_call:
+FUNC_START engine_iregs_only_c2i_call
   engine_c2i_call IREG_ABI_AMOUNT, 0
+FUNC_END engine_iregs_only_c2i_call
 
 // label that is used to range-check all c2i call variations
 engine_c2i_call_pc_end:
@@ -392,6 +412,7 @@ engine_c2i_call_pc_end:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: fuh)
 // preserved: TLS_REG, ECTYPE_REG, rbp
 perform_2i_call:
+FUNC_START perform_2i_call
 // The final layout of the frame is following:
 // +------------------------------------+
 // | Return Address                     |
@@ -759,9 +780,7 @@ engine_i2_spawn_future:
   jmp  .Lrestart_interpretation
 
 // TREAT SYMBOLS ABOVE AS PART OF perform_2i_call
-#ifdef __ELF__
-.size perform_2i_call, .-perform_2i_call
-#endif
+FUNC_END perform_2i_call
 
 // fake execute closure function
 .balign 16
