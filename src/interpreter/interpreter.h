@@ -319,7 +319,7 @@ public:
         auto derived      = ectype->GetPrimitive(derivedReg).u64;
         auto locationKind = RTSupport::Execution::GetStructLocationKind(obj, derived);
         switch (locationKind) {
-            case RTSupport::LOCAL:  return LoadRec(ldk, dst, base, offset);
+            case RTSupport::LOCAL:  return LoadRec(ldk, dst, derivedReg, offset);
             case RTSupport::HEAP:   return LoadObj(ldk, dst, base, (derived - obj.value) + offset);
             case RTSupport::GLOBAL:
                 auto derivedAddr = RTSupport::Execution::UnwrapDerivedPtr(derived) + offset;
@@ -333,7 +333,7 @@ public:
         auto derived      = ectype->GetPrimitive(derivedReg).u64;
         auto locationKind = RTSupport::Execution::GetStructLocationKind(obj, derived);
         switch (locationKind) {
-            case RTSupport::LOCAL: return StoreRec(stk, src, base, derived + offset);
+            case RTSupport::LOCAL: return StoreRec(stk, src, derivedReg, offset);
             case RTSupport::HEAP:  return StoreObj(stk, src, base, (derived - obj.value) + offset);
             case RTSupport::GLOBAL:
                 auto derivedAddr = RTSupport::Execution::UnwrapDerivedPtr(derived) + offset;
@@ -347,7 +347,7 @@ public:
         auto derived      = ectype->GetPrimitive(derivedReg).u64;
         auto locationKind = RTSupport::Execution::GetStructLocationKind(obj, derived);
         switch (locationKind) {
-            case RTSupport::LOCAL: return StoreRecImm(stk, base, derived + offset, imm);
+            case RTSupport::LOCAL: return StoreRecImm(stk, derivedReg, offset, imm);
             case RTSupport::HEAP:  return StoreObjImm(stk, base, (derived - obj.value) + offset, imm);
             case RTSupport::GLOBAL:
                 uintptr_t derivedAddr = RTSupport::Execution::UnwrapDerivedPtr(derived) + offset;
