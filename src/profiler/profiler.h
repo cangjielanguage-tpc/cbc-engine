@@ -10,6 +10,7 @@
 namespace Cbc::Profiler {
 
 using FunctionId = uintptr_t;
+using CallSiteId = uintptr_t;
 
 extern bool enabled;
 
@@ -20,10 +21,10 @@ class FiberProfileManager;
 
 class FiberProfile {
 public:
-    inline void RecordCall(FunctionId caller, FunctionId callee)
+    inline void RecordCall(FunctionId caller, CallSiteId callSite)
     {
-        auto& current = buffers[writerIndex];
-        current.records[cursor] = CallRecord { caller, callee };
+        auto& current           = buffers[writerIndex];
+        current.records[cursor] = CallRecord { caller, callSite };
 
         cursor = (cursor + 1) & (CALL_BUFFER_SIZE - 1);
         if (count < CALL_BUFFER_SIZE) {
@@ -40,7 +41,7 @@ private:
 
     struct CallRecord {
         FunctionId caller;
-        FunctionId callee;
+        CallSiteId callSite;
     };
 
     struct CallBuffer {

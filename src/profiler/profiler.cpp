@@ -1,5 +1,8 @@
 #include "profiler.h"
 
+#include "cbc/isa_rt.h"
+#include "interpreter/function_handle.h"
+#include "utils/assertion.h"
 #include "utils/ostream.h"
 
 #include <chrono>
@@ -47,11 +50,11 @@ public:
 private:
     struct CallEdge {
         FunctionId caller;
-        FunctionId callee;
+        CallSiteId callSite;
 
         bool operator==(const CallEdge& other) const
         {
-            return caller == other.caller && callee == other.callee;
+            return caller == other.caller && callSite == other.callSite;
         }
     };
 
@@ -59,7 +62,7 @@ private:
         size_t operator()(const CallEdge& edge) const
         {
             const auto a = std::hash<FunctionId> {}(edge.caller);
-            const auto b = std::hash<FunctionId> {}(edge.callee);
+            const auto b = std::hash<CallSiteId> {}(edge.callSite);
             return a ^ (b << 1);
         }
     };
@@ -78,14 +81,32 @@ private:
 
     void ProcessRecord(const FiberProfile::CallRecord& record)
     {
-        CallEdge edge { record.caller, record.callee };
+        CallEdge edge { record.caller, record.callSite };
         const auto count = ++counters[edge];
         if (count == HOT_CALL_COUNT) {
+            auto* callerFuh = reinterpret_cast<Interpretation::DynamicFunctionHandle*>(edge.caller);
+            auto* bytecode  = callerFuh->bytecode.load(std::memory_order_relaxed);
+            ASSERT(bytecode != nullptr);
+
+            const auto bytecodeStart = reinterpret_cast<uintptr_t>(bytecode->code.bytecode);
+            ASSERT(bytecodeStart <= edge.callSite);
+            ASSERT(edge.callSite < bytecodeStart + bytecode->code.bytecodeSize);
+            const auto callSiteOffset = edge.callSite - bytecodeStart;
+
+            auto* callSite = reinterpret_cast<uint8_t*>(edge.callSite);
+            Decoder::ByteReader reader(
+                callSite, bytecode->code.bytecode, bytecode->code.bytecode + bytecode->code.bytecodeSize
+            );
+            const auto args = Cbc::RT::B3xi12::Decode(reader);
+            ASSERT(args.opc == Cbc::RT::Opcode::DIRECT_CALL_2I);
+            const auto callee = bytecode->code.literals->at(args.xi12.imm12).uintptr;
+
             Log::profiler.Log(Logging::Level::DEBUG, [&](Stream::Output& out) {
                 out.PrintLn(
-                    "hot call {} -> {}: {} calls",
+                    "hot call {}+{} -> {}: {} calls",
                     reinterpret_cast<const void*>(edge.caller),
-                    reinterpret_cast<const void*>(edge.callee),
+                    callSiteOffset,
+                    reinterpret_cast<const void*>(callee),
                     count
                 );
             });
@@ -124,8 +145,7 @@ private:
             // Producer is permanently gone, so it is now safe to read
             // even the never-published, partially-filled active buffer.
             auto& current        = profile.buffers[profile.writerIndex];
-            const uint32_t start =
-                profile.count == FiberProfile::CALL_BUFFER_SIZE ? profile.cursor : 0;
+            const uint32_t start = profile.count == FiberProfile::CALL_BUFFER_SIZE ? profile.cursor : 0;
             ProcessBuffer(current, start, profile.count);
         }
 
@@ -194,10 +214,7 @@ void FiberProfile::TryPublish()
     count       = 0;
 }
 
-FiberProfileHandle CreateFiberProfile()
-{
-    return FiberProfileManager::Instance().RegisterFiber();
-}
+FiberProfileHandle CreateFiberProfile() { return FiberProfileManager::Instance().RegisterFiber(); }
 
 void DestroyFiberProfile(FiberProfileHandle& profile)
 {

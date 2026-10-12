@@ -1069,6 +1069,7 @@ LABEL(BFXZ) {
     NEXT;
 }
 LABEL(DIRECT_CALL_2I) {
+    auto* callSite = reader.Cursor();
     auto args = B3xi12::Decode(reader);
     LOG_INSTR;
     uint16_t imm = args.xi12.imm12;
@@ -1083,7 +1084,7 @@ LABEL(DIRECT_CALL_2I) {
 
     if (ectype->profile) {
         ectype->profile->RecordCall(
-            reinterpret_cast<uintptr_t>(fun), reinterpret_cast<uintptr_t>(newFuh)
+            reinterpret_cast<uintptr_t>(fun), reinterpret_cast<uintptr_t>(callSite)
         );
     }
 
