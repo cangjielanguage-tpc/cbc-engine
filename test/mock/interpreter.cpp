@@ -115,7 +115,7 @@ static void InterpreterI2CallTest(Ectype* ectype, ThreadHandle handle, DynamicFu
     if (!bytecode) {
         Engine::Session session(Engine::GetEngineInstance());
         auto& manager = FunctionHandleManager::Of(session);
-        bytecode      = manager.Prepare(session, fuh);
+        bytecode      = manager.Prepare(session, fuh).info;
     }
     auto code = bytecode->code;
 
