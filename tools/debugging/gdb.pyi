@@ -18,7 +18,7 @@ class Architecture:
 
 
 class Symtab:
-    filename: str
+    filename: Optional[str]
     objfile: Any
     producer: Optional[str]
     def is_valid(self) -> bool: ...

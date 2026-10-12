@@ -102,12 +102,16 @@ class Sal:
     _sal: gdb.Symtab_and_line
 
     @property
-    def filename(self) -> str:
-        return self._sal.symtab.filename
+    def filename(self) -> Optional[str]:
+        if self._sal and self._sal.symtab:
+            return self._sal.symtab.filename
+        return None
 
     @property
     def line(self) -> int:
-        return self._sal.line
+        if self._sal:
+            return self._sal.line or -1
+        return -1
 
 
 @dataclass
