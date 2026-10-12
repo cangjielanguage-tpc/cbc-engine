@@ -3,6 +3,7 @@
 #include "cbc/isa_disasm.h"
 #include "engine/field_layout.h"
 #include "engine/method_table.h"
+#include "interpreter/function_handle.h"
 #include "interpreter/loggers.h"
 #include "resolution/resolution.h"
 #include "runtimesupport/impl/entrypoint.h"
@@ -36,6 +37,7 @@ constexpr Option globalOptionsArray[] = {
     { "cbc.path", &g_cbcPath, &SetStringValue },
     { "cbc.main", &g_mainCbc, &SetStringValue },
     { "cbc.skip.n.int", &Interpretation::Log::skipThreshold, &SetIntValue },
+    { "cbc.debug.method.names", &engine_store_debug_names, &SetBoolValue },
 };
 
 namespace Engine {

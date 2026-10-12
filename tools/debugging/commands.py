@@ -50,7 +50,7 @@ def dump_frame(dbg: Debugger, frame: Frame) -> None:
     if cursor is not None and bc is not None:
         if bc.start <= cursor < bc.end:
             pos = cursor - bc.start
-            print(f"      bcPos: {pos} (0x{pos:x})")
+            print(f"      bcPos: 0x{pos:x} ({pos})")
         else:
             print(f"      bcPos: 0x{cursor:x} OUT OF RANGE [0x{bc.start:x}, 0x{bc.end:x})")
 

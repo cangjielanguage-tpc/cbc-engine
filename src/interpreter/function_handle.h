@@ -1,7 +1,6 @@
 #pragma once
 
 #include <atomic>
-#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <string_view>
@@ -9,8 +8,10 @@
 
 #include "code.h"
 #include "engine/engine.h"
-#include "engine/identifiers.h"
-#include "engine/terms.h"
+
+/// Exposed flag for debugging purposes.
+/// If set, `FunctionHandle` instances would store method names.
+extern "C" bool engine_store_debug_names;
 
 namespace API {
 class Resolver;
@@ -51,11 +52,12 @@ struct FunctionHandle {
 
 /// Function handle of cbc-provided function.
 struct DynamicFunctionHandle {
-    DynamicFunctionHandle(I2Call i2Call, C2Call c2call, Image::Identifier<Image::MethodDefinition> methodDef)
+    DynamicFunctionHandle(I2Call i2Call, C2Call c2call, Image::Identifier<Image::MethodDefinition> methodDef, char* debugName)
         : base(i2Call),
           c2call(c2call),
           bytecode(nullptr),
           methodDef(methodDef),
+          debugName(debugName),
           lock()
     {}
 
@@ -69,6 +71,7 @@ struct DynamicFunctionHandle {
     std::atomic<ExecBytecodeInfo*> bytecode;
 
     Image::Identifier<Image::MethodDefinition> const methodDef;
+    char* debugName;
 
     std::mutex lock;
 };

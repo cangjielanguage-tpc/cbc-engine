@@ -1,7 +1,6 @@
 """Layout descriptors: frame slots, function handles, bytecode info."""
 
 from api import Arch, Debugger, Frame, TypeKind, map_opt
-from state import cached
 from typing import Any, Callable, Optional, TypeVar, overload
 
 import gdb
@@ -51,7 +50,7 @@ class ExecBytecodeInfo:
     static_frame_size = Field(0x34, TypeKind.U32)
 
     def __init__(self, dbg: Debugger, ptr: int) -> None:
-        self.ptr = ptr 
+        self.ptr = ptr
         self.dbg = dbg
 
     @property
@@ -64,16 +63,11 @@ class ExecBytecodeInfo:
                 f"frame_size={self.frame_size}, static_frame_size={self.static_frame_size})")
 
 
-@cached
-def _mdef_name(mdef: int) -> str:
-    val = gdb.parse_and_eval(f"engine_dbg_mdef_name(0x{mdef:x})")
-    return val.string()
-
-
 @with_layout
 class DynamicFunctionHandle:
     bytecode_ptr = Field(0x10, TypeKind.U64)
     mdef         = Field(0x18, TypeKind.U64)
+    mdef_name    = Field(0x20, TypeKind.U64)
 
     def __init__(self, dbg: Debugger, ptr: int) -> None:
         self.ptr = ptr
@@ -85,7 +79,10 @@ class DynamicFunctionHandle:
 
     @property
     def name(self) -> str:
-        return _mdef_name(self.mdef)
+        addr = self.mdef_name
+        if not addr:
+            return "<unknown>"
+        return self.dbg.read_cstring(addr) or "<unreadable>"
 
     def __repr__(self) -> str:
         return f"DynamicFunctionHandle(addr=0x{self.ptr:x}, mdef=0x{self.mdef:x})"
