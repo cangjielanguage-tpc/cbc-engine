@@ -2,17 +2,13 @@
 
 #include "utils/ostream.h"
 
-#include "utils/assertion.h"
-#include <algorithm>
-#include <array>
-#include <atomic>
 #include <chrono>
 #include <condition_variable>
-#include <memory>
+#include <cstdint>
+#include <list>
 #include <mutex>
 #include <thread>
 #include <unordered_map>
-#include <vector>
 
 namespace Cbc::Profiler {
 
@@ -22,222 +18,193 @@ Stream::Descripted Log::stream(Stream::cerr, "[profiler] ");
 Logging::Logger Log::profiler(&Log::stream);
 
 namespace {
+constexpr uint64_t HOT_CALL_COUNT = 100;
+constexpr auto COLLECTION_PERIOD  = std::chrono::seconds(1);
+} // namespace
 
-using namespace std::chrono_literals;
-
-constexpr auto COLLECTION_PERIOD = 1s;
-
-struct ThreadProfile {
-    uint64_t writeSequence { 0 }; // interpreter thread only
-    uint64_t readSequence { 0 };  // collector thread only
-    std::array<CallRecord, CALL_BUFFER_SIZE> records;
-    std::atomic<bool> active { true };
-};
-
-struct CallEdge {
-    FunctionId caller;
-    FunctionId callee;
-
-    bool operator==(const CallEdge& other) const { return caller == other.caller && callee == other.callee; }
-};
-
-struct CallEdgeHash {
-    size_t operator()(const CallEdge& edge) const
-    {
-        auto callerHash = std::hash<FunctionId> {}(edge.caller);
-        auto calleeHash = std::hash<FunctionId> {}(edge.callee);
-        return callerHash ^ (calleeHash << 1);
-    }
-};
-
-class Manager {
+class FiberProfileManager {
 public:
-    static Manager& Instance()
+    static FiberProfileManager& Instance()
     {
-        static Manager manager;
-        return manager;
+        static FiberProfileManager instance;
+        return instance;
     }
 
-    std::shared_ptr<ThreadProfile> RegisterThread()
+    FiberProfileHandle RegisterFiber()
     {
-        auto profile = std::make_shared<ThreadProfile>();
-        std::lock_guard<std::mutex> lock(profilesMutex);
-        profiles.emplace_back(profile);
+        auto profile = std::make_shared<FiberProfile>();
+        std::list<FiberProfileHandle> one;
+        one.emplace_back(profile);
+
+        {
+            std::lock_guard<std::mutex> lock(queueMutex);
+            pending.splice(pending.end(), one);
+        }
+        wakeup.notify_one();
         return profile;
     }
 
 private:
-    Manager() : worker(&Manager::Run, this) {}
+    struct CallEdge {
+        FunctionId caller;
+        FunctionId callee;
 
-    ~Manager()
+        bool operator==(const CallEdge& other) const
+        {
+            return caller == other.caller && callee == other.callee;
+        }
+    };
+
+    struct CallEdgeHash {
+        size_t operator()(const CallEdge& edge) const
+        {
+            const auto a = std::hash<FunctionId> {}(edge.caller);
+            const auto b = std::hash<FunctionId> {}(edge.callee);
+            return a ^ (b << 1);
+        }
+    };
+
+    FiberProfileManager() : worker(&FiberProfileManager::Run, this) {}
+
+    ~FiberProfileManager()
     {
         {
-            std::lock_guard<std::mutex> lock(wakeupMutex);
+            std::lock_guard<std::mutex> lock(queueMutex);
             stopping = true;
         }
         wakeup.notify_one();
         worker.join();
     }
 
-    void Run()
+    void ProcessRecord(const FiberProfile::CallRecord& record)
     {
-        std::unique_lock<std::mutex> lock(wakeupMutex);
-        while (!wakeup.wait_for(lock, COLLECTION_PERIOD, [&] { return stopping; })) {
-            lock.unlock();
-            Collect();
-            lock.lock();
+        CallEdge edge { record.caller, record.callee };
+        const auto count = ++counters[edge];
+        if (count == HOT_CALL_COUNT) {
+            Log::profiler.Log(Logging::Level::DEBUG, [&](Stream::Output& out) {
+                out.PrintLn(
+                    "hot call {} -> {}: {} calls",
+                    reinterpret_cast<const void*>(edge.caller),
+                    reinterpret_cast<const void*>(edge.callee),
+                    count
+                );
+            });
         }
-        lock.unlock();
-        Collect();
     }
 
-    void Collect()
+    void ProcessBuffer(const FiberProfile::CallBuffer& buffer, uint32_t start, uint32_t count)
     {
-        auto collection  = ConsumeBuffers();
-        auto collected   = collection.first;
-        auto overwritten = collection.second;
-        if (collected == 0 && overwritten == 0) {
-            return;
+        for (uint32_t i = 0; i < count; ++i) {
+            const auto index = (start + i) & (FiberProfile::CALL_BUFFER_SIZE - 1);
+            ProcessRecord(buffer.records[index]);
         }
-
-        Log::profiler.Log(Logging::Level::DEBUG, [&](Stream::Output& out) {
-            out.PrintLn(
-                "collected {} calls, overwritten {} calls, {} edges total", collected, overwritten, counters.size()
-            );
-        });
     }
 
-    std::pair<uint64_t, uint64_t> ConsumeBuffers()
+    void ConsumePublished(FiberProfile& profile)
     {
-        std::lock_guard<std::mutex> lock(profilesMutex);
+        for (auto& buffer : profile.buffers) {
+            if (!buffer.ready.load(std::memory_order_acquire)) {
+                continue;
+            }
 
-        uint64_t collected   = 0;
-        uint64_t overwritten = 0;
-        for (const auto& profile : profiles) {
-            while (true) {
-                auto expectedSequence = profile->readSequence;
-                const auto& record    = profile->records[expectedSequence & (CALL_BUFFER_SIZE - 1)];
+            ProcessBuffer(buffer, 0, FiberProfile::CALL_BUFFER_SIZE);
+            buffer.ready.store(false, std::memory_order_release);
+        }
+    }
 
-                auto versionBefore = record.version.load(std::memory_order_acquire);
-                if (versionBefore == 0 || (versionBefore & 1) != 0) {
-                    break;
-                }
+    bool ConsumeProfile(FiberProfile& profile)
+    {
+        // Take one snapshot before reading ready flags. If the producer has
+        // finished, this acquire makes all of its final state visible.
+        const bool finished = !profile.active.load(std::memory_order_acquire);
 
-                auto recordSequence = versionBefore / 2 - 1;
-                if (recordSequence < expectedSequence) {
-                    break;
-                }
-                if (recordSequence > expectedSequence) {
-                    // This slot has wrapped, but another slot can still hold
-                    // an older record. Find the oldest complete record instead
-                    // of unnecessarily discarding the rest of the ring.
-                    auto oldestSequence = recordSequence;
-                    for (const auto& candidate : profile->records) {
-                        auto candidateVersion = candidate.version.load(std::memory_order_acquire);
-                        if (candidateVersion == 0 || (candidateVersion & 1) != 0) {
-                            continue;
-                        }
-                        auto candidateSequence = candidateVersion / 2 - 1;
-                        if (candidateSequence >= expectedSequence && candidateSequence < oldestSequence) {
-                            oldestSequence = candidateSequence;
-                        }
-                    }
-                    overwritten           += oldestSequence - expectedSequence;
-                    profile->readSequence  = oldestSequence;
-                    continue;
-                }
+        ConsumePublished(profile);
 
-                auto caller       = record.caller.load(std::memory_order_relaxed);
-                auto callee       = record.callee.load(std::memory_order_relaxed);
-                auto versionAfter = record.version.load(std::memory_order_acquire);
-                if (versionBefore != versionAfter) {
-                    continue;
-                }
+        if (finished) {
+            // Producer is permanently gone, so it is now safe to read
+            // even the never-published, partially-filled active buffer.
+            auto& current        = profile.buffers[profile.writerIndex];
+            const uint32_t start =
+                profile.count == FiberProfile::CALL_BUFFER_SIZE ? profile.cursor : 0;
+            ProcessBuffer(current, start, profile.count);
+        }
 
-                CallEdge edge { caller, callee };
-                auto& count = counters[edge];
-                count++;
-                collected++;
-                if (count == HOT_CALL_COUNT) {
-                    Log::profiler.Log(Logging::Level::DEBUG, [&](Stream::Output& out) {
-                        out.PrintLn(
-                            "hot call {} -> {}: {} calls",
-                            reinterpret_cast<const void*>(edge.caller),
-                            reinterpret_cast<const void*>(edge.callee),
-                            count
-                        );
-                    });
-                }
-                profile->readSequence = recordSequence + 1;
+        return finished;
+    }
+
+    void ConsumeActiveProfiles()
+    {
+        for (auto it = activeProfiles.begin(); it != activeProfiles.end();) {
+            auto& profile = **it;
+            if (ConsumeProfile(profile)) {
+                it = activeProfiles.erase(it);
+            } else {
+                ++it;
             }
         }
-
-        profiles.erase(
-            std::remove_if(
-                profiles.begin(),
-                profiles.end(),
-                [](const auto& profile) {
-                    return !profile->active.load(std::memory_order_acquire) &&
-                           profile->readSequence == profile->writeSequence;
-                }
-            ),
-            profiles.end()
-        );
-
-        return { collected, overwritten };
     }
 
-    std::mutex profilesMutex;
-    std::vector<std::shared_ptr<ThreadProfile>> profiles;
+    void Run()
+    {
+        std::unique_lock<std::mutex> lock(queueMutex);
+        while (true) {
+            wakeup.wait_for(lock, COLLECTION_PERIOD, [&] { return stopping || !pending.empty(); });
 
+            std::list<FiberProfileHandle> newcomers;
+            newcomers.splice(newcomers.end(), pending);
+            const bool shouldStop = stopping;
+            lock.unlock();
+
+            activeProfiles.splice(activeProfiles.end(), newcomers);
+            ConsumeActiveProfiles();
+
+            if (shouldStop) {
+                return;
+            }
+            lock.lock();
+        }
+    }
+
+    std::mutex queueMutex;
+    std::condition_variable wakeup;
+    std::list<FiberProfileHandle> pending;
+    bool stopping { false }; // guarded by queueMutex
+
+    // Owned exclusively by collector thread.
+    std::list<FiberProfileHandle> activeProfiles;
     std::unordered_map<CallEdge, uint64_t, CallEdgeHash> counters;
 
-    std::mutex wakeupMutex;
-    std::condition_variable wakeup;
-    bool stopping { false };
     std::thread worker;
 };
 
-class ThreadRegistration {
-public:
-    ~ThreadRegistration()
-    {
-        if (profile) {
-            profile->active.store(false, std::memory_order_release);
-        }
-    }
-
-    std::shared_ptr<ThreadProfile> profile;
-};
-
-thread_local ThreadRegistration threadRegistration;
-thread_local ThreadProfile* currentProfile = nullptr;
-
-} // namespace
-
-void RegisterCurrentThread()
+void FiberProfile::TryPublish()
 {
-    if (currentProfile != nullptr) {
+    const uint32_t nextIndex = writerIndex ^ 1u;
+    auto& next               = buffers[nextIndex];
+
+    if (next.ready.load(std::memory_order_acquire)) {
         return;
     }
-    threadRegistration.profile = Manager::Instance().RegisterThread();
-    currentProfile             = threadRegistration.profile.get();
+
+    auto& current = buffers[writerIndex];
+    current.ready.store(true, std::memory_order_release);
+
+    writerIndex = nextIndex;
+    cursor      = 0;
+    count       = 0;
 }
 
-void RecordCall(FunctionId caller, FunctionId callee)
+FiberProfileHandle CreateFiberProfile()
 {
-    ASSERT(currentProfile != nullptr);
-    auto& profile          = *currentProfile;
-    auto sequence          = profile.writeSequence++;
-    auto& record           = profile.records[sequence & (CALL_BUFFER_SIZE - 1)];
-    auto inProgressVersion = sequence * 2 + 1;
-
-    record.version.store(inProgressVersion, std::memory_order_relaxed);
-    // Make the in-progress marker visible before either payload word. This is
-    // a compiler barrier on x86_64 and a store barrier on AArch64.
-    std::atomic_thread_fence(std::memory_order_release);
-    record.caller.store(caller, std::memory_order_relaxed);
-    record.callee.store(callee, std::memory_order_relaxed);
-    record.version.store(inProgressVersion + 1, std::memory_order_release);
+    return FiberProfileManager::Instance().RegisterFiber();
 }
+
+void DestroyFiberProfile(FiberProfileHandle& profile)
+{
+    if (profile) {
+        profile->active.store(false, std::memory_order_release);
+        profile.reset();
+    }
+}
+
 } // namespace Cbc::Profiler
