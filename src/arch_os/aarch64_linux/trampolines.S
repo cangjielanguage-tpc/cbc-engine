@@ -401,9 +401,22 @@ perform_2i_call:
 
   ldr   x9, [x0, #FUNCTION_HANDLE_BYTECODE_OFFSET]
   cbnz  x9, .Lhave_bytecode
+
+  sub sp, sp, #16
+  mov x1, sp
+
   // function handle is already on x0
   bl    engine_prepare_bytecode
-  mov   x9, x0
+
+  cbz x0, .Lafter_patch
+
+  // FUH patching:
+  str x0, [x29, #-FUH_SLOT_OFFSET]
+
+.Lafter_patch:
+  ldr x9, [sp]
+  add sp, sp, #16
+
 .Lhave_bytecode:
 
   ldr   LITERALS_REG, [x9, #EXEC_BYTECODE_INFO_LITERALS_OFFSET]

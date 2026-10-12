@@ -1,19 +1,25 @@
+#include <array>
 #include <atomic>
 #include <mutex>
 #include <new>
+#include <string>
+#include <string_view>
 #include <unordered_map>
 #include <variant>
 
 #include "adapters.h"
 #include "cbc/isa_rewriter.h"
+#include "engine/engine.h"
 #include "engine/image/flags.h"
 #include "engine/image/reader.h"
 #include "engine/resolving_output.h"
 #include "function_handle.h"
+#include "interpreter/code.h"
 #include "interpreter/loggers.h"
 #include "resolution/resolution.h"
 #include "runtimesupport/adapters.h"
 #include "utils/assertion.h"
+#include "utils/misc.h"
 #include "utils/ostream.h"
 
 namespace Interpretation {
@@ -29,6 +35,7 @@ public:
     using Ident = Image::Identifier<MethodDefinition>;
     std::mutex lock;
     std::unordered_map<Ident::Packed, TaggedFunctionHandle> fuhMap;
+    std::array<DynamicFunctionHandle*, static_cast<size_t>(Helper::Count)> helpers;
 };
 
 FunctionHandleManager::FunctionHandleManager() : impl(std::make_unique<FunctionHandleManager::Impl>()) {}
@@ -36,9 +43,59 @@ FunctionHandleManager::FunctionHandleManager() : impl(std::make_unique<FunctionH
 FunctionHandleManager::~FunctionHandleManager()                               = default;
 FunctionHandleManager::FunctionHandleManager(FunctionHandleManager&& manager) = default;
 
-[[noreturn]] static void UnresolvedAotMethodCalled()
+[[noreturn]] static void UnresolvedAotMethodCalled() { FATAL("Called unresolved AOT method"); }
+
+[[noreturn]] static void HelperWasNotFound(std::string_view methodName)
 {
-    FATAL("Called unresolved AOT method");
+    FATAL("Helper method %s was not found", methodName);
+}
+
+std::unordered_map<Helper, std::string> helperNames = {
+    { Helper::ThrowAbstractMethodCallError, "throwAbstractMethodCallError" },
+    { Helper::ThrowSymbolResolutionError, "throwSymbolResolutionError" },
+};
+
+void FunctionHandleManager::SetHelper(Helper helper, DynamicFunctionHandle* handle)
+{
+    impl->helpers[static_cast<size_t>(helper)] = handle;
+}
+
+DynamicFunctionHandle* FunctionHandleManager::GetHelper(Helper helper)
+{
+    auto handle = impl->helpers[static_cast<size_t>(helper)];
+    ASSERT(handle != nullptr);
+    return handle;
+}
+
+static DynamicFunctionHandle* FindAndPrepareHelper(
+    Session& session, FunctionHandleManager& fhm, std::string_view methodName, std::string_view fileName
+)
+{
+    // FIXME: change this to intrinsics.cbc in future iterations
+    auto typeName = "$P$cbc_intrinsics";
+    UNWRAP_OPT_NORETURN(method, session.GetEngine().FindMethod(session, fileName, typeName, methodName), [&]() {
+        HelperWasNotFound(methodName);
+    });
+
+    auto taggedHandle = fhm.AcquireTagged(session, method);
+    if (auto* dynFuh = std::get_if<DynamicFunctionHandle*>(&taggedHandle)) {
+        auto fuh = *dynFuh;
+        auto res = fhm.Prepare(session, fuh);
+        if (!res.success) {
+            FATAL("Failure during preparation of helper method %s", methodName);
+        }
+        return fuh;
+    } else {
+        FATAL("Helper method %s was found in AOT code instead of cbc", methodName);
+    }
+}
+
+void FunctionHandleManager::FindAndPrepareHelpers(Session& session, std::string_view mainCbc)
+{
+    for (const auto& [helper, methodName] : helperNames) {
+        auto fuh = FindAndPrepareHelper(session, *this, methodName, mainCbc);
+        SetHelper(helper, fuh);
+    }
 }
 
 TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
@@ -75,7 +132,7 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
             .base     = FunctionHandle(RTSupport::Adapters::GenericI2CCallInstance()),
             .function = target,
         };
-        auto mem = new(std::nothrow) StaticFunctionHandle(fuh);
+        auto mem = new (std::nothrow) StaticFunctionHandle(fuh);
         if (mem == nullptr) {
             FATAL("out of memory");
         }
@@ -87,7 +144,7 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
     auto newDynFuh = [&]() -> DynamicFunctionHandle* {
         auto i2Call = PrepareI2Call(session, methodDef);
         auto c2Call = PrepareC2Call(session, methodDef);
-        auto mem    = new(std::nothrow) DynamicFunctionHandle(i2Call, c2Call, methodDef);
+        auto mem    = new (std::nothrow) DynamicFunctionHandle(i2Call, c2Call, methodDef);
         if (mem == nullptr) {
             FATAL("out of memory");
         }
@@ -112,12 +169,12 @@ FunctionHandle* FunctionHandleManager::Acquire(Session& session, Image::Identifi
     }
 }
 
-ExecBytecodeInfo* FunctionHandleManager::Prepare(Session& session, DynamicFunctionHandle* fuh)
+PreparationResult FunctionHandleManager::Prepare(Session& session, DynamicFunctionHandle* fuh)
 {
     std::lock_guard guard(fuh->lock);
 
     if (auto bytecode = fuh->bytecode.load(); bytecode != nullptr) {
-        return bytecode;
+        return PreparationResult::Success(bytecode, fuh);
     }
 
     auto& logger = Interpretation::Log::preparation;
@@ -131,13 +188,20 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Session& session, DynamicFuncti
     auto& heap    = session.GetEngine().CodeHeap();
     auto bytecode = Cbc::Rewrite(session, fuh->methodDef, heap);
 
-    auto bc = new(std::nothrow) ExecBytecodeInfo(bytecode);
-    if (bc == nullptr) FATAL("Out of memory");
+    if (!bytecode.has_value()) {
+        auto dynFuh   = GetHelper(Helper::ThrowSymbolResolutionError);
+        auto byteCode = dynFuh->bytecode.load();
+        return PreparationResult::Fail(byteCode, dynFuh);
+    }
+
+    auto bc = new (std::nothrow) ExecBytecodeInfo(bytecode.value());
+    if (bc == nullptr)
+        FATAL("Out of memory");
 
     // ensure `bc` content writes completes before publication.
     std::atomic_thread_fence(std::memory_order_seq_cst);
     fuh->bytecode.store(bc, std::memory_order_relaxed);
-    return bc;
+    return PreparationResult::Success(bc, fuh);
 }
 
 void* FunctionHandleManager::GetFunctionPtrForDirectCall(TaggedFunctionHandle fuh)

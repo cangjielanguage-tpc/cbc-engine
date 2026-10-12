@@ -359,11 +359,6 @@ struct MethodTableMember {
     DYN_FuncPtr function;
 };
 
-[[noreturn]] static void AbstractMethodCalled()
-{
-    FATAL("Called abstract method");
-}
-
 /// Returns pair of (handle, function) that describes member in method table.
 static MethodTableMember GetTableMember(
     Engine::Session& session, Image::Identifier<Image::MethodDefinition> methodId, int entryIdx
@@ -375,8 +370,9 @@ static MethodTableMember GetTableMember(
     ASSERTION(flags.Is(Image::MethodFlag::VIRTUAL), "Only virtual methods are expected");
 
     if (flags.Is(Image::MethodFlag::ABSTRACT)) {
-        // TODO: put stub method that throws
-        return { nullptr, reinterpret_cast<DYN_FuncPtr>(&AbstractMethodCalled) };
+        auto& manager = Interpretation::FunctionHandleManager::Of(session);
+        auto helper   = manager.GetHelper(Interpretation::Helper::ThrowAbstractMethodCallError);
+        return { &helper->base, Adapters::GetDynCallTrampoline(entryIdx, flags.Is(Image::MethodFlag::SRET)) };
     } else if (flags.Is(Image::MethodFlag::AOT)) {
         // target must be present with aot flag
         auto& manager  = Interpretation::FunctionHandleManager::Of(session);
