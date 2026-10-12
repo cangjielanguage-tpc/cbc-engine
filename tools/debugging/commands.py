@@ -92,11 +92,7 @@ class IBtCommand(gdb.Command):
         if sal and sal.filename:
             loc = f"at {blue(f'{sal.filename}:{sal.line}')}"
         else:
-            lib = frame.shared_library
-            if lib:
-                loc = f"from {lib}"
-            else:
-                loc = ""
+            loc = ""
 
         if num == 0 and name is not None and sal and sal.filename:
             # Frame 0: no address prefix, two-line format

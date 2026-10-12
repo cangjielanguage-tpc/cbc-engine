@@ -52,7 +52,6 @@ class Inferior:
 
 
 def selected_inferior() -> Inferior: ...
-def find_shared_library(address: int) -> Optional[Segment]: ...
 
 
 class _Event:

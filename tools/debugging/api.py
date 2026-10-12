@@ -148,8 +148,3 @@ class Frame:
     def sal(self) -> Optional[Sal]:
         return map_opt(self.gdb_frame.find_sal(), Sal)
 
-    @property
-    def shared_library(self) -> Optional[str]:
-        seg = gdb.find_shared_library(self.pc)
-        return seg.name() if seg else None
-
