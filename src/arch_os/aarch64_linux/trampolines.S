@@ -532,31 +532,7 @@ FUNC_START perform_2i_call
   mov   x0, x1
 .Linterpreter_call:
   br    x9
-
-.Lend_interpretation:
-
-#ifndef NDEBUG
-  ldr   x0, [x29, #-FUH_SLOT_OFFSET]
-  mov   x1, ECTYPE_REG
-  bl    engine_log_int_end
-#endif
-
-  ldr   x9, [x29, #-FUH_SLOT_OFFSET] // load Function Handle
-  ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
-
-  ldr   w1, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
-  mov   x2, sp
-  add   x1, x1, x2 // add frame size to locate saved registers
-
-  POP_REGS x8, x1, x9, x2, x3, x4
-
-  ldr   ECTYPE_REG, [x29, #-ECTYPE_REG_SAVED_SLOT_OFFSET]
-  ldp   EXTRA_REG, LITERALS_REG, [x29, #-EXTRA_SAVED_REG_OFFSET]
-
-  mov   sp, x29
-  ldp   x29, x30, [sp], #16
-  UNWIND_HINT_EPILOGUE
-  ret
+  brk   #0
 
 .macro save_all_iregs scratch_reg
   .set _offset, 0
@@ -794,6 +770,29 @@ engine_i2_spawn_future:
   blr   x9
   b     .Lrestart_interpretation
 
+.Lend_interpretation:
+#ifndef NDEBUG
+  ldr   x0, [x29, #-FUH_SLOT_OFFSET]
+  mov   x1, ECTYPE_REG
+  bl    engine_log_int_end
+#endif
+
+  ldr   x9, [x29, #-FUH_SLOT_OFFSET] // load Function Handle
+  ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
+
+  ldr   w1, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
+  mov   x2, sp
+  add   x1, x1, x2 // add frame size to locate saved registers
+
+  POP_REGS x8, x1, x9, x2, x3, x4
+
+  ldr   ECTYPE_REG, [x29, #-ECTYPE_REG_SAVED_SLOT_OFFSET]
+  ldp   EXTRA_REG, LITERALS_REG, [x29, #-EXTRA_SAVED_REG_OFFSET]
+
+  mov   sp, x29
+  ldp   x29, x30, [sp], #16
+  UNWIND_HINT_EPILOGUE
+  ret
 // TREAT SYMBOLS ABOVE AS PART OF perform_2i_call
 FUNC_END perform_2i_call
 
