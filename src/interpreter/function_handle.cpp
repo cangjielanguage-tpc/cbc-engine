@@ -11,7 +11,6 @@
 #include "cbc/isa_rewriter.h"
 #include "engine/engine.h"
 #include "engine/image/flags.h"
-#include "engine/image/reader.h"
 #include "engine/resolving_output.h"
 #include "function_handle.h"
 #include "interpreter/code.h"
@@ -21,6 +20,10 @@
 #include "utils/assertion.h"
 #include "utils/misc.h"
 #include "utils/ostream.h"
+
+extern "C" {
+bool engine_store_debug_names;
+}
 
 namespace Interpretation {
 
@@ -98,6 +101,14 @@ void FunctionHandleManager::FindAndPrepareHelpers(Session& session, std::string_
     }
 }
 
+static char* MethodName(Session& session, Image::MethodDefinition methodDef)
+{
+    Stream::StringBuffer buf;
+    Stream::ResolvingOutput out(session, buf);
+    out << methodDef;
+    return buf.ToCString();
+}
+
 TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
     Session& session, Image::Identifier<Image::MethodDefinition> methodDef
 )
@@ -144,7 +155,13 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
     auto newDynFuh = [&]() -> DynamicFunctionHandle* {
         auto i2Call = PrepareI2Call(session, methodDef);
         auto c2Call = PrepareC2Call(session, methodDef);
-        auto mem    = new (std::nothrow) DynamicFunctionHandle(i2Call, c2Call, methodDef);
+
+        char* name = nullptr;
+        if (engine_store_debug_names) {
+            name = MethodName(session, method);
+        }
+
+        auto mem    = new (std::nothrow) DynamicFunctionHandle(i2Call, c2Call, methodDef, name);
         if (mem == nullptr) {
             FATAL("out of memory");
         }

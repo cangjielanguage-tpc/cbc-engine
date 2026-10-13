@@ -1,7 +1,7 @@
 
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Any, Callable, List, Optional, TypeVar
+from typing import Any, Callable, Optional, TypeVar
 from enum import Enum, IntEnum
 
 import gdb
@@ -72,6 +72,12 @@ class Debugger:
             print(f"failed to read at 0x{addr:x}")
             return None
 
+    def read_cstring(self, addr: int) -> Optional[str]:
+        try:
+            return gdb.parse_and_eval(f"(char*)0x{addr:x}").string()
+        except:
+            return None
+
     def frame(self, n: int) -> Optional["Frame"]:
         frame = gdb.newest_frame()
         for _ in range(n):
@@ -83,8 +89,13 @@ class Debugger:
     def selected_frame(self) -> Optional["Frame"]:
         return map_opt(gdb.selected_frame(), lambda x: Frame(x, self))
 
-    def on_exit(self, fn: Callable[[], Any]):
+    def on_exit(self, fn: Callable[[Any], Any]):
         gdb.events.exited.connect(fn)
+
+    def on_lib_load(self, fn: Callable[["NewLibraryEvent"], Any]):
+        def wrapper(event):
+            fn(NewLibraryEvent(event))
+        gdb.events.new_objfile.connect(wrapper)
 
     @cached_property
     def arch(self) -> Arch:
@@ -151,4 +162,35 @@ class Frame:
     @property
     def sal(self) -> Optional[Sal]:
         return map_opt(self.gdb_frame.find_sal(), Sal)
+
+
+@dataclass
+class Symbol:
+    _sym: gdb.Symbol
+
+    @property
+    def name(self) -> str:
+        return self._sym.name
+
+    @property
+    def location(self) -> int:
+        addr = self._sym.value().address
+        assert addr is not None, f"symbol {self._sym.name} is not addressable"
+        return int(addr)
+
+    def set(self, value: int) -> None:
+        self._sym.value().assign(gdb.Value(value))
+
+
+@dataclass
+class NewLibraryEvent:
+    _event: gdb.NewObjFileEvent
+
+    @property
+    def filename(self) -> Optional[str]:
+        return self._event.new_objfile.filename
+
+    def symbol(self, name: str) -> Optional["Symbol"]:
+        sym = self._event.new_objfile.lookup_global_symbol(name)
+        return map_opt(sym, Symbol)
 
