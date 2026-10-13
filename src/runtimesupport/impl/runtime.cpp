@@ -266,20 +266,20 @@ bool Execution::IsReference(TypeInfo ti)
 
 StructLocationKind Execution::GetStructLocationKind(Reference base, uintptr_t derived)
 {
-    if (base.value == 0) {
-        return LOCAL;
-    }
-
+    // Order is important: first check for GLOBAL, then for LOCAL
 #if defined(__x86_64__) || defined(_M_X64)
     if ((base.value & DERIVED_PTR_GLOBAL_FLAG) != 0) {
         return StructLocationKind::GLOBAL;
     }
 #elif defined(__aarch64__) || defined(_M_ARM64)
     if ((derived & DERIVED_PTR_GLOBAL_FLAG) != 0) {
+        ASSERT(base.value == 0xDEB);
         return StructLocationKind::GLOBAL;
     }
 #endif
-
+    if (base.value == 0) {
+        return LOCAL;
+    }
     return HEAP;
 }
 
@@ -288,11 +288,32 @@ Reference Execution::GetGlobalBasePtr()
 #if defined(__x86_64__) || defined(_M_X64)
     return Reference { .value = DERIVED_PTR_GLOBAL_FLAG };
 #elif defined(__aarch64__) || defined(_M_ARM64)
-    return Reference { .value = 0 };
+    return Reference { .value = 0xDEB };
 #endif
 }
 
 Reference Execution::GetLocalBasePtr() { return Reference { .value = 0 }; }
+
+uintptr_t Execution::DerivedPtrOfGlobal(uintptr_t derived)
+{
+#if defined(__x86_64__) || defined(_M_X64)
+    return derived;
+#elif defined(__aarch64__) || defined(_M_ARM64)
+    return derived | DERIVED_PTR_GLOBAL_FLAG;
+#endif
+}
+
+uintptr_t Execution::UnwrapDerivedPtr(uint64_t derived, bool checked)
+{
+#if defined(__x86_64__) || defined(_M_X64)
+    return derived;
+#elif defined(__aarch64__) || defined(_M_ARM64)
+    if (checked) {
+        ASSERT((derived & DERIVED_PTR_GLOBAL_FLAG) > 0);
+    }
+    return derived & ~DERIVED_PTR_GLOBAL_FLAG;
+#endif
+}
 
 Reference Execution::GetPendingException()
 {
