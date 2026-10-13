@@ -122,6 +122,7 @@
     X(IOF, IOF, "iof $0ir $1ir $2U64")                                                                                 \
     X(NEWBOX, B2xr, "newbox $0U8")                                                                                     \
     X(NEWBOX2, B9i64, "newbox2 $0U64")                                                                                 \
+    X(UNBOX_T, B6xri32, "unbox.t $1ir $2U32")                                                                          \
     X(OFFSET, B6xri32, "offset $1ir $2U32 }")                                                                          \
     X(READ_STRUCT_FIELD, StructFieldOp, "read.struct.field $0ir $1ir $2ir $4U64")                                      \
     X(WRITE_STRUCT_FIELD, StructFieldOp, "write.struct.field $0ir $1ir $2ir $4U64")                                    \

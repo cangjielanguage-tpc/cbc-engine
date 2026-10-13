@@ -281,6 +281,7 @@ public:
 
     void NewBox(Interpretation::BuiltinType t);
     void NewBox(RTSupport::TypeInfo typeInfo);
+    void UnboxT(IReg src, int32_t frameOffs);
     void Offset(IReg dst, int ordinal, IReg typeInfo);
 
     void WriteStructField(IReg src, IReg base, IReg field, RTSupport::TypeInfo ti);
