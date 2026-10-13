@@ -222,6 +222,7 @@ public:
     void NewObjGenericOnAcc(IReg ti);
     void NewObj(RTSupport::TypeInfo typeInfo, bool pinned = false);
     void NewArr(RTSupport::TypeInfo typeInfo);
+    void NewArrGeneric(IReg ti);
     void LoadObj(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset);
     void StoreObj(StoreAccessKind stk, Reg src, IReg base, uint32_t offset);
     void LoadArray(LoadAccessKind ldk, Reg dst, IReg base, IReg idx);
@@ -240,6 +241,7 @@ public:
     void CopyDerivedGeneric(IReg dstBase, IReg dst, IReg srcBase, IReg src, IReg ti);
     void LeaIndex(IReg dst, IReg src, IReg idx, RTSupport::TypeInfo ti, bool isCangjeiArray);
     void LeaIndexGeneric(IReg dst, IReg src, IReg idx, IReg ti);
+    void LeaConstIndexGeneric(IReg dst, IReg src, int64_t idx, IReg ti);
 
     void LoadFrame(LoadAccessKind ldk, Reg dst, int32_t offset);
     void StoreFrame(StoreAccessKind stk, Reg src, int32_t offset);

@@ -784,6 +784,18 @@ LABEL(NEWARR) {
 
     return { func, type.Raw() };
 }
+LABEL(NEWARR_G) {
+    auto args = B2rr::Decode(reader);
+    LOG_INSTR;
+    auto type = TypeInfo(ectype->GetPrimitive(args.rr.x.IR()).u64);
+
+    // Puts result to `IR1`, expects length to be passed on `IR2`.
+    auto func = RTSupport::Execution::AllocateArrayInstance();
+
+    reader0 = reader; // save current pc
+
+    return { func, type.Raw() };
+}
 LABEL(LOAD_ADDR) {
     auto args = B2xr::Decode(reader);
     LOG_INSTR;
@@ -865,13 +877,25 @@ LABEL(INDEX) {
     NEXT;
 }
 
-// Unused. TODO: support element access for generic arrays
 LABEL(INDEX_GENERIC) {
+    // This instruction is used only for CangjieArray and can't be used for VArray and Tuple.
     auto args = IndexGeneric::Decode(reader);
     LOG_INSTR;
     auto tiReg = args.idx.y;
-    auto ti = TypeInfo(ectype->GetPrimitive(tiReg.IR()).u64);
+    auto arrayTI = TypeInfo(ectype->GetPrimitive(tiReg.IR()).u64);
+    auto ti = RTSupport::MetaInfo::GetElementTypeInfo(arrayTI);
     interpreter.LeaIndex(args.rr.x.IR(), args.rr.y.IR(), args.idx.x.IR(), ti);
+    NEXT;
+}
+
+LABEL(CONST_INDEX_GENERIC) {
+    // This instruction is used only for CangjieArray and can't be used for VArray and Tuple.
+    auto args = ConstIndexGeneric::Decode(reader);
+    LOG_INSTR;
+    auto tiReg = args.ti.x;
+    auto arrayTI = TypeInfo(ectype->GetPrimitive(tiReg.IR()).u64);
+    auto ti = RTSupport::MetaInfo::GetElementTypeInfo(arrayTI);
+    interpreter.LeaIndex(args.rr.x.IR(), args.rr.y.IR(), args.idx.imm, ti);
     NEXT;
 }
 

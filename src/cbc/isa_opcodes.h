@@ -58,6 +58,7 @@
     X(BinaryImm64, BinaryImm<Width::W64>)                                                                              \
     X(Convert, Convert)                                                                                                \
     X(NewArr, NewArr)                                                                                                  \
+    X(NewArrGeneric, NewArrGeneric)                                                                                    \
     X(GcPoint, GcPoint)                                                                                                \
     X(PrepareRecord, PrepareRecord)                                                                                    \
     X(TodoDelete, PrepareRecord)                                                                                       \
@@ -85,6 +86,7 @@
     X(TypeArg, TypeArg)                                                                                                \
     X(Box, Box)                                                                                                        \
     X(BoxT, BoxT)                                                                                                      \
+    X(BoxTGeneric, BoxTGeneric)                                                                                        \
     X(Unbox, Unbox)                                                                                                    \
     X(UnboxT, UnboxT)                                                                                                  \
     X(BoxRec, BoxRec)                                                                                                  \
@@ -136,6 +138,7 @@
     X(CopyGeneric, CopyGeneric)                                                                                        \
     X(Index, LeaIndex)                                                                                                 \
     X(IndexGeneric, LeaIndexGeneric)                                                                                   \
+    X(ConstIndexGeneric, LeaConstIndexGeneric)                                                                         \
     X(ZeroValGeneric, ZeroValGeneric)                                                                                  \
     X(FMathUnary32, FMathUnary32)                                                                                      \
     X(FMathUnary64, FMathUnary64)                                                                                      \

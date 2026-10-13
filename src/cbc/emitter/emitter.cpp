@@ -717,6 +717,11 @@ void Emitter::NewArr(RTSupport::TypeInfo typeInfo)
     );
 }
 
+void Emitter::NewArrGeneric(IReg ti)
+{
+    Encode(segment, RT::B2rr { .opc = RT::Opcode::NEWARR_G, .rr = { ti, ti } });
+}
+
 void Emitter::InitClosure(bool instantiatedSret)
 {
     auto opcode = instantiatedSret ? RT::Opcode::INITCLOSURE_SRET : RT::Opcode::INITCLOSURE;
@@ -854,6 +859,19 @@ void Emitter::LeaIndexGeneric(IReg dst, IReg src, IReg idx, IReg ti)
             .opc = RT::Opcode::INDEX_GENERIC,
             .rr  = RR { .x = dst, .y = src },
             .idx = RR { .x = idx, .y = ti },
+        }
+    );
+}
+
+void Emitter::LeaConstIndexGeneric(IReg dst, IReg src, int64_t idx, IReg ti)
+{
+    Encode(
+        segment,
+        RT::ConstIndexGeneric {
+            .opc = RT::Opcode::CONST_INDEX_GENERIC,
+            .rr  = RR { .x = dst, .y = src },
+            .ti = RR { .x = ti, .y = 0 },
+            .idx = Imm64 { .imm = static_cast<uint64_t>(idx) },
         }
     );
 }

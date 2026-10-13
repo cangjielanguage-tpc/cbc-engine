@@ -431,6 +431,12 @@ struct IsaParserImpl {
         parser.NewArr(dst, len, id);
     }
 
+    static void NewArrGeneric(IsaParser& parser)
+    {
+        auto [dst, len, ti, _] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
+        parser.NewArrGeneric(dst, len, ti);
+    }
+
     template <Width::Value width> static void FMovImm(IsaParser& parser)
     {
         if constexpr (width == Width::W32) {
@@ -584,6 +590,12 @@ struct IsaParserImpl {
     {
         auto [dst, src, idx, ti] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
         parser.LeaIndexGeneric(dst, src, idx, ti);
+    }
+
+    static void LeaConstIndexGeneric(IsaParser& parser)
+    {
+        auto [dst, src, ti, _, idx] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadSLEB().Get();
+        parser.LeaConstIndexGeneric(dst, src, idx, ti);
     }
 
     static void LoadRawMemory(IsaParser& parser)
@@ -882,6 +894,12 @@ struct IsaParserImpl {
     {
         auto [_, dst, src] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
         parser.BoxT(src, dst);
+    }
+
+    static void BoxTGeneric(IsaParser& parser)
+    {
+        auto [ti, dst, src] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.BoxTGeneric(src, dst, ti);
     }
 
     static void Unbox(IsaParser& parser)
