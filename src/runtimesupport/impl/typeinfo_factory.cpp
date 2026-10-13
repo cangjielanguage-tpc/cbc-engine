@@ -809,6 +809,14 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
             auto tt = (TypeTemplate*)typeTemplate;
 
+            if (tt->type == TYPE_KIND_TEMP_ENUM) {
+                // Workaround for #159.
+                // `TEMP_ENUM` tag is needed for cjnative reflection support.
+                // In other cases, `TEMP_ENUM` behaves exactly as usual classes.
+                ASSERT(TYPE_KIND_CLASS == builder.type);
+                builder.type = TYPE_KIND_TEMP_ENUM;
+            }
+
             if (builder.type != TYPE_KIND_TUPLE && builder.type != TYPE_KIND_VARRAY) {
                 ASSERT(tt->typeArgNum == typeArgsNum);
                 ASSERT(tt->type == builder.type);
