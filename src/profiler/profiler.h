@@ -1,5 +1,15 @@
 #pragma once
 
+#if defined(CBC_PROFILER_ATOMIC)
+
+#include "profiler_atomic/profiler.h"
+
+#elif defined(CBC_PROFILER_BLOCKING)
+
+#include "profiler_blocking/profiler.h"
+
+#else
+
 #include "utils/logger.h"
 
 #include <array>
@@ -21,7 +31,7 @@ class FiberProfileManager;
 
 class FiberProfile {
 public:
-    inline void RecordCall(FunctionId caller, CallSiteId callSite)
+    [[gnu::always_inline]] inline void RecordCall(FunctionId caller, CallSiteId callSite)
     {
         auto& current           = buffers[writerIndex];
         current.records[cursor] = CallRecord { caller, callSite };
@@ -51,7 +61,7 @@ private:
 
     // Producer-only. Called after filling the current buffer. If the collector
     // still owns the other buffer, keep the current one and overwrite it in place.
-    void TryPublish();
+    [[gnu::noinline, gnu::cold]] void TryPublish();
 
     friend class FiberProfileManager;
     friend void DestroyFiberProfile(FiberProfileHandle& profile);
@@ -77,3 +87,5 @@ FiberProfileHandle CreateFiberProfile();
 void DestroyFiberProfile(FiberProfileHandle& profile);
 
 } // namespace Cbc::Profiler
+
+#endif
