@@ -127,27 +127,7 @@ void Execution::ReadStructField(uintptr_t dst, Reference base, uintptr_t field, 
     RTSupport::ReadStructField(dst, reinterpret_cast<DYN_ObjRef>(base.value), field, size, type->gctib);
 }
 
-void* Execution::AllocateObjectInstance() { return reinterpret_cast<void*>(&Asm::engine_i2_newobject); }
-
-void* Execution::AllocateObjectPinnedInstance() { return reinterpret_cast<void*>(&Asm::engine_i2_newobject_pinned); }
-
-void* Execution::AllocateObjectInstanceAcc() { return reinterpret_cast<void*>(&Asm::engine_i2_newobject_acc); }
-
-void* Execution::AllocateArrayInstance() { return reinterpret_cast<void*>(&Asm::engine_i2_newarray); }
-
-void* Execution::HandleException() { return reinterpret_cast<void*>(&Asm::engine_handle_exception); }
-
-void* Execution::ThrowImplicitException() { return reinterpret_cast<void*>(&Asm::engine_throw_implicit_exception); }
-
 void* Execution::GcPoint() { return reinterpret_cast<void*>(g_CJNativeInterfaceInstance.safePoint); }
-
-void* Execution::GcPointTrampoline() { return reinterpret_cast<void*>(&Asm::engine_i2_gcpoint); }
-
-void* Execution::LoadGeneric() { return reinterpret_cast<void*>(&Asm::engine_i2_load_generic); }
-
-void* Execution::Spawn() { return reinterpret_cast<void*>(&Asm::engine_i2_spawn); }
-
-void* Execution::SpawnFuture() { return reinterpret_cast<void*>(&Asm::engine_i2_spawn_future); }
 
 bool Execution::IsPendingSafePoint()
 {
@@ -194,10 +174,10 @@ static Interpretation::Thunk GetDynCallThunk(void* fn, TypeInfo ti)
     if (IsDynCallTrampoline(fn)) {
         // Fast path: it is trampoline, meaning i2i call. We just get fuh and run i2i call as usual.
         auto fuh = GetDynamicCall(fn, reinterpret_cast<CbcTypeInfo*>(ti.Raw()));
-        return { Adapters::I2ICallInstance(), reinterpret_cast<void*>(fuh) };
+        return { Interpretation::ThunkOp::I2ICall, reinterpret_cast<void*>(fuh) };
     }
 
-    return { Adapters::GenericI2CCallInstance(), fn };
+    return { Interpretation::ThunkOp::I2CCall, fn };
 }
 
 void Execution::InitializeClosure(Reference closure, bool instantiatedSret)

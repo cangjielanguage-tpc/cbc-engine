@@ -57,11 +57,17 @@ static void DoInterpretationLoop(
     Log::interpretation.Stream(Logging::Level::DEBUG).NewLine();
     while (true) {
         auto thunk = InterpretationLoop(ectype, frame, th, literals, reader);
-        if (!thunk.function) {
+        if (thunk.op == ThunkOp::None) {
             break;
         }
-        auto func = reinterpret_cast<void (*)(Ectype*, ThreadHandle, void*)>(thunk.function);
-        func(ectype, th, thunk.arg);
+        switch (thunk.op) {
+            case ThunkOp::NewObject:
+            case ThunkOp::NewObjectAcc: MockNewObj(ectype, th, TypeInfo(thunk.arg)); break;
+            case ThunkOp::I2ICall:
+                InterpreterI2CallTest(ectype, th, reinterpret_cast<DynamicFunctionHandle*>(thunk.arg));
+                break;
+            default: FATAL("Unhandled mock thunk op");
+        }
     }
     Log::interpretation.Stream(Logging::Level::DEBUG).PrintFmt("Stopped interpration of mock method");
     Log::interpretation.Stream(Logging::Level::DEBUG).NewLine();
@@ -336,35 +342,7 @@ Interpretation::Thunk Execution::GetInterfaceThunk(TypeInfo where, TypeInfo ti, 
     return mock.thunk;
 }
 
-void* Execution::AllocateObjectInstance() { return reinterpret_cast<void*>(&Interpretation::MockNewObj); }
-
-void* Execution::AllocateObjectInstanceAcc() { return reinterpret_cast<void*>(&Interpretation::MockNewObj); }
-
-void* Execution::AllocateObjectPinnedInstance() { FATAL("Should not reach here"); }
-
-void* Execution::AllocateArrayInstance() { return reinterpret_cast<void*>(&Interpretation::MockNewObj); }
-
-void* Execution::HandleException()
-{
-    FATAL("Should not reach here");
-    return nullptr;
-}
-
-void* Execution::ThrowImplicitException()
-{
-    FATAL("Should not reach here");
-    return nullptr;
-}
-
-void* Execution::GcPointTrampoline() { FATAL("Should not reach here"); }
-
-void* Execution::LoadGeneric() { FATAL("Should not reach here"); }
-
 void* Execution::GcPoint() { FATAL("Should not reach here"); }
-
-void* Execution::Spawn() { FATAL("Should not reach here"); }
-
-void* Execution::SpawnFuture() { FATAL("Should not reach here"); }
 
 bool Execution::IsPendingSafePoint() { return false; }
 

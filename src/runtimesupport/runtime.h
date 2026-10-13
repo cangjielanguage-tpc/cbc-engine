@@ -72,35 +72,8 @@ struct ShortGCTib {
 struct Execution {
     using Reference = Interpretation::Value::Reference;
 
-    /// Each element represent an function that accepts (Ectype, ThreadHandle, TypeInfo)
-    /// and puts result in IReg(idx) register.
-    ///
-    /// This specialization is needed to allow Thunk usage.
-
-    // dst = IR1
-    static void* AllocateObjectInstance();
-
-    // dst = IR1
-    static void* AllocateObjectPinnedInstance();
-
-    // dst = IR_ACC
-    static void* AllocateObjectInstanceAcc();
-
-    // dst = IR1
-    static void* AllocateArrayInstance();
-
-    static void* LoadGeneric();
-
-    static void* HandleException();
-
-    static void* ThrowImplicitException();
-
+    /// Safepoint function pointer, passed as the `arg` of the `GcPoint` thunk op.
     static void* GcPoint();
-
-    static void* GcPointTrampoline();
-
-    static void* Spawn();
-    static void* SpawnFuture();
 
     static bool IsPendingSafePoint();
 
