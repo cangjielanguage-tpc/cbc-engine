@@ -40,6 +40,8 @@ struct Location {
     static Location FReg(FReg::Value reg) { return Location { IReg::VIRT_COUNT + static_cast<int>(reg) }; }
 
     static Location Slot(int slot) { return Location { IReg::VIRT_COUNT + FReg::COUNT + slot }; }
+
+    static Location Nil() { return Location { -1 }; }
 };
 
 // Abstract sink for resolved moves. Implementations emit the actual

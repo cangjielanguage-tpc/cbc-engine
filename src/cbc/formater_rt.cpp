@@ -403,14 +403,14 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, BinarySatu
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, InterfaceCall args)
 {
-    Operand operands[] = { args.vnum, args.ti, args.sret };
+    Operand operands[] = { args.vnum, args.ti, args.sret, args.outerTiArg, args.thisTiArg };
     Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, InterfaceCallGeneric args)
 {
-    Operand operands[] = { args.vnum, args.argn, args.sret };
+    Operand operands[] = { args.vnum, args.sret, args.outerTiArg, args.thisTiArg };
     Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }

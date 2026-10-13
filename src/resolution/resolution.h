@@ -123,7 +123,7 @@ struct InterfaceCall {
         std::string_view name;
         MethodSignature signature;
         int methodNum;
-        bool sret;
+        Image::MethodRefFlags flags;
     };
 
     Content* operator->() const { return content; };

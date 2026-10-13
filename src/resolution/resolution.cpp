@@ -625,17 +625,16 @@ struct ResolverProxy {
             return std::nullopt;
         }
         auto refType = resolver.Wrap(ref.refType);
-        auto sret    = ref.flags.Is(Image::MethodRefFlag::SRET);
 
         if (ref.flags.Is(Image::MethodRefFlag::AOT)) {
             auto data = Decode::GetAotData<Image::InterfaceCallAotData>(resolver, ref.identifier);
             auto sig  = ConstructSignature(resolver, ref);
-            return InterfaceCall::Content { refType, ref.name, std::move(sig), data.inum, sret };
+            return InterfaceCall::Content { refType, ref.name, std::move(sig), data.inum, ref.flags };
         } else {
             auto call = ResolveCbcCall(resolver, ref);
             if (call.has_value()) {
                 return InterfaceCall::Content {
-                    call->refType, call->name, std::move(call->signature), call->methodNum, sret
+                    call->refType, call->name, std::move(call->signature), call->methodNum, ref.flags
                 };
             }
             return std::nullopt;
