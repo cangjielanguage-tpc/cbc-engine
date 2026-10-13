@@ -1219,6 +1219,14 @@ void Emitter::NewBox(RTSupport::TypeInfo typeInfo)
     Encode(segment, RT::B9i64 { .opc = RT::Opcode::NEWBOX2, .imm64 = { .ptr = typeInfo.Raw() } });
 }
 
+void Emitter::UnboxT(IReg src, int32_t offset)
+{
+    auto command = RT::B6xri32 {
+        .opc = RT::Opcode::UNBOX_T, .xr = { .imm = 0, .r = src }, .imm32 = { .imm = static_cast<uint32_t>(offset) }
+    };
+    Encode(segment, command);
+}
+
 void Emitter::Offset(IReg dst, int ordinal, IReg typeInfo)
 {
     segment.AddW8(RT::Opcode::OFFSET);

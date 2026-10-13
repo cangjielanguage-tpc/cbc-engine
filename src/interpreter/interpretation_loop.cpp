@@ -720,6 +720,20 @@ LABEL(NEWBOX2) {
 
     return { func, type.Raw() };
 }
+LABEL(UNBOX_T) {
+    auto args = B6xri32::Decode(reader);
+    LOG_INSTR;
+
+    auto offs  = static_cast<int32_t>(args.imm32.imm);
+    auto dst   = frame.start + offs;
+
+    auto src   = ectype->GetReference(args.xr.r.IR());
+    auto ti    = Execution::GetTypeInfo(src);
+    auto field = src.value + RTSupport::MetaInfo::ObjectHeaderSize();
+
+    RTSupport::Execution::ReadStructField(dst, src, field, ti, handle);
+    NEXT;
+}
 LABEL(READ_STRUCT_FIELD) {
     auto args = StructFieldOp::Decode(reader);
     LOG_INSTR;

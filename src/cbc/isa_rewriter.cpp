@@ -1842,22 +1842,8 @@ struct IsaRewriter : public IsaParser {
 
     void UnboxT(uint16_t dstTs, IReg src) override
     {
-        auto type = resolver.Query(Index<Type>(code.StackAllocSigs()[dstTs]));
-        if (!type.has_value()) {
-            Fail();
-            return;
-        }
-        auto ti = type.value().GetTypeInfo();
-        if (!ti.has_value()) {
-            Fail();
-            return;
-        }
-        auto typeInfo = ti.value();
-        auto offset   = TypedSlotOffset(dstTs);
-        emit.LoadFrame(Format::LoadAccessKind::LD_LEA, IReg::IR_ACC, offset);
-        auto ms = emit.OpenMemSpace();
-        ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
-        ms.ReadStructFieldObj(IReg::IR_ACC, src, typeInfo);
+        auto offset = TypedSlotOffset(dstTs);
+        emit.UnboxT(src, offset);
     }
 
     enum HeadKind {
