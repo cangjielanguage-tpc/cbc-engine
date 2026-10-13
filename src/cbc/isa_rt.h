@@ -797,20 +797,22 @@ struct B5xi12ri12 {
 };
 
 struct VirtualCall {
-    static constexpr int SIZE = 5;
+    static constexpr int SIZE = 6;
 
     Opcode opc;
     uint16_t vnum;
     uint16_t edef;
     uint8_t sret;
+    uint8_t callAdapter;
 
     static VirtualCall Decode(Decoder::ByteReader& reader)
     {
-        auto opc  = Opcode::Decode(reader);
-        auto vnum = reader.Read16();
-        auto edef = reader.Read16();
-        auto sret = reader.Read8();
-        return VirtualCall { opc, vnum, edef, sret };
+        auto opc         = Opcode::Decode(reader);
+        auto vnum        = reader.Read16();
+        auto edef        = reader.Read16();
+        auto sret        = reader.Read8();
+        auto callAdapter = reader.Read8();
+        return VirtualCall { opc, vnum, edef, sret, callAdapter };
     }
 };
 
@@ -941,14 +943,16 @@ struct InterfaceCall {
     uint16_t vnum;
     uint64_t ti;
     uint8_t sret;
+    uint8_t callAdapter;
 
     static InterfaceCall Decode(Decoder::ByteReader& reader)
     {
-        auto opc  = Opcode::Decode(reader);
-        auto vnum = reader.Read16();
-        auto ti   = reader.Read64();
-        auto sret = reader.Read8();
-        return InterfaceCall { opc, vnum, ti, sret };
+        auto opc         = Opcode::Decode(reader);
+        auto vnum        = reader.Read16();
+        auto ti          = reader.Read64();
+        auto sret        = reader.Read8();
+        auto callAdapter = reader.Read8();
+        return InterfaceCall { opc, vnum, ti, sret, callAdapter };
     }
 };
 
@@ -957,14 +961,16 @@ struct InterfaceCallGeneric {
     uint16_t vnum;
     uint16_t argn;
     uint8_t sret; // TODO: add two instruction for sret/non-sret versions
+    uint8_t callAdapter;
 
     static InterfaceCallGeneric Decode(Decoder::ByteReader& reader)
     {
-        auto opc  = Opcode::Decode(reader);
-        auto vnum = reader.Read16();
-        auto argn = reader.Read16();
-        auto sret = reader.Read8();
-        return InterfaceCallGeneric { opc, vnum, argn, sret };
+        auto opc         = Opcode::Decode(reader);
+        auto vnum        = reader.Read16();
+        auto argn        = reader.Read16();
+        auto sret        = reader.Read8();
+        auto callAdapter = reader.Read8();
+        return InterfaceCallGeneric { opc, vnum, argn, sret, callAdapter };
     }
 };
 

@@ -1,3 +1,4 @@
+#include "interpreter/adapters.h"
 #include "utils/function.h"
 #include <cstdint>
 #include <cstring>
@@ -81,7 +82,7 @@ Interpretation::Thunk Execution::GetClosureThunk(Reference base, bool isInstanti
     FATAL("Should not reach here.");
 }
 
-Interpretation::Thunk Execution::GetVirtualThunk(Reference base, int extDefNum, int methodNum)
+Interpretation::Thunk Execution::GetVirtualThunk(Reference base, int extDefNum, int methodNum, uint8_t callAdapter)
 {
     FATAL("Should not reach here.");
 }
@@ -91,7 +92,7 @@ TypeInfo Execution::GetMethodOuterTi(TypeInfo where, TypeInfo interf, int method
     FATAL("Should not reach here.");
 }
 
-Interpretation::Thunk Execution::GetInterfaceThunk(TypeInfo where, TypeInfo ti, int methodNum)
+Interpretation::Thunk Execution::GetInterfaceThunk(TypeInfo where, TypeInfo ti, int methodNum, uint8_t callAdapter)
 {
     FATAL("Should not reach here.");
 }
@@ -177,23 +178,27 @@ bool Execution::AtomicCompareAndSwapRef(Reference oldRef, Reference newRef, Refe
     FATAL("Should not reach here");
 }
 
-void* Adapters::GenericI2CCallInstance() { FATAL("Should not reach here"); }
+static void Fatal() { FATAL("Should not reach here"); }
+
+void* Adapters::GenericI2CCallInstance() { return reinterpret_cast<void*>(&Fatal); }
 
 void* Adapters::GetDynCallTrampoline(int idx, bool sret) { FATAL("Should not reach here"); }
 
-void* Adapters::I2ICallInstance() { FATAL("Should not reach here"); }
+void* Adapters::I2ICallInstance() { return reinterpret_cast<void*>(&Fatal); }
 
 static void C2ICall() { FATAL("Should not reach here"); }
 
-void* Adapters::GenericC2ICallInstance() { FATAL("Should not reach here"); }
+void* Adapters::GenericC2ICallInstance() { return reinterpret_cast<void*>(&Fatal); }
 
-void* Adapters::IregOnlyC2ICallInstance() { FATAL("Should not reach here."); }
+void* Adapters::IregOnlyC2ICallInstance() { return reinterpret_cast<void*>(&Fatal); }
 
 void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* fuh) { FATAL("Should not reach here."); }
 
 const char* MetaInfo::GetName(TypeInfo ti) { return nullptr; }
 
-void* Adapters::C2ICall(uint32_t intArgCount, uint32_t floatArgCount) { FATAL("should not reach here"); }
+void* Adapters::C2ICall(Interpretation::RegRequirements) { FATAL("should not reach here"); }
+
+void* Adapters::IregOnlyI2CCallInstance() { return reinterpret_cast<void*>(&Fatal); }
 
 uint32_t MetaInfo::GetTypeSize(TypeInfo ti) { return 0; }
 

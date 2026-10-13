@@ -5,6 +5,7 @@
 #include "cbc/isa_rt.h"
 #include "engine/terms.h"
 #include "interpreter.h"
+#include "interpreter/adapters.h"
 #include "interpreter/ectype.h"
 #include "interpreter/implicit_exceptions.h"
 #include "interpreter/loggers.h"
@@ -1190,8 +1191,9 @@ LABEL(CALL_CLOSURE_GENERIC) {
 LABEL(VIRTUAL_CALL) {
     auto args = VirtualCall::Decode(reader);
     LOG_INSTR;
-    auto vnum      = args.vnum;
-    auto extDefNum = args.edef;
+    auto vnum        = args.vnum;
+    auto extDefNum   = args.edef;
+    auto callAdapter = args.callAdapter;
 
     auto receiver = IReg::IR1;
     if (HAS_SRET_SHIFT && args.sret) {
@@ -1209,14 +1211,15 @@ LABEL(VIRTUAL_CALL) {
 
     reader0 = reader; // save current pc
 
-    return Execution::GetVirtualThunk(reference, extDefNum, vnum);
+    return Execution::GetVirtualThunk(reference, extDefNum, vnum, callAdapter);
 }
 
 LABEL(INTERFACE_CALL) {
     auto args = InterfaceCall::Decode(reader);
     LOG_INSTR;
-    auto num       = args.vnum;
-    auto interf    = TypeInfo(static_cast<uintptr_t>(args.ti));
+    auto num         = args.vnum;
+    auto interf      = TypeInfo(static_cast<uintptr_t>(args.ti));
+    auto callAdapter = args.callAdapter;
 
     auto receiver = IReg::IR1;
     if (HAS_SRET_SHIFT && args.sret) {
@@ -1241,14 +1244,15 @@ LABEL(INTERFACE_CALL) {
 
     reader0 = reader; // save current pc
 
-    return Execution::GetInterfaceThunk(typeInfo, interf, num);
+    return Execution::GetInterfaceThunk(typeInfo, interf, num, callAdapter);
 }
 LABEL(INTERFACE_CALL_GENERIC) {
     auto args = InterfaceCallGeneric::Decode(reader);
     LOG_INSTR;
-    auto num    = args.vnum;
-    auto sret   = args.sret;
-    auto interf = TypeInfo(ectype->GetPrimitive(IReg::IR_ACC).u64);
+    auto num         = args.vnum;
+    auto sret        = args.sret;
+    auto interf      = TypeInfo(ectype->GetPrimitive(IReg::IR_ACC).u64);
+    auto callAdapter = args.callAdapter;
 
     auto receiver = IReg::IR1;
     if (HAS_SRET_SHIFT && sret) {
@@ -1285,7 +1289,7 @@ LABEL(INTERFACE_CALL_GENERIC) {
 
     reader0 = reader; // save current pc
 
-    return Execution::GetInterfaceThunk(typeInfo, interf, num);
+    return Execution::GetInterfaceThunk(typeInfo, interf, num, callAdapter);
 }
 
 LABEL(ASSIGN_GENERIC) {

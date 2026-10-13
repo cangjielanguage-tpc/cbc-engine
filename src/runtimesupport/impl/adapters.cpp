@@ -1,5 +1,6 @@
 #include "runtimesupport/adapters.h"
 #include "asm_trampolines.h"
+#include "interpreter/adapters.h"
 #include "interpreter/code.h"
 #include "interpreter/function_handle.h"
 #include "runtimesupport/impl/typeinfo_ext.h"
@@ -9,15 +10,17 @@ namespace RTSupport {
 
 void* Adapters::GenericI2CCallInstance() { return reinterpret_cast<void*>(&Asm::engine_i2c_call); }
 
+void* Adapters::IregOnlyI2CCallInstance() { return reinterpret_cast<void*>(&Asm::engine_i2c_iregs_call); }
+
 void* Adapters::I2ICallInstance() { return reinterpret_cast<void*>(&Asm::engine_i2i_call); }
 
 void* Adapters::GenericC2ICallInstance() { return reinterpret_cast<void*>(&Asm::engine_all_regs_c2i_call); }
 
 void* Adapters::IregOnlyC2ICallInstance() { return reinterpret_cast<void*>(&Asm::engine_iregs_only_c2i_call); }
 
-void* Adapters::C2ICall(uint32_t intArgCount, uint32_t floatArgCount)
+void* Adapters::C2ICall(Interpretation::RegRequirements reqs)
 {
-    if (floatArgCount == 0) {
+    if (reqs.floatregs == 0) {
         return Adapters::IregOnlyC2ICallInstance();
     } else {
         return Adapters::GenericC2ICallInstance();
@@ -41,6 +44,7 @@ extern "C" Interpretation::DynamicFunctionHandle* engine_prepare_bytecode(
     } else {
         return preparedBcInfo.fuh;
     }
+    return nullptr;
 }
 
 static void* GetAddressOfDirectCallTrampoline(int i)

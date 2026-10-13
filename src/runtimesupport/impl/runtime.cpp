@@ -6,6 +6,7 @@
 #include "engine/engine.h"
 #include "engine/terms.h"
 #include "engine/typeinfo_manager.h"
+#include "interpreter/adapters.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
 #include "interpreter/implicit_exceptions.h"
@@ -189,7 +190,7 @@ static Interpretation::FunctionHandle* GetDynamicCall(void* fn, CbcTypeInfo* cti
     return cti->dataMT[DynCallTrampolineIdx(fn)];
 }
 
-static Interpretation::Thunk GetDynCallThunk(void* fn, TypeInfo ti)
+static Interpretation::Thunk GetDynCallThunk(void* fn, TypeInfo ti, uint8_t callAdapter)
 {
     if (IsDynCallTrampoline(fn)) {
         // Fast path: it is trampoline, meaning i2i call. We just get fuh and run i2i call as usual.
@@ -197,7 +198,12 @@ static Interpretation::Thunk GetDynCallThunk(void* fn, TypeInfo ti)
         return { Adapters::I2ICallInstance(), reinterpret_cast<void*>(fuh) };
     }
 
-    return { Adapters::GenericI2CCallInstance(), fn };
+    return { Interpretation::AdapterFor(static_cast<Interpretation::CallAdapter>(callAdapter)), fn };
+}
+
+static Interpretation::Thunk GetDynCallThunk(void* fn, TypeInfo ti)
+{
+    return GetDynCallThunk(fn, ti, static_cast<uint8_t>(Interpretation::CallAdapter::GENERIC_I2C));
 }
 
 void Execution::InitializeClosure(Reference closure, bool instantiatedSret)
@@ -213,18 +219,18 @@ Interpretation::Thunk Execution::GetClosureThunk(Reference base, bool isInstanti
     // Avoid cast of `base.value` to `FullLayout*` to avoid UB, which observed as:
     // "compiler can speculatively read unexisting field".
     auto offset = isInstantiated ? offsetof(CJClosureLayout, instantiatedFunc) : offsetof(CJClosureLayout, genericFunc);
-    void* func            = *reinterpret_cast<void**>(base.value + offset);
+    void* func  = *reinterpret_cast<void**>(base.value + offset);
     DYN_TypeInfo** header = reinterpret_cast<DYN_TypeInfo**>(base.value);
     return GetDynCallThunk(func, TypeInfo(*header));
 }
 
-Interpretation::Thunk Execution::GetVirtualThunk(Reference base, int extDefNum, int methodNum)
+Interpretation::Thunk Execution::GetVirtualThunk(Reference base, int extDefNum, int methodNum, uint8_t callAdapter)
 {
     DYN_TypeInfo** header = reinterpret_cast<DYN_TypeInfo**>(base.value);
     auto dynTypeInfo      = *header;
     auto target           = dynTypeInfo->vExtensionDataStart[extDefNum]->funcTable[methodNum];
     auto typeInfo         = TypeInfo(dynTypeInfo);
-    return GetDynCallThunk(target, typeInfo);
+    return GetDynCallThunk(target, typeInfo, callAdapter);
 }
 
 TypeInfo Execution::GetMethodOuterTi(TypeInfo where, TypeInfo interf, int methodNum)
@@ -234,14 +240,14 @@ TypeInfo Execution::GetMethodOuterTi(TypeInfo where, TypeInfo interf, int method
     );
 }
 
-Interpretation::Thunk Execution::GetInterfaceThunk(TypeInfo where, TypeInfo interf, int methodNum)
+Interpretation::Thunk Execution::GetInterfaceThunk(TypeInfo where, TypeInfo interf, int methodNum, uint8_t callAdapter)
 {
     auto dynTypeInfo   = UnpackTypeInfo(where);
     DYN_FuncPtr* table = g_CJNativeInterfaceInstance.getMTable(dynTypeInfo, UnpackTypeInfo(interf));
     auto target        = table[methodNum];
 
     auto typeInfo = TypeInfo(dynTypeInfo);
-    return GetDynCallThunk(target, typeInfo);
+    return GetDynCallThunk(target, typeInfo, callAdapter);
 }
 
 uint32_t Execution::GetFieldOffset(TypeInfo ti, int ordinal, bool adjustByHeader)
@@ -393,7 +399,8 @@ TypeInfo Execution::TypeArg(TypeInfo ti, uint32_t idx)
 
 TypeInfoUUID MetaInfo::GetUUID(TypeInfo ti) { return g_CJNativeInterfaceInstance.getTypeInfoUUID(UnpackTypeInfo(ti)); }
 
-TypeInfo MetaInfo::GetElementTypeInfo(TypeInfo ti) {
+TypeInfo MetaInfo::GetElementTypeInfo(TypeInfo ti)
+{
     auto typeInfo = UnpackTypeInfo(ti);
     return TypeInfo(typeInfo->componentTypeInfo);
 }

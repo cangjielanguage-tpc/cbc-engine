@@ -22,6 +22,7 @@
     #define engine_iregs_only_c2i_call _engine_iregs_only_c2i_call
     #define engine_i2i_call _engine_i2i_call
     #define engine_i2c_call _engine_i2c_call
+    #define engine_i2c_iregs_call _engine_i2c_iregs_call
     #define engine_i2_newobject _engine_i2_newobject
     #define engine_i2_newobject_acc _engine_i2_newobject_acc
     #define engine_i2_newobject_pinned _engine_i2_newobject_pinned
@@ -93,6 +94,7 @@ declare_hidden engine_all_regs_c2i_call
 declare_hidden engine_iregs_only_c2i_call
 declare_hidden engine_i2i_call
 declare_hidden engine_i2c_call
+declare_hidden engine_i2c_iregs_call
 declare_hidden engine_i2_newobject_pinned
 declare_hidden engine_i2_newobject
 declare_hidden engine_i2_newobject_acc
@@ -637,6 +639,14 @@ engine_after_stack_grow:
 engine_i2c_call:
   // jumped from .Linterpreter_call without return address to return
   i2c_call IREG_ABI_AMOUNT, FREG_ABI_AMOUNT
+
+.balign 16
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: target)
+// preserved: ECTYPE_REG, rbp
+// TLS_REG can be changed after context-switch
+engine_i2c_iregs_call:
+  // jumped from .Linterpreter_call without return address to return
+  i2c_call IREG_ABI_AMOUNT, 0
 
 .balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: fuh)

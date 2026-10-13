@@ -72,10 +72,7 @@ struct Operand {
 class Formatter {
 public:
     Formatter(
-        Interpretation::LiteralTable* table,
-        Stream::Output& stream,
-        std::string_view formatString,
-        Operand* operands
+        Interpretation::LiteralTable* table, Stream::Output& stream, std::string_view formatString, Operand* operands
     )
         : table(table),
           stream(stream),

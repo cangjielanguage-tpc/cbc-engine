@@ -9,6 +9,7 @@
 #include "engine/options.h"
 #include "engine/typeinfo_manager.h"
 #include "interpreter.h"
+#include "interpreter/adapters.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
 #include "interpreter/interpretation_loop.h"
@@ -306,7 +307,7 @@ Interpretation::Thunk Execution::GetClosureThunk(Reference base, bool isInstanti
     FATAL("Should not reach here.");
 }
 
-Interpretation::Thunk Execution::GetVirtualThunk(Reference base, int extDefNum, int methodNum)
+Interpretation::Thunk Execution::GetVirtualThunk(Reference base, int extDefNum, int methodNum, uint8_t callAdapter)
 {
     FATAL("Should not reach here. I2C virtual call");
 }
@@ -316,7 +317,7 @@ TypeInfo Execution::GetMethodOuterTi(TypeInfo where, TypeInfo interf, int method
     FATAL("Should not reach here. I2C interface call");
 }
 
-Interpretation::Thunk Execution::GetInterfaceThunk(TypeInfo where, TypeInfo ti, int methodNum)
+Interpretation::Thunk Execution::GetInterfaceThunk(TypeInfo where, TypeInfo ti, int methodNum, uint8_t callAdapter)
 {
     FATAL("Should not reach here. I2C interface call");
 }
@@ -405,7 +406,9 @@ bool Execution::AtomicCompareAndSwapRef(Reference oldRef, Reference newRef, Refe
     FATAL("Should not reach here");
 }
 
-void* Adapters::GenericI2CCallInstance() { FATAL("Should not reach here. Mock i2c"); }
+static void FatalAdapterStub() { FATAL("Should not reach here"); }
+
+void* Adapters::GenericI2CCallInstance() { return reinterpret_cast<void*>(&FatalAdapterStub); }
 
 void* Adapters::I2ICallInstance() { return reinterpret_cast<void*>(&Interpretation::InterpreterI2CallTest); }
 
@@ -417,7 +420,9 @@ void* Adapters::GenericC2ICallInstance() { return reinterpret_cast<void*>(&C2ICa
 
 void* Adapters::IregOnlyC2ICallInstance() { return reinterpret_cast<void*>(&C2ICall); }
 
-void* Adapters::C2ICall(uint32_t intArgCount, uint32_t floatArgCount) { return reinterpret_cast<void*>(&C2ICall); }
+void* Adapters::C2ICall(Interpretation::RegRequirements) { return reinterpret_cast<void*>(&C2ICall); }
+
+void* Adapters::IregOnlyI2CCallInstance() { return reinterpret_cast<void*>(&C2ICall); }
 
 void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* fuh) { FATAL("Should not reach here."); }
 

@@ -12,6 +12,7 @@
 #include "engine/image/flags.h"
 #include "engine/resolving_output.h"
 #include "engine/terms.h"
+#include "interpreter/adapters.h"
 #include "interpreter/code.h"
 #include "interpreter/function_handle.h"
 #include "interpreter/interpretation_loop.h"
@@ -1362,7 +1363,7 @@ struct IsaRewriter : public IsaParser {
         );
         StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature);
         EmitLogCall("call.virt", method);
-        emit.VirtualCall(method->methodNum, method->extDefNum, method->sret);
+        emit.VirtualCall(method->methodNum, method->extDefNum, method->sret, Interpretation::AdapterFor(method));
         BindStatePoint();
         EmitReturnedTo();
     }
@@ -1386,7 +1387,7 @@ struct IsaRewriter : public IsaParser {
         );
         StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature);
         EmitLogCall("call.interf", method);
-        emit.InterfaceCall(method->methodNum, *ti, method->sret);
+        emit.InterfaceCall(method->methodNum, *ti, method->sret, Interpretation::AdapterFor(method));
         BindStatePoint();
         EmitReturnedTo();
     }
@@ -1417,7 +1418,7 @@ struct IsaRewriter : public IsaParser {
             ASSERTION(false, "outerti loc can not be freg");
         }
 
-        emit.InterfaceCallGeneric(method->methodNum, argnum, method->sret);
+        emit.InterfaceCallGeneric(method->methodNum, argnum, method->sret, Interpretation::AdapterFor(method));
         BindStatePoint();
         EmitReturnedTo();
     }

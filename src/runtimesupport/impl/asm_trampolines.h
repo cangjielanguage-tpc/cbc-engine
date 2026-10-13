@@ -33,6 +33,7 @@ extern void engine_iregs_only_c2i_call();
 extern void engine_all_regs_c2i_call();
 extern void engine_i2i_call();
 extern void engine_i2c_call();
+extern void engine_i2c_iregs_call();
 extern void common_landing_pad();
 extern void engine_after_stack_grow();
 extern void (*engine_stack_grow_stub)();
