@@ -118,7 +118,7 @@ declare_hidden engine_all_regs_c2i_call
 declare_hidden engine_iregs_only_c2i_call
 declare_hidden engine_i2i_call
 declare_hidden engine_i2c_call
-declare hidden engine_i2c_iregs_call
+declare_hidden engine_i2c_iregs_call
 declare_hidden engine_i2_newobject_pinned
 declare_hidden engine_i2_newobject
 declare_hidden engine_i2_newobject_acc
