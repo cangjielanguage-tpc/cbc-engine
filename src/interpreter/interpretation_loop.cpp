@@ -729,7 +729,7 @@ LABEL(UNBOX_T) {
 
     auto src   = ectype->GetReference(args.xr.r.IR());
     auto ti    = Execution::GetTypeInfo(src);
-    auto field = RTSupport::MetaInfo::ObjectHeaderSize();
+    auto field = src.value + RTSupport::MetaInfo::ObjectHeaderSize();
 
     RTSupport::Execution::ReadStructField(dst, src, field, ti, handle);
     NEXT;
