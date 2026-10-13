@@ -361,6 +361,14 @@ void Encode(ByteBuffer& buf, RT::IndexGeneric command)
     Encode(buf, command.idx);
 }
 
+void Encode(ByteBuffer& buf, RT::ConstIndexGeneric command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.rr);
+    Encode(buf, command.ti);
+    Encode(buf, command.idx);
+}
+
 void Encode(ByteBuffer& buf, RT::StackParam command)
 {
     buf.AddW8(static_cast<uint8_t>(command.opc));
