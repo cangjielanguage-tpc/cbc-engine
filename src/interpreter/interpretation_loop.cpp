@@ -75,13 +75,13 @@ extern "C" {
 /// function, `perform_2i_call`, that strictly tracks the frame layout.
 ///
 /// Therefore, to perform an invocation from `perform_2i_call`, we return a `Thunk` by value,
-/// which contains both the function to call and a single argument.
+/// which contains the `ThunkOp` index of the operation to run and a single argument.
 ///
 /// We restrict the number of arguments in the `Thunk` structure to 1 to allow passing the
 /// structure by value via registers in the System V x64 and AArch64 ABIs.
 ///
-/// Note that the actual calling convention of `thunk.function`
-/// differs from the ASM in the unit test framework.
+/// Note that the actual dispatch of `thunk.op` differs from the ASM in the unit test
+/// framework.
 Interpretation::Thunk engine_interpretation_loop(
     Ectype* ectype,
     Frame frame,
@@ -119,15 +119,14 @@ Interpretation::Thunk engine_interpretation_loop(
 #define THROW_EXPLICIT(exception)                                                                                      \
     do {                                                                                                               \
         uintptr_t exceptionObj = exception;                                                                            \
-        auto func              = RTSupport::Execution::HandleException();                                              \
         reader0                = reader; /* save current pc */                                                         \
-        return { func, reinterpret_cast<void*>(exceptionObj) };                                                        \
+        return { ThunkOp::HandleException, reinterpret_cast<void*>(exceptionObj) };                                    \
     } while (0)
 
 #define THROW_IMPLICIT(type)                                                                                           \
     do {                                                                                                               \
         reader0 = reader;                                                                                              \
-        return { RTSupport::Execution::ThrowImplicitException(), reinterpret_cast<void*>(type) };                      \
+        return { ThunkOp::ThrowImplicit, reinterpret_cast<void*>(type) };                                              \
     } while (0)
 
 #if defined(INT_SYMS) && defined(__APPLE__)
@@ -273,7 +272,7 @@ LABEL(GC_POINT) {
 
     reader0 = reader;
 
-    return { RTSupport::Execution::GcPointTrampoline(), RTSupport::Execution::GcPoint() };
+    return { ThunkOp::GcPoint, RTSupport::Execution::GcPoint() };
 }
 LABEL(FMOVI32) {
     auto args = B6xri32::Decode(reader);
@@ -674,11 +673,9 @@ LABEL(NEWOBJ_ACC_G) {
     auto type  = TypeInfo(ectype->GetPrimitive(tiReg.IR()).u64);
 
     // Puts result to `IR_ACC`.
-    auto func = Execution::AllocateObjectInstanceAcc();
-
     reader0 = reader; // save current pc
 
-    return { func, type.Raw() };
+    return { ThunkOp::NewObjectAcc, type.Raw() };
 }
 LABEL(NEWOBJ_G) {
     auto args = B2rr::Decode(reader);
@@ -687,11 +684,9 @@ LABEL(NEWOBJ_G) {
     auto type  = TypeInfo(ectype->GetPrimitive(tiReg.IR()).u64);
 
     // Puts result to `IR1`.
-    auto func = Execution::AllocateObjectInstance();
-
     reader0 = reader; // save current pc
 
-    return { func, type.Raw() };
+    return { ThunkOp::NewObject, type.Raw() };
 }
 LABEL(NEWOBJ_PINNED_G) {
     auto args = B2rr::Decode(reader);
@@ -700,11 +695,9 @@ LABEL(NEWOBJ_PINNED_G) {
     auto type  = TypeInfo(ectype->GetPrimitive(tiReg.IR()).u64);
 
     // Puts result to `IR1`.
-    auto func = Execution::AllocateObjectPinnedInstance();
-
     reader0 = reader; // save current pc
 
-    return { func, type.Raw() };
+    return { ThunkOp::NewObjectPinned, type.Raw() };
 }
 LABEL(NEWOBJ) {
     auto args = B9i64::Decode(reader);
@@ -712,11 +705,9 @@ LABEL(NEWOBJ) {
     auto type = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
 
     // Puts result to `IR1`.
-    auto func = Execution::AllocateObjectInstance();
-
     reader0 = reader; // save current pc
 
-    return { func, type.Raw() };
+    return { ThunkOp::NewObject, type.Raw() };
 }
 LABEL(NEWOBJ_PINNED) {
     auto args = B9i64::Decode(reader);
@@ -724,11 +715,9 @@ LABEL(NEWOBJ_PINNED) {
     auto type = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
 
     // Puts result to `IR1`.
-    auto func = Execution::AllocateObjectPinnedInstance();
-
     reader0 = reader; // save current pc
 
-    return { func, type.Raw() };
+    return { ThunkOp::NewObjectPinned, type.Raw() };
 }
 LABEL(NEWBOX) {
     auto args = B2xr::Decode(reader);
@@ -736,11 +725,9 @@ LABEL(NEWBOX) {
     auto btype = builtinTypeInfos[args.xr.imm];
 
     // Puts result to `IR1`.
-    auto func = Execution::AllocateObjectInstanceAcc();
-
     reader0 = reader; // save current pc
 
-    return { func, btype.Raw() };
+    return { ThunkOp::NewObjectAcc, btype.Raw() };
 }
 LABEL(NEWBOX2) {
     auto args = B9i64::Decode(reader);
@@ -748,11 +735,9 @@ LABEL(NEWBOX2) {
     auto type = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
 
     // Puts result to `IR1`.
-    auto func = RTSupport::Execution::AllocateObjectInstanceAcc();
-
     reader0 = reader; // save current pc
 
-    return { func, type.Raw() };
+    return { ThunkOp::NewObjectAcc, type.Raw() };
 }
 LABEL(UNBOX_T) {
     auto args = B6xri32::Decode(reader);
@@ -802,11 +787,9 @@ LABEL(SPAWN_FUTURE) {
     auto args = B1::Decode(reader);
     LOG_INSTR;
 
-    auto func = RTSupport::Execution::SpawnFuture();
-
     reader0 = reader; // save current pc
 
-    return { func, func };
+    return { ThunkOp::SpawnFuture, nullptr };
 }
 LABEL(SPAWN) {
     auto args = B9i64::Decode(reader);
@@ -814,11 +797,9 @@ LABEL(SPAWN) {
     auto type = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
 
     // TODO: it seems that spawn could be called directly
-    auto func = RTSupport::Execution::Spawn();
-
     reader0 = reader; // save current pc
 
-    return { func, type.Raw() };
+    return { ThunkOp::Spawn, type.Raw() };
 }
 LABEL(NEWARR) {
     auto args = B9i64::Decode(reader);
@@ -826,11 +807,9 @@ LABEL(NEWARR) {
     auto type = TypeInfo(static_cast<uintptr_t>(args.imm64.imm));
 
     // Puts result to `IR1`, expects length to be passed on `IR2`.
-    auto func = RTSupport::Execution::AllocateArrayInstance();
-
     reader0 = reader; // save current pc
 
-    return { func, type.Raw() };
+    return { ThunkOp::NewArray, type.Raw() };
 }
 LABEL(NEWARR_G) {
     auto args = B2rr::Decode(reader);
@@ -838,11 +817,9 @@ LABEL(NEWARR_G) {
     auto type = TypeInfo(ectype->GetPrimitive(args.rr.x.IR()).u64);
 
     // Puts result to `IR1`, expects length to be passed on `IR2`.
-    auto func = RTSupport::Execution::AllocateArrayInstance();
-
     reader0 = reader; // save current pc
 
-    return { func, type.Raw() };
+    return { ThunkOp::NewArray, type.Raw() };
 }
 LABEL(LOAD_ADDR) {
     auto args = B2xr::Decode(reader);
@@ -1034,7 +1011,7 @@ LABEL(LOAD_GENERIC) {
         uint64_t rawTi  = typeInfo.UInt();
         uint64_t packed = 0ULL | dstReg | (baseReg << 4) | (IReg::IR_ACC << 8) | rawTi << 12;
         reader0         = reader;
-        return { .function = RTSupport::Execution::LoadGeneric(), .argUInt = packed };
+        return { .op = ThunkOp::LoadGeneric, .argUInt = packed };
     }
 }
 LABEL(STORE_GENERIC) {
@@ -1188,7 +1165,7 @@ LABEL(DIRECT_CALL_2I) {
 
     reader0 = reader; // save current pc
 
-    return { fuh->i2call, reinterpret_cast<void*>(fuh) };
+    return { ThunkOp::I2ICall, reinterpret_cast<void*>(fuh) };
 }
 LABEL(DIRECT_CALL_2C) {
     auto args = B3xi12::Decode(reader);
@@ -1205,7 +1182,7 @@ LABEL(DIRECT_CALL_2C) {
 
     reader0 = reader; // save current pc
 
-    return { Adapters::GenericI2CCallInstance(), reinterpret_cast<void*>(target) };
+    return { ThunkOp::I2CCall, reinterpret_cast<void*>(target) };
 }
 LABEL(CALL_CLOSURE_SRET) {
     if constexpr (HAS_SRET_SHIFT) {
@@ -1601,7 +1578,7 @@ LABEL(DLD_GENERIC) {
         uint64_t rawTi  = typeInfo.UInt();
         uint64_t packed = 0ULL | dstReg | (baseReg << 4) | (IReg::IR_ACC << 8) | rawTi << 12;
         reader0         = reader;
-        return { .function = RTSupport::Execution::LoadGeneric(), .argUInt = packed };
+        return { .op = ThunkOp::LoadGeneric, .argUInt = packed };
     }
 }
 LABEL(DST_GENERIC) {

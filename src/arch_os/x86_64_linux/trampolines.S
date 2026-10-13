@@ -22,18 +22,10 @@
     #define engine_iregs_only_c2i_call _engine_iregs_only_c2i_call
     #define engine_i2i_call _engine_i2i_call
     #define engine_i2c_call _engine_i2c_call
-    #define engine_i2_newobject _engine_i2_newobject
-    #define engine_i2_newobject_acc _engine_i2_newobject_acc
-    #define engine_i2_newobject_pinned _engine_i2_newobject_pinned
     #define engine_newobject_pinned_function _engine_newobject_pinned_function
     #define engine_spawn_future _engine_spawn_future
     #define engine_future_execute_function _engine_future_execute_function
     #define engine_set_runtime_cjthread_handle_function _engine_set_runtime_cjthread_handle_function
-    #define engine_i2_spawn_future _engine_i2_spawn_future
-    #define engine_i2_newarray _engine_i2_newarray
-    #define engine_i2_load_generic _engine_i2_load_generic
-    #define engine_i2_gcpoint _engine_i2_gcpoint
-    #define engine_i2_spawn _engine_i2_spawn
     #define engine_universal_direct_function_handles _engine_universal_direct_function_handles
     #define engine_tls_function _engine_tls_function
     #define engine_read_generic _engine_read_generic
@@ -43,9 +35,7 @@
     #define engine_carrier_specific_offset _engine_carrier_specific_offset
     #define engine_cjthread_specific_offset _engine_cjthread_specific_offset
     #define engine_throw_out_of_interpreter _engine_throw_out_of_interpreter
-    #define engine_throw_implicit_exception _engine_throw_implicit_exception
     #define engine_implicit_exception_thrower _engine_implicit_exception_thrower
-    #define engine_handle_exception _engine_handle_exception
     #define common_landing_pad _common_landing_pad
     #define engine_stack_grow_stub _engine_stack_grow_stub
     #define engine_after_stack_grow _engine_after_stack_grow
@@ -93,32 +83,22 @@ declare_hidden engine_all_regs_c2i_call
 declare_hidden engine_iregs_only_c2i_call
 declare_hidden engine_i2i_call
 declare_hidden engine_i2c_call
-declare_hidden engine_i2_newobject_pinned
-declare_hidden engine_i2_newobject
-declare_hidden engine_i2_newobject_acc
-declare_hidden engine_i2_newarray
-declare_hidden engine_i2_gcpoint
 declare_hidden engine_universal_direct_function_handles
 declare_hidden engine_tls_function
 declare_hidden engine_read_generic
-declare_hidden engine_i2_load_generic
 declare_hidden engine_throw_out_of_interpreter
-declare_hidden engine_throw_implicit_exception
 declare_hidden engine_implicit_exception_thrower
 declare_hidden engine_newobject_function
 declare_hidden engine_newobject_pinned_function
 declare_hidden engine_newarray_function
 declare_hidden engine_newthread_nret_function
-declare_hidden engine_handle_exception
 declare_hidden common_landing_pad
 declare_hidden engine_carrier_specific_offset
 declare_hidden engine_cjthread_specific_offset
-declare_hidden engine_i2_spawn
 declare_hidden engine_stack_grow_stub
 declare_hidden engine_after_stack_grow
 declare_hidden engine_future_execute_function
 declare_hidden engine_set_runtime_cjthread_handle_function
-declare_hidden engine_i2_spawn_future
 
 // --- SECTION BSS ---
 #ifdef __APPLE__
@@ -539,14 +519,18 @@ FUNC_START perform_2i_call
 
   call  engine_interpretation_loop
 
-  // Thunk is return on rax: function, rdx: arg.
-  // If usual return is needed, interpretation_loop will return null.
-  test  rax, rax
+  // Thunk is returned on rax: op (low byte), rdx: arg.
+  // If usual return is needed, interpretation_loop returns op == None (0).
+  movzx r10d, al
+  test  r10d, r10d
   jz    .Lend_interpretation
 
   mov   rdi, rdx
 .Linterpreter_call:
-  jmp   rax
+  lea    r11, [rip + .Lthunk_ops_table]
+  movsxd r10, DWORD PTR [r11 + r10*4]
+  lea    r10, [r11 + r10]
+  jmp   r10
 
 .Lend_interpretation:
 
@@ -634,6 +618,7 @@ engine_after_stack_grow:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: target)
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
+.Lthunk_op_I2CCall:
 engine_i2c_call:
   // jumped from .Linterpreter_call without return address to return
   i2c_call IREG_ABI_AMOUNT, FREG_ABI_AMOUNT
@@ -642,6 +627,7 @@ engine_i2c_call:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: fuh)
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
+.Lthunk_op_I2ICall:
 engine_i2i_call:
   // stack parameters are starting right at the top of the interpreted frame
   mov   [ECTYPE_REG + TAIL_REG_OFFS], rsp
@@ -657,7 +643,8 @@ engine_i2i_call:
 .balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: mask)
 // preserved: ECTYPE_REG, rbp
-engine_i2_load_generic:
+.Lthunk_op_LoadGeneric:
+.Lengine_i2_load_generic:
   // mask is expected in form of:
   // [0..4) - dst reg
   // [4..8) - base reg
@@ -698,7 +685,8 @@ engine_i2_load_generic:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
-engine_i2_newobject:
+.Lthunk_op_NewObject:
+.Lengine_i2_newobject:
   // jumped from .Linterpreter_call without return address to return
   call  [rip + engine_newobject_function]
   mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE], rax
@@ -709,7 +697,8 @@ engine_i2_newobject:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
-engine_i2_newobject_pinned:
+.Lthunk_op_NewObjectPinned:
+.Lengine_i2_newobject_pinned:
   // jumped from .Linterpreter_call without return address to return
   xor   esi, esi
   call  [rip + engine_newobject_pinned_function]
@@ -721,7 +710,8 @@ engine_i2_newobject_pinned:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
-engine_i2_newobject_acc:
+.Lthunk_op_NewObjectAcc:
+.Lengine_i2_newobject_acc:
   // jumped from .Linterpreter_call without return address to return
   call  [rip + engine_newobject_function]
   mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE * ECTYPE_IACC_NUM], rax // move to acc register
@@ -732,7 +722,8 @@ engine_i2_newobject_acc:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
-engine_i2_newarray:
+.Lthunk_op_NewArray:
+.Lengine_i2_newarray:
   // jumped from .Linterpreter_call without return address to return
   mov   rsi, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x10]
   call  [rip + engine_newarray_function]
@@ -742,7 +733,8 @@ engine_i2_newarray:
 
 .balign 16
 // expects: (ECTYPE_REG: ectype, rdi: safe_point_f)
-engine_i2_gcpoint:
+.Lthunk_op_GcPoint:
+.Lengine_i2_gcpoint:
   call rdi
   restore_tls
   jmp  .Lrestart_interpretation
@@ -750,7 +742,8 @@ engine_i2_gcpoint:
 .balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
 // preserved: ECTYPE_REG, rbp
-engine_i2_spawn:
+.Lthunk_op_Spawn:
+.Lengine_i2_spawn:
   mov   rsi, [ECTYPE_REG + ECTYPE_IACC_OFFSET]
   mov   rcx, rdi
   lea   rdi, [rip + engine_fake_execute_closure]
@@ -760,7 +753,8 @@ engine_i2_spawn:
 
 // expects: (ECTYPE_REG: ectype, TLS_REG: th)
 // preserved: ECTYPE_REG, rbp
-engine_i2_spawn_future:
+.Lthunk_op_SpawnFuture:
+.Lengine_i2_spawn_future:
   mov   rdi, [ECTYPE_REG + ECTYPE_IACC_OFFSET]
   call  engine_spawn_future
   test  rdx, rdx
@@ -782,6 +776,32 @@ engine_i2_spawn_future:
 // TREAT SYMBOLS ABOVE AS PART OF perform_2i_call
 FUNC_END perform_2i_call
 
+// Unreachable
+.Lthunk_op_None:
+  ud2
+
+// Thunk dispatch table. Entry order must match the C++ ThunkOp enum in int_thunk.h.
+#define THUNK_OP_ENTRY(name) .long .Lthunk_op_##name - .Lthunk_ops_table
+.Lthunk_ops_table:
+  THUNK_OP_ENTRY(None)
+  THUNK_OP_ENTRY(I2ICall)
+  THUNK_OP_ENTRY(I2CCall)
+  THUNK_OP_ENTRY(NewObject)
+  THUNK_OP_ENTRY(NewObjectPinned)
+  THUNK_OP_ENTRY(NewObjectAcc)
+  THUNK_OP_ENTRY(NewArray)
+  THUNK_OP_ENTRY(LoadGeneric)
+  THUNK_OP_ENTRY(GcPoint)
+  THUNK_OP_ENTRY(Spawn)
+  THUNK_OP_ENTRY(SpawnFuture)
+  THUNK_OP_ENTRY(HandleException)
+  THUNK_OP_ENTRY(ThrowImplicit)
+#undef THUNK_OP_ENTRY
+.Lthunk_ops_table_end:
+.if ((.Lthunk_ops_table_end - .Lthunk_ops_table) / 4) != THUNK_OP_COUNT
+  .error "thunk ops table size mismatch"
+.endif
+
 // fake execute closure function
 .balign 16
 engine_fake_execute_closure:
@@ -794,7 +814,8 @@ engine_fake_execute_closure:
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
 .balign 16
-engine_throw_implicit_exception:
+.Lthunk_op_ThrowImplicit:
+.Lengine_throw_implicit_exception:
   // jumped from .Linterpreter_call without return address to return
   call  [rip + engine_implicit_exception_thrower]
   ud2 // should not return, as exception is thrown inside call
@@ -814,7 +835,8 @@ common_landing_pad:
 // or throws exception reference using CJNative runtime interface if there is no any exception handler in consecutive interpreter frames.
 // Precondition: top frame is interpreter frame.
 .balign 16
-engine_handle_exception:
+.Lthunk_op_HandleException:
+.Lengine_handle_exception:
   mov   EXTRA_REG, rdi
 
   mov   rdi, QWORD PTR [rbp - FUH_SLOT_OFFSET]

@@ -96,34 +96,6 @@ Interpretation::Thunk Execution::GetInterfaceThunk(TypeInfo where, TypeInfo ti, 
     FATAL("Should not reach here.");
 }
 
-void* Execution::AllocateObjectInstance() { FATAL("Should not reach here"); }
-
-void* Execution::AllocateObjectPinnedInstance() { FATAL("Should not reach here"); }
-
-void* Execution::AllocateObjectInstanceAcc() { FATAL("Should not reach here"); }
-
-void* Execution::AllocateArrayInstance() { FATAL("Should not reach here"); }
-
-void* Execution::LoadGeneric() { FATAL("Should not reach here"); }
-
-void* Execution::HandleException()
-{
-    FATAL("Should not reach here");
-    return nullptr;
-}
-
-void* Execution::ThrowImplicitException()
-{
-    FATAL("Should not reach here");
-    return nullptr;
-}
-
-void* Execution::GcPointTrampoline() { FATAL("Should not reach here"); }
-
-void* Execution::Spawn() { FATAL("Should not reach here"); }
-
-void* Execution::SpawnFuture() { FATAL("Should not reach here"); }
-
 void* Execution::GcPoint() { FATAL("Should not reach here"); }
 
 bool Execution::IsPendingSafePoint() { return false; }
