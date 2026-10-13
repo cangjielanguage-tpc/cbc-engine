@@ -138,6 +138,13 @@ public:
         return true;
     }
 
+    inline bool StoreAddrImm(Format::StoreAccessKind stk, uintptr_t addr, uint64_t imm)
+    {
+        ASSERTION(stk <= Format::StoreAccessKind::ST_64, "Unexpected store access kind");
+        MemoryLocation(addr).StoreImm(stk, imm);
+        return true;
+    }
+
     inline bool LoadObj(Format::LoadAccessKind ldk, Format::Reg dst, IReg base, uint64_t offset)
     {
         auto obj = ectype->GetReference(base);
@@ -323,7 +330,7 @@ public:
             case RTSupport::HEAP:   return LoadObj(ldk, dst, base, (derived - obj.value) + offset);
             case RTSupport::GLOBAL:
                 auto derivedAddr = RTSupport::Execution::UnwrapDerivedPtr(derived) + offset;
-                return LoadRecStatic(ldk, dst, derivedAddr);
+                return LoadAddr(ldk, dst, derivedAddr);
         }
     }
 
@@ -337,7 +344,7 @@ public:
             case RTSupport::HEAP:  return StoreObj(stk, src, base, (derived - obj.value) + offset);
             case RTSupport::GLOBAL:
                 auto derivedAddr = RTSupport::Execution::UnwrapDerivedPtr(derived) + offset;
-                return StoreRecStatic(stk, src, derivedAddr);
+                return StoreAddr(stk, src, derivedAddr);
         }
     }
 
@@ -351,7 +358,7 @@ public:
             case RTSupport::HEAP:  return StoreObjImm(stk, base, (derived - obj.value) + offset, imm);
             case RTSupport::GLOBAL:
                 uintptr_t derivedAddr = RTSupport::Execution::UnwrapDerivedPtr(derived) + offset;
-                return StoreRecStaticImm(stk, derivedAddr, imm);
+                return StoreAddrImm(stk, derivedAddr, imm);
         }
     }
 
@@ -399,16 +406,6 @@ public:
         return true;
     }
 
-    inline bool LoadRecStatic(Format::LoadAccessKind ldk, Format::Reg dst, uintptr_t addr)
-    {
-        if (ldk == LoadAccessKind::LD_REF) {
-            ectype->Put(dst.IR(), RTSupport::Execution::ReadObjectStatic(reinterpret_cast<void*>(addr), handle));
-        } else {
-            MemoryLocation(addr).LoadPrim(ldk, dst, ectype);
-        }
-        return true;
-    }
-
     inline bool StoreRec(Format::StoreAccessKind stk, Format::Reg src, IReg base, uint64_t offset)
     {
         auto ptr = static_cast<uintptr_t>(ectype->GetPrimitive(base).u64);
@@ -421,30 +418,12 @@ public:
         return true;
     }
 
-    inline bool StoreRecStatic(Format::StoreAccessKind stk, Format::Reg src, uintptr_t addr)
-    {
-        if (stk == StoreAccessKind::ST_REF) {
-            auto ref = ectype->GetReference(src.IR());
-            RTSupport::Execution::WriteObjectStatic(reinterpret_cast<void*>(addr), ref, handle);
-        } else {
-            MemoryLocation(addr).StorePrim(stk, src, ectype);
-        }
-        return true;
-    }
-
     inline bool StoreRecImm(Format::StoreAccessKind stk, IReg base, uint64_t offset, uint64_t imm)
     {
         auto ptr = static_cast<uintptr_t>(ectype->GetPrimitive(base).u64);
         ASSERT(base != IReg::IRZ && ptr != 0);
         ASSERTION(stk <= Format::StoreAccessKind::ST_64, "Unexpected store access kind");
         MemoryLocation(ptr, offset).StoreImm(stk, imm);
-        return true;
-    }
-
-    inline bool StoreRecStaticImm(Format::StoreAccessKind stk, uintptr_t addr, uint64_t imm)
-    {
-        ASSERTION(stk <= Format::StoreAccessKind::ST_64, "Unexpected store access kind");
-        MemoryLocation(addr).StoreImm(stk, imm);
         return true;
     }
 

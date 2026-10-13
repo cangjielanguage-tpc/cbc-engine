@@ -673,7 +673,6 @@ struct IsaRewriter : public IsaParser {
         UNWRAP_OPT(location, field->location, Fail);
         auto symbol = emit.NewAddressSym(location);
         emit.LoadStatic(LDK::LD_LEA, dst, symbol);
-        // TODO: avoid this mov on arm64
         emit.MovImm(Format::Width::W64, dstBaseRef, RTSupport::Execution::GetGlobalBasePtr().value);
     }
 
