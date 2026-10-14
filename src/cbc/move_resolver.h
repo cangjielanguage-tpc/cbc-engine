@@ -41,7 +41,7 @@ struct Location {
 
     static Location Slot(int slot) { return Location { IReg::VIRT_COUNT + FReg::COUNT + slot }; }
 
-    static Location Nil() { return Location { -1 }; }
+    static constexpr Location Nil() { return Location { -1 }; }
 };
 
 // Abstract sink for resolved moves. Implementations emit the actual
