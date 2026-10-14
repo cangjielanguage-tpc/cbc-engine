@@ -326,9 +326,9 @@ struct IsaDisasm : public IsaParser {
 
     void LeaCForeign(IReg dst, uint32_t method) override { stream.PrintLn("lea.cforeign {}, @{}", dst, method); }
 
-    void CallCFunc(IReg dst, IReg src, uint32_t methodSig) override
+    void CallCFunc(IReg target, uint32_t methodId, Utils::Span<const Location> args) override
     {
-        stream.PrintLn("call.cfunc {}, {}, @{}", dst, src, methodSig);
+        stream.PrintLn("call.cfunc {} @{}{}", target, methodId, ArgsStr(args));
     }
 
     void Spawn(IReg closure, uint32_t type) override { stream.PrintLn("spawn {}, @{}", closure, type); }

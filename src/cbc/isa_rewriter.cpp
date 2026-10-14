@@ -353,17 +353,20 @@ struct IsaRewriter : public IsaParser {
         return true;
     }
 
-    void StageCallArgs(
+    // Only indirect calls (CFunc calls) can have sig == std::nullopt
+    // they are supposed to be unmanaged
+    AbiInfo StageCallArgs(
         Utils::Span<const Location> args,
         CallAbiFlags flags,
-        Resolution::MethodSignature& sig,
+        std::optional<Resolution::MethodSignature> sig,
         Location* outerTiLoc = nullptr
     )
     {
-        int funcVarsCount = sig.tvars.GetLength();
-        if (!CheckArgCount(args.Size(), flags, funcVarsCount, sig.ParamCount())) {
-            return;
+        int funcVarsCount = sig ? sig->tvars.GetLength() : 0;
+        if (sig && !CheckArgCount(args.Size(), flags, funcVarsCount, sig->ParamCount())) {
+            return {};
         }
+
         MoveResolver moves;
         Utils::Vector<uint32_t> refStackSlots;
         Utils::Vector<uint32_t> recStackSlots;
@@ -412,11 +415,22 @@ struct IsaRewriter : public IsaParser {
             case Image::MethodAbiKind::HAS_THIS_TI:;
         }
 
-        auto params     = sig.Params();
-        int paramOffset = idx;
-        ASSERT(args.Size() >= params.Size() + idx);
-        for (int j = 0; j < params.Size(); ++idx, ++j) {
-            moves.AddMove(args[idx], abi.Consume(params[j]));
+        if (sig) {
+            auto params     = sig->Params();
+            int paramsCount = static_cast<int>(params.Size());
+            ASSERT(paramsCount >= 0 && static_cast<size_t>(paramsCount + idx) <= args.Size());
+            for (int j = 0; j < paramsCount; ++idx, ++j) {
+                moves.AddMove(args[idx], abi.Consume(params[j]));
+            }
+        } else {
+            // Args are not managed by GC or stack expansion. Can be considered simply as INT or FLOAT
+            int paramsCount = static_cast<int>(args.Size()) - idx;
+            ASSERT(paramsCount >= 0 && static_cast<size_t>(paramsCount + idx) <= args.Size());
+            for (int j = 0; j < paramsCount; ++idx, ++j) {
+                moves.AddMove(
+                    args[idx], abi.Consume(args[idx].Kind() == Location::FREG ? ArgKind::FLOAT : ArgKind::INT)
+                );
+            }
         }
 
         ASSERT(funcVarsCount <= args.Size());
@@ -425,19 +439,22 @@ struct IsaRewriter : public IsaParser {
         }
 
         if (flags.hasOuterTi) {
+            ASSERT(sig.has_value());
             Location loc = abi.Consume(ArgKind::INT);
             moves.AddMove(args[idx++], loc);
             if (outerTiLoc)
                 *outerTiLoc = loc;
         }
+
         if (flags.abiKind == Image::MethodAbiKind::HAS_THIS_TI) {
+            ASSERT(sig.has_value());
             moves.AddMove(args[idx++], abi.Consume(ArgKind::INT));
         }
 
         RewriterMoveEmitter emitter(frameLayout, emit);
         if (!moves.Resolve(emitter)) {
             Fail("Register kind mismatch");
-            return;
+            return {};
         }
         maxParamPassingSize = std::max(maxParamPassingSize, static_cast<uint32_t>(abi.MaxStackSlot() * 8));
 
@@ -447,6 +464,8 @@ struct IsaRewriter : public IsaParser {
         pendingParamRecSlots.Clear();
         for (auto slot : recStackSlots)
             pendingParamRecSlots.PushBack(slot);
+
+        return abi.Info();
     }
 
     void Bcc(Format::Width width, Format::CC cc, AnyReg l, AnyReg r, int64_t delta) override
@@ -1322,29 +1341,14 @@ struct IsaRewriter : public IsaParser {
         }
     }
 
-    std::optional<uint8_t> countStackSlots(Engine::Term methodType)
+    void CallCFunc(IReg target, uint32_t methodId, Utils::Span<const Location> args) override
     {
-        uint32_t iregs      = 0;
-        uint32_t fregs      = 0;
-        uint32_t stackSlots = 0;
-        for (uint32_t i = 0; i < methodType.GetLength() - 1; i++) {
-            if (methodType.Subterm(i).IsFloat()) {
-                fregs < FREG_ABI_AMOUNT ? fregs++ : stackSlots++;
-            } else {
-                iregs < IREG_PARAM_PASSING_AMOUNT ? iregs++ : stackSlots++;
-            }
-        }
-        if (stackSlots > UINT8_MAX) {
-            return std::nullopt;
-        }
-        return static_cast<uint8_t>(stackSlots);
-    }
-
-    void CallCFunc(IReg dst, IReg src, uint32_t _methodSig) override
-    {
-        UNWRAP_OPT(methodSig, resolver.Query(Index<Type>(_methodSig)), Fail);
-        UNWRAP_OPT(stackSlots, countStackSlots(methodSig.term), Fail);
-        emit.CallCFunc(src, stackSlots);
+        auto ref = Decode::Read(
+            session,
+            Image::RefIdentifier<Image::MethodReference>(Image::RefId<Image::MethodReference>(methodId), fileId)
+        );
+        AbiInfo info = StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), std::nullopt);
+        emit.CallCFunc(target, info.stackArgsCount);
         BindStatePoint();
         EmitReturnedTo();
     }
@@ -1364,14 +1368,13 @@ struct IsaRewriter : public IsaParser {
             session,
             Image::RefIdentifier<Image::MethodReference>(Image::RefId<Image::MethodReference>(methodId), fileId)
         );
-        StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature);
+        AbiInfo info = StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature);
 
         if (auto data = std::get_if<DirectCall::Compiled>(&method->data)) {
             auto sym = emit.NewAddressSym(data->funcPtr);
             if (data->isForeign) {
-                UNWRAP_OPT(stackSlots, countStackSlots(method->signature.term), Fail);
                 EmitLogCall("call.2n", method);
-                emit.DirectCall2n(sym, stackSlots);
+                emit.DirectCall2n(sym, info.stackArgsCount);
             } else {
                 EmitLogCall("call.2c", method);
                 emit.DirectCall2c(sym);
