@@ -1064,6 +1064,7 @@ std::optional<TypeInfo> CreateTypeInfo(Engine::Session& session, TypeInfoManager
             case Engine::TermKind::F64:     return builtinTypeInfos[BUILTIN_F64];
             case Engine::TermKind::UCHAR32: return builtinTypeInfos[BUILTIN_RUNE];
             case Engine::TermKind::BSTRING: return builtinTypeInfos[BUILTIN_CSTRING];
+            case Engine::TermKind::NOTHING: return builtinTypeInfos[BUILTIN_NOTHING];
 
             default: {
                 FATAL("Not supported yet %d", termIdent.GetKind());

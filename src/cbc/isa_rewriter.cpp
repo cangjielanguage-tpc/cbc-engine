@@ -120,6 +120,7 @@ STK Stk(Interpretation::BuiltinType bt)
         case Interpretation::BUILTIN_F64:     return STK::ST_F64;
         case Interpretation::BUILTIN_RUNE:    return STK::ST_32;
         case Interpretation::BUILTIN_CSTRING: return STK::ST_64;
+        case Interpretation::BUILTIN_NOTHING: return STK::ST_64; // anything allowed, ub
     }
 }
 
@@ -143,6 +144,7 @@ LDK Ldk(Interpretation::BuiltinType bt)
         case Interpretation::BUILTIN_F64:     return LDK::LD_F64;
         case Interpretation::BUILTIN_RUNE:    return LDK::LD_32;
         case Interpretation::BUILTIN_CSTRING: return LDK::LD_64;
+        case Interpretation::BUILTIN_NOTHING: return LDK::LD_64; // anything allowed, ub
     }
 }
 
@@ -1776,6 +1778,7 @@ struct IsaRewriter : public IsaParser {
             case Engine::TermKind::F64:     return BUILTIN_F64;
             case Engine::TermKind::UCHAR32: return BUILTIN_RUNE;
             case Engine::TermKind::BSTRING: return BUILTIN_CSTRING;
+            case Engine::TermKind::NOTHING: return BUILTIN_NOTHING;
 
             default: Fail("unexpected builtin kind"); return Interpretation::BUILTIN_I64;
         }

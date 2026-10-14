@@ -394,7 +394,8 @@ CBC_EXPORT int interpreter_bridge_init(
         builtinTypeInfos[BUILTIN_F32]     = RTSupport::TypeInfo(getTypeInfo("Float32"));
         builtinTypeInfos[BUILTIN_F64]     = RTSupport::TypeInfo(getTypeInfo("Float64"));
         builtinTypeInfos[BUILTIN_RUNE]    = RTSupport::TypeInfo(getTypeInfo("Rune"));
-        builtinTypeInfos[BUILTIN_CSTRING] = RTSupport::TypeInfo(getTypeInfo("CString"));
+        builtinTypeInfos[BUILTIN_NOTHING] = RTSupport::TypeInfo(getTypeInfo("CString"));
+        builtinTypeInfos[BUILTIN_CSTRING] = RTSupport::TypeInfo(getTypeInfo("Nothing"));
     }
 
     return 0;
