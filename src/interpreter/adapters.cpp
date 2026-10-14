@@ -3,35 +3,30 @@
 #include "engine/terms.h"
 #include "function_handle.h"
 
+#include "interpreter/code.h"
 #include "runtimesupport/adapters.h"
 
 namespace Interpretation {
 
 void* GetDirectCallTrampoline(DynamicFunctionHandle* fuh) { return RTSupport::Adapters::GetDirectCallTrampoline(fuh); }
 
-void* CountRegs(Engine::Term& signature)
-{
-    ASSERT(signature.GetKind() == Engine::TermKind::FUNCTIONAL);
-    size_t size     = signature.GetLength();
-    size_t integers = 0;
-    size_t floats   = 0;
-
-    for (size_t i = 0; i < size; i++) {
-        auto subterm = signature.Subterm(i);
-        if (subterm.IsFloat()) {
-            floats++;
-        } else {
-            integers++;
-        }
-    }
-    return RTSupport::Adapters::C2ICall(integers, floats);
-}
-
 C2Call PrepareC2Call(Engine::Session& session, Image::Identifier<Image::MethodDefinition> methodDef)
 {
     auto def       = Decode::Read(session, methodDef);
+    auto flags     = def.GetABIFlags();
     auto signature = Engine::TermManager::Resolve(session, def.Signature());
-    return reinterpret_cast<C2Call>(CountRegs(signature));
+    auto abiInfo = Interpretation::BuildAbiInfo(
+        session,
+        Engine::TermManager::Resolve(session, def.Signature()),
+        {
+            .isSRet     = flags.Is(Image::MethodRefFlag::SRET),
+            .isMut      = def->abiKind == Image::MethodAbiKind::MUT,
+            .hasOuterTi = flags.Is(Image::MethodRefFlag::HAS_OUTER_TI),
+            .abiKind    = def->abiKind,
+            .funcVars   = def->arity,
+        }
+    );
+    return RTSupport::Adapters::C2ICall(abiInfo);
 }
 
 } // namespace Interpretation

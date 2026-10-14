@@ -1,5 +1,6 @@
 #pragma once
 
+#include "interpreter/code.h"
 #include "interpreter/function_handle.h"
 #include <cstdint>
 
@@ -12,6 +13,6 @@ struct Adapters {
     static void* IregOnlyC2ICallInstance();
     static void* GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* fuh);
     static void* GetDynCallTrampoline(int fuhIdx, bool sret);
-    static void* C2ICall(uint32_t intArgCount, uint32_t floatArgCount);
+    static void* C2ICall(Interpretation::AbiInfo info);
 };
 } // namespace RTSupport
