@@ -20,7 +20,6 @@
     #define engine_trampolines_direct_start _engine_trampolines_direct_start
     #define engine_all_regs_c2i_call _engine_all_regs_c2i_call
     #define engine_iregs_only_c2i_call _engine_iregs_only_c2i_call
-    #define engine_i2i_call _engine_i2i_call
     #define engine_i2c_call _engine_i2c_call
     #define engine_i2n_call _engine_i2n_call
     #define engine_c_abi_adapter _engine_c_abi_adapter
@@ -84,7 +83,6 @@ declare_hidden engine_trampolines_dyn_sret_end
 declare_hidden engine_trampolines_direct_start
 declare_hidden engine_all_regs_c2i_call
 declare_hidden engine_iregs_only_c2i_call
-declare_hidden engine_i2i_call
 declare_hidden engine_i2c_call
 declare_hidden engine_i2n_call
 declare_hidden engine_c_abi_adapter
@@ -661,7 +659,6 @@ engine_i2n_call:
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
 .Lthunk_op_I2ICall:
-engine_i2i_call:
   // stack parameters are starting right at the top of the interpreted frame
   mov   [ECTYPE_REG + TAIL_REG_OFFS], rsp
 

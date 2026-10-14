@@ -74,8 +74,6 @@ struct MethodSignature {
 struct DirectCall {
     struct Compiled {
         uintptr_t funcPtr;
-        Interpretation::I2Call i2cAdapter;
-        bool isForeign;
     };
 
     using CallData = std::variant<Compiled, Interpretation::DynamicFunctionHandle*>;
