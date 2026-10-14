@@ -11,13 +11,12 @@ void* Adapters::GenericC2ICallInstance() { return reinterpret_cast<void*>(&Asm::
 
 void* Adapters::IregOnlyC2ICallInstance() { return reinterpret_cast<void*>(&Asm::engine_iregs_only_c2i_call); }
 
-void* Adapters::C2ICall(uint32_t intArgCount, uint32_t floatArgCount)
+void* Adapters::C2ICall(Interpretation::AbiInfo info)
 {
-    if (floatArgCount == 0) {
-        return Adapters::IregOnlyC2ICallInstance();
-    } else {
+    if (info.fregParamCount > 0) {
         return Adapters::GenericC2ICallInstance();
     }
+    return Adapters::IregOnlyC2ICallInstance();
 }
 
 std::mutex g_directCallFuhsMutex;

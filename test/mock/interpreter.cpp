@@ -9,6 +9,7 @@
 #include "engine/options.h"
 #include "engine/typeinfo_manager.h"
 #include "interpreter.h"
+#include "interpreter/code.h"
 #include "interpreter/ectype.h"
 #include "interpreter/function_handle.h"
 #include "interpreter/interpretation_loop.h"
@@ -400,19 +401,13 @@ bool Execution::AtomicCompareAndSwapRef(Reference oldRef, Reference newRef, Refe
     FATAL("Should not reach here");
 }
 
-void* Adapters::GenericI2CCallInstance() { FATAL("Should not reach here. Mock i2c"); }
-
-void* Adapters::I2ICallInstance() { return reinterpret_cast<void*>(&Interpretation::InterpreterI2CallTest); }
-
-static void C2ICall() { FATAL("Should not reach here. Mock c2i"); }
-
 void* Adapters::GetDynCallTrampoline(int idx, bool sret) { FATAL("Should not reach here"); }
 
 void* Adapters::GenericC2ICallInstance() { return reinterpret_cast<void*>(&C2ICall); }
 
 void* Adapters::IregOnlyC2ICallInstance() { return reinterpret_cast<void*>(&C2ICall); }
 
-void* Adapters::C2ICall(uint32_t intArgCount, uint32_t floatArgCount) { return reinterpret_cast<void*>(&C2ICall); }
+void* Adapters::C2ICall(Interpretation::AbiInfo info) { return reinterpret_cast<void*>(&C2ICall); }
 
 void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* fuh) { FATAL("Should not reach here."); }
 
