@@ -20,7 +20,6 @@
     #define engine_trampolines_direct_start _engine_trampolines_direct_start
     #define engine_all_regs_c2i_call _engine_all_regs_c2i_call
     #define engine_iregs_only_c2i_call _engine_iregs_only_c2i_call
-    #define engine_i2c_call _engine_i2c_call
     #define engine_newobject_pinned_function _engine_newobject_pinned_function
     #define engine_spawn_future _engine_spawn_future
     #define engine_future_execute_function _engine_future_execute_function
@@ -80,7 +79,6 @@ declare_hidden engine_trampolines_dyn_sret_end
 declare_hidden engine_trampolines_direct_start
 declare_hidden engine_all_regs_c2i_call
 declare_hidden engine_iregs_only_c2i_call
-declare_hidden engine_i2c_call
 declare_hidden engine_universal_direct_function_handles
 declare_hidden engine_tls_function
 declare_hidden engine_read_generic
@@ -617,7 +615,6 @@ engine_after_stack_grow:
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
 .Lthunk_op_I2CCall:
-engine_i2c_call:
   // jumped from .Linterpreter_call without return address to return
   i2c_call IREG_ABI_AMOUNT, FREG_ABI_AMOUNT
 
@@ -641,7 +638,6 @@ engine_i2c_call:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: mask)
 // preserved: ECTYPE_REG, rbp
 .Lthunk_op_LoadGeneric:
-.Lengine_i2_load_generic:
   // mask is expected in form of:
   // [0..4) - dst reg
   // [4..8) - base reg
@@ -683,7 +679,6 @@ engine_i2c_call:
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
 .Lthunk_op_NewObject:
-.Lengine_i2_newobject:
   // jumped from .Linterpreter_call without return address to return
   call  [rip + engine_newobject_function]
   mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE], rax
@@ -695,7 +690,6 @@ engine_i2c_call:
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
 .Lthunk_op_NewObjectPinned:
-.Lengine_i2_newobject_pinned:
   // jumped from .Linterpreter_call without return address to return
   xor   esi, esi
   call  [rip + engine_newobject_pinned_function]
@@ -708,7 +702,6 @@ engine_i2c_call:
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
 .Lthunk_op_NewObjectAcc:
-.Lengine_i2_newobject_acc:
   // jumped from .Linterpreter_call without return address to return
   call  [rip + engine_newobject_function]
   mov   [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE * ECTYPE_IACC_NUM], rax // move to acc register
@@ -720,7 +713,6 @@ engine_i2c_call:
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
 .Lthunk_op_NewArray:
-.Lengine_i2_newarray:
   // jumped from .Linterpreter_call without return address to return
   mov   rsi, [ECTYPE_REG + ECTYPE_IREGS_OFFSET + 0x10]
   call  [rip + engine_newarray_function]
@@ -731,7 +723,6 @@ engine_i2c_call:
 .balign 16
 // expects: (ECTYPE_REG: ectype, rdi: safe_point_f)
 .Lthunk_op_GcPoint:
-.Lengine_i2_gcpoint:
   call rdi
   restore_tls
   jmp  .Lrestart_interpretation
@@ -740,7 +731,6 @@ engine_i2c_call:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: typeInfo)
 // preserved: ECTYPE_REG, rbp
 .Lthunk_op_Spawn:
-.Lengine_i2_spawn:
   mov   rsi, [ECTYPE_REG + ECTYPE_IACC_OFFSET]
   mov   rcx, rdi
   lea   rdi, [rip + engine_fake_execute_closure]
@@ -751,7 +741,6 @@ engine_i2c_call:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th)
 // preserved: ECTYPE_REG, rbp
 .Lthunk_op_SpawnFuture:
-.Lengine_i2_spawn_future:
   mov   rdi, [ECTYPE_REG + ECTYPE_IACC_OFFSET]
   call  engine_spawn_future
   test  rdx, rdx
