@@ -760,7 +760,7 @@ engine_i2i_call:
   test  rdx, rdx
   jnz   .Lspawn_future_success
   mov   edi, IMPLICIT_EXCEPTION_SPAWN
-  jmp   engine_throw_implicit_exception
+  jmp   .Lengine_throw_implicit_exception
 .Lspawn_future_success:
   // Thread.setRuntimeCJThreadHandle arguments:
   // rdi: sret pointer for Unit; no return storage is needed.
@@ -772,6 +772,16 @@ engine_i2i_call:
   xor   ecx, ecx
   call  [rip + engine_set_runtime_cjthread_handle_function]
   jmp  .Lrestart_interpretation
+
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: exception type)
+// preserved: ECTYPE_REG, rbp
+// TLS_REG can be changed after context-switch
+.balign 16
+.Lthunk_op_ThrowImplicit:
+.Lengine_throw_implicit_exception:
+  // jumped from .Linterpreter_call without return address to return
+  call  [rip + engine_implicit_exception_thrower]
+  ud2 // should not return, as exception is thrown inside call
 
 // TREAT SYMBOLS ABOVE AS PART OF perform_2i_call
 FUNC_END perform_2i_call
@@ -810,16 +820,6 @@ engine_fake_execute_closure:
   mov   rdi, rsi
   jmp   rcx
 
-// expects: (ECTYPE_REG: ectype, TLS_REG: th, rdi: exception type)
-// preserved: ECTYPE_REG, rbp
-// TLS_REG can be changed after context-switch
-.balign 16
-.Lthunk_op_ThrowImplicit:
-.Lengine_throw_implicit_exception:
-  // jumped from .Linterpreter_call without return address to return
-  call  [rip + engine_implicit_exception_thrower]
-  ud2 // should not return, as exception is thrown inside call
-
 // expects: (ECTYPE_REG: ectype)
 // When exception is thrown from CJNative code to interpreter, execution of
 // interpreter exception handling starts here
@@ -828,7 +828,7 @@ engine_fake_execute_closure:
 common_landing_pad:
   call engine_get_and_clear_pending_exception
   mov rdi, rax
-  jmp engine_handle_exception
+  jmp .Lengine_handle_exception
 
 // expects: (ECTYPE_REG: ectype, rdi: exception reference)
 // Returns to interpretation loop with exception reference on ACC_REG
@@ -888,10 +888,10 @@ common_landing_pad:
   // Check if next method is C2I adapter
   lea   rax, [rip + engine_c2i_call_pc_start]
   cmp   rsi, rax
-  jb    engine_handle_exception
+  jb    .Lengine_handle_exception
   lea   rax, [rip + engine_c2i_call_pc_end]
   cmp   rsi, rax
-  jae   engine_handle_exception
+  jae   .Lengine_handle_exception
 
   // Unwind C2I frame and when there are no interpreter frames
   // throw exception using CJNative runtime (as it usually done in AOT code)
