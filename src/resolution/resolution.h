@@ -2,12 +2,10 @@
 
 #include "engine/engine.h"
 #include "engine/field_layout.h"
-#include "engine/identifiers.h"
 #include "engine/terms.h"
 #include "engine/typeinfo_manager.h"
 #include "interpreter/function_handle.h"
 #include "runtimesupport/runtime.h"
-#include "utils/iterators.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
 #include "utils/span.h"
@@ -240,7 +238,6 @@ struct Resolver {
 
     std::string_view QueryString(uint32_t stringOffs);
 
-    void GetFullName(Type type, Stream::Output& stream);
     std::optional<RTSupport::TypeInfo> GetTypeInfo(Type type);
     CbcTypeKind GetKind(Type type);
     std::optional<uint32_t> GetFlatSize(Type type);

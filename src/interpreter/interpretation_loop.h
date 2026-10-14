@@ -28,6 +28,7 @@ enum BuiltinType : uint8_t {
     BUILTIN_F32,
     BUILTIN_F64,
     BUILTIN_RUNE,
+    BUILTIN_NOTHING,
     BUILTIN_CSTRING,
 };
 

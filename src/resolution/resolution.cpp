@@ -13,7 +13,6 @@
 #include "runtimesupport/adapters.h"
 #include "runtimesupport/runtime.h"
 #include "utils/assertion.h"
-#include "utils/iterators.h"
 #include "utils/logger.h"
 #include "utils/ostream.h"
 #include "utils/span.h"
@@ -111,13 +110,6 @@ struct ResolvedMethodReference {
     Image::MethodRefFlags flags;
     Image::MethodAbiKind abiKind;
     bool isResolved;
-
-    std::string GetFullName(Session& session)
-    {
-        Stream::StringBuffer buf;
-        buf << refType.GetName(session) << '.' << name << signature.GetName(session);
-        return buf.ToString();
-    }
 };
 
 /// @brief Resolved Single or ConstIndex field.
@@ -127,19 +119,6 @@ struct ResolvedSimpleFieldRef {
     Term fieldType;
     RefIdentifier<Image::FieldReference> ident;
     bool isRecord;
-
-    std::string GetFullName(Session& session)
-    {
-        Stream::StringBuffer buf;
-        if (std::holds_alternative<std::string_view>(nameOrIdx)) {
-            auto name = std::get<std::string_view>(nameOrIdx);
-            buf << refType.GetName(session) << '.' << name << ' ' << fieldType.GetName(session);
-        } else {
-            auto idx = std::get<uint32_t>(nameOrIdx);
-            buf << refType.GetName(session) << '[' << idx << "] " << fieldType.GetName(session);
-        }
-        return buf.ToString();
-    }
 
     uint32_t GetRawIndex() { return ident.GetIndex().GetValue(); }
 };
@@ -598,18 +577,14 @@ struct ResolverProxy {
         auto resolved = mt->Resolve(resolver, mtRef);
 
         if (!resolved.has_value()) {
-            log.Log(Logging::Level::ERROR, [&](Stream::Output& stream) {
-                stream << "Failed to resolve method " << ref.GetFullName(resolver.session) << Stream::endl;
-            });
+            LOGS_ERROR(log, resolver, "Failed to resolve method {}", ref.refType, ref.name, ref.signature);
             return std::nullopt;
         }
 
         auto method      = Decode::Read(resolver, resolved->method);
         auto actualFlags = method.GetABIFlags();
         if (actualFlags != ref.flags) {
-            log.Log(Logging::Level::ERROR, [&](Stream::Output& stream) {
-                stream << "Resolved method is abi incompatible " << ref.GetFullName(resolver.session) << Stream::endl;
-            });
+            LOGS_ERROR(log, resolver, "Resolved method is abi incompatible {}", ref.refType, ref.name, ref.signature);
             return std::nullopt;
         }
 
@@ -705,23 +680,23 @@ struct ResolverProxy {
             MethodSignatureSubstitution sub(resolver.session, ref.refType);
             for (auto m : Decode::FindBucket(resolver, type.GetMethods(), ref.name)) {
                 auto def = Decode::Read(resolver, m);
-                auto sig = TermManager::Resolve(resolver, def.Signature());
-                if (sub(sig) == ref.signature) {
+                auto sig = sub(TermManager::Resolve(resolver, def.Signature()));
+
+                if (sig == ref.signature) {
                     return m;
                 }
             }
 
             for (auto m : Decode::Resolve(resolver, type.GetVirtualMethods())) {
-                auto def = Decode::Read(resolver, m);
-                auto sig = TermManager::Resolve(resolver, def.Signature());
-                if (sub(sig) == ref.signature) {
+                auto def  = Decode::Read(resolver, m);
+                auto name = Decode::Read(resolver, def.Name());
+                auto sig  = sub(TermManager::Resolve(resolver, def.Signature()));
+                if (name == ref.name && sig == ref.signature) {
                     return m;
                 }
             }
 
-            log.Log(Logging::Level::ERROR, [&](Stream::Output& stream) {
-                stream << "Failed to resolve method " << ref.GetFullName(resolver.session) << Stream::endl;
-            });
+            LOGS_ERROR(log, resolver, "Failed to resolve method {}", ref.refType, ref.name, ref.signature);
             return std::nullopt;
         }();
 
@@ -926,8 +901,6 @@ std::string_view Resolver::QueryString(uint32_t stringOffs)
     return Reader::Read(session, Image::Identifier(Offset<String>(stringOffs), method.GetFileId()));
 }
 
-void Resolver::GetFullName(Type type, Stream::Output& stream) { type.term.GetName(session, stream); }
-
 std::optional<RTSupport::TypeInfo> Resolver::GetTypeInfo(Type type)
 {
     return tiManager.AcquireTypeInfo(session, type.term);
@@ -935,7 +908,7 @@ std::optional<RTSupport::TypeInfo> Resolver::GetTypeInfo(Type type)
 
 Stream::Output& operator<<(Stream::Output& stream, Type const& type)
 {
-    type.resolver->GetFullName(type, stream);
+    type.term.GetName(type.resolver->session, stream);
     return stream;
 }
 
