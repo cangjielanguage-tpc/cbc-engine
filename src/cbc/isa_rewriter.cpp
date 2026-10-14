@@ -358,7 +358,8 @@ struct IsaRewriter : public IsaParser {
         CallAbiFlags flags,
         Resolution::MethodSignature& sig,
         Location* outerTiLoc = nullptr,
-        Location* thisTiLoc = nullptr
+        Location* thisTiLoc = nullptr,
+        bool genericParams = false
     )
     {
         int funcVarsCount = sig.tvars.GetLength();
@@ -416,8 +417,17 @@ struct IsaRewriter : public IsaParser {
         auto params     = sig.Params();
         int paramOffset = idx;
         ASSERT(args.Size() >= params.Size() + idx);
-        for (int j = 0; j < params.Size(); ++idx, ++j) {
-            moves.AddMove(args[idx], abi.Consume(params[j]));
+
+        if (genericParams) {
+            // Special case for call.closure.g
+            // The referenced type (of closure) in instruction doesn't encode parameters as boxes.
+            for (int j = 0; j < params.Size(); ++idx, ++j) {
+                moves.AddMove(args[idx], abi.Consume(ArgKind::REF));
+            }
+        } else {
+            for (int j = 0; j < params.Size(); ++idx, ++j) {
+                moves.AddMove(args[idx], abi.Consume(params[j]));
+            }
         }
 
         ASSERT(funcVarsCount <= args.Size());
@@ -1499,7 +1509,7 @@ struct IsaRewriter : public IsaParser {
         bool sret = (resolver.Wrap(retType).GetKind() == TK::REC) || generic;
 
         Resolution::MethodSignature sig { &resolver, term, Engine::Term::Predefined(Engine::TermKind::NIL) };
-        StageCallArgs(args, { .isSRet = sret, .hasOuterTi = true, .abiKind = Image::MethodAbiKind::REF_RECEIVER }, sig);
+        StageCallArgs(args, { .isSRet = sret, .hasOuterTi = true, .abiKind = Image::MethodAbiKind::REF_RECEIVER }, sig, nullptr, nullptr, generic);
 
         if (generic) {
             // Generic calls of closure are always considered as `sret`.

@@ -6,9 +6,11 @@
 #include "engine/image/io/stream_file_reader.h"
 #include "engine/image/type_kind.h"
 #include "engine/resolving_output.h"
+#include "resolution/resolution.h"
 #include "string.h"
 #include "utils/assertion.h"
 #include "utils/heap.h"
+#include "utils/logger.h"
 #include "utils/ostream.h"
 #include "utils/span.h"
 #include <alloca.h>
@@ -82,6 +84,23 @@ enum Tag : uint8_t {
     UNION_ENUM        = 0x16,
     PRIMITIVE_ENUM    = 0x17,
 };
+
+// Utilities for resolution failure diagnostics
+enum FailReasonKind {
+    NONE,
+    TYPEDEF_NOTFOUND,
+    REF_REC_MISMATCH,
+    ENUM_KIND_MISMATCH,
+    ARITY_MISMATCH,
+    SUBTERM_UNDEFINED,
+};
+
+struct FailReason {
+    FailReasonKind kind;
+    std::string_view msg;
+};
+
+// --------------------------------------------
 
 static TermData* AllocateTerm(Memory::Heap& allocator, size_t subtermCount = 0)
 {
@@ -535,14 +554,14 @@ static int OptionFlags(RefIdentifier<Term> underlyingRef, Session& session, Subs
     return canBeNullableOption && underlying.IsReference() ? F_REFERENCE : F_RECORD;
 }
 
-static bool IsProperTypeReference(Image::TypeDefinition& def, bool isReference, int arity)
+static FailReasonKind TestTypeReference(Image::TypeDefinition& def, bool isReference, int arity)
 {
     if ((def.GetFlags().Is(Image::TypeKind::RECORD)) == isReference) {
-        return false;
+        return REF_REC_MISMATCH;
     } else if (def->arity != arity) {
-        return false;
+        return ARITY_MISMATCH;
     }
-    return true;
+    return NONE;
 }
 
 static Term NewTerm(
@@ -616,7 +635,7 @@ Term TermManager::NewAotTerm(
         if (type.has_value()) {
             ASSERT([&]() -> bool {
                 auto def = Decode::Read(session, type.value());
-                return IsProperTypeReference(def, isReference, arity);
+                return TestTypeReference(def, isReference, arity) == NONE;
             }());
             id                  = TypeTermId(*type);
             flags.isAotPromoted = true;
@@ -682,7 +701,19 @@ struct TermResolver {
     Image::CbcFile& file;
     TermManager& manager;
 
-    Term NewUndefined(Image::RefId<Term> refId) { return Undefined(session, Image::RefIdentifier(refId, fileId)); }
+    std::optional<FailReason> failReason;
+
+    void ClearFail() {
+        failReason = std::nullopt;
+    }
+
+    Term NewUndefined(Image::RefId<Term> refId, FailReasonKind failKind, std::string_view reason)
+    {
+        if (!failReason) {
+            failReason = { failKind, reason };
+        }
+        return Undefined(session, Image::RefIdentifier(refId, fileId));
+    }
 
     bool ReadSubTerms(TermData* data, bool* isGenericLoc, int length, IO::StreamFileReader& reader)
     {
@@ -730,24 +761,24 @@ struct TermResolver {
 
         auto type = session.GetEngine().FindType(session, name);
         if (!type.has_value()) {
-            return NewUndefined(refId);
+            return NewUndefined(refId, TYPEDEF_NOTFOUND, name);
         }
         auto identifier = type.value();
 
-        auto def       = Decode::Read(session, identifier);
-        bool undefined = !IsProperTypeReference(def, isReference, expectedLength);
+        auto def      = Decode::Read(session, identifier);
+        auto failKind = TestTypeReference(def, isReference, expectedLength);
 
-        if (undefined && wasAot) {
+        if ((failKind != NONE) && wasAot) {
             FATAL("Unexpected mismatch of resolved type definition and aot term");
         }
-        if (undefined) {
-            return NewUndefined(refId);
+        if (failKind != NONE) {
+            return NewUndefined(refId, failKind, name);
         }
 
         auto data      = AllocateTerm(heap, expectedLength);
         bool isGeneric = false;
         if (!ReadSubTerms(data, &isGeneric, expectedLength, reader)) {
-            return NewUndefined(refId);
+            return NewUndefined(refId, SUBTERM_UNDEFINED, name);
         }
 
         TermFlags flags     = F_LOCAL;
@@ -768,7 +799,7 @@ struct TermResolver {
 
         auto type = session.GetEngine().FindType(session, name);
         if (!type.has_value()) {
-            return NewUndefined(refId);
+            return NewUndefined(refId, TYPEDEF_NOTFOUND, name);
         }
         auto identifier = type.value();
 
@@ -778,8 +809,8 @@ struct TermResolver {
         switch (def->enumKind) {
             case Image::EnumKind::OPTION0:
             case Image::EnumKind::OPTION1: optionLikeEnum = true;
-            default:                       {
-            }
+
+            default:;
         }
 
         bool undefined = false;
@@ -798,18 +829,21 @@ struct TermResolver {
                 undefined = def->enumKind != Image::EnumKind::PRIMITIVE;
                 id        = PrimitiveEnumId(identifier);
                 break;
-            default: {
-            }
+
+            default:;
+        }
+        if (undefined) {
+            return NewUndefined(refId, ENUM_KIND_MISMATCH, name);
         }
 
-        if (undefined || def->arity != expectedLength) {
-            return NewUndefined(refId);
+        if (def->arity != expectedLength) {
+            return NewUndefined(refId, ARITY_MISMATCH, name);
         }
 
         auto data      = AllocateTerm(heap, expectedLength);
         bool isGeneric = false;
         if (!ReadSubTerms(data, &isGeneric, expectedLength, reader)) {
-            return NewUndefined(refId);
+            return NewUndefined(refId, SUBTERM_UNDEFINED, name);
         }
 
         TermFlags flags = F_LOCAL;
@@ -842,11 +876,12 @@ struct TermResolver {
         if (term.GetKind() != TermKind::UNDEFINED) {
             return term;
         }
+        ClearFail();
 
         auto data      = AllocateTerm(heap, length);
         bool isGeneric = false;
         if (!ReadSubTerms(data, &isGeneric, length, reader)) {
-            return NewUndefined(refId);
+            return NewUndefined(refId, SUBTERM_UNDEFINED, name);
         }
         TermFlags flags   = F_LOCAL;
         flags.isReference = isReference;
@@ -858,13 +893,13 @@ struct TermResolver {
         return Term(LocalTerm(data));
     }
 
-    Term NewTerm(IO::StreamFileReader& reader, Image::RefId<Term> refId, TermId id, uint16_t length, TermFlags flags)
+    Term NewTerm(IO::StreamFileReader& reader, Image::RefId<Term> refId, TermId id, uint16_t length, TermFlags flags, std::string_view debugName)
     {
         auto* data = AllocateTerm(heap, length);
 
         bool isGeneric = false;
         if (!ReadSubTerms(data, &isGeneric, length, reader)) {
-            return NewUndefined(refId);
+            return NewUndefined(refId, SUBTERM_UNDEFINED, debugName);
         }
         flags.isGeneric = isGeneric;
         data->InitAfterSubterms(id, length, flags);
@@ -913,18 +948,18 @@ struct TermResolver {
             }
             case FUNCTIONAL: {
                 auto len = reader.ReadU8() + 1; // +1 for ret type
-                return NewTerm(reader, refId, TagTermId(TermKind::FUNCTIONAL), len, F_LOCAL | F_REFERENCE);
+                return NewTerm(reader, refId, TagTermId(TermKind::FUNCTIONAL), len, F_LOCAL | F_REFERENCE, "functional");
             }
             case VARRAY: {
                 auto length = reader.ReadULEB();
-                return NewTerm(reader, refId, VArrayTermId(length), 1, F_LOCAL | F_RECORD);
+                return NewTerm(reader, refId, VArrayTermId(length), 1, F_LOCAL | F_RECORD, "varray");
             }
             case TUPLE: {
                 auto len = reader.ReadULEB();
-                return NewTerm(reader, refId, TagTermId(TermKind::TUPLE), len, F_LOCAL | F_RECORD);
+                return NewTerm(reader, refId, TagTermId(TermKind::TUPLE), len, F_LOCAL | F_RECORD, "tuple");
             }
             case NULLABLE: {
-                return NewTerm(reader, refId, TagTermId(TermKind::NULLABLE), 1, F_LOCAL | F_REFERENCE);
+                return NewTerm(reader, refId, TagTermId(TermKind::NULLABLE), 1, F_LOCAL | F_REFERENCE, "nullable");
             }
             case CLASS_TYPE_VAR: {
                 auto id = reader.ReadU8();
@@ -935,19 +970,19 @@ struct TermResolver {
                 return Term::FuncTypeVariable(id);
             }
             case CANGJIE_ARRAY: {
-                return NewTerm(reader, refId, TagTermId(TermKind::CANGJIE_ARRAY), 1, F_LOCAL | F_REFERENCE);
+                return NewTerm(reader, refId, TagTermId(TermKind::CANGJIE_ARRAY), 1, F_LOCAL | F_REFERENCE, "cangjie-array");
             }
             case C_POINTER: {
-                return NewTerm(reader, refId, TagTermId(TermKind::C_POINTER), 1, F_LOCAL);
+                return NewTerm(reader, refId, TagTermId(TermKind::C_POINTER), 1, F_LOCAL, "c-pointer");
             }
             case BOX: {
-                return NewTerm(reader, refId, TagTermId(TermKind::BOX), 1, F_LOCAL | F_REFERENCE);
+                return NewTerm(reader, refId, TagTermId(TermKind::BOX), 1, F_LOCAL | F_REFERENCE, "box");
             }
             case FST: {
                 auto subtermIdx = reader.ReadULEB();
                 auto subterm    = Resolve(RefId<Term>(subtermIdx));
                 if (subterm.GetKind() == TermKind::UNDEFINED) {
-                    return NewUndefined(refId);
+                    return NewUndefined(refId, SUBTERM_UNDEFINED, "box");
                 }
                 subterm.data->flags.isFixedSize = true;
                 return subterm;
@@ -962,7 +997,7 @@ struct TermResolver {
             }
             default: {
                 FATAL("Not implemented for tag %d", tag);
-                return NewUndefined(refId);
+                return NewUndefined(refId, SUBTERM_UNDEFINED, "");
             }
         }
     }
@@ -998,7 +1033,23 @@ Term TermManager::Resolve(Session& session, RefIdentifier<Term> ident)
     };
 
     // TODO: cache
-    return resolver.Resolve(ident.GetIndex());
+    auto result = resolver.Resolve(ident.GetIndex());
+
+    if (resolver.failReason) {
+        FailReason reason = *resolver.failReason;
+        std::string_view kind = "";
+        switch (reason.kind) {
+            case NONE:               kind = "none"; break;
+            case TYPEDEF_NOTFOUND:   kind = "typedef mismatch"; break;
+            case REF_REC_MISMATCH:   kind = "reference/record mismatch"; break;
+            case ENUM_KIND_MISMATCH: kind = "enum kind mismatch"; break;
+            case ARITY_MISMATCH:     kind = "arity mismatch"; break;
+            case SUBTERM_UNDEFINED:  kind = "undefined subterm"; break;
+        }
+        LOG_ERROR(Resolution::log, "Failed to resolve. Reason: {}. Hint: {}.", kind, reason.msg);
+    }
+
+    return result;
 }
 
 bool Term::IsReference() const { return data->flags.isReference; }
