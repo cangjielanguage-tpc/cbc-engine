@@ -691,6 +691,28 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
         Utils::Vector<uint32_t> refFieldOffs;
 
+        auto acquireFieldTi = [&acquireTypeInfo](Engine::Term term) {
+            if (term.GetKind() == Engine::TermKind::BOX) {
+                // Boxed fields in AOT code are represented as
+                // special TypeInfo that has `CLASS` kind and
+                // the **exact same name** as TI of boxed type.
+                //
+                // They do not have a special kind of `Box` TI
+                // that represents such fields. Instead of this,
+                // they are using such a hacky solution to make
+                // `TypeInfoSize` and similar routines work properly.
+                // Additionally, it helps with their implementation
+                // of reflection.
+                //
+                // It seems this behavior is not needed for execution purposes at all.
+                // So we will use Object to represent such fields,
+                // since we do not (and will not) support reflection using
+                // TypeInfo/TypeTemplate machinery.
+                return QueryTypeInfoAOTByName("std.core:Object");
+            }
+            return acquireTypeInfo(term);
+        };
+
         size_t idx = 0;
         for (auto& field : layout->fields) {
             auto fieldType = field.fieldType;
@@ -699,7 +721,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
                 return std::nullopt;
             }
             auto fieldId = idx++;
-            if (auto ti = acquireTypeInfo(fieldType); ti) {
+            if (auto ti = acquireFieldTi(fieldType); ti) {
                 builder.fields[fieldId] = UnpackTypeInfo(*ti);
             } else {
                 return std::nullopt;
@@ -1143,6 +1165,8 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& ma
             char* name;
         };
 
+        // TypeTemplate is stored in an union with `finalizerMethod`.
+        // FIXME: proper headers from cjnative runtime side.
         auto typeTemplate = reinterpret_cast<TypeTemplate*>(typeInfo->finalizerMethod);
         auto name         = typeTemplate->name;
 
