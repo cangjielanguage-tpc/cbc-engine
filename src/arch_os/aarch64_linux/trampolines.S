@@ -628,66 +628,18 @@ engine_i2c_call:
 // Calls the runtime I2N stub which wraps the native call into a GC-safe region.
 // Supports at most 6 integer and 8 FP register arguments (checked in the rewriter).
 engine_i2n_call:
-  lsr   x2, x0, #I2N_STACK_SLOTS_SHIFT      // stack arguments count
-  mov   x3, x0
-  lsl   x3, x3, #(64 - I2N_VEC_COUNT_SHIFT)
-  lsr   x3, x3, #(64 - I2N_VEC_COUNT_SHIFT) // target C function
+  lsr   x2, x0, #I2N_STACK_ARGS_SIZE_SHIFT  // stack arguments count
+  ubfx  x3, x0, #0, #I2N_VEC_COUNT_SHIFT    // target C function
   mov   x0, ECTYPE_REG                      // ectype
   mov   x1, sp                              // stack arguments pointer
-  adrp  x4, Page(engine_c_abi_adapter)
-  add   x4, x4, PageOff(engine_c_abi_adapter)
+  adr   x4, engine_c_abi_adapter
   mov   x5, TLS_REG
 
   adrp  x10, Page(engine_i2n_stub)
   ldr   x10, [x10, PageOff(engine_i2n_stub)]
   blr   x10  // call I2N adapter
 
-  str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE)]
-  str   d0, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET)]
-
   b     .Lrestart_interpretation
-
-.balign 16
-// Called by the I2N stub with the C call metadata in argument registers:
-// (x0: ectype, x1: stack arguments pointer, x2: stack arguments count, x3: target).
-// Fills C argument registers from ectype, pushes the stack arguments and calls the target.
-// Preserved: callee-saved registers (ECTYPE_REG among them).
-engine_c_abi_adapter_start:
-engine_c_abi_adapter:
-  // TODO: fix I2NStub in runtime and do not construct frame here
-  stp   x29, x30, [sp, #-16]!
-  mov   x29, sp
-
-  str   ECTYPE_REG, [sp, #-16]!
-  mov   ECTYPE_REG, x0
-  mov   x9, x1  // stack arguments pointer
-  mov   x10, x2 // stack arguments count
-  mov   x11, x3 // target C function
-
-  lsl   x12, x10, #3
-  add   x12, x12, #15
-  bic   x12, x12, #15
-  sub   sp, sp, x12
-  mov   x13, sp
-  cbz   x10, .Lprepare_regs
-.Lprepare_stackargs:
-  ldr   x14, [x9], #8
-  str   x14, [x13], #8
-  subs  x10, x10, #1
-  b.ne  .Lprepare_stackargs
-.Lprepare_regs:
-  i2c_emit_iregs_abi IREG_PARAM_PASSING_AMOUNT
-  i2c_emit_fregs_abi FREG_ABI_AMOUNT
-
-  blr   x11          // call target
-
-  sub   sp, x29, #16 // clear stack args
-  ldr   ECTYPE_REG, [sp], #16
-
-  ldp   x29, x30, [sp], #16
-  ret
-engine_c_abi_adapter_end:
-
 
 .balign 16
 get_tls:
@@ -986,3 +938,46 @@ engine_handle_exception:
   ldr   x9, [x9, PageOff(engine_throw_out_of_interpreter)]
   br    x9
   brk   #0
+
+.balign 16
+// Called by the I2N stub with the C call metadata in argument registers:
+// (x0: ectype, x1: stack arguments pointer, x2: stack arguments area size, x3: target).
+// Fills C argument registers from ectype, pushes the stack arguments and calls the target.
+// Preserved: callee-saved registers (ECTYPE_REG among them).
+engine_c_abi_adapter_start:
+engine_c_abi_adapter:
+  // TODO: fix I2NStub in runtime and do not construct frame here
+  stp   x29, x30, [sp, #-16]!
+  mov   x29, sp
+
+  str   ECTYPE_REG, [sp, #-16]!
+  mov   ECTYPE_REG, x0
+  mov   x9, x1  // stack arguments pointer
+  mov   x10, x2 // stack arguments area size
+  mov   x11, x3 // target C function
+
+  mov   x12, x10
+  add   x12, x12, #15
+  bic   x12, x12, #15
+  sub   sp, sp, x12
+  mov   x13, sp
+  cbz   x10, .Lprepare_regs
+.Lprepare_stackargs:
+  ldr   x14, [x9], #8
+  str   x14, [x13], #8
+  subs  x10, x10, #8
+  b.ne  .Lprepare_stackargs
+.Lprepare_regs:
+  i2c_emit_iregs_abi IREG_PARAM_PASSING_AMOUNT
+  i2c_emit_fregs_abi FREG_ABI_AMOUNT
+
+  blr   x11          // call target
+
+  str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE)]
+  str   d0, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET)]
+
+  ldr   ECTYPE_REG, [x29, #-16]
+  mov   sp, x29
+  ldp   x29, x30, [sp], #16
+  ret
+engine_c_abi_adapter_end:
