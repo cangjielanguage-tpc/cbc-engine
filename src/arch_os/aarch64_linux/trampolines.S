@@ -787,8 +787,8 @@ CFI_LABEL get_tls
   bl    engine_spawn_future
   cbnz  x1, .Lspawn_future_success
   mov   x0, IMPLICIT_EXCEPTION_SPAWN
-  b     engine_throw_implicit_exception
-CFI_LABEL .Lspawn_future_success
+  b     .Lengine_throw_implicit_exception
+.Lspawn_future_success:
   // Thread.setRuntimeCJThreadHandle arguments:
   // x8: sret pointer for Unit; no return storage is needed.
   // x0: this (Thread object already returned by engine_spawn_future in x0).
@@ -801,7 +801,18 @@ CFI_LABEL .Lspawn_future_success
   blr   x9
   b     .Lrestart_interpretation
 
-CFI_LABEL .Lend_interpretation
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: exception type)
+// preserved: ECTYPE_REG, x29
+// TLS_REG can be changed after context-switch
+.Lthunk_op_ThrowImplicit:
+.Lengine_throw_implicit_exception:
+  // jumped from .Linterpreter_call without return address to return
+  adrp  x9, Page(engine_implicit_exception_thrower)
+  ldr   x9, [x9, PageOff(engine_implicit_exception_thrower)]
+  blr   x9
+  brk   #0 // should not return, as exception is thrown inside call
+
+.Lend_interpretation:
 #ifndef NDEBUG
   ldr   x0, [x29, #-FUH_SLOT_OFFSET]
   mov   x1, ECTYPE_REG
@@ -860,24 +871,13 @@ engine_fake_execute_closure:
   ldr   x2, [x0, #0x10]
   br    x2
 
-// expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: exception type)
-// preserved: ECTYPE_REG, x29
-// TLS_REG can be changed after context-switch
-.Lthunk_op_ThrowImplicit:
-.Lengine_throw_implicit_exception:
-  // jumped from .Linterpreter_call without return address to return
-  adrp  x9, Page(engine_implicit_exception_thrower)
-  ldr   x9, [x9, PageOff(engine_implicit_exception_thrower)]
-  blr   x9
-  brk   #0 // should not return, as exception is thrown inside call
-
 // expects: (ECTYPE_REG: ectype)
 // When exception is thrown from CJNative code to interpreter, execution of
 // interpreter exception handling starts here
 // TODO obtain exception using PostThrowException from RT interface
 common_landing_pad:
   bl engine_get_and_clear_pending_exception
-  b engine_handle_exception
+  b .Lengine_handle_exception
 
 // expects: (ECTYPE_REG: ectype, x0: exception reference)
 // Returns to interpretation loop with exception reference on ACC_REG
@@ -937,10 +937,10 @@ common_landing_pad:
   // Check if next method is C2I adapter
   adr   x9, engine_c2i_call_pc_start
   cmp   x30, x9
-  b.lo  engine_handle_exception
+  b.lo  .Lengine_handle_exception
   adr   x9, engine_c2i_call_pc_end
   cmp   x30, x9
-  b.hs  engine_handle_exception
+  b.hs  .Lengine_handle_exception
 
   // Unwind next frame (C2I) and when there are no interpreter frames
   // throw exception using CJNative runtime (as it usually done in AOT code)
