@@ -19,8 +19,8 @@
 @type default
   @method main() I64
     @code
-      call.interf IR1, #generic
-      call.interf IR1, #concrete
+      call.interf #generic, IR1, IR2, IR3, IR4
+      call.interf #concrete, IR1, IR2, IR3, IR4
       @live.prim IR1
       ret.64 IR1
     @end

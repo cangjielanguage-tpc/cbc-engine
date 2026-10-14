@@ -595,9 +595,16 @@ struct ResolverProxy {
         }
         auto mt = *optMT;
 
+        auto lookupSignature = ref.signature;
+        if (ref.abiKind == Image::MethodAbiKind::HAS_THIS_TI) {
+            // Static method references use the declaration's class type variables.
+            // Resolve them in the receiver context while retaining the declared call ABI.
+            MethodSignatureSubstitution sub(resolver.session, ref.refType);
+            lookupSignature = sub.Substitute(lookupSignature);
+        }
         MethodTable::Reference mtRef = {
             .name      = ref.name,
-            .signature = ref.signature,
+            .signature = lookupSignature,
         };
         auto resolved = mt->Resolve(resolver, mtRef);
 
