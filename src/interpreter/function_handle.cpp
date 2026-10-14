@@ -140,7 +140,6 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
         }
 
         StaticFunctionHandle fuh {
-            .base     = FunctionHandle(RTSupport::Adapters::GenericI2CCallInstance()),
             .function = target,
         };
         auto mem = new (std::nothrow) StaticFunctionHandle(fuh);
@@ -153,7 +152,6 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
     };
 
     auto newDynFuh = [&]() -> DynamicFunctionHandle* {
-        auto i2Call = PrepareI2Call(session, methodDef);
         auto c2Call = PrepareC2Call(session, methodDef);
 
         char* name = nullptr;
@@ -161,7 +159,7 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
             name = MethodName(session, method);
         }
 
-        auto mem    = new (std::nothrow) DynamicFunctionHandle(i2Call, c2Call, methodDef, name);
+        auto mem    = new (std::nothrow) DynamicFunctionHandle(c2Call, methodDef, name);
         if (mem == nullptr) {
             FATAL("out of memory");
         }

@@ -679,7 +679,6 @@ struct ResolverProxy {
         /// FIXME: choose proper adapter based on signature (abi)
         DirectCall::CallData callData = DirectCall::Compiled {
             .funcPtr    = reinterpret_cast<uintptr_t>(funcPtr),
-            .i2cAdapter = RTSupport::Adapters::GenericI2CCallInstance(),
         };
 
         auto refType = resolver.Wrap(ref.refType);
@@ -737,7 +736,6 @@ struct ResolverProxy {
             auto fuh                  = *staticFuh;
             DirectCall::CallData data = DirectCall::Compiled {
                 .funcPtr    = reinterpret_cast<uintptr_t>(fuh->function),
-                .i2cAdapter = fuh->base.i2call,
             };
             return DirectCall::Content { refType, ref.name, std::move(sig), data };
         } else {

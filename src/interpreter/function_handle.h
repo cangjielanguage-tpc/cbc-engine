@@ -45,16 +45,12 @@ using C2Call = void*;
 /// which contains all the necessary information about the method.
 /// Preparation of function handle (especially dynamic version) is performed lazily.
 struct FunctionHandle {
-    FunctionHandle(I2Call i2call) : i2call(i2call) {};
-
-    I2Call i2call;
 };
 
 /// Function handle of cbc-provided function.
 struct DynamicFunctionHandle {
-    DynamicFunctionHandle(I2Call i2Call, C2Call c2call, Image::Identifier<Image::MethodDefinition> methodDef, char* debugName)
-        : base(i2Call),
-          c2call(c2call),
+    DynamicFunctionHandle(C2Call c2call, Image::Identifier<Image::MethodDefinition> methodDef, char* debugName)
+        : c2call(c2call),
           bytecode(nullptr),
           methodDef(methodDef),
           debugName(debugName),
