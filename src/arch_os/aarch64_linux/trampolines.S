@@ -18,7 +18,6 @@
     #define engine_trampolines_direct_start _engine_trampolines_direct_start
     #define engine_all_regs_c2i_call _engine_all_regs_c2i_call
     #define engine_iregs_only_c2i_call _engine_iregs_only_c2i_call
-    #define engine_i2c_call _engine_i2c_call
     #define engine_i2n_call _engine_i2n_call
     #define engine_c_abi_adapter _engine_c_abi_adapter
     #define engine_c_abi_adapter_start _engine_c_abi_adapter_start
@@ -115,7 +114,6 @@ declare_hidden engine_trampolines_dyn_sret_end
 declare_hidden engine_trampolines_direct_start
 declare_hidden engine_all_regs_c2i_call
 declare_hidden engine_iregs_only_c2i_call
-declare_hidden engine_i2c_call
 declare_hidden engine_universal_direct_function_handles
 declare_hidden engine_tls_function
 declare_hidden engine_read_generic
@@ -612,7 +610,6 @@ CFI_LABEL engine_after_stack_grow
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
 .Lthunk_op_I2CCall:
-engine_i2c_call:
   engine_i2c IREG_ABI_AMOUNT, FREG_ABI_AMOUNT
 
 .balign 16
@@ -650,7 +647,6 @@ CFI_LABEL get_tls
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: mask)
 // preserved: ECTYPE_REG, rbp
 .Lthunk_op_LoadGeneric:
-.Lengine_i2_load_generic:
   // mask is expected in form of:
   // [0..4) - dst reg
   // [4..8) - base reg
@@ -693,7 +689,6 @@ CFI_LABEL get_tls
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
 .Lthunk_op_NewObject:
-.Lengine_i2_newobject:
   // jumped from .Linterpreter_call without return address to return
   adrp  x10, Page(engine_newobject_function)
   ldr   x10, [x10, PageOff(engine_newobject_function)]
@@ -709,7 +704,6 @@ CFI_LABEL get_tls
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
 .Lthunk_op_NewObjectPinned:
-.Lengine_i2_newobject_pinned:
   // jumped from .Linterpreter_call without return address to return
   mov   x1, 0
   adrp  x10, Page(engine_newobject_pinned_function)
@@ -726,7 +720,6 @@ CFI_LABEL get_tls
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
 .Lthunk_op_NewObjectAcc:
-.Lengine_i2_newobject_acc:
   // jumped from .Linterpreter_call without return address to return
   adrp  x10, Page(engine_newobject_function)
   ldr   x10, [x10, PageOff(engine_newobject_function)]
@@ -742,7 +735,6 @@ CFI_LABEL get_tls
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
 .Lthunk_op_NewArray:
-.Lengine_i2_newarray:
   // jumped from .Linterpreter_call without return address to return
   ldr   x1, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x10)]
   adrp  x10, Page(engine_newarray_function)
@@ -756,7 +748,6 @@ CFI_LABEL get_tls
 
 .balign 16
 .Lthunk_op_GcPoint:
-.Lengine_i2_gcpoint:
   blr   x0
   restore_tls
   b     .Lrestart_interpretation
@@ -765,7 +756,6 @@ CFI_LABEL get_tls
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo)
 // preserved: ECTYPE_REG, x29
 .Lthunk_op_Spawn:
-.Lengine_i2_spawn:
   ldr   x1, [ECTYPE_REG, #ECTYPE_IACC_OFFSET]
   mov   x3, x0
   adr   x0, engine_fake_execute_closure
@@ -779,7 +769,6 @@ CFI_LABEL get_tls
 // expects: (ECTYPE_REG: ectype, TLS_REG: th)
 // preserved: ECTYPE_REG, x29
 .Lthunk_op_SpawnFuture:
-.Lengine_i2_spawn_future:
   ldr   x0, [ECTYPE_REG, #ECTYPE_IACC_OFFSET]
   bl    engine_spawn_future
   cbnz  x1, .Lspawn_future_success
