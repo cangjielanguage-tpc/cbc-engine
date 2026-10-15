@@ -61,7 +61,9 @@
 .endm
 
 .macro FUNC_START sym
-#ifdef __ELF__
+#ifdef __APPLE__
+  .type \sym, $FUNCTION
+#else
   .type \sym, @function
 #endif
 .endm
