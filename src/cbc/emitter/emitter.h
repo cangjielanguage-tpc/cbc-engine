@@ -45,41 +45,16 @@ public:
         MemSpace(Emitter& _emitter) : segment(_emitter.segment), symbols(_emitter.symbols), emitter(_emitter) {}
 
         void Offset(int32_t offset);
-        void OffsetReg(IReg reg);
-        void OffsetRegIdx(IReg reg, uint64_t size);
 
         // tail instructions
         void WriteStructFieldObj(IReg src, IReg base, RTSupport::TypeInfo structTypeInfo);
-        void ReadStructFieldObj(IReg dst, IReg base, RTSupport::TypeInfo structTypeInfo);
 
-        void LoadObj(LoadAccessKind ldk, Reg dst, IReg base);
         void StoreObj(StoreAccessKind stk, Reg src, IReg base);
         void StoreObjImm(StoreAccessKind stk, Reg base, uint64_t imm);
-
-        void LoadDerived(LoadAccessKind ldk, Reg dst, IReg base, IReg derived);
-        void StoreDerived(StoreAccessKind stk, Reg src, IReg base, IReg derived);
-        void StoreDerivedImm(StoreAccessKind stk, IReg base, IReg derived, uint64_t imm);
-
-        void LoadRec(LoadAccessKind ldk, Reg dst, IReg base);
-        void StoreRec(StoreAccessKind stk, Reg src, IReg base);
-        void StoreRecImm(StoreAccessKind stk, Reg base, uint64_t imm);
-
-        void LoadFrame(LoadAccessKind ldk, Reg dst);
-        void StoreFrame(StoreAccessKind stk, Reg src);
         void StoreFrameImm(StoreAccessKind stk, uint64_t imm);
 
         void LoadGeneric(IReg dst, IReg base, IReg typeInfo);
         void StoreGeneric(IReg src, IReg base, IReg typeInfo);
-        void LoadDerivedGeneric(IReg dst, IReg base, IReg derived, IReg typeInfo);
-        void StoreDerivedGeneric(IReg src, IReg base, IReg derived, IReg typeInfo);
-
-        void CopyRecFromObj(Reg from, Reg to, RTSupport::TypeInfo);
-        void CopyRecFromRec(Reg from, Reg to, RTSupport::TypeInfo);
-        void CopyRecFromDerived(Reg base, Reg derived, Reg to, RTSupport::TypeInfo);
-
-        void CopyRecToObj(Reg from, Reg to, RTSupport::TypeInfo);
-        void CopyRecToRec(Reg from, Reg to, RTSupport::TypeInfo);
-        void CopyRecToDerived(Reg base, Reg derived, Reg from, RTSupport::TypeInfo);
 
         void GenericField(int ordinal, IReg typeInfo);
 
@@ -94,9 +69,6 @@ public:
                 }
             );
         }
-
-        void CopyFrom(Reg from, Reg to, RTSupport::TypeInfo ti, RT::MemOpcode opc);
-        void CopyTo(Reg from, Reg to, RTSupport::TypeInfo ti, RT::MemOpcode opc);
 
         Segment& segment;
         Symbols& symbols;

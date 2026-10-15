@@ -53,51 +53,6 @@ void MemSpaceEmitter::Offset(int32_t offset)
     }
 }
 
-void MemSpaceEmitter::OffsetReg(IReg reg)
-{
-    Encode(
-        segment,
-        RT::M2xr {
-            .opc = RT::MemOpcode::OFFS_REG,
-            .xr  = XR { .imm = 0, .r = reg },
-        }
-    );
-}
-
-void MemSpaceEmitter::OffsetRegIdx(IReg reg, uint64_t size)
-{
-    Encode(
-        segment,
-        RT::M10xri64 {
-            .opc   = RT::MemOpcode::OFFS_REG_IDX64,
-            .xr    = XR { .imm = 0, .r = reg },
-            .imm64 = Format::Imm64 { .imm = size },
-        }
-    );
-}
-
-static RT::MemOpcode ComputeLoadAccessKind(LoadAccessKind ldk, RT::MemOpcode start)
-{
-    // This code is heavily rely on the fact that opcodes are ordered
-    // in the same order as in the switch here.
-    uint8_t delta = 0;
-    switch (ldk) {
-        case LoadAccessKind::LD_U8:      delta = 0; break;
-        case LoadAccessKind::LD_U16:     delta = 1; break;
-        case LoadAccessKind::LD_32:      delta = 2; break;
-        case LoadAccessKind::LD_S8:      delta = 3; break;
-        case LoadAccessKind::LD_S16:     delta = 4; break;
-        case LoadAccessKind::LD_F32:     delta = 5; break;
-        case LoadAccessKind::LD_F64:     delta = 6; break;
-        case LoadAccessKind::LD_64:      delta = 7; break;
-        case LoadAccessKind::LD_S32TO64: delta = 8; break;
-        case LoadAccessKind::LD_REF:     delta = 9; break;
-        case LoadAccessKind::LD_LEA:     delta = 10; break;
-        default:                         FATAL("unexpected ldk: %d", ldk);
-    }
-    return RT::MemOpcode(start + delta);
-}
-
 static RT::MemOpcode ComputeStoreAccessKind(Format::StoreAccessKind stk, RT::MemOpcode start)
 {
     // This code is heavily rely on the fact that opcodes are ordered
@@ -122,81 +77,11 @@ void MemSpaceEmitter::WriteStructFieldObj(IReg src, IReg base, RTSupport::TypeIn
     Encode(segment, command);
 }
 
-void MemSpaceEmitter::ReadStructFieldObj(IReg dst, IReg base, RTSupport::TypeInfo structTypeInfo)
-{
-    RT::MStructFieldOp command = { .opc = RT::MemOpcode::R_READ_STRUCT, .rr = { dst, base }, .ti = structTypeInfo };
-    Encode(segment, command);
-}
-
-void MemSpaceEmitter::LoadObj(LoadAccessKind ldk, Reg dst, IReg base)
-{
-    RT::MemOpcode opc = ComputeLoadAccessKind(ldk, RT::MemOpcode::RLD_START_OPCODE);
-    ASSERT(opc <= RT::MemOpcode::RLD_END_OPCODE);
-    LoadStore(ldk, dst, base, opc);
-}
-
 void MemSpaceEmitter::StoreObj(StoreAccessKind stk, Reg src, IReg base)
 {
     RT::MemOpcode opc = ComputeStoreAccessKind(stk, RT::MemOpcode::RST_START_OPCODE);
     ASSERT(opc <= RT::MemOpcode::RST_END_OPCODE);
     LoadStore(stk, src, base, opc);
-}
-
-void MemSpaceEmitter::LoadDerived(LoadAccessKind ldk, Reg dst, IReg base, IReg derived)
-{
-    RT::MemOpcode opc = ComputeLoadAccessKind(ldk, RT::MemOpcode::DLD_START_OPCODE);
-    ASSERT(opc <= RT::MemOpcode::DLD_END_OPCODE);
-    LoadStore(ldk, dst, base, opc);
-    Encode(
-        segment,
-        RT::M3xrrr {
-            .opc = opc,
-            .xr  = Format::XR { .imm = 0, .r = dst },
-            .rr  = Format::RR { .x = base, .y = derived },
-        }
-    );
-}
-
-void MemSpaceEmitter::StoreDerived(StoreAccessKind stk, Reg src, IReg base, IReg derived)
-{
-    RT::MemOpcode opc = ComputeStoreAccessKind(stk, RT::MemOpcode::DST_START_OPCODE);
-    ASSERT(opc <= RT::MemOpcode::DST_END_OPCODE);
-    Encode(
-        segment,
-        RT::M3xrrr {
-            .opc = opc,
-            .xr  = Format::XR { .imm = 0, .r = src },
-            .rr  = Format::RR { .x = base, .y = derived },
-        }
-    );
-}
-
-void MemSpaceEmitter::LoadRec(LoadAccessKind ldk, Reg dst, IReg base)
-{
-    RT::MemOpcode opc = ComputeLoadAccessKind(ldk, RT::MemOpcode::SLD_START_OPCODE);
-    ASSERT(opc <= RT::MemOpcode::SLD_END_OPCODE);
-    LoadStore(ldk, dst, base, opc);
-}
-
-void MemSpaceEmitter::StoreRec(StoreAccessKind stk, Reg src, IReg base)
-{
-    RT::MemOpcode opc = ComputeStoreAccessKind(stk, RT::MemOpcode::SST_START_OPCODE);
-    ASSERT(opc <= RT::MemOpcode::SST_END_OPCODE);
-    LoadStore(stk, src, base, opc);
-}
-
-void MemSpaceEmitter::LoadFrame(LoadAccessKind ldk, Reg dst)
-{
-    RT::MemOpcode opc = ComputeLoadAccessKind(ldk, RT::MemOpcode::FLD_START_OPCODE);
-    ASSERT(opc <= RT::MemOpcode::FLD_END_OPCODE);
-    LoadStore(ldk, dst, IReg::IRZ, opc);
-}
-
-void MemSpaceEmitter::StoreFrame(StoreAccessKind stk, Reg src)
-{
-    RT::MemOpcode opc = ComputeStoreAccessKind(stk, RT::MemOpcode::FST_START_OPCODE);
-    ASSERT(opc <= RT::MemOpcode::FST_END_OPCODE);
-    LoadStore(stk, src, IReg::IRZ, opc);
 }
 
 static RT::MemOpcode ComputeStoreImmStart(Format::StoreAccessKind stk, RT::MemOpcode start)
@@ -244,18 +129,6 @@ struct XRImmBuilder {
     auto I64(RT::MemOpcode opc, uint64_t v) const { return RT::M10xri64 { opc, xr, { .imm = v } }; }
 };
 
-struct RRImmBuilder {
-    Format::RR rr;
-
-    auto I8(RT::MemOpcode opc, uint8_t v) const { return RT::M3rri8 { opc, rr, { v } }; }
-
-    auto I16(RT::MemOpcode opc, uint16_t v) const { return RT::M4rri16 { opc, rr, { v } }; }
-
-    auto I32(RT::MemOpcode opc, uint32_t v) const { return RT::M6rri32 { opc, rr, { v } }; }
-
-    auto I64(RT::MemOpcode opc, uint64_t v) const { return RT::M10rri64 { opc, rr, { .imm = v } }; }
-};
-
 template <typename Builder>
 static void EmitStoreImm(
     Segment& seg,
@@ -284,46 +157,6 @@ static void EmitStoreImm(
     }
 }
 
-void MemSpaceEmitter::StoreFrameImm(StoreAccessKind stk, uint64_t imm)
-{
-    if (stk == StoreAccessKind::ST_REF) {
-        ASSERT(imm == 0);
-        StoreFrame(stk, IReg::IRZ);
-        return;
-    }
-    stk           = NormalizeStoreImmKind(stk);
-    auto opcStart = ComputeStoreImmStart(stk, RT::MemOpcode::FSTI_START_OPCODE);
-    EmitStoreImm(segment, stk, imm, opcStart, RT::MemOpcode::FSTI_END_OPCODE, ImmBuilder {});
-}
-
-void MemSpaceEmitter::StoreRecImm(StoreAccessKind stk, Reg base, uint64_t imm)
-{
-    stk           = NormalizeStoreImmKind(stk);
-    auto opcStart = ComputeStoreImmStart(stk, RT::MemOpcode::SSTI_START_OPCODE);
-    EmitStoreImm(
-        segment,
-        stk,
-        imm,
-        opcStart,
-        RT::MemOpcode::SSTI_END_OPCODE,
-        XRImmBuilder { Format::XR { .imm = 0, .r = base.IR() } }
-    );
-}
-
-void MemSpaceEmitter::StoreDerivedImm(StoreAccessKind stk, IReg base, IReg derived, uint64_t imm)
-{
-    stk           = NormalizeStoreImmKind(stk);
-    auto opcStart = ComputeStoreImmStart(stk, RT::MemOpcode::DSTI_START_OPCODE);
-    EmitStoreImm(
-        segment,
-        stk,
-        imm,
-        opcStart,
-        RT::MemOpcode::DSTI_END_OPCODE,
-        RRImmBuilder { Format::RR { .x = base, .y = derived } }
-    );
-}
-
 void MemSpaceEmitter::StoreObjImm(StoreAccessKind stk, Reg base, uint64_t imm)
 {
     stk           = NormalizeStoreImmKind(stk);
@@ -338,6 +171,17 @@ void MemSpaceEmitter::StoreObjImm(StoreAccessKind stk, Reg base, uint64_t imm)
     );
 }
 
+void MemSpaceEmitter::StoreFrameImm(StoreAccessKind stk, uint64_t imm)
+{
+    if (stk == StoreAccessKind::ST_REF) {
+        ASSERT(imm == 0);
+        return;
+    }
+    stk           = NormalizeStoreImmKind(stk);
+    auto opcStart = ComputeStoreImmStart(stk, RT::MemOpcode::FSTI_START_OPCODE);
+    EmitStoreImm(segment, stk, imm, opcStart, RT::MemOpcode::FSTI_END_OPCODE, ImmBuilder {});
+}
+
 void MemSpaceEmitter::LoadGeneric(IReg dst, IReg base, IReg typeInfo)
 {
     auto command = RT::M3rrrr { .opc = RT::MemOpcode::DLD_GENERIC, .rr1 = { base, typeInfo }, .rr2 = { dst, base } };
@@ -347,18 +191,6 @@ void MemSpaceEmitter::LoadGeneric(IReg dst, IReg base, IReg typeInfo)
 void MemSpaceEmitter::StoreGeneric(IReg src, IReg base, IReg typeInfo)
 {
     auto command = RT::M3rrrr { .opc = RT::MemOpcode::DST_GENERIC, .rr1 = { base, typeInfo }, .rr2 = { src, base } };
-    Encode(segment, command);
-}
-
-void MemSpaceEmitter::LoadDerivedGeneric(IReg dst, IReg base, IReg derived, IReg typeInfo)
-{
-    auto command = RT::M3rrrr { .opc = RT::MemOpcode::DLD_GENERIC, .rr1 = { derived, typeInfo }, .rr2 = { dst, base } };
-    Encode(segment, command);
-}
-
-void MemSpaceEmitter::StoreDerivedGeneric(IReg src, IReg base, IReg derived, IReg typeInfo)
-{
-    auto command = RT::M3rrrr { .opc = RT::MemOpcode::DST_GENERIC, .rr1 = { derived, typeInfo }, .rr2 = { src, base } };
     Encode(segment, command);
 }
 
