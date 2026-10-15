@@ -28,12 +28,11 @@ template <typename T, typename Printer>
 void Print(Stream::Output& out, Utils::Span<T const> vec, Printer&& printElem, std::string_view delim = ", ")
 {
     std::string_view sep = "";
-    Printer print        = printElem;
 
     out << "[";
     for (const auto& elem : vec) {
-        printElem(out, elem);
         out << sep;
+        printElem(out, elem);
         sep = delim;
     }
     out << "]";
