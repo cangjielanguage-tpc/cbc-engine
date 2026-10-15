@@ -353,17 +353,15 @@ struct IsaRewriter : public IsaParser {
         return true;
     }
 
-    // Only indirect calls (CFunc calls) can have sig == std::nullopt
-    // they are supposed to be unmanaged
     AbiInfo StageCallArgs(
         Utils::Span<const Location> args,
         CallAbiFlags flags,
-        std::optional<Resolution::MethodSignature> sig,
+        Resolution::MethodSignature& sig,
         Location* outerTiLoc = nullptr
     )
     {
-        int funcVarsCount = sig ? sig->tvars.GetLength() : 0;
-        if (sig && !CheckArgCount(args.Size(), flags, funcVarsCount, sig->ParamCount())) {
+        int funcVarsCount = sig.tvars.GetLength();
+        if (!CheckArgCount(args.Size(), flags, funcVarsCount, sig.ParamCount())) {
             return {};
         }
 
@@ -415,22 +413,11 @@ struct IsaRewriter : public IsaParser {
             case Image::MethodAbiKind::HAS_THIS_TI:;
         }
 
-        if (sig) {
-            auto params     = sig->Params();
-            int paramsCount = static_cast<int>(params.Size());
-            ASSERT(paramsCount >= 0 && static_cast<size_t>(paramsCount + idx) <= args.Size());
-            for (int j = 0; j < paramsCount; ++idx, ++j) {
-                moves.AddMove(args[idx], abi.Consume(params[j]));
-            }
-        } else {
-            // Args are not managed by GC or stack expansion. Can be considered simply as INT or FLOAT
-            int paramsCount = static_cast<int>(args.Size()) - idx;
-            ASSERT(paramsCount >= 0 && static_cast<size_t>(paramsCount + idx) <= args.Size());
-            for (int j = 0; j < paramsCount; ++idx, ++j) {
-                moves.AddMove(
-                    args[idx], abi.Consume(args[idx].Kind() == Location::FREG ? ArgKind::FLOAT : ArgKind::INT)
-                );
-            }
+        auto params     = sig.Params();
+        int paramsCount = static_cast<int>(params.Size());
+        ASSERT(paramsCount >= 0 && static_cast<size_t>(paramsCount + idx) <= args.Size());
+        for (int j = 0; j < paramsCount; ++idx, ++j) {
+            moves.AddMove(args[idx], abi.Consume(params[j]));
         }
 
         ASSERT(funcVarsCount <= args.Size());
@@ -439,7 +426,6 @@ struct IsaRewriter : public IsaParser {
         }
 
         if (flags.hasOuterTi) {
-            ASSERT(sig.has_value());
             Location loc = abi.Consume(ArgKind::INT);
             moves.AddMove(args[idx++], loc);
             if (outerTiLoc)
@@ -447,7 +433,6 @@ struct IsaRewriter : public IsaParser {
         }
 
         if (flags.abiKind == Image::MethodAbiKind::HAS_THIS_TI) {
-            ASSERT(sig.has_value());
             moves.AddMove(args[idx++], abi.Consume(ArgKind::INT));
         }
 
@@ -1347,7 +1332,13 @@ struct IsaRewriter : public IsaParser {
             session,
             Image::RefIdentifier<Image::MethodReference>(Image::RefId<Image::MethodReference>(methodId), fileId)
         );
-        AbiInfo info = StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), std::nullopt);
+        auto sig   = Engine::TermManager::Resolve(session, ref.methodSig);
+        auto tvars = Engine::TermManager::Resolve(session, ref.tvars);
+        ASSERT(tvars.GetLength() == 0);
+        Resolution::MethodSignature methodSig = { .resolver = &resolver,
+                                                  .term     = sig,
+                                                  .tvars    = tvars }; // synthetic method signature
+        AbiInfo info = StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), methodSig);
         emit.CallCFunc(target, info.stackArgsCount * STACK_SLOT_SIZE);
         BindStatePoint();
         EmitReturnedTo();
