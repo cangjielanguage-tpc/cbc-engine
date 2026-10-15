@@ -431,7 +431,7 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B13i64i32 
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, StructFieldOp args)
 {
-    Operand operands[] = { args.rr.x, args.rr.y, args.field.x, args.field.y, args.ti.UInt() };
+    Operand operands[] = { args.rr.x, args.rr.y, args.offset, args.ti.UInt() };
     Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }

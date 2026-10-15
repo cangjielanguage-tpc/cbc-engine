@@ -126,8 +126,8 @@
     X(NEWBOX2, B9i64, "newbox2 $0U64")                                                                                 \
     X(UNBOX_T, B6xri32, "unbox.t $1ir $2U32")                                                                          \
     X(OFFSET, B6xri32, "offset $1ir $2U32 }")                                                                          \
-    X(READ_STRUCT_FIELD, StructFieldOp, "read.struct.field $0ir $1ir $2ir $4U64")                                      \
-    X(WRITE_STRUCT_FIELD, StructFieldOp, "write.struct.field $0ir $1ir $2ir $4U64")                                    \
+    X(READ_STRUCT_FIELD, StructFieldOp, "read.struct.field $0ir $1ir $2U8 $4U64")                                      \
+    X(WRITE_STRUCT_FIELD, StructFieldOp, "write.struct.field $0ir $1ir $2U8 $4U64")                                    \
     X(THROW, B2xr, "throw $1ir")                                                                                       \
     X(CATCH, B2xr, "catch $1ir")                                                                                       \
     X(LOG, B9i64, "log $0U64")                                                                                         \
@@ -559,16 +559,16 @@ struct IOF {
 struct StructFieldOp {
     Opcode opc;
     Format::RR rr;
-    Format::RR field;
+    uint8_t offset;
     RTSupport::TypeInfo ti;
 
     static StructFieldOp Decode(Decoder::ByteReader& reader)
     {
         auto opc   = Opcode::Decode(reader);
         auto rr    = Format::RR::Decode(reader);
-        auto field = Format::RR::Decode(reader);
+        auto offset = reader.Read8();
         auto ti    = reader.Read<RTSupport::TypeInfo>();
-        return StructFieldOp { opc, rr, field, ti };
+        return StructFieldOp { opc, rr, offset, ti };
     }
 };
 
