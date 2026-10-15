@@ -74,6 +74,8 @@
     X(LOAD_GENERIC, B3rrrr, "ld.g $0ir $3ir [($1ir $2ir)]")                                                            \
     X(STORE_GENERIC, B3rrrr, "st.g $0ir $3ir [($1ir $2ir)]")                                                           \
     X(LEA_GENERIC, B7xrrri32, "lea.g $1ir $3ir [$2ir ord=$4U32]")                                                      \
+    X(INIT_NONE_GENERIC, B3rrrr, "init.none.g $0ir $1ir")                                                              \
+    X(INIT_SOME_GENERIC, B3rrrr, "init.some.g $0ir $1ir $2ir $3ir")                                                    \
     /* Integral Load/Store instructions end*/                                                                          \
     /* Float Load/Store instructions end*/                                                                             \
     X(LOAD_OBJ_F, B4xi12rr, "ld.$0ldk $2fr [$3ir $1U12]")                                                              \

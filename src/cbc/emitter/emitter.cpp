@@ -792,6 +792,24 @@ void Emitter::LeaGeneric(Reg dst, IReg base, IReg ti, uint32_t ordinal)
     );
 }
 
+void Emitter::InitNoneGeneric(IReg underlyingTi, IReg storeDiscriminant)
+{
+    Encode(
+        segment,
+        RT::B3rrrr { .opc = RT::Opcode::INIT_NONE_GENERIC, .rr1 = { .x = underlyingTi, .y = storeDiscriminant } }
+    );
+}
+
+void Emitter::InitSomeGeneric(IReg src, IReg underlyingTi, IReg optionTi, IReg storeDiscriminant)
+{
+    Encode(
+        segment,
+        RT::B3rrrr { .opc = RT::Opcode::INIT_SOME_GENERIC,
+                     .rr1 = { .x = src, .y = underlyingTi },
+                     .rr2 = { .x = optionTi, .y = storeDiscriminant } }
+    );
+}
+
 void Emitter::LoadObj(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset)
 {
     if (MathUtils::IsNBits(offset, 12)) {
