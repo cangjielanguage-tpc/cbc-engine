@@ -122,6 +122,7 @@ protected:
 
     virtual void TypeArg(IReg ti, int idx, IReg dst)            = 0;
     virtual void Box(AnyReg src, IReg dst, uint32_t type)       = 0;
+    virtual void BoxGeneric(IReg src, IReg dst, IReg ti)        = 0;
     virtual void BoxT(uint16_t srcTs, IReg dst)                 = 0;
     virtual void BoxTGeneric(uint16_t srcTs, IReg dst, IReg ti) = 0;
 

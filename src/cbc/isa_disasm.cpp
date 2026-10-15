@@ -181,12 +181,12 @@ struct IsaDisasm : public IsaParser {
 
     void LoadField(IReg rb, AnyReg rs, uint32_t field) override
     {
-        stream.PrintLn("ld.field R{}, [{} @{}]", rs, rb, field);
+        stream.PrintLn("ld.field {}, [{} @{}]", rs, rb, field);
     }
 
     void StoreField(IReg rb, AnyReg rd, uint32_t field) override
     {
-        stream.PrintLn("st.field R{}, [{} @{}]", rd, rb, field);
+        stream.PrintLn("st.field {}, [{} @{}]", rd, rb, field);
     }
 
     void LoadTypeInfoGeneric(IReg dst, uint32_t typeId) override { stream.PrintLn("load.ti.g {}, @{}", dst, typeId); }
@@ -427,21 +427,21 @@ struct IsaDisasm : public IsaParser {
         stream.PrintLn("ld.g R{}, {}, [({}, {}) @{}]", dst, ti, baseRef, derived, field);
     }
 
-    void Lea(IReg dst, IReg base, uint32_t field) override { stream.PrintLn("lea R{}, [{} @{}]", dst, base, field); }
+    void Lea(IReg dst, IReg base, uint32_t field) override { stream.PrintLn("lea {}, [{} @{}]", dst, base, field); }
 
     void LeaStatic(IReg dst, IReg dstBaseRef, uint32_t field) override
     {
-        stream.PrintLn("lea.s R{}, {}, [@{}]", dst, dstBaseRef, field);
+        stream.PrintLn("lea.s {}, {}, [@{}]", dst, dstBaseRef, field);
     }
 
     void LeaGeneric(IReg dst, IReg base, IReg ti, uint32_t field) override
     {
-        stream.PrintLn("lea.g R{}, {}, [{} @{}]", dst, ti, base, field);
+        stream.PrintLn("lea.g {}, {}, [{} @{}]", dst, ti, base, field);
     }
 
-    void LeaBox(IReg dst, IReg base) override { stream.PrintLn("lea.box R{}, [{}]", dst, base); }
+    void LeaBox(IReg dst, IReg base) override { stream.PrintLn("lea.box {}, [{}]", dst, base); }
 
-    void St(AnyReg src, IReg base, uint32_t field) override { stream.PrintLn("st R{}, [{} @{}]", src, base, field); }
+    void St(AnyReg src, IReg base, uint32_t field) override { stream.PrintLn("st {}, [{} @{}]", src, base, field); }
 
     void StStatic(AnyReg src, uint32_t field) override { stream.PrintLn("st.s R{}, [@{}]", src, field); }
 
@@ -499,7 +499,9 @@ struct IsaDisasm : public IsaParser {
 
     void TypeArg(IReg ti, int idx, IReg dst) override { stream.PrintLn("type.arg {}, {}[{}]", dst, ti, idx); }
 
-    void Box(AnyReg src, IReg dst, uint32_t tk) override { stream.PrintLn("box {}, R{}, @{}", dst, src, tk); }
+    void Box(AnyReg src, IReg dst, uint32_t tk) override { stream.PrintLn("box R{}, {}, @{}", dst, src, tk); }
+
+    void BoxGeneric(IReg src, IReg dst, IReg ti) override { stream.PrintLn("box.g {}, {}, {}", dst, src, ti); }
 
     void BoxT(uint16_t srcTs, IReg dst) override { stream.PrintLn("box {}, t{}", dst, srcTs); }
 
