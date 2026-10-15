@@ -161,7 +161,7 @@ Output& Output::operator<<(const long v)
 
 Output& Output::operator<<(const unsigned long v)
 {
-    PrintFmt("%ld", v);
+    PrintFmt("%lu", v);
     return *this;
 }
 
