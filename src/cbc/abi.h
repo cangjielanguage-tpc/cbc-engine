@@ -19,10 +19,6 @@ template <typename ArgType> struct ArgTypeTraits {
     ArgKind Kind(const ArgType& t);
 };
 
-struct AbiInfo {
-    int stackArgsCount;
-};
-
 // Pure target allocator: hands out the next register or stack slot in
 // ABI order for each argument kind. Does not track metadata (masks,
 // slot lists) — the consumer derives that from (Location, ArgKind).
@@ -60,8 +56,6 @@ public:
     Location ConsumeSret();
 
     int MaxStackSlot() const { return slotIdx; }
-
-    AbiInfo Info() const { return { .stackArgsCount = MaxStackSlot() }; }
 
 private:
     PlatformDescription desc;
