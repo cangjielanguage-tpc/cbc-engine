@@ -597,8 +597,11 @@ template <> inline ArithmeticResult ArithFPMath<Width::W64>(FloatMathOp::Value o
 {
     using namespace Cbc::Format;
     switch (op) {
-        case FloatMathOp::SIN: return { Value::Primitive { .f64 = std::sin(s.f64) }, true };
-        case FloatMathOp::COS: return { Value::Primitive { .f64 = std::cos(s.f64) }, true };
+        case FloatMathOp::SIN:   return { Value::Primitive { .f64 = std::sin(s.f64) },   true };
+        case FloatMathOp::COS:   return { Value::Primitive { .f64 = std::cos(s.f64) },   true };
+        case FloatMathOp::LOG:   return { Value::Primitive { .f64 = std::log(s.f64) },   true };
+        case FloatMathOp::CEIL:  return { Value::Primitive { .f64 = std::ceil(s.f64) },  true };
+        case FloatMathOp::FLOOR: return { Value::Primitive { .f64 = std::floor(s.f64) }, true };
 
         default: FATAL("Unexpected FP math op: %d", op);
     }
@@ -608,8 +611,11 @@ template <> inline ArithmeticResult ArithFPMath<Width::W32>(FloatMathOp::Value o
 {
     using namespace Cbc::Format;
     switch (op) {
-        case FloatMathOp::SIN: return { Value::Primitive { .f32 = std::sin(s.f32) }, true };
-        case FloatMathOp::COS: return { Value::Primitive { .f32 = std::cos(s.f32) }, true };
+        case FloatMathOp::SIN:   return { Value::Primitive { .f32 = std::sin(s.f32) },   true };
+        case FloatMathOp::COS:   return { Value::Primitive { .f32 = std::cos(s.f32) },   true };
+        case FloatMathOp::LOG:   return { Value::Primitive { .f32 = std::log(s.f32) },   true };
+        case FloatMathOp::CEIL:  return { Value::Primitive { .f32 = std::ceil(s.f32) },  true };
+        case FloatMathOp::FLOOR: return { Value::Primitive { .f32 = std::floor(s.f32) }, true };
 
         default: FATAL("Unexpected FP math op: %d", op);
     }
