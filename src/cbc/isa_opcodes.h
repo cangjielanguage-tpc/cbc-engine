@@ -156,6 +156,8 @@
     X(CallInterf, CallInterf)                                                                                          \
     X(CallClosure, CallClosure)                                                                                        \
     X(CallClosureGeneric, CallClosureGeneric)                                                                          \
+    X(LeaCForeign, LeaCForeign)                                                                                        \
+    X(CallCFunc, CallCFunc)                                                                                            \
     X(_END, Unreachable)
 
 #define ISA_REG_SYM_GROUP_OPCODES(X)                                                                                   \

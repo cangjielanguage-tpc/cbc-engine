@@ -264,7 +264,7 @@ struct IsaDisasm : public IsaParser {
 
     void AtomicFetchOr(IReg dst, IReg obj, IReg src, uint32_t fieldId) override
     {
-        stream.PrintLn("atomic.fetch.and {}, {}, [{} @{}]", dst, src, obj, fieldId);
+        stream.PrintLn("atomic.fetch.or {}, {}, [{} @{}]", dst, src, obj, fieldId);
     }
 
     void AtomicFetchXor(IReg dst, IReg obj, IReg src, uint32_t fieldId) override
@@ -324,6 +324,13 @@ struct IsaDisasm : public IsaParser {
         stream.PrintLn("call.interf.g {}, @{}{}", argnum, method, ArgsStr(args));
     }
 
+    void LeaCForeign(IReg dst, uint32_t method) override { stream.PrintLn("lea.cforeign {}, @{}", dst, method); }
+
+    void CallCFunc(IReg target, uint32_t methodId, Utils::Span<const Location> args) override
+    {
+        stream.PrintLn("call.cfunc {} @{}{}", target, methodId, ArgsStr(args));
+    }
+
     void Spawn(IReg closure, uint32_t type) override { stream.PrintLn("spawn {}, @{}", closure, type); }
 
     void SpawnFuture(IReg future, uint32_t type) override { stream.PrintLn("spawn.future {}, @{}", future, type); }
@@ -337,12 +344,12 @@ struct IsaDisasm : public IsaParser {
     void Scc(Format::Width width, Format::CC cc, IReg d, AnyReg l, AnyReg r) override
     {
         auto fp = cc.IsFloatingPoint();
-        stream.PrintLn("scc.{} {}, {}, {}, {}, {}", width, cc, d, Fmt(l, fp), Fmt(r, fp));
+        stream.PrintLn("scc.{} {}, {}, {}, {}", width, cc, d, Fmt(l, fp), Fmt(r, fp));
     }
 
     void SccImm(Format::Width width, Format::CC cc, IReg d, IReg l, uint64_t imm) override
     {
-        stream.PrintLn("scci.{} {}, {}, {}, {}, {}", width, cc, d, l, imm);
+        stream.PrintLn("scci.{} {}, {}, {}, {}", width, cc, d, l, imm);
     }
 
     void Ret(Format::Width width, IReg src) override { stream.PrintLn("ret.{} {}", width, src); }

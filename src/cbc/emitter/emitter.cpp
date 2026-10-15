@@ -1125,6 +1125,26 @@ void Emitter::DirectCall2c(Symbol target)
     AddFixup(std::make_unique<Literal12Fixup>(i4, target));
 }
 
+void Emitter::DirectCall2n(Symbol target, uint8_t stackArgsSize)
+{
+    segment.AddW8(RT::Opcode::DIRECT_CALL_2N);
+    Imm4 i4(0); // TODO: set vector regs count
+    AddFixup(std::make_unique<Literal12Fixup>(i4, target));
+    segment.AddW8(stackArgsSize);
+}
+
+void Emitter::CallCFunc(IReg src, uint8_t stackSlots)
+{
+    Encode(
+        segment,
+        RT::B3xri8 {
+            .opc  = RT::Opcode::CALL_CFUNC,
+            .xr   = { .imm = Format::Imm4(0), .r = src }, // TODO: set vector regs count
+            .imm8 = Format::Imm8(stackSlots),
+        }
+    );
+}
+
 void Emitter::VirtualCall(uint16_t vnum, uint16_t extDefNum, bool sret)
 {
     Encode(

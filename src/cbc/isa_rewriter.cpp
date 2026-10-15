@@ -355,7 +355,8 @@ struct IsaRewriter : public IsaParser {
         return true;
     }
 
-    void StageCallArgs(
+    /// @return stack arguments count
+    int StageCallArgs(
         Utils::Span<const Location> args,
         CallAbiFlags flags,
         Resolution::MethodSignature& sig,
@@ -366,8 +367,9 @@ struct IsaRewriter : public IsaParser {
     {
         int funcVarsCount = sig.tvars.GetLength();
         if (!CheckArgCount(args.Size(), flags, funcVarsCount, sig.ParamCount())) {
-            return;
+            return {};
         }
+
         MoveResolver moves;
         Utils::Vector<uint32_t> refStackSlots;
         Utils::Vector<uint32_t> recStackSlots;
@@ -443,6 +445,7 @@ struct IsaRewriter : public IsaParser {
             if (outerTiLoc)
                 *outerTiLoc = loc;
         }
+
         if (flags.abiKind == Image::MethodAbiKind::HAS_THIS_TI) {
             Location loc = abi.Consume(ArgKind::INT);
             moves.AddMove(args[idx++], loc);
@@ -453,7 +456,7 @@ struct IsaRewriter : public IsaParser {
         RewriterMoveEmitter emitter(frameLayout, emit);
         if (!moves.Resolve(emitter)) {
             Fail("Register kind mismatch");
-            return;
+            return {};
         }
         maxParamPassingSize = std::max(maxParamPassingSize, static_cast<uint32_t>(abi.MaxStackSlot() * 8));
 
@@ -463,6 +466,8 @@ struct IsaRewriter : public IsaParser {
         pendingParamRecSlots.Clear();
         for (auto slot : recStackSlots)
             pendingParamRecSlots.PushBack(slot);
+
+        return abi.MaxStackSlot();
     }
 
     void Bcc(Format::Width width, Format::CC cc, AnyReg l, AnyReg r, int64_t delta) override
@@ -1328,6 +1333,34 @@ struct IsaRewriter : public IsaParser {
 
     void NewObj(IReg dst, uint32_t typeId) override { NewObject(dst, typeId, New::Obj); }
 
+    void LeaCForeign(IReg dst, uint32_t methodId) override
+    {
+        UNWRAP_OPT(method, resolver.Query(Index<DirectCall>(methodId)), Fail);
+        if (auto data = std::get_if<DirectCall::Compiled>(&method->data)) {
+            emit.MovImm(Format::Width::W64, dst, data->funcPtr);
+        } else {
+            Fail();
+        }
+    }
+
+    void CallCFunc(IReg target, uint32_t methodId, Utils::Span<const Location> args) override
+    {
+        auto ref = Decode::Read(
+            session,
+            Image::RefIdentifier<Image::MethodReference>(Image::RefId<Image::MethodReference>(methodId), fileId)
+        );
+        auto sig   = Engine::TermManager::Resolve(session, ref.methodSig);
+        auto tvars = Engine::TermManager::Resolve(session, ref.tvars);
+        ASSERT(tvars.GetLength() == 0);
+        Resolution::MethodSignature methodSig = { .resolver = &resolver,
+                                                  .term     = sig,
+                                                  .tvars    = tvars }; // synthetic method signature
+        int stackSlotsCount = StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), methodSig);
+        emit.CallCFunc(target, stackSlotsCount * STACK_SLOT_SIZE);
+        BindStatePoint();
+        EmitReturnedTo();
+    }
+
     CallAbiFlags MakeCallAbiFlags(Image::MethodRefFlags flags, Image::MethodAbiKind abiKind) const
     {
         return { .isSRet     = flags.Is(Image::MethodRefFlag::SRET),
@@ -1337,30 +1370,30 @@ struct IsaRewriter : public IsaParser {
 
     void CallDirect(uint32_t methodId, Utils::Span<const Location> args) override
     {
-        auto m = resolver.Query(Index<DirectCall>(methodId));
-        if (!m.has_value()) {
-            Fail();
-            return;
-        }
-        auto method = m.value();
+        UNWRAP_OPT(method, resolver.Query(Index<DirectCall>(methodId)), Fail);
+
         auto ref    = Decode::Read(
             session,
             Image::RefIdentifier<Image::MethodReference>(Image::RefId<Image::MethodReference>(methodId), fileId)
         );
-        StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature);
+        int stackSlotsCount = StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature);
 
         if (auto data = std::get_if<DirectCall::Compiled>(&method->data)) {
-            EmitLogCall("call.2c", method);
             auto sym = emit.NewAddressSym(data->funcPtr);
-            emit.DirectCall2c(sym);
-            BindStatePoint();
+            if (data->isForeign) {
+                EmitLogCall("call.2n", method);
+                emit.DirectCall2n(sym, stackSlotsCount * STACK_SLOT_SIZE);
+            } else {
+                EmitLogCall("call.2c", method);
+                emit.DirectCall2c(sym);
+            }
         } else {
             EmitLogCall("call.2i", method);
             auto fuh = std::get<Interpretation::DynamicFunctionHandle*>(method->data);
             auto sym = emit.NewAddressSym(reinterpret_cast<uintptr_t>(fuh));
             emit.DirectCall2i(sym);
-            BindStatePoint();
         }
+        BindStatePoint();
         EmitReturnedTo();
     }
 

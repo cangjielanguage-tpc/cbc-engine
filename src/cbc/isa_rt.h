@@ -107,6 +107,8 @@
     X(CALL_CLOSURE_GENERIC, B1, "call.closure.g")                                                                      \
     X(DIRECT_CALL_2I, B3xi12, "call.2i $1I12L")                                                                        \
     X(DIRECT_CALL_2C, B3xi12, "call.2c $1I12L")                                                                        \
+    X(DIRECT_CALL_2N, B4xi12i8, "call.2n $0I4 $2U8 $1I12L")                                                            \
+    X(CALL_CFUNC, B3xri8, "call.cfunc $1ir $2U8")                                                                      \
     X(VIRTUAL_CALL, VirtualCall, "vcall $0U16 $1U16")                                                                  \
     X(INTERFACE_CALL, InterfaceCall, "icall.$2U8 $0U16 $1U64 outer=$3U16 this=$4U16")                                  \
     X(INTERFACE_CALL_GENERIC, InterfaceCallGeneric, "icall.g.$1U8 $0U16 outer=$2U16 this=$3U16")                       \
@@ -546,6 +548,22 @@ struct B3xi12 {
         auto opc  = Opcode::Decode(reader);
         auto xi12 = Format::XImm12::Decode(reader);
         return B3xi12 { opc, xi12 };
+    }
+};
+
+struct B4xi12i8 {
+    static constexpr int SIZE = 4;
+
+    Opcode opc;
+    Format::XImm12 xi12;
+    Format::Imm8 imm8;
+
+    static B4xi12i8 Decode(Decoder::ByteReader& reader)
+    {
+        auto opc  = Opcode::Decode(reader);
+        auto xi12 = Format::XImm12::Decode(reader);
+        auto imm8 = Format::Imm8::Decode(reader);
+        return B4xi12i8 { opc, xi12, imm8 };
     }
 };
 

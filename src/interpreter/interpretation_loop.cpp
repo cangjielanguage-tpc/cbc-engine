@@ -1207,6 +1207,30 @@ LABEL(DIRECT_CALL_2C) {
 
     return { Adapters::GenericI2CCallInstance(), reinterpret_cast<void*>(target) };
 }
+LABEL(DIRECT_CALL_2N) {
+    auto args = B4xi12i8::Decode(reader);
+    LOG_INSTR;
+    auto target  = literals->at(args.xi12.imm12).uintptr;
+    auto packed = target
+        | (static_cast<uint64_t>(args.xi12.imm4) << I2N_VEC_COUNT_SHIFT)
+        | (static_cast<uint64_t>(args.imm8.imm) << I2N_STACK_ARGS_SIZE_SHIFT);
+
+    reader0 = reader; // save current pc
+
+    return { Adapters::GenericI2NCallInstance(), reinterpret_cast<void*>(packed) };
+}
+LABEL(CALL_CFUNC) {
+    auto args = B3xri8::Decode(reader);
+    LOG_INSTR;
+    auto target = ectype->GetPrimitive(IReg::From(args.xr.r)).u64;
+    auto packed = target
+        | (static_cast<uint64_t>(args.xr.imm) << I2N_VEC_COUNT_SHIFT)
+        | (static_cast<uint64_t>(args.imm8.imm) << I2N_STACK_ARGS_SIZE_SHIFT);
+
+    reader0 = reader; // save current pc
+
+    return { Adapters::GenericI2NCallInstance(), reinterpret_cast<void*>(packed) };
+}
 LABEL(CALL_CLOSURE_SRET) {
     if constexpr (HAS_SRET_SHIFT) {
         auto args = B1::Decode(reader);

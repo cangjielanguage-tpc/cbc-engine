@@ -31,13 +31,15 @@ public:
     Impl(
         Utils::Vector<CbcFile>&& files,
         Utils::Vector<std::unique_ptr<IO::RandomAccessFile>>&& rafs,
-        Utils::Vector<class Dependencies>&& deps
+        Utils::Vector<class Dependencies>&& deps,
+        Utils::Vector<class Dependencies>&& foreignLibs
     )
         : files(std::move(files)),
           rafs(std::move(rafs)),
           mtManager(MethodTableManager::NewInstance()),
           typeInfoManager(TypeInfoManager::NewInstance()),
-          dependencies(std::move(deps))
+          dependencies(std::move(deps)),
+          foreignLibs(std::move(foreignLibs))
     {}
 
     static Engine::Impl& Of(Engine& engine) { return *engine.impl; }
@@ -54,6 +56,7 @@ public:
     StaticsManager staticsManager;
     std::unique_ptr<TypeInfoManager> typeInfoManager;
     Utils::Vector<class Dependencies> dependencies;
+    Utils::Vector<class Dependencies> foreignLibs;
 };
 
 class Loader::Impl {
@@ -164,6 +167,7 @@ std::optional<CbcFile> TryReadCbcFile(Image::FileId fileId, IO::RandomAccessFile
         .extensions            = OffsetSequence<Extension>(fileId, extSeqStart, extSeqStart + extSeqSize),
         .aotDeps               = aotDeps,
         .cbcDeps               = cbcDeps,
+        .foreignLibs           = foreignLibs,
         .mainTypeName          = mainTypeName,
         .poolOffset            = poolOffset,
         .id                    = fileId,
@@ -206,11 +210,15 @@ static std::string UpdateSharedObjName(std::string_view name)
     return res;
 }
 
-static Utils::Vector<Dependencies> ReadDependencies(Loader::Impl const* loader)
+static Utils::Vector<Dependencies> ReadDependencies(
+    Loader::Impl* loader,
+    std::optional<Offset<String>> (CbcFile::*offsetOf)() const,
+    Utils::Vector<std::shared_ptr<Utils::SharedObject>>& base
+)
 {
     static constexpr char delim = ':';
-
     Utils::Vector<std::shared_ptr<Utils::SharedObject>> objects;
+
     auto addObject = [&objects](std::string_view name) {
         auto soName = UpdateSharedObjName(name);
         // Avoid duplicate dlopen calls
@@ -224,10 +232,6 @@ static Utils::Vector<Dependencies> ReadDependencies(Loader::Impl const* loader)
         return ptr;
     };
 
-    // FIXME: Do not inject `executable` as dependency unconditionally.
-    //        Use special name for such dependencies as `aot deps` field in cbc file.
-    auto executable = std::make_shared<Utils::SharedObject>(Utils::SharedObject::OpenCurrentExecutable());
-
     Utils::Vector<char> nameBuffer;
 
     ASSERT(loader->files.Size() == loader->rafs.Size());
@@ -239,10 +243,9 @@ static Utils::Vector<Dependencies> ReadDependencies(Loader::Impl const* loader)
         auto raf   = loader->rafs[i].get();
         auto& file = loader->files[i];
 
-        auto deps     = file.AotDependencies();
+        auto deps = (file.*offsetOf)();
 
-        Utils::Vector<std::shared_ptr<Utils::SharedObject>> ptrs;
-        ptrs.EmplaceBack(executable);
+        auto ptrs = base;
         if (!deps) {
             allDeps.EmplaceBack(std::move(ptrs));
             continue;
@@ -275,11 +278,20 @@ static Utils::Vector<Dependencies> ReadDependencies(Loader::Impl const* loader)
 
 Engine& Loader::Build()
 {
-    auto deps = ReadDependencies(loader.get());
+    Utils::Vector<std::shared_ptr<Utils::SharedObject>> aotBase;
+    Utils::Vector<std::shared_ptr<Utils::SharedObject>> foreignBase;
 
-    auto engineInstance = new Engine(
-        std::make_unique<Engine::Impl>(std::move(loader->files), std::move(loader->rafs), std::move(deps))
-    );
+    // FIXME: Do not inject `executable` as dependency unconditionally.
+    //        Use special name for such dependencies as `aot deps` field in cbc file.
+    auto executable = std::make_shared<Utils::SharedObject>(Utils::SharedObject::OpenCurrentExecutable());
+    aotBase.EmplaceBack(executable);
+
+    auto deps        = ReadDependencies(loader.get(), &CbcFile::AotDependencies, aotBase);
+    auto foreignLibs = ReadDependencies(loader.get(), &CbcFile::ForeignLibs, foreignBase);
+
+    auto engineInstance = new Engine(std::make_unique<Engine::Impl>(
+        std::move(loader->files), std::move(loader->rafs), std::move(deps), std::move(foreignLibs)
+    ));
     g_engineInstance = engineInstance;
     return *engineInstance;
 }
@@ -322,6 +334,8 @@ std::optional<Identifier<Image::TypeDefinition>> Engine::FindType(Session& sessi
 }
 
 Utils::Span<Image::CbcFile const> Engine::Files() const { return impl->files; }
+
+Utils::Span<Dependencies const> Engine::ForeignLibs() const { return impl->foreignLibs; }
 
 Utils::Span<Dependencies const> Engine::Dependencies() const { return impl->dependencies; }
 
