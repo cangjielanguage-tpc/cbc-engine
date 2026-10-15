@@ -205,22 +205,8 @@
     X(OFFS16, M3i16, "offs.16 $0U16", false)                                                                           \
     X(OFFS32, M5i32, "offs.32 $0U32", false)                                                                           \
     X(OFFS64, M9i64, "offs.64 $0U64", false)                                                                           \
-    X(OFFS_REG, M2xr, "offs.r $1ir", false)                                                                            \
     X(GENERIC_FIELD, M6xri32, "generic.field $1ir $2U32 }", false)                                                     \
-    X(OFFS_REG_IDX64, M10xri64, "offs.r.idx.64 [$1ir * $2U64] }", false)                                               \
-    X(R_READ_STRUCT, MStructFieldOp, "r.read.struct $0ir $1ir $2U64 }", true)                                          \
     X(R_WRITE_STRUCT, MStructFieldOp, "r.write.struct $0ir $1ir $2U64 }", true)                                        \
-    X(RLD_U8, M2rr, "rld.u8 $0ir $1ir }", true)                                                                        \
-    X(RLD_U16, M2rr, "rld.u16 $0ir $1ir }", true)                                                                      \
-    X(RLD_32, M2rr, "rld.32 $0ir $1ir }", true)                                                                        \
-    X(RLD_S8, M2rr, "rld.s8 $0ir $1ir }", true)                                                                        \
-    X(RLD_S16, M2rr, "rld.s16 $0ir $1ir }", true)                                                                      \
-    X(RLD_F32, M2rr, "rld.f32 $0fr $1ir }", true)                                                                      \
-    X(RLD_F64, M2rr, "rld.f64 $0fr $1ir }", true)                                                                      \
-    X(RLD_64, M2rr, "rld.64 $0ir $1ir }", true)                                                                        \
-    X(RLD_S32TO64, M2rr, "rld.s32to64 $0ir $1ir }", true)                                                              \
-    X(RLD_REF, M2rr, "rld.ref $0ir $1ir }", true)                                                                      \
-    X(RLD_LEA, M2rr, "rld.lea $0ir $1ir }", true)                                                                      \
     X(RST_8, M2rr, "rst.8 $0ir $1ir }", true)                                                                          \
     X(RST_16, M2rr, "rst.16 $0ir $1ir }", true)                                                                        \
     X(RST_32, M2rr, "rst.32 $0ir $1ir }", true)                                                                        \
@@ -229,91 +215,8 @@
     X(RST_F32, M2rr, "rst.f32 $0fr $1ir }", true)                                                                      \
     X(RST_F64, M2rr, "rst.f64 $0fr $1ir }", true)                                                                      \
     X(RSTI_8_8, M3xri8, "rsti.8.8 $1ir $2U8 }", true)                                                                  \
-    X(RSTI_16_8, M3xri8, "rsti.16.8 $1ir $2U8 }", true)                                                                \
-    X(RSTI_16_16, M4xri16, "rsti.16.16 $1ir $2U16 }", true)                                                            \
-    X(RSTI_32_8, M3xri8, "rsti.32.8 $1ir $2U8 }", true)                                                                \
-    X(RSTI_32_16, M4xri16, "rsti.32.16 $1ir $2U16 }", true)                                                            \
-    X(RSTI_32_32, M6xri32, "rsti.32.32 $1ir $2U32 }", true)                                                            \
-    X(RSTI_64_8, M3xri8, "rsti.64.8 $1ir $2U8 }", true)                                                                \
-    X(RSTI_64_16, M4xri16, "rsti.64.16 $1ir $2U16 }", true)                                                            \
-    X(RSTI_64_32, M6xri32, "rsti.64.32 $1ir $2U32 }", true)                                                            \
-    X(RSTI_64_64, M10xri64, "rsti.64.64 $1ir $2U64 }", true)                                                           \
-    X(DLD_U8, M3xrrr, "dld.u8 $1ir $2ir $3ir }", true)                                                                 \
-    X(DLD_U16, M3xrrr, "dld.u16 $1ir $2ir $3ir }", true)                                                               \
-    X(DLD_32, M3xrrr, "dld.u32 $1ir $2ir $3ir }", true)                                                                \
-    X(DLD_S8, M3xrrr, "dld.s8 $1ir $2ir $3ir }", true)                                                                 \
-    X(DLD_S16, M3xrrr, "dld.s16 $1ir $2ir $3ir }", true)                                                               \
-    X(DLD_F32, M3xrrr, "dld.f32 $1fr $2ir $3ir }", true)                                                               \
-    X(DLD_F64, M3xrrr, "dld.f64 $1fr $2ir $3ir }", true)                                                               \
-    X(DLD_64, M3xrrr, "dld.64 $1ir $2ir $3ir }", true)                                                                 \
-    X(DLD_S32TO64, M3xrrr, "dld.s32to64 $1ir $2ir $3ir }", true)                                                       \
-    X(DLD_REF, M3xrrr, "dld.ref $1ir $2ir $3ir }", true)                                                               \
-    X(DLD_LEA, M3xrrr, "dld.lea $1ir $2ir $3ir }", true)                                                               \
     X(DLD_GENERIC, M3rrrr, "dld.g $0ir $1ir $2ir $3ir }", true)                                                        \
-    X(DST_8, M3xrrr, "dst.8 $1ir $2ir $3ir }", true)                                                                   \
-    X(DST_16, M3xrrr, "dst.16 $1ir $2ir $3ir }", true)                                                                 \
-    X(DST_32, M3xrrr, "dst.32 $1ir $2ir $3ir }", true)                                                                 \
-    X(DST_64, M3xrrr, "dst.64 $1ir $2ir $3ir }", true)                                                                 \
-    X(DST_REF, M3xrrr, "dst.ref $1ir $2ir $3ir }", true)                                                               \
-    X(DST_F32, M3xrrr, "dst.f32 $1fr $2ir $3ir }", true)                                                               \
-    X(DST_F64, M3xrrr, "dst.f64 $1fr $2ir $3ir }", true)                                                               \
     X(DST_GENERIC, M3rrrr, "dst.g $1ir $2ir $3ir }", true)                                                             \
-    X(DSTI_8_8, M3rri8, "dsti.8.8 $0ir $1ir $2U8 }", true)                                                             \
-    X(DSTI_16_8, M3rri8, "dsti.16.8 $0ir $1ir $2U8 }", true)                                                           \
-    X(DSTI_16_16, M4rri16, "dsti.16.16 $0ir $1ir $2U16 }", true)                                                       \
-    X(DSTI_32_8, M3rri8, "dsti.32.8 $0ir $1ir $2U8 }", true)                                                           \
-    X(DSTI_32_16, M4rri16, "dsti.32.16 $0ir $1ir $2U16 }", true)                                                       \
-    X(DSTI_32_32, M6rri32, "dsti.32.32 $0ir $1ir $2U32 }", true)                                                       \
-    X(DSTI_64_8, M3rri8, "dsti.64.8 $0ir $1ir $2U8 }", true)                                                           \
-    X(DSTI_64_16, M4rri16, "dsti.64.16 $0ir $1ir $2U16 }", true)                                                       \
-    X(DSTI_64_32, M6rri32, "dsti.64.32 $0ir $1ir $2U32 }", true)                                                       \
-    X(DSTI_64_64, M10rri64, "dsti.64.64 $0ir $1ir $2U64 }", true)                                                      \
-    X(SLD_U8, M2rr, "sld.u8 $0ir $1ir }", true)                                                                        \
-    X(SLD_U16, M2rr, "sld.u16 $0ir $1ir }", true)                                                                      \
-    X(SLD_32, M2rr, "sld.u32 $0ir $1ir }", true)                                                                       \
-    X(SLD_S8, M2rr, "sld.s8 $0ir $1ir }", true)                                                                        \
-    X(SLD_S16, M2rr, "sld.s16 $0ir $1ir }", true)                                                                      \
-    X(SLD_F32, M2rr, "sld.f32 $0fr $1ir }", true)                                                                      \
-    X(SLD_F64, M2rr, "sld.f64 $0fr $1ir }", true)                                                                      \
-    X(SLD_64, M2rr, "sld.64 $0ir $1ir }", true)                                                                        \
-    X(SLD_S32TO64, M2rr, "sld.s32to64 $0ir $1ir }", true)                                                              \
-    X(SLD_REF, M2rr, "sld.ref $0ir $1ir }", true)                                                                      \
-    X(SLD_LEA, M2rr, "sld.lea $0ir $1ir }", true)                                                                      \
-    X(SST_8, M2rr, "sst.8 $0ir $1ir }", true)                                                                          \
-    X(SST_16, M2rr, "sst.16 $0ir $1ir }", true)                                                                        \
-    X(SST_32, M2rr, "sst.32 $0ir $1ir }", true)                                                                        \
-    X(SST_64, M2rr, "sst.64 $0ir $1ir }", true)                                                                        \
-    X(SST_REF, M2rr, "sst.ref $0ir $1ir }", true)                                                                      \
-    X(SST_F32, M2rr, "sst.f32 $0fr $1ir }", true)                                                                      \
-    X(SST_F64, M2rr, "sst.f64 $0fr $1ir }", true)                                                                      \
-    X(SSTI_8_8, M3xri8, "ssti.8.8 $1ir $2U8 }", true)                                                                  \
-    X(SSTI_16_8, M3xri8, "ssti.16.8 $1ir $2U8 }", true)                                                                \
-    X(SSTI_16_16, M4xri16, "ssti.16.16 $1ir $2U16 }", true)                                                            \
-    X(SSTI_32_8, M3xri8, "ssti.32.8 $1ir $2U8 }", true)                                                                \
-    X(SSTI_32_16, M4xri16, "ssti.32.16 $1ir $2U16 }", true)                                                            \
-    X(SSTI_32_32, M6xri32, "ssti.32.32 $1ir $2U32 }", true)                                                            \
-    X(SSTI_64_8, M3xri8, "ssti.64.8 $1ir $2U8 }", true)                                                                \
-    X(SSTI_64_16, M4xri16, "ssti.64.16 $1ir $2U16 }", true)                                                            \
-    X(SSTI_64_32, M6xri32, "ssti.64.32 $1ir $2U32 }", true)                                                            \
-    X(SSTI_64_64, M10xri64, "ssti.64.64 $1ir $2U64 }", true)                                                           \
-    X(FLD_U8, M2rr, "fld.u8 $0ir $1ir }", true)                                                                        \
-    X(FLD_U16, M2rr, "fld.u16 $0ir $1ir }", true)                                                                      \
-    X(FLD_32, M2rr, "fld.u32 $0ir $1ir }", true)                                                                       \
-    X(FLD_S8, M2rr, "fld.s8 $0ir $1ir }", true)                                                                        \
-    X(FLD_S16, M2rr, "fld.s16 $0ir $1ir }", true)                                                                      \
-    X(FLD_F32, M2rr, "fld.f32 $0fr $1ir }", true)                                                                      \
-    X(FLD_F64, M2rr, "fld.f64 $0fr $1ir }", true)                                                                      \
-    X(FLD_64, M2rr, "fld.64 $0ir $1ir }", true)                                                                        \
-    X(FLD_S32TO64, M2rr, "fld.s32to64 $0ir $1ir }", true)                                                              \
-    X(FLD_REF, M2rr, "fld.ref $0ir $1ir }", true)                                                                      \
-    X(FLD_LEA, M2rr, "fld.lea $0ir $1ir }", true)                                                                      \
-    X(FST_8, M2rr, "fst.8 $0ir $1ir }", true)                                                                          \
-    X(FST_16, M2rr, "fst.16 $0ir $1ir }", true)                                                                        \
-    X(FST_32, M2rr, "fst.32 $0ir $1ir }", true)                                                                        \
-    X(FST_64, M2rr, "fst.64 $0ir $1ir }", true)                                                                        \
-    X(FST_REF, M2rr, "fst.ref $0ir $1ir }", true)                                                                      \
-    X(FST_F32, M2rr, "fst.f32 $0fr $1ir }", true)                                                                      \
-    X(FST_F64, M2rr, "fst.f64 $0fr $1ir }", true)                                                                      \
     X(FSTI_8_8, M2i8, "fsti.8.8 $0U8 }", true)                                                                         \
     X(FSTI_16_8, M2i8, "fsti.16.8 $0U8 }", true)                                                                       \
     X(FSTI_16_16, M3i16, "fsti.16.16 $0U16 }", true)                                                                   \
@@ -323,11 +226,7 @@
     X(FSTI_64_8, M2i8, "fsti.64.8 $0U8 }", true)                                                                       \
     X(FSTI_64_16, M3i16, "fsti.64.16 $0U16 }", true)                                                                   \
     X(FSTI_64_32, M5i32, "fsti.64.32 $0U32 }", true)                                                                   \
-    X(FSTI_64_64, M9i64, "fsti.64.64 $0U64 }", true)                                                                   \
-    X(COPY_REC_FROM_OBJ, MStructFieldOp, "reg.copy.from.obj $0ir $1ir $2U64 }", true)                                  \
-    X(COPY_REC_FROM_REC, MStructFieldOp, "reg.copy.from.rec $0ir $1ir $2U64 }", true)                                  \
-    X(COPY_REC_TO_OBJ, MStructFieldOp, "reg.copy.to.obj $0ir $1ir $2U64 }", true)                                      \
-    X(COPY_REC_TO_REC, MStructFieldOp, "reg.copy.to.rec $0ir $1ir $2U64 }", true)
+    X(FSTI_64_64, M9i64, "fsti.64.64 $0U64 }", true)
 
 namespace Cbc {
 namespace RT {
@@ -389,28 +288,10 @@ public:
 
 #undef DEFINE_OPCODE
 
-    static constexpr auto RLD_START_OPCODE  = RLD_U8;
-    static constexpr auto RLD_END_OPCODE    = RLD_LEA;
-    static constexpr auto DLD_START_OPCODE  = DLD_U8;
-    static constexpr auto DLD_END_OPCODE    = DLD_LEA;
-    static constexpr auto SLD_START_OPCODE  = SLD_U8;
-    static constexpr auto SLD_END_OPCODE    = SLD_LEA;
-    static constexpr auto FLD_START_OPCODE  = FLD_U8;
-    static constexpr auto FLD_END_OPCODE    = FLD_LEA;
     static constexpr auto RST_START_OPCODE  = RST_8;
     static constexpr auto RST_END_OPCODE    = RST_F64;
-    static constexpr auto DST_START_OPCODE  = DST_8;
-    static constexpr auto DST_END_OPCODE    = DST_F64;
-    static constexpr auto SST_START_OPCODE  = SST_8;
-    static constexpr auto SST_END_OPCODE    = SST_F64;
-    static constexpr auto FST_START_OPCODE  = FST_8;
-    static constexpr auto FST_END_OPCODE    = FST_F64;
     static constexpr auto RSTI_START_OPCODE = RSTI_8_8;
-    static constexpr auto RSTI_END_OPCODE   = RSTI_64_64;
-    static constexpr auto DSTI_START_OPCODE = DSTI_8_8;
-    static constexpr auto DSTI_END_OPCODE   = DSTI_64_64;
-    static constexpr auto SSTI_START_OPCODE = SSTI_8_8;
-    static constexpr auto SSTI_END_OPCODE   = SSTI_64_64;
+    static constexpr auto RSTI_END_OPCODE   = RSTI_8_8;
     static constexpr auto FSTI_START_OPCODE = FSTI_8_8;
     static constexpr auto FSTI_END_OPCODE   = FSTI_64_64;
 
