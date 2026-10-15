@@ -85,6 +85,7 @@
     X(StoreArray, StoreArray)                                                                                          \
     X(TypeArg, TypeArg)                                                                                                \
     X(Box, Box)                                                                                                        \
+    X(BoxGeneric, BoxGeneric)                                                                                          \
     X(BoxT, BoxT)                                                                                                      \
     X(BoxTGeneric, BoxTGeneric)                                                                                        \
     X(Unbox, Unbox)                                                                                                    \

@@ -1822,6 +1822,16 @@ struct IsaRewriter : public IsaParser {
         }
     }
 
+    void BoxGeneric(IReg src, IReg dst, IReg ti) override
+    {
+        emit.NewObjGenericOnAcc(ti);
+        BindStatePoint();
+        auto ms = emit.OpenMemSpace();
+        ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
+        ms.StoreGeneric(src, IReg::IR_ACC, ti);
+        AdjustReg(dst, IReg::IR_ACC);
+    }
+
     void BoxT(uint16_t srcTs, IReg dst) override
     {
         auto type = resolver.Query(Index<Type>(code.StackAllocSigs()[srcTs]));
