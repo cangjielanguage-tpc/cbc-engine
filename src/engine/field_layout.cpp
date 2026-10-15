@@ -2,7 +2,6 @@
 #include "engine/engine.h"
 #include "engine/identifiers.h"
 #include "engine/image/flags.h"
-#include "engine/image/reader.h"
 #include "engine/image/type_kind.h"
 #include "engine/resolving_output.h"
 #include "engine/terms.h"
@@ -22,6 +21,12 @@ static constexpr auto MAX_ALIGN = alignof(max_align_t);
 namespace Reader = Image::Reader;
 
 namespace Engine {
+
+static std::optional<uint32_t> AlignUp(std::optional<uint32_t> val, uint32_t alignment)
+{
+    if (!val) return val;
+    return MathUtils::AlignUp(*val, alignment);
+}
 
 FieldLayout::FieldLayout(Content&& content) : content(std::make_shared<Content>(content)) {}
 
@@ -346,7 +351,7 @@ private:
                 acc.AddField(content.fields, term.Subterm(i), std::nullopt);
             }
             content.desc.alignment = acc.alignment;
-            content.desc.size      = acc.size;
+            content.desc.size      = AlignUp(acc.size, acc.alignment);
             layout                 = std::move(content);
         } else if (kind == TermKind::OPTION && !term.IsReference()) {
             ClassSubstitution substitute(session, term);
@@ -360,7 +365,7 @@ private:
             acc.AddField(content.fields, someType, std::nullopt);
 
             content.desc.alignment = acc.alignment;
-            content.desc.size      = acc.size;
+            content.desc.size      = AlignUp(acc.size, acc.alignment);
             layout                 = std::move(content);
         } else if (kind == TermKind::OPTION && term.IsReference()) {
             ClassSubstitution substitute(session, term);
@@ -498,8 +503,8 @@ private:
             acc.AddField(layout.fields, fieldType, fieldId);
         }
 
-        layout.desc.size      = acc.size;
         layout.desc.alignment = acc.alignment;
+        layout.desc.size      = AlignUp(acc.size, acc.alignment);
 
         return FieldLayout(std::move(layout));
     }

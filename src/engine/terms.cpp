@@ -425,7 +425,8 @@ void Term::GetName(Session& session, Stream::Output& out, bool hasDebugPrefix) c
         }
 
         case TK::TUPLE: {
-            printSubTerms("(", ")", GetLength());
+            stream << "Tuple";
+            printSubTerms("<", ">", GetLength());
             break;
         }
 
