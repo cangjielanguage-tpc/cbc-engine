@@ -994,25 +994,10 @@ struct IsaRewriter : public IsaParser {
             return Fail("resolution failure");
         }
 
-        auto refPath = emit.NewLabel();
-        auto end     = emit.NewLabel();
-        emit.BranchIfRef(underlyingTypeInfo, refPath);
-        {
-            auto ms = emit.OpenMemSpace();
-            ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
-            ms.GenericField(1, optionTypeInfo);
-            ms.LoadGeneric(dst, src, underlyingTypeInfo);
-            BindStatePoint();
-        }
-        emit.Jmp(end);
-        emit.Bind(refPath);
-        {
-            auto ms = emit.OpenMemSpace();
-            ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
-            ms.LoadGeneric(dst, src, underlyingTypeInfo);
-            BindStatePoint();
-        }
-        emit.Bind(end);
+        emit.LeaGeneric(IReg::IR_ACC, src, optionTypeInfo, 1);
+        emit.AddI(Format::Width::W64, IReg::IR_ACC, IReg::IR_ACC, RTSupport::MetaInfo::ObjectHeaderSize());
+        emit.LoadGeneric(dst, src, IReg::IR_ACC, underlyingTypeInfo);
+        BindStatePoint();
     }
 
     void NewNoneGeneric(IReg dst, IReg underlyingTypeInfo, IReg optionTypeInfo, uint32_t optionTypeInfoId) override
@@ -1025,16 +1010,9 @@ struct IsaRewriter : public IsaParser {
         auto typeDefId = Engine::ExtractTypeDefIdentifier(type.term);
         auto typeDef   = Decode::Read(session, typeDefId);
 
-        auto end = emit.NewLabel();
         emit.NewObjGenericOnAcc(optionTypeInfo);
         BindStatePoint();
-        emit.BranchIfRef(underlyingTypeInfo, end);
-        if (typeDef->enumKind == Image::EnumKind::OPTION0) {
-            auto ms = emit.OpenMemSpace();
-            ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
-            ms.StoreObjImm(STK::ST_8, IReg::IR_ACC, 1);
-        }
-        emit.Bind(end);
+        emit.InitNoneGeneric(underlyingTypeInfo, typeDef->enumKind == Image::EnumKind::OPTION0 ? IReg::IR1 : IReg::IRZ);
         emit.Mov(dst, IReg::IR_ACC);
     }
 
@@ -1049,30 +1027,14 @@ struct IsaRewriter : public IsaParser {
         auto type      = *t;
         auto typeDefId = Engine::ExtractTypeDefIdentifier(type.term);
         auto typeDef   = Decode::Read(session, typeDefId);
-        auto refPath   = emit.NewLabel();
-        auto end       = emit.NewLabel();
         emit.NewObjGenericOnAcc(optionTypeInfo);
         BindStatePoint();
-        emit.BranchIfRef(underlyingTypeInfo, refPath);
-        {
-            auto ms = emit.OpenMemSpace();
-            ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
-            ms.GenericField(1, optionTypeInfo);
-            ms.StoreGeneric(src, IReg::IR_ACC, underlyingTypeInfo);
-        }
-        if (typeDef->enumKind == Image::EnumKind::OPTION1) {
-            auto ms = emit.OpenMemSpace();
-            ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
-            ms.StoreObjImm(STK::ST_8, IReg::IR_ACC, 1);
-        }
-        emit.Jmp(end);
-        emit.Bind(refPath);
-        {
-            auto ms = emit.OpenMemSpace();
-            ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
-            ms.StoreGeneric(src, IReg::IR_ACC, underlyingTypeInfo);
-        }
-        emit.Bind(end);
+        emit.InitSomeGeneric(
+            src,
+            underlyingTypeInfo,
+            optionTypeInfo,
+            typeDef->enumKind == Image::EnumKind::OPTION1 ? IReg::IR1 : IReg::IRZ
+        );
         emit.Mov(dst, IReg::IR_ACC);
     }
 

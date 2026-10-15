@@ -809,6 +809,8 @@ private:
 /// 4 bit; register
 class Reg {
 public:
+    constexpr Reg() : _value(0) {}
+
     constexpr Reg(IReg r) : _value(r.Raw()) {}
 
     constexpr Reg(FReg r) : _value(r.Raw()) {}
