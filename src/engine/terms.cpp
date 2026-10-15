@@ -1111,7 +1111,7 @@ Term Substitution::Substitute(Term term)
         if (term.GetKind() == TermKind::OPTION) {
             auto id  = ExtractTypeDefIdentifier(term);
             auto def = Decode::Read(session, id);
-            ClassSubstitution sub(session, data->Subterms());
+            ClassSubstitution sub(session, Utils::Span(newData->subterms, length));
             flags += OptionFlags(def.GetEnumType(), session, sub);
         }
         flags.isLocal   = true;

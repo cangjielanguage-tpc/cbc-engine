@@ -57,8 +57,16 @@ void Disasmer::RData(RegionData const& rd, uint8_t regionNum)
     auto printTerms = [&]() {
         for (auto refid : rd.terms) {
             auto term = TermManager::Resolve(session, refid);
-
-            io << refid.GetIndex() << " - " << term << endl;
+            auto flags = term.Flags();
+            io.PrintLn(
+                "{} - {} - ref={}, rec={}, fst={}, promoted={}",
+                refid.GetIndex(),
+                term,
+                flags.isReference,
+                flags.isRecord,
+                flags.isFixedSize,
+                flags.isAotPromoted
+            );
         }
     };
     auto printFields = [&]() {
