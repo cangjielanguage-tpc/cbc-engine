@@ -661,7 +661,7 @@ engine_i2c_call:
 engine_i2n_call:
   // jumped from .Linterpreter_call without return address to return
   mov   rdx, rdi
-  shr   rdx, I2N_STACK_SLOTS_SHIFT     // stack arguments count
+  shr   rdx, I2N_STACK_ARGS_SIZE_SHIFT // stack arguments count
   mov   rcx, rdi
   shl   rcx, 64 - I2N_VEC_COUNT_SHIFT
   shr   rcx, 64 - I2N_VEC_COUNT_SHIFT  // target C function
@@ -934,7 +934,7 @@ engine_handle_exception:
 
 .balign 16
 // Called by the I2N stub with helper data in argument registers:
-// (rdi: ectype, rsi: stack arguments pointer, rdx: stack arguments count, rcx: target).
+// (rdi: ectype, rsi: stack arguments pointer, rdx: stack arguments area size, rcx: target).
 // Fills C argument registers from ectype, pushes stack arguments and calls the target.
 // Preserved: callee-saved registers (ECTYPE_REG among them).
 engine_c_abi_adapter_start:
@@ -955,8 +955,8 @@ engine_c_abi_adapter:
   test  rdx, rdx
   jz    .Lprepare_regs
 .Lprepare_stackargs:
-  push  QWORD PTR [r11 + rdx*8 - 8]
-  dec   rdx
+  push  QWORD PTR [r11 + rdx - 8]
+  sub   rdx, 8
   jnz   .Lprepare_stackargs
 .Lprepare_regs:
   i2c_emit_iregs_abi IREG_PARAM_PASSING_AMOUNT

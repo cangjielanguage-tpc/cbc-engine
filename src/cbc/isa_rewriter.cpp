@@ -1348,7 +1348,7 @@ struct IsaRewriter : public IsaParser {
             Image::RefIdentifier<Image::MethodReference>(Image::RefId<Image::MethodReference>(methodId), fileId)
         );
         AbiInfo info = StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), std::nullopt);
-        emit.CallCFunc(target, info.stackArgsCount);
+        emit.CallCFunc(target, info.stackArgsCount * STACK_SLOT_SIZE);
         BindStatePoint();
         EmitReturnedTo();
     }
@@ -1374,7 +1374,7 @@ struct IsaRewriter : public IsaParser {
             auto sym = emit.NewAddressSym(data->funcPtr);
             if (data->isForeign) {
                 EmitLogCall("call.2n", method);
-                emit.DirectCall2n(sym, info.stackArgsCount);
+                emit.DirectCall2n(sym, info.stackArgsCount * STACK_SLOT_SIZE);
             } else {
                 EmitLogCall("call.2c", method);
                 emit.DirectCall2c(sym);

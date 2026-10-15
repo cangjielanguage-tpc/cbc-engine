@@ -1165,14 +1165,7 @@ LABEL(DIRECT_CALL_2N) {
     auto target  = literals->at(args.xi12.imm12).uintptr;
     auto packed = target
         | (static_cast<uint64_t>(args.xi12.imm4) << I2N_VEC_COUNT_SHIFT)
-        | (static_cast<uint64_t>(args.imm8.imm) << I2N_STACK_SLOTS_SHIFT);
-    // For proper support of fibers, the following call MUST drop the current frame.
-    // This can not be guaranteed by C++ compiler consistently, because TCO
-    // is not guaranteed and `mustcall` attribute is not supported
-    // fully by gcc/clang compilers.
-    //
-    // Instead, the following call will drop the current frame manually
-    // (outside of unit-test framework).
+        | (static_cast<uint64_t>(args.imm8.imm) << I2N_STACK_ARGS_SIZE_SHIFT);
 
     reader0 = reader; // save current pc
 
@@ -1184,7 +1177,7 @@ LABEL(CALL_CFUNC) {
     auto target = ectype->GetPrimitive(IReg::From(args.xr.r)).u64;
     auto packed = target
         | (static_cast<uint64_t>(args.xr.imm) << I2N_VEC_COUNT_SHIFT)
-        | (static_cast<uint64_t>(args.imm8.imm) << I2N_STACK_SLOTS_SHIFT);
+        | (static_cast<uint64_t>(args.imm8.imm) << I2N_STACK_ARGS_SIZE_SHIFT);
 
     reader0 = reader; // save current pc
 
