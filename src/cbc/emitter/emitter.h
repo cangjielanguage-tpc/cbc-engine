@@ -267,8 +267,8 @@ public:
     void UnboxT(IReg src, int32_t frameOffs);
     void Offset(IReg dst, int ordinal, IReg typeInfo);
 
-    void WriteStructField(IReg src, IReg base, IReg field, RTSupport::TypeInfo ti);
-    void ReadStructField(IReg dst, IReg base, IReg field, RTSupport::TypeInfo ti);
+    void WriteStructField(IReg src, IReg base, uint32_t offset, RTSupport::TypeInfo ti);
+    void ReadStructField(IReg dst, IReg base, uint32_t offset, RTSupport::TypeInfo ti);
 
     void AtomicLoad(IReg dst, Format::LoadAccessKind ldk, IReg obj, uint16_t offset);
     void AtomicStore(IReg src, Format::StoreAccessKind stk, IReg obj, uint16_t offset);

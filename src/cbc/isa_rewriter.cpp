@@ -1838,20 +1838,16 @@ struct IsaRewriter : public IsaParser {
                 Fail();
                 return;
             }
-            auto typeInfo = ti.value();
-            auto isrc     = IReg::From(src);
-
-            emit.NewBox(typeInfo); // Spoils IR_ACC
+            emit.NewBox(*ti); // Spoils IR_ACC
             BindStatePoint();
-            auto ms = emit.OpenMemSpace();
-            ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
+            AdjustReg(dst, IReg::IR_ACC);
             auto kind = type.GetKind();
             switch (kind) {
-                case CbcTypeKind::REF: ms.StoreObj(Format::StoreAccessKind::ST_REF, isrc, IReg::IR_ACC); break;
-                case CbcTypeKind::REC: ms.WriteStructFieldObj(isrc, IReg::IR_ACC, typeInfo); break;
-                default:               ms.StoreObj(Stk(kind), src, IReg::IR_ACC); break;
+                case CbcTypeKind::REC:
+                    emit.WriteStructField(IReg::From(src), dst, RTSupport::MetaInfo::ObjectHeaderSize(), *ti);
+                    break;
+                default: emit.StoreObj(Stk(kind), src, dst, RTSupport::MetaInfo::ObjectHeaderSize()); break;
             }
-            AdjustReg(dst, IReg::IR_ACC);
         }
     }
 
@@ -1877,15 +1873,13 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
-        auto typeInfo = ti.value();
-        auto offset   = TypedSlotOffset(srcTs);
-        emit.NewBox(typeInfo);
+        auto offset = TypedSlotOffset(srcTs);
+        emit.NewBox(*ti);
         BindStatePoint();
         AdjustReg(dst, IReg::IR_ACC);
+
         emit.LoadFrame(Format::LoadAccessKind::LD_LEA, IReg::IR_ACC, offset);
-        auto ms = emit.OpenMemSpace();
-        ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
-        ms.WriteStructFieldObj(IReg::IR_ACC, dst, typeInfo);
+        emit.WriteStructField(IReg::IR_ACC, dst, RTSupport::MetaInfo::ObjectHeaderSize(), *ti);
     }
 
     void BoxTGeneric(uint16_t srcTs, IReg dst, IReg ti) override
@@ -1921,10 +1915,7 @@ struct IsaRewriter : public IsaParser {
                         return;
                     }
                     auto typeInfo = ti.value();
-                    emit.LoadObj(
-                        Format::LoadAccessKind::LD_LEA, IReg::IR_ACC, src, RTSupport::MetaInfo::ObjectHeaderSize()
-                    );
-                    emit.ReadStructField(IReg::From(dst), src, IReg::IR_ACC, typeInfo);
+                    emit.ReadStructField(IReg::From(dst), src, RTSupport::MetaInfo::ObjectHeaderSize(), typeInfo);
                     break;
                 }
                 default: emit.LoadObj(Ldk(kind), dst, src, RTSupport::MetaInfo::ObjectHeaderSize()); break;

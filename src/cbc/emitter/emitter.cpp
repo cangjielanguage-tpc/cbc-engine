@@ -1261,18 +1261,22 @@ void Emitter::Offset(IReg dst, int ordinal, IReg typeInfo)
     segment.AddW32(ordinal); // TODO: encode efficiently
 }
 
-void Emitter::ReadStructField(IReg dst, IReg base, IReg field, RTSupport::TypeInfo ti)
+void Emitter::ReadStructField(IReg dst, IReg base, uint32_t offset, RTSupport::TypeInfo ti)
 {
+    if (offset > 255)
+        FATAL("offset out of bounds: %u", offset);
     RT::StructFieldOp command = {
-        .opc = RT::Opcode::READ_STRUCT_FIELD, .rr = { dst, base }, .field = { field, field }, .ti = ti
+        .opc = RT::Opcode::READ_STRUCT_FIELD, .rr = { dst, base }, .offset = static_cast<uint8_t>(offset), .ti = ti
     };
     Encode(segment, command);
 }
 
-void Emitter::WriteStructField(IReg src, IReg base, IReg field, RTSupport::TypeInfo ti)
+void Emitter::WriteStructField(IReg src, IReg base, uint32_t offset, RTSupport::TypeInfo ti)
 {
+    if (offset > 255)
+        FATAL("offset out of bounds: %u", offset);
     RT::StructFieldOp command = {
-        .opc = RT::Opcode::WRITE_STRUCT_FIELD, .rr = { src, base }, .field = { field, field }, .ti = ti
+        .opc = RT::Opcode::WRITE_STRUCT_FIELD, .rr = { src, base }, .offset = static_cast<uint8_t>(offset), .ti = ti
     };
     Encode(segment, command);
 }

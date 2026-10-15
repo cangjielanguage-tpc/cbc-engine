@@ -771,18 +771,18 @@ LABEL(UNBOX_T) {
 LABEL(READ_STRUCT_FIELD) {
     auto args = StructFieldOp::Decode(reader);
     LOG_INSTR;
-    auto dst   = ectype->GetPrimitive(args.rr.x.IR()).u64;
-    auto base  = ectype->GetReference(args.rr.y.IR());
-    auto field = ectype->GetPrimitive(args.field.x.IR()).u64;
+    auto dst  = ectype->GetPrimitive(args.rr.x.IR()).u64;
+    auto base = ectype->GetReference(args.rr.y.IR());
+    auto field = base.value + args.offset;
     RTSupport::Execution::ReadStructField(dst, base, field, args.ti, handle);
     NEXT;
 }
 LABEL(WRITE_STRUCT_FIELD) {
     auto args = StructFieldOp::Decode(reader);
     LOG_INSTR;
-    auto src   = ectype->GetPrimitive(args.rr.x.IR()).u64;
-    auto base  = ectype->GetReference(args.rr.y.IR());
-    auto field = ectype->GetPrimitive(args.field.x.IR()).u64;
+    auto src  = ectype->GetPrimitive(args.rr.x.IR()).u64;
+    auto base = ectype->GetReference(args.rr.y.IR());
+    auto field = base.value + args.offset;
     RTSupport::Execution::WriteStructField(src, base, field, args.ti, handle);
     NEXT;
 }

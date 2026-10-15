@@ -286,7 +286,7 @@ void Encode(ByteBuffer& buf, RT::StructFieldOp command)
 {
     Encode(buf, command.opc);
     Encode(buf, command.rr);
-    Encode(buf, command.field);
+    buf.AddW8(command.offset);
     buf.AddW64(Bits::Raw64(command.ti));
 }
 
