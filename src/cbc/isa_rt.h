@@ -3,6 +3,7 @@
 #include "decoder.h"
 #include "isa.h"
 #include "runtimesupport/runtime.h"
+#include "utils/assertion.h"
 #include <cstdint>
 
 // X parameters: opcode, encoding format, string format
@@ -72,7 +73,9 @@
     X(LOAD_LONG_FRAME, B7xrrri32, "ld.frame.$0ldk $1ir [$4I32]")                                                       \
     X(STORE_LONG_FRAME, B7xrrri32, "st.frame.$0stk $1ir [$4I32]")                                                      \
     X(LOAD_GENERIC, B3rrrr, "ld.g $0ir $3ir [($1ir $2ir)]")                                                            \
-    X(STORE_GENERIC, B3rrrr, "st.g $0ir $3ir [($1ir $2ir)]")                                                           \
+    X(STORE_GENERIC, StoreGenericOp, "st.g0 $0ir $1ir $2ir $3U32")                                                     \
+    X(STORE_GENERIC_1, StoreGenericOp, "st.g1 $0ir $1ir $2ir $3U32")                                                   \
+    X(STORE_GENERIC_4, StoreGenericOp, "st.g4 $0ir $1ir $2ir $3U32")                                                   \
     X(LEA_GENERIC, B7xrrri32, "lea.g $1ir $3ir [$2ir ord=$4U32]")                                                      \
     X(INIT_NONE_GENERIC_OPT0, InitOption, "init.none.g0 $1ir")                                                         \
     X(INIT_SOME_GENERIC_OPT0, InitOption, "init.some.g0 $0ir $1ir")                                                    \
@@ -588,6 +591,44 @@ struct StructFieldOp {
         auto offset = reader.Read8();
         auto ti    = reader.Read<RTSupport::TypeInfo>();
         return StructFieldOp { opc, rr, offset, ti };
+    }
+};
+
+struct StoreGenericOp {
+    Opcode opc;
+    IReg src;
+    IReg base;
+    IReg derived;
+    IReg ti;
+    uint32_t offset;
+
+    static StoreGenericOp Decode(Decoder::ByteReader& reader)
+    {
+        auto opc = Opcode::Decode(reader);
+        ASSERT(opc == Opcode::STORE_GENERIC);
+        auto rr1 = Format::RR::Decode(reader);
+        auto rr2 = Format::RR::Decode(reader);
+        return StoreGenericOp { opc, rr1.x.IR(), rr1.y.IR(), rr2.x.IR(), rr2.y.IR(), 0 };
+    }
+
+    static StoreGenericOp Decode1(Decoder::ByteReader& reader)
+    {
+        auto opc = Opcode::Decode(reader);
+        ASSERT(opc == Opcode::STORE_GENERIC_1);
+        auto rr1    = Format::RR::Decode(reader);
+        auto rr2    = Format::RR::Decode(reader);
+        auto offset = reader.Read8();
+        return StoreGenericOp { opc, rr1.x.IR(), rr1.y.IR(), rr2.x.IR(), rr2.y.IR(), offset };
+    }
+
+    static StoreGenericOp Decode4(Decoder::ByteReader& reader)
+    {
+        auto opc = Opcode::Decode(reader);
+        ASSERT(opc == Opcode::STORE_GENERIC_4);
+        auto rr1    = Format::RR::Decode(reader);
+        auto rr2    = Format::RR::Decode(reader);
+        auto offset = reader.Read32();
+        return StoreGenericOp { opc, rr1.x.IR(), rr1.y.IR(), rr2.x.IR(), rr2.y.IR(), offset };
     }
 };
 

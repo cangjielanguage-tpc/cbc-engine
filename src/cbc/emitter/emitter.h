@@ -206,7 +206,7 @@ public:
     void LoadDerived(LoadAccessKind ldk, Reg dst, IReg baseRef, IReg base, uint32_t offset);
     void StoreDerived(StoreAccessKind stk, Reg src, IReg baseRef, IReg base, uint32_t offset);
     void LoadGeneric(Reg dst, IReg baseRef, IReg base, IReg ti);
-    void StoreGeneric(Reg src, IReg baseRef, IReg base, IReg ti);
+    void StoreGeneric(IReg src, IReg baseRef, IReg base, IReg ti, uint32_t offset);
     void LeaGeneric(Reg dst, IReg base, IReg ti, uint32_t offset);
     void InitNoneGeneric(IReg underlyingTi);
     void InitSomeGeneric(IReg src, IReg underlyingTi, bool opt0);

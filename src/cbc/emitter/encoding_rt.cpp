@@ -1,6 +1,6 @@
+#include "cbc/isa.h"
 #include "cbc/isa_rt.h"
 #include "segment.h"
-#include "utils/lebencodings.h"
 #include "utils/reinterpretation.h"
 
 namespace Cbc {
@@ -294,6 +294,18 @@ void Encode(ByteBuffer& buf, RT::StructFieldOp command)
     Encode(buf, command.rr);
     buf.AddW8(command.offset);
     buf.AddW64(Bits::Raw64(command.ti));
+}
+
+void Encode(ByteBuffer& buf, RT::StoreGenericOp command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, Format::RR { command.src, command.base });
+    Encode(buf, Format::RR { command.derived, command.ti });
+    switch (command.opc) {
+        case RT::Opcode::STORE_GENERIC:   break;
+        case RT::Opcode::STORE_GENERIC_1: buf.AddW8(static_cast<uint8_t>(command.offset)); break;
+        default:                          buf.AddW32(command.offset);
+    }
 }
 
 void Encode(ByteBuffer& buf, RT::MStructFieldOp command)

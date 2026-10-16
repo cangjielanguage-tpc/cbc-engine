@@ -156,7 +156,7 @@ protected:
     virtual void LdStatic(AnyReg dst, uint32_t field)                                       = 0;
     virtual void LdTyped(AnyReg dst, uint16_t slot, uint32_t field)                         = 0;
     virtual void LdDerived(AnyReg dst, IReg baseRef, IReg derived, uint32_t field)          = 0;
-    virtual void LdGeneric(AnyReg dst, IReg baseRef, IReg derived, IReg ti, uint32_t field) = 0;
+    virtual void LdGeneric(IReg dst, IReg baseRef, IReg derived, IReg ti, uint32_t field)   = 0;
     virtual void Lea(IReg dst, IReg base, uint32_t field)                                   = 0;
     virtual void LeaStatic(IReg dst, IReg dstBaseRef, uint32_t field)                       = 0;
     virtual void LeaGeneric(IReg dst, IReg base, IReg ti, uint32_t field)                   = 0;
@@ -168,7 +168,7 @@ protected:
     virtual void StStatic(AnyReg src, uint32_t field)                                       = 0;
     virtual void StTyped(AnyReg src, uint16_t slot, uint32_t field)                         = 0;
     virtual void StDerived(AnyReg src, IReg baseRef, IReg derived, uint32_t field)          = 0;
-    virtual void StGeneric(AnyReg src, IReg baseRef, IReg derived, IReg ti, uint32_t field) = 0;
+    virtual void StGeneric(IReg src, IReg baseRef, IReg derived, IReg ti, uint32_t field)    = 0;
     virtual void Copy(IReg dstBase, IReg dst, IReg dstSrc, IReg src, uint32_t typeId)       = 0;
     virtual void CopyGeneric(IReg dstBase, IReg dst, IReg dstSrc, IReg src, IReg ti)        = 0;
     virtual void LeaIndex(IReg dst, IReg src, IReg idx, uint32_t typeId)                    = 0;
