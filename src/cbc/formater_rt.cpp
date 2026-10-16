@@ -243,11 +243,6 @@ static constexpr std::string_view format_strings[] = {
     CBC_RT_OPCODES(CBC_RT_OPCODE_FMT_STR)
 };
 
-static constexpr std::string_view memspace_format_strings[] = {
-#define CBC_RT_MEMOPCODE_FMT_STR(opcode, fmt, sfmt, isTail) std::string_view(sfmt),
-    CBC_RT_MEMOPCODES(CBC_RT_MEMOPCODE_FMT_STR)
-};
-
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B1 args)
 {
     Formatter formatter(table, stream, format_strings[args.opc], nullptr);
@@ -471,131 +466,6 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, Offset arg
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M1 args)
-{
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], nullptr);
-    formatter.Format();
-}
-
-void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M2rr args)
-{
-    Operand operands[] = { args.rr.x, args.rr.y };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands);
-    formatter.Format();
-}
-
-void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M2xr args)
-{
-    Operand operands[] = { args.xr.imm, args.xr.r };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands);
-    formatter.Format();
-}
-
-void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M2i8 args)
-{
-    Operand operands[] = { args.imm8 };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands);
-    formatter.Format();
-}
-
-void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M3xrrr args)
-{
-    Operand operands[] = { args.xr.imm, args.xr.r, args.rr.x, args.rr.y };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands);
-    formatter.Format();
-}
-
-void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M3rrrr args)
-{
-    Operand operands[] = { args.rr1.x, args.rr1.y, args.rr2.x, args.rr2.y };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands);
-    formatter.Format();
-}
-
-void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M3i16 args)
-{
-    Operand operands[] = { args.imm16 };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands);
-    formatter.Format();
-}
-
-void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M5i32 args)
-{
-    Operand operands[] = { args.imm32 };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands);
-    formatter.Format();
-}
-
-void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M9i64 args)
-{
-    Operand operands[] = { args.imm64 };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands);
-    formatter.Format();
-}
-
-void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M3xri8 args)
-{
-    Operand operands[] = { args.xr.imm, args.xr.r, args.imm8.imm };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands);
-    formatter.Format();
-}
-
-void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M4xri16 args)
-{
-    Operand operands[] = { args.xr.imm, args.xr.r, args.imm16.imm };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands);
-    formatter.Format();
-}
-
-void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M6xri32 args)
-{
-    Operand operands[] = { args.xr.imm, args.xr.r, args.imm32.imm };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands);
-    formatter.Format();
-}
-
-void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M10xri64 args)
-{
-    Operand operands[] = { args.xr.imm, args.xr.r, args.imm64.imm };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands);
-    formatter.Format();
-}
-
-void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M3rri8 args)
-{
-    Operand operands[] = { args.rr.x, args.rr.y, args.imm8.imm };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands);
-    formatter.Format();
-}
-
-void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M4rri16 args)
-{
-    Operand operands[] = { args.rr.x, args.rr.y, args.imm16.imm };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands);
-    formatter.Format();
-}
-
-void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M6rri32 args)
-{
-    Operand operands[] = { args.rr.x, args.rr.y, args.imm32.imm };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands);
-    formatter.Format();
-}
-
-void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M10rri64 args)
-{
-    Operand operands[] = { args.rr.x, args.rr.y, args.imm64.imm };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands);
-    formatter.Format();
-}
-
-void Log(Interpretation::LiteralTable* table, Stream::Output& stream, MStructFieldOp args)
-{
-    Operand operands[] = { args.rr.x, args.rr.y, args.ti.UInt() };
-    Formatter formatter(table, stream, memspace_format_strings[args.opc], operands);
-    formatter.Format();
-}
-
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyFieldOp args)
 {
     Operand operands[] = { args.rr.x, args.rr.y, args.offset.imm };
@@ -678,20 +548,6 @@ void LogBaseSpaceInstruction(
 #undef FMT_LOGGER
 }
 
-bool LogMemSpaceInstruction(
-    uint32_t opc, Interpretation::LiteralTable* table, Stream::Output& stream, Decoder::ByteReader& reader
-)
-{
-#define FMT_LOGGER(opcode, fmt, sfmt, isTail)                                                                          \
-    case MemOpcode::opcode: Log(table, stream, fmt::Decode(reader)); return isTail;
-
-    switch (opc) {
-        CBC_RT_MEMOPCODES(FMT_LOGGER)
-    }
-#undef FMT_LOGGER
-    return true;
-}
-
 void Log(Interpretation::Code code, Stream::Output& stream)
 {
     Stream::Indented streamIndented(stream);
@@ -700,29 +556,13 @@ void Log(Interpretation::Code code, Stream::Output& stream)
     auto end      = bytecode + code.bytecodeSize;
     auto table    = code.literals;
 
-    bool inMemspace = false;
-
     Decoder::ByteReader reader(bytecode, bytecode, end);
     while (!reader.EndOfMem(end)) {
         auto opc      = reader.PeekOpcode();
         auto position = reader.Cursor() - bytecode;
         stream.PrintFmt("0x%03lx: ", position);
-
-        if (inMemspace) {
-            bool isTail = LogMemSpaceInstruction(opc, table, streamIndented, reader);
-
-            if (isTail) {
-                inMemspace = false;
-            }
-        } else {
-            LogBaseSpaceInstruction(opc, table, stream, reader);
-
-            if (opc == Opcode::MEMSPACE) {
-                inMemspace = true;
-            }
-        }
+        LogBaseSpaceInstruction(opc, table, stream, reader);
     }
-#undef FMT_LOGGER
 }
 
 } // namespace RT

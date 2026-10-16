@@ -254,9 +254,6 @@ struct IsaParserImpl {
         }
     }
 
-#define PARSE_ONE_MEM_CASES(opc, func)                                                                                 \
-    case MemOpcode::opc: end = func(parser, ms); break;
-
     static int64_t MergeLowHi(uint8_t low4, int64_t hi)
     {
         return static_cast<int64_t>(static_cast<uint64_t>(hi) << 4) | low4;
@@ -1058,8 +1055,6 @@ struct IsaParserImpl {
     };
 
     static void Unreachable(IsaParser& parser) {}
-
-    static bool UnreachableMem(IsaParser& parser, IsaParser::MemSpace& ms) { return true; }
 };
 
 void IsaParser::ParseOne() { IsaParserImpl::ParseOne(*this); }

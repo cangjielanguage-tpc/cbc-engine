@@ -518,18 +518,6 @@ struct IsaDisasm : public IsaParser {
 
     void UnboxT(uint16_t dstTs, IReg src) override { stream.PrintLn("unbox t{}, {}", dstTs, src); }
 
-    class PrintingMemSpace : public MemSpace {
-    public:
-        PrintingMemSpace(Stream::Output& stream) : stream(stream) { stream << "{ "; }
-
-        ~PrintingMemSpace() override { stream << " }" << endl; }
-
-    private:
-        Stream::Output& stream;
-    };
-
-    std::unique_ptr<MemSpace> OpenMemSpace() override { return std::make_unique<PrintingMemSpace>(stream); }
-
     void Refs(Utils::Vector<uint32_t> const& refs)
     {
         stream << "[ ";
