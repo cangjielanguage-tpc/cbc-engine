@@ -26,6 +26,7 @@ void Encode(ByteBuffer& buf, RT::B3xrrr command);
 void Encode(ByteBuffer& buf, RT::B3xxrr command);
 void Encode(ByteBuffer& buf, RT::B3xi12 command);
 void Encode(ByteBuffer& buf, RT::B3rrrr command);
+void Encode(ByteBuffer& buf, RT::InitOption command);
 void Encode(ByteBuffer& buf, RT::B4xi12rr command);
 void Encode(ByteBuffer& buf, RT::BinaryChecked command);
 void Encode(ByteBuffer& buf, RT::BinarySaturating command);

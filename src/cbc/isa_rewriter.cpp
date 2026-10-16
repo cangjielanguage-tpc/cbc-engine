@@ -1012,7 +1012,9 @@ struct IsaRewriter : public IsaParser {
 
         emit.NewObjGenericOnAcc(optionTypeInfo);
         BindStatePoint();
-        emit.InitNoneGeneric(underlyingTypeInfo, typeDef->enumKind == Image::EnumKind::OPTION0 ? IReg::IR1 : IReg::IRZ);
+        if (typeDef->enumKind == Image::EnumKind::OPTION0) {
+            emit.InitNoneGeneric(underlyingTypeInfo);
+        }
         emit.Mov(dst, IReg::IR_ACC);
     }
 
@@ -1029,12 +1031,7 @@ struct IsaRewriter : public IsaParser {
         auto typeDef   = Decode::Read(session, typeDefId);
         emit.NewObjGenericOnAcc(optionTypeInfo);
         BindStatePoint();
-        emit.InitSomeGeneric(
-            src,
-            underlyingTypeInfo,
-            optionTypeInfo,
-            typeDef->enumKind == Image::EnumKind::OPTION1 ? IReg::IR1 : IReg::IRZ
-        );
+        emit.InitSomeGeneric(src, underlyingTypeInfo, typeDef->enumKind == Image::EnumKind::OPTION0);
         emit.Mov(dst, IReg::IR_ACC);
     }
 
@@ -1802,14 +1799,14 @@ struct IsaRewriter : public IsaParser {
             }
             emit.NewBox(*ti); // Spoils IR_ACC
             BindStatePoint();
-            AdjustReg(dst, IReg::IR_ACC);
             auto kind = type.GetKind();
             switch (kind) {
                 case CbcTypeKind::REC:
-                    emit.WriteStructField(IReg::From(src), dst, RTSupport::MetaInfo::ObjectHeaderSize(), *ti);
+                    emit.WriteStructField(IReg::From(src), IReg::IR_ACC, RTSupport::MetaInfo::ObjectHeaderSize(), *ti);
                     break;
-                default: emit.StoreObj(Stk(kind), src, dst, RTSupport::MetaInfo::ObjectHeaderSize()); break;
+                default: emit.StoreObj(Stk(kind), src, IReg::IR_ACC, RTSupport::MetaInfo::ObjectHeaderSize()); break;
             }
+            AdjustReg(dst, IReg::IR_ACC);
         }
     }
 

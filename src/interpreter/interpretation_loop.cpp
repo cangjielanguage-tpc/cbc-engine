@@ -1069,43 +1069,59 @@ LABEL(LEA_GENERIC) {
     ectype->Put(dst, Value::Reference { .value = base + offs });
     NEXT;
 }
-LABEL(INIT_NONE_GENERIC) {
-    auto args = B3rrrr::Decode(reader);
+LABEL(INIT_NONE_GENERIC_OPT0) {
+    auto args = InitOption::Decode(reader);
     LOG_INSTR;
-    auto rti   = args.rr1.x.IR();
-    auto rflag = args.rr1.y.IR();
-    auto ti    = TypeInfo(ectype->GetPrimitive(rti).u64);
-    if (!RTSupport::Execution::IsReference(ti) && rflag == IReg::IR1) {
+    auto rti = args.underlyingTi;
+    auto ti  = TypeInfo(ectype->GetPrimitive(rti).u64);
+    if (!RTSupport::Execution::IsReference(ti)) {
         bool successful = interpreter.StoreObjImm(Format::StoreAccessKind::ST_8, IReg::IR_ACC, MetaInfo::ObjectHeaderSize(), 1);
         NEXT_COND(successful);
     }
     NEXT;
 }
-LABEL(INIT_SOME_GENERIC) {
-    auto args = B3rrrr::Decode(reader);
+LABEL(INIT_SOME_GENERIC_OPT0) {
+    auto args = InitOption::Decode(reader);
     LOG_INSTR;
-    auto rsrc  = args.rr1.x.IR();
-    auto rti   = args.rr1.y.IR();
-    auto ropt  = args.rr2.x.IR();
-    auto rflag = args.rr2.y.IR();
+    auto rsrc = args.src;
+    auto rti  = args.underlyingTi;
 
     auto ti   = TypeInfo(ectype->GetPrimitive(rti).u64);
     auto base = ectype->GetReference(IReg::IR_ACC);
     auto obj  = ectype->GetReference(rsrc);
     if (RTSupport::Execution::IsReference(ti)) {
         RTSupport::Execution::WriteObjectInstance(base, base.value + MetaInfo::ObjectHeaderSize(), obj, handle);
+        NEXT;
     } else {
-        auto optTi   = TypeInfo(ectype->GetPrimitive(ropt).u64);
-        auto offs    = RTSupport::Execution::GetFieldOffset(optTi, 1, false);
-        auto derived = base.value + MetaInfo::ObjectHeaderSize() + offs;
+        auto optTi   = RTSupport::Execution::GetTypeInfo(base);
+        auto offs    = RTSupport::Execution::GetFieldOffset(optTi, 1, true);
+        auto derived = base.value + offs;
         uint32_t size = RTSupport::MetaInfo::GetTypeSize(ti);
         RTSupport::Execution::WriteGeneric(base, derived, obj, size, handle);
-        if (rflag == IReg::IR1) {
-            bool successful = interpreter.StoreObjImm(Format::StoreAccessKind::ST_8, IReg::IR_ACC, MetaInfo::ObjectHeaderSize(), 1);
-            NEXT_COND(successful);
-        }
+        NEXT;
     }
-    NEXT;
+}
+LABEL(INIT_SOME_GENERIC_OPT1) {
+    auto args = InitOption::Decode(reader);
+    LOG_INSTR;
+    auto rsrc = args.src;
+    auto rti  = args.underlyingTi;
+
+    auto ti   = TypeInfo(ectype->GetPrimitive(rti).u64);
+    auto base = ectype->GetReference(IReg::IR_ACC);
+    auto obj  = ectype->GetReference(rsrc);
+    if (RTSupport::Execution::IsReference(ti)) {
+        RTSupport::Execution::WriteObjectInstance(base, base.value + MetaInfo::ObjectHeaderSize(), obj, handle);
+        NEXT;
+    } else {
+        auto optTi   = RTSupport::Execution::GetTypeInfo(base);
+        auto offs    = RTSupport::Execution::GetFieldOffset(optTi, 1, true);
+        auto derived = base.value + offs;
+        uint32_t size = RTSupport::MetaInfo::GetTypeSize(ti);
+        RTSupport::Execution::WriteGeneric(base, derived, obj, size, handle);
+        MemoryLocation(base.value, MetaInfo::ObjectHeaderSize()).StoreImm(StoreAccessKind::ST_8, 1);
+        NEXT;
+    }
 }
 LABEL(PREP_TYPED) {
     auto args = B13i64i32::Decode(reader);

@@ -79,6 +79,12 @@ void Encode(ByteBuffer& buf, RT::B3rrrr command)
     Encode(buf, command.rr2);
 }
 
+void Encode(ByteBuffer& buf, RT::InitOption command)
+{
+    Encode(buf, command.opc);
+    buf.AddW8(static_cast<uint32_t>(command.src.Raw() | (command.underlyingTi.Raw() << 4)));
+}
+
 void Encode(ByteBuffer& buf, RT::B4xi12rr command)
 {
     Encode(buf, command.opc);
