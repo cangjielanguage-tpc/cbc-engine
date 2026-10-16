@@ -119,7 +119,6 @@
     X(VIRTUAL_CALL, VirtualCall, "vcall $0U16 $1U16")                                                                  \
     X(INTERFACE_CALL, InterfaceCall, "icall.$2U8 $0U16 $1U64 outer=$3U16 this=$4U16")                                  \
     X(INTERFACE_CALL_GENERIC, InterfaceCallGeneric, "icall.g.$1U8 $0U16 outer=$2U16 this=$3U16")                       \
-    X(MEMSPACE, B1, "memspace {")                                                                                      \
     X(GC_POINT, B1, "gcpoint")                                                                                         \
     X(BFXS, BFX, "bfxs $0ir $1ir $2U8 $3U8")                                                                           \
     X(BFXZ, BFX, "bfxz $0ir $1ir $2U8 $3U8")                                                                           \
@@ -205,39 +204,10 @@
     X(STK_PARAM_F, StackParamF, "st.stack.param.f $0fr $1U16")                                                         \
     X(STK_PARAM_S16, StackParamS16, "st.stack.param.s.16 $0I64 $1U16")                                                 \
     X(STK_PARAM_S32, StackParamS32, "st.stack.param.s.32 $0I64 $1U16")                                                 \
-    X(STORE_FRAME_IMM_1, StoreFrameImm, "st.frame.imm.1 $0stk $1U8 $2U32")                                              \
-    X(STORE_FRAME_IMM_2, StoreFrameImm, "st.frame.imm.2 $0stk $1U16 $2U32")                                             \
-    X(STORE_FRAME_IMM_4, StoreFrameImm, "st.frame.imm.4 $0stk $1U32 $2U32")                                             \
+    X(STORE_FRAME_IMM_1, StoreFrameImm, "st.frame.imm.1 $0stk $1U8 $2U32")                                             \
+    X(STORE_FRAME_IMM_2, StoreFrameImm, "st.frame.imm.2 $0stk $1U16 $2U32")                                            \
+    X(STORE_FRAME_IMM_4, StoreFrameImm, "st.frame.imm.4 $0stk $1U32 $2U32")                                            \
     X(STORE_FRAME_IMM_8, StoreFrameImm, "st.frame.imm.8 $0stk $1U64 $2U32")
-
-// X parameters: opcode, encoding format, string format, is tail
-#define CBC_RT_MEMOPCODES(X)                                                                                           \
-    X(MEM_HALT, M1, "halt", true)                                                                                      \
-    X(OFFS16, M3i16, "offs.16 $0U16", false)                                                                           \
-    X(OFFS32, M5i32, "offs.32 $0U32", false)                                                                           \
-    X(OFFS64, M9i64, "offs.64 $0U64", false)                                                                           \
-    X(GENERIC_FIELD, M6xri32, "generic.field $1ir $2U32 }", false)                                                     \
-    X(R_WRITE_STRUCT, MStructFieldOp, "r.write.struct $0ir $1ir $2U64 }", true)                                        \
-    X(RST_8, M2rr, "rst.8 $0ir $1ir }", true)                                                                          \
-    X(RST_16, M2rr, "rst.16 $0ir $1ir }", true)                                                                        \
-    X(RST_32, M2rr, "rst.32 $0ir $1ir }", true)                                                                        \
-    X(RST_64, M2rr, "rst.64 $0ir $1ir }", true)                                                                        \
-    X(RST_REF, M2rr, "rst.ref $0ir $1ir }", true)                                                                      \
-    X(RST_F32, M2rr, "rst.f32 $0fr $1ir }", true)                                                                      \
-    X(RST_F64, M2rr, "rst.f64 $0fr $1ir }", true)                                                                      \
-    X(RSTI_8_8, M3xri8, "rsti.8.8 $1ir $2U8 }", true)                                                                  \
-    X(DLD_GENERIC, M3rrrr, "dld.g $0ir $1ir $2ir $3ir }", true)                                                        \
-    X(DST_GENERIC, M3rrrr, "dst.g $1ir $2ir $3ir }", true)                                                             \
-    X(FSTI_8_8, M2i8, "fsti.8.8 $0U8 }", true)                                                                         \
-    X(FSTI_16_8, M2i8, "fsti.16.8 $0U8 }", true)                                                                       \
-    X(FSTI_16_16, M3i16, "fsti.16.16 $0U16 }", true)                                                                   \
-    X(FSTI_32_8, M2i8, "fsti.32.8 $0U8 }", true)                                                                       \
-    X(FSTI_32_16, M3i16, "fsti.32.16 $0U16 }", true)                                                                   \
-    X(FSTI_32_32, M5i32, "fsti.32.32 $0U32 }", true)                                                                   \
-    X(FSTI_64_8, M2i8, "fsti.64.8 $0U8 }", true)                                                                       \
-    X(FSTI_64_16, M3i16, "fsti.64.16 $0U16 }", true)                                                                   \
-    X(FSTI_64_32, M5i32, "fsti.64.32 $0U32 }", true)                                                                   \
-    X(FSTI_64_64, M9i64, "fsti.64.64 $0U64 }", true)
 
 namespace Cbc {
 namespace RT {
@@ -268,58 +238,6 @@ public:
     {
         uint8_t b = reader.Read8();
         return Opcode(b);
-    }
-
-private:
-    Value _value;
-};
-
-/// ISA12 is encoding a number of different mem.head operations
-/// which are describing the kind of a base.
-/// This is not convenient for interpretation,
-/// since the actual value is only needed at the tail of memspace
-/// in the operation itself (and sometimes it is not needed at all).
-///
-/// So, the ISA12 would require from memspace interpreter to store
-/// the state of a head all the way to the tail.
-///
-/// Instead, we will encode memspace command as one `MEMSPACE` opcode,
-/// which will enter the memspace, accumulate the offset and
-/// use it to perform the actual operation.
-///
-/// Additionally, we would expect that the whole MEMSPACE instruction
-/// will not throw any exception and must execute without errors from start to finish.
-class MemOpcode {
-public:
-#define DEFINE_OPCODE(opc, dfmt, sfmt, isTail) opc,
-
-    enum Value : uint8_t {
-        CBC_RT_MEMOPCODES(DEFINE_OPCODE) OPCODE_NUM
-    };
-
-#undef DEFINE_OPCODE
-
-    static constexpr auto RST_START_OPCODE  = RST_8;
-    static constexpr auto RST_END_OPCODE    = RST_F64;
-    static constexpr auto RSTI_START_OPCODE = RSTI_8_8;
-    static constexpr auto RSTI_END_OPCODE   = RSTI_8_8;
-    static constexpr auto FSTI_START_OPCODE = FSTI_8_8;
-    static constexpr auto FSTI_END_OPCODE   = FSTI_64_64;
-
-    static_assert(OPCODE_NUM <= 256);
-
-    constexpr MemOpcode(const Value value) : _value(value) {}
-
-    constexpr MemOpcode(const uint32_t raw) : _value(static_cast<Value>(raw)) {}
-
-    constexpr MemOpcode() : _value(MEM_HALT) {}
-
-    constexpr operator Value() const { return _value; }
-
-    inline static MemOpcode Decode(Decoder::ByteReader& reader)
-    {
-        uint8_t b = reader.Read8();
-        return MemOpcode(b);
     }
 
 private:
@@ -805,20 +723,6 @@ struct ConstIndexGeneric {
     }
 };
 
-struct MStructFieldOp {
-    MemOpcode opc;
-    Format::RR rr;
-    RTSupport::TypeInfo ti;
-
-    static MStructFieldOp Decode(Decoder::ByteReader& reader)
-    {
-        auto opc = MemOpcode::Decode(reader);
-        auto rr  = Format::RR::Decode(reader);
-        auto ti  = reader.Read<RTSupport::TypeInfo>();
-        return MStructFieldOp { opc, rr, ti };
-    }
-};
-
 struct B5xi12ri12 {
     static constexpr int SIZE = 5;
 
@@ -1010,224 +914,6 @@ struct InterfaceCallGeneric {
         auto outerTiArg = reader.Read16();
         auto thisTiArg  = reader.Read16();
         return InterfaceCallGeneric { opc, vnum, sret, outerTiArg, thisTiArg };
-    }
-};
-
-struct M1 {
-    MemOpcode opc;
-
-    static M1 Decode(Decoder::ByteReader& reader) { return M1 { MemOpcode::Decode(reader) }; }
-};
-
-struct M2i8 {
-    MemOpcode opc;
-    uint8_t imm8;
-
-    inline static M2i8 Decode(Decoder::ByteReader& reader)
-    {
-        auto opc  = MemOpcode::Decode(reader);
-        auto imm8 = reader.Read8();
-        return M2i8 { opc, imm8 };
-    }
-};
-
-struct M3i16 {
-    MemOpcode opc;
-    uint16_t imm16;
-
-    inline static M3i16 Decode(Decoder::ByteReader& reader)
-    {
-        auto opc   = MemOpcode::Decode(reader);
-        auto imm16 = reader.Read16();
-        return M3i16 { opc, imm16 };
-    }
-};
-
-struct M5i32 {
-    MemOpcode opc;
-    uint32_t imm32;
-
-    inline static M5i32 Decode(Decoder::ByteReader& reader)
-    {
-        auto opc   = MemOpcode::Decode(reader);
-        auto imm32 = reader.Read32();
-        return M5i32 { opc, imm32 };
-    }
-};
-
-struct M9i64 {
-    MemOpcode opc;
-    uint64_t imm64;
-
-    inline static M9i64 Decode(Decoder::ByteReader& reader)
-    {
-        auto opc   = MemOpcode::Decode(reader);
-        auto imm64 = reader.Read64();
-        return M9i64 { opc, imm64 };
-    }
-};
-
-struct M3xri8 {
-    MemOpcode opc;
-    Format::XR xr;
-    Format::Imm8 imm8;
-
-    inline static M3xri8 Decode(Decoder::ByteReader& reader)
-    {
-        auto opc  = MemOpcode::Decode(reader);
-        auto xr   = Format::XR::Decode(reader);
-        auto imm8 = Format::Imm8::Decode(reader);
-        return M3xri8 { opc, xr, imm8 };
-    }
-};
-
-struct M4xri16 {
-    MemOpcode opc;
-    Format::XR xr;
-    Format::Imm16 imm16;
-
-    inline static M4xri16 Decode(Decoder::ByteReader& reader)
-    {
-        auto opc   = MemOpcode::Decode(reader);
-        auto xr    = Format::XR::Decode(reader);
-        auto imm16 = Format::Imm16::Decode(reader);
-        return M4xri16 { opc, xr, imm16 };
-    }
-};
-
-struct M6xri32 {
-    MemOpcode opc;
-    Format::XR xr;
-    Format::Imm32 imm32;
-
-    inline static M6xri32 Decode(Decoder::ByteReader& reader)
-    {
-        auto opc   = MemOpcode::Decode(reader);
-        auto xr    = Format::XR::Decode(reader);
-        auto imm32 = Format::Imm32::Decode(reader);
-        return M6xri32 { opc, xr, imm32 };
-    }
-};
-
-struct M10xri64 {
-    MemOpcode opc;
-    Format::XR xr;
-    Format::Imm64 imm64;
-
-    inline static M10xri64 Decode(Decoder::ByteReader& reader)
-    {
-        auto opc   = MemOpcode::Decode(reader);
-        auto xr    = Format::XR::Decode(reader);
-        auto imm64 = Format::Imm64::Decode(reader);
-        return M10xri64 { opc, xr, imm64 };
-    }
-};
-
-struct M2rr {
-    MemOpcode opc;
-    Format::RR rr;
-
-    inline static M2rr Decode(Decoder::ByteReader& reader)
-    {
-        auto opc = MemOpcode::Decode(reader);
-        auto rr  = Format::RR::Decode(reader);
-        return M2rr { opc, rr };
-    }
-};
-
-struct M2xr {
-    MemOpcode opc;
-    Format::XR xr;
-
-    inline static M2xr Decode(Decoder::ByteReader& reader)
-    {
-        auto opc = MemOpcode::Decode(reader);
-        auto xr  = Format::XR::Decode(reader);
-        return M2xr { opc, xr };
-    }
-};
-
-struct M3xrrr {
-    MemOpcode opc;
-    Format::XR xr;
-    Format::RR rr;
-
-    inline static M3xrrr Decode(Decoder::ByteReader& reader)
-    {
-        auto opc = MemOpcode::Decode(reader);
-        auto xr  = Format::XR::Decode(reader);
-        auto rr  = Format::RR::Decode(reader);
-        return M3xrrr { opc, xr, rr };
-    }
-};
-
-struct M3rrrr {
-    MemOpcode opc;
-    Format::RR rr1;
-    Format::RR rr2;
-
-    inline static M3rrrr Decode(Decoder::ByteReader& reader)
-    {
-        auto opc = MemOpcode::Decode(reader);
-        auto rr1 = Format::RR::Decode(reader);
-        auto rr2 = Format::RR::Decode(reader);
-        return M3rrrr { opc, rr1, rr2 };
-    }
-};
-
-struct M3rri8 {
-    MemOpcode opc;
-    Format::RR rr;
-    Format::Imm8 imm8;
-
-    inline static M3rri8 Decode(Decoder::ByteReader& reader)
-    {
-        auto opc  = MemOpcode::Decode(reader);
-        auto rr   = Format::RR::Decode(reader);
-        auto imm8 = Format::Imm8::Decode(reader);
-        return M3rri8 { opc, rr, imm8 };
-    }
-};
-
-struct M4rri16 {
-    MemOpcode opc;
-    Format::RR rr;
-    Format::Imm16 imm16;
-
-    inline static M4rri16 Decode(Decoder::ByteReader& reader)
-    {
-        auto opc   = MemOpcode::Decode(reader);
-        auto rr    = Format::RR::Decode(reader);
-        auto imm16 = Format::Imm16::Decode(reader);
-        return M4rri16 { opc, rr, imm16 };
-    }
-};
-
-struct M6rri32 {
-    MemOpcode opc;
-    Format::RR rr;
-    Format::Imm32 imm32;
-
-    inline static M6rri32 Decode(Decoder::ByteReader& reader)
-    {
-        auto opc   = MemOpcode::Decode(reader);
-        auto rr    = Format::RR::Decode(reader);
-        auto imm32 = Format::Imm32::Decode(reader);
-        return M6rri32 { opc, rr, imm32 };
-    }
-};
-
-struct M10rri64 {
-    MemOpcode opc;
-    Format::RR rr;
-    Format::Imm64 imm64;
-
-    inline static M10rri64 Decode(Decoder::ByteReader& reader)
-    {
-        auto opc   = MemOpcode::Decode(reader);
-        auto rr    = Format::RR::Decode(reader);
-        auto imm64 = Format::Imm64::Decode(reader);
-        return M10rri64 { opc, rr, imm64 };
     }
 };
 

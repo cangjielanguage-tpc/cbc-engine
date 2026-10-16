@@ -39,8 +39,6 @@ namespace Cbc {
 
 using namespace Resolution;
 
-using MemSpaceEmitter = Emitter::Emitter::MemSpace;
-
 using TK  = CbcTypeKind;
 using LDK = Format::LoadAccessKind;
 using STK = Format::StoreAccessKind;
@@ -1893,41 +1891,6 @@ struct IsaRewriter : public IsaParser {
         HEAD_STATIC,
         HEAD_FRAME
     };
-
-    struct MemSpaceRewriter : public MemSpace {
-        MemSpaceRewriter(MemSpaceEmitter emit) : MemSpace(), emit(emit), lastFieldKind(CbcTypeKind::INVALID) {}
-
-        HeadKind kind { HEAD_NONE };
-        MemSpaceEmitter emit;
-        IReg base { IReg::IRZ };
-        IReg derived { IReg::IRZ };
-        CbcTypeKind lastFieldKind;
-    };
-
-    bool FieldOffset(MemSpaceRewriter& msr, uint32_t fieldId)
-    {
-        auto f = resolver.Query(Index<InstanceField>(fieldId));
-        if (!f.has_value()) {
-            Fail();
-            return false;
-        }
-        auto field = f.value();
-        if (field->offset.has_value()) {
-            // TODO: accumulate offset for field sequence
-            msr.emit.Offset(field->offset.value());
-            msr.lastFieldKind = field->fieldType.GetKind();
-            return field->refType.GetKind() == CbcTypeKind::REF;
-        } else {
-            errStream << "Failed to get offset of field " << field << Stream::endl;
-            Fail();
-            return false;
-        }
-    }
-
-    std::unique_ptr<MemSpace> OpenMemSpace() override
-    {
-        return std::make_unique<MemSpaceRewriter>(MemSpaceRewriter(emit.OpenMemSpace()));
-    }
 
     void ParseOne() override
     {

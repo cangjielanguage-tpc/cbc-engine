@@ -123,86 +123,6 @@ void Encode(ByteBuffer& buf, RT::IOF command)
     buf.AddW64(command.imm64);
 }
 
-void Encode(ByteBuffer& buf, RT::MemOpcode opc) { buf.AddW8(opc); }
-
-void Encode(ByteBuffer& buf, RT::M2i8 command)
-{
-    Encode(buf, command.opc);
-    buf.AddW8(command.imm8);
-}
-
-void Encode(ByteBuffer& buf, RT::M3i16 command)
-{
-    Encode(buf, command.opc);
-    buf.AddW16(command.imm16);
-}
-
-void Encode(ByteBuffer& buf, RT::M5i32 command)
-{
-    Encode(buf, command.opc);
-    buf.AddW32(command.imm32);
-}
-
-void Encode(ByteBuffer& buf, RT::M9i64 command)
-{
-    Encode(buf, command.opc);
-    buf.AddW64(command.imm64);
-}
-
-void Encode(ByteBuffer& buf, RT::M3xri8 command)
-{
-    Encode(buf, command.opc);
-    Encode(buf, command.xr);
-    Encode(buf, command.imm8);
-}
-
-void Encode(ByteBuffer& buf, RT::M4xri16 command)
-{
-    Encode(buf, command.opc);
-    Encode(buf, command.xr);
-    Encode(buf, command.imm16);
-}
-
-void Encode(ByteBuffer& buf, RT::M6xri32 command)
-{
-    Encode(buf, command.opc);
-    Encode(buf, command.xr);
-    Encode(buf, command.imm32);
-}
-
-void Encode(ByteBuffer& buf, RT::M10xri64 command)
-{
-    Encode(buf, command.opc);
-    Encode(buf, command.xr);
-    Encode(buf, command.imm64);
-}
-
-void Encode(ByteBuffer& buf, RT::M2rr command)
-{
-    Encode(buf, command.opc);
-    Encode(buf, command.rr);
-}
-
-void Encode(ByteBuffer& buf, RT::M2xr command)
-{
-    Encode(buf, command.opc);
-    Encode(buf, command.xr);
-}
-
-void Encode(ByteBuffer& buf, RT::M3xrrr command)
-{
-    Encode(buf, command.opc);
-    Encode(buf, command.xr);
-    Encode(buf, command.rr);
-}
-
-void Encode(ByteBuffer& buf, RT::M3rrrr command)
-{
-    Encode(buf, command.opc);
-    Encode(buf, command.rr1);
-    Encode(buf, command.rr2);
-}
-
 void Encode(ByteBuffer& buf, Format::RImm12 ri12) { buf.AddW16(Format::RImm12::Raw(ri12)); }
 
 void Encode(ByteBuffer& buf, RT::B5xi12ri12 command)
@@ -319,41 +239,6 @@ void Encode(ByteBuffer& buf, RT::StoreFrameImm command)
         default:                            buf.AddW64(command.imm);
     }
     buf.AddW32(static_cast<uint32_t>(command.offs));
-}
-
-void Encode(ByteBuffer& buf, RT::MStructFieldOp command)
-{
-    Encode(buf, command.opc);
-    Encode(buf, command.rr);
-    buf.AddW64(Bits::Raw64(command.ti));
-}
-
-void Encode(ByteBuffer& buf, RT::M3rri8 command)
-{
-    Encode(buf, command.opc);
-    Encode(buf, command.rr);
-    Encode(buf, command.imm8);
-}
-
-void Encode(ByteBuffer& buf, RT::M4rri16 command)
-{
-    Encode(buf, command.opc);
-    Encode(buf, command.rr);
-    Encode(buf, command.imm16);
-}
-
-void Encode(ByteBuffer& buf, RT::M6rri32 command)
-{
-    Encode(buf, command.opc);
-    Encode(buf, command.rr);
-    Encode(buf, command.imm32);
-}
-
-void Encode(ByteBuffer& buf, RT::M10rri64 command)
-{
-    Encode(buf, command.opc);
-    Encode(buf, command.rr);
-    Encode(buf, command.imm64);
 }
 
 void Encode(ByteBuffer& buf, RT::CopyFieldOp command)

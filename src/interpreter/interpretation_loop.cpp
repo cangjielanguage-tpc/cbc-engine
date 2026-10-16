@@ -113,7 +113,6 @@ Interpretation::Thunk engine_interpretation_loop(
 {
 #define NEXT goto* MAIN_TABLE[reader.PeekOpcode()]
 #define NEXT_COND(successful) goto* MAIN_TABLE[(successful) ? reader.PeekOpcode() : 0]
-#define MEM_NEXT goto* MEMSPACE_TABLE[reader.PeekOpcode()]
     Interpretation::Interpreter interpreter(ectype, frame, handle, literals);
     Decoder::ByteReader reader = reader0;
 #ifdef NDEBUG
@@ -168,10 +167,7 @@ Interpretation::Thunk engine_interpretation_loop(
 #endif
 
 #define CBC_RT_LABEL(opc, encoding, fmt) &&opc,
-#define CBC_RT_MEM_LABEL(opc, encoding, fmt, tail) &&opc,
     static void* MAIN_TABLE[] = { CBC_RT_OPCODES(CBC_RT_LABEL) };
-
-    static void* MEMSPACE_TABLE[] = { CBC_RT_MEMOPCODES(CBC_RT_MEM_LABEL) };
 
 #ifdef NDEBUG
     // Fake use keeps decode-only locals (e.g. `args`) from tripping -Wunused-variable.
@@ -195,8 +191,6 @@ Interpretation::Thunk engine_interpretation_loop(
     auto& logger = Log::interpretation.Stream(Logging::Level::TRACE);
     __attribute__((used)) static volatile const char* label;
 #endif
-
-    int64_t memspaceOffsetAcc = 0;
 
     // jump to the instruction handler.
     NEXT;
@@ -1631,144 +1625,6 @@ ATOMIC_STORE: {
     NEXT;
 }
 
-LABEL(MEMSPACE) {
-    auto args = B1::Decode(reader);
-    LOG_INSTR;
-    memspaceOffsetAcc = 0;
-    MEM_NEXT;
-}
-
-    // -- MemSpace opcode table --
-
-LABEL(MEM_HALT) {
-    FATAL("halt");
-    return {};
-}
-
-LABEL(OFFS16) {
-    auto args = M3i16::Decode(reader);
-    LOG_INSTR;
-    memspaceOffsetAcc += (int16_t) args.imm16;
-    MEM_NEXT;
-}
-LABEL(OFFS32) {
-    auto args = M5i32::Decode(reader);
-    LOG_INSTR;
-    memspaceOffsetAcc += (int32_t) args.imm32;
-    MEM_NEXT;
-}
-LABEL(OFFS64) {
-    auto args = M9i64::Decode(reader);
-    LOG_INSTR;
-    memspaceOffsetAcc += (int64_t) args.imm64;
-    MEM_NEXT;
-}
-LABEL(R_WRITE_STRUCT) {
-    auto args = MStructFieldOp::Decode(reader);
-    LOG_INSTR;
-    auto src   = ectype->GetPrimitive(args.rr.x.IR()).u64;
-    auto base  = ectype->GetReference(args.rr.y.IR());
-    auto field = base.value + memspaceOffsetAcc;
-    RTSupport::Execution::WriteStructField(src, base, field, args.ti, handle);
-    NEXT;
-}
-
-LABEL(DLD_GENERIC) {
-    auto args = M3rrrr::Decode(reader);
-    LOG_INSTR;
-    // TODO: reorder args, so it would require less bit-shifting
-    auto derivedReg = args.rr1.x.IR();
-    auto tiReg      = args.rr1.y.IR();
-    auto dstReg     = args.rr2.x.IR();
-    auto baseReg    = args.rr2.y.IR();
-    auto derived    = ectype->GetReference(derivedReg);
-
-    auto typeInfo = TypeInfo(ectype->GetPrimitive(tiReg).u64);
-    if (RTSupport::Execution::IsReference(typeInfo)) {
-        auto base = ectype->GetReference(baseReg);
-        auto obj  = RTSupport::Execution::ReadObjectInstance(base, derived.value + memspaceOffsetAcc, handle);
-        ectype->Put(dstReg, obj);
-        NEXT;
-    } else {
-        // The operation require two steps: box allocation and ReadGeneric invocation.
-        // Because box allocation can provoke GC or throw, we should not perform it with C++ frame on the stack.
-        ectype->Put(IReg::IR_ACC, Value::Reference { derived.value + memspaceOffsetAcc });
-
-        // on x64 and aarch64 pointers are 48-bit values
-        uint64_t rawTi  = typeInfo.UInt();
-        uint64_t packed = 0ULL | dstReg | (baseReg << 4) | (IReg::IR_ACC << 8) | rawTi << 12;
-        reader0         = reader;
-        return { .function = RTSupport::Execution::LoadGeneric(), .argUInt = packed };
-    }
-}
-LABEL(DST_GENERIC) {
-    auto args = M3rrrr::Decode(reader);
-    LOG_INSTR;
-    auto derivedReg = args.rr1.x.IR();
-    auto tiReg      = args.rr1.y.IR();
-    auto srcReg     = args.rr2.x.IR();
-    auto baseReg    = args.rr2.y.IR();
-
-    auto base    = ectype->GetReference(baseReg);
-    auto derived = ectype->GetReference(derivedReg);
-    auto obj     = ectype->GetReference(srcReg);
-
-    auto typeInfo = TypeInfo(ectype->GetPrimitive(tiReg).u64);
-    if (RTSupport::Execution::IsReference(typeInfo)) {
-        RTSupport::Execution::WriteObjectInstance(base, derived.value + memspaceOffsetAcc, obj, handle);
-        NEXT;
-    } else {
-        uint32_t size = RTSupport::MetaInfo::GetTypeSize(typeInfo);
-        RTSupport::Execution::WriteGeneric(base, derived.value + memspaceOffsetAcc, obj, size, handle);
-        NEXT;
-    }
-}
-
-LABEL(GENERIC_FIELD) {
-    auto args = M6rri32::Decode(reader);
-    LOG_INSTR;
-    auto ti            = TypeInfo(ectype->GetPrimitive(args.rr.x.IR()).u64);
-    auto offs          = RTSupport::Execution::GetFieldOffset(ti, args.imm32.imm, false);
-    memspaceOffsetAcc += offs;
-    MEM_NEXT;
-}
-
-#define RST(stk)                                                                                                           LABEL(RST_##stk)                                                                                                       {                                                                                                                          auto args = M2rr::Decode(reader);                                                                                      LOG_INSTR;                                                                                                             bool successful =                                                                                                          interpreter.StoreObj(Format::StoreAccessKind::ST_##stk, args.rr.x, args.rr.y.IR(), memspaceOffsetAcc);             NEXT_COND(successful);                                                                                             }
-    RST(8)
-    RST(16)
-    RST(32)
-    RST(64)
-    RST(REF)
-    RST(F32)
-    RST(F64)
-#undef RST
-
-#define RSTI(memSize, immSize, encoding)                                                                                   LABEL(RSTI_##memSize##_##immSize)                                                                                      {                                                                                                                          auto args = encoding::Decode(reader);                                                                                  LOG_INSTR;                                                                                                             uint64_t imm = MathUtils::SignExtend(static_cast<uint64_t>(args.imm##immSize.imm), immSize);                           IReg base    = args.xr.r.IR();                                                                                         bool successful =                                                                                                          interpreter.StoreObjImm(Format::StoreAccessKind::ST_##memSize, base, memspaceOffsetAcc, imm);                      NEXT_COND(successful);                                                                                             }
-    RSTI(8, 8, M3xri8)
-#undef RSTI
-
-#define FSTI(memSize, immSize, encoding)                                                                               \
-    LABEL(FSTI_##memSize##_##immSize)                                                                                  \
-    {                                                                                                                  \
-        auto args = encoding::Decode(reader);                                                                          \
-        LOG_INSTR;                                                                                                     \
-        uint64_t imm    = MathUtils::SignExtend(static_cast<uint64_t>(args.imm##immSize), immSize);                    \
-        bool successful = interpreter.StoreFrameImm(Format::StoreAccessKind::ST_##memSize, imm, memspaceOffsetAcc);    \
-        NEXT_COND(successful);                                                                                         \
-    }
-    FSTI(8, 8, M2i8)
-    FSTI(16, 8, M2i8)
-    FSTI(16, 16, M3i16)
-    FSTI(32, 8, M2i8)
-    FSTI(32, 16, M3i16)
-    FSTI(32, 32, M5i32)
-    FSTI(64, 8, M2i8)
-    FSTI(64, 16, M3i16)
-    FSTI(64, 32, M5i32)
-    FSTI(64, 64, M9i64)
-#undef FSTI
-
-#undef MEM_NEXT
 #undef NEXT
 #undef NEXT_COND
 }

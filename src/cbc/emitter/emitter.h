@@ -40,40 +40,6 @@ public:
     using LoadAccessKind  = Format::LoadAccessKind;
     using StoreAccessKind = Format::StoreAccessKind;
 
-    class MemSpace {
-    public:
-        MemSpace(Emitter& _emitter) : segment(_emitter.segment), symbols(_emitter.symbols), emitter(_emitter) {}
-
-        void Offset(int32_t offset);
-
-        // tail instructions
-        void WriteStructFieldObj(IReg src, IReg base, RTSupport::TypeInfo structTypeInfo);
-
-        void StoreObj(StoreAccessKind stk, Reg src, IReg base);
-        void StoreObjImm(StoreAccessKind stk, Reg base, uint64_t imm);
-
-        void LoadGeneric(IReg dst, IReg base, IReg typeInfo);
-        void StoreGeneric(IReg src, IReg base, IReg typeInfo);
-
-        void GenericField(int ordinal, IReg typeInfo);
-
-    private:
-        template <typename AccessKind> void LoadStore(AccessKind akind, Reg v, IReg base, RT::MemOpcode opc)
-        {
-            Encode(
-                segment,
-                RT::M2rr {
-                    .opc = opc,
-                    .rr  = Format::RR { .x = v, .y = base },
-                }
-            );
-        }
-
-        Segment& segment;
-        Symbols& symbols;
-        Emitter& emitter;
-    };
-
     Emitter() = default;
 
     Symbol NewAddressSym(uintptr_t ptr);
@@ -292,8 +258,6 @@ public:
     void StackParamF(FReg src, uint16_t dst);
     void StackParamS16(int16_t src, uint16_t dst);
     void StackParamS32(int32_t src, uint16_t dst);
-
-    MemSpace OpenMemSpace();
 
 private:
     void AddFixup(std::unique_ptr<Fixup> fixup);
