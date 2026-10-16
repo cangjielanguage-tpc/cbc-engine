@@ -25,12 +25,14 @@ using namespace Interpretation;
 using namespace Cbc::RT;
 using namespace RTSupport;
 
+[[gnu::always_inline]]
 static inline uintptr_t ParamSlotPosition(uintptr_t frameBot, uint16_t arg)
 {
     ASSERT(arg >= IReg::VIRT_COUNT);
     return frameBot + (arg - IReg::VIRT_COUNT) * Cbc::STACK_SLOT_SIZE;
 }
 
+[[gnu::always_inline]]
 static inline TypeInfo ReadCallTypeInfo(Ectype* ectype, uintptr_t frameBot, uint16_t arg)
 {
     ASSERT(arg != StaticCallTypeInfoArgs::NONE);
@@ -40,6 +42,7 @@ static inline TypeInfo ReadCallTypeInfo(Ectype* ectype, uintptr_t frameBot, uint
     return *reinterpret_cast<TypeInfo*>(ParamSlotPosition(frameBot, arg));
 }
 
+[[gnu::always_inline]]
 static inline void WriteCallTypeInfo(Ectype* ectype, uintptr_t frameBot, uint16_t arg, TypeInfo ti)
 {
     ASSERT(arg != StaticCallTypeInfoArgs::NONE);
@@ -50,6 +53,7 @@ static inline void WriteCallTypeInfo(Ectype* ectype, uintptr_t frameBot, uint16_
     }
 }
 
+[[gnu::always_inline]]
 static inline TypeInfo InterfaceReceiverTypeInfo(Ectype* ectype, uintptr_t frameBot, bool sret, uint16_t thisTiArg)
 {
     if (thisTiArg != StaticCallTypeInfoArgs::NONE) {
@@ -57,6 +61,22 @@ static inline TypeInfo InterfaceReceiverTypeInfo(Ectype* ectype, uintptr_t frame
     }
     auto receiver = HAS_SRET_SHIFT && sret ? IReg::IR2 : IReg::IR1;
     return Execution::GetTypeInfo(ectype->GetReference(receiver));
+}
+
+[[gnu::always_inline]]
+static void StoreGeneric(StoreGenericOp args, Ectype* ectype, ThreadHandle handle)
+{
+    auto base    = ectype->GetReference(args.base);
+    auto derived = ectype->GetReference(args.derived);
+    auto obj     = ectype->GetReference(args.src);
+
+    auto typeInfo = TypeInfo(ectype->GetPrimitive(args.ti).u64);
+    if (RTSupport::Execution::IsReference(typeInfo)) {
+        RTSupport::Execution::WriteObjectInstance(base, derived.value + args.offset, obj, handle);
+    } else {
+        uint32_t size = RTSupport::MetaInfo::GetTypeSize(typeInfo);
+        RTSupport::Execution::WriteGeneric(base, derived.value + args.offset, obj, size, handle);
+    }
 }
 
 extern "C" {
@@ -1038,26 +1058,22 @@ LABEL(LOAD_GENERIC) {
     }
 }
 LABEL(STORE_GENERIC) {
-    auto args = B3rrrr::Decode(reader);
+    auto args = StoreGenericOp::Decode(reader);
     LOG_INSTR;
-    auto srcReg     = args.rr1.x.IR();
-    auto baseReg    = args.rr1.y.IR();
-    auto derivedReg = args.rr2.x.IR();
-    auto tiReg      = args.rr2.y.IR();
-
-    auto base    = ectype->GetReference(baseReg);
-    auto derived = ectype->GetReference(derivedReg);
-    auto obj     = ectype->GetReference(srcReg);
-
-    auto typeInfo = TypeInfo(ectype->GetPrimitive(tiReg).u64);
-    if (RTSupport::Execution::IsReference(typeInfo)) {
-        RTSupport::Execution::WriteObjectInstance(base, derived.value, obj, handle);
-        NEXT;
-    } else {
-        uint32_t size = RTSupport::MetaInfo::GetTypeSize(typeInfo);
-        RTSupport::Execution::WriteGeneric(base, derived.value, obj, size, handle);
-        NEXT;
-    }
+    StoreGeneric(args, ectype, handle);
+    NEXT;
+}
+LABEL(STORE_GENERIC_1) {
+    auto args = StoreGenericOp::Decode1(reader);
+    LOG_INSTR;
+    StoreGeneric(args, ectype, handle);
+    NEXT;
+}
+LABEL(STORE_GENERIC_4) {
+    auto args = StoreGenericOp::Decode4(reader);
+    LOG_INSTR;
+    StoreGeneric(args, ectype, handle);
+    NEXT;
 }
 LABEL(LEA_GENERIC) {
     auto args = B7xrrri32::Decode(reader);

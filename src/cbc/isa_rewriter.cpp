@@ -673,7 +673,7 @@ struct IsaRewriter : public IsaParser {
         emit.LoadDerived(Ldk(field->fieldType.GetKind()), dst, baseRef, derived, fieldOffset);
     }
 
-    void LdGeneric(AnyReg dst, IReg baseRef, IReg derived, IReg ti, uint32_t fieldId) override
+    void LdGeneric(IReg dst, IReg baseRef, IReg derived, IReg ti, uint32_t fieldId) override
     {
         UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
         UNWRAP_OPT(offset, field->offset, Fail);
@@ -761,13 +761,12 @@ struct IsaRewriter : public IsaParser {
         emit.StoreDerived(Stk(field->fieldType.GetKind()), src, baseRef, derived, fieldOffset);
     }
 
-    void StGeneric(AnyReg src, IReg baseRef, IReg derived, IReg ti, uint32_t fieldId) override
+    void StGeneric(IReg src, IReg baseRef, IReg derived, IReg ti, uint32_t fieldId) override
     {
         UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
         UNWRAP_OPT(offset, field->offset, Fail);
         ASSERT(field->fieldType.GetKind() == CbcTypeKind::VOID);
-        ASSERT(offset == 0);
-        emit.StoreGeneric(src, baseRef, derived, ti);
+        emit.StoreGeneric(src, baseRef, derived, ti, offset);
     }
 
     void LeaBox(IReg dst, IReg base) override
@@ -1814,9 +1813,7 @@ struct IsaRewriter : public IsaParser {
     {
         emit.NewObjGenericOnAcc(ti);
         BindStatePoint();
-        auto ms = emit.OpenMemSpace();
-        ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
-        ms.StoreGeneric(src, IReg::IR_ACC, ti);
+        emit.StoreGeneric(src, IReg::IR_ACC, IReg::IR_ACC, ti, RTSupport::MetaInfo::ObjectHeaderSize());
         AdjustReg(dst, IReg::IR_ACC);
     }
 
