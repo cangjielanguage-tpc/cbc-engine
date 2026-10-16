@@ -219,7 +219,6 @@ public:
 
     void LoadFrame(LoadAccessKind ldk, Reg dst, int32_t offset);
     void StoreFrame(StoreAccessKind stk, Reg src, int32_t offset);
-    void StoreFrameImm(StoreAccessKind stk, uint64_t imm, int32_t offset);
 
     void PrepareTyped(uint64_t size, int32_t offset);
 

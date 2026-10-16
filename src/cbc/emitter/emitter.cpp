@@ -1005,13 +1005,6 @@ void Emitter::StoreFrame(StoreAccessKind stk, Reg src, int32_t offset)
     }
 }
 
-void Emitter::StoreFrameImm(StoreAccessKind stk, uint64_t imm, int32_t offset)
-{
-    auto ms = OpenMemSpace();
-    ms.Offset(offset);
-    ms.StoreFrameImm(stk, imm);
-}
-
 void Emitter::PrepareTyped(uint64_t size, int32_t offset)
 {
     Encode(
