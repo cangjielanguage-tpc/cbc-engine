@@ -579,6 +579,44 @@ struct IsaParserImpl {
         parser.CopyGeneric(dstBase, dst, srcBase, src, ti);
     }
 
+    static void CopyLocal(IsaParser& parser)
+    {
+        auto [dst, src, typeId] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
+        parser.CopyLocal(dst, src, typeId);
+    }
+
+    static void CopyToLocal(IsaParser& parser)
+    {
+        auto [_, dst, srcBase, src, typeId] =
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadULEB().Get();
+        parser.CopyToLocal(dst, srcBase, src, typeId);
+    }
+
+    static void CopyFromLocal(IsaParser& parser)
+    {
+        auto [dstBase, dst, _, src, typeId] =
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().ReadULEB().Get();
+        parser.CopyFromLocal(dstBase, dst, src, typeId);
+    }
+
+    static void CopyLocalGeneric(IsaParser& parser)
+    {
+        auto [dst, src, ti, _] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
+        parser.CopyLocalGeneric(dst, src, ti);
+    }
+
+    static void CopyToLocalGeneric(IsaParser& parser)
+    {
+        auto [dst, srcBase, src, ti] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
+        parser.CopyToLocalGeneric(dst, srcBase, src, ti);
+    }
+
+    static void CopyFromLocalGeneric(IsaParser& parser)
+    {
+        auto [dstBase, dst, src, ti] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
+        parser.CopyFromLocalGeneric(dstBase, dst, src, ti);
+    }
+
     static void LeaIndex(IsaParser& parser)
     {
         auto [dst, src, idx, _, typeId] =

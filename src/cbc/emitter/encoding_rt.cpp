@@ -349,6 +349,20 @@ void Encode(ByteBuffer& buf, RT::CopyDerivedGeneric command)
     Encode(buf, command.ti);
 }
 
+void Encode(ByteBuffer& buf, RT::CopyLocal command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.records);
+    buf.AddW64(Bits::Raw64(command.ti));
+}
+
+void Encode(ByteBuffer& buf, RT::CopyLocalGeneric command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.first);
+    Encode(buf, command.second);
+}
+
 void Encode(ByteBuffer& buf, RT::Index command)
 {
     Encode(buf, command.opc);

@@ -918,6 +918,51 @@ LABEL(COPY_DERIVED_GENERIC) {
     NEXT;
 }
 
+LABEL(COPY_LOCAL) {
+    auto args = CopyLocal::Decode(reader);
+    LOG_INSTR;
+    interpreter.CopyLocal(args.records.x.IR(), args.records.y.IR(), args.ti);
+    NEXT;
+}
+
+LABEL(COPY_TO_LOCAL) {
+    auto args = CopyDerived::Decode(reader);
+    LOG_INSTR;
+    interpreter.CopyToLocal(args.dst.y.IR(), args.src.x.IR(), args.src.y.IR(), args.ti);
+    NEXT;
+}
+
+LABEL(COPY_FROM_LOCAL) {
+    auto args = CopyDerived::Decode(reader);
+    LOG_INSTR;
+    interpreter.CopyFromLocal(args.dst.x.IR(), args.dst.y.IR(), args.src.y.IR(), args.ti);
+    NEXT;
+}
+
+LABEL(COPY_LOCAL_GENERIC) {
+    auto args = CopyLocalGeneric::Decode(reader);
+    LOG_INSTR;
+    auto ti = TypeInfo(ectype->GetPrimitive(args.second.x.IR()).u64);
+    interpreter.CopyLocal(args.first.x.IR(), args.first.y.IR(), ti);
+    NEXT;
+}
+
+LABEL(COPY_TO_LOCAL_GENERIC) {
+    auto args = CopyLocalGeneric::Decode(reader);
+    LOG_INSTR;
+    auto ti = TypeInfo(ectype->GetPrimitive(args.second.y.IR()).u64);
+    interpreter.CopyToLocal(args.first.x.IR(), args.first.y.IR(), args.second.x.IR(), ti);
+    NEXT;
+}
+
+LABEL(COPY_FROM_LOCAL_GENERIC) {
+    auto args = CopyLocalGeneric::Decode(reader);
+    LOG_INSTR;
+    auto ti = TypeInfo(ectype->GetPrimitive(args.second.y.IR()).u64);
+    interpreter.CopyFromLocal(args.first.x.IR(), args.first.y.IR(), args.second.x.IR(), ti);
+    NEXT;
+}
+
 LABEL(INDEX) {
     auto args = Index::Decode(reader);
     LOG_INSTR;

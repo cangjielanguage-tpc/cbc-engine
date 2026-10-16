@@ -671,6 +671,42 @@ public:
         );
     }
 
+    inline void CopyLocal(IReg dstReg, IReg srcReg, RTSupport::TypeInfo ti)
+    {
+        auto dst = ectype->GetPrimitive(dstReg).u64;
+        auto src = ectype->GetPrimitive(srcReg).u64;
+        auto size = RTSupport::MetaInfo::GetTypeSize(ti);
+        memcpy(reinterpret_cast<void*>(dst), reinterpret_cast<void*>(src), size);
+    }
+
+    inline void CopyToLocal(IReg dstReg, IReg srcBaseReg, IReg srcReg, RTSupport::TypeInfo ti)
+    {
+        auto dst = ectype->GetPrimitive(dstReg).u64;
+        auto srcBase = ectype->GetReference(srcBaseReg);
+        auto srcDerived = ectype->GetPrimitive(srcReg).u64;
+        auto src = RTSupport::Execution::UnwrapDerivedPtr(srcDerived, false);
+
+        switch (RTSupport::Execution::GetStructLocationKind(srcBase, srcDerived)) {
+            case RTSupport::GLOBAL: RTSupport::Execution::ReadStaticStruct(dst, src, ti, handle); break;
+            case RTSupport::HEAP: RTSupport::Execution::ReadStructField(dst, srcBase, src, ti, handle); break;
+            case RTSupport::LOCAL: FATAL("unexpected local source in copy.to.local");
+        }
+    }
+
+    inline void CopyFromLocal(IReg dstBaseReg, IReg dstReg, IReg srcReg, RTSupport::TypeInfo ti)
+    {
+        auto dstBase = ectype->GetReference(dstBaseReg);
+        auto dstDerived = ectype->GetPrimitive(dstReg).u64;
+        auto dst = RTSupport::Execution::UnwrapDerivedPtr(dstDerived, false);
+        auto src = ectype->GetPrimitive(srcReg).u64;
+
+        switch (RTSupport::Execution::GetStructLocationKind(dstBase, dstDerived)) {
+            case RTSupport::GLOBAL: RTSupport::Execution::WriteStaticStruct(dst, src, ti, handle); break;
+            case RTSupport::HEAP: RTSupport::Execution::WriteStructField(src, dstBase, dst, ti, handle); break;
+            case RTSupport::LOCAL: FATAL("unexpected local destination in copy.from.local");
+        }
+    }
+
     inline void LeaIndex(IReg dst, IReg arr, IReg idx, RTSupport::TypeInfo ti, bool isCangjieArray = true)
     {
         LeaIndex(dst, arr, MemOffsetReg(idx), ti, isCangjieArray);

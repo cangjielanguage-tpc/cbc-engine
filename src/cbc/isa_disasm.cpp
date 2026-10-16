@@ -477,6 +477,36 @@ struct IsaDisasm : public IsaParser {
         stream.PrintLn("copy.g {}, {}, {}, {} {}", dstBase, dst, srcBase, src, ti);
     }
 
+    void CopyLocal(IReg dst, IReg src, uint32_t typeId) override
+    {
+        stream.PrintLn("copy.local {}, {} [@{}]", dst, src, typeId);
+    }
+
+    void CopyToLocal(IReg dst, IReg srcBase, IReg src, uint32_t typeId) override
+    {
+        stream.PrintLn("copy.to.local {}, {}, {} [@{}]", dst, srcBase, src, typeId);
+    }
+
+    void CopyFromLocal(IReg dstBase, IReg dst, IReg src, uint32_t typeId) override
+    {
+        stream.PrintLn("copy.from.local {}, {}, {} [@{}]", dstBase, dst, src, typeId);
+    }
+
+    void CopyLocalGeneric(IReg dst, IReg src, IReg ti) override
+    {
+        stream.PrintLn("copy.local.g {}, {} {}", dst, src, ti);
+    }
+
+    void CopyToLocalGeneric(IReg dst, IReg srcBase, IReg src, IReg ti) override
+    {
+        stream.PrintLn("copy.to.local.g {}, {}, {} {}", dst, srcBase, src, ti);
+    }
+
+    void CopyFromLocalGeneric(IReg dstBase, IReg dst, IReg src, IReg ti) override
+    {
+        stream.PrintLn("copy.from.local.g {}, {}, {} {}", dstBase, dst, src, ti);
+    }
+
     void LeaIndex(IReg dst, IReg src, IReg idx, uint32_t typeId) override
     {
         stream.PrintLn("index {}, [{} @{}], [@{}]", dst, src, idx, typeId);

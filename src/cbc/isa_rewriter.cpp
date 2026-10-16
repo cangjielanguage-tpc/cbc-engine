@@ -790,6 +790,39 @@ struct IsaRewriter : public IsaParser {
         emit.CopyDerivedGeneric(dstBase, dst, srcBase, src, ti);
     }
 
+    void CopyLocal(IReg dst, IReg src, uint32_t typeId) override
+    {
+        UNWRAP_OPT(type, resolver.Query(Index<Type>(typeId)), Fail);
+        UNWRAP_OPT(typeInfo, type.GetTypeInfo(), Fail);
+        emit.CopyLocal(dst, src, typeInfo);
+    }
+
+    void CopyToLocal(IReg dst, IReg srcBase, IReg src, uint32_t typeId) override
+    {
+        UNWRAP_OPT(type, resolver.Query(Index<Type>(typeId)), Fail);
+        UNWRAP_OPT(typeInfo, type.GetTypeInfo(), Fail);
+        emit.CopyToLocal(dst, srcBase, src, typeInfo);
+    }
+
+    void CopyFromLocal(IReg dstBase, IReg dst, IReg src, uint32_t typeId) override
+    {
+        UNWRAP_OPT(type, resolver.Query(Index<Type>(typeId)), Fail);
+        UNWRAP_OPT(typeInfo, type.GetTypeInfo(), Fail);
+        emit.CopyFromLocal(dstBase, dst, src, typeInfo);
+    }
+
+    void CopyLocalGeneric(IReg dst, IReg src, IReg ti) override { emit.CopyLocalGeneric(dst, src, ti); }
+
+    void CopyToLocalGeneric(IReg dst, IReg srcBase, IReg src, IReg ti) override
+    {
+        emit.CopyToLocalGeneric(dst, srcBase, src, ti);
+    }
+
+    void CopyFromLocalGeneric(IReg dstBase, IReg dst, IReg src, IReg ti) override
+    {
+        emit.CopyFromLocalGeneric(dstBase, dst, src, ti);
+    }
+
     void LeaIndex(IReg dst, IReg src, IReg idx, uint32_t typeId) override
     {
         UNWRAP_OPT(type, resolver.Query(Index<Type>(typeId)), Fail);

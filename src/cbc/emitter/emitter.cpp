@@ -838,6 +838,80 @@ void Emitter::CopyDerivedGeneric(IReg dstBase, IReg dst, IReg srcBase, IReg src,
     );
 }
 
+void Emitter::CopyLocal(IReg dst, IReg src, RTSupport::TypeInfo ti)
+{
+    Encode(
+        segment,
+        RT::CopyLocal {
+            .opc     = RT::Opcode::COPY_LOCAL,
+            .records = RR { .x = dst, .y = src },
+            .ti      = ti,
+        }
+    );
+}
+
+void Emitter::CopyToLocal(IReg dst, IReg srcBase, IReg src, RTSupport::TypeInfo ti)
+{
+    Encode(
+        segment,
+        RT::CopyDerived {
+            .opc = RT::Opcode::COPY_TO_LOCAL,
+            .dst = RR { .x = IReg::IRZ, .y = dst },
+            .src = RR { .x = srcBase, .y = src },
+            .ti  = ti,
+        }
+    );
+}
+
+void Emitter::CopyFromLocal(IReg dstBase, IReg dst, IReg src, RTSupport::TypeInfo ti)
+{
+    Encode(
+        segment,
+        RT::CopyDerived {
+            .opc = RT::Opcode::COPY_FROM_LOCAL,
+            .dst = RR { .x = dstBase, .y = dst },
+            .src = RR { .x = IReg::IRZ, .y = src },
+            .ti  = ti,
+        }
+    );
+}
+
+void Emitter::CopyLocalGeneric(IReg dst, IReg src, IReg ti)
+{
+    Encode(
+        segment,
+        RT::CopyLocalGeneric {
+            .opc    = RT::Opcode::COPY_LOCAL_GENERIC,
+            .first  = RR { .x = dst, .y = src },
+            .second = RR { .x = ti, .y = IReg::IRZ },
+        }
+    );
+}
+
+void Emitter::CopyToLocalGeneric(IReg dst, IReg srcBase, IReg src, IReg ti)
+{
+    Encode(
+        segment,
+        RT::CopyLocalGeneric {
+            .opc    = RT::Opcode::COPY_TO_LOCAL_GENERIC,
+            .first  = RR { .x = dst, .y = srcBase },
+            .second = RR { .x = src, .y = ti },
+        }
+    );
+}
+
+void Emitter::CopyFromLocalGeneric(IReg dstBase, IReg dst, IReg src, IReg ti)
+{
+    Encode(
+        segment,
+        RT::CopyLocalGeneric {
+            .opc    = RT::Opcode::COPY_FROM_LOCAL_GENERIC,
+            .first  = RR { .x = dstBase, .y = dst },
+            .second = RR { .x = src, .y = ti },
+        }
+    );
+}
+
 void Emitter::LeaIndex(IReg dst, IReg src, IReg idx, RTSupport::TypeInfo ti, bool isCangjieArray)
 {
     Encode(

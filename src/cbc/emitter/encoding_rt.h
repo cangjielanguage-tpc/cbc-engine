@@ -69,6 +69,8 @@ void Encode(ByteBuffer& buf, RT::MStructFieldOp command);
 void Encode(ByteBuffer& buf, RT::CopyFieldOp command);
 void Encode(ByteBuffer& buf, RT::CopyDerived command);
 void Encode(ByteBuffer& buf, RT::CopyDerivedGeneric command);
+void Encode(ByteBuffer& buf, RT::CopyLocal command);
+void Encode(ByteBuffer& buf, RT::CopyLocalGeneric command);
 void Encode(ByteBuffer& buf, RT::Index command);
 void Encode(ByteBuffer& buf, RT::IndexGeneric command);
 void Encode(ByteBuffer& buf, RT::ConstIndexGeneric command);

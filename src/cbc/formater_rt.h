@@ -59,6 +59,8 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, MStructFie
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyFieldOp args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyDerived args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyDerivedGeneric args);
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyLocal args);
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyLocalGeneric args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, Index args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, IndexGeneric args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, ConstIndexGeneric args);

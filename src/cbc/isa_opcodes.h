@@ -158,6 +158,12 @@
     X(CallClosureGeneric, CallClosureGeneric)                                                                          \
     X(LeaCForeign, LeaCForeign)                                                                                        \
     X(CallCFunc, CallCFunc)                                                                                            \
+    X(CopyLocal, CopyLocal)                                                                                            \
+    X(CopyToLocal, CopyToLocal)                                                                                        \
+    X(CopyFromLocal, CopyFromLocal)                                                                                    \
+    X(CopyLocalGeneric, CopyLocalGeneric)                                                                              \
+    X(CopyToLocalGeneric, CopyToLocalGeneric)                                                                          \
+    X(CopyFromLocalGeneric, CopyFromLocalGeneric)                                                                      \
     X(_END, Unreachable)
 
 #define ISA_REG_SYM_GROUP_OPCODES(X)                                                                                   \

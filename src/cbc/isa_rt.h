@@ -179,6 +179,12 @@
     X(CBINI64W, BinaryChecked, "$0cbin.64 $2ir $3ir $1I64")                                                            \
     X(COPY_DERIVED, CopyDerived, "copy.derived $0ir $1ir $2ir $3ir $4U64")                                             \
     X(COPY_DERIVED_GENERIC, CopyDerivedGeneric, "copy.derived.g $0ir $1ir $2ir $3ir $4ir")                             \
+    X(COPY_LOCAL, CopyLocal, "copy.local $0ir $1ir $2U64")                                                             \
+    X(COPY_TO_LOCAL, CopyDerived, "copy.to.local $1ir $2ir $3ir $4U64")                                                \
+    X(COPY_FROM_LOCAL, CopyDerived, "copy.from.local $0ir $1ir $3ir $4U64")                                            \
+    X(COPY_LOCAL_GENERIC, CopyLocalGeneric, "copy.local.g $0ir $1ir $2ir")                                             \
+    X(COPY_TO_LOCAL_GENERIC, CopyLocalGeneric, "copy.to.local.g $0ir $1ir $2ir $3ir")                                  \
+    X(COPY_FROM_LOCAL_GENERIC, CopyLocalGeneric, "copy.from.local.g $0ir $1ir $2ir $3ir")                              \
     X(INDEX, Index, "index $0ir [$1ir $2ir] $3U64")                                                                    \
     X(INDEX_GENERIC, IndexGeneric, "index.g $0ir [$1ir $2ir] $3ir")                                                    \
     X(CONST_INDEX_GENERIC, ConstIndexGeneric, "index.g $0ir [$1ir $2I64] $3ir")                                        \
@@ -736,6 +742,34 @@ struct CopyDerivedGeneric {
         auto src = Format::RR::Decode(reader);
         auto ti  = Format::RR::Decode(reader);
         return CopyDerivedGeneric { opc, dst, src, ti };
+    }
+};
+
+struct CopyLocal {
+    Opcode opc;
+    Format::RR records;
+    RTSupport::TypeInfo ti;
+
+    static CopyLocal Decode(Decoder::ByteReader& reader)
+    {
+        auto opc     = Opcode::Decode(reader);
+        auto records = Format::RR::Decode(reader);
+        auto ti      = reader.Read<RTSupport::TypeInfo>();
+        return CopyLocal { opc, records, ti };
+    }
+};
+
+struct CopyLocalGeneric {
+    Opcode opc;
+    Format::RR first;
+    Format::RR second;
+
+    static CopyLocalGeneric Decode(Decoder::ByteReader& reader)
+    {
+        auto opc    = Opcode::Decode(reader);
+        auto first  = Format::RR::Decode(reader);
+        auto second = Format::RR::Decode(reader);
+        return CopyLocalGeneric { opc, first, second };
     }
 };
 
