@@ -52,10 +52,7 @@ private:
         FunctionId caller;
         CallSiteId callSite;
 
-        bool operator==(const CallEdge& other) const
-        {
-            return caller == other.caller && callSite == other.callSite;
-        }
+        bool operator==(const CallEdge& other) const { return caller == other.caller && callSite == other.callSite; }
     };
 
     struct CallEdgeHash {
@@ -66,6 +63,8 @@ private:
             return a ^ (b << 1);
         }
     };
+
+    using CallCounters = std::unordered_map<CallEdge, uint64_t, CallEdgeHash>;
 
     FiberProfileManager() : worker(&FiberProfileManager::Run, this) {}
 
@@ -79,7 +78,7 @@ private:
         worker.join();
     }
 
-    void ProcessRecord(const FiberProfile::CallRecord& record)
+    void ProcessRecord(const FiberProfile::CallRecord& record, CallCounters& counters)
     {
         CallEdge edge { record.caller, record.callSite };
         const auto count = ++counters[edge];
@@ -113,40 +112,56 @@ private:
         }
     }
 
-    void ProcessBuffer(const FiberProfile::CallBuffer& buffer, uint32_t start, uint32_t count)
+    void ProcessBuffer(const FiberProfile::CallBuffer& buffer, uint32_t start, uint32_t count, CallCounters& counters)
     {
         for (uint32_t i = 0; i < count; ++i) {
             const auto index = (start + i) & (FiberProfile::CALL_BUFFER_SIZE - 1);
-            ProcessRecord(buffer.records[index]);
+            ProcessRecord(buffer.records[index], counters);
         }
     }
 
-    void ConsumePublished(FiberProfile& profile)
+    static void ChangeReaderState(
+        FiberProfile& profile, FiberProfile::ReaderState from, FiberProfile::ReaderState to, std::memory_order order
+    )
     {
-        for (auto& buffer : profile.buffers) {
-            if (!buffer.ready.load(std::memory_order_acquire)) {
-                continue;
+        while (true) {
+            auto expected = from;
+            if (profile.readerState.compare_exchange_weak(expected, to, order, std::memory_order_relaxed)) {
+                return;
             }
-
-            ProcessBuffer(buffer, 0, FiberProfile::CALL_BUFFER_SIZE);
-            buffer.ready.store(false, std::memory_order_release);
+            std::this_thread::yield();
         }
     }
 
-    bool ConsumeProfile(FiberProfile& profile)
+    void ConsumePublished(FiberProfile& profile, CallCounters& counters)
     {
-        // Take one snapshot before reading ready flags. If the producer has
-        // finished, this acquire makes all of its final state visible.
+        ChangeReaderState(
+            profile, FiberProfile::ReaderState::NO, FiberProfile::ReaderState::YES, std::memory_order_acquire
+        );
+
+        const auto writerIndex = profile.sharedWriterIndex.load(std::memory_order_acquire);
+        if (writerIndex != FiberProfile::NO_PUBLISHED_BUFFER) {
+            const auto readerIndex = writerIndex ^ 1U;
+            ProcessBuffer(profile.buffers[readerIndex], 0, FiberProfile::CALL_BUFFER_SIZE, counters);
+        }
+
+        ChangeReaderState(
+            profile, FiberProfile::ReaderState::YES, FiberProfile::ReaderState::NO, std::memory_order_release
+        );
+    }
+
+    bool ConsumeProfile(FiberProfile& profile, CallCounters& counters)
+    {
         const bool finished = !profile.active.load(std::memory_order_acquire);
 
-        ConsumePublished(profile);
+        ConsumePublished(profile, counters);
 
         if (finished) {
             // Producer is permanently gone, so it is now safe to read
             // even the never-published, partially-filled active buffer.
             auto& current        = profile.buffers[profile.writerIndex];
             const uint32_t start = profile.count == FiberProfile::CALL_BUFFER_SIZE ? profile.cursor : 0;
-            ProcessBuffer(current, start, profile.count);
+            ProcessBuffer(current, start, profile.count, counters);
         }
 
         return finished;
@@ -154,9 +169,10 @@ private:
 
     void ConsumeActiveProfiles()
     {
+        CallCounters counters;
         for (auto it = activeProfiles.begin(); it != activeProfiles.end();) {
             auto& profile = **it;
-            if (ConsumeProfile(profile)) {
+            if (ConsumeProfile(profile, counters)) {
                 it = activeProfiles.erase(it);
             } else {
                 ++it;
@@ -192,26 +208,32 @@ private:
 
     // Owned exclusively by collector thread.
     std::list<FiberProfileHandle> activeProfiles;
-    std::unordered_map<CallEdge, uint64_t, CallEdgeHash> counters;
 
     std::thread worker;
 };
 
 void FiberProfile::TryPublish()
 {
-    const uint32_t nextIndex = writerIndex ^ 1u;
-    auto& next               = buffers[nextIndex];
-
-    if (next.ready.load(std::memory_order_acquire)) {
-        return;
+    auto previous = readerState.load(std::memory_order_relaxed);
+    while (previous == ReaderState::TRANS ||
+           !readerState.compare_exchange_weak(
+               previous, ReaderState::TRANS, std::memory_order_acq_rel, std::memory_order_relaxed
+           )) {
+        if (previous == ReaderState::TRANS) {
+            std::this_thread::yield();
+            previous = readerState.load(std::memory_order_relaxed);
+        }
     }
 
-    auto& current = buffers[writerIndex];
-    current.ready.store(true, std::memory_order_release);
+    if (previous == ReaderState::NO) {
+        writerIndex ^= 1U;
+        cursor       = 0;
+        count        = 0;
 
-    writerIndex = nextIndex;
-    cursor      = 0;
-    count       = 0;
+        sharedWriterIndex.store(writerIndex, std::memory_order_release);
+    }
+
+    readerState.store(previous, std::memory_order_release);
 }
 
 FiberProfileHandle CreateFiberProfile() { return FiberProfileManager::Instance().RegisterFiber(); }
