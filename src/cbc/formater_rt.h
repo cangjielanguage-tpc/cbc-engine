@@ -38,6 +38,7 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, InterfaceC
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B13i64i32 args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, StructFieldOp args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, StoreGenericOp args);
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, StoreFrameImm args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, AtomicOp args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, Offset args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, M1 args);

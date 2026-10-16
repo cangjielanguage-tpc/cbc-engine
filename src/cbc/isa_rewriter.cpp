@@ -1682,8 +1682,7 @@ struct IsaRewriter : public IsaParser {
 
     void StoreUntypedImm(uint64_t imm, uint16_t us) override
     {
-        emit.MovImm(Format::Width::W64, IReg::IR_ACC, imm);
-        emit.StoreFrame(Format::StoreAccessKind::ST_64, IReg::IR_ACC, UntypedSlotOffset(us));
+        emit.StoreFrameImm(Format::StoreAccessKind::ST_64, imm, UntypedSlotOffset(us));
     }
 
     void LoadTyped(AnyReg dst, uint16_t ts, uint16_t fieldId) override
@@ -1730,8 +1729,7 @@ struct IsaRewriter : public IsaParser {
         auto field = f.value();
         if (field->offset.has_value()) {
             auto offset = TypedSlotOffset(ts) + field->offset.value();
-            emit.MovImm(Format::Width::W64, IReg::IR_ACC, imm);
-            emit.StoreFrame(Format::StoreAccessKind::ST_64, IReg::IR_ACC, offset);
+            emit.StoreFrameImm(Stk(field->fieldType.GetKind()), imm, offset);
         } else {
             errStream << "Failed to get offset of field " << field << Stream::endl;
             Fail();

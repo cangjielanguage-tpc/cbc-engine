@@ -450,6 +450,13 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, StoreGener
     formatter.Format();
 }
 
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, StoreFrameImm args)
+{
+    Operand operands[] = { static_cast<uint64_t>(args.stk), args.imm, static_cast<uint64_t>(args.offs) };
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
+    formatter.Format();
+}
+
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, AtomicOp args)
 {
     Operand operands[] = { args.rr1.x, args.rr1.y, args.rr2.x, args.rr2.y, args.offset };

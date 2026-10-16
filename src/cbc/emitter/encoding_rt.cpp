@@ -308,6 +308,19 @@ void Encode(ByteBuffer& buf, RT::StoreGenericOp command)
     }
 }
 
+void Encode(ByteBuffer& buf, RT::StoreFrameImm command)
+{
+    Encode(buf, command.opc);
+    buf.AddW8(static_cast<uint8_t>(command.stk));
+    switch (command.opc) {
+        case RT::Opcode::STORE_FRAME_IMM_1: buf.AddW8(static_cast<uint8_t>(command.imm)); break;
+        case RT::Opcode::STORE_FRAME_IMM_2: buf.AddW16(static_cast<uint16_t>(command.imm)); break;
+        case RT::Opcode::STORE_FRAME_IMM_4: buf.AddW32(static_cast<uint32_t>(command.imm)); break;
+        default:                            buf.AddW64(command.imm);
+    }
+    buf.AddW32(static_cast<uint32_t>(command.offs));
+}
+
 void Encode(ByteBuffer& buf, RT::MStructFieldOp command)
 {
     Encode(buf, command.opc);

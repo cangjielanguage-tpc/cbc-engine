@@ -4,6 +4,7 @@
 #include "isa.h"
 #include "runtimesupport/runtime.h"
 #include "utils/assertion.h"
+#include "utils/math.h"
 #include <cstdint>
 
 // X parameters: opcode, encoding format, string format
@@ -203,7 +204,11 @@
     X(STK_PARAM, StackParam, "st.stack.param $0ir $1U16")                                                              \
     X(STK_PARAM_F, StackParamF, "st.stack.param.f $0fr $1U16")                                                         \
     X(STK_PARAM_S16, StackParamS16, "st.stack.param.s.16 $0I64 $1U16")                                                 \
-    X(STK_PARAM_S32, StackParamS32, "st.stack.param.s.32 $0I64 $1U16")
+    X(STK_PARAM_S32, StackParamS32, "st.stack.param.s.32 $0I64 $1U16")                                                 \
+    X(STORE_FRAME_IMM_1, StoreFrameImm, "st.frame.imm.1 $0stk $1U8 $2U32")                                              \
+    X(STORE_FRAME_IMM_2, StoreFrameImm, "st.frame.imm.2 $0stk $1U16 $2U32")                                             \
+    X(STORE_FRAME_IMM_4, StoreFrameImm, "st.frame.imm.4 $0stk $1U32 $2U32")                                             \
+    X(STORE_FRAME_IMM_8, StoreFrameImm, "st.frame.imm.8 $0stk $1U64 $2U32")
 
 // X parameters: opcode, encoding format, string format, is tail
 #define CBC_RT_MEMOPCODES(X)                                                                                           \
@@ -605,6 +610,17 @@ struct StoreGenericOp {
     static StoreGenericOp Decode(Decoder::ByteReader& reader)
     {
         auto opc = Opcode::Decode(reader);
+        switch (opc) {
+            case Opcode::STORE_GENERIC: return Decode0(reader);
+            case Opcode::STORE_GENERIC_1: return Decode1(reader);
+            case Opcode::STORE_GENERIC_4: return Decode4(reader);
+            default: FATAL("unexpected opcode: %u", opc);
+        }
+    }
+
+    static StoreGenericOp Decode0(Decoder::ByteReader& reader)
+    {
+        auto opc = Opcode::Decode(reader);
         ASSERT(opc == Opcode::STORE_GENERIC);
         auto rr1 = Format::RR::Decode(reader);
         auto rr2 = Format::RR::Decode(reader);
@@ -629,6 +645,69 @@ struct StoreGenericOp {
         auto rr2    = Format::RR::Decode(reader);
         auto offset = reader.Read32();
         return StoreGenericOp { opc, rr1.x.IR(), rr1.y.IR(), rr2.x.IR(), rr2.y.IR(), offset };
+    }
+};
+
+struct StoreFrameImm {
+    Opcode opc;
+    Format::StoreAccessKind stk;
+    uint64_t imm;
+    int32_t offs;
+
+    static StoreFrameImm Decode(Decoder::ByteReader& reader)
+    {
+        auto opc = reader.PeekOpcode();
+        switch (opc) {
+            case Opcode::STORE_FRAME_IMM_1: return Decode1(reader);
+            case Opcode::STORE_FRAME_IMM_2: return Decode2(reader);
+            case Opcode::STORE_FRAME_IMM_4: return Decode4(reader);
+            case Opcode::STORE_FRAME_IMM_8: return Decode8(reader);
+            default: FATAL("unexpected opcode: %u", opc);
+        }
+    }
+
+    static StoreFrameImm Decode1(Decoder::ByteReader& reader)
+    {
+        auto opc  = Opcode::Decode(reader);
+        ASSERT(opc == Opcode::STORE_FRAME_IMM_1);
+        auto stk  = Format::StoreAccessKind::From(reader.Read8());
+        auto imm  = reader.Read8();
+        auto offs = static_cast<int32_t>(reader.Read32());
+        ASSERT(MathUtils::IsNBitsSigned(imm, 8));
+        return StoreFrameImm { opc, stk, imm, offs };
+    }
+
+    static StoreFrameImm Decode2(Decoder::ByteReader& reader)
+    {
+        auto opc  = Opcode::Decode(reader);
+        ASSERT(opc == Opcode::STORE_FRAME_IMM_2);
+        auto stk  = Format::StoreAccessKind::From(reader.Read8());
+        auto imm  = reader.Read16();
+        auto offs = static_cast<int32_t>(reader.Read32());
+        ASSERT(MathUtils::IsNBitsSigned(imm, 16));
+        return StoreFrameImm { opc, stk, imm, offs };
+    }
+
+    static StoreFrameImm Decode4(Decoder::ByteReader& reader)
+    {
+        auto opc  = Opcode::Decode(reader);
+        ASSERT(opc == Opcode::STORE_FRAME_IMM_4);
+        auto stk  = Format::StoreAccessKind::From(reader.Read8());
+        auto imm  = reader.Read32();
+        auto offs = static_cast<int32_t>(reader.Read32());
+        ASSERT(MathUtils::IsNBitsSigned(imm, 32));
+        return StoreFrameImm { opc, stk, imm, offs };
+    }
+
+    static StoreFrameImm Decode8(Decoder::ByteReader& reader)
+    {
+        auto opc  = Opcode::Decode(reader);
+        ASSERT(opc == Opcode::STORE_FRAME_IMM_8);
+        auto stk  = Format::StoreAccessKind::From(reader.Read8());
+        auto imm  = reader.Read64();
+        auto offs = static_cast<int32_t>(reader.Read32());
+        ASSERT(MathUtils::IsNBitsSigned(imm, 64));
+        return StoreFrameImm { opc, stk, imm, offs };
     }
 };
 

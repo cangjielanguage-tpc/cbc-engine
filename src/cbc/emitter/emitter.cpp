@@ -1005,6 +1005,30 @@ void Emitter::StoreFrame(StoreAccessKind stk, Reg src, int32_t offset)
     }
 }
 
+void Emitter::StoreFrameImm(StoreAccessKind stk, uint64_t imm, int32_t offset)
+{
+    if (stk == StoreAccessKind::ST_REF) {
+        ASSERT(imm == 0);
+        stk = StoreAccessKind::ST_64;
+    }
+    switch (stk) {
+        case StoreAccessKind::ST_F32: stk = StoreAccessKind::ST_32; break;
+        case StoreAccessKind::ST_F64: stk = StoreAccessKind::ST_64; break;
+        default: break;
+    }
+    RT::Opcode opc;
+    if (MathUtils::IsNBitsSigned(imm, 8) || stk == StoreAccessKind::ST_8) {
+        opc = RT::Opcode::STORE_FRAME_IMM_1;
+    } else if (MathUtils::IsNBitsSigned(imm, 16) || stk == StoreAccessKind::ST_16) {
+        opc = RT::Opcode::STORE_FRAME_IMM_2;
+    } else if (MathUtils::IsNBitsSigned(imm, 32) || stk == StoreAccessKind::ST_32) {
+        opc = RT::Opcode::STORE_FRAME_IMM_4;
+    } else {
+        opc = RT::Opcode::STORE_FRAME_IMM_8;
+    }
+    Encode(segment, RT::StoreFrameImm { opc, stk, imm, offset });
+}
+
 void Emitter::PrepareTyped(uint64_t size, int32_t offset)
 {
     Encode(

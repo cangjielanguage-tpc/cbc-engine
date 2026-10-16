@@ -171,17 +171,6 @@ void MemSpaceEmitter::StoreObjImm(StoreAccessKind stk, Reg base, uint64_t imm)
     );
 }
 
-void MemSpaceEmitter::StoreFrameImm(StoreAccessKind stk, uint64_t imm)
-{
-    if (stk == StoreAccessKind::ST_REF) {
-        ASSERT(imm == 0);
-        return;
-    }
-    stk           = NormalizeStoreImmKind(stk);
-    auto opcStart = ComputeStoreImmStart(stk, RT::MemOpcode::FSTI_START_OPCODE);
-    EmitStoreImm(segment, stk, imm, opcStart, RT::MemOpcode::FSTI_END_OPCODE, ImmBuilder {});
-}
-
 void MemSpaceEmitter::LoadGeneric(IReg dst, IReg base, IReg typeInfo)
 {
     auto command = RT::M3rrrr { .opc = RT::MemOpcode::DLD_GENERIC, .rr1 = { base, typeInfo }, .rr2 = { dst, base } };
