@@ -653,11 +653,12 @@ engine_i2c_call:
 // preserved: ECTYPE_REG, rbp
 // TLS_REG can be changed after context-switch
 // Calls the runtime I2N stub which wraps the native call into a GC-safe region.
-// TODO: support arbitrary number of arguments
-// TODO: support varargs
 // TODO: support structs pass-by-value
 engine_i2n_call:
   // jumped from .Linterpreter_call without return address to return
+  mov   rax, rdi
+  shr   rax, I2N_VEC_COUNT_SHIFT
+  and   eax, 0xf                       // varargs vector register count
   mov   rdx, rdi
   shr   rdx, I2N_STACK_ARGS_SIZE_SHIFT // stack arguments count
   mov   rcx, rdi
@@ -667,7 +668,6 @@ engine_i2n_call:
   mov   rsi, rsp                       // stack arguments pointer
   lea   r8, [rip + engine_c_abi_adapter]
   mov   r9, TLS_REG
-  xor   eax, eax                       // varargs vector register count
   call  [rip + engine_i2n_stub] // the I2N stub calls engine_c_abi_adapter
   jmp   .Lrestart_interpretation
 
