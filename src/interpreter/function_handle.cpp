@@ -162,7 +162,7 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
             name = MethodName(session, method);
         }
 
-        auto mem    = new (std::nothrow) DynamicFunctionHandle(i2Call, c2Call, methodDef, name);
+        auto mem = new (std::nothrow) DynamicFunctionHandle(i2Call, c2Call, methodDef, name);
         if (mem == nullptr) {
             FATAL("out of memory");
         }
