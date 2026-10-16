@@ -908,7 +908,6 @@ LABEL(COPY_DERIVED) {
     NEXT;
 }
 
-// Unused. TODO: support copying in generic context
 LABEL(COPY_DERIVED_GENERIC) {
     auto args = CopyDerivedGeneric::Decode(reader);
     LOG_INSTR;
