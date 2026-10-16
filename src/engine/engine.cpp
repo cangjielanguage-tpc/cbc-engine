@@ -286,13 +286,16 @@ Engine& Loader::Build()
     auto executable = std::make_shared<Utils::SharedObject>(Utils::SharedObject::OpenCurrentExecutable());
     aotBase.EmplaceBack(executable);
 
+    auto libc = std::make_shared<Utils::SharedObject>(Utils::SharedObject::OpenLibc());
+    foreignBase.EmplaceBack(libc);
+
     auto deps        = ReadDependencies(loader.get(), &CbcFile::AotDependencies, aotBase);
     auto foreignLibs = ReadDependencies(loader.get(), &CbcFile::ForeignLibs, foreignBase);
 
     auto engineInstance = new Engine(std::make_unique<Engine::Impl>(
         std::move(loader->files), std::move(loader->rafs), std::move(deps), std::move(foreignLibs)
     ));
-    g_engineInstance = engineInstance;
+    g_engineInstance    = engineInstance;
     return *engineInstance;
 }
 
@@ -371,7 +374,7 @@ std::optional<Identifier<MethodDefinition>> Engine::FindMain(Session& session, s
     if (!file.has_value()) {
         return std::nullopt;
     }
-    auto f        = file.value();
+    auto f            = file.value();
     auto mainTypeName = f->GetMainTypeName();
     if (!mainTypeName.has_value()) {
         return std::nullopt;

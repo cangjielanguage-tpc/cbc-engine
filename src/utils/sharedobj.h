@@ -18,8 +18,11 @@ public:
     bool IsOpened() const;
     static SharedObject Open(std::string_view str);
     static SharedObject Open(std::string&& str);
+    static SharedObject Open(const char* str);
 
     static SharedObject OpenCurrentExecutable();
+
+    static SharedObject OpenLibc();
 
     // Searches for the symbol named `str` in given shared object.
     // Returns null on error.

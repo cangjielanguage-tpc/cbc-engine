@@ -1,5 +1,6 @@
 #include "sharedobj.h"
 #include "utils/assertion.h"
+#include <cstdlib>
 #include <dlfcn.h>
 
 namespace Utils {
@@ -24,6 +25,32 @@ SharedObject SharedObject::OpenCurrentExecutable()
 {
     void* handle = dlopen(nullptr, RTLD_LAZY);
     return SharedObject(handle, "/proc/self/exe"); // not exactly "universal" name, but it's ok
+}
+
+static const char* GetLibcName()
+{
+    Dl_info libcSOInfo;
+    auto dladdrRes = dladdr((void*)&malloc, &libcSOInfo);
+    if (dladdrRes && libcSOInfo.dli_fname) {
+        return libcSOInfo.dli_fname;
+    }
+
+    return nullptr;
+}
+
+SharedObject SharedObject::OpenLibc()
+{
+    auto libc = GetLibcName();
+    if (!libc) {
+        FATAL("libc is not found");
+    }
+    return Open(libc);
+}
+
+SharedObject SharedObject::Open(const char* str)
+{
+    std::string name(str);
+    return Open(std::move(name));
 }
 
 SharedObject SharedObject::Open(std::string&& str)
