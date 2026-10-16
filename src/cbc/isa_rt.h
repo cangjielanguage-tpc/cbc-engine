@@ -74,8 +74,9 @@
     X(LOAD_GENERIC, B3rrrr, "ld.g $0ir $3ir [($1ir $2ir)]")                                                            \
     X(STORE_GENERIC, B3rrrr, "st.g $0ir $3ir [($1ir $2ir)]")                                                           \
     X(LEA_GENERIC, B7xrrri32, "lea.g $1ir $3ir [$2ir ord=$4U32]")                                                      \
-    X(INIT_NONE_GENERIC, B3rrrr, "init.none.g $0ir $1ir")                                                              \
-    X(INIT_SOME_GENERIC, B3rrrr, "init.some.g $0ir $1ir $2ir $3ir")                                                    \
+    X(INIT_NONE_GENERIC_OPT0, InitOption, "init.none.g0 $1ir")                                                         \
+    X(INIT_SOME_GENERIC_OPT0, InitOption, "init.some.g0 $0ir $1ir")                                                    \
+    X(INIT_SOME_GENERIC_OPT1, InitOption, "init.some.g1 $0ir $1ir")                                                    \
     /* Integral Load/Store instructions end*/                                                                          \
     /* Float Load/Store instructions end*/                                                                             \
     X(LOAD_OBJ_F, B4xi12rr, "ld.$0ldk $2fr [$3ir $1U12]")                                                              \
@@ -461,6 +462,22 @@ struct B3rrrr {
         auto rr1 = Format::RR::Decode(reader);
         auto rr2 = Format::RR::Decode(reader);
         return B3rrrr { opc, rr1, rr2 };
+    }
+};
+
+// 2 bytes: opcode + one byte packing `option` (low nibble) and
+// `underlyingTi` (high nibble). The discriminant-byte flag is baked into
+// the opcode itself (OPT0/OPT1) rather than encoded as a register.
+struct InitOption {
+    Opcode opc;
+    IReg src;
+    IReg underlyingTi;
+
+    static InitOption Decode(Decoder::ByteReader& reader)
+    {
+        auto opc  = Opcode::Decode(reader);
+        uint8_t b = reader.Read8();
+        return InitOption { opc, IReg::From(b & 0xf), IReg::From(b >> 4) };
     }
 };
 

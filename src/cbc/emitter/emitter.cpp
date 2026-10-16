@@ -792,22 +792,16 @@ void Emitter::LeaGeneric(Reg dst, IReg base, IReg ti, uint32_t ordinal)
     );
 }
 
-void Emitter::InitNoneGeneric(IReg underlyingTi, IReg storeDiscriminant)
+void Emitter::InitNoneGeneric(IReg underlyingTi)
 {
-    Encode(
-        segment,
-        RT::B3rrrr { .opc = RT::Opcode::INIT_NONE_GENERIC, .rr1 = { .x = underlyingTi, .y = storeDiscriminant } }
-    );
+    RT::Opcode opc = RT::Opcode::INIT_NONE_GENERIC_OPT0;
+    Encode(segment, RT::InitOption { .opc = opc, .src = IReg::IRZ, .underlyingTi = underlyingTi });
 }
 
-void Emitter::InitSomeGeneric(IReg src, IReg underlyingTi, IReg optionTi, IReg storeDiscriminant)
+void Emitter::InitSomeGeneric(IReg src, IReg underlyingTi, bool opt0)
 {
-    Encode(
-        segment,
-        RT::B3rrrr { .opc = RT::Opcode::INIT_SOME_GENERIC,
-                     .rr1 = { .x = src, .y = underlyingTi },
-                     .rr2 = { .x = optionTi, .y = storeDiscriminant } }
-    );
+    RT::Opcode opc = opt0 ? RT::Opcode::INIT_SOME_GENERIC_OPT0 : RT::Opcode::INIT_SOME_GENERIC_OPT1;
+    Encode(segment, RT::InitOption { .opc = opc, .src = src, .underlyingTi = underlyingTi });
 }
 
 void Emitter::LoadObj(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset)

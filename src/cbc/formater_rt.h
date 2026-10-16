@@ -28,6 +28,7 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B4xi12xr a
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3xi12 args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B4xi12i8 args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3rrrr args);
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, InitOption args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B9i64 args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B7xrrri32 args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, BinaryChecked args);
