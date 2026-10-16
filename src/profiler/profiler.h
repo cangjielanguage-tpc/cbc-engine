@@ -1,21 +1,25 @@
 #pragma once
 
-#if defined(CBC_PROFILER_ATOMIC)
+#if defined(CBC_PROFILER_DOUBLE_BUFFER)
 
-#include "profiler_atomic/profiler.h"
+    #include "profiler_double_buffer/profiler.h"
+
+#elif defined(CBC_PROFILER_ATOMIC)
+
+    #include "profiler_atomic/profiler.h"
 
 #elif defined(CBC_PROFILER_BLOCKING)
 
-#include "profiler_blocking/profiler.h"
+    #include "profiler_blocking/profiler.h"
 
 #else
 
-#include "utils/logger.h"
+    #include "utils/logger.h"
 
-#include <array>
-#include <atomic>
-#include <cstdint>
-#include <memory>
+    #include <array>
+    #include <atomic>
+    #include <cstdint>
+    #include <memory>
 
 namespace Cbc::Profiler {
 
@@ -47,7 +51,8 @@ public:
     }
 
 private:
-    static constexpr uint32_t CALL_BUFFER_SIZE = 4096;
+    static constexpr uint32_t CALL_BUFFER_SIZE    = 4096;
+    static constexpr uint32_t NO_PUBLISHED_BUFFER = 2;
 
     struct CallRecord {
         FunctionId caller;
@@ -56,7 +61,12 @@ private:
 
     struct CallBuffer {
         std::array<CallRecord, CALL_BUFFER_SIZE> records;
-        std::atomic<bool> ready { false };
+    };
+
+    enum class ReaderState : uint8_t {
+        NO,
+        YES,
+        TRANS
     };
 
     // Producer-only. Called after filling the current buffer. If the collector
@@ -72,6 +82,12 @@ private:
     uint32_t writerIndex { 0 };
     uint32_t cursor { 0 }; // next physical slot in current buffer
     uint32_t count { 0 };  // valid entries in current buffer, capped at N
+
+    std::atomic<uint32_t> sharedWriterIndex { NO_PUBLISHED_BUFFER };
+
+    // Written by both producer and collector. TRANS serializes a buffer switch
+    // with the collector taking or releasing its read snapshot.
+    std::atomic<ReaderState> readerState { ReaderState::NO };
 
     std::atomic<bool> active { true };
 };
