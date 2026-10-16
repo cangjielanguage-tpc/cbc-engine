@@ -999,6 +999,30 @@ LABEL(STORE_LONG_FRAME) {
     bool successful = interpreter.StoreFrame(args.xr.imm.STK(), args.xr.r, offset);
     NEXT_COND(successful);
 }
+LABEL(STORE_FRAME_IMM_1) {
+    auto args = RT::StoreFrameImm::Decode1(reader);
+    LOG_INSTR;
+    bool successful = interpreter.StoreFrameImm(args.stk, args.imm, args.offs);
+    NEXT_COND(successful);
+}
+LABEL(STORE_FRAME_IMM_2) {
+    auto args = RT::StoreFrameImm::Decode2(reader);
+    LOG_INSTR;
+    bool successful = interpreter.StoreFrameImm(args.stk, args.imm, args.offs);
+    NEXT_COND(successful);
+}
+LABEL(STORE_FRAME_IMM_4) {
+    auto args = RT::StoreFrameImm::Decode4(reader);
+    LOG_INSTR;
+    bool successful = interpreter.StoreFrameImm(args.stk, args.imm, args.offs);
+    NEXT_COND(successful);
+}
+LABEL(STORE_FRAME_IMM_8) {
+    auto args = RT::StoreFrameImm::Decode8(reader);
+    LOG_INSTR;
+    bool successful = interpreter.StoreFrameImm(args.stk, args.imm, args.offs);
+    NEXT_COND(successful);
+}
 LABEL(LOAD_LONG_REC_F)
 LABEL(LOAD_LONG_REC) {
     auto args = B7xrrri32::Decode(reader);
@@ -1058,7 +1082,7 @@ LABEL(LOAD_GENERIC) {
     }
 }
 LABEL(STORE_GENERIC) {
-    auto args = StoreGenericOp::Decode(reader);
+    auto args = StoreGenericOp::Decode0(reader);
     LOG_INSTR;
     StoreGeneric(args, ectype, handle);
     NEXT;

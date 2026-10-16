@@ -44,6 +44,7 @@ void Encode(ByteBuffer& buf, RT::InterfaceCallGeneric command);
 void Encode(ByteBuffer& buf, RT::B13i64i32 command);
 void Encode(ByteBuffer& buf, RT::StructFieldOp command);
 void Encode(ByteBuffer& buf, RT::StoreGenericOp command);
+void Encode(ByteBuffer& buf, RT::StoreFrameImm command);
 void Encode(ByteBuffer& buf, RT::AtomicOp command);
 void Encode(ByteBuffer& buf, RT::StackParam command);
 void Encode(ByteBuffer& buf, RT::StackParamF command);

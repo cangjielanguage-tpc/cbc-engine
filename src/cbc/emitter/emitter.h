@@ -51,7 +51,6 @@ public:
 
         void StoreObj(StoreAccessKind stk, Reg src, IReg base);
         void StoreObjImm(StoreAccessKind stk, Reg base, uint64_t imm);
-        void StoreFrameImm(StoreAccessKind stk, uint64_t imm);
 
         void LoadGeneric(IReg dst, IReg base, IReg typeInfo);
         void StoreGeneric(IReg src, IReg base, IReg typeInfo);
@@ -219,6 +218,7 @@ public:
 
     void LoadFrame(LoadAccessKind ldk, Reg dst, int32_t offset);
     void StoreFrame(StoreAccessKind stk, Reg src, int32_t offset);
+    void StoreFrameImm(StoreAccessKind stk, uint64_t imm, int32_t offset);
 
     void PrepareTyped(uint64_t size, int32_t offset);
 
