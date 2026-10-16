@@ -199,6 +199,7 @@ struct TypeInfoBuilder {
                 aotTypeDefName = "RawArray";
                 superType      = term.Subterm(0);
                 flag           = HAS_REF_FIELD;
+                gctib          = { .ptr = nullptr };
                 return;
             case Engine::TermKind::VARRAY:
                 type           = TYPE_KIND_VARRAY;
