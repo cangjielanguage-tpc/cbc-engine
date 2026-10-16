@@ -634,6 +634,24 @@ struct ResolverProxy {
         }
     }
 
+    // Foreign definition contains only fixed parameters but in call site of vararg function
+    // there can be also additional arguments.
+    static bool IsForeignSigCompatible(Term defSig, Term refSig)
+    {
+        auto defArgsCount = defSig.GetLength() - 1;
+        auto refArgsCount = refSig.GetLength() - 1;
+        bool sameRetTypes = defSig.Subterm(defArgsCount) == refSig.Subterm(refArgsCount);
+        if (defArgsCount > refArgsCount || !sameRetTypes) {
+            return false;
+        }
+        for (int i = 0; i < defArgsCount; i++) {
+            if (!(defSig.Subterm(i) == refSig.Subterm(i))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     static std::optional<DirectCall::Content> ResolveAotDirectCall(Resolver& resolver, ResolvedMethodReference& ref)
     {
         auto fileId = resolver.method.GetFileId();
@@ -684,6 +702,9 @@ struct ResolverProxy {
                 auto sig = sub(TermManager::Resolve(resolver, def.Signature()));
 
                 if (sig == ref.signature) {
+                    return m;
+                }
+                if (def.GetFlags().Is(Image::MethodFlag::FOREIGN) && IsForeignSigCompatible(sig, ref.signature)) {
                     return m;
                 }
             }

@@ -57,6 +57,8 @@ public:
 
     int MaxStackSlot() const { return slotIdx; }
 
+    int MaxFRegs() const { return fargIdx; }
+
 private:
     PlatformDescription desc;
     int iargIdx;
