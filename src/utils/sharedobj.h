@@ -1,3 +1,4 @@
+#pragma once
 
 #include <string>
 #include <string_view>
@@ -20,7 +21,6 @@ public:
     static SharedObject Open(std::string&& str);
 
     static SharedObject OpenCurrentExecutable();
-    static SharedObject FromExternalHandle(void* handle, std::string_view name);
 
     // Searches for the symbol named `str` in given shared object.
     // Returns null on error.
@@ -29,10 +29,9 @@ public:
     std::string const& Name() const;
 
 private:
-    SharedObject(void* handle, std::string&& name, bool ownsHandle = true);
+    SharedObject(void* handle, std::string&& name);
     void* handle;
     std::string name;
-    bool ownsHandle;
 };
 
 } // namespace Utils

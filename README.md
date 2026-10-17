@@ -62,8 +62,8 @@ The helper library is located in `output/<target-os>_<target-arch>/libcbcengine-
 For iOS targets, `build-helper-lib` also produces `libcbcengine-helper.a`.
 
 Applications using a `cbcengine` built with `--static-helper` must link the
-matching static helper archive and expose its symbols through the application
-handle passed in `DYN_CJNativeInterface::appLibHandle`.
+matching static helper archive and retain and export its symbols from the
+executable.
 
 ## How to run tests
 

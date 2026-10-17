@@ -1,24 +1,23 @@
 #include "sharedobj.h"
-#include "utils/assertion.h"
 #include <dlfcn.h>
 
 namespace Utils {
 
 SharedObject::SharedObject(SharedObject&& other)
-    : handle(other.handle), name(std::move(other.name)), ownsHandle(other.ownsHandle)
+    : handle(other.handle), name(std::move(other.name))
 {
     other.handle = nullptr;
 }
 
-SharedObject::SharedObject() : handle(nullptr), name(), ownsHandle(false) {}
+SharedObject::SharedObject() : handle(nullptr), name() {}
 
-SharedObject::SharedObject(void* handle, std::string&& name, bool ownsHandle)
-    : handle(handle), name(std::move(name)), ownsHandle(ownsHandle)
+SharedObject::SharedObject(void* handle, std::string&& name)
+    : handle(handle), name(std::move(name))
 {}
 
 SharedObject::~SharedObject()
 {
-    if (handle != nullptr && ownsHandle) {
+    if (handle != nullptr) {
         dlclose(handle);
     }
 }
@@ -27,11 +26,6 @@ SharedObject SharedObject::OpenCurrentExecutable()
 {
     void* handle = dlopen(nullptr, RTLD_LAZY);
     return SharedObject(handle, "/proc/self/exe"); // not exactly "universal" name, but it's ok
-}
-
-SharedObject SharedObject::FromExternalHandle(void* handle, std::string_view name)
-{
-    return SharedObject(handle, std::string(name), false);
 }
 
 SharedObject SharedObject::Open(std::string&& str)
@@ -54,12 +48,11 @@ SharedObject& SharedObject::operator=(SharedObject&& other)
     if (this == &other) {
         return *this;
     }
-    if (handle != nullptr && ownsHandle) {
+    if (handle != nullptr) {
         dlclose(this->handle);
     }
     this->handle     = other.handle;
     this->name       = std::move(other.name);
-    this->ownsHandle = other.ownsHandle;
     other.handle     = nullptr;
     return *this;
 }
