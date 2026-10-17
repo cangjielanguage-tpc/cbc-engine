@@ -6,20 +6,20 @@
 namespace Utils {
 
 SharedObject::SharedObject(SharedObject&& other)
-    : handle(other.handle), name(std::move(other.name)), ownsHandle(other.ownsHandle)
+    : handle(other.handle), name(std::move(other.name))
 {
     other.handle = nullptr;
 }
 
-SharedObject::SharedObject() : handle(nullptr), name(), ownsHandle(false) {}
+SharedObject::SharedObject() : handle(nullptr), name() {}
 
-SharedObject::SharedObject(void* handle, std::string&& name, bool ownsHandle)
-    : handle(handle), name(std::move(name)), ownsHandle(ownsHandle)
+SharedObject::SharedObject(void* handle, std::string&& name)
+    : handle(handle), name(std::move(name))
 {}
 
 SharedObject::~SharedObject()
 {
-    if (handle != nullptr && ownsHandle) {
+    if (handle != nullptr) {
         dlclose(handle);
     }
 }
@@ -56,11 +56,6 @@ SharedObject SharedObject::Open(const char* str)
     return Open(std::move(name));
 }
 
-SharedObject SharedObject::FromExternalHandle(void* handle, std::string_view name)
-{
-    return SharedObject(handle, std::string(name), false);
-}
-
 SharedObject SharedObject::Open(std::string&& str)
 {
     void* handle = dlopen(str.c_str(), RTLD_LAZY);
@@ -81,12 +76,11 @@ SharedObject& SharedObject::operator=(SharedObject&& other)
     if (this == &other) {
         return *this;
     }
-    if (handle != nullptr && ownsHandle) {
+    if (handle != nullptr) {
         dlclose(this->handle);
     }
     this->handle     = other.handle;
     this->name       = std::move(other.name);
-    this->ownsHandle = other.ownsHandle;
     other.handle     = nullptr;
     return *this;
 }
