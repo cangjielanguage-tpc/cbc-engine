@@ -1,3 +1,4 @@
+#pragma once
 
 #include <string>
 #include <string_view>
@@ -21,7 +22,6 @@ public:
     static SharedObject Open(const char* str);
 
     static SharedObject OpenCurrentExecutable();
-    static SharedObject FromExternalHandle(void* handle, std::string_view name);
 
     static SharedObject OpenLibc();
 
@@ -32,10 +32,9 @@ public:
     std::string const& Name() const;
 
 private:
-    SharedObject(void* handle, std::string&& name, bool ownsHandle = true);
+    SharedObject(void* handle, std::string&& name);
     void* handle;
     std::string name;
-    bool ownsHandle;
 };
 
 } // namespace Utils

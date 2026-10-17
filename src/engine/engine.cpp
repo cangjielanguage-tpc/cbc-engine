@@ -9,7 +9,6 @@
 #include "image/io/stream_file_reader.h"
 #include "image/reader.h"
 #include "interpreter/function_handle.h"
-#include "runtimesupport/impl/entrypoint.h"
 #include "utils/assertion.h"
 #include "utils/heap.h"
 #include <cstdint>
@@ -218,20 +217,8 @@ static Utils::Vector<Dependencies> ReadDependencies(
 )
 {
     static constexpr char delim = ':';
-    static constexpr std::string_view applicationDependency = "testnw_long_link";
-
     Utils::Vector<std::shared_ptr<Utils::SharedObject>> objects;
-    std::shared_ptr<Utils::SharedObject> application;
-    if (g_appLibHandle != nullptr) {
-        application = std::make_shared<Utils::SharedObject>(
-            Utils::SharedObject::FromExternalHandle(g_appLibHandle, applicationDependency)
-        );
-    }
-
-    auto addObject = [&objects, &application](std::string_view name) {
-        if (name == applicationDependency && application) {
-            return application;
-        }
+    auto addObject = [&objects](std::string_view name) {
         auto soName = UpdateSharedObjName(name);
         // Avoid duplicate dlopen calls
         for (auto& obj : objects) {
