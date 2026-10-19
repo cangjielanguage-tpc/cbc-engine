@@ -881,7 +881,7 @@ common_landing_pad:
   mov   x12, EXTRA_REG // use x12 (volatile) as temporary exception holder
 
   adr   x1, .Lexception_handlers
-  ldr   w0, [x1, x0, lsl #2]
+  ldrsw x0, [x1, x0, lsl #2]
   add   x1, x1, x0
   br    x1
 
