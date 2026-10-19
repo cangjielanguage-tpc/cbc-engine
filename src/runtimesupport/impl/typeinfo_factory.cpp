@@ -1087,8 +1087,6 @@ std::optional<TypeInfo> CreateTypeInfo(Engine::Session& session, TypeInfoManager
 }
 
 // Native reference enums use ordinary class definitions in current CBC metadata.
-// Validate before NewAotTerm promotes a native name to a CBC definition: its own
-// representation/arity checks are assertions and are disabled in Release builds.
 static Engine::Term ReconstructReferenceEnum(
     Engine::Session& session, std::string_view name, Utils::Span<Engine::Term const> arguments
 )
