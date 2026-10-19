@@ -5,6 +5,7 @@
 #include <iterator>
 #include <limits>
 #include <sstream>
+#include <vector>
 
 #include "cbc/isa_disasm.h"
 #include "engine/engine.h"
@@ -75,13 +76,24 @@ TEST_F(CbcTest, Empty)
     ASSERT_EQ(str, "abc");
 }
 
+// Deliberately never destroyed: engines are process-wide, and the registry must outlive
+// static destructors so that LeakSanitizer still sees every engine as reachable at exit.
+// TODO: FIXME #182
+static std::vector<Engine::Engine*>& BuiltEngines()
+{
+    static auto* engines = new std::vector<Engine::Engine*>;
+    return *engines;
+}
+
 static Engine::Engine& Open(std::string_view fileName)
 {
     Engine::Loader loader;
     auto file       = OpenAsm(std::string(fileName));
     bool successful = loader.Load(std::move(file), fileName);
     ASSERT(successful);
-    return loader.Build();
+    auto& engine = loader.Build();
+    BuiltEngines().push_back(&engine);
+    return engine;
 }
 
 static Interpretation::ExecBytecodeInfo* Rewrite(
@@ -105,6 +117,7 @@ static Interpretation::ExecBytecodeInfo* OpenAndRewrite(std::string name, std::s
     ASSERT(successful);
 
     auto& engine = loader.Build();
+    BuiltEngines().push_back(&engine);
     Engine::Session session(engine);
     auto methodId    = engine.FindMain(session, fileName);
     auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
