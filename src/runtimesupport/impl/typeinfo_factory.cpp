@@ -496,7 +496,8 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
     auto& termManager = Engine::TermManager::Of(session);
 
     auto acquireTypeInfo = [&manager, &session](Engine::Term term) {
-        ASSERT(term.GetKind() != Engine::TermKind::AOT_TYPE);
+        // A native generic argument may have no CBC definition. AcquireTypeInfo
+        // already resolves these AOT terms through the native runtime.
         return manager.AcquireTypeInfo(session, term);
     };
 
@@ -1085,6 +1086,24 @@ std::optional<TypeInfo> CreateTypeInfo(Engine::Session& session, TypeInfoManager
     return ti;
 }
 
+// Native reference enums use ordinary class definitions in current CBC metadata.
+static Engine::Term ReconstructReferenceEnum(
+    Engine::Session& session, std::string_view name, Utils::Span<Engine::Term const> arguments
+)
+{
+    auto type = session.GetEngine().FindType(session, name);
+    if (type.has_value()) {
+        auto def = Decode::Read(session, *type);
+        if (!def.GetFlags().Is(Image::TypeKind::CLASS) || def->enumKind != Image::EnumKind::NOT_ENUM) {
+            FATAL("Native TEMP_ENUM %.*s requires a CBC class definition", int(name.size()), name.data());
+        }
+        if (def->arity != arguments.Size()) {
+            FATAL("Native TEMP_ENUM %.*s has incompatible CBC arity", int(name.size()), name.data());
+        }
+    }
+    return Engine::TermManager::Of(session).NewAotTerm(session, name, arguments, true);
+}
+
 Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& manager, TypeInfo ti)
 {
     using namespace Engine;
@@ -1107,7 +1126,6 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& ma
     bool isRef = typeInfo->type < 0;
 
     switch (typeInfo->type) {
-        case TYPE_KIND_TEMP_ENUM:
         case TYPE_KIND_FUNC:
         case TYPE_KIND_GENERIC_CUSTOM:
         case TYPE_KIND_GENERIC_TI:
@@ -1154,6 +1172,7 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& ma
             case TYPE_KIND_STRUCT:
             case TYPE_KIND_INTERFACE:
             case TYPE_KIND_CLASS:     break;
+            case TYPE_KIND_TEMP_ENUM: break;
             case TYPE_KIND_ENUM:      isEnum = true; break;
 
             default: FATAL("Unexpected type kind %d", typeInfo->type);
@@ -1173,7 +1192,9 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& ma
         auto name         = typeTemplate->name;
 
         Term term;
-        if (isEnum) {
+        if (typeInfo->type == TYPE_KIND_TEMP_ENUM) {
+            term = ReconstructReferenceEnum(session, name, subTerms);
+        } else if (isEnum) {
             term = termManager.NewEnumTerm(session, name, subTerms);
         } else {
             term = termManager.NewAotTerm(session, name, subTerms, isRef);
@@ -1205,6 +1226,7 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& ma
             case TYPE_KIND_STRUCT:
             case TYPE_KIND_INTERFACE:
             case TYPE_KIND_CLASS:     break;
+            case TYPE_KIND_TEMP_ENUM: break;
             case TYPE_KIND_ENUM:      isEnum = true; break;
 
             default: FATAL("Unexpected type kind %d", typeInfo->type);
@@ -1217,7 +1239,9 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& ma
         auto name         = typeInfo->typeInfoName;
         Term term;
 
-        if (isEnum) {
+        if (typeInfo->type == TYPE_KIND_TEMP_ENUM) {
+            term = ReconstructReferenceEnum(session, name, noSubTerms);
+        } else if (isEnum) {
             term = termManager.NewEnumTerm(session, name, noSubTerms);
         } else {
             term = termManager.NewAotTerm(session, name, noSubTerms, isRef);
