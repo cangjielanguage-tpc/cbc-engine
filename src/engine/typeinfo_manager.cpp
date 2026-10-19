@@ -84,10 +84,9 @@ struct BasicTypeInfoManager : public RTSupport::TypeInfoManager {
     {
         for (auto [t, ti] : typesWithoutUUID) {
             auto uuid = RTSupport::MetaInfo::GetUUID(ti);
-            if (auto it = uuidMap.find(uuid); it != uuidMap.end()) {
-                // The `result` Typeinfo already been created before,
-                // which is possible only if we incorrectly reconstructed term
-                // from TypeInfo.
+            if (auto it = uuidMap.find(uuid); it != uuidMap.end() && it->second != t) {
+                // Native TypeInfos can be encountered before CBC requests the
+                // same canonical term. Only a different term is a conflict.
                 FATAL("Unexpected UUID associated term.");
             }
             uuidMap.insert_or_assign(uuid, t);
