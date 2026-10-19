@@ -777,17 +777,12 @@ void Emitter::StoreGeneric(IReg src, IReg baseRef, IReg base, IReg ti, uint32_t 
     if (offset == 0) {
         opc = RT::Opcode::STORE_GENERIC;
     } else if (offset < 255) {
-        opc = RT::Opcode::STORE_GENERIC;
+        opc = RT::Opcode::STORE_GENERIC_1;
     }
 
     Encode(
         segment,
-        RT::StoreGenericOp { .opc     = RT::Opcode::STORE_GENERIC_1,
-                             .src     = src,
-                             .base    = baseRef,
-                             .derived = base,
-                             .ti      = ti,
-                             .offset  = offset }
+        RT::StoreGenericOp { .opc = opc, .src = src, .base = baseRef, .derived = base, .ti = ti, .offset = offset }
     );
 }
 
@@ -803,7 +798,7 @@ void Emitter::LeaGeneric(Reg dst, IReg base, IReg ti, uint32_t ordinal)
     );
 }
 
-void Emitter::InitNoneGeneric(IReg underlyingTi)
+void Emitter::InitNoneGenericOpt0(IReg underlyingTi)
 {
     RT::Opcode opc = RT::Opcode::INIT_NONE_GENERIC_OPT0;
     Encode(segment, RT::InitOption { .opc = opc, .src = IReg::IRZ, .underlyingTi = underlyingTi });

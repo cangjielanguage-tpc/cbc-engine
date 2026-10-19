@@ -173,7 +173,7 @@ public:
     void LoadGeneric(Reg dst, IReg baseRef, IReg base, IReg ti);
     void StoreGeneric(IReg src, IReg baseRef, IReg base, IReg ti, uint32_t offset);
     void LeaGeneric(Reg dst, IReg base, IReg ti, uint32_t offset);
-    void InitNoneGeneric(IReg underlyingTi);
+    void InitNoneGenericOpt0(IReg underlyingTi);
     void InitSomeGeneric(IReg src, IReg underlyingTi, bool opt0);
     void TypeArg(IReg dst, IReg typeInfo, int idx);
     void CopyDerived(IReg dstBase, IReg dst, IReg srcBase, IReg src, RTSupport::TypeInfo ti);
