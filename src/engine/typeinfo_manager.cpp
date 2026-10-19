@@ -72,6 +72,7 @@ struct BasicTypeInfoManager : public RTSupport::TypeInfoManager {
         // We need to accurately reconstruct term.
         auto term = RTSupport::ReconstructTerm(session, *this, ti);
         uuidMap.insert_or_assign(uuid, term);
+        storage.insert_or_assign(term, ti);
         return term;
     }
 
