@@ -20,6 +20,10 @@
     #define engine_iregs_only_c2i_call _engine_iregs_only_c2i_call
     #define engine_i2i_call _engine_i2i_call
     #define engine_i2c_call _engine_i2c_call
+    #define engine_i2n_call _engine_i2n_call
+    #define engine_c_abi_adapter _engine_c_abi_adapter
+    #define engine_c_abi_adapter_start _engine_c_abi_adapter_start
+    #define engine_c_abi_adapter_end _engine_c_abi_adapter_end
     #define engine_i2_newobject _engine_i2_newobject
     #define engine_i2_newobject_acc _engine_i2_newobject_acc
     #define engine_i2_newobject_pinned _engine_i2_newobject_pinned
@@ -46,6 +50,7 @@
     #define engine_handle_exception _engine_handle_exception
     #define common_landing_pad _common_landing_pad
     #define engine_stack_grow_stub _engine_stack_grow_stub
+    #define engine_i2n_stub _engine_i2n_stub
     #define engine_after_stack_grow _engine_after_stack_grow
 #endif
 
@@ -68,11 +73,17 @@
 
 .macro FUNC_START sym
   .cfi_startproc
-#ifdef __APPLE__
-  .type \sym, $FUNCTION
-#else
+#ifdef __ELF__
   .type \sym, @function
 #endif
+.endm
+
+// Used to keep labels in a shared CFI region in one Mach-O atom
+.macro CFI_LABEL sym
+#ifdef __APPLE__
+  .alt_entry \sym
+#endif
+\sym:
 .endm
 
 .macro UNWIND_HINT_PROLOGUE_OFFS offs
@@ -202,46 +213,46 @@ engine_newobject_pinned_function:
     ldr   \list_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
     cbz   \list_reg, .L\@iend
     add   \tmp2, ECTYPE_REG, ECTYPE_IREGS_OFFSET
-.L\@icopy:
+CFI_LABEL .L\@icopy
     and   \tmp1, \list_reg, 15
     lsr   \list_reg, \list_reg, 4
     ldr   \tmp1, [\tmp2, \tmp1, lsl #3]
     str   \tmp1, [\stack_reg, #-ECTYPE_REG_SIZE]!
     cbnz  \list_reg, .L\@icopy
-.L\@iend:
+CFI_LABEL .L\@iend
     ldr   \list_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_FREGS_OFFSET]
     cbz   \list_reg, .L\@fend
     add   \tmp2, ECTYPE_REG, ECTYPE_FREGS_OFFSET
-.L\@fcopy:
+CFI_LABEL .L\@fcopy
     and   \tmp1, \list_reg, 15
     lsr   \list_reg, \list_reg, 4
     ldr   \tmp1, [\tmp2, \tmp1, lsl #3]
     str   \tmp1, [\stack_reg, #-ECTYPE_REG_SIZE]!
     cbnz  \list_reg, .L\@fcopy
-.L\@fend:
+CFI_LABEL .L\@fend
 .endm
 
 .macro POP_REGS list_reg, stack_reg, exec_info_reg, tmp1, tmp2, tmp3
     ldr   \list_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_IREGS_OFFSET]
     cbz   \list_reg, .L\@iend
     add   \tmp2, ECTYPE_REG, ECTYPE_IREGS_OFFSET
-.L\@icopy:
+CFI_LABEL .L\@icopy
     ldr   \tmp3, [\stack_reg, #-ECTYPE_REG_SIZE]!
     and   \tmp1, \list_reg, 15
     lsr   \list_reg, \list_reg, 4
     str   \tmp3, [\tmp2, \tmp1, lsl #3]
     cbnz  \list_reg, .L\@icopy
-.L\@iend:
+CFI_LABEL .L\@iend
     ldr   \list_reg, [\exec_info_reg, #EXEC_BYTECODE_INFO_SAVED_FREGS_OFFSET]
     cbz   \list_reg, .L\@fend
     add   \tmp2, ECTYPE_REG, ECTYPE_FREGS_OFFSET
-.L\@fcopy:
+CFI_LABEL .L\@fcopy
     ldr   \tmp3, [\stack_reg, #-ECTYPE_REG_SIZE]!
     and   \tmp1, \list_reg, 15
     lsr   \list_reg, \list_reg, 4
     str   \tmp3, [\tmp2, \tmp1, lsl #3]
     cbnz  \list_reg, .L\@fcopy
-.L\@fend:
+CFI_LABEL .L\@fend
 .endm
 
 .balign 16
@@ -318,7 +329,7 @@ engine_trampolines_dyn_end:
   ldr   ECTYPE_REG, [x21]    // ectype addr
 
   cbz   ECTYPE_REG, .Lc2i_prepare_ectype\@
-.Lc2i_args_preparation\@:
+CFI_LABEL .Lc2i_args_preparation\@
 
   c2i_emit_iregs_abi \ireg_count
   c2i_emit_fregs_abi \freg_count
@@ -339,7 +350,7 @@ engine_trampolines_dyn_end:
   UNWIND_HINT_EPILOGUE
   ret
 
-.Lc2i_prepare_ectype\@:
+CFI_LABEL .Lc2i_prepare_ectype\@
   bl c2i_prepare_ectype
   b     .Lc2i_args_preparation\@
 .endm
@@ -466,11 +477,11 @@ FUNC_START perform_2i_call
   // FUH patching:
   str x0, [x29, #-FUH_SLOT_OFFSET]
 
-.Lafter_patch:
+CFI_LABEL .Lafter_patch
   ldr x9, [sp]
   add sp, sp, #16
 
-.Lhave_bytecode:
+CFI_LABEL .Lhave_bytecode
 
   ldr   LITERALS_REG, [x9, #EXEC_BYTECODE_INFO_LITERALS_OFFSET]
   ldr   x1, [x9, #EXEC_BYTECODE_INFO_BYTECODE_OFFSET]
@@ -494,7 +505,7 @@ FUNC_START perform_2i_call
   ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
 #endif
 
-.Lcontinue_after_stack_expand:
+CFI_LABEL .Lcontinue_after_stack_expand
   mov   x1, sp // save current sp for registers saving to the bottom of frame
 
   // current sp is 16-byte.baligned
@@ -512,16 +523,16 @@ FUNC_START perform_2i_call
 // FIXME: remove it
 // We are zeroing a whole frame to simplify gc handling,
 // but it should be handled by compiler properly.
-.Lframe_zero_loop:
+CFI_LABEL .Lframe_zero_loop
   cmp   x2, x3
   b.eq   .Lframe_zero_loop_end
   str   xzr, [x2], #8
   b     .Lframe_zero_loop
-.Lframe_zero_loop_end:
+CFI_LABEL .Lframe_zero_loop_end
 
   PUSH_REGS x8, x1, x9, x2, x3
 
-.Lrestart_interpretation:
+CFI_LABEL .Lrestart_interpretation
   mov   x0, ECTYPE_REG
   sub   x1, x29, #LOCAL_SLOTS_OFFSET
   mov   x2, TLS_REG
@@ -537,7 +548,7 @@ FUNC_START perform_2i_call
 
   mov   x9, x0
   mov   x0, x1
-.Linterpreter_call:
+CFI_LABEL .Linterpreter_call
   br    x9
   brk   #0
 
@@ -561,7 +572,7 @@ FUNC_START perform_2i_call
 
 // Expands stack and returns to perform 2i call or throws SOE if stack expansion is impossible
 .balign 16
-.Lstack_overflow:
+CFI_LABEL .Lstack_overflow
   add   sp, sp, x8
 
   sub   sp, sp, #STACK_OVERFLOW_REGDUMP_SIZE
@@ -573,7 +584,7 @@ FUNC_START perform_2i_call
   adrp  x10, Page(engine_stack_grow_stub)
   ldr   x10, [x10, PageOff(engine_stack_grow_stub)]
   blr   x10
-engine_after_stack_grow:
+CFI_LABEL engine_after_stack_grow
 
   restore_all_iregs x10
   add   sp, sp, #STACK_OVERFLOW_REGDUMP_SIZE
@@ -588,7 +599,7 @@ engine_after_stack_grow:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: fuh)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
-engine_i2i_call:
+CFI_LABEL engine_i2i_call
   // stack parameters are starting right at the top of the interpreted frame
   mov   x1, sp
   str   x1, [ECTYPE_REG, #TAIL_REG_OFFS]
@@ -618,7 +629,7 @@ engine_i2i_call:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: target)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
-engine_i2c_call:
+CFI_LABEL engine_i2c_call
   engine_i2c IREG_ABI_AMOUNT, FREG_ABI_AMOUNT
 
 .balign 16
@@ -627,7 +638,7 @@ engine_i2c_call:
 // TLS_REG can be changed after context-switch
 // Calls the runtime I2N stub which wraps the native call into a GC-safe region.
 // Supports at most 6 integer and 8 FP register arguments (checked in the rewriter).
-engine_i2n_call:
+CFI_LABEL engine_i2n_call
   lsr   x2, x0, #I2N_STACK_ARGS_SIZE_SHIFT  // stack arguments count
   ubfx  x3, x0, #0, #I2N_VEC_COUNT_SHIFT    // target C function
   mov   x0, ECTYPE_REG                      // ectype
@@ -642,7 +653,7 @@ engine_i2n_call:
   b     .Lrestart_interpretation
 
 .balign 16
-get_tls:
+CFI_LABEL get_tls
   adrp  x10, Page(engine_tls_function)
   ldr   x10, [x10, PageOff(engine_tls_function)]
   br    x10
@@ -655,7 +666,7 @@ get_tls:
 .balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: mask)
 // preserved: ECTYPE_REG, rbp
-engine_i2_load_generic:
+CFI_LABEL engine_i2_load_generic
   // mask is expected in form of:
   // [0..4) - dst reg
   // [4..8) - base reg
@@ -697,7 +708,7 @@ engine_i2_load_generic:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
-engine_i2_newobject:
+CFI_LABEL engine_i2_newobject
   // jumped from .Linterpreter_call without return address to return
   adrp  x10, Page(engine_newobject_function)
   ldr   x10, [x10, PageOff(engine_newobject_function)]
@@ -712,7 +723,7 @@ engine_i2_newobject:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
-engine_i2_newobject_pinned:
+CFI_LABEL engine_i2_newobject_pinned
   // jumped from .Linterpreter_call without return address to return
   mov   x1, 0
   adrp  x10, Page(engine_newobject_pinned_function)
@@ -728,7 +739,7 @@ engine_i2_newobject_pinned:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
-engine_i2_newobject_acc:
+CFI_LABEL engine_i2_newobject_acc
   // jumped from .Linterpreter_call without return address to return
   adrp  x10, Page(engine_newobject_function)
   ldr   x10, [x10, PageOff(engine_newobject_function)]
@@ -743,7 +754,7 @@ engine_i2_newobject_acc:
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
-engine_i2_newarray:
+CFI_LABEL engine_i2_newarray
   // jumped from .Linterpreter_call without return address to return
   ldr   x1, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x10)]
   adrp  x10, Page(engine_newarray_function)
@@ -756,7 +767,7 @@ engine_i2_newarray:
   b     .Lrestart_interpretation
 
 .balign 16
-engine_i2_gcpoint:
+CFI_LABEL engine_i2_gcpoint
   blr   x0
   restore_tls
   b     .Lrestart_interpretation
@@ -764,7 +775,7 @@ engine_i2_gcpoint:
 .balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo)
 // preserved: ECTYPE_REG, x29
-engine_i2_spawn:
+CFI_LABEL engine_i2_spawn
   ldr   x1, [ECTYPE_REG, #ECTYPE_IACC_OFFSET]
   mov   x3, x0
   adr   x0, engine_fake_execute_closure
@@ -777,13 +788,13 @@ engine_i2_spawn:
 
 // expects: (ECTYPE_REG: ectype, TLS_REG: th)
 // preserved: ECTYPE_REG, x29
-engine_i2_spawn_future:
+CFI_LABEL engine_i2_spawn_future
   ldr   x0, [ECTYPE_REG, #ECTYPE_IACC_OFFSET]
   bl    engine_spawn_future
   cbnz  x1, .Lspawn_future_success
   mov   x0, IMPLICIT_EXCEPTION_SPAWN
   b     engine_throw_implicit_exception
-.Lspawn_future_success:
+CFI_LABEL .Lspawn_future_success
   // Thread.setRuntimeCJThreadHandle arguments:
   // x8: sret pointer for Unit; no return storage is needed.
   // x0: this (Thread object already returned by engine_spawn_future in x0).
@@ -796,7 +807,7 @@ engine_i2_spawn_future:
   blr   x9
   b     .Lrestart_interpretation
 
-.Lend_interpretation:
+CFI_LABEL .Lend_interpretation
 #ifndef NDEBUG
   ldr   x0, [x29, #-FUH_SLOT_OFFSET]
   mov   x1, ECTYPE_REG
