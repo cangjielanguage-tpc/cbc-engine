@@ -7,8 +7,6 @@
 
 namespace RTSupport {
 
-void* Adapters::GenericI2NCallInstance() { return reinterpret_cast<void*>(&Asm::engine_i2n_call); }
-
 void* Adapters::GenericC2ICallInstance() { return reinterpret_cast<void*>(&Asm::engine_all_regs_c2i_call); }
 
 void* Adapters::IregOnlyC2ICallInstance() { return reinterpret_cast<void*>(&Asm::engine_iregs_only_c2i_call); }

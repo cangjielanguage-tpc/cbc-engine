@@ -687,6 +687,7 @@ struct ResolverProxy {
         /// FIXME: choose proper adapter based on signature (abi)
         DirectCall::CallData callData = DirectCall::Compiled {
             .funcPtr    = reinterpret_cast<uintptr_t>(funcPtr),
+            .isForeign  = false,
         };
 
         auto refType = resolver.Wrap(ref.refType);
@@ -748,6 +749,7 @@ struct ResolverProxy {
             auto fuh                  = *staticFuh;
             DirectCall::CallData data = DirectCall::Compiled {
                 .funcPtr    = reinterpret_cast<uintptr_t>(fuh->function),
+                .isForeign  = defFlags.Is(Image::MethodFlag::FOREIGN),
             };
             return DirectCall::Content { refType, ref.name, std::move(methodSig), data };
         } else {

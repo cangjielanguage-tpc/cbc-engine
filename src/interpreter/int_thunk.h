@@ -19,8 +19,9 @@ enum class ThunkOp : uint8_t {
     SpawnFuture,
     HandleException,
     ThrowImplicit,
+    I2NCall,
 };
-static_assert((uint8_t) ThunkOp::ThrowImplicit + 1 == THUNK_OP_COUNT);
+static_assert((uint8_t) ThunkOp::I2NCall + 1 == THUNK_OP_COUNT);
 static_assert(sizeof(ThunkOp) == 1, "ThunkOp must fit in a single byte");
 
 /// Some operations could not be called from c++ directly, because of it the interpretation loop is divided by:

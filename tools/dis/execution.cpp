@@ -153,8 +153,6 @@ bool Execution::AtomicCompareAndSwapRef(Reference oldRef, Reference newRef, Refe
     FATAL("Should not reach here");
 }
 
-void* Adapters::GenericI2NCallInstance() { FATAL("Should not reach here"); }
-
 void* Adapters::GetDynCallTrampoline(int idx, bool sret) { FATAL("Should not reach here"); }
 
 void* Adapters::GenericC2ICallInstance() { FATAL("Should not reach here"); }

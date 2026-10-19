@@ -403,8 +403,6 @@ bool Execution::AtomicCompareAndSwapRef(Reference oldRef, Reference newRef, Refe
     FATAL("Should not reach here");
 }
 
-void* Adapters::GenericI2NCallInstance() { FATAL("Should not reach here. Mock i2n"); }
-
 static void C2ICall() { FATAL("Should not reach here. Mock c2i"); }
 
 void* Adapters::GetDynCallTrampoline(int idx, bool sret) { FATAL("Should not reach here"); }

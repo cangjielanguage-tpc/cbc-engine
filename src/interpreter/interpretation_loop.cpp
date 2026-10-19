@@ -1277,7 +1277,7 @@ LABEL(DIRECT_CALL_2N) {
 
     reader0 = reader; // save current pc
 
-    return { Adapters::GenericI2NCallInstance(), reinterpret_cast<void*>(packed) };
+    return { ThunkOp::I2NCall, reinterpret_cast<void*>(packed) };
 }
 LABEL(CALL_CFUNC) {
     auto args = B3xri8::Decode(reader);
@@ -1289,7 +1289,7 @@ LABEL(CALL_CFUNC) {
 
     reader0 = reader; // save current pc
 
-    return { Adapters::GenericI2NCallInstance(), reinterpret_cast<void*>(packed) };
+    return { ThunkOp::I2NCall, reinterpret_cast<void*>(packed) };
 }
 LABEL(CALL_CLOSURE_SRET) {
     if constexpr (HAS_SRET_SHIFT) {

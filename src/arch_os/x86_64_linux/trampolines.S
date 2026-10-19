@@ -20,7 +20,6 @@
     #define engine_trampolines_direct_start _engine_trampolines_direct_start
     #define engine_all_regs_c2i_call _engine_all_regs_c2i_call
     #define engine_iregs_only_c2i_call _engine_iregs_only_c2i_call
-    #define engine_i2n_call _engine_i2n_call
     #define engine_c_abi_adapter _engine_c_abi_adapter
     #define engine_c_abi_adapter_start _engine_c_abi_adapter_start
     #define engine_c_abi_adapter_end _engine_c_abi_adapter_end
@@ -82,7 +81,6 @@ declare_hidden engine_trampolines_dyn_sret_end
 declare_hidden engine_trampolines_direct_start
 declare_hidden engine_all_regs_c2i_call
 declare_hidden engine_iregs_only_c2i_call
-declare_hidden engine_i2n_call
 declare_hidden engine_c_abi_adapter
 declare_hidden engine_c_abi_adapter_start
 declare_hidden engine_c_abi_adapter_end
@@ -634,7 +632,8 @@ engine_after_stack_grow:
 // TLS_REG can be changed after context-switch
 // Calls the runtime I2N stub which wraps the native call into a GC-safe region.
 // TODO: support structs pass-by-value
-engine_i2n_call:
+.Lthunk_op_I2NCall:
+.Lengine_i2n_call:
   // jumped from .Linterpreter_call without return address to return
   mov   rax, rdi
   shr   rax, I2N_VEC_COUNT_SHIFT
@@ -825,6 +824,7 @@ FUNC_END perform_2i_call
   THUNK_OP_ENTRY(SpawnFuture)
   THUNK_OP_ENTRY(HandleException)
   THUNK_OP_ENTRY(ThrowImplicit)
+  THUNK_OP_ENTRY(I2NCall)
 #undef THUNK_OP_ENTRY
 .Lthunk_ops_table_end:
 .if ((.Lthunk_ops_table_end - .Lthunk_ops_table) / 4) != THUNK_OP_COUNT
