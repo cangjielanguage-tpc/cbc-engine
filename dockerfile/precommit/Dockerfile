@@ -22,7 +22,8 @@ RUN apt-get update && \
         libclang-dev \
         llvm \
         lld \
-        gdb && \
+        gdb \
+        time && \
     clang_major="$(clang -dumpversion | cut -d. -f1)" && \
     apt-get install -y --no-install-recommends \
         "libclang-rt-${clang_major}-dev" \

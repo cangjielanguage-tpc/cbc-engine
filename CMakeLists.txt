@@ -190,6 +190,23 @@ set(ADDITIONAL_COMPILER_WARNINGS
   -Wvla-extension
 )
 
+option(ENABLE_SANITIZERS "Enable asan+ubsan in unit-test builds" OFF)
+
+if(ENABLE_SANITIZERS)
+  add_compile_options(
+    -fsanitize=undefined
+    -fsanitize=implicit-integer-truncation,implicit-integer-sign-change
+    # Thunk::function and interpreter adapters invoke hand-written asm trampolines
+    # with a custom ABI (see src/interpreter/int_thunk.h), so the `function`
+    # type-mismatch check produces false positives.
+    -fno-sanitize=function
+    -fsanitize=address,pointer-compare,pointer-subtract
+    -fsanitize-address-use-after-scope
+    -fno-omit-frame-pointer
+  )
+  add_link_options(-fsanitize=address -fsanitize=undefined)
+endif()
+
 set(DEBUG_OPTIONS "-DCBC_ENGINE_IMMEDIATE_ASSERTION -DCBC_ENGINE_PRETTY_FUNC_NAME -DINT_SYMS")
 
 set(CMAKE_CXX_FLAGS_DEBUG "-g -gz ${DEBUG_OPTIONS}")

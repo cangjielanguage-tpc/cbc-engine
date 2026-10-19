@@ -71,5 +71,5 @@ Note: precommit testing may use clang-specific warning checks. To reproduce "as 
 ```
 (export image="s3.excelsior.internal:5000/cbc-engine-amd64:latest" && \
  podman pull "$image" && \
- podman run -it --rm -v "$(pwd):/workspace" -w /workspace --entrypoint python3 "${image}"  build.py precommit)
+ podman run -it --rm --cap-add=SYS_PTRACE -v "$(pwd):/workspace" -w /workspace --entrypoint python3 "${image}"  build.py precommit)
 ```

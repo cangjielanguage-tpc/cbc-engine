@@ -112,8 +112,10 @@ def prepare_cmake_options(args, project_dir):
     build_testing  = "ON" if args.run_tests else "OFF"
     build_int_syms = "ON" if args.enable_int_syms else "OFF"
     build_compiler_warnings = "ON" if args.compiler_warning else "OFF"
+    build_sanitizers = "ON" if getattr(args, "sanitizers", False) else "OFF"
 
     compiler_warnings_option = f"-DCOMPILER_WARNINGS={build_compiler_warnings} "
+    sanitizers_option = f"-DENABLE_SANITIZERS={build_sanitizers} "
 
     if args.target_os == "android":
         android_ndk_home = os.environ.get("ANDROID_NDK_HOME")
@@ -135,6 +137,7 @@ def prepare_cmake_options(args, project_dir):
             f"-DANDROID_PLATFORM={ANDROID_PLATFORM} "
             f"-DANDROID_ABI={ANDROID_ABI} "
             f"-DINT_SYMS={build_int_syms} "
+            f"{sanitizers_option}"
         )
 
     elif args.target_os in ["ios", "ios-sim"]:
@@ -151,6 +154,7 @@ def prepare_cmake_options(args, project_dir):
             f"-DBUILD_TESTING={build_testing} "
             f"-DCMAKE_TOOLCHAIN_FILE={toolchain_path} "
             f"-DINT_SYMS={build_int_syms} "
+            f"{sanitizers_option}"
         )
 
     toolchain_files_dir = f"{project_dir}/cmake/toolchains"
@@ -163,6 +167,7 @@ def prepare_cmake_options(args, project_dir):
         f"-DBUILD_TESTING={build_testing} "
         f"-DCMAKE_TOOLCHAIN_FILE={toolchain_path} "
         f"-DINT_SYMS={build_int_syms} "
+        f"{sanitizers_option}"
     )
 
 
@@ -296,7 +301,8 @@ def precommit(args, project_dir, build_root_dir):
                                         build_type=build_type,
                                         run_tests=True,
                                         enable_int_syms=False,
-                                        compiler_warning=True)
+                                        compiler_warning=True,
+                                        sanitizers=True)
 
         try:
             clean(build_dir)
@@ -351,6 +357,9 @@ def main():
                               dest="enable_int_syms",
                               action="store_true",
                               help="Enable interpreter labels symbols(slight performance penalty)")
+    build_parser.add_argument("--sanitizers",
+                              action="store_true",
+                              help="Enable asan+ubsan sanitizers (for unit test runs)")
 
     helper_parser = subparsers.add_parser("build-helper-lib", help="build libcbcengine-helper shared library")
     helper_parser.add_argument("--target-os",
