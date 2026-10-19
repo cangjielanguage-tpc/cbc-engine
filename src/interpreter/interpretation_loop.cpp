@@ -79,6 +79,32 @@ static void StoreGeneric(StoreGenericOp args, Ectype* ectype, ThreadHandle handl
     }
 }
 
+
+template <bool opt1>
+[[gnu::always_inline]]
+static void InitSomeGeneric(Ectype*& ectype, RTSupport::ThreadHandle& handle, InitOption& args)
+{
+    auto rsrc = args.src;
+    auto rti  = args.underlyingTi;
+
+    auto ti   = TypeInfo(ectype->GetPrimitive(rti).u64);
+    auto base = ectype->GetReference(IReg::IR_ACC);
+    auto obj  = ectype->GetReference(rsrc);
+    if (RTSupport::Execution::IsReference(ti)) {
+        RTSupport::Execution::WriteObjectInstance(base, base.value + MetaInfo::ObjectHeaderSize(), obj, handle);
+    } else {
+        auto optTi    = RTSupport::Execution::GetTypeInfo(base);
+        auto offs     = RTSupport::Execution::GetFieldOffset(optTi, 1, true);
+        auto derived  = base.value + offs;
+        uint32_t size = RTSupport::MetaInfo::GetTypeSize(ti);
+        RTSupport::Execution::WriteGeneric(base, derived, obj, size, handle);
+        if constexpr (opt1) {
+            MemoryLocation(base.value, MetaInfo::ObjectHeaderSize()).StoreImm(StoreAccessKind::ST_8, 1);
+        }
+    }
+}
+
+
 extern "C" {
 
 /// The interpretation loop can be used in two scenarios:
@@ -1117,45 +1143,14 @@ LABEL(INIT_NONE_GENERIC_OPT0) {
 LABEL(INIT_SOME_GENERIC_OPT0) {
     auto args = InitOption::Decode(reader);
     LOG_INSTR;
-    auto rsrc = args.src;
-    auto rti  = args.underlyingTi;
-
-    auto ti   = TypeInfo(ectype->GetPrimitive(rti).u64);
-    auto base = ectype->GetReference(IReg::IR_ACC);
-    auto obj  = ectype->GetReference(rsrc);
-    if (RTSupport::Execution::IsReference(ti)) {
-        RTSupport::Execution::WriteObjectInstance(base, base.value + MetaInfo::ObjectHeaderSize(), obj, handle);
-        NEXT;
-    } else {
-        auto optTi   = RTSupport::Execution::GetTypeInfo(base);
-        auto offs    = RTSupport::Execution::GetFieldOffset(optTi, 1, true);
-        auto derived = base.value + offs;
-        uint32_t size = RTSupport::MetaInfo::GetTypeSize(ti);
-        RTSupport::Execution::WriteGeneric(base, derived, obj, size, handle);
-        NEXT;
-    }
+    InitSomeGeneric<false>(ectype, handle, args);
+    NEXT;
 }
 LABEL(INIT_SOME_GENERIC_OPT1) {
     auto args = InitOption::Decode(reader);
     LOG_INSTR;
-    auto rsrc = args.src;
-    auto rti  = args.underlyingTi;
-
-    auto ti   = TypeInfo(ectype->GetPrimitive(rti).u64);
-    auto base = ectype->GetReference(IReg::IR_ACC);
-    auto obj  = ectype->GetReference(rsrc);
-    if (RTSupport::Execution::IsReference(ti)) {
-        RTSupport::Execution::WriteObjectInstance(base, base.value + MetaInfo::ObjectHeaderSize(), obj, handle);
-        NEXT;
-    } else {
-        auto optTi   = RTSupport::Execution::GetTypeInfo(base);
-        auto offs    = RTSupport::Execution::GetFieldOffset(optTi, 1, true);
-        auto derived = base.value + offs;
-        uint32_t size = RTSupport::MetaInfo::GetTypeSize(ti);
-        RTSupport::Execution::WriteGeneric(base, derived, obj, size, handle);
-        MemoryLocation(base.value, MetaInfo::ObjectHeaderSize()).StoreImm(StoreAccessKind::ST_8, 1);
-        NEXT;
-    }
+    InitSomeGeneric<true>(ectype, handle, args);
+    NEXT;
 }
 LABEL(PREP_TYPED) {
     auto args = B13i64i32::Decode(reader);
