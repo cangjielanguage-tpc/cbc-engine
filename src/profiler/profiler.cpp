@@ -1,28 +1,28 @@
 #include "profiler.h"
 
 #include "cbc/isa_rt.h"
+#include "engine/decode/reader.h"
 #include "interpreter/function_handle.h"
+#include "profiler/profiler_logger.h"
 #include "utils/assertion.h"
-#include "utils/ostream.h"
 
 #include <chrono>
 #include <condition_variable>
 #include <cstdint>
 #include <list>
 #include <mutex>
+#include <string>
 #include <thread>
 #include <unordered_map>
+#include <vector>
 
 namespace Cbc::Profiler {
 
 bool enabled = true;
 
-Stream::Descripted Log::stream(Stream::cerr, "[profiler] ");
-Logging::Logger Log::profiler(&Log::stream);
-
 namespace {
+constexpr auto COLLECTION_PERIOD = std::chrono::milliseconds(10);
 constexpr uint64_t HOT_CALL_COUNT = 100;
-constexpr auto COLLECTION_PERIOD  = std::chrono::seconds(1);
 } // namespace
 
 class FiberProfileManager {
@@ -58,9 +58,9 @@ private:
     struct CallEdgeHash {
         size_t operator()(const CallEdge& edge) const
         {
-            const auto a = std::hash<FunctionId> {}(edge.caller);
-            const auto b = std::hash<CallSiteId> {}(edge.callSite);
-            return a ^ (b << 1);
+            const auto callerHash   = std::hash<FunctionId> {}(edge.caller);
+            const auto callSiteHash = std::hash<CallSiteId> {}(edge.callSite);
+            return callerHash ^ (callSiteHash << 1);
         }
     };
 
@@ -78,45 +78,69 @@ private:
         worker.join();
     }
 
-    void ProcessRecord(const FiberProfile::CallRecord& record, CallCounters& counters)
+    static std::string ResolveFunctionName(
+        Engine::Session& session, const Interpretation::DynamicFunctionHandle& function
+    )
     {
-        CallEdge edge { record.caller, record.callSite };
-        const auto count = ++counters[edge];
-        if (count == HOT_CALL_COUNT) {
-            auto* callerFuh = reinterpret_cast<Interpretation::DynamicFunctionHandle*>(edge.caller);
-            auto* bytecode  = callerFuh->bytecode.load(std::memory_order_relaxed);
-            ASSERT(bytecode != nullptr);
+        const auto definition = Decode::Read(session, function.methodDef);
+        const auto typeName   = Decode::Read(session, definition.TypeName());
+        const auto methodName = Decode::Read(session, definition.Name());
 
-            const auto bytecodeStart = reinterpret_cast<uintptr_t>(bytecode->code.bytecode);
-            ASSERT(bytecodeStart <= edge.callSite);
-            ASSERT(edge.callSite < bytecodeStart + bytecode->code.bytecodeSize);
-            const auto callSiteOffset = edge.callSite - bytecodeStart;
+        std::string result;
+        result.reserve(typeName.size() + 1 + methodName.size());
+        result.append(typeName.data(), typeName.size());
+        result.push_back('.');
+        result.append(methodName.data(), methodName.size());
+        return result;
+    }
 
-            auto* callSite = reinterpret_cast<uint8_t*>(edge.callSite);
-            Decoder::ByteReader reader(
-                callSite, bytecode->code.bytecode, bytecode->code.bytecode + bytecode->code.bytecodeSize
-            );
-            const auto args = Cbc::RT::B3xi12::Decode(reader);
-            ASSERT(args.opc == Cbc::RT::Opcode::DIRECT_CALL_2I);
-            const auto callee = bytecode->code.literals->at(args.xi12.imm12).uintptr;
+    ProfiledCall ResolveCall(Engine::Session& session, const CallEdge& edge, uint64_t count) const
+    {
+        auto* callerFuh = reinterpret_cast<Interpretation::DynamicFunctionHandle*>(edge.caller);
+        auto* bytecode  = callerFuh->bytecode.load(std::memory_order_relaxed);
+        ASSERT(bytecode != nullptr);
 
-            Log::profiler.Log(Logging::Level::DEBUG, [&](Stream::Output& out) {
-                out.PrintLn(
-                    "hot call {}+{} -> {}: {} calls",
-                    reinterpret_cast<const void*>(edge.caller),
-                    callSiteOffset,
-                    reinterpret_cast<const void*>(callee),
-                    count
-                );
-            });
+        const auto bytecodeStart = reinterpret_cast<uintptr_t>(bytecode->code.bytecode);
+        ASSERT(bytecodeStart <= edge.callSite);
+        ASSERT(edge.callSite < bytecodeStart + bytecode->code.bytecodeSize);
+
+        auto* callSite = reinterpret_cast<uint8_t*>(edge.callSite);
+        Decoder::ByteReader reader(
+            callSite, bytecode->code.bytecode, bytecode->code.bytecode + bytecode->code.bytecodeSize
+        );
+        const auto args = Cbc::RT::B3xi12::Decode(reader);
+        ASSERT(args.opc == Cbc::RT::Opcode::DIRECT_CALL_2I);
+        const auto callee = bytecode->code.literals->at(args.xi12.imm12).uintptr;
+        auto* calleeFuh   = reinterpret_cast<Interpretation::DynamicFunctionHandle*>(callee);
+
+        return {
+            edge.caller,
+            ResolveFunctionName(session, *callerFuh),
+            edge.callSite - bytecodeStart,
+            callee,
+            ResolveFunctionName(session, *calleeFuh),
+            count,
+            count >= HOT_CALL_COUNT,
+        };
+    }
+
+    void ProcessCollectedCalls(const CallCounters& counters)
+    {
+        Engine::Session session(Engine::GetEngineInstance());
+        std::vector<ProfiledCall> calls;
+        calls.reserve(counters.size());
+        for (const auto& [edge, count] : counters) {
+            calls.emplace_back(ResolveCall(session, edge, count));
         }
+        LogProfilerPass(calls);
     }
 
     void ProcessBuffer(const FiberProfile::CallBuffer& buffer, uint32_t start, uint32_t count, CallCounters& counters)
     {
         for (uint32_t i = 0; i < count; ++i) {
             const auto index = (start + i) & (FiberProfile::CALL_BUFFER_SIZE - 1);
-            ProcessRecord(buffer.records[index], counters);
+            const auto& record = buffer.records[index];
+            ++counters[CallEdge { record.caller, record.callSite }];
         }
     }
 
@@ -178,6 +202,7 @@ private:
                 ++it;
             }
         }
+        ProcessCollectedCalls(counters);
     }
 
     void Run()

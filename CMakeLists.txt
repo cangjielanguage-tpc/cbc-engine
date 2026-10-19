@@ -31,13 +31,16 @@ endif()
 file(GLOB_RECURSE COMMON_LIB_SOURCES CONFIGURE_DEPENDS "src/*.cpp")
 list(FILTER COMMON_LIB_SOURCES EXCLUDE REGEX "src/runtimesupport/.*")
 list(FILTER COMMON_LIB_SOURCES EXCLUDE REGEX "src/arch_os/.*")
-list(FILTER COMMON_LIB_SOURCES EXCLUDE REGEX "src/profiler(_atomic|_blocking|_double_buffer)?/profiler\\.cpp$")
+list(FILTER COMMON_LIB_SOURCES EXCLUDE REGEX "src/profiler(_atomic|_blocking|_double_buffer)?/profiler(_logger)?\\.cpp$")
 
 set(CBC_PROFILER_IMPLEMENTATION "profiler" CACHE STRING "Profiler implementation")
 set_property(CACHE CBC_PROFILER_IMPLEMENTATION PROPERTY STRINGS profiler double_buffer atomic blocking)
 
 if(CBC_PROFILER_IMPLEMENTATION STREQUAL "profiler")
-  list(APPEND COMMON_LIB_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/profiler/profiler.cpp")
+  list(APPEND COMMON_LIB_SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/profiler/profiler.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/profiler/profiler_logger.cpp"
+  )
 elseif(CBC_PROFILER_IMPLEMENTATION STREQUAL "double_buffer")
   list(APPEND COMMON_LIB_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/profiler_double_buffer/profiler.cpp")
   add_compile_definitions(CBC_PROFILER_DOUBLE_BUFFER)

@@ -20,11 +20,23 @@
     #include <atomic>
     #include <cstdint>
     #include <memory>
+    #include <string>
+    #include <vector>
 
 namespace Cbc::Profiler {
 
 using FunctionId = uintptr_t;
 using CallSiteId = uintptr_t;
+
+struct ProfiledCall {
+    FunctionId caller;
+    std::string callerName;
+    uintptr_t callSiteOffset;
+    FunctionId callee;
+    std::string calleeName;
+    uint64_t count;
+    bool hot;
+};
 
 extern bool enabled;
 
