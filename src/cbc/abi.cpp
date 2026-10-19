@@ -4,21 +4,34 @@ namespace Cbc {
 
 AbiAssigner::AbiAssigner(const PlatformDescription& desc) : desc(desc), iargIdx(0), fargIdx(0), slotIdx(0) {}
 
+Location AbiAssigner::GiveIReg() { return Location::IReg(desc.iregHeadArea[iargIdx++]); }
+
+Location AbiAssigner::GiveFReg() { return Location::FReg(desc.fregHeadArea[fargIdx++]); }
+
+Location AbiAssigner::GiveStackSlot() { return Location::Slot(slotIdx++); }
+
 Location AbiAssigner::Consume(ArgKind kind)
 {
     const bool isFloat = kind == ArgKind::FLOAT;
-    Location target;
     if (isFloat && fargIdx < desc.fregHeadArea.Size()) {
-        target = Location::FReg(desc.fregHeadArea[fargIdx]);
-        fargIdx++;
+        return GiveFReg();
     } else if (!isFloat && iargIdx < desc.iregHeadArea.Size()) {
-        target = Location::IReg(desc.iregHeadArea[iargIdx]);
-        iargIdx++;
+        return GiveIReg();
     } else {
-        target = Location::Slot(slotIdx);
-        slotIdx++;
+        return GiveStackSlot();
     }
-    return target;
+}
+
+Location AbiAssigner::ConsumeVarArg(ArgKind kind)
+{
+    const bool isFloat = kind == ArgKind::FLOAT;
+    if (isFloat && fargIdx < desc.fregHeadArea.Size() && !desc.onlyOnStackVarargs) {
+        return GiveFReg();
+    } else if (!isFloat && iargIdx < desc.iregHeadArea.Size() && !desc.onlyOnStackVarargs) {
+        return GiveIReg();
+    } else {
+        return GiveStackSlot();
+    }
 }
 
 Location AbiAssigner::ConsumeSret()

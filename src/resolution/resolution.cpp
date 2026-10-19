@@ -75,6 +75,7 @@ CbcTypeKind Resolver::GetKind(Type type)
         case TK::F16:            return CbcTypeKind::U16;
         case TK::F32:            return CbcTypeKind::F32;
         case TK::F64:            return CbcTypeKind::F64;
+        case TK::VARARGLABEL:
         case TK::UNDEFINED:      return CbcTypeKind::INVALID;
         case TK::C_POINTER:      return CbcTypeKind::U64;
         case TK::PRIMITIVE_ENUM: {
@@ -546,15 +547,20 @@ struct ResolverProxy {
 
         auto paramLength = signature.GetLength() - 1;
 
+        bool isVarArg = false;
         Utils::Vector<Type> params;
         params.Reserve(paramLength);
         for (uint32_t i = 0; i < paramLength; i++) {
+            if (signature.Subterm(i).GetKind() == TermKind::VARARGLABEL) {
+                isVarArg = true;
+            }
             params.PushBack(Type(signature.Subterm(i), resolver));
         }
         return {
             .resolver = &resolver,
             .term     = signature,
             .tvars    = ref.tvars,
+            .isVarArg = isVarArg,
         };
     }
 
@@ -636,18 +642,22 @@ struct ResolverProxy {
 
     // Foreign definition contains only fixed parameters but in call site of vararg function
     // there can be also additional arguments.
+    // Definition signature: <named_0>, ..., <named_n>
+    // Reference  signature: <named_0>, ..., <named_n>, <vastart>, <varg_0>, ..., <varg_m>
     static bool IsForeignSigCompatible(Term defSig, Term refSig)
     {
-        auto defArgsCount = defSig.GetLength() - 1;
-        auto refArgsCount = refSig.GetLength() - 1;
-        bool sameRetTypes = defSig.Subterm(defArgsCount) == refSig.Subterm(refArgsCount);
-        if (defArgsCount > refArgsCount || !sameRetTypes) {
+        if (defSig.Subterm(defSig.GetLength() - 1) != refSig.Subterm(refSig.GetLength() - 1)) {
+            // Different return types
             return false;
         }
-        for (int i = 0; i < defArgsCount; i++) {
-            if (!(defSig.Subterm(i) == refSig.Subterm(i))) {
+        int idx = 0;
+        while (refSig.Subterm(idx).GetKind() != TermKind::VARARGLABEL) {
+            ASSERT(idx < defSig.GetLength() - 1);
+            ASSERT(idx < refSig.GetLength() - 1);
+            if (defSig.Subterm(idx) != refSig.Subterm(idx)) {
                 return false;
             }
+            idx++;
         }
         return true;
     }

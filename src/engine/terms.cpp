@@ -384,6 +384,7 @@ void Term::GetName(Session& session, Stream::Output& out, bool hasDebugPrefix) c
         case TK::F16:     stream << "Float16"; break;
         case TK::F32:     stream << "Float32"; break;
         case TK::F64:     stream << "Float64"; break;
+        case TK::VARARGLABEL: stream << "<vastart>"; break;
 
         case TK::UNDEFINED: {
             auto undef = UndefTermId(*this).GetIdentifier();

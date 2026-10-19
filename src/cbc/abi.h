@@ -29,15 +29,15 @@ public:
         Utils::Span<const FReg> fregHeadArea;
         bool sretShifts;
         int sretIrIdx;
+        bool onlyOnStackVarargs;
 
         template <Platform p> static PlatformDescription FromTraits()
         {
-            PlatformDescription desc {
-                { PlatformTraits<p>::IR_HEAD_AREA, PlatformTraits<p>::IR_PARAM_COUNT },
-                { PlatformTraits<p>::FR_HEAD_AREA, PlatformTraits<p>::FR_PARAM_COUNT },
-                PlatformTraits<p>::SRET_SHIFTS,
-                0,
-            };
+            PlatformDescription desc { { PlatformTraits<p>::IR_HEAD_AREA, PlatformTraits<p>::IR_PARAM_COUNT },
+                                       { PlatformTraits<p>::FR_HEAD_AREA, PlatformTraits<p>::FR_PARAM_COUNT },
+                                       PlatformTraits<p>::SRET_SHIFTS,
+                                       0,
+                                       PlatformTraits<p>::ONLY_ONSTACK_VARARGS };
             if constexpr (!PlatformTraits<p>::SRET_SHIFTS) {
                 desc.sretIrIdx = static_cast<int>(PlatformTraits<p>::SRET_REG);
             }
@@ -50,6 +50,7 @@ public:
     template <Platform p = HOST_PLATFORM> AbiAssigner() : AbiAssigner(PlatformDescription::FromTraits<p>()) {}
 
     Location Consume(ArgKind kind);
+    Location ConsumeVarArg(ArgKind kind);
     // Consumes the struct-return (sret) argument: the hidden pointer to the
     // return struct. On shift platforms it takes the first int-register slot
     // as a record; on fixed-register platforms a dedicated slot.
@@ -60,6 +61,10 @@ public:
     int MaxFRegs() const { return fargIdx; }
 
 private:
+    Location GiveIReg();
+    Location GiveFReg();
+    Location GiveStackSlot();
+
     PlatformDescription desc;
     int iargIdx;
     int fargIdx;
@@ -97,6 +102,12 @@ public:
     {
         ArgTypeTraits<ArgType> traits;
         return Consume(traits.Kind(arg));
+    }
+
+    template <typename ArgType> Location ConsumeVarArg(ArgType arg)
+    {
+        ArgTypeTraits<ArgType> traits;
+        return ConsumeVarArg(traits.Kind(arg));
     }
 
 private:

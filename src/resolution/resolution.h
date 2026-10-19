@@ -64,6 +64,7 @@ struct MethodSignature {
     Resolver* resolver;
     Engine::Term term;
     Engine::Term tvars;
+    bool isVarArg;
 
     Type ResType() const;
     Utils::Span<Engine::Term> Params() const;

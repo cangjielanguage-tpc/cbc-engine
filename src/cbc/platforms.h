@@ -33,6 +33,8 @@ template <> struct PlatformTraits<Platform::LINUX_X64> {
     static constexpr int FR_PARAM_COUNT = sizeof(FR_HEAD_AREA) / sizeof(FR_HEAD_AREA[0]);
 
     static constexpr bool SRET_SHIFTS = true;
+
+    static constexpr bool ONLY_ONSTACK_VARARGS = false;
 };
 
 template <> struct PlatformTraits<Platform::LINUX_AARCH64> {
@@ -57,6 +59,8 @@ template <> struct PlatformTraits<Platform::LINUX_AARCH64> {
 
     static constexpr bool SRET_SHIFTS = false;
     static constexpr IReg SRET_REG    = IReg::IR9;
+
+    static constexpr bool ONLY_ONSTACK_VARARGS = false;
 };
 
 #if defined(__x86_64__) || defined(_M_X64)
