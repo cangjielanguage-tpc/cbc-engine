@@ -230,7 +230,7 @@ static uint64_t LSR(uint64_t lhs, uint64_t rhs) { return lhs >> (rhs & 0x3f); }
 static uint64_t ASR(uint64_t lhs, uint64_t rhs)
 {
     auto left = static_cast<int64_t>(lhs);
-    return static_cast<int64_t>(left >> (rhs & 0x3f));
+    return static_cast<uint64_t>(left >> (rhs & 0x3f));
 }
 
 using ArithFunction = uint64_t (*)(uint64_t, uint64_t);

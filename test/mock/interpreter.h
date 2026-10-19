@@ -43,7 +43,8 @@ struct TestTypeInfo {
 
 static Interpretation::Value::Primitive U32(uint32_t v) { return Interpretation::Value::Primitive { .u32 = v }; }
 
-static Interpretation::Value::Primitive U64(uint64_t v) { return Interpretation::Value::Primitive { .u64 = v }; }
+template <typename T>
+static Interpretation::Value::Primitive U64(T v) { return Interpretation::Value::Primitive { .u64 = static_cast<uint64_t>(v) }; }
 
 static Interpretation::Value::Primitive F32(float v) { return Interpretation::Value::Primitive { .f32 = v }; }
 
