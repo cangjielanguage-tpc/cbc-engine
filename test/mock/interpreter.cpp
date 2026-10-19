@@ -122,7 +122,9 @@ static void InterpreterI2CallTest(Ectype* ectype, ThreadHandle handle, DynamicFu
     constexpr auto stackSlotCount = 100;
     uint64_t frameSlots[stackSlotCount];
     ASSERTION(bytecode->frameSize / Cbc::STACK_SLOT_SIZE < stackSlotCount, "Frame is too big");
-    auto frameStart = reinterpret_cast<uintptr_t>(&frameSlots);
+    // Frame slots are addressed negatively relative to the frame start:
+    // slot N is located at frame.start + N * STACK_SLOT_SIZE - frameSize.
+    auto frameStart = reinterpret_cast<uintptr_t>(frameSlots + stackSlotCount);
     Interpretation::Frame frame { frameStart };
 
     IRegContainer iregs[IReg::COUNT];

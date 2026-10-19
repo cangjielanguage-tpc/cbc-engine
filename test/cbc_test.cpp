@@ -5,6 +5,7 @@
 #include <iterator>
 #include <limits>
 #include <sstream>
+#include <vector>
 
 #include "cbc/isa_disasm.h"
 #include "engine/engine.h"
@@ -75,13 +76,24 @@ TEST_F(CbcTest, Empty)
     ASSERT_EQ(str, "abc");
 }
 
+// Deliberately never destroyed: engines are process-wide, and the registry must outlive
+// static destructors so that LeakSanitizer still sees every engine as reachable at exit.
+// TODO: FIXME #182
+static std::vector<Engine::Engine*>& BuiltEngines()
+{
+    static auto* engines = new std::vector<Engine::Engine*>;
+    return *engines;
+}
+
 static Engine::Engine& Open(std::string_view fileName)
 {
     Engine::Loader loader;
     auto file       = OpenAsm(std::string(fileName));
     bool successful = loader.Load(std::move(file), fileName);
     ASSERT(successful);
-    return loader.Build();
+    auto& engine = loader.Build();
+    BuiltEngines().push_back(&engine);
+    return engine;
 }
 
 static Interpretation::ExecBytecodeInfo* Rewrite(
@@ -105,6 +117,7 @@ static Interpretation::ExecBytecodeInfo* OpenAndRewrite(std::string name, std::s
     ASSERT(successful);
 
     auto& engine = loader.Build();
+    BuiltEngines().push_back(&engine);
     Engine::Session session(engine);
     auto methodId    = engine.FindMain(session, fileName);
     auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
@@ -145,8 +158,11 @@ TEST_ASM(CbcTest, SimpleArithImm)
 
 TEST_ASM(CbcTest, FibRec)
 {
-    uint64_t frameSlots[1];
-    auto frameStart = reinterpret_cast<uintptr_t>(&frameSlots);
+    constexpr auto stackSlotCount = 100;
+    uint64_t frameSlots[stackSlotCount];
+    // Frame slots are addressed negatively relative to the frame start:
+    // slot N is located at frame.start + N * STACK_SLOT_SIZE - frameSize.
+    auto frameStart = reinterpret_cast<uintptr_t>(frameSlots + stackSlotCount);
     Interpretation::Frame frame { frameStart };
 
     auto res = Interpret(OpenAndRewrite("fib-rec", "fib-rec.asm")->code, frame, U32(0), U32(0));
@@ -214,7 +230,7 @@ static uint64_t LSR(uint64_t lhs, uint64_t rhs) { return lhs >> (rhs & 0x3f); }
 static uint64_t ASR(uint64_t lhs, uint64_t rhs)
 {
     auto left = static_cast<int64_t>(lhs);
-    return static_cast<int64_t>(left >> (rhs & 0x3f));
+    return static_cast<uint64_t>(left >> (rhs & 0x3f));
 }
 
 using ArithFunction = uint64_t (*)(uint64_t, uint64_t);
