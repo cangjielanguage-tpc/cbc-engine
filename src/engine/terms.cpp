@@ -41,7 +41,7 @@ struct TermData {
     {
         uint32_t hash = 0;
         for (int i = 0; i < length; i++) {
-            hash = 31 * hash + subterms->Hash();
+            hash = 31 * hash + subterms[i].Hash();
         }
         Init(identifier, identifier.Hash() ^ hash, length, flags);
     }

@@ -68,6 +68,7 @@ bool SetIntValue(Options::Table const&, Options::Option const& option, std::stri
     memcpy(str, value.data(), value.size());
 
     char* endptr;
+    errno = 0;
     long long parsedVal = std::strtoll(str, &endptr, 10);
 
     // out of range, invalid input, junk characters
