@@ -364,8 +364,9 @@ struct IsaRewriter : public IsaParser {
         bool genericParams   = false
     )
     {
+        int varArgLabelsCnt = (sig.isVarArg ? 1 : 0);
         int funcVarsCount = sig.tvars.GetLength();
-        if (!CheckArgCount(args.Size(), flags, funcVarsCount, sig.ParamCount())) {
+        if (!CheckArgCount(args.Size(), flags, funcVarsCount, sig.ParamCount() - varArgLabelsCnt)) {
             return {};
         }
 
@@ -419,7 +420,7 @@ struct IsaRewriter : public IsaParser {
 
         auto params     = sig.Params();
         int paramOffset = idx;
-        ASSERT(args.Size() >= params.Size() + idx);
+        ASSERT(args.Size() >= params.Size() + idx - varArgLabelsCnt);
 
         if (genericParams) {
             // Special case for call.closure.g
@@ -428,8 +429,18 @@ struct IsaRewriter : public IsaParser {
                 moves.AddMove(args[idx], abi.Consume(ArgKind::REF));
             }
         } else {
-            for (int j = 0; j < params.Size(); ++idx, ++j) {
-                moves.AddMove(args[idx], abi.Consume(params[j]));
+            bool isVarArg = false;
+            for (int j = 0; j < params.Size(); ++j) {
+                if (params[j].GetKind() == Engine::TermKind::VARARGLABEL) {
+                    isVarArg = true;
+                    continue;
+                }
+
+                if (!isVarArg) {
+                    moves.AddMove(args[idx++], abi.Consume(params[j]));
+                } else {
+                    moves.AddMove(args[idx++], abi.ConsumeVarArg(params[j]));
+                }
             }
         }
 
