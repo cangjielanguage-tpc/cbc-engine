@@ -1010,7 +1010,7 @@ struct IsaRewriter : public IsaParser {
         emit.NewObjGenericOnAcc(optionTypeInfo);
         BindStatePoint();
         if (typeDef->enumKind == Image::EnumKind::OPTION0) {
-            emit.InitNoneGeneric(underlyingTypeInfo);
+            emit.InitNoneGenericOpt0(underlyingTypeInfo);
         }
         emit.Mov(dst, IReg::IR_ACC);
     }
