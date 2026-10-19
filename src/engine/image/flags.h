@@ -39,8 +39,7 @@ namespace Image {
     X(SRET)                                                                                                            \
     X(HAS_OUTER_TI)                                                                                                    \
     X(HAS_FTVARS)                                                                                                      \
-    X(AOT)                                                                                                             \
-    X(VARARG)
+    X(AOT)
 
 #define FLAG_LIST(flag) flag,
 #define FLAG_C_STR(flag)                                                                                               \

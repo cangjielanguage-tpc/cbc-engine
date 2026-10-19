@@ -703,6 +703,7 @@ struct ResolverProxy {
 
         auto termIdent = ExtractTypeDefIdentifier(ref.refType);
         auto type      = Decode::Read(resolver, termIdent);
+        auto methodSig = ConstructSignature(resolver, ref);
 
         // FIXME: search in hierarchy
         auto method = [&]() -> std::optional<Identifier<Image::MethodDefinition>> {
@@ -714,7 +715,7 @@ struct ResolverProxy {
                 if (sig == ref.signature) {
                     return m;
                 }
-                if (ref.flags.Is(Image::MethodRefFlag::VARARG) && IsVarArgSigCompatible(sig, ref.signature)) {
+                if (methodSig.isVarArg && IsVarArgSigCompatible(sig, ref.signature)) {
                     return m;
                 }
             }
@@ -738,7 +739,6 @@ struct ResolverProxy {
 
         auto defFlags = Decode::Read(resolver, method.value()).GetFlags();
         auto fuh = Interpretation::FunctionHandleManager::Of(resolver.session).AcquireTagged(resolver, method.value());
-        auto sig = ConstructSignature(resolver, ref);
         auto refType = resolver.Wrap(ref.refType);
         // TODO: simplify
         if (auto* staticFuh = std::get_if<Interpretation::StaticFunctionHandle*>(&fuh)) {
@@ -748,11 +748,11 @@ struct ResolverProxy {
                 .i2cAdapter = fuh->base.i2call,
                 .isForeign  = defFlags.Is(Image::MethodFlag::FOREIGN),
             };
-            return DirectCall::Content { refType, ref.name, std::move(sig), data };
+            return DirectCall::Content { refType, ref.name, std::move(methodSig), data };
         } else {
             auto dynFuh               = std::get<Interpretation::DynamicFunctionHandle*>(fuh);
             DirectCall::CallData data = dynFuh;
-            return DirectCall::Content { refType, ref.name, std::move(sig), data };
+            return DirectCall::Content { refType, ref.name, std::move(methodSig), data };
         }
     }
 
