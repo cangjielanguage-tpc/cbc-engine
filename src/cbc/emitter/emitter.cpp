@@ -856,7 +856,7 @@ void Emitter::CopyToLocal(IReg dst, IReg srcBase, IReg src, RTSupport::TypeInfo 
         segment,
         RT::CopyDerived {
             .opc = RT::Opcode::COPY_TO_LOCAL,
-            .dst = RR { .x = IReg::IRZ, .y = dst },
+            .dst = RR { .x = 0, .y = dst },
             .src = RR { .x = srcBase, .y = src },
             .ti  = ti,
         }
@@ -870,7 +870,7 @@ void Emitter::CopyFromLocal(IReg dstBase, IReg dst, IReg src, RTSupport::TypeInf
         RT::CopyDerived {
             .opc = RT::Opcode::COPY_FROM_LOCAL,
             .dst = RR { .x = dstBase, .y = dst },
-            .src = RR { .x = IReg::IRZ, .y = src },
+            .src = RR { .x = 0, .y = src },
             .ti  = ti,
         }
     );
@@ -883,7 +883,7 @@ void Emitter::CopyLocalGeneric(IReg dst, IReg src, IReg ti)
         RT::CopyLocalGeneric {
             .opc    = RT::Opcode::COPY_LOCAL_GENERIC,
             .first  = RR { .x = dst, .y = src },
-            .second = RR { .x = ti, .y = IReg::IRZ },
+            .second = RR { .x = ti, .y = 0 },
         }
     );
 }
@@ -908,6 +908,84 @@ void Emitter::CopyFromLocalGeneric(IReg dstBase, IReg dst, IReg src, IReg ti)
             .opc    = RT::Opcode::COPY_FROM_LOCAL_GENERIC,
             .first  = RR { .x = dstBase, .y = dst },
             .second = RR { .x = src, .y = ti },
+        }
+    );
+}
+
+void Emitter::CopyTypeSlot(int32_t dstOffset, int32_t srcOffset, RTSupport::TypeInfo ti)
+{
+    Encode(
+        segment,
+        RT::CopyTypeSlot {
+            .opc       = RT::Opcode::COPY_TYPESLOT,
+            .dstOffset = { .imm = static_cast<uint32_t>(dstOffset) },
+            .srcOffset = { .imm = static_cast<uint32_t>(srcOffset) },
+            .ti        = ti,
+        }
+    );
+}
+
+void Emitter::CopyTypeSlotGeneric(int32_t dstOffset, int32_t srcOffset, IReg ti)
+{
+    Encode(
+        segment,
+        RT::CopyTypeSlotGeneric {
+            .opc       = RT::Opcode::COPY_TYPESLOT_GENERIC,
+            .dstOffset = { .imm = static_cast<uint32_t>(dstOffset) },
+            .srcOffset = { .imm = static_cast<uint32_t>(srcOffset) },
+            .ti        = RR { .x = ti, .y = 0 },
+        }
+    );
+}
+
+void Emitter::CopyToTypeSlot(int32_t dstOffset, IReg srcBase, IReg src, RTSupport::TypeInfo ti)
+{
+    Encode(
+        segment,
+        RT::CopyToTypeSlot {
+            .opc       = RT::Opcode::COPY_TO_TYPESLOT,
+            .dstOffset = { .imm = static_cast<uint32_t>(dstOffset) },
+            .src       = RR { .x = srcBase, .y = src },
+            .ti        = ti,
+        }
+    );
+}
+
+void Emitter::CopyToTypeSlotGeneric(int32_t dstOffset, IReg srcBase, IReg src, IReg ti)
+{
+    Encode(
+        segment,
+        RT::CopyToTypeSlotGeneric {
+            .opc       = RT::Opcode::COPY_TO_TYPESLOT_GENERIC,
+            .dstOffset = { .imm = static_cast<uint32_t>(dstOffset) },
+            .src       = RR { .x = srcBase, .y = src },
+            .ti        = RR { .x = ti, .y = 0 },
+        }
+    );
+}
+
+void Emitter::CopyFromTypeSlot(IReg dstBase, IReg dst, int32_t srcOffset, RTSupport::TypeInfo ti)
+{
+    Encode(
+        segment,
+        RT::CopyFromTypeSlot {
+            .opc       = RT::Opcode::COPY_FROM_TYPESLOT,
+            .dst       = RR { .x = dstBase, .y = dst },
+            .srcOffset = { .imm = static_cast<uint32_t>(srcOffset) },
+            .ti        = ti,
+        }
+    );
+}
+
+void Emitter::CopyFromTypeSlotGeneric(IReg dstBase, IReg dst, int32_t srcOffset, IReg ti)
+{
+    Encode(
+        segment,
+        RT::CopyFromTypeSlotGeneric {
+            .opc       = RT::Opcode::COPY_FROM_TYPESLOT_GENERIC,
+            .dst       = RR { .x = dstBase, .y = dst },
+            .srcOffset = { .imm = static_cast<uint32_t>(srcOffset) },
+            .ti        = RR { .x = ti, .y = 0 },
         }
     );
 }

@@ -962,6 +962,51 @@ LABEL(COPY_FROM_LOCAL_GENERIC) {
     NEXT;
 }
 
+LABEL(COPY_TYPESLOT) {
+    auto args = CopyTypeSlot::Decode(reader);
+    LOG_INSTR;
+    interpreter.CopyTypeSlot(static_cast<int32_t>(args.dstOffset.imm), static_cast<int32_t>(args.srcOffset.imm), args.ti);
+    NEXT;
+}
+
+LABEL(COPY_TO_TYPESLOT) {
+    auto args = CopyToTypeSlot::Decode(reader);
+    LOG_INSTR;
+    interpreter.CopyToTypeSlot(static_cast<int32_t>(args.dstOffset.imm), args.src.x.IR(), args.src.y.IR(), args.ti);
+    NEXT;
+}
+
+LABEL(COPY_FROM_TYPESLOT) {
+    auto args = CopyFromTypeSlot::Decode(reader);
+    LOG_INSTR;
+    interpreter.CopyFromTypeSlot(args.dst.x.IR(), args.dst.y.IR(), static_cast<int32_t>(args.srcOffset.imm), args.ti);
+    NEXT;
+}
+
+LABEL(COPY_TYPESLOT_GENERIC) {
+    auto args = CopyTypeSlotGeneric::Decode(reader);
+    LOG_INSTR;
+    auto ti = TypeInfo(ectype->GetPrimitive(args.ti.x.IR()).u64);
+    interpreter.CopyTypeSlot(static_cast<int32_t>(args.dstOffset.imm), static_cast<int32_t>(args.srcOffset.imm), ti);
+    NEXT;
+}
+
+LABEL(COPY_TO_TYPESLOT_GENERIC) {
+    auto args = CopyToTypeSlotGeneric::Decode(reader);
+    LOG_INSTR;
+    auto ti = TypeInfo(ectype->GetPrimitive(args.ti.x.IR()).u64);
+    interpreter.CopyToTypeSlot(static_cast<int32_t>(args.dstOffset.imm), args.src.x.IR(), args.src.y.IR(), ti);
+    NEXT;
+}
+
+LABEL(COPY_FROM_TYPESLOT_GENERIC) {
+    auto args = CopyFromTypeSlotGeneric::Decode(reader);
+    LOG_INSTR;
+    auto ti = TypeInfo(ectype->GetPrimitive(args.ti.x.IR()).u64);
+    interpreter.CopyFromTypeSlot(args.dst.x.IR(), args.dst.y.IR(), static_cast<int32_t>(args.srcOffset.imm), ti);
+    NEXT;
+}
+
 LABEL(INDEX) {
     auto args = Index::Decode(reader);
     LOG_INSTR;

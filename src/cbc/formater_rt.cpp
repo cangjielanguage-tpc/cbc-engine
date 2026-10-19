@@ -610,6 +610,48 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyLocalG
     formatter.Format();
 }
 
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyTypeSlot args)
+{
+    Operand operands[] = { args.dstOffset.imm, args.srcOffset.imm, args.ti.UInt() };
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
+    formatter.Format();
+}
+
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyTypeSlotGeneric args)
+{
+    Operand operands[] = { args.dstOffset.imm, args.srcOffset.imm, args.ti.x };
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
+    formatter.Format();
+}
+
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyToTypeSlot args)
+{
+    Operand operands[] = { args.dstOffset.imm, args.src.x, args.src.y, args.ti.UInt() };
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
+    formatter.Format();
+}
+
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyToTypeSlotGeneric args)
+{
+    Operand operands[] = { args.dstOffset.imm, args.src.x, args.src.y, args.ti.x };
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
+    formatter.Format();
+}
+
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyFromTypeSlot args)
+{
+    Operand operands[] = { args.dst.x, args.dst.y, args.srcOffset.imm, args.ti.UInt() };
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
+    formatter.Format();
+}
+
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyFromTypeSlotGeneric args)
+{
+    Operand operands[] = { args.dst.x, args.dst.y, args.srcOffset.imm, args.ti.x };
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
+    formatter.Format();
+}
+
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, Index args)
 {
     Operand operands[] = { args.rr.x, args.rr.y, args.idx.r, args.ti.UInt() };

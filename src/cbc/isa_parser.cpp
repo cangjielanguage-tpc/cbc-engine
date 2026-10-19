@@ -617,6 +617,44 @@ struct IsaParserImpl {
         parser.CopyFromLocalGeneric(dstBase, dst, src, ti);
     }
 
+    static void CopyTypeSlot(IsaParser& parser)
+    {
+        auto [dst, src] = ByteReaderM(parser.reader).ReadU16().ReadU16().Get();
+        parser.CopyTypeSlot(dst, src);
+    }
+
+    static void CopyToTypeSlot(IsaParser& parser)
+    {
+        auto [dst, srcBase, src] = ByteReaderM(parser.reader).ReadU16().ReadU4().ReadU4().Get();
+        parser.CopyToTypeSlot(dst, srcBase, src);
+    }
+
+    static void CopyFromTypeSlot(IsaParser& parser)
+    {
+        auto [dstBase, dst, src] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        parser.CopyFromTypeSlot(dstBase, dst, src);
+    }
+
+    static void CopyTypeSlotGeneric(IsaParser& parser)
+    {
+        auto [dst, src, ti, _] = ByteReaderM(parser.reader).ReadU16().ReadU16().ReadU4().ReadU4().Get();
+        parser.CopyTypeSlotGeneric(dst, src, ti);
+    }
+
+    static void CopyToTypeSlotGeneric(IsaParser& parser)
+    {
+        auto [dst, srcBase, src, ti, _] =
+            ByteReaderM(parser.reader).ReadU16().ReadU4().ReadU4().ReadU4().ReadU4().Get();
+        parser.CopyToTypeSlotGeneric(dst, srcBase, src, ti);
+    }
+
+    static void CopyFromTypeSlotGeneric(IsaParser& parser)
+    {
+        auto [dstBase, dst, src, ti, _] =
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().ReadU4().ReadU4().Get();
+        parser.CopyFromTypeSlotGeneric(dstBase, dst, src, ti);
+    }
+
     static void LeaIndex(IsaParser& parser)
     {
         auto [dst, src, idx, _, typeId] =

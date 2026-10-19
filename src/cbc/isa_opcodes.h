@@ -164,6 +164,12 @@
     X(CopyLocalGeneric, CopyLocalGeneric)                                                                              \
     X(CopyToLocalGeneric, CopyToLocalGeneric)                                                                          \
     X(CopyFromLocalGeneric, CopyFromLocalGeneric)                                                                      \
+    X(CopyTypeSlot, CopyTypeSlot)                                                                                      \
+    X(CopyToTypeSlot, CopyToTypeSlot)                                                                                  \
+    X(CopyFromTypeSlot, CopyFromTypeSlot)                                                                              \
+    X(CopyTypeSlotGeneric, CopyTypeSlotGeneric)                                                                        \
+    X(CopyToTypeSlotGeneric, CopyToTypeSlotGeneric)                                                                    \
+    X(CopyFromTypeSlotGeneric, CopyFromTypeSlotGeneric)                                                                \
     X(_END, Unreachable)
 
 #define ISA_REG_SYM_GROUP_OPCODES(X)                                                                                   \

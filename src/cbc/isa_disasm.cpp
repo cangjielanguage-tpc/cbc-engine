@@ -507,6 +507,33 @@ struct IsaDisasm : public IsaParser {
         stream.PrintLn("copy.from.local.g {}, {}, {} {}", dstBase, dst, src, ti);
     }
 
+    void CopyTypeSlot(uint16_t dst, uint16_t src) override { stream.PrintLn("copy.typed {}, {}", dst, src); }
+
+    void CopyToTypeSlot(uint16_t dst, IReg srcBase, IReg src) override
+    {
+        stream.PrintLn("copy.to.typed {}, {}, {}", dst, srcBase, src);
+    }
+
+    void CopyFromTypeSlot(IReg dstBase, IReg dst, uint16_t src) override
+    {
+        stream.PrintLn("copy.from.typed {}, {}, {}", dstBase, dst, src);
+    }
+
+    void CopyTypeSlotGeneric(uint16_t dst, uint16_t src, IReg ti) override
+    {
+        stream.PrintLn("copy.typed.g {}, {} {}", dst, src, ti);
+    }
+
+    void CopyToTypeSlotGeneric(uint16_t dst, IReg srcBase, IReg src, IReg ti) override
+    {
+        stream.PrintLn("copy.to.typed.g {}, {}, {} {}", dst, srcBase, src, ti);
+    }
+
+    void CopyFromTypeSlotGeneric(IReg dstBase, IReg dst, uint16_t src, IReg ti) override
+    {
+        stream.PrintLn("copy.from.typed.g {}, {}, {} {}", dstBase, dst, src, ti);
+    }
+
     void LeaIndex(IReg dst, IReg src, IReg idx, uint32_t typeId) override
     {
         stream.PrintLn("index {}, [{} @{}], [@{}]", dst, src, idx, typeId);

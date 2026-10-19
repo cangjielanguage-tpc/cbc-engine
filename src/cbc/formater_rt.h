@@ -61,6 +61,12 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyDerive
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyDerivedGeneric args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyLocal args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyLocalGeneric args);
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyTypeSlot args);
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyTypeSlotGeneric args);
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyToTypeSlot args);
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyToTypeSlotGeneric args);
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyFromTypeSlot args);
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyFromTypeSlotGeneric args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, Index args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, IndexGeneric args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, ConstIndexGeneric args);

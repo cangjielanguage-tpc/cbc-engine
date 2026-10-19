@@ -649,6 +649,21 @@ struct IsaRewriter : public IsaParser {
         return (int32_t)frameLayout.typedOffset[typedSlot] - frameLayout.frameSize;
     }
 
+    std::optional<RTSupport::TypeInfo> TypeSlotTypeInfo(uint16_t slot)
+    {
+        auto type = resolver.Query(Index<Type>(code.StackAllocSigs()[slot]));
+        if (!type.has_value()) {
+            Fail();
+            return std::nullopt;
+        }
+        auto ti = type->GetTypeInfo();
+        if (!ti.has_value()) {
+            Fail();
+            return std::nullopt;
+        }
+        return ti.value();
+    }
+
     void LdTyped(AnyReg dst, uint16_t slot, uint32_t fieldId) override
     {
         UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
@@ -821,6 +836,41 @@ struct IsaRewriter : public IsaParser {
     void CopyFromLocalGeneric(IReg dstBase, IReg dst, IReg src, IReg ti) override
     {
         emit.CopyFromLocalGeneric(dstBase, dst, src, ti);
+    }
+
+    void CopyTypeSlot(uint16_t dst, uint16_t src) override
+    {
+        UNWRAP_OPT(dstTi, TypeSlotTypeInfo(dst), Fail);
+        UNWRAP_OPT(srcTi, TypeSlotTypeInfo(src), Fail);
+        ASSERT(dstTi.UInt() == srcTi.UInt());
+        emit.CopyTypeSlot(TypedSlotOffset(dst), TypedSlotOffset(src), dstTi);
+    }
+
+    void CopyToTypeSlot(uint16_t dst, IReg srcBase, IReg src) override
+    {
+        UNWRAP_OPT(ti, TypeSlotTypeInfo(dst), Fail);
+        emit.CopyToTypeSlot(TypedSlotOffset(dst), srcBase, src, ti);
+    }
+
+    void CopyFromTypeSlot(IReg dstBase, IReg dst, uint16_t src) override
+    {
+        UNWRAP_OPT(ti, TypeSlotTypeInfo(src), Fail);
+        emit.CopyFromTypeSlot(dstBase, dst, TypedSlotOffset(src), ti);
+    }
+
+    void CopyTypeSlotGeneric(uint16_t dst, uint16_t src, IReg ti) override
+    {
+        emit.CopyTypeSlotGeneric(TypedSlotOffset(dst), TypedSlotOffset(src), ti);
+    }
+
+    void CopyToTypeSlotGeneric(uint16_t dst, IReg srcBase, IReg src, IReg ti) override
+    {
+        emit.CopyToTypeSlotGeneric(TypedSlotOffset(dst), srcBase, src, ti);
+    }
+
+    void CopyFromTypeSlotGeneric(IReg dstBase, IReg dst, uint16_t src, IReg ti) override
+    {
+        emit.CopyFromTypeSlotGeneric(dstBase, dst, TypedSlotOffset(src), ti);
     }
 
     void LeaIndex(IReg dst, IReg src, IReg idx, uint32_t typeId) override
@@ -1900,18 +1950,8 @@ struct IsaRewriter : public IsaParser {
 
     void BoxT(uint16_t srcTs, IReg dst) override
     {
-        auto type = resolver.Query(Index<Type>(code.StackAllocSigs()[srcTs]));
-        if (!type.has_value()) {
-            Fail();
-            return;
-        }
-        auto ti = type.value().GetTypeInfo();
-        if (!ti.has_value()) {
-            Fail();
-            return;
-        }
-        auto typeInfo = ti.value();
-        auto offset   = TypedSlotOffset(srcTs);
+        UNWRAP_OPT(typeInfo, TypeSlotTypeInfo(srcTs), Fail);
+        auto offset = TypedSlotOffset(srcTs);
         emit.NewBox(typeInfo);
         BindStatePoint();
         AdjustReg(dst, IReg::IR_ACC);

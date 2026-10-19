@@ -177,6 +177,12 @@ protected:
     virtual void CopyLocalGeneric(IReg dst, IReg src, IReg ti)                              = 0;
     virtual void CopyToLocalGeneric(IReg dst, IReg srcBase, IReg src, IReg ti)              = 0;
     virtual void CopyFromLocalGeneric(IReg dstBase, IReg dst, IReg src, IReg ti)            = 0;
+    virtual void CopyTypeSlot(uint16_t dst, uint16_t src)                                   = 0;
+    virtual void CopyToTypeSlot(uint16_t dst, IReg srcBase, IReg src)                       = 0;
+    virtual void CopyFromTypeSlot(IReg dstBase, IReg dst, uint16_t src)                     = 0;
+    virtual void CopyTypeSlotGeneric(uint16_t dst, uint16_t src, IReg ti)                   = 0;
+    virtual void CopyToTypeSlotGeneric(uint16_t dst, IReg srcBase, IReg src, IReg ti)       = 0;
+    virtual void CopyFromTypeSlotGeneric(IReg dstBase, IReg dst, uint16_t src, IReg ti)     = 0;
     virtual void LeaIndex(IReg dst, IReg src, IReg idx, uint32_t typeId)                    = 0;
     virtual void LeaIndexGeneric(IReg dst, IReg src, IReg idx, IReg ti)                     = 0;
     virtual void LeaConstIndexGeneric(IReg dst, IReg src, int64_t idx, IReg ti)             = 0;
