@@ -24,14 +24,10 @@ Location AbiAssigner::Consume(ArgKind kind)
 
 Location AbiAssigner::ConsumeVarArg(ArgKind kind)
 {
-    const bool isFloat = kind == ArgKind::FLOAT;
-    if (isFloat && fargIdx < desc.fregHeadArea.Size() && !desc.onlyOnStackVarargs) {
-        return GiveFReg();
-    } else if (!isFloat && iargIdx < desc.iregHeadArea.Size() && !desc.onlyOnStackVarargs) {
-        return GiveIReg();
-    } else {
+    if (desc.onlyOnStackVarargs) {
         return GiveStackSlot();
     }
+    return Consume(kind);
 }
 
 Location AbiAssigner::ConsumeSret()

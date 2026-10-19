@@ -644,7 +644,7 @@ struct ResolverProxy {
     // there can be also additional arguments.
     // Definition signature: <named_0>, ..., <named_n>
     // Reference  signature: <named_0>, ..., <named_n>, <vastart>, <varg_0>, ..., <varg_m>
-    static bool IsForeignSigCompatible(Term defSig, Term refSig)
+    static bool IsVarArgSigCompatible(Term defSig, Term refSig)
     {
         if (defSig.Subterm(defSig.GetLength() - 1) != refSig.Subterm(refSig.GetLength() - 1)) {
             // Different return types
@@ -714,7 +714,7 @@ struct ResolverProxy {
                 if (sig == ref.signature) {
                     return m;
                 }
-                if (def.GetFlags().Is(Image::MethodFlag::FOREIGN) && IsForeignSigCompatible(sig, ref.signature)) {
+                if (ref.flags.Is(Image::MethodRefFlag::VARARG) && IsVarArgSigCompatible(sig, ref.signature)) {
                     return m;
                 }
             }

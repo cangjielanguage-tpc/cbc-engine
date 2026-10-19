@@ -91,6 +91,13 @@ public:
         return target;
     }
 
+    Location ConsumeVarArg(ArgKind kind)
+    {
+        auto target = AbiAssigner::ConsumeVarArg(kind);
+        track(target, kind);
+        return target;
+    }
+
     Location ConsumeSret()
     {
         auto target = AbiAssigner::ConsumeSret();
