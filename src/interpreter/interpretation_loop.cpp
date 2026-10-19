@@ -885,16 +885,16 @@ LABEL(NEWARR_G) {
     return { func, type.Raw() };
 }
 LABEL(LOAD_ADDR) {
-    auto args = B2xr::Decode(reader);
+    auto args = B4xri16::Decode(reader);
     LOG_INSTR;
-    auto location   = literals->at(reader.Read16()).u64;
+    auto location   = literals->at(args.imm.imm).u64;
     bool successful = interpreter.LoadAddr(args.xr.imm.LDK(), args.xr.r, location);
     NEXT_COND(successful);
 }
 LABEL(STORE_ADDR) {
-    auto args = B2xr::Decode(reader);
+    auto args = B4xri16::Decode(reader);
     LOG_INSTR;
-    auto location   = literals->at(reader.Read16()).u64;
+    auto location   = literals->at(args.imm.imm).u64;
     bool successful = interpreter.StoreAddr(args.xr.imm.STK(), args.xr.r, location);
     NEXT_COND(successful);
 }

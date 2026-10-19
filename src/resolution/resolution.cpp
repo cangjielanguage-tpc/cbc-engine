@@ -577,14 +577,16 @@ struct ResolverProxy {
         auto resolved = mt->Resolve(resolver, mtRef);
 
         if (!resolved.has_value()) {
-            LOGS_ERROR(log, resolver, "Failed to resolve method {}", ref.refType, ref.name, ref.signature);
+            LOGS_ERROR(log, resolver, "Failed to resolve method {}.{}{}", ref.refType, ref.name, ref.signature);
             return std::nullopt;
         }
 
         auto method      = Decode::Read(resolver, resolved->method);
         auto actualFlags = method.GetABIFlags();
         if (actualFlags != ref.flags) {
-            LOGS_ERROR(log, resolver, "Resolved method is abi incompatible {}", ref.refType, ref.name, ref.signature);
+            LOGS_ERROR(
+                log, resolver, "Resolved method is abi incompatible {}.{}{}", ref.refType, ref.name, ref.signature
+            );
             return std::nullopt;
         }
 
@@ -697,7 +699,7 @@ struct ResolverProxy {
                 }
             }
 
-            LOGS_ERROR(log, resolver, "Failed to resolve method {}", ref.refType, ref.name, ref.signature);
+            LOGS_ERROR(log, resolver, "Failed to resolve method {}.{}{}", ref.refType, ref.name, ref.signature);
             return std::nullopt;
         }();
 

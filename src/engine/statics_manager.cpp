@@ -1,10 +1,8 @@
 #include "statics_manager.h"
-#include "engine/image/reader.h"
 #include "engine/resolving_output.h"
 #include "field_layout.h"
 #include "image/flags.h"
 #include "terms.h"
-#include "typeinfo_manager.h"
 #include "utils/assertion.h"
 #include "utils/math.h"
 #include "utils/ostream.h"
@@ -44,14 +42,10 @@ SlotKind ComputeSlotKind(Session& session, FieldLayoutManager& flm, Image::Field
     auto fieldType = TermManager::Resolve(session, definition.FieldType());
     if (fieldType.IsReference()) {
         return REFERENCE;
-    }
-    switch (fieldType.GetKind()) {
-        case TermKind::OPTION:
-        case TermKind::UNION_ENUM:
-        case TermKind::AOT_TYPE:
-        case TermKind::VARRAY:
-        case TermKind::TYPE:     return RECORD;
-        default:                 return PRIMITIVE;
+    } else if (fieldType.IsRecord()) {
+        return RECORD;
+    } else {
+        return PRIMITIVE;
     }
 }
 

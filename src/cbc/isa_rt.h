@@ -57,8 +57,8 @@
     X(SPAWN, B9i64, "spawn $0U64")                                                                                     \
     X(SPAWN_FUTURE, B1, "spawn.future")                                                                                \
     /* Integral Load/Store instructions start */                                                                       \
-    X(LOAD_ADDR, B4xri16, "ld.addr.$0ldk $1ir $2U16")                                                                  \
-    X(STORE_ADDR, B4xri16, "st.addr.$0ldk $1ir $2U16")                                                                 \
+    X(LOAD_ADDR, B4xri16, "ld.addr.$0ldk $1ir $2U16L")                                                                 \
+    X(STORE_ADDR, B4xri16, "st.addr.$0stk $1ir $2U16L")                                                                \
     X(LOAD_OBJ, B4xi12rr, "ld.$0ldk $2ir [$3ir $1U12]")                                                                \
     X(STORE_OBJ, B4xi12rr, "st.$0stk $2ir [$3ir $1U12]")                                                               \
     X(LOAD_ARR, B3xrrr, "ld.arr.$0ldk $1ir $2ir $3ir")                                                                 \
