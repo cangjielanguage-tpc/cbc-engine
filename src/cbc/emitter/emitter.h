@@ -40,69 +40,6 @@ public:
     using LoadAccessKind  = Format::LoadAccessKind;
     using StoreAccessKind = Format::StoreAccessKind;
 
-    class MemSpace {
-    public:
-        MemSpace(Emitter& _emitter) : segment(_emitter.segment), symbols(_emitter.symbols), emitter(_emitter) {}
-
-        void Offset(int32_t offset);
-        void OffsetReg(IReg reg);
-        void OffsetRegIdx(IReg reg, uint64_t size);
-
-        // tail instructions
-        void WriteStructFieldObj(IReg src, IReg base, RTSupport::TypeInfo structTypeInfo);
-        void ReadStructFieldObj(IReg dst, IReg base, RTSupport::TypeInfo structTypeInfo);
-
-        void LoadObj(LoadAccessKind ldk, Reg dst, IReg base);
-        void StoreObj(StoreAccessKind stk, Reg src, IReg base);
-        void StoreObjImm(StoreAccessKind stk, Reg base, uint64_t imm);
-
-        void LoadDerived(LoadAccessKind ldk, Reg dst, IReg base, IReg derived);
-        void StoreDerived(StoreAccessKind stk, Reg src, IReg base, IReg derived);
-        void StoreDerivedImm(StoreAccessKind stk, IReg base, IReg derived, uint64_t imm);
-
-        void LoadRec(LoadAccessKind ldk, Reg dst, IReg base);
-        void StoreRec(StoreAccessKind stk, Reg src, IReg base);
-        void StoreRecImm(StoreAccessKind stk, Reg base, uint64_t imm);
-
-        void LoadFrame(LoadAccessKind ldk, Reg dst);
-        void StoreFrame(StoreAccessKind stk, Reg src);
-        void StoreFrameImm(StoreAccessKind stk, uint64_t imm);
-
-        void LoadGeneric(IReg dst, IReg base, IReg typeInfo);
-        void StoreGeneric(IReg src, IReg base, IReg typeInfo);
-        void LoadDerivedGeneric(IReg dst, IReg base, IReg derived, IReg typeInfo);
-        void StoreDerivedGeneric(IReg src, IReg base, IReg derived, IReg typeInfo);
-
-        void CopyRecFromObj(Reg from, Reg to, RTSupport::TypeInfo);
-        void CopyRecFromRec(Reg from, Reg to, RTSupport::TypeInfo);
-        void CopyRecFromDerived(Reg base, Reg derived, Reg to, RTSupport::TypeInfo);
-
-        void CopyRecToObj(Reg from, Reg to, RTSupport::TypeInfo);
-        void CopyRecToRec(Reg from, Reg to, RTSupport::TypeInfo);
-        void CopyRecToDerived(Reg base, Reg derived, Reg from, RTSupport::TypeInfo);
-
-        void GenericField(int ordinal, IReg typeInfo);
-
-    private:
-        template <typename AccessKind> void LoadStore(AccessKind akind, Reg v, IReg base, RT::MemOpcode opc)
-        {
-            Encode(
-                segment,
-                RT::M2rr {
-                    .opc = opc,
-                    .rr  = Format::RR { .x = v, .y = base },
-                }
-            );
-        }
-
-        void CopyFrom(Reg from, Reg to, RTSupport::TypeInfo ti, RT::MemOpcode opc);
-        void CopyTo(Reg from, Reg to, RTSupport::TypeInfo ti, RT::MemOpcode opc);
-
-        Segment& segment;
-        Symbols& symbols;
-        Emitter& emitter;
-    };
-
     Emitter() = default;
 
     Symbol NewAddressSym(uintptr_t ptr);
@@ -234,8 +171,10 @@ public:
     void LoadDerived(LoadAccessKind ldk, Reg dst, IReg baseRef, IReg base, uint32_t offset);
     void StoreDerived(StoreAccessKind stk, Reg src, IReg baseRef, IReg base, uint32_t offset);
     void LoadGeneric(Reg dst, IReg baseRef, IReg base, IReg ti);
-    void StoreGeneric(Reg src, IReg baseRef, IReg base, IReg ti);
+    void StoreGeneric(IReg src, IReg baseRef, IReg base, IReg ti, uint32_t offset);
     void LeaGeneric(Reg dst, IReg base, IReg ti, uint32_t offset);
+    void InitNoneGenericOpt0(IReg underlyingTi);
+    void InitSomeGeneric(IReg src, IReg underlyingTi, bool opt0);
     void TypeArg(IReg dst, IReg typeInfo, int idx);
     void CopyDerived(IReg dstBase, IReg dst, IReg srcBase, IReg src, RTSupport::TypeInfo ti);
     void CopyDerivedGeneric(IReg dstBase, IReg dst, IReg srcBase, IReg src, IReg ti);
@@ -295,8 +234,8 @@ public:
     void UnboxT(IReg src, int32_t frameOffs);
     void Offset(IReg dst, int ordinal, IReg typeInfo);
 
-    void WriteStructField(IReg src, IReg base, IReg field, RTSupport::TypeInfo ti);
-    void ReadStructField(IReg dst, IReg base, IReg field, RTSupport::TypeInfo ti);
+    void WriteStructField(IReg src, IReg base, uint32_t offset, RTSupport::TypeInfo ti);
+    void ReadStructField(IReg dst, IReg base, uint32_t offset, RTSupport::TypeInfo ti);
 
     void AtomicLoad(IReg dst, Format::LoadAccessKind ldk, IReg obj, uint16_t offset);
     void AtomicStore(IReg src, Format::StoreAccessKind stk, IReg obj, uint16_t offset);
@@ -319,8 +258,6 @@ public:
     void StackParamF(FReg src, uint16_t dst);
     void StackParamS16(int16_t src, uint16_t dst);
     void StackParamS32(int32_t src, uint16_t dst);
-
-    MemSpace OpenMemSpace();
 
 private:
     void AddFixup(std::unique_ptr<Fixup> fixup);

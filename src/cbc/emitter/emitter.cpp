@@ -771,12 +771,18 @@ void Emitter::LoadGeneric(Reg dst, IReg baseRef, IReg base, IReg ti)
     );
 }
 
-void Emitter::StoreGeneric(Reg src, IReg baseRef, IReg base, IReg ti)
+void Emitter::StoreGeneric(IReg src, IReg baseRef, IReg base, IReg ti, uint32_t offset)
 {
+    RT::Opcode opc = RT::Opcode::STORE_GENERIC_4;
+    if (offset == 0) {
+        opc = RT::Opcode::STORE_GENERIC;
+    } else if (offset < 255) {
+        opc = RT::Opcode::STORE_GENERIC_1;
+    }
+
     Encode(
         segment,
-        RT::B3rrrr {
-            .opc = RT::Opcode::STORE_GENERIC, .rr1 = { .x = src, .y = baseRef }, .rr2 = { .x = base, .y = ti } }
+        RT::StoreGenericOp { .opc = opc, .src = src, .base = baseRef, .derived = base, .ti = ti, .offset = offset }
     );
 }
 
@@ -790,6 +796,18 @@ void Emitter::LeaGeneric(Reg dst, IReg base, IReg ti, uint32_t ordinal)
                         .rr    = { .x = base, .y = ti },
                         .imm32 = { .imm = ordinal } }
     );
+}
+
+void Emitter::InitNoneGenericOpt0(IReg underlyingTi)
+{
+    RT::Opcode opc = RT::Opcode::INIT_NONE_GENERIC_OPT0;
+    Encode(segment, RT::InitOption { .opc = opc, .src = IReg::IRZ, .underlyingTi = underlyingTi });
+}
+
+void Emitter::InitSomeGeneric(IReg src, IReg underlyingTi, bool opt0)
+{
+    RT::Opcode opc = opt0 ? RT::Opcode::INIT_SOME_GENERIC_OPT0 : RT::Opcode::INIT_SOME_GENERIC_OPT1;
+    Encode(segment, RT::InitOption { .opc = opc, .src = src, .underlyingTi = underlyingTi });
 }
 
 void Emitter::LoadObj(LoadAccessKind ldk, Reg dst, IReg base, uint32_t offset)
@@ -984,9 +1002,26 @@ void Emitter::StoreFrame(StoreAccessKind stk, Reg src, int32_t offset)
 
 void Emitter::StoreFrameImm(StoreAccessKind stk, uint64_t imm, int32_t offset)
 {
-    auto ms = OpenMemSpace();
-    ms.Offset(offset);
-    ms.StoreFrameImm(stk, imm);
+    if (stk == StoreAccessKind::ST_REF) {
+        ASSERT(imm == 0);
+        stk = StoreAccessKind::ST_64;
+    }
+    switch (stk) {
+        case StoreAccessKind::ST_F32: stk = StoreAccessKind::ST_32; break;
+        case StoreAccessKind::ST_F64: stk = StoreAccessKind::ST_64; break;
+        default: break;
+    }
+    RT::Opcode opc;
+    if (MathUtils::IsNBitsSigned(imm, 8) || stk == StoreAccessKind::ST_8) {
+        opc = RT::Opcode::STORE_FRAME_IMM_1;
+    } else if (MathUtils::IsNBitsSigned(imm, 16) || stk == StoreAccessKind::ST_16) {
+        opc = RT::Opcode::STORE_FRAME_IMM_2;
+    } else if (MathUtils::IsNBitsSigned(imm, 32) || stk == StoreAccessKind::ST_32) {
+        opc = RT::Opcode::STORE_FRAME_IMM_4;
+    } else {
+        opc = RT::Opcode::STORE_FRAME_IMM_8;
+    }
+    Encode(segment, RT::StoreFrameImm { opc, stk, imm, offset });
 }
 
 void Emitter::PrepareTyped(uint64_t size, int32_t offset)
@@ -1261,18 +1296,22 @@ void Emitter::Offset(IReg dst, int ordinal, IReg typeInfo)
     segment.AddW32(ordinal); // TODO: encode efficiently
 }
 
-void Emitter::ReadStructField(IReg dst, IReg base, IReg field, RTSupport::TypeInfo ti)
+void Emitter::ReadStructField(IReg dst, IReg base, uint32_t offset, RTSupport::TypeInfo ti)
 {
+    if (offset > 255)
+        FATAL("offset out of bounds: %u", offset);
     RT::StructFieldOp command = {
-        .opc = RT::Opcode::READ_STRUCT_FIELD, .rr = { dst, base }, .field = { field, field }, .ti = ti
+        .opc = RT::Opcode::READ_STRUCT_FIELD, .rr = { dst, base }, .offset = static_cast<uint8_t>(offset), .ti = ti
     };
     Encode(segment, command);
 }
 
-void Emitter::WriteStructField(IReg src, IReg base, IReg field, RTSupport::TypeInfo ti)
+void Emitter::WriteStructField(IReg src, IReg base, uint32_t offset, RTSupport::TypeInfo ti)
 {
+    if (offset > 255)
+        FATAL("offset out of bounds: %u", offset);
     RT::StructFieldOp command = {
-        .opc = RT::Opcode::WRITE_STRUCT_FIELD, .rr = { src, base }, .field = { field, field }, .ti = ti
+        .opc = RT::Opcode::WRITE_STRUCT_FIELD, .rr = { src, base }, .offset = static_cast<uint8_t>(offset), .ti = ti
     };
     Encode(segment, command);
 }

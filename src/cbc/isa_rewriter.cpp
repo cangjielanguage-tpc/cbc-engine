@@ -39,8 +39,6 @@ namespace Cbc {
 
 using namespace Resolution;
 
-using MemSpaceEmitter = Emitter::Emitter::MemSpace;
-
 using TK  = CbcTypeKind;
 using LDK = Format::LoadAccessKind;
 using STK = Format::StoreAccessKind;
@@ -673,7 +671,7 @@ struct IsaRewriter : public IsaParser {
         emit.LoadDerived(Ldk(field->fieldType.GetKind()), dst, baseRef, derived, fieldOffset);
     }
 
-    void LdGeneric(AnyReg dst, IReg baseRef, IReg derived, IReg ti, uint32_t fieldId) override
+    void LdGeneric(IReg dst, IReg baseRef, IReg derived, IReg ti, uint32_t fieldId) override
     {
         UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
         UNWRAP_OPT(offset, field->offset, Fail);
@@ -761,13 +759,12 @@ struct IsaRewriter : public IsaParser {
         emit.StoreDerived(Stk(field->fieldType.GetKind()), src, baseRef, derived, fieldOffset);
     }
 
-    void StGeneric(AnyReg src, IReg baseRef, IReg derived, IReg ti, uint32_t fieldId) override
+    void StGeneric(IReg src, IReg baseRef, IReg derived, IReg ti, uint32_t fieldId) override
     {
         UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
         UNWRAP_OPT(offset, field->offset, Fail);
         ASSERT(field->fieldType.GetKind() == CbcTypeKind::VOID);
-        ASSERT(offset == 0);
-        emit.StoreGeneric(src, baseRef, derived, ti);
+        emit.StoreGeneric(src, baseRef, derived, ti, offset);
     }
 
     void LeaBox(IReg dst, IReg base) override
@@ -994,25 +991,10 @@ struct IsaRewriter : public IsaParser {
             return Fail("resolution failure");
         }
 
-        auto refPath = emit.NewLabel();
-        auto end     = emit.NewLabel();
-        emit.BranchIfRef(underlyingTypeInfo, refPath);
-        {
-            auto ms = emit.OpenMemSpace();
-            ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
-            ms.GenericField(1, optionTypeInfo);
-            ms.LoadGeneric(dst, src, underlyingTypeInfo);
-            BindStatePoint();
-        }
-        emit.Jmp(end);
-        emit.Bind(refPath);
-        {
-            auto ms = emit.OpenMemSpace();
-            ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
-            ms.LoadGeneric(dst, src, underlyingTypeInfo);
-            BindStatePoint();
-        }
-        emit.Bind(end);
+        emit.LeaGeneric(IReg::IR_ACC, src, optionTypeInfo, 1);
+        emit.AddI(Format::Width::W64, IReg::IR_ACC, IReg::IR_ACC, RTSupport::MetaInfo::ObjectHeaderSize());
+        emit.LoadGeneric(dst, src, IReg::IR_ACC, underlyingTypeInfo);
+        BindStatePoint();
     }
 
     void NewNoneGeneric(IReg dst, IReg underlyingTypeInfo, IReg optionTypeInfo, uint32_t optionTypeInfoId) override
@@ -1025,16 +1007,11 @@ struct IsaRewriter : public IsaParser {
         auto typeDefId = Engine::ExtractTypeDefIdentifier(type.term);
         auto typeDef   = Decode::Read(session, typeDefId);
 
-        auto end = emit.NewLabel();
         emit.NewObjGenericOnAcc(optionTypeInfo);
         BindStatePoint();
-        emit.BranchIfRef(underlyingTypeInfo, end);
         if (typeDef->enumKind == Image::EnumKind::OPTION0) {
-            auto ms = emit.OpenMemSpace();
-            ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
-            ms.StoreObjImm(STK::ST_8, IReg::IR_ACC, 1);
+            emit.InitNoneGenericOpt0(underlyingTypeInfo);
         }
-        emit.Bind(end);
         emit.Mov(dst, IReg::IR_ACC);
     }
 
@@ -1049,30 +1026,9 @@ struct IsaRewriter : public IsaParser {
         auto type      = *t;
         auto typeDefId = Engine::ExtractTypeDefIdentifier(type.term);
         auto typeDef   = Decode::Read(session, typeDefId);
-        auto refPath   = emit.NewLabel();
-        auto end       = emit.NewLabel();
         emit.NewObjGenericOnAcc(optionTypeInfo);
         BindStatePoint();
-        emit.BranchIfRef(underlyingTypeInfo, refPath);
-        {
-            auto ms = emit.OpenMemSpace();
-            ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
-            ms.GenericField(1, optionTypeInfo);
-            ms.StoreGeneric(src, IReg::IR_ACC, underlyingTypeInfo);
-        }
-        if (typeDef->enumKind == Image::EnumKind::OPTION1) {
-            auto ms = emit.OpenMemSpace();
-            ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
-            ms.StoreObjImm(STK::ST_8, IReg::IR_ACC, 1);
-        }
-        emit.Jmp(end);
-        emit.Bind(refPath);
-        {
-            auto ms = emit.OpenMemSpace();
-            ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
-            ms.StoreGeneric(src, IReg::IR_ACC, underlyingTypeInfo);
-        }
-        emit.Bind(end);
+        emit.InitSomeGeneric(src, underlyingTypeInfo, typeDef->enumKind == Image::EnumKind::OPTION0);
         emit.Mov(dst, IReg::IR_ACC);
     }
 
@@ -1838,18 +1794,14 @@ struct IsaRewriter : public IsaParser {
                 Fail();
                 return;
             }
-            auto typeInfo = ti.value();
-            auto isrc     = IReg::From(src);
-
-            emit.NewBox(typeInfo); // Spoils IR_ACC
+            emit.NewBox(*ti); // Spoils IR_ACC
             BindStatePoint();
-            auto ms = emit.OpenMemSpace();
-            ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
             auto kind = type.GetKind();
             switch (kind) {
-                case CbcTypeKind::REF: ms.StoreObj(Format::StoreAccessKind::ST_REF, isrc, IReg::IR_ACC); break;
-                case CbcTypeKind::REC: ms.WriteStructFieldObj(isrc, IReg::IR_ACC, typeInfo); break;
-                default:               ms.StoreObj(Stk(kind), src, IReg::IR_ACC); break;
+                case CbcTypeKind::REC:
+                    emit.WriteStructField(IReg::From(src), IReg::IR_ACC, RTSupport::MetaInfo::ObjectHeaderSize(), *ti);
+                    break;
+                default: emit.StoreObj(Stk(kind), src, IReg::IR_ACC, RTSupport::MetaInfo::ObjectHeaderSize()); break;
             }
             AdjustReg(dst, IReg::IR_ACC);
         }
@@ -1859,9 +1811,7 @@ struct IsaRewriter : public IsaParser {
     {
         emit.NewObjGenericOnAcc(ti);
         BindStatePoint();
-        auto ms = emit.OpenMemSpace();
-        ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
-        ms.StoreGeneric(src, IReg::IR_ACC, ti);
+        emit.StoreGeneric(src, IReg::IR_ACC, IReg::IR_ACC, ti, RTSupport::MetaInfo::ObjectHeaderSize());
         AdjustReg(dst, IReg::IR_ACC);
     }
 
@@ -1877,15 +1827,13 @@ struct IsaRewriter : public IsaParser {
             Fail();
             return;
         }
-        auto typeInfo = ti.value();
-        auto offset   = TypedSlotOffset(srcTs);
-        emit.NewBox(typeInfo);
+        auto offset = TypedSlotOffset(srcTs);
+        emit.NewBox(*ti);
         BindStatePoint();
         AdjustReg(dst, IReg::IR_ACC);
+
         emit.LoadFrame(Format::LoadAccessKind::LD_LEA, IReg::IR_ACC, offset);
-        auto ms = emit.OpenMemSpace();
-        ms.Offset(RTSupport::MetaInfo::ObjectHeaderSize());
-        ms.WriteStructFieldObj(IReg::IR_ACC, dst, typeInfo);
+        emit.WriteStructField(IReg::IR_ACC, dst, RTSupport::MetaInfo::ObjectHeaderSize(), *ti);
     }
 
     void BoxTGeneric(uint16_t srcTs, IReg dst, IReg ti) override
@@ -1921,10 +1869,7 @@ struct IsaRewriter : public IsaParser {
                         return;
                     }
                     auto typeInfo = ti.value();
-                    emit.LoadObj(
-                        Format::LoadAccessKind::LD_LEA, IReg::IR_ACC, src, RTSupport::MetaInfo::ObjectHeaderSize()
-                    );
-                    emit.ReadStructField(IReg::From(dst), src, IReg::IR_ACC, typeInfo);
+                    emit.ReadStructField(IReg::From(dst), src, RTSupport::MetaInfo::ObjectHeaderSize(), typeInfo);
                     break;
                 }
                 default: emit.LoadObj(Ldk(kind), dst, src, RTSupport::MetaInfo::ObjectHeaderSize()); break;
@@ -1946,41 +1891,6 @@ struct IsaRewriter : public IsaParser {
         HEAD_STATIC,
         HEAD_FRAME
     };
-
-    struct MemSpaceRewriter : public MemSpace {
-        MemSpaceRewriter(MemSpaceEmitter emit) : MemSpace(), emit(emit), lastFieldKind(CbcTypeKind::INVALID) {}
-
-        HeadKind kind { HEAD_NONE };
-        MemSpaceEmitter emit;
-        IReg base { IReg::IRZ };
-        IReg derived { IReg::IRZ };
-        CbcTypeKind lastFieldKind;
-    };
-
-    bool FieldOffset(MemSpaceRewriter& msr, uint32_t fieldId)
-    {
-        auto f = resolver.Query(Index<InstanceField>(fieldId));
-        if (!f.has_value()) {
-            Fail();
-            return false;
-        }
-        auto field = f.value();
-        if (field->offset.has_value()) {
-            // TODO: accumulate offset for field sequence
-            msr.emit.Offset(field->offset.value());
-            msr.lastFieldKind = field->fieldType.GetKind();
-            return field->refType.GetKind() == CbcTypeKind::REF;
-        } else {
-            errStream << "Failed to get offset of field " << field << Stream::endl;
-            Fail();
-            return false;
-        }
-    }
-
-    std::unique_ptr<MemSpace> OpenMemSpace() override
-    {
-        return std::make_unique<MemSpaceRewriter>(MemSpaceRewriter(emit.OpenMemSpace()));
-    }
 
     void ParseOne() override
     {

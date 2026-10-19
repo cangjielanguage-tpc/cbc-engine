@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <sstream>
 
+#include "cbc/formater_rt.h"
 #include "cbc/isa_disasm.h"
 #include "cbc/isa_parser.h"
 #include "engine/engine.h"
@@ -54,4 +55,37 @@ TEST_ASM(CbcDisasmTest, VirtCall)
                            "3: call.virtual @default:Foo.foo()Void (1, 1) [IR1]\n"
                            "7: ret.W64 IR1\n";
     CompareWith("cbc-virt-call.asm", expected);
+}
+
+// Direct disasm of the InitOption Option opcodes via Cbc::RT::Log.
+// These verify the ISA-RT opcode-table format strings round-trip:
+//   INIT_NONE_GENERIC_OPT0 -> "init.none.g0 $1ir"
+//   INIT_SOME_GENERIC_OPT0 -> "init.some.g0 $0ir $1ir"
+// where $0 = option (src), $1 = underlyingTi.
+static std::string RtLog(Cbc::RT::InitOption args)
+{
+    Stream::StringBuffer stream;
+    Cbc::RT::Log(nullptr, stream, args);
+    return stream.ToString();
+}
+
+TEST(CbcRtDisasmTest, InitNoneGeneric)
+{
+    // operands = { option, underlyingTi }; only $1 (underlyingTi) used.
+    Cbc::RT::InitOption args {
+        .opc          = Cbc::RT::Opcode::INIT_NONE_GENERIC_OPT0,
+        .src          = Cbc::IReg::IRZ,
+        .underlyingTi = Cbc::IReg::IR1,
+    };
+    EXPECT_EQ("init.none.g0 IR1\n", RtLog(args));
+}
+
+TEST(CbcRtDisasmTest, InitSomeGeneric)
+{
+    Cbc::RT::InitOption args {
+        .opc          = Cbc::RT::Opcode::INIT_SOME_GENERIC_OPT0,
+        .src          = Cbc::IReg::IR2,
+        .underlyingTi = Cbc::IReg::IR1,
+    };
+    EXPECT_EQ("init.some.g0 IR2 IR1\n", RtLog(args));
 }

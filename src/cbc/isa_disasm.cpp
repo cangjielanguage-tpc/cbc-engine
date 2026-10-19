@@ -429,7 +429,7 @@ struct IsaDisasm : public IsaParser {
         stream.PrintLn("ld.d R{}, [({}, {}) @{}]", dst, baseRef, derived, field);
     }
 
-    void LdGeneric(AnyReg dst, IReg baseRef, IReg derived, IReg ti, uint32_t field) override
+    void LdGeneric(IReg dst, IReg baseRef, IReg derived, IReg ti, uint32_t field) override
     {
         stream.PrintLn("ld.g R{}, {}, [({}, {}) @{}]", dst, ti, baseRef, derived, field);
     }
@@ -462,9 +462,9 @@ struct IsaDisasm : public IsaParser {
         stream.PrintLn("st.d R{}, [({}, {}) @{}]", src, baseRef, derived, field);
     }
 
-    void StGeneric(AnyReg src, IReg baseRef, IReg derived, IReg ti, uint32_t field) override
+    void StGeneric(IReg src, IReg baseRef, IReg derived, IReg ti, uint32_t field) override
     {
-        stream.PrintLn("st.g R{}, {}, [({}, {}) @{}]", src, ti, baseRef, derived, field);
+        stream.PrintLn("st.g {}, {}, [({}, {}) @{}]", src, ti, baseRef, derived, field);
     }
 
     void Copy(IReg dstBase, IReg dst, IReg srcBase, IReg src, uint32_t typeId) override
@@ -517,18 +517,6 @@ struct IsaDisasm : public IsaParser {
     void Unbox(AnyReg dst, IReg src, uint32_t tk) override { stream.PrintLn("unbox R{}, {}, @{}", dst, tk); }
 
     void UnboxT(uint16_t dstTs, IReg src) override { stream.PrintLn("unbox t{}, {}", dstTs, src); }
-
-    class PrintingMemSpace : public MemSpace {
-    public:
-        PrintingMemSpace(Stream::Output& stream) : stream(stream) { stream << "{ "; }
-
-        ~PrintingMemSpace() override { stream << " }" << endl; }
-
-    private:
-        Stream::Output& stream;
-    };
-
-    std::unique_ptr<MemSpace> OpenMemSpace() override { return std::make_unique<PrintingMemSpace>(stream); }
 
     void Refs(Utils::Vector<uint32_t> const& refs)
     {

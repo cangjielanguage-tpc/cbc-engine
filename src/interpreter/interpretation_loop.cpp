@@ -25,12 +25,14 @@ using namespace Interpretation;
 using namespace Cbc::RT;
 using namespace RTSupport;
 
+[[gnu::always_inline]]
 static inline uintptr_t ParamSlotPosition(uintptr_t frameBot, uint16_t arg)
 {
     ASSERT(arg >= IReg::VIRT_COUNT);
     return frameBot + (arg - IReg::VIRT_COUNT) * Cbc::STACK_SLOT_SIZE;
 }
 
+[[gnu::always_inline]]
 static inline TypeInfo ReadCallTypeInfo(Ectype* ectype, uintptr_t frameBot, uint16_t arg)
 {
     ASSERT(arg != StaticCallTypeInfoArgs::NONE);
@@ -40,6 +42,7 @@ static inline TypeInfo ReadCallTypeInfo(Ectype* ectype, uintptr_t frameBot, uint
     return *reinterpret_cast<TypeInfo*>(ParamSlotPosition(frameBot, arg));
 }
 
+[[gnu::always_inline]]
 static inline void WriteCallTypeInfo(Ectype* ectype, uintptr_t frameBot, uint16_t arg, TypeInfo ti)
 {
     ASSERT(arg != StaticCallTypeInfoArgs::NONE);
@@ -50,6 +53,7 @@ static inline void WriteCallTypeInfo(Ectype* ectype, uintptr_t frameBot, uint16_
     }
 }
 
+[[gnu::always_inline]]
 static inline TypeInfo InterfaceReceiverTypeInfo(Ectype* ectype, uintptr_t frameBot, bool sret, uint16_t thisTiArg)
 {
     if (thisTiArg != StaticCallTypeInfoArgs::NONE) {
@@ -58,6 +62,48 @@ static inline TypeInfo InterfaceReceiverTypeInfo(Ectype* ectype, uintptr_t frame
     auto receiver = HAS_SRET_SHIFT && sret ? IReg::IR2 : IReg::IR1;
     return Execution::GetTypeInfo(ectype->GetReference(receiver));
 }
+
+[[gnu::always_inline]]
+static void StoreGeneric(StoreGenericOp args, Ectype* ectype, ThreadHandle handle)
+{
+    auto base    = ectype->GetReference(args.base);
+    auto derived = ectype->GetReference(args.derived);
+    auto obj     = ectype->GetReference(args.src);
+
+    auto typeInfo = TypeInfo(ectype->GetPrimitive(args.ti).u64);
+    if (RTSupport::Execution::IsReference(typeInfo)) {
+        RTSupport::Execution::WriteObjectInstance(base, derived.value + args.offset, obj, handle);
+    } else {
+        uint32_t size = RTSupport::MetaInfo::GetTypeSize(typeInfo);
+        RTSupport::Execution::WriteGeneric(base, derived.value + args.offset, obj, size, handle);
+    }
+}
+
+
+template <bool opt1>
+[[gnu::always_inline]]
+static void InitSomeGeneric(Ectype*& ectype, RTSupport::ThreadHandle& handle, InitOption& args)
+{
+    auto rsrc = args.src;
+    auto rti  = args.underlyingTi;
+
+    auto ti   = TypeInfo(ectype->GetPrimitive(rti).u64);
+    auto base = ectype->GetReference(IReg::IR_ACC);
+    auto obj  = ectype->GetReference(rsrc);
+    if (RTSupport::Execution::IsReference(ti)) {
+        RTSupport::Execution::WriteObjectInstance(base, base.value + MetaInfo::ObjectHeaderSize(), obj, handle);
+    } else {
+        auto optTi    = RTSupport::Execution::GetTypeInfo(base);
+        auto offs     = RTSupport::Execution::GetFieldOffset(optTi, 1, true);
+        auto derived  = base.value + offs;
+        uint32_t size = RTSupport::MetaInfo::GetTypeSize(ti);
+        RTSupport::Execution::WriteGeneric(base, derived, obj, size, handle);
+        if constexpr (opt1) {
+            MemoryLocation(base.value, MetaInfo::ObjectHeaderSize()).StoreImm(StoreAccessKind::ST_8, 1);
+        }
+    }
+}
+
 
 extern "C" {
 
@@ -93,7 +139,6 @@ Interpretation::Thunk engine_interpretation_loop(
 {
 #define NEXT goto* MAIN_TABLE[reader.PeekOpcode()]
 #define NEXT_COND(successful) goto* MAIN_TABLE[(successful) ? reader.PeekOpcode() : 0]
-#define MEM_NEXT goto* MEMSPACE_TABLE[reader.PeekOpcode()]
     Interpretation::Interpreter interpreter(ectype, frame, handle, literals);
     Decoder::ByteReader reader = reader0;
 #ifdef NDEBUG
@@ -148,10 +193,7 @@ Interpretation::Thunk engine_interpretation_loop(
 #endif
 
 #define CBC_RT_LABEL(opc, encoding, fmt) &&opc,
-#define CBC_RT_MEM_LABEL(opc, encoding, fmt, tail) &&opc,
     static void* MAIN_TABLE[] = { CBC_RT_OPCODES(CBC_RT_LABEL) };
-
-    static void* MEMSPACE_TABLE[] = { CBC_RT_MEMOPCODES(CBC_RT_MEM_LABEL) };
 
 #ifdef NDEBUG
     // Fake use keeps decode-only locals (e.g. `args`) from tripping -Wunused-variable.
@@ -175,8 +217,6 @@ Interpretation::Thunk engine_interpretation_loop(
     auto& logger = Log::interpretation.Stream(Logging::Level::TRACE);
     __attribute__((used)) static volatile const char* label;
 #endif
-
-    int64_t memspaceOffsetAcc = 0;
 
     // jump to the instruction handler.
     NEXT;
@@ -771,18 +811,18 @@ LABEL(UNBOX_T) {
 LABEL(READ_STRUCT_FIELD) {
     auto args = StructFieldOp::Decode(reader);
     LOG_INSTR;
-    auto dst   = ectype->GetPrimitive(args.rr.x.IR()).u64;
-    auto base  = ectype->GetReference(args.rr.y.IR());
-    auto field = ectype->GetPrimitive(args.field.x.IR()).u64;
+    auto dst  = ectype->GetPrimitive(args.rr.x.IR()).u64;
+    auto base = ectype->GetReference(args.rr.y.IR());
+    auto field = base.value + args.offset;
     RTSupport::Execution::ReadStructField(dst, base, field, args.ti, handle);
     NEXT;
 }
 LABEL(WRITE_STRUCT_FIELD) {
     auto args = StructFieldOp::Decode(reader);
     LOG_INSTR;
-    auto src   = ectype->GetPrimitive(args.rr.x.IR()).u64;
-    auto base  = ectype->GetReference(args.rr.y.IR());
-    auto field = ectype->GetPrimitive(args.field.x.IR()).u64;
+    auto src  = ectype->GetPrimitive(args.rr.x.IR()).u64;
+    auto base = ectype->GetReference(args.rr.y.IR());
+    auto field = base.value + args.offset;
     RTSupport::Execution::WriteStructField(src, base, field, args.ti, handle);
     NEXT;
 }
@@ -979,6 +1019,30 @@ LABEL(STORE_LONG_FRAME) {
     bool successful = interpreter.StoreFrame(args.xr.imm.STK(), args.xr.r, offset);
     NEXT_COND(successful);
 }
+LABEL(STORE_FRAME_IMM_1) {
+    auto args = RT::StoreFrameImm::Decode1(reader);
+    LOG_INSTR;
+    bool successful = interpreter.StoreFrameImm(args.stk, args.imm, args.offs);
+    NEXT_COND(successful);
+}
+LABEL(STORE_FRAME_IMM_2) {
+    auto args = RT::StoreFrameImm::Decode2(reader);
+    LOG_INSTR;
+    bool successful = interpreter.StoreFrameImm(args.stk, args.imm, args.offs);
+    NEXT_COND(successful);
+}
+LABEL(STORE_FRAME_IMM_4) {
+    auto args = RT::StoreFrameImm::Decode4(reader);
+    LOG_INSTR;
+    bool successful = interpreter.StoreFrameImm(args.stk, args.imm, args.offs);
+    NEXT_COND(successful);
+}
+LABEL(STORE_FRAME_IMM_8) {
+    auto args = RT::StoreFrameImm::Decode8(reader);
+    LOG_INSTR;
+    bool successful = interpreter.StoreFrameImm(args.stk, args.imm, args.offs);
+    NEXT_COND(successful);
+}
 LABEL(LOAD_LONG_REC_F)
 LABEL(LOAD_LONG_REC) {
     auto args = B7xrrri32::Decode(reader);
@@ -1038,26 +1102,22 @@ LABEL(LOAD_GENERIC) {
     }
 }
 LABEL(STORE_GENERIC) {
-    auto args = B3rrrr::Decode(reader);
+    auto args = StoreGenericOp::Decode0(reader);
     LOG_INSTR;
-    auto srcReg     = args.rr1.x.IR();
-    auto baseReg    = args.rr1.y.IR();
-    auto derivedReg = args.rr2.x.IR();
-    auto tiReg      = args.rr2.y.IR();
-
-    auto base    = ectype->GetReference(baseReg);
-    auto derived = ectype->GetReference(derivedReg);
-    auto obj     = ectype->GetReference(srcReg);
-
-    auto typeInfo = TypeInfo(ectype->GetPrimitive(tiReg).u64);
-    if (RTSupport::Execution::IsReference(typeInfo)) {
-        RTSupport::Execution::WriteObjectInstance(base, derived.value, obj, handle);
-        NEXT;
-    } else {
-        uint32_t size = RTSupport::MetaInfo::GetTypeSize(typeInfo);
-        RTSupport::Execution::WriteGeneric(base, derived.value, obj, size, handle);
-        NEXT;
-    }
+    StoreGeneric(args, ectype, handle);
+    NEXT;
+}
+LABEL(STORE_GENERIC_1) {
+    auto args = StoreGenericOp::Decode1(reader);
+    LOG_INSTR;
+    StoreGeneric(args, ectype, handle);
+    NEXT;
+}
+LABEL(STORE_GENERIC_4) {
+    auto args = StoreGenericOp::Decode4(reader);
+    LOG_INSTR;
+    StoreGeneric(args, ectype, handle);
+    NEXT;
 }
 LABEL(LEA_GENERIC) {
     auto args = B7xrrri32::Decode(reader);
@@ -1067,6 +1127,29 @@ LABEL(LEA_GENERIC) {
     auto ti            = TypeInfo(ectype->GetPrimitive(args.rr.y.IR()).u64);
     auto offs          = RTSupport::Execution::GetFieldOffset(ti, args.imm32.imm, false);
     ectype->Put(dst, Value::Reference { .value = base + offs });
+    NEXT;
+}
+LABEL(INIT_NONE_GENERIC_OPT0) {
+    auto args = InitOption::Decode(reader);
+    LOG_INSTR;
+    auto rti = args.underlyingTi;
+    auto ti  = TypeInfo(ectype->GetPrimitive(rti).u64);
+    if (!RTSupport::Execution::IsReference(ti)) {
+        bool successful = interpreter.StoreObjImm(Format::StoreAccessKind::ST_8, IReg::IR_ACC, MetaInfo::ObjectHeaderSize(), 1);
+        NEXT_COND(successful);
+    }
+    NEXT;
+}
+LABEL(INIT_SOME_GENERIC_OPT0) {
+    auto args = InitOption::Decode(reader);
+    LOG_INSTR;
+    InitSomeGeneric<false>(ectype, handle, args);
+    NEXT;
+}
+LABEL(INIT_SOME_GENERIC_OPT1) {
+    auto args = InitOption::Decode(reader);
+    LOG_INSTR;
+    InitSomeGeneric<true>(ectype, handle, args);
     NEXT;
 }
 LABEL(PREP_TYPED) {
@@ -1537,446 +1620,6 @@ ATOMIC_STORE: {
     NEXT;
 }
 
-LABEL(MEMSPACE) {
-    auto args = B1::Decode(reader);
-    LOG_INSTR;
-    memspaceOffsetAcc = 0;
-    MEM_NEXT;
-}
-
-    // -- MemSpace opcode table --
-
-LABEL(MEM_HALT) {
-    FATAL("halt");
-    return {};
-}
-
-LABEL(OFFS16) {
-    auto args = M3i16::Decode(reader);
-    LOG_INSTR;
-    memspaceOffsetAcc += (int16_t) args.imm16;
-    MEM_NEXT;
-}
-LABEL(OFFS32) {
-    auto args = M5i32::Decode(reader);
-    LOG_INSTR;
-    memspaceOffsetAcc += (int32_t) args.imm32;
-    MEM_NEXT;
-}
-LABEL(OFFS64) {
-    auto args = M9i64::Decode(reader);
-    LOG_INSTR;
-    memspaceOffsetAcc += (int64_t) args.imm64;
-    MEM_NEXT;
-}
-LABEL(OFFS_REG) {
-    auto args = M2xr::Decode(reader);
-    LOG_INSTR;
-    memspaceOffsetAcc += interpreter.MemOffsetReg(args.xr.r.IR());
-    MEM_NEXT;
-}
-LABEL(OFFS_REG_IDX64) {
-    auto args = M10xri64::Decode(reader);
-    LOG_INSTR;
-    memspaceOffsetAcc += interpreter.MemOffsetReg(args.xr.r.IR()) * (int64_t) args.imm64.imm;
-    MEM_NEXT;
-}
-LABEL(R_READ_STRUCT) {
-    auto args = MStructFieldOp::Decode(reader);
-    LOG_INSTR;
-    auto dst   = ectype->GetPrimitive(args.rr.x.IR()).u64;
-    auto base  = ectype->GetReference(args.rr.y.IR());
-    auto field = base.value + memspaceOffsetAcc;
-    RTSupport::Execution::ReadStructField(dst, base, field, args.ti, handle);
-    NEXT;
-}
-LABEL(R_WRITE_STRUCT) {
-    auto args = MStructFieldOp::Decode(reader);
-    LOG_INSTR;
-    auto src   = ectype->GetPrimitive(args.rr.x.IR()).u64;
-    auto base  = ectype->GetReference(args.rr.y.IR());
-    auto field = base.value + memspaceOffsetAcc;
-    RTSupport::Execution::WriteStructField(src, base, field, args.ti, handle);
-    NEXT;
-}
-
-LABEL(DLD_GENERIC) {
-    auto args = M3rrrr::Decode(reader);
-    LOG_INSTR;
-    // TODO: reorder args, so it would require less bit-shifting
-    auto derivedReg = args.rr1.x.IR();
-    auto tiReg      = args.rr1.y.IR();
-    auto dstReg     = args.rr2.x.IR();
-    auto baseReg    = args.rr2.y.IR();
-    auto derived    = ectype->GetReference(derivedReg);
-
-    auto typeInfo = TypeInfo(ectype->GetPrimitive(tiReg).u64);
-    if (RTSupport::Execution::IsReference(typeInfo)) {
-        auto base = ectype->GetReference(baseReg);
-        auto obj  = RTSupport::Execution::ReadObjectInstance(base, derived.value + memspaceOffsetAcc, handle);
-        ectype->Put(dstReg, obj);
-        NEXT;
-    } else {
-        // The operation require two steps: box allocation and ReadGeneric invocation.
-        // Because box allocation can provoke GC or throw, we should not perform it with C++ frame on the stack.
-        ectype->Put(IReg::IR_ACC, Value::Reference { derived.value + memspaceOffsetAcc });
-
-        // on x64 and aarch64 pointers are 48-bit values
-        uint64_t rawTi  = typeInfo.UInt();
-        uint64_t packed = 0ULL | dstReg | (baseReg << 4) | (IReg::IR_ACC << 8) | rawTi << 12;
-        reader0         = reader;
-        return { .function = RTSupport::Execution::LoadGeneric(), .argUInt = packed };
-    }
-}
-LABEL(DST_GENERIC) {
-    auto args = M3rrrr::Decode(reader);
-    LOG_INSTR;
-    auto derivedReg = args.rr1.x.IR();
-    auto tiReg      = args.rr1.y.IR();
-    auto srcReg     = args.rr2.x.IR();
-    auto baseReg    = args.rr2.y.IR();
-
-    auto base    = ectype->GetReference(baseReg);
-    auto derived = ectype->GetReference(derivedReg);
-    auto obj     = ectype->GetReference(srcReg);
-
-    auto typeInfo = TypeInfo(ectype->GetPrimitive(tiReg).u64);
-    if (RTSupport::Execution::IsReference(typeInfo)) {
-        RTSupport::Execution::WriteObjectInstance(base, derived.value + memspaceOffsetAcc, obj, handle);
-        NEXT;
-    } else {
-        uint32_t size = RTSupport::MetaInfo::GetTypeSize(typeInfo);
-        RTSupport::Execution::WriteGeneric(base, derived.value + memspaceOffsetAcc, obj, size, handle);
-        NEXT;
-    }
-}
-
-LABEL(GENERIC_FIELD) {
-    auto args = M6rri32::Decode(reader);
-    LOG_INSTR;
-    auto ti            = TypeInfo(ectype->GetPrimitive(args.rr.x.IR()).u64);
-    auto offs          = RTSupport::Execution::GetFieldOffset(ti, args.imm32.imm, false);
-    memspaceOffsetAcc += offs;
-    MEM_NEXT;
-}
-
-#define RLD(ldk)                                                                                                       \
-    LABEL(RLD_##ldk)                                                                                                   \
-    {                                                                                                                  \
-        auto args = M2rr::Decode(reader);                                                                              \
-        LOG_INSTR;                                                                                                     \
-        bool successful =                                                                                              \
-            interpreter.LoadObj(Format::LoadAccessKind::LD_##ldk, args.rr.x, args.rr.y.IR(), memspaceOffsetAcc);       \
-        NEXT_COND(successful);                                                                                         \
-    }
-    RLD(U8)
-    RLD(U16)
-    RLD(32)
-    RLD(S8)
-    RLD(S16)
-    RLD(F32)
-    RLD(F64)
-    RLD(64)
-    RLD(S32TO64)
-    RLD(REF)
-    RLD(LEA)
-#undef RLD
-
-#define RST(stk)                                                                                                       \
-    LABEL(RST_##stk)                                                                                                   \
-    {                                                                                                                  \
-        auto args = M2rr::Decode(reader);                                                                              \
-        LOG_INSTR;                                                                                                     \
-        bool successful =                                                                                              \
-            interpreter.StoreObj(Format::StoreAccessKind::ST_##stk, args.rr.x, args.rr.y.IR(), memspaceOffsetAcc);     \
-        NEXT_COND(successful);                                                                                         \
-    }
-    RST(8)
-    RST(16)
-    RST(32)
-    RST(64)
-    RST(REF)
-    RST(F32)
-    RST(F64)
-#undef RST
-
-#define RSTI(memSize, immSize, encoding)                                                                               \
-    LABEL(RSTI_##memSize##_##immSize)                                                                                  \
-    {                                                                                                                  \
-        auto args = encoding::Decode(reader);                                                                          \
-        LOG_INSTR;                                                                                                     \
-        uint64_t imm = MathUtils::SignExtend(static_cast<uint64_t>(args.imm##immSize.imm), immSize);                   \
-        IReg base    = args.xr.r.IR();                                                                                 \
-        bool successful =                                                                                              \
-            interpreter.StoreObjImm(Format::StoreAccessKind::ST_##memSize, base, memspaceOffsetAcc, imm);              \
-        NEXT_COND(successful);                                                                                         \
-    }
-    RSTI(8, 8, M3xri8)
-    RSTI(16, 8, M3xri8)
-    RSTI(16, 16, M4xri16)
-    RSTI(32, 8, M3xri8)
-    RSTI(32, 16, M4xri16)
-    RSTI(32, 32, M6xri32)
-    RSTI(64, 8, M3xri8)
-    RSTI(64, 16, M4xri16)
-    RSTI(64, 32, M6xri32)
-    RSTI(64, 64, M10xri64)
-#undef RSTI
-
-#define DLD(ldk)                                                                                                       \
-    LABEL(DLD_##ldk)                                                                                                   \
-    {                                                                                                                  \
-        auto args = M3xrrr::Decode(reader);                                                                            \
-        LOG_INSTR;                                                                                                     \
-        bool successful = interpreter.LoadDerived(                                                                     \
-            Format::LoadAccessKind::LD_##ldk, args.xr.r, args.rr.x.IR(), args.rr.y.IR(), memspaceOffsetAcc             \
-        );                                                                                                             \
-        NEXT_COND(successful);                                                                                         \
-    }
-    DLD(U8)
-    DLD(U16)
-    DLD(32)
-    DLD(S8)
-    DLD(S16)
-    DLD(F32)
-    DLD(F64)
-    DLD(64)
-    DLD(S32TO64)
-    DLD(REF)
-    DLD(LEA)
-#undef DLD
-
-#define DST(stk)                                                                                                       \
-    LABEL(DST_##stk)                                                                                                   \
-    {                                                                                                                  \
-        auto args = M3xrrr::Decode(reader);                                                                            \
-        LOG_INSTR;                                                                                                     \
-        bool successful = interpreter.StoreDerived(                                                                    \
-            Format::StoreAccessKind::ST_##stk, args.xr.r, args.rr.x.IR(), args.rr.y.IR(), memspaceOffsetAcc            \
-        );                                                                                                             \
-        NEXT_COND(successful);                                                                                         \
-    }
-    DST(8)
-    DST(16)
-    DST(32)
-    DST(64)
-    DST(REF)
-    DST(F32)
-    DST(F64)
-#undef DST
-
-#define DSTI(memSize, immSize, encoding)                                                                               \
-    LABEL(DSTI_##memSize##_##immSize)                                                                                  \
-    {                                                                                                                  \
-        auto args = encoding::Decode(reader);                                                                          \
-        LOG_INSTR;                                                                                                     \
-        uint64_t imm = MathUtils::SignExtend(static_cast<uint64_t>(args.imm##immSize.imm), immSize);                   \
-        IReg base    = args.rr.x.IR();                                                                                 \
-        IReg derived = args.rr.y.IR();                                                                                 \
-        bool successful =                                                                                              \
-            interpreter.StoreDerivedImm(Format::StoreAccessKind::ST_##memSize, base, derived, memspaceOffsetAcc, imm); \
-        NEXT_COND(successful);                                                                                         \
-    }
-    DSTI(8, 8, M3rri8)
-    DSTI(16, 8, M3rri8)
-    DSTI(16, 16, M4rri16)
-    DSTI(32, 8, M3rri8)
-    DSTI(32, 16, M4rri16)
-    DSTI(32, 32, M6rri32)
-    DSTI(64, 8, M3rri8)
-    DSTI(64, 16, M4rri16)
-    DSTI(64, 32, M6rri32)
-    DSTI(64, 64, M10rri64)
-#undef DSTI
-
-#define SLD(ldk)                                                                                                       \
-    LABEL(SLD_##ldk)                                                                                                   \
-    {                                                                                                                  \
-        auto args = M2rr::Decode(reader);                                                                              \
-        LOG_INSTR;                                                                                                     \
-        bool successful =                                                                                              \
-            interpreter.LoadRec(Format::LoadAccessKind::LD_##ldk, args.rr.x, args.rr.y.IR(), memspaceOffsetAcc);       \
-        NEXT_COND(successful);                                                                                         \
-    }
-    SLD(U8)
-    SLD(U16)
-    SLD(32)
-    SLD(S8)
-    SLD(S16)
-    SLD(F32)
-    SLD(F64)
-    SLD(64)
-    SLD(S32TO64)
-    SLD(REF)
-    SLD(LEA)
-#undef SLD
-
-#define SST(stk)                                                                                                       \
-    LABEL(SST_##stk)                                                                                                   \
-    {                                                                                                                  \
-        auto args = M2rr::Decode(reader);                                                                              \
-        LOG_INSTR;                                                                                                     \
-        bool successful =                                                                                              \
-            interpreter.StoreRec(Format::StoreAccessKind::ST_##stk, args.rr.x, args.rr.y.IR(), memspaceOffsetAcc);     \
-        NEXT_COND(successful);                                                                                         \
-    }
-    SST(8)
-    SST(16)
-    SST(32)
-    SST(64)
-    SST(REF)
-    SST(F32)
-    SST(F64)
-#undef SST
-
-#define SSTI(memSize, immSize, encoding)                                                                               \
-    LABEL(SSTI_##memSize##_##immSize)                                                                                  \
-    {                                                                                                                  \
-        auto args = encoding::Decode(reader);                                                                          \
-        LOG_INSTR;                                                                                                     \
-        uint64_t imm = MathUtils::SignExtend(static_cast<uint64_t>(args.imm##immSize.imm), immSize);                   \
-        IReg base    = args.xr.r.IR();                                                                                 \
-        bool successful =                                                                                              \
-            interpreter.StoreRecImm(Format::StoreAccessKind::ST_##memSize, base, memspaceOffsetAcc, imm);              \
-        NEXT_COND(successful);                                                                                         \
-    }
-    SSTI(8, 8, M3xri8)
-    SSTI(16, 8, M3xri8)
-    SSTI(16, 16, M4xri16)
-    SSTI(32, 8, M3xri8)
-    SSTI(32, 16, M4xri16)
-    SSTI(32, 32, M6xri32)
-    SSTI(64, 8, M3xri8)
-    SSTI(64, 16, M4xri16)
-    SSTI(64, 32, M6xri32)
-    SSTI(64, 64, M10xri64)
-#undef SSTI
-
-#define FLD(ldk)                                                                                                       \
-    LABEL(FLD_##ldk)                                                                                                   \
-    {                                                                                                                  \
-        auto args = M2rr::Decode(reader);                                                                              \
-        LOG_INSTR;                                                                                                     \
-        bool successful = interpreter.LoadFrame(Format::LoadAccessKind::LD_##ldk, args.rr.x, memspaceOffsetAcc);       \
-        NEXT_COND(successful);                                                                                         \
-    }
-    FLD(U8)
-    FLD(U16)
-    FLD(32)
-    FLD(S8)
-    FLD(S16)
-    FLD(F32)
-    FLD(F64)
-    FLD(64)
-    FLD(S32TO64)
-    FLD(REF)
-    FLD(LEA)
-#undef FLD
-
-#define FST(stk)                                                                                                       \
-    LABEL(FST_##stk)                                                                                                   \
-    {                                                                                                                  \
-        auto args = M2rr::Decode(reader);                                                                              \
-        LOG_INSTR;                                                                                                     \
-        bool successful = interpreter.StoreFrame(Format::StoreAccessKind::ST_##stk, args.rr.x, memspaceOffsetAcc);     \
-        NEXT_COND(successful);                                                                                         \
-    }
-    FST(8)
-    FST(16)
-    FST(32)
-    FST(64)
-    FST(REF)
-    FST(F32)
-    FST(F64)
-#undef FST
-
-#define FSTI(memSize, immSize, encoding)                                                                               \
-    LABEL(FSTI_##memSize##_##immSize)                                                                                  \
-    {                                                                                                                  \
-        auto args = encoding::Decode(reader);                                                                          \
-        LOG_INSTR;                                                                                                     \
-        uint64_t imm    = MathUtils::SignExtend(static_cast<uint64_t>(args.imm##immSize), immSize);                    \
-        bool successful = interpreter.StoreFrameImm(Format::StoreAccessKind::ST_##memSize, imm, memspaceOffsetAcc);    \
-        NEXT_COND(successful);                                                                                         \
-    }
-    FSTI(8, 8, M2i8)
-    FSTI(16, 8, M2i8)
-    FSTI(16, 16, M3i16)
-    FSTI(32, 8, M2i8)
-    FSTI(32, 16, M3i16)
-    FSTI(32, 32, M5i32)
-    FSTI(64, 8, M2i8)
-    FSTI(64, 16, M3i16)
-    FSTI(64, 32, M5i32)
-    FSTI(64, 64, M9i64)
-#undef FSTI
-
-LABEL(COPY_REC_FROM_OBJ) {
-    auto args = MStructFieldOp::Decode(reader);
-    LOG_INSTR;
-    auto to = ectype->GetReference(args.rr.y.IR());   // pointer to local record
-    auto ti = args.ti;                                // typeinfo
-    auto fromReg = args.rr.x.IR();
-    if (fromReg == IReg::IRZ) {
-        RTSupport::Execution::ReadStaticStruct(to.value, memspaceOffsetAcc, ti, handle);
-        NEXT;
-    } else {
-        auto from = ectype->GetReference(fromReg);
-        auto derived = from.value + memspaceOffsetAcc;
-        // heap -> local (gc barrier required)
-        RTSupport::Execution::ReadStructField(to.value, from, derived, ti, handle);
-        NEXT;
-    }
-}
-
-LABEL(COPY_REC_FROM_REC) {
-    auto args = MStructFieldOp::Decode(reader);
-    LOG_INSTR;
-    auto from = ectype->GetReference(args.rr.x.IR()); // pointer to local record (src)
-    auto to = ectype->GetReference(args.rr.y.IR());   // pointer to local record (dst)
-    auto ti = TypeInfo(args.ti);                      // typeinfo
-    auto recStart = from.value + memspaceOffsetAcc;   // interior record
-
-    // local -> local (gc barrier isn't required)
-    uint32_t size = MetaInfo::GetTypeSize(ti); // FIXME: encode size
-    memcpy((void*) to.value, (void*) recStart, size);
-
-    NEXT;
-}
-
-LABEL(COPY_REC_TO_OBJ) {
-    auto args = MStructFieldOp::Decode(reader);
-    LOG_INSTR;
-    auto fromReg = args.rr.x.IR();
-    auto from = ectype->GetReference(fromReg); // pointer to local record
-    auto ti = args.ti;                         // typeinfo
-    auto toReg = args.rr.y.IR();
-    if (toReg == IReg::IRZ) {
-        RTSupport::Execution::WriteStaticStruct(memspaceOffsetAcc, from.value, ti, handle);
-        NEXT;
-    } else {
-        auto to = ectype->GetReference(toReg);       // derived base
-        auto derived = to.value + memspaceOffsetAcc; // derived (interior record)
-        // local -> heap (gc barrier required)
-        RTSupport::Execution::WriteStructField(from.value, to, derived, ti, handle);
-        NEXT;
-    }
-}
-
-LABEL(COPY_REC_TO_REC) {
-    auto args = MStructFieldOp::Decode(reader);
-    LOG_INSTR;
-    auto from = ectype->GetReference(args.rr.x.IR()); // pointer to local record
-    auto to = ectype->GetReference(args.rr.y.IR());   // base
-    auto ti = args.ti;                                // typeinfo
-    auto recStart = to.value + memspaceOffsetAcc;     // interior record
-    // local -> local (gc barrier isn't required)
-    uint32_t size = MetaInfo::GetTypeSize(ti); // FIXME: encode size
-    memcpy((void*) recStart, (void*) from.value, size);
-    NEXT;
-}
-
-#undef MEM_NEXT
 #undef NEXT
 #undef NEXT_COND
 }
