@@ -466,7 +466,7 @@ struct IsaParserImpl {
 
     static void LdTyped(IsaParser& parser)
     {
-        auto [dst, _, slot, fr] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().ReadULEB().Get();
+        auto [dst, _, slot, fr] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().ReadULEB().Get();
         parser.LdTyped(dst, slot, fr);
     }
 
@@ -522,7 +522,7 @@ struct IsaParserImpl {
 
     static void StTyped(IsaParser& parser)
     {
-        auto [src, _, slot, fr] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().ReadULEB().Get();
+        auto [src, _, slot, fr] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().ReadULEB().Get();
         parser.StTyped(src, slot, fr);
     }
 
@@ -619,39 +619,39 @@ struct IsaParserImpl {
 
     static void CopyTypeSlot(IsaParser& parser)
     {
-        auto [dst, src] = ByteReaderM(parser.reader).ReadU16().ReadU16().Get();
+        auto [dst, src] = ByteReaderM(parser.reader).ReadULEB().ReadULEB().Get();
         parser.CopyTypeSlot(dst, src);
     }
 
     static void CopyToTypeSlot(IsaParser& parser)
     {
-        auto [dst, srcBase, src] = ByteReaderM(parser.reader).ReadU16().ReadU4().ReadU4().Get();
+        auto [dst, srcBase, src] = ByteReaderM(parser.reader).ReadULEB().ReadU4().ReadU4().Get();
         parser.CopyToTypeSlot(dst, srcBase, src);
     }
 
     static void CopyFromTypeSlot(IsaParser& parser)
     {
-        auto [dstBase, dst, src] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        auto [dstBase, dst, src] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
         parser.CopyFromTypeSlot(dstBase, dst, src);
     }
 
     static void CopyTypeSlotGeneric(IsaParser& parser)
     {
-        auto [dst, src, ti, _] = ByteReaderM(parser.reader).ReadU16().ReadU16().ReadU4().ReadU4().Get();
+        auto [dst, src, ti, _] = ByteReaderM(parser.reader).ReadULEB().ReadULEB().ReadU4().ReadU4().Get();
         parser.CopyTypeSlotGeneric(dst, src, ti);
     }
 
     static void CopyToTypeSlotGeneric(IsaParser& parser)
     {
         auto [dst, srcBase, src, ti, _] =
-            ByteReaderM(parser.reader).ReadU16().ReadU4().ReadU4().ReadU4().ReadU4().Get();
+            ByteReaderM(parser.reader).ReadULEB().ReadU4().ReadU4().ReadU4().ReadU4().Get();
         parser.CopyToTypeSlotGeneric(dst, srcBase, src, ti);
     }
 
     static void CopyFromTypeSlotGeneric(IsaParser& parser)
     {
         auto [dstBase, dst, src, ti, _] =
-            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().ReadU4().ReadU4().Get();
+            ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().ReadU4().ReadU4().Get();
         parser.CopyFromTypeSlotGeneric(dstBase, dst, src, ti);
     }
 
@@ -696,7 +696,7 @@ struct IsaParserImpl {
 
     static void LoadStackRec(IsaParser& parser)
     {
-        auto [r, skip, ts] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        auto [r, skip, ts] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
         parser.LoadStackRec(r, ts);
     }
 
@@ -720,7 +720,7 @@ struct IsaParserImpl {
 
     static void PrepareRecord(IsaParser& parser)
     {
-        auto [id] = ByteReaderM(parser.reader).ReadU16().Get();
+        auto [id] = ByteReaderM(parser.reader).ReadULEB().Get();
         parser.PrepareRecord(id);
     }
 
@@ -862,13 +862,13 @@ struct IsaParserImpl {
 
     static void InitObj(IsaParser& parser)
     {
-        auto [ts] = ByteReaderM(parser.reader).ReadU16().Get();
+        auto [ts] = ByteReaderM(parser.reader).ReadULEB().Get();
         parser.InitObj(ts);
     }
 
     static void InitString(IsaParser& parser)
     {
-        auto [offset, ts] = ByteReaderM(parser.reader).ReadULEB().ReadU16().Get();
+        auto [offset, ts] = ByteReaderM(parser.reader).ReadULEB().ReadULEB().Get();
         parser.InitString(ts, offset);
     }
 
@@ -909,19 +909,19 @@ struct IsaParserImpl {
 
     static void LoadUntyped(IsaParser& parser)
     {
-        auto [dst, ldk, us] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        auto [dst, ldk, us] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
         parser.LoadUntyped(dst, ldk, us);
     }
 
     static void StoreUntyped(IsaParser& parser)
     {
-        auto [src, stk, us] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        auto [src, stk, us] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
         parser.StoreUntyped(src, stk, us);
     }
 
     static void StoreUntypedImm(IsaParser& parser)
     {
-        auto [us, imm] = ByteReaderM(parser.reader).ReadU16().ReadSLEB().Get();
+        auto [us, imm] = ByteReaderM(parser.reader).ReadULEB().ReadSLEB().Get();
         parser.StoreUntypedImm(imm, us);
     }
 
@@ -987,13 +987,13 @@ struct IsaParserImpl {
 
     static void BoxT(IsaParser& parser)
     {
-        auto [_, dst, src] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        auto [_, dst, src] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
         parser.BoxT(src, dst);
     }
 
     static void BoxTGeneric(IsaParser& parser)
     {
-        auto [ti, dst, src] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        auto [ti, dst, src] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
         parser.BoxTGeneric(src, dst, ti);
     }
 
@@ -1005,7 +1005,7 @@ struct IsaParserImpl {
 
     static void UnboxT(IsaParser& parser)
     {
-        auto [_, src, dst] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU16().Get();
+        auto [_, src, dst] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
         parser.UnboxT(dst, src);
     }
 
