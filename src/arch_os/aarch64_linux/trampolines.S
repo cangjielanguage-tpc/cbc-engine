@@ -18,24 +18,13 @@
     #define engine_trampolines_direct_start _engine_trampolines_direct_start
     #define engine_all_regs_c2i_call _engine_all_regs_c2i_call
     #define engine_iregs_only_c2i_call _engine_iregs_only_c2i_call
-    #define engine_i2i_call _engine_i2i_call
-    #define engine_i2c_call _engine_i2c_call
-    #define engine_i2n_call _engine_i2n_call
     #define engine_c_abi_adapter _engine_c_abi_adapter
     #define engine_c_abi_adapter_start _engine_c_abi_adapter_start
     #define engine_c_abi_adapter_end _engine_c_abi_adapter_end
-    #define engine_i2_newobject _engine_i2_newobject
-    #define engine_i2_newobject_acc _engine_i2_newobject_acc
-    #define engine_i2_newobject_pinned _engine_i2_newobject_pinned
     #define engine_newobject_pinned_function _engine_newobject_pinned_function
     #define engine_spawn_future _engine_spawn_future
     #define engine_future_execute_function _engine_future_execute_function
     #define engine_set_runtime_cjthread_handle_function _engine_set_runtime_cjthread_handle_function
-    #define engine_i2_spawn_future _engine_i2_spawn_future
-    #define engine_i2_newarray _engine_i2_newarray
-    #define engine_i2_load_generic _engine_i2_load_generic
-    #define engine_i2_gcpoint _engine_i2_gcpoint
-    #define engine_i2_spawn _engine_i2_spawn
     #define engine_universal_direct_function_handles _engine_universal_direct_function_handles
     #define engine_tls_function _engine_tls_function
     #define engine_read_generic _engine_read_generic
@@ -45,9 +34,7 @@
     #define engine_carrier_specific_offset _engine_carrier_specific_offset
     #define engine_cjthread_specific_offset _engine_cjthread_specific_offset
     #define engine_throw_out_of_interpreter _engine_throw_out_of_interpreter
-    #define engine_throw_implicit_exception _engine_throw_implicit_exception
     #define engine_implicit_exception_thrower _engine_implicit_exception_thrower
-    #define engine_handle_exception _engine_handle_exception
     #define common_landing_pad _common_landing_pad
     #define engine_stack_grow_stub _engine_stack_grow_stub
     #define engine_i2n_stub _engine_i2n_stub
@@ -126,35 +113,22 @@ declare_hidden engine_trampolines_dyn_sret_end
 declare_hidden engine_trampolines_direct_start
 declare_hidden engine_all_regs_c2i_call
 declare_hidden engine_iregs_only_c2i_call
-declare_hidden engine_i2i_call
-declare_hidden engine_i2c_call
-declare_hidden engine_i2_newobject_pinned
-declare_hidden engine_i2_newobject
-declare_hidden engine_i2_newobject_acc
-declare_hidden engine_i2_newarray
-declare_hidden engine_i2_gcpoint
 declare_hidden engine_universal_direct_function_handles
 declare_hidden engine_tls_function
 declare_hidden engine_read_generic
-declare_hidden engine_i2_load_generic
 declare_hidden engine_newobject_function
 declare_hidden engine_newobject_pinned_function
 declare_hidden engine_newarray_function
 declare_hidden engine_newthread_nret_function
 declare_hidden engine_carrier_specific_offset
 declare_hidden engine_cjthread_specific_offset
-declare_hidden engine_i2_spawn
 declare_hidden engine_future_execute_function
 declare_hidden engine_set_runtime_cjthread_handle_function
-declare_hidden engine_i2_spawn_future
 declare_hidden engine_throw_out_of_interpreter
-declare_hidden engine_throw_implicit_exception
 declare_hidden engine_implicit_exception_thrower
-declare_hidden engine_handle_exception
 declare_hidden common_landing_pad
 declare_hidden engine_stack_grow_stub
 declare_hidden engine_i2n_stub
-declare_hidden engine_i2n_call
 declare_hidden engine_c_abi_adapter
 declare_hidden engine_c_abi_adapter_start
 declare_hidden engine_c_abi_adapter_end
@@ -542,14 +516,15 @@ CFI_LABEL .Lrestart_interpretation
 
   bl    engine_interpretation_loop
 
-  // Thunk is returned on x0: function, x1: arg.
-  // If usual return is needed, interpretation_loop will return null.
-  cbz   x0, .Lend_interpretation
-
-  mov   x9, x0
+  // Thunk is returned on x0: op (low byte), x1: arg.
+  // If usual return is needed, interpretation_loop returns op == None (0).
+  ubfx  x10, x0, 0, 8
   mov   x0, x1
-CFI_LABEL .Linterpreter_call
-  br    x9
+.Linterpreter_call:
+  adr   x11, .Lthunk_ops_table
+  ldrsw x10, [x11, x10, lsl #2]
+  add   x11, x11, x10
+  br    x11
   brk   #0
 
 .macro save_all_iregs scratch_reg
@@ -599,7 +574,7 @@ CFI_LABEL engine_after_stack_grow
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: fuh)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
-CFI_LABEL engine_i2i_call
+.Lthunk_op_I2ICall:
   // stack parameters are starting right at the top of the interpreted frame
   mov   x1, sp
   str   x1, [ECTYPE_REG, #TAIL_REG_OFFS]
@@ -629,7 +604,7 @@ CFI_LABEL engine_i2i_call
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: target)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
-CFI_LABEL engine_i2c_call
+.Lthunk_op_I2CCall:
   engine_i2c IREG_ABI_AMOUNT, FREG_ABI_AMOUNT
 
 .balign 16
@@ -638,7 +613,8 @@ CFI_LABEL engine_i2c_call
 // TLS_REG can be changed after context-switch
 // Calls the runtime I2N stub which wraps the native call into a GC-safe region.
 // Supports at most 6 integer and 8 FP register arguments (checked in the rewriter).
-CFI_LABEL engine_i2n_call
+.Lthunk_op_I2NCall:
+.Lengine_i2n_call:
   lsr   x2, x0, #I2N_STACK_ARGS_SIZE_SHIFT  // stack arguments count
   ubfx  x3, x0, #0, #I2N_VEC_COUNT_SHIFT    // target C function
   mov   x0, ECTYPE_REG                      // ectype
@@ -666,7 +642,7 @@ CFI_LABEL get_tls
 .balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: mask)
 // preserved: ECTYPE_REG, rbp
-CFI_LABEL engine_i2_load_generic
+.Lthunk_op_LoadGeneric:
   // mask is expected in form of:
   // [0..4) - dst reg
   // [4..8) - base reg
@@ -708,7 +684,7 @@ CFI_LABEL engine_i2_load_generic
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
-CFI_LABEL engine_i2_newobject
+.Lthunk_op_NewObject:
   // jumped from .Linterpreter_call without return address to return
   adrp  x10, Page(engine_newobject_function)
   ldr   x10, [x10, PageOff(engine_newobject_function)]
@@ -723,7 +699,7 @@ CFI_LABEL engine_i2_newobject
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
-CFI_LABEL engine_i2_newobject_pinned
+.Lthunk_op_NewObjectPinned:
   // jumped from .Linterpreter_call without return address to return
   mov   x1, 0
   adrp  x10, Page(engine_newobject_pinned_function)
@@ -739,7 +715,7 @@ CFI_LABEL engine_i2_newobject_pinned
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
-CFI_LABEL engine_i2_newobject_acc
+.Lthunk_op_NewObjectAcc:
   // jumped from .Linterpreter_call without return address to return
   adrp  x10, Page(engine_newobject_function)
   ldr   x10, [x10, PageOff(engine_newobject_function)]
@@ -754,7 +730,7 @@ CFI_LABEL engine_i2_newobject_acc
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo)
 // preserved: ECTYPE_REG, x29
 // TLS_REG can be changed after context-switch
-CFI_LABEL engine_i2_newarray
+.Lthunk_op_NewArray:
   // jumped from .Linterpreter_call without return address to return
   ldr   x1, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + 0x10)]
   adrp  x10, Page(engine_newarray_function)
@@ -767,7 +743,7 @@ CFI_LABEL engine_i2_newarray
   b     .Lrestart_interpretation
 
 .balign 16
-CFI_LABEL engine_i2_gcpoint
+.Lthunk_op_GcPoint:
   blr   x0
   restore_tls
   b     .Lrestart_interpretation
@@ -775,7 +751,7 @@ CFI_LABEL engine_i2_gcpoint
 .balign 16
 // expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: typeInfo)
 // preserved: ECTYPE_REG, x29
-CFI_LABEL engine_i2_spawn
+.Lthunk_op_Spawn:
   ldr   x1, [ECTYPE_REG, #ECTYPE_IACC_OFFSET]
   mov   x3, x0
   adr   x0, engine_fake_execute_closure
@@ -788,13 +764,13 @@ CFI_LABEL engine_i2_spawn
 
 // expects: (ECTYPE_REG: ectype, TLS_REG: th)
 // preserved: ECTYPE_REG, x29
-CFI_LABEL engine_i2_spawn_future
+.Lthunk_op_SpawnFuture:
   ldr   x0, [ECTYPE_REG, #ECTYPE_IACC_OFFSET]
   bl    engine_spawn_future
   cbnz  x1, .Lspawn_future_success
   mov   x0, IMPLICIT_EXCEPTION_SPAWN
-  b     engine_throw_implicit_exception
-CFI_LABEL .Lspawn_future_success
+  b     .Lengine_throw_implicit_exception
+.Lspawn_future_success:
   // Thread.setRuntimeCJThreadHandle arguments:
   // x8: sret pointer for Unit; no return storage is needed.
   // x0: this (Thread object already returned by engine_spawn_future in x0).
@@ -807,7 +783,19 @@ CFI_LABEL .Lspawn_future_success
   blr   x9
   b     .Lrestart_interpretation
 
-CFI_LABEL .Lend_interpretation
+// expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: exception type)
+// preserved: ECTYPE_REG, x29
+// TLS_REG can be changed after context-switch
+.Lthunk_op_ThrowImplicit:
+.Lengine_throw_implicit_exception:
+  // jumped from .Linterpreter_call without return address to return
+  adrp  x9, Page(engine_implicit_exception_thrower)
+  ldr   x9, [x9, PageOff(engine_implicit_exception_thrower)]
+  blr   x9
+  brk   #0 // should not return, as exception is thrown inside call
+
+.Lthunk_op_None:
+.Lend_interpretation:
 #ifndef NDEBUG
   ldr   x0, [x29, #-FUH_SLOT_OFFSET]
   mov   x1, ECTYPE_REG
@@ -833,6 +821,29 @@ CFI_LABEL .Lend_interpretation
 // TREAT SYMBOLS ABOVE AS PART OF perform_2i_call
 FUNC_END perform_2i_call
 
+// Thunk dispatch table. Entry order must match the C++ ThunkOp enum in int_thunk.h.
+#define THUNK_OP_ENTRY(name) .long .Lthunk_op_##name - .Lthunk_ops_table
+.Lthunk_ops_table:
+  THUNK_OP_ENTRY(None)
+  THUNK_OP_ENTRY(I2ICall)
+  THUNK_OP_ENTRY(I2CCall)
+  THUNK_OP_ENTRY(NewObject)
+  THUNK_OP_ENTRY(NewObjectPinned)
+  THUNK_OP_ENTRY(NewObjectAcc)
+  THUNK_OP_ENTRY(NewArray)
+  THUNK_OP_ENTRY(LoadGeneric)
+  THUNK_OP_ENTRY(GcPoint)
+  THUNK_OP_ENTRY(Spawn)
+  THUNK_OP_ENTRY(SpawnFuture)
+  THUNK_OP_ENTRY(HandleException)
+  THUNK_OP_ENTRY(ThrowImplicit)
+  THUNK_OP_ENTRY(I2NCall)
+#undef THUNK_OP_ENTRY
+.Lthunk_ops_table_end:
+.if ((.Lthunk_ops_table_end - .Lthunk_ops_table) / 4) != THUNK_OP_COUNT
+  .error "thunk ops table size mismatch"
+.endif
+
 // fake execute closure function
 .balign 16
 engine_fake_execute_closure:
@@ -840,30 +851,21 @@ engine_fake_execute_closure:
   ldr   x2, [x0, #0x10]
   br    x2
 
-// expects: (ECTYPE_REG: ectype, TLS_REG: th, x0: exception type)
-// preserved: ECTYPE_REG, x29
-// TLS_REG can be changed after context-switch
-engine_throw_implicit_exception:
-  // jumped from .Linterpreter_call without return address to return
-  adrp  x9, Page(engine_implicit_exception_thrower)
-  ldr   x9, [x9, PageOff(engine_implicit_exception_thrower)]
-  blr   x9
-  brk   #0 // should not return, as exception is thrown inside call
-
 // expects: (ECTYPE_REG: ectype)
 // When exception is thrown from CJNative code to interpreter, execution of
 // interpreter exception handling starts here
 // TODO obtain exception using PostThrowException from RT interface
 common_landing_pad:
   bl engine_get_and_clear_pending_exception
-  b engine_handle_exception
+  b .Lengine_handle_exception
 
 // expects: (ECTYPE_REG: ectype, x0: exception reference)
 // Returns to interpretation loop with exception reference on ACC_REG
 // or throws exception reference using CJNative runtime interface if there is no any exception handler in consecutive interpreter frames.
 // Precondition: top frame is interpreter frame.
 .balign 16
-engine_handle_exception:
+.Lthunk_op_HandleException:
+.Lengine_handle_exception:
   mov   EXTRA_REG, x0
 
   ldr   x0, [x29, #-FUH_SLOT_OFFSET]
@@ -873,7 +875,7 @@ engine_handle_exception:
   mov   x12, EXTRA_REG // use x12 (volatile) as temporary exception holder
 
   adr   x1, .Lexception_handlers
-  ldr   w0, [x1, x0, lsl #2]
+  ldrsw x0, [x1, x0, lsl #2]
   add   x1, x1, x0
   br    x1
 
@@ -915,10 +917,10 @@ engine_handle_exception:
   // Check if next method is C2I adapter
   adr   x9, engine_c2i_call_pc_start
   cmp   x30, x9
-  b.lo  engine_handle_exception
+  b.lo  .Lengine_handle_exception
   adr   x9, engine_c2i_call_pc_end
   cmp   x30, x9
-  b.hs  engine_handle_exception
+  b.hs  .Lengine_handle_exception
 
   // Unwind next frame (C2I) and when there are no interpreter frames
   // throw exception using CJNative runtime (as it usually done in AOT code)

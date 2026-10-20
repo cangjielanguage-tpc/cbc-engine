@@ -96,34 +96,6 @@ Interpretation::Thunk Execution::GetInterfaceThunk(TypeInfo where, TypeInfo ti, 
     FATAL("Should not reach here.");
 }
 
-void* Execution::AllocateObjectInstance() { FATAL("Should not reach here"); }
-
-void* Execution::AllocateObjectPinnedInstance() { FATAL("Should not reach here"); }
-
-void* Execution::AllocateObjectInstanceAcc() { FATAL("Should not reach here"); }
-
-void* Execution::AllocateArrayInstance() { FATAL("Should not reach here"); }
-
-void* Execution::LoadGeneric() { FATAL("Should not reach here"); }
-
-void* Execution::HandleException()
-{
-    FATAL("Should not reach here");
-    return nullptr;
-}
-
-void* Execution::ThrowImplicitException()
-{
-    FATAL("Should not reach here");
-    return nullptr;
-}
-
-void* Execution::GcPointTrampoline() { FATAL("Should not reach here"); }
-
-void* Execution::Spawn() { FATAL("Should not reach here"); }
-
-void* Execution::SpawnFuture() { FATAL("Should not reach here"); }
-
 void* Execution::GcPoint() { FATAL("Should not reach here"); }
 
 bool Execution::IsPendingSafePoint() { return false; }
@@ -181,15 +153,7 @@ bool Execution::AtomicCompareAndSwapRef(Reference oldRef, Reference newRef, Refe
     FATAL("Should not reach here");
 }
 
-void* Adapters::GenericI2CCallInstance() { FATAL("Should not reach here"); }
-
-void* Adapters::GenericI2NCallInstance() { FATAL("Should not reach here"); }
-
 void* Adapters::GetDynCallTrampoline(int idx, bool sret) { FATAL("Should not reach here"); }
-
-void* Adapters::I2ICallInstance() { FATAL("Should not reach here"); }
-
-static void C2ICall() { FATAL("Should not reach here"); }
 
 void* Adapters::GenericC2ICallInstance() { FATAL("Should not reach here"); }
 
@@ -199,7 +163,7 @@ void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* f
 
 const char* MetaInfo::GetName(TypeInfo ti) { return nullptr; }
 
-void* Adapters::C2ICall(uint32_t intArgCount, uint32_t floatArgCount) { FATAL("should not reach here"); }
+void* Adapters::C2ICall(Interpretation::AbiInfo info) { FATAL("should not reach here"); }
 
 uint32_t MetaInfo::GetTypeSize(TypeInfo ti) { return 0; }
 
