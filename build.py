@@ -13,7 +13,7 @@ from buildscripts.coverage import COVERAGE_TEST_BINARY, build_coverage_report, c
 from buildscripts.util import fail, run_command
 
 
-TARGET_OSES = ["linux", "android", "ios", "ios-sim"]
+TARGET_OSES = ["linux", "android", "ios", "ios-sim", "macos"]
 TARGET_ARCHES = ["x86_64", "aarch64"]
 TARGET_ARCH_ALIASES = {
     "amd64": "x86_64",
@@ -26,6 +26,8 @@ SUPPORTED_TARGETS = {
     ("ios", "aarch64"),
     ("ios-sim", "aarch64"),
     ("ios-sim", "x86_64"),
+    ("macos", "aarch64"),
+    ("macos", "x86_64"),
 }
 
 ANDROID_PLATFORM = "android-26"
@@ -36,11 +38,15 @@ HELPER_TARGETS = {
     ("ios", "aarch64"): ("aarch64-apple-ios", "libcbcengine-helper.dylib"),
     ("ios-sim", "aarch64"): ("aarch64-apple-ios-simulator", "libcbcengine-helper.dylib"),
     ("ios-sim", "x86_64"): ("x86_64-apple-ios-simulator", "libcbcengine-helper.dylib"),
+    ("macos", "aarch64"): ("aarch64-apple-darwin", "libcbcengine-helper.dylib"),
+    ("macos", "x86_64"): ("x86_64-apple-darwin", "libcbcengine-helper.dylib"),
 }
-IOS_HELPER_SDKS = {
+APPLE_HELPER_SDKS = {
     ("ios", "aarch64"): "iphoneos",
     ("ios-sim", "aarch64"): "iphonesimulator",
     ("ios-sim", "x86_64"): "iphonesimulator",
+    ("macos", "aarch64"): "macosx",
+    ("macos", "x86_64"): "macosx",
 }
 HELPER_STATIC_LIB_NAME = "libcbcengine-helper.a"
 
@@ -141,7 +147,7 @@ def prepare_cmake_options(args, project_dir):
             f"{coverage_option}"
         )
 
-    elif args.target_os in ["ios", "ios-sim"]:
+    elif args.target_os in ["ios", "ios-sim", "macos"]:
         if detect_host_os() != "macos":
             fail(f"{args.target_os} builds require macOS and the Xcode command-line tools")
 
@@ -197,11 +203,11 @@ def get_xcode_sdkroot(sdk) -> str:
 def prepare_helper_environment(target_os, target_arch):
     env = os.environ.copy()
 
-    if target_os in ["ios", "ios-sim"]:
+    if target_os in ["ios", "ios-sim", "macos"]:
         if detect_host_os() != "macos":
             fail(f"{target_os} helper library builds require macOS and the Xcode command-line tools")
 
-        sdk = IOS_HELPER_SDKS[(target_os, target_arch)]
+        sdk = APPLE_HELPER_SDKS[(target_os, target_arch)]
         sdkroot = get_xcode_sdkroot(sdk)
         env["SDKROOT"] = sdkroot
 
