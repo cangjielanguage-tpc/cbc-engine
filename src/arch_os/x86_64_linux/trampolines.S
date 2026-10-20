@@ -526,16 +526,14 @@ FUNC_START perform_2i_call
   // Thunk is returned on rax: op (low byte), rdx: arg.
   // If usual return is needed, interpretation_loop returns op == None (0).
   movzx r10d, al
-  test  r10d, r10d
-  jz    .Lend_interpretation
-
   mov   rdi, rdx
 .Linterpreter_call:
   lea    r11, [rip + .Lthunk_ops_table]
   movsxd r10, DWORD PTR [r11 + r10*4]
   lea    r10, [r11 + r10]
-  jmp   r10
+  jmp    r10
 
+.Lthunk_op_None:
 .Lend_interpretation:
 
 #ifndef NDEBUG
@@ -803,10 +801,6 @@ engine_after_stack_grow:
 
 // TREAT SYMBOLS ABOVE AS PART OF perform_2i_call
 FUNC_END perform_2i_call
-
-// Unreachable
-.Lthunk_op_None:
-  ud2
 
 // Thunk dispatch table. Entry order must match the C++ ThunkOp enum in int_thunk.h.
 #define THUNK_OP_ENTRY(name) .long .Lthunk_op_##name - .Lthunk_ops_table

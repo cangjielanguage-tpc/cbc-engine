@@ -518,13 +518,10 @@ CFI_LABEL .Lrestart_interpretation
 
   // Thunk is returned on x0: op (low byte), x1: arg.
   // If usual return is needed, interpretation_loop returns op == None (0).
-  uxtw  x10, w0
-  cbz   x10, .Lend_interpretation
-
+  ubfx  x10, x0, 0, 8
   mov   x0, x1
 .Linterpreter_call:
-  adrp  x11, Page(.Lthunk_ops_table)
-  add   x11, x11, PageOff(.Lthunk_ops_table)
+  adr   x11, .Lthunk_ops_table
   ldrsw x10, [x11, x10, lsl #2]
   add   x11, x11, x10
   br    x11
@@ -797,6 +794,7 @@ CFI_LABEL get_tls
   blr   x9
   brk   #0 // should not return, as exception is thrown inside call
 
+.Lthunk_op_None:
 .Lend_interpretation:
 #ifndef NDEBUG
   ldr   x0, [x29, #-FUH_SLOT_OFFSET]
@@ -822,10 +820,6 @@ CFI_LABEL get_tls
   ret
 // TREAT SYMBOLS ABOVE AS PART OF perform_2i_call
 FUNC_END perform_2i_call
-
-// Unreachable.
-.Lthunk_op_None:
-  brk   #0
 
 // Thunk dispatch table. Entry order must match the C++ ThunkOp enum in int_thunk.h.
 #define THUNK_OP_ENTRY(name) .long .Lthunk_op_##name - .Lthunk_ops_table
