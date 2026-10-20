@@ -496,8 +496,6 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
     auto& termManager = Engine::TermManager::Of(session);
 
     auto acquireTypeInfo = [&manager, &session](Engine::Term term) {
-        // A native generic argument may have no CBC definition. AcquireTypeInfo
-        // already resolves these AOT terms through the native runtime.
         return manager.AcquireTypeInfo(session, term);
     };
 
