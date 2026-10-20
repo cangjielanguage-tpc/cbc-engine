@@ -7,3 +7,4 @@ build/
 output/
 test/resources/*.obj
 test/resources/*.cbc
+test/auto-generated/
