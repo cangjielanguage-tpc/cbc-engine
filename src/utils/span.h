@@ -18,7 +18,7 @@ class Span {
     size_t count;
 
 public:
-    constexpr Span() = default;
+    constexpr Span() : ptr(nullptr), count(0) {}
     constexpr Span(T* data, size_t size) : ptr(data), count(size) {}
 
     /// Wraps a const Utils::Vector. Only valid for `Span<const T>`.
