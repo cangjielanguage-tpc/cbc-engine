@@ -350,7 +350,11 @@ char* StringBuffer::ToCString()
     if (!mem) {
         return nullptr;
     }
-    memcpy(mem, data.get(), size);
+    // data.get() is null when nothing was ever written; memcpy with a null
+    // source is UB even for size 0.
+    if (size != 0) {
+        memcpy(mem, data.get(), size);
+    }
     mem[size] = 0;
     return mem;
 }
