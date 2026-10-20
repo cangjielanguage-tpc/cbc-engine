@@ -18,11 +18,14 @@ include(GoogleTest)
 file(GLOB_RECURSE TEST_SOURCES CONFIGURE_DEPENDS "*.cpp")
 
 set(TEST_RESOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/resources")
+set(TEST_AUTOGEN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/auto-generated")
 
 add_executable(cbc_test "${TEST_SOURCES}")
 
 target_link_libraries(cbc_test PRIVATE cbc_lib GTest::gtest_main ${CMAKE_DL_LIBS})
-target_compile_definitions(cbc_test PRIVATE TEST_RESOURCE_DIR="${TEST_RESOURCE_DIR}")
+target_compile_definitions(
+  cbc_test PRIVATE TEST_RESOURCE_DIR="${TEST_RESOURCE_DIR}" TEST_AUTOGEN_DIR="${TEST_AUTOGEN_DIR}"
+)
 
 # gtest_discover_tests generates add_test() calls that ignore the target
 # ENVIRONMENT property, so pass via PROPERTIES argument
