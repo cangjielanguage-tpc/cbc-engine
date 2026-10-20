@@ -835,7 +835,7 @@ private:
 };
 
 struct RegionData {
-    static constexpr uint32_t FIRST_NON_PRIMITIVE_TERM_ID = 20;
+    static constexpr uint32_t FIRST_NON_PRIMITIVE_TERM_ID = 21;
 
     RegionData(
         OffsetPool<MethodReference> methods,

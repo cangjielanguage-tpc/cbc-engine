@@ -33,6 +33,7 @@
 #include <cstring>
 #include <optional>
 #include <sys/types.h>
+#include <tuple>
 #include <variant>
 
 namespace Cbc {
@@ -353,18 +354,19 @@ struct IsaRewriter : public IsaParser {
         return true;
     }
 
-    /// @return stack arguments count
-    int StageCallArgs(
+    /// @return stack arguments count and fregs count
+    std::tuple<int, int> StageCallArgs(
         Utils::Span<const Location> args,
         CallAbiFlags flags,
         Resolution::MethodSignature& sig,
         Location* outerTiLoc = nullptr,
-        Location* thisTiLoc = nullptr,
-        bool genericParams = false
+        Location* thisTiLoc  = nullptr,
+        bool genericParams   = false
     )
     {
+        int varArgLabelsCnt = (sig.isVarArg ? 1 : 0);
         int funcVarsCount = sig.tvars.GetLength();
-        if (!CheckArgCount(args.Size(), flags, funcVarsCount, sig.ParamCount())) {
+        if (!CheckArgCount(args.Size(), flags, funcVarsCount, sig.ParamCount() - varArgLabelsCnt)) {
             return {};
         }
 
@@ -418,7 +420,7 @@ struct IsaRewriter : public IsaParser {
 
         auto params     = sig.Params();
         int paramOffset = idx;
-        ASSERT(args.Size() >= params.Size() + idx);
+        ASSERT(args.Size() >= params.Size() + idx - varArgLabelsCnt);
 
         if (genericParams) {
             // Special case for call.closure.g
@@ -427,8 +429,18 @@ struct IsaRewriter : public IsaParser {
                 moves.AddMove(args[idx], abi.Consume(ArgKind::REF));
             }
         } else {
-            for (int j = 0; j < params.Size(); ++idx, ++j) {
-                moves.AddMove(args[idx], abi.Consume(params[j]));
+            bool isVarArg = false;
+            for (int j = 0; j < params.Size(); ++j) {
+                if (params[j].GetKind() == Engine::TermKind::VARARGLABEL) {
+                    isVarArg = true;
+                    continue;
+                }
+
+                if (!isVarArg) {
+                    moves.AddMove(args[idx++], abi.Consume(params[j]));
+                } else {
+                    moves.AddMove(args[idx++], abi.ConsumeVarArg(params[j]));
+                }
             }
         }
 
@@ -465,7 +477,7 @@ struct IsaRewriter : public IsaParser {
         for (auto slot : recStackSlots)
             pendingParamRecSlots.PushBack(slot);
 
-        return abi.MaxStackSlot();
+        return { abi.MaxStackSlot(), abi.MaxFRegs() };
     }
 
     void Bcc(Format::Width width, Format::CC cc, AnyReg l, AnyReg r, int64_t delta) override
@@ -1311,8 +1323,8 @@ struct IsaRewriter : public IsaParser {
         Resolution::MethodSignature methodSig = { .resolver = &resolver,
                                                   .term     = sig,
                                                   .tvars    = tvars }; // synthetic method signature
-        int stackSlotsCount = StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), methodSig);
-        emit.CallCFunc(target, stackSlotsCount * STACK_SLOT_SIZE);
+        auto [stackSlotsCount, fregsCount] = StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), methodSig);
+        emit.CallCFunc(target, stackSlotsCount * STACK_SLOT_SIZE, fregsCount);
         BindStatePoint();
         EmitReturnedTo();
     }
@@ -1332,13 +1344,14 @@ struct IsaRewriter : public IsaParser {
             session,
             Image::RefIdentifier<Image::MethodReference>(Image::RefId<Image::MethodReference>(methodId), fileId)
         );
-        int stackSlotsCount = StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature);
+        auto [stackSlotsCount, fregsCount] =
+            StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature);
 
         if (auto data = std::get_if<DirectCall::Compiled>(&method->data)) {
             auto sym = emit.NewAddressSym(data->funcPtr);
             if (data->isForeign) {
                 EmitLogCall("call.2n", method);
-                emit.DirectCall2n(sym, stackSlotsCount * STACK_SLOT_SIZE);
+                emit.DirectCall2n(sym, stackSlotsCount * STACK_SLOT_SIZE, fregsCount);
             } else {
                 EmitLogCall("call.2c", method);
                 emit.DirectCall2c(sym);

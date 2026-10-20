@@ -204,8 +204,8 @@ public:
 
     void DirectCall2i(Symbol fuh);
     void DirectCall2c(Symbol target);
-    void DirectCall2n(Symbol target, uint8_t stackSlots);
-    void CallCFunc(IReg src, uint8_t stackSlots);
+    void DirectCall2n(Symbol target, uint8_t stackSlots, uint8_t vecRegCount);
+    void CallCFunc(IReg src, uint8_t stackSlots, uint8_t vecRegCount);
 
     void VirtualCall(uint16_t vnum, uint16_t extDefNum, bool sret);
     void InterfaceCall(

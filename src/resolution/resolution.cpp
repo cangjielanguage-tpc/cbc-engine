@@ -75,6 +75,7 @@ CbcTypeKind Resolver::GetKind(Type type)
         case TK::F16:            return CbcTypeKind::U16;
         case TK::F32:            return CbcTypeKind::F32;
         case TK::F64:            return CbcTypeKind::F64;
+        case TK::VARARGLABEL:
         case TK::UNDEFINED:      return CbcTypeKind::INVALID;
         case TK::C_POINTER:      return CbcTypeKind::U64;
         case TK::PRIMITIVE_ENUM: {
@@ -546,15 +547,20 @@ struct ResolverProxy {
 
         auto paramLength = signature.GetLength() - 1;
 
+        bool isVarArg = false;
         Utils::Vector<Type> params;
         params.Reserve(paramLength);
         for (uint32_t i = 0; i < paramLength; i++) {
+            if (signature.Subterm(i).GetKind() == TermKind::VARARGLABEL) {
+                isVarArg = true;
+            }
             params.PushBack(Type(signature.Subterm(i), resolver));
         }
         return {
             .resolver = &resolver,
             .term     = signature,
             .tvars    = ref.tvars,
+            .isVarArg = isVarArg,
         };
     }
 
@@ -636,6 +642,31 @@ struct ResolverProxy {
         }
     }
 
+    // Foreign definition contains only fixed parameters but in call site of vararg function
+    // there can be also additional arguments.
+    // Definition signature: <named_0>, ..., <named_n>
+    // Reference  signature: <named_0>, ..., <named_n>, <vastart>, <varg_0>, ..., <varg_m>
+    //
+    // Note: frontend doesn't put attribute [vararg] for methods in CHIR, so it's problematic to add
+    // vararg label to the end of method definition signature for checks here.
+    static bool IsVarArgSigCompatible(Term defSig, Term refSig)
+    {
+        if (defSig.Subterm(defSig.GetLength() - 1) != refSig.Subterm(refSig.GetLength() - 1)) {
+            // Different return types
+            return false;
+        }
+        int idx = 0;
+        while (refSig.Subterm(idx).GetKind() != TermKind::VARARGLABEL) {
+            ASSERT(idx < defSig.GetLength() - 1);
+            ASSERT(idx < refSig.GetLength() - 1);
+            if (defSig.Subterm(idx) != refSig.Subterm(idx)) {
+                return false;
+            }
+            idx++;
+        }
+        return true;
+    }
+
     static std::optional<DirectCall::Content> ResolveAotDirectCall(Resolver& resolver, ResolvedMethodReference& ref)
     {
         auto fileId = resolver.method.GetFileId();
@@ -677,6 +708,7 @@ struct ResolverProxy {
 
         auto termIdent = ExtractTypeDefIdentifier(ref.refType);
         auto type      = Decode::Read(resolver, termIdent);
+        auto methodSig = ConstructSignature(resolver, ref);
 
         // FIXME: search in hierarchy
         auto method = [&]() -> std::optional<Identifier<Image::MethodDefinition>> {
@@ -686,6 +718,9 @@ struct ResolverProxy {
                 auto sig = sub(TermManager::Resolve(resolver, def.Signature()));
 
                 if (sig == ref.signature) {
+                    return m;
+                }
+                if (methodSig.isVarArg && IsVarArgSigCompatible(sig, ref.signature)) {
                     return m;
                 }
             }
@@ -709,7 +744,6 @@ struct ResolverProxy {
 
         auto defFlags = Decode::Read(resolver, method.value()).GetFlags();
         auto fuh = Interpretation::FunctionHandleManager::Of(resolver.session).AcquireTagged(resolver, method.value());
-        auto sig = ConstructSignature(resolver, ref);
         auto refType = resolver.Wrap(ref.refType);
         // TODO: simplify
         if (auto* staticFuh = std::get_if<Interpretation::StaticFunctionHandle*>(&fuh)) {
@@ -719,11 +753,11 @@ struct ResolverProxy {
                 .i2cAdapter = fuh->base.i2call,
                 .isForeign  = defFlags.Is(Image::MethodFlag::FOREIGN),
             };
-            return DirectCall::Content { refType, ref.name, std::move(sig), data };
+            return DirectCall::Content { refType, ref.name, std::move(methodSig), data };
         } else {
             auto dynFuh               = std::get<Interpretation::DynamicFunctionHandle*>(fuh);
             DirectCall::CallData data = dynFuh;
-            return DirectCall::Content { refType, ref.name, std::move(sig), data };
+            return DirectCall::Content { refType, ref.name, std::move(methodSig), data };
         }
     }
 

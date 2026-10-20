@@ -7,18 +7,22 @@ AbiAssigner::AbiAssigner(const PlatformDescription& desc) : desc(desc), iargIdx(
 Location AbiAssigner::Consume(ArgKind kind)
 {
     const bool isFloat = kind == ArgKind::FLOAT;
-    Location target;
     if (isFloat && fargIdx < desc.fregHeadArea.Size()) {
-        target = Location::FReg(desc.fregHeadArea[fargIdx]);
-        fargIdx++;
+        return Location::FReg(desc.fregHeadArea[fargIdx++]);
+        ;
     } else if (!isFloat && iargIdx < desc.iregHeadArea.Size()) {
-        target = Location::IReg(desc.iregHeadArea[iargIdx]);
-        iargIdx++;
+        return Location::IReg(desc.iregHeadArea[iargIdx++]);
     } else {
-        target = Location::Slot(slotIdx);
-        slotIdx++;
+        return Location::Slot(slotIdx++);
     }
-    return target;
+}
+
+Location AbiAssigner::ConsumeVarArg(ArgKind kind)
+{
+    if (desc.onlyOnStackVarargs) {
+        return Location::Slot(slotIdx++);
+    }
+    return Consume(kind);
 }
 
 Location AbiAssigner::ConsumeSret()
