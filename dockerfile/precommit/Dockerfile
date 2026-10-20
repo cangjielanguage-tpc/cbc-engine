@@ -16,6 +16,7 @@ RUN apt-get update && \
         cmake \
         ninja-build \
         python3 \
+        python3-yaml \
         openjdk-21-jdk \
         clang \
         clang-format \

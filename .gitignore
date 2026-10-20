@@ -8,3 +8,5 @@ output/
 test/resources/*.obj
 test/resources/*.cbc
 test/auto-generated/
+__pycache__/
+*.pyc
