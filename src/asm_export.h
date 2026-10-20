@@ -2,10 +2,10 @@
     #include <TargetConditionals.h>
 #endif
 
-#if defined(TARGET_OS_IOS) && TARGET_OS_IOS && (defined(__aarch64__) || defined(_M_ARM64))
-    #include "arch_os/aarch64_ios/platform_asm_export.h"
-#elif defined(TARGET_OS_IOS) && TARGET_OS_IOS && (defined(__x86_64__) || defined(_M_X64))
-    #include "arch_os/x86_64_ios/platform_asm_export.h"
+#if defined(__APPLE__) && (defined(__aarch64__) || defined(_M_ARM64))
+    #include "arch_os/aarch64_darwin/platform_asm_export.h"
+#elif defined(__APPLE__) && (defined(__x86_64__) || defined(_M_X64))
+    #include "arch_os/x86_64_darwin/platform_asm_export.h"
 #elif defined(__x86_64__) || defined(_M_X64)
     #include "arch_os/x86_64_linux/platform_asm_export.h"
 #elif defined(__aarch64__) || defined(_M_ARM64)

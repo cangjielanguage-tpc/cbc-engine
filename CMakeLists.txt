@@ -284,11 +284,11 @@ endif()
 
 set_target_properties(cbcengine PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   set_target_properties(cbcengine PROPERTIES OUTPUT_NAME "cbcengine")
 endif()
 
-if(NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   add_subdirectory(tools/dis)
 endif()
 
