@@ -644,6 +644,9 @@ struct ResolverProxy {
     // there can be also additional arguments.
     // Definition signature: <named_0>, ..., <named_n>
     // Reference  signature: <named_0>, ..., <named_n>, <vastart>, <varg_0>, ..., <varg_m>
+    //
+    // Note: frontend doesn't put attribute [vararg] for methods in CHIR, so it's problematic to add
+    // vararg label to the end of method definition signature for checks here.
     static bool IsVarArgSigCompatible(Term defSig, Term refSig)
     {
         if (defSig.Subterm(defSig.GetLength() - 1) != refSig.Subterm(refSig.GetLength() - 1)) {
