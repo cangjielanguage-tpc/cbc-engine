@@ -1,33 +1,19 @@
 #!/bin/bash
-
-set -xeuo pipefail
+# script for backward compatibility with ci.
+set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"; pwd)
+PROJECT_DIR="${SCRIPT_DIR}/../.."
 BUILD_DIR="${SCRIPT_DIR}/build"
-mkdir -p "$BUILD_DIR"
+OUTPUT_DIR="${PROJECT_DIR}/output/linux_aarch64"
 
-CANGJIE_HOME=$1
-LAUNCHER_NAME=launcher
+if [[ -n "${1:-}" ]]; then
+  export CANGJIE_HOME="$1"
+fi
 
-clang -c -Os "${SCRIPT_DIR}/${LAUNCHER_NAME}.c" -fno-omit-frame-pointer -o "${BUILD_DIR}/${LAUNCHER_NAME}.o"
+python3 "${PROJECT_DIR}/build.py" build-launcher --target-os linux --target-arch aarch64 --cbcengine-lib "${OUTPUT_DIR}"
+python3 "${PROJECT_DIR}/build.py" build-helper-lib --target-os linux --target-arch aarch64
 
-'clang' \
-  '-o' "${BUILD_DIR}/${LAUNCHER_NAME}" \
-  '-Wl,-z,noexecstack' \
-  '-pie' \
-  '-rdynamic' \
-  "-L$CANGJIE_HOME/lib/linux_aarch64_cjnative" \
-  "-L$CANGJIE_HOME/runtime/lib/linux_aarch64_cjnative" \
-  '-T' "$CANGJIE_HOME/lib/linux_aarch64_cjnative/cjld.lds" \
-  "${BUILD_DIR}/${LAUNCHER_NAME}.o" \
-  '-l:libcangjie-std-core.so' \
-  '-l:libcangjie-runtime.so' \
-  '-lsecurec' '-ldl' '-lm' '-lc' \
-  '--rtlib=compiler-rt'
-
-cp *.cj ${BUILD_DIR}
-
-cd ${BUILD_DIR}
-
-cjc --fobf-layout --fno-obf-export-symbols --fobf-source-path --obf-sym-output-mapping libcbcengine-helper.obf.map \
-cbcengine-helper.cj --output-type=dylib -o libcbcengine-helper.so
+mkdir -p "${BUILD_DIR}"
+cp "${OUTPUT_DIR}/launcher/launcher" "${BUILD_DIR}/"
+cp "${OUTPUT_DIR}/libcbcengine-helper.so" "${BUILD_DIR}/"

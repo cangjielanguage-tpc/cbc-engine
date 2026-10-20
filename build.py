@@ -8,6 +8,8 @@ import multiprocessing
 import platform
 import sys
 import time
+from dataclasses import dataclass
+from typing import Any, Callable
 
 
 TARGET_OSES = ["linux", "android", "ios", "ios-sim", "macos"]
@@ -47,7 +49,7 @@ APPLE_HELPER_SDKS = {
 }
 
 
-def run_command(command, cwd=None):
+def run_command(command: str, cwd=None):
     try:
         subprocess.run(command, shell=True, check=True, cwd=cwd)
     except subprocess.CalledProcessError as e:
@@ -67,7 +69,7 @@ def fail(message):
     raise RuntimeError(message)
 
 
-def clean(build_dir):
+def clean(build_dir: Path):
     if os.path.exists(build_dir):
         print(f"Cleaning {build_dir}...")
         shutil.rmtree(build_dir)
@@ -113,68 +115,52 @@ def detect_host_os():
     fail(f"Unsupported host OS: {current_os}.")
 
 
-def prepare_cmake_options(args, project_dir):
-    build_type     = f"-DCMAKE_BUILD_TYPE={args.build_type.capitalize()} "
-    build_testing  = "ON" if args.run_tests else "OFF"
-    build_int_syms = "ON" if args.enable_int_syms else "OFF"
-    build_compiler_warnings = "ON" if args.compiler_warning else "OFF"
-    build_sanitizers = "ON" if getattr(args, "sanitizers", False) else "OFF"
+@dataclass
+class CmakeOptions:
+    args: Any
+    project_dir: Path
 
-    compiler_warnings_option = f"-DCOMPILER_WARNINGS={build_compiler_warnings} "
-    sanitizers_option = f"-DENABLE_SANITIZERS={build_sanitizers} "
+    def toolchain_options(self) -> list[str]:
+        args = self.args
+        if args.target_os == "android":
+            android_ndk_home = os.environ.get("ANDROID_NDK_HOME")
+            if android_ndk_home is None:
+                return fail(f"ANDROID_NDK_HOME must be set for {target_name(args.target_os, args.target_arch)} builds")
+            toolchain_path = Path(android_ndk_home) / "build/cmake/android.toolchain.cmake"
+            if not toolchain_path.is_file():
+                fail(f"Android NDK toolchain file does not exist: {toolchain_path}")
+            return [
+                f"-DCMAKE_TOOLCHAIN_FILE={toolchain_path}",
+                f"-DANDROID_PLATFORM={ANDROID_PLATFORM}",
+                f"-DANDROID_ABI={ANDROID_ABI}",
+            ]
+        elif args.target_os in ["ios", "ios-sim", "macos"]:
+            if detect_host_os() != "macos":
+                fail(f"{args.target_os} builds require macOS and the Xcode command-line tools")
+            toolchain_path = self.project_dir / f"cmake/toolchains/{args.target_arch}-{args.target_os}-clang.cmake"
+            if not toolchain_path.is_file():
+                fail(f"Toolchain file does not exist: {toolchain_path}")
+            return [f"-DCMAKE_TOOLCHAIN_FILE={toolchain_path}"]
+        else:
+            toolchain_path = self.project_dir / "cmake/toolchains" / f"{args.target_arch}-{args.target_os}-gnu-clang.cmake"
+            if not toolchain_path.is_file():
+                fail(f"Toolchain file does not exist: {toolchain_path}")
+            return [f"-DCMAKE_TOOLCHAIN_FILE={toolchain_path}"]
 
-    if args.target_os == "android":
-        android_ndk_home = os.environ.get("ANDROID_NDK_HOME")
-        if android_ndk_home is None:
-            return fail(
-                "ANDROID_NDK_HOME must be set for "
-                f"{target_name(args.target_os, args.target_arch)} builds"
-            )
+    def build_type(self) -> list[str]:
+        return [f"-DCMAKE_BUILD_TYPE={self.args.build_type.capitalize()}"]
 
-        toolchain_path = Path(android_ndk_home) / "build/cmake/android.toolchain.cmake"
-        if not toolchain_path.is_file():
-            fail(f"Android NDK toolchain file does not exist: {toolchain_path}")
-
-        return (
-            f"{build_type}"
-            f"{compiler_warnings_option}"
-            f"-DBUILD_TESTING={build_testing} "
-            f"-DCMAKE_TOOLCHAIN_FILE={toolchain_path} "
-            f"-DANDROID_PLATFORM={ANDROID_PLATFORM} "
-            f"-DANDROID_ABI={ANDROID_ABI} "
-            f"-DINT_SYMS={build_int_syms} "
-            f"{sanitizers_option}"
-        )
-
-    elif args.target_os in ["ios", "ios-sim", "macos"]:
-        if detect_host_os() != "macos":
-            fail(f"{args.target_os} builds require macOS and the Xcode command-line tools")
-
-        toolchain_path = Path(project_dir) / f"cmake/toolchains/{args.target_arch}-{args.target_os}-clang.cmake"
-        if not toolchain_path.is_file():
-            fail(f"Toolchain file does not exist: {toolchain_path}")
-
-        return (
-            f"{build_type}"
-            f"{compiler_warnings_option}"
-            f"-DBUILD_TESTING={build_testing} "
-            f"-DCMAKE_TOOLCHAIN_FILE={toolchain_path} "
-            f"-DINT_SYMS={build_int_syms} "
-            f"{sanitizers_option}"
-        )
-
-    toolchain_files_dir = f"{project_dir}/cmake/toolchains"
-    toolchain_path = f"{toolchain_files_dir}/{args.target_arch}-{args.target_os}-gnu-clang.cmake"
-    if not Path(toolchain_path).is_file():
-        fail(f"Toolchain file does not exist: {toolchain_path}")
-    return (
-        f"{build_type}"
-        f"{compiler_warnings_option}"
-        f"-DBUILD_TESTING={build_testing} "
-        f"-DCMAKE_TOOLCHAIN_FILE={toolchain_path} "
-        f"-DINT_SYMS={build_int_syms} "
-        f"{sanitizers_option}"
-    )
+    def cbc_engine_opts(self) -> list[str]:
+        build_testing = "ON" if self.args.run_tests else "OFF"
+        build_int_syms = "ON" if self.args.enable_int_syms else "OFF"
+        build_sanitizers = "ON" if getattr(self.args, "sanitizers", False) else "OFF"
+        build_compiler_warnings = "ON" if self.args.compiler_warning else "OFF"
+        return [
+            f"-DBUILD_TESTING={build_testing}",
+            f"-DINT_SYMS={build_int_syms}",
+            f"-DENABLE_SANITIZERS={build_sanitizers}",
+            f"-DCOMPILER_WARNINGS={build_compiler_warnings}",
+        ]
 
 
 def get_xcode_sdkroot(sdk) -> str:
@@ -209,7 +195,7 @@ def prepare_helper_environment(target_os, target_arch):
     return env
 
 
-def build(args, project_dir, build_dir):
+def build(args, project_dir: Path, build_dir: Path):
     validate_target(args.target_os, args.target_arch)
     host_os = detect_host_os()
     host_arch = detect_host_arch()
@@ -221,7 +207,12 @@ def build(args, project_dir, build_dir):
             f"target is {target_name(args.target_os, args.target_arch)}."
         )
 
-    cmake_options = prepare_cmake_options(args, project_dir)
+    cmake_options = CmakeOptions(args, project_dir)
+    cmake_options = " ".join(
+            cmake_options.toolchain_options() +
+            cmake_options.build_type() +
+            cmake_options.cbc_engine_opts()
+    )
 
     if not os.path.exists(build_dir):
         os.makedirs(build_dir)
@@ -253,6 +244,56 @@ def build(args, project_dir, build_dir):
         print("------------------------------------------------")
         run_command(f"ctest --output-on-failure -j{args.jobs}", cwd=build_dir)
 
+
+def cbcengine_lib_name(target_os):
+    suffix = ".dylib" if target_os in ["ios", "ios-sim", "macos"] else ".so"
+    return f"libcbcengine{suffix}"
+
+
+def resolve_cbcengine_lib(path_str, target_os):
+    path = Path(path_str).expanduser()
+    if path.is_dir():
+        path = path / cbcengine_lib_name(target_os)
+    if not path.is_file():
+        fail(f"cbcengine library not found: {path} "
+             "(pass the library file or the build directory containing it)")
+    return path.resolve()
+
+
+def build_launcher(args, project_dir, build_dir):
+    validate_target(args.target_os, args.target_arch)
+
+    cangjie_home = os.environ.get("CANGJIE_HOME")
+    if cangjie_home is None:
+        return fail("CANGJIE_HOME must be set for launcher builds. Source <CANGJIE_SDK>/envsetup.sh first.")
+
+    if args.cbcengine_lib is not None:
+        cbcengine_lib = resolve_cbcengine_lib(args.cbcengine_lib, args.target_os)
+    else:
+        cbcengine_lib = Path(cangjie_home) / "tools/lib" / cbcengine_lib_name(args.target_os)
+
+    build_dir = Path(build_dir) / "launcher"
+    build_dir.mkdir(parents=True, exist_ok=True)
+
+    launcher_dir = project_dir / "tools/launcher"
+
+    cmake_options = CmakeOptions(args, project_dir)
+    cmake_options = " ".join(
+            cmake_options.toolchain_options() +
+            cmake_options.build_type() +
+            [f"-DCANGJIE_HOME={cangjie_home}",
+             f"-DCBCENGINE_LIB={cbcengine_lib}"]
+    )
+
+    cmake_cmd = (
+        f"cmake {launcher_dir} "
+        f"{cmake_options} "
+        f"-B {build_dir} "
+    )
+
+    print(f"--- Building launcher for {target_name(args.target_os, args.target_arch)} ---")
+    run_command(cmake_cmd, cwd=build_dir)
+    run_command(f"cmake --build {build_dir} -j{args.jobs}", cwd=build_dir)
 
 def build_helper_lib(args, project_dir, build_dir):
     validate_target(args.target_os, args.target_arch)
@@ -286,6 +327,11 @@ def build_helper_lib(args, project_dir, build_dir):
 
     link_command = [
         str(cjc_path),
+        "--fobf-layout",
+        "--fno-obf-export-symbols",
+        "--fobf-source-path",
+        "--obf-sym-output-mapping",
+        "libcbcengine-helper.obf.map",
         "--target",
         target,
         str(helper_cj_source),
@@ -297,11 +343,10 @@ def build_helper_lib(args, project_dir, build_dir):
     print(f"Output: {output_path}")
 
 
-def precommit(args, project_dir, build_root_dir):
+def precommit(args, project_dir, build_dir: Path):
     for build_type in ["release", "debug"]:
         print(f"  Build {build_type} and run tests")
         start_time = time.monotonic()
-        build_dir = build_root_dir + f"/{target_name(args.target_os, args.target_arch)}"
 
         build_args = argparse.Namespace(**vars(args),
                                         build_type=build_type,
@@ -322,6 +367,20 @@ def precommit(args, project_dir, build_root_dir):
         print(f"  {build_type} build and test took {elapsed:.0f} seconds")
 
 def main():
+    project_dir = Path(__file__).parent.resolve()
+    build_root_dir = project_dir / "output"
+
+    def do_clean(_):
+        clean(build_root_dir)
+
+    def perform_build(args, build_task: Callable[[Any, Path, Path], Any]):
+        build_dir = build_root_dir / f"{target_name(args.target_os, args.target_arch)}"
+        print(f"Project directory: {project_dir}")
+        print(f"Build directory:   {build_dir}")
+        print(f"Target OS:         {args.target_os}")
+        print(f"Target arch:       {args.target_arch}")
+        build_task(args, project_dir, build_dir)
+
     host_os = detect_host_os()
     host_arch = detect_host_arch()
     default_target_os = host_os if host_os in TARGET_OSES else None
@@ -333,6 +392,7 @@ def main():
     target_os_help = "Target operating system"
     if default_target_os is not None:
         target_os_help += f" (default: {default_target_os})"
+
     common_parser.add_argument("--target-os",
                                choices=TARGET_OSES,
                                default=default_target_os,
@@ -349,6 +409,7 @@ def main():
                                help=f"Number of parallel jobs (default: {multiprocessing.cpu_count()})")
 
     build_parser = subparsers.add_parser("build", parents=[common_parser], help="build the project")
+    build_parser.set_defaults(dispatch=lambda args: perform_build(args, build))
     build_parser.add_argument("-t", "--build-type",
                               choices=["debug", "release"],
                               default="debug",
@@ -367,54 +428,30 @@ def main():
                               action="store_true",
                               help="Enable asan+ubsan sanitizers (for unit test runs)")
 
-    helper_parser = subparsers.add_parser("build-helper-lib", help="build libcbcengine-helper shared library")
-    helper_parser.add_argument("--target-os",
-                               choices=sorted({target_os for target_os, _ in HELPER_TARGETS}),
-                               required=True,
-                               help="Target operating system")
-    helper_parser.add_argument("--target-arch",
-                               type=normalize_target_arch,
-                               choices=TARGET_ARCHES,
-                               default=host_arch,
-                               help=f"Target architecture (default: {host_arch})")
+    helper_parser = subparsers.add_parser("build-helper-lib", parents=[common_parser], help="build libcbcengine-helper shared library")
+    helper_parser.set_defaults(dispatch=lambda args: perform_build(args, build_helper_lib))
 
-    subparsers.add_parser("clean", help="clean build artifacts")
+    launcher_parser = subparsers.add_parser("build-launcher", parents=[common_parser], help="build launcher")
+    launcher_parser.set_defaults(dispatch=lambda args: perform_build(args, build_launcher))
+    launcher_parser.add_argument("-t", "--build-type",
+                                  choices=["debug", "release"],
+                                  default="release",
+                                  help="Build configuration (default: release)")
+    launcher_parser.add_argument("--cbcengine-lib",
+                                  metavar="PATH",
+                                  help="libcbcengine shared library or a directory containing it "
+                                       "(e.g. output/linux_x86_64); overrides the library from CANGJIE_HOME")
 
-    subparsers.add_parser("precommit",
+    clean_parser = subparsers.add_parser("clean", help="clean build artifacts")
+    clean_parser.set_defaults(dispatch=do_clean)
+
+    precommit_parser = subparsers.add_parser("precommit",
                           parents=[common_parser],
                           help="clean + build & test (release, then debug)")
+    precommit_parser.set_defaults(dispatch=lambda args: perform_build(args, precommit))
 
     args = parser.parse_args()
-
-    project_dir = str(Path(__file__).parent.resolve())
-    build_root_dir = project_dir + "/output"
-
-    if args.command == "clean":
-        clean(build_root_dir)
-    elif args.command == "precommit":
-        build_dir = build_root_dir + f"/{target_name(args.target_os, args.target_arch)}"
-        print(f"Project directory: {project_dir}")
-        print(f"Build directory:   {build_dir}")
-        print(f"Target OS:         {args.target_os}")
-        print(f"Target arch:       {args.target_arch}")
-
-        precommit(args, project_dir, build_root_dir)
-    elif args.command == "build":
-        build_dir = build_root_dir + f"/{target_name(args.target_os, args.target_arch)}"
-        print(f"Project directory: {project_dir}")
-        print(f"Build directory:   {build_dir}")
-        print(f"Target OS:         {args.target_os}")
-        print(f"Target arch:       {args.target_arch}")
-
-        build(args, project_dir, build_dir)
-    elif args.command == "build-helper-lib":
-        build_dir = build_root_dir + f"/{target_name(args.target_os, args.target_arch)}"
-        print(f"Project directory: {project_dir}")
-        print(f"Build directory:   {build_dir}")
-        print(f"Target OS:         {args.target_os}")
-        print(f"Target arch:       {args.target_arch}")
-
-        build_helper_lib(args, project_dir, build_dir)
+    args.dispatch(args)
 
 
 if __name__ == "__main__":

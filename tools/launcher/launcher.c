@@ -1,18 +1,21 @@
 #include <assert.h>
-#include <dlfcn.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-#include "engine.h"
+#include "cbc_engine.h"
 #include "cj-interface.h"
 
 #define MAX_ARGS 1024
 char *g_arg_buffer[MAX_ARGS]; // global args buffer
 
-char const *interpreter_lib = "libcbcengine.so";
+#ifndef INTERPRETER_LIB
+#define INTERPRETER_LIB "libcbcengine.so"
+#endif
+
+char const *interpreter_lib = INTERPRETER_LIB;
 
 extern int   InitCJRuntime(struct RuntimeParam *param);
 extern enum RTErrorCode InitCJInterpreter(struct InterpreterParam* param);
@@ -21,8 +24,6 @@ extern void *FindCJSymbol(const char *libName, const char *symbolName);
 extern void *RunCJTask(const void *func, void *args);
 extern int   GetTaskRet(const void *handle, void** ret);
 extern enum RTErrorCode SetCJCommandLineArgs(int argc, char* argv[]);
-
-Engine g_engine;
 
 typedef enum ParserState {
     PARSE,
@@ -88,7 +89,7 @@ static void init_cangjie_runtime(int arg_count) {
 }
 
 static int run_interpreter_in_managed_ctx() {
-    void* entryPoint = g_engine.get_trampoline();
+    void* entryPoint = engine_get_entrypoint_trampoline();
     if (entryPoint == NULL) {
         fprintf(stderr, "Trampoline search failed\n");
         exit(-1);
@@ -140,7 +141,7 @@ static ParserState parse_cbc_path(struct Parser *parser) {
     char **opt = parser->args;
     char **path = opt + 1;
     if (path < parser->args_end) {
-        g_engine.set_cbcpath(*path);
+        engine_set_cbcpath(*path);
         parser->args += 2;
         return PARSE;
     } else {
@@ -152,19 +153,19 @@ static int parse_cbc_main(struct Parser *parser) {
     assert(parser->args < parser->args_end);
     char **main = parser->args;
     parser->args += 1;
-    g_engine.set_main_cbc(*main);
+    engine_set_main_cbc(*main);
     return MAIN_PARSED;
 }
 
 static ParserState enable_dasm(struct Parser *parser) {
     parser->args++;
-    g_engine.enable_dasm();
+    engine_enable_dasm();
     return PARSE;
 }
 
 static ParserState enable_raw_dasm(struct Parser *parser) {
     parser->args++;
-    g_engine.enable_raw_dasm();
+    engine_enable_raw_dasm();
     return PARSE;
 }
 
@@ -229,7 +230,7 @@ dispatch:
             }
 
             init_cangjie_runtime(arg_count);
-            g_engine.initialize();
+            engine_initialize();
 
             return run_interpreter_in_managed_ctx();
         }
@@ -237,32 +238,7 @@ dispatch:
     }
 }
 
-static void *xdlsym(void *handle, char const *name) {
-    void *result = dlsym(handle, name);
-    if (!result) {
-        fprintf(stderr, "dlsym(%s) failed: %s\n", name, dlerror());
-        exit(-1);
-    }
-    return result;
-}
-
-static void initialize_engine() {
-    void *engine_handle = dlopen(interpreter_lib, RTLD_NOW);
-    if (!engine_handle) {
-        fprintf(stderr, "dlopen failed: %s\n", dlerror());
-        exit(-1);
-    }
-
-    g_engine.get_trampoline = xdlsym(engine_handle, "engine_get_entrypoint_trampoline");
-    g_engine.initialize = xdlsym(engine_handle, "engine_initialize");
-    g_engine.set_cbcpath = xdlsym(engine_handle, "engine_set_cbcpath");
-    g_engine.set_main_cbc = xdlsym(engine_handle, "engine_set_main_cbc");
-    g_engine.enable_dasm = xdlsym(engine_handle, "engine_enable_dasm");
-    g_engine.enable_raw_dasm = xdlsym(engine_handle, "engine_enable_raw_dasm");
-}
-
 int main(int argc, char *argv[]) {
-    initialize_engine();
     return parse_args_and_start(argc, argv);
 }
 
