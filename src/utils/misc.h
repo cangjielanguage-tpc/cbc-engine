@@ -14,6 +14,13 @@
     }                                                                                                                  \
     auto name = __##name.value();
 
+#define UNWRAP_OPT_B(name, expression)                                                                                 \
+    auto __##name = (expression);                                                                                      \
+    if (!__##name.has_value()) {                                                                                       \
+        return false;                                                                                                  \
+    }                                                                                                                  \
+    auto name = __##name.value();
+
 #define UNWRAP_OPT_NORETURN(name, expression, handler)                                                                 \
     auto __##name = (expression);                                                                                      \
     if (!__##name.has_value()) {                                                                                       \
