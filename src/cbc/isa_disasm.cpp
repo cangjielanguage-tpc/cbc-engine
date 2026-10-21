@@ -550,12 +550,10 @@ struct IsaResolvingDisasm : IsaDisasm {
           resolver(resolver)
     {}
 
-    template <typename Method> void LogCall(std::string_view prefix, Method m)
+    template <typename Method>
+    void LogCall(std::string_view prefix, Method m, Utils::Span<const Location> args)
     {
-        if (Interpretation::Log::interpretation.GetLogLevel() < Logging::Level::TRACE) {
-            return;
-        }
-        stream.Print("{} {}", prefix, m);
+        stream.PrintLn("{} {}{}", prefix, m, ArgsStr(args));
     }
 
     void CallDirect(uint32_t methodId, Utils::Span<const Location> args) override
@@ -568,9 +566,9 @@ struct IsaResolvingDisasm : IsaDisasm {
         auto method = m.value();
 
         if (auto data = std::get_if<DirectCall::Compiled>(&method->data)) {
-            LogCall("call.2c", method);
+            LogCall(data->isForeign ? "call.2n" : "call.2c", method, args);
         } else {
-            LogCall("call.2i", method);
+            LogCall("call.2i", method, args);
         }
     }
 
@@ -582,7 +580,7 @@ struct IsaResolvingDisasm : IsaDisasm {
             return;
         }
         auto method = m.value();
-        LogCall("call.interf", method);
+        LogCall("call.interf", method, args);
     }
 
     void CallVirtual(uint32_t methodId, Utils::Span<const Location> args) override
@@ -593,18 +591,18 @@ struct IsaResolvingDisasm : IsaDisasm {
             return;
         }
         auto method = m.value();
-        LogCall("call.virtual", method);
+        stream.PrintLn("call.virtual {} ({}, {}){}", method, method->extDefNum, method->methodNum, ArgsStr(args));
     }
 
-    void CallInterfGeneric(uint32_t methodId, Utils::Span<const Location> args) override
+    void CallInterfGeneric(uint16_t argnum, uint32_t methodId, Utils::Span<const Location> args) override
     {
         auto m = resolver.Query(Index<InterfaceCall>(methodId));
         if (!m.has_value()) {
-            IsaDisasm::CallInterfGeneric(methodId, args);
+            IsaDisasm::CallInterfGeneric(argnum, methodId, args);
             return;
         }
         auto method = m.value();
-        LogCall("call.interf.g", method);
+        stream.PrintLn("call.interf.g {}, {}{}", argnum, method, ArgsStr(args));
     }
 
     void NewObj(IReg dst, uint32_t type) override
