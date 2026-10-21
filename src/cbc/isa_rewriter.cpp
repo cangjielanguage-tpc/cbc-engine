@@ -972,7 +972,7 @@ struct IsaRewriter : public IsaParser {
         auto typeInfo = resolver.GetLayoutTypeInfo(type);
         if (!typeInfo.has_value()) {
             Stream::StringBuffer typeName;
-            resolver.GetFullName(type, typeName);
+            typeName << type;
             Fail("Failed to get layout TypeInfo for " + typeName.ToString());
             return;
         }
@@ -1616,7 +1616,6 @@ struct IsaRewriter : public IsaParser {
                 ASSERTION(stackSlotsCount * STACK_SLOT_SIZE <= UINT8_MAX, "too many stack arguments in foreign call");
                 emit.DirectCall2n(sym, stackSlotsCount * STACK_SLOT_SIZE, fregsCount);
             } else {
-
                 emit.DirectCall2c(sym);
             }
         } else {
@@ -1641,7 +1640,6 @@ struct IsaRewriter : public IsaParser {
             Image::RefIdentifier<Image::MethodReference>(Image::RefId<Image::MethodReference>(methodId), fileId)
         );
         StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature);
-
         emit.VirtualCall(method->methodNum, method->extDefNum, method->sret);
         BindStatePoint();
         EmitReturnedTo();
@@ -1685,7 +1683,6 @@ struct IsaRewriter : public IsaParser {
         Location thisTiLoc = Location::Nil();
         StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature, nullptr, &thisTiLoc);
 
-
         uint16_t thisTiLocArgNum = ArgNumber(thisTiLoc);
 
         Interpretation::StaticCallTypeInfoArgs tiArgs = {
@@ -1714,7 +1711,6 @@ struct IsaRewriter : public IsaParser {
         Location outerTiLoc = Location::Nil();
         Location thisTiLoc  = Location::Nil();
         StageCallArgs(args, flags, method->signature, &outerTiLoc, &thisTiLoc);
-
 
         uint16_t outerTiLocArgNum = ArgNumber(outerTiLoc);
         uint16_t thisTiLocArgNum  = ArgNumber(thisTiLoc);
