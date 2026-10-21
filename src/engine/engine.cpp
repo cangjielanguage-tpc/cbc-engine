@@ -287,6 +287,8 @@ Engine& Loader::Build()
 
     auto libc = std::make_shared<Utils::SharedObject>(Utils::SharedObject::OpenLibc());
     foreignBase.EmplaceBack(libc);
+    // Foreign callbacks can be linked into the application, alongside its AOT code.
+    foreignBase.EmplaceBack(executable);
 
     auto deps        = ReadDependencies(loader.get(), &CbcFile::AotDependencies, aotBase);
     auto foreignLibs = ReadDependencies(loader.get(), &CbcFile::ForeignLibs, foreignBase);

@@ -30,6 +30,17 @@ static constexpr int MIN_I12 = -Cbc::RT::LIT_TABLE_SIZE / 2;
 
 using namespace Cbc::Format;
 
+TEST(EmitTest, ForeignCallDisassembly)
+{
+    Emitter e;
+    e.CallCFunc(IReg::IR2, 3, 4);
+
+    auto code = e.Build(heap);
+    Stream::StringBuffer stream;
+    RT::Log(code, stream);
+    EXPECT_EQ("0x000: call.cfunc IR2 (4, 0x3)\n", stream.ToString());
+}
+
 TEST(EmitTest, InitClosureVariants)
 {
     Emitter e;

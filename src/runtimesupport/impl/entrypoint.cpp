@@ -100,6 +100,9 @@ static void PerformPatching()
     auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
 
     for (auto& file : engine.Files()) {
+        // Package initialization can enter interpreted code as soon as its patch is installed.
+        fuhManager.FindAndPrepareHelpers(session, file.GetPath());
+
         // TODO: list patches in CBC file header
         for (auto type : Decode::AllEntries(session, file.GetTypeIndex())) {
             auto def = Decode::Read(session, type);
