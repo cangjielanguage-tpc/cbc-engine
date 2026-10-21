@@ -1077,7 +1077,7 @@ struct IsaRewriter : public IsaParser {
         auto typeInfo = resolver.GetLayoutTypeInfo(type);
         if (!typeInfo.has_value()) {
             Stream::StringBuffer typeName;
-            resolver.GetFullName(type, typeName);
+            typeName << type;
             Fail("Failed to get layout TypeInfo for " + typeName.ToString());
             return;
         }
