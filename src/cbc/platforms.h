@@ -1,6 +1,7 @@
 #pragma once
 
 #include "asm_export.h"
+#include "cbc/c_abi.h"
 #include "cbc/isa.h"
 
 namespace Cbc {
@@ -34,6 +35,8 @@ template <> struct PlatformTraits<Platform::LINUX_X64> {
 
     static constexpr bool SRET_SHIFTS = true;
 
+    static constexpr CAbi C_ABI = CAbi::SYSV;
+
     static constexpr bool ONLY_ONSTACK_VARARGS = false;
 };
 
@@ -59,6 +62,8 @@ template <> struct PlatformTraits<Platform::LINUX_AARCH64> {
 
     static constexpr bool SRET_SHIFTS = false;
     static constexpr IReg SRET_REG    = IReg::IR9;
+
+    static constexpr CAbi C_ABI = CAbi::AAPCS64;
 
     static constexpr bool ONLY_ONSTACK_VARARGS = false;
 };

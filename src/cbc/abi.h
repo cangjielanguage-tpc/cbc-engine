@@ -2,7 +2,10 @@
 
 #include "move_resolver.h"
 #include "platforms.h"
+#include "utils/math.h"
 #include "utils/span.h"
+
+#include "frame.h"
 
 namespace Cbc {
 
@@ -59,6 +62,17 @@ public:
     int MaxStackSlot() const { return slotIdx; }
 
     int MaxFRegs() const { return fargIdx; }
+
+    int FreeIRegs() const { return static_cast<int>(desc.iregHeadArea.Size()) - iargIdx; }
+
+    int FreeFRegs() const { return static_cast<int>(desc.fregHeadArea.Size()) - fargIdx; }
+
+    int ConsumeStackArea(uint32_t size)
+    {
+        int base  = slotIdx;
+        slotIdx  += static_cast<int>(MathUtils::AlignUp(size, STACK_SLOT_SIZE) / STACK_SLOT_SIZE);
+        return base;
+    }
 
 private:
     Location GiveIReg();

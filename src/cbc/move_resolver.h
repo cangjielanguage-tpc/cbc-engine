@@ -57,6 +57,9 @@ public:
     virtual void AssignIRegFromSlot(IReg dst, int slot)        = 0;
     virtual void AssignSlotFromIReg(int slot, IReg src)        = 0;
     virtual void AssignSlotFromFReg(int slot, FReg src)        = 0;
+    virtual void AssignIRegFromAddr(IReg dst, Location addr, int32_t offset, Format::LoadAccessKind ldk)      = 0;
+    virtual void AssignFRegFromAddr(FReg dst, Location addr, int32_t offset, Format::LoadAccessKind ldk)      = 0;
+    virtual void AssignSlotFromAddr(int paramSlot, Location addr, int32_t offset, Format::LoadAccessKind ldk) = 0;
 };
 
 // Collects src->dst register/slot moves and resolves them into a
@@ -67,6 +70,7 @@ class MoveResolver {
 public:
     void Clear();
     void AddMove(Location src, Location dst);
+    void AddLoadFromAddr(Location srcAddr, int32_t offset, Format::LoadAccessKind ldk, Location dst);
     // Resolves the collected moves by emitting them through `emitter`.
     // Returns false when a move mixes register kinds (ireg<->freg),
     // which is unsupported.
@@ -83,6 +87,9 @@ private:
     struct Assignment {
         Location dst;
         Location src;
+        int32_t offset;
+        Format::LoadAccessKind ldk;
+        bool fromAddr;
     };
 
     Utils::Vector<Assignment> assignments;
