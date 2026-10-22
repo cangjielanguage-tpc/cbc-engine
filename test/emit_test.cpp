@@ -446,6 +446,48 @@ TEST(EmitTest, Simple_FMathUnaryCos32)
     EXPECT_EQ(res.f32, std::cos(arg));
 }
 
+TEST(EmitTest, Simple_FMathUnaryLog)
+{
+    Emitter e;
+    e.FMathUnary(FloatMathOp::LOG, Width::W64, FReg::FR0, FReg::FR1);
+    e.Ret();
+
+    auto code = e.Build(heap);
+    Cbc::RT::Log(code, Stream::Disasm::rt);
+
+    double arg = 0.25;
+    auto res  = InterpretFPRes(code, F64(0), F64(arg));
+    EXPECT_EQ(res.f64, std::log(arg));
+}
+
+TEST(EmitTest, Simple_FMathUnaryCeil)
+{
+    Emitter e;
+    e.FMathUnary(FloatMathOp::CEIL, Width::W64, FReg::FR0, FReg::FR1);
+    e.Ret();
+
+    auto code = e.Build(heap);
+    Cbc::RT::Log(code, Stream::Disasm::rt);
+
+    double arg = 0.25;
+    auto res  = InterpretFPRes(code, F64(0), F64(arg));
+    EXPECT_EQ(res.f64, std::ceil(arg));
+}
+
+TEST(EmitTest, Simple_FMathUnaryFloor)
+{
+    Emitter e;
+    e.FMathUnary(FloatMathOp::FLOOR, Width::W64, FReg::FR0, FReg::FR1);
+    e.Ret();
+
+    auto code = e.Build(heap);
+    Cbc::RT::Log(code, Stream::Disasm::rt);
+
+    double arg = 0.25;
+    auto res  = InterpretFPRes(code, F64(0), F64(arg));
+    EXPECT_EQ(res.f64, std::floor(arg));
+}
+
 TEST(EmitTest, SSC)
 {
     struct {

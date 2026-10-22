@@ -445,18 +445,21 @@ private:
 class FloatMathOp {
 public:
 #define FloatMathOpValue(X)                                                                                            \
-    X(SIN, 0b00, "sin")                                                                                                \
-    X(COS, 0b01, "cos")
+    X(SIN,   0b000, "sin")                                                                                             \
+    X(COS,   0b001, "cos")                                                                                             \
+    X(LOG,   0b010, "log")                                                                                             \
+    X(CEIL,  0b011, "ceil")                                                                                            \
+    X(FLOOR, 0b100, "floor")
 
 #define FloatMathOpEnum(opc, value, str) opc = value,
 
     enum Value : uint8_t {
-        FloatMathOpValue(FloatMathOpEnum) LAST = COS
+        FloatMathOpValue(FloatMathOpEnum) LAST = FLOOR
     };
 
 #undef FloatMathOpEnum
 
-    static constexpr Value values[] = { SIN, COS };
+    static constexpr Value values[] = { SIN, COS, LOG, CEIL, FLOOR };
 
     constexpr FloatMathOp(const Value raw) : _value(raw) {}
 

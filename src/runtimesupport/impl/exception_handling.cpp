@@ -129,7 +129,9 @@ void FrameDescProvider(INT_FunctionHandle fuh, INT_BytecodePos pos, INT_Interpre
     // Method name
     {
         std::string methodNameWithArgs;
-        auto methodName = Decode::Read(session, methodDef.Name());
+        auto sourceFullNameId = methodDef.SourceFullName();
+        auto methodNameId = sourceFullNameId ? *sourceFullNameId : methodDef.Name();
+        auto methodName = Decode::Read(session, methodNameId);
         methodNameWithArgs.append(methodName).append("(");
 
         auto sig      = Engine::TermManager::Resolve(session, methodDef.Signature());
