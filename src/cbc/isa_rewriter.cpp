@@ -1,5 +1,6 @@
 #include "isa_rewriter.h"
 #include "cbc/abi.h"
+#include "cbc/c_abi.h"
 #include "cbc/emitter/emitter.h"
 #include "cbc/emitter/symbols.h"
 #include "cbc/formater_rt.h"
@@ -183,6 +184,34 @@ struct RewriterMoveEmitter : public MoveEmitter {
     void AssignSlotFromIReg(int slot, IReg src) override { emit.StackParam(src, static_cast<uint16_t>(slot) * 8); }
 
     void AssignSlotFromFReg(int slot, FReg src) override { emit.StackParamF(src, static_cast<uint16_t>(slot) * 8); }
+
+    void AssignIRegFromAddr(IReg dst, Location addr, int32_t offset, Format::LoadAccessKind ldk) override
+    {
+        emit.LoadRec(ldk, dst, AddrReg(addr), offset);
+    }
+
+    void AssignFRegFromAddr(FReg dst, Location addr, int32_t offset, Format::LoadAccessKind ldk) override
+    {
+        emit.LoadRec(ldk, dst, AddrReg(addr), offset);
+    }
+
+    void AssignSlotFromAddr(int paramSlot, Location addr, int32_t offset, Format::LoadAccessKind ldk) override
+    {
+        auto base = AddrReg(addr);
+        emit.LoadRec(ldk, SCRATCH, base, offset);
+        emit.StackParam(SCRATCH, static_cast<uint16_t>(paramSlot) * 8);
+    }
+
+    IReg AddrReg(Location addr)
+    {
+        if (addr.Kind() == Location::IREG) {
+            return IReg::From(addr.IRegIdx());
+        }
+        emit.LoadFrame(LDK::LD_64, SCRATCH, frameLayout.UntypedSlotOffset(static_cast<uint16_t>(addr.SlotIdx())));
+        return SCRATCH;
+    }
+
+    static constexpr IReg SCRATCH = IReg::IR_ACC;
 };
 
 struct IsaRewriter : public IsaParser {
@@ -361,7 +390,8 @@ struct IsaRewriter : public IsaParser {
         Resolution::MethodSignature& sig,
         Location* outerTiLoc = nullptr,
         Location* thisTiLoc  = nullptr,
-        bool genericParams   = false
+        bool genericParams   = false,
+        bool foreign         = false
     )
     {
         int varArgLabelsCnt = (sig.isVarArg ? 1 : 0);
@@ -436,7 +466,13 @@ struct IsaRewriter : public IsaParser {
                     continue;
                 }
 
-                if (!isVarArg) {
+                if (foreign && params[j].IsRecord()) {
+                    // Pass struct argument by value.
+                    if (!StageForeignStructArg(args[idx++], params[j], isVarArg, moves, abi)) {
+                        Fail("failed to stage by-value struct argument");
+                        return {};
+                    }
+                } else if (!isVarArg) {
                     moves.AddMove(args[idx++], abi.Consume(params[j]));
                 } else {
                     moves.AddMove(args[idx++], abi.ConsumeVarArg(params[j]));
@@ -478,6 +514,42 @@ struct IsaRewriter : public IsaParser {
             pendingParamRecSlots.PushBack(slot);
 
         return { abi.MaxStackSlot(), abi.MaxFRegs() };
+    }
+
+    bool StageForeignStructArg(
+        Location srcAddr, Engine::Term type, bool varArgPos, MoveResolver& moves, AbiAssigner& abi
+    )
+    {
+        Utils::Vector<CAbiField> fields0;
+        if (!FlattenCAbiFields(resolver, type, 0, fields0)) {
+            return false;
+        }
+
+        UNWRAP_OPT_B(size, resolver.fieldManager->GetFlatSize(type));
+        auto fields = Utils::Span<CAbiField>(fields0.Data(), fields0.Size());
+        auto plan   = ClassifyCAbiStruct(fields, size, varArgPos, abi.FreeIRegs(), abi.FreeFRegs());
+        switch (plan.passBy) {
+            case CAbiPassBy::EMPTY: break;
+            case CAbiPassBy::REGS:  {
+                for (const auto& piece : plan.pieces) {
+                    auto loc = abi.Consume(piece.isFloat ? ArgKind::FLOAT : ArgKind::INT);
+                    moves.AddLoadFromAddr(srcAddr, piece.offset, piece.Ldk(), loc);
+                }
+                break;
+            }
+            case CAbiPassBy::STACK: {
+                int base = abi.ConsumeStackArea(size);
+                // Uniform 8-byte chunks: the extra tail bytes stay inside the
+                // 8-aligned record allocation and land in the blob padding.
+                for (uint32_t offset = 0; offset < size; offset += Cbc::STACK_SLOT_SIZE) {
+                    moves.AddLoadFromAddr(
+                        srcAddr, offset, LDK::LD_64, Location::Slot(base + offset / Cbc::STACK_SLOT_SIZE)
+                    );
+                }
+                break;
+            }
+        }
+        return true;
     }
 
     void Bcc(Format::Width width, Format::CC cc, AnyReg l, AnyReg r, int64_t delta) override
@@ -1323,7 +1395,9 @@ struct IsaRewriter : public IsaParser {
         Resolution::MethodSignature methodSig = { .resolver = &resolver,
                                                   .term     = sig,
                                                   .tvars    = tvars }; // synthetic method signature
-        auto [stackSlotsCount, fregsCount] = StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), methodSig);
+        auto [stackSlotsCount, fregsCount] =
+            StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), methodSig, nullptr, nullptr, false, true);
+        ASSERTION(stackSlotsCount * STACK_SLOT_SIZE <= UINT8_MAX, "too many stack arguments in foreign call");
         emit.CallCFunc(target, stackSlotsCount * STACK_SLOT_SIZE, fregsCount);
         BindStatePoint();
         EmitReturnedTo();
@@ -1344,13 +1418,17 @@ struct IsaRewriter : public IsaParser {
             session,
             Image::RefIdentifier<Image::MethodReference>(Image::RefId<Image::MethodReference>(methodId), fileId)
         );
-        auto [stackSlotsCount, fregsCount] =
-            StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature);
+        auto compiled                      = std::get_if<DirectCall::Compiled>(&method->data);
+        bool isForeign                     = compiled != nullptr && compiled->isForeign;
+        auto [stackSlotsCount, fregsCount] = StageCallArgs(
+            args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature, nullptr, nullptr, false, isForeign
+        );
 
-        if (auto data = std::get_if<DirectCall::Compiled>(&method->data)) {
+        if (auto data = compiled) {
             auto sym = emit.NewAddressSym(data->funcPtr);
             if (data->isForeign) {
                 EmitLogCall("call.2n", method);
+                ASSERTION(stackSlotsCount * STACK_SLOT_SIZE <= UINT8_MAX, "too many stack arguments in foreign call");
                 emit.DirectCall2n(sym, stackSlotsCount * STACK_SLOT_SIZE, fregsCount);
             } else {
                 EmitLogCall("call.2c", method);
