@@ -1,6 +1,9 @@
 #include "runtimesupport/impl/entrypoint.h"
 
+#include <dlfcn.h>
+
 #include <mutex>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 
@@ -45,6 +48,21 @@ static void InitEnvOpts()
     }
 }
 
+static std::string EngineLibraryDirectory()
+{
+    Dl_info info {};
+    if (dladdr(reinterpret_cast<void*>(&InitEnvOpts), &info) == 0 || info.dli_fname == nullptr) {
+        return {};
+    }
+    std::string_view path(info.dli_fname);
+    // TODO: make search of dir fs helper if we have them/will have them
+    auto separator = path.find_last_of('/');
+    if (separator == std::string_view::npos) {
+        return {};
+    }
+    return std::string(path.substr(0, separator));
+}
+
 /// Initialize engine from launcher.
 static void EnsureEngineInitialized()
 {
@@ -75,6 +93,18 @@ static void EnsureEngineInitialized()
             });
         }
     }
+
+    constexpr auto intrinsicsFileName = "/intrinsics.cbc";
+    auto intrinsicsDir                = EngineLibraryDirectory();
+    if (!intrinsicsDir.empty()) {
+        auto intrinsicsPath = intrinsicsDir + std::string(intrinsicsFileName);
+        if (auto file = IO::TryOpenFile(intrinsicsPath)) {
+            loader.Load(std::move(*file), intrinsicsPath);
+        } else {
+            FATAL("engine init: cannot find path to intrinsics. given path: %s", intrinsicsPath.c_str());
+        }
+    }
+
     loader.Build();
 
     RTSupport::Log::rt.Log(Logging::Level::INFO, [](Stream::Output& out) { out << "end engine init" << Stream::endl; });
@@ -302,7 +332,7 @@ CBC_EXPORT void* engine_get_entrypoint_trampoline(void)
     }
     auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
 
-    fuhManager.FindAndPrepareHelpers(session, g_mainCbc);
+    fuhManager.FindAndPrepareHelpers(session);
 
     auto fuh = fuhManager.AcquireTagged(session, main.value());
     return fuhManager.GetFunctionPtrForDirectCall(fuh);
