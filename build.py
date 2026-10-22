@@ -9,6 +9,9 @@ import platform
 import sys
 import time
 
+from buildscripts.coverage import COVERAGE_TEST_BINARY, build_coverage_report, coverage, reset_coverage_profiles
+from buildscripts.util import fail, run_command
+
 
 TARGET_OSES = ["linux", "android", "ios", "ios-sim"]
 TARGET_ARCHES = ["x86_64", "aarch64"]
@@ -41,14 +44,6 @@ IOS_HELPER_SDKS = {
 }
 
 
-def run_command(command, cwd=None):
-    try:
-        subprocess.run(command, shell=True, check=True, cwd=cwd)
-    except subprocess.CalledProcessError as e:
-        print(f"Error: Command failed with exit code {e.returncode}")
-        sys.exit(e.returncode)
-
-
 def run_command_args(command, cwd=None, env=None):
     try:
         subprocess.run(command, check=True, cwd=cwd, env=env)
@@ -57,8 +52,8 @@ def run_command_args(command, cwd=None, env=None):
         sys.exit(e.returncode)
 
 
-def fail(message):
-    raise RuntimeError(message)
+PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+BUILD_ROOT_DIR = os.path.join(PROJECT_DIR, "output")
 
 
 def clean(build_dir):
@@ -113,9 +108,11 @@ def prepare_cmake_options(args, project_dir):
     build_int_syms = "ON" if args.enable_int_syms else "OFF"
     build_compiler_warnings = "ON" if args.compiler_warning else "OFF"
     build_sanitizers = "ON" if getattr(args, "sanitizers", False) else "OFF"
+    build_coverage = "ON" if getattr(args, "coverage", False) else "OFF"
 
     compiler_warnings_option = f"-DCOMPILER_WARNINGS={build_compiler_warnings} "
     sanitizers_option = f"-DENABLE_SANITIZERS={build_sanitizers} "
+    coverage_option = f"-DENABLE_COVERAGE={build_coverage} "
 
     if args.target_os == "android":
         android_ndk_home = os.environ.get("ANDROID_NDK_HOME")
@@ -138,6 +135,7 @@ def prepare_cmake_options(args, project_dir):
             f"-DANDROID_ABI={ANDROID_ABI} "
             f"-DINT_SYMS={build_int_syms} "
             f"{sanitizers_option}"
+            f"{coverage_option}"
         )
 
     elif args.target_os in ["ios", "ios-sim"]:
@@ -155,6 +153,7 @@ def prepare_cmake_options(args, project_dir):
             f"-DCMAKE_TOOLCHAIN_FILE={toolchain_path} "
             f"-DINT_SYMS={build_int_syms} "
             f"{sanitizers_option}"
+            f"{coverage_option}"
         )
 
     toolchain_files_dir = f"{project_dir}/cmake/toolchains"
@@ -168,6 +167,7 @@ def prepare_cmake_options(args, project_dir):
         f"-DCMAKE_TOOLCHAIN_FILE={toolchain_path} "
         f"-DINT_SYMS={build_int_syms} "
         f"{sanitizers_option}"
+        f"{coverage_option}"
     )
 
 
@@ -203,10 +203,13 @@ def prepare_helper_environment(target_os, target_arch):
     return env
 
 
-def build(args, project_dir, build_dir):
+def build(args, project_dir, build_dir, generate_coverage_report=True):
     validate_target(args.target_os, args.target_arch)
     host_os = detect_host_os()
     host_arch = detect_host_arch()
+
+    if args.coverage and not args.run_tests:
+        fail("--coverage is only supported together with --run-tests")
 
     if args.run_tests and is_cross_target(args.target_os, args.target_arch, host_os, host_arch):
         fail(
@@ -245,7 +248,18 @@ def build(args, project_dir, build_dir):
         print("------------------------------------------------")
         print("Running tests via CTest...")
         print("------------------------------------------------")
-        run_command(f"ctest --output-on-failure -j{args.jobs}", cwd=build_dir)
+        ctest_cmd = f"ctest --output-on-failure -j{args.jobs}"
+        if args.coverage:
+            # %m = merge-pool mode: concurrent test processes merge into a
+            # handful of shared .profraw files instead of one per process.
+            ctest_cmd = (
+                f"LLVM_PROFILE_FILE='{coverage.profiles_dir}/{COVERAGE_TEST_BINARY}-%m.profraw' "
+                f"{ctest_cmd}"
+            )
+        run_command(ctest_cmd, cwd=build_dir)
+
+        if args.coverage and generate_coverage_report:
+            build_coverage_report(project_dir, build_dir)
 
 
 def build_helper_lib(args, project_dir, build_dir):
@@ -292,10 +306,14 @@ def build_helper_lib(args, project_dir, build_dir):
 
 
 def precommit(args, project_dir, build_root_dir):
+    if args.coverage:
+        reset_coverage_profiles()
+        print(f"  Coverage enabled: profiles in {coverage.profiles_dir}")
+
+    build_dir = build_root_dir + f"/{target_name(args.target_os, args.target_arch)}"
     for build_type in ["release", "debug"]:
         print(f"  Build {build_type} and run tests")
         start_time = time.monotonic()
-        build_dir = build_root_dir + f"/{target_name(args.target_os, args.target_arch)}"
 
         build_args = argparse.Namespace(**vars(args),
                                         build_type=build_type,
@@ -306,7 +324,7 @@ def precommit(args, project_dir, build_root_dir):
 
         try:
             clean(build_dir)
-            build(build_args, project_dir, build_dir)
+            build(build_args, project_dir, build_dir, generate_coverage_report=False)
         except (SystemExit, RuntimeError):
             elapsed = time.monotonic() - start_time
             print(f"  {build_type} build and test failed after {elapsed:.0f} seconds")
@@ -314,6 +332,9 @@ def precommit(args, project_dir, build_root_dir):
 
         elapsed = time.monotonic() - start_time
         print(f"  {build_type} build and test took {elapsed:.0f} seconds")
+
+    if args.coverage:
+        build_coverage_report(project_dir, build_dir)
 
 def main():
     host_os = detect_host_os()
@@ -360,6 +381,10 @@ def main():
     build_parser.add_argument("--sanitizers",
                               action="store_true",
                               help="Enable asan+ubsan sanitizers (for unit test runs)")
+    build_parser.add_argument("--coverage",
+                              action="store_true",
+                              help="Enable clang source-based coverage and report after tests "
+                                   "(requires --run-tests; llvm-cov/llvm-profdata in PATH)")
 
     helper_parser = subparsers.add_parser("build-helper-lib", help="build libcbcengine-helper shared library")
     helper_parser.add_argument("--target-os",
@@ -374,14 +399,19 @@ def main():
 
     subparsers.add_parser("clean", help="clean build artifacts")
 
-    subparsers.add_parser("precommit",
-                          parents=[common_parser],
-                          help="clean + build & test (release, then debug)")
+    precommit_parser = subparsers.add_parser(
+        "precommit",
+        parents=[common_parser],
+        help="clean + build & test (release, then debug)")
+    precommit_parser.add_argument("--coverage",
+                                  action="store_true",
+                                  help="Collect coverage across all precommit builds and "
+                                       "report (llvm-cov/llvm-profdata in PATH)")
 
     args = parser.parse_args()
 
     project_dir = str(Path(__file__).parent.resolve())
-    build_root_dir = project_dir + "/output"
+    build_root_dir = BUILD_ROOT_DIR
 
     if args.command == "clean":
         clean(build_root_dir)
@@ -400,6 +430,8 @@ def main():
         print(f"Target OS:         {args.target_os}")
         print(f"Target arch:       {args.target_arch}")
 
+        if args.coverage:
+            reset_coverage_profiles()
         build(args, project_dir, build_dir)
     elif args.command == "build-helper-lib":
         build_dir = build_root_dir + f"/{target_name(args.target_os, args.target_arch)}"

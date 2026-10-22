@@ -207,6 +207,13 @@ if(ENABLE_SANITIZERS)
   add_link_options(-fsanitize=address -fsanitize=undefined)
 endif()
 
+option(ENABLE_COVERAGE "Enable clang source-based coverage instrumentation (llvm-cov)" OFF)
+
+if(ENABLE_COVERAGE)
+  add_compile_options(-fprofile-instr-generate -fcoverage-mapping)
+  add_link_options(-fprofile-instr-generate)
+endif()
+
 set(DEBUG_OPTIONS "-DCBC_ENGINE_IMMEDIATE_ASSERTION -DCBC_ENGINE_PRETTY_FUNC_NAME -DINT_SYMS")
 
 set(CMAKE_CXX_FLAGS_DEBUG "-g -gz ${DEBUG_OPTIONS}")
