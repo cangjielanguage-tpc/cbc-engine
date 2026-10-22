@@ -337,7 +337,8 @@ struct ResolverProxy {
                 switch (kind) {
                     case TermKind::CANGJIE_ARRAY:
                     case TermKind::VARRAY:
-                    case TermKind::TUPLE: {
+                    case TermKind::TUPLE:
+                    case TermKind::PACKED_TUPLE_HACK: {
                         return ResolveIndexedElement(resolver, resolver.Wrap(refTypeTerm), resolver.Wrap(ref.refType), fieldIdx);
                     }
                     default: {
@@ -779,7 +780,8 @@ struct ResolverProxy {
                     .name      = "<array>",
                 };
             }
-            case TermKind::TUPLE: {
+            case TermKind::TUPLE:
+            case TermKind::PACKED_TUPLE_HACK: {
                 ASSERT(idx < term.GetLength());
                 auto optLayout = resolver.fieldManager->GetLayout(term);
                 if (!optLayout) {

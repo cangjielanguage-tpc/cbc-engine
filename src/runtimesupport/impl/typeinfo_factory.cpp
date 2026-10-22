@@ -1067,6 +1067,11 @@ std::optional<TypeInfo> CreateTypeInfo(Engine::Session& session, TypeInfoManager
             case Engine::TermKind::BSTRING: return builtinTypeInfos[BUILTIN_CSTRING];
             case Engine::TermKind::NOTHING: return builtinTypeInfos[BUILTIN_NOTHING];
 
+            case Engine::TermKind::PACKED_TUPLE_HACK: {
+                FATAL("Should not reach here: packed tuple");
+                break;
+            }
+
             default: {
                 FATAL("Not supported yet %d", termIdent.GetKind());
                 break;
