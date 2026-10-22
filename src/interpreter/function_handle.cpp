@@ -50,8 +50,11 @@ FunctionHandleManager::FunctionHandleManager(FunctionHandleManager&& manager) = 
 
 [[noreturn]] static void HelperWasNotFound(std::string_view methodName)
 {
-    FATAL("Helper method %s was not found", methodName);
+    FATAL("Helper method %.*s was not found", static_cast<int>(methodName.size()), methodName.data());
 }
+
+// FIXME: move these helpers to intrinsics.cbc in future iterations.
+static constexpr auto helperTypeName = "$P$cbc_intrinsics";
 
 std::unordered_map<Helper, std::string> helperNames = {
     { Helper::ThrowAbstractMethodCallError, "throwAbstractMethodCallError" },
@@ -74,9 +77,7 @@ static DynamicFunctionHandle* FindAndPrepareHelper(
     Session& session, FunctionHandleManager& fhm, std::string_view methodName, std::string_view fileName
 )
 {
-    // FIXME: change this to intrinsics.cbc in future iterations
-    auto typeName = "$P$cbc_intrinsics";
-    UNWRAP_OPT_NORETURN(method, session.GetEngine().FindMethod(session, fileName, typeName, methodName), [&]() {
+    UNWRAP_OPT_NORETURN(method, session.GetEngine().FindMethod(session, fileName, helperTypeName, methodName), [&]() {
         HelperWasNotFound(methodName);
     });
 
@@ -93,11 +94,19 @@ static DynamicFunctionHandle* FindAndPrepareHelper(
     }
 }
 
-void FunctionHandleManager::FindAndPrepareHelpers(Session& session, std::string_view mainCbc)
+void FunctionHandleManager::FindAndPrepareHelpers(Session& session, std::string_view cbcFile)
 {
     for (const auto& [helper, methodName] : helperNames) {
-        auto fuh = FindAndPrepareHelper(session, *this, methodName, mainCbc);
+        auto fuh = FindAndPrepareHelper(session, *this, methodName, cbcFile);
         SetHelper(helper, fuh);
+    }
+}
+
+void FunctionHandleManager::FindAndPrepareHelpers(Session& session)
+{
+    auto files = session.GetEngine().Files();
+    if (!files.Empty()) {
+        FindAndPrepareHelpers(session, files.Front().GetPath());
     }
 }
 

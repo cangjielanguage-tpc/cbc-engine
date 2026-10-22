@@ -99,6 +99,9 @@ static void PerformPatching()
 
     auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
 
+    // Patched package initialization may need helpers while building dynamic method tables.
+    fuhManager.FindAndPrepareHelpers(session);
+
     for (auto& file : engine.Files()) {
         // TODO: list patches in CBC file header
         for (auto type : Decode::AllEntries(session, file.GetTypeIndex())) {
