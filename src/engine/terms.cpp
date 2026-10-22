@@ -83,6 +83,7 @@ enum Tag : uint8_t {
     OPTION            = 0x15,
     UNION_ENUM        = 0x16,
     PRIMITIVE_ENUM    = 0x17,
+    PACKED_TUPLE_HACK = 0x18,
 };
 
 // Utilities for resolution failure diagnostics
@@ -425,8 +426,9 @@ void Term::GetName(Session& session, Stream::Output& out, bool hasDebugPrefix) c
             break;
         }
 
-        case TK::TUPLE: {
-            stream << "Tuple";
+        case TK::TUPLE:
+        case TK::PACKED_TUPLE_HACK: {
+            stream << (GetKind() == TK::PACKED_TUPLE_HACK ? "PackedTuple" : "Tuple");
             printSubTerms("<", ">", GetLength());
             break;
         }
@@ -960,6 +962,10 @@ struct TermResolver {
                 auto len = reader.ReadULEB();
                 return NewTerm(reader, refId, TagTermId(TermKind::TUPLE), len, F_LOCAL | F_RECORD, "tuple");
             }
+            case PACKED_TUPLE_HACK: {
+                auto len = reader.ReadULEB();
+                return NewTerm(reader, refId, TagTermId(TermKind::PACKED_TUPLE_HACK), len, F_LOCAL | F_RECORD, "packed-tuple");
+            }
             case NULLABLE: {
                 return NewTerm(reader, refId, TagTermId(TermKind::NULLABLE), 1, F_LOCAL | F_REFERENCE, "nullable");
             }
@@ -1061,6 +1067,7 @@ static bool CheckIsRecord(TermKind kind, TermData* data)
     switch (kind) {
         case TermKind::UNIT:
         case TermKind::TUPLE:
+        case TermKind::PACKED_TUPLE_HACK:
         case TermKind::UNION_ENUM:
         case TermKind::VARRAY:     return true;
         case TermKind::TYPE:
