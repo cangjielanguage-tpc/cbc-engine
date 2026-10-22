@@ -113,6 +113,7 @@ bool FlattenCAbiFields(
     UNWRAP_OPT_B(layout, resolver.fieldManager->GetLayout(term));
     for (const auto& entry : layout->fields) {
         UNWRAP_OPT_B(offset, entry.offset);
+        offset += base;
         if (entry.fieldType.IsRecord()) {
             if (!FlattenCAbiFields(resolver, entry.fieldType, offset, fields)) {
                 return false;
