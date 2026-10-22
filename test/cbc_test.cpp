@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <cctype>
 #include <cstdint>
 #include <iterator>
 #include <limits>
@@ -85,10 +86,9 @@ static std::vector<Engine::Engine*>& BuiltEngines()
     return *engines;
 }
 
-static Engine::Engine& Open(std::string_view fileName)
+static Engine::Engine& OpenGenerated(std::string_view fileName, std::unique_ptr<IO::RandomAccessFile> file)
 {
     Engine::Loader loader;
-    auto file       = OpenAsm(std::string(fileName));
     bool successful = loader.Load(std::move(file), fileName);
     ASSERT(successful);
     auto& engine = loader.Build();
@@ -96,11 +96,27 @@ static Engine::Engine& Open(std::string_view fileName)
     return engine;
 }
 
+static const std::string generatedImageName = "generated.asm";
+
+// Assembles an in-memory asm source (built on the fly) and opens it as an engine. The
+// image is named after its auto-generated location; each test loads a single image.
+static Engine::Engine& OpenSource(const std::string& source)
+{
+    return OpenGenerated(generatedImageName, OpenAsmText(generatedImageName, source));
+}
+
+static std::string ToLower(std::string text)
+{
+    std::transform(text.begin(), text.end(), text.begin(), [](unsigned char c) { return std::tolower(c); });
+    return text;
+}
+
 static Interpretation::ExecBytecodeInfo* Rewrite(
-    Engine::Engine& engine, std::string_view fileName, std::string_view typeName, std::string_view methodName
+    Engine::Engine& engine, std::string_view typeName, std::string_view methodName
 )
 {
     Engine::Session session(engine);
+    auto fileName    = engine.Files().Front().name;
     auto methodId    = engine.FindMethod(session, fileName, typeName, methodName);
     auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
 
@@ -277,11 +293,25 @@ TEST_P(CbcSpecializedArith, test)
         GTEST_SKIP() << "Assembler is not present";
     }
     ArithTestParams params = GetParam();
-    auto path              = "./simple_arith_specialized/simple_arith_specialized_" + params.name + "_bulk.asm";
-    auto& engine           = Open(path);
+    auto mnemonic          = ToLower(params.name) + "i";
+
+    std::ostringstream out;
+    out << "@main_type \"default\"\n\n@type default\n";
+    for (auto rhs : rhsValues) {
+        auto imm = hex(rhs);
+        out << "  @method test_" << imm << "()I64\n"
+            << "    @code\n"
+            << "      @live.prim IR1\n"
+            << "      " << mnemonic << ".64 IR1, IR1, " << imm << "\n"
+            << "      ret.64 IR1\n"
+            << "    @end\n"
+            << "  @end\n\n";
+    }
+    out << "@end\n";
+    auto& engine = OpenSource(out.str());
 
     for (auto rhs : rhsValues) {
-        auto code = Rewrite(engine, path, "default", "test_" + hex(rhs))->code;
+        auto code = Rewrite(engine, "default", "test_" + hex(rhs))->code;
         for (auto lhs : lhsValues) {
             auto res = Interpret(code, U64(lhs), U64(0));
             EXPECT_EQ(res.u64, params.arith(lhs, rhs));
@@ -316,7 +346,8 @@ struct ConvertCase {
     Interpretation::Value::Primitive val;
 };
 
-ConvertCase convertToIntegerCases[] = { { "U8_F32", true, U64(0), F32(0.0f) },
+ConvertCase convertToIntegerCases[] = {
+    { "U8_F32", true, U64(0), F32(0.0f) },
     { "U8_F32", true, U64(42), F32(42.75f) },
     { "U8_F32", true, U64(0), F32(-10.5f) },
     { "U8_F32", true, U64(std::numeric_limits<uint8_t>::max()), F32(std::numeric_limits<uint8_t>::max()) },
@@ -480,26 +511,27 @@ ConvertCase convertToIntegerCases[] = { { "U8_F32", true, U64(0), F32(0.0f) },
     { "I16_F64", true, U64(32767), F64(32767.75) },
     { "I16_F64", true, U64(-32768), F64(-32768.75) },
     { "I8_I32", false, U64(static_cast<uint64_t>(-128)), U64(32896) },
-                                        { "I8_U32", false, U64(static_cast<uint64_t>(-128)), U64(32896) },
-                                        { "I16_I32", false, U64(static_cast<uint64_t>(-32640)), U64(32896) },
-                                        { "I16_U32", false, U64(static_cast<uint64_t>(-32640)), U64(32896) },
-                                        { "I32_F32", true, U64(1), F32(1.0f) },
-                                        { "I32_F64", true, U64(1), F64(1.0) },
-                                        { "I32_I64", false, U64(1), U64(1) },
-                                        { "I32_U64", false, U64(1), U64(1) },
-                                        { "I64_F32", true, U64(1), F32(1.0f) },
-                                        { "I64_F64", true, U64(1), F64(1.0) },
-                                        { "I64_I32", false, U64(1), U32(1) },
-                                        { "I64_U32", false, U64(1), U32(1) },
-                                        { "U8_I32", false, U64(128), U32(32896) },
-                                        { "U8_U32", false, U64(128), U32(32896) },
-                                        { "U16_I32", false, U64(32896), U32(32896) },
-                                        { "U16_U32", false, U64(32896), U32(32896) },
-                                        { "U32_F32", true, U64(1), F32(1.0f) },
-                                        { "U32_F64", true, U64(1), F64(1.0) },
-                                        { "U32_U64", false, U64(1), U32(1) },
-                                        { "U64_F32", true, U64(1), F32(1.0f) },
-                                        { "U64_F64", true, U64(1), F64(1.0) } };
+    { "I8_U32", false, U64(static_cast<uint64_t>(-128)), U64(32896) },
+    { "I16_I32", false, U64(static_cast<uint64_t>(-32640)), U64(32896) },
+    { "I16_U32", false, U64(static_cast<uint64_t>(-32640)), U64(32896) },
+    { "I32_F32", true, U64(1), F32(1.0f) },
+    { "I32_F64", true, U64(1), F64(1.0) },
+    { "I32_I64", false, U64(1), U64(1) },
+    { "I32_U64", false, U64(1), U64(1) },
+    { "I64_F32", true, U64(1), F32(1.0f) },
+    { "I64_F64", true, U64(1), F64(1.0) },
+    { "I64_I32", false, U64(1), U32(1) },
+    { "I64_U32", false, U64(1), U32(1) },
+    { "U8_I32", false, U64(128), U32(32896) },
+    { "U8_U32", false, U64(128), U32(32896) },
+    { "U16_I32", false, U64(32896), U32(32896) },
+    { "U16_U32", false, U64(32896), U32(32896) },
+    { "U32_F32", true, U64(1), F32(1.0f) },
+    { "U32_F64", true, U64(1), F64(1.0) },
+    { "U32_U64", false, U64(1), U32(1) },
+    { "U64_F32", true, U64(1), F32(1.0f) },
+    { "U64_F64", true, U64(1), F64(1.0) }
+};
 
 ConvertCase convertToFloat32Cases[] = { { "F32_F64", true, F32(1.0f), F64(1.0) },
                                         { "F32_I32", false, F32(1.0f), U64(1) },
@@ -513,6 +545,12 @@ ConvertCase convertToFloat64Cases[] = { { "F64_F32", true, F64(1.0), F32(1.0f) }
                                         { "F64_U32", false, F64(1.0), U64(1) },
                                         { "F64_U64", false, F64(1.0), U64(1) } };
 
+static const std::vector<ConvertCase> convertToFloatCases = [] {
+    std::vector<ConvertCase> cases(convertToFloat32Cases, convertToFloat32Cases + std::size(convertToFloat32Cases));
+    cases.insert(cases.end(), convertToFloat64Cases, convertToFloat64Cases + std::size(convertToFloat64Cases));
+    return cases;
+}();
+
 static void convertToInteger(Interpretation::Code code, ConvertCase convertCase)
 {
     auto ir1 = convertCase.fromFP ? U64(0) : convertCase.val;
@@ -521,20 +559,16 @@ static void convertToInteger(Interpretation::Code code, ConvertCase convertCase)
     EXPECT_EQ(res.u64, convertCase.expected.u64);
 }
 
-static void convertToFloat32(Interpretation::Code code, ConvertCase convertCase)
+static void convertToFloat(Interpretation::Code code, ConvertCase convertCase)
 {
     auto ir1 = convertCase.fromFP ? U64(0) : convertCase.val;
     auto fr0 = convertCase.fromFP ? convertCase.val : F64(0);
     auto res = InterpretFPRes(code, ir1, U64(0), fr0, F64(0));
-    EXPECT_EQ(res.u32, convertCase.expected.u32);
-}
-
-static void convertToFloat64(Interpretation::Code code, ConvertCase convertCase)
-{
-    auto ir1 = convertCase.fromFP ? U64(0) : convertCase.val;
-    auto fr0 = convertCase.fromFP ? convertCase.val : F64(0);
-    auto res = InterpretFPRes(code, ir1, U64(0), fr0, F64(0));
-    EXPECT_EQ(res.u64, convertCase.expected.u64);
+    if (convertCase.name.rfind("F32", 0) == 0) {
+        EXPECT_EQ(res.u32, convertCase.expected.u32);
+    } else {
+        EXPECT_EQ(res.u64, convertCase.expected.u64);
+    }
 }
 
 using ConvertTestFunction = void (*)(Interpretation::Code, ConvertCase);
@@ -542,7 +576,7 @@ using ConvertTestFunction = void (*)(Interpretation::Code, ConvertCase);
 struct ConvertTestParams {
     std::string name;
     int casesCount;
-    ConvertCase* convertCases;
+    const ConvertCase* convertCases;
     ConvertTestFunction testConvert;
 };
 
@@ -558,13 +592,42 @@ TEST_P(CbcSpecializedConvert, test)
         GTEST_SKIP() << "Assembler is not present";
     }
     ConvertTestParams params = GetParam();
-    auto path                = "./simple_convert/simple_convert_" + params.name + ".asm";
-    auto& engine             = Open(path);
+    bool toFloat             = params.name == "to_float";
+
+    std::vector<std::string> names;
+    for (int n { 0 }; n < params.casesCount; ++n) {
+        if (std::find(names.begin(), names.end(), params.convertCases[n].name) == names.end()) {
+            names.push_back(params.convertCases[n].name);
+        }
+    }
+
+    std::ostringstream out;
+    out << "@main_type \"default\"\n\n@type default\n";
+    for (const auto& name : names) {
+        auto underscore = name.find('_');
+        ASSERT(underscore != std::string::npos);
+        auto t0    = name.substr(0, underscore);
+        auto t1    = name.substr(underscore + 1);
+        auto fpSrc = t1 == "F32" || t1 == "F64";
+        auto op    = std::string(fpSrc ? "f2" : "i2") + (toFloat ? 'f' : 'i');
+        auto regs  = fpSrc ? (toFloat ? "FR0, FR0" : "FR0, IR1") : (toFloat ? "IR1, FR0" : "IR1, IR1");
+        out << "  @method test_" << name << "()I64\n"
+            << "    @code\n";
+        if (toFloat || !fpSrc) {
+            out << "      @live.prim IR1\n";
+        }
+        out << "      " << op << " " << t1 << ", " << t0 << ", " << regs << "\n"
+            << "      " << (toFloat ? "fret.64 FR0" : "ret.64 IR1") << "\n"
+            << "    @end\n"
+            << "  @end\n\n";
+    }
+    out << "@end\n";
+    auto& engine = OpenSource(out.str());
 
     for (int n { 0 }; n < params.casesCount; ++n) {
         ConvertCase convertCase = params.convertCases[n];
         SCOPED_TRACE(convertCase.name);
-        auto code               = Rewrite(engine, path, "default", "test_" + convertCase.name)->code;
+        auto code = Rewrite(engine, "default", "test_" + convertCase.name)->code;
         params.testConvert(code, convertCase);
     }
 }
@@ -578,10 +641,7 @@ INSTANTIATE_TEST_SUITE_P(
                             convertToIntegerCases,
                             &convertToInteger },
         ConvertTestParams {
-            "to_float", static_cast<int>(std::size(convertToFloat32Cases)), convertToFloat32Cases, &convertToFloat32 }
-        // ConvertTestParams {
-        //     "to_float", static_cast<int>(std::size(convertToFloat64Cases)), convertToFloat64Cases, &convertToFloat64
-        //     }
+            "to_float", static_cast<int>(convertToFloatCases.size()), convertToFloatCases.data(), &convertToFloat }
     )
 );
 
@@ -598,18 +658,6 @@ template <typename T> T subFunc(T l, T r) { return l - r; }
 template <typename T> T mulFunc(T l, T r) { return l * r; }
 
 template <typename T> T divFunc(T l, T r) { return l / r; }
-
-UnaryFunction<float> floatUnaryOps[] = { negFunc<float>, std::sqrt, std::abs };
-constexpr size_t floatUnaryOpsCount  = std::size(floatUnaryOps);
-
-BinaryFunction<float> floatBinaryOps[] = { addFunc<float>, subFunc<float>, mulFunc<float>, divFunc<float> };
-constexpr size_t floatBinaryOpsCount   = std::size(floatBinaryOps);
-
-UnaryFunction<double> doubleUnaryOps[] = { negFunc<double>, std::sqrt, std::abs };
-constexpr size_t doubleUnaryOpsCount   = std::size(doubleUnaryOps);
-
-BinaryFunction<double> doubleBinaryOps[] = { addFunc<double>, subFunc<double>, mulFunc<double>, divFunc<double> };
-constexpr size_t doubleBinaryOpsCount    = std::size(doubleBinaryOps);
 
 const char* unaryFunctionNames[] = { "NEG", "SQRT", "ABS" };
 
@@ -669,136 +717,189 @@ void testFPOps64(Interpretation::Value::Primitive res, double expVal)
     }
 }
 
-template <typename T> struct FPOpsTestParams {
-    std::string name;
-    size_t valuesCount;
-    std::pair<T, T>* values;
-};
-
-template <typename T> std::ostream& operator<<(std::ostream& os, const FPOpsTestParams<T>& params)
-{
-    return os << params.name;
-}
-
-template <typename T> static std::string FPOpsTestParamsName(const ::testing::TestParamInfo<FPOpsTestParams<T>>& info)
-{
-    return info.param.name;
-}
-
-class CbcSpecializedFloatOps : public ::testing::TestWithParam<FPOpsTestParams<float>> {
+class CbcFloatOps : public ::testing::TestWithParam<int> {
     void SetUp() override { DoSetUp(); }
 };
 
-class CbcSpecializedDoubleOps : public ::testing::TestWithParam<FPOpsTestParams<double>> {
-    void SetUp() override { DoSetUp(); }
-};
-
-TEST_P(CbcSpecializedFloatOps, test)
+TEST_P(CbcFloatOps, test)
 {
     if (!CheckForAssembler()) {
         GTEST_SKIP() << "Assembler is not present";
     }
-    FPOpsTestParams<float> params = GetParam();
-    auto path                     = "./simple_arith_float/simple_arith_float" + params.name + ".asm";
-    auto& engine                  = Open(path);
-    for (size_t i { 0 }; i < params.valuesCount; ++i) {
-        auto [l, r] = params.values[i];
-        for (size_t j { 0 }; j < floatUnaryOpsCount; ++j) {
-            UnaryFunction<float> unaryFunc = floatUnaryOps[j];
-            const char* unaryFuncName      = unaryFunctionNames[j];
-            auto res                       = InterpretFPRes(
-                Rewrite(engine, path, "default", std::string("test_") + unaryFuncName)->code, F32(l), F32(1.f)
-            );
-            auto expVal = unaryFunc(l);
-            testFPOps32(res, expVal);
+    auto width = GetParam();
+
+    std::ostringstream out;
+    out << "@main_type \"default\"\n\n@type default\n";
+    std::string sep;
+    for (auto name : { "NEG", "SQRT", "ABS" }) {
+        out << sep << "  @method test_" << name << "()F" << width << "\n"
+            << "    @code\n"
+            << "      f" << ToLower(name) << "." << width << " FR0, FR0\n"
+            << "      fret." << width << " FR0\n"
+            << "    @end\n"
+            << "  @end\n";
+        sep = "\n";
+    }
+    for (auto name : { "ADD", "SUB", "MUL", "DIV" }) {
+        out << sep << "  @method test_" << name << "()F" << width << "\n"
+            << "    @code\n"
+            << "      f" << ToLower(name) << "." << width << " FR0, FR0, FR1\n"
+            << "      fret." << width << " FR0\n"
+            << "    @end\n"
+            << "  @end\n";
+        sep = "\n";
+    }
+    out << "@end\n";
+    auto& engine = OpenSource(out.str());
+
+    auto runOps = [&](auto tag) {
+        using T                         = decltype(tag);
+        UnaryFunction<T> unaryFuncs[]   = { negFunc<T>, std::sqrt, std::abs };
+        BinaryFunction<T> binaryFuncs[] = { addFunc<T>, subFunc<T>, mulFunc<T>, divFunc<T> };
+        std::pair<T, T>* values;
+        size_t valuesCount;
+        if constexpr (sizeof(T) == 4) {
+            values      = floatValues;
+            valuesCount = floatValuesCount;
+        } else {
+            values      = doubleValues;
+            valuesCount = doubleValuesCount;
         }
-        for (size_t j { 0 }; j < floatBinaryOpsCount; ++j) {
-            BinaryFunction<float> binaryFunc = floatBinaryOps[j];
-            const char* binaryFuncName       = binaryFunctionNames[j];
-            auto res                         = InterpretFPRes(
-                Rewrite(engine, path, "default", std::string("test_") + binaryFuncName)->code, F32(l), F32(r)
-            );
-            auto expVal = binaryFunc(l, r);
-            testFPOps32(res, expVal);
+        auto pack = [](T v) {
+            if constexpr (sizeof(T) == 4)
+                return F32(v);
+            else
+                return F64(v);
+        };
+        auto check = [&](auto res, T exp) {
+            if constexpr (sizeof(T) == 4) {
+                testFPOps32(res, exp);
+            } else {
+                testFPOps64(res, exp);
+            }
+        };
+        for (size_t i { 0 }; i < valuesCount; ++i) {
+            auto [l, r] = values[i];
+            for (size_t j { 0 }; j < std::size(unaryFuncs); ++j) {
+                auto res = InterpretFPRes(
+                    Rewrite(engine, "default", std::string("test_") + unaryFunctionNames[j])->code, pack(l), pack(T(1))
+                );
+                check(res, unaryFuncs[j](l));
+            }
+            for (size_t j { 0 }; j < std::size(binaryFuncs); ++j) {
+                auto res = InterpretFPRes(
+                    Rewrite(engine, "default", std::string("test_") + binaryFunctionNames[j])->code, pack(l), pack(r)
+                );
+                check(res, binaryFuncs[j](l, r));
+            }
         }
+    };
+    if (width == 32) {
+        runOps(float {});
+    } else {
+        runOps(double {});
     }
 }
 
-TEST_P(CbcSpecializedDoubleOps, test)
+INSTANTIATE_TEST_SUITE_P(
+    CbcTest, CbcFloatOps, ::testing::Values(32, 64), [](const ::testing::TestParamInfo<int>& info) {
+        return std::to_string(info.param);
+    }
+);
+
+class CbcFloatMov : public ::testing::TestWithParam<int> {
+    void SetUp() override { DoSetUp(); }
+};
+
+TEST_P(CbcFloatMov, test)
 {
     if (!CheckForAssembler()) {
         GTEST_SKIP() << "Assembler is not present";
     }
-    FPOpsTestParams<double> params = GetParam();
-    auto path                      = "./simple_arith_float/simple_arith_float" + params.name + ".asm";
-    auto& engine                   = Open(path);
-    for (size_t i { 0 }; i < params.valuesCount; ++i) {
-        auto [l, r] = params.values[i];
-        for (size_t j { 0 }; j < floatUnaryOpsCount; ++j) {
-            UnaryFunction<double> unaryFunc = doubleUnaryOps[j];
-            const char* unaryFuncName       = unaryFunctionNames[j];
-            auto res                        = InterpretFPRes(
-                Rewrite(engine, path, "default", std::string("test_") + unaryFuncName)->code, F64(l), F64(1.f)
-            );
-            auto expVal = unaryFunc(l);
-            testFPOps64(res, expVal);
+    auto width = GetParam();
+
+    std::ostringstream out;
+    out << "@main_type \"default\"\n\n@type default\n"
+        << "  @method test_MOV()F" << width << "\n"
+        << "    @code\n"
+        << "      fmov." << width << " FR0, FR1\n"
+        << "      fret." << width << " FR0\n"
+        << "    @end\n"
+        << "  @end\n\n"
+        << "  @method test_I2F()F" << width << "\n"
+        << "    @code\n"
+        << "      @live.prim IR1\n"
+        << "      movi2f." << width << " FR0, IR1\n"
+        << "      fret." << width << " FR0\n"
+        << "    @end\n"
+        << "  @end\n\n"
+        << "  @method test_F2I()I" << width << "\n"
+        << "    @code\n"
+        << "      movf2i." << width << " IR1, FR0\n"
+        << "      ret." << width << " IR1\n"
+        << "    @end\n"
+        << "  @end\n"
+        << "@end\n";
+    auto& engine = OpenSource(out.str());
+
+    auto runMov = [&](auto tag) {
+        using T    = decltype(tag);
+        auto packF = [](T v) {
+            if constexpr (sizeof(T) == 4)
+                return F32(v);
+            else
+                return F64(v);
+        };
+        auto packI = [](uint64_t v) {
+            if constexpr (sizeof(T) == 4)
+                return U32(uint32_t(v));
+            else
+                return U64(v);
+        };
+        {
+            auto res = InterpretFPRes(Rewrite(engine, "default", "test_MOV")->code, packF(T(0)), packF(T(2)));
+            if constexpr (sizeof(T) == 4) {
+                ASSERT_EQ(res.f32, T(2));
+            } else {
+                ASSERT_EQ(res.f64, T(2));
+            }
         }
-        for (size_t j { 0 }; j < floatBinaryOpsCount; ++j) {
-            BinaryFunction<double> binaryFunc = doubleBinaryOps[j];
-            const char* binaryFuncName        = binaryFunctionNames[j];
-            auto res                          = InterpretFPRes(
-                Rewrite(engine, path, "default", std::string("test_") + binaryFuncName)->code, F64(l), F64(r)
-            );
-            auto expVal = binaryFunc(l, r);
-            testFPOps64(res, expVal);
+        {
+            auto res =
+                Interpret(Rewrite(engine, "default", "test_F2I")->code, packI(0), packI(0), packF(T(2.5)), packF(T(0)));
+            if constexpr (sizeof(T) == 4) {
+                ASSERT_EQ(res.u32, packF(T(2.5)).u32);
+            } else {
+                ASSERT_EQ(res.u64, packF(T(2.5)).u64);
+            }
         }
+        {
+            auto res = InterpretFPRes(
+                Rewrite(engine, "default", "test_I2F")->code,
+                packI(sizeof(T) == 4 ? packF(T(2.5)).u32 : packF(T(2.5)).u64),
+                packI(0),
+                packF(T(0)),
+                packF(T(0))
+            );
+            if constexpr (sizeof(T) == 4) {
+                ASSERT_EQ(res.f32, T(2.5));
+            } else {
+                ASSERT_EQ(res.f64, T(2.5));
+            }
+        }
+    };
+    if (width == 32) {
+        runMov(float {});
+    } else {
+        runMov(double {});
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(CbcTest, CbcSpecializedFloatOps, ::testing::Values(FPOpsTestParams<float> { "32", floatValuesCount, floatValues }), FPOpsTestParamsName<float>);
-
-INSTANTIATE_TEST_SUITE_P(CbcTest, CbcSpecializedDoubleOps, ::testing::Values(FPOpsTestParams<double> { "64", doubleValuesCount, doubleValues }), FPOpsTestParamsName<double>);
-
-TEST_ASM(CbcTest, SimpleArithFloatMov32)
-{
-    auto path    = "./simple_arith_float/simple_arith_float32_mov.asm";
-    auto& engine = Open(path);
-
-    {
-        auto res = InterpretFPRes(Rewrite(engine, path, "default", "test_MOV")->code, F32(0), F32(2.0f));
-        ASSERT_EQ(res.f32, 2.0f);
+INSTANTIATE_TEST_SUITE_P(
+    CbcTest, CbcFloatMov, ::testing::Values(32, 64), [](const ::testing::TestParamInfo<int>& info) {
+        return std::to_string(info.param);
     }
-    {
-        auto res = Interpret(Rewrite(engine, path, "default", "test_F2I")->code, U32(0), U32(0), F32(2.5f), F32(0));
-        ASSERT_EQ(res.u32, 0x40200000);
-    }
-    {
-        auto res =
-            InterpretFPRes(Rewrite(engine, path, "default", "test_I2F")->code, U32(0x40200000), U32(0), F32(0), F32(0));
-        ASSERT_EQ(res.f32, 2.5f);
-    }
-}
-
-TEST_ASM(CbcTest, SimpleArithFloatMov64)
-{
-    auto path    = "./simple_arith_float/simple_arith_float64_mov.asm";
-    auto& engine = Open(path);
-
-    {
-        auto res = InterpretFPRes(Rewrite(engine, path, "default", "test_MOV")->code, F64(0), F64(2.0));
-        ASSERT_EQ(res.f64, 2.0);
-    }
-    {
-        auto res = Interpret(Rewrite(engine, path, "default", "test_F2I")->code, U64(0), U64(0), F64(2.5), F64(0));
-        ASSERT_EQ(res.u64, 0x4004000000000000);
-    }
-    {
-        auto res = InterpretFPRes(
-            Rewrite(engine, path, "default", "test_I2F")->code, U64(0x4004000000000000), U64(0), F64(0), F64(0)
-        );
-        ASSERT_EQ(res.f64, 2.5);
-    }
-}
+);
 
 struct BFXCase {
     bool signExtend;
