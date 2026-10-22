@@ -124,6 +124,9 @@ public:
 
     void FindAndPrepareHelpers(Engine::Session& session, std::string_view mainCbc);
 
+    /// Prepares helpers from the first loaded CBC containing all of them; no-op if no files are loaded.
+    void FindAndPrepareHelpers(Engine::Session& session);
+
     // Acquires a function pointer that could be invoked from compiled code
     // to invoke the method referenced by `fuh`.
     //

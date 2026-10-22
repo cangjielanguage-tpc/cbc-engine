@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <mutex>
@@ -53,6 +54,9 @@ FunctionHandleManager::FunctionHandleManager(FunctionHandleManager&& manager) = 
     FATAL("Helper method %s was not found", methodName);
 }
 
+// FIXME: move these helpers to intrinsics.cbc in future iterations.
+static constexpr auto helperTypeName = "$P$cbc_intrinsics";
+
 std::unordered_map<Helper, std::string> helperNames = {
     { Helper::ThrowAbstractMethodCallError, "throwAbstractMethodCallError" },
     { Helper::ThrowSymbolResolutionError, "throwSymbolResolutionError" },
@@ -74,9 +78,7 @@ static DynamicFunctionHandle* FindAndPrepareHelper(
     Session& session, FunctionHandleManager& fhm, std::string_view methodName, std::string_view fileName
 )
 {
-    // FIXME: change this to intrinsics.cbc in future iterations
-    auto typeName = "$P$cbc_intrinsics";
-    UNWRAP_OPT_NORETURN(method, session.GetEngine().FindMethod(session, fileName, typeName, methodName), [&]() {
+    UNWRAP_OPT_NORETURN(method, session.GetEngine().FindMethod(session, fileName, helperTypeName, methodName), [&]() {
         HelperWasNotFound(methodName);
     });
 
@@ -99,6 +101,26 @@ void FunctionHandleManager::FindAndPrepareHelpers(Session& session, std::string_
         auto fuh = FindAndPrepareHelper(session, *this, methodName, mainCbc);
         SetHelper(helper, fuh);
     }
+}
+
+void FunctionHandleManager::FindAndPrepareHelpers(Session& session)
+{
+    auto& engine = session.GetEngine();
+    if (engine.Files().Empty()) {
+        return;
+    }
+
+    for (const auto& file : engine.Files()) {
+        auto hasAllHelpers = std::all_of(helperNames.begin(), helperNames.end(), [&](const auto& entry) {
+            return engine.FindMethod(session, file.GetPath(), helperTypeName, entry.second).has_value();
+        });
+        if (hasAllHelpers) {
+            FindAndPrepareHelpers(session, file.GetPath());
+            return;
+        }
+    }
+
+    FATAL("No loaded CBC file contains all required helper methods in %s", helperTypeName);
 }
 
 static char* MethodName(Session& session, Image::MethodDefinition methodDef)

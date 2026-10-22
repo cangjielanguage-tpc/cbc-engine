@@ -362,7 +362,7 @@ std::optional<Identifier<MethodDefinition>> Engine::FindMethod(
             mcount++;
             result = m;
         }
-        ASSERTION(mcount == 1, "unexpected method count");
+        ASSERTION(mcount <= 1, "unexpected method count");
         return result;
     }
     return std::nullopt;

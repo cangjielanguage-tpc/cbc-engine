@@ -96,6 +96,44 @@ static Engine::Engine& Open(std::string_view fileName)
     return engine;
 }
 
+TEST_ASM(CbcTest, FindMissingMethod)
+{
+    auto& engine = Open("simple.asm");
+    Engine::Session session(engine);
+    EXPECT_FALSE(engine.FindMethod(session, "simple.asm", "default", "missing").has_value());
+}
+
+TEST_F(CbcTest, PrepareHelpersWithoutFiles)
+{
+    Engine::Loader loader;
+    auto& engine = loader.Build();
+    BuiltEngines().push_back(&engine);
+    Engine::Session session(engine);
+    Interpretation::FunctionHandleManager::Of(engine).FindAndPrepareHelpers(session);
+}
+
+TEST_ASM(CbcTest, PrepareHelpersFromOneFile)
+{
+    Engine::Loader loader;
+    ASSERT_TRUE(loader.Load(OpenAsm("simple.asm"), "first.cbc"));
+    ASSERT_TRUE(loader.Load(OpenAsm("simple.asm"), "second.cbc"));
+    auto& engine = loader.Build();
+    BuiltEngines().push_back(&engine);
+    Engine::Session session(engine);
+    auto& manager = Interpretation::FunctionHandleManager::Of(engine);
+    manager.FindAndPrepareHelpers(session);
+
+    auto checkHelper = [&](Interpretation::Helper helper, std::string_view name) {
+        auto method = engine.FindMethod(session, "first.cbc", "$P$cbc_intrinsics", name);
+        ASSERT_TRUE(method.has_value());
+        auto handle = manager.GetHelper(helper);
+        EXPECT_EQ(handle->methodDef, *method);
+        EXPECT_NE(handle->bytecode.load(), nullptr);
+    };
+    checkHelper(Interpretation::Helper::ThrowAbstractMethodCallError, "throwAbstractMethodCallError");
+    checkHelper(Interpretation::Helper::ThrowSymbolResolutionError, "throwSymbolResolutionError");
+}
+
 static Interpretation::ExecBytecodeInfo* Rewrite(
     Engine::Engine& engine, std::string_view fileName, std::string_view typeName, std::string_view methodName
 )
