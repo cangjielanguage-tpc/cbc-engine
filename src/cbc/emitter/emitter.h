@@ -116,8 +116,8 @@ public:
     void SatDiv(Width width, IReg d, IReg l, IReg r);
     void SatMod(Width width, IReg d, IReg l, IReg r);
     void SatPow(Width width, IReg d, IReg l, IReg r);
-    void SatShl(Width width, IReg d, IReg l, IReg r);
-    void SatShr(Width width, IReg d, IReg l, IReg r);
+    void SatLsl(Width width, IReg d, IReg l, IReg r);
+    void SatAsr(Width width, IReg d, IReg l, IReg r);
 
     void Binary(FloatOperations op, Width width, FReg d, FReg l, FReg r);
     void Add(Width width, FReg d, FReg l, FReg r);

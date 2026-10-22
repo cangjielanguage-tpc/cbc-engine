@@ -339,9 +339,9 @@ public:
     X(CUSUB, 0b0101, "cusub")                                                                                          \
     X(CUMUL, 0b0110, "cumul")                                                                                          \
     X(CPOW, 0b0111, "cpow")                                                                                            \
-    X(CLSH, 0b1000, "clsh")                                                                                            \
-    X(CRSH, 0b1001, "crsh")                                                                                            \
-    X(CASH, 0b1010, "cash")                                                                                            \
+    X(CLSL, 0b1000, "clsl")                                                                                            \
+    X(CLSR, 0b1001, "clsr")                                                                                            \
+    X(CASR, 0b1010, "casr")                                                                                            \
     X(CNEG, 0b1011, "cneg")
 
 #define CheckedEnum(opc, value, str) opc = value,
@@ -352,7 +352,7 @@ public:
 
 #undef CheckedEnum
 
-    static constexpr Value values[] = { CADD, CSUB, CMUL, CDIV, CUADD, CUSUB, CUMUL, CPOW, CLSH, CRSH, CASH, CNEG };
+    static constexpr Value values[] = { CADD, CSUB, CMUL, CDIV, CUADD, CUSUB, CUMUL, CPOW, CLSL, CLSR, CASR, CNEG };
 
     constexpr Checked(const Value raw) : _value(raw) {}
 
@@ -392,26 +392,26 @@ public:
     X(SDIV, 0b0011, "sdiv")                                                                                            \
     X(SMOD, 0b0100, "smod")                                                                                            \
     X(SPOW, 0b0101, "spow")                                                                                            \
-    X(SSHL, 0b0110, "sshl")                                                                                            \
-    X(SSHR, 0b0111, "sshr")                                                                                            \
+    X(SLSL, 0b0110, "slsl")                                                                                            \
+    X(SASR, 0b0111, "sasr")                                                                                            \
     X(SUADD, 0b1000, "suadd")                                                                                          \
     X(SUSUB, 0b1001, "susub")                                                                                          \
     X(SUMUL, 0b1010, "sumul")                                                                                          \
     X(SUDIV, 0b1011, "sudiv")                                                                                          \
     X(SUMOD, 0b1100, "sumod")                                                                                          \
-    X(SUSHL, 0b1101, "sushl")                                                                                          \
-    X(SUSHR, 0b1110, "sushr")
+    X(SULSL, 0b1101, "sulsl")                                                                                          \
+    X(SULSR, 0b1110, "sulsr")
 
 #define SaturatingEnum(opc, value, str) opc = value,
 
     enum Value : uint32_t {
-        SaturatingValue(SaturatingEnum) LAST = SUSHR
+        SaturatingValue(SaturatingEnum) LAST = SULSR
     };
 
 #undef SaturatingEnum
 
-    static constexpr Value values[] = { SADD,  SSUB,  SMUL, SDIV, SMOD, SPOW, SSHL, SSHR,
-                                        SUADD, SUSUB, SUMUL, SUDIV, SUMOD, SUSHL, SUSHR };
+    static constexpr Value values[] = { SADD,  SSUB,  SMUL, SDIV, SMOD, SPOW, SLSL, SASR,
+                                        SUADD, SUSUB, SUMUL, SUDIV, SUMOD, SULSL, SULSR };
 
     constexpr Saturating(const Value raw) : _value(raw) {}
 

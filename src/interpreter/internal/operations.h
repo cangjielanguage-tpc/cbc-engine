@@ -195,7 +195,7 @@ static inline ArithmeticResult SatArith(Saturating::Value op, Value::Primitive l
             }
             return { Traits::make(static_cast<stype>(acc)), true };
         }
-        case Saturating::SSHL: {
+        case Saturating::SLSL: {
             // Provisional semantics until cjc defines saturating shifts:
             // out-of-range shift amounts are clamped to the bit width - 1.
             constexpr int64_t bitWidth = std::numeric_limits<utype>::digits;
@@ -210,7 +210,7 @@ static inline ArithmeticResult SatArith(Saturating::Value op, Value::Primitive l
             swide res  = static_cast<swide>(base) << shift;
             return { makeS(res), true };
         }
-        case Saturating::SSHR: {
+        case Saturating::SASR: {
             // Provisional semantics until cjc defines saturating shifts:
             // out-of-range shift amounts are clamped to the bit width - 1.
             constexpr int64_t bitWidth = std::numeric_limits<utype>::digits;
@@ -265,7 +265,7 @@ static inline ArithmeticResult SatArithU(Saturating::Value op, Value::Primitive 
             ASSERT(right != 0);
             return { Traits::make(static_cast<utype>(left % right)), true };
         }
-        case Saturating::SUSHL: {
+        case Saturating::SULSL: {
             constexpr int64_t bitWidth = std::numeric_limits<utype>::digits;
             int64_t shift              = static_cast<int64_t>(Traits::uget(r));
             if (shift < 0) {
@@ -277,7 +277,7 @@ static inline ArithmeticResult SatArithU(Saturating::Value op, Value::Primitive 
             uwide res = static_cast<uwide>(Traits::uget(l)) << shift;
             return { Traits::make(static_cast<utype>(res > umax ? umax : res)), true };
         }
-        case Saturating::SUSHR: {
+        case Saturating::SULSR: {
             constexpr int64_t bitWidth = std::numeric_limits<utype>::digits;
             int64_t shift              = static_cast<int64_t>(Traits::uget(r));
             if (shift < 0) {
@@ -502,7 +502,7 @@ static inline ArithmeticResult Arith(Checked::Value op, Value::Primitive l, Valu
             }
             return { Traits::make(result), !overflow };
         }
-        case Checked::CLSH: {
+        case Checked::CLSL: {
             utype base  = Traits::uget(l);
             stype shift = Traits::sget(r);
             if (!checkShift(shift)) {
@@ -510,7 +510,7 @@ static inline ArithmeticResult Arith(Checked::Value op, Value::Primitive l, Valu
             }
             return { Traits::make(static_cast<utype>(base << shift)), true };
         }
-        case Checked::CRSH: {
+        case Checked::CLSR: {
             utype base  = Traits::uget(l); // forces >> to be logical shift
             stype shift = Traits::sget(r);
             if (!checkShift(shift)) {
@@ -518,7 +518,7 @@ static inline ArithmeticResult Arith(Checked::Value op, Value::Primitive l, Valu
             }
             return { Traits::make(static_cast<utype>(base >> shift)), true };
         }
-        case Checked::CASH: {
+        case Checked::CASR: {
             stype base  = Traits::sget(l); // forces >> to be arith shift
             stype shift = Traits::sget(r);
             if (!checkShift(shift)) {

@@ -495,9 +495,9 @@ void Emitter::SatMod(Width width, IReg d, IReg l, IReg r) { SatBinary(Saturating
 
 void Emitter::SatPow(Width width, IReg d, IReg l, IReg r) { SatBinary(Saturating::SPOW, width, d, l, r); }
 
-void Emitter::SatShl(Width width, IReg d, IReg l, IReg r) { SatBinary(Saturating::SSHL, width, d, l, r); }
+void Emitter::SatLsl(Width width, IReg d, IReg l, IReg r) { SatBinary(Saturating::SLSL, width, d, l, r); }
 
-void Emitter::SatShr(Width width, IReg d, IReg l, IReg r) { SatBinary(Saturating::SSHR, width, d, l, r); }
+void Emitter::SatAsr(Width width, IReg d, IReg l, IReg r) { SatBinary(Saturating::SASR, width, d, l, r); }
 
 // clang-format off
 static constexpr RT::Opcode opcodes[][4] = {
