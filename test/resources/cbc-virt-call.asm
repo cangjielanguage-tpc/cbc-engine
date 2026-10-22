@@ -1,4 +1,3 @@
-;strict
 
 ; Disasm-only
 ;@aotdeps cangjie-std-core
