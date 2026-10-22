@@ -1,4 +1,3 @@
-#include <algorithm>
 #include <array>
 #include <atomic>
 #include <mutex>
@@ -51,7 +50,7 @@ FunctionHandleManager::FunctionHandleManager(FunctionHandleManager&& manager) = 
 
 [[noreturn]] static void HelperWasNotFound(std::string_view methodName)
 {
-    FATAL("Helper method %s was not found", methodName);
+    FATAL("Helper method %.*s was not found", static_cast<int>(methodName.size()), methodName.data());
 }
 
 // FIXME: move these helpers to intrinsics.cbc in future iterations.
@@ -105,22 +104,10 @@ void FunctionHandleManager::FindAndPrepareHelpers(Session& session, std::string_
 
 void FunctionHandleManager::FindAndPrepareHelpers(Session& session)
 {
-    auto& engine = session.GetEngine();
-    if (engine.Files().Empty()) {
-        return;
+    auto files = session.GetEngine().Files();
+    if (!files.Empty()) {
+        FindAndPrepareHelpers(session, files.Front().GetPath());
     }
-
-    for (const auto& file : engine.Files()) {
-        auto hasAllHelpers = std::all_of(helperNames.begin(), helperNames.end(), [&](const auto& entry) {
-            return engine.FindMethod(session, file.GetPath(), helperTypeName, entry.second).has_value();
-        });
-        if (hasAllHelpers) {
-            FindAndPrepareHelpers(session, file.GetPath());
-            return;
-        }
-    }
-
-    FATAL("No loaded CBC file contains all required helper methods in %s", helperTypeName);
 }
 
 static char* MethodName(Session& session, Image::MethodDefinition methodDef)
