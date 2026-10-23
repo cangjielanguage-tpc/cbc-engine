@@ -42,6 +42,10 @@ struct Location {
     static Location Slot(int slot) { return Location { IReg::VIRT_COUNT + FReg::COUNT + slot }; }
 
     static constexpr Location Nil() { return Location { -1 }; }
+
+    bool operator==(const Location& other) const { return idx == other.idx; }
+
+    bool operator!=(const Location& other) const { return idx != other.idx; }
 };
 
 // Abstract sink for resolved moves. Implementations emit the actual
