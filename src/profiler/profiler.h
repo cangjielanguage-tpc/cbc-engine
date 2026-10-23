@@ -76,9 +76,9 @@ private:
     };
 
     enum class ReaderState : uint8_t {
-        NO,
-        YES,
-        TRANS
+        INACTIVE,
+        ACTIVE,
+        TRANSITION
     };
 
     // Producer-only. Called after filling the current buffer. If the collector
@@ -97,9 +97,9 @@ private:
 
     std::atomic<uint32_t> sharedWriterIndex { NO_PUBLISHED_BUFFER };
 
-    // Written by both producer and collector. TRANS serializes a buffer switch
-    // with the collector taking or releasing its read snapshot.
-    std::atomic<ReaderState> readerState { ReaderState::NO };
+    // Written by both producer and collector. TRANSITION serializes a
+    // buffer switch with the collector taking or releasing its read snapshot.
+    std::atomic<ReaderState> readerState { ReaderState::INACTIVE };
 
     std::atomic<bool> active { true };
 };

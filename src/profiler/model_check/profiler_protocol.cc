@@ -11,9 +11,9 @@ constexpr uint32_t BUFFER_SIZE = 1;
 constexpr uint32_t NO_PUBLISHED_BUFFER = 2;
 
 enum ReaderState : int {
-    NO,
-    YES,
-    TRANS
+    INACTIVE,
+    ACTIVE,
+    TRANSITION
 };
 
 uint32_t buffers[2][BUFFER_SIZE];
@@ -26,16 +26,16 @@ uint32_t cursor;
 void TryPublish()
 {
     auto previous = readerState.load(std::memory_order_relaxed);
-    while (previous == TRANS || !readerState.compare_exchange_weak(
-               previous, TRANS, std::memory_order_acq_rel, std::memory_order_relaxed
+    while (previous == TRANSITION || !readerState.compare_exchange_weak(
+               previous, TRANSITION, std::memory_order_acq_rel, std::memory_order_relaxed
            )) {
-        if (previous == TRANS) {
+        if (previous == TRANSITION) {
             thrd_yield();
             previous = readerState.load(std::memory_order_relaxed);
         }
     }
 
-    if (previous == NO) {
+    if (previous == INACTIVE) {
         writerIndex ^= 1U;
         cursor = 0;
         sharedWriterIndex.store(writerIndex, std::memory_order_release);
@@ -57,11 +57,11 @@ void Producer(void*)
 
 void Consumer(void*)
 {
-    int expected = NO;
+    int expected = INACTIVE;
     while (!readerState.compare_exchange_weak(
-        expected, YES, std::memory_order_acquire, std::memory_order_relaxed
+        expected, ACTIVE, std::memory_order_acquire, std::memory_order_relaxed
     )) {
-        expected = NO;
+        expected = INACTIVE;
         thrd_yield();
     }
 
@@ -82,11 +82,11 @@ void Consumer(void*)
         MODEL_ASSERT(record != 0);
     }
 
-    expected = YES;
+    expected = ACTIVE;
     while (!readerState.compare_exchange_weak(
-        expected, NO, std::memory_order_release, std::memory_order_relaxed
+        expected, INACTIVE, std::memory_order_release, std::memory_order_relaxed
     )) {
-        expected = YES;
+        expected = ACTIVE;
         thrd_yield();
     }
 }
@@ -98,7 +98,7 @@ int user_main(int, char**)
     thrd_t producer;
     thrd_t consumer;
 
-    readerState.store(NO, std::memory_order_relaxed);
+    readerState.store(INACTIVE, std::memory_order_relaxed);
     sharedWriterIndex.store(NO_PUBLISHED_BUFFER, std::memory_order_relaxed);
     writerIndex = 0;
     cursor = 0;
