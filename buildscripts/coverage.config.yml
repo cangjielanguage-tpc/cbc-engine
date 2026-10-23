@@ -1,7 +1,0 @@
-# Folder to store coverage files, relative to this repository root
-coverage_dir: coverage
-
-# Directories covered by the report, relative to this repository root
-covered_dirs:
-  - src
-  - include
