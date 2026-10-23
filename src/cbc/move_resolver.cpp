@@ -94,6 +94,17 @@ struct AssignmentInfo {
     }
 };
 
+static constexpr uint32_t Pack(enum Location::Kind src, enum Location::Kind dst, bool isLoad)
+{
+    constexpr auto kindSize = sizeof(enum Location::Kind);
+    static_assert(kindSize == 1);
+    static_assert(kindSize + kindSize + sizeof(bool) <= sizeof(uint32_t));
+    return (static_cast<uint32_t>(src) << 16) | (static_cast<uint32_t>(dst) << 8) | static_cast<uint32_t>(isLoad);
+}
+
+constexpr bool LOAD = true;
+constexpr bool MOVE = false;
+
 bool MoveResolver::Resolve(MoveEmitter& emitter)
 {
     // # Register resolution:
@@ -177,52 +188,52 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
         auto dkind = dst.Kind();
         auto skind = src.Kind();
 
-        if (assignment.fromAddr) {
-            // Handle loads.
+        switch (Pack(skind, dkind, assignment.fromAddr)) {
+            // Reg moves (must always hold: src.kind == dst.kind)
+            case Pack(Location::IREG, Location::IREG, MOVE):
+                iregNodes[dst.IRegIdx()] = AssignmentInfo { .moveInfo = { src } };
+                break;
+            case Pack(Location::FREG, Location::FREG, MOVE):
+                fregNodes[dst.FRegIdx()] = AssignmentInfo { .moveInfo = { src } };
+                break;
 
-            if (dkind == Location::SLOT) {
-                // Param slots cannot form any chains,
-                // to handle them emit all needed loads immediately before registers shuffle.
-                EmitLoadFromAddr(emitter, assignment.dst, assignment.src, assignment.offset, assignment.ldk);
-                continue;
-            }
-            if (skind == Location::SLOT) {
-                // This case will be processed after registers shuffle.
-                continue;
-            }
-            if (dkind == Location::IREG) {
+            // Loads (must always hold: src.kind = IREG)
+            case Pack(Location::IREG, Location::IREG, LOAD):
                 iregNodes[dst.IRegIdx()] = AssignmentInfo {
                     .isLoad   = true,
                     .loadInfo = { src, assignment.offset, assignment.ldk },
                 };
-            } else {
-                ASSERT(dkind == Location::FREG);
+                break;
+            case Pack(Location::IREG, Location::FREG, LOAD):
                 fregNodes[dst.FRegIdx()] = AssignmentInfo {
                     .isLoad   = true,
                     .loadInfo = { src, assignment.offset, assignment.ldk },
                 };
-            }
-        } else {
-            // Handle moves.
+                break;
 
-            if (dkind == skind && dkind == Location::IREG) {
-                iregNodes[dst.IRegIdx()] = AssignmentInfo { .moveInfo = { src } };
-            } else if (dkind == skind && dkind == Location::FREG) {
-                fregNodes[dst.FRegIdx()] = AssignmentInfo { .moveInfo = { src } };
-            } else if (dkind == Location::SLOT) {
-                // Param slots cannot form any chains,
-                // to handle them emit all needed stores immediately before registers shuffle.
-                EmitMove(emitter, dst, src);
-            } else {
-                if (dkind == Location::IREG && skind == Location::FREG) {
-                    return false;
-                }
-                if (dkind == Location::FREG && skind == Location::IREG) {
-                    return false;
-                }
-                ASSERT(skind == Location::SLOT);
-                // This case will be processed after registers shuffle.
-            }
+            // Param slots cannot form any chains: emit immediately, before
+            // the register shuffle.
+            case Pack(Location::IREG, Location::SLOT, MOVE):
+            case Pack(Location::FREG, Location::SLOT, MOVE):
+            case Pack(Location::SLOT, Location::SLOT, MOVE): EmitMove(emitter, dst, src); break;
+            case Pack(Location::IREG, Location::SLOT, LOAD):
+            case Pack(Location::SLOT, Location::SLOT, LOAD):
+                EmitLoadFromAddr(emitter, dst, src, assignment.offset, assignment.ldk);
+                break;
+
+            // Untyped slots are immutable: processed after the register shuffle.
+            case Pack(Location::SLOT, Location::IREG, MOVE):
+            case Pack(Location::SLOT, Location::FREG, MOVE):
+            case Pack(Location::SLOT, Location::IREG, LOAD):
+            case Pack(Location::SLOT, Location::FREG, LOAD): break;
+
+            default:
+                FATAL(
+                    "unexpected assignment: %c <- %c (load: %s)",
+                    static_cast<int>(dkind),
+                    static_cast<int>(skind),
+                    assignment.fromAddr ? "true" : "false"
+                );
         }
     }
 
