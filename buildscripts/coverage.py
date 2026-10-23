@@ -3,8 +3,6 @@ import glob
 import os
 import shutil
 
-import yaml
-
 from buildscripts.util import fail, run_command
 
 
@@ -12,21 +10,22 @@ COVERAGE_TEST_BINARY = "cbc_test"
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BUILD_ROOT_DIR = os.path.join(PROJECT_DIR, "output")
-CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "coverage.config.yml")
+
+# Folder to store coverage files, relative to this repository root
+COVERAGE_DIR = "coverage"
+
+# Directories covered by the report, relative to this repository root
+COVERED_DIRS = ["src", "include"]
 
 
 class CoverageConfig:
-    def __init__(self, path, build_root_dir):
-        if not os.path.isfile(path):
-            fail(f"Coverage config file does not exist: {path}")
-        with open(path) as f:
-            config = yaml.safe_load(f)
-        self.coverage_dir = os.path.join(build_root_dir, config["coverage_dir"])
+    def __init__(self, build_root_dir):
+        self.coverage_dir = os.path.join(build_root_dir, COVERAGE_DIR)
         self.profiles_dir = os.path.join(self.coverage_dir, "profiles")
-        self.covered_dirs = config["covered_dirs"]
+        self.covered_dirs = COVERED_DIRS
 
 
-coverage = CoverageConfig(CONFIG_PATH, BUILD_ROOT_DIR)
+coverage = CoverageConfig(BUILD_ROOT_DIR)
 
 
 def reset_coverage_profiles():
