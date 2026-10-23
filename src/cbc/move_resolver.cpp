@@ -132,9 +132,7 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
     // O(n) iterations in the worst case (one node resolved per iteration for a single cycle).
     // No heap allocations — only stack-allocated arrays.
 
-    static constexpr int MAX_LOADS = FReg::COUNT;
-    static constexpr int BUFFER_SIZE =
-        IReg::VIRT_COUNT + MAX_LOADS < FReg::COUNT ? FReg::COUNT : IReg::VIRT_COUNT + MAX_LOADS;
+    static constexpr int BUFFER_SIZE = IReg::VIRT_COUNT + FReg::COUNT;
     using RegNum = uint8_t;
 
     struct LoadInfo {
@@ -144,15 +142,15 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
         Location dst { Location::Nil() };
     };
 
-    RegNum iregs[IReg::VIRT_COUNT + MAX_LOADS];
+    RegNum iregs[IReg::VIRT_COUNT + FReg::COUNT];
     RegNum fregs[FReg::COUNT];
 
     // Helper table for every graph edge. Meaningful for loads.
     // Must have `isLoad == false` for all moves.
-    LoadInfo iLoads[IReg::VIRT_COUNT + MAX_LOADS];
+    LoadInfo iLoads[IReg::VIRT_COUNT + FReg::COUNT];
     LoadInfo fLoads[FReg::COUNT];
 
-    for (int i = 0; i < IReg::VIRT_COUNT + MAX_LOADS; i++)
+    for (int i = 0; i < IReg::VIRT_COUNT + FReg::COUNT; i++)
         iregs[i] = i;
     for (int i = 0; i < FReg::COUNT; i++)
         fregs[i] = i;
@@ -181,7 +179,7 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
             if (dkind == Location::IREG) {
                 dstIdx = dst.IRegIdx();
             } else {
-                ASSERT(loadToFRegCount < MAX_LOADS);
+                ASSERT(loadToFRegCount < FReg::COUNT);
                 ASSERT(dkind == Location::FREG);
                 dstIdx = IReg::VIRT_COUNT + loadToFRegCount++;
             }
