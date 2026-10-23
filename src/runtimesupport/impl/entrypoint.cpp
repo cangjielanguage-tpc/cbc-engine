@@ -94,7 +94,7 @@ static void EnsureEngineInitialized()
         }
     }
 
-    constexpr auto intrinsicsFileName = "/intrinsics.cbc";
+    constexpr auto intrinsicsFileName = "/cbc-intrinsics.cbc";
     auto intrinsicsDir                = EngineLibraryDirectory();
     if (!intrinsicsDir.empty()) {
         auto intrinsicsPath = intrinsicsDir + std::string(intrinsicsFileName);
