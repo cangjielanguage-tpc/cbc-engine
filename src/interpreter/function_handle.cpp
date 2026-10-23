@@ -94,10 +94,10 @@ static DynamicFunctionHandle* FindAndPrepareHelper(
     }
 }
 
-void FunctionHandleManager::FindAndPrepareHelpers(Session& session, std::string_view mainCbc)
+void FunctionHandleManager::FindAndPrepareHelpers(Session& session, std::string_view cbcFile)
 {
     for (const auto& [helper, methodName] : helperNames) {
-        auto fuh = FindAndPrepareHelper(session, *this, methodName, mainCbc);
+        auto fuh = FindAndPrepareHelper(session, *this, methodName, cbcFile);
         SetHelper(helper, fuh);
     }
 }
