@@ -97,12 +97,15 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
     // # Loads from address (`fromAddr` assignments):
     // - modeled as nodes that read the register holding the address, so the
     //   address cannot be rewritten before the load is emitted;
-    // - their write side is either a param slot (never read back) or a register
-    //   handled by the same graph. All such nodes live in the ireg graph (with
-    //   virtual indices for non-ireg destinations), because the address is
-    //   always an ireg or an immutable untyped slot. The freg graph is resolved
-    //   first, so plain freg moves always see register values before loads
-    //   overwrite freg destinations.
+    // - loads into param slots are emitted immediately (slots are never read
+    //   back, and the address is read before the register shuffle);
+    // - loads whose address lives in an untyped slot are emitted after the
+    //   register shuffle, like plain slot->reg moves: the slot is immutable
+    //   and everything reading the destination register goes first;
+    // - loads into registers from a register address live in the ireg graph
+    //   (with virtual indices for freg destinations). The freg graph is
+    //   resolved first, so plain freg moves always see register values before
+    //   loads overwrite freg destinations.
     //
     // # Additional assumptions:
     // - There is no (FP, IR) or (IR, FP) assignments.
@@ -129,15 +132,13 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
     // O(n) iterations in the worst case (one node resolved per iteration for a single cycle).
     // No heap allocations — only stack-allocated arrays.
 
-    static constexpr int MAX_LOADS = 64;
+    static constexpr int MAX_LOADS = FReg::COUNT;
     static constexpr int BUFFER_SIZE =
         IReg::VIRT_COUNT + MAX_LOADS < FReg::COUNT ? FReg::COUNT : IReg::VIRT_COUNT + MAX_LOADS;
     using RegNum = uint8_t;
 
     struct LoadInfo {
         bool isLoad { false };
-        bool addrIsSlot { false };
-        int addrSlot { 0 };
         int32_t offset { 0 };
         Format::LoadAccessKind ldk { Format::LoadAccessKind::LD_64 };
         Location dst { Location::Nil() };
@@ -145,6 +146,9 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
 
     RegNum iregs[IReg::VIRT_COUNT + MAX_LOADS];
     RegNum fregs[FReg::COUNT];
+
+    // Helper table for every graph edge. Meaningful for loads.
+    // Must have `isLoad == false` for all moves.
     LoadInfo iLoads[IReg::VIRT_COUNT + MAX_LOADS];
     LoadInfo fLoads[FReg::COUNT];
 
@@ -153,7 +157,7 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
     for (int i = 0; i < FReg::COUNT; i++)
         fregs[i] = i;
 
-    int virtCount = 0;
+    int loadToFRegCount = 0;
     for (auto& assignment : assignments) {
         auto dst   = assignment.dst;
         auto src   = assignment.src;
@@ -161,40 +165,55 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
         auto skind = src.Kind();
 
         if (assignment.fromAddr) {
+            // Handle loads.
+
+            if (dkind == Location::SLOT) {
+                // Param slots cannot form any chains,
+                // to handle them emit all needed loads immediately before registers shuffle.
+                EmitLoadFromAddr(emitter, assignment.dst, assignment.src, assignment.offset, assignment.ldk);
+                continue;
+            }
+            if (skind == Location::SLOT) {
+                // This case will be processed after registers shuffle.
+                continue;
+            }
             RegNum dstIdx;
             if (dkind == Location::IREG) {
                 dstIdx = dst.IRegIdx();
             } else {
-                ASSERT(virtCount < MAX_LOADS);
-                dstIdx = IReg::VIRT_COUNT + virtCount++;
+                ASSERT(loadToFRegCount < MAX_LOADS);
+                ASSERT(dkind == Location::FREG);
+                dstIdx = IReg::VIRT_COUNT + loadToFRegCount++;
             }
-            bool addrIsSlot = skind == Location::SLOT;
-            iregs[dstIdx]   = addrIsSlot ? dstIdx : src.IRegIdx();
-            iLoads[dstIdx]  = LoadInfo {
-                true,           addrIsSlot, addrIsSlot ? static_cast<int>(src.SlotIdx()) : 0, assignment.offset,
-                assignment.ldk, dst,
-            };
-            continue;
-        }
-
-        if (dkind == skind && dkind == Location::IREG) {
-            iregs[dst.IRegIdx()] = src.IRegIdx();
-        } else if (dkind == skind && dkind == Location::FREG) {
-            fregs[dst.FRegIdx()] = src.FRegIdx();
-        } else if (dkind == Location::SLOT) {
-            // Param slots cannot form any chains,
-            // to handle them emit all needed stores immediately before registers shuffle.
-            EmitMove(emitter, dst, src);
+            iregs[dstIdx]  = src.IRegIdx();
+            iLoads[dstIdx] = LoadInfo { true, assignment.offset, assignment.ldk, dst };
         } else {
-            if (dkind == Location::IREG && skind == Location::FREG) {
-                return false;
+            // Handle moves.
+
+            if (dkind == skind && dkind == Location::IREG) {
+                iregs[dst.IRegIdx()] = src.IRegIdx();
+            } else if (dkind == skind && dkind == Location::FREG) {
+                fregs[dst.FRegIdx()] = src.FRegIdx();
+            } else if (dkind == Location::SLOT) {
+                // Param slots cannot form any chains,
+                // to handle them emit all needed stores immediately before registers shuffle.
+                EmitMove(emitter, dst, src);
+            } else {
+                if (dkind == Location::IREG && skind == Location::FREG) {
+                    return false;
+                }
+                if (dkind == Location::FREG && skind == Location::IREG) {
+                    return false;
+                }
+                ASSERT(skind == Location::SLOT);
+                // This case will be processed after registers shuffle.
             }
-            if (dkind == Location::FREG && skind == Location::IREG) {
-                return false;
-            }
-            ASSERT(skind == Location::SLOT);
-            // This case will be processed after registers shuffle.
         }
+    }
+
+    // Loads from address that is stored in float registers are not considered.
+    for (RegNum i = 0; i < FReg::COUNT; i++) {
+        ASSERT(!fLoads[i].isLoad);
     }
 
     auto cycleResolver = [](Utils::Span<RegNum> sources,
@@ -278,9 +297,8 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
 
     auto assignIr = [&emitter, &iLoads](RegNum dst, RegNum src) {
         if (iLoads[dst].isLoad) {
-            auto& l       = iLoads[dst];
-            Location addr = l.addrIsSlot ? Location::Slot(l.addrSlot) : Location::IReg(IReg::From(src));
-            EmitLoadFromAddr(emitter, l.dst, addr, l.offset, l.ldk);
+            auto& l = iLoads[dst];
+            EmitLoadFromAddr(emitter, l.dst, Location::IReg(IReg::From(src)), l.offset, l.ldk);
         } else {
             emitter.AssignIReg(IReg::From(dst), IReg::From(src));
         }
@@ -291,21 +309,21 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
         Utils::Span<RegNum>(fregs, FReg::COUNT), Utils::Span<const LoadInfo>(fLoads, FReg::COUNT), TEMP_FR, assignFr
     );
     cycleResolver(
-        Utils::Span<RegNum>(iregs, IReg::VIRT_COUNT + virtCount),
-        Utils::Span<const LoadInfo>(iLoads, IReg::VIRT_COUNT + virtCount),
+        Utils::Span<RegNum>(iregs, IReg::VIRT_COUNT + loadToFRegCount),
+        Utils::Span<const LoadInfo>(iLoads, IReg::VIRT_COUNT + loadToFRegCount),
         tempIr,
         assignIr
     );
 
+    // Handle (slot -> <any>) assignments.
     for (auto& assignment : assignments) {
-        if (assignment.fromAddr) {
-            continue;
-        }
         auto dst   = assignment.dst;
         auto src   = assignment.src;
         auto dkind = dst.Kind();
 
-        if (src.Kind() == Location::SLOT && dkind == Location::IREG) {
+        if (assignment.fromAddr && src.Kind() == Location::SLOT) {
+            EmitLoadFromAddr(emitter, dst, src, assignment.offset, assignment.ldk);
+        } else if (src.Kind() == Location::SLOT && dkind == Location::IREG) {
             emitter.AssignIRegFromSlot(IReg::From(dst.IRegIdx()), src.SlotIdx());
         } else if (src.Kind() == Location::SLOT && dkind == Location::FREG) {
             emitter.AssignFRegFromSlot(FReg::From(dst.FRegIdx()), src.SlotIdx());
