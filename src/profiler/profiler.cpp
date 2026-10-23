@@ -145,7 +145,10 @@ private:
     }
 
     static void ChangeReaderState(
-        FiberProfile& profile, FiberProfile::ReaderState from, FiberProfile::ReaderState to, std::memory_order order
+        FiberProfile& profile,
+        FiberProfile::ReaderState from,
+        FiberProfile::ReaderState to,
+        std::memory_order order
     )
     {
         while (true) {
@@ -160,7 +163,10 @@ private:
     void ConsumePublished(FiberProfile& profile, CallCounters& counters)
     {
         ChangeReaderState(
-            profile, FiberProfile::ReaderState::NO, FiberProfile::ReaderState::YES, std::memory_order_acquire
+            profile,
+            FiberProfile::ReaderState::INACTIVE,
+            FiberProfile::ReaderState::ACTIVE,
+            std::memory_order_acquire
         );
 
         const auto writerIndex = profile.sharedWriterIndex.load(std::memory_order_acquire);
@@ -170,7 +176,10 @@ private:
         }
 
         ChangeReaderState(
-            profile, FiberProfile::ReaderState::YES, FiberProfile::ReaderState::NO, std::memory_order_release
+            profile,
+            FiberProfile::ReaderState::ACTIVE,
+            FiberProfile::ReaderState::INACTIVE,
+            std::memory_order_release
         );
     }
 
@@ -240,17 +249,20 @@ private:
 void FiberProfile::TryPublish()
 {
     auto previous = readerState.load(std::memory_order_relaxed);
-    while (previous == ReaderState::TRANS ||
+    while (previous == ReaderState::TRANSITION ||
            !readerState.compare_exchange_weak(
-               previous, ReaderState::TRANS, std::memory_order_acq_rel, std::memory_order_relaxed
+               previous,
+               ReaderState::TRANSITION,
+               std::memory_order_acq_rel,
+               std::memory_order_relaxed
            )) {
-        if (previous == ReaderState::TRANS) {
+        if (previous == ReaderState::TRANSITION) {
             std::this_thread::yield();
             previous = readerState.load(std::memory_order_relaxed);
         }
     }
 
-    if (previous == ReaderState::NO) {
+    if (previous == ReaderState::INACTIVE) {
         writerIndex ^= 1U;
         cursor       = 0;
         count        = 0;
