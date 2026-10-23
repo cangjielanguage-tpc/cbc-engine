@@ -6,14 +6,13 @@
 #include <cstdio>
 #include <memory>
 #include <optional>
+#include <string>
 #include <sys/stat.h>
 #include <sys/types.h>
 
-bool CheckForAssembler()
-{
-    auto jar_path = std::string(TEST_RESOURCE_DIR) + "/cbc-asm.jar";
-    return IO::TryOpenFile(jar_path).has_value();
-}
+static std::string AsmJarPath() { return std::string(TEST_RESOURCE_DIR) + "/cbc-asm.jar"; }
+
+bool CheckForAssembler() { return IO::TryOpenFile(AsmJarPath()).has_value(); }
 
 static bool ends_with(std::string_view str, std::string_view suffix)
 {
@@ -58,14 +57,39 @@ static std::string CurrentTestDir()
     return name;
 }
 
+static void RunAssembler(std::string const& asm_path)
+{
+    auto command = "java -jar " + AsmJarPath() + ' ' + asm_path + " 2>&1";
+
+    std::string output;
+    auto pipe = popen(command.c_str(), "r");
+    if (pipe == nullptr) {
+        FATAL("cannot run %s", command.c_str());
+    }
+    char buf[4096];
+    while (fgets(buf, sizeof(buf), pipe) != nullptr) {
+        output += buf;
+    }
+    auto status = pclose(pipe);
+    if (status != 0) {
+        FATAL("assembler failed with rc=%d: %s\n%s", status, command.c_str(), output.c_str());
+    }
+}
+
+static std::unique_ptr<IO::RandomAccessFile> OpenCbc(std::string const& cbc_path)
+{
+    auto file = IO::OpenFile(cbc_path);
+    if (!file.has_value()) {
+        FATAL("assembler produced no %s", cbc_path.c_str());
+    }
+    return std::move(file.value());
+}
+
 std::unique_ptr<IO::RandomAccessFile> OpenAsm(std::string file_name)
 {
     auto asm_path = std::string(TEST_RESOURCE_DIR) + "/" + file_name;
-    auto jar_path = std::string(TEST_RESOURCE_DIR) + "/cbc-asm.jar";
 
-    auto command = "java -jar " + jar_path + ' ' + asm_path;
-    auto file    = popen(command.c_str(), "r");
-    pclose(file);
+    RunAssembler(asm_path);
 
     // The assembler always emits the .cbc next to the .asm. The resources directory
     // must stay free of generated files, so relocate the fresh .cbc into a
@@ -83,5 +107,25 @@ std::unique_ptr<IO::RandomAccessFile> OpenAsm(std::string file_name)
     if (std::rename(generated_path.c_str(), target_path.c_str()) != 0) {
         FATAL("cannot move %s to %s", generated_path.c_str(), target_path.c_str());
     }
-    return std::move(IO::OpenFile(target_path).value());
+    return OpenCbc(target_path);
+}
+
+std::unique_ptr<IO::RandomAccessFile> OpenAsmText(const std::string& name, std::string_view asm_text)
+{
+    if (!CheckForAssembler()) {
+        FATAL("assembler is not available");
+    }
+
+    auto asm_path = std::string(TEST_AUTOGEN_DIR) + "/" + CurrentTestDir() + "/" + name;
+    CreateDirectories(DirName(asm_path));
+
+    auto out = fopen(asm_path.c_str(), "wb");
+    if (out == nullptr) {
+        FATAL("cannot write %s", asm_path.c_str());
+    }
+    fwrite(asm_text.data(), 1, asm_text.size(), out);
+    fclose(out);
+
+    RunAssembler(asm_path);
+    return OpenCbc(AsmToCbc(asm_path));
 }

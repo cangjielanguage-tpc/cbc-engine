@@ -34,6 +34,10 @@ public:
 
 bool CheckForAssembler();
 std::unique_ptr<IO::RandomAccessFile> OpenAsm(std::string file_name);
+// Assembles an in-memory asm source: writes it under the test autogen directory,
+// runs the assembler and opens the produced .cbc. `name` is the image name also
+// used by the engine for method lookups; it may contain '/' to form subdirectories.
+std::unique_ptr<IO::RandomAccessFile> OpenAsmText(const std::string& name, std::string_view asm_text);
 
 #define TEST_ASM(test_suite_name, test_name)                                                                           \
     static void test_suite_name##_##test_name();                                                                       \

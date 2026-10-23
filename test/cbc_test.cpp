@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <cctype>
 #include <cstdint>
 #include <iterator>
 #include <limits>
@@ -85,15 +86,34 @@ static std::vector<Engine::Engine*>& BuiltEngines()
     return *engines;
 }
 
-static Engine::Engine& Open(std::string_view fileName)
+static Engine::Engine& OpenGenerated(std::string_view fileName, std::unique_ptr<IO::RandomAccessFile> file)
 {
     Engine::Loader loader;
-    auto file       = OpenAsm(std::string(fileName));
     bool successful = loader.Load(std::move(file), fileName);
     ASSERT(successful);
     auto& engine = loader.Build();
     BuiltEngines().push_back(&engine);
     return engine;
+}
+
+static Engine::Engine& Open(std::string_view fileName)
+{
+    return OpenGenerated(fileName, OpenAsm(std::string(fileName)));
+}
+
+static const std::string generatedImageName = "generated.asm";
+
+// Assembles an in-memory asm source and opens it as an engine. The image is named
+// after its auto-generated location; each test loads a single image.
+static Engine::Engine& OpenSource(const std::string& source)
+{
+    return OpenGenerated(generatedImageName, OpenAsmText(generatedImageName, source));
+}
+
+static std::string ToLower(std::string text)
+{
+    std::transform(text.begin(), text.end(), text.begin(), [](unsigned char c) { return std::tolower(c); });
+    return text;
 }
 
 static Interpretation::ExecBytecodeInfo* Rewrite(
@@ -271,17 +291,37 @@ uint64_t lhsValues[] = {
     1, 20, 301, 402, 0x3311, 0x7222222222222222, 0xf111111111111111, 0xffffffffffffffff,
 };
 
+// Builds the asm source of the bulk arith image in memory: one method per rhs
+// immediate, each returning IR1 <op> rhs.
+static std::string ArithBulkSource(std::string const& mnemonic)
+{
+    std::ostringstream out;
+    out << "@main_type \"default\"\n\n@type default\n";
+    for (auto rhs : rhsValues) {
+        auto imm = hex(rhs);
+        out << "  @method test_" << imm << "()I64\n"
+            << "    @code\n"
+            << "      @live.prim IR1\n"
+            << "      " << mnemonic << ".64 IR1, IR1, " << imm << "\n"
+            << "      ret.64 IR1\n"
+            << "    @end\n"
+            << "  @end\n\n";
+    }
+    out << "@end\n";
+    return out.str();
+}
+
 TEST_P(CbcSpecializedArith, test)
 {
     if (!CheckForAssembler()) {
         GTEST_SKIP() << "Assembler is not present";
     }
     ArithTestParams params = GetParam();
-    auto path              = "./simple_arith_specialized/simple_arith_specialized_" + params.name + "_bulk.asm";
-    auto& engine           = Open(path);
+    auto mnemonic          = ToLower(params.name) + "i";
+    auto& engine           = OpenSource(ArithBulkSource(mnemonic));
 
     for (auto rhs : rhsValues) {
-        auto code = Rewrite(engine, path, "default", "test_" + hex(rhs))->code;
+        auto code = Rewrite(engine, generatedImageName, "default", "test_" + hex(rhs))->code;
         for (auto lhs : lhsValues) {
             auto res = Interpret(code, U64(lhs), U64(0));
             EXPECT_EQ(res.u64, params.arith(lhs, rhs));
