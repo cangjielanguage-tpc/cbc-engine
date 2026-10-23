@@ -79,7 +79,6 @@ static void StoreGeneric(StoreGenericOp args, Ectype* ectype, ThreadHandle handl
     }
 }
 
-
 template <bool opt1>
 [[gnu::always_inline]]
 static void InitSomeGeneric(Ectype*& ectype, RTSupport::ThreadHandle& handle, InitOption& args)
@@ -103,7 +102,6 @@ static void InitSomeGeneric(Ectype*& ectype, RTSupport::ThreadHandle& handle, In
         }
     }
 }
-
 
 extern "C" {
 
@@ -155,6 +153,15 @@ Interpretation::Thunk engine_interpretation_loop(
 #define NEXT_OR_THROW(successful, type)                                                                                \
     do {                                                                                                               \
         if (successful) {                                                                                              \
+            NEXT;                                                                                                      \
+        } else {                                                                                                       \
+            THROW_IMPLICIT(type);                                                                                      \
+        }                                                                                                              \
+    } while (0)
+
+#define NEXT_OR_THROW_CHECKED_BINARY(type)                                                                             \
+    do {                                                                                                               \
+        if (type == Type::Successful) {                                                                                \
             NEXT;                                                                                                      \
         } else {                                                                                                       \
             THROW_IMPLICIT(type);                                                                                      \
@@ -489,30 +496,30 @@ LABEL(BINI64L) {
 LABEL(CBIN8) {
     auto args = B3xrrr::Decode(reader);
     LOG_INSTR;
-    bool successful =
+    Type type =
         interpreter.template Binary<Width::W8>(args.xr.imm.Checked(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
-    NEXT_OR_THROW(successful, Type::OverflowException);
+    NEXT_OR_THROW_CHECKED_BINARY(type);
 }
 LABEL(CBIN16) {
     auto args = B3xrrr::Decode(reader);
     LOG_INSTR;
-    bool successful =
+    Type type =
         interpreter.template Binary<Width::W16>(args.xr.imm.Checked(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
-    NEXT_OR_THROW(successful, Type::OverflowException);
+    NEXT_OR_THROW_CHECKED_BINARY(type);
 }
 LABEL(CBIN32) {
     auto args = B3xrrr::Decode(reader);
     LOG_INSTR;
-    bool successful =
+    Type type =
         interpreter.template Binary<Width::W32>(args.xr.imm.Checked(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
-    NEXT_OR_THROW(successful, Type::OverflowException);
+    NEXT_OR_THROW_CHECKED_BINARY(type);
 }
 LABEL(CBIN64) {
     auto args = B3xrrr::Decode(reader);
     LOG_INSTR;
-    bool successful =
+    Type type =
         interpreter.template Binary<Width::W64>(args.xr.imm.Checked(), args.xr.r.IR(), args.rr.x.IR(), args.rr.y.IR());
-    NEXT_OR_THROW(successful, Type::OverflowException);
+    NEXT_OR_THROW_CHECKED_BINARY(type);
 }
 LABEL(SBIN8) {
     auto args = B3xrrr::Decode(reader);
@@ -609,58 +616,58 @@ LABEL(SBINIMM64W) {
 LABEL(CBINI8I) {
     auto args = B4xi12rr::Decode(reader);
     LOG_INSTR;
-    bool successful = interpreter.template BinaryImm<Width::W8>(
+    Type type = interpreter.template BinaryImm<Width::W8>(
         args.xi12.imm4.Checked(), args.rr.x.IR(), args.rr.y.IR(), MathUtils::SignExtend(static_cast<uint64_t>(args.xi12.imm12), 12)
     );
-    NEXT_OR_THROW(successful, Type::OverflowException);
+    NEXT_OR_THROW_CHECKED_BINARY(type);
 }
 LABEL(CBINI16I) {
     auto args = B4xi12rr::Decode(reader);
     LOG_INSTR;
-    bool successful = interpreter.template BinaryImm<Width::W16>(
+    Type type = interpreter.template BinaryImm<Width::W16>(
         args.xi12.imm4.Checked(), args.rr.x.IR(), args.rr.y.IR(), MathUtils::SignExtend(static_cast<uint64_t>(args.xi12.imm12), 12)
     );
-    NEXT_OR_THROW(successful, Type::OverflowException);
+    NEXT_OR_THROW_CHECKED_BINARY(type);
 }
 LABEL(CBINI32I) {
     auto args = B4xi12rr::Decode(reader);
     LOG_INSTR;
-    bool successful = interpreter.template BinaryImm<Width::W32>(
+    Type type = interpreter.template BinaryImm<Width::W32>(
         args.xi12.imm4.Checked(), args.rr.x.IR(), args.rr.y.IR(), MathUtils::SignExtend(static_cast<uint64_t>(args.xi12.imm12), 12)
     );
-    NEXT_OR_THROW(successful, Type::OverflowException);
+    NEXT_OR_THROW_CHECKED_BINARY(type);
 }
 LABEL(CBINI64I) {
     auto args = B4xi12rr::Decode(reader);
     LOG_INSTR;
-    bool successful = interpreter.template BinaryImm<Width::W64>(
+    Type type = interpreter.template BinaryImm<Width::W64>(
         args.xi12.imm4.Checked(), args.rr.x.IR(), args.rr.y.IR(), MathUtils::SignExtend(static_cast<uint64_t>(args.xi12.imm12), 12)
     );
-    NEXT_OR_THROW(successful, Type::OverflowException);
+    NEXT_OR_THROW_CHECKED_BINARY(type);
 }
 LABEL(CBINI8W) {
     auto args = BinaryChecked::Decode(reader);
     LOG_INSTR;
-    bool successful = interpreter.template BinaryImm<Width::W8>(args.op, args.rr.x.IR(), args.rr.y.IR(), args.imm.imm);
-    NEXT_OR_THROW(successful, Type::OverflowException);
+    Type type = interpreter.template BinaryImm<Width::W8>(args.op, args.rr.x.IR(), args.rr.y.IR(), args.imm.imm);
+    NEXT_OR_THROW_CHECKED_BINARY(type);
 }
 LABEL(CBINI16W) {
     auto args = BinaryChecked::Decode(reader);
     LOG_INSTR;
-    bool successful = interpreter.template BinaryImm<Width::W16>(args.op, args.rr.x.IR(), args.rr.y.IR(), args.imm.imm);
-    NEXT_OR_THROW(successful, Type::OverflowException);
+    Type type = interpreter.template BinaryImm<Width::W16>(args.op, args.rr.x.IR(), args.rr.y.IR(), args.imm.imm);
+    NEXT_OR_THROW_CHECKED_BINARY(type);
 }
 LABEL(CBINI32W) {
     auto args = BinaryChecked::Decode(reader);
     LOG_INSTR;
-    bool successful = interpreter.template BinaryImm<Width::W32>(args.op, args.rr.x.IR(), args.rr.y.IR(), args.imm.imm);
-    NEXT_OR_THROW(successful, Type::OverflowException);
+    Type type = interpreter.template BinaryImm<Width::W32>(args.op, args.rr.x.IR(), args.rr.y.IR(), args.imm.imm);
+    NEXT_OR_THROW_CHECKED_BINARY(type);
 }
 LABEL(CBINI64W) {
     auto args = BinaryChecked::Decode(reader);
     LOG_INSTR;
-    bool successful = interpreter.template BinaryImm<Width::W64>(args.op, args.rr.x.IR(), args.rr.y.IR(), args.imm.imm);
-    NEXT_OR_THROW(successful, Type::OverflowException);
+    Type type = interpreter.template BinaryImm<Width::W64>(args.op, args.rr.x.IR(), args.rr.y.IR(), args.imm.imm);
+    NEXT_OR_THROW_CHECKED_BINARY(type);
 }
 LABEL(FBIN32) {
     auto args = B3xrrr::Decode(reader);

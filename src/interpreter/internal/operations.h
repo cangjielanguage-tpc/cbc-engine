@@ -3,6 +3,7 @@
 #include "cbc/isa.h"
 #include "cbc/isa_rt.h"
 #include "interpreter/ectype.h"
+#include "interpreter/implicit_exceptions.h"
 #include "interpreter/literals.h"
 #include "runtimesupport/runtime.h"
 #include "utils/math.h"
@@ -71,6 +72,11 @@ struct ArithmeticResult {
     bool successful;
 };
 
+struct CheckedArithmeticResult {
+    Value::Primitive result;
+    Interpretation::Type exceptionType;
+};
+
 // 128-bit integers. The saturating (and checked) arithmetic below relies on
 // `__int128`/`unsigned __int128` for wide intermediates. The
 // `__builtin_{add,sub,mul}_overflow` family is used only with operands no
@@ -118,9 +124,7 @@ static inline ArithmeticResult SatArith(Saturating::Value op, Value::Primitive l
     constexpr stype smin = std::numeric_limits<stype>::min();
     constexpr utype umax = std::numeric_limits<utype>::max();
 
-    auto makeS = [&](swide v) {
-        return Traits::make(static_cast<stype>(v < smin ? smin : (v > smax ? smax : v)));
-    };
+    auto makeS = [&](swide v) { return Traits::make(static_cast<stype>(v < smin ? smin : (v > smax ? smax : v))); };
 
     switch (op) {
         case Saturating::SADD: {
@@ -223,8 +227,7 @@ static inline ArithmeticResult SatArith(Saturating::Value op, Value::Primitive l
             }
             return { Traits::make(static_cast<stype>(Traits::sget(l) >> shift)), true };
         }
-        default:
-            FATAL("Unexpected Saturating op: %d", static_cast<int>(op));
+        default: FATAL("Unexpected Saturating op: %d", static_cast<int>(op));
     }
 }
 
@@ -288,8 +291,7 @@ static inline ArithmeticResult SatArithU(Saturating::Value op, Value::Primitive 
             }
             return { Traits::make(static_cast<utype>(Traits::uget(l) >> shift)), true };
         }
-        default:
-            FATAL("Unexpected unsigned Saturating op: %d", static_cast<int>(op));
+        default: FATAL("Unexpected unsigned Saturating op: %d", static_cast<int>(op));
     }
 }
 
@@ -424,7 +426,7 @@ template <> inline ArithmeticResult Arith<Width::W32>(Common::Value op, Value::P
 }
 
 template <Width::Value width>
-static inline ArithmeticResult Arith(Checked::Value op, Value::Primitive l, Value::Primitive r)
+static inline CheckedArithmeticResult Arith(Checked::Value op, Value::Primitive l, Value::Primitive r)
 {
     using Traits = WidthTraits<width>;
     using utype  = typename Traits::utype;
@@ -438,49 +440,51 @@ static inline ArithmeticResult Arith(Checked::Value op, Value::Primitive l, Valu
         case Checked::CADD: {
             stype result;
             bool overflow = __builtin_add_overflow(Traits::sget(l), Traits::sget(r), &result);
-            return { Traits::make(result), !overflow };
+            return { Traits::make(result), overflow ? Type::AddOverflowException : Type::Successful };
         }
         case Checked::CSUB: {
             stype result;
             bool overflow = __builtin_sub_overflow(Traits::sget(l), Traits::sget(r), &result);
-            return { Traits::make(result), !overflow };
+            auto ret      = Traits::make(result);
+            return { Traits::make(result), overflow ? Type::SubOverflowException : Type::Successful };
         }
         case Checked::CMUL: {
             stype result;
             bool overflow = __builtin_mul_overflow(Traits::sget(l), Traits::sget(r), &result);
-            return { Traits::make(result), !overflow };
+            auto ret      = Traits::make(result);
+            return { Traits::make(result), overflow ? Type::MulOverflowException : Type::Successful };
         }
         case Checked::CDIV: {
             stype left  = Traits::sget(l);
             stype right = Traits::sget(r);
             if (right == 0) {
-                return { l, false };
+                return { l, Type::ArithmeticException };
             }
             if (left == std::numeric_limits<stype>::min() && right == -1) {
-                return { l, false };
+                return { l, Type::DivOverflowException };
             }
-            return { Traits::make(static_cast<stype>(left / right)), true };
+            return { Traits::make(static_cast<stype>(left / right)), Type::Successful };
         }
         case Checked::CUADD: {
             utype result;
             bool overflow = __builtin_add_overflow(Traits::uget(l), Traits::uget(r), &result);
-            return { Traits::make(result), !overflow };
+            return { Traits::make(result), overflow ? Type::UaddOverflowException : Type::Successful };
         }
         case Checked::CUSUB: {
             utype result;
             bool overflow = __builtin_sub_overflow(Traits::uget(l), Traits::uget(r), &result);
-            return { Traits::make(result), !overflow };
+            return { Traits::make(result), overflow ? Type::UsubOverflowException : Type::Successful };
         }
         case Checked::CUMUL: {
             utype result;
             bool overflow = __builtin_mul_overflow(Traits::uget(l), Traits::uget(r), &result);
-            return { Traits::make(result), !overflow };
+            return { Traits::make(result), overflow ? Type::UmulOverflowException : Type::Successful };
         }
         case Checked::CPOW: {
             stype base     = Traits::sget(l);
             utype exponent = Traits::uget(r);
             if (exponent == 0) {
-                return { Traits::make(static_cast<stype>(1)), true };
+                return { Traits::make(static_cast<stype>(1)), Type::Successful };
             }
 
             stype result  = 1;
@@ -500,31 +504,31 @@ static inline ArithmeticResult Arith(Checked::Value op, Value::Primitive l, Valu
                     }
                 }
             }
-            return { Traits::make(result), !overflow };
+            return { Traits::make(result), overflow ? Type::UpowOverflowException : Type::Successful };
         }
         case Checked::CLSL: {
             utype base  = Traits::uget(l);
             stype shift = Traits::sget(r);
             if (!checkShift(shift)) {
-                return { l, false };
+                return { l, Type::LshOverflowException };
             }
-            return { Traits::make(static_cast<utype>(base << shift)), true };
+            return { Traits::make(static_cast<utype>(base << shift)), Type::Successful };
         }
         case Checked::CLSR: {
             utype base  = Traits::uget(l); // forces >> to be logical shift
             stype shift = Traits::sget(r);
             if (!checkShift(shift)) {
-                return { l, false };
+                return { l, Type::RshOverflowException };
             }
-            return { Traits::make(static_cast<utype>(base >> shift)), true };
+            return { Traits::make(static_cast<utype>(base >> shift)), Type::Successful };
         }
         case Checked::CASR: {
             stype base  = Traits::sget(l); // forces >> to be arith shift
             stype shift = Traits::sget(r);
             if (!checkShift(shift)) {
-                return { l, false };
+                return { l, Type::AshOverflowException };
             }
-            return { Traits::make(static_cast<stype>(base >> shift)), true };
+            return { Traits::make(static_cast<stype>(base >> shift)), Type::Successful };
         }
         default: FATAL("Unexpected Checked op: %d", op);
     }
@@ -597,10 +601,10 @@ template <> inline ArithmeticResult ArithFPMath<Width::W64>(FloatMathOp::Value o
 {
     using namespace Cbc::Format;
     switch (op) {
-        case FloatMathOp::SIN:   return { Value::Primitive { .f64 = std::sin(s.f64) },   true };
-        case FloatMathOp::COS:   return { Value::Primitive { .f64 = std::cos(s.f64) },   true };
-        case FloatMathOp::LOG:   return { Value::Primitive { .f64 = std::log(s.f64) },   true };
-        case FloatMathOp::CEIL:  return { Value::Primitive { .f64 = std::ceil(s.f64) },  true };
+        case FloatMathOp::SIN:   return { Value::Primitive { .f64 = std::sin(s.f64) }, true };
+        case FloatMathOp::COS:   return { Value::Primitive { .f64 = std::cos(s.f64) }, true };
+        case FloatMathOp::LOG:   return { Value::Primitive { .f64 = std::log(s.f64) }, true };
+        case FloatMathOp::CEIL:  return { Value::Primitive { .f64 = std::ceil(s.f64) }, true };
         case FloatMathOp::FLOOR: return { Value::Primitive { .f64 = std::floor(s.f64) }, true };
 
         default: FATAL("Unexpected FP math op: %d", op);
@@ -611,10 +615,10 @@ template <> inline ArithmeticResult ArithFPMath<Width::W32>(FloatMathOp::Value o
 {
     using namespace Cbc::Format;
     switch (op) {
-        case FloatMathOp::SIN:   return { Value::Primitive { .f32 = std::sin(s.f32) },   true };
-        case FloatMathOp::COS:   return { Value::Primitive { .f32 = std::cos(s.f32) },   true };
-        case FloatMathOp::LOG:   return { Value::Primitive { .f32 = std::log(s.f32) },   true };
-        case FloatMathOp::CEIL:  return { Value::Primitive { .f32 = std::ceil(s.f32) },  true };
+        case FloatMathOp::SIN:   return { Value::Primitive { .f32 = std::sin(s.f32) }, true };
+        case FloatMathOp::COS:   return { Value::Primitive { .f32 = std::cos(s.f32) }, true };
+        case FloatMathOp::LOG:   return { Value::Primitive { .f32 = std::log(s.f32) }, true };
+        case FloatMathOp::CEIL:  return { Value::Primitive { .f32 = std::ceil(s.f32) }, true };
         case FloatMathOp::FLOOR: return { Value::Primitive { .f32 = std::floor(s.f32) }, true };
 
         default: FATAL("Unexpected FP math op: %d", op);
@@ -808,7 +812,7 @@ template <> inline void MemoryLocation::Load<Value::Reference>(Format::Reg dst, 
 
 inline void MemoryLocation::Lea(Format::Reg dst, Ectype* ectype)
 {
-    auto value = reinterpret_cast<uintptr_t>(base + offset);
+    auto value         = reinterpret_cast<uintptr_t>(base + offset);
     auto enrichedValue = isGlobal ? RTSupport::Execution::DerivedPtrOfGlobal(value) : value;
     ectype->Put(dst.IR(), Value::Reference { .value = enrichedValue });
 }
@@ -878,7 +882,7 @@ inline uint32_t CalcLoadArrayOffset(LoadAccessKind::Value ldk, IReg idx, Ectype*
 {
     uint32_t elemSize;
     switch (ldk) {
-        case LoadAccessKind::LD_S8:  // fallthrough
+        case LoadAccessKind::LD_S8: // fallthrough
         case LoadAccessKind::LD_U8:  elemSize = 1; break;
         case LoadAccessKind::LD_S16: // fallthrough
         case LoadAccessKind::LD_U16: elemSize = 2; break;

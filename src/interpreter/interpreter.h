@@ -6,6 +6,7 @@
 #include "casts.h"
 #include "ectype.h"
 #include "frame.h"
+#include "interpreter/implicit_exceptions.h"
 #include "literals.h"
 #include "runtimesupport/runtime.h"
 
@@ -48,24 +49,23 @@ public:
         return false;
     }
 
-    template <Width::Value width> inline bool Binary(Checked::Value arithOp, IReg d, IReg l, IReg r)
+    template <Width::Value width> inline Type Binary(Checked::Value arithOp, IReg d, IReg l, IReg r)
     {
         return Binary<width>(arithOp, d, l, ectype->GetPrimitive(r));
     }
 
-    template <Width::Value width> inline bool BinaryImm(Checked::Value arithOp, IReg d, IReg l, uint64_t imm)
+    template <Width::Value width> inline Type BinaryImm(Checked::Value arithOp, IReg d, IReg l, uint64_t imm)
     {
         return Binary<width>(arithOp, d, l, Value::Primitive { .u64 = imm });
     }
 
-    template <Width::Value width> inline bool Binary(Checked::Value arithOp, IReg d, IReg l, Value::Primitive val)
+    template <Width::Value width> inline Type Binary(Checked::Value arithOp, IReg d, IReg l, Value::Primitive val)
     {
         auto res = Arith<width>(arithOp, ectype->GetPrimitive(l), val);
-        if (res.successful) {
+        if (res.exceptionType == Type::Successful) {
             ectype->Put(d, res.result);
-            return true;
         }
-        return false;
+        return res.exceptionType;
     }
 
     template <Width::Value width> inline bool Binary(Saturating::Value arithOp, IReg d, IReg l, IReg r)
@@ -187,8 +187,7 @@ public:
         return true;
     }
 
-    template <typename T, typename Op>
-    inline void AtomicFetch(IReg dst, IReg obj, IReg src, uint16_t field, Op op)
+    template <typename T, typename Op> inline void AtomicFetch(IReg dst, IReg obj, IReg src, uint16_t field, Op op)
     {
         auto objRef = ectype->GetReference(obj);
         if (!NullCheck(objRef)) {
@@ -225,8 +224,7 @@ public:
         ectype->Put(dst, Value::Primitive { .u64 = res });
     }
 
-    template <typename T>
-    inline void AtomicSwapPrim(IReg dst, IReg obj, IReg src, uint16_t offset)
+    template <typename T> inline void AtomicSwapPrim(IReg dst, IReg obj, IReg src, uint16_t offset)
     {
         auto objRef = ectype->GetReference(obj);
         if (!NullCheck(objRef)) {
@@ -245,8 +243,7 @@ public:
             return;
         }
         auto srcRef = ectype->GetReference(src);
-        auto prev =
-            RTSupport::Execution::AtomicSwapRef(srcRef, objRef, objRef.value + offset);
+        auto prev   = RTSupport::Execution::AtomicSwapRef(srcRef, objRef, objRef.value + offset);
         ectype->Put(dst, Value::Reference { .value = prev.value });
     }
 
@@ -260,12 +257,11 @@ public:
             case Cbc::Format::LoadAccessKind::LD_32:  AtomicLoadPrim<uint32_t>(dst, obj, offset); break;
             case Cbc::Format::LoadAccessKind::LD_64:  AtomicLoadPrim<uint64_t>(dst, obj, offset); break;
             case Cbc::Format::LoadAccessKind::LD_REF: AtomicLoadRef(dst, obj, offset); break;
-            default: FATAL("Unexpected ldk");
+            default:                                  FATAL("Unexpected ldk");
         }
     }
 
-    template <typename T>
-    inline void AtomicLoadPrim(IReg dst, IReg obj, uint16_t offset)
+    template <typename T> inline void AtomicLoadPrim(IReg dst, IReg obj, uint16_t offset)
     {
         auto objRef = ectype->GetReference(obj);
         if (!NullCheck(objRef)) {
@@ -294,12 +290,11 @@ public:
             case Cbc::Format::StoreAccessKind::ST_32:  AtomicStorePrim<uint32_t>(src, obj, offset); break;
             case Cbc::Format::StoreAccessKind::ST_64:  AtomicStorePrim<uint64_t>(src, obj, offset); break;
             case Cbc::Format::StoreAccessKind::ST_REF: AtomicStoreRef(src, obj, offset); break;
-            default: FATAL("Unexpected stk");
+            default:                                   FATAL("Unexpected stk");
         }
     }
 
-    template <typename T>
-    inline void AtomicStorePrim(IReg src, IReg obj, uint16_t offset)
+    template <typename T> inline void AtomicStorePrim(IReg src, IReg obj, uint16_t offset)
     {
         auto objRef = ectype->GetReference(obj);
         if (!NullCheck(objRef)) {
@@ -316,7 +311,7 @@ public:
         if (!NullCheck(objRef)) {
             return;
         }
-        auto srcRef     = ectype->GetReference(src);
+        auto srcRef = ectype->GetReference(src);
         RTSupport::Execution::AtomicWriteRef(srcRef, objRef, objRef.value + offset);
     }
 
@@ -326,8 +321,8 @@ public:
         auto derived      = ectype->GetPrimitive(derivedReg).u64;
         auto locationKind = RTSupport::Execution::GetStructLocationKind(obj, derived);
         switch (locationKind) {
-            case RTSupport::LOCAL:  return LoadRec(ldk, dst, derivedReg, offset);
-            case RTSupport::HEAP:   return LoadObj(ldk, dst, base, (derived - obj.value) + offset);
+            case RTSupport::LOCAL: return LoadRec(ldk, dst, derivedReg, offset);
+            case RTSupport::HEAP:  return LoadObj(ldk, dst, base, (derived - obj.value) + offset);
             case RTSupport::GLOBAL:
                 auto derivedAddr = RTSupport::Execution::UnwrapDerivedPtr(derived) + offset;
                 return LoadAddr(ldk, dst, derivedAddr);
@@ -600,7 +595,7 @@ public:
         DerivedPointer(IReg baseReg, IReg derivedReg, Ectype* ectype)
         {
             uintptr_t derived = ectype->GetPrimitive(derivedReg).u64;
-            base        = ectype->GetReference(baseReg);
+            base              = ectype->GetReference(baseReg);
             derivedAddr       = RTSupport::Execution::UnwrapDerivedPtr(derived, false);
             kind              = RTSupport::Execution::GetStructLocationKind(base, derived);
         }

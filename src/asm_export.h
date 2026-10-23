@@ -48,8 +48,8 @@
         #define ADDITIONAL_STACK_SPACE (64 * 1024)
     #else
         #define ADDITIONAL_STACK_SPACE (64 * 1024) // TODO: return to 8 Kb
-    #endif // NDEBUG
-#endif     // ADDITIONAL_STACK_SPACE
+    #endif                                         // NDEBUG
+#endif                                             // ADDITIONAL_STACK_SPACE
 
 #define STACK_OVERFLOW_REGDUMP_SIZE (((ECTYPE_IREGS_COUNT * ECTYPE_REG_SIZE) + 15) & ~15)
 
@@ -58,4 +58,4 @@
 #define EXC_SOE_THROWN 2
 
 // Must match Interpretation::Type and the Cangjie throwImplicitException dispatcher.
-#define IMPLICIT_EXCEPTION_SPAWN 3
+#define IMPLICIT_EXCEPTION_SPAWN 4
