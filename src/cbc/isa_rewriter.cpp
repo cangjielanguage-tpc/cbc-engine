@@ -102,7 +102,7 @@ static STK Stk(TK tk)
 STK Stk(Interpretation::BuiltinType bt)
 {
     switch (bt) {
-        case Interpretation::BUILTIN_UNIT:    ASSERT("Should not reach here");
+        case Interpretation::BUILTIN_UNIT:    FATAL("Unit has no payload to store");
         case Interpretation::BUILTIN_BOOLEAN: return STK::ST_8;
         case Interpretation::BUILTIN_U8:      return STK::ST_8;
         case Interpretation::BUILTIN_I8:      return STK::ST_8;
@@ -126,7 +126,7 @@ STK Stk(Interpretation::BuiltinType bt)
 LDK Ldk(Interpretation::BuiltinType bt)
 {
     switch (bt) {
-        case Interpretation::BUILTIN_UNIT:    ASSERT("Should not reach here");
+        case Interpretation::BUILTIN_UNIT:    FATAL("Unit has no payload to load");
         case Interpretation::BUILTIN_BOOLEAN: return LDK::LD_U8;
         case Interpretation::BUILTIN_U8:      return LDK::LD_U8;
         case Interpretation::BUILTIN_I8:      return LDK::LD_S8;
@@ -1788,12 +1788,15 @@ struct IsaRewriter : public IsaParser {
 
     void Box(AnyReg src, IReg dst, uint32_t type) override
     {
-        if (type != Interpretation::BUILTIN_UNIT && type < Engine::Term::FIRST_NON_PRIMITIVE) {
+        if (type < Engine::Term::FIRST_NON_PRIMITIVE) {
             auto tk = Engine::TermKind(type);
             auto bt = ToBuiltin(tk);
             emit.NewBox(bt); // Spoils IR_ACC
             BindStatePoint();
-            emit.StoreObj(Stk(bt), src, IReg::IR_ACC, RTSupport::MetaInfo::ObjectHeaderSize());
+            // Unit's box contains only the object header.
+            if (bt != Interpretation::BUILTIN_UNIT) {
+                emit.StoreObj(Stk(bt), src, IReg::IR_ACC, RTSupport::MetaInfo::ObjectHeaderSize());
+            }
             AdjustReg(dst, IReg::IR_ACC);
         } else {
             auto t = resolver.Query(Index<Type>(type));
@@ -1859,10 +1862,14 @@ struct IsaRewriter : public IsaParser {
 
     void Unbox(AnyReg dst, IReg src, uint32_t type) override
     {
-        if (type != Interpretation::BUILTIN_UNIT && type < Engine::Term::FIRST_NON_PRIMITIVE) {
+        if (type < Engine::Term::FIRST_NON_PRIMITIVE) {
             auto tk = Engine::TermKind(type);
             auto bt = ToBuiltin(tk);
-            emit.LoadObj(Ldk(bt), dst, src, RTSupport::MetaInfo::ObjectHeaderSize());
+            if (bt == Interpretation::BUILTIN_UNIT) {
+                AdjustReg(IReg::From(dst), IReg::IRZ);
+            } else {
+                emit.LoadObj(Ldk(bt), dst, src, RTSupport::MetaInfo::ObjectHeaderSize());
+            }
         } else {
             auto t = resolver.Query(Index<Type>(type));
             if (!t.has_value()) {
