@@ -42,6 +42,21 @@ struct RecordingEmitter : public MoveEmitter {
     {
         emits.emplace_back(Location::Slot(slot), Location::FReg(src));
     }
+
+    void AssignIRegFromAddr(IReg dst, Location addr, int32_t, Format::LoadAccessKind) override
+    {
+        emits.emplace_back(Location::IReg(dst), addr);
+    }
+
+    void AssignFRegFromAddr(FReg dst, Location addr, int32_t, Format::LoadAccessKind) override
+    {
+        emits.emplace_back(Location::FReg(dst), addr);
+    }
+
+    void AssignSlotFromAddr(int paramSlot, Location addr, int32_t, Format::LoadAccessKind) override
+    {
+        emits.emplace_back(Location::Slot(paramSlot), addr);
+    }
 };
 
 std::vector<Emit> Resolve(MoveResolver& mr)

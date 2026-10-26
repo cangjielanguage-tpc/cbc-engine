@@ -34,6 +34,7 @@ Stream::Descripted logStream(Stream::cerr, "[resolution] ");
 Logging::Logger log(&logStream, Logging::Level::ERROR);
 
 using namespace Engine;
+using Cbc::CbcTypeKind;
 
 std::optional<RTSupport::TypeInfo> Type::GetTypeInfo() const { return resolver->GetTypeInfo(*this); }
 

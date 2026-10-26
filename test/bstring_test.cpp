@@ -60,7 +60,7 @@ TEST(BStringTest, UsesScalarIntegerRegisterClass)
     Resolution::Resolver resolver(session, method);
     auto bstring = Engine::Term::Predefined(Engine::TermKind::BSTRING);
 
-    EXPECT_EQ(resolver.Wrap(bstring).GetKind(), Resolution::CbcTypeKind::U64);
+    EXPECT_EQ(resolver.Wrap(bstring).GetKind(), Cbc::CbcTypeKind::U64);
     EXPECT_FALSE(bstring.IsFloat());
 }
 

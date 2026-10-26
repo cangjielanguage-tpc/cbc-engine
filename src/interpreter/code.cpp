@@ -45,17 +45,17 @@ AbiInfo BuildAbiInfo(Engine::Session& session, Engine::Term signature, AbiInfoFl
     int totalIntArgs         = 0;
     int totalFloatArgs       = 0;
 
-    Cbc::TrackedAbiAssigner abi([&](Cbc::Location target, Cbc::ArgKind kind) {
-        if (kind == Cbc::ArgKind::FLOAT) {
+    Cbc::TrackedAbiAssigner abi([&](Cbc::Location target, Cbc::CbcTypeKind kind) {
+        if (kind == Cbc::CbcTypeKind::F64 || kind == Cbc::CbcTypeKind::F32) {
             totalFloatArgs++;
             return;
         }
         totalIntArgs++;
         if (target.Kind() == Cbc::Location::IREG) {
             int idx = target.IRegIdx();
-            if (kind == Cbc::ArgKind::REC)
+            if (kind == Cbc::CbcTypeKind::REC)
                 stackPtrParams |= (1u << idx);
-            if (kind == Cbc::ArgKind::REF)
+            if (kind == Cbc::CbcTypeKind::REF)
                 referenceParams |= (1u << idx);
         }
     });
@@ -66,15 +66,15 @@ AbiInfo BuildAbiInfo(Engine::Session& session, Engine::Term signature, AbiInfoFl
 
     switch (flags.abiKind) {
         case Image::MethodAbiKind::MUT: {
-            auto derived = abi.Consume(Cbc::ArgKind::INT);
-            abi.Consume(Cbc::ArgKind::REF);
+            auto derived = abi.Consume(Cbc::CbcTypeKind::I64);
+            abi.Consume(Cbc::CbcTypeKind::REF);
             derivedPairs |= (1u << derived.IRegIdx());
             break;
         }
-        case Image::MethodAbiKind::REF_RECEIVER:   abi.Consume(Cbc::ArgKind::REF); break;
-        case Image::MethodAbiKind::REC_RECEIVER:   abi.Consume(Cbc::ArgKind::REC); break;
-        case Image::MethodAbiKind::PRIM_RECEIVER:  abi.Consume(Cbc::ArgKind::INT); break;
-        case Image::MethodAbiKind::FPRIM_RECEIVER: abi.Consume(Cbc::ArgKind::FLOAT); break;
+        case Image::MethodAbiKind::REF_RECEIVER:   abi.Consume(Cbc::CbcTypeKind::REF); break;
+        case Image::MethodAbiKind::REC_RECEIVER:   abi.Consume(Cbc::CbcTypeKind::REC); break;
+        case Image::MethodAbiKind::PRIM_RECEIVER:  abi.Consume(Cbc::CbcTypeKind::I64); break;
+        case Image::MethodAbiKind::FPRIM_RECEIVER: abi.Consume(Cbc::CbcTypeKind::F64); break;
         case Image::MethodAbiKind::STATIC:
         case Image::MethodAbiKind::HAS_THIS_TI:    ;
     }
@@ -87,7 +87,7 @@ AbiInfo BuildAbiInfo(Engine::Session& session, Engine::Term signature, AbiInfoFl
 
     bool hasThisTi = (flags.abiKind == Image::MethodAbiKind::HAS_THIS_TI);
     for (int i = 0; i < hasThisTi + flags.hasOuterTi + flags.funcVars; i++) {
-        abi.Consume(Cbc::ArgKind::INT);
+        abi.Consume(Cbc::CbcTypeKind::I64);
     }
 
     bool hasTailReg = (totalIntArgs > IREG_PARAM_PASSING_AMOUNT);
