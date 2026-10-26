@@ -198,8 +198,8 @@ struct RewriterMoveEmitter : public MoveEmitter {
     void AssignSlotFromAddr(int paramSlot, Location addr, int32_t offset, Format::LoadAccessKind ldk) override
     {
         auto base = AddrReg(addr);
-        emit.LoadRec(ldk, SCRATCH, base, offset);
-        emit.StackParam(SCRATCH, static_cast<uint16_t>(paramSlot) * 8);
+        emit.LoadRec(ldk, SCRATCH_FOR_PBV, base, offset);
+        emit.StackParam(SCRATCH_FOR_PBV, static_cast<uint16_t>(paramSlot) * 8);
     }
 
     IReg AddrReg(Location addr)
@@ -207,11 +207,16 @@ struct RewriterMoveEmitter : public MoveEmitter {
         if (addr.Kind() == Location::IREG) {
             return IReg::From(addr.IRegIdx());
         }
-        emit.LoadFrame(LDK::LD_64, SCRATCH, frameLayout.UntypedSlotOffset(static_cast<uint16_t>(addr.SlotIdx())));
-        return SCRATCH;
+        emit.LoadFrame(
+            LDK::LD_64, SCRATCH_FOR_PBV, frameLayout.UntypedSlotOffset(static_cast<uint16_t>(addr.SlotIdx()))
+        );
+        return SCRATCH_FOR_PBV;
     }
 
-    static constexpr IReg SCRATCH = IReg::IR_ACC;
+    // This register is used for different operations during interpreation.
+    // It's expected that on the moment of foreign call this register doesn't
+    // contain any value that is needed after call.
+    static constexpr IReg SCRATCH_FOR_PBV = IReg::IR_ACC;
 };
 
 struct IsaRewriter : public IsaParser {
