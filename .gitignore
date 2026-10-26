@@ -10,3 +10,4 @@ test/resources/*.cbc
 test/auto-generated/
 __pycache__/
 *.pyc
+test/resources/cbc-asm.jar

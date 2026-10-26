@@ -4,8 +4,13 @@
 #include "resolution/resolution.h"
 #include "utils/ostream.h"
 #include "utils/vector.h"
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <map>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 namespace Cbc {
 
@@ -29,17 +34,83 @@ static uint32_t SizeOfOffset(uint8_t* start, uint8_t* end)
     return log10size;
 }
 
+static std::string const kArrowHead     = "<";
+static std::string const kHorizontal    = "─"; // U+2500
+static std::string const kDownCorner    = "┐"; // U+2510
+static std::string const kUpCorner      = "┘"; // U+2518
+static std::string const kVertical      = "│"; // U+2502
+
+/// Buffering output: collects the printed instruction lines together with the
+/// bytecode offset of every line, so that arrows for backward branches can be
+/// attached to the lines once the whole method has been parsed.
+struct LineBuffer : public Stream::Output {
+    struct Line {
+        int64_t pos; // bytecode offset of the instruction printed on this line
+        std::string text;
+    };
+
+    void SetPos(int64_t position) { pendingPos = position; }
+
+    void VPrintFmt(const char* fmt, va_list argp) override
+    {
+        va_list copy;
+        va_copy(copy, argp);
+        int required = vsnprintf(nullptr, 0, fmt, copy);
+        va_end(copy);
+        if (required <= 0) {
+            return;
+        }
+        auto offset = current.size();
+        current.resize(offset + static_cast<size_t>(required));
+        vsnprintf(current.data() + offset, static_cast<size_t>(required) + 1, fmt, argp);
+    }
+
+    void NewLine() override
+    {
+        lines.push_back(Line{pendingPos, current});
+        current.clear();
+    }
+
+    void Flush() const override {}
+
+    std::vector<Line> lines;
+
+private:
+    int64_t pendingPos = 0;
+    std::string current;
+};
+
 /// Disasm implementation for CBC bytecode.
 /// This implementation doesn't rely on resolution.
 struct IsaDisasm : public IsaParser {
     Stream::Output& stream;
     uint32_t log10Size;
+    LineBuffer* buffer; // when set, lines are buffered to render branch arrows
 
-    IsaDisasm(Stream::Output& stream, Decoder::FatByteReader reader)
+    IsaDisasm(Stream::Output& stream, Decoder::FatByteReader reader, LineBuffer* buffer = nullptr)
         : IsaParser(reader),
           stream(stream),
-          log10Size(SizeOfOffset(reader.Start(), reader.End()))
+          log10Size(SizeOfOffset(reader.Start(), reader.End())),
+          buffer(buffer)
     {}
+
+    // Backward-branch recording for arrow rendering.
+    struct Branch {
+        int64_t start; // bytecode offset of the branch instruction
+        int64_t end;   // bytecode offset just past the branch instruction
+        int64_t delta; // branch offset relative to `end`
+    };
+    std::vector<Branch> branches;
+    int64_t currentPos = 0;
+
+    int64_t OffsetOf(uint8_t* cursor) { return cursor - reader.Start(); }
+
+    void RecordBranch(int64_t delta)
+    {
+        if (buffer != nullptr) {
+            branches.push_back(Branch{currentPos, OffsetOf(reader.Cursor()), delta});
+        }
+    }
 
     std::string_view Fmt(AnyReg reg, bool isFloat)
     {
@@ -52,18 +123,24 @@ struct IsaDisasm : public IsaParser {
 
     void Bcc(Format::Width width, Format::CC cc, AnyReg l, AnyReg r, int64_t delta) override
     {
+        RecordBranch(delta);
         auto fp = cc.IsFloatingPoint();
         stream.PrintLn("bcc.{} {}, {}, {}, {}", width, cc, Fmt(l, fp), Fmt(r, fp), delta);
     }
 
     void BccImm(Format::Width width, Format::CC cc, IReg l, uint64_t imm, int64_t delta) override
     {
+        RecordBranch(delta);
         stream.PrintLn("bcci.{} {}, {}, {}, {}", width, cc, l, imm, delta);
     }
 
     void Nop() override { stream.PrintLn("nop"); }
 
-    void Jump(int64_t delta) override { stream.PrintLn("jmp {}", delta); }
+    void Jump(int64_t delta) override
+    {
+        RecordBranch(delta);
+        stream.PrintLn("jmp {}", delta);
+    }
 
     void Mov(Format::Width width, IReg d, IReg s) override { stream.PrintLn("mov.{} {}, {}", width, d, s); }
 
@@ -535,8 +612,132 @@ struct IsaDisasm : public IsaParser {
 
     void ParseOne() override
     {
+        currentPos = OffsetOf(reader.Cursor());
+        if (buffer != nullptr) {
+            buffer->SetPos(currentPos);
+        }
         PrintPos();
         IsaParser::ParseOne();
+    }
+
+    /// Prints the buffered lines adding arrows for backward branches.
+    void EmitBuffered(Stream::Output& out)
+    {
+        if (buffer == nullptr) {
+            return;
+        }
+        auto suffixes = ArrowSuffixes();
+        for (size_t i = 0; i < buffer->lines.size(); i++) {
+            out << buffer->lines[i].text;
+            if (!suffixes[i].empty()) {
+                out << suffixes[i];
+            }
+            out << endl;
+        }
+    }
+
+private:
+    static constexpr int64_t kArrowBaseColumn = 39; // corner column of the rightmost arrow, from instruction start
+
+    struct Arrow {
+        int64_t target;
+        int64_t branch;
+        size_t corner; // corner column counted within a buffered line
+    };
+
+    std::vector<std::string> ArrowSuffixes()
+    {
+        auto arrows = CollectArrows();
+        std::vector<std::string> suffixes(buffer->lines.size());
+        for (size_t l = 0; l < buffer->lines.size(); l++) {
+            auto const& line = buffer->lines[l];
+            auto textLen     = static_cast<int64_t>(line.text.size());
+
+            // First pass: horizontal runs, then corners and arrow heads take
+            // precedence over them.
+            std::map<int64_t, std::string const*> slots;
+            int64_t maxCorner = -1;
+            for (auto const& arrow : arrows) {
+                if (arrow.target > line.pos || arrow.branch < line.pos) {
+                    continue;
+                }
+                if (arrow.target == line.pos) {
+                    for (auto c = textLen + 2; c < static_cast<int64_t>(arrow.corner); c++) {
+                        slots[c] = &kHorizontal;
+                    }
+                } else if (arrow.branch == line.pos) {
+                    for (auto c = textLen + 1; c < static_cast<int64_t>(arrow.corner); c++) {
+                        slots[c] = &kHorizontal;
+                    }
+                }
+                maxCorner = std::max<int64_t>(maxCorner, static_cast<int64_t>(arrow.corner));
+            }
+            for (auto const& arrow : arrows) {
+                if (arrow.target > line.pos || arrow.branch < line.pos) {
+                    continue;
+                }
+                if (arrow.target == line.pos) {
+                    slots[textLen + 1] = &kArrowHead;
+                    slots[static_cast<int64_t>(arrow.corner)] = &kDownCorner;
+                } else if (arrow.branch == line.pos) {
+                    slots[static_cast<int64_t>(arrow.corner)] = &kUpCorner;
+                } else {
+                    slots[static_cast<int64_t>(arrow.corner)] = &kVertical;
+                }
+            }
+
+            if (maxCorner < 0) {
+                continue;
+            }
+            auto& suffix = suffixes[l];
+            for (auto c = textLen; c <= maxCorner; c++) {
+                auto slot = slots.find(c);
+                suffix += slot != slots.end() ? *slot->second : " ";
+            }
+        }
+        return suffixes;
+    }
+
+    std::vector<Arrow> CollectArrows()
+    {
+        auto prefixLen = static_cast<int64_t>(log10Size) + 2;
+
+        std::unordered_map<int64_t, bool> lineStarts;
+        for (auto const& line : buffer->lines) {
+            lineStarts[line.pos] = true;
+        }
+
+        std::vector<Arrow> arrows;
+        for (auto const& branch : branches) {
+            auto target = branch.end + branch.delta;
+            if (target >= branch.start || lineStarts.find(target) == lineStarts.end()) {
+                continue;
+            }
+            // Keep the corner column clear of the longest instruction inside
+            // the arrow span.
+            int64_t spanMax = 0;
+            for (auto const& line : buffer->lines) {
+                if (target <= line.pos && line.pos <= branch.start) {
+                    spanMax = std::max<int64_t>(spanMax, static_cast<int64_t>(line.text.size()) - prefixLen);
+                }
+            }
+            arrows.push_back(
+                Arrow{target, branch.start, static_cast<size_t>(prefixLen + std::max(kArrowBaseColumn, spanMax + 2))}
+            );
+        }
+
+        // Assign columns: the innermost backward edges take the column closest
+        // to the code, every edge overlapping an already placed (earlier
+        // ending) edge is moved one column to the right.
+        std::sort(arrows.begin(), arrows.end(), [](Arrow const& l, Arrow const& r) { return l.branch < r.branch; });
+        for (size_t i = 0; i < arrows.size(); i++) {
+            for (size_t j = 0; j < i; j++) {
+                if (arrows[j].branch >= arrows[i].target) {
+                    arrows[i].corner = std::max(arrows[i].corner, arrows[j].corner + 1);
+                }
+            }
+        }
+        return arrows;
     }
 };
 
@@ -545,8 +746,8 @@ struct IsaResolvingDisasm : IsaDisasm {
 
     using MethodIndex = Image::RefId<Image::MethodReference>;
 
-    IsaResolvingDisasm(Stream::Output& stream, Decoder::FatByteReader reader, Resolution::Resolver& resolver)
-        : IsaDisasm(stream, reader),
+    IsaResolvingDisasm(Stream::Output& stream, Decoder::FatByteReader reader, Resolution::Resolver& resolver, LineBuffer* buffer)
+        : IsaDisasm(stream, reader, buffer),
           resolver(resolver)
     {}
 
@@ -589,7 +790,13 @@ void EnableRawDisasm() { g_IsRawDisasmEnabled = true; }
 
 bool IsRawDisasmEnabled() { return g_IsRawDisasmEnabled; }
 
-void RawDisasm(Stream::Output& stream, Decoder::FatByteReader reader) { IsaDisasm(stream, reader).ParseAll(); }
+void RawDisasm(Stream::Output& stream, Decoder::FatByteReader reader)
+{
+    LineBuffer buffer;
+    IsaDisasm disasm(buffer, reader, &buffer);
+    disasm.ParseAll();
+    disasm.EmitBuffered(stream);
+}
 
 void RawDisasm(Stream::Output& stream, Cbc::MethodCode code)
 {
@@ -606,7 +813,10 @@ void RawDisasm(Stream::Output& stream, uint8_t* start, uint8_t* end)
 void Disasm(Stream::Output& stream, Decoder::FatByteReader reader, Resolution::Resolver* resolver)
 {
     if (!g_IsRawDisasmEnabled && resolver != nullptr) {
-        IsaResolvingDisasm(stream, reader, *resolver).ParseAll();
+        LineBuffer buffer;
+        IsaResolvingDisasm disasm(buffer, reader, *resolver, &buffer);
+        disasm.ParseAll();
+        disasm.EmitBuffered(stream);
     } else {
         RawDisasm(stream, reader);
     }

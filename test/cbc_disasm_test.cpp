@@ -57,6 +57,32 @@ TEST_ASM(CbcDisasmTest, VirtCall)
     CompareWith("cbc-virt-call.asm", expected);
 }
 
+// A loop renders an arrow for the backward branch: the head on the target
+// line, the corner on the branch line and a vertical bar on the lines between.
+TEST_ASM(CbcDisasmTest, LoopArrows)
+{
+    std::string expected =
+        " 0: mov.W64 IR3, 1\n"
+        " 3: mov.W64 IR1, 0\n"
+        " 6: mov.W64 IR2, 7\n"
+        " 9: add.W64 IR1, IR1, IR2 <────────────────┐\n"
+        "12: sub.W64 IR2, IR2, IR3                  │\n"
+        "15: bcc.W64 1, IR2, IRZ, -10 ──────────────┘\n"
+        "19: ret.W64 IR1\n";
+    CompareWith("simple.asm", expected);
+}
+
+// Forward branches must not render arrows.
+TEST_ASM(CbcDisasmTest, ForwardBranchNoArrows)
+{
+    std::string expected =
+        " 0: mov.W64 IR3, 0\n"
+        " 3: bcc.W64 0, IR3, IRZ, 3\n"
+        " 7: mov.W64 IR1, 1\n"
+        "10: ret.W64 IR1\n";
+    CompareWith("cbc-fwd-branch.asm", expected);
+}
+
 // Direct disasm of the InitOption Option opcodes via Cbc::RT::Log.
 // These verify the ISA-RT opcode-table format strings round-trip:
 //   INIT_NONE_GENERIC_OPT0 -> "init.none.g0 $1ir"
