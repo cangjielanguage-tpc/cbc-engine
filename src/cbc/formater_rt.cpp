@@ -1,4 +1,5 @@
 #include "formater_rt.h"
+#include "branch_arrows.h"
 #include "cbc/isa.h"
 #include "utils/math.h"
 #include "utils/ostream.h"
@@ -548,20 +549,89 @@ void LogBaseSpaceInstruction(
 #undef FMT_LOGGER
 }
 
+/// Records branch edges (delta relative to the offset just past the branch
+/// instruction) for arrow rendering. The operands are decoded from a copy of
+/// the reader: the main loop re-decodes them for printing.
+static void RecordBranch(
+    std::vector<Branch>& branches, Opcode opc, Interpretation::LiteralTable* table, Decoder::ByteReader reader,
+    int64_t pos
+)
+{
+    auto extended = [](uint16_t value) {
+        return static_cast<int64_t>(MathUtils::SignExtend(static_cast<uint64_t>(value), 12));
+    };
+    auto literal  = [&](uint16_t value) { return static_cast<int64_t>(table->at(value).u64); };
+
+    int64_t delta = 0;
+    switch (opc) {
+        case Opcode::BCC32I:
+        case Opcode::BCC64I:
+            delta = extended(B4xi12rr::Decode(reader).xi12.imm12);
+            break;
+        case Opcode::BCC32L:
+        case Opcode::BCC64L:
+            delta = literal(B4xi12rr::Decode(reader).xi12.imm12);
+            break;
+        case Opcode::BCCI32I:
+        case Opcode::BCCI64I:
+        case Opcode::BCCL32I:
+        case Opcode::BCCL64I:
+            delta = extended(B5xi12ri12::Decode(reader).xi12.imm12);
+            break;
+        case Opcode::BCCI32L:
+        case Opcode::BCCI64L:
+        case Opcode::BCCL32L:
+        case Opcode::BCCL64L:
+            delta = literal(B5xi12ri12::Decode(reader).xi12.imm12);
+            break;
+        case Opcode::BRANCH_IS_REF:
+            delta = extended(B3xi12::Decode(reader).xi12.imm12);
+            break;
+        case Opcode::JMP32:
+            delta = static_cast<int32_t>(B5i32::Decode(reader).imm32.imm);
+            break;
+        default:
+            return;
+    }
+    branches.push_back(Branch{pos, reader.Cursor() - reader.Start(), delta});
+}
+
+/// Width of the "0xNNN: " position prefix, matching the PrintFmt used per line.
+static int64_t PrefixLen(size_t bytecodeSize)
+{
+    int64_t digits = 0;
+    for (auto v = static_cast<uint64_t>(bytecodeSize); v != 0; v >>= 4) {
+        digits++;
+    }
+    return 2 + std::max<int64_t>(3, digits) + 2;
+}
+
 void Log(Interpretation::Code code, Stream::Output& stream)
 {
-    Stream::Indented streamIndented(stream);
     using namespace RT;
     auto bytecode = code.bytecode;
     auto end      = bytecode + code.bytecodeSize;
     auto table    = code.literals;
 
+    LineBuffer buffer;
+    std::vector<Branch> branches;
     Decoder::ByteReader reader(bytecode, bytecode, end);
     while (!reader.EndOfMem(end)) {
         auto opc      = reader.PeekOpcode();
         auto position = reader.Cursor() - bytecode;
-        stream.PrintFmt("0x%03lx: ", position);
-        LogBaseSpaceInstruction(opc, table, stream, reader);
+        buffer.SetPos(position);
+        buffer.PrintFmt("0x%03lx: ", position);
+        RecordBranch(branches, opc, table, reader, position);
+        LogBaseSpaceInstruction(opc, table, buffer, reader);
+    }
+
+    auto suffixes = BranchArrowSuffixes(buffer.lines, branches, PrefixLen(code.bytecodeSize));
+    for (size_t i = 0; i < buffer.lines.size(); i++) {
+        stream << buffer.lines[i].text;
+        if (!suffixes[i].empty()) {
+            stream << suffixes[i];
+        }
+        stream << Stream::endl;
     }
 }
 

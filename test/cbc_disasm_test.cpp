@@ -7,7 +7,6 @@
 #include "engine/engine.h"
 #include "engine/image/reader.h"
 #include "interpreter/function_handle.h"
-
 #include "testutils.h"
 #include "engine/options.h"
 #include "utils/ostream.h"
@@ -114,4 +113,32 @@ TEST(CbcRtDisasmTest, InitSomeGeneric)
         .underlyingTi = Cbc::IReg::IR1,
     };
     EXPECT_EQ("init.some.g0 IR2 IR1\n", RtLog(args));
+}
+
+// A backward BCC64I in the rewritten RT ISA renders an arrow, same as in the
+// CBC ISA disasm.
+TEST(CbcRtDisasmTest, LoopArrows)
+{
+    using Cbc::RT::Opcode;
+    // clang-format off
+    uint8_t bytecode[] = {
+        static_cast<uint8_t>(Opcode::NOP),     // 0x000: nop
+        static_cast<uint8_t>(Opcode::BCC64I),  // 0x001: bcc.64 ne IR2, IR1, -5
+        0xB1, 0xFF,                            //   XImm12: cc = NE (1), offset = 0xFFB (-5)
+        0x12,                                  //   RR: IR2, IR1
+        static_cast<uint8_t>(Opcode::NOP),     // 0x005: nop
+        static_cast<uint8_t>(Opcode::RET),     // 0x006: ret
+    };
+    // clang-format on
+    Interpretation::Code code{sizeof(bytecode), bytecode, nullptr};
+
+    Stream::StringBuffer stream;
+    Cbc::RT::Log(code, stream);
+
+    std::string expected =
+        "0x000: nop <──────────────────────────────────┐\n"
+        "0x001: bcc.64 ne IR2 IR1 -5 ──────────────────┘\n"
+        "0x005: nop\n"
+        "0x006: ret\n";
+    EXPECT_EQ(expected, stream.ToString());
 }
