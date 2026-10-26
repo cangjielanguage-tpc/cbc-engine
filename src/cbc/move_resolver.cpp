@@ -336,7 +336,7 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
         auto src   = assignment.src;
         auto dkind = dst.Kind();
 
-        if (assignment.fromAddr && src.Kind() == Location::SLOT) {
+        if (assignment.fromAddr && src.Kind() == Location::SLOT && dkind != Location::SLOT) {
             EmitLoadFromAddr(emitter, dst, src, assignment.offset, assignment.ldk);
         } else if (src.Kind() == Location::SLOT && dkind == Location::IREG) {
             emitter.AssignIRegFromSlot(IReg::From(dst.IRegIdx()), src.SlotIdx());
