@@ -71,23 +71,24 @@ enum class TermKind : uint8_t {
 
     UNDEFINED, // 21 resolution error
 
-    C_POINTER,      // 22
-    NULLABLE,       // 23 TODO: delete
-    NON_NULLABLE,   // 24 TODO: delete
-    CANGJIE_ARRAY,  // 25 TODO: rename
-    FUNCTIONAL,     // 26
-    TUPLE,          // 27
-    BOX,            // 28
-    TYPE,           // 29
-    AOT_TYPE,       // 30
-    CLASS_TYPE_VAR, // 31
-    FUNC_TYPE_VAR,  // 32
-    OPTION,         // 33
-    UNION_ENUM,     // 34
-    PRIMITIVE_ENUM, // 35
-    VARRAY,         // 36
+    C_POINTER,         // 22
+    NULLABLE,          // 23 TODO: delete
+    NON_NULLABLE,      // 24 TODO: delete
+    CANGJIE_ARRAY,     // 25 TODO: rename
+    FUNCTIONAL,        // 26
+    TUPLE,             // 27
+    PACKED_TUPLE_HACK, // 28
+    BOX,               // 29
+    TYPE,              // 30
+    AOT_TYPE,          // 31
+    CLASS_TYPE_VAR,    // 32
+    FUNC_TYPE_VAR,     // 33
+    OPTION,            // 34
+    UNION_ENUM,        // 35
+    PRIMITIVE_ENUM,    // 36
+    VARRAY,            // 37
 
-    GENERIC_CONTEXT, // 37 -- non-existing type for CJNative outer ti emulation.
+    GENERIC_CONTEXT,   // 38 -- non-existing type for CJNative outer ti emulation.
     LAST
 };
 

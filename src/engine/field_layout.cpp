@@ -112,6 +112,7 @@ struct FLManager : public FieldLayoutManager {
             }
 
             case TK::TUPLE:
+            case TK::PACKED_TUPLE_HACK:
             case TK::TYPE:
             case TK::UNION_ENUM:
             case TK::OPTION:     return GetCbcFlatSize(term);
@@ -154,6 +155,7 @@ struct FLManager : public FieldLayoutManager {
                 return GetFlatAlignment(term);
             }
             case TermKind::TUPLE:
+            case TermKind::PACKED_TUPLE_HACK:
             case TermKind::OPTION:
             case TermKind::UNION_ENUM:
             case TermKind::TYPE:       {
@@ -243,6 +245,7 @@ struct FLManager : public FieldLayoutManager {
             }
 
             case TermKind::TUPLE:
+            case TermKind::PACKED_TUPLE_HACK:
             case TermKind::OPTION:
             case TermKind::TYPE:   {
                 ASSERT(!term.IsReference());
@@ -352,6 +355,22 @@ private:
             }
             content.desc.alignment = acc.alignment;
             content.desc.size      = AlignUp(acc.size, acc.alignment);
+            layout                 = std::move(content);
+        } else if (kind == TermKind::PACKED_TUPLE_HACK) {
+            // Packed layout: no padding between fields, alignment 1,
+            // to match the CJNative ABI for union enums (tag u32 + payload, unaligned).
+            SizeAlignmentAccumulator acc { this, 0, 1 };
+            FieldLayout::Content content;
+            auto len = term.GetLength();
+            for (uint32_t i = 0; i < len; i++) {
+                auto fieldType = term.Subterm(i);
+                auto fieldSize = GetFlatSize(fieldType);
+                auto offset    = acc.AddField(fieldSize, 1);
+                content.fields.EmplaceBack(FieldLayout::Entry { .definition = std::nullopt, .fieldType = fieldType, .offset = offset });
+            }
+            ASSERT(acc.alignment == 1);
+            content.desc.alignment = 1;
+            content.desc.size      = acc.size;
             layout                 = std::move(content);
         } else if (kind == TermKind::OPTION && !term.IsReference()) {
             ClassSubstitution substitute(session, term);
