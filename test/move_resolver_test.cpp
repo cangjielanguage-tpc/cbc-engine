@@ -900,6 +900,28 @@ TEST(MoveResolver, LoadLoadCycleBrokenWithTemp)
     EXPECT_EQ(Resolve(mr), expected);
 }
 
+TEST(MoveResolver, SharedAddrLoadsClobberAndFanOut)
+{
+    // IR3 ---> IR1 --load--> IR2 ---> IR4
+    //  ^        |
+    //  |__load__|
+    //
+    MoveResolver mr(IReg::IR7);
+    mr.AddMove(Location::IReg(IReg::IR3), Location::IReg(IReg::IR1));                        // IR1 = IR3
+    mr.AddLoadFromAddr(Location::IReg(IReg::IR1), 0, LDK::LD_64, Location::IReg(IReg::IR2)); // IR2 = *(IR1)
+    mr.AddLoadFromAddr(Location::IReg(IReg::IR1), 8, LDK::LD_64, Location::IReg(IReg::IR3)); // IR3 = *(IR1 + 8)
+    mr.AddMove(Location::IReg(IReg::IR2), Location::IReg(IReg::IR4));                        // IR4 = IR2
+
+    std::vector<Emit> expected {
+        Emit(Location::IReg(IReg::IR4), Location::IReg(IReg::IR2)),
+        Emit(Location::IReg(IReg::IR2), Location::IReg(IReg::IR1), 0, LDK::LD_64),
+        Emit(Location::IReg(IReg::IR7), Location::IReg(IReg::IR3)),
+        Emit(Location::IReg(IReg::IR3), Location::IReg(IReg::IR1), 8, LDK::LD_64),
+        Emit(Location::IReg(IReg::IR1), Location::IReg(IReg::IR7)),
+    };
+    EXPECT_EQ(Resolve(mr), expected);
+}
+
 TEST(MoveResolver, LoadSelfAddrPreservesAddr)
 {
     // Load spoils IR1, need to be delayed after move.
