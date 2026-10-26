@@ -92,6 +92,21 @@ struct RegsAndSlots : public MoveEmitter {
 
     void AssignSlotFromFReg(int slot, FReg src) override { Mov(Location::Slot(slot), Location::FReg(src)); }
 
+    void AssignIRegFromAddr(IReg dst, Location addr, int32_t, Format::LoadAccessKind) override
+    {
+        Mov(Location::IReg(dst), addr);
+    }
+
+    void AssignFRegFromAddr(FReg dst, Location addr, int32_t, Format::LoadAccessKind) override
+    {
+        Mov(Location::FReg(dst), addr);
+    }
+
+    void AssignSlotFromAddr(int paramSlot, Location addr, int32_t, Format::LoadAccessKind) override
+    {
+        Mov(Location::Slot(paramSlot), addr);
+    }
+
     void Resolve(MoveResolver& mr) { mr.Resolve(*this); }
 };
 

@@ -30,27 +30,7 @@ struct CAbiField {
 // Register-resident chunk of a by-value struct.
 struct CAbiPiece {
     uint32_t offset;
-    uint8_t size;
-    bool isFloat;
-
-    using LDK = Format::LoadAccessKind;
-
-    LDK Ldk() const
-    {
-        if (isFloat) {
-            switch (size) {
-                case 8:  return LDK::LD_F64;
-                default: return LDK::LD_F32;
-            }
-        } else {
-            switch (size) {
-                case 8:  return LDK::LD_64;
-                case 4:  return LDK::LD_32;
-                case 2:  return LDK::LD_U16;
-                default: return LDK::LD_U8;
-            }
-        }
-    }
+    CbcTypeKind kind;
 };
 
 enum class CAbiPassBy {

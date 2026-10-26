@@ -408,11 +408,11 @@ struct IsaRewriter : public IsaParser {
         MoveResolver moves;
         Utils::Vector<uint32_t> refStackSlots;
         Utils::Vector<uint32_t> recStackSlots;
-        TrackedAbiAssigner abi([&](Location target, ArgKind kind) {
+        TrackedAbiAssigner abi([&](Location target, CbcTypeKind kind) {
             if (target.Kind() == Location::SLOT) {
-                if (kind == ArgKind::REF)
+                if (kind == CbcTypeKind::REF)
                     refStackSlots.PushBack(target.SlotIdx());
-                if (kind == ArgKind::REC)
+                if (kind == CbcTypeKind::REC)
                     recStackSlots.PushBack(target.SlotIdx());
             }
         });
@@ -425,8 +425,8 @@ struct IsaRewriter : public IsaParser {
             case Image::MethodAbiKind::MUT: {
                 auto derived    = args[idx++];
                 auto base       = args[idx++];
-                auto derivedLoc = abi.Consume(ArgKind::REC);
-                auto baseLoc    = abi.Consume(ArgKind::REF);
+                auto derivedLoc = abi.Consume(CbcTypeKind::REC);
+                auto baseLoc    = abi.Consume(CbcTypeKind::REF);
                 moves.AddMove(derived, derivedLoc);
                 moves.AddMove(base, baseLoc);
                 ASSERT(derivedLoc.Kind() == Location::IREG);
@@ -434,19 +434,19 @@ struct IsaRewriter : public IsaParser {
                 break;
             }
             case Image::MethodAbiKind::REF_RECEIVER: {
-                moves.AddMove(args[idx++], abi.Consume(ArgKind::REF));
+                moves.AddMove(args[idx++], abi.Consume(CbcTypeKind::REF));
                 break;
             }
             case Image::MethodAbiKind::PRIM_RECEIVER: {
-                moves.AddMove(args[idx++], abi.Consume(ArgKind::INT));
+                moves.AddMove(args[idx++], abi.Consume(CbcTypeKind::I64));
                 break;
             }
             case Image::MethodAbiKind::FPRIM_RECEIVER: {
-                moves.AddMove(args[idx++], abi.Consume(ArgKind::FLOAT));
+                moves.AddMove(args[idx++], abi.Consume(CbcTypeKind::F64));
                 break;
             }
             case Image::MethodAbiKind::REC_RECEIVER: {
-                moves.AddMove(args[idx++], abi.Consume(ArgKind::REC));
+                moves.AddMove(args[idx++], abi.Consume(CbcTypeKind::REC));
                 break;
             }
             case Image::MethodAbiKind::STATIC:
@@ -461,7 +461,7 @@ struct IsaRewriter : public IsaParser {
             // Special case for call.closure.g
             // The referenced type (of closure) in instruction doesn't encode parameters as boxes.
             for (int j = 0; j < params.Size(); ++idx, ++j) {
-                moves.AddMove(args[idx], abi.Consume(ArgKind::REF));
+                moves.AddMove(args[idx], abi.Consume(CbcTypeKind::REF));
             }
         } else {
             bool isVarArg = false;
@@ -487,18 +487,18 @@ struct IsaRewriter : public IsaParser {
 
         ASSERT(funcVarsCount <= args.Size());
         for (int j = 0; j < funcVarsCount; idx++, j++) {
-            moves.AddMove(args[idx], abi.Consume(ArgKind::INT));
+            moves.AddMove(args[idx], abi.Consume(CbcTypeKind::I64));
         }
 
         if (flags.hasOuterTi) {
-            Location loc = abi.Consume(ArgKind::INT);
+            Location loc = abi.Consume(CbcTypeKind::I64);
             moves.AddMove(args[idx++], loc);
             if (outerTiLoc)
                 *outerTiLoc = loc;
         }
 
         if (flags.abiKind == Image::MethodAbiKind::HAS_THIS_TI) {
-            Location loc = abi.Consume(ArgKind::INT);
+            Location loc = abi.Consume(CbcTypeKind::I64);
             moves.AddMove(args[idx++], loc);
             if (thisTiLoc)
                 *thisTiLoc = loc;
@@ -537,8 +537,8 @@ struct IsaRewriter : public IsaParser {
             case CAbiPassBy::EMPTY: break;
             case CAbiPassBy::REGS:  {
                 for (const auto& piece : plan.pieces) {
-                    auto loc = abi.Consume(piece.isFloat ? ArgKind::FLOAT : ArgKind::INT);
-                    moves.AddLoadFromAddr(srcAddr, piece.offset, piece.Ldk(), loc);
+                    auto loc = abi.Consume(piece.kind);
+                    moves.AddLoadFromAddr(srcAddr, piece.offset, Ldk(piece.kind), loc);
                 }
                 break;
             }
@@ -797,7 +797,7 @@ struct IsaRewriter : public IsaParser {
         UNWRAP_OPT(field, resolver.Query(Index<InstanceField>(fieldId)), Fail);
         UNWRAP_OPT(ordinal, field->ordinal, Fail);
         emit.LeaGeneric(dst, base, ti, ordinal);
-        if (field->refType.GetKind() == Resolution::CbcTypeKind::REF) {
+        if (field->refType.GetKind() == CbcTypeKind::REF) {
             emit.AddI(Format::Width::W64, dst, dst, RTSupport::MetaInfo::ObjectHeaderSize());
         }
     }
@@ -974,7 +974,7 @@ struct IsaRewriter : public IsaParser {
         }
         auto field = f.value();
         if (field->offset.has_value()) {
-            if (field->refType.GetKind() == Resolution::CbcTypeKind::REF) {
+            if (field->refType.GetKind() == CbcTypeKind::REF) {
                 emit.StoreObj(Stk(field->fieldType.GetKind()), rs, rb, field->offset.value());
             } else {
                 emit.StoreRec(Stk(field->fieldType.GetKind()), rs, rb, field->offset.value());
@@ -1035,7 +1035,7 @@ struct IsaRewriter : public IsaParser {
             emit.Offset(dst, field->ordinal.value(), ti);
         }
 
-        if (field->refType.GetKind() == Resolution::CbcTypeKind::REF) {
+        if (field->refType.GetKind() == CbcTypeKind::REF) {
             emit.AddI(Format::Width::W64, dst, dst, RTSupport::MetaInfo::ObjectHeaderSize());
         }
     }

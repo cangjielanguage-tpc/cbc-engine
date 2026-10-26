@@ -10,6 +10,19 @@
 
 namespace Cbc {
 
+static CbcTypeKind PieceKind(uint32_t size, bool isFloat)
+{
+    if (isFloat) {
+        return size == 8 ? CbcTypeKind::F64 : CbcTypeKind::F32;
+    }
+    switch (size) {
+        case 8:  return CbcTypeKind::I64;
+        case 4:  return CbcTypeKind::I32;
+        case 2:  return CbcTypeKind::U16;
+        default: return CbcTypeKind::U8;
+    }
+}
+
 static CAbiStructPlan ClassifySysV(Utils::Span<const CAbiField> fields, uint32_t size)
 {
     CAbiStructPlan plan { CAbiPassBy::EMPTY, {} };
@@ -36,7 +49,7 @@ static CAbiStructPlan ClassifySysV(Utils::Span<const CAbiField> fields, uint32_t
             ASSERTION(f.offset >= lo && end <= hi, "field is between two pieces");
             allFloat = allFloat && f.isFloat;
         }
-        plan.pieces.PushBack(CAbiPiece { lo, static_cast<uint8_t>(hi - lo), allFloat });
+        plan.pieces.PushBack(CAbiPiece { lo, PieceKind(hi - lo, allFloat) });
     }
     return plan;
 }
@@ -61,7 +74,7 @@ static CAbiStructPlan ClassifyAAPCS64(Utils::Span<const CAbiField> fields, uint3
         plan.passBy = CAbiPassBy::REGS;
         for (const auto& f : fields) {
             // One FP reg for each element.
-            plan.pieces.PushBack(CAbiPiece { f.offset, f.size, true });
+            plan.pieces.PushBack(CAbiPiece { f.offset, PieceKind(f.size, true) });
         }
         return plan;
     }
@@ -74,7 +87,7 @@ static CAbiStructPlan ClassifyAAPCS64(Utils::Span<const CAbiField> fields, uint3
         plan.passBy = CAbiPassBy::REGS;
         for (uint32_t lo = 0; lo < size; lo += 8) {
             // Divide struct into 8-byte pieces.
-            plan.pieces.PushBack(CAbiPiece { lo, static_cast<uint8_t>(std::min<uint32_t>(8, size - lo)), false });
+            plan.pieces.PushBack(CAbiPiece { lo, PieceKind(std::min<uint32_t>(8, size - lo), false) });
         }
     }
     return plan;
@@ -95,7 +108,8 @@ CAbiStructPlan ClassifyCAbiStruct(
         int needIRegs = 0;
         int needFRegs = 0;
         for (const auto& piece : plan.pieces) {
-            (piece.isFloat ? needFRegs : needIRegs)++;
+            bool isFloat = piece.kind == CbcTypeKind::F32 || piece.kind == CbcTypeKind::F64;
+            (isFloat ? needFRegs : needIRegs)++;
         }
         if ((isVarArg && HostTraits::ONLY_ONSTACK_VARARGS) || needIRegs > freeIRegs || needFRegs > freeFRegs) {
             plan.passBy = CAbiPassBy::STACK;
