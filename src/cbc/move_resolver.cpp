@@ -28,30 +28,6 @@ void MoveResolver::AddLoadFromAddr(Location srcAddr, int32_t offset, Format::Loa
     assignments.PushBack(Assignment { dst, srcAddr, offset, ldk, true });
 }
 
-// Dispatches a single (dst, src) move to the matching MoveEmitter method.
-static void EmitMove(MoveEmitter& emitter, Location dst, Location src)
-{
-    auto dkind = dst.Kind();
-    auto skind = src.Kind();
-    if (skind == Location::IREG && dkind == Location::IREG) {
-        emitter.AssignIReg(IReg::From(dst.IRegIdx()), IReg::From(src.IRegIdx()));
-    } else if (skind == Location::FREG && dkind == Location::FREG) {
-        emitter.AssignFReg(FReg::From(dst.FRegIdx()), FReg::From(src.FRegIdx()));
-    } else if (skind == Location::SLOT && dkind == Location::SLOT) {
-        emitter.AssignParamSlot(dst.SlotIdx(), src.SlotIdx());
-    } else if (skind == Location::FREG && dkind == Location::SLOT) {
-        emitter.AssignSlotFromFReg(dst.SlotIdx(), FReg::From(src.FRegIdx()));
-    } else if (skind == Location::IREG && dkind == Location::SLOT) {
-        emitter.AssignSlotFromIReg(dst.SlotIdx(), IReg::From(src.IRegIdx()));
-    } else if (skind == Location::SLOT && dkind == Location::IREG) {
-        emitter.AssignIRegFromSlot(IReg::From(dst.IRegIdx()), src.SlotIdx());
-    } else if (skind == Location::SLOT && dkind == Location::FREG) {
-        emitter.AssignFRegFromSlot(FReg::From(dst.FRegIdx()), src.SlotIdx());
-    } else {
-        ASSERT(false);
-    }
-}
-
 // Dispatches a single load-from-address to the matching MoveEmitter method.
 static void EmitLoadFromAddr(
     MoveEmitter& emitter, Location dst, Location srcAddr, int32_t offset, Format::LoadAccessKind ldk
@@ -68,8 +44,6 @@ static void EmitLoadFromAddr(
 // Graph node: either a move (`dst = src`) or a load (`dst = *(src + offset)`).
 // For both kinds `src` is what the node reads: the source register or the load address.
 struct AssignmentInfo {
-    bool isLoad { false };
-
     union {
         struct {
             Location src;
@@ -81,6 +55,17 @@ struct AssignmentInfo {
             Format::LoadAccessKind ldk;
         } loadInfo;
     };
+
+    bool isLoad { false };
+
+    AssignmentInfo() : moveInfo {} {}
+
+    AssignmentInfo(Location src) : moveInfo { src } {}
+
+    AssignmentInfo(Location src, int32_t offset, Format::LoadAccessKind ldk)
+        : loadInfo { src, offset, ldk },
+          isLoad(true)
+    {}
 
     Location Src() { return isLoad ? loadInfo.src : moveInfo.src; }
 
@@ -178,9 +163,9 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
     AssignmentInfo fregNodes[FReg::COUNT]      = {};
 
     for (int i = 0; i < IReg::VIRT_COUNT; i++)
-        iregNodes[i] = AssignmentInfo { .moveInfo = { Location::IReg(IReg::From(i)) } };
+        iregNodes[i] = AssignmentInfo(Location::IReg(IReg::From(i)));
     for (int i = 0; i < FReg::COUNT; i++)
-        fregNodes[i] = AssignmentInfo { .moveInfo = { Location::FReg(FReg::From(i)) } };
+        fregNodes[i] = AssignmentInfo(Location::FReg(FReg::From(i)));
 
     for (auto& assignment : assignments) {
         auto dst   = assignment.dst;
@@ -190,32 +175,29 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
 
         switch (Pack(skind, dkind, assignment.fromAddr)) {
             // Reg moves (must always hold: src.kind == dst.kind)
-            case Pack(Location::IREG, Location::IREG, MOVE):
-                iregNodes[dst.IRegIdx()] = AssignmentInfo { .moveInfo = { src } };
-                break;
-            case Pack(Location::FREG, Location::FREG, MOVE):
-                fregNodes[dst.FRegIdx()] = AssignmentInfo { .moveInfo = { src } };
-                break;
+            case Pack(Location::IREG, Location::IREG, MOVE): iregNodes[dst.IRegIdx()] = AssignmentInfo(src); break;
+            case Pack(Location::FREG, Location::FREG, MOVE): fregNodes[dst.FRegIdx()] = AssignmentInfo(src); break;
 
             // Loads (must always hold: src.kind = IREG)
             case Pack(Location::IREG, Location::IREG, LOAD):
-                iregNodes[dst.IRegIdx()] = AssignmentInfo {
-                    .isLoad   = true,
-                    .loadInfo = { src, assignment.offset, assignment.ldk },
-                };
+                iregNodes[dst.IRegIdx()] = AssignmentInfo(src, assignment.offset, assignment.ldk);
                 break;
             case Pack(Location::IREG, Location::FREG, LOAD):
-                fregNodes[dst.FRegIdx()] = AssignmentInfo {
-                    .isLoad   = true,
-                    .loadInfo = { src, assignment.offset, assignment.ldk },
-                };
+                fregNodes[dst.FRegIdx()] = AssignmentInfo(src, assignment.offset, assignment.ldk);
                 break;
 
             // Param slots cannot form any chains: emit immediately, before
             // the register shuffle.
             case Pack(Location::IREG, Location::SLOT, MOVE):
+                emitter.AssignSlotFromIReg(dst.SlotIdx(), IReg::From(src.IRegIdx()));
+                break;
             case Pack(Location::FREG, Location::SLOT, MOVE):
-            case Pack(Location::SLOT, Location::SLOT, MOVE): EmitMove(emitter, dst, src); break;
+                emitter.AssignSlotFromFReg(dst.SlotIdx(), FReg::From(src.FRegIdx()));
+                break;
+            case Pack(Location::SLOT, Location::SLOT, MOVE):
+                emitter.AssignParamSlot(dst.SlotIdx(), src.SlotIdx());
+                break;
+
             case Pack(Location::IREG, Location::SLOT, LOAD):
             case Pack(Location::SLOT, Location::SLOT, LOAD):
                 EmitLoadFromAddr(emitter, dst, src, assignment.offset, assignment.ldk);
@@ -224,6 +206,7 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
             // Untyped slots are immutable: processed after the register shuffle.
             case Pack(Location::SLOT, Location::IREG, MOVE):
             case Pack(Location::SLOT, Location::FREG, MOVE):
+
             case Pack(Location::SLOT, Location::IREG, LOAD):
             case Pack(Location::SLOT, Location::FREG, LOAD): break;
 
