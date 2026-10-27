@@ -13,32 +13,32 @@ using LDK = Format::LoadAccessKind;
 
 void Load32(MoveResolver& mr, Location addr, int32_t offset, Location dst)
 {
-    mr.AddLoadFromAddr(addr, offset, LDK::LD_32, dst);
+    mr.AddLoadFromAddr(dst, addr, offset, LDK::LD_32);
 }
 
 void Load64(MoveResolver& mr, Location addr, int32_t offset, Location dst)
 {
-    mr.AddLoadFromAddr(addr, offset, LDK::LD_64, dst);
+    mr.AddLoadFromAddr(dst, addr, offset, LDK::LD_64);
 }
 
 void LoadU16(MoveResolver& mr, Location addr, int32_t offset, Location dst)
 {
-    mr.AddLoadFromAddr(addr, offset, LDK::LD_U16, dst);
+    mr.AddLoadFromAddr(dst, addr, offset, LDK::LD_U16);
 }
 
 void LoadS8(MoveResolver& mr, Location addr, int32_t offset, Location dst)
 {
-    mr.AddLoadFromAddr(addr, offset, LDK::LD_S8, dst);
+    mr.AddLoadFromAddr(dst, addr, offset, LDK::LD_S8);
 }
 
 void LoadF32(MoveResolver& mr, Location addr, int32_t offset, Location dst)
 {
-    mr.AddLoadFromAddr(addr, offset, LDK::LD_F32, dst);
+    mr.AddLoadFromAddr(dst, addr, offset, LDK::LD_F32);
 }
 
 void LoadF64(MoveResolver& mr, Location addr, int32_t offset, Location dst)
 {
-    mr.AddLoadFromAddr(addr, offset, LDK::LD_F64, dst);
+    mr.AddLoadFromAddr(dst, addr, offset, LDK::LD_F64);
 }
 
 } // namespace
@@ -46,8 +46,8 @@ void LoadF64(MoveResolver& mr, Location addr, int32_t offset, Location dst)
 TEST(MoveResolver, NoConflict)
 {
     MoveResolver mr;
-    mr.AddMove(Location { 1 }, Location { 2 }); // IR1 -> IR2
-    mr.AddMove(Location { 3 }, Location { 4 }); // IR3 -> IR4
+    mr.AddMove(Location { 2 }, Location { 1 }); // IR2 <- IR1
+    mr.AddMove(Location { 4 }, Location { 3 }); // IR4 <- IR3
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -60,8 +60,8 @@ TEST(MoveResolver, NoConflict)
 TEST(MoveResolver, TwoCycleSwap)
 {
     MoveResolver mr;
-    mr.AddMove(Location { 1 }, Location { 2 }); // IR1 -> IR2
-    mr.AddMove(Location { 2 }, Location { 1 }); // IR2 -> IR1
+    mr.AddMove(Location { 2 }, Location { 1 }); // IR2 <- IR1
+    mr.AddMove(Location { 1 }, Location { 2 }); // IR1 <- IR2
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -74,9 +74,9 @@ TEST(MoveResolver, TwoCycleSwap)
 TEST(MoveResolver, ThreeCycle)
 {
     MoveResolver mr;
-    mr.AddMove(Location { 1 }, Location { 2 }); // IR1 -> IR2
-    mr.AddMove(Location { 2 }, Location { 3 }); // IR2 -> IR3
-    mr.AddMove(Location { 3 }, Location { 1 }); // IR3 -> IR1
+    mr.AddMove(Location { 2 }, Location { 1 }); // IR2 <- IR1
+    mr.AddMove(Location { 3 }, Location { 2 }); // IR3 <- IR2
+    mr.AddMove(Location { 1 }, Location { 3 }); // IR1 <- IR3
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -90,8 +90,8 @@ TEST(MoveResolver, ThreeCycle)
 TEST(MoveResolver, FRegCycle)
 {
     MoveResolver mr;
-    mr.AddMove(Location { 14 }, Location { 15 }); // FR0 -> FR1
-    mr.AddMove(Location { 15 }, Location { 14 }); // FR1 -> FR0
+    mr.AddMove(Location { 15 }, Location { 14 }); // FR1 <- FR0
+    mr.AddMove(Location { 14 }, Location { 15 }); // FR0 <- FR1
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -104,8 +104,8 @@ TEST(MoveResolver, FRegCycle)
 TEST(MoveResolver, SlotCycle)
 {
     MoveResolver mr;
-    mr.AddMove(Location { 30 }, Location { 31 }); // Slot0 -> Slot1
-    mr.AddMove(Location { 31 }, Location { 30 }); // Slot1 -> Slot0
+    mr.AddMove(Location { 31 }, Location { 30 }); // Slot1 <- Slot0
+    mr.AddMove(Location { 30 }, Location { 31 }); // Slot0 <- Slot1
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -118,7 +118,7 @@ TEST(MoveResolver, SlotCycle)
 TEST(MoveResolver, SingleMove)
 {
     MoveResolver mr;
-    mr.AddMove(Location { 1 }, Location { 2 });
+    mr.AddMove(Location { 2 }, Location { 1 });
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -143,7 +143,7 @@ TEST(MoveResolver, ClearAllowsReuse)
     r1.Resolve(mr);
 
     // First round
-    mr.AddMove(Location { 1 }, Location { 2 });
+    mr.AddMove(Location { 2 }, Location { 1 });
     r1.Resolve(mr);
     ASSERT_EQ(r1.movCount, 1);
     EXPECT_EQ(r1.iregs[2], Cell::Move(IrValue(1)));
@@ -151,8 +151,8 @@ TEST(MoveResolver, ClearAllowsReuse)
     // Clear and reuse
     mr.Clear();
     RegsAndSlots r2;
-    mr.AddMove(Location { 5 }, Location { 6 });
     mr.AddMove(Location { 6 }, Location { 5 });
+    mr.AddMove(Location { 5 }, Location { 6 });
     r2.Resolve(mr);
     ASSERT_EQ(r2.movCount, 3); // 2 moves + 1 cycle break
     EXPECT_EQ(r2.iregs[5], Cell::Move(IrValue(6)));
@@ -180,9 +180,9 @@ TEST(MoveResolver, SimilarIRegNoCycle)
 {
     // Both src and dst are param-passing IRs (IR1-IR6 on x64), no cycles.
     MoveResolver mr;
-    mr.AddMove(Location { 1 }, Location { 2 }); // IR1 -> IR2
-    mr.AddMove(Location { 3 }, Location { 4 }); // IR3 -> IR4
-    mr.AddMove(Location { 5 }, Location { 6 }); // IR5 -> IR6
+    mr.AddMove(Location { 2 }, Location { 1 }); // IR2 <- IR1
+    mr.AddMove(Location { 4 }, Location { 3 }); // IR4 <- IR3
+    mr.AddMove(Location { 6 }, Location { 5 }); // IR6 <- IR5
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -197,10 +197,10 @@ TEST(MoveResolver, SimilarIRegCycle)
 {
     // 4-cycle among param-passing IRs: IR1->IR2->IR3->IR4->IR1
     MoveResolver mr;
-    mr.AddMove(Location { 1 }, Location { 2 }); // IR1 -> IR2
-    mr.AddMove(Location { 2 }, Location { 3 }); // IR2 -> IR3
-    mr.AddMove(Location { 3 }, Location { 4 }); // IR3 -> IR4
-    mr.AddMove(Location { 4 }, Location { 1 }); // IR4 -> IR1
+    mr.AddMove(Location { 2 }, Location { 1 }); // IR2 <- IR1
+    mr.AddMove(Location { 3 }, Location { 2 }); // IR3 <- IR2
+    mr.AddMove(Location { 4 }, Location { 3 }); // IR4 <- IR3
+    mr.AddMove(Location { 1 }, Location { 4 }); // IR1 <- IR4
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -216,9 +216,9 @@ TEST(MoveResolver, SimilarFRegNoCycle)
 {
     // Both src and dst are param-passing FRs (FR0-FR7), no cycles.
     MoveResolver mr;
-    mr.AddMove(Location { 14 }, Location { 15 }); // FR0 -> FR1
-    mr.AddMove(Location { 16 }, Location { 17 }); // FR2 -> FR3
-    mr.AddMove(Location { 18 }, Location { 19 }); // FR4 -> FR5
+    mr.AddMove(Location { 15 }, Location { 14 }); // FR1 <- FR0
+    mr.AddMove(Location { 17 }, Location { 16 }); // FR3 <- FR2
+    mr.AddMove(Location { 19 }, Location { 18 }); // FR5 <- FR4
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -233,9 +233,9 @@ TEST(MoveResolver, SimilarFRegCycle)
 {
     // 3-cycle among param-passing FRs: FR0->FR1->FR2->FR0
     MoveResolver mr;
-    mr.AddMove(Location { 14 }, Location { 15 }); // FR0 -> FR1
-    mr.AddMove(Location { 15 }, Location { 16 }); // FR1 -> FR2
-    mr.AddMove(Location { 16 }, Location { 14 }); // FR2 -> FR0
+    mr.AddMove(Location { 15 }, Location { 14 }); // FR1 <- FR0
+    mr.AddMove(Location { 16 }, Location { 15 }); // FR2 <- FR1
+    mr.AddMove(Location { 14 }, Location { 16 }); // FR0 <- FR2
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -250,9 +250,9 @@ TEST(MoveResolver, SimilarSlotNoCycle)
 {
     // Both src and dst are stack slots, no cycles (impossible per doc).
     MoveResolver mr;
-    mr.AddMove(Location { 30 }, Location { 31 }); // Slot0 -> Slot1
-    mr.AddMove(Location { 32 }, Location { 33 }); // Slot2 -> Slot3
-    mr.AddMove(Location { 34 }, Location { 35 }); // Slot4 -> Slot5
+    mr.AddMove(Location { 31 }, Location { 30 }); // Slot1 <- Slot0
+    mr.AddMove(Location { 33 }, Location { 32 }); // Slot3 <- Slot2
+    mr.AddMove(Location { 35 }, Location { 34 }); // Slot5 <- Slot4
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -270,7 +270,7 @@ TEST(MoveResolver, VolatileSrcToParamDst)
     // IR7 is TEMP_IR (volatile, walked first), IR1 is param-passing.
     // Doc: "all of them can be used as src", "only param-passing ones can be used as dst"
     MoveResolver mr;
-    mr.AddMove(Location { 7 }, Location { 1 }); // IR7 (volatile/temp) -> IR1 (param)
+    mr.AddMove(Location { 1 }, Location { 7 }); // IR1 (param) <- IR7 (volatile/temp)
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -284,8 +284,8 @@ TEST(MoveResolver, VolatileSrcChainToParamDst)
     // Chain: IR7 (volatile/temp) -> IR1 -> IR2 (param-passing)
     // IR7 is walked first as TEMP_IR, so the chain resolves without false cycle.
     MoveResolver mr;
-    mr.AddMove(Location { 7 }, Location { 1 }); // IR7 -> IR1
-    mr.AddMove(Location { 1 }, Location { 2 }); // IR1 -> IR2
+    mr.AddMove(Location { 1 }, Location { 7 }); // IR1 <- IR7
+    mr.AddMove(Location { 2 }, Location { 1 }); // IR2 <- IR1
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -301,12 +301,12 @@ TEST(MoveResolver, FullIRegParamCycle)
 {
     // 6-cycle: all x64 param-passing IRs (IR1-IR6)
     MoveResolver mr;
-    mr.AddMove(Location { 1 }, Location { 2 }); // IR1 -> IR2
-    mr.AddMove(Location { 2 }, Location { 3 }); // IR2 -> IR3
-    mr.AddMove(Location { 3 }, Location { 4 }); // IR3 -> IR4
-    mr.AddMove(Location { 4 }, Location { 5 }); // IR4 -> IR5
-    mr.AddMove(Location { 5 }, Location { 6 }); // IR5 -> IR6
-    mr.AddMove(Location { 6 }, Location { 1 }); // IR6 -> IR1
+    mr.AddMove(Location { 2 }, Location { 1 }); // IR2 <- IR1
+    mr.AddMove(Location { 3 }, Location { 2 }); // IR3 <- IR2
+    mr.AddMove(Location { 4 }, Location { 3 }); // IR4 <- IR3
+    mr.AddMove(Location { 5 }, Location { 4 }); // IR5 <- IR4
+    mr.AddMove(Location { 6 }, Location { 5 }); // IR6 <- IR5
+    mr.AddMove(Location { 1 }, Location { 6 }); // IR1 <- IR6
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -325,9 +325,9 @@ TEST(MoveResolver, FullFRegParamCycle)
     // 8-cycle: all x64 param-passing FRs (FR0-FR7)
     MoveResolver mr;
     for (int i = 0; i < 7; i++) {
-        mr.AddMove(Location { 14 + i }, Location { 15 + i }); // FRi -> FR(i+1)
+        mr.AddMove(Location { 15 + i }, Location { 14 + i }); // FR(i+1) <- FRi
     }
-    mr.AddMove(Location { 21 }, Location { 14 }); // FR7 -> FR0
+    mr.AddMove(Location { 14 }, Location { 21 }); // FR0 <- FR7
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -345,10 +345,10 @@ TEST(MoveResolver, MultipleIndependentCycles)
 {
     // Two independent 2-cycles: IR1<->IR2 and IR3<->IR4
     MoveResolver mr;
-    mr.AddMove(Location { 1 }, Location { 2 }); // IR1 -> IR2
-    mr.AddMove(Location { 2 }, Location { 1 }); // IR2 -> IR1
-    mr.AddMove(Location { 3 }, Location { 4 }); // IR3 -> IR4
-    mr.AddMove(Location { 4 }, Location { 3 }); // IR4 -> IR3
+    mr.AddMove(Location { 2 }, Location { 1 }); // IR2 <- IR1
+    mr.AddMove(Location { 1 }, Location { 2 }); // IR1 <- IR2
+    mr.AddMove(Location { 4 }, Location { 3 }); // IR4 <- IR3
+    mr.AddMove(Location { 3 }, Location { 4 }); // IR3 <- IR4
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -364,12 +364,12 @@ TEST(MoveResolver, ThreeIndependentCyclesMixed)
 {
     // IR 2-cycle + FR 2-cycle + Slot pair (no slot cycle)
     MoveResolver mr;
-    mr.AddMove(Location { 1 }, Location { 2 });   // IR1 -> IR2
-    mr.AddMove(Location { 2 }, Location { 1 });   // IR2 -> IR1
-    mr.AddMove(Location { 14 }, Location { 15 }); // FR0 -> FR1
-    mr.AddMove(Location { 15 }, Location { 14 }); // FR1 -> FR0
-    mr.AddMove(Location { 30 }, Location { 31 }); // Slot0 -> Slot1
-    mr.AddMove(Location { 32 }, Location { 33 }); // Slot2 -> Slot3
+    mr.AddMove(Location { 2 }, Location { 1 });   // IR2 <- IR1
+    mr.AddMove(Location { 1 }, Location { 2 });   // IR1 <- IR2
+    mr.AddMove(Location { 15 }, Location { 14 }); // FR1 <- FR0
+    mr.AddMove(Location { 14 }, Location { 15 }); // FR0 <- FR1
+    mr.AddMove(Location { 31 }, Location { 30 }); // Slot1 <- Slot0
+    mr.AddMove(Location { 33 }, Location { 32 }); // Slot3 <- Slot2
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -388,14 +388,14 @@ TEST(MoveResolver, IndependentCyclesWithSlotMoves)
 {
     // IR 3-cycle + FR 2-cycle + 3 independent slot moves
     MoveResolver mr;
-    mr.AddMove(Location { 1 }, Location { 2 });   // IR1 -> IR2
-    mr.AddMove(Location { 2 }, Location { 3 });   // IR2 -> IR3
-    mr.AddMove(Location { 3 }, Location { 1 });   // IR3 -> IR1
-    mr.AddMove(Location { 14 }, Location { 15 }); // FR0 -> FR1
-    mr.AddMove(Location { 15 }, Location { 14 }); // FR1 -> FR0
-    mr.AddMove(Location { 30 }, Location { 31 }); // Slot0 -> Slot1
-    mr.AddMove(Location { 32 }, Location { 33 }); // Slot2 -> Slot3
-    mr.AddMove(Location { 34 }, Location { 35 }); // Slot4 -> Slot5
+    mr.AddMove(Location { 2 }, Location { 1 });   // IR2 <- IR1
+    mr.AddMove(Location { 3 }, Location { 2 });   // IR3 <- IR2
+    mr.AddMove(Location { 1 }, Location { 3 });   // IR1 <- IR3
+    mr.AddMove(Location { 15 }, Location { 14 }); // FR1 <- FR0
+    mr.AddMove(Location { 14 }, Location { 15 }); // FR0 <- FR1
+    mr.AddMove(Location { 31 }, Location { 30 }); // Slot1 <- Slot0
+    mr.AddMove(Location { 33 }, Location { 32 }); // Slot3 <- Slot2
+    mr.AddMove(Location { 35 }, Location { 34 }); // Slot5 <- Slot4
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -416,12 +416,12 @@ TEST(MoveResolver, ManySlotMovesNoCycle)
 {
     // 6 independent slot moves, no register moves
     MoveResolver mr;
-    mr.AddMove(Location { 30 }, Location { 31 }); // Slot0 -> Slot1
-    mr.AddMove(Location { 32 }, Location { 33 }); // Slot2 -> Slot3
-    mr.AddMove(Location { 34 }, Location { 35 }); // Slot4 -> Slot5
-    mr.AddMove(Location { 36 }, Location { 37 }); // Slot6 -> Slot7
-    mr.AddMove(Location { 38 }, Location { 39 }); // Slot8 -> Slot9
-    mr.AddMove(Location { 40 }, Location { 41 }); // Slot10 -> Slot11
+    mr.AddMove(Location { 31 }, Location { 30 }); // Slot1 <- Slot0
+    mr.AddMove(Location { 33 }, Location { 32 }); // Slot3 <- Slot2
+    mr.AddMove(Location { 35 }, Location { 34 }); // Slot5 <- Slot4
+    mr.AddMove(Location { 37 }, Location { 36 }); // Slot7 <- Slot6
+    mr.AddMove(Location { 39 }, Location { 38 }); // Slot9 <- Slot8
+    mr.AddMove(Location { 41 }, Location { 40 }); // Slot11 <- Slot10
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -439,12 +439,12 @@ TEST(MoveResolver, SlotMovesWithSingleRegCycle)
 {
     // One IR 2-cycle + 4 slot moves
     MoveResolver mr;
-    mr.AddMove(Location { 5 }, Location { 6 });   // IR5 -> IR6
-    mr.AddMove(Location { 6 }, Location { 5 });   // IR6 -> IR5
-    mr.AddMove(Location { 30 }, Location { 31 }); // Slot0 -> Slot1
-    mr.AddMove(Location { 32 }, Location { 33 }); // Slot2 -> Slot3
-    mr.AddMove(Location { 34 }, Location { 35 }); // Slot4 -> Slot5
-    mr.AddMove(Location { 36 }, Location { 37 }); // Slot6 -> Slot7
+    mr.AddMove(Location { 6 }, Location { 5 });   // IR6 <- IR5
+    mr.AddMove(Location { 5 }, Location { 6 });   // IR5 <- IR6
+    mr.AddMove(Location { 31 }, Location { 30 }); // Slot1 <- Slot0
+    mr.AddMove(Location { 33 }, Location { 32 }); // Slot3 <- Slot2
+    mr.AddMove(Location { 35 }, Location { 34 }); // Slot5 <- Slot4
+    mr.AddMove(Location { 37 }, Location { 36 }); // Slot7 <- Slot6
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -463,12 +463,12 @@ TEST(MoveResolver, ThreeIndependentIRCycles)
 {
     // Three independent 2-cycles among IRs: (1,2), (3,4), (5,6)
     MoveResolver mr;
-    mr.AddMove(Location { 1 }, Location { 2 }); // IR1 -> IR2
-    mr.AddMove(Location { 2 }, Location { 1 }); // IR2 -> IR1
-    mr.AddMove(Location { 3 }, Location { 4 }); // IR3 -> IR4
-    mr.AddMove(Location { 4 }, Location { 3 }); // IR4 -> IR3
-    mr.AddMove(Location { 5 }, Location { 6 }); // IR5 -> IR6
-    mr.AddMove(Location { 6 }, Location { 5 }); // IR6 -> IR5
+    mr.AddMove(Location { 2 }, Location { 1 }); // IR2 <- IR1
+    mr.AddMove(Location { 1 }, Location { 2 }); // IR1 <- IR2
+    mr.AddMove(Location { 4 }, Location { 3 }); // IR4 <- IR3
+    mr.AddMove(Location { 3 }, Location { 4 }); // IR3 <- IR4
+    mr.AddMove(Location { 6 }, Location { 5 }); // IR6 <- IR5
+    mr.AddMove(Location { 5 }, Location { 6 }); // IR5 <- IR6
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -487,15 +487,15 @@ TEST(MoveResolver, MixedCycleSizesWithSlots)
 {
     // IR 2-cycle + IR 3-cycle + FR 2-cycle + 2 slot moves
     MoveResolver mr;
-    mr.AddMove(Location { 1 }, Location { 2 });   // IR1 -> IR2
-    mr.AddMove(Location { 2 }, Location { 1 });   // IR2 -> IR1
-    mr.AddMove(Location { 3 }, Location { 4 });   // IR3 -> IR4
-    mr.AddMove(Location { 4 }, Location { 5 });   // IR4 -> IR5
-    mr.AddMove(Location { 5 }, Location { 3 });   // IR5 -> IR3
-    mr.AddMove(Location { 14 }, Location { 15 }); // FR0 -> FR1
-    mr.AddMove(Location { 15 }, Location { 14 }); // FR1 -> FR0
-    mr.AddMove(Location { 30 }, Location { 31 }); // Slot0 -> Slot1
-    mr.AddMove(Location { 32 }, Location { 33 }); // Slot2 -> Slot3
+    mr.AddMove(Location { 2 }, Location { 1 });   // IR2 <- IR1
+    mr.AddMove(Location { 1 }, Location { 2 });   // IR1 <- IR2
+    mr.AddMove(Location { 4 }, Location { 3 });   // IR4 <- IR3
+    mr.AddMove(Location { 5 }, Location { 4 });   // IR5 <- IR4
+    mr.AddMove(Location { 3 }, Location { 5 });   // IR3 <- IR5
+    mr.AddMove(Location { 15 }, Location { 14 }); // FR1 <- FR0
+    mr.AddMove(Location { 14 }, Location { 15 }); // FR0 <- FR1
+    mr.AddMove(Location { 31 }, Location { 30 }); // Slot1 <- Slot0
+    mr.AddMove(Location { 33 }, Location { 32 }); // Slot3 <- Slot2
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -519,8 +519,8 @@ TEST(MoveResolver, FanOutNoCycle)
 {
     // IR1 -> IR2, IR1 -> IR3 (IR1 broadcast to two dsts, no cycle)
     MoveResolver mr;
-    mr.AddMove(Location { 1 }, Location { 2 }); // IR1 -> IR2
-    mr.AddMove(Location { 1 }, Location { 3 }); // IR1 -> IR3
+    mr.AddMove(Location { 2 }, Location { 1 }); // IR2 <- IR1
+    mr.AddMove(Location { 3 }, Location { 1 }); // IR3 <- IR1
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -536,9 +536,9 @@ TEST(MoveResolver, FanOutWithCycle)
     // i.e. IR3->IR1, IR3->IR2, IR1->IR3
     // IR3 is broadcast to IR1 and IR2; IR1 feeds back to IR3 (cycle).
     MoveResolver mr;
-    mr.AddMove(Location { 3 }, Location { 1 }); // IR3 -> IR1
-    mr.AddMove(Location { 3 }, Location { 2 }); // IR3 -> IR2
-    mr.AddMove(Location { 1 }, Location { 3 }); // IR1 -> IR3
+    mr.AddMove(Location { 1 }, Location { 3 }); // IR1 <- IR3
+    mr.AddMove(Location { 2 }, Location { 3 }); // IR2 <- IR3
+    mr.AddMove(Location { 3 }, Location { 1 }); // IR3 <- IR1
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -554,9 +554,9 @@ TEST(MoveResolver, FanOutTriple)
 {
     // IR1 -> IR2, IR1 -> IR3, IR1 -> IR4 (triple broadcast, no cycle)
     MoveResolver mr;
-    mr.AddMove(Location { 1 }, Location { 2 }); // IR1 -> IR2
-    mr.AddMove(Location { 1 }, Location { 3 }); // IR1 -> IR3
-    mr.AddMove(Location { 1 }, Location { 4 }); // IR1 -> IR4
+    mr.AddMove(Location { 2 }, Location { 1 }); // IR2 <- IR1
+    mr.AddMove(Location { 3 }, Location { 1 }); // IR3 <- IR1
+    mr.AddMove(Location { 4 }, Location { 1 }); // IR4 <- IR1
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -571,8 +571,8 @@ TEST(MoveResolver, FanOutToSlots)
 {
     // IR1 -> Slot0, IR1 -> Slot1 (register broadcast to two slots)
     MoveResolver mr;
-    mr.AddMove(Location { 1 }, Location { 30 }); // IR1 -> Slot0
-    mr.AddMove(Location { 1 }, Location { 31 }); // IR1 -> Slot1
+    mr.AddMove(Location { 30 }, Location { 1 }); // Slot0 <- IR1
+    mr.AddMove(Location { 31 }, Location { 1 }); // Slot1 <- IR1
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -587,10 +587,10 @@ TEST(MoveResolver, FanOutMultipleSrcs)
     // IR1 -> IR2, IR1 -> IR3, IR4 -> IR5, IR4 -> IR6
     // Two independent broadcasts, no cycles.
     MoveResolver mr;
-    mr.AddMove(Location { 1 }, Location { 2 }); // IR1 -> IR2
-    mr.AddMove(Location { 1 }, Location { 3 }); // IR1 -> IR3
-    mr.AddMove(Location { 4 }, Location { 5 }); // IR4 -> IR5
-    mr.AddMove(Location { 4 }, Location { 6 }); // IR4 -> IR6
+    mr.AddMove(Location { 2 }, Location { 1 }); // IR2 <- IR1
+    mr.AddMove(Location { 3 }, Location { 1 }); // IR3 <- IR1
+    mr.AddMove(Location { 5 }, Location { 4 }); // IR5 <- IR4
+    mr.AddMove(Location { 6 }, Location { 4 }); // IR6 <- IR4
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -606,10 +606,10 @@ TEST(MoveResolver, FanOutWithIndependentCycle)
 {
     // IR1 -> IR2, IR1 -> IR3 (broadcast) + IR4 <-> IR5 (independent cycle)
     MoveResolver mr;
-    mr.AddMove(Location { 1 }, Location { 2 }); // IR1 -> IR2
-    mr.AddMove(Location { 1 }, Location { 3 }); // IR1 -> IR3
-    mr.AddMove(Location { 4 }, Location { 5 }); // IR4 -> IR5
-    mr.AddMove(Location { 5 }, Location { 4 }); // IR5 -> IR4
+    mr.AddMove(Location { 2 }, Location { 1 }); // IR2 <- IR1
+    mr.AddMove(Location { 3 }, Location { 1 }); // IR3 <- IR1
+    mr.AddMove(Location { 5 }, Location { 4 }); // IR5 <- IR4
+    mr.AddMove(Location { 4 }, Location { 5 }); // IR4 <- IR5
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -627,9 +627,9 @@ TEST(MoveResolver, FanOutFRegWithCycle)
     // FR0 -> FR1, FR0 -> FR2, FR1 -> FR0
     // FR0 broadcast to FR1 and FR2; FR1 feeds back to FR0.
     MoveResolver mr;
-    mr.AddMove(Location { 14 }, Location { 15 }); // FR0 -> FR1
-    mr.AddMove(Location { 14 }, Location { 16 }); // FR0 -> FR2
-    mr.AddMove(Location { 15 }, Location { 14 }); // FR1 -> FR0
+    mr.AddMove(Location { 15 }, Location { 14 }); // FR1 <- FR0
+    mr.AddMove(Location { 16 }, Location { 14 }); // FR2 <- FR0
+    mr.AddMove(Location { 14 }, Location { 15 }); // FR0 <- FR1
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -647,9 +647,9 @@ TEST(MoveResolver, FanOutChain)
     // Simultaneous semantics: all RHS are original values.
     // IR4 := IR2_orig (not IR2's updated value).
     MoveResolver mr;
-    mr.AddMove(Location { 1 }, Location { 2 }); // IR1 -> IR2
-    mr.AddMove(Location { 1 }, Location { 3 }); // IR1 -> IR3
-    mr.AddMove(Location { 2 }, Location { 4 }); // IR2 -> IR4
+    mr.AddMove(Location { 2 }, Location { 1 }); // IR2 <- IR1
+    mr.AddMove(Location { 3 }, Location { 1 }); // IR3 <- IR1
+    mr.AddMove(Location { 4 }, Location { 2 }); // IR4 <- IR2
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -665,9 +665,9 @@ TEST(MoveResolver, FanOutWithSlotAndCycle)
     // IR1 -> IR2, IR1 -> Slot0, IR2 -> IR1
     // IR1 broadcasts to IR2 and Slot0; IR2 feeds back to IR1.
     MoveResolver mr;
-    mr.AddMove(Location { 1 }, Location { 2 });  // IR1 -> IR2
-    mr.AddMove(Location { 1 }, Location { 30 }); // IR1 -> Slot0
-    mr.AddMove(Location { 2 }, Location { 1 });  // IR2 -> IR1
+    mr.AddMove(Location { 2 }, Location { 1 });  // IR2 <- IR1
+    mr.AddMove(Location { 30 }, Location { 1 }); // Slot0 <- IR1
+    mr.AddMove(Location { 1 }, Location { 2 });  // IR1 <- IR2
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -685,15 +685,15 @@ TEST(MoveResolver, RegressionMatrixMultiply_parallel_bench)
     using namespace Cbc;
 
     // clang-format off
-    mr.AddMove(Location::IReg(IReg::IR1),  Location::IReg(IReg::IR1));
-    mr.AddMove(Location::IReg(IReg::IR2),  Location::IReg(IReg::IR2));
-    mr.AddMove(Location::IReg(IReg::IR9),  Location::IReg(IReg::IR3));
-    mr.AddMove(Location::IReg(IReg::IR10), Location::IReg(IReg::IR4));
-    mr.AddMove(Location::IReg(IReg::IR11), Location::IReg(IReg::IR5));
-    mr.AddMove(Location::IReg(IReg::IR13), Location::IReg(IReg::IR6));
-    mr.AddMove(Location::Slot(0),          Location::Slot(0));
-    mr.AddMove(Location::IReg(IReg::IR12), Location::Slot(1));
-    mr.AddMove(Location::IReg(IReg::IR8),  Location::Slot(2));
+    mr.AddMove(Location::IReg(IReg::IR1), Location::IReg(IReg::IR1));
+    mr.AddMove(Location::IReg(IReg::IR2), Location::IReg(IReg::IR2));
+    mr.AddMove(Location::IReg(IReg::IR3), Location::IReg(IReg::IR9));
+    mr.AddMove(Location::IReg(IReg::IR4), Location::IReg(IReg::IR10));
+    mr.AddMove(Location::IReg(IReg::IR5), Location::IReg(IReg::IR11));
+    mr.AddMove(Location::IReg(IReg::IR6), Location::IReg(IReg::IR13));
+    mr.AddMove(Location::Slot(0), Location::Slot(0));
+    mr.AddMove(Location::Slot(1), Location::IReg(IReg::IR12));
+    mr.AddMove(Location::Slot(2), Location::IReg(IReg::IR8));
     // clang-format on
 
     RegsAndSlots r;
@@ -781,7 +781,7 @@ TEST(MoveResolver, LoadToSlotIsAtTheBeginning)
 {
     // Param slot loads run before the register shuffle: Slot0 reads the pre-move IR1.
     MoveResolver mr;
-    mr.AddMove(Location::IReg(IReg::IR5), Location::IReg(IReg::IR1));                // IR1 = IR5
+    mr.AddMove(Location::IReg(IReg::IR1), Location::IReg(IReg::IR5));                // IR1 = IR5
     Load64(mr, Location::IReg(IReg::IR1), 8, Location::Slot(0));                     // Slot0 = *(IR1 + 8)
 
     RegsAndSlots r;
@@ -797,7 +797,7 @@ TEST(MoveResolver, SlotAddrLoadIsDeferred)
     // Slot-addr loads read immutable slots: where they are emitted is not observable here.
     MoveResolver mr;
     Load64(mr, Location::Slot(2), 8, Location::IReg(IReg::IR2));                     // IR2 = *(Slot2 + 8)
-    mr.AddMove(Location::IReg(IReg::IR5), Location::IReg(IReg::IR1));                // IR1 = IR5
+    mr.AddMove(Location::IReg(IReg::IR1), Location::IReg(IReg::IR5));                // IR1 = IR5
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -812,7 +812,7 @@ TEST(MoveResolver, ILoadBeforeMove)
     // The load reads the pre-move IR1.
     MoveResolver mr;
     Load64(mr, Location::IReg(IReg::IR1), 0, Location::IReg(IReg::IR2));                     // IR2 = *(IR1)
-    mr.AddMove(Location::IReg(IReg::IR5), Location::IReg(IReg::IR1));                        // IR1 = IR5
+    mr.AddMove(Location::IReg(IReg::IR1), Location::IReg(IReg::IR5));                        // IR1 = IR5
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -827,7 +827,7 @@ TEST(MoveResolver, FLoadBeforeMove)
     // The load reads the pre-move IR1.
     MoveResolver mr;
     LoadF64(mr, Location::IReg(IReg::IR1), 0, Location::FReg(FReg::FR0));                     // FR0 = *(IR1)
-    mr.AddMove(Location::IReg(IReg::IR5), Location::IReg(IReg::IR1));                         // IR1 = IR5
+    mr.AddMove(Location::IReg(IReg::IR1), Location::IReg(IReg::IR5));                         // IR1 = IR5
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -842,7 +842,7 @@ TEST(MoveResolver, LoadMoveCycleBrokenWithTemp)
     // IR2 = *(IR1); IR1 = IR2 forms a cycle: IR2's value is staged through the temp register.
     MoveResolver mr;
     Load64(mr, Location::IReg(IReg::IR1), 0, Location::IReg(IReg::IR2));                     // IR2 = *(IR1)
-    mr.AddMove(Location::IReg(IReg::IR2), Location::IReg(IReg::IR1));                        // IR1 = IR2
+    mr.AddMove(Location::IReg(IReg::IR1), Location::IReg(IReg::IR2));                        // IR1 = IR2
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -879,10 +879,10 @@ TEST(MoveResolver, SharedAddrLoadsClobberAndFanOut)
     //  |__load__|
     //
     MoveResolver mr;
-    mr.AddMove(Location::IReg(IReg::IR3), Location::IReg(IReg::IR1));                        // IR1 = IR3
+    mr.AddMove(Location::IReg(IReg::IR1), Location::IReg(IReg::IR3));                        // IR1 = IR3
     Load64(mr, Location::IReg(IReg::IR1), 0, Location::IReg(IReg::IR2));                     // IR2 = *(IR1)
     Load64(mr, Location::IReg(IReg::IR1), 8, Location::IReg(IReg::IR3));                     // IR3 = *(IR1 + 8)
-    mr.AddMove(Location::IReg(IReg::IR2), Location::IReg(IReg::IR4));                        // IR4 = IR2
+    mr.AddMove(Location::IReg(IReg::IR4), Location::IReg(IReg::IR2));                        // IR4 = IR2
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -899,7 +899,7 @@ TEST(MoveResolver, LoadSelfAddrPreservesAddr)
     // The load spoils IR1, so IR2 must read the pre-load IR1.
     MoveResolver mr;
     Load64(mr, Location::IReg(IReg::IR1), 16, Location::IReg(IReg::IR1));                     // IR1 = *(IR1 + 16)
-    mr.AddMove(Location::IReg(IReg::IR1), Location::IReg(IReg::IR2));                         // IR2 = IR1
+    mr.AddMove(Location::IReg(IReg::IR2), Location::IReg(IReg::IR1));                         // IR2 = IR1
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -915,7 +915,7 @@ TEST(MoveResolver, SharedAddrLoadsBeforeMove)
     MoveResolver mr;
     Load64(mr, Location::IReg(IReg::IR1), 0, Location::IReg(IReg::IR2));                     // IR2 = *(IR1)
     Load64(mr, Location::IReg(IReg::IR1), 8, Location::IReg(IReg::IR3));                     // IR3 = *(IR1 + 8)
-    mr.AddMove(Location::IReg(IReg::IR5), Location::IReg(IReg::IR1));                        // IR1 = IR5
+    mr.AddMove(Location::IReg(IReg::IR1), Location::IReg(IReg::IR5));                        // IR1 = IR5
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -930,7 +930,7 @@ TEST(MoveResolver, SharedAddrLoadsAfterMove)
 {
     // The same batch with the move added first: the loads still read the pre-move IR1.
     MoveResolver mr;
-    mr.AddMove(Location::IReg(IReg::IR5), Location::IReg(IReg::IR1));                        // IR1 = IR5
+    mr.AddMove(Location::IReg(IReg::IR1), Location::IReg(IReg::IR5));                        // IR1 = IR5
     Load64(mr, Location::IReg(IReg::IR1), 0, Location::IReg(IReg::IR2));                     // IR2 = *(IR1)
     Load64(mr, Location::IReg(IReg::IR1), 8, Location::IReg(IReg::IR3));                     // IR3 = *(IR1 + 8)
 
@@ -953,18 +953,18 @@ TEST(MoveResolver, AllSrcDstKindsWithLoads)
     // FR2 ---> FR0   IR2 --load--> FR1   (freg graph)
     //
     MoveResolver mr;
-    mr.AddMove(Location::Slot(7), Location::FReg(FReg::FR2));                                  // FR2 = Slot7
+    mr.AddMove(Location::FReg(FReg::FR2), Location::Slot(7));                                  // FR2 = Slot7
     LoadS8(mr, Location::Slot(8), 8, Location::IReg(IReg::IR4));                               // IR4 = *(Slot8 + 8)
-    mr.AddMove(Location::IReg(IReg::IR5), Location::IReg(IReg::IR1));                          // IR1 = IR5
-    mr.AddMove(Location::FReg(FReg::FR2), Location::FReg(FReg::FR0));                          // FR0 = FR2
+    mr.AddMove(Location::IReg(IReg::IR1), Location::IReg(IReg::IR5));                          // IR1 = IR5
+    mr.AddMove(Location::FReg(FReg::FR0), Location::FReg(FReg::FR2));                          // FR0 = FR2
     Load64(mr, Location::IReg(IReg::IR2), 8, Location::IReg(IReg::IR3));                       // IR3 = *(IR2 + 8)
     LoadF64(mr, Location::IReg(IReg::IR2), 16, Location::FReg(FReg::FR1));                     // FR1 = *(IR2 + 16)
-    mr.AddMove(Location::IReg(IReg::IR4), Location::Slot(0));                                  // Slot0 = IR4
-    mr.AddMove(Location::FReg(FReg::FR3), Location::Slot(1));                                  // Slot1 = FR3
-    mr.AddMove(Location::Slot(0), Location::Slot(2));                                          // Slot2 = Slot0
+    mr.AddMove(Location::Slot(0), Location::IReg(IReg::IR4));                                  // Slot0 = IR4
+    mr.AddMove(Location::Slot(1), Location::FReg(FReg::FR3));                                  // Slot1 = FR3
+    mr.AddMove(Location::Slot(2), Location::Slot(0));                                          // Slot2 = Slot0
     Load32(mr, Location::IReg(IReg::IR2), 24, Location::Slot(3));                              // Slot3 = *(IR2 + 24)
     LoadU16(mr, Location::Slot(4), 0, Location::Slot(5));                                      // Slot5 = *(Slot4)
-    mr.AddMove(Location::Slot(6), Location::IReg(IReg::IR6));                                  // IR6 = Slot6
+    mr.AddMove(Location::IReg(IReg::IR6), Location::Slot(6));                                  // IR6 = Slot6
     LoadF32(mr, Location::Slot(9), 16, Location::FReg(FReg::FR3));                             // FR3 = *(Slot9 + 16)
 
     RegsAndSlots r;
@@ -998,15 +998,15 @@ TEST(MoveResolver, MixedCyclesLoadsAndSlots)
     //
     MoveResolver mr;
     Load64(mr, Location::IReg(IReg::IR1), 0, Location::IReg(IReg::IR2));                     // IR2 = *(IR1)
-    mr.AddMove(Location::IReg(IReg::IR2), Location::IReg(IReg::IR3));                        // IR3 = IR2
-    mr.AddMove(Location::IReg(IReg::IR3), Location::IReg(IReg::IR1));                        // IR1 = IR3
-    mr.AddMove(Location::FReg(FReg::FR0), Location::FReg(FReg::FR1));                        // FR1 = FR0
-    mr.AddMove(Location::FReg(FReg::FR1), Location::FReg(FReg::FR0));                        // FR0 = FR1
-    mr.AddMove(Location::IReg(IReg::IR4), Location::Slot(0));                                // Slot0 = IR4
+    mr.AddMove(Location::IReg(IReg::IR3), Location::IReg(IReg::IR2));                        // IR3 = IR2
+    mr.AddMove(Location::IReg(IReg::IR1), Location::IReg(IReg::IR3));                        // IR1 = IR3
+    mr.AddMove(Location::FReg(FReg::FR1), Location::FReg(FReg::FR0));                        // FR1 = FR0
+    mr.AddMove(Location::FReg(FReg::FR0), Location::FReg(FReg::FR1));                        // FR0 = FR1
+    mr.AddMove(Location::Slot(0), Location::IReg(IReg::IR4));                                // Slot0 = IR4
     Load32(mr, Location::IReg(IReg::IR5), 8, Location::Slot(1));                             // Slot1 = *(IR5 + 8)
     LoadF32(mr, Location::Slot(2), 16, Location::FReg(FReg::FR2));                           // FR2 = *(Slot2 + 16)
-    mr.AddMove(Location::Slot(3), Location::IReg(IReg::IR6));                                // IR6 = Slot3
-    mr.AddMove(Location::Slot(4), Location::FReg(FReg::FR3));                                // FR3 = Slot4
+    mr.AddMove(Location::IReg(IReg::IR6), Location::Slot(3));                                // IR6 = Slot3
+    mr.AddMove(Location::FReg(FReg::FR3), Location::Slot(4));                                // FR3 = Slot4
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -1029,11 +1029,11 @@ TEST(MoveResolver, LoadsFromSlotsAfterResolving)
     // IR1 --load--> IR2 ---> IR3
     //
     MoveResolver mr;
-    mr.AddMove(Location::Slot(0), Location::IReg(IReg::IR1));                                // IR1 = Slot0
+    mr.AddMove(Location::IReg(IReg::IR1), Location::Slot(0));                                // IR1 = Slot0
     Load64(mr, Location::IReg(IReg::IR1), 8, Location::IReg(IReg::IR2));                     // IR2 = *(IR1 + 8)
-    mr.AddMove(Location::IReg(IReg::IR2), Location::IReg(IReg::IR3));                        // IR3 = IR2
+    mr.AddMove(Location::IReg(IReg::IR3), Location::IReg(IReg::IR2));                        // IR3 = IR2
     Load32(mr, Location::Slot(1), 0, Location::IReg(IReg::IR4));                             // IR4 = *(Slot1)
-    mr.AddMove(Location::FReg(FReg::FR0), Location::FReg(FReg::FR1));                        // FR1 = FR0
+    mr.AddMove(Location::FReg(FReg::FR1), Location::FReg(FReg::FR0));                        // FR1 = FR0
     LoadF64(mr, Location::Slot(2), 4, Location::FReg(FReg::FR0));                            // FR0 = *(Slot2 + 4)
 
     RegsAndSlots r;
@@ -1059,14 +1059,14 @@ TEST(MoveResolver, TwoCyclesOneWithLoad)
     //  |______________________|
     //
     MoveResolver mr;
-    mr.AddMove(Location::IReg(IReg::IR1), Location::IReg(IReg::IR2));                        // IR2 = IR1
-    mr.AddMove(Location::IReg(IReg::IR2), Location::IReg(IReg::IR1));                        // IR1 = IR2
+    mr.AddMove(Location::IReg(IReg::IR2), Location::IReg(IReg::IR1));                        // IR2 = IR1
+    mr.AddMove(Location::IReg(IReg::IR1), Location::IReg(IReg::IR2));                        // IR1 = IR2
     Load64(mr, Location::IReg(IReg::IR3), 0, Location::IReg(IReg::IR4));                     // IR4 = *(IR3)
-    mr.AddMove(Location::IReg(IReg::IR4), Location::IReg(IReg::IR5));                        // IR5 = IR4
-    mr.AddMove(Location::IReg(IReg::IR5), Location::IReg(IReg::IR3));                        // IR3 = IR5
-    mr.AddMove(Location::FReg(FReg::FR0), Location::Slot(0));                                // Slot0 = FR0
+    mr.AddMove(Location::IReg(IReg::IR5), Location::IReg(IReg::IR4));                        // IR5 = IR4
+    mr.AddMove(Location::IReg(IReg::IR3), Location::IReg(IReg::IR5));                        // IR3 = IR5
+    mr.AddMove(Location::Slot(0), Location::FReg(FReg::FR0));                                // Slot0 = FR0
     Load64(mr, Location::Slot(1), 8, Location::FReg(FReg::FR1));                             // FR1 = *(Slot1 + 8)
-    mr.AddMove(Location::Slot(2), Location::IReg(IReg::IR6));                                // IR6 = Slot2
+    mr.AddMove(Location::IReg(IReg::IR6), Location::Slot(2));                                // IR6 = Slot2
 
     RegsAndSlots r;
     r.Resolve(mr);
@@ -1090,16 +1090,16 @@ TEST(MoveResolver, ManyLoadsFromOneAddr)
     // IR5 ---> IR9 --load--> { IR1, IR2, FR0, Slot0 }
     //
     MoveResolver mr;
-    mr.AddMove(Location::IReg(IReg::IR5), Location::IReg(IReg::IR9));                         // IR9 = IR5
+    mr.AddMove(Location::IReg(IReg::IR9), Location::IReg(IReg::IR5));                         // IR9 = IR5
     Load64(mr, Location::IReg(IReg::IR9), 0, Location::IReg(IReg::IR1));                      // IR1 = *(IR9 + 0)
     LoadF64(mr, Location::IReg(IReg::IR9), 8, Location::FReg(FReg::FR0));                     // FR0 = *(IR9 + 8)
     Load32(mr, Location::IReg(IReg::IR9), 16, Location::IReg(IReg::IR2));                     // IR2 = *(IR9 + 16)
     Load64(mr, Location::IReg(IReg::IR9), 24, Location::Slot(0));                             // Slot0 = *(IR9 + 24)
-    mr.AddMove(Location::IReg(IReg::IR10), Location::IReg(IReg::IR3));                        // IR3 = IR10
-    mr.AddMove(Location::Slot(5), Location::IReg(IReg::IR4));                                 // IR4 = Slot5
-    mr.AddMove(Location::FReg(FReg::FR1), Location::FReg(FReg::FR2));                         // FR2 = FR1
+    mr.AddMove(Location::IReg(IReg::IR3), Location::IReg(IReg::IR10));                        // IR3 = IR10
+    mr.AddMove(Location::IReg(IReg::IR4), Location::Slot(5));                                 // IR4 = Slot5
+    mr.AddMove(Location::FReg(FReg::FR2), Location::FReg(FReg::FR1));                         // FR2 = FR1
     Load64(mr, Location::Slot(6), 0, Location::IReg(IReg::IR5));                              // IR5 = *(Slot6)
-    mr.AddMove(Location::IReg(IReg::IR11), Location::Slot(1));                                // Slot1 = IR11
+    mr.AddMove(Location::Slot(1), Location::IReg(IReg::IR11));                                // Slot1 = IR11
 
     RegsAndSlots r;
     r.Resolve(mr);
