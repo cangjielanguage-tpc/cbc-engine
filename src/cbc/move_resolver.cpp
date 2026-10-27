@@ -158,8 +158,8 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
 
     AssignmentInfo nodes[REG_COUNT] = {};
 
-    for (int idx = 0; idx < REG_COUNT; idx++)
-        nodes[idx] = AssignmentInfo::Move(Location { idx });
+    for (Location dst = 0; dst < REG_COUNT; ++dst)
+        nodes[dst] = AssignmentInfo::Move(dst);
 
     for (auto& assignment : assignments) {
         auto dst   = assignment.dst;
@@ -221,8 +221,7 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
         constexpr char DONE        = 1;
         char state[REG_COUNT]      = { NOT_VISITED };
 
-        for (int idx = 0; idx < REG_COUNT; idx++) {
-            Location dst = Location { idx };
+        for (Location dst = 0; dst < REG_COUNT; ++dst) {
             if (nodes[dst].Src() == dst && !nodes[dst].isLoad)
                 state[dst] = DONE;
         }
@@ -231,8 +230,7 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
         while (changed) {
             changed = false;
             // Find and resolve chains.
-            for (int idx = 0; idx < REG_COUNT; idx++) {
-                Location dst = Location { idx };
+            for (Location dst = 0; dst < REG_COUNT; ++dst) {
                 if (state[dst] == DONE) {
                     continue;
                 }
@@ -241,8 +239,8 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
 
                 // check if someone needs a value of `dst`.
                 bool needed = false;
-                for (int other = 0; other < REG_COUNT; other++) {
-                    if (state[other] == DONE || other == idx)
+                for (Location other = 0; other < REG_COUNT; ++other) {
+                    if (state[other] == DONE || other == dst)
                         continue;
                     if (nodes[other].Src() == dst) {
                         needed = true;
@@ -266,8 +264,7 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
             // 2. The loop above should process all chains.
             for (Location temp : temps) {
                 ASSERT(state[temp] == DONE);
-                for (int idx = 0; idx < REG_COUNT; idx++) {
-                    Location dst = Location { idx };
+                for (Location dst = 0; dst < REG_COUNT; ++dst) {
                     if (state[dst] == DONE)
                         continue;
                     ASSERT(nodes[dst].Src() != temp || dst == temp);
@@ -277,8 +274,7 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
 
             // A cycle is present and there are no chains left.
             // So, any non-done `dst` is part of a cycle.
-            for (int idx = 0; idx < REG_COUNT; idx++) {
-                Location dst = Location { idx };
+            for (Location dst = 0; dst < REG_COUNT; ++dst) {
                 if (state[dst] == DONE)
                     continue;
                 Location tmp = dst.Kind() == Location::IREG ? temps[0] : temps[1];
@@ -289,8 +285,7 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
             }
         }
 
-        for (int idx = 0; idx < REG_COUNT; idx++) {
-            Location dst = Location { idx };
+        for (Location dst = 0; dst < REG_COUNT; ++dst) {
             ASSERT(state[dst] == DONE);
             // The loop will be optimized out.
         }

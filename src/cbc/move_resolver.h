@@ -11,6 +11,10 @@ namespace Cbc {
 struct Location {
     int idx;
 
+    constexpr Location() : idx(0) {}
+
+    constexpr Location(int idx) : idx(idx) {}
+
     enum Kind : char {
         NIL  = 'n',
         IREG = 'i',
@@ -41,11 +45,17 @@ struct Location {
 
     static Location Slot(int slot) { return Location { IReg::VIRT_COUNT + FReg::COUNT + slot }; }
 
-    static constexpr Location Nil() { return Location { -1 }; }
+    static constexpr Location Nil() { return Location(-1); }
 
     bool operator==(const Location& other) const { return idx == other.idx; }
 
     bool operator!=(const Location& other) const { return idx != other.idx; }
+
+    Location& operator++()
+    {
+        ++idx;
+        return *this;
+    }
 
     operator int() const { return idx; }
 };

@@ -108,8 +108,7 @@ CAbiStructPlan ClassifyCAbiStruct(
         int needIRegs = 0;
         int needFRegs = 0;
         for (const auto& piece : plan.pieces) {
-            bool isFloat = piece.kind == CbcTypeKind::F32 || piece.kind == CbcTypeKind::F64;
-            (isFloat ? needFRegs : needIRegs)++;
+            (IsFloat(piece.kind) ? needFRegs : needIRegs)++;
         }
         if ((isVarArg && HostTraits::ONLY_ONSTACK_VARARGS) || needIRegs > freeIRegs || needFRegs > freeFRegs) {
             plan.passBy = CAbiPassBy::STACK;
