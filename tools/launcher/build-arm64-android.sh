@@ -11,6 +11,7 @@ mkdir -p "$BUILD_DIR"
 CANGJIE_HOME=$1
 ANDROID_NDK=$2
 LAUNCHER_NAME=launcher
+PRELOAD_NAME=libcbc-preload.so
 
 source $CANGJIE_HOME/envsetup.sh
 
@@ -27,6 +28,12 @@ function clang-android() {
 }
 
 clang-android \
+  "${SCRIPT_DIR}/engine-common.c" \
+  -Os \
+  -fno-omit-frame-pointer \
+  -c -o "${BUILD_DIR}/engine-common.o"
+
+clang-android \
   "${SCRIPT_DIR}/${LAUNCHER_NAME}.c" \
   -Os \
   '-Wl,-z,noexecstack' \
@@ -34,8 +41,18 @@ clang-android \
   '-rdynamic' \
   -fno-omit-frame-pointer \
   -o "${BUILD_DIR}/${LAUNCHER_NAME}" \
+  "${BUILD_DIR}/engine-common.o" \
   "-L$CANGJIE_HOME/runtime/lib/linux_android_aarch64_cjnative" \
   '-l:libcangjie-runtime.so' \
+  '-ldl' '-lc' \
+
+clang-android \
+  "${SCRIPT_DIR}/preload.c" \
+  -Os \
+  '-Wl,-z,noexecstack' \
+  -fno-omit-frame-pointer \
+  -shared -o "${BUILD_DIR}/${PRELOAD_NAME}" \
+  "${BUILD_DIR}/engine-common.o" \
   '-ldl' '-lc' \
 
 cp *.cj ${BUILD_DIR}
