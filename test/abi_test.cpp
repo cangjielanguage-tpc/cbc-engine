@@ -37,6 +37,18 @@ TestArg IntArg() { return { false, false, false }; }
 
 TestArg FloatArg() { return { true, false, false }; }
 
+// ABI description paired with the platform's temp registers.
+struct TestPlatformDesc {
+    AbiAssigner::PlatformDescription desc;
+    IReg iregTemp;
+    FReg fregTemp;
+
+    template <Platform p> static TestPlatformDesc FromTraits()
+    {
+        return { AbiAssigner::PlatformDescription::FromTraits<p>(), PlatformTraits<p>::TR, FReg::FR15 };
+    }
+};
+
 // Test-specific wrapper combining AbiAssigner + MoveResolver.
 // Exposes the old AbiBuilder interface (Consume takes a source Location).
 // Tracks metadata (masks, slot lists) locally from (Location, CbcTypeKind).
@@ -51,9 +63,10 @@ struct TestAbiBuilder {
     Utils::Vector<uint32_t> refStackSlots;
     Utils::Vector<uint32_t> recStackSlots;
 
-    AbiAssigner::PlatformDescription desc;
+    TestPlatformDesc desc;
 
-    TestAbiBuilder(const AbiAssigner::PlatformDescription& desc) : assigner(desc), desc(desc) {}
+    TestAbiBuilder(const TestPlatformDesc& desc) : assigner(desc.desc), moves(desc.iregTemp, desc.fregTemp), desc(desc)
+    {}
 
     void track(Location target, CbcTypeKind kind)
     {
@@ -109,7 +122,7 @@ struct TestAbiBuilder {
 
     void Clear()
     {
-        assigner = AbiAssigner(desc);
+        assigner = AbiAssigner(desc.desc);
         moves.Clear();
         iregStackPtrMask = 0;
         iregRefMask      = 0;
@@ -135,8 +148,8 @@ struct TestAbiBuilder {
 
 } // namespace
 
-static auto X64Desc = AbiAssigner::PlatformDescription::FromTraits<Platform::LINUX_X64>();
-static auto A64Desc = AbiAssigner::PlatformDescription::FromTraits<Platform::LINUX_AARCH64>();
+static auto X64Desc = TestPlatformDesc::FromTraits<Platform::LINUX_X64>();
+static auto A64Desc = TestPlatformDesc::FromTraits<Platform::LINUX_AARCH64>();
 
 TEST(AbiBuilder, NoFlagsIntParams)
 {

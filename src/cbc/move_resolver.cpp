@@ -7,8 +7,6 @@
 
 namespace Cbc {
 
-static constexpr IReg IREG_TEMP = PlatformTraits<HOST_PLATFORM>::TR;
-static constexpr FReg FREG_TEMP = FReg::FR15;
 static constexpr int REG_COUNT  = Location::REG_COUNT;
 
 void MoveResolver::Clear() { assignments.Clear(); }
@@ -212,84 +210,84 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
         }
     }
 
-    auto cycleResolver = [](Utils::Span<AssignmentInfo> nodes,
-                            Utils::Function<void(Location, AssignmentInfo)> const& assign) {
-        ASSERT(nodes.Size() == REG_COUNT);
-        // The graph is: "nodes[dst].Src() -> dst"
+    auto cycleResolver =
+        [this](Utils::Span<AssignmentInfo> nodes, Utils::Function<void(Location, AssignmentInfo)> const& assign) {
+            ASSERT(nodes.Size() == REG_COUNT);
+            // The graph is: "nodes[dst].Src() -> dst"
 
-        constexpr char NOT_VISITED = 0;
-        constexpr char DONE        = 1;
-        char state[REG_COUNT]      = { NOT_VISITED };
+            constexpr char NOT_VISITED = 0;
+            constexpr char DONE        = 1;
+            char state[REG_COUNT]      = { NOT_VISITED };
 
-        for (Location dst = 0; dst < REG_COUNT; ++dst) {
-            if (nodes[dst].Src() == dst && !nodes[dst].isLoad)
-                state[dst] = DONE;
-        }
-
-        bool changed = true; // fixed-point iteration
-        while (changed) {
-            changed = false;
-            // Find and resolve chains.
             for (Location dst = 0; dst < REG_COUNT; ++dst) {
-                if (state[dst] == DONE) {
-                    continue;
-                }
-                auto src = nodes[dst].Src();
-                ASSERT(src != dst || nodes[dst].isLoad);
+                if (nodes[dst].Src() == dst && !nodes[dst].isLoad)
+                    state[dst] = DONE;
+            }
 
-                // check if someone needs a value of `dst`.
-                bool needed = false;
-                for (Location other = 0; other < REG_COUNT; ++other) {
-                    if (state[other] == DONE || other == dst)
+            bool changed = true; // fixed-point iteration
+            while (changed) {
+                changed = false;
+                // Find and resolve chains.
+                for (Location dst = 0; dst < REG_COUNT; ++dst) {
+                    if (state[dst] == DONE) {
                         continue;
-                    if (nodes[other].Src() == dst) {
-                        needed = true;
-                        break;
+                    }
+                    auto src = nodes[dst].Src();
+                    ASSERT(src != dst || nodes[dst].isLoad);
+
+                    // check if someone needs a value of `dst`.
+                    bool needed = false;
+                    for (Location other = 0; other < REG_COUNT; ++other) {
+                        if (state[other] == DONE || other == dst)
+                            continue;
+                        if (nodes[other].Src() == dst) {
+                            needed = true;
+                            break;
+                        }
+                    }
+                    if (needed)
+                        continue;
+                    // safe to assign src to dst
+                    assign(dst, nodes[dst]);
+                    changed    = true;
+                    state[dst] = DONE;
+                }
+                if (changed)
+                    continue;
+
+                Location temps[] = { Location::IReg(iRegTemp), Location::FReg(fRegTemp) };
+
+                // Invariant: any in-progress assignment cannot have a `temp` register.
+                // 1. A `temp` register cannot be part of a cycle (due to the ABI).
+                // 2. The loop above should process all chains.
+                for (Location temp : temps) {
+                    ASSERT(state[temp] == DONE);
+                    for (Location dst = 0; dst < REG_COUNT; ++dst) {
+                        if (state[dst] == DONE)
+                            continue;
+                        ASSERT(nodes[dst].Src() != temp || dst == temp);
+                        // The loop will be optimized out.
                     }
                 }
-                if (needed)
-                    continue;
-                // safe to assign src to dst
-                assign(dst, nodes[dst]);
-                changed    = true;
-                state[dst] = DONE;
-            }
-            if (changed)
-                continue;
 
-            Location temps[] = { Location::IReg(IREG_TEMP), Location::FReg(FREG_TEMP) };
-
-            // Invariant: any in-progress assignment cannot have a `temp` register.
-            // 1. A `temp` register cannot be part of a cycle (due to the ABI).
-            // 2. The loop above should process all chains.
-            for (Location temp : temps) {
-                ASSERT(state[temp] == DONE);
+                // A cycle is present and there are no chains left.
+                // So, any non-done `dst` is part of a cycle.
                 for (Location dst = 0; dst < REG_COUNT; ++dst) {
                     if (state[dst] == DONE)
                         continue;
-                    ASSERT(nodes[dst].Src() != temp || dst == temp);
-                    // The loop will be optimized out.
+                    Location tmp = dst.Kind() == Location::IREG ? temps[0] : temps[1];
+                    assign(tmp, nodes[dst]);
+                    nodes[dst] = AssignmentInfo::Move(tmp);
+                    changed    = true;
+                    break;
                 }
             }
 
-            // A cycle is present and there are no chains left.
-            // So, any non-done `dst` is part of a cycle.
             for (Location dst = 0; dst < REG_COUNT; ++dst) {
-                if (state[dst] == DONE)
-                    continue;
-                Location tmp = dst.Kind() == Location::IREG ? temps[0] : temps[1];
-                assign(tmp, nodes[dst]);
-                nodes[dst] = AssignmentInfo::Move(tmp);
-                changed = true;
-                break;
+                ASSERT(state[dst] == DONE);
+                // The loop will be optimized out.
             }
-        }
-
-        for (Location dst = 0; dst < REG_COUNT; ++dst) {
-            ASSERT(state[dst] == DONE);
-            // The loop will be optimized out.
-        }
-    };
+        };
 
     auto assign = [&emitter](Location dst, AssignmentInfo info) {
         if (info.isLoad) {
