@@ -86,6 +86,11 @@ public:
 // clobbered before it is read.
 class MoveResolver {
 public:
+    MoveResolver(IReg iRegTemp = PlatformTraits<HOST_PLATFORM>::TR, FReg fRegTemp = FReg::FR15)
+        : iRegTemp(iRegTemp),
+          fRegTemp(fRegTemp)
+    {}
+
     void Clear();
     void AddMove(Location src, Location dst);
     void AddLoadFromAddr(Location srcAddr, int32_t offset, Format::LoadAccessKind ldk, Location dst);
@@ -106,6 +111,8 @@ private:
     };
 
     Utils::Vector<Assignment> assignments;
+    IReg iRegTemp;
+    FReg fRegTemp;
 };
 
 } // namespace Cbc
