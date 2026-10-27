@@ -7,12 +7,11 @@
 #include <unistd.h>
 
 #include "engine.h"
+#include "engine-common.h"
 #include "cj-interface.h"
 
 #define MAX_ARGS 1024
 char *g_arg_buffer[MAX_ARGS]; // global args buffer
-
-char const *interpreter_lib = "libcbcengine.so";
 
 extern int   InitCJRuntime(struct RuntimeParam *param);
 extern enum RTErrorCode InitCJInterpreter(struct InterpreterParam* param);
@@ -21,8 +20,6 @@ extern void *FindCJSymbol(const char *libName, const char *symbolName);
 extern void *RunCJTask(const void *func, void *args);
 extern int   GetTaskRet(const void *handle, void** ret);
 extern enum RTErrorCode SetCJCommandLineArgs(int argc, char* argv[]);
-
-Engine g_engine;
 
 typedef enum ParserState {
     PARSE,
@@ -67,18 +64,13 @@ static void init_cangjie_runtime(int arg_count) {
         },
     };
 
-    struct InterpreterParam interpParams = {
-        .interpreterLibName   = interpreter_lib,
-        .interpreterArgsCount = 0,
-    };
-
     int rtInitCode = InitCJRuntime(&rtParams);
     if (rtInitCode != 0) {
         fprintf(stderr, "Runtime initialization failed with code: %d\n", rtInitCode);
         exit(-1);
     }
 
-    enum RTErrorCode interpInitCode = InitCJInterpreter(&interpParams);
+    enum RTErrorCode interpInitCode = init_cbc_interpreter();
     if (interpInitCode != E_OK) {
         fprintf(stderr, "Interpreter initialization failed with code: %d\n", interpInitCode);
         exit(-1);
@@ -237,32 +229,8 @@ dispatch:
     }
 }
 
-static void *xdlsym(void *handle, char const *name) {
-    void *result = dlsym(handle, name);
-    if (!result) {
-        fprintf(stderr, "dlsym(%s) failed: %s\n", name, dlerror());
-        exit(-1);
-    }
-    return result;
-}
-
-static void initialize_engine() {
-    void *engine_handle = dlopen(interpreter_lib, RTLD_NOW);
-    if (!engine_handle) {
-        fprintf(stderr, "dlopen failed: %s\n", dlerror());
-        exit(-1);
-    }
-
-    g_engine.get_trampoline = xdlsym(engine_handle, "engine_get_entrypoint_trampoline");
-    g_engine.initialize = xdlsym(engine_handle, "engine_initialize");
-    g_engine.set_cbcpath = xdlsym(engine_handle, "engine_set_cbcpath");
-    g_engine.set_main_cbc = xdlsym(engine_handle, "engine_set_main_cbc");
-    g_engine.enable_dasm = xdlsym(engine_handle, "engine_enable_dasm");
-    g_engine.enable_raw_dasm = xdlsym(engine_handle, "engine_enable_raw_dasm");
-}
-
 int main(int argc, char *argv[]) {
-    initialize_engine();
+    load_engine_symbols();
     return parse_args_and_start(argc, argv);
 }
 
