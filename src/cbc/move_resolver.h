@@ -46,6 +46,8 @@ struct Location {
     bool operator==(const Location& other) const { return idx == other.idx; }
 
     bool operator!=(const Location& other) const { return idx != other.idx; }
+
+    operator int() const { return idx; }
 };
 
 // Abstract sink for resolved moves. Implementations emit the actual
@@ -80,14 +82,9 @@ public:
     // which is unsupported.
     bool Resolve(MoveEmitter& emitter);
 
-    static constexpr auto NIL     = Location { -1 };
-    static constexpr auto TEMP_FR = FReg::FR15;
-
-    MoveResolver(IReg tempIr = PlatformTraits<HOST_PLATFORM>::TR);
+    static constexpr auto NIL = Location { -1 };
 
 private:
-    IReg tempIr;
-
     struct Assignment {
         Location dst;
         Location src;
