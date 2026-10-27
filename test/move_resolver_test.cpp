@@ -11,83 +11,34 @@ namespace {
 
 using LDK = Format::LoadAccessKind;
 
-struct Emit {
-    Location dst;
-    Location src; // move source or load address
-    int32_t offset;
-    LDK ldk;
-    bool isLoad;
-
-    Emit(Location dst, Location src) : dst(dst), src(src), offset(0), ldk(LDK::LD_64), isLoad(false) {}
-
-    Emit(Location dst, Location addr, int32_t offset, LDK ldk)
-        : dst(dst),
-          src(addr),
-          offset(offset),
-          ldk(ldk),
-          isLoad(true)
-    {}
-
-    bool operator==(const Emit& other) const
-    {
-        return dst == other.dst && src == other.src && offset == other.offset && ldk == other.ldk &&
-               isLoad == other.isLoad;
-    }
-};
-
-struct RecordingEmitter : public MoveEmitter {
-    std::vector<Emit> emits;
-
-    void AssignIReg(IReg dst, IReg src) override { emits.emplace_back(Location::IReg(dst), Location::IReg(src)); }
-
-    void AssignFReg(FReg dst, FReg src) override { emits.emplace_back(Location::FReg(dst), Location::FReg(src)); }
-
-    void AssignParamSlot(int paramSlot, int stackSlot) override
-    {
-        emits.emplace_back(Location::Slot(paramSlot), Location::Slot(stackSlot));
-    }
-
-    void AssignFRegFromSlot(FReg dst, int slot) override
-    {
-        emits.emplace_back(Location::FReg(dst), Location::Slot(slot));
-    }
-
-    void AssignIRegFromSlot(IReg dst, int slot) override
-    {
-        emits.emplace_back(Location::IReg(dst), Location::Slot(slot));
-    }
-
-    void AssignSlotFromIReg(int slot, IReg src) override
-    {
-        emits.emplace_back(Location::Slot(slot), Location::IReg(src));
-    }
-
-    void AssignSlotFromFReg(int slot, FReg src) override
-    {
-        emits.emplace_back(Location::Slot(slot), Location::FReg(src));
-    }
-
-    void AssignIRegFromAddr(IReg dst, Location addr, int32_t offset, Format::LoadAccessKind ldk) override
-    {
-        emits.emplace_back(Location::IReg(dst), addr, offset, ldk);
-    }
-
-    void AssignFRegFromAddr(FReg dst, Location addr, int32_t offset, Format::LoadAccessKind ldk) override
-    {
-        emits.emplace_back(Location::FReg(dst), addr, offset, ldk);
-    }
-
-    void AssignSlotFromAddr(int paramSlot, Location addr, int32_t offset, Format::LoadAccessKind ldk) override
-    {
-        emits.emplace_back(Location::Slot(paramSlot), addr, offset, ldk);
-    }
-};
-
-std::vector<Emit> Resolve(MoveResolver& mr)
+void Load32(MoveResolver& mr, Location addr, int32_t offset, Location dst)
 {
-    RecordingEmitter emitter;
-    mr.Resolve(emitter);
-    return emitter.emits;
+    mr.AddLoadFromAddr(addr, offset, LDK::LD_32, dst);
+}
+
+void Load64(MoveResolver& mr, Location addr, int32_t offset, Location dst)
+{
+    mr.AddLoadFromAddr(addr, offset, LDK::LD_64, dst);
+}
+
+void LoadU16(MoveResolver& mr, Location addr, int32_t offset, Location dst)
+{
+    mr.AddLoadFromAddr(addr, offset, LDK::LD_U16, dst);
+}
+
+void LoadS8(MoveResolver& mr, Location addr, int32_t offset, Location dst)
+{
+    mr.AddLoadFromAddr(addr, offset, LDK::LD_S8, dst);
+}
+
+void LoadF32(MoveResolver& mr, Location addr, int32_t offset, Location dst)
+{
+    mr.AddLoadFromAddr(addr, offset, LDK::LD_F32, dst);
+}
+
+void LoadF64(MoveResolver& mr, Location addr, int32_t offset, Location dst)
+{
+    mr.AddLoadFromAddr(addr, offset, LDK::LD_F64, dst);
 }
 
 } // namespace
@@ -102,8 +53,8 @@ TEST(MoveResolver, NoConflict)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 2);
-    EXPECT_EQ(r.iregs[2], IrValue(1));
-    EXPECT_EQ(r.iregs[4], IrValue(3));
+    EXPECT_EQ(r.iregs[2], Cell::Move(IrValue(1)));
+    EXPECT_EQ(r.iregs[4], Cell::Move(IrValue(3)));
 }
 
 TEST(MoveResolver, TwoCycleSwap)
@@ -116,8 +67,8 @@ TEST(MoveResolver, TwoCycleSwap)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 3);
-    EXPECT_EQ(r.iregs[2], IrValue(1));
-    EXPECT_EQ(r.iregs[1], IrValue(2));
+    EXPECT_EQ(r.iregs[2], Cell::Move(IrValue(1)));
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(2)));
 }
 
 TEST(MoveResolver, ThreeCycle)
@@ -131,9 +82,9 @@ TEST(MoveResolver, ThreeCycle)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 4);
-    EXPECT_EQ(r.iregs[2], IrValue(1));
-    EXPECT_EQ(r.iregs[3], IrValue(2));
-    EXPECT_EQ(r.iregs[1], IrValue(3));
+    EXPECT_EQ(r.iregs[2], Cell::Move(IrValue(1)));
+    EXPECT_EQ(r.iregs[3], Cell::Move(IrValue(2)));
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(3)));
 }
 
 TEST(MoveResolver, FRegCycle)
@@ -146,8 +97,8 @@ TEST(MoveResolver, FRegCycle)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 3);
-    EXPECT_EQ(r.fregs[1], FrValue(0));
-    EXPECT_EQ(r.fregs[0], FrValue(1));
+    EXPECT_EQ(r.fregs[1], Cell::Move(FrValue(0)));
+    EXPECT_EQ(r.fregs[0], Cell::Move(FrValue(1)));
 }
 
 TEST(MoveResolver, SlotCycle)
@@ -160,8 +111,8 @@ TEST(MoveResolver, SlotCycle)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 2);
-    EXPECT_EQ(r.paramPassingStackSlots[1], StValue(0));
-    EXPECT_EQ(r.paramPassingStackSlots[0], StValue(1));
+    EXPECT_EQ(r.paramPassingStackSlots[1], Cell::Move(StValue(0)));
+    EXPECT_EQ(r.paramPassingStackSlots[0], Cell::Move(StValue(1)));
 }
 
 TEST(MoveResolver, SingleMove)
@@ -173,7 +124,7 @@ TEST(MoveResolver, SingleMove)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 1);
-    EXPECT_EQ(r.iregs[2], IrValue(1));
+    EXPECT_EQ(r.iregs[2], Cell::Move(IrValue(1)));
 }
 
 TEST(MoveResolver, Empty)
@@ -195,7 +146,7 @@ TEST(MoveResolver, ClearAllowsReuse)
     mr.AddMove(Location { 1 }, Location { 2 });
     r1.Resolve(mr);
     ASSERT_EQ(r1.movCount, 1);
-    EXPECT_EQ(r1.iregs[2], IrValue(1));
+    EXPECT_EQ(r1.iregs[2], Cell::Move(IrValue(1)));
 
     // Clear and reuse
     mr.Clear();
@@ -204,8 +155,8 @@ TEST(MoveResolver, ClearAllowsReuse)
     mr.AddMove(Location { 6 }, Location { 5 });
     r2.Resolve(mr);
     ASSERT_EQ(r2.movCount, 3); // 2 moves + 1 cycle break
-    EXPECT_EQ(r2.iregs[5], IrValue(6));
-    EXPECT_EQ(r2.iregs[6], IrValue(5));
+    EXPECT_EQ(r2.iregs[5], Cell::Move(IrValue(6)));
+    EXPECT_EQ(r2.iregs[6], Cell::Move(IrValue(5)));
 }
 
 TEST(MoveResolver, LocationKind)
@@ -237,9 +188,9 @@ TEST(MoveResolver, SimilarIRegNoCycle)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 3);
-    EXPECT_EQ(r.iregs[2], IrValue(1));
-    EXPECT_EQ(r.iregs[4], IrValue(3));
-    EXPECT_EQ(r.iregs[6], IrValue(5));
+    EXPECT_EQ(r.iregs[2], Cell::Move(IrValue(1)));
+    EXPECT_EQ(r.iregs[4], Cell::Move(IrValue(3)));
+    EXPECT_EQ(r.iregs[6], Cell::Move(IrValue(5)));
 }
 
 TEST(MoveResolver, SimilarIRegCycle)
@@ -255,10 +206,10 @@ TEST(MoveResolver, SimilarIRegCycle)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 5); // 4 moves + 1 temp break
-    EXPECT_EQ(r.iregs[2], IrValue(1));
-    EXPECT_EQ(r.iregs[3], IrValue(2));
-    EXPECT_EQ(r.iregs[4], IrValue(3));
-    EXPECT_EQ(r.iregs[1], IrValue(4));
+    EXPECT_EQ(r.iregs[2], Cell::Move(IrValue(1)));
+    EXPECT_EQ(r.iregs[3], Cell::Move(IrValue(2)));
+    EXPECT_EQ(r.iregs[4], Cell::Move(IrValue(3)));
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(4)));
 }
 
 TEST(MoveResolver, SimilarFRegNoCycle)
@@ -273,9 +224,9 @@ TEST(MoveResolver, SimilarFRegNoCycle)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 3);
-    EXPECT_EQ(r.fregs[1], FrValue(0));
-    EXPECT_EQ(r.fregs[3], FrValue(2));
-    EXPECT_EQ(r.fregs[5], FrValue(4));
+    EXPECT_EQ(r.fregs[1], Cell::Move(FrValue(0)));
+    EXPECT_EQ(r.fregs[3], Cell::Move(FrValue(2)));
+    EXPECT_EQ(r.fregs[5], Cell::Move(FrValue(4)));
 }
 
 TEST(MoveResolver, SimilarFRegCycle)
@@ -290,9 +241,9 @@ TEST(MoveResolver, SimilarFRegCycle)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 4); // 3 moves + 1 temp break
-    EXPECT_EQ(r.fregs[1], FrValue(0));
-    EXPECT_EQ(r.fregs[2], FrValue(1));
-    EXPECT_EQ(r.fregs[0], FrValue(2));
+    EXPECT_EQ(r.fregs[1], Cell::Move(FrValue(0)));
+    EXPECT_EQ(r.fregs[2], Cell::Move(FrValue(1)));
+    EXPECT_EQ(r.fregs[0], Cell::Move(FrValue(2)));
 }
 
 TEST(MoveResolver, SimilarSlotNoCycle)
@@ -307,9 +258,9 @@ TEST(MoveResolver, SimilarSlotNoCycle)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 3);
-    EXPECT_EQ(r.paramPassingStackSlots[1], StValue(0));
-    EXPECT_EQ(r.paramPassingStackSlots[3], StValue(2));
-    EXPECT_EQ(r.paramPassingStackSlots[5], StValue(4));
+    EXPECT_EQ(r.paramPassingStackSlots[1], Cell::Move(StValue(0)));
+    EXPECT_EQ(r.paramPassingStackSlots[3], Cell::Move(StValue(2)));
+    EXPECT_EQ(r.paramPassingStackSlots[5], Cell::Move(StValue(4)));
 }
 
 // --- Doc invariant: volatile src -> param-passing dst (no cycle) ---
@@ -325,7 +276,7 @@ TEST(MoveResolver, VolatileSrcToParamDst)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 1);
-    EXPECT_EQ(r.iregs[1], IrValue(7));
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(7)));
 }
 
 TEST(MoveResolver, VolatileSrcChainToParamDst)
@@ -340,8 +291,8 @@ TEST(MoveResolver, VolatileSrcChainToParamDst)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 2);
-    EXPECT_EQ(r.iregs[1], IrValue(7));
-    EXPECT_EQ(r.iregs[2], IrValue(1));
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(7)));
+    EXPECT_EQ(r.iregs[2], Cell::Move(IrValue(1)));
 }
 
 // --- Full param-passing cycle (stress) ---
@@ -361,12 +312,12 @@ TEST(MoveResolver, FullIRegParamCycle)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 7); // 6 moves + 1 temp break
-    EXPECT_EQ(r.iregs[2], IrValue(1));
-    EXPECT_EQ(r.iregs[3], IrValue(2));
-    EXPECT_EQ(r.iregs[4], IrValue(3));
-    EXPECT_EQ(r.iregs[5], IrValue(4));
-    EXPECT_EQ(r.iregs[6], IrValue(5));
-    EXPECT_EQ(r.iregs[1], IrValue(6));
+    EXPECT_EQ(r.iregs[2], Cell::Move(IrValue(1)));
+    EXPECT_EQ(r.iregs[3], Cell::Move(IrValue(2)));
+    EXPECT_EQ(r.iregs[4], Cell::Move(IrValue(3)));
+    EXPECT_EQ(r.iregs[5], Cell::Move(IrValue(4)));
+    EXPECT_EQ(r.iregs[6], Cell::Move(IrValue(5)));
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(6)));
 }
 
 TEST(MoveResolver, FullFRegParamCycle)
@@ -383,9 +334,9 @@ TEST(MoveResolver, FullFRegParamCycle)
 
     ASSERT_EQ(r.movCount, 9); // 8 moves + 1 temp break
     for (int i = 0; i < 7; i++) {
-        EXPECT_EQ(r.fregs[i + 1], FrValue(i));
+        EXPECT_EQ(r.fregs[i + 1], Cell::Move(FrValue(i)));
     }
-    EXPECT_EQ(r.fregs[0], FrValue(7));
+    EXPECT_EQ(r.fregs[0], Cell::Move(FrValue(7)));
 }
 
 // --- Multiple independent cycles ---
@@ -403,10 +354,10 @@ TEST(MoveResolver, MultipleIndependentCycles)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 6); // 2 cycles x (2 moves + 1 temp break)
-    EXPECT_EQ(r.iregs[2], IrValue(1));
-    EXPECT_EQ(r.iregs[1], IrValue(2));
-    EXPECT_EQ(r.iregs[4], IrValue(3));
-    EXPECT_EQ(r.iregs[3], IrValue(4));
+    EXPECT_EQ(r.iregs[2], Cell::Move(IrValue(1)));
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(2)));
+    EXPECT_EQ(r.iregs[4], Cell::Move(IrValue(3)));
+    EXPECT_EQ(r.iregs[3], Cell::Move(IrValue(4)));
 }
 
 TEST(MoveResolver, ThreeIndependentCyclesMixed)
@@ -425,12 +376,12 @@ TEST(MoveResolver, ThreeIndependentCyclesMixed)
 
     // IR cycle: 3, FR cycle: 3, Slots: 2
     ASSERT_EQ(r.movCount, 8);
-    EXPECT_EQ(r.iregs[2], IrValue(1));
-    EXPECT_EQ(r.iregs[1], IrValue(2));
-    EXPECT_EQ(r.fregs[1], FrValue(0));
-    EXPECT_EQ(r.fregs[0], FrValue(1));
-    EXPECT_EQ(r.paramPassingStackSlots[1], StValue(0));
-    EXPECT_EQ(r.paramPassingStackSlots[3], StValue(2));
+    EXPECT_EQ(r.iregs[2], Cell::Move(IrValue(1)));
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(2)));
+    EXPECT_EQ(r.fregs[1], Cell::Move(FrValue(0)));
+    EXPECT_EQ(r.fregs[0], Cell::Move(FrValue(1)));
+    EXPECT_EQ(r.paramPassingStackSlots[1], Cell::Move(StValue(0)));
+    EXPECT_EQ(r.paramPassingStackSlots[3], Cell::Move(StValue(2)));
 }
 
 TEST(MoveResolver, IndependentCyclesWithSlotMoves)
@@ -451,14 +402,14 @@ TEST(MoveResolver, IndependentCyclesWithSlotMoves)
 
     // IR 3-cycle: 4, FR 2-cycle: 3, Slots: 3
     ASSERT_EQ(r.movCount, 10);
-    EXPECT_EQ(r.iregs[2], IrValue(1));
-    EXPECT_EQ(r.iregs[3], IrValue(2));
-    EXPECT_EQ(r.iregs[1], IrValue(3));
-    EXPECT_EQ(r.fregs[1], FrValue(0));
-    EXPECT_EQ(r.fregs[0], FrValue(1));
-    EXPECT_EQ(r.paramPassingStackSlots[1], StValue(0));
-    EXPECT_EQ(r.paramPassingStackSlots[3], StValue(2));
-    EXPECT_EQ(r.paramPassingStackSlots[5], StValue(4));
+    EXPECT_EQ(r.iregs[2], Cell::Move(IrValue(1)));
+    EXPECT_EQ(r.iregs[3], Cell::Move(IrValue(2)));
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(3)));
+    EXPECT_EQ(r.fregs[1], Cell::Move(FrValue(0)));
+    EXPECT_EQ(r.fregs[0], Cell::Move(FrValue(1)));
+    EXPECT_EQ(r.paramPassingStackSlots[1], Cell::Move(StValue(0)));
+    EXPECT_EQ(r.paramPassingStackSlots[3], Cell::Move(StValue(2)));
+    EXPECT_EQ(r.paramPassingStackSlots[5], Cell::Move(StValue(4)));
 }
 
 TEST(MoveResolver, ManySlotMovesNoCycle)
@@ -476,12 +427,12 @@ TEST(MoveResolver, ManySlotMovesNoCycle)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 6);
-    EXPECT_EQ(r.paramPassingStackSlots[1], StValue(0));
-    EXPECT_EQ(r.paramPassingStackSlots[3], StValue(2));
-    EXPECT_EQ(r.paramPassingStackSlots[5], StValue(4));
-    EXPECT_EQ(r.paramPassingStackSlots[7], StValue(6));
-    EXPECT_EQ(r.paramPassingStackSlots[9], StValue(8));
-    EXPECT_EQ(r.paramPassingStackSlots[11], StValue(10));
+    EXPECT_EQ(r.paramPassingStackSlots[1], Cell::Move(StValue(0)));
+    EXPECT_EQ(r.paramPassingStackSlots[3], Cell::Move(StValue(2)));
+    EXPECT_EQ(r.paramPassingStackSlots[5], Cell::Move(StValue(4)));
+    EXPECT_EQ(r.paramPassingStackSlots[7], Cell::Move(StValue(6)));
+    EXPECT_EQ(r.paramPassingStackSlots[9], Cell::Move(StValue(8)));
+    EXPECT_EQ(r.paramPassingStackSlots[11], Cell::Move(StValue(10)));
 }
 
 TEST(MoveResolver, SlotMovesWithSingleRegCycle)
@@ -500,12 +451,12 @@ TEST(MoveResolver, SlotMovesWithSingleRegCycle)
 
     // IR cycle: 3, Slots: 4
     ASSERT_EQ(r.movCount, 7);
-    EXPECT_EQ(r.iregs[6], IrValue(5));
-    EXPECT_EQ(r.iregs[5], IrValue(6));
-    EXPECT_EQ(r.paramPassingStackSlots[1], StValue(0));
-    EXPECT_EQ(r.paramPassingStackSlots[3], StValue(2));
-    EXPECT_EQ(r.paramPassingStackSlots[5], StValue(4));
-    EXPECT_EQ(r.paramPassingStackSlots[7], StValue(6));
+    EXPECT_EQ(r.iregs[6], Cell::Move(IrValue(5)));
+    EXPECT_EQ(r.iregs[5], Cell::Move(IrValue(6)));
+    EXPECT_EQ(r.paramPassingStackSlots[1], Cell::Move(StValue(0)));
+    EXPECT_EQ(r.paramPassingStackSlots[3], Cell::Move(StValue(2)));
+    EXPECT_EQ(r.paramPassingStackSlots[5], Cell::Move(StValue(4)));
+    EXPECT_EQ(r.paramPassingStackSlots[7], Cell::Move(StValue(6)));
 }
 
 TEST(MoveResolver, ThreeIndependentIRCycles)
@@ -524,12 +475,12 @@ TEST(MoveResolver, ThreeIndependentIRCycles)
 
     // 3 cycles x (2 + 1 temp) = 9
     ASSERT_EQ(r.movCount, 9);
-    EXPECT_EQ(r.iregs[2], IrValue(1));
-    EXPECT_EQ(r.iregs[1], IrValue(2));
-    EXPECT_EQ(r.iregs[4], IrValue(3));
-    EXPECT_EQ(r.iregs[3], IrValue(4));
-    EXPECT_EQ(r.iregs[6], IrValue(5));
-    EXPECT_EQ(r.iregs[5], IrValue(6));
+    EXPECT_EQ(r.iregs[2], Cell::Move(IrValue(1)));
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(2)));
+    EXPECT_EQ(r.iregs[4], Cell::Move(IrValue(3)));
+    EXPECT_EQ(r.iregs[3], Cell::Move(IrValue(4)));
+    EXPECT_EQ(r.iregs[6], Cell::Move(IrValue(5)));
+    EXPECT_EQ(r.iregs[5], Cell::Move(IrValue(6)));
 }
 
 TEST(MoveResolver, MixedCycleSizesWithSlots)
@@ -551,15 +502,15 @@ TEST(MoveResolver, MixedCycleSizesWithSlots)
 
     // IR 2-cycle: 3, IR 3-cycle: 4, FR 2-cycle: 3, Slots: 2
     ASSERT_EQ(r.movCount, 12);
-    EXPECT_EQ(r.iregs[2], IrValue(1));
-    EXPECT_EQ(r.iregs[1], IrValue(2));
-    EXPECT_EQ(r.iregs[4], IrValue(3));
-    EXPECT_EQ(r.iregs[5], IrValue(4));
-    EXPECT_EQ(r.iregs[3], IrValue(5));
-    EXPECT_EQ(r.fregs[1], FrValue(0));
-    EXPECT_EQ(r.fregs[0], FrValue(1));
-    EXPECT_EQ(r.paramPassingStackSlots[1], StValue(0));
-    EXPECT_EQ(r.paramPassingStackSlots[3], StValue(2));
+    EXPECT_EQ(r.iregs[2], Cell::Move(IrValue(1)));
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(2)));
+    EXPECT_EQ(r.iregs[4], Cell::Move(IrValue(3)));
+    EXPECT_EQ(r.iregs[5], Cell::Move(IrValue(4)));
+    EXPECT_EQ(r.iregs[3], Cell::Move(IrValue(5)));
+    EXPECT_EQ(r.fregs[1], Cell::Move(FrValue(0)));
+    EXPECT_EQ(r.fregs[0], Cell::Move(FrValue(1)));
+    EXPECT_EQ(r.paramPassingStackSlots[1], Cell::Move(StValue(0)));
+    EXPECT_EQ(r.paramPassingStackSlots[3], Cell::Move(StValue(2)));
 }
 
 // --- Fan-out: one src used by multiple dsts ---
@@ -575,8 +526,8 @@ TEST(MoveResolver, FanOutNoCycle)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 2);
-    EXPECT_EQ(r.iregs[2], IrValue(1));
-    EXPECT_EQ(r.iregs[3], IrValue(1));
+    EXPECT_EQ(r.iregs[2], Cell::Move(IrValue(1)));
+    EXPECT_EQ(r.iregs[3], Cell::Move(IrValue(1)));
 }
 
 TEST(MoveResolver, FanOutWithCycle)
@@ -594,9 +545,9 @@ TEST(MoveResolver, FanOutWithCycle)
 
     // Cycle break (1 temp) + 3 assignments = 4
     ASSERT_EQ(r.movCount, 4);
-    EXPECT_EQ(r.iregs[1], IrValue(3));
-    EXPECT_EQ(r.iregs[2], IrValue(3));
-    EXPECT_EQ(r.iregs[3], IrValue(1));
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(3)));
+    EXPECT_EQ(r.iregs[2], Cell::Move(IrValue(3)));
+    EXPECT_EQ(r.iregs[3], Cell::Move(IrValue(1)));
 }
 
 TEST(MoveResolver, FanOutTriple)
@@ -611,9 +562,9 @@ TEST(MoveResolver, FanOutTriple)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 3);
-    EXPECT_EQ(r.iregs[2], IrValue(1));
-    EXPECT_EQ(r.iregs[3], IrValue(1));
-    EXPECT_EQ(r.iregs[4], IrValue(1));
+    EXPECT_EQ(r.iregs[2], Cell::Move(IrValue(1)));
+    EXPECT_EQ(r.iregs[3], Cell::Move(IrValue(1)));
+    EXPECT_EQ(r.iregs[4], Cell::Move(IrValue(1)));
 }
 
 TEST(MoveResolver, FanOutToSlots)
@@ -627,8 +578,8 @@ TEST(MoveResolver, FanOutToSlots)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 2);
-    EXPECT_EQ(r.paramPassingStackSlots[0], IrValue(1));
-    EXPECT_EQ(r.paramPassingStackSlots[1], IrValue(1));
+    EXPECT_EQ(r.paramPassingStackSlots[0], Cell::Move(IrValue(1)));
+    EXPECT_EQ(r.paramPassingStackSlots[1], Cell::Move(IrValue(1)));
 }
 
 TEST(MoveResolver, FanOutMultipleSrcs)
@@ -645,10 +596,10 @@ TEST(MoveResolver, FanOutMultipleSrcs)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 4);
-    EXPECT_EQ(r.iregs[2], IrValue(1));
-    EXPECT_EQ(r.iregs[3], IrValue(1));
-    EXPECT_EQ(r.iregs[5], IrValue(4));
-    EXPECT_EQ(r.iregs[6], IrValue(4));
+    EXPECT_EQ(r.iregs[2], Cell::Move(IrValue(1)));
+    EXPECT_EQ(r.iregs[3], Cell::Move(IrValue(1)));
+    EXPECT_EQ(r.iregs[5], Cell::Move(IrValue(4)));
+    EXPECT_EQ(r.iregs[6], Cell::Move(IrValue(4)));
 }
 
 TEST(MoveResolver, FanOutWithIndependentCycle)
@@ -665,10 +616,10 @@ TEST(MoveResolver, FanOutWithIndependentCycle)
 
     // Fan-out: 2, Cycle: 3 = 5
     ASSERT_EQ(r.movCount, 5);
-    EXPECT_EQ(r.iregs[2], IrValue(1));
-    EXPECT_EQ(r.iregs[3], IrValue(1));
-    EXPECT_EQ(r.iregs[5], IrValue(4));
-    EXPECT_EQ(r.iregs[4], IrValue(5));
+    EXPECT_EQ(r.iregs[2], Cell::Move(IrValue(1)));
+    EXPECT_EQ(r.iregs[3], Cell::Move(IrValue(1)));
+    EXPECT_EQ(r.iregs[5], Cell::Move(IrValue(4)));
+    EXPECT_EQ(r.iregs[4], Cell::Move(IrValue(5)));
 }
 
 TEST(MoveResolver, FanOutFRegWithCycle)
@@ -685,9 +636,9 @@ TEST(MoveResolver, FanOutFRegWithCycle)
 
     // Cycle break (1 temp) + 3 assignments = 4
     ASSERT_EQ(r.movCount, 4);
-    EXPECT_EQ(r.fregs[1], FrValue(0));
-    EXPECT_EQ(r.fregs[2], FrValue(0));
-    EXPECT_EQ(r.fregs[0], FrValue(1));
+    EXPECT_EQ(r.fregs[1], Cell::Move(FrValue(0)));
+    EXPECT_EQ(r.fregs[2], Cell::Move(FrValue(0)));
+    EXPECT_EQ(r.fregs[0], Cell::Move(FrValue(1)));
 }
 
 TEST(MoveResolver, FanOutChain)
@@ -704,9 +655,9 @@ TEST(MoveResolver, FanOutChain)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 3);
-    EXPECT_EQ(r.iregs[2], IrValue(1));
-    EXPECT_EQ(r.iregs[3], IrValue(1));
-    EXPECT_EQ(r.iregs[4], IrValue(2)); // IR2's original value
+    EXPECT_EQ(r.iregs[2], Cell::Move(IrValue(1)));
+    EXPECT_EQ(r.iregs[3], Cell::Move(IrValue(1)));
+    EXPECT_EQ(r.iregs[4], Cell::Move(IrValue(2))); // IR2's original value
 }
 
 TEST(MoveResolver, FanOutWithSlotAndCycle)
@@ -723,9 +674,9 @@ TEST(MoveResolver, FanOutWithSlotAndCycle)
 
     // Cycle break (1 temp) + IR2:=IR1 + Slot0:=IR1 + IR1:=temp = 4
     ASSERT_EQ(r.movCount, 4);
-    EXPECT_EQ(r.iregs[2], IrValue(1));
-    EXPECT_EQ(r.iregs[1], IrValue(2));
-    EXPECT_EQ(r.paramPassingStackSlots[0], IrValue(1));
+    EXPECT_EQ(r.iregs[2], Cell::Move(IrValue(1)));
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(2)));
+    EXPECT_EQ(r.paramPassingStackSlots[0], Cell::Move(IrValue(1)));
 }
 
 TEST(MoveResolver, RegressionMatrixMultiply_parallel_bench)
@@ -749,15 +700,16 @@ TEST(MoveResolver, RegressionMatrixMultiply_parallel_bench)
     r.Resolve(mr);
 
     ASSERT_EQ(r.movCount, 7);
-    EXPECT_EQ(r.iregs[1], IrValue(1));
-    EXPECT_EQ(r.iregs[2], IrValue(2));
-    EXPECT_EQ(r.iregs[3], IrValue(9));
-    EXPECT_EQ(r.iregs[4], IrValue(10));
-    EXPECT_EQ(r.iregs[5], IrValue(11));
-    EXPECT_EQ(r.iregs[6], IrValue(13));
-    EXPECT_EQ(r.paramPassingStackSlots[0], StValue(0));
-    EXPECT_EQ(r.paramPassingStackSlots[1], IrValue(12));
-    EXPECT_EQ(r.paramPassingStackSlots[2], IrValue(8));
+    // Identity register moves are dropped: IR1 and IR2 stay as is.
+    EXPECT_EQ(r.iregs[1], Cell::None(IrValue(1)));
+    EXPECT_EQ(r.iregs[2], Cell::None(IrValue(2)));
+    EXPECT_EQ(r.iregs[3], Cell::Move(IrValue(9)));
+    EXPECT_EQ(r.iregs[4], Cell::Move(IrValue(10)));
+    EXPECT_EQ(r.iregs[5], Cell::Move(IrValue(11)));
+    EXPECT_EQ(r.iregs[6], Cell::Move(IrValue(13)));
+    EXPECT_EQ(r.paramPassingStackSlots[0], Cell::Move(StValue(0)));
+    EXPECT_EQ(r.paramPassingStackSlots[1], Cell::Move(IrValue(12)));
+    EXPECT_EQ(r.paramPassingStackSlots[2], Cell::Move(IrValue(8)));
 }
 
 // --- Load-from-address tests ---
@@ -765,119 +717,139 @@ TEST(MoveResolver, RegressionMatrixMultiply_parallel_bench)
 TEST(MoveResolver, LoadIntoIRegFromIRegAddr)
 {
     MoveResolver mr;
-    mr.AddLoadFromAddr(Location::IReg(IReg::IR1), 8, LDK::LD_32, Location::IReg(IReg::IR2)); // IR2 = *(IR1 + 8)
+    Load32(mr, Location::IReg(IReg::IR1), 8, Location::IReg(IReg::IR2)); // IR2 = *(IR1 + 8)
 
-    std::vector<Emit> expected { Emit(Location::IReg(IReg::IR2), Location::IReg(IReg::IR1), 8, LDK::LD_32) };
-    EXPECT_EQ(Resolve(mr), expected);
+    RegsAndSlots r;
+    r.Resolve(mr);
+
+    ASSERT_EQ(r.movCount, 1);
+    EXPECT_EQ(r.iregs[2], Cell::Load(IrValue(1), 8, LDK::LD_32));
 }
 
 TEST(MoveResolver, LoadIntoFRegFromIRegAddr)
 {
     MoveResolver mr;
-    mr.AddLoadFromAddr(Location::IReg(IReg::IR1), 0, LDK::LD_F64, Location::FReg(FReg::FR0)); // FR0 = *(IR1)
+    LoadF64(mr, Location::IReg(IReg::IR1), 0, Location::FReg(FReg::FR0)); // FR0 = *(IR1)
 
-    std::vector<Emit> expected { Emit(Location::FReg(FReg::FR0), Location::IReg(IReg::IR1), 0, LDK::LD_F64) };
-    EXPECT_EQ(Resolve(mr), expected);
+    RegsAndSlots r;
+    r.Resolve(mr);
+
+    ASSERT_EQ(r.movCount, 1);
+    EXPECT_EQ(r.fregs[0], Cell::Load(IrValue(1), 0, LDK::LD_F64));
 }
 
 TEST(MoveResolver, LoadIntoSlotFromIRegAddr)
 {
     MoveResolver mr;
-    mr.AddLoadFromAddr(Location::IReg(IReg::IR1), 16, LDK::LD_64, Location::Slot(0)); // Slot0 = *(IR1 + 16)
+    Load64(mr, Location::IReg(IReg::IR1), 16, Location::Slot(0)); // Slot0 = *(IR1 + 16)
 
-    std::vector<Emit> expected { Emit(Location::Slot(0), Location::IReg(IReg::IR1), 16, LDK::LD_64) };
-    EXPECT_EQ(Resolve(mr), expected);
+    RegsAndSlots r;
+    r.Resolve(mr);
+
+    ASSERT_EQ(r.movCount, 1);
+    EXPECT_EQ(r.paramPassingStackSlots[0], Cell::Load(IrValue(1), 16, LDK::LD_64));
 }
 
 TEST(MoveResolver, LoadFromSlotAddrIntoRegs)
 {
-    // Untyped slots are immutable: loads from them are emitted after the register shuffle.
+    // Untyped slots are immutable, so both loads read their fixed slot values.
     MoveResolver mr;
-    mr.AddLoadFromAddr(Location::Slot(2), 8, LDK::LD_U16, Location::IReg(IReg::IR3)); // IR3 = *(Slot2 + 8)
-    mr.AddLoadFromAddr(Location::Slot(3), 0, LDK::LD_F32, Location::FReg(FReg::FR1)); // FR1 = *(Slot3)
+    LoadU16(mr, Location::Slot(2), 8, Location::IReg(IReg::IR3)); // IR3 = *(Slot2 + 8)
+    LoadF32(mr, Location::Slot(3), 0, Location::FReg(FReg::FR1)); // FR1 = *(Slot3)
 
-    std::vector<Emit> expected {
-        Emit(Location::IReg(IReg::IR3), Location::Slot(2), 8, LDK::LD_U16),
-        Emit(Location::FReg(FReg::FR1), Location::Slot(3), 0, LDK::LD_F32),
-    };
-    EXPECT_EQ(Resolve(mr), expected);
+    RegsAndSlots r;
+    r.Resolve(mr);
+
+    ASSERT_EQ(r.movCount, 2);
+    EXPECT_EQ(r.iregs[3], Cell::Load(StValue(2), 8, LDK::LD_U16));
+    EXPECT_EQ(r.fregs[1], Cell::Load(StValue(3), 0, LDK::LD_F32));
 }
 
 TEST(MoveResolver, LoadFromSlotAddrIntoSlot)
 {
     MoveResolver mr;
-    mr.AddLoadFromAddr(Location::Slot(2), 8, LDK::LD_64, Location::Slot(0)); // Slot0 = *(Slot2 + 8)
+    Load64(mr, Location::Slot(2), 8, Location::Slot(0)); // Slot0 = *(Slot2 + 8)
 
-    std::vector<Emit> expected { Emit(Location::Slot(0), Location::Slot(2), 8, LDK::LD_64) };
-    EXPECT_EQ(Resolve(mr), expected);
+    RegsAndSlots r;
+    r.Resolve(mr);
+
+    ASSERT_EQ(r.movCount, 1);
+    EXPECT_EQ(r.paramPassingStackSlots[0], Cell::Load(StValue(2), 8, LDK::LD_64));
 }
 
 TEST(MoveResolver, LoadToSlotIsAtTheBeginning)
 {
-    // Param slot loads are emitted before the register shuffle and read the address first.
+    // Param slot loads run before the register shuffle: Slot0 reads the pre-move IR1.
     MoveResolver mr;
     mr.AddMove(Location::IReg(IReg::IR5), Location::IReg(IReg::IR1));                // IR1 = IR5
-    mr.AddLoadFromAddr(Location::IReg(IReg::IR1), 8, LDK::LD_64, Location::Slot(0)); // Slot0 = *(IR1 + 8)
+    Load64(mr, Location::IReg(IReg::IR1), 8, Location::Slot(0));                     // Slot0 = *(IR1 + 8)
 
-    std::vector<Emit> expected {
-        Emit(Location::Slot(0), Location::IReg(IReg::IR1), 8, LDK::LD_64),
-        Emit(Location::IReg(IReg::IR1), Location::IReg(IReg::IR5)),
-    };
-    EXPECT_EQ(Resolve(mr), expected);
+    RegsAndSlots r;
+    r.Resolve(mr);
+
+    ASSERT_EQ(r.movCount, 2);
+    EXPECT_EQ(r.paramPassingStackSlots[0], Cell::Load(IrValue(1), 8, LDK::LD_64));
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(5)));
 }
 
 TEST(MoveResolver, SlotAddrLoadIsDeferred)
 {
+    // Slot-addr loads read immutable slots: where they are emitted is not observable here.
     MoveResolver mr;
-    mr.AddLoadFromAddr(Location::Slot(2), 8, LDK::LD_64, Location::IReg(IReg::IR2)); // IR2 = *(Slot2 + 8)
+    Load64(mr, Location::Slot(2), 8, Location::IReg(IReg::IR2));                     // IR2 = *(Slot2 + 8)
     mr.AddMove(Location::IReg(IReg::IR5), Location::IReg(IReg::IR1));                // IR1 = IR5
 
-    std::vector<Emit> expected {
-        Emit(Location::IReg(IReg::IR1), Location::IReg(IReg::IR5)),
-        Emit(Location::IReg(IReg::IR2), Location::Slot(2), 8, LDK::LD_64),
-    };
-    EXPECT_EQ(Resolve(mr), expected);
+    RegsAndSlots r;
+    r.Resolve(mr);
+
+    ASSERT_EQ(r.movCount, 2);
+    EXPECT_EQ(r.iregs[2], Cell::Load(StValue(2), 8, LDK::LD_64));
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(5)));
 }
 
 TEST(MoveResolver, ILoadBeforeMove)
 {
+    // The load reads the pre-move IR1.
     MoveResolver mr;
-    mr.AddLoadFromAddr(Location::IReg(IReg::IR1), 0, LDK::LD_64, Location::IReg(IReg::IR2)); // IR2 = *(IR1)
+    Load64(mr, Location::IReg(IReg::IR1), 0, Location::IReg(IReg::IR2));                     // IR2 = *(IR1)
     mr.AddMove(Location::IReg(IReg::IR5), Location::IReg(IReg::IR1));                        // IR1 = IR5
 
-    std::vector<Emit> expected {
-        Emit(Location::IReg(IReg::IR2), Location::IReg(IReg::IR1), 0, LDK::LD_64),
-        Emit(Location::IReg(IReg::IR1), Location::IReg(IReg::IR5)),
-    };
-    EXPECT_EQ(Resolve(mr), expected);
+    RegsAndSlots r;
+    r.Resolve(mr);
+
+    ASSERT_EQ(r.movCount, 2);
+    EXPECT_EQ(r.iregs[2], Cell::Load(IrValue(1), 0, LDK::LD_64));
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(5)));
 }
 
 TEST(MoveResolver, FLoadBeforeMove)
 {
+    // The load reads the pre-move IR1.
     MoveResolver mr;
-    mr.AddLoadFromAddr(Location::IReg(IReg::IR1), 0, LDK::LD_F64, Location::FReg(FReg::FR0)); // FR0 = *(IR1)
+    LoadF64(mr, Location::IReg(IReg::IR1), 0, Location::FReg(FReg::FR0));                     // FR0 = *(IR1)
     mr.AddMove(Location::IReg(IReg::IR5), Location::IReg(IReg::IR1));                         // IR1 = IR5
 
-    std::vector<Emit> expected {
-        Emit(Location::FReg(FReg::FR0), Location::IReg(IReg::IR1), 0, LDK::LD_F64),
-        Emit(Location::IReg(IReg::IR1), Location::IReg(IReg::IR5)),
-    };
-    EXPECT_EQ(Resolve(mr), expected);
+    RegsAndSlots r;
+    r.Resolve(mr);
+
+    ASSERT_EQ(r.movCount, 2);
+    EXPECT_EQ(r.fregs[0], Cell::Load(IrValue(1), 0, LDK::LD_F64));
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(5)));
 }
 
 TEST(MoveResolver, LoadMoveCycleBrokenWithTemp)
 {
-    // IR2 = *(IR1); IR1 = IR2 forms a cycle: IR2 is staged through the temp register.
+    // IR2 = *(IR1); IR1 = IR2 forms a cycle: IR2's value is staged through the temp register.
     MoveResolver mr;
-    mr.AddLoadFromAddr(Location::IReg(IReg::IR1), 0, LDK::LD_64, Location::IReg(IReg::IR2)); // IR2 = *(IR1)
+    Load64(mr, Location::IReg(IReg::IR1), 0, Location::IReg(IReg::IR2));                     // IR2 = *(IR1)
     mr.AddMove(Location::IReg(IReg::IR2), Location::IReg(IReg::IR1));                        // IR1 = IR2
 
-    std::vector<Emit> expected {
-        Emit(Location::IReg(HostTraits::TR), Location::IReg(IReg::IR2)),
-        Emit(Location::IReg(IReg::IR2), Location::IReg(IReg::IR1), 0, LDK::LD_64),
-        Emit(Location::IReg(IReg::IR1), Location::IReg(HostTraits::TR)),
-    };
-    EXPECT_EQ(Resolve(mr), expected);
+    RegsAndSlots r;
+    r.Resolve(mr);
+
+    ASSERT_EQ(r.movCount, 3);
+    EXPECT_EQ(r.iregs[2], Cell::Load(IrValue(1), 0, LDK::LD_64));
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(2)));
 }
 
 TEST(MoveResolver, LoadLoadCycleBrokenWithTemp)
@@ -889,15 +861,15 @@ TEST(MoveResolver, LoadLoadCycleBrokenWithTemp)
     //  |____load_____|
     //
     MoveResolver mr;
-    mr.AddLoadFromAddr(Location::IReg(IReg::IR1), 0, LDK::LD_64, Location::IReg(IReg::IR2)); // IR2 = *(IR1)
-    mr.AddLoadFromAddr(Location::IReg(IReg::IR2), 8, LDK::LD_64, Location::IReg(IReg::IR1)); // IR1 = *(IR2 + 8)
+    Load64(mr, Location::IReg(IReg::IR1), 0, Location::IReg(IReg::IR2)); // IR2 = *(IR1)
+    Load64(mr, Location::IReg(IReg::IR2), 8, Location::IReg(IReg::IR1)); // IR1 = *(IR2 + 8)
 
-    std::vector<Emit> expected {
-        Emit(Location::IReg(HostTraits::TR), Location::IReg(IReg::IR2), 8, LDK::LD_64),
-        Emit(Location::IReg(IReg::IR2), Location::IReg(IReg::IR1), 0, LDK::LD_64),
-        Emit(Location::IReg(IReg::IR1), Location::IReg(HostTraits::TR)),
-    };
-    EXPECT_EQ(Resolve(mr), expected);
+    RegsAndSlots r;
+    r.Resolve(mr);
+
+    ASSERT_EQ(r.movCount, 3);
+    EXPECT_EQ(r.iregs[2], Cell::Load(IrValue(1), 0, LDK::LD_64));
+    EXPECT_EQ(r.iregs[1], Cell::Load(IrValue(2), 8, LDK::LD_64));
 }
 
 TEST(MoveResolver, SharedAddrLoadsClobberAndFanOut)
@@ -908,64 +880,67 @@ TEST(MoveResolver, SharedAddrLoadsClobberAndFanOut)
     //
     MoveResolver mr;
     mr.AddMove(Location::IReg(IReg::IR3), Location::IReg(IReg::IR1));                        // IR1 = IR3
-    mr.AddLoadFromAddr(Location::IReg(IReg::IR1), 0, LDK::LD_64, Location::IReg(IReg::IR2)); // IR2 = *(IR1)
-    mr.AddLoadFromAddr(Location::IReg(IReg::IR1), 8, LDK::LD_64, Location::IReg(IReg::IR3)); // IR3 = *(IR1 + 8)
+    Load64(mr, Location::IReg(IReg::IR1), 0, Location::IReg(IReg::IR2));                     // IR2 = *(IR1)
+    Load64(mr, Location::IReg(IReg::IR1), 8, Location::IReg(IReg::IR3));                     // IR3 = *(IR1 + 8)
     mr.AddMove(Location::IReg(IReg::IR2), Location::IReg(IReg::IR4));                        // IR4 = IR2
 
-    std::vector<Emit> expected {
-        Emit(Location::IReg(IReg::IR4), Location::IReg(IReg::IR2)),
-        Emit(Location::IReg(IReg::IR2), Location::IReg(IReg::IR1), 0, LDK::LD_64),
-        Emit(Location::IReg(HostTraits::TR), Location::IReg(IReg::IR3)),
-        Emit(Location::IReg(IReg::IR3), Location::IReg(IReg::IR1), 8, LDK::LD_64),
-        Emit(Location::IReg(IReg::IR1), Location::IReg(HostTraits::TR)),
-    };
-    EXPECT_EQ(Resolve(mr), expected);
+    RegsAndSlots r;
+    r.Resolve(mr);
+
+    ASSERT_EQ(r.movCount, 5);
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(3)));
+    EXPECT_EQ(r.iregs[2], Cell::Load(IrValue(1), 0, LDK::LD_64));
+    EXPECT_EQ(r.iregs[3], Cell::Load(IrValue(1), 8, LDK::LD_64));
+    EXPECT_EQ(r.iregs[4], Cell::Move(IrValue(2)));
 }
 
 TEST(MoveResolver, LoadSelfAddrPreservesAddr)
 {
-    // Load spoils IR1, need to be delayed after move.
+    // The load spoils IR1, so IR2 must read the pre-load IR1.
     MoveResolver mr;
-    mr.AddLoadFromAddr(Location::IReg(IReg::IR1), 16, LDK::LD_64, Location::IReg(IReg::IR1)); // IR1 = *(IR1 + 16)
+    Load64(mr, Location::IReg(IReg::IR1), 16, Location::IReg(IReg::IR1));                     // IR1 = *(IR1 + 16)
     mr.AddMove(Location::IReg(IReg::IR1), Location::IReg(IReg::IR2));                         // IR2 = IR1
 
-    std::vector<Emit> expected {
-        Emit(Location::IReg(IReg::IR2), Location::IReg(IReg::IR1)),
-        Emit(Location::IReg(IReg::IR1), Location::IReg(IReg::IR1), 16, LDK::LD_64),
-    };
-    EXPECT_EQ(Resolve(mr), expected);
+    RegsAndSlots r;
+    r.Resolve(mr);
+
+    ASSERT_EQ(r.movCount, 2);
+    EXPECT_EQ(r.iregs[1], Cell::Load(IrValue(1), 16, LDK::LD_64));
+    EXPECT_EQ(r.iregs[2], Cell::Move(IrValue(1)));
 }
 
 TEST(MoveResolver, SharedAddrLoadsBeforeMove)
 {
     // Two loads from addr on IR1 before IR1 spoiling.
     MoveResolver mr;
-    mr.AddLoadFromAddr(Location::IReg(IReg::IR1), 0, LDK::LD_64, Location::IReg(IReg::IR2)); // IR2 = *(IR1)
-    mr.AddLoadFromAddr(Location::IReg(IReg::IR1), 8, LDK::LD_64, Location::IReg(IReg::IR3)); // IR3 = *(IR1 + 8)
+    Load64(mr, Location::IReg(IReg::IR1), 0, Location::IReg(IReg::IR2));                     // IR2 = *(IR1)
+    Load64(mr, Location::IReg(IReg::IR1), 8, Location::IReg(IReg::IR3));                     // IR3 = *(IR1 + 8)
     mr.AddMove(Location::IReg(IReg::IR5), Location::IReg(IReg::IR1));                        // IR1 = IR5
 
-    std::vector<Emit> expected {
-        Emit(Location::IReg(IReg::IR2), Location::IReg(IReg::IR1), 0, LDK::LD_64),
-        Emit(Location::IReg(IReg::IR3), Location::IReg(IReg::IR1), 8, LDK::LD_64),
-        Emit(Location::IReg(IReg::IR1), Location::IReg(IReg::IR5)),
-    };
-    EXPECT_EQ(Resolve(mr), expected);
+    RegsAndSlots r;
+    r.Resolve(mr);
+
+    ASSERT_EQ(r.movCount, 3);
+    EXPECT_EQ(r.iregs[2], Cell::Load(IrValue(1), 0, LDK::LD_64));
+    EXPECT_EQ(r.iregs[3], Cell::Load(IrValue(1), 8, LDK::LD_64));
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(5)));
 }
 
 TEST(MoveResolver, SharedAddrLoadsAfterMove)
 {
-    // Two loads from addr on IR1 after IR1 spoiling.
+    // The same batch with the move added first: the loads still read the pre-move IR1.
     MoveResolver mr;
     mr.AddMove(Location::IReg(IReg::IR5), Location::IReg(IReg::IR1));                        // IR1 = IR5
-    mr.AddLoadFromAddr(Location::IReg(IReg::IR1), 0, LDK::LD_64, Location::IReg(IReg::IR2)); // IR2 = *(IR1)
-    mr.AddLoadFromAddr(Location::IReg(IReg::IR1), 8, LDK::LD_64, Location::IReg(IReg::IR3)); // IR3 = *(IR1 + 8)
+    Load64(mr, Location::IReg(IReg::IR1), 0, Location::IReg(IReg::IR2));                     // IR2 = *(IR1)
+    Load64(mr, Location::IReg(IReg::IR1), 8, Location::IReg(IReg::IR3));                     // IR3 = *(IR1 + 8)
 
-    std::vector<Emit> expected {
-        Emit(Location::IReg(IReg::IR2), Location::IReg(IReg::IR1), 0, LDK::LD_64),
-        Emit(Location::IReg(IReg::IR3), Location::IReg(IReg::IR1), 8, LDK::LD_64),
-        Emit(Location::IReg(IReg::IR1), Location::IReg(IReg::IR5)),
-    };
-    EXPECT_EQ(Resolve(mr), expected);
+    RegsAndSlots r;
+    r.Resolve(mr);
+
+    ASSERT_EQ(r.movCount, 3);
+    EXPECT_EQ(r.iregs[2], Cell::Load(IrValue(1), 0, LDK::LD_64));
+    EXPECT_EQ(r.iregs[3], Cell::Load(IrValue(1), 8, LDK::LD_64));
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(5)));
 }
 
 // --- Complex mixed move/load tests ---
@@ -979,37 +954,36 @@ TEST(MoveResolver, AllSrcDstKindsWithLoads)
     //
     MoveResolver mr;
     mr.AddMove(Location::Slot(7), Location::FReg(FReg::FR2));                                  // FR2 = Slot7
-    mr.AddLoadFromAddr(Location::Slot(8), 8, LDK::LD_S8, Location::IReg(IReg::IR4));           // IR4 = *(Slot8 + 8)
+    LoadS8(mr, Location::Slot(8), 8, Location::IReg(IReg::IR4));                               // IR4 = *(Slot8 + 8)
     mr.AddMove(Location::IReg(IReg::IR5), Location::IReg(IReg::IR1));                          // IR1 = IR5
     mr.AddMove(Location::FReg(FReg::FR2), Location::FReg(FReg::FR0));                          // FR0 = FR2
-    mr.AddLoadFromAddr(Location::IReg(IReg::IR2), 8, LDK::LD_64, Location::IReg(IReg::IR3));   // IR3 = *(IR2 + 8)
-    mr.AddLoadFromAddr(Location::IReg(IReg::IR2), 16, LDK::LD_F64, Location::FReg(FReg::FR1)); // FR1 = *(IR2 + 16)
+    Load64(mr, Location::IReg(IReg::IR2), 8, Location::IReg(IReg::IR3));                       // IR3 = *(IR2 + 8)
+    LoadF64(mr, Location::IReg(IReg::IR2), 16, Location::FReg(FReg::FR1));                     // FR1 = *(IR2 + 16)
     mr.AddMove(Location::IReg(IReg::IR4), Location::Slot(0));                                  // Slot0 = IR4
     mr.AddMove(Location::FReg(FReg::FR3), Location::Slot(1));                                  // Slot1 = FR3
     mr.AddMove(Location::Slot(0), Location::Slot(2));                                          // Slot2 = Slot0
-    mr.AddLoadFromAddr(Location::IReg(IReg::IR2), 24, LDK::LD_32, Location::Slot(3));          // Slot3 = *(IR2 + 24)
-    mr.AddLoadFromAddr(Location::Slot(4), 0, LDK::LD_U16, Location::Slot(5));                  // Slot5 = *(Slot4)
+    Load32(mr, Location::IReg(IReg::IR2), 24, Location::Slot(3));                              // Slot3 = *(IR2 + 24)
+    LoadU16(mr, Location::Slot(4), 0, Location::Slot(5));                                      // Slot5 = *(Slot4)
     mr.AddMove(Location::Slot(6), Location::IReg(IReg::IR6));                                  // IR6 = Slot6
-    mr.AddLoadFromAddr(Location::Slot(9), 16, LDK::LD_F32, Location::FReg(FReg::FR3));         // FR3 = *(Slot9 + 16)
+    LoadF32(mr, Location::Slot(9), 16, Location::FReg(FReg::FR3));                             // FR3 = *(Slot9 + 16)
 
-    std::vector<Emit> expected {
-        Emit(Location::Slot(0), Location::IReg(IReg::IR4)),
-        Emit(Location::Slot(1), Location::FReg(FReg::FR3)),
-        Emit(Location::Slot(2), Location::Slot(0)),
-        Emit(Location::Slot(3), Location::IReg(IReg::IR2), 24, LDK::LD_32),
-        Emit(Location::Slot(5), Location::Slot(4), 0, LDK::LD_U16),
+    RegsAndSlots r;
+    r.Resolve(mr);
 
-        Emit(Location::IReg(IReg::IR1), Location::IReg(IReg::IR5)),
-        Emit(Location::IReg(IReg::IR3), Location::IReg(IReg::IR2), 8, LDK::LD_64),
-        Emit(Location::FReg(FReg::FR0), Location::FReg(FReg::FR2)),
-        Emit(Location::FReg(FReg::FR1), Location::IReg(IReg::IR2), 16, LDK::LD_F64),
-
-        Emit(Location::FReg(FReg::FR2), Location::Slot(7)),
-        Emit(Location::IReg(IReg::IR4), Location::Slot(8), 8, LDK::LD_S8),
-        Emit(Location::IReg(IReg::IR6), Location::Slot(6)),
-        Emit(Location::FReg(FReg::FR3), Location::Slot(9), 16, LDK::LD_F32),
-    };
-    EXPECT_EQ(Resolve(mr), expected);
+    ASSERT_EQ(r.movCount, 13);
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(5)));
+    EXPECT_EQ(r.iregs[3], Cell::Load(IrValue(2), 8, LDK::LD_64));
+    EXPECT_EQ(r.iregs[4], Cell::Load(StValue(8), 8, LDK::LD_S8));
+    EXPECT_EQ(r.iregs[6], Cell::Move(StValue(6)));
+    EXPECT_EQ(r.fregs[0], Cell::Move(FrValue(2)));
+    EXPECT_EQ(r.fregs[1], Cell::Load(IrValue(2), 16, LDK::LD_F64));
+    EXPECT_EQ(r.fregs[2], Cell::Move(StValue(7)));
+    EXPECT_EQ(r.fregs[3], Cell::Load(StValue(9), 16, LDK::LD_F32));
+    EXPECT_EQ(r.paramPassingStackSlots[0], Cell::Move(IrValue(4)));
+    EXPECT_EQ(r.paramPassingStackSlots[1], Cell::Move(FrValue(3)));
+    EXPECT_EQ(r.paramPassingStackSlots[2], Cell::Move(StValue(0)));
+    EXPECT_EQ(r.paramPassingStackSlots[3], Cell::Load(IrValue(2), 24, LDK::LD_32));
+    EXPECT_EQ(r.paramPassingStackSlots[5], Cell::Load(StValue(4), 0, LDK::LD_U16));
 }
 
 TEST(MoveResolver, MixedCyclesLoadsAndSlots)
@@ -1023,37 +997,31 @@ TEST(MoveResolver, MixedCyclesLoadsAndSlots)
     // FR1 <---> FR0
     //
     MoveResolver mr;
-    mr.AddLoadFromAddr(Location::IReg(IReg::IR1), 0, LDK::LD_64, Location::IReg(IReg::IR2)); // IR2 = *(IR1)
+    Load64(mr, Location::IReg(IReg::IR1), 0, Location::IReg(IReg::IR2));                     // IR2 = *(IR1)
     mr.AddMove(Location::IReg(IReg::IR2), Location::IReg(IReg::IR3));                        // IR3 = IR2
     mr.AddMove(Location::IReg(IReg::IR3), Location::IReg(IReg::IR1));                        // IR1 = IR3
     mr.AddMove(Location::FReg(FReg::FR0), Location::FReg(FReg::FR1));                        // FR1 = FR0
     mr.AddMove(Location::FReg(FReg::FR1), Location::FReg(FReg::FR0));                        // FR0 = FR1
     mr.AddMove(Location::IReg(IReg::IR4), Location::Slot(0));                                // Slot0 = IR4
-    mr.AddLoadFromAddr(Location::IReg(IReg::IR5), 8, LDK::LD_32, Location::Slot(1));         // Slot1 = *(IR5 + 8)
-    mr.AddLoadFromAddr(Location::Slot(2), 16, LDK::LD_F32, Location::FReg(FReg::FR2));       // FR2 = *(Slot2 + 16)
+    Load32(mr, Location::IReg(IReg::IR5), 8, Location::Slot(1));                             // Slot1 = *(IR5 + 8)
+    LoadF32(mr, Location::Slot(2), 16, Location::FReg(FReg::FR2));                           // FR2 = *(Slot2 + 16)
     mr.AddMove(Location::Slot(3), Location::IReg(IReg::IR6));                                // IR6 = Slot3
     mr.AddMove(Location::Slot(4), Location::FReg(FReg::FR3));                                // FR3 = Slot4
 
-    std::vector<Emit> expected {
-        Emit(Location::Slot(0), Location::IReg(IReg::IR4)),
-        Emit(Location::Slot(1), Location::IReg(IReg::IR5), 8, LDK::LD_32),
+    RegsAndSlots r;
+    r.Resolve(mr);
 
-        // Resolved IReg cycle
-        Emit(Location::IReg(HostTraits::TR), Location::IReg(IReg::IR3)),
-        Emit(Location::IReg(IReg::IR3), Location::IReg(IReg::IR2)),
-        Emit(Location::IReg(IReg::IR2), Location::IReg(IReg::IR1), 0, LDK::LD_64),
-        Emit(Location::IReg(IReg::IR1), Location::IReg(HostTraits::TR)),
-
-        // Resolved FReg cycle
-        Emit(Location::FReg(FReg::FR15), Location::FReg(FReg::FR1)),
-        Emit(Location::FReg(FReg::FR1), Location::FReg(FReg::FR0)),
-        Emit(Location::FReg(FReg::FR0), Location::FReg(FReg::FR15)),
-
-        Emit(Location::FReg(FReg::FR2), Location::Slot(2), 16, LDK::LD_F32),
-        Emit(Location::IReg(IReg::IR6), Location::Slot(3)),
-        Emit(Location::FReg(FReg::FR3), Location::Slot(4)),
-    };
-    EXPECT_EQ(Resolve(mr), expected);
+    ASSERT_EQ(r.movCount, 12);
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(3)));
+    EXPECT_EQ(r.iregs[2], Cell::Load(IrValue(1), 0, LDK::LD_64));
+    EXPECT_EQ(r.iregs[3], Cell::Move(IrValue(2)));
+    EXPECT_EQ(r.iregs[6], Cell::Move(StValue(3)));
+    EXPECT_EQ(r.fregs[0], Cell::Move(FrValue(1)));
+    EXPECT_EQ(r.fregs[1], Cell::Move(FrValue(0)));
+    EXPECT_EQ(r.fregs[2], Cell::Load(StValue(2), 16, LDK::LD_F32));
+    EXPECT_EQ(r.fregs[3], Cell::Move(StValue(4)));
+    EXPECT_EQ(r.paramPassingStackSlots[0], Cell::Move(IrValue(4)));
+    EXPECT_EQ(r.paramPassingStackSlots[1], Cell::Load(IrValue(5), 8, LDK::LD_32));
 }
 
 TEST(MoveResolver, LoadsFromSlotsAfterResolving)
@@ -1062,23 +1030,22 @@ TEST(MoveResolver, LoadsFromSlotsAfterResolving)
     //
     MoveResolver mr;
     mr.AddMove(Location::Slot(0), Location::IReg(IReg::IR1));                                // IR1 = Slot0
-    mr.AddLoadFromAddr(Location::IReg(IReg::IR1), 8, LDK::LD_64, Location::IReg(IReg::IR2)); // IR2 = *(IR1 + 8)
+    Load64(mr, Location::IReg(IReg::IR1), 8, Location::IReg(IReg::IR2));                     // IR2 = *(IR1 + 8)
     mr.AddMove(Location::IReg(IReg::IR2), Location::IReg(IReg::IR3));                        // IR3 = IR2
-    mr.AddLoadFromAddr(Location::Slot(1), 0, LDK::LD_32, Location::IReg(IReg::IR4));         // IR4 = *(Slot1)
+    Load32(mr, Location::Slot(1), 0, Location::IReg(IReg::IR4));                             // IR4 = *(Slot1)
     mr.AddMove(Location::FReg(FReg::FR0), Location::FReg(FReg::FR1));                        // FR1 = FR0
-    mr.AddLoadFromAddr(Location::Slot(2), 4, LDK::LD_F64, Location::FReg(FReg::FR0));        // FR0 = *(Slot2 + 4)
+    LoadF64(mr, Location::Slot(2), 4, Location::FReg(FReg::FR0));                            // FR0 = *(Slot2 + 4)
 
-    std::vector<Emit> expected {
-        Emit(Location::IReg(IReg::IR3), Location::IReg(IReg::IR2)),
-        Emit(Location::FReg(FReg::FR1), Location::FReg(FReg::FR0)),
-        Emit(Location::IReg(IReg::IR2), Location::IReg(IReg::IR1), 8, LDK::LD_64),
+    RegsAndSlots r;
+    r.Resolve(mr);
 
-        // All slot moves/loads emitted after resolution
-        Emit(Location::IReg(IReg::IR1), Location::Slot(0)),
-        Emit(Location::IReg(IReg::IR4), Location::Slot(1), 0, LDK::LD_32),
-        Emit(Location::FReg(FReg::FR0), Location::Slot(2), 4, LDK::LD_F64),
-    };
-    EXPECT_EQ(Resolve(mr), expected);
+    ASSERT_EQ(r.movCount, 6);
+    EXPECT_EQ(r.iregs[1], Cell::Move(StValue(0)));
+    EXPECT_EQ(r.iregs[2], Cell::Load(IrValue(1), 8, LDK::LD_64));
+    EXPECT_EQ(r.iregs[3], Cell::Move(IrValue(2)));
+    EXPECT_EQ(r.iregs[4], Cell::Load(StValue(1), 0, LDK::LD_32));
+    EXPECT_EQ(r.fregs[0], Cell::Load(StValue(2), 4, LDK::LD_F64));
+    EXPECT_EQ(r.fregs[1], Cell::Move(FrValue(0)));
 }
 
 TEST(MoveResolver, TwoCyclesOneWithLoad)
@@ -1094,31 +1061,25 @@ TEST(MoveResolver, TwoCyclesOneWithLoad)
     MoveResolver mr;
     mr.AddMove(Location::IReg(IReg::IR1), Location::IReg(IReg::IR2));                        // IR2 = IR1
     mr.AddMove(Location::IReg(IReg::IR2), Location::IReg(IReg::IR1));                        // IR1 = IR2
-    mr.AddLoadFromAddr(Location::IReg(IReg::IR3), 0, LDK::LD_64, Location::IReg(IReg::IR4)); // IR4 = *(IR3)
+    Load64(mr, Location::IReg(IReg::IR3), 0, Location::IReg(IReg::IR4));                     // IR4 = *(IR3)
     mr.AddMove(Location::IReg(IReg::IR4), Location::IReg(IReg::IR5));                        // IR5 = IR4
     mr.AddMove(Location::IReg(IReg::IR5), Location::IReg(IReg::IR3));                        // IR3 = IR5
     mr.AddMove(Location::FReg(FReg::FR0), Location::Slot(0));                                // Slot0 = FR0
-    mr.AddLoadFromAddr(Location::Slot(1), 8, LDK::LD_64, Location::FReg(FReg::FR1));         // FR1 = *(Slot1 + 8)
+    Load64(mr, Location::Slot(1), 8, Location::FReg(FReg::FR1));                             // FR1 = *(Slot1 + 8)
     mr.AddMove(Location::Slot(2), Location::IReg(IReg::IR6));                                // IR6 = Slot2
 
-    std::vector<Emit> expected {
-        Emit(Location::Slot(0), Location::FReg(FReg::FR0)),
+    RegsAndSlots r;
+    r.Resolve(mr);
 
-        // First resolved IReg cycle
-        Emit(Location::IReg(HostTraits::TR), Location::IReg(IReg::IR2)),
-        Emit(Location::IReg(IReg::IR2), Location::IReg(IReg::IR1)),
-        Emit(Location::IReg(IReg::IR1), Location::IReg(HostTraits::TR)),
-
-        // Second resolved IReg cycle
-        Emit(Location::IReg(HostTraits::TR), Location::IReg(IReg::IR5)),
-        Emit(Location::IReg(IReg::IR5), Location::IReg(IReg::IR4)),
-        Emit(Location::IReg(IReg::IR4), Location::IReg(IReg::IR3), 0, LDK::LD_64),
-        Emit(Location::IReg(IReg::IR3), Location::IReg(HostTraits::TR)),
-
-        Emit(Location::FReg(FReg::FR1), Location::Slot(1), 8, LDK::LD_64),
-        Emit(Location::IReg(IReg::IR6), Location::Slot(2)),
-    };
-    EXPECT_EQ(Resolve(mr), expected);
+    ASSERT_EQ(r.movCount, 10);
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(2)));
+    EXPECT_EQ(r.iregs[2], Cell::Move(IrValue(1)));
+    EXPECT_EQ(r.iregs[3], Cell::Move(IrValue(5)));
+    EXPECT_EQ(r.iregs[4], Cell::Load(IrValue(3), 0, LDK::LD_64));
+    EXPECT_EQ(r.iregs[5], Cell::Move(IrValue(4)));
+    EXPECT_EQ(r.iregs[6], Cell::Move(StValue(2)));
+    EXPECT_EQ(r.fregs[1], Cell::Load(StValue(1), 8, LDK::LD_64));
+    EXPECT_EQ(r.paramPassingStackSlots[0], Cell::Move(FrValue(0)));
 }
 
 TEST(MoveResolver, ManyLoadsFromOneAddr)
@@ -1130,31 +1091,28 @@ TEST(MoveResolver, ManyLoadsFromOneAddr)
     //
     MoveResolver mr;
     mr.AddMove(Location::IReg(IReg::IR5), Location::IReg(IReg::IR9));                         // IR9 = IR5
-    mr.AddLoadFromAddr(Location::IReg(IReg::IR9), 0, LDK::LD_64, Location::IReg(IReg::IR1));  // IR1 = *(IR9 + 0)
-    mr.AddLoadFromAddr(Location::IReg(IReg::IR9), 8, LDK::LD_F64, Location::FReg(FReg::FR0)); // FR0 = *(IR9 + 8)
-    mr.AddLoadFromAddr(Location::IReg(IReg::IR9), 16, LDK::LD_32, Location::IReg(IReg::IR2)); // IR2 = *(IR9 + 16)
-    mr.AddLoadFromAddr(Location::IReg(IReg::IR9), 24, LDK::LD_64, Location::Slot(0));         // Slot0 = *(IR9 + 24)
+    Load64(mr, Location::IReg(IReg::IR9), 0, Location::IReg(IReg::IR1));                      // IR1 = *(IR9 + 0)
+    LoadF64(mr, Location::IReg(IReg::IR9), 8, Location::FReg(FReg::FR0));                     // FR0 = *(IR9 + 8)
+    Load32(mr, Location::IReg(IReg::IR9), 16, Location::IReg(IReg::IR2));                     // IR2 = *(IR9 + 16)
+    Load64(mr, Location::IReg(IReg::IR9), 24, Location::Slot(0));                             // Slot0 = *(IR9 + 24)
     mr.AddMove(Location::IReg(IReg::IR10), Location::IReg(IReg::IR3));                        // IR3 = IR10
     mr.AddMove(Location::Slot(5), Location::IReg(IReg::IR4));                                 // IR4 = Slot5
     mr.AddMove(Location::FReg(FReg::FR1), Location::FReg(FReg::FR2));                         // FR2 = FR1
-    mr.AddLoadFromAddr(Location::Slot(6), 0, LDK::LD_64, Location::IReg(IReg::IR5));          // IR5 = *(Slot6)
+    Load64(mr, Location::Slot(6), 0, Location::IReg(IReg::IR5));                              // IR5 = *(Slot6)
     mr.AddMove(Location::IReg(IReg::IR11), Location::Slot(1));                                // Slot1 = IR11
 
-    std::vector<Emit> expected {
-        Emit(Location::Slot(0), Location::IReg(IReg::IR9), 24, LDK::LD_64),
-        Emit(Location::Slot(1), Location::IReg(IReg::IR11)),
+    RegsAndSlots r;
+    r.Resolve(mr);
 
-        Emit(Location::IReg(IReg::IR1), Location::IReg(IReg::IR9), 0, LDK::LD_64),
-        Emit(Location::IReg(IReg::IR2), Location::IReg(IReg::IR9), 16, LDK::LD_32),
-        Emit(Location::IReg(IReg::IR3), Location::IReg(IReg::IR10)),
-        Emit(Location::FReg(FReg::FR0), Location::IReg(IReg::IR9), 8, LDK::LD_F64),
-        Emit(Location::FReg(FReg::FR2), Location::FReg(FReg::FR1)),
-
-        // After all loads from IR9
-        Emit(Location::IReg(IReg::IR9), Location::IReg(IReg::IR5)),
-
-        Emit(Location::IReg(IReg::IR4), Location::Slot(5)),
-        Emit(Location::IReg(IReg::IR5), Location::Slot(6), 0, LDK::LD_64),
-    };
-    EXPECT_EQ(Resolve(mr), expected);
+    ASSERT_EQ(r.movCount, 10);
+    EXPECT_EQ(r.iregs[1], Cell::Load(IrValue(9), 0, LDK::LD_64));
+    EXPECT_EQ(r.iregs[2], Cell::Load(IrValue(9), 16, LDK::LD_32));
+    EXPECT_EQ(r.iregs[3], Cell::Move(IrValue(10)));
+    EXPECT_EQ(r.iregs[4], Cell::Move(StValue(5)));
+    EXPECT_EQ(r.iregs[5], Cell::Load(StValue(6), 0, LDK::LD_64));
+    EXPECT_EQ(r.iregs[9], Cell::Move(IrValue(5)));
+    EXPECT_EQ(r.fregs[0], Cell::Load(IrValue(9), 8, LDK::LD_F64));
+    EXPECT_EQ(r.fregs[2], Cell::Move(FrValue(1)));
+    EXPECT_EQ(r.paramPassingStackSlots[0], Cell::Load(IrValue(9), 24, LDK::LD_64));
+    EXPECT_EQ(r.paramPassingStackSlots[1], Cell::Move(IrValue(11)));
 }

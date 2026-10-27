@@ -9,7 +9,7 @@ namespace Cbc {
 
 static constexpr IReg IREG_TEMP = PlatformTraits<HOST_PLATFORM>::TR;
 static constexpr FReg FREG_TEMP = FReg::FR15;
-static constexpr int REG_COUNT  = IReg::VIRT_COUNT + FReg::COUNT;
+static constexpr int REG_COUNT  = Location::REG_COUNT;
 
 void MoveResolver::Clear() { assignments.Clear(); }
 

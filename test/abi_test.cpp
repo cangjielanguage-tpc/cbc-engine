@@ -150,9 +150,9 @@ TEST(AbiBuilder, NoFlagsIntParams)
     r.Resolve(builder.moves);
 
     ASSERT_EQ(r.movCount, 3);
-    EXPECT_EQ(r.iregs[1], IrValue(3));
-    EXPECT_EQ(r.iregs[2], IrValue(4));
-    EXPECT_EQ(r.iregs[3], IrValue(5));
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(3)));
+    EXPECT_EQ(r.iregs[2], Cell::Move(IrValue(4)));
+    EXPECT_EQ(r.iregs[3], Cell::Move(IrValue(5)));
 }
 
 TEST(AbiBuilder, NoFlagsFloatParams)
@@ -166,8 +166,8 @@ TEST(AbiBuilder, NoFlagsFloatParams)
     r.Resolve(builder.moves);
 
     ASSERT_EQ(r.movCount, 2);
-    EXPECT_EQ(r.fregs[0], FrValue(3));
-    EXPECT_EQ(r.fregs[1], FrValue(4));
+    EXPECT_EQ(r.fregs[0], Cell::Move(FrValue(3)));
+    EXPECT_EQ(r.fregs[1], Cell::Move(FrValue(4)));
 }
 
 TEST(AbiBuilder, MixedIntFloatParams)
@@ -183,10 +183,10 @@ TEST(AbiBuilder, MixedIntFloatParams)
     r.Resolve(builder.moves);
 
     ASSERT_EQ(r.movCount, 4);
-    EXPECT_EQ(r.iregs[1], IrValue(7));
-    EXPECT_EQ(r.iregs[2], IrValue(8));
-    EXPECT_EQ(r.fregs[0], FrValue(2));
-    EXPECT_EQ(r.fregs[1], FrValue(3));
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(7)));
+    EXPECT_EQ(r.iregs[2], Cell::Move(IrValue(8)));
+    EXPECT_EQ(r.fregs[0], Cell::Move(FrValue(2)));
+    EXPECT_EQ(r.fregs[1], Cell::Move(FrValue(3)));
 }
 
 TEST(AbiBuilder, SRetX86Shifts)
@@ -200,8 +200,8 @@ TEST(AbiBuilder, SRetX86Shifts)
     r.Resolve(builder.moves);
 
     ASSERT_EQ(r.movCount, 2);
-    EXPECT_EQ(r.iregs[1], IrValue(7));
-    EXPECT_EQ(r.iregs[2], IrValue(8));
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(7)));
+    EXPECT_EQ(r.iregs[2], Cell::Move(IrValue(8)));
 }
 
 TEST(AbiBuilder, SRetAarch64Shifts)
@@ -215,8 +215,8 @@ TEST(AbiBuilder, SRetAarch64Shifts)
     r.Resolve(builder.moves);
 
     ASSERT_EQ(r.movCount, 2);
-    EXPECT_EQ(r.iregs[1], IrValue(8));
-    EXPECT_EQ(r.iregs[9], IrValue(7));
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(8)));
+    EXPECT_EQ(r.iregs[9], Cell::Move(IrValue(7)));
 }
 
 TEST(AbiBuilder, MutReceiver)
@@ -230,9 +230,9 @@ TEST(AbiBuilder, MutReceiver)
     r.Resolve(builder.moves);
 
     ASSERT_EQ(r.movCount, 3);
-    EXPECT_EQ(r.iregs[1], IrValue(7));
-    EXPECT_EQ(r.iregs[2], IrValue(8));
-    EXPECT_EQ(r.iregs[3], IrValue(9));
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(7)));
+    EXPECT_EQ(r.iregs[2], Cell::Move(IrValue(8)));
+    EXPECT_EQ(r.iregs[3], Cell::Move(IrValue(9)));
 }
 
 TEST(AbiBuilder, RefReceiver)
@@ -246,8 +246,8 @@ TEST(AbiBuilder, RefReceiver)
     r.Resolve(builder.moves);
 
     ASSERT_EQ(r.movCount, 2);
-    EXPECT_EQ(r.iregs[1], IrValue(7));
-    EXPECT_EQ(r.iregs[2], IrValue(8));
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(7)));
+    EXPECT_EQ(r.iregs[2], Cell::Move(IrValue(8)));
 }
 
 TEST(AbiBuilder, RecReceiver)
@@ -261,8 +261,8 @@ TEST(AbiBuilder, RecReceiver)
     r.Resolve(builder.moves);
 
     ASSERT_EQ(r.movCount, 2);
-    EXPECT_EQ(r.iregs[1], IrValue(7));
-    EXPECT_EQ(r.iregs[2], IrValue(8));
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(7)));
+    EXPECT_EQ(r.iregs[2], Cell::Move(IrValue(8)));
 }
 
 TEST(AbiBuilder, IntOverflowToStack)
@@ -277,13 +277,13 @@ TEST(AbiBuilder, IntOverflowToStack)
     r.Resolve(builder.moves);
 
     ASSERT_EQ(r.movCount, 7);
-    EXPECT_EQ(r.iregs[1], IrValue(7));
-    EXPECT_EQ(r.iregs[2], IrValue(8));
-    EXPECT_EQ(r.iregs[3], IrValue(9));
-    EXPECT_EQ(r.iregs[4], IrValue(10));
-    EXPECT_EQ(r.iregs[5], IrValue(11));
-    EXPECT_EQ(r.iregs[6], IrValue(12));
-    EXPECT_EQ(r.paramPassingStackSlots[0], IrValue(13));
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(7)));
+    EXPECT_EQ(r.iregs[2], Cell::Move(IrValue(8)));
+    EXPECT_EQ(r.iregs[3], Cell::Move(IrValue(9)));
+    EXPECT_EQ(r.iregs[4], Cell::Move(IrValue(10)));
+    EXPECT_EQ(r.iregs[5], Cell::Move(IrValue(11)));
+    EXPECT_EQ(r.iregs[6], Cell::Move(IrValue(12)));
+    EXPECT_EQ(r.paramPassingStackSlots[0], Cell::Move(IrValue(13)));
 }
 
 TEST(AbiBuilder, FloatParamsNoOverflow)
@@ -299,7 +299,7 @@ TEST(AbiBuilder, FloatParamsNoOverflow)
 
     ASSERT_EQ(r.movCount, 8);
     for (int i = 0; i < 8; i++) {
-        EXPECT_EQ(r.fregs[i], FrValue(i + 8));
+        EXPECT_EQ(r.fregs[i], Cell::Move(FrValue(i + 8)));
     }
 }
 
@@ -314,8 +314,8 @@ TEST(AbiBuilder, InterfaceCallGeneric)
     r.Resolve(builder.moves);
 
     ASSERT_EQ(r.movCount, 2);
-    EXPECT_EQ(r.iregs[1], IrValue(7));
-    EXPECT_EQ(r.iregs[2], IrValue(8));
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(7)));
+    EXPECT_EQ(r.iregs[2], Cell::Move(IrValue(8)));
 }
 
 TEST(AbiBuilder, SRetPlusMutPlusParams)
@@ -331,11 +331,11 @@ TEST(AbiBuilder, SRetPlusMutPlusParams)
     r.Resolve(builder.moves);
 
     ASSERT_EQ(r.movCount, 5);
-    EXPECT_EQ(r.iregs[1], IrValue(7));
-    EXPECT_EQ(r.iregs[2], IrValue(8));
-    EXPECT_EQ(r.iregs[3], IrValue(9));
-    EXPECT_EQ(r.iregs[4], IrValue(10));
-    EXPECT_EQ(r.iregs[5], IrValue(11));
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(7)));
+    EXPECT_EQ(r.iregs[2], Cell::Move(IrValue(8)));
+    EXPECT_EQ(r.iregs[3], Cell::Move(IrValue(9)));
+    EXPECT_EQ(r.iregs[4], Cell::Move(IrValue(10)));
+    EXPECT_EQ(r.iregs[5], Cell::Move(IrValue(11)));
 }
 
 TEST(AbiBuilder, Aarch64MoreIntRegs)
@@ -351,7 +351,7 @@ TEST(AbiBuilder, Aarch64MoreIntRegs)
 
     ASSERT_EQ(r.movCount, 8);
     for (int i = 0; i < 8; i++) {
-        EXPECT_EQ(r.iregs[i + 1], IrValue(i + 6));
+        EXPECT_EQ(r.iregs[i + 1], Cell::Move(IrValue(i + 6)));
     }
 }
 
@@ -378,8 +378,8 @@ TEST(AbiBuilder, CycleInArgs)
     r.Resolve(builder.moves);
 
     ASSERT_EQ(r.movCount, 3);
-    EXPECT_EQ(r.iregs[1], IrValue(2));
-    EXPECT_EQ(r.iregs[2], IrValue(1));
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(2)));
+    EXPECT_EQ(r.iregs[2], Cell::Move(IrValue(1)));
 }
 
 TEST(AbiBuilder, PlatformParameterized)
@@ -393,9 +393,9 @@ TEST(AbiBuilder, PlatformParameterized)
         RegsAndSlots r;
         r.Resolve(builder.moves);
         ASSERT_EQ(r.movCount, 8);
-        EXPECT_EQ(r.iregs[6], IrValue(11));
-        EXPECT_EQ(r.paramPassingStackSlots[0], IrValue(12));
-        EXPECT_EQ(r.paramPassingStackSlots[1], IrValue(13));
+        EXPECT_EQ(r.iregs[6], Cell::Move(IrValue(11)));
+        EXPECT_EQ(r.paramPassingStackSlots[0], Cell::Move(IrValue(12)));
+        EXPECT_EQ(r.paramPassingStackSlots[1], Cell::Move(IrValue(13)));
     }
 
     // aarch64: 8 int regs, no overflow
@@ -407,7 +407,7 @@ TEST(AbiBuilder, PlatformParameterized)
         RegsAndSlots r;
         r.Resolve(builder.moves);
         ASSERT_EQ(r.movCount, 8);
-        EXPECT_EQ(r.iregs[8], IrValue(13));
+        EXPECT_EQ(r.iregs[8], Cell::Move(IrValue(13)));
     }
 }
 
@@ -423,9 +423,9 @@ TEST(AbiBuilder, TemplateAdapter)
     r.Resolve(builder.moves);
 
     ASSERT_EQ(r.movCount, 3);
-    EXPECT_EQ(r.iregs[1], IrValue(7));
-    EXPECT_EQ(r.iregs[2], IrValue(8));
-    EXPECT_EQ(r.fregs[0], FrValue(3));
+    EXPECT_EQ(r.iregs[1], Cell::Move(IrValue(7)));
+    EXPECT_EQ(r.iregs[2], Cell::Move(IrValue(8)));
+    EXPECT_EQ(r.fregs[0], Cell::Move(FrValue(3)));
 }
 
 // --- Tracking tests ---
