@@ -585,10 +585,7 @@ void Emitter::NewArr(RTSupport::TypeInfo typeInfo)
     );
 }
 
-void Emitter::NewArrGeneric(IReg ti)
-{
-    Encode(segment, RT::B2rr { .opc = RT::Opcode::NEWARR_G, .rr = { ti, ti } });
-}
+void Emitter::NewArrGeneric(IReg ti) { Encode(segment, RT::B2rr { .opc = RT::Opcode::NEWARR_G, .rr = { ti, ti } }); }
 
 void Emitter::InitClosure(bool instantiatedSret)
 {
@@ -908,7 +905,7 @@ void Emitter::LeaConstIndexGeneric(IReg dst, IReg src, int64_t idx, IReg ti)
         RT::ConstIndexGeneric {
             .opc = RT::Opcode::CONST_INDEX_GENERIC,
             .rr  = RR { .x = dst, .y = src },
-            .ti = RR { .x = ti, .y = 0 },
+            .ti  = RR { .x = ti, .y = 0 },
             .idx = Imm64 { .imm = static_cast<uint64_t>(idx) },
         }
     );
@@ -1030,7 +1027,7 @@ void Emitter::StoreFrameImm(StoreAccessKind stk, uint64_t imm, int32_t offset)
     switch (stk) {
         case StoreAccessKind::ST_F32: stk = StoreAccessKind::ST_32; break;
         case StoreAccessKind::ST_F64: stk = StoreAccessKind::ST_64; break;
-        default: break;
+        default:                      break;
     }
     RT::Opcode opc;
     if (MathUtils::IsNBitsSigned(imm, 8) || stk == StoreAccessKind::ST_8) {
@@ -1117,6 +1114,21 @@ void Emitter::Convert(ConvertType toType, ConvertType fromType, Reg to, Reg from
 {
     Encode(segment, RT::B3xxrr {
         .opc = RT::Opcode::CONVERT,
+        .xx = {
+            .imm1 = Imm4(toType),
+            .imm2 = Imm4(fromType),
+        },
+        .rr = {
+            .x = to,
+            .y = from,
+        },
+    });
+}
+
+void Emitter::CheckedConvert(ConvertType toType, ConvertType fromType, Reg to, Reg from)
+{
+    Encode(segment, RT::B3xxrr {
+        .opc = RT::Opcode::CHECKED_CONVERT,
         .xx = {
             .imm1 = Imm4(toType),
             .imm2 = Imm4(fromType),
@@ -1289,9 +1301,9 @@ void Emitter::NewBox(RTSupport::TypeInfo typeInfo)
 
 void Emitter::UnboxT(IReg src, int32_t offset)
 {
-    auto command = RT::B6xri32 {
-        .opc = RT::Opcode::UNBOX_T, .xr = { .imm = 0, .r = src }, .imm32 = { .imm = static_cast<uint32_t>(offset) }
-    };
+    auto command = RT::B6xri32 { .opc   = RT::Opcode::UNBOX_T,
+                                 .xr    = { .imm = 0, .r = src },
+                                 .imm32 = { .imm = static_cast<uint32_t>(offset) } };
     Encode(segment, command);
 }
 
