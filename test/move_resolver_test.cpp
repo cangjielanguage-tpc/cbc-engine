@@ -868,14 +868,14 @@ TEST(MoveResolver, FLoadBeforeMove)
 TEST(MoveResolver, LoadMoveCycleBrokenWithTemp)
 {
     // IR2 = *(IR1); IR1 = IR2 forms a cycle: IR2 is staged through the temp register.
-    MoveResolver mr(IReg::IR7);
+    MoveResolver mr;
     mr.AddLoadFromAddr(Location::IReg(IReg::IR1), 0, LDK::LD_64, Location::IReg(IReg::IR2)); // IR2 = *(IR1)
     mr.AddMove(Location::IReg(IReg::IR2), Location::IReg(IReg::IR1));                        // IR1 = IR2
 
     std::vector<Emit> expected {
-        Emit(Location::IReg(IReg::IR7), Location::IReg(IReg::IR2)),
+        Emit(Location::IReg(HostTraits::TR), Location::IReg(IReg::IR2)),
         Emit(Location::IReg(IReg::IR2), Location::IReg(IReg::IR1), 0, LDK::LD_64),
-        Emit(Location::IReg(IReg::IR1), Location::IReg(IReg::IR7)),
+        Emit(Location::IReg(IReg::IR1), Location::IReg(HostTraits::TR)),
     };
     EXPECT_EQ(Resolve(mr), expected);
 }
@@ -888,14 +888,14 @@ TEST(MoveResolver, LoadLoadCycleBrokenWithTemp)
     //  ^             |
     //  |____load_____|
     //
-    MoveResolver mr(IReg::IR7);
+    MoveResolver mr;
     mr.AddLoadFromAddr(Location::IReg(IReg::IR1), 0, LDK::LD_64, Location::IReg(IReg::IR2)); // IR2 = *(IR1)
     mr.AddLoadFromAddr(Location::IReg(IReg::IR2), 8, LDK::LD_64, Location::IReg(IReg::IR1)); // IR1 = *(IR2 + 8)
 
     std::vector<Emit> expected {
-        Emit(Location::IReg(IReg::IR7), Location::IReg(IReg::IR2)),
+        Emit(Location::IReg(HostTraits::TR), Location::IReg(IReg::IR2), 8, LDK::LD_64),
         Emit(Location::IReg(IReg::IR2), Location::IReg(IReg::IR1), 0, LDK::LD_64),
-        Emit(Location::IReg(IReg::IR1), Location::IReg(IReg::IR7), 8, LDK::LD_64),
+        Emit(Location::IReg(IReg::IR1), Location::IReg(HostTraits::TR)),
     };
     EXPECT_EQ(Resolve(mr), expected);
 }
@@ -906,7 +906,7 @@ TEST(MoveResolver, SharedAddrLoadsClobberAndFanOut)
     //  ^        |
     //  |__load__|
     //
-    MoveResolver mr(IReg::IR7);
+    MoveResolver mr;
     mr.AddMove(Location::IReg(IReg::IR3), Location::IReg(IReg::IR1));                        // IR1 = IR3
     mr.AddLoadFromAddr(Location::IReg(IReg::IR1), 0, LDK::LD_64, Location::IReg(IReg::IR2)); // IR2 = *(IR1)
     mr.AddLoadFromAddr(Location::IReg(IReg::IR1), 8, LDK::LD_64, Location::IReg(IReg::IR3)); // IR3 = *(IR1 + 8)
@@ -915,9 +915,9 @@ TEST(MoveResolver, SharedAddrLoadsClobberAndFanOut)
     std::vector<Emit> expected {
         Emit(Location::IReg(IReg::IR4), Location::IReg(IReg::IR2)),
         Emit(Location::IReg(IReg::IR2), Location::IReg(IReg::IR1), 0, LDK::LD_64),
-        Emit(Location::IReg(IReg::IR7), Location::IReg(IReg::IR3)),
+        Emit(Location::IReg(HostTraits::TR), Location::IReg(IReg::IR3)),
         Emit(Location::IReg(IReg::IR3), Location::IReg(IReg::IR1), 8, LDK::LD_64),
-        Emit(Location::IReg(IReg::IR1), Location::IReg(IReg::IR7)),
+        Emit(Location::IReg(IReg::IR1), Location::IReg(HostTraits::TR)),
     };
     EXPECT_EQ(Resolve(mr), expected);
 }
@@ -999,10 +999,10 @@ TEST(MoveResolver, AllSrcDstKindsWithLoads)
         Emit(Location::Slot(3), Location::IReg(IReg::IR2), 24, LDK::LD_32),
         Emit(Location::Slot(5), Location::Slot(4), 0, LDK::LD_U16),
 
-        Emit(Location::FReg(FReg::FR0), Location::FReg(FReg::FR2)),
-        Emit(Location::FReg(FReg::FR1), Location::IReg(IReg::IR2), 16, LDK::LD_F64),
         Emit(Location::IReg(IReg::IR1), Location::IReg(IReg::IR5)),
         Emit(Location::IReg(IReg::IR3), Location::IReg(IReg::IR2), 8, LDK::LD_64),
+        Emit(Location::FReg(FReg::FR0), Location::FReg(FReg::FR2)),
+        Emit(Location::FReg(FReg::FR1), Location::IReg(IReg::IR2), 16, LDK::LD_F64),
 
         Emit(Location::FReg(FReg::FR2), Location::Slot(7)),
         Emit(Location::IReg(IReg::IR4), Location::Slot(8), 8, LDK::LD_S8),
@@ -1022,7 +1022,7 @@ TEST(MoveResolver, MixedCyclesLoadsAndSlots)
     //
     // FR1 <---> FR0
     //
-    MoveResolver mr(IReg::IR7);
+    MoveResolver mr;
     mr.AddLoadFromAddr(Location::IReg(IReg::IR1), 0, LDK::LD_64, Location::IReg(IReg::IR2)); // IR2 = *(IR1)
     mr.AddMove(Location::IReg(IReg::IR2), Location::IReg(IReg::IR3));                        // IR3 = IR2
     mr.AddMove(Location::IReg(IReg::IR3), Location::IReg(IReg::IR1));                        // IR1 = IR3
@@ -1038,16 +1038,16 @@ TEST(MoveResolver, MixedCyclesLoadsAndSlots)
         Emit(Location::Slot(0), Location::IReg(IReg::IR4)),
         Emit(Location::Slot(1), Location::IReg(IReg::IR5), 8, LDK::LD_32),
 
+        // Resolved IReg cycle
+        Emit(Location::IReg(HostTraits::TR), Location::IReg(IReg::IR3)),
+        Emit(Location::IReg(IReg::IR3), Location::IReg(IReg::IR2)),
+        Emit(Location::IReg(IReg::IR2), Location::IReg(IReg::IR1), 0, LDK::LD_64),
+        Emit(Location::IReg(IReg::IR1), Location::IReg(HostTraits::TR)),
+
         // Resolved FReg cycle
         Emit(Location::FReg(FReg::FR15), Location::FReg(FReg::FR1)),
         Emit(Location::FReg(FReg::FR1), Location::FReg(FReg::FR0)),
         Emit(Location::FReg(FReg::FR0), Location::FReg(FReg::FR15)),
-
-        // Resolved IReg cycle
-        Emit(Location::IReg(IReg::IR7), Location::IReg(IReg::IR3)),
-        Emit(Location::IReg(IReg::IR3), Location::IReg(IReg::IR2)),
-        Emit(Location::IReg(IReg::IR2), Location::IReg(IReg::IR1), 0, LDK::LD_64),
-        Emit(Location::IReg(IReg::IR1), Location::IReg(IReg::IR7)),
 
         Emit(Location::FReg(FReg::FR2), Location::Slot(2), 16, LDK::LD_F32),
         Emit(Location::IReg(IReg::IR6), Location::Slot(3)),
@@ -1069,8 +1069,8 @@ TEST(MoveResolver, LoadsFromSlotsAfterResolving)
     mr.AddLoadFromAddr(Location::Slot(2), 4, LDK::LD_F64, Location::FReg(FReg::FR0));        // FR0 = *(Slot2 + 4)
 
     std::vector<Emit> expected {
-        Emit(Location::FReg(FReg::FR1), Location::FReg(FReg::FR0)),
         Emit(Location::IReg(IReg::IR3), Location::IReg(IReg::IR2)),
+        Emit(Location::FReg(FReg::FR1), Location::FReg(FReg::FR0)),
         Emit(Location::IReg(IReg::IR2), Location::IReg(IReg::IR1), 8, LDK::LD_64),
 
         // All slot moves/loads emitted after resolution
@@ -1091,7 +1091,7 @@ TEST(MoveResolver, TwoCyclesOneWithLoad)
     //  ^                      |
     //  |______________________|
     //
-    MoveResolver mr(IReg::IR7);
+    MoveResolver mr;
     mr.AddMove(Location::IReg(IReg::IR1), Location::IReg(IReg::IR2));                        // IR2 = IR1
     mr.AddMove(Location::IReg(IReg::IR2), Location::IReg(IReg::IR1));                        // IR1 = IR2
     mr.AddLoadFromAddr(Location::IReg(IReg::IR3), 0, LDK::LD_64, Location::IReg(IReg::IR4)); // IR4 = *(IR3)
@@ -1105,15 +1105,15 @@ TEST(MoveResolver, TwoCyclesOneWithLoad)
         Emit(Location::Slot(0), Location::FReg(FReg::FR0)),
 
         // First resolved IReg cycle
-        Emit(Location::IReg(IReg::IR7), Location::IReg(IReg::IR2)),
+        Emit(Location::IReg(HostTraits::TR), Location::IReg(IReg::IR2)),
         Emit(Location::IReg(IReg::IR2), Location::IReg(IReg::IR1)),
-        Emit(Location::IReg(IReg::IR1), Location::IReg(IReg::IR7)),
+        Emit(Location::IReg(IReg::IR1), Location::IReg(HostTraits::TR)),
 
         // Second resolved IReg cycle
-        Emit(Location::IReg(IReg::IR7), Location::IReg(IReg::IR5)),
+        Emit(Location::IReg(HostTraits::TR), Location::IReg(IReg::IR5)),
         Emit(Location::IReg(IReg::IR5), Location::IReg(IReg::IR4)),
         Emit(Location::IReg(IReg::IR4), Location::IReg(IReg::IR3), 0, LDK::LD_64),
-        Emit(Location::IReg(IReg::IR3), Location::IReg(IReg::IR7)),
+        Emit(Location::IReg(IReg::IR3), Location::IReg(HostTraits::TR)),
 
         Emit(Location::FReg(FReg::FR1), Location::Slot(1), 8, LDK::LD_64),
         Emit(Location::IReg(IReg::IR6), Location::Slot(2)),
@@ -1144,12 +1144,11 @@ TEST(MoveResolver, ManyLoadsFromOneAddr)
         Emit(Location::Slot(0), Location::IReg(IReg::IR9), 24, LDK::LD_64),
         Emit(Location::Slot(1), Location::IReg(IReg::IR11)),
 
-        Emit(Location::FReg(FReg::FR0), Location::IReg(IReg::IR9), 8, LDK::LD_F64),
-        Emit(Location::FReg(FReg::FR2), Location::FReg(FReg::FR1)),
-
         Emit(Location::IReg(IReg::IR1), Location::IReg(IReg::IR9), 0, LDK::LD_64),
         Emit(Location::IReg(IReg::IR2), Location::IReg(IReg::IR9), 16, LDK::LD_32),
         Emit(Location::IReg(IReg::IR3), Location::IReg(IReg::IR10)),
+        Emit(Location::FReg(FReg::FR0), Location::IReg(IReg::IR9), 8, LDK::LD_F64),
+        Emit(Location::FReg(FReg::FR2), Location::FReg(FReg::FR1)),
 
         // After all loads from IR9
         Emit(Location::IReg(IReg::IR9), Location::IReg(IReg::IR5)),

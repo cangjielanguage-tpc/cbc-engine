@@ -7,7 +7,9 @@
 
 namespace Cbc {
 
-MoveResolver::MoveResolver(IReg tempIr) : tempIr(tempIr) {}
+static constexpr IReg IREG_TEMP = PlatformTraits<HOST_PLATFORM>::TR;
+static constexpr FReg FREG_TEMP = FReg::FR15;
+static constexpr int REG_COUNT  = IReg::VIRT_COUNT + FReg::COUNT;
 
 void MoveResolver::Clear() { assignments.Clear(); }
 
@@ -69,13 +71,11 @@ struct AssignmentInfo {
 
     Location Src() { return isLoad ? loadInfo.src : moveInfo.src; }
 
-    void SetSrc(Location src)
+    static AssignmentInfo Move(Location src) { return AssignmentInfo(src); }
+
+    static AssignmentInfo Load(Location src, int32_t offset, Format::LoadAccessKind ldk)
     {
-        if (isLoad) {
-            loadInfo.src = src;
-        } else {
-            moveInfo.src = src;
-        }
+        return AssignmentInfo(src, offset, ldk);
     }
 };
 
@@ -147,8 +147,8 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
     //    b. If no one references `dst`, it is safe to emit `dst = src`
     //       and mark it DONE.
     //    c. If no progress was made, the remaining non-DONE nodes form
-    //       a cycle. Break it by emitting `temp = src` for one node and
-    //       rewriting its source to `temp`. The `temp` register is
+    //       a cycle. Break it by executing one node's assignment into `temp`
+    //       and rewriting the node to `dst = temp`. The `temp` register is
     //       guaranteed not to be in the cycle (by ABI constraints).
     // 3. When all nodes are DONE, the mapping is fully resolved.
     //
@@ -156,16 +156,10 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
     // O(n) iterations in the worst case (one node resolved per iteration for a single cycle).
     // No heap allocations — only stack-allocated arrays.
 
-    static constexpr int BUFFER_SIZE = IReg::VIRT_COUNT < FReg::COUNT ? FReg::COUNT : IReg::VIRT_COUNT;
-    using RegNum = uint8_t;
+    AssignmentInfo nodes[REG_COUNT] = {};
 
-    AssignmentInfo iregNodes[IReg::VIRT_COUNT] = {};
-    AssignmentInfo fregNodes[FReg::COUNT]      = {};
-
-    for (int i = 0; i < IReg::VIRT_COUNT; i++)
-        iregNodes[i] = AssignmentInfo(Location::IReg(IReg::From(i)));
-    for (int i = 0; i < FReg::COUNT; i++)
-        fregNodes[i] = AssignmentInfo(Location::FReg(FReg::From(i)));
+    for (int idx = 0; idx < REG_COUNT; idx++)
+        nodes[idx] = AssignmentInfo::Move(Location { idx });
 
     for (auto& assignment : assignments) {
         auto dst   = assignment.dst;
@@ -175,15 +169,13 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
 
         switch (Pack(skind, dkind, assignment.fromAddr)) {
             // Reg moves (must always hold: src.kind == dst.kind)
-            case Pack(Location::IREG, Location::IREG, MOVE): iregNodes[dst.IRegIdx()] = AssignmentInfo(src); break;
-            case Pack(Location::FREG, Location::FREG, MOVE): fregNodes[dst.FRegIdx()] = AssignmentInfo(src); break;
+            case Pack(Location::IREG, Location::IREG, MOVE):
+            case Pack(Location::FREG, Location::FREG, MOVE): nodes[dst] = AssignmentInfo::Move(src); break;
 
             // Loads (must always hold: src.kind = IREG)
             case Pack(Location::IREG, Location::IREG, LOAD):
-                iregNodes[dst.IRegIdx()] = AssignmentInfo(src, assignment.offset, assignment.ldk);
-                break;
             case Pack(Location::IREG, Location::FREG, LOAD):
-                fregNodes[dst.FRegIdx()] = AssignmentInfo(src, assignment.offset, assignment.ldk);
+                nodes[dst] = AssignmentInfo::Load(src, assignment.offset, assignment.ldk);
                 break;
 
             // Param slots cannot form any chains: emit immediately, before
@@ -221,24 +213,17 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
     }
 
     auto cycleResolver = [](Utils::Span<AssignmentInfo> nodes,
-                            Location temp,
-                            Utils::Function<void(RegNum, Location)> const& assign) {
-        uint8_t regCount = nodes.Size();
-        ASSERT(regCount <= BUFFER_SIZE);
-        ASSERT(temp.Kind() == Location::IREG || temp.Kind() == Location::FREG);
+                            Utils::Function<void(Location, AssignmentInfo)> const& assign) {
+        ASSERT(nodes.Size() == REG_COUNT);
         // The graph is: "nodes[dst].Src() -> dst"
-
-        RegNum tempIdx = temp.Kind() == Location::IREG ? temp.IRegIdx() : temp.FRegIdx();
-        auto dstLoc    = [&temp](RegNum dst) {
-            return temp.Kind() == Location::IREG ? Location::IReg(IReg::From(dst)) : Location::FReg(FReg::From(dst));
-        };
 
         constexpr char NOT_VISITED = 0;
         constexpr char DONE        = 1;
-        char state[BUFFER_SIZE]    = { NOT_VISITED };
+        char state[REG_COUNT]      = { NOT_VISITED };
 
-        for (RegNum dst = 0; dst < regCount; dst++) {
-            if (nodes[dst].Src() == dstLoc(dst) && !nodes[dst].isLoad)
+        for (int idx = 0; idx < REG_COUNT; idx++) {
+            Location dst = Location { idx };
+            if (nodes[dst].Src() == dst && !nodes[dst].isLoad)
                 state[dst] = DONE;
         }
 
@@ -246,19 +231,20 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
         while (changed) {
             changed = false;
             // Find and resolve chains.
-            for (RegNum dst = 0; dst < regCount; dst++) {
+            for (int idx = 0; idx < REG_COUNT; idx++) {
+                Location dst = Location { idx };
                 if (state[dst] == DONE) {
                     continue;
                 }
                 auto src = nodes[dst].Src();
-                ASSERT(src != dstLoc(dst) || nodes[dst].isLoad);
+                ASSERT(src != dst || nodes[dst].isLoad);
 
                 // check if someone needs a value of `dst`.
                 bool needed = false;
-                for (RegNum dstdst = 0; dstdst < regCount; dstdst++) {
-                    if (state[dstdst] == DONE || dstdst == dst)
+                for (int other = 0; other < REG_COUNT; other++) {
+                    if (state[other] == DONE || other == idx)
                         continue;
-                    if (nodes[dstdst].Src() == dstLoc(dst)) {
+                    if (nodes[other].Src() == dst) {
                         needed = true;
                         break;
                     }
@@ -266,69 +252,65 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
                 if (needed)
                     continue;
                 // safe to assign src to dst
-                assign(dst, src);
+                assign(dst, nodes[dst]);
                 changed    = true;
                 state[dst] = DONE;
             }
             if (changed)
                 continue;
 
-            ASSERT(state[tempIdx] == DONE);
+            Location temps[] = { Location::IReg(IREG_TEMP), Location::FReg(FREG_TEMP) };
 
             // Invariant: any in-progress assignment cannot have a `temp` register.
             // 1. A `temp` register cannot be part of a cycle (due to the ABI).
             // 2. The loop above should process all chains.
-            for (RegNum dst = 0; dst < regCount; dst++) {
-                if (state[dst] == DONE)
-                    continue;
-                ASSERT(nodes[dst].Src() != temp || dstLoc(dst) == temp);
-                // The loop will be optimized out.
+            for (Location temp : temps) {
+                ASSERT(state[temp] == DONE);
+                for (int idx = 0; idx < REG_COUNT; idx++) {
+                    Location dst = Location { idx };
+                    if (state[dst] == DONE)
+                        continue;
+                    ASSERT(nodes[dst].Src() != temp || dst == temp);
+                    // The loop will be optimized out.
+                }
             }
 
             // A cycle is present and there are no chains left.
             // So, any non-done `dst` is part of a cycle.
-            for (RegNum dst = 0; dst < regCount; dst++) {
+            for (int idx = 0; idx < REG_COUNT; idx++) {
+                Location dst = Location { idx };
                 if (state[dst] == DONE)
                     continue;
-                auto src = nodes[dst].Src();
-                assign(tempIdx, src);
-                nodes[dst].SetSrc(temp);
+                Location tmp = dst.Kind() == Location::IREG ? temps[0] : temps[1];
+                assign(tmp, nodes[dst]);
+                nodes[dst] = AssignmentInfo::Move(tmp);
                 changed = true;
                 break;
             }
         }
 
-        for (RegNum dst = 0; dst < regCount; dst++) {
+        for (int idx = 0; idx < REG_COUNT; idx++) {
+            Location dst = Location { idx };
             ASSERT(state[dst] == DONE);
             // The loop will be optimized out.
         }
     };
 
-    auto assignIr = [&emitter, &iregNodes](RegNum dst, Location src) {
-        auto& node = iregNodes[dst];
-        if (node.isLoad) {
-            // Loads always use loadInfo.src as the source.
-            emitter.AssignIRegFromAddr(IReg::From(dst), node.loadInfo.src, node.loadInfo.offset, node.loadInfo.ldk);
+    auto assign = [&emitter](Location dst, AssignmentInfo info) {
+        if (info.isLoad) {
+            Location src = info.loadInfo.src;
+            EmitLoadFromAddr(emitter, dst, src, info.loadInfo.offset, info.loadInfo.ldk);
         } else {
-            emitter.AssignIReg(IReg::From(dst), IReg::From(src.IRegIdx()));
+            Location src = info.moveInfo.src;
+            switch (dst.Kind()) {
+                case Location::IREG: emitter.AssignIReg(IReg::From(dst.IRegIdx()), IReg::From(src.IRegIdx())); break;
+                case Location::FREG: emitter.AssignFReg(FReg::From(dst.FRegIdx()), FReg::From(src.FRegIdx())); break;
+                default:             ASSERT(false);
+            }
         }
     };
 
-    auto assignFr = [&emitter, &fregNodes](RegNum dst, Location src) {
-        auto& node = fregNodes[dst];
-        if (node.isLoad) {
-            // Loads always use loadInfo.src as the source.
-            emitter.AssignFRegFromAddr(FReg::From(dst), node.loadInfo.src, node.loadInfo.offset, node.loadInfo.ldk);
-        } else {
-            emitter.AssignFReg(FReg::From(dst), FReg::From(src.FRegIdx()));
-        }
-    };
-
-    // Order is important!
-    // The freg graph is resolved first: loads in it read ireg addresses
-    // that the ireg shuffle is not touched yet.
-    cycleResolver(Utils::Span<AssignmentInfo>(fregNodes, FReg::COUNT), Location::FReg(TEMP_FR), assignFr);
-    cycleResolver(Utils::Span<AssignmentInfo>(iregNodes, IReg::VIRT_COUNT), Location::IReg(tempIr), assignIr);
+    cycleResolver(Utils::Span<AssignmentInfo>(nodes, REG_COUNT), assign);
 
     // Handle (slot -> <any>) assignments.
     for (auto& assignment : assignments) {
