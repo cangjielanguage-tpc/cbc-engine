@@ -193,6 +193,7 @@ public:
     void SCCImm(CC cc, Width width, IReg d, IReg l, uint64_t imm);
 
     void Convert(ConvertType toType, ConvertType fromType, Reg to, Reg from);
+    void CheckedConvert(ConvertType toType, ConvertType fromType, Reg to, Reg from);
 
     void BFXS(IReg dst, IReg src, uint8_t offset, uint8_t size);
     void BFXZ(IReg dst, IReg src, uint8_t offset, uint8_t size);
@@ -209,16 +210,9 @@ public:
 
     void VirtualCall(uint16_t vnum, uint16_t extDefNum, bool sret);
     void InterfaceCall(
-        uint16_t methodNum,
-        RTSupport::TypeInfo typeInfo,
-        bool sret,
-        Interpretation::StaticCallTypeInfoArgs typeInfoArgs
+        uint16_t methodNum, RTSupport::TypeInfo typeInfo, bool sret, Interpretation::StaticCallTypeInfoArgs typeInfoArgs
     );
-    void InterfaceCallGeneric(
-        uint16_t methodNum,
-        bool sret,
-        Interpretation::StaticCallTypeInfoArgs typeInfoArgs
-    );
+    void InterfaceCallGeneric(uint16_t methodNum, bool sret, Interpretation::StaticCallTypeInfoArgs typeInfoArgs);
 
     void StringLit(Interpretation::StringStorage* literal, int32_t frameOffs);
 

@@ -1228,6 +1228,13 @@ LABEL(CONVERT) {
     interpreter.Convert(args.xx.imm1.ConvertType(), args.xx.imm2.ConvertType(), args.rr.x, args.rr.y);
     NEXT;
 }
+LABEL(CHECKED_CONVERT) {
+    auto args = B3xxrr::Decode(reader);
+    LOG_INSTR;
+    bool overflow =
+        interpreter.CheckedConvert(args.xx.imm1.ConvertType(), args.xx.imm2.ConvertType(), args.rr.x, args.rr.y);
+    NEXT_OR_THROW(!overflow, Type::OverflowException);
+}
 LABEL(BFXS) {
     auto args = BFX::Decode(reader);
     LOG_INSTR;

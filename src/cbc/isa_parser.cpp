@@ -422,6 +422,12 @@ struct IsaParserImpl {
         parser.Convert(Format::ConvertType(toType), Format::ConvertType(fromType), to, from);
     }
 
+    static void CheckedConvert(IsaParser& parser)
+    {
+        auto [toType, fromType, to, from] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
+        parser.CheckedConvert(Format::ConvertType(toType), Format::ConvertType(fromType), to, from);
+    }
+
     static void NewArr(IsaParser& parser)
     {
         auto [dst, len, id] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadULEB().Get();
@@ -751,7 +757,7 @@ struct IsaParserImpl {
             case Cbc::RegSymGroup::SpawnFuture:     parser.SpawnFuture(reg, id); break;
             case Cbc::RegSymGroup::NewClosure:      parser.NewClosure(reg, id); break;
 
-            case Cbc::RegSymGroup::NewClosureGeneric: parser.NewClosureGeneric(reg, id); break;
+            case Cbc::RegSymGroup::NewClosureGeneric:   parser.NewClosureGeneric(reg, id); break;
             case Cbc::RegSymGroup::NewObjGeneric:       parser.NewObjGeneric(reg, id); break;
             case Cbc::RegSymGroup::LoadTypeInfoGeneric: parser.LoadTypeInfoGeneric(reg, id); break;
 

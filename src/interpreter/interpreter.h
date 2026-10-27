@@ -576,6 +576,24 @@ public:
         }
     }
 
+    // Returns true when the cast overflowed and `OverflowException` must be
+    // thrown. Otherwise the converted value is stored into the destination.
+    bool CheckedConvert(ConvertType toType, ConvertType fromType, Reg to, Reg from)
+    {
+        auto val = fromType.IsFloatingPoint() ? ectype->GetPrimitive(from.FR()) : ectype->GetPrimitive(from.IR());
+        auto res = CheckedCastPrim(toType, fromType, val);
+        if (res.overflow) {
+            return true;
+        }
+
+        if (toType.IsFloatingPoint()) {
+            ectype->Put(to.FR(), res.value);
+        } else {
+            ectype->Put(to.IR(), res.value);
+        }
+        return false;
+    }
+
     inline bool BitFieldExtract(Reg dst, Reg src, uint8_t offset, uint8_t size, bool sx)
     {
         auto val = ectype->GetPrimitive(src.IR());

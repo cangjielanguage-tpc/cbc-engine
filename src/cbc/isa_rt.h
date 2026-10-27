@@ -109,6 +109,7 @@
     X(SCCI64L, B4xi12rr, "scci.64 $0cc $2ir $3ir $1I12L")                                                              \
     X(TYPE_ARG, B4xi12rr, "type.arg $2ir $3ir $1I12")                                                                  \
     X(CONVERT, B3xxrr, "convert $0ct $1ct $2ir $3ir") /* FIXME: ir/fr */                                               \
+    X(CHECKED_CONVERT, B3xxrr, "checked.convert $0ct $1ct $2ir $3ir")                                                  \
     X(CALL_CLOSURE, B1, "call.closure")                                                                                \
     X(CALL_CLOSURE_SRET, B1, "call.closure.sret")                                                                      \
     X(CALL_CLOSURE_GENERIC, B1, "call.closure.g")                                                                      \
@@ -509,10 +510,10 @@ struct StructFieldOp {
 
     static StructFieldOp Decode(Decoder::ByteReader& reader)
     {
-        auto opc   = Opcode::Decode(reader);
-        auto rr    = Format::RR::Decode(reader);
+        auto opc    = Opcode::Decode(reader);
+        auto rr     = Format::RR::Decode(reader);
         auto offset = reader.Read8();
-        auto ti    = reader.Read<RTSupport::TypeInfo>();
+        auto ti     = reader.Read<RTSupport::TypeInfo>();
         return StructFieldOp { opc, rr, offset, ti };
     }
 };
@@ -529,10 +530,10 @@ struct StoreGenericOp {
     {
         auto opc = Opcode::Decode(reader);
         switch (opc) {
-            case Opcode::STORE_GENERIC: return Decode0(reader);
+            case Opcode::STORE_GENERIC:   return Decode0(reader);
             case Opcode::STORE_GENERIC_1: return Decode1(reader);
             case Opcode::STORE_GENERIC_4: return Decode4(reader);
-            default: FATAL("unexpected opcode: %u", opc);
+            default:                      FATAL("unexpected opcode: %u", opc);
         }
     }
 
@@ -580,13 +581,13 @@ struct StoreFrameImm {
             case Opcode::STORE_FRAME_IMM_2: return Decode2(reader);
             case Opcode::STORE_FRAME_IMM_4: return Decode4(reader);
             case Opcode::STORE_FRAME_IMM_8: return Decode8(reader);
-            default: FATAL("unexpected opcode: %u", opc);
+            default:                        FATAL("unexpected opcode: %u", opc);
         }
     }
 
     static StoreFrameImm Decode1(Decoder::ByteReader& reader)
     {
-        auto opc  = Opcode::Decode(reader);
+        auto opc = Opcode::Decode(reader);
         ASSERT(opc == Opcode::STORE_FRAME_IMM_1);
         auto stk  = Format::StoreAccessKind::From(reader.Read8());
         auto imm  = reader.Read8();
@@ -597,7 +598,7 @@ struct StoreFrameImm {
 
     static StoreFrameImm Decode2(Decoder::ByteReader& reader)
     {
-        auto opc  = Opcode::Decode(reader);
+        auto opc = Opcode::Decode(reader);
         ASSERT(opc == Opcode::STORE_FRAME_IMM_2);
         auto stk  = Format::StoreAccessKind::From(reader.Read8());
         auto imm  = reader.Read16();
@@ -608,7 +609,7 @@ struct StoreFrameImm {
 
     static StoreFrameImm Decode4(Decoder::ByteReader& reader)
     {
-        auto opc  = Opcode::Decode(reader);
+        auto opc = Opcode::Decode(reader);
         ASSERT(opc == Opcode::STORE_FRAME_IMM_4);
         auto stk  = Format::StoreAccessKind::From(reader.Read8());
         auto imm  = reader.Read32();
@@ -619,7 +620,7 @@ struct StoreFrameImm {
 
     static StoreFrameImm Decode8(Decoder::ByteReader& reader)
     {
-        auto opc  = Opcode::Decode(reader);
+        auto opc = Opcode::Decode(reader);
         ASSERT(opc == Opcode::STORE_FRAME_IMM_8);
         auto stk  = Format::StoreAccessKind::From(reader.Read8());
         auto imm  = reader.Read64();

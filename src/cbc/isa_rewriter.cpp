@@ -365,7 +365,7 @@ struct IsaRewriter : public IsaParser {
     )
     {
         int varArgLabelsCnt = (sig.isVarArg ? 1 : 0);
-        int funcVarsCount = sig.tvars.GetLength();
+        int funcVarsCount   = sig.tvars.GetLength();
         if (!CheckArgCount(args.Size(), flags, funcVarsCount, sig.ParamCount() - varArgLabelsCnt)) {
             return {};
         }
@@ -565,6 +565,11 @@ struct IsaRewriter : public IsaParser {
     void Convert(Format::ConvertType toType, Format::ConvertType fromType, AnyReg to, AnyReg from) override
     {
         emit.Convert(toType, fromType, to, from);
+    }
+
+    void CheckedConvert(Format::ConvertType toType, Format::ConvertType fromType, AnyReg to, AnyReg from) override
+    {
+        emit.CheckedConvert(toType, fromType, to, from);
     }
 
     void MovBasePtr(IReg dst, bool local) override
@@ -817,7 +822,10 @@ struct IsaRewriter : public IsaParser {
 
     void LeaIndexGeneric(IReg dst, IReg src, IReg idx, IReg ti) override { emit.LeaIndexGeneric(dst, src, idx, ti); }
 
-    void LeaConstIndexGeneric(IReg dst, IReg src, int64_t idx, IReg ti) override { emit.LeaConstIndexGeneric(dst, src, idx, ti); }
+    void LeaConstIndexGeneric(IReg dst, IReg src, int64_t idx, IReg ti) override
+    {
+        emit.LeaConstIndexGeneric(dst, src, idx, ti);
+    }
 
     void LoadStackRec(IReg r, uint16_t ts) override
     {
@@ -1340,7 +1348,7 @@ struct IsaRewriter : public IsaParser {
     {
         UNWRAP_OPT(method, resolver.Query(Index<DirectCall>(methodId)), Fail);
 
-        auto ref    = Decode::Read(
+        auto ref = Decode::Read(
             session,
             Image::RefIdentifier<Image::MethodReference>(Image::RefId<Image::MethodReference>(methodId), fileId)
         );
@@ -1419,7 +1427,7 @@ struct IsaRewriter : public IsaParser {
             Image::RefIdentifier<Image::MethodReference>(Image::RefId<Image::MethodReference>(methodId), fileId)
         );
 
-        auto flags = MakeCallAbiFlags(ref.flags, ref.abiKind);
+        auto flags         = MakeCallAbiFlags(ref.flags, ref.abiKind);
         Location thisTiLoc = Location::Nil();
         StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature, nullptr, &thisTiLoc);
         EmitLogCall("call.interf", method);
@@ -1428,12 +1436,10 @@ struct IsaRewriter : public IsaParser {
 
         Interpretation::StaticCallTypeInfoArgs tiArgs = {
             .outerTi = Interpretation::StaticCallTypeInfoArgs::NONE,
-            .thisTi = thisTiLocArgNum,
+            .thisTi  = thisTiLocArgNum,
         };
 
-        emit.InterfaceCall(
-            method->methodNum, *ti, flags.isSRet, tiArgs
-        );
+        emit.InterfaceCall(method->methodNum, *ti, flags.isSRet, tiArgs);
         BindStatePoint();
         EmitReturnedTo();
     }
@@ -1450,24 +1456,22 @@ struct IsaRewriter : public IsaParser {
             session,
             Image::RefIdentifier<Image::MethodReference>(Image::RefId<Image::MethodReference>(methodId), fileId)
         );
-        auto flags  = MakeCallAbiFlags(ref.flags, ref.abiKind);
+        auto flags          = MakeCallAbiFlags(ref.flags, ref.abiKind);
         Location outerTiLoc = Location::Nil();
-        Location thisTiLoc = Location::Nil();
+        Location thisTiLoc  = Location::Nil();
         StageCallArgs(args, flags, method->signature, &outerTiLoc, &thisTiLoc);
         EmitLogCall("call.interf.g", method);
 
         uint16_t outerTiLocArgNum = ArgNumber(outerTiLoc);
-        uint16_t thisTiLocArgNum = ArgNumber(thisTiLoc);
+        uint16_t thisTiLocArgNum  = ArgNumber(thisTiLoc);
 
         Interpretation::StaticCallTypeInfoArgs tiArgs = {
             .outerTi = outerTiLocArgNum,
-            .thisTi = thisTiLocArgNum,
+            .thisTi  = thisTiLocArgNum,
         };
 
         EmitLogCall("call.interf.g", method);
-        emit.InterfaceCallGeneric(
-            method->methodNum, flags.isSRet, tiArgs
-        );
+        emit.InterfaceCallGeneric(method->methodNum, flags.isSRet, tiArgs);
         BindStatePoint();
         EmitReturnedTo();
     }
@@ -1513,7 +1517,14 @@ struct IsaRewriter : public IsaParser {
         bool sret = (resolver.Wrap(retType).GetKind() == TK::REC) || generic;
 
         Resolution::MethodSignature sig { &resolver, term, Engine::Term::Predefined(Engine::TermKind::NIL) };
-        StageCallArgs(args, { .isSRet = sret, .hasOuterTi = true, .abiKind = Image::MethodAbiKind::REF_RECEIVER }, sig, nullptr, nullptr, generic);
+        StageCallArgs(
+            args,
+            { .isSRet = sret, .hasOuterTi = true, .abiKind = Image::MethodAbiKind::REF_RECEIVER },
+            sig,
+            nullptr,
+            nullptr,
+            generic
+        );
 
         if (generic) {
             // Generic calls of closure are always considered as `sret`.
@@ -2083,7 +2094,8 @@ static std::vector<std::pair<uint32_t, uint32_t>> CalculateBcPositionsForExcepti
     Engine::Session& session,
     const MethodCode& code,
     Emitter::Emitter const& emitter,
-    Utils::Vector<IsaRewriter::StatePoint> const& statePoints)
+    Utils::Vector<IsaRewriter::StatePoint> const& statePoints
+)
 {
     auto sourceCodeInfo = Decode::GetSourceCodeInfo(session, code);
 
@@ -2096,14 +2108,14 @@ static std::vector<std::pair<uint32_t, uint32_t>> CalculateBcPositionsForExcepti
     for (auto& point : statePoints) {
         auto originalPos  = point.originalPos;
         auto rewrittenPos = emitter.LabelPosition(point.label);
-        auto it                 = infos.find(originalPos);
+        auto it           = infos.find(originalPos);
         if (it == infos.end()) {
             continue;
         }
         if (rewrittenPos > UINT32_MAX) {
             FATAL("Position too big");
         } else {
-            bcPositions.emplace_back(std::pair {rewrittenPos, originalPos});
+            bcPositions.emplace_back(std::pair { rewrittenPos, originalPos });
         }
     }
 
@@ -2176,7 +2188,8 @@ std::optional<Interpretation::ExecBytecodeInfo> Rewrite(
         .abiInfo          = std::move(abiInfo),
         .gcInfo =
             Interpretation::GcInfo {
-                .positionalInfo = CalculatePositionalGCInfo(session, code, emitter, rewriter.statePoints, frameLayout->frameSize),
+                .positionalInfo =
+                    CalculatePositionalGCInfo(session, code, emitter, rewriter.statePoints, frameLayout->frameSize),
                 .refOffsets = std::move(frameLayout->refOffsets),
             },
         .stackPtrsInfo =
