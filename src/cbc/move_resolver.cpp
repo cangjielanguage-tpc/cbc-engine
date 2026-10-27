@@ -11,7 +11,7 @@ static constexpr int REG_COUNT  = Location::REG_COUNT;
 
 void MoveResolver::Clear() { assignments.Clear(); }
 
-void MoveResolver::AddMove(Location src, Location dst)
+void MoveResolver::AddMove(Location dst, Location src)
 {
     ASSERT(src.Kind() != Location::NIL);
     ASSERT(dst.Kind() != Location::NIL);
@@ -21,7 +21,7 @@ void MoveResolver::AddMove(Location src, Location dst)
     assignments.PushBack(Assignment { dst, src, 0, Format::LoadAccessKind::LD_64, false });
 }
 
-void MoveResolver::AddLoadFromAddr(Location srcAddr, int32_t offset, Format::LoadAccessKind ldk, Location dst)
+void MoveResolver::AddLoadFromAddr(Location dst, Location srcAddr, int32_t offset, Format::LoadAccessKind ldk)
 {
     ASSERT(srcAddr.Kind() == Location::IREG || srcAddr.Kind() == Location::SLOT);
     ASSERT(dst.Kind() != Location::NIL);
@@ -41,7 +41,7 @@ static void EmitLoadFromAddr(
     }
 }
 
-// Graph node: either a move (`dst = src`) or a load (`dst = *(src + offset)`).
+// Graph node: either a move (`dst <- src`) or a load (`dst <- *(src + offset)`).
 // For both kinds `src` is what the node reads: the source register or the load address.
 struct AssignmentInfo {
     union {
@@ -77,7 +77,7 @@ struct AssignmentInfo {
     }
 };
 
-static constexpr uint32_t Pack(enum Location::Kind src, enum Location::Kind dst, bool isLoad)
+static constexpr uint32_t Pack(enum Location::Kind dst, enum Location::Kind src, bool isLoad)
 {
     constexpr auto kindSize = sizeof(enum Location::Kind);
     static_assert(kindSize == 1);
@@ -123,7 +123,7 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
     // - loads into param slots are emitted immediately (slots are never read
     //   back, and the address is read before the register shuffle);
     // - loads whose address lives in an untyped slot are emitted after the
-    //   register shuffle, like plain slot->reg moves: the slot is immutable
+    //   register shuffle, like plain (reg <- slot) moves: the slot is immutable
     //   and everything reading the destination register goes first;
     // - loads into registers live in the graph of their destination kind.
     //   The freg graph is resolved first, so freg loads read their ireg
@@ -165,40 +165,40 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
         auto dkind = dst.Kind();
         auto skind = src.Kind();
 
-        switch (Pack(skind, dkind, assignment.fromAddr)) {
+        switch (Pack(dkind, skind, assignment.fromAddr)) {
             // Reg moves (must always hold: src.kind == dst.kind)
             case Pack(Location::IREG, Location::IREG, MOVE):
             case Pack(Location::FREG, Location::FREG, MOVE): nodes[dst] = AssignmentInfo::Move(src); break;
 
             // Loads (must always hold: src.kind = IREG)
             case Pack(Location::IREG, Location::IREG, LOAD):
-            case Pack(Location::IREG, Location::FREG, LOAD):
+            case Pack(Location::FREG, Location::IREG, LOAD):
                 nodes[dst] = AssignmentInfo::Load(src, assignment.offset, assignment.ldk);
                 break;
 
             // Param slots cannot form any chains: emit immediately, before
             // the register shuffle.
-            case Pack(Location::IREG, Location::SLOT, MOVE):
+            case Pack(Location::SLOT, Location::IREG, MOVE):
                 emitter.AssignSlotFromIReg(dst.SlotIdx(), IReg::From(src.IRegIdx()));
                 break;
-            case Pack(Location::FREG, Location::SLOT, MOVE):
+            case Pack(Location::SLOT, Location::FREG, MOVE):
                 emitter.AssignSlotFromFReg(dst.SlotIdx(), FReg::From(src.FRegIdx()));
                 break;
             case Pack(Location::SLOT, Location::SLOT, MOVE):
                 emitter.AssignParamSlot(dst.SlotIdx(), src.SlotIdx());
                 break;
 
-            case Pack(Location::IREG, Location::SLOT, LOAD):
+            case Pack(Location::SLOT, Location::IREG, LOAD):
             case Pack(Location::SLOT, Location::SLOT, LOAD):
                 EmitLoadFromAddr(emitter, dst, src, assignment.offset, assignment.ldk);
                 break;
 
             // Untyped slots are immutable: processed after the register shuffle.
-            case Pack(Location::SLOT, Location::IREG, MOVE):
-            case Pack(Location::SLOT, Location::FREG, MOVE):
+            case Pack(Location::IREG, Location::SLOT, MOVE):
+            case Pack(Location::FREG, Location::SLOT, MOVE):
 
-            case Pack(Location::SLOT, Location::IREG, LOAD):
-            case Pack(Location::SLOT, Location::FREG, LOAD): break;
+            case Pack(Location::IREG, Location::SLOT, LOAD):
+            case Pack(Location::FREG, Location::SLOT, LOAD): break;
 
             default:
                 FATAL(
@@ -213,7 +213,7 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
     auto cycleResolver =
         [this](Utils::Span<AssignmentInfo> nodes, Utils::Function<void(Location, AssignmentInfo)> const& assign) {
             ASSERT(nodes.Size() == REG_COUNT);
-            // The graph is: "nodes[dst].Src() -> dst"
+            // The graph is: "dst <- nodes[dst].Src()"
 
             constexpr char NOT_VISITED = 0;
             constexpr char DONE        = 1;
@@ -305,7 +305,7 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
 
     cycleResolver(Utils::Span<AssignmentInfo>(nodes, REG_COUNT), assign);
 
-    // Handle (slot -> <any>) assignments.
+    // Handle (<any> <- slot) assignments.
     for (auto& assignment : assignments) {
         auto dst   = assignment.dst;
         auto src   = assignment.src;

@@ -90,7 +90,7 @@ struct TestAbiBuilder {
     Location Consume(Location loc, CbcTypeKind kind)
     {
         auto target = assigner.Consume(kind);
-        moves.AddMove(loc, target);
+        moves.AddMove(target, loc);
         track(target, kind);
         return target;
     }
@@ -98,7 +98,7 @@ struct TestAbiBuilder {
     Location ConsumeSret(Location loc)
     {
         auto target = assigner.ConsumeSret();
-        moves.AddMove(loc, target);
+        moves.AddMove(target, loc);
         track(target, CbcTypeKind::REC);
         return target;
     }
@@ -107,8 +107,8 @@ struct TestAbiBuilder {
     {
         auto t0 = assigner.Consume(CbcTypeKind::I64);
         auto t1 = assigner.Consume(CbcTypeKind::REF);
-        moves.AddMove(loc0, t0);
-        moves.AddMove(loc1, t1);
+        moves.AddMove(t0, loc0);
+        moves.AddMove(t1, loc1);
         track(t0, CbcTypeKind::I64);
         track(t1, CbcTypeKind::REF);
         return t0;

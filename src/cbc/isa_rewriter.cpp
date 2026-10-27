@@ -419,7 +419,7 @@ struct IsaRewriter : public IsaParser {
 
         int idx = 0;
         if (flags.isSRet) {
-            moves.AddMove(args[idx++], abi.ConsumeSret());
+            moves.AddMove(abi.ConsumeSret(), args[idx++]);
         }
         switch (flags.abiKind) {
             case Image::MethodAbiKind::MUT: {
@@ -427,26 +427,26 @@ struct IsaRewriter : public IsaParser {
                 auto base       = args[idx++];
                 auto derivedLoc = abi.Consume(CbcTypeKind::REC);
                 auto baseLoc    = abi.Consume(CbcTypeKind::REF);
-                moves.AddMove(derived, derivedLoc);
-                moves.AddMove(base, baseLoc);
+                moves.AddMove(derivedLoc, derived);
+                moves.AddMove(baseLoc, base);
                 ASSERT(derivedLoc.Kind() == Location::IREG);
                 pendingDerived = derivedLoc.IRegIdx();
                 break;
             }
             case Image::MethodAbiKind::REF_RECEIVER: {
-                moves.AddMove(args[idx++], abi.Consume(CbcTypeKind::REF));
+                moves.AddMove(abi.Consume(CbcTypeKind::REF), args[idx++]);
                 break;
             }
             case Image::MethodAbiKind::PRIM_RECEIVER: {
-                moves.AddMove(args[idx++], abi.Consume(CbcTypeKind::I64));
+                moves.AddMove(abi.Consume(CbcTypeKind::I64), args[idx++]);
                 break;
             }
             case Image::MethodAbiKind::FPRIM_RECEIVER: {
-                moves.AddMove(args[idx++], abi.Consume(CbcTypeKind::F64));
+                moves.AddMove(abi.Consume(CbcTypeKind::F64), args[idx++]);
                 break;
             }
             case Image::MethodAbiKind::REC_RECEIVER: {
-                moves.AddMove(args[idx++], abi.Consume(CbcTypeKind::REC));
+                moves.AddMove(abi.Consume(CbcTypeKind::REC), args[idx++]);
                 break;
             }
             case Image::MethodAbiKind::STATIC:
@@ -461,7 +461,7 @@ struct IsaRewriter : public IsaParser {
             // Special case for call.closure.g
             // The referenced type (of closure) in instruction doesn't encode parameters as boxes.
             for (int j = 0; j < params.Size(); ++idx, ++j) {
-                moves.AddMove(args[idx], abi.Consume(CbcTypeKind::REF));
+                moves.AddMove(abi.Consume(CbcTypeKind::REF), args[idx]);
             }
         } else {
             bool isVarArg = false;
@@ -478,28 +478,28 @@ struct IsaRewriter : public IsaParser {
                         return {};
                     }
                 } else if (!isVarArg) {
-                    moves.AddMove(args[idx++], abi.Consume(params[j]));
+                    moves.AddMove(abi.Consume(params[j]), args[idx++]);
                 } else {
-                    moves.AddMove(args[idx++], abi.ConsumeVarArg(params[j]));
+                    moves.AddMove(abi.ConsumeVarArg(params[j]), args[idx++]);
                 }
             }
         }
 
         ASSERT(funcVarsCount <= args.Size());
         for (int j = 0; j < funcVarsCount; idx++, j++) {
-            moves.AddMove(args[idx], abi.Consume(CbcTypeKind::I64));
+            moves.AddMove(abi.Consume(CbcTypeKind::I64), args[idx]);
         }
 
         if (flags.hasOuterTi) {
             Location loc = abi.Consume(CbcTypeKind::I64);
-            moves.AddMove(args[idx++], loc);
+            moves.AddMove(loc, args[idx++]);
             if (outerTiLoc)
                 *outerTiLoc = loc;
         }
 
         if (flags.abiKind == Image::MethodAbiKind::HAS_THIS_TI) {
             Location loc = abi.Consume(CbcTypeKind::I64);
-            moves.AddMove(args[idx++], loc);
+            moves.AddMove(loc, args[idx++]);
             if (thisTiLoc)
                 *thisTiLoc = loc;
         }
@@ -538,7 +538,7 @@ struct IsaRewriter : public IsaParser {
             case CAbiPassBy::REGS:  {
                 for (const auto& piece : plan.pieces) {
                     auto loc = abi.Consume(piece.kind);
-                    moves.AddLoadFromAddr(srcAddr, piece.offset, Ldk(piece.kind), loc);
+                    moves.AddLoadFromAddr(loc, srcAddr, piece.offset, Ldk(piece.kind));
                 }
                 break;
             }
@@ -548,7 +548,7 @@ struct IsaRewriter : public IsaParser {
                 // 8-aligned record allocation and land in the blob padding.
                 for (uint32_t offset = 0; offset < size; offset += Cbc::STACK_SLOT_SIZE) {
                     moves.AddLoadFromAddr(
-                        srcAddr, offset, LDK::LD_64, Location::Slot(base + offset / Cbc::STACK_SLOT_SIZE)
+                        Location::Slot(base + offset / Cbc::STACK_SLOT_SIZE), srcAddr, offset, LDK::LD_64
                     );
                 }
                 break;

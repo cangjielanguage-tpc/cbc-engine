@@ -92,8 +92,8 @@ public:
     {}
 
     void Clear();
-    void AddMove(Location src, Location dst);
-    void AddLoadFromAddr(Location srcAddr, int32_t offset, Format::LoadAccessKind ldk, Location dst);
+    void AddMove(Location dst, Location src);
+    void AddLoadFromAddr(Location dst, Location srcAddr, int32_t offset, Format::LoadAccessKind ldk);
     // Resolves the collected moves by emitting them through `emitter`.
     // Returns false when a move mixes register kinds (ireg<->freg),
     // which is unsupported.
