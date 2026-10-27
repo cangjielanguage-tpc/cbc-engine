@@ -1429,9 +1429,9 @@ struct IsaRewriter : public IsaParser {
             args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature, nullptr, nullptr, false, isForeign
         );
 
-        if (auto data = compiled) {
-            auto sym = emit.NewAddressSym(data->funcPtr);
-            if (data->isForeign) {
+        if (compiled) {
+            auto sym = emit.NewAddressSym(compiled->funcPtr);
+            if (compiled->isForeign) {
                 EmitLogCall("call.2n", method);
                 ASSERTION(stackSlotsCount * STACK_SLOT_SIZE <= UINT8_MAX, "too many stack arguments in foreign call");
                 emit.DirectCall2n(sym, stackSlotsCount * STACK_SLOT_SIZE, fregsCount);

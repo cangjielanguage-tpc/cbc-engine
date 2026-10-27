@@ -6,10 +6,9 @@ AbiAssigner::AbiAssigner(const PlatformDescription& desc) : desc(desc), iargIdx(
 
 Location AbiAssigner::Consume(CbcTypeKind kind)
 {
-    const bool isFloat = kind == CbcTypeKind::F32 || kind == CbcTypeKind::F64;
-    if (isFloat && fargIdx < desc.fregHeadArea.Size()) {
+    if (IsFloat(kind) && fargIdx < desc.fregHeadArea.Size()) {
         return Location::FReg(desc.fregHeadArea[fargIdx++]);
-    } else if (!isFloat && iargIdx < desc.iregHeadArea.Size()) {
+    } else if (!IsFloat(kind) && iargIdx < desc.iregHeadArea.Size()) {
         return Location::IReg(desc.iregHeadArea[iargIdx++]);
     } else {
         return Location::Slot(slotIdx++);

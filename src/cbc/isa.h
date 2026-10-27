@@ -28,6 +28,8 @@ enum class CbcTypeKind {
     F64,
 };
 
+inline bool IsFloat(CbcTypeKind kind) { return kind == CbcTypeKind::F32 || kind == CbcTypeKind::F64; }
+
 class Opcode {
 public:
 #define DECLARE_OPCODE(opc, func) opc,
