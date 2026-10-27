@@ -1,27 +1,13 @@
 #pragma once
 
-#if defined(CBC_PROFILER_DOUBLE_BUFFER)
+#include "utils/logger.h"
 
-    #include "profiler_double_buffer/profiler.h"
-
-#elif defined(CBC_PROFILER_ATOMIC)
-
-    #include "profiler_atomic/profiler.h"
-
-#elif defined(CBC_PROFILER_BLOCKING)
-
-    #include "profiler_blocking/profiler.h"
-
-#else
-
-    #include "utils/logger.h"
-
-    #include <array>
-    #include <atomic>
-    #include <cstdint>
-    #include <memory>
-    #include <string>
-    #include <vector>
+#include <array>
+#include <atomic>
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace Cbc::Profiler {
 
@@ -115,5 +101,3 @@ FiberProfileHandle CreateFiberProfile();
 void DestroyFiberProfile(FiberProfileHandle& profile);
 
 } // namespace Cbc::Profiler
-
-#endif
