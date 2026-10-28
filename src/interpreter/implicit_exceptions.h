@@ -20,6 +20,9 @@ enum class Type {
     RshOverflowException,
     AshOverflowException,
     NegOverflowException,
+    LshNegativeShift,
+    RshNegativeShift,
+    AshNegativeShift,
 
     // TODO: add other types when needed
 };

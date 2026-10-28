@@ -14,10 +14,13 @@ public func throwImplicitException(tpe: Int64): Int64 {
         case 10 => throw OverflowException("usub")
         case 11 => throw OverflowException("umul")
         case 12 => throw OverflowException("pow")
-        case 13 => throw OverflowException("lsh")
-        case 14 => throw OverflowException("rsh")
-        case 15 => throw OverflowException("ash")
+        case 13 => throw ArithmeticException("Overshift: Value of right operand is greater than or equal to the width of left operand!")
+        case 14 => throw ArithmeticException("Overshift: Value of right operand is greater than or equal to the width of left operand!")
+        case 15 => throw ArithmeticException("Overshift: Value of right operand is greater than or equal to the width of left operand!")
         case 16 => throw OverflowException("neg")
+        case 17 => throw ArithmeticException("Overshift: Negative shift count!")
+        case 18 => throw ArithmeticException("Overshift: Negative shift count!")
+        case 19 => throw ArithmeticException("Overshift: Negative shift count!")
         case _ => throw Exception("Unknown implicit exception type")
     }
     return tpe
