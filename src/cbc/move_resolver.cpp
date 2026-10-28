@@ -200,13 +200,7 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
             case Pack(Location::IREG, Location::SLOT, LOAD):
             case Pack(Location::FREG, Location::SLOT, LOAD): break;
 
-            default:
-                FATAL(
-                    "unexpected assignment: %c <- %c (load: %s)",
-                    static_cast<int>(dkind),
-                    static_cast<int>(skind),
-                    assignment.fromAddr ? "true" : "false"
-                );
+            default: return false;
         }
     }
 
