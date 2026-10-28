@@ -17,8 +17,8 @@
     X(FMOV, B2rr, "fmov $0fr $1fr")                                                                                    \
     X(MOVI2F, B2rr, "i2f $0fr $1ir")                                                                                   \
     X(MOVF2I, B2rr, "f2i $0ir $1fr")                                                                                   \
-    X(FMOVI32, B6xri32, "fmovi.32 $0fr $2F32")                                                                         \
-    X(FMOVI64, B10xri64, "fmovi.64 $0fr $2F64")                                                                        \
+    X(FMOVI32, B6xri32, "fmovi.32 $1fr $2F32")                                                                         \
+    X(FMOVI64, B10xri64, "fmovi.64 $1fr $2F64")                                                                        \
     X(BCC32I, B4xi12rr, "bcc.32 $0cc $2ir $3ir $1I12")                                                                 \
     X(BCC64I, B4xi12rr, "bcc.64 $0cc $2ir $3ir $1I12")                                                                 \
     X(BCC32L, B4xi12rr, "bcc.32 $0cc $2ir $3ir $1I12L")                                                                \
@@ -74,9 +74,9 @@
     X(LOAD_LONG_FRAME, B7xrrri32, "ld.frame.$0ldk $1ir [$4I32]")                                                       \
     X(STORE_LONG_FRAME, B7xrrri32, "st.frame.$0stk $1ir [$4I32]")                                                      \
     X(LOAD_GENERIC, B3rrrr, "ld.g $0ir $3ir [($1ir $2ir)]")                                                            \
-    X(STORE_GENERIC, StoreGenericOp, "st.g0 $0ir $1ir $2ir $3U32")                                                     \
-    X(STORE_GENERIC_1, StoreGenericOp, "st.g1 $0ir $1ir $2ir $3U32")                                                   \
-    X(STORE_GENERIC_4, StoreGenericOp, "st.g4 $0ir $1ir $2ir $3U32")                                                   \
+    X(STORE_GENERIC, StoreGenericOp, "st.g0 $0ir $1ir $2ir $3ir")                                                      \
+    X(STORE_GENERIC_1, StoreGenericOp, "st.g1 $0ir $1ir $2ir $3ir $4U32")                                              \
+    X(STORE_GENERIC_4, StoreGenericOp, "st.g4 $0ir $1ir $2ir $3ir $4U32")                                              \
     X(LEA_GENERIC, B7xrrri32, "lea.g $1ir $3ir [$2ir ord=$4U32]")                                                      \
     X(INIT_NONE_GENERIC_OPT0, InitOption, "init.none.g0 $1ir")                                                         \
     X(INIT_SOME_GENERIC_OPT0, InitOption, "init.some.g0 $0ir $1ir")                                                    \
@@ -91,7 +91,7 @@
     X(STORE_REC_F, B4xi12rr, "st.rec.$0stk $2fr [$3ir $1U12]")                                                         \
     X(LOAD_FRAME_F, B4xi12rr, "ld.frame.$0ldk $2fr [$3ir $1U12]")                                                      \
     X(STORE_FRAME_F, B4xi12rr, "st.frame.$0stk $2fr [$3ir $1U12]")                                                     \
-    X(LOAD_LONG_DERIVED_F, B7xrrri32, "ld.derived.$0ldk $1ir [($2ir $3ir) $4U32]")                                     \
+    X(LOAD_LONG_DERIVED_F, B7xrrri32, "ld.derived.$0ldk $1fr [($2ir $3ir) $4U32]")                                     \
     X(STORE_LONG_DERIVED_F, B7xrrri32, "st.derived.$0stk $1fr [($2ir $3ir) $4U32]")                                    \
     X(LOAD_LONG_REC_F, B7xrrri32, "ld.rec.$0ldk $1fr [$3ir $4U32]")                                                    \
     X(STORE_LONG_REC_F, B7xrrri32, "st.rec.$0stk $1fr [$3ir $4U32]")                                                   \
@@ -130,44 +130,44 @@
     X(NEWBOX, B2xr, "newbox $0U8")                                                                                     \
     X(NEWBOX2, B9i64, "newbox2 $0U64")                                                                                 \
     X(UNBOX_T, B6xri32, "unbox.t $1ir $2U32")                                                                          \
-    X(OFFSET, B6xri32, "offset $1ir $2U32 }")                                                                          \
-    X(READ_STRUCT_FIELD, StructFieldOp, "read.struct.field $0ir $1ir $2U8 $4U64")                                      \
-    X(WRITE_STRUCT_FIELD, StructFieldOp, "write.struct.field $0ir $1ir $2U8 $4U64")                                    \
+    X(OFFSET, B6xri32, "offset $0ir $1ir $2U32 }")                                                                     \
+    X(READ_STRUCT_FIELD, StructFieldOp, "read.struct.field $0ir $1ir $2U8 $3U64")                                      \
+    X(WRITE_STRUCT_FIELD, StructFieldOp, "write.struct.field $0ir $1ir $2U8 $3U64")                                    \
     X(THROW, B2xr, "throw $1ir")                                                                                       \
     X(CATCH, B2xr, "catch $1ir")                                                                                       \
     X(LOG, B9i64, "log $0U64")                                                                                         \
     X(ASSIGN_GENERIC, B3xrrr, "assign.g $1ir $2ir $3ir")                                                               \
     X(IOF_GENERIC, B3xrrr, "iof.g $1ir $2ir $3ir")                                                                     \
-    X(ATOMIC_FETCH_ADD_8, AtomicOp, "atomic.fetch.add.8 $1ir [$2ir $3U12]")                                            \
-    X(ATOMIC_FETCH_ADD_16, AtomicOp, "atomic.fetch.add.16 $1ir [$2ir $3U12]")                                          \
-    X(ATOMIC_FETCH_ADD_32, AtomicOp, "atomic.fetch.add.32 $1ir [$2ir $3U12]")                                          \
-    X(ATOMIC_FETCH_ADD_64, AtomicOp, "atomic.fetch.add.64 $1ir [$2ir $3U12]")                                          \
-    X(ATOMIC_FETCH_SUB_8, AtomicOp, "atomic.fetch.sub.8 $1ir [$2ir $3U12]")                                            \
-    X(ATOMIC_FETCH_SUB_16, AtomicOp, "atomic.fetch.sub.16 $1ir [$2ir $3U12]")                                          \
-    X(ATOMIC_FETCH_SUB_32, AtomicOp, "atomic.fetch.sub.32 $1ir [$2ir $3U12]")                                          \
-    X(ATOMIC_FETCH_SUB_64, AtomicOp, "atomic.fetch.sub.64 $1ir [$2ir $3U12]")                                          \
-    X(ATOMIC_FETCH_AND_8, AtomicOp, "atomic.fetch.and.8 $1ir [$2ir $3U12]")                                            \
-    X(ATOMIC_FETCH_AND_16, AtomicOp, "atomic.fetch.and.16 $1ir [$2ir $3U12]")                                          \
-    X(ATOMIC_FETCH_AND_32, AtomicOp, "atomic.fetch.and.32 $1ir [$2ir $3U12]")                                          \
-    X(ATOMIC_FETCH_AND_64, AtomicOp, "atomic.fetch.and.64 $1ir [$2ir $3U12]")                                          \
-    X(ATOMIC_FETCH_OR_8, AtomicOp, "atomic.fetch.or.8 $1ir [$2ir $3U12]")                                              \
-    X(ATOMIC_FETCH_OR_16, AtomicOp, "atomic.fetch.or.16 $1ir [$2ir $3U12]")                                            \
-    X(ATOMIC_FETCH_OR_32, AtomicOp, "atomic.fetch.or.32 $1ir [$2ir $3U12]")                                            \
-    X(ATOMIC_FETCH_OR_64, AtomicOp, "atomic.fetch.or.64 $1ir [$2ir $3U12]")                                            \
-    X(ATOMIC_FETCH_XOR_8, AtomicOp, "atomic.fetch.xor.8 $1ir [$2ir $3U12]")                                            \
-    X(ATOMIC_FETCH_XOR_16, AtomicOp, "atomic.fetch.xor.16 $1ir [$2ir $3U12]")                                          \
-    X(ATOMIC_FETCH_XOR_32, AtomicOp, "atomic.fetch.xor.32 $1ir [$2ir $3U12]")                                          \
-    X(ATOMIC_FETCH_XOR_64, AtomicOp, "atomic.fetch.xor.64 $1ir [$2ir $3U12]")                                          \
-    X(CAS_8, AtomicOp, "cas.8 $1ir [$2ir $3U12] $4ir")                                                                 \
-    X(CAS_16, AtomicOp, "cas.16 $1ir [$2ir $3U12] $4ir")                                                               \
-    X(CAS_32, AtomicOp, "cas.32 $1ir [$2ir $3U12] $4ir")                                                               \
-    X(CAS_64, AtomicOp, "cas.64 $1ir [$2ir $3U12] $4ir")                                                               \
-    X(CAS_REF, AtomicOp, "cas.ref $1ir [$2ir $3U12] $4ir")                                                             \
-    X(ATOMIC_SWAP_8, AtomicOp, "atomic.swap.8 $1ir [$2ir $3U12]")                                                      \
-    X(ATOMIC_SWAP_16, AtomicOp, "atomic.swap.16 $1ir [$2ir $3U12]")                                                    \
-    X(ATOMIC_SWAP_32, AtomicOp, "atomic.swap.32 $1ir [$2ir $3U12]")                                                    \
-    X(ATOMIC_SWAP_64, AtomicOp, "atomic.swap.64 $1ir [$2ir $3U12]")                                                    \
-    X(ATOMIC_SWAP_REF, AtomicOp, "atomic.swap.ref $1ir [$2ir $3U12]")                                                  \
+    X(ATOMIC_FETCH_ADD_8, AtomicOp, "atomic.fetch.add.8 $0ir $2ir [$1ir $4U12]")                                       \
+    X(ATOMIC_FETCH_ADD_16, AtomicOp, "atomic.fetch.add.16 $0ir $2ir [$1ir $4U12]")                                     \
+    X(ATOMIC_FETCH_ADD_32, AtomicOp, "atomic.fetch.add.32 $0ir $2ir [$1ir $4U12]")                                     \
+    X(ATOMIC_FETCH_ADD_64, AtomicOp, "atomic.fetch.add.64 $0ir $2ir [$1ir $4U12]")                                     \
+    X(ATOMIC_FETCH_SUB_8, AtomicOp, "atomic.fetch.sub.8 $0ir $2ir [$1ir $4U12]")                                       \
+    X(ATOMIC_FETCH_SUB_16, AtomicOp, "atomic.fetch.sub.16 $0ir $2ir [$1ir $4U12]")                                     \
+    X(ATOMIC_FETCH_SUB_32, AtomicOp, "atomic.fetch.sub.32 $0ir $2ir [$1ir $4U12]")                                     \
+    X(ATOMIC_FETCH_SUB_64, AtomicOp, "atomic.fetch.sub.64 $0ir $2ir [$1ir $4U12]")                                     \
+    X(ATOMIC_FETCH_AND_8, AtomicOp, "atomic.fetch.and.8 $0ir $2ir [$1ir $4U12]")                                       \
+    X(ATOMIC_FETCH_AND_16, AtomicOp, "atomic.fetch.and.16 $0ir $2ir [$1ir $4U12]")                                     \
+    X(ATOMIC_FETCH_AND_32, AtomicOp, "atomic.fetch.and.32 $0ir $2ir [$1ir $4U12]")                                     \
+    X(ATOMIC_FETCH_AND_64, AtomicOp, "atomic.fetch.and.64 $0ir $2ir [$1ir $4U12]")                                     \
+    X(ATOMIC_FETCH_OR_8, AtomicOp, "atomic.fetch.or.8 $0ir $2ir [$1ir $4U12]")                                         \
+    X(ATOMIC_FETCH_OR_16, AtomicOp, "atomic.fetch.or.16 $0ir $2ir [$1ir $4U12]")                                       \
+    X(ATOMIC_FETCH_OR_32, AtomicOp, "atomic.fetch.or.32 $0ir $2ir [$1ir $4U12]")                                       \
+    X(ATOMIC_FETCH_OR_64, AtomicOp, "atomic.fetch.or.64 $0ir $2ir [$1ir $4U12]")                                       \
+    X(ATOMIC_FETCH_XOR_8, AtomicOp, "atomic.fetch.xor.8 $0ir $2ir [$1ir $4U12]")                                       \
+    X(ATOMIC_FETCH_XOR_16, AtomicOp, "atomic.fetch.xor.16 $0ir $2ir [$1ir $4U12]")                                     \
+    X(ATOMIC_FETCH_XOR_32, AtomicOp, "atomic.fetch.xor.32 $0ir $2ir [$1ir $4U12]")                                     \
+    X(ATOMIC_FETCH_XOR_64, AtomicOp, "atomic.fetch.xor.64 $0ir $2ir [$1ir $4U12]")                                     \
+    X(CAS_8, AtomicOp, "cas.8 $0ir $2ir $3ir [$1ir $4U12]")                                                            \
+    X(CAS_16, AtomicOp, "cas.16 $0ir $2ir $3ir [$1ir $4U12]")                                                          \
+    X(CAS_32, AtomicOp, "cas.32 $0ir $2ir $3ir [$1ir $4U12]")                                                          \
+    X(CAS_64, AtomicOp, "cas.64 $0ir $2ir $3ir [$1ir $4U12]")                                                          \
+    X(CAS_REF, AtomicOp, "cas.ref $0ir $2ir $3ir [$1ir $4U12]")                                                        \
+    X(ATOMIC_SWAP_8, AtomicOp, "atomic.swap.8 $0ir $2ir [$1ir $4U12]")                                                 \
+    X(ATOMIC_SWAP_16, AtomicOp, "atomic.swap.16 $0ir $2ir [$1ir $4U12]")                                               \
+    X(ATOMIC_SWAP_32, AtomicOp, "atomic.swap.32 $0ir $2ir [$1ir $4U12]")                                               \
+    X(ATOMIC_SWAP_64, AtomicOp, "atomic.swap.64 $0ir $2ir [$1ir $4U12]")                                               \
+    X(ATOMIC_SWAP_REF, AtomicOp, "atomic.swap.ref $0ir $2ir [$1ir $4U12]")                                             \
     X(ATOMIC_LOAD, B4xi12rr, "atomic.ld.$0ldk $2ir [$3ir $1U12]")                                                      \
     X(ATOMIC_STORE, B4xi12rr, "atomic.st.$0stk $2ir [$3ir $1U12]")                                                     \
     X(CBIN8, B3xrrr, "$0cbin.8 $1ir $2ir $3ir")                                                                        \
@@ -525,7 +525,7 @@ struct StoreGenericOp {
 
     static StoreGenericOp Decode(Decoder::ByteReader& reader)
     {
-        auto opc = Opcode::Decode(reader);
+        auto opc = reader.PeekOpcode();
         switch (opc) {
             case Opcode::STORE_GENERIC:   return Decode0(reader);
             case Opcode::STORE_GENERIC_1: return Decode1(reader);
@@ -970,7 +970,7 @@ struct B13i64i32 {
 };
 
 struct B10xri64 {
-    static constexpr int SIZE = 9;
+    static constexpr int SIZE = 10;
 
     Opcode opc;
     Format::XR xr;
