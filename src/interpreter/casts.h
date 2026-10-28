@@ -194,6 +194,42 @@ template <typename To> static inline CheckedCastResult CheckedCastFromUnsigned(u
     return { MakeIntPrim(static_cast<To>(value)), false };
 }
 
+// Bound of integer type encoded in double.
+// Done this way to elide std::ldexp call.
+template <typename To> struct FpIntBound;
+
+template <> struct FpIntBound<int8_t> {
+    static constexpr double value = 0x1p7;
+};
+
+template <> struct FpIntBound<uint8_t> {
+    static constexpr double value = 0x1p8;
+};
+
+template <> struct FpIntBound<int16_t> {
+    static constexpr double value = 0x1p15;
+};
+
+template <> struct FpIntBound<uint16_t> {
+    static constexpr double value = 0x1p16;
+};
+
+template <> struct FpIntBound<int32_t> {
+    static constexpr double value = 0x1p31;
+};
+
+template <> struct FpIntBound<uint32_t> {
+    static constexpr double value = 0x1p32;
+};
+
+template <> struct FpIntBound<int64_t> {
+    static constexpr double value = 0x1p63;
+};
+
+template <> struct FpIntBound<uint64_t> {
+    static constexpr double value = 0x1p64;
+};
+
 // Checked casts rules: the source value must be representable
 // in the target type, otherwise the cast throws `OverflowException`.
 template <typename To> inline CheckedCastResult CheckedCastFromFp(double value)
@@ -209,11 +245,7 @@ template <typename To> inline CheckedCastResult CheckedCastFromFp(double value)
     // truncated value (so e.g. -128.9 fits into Int8 as -128).
     const double truncated = std::trunc(value);
 
-    // 2^(bits - 1) for signed types and 2^bits for unsigned ones. Both are
-    // exactly representable as doubles, unlike e.g. Int64.Max, so the bounds are
-    // compared as powers of two: [min, max] becomes [-bound, bound) and
-    // [0, max] becomes [0, bound).
-    const double bound = std::ldexp(1.0, std::numeric_limits<To>::digits);
+    constexpr double bound = FpIntBound<To>::value;
     bool inRange;
     if constexpr (std::is_signed_v<To>) {
         inRange = truncated >= -bound && truncated < bound;
