@@ -434,7 +434,8 @@ static inline CheckedArithmeticResult Arith(Checked::Value op, Value::Primitive 
     using namespace Cbc::Format;
 
     constexpr int64_t bitWidth = std::numeric_limits<utype>::digits;
-    auto checkShift            = [&](int64_t shift) { return 0 <= shift && shift < bitWidth; };
+    auto checkNegativeShift    = [](int64_t shift) { return 0 <= shift; };
+    auto checkOverflowShift    = [&](int64_t shift) { return shift < bitWidth; };
 
     switch (op) {
         case Checked::CADD: {
@@ -509,24 +510,30 @@ static inline CheckedArithmeticResult Arith(Checked::Value op, Value::Primitive 
         case Checked::CLSL: {
             utype base  = Traits::uget(l);
             stype shift = Traits::sget(r);
-            if (!checkShift(shift)) {
+            if (!checkOverflowShift(shift)) {
                 return { l, Type::LshOverflowException };
+            } else if (!checkNegativeShift(shift)) {
+                return { l, Type::LshNegativeShift };
             }
             return { Traits::make(static_cast<utype>(base << shift)), Type::Successful };
         }
         case Checked::CLSR: {
             utype base  = Traits::uget(l); // forces >> to be logical shift
             stype shift = Traits::sget(r);
-            if (!checkShift(shift)) {
+            if (!checkOverflowShift(shift)) {
                 return { l, Type::RshOverflowException };
+            } else if (!checkNegativeShift(shift)) {
+                return { l, Type::RshNegativeShift };
             }
             return { Traits::make(static_cast<utype>(base >> shift)), Type::Successful };
         }
         case Checked::CASR: {
             stype base  = Traits::sget(l); // forces >> to be arith shift
             stype shift = Traits::sget(r);
-            if (!checkShift(shift)) {
+            if (!checkOverflowShift(shift)) {
                 return { l, Type::AshOverflowException };
+            } else if (!checkNegativeShift(shift)) {
+                return { l, Type::AshNegativeShift };
             }
             return { Traits::make(static_cast<stype>(base >> shift)), Type::Successful };
         }
