@@ -1223,15 +1223,15 @@ bool TermMatcher::HasErrors() { return hasErrors; }
 
 } // namespace Engine
 
-Cbc::ArgKind Cbc::ArgTypeTraits<Engine::Term>::Kind(Engine::Term const& term)
+Cbc::CbcTypeKind Cbc::ArgTypeTraits<Engine::Term>::Kind(Engine::Term const& term)
 {
     if (term.IsFloat()) {
-        return ArgKind::FLOAT;
+        return CbcTypeKind::F64;
     } else if (term.IsRecord()) {
-        return ArgKind::REC;
+        return CbcTypeKind::REC;
     } else if (term.IsReference()) {
-        return ArgKind::REF;
+        return CbcTypeKind::REF;
     } else {
-        return ArgKind::INT;
+        return CbcTypeKind::I64;
     }
 }

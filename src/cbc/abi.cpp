@@ -4,20 +4,18 @@ namespace Cbc {
 
 AbiAssigner::AbiAssigner(const PlatformDescription& desc) : desc(desc), iargIdx(0), fargIdx(0), slotIdx(0) {}
 
-Location AbiAssigner::Consume(ArgKind kind)
+Location AbiAssigner::Consume(CbcTypeKind kind)
 {
-    const bool isFloat = kind == ArgKind::FLOAT;
-    if (isFloat && fargIdx < desc.fregHeadArea.Size()) {
+    if (IsFloat(kind) && fargIdx < desc.fregHeadArea.Size()) {
         return Location::FReg(desc.fregHeadArea[fargIdx++]);
-        ;
-    } else if (!isFloat && iargIdx < desc.iregHeadArea.Size()) {
+    } else if (!IsFloat(kind) && iargIdx < desc.iregHeadArea.Size()) {
         return Location::IReg(desc.iregHeadArea[iargIdx++]);
     } else {
         return Location::Slot(slotIdx++);
     }
 }
 
-Location AbiAssigner::ConsumeVarArg(ArgKind kind)
+Location AbiAssigner::ConsumeVarArg(CbcTypeKind kind)
 {
     if (desc.onlyOnStackVarargs) {
         return Location::Slot(slotIdx++);
@@ -28,7 +26,7 @@ Location AbiAssigner::ConsumeVarArg(ArgKind kind)
 Location AbiAssigner::ConsumeSret()
 {
     if (desc.sretShifts) {
-        return Consume(ArgKind::REC);
+        return Consume(CbcTypeKind::REC);
     }
     return Location::IReg(static_cast<IReg::Value>(desc.sretIrIdx));
 }

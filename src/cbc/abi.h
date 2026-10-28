@@ -2,26 +2,20 @@
 
 #include "move_resolver.h"
 #include "platforms.h"
+#include "utils/math.h"
 #include "utils/span.h"
+
+#include "frame.h"
 
 namespace Cbc {
 
-// The kind of a call argument, per platform ABI. Determines which
-// register/slot area it occupies and whether the GC must visit it.
-enum class ArgKind {
-    INT,
-    FLOAT,
-    REC,
-    REF,
-};
-
 template <typename ArgType> struct ArgTypeTraits {
-    ArgKind Kind(const ArgType& t);
+    CbcTypeKind Kind(const ArgType& t);
 };
 
 // Pure target allocator: hands out the next register or stack slot in
 // ABI order for each argument kind. Does not track metadata (masks,
-// slot lists) — the consumer derives that from (Location, ArgKind).
+// slot lists) — the consumer derives that from (Location, CbcTypeKind).
 class AbiAssigner {
 public:
     struct PlatformDescription {
@@ -49,8 +43,8 @@ public:
 
     template <Platform p = HOST_PLATFORM> AbiAssigner() : AbiAssigner(PlatformDescription::FromTraits<p>()) {}
 
-    Location Consume(ArgKind kind);
-    Location ConsumeVarArg(ArgKind kind);
+    Location Consume(CbcTypeKind kind);
+    Location ConsumeVarArg(CbcTypeKind kind);
     // Consumes the struct-return (sret) argument: the hidden pointer to the
     // return struct. On shift platforms it takes the first int-register slot
     // as a record; on fixed-register platforms a dedicated slot.
@@ -59,6 +53,17 @@ public:
     int MaxStackSlot() const { return slotIdx; }
 
     int MaxFRegs() const { return fargIdx; }
+
+    int FreeIRegs() const { return static_cast<int>(desc.iregHeadArea.Size()) - iargIdx; }
+
+    int FreeFRegs() const { return static_cast<int>(desc.fregHeadArea.Size()) - fargIdx; }
+
+    int ConsumeStackArea(uint32_t size)
+    {
+        int base  = slotIdx;
+        slotIdx  += static_cast<int>(MathUtils::AlignUp(size, STACK_SLOT_SIZE) / STACK_SLOT_SIZE);
+        return base;
+    }
 
 private:
     Location GiveIReg();
@@ -84,14 +89,14 @@ public:
           track(std::move(track))
     {}
 
-    Location Consume(ArgKind kind)
+    Location Consume(CbcTypeKind kind)
     {
         auto target = AbiAssigner::Consume(kind);
         track(target, kind);
         return target;
     }
 
-    Location ConsumeVarArg(ArgKind kind)
+    Location ConsumeVarArg(CbcTypeKind kind)
     {
         auto target = AbiAssigner::ConsumeVarArg(kind);
         track(target, kind);
@@ -101,7 +106,7 @@ public:
     Location ConsumeSret()
     {
         auto target = AbiAssigner::ConsumeSret();
-        track(target, ArgKind::REC);
+        track(target, CbcTypeKind::REC);
         return target;
     }
 

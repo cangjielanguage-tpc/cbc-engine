@@ -50,6 +50,7 @@ void Encode(ByteBuffer& buf, RT::StackParam command);
 void Encode(ByteBuffer& buf, RT::StackParamF command);
 void Encode(ByteBuffer& buf, RT::StackParamS16 command);
 void Encode(ByteBuffer& buf, RT::StackParamS32 command);
+void Encode(ByteBuffer& buf, RT::LeaStackParam command);
 
 void Encode(ByteBuffer& buf, RT::CopyFieldOp command);
 void Encode(ByteBuffer& buf, RT::CopyDerived command);

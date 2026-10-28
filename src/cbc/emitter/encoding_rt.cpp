@@ -316,5 +316,12 @@ void Encode(ByteBuffer& buf, RT::StackParamS32 command)
     buf.AddW16(command.dst);
 }
 
+void Encode(ByteBuffer& buf, RT::LeaStackParam command)
+{
+    buf.AddW8(static_cast<uint8_t>(command.opc));
+    buf.AddW8(static_cast<uint8_t>(command.dst) << 4);
+    buf.AddW16(command.offset);
+}
+
 } // namespace Emitter
 } // namespace Cbc

@@ -7,43 +7,86 @@
 
 namespace Cbc {
 
-MoveResolver::MoveResolver(IReg tempIr) : tempIr(tempIr) {}
+static constexpr int REG_COUNT  = Location::REG_COUNT;
 
 void MoveResolver::Clear() { assignments.Clear(); }
 
-void MoveResolver::AddMove(Location src, Location dst)
+void MoveResolver::AddMove(Location dst, Location src)
 {
     ASSERT(src.Kind() != Location::NIL);
     ASSERT(dst.Kind() != Location::NIL);
     if (dst.Kind() != Location::SLOT && src.idx == dst.idx) {
         return;
     }
-    assignments.PushBack(Assignment { dst, src });
+    assignments.PushBack(Assignment { dst, src, 0, Format::LoadAccessKind::LD_64, false });
 }
 
-// Dispatches a single (dst, src) move to the matching MoveEmitter method.
-static void EmitMove(MoveEmitter& emitter, Location dst, Location src)
+void MoveResolver::AddLoadFromAddr(Location dst, Location srcAddr, int32_t offset, Format::LoadAccessKind ldk)
 {
-    auto dkind = dst.Kind();
-    auto skind = src.Kind();
-    if (skind == Location::IREG && dkind == Location::IREG) {
-        emitter.AssignIReg(IReg::From(dst.IRegIdx()), IReg::From(src.IRegIdx()));
-    } else if (skind == Location::FREG && dkind == Location::FREG) {
-        emitter.AssignFReg(FReg::From(dst.FRegIdx()), FReg::From(src.FRegIdx()));
-    } else if (skind == Location::SLOT && dkind == Location::SLOT) {
-        emitter.AssignParamSlot(dst.SlotIdx(), src.SlotIdx());
-    } else if (skind == Location::FREG && dkind == Location::SLOT) {
-        emitter.AssignSlotFromFReg(dst.SlotIdx(), FReg::From(src.FRegIdx()));
-    } else if (skind == Location::IREG && dkind == Location::SLOT) {
-        emitter.AssignSlotFromIReg(dst.SlotIdx(), IReg::From(src.IRegIdx()));
-    } else if (skind == Location::SLOT && dkind == Location::IREG) {
-        emitter.AssignIRegFromSlot(IReg::From(dst.IRegIdx()), src.SlotIdx());
-    } else if (skind == Location::SLOT && dkind == Location::FREG) {
-        emitter.AssignFRegFromSlot(FReg::From(dst.FRegIdx()), src.SlotIdx());
-    } else {
-        ASSERT(false);
+    ASSERT(srcAddr.Kind() == Location::IREG || srcAddr.Kind() == Location::SLOT);
+    ASSERT(dst.Kind() != Location::NIL);
+    assignments.PushBack(Assignment { dst, srcAddr, offset, ldk, true });
+}
+
+// Dispatches a single load-from-address to the matching MoveEmitter method.
+static void EmitLoadFromAddr(
+    MoveEmitter& emitter, Location dst, Location srcAddr, int32_t offset, Format::LoadAccessKind ldk
+)
+{
+    switch (dst.Kind()) {
+        case Location::IREG: emitter.AssignIRegFromAddr(IReg::From(dst.IRegIdx()), srcAddr, offset, ldk); break;
+        case Location::FREG: emitter.AssignFRegFromAddr(FReg::From(dst.FRegIdx()), srcAddr, offset, ldk); break;
+        case Location::SLOT: emitter.AssignSlotFromAddr(dst.SlotIdx(), srcAddr, offset, ldk); break;
+        default:             ASSERT(false);
     }
 }
+
+// Graph node: either a move (`dst <- src`) or a load (`dst <- *(src + offset)`).
+// For both kinds `src` is what the node reads: the source register or the load address.
+struct AssignmentInfo {
+    union {
+        struct {
+            Location src;
+        } moveInfo;
+
+        struct {
+            Location src;
+            int32_t offset;
+            Format::LoadAccessKind ldk;
+        } loadInfo;
+    };
+
+    bool isLoad { false };
+
+    AssignmentInfo() : moveInfo {} {}
+
+    AssignmentInfo(Location src) : moveInfo { src } {}
+
+    AssignmentInfo(Location src, int32_t offset, Format::LoadAccessKind ldk)
+        : loadInfo { src, offset, ldk },
+          isLoad(true)
+    {}
+
+    Location Src() { return isLoad ? loadInfo.src : moveInfo.src; }
+
+    static AssignmentInfo Move(Location src) { return AssignmentInfo(src); }
+
+    static AssignmentInfo Load(Location src, int32_t offset, Format::LoadAccessKind ldk)
+    {
+        return AssignmentInfo(src, offset, ldk);
+    }
+};
+
+static constexpr uint32_t Pack(enum Location::Kind dst, enum Location::Kind src, bool isLoad)
+{
+    constexpr auto kindSize = sizeof(enum Location::Kind);
+    static_assert(kindSize == 1);
+    static_assert(kindSize + kindSize + sizeof(bool) <= sizeof(uint32_t));
+    return (static_cast<uint32_t>(src) << 16) | (static_cast<uint32_t>(dst) << 8) | static_cast<uint32_t>(isLoad);
+}
+
+constexpr bool LOAD = true;
+constexpr bool MOVE = false;
 
 bool MoveResolver::Resolve(MoveEmitter& emitter)
 {
@@ -74,6 +117,18 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
     // - the index of `dst` points to the "param-passing" slot, when `src` points to an untyped slot.
     // - it is impossible to have a cycle that has a stack slot.
     //
+    // # Loads from address (`fromAddr` assignments):
+    // - modeled as nodes that read the register holding the address, so the
+    //   address cannot be rewritten before the load is emitted;
+    // - loads into param slots are emitted immediately (slots are never read
+    //   back, and the address is read before the register shuffle);
+    // - loads whose address lives in an untyped slot are emitted after the
+    //   register shuffle, like plain (reg <- slot) moves: the slot is immutable
+    //   and everything reading the destination register goes first;
+    // - loads into registers live in the graph of their destination kind.
+    //   The freg graph is resolved first, so freg loads read their ireg
+    //   addresses before the ireg shuffle touches them.
+    //
     // # Additional assumptions:
     // - There is no (FP, IR) or (IR, FP) assignments.
     // - Each `dst` can be target of not more than one assignment.
@@ -90,8 +145,8 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
     //    b. If no one references `dst`, it is safe to emit `dst = src`
     //       and mark it DONE.
     //    c. If no progress was made, the remaining non-DONE nodes form
-    //       a cycle. Break it by emitting `temp = src` for one node and
-    //       rewriting its source to `temp`. The `temp` register is
+    //       a cycle. Break it by executing one node's assignment into `temp`
+    //       and rewriting the node to `dst = temp`. The `temp` register is
     //       guaranteed not to be in the cycle (by ABI constraints).
     // 3. When all nodes are DONE, the mapping is fully resolved.
     //
@@ -99,15 +154,10 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
     // O(n) iterations in the worst case (one node resolved per iteration for a single cycle).
     // No heap allocations — only stack-allocated arrays.
 
-    static constexpr int BUFFER_SIZE = IReg::VIRT_COUNT < FReg::COUNT ? FReg::COUNT : IReg::VIRT_COUNT;
-    using RegNum                     = uint8_t;
-    RegNum iregs[IReg::VIRT_COUNT];
-    RegNum fregs[FReg::COUNT];
+    AssignmentInfo nodes[REG_COUNT] = {};
 
-    for (int i = 0; i < IReg::VIRT_COUNT; i++)
-        iregs[i] = i;
-    for (int i = 0; i < FReg::COUNT; i++)
-        fregs[i] = i;
+    for (Location dst = 0; dst < REG_COUNT; ++dst)
+        nodes[dst] = AssignmentInfo::Move(dst);
 
     for (auto& assignment : assignments) {
         auto dst   = assignment.dst;
@@ -115,38 +165,56 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
         auto dkind = dst.Kind();
         auto skind = src.Kind();
 
-        if (dkind == skind && dkind == Location::IREG) {
-            iregs[dst.IRegIdx()] = src.IRegIdx();
-        } else if (dkind == skind && dkind == Location::FREG) {
-            fregs[dst.FRegIdx()] = src.FRegIdx();
-        } else if (dkind == Location::SLOT) {
-            // Param slots cannot form any chains,
-            // to handle them emit all needed stores immediately before registers shuffle.
-            EmitMove(emitter, dst, src);
-        } else {
-            if (dkind == Location::IREG && skind == Location::FREG) {
-                return false;
-            }
-            if (dkind == Location::FREG && skind == Location::IREG) {
-                return false;
-            }
-            ASSERT(skind == Location::SLOT);
-            // This case will be processed after registers shuffle.
+        switch (Pack(dkind, skind, assignment.fromAddr)) {
+            // Reg moves (must always hold: src.kind == dst.kind)
+            case Pack(Location::IREG, Location::IREG, MOVE):
+            case Pack(Location::FREG, Location::FREG, MOVE): nodes[dst] = AssignmentInfo::Move(src); break;
+
+            // Loads (must always hold: src.kind = IREG)
+            case Pack(Location::IREG, Location::IREG, LOAD):
+            case Pack(Location::FREG, Location::IREG, LOAD):
+                nodes[dst] = AssignmentInfo::Load(src, assignment.offset, assignment.ldk);
+                break;
+
+            // Param slots cannot form any chains: emit immediately, before
+            // the register shuffle.
+            case Pack(Location::SLOT, Location::IREG, MOVE):
+                emitter.AssignSlotFromIReg(dst.SlotIdx(), IReg::From(src.IRegIdx()));
+                break;
+            case Pack(Location::SLOT, Location::FREG, MOVE):
+                emitter.AssignSlotFromFReg(dst.SlotIdx(), FReg::From(src.FRegIdx()));
+                break;
+            case Pack(Location::SLOT, Location::SLOT, MOVE):
+                emitter.AssignParamSlot(dst.SlotIdx(), src.SlotIdx());
+                break;
+
+            case Pack(Location::SLOT, Location::IREG, LOAD):
+            case Pack(Location::SLOT, Location::SLOT, LOAD):
+                EmitLoadFromAddr(emitter, dst, src, assignment.offset, assignment.ldk);
+                break;
+
+            // Untyped slots are immutable: processed after the register shuffle.
+            case Pack(Location::IREG, Location::SLOT, MOVE):
+            case Pack(Location::FREG, Location::SLOT, MOVE):
+
+            case Pack(Location::IREG, Location::SLOT, LOAD):
+            case Pack(Location::FREG, Location::SLOT, LOAD): break;
+
+            default: return false;
         }
     }
 
     auto cycleResolver =
-        [](Utils::Span<RegNum> sources, RegNum temp, Utils::Function<void(RegNum, RegNum)> const& assign) {
-            uint8_t regCount = sources.Size();
-            ASSERT(regCount <= BUFFER_SIZE);
-            // sources is a graph: "sources[dst] = src" or edge = (sources[dst] -> dst)
+        [this](Utils::Span<AssignmentInfo> nodes, Utils::Function<void(Location, AssignmentInfo)> const& assign) {
+            ASSERT(nodes.Size() == REG_COUNT);
+            // The graph is: "dst <- nodes[dst].Src()"
 
             constexpr char NOT_VISITED = 0;
             constexpr char DONE        = 1;
-            char state[BUFFER_SIZE]    = { NOT_VISITED };
+            char state[REG_COUNT]      = { NOT_VISITED };
 
-            for (RegNum dst = 0; dst < regCount; dst++) {
-                if (dst == sources[dst])
+            for (Location dst = 0; dst < REG_COUNT; ++dst) {
+                if (nodes[dst].Src() == dst && !nodes[dst].isLoad)
                     state[dst] = DONE;
             }
 
@@ -154,19 +222,19 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
             while (changed) {
                 changed = false;
                 // Find and resolve chains.
-                for (RegNum dst = 0; dst < regCount; dst++) {
+                for (Location dst = 0; dst < REG_COUNT; ++dst) {
                     if (state[dst] == DONE) {
                         continue;
                     }
-                    auto src = sources[dst];
-                    ASSERT(src != dst);
+                    auto src = nodes[dst].Src();
+                    ASSERT(src != dst || nodes[dst].isLoad);
 
                     // check if someone needs a value of `dst`.
                     bool needed = false;
-                    for (RegNum dstdst = 0; dstdst < regCount; dstdst++) {
-                        if (state[dstdst] == DONE || dstdst == dst)
+                    for (Location other = 0; other < REG_COUNT; ++other) {
+                        if (state[other] == DONE || other == dst)
                             continue;
-                        if (sources[dstdst] == dst) {
+                        if (nodes[other].Src() == dst) {
                             needed = true;
                             break;
                         }
@@ -174,55 +242,72 @@ bool MoveResolver::Resolve(MoveEmitter& emitter)
                     if (needed)
                         continue;
                     // safe to assign src to dst
-                    assign(dst, src);
+                    assign(dst, nodes[dst]);
                     changed    = true;
                     state[dst] = DONE;
                 }
                 if (changed)
                     continue;
 
-                ASSERT(state[temp] == DONE);
+                Location temps[] = { Location::IReg(iRegTemp), Location::FReg(fRegTemp) };
 
                 // Invariant: any in-progress assignment cannot have a `temp` register.
                 // 1. A `temp` register cannot be part of a cycle (due to the ABI).
                 // 2. The loop above should process all chains.
-                for (RegNum dst = 0; dst < regCount; dst++) {
-                    if (state[dst] == DONE)
-                        continue;
-                    ASSERT(sources[dst] != temp || dst == temp);
-                    // The loop will be optimized out.
+                for (Location temp : temps) {
+                    ASSERT(state[temp] == DONE);
+                    for (Location dst = 0; dst < REG_COUNT; ++dst) {
+                        if (state[dst] == DONE)
+                            continue;
+                        ASSERT(nodes[dst].Src() != temp || dst == temp);
+                        // The loop will be optimized out.
+                    }
                 }
 
                 // A cycle is present and there are no chains left.
                 // So, any non-done `dst` is part of a cycle.
-                for (RegNum dst = 0; dst < regCount; dst++) {
+                for (Location dst = 0; dst < REG_COUNT; ++dst) {
                     if (state[dst] == DONE)
                         continue;
-                    auto src = sources[dst];
-                    assign(temp, src);
-                    sources[dst] = temp;
-                    changed      = true;
+                    Location tmp = dst.Kind() == Location::IREG ? temps[0] : temps[1];
+                    assign(tmp, nodes[dst]);
+                    nodes[dst] = AssignmentInfo::Move(tmp);
+                    changed    = true;
                     break;
                 }
             }
 
-            for (RegNum dst = 0; dst < regCount; dst++) {
+            for (Location dst = 0; dst < REG_COUNT; ++dst) {
                 ASSERT(state[dst] == DONE);
                 // The loop will be optimized out.
             }
         };
 
-    auto assignIr = [&emitter](RegNum dst, RegNum src) { emitter.AssignIReg(IReg::From(dst), IReg::From(src)); };
-    auto assignFr = [&emitter](RegNum dst, RegNum src) { emitter.AssignFReg(FReg::From(dst), FReg::From(src)); };
-    cycleResolver(Utils::Span<RegNum>(iregs, IReg::VIRT_COUNT), tempIr, assignIr);
-    cycleResolver(Utils::Span<RegNum>(fregs, FReg::COUNT), TEMP_FR, assignFr);
+    auto assign = [&emitter](Location dst, AssignmentInfo info) {
+        if (info.isLoad) {
+            Location src = info.loadInfo.src;
+            EmitLoadFromAddr(emitter, dst, src, info.loadInfo.offset, info.loadInfo.ldk);
+        } else {
+            Location src = info.moveInfo.src;
+            switch (dst.Kind()) {
+                case Location::IREG: emitter.AssignIReg(IReg::From(dst.IRegIdx()), IReg::From(src.IRegIdx())); break;
+                case Location::FREG: emitter.AssignFReg(FReg::From(dst.FRegIdx()), FReg::From(src.FRegIdx())); break;
+                default:             ASSERT(false);
+            }
+        }
+    };
 
+    cycleResolver(Utils::Span<AssignmentInfo>(nodes, REG_COUNT), assign);
+
+    // Handle (<any> <- slot) assignments.
     for (auto& assignment : assignments) {
         auto dst   = assignment.dst;
         auto src   = assignment.src;
         auto dkind = dst.Kind();
 
-        if (src.Kind() == Location::SLOT && dkind == Location::IREG) {
+        if (assignment.fromAddr && src.Kind() == Location::SLOT && dkind != Location::SLOT) {
+            EmitLoadFromAddr(emitter, dst, src, assignment.offset, assignment.ldk);
+        } else if (src.Kind() == Location::SLOT && dkind == Location::IREG) {
             emitter.AssignIRegFromSlot(IReg::From(dst.IRegIdx()), src.SlotIdx());
         } else if (src.Kind() == Location::SLOT && dkind == Location::FREG) {
             emitter.AssignFRegFromSlot(FReg::From(dst.FRegIdx()), src.SlotIdx());

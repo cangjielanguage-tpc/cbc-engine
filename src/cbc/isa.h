@@ -10,6 +10,26 @@
 
 namespace Cbc {
 
+enum class CbcTypeKind {
+    INVALID,
+    VOID,
+    BOOL,
+    I8,
+    U8,
+    I16,
+    U16,
+    I32,
+    U32,
+    I64,
+    U64,
+    REF,
+    REC,
+    F32,
+    F64,
+};
+
+inline bool IsFloat(CbcTypeKind kind) { return kind == CbcTypeKind::F32 || kind == CbcTypeKind::F64; }
+
 class Opcode {
 public:
 #define DECLARE_OPCODE(opc, func) opc,

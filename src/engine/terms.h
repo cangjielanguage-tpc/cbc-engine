@@ -364,5 +364,5 @@ public:
 } // namespace Engine
 
 template <> struct Cbc::ArgTypeTraits<Engine::Term> {
-    ArgKind Kind(Engine::Term const& arg);
+    CbcTypeKind Kind(Engine::Term const& arg);
 };

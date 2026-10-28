@@ -1,5 +1,6 @@
 #pragma once
 
+#include "cbc/isa.h"
 #include "engine/engine.h"
 #include "engine/field_layout.h"
 #include "engine/terms.h"
@@ -21,31 +22,13 @@ extern Logging::Logger log;
 
 struct Resolver;
 
-enum class CbcTypeKind {
-    INVALID,
-    VOID,
-    BOOL,
-    I8,
-    U8,
-    I16,
-    U16,
-    I32,
-    U32,
-    I64,
-    U64,
-    REF,
-    REC,
-    F32,
-    F64,
-};
-
 /// The handle that represents a type.
 class Type {
 public:
     /// Runtime type info.
     std::optional<RTSupport::TypeInfo> GetTypeInfo() const;
 
-    CbcTypeKind GetKind() const;
+    Cbc::CbcTypeKind GetKind() const;
 
     /// The size of a field of given type.
     std::optional<uint32_t> GetFlatSize() const;
@@ -240,7 +223,7 @@ struct Resolver {
     std::string_view QueryString(uint32_t stringOffs);
 
     std::optional<RTSupport::TypeInfo> GetTypeInfo(Type type);
-    CbcTypeKind GetKind(Type type);
+    Cbc::CbcTypeKind GetKind(Type type);
     std::optional<uint32_t> GetFlatSize(Type type);
 
     Decode::Decoder& Decoder() { return session.Decoder(); }

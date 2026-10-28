@@ -13,13 +13,13 @@ using ConvertType = Cbc::Format::ConvertType;
 
 inline Value::Primitive UnsupportedCastFrom(ConvertType ct)
 {
-    ASSERTION(false, "unsupported cast: from %s)", ct.ToStr());
+    ASSERTION(false, "unsupported cast: from %s)", ct.ToStr().data());
     return Value::Primitive { .u64 = 0 };
 }
 
 inline Value::Primitive UnsupportedCastTo(ConvertType ct)
 {
-    ASSERTION(false, "unsupported cast: to %s)", ct.ToStr());
+    ASSERTION(false, "unsupported cast: to %s)", ct.ToStr().data());
     return Value::Primitive { .u64 = 0 };
 }
 

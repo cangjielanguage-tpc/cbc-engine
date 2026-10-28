@@ -279,6 +279,12 @@ LABEL(STK_PARAM_S32) {
     *reinterpret_cast<uint64_t*>(dstLoc) = *reinterpret_cast<uint64_t*>(srcLoc);
     NEXT;
 }
+LABEL(LEA_STACK_PARAM) {
+    auto args = RT::LeaStackParam::Decode(reader);
+    LOG_INSTR;
+    interpreter.MovI(args.dst, frameBot + args.offset);
+    NEXT;
+}
 LABEL(MOV) {
     auto args = B2rr::Decode(reader);
     LOG_INSTR;

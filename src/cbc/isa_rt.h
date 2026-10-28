@@ -204,6 +204,7 @@
     X(STK_PARAM_F, StackParamF, "st.stack.param.f $0fr $1U16")                                                         \
     X(STK_PARAM_S16, StackParamS16, "st.stack.param.s.16 $0I64 $1U16")                                                 \
     X(STK_PARAM_S32, StackParamS32, "st.stack.param.s.32 $0I64 $1U16")                                                 \
+    X(LEA_STACK_PARAM, LeaStackParam, "lea.stack.param $0ir $1U16")                                                    \
     X(STORE_FRAME_IMM_1, StoreFrameImm, "st.frame.imm.1 $0stk $1U8 $2U32")                                             \
     X(STORE_FRAME_IMM_2, StoreFrameImm, "st.frame.imm.2 $0stk $1U16 $2U32")                                            \
     X(STORE_FRAME_IMM_4, StoreFrameImm, "st.frame.imm.4 $0stk $1U32 $2U32")                                            \
@@ -972,6 +973,21 @@ struct StackParamS32 {
         auto src = static_cast<int32_t>(reader.Read32());
         auto dst = reader.Read16();
         return StackParamS32 { opc, src, dst };
+    }
+};
+
+struct LeaStackParam {
+    Opcode opc;
+    IReg dst;
+    uint16_t offset;
+
+    inline static LeaStackParam Decode(Decoder::ByteReader& reader)
+    {
+        auto opc    = Opcode(reader.Read8());
+        auto b      = reader.Read8();
+        auto dst    = IReg::From(b >> 4);
+        auto offset = reader.Read16();
+        return LeaStackParam { opc, dst, offset };
     }
 };
 
