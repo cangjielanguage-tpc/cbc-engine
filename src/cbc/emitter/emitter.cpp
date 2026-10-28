@@ -1418,5 +1418,10 @@ void Emitter::StackParamS32(int32_t src, uint16_t dst)
     Encode(segment, RT::StackParamS32 { .opc = RT::Opcode::STK_PARAM_S32, .src = src, .dst = dst });
 }
 
+void Emitter::LeaStackParam(IReg dst, uint16_t offset)
+{
+    Encode(segment, RT::LeaStackParam { .opc = RT::Opcode::LEA_STACK_PARAM, .dst = dst, .offset = offset });
+}
+
 } // namespace Emitter
 } // namespace Cbc

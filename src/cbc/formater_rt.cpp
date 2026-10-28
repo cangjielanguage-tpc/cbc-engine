@@ -529,6 +529,13 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, StackParam
     formatter.Format();
 }
 
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, LeaStackParam args)
+{
+    Operand operands[] = { args.dst, args.offset };
+    Formatter formatter(table, stream, format_strings[args.opc], operands);
+    formatter.Format();
+}
+
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, ConstIndexGeneric args)
 {
     Operand operands[] = { args.rr.x, args.rr.y, args.idx.imm, args.ti.x };

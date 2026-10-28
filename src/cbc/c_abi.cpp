@@ -80,8 +80,8 @@ static CAbiStructPlan ClassifyAAPCS64(Utils::Span<const CAbiField> fields, uint3
     }
 
     if (size > 16) {
-        // Too big, pass by stack area.
-        plan.passBy = CAbiPassBy::STACK;
+        // Too big, pass a pointer to a caller-made copy.
+        plan.passBy = CAbiPassBy::REF;
     } else {
         // Pass by integer arg regs.
         plan.passBy = CAbiPassBy::REGS;

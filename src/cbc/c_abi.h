@@ -35,8 +35,9 @@ struct CAbiPiece {
 
 enum class CAbiPassBy {
     EMPTY, // for zero-sized structs
-    REGS,
-    STACK,
+    REGS,  // caller places struct into registers
+    STACK, // caller places struct into stack arguments memory
+    REF,   // caller copies struct and passes a pointer to the copy as argument
 };
 
 struct CAbiStructPlan {
