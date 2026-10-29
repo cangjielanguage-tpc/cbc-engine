@@ -419,17 +419,13 @@ struct IsaParserImpl {
     static void Convert(IsaParser& parser)
     {
         auto [toType, fromType, to, from] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
-        parser.Convert(
-            Format::ConvertMode::UNCHECKED, Format::ConvertType(toType), Format::ConvertType(fromType), to, from
-        );
+        parser.Convert(Format::ConvertMode::UNCHECKED, Format::CastOp(toType, fromType), to, from);
     }
 
     static void CheckedConvert(IsaParser& parser)
     {
         auto [toType, fromType, to, from] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
-        parser.Convert(
-            Format::ConvertMode::CHECKED, Format::ConvertType(toType), Format::ConvertType(fromType), to, from
-        );
+        parser.Convert(Format::ConvertMode::CHECKED, Format::CastOp(toType, fromType), to, from);
     }
 
     static void NewArr(IsaParser& parser)
