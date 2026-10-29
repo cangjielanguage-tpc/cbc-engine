@@ -18,7 +18,6 @@
 namespace Cbc {
 namespace Emitter {
 
-class CbcEmitter;
 class Symbols;
 
 class Emitter {
@@ -79,7 +78,6 @@ public:
     void MovImm(Width width, IReg d, uint64_t imm);
     void FMovI32(FReg d, float imm);
     void FMovI64(FReg d, double imm);
-    void MovRef(IReg d, IReg s);
 
     void BranchIfRef(IReg typeInfo, Label label);
     void Bcc(CC cc, Width width, Reg l, Reg r, Label label);
