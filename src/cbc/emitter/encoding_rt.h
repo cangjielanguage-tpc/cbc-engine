@@ -21,7 +21,6 @@ void Encode(ByteBuffer& buf, RT::B1 command);
 void Encode(ByteBuffer& buf, RT::B2rr command);
 void Encode(ByteBuffer& buf, RT::B2xr command);
 void Encode(ByteBuffer& buf, RT::B3xri8 command);
-void Encode(ByteBuffer& buf, RT::B4xri16 command);
 void Encode(ByteBuffer& buf, RT::B3xrrr command);
 void Encode(ByteBuffer& buf, RT::B3xxrr command);
 void Encode(ByteBuffer& buf, RT::B3xi12 command);
@@ -52,7 +51,6 @@ void Encode(ByteBuffer& buf, RT::StackParamS16 command);
 void Encode(ByteBuffer& buf, RT::StackParamS32 command);
 void Encode(ByteBuffer& buf, RT::LeaStackParam command);
 
-void Encode(ByteBuffer& buf, RT::CopyFieldOp command);
 void Encode(ByteBuffer& buf, RT::CopyDerived command);
 void Encode(ByteBuffer& buf, RT::CopyDerivedGeneric command);
 void Encode(ByteBuffer& buf, RT::CopyLocal command);

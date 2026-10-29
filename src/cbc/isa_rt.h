@@ -642,22 +642,6 @@ struct StoreFrameImm {
     }
 };
 
-struct CopyFieldOp {
-    Opcode opc;
-    Format::RR rr;
-    Format::Imm32 offset;
-    Format::Imm32 size;
-
-    static CopyFieldOp Decode(Decoder::ByteReader& reader)
-    {
-        auto opc    = Opcode::Decode(reader);
-        auto rr     = Format::RR::Decode(reader);
-        auto offset = Format::Imm32::Decode(reader);
-        auto size   = Format::Imm32::Decode(reader);
-        return CopyFieldOp { opc, rr, offset, size };
-    }
-};
-
 struct CopyDerived {
     Opcode opc;
     Format::RR dst;

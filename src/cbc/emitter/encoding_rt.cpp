@@ -45,13 +45,6 @@ void Encode(ByteBuffer& buf, RT::B3xri8 command)
     Encode(buf, command.imm8);
 }
 
-void Encode(ByteBuffer& buf, RT::B4xri16 command)
-{
-    Encode(buf, command.opc);
-    Encode(buf, command.xr);
-    Encode(buf, command.imm);
-}
-
 void Encode(ByteBuffer& buf, RT::B3xrrr command)
 {
     Encode(buf, command.opc);
@@ -239,14 +232,6 @@ void Encode(ByteBuffer& buf, RT::StoreFrameImm command)
         default:                            buf.AddW64(command.imm);
     }
     buf.AddW32(static_cast<uint32_t>(command.offs));
-}
-
-void Encode(ByteBuffer& buf, RT::CopyFieldOp command)
-{
-    Encode(buf, command.opc);
-    Encode(buf, command.rr);
-    Encode(buf, command.offset);
-    Encode(buf, command.size);
 }
 
 void Encode(ByteBuffer& buf, RT::CopyDerived command)

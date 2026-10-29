@@ -466,13 +466,6 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, Offset arg
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyFieldOp args)
-{
-    Operand operands[] = { args.rr.x, args.rr.y, args.offset.imm };
-    Formatter formatter(table, stream, format_strings[args.opc], operands);
-    formatter.Format();
-}
-
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyDerived args)
 {
     Operand operands[] = { args.dst.x, args.dst.y, args.src.x, args.src.y, args.ti.UInt() };
