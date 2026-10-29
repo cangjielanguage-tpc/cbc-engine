@@ -1372,16 +1372,15 @@ LABEL(TYPE_ARG) {
     NEXT;
 }
 LABEL(CONVERT) {
-    auto args = B3xxrr::Decode(reader);
+    auto args = UncheckedConvertOp::Decode(reader);
     LOG_INSTR;
-    interpreter.Convert(args.xx.imm1.ConvertType(), args.xx.imm2.ConvertType(), args.rr.x, args.rr.y);
+    interpreter.Convert(args.cast, args.rr.x, args.rr.y);
     NEXT;
 }
 LABEL(CHECKED_CONVERT) {
-    auto args = B3xxrr::Decode(reader);
+    auto args = CheckedConvertOp::Decode(reader);
     LOG_INSTR;
-    Type exception =
-        interpreter.CheckedConvert(args.xx.imm1.ConvertType(), args.xx.imm2.ConvertType(), args.rr.x, args.rr.y);
+    Type exception = interpreter.CheckedConvert(args.cast, args.rr.x, args.rr.y);
     NEXT_OR_THROW(exception == Type::Successful, exception);
 }
 LABEL(BFXS) {

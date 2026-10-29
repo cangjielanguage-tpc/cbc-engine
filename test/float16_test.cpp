@@ -166,8 +166,8 @@ TEST(Float16, NumericRoundTrips)
 {
     for (uint32_t bits = 0; bits <= 0xffff; ++bits) {
         auto half = Value::MakeF16Bits(bits);
-        for (auto wide : { ConvertType::F32, ConvertType::F64 }) {
-            auto result = CastPrim(ConvertType::F16, wide, CastPrim(wide, ConvertType::F16, half));
+        for (auto wide : { CastType::F32, CastType::F64 }) {
+            auto result = CastPrim(CastOp::Make(wide, CastType::F16), CastPrim(CastOp::Make(CastType::F16, wide), half));
             // signless encodings above infinity are NaNs, whose payload may change in a cast
             if ((bits & 0x7fff) > 0x7c00) {
                 ASSERT_GT(Value::F16Bits(result) & 0x7fff, 0x7c00);
@@ -191,32 +191,36 @@ TEST(Float16, DirectDoubleConversion)
                         { 0x1p-24, 1 },
                         { 0x1p-25, 0 },
                         { -0.0, 0x8000 } }) {
-        EXPECT_EQ(Value::F16Bits(CastPrim(ConvertType::F16, ConvertType::F64, F64(entry.first))), entry.second);
+        EXPECT_EQ(
+            Value::F16Bits(CastPrim(CastOp::Make(CastType::F64, CastType::F16), F64(entry.first))),
+            entry.second
+        );
     }
 }
 
 TEST(Float16, IntegerBoundsAndCheckedCasts)
 {
-    for (auto to : { ConvertType::I8,
-                     ConvertType::U8,
-                     ConvertType::I16,
-                     ConvertType::U16,
-                     ConvertType::I32,
-                     ConvertType::U32,
-                     ConvertType::I64,
-                     ConvertType::U64 }) {
-        EXPECT_EQ(CastPrim(to, ConvertType::F16, Value::MakeF16Bits(0x7e55 /* quiet NaN */)).u64, 0);
-        EXPECT_EQ(CastPrim(to, ConvertType::F16, Value::MakeF16Bits(0x3f00 /* 1.75 */)).u64, 1);
+    for (auto to : { CastType::I8,
+                     CastType::U8,
+                     CastType::I16,
+                     CastType::U16,
+                     CastType::I32,
+                     CastType::U32,
+                     CastType::I64,
+                     CastType::U64 }) {
+        EXPECT_EQ(CastPrim(CastOp::Make(CastType::F16, to), Value::MakeF16Bits(0x7e55 /* quiet NaN */)).u64, 0);
+        EXPECT_EQ(CastPrim(CastOp::Make(CastType::F16, to), Value::MakeF16Bits(0x3f00 /* 1.75 */)).u64, 1);
         EXPECT_EQ(
-            CheckedCastPrim(to, ConvertType::F16, Value::MakeF16Bits(0x7c00 /* +inf */)).exception,
+            CheckedCastPrim(CheckedCastOp::Make(CastType::F16, to), Value::MakeF16Bits(0x7c00 /* +inf */)).exception,
             Type::CastOverflowInfOrNaN
         );
     }
-    EXPECT_EQ(CastPrim(ConvertType::I8, ConvertType::F16, Value::MakeF16Bits(0x7c00 /* +inf */)).u64, 127);
-    EXPECT_EQ(CastPrim(ConvertType::U16, ConvertType::F16, Value::MakeF16Bits(0x7bff /* 65504.0 */)).u64, 65504);
-    EXPECT_EQ(CastPrim(ConvertType::U64, ConvertType::F16, Value::MakeF16Bits(0xbc00 /* -1.0 */)).u64, 0);
+    EXPECT_EQ(CastPrim(CastOp::Make(CastType::F16, CastType::I8), Value::MakeF16Bits(0x7c00 /* +inf */)).u64, 127);
+    EXPECT_EQ(CastPrim(CastOp::Make(CastType::F16, CastType::U16), Value::MakeF16Bits(0x7bff /* 65504.0 */)).u64, 65504);
+    EXPECT_EQ(CastPrim(CastOp::Make(CastType::F16, CastType::U64), Value::MakeF16Bits(0xbc00 /* -1.0 */)).u64, 0);
     EXPECT_EQ(
-        CastPrim(ConvertType::I64, ConvertType::F16, Value::MakeF16Bits(0xfc00 /* -inf */)).u64, uint64_t(INT64_MIN)
+        CastPrim(CastOp::Make(CastType::F16, CastType::I64), Value::MakeF16Bits(0xfc00 /* -inf */)).u64,
+        uint64_t(INT64_MIN)
     );
 }
 
@@ -262,18 +266,18 @@ TEST(Float16, SerializedEncodingAndDisassembly)
 
 TEST_F(Float16EmitTest, CheckedHalfConversionsThrow)
 {
-    for (auto to : { ConvertType::I8,
-                     ConvertType::U8,
-                     ConvertType::I16,
-                     ConvertType::U16,
-                     ConvertType::I32,
-                     ConvertType::U32,
-                     ConvertType::I64,
-                     ConvertType::U64 }) {
+    for (auto to : { CastType::I8,
+                     CastType::U8,
+                     CastType::I16,
+                     CastType::U16,
+                     CastType::I32,
+                     CastType::U32,
+                     CastType::I64,
+                     CastType::U64 }) {
         heap.Reset();
         Cbc::Emitter::Emitter e;
         e.FMovI16(FReg::FR0, Utils::Float16FromBits(0x7e55 /* quiet NaN */));
-        e.CheckedConvert(to, ConvertType::F16, IReg::IR1, FReg::FR0);
+        e.Convert(CheckedCastOp::Make(CastType::F16, to), IReg::IR1, FReg::FR0);
         e.Ret();
         EXPECT_EQ(InterpretThrows(e.Build(heap), U64(0), U64(0)), Type::CastOverflowInfOrNaN);
     }

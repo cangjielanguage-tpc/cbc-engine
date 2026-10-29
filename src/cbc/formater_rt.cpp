@@ -1,5 +1,6 @@
 #include "formater_rt.h"
 #include "cbc/isa.h"
+#include "cbc/isa_rt.h"
 #include "utils/math.h"
 #include "utils/ostream.h"
 
@@ -36,8 +37,6 @@ struct Operand {
 
     Format::CC CC() { return Format::CC::From(U8()); }
 
-    Format::ConvertType Ct() { return Format::ConvertType::From(U8()); }
-
     IReg IR() { return IReg::From(U32() & 0xf); }
 
     FReg FR() { return FReg::From(U32() & 0xf); }
@@ -70,10 +69,7 @@ struct Operand {
 class Formatter {
 public:
     Formatter(
-        Interpretation::LiteralTable* table,
-        Stream::Output& stream,
-        std::string_view formatString,
-        Operand* operands
+        Interpretation::LiteralTable* table, Stream::Output& stream, std::string_view formatString, Operand* operands
     )
         : table(table),
           stream(stream),
@@ -137,7 +133,10 @@ private:
 
     void Write(Format::FloatMathOp v) { stream << v.ToStr(); }
 
-    void Write(Format::ConvertType v) { stream << v.ToStr(); }
+    template <typename Kind> void Write(Format::CastInst<Kind> v)
+    {
+        stream << v.FromTypeStr() << "->" << v.ToTypeStr();
+    }
 
     void FormatArg(size_t& cursor, size_t fmtSize)
     {
@@ -205,8 +204,10 @@ private:
             Write(table->at(operand.U12()).i64);
         } else if (type == "U16L") {
             Write(table->at(operand.U16()).u64);
-        } else if (type == "ct") {
-            Write(operand.Ct());
+        } else if (type == "cast") {
+            Write(Format::CastOp(operand.U8()));
+        } else if (type == "ccast") {
+            Write(Format::CheckedCastOp(operand.U8()));
         } else {
             FATAL("unexpected format type: %.*s", static_cast<int>(type.length()), type.data());
         }
@@ -330,12 +331,15 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3xrrr arg
     formatter.Format();
 }
 
-void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3xxrr args)
+template <typename Kind> void Log(Interpretation::LiteralTable* table, Stream::Output& stream, ConvertOp<Kind> args)
 {
-    Operand operands[] = { args.xx.imm1, args.xx.imm2, args.rr.x, args.rr.y };
+    Operand operands[] = { args.cast, args.rr.x, args.rr.y };
     Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
+
+template void Log<Format::UncheckedCasts>(Interpretation::LiteralTable*, Stream::Output&, UncheckedConvertOp);
+template void Log<Format::CheckedCasts>(Interpretation::LiteralTable*, Stream::Output&, CheckedConvertOp);
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3xi12 args)
 {

@@ -581,34 +581,33 @@ public:
         ectype->Put(d, Value::Primitive { .u64 = res });
     }
 
-    void Convert(ConvertType toType, ConvertType fromType, Reg to, Reg from)
-    {
-        auto val = fromType.IsFloatingPoint() ? ectype->GetPrimitive(from.FR()) : ectype->GetPrimitive(from.IR());
-        auto res = CastPrim(toType, fromType, val);
-
-        if (toType.IsFloatingPoint()) {
-            ectype->Put(to.FR(), res);
-        } else {
-            ectype->Put(to.IR(), res);
-        }
-    }
+    void Convert(CastOp op, Reg to, Reg from) { PutCastResult(op, to, CastPrim(op, GetCastOperand(op, from))); }
 
     // Returns `Type::Successful` when the converted value is stored into the
     // destination. Otherwise returns the exception to throw.
-    Type CheckedConvert(ConvertType toType, ConvertType fromType, Reg to, Reg from)
+    Type CheckedConvert(CheckedCastOp op, Reg to, Reg from)
     {
-        auto val = fromType.IsFloatingPoint() ? ectype->GetPrimitive(from.FR()) : ectype->GetPrimitive(from.IR());
-        auto res = CheckedCastPrim(toType, fromType, val);
+        auto res = CheckedCastPrim(op, GetCastOperand(op, from));
         if (res.exception != Type::Successful) {
             return res.exception;
         }
 
-        if (toType.IsFloatingPoint()) {
-            ectype->Put(to.FR(), res.value);
-        } else {
-            ectype->Put(to.IR(), res.value);
-        }
+        PutCastResult(op, to, res.value);
         return Type::Successful;
+    }
+
+    template <typename Kind> inline Value::Primitive GetCastOperand(Format::CastInst<Kind> op, Reg from)
+    {
+        return op.FromIsFloatingPoint() ? ectype->GetPrimitive(from.FR()) : ectype->GetPrimitive(from.IR());
+    }
+
+    template <typename Kind> inline void PutCastResult(Format::CastInst<Kind> op, Reg to, Value::Primitive res)
+    {
+        if (op.ToIsFloatingPoint()) {
+            ectype->Put(to.FR(), res);
+        } else {
+            ectype->Put(to.IR(), res);
+        }
     }
 
     inline bool BitFieldExtract(Reg dst, Reg src, uint8_t offset, uint8_t size, bool sx)

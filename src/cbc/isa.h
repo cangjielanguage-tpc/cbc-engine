@@ -435,7 +435,7 @@ public:
 
 #undef SaturatingEnum
 
-    static constexpr Value values[] = { SADD,  SSUB,  SMUL, SDIV, SMOD, SPOW, SLSL, SASR,
+    static constexpr Value values[] = { SADD,  SSUB,  SMUL,  SDIV,  SMOD,  SPOW,  SLSL, SASR,
                                         SUADD, SUSUB, SUMUL, SUDIV, SUMOD, SULSL, SULSR };
 
     constexpr Saturating(const Value raw) : _value(raw) {}
@@ -518,66 +518,47 @@ private:
     Value _value;
 };
 
-class ConvertType {
-public:
-#define ConvertTypeValue(X)                                                                                            \
-    X(I8, 0x0, "I8", false)                                                                                            \
-    X(U8, 0x1, "U8", false)                                                                                            \
-    X(I16, 0x2, "I16", false)                                                                                          \
-    X(U16, 0x3, "U16", false)                                                                                          \
-    X(I32, 0x4, "I32", false)                                                                                          \
-    X(U32, 0x5, "U32", false)                                                                                          \
-    X(I64, 0x6, "I64", false)                                                                                          \
-    X(U64, 0x7, "U64", false)                                                                                          \
-    X(F16, 0x8, "F16", true)                                                                                           \
-    X(F32, 0x9, "F32", true)                                                                                           \
-    X(F64, 0xa, "F64", true)
+struct CastType {
+#define CastTypeValue(X)                                                                                               \
+    X(I8, 0x0, "I8")                                                                                                   \
+    X(U8, 0x1, "U8")                                                                                                   \
+    X(I16, 0x2, "I16")                                                                                                 \
+    X(U16, 0x3, "U16")                                                                                                 \
+    X(I32, 0x4, "I32")                                                                                                 \
+    X(U32, 0x5, "U32")                                                                                                 \
+    X(I64, 0x6, "I64")                                                                                                 \
+    X(U64, 0x7, "U64")                                                                                                 \
+    X(F16, 0x8, "F16")                                                                                                 \
+    X(F32, 0x9, "F32")                                                                                                 \
+    X(F64, 0xa, "F64")
 
-#define ConvertTypeEnum(opc, value, str, fp) opc = value,
+#define CastTypeEnum(opc, value, str) opc = value,
 
-    enum Value : uint8_t {
-        ConvertTypeValue(ConvertTypeEnum) LAST = F64
+    enum Code : uint8_t {
+        CastTypeValue(CastTypeEnum) COUNT
     };
 
-#undef ConvertTypeEnum
+#undef CastTypeEnum
 
-    constexpr ConvertType(const uint8_t raw) : _value((Value)raw) {}
+    struct Pair {
+        Code from;
+        Code to;
+    };
 
-    constexpr operator Value() const { return _value; }
-
-    constexpr static ConvertType From(uint8_t value)
+    static constexpr std::string_view Name(Code code)
     {
-        ASSERT(value <= LAST);
-        return Value(value);
-    }
+#define CastTypeStr(opc, value, str)                                                                                   \
+    case opc: return str;
 
-    constexpr std::string_view ToStr()
-    {
-#define ConvertTypeStr(opc, value, str, fp)                                                                            \
-    case opc: return std::string_view(str);
-
-        switch (_value) {
-            ConvertTypeValue(ConvertTypeStr);
-        }
-        return std::string_view("<invalid>");
-
-#undef ConvertTypeStr
-    }
-
-    constexpr bool IsFloatingPoint() const
-    {
-#define ConvertTypeFP(opc, value, str, fp)                                                                             \
-    case opc: return fp;
-
-        switch (_value) {
-            ConvertTypeValue(ConvertTypeFP)
+        switch (code) {
+            CastTypeValue(CastTypeStr);
+            default: return "<invalid>";
         }
 
-#undef ConvertTypeFP
+#undef CastTypeStr
     }
 
-private:
-    Value _value;
+    static constexpr bool IsFloatingPoint(Code code) { return code >= F16 && code <= F64; }
 };
 
 class FloatOperations {
@@ -904,8 +885,6 @@ public:
     inline Format::Checked Checked() const { return Format::Checked::From(imm); }
 
     inline Format::Saturating Saturating() const { return Format::Saturating::From(imm); }
-
-    inline Format::ConvertType ConvertType() const { return Format::ConvertType::From(imm); }
 
     inline Format::FloatOperations FloatOperations() const { return Format::FloatOperations::From(imm); }
 

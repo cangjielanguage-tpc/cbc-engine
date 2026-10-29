@@ -8,6 +8,7 @@
 #include "cbc/isa.h"
 #include "cbc/isa_disasm.h"
 #include "cbc/isa_parser.h"
+#include "cbc/isa_rt.h"
 #include "cbc/move_resolver.h"
 #include "engine/engine.h"
 #include "engine/image/flags.h"
@@ -799,14 +800,30 @@ struct IsaRewriter : public IsaParser {
         emit.Unary(op, width, d, s);
     }
 
-    void Convert(Format::ConvertType toType, Format::ConvertType fromType, AnyReg to, AnyReg from) override
+    void Convert(Format::CastType::Pair cast, AnyReg to, AnyReg from) override
     {
-        emit.Convert(toType, fromType, to, from);
+        EmitCast<Format::CastOp>(cast, to, from);
     }
 
-    void CheckedConvert(Format::ConvertType toType, Format::ConvertType fromType, AnyReg to, AnyReg from) override
+    void CheckedConvert(Format::CastType::Pair cast, AnyReg to, AnyReg from) override
     {
-        emit.CheckedConvert(toType, fromType, to, from);
+        EmitCast<Format::CheckedCastOp>(cast, to, from);
+    }
+
+    template <typename Op> void EmitCast(Format::CastType::Pair cast, AnyReg to, AnyReg from)
+    {
+        UNWRAP_OPT(op, Op::FromPair(cast.from, cast.to), [&]() {
+            FailCast(RT::CastKindInfo<typename Op::KindType>::MNEMONIC, cast);
+        });
+        emit.Convert(op, to, from);
+    }
+
+    void FailCast(std::string_view opcode, Format::CastType::Pair cast)
+    {
+        Fail(
+            std::string(opcode) + ": unsupported cast " + std::string(Format::CastType::Name(cast.from)) + " -> " +
+            std::string(Format::CastType::Name(cast.to))
+        );
     }
 
     void MovBasePtr(IReg dst, bool local) override
