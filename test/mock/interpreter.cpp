@@ -415,6 +415,8 @@ void* Adapters::C2ICall(Interpretation::AbiInfo info) { return reinterpret_cast<
 
 void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* fuh) { FATAL("Should not reach here."); }
 
+Interpretation::DynamicFunctionHandle* Adapters::TryGetDirectCallTargetFuh(void* entry) { return nullptr; }
+
 const char* MetaInfo::GetName(TypeInfo ti) { return "<unknown>"; }
 
 uint32_t MetaInfo::GetTypeSize(TypeInfo ti) { return Interpretation::Extract(ti)->size; }

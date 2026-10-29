@@ -172,9 +172,14 @@ static Interpretation::FunctionHandle* GetDynamicCall(void* fn, CbcTypeInfo* cti
 static Interpretation::Thunk GetDynCallThunk(void* fn, TypeInfo ti)
 {
     if (IsDynCallTrampoline(fn)) {
-        // Fast path: it is trampoline, meaning i2i call. We just get fuh and run i2i call as usual.
+        // Fast path: it is dynamic trampoline, meaning instance virtual i2i call. We just get fuh and run i2i call as usual.
         auto fuh = GetDynamicCall(fn, reinterpret_cast<CbcTypeInfo*>(ti.Raw()));
         return { Interpretation::ThunkOp::I2ICall, reinterpret_cast<void*>(fuh) };
+    }
+
+    if (auto fuh = Adapters::TryGetDirectCallTargetFuh(fn)) {
+        // Fast path 2: virtual static call uses existing trampoline: run i2i call
+        return { Interpretation::ThunkOp::I2ICall, reinterpret_cast<void*>(&fuh->base) };
     }
 
     return { Interpretation::ThunkOp::I2CCall, fn };

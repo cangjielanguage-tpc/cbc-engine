@@ -62,6 +62,28 @@ void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* f
     return GetAddressOfDirectCallTrampoline(i);
 }
 
+// Tries to restore the DynamicFunctionHandle from the direct call trampoline address.
+Interpretation::DynamicFunctionHandle* Adapters::TryGetDirectCallTargetFuh(void* trampoline)
+{
+    auto start   = reinterpret_cast<uintptr_t>(&Asm::engine_trampolines_direct_start);
+    auto address = reinterpret_cast<uintptr_t>(trampoline);
+    if (address < start) {
+        return nullptr;
+    }
+
+    auto offset = address - start;
+    if (offset >= TRAMPOLINE_COUNT * DIRECT_CALL_TRAMPOLINE_SIZE || offset % DIRECT_CALL_TRAMPOLINE_SIZE != 0) {
+        return nullptr;
+    }
+
+    auto idx = offset / DIRECT_CALL_TRAMPOLINE_SIZE;
+    std::lock_guard guard(g_directCallFuhsMutex);
+    if (idx >= directCallFuhsCount) {
+        return nullptr;
+    }
+    return static_cast<Interpretation::DynamicFunctionHandle*>(Asm::engine_universal_direct_function_handles[idx]);
+}
+
 void* Adapters::GetDynCallTrampoline(int fuhIdx, bool sret)
 {
     auto start = sret ? reinterpret_cast<char*>(&Asm::engine_trampolines_dyn_sret_start)
