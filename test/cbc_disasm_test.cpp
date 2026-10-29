@@ -8,8 +8,8 @@
 #include "engine/image/reader.h"
 #include "interpreter/function_handle.h"
 
-#include "testutils.h"
 #include "engine/options.h"
+#include "testutils.h"
 #include "utils/ostream.h"
 
 static LimitedHeap<16384> heap;
@@ -88,4 +88,74 @@ TEST(CbcRtDisasmTest, InitSomeGeneric)
         .underlyingTi = Cbc::IReg::IR1,
     };
     EXPECT_EQ("init.some.g0 IR2 IR1\n", RtLog(args));
+}
+
+TEST_ASM(CbcDisasmTest, Convert)
+{
+    std::string expected = " 0: mov.W64 IR1, 1\n"
+                           " 3: convert I64, I32, IR1, IR1\n"
+                           " 6: convert U32, U64, IR1, IR1\n"
+                           " 9: load.ti.g IR1, @0\n";
+    CompareWith("convert.asm", expected);
+}
+
+static std::string RawIsaDisasm(uint8_t* start, uint8_t* end)
+{
+    Stream::StringBuffer stream;
+    Cbc::RawDisasm(stream, start, end);
+    return stream.ToString();
+}
+
+TEST_F(CbcDisasmTest, ConvertRaw)
+{
+    uint8_t code[] = {
+        static_cast<uint8_t>(Cbc::Opcode::Convert),
+        static_cast<uint8_t>(
+            static_cast<uint8_t>(Cbc::Format::ConvertType::I64) |
+            (static_cast<uint8_t>(Cbc::Format::ConvertType::I32) << 4)
+        ),
+        static_cast<uint8_t>(static_cast<uint8_t>(Cbc::IReg::IR2) | (static_cast<uint8_t>(Cbc::IReg::IR1) << 4)),
+        static_cast<uint8_t>(Cbc::Opcode::CheckedConvert),
+        static_cast<uint8_t>(
+            static_cast<uint8_t>(Cbc::Format::ConvertType::F32) |
+            (static_cast<uint8_t>(Cbc::Format::ConvertType::F64) << 4)
+        ),
+        static_cast<uint8_t>(static_cast<uint8_t>(Cbc::FReg::FR1) | (static_cast<uint8_t>(Cbc::FReg::FR0) << 4)),
+    };
+    EXPECT_EQ(
+        "0: convert I32, I64, IR1, IR2\n"
+        "3: checked.convert F64, F32, FR0, FR1\n",
+        RawIsaDisasm(code, code + sizeof(code))
+    );
+}
+
+static std::string RtLog(Cbc::RT::ConvertOp args)
+{
+    Stream::StringBuffer stream;
+    Cbc::RT::Log(nullptr, stream, args);
+    return stream.ToString();
+}
+
+TEST(CbcRtDisasmTest, ConvertUnchecked)
+{
+    Cbc::RT::ConvertOp args {
+        .opc  = Cbc::RT::Opcode::CONVERT,
+        .xx   = { .imm1 = Cbc::Format::Imm4(static_cast<uint8_t>(Cbc::Format::ConvertType::I32)),
+                  .imm2 = Cbc::Format::Imm4(static_cast<uint8_t>(Cbc::Format::ConvertType::I64)) },
+        .mode = Cbc::Format::Imm8(Cbc::Format::ConvertMode::UNCHECKED),
+        .rr   = { .x = Cbc::IReg::IR1, .y = Cbc::IReg::IR2 },
+    };
+    EXPECT_EQ("convert.unchecked I32 I64 IR1 IR2\n", RtLog(args));
+}
+
+TEST(CbcRtDisasmTest, ConvertChecked)
+{
+    Cbc::RT::ConvertOp args {
+        .opc  = Cbc::RT::Opcode::CONVERT,
+        .xx   = { .imm1 = Cbc::Format::Imm4(static_cast<uint8_t>(Cbc::Format::ConvertType::I32)),
+                  .imm2 = Cbc::Format::Imm4(static_cast<uint8_t>(Cbc::Format::ConvertType::I64)) },
+        .mode = Cbc::Format::Imm8(Cbc::Format::ConvertMode::CHECKED),
+        .rr   = { .x = Cbc::IReg::IR1, .y = Cbc::IReg::IR2 },
+    };
+    EXPECT_EQ("convert.checked I32 I64 IR1 IR2\n", RtLog(args));
 }
