@@ -1,4 +1,3 @@
-;strict
 ; Resolution only: no static call in this file is executed.
 @main_type "default"
 

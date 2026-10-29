@@ -1,4 +1,3 @@
-;strict
 @main_type "default"
 
 @method_ref default.foo = default@ref foo(I64,I64)I64

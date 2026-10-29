@@ -1,4 +1,3 @@
-;strict
 @main_type "default"
 
 @type default
