@@ -178,6 +178,18 @@ public:
     void TypeArg(IReg dst, IReg typeInfo, int idx);
     void CopyDerived(IReg dstBase, IReg dst, IReg srcBase, IReg src, RTSupport::TypeInfo ti);
     void CopyDerivedGeneric(IReg dstBase, IReg dst, IReg srcBase, IReg src, IReg ti);
+    void CopyLocal(IReg dst, IReg src, RTSupport::TypeInfo ti);
+    void CopyToLocal(IReg dst, IReg srcBase, IReg src, RTSupport::TypeInfo ti);
+    void CopyFromLocal(IReg dstBase, IReg dst, IReg src, RTSupport::TypeInfo ti);
+    void CopyLocalGeneric(IReg dst, IReg src, IReg ti);
+    void CopyToLocalGeneric(IReg dst, IReg srcBase, IReg src, IReg ti);
+    void CopyFromLocalGeneric(IReg dstBase, IReg dst, IReg src, IReg ti);
+    void CopyTypeSlot(int32_t dstOffset, int32_t srcOffset, RTSupport::TypeInfo ti);
+    void CopyToTypeSlot(int32_t dstOffset, IReg srcBase, IReg src, RTSupport::TypeInfo ti);
+    void CopyFromTypeSlot(IReg dstBase, IReg dst, int32_t srcOffset, RTSupport::TypeInfo ti);
+    void CopyTypeSlotGeneric(int32_t dstOffset, int32_t srcOffset, IReg ti);
+    void CopyToTypeSlotGeneric(int32_t dstOffset, IReg srcBase, IReg src, IReg ti);
+    void CopyFromTypeSlotGeneric(IReg dstBase, IReg dst, int32_t srcOffset, IReg ti);
     void LeaIndex(IReg dst, IReg src, IReg idx, RTSupport::TypeInfo ti, bool isCangjeiArray);
     void LeaIndexGeneric(IReg dst, IReg src, IReg idx, IReg ti);
     void LeaConstIndexGeneric(IReg dst, IReg src, int64_t idx, IReg ti);
