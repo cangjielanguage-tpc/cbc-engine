@@ -1225,9 +1225,7 @@ LABEL(TYPE_ARG) {
 LABEL(CONVERT) {
     auto args = ConvertOp::Decode(reader);
     LOG_INSTR;
-    bool overflow = interpreter.Convert(
-        args.mode.Mode(), args.xx.imm1.ConvertType(), args.xx.imm2.ConvertType(), args.rr.x, args.rr.y
-    );
+    bool overflow = interpreter.Convert(args.mode.Mode(), args.cast, args.rr.x, args.rr.y);
     NEXT_OR_THROW(!overflow, Type::OverflowException);
 }
 LABEL(BFXS) {

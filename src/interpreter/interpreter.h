@@ -567,15 +567,15 @@ public:
     // Returns true when the checked cast overflowed and `OverflowException`
     // must be thrown. Otherwise the converted value is stored into the
     // destination. Unchecked mode never overflows.
-    bool Convert(ConvertMode mode, ConvertType toType, ConvertType fromType, Reg to, Reg from)
+    bool Convert(ConvertMode mode, CastOp op, Reg to, Reg from)
     {
-        auto val = fromType.IsFloatingPoint() ? ectype->GetPrimitive(from.FR()) : ectype->GetPrimitive(from.IR());
-        auto res = CastPrim(mode, toType, fromType, val);
+        auto val = op.FromIsFloatingPoint() ? ectype->GetPrimitive(from.FR()) : ectype->GetPrimitive(from.IR());
+        auto res = CastPrim(mode, op, val);
         if (res.overflow) {
             return true;
         }
 
-        if (toType.IsFloatingPoint()) {
+        if (op.ToIsFloatingPoint()) {
             ectype->Put(to.FR(), res.value);
         } else {
             ectype->Put(to.IR(), res.value);

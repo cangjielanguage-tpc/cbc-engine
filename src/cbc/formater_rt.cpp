@@ -36,7 +36,7 @@ struct Operand {
 
     Format::CC CC() { return Format::CC::From(U8()); }
 
-    Format::ConvertType Ct() { return Format::ConvertType::From(U8()); }
+    Format::CastOp Cast() { return Format::CastOp(U8()); }
 
     Format::ConvertMode Mode() { return Format::ConvertMode::From(U8()); }
 
@@ -138,7 +138,7 @@ private:
 
     void Write(Format::FloatMathOp v) { stream << v.ToStr(); }
 
-    void Write(Format::ConvertType v) { stream << v.ToStr(); }
+    void Write(Format::CastOp v) { stream << v.FromTypeStr() << "->" << v.ToTypeStr(); }
 
     void Write(Format::ConvertMode v) { stream << v.ToStr(); }
 
@@ -216,8 +216,8 @@ private:
             Write(table->at(operand.U16()).i64);
         } else if (type == "U16L") {
             Write(table->at(operand.U16()).u64);
-        } else if (type == "ct") {
-            Write(operand.Ct());
+        } else if (type == "cast") {
+            Write(operand.Cast());
         } else if (type == "cm") {
             Write(operand.Mode());
         } else {
@@ -345,7 +345,7 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3xrrr arg
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, ConvertOp args)
 {
-    Operand operands[] = { args.xx.imm1, args.xx.imm2, args.mode, args.rr.x, args.rr.y };
+    Operand operands[] = { args.cast, args.mode, args.rr.x, args.rr.y };
     Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }

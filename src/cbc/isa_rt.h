@@ -108,7 +108,7 @@
     X(SCCI32L, B4xi12rr, "scci.32 $0cc $2ir $3ir $1I12L")                                                              \
     X(SCCI64L, B4xi12rr, "scci.64 $0cc $2ir $3ir $1I12L")                                                              \
     X(TYPE_ARG, B4xi12rr, "type.arg $2ir $3ir $1I12")                                                                  \
-    X(CONVERT, ConvertOp, "convert.$2cm $0ct $1ct $3ir $4ir") /* FIXME: ir/fr */                                       \
+    X(CONVERT, ConvertOp, "convert.$1cm $0cast $2ir $3ir") /* FIXME: ir/fr */                                          \
     X(CALL_CLOSURE, B1, "call.closure")                                                                                \
     X(CALL_CLOSURE_SRET, B1, "call.closure.sret")                                                                      \
     X(CALL_CLOSURE_GENERIC, B1, "call.closure.g")                                                                      \
@@ -337,17 +337,17 @@ struct ConvertOp {
     static constexpr int SIZE = 4;
 
     Opcode opc;
-    Format::XX xx;
+    Format::CastOp cast;
     Format::Imm8 mode;
     Format::RR rr;
 
     static ConvertOp Decode(Decoder::ByteReader& reader)
     {
         auto opc  = Opcode::Decode(reader);
-        auto xx   = Format::XX::Decode(reader);
+        auto cast = Format::CastOp(reader.Read8());
         auto mode = Format::Imm8::Decode(reader);
         auto rr   = Format::RR::Decode(reader);
-        return ConvertOp { opc, xx, mode, rr };
+        return ConvertOp { opc, cast, mode, rr };
     }
 };
 

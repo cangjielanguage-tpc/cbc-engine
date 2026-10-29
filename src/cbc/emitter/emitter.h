@@ -32,7 +32,7 @@ public:
     using Width       = Format::Width;
     using CC          = Format::CC;
     using Common      = Format::Common;
-    using ConvertType = Format::ConvertType;
+    using CastOp      = Format::CastOp;
     using ConvertMode = Format::ConvertMode;
     using Checked     = Format::Checked;
 
@@ -193,7 +193,7 @@ public:
     void SCC(CC cc, Width width, IReg d, FReg l, FReg r);
     void SCCImm(CC cc, Width width, IReg d, IReg l, uint64_t imm);
 
-    void Convert(ConvertMode mode, ConvertType toType, ConvertType fromType, Reg to, Reg from);
+    void Convert(ConvertMode mode, CastOp op, Reg to, Reg from);
 
     void BFXS(IReg dst, IReg src, uint8_t offset, uint8_t size);
     void BFXZ(IReg dst, IReg src, uint8_t offset, uint8_t size);

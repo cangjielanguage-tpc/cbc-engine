@@ -630,7 +630,7 @@ TEST(EmitTest, Simple_Convert)
     // Unchecked: U32 -> U8 wraps.
     {
         Emitter e;
-        e.Convert(ConvertMode::UNCHECKED, ConvertType::U8, ConvertType::U32, IReg::IR1, IReg::IR1);
+        e.Convert(ConvertMode::UNCHECKED, CastOp::U32_TO_U8, IReg::IR1, IReg::IR1);
         e.Ret();
 
         auto code = e.Build(heap);
@@ -643,7 +643,7 @@ TEST(EmitTest, Simple_Convert)
     // Checked: same instruction shape, in-range value passes through.
     {
         Emitter e;
-        e.Convert(ConvertMode::CHECKED, ConvertType::U8, ConvertType::U32, IReg::IR1, IReg::IR1);
+        e.Convert(ConvertMode::CHECKED, CastOp::U32_TO_U8, IReg::IR1, IReg::IR1);
         e.Ret();
 
         auto code = e.Build(heap);

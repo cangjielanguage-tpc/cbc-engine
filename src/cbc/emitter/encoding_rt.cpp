@@ -62,7 +62,7 @@ void Encode(ByteBuffer& buf, RT::B3xrrr command)
 void Encode(ByteBuffer& buf, RT::ConvertOp command)
 {
     Encode(buf, command.opc);
-    Encode(buf, command.xx);
+    Encode(buf, Format::Imm8(command.cast.Raw()));
     Encode(buf, command.mode);
     Encode(buf, command.rr);
 }

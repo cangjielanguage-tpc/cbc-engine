@@ -136,26 +136,34 @@ static std::string RtLog(Cbc::RT::ConvertOp args)
     return stream.ToString();
 }
 
+TEST(CbcFormatTest, CastOpLayout)
+{
+    auto op = Cbc::Format::CastOp(
+        static_cast<uint8_t>(Cbc::Format::ConvertType::I64), static_cast<uint8_t>(Cbc::Format::ConvertType::I32)
+    );
+    EXPECT_EQ(op.Raw(), 0x46);
+    EXPECT_EQ(op.FromTypeStr(), "I32");
+    EXPECT_EQ(op.ToTypeStr(), "I64");
+}
+
 TEST(CbcRtDisasmTest, ConvertUnchecked)
 {
     Cbc::RT::ConvertOp args {
         .opc  = Cbc::RT::Opcode::CONVERT,
-        .xx   = { .imm1 = Cbc::Format::Imm4(static_cast<uint8_t>(Cbc::Format::ConvertType::I32)),
-                  .imm2 = Cbc::Format::Imm4(static_cast<uint8_t>(Cbc::Format::ConvertType::I64)) },
+        .cast = Cbc::Format::CastOp::I64_TO_I32,
         .mode = Cbc::Format::Imm8(Cbc::Format::ConvertMode::UNCHECKED),
         .rr   = { .x = Cbc::IReg::IR1, .y = Cbc::IReg::IR2 },
     };
-    EXPECT_EQ("convert.unchecked I32 I64 IR1 IR2\n", RtLog(args));
+    EXPECT_EQ("convert.unchecked I64->I32 IR1 IR2\n", RtLog(args));
 }
 
 TEST(CbcRtDisasmTest, ConvertChecked)
 {
     Cbc::RT::ConvertOp args {
         .opc  = Cbc::RT::Opcode::CONVERT,
-        .xx   = { .imm1 = Cbc::Format::Imm4(static_cast<uint8_t>(Cbc::Format::ConvertType::I32)),
-                  .imm2 = Cbc::Format::Imm4(static_cast<uint8_t>(Cbc::Format::ConvertType::I64)) },
+        .cast = Cbc::Format::CastOp::I64_TO_I32,
         .mode = Cbc::Format::Imm8(Cbc::Format::ConvertMode::CHECKED),
         .rr   = { .x = Cbc::IReg::IR1, .y = Cbc::IReg::IR2 },
     };
-    EXPECT_EQ("convert.checked I32 I64 IR1 IR2\n", RtLog(args));
+    EXPECT_EQ("convert.checked I64->I32 IR1 IR2\n", RtLog(args));
 }

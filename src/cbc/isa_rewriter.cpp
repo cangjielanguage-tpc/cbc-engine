@@ -566,7 +566,7 @@ struct IsaRewriter : public IsaParser {
         Format::ConvertMode mode, Format::ConvertType toType, Format::ConvertType fromType, AnyReg to, AnyReg from
     ) override
     {
-        emit.Convert(mode, toType, fromType, to, from);
+        emit.Convert(mode, Format::CastOp(static_cast<uint8_t>(toType), static_cast<uint8_t>(fromType)), to, from);
     }
 
     void MovBasePtr(IReg dst, bool local) override

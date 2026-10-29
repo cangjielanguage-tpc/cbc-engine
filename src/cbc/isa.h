@@ -594,6 +594,147 @@ private:
     Value _value;
 };
 
+// Single identifier for a rewritten cast. Layout matches the RT CONVERT
+// immediate: high nibble is the source type, low nibble is the destination.
+class CastOp {
+private:
+    static constexpr uint8_t I8  = 0x0;
+    static constexpr uint8_t U8  = 0x1;
+    static constexpr uint8_t I16 = 0x2;
+    static constexpr uint8_t U16 = 0x3;
+    static constexpr uint8_t I32 = 0x4;
+    static constexpr uint8_t U32 = 0x5;
+    static constexpr uint8_t I64 = 0x6;
+    static constexpr uint8_t U64 = 0x7;
+    static constexpr uint8_t F16 = 0x8;
+    static constexpr uint8_t F32 = 0x9;
+    static constexpr uint8_t F64 = 0xa;
+
+public:
+    enum Value : uint8_t {
+        // from I8
+        I8_TO_U8 = (I8 << 4) | U8,
+
+        // from U8
+        U8_TO_I8 = (U8 << 4) | I8,
+
+        // from I16
+        I16_TO_I8  = (I16 << 4) | I8,
+        I16_TO_U8  = (I16 << 4) | U8,
+        I16_TO_U16 = (I16 << 4) | U16,
+
+        // from U16
+        U16_TO_I8  = (U16 << 4) | I8,
+        U16_TO_U8  = (U16 << 4) | U8,
+        U16_TO_I16 = (U16 << 4) | I16,
+
+        // from I32
+        I32_TO_I8  = (I32 << 4) | I8,
+        I32_TO_U8  = (I32 << 4) | U8,
+        I32_TO_I16 = (I32 << 4) | I16,
+        I32_TO_U16 = (I32 << 4) | U16,
+        I32_TO_U32 = (I32 << 4) | U32,
+        I32_TO_I64 = (I32 << 4) | I64,
+        I32_TO_F32 = (I32 << 4) | F32,
+        I32_TO_F64 = (I32 << 4) | F64,
+
+        // from U32
+        U32_TO_I8  = (U32 << 4) | I8,
+        U32_TO_U8  = (U32 << 4) | U8,
+        U32_TO_I16 = (U32 << 4) | I16,
+        U32_TO_U16 = (U32 << 4) | U16,
+        U32_TO_I32 = (U32 << 4) | I32,
+        U32_TO_I64 = (U32 << 4) | I64,
+        U32_TO_F32 = (U32 << 4) | F32,
+        U32_TO_F64 = (U32 << 4) | F64,
+
+        // from I64
+        I64_TO_I8  = (I64 << 4) | I8,
+        I64_TO_U8  = (I64 << 4) | U8,
+        I64_TO_I16 = (I64 << 4) | I16,
+        I64_TO_U16 = (I64 << 4) | U16,
+        I64_TO_I32 = (I64 << 4) | I32,
+        I64_TO_U32 = (I64 << 4) | U32,
+        I64_TO_U64 = (I64 << 4) | U64,
+        I64_TO_F32 = (I64 << 4) | F32,
+        I64_TO_F64 = (I64 << 4) | F64,
+
+        // from U64
+        U64_TO_I8  = (U64 << 4) | I8,
+        U64_TO_U8  = (U64 << 4) | U8,
+        U64_TO_I16 = (U64 << 4) | I16,
+        U64_TO_U16 = (U64 << 4) | U16,
+        U64_TO_I32 = (U64 << 4) | I32,
+        U64_TO_U32 = (U64 << 4) | U32,
+        U64_TO_I64 = (U64 << 4) | I64,
+        U64_TO_F32 = (U64 << 4) | F32,
+        U64_TO_F64 = (U64 << 4) | F64,
+
+        // from F32
+        F32_TO_I8  = (F32 << 4) | I8,
+        F32_TO_U8  = (F32 << 4) | U8,
+        F32_TO_I16 = (F32 << 4) | I16,
+        F32_TO_U16 = (F32 << 4) | U16,
+        F32_TO_I32 = (F32 << 4) | I32,
+        F32_TO_U32 = (F32 << 4) | U32,
+        F32_TO_I64 = (F32 << 4) | I64,
+        F32_TO_U64 = (F32 << 4) | U64,
+        F32_TO_F64 = (F32 << 4) | F64,
+
+        // from F64
+        F64_TO_I8  = (F64 << 4) | I8,
+        F64_TO_U8  = (F64 << 4) | U8,
+        F64_TO_I16 = (F64 << 4) | I16,
+        F64_TO_U16 = (F64 << 4) | U16,
+        F64_TO_I32 = (F64 << 4) | I32,
+        F64_TO_U32 = (F64 << 4) | U32,
+        F64_TO_I64 = (F64 << 4) | I64,
+        F64_TO_U64 = (F64 << 4) | U64,
+        F64_TO_F32 = (F64 << 4) | F32,
+    };
+
+    constexpr CastOp(const Value raw) : _value(raw) {}
+
+    constexpr CastOp(uint8_t raw) : _value(static_cast<Value>(raw)) {}
+
+    constexpr CastOp(uint8_t to, uint8_t from) : _value(static_cast<Value>((from << 4) | to)) {}
+
+    constexpr operator Value() const { return _value; }
+
+    constexpr uint8_t Raw() const { return static_cast<uint8_t>(_value); }
+
+    constexpr bool ToIsFloatingPoint() const { return TypeIsFloatingPoint(Raw() & 0xf); }
+
+    constexpr bool FromIsFloatingPoint() const { return TypeIsFloatingPoint(Raw() >> 4); }
+
+    constexpr std::string_view ToTypeStr() const { return TypeName(Raw() & 0xf); }
+
+    constexpr std::string_view FromTypeStr() const { return TypeName(Raw() >> 4); }
+
+private:
+    static constexpr std::string_view TypeName(uint8_t code)
+    {
+        switch (code) {
+            case I8:  return "I8";
+            case U8:  return "U8";
+            case I16: return "I16";
+            case U16: return "U16";
+            case I32: return "I32";
+            case U32: return "U32";
+            case I64: return "I64";
+            case U64: return "U64";
+            case F16: return "F16";
+            case F32: return "F32";
+            case F64: return "F64";
+            default:  return "<invalid>";
+        }
+    }
+
+    static constexpr bool TypeIsFloatingPoint(uint8_t code) { return code >= F16 && code <= F64; }
+
+    Value _value;
+};
+
 class FloatOperations {
 public:
 #define FloatOperationsValue(X)                                                                                        \
