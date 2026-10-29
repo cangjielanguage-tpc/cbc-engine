@@ -194,40 +194,21 @@ template <typename To> static inline CheckedCastResult CheckedCastFromUnsigned(u
     return { MakeIntPrim(static_cast<To>(value)), false };
 }
 
-// Bound of integer type encoded in double.
-// Done this way to elide std::ldexp call.
-template <typename To> struct FpIntBound;
+// Bounds of an integral type encoded in double, as a half-open interval
+// [lower, upper). A truncated float is representable in `To` iff it lies in
+// that interval. Both bounds are exact powers of two; `upper` itself is not
+// representable in `To` (it is one past the maximum value).
+template <typename To> struct FpIntBounds {
+    static_assert(std::is_integral_v<To>, "integral type is expected");
+    static_assert(std::numeric_limits<To>::digits <= 64, "integer type is too wide");
 
-template <> struct FpIntBound<int8_t> {
-    static constexpr double value = 0x1p7;
-};
+    static constexpr bool isSigned = std::is_signed_v<To>;
 
-template <> struct FpIntBound<uint8_t> {
-    static constexpr double value = 0x1p8;
-};
-
-template <> struct FpIntBound<int16_t> {
-    static constexpr double value = 0x1p15;
-};
-
-template <> struct FpIntBound<uint16_t> {
-    static constexpr double value = 0x1p16;
-};
-
-template <> struct FpIntBound<int32_t> {
-    static constexpr double value = 0x1p31;
-};
-
-template <> struct FpIntBound<uint32_t> {
-    static constexpr double value = 0x1p32;
-};
-
-template <> struct FpIntBound<int64_t> {
-    static constexpr double value = 0x1p63;
-};
-
-template <> struct FpIntBound<uint64_t> {
-    static constexpr double value = 0x1p64;
+    // 2^digits. Written as (1 << (digits - 1)) * 2.0 to elide std::ldexp and to
+    // avoid a shift by 64, which is undefined for uint64_t.
+    static constexpr double upper =
+        static_cast<double>(1ULL << (std::numeric_limits<To>::digits - 1)) * 2.0;
+    static constexpr double lower = isSigned ? -upper : 0.0;
 };
 
 // Checked casts rules: the source value must be representable
@@ -245,14 +226,7 @@ template <typename To> inline CheckedCastResult CheckedCastFromFp(double value)
     // truncated value (so e.g. -128.9 fits into Int8 as -128).
     const double truncated = std::trunc(value);
 
-    constexpr double bound = FpIntBound<To>::value;
-    bool inRange;
-    if constexpr (std::is_signed_v<To>) {
-        inRange = truncated >= -bound && truncated < bound;
-    } else {
-        inRange = truncated >= 0.0 && truncated < bound;
-    }
-    if (!inRange) {
+    if (truncated < FpIntBounds<To>::lower || truncated >= FpIntBounds<To>::upper) {
         return { MakeIntPrim<To>(0), true };
     }
     return { MakeIntPrim(static_cast<To>(truncated)), false };
