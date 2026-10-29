@@ -89,3 +89,12 @@ TEST(CbcRtDisasmTest, InitSomeGeneric)
     };
     EXPECT_EQ("init.some.g0 IR2 IR1\n", RtLog(args));
 }
+
+TEST_ASM(CbcDisasmTest, Convert)
+{
+    std::string expected = " 0: mov.W64 IR1, 1\n"
+                           " 3: convert I64, I32, IR1, IR1\n"
+                           " 6: convert U32, U64, IR1, IR1\n"
+                           " 9: ret.W64 IR1\n";
+    CompareWith("convert.asm", expected);
+}

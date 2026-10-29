@@ -6,6 +6,241 @@
 #include "utils/assertion.h"
 #include "utils/math.h"
 #include <cstdint>
+#include <iterator>
+#include <optional>
+#include <string_view>
+
+namespace Cbc {
+namespace Format {
+
+struct UncheckedCasts {
+    static constexpr CastType::Pair pairs[] = {
+        // from I32
+        { CastType::I32, CastType::I8 },
+        { CastType::I32, CastType::U8 },
+        { CastType::I32, CastType::I16 },
+        { CastType::I32, CastType::U16 },
+        { CastType::I32, CastType::I64 },
+        { CastType::I32, CastType::F16 },
+        { CastType::I32, CastType::F32 },
+        { CastType::I32, CastType::F64 },
+        // from U32
+        { CastType::U32, CastType::I8 },
+        { CastType::U32, CastType::U8 },
+        { CastType::U32, CastType::I16 },
+        { CastType::U32, CastType::U16 },
+        { CastType::U32, CastType::I64 },
+        { CastType::U32, CastType::F16 },
+        { CastType::U32, CastType::F32 },
+        { CastType::U32, CastType::F64 },
+        // from I64
+        { CastType::I64, CastType::F16 },
+        { CastType::I64, CastType::I32 },
+        { CastType::I64, CastType::F32 },
+        { CastType::I64, CastType::F64 },
+        // from U64
+        { CastType::U64, CastType::F16 },
+        { CastType::U64, CastType::I32 },
+        { CastType::U64, CastType::U32 },
+        { CastType::U64, CastType::F32 },
+        { CastType::U64, CastType::F64 },
+        // from F16
+        { CastType::F16, CastType::I8 },
+        { CastType::F16, CastType::U8 },
+        { CastType::F16, CastType::I16 },
+        { CastType::F16, CastType::U16 },
+        { CastType::F16, CastType::I32 },
+        { CastType::F16, CastType::U32 },
+        { CastType::F16, CastType::I64 },
+        { CastType::F16, CastType::U64 },
+        { CastType::F16, CastType::F32 },
+        { CastType::F16, CastType::F64 },
+        // from F32
+        { CastType::F32, CastType::I8 },
+        { CastType::F32, CastType::U8 },
+        { CastType::F32, CastType::I16 },
+        { CastType::F32, CastType::U16 },
+        { CastType::F32, CastType::I32 },
+        { CastType::F32, CastType::U32 },
+        { CastType::F32, CastType::I64 },
+        { CastType::F32, CastType::U64 },
+        { CastType::F32, CastType::F16 },
+        { CastType::F32, CastType::F64 },
+        // from F64
+        { CastType::F64, CastType::I8 },
+        { CastType::F64, CastType::U8 },
+        { CastType::F64, CastType::I16 },
+        { CastType::F64, CastType::U16 },
+        { CastType::F64, CastType::I32 },
+        { CastType::F64, CastType::U32 },
+        { CastType::F64, CastType::I64 },
+        { CastType::F64, CastType::U64 },
+        { CastType::F64, CastType::F16 },
+        { CastType::F64, CastType::F32 },
+    };
+};
+
+struct CheckedCasts {
+    static constexpr CastType::Pair pairs[] = {
+        // from I8
+        { CastType::I8, CastType::U8 },
+        // from U8
+        { CastType::U8, CastType::I8 },
+        // from I16
+        { CastType::I16, CastType::I8 },
+        { CastType::I16, CastType::U8 },
+        { CastType::I16, CastType::U16 },
+        // from U16
+        { CastType::U16, CastType::I8 },
+        { CastType::U16, CastType::U8 },
+        { CastType::U16, CastType::I16 },
+        // from I32
+        { CastType::I32, CastType::I8 },
+        { CastType::I32, CastType::U8 },
+        { CastType::I32, CastType::I16 },
+        { CastType::I32, CastType::U16 },
+        { CastType::I32, CastType::U32 },
+        // from U32
+        { CastType::U32, CastType::I8 },
+        { CastType::U32, CastType::U8 },
+        { CastType::U32, CastType::I16 },
+        { CastType::U32, CastType::U16 },
+        { CastType::U32, CastType::I32 },
+        // from I64
+        { CastType::I64, CastType::I8 },
+        { CastType::I64, CastType::U8 },
+        { CastType::I64, CastType::I16 },
+        { CastType::I64, CastType::U16 },
+        { CastType::I64, CastType::I32 },
+        { CastType::I64, CastType::U32 },
+        { CastType::I64, CastType::U64 },
+        // from U64
+        { CastType::U64, CastType::I8 },
+        { CastType::U64, CastType::U8 },
+        { CastType::U64, CastType::I16 },
+        { CastType::U64, CastType::U16 },
+        { CastType::U64, CastType::I32 },
+        { CastType::U64, CastType::U32 },
+        { CastType::U64, CastType::I64 },
+        // from F16
+        { CastType::F16, CastType::I8 },
+        { CastType::F16, CastType::U8 },
+        { CastType::F16, CastType::I16 },
+        { CastType::F16, CastType::U16 },
+        { CastType::F16, CastType::I32 },
+        { CastType::F16, CastType::U32 },
+        { CastType::F16, CastType::I64 },
+        { CastType::F16, CastType::U64 },
+        // from F32
+        { CastType::F32, CastType::I8 },
+        { CastType::F32, CastType::U8 },
+        { CastType::F32, CastType::I16 },
+        { CastType::F32, CastType::U16 },
+        { CastType::F32, CastType::I32 },
+        { CastType::F32, CastType::U32 },
+        { CastType::F32, CastType::I64 },
+        { CastType::F32, CastType::U64 },
+        // from F64
+        { CastType::F64, CastType::I8 },
+        { CastType::F64, CastType::U8 },
+        { CastType::F64, CastType::I16 },
+        { CastType::F64, CastType::U16 },
+        { CastType::F64, CastType::I32 },
+        { CastType::F64, CastType::U32 },
+        { CastType::F64, CastType::I64 },
+        { CastType::F64, CastType::U64 },
+    };
+};
+
+template <typename Kind> class CastInst {
+public:
+    using KindType = Kind;
+
+    using TypeCode = CastType::Code;
+
+    static constexpr size_t COUNT = std::size(Kind::pairs);
+
+    /// Encodes the pair, or returns `std::nullopt` if the pair has no opcode of this kind.
+    constexpr static std::optional<CastInst> FromPair(TypeCode from, TypeCode to)
+    {
+        for (size_t i = 0; i < COUNT; i++) {
+            if (Kind::pairs[i].from == from && Kind::pairs[i].to == to) {
+                return CastInst(static_cast<uint8_t>(i));
+            }
+        }
+        return std::nullopt;
+    }
+
+    /// Compile-time pair constructor: an unsupported pair is a compile error.
+    constexpr static CastInst Make(TypeCode from, TypeCode to)
+    {
+        auto op = FromPair(from, to);
+        if (!op.has_value()) {
+            auto fromName = CastType::Name(from);
+            auto toName   = CastType::Name(to);
+            FATAL(
+                "unsupported cast %.*s -> %.*s",
+                static_cast<int>(fromName.length()),
+                fromName.data(),
+                static_cast<int>(toName.length()),
+                toName.data()
+            );
+        }
+        return *op;
+    }
+
+    constexpr CastInst(uint8_t raw) : _raw(raw) { ASSERT(IsValid()); }
+
+    constexpr operator uint8_t() const { return _raw; }
+
+    constexpr uint8_t Raw() const { return _raw; }
+
+    constexpr bool IsValid() const { return _raw < COUNT; }
+
+    constexpr TypeCode FromType() const
+    {
+        ASSERT(IsValid());
+        return Kind::pairs[_raw].from;
+    }
+
+    constexpr TypeCode ToType() const
+    {
+        ASSERT(IsValid());
+        return Kind::pairs[_raw].to;
+    }
+
+    constexpr bool ToIsFloatingPoint() const { return CastType::IsFloatingPoint(ToType()); }
+
+    constexpr bool FromIsFloatingPoint() const { return CastType::IsFloatingPoint(FromType()); }
+
+    constexpr std::string_view ToTypeStr() const { return CastType::Name(ToType()); }
+
+    constexpr std::string_view FromTypeStr() const { return CastType::Name(FromType()); }
+
+private:
+    constexpr static bool UniquePairs()
+    {
+        for (size_t i = 0; i < COUNT; i++) {
+            for (size_t j = i + 1; j < COUNT; j++) {
+                if (Kind::pairs[i].from == Kind::pairs[j].from && Kind::pairs[i].to == Kind::pairs[j].to) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    static_assert(COUNT <= 255u, "cast op does not fit into an Imm8 operand");
+    static_assert(UniquePairs(), "duplicate cast op pair");
+
+    uint8_t _raw;
+};
+
+using CastOp        = CastInst<UncheckedCasts>;
+using CheckedCastOp = CastInst<CheckedCasts>;
+
+} // namespace Format
+} // namespace Cbc
 
 // X parameters: opcode, encoding format, string format
 #define CBC_RT_OPCODES(X)                                                                                              \
@@ -116,8 +351,8 @@
     X(SCCI32L, B4xi12rr, "scci.32 $0cc $2ir $3ir $1I12L")                                                              \
     X(SCCI64L, B4xi12rr, "scci.64 $0cc $2ir $3ir $1I12L")                                                              \
     X(TYPE_ARG, B4xi12rr, "type.arg $2ir $3ir $1I12")                                                                  \
-    X(CONVERT, B3xxrr, "convert $0ct $1ct $2ir $3ir") /* FIXME: ir/fr */                                               \
-    X(CHECKED_CONVERT, B3xxrr, "checked.convert $0ct $1ct $2ir $3ir")                                                  \
+    X(CONVERT, UncheckedConvertOp, "convert $0cast $1ir $2ir")                /* FIXME: ir/fr */                       \
+    X(CHECKED_CONVERT, CheckedConvertOp, "checked.convert $0ccast $1ir $2ir") /* FIXME: ir/fr */                       \
     X(CALL_CLOSURE, B1, "call.closure")                                                                                \
     X(CALL_CLOSURE_SRET, B1, "call.closure.sret")                                                                      \
     X(CALL_CLOSURE_GENERIC, B1, "call.closure.g")                                                                      \
@@ -268,6 +503,18 @@ private:
     Value _value;
 };
 
+template <typename Kind> struct CastKindInfo;
+
+template <> struct CastKindInfo<Format::UncheckedCasts> {
+    static constexpr Opcode OPC                = Opcode::CONVERT;
+    static constexpr std::string_view MNEMONIC = "convert";
+};
+
+template <> struct CastKindInfo<Format::CheckedCasts> {
+    static constexpr Opcode OPC                = Opcode::CHECKED_CONVERT;
+    static constexpr std::string_view MNEMONIC = "checked.convert";
+};
+
 class ImmKind {
 public:
     enum Value : uint32_t {
@@ -357,19 +604,24 @@ struct B3xrrr {
     }
 };
 
-struct B3xxrr {
+template <typename Kind> struct ConvertOp {
+    static constexpr int SIZE = 3;
+
     Opcode opc;
-    Format::XX xx;
+    Format::CastInst<Kind> cast;
     Format::RR rr;
 
-    static B3xxrr Decode(Decoder::ByteReader& reader)
+    static ConvertOp Decode(Decoder::ByteReader& reader)
     {
-        auto opc = Opcode::Decode(reader);
-        auto xx  = Format::XX::Decode(reader);
-        auto rr  = Format::RR::Decode(reader);
-        return B3xxrr { opc, xx, rr };
+        auto opc  = Opcode::Decode(reader);
+        auto cast = Format::CastInst<Kind>(reader.Read8());
+        auto rr   = Format::RR::Decode(reader);
+        return ConvertOp { opc, cast, rr };
     }
 };
+
+using UncheckedConvertOp = ConvertOp<Format::UncheckedCasts>;
+using CheckedConvertOp   = ConvertOp<Format::CheckedCasts>;
 
 struct B3xi12 {
     static constexpr int SIZE = 3;

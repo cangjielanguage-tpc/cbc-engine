@@ -1,28 +1,24 @@
 #pragma once
 
+#include <array>
 #include <cmath>
+#include <iterator>
 #include <limits>
 #include <type_traits>
+#include <utility>
 
 #include "cbc/isa.h"
+#include "cbc/isa_rt.h"
 #include "ectype.h"
 #include "implicit_exceptions.h"
 
 namespace Interpretation {
 
-using ConvertType = Cbc::Format::ConvertType;
-
-inline Value::Primitive UnsupportedCastFrom(ConvertType ct)
-{
-    ASSERTION(false, "unsupported cast: from %s)", ct.ToStr().data());
-    return Value::Primitive { .u64 = 0 };
-}
-
-inline Value::Primitive UnsupportedCastTo(ConvertType ct)
-{
-    ASSERTION(false, "unsupported cast: to %s)", ct.ToStr().data());
-    return Value::Primitive { .u64 = 0 };
-}
+using CastOp         = Cbc::Format::CastOp;
+using CheckedCastOp  = Cbc::Format::CheckedCastOp;
+using CastType       = Cbc::Format::CastType;
+using UncheckedCasts = Cbc::Format::UncheckedCasts;
+using CheckedCasts   = Cbc::Format::CheckedCasts;
 
 template <typename T> inline Value::Primitive MakeIntPrim(T value)
 {
@@ -64,102 +60,82 @@ template <typename To, typename From> inline Value::Primitive CastFpToInt(From v
     return MakeIntPrim(static_cast<To>(value));
 }
 
-template <typename From> inline Value::Primitive CastFrom32(ConvertType toType, From value)
+/// C++ type that backs the CBC type code in `Value::Primitive`.
+template <CastType::Code Code> struct CppType {
+    static_assert(Code < CastType::COUNT, "Not supported yet");
+    // clang-format off
+    using Type = std::conditional_t<Code == CastType::I8, int8_t,
+        std::conditional_t<Code == CastType::U8, uint8_t,
+        std::conditional_t<Code == CastType::I16, int16_t,
+        std::conditional_t<Code == CastType::U16, uint16_t,
+        std::conditional_t<Code == CastType::I32, int32_t,
+        std::conditional_t<Code == CastType::U32, uint32_t,
+        std::conditional_t<Code == CastType::I64, int64_t,
+        std::conditional_t<Code == CastType::U64, uint64_t,
+        std::conditional_t<Code == CastType::F16, Utils::Float16,
+        std::conditional_t<Code == CastType::F32, float, double>>>>>>>>>>;
+    // clang-format on
+};
+
+template <CastType::Code Code> using CppTypeT = typename CppType<Code>::Type;
+
+template <typename T> inline T PrimAs(Value::Primitive val)
 {
-    switch (toType) {
-        case ConvertType::F16: return MakeFpPrim(static_cast<Utils::Float16>(value));
-        case ConvertType::I8:  return CastInt<int8_t>(value);
-        case ConvertType::U8:  return CastInt<uint8_t>(value);
-        case ConvertType::I16: return CastInt<int16_t>(value);
-        case ConvertType::U16: return CastInt<uint16_t>(value);
-        case ConvertType::I64: return CastInt<int64_t>(value);
-        case ConvertType::F32: return MakeFpPrim(static_cast<float>(value));
-        case ConvertType::F64: return MakeFpPrim(static_cast<double>(value));
-        default:               return UnsupportedCastTo(toType);
+    if constexpr (std::is_same_v<T, Utils::Float16>) {
+        return val.f16;
+    } else if constexpr (std::is_same_v<T, float>) {
+        return val.f32;
+    } else if constexpr (std::is_same_v<T, double>) {
+        return val.f64;
+    } else {
+        return static_cast<T>(val.u64);
     }
 }
 
-inline Value::Primitive CastFromI64(ConvertType toType, int64_t value)
+template <CastType::Code From, CastType::Code To> inline Value::Primitive CastTyped(Value::Primitive val)
 {
-    switch (toType) {
-        case ConvertType::F16: return MakeFpPrim(static_cast<Utils::Float16>(value));
-        case ConvertType::I32: return CastInt<int32_t>(value);
-        case ConvertType::F32: return MakeFpPrim(static_cast<float>(value));
-        case ConvertType::F64: return MakeFpPrim(static_cast<double>(value));
-        default:               return UnsupportedCastTo(toType);
+    using CppFrom = CppTypeT<From>;
+    using CppTo   = CppTypeT<To>;
+    const CppFrom from = PrimAs<CppFrom>(val);
+
+    if constexpr (std::is_integral_v<CppFrom> && std::is_integral_v<CppTo>) {
+        return CastInt<CppTo>(from);
+    } else if constexpr (std::is_integral_v<CppTo>) {
+        // Widen F16 exactly before comparing against integer bounds.
+        using Wide = std::conditional_t<std::is_same_v<CppFrom, Utils::Float16>, float, CppFrom>;
+        return CastFpToInt<CppTo>(static_cast<Wide>(from));
+    } else if constexpr (std::is_same_v<CppFrom, Utils::Float16>) {
+        return MakeFpPrim(static_cast<CppTo>(from));
+    } else if constexpr (std::is_same_v<CppTo, Utils::Float16>) {
+        if constexpr (std::is_same_v<CppFrom, double>) {
+            return MakeFpPrim(Utils::F64toF16(from));
+        } else {
+            return MakeFpPrim(static_cast<Utils::Float16>(from));
+        }
+    } else {
+        return MakeFpPrim(static_cast<CppTo>(from));
     }
 }
 
-inline Value::Primitive CastFromU64(ConvertType toType, uint64_t value)
+template <typename List> inline constexpr size_t CastPairCount = std::size(List::pairs);
+
+using CastFn = Value::Primitive (*)(Value::Primitive);
+
+template <typename List, size_t... Indices>
+constexpr std::array<CastFn, sizeof...(Indices)> MakeCastFns(std::index_sequence<Indices...>)
 {
-    switch (toType) {
-        case ConvertType::F16: return MakeFpPrim(static_cast<Utils::Float16>(value));
-        case ConvertType::I32: return CastInt<int32_t>(value);
-        case ConvertType::U32: return CastInt<uint32_t>(value);
-        case ConvertType::F32: return MakeFpPrim(static_cast<float>(value));
-        case ConvertType::F64: return MakeFpPrim(static_cast<double>(value));
-        default:               return UnsupportedCastTo(toType);
-    }
+    return { &CastTyped<List::pairs[Indices].from, List::pairs[Indices].to>... };
 }
 
-template <typename From> inline Value::Primitive CastFloatingToIntegral(ConvertType toType, From value)
+template <typename List>
+inline constexpr auto CastFns = MakeCastFns<List>(std::make_index_sequence<CastPairCount<List>> {});
+
+inline Value::Primitive CastPrim(CastOp op, Value::Primitive val)
 {
-    switch (toType) {
-        case ConvertType::I8:  return CastFpToInt<int8_t>(value);
-        case ConvertType::U8:  return CastFpToInt<uint8_t>(value);
-        case ConvertType::I16: return CastFpToInt<int16_t>(value);
-        case ConvertType::U16: return CastFpToInt<uint16_t>(value);
-        case ConvertType::I32: return CastFpToInt<int32_t>(value);
-        case ConvertType::U32: return CastFpToInt<uint32_t>(value);
-        case ConvertType::I64: return CastFpToInt<int64_t>(value);
-        case ConvertType::U64: return CastFpToInt<uint64_t>(value);
-        default:               return UnsupportedCastTo(toType);
+    if (!op.IsValid()) {
+        FATAL("invalid cast op: %u", op.Raw());
     }
-}
-
-inline Value::Primitive CastFromF16(ConvertType toType, Utils::Float16 value)
-{
-    switch (toType) {
-        case ConvertType::F32: return MakeFpPrim(static_cast<float>(value));
-        case ConvertType::F64: return MakeFpPrim(static_cast<double>(value));
-        default:
-            // widen exactly before comparing against integer bounds
-            return CastFloatingToIntegral(toType, static_cast<float>(value));
-    }
-}
-
-inline Value::Primitive CastFromF32(ConvertType toType, float value)
-{
-    switch (toType) {
-        case ConvertType::F16: return MakeFpPrim(static_cast<Utils::Float16>(value));
-        case ConvertType::F64: return MakeFpPrim(static_cast<double>(value));
-        default:               return CastFloatingToIntegral(toType, value);
-    }
-}
-
-inline Value::Primitive CastFromF64(ConvertType toType, double value)
-{
-    switch (toType) {
-        case ConvertType::F16: return MakeFpPrim(Utils::F64toF16(value));
-        case ConvertType::F32: return MakeFpPrim(static_cast<float>(value));
-        default:               return CastFloatingToIntegral(toType, value);
-    }
-}
-
-inline Value::Primitive CastPrim(ConvertType toType, ConvertType fromType, Value::Primitive val)
-{
-    switch (fromType) {
-        case ConvertType::I32: return CastFrom32(toType, static_cast<int32_t>(val.u32));
-        case ConvertType::U32: return CastFrom32(toType, val.u32);
-        case ConvertType::I64: return CastFromI64(toType, static_cast<int64_t>(val.u64));
-        case ConvertType::U64: return CastFromU64(toType, val.u64);
-
-        case ConvertType::F16: return CastFromF16(toType, val.f16);
-        case ConvertType::F32: return CastFromF32(toType, val.f32);
-        case ConvertType::F64: return CastFromF64(toType, val.f64);
-
-        default: return UnsupportedCastFrom(fromType);
-    }
+    return CastFns<UncheckedCasts>[op.Raw()](val);
 }
 
 struct CheckedCastResult {
@@ -309,78 +285,39 @@ template <typename To> inline CheckedCastResult CheckedCastFromFp(double value)
     return CheckedCastSucceeded(MakeIntPrim(static_cast<To>(truncated)));
 }
 
-inline CheckedCastResult CheckedCastFromSignedTo(ConvertType toType, int64_t value)
+template <CastType::Code From, CastType::Code To> inline CheckedCastResult CheckedCastTyped(Value::Primitive val)
 {
-    switch (toType) {
-        case ConvertType::I8:  return CheckedCastFromSigned<int8_t>(value);
-        case ConvertType::U8:  return CheckedCastFromSigned<uint8_t>(value);
-        case ConvertType::I16: return CheckedCastFromSigned<int16_t>(value);
-        case ConvertType::U16: return CheckedCastFromSigned<uint16_t>(value);
-        case ConvertType::I32: return CheckedCastFromSigned<int32_t>(value);
-        case ConvertType::U32: return CheckedCastFromSigned<uint32_t>(value);
-        case ConvertType::I64: return CheckedCastFromSigned<int64_t>(value);
-        case ConvertType::U64: return CheckedCastFromSigned<uint64_t>(value);
-        default:               return { UnsupportedCastTo(toType), Type::Successful };
+    static_assert(std::is_integral_v<CppTypeT<To>>, "checked cast target must be integral");
+    using CppFrom = CppTypeT<From>;
+    const CppFrom from = PrimAs<CppFrom>(val);
+    if constexpr (std::is_integral_v<CppFrom>) {
+        if constexpr (std::is_signed_v<CppFrom>) {
+            return CheckedCastFromSigned<CppTypeT<To>>(from);
+        } else {
+            return CheckedCastFromUnsigned<CppTypeT<To>>(from);
+        }
+    } else {
+        return CheckedCastFromFp<CppTypeT<To>>(static_cast<double>(from));
     }
 }
 
-inline CheckedCastResult CheckedCastFromUnsignedTo(ConvertType toType, uint64_t value)
+using CheckedCastFn = CheckedCastResult (*)(Value::Primitive);
+
+template <typename List, size_t... Indices>
+constexpr std::array<CheckedCastFn, sizeof...(Indices)> MakeCheckedCastFns(std::index_sequence<Indices...>)
 {
-    switch (toType) {
-        case ConvertType::I8:  return CheckedCastFromUnsigned<int8_t>(value);
-        case ConvertType::U8:  return CheckedCastFromUnsigned<uint8_t>(value);
-        case ConvertType::I16: return CheckedCastFromUnsigned<int16_t>(value);
-        case ConvertType::U16: return CheckedCastFromUnsigned<uint16_t>(value);
-        case ConvertType::I32: return CheckedCastFromUnsigned<int32_t>(value);
-        case ConvertType::U32: return CheckedCastFromUnsigned<uint32_t>(value);
-        case ConvertType::I64: return CheckedCastFromUnsigned<int64_t>(value);
-        case ConvertType::U64: return CheckedCastFromUnsigned<uint64_t>(value);
-        default:               return { UnsupportedCastTo(toType), Type::Successful };
-    }
+    return { &CheckedCastTyped<List::pairs[Indices].from, List::pairs[Indices].to>... };
 }
 
-inline CheckedCastResult CheckedCastFromIntegral(ConvertType toType, ConvertType fromType, Value::Primitive val)
-{
-    switch (fromType) {
-        case ConvertType::I8:  return CheckedCastFromSignedTo(toType, static_cast<int8_t>(val.u64));
-        case ConvertType::U8:  return CheckedCastFromUnsignedTo(toType, static_cast<uint8_t>(val.u64));
-        case ConvertType::I16: return CheckedCastFromSignedTo(toType, static_cast<int16_t>(val.u64));
-        case ConvertType::U16: return CheckedCastFromUnsignedTo(toType, static_cast<uint16_t>(val.u64));
-        case ConvertType::I32: return CheckedCastFromSignedTo(toType, static_cast<int32_t>(val.u32));
-        case ConvertType::U32: return CheckedCastFromUnsignedTo(toType, val.u32);
-        case ConvertType::I64: return CheckedCastFromSignedTo(toType, static_cast<int64_t>(val.u64));
-        case ConvertType::U64: return CheckedCastFromUnsignedTo(toType, val.u64);
-        default:               return { UnsupportedCastFrom(fromType), Type::Successful };
-    }
-}
+template <typename List>
+inline constexpr auto CheckedCastFns = MakeCheckedCastFns<List>(std::make_index_sequence<CastPairCount<List>> {});
 
-inline CheckedCastResult CheckedCastFromFloating(ConvertType toType, double value)
+inline CheckedCastResult CheckedCastPrim(CheckedCastOp op, Value::Primitive val)
 {
-    switch (toType) {
-        case ConvertType::I8:  return CheckedCastFromFp<int8_t>(value);
-        case ConvertType::U8:  return CheckedCastFromFp<uint8_t>(value);
-        case ConvertType::I16: return CheckedCastFromFp<int16_t>(value);
-        case ConvertType::U16: return CheckedCastFromFp<uint16_t>(value);
-        case ConvertType::I32: return CheckedCastFromFp<int32_t>(value);
-        case ConvertType::U32: return CheckedCastFromFp<uint32_t>(value);
-        case ConvertType::I64: return CheckedCastFromFp<int64_t>(value);
-        case ConvertType::U64: return CheckedCastFromFp<uint64_t>(value);
-        default:               return { UnsupportedCastTo(toType), Type::Successful };
+    if (!op.IsValid()) {
+        FATAL("invalid cast op: %u", op.Raw());
     }
-}
-
-inline CheckedCastResult CheckedCastPrim(ConvertType toType, ConvertType fromType, Value::Primitive val)
-{
-    // Only integer -> integer and float -> integer casts are checked. Anything
-    // else never overflows, so it keeps the unchecked semantics.
-    ASSERT(!toType.IsFloatingPoint());
-
-    switch (fromType) {
-        case ConvertType::F16: return CheckedCastFromFloating(toType, static_cast<double>(val.f16));
-        case ConvertType::F32: return CheckedCastFromFloating(toType, val.f32);
-        case ConvertType::F64: return CheckedCastFromFloating(toType, val.f64);
-        default:               return CheckedCastFromIntegral(toType, fromType, val);
-    }
+    return CheckedCastFns<CheckedCasts>[op.Raw()](val);
 }
 
 } // namespace Interpretation
