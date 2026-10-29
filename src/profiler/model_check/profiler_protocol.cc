@@ -25,7 +25,7 @@ uint32_t cursor;
 void TryPublish()
 {
     auto previous = readerState.load();
-    while (previous == TRANSITION || !readerState.compare_exchange_strong(previous, TRANSITION)) {
+    while (previous == TRANSITION || !readerState.compare_exchange_weak(previous, TRANSITION)) {
         if (previous == TRANSITION) {
             thrd_yield();
             previous = readerState.load();
@@ -56,7 +56,7 @@ void Producer(void*)
 void Consumer(void*)
 {
     int expected = INACTIVE;
-    while (!readerState.compare_exchange_strong(expected, ACTIVE)) {
+    while (!readerState.compare_exchange_weak(expected, ACTIVE)) {
         expected = INACTIVE;
         thrd_yield();
     }
@@ -75,7 +75,7 @@ void Consumer(void*)
     }
 
     expected = ACTIVE;
-    while (!readerState.compare_exchange_strong(expected, INACTIVE)) {
+    while (!readerState.compare_exchange_weak(expected, INACTIVE)) {
         expected = ACTIVE;
         thrd_yield();
     }
