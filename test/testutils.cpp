@@ -8,11 +8,21 @@
 #include <optional>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
+
+static std::string ResourcePath(std::string const& name)
+{
+    return std::string(TEST_RESOURCE_DIR) + "/" + name;
+}
+
+static bool IsExecutable(std::string const& path)
+{
+    return ::access(path.c_str(), X_OK) == 0;
+}
 
 bool CheckForAssembler()
 {
-    auto jar_path = std::string(TEST_RESOURCE_DIR) + "/cbc-asm.jar";
-    return IO::TryOpenFile(jar_path).has_value();
+    return IsExecutable(ResourcePath("cbc-asm"));
 }
 
 static bool ends_with(std::string_view str, std::string_view suffix)
@@ -60,10 +70,9 @@ static std::string CurrentTestDir()
 
 std::unique_ptr<IO::RandomAccessFile> OpenAsm(std::string file_name)
 {
-    auto asm_path = std::string(TEST_RESOURCE_DIR) + "/" + file_name;
-    auto jar_path = std::string(TEST_RESOURCE_DIR) + "/cbc-asm.jar";
+    auto asm_path = ResourcePath(file_name);
 
-    auto command = "java -jar " + jar_path + ' ' + asm_path;
+    auto command = ResourcePath("cbc-asm") + ' ' + asm_path;
     auto file    = popen(command.c_str(), "r");
     pclose(file);
 
