@@ -48,9 +48,7 @@ protected:
     virtual void FBinary(Format::FloatOperations op, Format::Width width, FReg d, FReg l, FReg r)       = 0;
     virtual void FUnary(Format::FloatOperations op, Format::Width width, FReg d, FReg s)                = 0;
 
-    virtual void Convert(
-        Format::ConvertMode mode, Format::ConvertType toType, Format::ConvertType fromType, AnyReg to, AnyReg from
-    ) = 0;
+    virtual void Convert(Format::ConvertMode mode, Format::CastOp cast, AnyReg to, AnyReg from) = 0;
 
     virtual void MovBasePtr(IReg dst, bool local) = 0;
 

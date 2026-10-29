@@ -110,16 +110,10 @@ TEST_F(CbcDisasmTest, ConvertRaw)
 {
     uint8_t code[] = {
         static_cast<uint8_t>(Cbc::Opcode::Convert),
-        static_cast<uint8_t>(
-            static_cast<uint8_t>(Cbc::Format::ConvertType::I64) |
-            (static_cast<uint8_t>(Cbc::Format::ConvertType::I32) << 4)
-        ),
+        static_cast<uint8_t>(Cbc::Format::CastOp::I32_TO_I64),
         static_cast<uint8_t>(static_cast<uint8_t>(Cbc::IReg::IR2) | (static_cast<uint8_t>(Cbc::IReg::IR1) << 4)),
         static_cast<uint8_t>(Cbc::Opcode::CheckedConvert),
-        static_cast<uint8_t>(
-            static_cast<uint8_t>(Cbc::Format::ConvertType::F32) |
-            (static_cast<uint8_t>(Cbc::Format::ConvertType::F64) << 4)
-        ),
+        static_cast<uint8_t>(Cbc::Format::CastOp::F64_TO_F32),
         static_cast<uint8_t>(static_cast<uint8_t>(Cbc::FReg::FR1) | (static_cast<uint8_t>(Cbc::FReg::FR0) << 4)),
     };
     EXPECT_EQ(
@@ -138,12 +132,11 @@ static std::string RtLog(Cbc::RT::ConvertOp args)
 
 TEST(CbcFormatTest, CastOpLayout)
 {
-    auto op = Cbc::Format::CastOp(
-        static_cast<uint8_t>(Cbc::Format::ConvertType::I64), static_cast<uint8_t>(Cbc::Format::ConvertType::I32)
-    );
+    Cbc::Format::CastOp op = Cbc::Format::CastOp::I32_TO_I64;
     EXPECT_EQ(op.Raw(), 0x46);
     EXPECT_EQ(op.FromTypeStr(), "I32");
     EXPECT_EQ(op.ToTypeStr(), "I64");
+    EXPECT_EQ(Cbc::Format::CastOp(0x6, 0x4).Raw(), op.Raw());
 }
 
 TEST(CbcRtDisasmTest, ConvertUnchecked)
