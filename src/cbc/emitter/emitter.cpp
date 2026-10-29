@@ -27,20 +27,6 @@ void Emitter::Bind(Label label) { symbols.Bind(label, segment.Pos()); }
 
 int32_t Emitter::LabelPosition(Label label) const { return symbols.LabelPosition(label); }
 
-EmitterSnapshot Emitter::Snapshot()
-{
-    return EmitterSnapshot {
-        .segmentSnapshot = segment.Snapshot(),
-        .fixupCount      = fixups.Size(),
-    };
-}
-
-void Emitter::Apply(EmitterSnapshot snapshot)
-{
-    segment.Apply(snapshot.segmentSnapshot);
-    fixups.Resize(snapshot.fixupCount);
-}
-
 void Emitter::AddFixup(std::unique_ptr<Fixup> fixup)
 {
     auto size       = fixup->Size();

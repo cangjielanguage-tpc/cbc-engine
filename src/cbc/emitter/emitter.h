@@ -21,11 +21,6 @@ namespace Emitter {
 class CbcEmitter;
 class Symbols;
 
-struct EmitterSnapshot {
-    SegmentSnapshot segmentSnapshot;
-    size_t fixupCount;
-};
-
 class Emitter {
 public:
     using Reg         = Format::Reg;
@@ -54,9 +49,6 @@ public:
     /// This procedure resolves all existring fixups and
     /// creates literal table (unused symbols or fixups will be discarded).
     Interpretation::Code Build(Memory::Heap& heap);
-
-    EmitterSnapshot Snapshot();
-    void Apply(EmitterSnapshot snapshot);
 
     void Binary(Common op, Width width, IReg d, IReg l, IReg r);
     void Add(Width width, IReg d, IReg l, IReg r);

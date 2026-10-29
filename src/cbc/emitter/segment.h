@@ -7,10 +7,6 @@
 namespace Cbc {
 namespace Emitter {
 
-struct SegmentSnapshot {
-    size_t dataSize;
-};
-
 class ByteBuffer {
 public:
     virtual void AddW8(uint32_t value)  = 0;
@@ -47,9 +43,6 @@ public:
     void SetW32(size_t pos, uint32_t value);
     void SetW64(size_t pos, uint64_t value);
     View At(size_t pos);
-
-    SegmentSnapshot Snapshot() const;
-    void Apply(SegmentSnapshot snapshot);
 
     Utils::Vector<uint8_t> Finish();
 
