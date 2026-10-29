@@ -52,65 +52,18 @@ public:
 
     void Binary(Common op, Width width, IReg d, IReg l, IReg r);
     void Add(Width width, IReg d, IReg l, IReg r);
-    void Sub(Width width, IReg d, IReg l, IReg r);
-    void Mul(Width width, IReg d, IReg l, IReg r);
-    void And(Width width, IReg d, IReg l, IReg r);
-    void Or(Width width, IReg d, IReg l, IReg r);
-    void Xor(Width width, IReg d, IReg l, IReg r);
-    void Div(Width width, IReg d, IReg l, IReg r);
-    void Rem(Width width, IReg d, IReg l, IReg r);
-    void UDiv(Width width, IReg d, IReg l, IReg r);
-    void URem(Width width, IReg d, IReg l, IReg r);
-    void Lsl(Width width, IReg d, IReg l, IReg r);
-    void Lsr(Width width, IReg d, IReg l, IReg r);
-    void Asr(Width width, IReg d, IReg l, IReg r);
 
     void BinaryImm(Common op, Width width, IReg d, IReg l, uint64_t imm);
     void AddI(Width width, IReg d, IReg l, uint64_t imm);
-    void MulI(Width width, IReg d, IReg l, uint64_t imm);
-    void AndI(Width width, IReg d, IReg l, uint64_t imm);
-    void OrI(Width width, IReg d, IReg l, uint64_t imm);
-    void XorI(Width width, IReg d, IReg l, uint64_t imm);
-    void DivI(Width width, IReg d, IReg l, uint64_t imm);
-    void RemI(Width width, IReg d, IReg l, uint64_t imm);
-    void UDivI(Width width, IReg d, IReg l, uint64_t imm);
-    void URemI(Width width, IReg d, IReg l, uint64_t imm);
-    void LslI(Width width, IReg d, IReg l, uint64_t imm);
-    void LsrI(Width width, IReg d, IReg l, uint64_t imm);
-    void AsrI(Width width, IReg d, IReg l, uint64_t imm);
 
     void Binary(Checked op, Width width, IReg d, IReg l, IReg r);
-    void CAdd(Width width, IReg d, IReg l, IReg r);
-    void CSub(Width width, IReg d, IReg l, IReg r);
-    void CMul(Width width, IReg d, IReg l, IReg r);
-    void CDiv(Width width, IReg d, IReg l, IReg r);
-    void CUAdd(Width width, IReg d, IReg l, IReg r);
-    void CUSub(Width width, IReg d, IReg l, IReg r);
-    void CUMul(Width width, IReg d, IReg l, IReg r);
-    void CPow(Width width, IReg d, IReg l, IReg r);
 
     void BinaryImm(Checked op, Width width, IReg d, IReg l, uint64_t imm);
-    void CAddI(Width width, IReg d, IReg l, uint64_t imm);
-    void CSubI(Width width, IReg d, IReg l, uint64_t imm);
-    void CMulI(Width width, IReg d, IReg l, uint64_t imm);
-    void CUAddI(Width width, IReg d, IReg l, uint64_t imm);
-    void CUSubI(Width width, IReg d, IReg l, uint64_t imm);
-    void CUMulI(Width width, IReg d, IReg l, uint64_t imm);
-    void CPowI(Width width, IReg d, IReg l, uint64_t imm);
 
     void SatBinary(Format::Saturating op, Width width, IReg d, IReg l, IReg r);
     void SatBinaryImm(Format::Saturating op, Width width, IReg d, IReg l, uint64_t imm);
-    void SatAdd(Width width, IReg d, IReg l, IReg r);
-    void SatSub(Width width, IReg d, IReg l, IReg r);
-    void SatMul(Width width, IReg d, IReg l, IReg r);
-    void SatDiv(Width width, IReg d, IReg l, IReg r);
-    void SatMod(Width width, IReg d, IReg l, IReg r);
-    void SatPow(Width width, IReg d, IReg l, IReg r);
-    void SatLsl(Width width, IReg d, IReg l, IReg r);
-    void SatAsr(Width width, IReg d, IReg l, IReg r);
 
     void Binary(FloatOperations op, Width width, FReg d, FReg l, FReg r);
-    void Mov(Width width, FReg d, FReg l, FReg r);
     void Neg(Width width, FReg d, FReg l, FReg r);
     void Abs(Width width, FReg d, FReg l, FReg r);
     void Sqrt(Width width, FReg d, FReg l, FReg r);

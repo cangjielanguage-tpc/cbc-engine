@@ -283,30 +283,6 @@ void Emitter::Binary(Common op, Width width, IReg d, IReg l, IReg r)
 
 void Emitter::Add(Width width, IReg d, IReg l, IReg r) { Binary(Common::ADD, width, d, l, r); }
 
-void Emitter::Sub(Width width, IReg d, IReg l, IReg r) { Binary(Common::SUB, width, d, l, r); }
-
-void Emitter::Mul(Width width, IReg d, IReg l, IReg r) { Binary(Common::MUL, width, d, l, r); }
-
-void Emitter::And(Width width, IReg d, IReg l, IReg r) { Binary(Common::AND, width, d, l, r); }
-
-void Emitter::Or(Width width, IReg d, IReg l, IReg r) { Binary(Common::OR, width, d, l, r); }
-
-void Emitter::Xor(Width width, IReg d, IReg l, IReg r) { Binary(Common::XOR, width, d, l, r); }
-
-void Emitter::Div(Width width, IReg d, IReg l, IReg r) { Binary(Common::SDIV, width, d, l, r); }
-
-void Emitter::Rem(Width width, IReg d, IReg l, IReg r) { Binary(Common::SREM, width, d, l, r); }
-
-void Emitter::UDiv(Width width, IReg d, IReg l, IReg r) { Binary(Common::UDIV, width, d, l, r); }
-
-void Emitter::URem(Width width, IReg d, IReg l, IReg r) { Binary(Common::UREM, width, d, l, r); }
-
-void Emitter::Lsl(Width width, IReg d, IReg l, IReg r) { Binary(Common::LSL, width, d, l, r); }
-
-void Emitter::Lsr(Width width, IReg d, IReg l, IReg r) { Binary(Common::LSR, width, d, l, r); }
-
-void Emitter::Asr(Width width, IReg d, IReg l, IReg r) { Binary(Common::ASR, width, d, l, r); }
-
 void Emitter::BinaryImm(Common op, Width width, IReg d, IReg l, uint64_t imm)
 {
     ASSERT(width == Width::W32 || width == Width::W64);
@@ -342,28 +318,6 @@ void Emitter::BinaryImm(Common op, Width width, IReg d, IReg l, uint64_t imm)
 
 void Emitter::AddI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common::ADD, width, d, l, imm); }
 
-void Emitter::MulI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common::MUL, width, d, l, imm); }
-
-void Emitter::AndI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common::AND, width, d, l, imm); }
-
-void Emitter::OrI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common::OR, width, d, l, imm); }
-
-void Emitter::XorI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common::XOR, width, d, l, imm); }
-
-void Emitter::DivI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common::SDIV, width, d, l, imm); }
-
-void Emitter::RemI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common::SREM, width, d, l, imm); }
-
-void Emitter::UDivI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common::UDIV, width, d, l, imm); }
-
-void Emitter::URemI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common::UREM, width, d, l, imm); }
-
-void Emitter::LslI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common::LSL, width, d, l, imm); }
-
-void Emitter::LsrI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common::LSR, width, d, l, imm); }
-
-void Emitter::AsrI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common::ASR, width, d, l, imm); }
-
 void Emitter::Binary(Checked op, Width width, IReg d, IReg l, IReg r)
 {
     auto opcode = [width]() {
@@ -389,22 +343,6 @@ void Emitter::Binary(Checked op, Width width, IReg d, IReg l, IReg r)
     );
 }
 
-void Emitter::CAdd(Width width, IReg d, IReg l, IReg r) { Binary(Checked::CADD, width, d, l, r); }
-
-void Emitter::CSub(Width width, IReg d, IReg l, IReg r) { Binary(Checked::CSUB, width, d, l, r); }
-
-void Emitter::CMul(Width width, IReg d, IReg l, IReg r) { Binary(Checked::CMUL, width, d, l, r); }
-
-void Emitter::CDiv(Width width, IReg d, IReg l, IReg r) { Binary(Checked::CDIV, width, d, l, r); }
-
-void Emitter::CUAdd(Width width, IReg d, IReg l, IReg r) { Binary(Checked::CUADD, width, d, l, r); }
-
-void Emitter::CUSub(Width width, IReg d, IReg l, IReg r) { Binary(Checked::CUSUB, width, d, l, r); }
-
-void Emitter::CUMul(Width width, IReg d, IReg l, IReg r) { Binary(Checked::CUMUL, width, d, l, r); }
-
-void Emitter::CPow(Width width, IReg d, IReg l, IReg r) { Binary(Checked::CPOW, width, d, l, r); }
-
 void Emitter::SatBinary(Format::Saturating op, Width width, IReg d, IReg l, IReg r)
 {
     auto opcode = [width]() {
@@ -429,8 +367,6 @@ void Emitter::SatBinary(Format::Saturating op, Width width, IReg d, IReg l, IReg
         }
     );
 }
-
-void Emitter::SatAdd(Width width, IReg d, IReg l, IReg r) { SatBinary(Saturating::SADD, width, d, l, r); }
 
 // clang-format off
 static constexpr RT::Opcode satImmOpcodes[][4] = {
@@ -466,20 +402,6 @@ void Emitter::SatBinaryImm(Format::Saturating op, Width width, IReg d, IReg l, u
         );
     }
 }
-
-void Emitter::SatSub(Width width, IReg d, IReg l, IReg r) { SatBinary(Saturating::SSUB, width, d, l, r); }
-
-void Emitter::SatMul(Width width, IReg d, IReg l, IReg r) { SatBinary(Saturating::SMUL, width, d, l, r); }
-
-void Emitter::SatDiv(Width width, IReg d, IReg l, IReg r) { SatBinary(Saturating::SDIV, width, d, l, r); }
-
-void Emitter::SatMod(Width width, IReg d, IReg l, IReg r) { SatBinary(Saturating::SMOD, width, d, l, r); }
-
-void Emitter::SatPow(Width width, IReg d, IReg l, IReg r) { SatBinary(Saturating::SPOW, width, d, l, r); }
-
-void Emitter::SatLsl(Width width, IReg d, IReg l, IReg r) { SatBinary(Saturating::SLSL, width, d, l, r); }
-
-void Emitter::SatAsr(Width width, IReg d, IReg l, IReg r) { SatBinary(Saturating::SASR, width, d, l, r); }
 
 // clang-format off
 static constexpr RT::Opcode opcodes[][4] = {
@@ -517,20 +439,6 @@ void Emitter::BinaryImm(Checked op, Width width, IReg d, IReg l, uint64_t imm)
     }
 }
 
-void Emitter::CAddI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Checked::CADD, width, d, l, imm); }
-
-void Emitter::CSubI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Checked::CSUB, width, d, l, imm); }
-
-void Emitter::CMulI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Checked::CMUL, width, d, l, imm); }
-
-void Emitter::CUAddI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Checked::CUADD, width, d, l, imm); }
-
-void Emitter::CUSubI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Checked::CUSUB, width, d, l, imm); }
-
-void Emitter::CUMulI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Checked::CUMUL, width, d, l, imm); }
-
-void Emitter::CPowI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Checked::CPOW, width, d, l, imm); }
-
 void Emitter::Binary(FloatOperations op, Width width, FReg d, FReg l, FReg r)
 {
     ASSERT(width == Width::W32 || width == Width::W64);
@@ -550,8 +458,6 @@ void Emitter::Binary(FloatOperations op, Width width, FReg d, FReg l, FReg r)
         }
     );
 }
-
-void Emitter::Mov(Width width, FReg d, FReg l, FReg r) { Binary(FloatOperations::FMOV, width, d, l, r); }
 
 void Emitter::Neg(Width width, FReg d, FReg l, FReg r) { Binary(FloatOperations::FNEG, width, d, l, r); }
 
