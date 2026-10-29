@@ -66,8 +66,6 @@ void Consumer(void*)
         const auto readerIndex = currentSharedWriterIndex ^ 1U;
         MODEL_ASSERT(readerIndex != currentSharedWriterIndex);
 
-        thrd_yield();
-
         const auto currentWriterIndex = static_cast<uint32_t>(sharedWriterIndex.load());
         MODEL_ASSERT(readerIndex != currentWriterIndex);
 
