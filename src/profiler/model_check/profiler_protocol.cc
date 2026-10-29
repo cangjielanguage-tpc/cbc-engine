@@ -25,23 +25,21 @@ uint32_t cursor;
 
 void TryPublish()
 {
-    auto previous = readerState.load(std::memory_order_relaxed);
-    while (previous == TRANSITION || !readerState.compare_exchange_weak(
-               previous, TRANSITION, std::memory_order_acq_rel, std::memory_order_relaxed
-           )) {
+    auto previous = readerState.load();
+    while (previous == TRANSITION || !readerState.compare_exchange_strong(previous, TRANSITION)) {
         if (previous == TRANSITION) {
             thrd_yield();
-            previous = readerState.load(std::memory_order_relaxed);
+            previous = readerState.load();
         }
     }
 
     if (previous == INACTIVE) {
         writerIndex ^= 1U;
         cursor = 0;
-        sharedWriterIndex.store(writerIndex, std::memory_order_release);
+        sharedWriterIndex.store(writerIndex);
     }
 
-    readerState.store(previous, std::memory_order_release);
+    readerState.store(previous);
 }
 
 void Producer(void*)
@@ -58,23 +56,19 @@ void Producer(void*)
 void Consumer(void*)
 {
     int expected = INACTIVE;
-    while (!readerState.compare_exchange_weak(
-        expected, ACTIVE, std::memory_order_acquire, std::memory_order_relaxed
-    )) {
+    while (!readerState.compare_exchange_strong(expected, ACTIVE)) {
         expected = INACTIVE;
         thrd_yield();
     }
 
-    const auto currentSharedWriterIndex = sharedWriterIndex.load(std::memory_order_acquire);
+    const auto currentSharedWriterIndex = sharedWriterIndex.load();
     if (currentSharedWriterIndex != NO_PUBLISHED_BUFFER) {
         const auto readerIndex = currentSharedWriterIndex ^ 1U;
         MODEL_ASSERT(readerIndex != currentSharedWriterIndex);
 
         thrd_yield();
 
-        const auto currentWriterIndex = static_cast<uint32_t>(
-            sharedWriterIndex.load(std::memory_order_relaxed)
-        );
+        const auto currentWriterIndex = static_cast<uint32_t>(sharedWriterIndex.load());
         MODEL_ASSERT(readerIndex != currentWriterIndex);
 
         const auto record = load_32(&buffers[readerIndex][0]);
@@ -83,9 +77,7 @@ void Consumer(void*)
     }
 
     expected = ACTIVE;
-    while (!readerState.compare_exchange_weak(
-        expected, INACTIVE, std::memory_order_release, std::memory_order_relaxed
-    )) {
+    while (!readerState.compare_exchange_strong(expected, INACTIVE)) {
         expected = ACTIVE;
         thrd_yield();
     }
@@ -98,8 +90,8 @@ int user_main(int, char**)
     thrd_t producer;
     thrd_t consumer;
 
-    readerState.store(INACTIVE, std::memory_order_relaxed);
-    sharedWriterIndex.store(NO_PUBLISHED_BUFFER, std::memory_order_relaxed);
+    readerState.store(INACTIVE);
+    sharedWriterIndex.store(NO_PUBLISHED_BUFFER);
     writerIndex = 0;
     cursor = 0;
 
