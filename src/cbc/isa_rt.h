@@ -185,6 +185,18 @@
     X(CBINI64W, BinaryChecked, "$0cbin.64 $2ir $3ir $1I64")                                                            \
     X(COPY_DERIVED, CopyDerived, "copy.derived $0ir $1ir $2ir $3ir $4U64")                                             \
     X(COPY_DERIVED_GENERIC, CopyDerivedGeneric, "copy.derived.g $0ir $1ir $2ir $3ir $4ir")                             \
+    X(COPY_LOCAL, CopyLocal, "copy.local $0ir $1ir $2U64")                                                             \
+    X(COPY_TO_LOCAL, CopyDerived, "copy.to.local $1ir $2ir $3ir $4U64")                                                \
+    X(COPY_FROM_LOCAL, CopyDerived, "copy.from.local $0ir $1ir $3ir $4U64")                                            \
+    X(COPY_LOCAL_GENERIC, CopyLocalGeneric, "copy.local.g $0ir $1ir $2ir")                                             \
+    X(COPY_TO_LOCAL_GENERIC, CopyLocalGeneric, "copy.to.local.g $0ir $1ir $2ir $3ir")                                  \
+    X(COPY_FROM_LOCAL_GENERIC, CopyLocalGeneric, "copy.from.local.g $0ir $1ir $2ir $3ir")                              \
+    X(COPY_TYPESLOT, CopyTypeSlot, "copy.typed $0I32 $1I32 $2U64")                                                     \
+    X(COPY_TO_TYPESLOT, CopyToTypeSlot, "copy.to.typed $0I32 $1ir $2ir $3U64")                                         \
+    X(COPY_FROM_TYPESLOT, CopyFromTypeSlot, "copy.from.typed $0ir $1ir $2I32 $3U64")                                   \
+    X(COPY_TYPESLOT_GENERIC, CopyTypeSlotGeneric, "copy.typed.g $0I32 $1I32 $2ir")                                     \
+    X(COPY_TO_TYPESLOT_GENERIC, CopyToTypeSlotGeneric, "copy.to.typed.g $0I32 $1ir $2ir $3ir")                         \
+    X(COPY_FROM_TYPESLOT_GENERIC, CopyFromTypeSlotGeneric, "copy.from.typed.g $0ir $1ir $2I32 $3ir")                   \
     X(INDEX, Index, "index $0ir [$1ir $2ir] $3U64")                                                                    \
     X(INDEX_GENERIC, IndexGeneric, "index.g $0ir [$1ir $2ir] $3ir")                                                    \
     X(CONST_INDEX_GENERIC, ConstIndexGeneric, "index.g $0ir [$1ir $2I64] $3ir")                                        \
@@ -675,6 +687,130 @@ struct CopyDerivedGeneric {
         auto src = Format::RR::Decode(reader);
         auto ti  = Format::RR::Decode(reader);
         return CopyDerivedGeneric { opc, dst, src, ti };
+    }
+};
+
+struct CopyLocal {
+    Opcode opc;
+    Format::RR records;
+    RTSupport::TypeInfo ti;
+
+    static CopyLocal Decode(Decoder::ByteReader& reader)
+    {
+        auto opc     = Opcode::Decode(reader);
+        auto records = Format::RR::Decode(reader);
+        auto ti      = reader.Read<RTSupport::TypeInfo>();
+        return CopyLocal { opc, records, ti };
+    }
+};
+
+struct CopyLocalGeneric {
+    Opcode opc;
+    Format::RR first;
+    Format::RR second;
+
+    static CopyLocalGeneric Decode(Decoder::ByteReader& reader)
+    {
+        auto opc    = Opcode::Decode(reader);
+        auto first  = Format::RR::Decode(reader);
+        auto second = Format::RR::Decode(reader);
+        return CopyLocalGeneric { opc, first, second };
+    }
+};
+
+struct CopyTypeSlot {
+    Opcode opc;
+    Format::Imm32 dstOffset;
+    Format::Imm32 srcOffset;
+    RTSupport::TypeInfo ti;
+
+    static CopyTypeSlot Decode(Decoder::ByteReader& reader)
+    {
+        auto opc       = Opcode::Decode(reader);
+        auto dstOffset = Format::Imm32::Decode(reader);
+        auto srcOffset = Format::Imm32::Decode(reader);
+        auto ti        = reader.Read<RTSupport::TypeInfo>();
+        return CopyTypeSlot { opc, dstOffset, srcOffset, ti };
+    }
+};
+
+struct CopyTypeSlotGeneric {
+    Opcode opc;
+    Format::Imm32 dstOffset;
+    Format::Imm32 srcOffset;
+    Format::RR ti;
+
+    static CopyTypeSlotGeneric Decode(Decoder::ByteReader& reader)
+    {
+        auto opc       = Opcode::Decode(reader);
+        auto dstOffset = Format::Imm32::Decode(reader);
+        auto srcOffset = Format::Imm32::Decode(reader);
+        auto ti        = Format::RR::Decode(reader);
+        return CopyTypeSlotGeneric { opc, dstOffset, srcOffset, ti };
+    }
+};
+
+struct CopyToTypeSlot {
+    Opcode opc;
+    Format::Imm32 dstOffset;
+    Format::RR src;
+    RTSupport::TypeInfo ti;
+
+    static CopyToTypeSlot Decode(Decoder::ByteReader& reader)
+    {
+        auto opc       = Opcode::Decode(reader);
+        auto dstOffset = Format::Imm32::Decode(reader);
+        auto src       = Format::RR::Decode(reader);
+        auto ti        = reader.Read<RTSupport::TypeInfo>();
+        return CopyToTypeSlot { opc, dstOffset, src, ti };
+    }
+};
+
+struct CopyToTypeSlotGeneric {
+    Opcode opc;
+    Format::Imm32 dstOffset;
+    Format::RR src;
+    Format::RR ti;
+
+    static CopyToTypeSlotGeneric Decode(Decoder::ByteReader& reader)
+    {
+        auto opc       = Opcode::Decode(reader);
+        auto dstOffset = Format::Imm32::Decode(reader);
+        auto src       = Format::RR::Decode(reader);
+        auto ti        = Format::RR::Decode(reader);
+        return CopyToTypeSlotGeneric { opc, dstOffset, src, ti };
+    }
+};
+
+struct CopyFromTypeSlot {
+    Opcode opc;
+    Format::RR dst;
+    Format::Imm32 srcOffset;
+    RTSupport::TypeInfo ti;
+
+    static CopyFromTypeSlot Decode(Decoder::ByteReader& reader)
+    {
+        auto opc       = Opcode::Decode(reader);
+        auto dst       = Format::RR::Decode(reader);
+        auto srcOffset = Format::Imm32::Decode(reader);
+        auto ti        = reader.Read<RTSupport::TypeInfo>();
+        return CopyFromTypeSlot { opc, dst, srcOffset, ti };
+    }
+};
+
+struct CopyFromTypeSlotGeneric {
+    Opcode opc;
+    Format::RR dst;
+    Format::Imm32 srcOffset;
+    Format::RR ti;
+
+    static CopyFromTypeSlotGeneric Decode(Decoder::ByteReader& reader)
+    {
+        auto opc       = Opcode::Decode(reader);
+        auto dst       = Format::RR::Decode(reader);
+        auto srcOffset = Format::Imm32::Decode(reader);
+        auto ti        = Format::RR::Decode(reader);
+        return CopyFromTypeSlotGeneric { opc, dst, srcOffset, ti };
     }
 };
 

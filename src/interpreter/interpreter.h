@@ -666,6 +666,82 @@ public:
         );
     }
 
+    inline void CopyLocal(IReg dstReg, IReg srcReg, RTSupport::TypeInfo ti)
+    {
+        auto dst  = ectype->GetPrimitive(dstReg).u64;
+        auto src  = ectype->GetPrimitive(srcReg).u64;
+        auto size = RTSupport::MetaInfo::GetTypeSize(ti);
+        memcpy(reinterpret_cast<void*>(dst), reinterpret_cast<void*>(src), size);
+    }
+
+    inline void CopyDerivedToLocal(uintptr_t dst, IReg srcBaseReg, IReg srcReg, RTSupport::TypeInfo ti)
+    {
+        auto srcBase    = ectype->GetReference(srcBaseReg);
+        auto srcDerived = ectype->GetPrimitive(srcReg).u64;
+
+        switch (RTSupport::Execution::GetStructLocationKind(srcBase, srcDerived)) {
+            case RTSupport::GLOBAL: {
+                auto src = RTSupport::Execution::UnwrapDerivedPtr(srcDerived, false);
+                RTSupport::Execution::ReadStaticStruct(dst, src, ti, handle);
+                break;
+            }
+            case RTSupport::HEAP:  RTSupport::Execution::ReadStructField(dst, srcBase, srcDerived, ti, handle); break;
+            case RTSupport::LOCAL: {
+                auto size = RTSupport::MetaInfo::GetTypeSize(ti);
+                memcpy(reinterpret_cast<void*>(dst), reinterpret_cast<void*>(srcDerived), size);
+                break;
+            }
+        }
+    }
+
+    inline void CopyLocalToDerived(IReg dstBaseReg, IReg dstReg, uintptr_t src, RTSupport::TypeInfo ti)
+    {
+        auto dstBase    = ectype->GetReference(dstBaseReg);
+        auto dstDerived = ectype->GetPrimitive(dstReg).u64;
+
+        switch (RTSupport::Execution::GetStructLocationKind(dstBase, dstDerived)) {
+            case RTSupport::GLOBAL: {
+                auto dst = RTSupport::Execution::UnwrapDerivedPtr(dstDerived, false);
+                RTSupport::Execution::WriteStaticStruct(dst, src, ti, handle);
+                break;
+            }
+            case RTSupport::HEAP:  RTSupport::Execution::WriteStructField(src, dstBase, dstDerived, ti, handle); break;
+            case RTSupport::LOCAL: {
+                auto size = RTSupport::MetaInfo::GetTypeSize(ti);
+                memcpy(reinterpret_cast<void*>(dstDerived), reinterpret_cast<void*>(src), size);
+                break;
+            }
+        }
+    }
+
+    inline void CopyToLocal(IReg dstReg, IReg srcBaseReg, IReg srcReg, RTSupport::TypeInfo ti)
+    {
+        CopyDerivedToLocal(ectype->GetPrimitive(dstReg).u64, srcBaseReg, srcReg, ti);
+    }
+
+    inline void CopyFromLocal(IReg dstBaseReg, IReg dstReg, IReg srcReg, RTSupport::TypeInfo ti)
+    {
+        CopyLocalToDerived(dstBaseReg, dstReg, ectype->GetPrimitive(srcReg).u64, ti);
+    }
+
+    inline void CopyTypeSlot(int32_t dstOffset, int32_t srcOffset, RTSupport::TypeInfo ti)
+    {
+        auto dst  = frame.start + dstOffset;
+        auto src  = frame.start + srcOffset;
+        auto size = RTSupport::MetaInfo::GetTypeSize(ti);
+        memcpy(reinterpret_cast<void*>(dst), reinterpret_cast<void*>(src), size);
+    }
+
+    inline void CopyToTypeSlot(int32_t dstOffset, IReg srcBaseReg, IReg srcReg, RTSupport::TypeInfo ti)
+    {
+        CopyDerivedToLocal(frame.start + dstOffset, srcBaseReg, srcReg, ti);
+    }
+
+    inline void CopyFromTypeSlot(IReg dstBaseReg, IReg dstReg, int32_t srcOffset, RTSupport::TypeInfo ti)
+    {
+        CopyLocalToDerived(dstBaseReg, dstReg, frame.start + srcOffset, ti);
+    }
+
     inline void LeaIndex(IReg dst, IReg arr, IReg idx, RTSupport::TypeInfo ti, bool isCangjieArray = true)
     {
         LeaIndex(dst, arr, MemOffsetReg(idx), ti, isCangjieArray);

@@ -265,6 +265,68 @@ void Encode(ByteBuffer& buf, RT::CopyDerivedGeneric command)
     Encode(buf, command.ti);
 }
 
+void Encode(ByteBuffer& buf, RT::CopyLocal command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.records);
+    buf.AddW64(Bits::Raw64(command.ti));
+}
+
+void Encode(ByteBuffer& buf, RT::CopyLocalGeneric command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.first);
+    Encode(buf, command.second);
+}
+
+void Encode(ByteBuffer& buf, RT::CopyTypeSlot command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.dstOffset);
+    Encode(buf, command.srcOffset);
+    buf.AddW64(Bits::Raw64(command.ti));
+}
+
+void Encode(ByteBuffer& buf, RT::CopyTypeSlotGeneric command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.dstOffset);
+    Encode(buf, command.srcOffset);
+    Encode(buf, command.ti);
+}
+
+void Encode(ByteBuffer& buf, RT::CopyToTypeSlot command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.dstOffset);
+    Encode(buf, command.src);
+    buf.AddW64(Bits::Raw64(command.ti));
+}
+
+void Encode(ByteBuffer& buf, RT::CopyToTypeSlotGeneric command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.dstOffset);
+    Encode(buf, command.src);
+    Encode(buf, command.ti);
+}
+
+void Encode(ByteBuffer& buf, RT::CopyFromTypeSlot command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.dst);
+    Encode(buf, command.srcOffset);
+    buf.AddW64(Bits::Raw64(command.ti));
+}
+
+void Encode(ByteBuffer& buf, RT::CopyFromTypeSlotGeneric command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, command.dst);
+    Encode(buf, command.srcOffset);
+    Encode(buf, command.ti);
+}
+
 void Encode(ByteBuffer& buf, RT::Index command)
 {
     Encode(buf, command.opc);
