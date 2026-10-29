@@ -14,6 +14,8 @@ LAUNCHER_NAME=launcher
 PRELOAD_NAME=libcbc-preload.so
 
 source $CANGJIE_HOME/envsetup.sh
+# android cjc cross-driver does not search CANGJIE_HOME/third_party/llvm/bin for llvm-ar
+export PATH="$CANGJIE_HOME/third_party/llvm/bin:$PATH"
 
 function cjc-android() {
   cjc --fobf-layout --fno-obf-export-symbols --fobf-source-path --obf-sym-output-mapping libcbcengine-helper.obf.map \
@@ -30,6 +32,7 @@ function clang-android() {
 clang-android \
   "${SCRIPT_DIR}/engine-common.c" \
   -Os \
+  -fPIC \
   -fno-omit-frame-pointer \
   -c -o "${BUILD_DIR}/engine-common.o"
 
@@ -49,6 +52,7 @@ clang-android \
 clang-android \
   "${SCRIPT_DIR}/preload.c" \
   -Os \
+  -fPIC \
   '-Wl,-z,noexecstack' \
   -fno-omit-frame-pointer \
   -shared -o "${BUILD_DIR}/${PRELOAD_NAME}" \
