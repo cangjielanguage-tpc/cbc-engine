@@ -8,8 +8,11 @@ mkdir -p "$BUILD_DIR"
 
 CANGJIE_HOME=$1
 LAUNCHER_NAME=launcher
+PRELOAD_NAME=libcbc-preload.so
 
-clang -c -Os "${SCRIPT_DIR}/${LAUNCHER_NAME}.c" -fno-omit-frame-pointer -o "${BUILD_DIR}/${LAUNCHER_NAME}.o"
+for src in launcher preload engine-common; do
+  clang -c -Os -fPIC "${SCRIPT_DIR}/${src}.c" -fno-omit-frame-pointer -o "${BUILD_DIR}/${src}.o"
+done
 
 'clang' \
   '-o' "${BUILD_DIR}/${LAUNCHER_NAME}" \
@@ -19,11 +22,17 @@ clang -c -Os "${SCRIPT_DIR}/${LAUNCHER_NAME}.c" -fno-omit-frame-pointer -o "${BU
   "-L$CANGJIE_HOME/lib/linux_aarch64_cjnative" \
   "-L$CANGJIE_HOME/runtime/lib/linux_aarch64_cjnative" \
   '-T' "$CANGJIE_HOME/lib/linux_aarch64_cjnative/cjld.lds" \
-  "${BUILD_DIR}/${LAUNCHER_NAME}.o" \
+  "${BUILD_DIR}/launcher.o" "${BUILD_DIR}/engine-common.o" \
   '-l:libcangjie-std-core.so' \
   '-l:libcangjie-runtime.so' \
   '-lsecurec' '-ldl' '-lm' '-lc' \
   '--rtlib=compiler-rt'
+
+'clang' \
+  '-shared' '-o' "${BUILD_DIR}/${PRELOAD_NAME}" \
+  '-Wl,-z,noexecstack' \
+  "${BUILD_DIR}/preload.o" "${BUILD_DIR}/engine-common.o" \
+  '-ldl'
 
 cp *.cj ${BUILD_DIR}
 
