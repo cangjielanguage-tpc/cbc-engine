@@ -410,7 +410,7 @@ public:
 
 #undef SaturatingEnum
 
-    static constexpr Value values[] = { SADD,  SSUB,  SMUL, SDIV, SMOD, SPOW, SLSL, SASR,
+    static constexpr Value values[] = { SADD,  SSUB,  SMUL,  SDIV,  SMOD,  SPOW,  SLSL, SASR,
                                         SUADD, SUSUB, SUMUL, SUDIV, SUMOD, SULSL, SULSR };
 
     constexpr Saturating(const Value raw) : _value(raw) {}
@@ -442,13 +442,57 @@ private:
     Value _value;
 };
 
+/// Selects the semantics of the single CONVERT operation.
+class ConvertMode {
+public:
+#define ConvertModeValue(X)                                                                                            \
+    X(UNCHECKED, 0b00, "unchecked")                                                                                    \
+    X(CHECKED, 0b01, "checked")
+
+#define ConvertModeEnum(opc, value, str) opc = value,
+
+    enum Value : uint8_t {
+        ConvertModeValue(ConvertModeEnum) LAST = CHECKED
+    };
+
+#undef ConvertModeEnum
+
+    constexpr ConvertMode(const Value raw) : _value(raw) {}
+
+    constexpr operator Value() const { return _value; }
+
+    constexpr static ConvertMode From(uint8_t value)
+    {
+        ASSERT(value <= LAST);
+        return Value(value);
+    }
+
+    constexpr operator uint8_t() const { return static_cast<uint8_t>(_value); }
+
+    constexpr const char* CStr() const
+    {
+#define ConvertModeStr(opc, value, str)                                                                                \
+    case opc: return str;
+        switch (_value) {
+            ConvertModeValue(ConvertModeStr);
+        }
+        return "<invalid>";
+#undef ConvertModeStr
+    }
+
+    constexpr std::string_view ToStr() const { return std::string_view(CStr()); }
+
+private:
+    Value _value;
+};
+
 class FloatMathOp {
 public:
 #define FloatMathOpValue(X)                                                                                            \
-    X(SIN,   0b000, "sin")                                                                                             \
-    X(COS,   0b001, "cos")                                                                                             \
-    X(LOG,   0b010, "log")                                                                                             \
-    X(CEIL,  0b011, "ceil")                                                                                            \
+    X(SIN, 0b000, "sin")                                                                                               \
+    X(COS, 0b001, "cos")                                                                                               \
+    X(LOG, 0b010, "log")                                                                                               \
+    X(CEIL, 0b011, "ceil")                                                                                             \
     X(FLOOR, 0b100, "floor")
 
 #define FloatMathOpEnum(opc, value, str) opc = value,
@@ -860,6 +904,8 @@ public:
 
     constexpr Imm4(Format::Saturating saturating) : Imm4(static_cast<uint8_t>(saturating)) {}
 
+    constexpr Imm4(Format::ConvertMode mode) : Imm4(static_cast<uint8_t>(mode)) {}
+
     constexpr Imm4(Format::FloatOperations fpOps) : imm(static_cast<uint8_t>(fpOps)) {}
 
     constexpr Imm4(Format::FloatMathOp fpMathOp) : imm(static_cast<uint8_t>(fpMathOp)) {}
@@ -873,6 +919,8 @@ public:
     inline Format::Checked Checked() const { return Format::Checked::From(imm); }
 
     inline Format::Saturating Saturating() const { return Format::Saturating::From(imm); }
+
+    inline Format::ConvertMode Mode() const { return Format::ConvertMode::From(imm); }
 
     inline Format::ConvertType ConvertType() const { return Format::ConvertType::From(imm); }
 
@@ -898,9 +946,13 @@ struct Imm8 {
 
     constexpr Imm8(Format::Saturating saturating) : Imm8(static_cast<uint8_t>(saturating)) {}
 
+    constexpr Imm8(Format::ConvertMode mode) : Imm8(static_cast<uint8_t>(mode)) {}
+
     inline Format::Checked Checked() const { return Format::Checked::From(imm); }
 
     inline Format::Saturating Saturating() const { return Format::Saturating::From(imm); }
+
+    inline Format::ConvertMode Mode() const { return Format::ConvertMode::From(imm); }
 
     inline static Imm8 Decode(Decoder::ByteReader& reader) { return Imm8 { reader.Read8() }; }
 

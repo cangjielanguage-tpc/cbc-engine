@@ -456,7 +456,7 @@ TEST(EmitTest, Simple_FMathUnaryLog)
     Cbc::RT::Log(code, Stream::Disasm::rt);
 
     double arg = 0.25;
-    auto res  = InterpretFPRes(code, F64(0), F64(arg));
+    auto res   = InterpretFPRes(code, F64(0), F64(arg));
     EXPECT_EQ(res.f64, std::log(arg));
 }
 
@@ -470,7 +470,7 @@ TEST(EmitTest, Simple_FMathUnaryCeil)
     Cbc::RT::Log(code, Stream::Disasm::rt);
 
     double arg = 0.25;
-    auto res  = InterpretFPRes(code, F64(0), F64(arg));
+    auto res   = InterpretFPRes(code, F64(0), F64(arg));
     EXPECT_EQ(res.f64, std::ceil(arg));
 }
 
@@ -484,7 +484,7 @@ TEST(EmitTest, Simple_FMathUnaryFloor)
     Cbc::RT::Log(code, Stream::Disasm::rt);
 
     double arg = 0.25;
-    auto res  = InterpretFPRes(code, F64(0), F64(arg));
+    auto res   = InterpretFPRes(code, F64(0), F64(arg));
     EXPECT_EQ(res.f64, std::floor(arg));
 }
 
@@ -627,15 +627,31 @@ TEST(EmitTest, SSCI32)
 
 TEST(EmitTest, Simple_Convert)
 {
-    Emitter e;
-    e.Convert(ConvertType::U8, ConvertType::U32, IReg::IR1, IReg::IR1);
-    e.Ret();
+    // Unchecked: U32 -> U8 wraps.
+    {
+        Emitter e;
+        e.Convert(ConvertMode::UNCHECKED, ConvertType::U8, ConvertType::U32, IReg::IR1, IReg::IR1);
+        e.Ret();
 
-    auto code = e.Build(heap);
-    Cbc::RT::Log(code, Stream::Disasm::rt);
+        auto code = e.Build(heap);
+        Cbc::RT::Log(code, Stream::Disasm::rt);
 
-    auto res = Interpret(code, U32(32896), U32(0), F32(0), F32(0));
-    EXPECT_EQ(res.u64, U64(128).u64);
+        auto res = Interpret(code, U32(32896), U32(0), F32(0), F32(0));
+        EXPECT_EQ(res.u64, U64(128).u64);
+    }
+
+    // Checked: same instruction shape, in-range value passes through.
+    {
+        Emitter e;
+        e.Convert(ConvertMode::CHECKED, ConvertType::U8, ConvertType::U32, IReg::IR1, IReg::IR1);
+        e.Ret();
+
+        auto code = e.Build(heap);
+        Cbc::RT::Log(code, Stream::Disasm::rt);
+
+        auto res = Interpret(code, U32(200), U32(0), F32(0), F32(0));
+        EXPECT_EQ(res.u64, U64(200).u64);
+    }
 }
 
 static void testBFX(bool signExtend)
@@ -663,11 +679,10 @@ static void testBFX(bool signExtend)
     };
 
     for (const auto& test : cases) {
-        auto size = test.to - test.from + 1;
+        auto size         = test.to - test.from + 1;
         auto expectedBits = MathUtils::Bits(test.value, test.from, test.to);
-        auto expected = signExtend
-            ? MathUtils::SignExtend(expectedBits, size)
-            : MathUtils::ZeroExtend(expectedBits, size);
+        auto expected =
+            signExtend ? MathUtils::SignExtend(expectedBits, size) : MathUtils::ZeroExtend(expectedBits, size);
 
         Emitter e;
         if (signExtend) {
@@ -685,15 +700,9 @@ static void testBFX(bool signExtend)
     }
 }
 
-TEST(EmitTest, BFXS)
-{
-    testBFX(true);
-}
+TEST(EmitTest, BFXS) { testBFX(true); }
 
-TEST(EmitTest, BFXZ)
-{
-    testBFX(false);
-}
+TEST(EmitTest, BFXZ) { testBFX(false); }
 
 } // namespace Emitter
 } // namespace Cbc

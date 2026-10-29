@@ -10,6 +10,7 @@
 namespace Interpretation {
 
 using ConvertType = Cbc::Format::ConvertType;
+using ConvertMode = Cbc::Format::ConvertMode;
 
 inline Value::Primitive UnsupportedCastFrom(ConvertType ct)
 {
@@ -329,6 +330,14 @@ inline CheckedCastResult CheckedCastPrim(ConvertType toType, ConvertType fromTyp
         case ConvertType::F64: return CheckedCastFromFloating(toType, val.f64);
         default:               return CheckedCastFromIntegral(toType, fromType, val);
     }
+}
+
+inline CheckedCastResult CastPrim(ConvertMode mode, ConvertType toType, ConvertType fromType, Value::Primitive val)
+{
+    if (mode == ConvertMode::CHECKED) {
+        return CheckedCastPrim(toType, fromType, val);
+    }
+    return { CastPrim(toType, fromType, val), false };
 }
 
 } // namespace Interpretation

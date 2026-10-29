@@ -59,10 +59,11 @@ void Encode(ByteBuffer& buf, RT::B3xrrr command)
     Encode(buf, command.rr);
 }
 
-void Encode(ByteBuffer& buf, RT::B3xxrr command)
+void Encode(ByteBuffer& buf, RT::ConvertOp command)
 {
     Encode(buf, command.opc);
     Encode(buf, command.xx);
+    Encode(buf, command.mode);
     Encode(buf, command.rr);
 }
 

@@ -564,24 +564,13 @@ public:
         ectype->Put(d, Value::Primitive { .u64 = res });
     }
 
-    void Convert(ConvertType toType, ConvertType fromType, Reg to, Reg from)
+    // Returns true when the checked cast overflowed and `OverflowException`
+    // must be thrown. Otherwise the converted value is stored into the
+    // destination. Unchecked mode never overflows.
+    bool Convert(ConvertMode mode, ConvertType toType, ConvertType fromType, Reg to, Reg from)
     {
         auto val = fromType.IsFloatingPoint() ? ectype->GetPrimitive(from.FR()) : ectype->GetPrimitive(from.IR());
-        auto res = CastPrim(toType, fromType, val);
-
-        if (toType.IsFloatingPoint()) {
-            ectype->Put(to.FR(), res);
-        } else {
-            ectype->Put(to.IR(), res);
-        }
-    }
-
-    // Returns true when the cast overflowed and `OverflowException` must be
-    // thrown. Otherwise the converted value is stored into the destination.
-    bool CheckedConvert(ConvertType toType, ConvertType fromType, Reg to, Reg from)
-    {
-        auto val = fromType.IsFloatingPoint() ? ectype->GetPrimitive(from.FR()) : ectype->GetPrimitive(from.IR());
-        auto res = CheckedCastPrim(toType, fromType, val);
+        auto res = CastPrim(mode, toType, fromType, val);
         if (res.overflow) {
             return true;
         }

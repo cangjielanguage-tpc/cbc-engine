@@ -23,7 +23,7 @@ void Encode(ByteBuffer& buf, RT::B2xr command);
 void Encode(ByteBuffer& buf, RT::B3xri8 command);
 void Encode(ByteBuffer& buf, RT::B4xri16 command);
 void Encode(ByteBuffer& buf, RT::B3xrrr command);
-void Encode(ByteBuffer& buf, RT::B3xxrr command);
+void Encode(ByteBuffer& buf, RT::ConvertOp command);
 void Encode(ByteBuffer& buf, RT::B3xi12 command);
 void Encode(ByteBuffer& buf, RT::B3rrrr command);
 void Encode(ByteBuffer& buf, RT::InitOption command);
