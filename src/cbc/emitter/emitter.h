@@ -171,7 +171,6 @@ public:
 
     void InstanceOf(IReg dst, IReg obj, RTSupport::TypeInfo typeInfo);
     void LoadGenericTypeInfo(uintptr_t termData);
-    void LoadTypeInfo(RTSupport::TypeInfo typeInfo);
 
     void NewBox(Interpretation::BuiltinType t);
     void NewBox(RTSupport::TypeInfo typeInfo);

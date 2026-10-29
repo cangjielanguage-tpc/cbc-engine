@@ -1561,14 +1561,6 @@ LABEL(LOAD_GENERIC_TI) {
     NEXT;
 }
 
-LABEL(LOAD_TI) {
-    auto args = B9i64::Decode(reader);
-    LOG_INSTR;
-    auto ti = args.imm64.imm;
-    ectype->Put(IReg::IR1, Value::Primitive { .u64 = ti });
-    NEXT;
-}
-
 LABEL(IOF) {
     auto args = IOF::Decode(reader);
     LOG_INSTR;

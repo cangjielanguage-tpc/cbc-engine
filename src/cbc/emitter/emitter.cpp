@@ -1278,12 +1278,6 @@ void Emitter::LoadGenericTypeInfo(uintptr_t termData)
     Encode(segment, RT::B9i64 { .opc = RT::Opcode::LOAD_GENERIC_TI, .imm64 = { .imm = termData } });
 }
 
-void Emitter::LoadTypeInfo(RTSupport::TypeInfo typeInfo)
-{
-    auto d = reinterpret_cast<uintptr_t>(typeInfo.Raw());
-    Encode(segment, RT::B9i64 { .opc = RT::Opcode::LOAD_TI, .imm64 = { .imm = d } });
-}
-
 void Emitter::NewBox(Interpretation::BuiltinType t)
 {
     if (t >= 16) {
