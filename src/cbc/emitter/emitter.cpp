@@ -1134,9 +1134,10 @@ void Emitter::StoreRec(StoreAccessKind stk, Reg src, IReg base, uint32_t offset)
 void Emitter::LoadFrame(LoadAccessKind ldk, Reg dst, int32_t offset)
 {
     if (MathUtils::IsNBitsSigned(offset, 12)) {
-        LoadStore(ldk, dst, IReg::IRZ, offset, RT::Opcode::LOAD_FRAME);
+        auto opc = ldk.IsFloat() ? RT::Opcode::LOAD_FRAME_F : RT::Opcode::LOAD_FRAME;
+        LoadStore(ldk, dst, IReg::IRZ, offset, opc);
     } else {
-        auto opc = !ldk.IsFloat() ? RT::Opcode::LOAD_LONG_FRAME : RT::Opcode::LOAD_LONG_FRAME_F;
+        auto opc = ldk.IsFloat() ? RT::Opcode::LOAD_LONG_FRAME_F : RT::Opcode::LOAD_LONG_FRAME;
         LoadStoreLong(ldk, dst, IReg::IRZ, IReg::IRZ, offset, opc);
     }
 }
