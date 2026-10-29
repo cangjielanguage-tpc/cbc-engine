@@ -307,8 +307,6 @@ void Emitter::Lsr(Width width, IReg d, IReg l, IReg r) { Binary(Common::LSR, wid
 
 void Emitter::Asr(Width width, IReg d, IReg l, IReg r) { Binary(Common::ASR, width, d, l, r); }
 
-void Emitter::Neg(Width width, IReg d, IReg s) { Binary(Common::SUB, width, d, IReg::IRZ, s); }
-
 void Emitter::BinaryImm(Common op, Width width, IReg d, IReg l, uint64_t imm)
 {
     ASSERT(width == Width::W32 || width == Width::W64);
@@ -343,8 +341,6 @@ void Emitter::BinaryImm(Common op, Width width, IReg d, IReg l, uint64_t imm)
 }
 
 void Emitter::AddI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common::ADD, width, d, l, imm); }
-
-void Emitter::SubI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common::SUB, width, d, l, imm); }
 
 void Emitter::MulI(Width width, IReg d, IReg l, uint64_t imm) { BinaryImm(Common::MUL, width, d, l, imm); }
 
@@ -555,14 +551,6 @@ void Emitter::Binary(FloatOperations op, Width width, FReg d, FReg l, FReg r)
     );
 }
 
-void Emitter::Add(Width width, FReg d, FReg l, FReg r) { Binary(FloatOperations::FADD, width, d, l, r); }
-
-void Emitter::Sub(Width width, FReg d, FReg l, FReg r) { Binary(FloatOperations::FSUB, width, d, l, r); }
-
-void Emitter::Mul(Width width, FReg d, FReg l, FReg r) { Binary(FloatOperations::FMUL, width, d, l, r); }
-
-void Emitter::Div(Width width, FReg d, FReg l, FReg r) { Binary(FloatOperations::FDIV, width, d, l, r); }
-
 void Emitter::Mov(Width width, FReg d, FReg l, FReg r) { Binary(FloatOperations::FMOV, width, d, l, r); }
 
 void Emitter::Neg(Width width, FReg d, FReg l, FReg r) { Binary(FloatOperations::FNEG, width, d, l, r); }
@@ -591,8 +579,6 @@ void Emitter::Unary(FloatOperations op, Width width, FReg d, FReg s)
     );
 }
 
-void Emitter::Sqrt(Width width, FReg d, FReg s) { Unary(FloatOperations::FSQRT, width, d, s); }
-
 void Emitter::FMathUnary(FloatMathOp op, Width width, FReg d, FReg s)
 {
     ASSERT(width == Width::W32 || width == Width::W64);
@@ -610,10 +596,6 @@ void Emitter::FMathUnary(FloatMathOp op, Width width, FReg d, FReg s)
         }
     );
 }
-
-void Emitter::Abs(Width width, FReg d, FReg s) { Unary(FloatOperations::FABS, width, d, s); }
-
-void Emitter::Neg(Width width, FReg d, FReg s) { Unary(FloatOperations::FNEG, width, d, s); }
 
 void Emitter::Mov(RT::Opcode opcode, Reg d, Reg s)
 {

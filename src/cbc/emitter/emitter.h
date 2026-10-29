@@ -64,11 +64,9 @@ public:
     void Lsl(Width width, IReg d, IReg l, IReg r);
     void Lsr(Width width, IReg d, IReg l, IReg r);
     void Asr(Width width, IReg d, IReg l, IReg r);
-    void Neg(Width width, IReg d, IReg s);
 
     void BinaryImm(Common op, Width width, IReg d, IReg l, uint64_t imm);
     void AddI(Width width, IReg d, IReg l, uint64_t imm);
-    void SubI(Width width, IReg d, IReg l, uint64_t imm);
     void MulI(Width width, IReg d, IReg l, uint64_t imm);
     void AndI(Width width, IReg d, IReg l, uint64_t imm);
     void OrI(Width width, IReg d, IReg l, uint64_t imm);
@@ -112,10 +110,6 @@ public:
     void SatAsr(Width width, IReg d, IReg l, IReg r);
 
     void Binary(FloatOperations op, Width width, FReg d, FReg l, FReg r);
-    void Add(Width width, FReg d, FReg l, FReg r);
-    void Sub(Width width, FReg d, FReg l, FReg r);
-    void Mul(Width width, FReg d, FReg l, FReg r);
-    void Div(Width width, FReg d, FReg l, FReg r);
     void Mov(Width width, FReg d, FReg l, FReg r);
     void Neg(Width width, FReg d, FReg l, FReg r);
     void Abs(Width width, FReg d, FReg l, FReg r);
@@ -123,9 +117,6 @@ public:
 
     void Unary(FloatOperations op, Width Width, FReg d, FReg s);
     void FMathUnary(FloatMathOp op, Width width, FReg d, FReg s);
-    void Sqrt(Width width, FReg d, FReg s);
-    void Abs(Width width, FReg d, FReg s);
-    void Neg(Width width, FReg d, FReg s);
 
     void Ret();
     void Mov(IReg d, IReg s);
