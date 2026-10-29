@@ -82,19 +82,6 @@ void Segment::SetW64(size_t pos, uint64_t value)
     data[pos + 7] = ((uint8_t)((value >> 56) & 0xff));
 }
 
-SegmentSnapshot Segment::Snapshot() const
-{
-    return SegmentSnapshot {
-        .dataSize = data.Size(),
-    };
-}
-
-void Segment::Apply(SegmentSnapshot snapshot)
-{
-    ASSERTION(snapshot.dataSize <= data.Size(), "Inconsistent snapshot");
-    data.Resize(snapshot.dataSize);
-}
-
 Utils::Vector<uint8_t> Segment::Finish() { return std::exchange(this->data, {}); }
 
 Segment::View Segment::At(size_t pos) { return View(*this, pos); }

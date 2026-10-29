@@ -171,7 +171,7 @@ TEST(EmitTest, Simple_ArithB4xi12rr)
     Emitter e;
     e.AddI(Width::W32, IReg::IR1, IReg::IR2, 0xff);
     e.AddI(Width::W32, IReg::IR1, IReg::IR1, 0xff00); // through literal
-    e.SubI(Width::W32, IReg::IR1, IReg::IR1, 0xfff);
+    e.BinaryImm(Common::SUB, Width::W32, IReg::IR1, IReg::IR1, 0xfff);
     e.Ret();
     auto code = e.Build(heap);
     EXPECT_EQ(13, code.bytecodeSize);
@@ -188,10 +188,10 @@ TEST(EmitTest, Simple_ArithFP)
     e.FMovI32(FReg::FR1, 2.5);
     e.FMovI32(FReg::FR2, 1.25);
     e.FMovI32(FReg::FR3, 0.25);
-    e.Add(Width::W32, FReg::FR0, FReg::FR0, FReg::FR1);
-    e.Sub(Width::W32, FReg::FR0, FReg::FR0, FReg::FR2);
-    e.Div(Width::W32, FReg::FR0, FReg::FR0, FReg::FR2);
-    e.Mul(Width::W32, FReg::FR0, FReg::FR0, FReg::FR3);
+    e.Binary(FloatOperations::FADD, Width::W32, FReg::FR0, FReg::FR0, FReg::FR1);
+    e.Binary(FloatOperations::FSUB, Width::W32, FReg::FR0, FReg::FR0, FReg::FR2);
+    e.Binary(FloatOperations::FDIV, Width::W32, FReg::FR0, FReg::FR0, FReg::FR2);
+    e.Binary(FloatOperations::FMUL, Width::W32, FReg::FR0, FReg::FR0, FReg::FR3);
     e.Ret();
     auto code = e.Build(heap);
     EXPECT_EQ(6 * 4 + 3 * 4 + 1, code.bytecodeSize);
@@ -354,7 +354,7 @@ TEST(EmitTest, Simple_BccImm)
 TEST(EmitTest, Simple_Neg)
 {
     Emitter e;
-    e.Neg(Width::W32, IReg::IR1, IReg::IR2);
+    e.Binary(Common::SUB, Width::W32, IReg::IR1, IReg::IRZ, IReg::IR2);
     e.Ret();
 
     auto code = e.Build(heap);
@@ -367,7 +367,7 @@ TEST(EmitTest, Simple_Neg)
 TEST(EmitTest, Simple_FNeg)
 {
     Emitter e;
-    e.Neg(Width::W32, FReg::FR0, FReg::FR1);
+    e.Unary(FloatOperations::FNEG, Width::W32, FReg::FR0, FReg::FR1);
     e.Ret();
 
     auto code = e.Build(heap);
@@ -385,7 +385,7 @@ TEST(EmitTest, Simple_FNeg)
 TEST(EmitTest, Simple_FSqrt)
 {
     Emitter e;
-    e.Sqrt(Width::W64, FReg::FR0, FReg::FR1);
+    e.Unary(FloatOperations::FSQRT, Width::W64, FReg::FR0, FReg::FR1);
     e.Ret();
 
     auto code = e.Build(heap);
@@ -399,7 +399,7 @@ TEST(EmitTest, Simple_FSqrt)
 TEST(EmitTest, Simple_FAbs)
 {
     Emitter e;
-    e.Abs(Width::W64, FReg::FR0, FReg::FR1);
+    e.Unary(FloatOperations::FABS, Width::W64, FReg::FR0, FReg::FR1);
     e.Ret();
 
     auto code = e.Build(heap);

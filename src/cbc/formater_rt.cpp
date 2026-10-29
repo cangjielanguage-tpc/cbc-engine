@@ -42,8 +42,6 @@ struct Operand {
 
     FReg FR() { return FReg::From(U32() & 0xf); }
 
-    char* Str() { return reinterpret_cast<char*>(value); }
-
     int64_t I4() { return static_cast<int64_t>(MathUtils::SignExtend(value, 4)); }
 
     int64_t I12() { return static_cast<int64_t>(MathUtils::SignExtend(value, 12)); }
@@ -163,8 +161,6 @@ private:
         auto operand = operands[argIdx];
         if (type == "ir") {
             Write(operand.IR());
-        } else if (type == "str") {
-            Write(operand.Str());
         } else if (type == "fr") {
             Write(operand.FR());
         } else if (type == "F32") {
@@ -207,12 +203,6 @@ private:
             Write(operand.Fmatop());
         } else if (type == "I12L") {
             Write(table->at(operand.U12()).i64);
-        } else if (type == "I12L") {
-            Write(table->at(operand.U12()).i64);
-        } else if (type == "U12L") {
-            Write(table->at(operand.U12()).u64);
-        } else if (type == "I16L") {
-            Write(table->at(operand.U16()).i64);
         } else if (type == "U16L") {
             Write(table->at(operand.U16()).u64);
         } else if (type == "ct") {
@@ -462,13 +452,6 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, AtomicOp a
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, Offset args)
 {
     Operand operands[] = { args.rr.x, args.rr.y, args.idx };
-    Formatter formatter(table, stream, format_strings[args.opc], operands);
-    formatter.Format();
-}
-
-void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyFieldOp args)
-{
-    Operand operands[] = { args.rr.x, args.rr.y, args.offset.imm };
     Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }

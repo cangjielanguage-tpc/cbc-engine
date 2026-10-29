@@ -1231,14 +1231,6 @@ LABEL(INIT_SOME_GENERIC_OPT1) {
     InitSomeGeneric<true>(ectype, handle, args);
     NEXT;
 }
-LABEL(PREP_TYPED) {
-    auto args = B13i64i32::Decode(reader);
-    LOG_INSTR;
-    auto typedOffset = static_cast<int32_t>(args.imm32.imm);
-    auto size        = args.imm64.imm;
-    memset(reinterpret_cast<uint8_t*>(frame.start) + typedOffset, 0, size);
-    NEXT;
-}
 LABEL(SCC32) {
     auto args = B3xrrr::Decode(reader);
     LOG_INSTR;
@@ -1566,14 +1558,6 @@ LABEL(LOAD_GENERIC_TI) {
     memcpy(&term, &termValue, sizeof(termValue));
     auto ti = Execution::LoadTypeInfo(term.AsGlobal(), ectype, reinterpret_cast<void*>(frame.start));
     ectype->Put(IReg::IR1, Value::Primitive { .u64 = reinterpret_cast<uintptr_t>(ti.Raw()) });
-    NEXT;
-}
-
-LABEL(LOAD_TI) {
-    auto args = B9i64::Decode(reader);
-    LOG_INSTR;
-    auto ti = args.imm64.imm;
-    ectype->Put(IReg::IR1, Value::Primitive { .u64 = ti });
     NEXT;
 }
 

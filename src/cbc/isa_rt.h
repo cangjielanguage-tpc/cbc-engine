@@ -98,7 +98,6 @@
     X(LOAD_LONG_FRAME_F, B7xrrri32, "ld.frame.$0ldk $1fr [$4U32]")                                                     \
     X(STORE_LONG_FRAME_F, B7xrrri32, "st.frame.$0stk $1fr [$4U32]")                                                    \
     /* Float Load/Store instructions end*/                                                                             \
-    X(PREP_TYPED, B13i64i32, "prep.typed $0U64 $1U32")                                                                 \
     X(SCC32, B3xrrr, "scc.32 $0cc $1ir $2ir $3ir")                                                                     \
     X(SCC64, B3xrrr, "scc.64 $0cc $1ir $2ir $3ir")                                                                     \
     X(FSCC32, B3xrrr, "fscc.32 $0cc $1ir $2fr $3fr")                                                                   \
@@ -125,7 +124,6 @@
     X(STRING_INIT, B13i64i32, "string.init $0U64 $1U32")                                                               \
     X(NULLCHECK, B2xr, "nullcheck $1ir")                                                                               \
     X(DIVCHECK, B2xr, "divcheck $1ir")                                                                                 \
-    X(LOAD_TI, B9i64, "load.ti $0U64")                                                                                 \
     X(LOAD_GENERIC_TI, B9i64, "load.generic.ti $0U64")                                                                 \
     X(IOF, IOF, "iof $0ir $1ir $2U64")                                                                                 \
     X(NEWBOX, B2xr, "newbox $0U8")                                                                                     \
@@ -639,22 +637,6 @@ struct StoreFrameImm {
         auto offs = static_cast<int32_t>(reader.Read32());
         ASSERT(MathUtils::IsNBitsSigned(imm, 64));
         return StoreFrameImm { opc, stk, imm, offs };
-    }
-};
-
-struct CopyFieldOp {
-    Opcode opc;
-    Format::RR rr;
-    Format::Imm32 offset;
-    Format::Imm32 size;
-
-    static CopyFieldOp Decode(Decoder::ByteReader& reader)
-    {
-        auto opc    = Opcode::Decode(reader);
-        auto rr     = Format::RR::Decode(reader);
-        auto offset = Format::Imm32::Decode(reader);
-        auto size   = Format::Imm32::Decode(reader);
-        return CopyFieldOp { opc, rr, offset, size };
     }
 };
 

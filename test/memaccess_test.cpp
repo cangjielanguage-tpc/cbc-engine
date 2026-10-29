@@ -169,7 +169,7 @@ TEST_F(MemoryAccess, TestF32)
     e.FMovI32(FReg::FR0, 0.25);
     e.StoreObj(Format::StoreAccessKind::ST_F32, FReg::FR0, IReg::IR5, 8);
     e.LoadObj(Format::LoadAccessKind::LD_F32, FReg::FR3, IReg::IR5, 8);
-    e.Add(Width::W32, FReg::FR0, FReg::FR0, FReg::FR3);
+    e.Binary(FloatOperations::FADD, Width::W32, FReg::FR0, FReg::FR0, FReg::FR3);
     e.Ret();
 
     auto res = InterpretFPRes(e.Build(heap), U64(1), U64(2));
@@ -185,10 +185,28 @@ TEST_F(MemoryAccess, TestF64)
     e.FMovI64(FReg::FR0, 0.25);
     e.StoreObj(Format::StoreAccessKind::ST_F64, FReg::FR0, IReg::IR5, 8);
     e.LoadObj(Format::LoadAccessKind::LD_F64, FReg::FR3, IReg::IR5, 8);
-    e.Add(Width::W64, FReg::FR0, FReg::FR0, FReg::FR3);
+    e.Binary(FloatOperations::FADD, Width::W64, FReg::FR0, FReg::FR0, FReg::FR3);
     e.Ret();
 
     auto res = InterpretFPRes(e.Build(heap), U64(1), U64(2));
+    EXPECT_EQ(res.f64, 0.5);
+}
+
+TEST_F(MemoryAccess, TestFrameF64)
+{
+    uint64_t frameSlots[4];
+    auto frameStart = reinterpret_cast<uintptr_t>(&frameSlots);
+    Interpretation::Frame frame { frameStart };
+
+    Cbc::Emitter::Emitter e;
+
+    e.FMovI64(FReg::FR0, 0.25);
+    e.StoreFrame(Format::StoreAccessKind::ST_F64, FReg::FR0, 8);
+    e.LoadFrame(Format::LoadAccessKind::LD_F64, FReg::FR3, 8);
+    e.Binary(FloatOperations::FADD, Width::W64, FReg::FR0, FReg::FR3, FReg::FR3);
+    e.Ret();
+
+    auto res = InterpretFPRes(e.Build(heap), frame, U32(0), U64(0));
     EXPECT_EQ(res.f64, 0.5);
 }
 

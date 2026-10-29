@@ -41,7 +41,6 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, StoreGener
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, StoreFrameImm args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, AtomicOp args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, Offset args);
-void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyFieldOp args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyDerived args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyDerivedGeneric args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CopyLocal args);
