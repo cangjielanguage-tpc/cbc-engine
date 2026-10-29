@@ -37,7 +37,6 @@ add_subdirectory(src/arch_os/)
 set(LIB_SOURCES ${COMMON_LIB_SOURCES})
 
 add_library(cbc_lib OBJECT ${LIB_SOURCES})
-target_link_libraries(cbc_lib PUBLIC Threads::Threads)
 
 set_target_properties(cbc_lib PROPERTIES
   CXX_VISIBILITY_PRESET hidden
