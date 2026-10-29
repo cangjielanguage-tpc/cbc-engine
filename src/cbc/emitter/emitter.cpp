@@ -459,12 +459,6 @@ void Emitter::Binary(FloatOperations op, Width width, FReg d, FReg l, FReg r)
     );
 }
 
-void Emitter::Neg(Width width, FReg d, FReg l, FReg r) { Binary(FloatOperations::FNEG, width, d, l, r); }
-
-void Emitter::Abs(Width width, FReg d, FReg l, FReg r) { Binary(FloatOperations::FABS, width, d, l, r); }
-
-void Emitter::Sqrt(Width width, FReg d, FReg l, FReg r) { Binary(FloatOperations::FSQRT, width, d, l, r); }
-
 void Emitter::Unary(FloatOperations op, Width width, FReg d, FReg s)
 {
     ASSERT(width == Width::W32 || width == Width::W64);

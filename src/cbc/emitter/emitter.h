@@ -63,9 +63,6 @@ public:
     void SatBinaryImm(Format::Saturating op, Width width, IReg d, IReg l, uint64_t imm);
 
     void Binary(FloatOperations op, Width width, FReg d, FReg l, FReg r);
-    void Neg(Width width, FReg d, FReg l, FReg r);
-    void Abs(Width width, FReg d, FReg l, FReg r);
-    void Sqrt(Width width, FReg d, FReg l, FReg r);
 
     void Unary(FloatOperations op, Width Width, FReg d, FReg s);
     void FMathUnary(FloatMathOp op, Width width, FReg d, FReg s);
