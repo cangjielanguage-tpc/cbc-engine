@@ -20,7 +20,6 @@ uint32_t buffers[2][BUFFER_SIZE];
 std::atomic<int> readerState;
 std::atomic<uint32_t> sharedWriterIndex;
 
-uint32_t writerIndex;
 uint32_t cursor;
 
 void TryPublish()
@@ -34,7 +33,7 @@ void TryPublish()
     }
 
     if (previous == INACTIVE) {
-        writerIndex ^= 1U;
+        const auto writerIndex = (sharedWriterIndex.load(std::memory_order_relaxed) & 1U) ^ 1U;
         cursor = 0;
         sharedWriterIndex.store(writerIndex);
     }
@@ -46,6 +45,7 @@ void Producer(void*)
 {
     for (uint32_t batch = 1; batch <= 3; ++batch) {
         for (uint32_t i = 0; i < BUFFER_SIZE; ++i) {
+            const auto writerIndex = sharedWriterIndex.load(std::memory_order_relaxed) & 1U;
             store_32(&buffers[writerIndex][cursor], batch);
             cursor = (cursor + 1U) & (BUFFER_SIZE - 1U);
         }
@@ -90,7 +90,6 @@ int user_main(int, char**)
 
     readerState.store(INACTIVE);
     sharedWriterIndex.store(NO_PUBLISHED_BUFFER);
-    writerIndex = 0;
     cursor = 0;
 
     thrd_create(&producer, reinterpret_cast<thrd_start_t>(&Producer), nullptr);

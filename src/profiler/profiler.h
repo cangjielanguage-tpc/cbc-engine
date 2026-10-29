@@ -35,6 +35,7 @@ class FiberProfile {
 public:
     [[gnu::always_inline]] inline void RecordCall(FunctionId caller, CallSiteId callSite)
     {
+        const auto writerIndex  = sharedWriterIndex.load(std::memory_order_relaxed) & 1U;
         auto& current           = buffers[writerIndex];
         current.records[cursor] = CallRecord { caller, callSite };
 
@@ -77,7 +78,6 @@ private:
     std::array<CallBuffer, 2> buffers;
 
     // Producer-only state (not accessed by collector while active).
-    uint32_t writerIndex { 0 };
     uint32_t cursor { 0 }; // next physical slot in current buffer
     uint32_t count { 0 };  // valid entries in current buffer, capped at N
 
