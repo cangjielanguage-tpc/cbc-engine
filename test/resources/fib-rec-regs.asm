@@ -1,4 +1,3 @@
-;strict
 @main_type "default"
 
 @method_ref default.fib = default@ref fib(I64)I64
