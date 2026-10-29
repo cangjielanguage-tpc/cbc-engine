@@ -148,7 +148,7 @@ private:
     {
         while (true) {
             auto expected = from;
-            if (profile.readerState.compare_exchange_strong(expected, to)) {
+            if (profile.readerState.compare_exchange_weak(expected, to)) {
                 return;
             }
             std::this_thread::yield();
@@ -235,7 +235,7 @@ void FiberProfile::TryPublish()
 {
     auto previous = readerState.load();
     while (previous == ReaderState::TRANSITION ||
-           !readerState.compare_exchange_strong(previous, ReaderState::TRANSITION)) {
+           !readerState.compare_exchange_weak(previous, ReaderState::TRANSITION)) {
         if (previous == ReaderState::TRANSITION) {
             std::this_thread::yield();
             previous = readerState.load();
