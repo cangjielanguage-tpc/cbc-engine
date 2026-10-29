@@ -98,7 +98,6 @@
     X(LOAD_LONG_FRAME_F, B7xrrri32, "ld.frame.$0ldk $1fr [$4U32]")                                                     \
     X(STORE_LONG_FRAME_F, B7xrrri32, "st.frame.$0stk $1fr [$4U32]")                                                    \
     /* Float Load/Store instructions end*/                                                                             \
-    X(PREP_TYPED, B13i64i32, "prep.typed $0U64 $1U32")                                                                 \
     X(SCC32, B3xrrr, "scc.32 $0cc $1ir $2ir $3ir")                                                                     \
     X(SCC64, B3xrrr, "scc.64 $0cc $1ir $2ir $3ir")                                                                     \
     X(FSCC32, B3xrrr, "fscc.32 $0cc $1ir $2fr $3fr")                                                                   \

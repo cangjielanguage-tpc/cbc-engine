@@ -1051,15 +1051,6 @@ void Emitter::StoreFrameImm(StoreAccessKind stk, uint64_t imm, int32_t offset)
     Encode(segment, RT::StoreFrameImm { opc, stk, imm, offset });
 }
 
-void Emitter::PrepareTyped(uint64_t size, int32_t offset)
-{
-    Encode(
-        segment,
-        RT::B13i64i32 {
-            .opc = RT::Opcode::PREP_TYPED, .imm64 = { .imm = size }, .imm32 = { .imm = static_cast<uint32_t>(offset) } }
-    );
-}
-
 void Emitter::SCC(CC cc, Width width, IReg d, IReg l, IReg r)
 {
     ASSERT(width == Width::W32 || width == Width::W64);

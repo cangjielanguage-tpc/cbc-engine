@@ -1231,14 +1231,6 @@ LABEL(INIT_SOME_GENERIC_OPT1) {
     InitSomeGeneric<true>(ectype, handle, args);
     NEXT;
 }
-LABEL(PREP_TYPED) {
-    auto args = B13i64i32::Decode(reader);
-    LOG_INSTR;
-    auto typedOffset = static_cast<int32_t>(args.imm32.imm);
-    auto size        = args.imm64.imm;
-    memset(reinterpret_cast<uint8_t*>(frame.start) + typedOffset, 0, size);
-    NEXT;
-}
 LABEL(SCC32) {
     auto args = B3xrrr::Decode(reader);
     LOG_INSTR;
