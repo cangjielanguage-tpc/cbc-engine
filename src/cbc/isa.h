@@ -594,8 +594,6 @@ private:
     Value _value;
 };
 
-// Single identifier for a rewritten cast. Layout matches the RT CONVERT
-// immediate: high nibble is the source type, low nibble is the destination.
 class CastOp {
 private:
     static constexpr uint8_t I8  = 0x0;
