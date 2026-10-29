@@ -21,7 +21,7 @@ namespace Cbc::Profiler {
 bool enabled = true;
 
 namespace {
-constexpr auto COLLECTION_PERIOD = std::chrono::milliseconds(10);
+constexpr auto COLLECTION_PERIOD  = std::chrono::milliseconds(10);
 constexpr uint64_t HOT_CALL_COUNT = 100;
 } // namespace
 
@@ -138,17 +138,13 @@ private:
     void ProcessBuffer(const FiberProfile::CallBuffer& buffer, uint32_t start, uint32_t count, CallCounters& counters)
     {
         for (uint32_t i = 0; i < count; ++i) {
-            const auto index = (start + i) & (FiberProfile::CALL_BUFFER_SIZE - 1);
+            const auto index   = (start + i) & (FiberProfile::CALL_BUFFER_SIZE - 1);
             const auto& record = buffer.records[index];
             ++counters[CallEdge { record.caller, record.callSite }];
         }
     }
 
-    static void ChangeReaderState(
-        FiberProfile& profile,
-        FiberProfile::ReaderState from,
-        FiberProfile::ReaderState to
-    )
+    static void ChangeReaderState(FiberProfile& profile, FiberProfile::ReaderState from, FiberProfile::ReaderState to)
     {
         while (true) {
             auto expected = from;
@@ -161,11 +157,7 @@ private:
 
     void ConsumePublished(FiberProfile& profile, CallCounters& counters)
     {
-        ChangeReaderState(
-            profile,
-            FiberProfile::ReaderState::INACTIVE,
-            FiberProfile::ReaderState::ACTIVE
-        );
+        ChangeReaderState(profile, FiberProfile::ReaderState::INACTIVE, FiberProfile::ReaderState::ACTIVE);
 
         const auto writerIndex = profile.sharedWriterIndex.load();
         if (writerIndex != FiberProfile::NO_PUBLISHED_BUFFER) {
@@ -173,11 +165,7 @@ private:
             ProcessBuffer(profile.buffers[readerIndex], 0, FiberProfile::CALL_BUFFER_SIZE, counters);
         }
 
-        ChangeReaderState(
-            profile,
-            FiberProfile::ReaderState::ACTIVE,
-            FiberProfile::ReaderState::INACTIVE
-        );
+        ChangeReaderState(profile, FiberProfile::ReaderState::ACTIVE, FiberProfile::ReaderState::INACTIVE);
     }
 
     bool ConsumeProfile(FiberProfile& profile, CallCounters& counters)
@@ -189,8 +177,9 @@ private:
         if (finished) {
             // Producer is permanently gone, so it is now safe to read
             // even the never-published, partially-filled active buffer.
-            auto& current        = profile.buffers[profile.writerIndex];
-            const uint32_t start = profile.count == FiberProfile::CALL_BUFFER_SIZE ? profile.cursor : 0;
+            const auto writerIndex = profile.sharedWriterIndex.load() & 1U;
+            auto& current          = profile.buffers[writerIndex];
+            const uint32_t start   = profile.count == FiberProfile::CALL_BUFFER_SIZE ? profile.cursor : 0;
             ProcessBuffer(current, start, profile.count, counters);
         }
 
@@ -237,8 +226,7 @@ private:
     std::list<FiberProfileHandle> pending;
     bool stopping { false }; // guarded by queueMutex
 
-    // Owned exclusively by collector thread.
-    std::list<FiberProfileHandle> activeProfiles;
+    std::list<FiberProfileHandle> activeProfiles;  // owned exclusively by collector thread.
 
     std::thread worker;
 };
@@ -255,10 +243,10 @@ void FiberProfile::TryPublish()
     }
 
     if (previous == ReaderState::INACTIVE) {
-        writerIndex ^= 1U;
-        cursor       = 0;
-        count        = 0;
+        cursor = 0;
+        count  = 0;
 
+        const auto writerIndex = (sharedWriterIndex.load(std::memory_order_relaxed) & 1U) ^ 1U;
         sharedWriterIndex.store(writerIndex);
     }
 
