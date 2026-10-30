@@ -108,8 +108,8 @@
     X(SCCI32L, B4xi12rr, "scci.32 $0cc $2ir $3ir $1I12L")                                                              \
     X(SCCI64L, B4xi12rr, "scci.64 $0cc $2ir $3ir $1I12L")                                                              \
     X(TYPE_ARG, B4xi12rr, "type.arg $2ir $3ir $1I12")                                                                  \
-    X(CONVERT, ConvertOp, "convert $0cast $1ir $2ir")                 /* FIXME: ir/fr */                               \
-    X(CHECKED_CONVERT, ConvertOp, "checked.convert $0cast $1ir $2ir") /* FIXME: ir/fr */                               \
+    X(CONVERT, ConvertOp, "convert $0cast $1ir $2ir")                         /* FIXME: ir/fr */                       \
+    X(CHECKED_CONVERT, CheckedConvertOp, "checked.convert $0ccast $1ir $2ir") /* FIXME: ir/fr */                       \
     X(CALL_CLOSURE, B1, "call.closure")                                                                                \
     X(CALL_CLOSURE_SRET, B1, "call.closure.sret")                                                                      \
     X(CALL_CLOSURE_GENERIC, B1, "call.closure.g")                                                                      \
@@ -347,6 +347,22 @@ struct ConvertOp {
         auto cast = Format::CastOp(reader.Read8());
         auto rr   = Format::RR::Decode(reader);
         return ConvertOp { opc, cast, rr };
+    }
+};
+
+struct CheckedConvertOp {
+    static constexpr int SIZE = 3;
+
+    Opcode opc;
+    Format::CheckedCastOp cast;
+    Format::RR rr;
+
+    static CheckedConvertOp Decode(Decoder::ByteReader& reader)
+    {
+        auto opc  = Opcode::Decode(reader);
+        auto cast = Format::CheckedCastOp(reader.Read8());
+        auto rr   = Format::RR::Decode(reader);
+        return CheckedConvertOp { opc, cast, rr };
     }
 };
 

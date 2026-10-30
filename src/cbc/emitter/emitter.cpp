@@ -1110,9 +1110,9 @@ void Emitter::Convert(CastOp op, Reg to, Reg from)
     });
 }
 
-void Emitter::CheckedConvert(CastOp op, Reg to, Reg from)
+void Emitter::CheckedConvert(CheckedCastOp op, Reg to, Reg from)
 {
-    Encode(segment, RT::ConvertOp {
+    Encode(segment, RT::CheckedConvertOp {
         .opc  = RT::Opcode::CHECKED_CONVERT,
         .cast = op,
         .rr   = {

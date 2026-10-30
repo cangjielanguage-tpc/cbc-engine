@@ -1,7 +1,6 @@
 #include <cstdint>
 
 #include "engine/terms.h"
-#include "interpreter/casts.h"
 #include "isa.h"
 #include "isa_opcodes.h"
 #include "isa_parser.h"
@@ -420,36 +419,34 @@ struct IsaParserImpl {
     static void Convert(IsaParser& parser)
     {
         auto [toType, fromType, to, from] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
-        parser.Convert(ResolveCast(fromType, toType, false), to, from);
+        auto op                           = CastOp::FromPair(fromType, toType);
+        if (!op) {
+            CastFailure("convert", fromType, toType);
+        }
+        parser.Convert(*op, to, from);
     }
 
     static void CheckedConvert(IsaParser& parser)
     {
         auto [toType, fromType, to, from] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
-        parser.CheckedConvert(ResolveCast(fromType, toType, true), to, from);
+        auto op                           = CheckedCastOp::FromPair(fromType, toType);
+        if (!op) {
+            CastFailure("checked.convert", fromType, toType);
+        }
+        parser.CheckedConvert(*op, to, from);
     }
 
-    static CastOp ResolveCast(uint8_t fromType, uint8_t toType, bool checked)
+    [[noreturn]] static void CastFailure(const char* opcode, uint8_t fromType, uint8_t toType)
     {
-        auto op = CastOp::FromPair(fromType, toType);
-        if (!op.IsValid()) {
-            CastFailure("invalid cast", fromType, toType);
-        }
-
-        bool supported =
-            checked ? Interpretation::IsCheckedCastSupported(op) : Interpretation::IsUncheckedCastSupported(op);
-        if (!supported) {
-            CastFailure(checked ? "unsupported checked cast" : "unsupported unchecked cast", fromType, toType);
-        }
-        return op;
-    }
-
-    [[noreturn]] static void CastFailure(const char* what, uint8_t fromType, uint8_t toType)
-    {
-        auto from = CastOp::TypeName(static_cast<CastOp::TypeCode>(fromType));
-        auto to   = CastOp::TypeName(static_cast<CastOp::TypeCode>(toType));
+        auto from = CastType::Name(static_cast<CastType::Code>(fromType));
+        auto to   = CastType::Name(static_cast<CastType::Code>(toType));
         FATAL(
-            "%s: %.*s -> %.*s", what, static_cast<int>(from.size()), from.data(), static_cast<int>(to.size()), to.data()
+            "%s: unsupported cast %.*s -> %.*s",
+            opcode,
+            static_cast<int>(from.size()),
+            from.data(),
+            static_cast<int>(to.size()),
+            to.data()
         );
     }
 

@@ -643,7 +643,7 @@ TEST(EmitTest, Simple_Convert)
     // Checked: separate opcode, in-range value passes through.
     {
         Emitter e;
-        e.CheckedConvert(CastOp::U32_TO_U8, IReg::IR1, IReg::IR1);
+        e.CheckedConvert(CheckedCastOp::U32_TO_U8, IReg::IR1, IReg::IR1);
         e.Ret();
 
         auto code = e.Build(heap);

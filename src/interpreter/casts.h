@@ -9,138 +9,8 @@
 
 namespace Interpretation {
 
-using CastOp = Cbc::Format::CastOp;
-
-// Casts implemented by each convert opcode. Keep in sync with the switches in
-// CastPrim / CheckedCastPrim below.
-inline constexpr CastOp UNCHECKED_CASTS[] = {
-    // from I32
-    CastOp::I32_TO_I8,
-    CastOp::I32_TO_U8,
-    CastOp::I32_TO_I16,
-    CastOp::I32_TO_U16,
-    CastOp::I32_TO_I64,
-    CastOp::I32_TO_F32,
-    CastOp::I32_TO_F64,
-    // from U32
-    CastOp::U32_TO_I8,
-    CastOp::U32_TO_U8,
-    CastOp::U32_TO_I16,
-    CastOp::U32_TO_U16,
-    CastOp::U32_TO_I64,
-    CastOp::U32_TO_F32,
-    CastOp::U32_TO_F64,
-    // from I64
-    CastOp::I64_TO_I32,
-    CastOp::I64_TO_F32,
-    CastOp::I64_TO_F64,
-    // from U64
-    CastOp::U64_TO_I32,
-    CastOp::U64_TO_U32,
-    CastOp::U64_TO_F32,
-    CastOp::U64_TO_F64,
-    // from F32
-    CastOp::F32_TO_I8,
-    CastOp::F32_TO_U8,
-    CastOp::F32_TO_I16,
-    CastOp::F32_TO_U16,
-    CastOp::F32_TO_I32,
-    CastOp::F32_TO_U32,
-    CastOp::F32_TO_I64,
-    CastOp::F32_TO_U64,
-    CastOp::F32_TO_F64,
-    // from F64
-    CastOp::F64_TO_I8,
-    CastOp::F64_TO_U8,
-    CastOp::F64_TO_I16,
-    CastOp::F64_TO_U16,
-    CastOp::F64_TO_I32,
-    CastOp::F64_TO_U32,
-    CastOp::F64_TO_I64,
-    CastOp::F64_TO_U64,
-    CastOp::F64_TO_F32,
-};
-
-inline constexpr CastOp CHECKED_CASTS[] = {
-    // from I8
-    CastOp::I8_TO_U8,
-    // from U8
-    CastOp::U8_TO_I8,
-    // from I16
-    CastOp::I16_TO_I8,
-    CastOp::I16_TO_U8,
-    CastOp::I16_TO_U16,
-    // from U16
-    CastOp::U16_TO_I8,
-    CastOp::U16_TO_U8,
-    CastOp::U16_TO_I16,
-    // from I32
-    CastOp::I32_TO_I8,
-    CastOp::I32_TO_U8,
-    CastOp::I32_TO_I16,
-    CastOp::I32_TO_U16,
-    CastOp::I32_TO_U32,
-    // from U32
-    CastOp::U32_TO_I8,
-    CastOp::U32_TO_U8,
-    CastOp::U32_TO_I16,
-    CastOp::U32_TO_U16,
-    CastOp::U32_TO_I32,
-    // from I64
-    CastOp::I64_TO_I8,
-    CastOp::I64_TO_U8,
-    CastOp::I64_TO_I16,
-    CastOp::I64_TO_U16,
-    CastOp::I64_TO_I32,
-    CastOp::I64_TO_U32,
-    CastOp::I64_TO_U64,
-    // from U64
-    CastOp::U64_TO_I8,
-    CastOp::U64_TO_U8,
-    CastOp::U64_TO_I16,
-    CastOp::U64_TO_U16,
-    CastOp::U64_TO_I32,
-    CastOp::U64_TO_U32,
-    CastOp::U64_TO_I64,
-    // from F32
-    CastOp::F32_TO_I8,
-    CastOp::F32_TO_U8,
-    CastOp::F32_TO_I16,
-    CastOp::F32_TO_U16,
-    CastOp::F32_TO_I32,
-    CastOp::F32_TO_U32,
-    CastOp::F32_TO_I64,
-    CastOp::F32_TO_U64,
-    // from F64
-    CastOp::F64_TO_I8,
-    CastOp::F64_TO_U8,
-    CastOp::F64_TO_I16,
-    CastOp::F64_TO_U16,
-    CastOp::F64_TO_I32,
-    CastOp::F64_TO_U32,
-    CastOp::F64_TO_I64,
-    CastOp::F64_TO_U64,
-};
-
-constexpr bool IsUncheckedCastSupported(CastOp op)
-{
-    for (auto supported : UNCHECKED_CASTS) {
-        if (supported.Raw() == op.Raw()) {
-            return true;
-        }
-    }
-    return false;
-}
-
-constexpr bool IsCheckedCastSupported(CastOp op)
-{
-    for (auto supported : CHECKED_CASTS) {
-        if (supported.Raw() == op.Raw()) {
-            return true;
-        }
-    }
-    return false;
-}
+using CastOp        = Cbc::Format::CastOp;
+using CheckedCastOp = Cbc::Format::CheckedCastOp;
 
 template <typename T> inline Value::Primitive MakeIntPrim(T value)
 {
@@ -227,9 +97,9 @@ inline Value::Primitive CastPrim(CastOp op, Value::Primitive val)
         case CastOp::F64_TO_I64: return CastFpToInt<int64_t>(val.f64);
         case CastOp::F64_TO_U64: return CastFpToInt<uint64_t>(val.f64);
         case CastOp::F64_TO_F32: return MakeFpPrim(static_cast<float>(val.f64));
-
-        default: FATAL("unsupported cast: %s->%s", op.FromTypeStr().data(), op.ToTypeStr().data());
+        case CastOp::COUNT:      FATAL("invalid cast op: %u", op.Raw());
     }
+    FATAL("invalid cast op: %u", op.Raw());
 }
 
 struct CheckedCastResult {
@@ -346,69 +216,69 @@ template <typename To> inline CheckedCastResult CheckedCastFromFp(double value)
     return { MakeIntPrim(static_cast<To>(truncated)), false };
 }
 
-inline CheckedCastResult CheckedCastPrim(CastOp op, Value::Primitive val)
+inline CheckedCastResult CheckedCastPrim(CheckedCastOp op, Value::Primitive val)
 {
     switch (op) {
-        case CastOp::I8_TO_U8: return CheckedCastFromSigned<uint8_t>(static_cast<int8_t>(val.u64));
+        case CheckedCastOp::I8_TO_U8: return CheckedCastFromSigned<uint8_t>(static_cast<int8_t>(val.u64));
 
-        case CastOp::U8_TO_I8: return CheckedCastFromUnsigned<int8_t>(static_cast<uint8_t>(val.u64));
+        case CheckedCastOp::U8_TO_I8: return CheckedCastFromUnsigned<int8_t>(static_cast<uint8_t>(val.u64));
 
-        case CastOp::I16_TO_I8:  return CheckedCastFromSigned<int8_t>(static_cast<int16_t>(val.u64));
-        case CastOp::I16_TO_U8:  return CheckedCastFromSigned<uint8_t>(static_cast<int16_t>(val.u64));
-        case CastOp::I16_TO_U16: return CheckedCastFromSigned<uint16_t>(static_cast<int16_t>(val.u64));
+        case CheckedCastOp::I16_TO_I8:  return CheckedCastFromSigned<int8_t>(static_cast<int16_t>(val.u64));
+        case CheckedCastOp::I16_TO_U8:  return CheckedCastFromSigned<uint8_t>(static_cast<int16_t>(val.u64));
+        case CheckedCastOp::I16_TO_U16: return CheckedCastFromSigned<uint16_t>(static_cast<int16_t>(val.u64));
 
-        case CastOp::U16_TO_I8:  return CheckedCastFromUnsigned<int8_t>(static_cast<uint16_t>(val.u64));
-        case CastOp::U16_TO_U8:  return CheckedCastFromUnsigned<uint8_t>(static_cast<uint16_t>(val.u64));
-        case CastOp::U16_TO_I16: return CheckedCastFromUnsigned<int16_t>(static_cast<uint16_t>(val.u64));
+        case CheckedCastOp::U16_TO_I8:  return CheckedCastFromUnsigned<int8_t>(static_cast<uint16_t>(val.u64));
+        case CheckedCastOp::U16_TO_U8:  return CheckedCastFromUnsigned<uint8_t>(static_cast<uint16_t>(val.u64));
+        case CheckedCastOp::U16_TO_I16: return CheckedCastFromUnsigned<int16_t>(static_cast<uint16_t>(val.u64));
 
-        case CastOp::I32_TO_I8:  return CheckedCastFromSigned<int8_t>(static_cast<int32_t>(val.u32));
-        case CastOp::I32_TO_U8:  return CheckedCastFromSigned<uint8_t>(static_cast<int32_t>(val.u32));
-        case CastOp::I32_TO_I16: return CheckedCastFromSigned<int16_t>(static_cast<int32_t>(val.u32));
-        case CastOp::I32_TO_U16: return CheckedCastFromSigned<uint16_t>(static_cast<int32_t>(val.u32));
-        case CastOp::I32_TO_U32: return CheckedCastFromSigned<uint32_t>(static_cast<int32_t>(val.u32));
+        case CheckedCastOp::I32_TO_I8:  return CheckedCastFromSigned<int8_t>(static_cast<int32_t>(val.u32));
+        case CheckedCastOp::I32_TO_U8:  return CheckedCastFromSigned<uint8_t>(static_cast<int32_t>(val.u32));
+        case CheckedCastOp::I32_TO_I16: return CheckedCastFromSigned<int16_t>(static_cast<int32_t>(val.u32));
+        case CheckedCastOp::I32_TO_U16: return CheckedCastFromSigned<uint16_t>(static_cast<int32_t>(val.u32));
+        case CheckedCastOp::I32_TO_U32: return CheckedCastFromSigned<uint32_t>(static_cast<int32_t>(val.u32));
 
-        case CastOp::U32_TO_I8:  return CheckedCastFromUnsigned<int8_t>(val.u32);
-        case CastOp::U32_TO_U8:  return CheckedCastFromUnsigned<uint8_t>(val.u32);
-        case CastOp::U32_TO_I16: return CheckedCastFromUnsigned<int16_t>(val.u32);
-        case CastOp::U32_TO_U16: return CheckedCastFromUnsigned<uint16_t>(val.u32);
-        case CastOp::U32_TO_I32: return CheckedCastFromUnsigned<int32_t>(val.u32);
+        case CheckedCastOp::U32_TO_I8:  return CheckedCastFromUnsigned<int8_t>(val.u32);
+        case CheckedCastOp::U32_TO_U8:  return CheckedCastFromUnsigned<uint8_t>(val.u32);
+        case CheckedCastOp::U32_TO_I16: return CheckedCastFromUnsigned<int16_t>(val.u32);
+        case CheckedCastOp::U32_TO_U16: return CheckedCastFromUnsigned<uint16_t>(val.u32);
+        case CheckedCastOp::U32_TO_I32: return CheckedCastFromUnsigned<int32_t>(val.u32);
 
-        case CastOp::I64_TO_I8:  return CheckedCastFromSigned<int8_t>(static_cast<int64_t>(val.u64));
-        case CastOp::I64_TO_U8:  return CheckedCastFromSigned<uint8_t>(static_cast<int64_t>(val.u64));
-        case CastOp::I64_TO_I16: return CheckedCastFromSigned<int16_t>(static_cast<int64_t>(val.u64));
-        case CastOp::I64_TO_U16: return CheckedCastFromSigned<uint16_t>(static_cast<int64_t>(val.u64));
-        case CastOp::I64_TO_I32: return CheckedCastFromSigned<int32_t>(static_cast<int64_t>(val.u64));
-        case CastOp::I64_TO_U32: return CheckedCastFromSigned<uint32_t>(static_cast<int64_t>(val.u64));
-        case CastOp::I64_TO_U64: return CheckedCastFromSigned<uint64_t>(static_cast<int64_t>(val.u64));
+        case CheckedCastOp::I64_TO_I8:  return CheckedCastFromSigned<int8_t>(static_cast<int64_t>(val.u64));
+        case CheckedCastOp::I64_TO_U8:  return CheckedCastFromSigned<uint8_t>(static_cast<int64_t>(val.u64));
+        case CheckedCastOp::I64_TO_I16: return CheckedCastFromSigned<int16_t>(static_cast<int64_t>(val.u64));
+        case CheckedCastOp::I64_TO_U16: return CheckedCastFromSigned<uint16_t>(static_cast<int64_t>(val.u64));
+        case CheckedCastOp::I64_TO_I32: return CheckedCastFromSigned<int32_t>(static_cast<int64_t>(val.u64));
+        case CheckedCastOp::I64_TO_U32: return CheckedCastFromSigned<uint32_t>(static_cast<int64_t>(val.u64));
+        case CheckedCastOp::I64_TO_U64: return CheckedCastFromSigned<uint64_t>(static_cast<int64_t>(val.u64));
 
-        case CastOp::U64_TO_I8:  return CheckedCastFromUnsigned<int8_t>(val.u64);
-        case CastOp::U64_TO_U8:  return CheckedCastFromUnsigned<uint8_t>(val.u64);
-        case CastOp::U64_TO_I16: return CheckedCastFromUnsigned<int16_t>(val.u64);
-        case CastOp::U64_TO_U16: return CheckedCastFromUnsigned<uint16_t>(val.u64);
-        case CastOp::U64_TO_I32: return CheckedCastFromUnsigned<int32_t>(val.u64);
-        case CastOp::U64_TO_U32: return CheckedCastFromUnsigned<uint32_t>(val.u64);
-        case CastOp::U64_TO_I64: return CheckedCastFromUnsigned<int64_t>(val.u64);
+        case CheckedCastOp::U64_TO_I8:  return CheckedCastFromUnsigned<int8_t>(val.u64);
+        case CheckedCastOp::U64_TO_U8:  return CheckedCastFromUnsigned<uint8_t>(val.u64);
+        case CheckedCastOp::U64_TO_I16: return CheckedCastFromUnsigned<int16_t>(val.u64);
+        case CheckedCastOp::U64_TO_U16: return CheckedCastFromUnsigned<uint16_t>(val.u64);
+        case CheckedCastOp::U64_TO_I32: return CheckedCastFromUnsigned<int32_t>(val.u64);
+        case CheckedCastOp::U64_TO_U32: return CheckedCastFromUnsigned<uint32_t>(val.u64);
+        case CheckedCastOp::U64_TO_I64: return CheckedCastFromUnsigned<int64_t>(val.u64);
 
-        case CastOp::F32_TO_I8:  return CheckedCastFromFp<int8_t>(val.f32);
-        case CastOp::F32_TO_U8:  return CheckedCastFromFp<uint8_t>(val.f32);
-        case CastOp::F32_TO_I16: return CheckedCastFromFp<int16_t>(val.f32);
-        case CastOp::F32_TO_U16: return CheckedCastFromFp<uint16_t>(val.f32);
-        case CastOp::F32_TO_I32: return CheckedCastFromFp<int32_t>(val.f32);
-        case CastOp::F32_TO_U32: return CheckedCastFromFp<uint32_t>(val.f32);
-        case CastOp::F32_TO_I64: return CheckedCastFromFp<int64_t>(val.f32);
-        case CastOp::F32_TO_U64: return CheckedCastFromFp<uint64_t>(val.f32);
+        case CheckedCastOp::F32_TO_I8:  return CheckedCastFromFp<int8_t>(val.f32);
+        case CheckedCastOp::F32_TO_U8:  return CheckedCastFromFp<uint8_t>(val.f32);
+        case CheckedCastOp::F32_TO_I16: return CheckedCastFromFp<int16_t>(val.f32);
+        case CheckedCastOp::F32_TO_U16: return CheckedCastFromFp<uint16_t>(val.f32);
+        case CheckedCastOp::F32_TO_I32: return CheckedCastFromFp<int32_t>(val.f32);
+        case CheckedCastOp::F32_TO_U32: return CheckedCastFromFp<uint32_t>(val.f32);
+        case CheckedCastOp::F32_TO_I64: return CheckedCastFromFp<int64_t>(val.f32);
+        case CheckedCastOp::F32_TO_U64: return CheckedCastFromFp<uint64_t>(val.f32);
 
-        case CastOp::F64_TO_I8:  return CheckedCastFromFp<int8_t>(val.f64);
-        case CastOp::F64_TO_U8:  return CheckedCastFromFp<uint8_t>(val.f64);
-        case CastOp::F64_TO_I16: return CheckedCastFromFp<int16_t>(val.f64);
-        case CastOp::F64_TO_U16: return CheckedCastFromFp<uint16_t>(val.f64);
-        case CastOp::F64_TO_I32: return CheckedCastFromFp<int32_t>(val.f64);
-        case CastOp::F64_TO_U32: return CheckedCastFromFp<uint32_t>(val.f64);
-        case CastOp::F64_TO_I64: return CheckedCastFromFp<int64_t>(val.f64);
-        case CastOp::F64_TO_U64: return CheckedCastFromFp<uint64_t>(val.f64);
-
-        default: FATAL("unsupported cast: %s->%s", op.FromTypeStr().data(), op.ToTypeStr().data());
+        case CheckedCastOp::F64_TO_I8:  return CheckedCastFromFp<int8_t>(val.f64);
+        case CheckedCastOp::F64_TO_U8:  return CheckedCastFromFp<uint8_t>(val.f64);
+        case CheckedCastOp::F64_TO_I16: return CheckedCastFromFp<int16_t>(val.f64);
+        case CheckedCastOp::F64_TO_U16: return CheckedCastFromFp<uint16_t>(val.f64);
+        case CheckedCastOp::F64_TO_I32: return CheckedCastFromFp<int32_t>(val.f64);
+        case CheckedCastOp::F64_TO_U32: return CheckedCastFromFp<uint32_t>(val.f64);
+        case CheckedCastOp::F64_TO_I64: return CheckedCastFromFp<int64_t>(val.f64);
+        case CheckedCastOp::F64_TO_U64: return CheckedCastFromFp<uint64_t>(val.f64);
+        case CheckedCastOp::COUNT:      FATAL("invalid cast op: %u", op.Raw());
     }
+    FATAL("invalid cast op: %u", op.Raw());
 }
 
 } // namespace Interpretation

@@ -1229,7 +1229,7 @@ LABEL(CONVERT) {
     NEXT;
 }
 LABEL(CHECKED_CONVERT) {
-    auto args = ConvertOp::Decode(reader);
+    auto args = CheckedConvertOp::Decode(reader);
     LOG_INSTR;
     bool overflow = interpreter.CheckedConvert(args.cast, args.rr.x, args.rr.y);
     NEXT_OR_THROW(!overflow, Type::OverflowException);

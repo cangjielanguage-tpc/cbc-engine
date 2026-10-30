@@ -578,7 +578,7 @@ public:
     // Returns true when the checked cast overflowed and `OverflowException`
     // must be thrown. Otherwise the converted value is stored into the
     // destination.
-    bool CheckedConvert(CastOp op, Reg to, Reg from)
+    bool CheckedConvert(CheckedCastOp op, Reg to, Reg from)
     {
         auto val = op.FromIsFloatingPoint() ? ectype->GetPrimitive(from.FR()) : ectype->GetPrimitive(from.IR());
         auto res = CheckedCastPrim(op, val);

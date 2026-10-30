@@ -24,6 +24,7 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, VirtualCal
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B5i32 args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3xrrr args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, ConvertOp args);
+void Log(Interpretation::LiteralTable* table, Stream::Output& stream, CheckedConvertOp args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B4xi12xr args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3xi12 args);
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B4xi12i8 args);

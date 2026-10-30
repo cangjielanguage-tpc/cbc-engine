@@ -66,6 +66,13 @@ void Encode(ByteBuffer& buf, RT::ConvertOp command)
     Encode(buf, command.rr);
 }
 
+void Encode(ByteBuffer& buf, RT::CheckedConvertOp command)
+{
+    Encode(buf, command.opc);
+    Encode(buf, Format::Imm8(command.cast.Raw()));
+    Encode(buf, command.rr);
+}
+
 void Encode(ByteBuffer& buf, RT::B3xi12 command)
 {
     Encode(buf, command.opc);

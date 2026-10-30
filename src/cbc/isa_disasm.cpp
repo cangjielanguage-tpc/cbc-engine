@@ -140,7 +140,7 @@ struct IsaDisasm : public IsaParser {
         );
     }
 
-    void CheckedConvert(Format::CastOp cast, AnyReg to, AnyReg from) override
+    void CheckedConvert(Format::CheckedCastOp cast, AnyReg to, AnyReg from) override
     {
         stream.PrintLn(
             "checked.convert {}, {}, {}, {}",
