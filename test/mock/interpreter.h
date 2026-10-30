@@ -6,6 +6,7 @@
 
 #include "interpreter/code.h"
 #include "interpreter/ectype.h"
+#include "interpreter/implicit_exceptions.h"
 #include "interpreter/int_thunk.h"
 #include "interpreter/interpreter.h"
 #include "runtimesupport/runtime.h"
@@ -79,6 +80,26 @@ Interpretation::Value::Primitive Interpret(
     Interpretation::Frame frame,
     Interpretation::Value::Primitive ir1,
     Interpretation::Value::Primitive ir2
+);
+
+Interpretation::Value::Primitive Interpret(
+    Interpretation::Code code,
+    Interpretation::Value::Primitive ir1,
+    Interpretation::Value::Primitive ir2,
+    Interpretation::Value::Primitive ir3
+);
+
+// Runs the code and returns the type of the implicit exception it throws
+// (Interpretation::Type::Successful if it runs to completion).
+Interpretation::Type InterpretThrows(
+    Interpretation::Code code, Interpretation::Value::Primitive ir1, Interpretation::Value::Primitive ir2
+);
+
+Interpretation::Type InterpretThrows(
+    Interpretation::Code code,
+    Interpretation::Value::Primitive ir1,
+    Interpretation::Value::Primitive ir2,
+    Interpretation::Value::Primitive ir3
 );
 
 Interpretation::Value::Primitive InterpretFPRes(
