@@ -144,4 +144,165 @@ inline Value::Primitive CastPrim(ConvertType toType, ConvertType fromType, Value
     }
 }
 
+struct CheckedCastResult {
+    Value::Primitive value;
+    bool overflow;
+};
+
+// Checked casts rules: the source value must be representable
+// in the target type, otherwise the cast throws `OverflowException`.
+template <typename To> static inline CheckedCastResult CheckedCastFromSigned(int64_t value)
+{
+    // Currently only checked casts to integral types are supported
+    static_assert(std::is_integral_v<To>, "integral target is expected");
+
+    if constexpr (std::is_signed_v<To>) {
+        if (value < static_cast<int64_t>(std::numeric_limits<To>::min()) ||
+            value > static_cast<int64_t>(std::numeric_limits<To>::max())) {
+            return { MakeIntPrim<To>(0), true };
+        }
+    } else {
+        if (value < 0) {
+            return { MakeIntPrim<To>(0), true };
+        }
+        // int64_t is always representable in uint64_t, so only narrower
+        // unsigned targets need an upper bound check.
+        if constexpr (sizeof(To) < sizeof(uint64_t)) {
+            if (static_cast<uint64_t>(value) > static_cast<uint64_t>(std::numeric_limits<To>::max())) {
+                return { MakeIntPrim<To>(0), true };
+            }
+        }
+    }
+    return { MakeIntPrim(static_cast<To>(value)), false };
+}
+
+// Checked casts rules: the source value must be representable
+// in the target type, otherwise the cast throws `OverflowException`.
+template <typename To> static inline CheckedCastResult CheckedCastFromUnsigned(uint64_t value)
+{
+    // Currently only checked casts to integral types are supported
+    static_assert(std::is_integral_v<To>, "integral target is expected");
+    if constexpr (std::is_signed_v<To>) {
+        if (value > static_cast<uint64_t>(std::numeric_limits<To>::max())) {
+            return { MakeIntPrim<To>(0), true };
+        }
+    } else if constexpr (sizeof(To) < sizeof(uint64_t)) {
+        if (value > static_cast<uint64_t>(std::numeric_limits<To>::max())) {
+            return { MakeIntPrim<To>(0), true };
+        }
+    }
+    return { MakeIntPrim(static_cast<To>(value)), false };
+}
+
+// Bounds of an integral type encoded in double, as a half-open interval
+// [lower, upper). A truncated float is representable in `To` iff it lies in
+// that interval. Both bounds are exact powers of two; `upper` itself is not
+// representable in `To` (it is one past the maximum value).
+template <typename To> struct FpIntBounds {
+    static_assert(std::is_integral_v<To>, "integral type is expected");
+    static_assert(std::numeric_limits<To>::digits <= 64, "integer type is too wide");
+
+    static constexpr bool isSigned = std::is_signed_v<To>;
+
+    // 2^digits. Written as (1 << (digits - 1)) * 2.0 to elide std::ldexp and to
+    // avoid a shift by 64, which is undefined for uint64_t.
+    static constexpr double upper =
+        static_cast<double>(1ULL << (std::numeric_limits<To>::digits - 1)) * 2.0;
+    static constexpr double lower = isSigned ? -upper : 0.0;
+};
+
+// Checked casts rules: the source value must be representable
+// in the target type, otherwise the cast throws `OverflowException`.
+template <typename To> inline CheckedCastResult CheckedCastFromFp(double value)
+{
+    static_assert(std::is_integral_v<To>, "integral target is expected");
+
+    // NaN and infinities are never representable in an integer type.
+    if (!std::isfinite(value)) {
+        return { MakeIntPrim<To>(0), true };
+    }
+
+    // Rounding is truncation toward zero; the range check must be applied to the
+    // truncated value (so e.g. -128.9 fits into Int8 as -128).
+    const double truncated = std::trunc(value);
+
+    if (truncated < FpIntBounds<To>::lower || truncated >= FpIntBounds<To>::upper) {
+        return { MakeIntPrim<To>(0), true };
+    }
+    return { MakeIntPrim(static_cast<To>(truncated)), false };
+}
+
+inline CheckedCastResult CheckedCastFromSignedTo(ConvertType toType, int64_t value)
+{
+    switch (toType) {
+        case ConvertType::I8:  return CheckedCastFromSigned<int8_t>(value);
+        case ConvertType::U8:  return CheckedCastFromSigned<uint8_t>(value);
+        case ConvertType::I16: return CheckedCastFromSigned<int16_t>(value);
+        case ConvertType::U16: return CheckedCastFromSigned<uint16_t>(value);
+        case ConvertType::I32: return CheckedCastFromSigned<int32_t>(value);
+        case ConvertType::U32: return CheckedCastFromSigned<uint32_t>(value);
+        case ConvertType::I64: return CheckedCastFromSigned<int64_t>(value);
+        case ConvertType::U64: return CheckedCastFromSigned<uint64_t>(value);
+        default:               return { UnsupportedCastTo(toType), false };
+    }
+}
+
+inline CheckedCastResult CheckedCastFromUnsignedTo(ConvertType toType, uint64_t value)
+{
+    switch (toType) {
+        case ConvertType::I8:  return CheckedCastFromUnsigned<int8_t>(value);
+        case ConvertType::U8:  return CheckedCastFromUnsigned<uint8_t>(value);
+        case ConvertType::I16: return CheckedCastFromUnsigned<int16_t>(value);
+        case ConvertType::U16: return CheckedCastFromUnsigned<uint16_t>(value);
+        case ConvertType::I32: return CheckedCastFromUnsigned<int32_t>(value);
+        case ConvertType::U32: return CheckedCastFromUnsigned<uint32_t>(value);
+        case ConvertType::I64: return CheckedCastFromUnsigned<int64_t>(value);
+        case ConvertType::U64: return CheckedCastFromUnsigned<uint64_t>(value);
+        default:               return { UnsupportedCastTo(toType), false };
+    }
+}
+
+inline CheckedCastResult CheckedCastFromIntegral(ConvertType toType, ConvertType fromType, Value::Primitive val)
+{
+    switch (fromType) {
+        case ConvertType::I8:  return CheckedCastFromSignedTo(toType, static_cast<int8_t>(val.u64));
+        case ConvertType::U8:  return CheckedCastFromUnsignedTo(toType, static_cast<uint8_t>(val.u64));
+        case ConvertType::I16: return CheckedCastFromSignedTo(toType, static_cast<int16_t>(val.u64));
+        case ConvertType::U16: return CheckedCastFromUnsignedTo(toType, static_cast<uint16_t>(val.u64));
+        case ConvertType::I32: return CheckedCastFromSignedTo(toType, static_cast<int32_t>(val.u32));
+        case ConvertType::U32: return CheckedCastFromUnsignedTo(toType, val.u32);
+        case ConvertType::I64: return CheckedCastFromSignedTo(toType, static_cast<int64_t>(val.u64));
+        case ConvertType::U64: return CheckedCastFromUnsignedTo(toType, val.u64);
+        default:               return { UnsupportedCastFrom(fromType), false };
+    }
+}
+
+inline CheckedCastResult CheckedCastFromFloating(ConvertType toType, double value)
+{
+    switch (toType) {
+        case ConvertType::I8:  return CheckedCastFromFp<int8_t>(value);
+        case ConvertType::U8:  return CheckedCastFromFp<uint8_t>(value);
+        case ConvertType::I16: return CheckedCastFromFp<int16_t>(value);
+        case ConvertType::U16: return CheckedCastFromFp<uint16_t>(value);
+        case ConvertType::I32: return CheckedCastFromFp<int32_t>(value);
+        case ConvertType::U32: return CheckedCastFromFp<uint32_t>(value);
+        case ConvertType::I64: return CheckedCastFromFp<int64_t>(value);
+        case ConvertType::U64: return CheckedCastFromFp<uint64_t>(value);
+        default:               return { UnsupportedCastTo(toType), false };
+    }
+}
+
+inline CheckedCastResult CheckedCastPrim(ConvertType toType, ConvertType fromType, Value::Primitive val)
+{
+    // Only integer -> integer and float -> integer casts are checked. Anything
+    // else never overflows, so it keeps the unchecked semantics.
+    ASSERT(!toType.IsFloatingPoint());
+
+    switch (fromType) {
+        case ConvertType::F32: return CheckedCastFromFloating(toType, val.f32);
+        case ConvertType::F64: return CheckedCastFromFloating(toType, val.f64);
+        default:               return CheckedCastFromIntegral(toType, fromType, val);
+    }
+}
+
 } // namespace Interpretation

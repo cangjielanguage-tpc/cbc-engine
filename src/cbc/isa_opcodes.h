@@ -57,6 +57,7 @@
     X(BinaryImm32, BinaryImm<Width::W32>)                                                                              \
     X(BinaryImm64, BinaryImm<Width::W64>)                                                                              \
     X(Convert, Convert)                                                                                                \
+    X(CheckedConvert, CheckedConvert)                                                                                  \
     X(NewArr, NewArr)                                                                                                  \
     X(NewArrGeneric, NewArrGeneric)                                                                                    \
     X(GcPoint, GcPoint)                                                                                                \

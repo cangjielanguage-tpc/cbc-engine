@@ -28,27 +28,28 @@ public:
     void ParseAll();
 
 protected:
-    virtual void Bcc(Format::Width width, Format::CC cc, AnyReg l, AnyReg r, int64_t delta)          = 0;
-    virtual void BccImm(Format::Width width, Format::CC cc, IReg l, uint64_t imm, int64_t delta)     = 0;
-    virtual void Jump(int64_t delta)                                                                 = 0;
-    virtual void Nop()                                                                               = 0;
-    virtual void Mov(Format::Width width, IReg d, IReg s)                                            = 0;
-    virtual void FMov(Format::Width width, FReg d, FReg s)                                           = 0;
-    virtual void FloatToInt(Format::Width width, IReg d, FReg s)                                     = 0;
-    virtual void IntToFloat(Format::Width width, FReg d, IReg s)                                     = 0;
-    virtual void MovRef(IReg d, IReg s)                                                              = 0;
-    virtual void MovImm(Format::Width width, IReg d, uint64_t value)                                 = 0;
-    virtual void Binary(Format::Common op, Format::Width width, IReg d, IReg l, IReg r)              = 0;
-    virtual void BinaryImm(Format::Common op, Format::Width width, IReg d, IReg l, uint64_t value)   = 0;
-    virtual void CBinary(Format::Checked op, Format::Width width, IReg d, IReg l, IReg r)            = 0;
-    virtual void CBinaryImm(Format::Checked op, Format::Width width, IReg d, IReg l, uint64_t value) = 0;
-    virtual void SBinary(Format::Saturating op, Format::Width width, IReg d, IReg l, IReg r)         = 0;
+    virtual void Bcc(Format::Width width, Format::CC cc, AnyReg l, AnyReg r, int64_t delta)             = 0;
+    virtual void BccImm(Format::Width width, Format::CC cc, IReg l, uint64_t imm, int64_t delta)        = 0;
+    virtual void Jump(int64_t delta)                                                                    = 0;
+    virtual void Nop()                                                                                  = 0;
+    virtual void Mov(Format::Width width, IReg d, IReg s)                                               = 0;
+    virtual void FMov(Format::Width width, FReg d, FReg s)                                              = 0;
+    virtual void FloatToInt(Format::Width width, IReg d, FReg s)                                        = 0;
+    virtual void IntToFloat(Format::Width width, FReg d, IReg s)                                        = 0;
+    virtual void MovRef(IReg d, IReg s)                                                                 = 0;
+    virtual void MovImm(Format::Width width, IReg d, uint64_t value)                                    = 0;
+    virtual void Binary(Format::Common op, Format::Width width, IReg d, IReg l, IReg r)                 = 0;
+    virtual void BinaryImm(Format::Common op, Format::Width width, IReg d, IReg l, uint64_t value)      = 0;
+    virtual void CBinary(Format::Checked op, Format::Width width, IReg d, IReg l, IReg r)               = 0;
+    virtual void CBinaryImm(Format::Checked op, Format::Width width, IReg d, IReg l, uint64_t value)    = 0;
+    virtual void SBinary(Format::Saturating op, Format::Width width, IReg d, IReg l, IReg r)            = 0;
     virtual void SBinaryImm(Format::Saturating op, Format::Width width, IReg d, IReg l, uint64_t value) = 0;
-    virtual void FMovImm(Format::Width width, FReg d, double value)                                  = 0;
-    virtual void FBinary(Format::FloatOperations op, Format::Width width, FReg d, FReg l, FReg r)    = 0;
-    virtual void FUnary(Format::FloatOperations op, Format::Width width, FReg d, FReg s)             = 0;
+    virtual void FMovImm(Format::Width width, FReg d, double value)                                     = 0;
+    virtual void FBinary(Format::FloatOperations op, Format::Width width, FReg d, FReg l, FReg r)       = 0;
+    virtual void FUnary(Format::FloatOperations op, Format::Width width, FReg d, FReg s)                = 0;
 
-    virtual void Convert(Format::ConvertType toType, Format::ConvertType fromType, AnyReg to, AnyReg from) = 0;
+    virtual void Convert(Format::ConvertType toType, Format::ConvertType fromType, AnyReg to, AnyReg from)        = 0;
+    virtual void CheckedConvert(Format::ConvertType toType, Format::ConvertType fromType, AnyReg to, AnyReg from) = 0;
 
     virtual void MovBasePtr(IReg dst, bool local) = 0;
 
@@ -77,18 +78,18 @@ protected:
 
     virtual void LoadTypeInfoGeneric(IReg dst, uint32_t typeId) = 0;
 
-    virtual void LoadTypeInfoSig(IReg dst, uint32_t type)            = 0;
-    virtual void NewObj(IReg dst, uint32_t type)                     = 0;
+    virtual void LoadTypeInfoSig(IReg dst, uint32_t type)                                              = 0;
+    virtual void NewObj(IReg dst, uint32_t type)                                                       = 0;
     virtual void CallDirect(uint32_t method, Utils::Span<const Location> args)                         = 0;
     virtual void CallVirtual(uint32_t method, Utils::Span<const Location> args)                        = 0;
     virtual void CallInterf(uint32_t method, Utils::Span<const Location> args)                         = 0;
     virtual void CallInterfGeneric(uint16_t argnum, uint32_t method, Utils::Span<const Location> args) = 0;
-    virtual void Spawn(IReg closure, uint32_t type)                  = 0;
-    virtual void SpawnFuture(IReg future, uint32_t type)             = 0;
+    virtual void Spawn(IReg closure, uint32_t type)                                                    = 0;
+    virtual void SpawnFuture(IReg future, uint32_t type)                                               = 0;
     virtual void CallClosure(uint32_t type, bool generic, Utils::Span<const Location> args)            = 0;
-    virtual void NewClosure(IReg dst, uint32_t type)                 = 0;
-    virtual void NewClosureGeneric(IReg ti, uint32_t typeId)         = 0;
-    virtual void NewObjGeneric(IReg ti, uint32_t typeId)             = 0;
+    virtual void NewClosure(IReg dst, uint32_t type)                                                   = 0;
+    virtual void NewClosureGeneric(IReg ti, uint32_t typeId)                                           = 0;
+    virtual void NewObjGeneric(IReg ti, uint32_t typeId)                                               = 0;
 
     virtual void Scc(Format::Width width, Format::CC cc, IReg d, AnyReg l, AnyReg r)      = 0;
     virtual void SccImm(Format::Width width, Format::CC cc, IReg d, IReg l, uint64_t imm) = 0;
@@ -152,40 +153,40 @@ protected:
     virtual void AtomicFetchOr(IReg dst, IReg obj, IReg src, uint32_t fieldId)  = 0;
     virtual void AtomicFetchXor(IReg dst, IReg obj, IReg src, uint32_t fieldId) = 0;
 
-    virtual void Ld(AnyReg dst, IReg base, uint32_t field)                                  = 0;
-    virtual void LdStatic(AnyReg dst, uint32_t field)                                       = 0;
-    virtual void LdTyped(AnyReg dst, uint16_t slot, uint32_t field)                         = 0;
-    virtual void LdDerived(AnyReg dst, IReg baseRef, IReg derived, uint32_t field)          = 0;
-    virtual void LdGeneric(IReg dst, IReg baseRef, IReg derived, IReg ti, uint32_t field)   = 0;
-    virtual void Lea(IReg dst, IReg base, uint32_t field)                                   = 0;
-    virtual void LeaStatic(IReg dst, IReg dstBaseRef, uint32_t field)                       = 0;
-    virtual void LeaGeneric(IReg dst, IReg base, IReg ti, uint32_t field)                   = 0;
-    virtual void LeaBox(IReg dst, IReg base)                                                = 0;
+    virtual void Ld(AnyReg dst, IReg base, uint32_t field)                                = 0;
+    virtual void LdStatic(AnyReg dst, uint32_t field)                                     = 0;
+    virtual void LdTyped(AnyReg dst, uint16_t slot, uint32_t field)                       = 0;
+    virtual void LdDerived(AnyReg dst, IReg baseRef, IReg derived, uint32_t field)        = 0;
+    virtual void LdGeneric(IReg dst, IReg baseRef, IReg derived, IReg ti, uint32_t field) = 0;
+    virtual void Lea(IReg dst, IReg base, uint32_t field)                                 = 0;
+    virtual void LeaStatic(IReg dst, IReg dstBaseRef, uint32_t field)                     = 0;
+    virtual void LeaGeneric(IReg dst, IReg base, IReg ti, uint32_t field)                 = 0;
+    virtual void LeaBox(IReg dst, IReg base)                                              = 0;
 
-    virtual void LeaCForeign(IReg dst, uint32_t methodId)                                   = 0;
+    virtual void LeaCForeign(IReg dst, uint32_t methodId)                                    = 0;
     virtual void CallCFunc(IReg target, uint32_t methodId, Utils::Span<const Location> args) = 0;
-    virtual void St(AnyReg src, IReg base, uint32_t field)                                  = 0;
-    virtual void StStatic(AnyReg src, uint32_t field)                                       = 0;
-    virtual void StTyped(AnyReg src, uint16_t slot, uint32_t field)                         = 0;
-    virtual void StDerived(AnyReg src, IReg baseRef, IReg derived, uint32_t field)          = 0;
+    virtual void St(AnyReg src, IReg base, uint32_t field)                                   = 0;
+    virtual void StStatic(AnyReg src, uint32_t field)                                        = 0;
+    virtual void StTyped(AnyReg src, uint16_t slot, uint32_t field)                          = 0;
+    virtual void StDerived(AnyReg src, IReg baseRef, IReg derived, uint32_t field)           = 0;
     virtual void StGeneric(IReg src, IReg baseRef, IReg derived, IReg ti, uint32_t field)    = 0;
-    virtual void Copy(IReg dstBase, IReg dst, IReg dstSrc, IReg src, uint32_t typeId)       = 0;
-    virtual void CopyGeneric(IReg dstBase, IReg dst, IReg dstSrc, IReg src, IReg ti)        = 0;
-    virtual void CopyLocal(IReg dst, IReg src, uint32_t typeId)                             = 0;
-    virtual void CopyToLocal(IReg dst, IReg srcBase, IReg src, uint32_t typeId)             = 0;
-    virtual void CopyFromLocal(IReg dstBase, IReg dst, IReg src, uint32_t typeId)           = 0;
-    virtual void CopyLocalGeneric(IReg dst, IReg src, IReg ti)                              = 0;
-    virtual void CopyToLocalGeneric(IReg dst, IReg srcBase, IReg src, IReg ti)              = 0;
-    virtual void CopyFromLocalGeneric(IReg dstBase, IReg dst, IReg src, IReg ti)            = 0;
-    virtual void CopyTypeSlot(uint16_t dst, uint16_t src)                                   = 0;
-    virtual void CopyToTypeSlot(uint16_t dst, IReg srcBase, IReg src)                       = 0;
-    virtual void CopyFromTypeSlot(IReg dstBase, IReg dst, uint16_t src)                     = 0;
-    virtual void CopyTypeSlotGeneric(uint16_t dst, uint16_t src, IReg ti)                   = 0;
-    virtual void CopyToTypeSlotGeneric(uint16_t dst, IReg srcBase, IReg src, IReg ti)       = 0;
-    virtual void CopyFromTypeSlotGeneric(IReg dstBase, IReg dst, uint16_t src, IReg ti)     = 0;
-    virtual void LeaIndex(IReg dst, IReg src, IReg idx, uint32_t typeId)                    = 0;
-    virtual void LeaIndexGeneric(IReg dst, IReg src, IReg idx, IReg ti)                     = 0;
-    virtual void LeaConstIndexGeneric(IReg dst, IReg src, int64_t idx, IReg ti)             = 0;
+    virtual void Copy(IReg dstBase, IReg dst, IReg dstSrc, IReg src, uint32_t typeId)        = 0;
+    virtual void CopyGeneric(IReg dstBase, IReg dst, IReg dstSrc, IReg src, IReg ti)         = 0;
+    virtual void CopyLocal(IReg dst, IReg src, uint32_t typeId)                              = 0;
+    virtual void CopyToLocal(IReg dst, IReg srcBase, IReg src, uint32_t typeId)              = 0;
+    virtual void CopyFromLocal(IReg dstBase, IReg dst, IReg src, uint32_t typeId)            = 0;
+    virtual void CopyLocalGeneric(IReg dst, IReg src, IReg ti)                               = 0;
+    virtual void CopyToLocalGeneric(IReg dst, IReg srcBase, IReg src, IReg ti)               = 0;
+    virtual void CopyFromLocalGeneric(IReg dstBase, IReg dst, IReg src, IReg ti)             = 0;
+    virtual void CopyTypeSlot(uint16_t dst, uint16_t src)                                    = 0;
+    virtual void CopyToTypeSlot(uint16_t dst, IReg srcBase, IReg src)                        = 0;
+    virtual void CopyFromTypeSlot(IReg dstBase, IReg dst, uint16_t src)                      = 0;
+    virtual void CopyTypeSlotGeneric(uint16_t dst, uint16_t src, IReg ti)                    = 0;
+    virtual void CopyToTypeSlotGeneric(uint16_t dst, IReg srcBase, IReg src, IReg ti)        = 0;
+    virtual void CopyFromTypeSlotGeneric(IReg dstBase, IReg dst, uint16_t src, IReg ti)      = 0;
+    virtual void LeaIndex(IReg dst, IReg src, IReg idx, uint32_t typeId)                     = 0;
+    virtual void LeaIndexGeneric(IReg dst, IReg src, IReg idx, IReg ti)                      = 0;
+    virtual void LeaConstIndexGeneric(IReg dst, IReg src, int64_t idx, IReg ti)              = 0;
 
     virtual void ZeroVal(AnyReg dst, IReg ti) = 0;
 

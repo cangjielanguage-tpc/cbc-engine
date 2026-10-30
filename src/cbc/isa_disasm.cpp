@@ -140,6 +140,17 @@ struct IsaDisasm : public IsaParser {
         );
     }
 
+    void CheckedConvert(Format::ConvertType toType, Format::ConvertType fromType, AnyReg to, AnyReg from) override
+    {
+        stream.PrintLn(
+            "checked.convert {}, {}, {}, {}",
+            toType.ToStr(),
+            fromType.ToStr(),
+            Fmt(to, toType.IsFloatingPoint()),
+            Fmt(from, fromType.IsFloatingPoint())
+        );
+    }
+
     void MovBasePtr(IReg dst, bool local) override
     {
         stream.PrintLn("mov.base.{} {}", local ? "local" : "global", dst);
@@ -569,7 +580,10 @@ struct IsaDisasm : public IsaParser {
 
     void BoxT(uint16_t srcTs, IReg dst) override { stream.PrintLn("box {}, t{}", dst, srcTs); }
 
-    void BoxTGeneric(uint16_t srcTs, IReg dst, IReg ti) override { stream.PrintLn("box.g {}, t{}, {}", dst, srcTs, ti); }
+    void BoxTGeneric(uint16_t srcTs, IReg dst, IReg ti) override
+    {
+        stream.PrintLn("box.g {}, t{}, {}", dst, srcTs, ti);
+    }
 
     void Unbox(AnyReg dst, IReg src, uint32_t tk) override { stream.PrintLn("unbox R{}, {}, @{}", dst, tk); }
 
