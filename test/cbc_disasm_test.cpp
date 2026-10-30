@@ -124,24 +124,24 @@ TEST_F(CbcDisasmTest, ConvertRaw)
     );
 }
 
-TEST_F(CbcDisasmTest, ConvertRawUnknownPairDies)
+TEST_F(CbcDisasmTest, ConvertRawUnknownPair)
 {
     uint8_t code[] = {
         static_cast<uint8_t>(Cbc::Opcode::Convert),
         static_cast<uint8_t>((0x0 << 4) | 0x0), // I8 -> I8, not in the cast table
         static_cast<uint8_t>(static_cast<uint8_t>(Cbc::IReg::IR2) | (static_cast<uint8_t>(Cbc::IReg::IR1) << 4)),
     };
-    ASSERT_DEATH(RawIsaDisasm(code, code + sizeof(code)), "convert: unsupported cast I8 -> I8");
+    EXPECT_EQ("0: convert I8, I8, IR1, IR2\n", RawIsaDisasm(code, code + sizeof(code)));
 }
 
-TEST_F(CbcDisasmTest, CheckedConvertUnsupportedPairDies)
+TEST_F(CbcDisasmTest, CheckedConvertRawUnsupportedPair)
 {
     uint8_t code[] = {
         static_cast<uint8_t>(Cbc::Opcode::CheckedConvert),
         static_cast<uint8_t>((0x6 << 4) | 0x4), // I32 -> I64, widening is not checked
         static_cast<uint8_t>(static_cast<uint8_t>(Cbc::IReg::IR2) | (static_cast<uint8_t>(Cbc::IReg::IR1) << 4)),
     };
-    ASSERT_DEATH(RawIsaDisasm(code, code + sizeof(code)), "checked.convert: unsupported cast I32 -> I64");
+    EXPECT_EQ("0: checked.convert I64, I32, IR1, IR2\n", RawIsaDisasm(code, code + sizeof(code)));
 }
 
 template <typename T> static std::string RtLog(T args)

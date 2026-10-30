@@ -562,11 +562,32 @@ struct IsaRewriter : public IsaParser {
         emit.Unary(op, width, d, s);
     }
 
-    void Convert(Format::CastOp cast, AnyReg to, AnyReg from) override { emit.Convert(cast, to, from); }
-
-    void CheckedConvert(Format::CheckedCastOp cast, AnyReg to, AnyReg from) override
+    void Convert(Format::CastType::Pair cast, AnyReg to, AnyReg from) override
     {
-        emit.CheckedConvert(cast, to, from);
+        auto op = Format::CastOp::FromPair(static_cast<uint8_t>(cast.from), static_cast<uint8_t>(cast.to));
+        if (!op) {
+            FailCast("convert", cast);
+            return;
+        }
+        emit.Convert(*op, to, from);
+    }
+
+    void CheckedConvert(Format::CastType::Pair cast, AnyReg to, AnyReg from) override
+    {
+        auto op = Format::CheckedCastOp::FromPair(static_cast<uint8_t>(cast.from), static_cast<uint8_t>(cast.to));
+        if (!op) {
+            FailCast("checked.convert", cast);
+            return;
+        }
+        emit.CheckedConvert(*op, to, from);
+    }
+
+    void FailCast(const char* opcode, Format::CastType::Pair cast)
+    {
+        Fail(
+            std::string(opcode) + ": unsupported cast " + std::string(Format::CastType::Name(cast.from)) + " -> " +
+            std::string(Format::CastType::Name(cast.to))
+        );
     }
 
     void MovBasePtr(IReg dst, bool local) override

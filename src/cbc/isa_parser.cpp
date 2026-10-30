@@ -419,35 +419,21 @@ struct IsaParserImpl {
     static void Convert(IsaParser& parser)
     {
         auto [toType, fromType, to, from] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
-        auto op                           = CastOp::FromPair(fromType, toType);
-        if (!op) {
-            CastFailure("convert", fromType, toType);
-        }
-        parser.Convert(*op, to, from);
+        parser.Convert(CastPair(fromType, toType), to, from);
     }
 
     static void CheckedConvert(IsaParser& parser)
     {
         auto [toType, fromType, to, from] = ByteReaderM(parser.reader).ReadU4().ReadU4().ReadU4().ReadU4().Get();
-        auto op                           = CheckedCastOp::FromPair(fromType, toType);
-        if (!op) {
-            CastFailure("checked.convert", fromType, toType);
-        }
-        parser.CheckedConvert(*op, to, from);
+        parser.CheckedConvert(CastPair(fromType, toType), to, from);
     }
 
-    [[noreturn]] static void CastFailure(const char* opcode, uint8_t fromType, uint8_t toType)
+    static CastType::Pair CastPair(Value fromType, Value toType)
     {
-        auto from = CastType::Name(static_cast<CastType::Code>(fromType));
-        auto to   = CastType::Name(static_cast<CastType::Code>(toType));
-        FATAL(
-            "%s: unsupported cast %.*s -> %.*s",
-            opcode,
-            static_cast<int>(from.size()),
-            from.data(),
-            static_cast<int>(to.size()),
-            to.data()
-        );
+        return CastType::Pair {
+            static_cast<CastType::Code>(static_cast<uint8_t>(fromType)),
+            static_cast<CastType::Code>(static_cast<uint8_t>(toType)),
+        };
     }
 
     static void NewArr(IsaParser& parser)
