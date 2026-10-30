@@ -122,7 +122,7 @@ public:
 
     DynamicFunctionHandle* GetHelper(Helper helper);
 
-    void FindAndPrepareHelpers(Engine::Session& session, std::string_view mainCbc);
+    void FindAndPrepareHelpers(Engine::Session& session);
 
     // Acquires a function pointer that could be invoked from compiled code
     // to invoke the method referenced by `fuh`.
