@@ -564,22 +564,20 @@ struct IsaRewriter : public IsaParser {
 
     void Convert(Format::CastType::Pair cast, AnyReg to, AnyReg from) override
     {
-        auto op = Format::CastOp::FromPair(static_cast<uint8_t>(cast.from), static_cast<uint8_t>(cast.to));
-        if (!op) {
+        UNWRAP_OPT(op, Format::CastOp::FromPair(static_cast<uint8_t>(cast.from), static_cast<uint8_t>(cast.to)), [&]() {
             FailCast("convert", cast);
-            return;
-        }
-        emit.Convert(*op, to, from);
+        });
+        emit.Convert(op, to, from);
     }
 
     void CheckedConvert(Format::CastType::Pair cast, AnyReg to, AnyReg from) override
     {
-        auto op = Format::CheckedCastOp::FromPair(static_cast<uint8_t>(cast.from), static_cast<uint8_t>(cast.to));
-        if (!op) {
-            FailCast("checked.convert", cast);
-            return;
-        }
-        emit.CheckedConvert(*op, to, from);
+        UNWRAP_OPT(
+            op,
+            Format::CheckedCastOp::FromPair(static_cast<uint8_t>(cast.from), static_cast<uint8_t>(cast.to)),
+            [&]() { FailCast("checked.convert", cast); }
+        );
+        emit.CheckedConvert(op, to, from);
     }
 
     void FailCast(const char* opcode, Format::CastType::Pair cast)
