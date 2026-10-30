@@ -50,6 +50,8 @@ static void MockNewObj(Ectype* ectype, ThreadHandle th, TypeInfo type)
     ectype->Put(IReg::IR1, Value::Reference { .value = reinterpret_cast<uintptr_t>(mem) });
 }
 
+static Type g_lastImplicitThrow = Type::Successful;
+
 static void DoInterpretationLoop(
     Ectype* ectype, Frame frame, ThreadHandle th, LiteralTable* literals, Decoder::ByteReader& reader
 )
@@ -67,12 +69,17 @@ static void DoInterpretationLoop(
             case ThunkOp::I2ICall:
                 InterpreterI2CallTest(ectype, th, reinterpret_cast<DynamicFunctionHandle*>(thunk.arg));
                 break;
+            case ThunkOp::ThrowImplicit:
+                g_lastImplicitThrow = static_cast<Type>(reinterpret_cast<uintptr_t>(thunk.arg));
+                return;
             default: FATAL("Unhandled mock thunk op");
         }
     }
     Log::interpretation.Stream(Logging::Level::DEBUG).PrintFmt("Stopped interpration of mock method");
     Log::interpretation.Stream(Logging::Level::DEBUG).NewLine();
 }
+
+Type LastImplicitThrow() { return g_lastImplicitThrow; }
 
 template <typename RegType>
 Value::Primitive Interpret(
@@ -82,10 +89,12 @@ Value::Primitive Interpret(
     Value::Primitive ir2,
     Value::Primitive fr0,
     Value::Primitive fr1,
-    RegType resReg
+    RegType resReg,
+    Value::Primitive ir3 = Value::Primitive { .u64 = 0 }
 )
 {
     heap.Reset();
+    g_lastImplicitThrow = Type::Successful;
 
     Interpretation::Ectype ectype {};
     uint8_t bufIrs[sizeof(ectype.iregs)];
@@ -108,6 +117,7 @@ Value::Primitive Interpret(
     ectype.iregs[0].primitive = Value::Primitive { .u64 = 0 };
     ectype.Put(IReg::IR1, ir1);
     ectype.Put(IReg::IR2, ir2);
+    ectype.Put(IReg::IR3, ir3);
     ectype.Put(FReg::FR0, fr0);
     ectype.Put(FReg::FR1, fr1);
 
@@ -206,6 +216,38 @@ Interpretation::Value::Primitive Interpret(
 )
 {
     return Interpretation::Interpret<Cbc::IReg>(code, frame, ir1, ir2, F32(0), F32(0), Cbc::IReg::IR1);
+}
+
+Interpretation::Value::Primitive Interpret(
+    Interpretation::Code code,
+    Interpretation::Value::Primitive ir1,
+    Interpretation::Value::Primitive ir2,
+    Interpretation::Value::Primitive ir3
+)
+{
+    return Interpretation::Interpret<Cbc::IReg>(
+        code, Interpretation::zeroFrame, ir1, ir2, F32(0), F32(0), Cbc::IReg::IR1, ir3
+    );
+}
+
+Interpretation::Type InterpretThrows(
+    Interpretation::Code code, Interpretation::Value::Primitive ir1, Interpretation::Value::Primitive ir2
+)
+{
+    return InterpretThrows(code, ir1, ir2, U32(0));
+}
+
+Interpretation::Type InterpretThrows(
+    Interpretation::Code code,
+    Interpretation::Value::Primitive ir1,
+    Interpretation::Value::Primitive ir2,
+    Interpretation::Value::Primitive ir3
+)
+{
+    Interpretation::Interpret<Cbc::IReg>(
+        code, Interpretation::zeroFrame, ir1, ir2, F32(0), F32(0), Cbc::IReg::IR1, ir3
+    );
+    return Interpretation::LastImplicitThrow();
 }
 
 Interpretation::Value::Primitive InterpretFPRes(

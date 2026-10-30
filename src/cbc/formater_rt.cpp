@@ -7,7 +7,7 @@ namespace Cbc {
 namespace RT {
 
 // Characters that could end an argument format descriptor.
-constexpr static std::string_view delimiters(" .],)");
+constexpr static std::string_view delimiters(" .,])");
 
 struct Operand {
     uint64_t const value;
@@ -333,13 +333,6 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3xrrr arg
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3xxrr args)
 {
     Operand operands[] = { args.xx.imm1, args.xx.imm2, args.rr.x, args.rr.y };
-    Formatter formatter(table, stream, format_strings[args.opc], operands);
-    formatter.Format();
-}
-
-void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B4xi12xr args)
-{
-    Operand operands[] = { args.xi12.imm4, args.xi12.imm12, args.xr.imm, args.xr.r };
     Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }
