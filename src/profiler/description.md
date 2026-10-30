@@ -156,15 +156,11 @@ Consumer не может просто записать в `readerState` знач
 Поэтому Consumer меняет состояние только условно, с помощью `ChangeReaderState`. Функция выполняет переход `from -> to`, только если в момент CAS атомарная переменная всё ещё равна `from`:
 
 ```cpp
-void ChangeReaderState(
-    FiberProfile& profile,
-    ReaderState from,
-    ReaderState to
-)
+void FiberProfile::ChangeReaderState(ReaderState from, ReaderState to)
 {
     while (true) {
         auto expected = from;
-        if (profile.readerState.compare_exchange_weak(expected, to)) {
+        if (readerState.compare_exchange_weak(expected, to)) {
             return;
         }
         std::this_thread::yield();
@@ -195,8 +191,7 @@ void ChangeReaderState(
 ```cpp
 void ConsumePublished(FiberProfile& profile, CallCounters& counters)
 {
-    ChangeReaderState(
-        profile,
+    profile.ChangeReaderState(
         ReaderState::INACTIVE,
         ReaderState::ACTIVE
     );
@@ -209,8 +204,7 @@ void ConsumePublished(FiberProfile& profile, CallCounters& counters)
                       FiberProfile::CALL_BUFFER_SIZE, counters);
     }
 
-    ChangeReaderState(
-        profile,
+    profile.ChangeReaderState(
         ReaderState::ACTIVE,
         ReaderState::INACTIVE
     );
@@ -277,105 +271,13 @@ void DestroyFiberProfile(FiberProfileHandle& profile)
 
 Consumer загружает `active` операцией `seq_cst`. Если Producer завершён, он больше не изменяет producer-local поля и текущий буфер. Consumer сначала обрабатывает опубликованный полный буфер, затем вычисляет текущий writer-индекс как `sharedWriterIndex & 1` и безопасно читает оставшиеся `count` записей текущего, возможно частично заполненного буфера. После этого профиль удаляется из списка активных.
 
-## Верификация с помощью CDSChecker
+## Верификация с помощью genmc
 
-Протокол состояний и буферов проверялся с помощью CDSChecker — model checker для атомарных операций и memory model C11/C++11.
-
-### Устройство модели
-
-Модель сохраняет существенные части алгоритма:
-
-- два буфера;
-- одного Producer и одного Consumer;
-- состояния `INACTIVE`, `ACTIVE`, `TRANSITION`;
-- те же CAS-переходы, операции `seq_cst` и producer-only relaxed-загрузки writer-индекса;
-- `sharedWriterIndex` со значением `NO_PUBLISHED_BUFFER` до первой публикации;
-- переключение только при предыдущем состоянии `INACTIVE`.
-
-Чтобы перебрать все состояния, размер буфера уменьшён до одного. Producer выполняет три заполнения: этого достаточно, чтобы повторно использовать первый буфер и обнаружить возможное одновременное чтение и запись. Потоки создаются через C11 `thrd_create`.
-
-Схема модели выглядит так:
-
-```cpp
-void Producer(void*)
-{
-    for (uint32_t batch = 1; batch <= 3; ++batch) {
-        for (uint32_t i = 0; i < BUFFER_SIZE; ++i) {
-            const auto writerIndex = sharedWriterIndex.load(std::memory_order_relaxed) & 1U;
-            store_32(&buffers[writerIndex][cursor], batch);
-            cursor = (cursor + 1U) & (BUFFER_SIZE - 1U);
-        }
-        TryPublish();
-    }
-}
-
-void Consumer(void*)
-{
-    // CAS: INACTIVE -> ACTIVE
-    int expected = INACTIVE;
-    while (!readerState.compare_exchange_weak(expected, ACTIVE)) {
-        expected = INACTIVE;
-        thrd_yield();
-    }
-
-    const auto currentSharedWriterIndex = sharedWriterIndex.load();
-    if (currentSharedWriterIndex != NO_PUBLISHED_BUFFER) {
-        const auto readerIndex = currentSharedWriterIndex ^ 1U;
-        MODEL_ASSERT(readerIndex != currentSharedWriterIndex);
-
-        const auto currentWriterIndex = static_cast<uint32_t>(sharedWriterIndex.load());
-        MODEL_ASSERT(readerIndex != currentWriterIndex);
-
-        const auto record = load_32(&buffers[readerIndex][0]);
-
-        MODEL_ASSERT(record != 0);
-    }
-
-    // CAS: ACTIVE -> INACTIVE
-    expected = ACTIVE;
-    while (!readerState.compare_exchange_weak(expected, INACTIVE)) {
-        expected = ACTIVE;
-        thrd_yield();
-    }
-}
-```
-
-### Проверяемые свойства
-
-Обычные обращения к записям заменены функциями `store_32` и `load_32` из `librace`. Благодаря этому CDSChecker автоматически сообщает о data race, если Producer и Consumer обращаются к одной записи без happens-before.
-
-В модели установлены следующие assertions:
-
-```cpp
-MODEL_ASSERT(readerIndex != currentSharedWriterIndex);
-```
-
-Проверяет, что выбранный Consumer буфер отличается от writer-буфера в момент получения снимка.
-
-```cpp
-const auto currentWriterIndex = sharedWriterIndex.load(...);
-MODEL_ASSERT(readerIndex != currentWriterIndex);
-```
-
-Проверяет, после возможного переключения планировщика, что Producer не смог сменить индекс на буфер Consumer во время чтения.
-
-```cpp
-MODEL_ASSERT(record != 0);
-```
-
-Проверяет, что Consumer не прочитал буфер до его первой полной инициализации.
-
-Также проверяется отсутствие deadlock в конечной модели. При намеренном нарушении протокола — если разрешить Producer переключать буфер при предыдущем состоянии `ACTIVE` — CDSChecker обнаруживает data race между `load_32` Consumer и `store_32` Producer. Это использовалось как отрицательная проверка, что модель действительно чувствительна к нарушению основного инварианта.
-
-Для корректной версии итог model checking содержит:
-
-```text
-Number of complete, bug-free executions: 466
-Number of redundant executions: 150
-Number of buggy executions: 0
-Number of infeasible executions: 0
-Total executions: 616
-```
+*** Verification complete.
+No errors were detected.
+Number of complete executions explored: 169
+Number of blocked executions seen: 152
+Total wall-clock time: 142.45s
 
 ### Границы проверки
 

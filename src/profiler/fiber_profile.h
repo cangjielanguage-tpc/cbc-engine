@@ -7,6 +7,10 @@
 
 namespace Cbc::Profiler {
 
+#ifndef CBC_PROFILER_CALL_BUFFER_SIZE
+    #define CBC_PROFILER_CALL_BUFFER_SIZE 4096
+#endif
+
 using FunctionId = uintptr_t;
 using CallSiteId = uintptr_t;
 
@@ -14,6 +18,7 @@ class FiberProfile;
 using FiberProfileHandle = std::shared_ptr<FiberProfile>;
 
 class FiberProfileManager;
+struct FiberProfileTestAccess;
 
 class FiberProfile {
 public:
@@ -34,7 +39,7 @@ public:
     }
 
 private:
-    static constexpr uint32_t CALL_BUFFER_SIZE    = 4096;
+    static constexpr uint32_t CALL_BUFFER_SIZE    = CBC_PROFILER_CALL_BUFFER_SIZE;
     static constexpr uint32_t NO_PUBLISHED_BUFFER = 2;
 
     struct CallRecord {
@@ -56,7 +61,10 @@ private:
     // still owns the other buffer, keep the current one and overwrite it in place.
     [[gnu::noinline, gnu::cold]] void TryPublish();
 
+    void ChangeReaderState(ReaderState from, ReaderState to);
+
     friend class FiberProfileManager;
+    friend struct FiberProfileTestAccess;
     friend void DestroyFiberProfile(FiberProfileHandle& profile);
 
     std::array<CallBuffer, 2> buffers;

@@ -144,20 +144,9 @@ private:
         }
     }
 
-    static void ChangeReaderState(FiberProfile& profile, FiberProfile::ReaderState from, FiberProfile::ReaderState to)
-    {
-        while (true) {
-            auto expected = from;
-            if (profile.readerState.compare_exchange_weak(expected, to)) {
-                return;
-            }
-            std::this_thread::yield();
-        }
-    }
-
     void ConsumePublished(FiberProfile& profile, CallCounters& counters)
     {
-        ChangeReaderState(profile, FiberProfile::ReaderState::INACTIVE, FiberProfile::ReaderState::ACTIVE);
+        profile.ChangeReaderState(FiberProfile::ReaderState::INACTIVE, FiberProfile::ReaderState::ACTIVE);
 
         const auto writerIndex = profile.sharedWriterIndex.load();
         if (writerIndex != FiberProfile::NO_PUBLISHED_BUFFER) {
@@ -165,7 +154,7 @@ private:
             ProcessBuffer(profile.buffers[readerIndex], 0, FiberProfile::CALL_BUFFER_SIZE, counters);
         }
 
-        ChangeReaderState(profile, FiberProfile::ReaderState::ACTIVE, FiberProfile::ReaderState::INACTIVE);
+        profile.ChangeReaderState(FiberProfile::ReaderState::ACTIVE, FiberProfile::ReaderState::INACTIVE);
     }
 
     bool ConsumeProfile(FiberProfile& profile, CallCounters& counters)
@@ -175,8 +164,6 @@ private:
         ConsumePublished(profile, counters);
 
         if (finished) {
-            // Producer is permanently gone, so it is now safe to read
-            // even the never-published, partially-filled active buffer.
             const auto writerIndex = profile.sharedWriterIndex.load() & 1U;
             auto& current          = profile.buffers[writerIndex];
             const uint32_t start   = profile.count == FiberProfile::CALL_BUFFER_SIZE ? profile.cursor : 0;
@@ -226,7 +213,7 @@ private:
     std::list<FiberProfileHandle> pending;
     bool stopping { false }; // guarded by queueMutex
 
-    std::list<FiberProfileHandle> activeProfiles;  // owned exclusively by collector thread.
+    std::list<FiberProfileHandle> activeProfiles;  // owned exclusively by collector thread
 
     std::thread worker;
 };
