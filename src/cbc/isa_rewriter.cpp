@@ -1561,7 +1561,9 @@ struct IsaRewriter : public IsaParser {
 
     void CallDirect(uint32_t methodId, Utils::Span<const Location> args) override
     {
-        UNWRAP_OPT(method, resolver.Query(Index<DirectCall>(methodId)), Fail);
+        UNWRAP_OPT(method, resolver.Query(Index<DirectCall>(methodId)), [&]() {
+            Fail("Failed to resolve direct call @" + std::to_string(methodId));
+        });
 
         auto ref = Decode::Read(
             session,
