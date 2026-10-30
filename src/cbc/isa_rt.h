@@ -435,20 +435,6 @@ struct B4xi12rr {
     }
 };
 
-struct B4xi12xr {
-    Opcode opc;
-    Format::XImm12 xi12;
-    Format::XR xr;
-
-    static B4xi12xr Decode(Decoder::ByteReader& reader)
-    {
-        auto opc  = Opcode::Decode(reader);
-        auto xi12 = Format::XImm12::Decode(reader);
-        auto xr   = Format::XR::Decode(reader);
-        return B4xi12xr { opc, xi12, xr };
-    }
-};
-
 struct BinaryChecked {
     Opcode opc;
     Format::Checked op;
