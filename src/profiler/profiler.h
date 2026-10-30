@@ -12,7 +12,8 @@ namespace Cbc::Profiler {
 struct ProfiledCall {
     FunctionId caller;
     std::string callerName;
-    uintptr_t callSiteOffset;
+    uint32_t cbcCallSiteOffset;
+    uint32_t runtimeCallSiteOffset;
     FunctionId callee;
     std::string calleeName;
     uint64_t count;

@@ -112,11 +112,16 @@ private:
         ASSERT(args.opc == Cbc::RT::Opcode::DIRECT_CALL_2I);
         const auto callee = bytecode->code.literals->at(args.xi12.imm12).uintptr;
         auto* calleeFuh   = reinterpret_cast<Interpretation::DynamicFunctionHandle*>(callee);
+        const auto runtimeCallSiteOffset = static_cast<uint32_t>(edge.callSite - bytecodeStart);
+        const auto cbcCallSiteOffset =
+            bytecode->offsetsIndex.FindMappedOffset(Cbc::InstructionType::REWRITTEN, runtimeCallSiteOffset);
+        ASSERT(cbcCallSiteOffset.has_value());
 
         return {
             edge.caller,
             ResolveFunctionName(session, *callerFuh),
-            edge.callSite - bytecodeStart,
+            cbcCallSiteOffset.value(),
+            runtimeCallSiteOffset,
             callee,
             ResolveFunctionName(session, *calleeFuh),
             count,
