@@ -482,7 +482,9 @@ struct IsaRewriter : public IsaParser {
                     continue;
                 }
 
-                if (foreign && params[j].IsRecord()) {
+                if (foreign && params[j].GetKind() == Engine::TermKind::VARRAY) {
+                    moves.AddMove(abi.Consume(CbcTypeKind::I64), args[idx++]);
+                } else if (foreign && params[j].IsRecord()) {
                     // Pass struct argument by value.
                     if (!StageForeignStructArg(args[idx++], params[j], isVarArg, moves, abi, structCopies)) {
                         Fail("failed to stage by-value struct argument");
