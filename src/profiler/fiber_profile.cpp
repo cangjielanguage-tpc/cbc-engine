@@ -26,4 +26,15 @@ void FiberProfile::TryPublish()
     readerState.store(previous);
 }
 
+void FiberProfile::ChangeReaderState(ReaderState from, ReaderState to)
+{
+    while (true) {
+        auto expected = from;
+        if (readerState.compare_exchange_weak(expected, to)) {
+            return;
+        }
+        std::this_thread::yield();
+    }
+}
+
 } // namespace Cbc::Profiler
