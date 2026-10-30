@@ -371,8 +371,7 @@ static MethodTableMember GetTableMember(
     ASSERTION(flags.Is(Image::MethodFlag::VIRTUAL), "Only virtual methods are expected");
 
     auto dynamicMember = [&](Interpretation::DynamicFunctionHandle* fuh) -> MethodTableMember {
-        // Static virtual calls pass hidden type information instead of an instance receiver.
-        // Binding the handle preserves the ABI regardless of where those arguments are passed.
+        // distinguish between static virtual and instance virtual methods since they have different calling conventions
         auto function = method->abiKind == Image::MethodAbiKind::HAS_THIS_TI
                             ? Adapters::GetDirectCallTrampoline(fuh)
                             : Adapters::GetDynCallTrampoline(entryIdx, flags.Is(Image::MethodFlag::SRET));

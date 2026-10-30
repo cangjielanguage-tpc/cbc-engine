@@ -62,10 +62,11 @@ void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* f
     return GetAddressOfDirectCallTrampoline(i);
 }
 
-Interpretation::DynamicFunctionHandle* Adapters::TryGetDirectCallTarget(void* entry)
+// Tries to restore the DynamicFunctionHandle from the direct call trampoline address.
+Interpretation::DynamicFunctionHandle* Adapters::TryGetDirectCallTargetFuh(void* trampoline)
 {
     auto start   = reinterpret_cast<uintptr_t>(&Asm::engine_trampolines_direct_start);
-    auto address = reinterpret_cast<uintptr_t>(entry);
+    auto address = reinterpret_cast<uintptr_t>(trampoline);
     if (address < start) {
         return nullptr;
     }
