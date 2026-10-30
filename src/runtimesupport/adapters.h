@@ -11,7 +11,7 @@ struct Adapters {
     static void* GenericC2ICallInstance();
     static void* IregOnlyC2ICallInstance();
     static void* GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* fuh);
-    static Interpretation::DynamicFunctionHandle* TryGetDirectCallTarget(void* entry);
+    static Interpretation::DynamicFunctionHandle* TryGetDirectCallTargetFuh(void* entry);
     static void* GetDynCallTrampoline(int fuhIdx, bool sret);
     static void* C2ICall(Interpretation::AbiInfo info);
 };
