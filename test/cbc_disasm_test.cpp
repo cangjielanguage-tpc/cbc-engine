@@ -109,18 +109,39 @@ static std::string RawIsaDisasm(uint8_t* start, uint8_t* end)
 TEST_F(CbcDisasmTest, ConvertRaw)
 {
     uint8_t code[] = {
+        // input ISA encodes a cast as (to << 4) | from type codes, i.e. I64 -> I32
         static_cast<uint8_t>(Cbc::Opcode::Convert),
-        static_cast<uint8_t>(Cbc::Format::CastOp::I32_TO_I64),
+        static_cast<uint8_t>((0x4 << 4) | 0x6),
         static_cast<uint8_t>(static_cast<uint8_t>(Cbc::IReg::IR2) | (static_cast<uint8_t>(Cbc::IReg::IR1) << 4)),
         static_cast<uint8_t>(Cbc::Opcode::CheckedConvert),
-        static_cast<uint8_t>(Cbc::Format::CastOp::F64_TO_F32),
-        static_cast<uint8_t>(static_cast<uint8_t>(Cbc::FReg::FR1) | (static_cast<uint8_t>(Cbc::FReg::FR0) << 4)),
+        static_cast<uint8_t>((0x4 << 4) | 0xa), // F64 -> I32
+        static_cast<uint8_t>((static_cast<uint8_t>(Cbc::IReg::IR2) << 4) | static_cast<uint8_t>(Cbc::FReg::FR0)),
     };
     EXPECT_EQ(
         "0: convert I32, I64, IR1, IR2\n"
-        "3: checked.convert F64, F32, FR0, FR1\n",
+        "3: checked.convert I32, F64, IR2, FR0\n",
         RawIsaDisasm(code, code + sizeof(code))
     );
+}
+
+TEST_F(CbcDisasmTest, ConvertRawUnknownPairDies)
+{
+    uint8_t code[] = {
+        static_cast<uint8_t>(Cbc::Opcode::Convert),
+        static_cast<uint8_t>((0x0 << 4) | 0x0), // I8 -> I8, not in the cast table
+        static_cast<uint8_t>(static_cast<uint8_t>(Cbc::IReg::IR2) | (static_cast<uint8_t>(Cbc::IReg::IR1) << 4)),
+    };
+    ASSERT_DEATH(RawIsaDisasm(code, code + sizeof(code)), "invalid cast: I8 -> I8");
+}
+
+TEST_F(CbcDisasmTest, CheckedConvertUnsupportedPairDies)
+{
+    uint8_t code[] = {
+        static_cast<uint8_t>(Cbc::Opcode::CheckedConvert),
+        static_cast<uint8_t>((0x6 << 4) | 0x4), // I32 -> I64, widening is not checked
+        static_cast<uint8_t>(static_cast<uint8_t>(Cbc::IReg::IR2) | (static_cast<uint8_t>(Cbc::IReg::IR1) << 4)),
+    };
+    ASSERT_DEATH(RawIsaDisasm(code, code + sizeof(code)), "unsupported checked cast: I32 -> I64");
 }
 
 static std::string RtLog(Cbc::RT::ConvertOp args)
@@ -133,10 +154,18 @@ static std::string RtLog(Cbc::RT::ConvertOp args)
 TEST(CbcFormatTest, CastOpLayout)
 {
     Cbc::Format::CastOp op = Cbc::Format::CastOp::I32_TO_I64;
-    EXPECT_EQ(op.Raw(), 0x46);
+    EXPECT_EQ(op.Raw(), static_cast<uint8_t>(Cbc::Format::CastOp::I32_TO_I64));
     EXPECT_EQ(op.FromTypeStr(), "I32");
     EXPECT_EQ(op.ToTypeStr(), "I64");
-    EXPECT_EQ(Cbc::Format::CastOp(0x6, 0x4).Raw(), op.Raw());
+    EXPECT_EQ(Cbc::Format::CastOp::FromPair(0x4, 0x6).Raw(), op.Raw());
+    EXPECT_EQ(Cbc::Format::CastOp::FromPair(0x0, 0x0), Cbc::Format::CastOp::INVALID);
+
+    // Every op is reachable from its own (from, to) pair, and the enum is dense.
+    for (uint8_t i = 0; i < Cbc::Format::CastOp::COUNT; ++i) {
+        auto entry = Cbc::Format::CastOp(static_cast<Cbc::Format::CastOp::Value>(i));
+        EXPECT_EQ(entry.Raw(), i);
+        EXPECT_EQ(Cbc::Format::CastOp::FromPair(entry.FromType(), entry.ToType()).Raw(), i);
+    }
 }
 
 TEST(CbcRtDisasmTest, ConvertUnchecked)

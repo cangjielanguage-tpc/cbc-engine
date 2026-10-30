@@ -11,6 +11,137 @@ namespace Interpretation {
 
 using CastOp = Cbc::Format::CastOp;
 
+// Casts implemented by each convert opcode. Keep in sync with the switches in
+// CastPrim / CheckedCastPrim below.
+inline constexpr CastOp UNCHECKED_CASTS[] = {
+    // from I32
+    CastOp::I32_TO_I8,
+    CastOp::I32_TO_U8,
+    CastOp::I32_TO_I16,
+    CastOp::I32_TO_U16,
+    CastOp::I32_TO_I64,
+    CastOp::I32_TO_F32,
+    CastOp::I32_TO_F64,
+    // from U32
+    CastOp::U32_TO_I8,
+    CastOp::U32_TO_U8,
+    CastOp::U32_TO_I16,
+    CastOp::U32_TO_U16,
+    CastOp::U32_TO_I64,
+    CastOp::U32_TO_F32,
+    CastOp::U32_TO_F64,
+    // from I64
+    CastOp::I64_TO_I32,
+    CastOp::I64_TO_F32,
+    CastOp::I64_TO_F64,
+    // from U64
+    CastOp::U64_TO_I32,
+    CastOp::U64_TO_U32,
+    CastOp::U64_TO_F32,
+    CastOp::U64_TO_F64,
+    // from F32
+    CastOp::F32_TO_I8,
+    CastOp::F32_TO_U8,
+    CastOp::F32_TO_I16,
+    CastOp::F32_TO_U16,
+    CastOp::F32_TO_I32,
+    CastOp::F32_TO_U32,
+    CastOp::F32_TO_I64,
+    CastOp::F32_TO_U64,
+    CastOp::F32_TO_F64,
+    // from F64
+    CastOp::F64_TO_I8,
+    CastOp::F64_TO_U8,
+    CastOp::F64_TO_I16,
+    CastOp::F64_TO_U16,
+    CastOp::F64_TO_I32,
+    CastOp::F64_TO_U32,
+    CastOp::F64_TO_I64,
+    CastOp::F64_TO_U64,
+    CastOp::F64_TO_F32,
+};
+
+inline constexpr CastOp CHECKED_CASTS[] = {
+    // from I8
+    CastOp::I8_TO_U8,
+    // from U8
+    CastOp::U8_TO_I8,
+    // from I16
+    CastOp::I16_TO_I8,
+    CastOp::I16_TO_U8,
+    CastOp::I16_TO_U16,
+    // from U16
+    CastOp::U16_TO_I8,
+    CastOp::U16_TO_U8,
+    CastOp::U16_TO_I16,
+    // from I32
+    CastOp::I32_TO_I8,
+    CastOp::I32_TO_U8,
+    CastOp::I32_TO_I16,
+    CastOp::I32_TO_U16,
+    CastOp::I32_TO_U32,
+    // from U32
+    CastOp::U32_TO_I8,
+    CastOp::U32_TO_U8,
+    CastOp::U32_TO_I16,
+    CastOp::U32_TO_U16,
+    CastOp::U32_TO_I32,
+    // from I64
+    CastOp::I64_TO_I8,
+    CastOp::I64_TO_U8,
+    CastOp::I64_TO_I16,
+    CastOp::I64_TO_U16,
+    CastOp::I64_TO_I32,
+    CastOp::I64_TO_U32,
+    CastOp::I64_TO_U64,
+    // from U64
+    CastOp::U64_TO_I8,
+    CastOp::U64_TO_U8,
+    CastOp::U64_TO_I16,
+    CastOp::U64_TO_U16,
+    CastOp::U64_TO_I32,
+    CastOp::U64_TO_U32,
+    CastOp::U64_TO_I64,
+    // from F32
+    CastOp::F32_TO_I8,
+    CastOp::F32_TO_U8,
+    CastOp::F32_TO_I16,
+    CastOp::F32_TO_U16,
+    CastOp::F32_TO_I32,
+    CastOp::F32_TO_U32,
+    CastOp::F32_TO_I64,
+    CastOp::F32_TO_U64,
+    // from F64
+    CastOp::F64_TO_I8,
+    CastOp::F64_TO_U8,
+    CastOp::F64_TO_I16,
+    CastOp::F64_TO_U16,
+    CastOp::F64_TO_I32,
+    CastOp::F64_TO_U32,
+    CastOp::F64_TO_I64,
+    CastOp::F64_TO_U64,
+};
+
+constexpr bool IsUncheckedCastSupported(CastOp op)
+{
+    for (auto supported : UNCHECKED_CASTS) {
+        if (supported.Raw() == op.Raw()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+constexpr bool IsCheckedCastSupported(CastOp op)
+{
+    for (auto supported : CHECKED_CASTS) {
+        if (supported.Raw() == op.Raw()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 template <typename T> inline Value::Primitive MakeIntPrim(T value)
 {
     static_assert(std::is_integral_v<T>, "integral value is expected");

@@ -38,8 +38,6 @@ struct Operand {
 
     Format::CastOp Cast() { return Format::CastOp(U8()); }
 
-    Format::ConvertMode Mode() { return Format::ConvertMode::From(U8()); }
-
     IReg IR() { return IReg::From(U32() & 0xf); }
 
     FReg FR() { return FReg::From(U32() & 0xf); }
@@ -140,8 +138,6 @@ private:
 
     void Write(Format::CastOp v) { stream << v.FromTypeStr() << "->" << v.ToTypeStr(); }
 
-    void Write(Format::ConvertMode v) { stream << v.ToStr(); }
-
     void FormatArg(size_t& cursor, size_t fmtSize)
     {
         size_t start     = cursor;
@@ -218,8 +214,6 @@ private:
             Write(table->at(operand.U16()).u64);
         } else if (type == "cast") {
             Write(operand.Cast());
-        } else if (type == "cm") {
-            Write(operand.Mode());
         } else {
             FATAL("unexpected format type: %.*s", static_cast<int>(type.length()), type.data());
         }
@@ -345,7 +339,7 @@ void Log(Interpretation::LiteralTable* table, Stream::Output& stream, B3xrrr arg
 
 void Log(Interpretation::LiteralTable* table, Stream::Output& stream, ConvertOp args)
 {
-    Operand operands[] = { args.cast, args.mode, args.rr.x, args.rr.y };
+    Operand operands[] = { args.cast, args.rr.x, args.rr.y };
     Formatter formatter(table, stream, format_strings[args.opc], operands);
     formatter.Format();
 }

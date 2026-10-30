@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <string_view>
 
@@ -489,122 +490,140 @@ private:
 };
 
 class CastOp {
-private:
-    static constexpr uint8_t I8  = 0x0;
-    static constexpr uint8_t U8  = 0x1;
-    static constexpr uint8_t I16 = 0x2;
-    static constexpr uint8_t U16 = 0x3;
-    static constexpr uint8_t I32 = 0x4;
-    static constexpr uint8_t U32 = 0x5;
-    static constexpr uint8_t I64 = 0x6;
-    static constexpr uint8_t U64 = 0x7;
-    static constexpr uint8_t F16 = 0x8;
-    static constexpr uint8_t F32 = 0x9;
-    static constexpr uint8_t F64 = 0xa;
-
 public:
-    enum Value : uint8_t {
-        // from I8
-        I8_TO_U8 = (I8 << 4) | U8,
-
-        // from U8
-        U8_TO_I8 = (U8 << 4) | I8,
-
-        // from I16
-        I16_TO_I8  = (I16 << 4) | I8,
-        I16_TO_U8  = (I16 << 4) | U8,
-        I16_TO_U16 = (I16 << 4) | U16,
-
-        // from U16
-        U16_TO_I8  = (U16 << 4) | I8,
-        U16_TO_U8  = (U16 << 4) | U8,
-        U16_TO_I16 = (U16 << 4) | I16,
-
-        // from I32
-        I32_TO_I8  = (I32 << 4) | I8,
-        I32_TO_U8  = (I32 << 4) | U8,
-        I32_TO_I16 = (I32 << 4) | I16,
-        I32_TO_U16 = (I32 << 4) | U16,
-        I32_TO_U32 = (I32 << 4) | U32,
-        I32_TO_I64 = (I32 << 4) | I64,
-        I32_TO_F32 = (I32 << 4) | F32,
-        I32_TO_F64 = (I32 << 4) | F64,
-
-        // from U32
-        U32_TO_I8  = (U32 << 4) | I8,
-        U32_TO_U8  = (U32 << 4) | U8,
-        U32_TO_I16 = (U32 << 4) | I16,
-        U32_TO_U16 = (U32 << 4) | U16,
-        U32_TO_I32 = (U32 << 4) | I32,
-        U32_TO_I64 = (U32 << 4) | I64,
-        U32_TO_F32 = (U32 << 4) | F32,
-        U32_TO_F64 = (U32 << 4) | F64,
-
-        // from I64
-        I64_TO_I8  = (I64 << 4) | I8,
-        I64_TO_U8  = (I64 << 4) | U8,
-        I64_TO_I16 = (I64 << 4) | I16,
-        I64_TO_U16 = (I64 << 4) | U16,
-        I64_TO_I32 = (I64 << 4) | I32,
-        I64_TO_U32 = (I64 << 4) | U32,
-        I64_TO_U64 = (I64 << 4) | U64,
-        I64_TO_F32 = (I64 << 4) | F32,
-        I64_TO_F64 = (I64 << 4) | F64,
-
-        // from U64
-        U64_TO_I8  = (U64 << 4) | I8,
-        U64_TO_U8  = (U64 << 4) | U8,
-        U64_TO_I16 = (U64 << 4) | I16,
-        U64_TO_U16 = (U64 << 4) | U16,
-        U64_TO_I32 = (U64 << 4) | I32,
-        U64_TO_U32 = (U64 << 4) | U32,
-        U64_TO_I64 = (U64 << 4) | I64,
-        U64_TO_F32 = (U64 << 4) | F32,
-        U64_TO_F64 = (U64 << 4) | F64,
-
-        // from F32
-        F32_TO_I8  = (F32 << 4) | I8,
-        F32_TO_U8  = (F32 << 4) | U8,
-        F32_TO_I16 = (F32 << 4) | I16,
-        F32_TO_U16 = (F32 << 4) | U16,
-        F32_TO_I32 = (F32 << 4) | I32,
-        F32_TO_U32 = (F32 << 4) | U32,
-        F32_TO_I64 = (F32 << 4) | I64,
-        F32_TO_U64 = (F32 << 4) | U64,
-        F32_TO_F64 = (F32 << 4) | F64,
-
-        // from F64
-        F64_TO_I8  = (F64 << 4) | I8,
-        F64_TO_U8  = (F64 << 4) | U8,
-        F64_TO_I16 = (F64 << 4) | I16,
-        F64_TO_U16 = (F64 << 4) | U16,
-        F64_TO_I32 = (F64 << 4) | I32,
-        F64_TO_U32 = (F64 << 4) | U32,
-        F64_TO_I64 = (F64 << 4) | I64,
-        F64_TO_U64 = (F64 << 4) | U64,
-        F64_TO_F32 = (F64 << 4) | F32,
+    enum TypeCode : uint8_t {
+        I8  = 0x0,
+        U8  = 0x1,
+        I16 = 0x2,
+        U16 = 0x3,
+        I32 = 0x4,
+        U32 = 0x5,
+        I64 = 0x6,
+        U64 = 0x7,
+        F16 = 0x8,
+        F32 = 0x9,
+        F64 = 0xa,
+        TYPE_COUNT
     };
+
+#define CAST_OP_LIST(X)                                                                                                \
+    /* from I8 */                                                                                                      \
+    X(I8_TO_U8, I8, U8)                                                                                                \
+    /* from U8 */                                                                                                      \
+    X(U8_TO_I8, U8, I8)                                                                                                \
+    /* from I16 */                                                                                                     \
+    X(I16_TO_I8, I16, I8)                                                                                              \
+    X(I16_TO_U8, I16, U8)                                                                                              \
+    X(I16_TO_U16, I16, U16)                                                                                            \
+    /* from U16 */                                                                                                     \
+    X(U16_TO_I8, U16, I8)                                                                                              \
+    X(U16_TO_U8, U16, U8)                                                                                              \
+    X(U16_TO_I16, U16, I16)                                                                                            \
+    /* from I32 */                                                                                                     \
+    X(I32_TO_I8, I32, I8)                                                                                              \
+    X(I32_TO_U8, I32, U8)                                                                                              \
+    X(I32_TO_I16, I32, I16)                                                                                            \
+    X(I32_TO_U16, I32, U16)                                                                                            \
+    X(I32_TO_U32, I32, U32)                                                                                            \
+    X(I32_TO_I64, I32, I64)                                                                                            \
+    X(I32_TO_F32, I32, F32)                                                                                            \
+    X(I32_TO_F64, I32, F64)                                                                                            \
+    /* from U32 */                                                                                                     \
+    X(U32_TO_I8, U32, I8)                                                                                              \
+    X(U32_TO_U8, U32, U8)                                                                                              \
+    X(U32_TO_I16, U32, I16)                                                                                            \
+    X(U32_TO_U16, U32, U16)                                                                                            \
+    X(U32_TO_I32, U32, I32)                                                                                            \
+    X(U32_TO_I64, U32, I64)                                                                                            \
+    X(U32_TO_F32, U32, F32)                                                                                            \
+    X(U32_TO_F64, U32, F64)                                                                                            \
+    /* from I64 */                                                                                                     \
+    X(I64_TO_I8, I64, I8)                                                                                              \
+    X(I64_TO_U8, I64, U8)                                                                                              \
+    X(I64_TO_I16, I64, I16)                                                                                            \
+    X(I64_TO_U16, I64, U16)                                                                                            \
+    X(I64_TO_I32, I64, I32)                                                                                            \
+    X(I64_TO_U32, I64, U32)                                                                                            \
+    X(I64_TO_U64, I64, U64)                                                                                            \
+    X(I64_TO_F32, I64, F32)                                                                                            \
+    X(I64_TO_F64, I64, F64)                                                                                            \
+    /* from U64 */                                                                                                     \
+    X(U64_TO_I8, U64, I8)                                                                                              \
+    X(U64_TO_U8, U64, U8)                                                                                              \
+    X(U64_TO_I16, U64, I16)                                                                                            \
+    X(U64_TO_U16, U64, U16)                                                                                            \
+    X(U64_TO_I32, U64, I32)                                                                                            \
+    X(U64_TO_U32, U64, U32)                                                                                            \
+    X(U64_TO_I64, U64, I64)                                                                                            \
+    X(U64_TO_F32, U64, F32)                                                                                            \
+    X(U64_TO_F64, U64, F64)                                                                                            \
+    /* from F32 */                                                                                                     \
+    X(F32_TO_I8, F32, I8)                                                                                              \
+    X(F32_TO_U8, F32, U8)                                                                                              \
+    X(F32_TO_I16, F32, I16)                                                                                            \
+    X(F32_TO_U16, F32, U16)                                                                                            \
+    X(F32_TO_I32, F32, I32)                                                                                            \
+    X(F32_TO_U32, F32, U32)                                                                                            \
+    X(F32_TO_I64, F32, I64)                                                                                            \
+    X(F32_TO_U64, F32, U64)                                                                                            \
+    X(F32_TO_F64, F32, F64)                                                                                            \
+    /* from F64 */                                                                                                     \
+    X(F64_TO_I8, F64, I8)                                                                                              \
+    X(F64_TO_U8, F64, U8)                                                                                              \
+    X(F64_TO_I16, F64, I16)                                                                                            \
+    X(F64_TO_U16, F64, U16)                                                                                            \
+    X(F64_TO_I32, F64, I32)                                                                                            \
+    X(F64_TO_U32, F64, U32)                                                                                            \
+    X(F64_TO_I64, F64, I64)                                                                                            \
+    X(F64_TO_U64, F64, U64)                                                                                            \
+    X(F64_TO_F32, F64, F32)
+
+    enum Value : uint8_t {
+#define CAST_OP_DECLARE(name, from, to) name,
+        CAST_OP_LIST(CAST_OP_DECLARE)
+#undef CAST_OP_DECLARE
+        INVALID,
+        COUNT = INVALID,
+    };
+
+    struct TypePair {
+        TypeCode from;
+        TypeCode to;
+    };
+
+    static constexpr TypePair PAIRS[COUNT] = {
+#define CAST_OP_PAIR(name, from, to) TypePair { from, to },
+        CAST_OP_LIST(CAST_OP_PAIR)
+#undef CAST_OP_PAIR
+    };
+
+    static constexpr uint8_t PAIR_COUNT = TYPE_COUNT * TYPE_COUNT;
+
+    constexpr static CastOp FromPair(uint8_t from, uint8_t to);
 
     constexpr CastOp(const Value raw) : _value(raw) {}
 
     constexpr CastOp(uint8_t raw) : _value(static_cast<Value>(raw)) {}
 
-    constexpr CastOp(uint8_t to, uint8_t from) : _value(static_cast<Value>((from << 4) | to)) {}
-
     constexpr operator Value() const { return _value; }
 
     constexpr uint8_t Raw() const { return static_cast<uint8_t>(_value); }
 
-    constexpr bool ToIsFloatingPoint() const { return TypeIsFloatingPoint(Raw() & 0xf); }
+    constexpr bool IsValid() const { return _value < COUNT; }
 
-    constexpr bool FromIsFloatingPoint() const { return TypeIsFloatingPoint(Raw() >> 4); }
+    constexpr TypeCode FromType() const { return IsValid() ? PAIRS[_value].from : TYPE_COUNT; }
 
-    constexpr std::string_view ToTypeStr() const { return TypeName(Raw() & 0xf); }
+    constexpr TypeCode ToType() const { return IsValid() ? PAIRS[_value].to : TYPE_COUNT; }
 
-    constexpr std::string_view FromTypeStr() const { return TypeName(Raw() >> 4); }
+    constexpr bool ToIsFloatingPoint() const { return TypeIsFloatingPoint(ToType()); }
 
-private:
-    static constexpr std::string_view TypeName(uint8_t code)
+    constexpr bool FromIsFloatingPoint() const { return TypeIsFloatingPoint(FromType()); }
+
+    constexpr std::string_view ToTypeStr() const { return TypeName(ToType()); }
+
+    constexpr std::string_view FromTypeStr() const { return TypeName(FromType()); }
+
+    static constexpr std::string_view TypeName(TypeCode code)
     {
         switch (code) {
             case I8:  return "I8";
@@ -622,10 +641,33 @@ private:
         }
     }
 
-    static constexpr bool TypeIsFloatingPoint(uint8_t code) { return code >= F16 && code <= F64; }
+private:
+    static constexpr bool TypeIsFloatingPoint(TypeCode code) { return code >= F16 && code <= F64; }
 
     Value _value;
 };
+
+/// `(from, to)` type-code pair -> dense op index; built once at compile time.
+inline constexpr auto CAST_PAIR_TABLE = []() constexpr {
+    std::array<uint8_t, CastOp::PAIR_COUNT> table {};
+    for (auto& entry : table) {
+        entry = CastOp::INVALID;
+    }
+    for (uint8_t op = 0; op < CastOp::COUNT; ++op) {
+        table[CastOp::PAIRS[op].from * CastOp::TYPE_COUNT + CastOp::PAIRS[op].to] = op;
+    }
+    return table;
+}();
+
+inline constexpr CastOp CastOp::FromPair(uint8_t from, uint8_t to)
+{
+    if (from >= CastOp::TYPE_COUNT || to >= CastOp::TYPE_COUNT) {
+        return CastOp(CastOp::INVALID);
+    }
+    return CastOp(CAST_PAIR_TABLE[from * CastOp::TYPE_COUNT + to]);
+}
+
+#undef CAST_OP_LIST
 
 class FloatOperations {
 public:
