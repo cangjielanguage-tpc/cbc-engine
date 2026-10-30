@@ -10,7 +10,7 @@
 #include "interpreter/implicit_exceptions.h"
 #include "interpreter/loggers.h"
 #include "interpreter/platform_traits.h"
-#include "profiler/profiler.h"
+#include "profiler/fiber_profile.h"
 #include "runtimesupport/adapters.h"
 #include "runtimesupport/runtime.h"
 #include "utils/assertion.h"
