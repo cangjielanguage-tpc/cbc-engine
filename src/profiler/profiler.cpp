@@ -129,7 +129,7 @@ private:
         };
     }
 
-    void ProcessCollectedCalls(const CallCounters& counters)
+    void ProcessCollectedCalls(const CallCounters& counters, uint64_t recordedCallCount)
     {
         Engine::Session session(Engine::GetEngineInstance());
         std::vector<ProfiledCall> calls;
@@ -137,7 +137,7 @@ private:
         for (const auto& [edge, count] : counters) {
             calls.emplace_back(ResolveCall(session, edge, count));
         }
-        LogProfilerPass(calls);
+        LogProfilerPass(calls, recordedCallCount);
     }
 
     void ProcessBuffer(const FiberProfile::CallBuffer& buffer, uint32_t start, uint32_t count, CallCounters& counters)
@@ -156,15 +156,24 @@ private:
         const auto writerIndex = profile.sharedWriterIndex.load();
         if (writerIndex != FiberProfile::NO_PUBLISHED_BUFFER) {
             const auto readerIndex = writerIndex ^ 1U;
-            ProcessBuffer(profile.buffers[readerIndex], 0, FiberProfile::CALL_BUFFER_SIZE, counters);
+            const auto& buffer     = profile.buffers[readerIndex];
+            if (buffer.recordCount != profile.processedCount) {
+                ProcessBuffer(buffer, 0, FiberProfile::CALL_BUFFER_SIZE, counters);
+                profile.processedCount = buffer.recordCount;
+            }
         }
 
         profile.ChangeReaderState(FiberProfile::ReaderState::ACTIVE, FiberProfile::ReaderState::INACTIVE);
     }
 
-    bool ConsumeProfile(FiberProfile& profile, CallCounters& counters)
+    bool ConsumeProfile(FiberProfile& profile, CallCounters& counters, uint64_t& recordedCallCount)
     {
         const bool finished = !profile.active.load();
+
+        const auto currentRecordCount =
+            profile.recordCount.load(std::memory_order_relaxed) + (finished ? profile.cursor : 0);
+        recordedCallCount += currentRecordCount - profile.observedCount;
+        profile.observedCount = currentRecordCount;
 
         ConsumePublished(profile, counters);
 
@@ -181,15 +190,16 @@ private:
     void ConsumeActiveProfiles()
     {
         CallCounters counters;
+        uint64_t recordedCallCount = 0;
         for (auto it = activeProfiles.begin(); it != activeProfiles.end();) {
             auto& profile = **it;
-            if (ConsumeProfile(profile, counters)) {
+            if (ConsumeProfile(profile, counters, recordedCallCount)) {
                 it = activeProfiles.erase(it);
             } else {
                 ++it;
             }
         }
-        ProcessCollectedCalls(counters);
+        ProcessCollectedCalls(counters, recordedCallCount);
     }
 
     void Run()

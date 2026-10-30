@@ -49,6 +49,7 @@ private:
 
     struct CallBuffer {
         std::array<CallRecord, CALL_BUFFER_SIZE> records;
+        uint64_t recordCount { 0 };
     };
 
     enum class ReaderState : uint8_t {
@@ -74,6 +75,12 @@ private:
     uint32_t count { 0 };  // valid entries in current buffer, capped at N
 
     std::atomic<uint32_t> sharedWriterIndex { NO_PUBLISHED_BUFFER };
+
+    std::atomic<uint64_t> recordCount { 0 };
+
+    uint64_t processedCount { 0 };
+
+    uint64_t observedCount { 0 };
 
     // Written by both producer and collector. TRANSITION serializes a
     // buffer switch with the collector taking or releasing its read snapshot.
