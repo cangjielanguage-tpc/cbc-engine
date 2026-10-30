@@ -987,7 +987,11 @@ engine_c_abi_adapter:
   blr   x11          // call target
 
   str   x0, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE)]
+  str   x1, [ECTYPE_REG, #(ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE * 2)]
   str   d0, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET)]
+  str   d1, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET + ECTYPE_REG_SIZE)]
+  str   d2, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET + ECTYPE_REG_SIZE * 2)]
+  str   d3, [ECTYPE_REG, #(ECTYPE_FREGS_OFFSET + ECTYPE_REG_SIZE * 3)]
 
   ldr   ECTYPE_REG, [x29, #-16]
   mov   sp, x29
