@@ -378,6 +378,17 @@ static constexpr RT::Opcode satImmOpcodes[][4] = {
 
 void Emitter::SatBinaryImm(Format::Saturating op, Width width, IReg d, IReg l, uint64_t imm)
 {
+    // The compiler normalizes constant operands of checked/saturating ops to
+    // the operation width (BFX of a constant folds in range), so an immediate
+    // outside the width's signed or unsigned range would be silently
+    // truncated to a different value by the interpreter.
+    switch (width) {
+        case Width::W8: ASSERT(MathUtils::IsNBitsSigned(imm, 8) || imm <= 0xFF); break;
+        case Width::W16: ASSERT(MathUtils::IsNBitsSigned(imm, 16) || imm <= 0xFFFF); break;
+        case Width::W32: ASSERT(MathUtils::IsNBitsSigned(imm, 32) || imm <= 0xFFFFFFFF); break;
+        case Width::W64: break;
+    }
+
     bool isShort = MathUtils::IsNBitsSigned(imm, 12);
     auto opcode  = satImmOpcodes[!isShort][width];
 
@@ -413,6 +424,14 @@ static constexpr RT::Opcode opcodes[][4] = {
 
 void Emitter::BinaryImm(Checked op, Width width, IReg d, IReg l, uint64_t imm)
 {
+    // Same width-range obligation as SatBinaryImm above.
+    switch (width) {
+        case Width::W8: ASSERT(MathUtils::IsNBitsSigned(imm, 8) || imm <= 0xFF); break;
+        case Width::W16: ASSERT(MathUtils::IsNBitsSigned(imm, 16) || imm <= 0xFFFF); break;
+        case Width::W32: ASSERT(MathUtils::IsNBitsSigned(imm, 32) || imm <= 0xFFFFFFFF); break;
+        case Width::W64: break;
+    }
+
     bool isShort = MathUtils::IsNBitsSigned(imm, 12);
     auto opcode  = opcodes[!isShort][width];
 
