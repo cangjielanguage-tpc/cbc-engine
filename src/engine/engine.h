@@ -60,6 +60,9 @@ public:
     std::optional<Identifier<MethodDefinition>> FindMethod(
         Session& session, std::string_view filePath, std::string_view typeName, std::string_view methodName
     );
+    std::optional<Identifier<MethodDefinition>> FindMethodInType(
+        Session& session, Identifier<TypeDefinition> type, std::string_view methodName
+    );
     std::optional<Identifier<TypeDefinition>> FindType(Session& session, std::string_view typeName);
 
     Utils::Span<Image::CbcFile const> Files() const;

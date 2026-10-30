@@ -342,6 +342,23 @@ Utils::Span<Dependencies const> Engine::ForeignLibs() const { return impl->forei
 
 Utils::Span<Dependencies const> Engine::Dependencies() const { return impl->dependencies; }
 
+std::optional<Identifier<MethodDefinition>> Engine::FindMethodInType(
+    Session& session, Identifier<TypeDefinition> typeId, std::string_view methodName
+)
+{
+    auto type               = Decode::Read(session, typeId);
+    const auto& methodIndex = type.GetMethods();
+
+    std::optional<Identifier<MethodDefinition>> result = std::nullopt;
+    int mcount                                         = 0;
+    for (auto m : Reader::FindBucket(session, methodIndex, methodName)) {
+        mcount++;
+        result = m;
+    }
+    ASSERTION(mcount == 1, "unexpected method count");
+    return result;
+}
+
 std::optional<Identifier<MethodDefinition>> Engine::FindMethod(
     Session& session, std::string_view filePath, std::string_view typeName, std::string_view methodName
 )
@@ -353,17 +370,7 @@ std::optional<Identifier<MethodDefinition>> Engine::FindMethod(
     auto f        = file.value();
     auto declType = Reader::Find(session, f->GetTypeIndex(), typeName);
     if (declType.has_value()) {
-        auto type               = Decode::Read(session, declType.value());
-        const auto& methodIndex = type.GetMethods();
-
-        std::optional<Identifier<MethodDefinition>> result = std::nullopt;
-        int mcount                                         = 0;
-        for (auto m : Reader::FindBucket(session, methodIndex, methodName)) {
-            mcount++;
-            result = m;
-        }
-        ASSERTION(mcount == 1, "unexpected method count");
-        return result;
+        return FindMethodInType(session, declType.value(), methodName);
     }
     return std::nullopt;
 }

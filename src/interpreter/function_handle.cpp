@@ -50,7 +50,7 @@ FunctionHandleManager::FunctionHandleManager(FunctionHandleManager&& manager) = 
 
 [[noreturn]] static void HelperWasNotFound(std::string_view methodName)
 {
-    FATAL("Helper method %s was not found", methodName);
+    FATAL("Helper method %.*s was not found", static_cast<int>(methodName.size()), methodName.data());
 }
 
 std::unordered_map<Helper, std::string> helperNames = {
@@ -71,32 +71,41 @@ DynamicFunctionHandle* FunctionHandleManager::GetHelper(Helper helper)
 }
 
 static DynamicFunctionHandle* FindAndPrepareHelper(
-    Session& session, FunctionHandleManager& fhm, std::string_view methodName, std::string_view fileName
+    Session& session, FunctionHandleManager& fhm, std::string_view methodName
 )
 {
-    // FIXME: change this to intrinsics.cbc in future iterations
-    auto typeName = "$P$cbc_intrinsics";
-    UNWRAP_OPT_NORETURN(method, session.GetEngine().FindMethod(session, fileName, typeName, methodName), [&]() {
-        HelperWasNotFound(methodName);
-    });
+    auto typeName = "$P$cbc-intrinsics";
+    auto type     = session.GetEngine().FindType(session, typeName);
+    UNWRAP_OPT_NORETURN(typeId, type, [&]() { HelperWasNotFound(methodName); });
 
-    auto taggedHandle = fhm.AcquireTagged(session, method);
+    auto method = session.GetEngine().FindMethodInType(session, typeId, methodName);
+    UNWRAP_OPT_NORETURN(methodId, method, [&]() { HelperWasNotFound(methodName); });
+
+    auto taggedHandle = fhm.AcquireTagged(session, methodId);
     if (auto* dynFuh = std::get_if<DynamicFunctionHandle*>(&taggedHandle)) {
         auto fuh = *dynFuh;
         auto res = fhm.Prepare(session, fuh);
         if (!res.success) {
-            FATAL("Failure during preparation of helper method %s", methodName);
+            FATAL(
+                "Failure during preparation of helper method %.*s",
+                static_cast<int>(methodName.size()),
+                methodName.data()
+            );
         }
         return fuh;
     } else {
-        FATAL("Helper method %s was found in AOT code instead of cbc", methodName);
+        FATAL(
+            "Helper method %.*s was found in AOT code instead of cbc",
+            static_cast<int>(methodName.size()),
+            methodName.data()
+        );
     }
 }
 
-void FunctionHandleManager::FindAndPrepareHelpers(Session& session, std::string_view mainCbc)
+void FunctionHandleManager::FindAndPrepareHelpers(Session& session)
 {
     for (const auto& [helper, methodName] : helperNames) {
-        auto fuh = FindAndPrepareHelper(session, *this, methodName, mainCbc);
+        auto fuh = FindAndPrepareHelper(session, *this, methodName);
         SetHelper(helper, fuh);
     }
 }
@@ -160,7 +169,7 @@ TaggedFunctionHandle FunctionHandleManager::AcquireTagged(
             name = MethodName(session, method);
         }
 
-        auto mem    = new (std::nothrow) DynamicFunctionHandle(c2Call, methodDef, name);
+        auto mem = new (std::nothrow) DynamicFunctionHandle(c2Call, methodDef, name);
         if (mem == nullptr) {
             FATAL("out of memory");
         }
