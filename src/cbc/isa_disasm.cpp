@@ -129,10 +129,21 @@ struct IsaDisasm : public IsaParser {
         stream.PrintLn("{}.{} {}, {}", op, width, d, s);
     }
 
-    void Convert(Format::ConvertMode mode, Format::CastOp cast, AnyReg to, AnyReg from) override
+    void Convert(Format::CastOp cast, AnyReg to, AnyReg from) override
     {
         stream.PrintLn(
-            mode == Format::ConvertMode::CHECKED ? "checked.convert {}, {}, {}, {}" : "convert {}, {}, {}, {}",
+            "convert {}, {}, {}, {}",
+            cast.ToTypeStr(),
+            cast.FromTypeStr(),
+            Fmt(to, cast.ToIsFloatingPoint()),
+            Fmt(from, cast.FromIsFloatingPoint())
+        );
+    }
+
+    void CheckedConvert(Format::CastOp cast, AnyReg to, AnyReg from) override
+    {
+        stream.PrintLn(
+            "checked.convert {}, {}, {}, {}",
             cast.ToTypeStr(),
             cast.FromTypeStr(),
             Fmt(to, cast.ToIsFloatingPoint()),

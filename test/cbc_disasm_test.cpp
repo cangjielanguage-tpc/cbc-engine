@@ -144,19 +144,17 @@ TEST(CbcRtDisasmTest, ConvertUnchecked)
     Cbc::RT::ConvertOp args {
         .opc  = Cbc::RT::Opcode::CONVERT,
         .cast = Cbc::Format::CastOp::I64_TO_I32,
-        .mode = Cbc::Format::Imm8(Cbc::Format::ConvertMode::UNCHECKED),
         .rr   = { .x = Cbc::IReg::IR1, .y = Cbc::IReg::IR2 },
     };
-    EXPECT_EQ("convert.unchecked I64->I32 IR1 IR2\n", RtLog(args));
+    EXPECT_EQ("convert I64->I32 IR1 IR2\n", RtLog(args));
 }
 
 TEST(CbcRtDisasmTest, ConvertChecked)
 {
     Cbc::RT::ConvertOp args {
-        .opc  = Cbc::RT::Opcode::CONVERT,
+        .opc  = Cbc::RT::Opcode::CHECKED_CONVERT,
         .cast = Cbc::Format::CastOp::I64_TO_I32,
-        .mode = Cbc::Format::Imm8(Cbc::Format::ConvertMode::CHECKED),
         .rr   = { .x = Cbc::IReg::IR1, .y = Cbc::IReg::IR2 },
     };
-    EXPECT_EQ("convert.checked I64->I32 IR1 IR2\n", RtLog(args));
+    EXPECT_EQ("checked.convert I64->I32 IR1 IR2\n", RtLog(args));
 }

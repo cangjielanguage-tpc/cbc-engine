@@ -9,8 +9,7 @@
 
 namespace Interpretation {
 
-using CastOp      = Cbc::Format::CastOp;
-using ConvertMode = Cbc::Format::ConvertMode;
+using CastOp = Cbc::Format::CastOp;
 
 template <typename T> inline Value::Primitive MakeIntPrim(T value)
 {
@@ -279,14 +278,6 @@ inline CheckedCastResult CheckedCastPrim(CastOp op, Value::Primitive val)
 
         default: FATAL("unsupported cast: %s->%s", op.FromTypeStr().data(), op.ToTypeStr().data());
     }
-}
-
-inline CheckedCastResult CastPrim(ConvertMode mode, CastOp op, Value::Primitive val)
-{
-    if (mode == ConvertMode::CHECKED) {
-        return CheckedCastPrim(op, val);
-    }
-    return { CastPrim(op, val), false };
 }
 
 } // namespace Interpretation

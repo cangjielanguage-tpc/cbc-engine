@@ -1225,7 +1225,13 @@ LABEL(TYPE_ARG) {
 LABEL(CONVERT) {
     auto args = ConvertOp::Decode(reader);
     LOG_INSTR;
-    bool overflow = interpreter.Convert(args.mode.Mode(), args.cast, args.rr.x, args.rr.y);
+    interpreter.Convert(args.cast, args.rr.x, args.rr.y);
+    NEXT;
+}
+LABEL(CHECKED_CONVERT) {
+    auto args = ConvertOp::Decode(reader);
+    LOG_INSTR;
+    bool overflow = interpreter.CheckedConvert(args.cast, args.rr.x, args.rr.y);
     NEXT_OR_THROW(!overflow, Type::OverflowException);
 }
 LABEL(BFXS) {

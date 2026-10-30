@@ -562,10 +562,9 @@ struct IsaRewriter : public IsaParser {
         emit.Unary(op, width, d, s);
     }
 
-    void Convert(Format::ConvertMode mode, Format::CastOp cast, AnyReg to, AnyReg from) override
-    {
-        emit.Convert(mode, cast, to, from);
-    }
+    void Convert(Format::CastOp cast, AnyReg to, AnyReg from) override { emit.Convert(cast, to, from); }
+
+    void CheckedConvert(Format::CastOp cast, AnyReg to, AnyReg from) override { emit.CheckedConvert(cast, to, from); }
 
     void MovBasePtr(IReg dst, bool local) override
     {

@@ -630,7 +630,7 @@ TEST(EmitTest, Simple_Convert)
     // Unchecked: U32 -> U8 wraps.
     {
         Emitter e;
-        e.Convert(ConvertMode::UNCHECKED, CastOp::U32_TO_U8, IReg::IR1, IReg::IR1);
+        e.Convert(CastOp::U32_TO_U8, IReg::IR1, IReg::IR1);
         e.Ret();
 
         auto code = e.Build(heap);
@@ -640,10 +640,10 @@ TEST(EmitTest, Simple_Convert)
         EXPECT_EQ(res.u64, U64(128).u64);
     }
 
-    // Checked: same instruction shape, in-range value passes through.
+    // Checked: separate opcode, in-range value passes through.
     {
         Emitter e;
-        e.Convert(ConvertMode::CHECKED, CastOp::U32_TO_U8, IReg::IR1, IReg::IR1);
+        e.CheckedConvert(CastOp::U32_TO_U8, IReg::IR1, IReg::IR1);
         e.Ret();
 
         auto code = e.Build(heap);

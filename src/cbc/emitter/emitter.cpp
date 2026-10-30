@@ -1098,12 +1098,23 @@ void Emitter::SCCImm(CC cc, Width width, IReg d, IReg l, uint64_t imm)
     }
 }
 
-void Emitter::Convert(ConvertMode mode, CastOp op, Reg to, Reg from)
+void Emitter::Convert(CastOp op, Reg to, Reg from)
 {
     Encode(segment, RT::ConvertOp {
         .opc  = RT::Opcode::CONVERT,
         .cast = op,
-        .mode = Imm8(mode),
+        .rr   = {
+            .x = to,
+            .y = from,
+        },
+    });
+}
+
+void Emitter::CheckedConvert(CastOp op, Reg to, Reg from)
+{
+    Encode(segment, RT::ConvertOp {
+        .opc  = RT::Opcode::CHECKED_CONVERT,
+        .cast = op,
         .rr   = {
             .x = to,
             .y = from,

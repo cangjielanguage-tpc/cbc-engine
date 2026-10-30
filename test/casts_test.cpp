@@ -12,7 +12,6 @@ namespace {
 using Interpretation::CastOp;
 using Interpretation::CastPrim;
 using Interpretation::CheckedCastPrim;
-using Interpretation::ConvertMode;
 using Prim = Interpretation::Value::Primitive;
 
 constexpr uint64_t ALL_ONES = 0xffffffffffffffffULL;
@@ -415,16 +414,14 @@ TEST(CastsTest, CheckedFloatToInt)
     }
 }
 
-TEST(CastsTest, ModeDispatch)
+TEST(CastsTest, OpcodeDispatch)
 {
-    auto unchecked = CastPrim(ConvertMode::UNCHECKED, CastOp::U32_TO_U8, U32(0x100));
-    EXPECT_FALSE(unchecked.overflow);
-    EXPECT_EQ(unchecked.value.u64, 0);
+    EXPECT_EQ(CastPrim(CastOp::U32_TO_U8, U32(0x100)).u64, 0);
 
-    auto checkedInRange = CastPrim(ConvertMode::CHECKED, CastOp::U32_TO_U8, U32(0xff));
+    auto checkedInRange = CheckedCastPrim(CastOp::U32_TO_U8, U32(0xff));
     EXPECT_FALSE(checkedInRange.overflow);
     EXPECT_EQ(checkedInRange.value.u64, 0xff);
 
-    auto checkedOverflow = CastPrim(ConvertMode::CHECKED, CastOp::U32_TO_U8, U32(0x100));
+    auto checkedOverflow = CheckedCastPrim(CastOp::U32_TO_U8, U32(0x100));
     EXPECT_TRUE(checkedOverflow.overflow);
 }
