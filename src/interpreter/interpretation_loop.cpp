@@ -56,7 +56,7 @@ Interpretation::Thunk engine_interpretation_loop(
     RTSupport::ThreadHandle handle,
     LiteralTable* literals,
     Decoder::ByteReader& reader0,
-    FunctionHandle* fun
+    FunctionHandle* fuh
 )
 {
 #define NEXT goto* MAIN_TABLE[reader.PeekOpcode()]
@@ -1084,7 +1084,7 @@ LABEL(DIRECT_CALL_2I) {
 
     if (ectype->profile) {
         ectype->profile->RecordCall(
-            reinterpret_cast<uintptr_t>(fun), reinterpret_cast<uintptr_t>(callSite)
+            reinterpret_cast<uintptr_t>(fuh), reinterpret_cast<uintptr_t>(callSite)
         );
     }
 
