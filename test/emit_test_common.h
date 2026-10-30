@@ -90,6 +90,15 @@ inline testing::AssertionResult CheckDisasm(const Interpretation::Code& code, Li
 
 #define CHECK_DISASM(...) EXPECT_TRUE(CheckDisasm(__VA_ARGS__))
 
+inline void ExpectResult(const Interpretation::Value::Primitive& res, Format::Width width, int64_t expected)
+{
+    if (width == Format::Width::W64) {
+        EXPECT_EQ(res.u64, static_cast<uint64_t>(expected));
+    } else {
+        EXPECT_EQ(res.u32, static_cast<uint32_t>(expected));
+    }
+}
+
 } // namespace Emitter
 } // namespace Cbc
 
