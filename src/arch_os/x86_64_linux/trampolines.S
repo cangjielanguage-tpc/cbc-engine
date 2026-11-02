@@ -17,6 +17,9 @@
     #define engine_trampolines_dyn_end _engine_trampolines_dyn_end
     #define engine_trampolines_dyn_sret_start _engine_trampolines_dyn_sret_start
     #define engine_trampolines_dyn_sret_end _engine_trampolines_dyn_sret_end
+    #define engine_trampolines_dyn_static_start _engine_trampolines_dyn_static_start
+    #define engine_trampolines_dyn_static_end _engine_trampolines_dyn_static_end
+    #define engine_unsupported_c2i_static_virtual_call _engine_unsupported_c2i_static_virtual_call
     #define engine_trampolines_direct_start _engine_trampolines_direct_start
     #define engine_all_regs_c2i_call _engine_all_regs_c2i_call
     #define engine_iregs_only_c2i_call _engine_iregs_only_c2i_call
@@ -64,6 +67,7 @@
 #endif
 .endm
 
+.extern engine_unsupported_c2i_static_virtual_call
 .extern engine_prepare_bytecode
 .extern engine_interpretation_loop
 .extern engine_fiber_data_init
@@ -78,6 +82,8 @@ declare_hidden engine_trampolines_dyn_start
 declare_hidden engine_trampolines_dyn_end
 declare_hidden engine_trampolines_dyn_sret_start
 declare_hidden engine_trampolines_dyn_sret_end
+declare_hidden engine_trampolines_dyn_static_start
+declare_hidden engine_trampolines_dyn_static_end
 declare_hidden engine_trampolines_direct_start
 declare_hidden engine_all_regs_c2i_call
 declare_hidden engine_iregs_only_c2i_call
@@ -281,6 +287,20 @@ engine_trampolines_dyn_sret_start: // should come right after engine_trampolines
 .endm
   repeat_trampoline_dyn_sret TRAMPOLINE_COUNT
 engine_trampolines_dyn_sret_end:
+
+// Keep this pool adjacent to the dynamic pools: I2I dispatch decodes the slot from the address.
+// Native calls fail without trying to interpret an explicit argument as an instance receiver.
+engine_trampolines_dyn_static_start:
+.macro repeat_trampoline_dyn_static count
+  .set i, 0
+  .rept \count
+      mov.d32 eax, i
+      jmp.d32 engine_unsupported_c2i_static_virtual_call
+      .set i, i + 1
+  .endr
+.endm
+  repeat_trampoline_dyn_static TRAMPOLINE_COUNT
+engine_trampolines_dyn_static_end:
 
 // expects: (TLS_REG: th, rax: fuh)
 // System-V abi, except r15 can be changed after context-switches
