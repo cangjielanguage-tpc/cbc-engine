@@ -129,6 +129,8 @@ static void PerformPatching()
 
     auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
 
+    fuhManager.FindAndPrepareHelpers(session);
+
     for (auto& file : engine.Files()) {
         // TODO: list patches in CBC file header
         for (auto type : Decode::AllEntries(session, file.GetTypeIndex())) {
