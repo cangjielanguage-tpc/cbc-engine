@@ -1,0 +1,192 @@
+#!/usr/bin/env python3
+"""Generates .asm test resources for the cbc-engine tests.
+
+Usage:
+    python3 asm-generator.py <generator-name>
+
+Each named generator overwrites resource files in test/resources/generated-asm/<testsuite-name>/. 
+"""
+
+import argparse
+import sys
+from dataclasses import dataclass
+from enum import StrEnum
+from pathlib import Path
+
+ENGINE_ROOT = Path(__file__).resolve().parent.parent.parent
+GENERATED_ASM = ENGINE_ROOT / "test" / "resources" / "generated-asm"
+
+
+def write_suite(suite: str, files: dict[str, str]) -> list[Path]:
+    """Writes the generated files of a test suite into
+    test/resources/generated-asm/<suite>/ and returns the written paths."""
+    directory = GENERATED_ASM / suite
+    directory.mkdir(parents=True, exist_ok=True)
+    written = []
+    for file_name, source in files.items():
+        path = directory / file_name
+        path.write_text(source)
+        written.append(path)
+    return written
+
+
+# ---------------------------------------------------------------------------
+# asm DSL: the only place that knows the indentation, method wrappers and literal formats
+# ---------------------------------------------------------------------------
+
+class AsmType(StrEnum):
+    """A type-tag operand of a typed op (F64 in `i2f U32, F64, IR1, FR0`)."""
+
+    F32 = "F32"
+    F64 = "F64"
+    I8 = "I8"
+    I16 = "I16"
+    I32 = "I32"
+    I64 = "I64"
+    U8 = "U8"
+    U16 = "U16"
+    U32 = "U32"
+    U64 = "U64"
+
+    @property
+    def is_float(self) -> bool:
+        return self.startswith("F")
+
+    @property
+    def kind(self) -> str:
+        if self.is_float:
+            return "f"
+        return "i"
+
+
+# The members, unpacked so the case tables below can name types directly.
+F32, F64, I8, I16, I32, I64, U8, U16, U32, U64 = AsmType
+
+# The registers used by the generated tests.
+IR1 = "IR1"
+FR0 = "FR0"
+FR1 = "FR1"
+
+
+def reg_for(t: AsmType) -> str:
+    if t.is_float:
+        return FR0
+    return IR1
+
+
+def imm(value: int) -> str:
+    return format(value, "#x")
+
+
+def live(*regs: str) -> str:
+    return "@live.prim " + ", ".join(regs)
+
+
+def instr(mnemonic: str, *operands: object, w: int | None = None,
+          suffixes: tuple[object, ...] = ()) -> str:
+    """Renders one instruction line: `mnemonic[.s1…] op, op, …`.
+
+    `w` is the common single width suffix; `suffixes` covers the rest
+    (e.g. bfxs.{dst}.{src}). Operands are registers ("IR1"), imm(…)
+    literals or AsmType tags.
+    """
+    assert w is None or not suffixes
+    if w is not None:
+        tail = f".{w}"
+    else:
+        tail = "".join(f".{s}" for s in suffixes)
+    ops = ", ".join(str(o) for o in operands)
+    if ops:
+        return f"{mnemonic}{tail} {ops}"
+    return f"{mnemonic}{tail}"
+
+
+@dataclass(frozen=True)
+class Method:
+    name: str
+    ret: AsmType
+    body: tuple[str, ...]
+    params: tuple[AsmType, ...] = ()
+
+    def render(self) -> str:
+        lines = "\n".join(f"      {line}" for line in self.body)
+        params = ", ".join(self.params)
+        return (f"  @method {self.name}({params}){self.ret}\n"
+                f"    @code\n{lines}\n"
+                f"    @end\n  @end")
+
+
+ASM_FILE_HEADER = '@main_type "default"\n\n@type default\n'
+
+
+def asm_file(methods: list[Method]) -> str:    
+    return ASM_FILE_HEADER + "\n\n".join(m.render() for m in methods) + "\n@end\n"
+
+
+class MethodBuilder:
+
+    def __init__(self, name: str, ret: AsmType, params: tuple[AsmType, ...] = (),
+                 default_w: int | None = None):
+        self._name = name
+        self._ret = ret
+        self._params = params
+        self._lines: list[str] = []
+        self._default_w = default_w
+
+    def live(self, *regs: str) -> "MethodBuilder":
+        self._lines.append(live(*regs))
+        return self
+
+    def instr(self, mnemonic: str, *operands: object,
+              suffixes: tuple[object, ...] = ()) -> "MethodBuilder":
+        w = self._default_w
+        if suffixes:
+            w = None
+        self._lines.append(instr(mnemonic, *operands, w=w, suffixes=suffixes))
+        return self
+
+    def _close(self, mnemonic: str, reg: str) -> Method:
+        w = int(self._ret[1:])
+        return Method(self._name, self._ret, tuple(self._lines) + (instr(mnemonic, reg, w=w),),
+                      self._params)
+
+    def ret(self, reg: str = IR1) -> Method:
+        return self._close("ret", reg)
+
+    def fret(self, reg: str = FR0) -> Method:
+        return self._close("fret", reg)
+
+
+def method(name: str, ret: AsmType, params: tuple[AsmType, ...] = (),
+           default_w: int | None = None) -> MethodBuilder:
+    return MethodBuilder(name, ret, params, default_w)
+
+
+def integer_method(name: str, width: int = 64) -> MethodBuilder:
+    ret = AsmType(f"I{width}")
+    return (
+        MethodBuilder(name, ret, params=(ret,), default_w=width)
+        .live(IR1)
+    )
+
+
+# ---------------------------------------------------------------------------
+
+GENERATORS = {
+}
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("names", nargs="+", choices=sorted(GENERATORS), metavar="generator")
+    args = parser.parse_args()
+
+    for name in args.names:
+        print(f"Generating {name}:")
+        for path in GENERATORS[name]():
+            print(f"  {path.relative_to(ENGINE_ROOT)}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
