@@ -981,7 +981,7 @@ engine_c_abi_adapter:
   subs  x10, x10, #8
   b.ne  .Lprepare_stackargs
 .Lprepare_regs:
-  i2c_emit_iregs_abi IREG_PARAM_PASSING_AMOUNT
+  i2c_emit_iregs_abi IREG_ABI_AMOUNT
   i2c_emit_fregs_abi FREG_ABI_AMOUNT
 
   blr   x11          // call target
