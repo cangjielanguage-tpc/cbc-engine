@@ -378,11 +378,43 @@ def generate_cast() -> list[Path]:
 
 
 # ---------------------------------------------------------------------------
+# bfx
+# ---------------------------------------------------------------------------
+
+BFX_WIDTHS = [32, 64]
+
+
+def bfx_method(sign: str, dst: int, src: int) -> Method:
+    if sign == "signed":
+        mnemonic = "bfxs"
+    else:
+        mnemonic = "bfxz"
+    return (
+        integer_method(f"test_{sign}_{dst}_{src}")
+        .instr(mnemonic, IR1, IR1, 0, 32, suffixes=(dst, src))
+        .ret()
+    )
+
+
+def generate_bfx() -> list[Path]:
+    return write_suite(
+        "bfx",
+        {
+            f"{sign}_{dst}_{src}.asm": asm_file([bfx_method(sign, dst, src)])
+                                       for sign in ("signed", "zeroed")
+                                       for dst in BFX_WIDTHS
+                                       for src in BFX_WIDTHS
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
 
 GENERATORS = {
     "arith"            : generate_arith,
     "float-arith"      : generate_float_arith,
     "cast"             : generate_cast,
+    "bfx"              : generate_bfx,
 }
 
 
