@@ -288,10 +288,101 @@ def generate_float_arith() -> list[Path]:
 
 
 # ---------------------------------------------------------------------------
+# cast: CbcSpecializedCast
+# ---------------------------------------------------------------------------
+
+# Each case becomes one {first}_{second}.asm test
+CAST_TO_FLOAT_CASES = [
+    (F32, F64),
+    (F32, I32),
+    (F32, I64),
+    (F32, U32),
+    (F32, U64),
+    (F64, F32),
+    (F64, I32),
+    (F64, I64),
+    (F64, U32),
+    (F64, U64),
+]
+
+CAST_TO_INTEGER_CASES = [
+    (U8, F32),
+    (U8, F64),
+    (U16, F32),
+    (U16, F64),
+    (I8, F32),
+    (I8, F64),
+    (I16, F32),
+    (I16, F64),
+    (I16, I32),
+    (I16, U32),
+    (I32, F32),
+    (I32, F64),
+    (I32, I64),
+    (I32, U64),
+    (I64, F32),
+    (I64, F64),
+    (I64, I32),
+    (I64, U32),
+    (I8, I32),
+    (I8, U32),
+    (U16, I32),
+    (U16, U32),
+    (U32, F32),
+    (U32, F64),
+    (U32, U64),
+    (U64, F32),
+    (U64, F64),
+    (U8, I32),
+    (U8, U32),
+]
+
+CAST_OPS = {
+  ("f", "f"): "f2f", 
+  ("f", "i"): "i2f", 
+  ("i", "f"): "f2i", 
+  ("i", "i"): "i2i"
+}
+
+def cast_method(case: tuple[AsmType, AsmType], *, to_float: bool) -> Method:
+    """`to_float` tests always keep IR1 live; integer ones mark IR1
+    live only for int-to-int cases."""
+    first, second = case
+    op = CAST_OPS[(first.kind, second.kind)]
+    ret = first if to_float else I64
+    built = method(f"test_{first}_{second}", ret, params=(second,))
+    if to_float or op == "i2i":
+        built = built.live(IR1)
+    built = built.instr(op, second, first, reg_for(second), reg_for(first))
+    if to_float:
+        return built.fret()
+    return built.ret()
+
+
+def generate_cast() -> list[Path]:
+    written = write_suite(
+        "cast/to_float",
+        {
+           f"{first}_{second}.asm": asm_file([cast_method((first, second), to_float=True)])
+                                    for first, second in CAST_TO_FLOAT_CASES
+        },
+    )
+    written += write_suite(
+        "cast/to_integer",
+        {
+           f"{first}_{second}.asm": asm_file([cast_method((first, second), to_float=False)])
+                                    for first, second in CAST_TO_INTEGER_CASES
+        },
+    )
+    return written
+
+
+# ---------------------------------------------------------------------------
 
 GENERATORS = {
     "arith"            : generate_arith,
     "float-arith"      : generate_float_arith,
+    "cast"             : generate_cast,
 }
 
 
