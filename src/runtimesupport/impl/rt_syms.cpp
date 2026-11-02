@@ -20,14 +20,12 @@ Utils::SharedObject g_helperLibHandle;
 
 static void* LookupSymbol(Utils::SharedObject const& object, char const* symbolName)
 {
-    dlerror();
-    auto* symbol = object.SearchSym(symbolName);
+    auto [symbol, error] = object.SearchSym(symbolName);
     if (symbol == nullptr) {
-        auto* error  = dlerror();
         auto& stream = Log::init.Stream(Logging::Level::ERROR);
         stream << '{' << object.Name() << "} failed to find " << symbolName;
-        if (error != nullptr) {
-            stream << ": " << error;
+        if (error) {
+            stream << ": " << error.value();
         }
         stream << Stream::endl;
     }
@@ -51,7 +49,7 @@ bool Initialize(DYN_CJNativeInterface* interf)
     }
 
     // verify that we didn't opened new library (any other exported symbol can be used).
-    auto stackGrowStub = handle.SearchSym("CJ_MCC_StackGrowStub");
+    auto stackGrowStub = handle.SearchSym("CJ_MCC_StackGrowStub").symbol;
 
     if (stackGrowStub != interf->stackGrowStub) {
         auto& stream = Log::init.Stream(Logging::Level::ERROR);

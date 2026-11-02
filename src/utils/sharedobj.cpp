@@ -82,12 +82,18 @@ SharedObject& SharedObject::operator=(SharedObject&& other)
     return *this;
 }
 
-void* SharedObject::SearchSym(char const* str) const
+SharedObject::SymbolSearchResult SharedObject::SearchSym(char const* str) const
 {
-    if (handle) {
-        return dlsym(handle, str);
+    if (handle == nullptr) {
+        return { nullptr, "shared object is not open" };
     }
-    return nullptr;
+
+    dlerror(); // null symbol value can be valid, so discard stale loader errors first
+    auto* symbol = dlsym(handle, str);
+    if (auto* error = dlerror(); error != nullptr) {
+        return { symbol, std::string(error) };
+    }
+    return { symbol, std::nullopt };
 }
 
 std::string const& SharedObject::Name() const { return name; }
