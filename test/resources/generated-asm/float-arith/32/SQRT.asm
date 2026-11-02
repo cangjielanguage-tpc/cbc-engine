@@ -1,7 +1,7 @@
 @main_type "default"
 
 @type default
-  @method main()F32
+  @method test_SQRT(F32)F32
     @code
       fsqrt.32 FR0, FR0
       fret.32 FR0

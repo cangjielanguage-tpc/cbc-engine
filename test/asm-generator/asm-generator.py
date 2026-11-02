@@ -106,10 +106,12 @@ class Method:
     name: str
     ret: AsmType
     body: tuple[str, ...]
+    params: tuple[AsmType, ...] = ()
 
     def render(self) -> str:
         lines = "\n".join(f"      {line}" for line in self.body)
-        return (f"  @method {self.name}(){self.ret}\n"
+        params = ", ".join(self.params)
+        return (f"  @method {self.name}({params}){self.ret}\n"
                 f"    @code\n{lines}\n"
                 f"    @end\n  @end")
 
@@ -123,9 +125,11 @@ def asm_file(methods: list[Method]) -> str:
 
 class MethodBuilder:
 
-    def __init__(self, name: str, ret: AsmType, default_w: int | None = None):
+    def __init__(self, name: str, ret: AsmType, params: tuple[AsmType, ...] = (),
+                 default_w: int | None = None):
         self._name = name
         self._ret = ret
+        self._params = params
         self._lines: list[str] = []
         self._default_w = default_w
 
@@ -143,8 +147,8 @@ class MethodBuilder:
 
     def _close(self, mnemonic: str, reg: str) -> Method:
         w = int(self._ret[1:])
-        return Method(self._name, self._ret,
-                      tuple(self._lines) + (instr(mnemonic, reg, w=w),))
+        return Method(self._name, self._ret, tuple(self._lines) + (instr(mnemonic, reg, w=w),),
+                      self._params)
 
     def ret(self, reg: str = IR1) -> Method:
         return self._close("ret", reg)
@@ -153,13 +157,15 @@ class MethodBuilder:
         return self._close("fret", reg)
 
 
-def method(name: str, ret: AsmType, default_w: int | None = None) -> MethodBuilder:
-    return MethodBuilder(name, ret, default_w)
+def method(name: str, ret: AsmType, params: tuple[AsmType, ...] = (),
+           default_w: int | None = None) -> MethodBuilder:
+    return MethodBuilder(name, ret, params, default_w)
 
 
 def integer_method(name: str, width: int = 64) -> MethodBuilder:
+    ret = AsmType(f"I{width}")
     return (
-        MethodBuilder(name, AsmType(f"I{width}"), default_w=width)
+        MethodBuilder(name, ret, params=(ret,), default_w=width)
         .live(IR1)
     )
 
@@ -205,7 +211,7 @@ ARITH_OPERATIONS = [
 def arith_method(op: str, rhs: int) -> Method:
     """Builds one arith case: `<op>i IR1, IR1, <imm(rhs)>` on the live IR1."""
     return (
-        integer_method("main")
+        integer_method(f"test_{imm(rhs)}")
         .instr(op.lower() + "i", IR1, IR1, imm(rhs))
         .ret()
     )
@@ -232,12 +238,15 @@ FLOAT_BINARY_OPS = ["ADD", "SUB", "MUL", "DIV"]
 
 
 def float_ops_method(name: str, width: int) -> Method:
+    float_type = AsmType(f"F{width}")
     if name in FLOAT_UNARY_OPS:
+        params = (float_type,)
         operands = (FR0,)
     else:
+        params = (float_type, float_type)
         operands = (FR0, FR1)
     return (
-        method("main", AsmType(f"F{width}"), default_w=width)
+        method(f"test_{name}", float_type, params=params, default_w=width)
         .instr(f"f{name.lower()}", FR0, *operands)
         .fret()
     )
@@ -248,16 +257,16 @@ def float_mov_methods(width: int) -> list[Method]:
     float_type = AsmType(f"F{width}")
     int_type = AsmType(f"I{width}")
     return [
-        method("main", float_type, default_w=width)
+        method("test_MOV", float_type, params=(float_type, float_type), default_w=width)
           .instr("fmov", FR0, FR1)
           .fret(),
 
-        method("main", float_type, default_w=width)
+        method("test_I2F", float_type, params=(int_type,), default_w=width)
           .live(IR1)
           .instr("movi2f", FR0, IR1)
           .fret(),
 
-        method("main", int_type, default_w=width)
+        method("test_F2I", int_type, params=(float_type,), default_w=width)
           .instr("movf2i", IR1, FR0)
           .ret(),
     ]
@@ -279,11 +288,11 @@ def generate_float_arith() -> list[Path]:
 
 
 # ---------------------------------------------------------------------------
-# convert: CbcSpecializedConvert
+# cast: CbcSpecializedCast
 # ---------------------------------------------------------------------------
 
 # Each case becomes one {first}_{second}.asm test
-CONVERT_TO_FLOAT_CASES = [
+CAST_TO_FLOAT_CASES = [
     (F32, F64),
     (F32, I32),
     (F32, I64),
@@ -296,7 +305,7 @@ CONVERT_TO_FLOAT_CASES = [
     (F64, U64),
 ]
 
-CONVERT_TO_INTEGER_CASES = [
+CAST_TO_INTEGER_CASES = [
     (U8, F32),
     (U8, F64),
     (U16, F32),
@@ -328,19 +337,20 @@ CONVERT_TO_INTEGER_CASES = [
     (U8, U32),
 ]
 
-CONVERT_OPS = {
+CAST_OPS = {
   ("f", "f"): "f2f", 
   ("f", "i"): "i2f", 
   ("i", "f"): "f2i", 
   ("i", "i"): "i2i"
 }
 
-def convert_method(case: tuple[AsmType, AsmType], *, to_float: bool) -> Method:
-    """`to_float` tests always keep IR1 live and return via FR0
-        integer ones mark IR1 live only for int-to-int cases and return via IR1"""
+def cast_method(case: tuple[AsmType, AsmType], *, to_float: bool) -> Method:
+    """`to_float` tests always keep IR1 live; integer ones mark IR1
+    live only for int-to-int cases."""
     first, second = case
-    op = CONVERT_OPS[(first.kind, second.kind)]
-    built = method("main", I64)
+    op = CAST_OPS[(first.kind, second.kind)]
+    ret = first if to_float else I64
+    built = method(f"test_{first}_{second}", ret, params=(second,))
     if to_float or op == "i2i":
         built = built.live(IR1)
     built = built.instr(op, second, first, reg_for(second), reg_for(first))
@@ -349,19 +359,19 @@ def convert_method(case: tuple[AsmType, AsmType], *, to_float: bool) -> Method:
     return built.ret()
 
 
-def generate_convert() -> list[Path]:
+def generate_cast() -> list[Path]:
     written = write_suite(
-        "convert/to_float",
+        "cast/to_float",
         {
-           f"{first}_{second}.asm": asm_file([convert_method((first, second), to_float=True)])
-                                    for first, second in CONVERT_TO_FLOAT_CASES
+           f"{first}_{second}.asm": asm_file([cast_method((first, second), to_float=True)])
+                                    for first, second in CAST_TO_FLOAT_CASES
         },
     )
     written += write_suite(
-        "convert/to_integer",
+        "cast/to_integer",
         {
-           f"{first}_{second}.asm": asm_file([convert_method((first, second), to_float=False)])
-                                    for first, second in CONVERT_TO_INTEGER_CASES
+           f"{first}_{second}.asm": asm_file([cast_method((first, second), to_float=False)])
+                                    for first, second in CAST_TO_INTEGER_CASES
         },
     )
     return written
@@ -380,7 +390,7 @@ def bfx_method(sign: str, dst: int, src: int) -> Method:
     else:
         mnemonic = "bfxz"
     return (
-        integer_method("main")
+        integer_method(f"test_{sign}_{dst}_{src}")
         .instr(mnemonic, IR1, IR1, 0, 32, suffixes=(dst, src))
         .ret()
     )
@@ -403,7 +413,7 @@ def generate_bfx() -> list[Path]:
 # ---------------------------------------------------------------------------
 
 ARITH_CHAINS = {
-    "1.asm": [
+    "1": [
         ("addi", 0x30000),
         ("addi", -0x30001),
         ("muli", 0x30000),
@@ -413,7 +423,7 @@ ARITH_CHAINS = {
         ("muli", 0x4000000),
         ("udivi", 0x4000000),
     ],
-    "2.asm": [
+    "2": [
         ("xori", 0xFFFFFF),
         ("xori", 0xFF),
         ("xori", 0xFF0000),
@@ -422,8 +432,8 @@ ARITH_CHAINS = {
 }
 
 
-def arith_chain_method(ops: list[tuple[str, int]]) -> Method:
-    builder = integer_method("main")
+def arith_chain_method(case: str, ops: list[tuple[str, int]]) -> Method:
+    builder = integer_method(f"test_{case}")
     for mnemonic, value in ops:
         builder.instr(mnemonic, IR1, IR1, imm(value))
     return builder.ret()
@@ -433,7 +443,7 @@ def generate_arith_specialized() -> list[Path]:
     return write_suite(
         "arith-specialized",
         {
-            name: asm_file([arith_chain_method(ops)]) for name, ops in ARITH_CHAINS.items()
+            f"{case}.asm": asm_file([arith_chain_method(case, ops)]) for case, ops in ARITH_CHAINS.items()
         },
     )
 
@@ -443,7 +453,7 @@ def generate_arith_specialized() -> list[Path]:
 GENERATORS = {
     "arith"            : generate_arith,
     "float-arith"      : generate_float_arith,
-    "convert"          : generate_convert,
+    "cast"             : generate_cast,
     "bfx"              : generate_bfx,
     "arith-specialized": generate_arith_specialized,
 }

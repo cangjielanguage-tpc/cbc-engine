@@ -1,7 +1,7 @@
 @main_type "default"
 
 @type default
-  @method main()I64
+  @method test_zeroed_32_64(I64)I64
     @code
       @live.prim IR1
       bfxz.32.64 IR1, IR1, 0, 32

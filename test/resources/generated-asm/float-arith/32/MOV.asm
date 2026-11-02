@@ -1,7 +1,7 @@
 @main_type "default"
 
 @type default
-  @method main()F32
+  @method test_MOV(F32, F32)F32
     @code
       fmov.32 FR0, FR1
       fret.32 FR0

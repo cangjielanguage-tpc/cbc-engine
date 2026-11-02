@@ -1,7 +1,7 @@
 @main_type "default"
 
 @type default
-  @method main()I64
+  @method test_0x1000020(I64)I64
     @code
       @live.prim IR1
       xori.64 IR1, IR1, 0x1000020
