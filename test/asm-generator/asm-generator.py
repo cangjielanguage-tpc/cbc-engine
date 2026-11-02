@@ -399,12 +399,53 @@ def generate_bfx() -> list[Path]:
 
 
 # ---------------------------------------------------------------------------
+# arith-specialized: ArithSpecialized1/ArithSpecialized2
+# ---------------------------------------------------------------------------
+
+ARITH_CHAINS = {
+    "1.asm": [
+        ("addi", 0x30000),
+        ("addi", -0x30001),
+        ("muli", 0x30000),
+        ("divi", 0x30000),
+        ("muli", -0x40000),
+        ("divi", -0x40000),
+        ("muli", 0x4000000),
+        ("udivi", 0x4000000),
+    ],
+    "2.asm": [
+        ("xori", 0xFFFFFF),
+        ("xori", 0xFF),
+        ("xori", 0xFF0000),
+        ("xori", 0x7000000000000000),
+    ],
+}
+
+
+def arith_chain_method(ops: list[tuple[str, int]]) -> Method:
+    builder = integer_method("main")
+    for mnemonic, value in ops:
+        builder.instr(mnemonic, IR1, IR1, imm(value))
+    return builder.ret()
+
+
+def generate_arith_specialized() -> list[Path]:
+    return write_suite(
+        "arith-specialized",
+        {
+            name: asm_file([arith_chain_method(ops)]) for name, ops in ARITH_CHAINS.items()
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
 
 GENERATORS = {
     "arith"            : generate_arith,
     "float-arith"      : generate_float_arith,
     "convert"          : generate_convert,
     "bfx"              : generate_bfx,
+    "arith-specialized": generate_arith_specialized,
 }
 
 
