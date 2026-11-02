@@ -224,9 +224,65 @@ def generate_arith() -> list[Path]:
 
 
 # ---------------------------------------------------------------------------
+# float-arith: CbcSpecializedFloatOps/CbcSpecializedDoubleOps and SimpleArithFloatMov32/Mov64
+# ---------------------------------------------------------------------------
+
+FLOAT_UNARY_OPS = ["NEG", "SQRT", "ABS"]
+FLOAT_BINARY_OPS = ["ADD", "SUB", "MUL", "DIV"]
+
+
+def float_ops_method(name: str, width: int) -> Method:
+    if name in FLOAT_UNARY_OPS:
+        operands = (FR0,)
+    else:
+        operands = (FR0, FR1)
+    return (
+        method("main", AsmType(f"F{width}"), default_w=width)
+        .instr(f"f{name.lower()}", FR0, *operands)
+        .fret()
+    )
+
+
+def float_mov_methods(width: int) -> list[Method]:
+    """mov (FR1 -> FR0), i2f (IR1 -> FR0) and f2i (FR0 -> IR1)"""
+    float_type = AsmType(f"F{width}")
+    int_type = AsmType(f"I{width}")
+    return [
+        method("main", float_type, default_w=width)
+          .instr("fmov", FR0, FR1)
+          .fret(),
+
+        method("main", float_type, default_w=width)
+          .live(IR1)
+          .instr("movi2f", FR0, IR1)
+          .fret(),
+
+        method("main", int_type, default_w=width)
+          .instr("movf2i", IR1, FR0)
+          .ret(),
+    ]
+
+
+def generate_float_arith() -> list[Path]:
+    written = []
+    for width in (32, 64):
+        mov, i2f, f2i = float_mov_methods(width)
+        files = {
+            "MOV.asm": asm_file([mov]),
+            "I2F.asm": asm_file([i2f]),
+            "F2I.asm": asm_file([f2i]),
+        }
+        for name in FLOAT_UNARY_OPS + FLOAT_BINARY_OPS:
+            files[f"{name}.asm"] = asm_file([float_ops_method(name, width)])
+        written += write_suite(f"float-arith/{width}", files)
+    return written
+
+
+# ---------------------------------------------------------------------------
 
 GENERATORS = {
     "arith"            : generate_arith,
+    "float-arith"      : generate_float_arith,
 }
 
 
