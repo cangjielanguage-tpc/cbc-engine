@@ -371,10 +371,10 @@ static MethodTableMember GetTableMember(
     ASSERTION(flags.Is(Image::MethodFlag::VIRTUAL), "Only virtual methods are expected");
 
     auto dynamicMember = [&](Interpretation::DynamicFunctionHandle* fuh) -> MethodTableMember {
-        // distinguish between static virtual and instance virtual methods since they have different calling conventions
-        auto function = method->abiKind == Image::MethodAbiKind::HAS_THIS_TI
-                            ? Adapters::GetDirectCallTrampoline(fuh)
-                            : Adapters::GetDynCallTrampoline(entryIdx, flags.Is(Image::MethodFlag::SRET));
+        // Static virtual methods keep their slot for I2I dispatch, but fail explicitly when called from native code.
+        auto function = Adapters::GetDynCallTrampoline(
+            entryIdx, flags.Is(Image::MethodFlag::SRET), method->abiKind == Image::MethodAbiKind::HAS_THIS_TI
+        );
         return { &fuh->base, function };
     };
 

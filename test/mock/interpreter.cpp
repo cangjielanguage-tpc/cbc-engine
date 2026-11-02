@@ -447,7 +447,7 @@ bool Execution::AtomicCompareAndSwapRef(Reference oldRef, Reference newRef, Refe
 
 static void C2ICall() { FATAL("Should not reach here. Mock c2i"); }
 
-void* Adapters::GetDynCallTrampoline(int idx, bool sret) { FATAL("Should not reach here"); }
+void* Adapters::GetDynCallTrampoline(int idx, bool sret, bool isStatic) { FATAL("Should not reach here"); }
 
 void* Adapters::GenericC2ICallInstance() { return reinterpret_cast<void*>(&C2ICall); }
 
@@ -456,8 +456,6 @@ void* Adapters::IregOnlyC2ICallInstance() { return reinterpret_cast<void*>(&C2IC
 void* Adapters::C2ICall(Interpretation::AbiInfo info) { return reinterpret_cast<void*>(&C2ICall); }
 
 void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* fuh) { FATAL("Should not reach here."); }
-
-Interpretation::DynamicFunctionHandle* Adapters::TryGetDirectCallTargetFuh(void* entry) { return nullptr; }
 
 const char* MetaInfo::GetName(TypeInfo ti) { return "<unknown>"; }
 
