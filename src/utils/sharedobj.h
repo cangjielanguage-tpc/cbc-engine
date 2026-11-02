@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -7,6 +8,11 @@ namespace Utils {
 
 class SharedObject {
 public:
+    struct SymbolSearchResult {
+        void* symbol;
+        std::optional<std::string> error;
+    };
+
     SharedObject(SharedObject const&) = delete;
     SharedObject(SharedObject&& another);
     SharedObject();
@@ -26,8 +32,9 @@ public:
     static SharedObject OpenLibc();
 
     // Searches for the symbol named `str` in given shared object.
-    // Returns null on error.
-    void* SearchSym(char const* str) const;
+    // returns the symbol address and an owned error message, if lookup failed
+    // a null symbol address alone does not imply a lookup error
+    SymbolSearchResult SearchSym(char const* str) const;
 
     std::string const& Name() const;
 

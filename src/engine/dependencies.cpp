@@ -13,7 +13,7 @@ void* Dependencies::FindSymbol(std::string_view linkageName) const
 void* Dependencies::FindSymbol(char const* linkageName) const
 {
     for (auto& handle : objects) {
-        auto sym = handle->SearchSym(linkageName);
+        auto sym = handle->SearchSym(linkageName).symbol;
         if (sym)
             return sym;
     }
