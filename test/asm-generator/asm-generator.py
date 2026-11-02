@@ -171,8 +171,68 @@ def integer_method(name: str, width: int = 64) -> MethodBuilder:
 
 
 # ---------------------------------------------------------------------------
+# arith: CbcSpecializedArith suite
+# ---------------------------------------------------------------------------
+
+# The image set must stay in sync with rhsValues in test/cbc_test.cpp: the
+# test builds the file name with its hex() helper, which formats exactly
+# like imm() below.
+ARITH_RHS_VALUES = [
+    0x1,
+    0x10,
+    0x100,
+    0x1020,
+    0x10000,
+    0x100200,
+    0x1000020,
+    0x7000000000000000,
+    0x7000000010000001,
+    0xF000100000000001,
+    0xF000000100000001,
+]
+
+ARITH_OPERATIONS = [
+    "Add",
+    "Sub",
+    "Mul",
+    "And",
+    "Or",
+    "Xor",
+    "UDiv",
+    "Div",
+    "Rem",
+    "URem",
+    "LSL",
+    "LSR",
+    "ASR",
+]
+
+
+def arith_method(op: str, rhs: int) -> Method:
+    """Builds one arith case: `<op>i IR1, IR1, <imm(rhs)>` on the live IR1."""
+    return (
+        integer_method(f"test_{imm(rhs)}")
+        .instr(op.lower() + "i", IR1, IR1, imm(rhs))
+        .ret()
+    )
+
+
+def generate_arith() -> list[Path]:
+    written = []
+    for op in ARITH_OPERATIONS:
+        written += write_suite(
+            f"arith/{op}",
+            {
+                f"{imm(v)}.asm": asm_file([arith_method(op, v)]) for v in ARITH_RHS_VALUES
+            },
+        )
+    return written
+
+
+# ---------------------------------------------------------------------------
 
 GENERATORS = {
+    "arith"            : generate_arith,
 }
 
 
