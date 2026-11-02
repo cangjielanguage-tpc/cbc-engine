@@ -5,7 +5,7 @@
 
 TEST(SharedObjectSearchSym, ResolvesSymbol)
 {
-    auto object = Utils::SharedObject::OpenLibc();
+    auto object = Utils::SharedObject::OpenCurrentExecutable();
     ASSERT_TRUE(object.IsOpened());
 
     auto [symbol, error] = object.SearchSym("malloc");
@@ -15,7 +15,7 @@ TEST(SharedObjectSearchSym, ResolvesSymbol)
 
 TEST(SharedObjectSearchSym, MissingSymbolReturnsError)
 {
-    auto object = Utils::SharedObject::OpenLibc();
+    auto object = Utils::SharedObject::OpenCurrentExecutable();
     ASSERT_TRUE(object.IsOpened());
 
     auto [symbol, error] = object.SearchSym("cbc_engine_test_missing_symbol");
@@ -27,7 +27,7 @@ TEST(SharedObjectSearchSym, MissingSymbolReturnsError)
 
 TEST(SharedObjectSearchSym, SuccessfulLookupClearsStaleError)
 {
-    auto object = Utils::SharedObject::OpenLibc();
+    auto object = Utils::SharedObject::OpenCurrentExecutable();
     ASSERT_TRUE(object.IsOpened());
     ASSERT_EQ(dlsym(RTLD_DEFAULT, "cbc_engine_test_stale_error"), nullptr);
 
@@ -39,7 +39,7 @@ TEST(SharedObjectSearchSym, SuccessfulLookupClearsStaleError)
 
 TEST(SharedObjectSearchSym, ErrorMessageSurvivesFurtherLookups)
 {
-    auto object = Utils::SharedObject::OpenLibc();
+    auto object = Utils::SharedObject::OpenCurrentExecutable();
     ASSERT_TRUE(object.IsOpened());
 
     auto first = object.SearchSym("cbc_engine_test_first_missing_symbol");
