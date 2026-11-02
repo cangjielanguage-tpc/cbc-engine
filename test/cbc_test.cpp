@@ -143,13 +143,6 @@ TEST_ASM(CbcTest, SimpleArith)
     ASSERT_EQ(res.u32, 36);
 }
 
-TEST_ASM(CbcTest, SimpleArithFloat)
-{
-    GTEST_SKIP() << "not supported";
-    auto res = InterpretFPRes(OpenAndRewrite("simple_arith_float", "simple_arith_float.asm")->code, U32(0), U32(10));
-    ASSERT_EQ(res.f64, 357);
-}
-
 TEST_ASM(CbcTest, SimpleArithImm)
 {
     auto res = Interpret(OpenAndRewrite("simple_arith_imm", "simple_arith_imm.asm")->code, U32(0), U32(10));
