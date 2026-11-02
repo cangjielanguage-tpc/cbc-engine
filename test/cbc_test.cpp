@@ -85,29 +85,6 @@ static std::vector<Engine::Engine*>& BuiltEngines()
     return *engines;
 }
 
-static Engine::Engine& Open(std::string_view fileName)
-{
-    Engine::Loader loader;
-    auto file       = OpenAsm(std::string(fileName));
-    bool successful = loader.Load(std::move(file), fileName);
-    ASSERT(successful);
-    auto& engine = loader.Build();
-    BuiltEngines().push_back(&engine);
-    return engine;
-}
-
-static Interpretation::ExecBytecodeInfo* Rewrite(
-    Engine::Engine& engine, std::string_view fileName, std::string_view typeName, std::string_view methodName
-)
-{
-    Engine::Session session(engine);
-    auto methodId    = engine.FindMethod(session, fileName, typeName, methodName);
-    auto& fuhManager = Interpretation::FunctionHandleManager::Of(engine);
-
-    auto fuh = std::get<Interpretation::DynamicFunctionHandle*>(fuhManager.AcquireTagged(session, methodId.value()));
-    return fuhManager.Prepare(session, fuh).info;
-}
-
 static Interpretation::ExecBytecodeInfo* OpenAndRewrite(std::string name, std::string_view fileName)
 {
     Engine::Loader loader;
@@ -176,13 +153,13 @@ TEST_ASM(CbcTest, DirectCall)
 
 TEST_ASM(CbcTest, ArithSpecialized1)
 {
-    auto res = Interpret(OpenAndRewrite("arith_specialized1", "arith_specialized1.asm")->code, U64(10), U64(0));
+    auto res = Interpret(OpenAndRewrite("arith_specialized1", "generated-asm/arith-specialized/1.asm")->code, U64(10), U64(0));
     ASSERT_EQ(res.u64, 10 - 1);
 }
 
 TEST_ASM(CbcTest, ArithSpecialized2)
 {
-    auto res = Interpret(OpenAndRewrite("arith_specialized2", "arith_specialized2.asm")->code, U64(0), U64(0));
+    auto res = Interpret(OpenAndRewrite("arith_specialized2", "generated-asm/arith-specialized/2.asm")->code, U64(0), U64(0));
     ASSERT_EQ(res.u64, 0x7000000000000000 ^ 0xff00);
 }
 
@@ -270,11 +247,10 @@ TEST_P(CbcSpecializedArith, test)
         GTEST_SKIP() << "Assembler is not present";
     }
     ArithTestParams params = GetParam();
-    auto path              = "./simple_arith_specialized/simple_arith_specialized_" + params.name + "_bulk.asm";
-    auto& engine           = Open(path);
 
     for (auto rhs : rhsValues) {
-        auto code = Rewrite(engine, path, "default", "test_" + hex(rhs))->code;
+        auto path = "./generated-asm/arith/" + params.name + "/" + hex(rhs) + ".asm";
+        auto code = OpenAndRewrite("arith", path)->code;
         for (auto lhs : lhsValues) {
             auto res = Interpret(code, U64(lhs), U64(0));
             EXPECT_EQ(res.u64, params.arith(lhs, rhs));
@@ -551,14 +527,18 @@ TEST_P(CbcSpecializedConvert, test)
         GTEST_SKIP() << "Assembler is not present";
     }
     ConvertTestParams params = GetParam();
-    auto path                = "./simple_convert/simple_convert_" + params.name + ".asm";
-    auto& engine             = Open(path);
 
+    std::string                       path;
+    Interpretation::ExecBytecodeInfo* info = nullptr;
     for (int n { 0 }; n < params.casesCount; ++n) {
         ConvertCase convertCase = params.convertCases[n];
         SCOPED_TRACE(convertCase.name);
-        auto code               = Rewrite(engine, path, "default", "test_" + convertCase.name)->code;
-        params.testConvert(code, convertCase);
+        auto casePath = "./generated-asm/convert/" + params.name + "/" + convertCase.name + ".asm";
+        if (casePath != path) {
+            info = OpenAndRewrite(params.name, casePath);
+            path = casePath;
+        }
+        params.testConvert(info->code, convertCase);
     }
 }
 
@@ -692,25 +672,24 @@ TEST_P(CbcSpecializedFloatOps, test)
         GTEST_SKIP() << "Assembler is not present";
     }
     FPOpsTestParams<float> params = GetParam();
-    auto path                     = "./simple_arith_float/simple_arith_float" + params.name + ".asm";
-    auto& engine                  = Open(path);
-    for (size_t i { 0 }; i < params.valuesCount; ++i) {
-        auto [l, r] = params.values[i];
-        for (size_t j { 0 }; j < floatUnaryOpsCount; ++j) {
-            UnaryFunction<float> unaryFunc = floatUnaryOps[j];
-            const char* unaryFuncName      = unaryFunctionNames[j];
-            auto res                       = InterpretFPRes(
-                Rewrite(engine, path, "default", std::string("test_") + unaryFuncName)->code, F32(l), F32(1.f)
-            );
+    for (size_t j { 0 }; j < floatUnaryOpsCount; ++j) {
+        UnaryFunction<float> unaryFunc = floatUnaryOps[j];
+        auto path = std::string("./generated-asm/float-arith/") + params.name + "/" + unaryFunctionNames[j] + ".asm";
+        auto code = OpenAndRewrite("float_ops", path)->code;
+        for (size_t i { 0 }; i < params.valuesCount; ++i) {
+            auto [l, r] = params.values[i];
+            auto res    = InterpretFPRes(code, F32(l), F32(1.f));
             auto expVal = unaryFunc(l);
             testFPOps32(res, expVal);
         }
-        for (size_t j { 0 }; j < floatBinaryOpsCount; ++j) {
-            BinaryFunction<float> binaryFunc = floatBinaryOps[j];
-            const char* binaryFuncName       = binaryFunctionNames[j];
-            auto res                         = InterpretFPRes(
-                Rewrite(engine, path, "default", std::string("test_") + binaryFuncName)->code, F32(l), F32(r)
-            );
+    }
+    for (size_t j { 0 }; j < floatBinaryOpsCount; ++j) {
+        BinaryFunction<float> binaryFunc = floatBinaryOps[j];
+        auto path = std::string("./generated-asm/float-arith/") + params.name + "/" + binaryFunctionNames[j] + ".asm";
+        auto code = OpenAndRewrite("float_ops", path)->code;
+        for (size_t i { 0 }; i < params.valuesCount; ++i) {
+            auto [l, r] = params.values[i];
+            auto res    = InterpretFPRes(code, F32(l), F32(r));
             auto expVal = binaryFunc(l, r);
             testFPOps32(res, expVal);
         }
@@ -723,25 +702,24 @@ TEST_P(CbcSpecializedDoubleOps, test)
         GTEST_SKIP() << "Assembler is not present";
     }
     FPOpsTestParams<double> params = GetParam();
-    auto path                      = "./simple_arith_float/simple_arith_float" + params.name + ".asm";
-    auto& engine                   = Open(path);
-    for (size_t i { 0 }; i < params.valuesCount; ++i) {
-        auto [l, r] = params.values[i];
-        for (size_t j { 0 }; j < floatUnaryOpsCount; ++j) {
-            UnaryFunction<double> unaryFunc = doubleUnaryOps[j];
-            const char* unaryFuncName       = unaryFunctionNames[j];
-            auto res                        = InterpretFPRes(
-                Rewrite(engine, path, "default", std::string("test_") + unaryFuncName)->code, F64(l), F64(1.f)
-            );
+    for (size_t j { 0 }; j < floatUnaryOpsCount; ++j) {
+        UnaryFunction<double> unaryFunc = doubleUnaryOps[j];
+        auto path = std::string("./generated-asm/float-arith/") + params.name + "/" + unaryFunctionNames[j] + ".asm";
+        auto code = OpenAndRewrite("float_ops", path)->code;
+        for (size_t i { 0 }; i < params.valuesCount; ++i) {
+            auto [l, r] = params.values[i];
+            auto res    = InterpretFPRes(code, F64(l), F64(1.f));
             auto expVal = unaryFunc(l);
             testFPOps64(res, expVal);
         }
-        for (size_t j { 0 }; j < floatBinaryOpsCount; ++j) {
-            BinaryFunction<double> binaryFunc = doubleBinaryOps[j];
-            const char* binaryFuncName        = binaryFunctionNames[j];
-            auto res                          = InterpretFPRes(
-                Rewrite(engine, path, "default", std::string("test_") + binaryFuncName)->code, F64(l), F64(r)
-            );
+    }
+    for (size_t j { 0 }; j < floatBinaryOpsCount; ++j) {
+        BinaryFunction<double> binaryFunc = doubleBinaryOps[j];
+        auto path = std::string("./generated-asm/float-arith/") + params.name + "/" + binaryFunctionNames[j] + ".asm";
+        auto code = OpenAndRewrite("float_ops", path)->code;
+        for (size_t i { 0 }; i < params.valuesCount; ++i) {
+            auto [l, r] = params.values[i];
+            auto res    = InterpretFPRes(code, F64(l), F64(r));
             auto expVal = binaryFunc(l, r);
             testFPOps64(res, expVal);
         }
@@ -754,41 +732,38 @@ INSTANTIATE_TEST_SUITE_P(CbcTest, CbcSpecializedDoubleOps, ::testing::Values(FPO
 
 TEST_ASM(CbcTest, SimpleArithFloatMov32)
 {
-    auto path    = "./simple_arith_float/simple_arith_float32_mov.asm";
-    auto& engine = Open(path);
-
     {
-        auto res = InterpretFPRes(Rewrite(engine, path, "default", "test_MOV")->code, F32(0), F32(2.0f));
+        auto code = OpenAndRewrite("float_mov", "./generated-asm/float-arith/32/MOV.asm")->code;
+        auto res  = InterpretFPRes(code, F32(0), F32(2.0f));
         ASSERT_EQ(res.f32, 2.0f);
     }
     {
-        auto res = Interpret(Rewrite(engine, path, "default", "test_F2I")->code, U32(0), U32(0), F32(2.5f), F32(0));
+        auto code = OpenAndRewrite("float_f2i", "./generated-asm/float-arith/32/F2I.asm")->code;
+        auto res  = Interpret(code, U32(0), U32(0), F32(2.5f), F32(0));
         ASSERT_EQ(res.u32, 0x40200000);
     }
     {
-        auto res =
-            InterpretFPRes(Rewrite(engine, path, "default", "test_I2F")->code, U32(0x40200000), U32(0), F32(0), F32(0));
+        auto code = OpenAndRewrite("float_i2f", "./generated-asm/float-arith/32/I2F.asm")->code;
+        auto res  = InterpretFPRes(code, U32(0x40200000), U32(0), F32(0), F32(0));
         ASSERT_EQ(res.f32, 2.5f);
     }
 }
 
 TEST_ASM(CbcTest, SimpleArithFloatMov64)
 {
-    auto path    = "./simple_arith_float/simple_arith_float64_mov.asm";
-    auto& engine = Open(path);
-
     {
-        auto res = InterpretFPRes(Rewrite(engine, path, "default", "test_MOV")->code, F64(0), F64(2.0));
+        auto code = OpenAndRewrite("float_mov", "./generated-asm/float-arith/64/MOV.asm")->code;
+        auto res  = InterpretFPRes(code, F64(0), F64(2.0));
         ASSERT_EQ(res.f64, 2.0);
     }
     {
-        auto res = Interpret(Rewrite(engine, path, "default", "test_F2I")->code, U64(0), U64(0), F64(2.5), F64(0));
+        auto code = OpenAndRewrite("float_f2i", "./generated-asm/float-arith/64/F2I.asm")->code;
+        auto res  = Interpret(code, U64(0), U64(0), F64(2.5), F64(0));
         ASSERT_EQ(res.u64, 0x4004000000000000);
     }
     {
-        auto res = InterpretFPRes(
-            Rewrite(engine, path, "default", "test_I2F")->code, U64(0x4004000000000000), U64(0), F64(0), F64(0)
-        );
+        auto code = OpenAndRewrite("float_i2f", "./generated-asm/float-arith/64/I2F.asm")->code;
+        auto res  = InterpretFPRes(code, U64(0x4004000000000000), U64(0), F64(0), F64(0));
         ASSERT_EQ(res.f64, 2.5);
     }
 }
@@ -837,7 +812,7 @@ TEST_P(BFX, test)
     for (int n { 0 }; n < params.casesCount; ++n) {
         BFXCase bfxCase  = params.bfxCases[n];
         std::string sign = (bfxCase.signExtend ? "signed" : "zeroed");
-        auto path        = "./bfx/simple_bfx_" + sign + "_" + std::to_string(bfxCase.dstBits) + "_" +
+        auto path        = "./generated-asm/bfx/" + sign + "_" + std::to_string(bfxCase.dstBits) + "_" +
                     std::to_string(bfxCase.srcBits) + ".asm";
         auto code = OpenAndRewrite("bfx", path)->code;
         auto res  = Interpret(code, bfxCase.val, U64(0), F64(0), F64(0));
