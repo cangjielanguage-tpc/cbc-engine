@@ -1,0 +1,11 @@
+@main_type "default"
+
+@type default
+  @method test_0x7fffffffffffffff(I64)I64
+    @code
+      @live.prim IR1
+      ssubi.64 IR1, IR1, 0x7fffffffffffffff
+      ret.64 IR1
+    @end
+  @end
+@end

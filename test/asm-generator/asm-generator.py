@@ -817,6 +817,80 @@ def generate_checked_arith() -> list[Path]:
 
 
 # ---------------------------------------------------------------------------
+# sat-arith: CbcSpecializedSatArith suite
+# ---------------------------------------------------------------------------
+
+# The imm rhs file sets must stay in sync with SatImmRhs in test/cbc_test.cpp:
+# the test builds the file name with its hex() helper, which formats exactly
+# like imm() below. Values are unsigned bit patterns; the signed ops truncate
+# them to the width (0xFF == -1 for W8, 0xFFFF == -1 for W16, ...).
+# Immediates outside the signed 12-bit range select the wide SBINIMM*W encoding;
+# the engine emitter keeps W8 immediates within [-128, 255] (all inside 12 bits),
+# so SBINIMM8W has no test case.
+SAT_IMM_RHS = {
+    8:  [0x0, 0x1, 0x2, 0x7F, 0x80, 0xFF],
+    16: [0x0, 0x1, 0x2, 0x7FF, 0x1000, 0x7FFF, 0x8000, 0xFFFF],
+    32: [0x0, 0x1, 0x2, 0x7FF, 0x10000, 0x7FFFFFFF, 0x80000000, 0xFFFFFFFF],
+    64: [0x0, 0x1, 0x2, 0x7FF, 0x100000000, 0x7FFFFFFFFFFFFFFF, 0x8000000000000000, 0xFFFFFFFFFFFFFFFF],
+}
+
+SAT_IMM_OPS = ["saddi", "ssubi", "smuli", "slsli", "sasri", "suaddi", "susubi", "sumuli"]
+
+# The DSL exposes no imm mnemonics for sdiv/smod/spow, and the unsigned shifts
+# sulsl/sulsr exist only in the register form (all widths, upstream
+# NewAsmParser.scala:1091-1100); sneg/suneg are unary (ssub/susub against IRZ)
+# with no imm form.
+SAT_RR_WIDTHS = {op: [8, 16, 32, 64] for op in [
+    "sadd", "ssub", "smul", "sdiv", "smod", "spow", "slsl", "sasr", "sneg",
+    "suadd", "susub", "sumul", "sudiv", "sumod", "suneg", "sulsl", "sulsr",
+]}
+
+SAT_UNARY_OPS = ["sneg", "suneg"]
+
+
+def sat_imm_method(op: str, w: int, rhs: int) -> Method:
+    return (
+        method(f"test_{imm(rhs)}", I64, params=(I64,), default_w=w)
+        .live(IR1)
+        .instr(op, IR1, IR1, imm(rhs))
+        .ret()
+    )
+
+
+def sat_rr_method(op: str, w: int) -> Method:
+    if op in SAT_UNARY_OPS:
+        return (
+            method(f"test_{op}_{w}", I64, params=(I64,), default_w=w)
+            .live(IR1)
+            .instr(op, IR1, IR1)
+            .ret()
+        )
+    return (
+        method(f"test_{op}_{w}", I64, params=(I64, I64), default_w=w)
+        .live(IR1, IR2)
+        .instr(op, IR1, IR1, IR2)
+        .ret()
+    )
+
+
+def generate_sat_arith() -> list[Path]:
+    written = []
+    for op in SAT_IMM_OPS:
+        for w in (8, 16, 32, 64):
+            written += write_suite(
+                f"sat-arith/{op}-{w}",
+                {f"{imm(v)}.asm": asm_file([sat_imm_method(op, w, v)]) for v in SAT_IMM_RHS[w]},
+            )
+    for op, widths in SAT_RR_WIDTHS.items():
+        for w in widths:
+            written += write_suite(
+                f"sat-arith/{op}-{w}-rr",
+                {"rr.asm": asm_file([sat_rr_method(op, w)])},
+            )
+    return written
+
+
+# ---------------------------------------------------------------------------
 
 GENERATORS = {
     "arith"            : generate_arith,
@@ -828,6 +902,7 @@ GENERATORS = {
     "sat-arith"        : generate_sat_arith,
     "arr-ic"           : generate_arr_ic,
     "checked-arith"    : generate_checked_arith,
+    "sat-arith"        : generate_sat_arith,
 }
 
 
