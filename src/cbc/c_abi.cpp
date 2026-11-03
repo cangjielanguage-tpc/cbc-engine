@@ -15,12 +15,13 @@ static CbcTypeKind PieceKind(uint32_t size, bool isFloat)
     if (isFloat) {
         return size == 8 ? CbcTypeKind::F64 : CbcTypeKind::F32;
     }
-    switch (size) {
-        case 8:  return CbcTypeKind::I64;
-        case 4:  return CbcTypeKind::I32;
-        case 2:  return CbcTypeKind::U16;
-        default: return CbcTypeKind::U8;
+    if (size > 4) {
+        return CbcTypeKind::I64;
     }
+    if (size > 2) {
+        return CbcTypeKind::I32;
+    }
+    return size == 2 ? CbcTypeKind::U16 : CbcTypeKind::U8;
 }
 
 static CAbiStructPlan ClassifySysV(Utils::Span<const CAbiField> fields, uint32_t size)
