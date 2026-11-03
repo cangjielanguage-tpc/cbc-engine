@@ -593,6 +593,16 @@ struct IsaRewriter : public IsaParser {
             }
         }
 
+        int sretSpillSlot = -1;
+        if (sretRegPieces.Size() > 0) {
+            // If sretAddrLocation is reg, move resolver can spoil it, so save it to stack before resolution.
+            auto sretAddrLocation = args[args.Size() - 1];
+            if (sretAddrLocation.Kind() != Location::SLOT) {
+                sretSpillSlot = abi.ConsumeStackArea(Cbc::STACK_SLOT_SIZE);
+                moves.AddMove(Location::Slot(sretSpillSlot), sretAddrLocation);
+            }
+        }
+
         // By-reference struct copies are placed after all stack arguments:
         // the I2N adapter copies only the stack-argument area, so each copy
         // stays in the frame and only its pointer is passed.
@@ -624,13 +634,13 @@ struct IsaRewriter : public IsaParser {
         }
 
         if (sretRegPieces.Size() > 0) {
-            // Move sret destination address into ACC. It will be used
-            // after call by `EmitFillSRetAreaByRegs`
-            auto buf = args[args.Size() - 1];
-            if (buf.Kind() == Location::SLOT) {
-                emitter.AssignIRegFromSlot(IReg::IR_ACC, buf.SlotIdx());
+            // Move sret destination address into ACC. It will be used after call by `EmitFillSRetAreaByRegs`.
+            auto sretAddrLocation = args[args.Size() - 1];
+            if (sretAddrLocation.Kind() != Location::SLOT) {
+                emit.LeaStackParam(IReg::IR_ACC, static_cast<uint32_t>(sretSpillSlot) * Cbc::STACK_SLOT_SIZE);
+                emit.LoadRec(LDK::LD_64, IReg::IR_ACC, IReg::IR_ACC, 0);
             } else {
-                emitter.AssignIReg(IReg::IR_ACC, IReg::From(buf.IRegIdx()));
+                emitter.AssignIRegFromSlot(IReg::IR_ACC, sretAddrLocation.SlotIdx());
             }
         }
 
