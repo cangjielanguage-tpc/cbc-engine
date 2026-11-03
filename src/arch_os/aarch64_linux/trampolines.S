@@ -283,11 +283,17 @@ engine_trampolines_dyn_sret_end:
 engine_trampolines_dyn_end:
 
 // Keep this pool adjacent to the dynamic pools: I2I dispatch decodes the slot from the address.
+// Native calls fail without trying to interpret an explicit argument as an instance receiver.
 engine_trampolines_dyn_static_start:
-.rept TRAMPOLINE_COUNT
-  b engine_unsupported_c2i_static_virtual_call
-  nop // padding to satisfy DYN_CALL_TRAMPOLINE_SIZE
-.endr
+.macro repeat_trampoline_dyn_static count
+  .set i, 0
+  .rept \count
+      mov w0, i // pass the slot to the fatal handler
+      b engine_unsupported_c2i_static_virtual_call
+      .set i, i + 1
+  .endr
+.endm
+  repeat_trampoline_dyn_static TRAMPOLINE_COUNT
 engine_trampolines_dyn_static_end:
 
 #define StubFrameContextSize   (8 * 14)
