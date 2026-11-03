@@ -88,12 +88,15 @@ SharedObject::SymbolSearchResult SharedObject::SearchSym(char const* str) const
         return { nullptr, "shared object is not open" };
     }
 
-    dlerror(); // null symbol value can be valid, so discard stale loader errors first
+    dlerror(); // clear any error from an earlier loader operation
     auto* symbol = dlsym(handle, str);
-    if (auto* error = dlerror(); error != nullptr) {
-        return { symbol, std::string(error) };
+    auto* error  = dlerror();
+    if (symbol != nullptr) {
+        return { symbol, {} };
     }
-    return { symbol, std::nullopt };
+
+    // zero-valued symbol is unusable (undefined weak symbol, null IFUNC result, etc.)
+    return { nullptr, error != nullptr ? error : "symbol resolved to a null address" };
 }
 
 std::string const& SharedObject::Name() const { return name; }

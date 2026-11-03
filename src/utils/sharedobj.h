@@ -1,6 +1,5 @@
 #pragma once
 
-#include <optional>
 #include <string>
 #include <string_view>
 
@@ -10,7 +9,7 @@ class SharedObject {
 public:
     struct SymbolSearchResult {
         void* symbol;
-        std::optional<std::string> error;
+        std::string error;
     };
 
     SharedObject(SharedObject const&) = delete;
@@ -31,9 +30,7 @@ public:
 
     static SharedObject OpenLibc();
 
-    // Searches for the symbol named `str` in given shared object.
-    // returns the symbol address and an owned error message, if lookup failed
-    // a null symbol address alone does not imply a lookup error
+    // returns a symbol address or a null pointer with an error message
     SymbolSearchResult SearchSym(char const* str) const;
 
     std::string const& Name() const;
