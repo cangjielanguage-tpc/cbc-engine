@@ -2119,6 +2119,118 @@ def generate_mem_obj() -> list[Path]:
 
 
 # ---------------------------------------------------------------------------
+# atomics: CbcSpecializedAtomics suite
+# ---------------------------------------------------------------------------
+
+# The cbc-asm DSL exposes only the typed atomic forms (atomic.load/atomic.store/
+# atomic.cas/atomic.swap/atomic.fetch.{op} with a #field_ref path); the RT-style
+# mnemonics (atomic.ld.8, cas.8, atomic.fetch.add.8, ...) do not exist in the
+# parser table. The access kind and width come from the field type (I8 -> LD_S8,
+# U8 -> LD_U8, I32/U32 -> LD_32/ST_32, ...), so the s/u spellings are expressed
+# by the field type. Float fields are rejected (the rewriter FATALs on their
+# kinds in CAS/swap/fetch and the interpreter on LD_F32/ST_F32), and the ref
+# fields are blocked by the mock (AtomicReadRef and friends FATAL).
+ATOMIC_KINDS = ["8s", "8u", "16s", "16u", "32", "64"]
+
+ATOMIC_FIELD_TYPES = {"8s": I8, "8u": U8, "16s": I16, "16u": U16, "32": I32, "64": I64}
+
+ATOMIC_FETCH_OPS = ["add", "sub", "and", "or", "xor"]
+
+
+def atomic_type_decls() -> str:
+    fields = "\n".join(
+        f"  @field f{kind} {ATOMIC_FIELD_TYPES[kind]}\n    @flags PUBLIC\n  @end"
+        for kind in ATOMIC_KINDS
+    )
+    return f"@type atm:Cell\n  @flags PUBLIC RECORD\n{fields}\n@end\n\n"
+
+
+def atomic_field_refs() -> str:
+    return "\n".join(
+        f"@field_ref atm_f{kind} = atm:Cell@rec f{kind} {ATOMIC_FIELD_TYPES[kind]}"
+        for kind in ATOMIC_KINDS
+    ) + "\n"
+
+
+def atomics_file(methods: list[Method]) -> str:
+    body = "\n\n".join(m.render() for m in methods)
+    return ('@main_type "default"\n' + atomic_field_refs() + atomic_type_decls() +
+            "@type default\n" + body + "\n@end\n")
+
+
+def atomic_ld_method(kind: str) -> Method:
+    return (
+        method(f"test_ld_{kind}", I64, params=(I64,))
+        .live_ref(IR1)
+        .instr("atomic.load", IR3, IR1, f"#atm_f{kind}")
+        .dead(IR1)
+        .ret(IR3)
+    )
+
+
+def atomic_st_method(kind: str) -> Method:
+    return (
+        method(f"test_st_{kind}", I64, params=(I64, I64))
+        .live_ref(IR1)
+        .live(IR2)
+        .instr("atomic.store", IR2, IR1, f"#atm_f{kind}")
+        .instr("atomic.load", IR3, IR1, f"#atm_f{kind}")
+        .dead(IR1, IR2)
+        .ret(IR3)
+    )
+
+
+def atomic_fetch_method(op: str, kind: str) -> Method:
+    return (
+        method(f"test_fetch_{op}_{kind}", I64, params=(I64, I64))
+        .live_ref(IR1)
+        .live(IR2)
+        .instr(f"atomic.fetch.{op}", IR3, IR1, IR2, f"#atm_f{kind}")
+        .dead(IR1, IR2)
+        .ret(IR3)
+    )
+
+
+def atomic_swap_method(kind: str) -> Method:
+    return (
+        method(f"test_swap_{kind}", I64, params=(I64, I64))
+        .live_ref(IR1)
+        .live(IR2)
+        .instr("atomic.swap", IR3, IR1, IR2, f"#atm_f{kind}")
+        .dead(IR1, IR2)
+        .ret(IR3)
+    )
+
+
+def atomic_cas_method(kind: str, flavor: str) -> Method:
+    return (
+        method(f"test_cas_{kind}_{flavor}", I64, params=(I64, I64, I64))
+        .live_ref(IR1)
+        .live(IR2, IR3)
+        .instr("atomic.cas", IR4, IR1, IR2, IR3, f"#atm_f{kind}")
+        .dead(IR1, IR2, IR3)
+        .ret(IR4)
+    )
+
+
+def generate_atomics() -> list[Path]:
+    written = write_suite("atomics/ld", {f"{k}.asm": atomics_file([atomic_ld_method(k)]) for k in ATOMIC_KINDS})
+    written += write_suite("atomics/st", {f"{k}.asm": atomics_file([atomic_st_method(k)]) for k in ATOMIC_KINDS})
+    written += write_suite("atomics/swap", {f"{k}.asm": atomics_file([atomic_swap_method(k)]) for k in ATOMIC_KINDS})
+    written += write_suite(
+        "atomics/fetch",
+        {f"{op}-{k}.asm": atomics_file([atomic_fetch_method(op, k)])
+                            for op in ATOMIC_FETCH_OPS for k in ATOMIC_KINDS},
+    )
+    written += write_suite(
+        "atomics/cas",
+        {f"{k}-{flavor}.asm": atomics_file([atomic_cas_method(k, flavor)])
+                              for k in ATOMIC_KINDS for flavor in ("ok", "fail")},
+    )
+    return written
+
+
+# ---------------------------------------------------------------------------
 
 GENERATORS = {
     "arith"            : generate_arith,
@@ -2136,6 +2248,7 @@ GENERATORS = {
     "alu-rr"           : generate_alu_rr,
     "frame-slots"      : generate_frame_slots,
     "mem-obj"          : generate_mem_obj,
+    "atomics"          : generate_atomics,
 }
 
 
