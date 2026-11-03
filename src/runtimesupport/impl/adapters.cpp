@@ -62,9 +62,9 @@ void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* f
     return GetAddressOfDirectCallTrampoline(i);
 }
 
-extern "C" [[noreturn]] void engine_unsupported_c2i_static_virtual_call()
+extern "C" [[noreturn]] void engine_unsupported_c2i_static_virtual_call(int slot)
 {
-    FATAL("Unsupported C2I static virtual call");
+    FATAL("Unsupported C2I static virtual call at method table slot %d", slot);
 }
 
 void* Adapters::GetDynCallTrampoline(int fuhIdx, bool sret, bool isStatic)
