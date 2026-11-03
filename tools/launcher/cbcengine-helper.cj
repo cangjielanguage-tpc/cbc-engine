@@ -21,6 +21,25 @@ public func throwImplicitException(tpe: Int64): Int64 {
         case 17 => throw ArithmeticException("Overshift: Negative shift count!")
         case 18 => throw ArithmeticException("Overshift: Negative shift count!")
         case 19 => throw ArithmeticException("Overshift: Negative shift count!")
+        // Checked numeric cast overflow reasons; the order must match
+        // `src/interpreter/implicit_exceptions.h`.
+        case 20 => throw OverflowException("Casting Infinite or NaN value to integer.")
+        case 21 => throw OverflowException("The result would be less than Int8.Min.")
+        case 22 => throw OverflowException("The result would be greater than Int8.Max.")
+        case 23 => throw OverflowException("The result would be less than UInt8.Min.")
+        case 24 => throw OverflowException("The result would be greater than UInt8.Max.")
+        case 25 => throw OverflowException("The result would be less than Int16.Min.")
+        case 26 => throw OverflowException("The result would be greater than Int16.Max.")
+        case 27 => throw OverflowException("The result would be less than UInt16.Min.")
+        case 28 => throw OverflowException("The result would be greater than UInt16.Max.")
+        case 29 => throw OverflowException("The result would be less than Int32.Min.")
+        case 30 => throw OverflowException("The result would be greater than Int32.Max.")
+        case 31 => throw OverflowException("The result would be less than UInt32.Min.")
+        case 32 => throw OverflowException("The result would be greater than UInt32.Max.")
+        case 33 => throw OverflowException("The result would be less than Int64.Min.")
+        case 34 => throw OverflowException("The result would be greater than Int64.Max.")
+        case 35 => throw OverflowException("The result would be less than UInt64.Min.")
+        case 36 => throw OverflowException("The result would be greater than UInt64.Max.")
         case _ => throw Exception("Unknown implicit exception type")
     }
     return tpe

@@ -576,14 +576,14 @@ public:
         }
     }
 
-    // Returns true when the cast overflowed and `OverflowException` must be
-    // thrown. Otherwise the converted value is stored into the destination.
-    bool CheckedConvert(ConvertType toType, ConvertType fromType, Reg to, Reg from)
+    // Returns `Type::Successful` when the converted value is stored into the
+    // destination. Otherwise returns the exception to throw.
+    Type CheckedConvert(ConvertType toType, ConvertType fromType, Reg to, Reg from)
     {
         auto val = fromType.IsFloatingPoint() ? ectype->GetPrimitive(from.FR()) : ectype->GetPrimitive(from.IR());
         auto res = CheckedCastPrim(toType, fromType, val);
-        if (res.overflow) {
-            return true;
+        if (res.exception != Type::Successful) {
+            return res.exception;
         }
 
         if (toType.IsFloatingPoint()) {
@@ -591,7 +591,7 @@ public:
         } else {
             ectype->Put(to.IR(), res.value);
         }
-        return false;
+        return Type::Successful;
     }
 
     inline bool BitFieldExtract(Reg dst, Reg src, uint8_t offset, uint8_t size, bool sx)

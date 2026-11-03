@@ -6,6 +6,7 @@
 
 #include "cbc/isa.h"
 #include "ectype.h"
+#include "implicit_exceptions.h"
 
 namespace Interpretation {
 
@@ -146,8 +147,62 @@ inline Value::Primitive CastPrim(ConvertType toType, ConvertType fromType, Value
 
 struct CheckedCastResult {
     Value::Primitive value;
-    bool overflow;
+    Type exception;
 };
+
+// Exceptions thrown when a checked cast to `To` overflows. Their messages
+// must match `tools/launcher/cbcengine-helper.cj`.
+template <typename To> struct CheckedCastOverflow;
+
+template <> struct CheckedCastOverflow<int8_t> {
+    static constexpr Type minException = Type::CastOverflowI8Min;
+    static constexpr Type maxException = Type::CastOverflowI8Max;
+};
+
+template <> struct CheckedCastOverflow<uint8_t> {
+    static constexpr Type minException = Type::CastOverflowU8Min;
+    static constexpr Type maxException = Type::CastOverflowU8Max;
+};
+
+template <> struct CheckedCastOverflow<int16_t> {
+    static constexpr Type minException = Type::CastOverflowI16Min;
+    static constexpr Type maxException = Type::CastOverflowI16Max;
+};
+
+template <> struct CheckedCastOverflow<uint16_t> {
+    static constexpr Type minException = Type::CastOverflowU16Min;
+    static constexpr Type maxException = Type::CastOverflowU16Max;
+};
+
+template <> struct CheckedCastOverflow<int32_t> {
+    static constexpr Type minException = Type::CastOverflowI32Min;
+    static constexpr Type maxException = Type::CastOverflowI32Max;
+};
+
+template <> struct CheckedCastOverflow<uint32_t> {
+    static constexpr Type minException = Type::CastOverflowU32Min;
+    static constexpr Type maxException = Type::CastOverflowU32Max;
+};
+
+template <> struct CheckedCastOverflow<int64_t> {
+    static constexpr Type minException = Type::CastOverflowI64Min;
+    static constexpr Type maxException = Type::CastOverflowI64Max;
+};
+
+template <> struct CheckedCastOverflow<uint64_t> {
+    static constexpr Type minException = Type::CastOverflowU64Min;
+    static constexpr Type maxException = Type::CastOverflowU64Max;
+};
+
+template <typename To> inline CheckedCastResult CheckedCastOverflowed(Type exception)
+{
+    return { MakeIntPrim<To>(0), exception };
+}
+
+inline CheckedCastResult CheckedCastSucceeded(Value::Primitive value)
+{
+    return { value, Type::Successful };
+}
 
 // Checked casts rules: the source value must be representable
 // in the target type, otherwise the cast throws `OverflowException`.
@@ -157,23 +212,25 @@ template <typename To> static inline CheckedCastResult CheckedCastFromSigned(int
     static_assert(std::is_integral_v<To>, "integral target is expected");
 
     if constexpr (std::is_signed_v<To>) {
-        if (value < static_cast<int64_t>(std::numeric_limits<To>::min()) ||
-            value > static_cast<int64_t>(std::numeric_limits<To>::max())) {
-            return { MakeIntPrim<To>(0), true };
+        if (value < static_cast<int64_t>(std::numeric_limits<To>::min())) {
+            return CheckedCastOverflowed<To>(CheckedCastOverflow<To>::minException);
+        }
+        if (value > static_cast<int64_t>(std::numeric_limits<To>::max())) {
+            return CheckedCastOverflowed<To>(CheckedCastOverflow<To>::maxException);
         }
     } else {
         if (value < 0) {
-            return { MakeIntPrim<To>(0), true };
+            return CheckedCastOverflowed<To>(CheckedCastOverflow<To>::minException);
         }
         // int64_t is always representable in uint64_t, so only narrower
         // unsigned targets need an upper bound check.
         if constexpr (sizeof(To) < sizeof(uint64_t)) {
             if (static_cast<uint64_t>(value) > static_cast<uint64_t>(std::numeric_limits<To>::max())) {
-                return { MakeIntPrim<To>(0), true };
+                return CheckedCastOverflowed<To>(CheckedCastOverflow<To>::maxException);
             }
         }
     }
-    return { MakeIntPrim(static_cast<To>(value)), false };
+    return CheckedCastSucceeded(MakeIntPrim(static_cast<To>(value)));
 }
 
 // Checked casts rules: the source value must be representable
@@ -184,14 +241,14 @@ template <typename To> static inline CheckedCastResult CheckedCastFromUnsigned(u
     static_assert(std::is_integral_v<To>, "integral target is expected");
     if constexpr (std::is_signed_v<To>) {
         if (value > static_cast<uint64_t>(std::numeric_limits<To>::max())) {
-            return { MakeIntPrim<To>(0), true };
+            return CheckedCastOverflowed<To>(CheckedCastOverflow<To>::maxException);
         }
     } else if constexpr (sizeof(To) < sizeof(uint64_t)) {
         if (value > static_cast<uint64_t>(std::numeric_limits<To>::max())) {
-            return { MakeIntPrim<To>(0), true };
+            return CheckedCastOverflowed<To>(CheckedCastOverflow<To>::maxException);
         }
     }
-    return { MakeIntPrim(static_cast<To>(value)), false };
+    return CheckedCastSucceeded(MakeIntPrim(static_cast<To>(value)));
 }
 
 // Bounds of an integral type encoded in double, as a half-open interval
@@ -219,17 +276,20 @@ template <typename To> inline CheckedCastResult CheckedCastFromFp(double value)
 
     // NaN and infinities are never representable in an integer type.
     if (!std::isfinite(value)) {
-        return { MakeIntPrim<To>(0), true };
+        return CheckedCastOverflowed<To>(Type::CastOverflowInfOrNaN);
     }
 
     // Rounding is truncation toward zero; the range check must be applied to the
     // truncated value (so e.g. -128.9 fits into Int8 as -128).
     const double truncated = std::trunc(value);
 
-    if (truncated < FpIntBounds<To>::lower || truncated >= FpIntBounds<To>::upper) {
-        return { MakeIntPrim<To>(0), true };
+    if (truncated < FpIntBounds<To>::lower) {
+        return CheckedCastOverflowed<To>(CheckedCastOverflow<To>::minException);
     }
-    return { MakeIntPrim(static_cast<To>(truncated)), false };
+    if (truncated >= FpIntBounds<To>::upper) {
+        return CheckedCastOverflowed<To>(CheckedCastOverflow<To>::maxException);
+    }
+    return CheckedCastSucceeded(MakeIntPrim(static_cast<To>(truncated)));
 }
 
 inline CheckedCastResult CheckedCastFromSignedTo(ConvertType toType, int64_t value)
@@ -243,7 +303,7 @@ inline CheckedCastResult CheckedCastFromSignedTo(ConvertType toType, int64_t val
         case ConvertType::U32: return CheckedCastFromSigned<uint32_t>(value);
         case ConvertType::I64: return CheckedCastFromSigned<int64_t>(value);
         case ConvertType::U64: return CheckedCastFromSigned<uint64_t>(value);
-        default:               return { UnsupportedCastTo(toType), false };
+        default:               return { UnsupportedCastTo(toType), Type::Successful };
     }
 }
 
@@ -258,7 +318,7 @@ inline CheckedCastResult CheckedCastFromUnsignedTo(ConvertType toType, uint64_t 
         case ConvertType::U32: return CheckedCastFromUnsigned<uint32_t>(value);
         case ConvertType::I64: return CheckedCastFromUnsigned<int64_t>(value);
         case ConvertType::U64: return CheckedCastFromUnsigned<uint64_t>(value);
-        default:               return { UnsupportedCastTo(toType), false };
+        default:               return { UnsupportedCastTo(toType), Type::Successful };
     }
 }
 
@@ -273,7 +333,7 @@ inline CheckedCastResult CheckedCastFromIntegral(ConvertType toType, ConvertType
         case ConvertType::U32: return CheckedCastFromUnsignedTo(toType, val.u32);
         case ConvertType::I64: return CheckedCastFromSignedTo(toType, static_cast<int64_t>(val.u64));
         case ConvertType::U64: return CheckedCastFromUnsignedTo(toType, val.u64);
-        default:               return { UnsupportedCastFrom(fromType), false };
+        default:               return { UnsupportedCastFrom(fromType), Type::Successful };
     }
 }
 
@@ -288,7 +348,7 @@ inline CheckedCastResult CheckedCastFromFloating(ConvertType toType, double valu
         case ConvertType::U32: return CheckedCastFromFp<uint32_t>(value);
         case ConvertType::I64: return CheckedCastFromFp<int64_t>(value);
         case ConvertType::U64: return CheckedCastFromFp<uint64_t>(value);
-        default:               return { UnsupportedCastTo(toType), false };
+        default:               return { UnsupportedCastTo(toType), Type::Successful };
     }
 }
 
