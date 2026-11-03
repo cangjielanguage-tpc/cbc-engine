@@ -1,0 +1,11 @@
+@main_type "default"
+
+@type default
+  @method test_U32_U64(U64)I64
+    @code
+      @live.prim IR1
+      i2i.u U64, U32, IR1, IR1
+      ret.64 IR1
+    @end
+  @end
+@end

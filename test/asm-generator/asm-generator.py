@@ -891,6 +891,71 @@ def generate_sat_arith() -> list[Path]:
 
 
 # ---------------------------------------------------------------------------
+# convert-ext: CbcSpecializedConvertExt suite
+# ---------------------------------------------------------------------------
+
+INT_TYPES = [I8, U8, I16, U16, I32, U32, I64, U64]
+
+# i2i.u emits the same CONVERT as i2i: the destination type tag carries the
+# zero-extension. The interpreter's CastPrim supports only I32/U32/I64/U64
+# sources, and zero-extension is observable only for unsigned destinations,
+# which leaves these combos.
+I2I_U_CASES = [
+    (U8, I32),
+    (U8, U32),
+    (U16, I32),
+    (U16, U32),
+    (U32, U64),
+]
+
+# ci2i/ci2i.u accept the full integer matrix, cf2i adds the float sources.
+# Checked converts into float destinations (ci2f/cf2f) are rejected: the
+# interpreter asserts an integral destination (casts.h CheckedCastPrim).
+CHECKED_CONVERT_CASES = [(dst, src) for dst in INT_TYPES for src in INT_TYPES] + [
+    (dst, src) for dst in INT_TYPES for src in (F32, F64)
+]
+
+
+def i2i_u_method(case: tuple[AsmType, AsmType]) -> Method:
+    dst, src = case
+    return (
+        method(f"test_{dst}_{src}", I64, params=(src,))
+        .live(IR1)
+        .instr("i2i.u", src, dst, IR1, IR1)
+        .ret()
+    )
+
+
+def checked_convert_method(case: tuple[AsmType, AsmType]) -> Method:
+    dst, src = case
+    if src.is_float:
+        return (
+            method(f"test_{dst}_{src}", I64, params=(src,))
+            .instr("cf2i", src, dst, FR0, IR1)
+            .ret()
+        )
+    mnemonic = "ci2i.u" if dst.startswith("U") or src.startswith("U") else "ci2i"
+    return (
+        method(f"test_{dst}_{src}", I64, params=(src,))
+        .live(IR1)
+        .instr(mnemonic, src, dst, IR1, IR1)
+        .ret()
+    )
+
+
+def generate_convert_ext() -> list[Path]:
+    written = write_suite(
+        "convert-ext/i2i-u",
+        {f"{dst}_{src}.asm": asm_file([i2i_u_method((dst, src))]) for dst, src in I2I_U_CASES},
+    )
+    written += write_suite(
+        "convert-ext/checked",
+        {f"{dst}_{src}.asm": asm_file([checked_convert_method((dst, src))]) for dst, src in CHECKED_CONVERT_CASES},
+    )
+    return written
+
+
+# ---------------------------------------------------------------------------
 
 GENERATORS = {
     "arith"            : generate_arith,
@@ -903,6 +968,7 @@ GENERATORS = {
     "arr-ic"           : generate_arr_ic,
     "checked-arith"    : generate_checked_arith,
     "sat-arith"        : generate_sat_arith,
+    "convert-ext"      : generate_convert_ext,
 }
 
 
