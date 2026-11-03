@@ -69,9 +69,19 @@ IR2 = "IR2"
 IR3 = "IR3"
 IR4 = "IR4"
 IR5 = "IR5"
+IR6 = "IR6"
+IR8 = "IR8"
+IR9 = "IR9"
 FR0 = "FR0"
 FR1 = "FR1"
 IRZ = "IRZ"
+
+FR2 = "FR2"
+FR3 = "FR3"
+FR4 = "FR4"
+FR5 = "FR5"
+FR6 = "FR6"
+FR7 = "FR7"
 
 
 def reg_for(t: AsmType) -> str:
@@ -119,15 +129,18 @@ class Method:
     params: tuple[AsmType, ...] = ()
     directives: tuple[str, ...] = ()
     untyped_count: int = 0
+    saved_iregs: tuple[str, ...] = ()
 
     def render(self) -> str:
         lines = "\n".join(f"      {line}" for line in self.body)
         params = ", ".join(self.params)
         directives = "".join(f"    {d}\n" for d in self.directives)
         untyped = f"    @untyped_count {imm(self.untyped_count)}\n" if self.untyped_count else ""
+        saved = f"    @saved_iregs {', '.join(self.saved_iregs)}\n" if self.saved_iregs else ""
         return (f"  @method {self.name}({params}){self.ret}\n"
                 f"{directives}"
                 f"{untyped}"
+                f"{saved}"
                 f"    @code\n{lines}\n"
                 f"    @end\n  @end")
 
@@ -158,6 +171,7 @@ class MethodBuilder:
         self._directives: list[str] = []
         self._default_w = default_w
         self._untyped_count = 0
+        self._saved_iregs: tuple[str, ...] = ()
 
     def slots(self, count: int) -> "MethodBuilder":
         """Declares `count` untyped frame slots (@untyped_count)."""
@@ -168,6 +182,11 @@ class MethodBuilder:
         """Adds a method-level directive line rendered between the
         `@method` header and `@code` (e.g. `@typed_slots ...`)."""
         self._directives.append(text)
+        return self
+
+    def saved_iregs(self, *regs: str) -> "MethodBuilder":
+        """Declares caller-saved-on-entry non-volatile registers (@saved_iregs)."""
+        self._saved_iregs = regs
         return self
 
     def live(self, *regs: str) -> "MethodBuilder":
@@ -217,7 +236,7 @@ class MethodBuilder:
     def _close(self, mnemonic: str, reg: str) -> Method:
         w = int(self._ret[1:])
         return Method(self._name, self._ret, tuple(self._lines) + (instr(mnemonic, reg, w=w),),
-                      self._params, tuple(self._directives), self._untyped_count)
+                      self._params, tuple(self._directives), self._untyped_count, self._saved_iregs)
 
     def ret(self, reg: str = IR1) -> Method:
         return self._close("ret", reg)
@@ -227,7 +246,7 @@ class MethodBuilder:
 
     def build(self) -> Method:
         """Closes the method as-is, for bodies with several rets or none."""
-        return Method(self._name, self._ret, tuple(self._lines), self._params, tuple(self._directives), self._untyped_count)
+        return Method(self._name, self._ret, tuple(self._lines), self._params, tuple(self._directives), self._untyped_count, self._saved_iregs)
 
 
 def method(name: str, ret: AsmType, params: tuple[AsmType, ...] = (),
@@ -2460,6 +2479,301 @@ def generate_checks_misc() -> list[Path]:
 
 
 # ---------------------------------------------------------------------------
+# calls: CbcTest Call* suite
+# ---------------------------------------------------------------------------
+
+# The unit-test mock runs an I2I callee on the same register set and with
+# frameBot = 0 (interpretation_loop.cpp FIXME), so the rewriter's stack-param
+# staging (st.stack.param.*) would store to absolute low addresses and SEGV.
+# Every signature therefore keeps its params inside the register windows of
+# src/cbc/abi.h (6 int, 8 float); "stack" coverage is limited to params staged
+# from the caller's frame slots (the IREG/FREG <- SLOT prologue moves) and to
+# the callee keeping params in its own slots across nested calls.
+# The call itself consumes registers invisibly to the assembler liveness
+# analyzer: a register whose value is needed across a call stays live, one
+# redefined after a call without a same-op read needs @dead first, and a
+# dead register must not be read again (the redefinition by the callee's
+# return is invisible).
+
+CALLS_INT_PARAM_REGS = [IR1, IR2, IR3, IR4, IR5, IR6]
+
+CALLS_FLOAT_PARAM_REGS = [FR0, FR1, FR2, FR3, FR4, FR5, FR6, FR7]
+
+
+def calls_file(refs: list[str], methods: list[Method]) -> str:
+    body = "\n\n".join(m.render() for m in methods)
+    header = '@main_type "default"\n\n' + "\n".join(refs) + "\n\n@type default\n"
+    return header + body + "\n@end\n"
+
+
+def calls_ref(name: str, params: tuple[AsmType, ...], ret: AsmType) -> str:
+    return f"@method_ref default.{name} = default@ref {name}({', '.join(params)}){ret}"
+
+
+def calls_int_sum_callee(name: str, params: tuple[AsmType, ...]) -> Method:
+    """Sums the int params left to right into IR1."""
+    regs = CALLS_INT_PARAM_REGS[: len(params)]
+    builder = method(name, I64, params=params, default_w=64).live(*regs)
+    for src in regs[1:]:
+        builder = builder.instr("add", IR1, IR1, src)
+    return builder.ret()
+
+
+def calls_int_chain_caller(callee: str, count: int) -> Method:
+    """Passes x, x+1, ..., x+(count-1) through the int param registers."""
+    builder = method("main", I64, params=(I64,), default_w=64).live(IR1)
+    for extra in range(1, count):
+        builder = builder.instr("addi", CALLS_INT_PARAM_REGS[extra], IR1, imm(extra))
+    call = ", ".join(CALLS_INT_PARAM_REGS[:count])
+    return builder.raw(f"call.direct #default.{callee}, {call}").ret()
+
+
+def calls_float_caller(callee: str, width: int, values: list[str], operands: tuple[str, ...]) -> MethodBuilder:
+    float_type = AsmType(f"F{width}")
+    builder = method("main", float_type)
+    for reg, value in zip(CALLS_FLOAT_PARAM_REGS, values):
+        builder = builder.instr("fmovi", reg, value, w=width)
+    return builder.raw(f"call.direct #default.{callee}, {', '.join(operands)}")
+
+
+def generate_calls() -> list[Path]:
+    written = []
+
+    six_int = (I64,) * 6
+    written += write_suite(
+        "calls",
+        {
+            "sum6i.asm": calls_file(
+                [calls_ref("sum6i", six_int, I64)],
+                [
+                    calls_int_sum_callee("sum6i", six_int),
+                    calls_int_chain_caller("sum6i", 6),
+                ],
+            ),
+        },
+    )
+
+    eight_float = (F64,) * 8
+    fsum8_callee = (
+        method("fsum8", F64, params=eight_float, default_w=64)
+        .instr("fadd", FR0, FR0, FR1)
+        .instr("fadd", FR0, FR0, FR2)
+        .instr("fadd", FR0, FR0, FR3)
+        .instr("fadd", FR0, FR0, FR4)
+        .instr("fadd", FR0, FR0, FR5)
+        .instr("fadd", FR0, FR0, FR6)
+        .instr("fadd", FR0, FR0, FR7)
+        .fret()
+    )
+    fsum8_caller = calls_float_caller(
+        "fsum8", 64, [f"{v}.0" for v in range(1, 9)], tuple(CALLS_FLOAT_PARAM_REGS)
+    ).fret()
+    written += write_suite(
+        "calls",
+        {"fsum8.asm": calls_file([calls_ref("fsum8", eight_float, F64)], [fsum8_callee, fsum8_caller])},
+    )
+
+    fsumw4_callee = (
+        method("fsumw4", F32, params=(F32,) * 4, default_w=32)
+        .instr("fadd", FR4, FR0, FR0)
+        .instr("fadd", FR4, FR4, FR4)
+        .instr("fadd", FR4, FR4, FR4)
+        .instr("fadd", FR5, FR1, FR1)
+        .instr("fadd", FR5, FR5, FR5)
+        .instr("fadd", FR4, FR4, FR5)
+        .instr("fadd", FR5, FR2, FR2)
+        .instr("fadd", FR4, FR4, FR5)
+        .instr("fadd", FR4, FR4, FR3)
+        .fret(FR4)
+    )
+    fsumw4_caller = calls_float_caller(
+        "fsumw4", 32, ["1.5", "2.5", "3.5", "4.5"], (FR1, FR0, FR3, FR2)
+    ).fret()
+    written += write_suite(
+        "calls",
+        {"fsum4w.asm": calls_file([calls_ref("fsumw4", (F32,) * 4, F32)], [fsumw4_callee, fsumw4_caller])},
+    )
+
+    mixed_params = six_int + (F64,) * 4
+    mixed_callee = (
+        method("sum_mixed", I64, params=mixed_params, default_w=64)
+        .live(*CALLS_INT_PARAM_REGS)
+        .instr("add", IR1, IR1, IR2)
+        .instr("add", IR1, IR1, IR3)
+        .instr("add", IR1, IR1, IR4)
+        .instr("add", IR1, IR1, IR5)
+        .instr("add", IR1, IR1, IR6)
+        .dead(IR2, IR3, IR4, IR5, IR6)
+        # f2i is width-less (the type tags carry the conversion), so it must
+        # bypass the method's default width suffix.
+        .raw("f2i F64, I64, FR0, IR2")
+        .raw("f2i F64, I64, FR1, IR3")
+        .raw("f2i F64, I64, FR2, IR4")
+        .raw("f2i F64, I64, FR3, IR5")
+        .instr("add", IR1, IR1, IR2)
+        .instr("add", IR1, IR1, IR3)
+        .instr("add", IR1, IR1, IR4)
+        .instr("add", IR1, IR1, IR5)
+        .ret()
+    )
+    mixed_caller = (
+        method("main", I64, params=(I64,), default_w=64)
+        .live(IR1)
+        .instr("addi", IR2, IR1, imm(1))
+        .instr("addi", IR3, IR1, imm(2))
+        .instr("addi", IR4, IR1, imm(3))
+        .instr("addi", IR5, IR1, imm(4))
+        .instr("addi", IR6, IR1, imm(5))
+        .instr("fmovi", FR0, "10.0", w=64)
+        .instr("fmovi", FR1, "20.0", w=64)
+        .instr("fmovi", FR2, "30.0", w=64)
+        .instr("fmovi", FR3, "40.0", w=64)
+        .raw(f"call.direct #default.sum_mixed, {', '.join(CALLS_INT_PARAM_REGS + CALLS_FLOAT_PARAM_REGS[:4])}")
+        .ret()
+    )
+    written += write_suite(
+        "calls",
+        {"sum-mixed.asm": calls_file([calls_ref("sum_mixed", mixed_params, I64)], [mixed_callee, mixed_caller])},
+    )
+
+    pick2_callee = (
+        method("pick2", I64, params=(I64, F64))
+        .live(IR1)
+        .raw("f2i F64, I64, FR0, IR2")
+        .instr("add", IR1, IR1, IR2, w=64)
+        .ret()
+    )
+    slots_caller = (
+        method("main", I64, params=(I64,))
+        .slots(2)
+        .live(IR1)
+        .instr("st.uslot.64", IR1, "$0")
+        .instr("fmovi", FR0, "7.5", w=64)
+        .instr("st.uslot.f64", FR0, "$1")
+        .raw("call.direct #default.pick2, $0, $1")
+        .ret()
+    )
+    written += write_suite(
+        "calls",
+        {
+            "args-from-slots.asm": calls_file(
+                [calls_ref("pick2", (I64, F64), I64)], [pick2_callee, slots_caller]
+            ),
+        },
+    )
+
+    pick3_callee = (
+        method("pick3", I64, params=(I64, I64, I64), default_w=64)
+        .live(IR1, IR2, IR3)
+        .instr("muli", IR1, IR1, imm(0x100))
+        .instr("muli", IR2, IR2, imm(0x10))
+        .instr("add", IR1, IR1, IR2)
+        .instr("add", IR1, IR1, IR3)
+        .ret()
+    )
+    shuffle_caller = (
+        method("main", I64, params=(I64,), default_w=64)
+        .live(IR1)
+        .instr("addi", IR2, IR1, imm(1))
+        .instr("addi", IR3, IR1, imm(2))
+        .raw("call.direct #default.pick3, IR3, IR2, IR1")
+        .ret()
+    )
+    written += write_suite(
+        "calls",
+        {"shuffle.asm": calls_file([calls_ref("pick3", (I64, I64, I64), I64)], [pick3_callee, shuffle_caller])},
+    )
+
+    leaf_callee = (
+        method("leaf", I64, params=(I64,), default_w=64)
+        .live(IR1)
+        .instr("add", IR1, IR1, IR1)
+        .ret()
+    )
+    mid_method = (
+        method("mid", I64, params=(I64, I64))
+        .slots(2)
+        .live(IR1)
+        .instr("st.uslot.64", IR1, "$0")
+        .instr("subi", IR2, IR1, imm(1), w=64)
+        .raw("call.direct #default.leaf, IR2")
+        .dead(IR2)
+        .instr("ld.uslot.64", IR2, "$0")
+        .instr("ld.uslot.64", IR3, "$0")
+        .instr("add", IR1, IR1, IR2, w=64)
+        .instr("add", IR1, IR1, IR3, w=64)
+        .dead(IR2, IR3, "$0")
+        .ret()
+    )
+    nested_caller = (
+        method("main", I64, params=(I64,))
+        .slots(1)
+        .live(IR1)
+        .instr("st.uslot.64", IR1, "$0")
+        .raw("call.direct #default.mid, $0, IRZ")
+        .ret()
+    )
+    written += write_suite(
+        "calls",
+        {
+            "nested.asm": calls_file(
+                [calls_ref("leaf", (I64,), I64), calls_ref("mid", (I64, I64), I64)],
+                [leaf_callee, mid_method, nested_caller],
+            ),
+        },
+    )
+
+    twocalls_caller = (
+        method("main", I64, params=(I64,), default_w=64)
+        .live(IR1)
+        .raw("call.direct #default.twice, IR1")
+        .instr("add", IR2, IR1, IR1)
+        .instr("addi", IR3, IR2, imm(1))
+        .raw("call.direct #default.twice, IR3")
+        .ret()
+    )
+    twice_callee = (
+        method("twice", I64, params=(I64,), default_w=64)
+        .live(IR1)
+        .instr("add", IR1, IR1, IR1)
+        .ret()
+    )
+    written += write_suite(
+        "calls",
+        {"twocalls.asm": calls_file([calls_ref("twice", (I64,), I64)], [twice_callee, twocalls_caller])},
+    )
+
+    scribble_callee = (
+        method("scribble", I64, params=(I64, I64, I64), default_w=64)
+        .saved_iregs(IR8, IR9)
+        .live(IR1)
+        .instr("movi", IR8, imm(0x5), w=64)
+        .instr("movi", IR9, imm(0x6), w=64)
+        .dead(IR8, IR9)
+        .ret()
+    )
+    nonvol_caller = (
+        method("main", I64, params=(I64,), default_w=64)
+        .live(IR1)
+        .instr("movi", IR8, imm(0x77), w=64)
+        .instr("movi", IR9, imm(0x88), w=64)
+        .raw("call.direct #default.scribble, IR1, IRZ, IRZ")
+        .instr("add", IR1, IR1, IR8)
+        .instr("add", IR1, IR1, IR9)
+        .ret()
+    )
+    written += write_suite(
+        "calls",
+        {
+            "nonvol.asm": calls_file(
+                [calls_ref("scribble", (I64, I64, I64), I64)], [scribble_callee, nonvol_caller]
+            ),
+        },
+    )
+    return written
+
+
+# ---------------------------------------------------------------------------
 
 GENERATORS = {
     "arith"            : generate_arith,
@@ -2479,6 +2793,7 @@ GENERATORS = {
     "mem-obj"          : generate_mem_obj,
     "atomics"          : generate_atomics,
     "checks-misc"      : generate_checks_misc,
+    "calls"            : generate_calls,
 }
 
 
