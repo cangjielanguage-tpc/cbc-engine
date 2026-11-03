@@ -291,15 +291,10 @@ engine_trampolines_dyn_sret_end:
 // Keep this pool adjacent to the dynamic pools: I2I dispatch decodes the slot from the address.
 // Native calls fail without trying to interpret an explicit argument as an instance receiver.
 engine_trampolines_dyn_static_start:
-.macro repeat_trampoline_dyn_static count
-  .set i, 0
-  .rept \count
-      mov.d32 eax, i
-      jmp.d32 engine_unsupported_c2i_static_virtual_call
-      .set i, i + 1
-  .endr
-.endm
-  repeat_trampoline_dyn_static TRAMPOLINE_COUNT
+.rept TRAMPOLINE_COUNT
+  jmp.d32 engine_unsupported_c2i_static_virtual_call
+  .fill DYN_CALL_TRAMPOLINE_SIZE - 5, 1, 0x90 // padding to satisfy DYN_CALL_TRAMPOLINE_SIZE (filled with nops)
+.endr
 engine_trampolines_dyn_static_end:
 
 // expects: (TLS_REG: th, rax: fuh)
