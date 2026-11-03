@@ -10,6 +10,7 @@ Each named generator overwrites resource files in test/resources/generated-asm/<
 import argparse
 import sys
 from dataclasses import dataclass
+from decimal import Decimal
 from enum import StrEnum
 from pathlib import Path
 
@@ -2231,6 +2232,234 @@ def generate_atomics() -> list[Path]:
 
 
 # ---------------------------------------------------------------------------
+# checks-misc: CbcTest NullCheck*/DivCheck*/NopGcPoint/FloatImm32/FloatImm64/
+# FloatNegInf32/FloatNegInf64/MovForms/MoviNegImm32/MoviNegImm64
+# ---------------------------------------------------------------------------
+
+# Float literals: plain decimals lex as ([0-9]+ '.' [0-9]*, parsed by java
+# Double.parseDouble); the words nan/inf are additionally accepted in the
+# fmovi.32/fmovi.64 immediate position (the only float-literal operand slot;
+# assembler e08314ae) and encode bit-exactly (0x7ff8.../0x7ff0... for W64,
+# 0x7fc0.../0x7f80... for W32). -inf has no spelling (deliberately dropped
+# upstream, 75f971d7) - the neg-inf cases model it as inf x (-1.0). The
+# overflow literal below still reaches +Infinity through the decimal path, and
+# the denormals/maxima keep their exact decimal expansions (a literal without
+# a fractional part would lex as an integer, hence the ".0" append).
+INF_LITERAL = "1" + "0" * 400 + ".0"
+
+
+def exact_float_literal(value: float) -> str:
+    spelling = format(Decimal(value), "f")
+    return spelling if "." in spelling else spelling + ".0"
+
+
+# The names double as file/method-name parts and must stay in sync with
+# FloatImmCases in test/cbc_test.cpp. The W32 literals are exact doubles that
+# the assembler converts with floatToRawIntBits(fimm.toFloat).
+FLOAT_IMM32_LITERALS = {
+    "zero"     : "0.0",
+    "negzero"  : "-0.0",
+    "one"      : "1.5",
+    "inf"      : INF_LITERAL,
+    "neginf"   : "-" + INF_LITERAL,
+    "denormmin": exact_float_literal(2.0**-149),
+    "denormmax": exact_float_literal((2**23 - 1) * 2.0**-149),
+    "max"      : exact_float_literal((2**24 - 1) * 2.0**104),
+    "nan"      : "nan",
+}
+
+FLOAT_IMM64_LITERALS = {
+    "zero"     : "0.0",
+    "negzero"  : "-0.0",
+    "one"      : "1.5",
+    "inf"      : INF_LITERAL,
+    "neginf"   : "-" + INF_LITERAL,
+    "denormmin": exact_float_literal(5e-324),
+    "denormmax": exact_float_literal((2**52 - 1) * 2.0**-1074),
+    "max"      : exact_float_literal((2**53 - 1) * 2.0**971),
+    "minnormal": exact_float_literal(2.0**-1022),
+    "nan"      : "nan",
+}
+
+
+def nullcheck_method() -> Method:
+    return (
+        method("test_nullcheck", I64, params=(I64,))
+        .live_ref(IR1)
+        .raw("nullcheck IR1")
+        .dead(IR1)
+        .nops(1)
+        .raw("gcpoint")
+        .instr("movi", IR1, imm(1), w=64)
+        .ret()
+    )
+
+
+def divcheck_method() -> Method:
+    return (
+        method("test_divcheck", I64, params=(I64,))
+        .live(IR1)
+        .raw("div.check IR1")
+        .dead(IR1)
+        .instr("movi", IR1, imm(2), w=64)
+        .ret()
+    )
+
+
+def nop_gcpoint_method() -> Method:
+    return (
+        method("test_nop_gcpoint", I64, params=(I64,))
+        .raw("nop")
+        .raw("gcpoint")
+        .instr("movi", IR1, imm(3), w=64)
+        .raw("nop")
+        .raw("gcpoint")
+        .ret()
+    )
+
+
+def float_imm_method(name: str, literal: str, width: int) -> Method:
+    return (
+        method(f"test_{name}", AsmType(f"F{width}"))
+        .raw(f"fmovi.{width} FR0, {literal}")
+        .fret()
+    )
+
+
+def float_neg_inf_method(name: str, width: int) -> Method:
+    # -inf is unspeakable; inf x (-1.0) flips only the sign bit (FMUL computes
+    # in float/double per width, so the result is the exact -inf pattern).
+    return (
+        method(f"test_{name}", AsmType(f"F{width}"))
+        .instr("fmovi", FR0, "inf", w=width)
+        .instr("fmovi", FR1, "-1.0", w=width)
+        .instr("fmul", FR0, FR0, FR1, w=width)
+        .fret()
+    )
+
+
+def mov_method(width: int) -> Method:
+    # Both mov widths lower to the width-less RT MOV (a full 64-bit cell copy).
+    return (
+        method(f"test_mov{width}", I64, params=(I64,))
+        .live(IR1)
+        .instr("mov", IR2, IR1, w=width)
+        .ret(IR2)
+    )
+
+
+def movi_method(name: str, value: int) -> Method:
+    # A 4-bit immediate lowers to the RT MOVI instruction, a 12-bit one to
+    # BINI32I, and anything wider to BINI32L (MovImm falls back to AddI from IRZ).
+    return (
+        method(f"test_{name}", I64)
+        .instr("movi", IR1, imm(value), w=32)
+        .ret()
+    )
+
+
+def movi_pair_method() -> Method:
+    # Negative immediates used to trip the engine's MovImm decoding (implicit
+    # signed-to-unsigned conversion, UBSan); fixed upstream by 8049baee and
+    # covered by the movi-neg-32/movi-neg-64 case files below.
+    return (
+        method("test_movi32", I64)
+        .instr("movi", IR2, imm(0x7), w=32)
+        .instr("movi", IR3, imm(0x3), w=32)
+        .instr("add", IR1, IR2, IR3, w=32)
+        .ret()
+    )
+
+
+# Negative movi immediates. The DSL has movi.32/movi.64 only (no .8/.16
+# spellings; the engine's Emitter::MovImm accepts W32/W64 only, too). The
+# immediates sweep the three post-rewrite encodings by signed width:
+# [-8, -1] -> RT MOVI (4-bit), [-2048, -9] -> BINI32I/BINI64I (12-bit, via
+# AddI from IRZ), anything below -> BINI32L/BINI64L (literal pool), with the
+# 4/12-bit boundaries included. The names double as file/method-name parts
+# and must stay in sync with MoviImm32Cases/MoviImm64Cases in test/cbc_test.cpp.
+MOVI_NEG32_IMMS = {
+    "neg1"   : -0x1,
+    "neg8"   : -0x8,
+    "neg9"   : -0x9,
+    "neg80"  : -0x80,
+    "neg800" : -0x800,
+    "neg801" : -0x801,
+    "neg8000": -0x8000,
+    "negmin" : -0x80000000,
+}
+
+MOVI_NEG64_IMMS = {
+    "neg1"   : -0x1,
+    "neg8"   : -0x8,
+    "neg9"   : -0x9,
+    "neg80"  : -0x80,
+    "neg800" : -0x800,
+    "neg801" : -0x801,
+    "neg8000": -0x8000,
+    "negmin" : -0x8000000000000000,
+}
+
+
+def movi_neg_imm_method(name: str, value: int, width: int) -> Method:
+    return (
+        method(f"test_{name}", I64)
+        .instr("movi", IR1, imm(value), w=width)
+        .ret()
+    )
+
+
+def mov_ref_method() -> Method:
+    return (
+        method("test_movref", I64, params=(I64,))
+        .live_ref(IR1)
+        .instr("mov.ref", IR2, IR1)
+        .dead(IR1)
+        .raw("nop")
+        .raw("gcpoint")
+        .instr("ret.ref", IR2)
+        .build()
+    )
+
+
+def generate_checks_misc() -> list[Path]:
+    return (
+        write_suite(
+            "checks-misc",
+            {
+                "nullcheck.asm"  : asm_file([nullcheck_method()]),
+                "divcheck.asm"   : asm_file([divcheck_method()]),
+                "nop-gcpoint.asm": asm_file([nop_gcpoint_method()]),
+                "mov-32.asm"     : asm_file([mov_method(32)]),
+                "mov-64.asm"     : asm_file([mov_method(64)]),
+                "movi-32.asm"    : asm_file([movi_pair_method()]),
+                "movi-32-narrow.asm": asm_file([movi_method("movi32_narrow", 0x7FF)]),
+                "movi-32-wide.asm"  : asm_file([movi_method("movi32_wide", 0x12345678)]),
+                "mov-ref.asm"    : asm_file([mov_ref_method()]),
+                "fmovi-neginf-32.asm": asm_file([float_neg_inf_method("fmovi_neginf32", 32)]),
+                "fmovi-neginf-64.asm": asm_file([float_neg_inf_method("fmovi_neginf64", 64)]),
+            },
+        )
+        + write_suite(
+            "checks-misc/fmovi-32",
+            {f"{name}.asm": asm_file([float_imm_method(name, lit, 32)]) for name, lit in FLOAT_IMM32_LITERALS.items()},
+        )
+        + write_suite(
+            "checks-misc/fmovi-64",
+            {f"{name}.asm": asm_file([float_imm_method(name, lit, 64)]) for name, lit in FLOAT_IMM64_LITERALS.items()},
+        )
+        + write_suite(
+            "checks-misc/movi-neg-32",
+            {f"{name}.asm": asm_file([movi_neg_imm_method(name, value, 32)]) for name, value in MOVI_NEG32_IMMS.items()},
+        )
+        + write_suite(
+            "checks-misc/movi-neg-64",
+            {f"{name}.asm": asm_file([movi_neg_imm_method(name, value, 64)]) for name, value in MOVI_NEG64_IMMS.items()},
+        )
+    )
+
+
+# ---------------------------------------------------------------------------
 
 GENERATORS = {
     "arith"            : generate_arith,
@@ -2249,6 +2478,7 @@ GENERATORS = {
     "frame-slots"      : generate_frame_slots,
     "mem-obj"          : generate_mem_obj,
     "atomics"          : generate_atomics,
+    "checks-misc"      : generate_checks_misc,
 }
 
 
