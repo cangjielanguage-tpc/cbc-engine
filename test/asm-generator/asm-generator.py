@@ -636,6 +636,187 @@ def generate_arr_ic() -> list[Path]:
 
 
 # ---------------------------------------------------------------------------
+# checked-arith: CbcSpecializedCheckedArith suite
+# ---------------------------------------------------------------------------
+
+# Width boundary helpers; values are kept as unsigned bit patterns.
+def smax(w: int) -> int:
+    return (1 << (w - 1)) - 1
+
+
+def smin(w: int) -> int:
+    return 1 << (w - 1)
+
+
+def umax(w: int) -> int:
+    return (1 << w) - 1
+
+
+# Immediates outside the signed 12-bit range select the wide CBINI*W encoding.
+# The engine emitter keeps W8 immediates within [-128, 255] (all fit into 12
+# bits), so there is no wide-imm case for that width.
+def wide_neg(w: int) -> int | None:
+    return {8: None, 16: 0x8000, 32: 0x80000000, 64: 0xFFFFFFFFFFFFFFFF}[w]
+
+
+CHECKED_RR_OPS = [
+    "cadd",
+    "csub",
+    "cmul",
+    "cdiv",
+    "clsl",
+    "clsr",
+    "casr",
+    "cpow",
+    "cuadd",
+    "cusub",
+    "cumul",
+]
+
+# The rhs file sets must stay in sync with CheckedArithParamsList in
+# test/cbc_test.cpp: the test builds the file name with its hex() helper,
+# which formats exactly like imm() below. cpow.32/cpowi.32 exist in the
+# assembler DSL since upstream 854529c2 (probed: rr assembles, and cpowi.32
+# selects the 12-bit CBINI32I encoding for small immediates and the wide
+# CBINI32W one for values beyond the signed 12-bit range — unlike W8, whose
+# emitter keeps immediates within [-128, 255], making CBINI8W unreachable).
+# The imm operand is written as the unsigned bit pattern of the value.
+CHECKED_RR_WIDTHS = {op: [8, 16, 32, 64] for op in CHECKED_RR_OPS}
+
+CHECKED_IMM_WIDTHS = {op: [8, 16, 32, 64] for op in [
+    "caddi",
+    "csubi",
+    "cmuli",
+    "cdivi",
+    "cuaddi",
+    "cusubi",
+    "cumuli",
+    "clsli",
+    "clsri",
+    "casri",
+    "cpowi",
+    # The saturating imm forms (upstream 854529c2, probed: all four mnemonics
+    # assemble at widths 8/16/32/64 with the `op.<w> IRd, IRl, imm` operand
+    # order and negative spellings). They share the SBINIMM{8,16,32,64}
+    # opcode families with the other saturating imm ops (short 12-bit sleb
+    # encoding, wide SBINIMM*W re-encoding by the engine rewriter for values
+    # beyond the signed 12-bit range); the interpreter delivers the immediate
+    # as a plain u64 primitive, so the semantics match the rr forms exactly.
+    # Saturating ops clamp instead of raising, so only the ok/ flavor exists.
+    "sdivi",
+    "smodi",
+    "spowi",
+    "sulsri",
+]}
+
+# cpowi overflow exponents per width: the width itself (base 2/3 overflow the
+# width's signed type) and the positive boundary exponent (= smax, whose
+# squaring overflows immediately; operations.h CPOW squares base between
+# result multiplications).
+CPOWI_OF_RHS = {
+    8 : [0x8, 0x7F],
+    16: [0x10, 0x7FFF],
+    32: [0x20, 0x7FFFFFFF],
+    64: [0x40, 0x7FFFFFFFFFFFFFFF],
+}
+
+
+def checked_imm_rhs(op: str, w: int) -> dict[str, list[int]]:
+    hi = smax(w)
+    unsigned = umax(w)
+    neg = wide_neg(w)
+    shifts = [w] + ([neg] if neg is not None else [])
+    # cdivi: only divisors reaching the CDIV boundaries matter (the ok/of file
+    # split below mirrors the test's lhs tables in cbc_test.cpp):
+    #   ok  — 0x1/0x2 basic division and truncation toward zero, unsigned-1
+    #         (i.e. -2) negative-divisor truncation, hi (= smax) positive
+    #         boundary divisor, unsigned (= -1) negation divisor;
+    #   of  — 0x0 → ArithmeticException for any lhs, unsigned (= -1) with
+    #         lhs = smin → DivOverflowException (INT_MIN / -1).
+    # unsigned appears in both flavors: same divisor value, files live in the
+    # ok/ and of/ dirs side by side (the test picks the dir per lhs). All
+    # values stay inside the per-width imm ranges, so at W8 everything fits
+    # the [-128, 255] emitter bound; the W16/32/64 entries beyond the signed
+    # 12-bit range select the wide CBINI*W encodings (W8 has no wide-imm case).
+    #
+    # sdivi/smodi/spowi/sulsri (saturating) never raise, so they carry only
+    # the "ok" key — the mirroring lhs tables live in CheckedArithParamsList
+    # (test/cbc_test.cpp). Div/Mod immediates exclude 0x0 (the interpreter
+    # asserts on a zero divisor, operations.h:142/151). The W16/32/64 entries
+    # beyond the signed 12-bit range select the wide SBINIMM*W encodings
+    # (0x...ff spellings are negative values, delivered as u64 bit patterns
+    # and truncated/sign-extended by the width's sget/uget).
+    table = {
+        "caddi" : lambda: {"ok": [0x1, 0x2, 0x10], "of": [hi]},
+        "csubi" : lambda: {"ok": [0x1, 0x2, 0x10], "of": [0x1, 0x10, hi]},
+        "cmuli" : lambda: {"ok": [0x2, 0x3], "of": [hi]},
+        "cdivi" : lambda: {"ok": [0x1, 0x2, unsigned - 1, hi, unsigned], "of": [0x0, unsigned]},
+        "cuaddi": lambda: {"ok": [0x1, 0x2, 0x10], "of": [unsigned]},
+        "cusubi": lambda: {"ok": [0x1, 0x2], "of": [0x1, 0x2]},
+        "cumuli": lambda: {"ok": [0x2, 0x3], "of": [unsigned]},
+        "clsli" : lambda: {"ok": [0x0, 0x1, 0x3], "of": shifts},
+        "clsri" : lambda: {"ok": [0x0, 0x1, 0x3], "of": shifts},
+        "casri" : lambda: {"ok": [0x0, 0x1, 0x3], "of": shifts},
+        "cpowi" : lambda: {"ok": [0x2, 0x3], "of": CPOWI_OF_RHS[w]},
+        # sdivi/smodi: 0x1 identity and x % 1 = 0, 0x2 positive divisor,
+        # unsigned-1 (= -2) negative divisor, hi (= smax) positive boundary
+        # divisor (also the wide encoding), unsigned (= -1) negation divisor
+        # (smin/-1 saturates to smax; smin % -1 → 0).
+        # spowi: the exponent is read unsigned (uget), so every imm bit
+        # pattern is a valid exponent — 0x0 (0^0 = 1), 0x1 (identity), 0x2/0x3
+        # (squaring/cubing with negative bases, both saturation signs), the
+        # width itself (2^w saturates), unsigned (= -1, a huge odd exponent;
+        # also the wide encoding at W16/32/64).
+        # sulsri: the shift is read unsigned and clamped to [0, w-1] — 0x0
+        # identity, 0x1/0x3 basic shifts, w-1 (last meaningful shift), w
+        # (first clamped shift), unsigned (= -1: a huge shift that clamps to
+        # w-1; at W64 the u64 bit pattern casts to a negative int64 and
+        # clamps to 0).
+        "sdivi" : lambda: {"ok": [0x1, 0x2, unsigned - 1, hi, unsigned]},
+        "smodi" : lambda: {"ok": [0x1, 0x2, unsigned - 1, hi, unsigned]},
+        "spowi" : lambda: {"ok": [0x0, 0x1, 0x2, 0x3, w, unsigned]},
+        "sulsri": lambda: {"ok": [0x0, 0x1, 0x3, w - 1, w, unsigned]},
+    }
+    return table[op]()
+
+
+def checked_imm_method(op: str, w: int, rhs: int) -> Method:
+    return (
+        method(f"test_{imm(rhs)}", I64, params=(I64,), default_w=w)
+        .live(IR1)
+        .instr(op, IR1, IR1, imm(rhs))
+        .ret()
+    )
+
+
+def checked_rr_method(op: str, w: int) -> Method:
+    return (
+        method(f"test_{op}_{w}", I64, params=(I64, I64), default_w=w)
+        .live(IR1, IR2)
+        .instr(op, IR1, IR1, IR2)
+        .ret()
+    )
+
+
+def generate_checked_arith() -> list[Path]:
+    written = []
+    for op, widths in CHECKED_IMM_WIDTHS.items():
+        for w in widths:
+            for flavor, values in checked_imm_rhs(op, w).items():
+                written += write_suite(
+                    f"checked-arith/{op}-{w}-{flavor}",
+                    {f"{imm(v)}.asm": asm_file([checked_imm_method(op, w, v)]) for v in values},
+                )
+    for op in CHECKED_RR_OPS:
+        for w in CHECKED_RR_WIDTHS[op]:
+            written += write_suite(
+                f"checked-arith/{op}-{w}-rr",
+                {"rr.asm": asm_file([checked_rr_method(op, w)])},
+            )
+    return written
+
+
+# ---------------------------------------------------------------------------
 
 GENERATORS = {
     "arith"            : generate_arith,
@@ -646,6 +827,7 @@ GENERATORS = {
     "frame-slots"      : generate_frame_slots,
     "sat-arith"        : generate_sat_arith,
     "arr-ic"           : generate_arr_ic,
+    "checked-arith"    : generate_checked_arith,
 }
 
 
