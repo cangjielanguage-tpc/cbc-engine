@@ -339,15 +339,13 @@ struct IsaRewriter : public IsaParser {
         if (sretRegPieces.Size() == 0) {
             return;
         }
-        static constexpr IReg retIRegs[] = { IReg::IR1, IReg::IR2 };
-        static constexpr FReg retFRegs[] = { FReg::FR0, FReg::FR1, FReg::FR2, FReg::FR3 };
         int intIdx                       = 0;
         int floatIdx                     = 0;
         for (const auto& piece : sretRegPieces) {
             if (IsFloat(piece.kind)) {
-                emit.StoreRec(Stk(piece.kind), retFRegs[floatIdx++], IReg::IR_ACC, piece.offset);
+                emit.StoreRec(Stk(piece.kind), HostTraits::RET_FREGS[floatIdx++], IReg::IR_ACC, piece.offset);
             } else {
-                emit.StoreRec(Stk(piece.kind), retIRegs[intIdx++], IReg::IR_ACC, piece.offset);
+                emit.StoreRec(Stk(piece.kind), HostTraits::RET_IREGS[intIdx++], IReg::IR_ACC, piece.offset);
             }
         }
         sretRegPieces.Clear();
@@ -657,18 +655,10 @@ struct IsaRewriter : public IsaParser {
 
         UNWRAP_OPT_B(size, resolver.fieldManager->GetFlatSize(type));
         auto fields = Utils::Span<CAbiField>(fields0.Data(), fields0.Size());
-        auto plan   = ClassifyCAbiStruct(fields, size, false, 2, 4);
+        auto plan   = ClassifyCAbiStructRet(fields, size);
         switch (plan.passBy) {
             case CAbiPassBy::EMPTY: break;
             case CAbiPassBy::REGS:  {
-                int needIRegs = 0;
-                int needFRegs = 0;
-                for (const auto& piece : plan.pieces) {
-                    IsFloat(piece.kind) ? needFRegs++ : needIRegs++;
-                }
-                if (needIRegs > 2 || needFRegs > 4) {
-                    return false;
-                }
                 for (const auto& piece : plan.pieces) {
                     sretRegPieces.PushBack(piece);
                 }
