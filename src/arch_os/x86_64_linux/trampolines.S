@@ -948,7 +948,7 @@ engine_c_abi_adapter:
   mov   r10, rcx        // target C function
   mov   r11, rsi        // stack arguments pointer
 
-  test  dl, 1
+  test  dl, 8
   jnz   .Lcheck_if_there_are_stackargs
   push  rax // align stack
 .Lcheck_if_there_are_stackargs:
