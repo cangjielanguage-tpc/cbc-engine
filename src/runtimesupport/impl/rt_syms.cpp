@@ -23,11 +23,7 @@ static void* LookupSymbol(Utils::SharedObject const& object, char const* symbolN
     auto [symbol, error] = object.SearchSym(symbolName);
     if (symbol == nullptr) {
         auto& stream = Log::init.Stream(Logging::Level::ERROR);
-        stream << '{' << object.Name() << "} failed to find " << symbolName;
-        if (error) {
-            stream << ": " << error.value();
-        }
-        stream << Stream::endl;
+        stream << '{' << object.Name() << "} failed to find " << symbolName << ": " << error << Stream::endl;
     }
     return symbol;
 }
@@ -62,7 +58,7 @@ bool Initialize(DYN_CJNativeInterface* interf)
     const char* futureExecuteName = "_CNat6FutureIG_E7executeHv";
     const char* threadHandleSetterName  = "_CNat6Thread24setRuntimeCJThreadHandleHPu";
 
-#if defined(__APPLE__) && defined(STATIC_HELPER)
+#if defined(STATIC_HELPER)
     auto helperHandle = Utils::SharedObject::OpenCurrentExecutable();
 #else
     #if defined(__APPLE__)

@@ -10,7 +10,7 @@ TEST(SharedObjectSearchSym, ResolvesSymbol)
 
     auto [symbol, error] = object.SearchSym("malloc");
     EXPECT_NE(symbol, nullptr);
-    EXPECT_FALSE(error.has_value());
+    EXPECT_TRUE(error.empty());
 }
 
 TEST(SharedObjectSearchSym, MissingSymbolReturnsError)
@@ -20,8 +20,7 @@ TEST(SharedObjectSearchSym, MissingSymbolReturnsError)
 
     auto [symbol, error] = object.SearchSym("cbc_engine_test_missing_symbol");
     EXPECT_EQ(symbol, nullptr);
-    ASSERT_TRUE(error.has_value());
-    EXPECT_NE(error->find("cbc_engine_test_missing_symbol"), std::string::npos);
+    EXPECT_NE(error.find("cbc_engine_test_missing_symbol"), std::string::npos);
     EXPECT_EQ(dlerror(), nullptr);
 }
 
@@ -33,7 +32,7 @@ TEST(SharedObjectSearchSym, SuccessfulLookupClearsStaleError)
 
     auto [symbol, error] = object.SearchSym("malloc");
     EXPECT_NE(symbol, nullptr);
-    EXPECT_FALSE(error.has_value());
+    EXPECT_TRUE(error.empty());
     EXPECT_EQ(dlerror(), nullptr);
 }
 
@@ -43,13 +42,13 @@ TEST(SharedObjectSearchSym, ErrorMessageSurvivesFurtherLookups)
     ASSERT_TRUE(object.IsOpened());
 
     auto first = object.SearchSym("cbc_engine_test_first_missing_symbol");
-    ASSERT_TRUE(first.error.has_value());
-    auto firstError = *first.error;
+    ASSERT_FALSE(first.error.empty());
+    auto firstError = first.error;
 
     auto second = object.SearchSym("cbc_engine_test_second_missing_symbol");
-    ASSERT_TRUE(second.error.has_value());
-    EXPECT_NE(*second.error, firstError);
-    EXPECT_EQ(*first.error, firstError);
+    ASSERT_FALSE(second.error.empty());
+    EXPECT_NE(second.error, firstError);
+    EXPECT_EQ(first.error, firstError);
 }
 
 TEST(SharedObjectSearchSym, UnopenedObjectReturnsError)
@@ -58,6 +57,5 @@ TEST(SharedObjectSearchSym, UnopenedObjectReturnsError)
 
     auto [symbol, error] = object.SearchSym("malloc");
     EXPECT_EQ(symbol, nullptr);
-    ASSERT_TRUE(error.has_value());
-    EXPECT_FALSE(error->empty());
+    EXPECT_FALSE(error.empty());
 }
