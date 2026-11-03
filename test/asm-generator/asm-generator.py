@@ -64,6 +64,10 @@ F32, F64, I8, I16, I32, I64, U8, U16, U32, U64 = AsmType
 
 # The registers used by the generated tests.
 IR1 = "IR1"
+IR2 = "IR2"
+IR3 = "IR3"
+IR4 = "IR4"
+IR5 = "IR5"
 FR0 = "FR0"
 FR1 = "FR1"
 IRZ = "IRZ"
@@ -113,13 +117,16 @@ class Method:
     body: tuple[str, ...]
     params: tuple[AsmType, ...] = ()
     directives: tuple[str, ...] = ()
+    untyped_count: int = 0
 
     def render(self) -> str:
         lines = "\n".join(f"      {line}" for line in self.body)
         params = ", ".join(self.params)
         directives = "".join(f"    {d}\n" for d in self.directives)
+        untyped = f"    @untyped_count {imm(self.untyped_count)}\n" if self.untyped_count else ""
         return (f"  @method {self.name}({params}){self.ret}\n"
                 f"{directives}"
+                f"{untyped}"
                 f"    @code\n{lines}\n"
                 f"    @end\n  @end")
 
@@ -149,6 +156,12 @@ class MethodBuilder:
         self._lines: list[str] = []
         self._directives: list[str] = []
         self._default_w = default_w
+        self._untyped_count = 0
+
+    def slots(self, count: int) -> "MethodBuilder":
+        """Declares `count` untyped frame slots (@untyped_count)."""
+        self._untyped_count = count
+        return self
 
     def directive(self, text: str) -> "MethodBuilder":
         """Adds a method-level directive line rendered between the
@@ -162,6 +175,10 @@ class MethodBuilder:
 
     def live_ref(self, *regs: str) -> "MethodBuilder":
         self._lines.append(live_ref(*regs))
+        return self
+
+    def live_rec(self, *regs: str) -> "MethodBuilder":
+        self._lines.append("@live.rec " + ", ".join(regs))
         return self
 
     def dead(self, *regs: str) -> "MethodBuilder":
@@ -199,7 +216,7 @@ class MethodBuilder:
     def _close(self, mnemonic: str, reg: str) -> Method:
         w = int(self._ret[1:])
         return Method(self._name, self._ret, tuple(self._lines) + (instr(mnemonic, reg, w=w),),
-                      self._params, tuple(self._directives))
+                      self._params, tuple(self._directives), self._untyped_count)
 
     def ret(self, reg: str = IR1) -> Method:
         return self._close("ret", reg)
@@ -209,7 +226,7 @@ class MethodBuilder:
 
     def build(self) -> Method:
         """Closes the method as-is, for bodies with several rets or none."""
-        return Method(self._name, self._ret, tuple(self._lines), self._params)
+        return Method(self._name, self._ret, tuple(self._lines), self._params, tuple(self._directives), self._untyped_count)
 
 
 def method(name: str, ret: AsmType, params: tuple[AsmType, ...] = (),
@@ -1409,6 +1426,699 @@ def generate_alu_rr() -> list[Path]:
 
 
 # ---------------------------------------------------------------------------
+# frame-slots: CbcSpecializedFrameSlots suite (rt round-trips, uslot
+# immediate/byte stores, long-form offsets)
+# ---------------------------------------------------------------------------
+
+# Each case stores its argument into untyped slot $0 and loads it back with
+# the kind pair (st_kind, ld_kind): the narrow loads read a full
+# st.uslot.64 cell, st16/st32 exercise the narrow STORE_FRAME kinds, and
+# ref/f32/f64 round-trip through the same-width store/load pair. The
+# file/method names must stay in sync with FrameSlotCases in test/cbc_test.cpp.
+FRAME_SLOT_RT_CASES = [
+    ("u8", "64", "u8"),
+    ("s8", "64", "s8"),
+    ("u16", "64", "u16"),
+    ("s16", "64", "s16"),
+    ("32", "64", "32"),
+    ("64", "64", "64"),
+    ("st16", "16", "u16"),
+    ("st32", "32", "32"),
+    ("ref", "ref", "ref"),
+]
+
+FRAME_SLOT_FLOAT_KINDS = ["f32", "f64"]
+
+# The long-form methods use 260 slots: slot $0 lands 2080 bytes below the
+# frame start, outside the signed 12-bit offset window (so the access takes
+# LOAD_LONG_FRAME/STORE_LONG_FRAME), while slot $255 (-40) stays inside it.
+FRAME_SLOT_LONG_SLOT_COUNT = 260
+
+# Probed and rejected DSL forms (assembler crashes / interpreter FATALs, so
+# their RT opcodes stay uncovered): ld.uslot.u32 assembles but the interpreter
+# LoadPrim FATALs on LD_U32; ld.stack.rec assembles and rewrites (its
+# @typed_slots rec type needs the @flags RECORD modifier), but TypedSlotOffset
+# (isa_rewriter.cpp) computes `(int32_t)u32 - uint32` in unsigned arithmetic,
+# and UBSan with halt_on_error aborts on the wrapping conversion for every
+# negative typed offset (LOAD_LONG_FRAME LD_LEA stays uncovered; the mem-obj
+# suite re-probed the same abort for ld.typed/st.typed); ld.stack.rec lowers to
+# LoadFrame, so LOAD_LONG_REC/STORE_LONG_REC are only reachable via big-offset
+# ld.raw/st.raw (covered by the mem-obj suite); lea.stack.param does not exist.
+
+# st.uslot.imm (fixed upstream by 5081927e) and st.uslot.8 (fixed by f8b1ae17)
+# are covered by the cases below. Probe notes:
+# - st.uslot.imm takes a 64-bit signed integer literal (decimal or 0x hex,
+#   negative too; the lexer folds '-' into the IntegerLit), encodes it as
+#   sleb128, and performs NO liveness-analyzer calls. The slot therefore must
+#   be brought into the analyzer state with `@live.prim $N` before the first
+#   load from it: the load's trans() reads the slot's current mark and aborts
+#   with NoSuchElementException on an unregistered slot (probed).
+# - st.uslot.8 takes an ireg like every other st.uslot kind (f8b1ae17 fixed
+#   the freg spelling); the store itself registers the slot, so plain
+#   `@live.prim IR1` is enough there.
+# The rewriter lowers st.uslot.imm through ST_64 unconditionally
+# (isa_rewriter.cpp StoreUntypedImm), and StoreFrameImm (emitter.cpp) picks the
+# RT opcode purely by the immediate magnitude: [-2^7, 2^7-1] -> STORE_FRAME_IMM_1,
+# then IMM_2 at 16 bits, IMM_4 at 32 bits, IMM_8 otherwise. The test values
+# below pin the class boundaries; a wrong opcode choice would truncate the
+# immediate at encode/decode and fail the round-trip.
+# (file, value name, imm literal, stored 64-bit pattern, ld.uslot read-back kinds)
+IMM_SLOT_CASES = [
+    ("imm1", "m1", "-1", 0xFFFFFFFFFFFFFFFF, ("64", "32", "s8", "u8")),
+    ("imm1", "p127", "127", 0x7F, ("64",)),
+    ("imm2", "p128", "128", 0x80, ("64",)),
+    ("imm2", "m4660", "-0x1234", 0xFFFFFFFFFFFFEDCC, ("64", "32", "s16", "u16", "s8", "u8")),
+    ("imm4", "p32768", "32768", 0x8000, ("64",)),
+    ("imm4", "m305419896", "-0x12345678", 0xFFFFFFFFEDCBA988, ("64", "32", "s16", "u16", "s8", "u8")),
+    ("imm8", "p2147483648", "2147483648", 0x80000000, ("64",)),
+    ("imm8", "pattern", "0x123456789ABCDEF0", 0x123456789ABCDEF0, ("64", "32", "s8", "u8")),
+    ("imm8", "smin", "-9223372036854775808", 0x8000000000000000, ("64",)),
+]
+
+# st.uslot.8 truncates the source register to the low byte (ST_8); the
+# read-back kinds distinguish the load extensions: ld.uslot.s8 sign-extends,
+# ld.uslot.u8 zero-extends, ld.uslot.64 shows the untouched upper slot bytes.
+FRAME_SLOT_ST8_READS = ["64", "s8", "u8"]
+
+
+def frame_imm_method(width_file: str, value_name: str, imm: str, read: str) -> Method:
+    return (
+        method(f"test_{width_file}_{value_name}_{read}", I64).slots(1)
+        .live("$0")
+        .instr("st.uslot.imm", imm, "$0")
+        .instr(f"ld.uslot.{read}", IR1, "$0")
+        .dead("$0")
+        .ret(IR1)
+    )
+
+
+def frame_st8_methods() -> list[Method]:
+    return [
+        (
+            method(f"test_st8_{read}", I64, params=(I64,)).slots(1)
+            .live(IR1)
+            .instr("st.uslot.8", IR1, "$0")
+            .instr(f"ld.uslot.{read}", IR2, "$0")
+            .dead(IR1, "$0")
+            .ret(IR2)
+        )
+        for read in FRAME_SLOT_ST8_READS
+    ]
+
+
+# ---------------------------------------------------------------------------
+# frame-slots: typed narrow fields (I8/U8/I16/U16) and F32 (st.typed/ld.typed(.f))
+# ---------------------------------------------------------------------------
+
+# The rewriter lowers ld.typed/st.typed through LOAD_FRAME/STORE_FRAME with
+# the field-kind access kinds (isa_rewriter.cpp:913 LdTyped / :1002 StTyped ->
+# isa_rewriter.cpp:54 Ldk / :79 Stk): I8 -> LD_S8 (sign-extending), U8 ->
+# LD_U8 (zero-extending), I16 -> LD_S16, U16 -> LD_U16, F32 -> LD_F32; the
+# store kinds collapse the signedness (I8/U8 -> ST_8, I16/U16 -> ST_16, F32 ->
+# ST_F32). The interpreter truncates on store (operations.h:827
+# MemoryLocation::Store<P>: static_cast<P>(GetPrimitive(src.IR()).u64)) and
+# sign/zero-extends on load (operations.h:837 Load<P>: Put(IR, {u64 =
+# static_cast<uint64_t>(P value)}); F32 via operations.h:787 Store<float> /
+# operations.h:802 Load<float>) - unlike the uslot loads (operations.h:867
+# LoadPrim), no separate s8/u8 spellings exist here: the field's declared
+# kind carries the signedness.
+#
+# One RecN record hosts all the narrow fields packed at their natural
+# alignment (field_layout.cpp:82/86/92 flat sizes 1/2/4, field_layout.cpp:302
+# SizeAlignmentAccumulator::AddField packing): i8@0, u8@1, i16@2, u16@4,
+# f32@8, flat size 12. The typed slot occupies AlignUp(12, STACK_SLOT_SIZE) =
+# 16 bytes (isa_rewriter.cpp:2326), so staticFrameSize is 16; RecF { f32 }
+# fills 4 bytes -> an 8-byte slot. Field offsets are NOT spelled in the DSL:
+# they come from the resolver's layout of the declared @type fields.
+FRAME_SLOTS_NARROW_PREAMBLE = """
+@field_ref recn_i8 = default:RecN@rec i8 I8
+@field_ref recn_u8 = default:RecN@rec u8 U8
+@field_ref recn_i16 = default:RecN@rec i16 I16
+@field_ref recn_u16 = default:RecN@rec u16 U16
+@field_ref recn_f32 = default:RecN@rec f32 F32
+
+@type default:RecN
+  @flags PUBLIC RECORD
+  @field i8 I8
+    @flags PUBLIC
+  @end
+  @field u8 U8
+    @flags PUBLIC
+  @end
+  @field i16 I16
+    @flags PUBLIC
+  @end
+  @field u16 U16
+    @flags PUBLIC
+  @end
+  @field f32 F32
+    @flags PUBLIC
+  @end
+@end
+"""
+
+FRAME_SLOTS_F32_PREAMBLE = """
+@field_ref recf_f32 = default:RecF@rec f32 F32
+
+@type default:RecF
+  @flags PUBLIC RECORD
+  @field f32 F32
+    @flags PUBLIC
+  @end
+@end
+"""
+
+REC_NARROW_TYPE = "default:RecN@rec"
+REC_F32_TYPE = "default:RecF@rec"
+
+# The narrow kinds and their C++ reference extensions (mirror
+# operations.h:837 Load<P> verbatim; see TypedSlotNarrowRoundTrip).
+TYPED_NARROW_KINDS = ["i8", "u8", "i16", "u16"]
+
+
+def typed_narrow_method(kind: str) -> Method:
+    """Round-trips the I64 param through the narrow field `kind`: st.typed
+    truncates to the field width and ld.typed extends it back."""
+    return (
+        method(f"test_typed_narrow_{kind}", I64, params=(I64,), default_w=64)
+        .directive(f"@typed_slots {REC_NARROW_TYPE}")
+        .live(IR1)
+        .plain("st.typed", IR1, "$0", f"#recn_{kind}")
+        .plain("@dead", IR1)
+        .plain("ld.typed", IR1, "$0", f"#recn_{kind}")
+        .ret()
+    )
+
+
+def typed_narrow_load_method(kind: str) -> Method:
+    """Loads the narrow field `kind` of a slot pre-set by the test (no
+    store): pins the load extension against known slot bytes."""
+    return (
+        method(f"test_typed_narrow_load_{kind}", I64, default_w=64)
+        .directive(f"@typed_slots {REC_NARROW_TYPE}")
+        .plain("ld.typed", IR1, "$0", f"#recn_{kind}")
+        .ret()
+    )
+
+
+def typed_narrow_all_store_method() -> Method:
+    """Stores a distinct pattern into every RecN field, then returns the
+    i16 read-back (unused by the test, which inspects the raw slot bytes).
+    The fresh registers need no @live markers (movi defines them)."""
+    return (
+        method("test_typed_narrow_all_store", I64, default_w=64)
+        .directive(f"@typed_slots {REC_NARROW_TYPE}")
+        .instr("movi", IR1, imm(0xA5), w=64)
+        .instr("movi", IR2, imm(0x5A1C), w=64)
+        .instr("movi", IR3, imm(0x8163), w=64)
+        .instr("movi", IR4, imm(0x7211), w=64)
+        .plain("st.typed", IR1, "$0", "#recn_i8")
+        .plain("st.typed", IR2, "$0", "#recn_u8")
+        .plain("st.typed", IR3, "$0", "#recn_i16")
+        .plain("st.typed", IR4, "$0", "#recn_u16")
+        .plain("@dead", f"{IR1}, {IR2}, {IR3}, {IR4}")
+        .raw("fmovi.32 FR0, 1.5")
+        .plain("st.typed.f", FR0, "$0", "#recn_f32")
+        .plain("ld.typed", IR1, "$0", "#recn_i16")
+        .ret()
+    )
+
+
+def typed_f32_method() -> Method:
+    """Round-trips the F32 param through field `f32` of the typed slot 0."""
+    return (
+        method("test_typed_f32", F32, params=(F32,), default_w=32)
+        .directive(f"@typed_slots {REC_F32_TYPE}")
+        .plain("st.typed.f", FR0, "$0", "#recf_f32")
+        .plain("ld.typed.f", FR0, "$0", "#recf_f32")
+        .fret()
+    )
+
+
+def typed_f32_load_method() -> Method:
+    """Loads field `f32` of a slot pre-set by the test (no store)."""
+    return (
+        method("test_typed_f32_load", F32, default_w=32)
+        .directive(f"@typed_slots {REC_F32_TYPE}")
+        .plain("ld.typed.f", FR0, "$0", "#recf_f32")
+        .fret()
+    )
+
+
+def frame_rt_method(name: str, st_kind: str, ld_kind: str) -> Method:
+    ref = st_kind == "ref"
+    builder = method(f"test_{name}", I64, params=(I64,)).slots(1)
+    builder = builder.live_ref(IR1) if ref else builder.live(IR1)
+    builder = (
+        builder.instr(f"st.uslot.{st_kind}", IR1, "$0")
+        .instr(f"ld.uslot.{ld_kind}", IR2, "$0")
+        .dead(IR1, "$0")
+    )
+    if ref:
+        # The load result carries the REF liveness mark, which ret.64 rejects.
+        return builder.instr("ret.ref", IR2).build()
+    return builder.ret(IR2)
+
+
+def frame_rt_float_method(kind: str) -> Method:
+    float_type = AsmType(f"F{kind[1:]}")
+    return (
+        method(f"test_{kind}", float_type, params=(float_type,)).slots(1)
+        .instr(f"st.uslot.{kind}", FR0, "$0")
+        .instr(f"ld.uslot.{kind}", FR0, "$0")
+        .fret()
+    )
+
+
+def frame_long_methods() -> list[Method]:
+    long_int = (
+        method("test_long", I64, params=(I64,)).slots(FRAME_SLOT_LONG_SLOT_COUNT)
+        .live(IR1)
+        .instr("st.uslot.64", IR1, "$0")
+        .instr("ld.uslot.64", IR2, "$0")
+        .dead(IR1)
+        .instr("st.uslot.64", IR2, "$255")
+        .instr("ld.uslot.64", IR3, "$255")
+        .instr("add", IR2, IR2, IR3, w=64)
+        .dead(IR3, "$255", "$0")
+        .ret(IR2)
+    )
+    long_float = (
+        method("test_long_f", F64, params=(F64,)).slots(FRAME_SLOT_LONG_SLOT_COUNT)
+        .instr("st.uslot.f64", FR0, "$0")
+        .instr("ld.uslot.f64", FR0, "$0")
+        .fret()
+    )
+    return [long_int, long_float]
+
+
+def generate_frame_slots() -> list[Path]:
+    rt_files = {
+        f"{name}.asm": asm_file([frame_rt_method(name, st_kind, ld_kind)])
+                       for name, st_kind, ld_kind in FRAME_SLOT_RT_CASES
+    }
+    rt_files.update({
+        f"{kind}.asm": asm_file([frame_rt_float_method(kind)]) for kind in FRAME_SLOT_FLOAT_KINDS
+    })
+    rt_files["typed_narrow.asm"] = asm_file_with_preamble(
+        FRAME_SLOTS_NARROW_PREAMBLE,
+        [typed_narrow_method(kind) for kind in TYPED_NARROW_KINDS]
+        + [typed_narrow_all_store_method()]
+        + [typed_narrow_load_method(kind) for kind in TYPED_NARROW_KINDS],
+    )
+    rt_files["typed_f32.asm"] = asm_file_with_preamble(
+        FRAME_SLOTS_F32_PREAMBLE, [typed_f32_method(), typed_f32_load_method()]
+    )
+    imm_files: dict[str, list[Method]] = {}
+    for width_file, value_name, imm, _, reads in IMM_SLOT_CASES:
+        imm_files.setdefault(width_file, []).extend(
+            frame_imm_method(width_file, value_name, imm, read) for read in reads
+        )
+    rt_files.update({
+        f"{file}.asm": asm_file(methods) for file, methods in imm_files.items()
+    })
+    rt_files["st8.asm"] = asm_file(frame_st8_methods())
+    return (
+        write_suite("frame-slots/rt", rt_files)
+        + write_suite("frame-slots", {"long.asm": asm_file(frame_long_methods())})
+    )
+
+
+# ---------------------------------------------------------------------------
+# mem-obj: CbcSpecializedRawMem/CbcSpecializedFields/CbcSpecializedArrays suites
+# ---------------------------------------------------------------------------
+
+# Typed slots (ld.typed/st.typed(.f)) are not generated: they assemble and
+# rewrite, but TypedSlotOffset (isa_rewriter.cpp, shared with ld.stack.rec)
+# wraps every negative typed offset through an implicit uint32->int32
+# conversion that the UBSan build (halt_on_error) rejects.
+# lea.g is not generated either: LEA_GENERIC calls the mocked GetFieldOffset,
+# which FATALs (and ld.g/st.g always lower to the zero-offset STORE_GENERIC).
+
+# Probed raw-memory spellings: ld.raw has only {u8,s8,u16,s16,32,u32,s32,64,ref,f32,f64}
+# (no plain 8/16 forms); st.raw has {8,16,32,64,ref,f32,f64}. Both lower to
+# LOAD_REC/STORE_REC (LOAD_LONG_REC/STORE_LONG_REC for offsets past the 12-bit
+# window). ld.raw.u32 assembles but the interpreter LoadPrim FATALs on the
+# LD_U32TO64 access kind, so it is not generated.
+# Method names double as file names and must not contain '-' (the tokenizer
+# reads it as a negative-number sign), hence the underscore spellings.
+RAW_LOAD_CASES = [
+    ("st8_ldu8", "8", "u8", 0x8),
+    ("st8_lds8", "8", "s8", 0x8),
+    ("st16_ldu16", "16", "u16", 0x8),
+    ("st16_lds16", "16", "s16", 0x8),
+    ("st32_ld32", "32", "32", 0x8),
+    ("st32_lds32", "32", "s32", 0x8),
+    ("st64_ld64", "64", "64", 0x8),
+    # The 0x1000 pair leaves the 12-bit offset window (LOAD_LONG_REC/STORE_LONG_REC);
+    # 0x18 exercises the split low4/sleb encoding.
+    ("st64_ld64_multi", "64", "64", None),
+]
+
+# Field declarations shared by every fields-suite image. Layouts resolved from
+# the image at rewrite (Cangjie layout rules): the record holds f0 I64@0,
+# f1 I32@8, f2 I16@12, f3 I8@14, f4 U8@15, f5 U16@16, f6 F32@20, f7 F64@24,
+# f8 REF@32; the class holds x I64@8, y I32@16, r0 REF@24 (ObjectHeaderSize
+# added to class-owner offsets). The names must stay in sync with
+# CbcSpecializedFields in test/cbc_test.cpp.
+MEM_OBJ_FIELD_REFS = """
+@field_ref rec_f0 = mem:Rec@rec f0 I64
+@field_ref rec_f1 = mem:Rec@rec f1 I32
+@field_ref rec_f2 = mem:Rec@rec f2 I16
+@field_ref rec_f3 = mem:Rec@rec f3 I8
+@field_ref rec_f4 = mem:Rec@rec f4 U8
+@field_ref rec_f5 = mem:Rec@rec f5 U16
+@field_ref rec_f6 = mem:Rec@rec f6 F32
+@field_ref rec_f7 = mem:Rec@rec f7 F64
+@field_ref rec_f8 = mem:Rec@rec f8 mem:Obj@ref
+@field_ref obj_x = mem:Obj@ref x I64
+@field_ref obj_y = mem:Obj@ref y I32
+@field_ref obj_r0 = mem:Obj@ref r0 mem:Obj@ref
+"""
+
+MEM_OBJ_TYPES = """
+@type mem:Rec
+  @flags PUBLIC RECORD
+  @field f0 I64
+    @flags PUBLIC
+  @end
+  @field f1 I32
+    @flags PUBLIC
+  @end
+  @field f2 I16
+    @flags PUBLIC
+  @end
+  @field f3 I8
+    @flags PUBLIC
+  @end
+  @field f4 U8
+    @flags PUBLIC
+  @end
+  @field f5 U16
+    @flags PUBLIC
+  @end
+  @field f6 F32
+    @flags PUBLIC
+  @end
+  @field f7 F64
+    @flags PUBLIC
+  @end
+  @field f8 mem:Obj@ref
+    @flags PUBLIC
+  @end
+@end
+
+@type mem:Obj
+  @field x I64
+    @flags PUBLIC
+  @end
+  @field y I32
+    @flags PUBLIC
+  @end
+  @field r0 mem:Obj@ref
+    @flags PUBLIC
+  @end
+@end
+
+"""
+
+
+def mem_obj_file(methods: list[Method]) -> str:
+    body = "\n\n".join(m.render() for m in methods)
+    return '@main_type "default"\n' + MEM_OBJ_FIELD_REFS.lstrip("\n") + MEM_OBJ_TYPES.lstrip(
+        "\n"
+    ) + "@type default\n" + body + "\n@end\n"
+
+
+def raw_method(name: str, st_kind: str, ld_kind: str, offsets: tuple[int, ...]) -> Method:
+    builder = method(f"test_{name}", I64, params=(I64, I64)).live(IR1, IR2)
+    for off in offsets[:-1]:
+        builder = (
+            builder
+            .instr(f"st.raw.{st_kind}", IR2, IR1, imm(off))
+            .instr(f"ld.raw.{ld_kind}", IR3, IR1, imm(off))
+            .dead(IR3)
+        )
+    return (
+        builder
+        .instr(f"st.raw.{st_kind}", IR2, IR1, imm(offsets[-1]))
+        .instr(f"ld.raw.{ld_kind}", IR3, IR1, imm(offsets[-1]))
+        .dead(IR1, IR2)
+        .ret(IR3)
+    )
+
+
+def raw_ref_method(name: str) -> Method:
+    return (
+        method(f"test_{name}", I64, params=(I64, I64))
+        .live(IR1)
+        .live_ref(IR2)
+        .instr("st.raw.ref", IR2, IR1, imm(0x8))
+        .instr("ld.raw.ref", IR3, IR1, imm(0x8))
+        .dead(IR1, IR2)
+        .instr("ret.ref", IR3)
+        .build()
+    )
+
+
+def raw_float_method(name: str, kind: str) -> Method:
+    float_type = AsmType(f"F{kind[1:]}")
+    return (
+        method(f"test_{name}", float_type, params=(I64, float_type))
+        .live(IR1)
+        .instr(f"st.raw.{kind}", FR0, IR1, imm(0x8))
+        .instr(f"ld.raw.{kind}", FR1, IR1, imm(0x8))
+        .dead(IR1)
+        .fret(FR1)
+    )
+
+
+def field_rec_method(name: str, field: str, ref: bool) -> Method:
+    builder = method(f"test_{name}", I64, params=(I64, I64)).live_rec(IR1)
+    builder = builder.live_ref(IR2) if ref else builder.live(IR2)
+    builder = (
+        builder
+        .instr("st.field", IR2, IR1, f"#rec_{field}")
+        .instr("ld.field", IR3, IR1, f"#rec_{field}")
+        .dead(IR1, IR2)
+    )
+    if ref:
+        # The loaded value carries the REF liveness mark, which ret.64 rejects.
+        return builder.instr("ret.ref", IR3).build()
+    return builder.ret(IR3)
+
+
+def field_obj_method(name: str, field: str, ref: bool) -> Method:
+    builder = method(f"test_{name}", I64, params=(I64, I64)).live_ref(IR1)
+    builder = builder.live_ref(IR2) if ref else builder.live(IR2)
+    builder = (
+        builder
+        .instr("st.field", IR2, IR1, f"#obj_{field}")
+        .instr("ld.field", IR3, IR1, f"#obj_{field}")
+        .dead(IR1, IR2)
+    )
+    if ref:
+        return builder.instr("ret.ref", IR3).build()
+    return builder.ret(IR3)
+
+
+def field_float_method(name: str, field: str, width: int) -> Method:
+    float_type = AsmType(f"F{width}")
+    return (
+        method(f"test_{name}", float_type, params=(I64, float_type))
+        .live_rec(IR1)
+        .instr("st.field.f", FR0, IR1, f"#rec_{field}")
+        .instr("ld.field.f", FR1, IR1, f"#rec_{field}")
+        .dead(IR1)
+        .fret(FR1)
+    )
+
+
+def derived_method(name: str, field_ref: str, owner_ref: bool) -> Method:
+    # st.derived/ld.derived always emit STORE_LONG_DERIVED/LOAD_LONG_DERIVED;
+    # base IR1 switches the interpreter between the LOCAL (base == 0) and HEAP
+    # paths of LoadDerived/StoreDerived.
+    builder = method(f"test_{name}", I64, params=(I64, I64, I64))
+    builder = builder.live_ref(IR1) if owner_ref else builder.live_rec(IR1)
+    builder = (
+        builder.live(IR2, IR3)
+        .instr("st.derived", IR3, IR1, IR2, f"#{field_ref}")
+        .instr("ld.derived", IR4, IR1, IR2, f"#{field_ref}")
+        .dead(IR1, IR2, IR3)
+    )
+    return builder.ret(IR4)
+
+
+def derived_ref_method(name: str) -> Method:
+    return (
+        method(f"test_{name}", I64, params=(I64, I64, I64))
+        .live_ref(IR1, IR3)
+        .live(IR2)
+        .instr("st.derived", IR3, IR1, IR2, "#obj_r0")
+        .instr("ld.derived", IR4, IR1, IR2, "#obj_r0")
+        .dead(IR1, IR2, IR3)
+        .instr("ret.ref", IR4)
+        .build()
+    )
+
+
+def derived_float_method(name: str, width: int) -> Method:
+    float_type = AsmType(f"F{width}")
+    return (
+        method(f"test_{name}", float_type, params=(I64, I64, float_type))
+        .live_rec(IR1)
+        .live(IR2)
+        .instr("st.derived.f", FR0, IR1, IR2, "#rec_f6")
+        .instr("ld.derived.f", FR1, IR1, IR2, "#rec_f6")
+        .dead(IR1, IR2)
+        .fret(FR1)
+    )
+
+
+def generic_ref_method() -> Method:
+    # ld.g/st.g lower to LOAD_GENERIC/STORE_GENERIC; the mock IsReference() is
+    # constant true, so a plain constant stands in for the TypeInfo register
+    # (the three seedable IR registers carry base, value and derived address).
+    return (
+        method("test_gen_ref", I64, params=(I64, I64, I64))
+        .live_ref(IR1, IR2)
+        .live(IR3)
+        .instr("movi", IR4, imm(0x1000), w=64)
+        .instr("st.g", IR2, IR1, IR3, IR4)
+        .instr("ld.g", IR5, IR1, IR3, IR4)
+        .dead(IR1, IR2, IR3, IR4)
+        .instr("ret.ref", IR5)
+        .build()
+    )
+
+
+# st.arr.* marks the source register as a *define* in the liveness analyzer, so
+# its value must be moved into a fresh register and that register @dead'ed
+# before the store (st.raw/st.field use plain usage marks and need no dance).
+def arr_method(name: str, st_kind: str, ld_kind: str) -> Method:
+    return (
+        method(f"test_{name}", I64, params=(I64, I64, I64))
+        .live_ref(IR1)
+        .live(IR2, IR3)
+        .dead(IR3)
+        .instr(f"st.arr.{st_kind}", IR3, IR1, IR2)
+        .dead(IR3)
+        .instr(f"ld.arr.{ld_kind}", IR4, IR1, IR2)
+        .dead(IR1, IR2)
+        .ret(IR4)
+    )
+
+
+def arr_ref_method() -> Method:
+    return (
+        method("test_ref", I64, params=(I64, I64, I64))
+        .live_ref(IR1, IR3)
+        .live(IR2)
+        .instr("mov.ref", IR4, IR3)
+        .dead(IR4)
+        .instr("st.arr.ref", IR4, IR1, IR2)
+        .instr("ld.arr.ref", IR5, IR1, IR2)
+        .dead(IR1, IR2, IR3)
+        .instr("ret.ref", IR5)
+        .build()
+    )
+
+
+def arr_float_method(name: str, kind: str) -> Method:
+    float_type = AsmType(f"F{kind[1:]}")
+    return (
+        method(f"test_{name}", float_type, params=(I64, I64, float_type))
+        .live_ref(IR1)
+        .live(IR2)
+        .instr(f"st.arr.{kind}", FR0, IR1, IR2)
+        .instr(f"ld.arr.{kind}", FR1, IR1, IR2)
+        .dead(IR1, IR2)
+        .fret(FR1)
+    )
+
+
+def arr_len_method() -> Method:
+    # arr.len lowers to LOAD_OBJ LD_64 at ObjectHeaderSize.
+    return (
+        method("test_len", I64, params=(I64,))
+        .live_ref(IR1)
+        .instr("arr.len", IR2, IR1)
+        .dead(IR1)
+        .ret(IR2)
+    )
+
+
+def arr_leabox_method() -> Method:
+    # lea.box lowers to LOAD_OBJ LD_LEA at ObjectHeaderSize.
+    return (
+        method("test_leabox", I64, params=(I64,))
+        .live_ref(IR1)
+        .instr("lea.box", IR2, IR1)
+        .dead(IR1)
+        .ret(IR2)
+    )
+
+
+def generate_mem_obj() -> list[Path]:
+    written = []
+    raw_files = {
+        f"{name}.asm": asm_file([raw_method(name, st_kind, ld_kind, (off,))])
+                       for name, st_kind, ld_kind, off in RAW_LOAD_CASES if off is not None
+    }
+    raw_files.update({
+        f"{name}.asm": asm_file([raw_method(name, st_kind, ld_kind, (0x8, 0x18, 0x1000))])
+                       for name, st_kind, ld_kind, off in RAW_LOAD_CASES if off is None
+    })
+    raw_files["stref_ldref.asm"] = asm_file([raw_ref_method("stref_ldref")])
+    raw_files.update({
+        f"st{kind}_ld{kind}.asm": asm_file([raw_float_method(f"st{kind}_ld{kind}", kind)])
+                                  for kind in ("f32", "f64")
+    })
+    written += write_suite("mem-obj/raw", raw_files)
+
+    field_files = {
+        "rec_64.asm": mem_obj_file([field_rec_method("rec_64", "f0", ref=False)]),
+        "rec_32.asm": mem_obj_file([field_rec_method("rec_32", "f1", ref=False)]),
+        "rec_16s.asm": mem_obj_file([field_rec_method("rec_16s", "f2", ref=False)]),
+        "rec_8s.asm": mem_obj_file([field_rec_method("rec_8s", "f3", ref=False)]),
+        "rec_8u.asm": mem_obj_file([field_rec_method("rec_8u", "f4", ref=False)]),
+        "rec_16u.asm": mem_obj_file([field_rec_method("rec_16u", "f5", ref=False)]),
+        "rec_ref.asm": mem_obj_file([field_rec_method("rec_ref", "f8", ref=True)]),
+        "rec_f32.asm": mem_obj_file([field_float_method("rec_f32", "f6", 32)]),
+        "rec_f64.asm": mem_obj_file([field_float_method("rec_f64", "f7", 64)]),
+        "obj_64.asm": mem_obj_file([field_obj_method("obj_64", "x", ref=False)]),
+        "obj_32.asm": mem_obj_file([field_obj_method("obj_32", "y", ref=False)]),
+        "obj_ref.asm": mem_obj_file([field_obj_method("obj_ref", "r0", ref=True)]),
+        "derived_rec_64.asm": mem_obj_file([derived_method("derived_rec_64", "rec_f0", owner_ref=False)]),
+        "derived_obj_64.asm": mem_obj_file([derived_method("derived_obj_64", "obj_x", owner_ref=True)]),
+        "derived_obj_ref.asm": mem_obj_file([derived_ref_method("derived_obj_ref")]),
+        "derived_rec_f32.asm": mem_obj_file([derived_float_method("derived_rec_f32", 32)]),
+        "gen_ref.asm": mem_obj_file([generic_ref_method()]),
+    }
+    written += write_suite("mem-obj/fields", field_files)
+
+    arr_files = {
+        f"{name}.asm": asm_file([arr_method(name, st_kind, ld_kind)])
+                       for name, st_kind, ld_kind in [
+                           ("u8", "8", "u8"),
+                           ("s8", "8", "s8"),
+                           ("u16", "16", "u16"),
+                           ("s16", "16", "s16"),
+                           ("32", "32", "32"),
+                           ("64", "64", "64"),
+                       ]
+    }
+    arr_files["ref.asm"] = asm_file([arr_ref_method()])
+    arr_files.update({
+        f"{kind}.asm": asm_file([arr_float_method(kind, kind)]) for kind in ("f32", "f64")
+    })
+    arr_files["len.asm"] = asm_file([arr_len_method()])
+    arr_files["leabox.asm"] = asm_file([arr_leabox_method()])
+    written += write_suite("mem-obj/arrays", arr_files)
+    return written
+
+
+# ---------------------------------------------------------------------------
 
 GENERATORS = {
     "arith"            : generate_arith,
@@ -1424,6 +2134,8 @@ GENERATORS = {
     "convert-ext"      : generate_convert_ext,
     "cmp-branch"       : generate_cmp_branch,
     "alu-rr"           : generate_alu_rr,
+    "frame-slots"      : generate_frame_slots,
+    "mem-obj"          : generate_mem_obj,
 }
 
 

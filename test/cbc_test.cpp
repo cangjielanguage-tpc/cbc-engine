@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <iterator>
 #include <limits>
 #include <sstream>
@@ -885,4 +886,3 @@ TEST_ASM(CbcTest, ArrIndexCheck)
         Interpretation::Type::IndexOutOfBoundsException
     );
 }
-
