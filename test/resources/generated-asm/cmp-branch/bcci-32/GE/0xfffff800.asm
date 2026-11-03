@@ -1,0 +1,14 @@
+@main_type "default"
+
+@type default
+  @method test_0xfffff800(I32)I64
+    @code
+      @live.prim IR1
+      movi.32 IR3, 0x1
+      bcci.32 GE, IR1, -0x800, skip
+      subi.32 IR3, IR3, 0x1
+      skip:
+      ret.64 IR3
+    @end
+  @end
+@end

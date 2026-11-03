@@ -66,6 +66,7 @@ F32, F64, I8, I16, I32, I64, U8, U16, U32, U64 = AsmType
 IR1 = "IR1"
 FR0 = "FR0"
 FR1 = "FR1"
+IRZ = "IRZ"
 
 
 def reg_for(t: AsmType) -> str:
@@ -163,9 +164,26 @@ class MethodBuilder:
         self._lines.append(live_ref(*regs))
         return self
 
+    def dead(self, *regs: str) -> "MethodBuilder":
+        self._lines.append("@dead " + ", ".join(regs))
+        return self
+
+    def label(self, name: str) -> "MethodBuilder":
+        self._lines.append(f"{name}:")
+        return self
+
+    def nops(self, count: int) -> "MethodBuilder":
+        self._lines.extend(["nop"] * count)
+        return self
+
+    def raw(self, line: str) -> "MethodBuilder":
+        self._lines.append(line)
+        return self
+
     def instr(self, mnemonic: str, *operands: object,
-              suffixes: tuple[object, ...] = ()) -> "MethodBuilder":
-        w = self._default_w
+              suffixes: tuple[object, ...] = (), w: int | None = None) -> "MethodBuilder":
+        if w is None:
+            w = self._default_w
         if suffixes:
             w = None
         self._lines.append(instr(mnemonic, *operands, w=w, suffixes=suffixes))
@@ -188,6 +206,10 @@ class MethodBuilder:
 
     def fret(self, reg: str = FR0) -> Method:
         return self._close("fret", reg)
+
+    def build(self) -> Method:
+        """Closes the method as-is, for bodies with several rets or none."""
+        return Method(self._name, self._ret, tuple(self._lines), self._params)
 
 
 def method(name: str, ret: AsmType, params: tuple[AsmType, ...] = (),
@@ -956,6 +978,359 @@ def generate_convert_ext() -> list[Path]:
 
 
 # ---------------------------------------------------------------------------
+# cmp-branch: CbcSpecializedCmpBranch/CbcSpecializedFloatCmpBranch suites
+# ---------------------------------------------------------------------------
+
+# The CC spellings double as file names and method-name parts; they must stay
+# in sync with CmpCCName/FloatCmpCCName in test/cbc_test.cpp. The float CCs
+# apply to fscc/fbcc at both widths. REQ/RNE read raw 64-bit register cells
+# (Compare<CC::REQ/RNE> is specialized for Value::Reference at W64 only,
+# src/interpreter/internal/operations.h:699-707; the generic Value::Reference
+# form FATALs, operations.h:693-697), so the rr scc/bcc cases are generated at
+# W64 only. The imm forms (scci/bcci) cannot carry REQ/RNE at any width: the
+# interpreter's SCCImm/BccImm dispatch through CmpPrim, whose CC switch has no
+# REQ/RNE cases and FATALs "Unreachable" (src/interpreter/interpreter.h:477-490,
+# 560-565, probed).
+CMP_INT_CCS = ["EQ", "NE", "LT", "GE", "ULT", "UGE", "TESTZ", "TESTNZ"]
+CMP_REF_CCS = ["REQ", "RNE"]
+CMP_FLOAT_CCS = ["FEQ", "FNE", "FGE", "FNGE", "FLT", "FNLT"]
+
+# The imm file sets must stay in sync with CmpImmPatterns/CmpBccImmPatterns in
+# test/cbc_test.cpp: file names carry the unsigned bit pattern of the
+# immediate, the instruction spells it signed (0xffffffff at W32 is written
+# -0x1). Negative immediates are generated for both scci and bcci: the
+# isa_parser SccImm entry point widens its immediate argument through an
+# explicit cast since 8049baee, while the bcci entry decodes it through the
+# uint64_t Decoder::ReadSLEB (src/cbc/isa_parser.cpp), so the UBSan build
+# accepts negative values for both. scci/bcci exist at W32/W64 only (the DSL
+# has no .8/.16 spellings, NewAsmParser.scala, and ForkedAssembler.sccCommon
+# asserts W32/W64; probed). A bcci with imm 0 lowers to the register-vs-IRZ
+# rr form (ForkedAssembler.doBccImm), so the 0x0 files keep testing the rr
+# path. Immediates outside the signed 12-bit range select the literal-encoded
+# SCCI*L/BCCL*I RT forms (Emitter::SCCImm/BccImmFixup); they are generated for
+# the EQ CC only, positive and negative. The negative literal patterns are
+# width-natural (the W32 spellings are the low 32 bits of the W64 patterns):
+# smin has a matching lhs bound in test/cbc_test.cpp, so the EQ-taken path is
+# covered too.
+CMP_IMM_PATTERNS = {
+    32: [0x0, 0x1, 0x2, 0x7ff, 0xFFFFFFFF, 0xFFFFF800],
+    64: [0x0, 0x1, 0x2, 0x7ff, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFF800],
+}
+CMP_BCC_IMM_PATTERNS = {
+    32: [0x0, 0x1, 0x2, 0x7ff, 0xFFFFFFFF, 0xFFFFF800],
+    64: [0x0, 0x1, 0x2, 0x7ff, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFF800],
+}
+CMP_LITERAL_IMMS = [0x800, 0x10000000]
+CMP_NEG_LITERAL_IMMS = {
+    32: [0x80000000, 0xF0000000],
+    64: [0x8000000000000000, 0xFFFFFFFFF0000000],
+}
+# The far (2050-nop padded) bcci form: the branch delta moves into the literal
+# table (BCCI*L) while the immediate stays in-instruction. Generated for the
+# negative short immediates only (the near forms above cover the positive
+# ones); -1 has a matching lhs bound, so both the taken and the skipped paths
+# are exercised.
+CMP_FAR_BCC_IMM_PATTERNS = {
+    32: [0xFFFFFFFF],
+    64: [0xFFFFFFFFFFFFFFFF],
+}
+
+# Branch deltas beyond 12 bits move the offset into the literal table
+# (BCC*L/BCCI*L); the nop pad forces such a delta.
+CMP_FAR_PAD_NOPS = 2050
+
+
+def cmp_signed_imm(pattern: int, w: int) -> int:
+    return pattern - (1 << w) if pattern >> (w - 1) else pattern
+
+
+def cmp_scc_method(cc: str, w: int) -> Method:
+    t = AsmType(f"I{w}")
+    return (
+        method(f"test_{cc}", I64, params=(t, t), default_w=w)
+        .live(IR1, IR2)
+        .instr("scc", cc, IR1, IR1, IR2)
+        .ret()
+    )
+
+
+def cmp_fscc_method(cc: str, w: int) -> Method:
+    t = AsmType(f"F{w}")
+    return (
+        method(f"test_{cc}", I64, params=(t, t), default_w=w)
+        .live(IR1)
+        .instr("fscc", cc, IR1, FR0, FR1)
+        .ret()
+    )
+
+
+def cmp_scc_imm_method(cc: str, w: int, pattern: int) -> Method:
+    t = AsmType(f"I{w}")
+    return (
+        method(f"test_{imm(pattern)}", I64, params=(t,), default_w=w)
+        .live(IR1)
+        .instr("scci", cc, IR1, IR1, imm(cmp_signed_imm(pattern, w)))
+        .ret()
+    )
+
+
+def cmp_bcc_method(cc: str, w: int, ref: bool) -> Method:
+    t = AsmType(f"I{w}")
+    builder = method(f"test_{cc}", I64, params=(t, t), default_w=w)
+    builder = builder.live_ref(IR1, IR2) if ref else builder.live(IR1, IR2)
+    return (
+        builder.instr("movi", IR3, imm(1))
+        .instr("bcc", cc, IR1, IR2, "skip")
+        .instr("subi", IR3, IR3, imm(1))
+        .label("skip")
+        .instr("ret", IR3, w=64)
+        .build()
+    )
+
+
+def cmp_bcc_imm_method(cc: str, w: int, pattern: int) -> Method:
+    t = AsmType(f"I{w}")
+    return (
+        method(f"test_{imm(pattern)}", I64, params=(t,), default_w=w)
+        .live(IR1)
+        .instr("movi", IR3, imm(1))
+        .instr("bcci", cc, IR1, imm(cmp_signed_imm(pattern, w)), "skip")
+        .instr("subi", IR3, IR3, imm(1))
+        .label("skip")
+        .instr("ret", IR3, w=64)
+        .build()
+    )
+
+
+def cmp_bcc_imm_far_method(cc: str, w: int, pattern: int) -> Method:
+    # The 2050-nop pad pushes the branch delta past the signed 12-bit field,
+    # so the offset moves into the literal table (BCCI*L) while the immediate
+    # stays in-instruction. Same ok/fail contract as cmp_bcc_imm_method (the
+    # parametrized test body compares against 1/0): IR3 reads 1 when the
+    # branch is taken, 0 when skipped.
+    t = AsmType(f"I{w}")
+    return (
+        method(f"test_{imm(pattern)}", I64, params=(t,), default_w=w)
+        .live(IR1)
+        .instr("movi", IR3, imm(1))
+        .instr("bcci", cc, IR1, imm(cmp_signed_imm(pattern, w)), "far")
+        .instr("subi", IR3, IR3, imm(1))
+        .instr("ret", IR3, w=64)
+        .dead(IR3)
+        .nops(CMP_FAR_PAD_NOPS)
+        .label("far")
+        .instr("movi", IR3, imm(1))
+        .instr("ret", IR3, w=64)
+        .build()
+    )
+
+
+def cmp_fbcc_method(cc: str, w: int) -> Method:
+    t = AsmType(f"F{w}")
+    return (
+        method(f"test_{cc}", I64, params=(t, t), default_w=w)
+        .instr("movi", IR1, imm(1))
+        .instr("fbcc", cc, FR0, FR1, "skip")
+        .instr("subi", IR1, IR1, imm(1))
+        .label("skip")
+        .instr("ret", IR1, w=64)
+        .build()
+    )
+
+
+def cmp_jmp_methods() -> dict[str, Method]:
+    forward = (
+        method("test_forward", I64, params=(I64,), default_w=64)
+        .live(IR1)
+        .instr("movi", IR2, imm(1))
+        .raw("jmp skip")
+        .instr("movi", IR3, imm(7))
+        .instr("ret", IR3, w=64)
+        .label("skip")
+        .instr("ret", IR2, w=64)
+        .build()
+    )
+    loop = (
+        method("test_loop", I64, params=(I64,), default_w=64)
+        .live(IR1)
+        .instr("movi", IR2, imm(0))
+        .label("loop")
+        .instr("add", IR2, IR2, IR1)
+        .instr("subi", IR1, IR1, imm(1))
+        .instr("bcc", "NE", IR1, IRZ, "loop")
+        .dead(IR1)
+        .instr("ret", IR2, w=64)
+        .build()
+    )
+    loop_jmp = (
+        method("test_loop_jmp", I64, params=(I64,), default_w=64)
+        .live(IR1)
+        .instr("movi", IR2, imm(0))
+        .label("loop")
+        .instr("add", IR2, IR2, IR1)
+        .instr("subi", IR1, IR1, imm(1))
+        .instr("bcc", "EQ", IR1, IRZ, "done")
+        .raw("jmp loop")
+        .label("done")
+        .instr("ret", IR2, w=64)
+        .build()
+    )
+    return {"forward.asm": forward, "loop.asm": loop, "loop-jmp.asm": loop_jmp}
+
+
+def cmp_wide_methods() -> dict[str, Method]:
+    def wbcc(w: int, cc: str) -> Method:
+        t = AsmType(f"I{w}")
+        return (
+            method(f"test_wbcc{w}", I64, params=(t, t), default_w=w)
+            .live(IR1, IR2)
+            .instr("movi", IR3, imm(1))
+            .instr("w.bcc", cc, IR1, IR2, "skip")
+            .instr("subi", IR3, IR3, imm(1))
+            .label("skip")
+            .instr("ret", IR3, w=64)
+            .build()
+        )
+
+    def wbcci(w: int, cc: str) -> Method:
+        t = AsmType(f"I{w}")
+        return (
+            method(f"test_wbcci{w}", I64, params=(t,), default_w=w)
+            .live(IR1)
+            .instr("movi", IR3, imm(1))
+            .instr("w.bcci", cc, IR1, imm(0x7FF), "skip")
+            .instr("subi", IR3, IR3, imm(1))
+            .label("skip")
+            .instr("ret", IR3, w=64)
+            .build()
+        )
+
+    def wfbcc(w: int, cc: str) -> Method:
+        t = AsmType(f"F{w}")
+        return (
+            method(f"test_wfbcc{w}", I64, params=(t, t), default_w=w)
+            .instr("movi", IR1, imm(1))
+            .instr("w.fbcc", cc, FR0, FR1, "skip")
+            .instr("subi", IR1, IR1, imm(1))
+            .label("skip")
+            .instr("ret", IR1, w=64)
+            .build()
+        )
+
+    wjmp = (
+        method("test_wjmp", I64, params=(I64,), default_w=64)
+        .live(IR1)
+        .instr("movi", IR2, imm(1))
+        .raw("w.jmp skip")
+        .instr("movi", IR3, imm(7))
+        .instr("ret", IR3, w=64)
+        .label("skip")
+        .instr("ret", IR2, w=64)
+        .build()
+    )
+    return {
+        "w-bcc-32.asm": wbcc(32, "EQ"),
+        "w-bcc-64.asm": wbcc(64, "GE"),
+        "w-bcci-64.asm": wbcci(64, "LT"),
+        "w-fbcc-32.asm": wfbcc(32, "FEQ"),
+        "w-fbcc-64.asm": wfbcc(64, "FNGE"),
+        "w-jmp.asm": wjmp,
+    }
+
+
+def cmp_far_methods() -> dict[str, Method]:
+    def far_bcc(w: int) -> Method:
+        t = AsmType(f"I{w}")
+        return (
+            method(f"test_bcc_far_{w}", I64, params=(t, t), default_w=w)
+            .live(IR1, IR2)
+            .instr("movi", IR3, imm(1))
+            .instr("bcc", "EQ", IR1, IR2, "far")
+            .instr("subi", IR3, IR3, imm(1))
+            .instr("ret", IR3, w=64)
+            .dead(IR3)
+            .nops(CMP_FAR_PAD_NOPS)
+            .label("far")
+            .instr("movi", IR3, imm(2))
+            .instr("ret", IR3, w=64)
+            .build()
+        )
+
+    def far_bcci(name: str, w: int, pattern: int = 1) -> Method:
+        return (
+            method(name, I64, params=(AsmType(f"I{w}"),), default_w=w)
+            .live(IR1)
+            .instr("movi", IR3, imm(1))
+            .instr("bcci", "EQ", IR1, imm(cmp_signed_imm(pattern, w)), "far")
+            .instr("subi", IR3, IR3, imm(1))
+            .instr("ret", IR3, w=64)
+            .dead(IR3)
+            .nops(CMP_FAR_PAD_NOPS)
+            .label("far")
+            .instr("movi", IR3, imm(2))
+            .instr("ret", IR3, w=64)
+            .build()
+        )
+
+    return {
+        "bcc-32.asm": far_bcc(32),
+        "bcc-64.asm": far_bcc(64),
+        "bcci-32.asm": far_bcci("test_bcci_far_32", 32),
+        "bcci-64.asm": far_bcci("test_bcci_far", 64),
+        # Literal negative immediate + literal offset: the BCCL*L RT form.
+        "bcci-neg-lit-32.asm": far_bcci("test_bcci_neg_lit_far_32", 32, CMP_NEG_LITERAL_IMMS[32][1]),
+        "bcci-neg-lit-64.asm": far_bcci("test_bcci_neg_lit_far", 64, CMP_NEG_LITERAL_IMMS[64][1]),
+    }
+
+
+def generate_cmp_branch() -> list[Path]:
+    written = []
+    for w in (32, 64):
+        written += write_suite(
+            f"cmp-branch/scc-{w}",
+            {f"{cc}.asm": asm_file([cmp_scc_method(cc, w)]) for cc in CMP_INT_CCS},
+        )
+        written += write_suite(
+            f"cmp-branch/bcc-{w}",
+            {f"{cc}.asm": asm_file([cmp_bcc_method(cc, w, ref=False)]) for cc in CMP_INT_CCS},
+        )
+        for cc in CMP_INT_CCS:
+            patterns = list(CMP_IMM_PATTERNS[w])
+            if cc == "EQ":
+                patterns += CMP_LITERAL_IMMS + CMP_NEG_LITERAL_IMMS[w]
+            written += write_suite(
+                f"cmp-branch/scci-{w}/{cc}",
+                {f"{imm(p)}.asm": asm_file([cmp_scc_imm_method(cc, w, p)]) for p in patterns},
+            )
+            bcc_patterns = list(CMP_BCC_IMM_PATTERNS[w])
+            if cc == "EQ":
+                bcc_patterns += CMP_LITERAL_IMMS + CMP_NEG_LITERAL_IMMS[w]
+            written += write_suite(
+                f"cmp-branch/bcci-{w}/{cc}",
+                {f"{imm(p)}.asm": asm_file([cmp_bcc_imm_method(cc, w, p)]) for p in bcc_patterns},
+            )
+            written += write_suite(
+                f"cmp-branch/far-bcci-{w}/{cc}",
+                {f"{imm(p)}.asm": asm_file([cmp_bcc_imm_far_method(cc, w, p)]) for p in CMP_FAR_BCC_IMM_PATTERNS[w]},
+            )
+        written += write_suite(
+            f"cmp-branch/fscc-{w}",
+            {f"{cc}.asm": asm_file([cmp_fscc_method(cc, w)]) for cc in CMP_FLOAT_CCS},
+        )
+        written += write_suite(
+            f"cmp-branch/fbcc-{w}",
+            {f"{cc}.asm": asm_file([cmp_fbcc_method(cc, w)]) for cc in CMP_FLOAT_CCS},
+        )
+    for cc in CMP_REF_CCS:
+        written += write_suite("cmp-branch/scc-64", {f"{cc}.asm": asm_file([cmp_scc_method(cc, 64)])})
+        written += write_suite("cmp-branch/bcc-64", {f"{cc}.asm": asm_file([cmp_bcc_method(cc, 64, ref=True)])})
+    written += write_suite("cmp-branch/jmp", {name: asm_file([m]) for name, m in cmp_jmp_methods().items()})
+    written += write_suite("cmp-branch/wide", {name: asm_file([m]) for name, m in cmp_wide_methods().items()})
+    written += write_suite("cmp-branch/far", {name: asm_file([m]) for name, m in cmp_far_methods().items()})
+    return written
+
+
+# ---------------------------------------------------------------------------
 
 GENERATORS = {
     "arith"            : generate_arith,
@@ -969,6 +1344,7 @@ GENERATORS = {
     "checked-arith"    : generate_checked_arith,
     "sat-arith"        : generate_sat_arith,
     "convert-ext"      : generate_convert_ext,
+    "cmp-branch"       : generate_cmp_branch,
 }
 
 
