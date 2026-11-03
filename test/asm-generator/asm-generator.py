@@ -1331,6 +1331,84 @@ def generate_cmp_branch() -> list[Path]:
 
 
 # ---------------------------------------------------------------------------
+# alu-rr: CbcSpecializedAluRr suite
+# ---------------------------------------------------------------------------
+
+# The neg methods are unary (neg.32 IR1, IR1); the assembler lowers neg to
+# sub against the IRZ zero register, so the interpreter sees Common::SUB.
+ALU_RR_OPS = [
+    "add", "sub", "mul", "div", "rem", "udiv", "urem",
+    "and", "or", "xor", "lsl", "lsr", "asr", "pow", "neg",
+]
+
+ALU_UNARY_OPS = ["neg"]
+
+# 0x7ff is the last immediate fitting the signed 12-bit BINI*I encoding;
+# 0x800 selects the literal BINI*L form.
+ALU_POWI_IMMS = [0x0, 0x1, 0x2, 0x3, 0x7FF, 0x800]
+
+
+def alu_rr_method(op: str, w: int) -> Method:
+    if op in ALU_UNARY_OPS:
+        return (
+            method(f"test_{op}_{w}", I64, params=(I64,), default_w=w)
+            .live(IR1)
+            .instr(op, IR1, IR1)
+            .ret()
+        )
+    return (
+        method(f"test_{op}_{w}", I64, params=(I64, I64), default_w=w)
+        .live(IR1, IR2)
+        .instr(op, IR1, IR1, IR2)
+        .ret()
+    )
+
+
+def alu_powi_method(w: int, rhs: int) -> Method:
+    return (
+        method(f"test_{imm(rhs)}", I64, params=(I64,), default_w=w)
+        .live(IR1)
+        .instr("powi", IR1, IR1, imm(rhs))
+        .ret()
+    )
+
+
+def alu_movi_methods() -> dict[str, Method]:
+    """W32 cases driving BIN32 from a MOVI.32-loaded register."""
+    add = (
+        method("test_add", I64, params=(I64,), default_w=32)
+        .live(IR1)
+        .instr("movi", IR2, imm(0x7))
+        .instr("add", IR1, IR1, IR2)
+        .ret()
+    )
+    neg = (
+        method("test_neg", I64, params=(I64,), default_w=32)
+        .live(IR1)
+        .instr("movi", IR2, imm(0x0))
+        .instr("sub", IR1, IR2, IR1)
+        .ret()
+    )
+    return {"add.asm": add, "neg.asm": neg}
+
+
+def generate_alu_rr() -> list[Path]:
+    written = []
+    for w in (32, 64):
+        for op in ALU_RR_OPS:
+            written += write_suite(
+                f"alu-rr/{op}-{w}-rr",
+                {"rr.asm": asm_file([alu_rr_method(op, w)])},
+            )
+        written += write_suite(
+            f"alu-rr/powi-{w}",
+            {f"{imm(v)}.asm": asm_file([alu_powi_method(w, v)]) for v in ALU_POWI_IMMS},
+        )
+    written += write_suite("alu-rr/movi-32", {name: asm_file([m]) for name, m in alu_movi_methods().items()})
+    return written
+
+
+# ---------------------------------------------------------------------------
 
 GENERATORS = {
     "arith"            : generate_arith,
@@ -1345,6 +1423,7 @@ GENERATORS = {
     "sat-arith"        : generate_sat_arith,
     "convert-ext"      : generate_convert_ext,
     "cmp-branch"       : generate_cmp_branch,
+    "alu-rr"           : generate_alu_rr,
 }
 
 
