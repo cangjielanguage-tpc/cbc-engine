@@ -15,7 +15,7 @@ namespace {
 uint64_t processingNumber = 0;
 } // namespace
 
-void LogProfilerPass(const std::vector<ProfiledCall>& calls, uint64_t recordedCallCount)
+void LogProfilerPass(const std::vector<ProfiledCall>& calls, uint64_t recordedCallCount, uint64_t scanTimeUs)
 {
     processingNumber++;
 
@@ -26,11 +26,12 @@ void LogProfilerPass(const std::vector<ProfiledCall>& calls, uint64_t recordedCa
         );
 
         out.PrintLn(
-            "Processing #{}: {} calls recorded, {} calls collected at {} call sites",
+            "Processing #{}: {} calls recorded, {} calls collected at {} call sites, buffer scan took {} us",
             processingNumber,
             recordedCallCount,
             totalCalls,
-            calls.size()
+            calls.size(),
+            scanTimeUs
         );
 
         std::vector<const ProfiledCall*> sortedCalls;

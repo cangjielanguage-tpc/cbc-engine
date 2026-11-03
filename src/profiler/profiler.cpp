@@ -21,7 +21,7 @@ namespace Cbc::Profiler {
 bool enabled = true;
 
 namespace {
-constexpr auto COLLECTION_PERIOD  = std::chrono::milliseconds(10);
+constexpr auto COLLECTION_PERIOD  = std::chrono::milliseconds(100);
 constexpr uint64_t HOT_CALL_COUNT = 100;
 } // namespace
 
@@ -129,7 +129,7 @@ private:
         };
     }
 
-    void ProcessCollectedCalls(const CallCounters& counters, uint64_t recordedCallCount)
+    void ProcessCollectedCalls(const CallCounters& counters, uint64_t recordedCallCount, uint64_t scanTimeUs)
     {
         Engine::Session session(Engine::GetEngineInstance());
         std::vector<ProfiledCall> calls;
@@ -137,7 +137,7 @@ private:
         for (const auto& [edge, count] : counters) {
             calls.emplace_back(ResolveCall(session, edge, count));
         }
-        LogProfilerPass(calls, recordedCallCount);
+        LogProfilerPass(calls, recordedCallCount, scanTimeUs);
     }
 
     void ProcessBuffer(const FiberProfile::CallBuffer& buffer, uint32_t start, uint32_t count, CallCounters& counters)
@@ -191,6 +191,7 @@ private:
     {
         CallCounters counters;
         uint64_t recordedCallCount = 0;
+        const auto scanStart       = std::chrono::steady_clock::now();
         for (auto it = activeProfiles.begin(); it != activeProfiles.end();) {
             auto& profile = **it;
             if (ConsumeProfile(profile, counters, recordedCallCount)) {
@@ -199,7 +200,9 @@ private:
                 ++it;
             }
         }
-        ProcessCollectedCalls(counters, recordedCallCount);
+        const auto scanTime =
+            std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - scanStart);
+        ProcessCollectedCalls(counters, recordedCallCount, scanTime.count());
     }
 
     void Run()
