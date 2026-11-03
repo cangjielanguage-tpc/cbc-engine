@@ -556,11 +556,15 @@ struct IsaRewriter : public IsaParser {
         });
         Utils::Vector<ForeignStructCopy> structCopies;
 
-        if (retPlan.has_value() && retPlan->passBy != CAbiPassBy::EMPTY && retPlan->passBy != CAbiPassBy::REGS) {
-            moves.AddMove(abi.ConsumeSret(), args[args.Size() - 1]);
+        int idx = 0;
+
+        if (retPlan.has_value()) {
+            idx++;
+            if (retPlan->passBy != CAbiPassBy::EMPTY && retPlan->passBy != CAbiPassBy::REGS) {
+                moves.AddMove(abi.ConsumeSret(), args[0]);
+            }
         }
 
-        int idx     = 0;
         auto params = sig.Params();
         ASSERT(args.Size() >= params.Size() + idx - varArgLabelsCnt);
 
@@ -590,7 +594,7 @@ struct IsaRewriter : public IsaParser {
         int sretSpillSlot = -1;
         if (retPlan.has_value() && retPlan->PiecesNum() > 0) {
             // If sretAddrLocation is reg, move resolver can spoil it, so save it to stack before resolution.
-            auto sretAddrLocation = args[args.Size() - 1];
+            auto sretAddrLocation = args[0];
             if (sretAddrLocation.Kind() != Location::SLOT) {
                 sretSpillSlot = abi.ConsumeStackArea(Cbc::STACK_SLOT_SIZE);
                 moves.AddMove(Location::Slot(sretSpillSlot), sretAddrLocation);
@@ -629,7 +633,7 @@ struct IsaRewriter : public IsaParser {
 
         if (retPlan.has_value() && retPlan->PiecesNum() > 0) {
             // Move sret destination address into ACC. It will be used after call by `EmitFillSRetAreaByRegs`.
-            auto sretAddrLocation = args[args.Size() - 1];
+            auto sretAddrLocation = args[0];
             if (sretAddrLocation.Kind() != Location::SLOT) {
                 emit.LeaStackParam(IReg::IR_ACC, static_cast<uint32_t>(sretSpillSlot) * Cbc::STACK_SLOT_SIZE);
                 emit.LoadRec(LDK::LD_64, IReg::IR_ACC, IReg::IR_ACC, 0);
