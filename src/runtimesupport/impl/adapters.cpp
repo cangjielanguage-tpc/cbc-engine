@@ -62,8 +62,17 @@ void* Adapters::GetDirectCallTrampoline(Interpretation::DynamicFunctionHandle* f
     return GetAddressOfDirectCallTrampoline(i);
 }
 
-void* Adapters::GetDynCallTrampoline(int fuhIdx, bool sret)
+extern "C" [[noreturn]] void engine_unsupported_c2i_static_virtual_call(int slot)
 {
+    FATAL("Unsupported C2I static virtual call at method table slot %d", slot);
+}
+
+void* Adapters::GetDynCallTrampoline(int fuhIdx, bool sret, bool isStatic)
+{
+    if (isStatic) {
+        auto start = reinterpret_cast<char*>(&Asm::engine_trampolines_dyn_static_start);
+        return start + fuhIdx * DYN_CALL_TRAMPOLINE_SIZE;
+    }
     auto start = sret ? reinterpret_cast<char*>(&Asm::engine_trampolines_dyn_sret_start)
                       : reinterpret_cast<char*>(&Asm::engine_trampolines_dyn_start);
     return start + fuhIdx * DYN_CALL_TRAMPOLINE_SIZE;
