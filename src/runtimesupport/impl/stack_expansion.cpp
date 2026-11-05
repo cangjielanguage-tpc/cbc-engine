@@ -5,6 +5,7 @@
 #include "cbc/isa.h"
 #include "gc_support.h"
 #include "interpreter/function_handle.h"
+#include "interpreter/frame.h"
 #include "reg_table.h"
 #include "utils/assertion.h"
 #include "utils/ostream.h"
@@ -68,7 +69,7 @@ void VisitFrameRootsForStackPtrs(
 
     auto regTable = reinterpret_cast<GCSupport::RegistersTable*>(state);
     auto fuh      = *reinterpret_cast<DynamicFunctionHandle**>((uint8_t*)frameDesc.fp - FUH_SLOT_OFFSET);
-    auto bc       = NOTNULL(fuh->bytecode.load());
+    auto bc       = NOTNULL(GetPinnedBytecode(frameDesc.fp));
     auto slotsStartAddr = ((uint8_t*)frameDesc.fp) - LOCAL_SLOTS_OFFSET;
 
     auto stackBottom              = slotsStartAddr - bc->frameSize;
@@ -170,8 +171,7 @@ void VisitFrameRootsForStackPtrs(
 
 uint32_t GetFrameSize(DYN_FramePointer fp)
 {
-    auto fuh = *reinterpret_cast<DynamicFunctionHandle**>((uint8_t*)fp - FUH_SLOT_OFFSET);
-    return fuh->bytecode.load()->frameSize + ADDITIONAL_STACK_SPACE;
+    return GetPinnedBytecode(fp)->frameSize + ADDITIONAL_STACK_SPACE;
 }
 
 } // namespace StackExpansion

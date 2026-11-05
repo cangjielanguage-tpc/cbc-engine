@@ -17,6 +17,8 @@
 
 namespace Interpretation {
 
+struct DynamicFunctionHandle;
+
 struct Code {
     std::size_t const bytecodeSize;
     uint8_t* const bytecode;
@@ -147,6 +149,7 @@ struct ExecBytecodeInfo {
 
     // for profiling
     uint64_t version = 0;
+    DynamicFunctionHandle* ownerFuh = nullptr;
 
     friend Stream::Output& operator<<(Stream::Output& out, const ExecBytecodeInfo& bc);
 };

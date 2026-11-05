@@ -5,14 +5,18 @@
 #include "engine/image/reader.h"
 #include "engine/terms.h"
 #include "interpreter/ectype.h"
+#include "interpreter/frame.h"
 #include "interpreter/function_handle.h"
 
 namespace EHSupport {
 
-uint64_t engine_get_exception_handler(Interpretation::DynamicFunctionHandle* handle, Decoder::ByteReader& reader)
+uint64_t engine_get_exception_handler(
+    Interpretation::DynamicFunctionHandle* handle,
+    Decoder::ByteReader& reader,
+    Interpretation::ExecBytecodeInfo* bytecode
+)
 {
     Engine::Session session(Engine::GetEngineInstance());
-    auto bytecode     = handle->bytecode.load();
     auto offsetsIndex = bytecode->offsetsIndex;
 
     auto methodDef = Decode::Read(session, handle->methodDef);
@@ -62,16 +66,15 @@ uint64_t engine_get_exception_handler(Interpretation::DynamicFunctionHandle* han
 
 void FrameInfoProvider(DYN_InstructionPointer ip, DYN_FramePointer fp, INT_InterpretedFrameInfo* info)
 {
-    auto fuh      = *reinterpret_cast<Interpretation::DynamicFunctionHandle**>((uint8_t*)fp - FUH_SLOT_OFFSET);
     auto reader   = reinterpret_cast<Decoder::ByteReader*>((uint8_t*)fp - READER_SLOT_OFFSET);
-    auto bytecode = fuh->bytecode.load();
+    auto bytecode = Interpretation::GetPinnedBytecode(fp);
 
     uint8_t* bcStart = bytecode->code.bytecode;
     uint8_t* bcEnd   = bcStart + bytecode->code.bytecodeSize;
     ASSERT(bcStart <= reader->Cursor() && reader->Cursor() <= bcEnd);
 
     info->bcPos = reinterpret_cast<INT_BytecodePos>(reader->Cursor() - bcStart);
-    info->fuh   = fuh;
+    info->fuh   = bytecode;
 }
 
 static char* AllocateString(std::string_view sv)
@@ -95,7 +98,9 @@ static void FreeStrings(char* methodName, char* className, char* fileName)
 void FrameDescProvider(INT_FunctionHandle fuh, INT_BytecodePos pos, INT_InterpretedFrameDesc* frameDesc)
 {
     Engine::Session session(Engine::GetEngineInstance());
-    auto dynFuh = static_cast<const Interpretation::DynamicFunctionHandle*>(fuh);
+    auto bytecode = static_cast<const Interpretation::ExecBytecodeInfo*>(fuh);
+    auto dynFuh   = bytecode->ownerFuh;
+    ASSERT(dynFuh != nullptr);
 
     auto methodDef = Decode::Read(session, dynFuh->methodDef);
     if (!methodDef.MethodCode().has_value()) {
@@ -109,7 +114,7 @@ void FrameDescProvider(INT_FunctionHandle fuh, INT_BytecodePos pos, INT_Interpre
         auto sourceCodeInfo = Decode::GetSourceCodeInfo(session, code);
         auto& cbcBcPositions = sourceCodeInfo.cbcBcPositions;
         auto& cbcSourceLineNumbers = sourceCodeInfo.sourceLineNumbers;
-        auto& bcPositionsForExceptions = dynFuh->bytecode.load()->bcPositionsForExceptions;
+        auto& bcPositionsForExceptions = bytecode->bcPositionsForExceptions;
 
         frameDesc->lineNumber = 0;
 
