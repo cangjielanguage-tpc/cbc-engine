@@ -587,7 +587,7 @@ struct StoreFrameImm {
         auto opc = Opcode::Decode(reader);
         ASSERT(opc == Opcode::STORE_FRAME_IMM_1);
         auto stk  = Format::StoreAccessKind::From(reader.Read8());
-        auto imm  = reader.Read8();
+        auto imm  = MathUtils::SignExtend(static_cast<uint64_t>(reader.Read8()), 8);
         auto offs = static_cast<int32_t>(reader.Read32());
         ASSERT(MathUtils::IsNBitsSigned(imm, 8));
         return StoreFrameImm { opc, stk, imm, offs };
@@ -598,7 +598,7 @@ struct StoreFrameImm {
         auto opc = Opcode::Decode(reader);
         ASSERT(opc == Opcode::STORE_FRAME_IMM_2);
         auto stk  = Format::StoreAccessKind::From(reader.Read8());
-        auto imm  = reader.Read16();
+        auto imm  = MathUtils::SignExtend(static_cast<uint64_t>(reader.Read16()), 16);
         auto offs = static_cast<int32_t>(reader.Read32());
         ASSERT(MathUtils::IsNBitsSigned(imm, 16));
         return StoreFrameImm { opc, stk, imm, offs };
@@ -609,7 +609,7 @@ struct StoreFrameImm {
         auto opc = Opcode::Decode(reader);
         ASSERT(opc == Opcode::STORE_FRAME_IMM_4);
         auto stk  = Format::StoreAccessKind::From(reader.Read8());
-        auto imm  = reader.Read32();
+        auto imm  = MathUtils::SignExtend(static_cast<uint64_t>(reader.Read32()), 32);
         auto offs = static_cast<int32_t>(reader.Read32());
         ASSERT(MathUtils::IsNBitsSigned(imm, 32));
         return StoreFrameImm { opc, stk, imm, offs };
