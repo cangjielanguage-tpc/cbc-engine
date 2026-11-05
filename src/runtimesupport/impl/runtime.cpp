@@ -155,7 +155,7 @@ TypeInfo Execution::GetTypeInfo(Reference base)
 
 static char* GetDynCallTrampolinesStart() { return reinterpret_cast<char*>(&Asm::engine_trampolines_dyn_start); }
 
-static char* GetDynCallTrampolinesEnd() { return reinterpret_cast<char*>(&Asm::engine_trampolines_dyn_sret_end); }
+static char* GetDynCallTrampolinesEnd() { return reinterpret_cast<char*>(&Asm::engine_trampolines_dyn_static_end); }
 
 static bool IsFunctionInRange(void* function, char* begin, char* end)
 {
@@ -185,7 +185,7 @@ static Interpretation::FunctionHandle* GetDynamicCall(void* fn, CbcTypeInfo* cti
 static Interpretation::Thunk GetDynCallThunk(void* fn, TypeInfo ti)
 {
     if (IsDynCallTrampoline(fn)) {
-        // Fast path: it is trampoline, meaning i2i call. We just get fuh and run i2i call as usual.
+        // Fast path: it is dynamic trampoline, meaning virtual i2i call (instance/static). We just get fuh and run i2i call as usual.
         auto fuh = GetDynamicCall(fn, reinterpret_cast<CbcTypeInfo*>(ti.Raw()));
         return { Interpretation::ThunkOp::I2ICall, reinterpret_cast<void*>(fuh) };
     }

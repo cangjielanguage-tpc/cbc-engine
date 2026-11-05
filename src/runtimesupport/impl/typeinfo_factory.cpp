@@ -334,20 +334,25 @@ static MethodTableMember GetTableMember(
 
     ASSERTION(flags.Is(Image::MethodFlag::VIRTUAL), "Only virtual methods are expected");
 
+    auto dynamicMember = [&](Interpretation::DynamicFunctionHandle* fuh) -> MethodTableMember {
+        // Static virtual methods keep their slot for I2I dispatch, but fail explicitly when called from native code.
+        auto function = Adapters::GetDynCallTrampoline(
+            entryIdx, flags.Is(Image::MethodFlag::SRET), method->abiKind == Image::MethodAbiKind::HAS_THIS_TI
+        );
+        return { &fuh->base, function };
+    };
+
+    auto& manager = Interpretation::FunctionHandleManager::Of(session);
     if (flags.Is(Image::MethodFlag::ABSTRACT)) {
-        auto& manager = Interpretation::FunctionHandleManager::Of(session);
-        auto helper   = manager.GetHelper(Interpretation::Helper::ThrowAbstractMethodCallError);
-        return { &helper->base, Adapters::GetDynCallTrampoline(entryIdx, flags.Is(Image::MethodFlag::SRET)) };
+        return dynamicMember(manager.GetHelper(Interpretation::Helper::ThrowAbstractMethodCallError));
     } else if (flags.Is(Image::MethodFlag::AOT)) {
         // target must be present with aot flag
-        auto& manager  = Interpretation::FunctionHandleManager::Of(session);
         auto fuh       = manager.AcquireTagged(session, methodId);
         auto staticFuh = std::get<Interpretation::StaticFunctionHandle*>(fuh);
         return { &staticFuh->base, staticFuh->function };
     } else {
-        auto& manager = Interpretation::FunctionHandleManager::Of(session);
-        return { manager.Acquire(session, methodId),
-                 Adapters::GetDynCallTrampoline(entryIdx, flags.Is(Image::MethodFlag::SRET)) };
+        auto fuh = manager.AcquireTagged(session, methodId);
+        return dynamicMember(std::get<Interpretation::DynamicFunctionHandle*>(fuh));
     }
 }
 
