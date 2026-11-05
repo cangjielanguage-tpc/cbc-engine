@@ -2026,7 +2026,11 @@ struct IsaRewriter : public IsaParser {
         emit.LoadObj(Format::LoadAccessKind::LD_64, dst, arr, RTSupport::MetaInfo::ObjectHeaderSize());
     }
 
-    void ArrayIndexCheck(IReg length, IReg index) override { FATAL("not implemented"); }
+    void ArrayIndexCheck(IReg length, IReg index) override
+    {
+        emit.ArrayIndexCheck(length, index);
+        BindStatePoint();
+    }
 
     int32_t UntypedSlotOffset(uint16_t us) { return frameLayout.UntypedSlotOffset(us); }
 

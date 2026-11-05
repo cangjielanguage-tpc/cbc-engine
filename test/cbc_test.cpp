@@ -922,3 +922,32 @@ TEST_ASM(CbcTest, SatSlslNegativeBase)
     }
 }
 
+// ---------------------------------------------------------------------------
+// arr.ic: array index check lowered through the rewriter
+// ---------------------------------------------------------------------------
+
+// Builds a fake array with the layout [TI*][u64 length][elements...] and
+// returns its address as a primitive (iregs are a Primitive/Reference union,
+// so the interpreter reads it back as a reference). Only the length is ever
+// accessed: arr.len lowers to ld.64 at ObjectHeaderSize() and arr.ic compares
+// registers, cf. the arr-ic suite in test/asm-generator/asm-generator.py.
+TEST_ASM(CbcTest, ArrIndexCheck)
+{
+    TestTypeInfo ti { sizeof(uint64_t) * (2 + 4), 8 };
+    uint64_t fakeArray[2 + 4] = { reinterpret_cast<uintptr_t>(&ti), 3 };
+    auto arr                  = U64(reinterpret_cast<uintptr_t>(fakeArray));
+
+    auto code = OpenAndRewrite("test_arr_ic", "./generated-asm/arr-ic/arr_ic.asm")->code;
+
+    // In-bounds indices pass the check and flow into the rest of the method.
+    ASSERT_EQ(Interpret(code, arr, U64(0)).u64, 0);
+    ASSERT_EQ(Interpret(code, arr, U64(2)).u64, 2);
+    // The first out-of-bounds index throws the implicit exception...
+    ASSERT_EQ(InterpretThrows(code, arr, U64(3)), Interpretation::Type::IndexOutOfBoundsException);
+    // ...and so does a negative index, which wraps to a huge unsigned value.
+    ASSERT_EQ(
+        InterpretThrows(code, arr, U64(static_cast<uint64_t>(-1))),
+        Interpretation::Type::IndexOutOfBoundsException
+    );
+}
+

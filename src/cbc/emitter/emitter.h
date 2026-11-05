@@ -159,6 +159,7 @@ public:
 
     void DivCheck(IReg r);
     void NullCheck(IReg r);
+    void ArrayIndexCheck(IReg length, IReg index);
 
     void InstanceOf(IReg dst, IReg obj, RTSupport::TypeInfo typeInfo);
     void LoadGenericTypeInfo(uintptr_t termData);
