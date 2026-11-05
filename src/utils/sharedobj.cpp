@@ -82,12 +82,21 @@ SharedObject& SharedObject::operator=(SharedObject&& other)
     return *this;
 }
 
-void* SharedObject::SearchSym(char const* str) const
+SharedObject::SymbolSearchResult SharedObject::SearchSym(char const* str) const
 {
-    if (handle) {
-        return dlsym(handle, str);
+    if (handle == nullptr) {
+        return { nullptr, "shared object is not open" };
     }
-    return nullptr;
+
+    dlerror(); // clear any error from an earlier loader operation
+    auto* symbol = dlsym(handle, str);
+    auto* error  = dlerror();
+    if (symbol != nullptr) {
+        return { symbol, {} };
+    }
+
+    // zero-valued symbol is unusable (undefined weak symbol, null IFUNC result, etc.)
+    return { nullptr, error != nullptr ? error : "symbol resolved to a null address" };
 }
 
 std::string const& SharedObject::Name() const { return name; }
