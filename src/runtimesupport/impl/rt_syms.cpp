@@ -14,6 +14,7 @@ DYN_WriteStructFieldFn WriteStructField;
 DYN_ReadStructFieldFn ReadStructField;
 
 DYN_WriteGenericFieldFn WriteGeneric;
+DYN_ReadWeakRefFn ReadWeakRef;
 
 // Prolongs lifetime of helper lib handle after finish of Initialize.
 Utils::SharedObject g_helperLibHandle;
@@ -44,6 +45,13 @@ bool Initialize(DYN_CJNativeInterface* interf)
         return false;
     }
 
+    // TODO: maybe we should add readweakref to runtime interface
+    auto readWeakRef = handle.SearchSym("CJ_MCC_ReadWeakRef");
+    if (readWeakRef == nullptr) {
+        Log::init.Stream(Logging::Level::ERROR) << "failed to find symbol CJ_MCC_ReadWeakRef" << Stream::endl;
+        return false;
+    }
+
 #if defined(__APPLE__)
     std::string_view helperLibName = "libcbcengine-helper.dylib";
 #else
@@ -55,13 +63,13 @@ bool Initialize(DYN_CJNativeInterface* interf)
         return false;
     }
 
-    const char* throwerName = "_CN32cangjie.runtime.cbcengine.helper22throwImplicitExceptionHl";
-    const char* futureExecuteName = "_CNat6FutureIG_E7executeHv";
-    const char* threadHandleSetterName  = "_CNat6Thread24setRuntimeCJThreadHandleHPu";
+    const char* throwerName            = "_CN32cangjie.runtime.cbcengine.helper22throwImplicitExceptionHl";
+    const char* futureExecuteName      = "_CNat6FutureIG_E7executeHv";
+    const char* threadHandleSetterName = "_CNat6Thread24setRuntimeCJThreadHandleHPu";
 
-    auto throwerSym = helperHandleOpt.SearchSym(throwerName);
-    auto futureExecuteSym = helperHandleOpt.SearchSym(futureExecuteName);
-    auto threadHandleSetterSym  = helperHandleOpt.SearchSym(threadHandleSetterName);
+    auto throwerSym            = helperHandleOpt.SearchSym(throwerName);
+    auto futureExecuteSym      = helperHandleOpt.SearchSym(futureExecuteName);
+    auto threadHandleSetterSym = helperHandleOpt.SearchSym(threadHandleSetterName);
 
     for (auto [name, symbol] : {
              std::pair { throwerName, throwerSym },
@@ -74,8 +82,8 @@ bool Initialize(DYN_CJNativeInterface* interf)
         }
     }
 
-    g_helperLibHandle = std::move(helperHandleOpt);
-    Asm::engine_newthread_nret_function             = interf->newCJThreadNoReturn;
+    g_helperLibHandle                                = std::move(helperHandleOpt);
+    Asm::engine_newthread_nret_function              = interf->newCJThreadNoReturn;
     Asm::engine_read_generic                         = interf->readGenericField;
     Asm::engine_implicit_exception_thrower           = reinterpret_cast<void (*)(int)>(throwerSym);
     Asm::engine_future_execute_function              = futureExecuteSym;
@@ -84,6 +92,7 @@ bool Initialize(DYN_CJNativeInterface* interf)
     WriteGeneric     = interf->writeGenericField;
     WriteStructField = interf->writeStructField;
     ReadStructField  = interf->readStructField;
+    ReadWeakRef      = reinterpret_cast<DYN_ReadWeakRefFn>(readWeakRef);
     return true;
 }
 

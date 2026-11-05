@@ -45,9 +45,22 @@ void Execution::WriteGeneric(Reference base, uintptr_t field, Reference object, 
 
 Reference Execution::ReadObjectInstance(Reference base, uintptr_t field, ThreadHandle th)
 {
-    return Reference { .value = reinterpret_cast<uintptr_t>(g_CJNativeInterfaceInstance.readInstanceField(
-                           reinterpret_cast<DYN_ObjRef>(base.value), reinterpret_cast<DYN_FieldRef>(field)
-                       )) };
+    auto object = reinterpret_cast<DYN_ObjRef>(base.value);
+
+    // For weakrefs valid accesses go to first field.
+    // Check if the access is to the first field, and if so check if it is weakref.
+    // This is needed to read through special weakref barrier.
+    if (field == base.value + sizeof(DYN_TypeInfo*)) {
+        if ((*reinterpret_cast<DYN_TypeInfo**>(object))->type == TYPE_KIND_WEAKREF_CLASS) {
+            return Reference {
+                .value = reinterpret_cast<uintptr_t>(ReadWeakRef(object, reinterpret_cast<DYN_FieldRef>(field)))
+            };
+        }
+    }
+
+    return Reference { .value = reinterpret_cast<uintptr_t>(
+                           g_CJNativeInterfaceInstance.readInstanceField(object, reinterpret_cast<DYN_FieldRef>(field))
+                       ) };
 }
 
 void Execution::WriteObjectInstance(Reference base, uintptr_t field, Reference object, ThreadHandle th)
@@ -193,7 +206,7 @@ Interpretation::Thunk Execution::GetClosureThunk(Reference base, bool isInstanti
     // Avoid cast of `base.value` to `FullLayout*` to avoid UB, which observed as:
     // "compiler can speculatively read unexisting field".
     auto offset = isInstantiated ? offsetof(CJClosureLayout, instantiatedFunc) : offsetof(CJClosureLayout, genericFunc);
-    void* func            = *reinterpret_cast<void**>(base.value + offset);
+    void* func  = *reinterpret_cast<void**>(base.value + offset);
     DYN_TypeInfo** header = reinterpret_cast<DYN_TypeInfo**>(base.value);
     return GetDynCallThunk(func, TypeInfo(*header));
 }
@@ -394,7 +407,8 @@ TypeInfo Execution::TypeArg(TypeInfo ti, uint32_t idx)
 
 TypeInfoUUID MetaInfo::GetUUID(TypeInfo ti) { return g_CJNativeInterfaceInstance.getTypeInfoUUID(UnpackTypeInfo(ti)); }
 
-TypeInfo MetaInfo::GetElementTypeInfo(TypeInfo ti) {
+TypeInfo MetaInfo::GetElementTypeInfo(TypeInfo ti)
+{
     auto typeInfo = UnpackTypeInfo(ti);
     return TypeInfo(typeInfo->componentTypeInfo);
 }

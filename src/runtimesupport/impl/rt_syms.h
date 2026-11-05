@@ -12,4 +12,7 @@ extern DYN_ReadStructFieldFn ReadStructField;
 
 extern DYN_WriteGenericFieldFn WriteGeneric;
 
+typedef DYN_ObjRef (*DYN_ReadWeakRefFn)(DYN_ObjRef source, DYN_FieldRef field);
+extern DYN_ReadWeakRefFn ReadWeakRef;
+
 } // namespace RTSupport
