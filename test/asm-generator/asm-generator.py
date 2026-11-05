@@ -82,6 +82,8 @@ FR4 = "FR4"
 FR5 = "FR5"
 FR6 = "FR6"
 FR7 = "FR7"
+FR8 = "FR8"
+FR9 = "FR9"
 
 
 def reg_for(t: AsmType) -> str:
@@ -2482,13 +2484,12 @@ def generate_checks_misc() -> list[Path]:
 # calls: CbcTest Call* suite
 # ---------------------------------------------------------------------------
 
-# The unit-test mock runs an I2I callee on the same register set and with
-# frameBot = 0 (interpretation_loop.cpp FIXME), so the rewriter's stack-param
-# staging (st.stack.param.*) would store to absolute low addresses and SEGV.
-# Every signature therefore keeps its params inside the register windows of
-# src/cbc/abi.h (6 int, 8 float); "stack" coverage is limited to params staged
-# from the caller's frame slots (the IREG/FREG <- SLOT prologue moves) and to
-# the callee keeping params in its own slots across nested calls.
+# Calls run through the unit-test mock (I2I callee on the same register set).
+# Signatures may exceed the 6-int/8-float register windows of src/cbc/abi.h:
+# the tests then pass a real frameBot (frame.start - ExecBytecodeInfo::frameSize)
+# and assert the rewriter's staging (st.stack.param.*) via the frame buffer,
+# because the DSL cannot read incoming stack params (no IR7 operands, no
+# ld.tail.param) — the callees only consume the register window.
 # The call itself consumes registers invisibly to the assembler liveness
 # analyzer: a register whose value is needed across a call stays live, one
 # redefined after a call without a same-op read needs @dead first, and a
@@ -2767,6 +2768,172 @@ def generate_calls() -> list[Path]:
         {
             "nonvol.asm": calls_file(
                 [calls_ref("scribble", (I64, I64, I64), I64)], [scribble_callee, nonvol_caller]
+            ),
+        },
+    )
+
+    # Stack-passed arguments: args 7+ of an 8-int signature are staged by the
+    # rewriter to frameBot + k * 8 (st.stack.param), args 9+ of a 10-float
+    # signature likewise (st.stack.param.f). The callee bodies read only the
+    # register window; the staged cells are checked by the C++ tests.
+    eight_int = (I64,) * 8
+    sum8i_callee = (
+        method("sum8i", I64, params=eight_int, default_w=64)
+        .live(*CALLS_INT_PARAM_REGS)
+        .instr("add", IR1, IR1, IR2)
+        .instr("add", IR1, IR1, IR3)
+        .instr("add", IR1, IR1, IR4)
+        .instr("add", IR1, IR1, IR5)
+        .instr("add", IR1, IR1, IR6)
+        .ret()
+    )
+    sum8i_staged_caller = (
+        method("main", I64, params=(I64,), default_w=64)
+        .live(IR1)
+        .instr("addi", IR2, IR1, imm(1))
+        .instr("addi", IR3, IR1, imm(2))
+        .instr("addi", IR4, IR1, imm(3))
+        .instr("addi", IR5, IR1, imm(4))
+        .instr("addi", IR6, IR1, imm(5))
+        .instr("addi", IR8, IR1, imm(6))
+        .instr("addi", IR9, IR1, imm(7))
+        .raw(f"call.direct #default.sum8i, {', '.join(CALLS_INT_PARAM_REGS + [IR8, IR9])}")
+        .ret()
+    )
+    written += write_suite(
+        "calls",
+        {"sum8i.asm": calls_file([calls_ref("sum8i", eight_int, I64)], [sum8i_callee, sum8i_staged_caller])},
+    )
+
+    # Stack args sourced from the caller's frame slots take the
+    # st.stack.param.s.16 path (slot cell -> staged cell copy).
+    sum8i_slots_caller = (
+        method("main", I64, params=(I64,), default_w=64)
+        .slots(2)
+        .live(IR1)
+        .instr("addi", IR2, IR1, imm(1))
+        .instr("addi", IR3, IR1, imm(2))
+        .instr("addi", IR4, IR1, imm(3))
+        .instr("addi", IR5, IR1, imm(4))
+        .instr("addi", IR6, IR1, imm(5))
+        .instr("addi", IR8, IR1, imm(6))
+        .instr("addi", IR9, IR1, imm(7))
+        .raw("st.uslot.64 IR8, $0")
+        .raw("st.uslot.64 IR9, $1")
+        .raw(f"call.direct #default.sum8i, {', '.join(CALLS_INT_PARAM_REGS + ['$0', '$1'])}")
+        .ret()
+    )
+    written += write_suite(
+        "calls",
+        {"sum8i-slots.asm": calls_file([calls_ref("sum8i", eight_int, I64)], [sum8i_callee, sum8i_slots_caller])},
+    )
+
+    # Same staging from slots, but the 16-bit source offset overflows
+    # (staticFrameSize > 32K), so the rewriter picks st.stack.param.s.32.
+    sum8i_slots_wide_caller = (
+        method("main", I64, params=(I64,), default_w=64)
+        .slots(5000)
+        .live(IR1)
+        .instr("addi", IR2, IR1, imm(1))
+        .instr("addi", IR3, IR1, imm(2))
+        .instr("addi", IR4, IR1, imm(3))
+        .instr("addi", IR5, IR1, imm(4))
+        .instr("addi", IR6, IR1, imm(5))
+        .instr("addi", IR8, IR1, imm(6))
+        .instr("addi", IR9, IR1, imm(7))
+        .raw("st.uslot.64 IR8, $0")
+        .raw("st.uslot.64 IR9, $1")
+        .raw(f"call.direct #default.sum8i, {', '.join(CALLS_INT_PARAM_REGS + ['$0', '$1'])}")
+        .ret()
+    )
+    written += write_suite(
+        "calls",
+        {
+            "sum8i-slots-wide.asm": calls_file(
+                [calls_ref("sum8i", eight_int, I64)], [sum8i_callee, sum8i_slots_wide_caller]
+            ),
+        },
+    )
+
+    ten_float = (F64,) * 10
+    fsum10f_callee = (
+        method("fsum10f", F64, params=ten_float, default_w=64)
+        .instr("fadd", FR0, FR0, FR1)
+        .instr("fadd", FR0, FR0, FR2)
+        .instr("fadd", FR0, FR0, FR3)
+        .instr("fadd", FR0, FR0, FR4)
+        .instr("fadd", FR0, FR0, FR5)
+        .instr("fadd", FR0, FR0, FR6)
+        .instr("fadd", FR0, FR0, FR7)
+        .fret()
+    )
+    fsum10f_caller = (
+        method("main", F64, default_w=64)
+        .instr("fmovi", FR0, "1.0", w=64)
+        .instr("fmovi", FR1, "2.0", w=64)
+        .instr("fmovi", FR2, "3.0", w=64)
+        .instr("fmovi", FR3, "4.0", w=64)
+        .instr("fmovi", FR4, "5.0", w=64)
+        .instr("fmovi", FR5, "6.0", w=64)
+        .instr("fmovi", FR6, "7.0", w=64)
+        .instr("fmovi", FR7, "8.0", w=64)
+        .instr("fmovi", FR8, "9.0", w=64)
+        .instr("fmovi", FR9, "10.0", w=64)
+        .raw(f"call.direct #default.fsum10f, {', '.join(CALLS_FLOAT_PARAM_REGS + [FR8, FR9])}")
+        .fret()
+    )
+    written += write_suite(
+        "calls",
+        {"fsum10f.asm": calls_file([calls_ref("fsum10f", ten_float, F64)], [fsum10f_callee, fsum10f_caller])},
+    )
+
+    # Both register windows exactly full (6 int + 8 float), no staging.
+    sum6i8f_callee = (
+        method("sum6i8f", I64, params=six_int + eight_float, default_w=64)
+        .live(*CALLS_INT_PARAM_REGS)
+        .instr("fadd", FR0, FR0, FR1)
+        .instr("fadd", FR0, FR0, FR2)
+        .instr("fadd", FR0, FR0, FR3)
+        .instr("fadd", FR0, FR0, FR4)
+        .instr("fadd", FR0, FR0, FR5)
+        .instr("fadd", FR0, FR0, FR6)
+        .instr("fadd", FR0, FR0, FR7)
+        .instr("add", IR1, IR1, IR2)
+        .instr("add", IR1, IR1, IR3)
+        .instr("add", IR1, IR1, IR4)
+        .instr("add", IR1, IR1, IR5)
+        .instr("add", IR1, IR1, IR6)
+        .dead(IR2, IR3, IR4, IR5, IR6)
+        # f2i is width-less (the type tags carry the conversion), so it must
+        # bypass the method's default width suffix.
+        .raw("f2i F64, I64, FR0, IR2")
+        .instr("add", IR1, IR1, IR2)
+        .ret()
+    )
+    sum6i8f_caller = (
+        method("main", I64, params=(I64,), default_w=64)
+        .live(IR1)
+        .instr("addi", IR2, IR1, imm(1))
+        .instr("addi", IR3, IR1, imm(2))
+        .instr("addi", IR4, IR1, imm(3))
+        .instr("addi", IR5, IR1, imm(4))
+        .instr("addi", IR6, IR1, imm(5))
+        .instr("fmovi", FR0, "1.0", w=64)
+        .instr("fmovi", FR1, "2.0", w=64)
+        .instr("fmovi", FR2, "3.0", w=64)
+        .instr("fmovi", FR3, "4.0", w=64)
+        .instr("fmovi", FR4, "5.0", w=64)
+        .instr("fmovi", FR5, "6.0", w=64)
+        .instr("fmovi", FR6, "7.0", w=64)
+        .instr("fmovi", FR7, "8.0", w=64)
+        .raw(f"call.direct #default.sum6i8f, {', '.join(CALLS_INT_PARAM_REGS + CALLS_FLOAT_PARAM_REGS)}")
+        .ret()
+    )
+    written += write_suite(
+        "calls",
+        {
+            "sum6i8f.asm": calls_file(
+                [calls_ref("sum6i8f", six_int + eight_float, I64)], [sum6i8f_callee, sum6i8f_caller]
             ),
         },
     )
