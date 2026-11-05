@@ -130,6 +130,9 @@ struct ExecBytecodeInfo {
     InstructionOffsetsIndex offsetsIndex; // TODO: remove, use bcPositionsForExceptions
     std::vector<std::pair<uint32_t, uint32_t>> bcPositionsForExceptions;
 
+    // for profiling
+    uint64_t version = 0;
+
     friend Stream::Output& operator<<(Stream::Output& out, const ExecBytecodeInfo& bc);
 };
 

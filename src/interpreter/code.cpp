@@ -15,7 +15,10 @@ Stream::Output& operator<<(Stream::Output& out, const ExecBytecodeInfo& bc)
     out << "ExecBytecodeInfo {" << endl;
     out2 << "untypedSlotsCount: " << bc.untypedSlotCount << endl
          << "typedSlotsCount: " << bc.gcInfo.refOffsets.Size() << endl
-         << "frameSize: " << bc.frameSize << endl;
+         << "frameSize: " << bc.frameSize << endl
+         << "savedIRegs: " << Hex(bc.savedIRegs.value) << endl
+         << "savedFRegs: " << Hex(bc.savedFRegs.value) << endl
+         << "version: " << bc.version << endl;
 
     out2 << "GCMap {" << endl;
     for (const auto& entry : bc.gcInfo.positionalInfo) {

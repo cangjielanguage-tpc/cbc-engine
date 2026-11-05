@@ -45,9 +45,10 @@ void LogProfilerPass(const std::vector<ProfiledCall>& calls, uint64_t recordedCa
 
         for (const auto* call : sortedCalls) {
             out.PrintLn(
-                "  [{}] {} ({}) +cbc:{} +rt:{} -> {} ({}): {} calls",
+                "  [{}] {} version: {} ({}) +cbc:{} +rt:{} -> {} ({}): {} calls",
                 call->hot ? "HOT" : "cold",
                 reinterpret_cast<const void*>(call->caller),
+                call->version,
                 call->callerName,
                 call->cbcCallSiteOffset,
                 call->runtimeCallSiteOffset,
