@@ -469,17 +469,17 @@ static inline CheckedArithmeticResult Arith(Checked::Value op, Value::Primitive 
         case Checked::CUADD: {
             utype result;
             bool overflow = __builtin_add_overflow(Traits::uget(l), Traits::uget(r), &result);
-            return { Traits::make(result), overflow ? Type::UaddOverflowException : Type::Successful };
+            return { Traits::make(result), overflow ? Type::AddOverflowException : Type::Successful };
         }
         case Checked::CUSUB: {
             utype result;
             bool overflow = __builtin_sub_overflow(Traits::uget(l), Traits::uget(r), &result);
-            return { Traits::make(result), overflow ? Type::UsubOverflowException : Type::Successful };
+            return { Traits::make(result), overflow ? Type::SubOverflowException : Type::Successful };
         }
         case Checked::CUMUL: {
             utype result;
             bool overflow = __builtin_mul_overflow(Traits::uget(l), Traits::uget(r), &result);
-            return { Traits::make(result), overflow ? Type::UmulOverflowException : Type::Successful };
+            return { Traits::make(result), overflow ? Type::MulOverflowException : Type::Successful };
         }
         case Checked::CPOW: {
             stype base     = Traits::sget(l);
@@ -505,7 +505,7 @@ static inline CheckedArithmeticResult Arith(Checked::Value op, Value::Primitive 
                     }
                 }
             }
-            return { Traits::make(result), overflow ? Type::UpowOverflowException : Type::Successful };
+            return { Traits::make(result), overflow ? Type::PowOverflowException : Type::Successful };
         }
         case Checked::CLSL: {
             utype base  = Traits::uget(l);

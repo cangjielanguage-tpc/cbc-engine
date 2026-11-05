@@ -1318,9 +1318,9 @@ LABEL(CONVERT) {
 LABEL(CHECKED_CONVERT) {
     auto args = B3xxrr::Decode(reader);
     LOG_INSTR;
-    bool overflow =
+    Type exception =
         interpreter.CheckedConvert(args.xx.imm1.ConvertType(), args.xx.imm2.ConvertType(), args.rr.x, args.rr.y);
-    NEXT_OR_THROW(!overflow, Type::OverflowException);
+    NEXT_OR_THROW(exception == Type::Successful, exception);
 }
 LABEL(BFXS) {
     auto args = BFX::Decode(reader);
