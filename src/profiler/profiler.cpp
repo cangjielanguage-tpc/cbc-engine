@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <list>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <thread>
 #include <unordered_map>
@@ -24,6 +25,16 @@ namespace {
 constexpr auto COLLECTION_PERIOD  = std::chrono::milliseconds(100);
 constexpr uint64_t HOT_CALL_COUNT = 100;
 } // namespace
+
+struct InlineRequest {
+    Interpretation::DynamicFunctionHandle* callerFuh;
+    Interpretation::ExecBytecodeInfo* expectedBytecode;
+    Interpretation::DynamicFunctionHandle* calleeFuh;
+    uint32_t cbcCallSiteOffset;
+    uint32_t runtimeCallSiteOffset;
+    uint64_t count;
+    uint64_t expectedVersion;
+};
 
 class FiberProfileManager {
 public:
@@ -91,50 +102,96 @@ private:
         return result;
     }
 
-    ProfiledCall ResolveCall(Engine::Session& session, const CallEdge& edge, uint64_t count) const
+    static ProfiledCall ParseProfiledCall(Engine::Session& session, const InlineRequest& request)
+    {
+        return {
+            reinterpret_cast<FunctionId>(request.callerFuh),
+            ResolveFunctionName(session, *request.callerFuh),
+            request.cbcCallSiteOffset,
+            request.runtimeCallSiteOffset,
+            reinterpret_cast<FunctionId>(request.calleeFuh),
+            ResolveFunctionName(session, *request.calleeFuh),
+            request.count,
+            request.count >= HOT_CALL_COUNT,
+            request.expectedVersion,
+        };
+    }
+
+    std::optional<InlineRequest> ResolveCall(const CallEdge& edge, uint64_t count) const
     {
         auto* callerFuh = reinterpret_cast<Interpretation::DynamicFunctionHandle*>(edge.caller);
-        auto* bytecode  = callerFuh->bytecode.load();
+        auto* bytecode  = callerFuh->bytecode.load(std::memory_order_acquire);
         ASSERT(bytecode != nullptr);
 
         const auto bytecodeStart = reinterpret_cast<uintptr_t>(bytecode->code.bytecode);
-        ASSERT(bytecodeStart <= edge.callSite);
-        ASSERT(edge.callSite < bytecodeStart + bytecode->code.bytecodeSize);
+        const auto bytecodeEnd   = bytecodeStart + bytecode->code.bytecodeSize;
+
+        if (edge.callSite < bytecodeStart || edge.callSite >= bytecodeEnd ||
+            bytecodeEnd - edge.callSite < Cbc::RT::B3xi12::SIZE) {
+            return std::nullopt;
+        }
 
         auto* callSite = reinterpret_cast<uint8_t*>(edge.callSite);
-        Decoder::ByteReader reader(
-            callSite, bytecode->code.bytecode, bytecode->code.bytecode + bytecode->code.bytecodeSize
-        );
+        Decoder::ByteReader reader(callSite, bytecode->code.bytecode, reinterpret_cast<uint8_t*>(bytecodeEnd));
         const auto args = Cbc::RT::B3xi12::Decode(reader);
-        ASSERT(args.opc == Cbc::RT::Opcode::DIRECT_CALL_2I);
-        const auto callee                = bytecode->code.literals->at(args.xi12.imm12).uintptr;
-        auto* calleeFuh                  = reinterpret_cast<Interpretation::DynamicFunctionHandle*>(callee);
+        if (args.opc != Cbc::RT::Opcode::DIRECT_CALL_2I) {
+            return std::nullopt;
+        }
+
+        const auto callee = bytecode->code.literals->at(args.xi12.imm12).uintptr;
+        auto* calleeFuh   = reinterpret_cast<Interpretation::DynamicFunctionHandle*>(callee);
         const auto runtimeCallSiteOffset = static_cast<uint32_t>(edge.callSite - bytecodeStart);
         const auto cbcCallSiteOffset =
             bytecode->offsetsIndex.FindMappedOffset(Cbc::InstructionType::REWRITTEN, runtimeCallSiteOffset);
-        ASSERT(cbcCallSiteOffset.has_value());
+        if (!cbcCallSiteOffset.has_value()) {
+            return std::nullopt;
+        }
 
-        return {
-            edge.caller,
-            ResolveFunctionName(session, *callerFuh),
-            cbcCallSiteOffset.value(),
+        return InlineRequest {
+            callerFuh,
+            bytecode,
+            calleeFuh,
+            *cbcCallSiteOffset,
             runtimeCallSiteOffset,
-            callee,
-            ResolveFunctionName(session, *calleeFuh),
             count,
-            count >= HOT_CALL_COUNT,
+            bytecode->version,
         };
     }
 
     void ProcessCollectedCalls(const CallCounters& counters, uint64_t recordedCallCount, uint64_t scanTimeUs)
     {
         Engine::Session session(Engine::GetEngineInstance());
-        std::vector<ProfiledCall> calls;
-        calls.reserve(counters.size());
+        std::vector<ProfiledCall> callsFoLog;
+        callsFoLog.reserve(counters.size());
+        std::vector<InlineRequest> callsForInline;
+        callsForInline.reserve(counters.size());
         for (const auto& [edge, count] : counters) {
-            calls.emplace_back(ResolveCall(session, edge, count));
+            auto call = ResolveCall(edge, count);
+            if (!call.has_value()) {
+                continue;
+            }
+
+            callsFoLog.emplace_back(ParseProfiledCall(session, *call));
+            if (count >= HOT_CALL_COUNT) {
+                callsForInline.emplace_back(*call);
+            }
         }
-        LogProfilerPass(calls, recordedCallCount, scanTimeUs);
+        LogProfilerPass(callsFoLog, recordedCallCount, scanTimeUs);
+        InlineCalls(callsForInline);
+    }
+
+    void InlineCalls(const std::vector<InlineRequest>& calls)
+    {
+        for (const auto& call : calls) {
+            std::lock_guard<std::mutex> lock(call.callerFuh->lock);
+
+            auto* currentBytecode = call.callerFuh->bytecode.load();
+            if (currentBytecode != call.expectedBytecode || currentBytecode->version != call.expectedVersion) {
+                continue;
+            }
+
+            ++currentBytecode->version;
+        }
     }
 
     void ProcessBuffer(const FiberProfile::CallBuffer& buffer, uint32_t start, uint32_t count, CallCounters& counters)

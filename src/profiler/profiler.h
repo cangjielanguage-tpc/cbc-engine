@@ -18,6 +18,7 @@ struct ProfiledCall {
     std::string calleeName;
     uint64_t count;
     bool hot;
+    uint64_t version;
 };
 
 extern bool enabled;
