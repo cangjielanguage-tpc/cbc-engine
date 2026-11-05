@@ -333,6 +333,24 @@ struct IsaRewriter : public IsaParser {
         emit.LogInstruction(returnedToMsg);
     }
 
+    void EmitFillSRetAreaByRegs(std::optional<CAbiStructPlan> retPlan)
+    {
+        UNWRAP_OPT(plan, retPlan, []() {});
+        if (plan.PiecesNum() == 0) {
+            return;
+        }
+
+        int intIdx                       = 0;
+        int floatIdx                     = 0;
+        for (const auto& piece : plan.pieces) {
+            if (IsFloat(piece.kind)) {
+                emit.StoreRec(Stk(piece.kind), HostTraits::RET_FREGS[floatIdx++], IReg::IR_ACC, piece.offset);
+            } else {
+                emit.StoreRec(Stk(piece.kind), HostTraits::RET_IREGS[intIdx++], IReg::IR_ACC, piece.offset);
+            }
+        }
+    }
+
     ssize_t Pos()
     {
         auto start  = reader.Start();
@@ -398,33 +416,31 @@ struct IsaRewriter : public IsaParser {
         return true;
     }
 
-    /// @return stack arguments count and fregs count
-    std::tuple<int, int> StageCallArgs(
+    /// Stages arguments of a managed (Cangjie ABI) call.
+    void StageManagedCallArgs(
         Utils::Span<const Location> args,
         CallAbiFlags flags,
         Resolution::MethodSignature& sig,
         Location* outerTiLoc = nullptr,
         Location* thisTiLoc  = nullptr,
-        bool genericParams   = false,
-        bool foreign         = false
+        bool genericParams   = false
     )
     {
-        int varArgLabelsCnt = (sig.isVarArg ? 1 : 0);
-        int funcVarsCount   = sig.tvars.GetLength();
-        if (!CheckArgCount(args.Size(), flags, funcVarsCount, sig.ParamCount() - varArgLabelsCnt)) {
-            return {};
+        ASSERT(!sig.isVarArg);
+        int funcVarsCount = sig.tvars.GetLength();
+        if (!CheckArgCount(args.Size(), flags, funcVarsCount, sig.ParamCount())) {
+            return;
         }
 
+        pendingParamRefSlots.Clear();
+        pendingParamRecSlots.Clear();
         MoveResolver moves;
-        Utils::Vector<ForeignStructCopy> structCopies;
-        Utils::Vector<uint32_t> refStackSlots;
-        Utils::Vector<uint32_t> recStackSlots;
         TrackedAbiAssigner abi([&](Location target, CbcTypeKind kind) {
             if (target.Kind() == Location::SLOT) {
                 if (kind == CbcTypeKind::REF)
-                    refStackSlots.PushBack(target.SlotIdx());
+                    pendingParamRefSlots.PushBack(target.SlotIdx());
                 if (kind == CbcTypeKind::REC)
-                    recStackSlots.PushBack(target.SlotIdx());
+                    pendingParamRecSlots.PushBack(target.SlotIdx());
             }
         });
 
@@ -464,9 +480,8 @@ struct IsaRewriter : public IsaParser {
             case Image::MethodAbiKind::HAS_THIS_TI:;
         }
 
-        auto params     = sig.Params();
-        int paramOffset = idx;
-        ASSERT(args.Size() >= params.Size() + idx - varArgLabelsCnt);
+        auto params = sig.Params();
+        ASSERT(args.Size() >= params.Size() + idx);
 
         if (genericParams) {
             // Special case for call.closure.g
@@ -475,26 +490,8 @@ struct IsaRewriter : public IsaParser {
                 moves.AddMove(abi.Consume(CbcTypeKind::REF), args[idx]);
             }
         } else {
-            bool isVarArg = false;
             for (int j = 0; j < params.Size(); ++j) {
-                if (params[j].GetKind() == Engine::TermKind::VARARGLABEL) {
-                    isVarArg = true;
-                    continue;
-                }
-
-                if (foreign && params[j].GetKind() == Engine::TermKind::VARRAY) {
-                    moves.AddMove(abi.Consume(CbcTypeKind::I64), args[idx++]);
-                } else if (foreign && params[j].IsRecord()) {
-                    // Pass struct argument by value.
-                    if (!StageForeignStructArg(args[idx++], params[j], isVarArg, moves, abi, structCopies)) {
-                        Fail("failed to stage by-value struct argument");
-                        return {};
-                    }
-                } else if (!isVarArg) {
-                    moves.AddMove(abi.Consume(params[j]), args[idx++]);
-                } else {
-                    moves.AddMove(abi.ConsumeVarArg(params[j]), args[idx++]);
-                }
+                moves.AddMove(abi.Consume(params[j]), args[idx++]);
             }
         }
 
@@ -517,20 +514,101 @@ struct IsaRewriter : public IsaParser {
                 *thisTiLoc = loc;
         }
 
-        uint32_t copyOffset = static_cast<uint32_t>(abi.MaxStackSlot()) * Cbc::STACK_SLOT_SIZE;
-        if (foreign) {
-            // By-reference struct copies are placed after all stack arguments:
-            // the I2N adapter copies only the stack-argument area, so each copy
-            // stays in the frame and only its pointer is passed.
-            for (auto& copy : structCopies) {
-                copy.dstOffset = copyOffset;
-                for (uint32_t offset = 0; offset < copy.size; offset += Cbc::STACK_SLOT_SIZE) {
-                    moves.AddLoadFromAddr(
-                        Location::Slot((copyOffset + offset) / Cbc::STACK_SLOT_SIZE), copy.srcAddr, offset, LDK::LD_64
-                    );
-                }
-                copyOffset += MathUtils::AlignUp(copy.size, Cbc::STACK_SLOT_SIZE);
+        RewriterMoveEmitter emitter(frameLayout, emit);
+        if (!moves.Resolve(emitter)) {
+            Fail("Register kind mismatch");
+            return;
+        }
+
+        maxParamPassingSize =
+            std::max(maxParamPassingSize, static_cast<uint32_t>(abi.MaxStackSlot()) * Cbc::STACK_SLOT_SIZE);
+    }
+
+    /// Stages arguments of a foreign (C ABI) call.
+    ///
+    /// Note: IR_ACC is used heavily during foreign calls:
+    ///     1) Can be used as scratch register during arguments resolution;
+    ///     2) Can be used as destination caller-allocated buffer for struct return value.
+    ///
+    /// @return stack arguments count and fregs count
+    std::tuple<int, int> StageForeignCallArgs(
+        Utils::Span<const Location> args,
+        CallAbiFlags flags,
+        Resolution::MethodSignature& sig,
+        std::optional<CAbiStructPlan> retPlan
+    )
+    {
+        ASSERT(sig.tvars.GetLength() == 0);
+        ASSERT(flags.abiKind == Image::MethodAbiKind::STATIC);
+        ASSERT(!flags.hasOuterTi);
+
+        int varArgLabelsCnt = (sig.isVarArg ? 1 : 0);
+        if (!CheckArgCount(args.Size(), flags, 0, sig.ParamCount() - varArgLabelsCnt)) {
+            return {};
+        }
+
+        MoveResolver moves;
+        TrackedAbiAssigner abi([&](Location target, CbcTypeKind kind) {
+            // Foreign functions cannot receive managed references.
+            ASSERT(kind != CbcTypeKind::REF);
+            if (target.Kind() == Location::SLOT && kind == CbcTypeKind::REC)
+                pendingParamRecSlots.PushBack(target.SlotIdx());
+        });
+        Utils::Vector<ForeignStructCopy> structCopies;
+
+        if (retPlan.has_value() && retPlan->passBy != CAbiPassBy::EMPTY && retPlan->passBy != CAbiPassBy::REGS) {
+            moves.AddMove(abi.ConsumeSret(), args[args.Size() - 1]);
+        }
+
+        int idx     = 0;
+        auto params = sig.Params();
+        ASSERT(args.Size() >= params.Size() + idx - varArgLabelsCnt);
+
+        bool isVarArg = false;
+        for (int j = 0; j < params.Size(); ++j) {
+            if (params[j].GetKind() == Engine::TermKind::VARARGLABEL) {
+                isVarArg = true;
+                continue;
             }
+
+            if (params[j].GetKind() == Engine::TermKind::VARRAY) {
+                // VArrays are always passed by reference.
+                moves.AddMove(abi.Consume(CbcTypeKind::I64), args[idx++]);
+            } else if (params[j].IsRecord()) {
+                // Pass struct argument by value.
+                if (!StageForeignStructArg(args[idx++], params[j], isVarArg, moves, abi, structCopies)) {
+                    Fail("failed to stage by-value struct argument");
+                    return {};
+                }
+            } else if (!isVarArg) {
+                moves.AddMove(abi.Consume(params[j]), args[idx++]);
+            } else {
+                moves.AddMove(abi.ConsumeVarArg(params[j]), args[idx++]);
+            }
+        }
+
+        int sretSpillSlot = -1;
+        if (retPlan.has_value() && retPlan->PiecesNum() > 0) {
+            // If sretAddrLocation is reg, move resolver can spoil it, so save it to stack before resolution.
+            auto sretAddrLocation = args[args.Size() - 1];
+            if (sretAddrLocation.Kind() != Location::SLOT) {
+                sretSpillSlot = abi.ConsumeStackArea(Cbc::STACK_SLOT_SIZE);
+                moves.AddMove(Location::Slot(sretSpillSlot), sretAddrLocation);
+            }
+        }
+
+        // By-reference struct copies are placed after all stack arguments:
+        // the I2N adapter copies only the stack-argument area, so each copy
+        // stays in the frame and only its pointer is passed.
+        uint32_t copyOffset = static_cast<uint32_t>(abi.MaxStackSlot()) * Cbc::STACK_SLOT_SIZE;
+        for (auto& copy : structCopies) {
+            copy.dstOffset = copyOffset;
+            for (uint32_t offset = 0; offset < copy.size; offset += Cbc::STACK_SLOT_SIZE) {
+                moves.AddLoadFromAddr(
+                    Location::Slot((copyOffset + offset) / Cbc::STACK_SLOT_SIZE), copy.srcAddr, offset, LDK::LD_64
+                );
+            }
+            copyOffset += MathUtils::AlignUp(copy.size, Cbc::STACK_SLOT_SIZE);
         }
 
         RewriterMoveEmitter emitter(frameLayout, emit);
@@ -539,30 +617,51 @@ struct IsaRewriter : public IsaParser {
             return {};
         }
 
-        if (foreign) {
-            for (const auto& copy : structCopies) {
-                // Done after moves resolve, so copy.ptrLoc doesn't contain any useful data.
-                if (copy.ptrLoc.Kind() == Location::SLOT) {
-                    emit.LeaStackParam(RewriterMoveEmitter::SCRATCH_FOR_PBV, copy.dstOffset);
-                    emit.StackParam(
-                        RewriterMoveEmitter::SCRATCH_FOR_PBV, static_cast<uint16_t>(copy.ptrLoc.SlotIdx()) * 8
-                    );
-                } else {
-                    emit.LeaStackParam(IReg::From(copy.ptrLoc.IRegIdx()), copy.dstOffset);
-                }
+        for (const auto& copy : structCopies) {
+            // Done after moves resolve, so copy.ptrLoc doesn't contain any useful data.
+            if (copy.ptrLoc.Kind() == Location::SLOT) {
+                emit.LeaStackParam(RewriterMoveEmitter::SCRATCH_FOR_PBV, copy.dstOffset);
+                emit.StackParam(RewriterMoveEmitter::SCRATCH_FOR_PBV, static_cast<uint16_t>(copy.ptrLoc.SlotIdx()) * 8);
+            } else {
+                emit.LeaStackParam(IReg::From(copy.ptrLoc.IRegIdx()), copy.dstOffset);
+            }
+        }
+
+        if (retPlan.has_value() && retPlan->PiecesNum() > 0) {
+            // Move sret destination address into ACC. It will be used after call by `EmitFillSRetAreaByRegs`.
+            auto sretAddrLocation = args[args.Size() - 1];
+            if (sretAddrLocation.Kind() != Location::SLOT) {
+                emit.LeaStackParam(IReg::IR_ACC, static_cast<uint32_t>(sretSpillSlot) * Cbc::STACK_SLOT_SIZE);
+                emit.LoadRec(LDK::LD_64, IReg::IR_ACC, IReg::IR_ACC, 0);
+            } else {
+                emitter.AssignIRegFromSlot(IReg::IR_ACC, sretAddrLocation.SlotIdx());
             }
         }
 
         maxParamPassingSize = std::max(maxParamPassingSize, copyOffset);
-
-        pendingParamRefSlots.Clear();
-        for (auto slot : refStackSlots)
-            pendingParamRefSlots.PushBack(slot);
-        pendingParamRecSlots.Clear();
-        for (auto slot : recStackSlots)
-            pendingParamRecSlots.PushBack(slot);
-
         return { abi.MaxStackSlot(), abi.MaxFRegs() };
+    }
+
+    std::optional<CAbiStructPlan> StageForeignStructRet(Resolution::MethodSignature& sig, CallAbiFlags flags)
+    {
+        if (!flags.isSRet) {
+            return std::nullopt;
+        }
+
+        auto type = sig.ResType().term;
+        Utils::Vector<CAbiField> fields0;
+        if (!FlattenCAbiFields(resolver, type, 0, fields0)) {
+            return std::nullopt;
+        }
+
+        auto size0 = resolver.fieldManager->GetFlatSize(type);
+        if (!size0.has_value()) {
+            return std::nullopt;
+        }
+
+        auto size   = size0.value();
+        auto fields = Utils::Span<CAbiField>(fields0.Data(), fields0.Size());
+        return ClassifyCAbiStructRet(fields, size);
     }
 
     bool StageForeignStructArg(
@@ -1544,10 +1643,16 @@ struct IsaRewriter : public IsaParser {
         Resolution::MethodSignature methodSig = { .resolver = &resolver,
                                                   .term     = sig,
                                                   .tvars    = tvars }; // synthetic method signature
-        auto [stackSlotsCount, fregsCount] =
-            StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), methodSig, nullptr, nullptr, false, true);
+        auto flags                            = MakeCallAbiFlags(ref.flags, ref.abiKind);
+        auto retPlan                          = StageForeignStructRet(methodSig, flags);
+        if (flags.isSRet && !retPlan.has_value()) {
+            Fail("Unable to plan struct returning");
+            return;
+        }
+        auto [stackSlotsCount, fregsCount] = StageForeignCallArgs(args, flags, methodSig, retPlan);
         ASSERTION(stackSlotsCount * STACK_SLOT_SIZE <= UINT8_MAX, "too many stack arguments in foreign call");
         emit.CallCFunc(target, stackSlotsCount * STACK_SLOT_SIZE, fregsCount);
+        EmitFillSRetAreaByRegs(retPlan);
         BindStatePoint();
         EmitReturnedTo();
     }
@@ -1569,29 +1674,39 @@ struct IsaRewriter : public IsaParser {
             session,
             Image::RefIdentifier<Image::MethodReference>(Image::RefId<Image::MethodReference>(methodId), fileId)
         );
-        auto compiled                      = std::get_if<DirectCall::Compiled>(&method->data);
-        bool isForeign                     = compiled != nullptr && compiled->isForeign;
-        auto [stackSlotsCount, fregsCount] = StageCallArgs(
-            args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature, nullptr, nullptr, false, isForeign
-        );
+        auto compiled  = std::get_if<DirectCall::Compiled>(&method->data);
+        auto callFlags = MakeCallAbiFlags(ref.flags, ref.abiKind);
 
-        if (compiled) {
+        if (compiled && compiled->isForeign) {
+            // Foreign call
             auto sym = emit.NewAddressSym(compiled->funcPtr);
-            if (compiled->isForeign) {
-                EmitLogCall("call.2n", method);
-                ASSERTION(stackSlotsCount * STACK_SLOT_SIZE <= UINT8_MAX, "too many stack arguments in foreign call");
-                emit.DirectCall2n(sym, stackSlotsCount * STACK_SLOT_SIZE, fregsCount);
-            } else {
-                EmitLogCall("call.2c", method);
-                emit.DirectCall2c(sym);
+            auto retPlan = StageForeignStructRet(method->signature, callFlags);
+            if (callFlags.isSRet && !retPlan.has_value()) {
+                Fail("Unable to plan struct returning");
+                return;
             }
+            auto [stackSlotsCount, fregsCount] = StageForeignCallArgs(args, callFlags, method->signature, retPlan);
+            EmitLogCall("call.2n", method);
+            ASSERTION(stackSlotsCount * STACK_SLOT_SIZE <= UINT8_MAX, "too many stack arguments in foreign call");
+            emit.DirectCall2n(sym, stackSlotsCount * STACK_SLOT_SIZE, fregsCount);
+            BindStatePoint();
+            EmitFillSRetAreaByRegs(retPlan);
+        } else if (compiled) {
+            // AOT managed call
+            auto sym = emit.NewAddressSym(compiled->funcPtr);
+            StageManagedCallArgs(args, callFlags, method->signature);
+            EmitLogCall("call.2c", method);
+            emit.DirectCall2c(sym);
+            BindStatePoint();
         } else {
+            // CBC managed call
+            StageManagedCallArgs(args, callFlags, method->signature);
             EmitLogCall("call.2i", method);
             auto fuh = std::get<Interpretation::DynamicFunctionHandle*>(method->data);
             auto sym = emit.NewAddressSym(reinterpret_cast<uintptr_t>(fuh));
             emit.DirectCall2i(sym);
+            BindStatePoint();
         }
-        BindStatePoint();
         EmitReturnedTo();
     }
 
@@ -1607,7 +1722,7 @@ struct IsaRewriter : public IsaParser {
             session,
             Image::RefIdentifier<Image::MethodReference>(Image::RefId<Image::MethodReference>(methodId), fileId)
         );
-        StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature);
+        StageManagedCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature);
         EmitLogCall("call.virt", method);
         emit.VirtualCall(method->methodNum, method->extDefNum, method->sret);
         BindStatePoint();
@@ -1650,7 +1765,7 @@ struct IsaRewriter : public IsaParser {
 
         auto flags         = MakeCallAbiFlags(ref.flags, ref.abiKind);
         Location thisTiLoc = Location::Nil();
-        StageCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature, nullptr, &thisTiLoc);
+        StageManagedCallArgs(args, MakeCallAbiFlags(ref.flags, ref.abiKind), method->signature, nullptr, &thisTiLoc);
         EmitLogCall("call.interf", method);
 
         uint16_t thisTiLocArgNum = ArgNumber(thisTiLoc);
@@ -1680,7 +1795,7 @@ struct IsaRewriter : public IsaParser {
         auto flags          = MakeCallAbiFlags(ref.flags, ref.abiKind);
         Location outerTiLoc = Location::Nil();
         Location thisTiLoc  = Location::Nil();
-        StageCallArgs(args, flags, method->signature, &outerTiLoc, &thisTiLoc);
+        StageManagedCallArgs(args, flags, method->signature, &outerTiLoc, &thisTiLoc);
         EmitLogCall("call.interf.g", method);
 
         uint16_t outerTiLocArgNum = ArgNumber(outerTiLoc);
@@ -1738,7 +1853,7 @@ struct IsaRewriter : public IsaParser {
         bool sret = (resolver.Wrap(retType).GetKind() == TK::REC) || generic;
 
         Resolution::MethodSignature sig { &resolver, term, Engine::Term::Predefined(Engine::TermKind::NIL) };
-        StageCallArgs(
+        StageManagedCallArgs(
             args,
             { .isSRet = sret, .hasOuterTi = true, .abiKind = Image::MethodAbiKind::REF_RECEIVER },
             sig,

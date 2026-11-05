@@ -43,13 +43,26 @@ enum class CAbiPassBy {
 struct CAbiStructPlan {
     CAbiPassBy passBy;
     Utils::Vector<CAbiPiece> pieces; // filled only when passBy == REGS
+
+    int PiecesNum()
+    {
+        if (passBy == CAbiPassBy::REGS) {
+            return pieces.Size();
+        } else {
+            return 0;
+        }
+    }
 };
 
 // Classifies placement of by-value struct by its flattened fields information and other parameters.
 // `fields` must be sorted by offset and cover every non-padding byte group.
 CAbiStructPlan ClassifyCAbiStruct(
-    Utils::Span<const CAbiField> fields, uint32_t size, bool isVarArg, int freeIRegs, int freeFRegs
+    Utils::Span<const CAbiField> fields, uint32_t size, bool isVarArg, int freeIRegs, int freeFRegs, bool ret = false
 );
+
+// Classifies return struct value placement by its flattened fields information.
+// `fields` must be sorted by offset and cover every non-padding byte group.
+CAbiStructPlan ClassifyCAbiStructRet(Utils::Span<const CAbiField> fields, uint32_t size);
 
 bool FlattenCAbiFields(
     Resolution::Resolver& resolver, Engine::Term term, uint32_t base, Utils::Vector<CAbiField>& fields

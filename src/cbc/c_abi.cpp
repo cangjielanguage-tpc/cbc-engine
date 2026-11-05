@@ -94,7 +94,7 @@ static CAbiStructPlan ClassifyAAPCS64(Utils::Span<const CAbiField> fields, uint3
 }
 
 CAbiStructPlan ClassifyCAbiStruct(
-    Utils::Span<const CAbiField> fields, uint32_t size, bool isVarArg, int freeIRegs, int freeFRegs
+    Utils::Span<const CAbiField> fields, uint32_t size, bool isVarArg, int freeIRegs, int freeFRegs, bool ret
 )
 {
     CAbiStructPlan plan;
@@ -110,6 +110,13 @@ CAbiStructPlan ClassifyCAbiStruct(
         for (const auto& piece : plan.pieces) {
             (IsFloat(piece.kind) ? needFRegs : needIRegs)++;
         }
+
+        if (ret) {
+            ASSERT(needIRegs <= freeIRegs);
+            ASSERT(needFRegs <= freeFRegs);
+            return plan;
+        }
+
         if ((isVarArg && HostTraits::ONLY_ONSTACK_VARARGS) || needIRegs > freeIRegs || needFRegs > freeFRegs) {
             plan.passBy = CAbiPassBy::STACK;
             plan.pieces.Clear();
@@ -118,22 +125,40 @@ CAbiStructPlan ClassifyCAbiStruct(
     return plan;
 }
 
+CAbiStructPlan ClassifyCAbiStructRet(Utils::Span<const CAbiField> fields, uint32_t size)
+{
+    int iRegsNeeded = std::size(HostTraits::RET_IREGS);
+    int fRegsNeeded = std::size(HostTraits::RET_FREGS);
+    return ClassifyCAbiStruct(fields, size, false, iRegsNeeded, fRegsNeeded, true);
+}
+
 // Fills `fields` argument with collected leaf fields info.
 bool FlattenCAbiFields(
     Resolution::Resolver& resolver, Engine::Term term, uint32_t base, Utils::Vector<CAbiField>& fields
 )
 {
+    if (term.GetKind() == Engine::TermKind::VARRAY) {
+        auto elem = term.Subterm(0);
+        UNWRAP_OPT_B(elemSize, resolver.fieldManager->GetAlignedFlatSize(elem));
+        for (uint32_t i = 0; i < Engine::VArrayTermId(term).GetNum(); ++i) {
+            if (!FlattenCAbiFields(resolver, elem, base + i * elemSize, fields)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    if (!term.IsRecord()) {
+        UNWRAP_OPT_B(size, resolver.fieldManager->GetFlatSize(term));
+        fields.PushBack(CAbiField { base, static_cast<uint8_t>(size), term.IsFloat() });
+        return true;
+    }
+
     UNWRAP_OPT_B(layout, resolver.fieldManager->GetLayout(term));
     for (const auto& entry : layout->fields) {
         UNWRAP_OPT_B(offset, entry.offset);
-        offset += base;
-        if (entry.fieldType.IsRecord()) {
-            if (!FlattenCAbiFields(resolver, entry.fieldType, offset, fields)) {
-                return false;
-            }
-        } else {
-            UNWRAP_OPT_B(size, resolver.fieldManager->GetFlatSize(entry.fieldType));
-            fields.PushBack(CAbiField { offset, static_cast<uint8_t>(size), entry.fieldType.IsFloat() });
+        if (!FlattenCAbiFields(resolver, entry.fieldType, offset + base, fields)) {
+            return false;
         }
     }
     return true;

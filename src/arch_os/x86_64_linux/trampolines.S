@@ -948,7 +948,7 @@ engine_c_abi_adapter:
   mov   r10, rcx        // target C function
   mov   r11, rsi        // stack arguments pointer
 
-  test  dl, 1
+  test  dl, 8
   jnz   .Lcheck_if_there_are_stackargs
   push  rax // align stack
 .Lcheck_if_there_are_stackargs:
@@ -965,7 +965,9 @@ engine_c_abi_adapter:
   call  r10            // call target
 
   mov  [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE], rax
+  mov  [ECTYPE_REG + ECTYPE_IREGS_OFFSET + ECTYPE_REG_SIZE * 2], rdx
   movq [ECTYPE_REG + ECTYPE_FREGS_OFFSET], xmm0
+  movq [ECTYPE_REG + ECTYPE_FREGS_OFFSET + ECTYPE_REG_SIZE], xmm1
 
   lea   rsp, [rbp - 8] // clear stack args
   pop   ECTYPE_REG
