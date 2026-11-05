@@ -41,46 +41,7 @@ static constexpr uint8_t HAS_EXT_PART     = 0b10000000;
 
 static constexpr std::string_view CORE_FUTURE_TYPE_NAME = "std.core:Future";
 
-enum TypeKind : int8_t {
-    // reference type
-    TYPE_KIND_CLASS          = -128,
-    TYPE_KIND_INTERFACE      = -127,
-    TYPE_KIND_RAWARRAY       = -126,
-    TYPE_KIND_FUNC           = -125,
-    TYPE_KIND_TEMP_ENUM      = -124,
-    TYPE_KIND_WEAKREF_CLASS  = -123,
-    TYPE_KIND_FOREIGN_PROXY  = -122,
-    TYPE_KIND_EXPORTED_REF   = -121,
-    TYPE_KIND_GENERIC_TI     = -1,
-    TYPE_KIND_GENERIC_CUSTOM = -2,
-
-    // value type
-    TYPE_KIND_NOTHING = 0,
-    TYPE_KIND_UNIT,
-    TYPE_KIND_BOOL,
-    TYPE_KIND_RUNE,
-    TYPE_KIND_UINT8,
-    TYPE_KIND_UINT16 = 5,
-    TYPE_KIND_UINT32,
-    TYPE_KIND_UINT64,
-    TYPE_KIND_UINT_NATIVE,
-    TYPE_KIND_INT8,
-    TYPE_KIND_INT16 = 10,
-    TYPE_KIND_INT32,
-    TYPE_KIND_INT64,
-    TYPE_KIND_INT_NATIVE,
-    TYPE_KIND_FLOAT16,
-    TYPE_KIND_FLOAT32 = 15,
-    TYPE_KIND_FLOAT64,
-    TYPE_KIND_CSTRING,
-    TYPE_KIND_CPOINTER,
-    TYPE_KIND_CFUNC,
-    TYPE_KIND_VARRAY = 20,
-    TYPE_KIND_TUPLE,
-    TYPE_KIND_STRUCT,
-    TYPE_KIND_ENUM,
-    TYPE_KIND_MAX,
-};
+static constexpr std::string_view STD_REF_WEAK_REF_TYPE_NAME = "std.ref:WeakRef";
 
 template <typename T> static T* Alloc(size_t cnt = 1) { return reinterpret_cast<T*>(std::malloc(sizeof(T) * cnt)); }
 
@@ -255,6 +216,9 @@ struct TypeInfoBuilder {
                 type        = TYPE_KIND_CLASS;
                 needExtDefs = !isAot;
                 needFields  = true;
+                if (aotTypeDefName == STD_REF_WEAK_REF_TYPE_NAME) {
+                    type = TYPE_KIND_WEAKREF_CLASS;
+                }
                 break;
             case Image::TypeKind::LAMBDA:
                 type        = TYPE_KIND_CLASS;
@@ -495,9 +459,7 @@ static std::optional<TypeInfo> CreateTypeInfoDyn(
 
     auto& termManager = Engine::TermManager::Of(session);
 
-    auto acquireTypeInfo = [&manager, &session](Engine::Term term) {
-        return manager.AcquireTypeInfo(session, term);
-    };
+    auto acquireTypeInfo = [&manager, &session](Engine::Term term) { return manager.AcquireTypeInfo(session, term); };
 
     builder.superTypeInfo = nullptr;
     Engine::ClassSubstitution substitute(session, term);
@@ -1132,8 +1094,7 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& ma
         case TYPE_KIND_FUNC:
         case TYPE_KIND_GENERIC_CUSTOM:
         case TYPE_KIND_GENERIC_TI:
-        case TYPE_KIND_FOREIGN_PROXY:
-        case TYPE_KIND_WEAKREF_CLASS:  FATAL("type kind %d not implemented yet", typeInfo->type);
+        case TYPE_KIND_FOREIGN_PROXY:  FATAL("type kind %d not implemented yet", typeInfo->type);
     }
 
     if (isGeneric) {
@@ -1174,9 +1135,10 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& ma
 
             case TYPE_KIND_STRUCT:
             case TYPE_KIND_INTERFACE:
-            case TYPE_KIND_CLASS:     break;
-            case TYPE_KIND_TEMP_ENUM: break;
-            case TYPE_KIND_ENUM:      isEnum = true; break;
+            case TYPE_KIND_CLASS:
+            case TYPE_KIND_WEAKREF_CLASS: break;
+            case TYPE_KIND_TEMP_ENUM:     break;
+            case TYPE_KIND_ENUM:          isEnum = true; break;
 
             default: FATAL("Unexpected type kind %d", typeInfo->type);
         }
@@ -1228,9 +1190,10 @@ Engine::GlobalTerm ReconstructTerm(Engine::Session& session, TypeInfoManager& ma
 
             case TYPE_KIND_STRUCT:
             case TYPE_KIND_INTERFACE:
-            case TYPE_KIND_CLASS:     break;
-            case TYPE_KIND_TEMP_ENUM: break;
-            case TYPE_KIND_ENUM:      isEnum = true; break;
+            case TYPE_KIND_CLASS:
+            case TYPE_KIND_WEAKREF_CLASS: break;
+            case TYPE_KIND_TEMP_ENUM:     break;
+            case TYPE_KIND_ENUM:          isEnum = true; break;
 
             default: FATAL("Unexpected type kind %d", typeInfo->type);
         }
