@@ -42,6 +42,7 @@ IOS_HELPER_SDKS = {
     ("ios-sim", "aarch64"): "iphonesimulator",
     ("ios-sim", "x86_64"): "iphonesimulator",
 }
+HELPER_STATIC_LIB_NAME = "libcbcengine-helper.a"
 
 
 def run_command_args(command, cwd=None, env=None):
@@ -106,6 +107,7 @@ def prepare_cmake_options(args, project_dir):
     build_type     = f"-DCMAKE_BUILD_TYPE={args.build_type.capitalize()} "
     build_testing  = "ON" if args.run_tests else "OFF"
     build_int_syms = "ON" if args.enable_int_syms else "OFF"
+    build_static_helper = "ON" if getattr(args, "enable_static_helper", False) else "OFF"
     build_compiler_warnings = "ON" if args.compiler_warning else "OFF"
     build_sanitizers = "ON" if getattr(args, "sanitizers", False) else "OFF"
     build_coverage = "ON" if getattr(args, "coverage", False) else "OFF"
@@ -134,6 +136,7 @@ def prepare_cmake_options(args, project_dir):
             f"-DANDROID_PLATFORM={ANDROID_PLATFORM} "
             f"-DANDROID_ABI={ANDROID_ABI} "
             f"-DINT_SYMS={build_int_syms} "
+            f"-DSTATIC_HELPER={build_static_helper} "
             f"{sanitizers_option}"
             f"{coverage_option}"
         )
@@ -152,6 +155,7 @@ def prepare_cmake_options(args, project_dir):
             f"-DBUILD_TESTING={build_testing} "
             f"-DCMAKE_TOOLCHAIN_FILE={toolchain_path} "
             f"-DINT_SYMS={build_int_syms} "
+            f"-DSTATIC_HELPER={build_static_helper} "
             f"{sanitizers_option}"
             f"{coverage_option}"
         )
@@ -166,6 +170,7 @@ def prepare_cmake_options(args, project_dir):
         f"-DBUILD_TESTING={build_testing} "
         f"-DCMAKE_TOOLCHAIN_FILE={toolchain_path} "
         f"-DINT_SYMS={build_int_syms} "
+        f"-DSTATIC_HELPER={build_static_helper} "
         f"{sanitizers_option}"
         f"{coverage_option}"
     )
@@ -207,6 +212,9 @@ def build(args, project_dir, build_dir, generate_coverage_report=True):
     validate_target(args.target_os, args.target_arch)
     host_os = detect_host_os()
     host_arch = detect_host_arch()
+
+    if getattr(args, "enable_static_helper", False) and args.target_os not in ["ios", "ios-sim"]:
+        fail("--static-helper is supported only for iOS device and simulator builds")
 
     if args.coverage and not args.run_tests:
         fail("--coverage is only supported together with --run-tests")
@@ -304,6 +312,20 @@ def build_helper_lib(args, project_dir, build_dir):
     run_command_args(link_command, cwd=build_dir, env=env)
     print(f"Output: {output_path}")
 
+    if args.target_os in ["ios", "ios-sim"]:
+        static_output_path = build_path / HELPER_STATIC_LIB_NAME
+        static_link_command = [
+            str(cjc_path),
+            "--target",
+            target,
+            str(helper_cj_source),
+            "--output-type=staticlib",
+            "-o",
+            str(static_output_path),
+        ]
+        run_command_args(static_link_command, cwd=build_dir, env=env)
+        print(f"Output: {static_output_path}")
+
 
 def precommit(args, project_dir, build_root_dir):
     if args.coverage:
@@ -378,6 +400,10 @@ def main():
                               dest="enable_int_syms",
                               action="store_true",
                               help="Enable interpreter labels symbols(slight performance penalty)")
+    build_parser.add_argument("--static-helper",
+                              dest="enable_static_helper",
+                              action="store_true",
+                              help="Resolve helper symbols from the statically linked Apple application")
     build_parser.add_argument("--sanitizers",
                               action="store_true",
                               help="Enable asan+ubsan sanitizers (for unit test runs)")
