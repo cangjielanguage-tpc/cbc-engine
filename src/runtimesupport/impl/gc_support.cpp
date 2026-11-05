@@ -4,6 +4,7 @@
 #include "cjnative.h"
 #include "engine/statics_manager.h"
 #include "interpreter/ectype.h"
+#include "interpreter/frame.h"
 #include "interpreter/function_handle.h"
 #include "runtimesupport/runtime.h"
 #include "utils/logger.h"
@@ -72,7 +73,7 @@ void VisitGCFrameRoots(
 
     auto fuh    = *reinterpret_cast<DynamicFunctionHandle**>((uint8_t*)frame_desc.fp - FUH_SLOT_OFFSET);
     auto reader = reinterpret_cast<Decoder::ByteReader*>((uint8_t*)frame_desc.fp - READER_SLOT_OFFSET);
-    auto bc     = NOTNULL(fuh->bytecode.load());
+    auto bc     = NOTNULL(GetPinnedBytecode(frame_desc.fp));
 
     uint32_t curPos = reinterpret_cast<uintptr_t>(reader->Cursor()) - reinterpret_cast<uintptr_t>(bc->code.bytecode);
 

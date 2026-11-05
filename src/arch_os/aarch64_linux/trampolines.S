@@ -362,6 +362,8 @@ perform_2i_call:
 // +------------------------------------+>\ <-- FP
 // | FuH (x0)                           |  \
 // +------------------------------------+  |
+// | Pinned ExecBytecodeInfo            |  |
+// +------------------------------------+  |
 // | ECTYPE_REG                         |  |
 // +------------------------------------+  |
 // | LITERALS_REG                       |  |
@@ -379,12 +381,14 @@ perform_2i_call:
   stp   x29, x30, [sp, #-16]!
   mov   x29, sp
   // fp-0x8: FunctionHandle for frame scanning,
-  // fp-0x10: Ectype
-  // fp-0x18: Literals
-  // fp-0x20: Extra saved reg
-  // fp-0x28: Check sum (needed for debugging) TODO: support it for aarch64
+  // fp-0x10: Pinned ExecBytecodeInfo
+  // fp-0x18: Ectype
+  // fp-0x20: Literals
+  // fp-0x28: Extra saved reg
+  // fp-0x30: Check sum (needed for debugging) TODO: support it for aarch64
   sub   sp, sp, LOCAL_SLOTS_OFFSET
-  stp   ECTYPE_REG, x0,           [x29, #-ECTYPE_REG_SAVED_SLOT_OFFSET]
+  str   x0,                       [x29, #-FUH_SLOT_OFFSET]
+  str   ECTYPE_REG,               [x29, #-ECTYPE_REG_SAVED_SLOT_OFFSET]
   stp   EXTRA_REG,  LITERALS_REG, [x29, #-EXTRA_SAVED_REG_OFFSET]
   // FIXME: perform stack check here!
 
@@ -399,12 +403,14 @@ perform_2i_call:
   // Instead, we will return Thunk { function, arg } from C++ code to decide
   // how to continue execution further.
 
-  ldr   x9, [x0, #FUNCTION_HANDLE_BYTECODE_OFFSET]
+  add   x9, x0, #FUNCTION_HANDLE_BYTECODE_OFFSET
+  ldar  x9, [x9]
   cbnz  x9, .Lhave_bytecode
   // function handle is already on x0
   bl    engine_prepare_bytecode
   mov   x9, x0
 .Lhave_bytecode:
+  str   x9, [x29, #-PINNED_BYTECODE_SLOT_OFFSET]
 
   ldr   LITERALS_REG, [x9, #EXEC_BYTECODE_INFO_LITERALS_OFFSET]
   ldr   x1, [x9, #EXEC_BYTECODE_INFO_BYTECODE_OFFSET]
@@ -424,8 +430,7 @@ perform_2i_call:
   mov   x1, ECTYPE_REG
   bl    engine_log_int_start
 
-  ldr   x9, [x29, #-FUH_SLOT_OFFSET]
-  ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
+  ldr   x9, [x29, #-PINNED_BYTECODE_SLOT_OFFSET]
 #endif
 
 .Lcontinue_after_stack_expand:
@@ -482,8 +487,7 @@ perform_2i_call:
   bl    engine_log_int_end
 #endif
 
-  ldr   x9, [x29, #-FUH_SLOT_OFFSET] // load Function Handle
-  ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
+  ldr   x9, [x29, #-PINNED_BYTECODE_SLOT_OFFSET]
 
   ldr   w1, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   mov   x2, sp
@@ -536,8 +540,7 @@ engine_after_stack_grow:
   add   sp, sp, #STACK_OVERFLOW_REGDUMP_SIZE
 
   // Restore ExecBytecodeInfo
-  ldr   x9, [x29, #-FUH_SLOT_OFFSET]
-  ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
+  ldr   x9, [x29, #-PINNED_BYTECODE_SLOT_OFFSET]
 
   b     .Lcontinue_after_stack_expand
 
@@ -774,6 +777,7 @@ engine_handle_exception:
 
   ldr   x0, [x29, #-FUH_SLOT_OFFSET]
   sub   x1, x29, #READER_SLOT_OFFSET // reader
+  ldr   x2, [x29, #-PINNED_BYTECODE_SLOT_OFFSET]
   bl    engine_get_exception_handler
 
   mov   x12, EXTRA_REG // use x12 (volatile) as temporary exception holder
@@ -800,8 +804,7 @@ engine_handle_exception:
 
 .Lunwind_top_frame:
   // Restore spilled non-volatile regs before clearing the frame
-  ldr   x9, [x29, #-FUH_SLOT_OFFSET]
-  ldr   x9, [x9, #FUNCTION_HANDLE_BYTECODE_OFFSET]
+  ldr   x9, [x29, #-PINNED_BYTECODE_SLOT_OFFSET]
   ldr   w1, [x9, #EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   mov   x2, sp
   add   x1, x1, x2            // start of saved regs area

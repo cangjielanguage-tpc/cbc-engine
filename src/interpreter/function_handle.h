@@ -5,6 +5,7 @@
 #include <memory>
 #include <mutex>
 #include <variant>
+#include <vector>
 
 #include "code.h"
 #include "engine/engine.h"
@@ -55,7 +56,8 @@ struct DynamicFunctionHandle {
           c2call(c2call),
           bytecode(nullptr),
           lock(),
-          methodDef(methodDef)
+          methodDef(methodDef),
+          bytecodeVersions()
     {}
 
     // Can not use inheritance because of standard layout rules.
@@ -69,6 +71,9 @@ struct DynamicFunctionHandle {
     std::mutex lock;
 
     Image::Identifier<Image::MethodDefinition> const methodDef;
+
+    // Guarded by lock. Published versions stay alive for the lifetime of this handle.
+    std::vector<std::unique_ptr<ExecBytecodeInfo>> bytecodeVersions;
 };
 
 /// Represents AOT compiled function.
@@ -96,6 +101,15 @@ public:
 
     /// Performs lazy initialization of a DynamicFunctionHandle.
     ExecBytecodeInfo* Prepare(Engine::Session& session, DynamicFunctionHandle* fuh);
+
+    /// Rewrites the original CBC method and publishes a new behaviorally equivalent
+    /// bytecode version if the expected version is still current.
+    ExecBytecodeInfo* RebuildAndPublish(
+        Engine::Session& session,
+        DynamicFunctionHandle* fuh,
+        ExecBytecodeInfo* expectedBytecode,
+        uint64_t expectedVersion
+    );
 
     // Acquires a function pointer that could be invoked from compiled code
     // to invoke the method referenced by `fuh`.

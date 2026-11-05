@@ -400,6 +400,8 @@ perform_2i_call:
 // +------------------------------------+ <-- FP
 // | FuH (rdi)                          |
 // +------------------------------------+
+// | Pinned ExecBytecodeInfo            |
+// +------------------------------------+
 // | ECTYPE_REG                         |
 // +------------------------------------+
 // | LITERALS_REG                       |
@@ -416,11 +418,12 @@ perform_2i_call:
 // +------------------------------------+ <-- SP
   push  rbp
   mov   rbp, rsp
-  push  rdi          // rbp - 0x8 : FunctionHandle for frame scanning
-  push  ECTYPE_REG   // rbp - 0x10
-  push  LITERALS_REG // rbp - 0x18
-  push  EXTRA_REG    // rbp - 0x20
-  push  rdi          // rbp - 0x28 : check sum
+  push  rdi          // rbp - 0x08: FunctionHandle for frame scanning
+  push  rdi          // rbp - 0x10: reserved for pinned ExecBytecodeInfo
+  push  ECTYPE_REG   // rbp - 0x18
+  push  LITERALS_REG // rbp - 0x20
+  push  EXTRA_REG    // rbp - 0x28
+  push  rdi          // rbp - 0x30: check sum
 
   // reserve slots and align stack
   sub   rsp, LOCAL_SLOTS_OFFSET - CHECK_SUM_OFFSET
@@ -443,6 +446,7 @@ perform_2i_call:
   // function handle is already on rdi
   call  engine_prepare_bytecode
 .Lhave_bytecode:
+  mov   [rbp - PINNED_BYTECODE_SLOT_OFFSET], rax
 
   mov   LITERALS_REG, [rax + EXEC_BYTECODE_INFO_LITERALS_OFFSET]
   mov   rsi, [rax + EXEC_BYTECODE_INFO_BYTECODE_OFFSET]
@@ -464,8 +468,7 @@ perform_2i_call:
 #endif
 
 .Lcontinue_after_stack_expand: // just repeat stack overflow check again after stack expansion
-  mov   rax, [rbp - FUH_SLOT_OFFSET] // load Function Handle
-  mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
+  mov   rax, [rbp - PINNED_BYTECODE_SLOT_OFFSET]
 
   // current rsp is 16-byte aligned
   mov   r8d, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
@@ -520,8 +523,7 @@ perform_2i_call:
   call  engine_log_int_end
 #endif
 
-  mov   rax, [rbp - FUH_SLOT_OFFSET]
-  mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
+  mov   rax, [rbp - PINNED_BYTECODE_SLOT_OFFSET]
 
   mov   edx, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   mov   r8d, edx
@@ -785,6 +787,7 @@ engine_handle_exception:
 
   mov   rdi, QWORD PTR [rbp - FUH_SLOT_OFFSET]
   lea   rsi, QWORD PTR [rbp - READER_SLOT_OFFSET] // reader
+  mov   rdx, QWORD PTR [rbp - PINNED_BYTECODE_SLOT_OFFSET]
   call  engine_get_exception_handler
 
   lea   rcx, [rip + .Lexception_handlers]
@@ -810,8 +813,7 @@ engine_handle_exception:
 
 .Lunwind_top_frame:
   // Restore spilled non-volatile regs before clearing the frame
-  mov   rax, QWORD PTR [rbp - FUH_SLOT_OFFSET]
-  mov   rax, [rax + FUNCTION_HANDLE_BYTECODE_OFFSET]
+  mov   rax, QWORD PTR [rbp - PINNED_BYTECODE_SLOT_OFFSET]
   mov   edx, [rax + EXEC_BYTECODE_INFO_FRAME_SIZE_OFFSET]
   add   rdx, rsp // start of saved regs area
 

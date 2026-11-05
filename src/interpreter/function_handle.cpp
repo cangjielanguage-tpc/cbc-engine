@@ -1,4 +1,5 @@
 #include <atomic>
+#include <limits>
 #include <mutex>
 #include <new>
 #include <unordered_map>
@@ -131,13 +132,66 @@ ExecBytecodeInfo* FunctionHandleManager::Prepare(Session& session, DynamicFuncti
     auto& heap    = session.GetEngine().CodeHeap();
     auto bytecode = Cbc::Rewrite(session, fuh->methodDef, heap);
 
-    auto bc = new(std::nothrow) ExecBytecodeInfo(bytecode);
-    if (bc == nullptr) FATAL("Out of memory");
+    auto ownedBytecode = std::unique_ptr<ExecBytecodeInfo>(new(std::nothrow) ExecBytecodeInfo(bytecode));
+    if (ownedBytecode == nullptr) FATAL("Out of memory");
+    ownedBytecode->ownerFuh = fuh;
+    auto* bc = ownedBytecode.get();
 
-    // ensure `bc` content writes completes before publication.
-    std::atomic_thread_fence(std::memory_order_seq_cst);
-    fuh->bytecode.store(bc, std::memory_order_relaxed);
+    fuh->bytecodeVersions.emplace_back(std::move(ownedBytecode));
+    fuh->bytecode.store(bc);
     return bc;
+}
+
+namespace {
+
+bool CodeRangesOverlap(const ExecBytecodeInfo& lhs, const ExecBytecodeInfo& rhs)
+{
+    const auto lhsStart = reinterpret_cast<uintptr_t>(lhs.code.bytecode);
+    const auto rhsStart = reinterpret_cast<uintptr_t>(rhs.code.bytecode);
+    ASSERT(lhs.code.bytecodeSize <= std::numeric_limits<uintptr_t>::max() - lhsStart);
+    ASSERT(rhs.code.bytecodeSize <= std::numeric_limits<uintptr_t>::max() - rhsStart);
+    const auto lhsEnd = lhsStart + lhs.code.bytecodeSize;
+    const auto rhsEnd = rhsStart + rhs.code.bytecodeSize;
+    return lhsStart < rhsEnd && rhsStart < lhsEnd;
+}
+
+} // namespace
+
+ExecBytecodeInfo* FunctionHandleManager::RebuildAndPublish(
+    Session& session,
+    DynamicFunctionHandle* fuh,
+    ExecBytecodeInfo* expectedBytecode,
+    uint64_t expectedVersion
+)
+{
+    auto* snapshot = fuh->bytecode.load();
+    if (snapshot != expectedBytecode || snapshot->version != expectedVersion) {
+        return nullptr;
+    }
+    ASSERT(expectedVersion != std::numeric_limits<uint64_t>::max());
+
+    auto& heap = session.GetEngine().CodeHeap();
+    auto rebuilt = std::unique_ptr<ExecBytecodeInfo>(
+        new(std::nothrow) ExecBytecodeInfo(Cbc::Rewrite(session, fuh->methodDef, heap))
+    );
+    if (rebuilt == nullptr) FATAL("Out of memory");
+    rebuilt->version = expectedVersion + 1;
+    rebuilt->ownerFuh = fuh;
+
+    std::lock_guard guard(fuh->lock);
+    auto* current = fuh->bytecode.load();
+    if (current != expectedBytecode || current->version != expectedVersion) {
+        return nullptr;
+    }
+
+    for (const auto& version : fuh->bytecodeVersions) {
+        ASSERT(!CodeRangesOverlap(*version, *rebuilt));
+    }
+
+    auto* published = rebuilt.get();
+    fuh->bytecodeVersions.emplace_back(std::move(rebuilt));
+    fuh->bytecode.store(published);
+    return published;
 }
 
 void* FunctionHandleManager::GetFunctionPtrForDirectCall(TaggedFunctionHandle fuh)

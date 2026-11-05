@@ -8,7 +8,9 @@
 namespace EHSupport {
 
 extern "C" uint64_t engine_get_exception_handler(
-    Interpretation::DynamicFunctionHandle* handle, Decoder::ByteReader& reader
+    Interpretation::DynamicFunctionHandle* handle,
+    Decoder::ByteReader& reader,
+    Interpretation::ExecBytecodeInfo* bytecode
 );
 
 void FrameInfoProvider(DYN_InstructionPointer ip, DYN_FramePointer fp, INT_InterpretedFrameInfo* info);

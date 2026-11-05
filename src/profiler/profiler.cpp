@@ -107,6 +107,9 @@ private:
         return {
             reinterpret_cast<FunctionId>(request.callerFuh),
             ResolveFunctionName(session, *request.callerFuh),
+            reinterpret_cast<uintptr_t>(request.expectedBytecode),
+            reinterpret_cast<uintptr_t>(request.expectedBytecode->code.bytecode),
+            static_cast<uint32_t>(request.expectedBytecode->code.bytecodeSize),
             request.cbcCallSiteOffset,
             request.runtimeCallSiteOffset,
             reinterpret_cast<FunctionId>(request.calleeFuh),
@@ -120,7 +123,7 @@ private:
     std::optional<InlineRequest> ResolveCall(const CallEdge& edge, uint64_t count) const
     {
         auto* callerFuh = reinterpret_cast<Interpretation::DynamicFunctionHandle*>(edge.caller);
-        auto* bytecode  = callerFuh->bytecode.load(std::memory_order_acquire);
+        auto* bytecode  = callerFuh->bytecode.load();
         ASSERT(bytecode != nullptr);
 
         const auto bytecodeStart = reinterpret_cast<uintptr_t>(bytecode->code.bytecode);
@@ -177,20 +180,16 @@ private:
             }
         }
         LogProfilerPass(callsFoLog, recordedCallCount, scanTimeUs);
-        InlineCalls(callsForInline);
+        InlineCalls(session, callsForInline);
     }
 
-    void InlineCalls(const std::vector<InlineRequest>& calls)
+    void InlineCalls(Engine::Session& session, const std::vector<InlineRequest>& calls)
     {
+        auto& manager = Interpretation::FunctionHandleManager::Of(session);
         for (const auto& call : calls) {
-            std::lock_guard<std::mutex> lock(call.callerFuh->lock);
-
-            auto* currentBytecode = call.callerFuh->bytecode.load();
-            if (currentBytecode != call.expectedBytecode || currentBytecode->version != call.expectedVersion) {
-                continue;
-            }
-
-            ++currentBytecode->version;
+            manager.RebuildAndPublish(
+                session, call.callerFuh, call.expectedBytecode, call.expectedVersion
+            );
         }
     }
 
