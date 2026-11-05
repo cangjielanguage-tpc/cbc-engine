@@ -13,12 +13,12 @@ struct FiberProfileTestAccess {
 
     static void ConsumePublished(FiberProfile& profile)
     {
-        profile.ChangeReaderState(FiberProfile::ReaderState::INACTIVE, FiberProfile::ReaderState::ACTIVE);
+        std::lock_guard<std::mutex> lock(profile.bufferMutex);
 
-        const auto writerIndex = profile.sharedWriterIndex.load();
+        const auto writerIndex = profile.sharedWriterIndex;
         if (writerIndex != FiberProfile::NO_PUBLISHED_BUFFER) {
             const auto readerIndex = writerIndex ^ 1U;
-            assert(readerIndex != (profile.sharedWriterIndex.load(std::memory_order_relaxed) & 1U));
+            assert(readerIndex != (profile.sharedWriterIndex & 1U));
 
             for (uint32_t i = 0; i < FiberProfile::CALL_BUFFER_SIZE; ++i) {
                 const auto& record = profile.buffers[readerIndex].records[i];
@@ -27,7 +27,6 @@ struct FiberProfileTestAccess {
             }
         }
 
-        profile.ChangeReaderState(FiberProfile::ReaderState::ACTIVE, FiberProfile::ReaderState::INACTIVE);
     }
 };
 
