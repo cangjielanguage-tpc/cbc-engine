@@ -145,6 +145,49 @@ TEST_ASM(CbcTest, FibRecRegs)
     ASSERT_EQ(res.u32, 13);
 }
 
+// A frame buffer addressed the way the interpreter addresses frame slots:
+// frame.start points past the last slot, every slot sits at a negative
+// offset (see CbcTest.FibRec).
+struct TestFrame {
+    static constexpr auto stackSlotCount = 100;
+
+    uint64_t slots[stackSlotCount];
+    Interpretation::Frame frame;
+
+    TestFrame() : frame { reinterpret_cast<uintptr_t>(slots + stackSlotCount) } {}
+};
+
+TEST_ASM(CbcTest, TypedSlotRoundTrip)
+{
+    TestFrame f;
+    {
+        auto code = OpenAndRewrite("test_typed_i64", "./generated-asm/frame-slots/typed_i64.asm")->code;
+        auto res  = Interpret(code, f.frame, U64(0x2a), U64(0));
+        ASSERT_EQ(res.u64, 0x2a);
+    }
+    {
+        auto code = OpenAndRewrite("test_typed_f64", "./generated-asm/frame-slots/typed_f64.asm")->code;
+        auto res  = InterpretFPRes(code, f.frame, F64(2.5), F64(0));
+        ASSERT_EQ(res.u64, F64(2.5).u64);
+    }
+}
+
+TEST_ASM(CbcTest, TypedSlotTwoSlots)
+{
+    TestFrame f;
+    auto code = OpenAndRewrite("test_typed_two", "./generated-asm/frame-slots/typed_two.asm")->code;
+    auto res  = Interpret(code, f.frame, U64(3), U64(4));
+    ASSERT_EQ(res.u64, 7);
+}
+
+TEST_ASM(CbcTest, TypedSlotStackRec)
+{
+    TestFrame f;
+    auto code = OpenAndRewrite("test_stack_rec", "./generated-asm/frame-slots/stack_rec.asm")->code;
+    auto res  = Interpret(code, f.frame, U64(0x2a), U64(0));
+    ASSERT_EQ(res.u64, 0x2a);
+}
+
 TEST_ASM(CbcTest, DirectCall)
 {
     auto res = Interpret(OpenAndRewrite("main", "direct-call.asm")->code, U32(0), U32(10));

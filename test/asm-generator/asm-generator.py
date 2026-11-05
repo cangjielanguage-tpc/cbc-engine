@@ -107,11 +107,14 @@ class Method:
     ret: AsmType
     body: tuple[str, ...]
     params: tuple[AsmType, ...] = ()
+    directives: tuple[str, ...] = ()
 
     def render(self) -> str:
         lines = "\n".join(f"      {line}" for line in self.body)
         params = ", ".join(self.params)
+        directives = "".join(f"    {d}\n" for d in self.directives)
         return (f"  @method {self.name}({params}){self.ret}\n"
+                f"{directives}"
                 f"    @code\n{lines}\n"
                 f"    @end\n  @end")
 
@@ -123,6 +126,14 @@ def asm_file(methods: list[Method]) -> str:
     return ASM_FILE_HEADER + "\n\n".join(m.render() for m in methods) + "\n@end\n"
 
 
+def asm_file_with_preamble(preamble: str, methods: list[Method]) -> str:
+    """A file whose header carries extra top-level definitions (field refs,
+    record type declarations) before the `@type default` method block."""
+    return '@main_type "default"\n' + preamble + '\n@type default\n\n' + "\n\n".join(
+        m.render() for m in methods
+    ) + "\n@end\n"
+
+
 class MethodBuilder:
 
     def __init__(self, name: str, ret: AsmType, params: tuple[AsmType, ...] = (),
@@ -131,7 +142,14 @@ class MethodBuilder:
         self._ret = ret
         self._params = params
         self._lines: list[str] = []
+        self._directives: list[str] = []
         self._default_w = default_w
+
+    def directive(self, text: str) -> "MethodBuilder":
+        """Adds a method-level directive line rendered between the
+        `@method` header and `@code` (e.g. `@typed_slots ...`)."""
+        self._directives.append(text)
+        return self
 
     def live(self, *regs: str) -> "MethodBuilder":
         self._lines.append(live(*regs))
@@ -145,10 +163,17 @@ class MethodBuilder:
         self._lines.append(instr(mnemonic, *operands, w=w, suffixes=suffixes))
         return self
 
+    def plain(self, mnemonic: str, *operands: object) -> "MethodBuilder":
+        """Appends a line without the default width suffix: mnemonics that
+        encode the width in the register kind (ld.typed/st.typed.f) and
+        analyzer directives (@dead)."""
+        self._lines.append(instr(mnemonic, *operands, w=None))
+        return self
+
     def _close(self, mnemonic: str, reg: str) -> Method:
         w = int(self._ret[1:])
         return Method(self._name, self._ret, tuple(self._lines) + (instr(mnemonic, reg, w=w),),
-                      self._params)
+                      self._params, tuple(self._directives))
 
     def ret(self, reg: str = IR1) -> Method:
         return self._close("ret", reg)
@@ -448,6 +473,97 @@ def generate_arith_specialized() -> list[Path]:
     )
 
 
+# frame-slots: typed frame slots (ld.typed/st.typed(.f), ld.stack.rec)
+# ---------------------------------------------------------------------------
+
+# One record type serves all the cases: `x` is its 8-byte field at offset 0,
+# `f` is the 8-byte float field at offset 8.
+FRAME_SLOTS_PREAMBLE = """
+@field_ref rec_x = default:Rec@rec x I64
+@field_ref rec_f = default:Rec@rec f F64
+
+@type default:Rec
+  @flags PUBLIC RECORD
+  @field x I64
+    @flags PUBLIC
+  @end
+  @field f F64
+    @flags PUBLIC
+  @end
+@end
+"""
+
+REC_TYPE = "default:Rec@rec"
+
+
+def typed_i64_method() -> Method:
+    """Round-trips the I64 param through field `x` of the typed slot 0."""
+    return (
+        method("test_typed_i64", I64, params=(I64,), default_w=64)
+        .directive(f"@typed_slots {REC_TYPE}")
+        .live(IR1)
+        .plain("st.typed", IR1, "$0", "#rec_x")
+        .plain("@dead", IR1)
+        .plain("ld.typed", IR1, "$0", "#rec_x")
+        .ret()
+    )
+
+
+def typed_f64_method() -> Method:
+    """Round-trips the F64 param through field `f` of the typed slot 0.
+    Float registers need no live/dead markers (see the float-arith suite)."""
+    return (
+        method("test_typed_f64", F64, params=(F64,), default_w=64)
+        .directive(f"@typed_slots {REC_TYPE}")
+        .plain("st.typed.f", FR0, "$0", "#rec_f")
+        .plain("ld.typed.f", FR0, "$0", "#rec_f")
+        .fret()
+    )
+
+
+def typed_two_slots_method() -> Method:
+    """Round-trips both I64 params through field `x` of typed slots 0 and 1."""
+    return (
+        method("test_typed_two", I64, params=(I64, I64), default_w=64)
+        .directive(f"@typed_slots {REC_TYPE}, {REC_TYPE}")
+        .live(IR1, "IR2")
+        .plain("st.typed", IR1, "$0", "#rec_x")
+        .plain("st.typed", "IR2", "$1", "#rec_x")
+        .plain("@dead", f"{IR1}, IR2")
+        .plain("ld.typed", IR1, "$0", "#rec_x")
+        .plain("ld.typed", "IR2", "$1", "#rec_x")
+        .instr("add", IR1, IR1, "IR2")
+        .ret()
+    )
+
+
+def stack_rec_method() -> Method:
+    """Loads the address of typed slot 0 with ld.stack.rec and accesses the
+    record through it via plain field ops."""
+    return (
+        method("test_stack_rec", I64, params=(I64,), default_w=64)
+        .directive(f"@typed_slots {REC_TYPE}")
+        .live(IR1)
+        .plain("ld.stack.rec", "IR2", "$0")
+        .plain("st.field", IR1, "IR2", "#rec_x")
+        .plain("@dead", IR1)
+        .plain("ld.field", IR1, "IR2", "#rec_x")
+        .ret()
+    )
+
+
+def generate_frame_slots() -> list[Path]:
+    return write_suite(
+        "frame-slots",
+        {
+            "typed_i64.asm": asm_file_with_preamble(FRAME_SLOTS_PREAMBLE, [typed_i64_method()]),
+            "typed_f64.asm": asm_file_with_preamble(FRAME_SLOTS_PREAMBLE, [typed_f64_method()]),
+            "typed_two.asm": asm_file_with_preamble(FRAME_SLOTS_PREAMBLE, [typed_two_slots_method()]),
+            "stack_rec.asm": asm_file_with_preamble(FRAME_SLOTS_PREAMBLE, [stack_rec_method()]),
+        },
+    )
+
+
 # ---------------------------------------------------------------------------
 
 GENERATORS = {
@@ -456,6 +572,7 @@ GENERATORS = {
     "cast"             : generate_cast,
     "bfx"              : generate_bfx,
     "arith-specialized": generate_arith_specialized,
+    "frame-slots"      : generate_frame_slots,
 }
 
 

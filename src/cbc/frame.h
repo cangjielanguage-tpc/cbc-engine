@@ -14,7 +14,10 @@ struct FrameLayout {
     Utils::Vector<uint32_t> refOffsets;
     uint32_t frameSize;
 
-    int32_t UntypedSlotOffset(uint16_t us) const { return static_cast<int32_t>(us * STACK_SLOT_SIZE - frameSize); }
+    int32_t UntypedSlotOffset(uint16_t us) const
+    {
+        return static_cast<int32_t>(static_cast<int64_t>(us) * STACK_SLOT_SIZE - static_cast<int64_t>(frameSize));
+    }
 };
 
 } // namespace Cbc
